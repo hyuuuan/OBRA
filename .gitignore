@@ -1,0 +1,11 @@
+# Large / re-downloadable data
+model/data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Godot
+.godot/
