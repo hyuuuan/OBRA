@@ -11,9 +11,11 @@
       "movement_type": "swim",
       "scene_path": "res://creatures/fish.tscn",
       "rig_profile": "res://config/rigs/fish.json",
-      "deform_strategy": "spline",
-      "evaluation_labels": ["fish"],
-      "enabled": true
+      "evaluation_labels": [
+        "fish"
+      ],
+      "enabled": true,
+      "rig_type": "swimmer"
     },
     {
       "id": "frog",
@@ -24,9 +26,11 @@
       "movement_type": "hop",
       "scene_path": "res://creatures/frog.tscn",
       "rig_profile": "res://config/rigs/frog.json",
-      "deform_strategy": "squash",
-      "evaluation_labels": ["frog"],
-      "enabled": true
+      "evaluation_labels": [
+        "frog"
+      ],
+      "enabled": true,
+      "rig_type": "hopper"
     },
     {
       "id": "spider",
@@ -37,9 +41,11 @@
       "movement_type": "climb",
       "scene_path": "res://creatures/spider.tscn",
       "rig_profile": "res://config/rigs/spider.json",
-      "deform_strategy": "limb_template",
-      "evaluation_labels": ["spider"],
-      "enabled": true
+      "evaluation_labels": [
+        "spider"
+      ],
+      "enabled": true,
+      "rig_type": "walker"
     },
     {
       "id": "bird",
@@ -50,9 +56,13 @@
       "movement_type": "fly",
       "scene_path": "res://creatures/bird.tscn",
       "rig_profile": "res://config/rigs/bird.json",
-      "deform_strategy": "flap",
-      "evaluation_labels": ["bird", "flying bird", "standing bird"],
-      "enabled": true
+      "evaluation_labels": [
+        "bird",
+        "flying bird",
+        "standing bird"
+      ],
+      "enabled": true,
+      "rig_type": "flier"
     },
     {
       "id": "humanoid",
@@ -63,9 +73,9 @@
       "movement_type": "platform",
       "scene_path": "res://creatures/humanoid.tscn",
       "rig_profile": "res://config/rigs/humanoid.json",
-      "deform_strategy": "limb_template",
       "evaluation_labels": [],
-      "enabled": true
+      "enabled": true,
+      "rig_type": "biped"
     },
     {
       "id": "dummy_static_object",
@@ -76,9 +86,9 @@
       "movement_type": "static",
       "scene_path": "res://creatures/dummy_static_object.tscn",
       "rig_profile": "res://config/rigs/static_object.json",
-      "deform_strategy": "none",
       "evaluation_labels": [],
-      "enabled": false
+      "enabled": false,
+      "rig_type": "none"
     }
   ]
 }

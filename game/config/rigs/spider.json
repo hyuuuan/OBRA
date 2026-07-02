@@ -1,27 +1,14 @@
 {
   "id": "spider",
-  "deform_strategy": "limb_template",
-  "target_size": [116, 76],
-  "pivot": [0.5, 0.55],
-  "idle_bob": 0.8,
-  "idle_frequency": 1.6,
-  "walk_bob": 3.0,
-  "walk_frequency": 8.5,
-  "walk_squash": 0.05,
-  "climb_bob": 2.5,
-  "climb_frequency": 7.5,
-  "tilt_degrees": 4.0,
-  "limb_overlay_alpha": 0.35,
-  "limb_width": 4.0,
-  "limb_swing": 22.0,
-  "limbs": [
-    {"from": [0.38, 0.43], "to": [0.10, 0.24], "axis": [0.0, 1.0], "phase": 0.0},
-    {"from": [0.38, 0.50], "to": [0.08, 0.42], "axis": [0.0, 1.0], "phase": 1.6},
-    {"from": [0.38, 0.57], "to": [0.08, 0.64], "axis": [0.0, 1.0], "phase": 3.2},
-    {"from": [0.38, 0.64], "to": [0.12, 0.84], "axis": [0.0, 1.0], "phase": 4.8},
-    {"from": [0.62, 0.43], "to": [0.90, 0.24], "axis": [0.0, -1.0], "phase": 3.2},
-    {"from": [0.62, 0.50], "to": [0.92, 0.42], "axis": [0.0, -1.0], "phase": 4.8},
-    {"from": [0.62, 0.57], "to": [0.92, 0.64], "axis": [0.0, -1.0], "phase": 0.0},
-    {"from": [0.62, 0.64], "to": [0.88, 0.84], "axis": [0.0, -1.0], "phase": 1.6}
-  ]
+  "rig_type": "walker",
+  "target_size": [116, 72],
+  "align": "bottom",
+  "ground_offset": 35,
+  "stride_length": 42,
+  "leg_swing_degrees": 15,
+  "leg_phase_ripple": 0.35,
+  "walk_bob": 2.2,
+  "air_splay_degrees": 10,
+  "tilt_degrees": 3.0,
+  "landing_squash": 0.14
 }

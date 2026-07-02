@@ -28,19 +28,25 @@ To add a future animal or object:
 4. Create the scene named by `scene_path`.
 5. Run `python3 model/download_data.py`, retrain, and copy/export the new ONNX files.
 
-Playable entries should expose an `apply_drawing(drawing: Image)` method. The provided
-controllers inherit that from `scripts/playable_entity.gd`.
+Playable entries should expose an `apply_drawing(drawing: Image, strokes: Array)`
+method. The provided controllers inherit that from `scripts/playable_entity.gd`.
 
 Animation metadata is optional but recommended for playable entities:
 
 - `rig_profile`: points to a JSON profile in `config/rigs/`.
-- `deform_strategy`: one of `spline`, `squash`, `flap`, `limb_template`, or `none`.
-- Missing profiles fall back to the old simple drawing-as-sprite behavior.
+- `rig_type`: one of `walker`, `biped`, `flier`, `swimmer`, `hopper`, or `none`.
+- Missing stroke data falls back to the simple drawing-as-sprite behavior.
 
-The runtime rig keeps the player's original drawing as the visible texture, crops
-transparent paper around it, and applies class-specific procedural motion locally in
-Godot. The backend still only classifies sketches; it does not generate animation
-frames.
+The runtime rig (`scripts/runtime_rig_2d.gd`) animates the player's actual drawn
+strokes — no template limbs are added. The drawing canvas hands the raw stroke
+polylines to the spawned entity, which resolves a skeleton from them: the most
+connected stroke cluster becomes the body, every open stroke touching it becomes a
+limb pivoting at the exact contact point, a stroke drawn across the body splits into
+two limbs at the crossing, and strokes touching a limb chain onto it. All motion is
+driven by real movement — gait phase advances with distance traveled, wings beat on
+flap impulses, the swim wave scales with speed — and every pose eases back to the
+drawn rest pose when movement stops. The backend still only classifies sketches; it
+does not generate animation frames.
 
 ## Controls
 
@@ -53,8 +59,9 @@ frames.
 - `draw_screen.tscn`: drawing canvas, backend request, confidence/margin handling
 - `game_level.tscn`: manifest-backed spawn point and simple floor/walls
 - `creatures/*.tscn`: playable bodies with `DrawingSkin` runtime rig nodes
-- `config/rigs/*.json`: per-entity procedural animation profiles
+- `config/rigs/*.json`: per-entity gait/animation profiles (stride, swing angles,
+  squash amounts, ground offset)
 
-Phase 2 intentionally uses Godot-native procedural deformation first. Skeleton2D,
-Polygon2D, or model-assisted joint detection should come after the five entity
-controllers feel reliable and readable.
+Phase 2 resolves joints heuristically from the drawn strokes and animates them with
+Godot-native transforms. Skeleton2D/Polygon2D mesh skinning or model-assisted joint
+detection can layer on later without changing the stroke pipeline.

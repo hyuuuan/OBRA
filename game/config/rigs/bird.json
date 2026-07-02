@@ -1,13 +1,14 @@
 {
   "id": "bird",
-  "deform_strategy": "flap",
-  "target_size": [124, 82],
-  "pivot": [0.5, 0.52],
-  "idle_bob": 2.0,
-  "idle_frequency": 1.5,
-  "flap_squash": 0.16,
-  "flap_lift": 6.0,
-  "flap_frequency": 9.0,
-  "glide_stretch": 0.08,
+  "rig_type": "flier",
+  "target_size": [118, 74],
+  "align": "bottom",
+  "ground_offset": 38,
+  "wing_flap_degrees": 34,
+  "flap_cycle_hz": 6.5,
+  "flap_squash": 0.13,
+  "flap_lift": 5.5,
+  "glide_raise_degrees": 12,
+  "dive_pitch_degrees": 6.0,
   "tilt_degrees": 8.0
 }

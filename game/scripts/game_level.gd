@@ -21,7 +21,7 @@ func _ready() -> void:
 	add_child(player)
 	player.global_position = spawn_point.global_position
 	if GameState.pending_drawing != null and player.has_method("apply_drawing"):
-		player.apply_drawing(GameState.pending_drawing)
+		player.apply_drawing(GameState.pending_drawing, GameState.pending_strokes)
 
 	var label := GameState.pending_display_name
 	status_label.text = label if not label.is_empty() else entity_id.capitalize()

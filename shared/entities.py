@@ -15,7 +15,15 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MANIFEST_PATH = REPO_ROOT / "game" / "config" / "entities.json"
 ALLOWED_SPAWN_MODES = {"playable", "pickup", "obstacle", "static"}
-ALLOWED_DEFORM_STRATEGIES = {"spline", "squash", "flap", "limb_template", "none"}
+ALLOWED_RIG_TYPES = {"walker", "biped", "flier", "swimmer", "hopper", "none"}
+# Older manifests used deform_strategy; map those onto the rig types.
+LEGACY_STRATEGY_TO_RIG_TYPE = {
+    "spline": "swimmer",
+    "squash": "hopper",
+    "flap": "flier",
+    "limb_template": "walker",
+    "none": "none",
+}
 
 
 @dataclass(frozen=True)
@@ -29,7 +37,7 @@ class EntityDefinition:
     scene_path: str
     evaluation_labels: tuple[str, ...]
     rig_profile: str | None = None
-    deform_strategy: str | None = None
+    rig_type: str | None = None
     enabled: bool = True
 
     @classmethod
@@ -60,7 +68,7 @@ class EntityDefinition:
             scene_path=_non_empty_string(raw, "scene_path"),
             evaluation_labels=tuple(str(label) for label in raw.get("evaluation_labels", [])),
             rig_profile=_optional_non_empty_string(raw, "rig_profile"),
-            deform_strategy=_optional_non_empty_string(raw, "deform_strategy"),
+            rig_type=_resolve_rig_type(raw),
             enabled=bool(raw.get("enabled", True)),
         )
 
@@ -78,7 +86,7 @@ class EntityDefinition:
             "movement_type": self.movement_type,
             "scene_path": self.scene_path,
             "rig_profile": self.rig_profile,
-            "deform_strategy": self.deform_strategy,
+            "rig_type": self.rig_type,
             "enabled": self.enabled,
         }
 
@@ -161,13 +169,10 @@ def _validate_entities(
                 f"expected one of {sorted(ALLOWED_SPAWN_MODES)}"
             )
 
-        if (
-            entity.deform_strategy is not None
-            and entity.deform_strategy not in ALLOWED_DEFORM_STRATEGIES
-        ):
+        if entity.rig_type is not None and entity.rig_type not in ALLOWED_RIG_TYPES:
             raise ValueError(
-                f"{entity.id} has invalid deform_strategy {entity.deform_strategy!r}; "
-                f"expected one of {sorted(ALLOWED_DEFORM_STRATEGIES)}"
+                f"{entity.id} has invalid rig_type {entity.rig_type!r}; "
+                f"expected one of {sorted(ALLOWED_RIG_TYPES)}"
             )
 
         if entity.enabled:
@@ -197,6 +202,16 @@ def _non_empty_string(raw: dict[str, Any], key: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{key} must be a non-empty string")
     return value.strip()
+
+
+def _resolve_rig_type(raw: dict[str, Any]) -> str | None:
+    rig_type = _optional_non_empty_string(raw, "rig_type")
+    if rig_type is not None:
+        return rig_type
+    legacy = _optional_non_empty_string(raw, "deform_strategy")
+    if legacy is None:
+        return None
+    return LEGACY_STRATEGY_TO_RIG_TYPE.get(legacy, legacy)
 
 
 def _optional_non_empty_string(raw: dict[str, Any], key: str) -> str | None:

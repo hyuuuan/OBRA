@@ -65,15 +65,19 @@ uvicorn main:app --reload --port 8000
 
 The prediction response includes `entity`, `display_name`, `source_label`,
 `confidence`, `margin`, `runner_up`, `probabilities`, `rig_profile`,
-`deform_strategy`, and the legacy `creature` alias.
+`rig_type`, and the legacy `creature` alias.
 
 ## Runtime Rigging
 
 Phase 2 keeps animation local to Godot. The backend still classifies the drawing;
-the spawned entity then crops the original canvas image, preserves it as the visible
-texture, and applies the class-specific procedural rig profile. Fish use segmented
-spline motion, frogs use squash/stretch, birds flap/glide, and spider/humanoid
-controllers report movement states into a reusable runtime rig node.
+the game hands the drawn stroke polylines to the spawned entity, which resolves a
+skeleton from the actual ink: the most connected stroke cluster becomes the body and
+each stroke touching it becomes a limb pivoting where it meets the body (strokes
+drawn across the body split into two limbs at the crossing). Movement drives all
+animation — spiders and humanoids step with distance traveled, birds beat their
+drawn wings on flap impulses and hold them while gliding, fish run a speed-scaled
+traveling wave through their stroke vertices, frogs crouch/extend on hop events —
+and every limb eases back to its drawn rest pose when movement stops.
 
 ## Cross-Dataset Evaluation
 

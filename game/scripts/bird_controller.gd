@@ -26,6 +26,8 @@ func _physics_process(delta: float) -> void:
 		state = "flap"
 	elif Input.is_action_pressed("jump") and velocity.y >= glide_fall_speed:
 		state = "glide"
+	elif is_on_floor():
+		state = "walk" if absf(horizontal) > 0.05 else "idle"
 	elif absf(horizontal) > 0.05:
 		state = "fly"
 

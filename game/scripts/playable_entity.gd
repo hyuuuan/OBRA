@@ -13,8 +13,8 @@ var rig_profile: Dictionary = {}
 func configure_entity(entry: Dictionary) -> void:
 	entity_metadata = entry.duplicate(true)
 	rig_profile = _load_rig_profile(String(entry.get("rig_profile", "")))
-	if not rig_profile.has("deform_strategy"):
-		rig_profile["deform_strategy"] = String(entry.get("deform_strategy", "none"))
+	if not rig_profile.has("rig_type"):
+		rig_profile["rig_type"] = String(entry.get("rig_type", "none"))
 
 	var skin := _get_skin()
 	if skin != null:
@@ -24,10 +24,10 @@ func configure_entity(entry: Dictionary) -> void:
 			skin.configure_skin(rig_profile, entity_metadata)
 
 
-func apply_drawing(drawing: Image) -> void:
+func apply_drawing(drawing: Image, strokes: Array = []) -> void:
 	var skin := _get_skin()
 	if skin != null and skin.has_method("apply_drawing"):
-		skin.apply_drawing(drawing)
+		skin.apply_drawing(drawing, strokes)
 		return
 
 	var sprite := _get_body_sprite()

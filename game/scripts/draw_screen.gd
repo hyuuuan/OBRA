@@ -8,13 +8,23 @@ extends Control
 @onready var client: Node = $SketchClient
 
 
+var _pending_strokes: Array = []
+
+
 func _ready() -> void:
 	client.canvas_viewport = canvas_viewport
-	transform_button.pressed.connect(client.send_drawing)
+	transform_button.pressed.connect(_on_transform_pressed)
 	clear_button.pressed.connect(canvas.clear_canvas)
 	client.entity_prediction_received.connect(_on_entity_prediction)
 	client.prediction_failed.connect(_on_prediction_failed)
 	status.text = "Ready"
+
+
+func _on_transform_pressed() -> void:
+	# Capture the stroke vectors alongside the rasterized image so the rig can
+	# animate the actual drawn lines.
+	_pending_strokes = canvas.get_strokes()
+	client.send_drawing()
 
 
 func _on_entity_prediction(
@@ -25,7 +35,7 @@ func _on_entity_prediction(
 	response: Dictionary
 ) -> void:
 	status.text = "%s %.0f%%" % [display_name, confidence * 100.0]
-	GameState.set_pending_prediction(entity, display_name, drawing, response)
+	GameState.set_pending_prediction(entity, display_name, drawing, response, _pending_strokes)
 	get_tree().change_scene_to_file("res://game_level.tscn")
 
 

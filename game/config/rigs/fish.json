@@ -1,15 +1,9 @@
 {
   "id": "fish",
-  "deform_strategy": "spline",
-  "target_size": [132, 76],
-  "pivot": [0.5, 0.5],
-  "segments": 7,
-  "idle_bob": 1.5,
-  "idle_frequency": 1.4,
-  "spline_amplitude": 7.0,
-  "spline_rotation_degrees": 7.5,
-  "spline_frequency": 5.8,
-  "spline_phase_step": 0.75,
-  "speed_amplitude_bonus": 1.2,
-  "turn_tilt_degrees": 4.0
+  "rig_type": "swimmer",
+  "target_size": [126, 76],
+  "align": "center",
+  "wave_length": 70,
+  "wave_amplitude": 6.5,
+  "head_direction": [-1, 0]
 }

@@ -34,3 +34,17 @@ func clear_canvas() -> void:
 	for child in get_children():
 		if child is Line2D:
 			child.queue_free()
+
+
+## Returns the drawn strokes as raw polylines so the rig can animate the
+## player's actual ink instead of a flattened bitmap.
+func get_strokes() -> Array:
+	var strokes: Array = []
+	for child in get_children():
+		if child is Line2D and child.get_point_count() > 0:
+			strokes.append({
+				"points": child.points.duplicate(),
+				"width": child.width,
+				"color": child.default_color
+			})
+	return strokes

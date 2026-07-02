@@ -17,6 +17,7 @@ func _physics_process(delta: float) -> void:
 	velocity = velocity.move_toward(input_vector * swim_speed, acceleration * delta)
 	if velocity.length() > 5.0:
 		rotation = lerp_angle(rotation, velocity.angle(), turn_speed * delta)
+	_update_skin_flip()
 
 	var speed_ratio := clampf(velocity.length() / swim_speed, 0.0, 1.0)
 	set_rig_state(
@@ -28,3 +29,12 @@ func _physics_process(delta: float) -> void:
 		}
 	)
 	move_and_slide()
+
+
+## Mirror the drawing vertically when facing left so the fish is never
+## rendered upside down while the body rotates toward its heading.
+func _update_skin_flip() -> void:
+	var skin := _get_skin() as Node2D
+	if skin == null:
+		return
+	skin.scale.y = -1.0 if absf(wrapf(rotation, -PI, PI)) > PI * 0.5 else 1.0
