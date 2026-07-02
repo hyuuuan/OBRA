@@ -4,7 +4,7 @@
   "target_size": [118, 74],
   "align": "bottom",
   "ground_offset": 38,
-  "wing_flap_degrees": 34,
+  "wing_flap_degrees": 42,
   "flap_cycle_hz": 6.5,
   "flap_squash": 0.13,
   "flap_lift": 5.5,

@@ -207,8 +207,12 @@ func _resolve_skeleton(strokes: Array) -> Dictionary:
 	in_body[root] = true
 
 	# A biped's torso is a single stroke hanging from the head with limbs
-	# attached along it, so one junction already marks it as structural.
+	# attached along it, so one junction already marks it as structural, and
+	# sloppy gaps between torso and limbs are common — count junctions more
+	# generously. Walkers keep a tight junction radius so legs drawn close
+	# together never absorb each other.
 	var junction_threshold := 1 if _rig_type == "biped" else 2
+	var junction_radius := radius * (1.5 if _rig_type == "biped" else 0.5)
 
 	var changed := true
 	while changed:
@@ -224,56 +228,77 @@ func _resolve_skeleton(strokes: Array) -> Dictionary:
 			if is_closed[index] and _min_gap_to_body(points, strokes, in_body) < radius:
 				absorb = true # closed shape touching the body (head, body scribble)
 			elif gap_start < radius and gap_end < radius:
-				absorb = true # both ends anchored (mouth line, structural stroke)
+				# Both ends anchored (mouth line, structural stroke) — except a
+				# flier's wing, drawn as an arc that leaves and rejoins the
+				# body outline: that must stay a flappable limb.
+				var wing_arc: bool = _rig_type == "flier" and not is_closed[index] \
+					and _max_gap_to_body(points, strokes, in_body) > radius * 1.5
+				absorb = not wing_arc
 			elif _containment_ratio(points, body_box) > 0.8:
 				absorb = true # floating mark inside the body (eyes, patterns)
 			elif minf(gap_start, gap_end) < radius \
-					and _junction_count(index, strokes, radius * 0.5, gap_start <= gap_end) >= junction_threshold:
-				# Structural member other strokes hang off (torso). The tighter
-				# radius means an actual touch/cross, not two limbs drawn close.
+					and _junction_count(
+						index, strokes, in_body, junction_radius, radius * 0.6,
+						gap_start <= gap_end, radius * 1.5
+					) >= junction_threshold:
+				# Structural member other strokes hang off (torso).
 				absorb = true
 			if absorb:
 				in_body[index] = true
 				changed = true
 
-	# Everything left is limb material.
+	# Everything left is limb material. Strict pass first (strokes actually
+	# touching the body), then a soft pass so limbs drawn with sloppy gaps
+	# still get a joint instead of riding rigidly with the body.
 	var limbs: Array = []
-	var pending: Array = []
+	var soft_radius := radius * 2.5
+	var work: Array = []
 	for index in range(count):
-		if in_body[index]:
-			continue
-		var points: PackedVector2Array = strokes[index]["points"]
-		var gap_start := _gap_to_body(points[0], strokes, in_body)
-		var gap_end := _gap_to_body(points[points.size() - 1], strokes, in_body)
-		if minf(gap_start, gap_end) < radius:
-			var joint := points[0] if gap_start <= gap_end else points[points.size() - 1]
-			var ordered := points.duplicate()
-			if gap_end < gap_start:
-				ordered.reverse()
-			limbs.append(_new_limb_record(strokes[index], ordered, joint))
-			continue
+		if not in_body[index]:
+			work.append(index)
 
-		# One line drawn across the body: split it into two limbs at the
-		# point closest to the body.
-		var best_interior := -1
-		var best_gap := radius
-		for point_index in range(1, points.size() - 1):
-			var gap := _gap_to_body(points[point_index], strokes, in_body)
-			if gap < best_gap:
-				best_gap = gap
-				best_interior = point_index
-		if best_interior != -1:
-			var joint := points[best_interior]
-			var first := points.slice(0, best_interior + 1)
-			first.reverse()
-			var second := points.slice(best_interior)
-			if _polyline_length(first) > radius:
-				limbs.append(_new_limb_record(strokes[index], first, joint))
-			if _polyline_length(second) > radius:
-				limbs.append(_new_limb_record(strokes[index], second, joint))
-			continue
+	for threshold: float in [radius, soft_radius]:
+		var deferred: Array = []
+		for index: int in work:
+			# Only strokes long enough to read as limbs may bridge a gap;
+			# short marks (eyes, dots) stay decorations.
+			if threshold > radius and float(lengths[index]) <= radius * 2.0:
+				deferred.append(index)
+				continue
+			var points: PackedVector2Array = strokes[index]["points"]
+			var gap_start := _gap_to_body(points[0], strokes, in_body)
+			var gap_end := _gap_to_body(points[points.size() - 1], strokes, in_body)
+			if minf(gap_start, gap_end) < threshold:
+				var joint := points[0] if gap_start <= gap_end else points[points.size() - 1]
+				var ordered := points.duplicate()
+				if gap_end < gap_start:
+					ordered.reverse()
+				limbs.append(_new_limb_record(strokes[index], ordered, joint))
+				continue
 
-		pending.append(index)
+			# One line drawn across the body: split it into two limbs at the
+			# point closest to the body.
+			var best_interior := -1
+			var best_gap := threshold
+			for point_index in range(1, points.size() - 1):
+				var gap := _gap_to_body(points[point_index], strokes, in_body)
+				if gap < best_gap:
+					best_gap = gap
+					best_interior = point_index
+			if best_interior != -1:
+				var joint := points[best_interior]
+				var first := points.slice(0, best_interior + 1)
+				first.reverse()
+				var second := points.slice(best_interior)
+				if _polyline_length(first) > radius:
+					limbs.append(_new_limb_record(strokes[index], first, joint))
+				if _polyline_length(second) > radius:
+					limbs.append(_new_limb_record(strokes[index], second, joint))
+				continue
+
+			deferred.append(index)
+		work = deferred
+	var pending: Array = work
 
 	# Chain remaining strokes onto the limb they touch (lower leg, foot, ...).
 	var progressed := true
@@ -288,7 +313,7 @@ func _resolve_skeleton(strokes: Array) -> Dictionary:
 					_distance_to_points(points[0], pool),
 					_distance_to_points(points[points.size() - 1], pool)
 				)
-				if gap < radius:
+				if gap < soft_radius:
 					record["segments"].append(strokes[stroke_index])
 					record["pool"].append_array(points)
 					pending.remove_at(pending_position)
@@ -409,6 +434,12 @@ func _assign_limb_roles() -> void:
 			for limb in _limbs:
 				if limb["tip"].y > limb["joint"].y and limb["joint"].y > _body_center.y:
 					candidates.append(limb)
+			if candidates.is_empty():
+				# Nothing jointed below the body center (big head skews it):
+				# fall back to any downward-pointing limbs.
+				for limb in _limbs:
+					if limb["tip"].y > limb["joint"].y:
+						candidates.append(limb)
 			candidates.sort_custom(func(a, b): return a["length"] > b["length"])
 			var legs := candidates.slice(0, 2)
 			legs.sort_custom(func(a, b): return a["joint"].x < b["joint"].x)
@@ -786,14 +817,36 @@ func _min_gap_to_body(points: PackedVector2Array, strokes: Array, in_body: Array
 	return best
 
 
-## How many other strokes touch this stroke away from its anchored end.
-## A high count means the stroke is a structural member (e.g. a torso with
-## arms and legs hanging off it) rather than a free-swinging limb.
-func _junction_count(index: int, strokes: Array, radius: float, attached_at_start: bool) -> int:
+func _max_gap_to_body(points: PackedVector2Array, strokes: Array, in_body: Array) -> float:
+	var worst := 0.0
+	for point in points:
+		worst = maxf(worst, _gap_to_body(point, strokes, in_body))
+	return worst
+
+
+## How many other non-body strokes hang off this stroke away from its
+## anchored end. A high count means the stroke is a structural member (e.g. a
+## torso with arms and legs hanging off it) rather than a free-swinging limb.
+## Two contact tiers: another stroke's ENDPOINT may anchor onto this one with
+## a sloppy gap (endpoint_radius), but mid-stroke proximity only counts as an
+## actual touch/cross (tight interior_radius) so limbs drawn close together
+## never read as junctions. Contacts near this stroke's own anchor are
+## ignored (limb pairs sharing one attachment point), as are body strokes (a
+## limb diverging from the torso must not count the torso itself).
+func _junction_count(
+	index: int,
+	strokes: Array,
+	in_body: Array,
+	endpoint_radius: float,
+	interior_radius: float,
+	attached_at_start: bool,
+	anchor_exclusion: float
+) -> int:
 	var points: PackedVector2Array = strokes[index]["points"]
 	var total_length := _polyline_length(points)
 	if total_length <= 0.0:
 		return 0
+	var anchor := points[0] if attached_at_start else points[points.size() - 1]
 
 	var arc: Array = []
 	arc.resize(points.size())
@@ -805,14 +858,21 @@ func _junction_count(index: int, strokes: Array, radius: float, attached_at_star
 
 	var count := 0
 	for other in range(strokes.size()):
-		if other == index:
+		if other == index or in_body[other]:
 			continue
 		var other_points: PackedVector2Array = strokes[other]["points"]
+		var other_first := other_points[0]
+		var other_last := other_points[other_points.size() - 1]
 		for point_index in range(points.size()):
 			var from_anchor: float = arc[point_index] if attached_at_start else total_length - arc[point_index]
 			if from_anchor < total_length * 0.3:
 				continue
-			if _distance_to_points(points[point_index], other_points) < radius:
+			var mine := points[point_index]
+			if mine.distance_to(anchor) < anchor_exclusion:
+				continue
+			if mine.distance_to(other_first) < endpoint_radius \
+					or mine.distance_to(other_last) < endpoint_radius \
+					or _distance_to_points(mine, other_points) < interior_radius:
 				count += 1
 				break
 	return count
