@@ -1,0 +1,113 @@
+{
+  "format_version": 1,
+  "entity_ids": [
+    "fish",
+    "frog",
+    "spider",
+    "bird",
+    "humanoid"
+  ],
+  "source_labels": [
+    "fish",
+    "frog",
+    "spider",
+    "bird",
+    "yoga"
+  ],
+  "train_size": 160000,
+  "validation_size": 20000,
+  "test_size": 20000,
+  "validation_accuracy_by_epoch": [
+    0.85515,
+    0.88415,
+    0.8936,
+    0.9042,
+    0.9047,
+    0.91085,
+    0.91265,
+    0.9105
+  ],
+  "test_accuracy": 0.91325,
+  "classification_report": {
+    "fish": {
+      "precision": 0.9706766917293234,
+      "recall": 0.9593757740896706,
+      "f1-score": 0.9649931481250779,
+      "support": 4037.0
+    },
+    "frog": {
+      "precision": 0.9081321121287815,
+      "recall": 0.8159600997506234,
+      "f1-score": 0.8595822934454223,
+      "support": 4010.0
+    },
+    "spider": {
+      "precision": 0.9602446483180428,
+      "recall": 0.952959028831563,
+      "f1-score": 0.9565879664889566,
+      "support": 3954.0
+    },
+    "bird": {
+      "precision": 0.8874204601076848,
+      "recall": 0.9040139616055847,
+      "f1-score": 0.8956403606273928,
+      "support": 4011.0
+    },
+    "humanoid": {
+      "precision": 0.8473959517853081,
+      "recall": 0.9343029087261785,
+      "f1-score": 0.8887298747763864,
+      "support": 3988.0
+    },
+    "accuracy": 0.91325,
+    "macro avg": {
+      "precision": 0.9147739728138282,
+      "recall": 0.9133223546007241,
+      "f1-score": 0.9131067286926472,
+      "support": 20000.0
+    },
+    "weighted avg": {
+      "precision": 0.9147948717404483,
+      "recall": 0.91325,
+      "f1-score": 0.9130809691139559,
+      "support": 20000.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      3873,
+      40,
+      5,
+      65,
+      54
+    ],
+    [
+      53,
+      3272,
+      80,
+      248,
+      357
+    ],
+    [
+      8,
+      60,
+      3768,
+      38,
+      80
+    ],
+    [
+      42,
+      125,
+      38,
+      3626,
+      180
+    ],
+    [
+      14,
+      106,
+      33,
+      109,
+      3726
+    ]
+  ]
+}

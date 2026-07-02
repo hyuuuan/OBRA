@@ -16,6 +16,7 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -42,7 +43,17 @@ DEFAULT_SAMPLES_PER_CLASS = 40_000  # each Quick Draw category has 100k+; this i
 DEFAULT_EPOCHS = 8
 DEFAULT_BATCH_SIZE = 256
 DEFAULT_LEARNING_RATE = 1e-3
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+
+def best_device() -> str:
+    if torch.cuda.is_available():
+        return "cuda"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
+DEVICE = best_device()
 
 
 class QuickDrawDataset(Dataset):
@@ -167,7 +178,27 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
     parser.add_argument("--learning-rate", type=float, default=DEFAULT_LEARNING_RATE)
+    parser.add_argument(
+        "--device",
+        choices=("auto", "cpu", "cuda", "mps"),
+        default="auto",
+        help="training device; auto chooses cuda, then mps, then cpu",
+    )
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=max(1, min(4, (os.cpu_count() or 2) // 2)),
+        help="DataLoader worker processes",
+    )
     args = parser.parse_args()
+
+    global DEVICE
+    if args.device != "auto":
+        if args.device == "cuda" and not torch.cuda.is_available():
+            raise SystemExit("CUDA was requested but is not available.")
+        if args.device == "mps" and not torch.backends.mps.is_available():
+            raise SystemExit("MPS was requested but is not available.")
+        DEVICE = args.device
 
     entities = load_entities(args.manifest, validate_scene_paths=True)
     source_names = source_labels(entities)
@@ -177,9 +208,15 @@ def main() -> None:
     print("entities:", ", ".join(output_names))
     print("source labels:", ", ".join(source_names))
     train_set, val_set, test_set = load_splits(source_names, args.samples_per_class)
-    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
-    val_loader = DataLoader(val_set, batch_size=args.batch_size)
-    test_loader = DataLoader(test_set, batch_size=args.batch_size)
+    loader_kwargs = {
+        "batch_size": args.batch_size,
+        "num_workers": args.num_workers,
+        "persistent_workers": args.num_workers > 0,
+        "pin_memory": DEVICE == "cuda",
+    }
+    train_loader = DataLoader(train_set, shuffle=True, **loader_kwargs)
+    val_loader = DataLoader(val_set, **loader_kwargs)
+    test_loader = DataLoader(test_set, **loader_kwargs)
 
     model = SketchCNN(len(source_names)).to(DEVICE)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
@@ -229,8 +266,9 @@ def main() -> None:
         HERE / "model.onnx",
         input_names=["input"],
         output_names=["logits"],
+        dynamo=False,
         dynamic_axes={"input": {0: "batch"}, "logits": {0: "batch"}},
-        opset_version=17,
+        opset_version=18,
     )
     (HERE / "labels.json").write_text(json.dumps(source_names, indent=2))
     try:
@@ -249,6 +287,8 @@ def main() -> None:
         "epochs": args.epochs,
         "batch_size": args.batch_size,
         "learning_rate": args.learning_rate,
+        "device": DEVICE,
+        "num_workers": args.num_workers,
         "preprocess": "backend/preprocess.py",
     }, indent=2))
     (HERE / "metrics.json").write_text(json.dumps({
