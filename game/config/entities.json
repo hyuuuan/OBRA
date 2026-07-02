@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "description": "Single source of truth for trainable sketch classes and spawnable O.B.R.A. entities.",
+  "entities": [
+    {
+      "id": "fish",
+      "display_name": "Fish",
+      "kind": "animal",
+      "quickdraw_label": "fish",
+      "spawn_mode": "playable",
+      "movement_type": "swim",
+      "scene_path": "res://creatures/fish.tscn",
+      "evaluation_labels": ["fish"],
+      "enabled": true
+    },
+    {
+      "id": "frog",
+      "display_name": "Frog",
+      "kind": "animal",
+      "quickdraw_label": "frog",
+      "spawn_mode": "playable",
+      "movement_type": "hop",
+      "scene_path": "res://creatures/frog.tscn",
+      "evaluation_labels": ["frog"],
+      "enabled": true
+    },
+    {
+      "id": "spider",
+      "display_name": "Spider",
+      "kind": "animal",
+      "quickdraw_label": "spider",
+      "spawn_mode": "playable",
+      "movement_type": "climb",
+      "scene_path": "res://creatures/spider.tscn",
+      "evaluation_labels": ["spider"],
+      "enabled": true
+    },
+    {
+      "id": "bird",
+      "display_name": "Bird",
+      "kind": "animal",
+      "quickdraw_label": "bird",
+      "spawn_mode": "playable",
+      "movement_type": "fly",
+      "scene_path": "res://creatures/bird.tscn",
+      "evaluation_labels": ["bird", "flying bird", "standing bird"],
+      "enabled": true
+    },
+    {
+      "id": "humanoid",
+      "display_name": "Humanoid",
+      "kind": "humanoid",
+      "quickdraw_label": "yoga",
+      "spawn_mode": "playable",
+      "movement_type": "platform",
+      "scene_path": "res://creatures/humanoid.tscn",
+      "evaluation_labels": [],
+      "enabled": true
+    }
+  ]
+}

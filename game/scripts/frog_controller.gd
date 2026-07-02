@@ -1,4 +1,4 @@
-extends CharacterBody2D
+extends "res://scripts/playable_entity.gd"
 ## Frog movement: hold jump to charge, release to hop. Clone this pattern for the
 ## other classes (fish = swim/float with no gravity, spider = stick to walls).
 ##
@@ -33,13 +33,3 @@ func _hop() -> void:
 	_charge = 0.0
 	velocity.y = -lerpf(min_hop_velocity, max_hop_velocity, power)
 	velocity.x = Input.get_axis("move_left", "move_right") * horizontal_speed
-
-
-## Called by the main scene after a successful prediction: puts the player's own
-## drawing onto this creature's body sprite.
-func apply_drawing(drawing: Image) -> void:
-	var sprite: Sprite2D = get_node_or_null("Body")
-	if sprite == null:
-		push_warning("frog scene has no 'Body' Sprite2D to skin")
-		return
-	sprite.texture = ImageTexture.create_from_image(drawing)

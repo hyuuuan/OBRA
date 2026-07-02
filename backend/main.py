@@ -1,4 +1,4 @@
-"""O.B.R.A. inference backend: receives a drawing, returns the recognized creature.
+"""O.B.R.A. inference backend: receives a drawing, returns the recognized entity.
 
 Run:
     uvicorn main:app --reload --port 8000
@@ -10,7 +10,13 @@ Requires model/model.onnx and model/labels.json (produced by model/train_quickdr
 import base64
 import json
 import os
+import sys
 from pathlib import Path
+
+BACKEND_DIR = Path(__file__).resolve().parent
+REPO_ROOT = BACKEND_DIR.parent
+sys.path.insert(0, str(BACKEND_DIR))
+sys.path.insert(0, str(REPO_ROOT))
 
 import numpy as np
 import onnxruntime
@@ -20,9 +26,17 @@ from pydantic import BaseModel
 
 from preprocess import EmptyCanvasError, preprocess_image
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+from shared.entities import (  # noqa: E402
+    entities_by_source_label,
+    load_entities,
+    validate_model_labels,
+)
+
 MODEL_PATH = Path(os.environ.get("OBRA_MODEL", REPO_ROOT / "model" / "model.onnx"))
 LABELS_PATH = Path(os.environ.get("OBRA_LABELS", REPO_ROOT / "model" / "labels.json"))
+MODEL_METADATA_PATH = Path(
+    os.environ.get("OBRA_MODEL_METADATA", REPO_ROOT / "model" / "model_metadata.json")
+)
 
 if not MODEL_PATH.exists():
     raise SystemExit(
@@ -30,9 +44,26 @@ if not MODEL_PATH.exists():
         "Train it first (see model/train_quickdraw.py) and place model.onnx + "
         "labels.json in the model/ folder, or set OBRA_MODEL / OBRA_LABELS."
     )
+if not LABELS_PATH.exists():
+    raise SystemExit(
+        f"Labels not found at {LABELS_PATH}.\n"
+        "Train/export the model so labels.json is created beside model.onnx."
+    )
 
+ENTITIES = load_entities(validate_scene_paths=True)
+ENTITY_BY_SOURCE_LABEL = entities_by_source_label(ENTITIES)
 LABELS: list[str] = json.loads(LABELS_PATH.read_text())
+validate_model_labels(LABELS, ENTITIES, source=str(LABELS_PATH))
 SESSION = onnxruntime.InferenceSession(str(MODEL_PATH))
+OUTPUT_NAME = SESSION.get_outputs()[0].name
+OUTPUT_SHAPE = SESSION.get_outputs()[0].shape
+if OUTPUT_SHAPE and isinstance(OUTPUT_SHAPE[-1], int) and OUTPUT_SHAPE[-1] != len(LABELS):
+    raise SystemExit(
+        f"Model output width is {OUTPUT_SHAPE[-1]}, but labels.json has {len(LABELS)} labels."
+    )
+MODEL_METADATA = (
+    json.loads(MODEL_METADATA_PATH.read_text()) if MODEL_METADATA_PATH.exists() else {}
+)
 
 app = FastAPI(title="O.B.R.A. Sketch Classifier")
 app.add_middleware(  # required so a Godot (web) client may call us
@@ -54,14 +85,19 @@ def softmax(logits: np.ndarray) -> np.ndarray:
 
 @app.get("/")
 def health() -> dict:
-    return {"status": "ok", "classes": LABELS}
+    return {
+        "status": "ok",
+        "source_labels": LABELS,
+        "entities": [entity.to_public_dict() for entity in ENTITIES],
+        "model_metadata": MODEL_METADATA,
+    }
 
 
 @app.post("/predict")
 def predict(payload: DrawingPayload) -> dict:
     encoded = payload.image_data.split(",")[-1]  # strip "data:image/png;base64," if present
     try:
-        image_bytes = base64.b64decode(encoded)
+        image_bytes = base64.b64decode(encoded, validate=True)
     except Exception:
         raise HTTPException(status_code=400, detail="image_data is not valid base64")
 
@@ -72,11 +108,32 @@ def predict(payload: DrawingPayload) -> dict:
     except Exception:
         raise HTTPException(status_code=400, detail="could not decode the image")
 
-    logits = SESSION.run(["logits"], {"input": tensor})[0][0]
+    logits = SESSION.run([OUTPUT_NAME], {"input": tensor})[0][0]
     probabilities = softmax(logits)
     best = int(probabilities.argmax())
+    sorted_indices = np.argsort(probabilities)[::-1]
+    runner_up = int(sorted_indices[1]) if len(sorted_indices) > 1 else best
+    margin = float(probabilities[best] - probabilities[runner_up])
+    source_label = LABELS[best]
+    entity = ENTITY_BY_SOURCE_LABEL[source_label]
     return {
-        "creature": LABELS[best],
+        "entity": entity.id,
+        "creature": entity.id,  # temporary legacy alias for older Godot scripts
+        "display_name": entity.display_name,
+        "source_label": source_label,
+        "kind": entity.kind,
+        "spawn_mode": entity.spawn_mode,
+        "movement_type": entity.movement_type,
+        "scene_path": entity.scene_path,
         "confidence": float(probabilities[best]),
-        "probabilities": {label: float(p) for label, p in zip(LABELS, probabilities)},
+        "margin": margin,
+        "runner_up": {
+            "entity": ENTITY_BY_SOURCE_LABEL[LABELS[runner_up]].id,
+            "source_label": LABELS[runner_up],
+            "confidence": float(probabilities[runner_up]),
+        },
+        "probabilities": {
+            ENTITY_BY_SOURCE_LABEL[label].id: float(p) for label, p in zip(LABELS, probabilities)
+        },
+        "source_probabilities": {label: float(p) for label, p in zip(LABELS, probabilities)},
     }

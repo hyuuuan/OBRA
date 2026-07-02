@@ -1,0 +1,177 @@
+"""Entity manifest loading and validation for O.B.R.A.
+
+The game, backend, and model scripts all read game/config/entities.json. Keeping
+the mapping here avoids the easy-to-miss bug where the trained model outputs one
+order of labels while Godot expects another.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_MANIFEST_PATH = REPO_ROOT / "game" / "config" / "entities.json"
+ALLOWED_SPAWN_MODES = {"playable", "pickup", "obstacle", "static"}
+
+
+@dataclass(frozen=True)
+class EntityDefinition:
+    id: str
+    display_name: str
+    kind: str
+    quickdraw_label: str
+    spawn_mode: str
+    movement_type: str
+    scene_path: str
+    evaluation_labels: tuple[str, ...]
+    enabled: bool = True
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> "EntityDefinition":
+        missing = [
+            key
+            for key in (
+                "id",
+                "display_name",
+                "kind",
+                "quickdraw_label",
+                "spawn_mode",
+                "movement_type",
+                "scene_path",
+            )
+            if key not in raw
+        ]
+        if missing:
+            raise ValueError(f"entity entry is missing required keys: {', '.join(missing)}")
+
+        return cls(
+            id=_non_empty_string(raw, "id"),
+            display_name=_non_empty_string(raw, "display_name"),
+            kind=_non_empty_string(raw, "kind"),
+            quickdraw_label=_non_empty_string(raw, "quickdraw_label"),
+            spawn_mode=_non_empty_string(raw, "spawn_mode"),
+            movement_type=_non_empty_string(raw, "movement_type"),
+            scene_path=_non_empty_string(raw, "scene_path"),
+            evaluation_labels=tuple(str(label) for label in raw.get("evaluation_labels", [])),
+            enabled=bool(raw.get("enabled", True)),
+        )
+
+    @property
+    def source_label(self) -> str:
+        return self.quickdraw_label
+
+    def to_public_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "display_name": self.display_name,
+            "kind": self.kind,
+            "source_label": self.quickdraw_label,
+            "spawn_mode": self.spawn_mode,
+            "movement_type": self.movement_type,
+            "scene_path": self.scene_path,
+            "enabled": self.enabled,
+        }
+
+
+def load_entities(
+    manifest_path: str | Path | None = None,
+    *,
+    include_disabled: bool = False,
+    validate_scene_paths: bool = False,
+) -> list[EntityDefinition]:
+    """Load entity definitions in model-output order."""
+    path = Path(manifest_path) if manifest_path is not None else DEFAULT_MANIFEST_PATH
+    doc = json.loads(path.read_text())
+    raw_entities = doc.get("entities")
+    if not isinstance(raw_entities, list):
+        raise ValueError(f"{path} must contain an 'entities' list")
+
+    entities = [EntityDefinition.from_dict(raw) for raw in raw_entities]
+    _validate_entities(entities, validate_scene_paths=validate_scene_paths)
+    if include_disabled:
+        return entities
+    return [entity for entity in entities if entity.enabled]
+
+
+def source_labels(entities: list[EntityDefinition]) -> list[str]:
+    return [entity.quickdraw_label for entity in entities]
+
+
+def entity_ids(entities: list[EntityDefinition]) -> list[str]:
+    return [entity.id for entity in entities]
+
+
+def entities_by_source_label(
+    entities: list[EntityDefinition],
+) -> dict[str, EntityDefinition]:
+    return {entity.quickdraw_label: entity for entity in entities}
+
+
+def entities_by_id(entities: list[EntityDefinition]) -> dict[str, EntityDefinition]:
+    return {entity.id: entity for entity in entities}
+
+
+def validate_model_labels(
+    labels: list[str],
+    entities: list[EntityDefinition],
+    *,
+    source: str = "labels.json",
+) -> None:
+    expected = source_labels(entities)
+    if labels != expected:
+        raise ValueError(
+            f"{source} does not match the enabled entity manifest.\n"
+            f"Expected source labels in order: {expected}\n"
+            f"Found: {labels}\n"
+            "Retrain/export the model after editing game/config/entities.json."
+        )
+
+
+def res_path_to_filesystem(res_path: str) -> Path:
+    if not res_path.startswith("res://"):
+        raise ValueError(f"Godot scene path must start with res://, got {res_path!r}")
+    return REPO_ROOT / "game" / res_path.removeprefix("res://")
+
+
+def _validate_entities(
+    entities: list[EntityDefinition],
+    *,
+    validate_scene_paths: bool,
+) -> None:
+    seen_ids: set[str] = set()
+    seen_source_labels: set[str] = set()
+    for entity in entities:
+        if entity.id in seen_ids:
+            raise ValueError(f"duplicate entity id: {entity.id}")
+        seen_ids.add(entity.id)
+
+        if entity.spawn_mode not in ALLOWED_SPAWN_MODES:
+            raise ValueError(
+                f"{entity.id} has invalid spawn_mode {entity.spawn_mode!r}; "
+                f"expected one of {sorted(ALLOWED_SPAWN_MODES)}"
+            )
+
+        if entity.enabled:
+            if entity.quickdraw_label in seen_source_labels:
+                raise ValueError(
+                    f"duplicate enabled quickdraw_label: {entity.quickdraw_label}"
+                )
+            seen_source_labels.add(entity.quickdraw_label)
+
+            if validate_scene_paths:
+                scene_path = res_path_to_filesystem(entity.scene_path)
+                if not scene_path.exists():
+                    raise ValueError(
+                        f"{entity.id} points to missing scene {entity.scene_path}"
+                    )
+
+
+def _non_empty_string(raw: dict[str, Any], key: str) -> str:
+    value = raw[key]
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{key} must be a non-empty string")
+    return value.strip()
+

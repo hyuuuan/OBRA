@@ -1,0 +1,47 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/game_level.gd" id="1_level"]
+[ext_resource type="Script" path="res://scripts/entity_registry.gd" id="2_registry"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_floor"]
+size = Vector2(960, 48)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
+size = Vector2(48, 640)
+
+[node name="GameLevel" type="Node2D"]
+script = ExtResource("1_level")
+
+[node name="EntityRegistry" type="Node" parent="."]
+script = ExtResource("2_registry")
+
+[node name="SpawnPoint" type="Marker2D" parent="."]
+position = Vector2(160, 440)
+
+[node name="Floor" type="StaticBody2D" parent="."]
+position = Vector2(480, 616)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Floor"]
+shape = SubResource("RectangleShape2D_floor")
+
+[node name="LeftWall" type="StaticBody2D" parent="."]
+position = Vector2(0, 320)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LeftWall"]
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="RightWall" type="StaticBody2D" parent="."]
+position = Vector2(960, 320)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="RightWall"]
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="StatusLabel" type="Label" parent="CanvasLayer"]
+offset_left = 24.0
+offset_top = 20.0
+offset_right = 420.0
+offset_bottom = 52.0
+text = "Entity"
+
