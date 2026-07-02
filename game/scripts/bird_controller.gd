@@ -6,15 +6,35 @@ extends "res://scripts/playable_entity.gd"
 @export var gravity: float = 850.0
 @export var glide_fall_speed: float = 130.0
 
+var _flap_timer: float = 0.0
+
 
 func _physics_process(delta: float) -> void:
-	velocity.x = Input.get_axis("move_left", "move_right") * horizontal_speed
+	var horizontal := Input.get_axis("move_left", "move_right")
+	velocity.x = horizontal * horizontal_speed
 	velocity.y += gravity * delta
 
 	if Input.is_action_just_pressed("jump"):
 		velocity.y = -flap_velocity
+		_flap_timer = 0.16
 	elif Input.is_action_pressed("jump") and velocity.y > glide_fall_speed:
 		velocity.y = glide_fall_speed
 
-	move_and_slide()
+	_flap_timer = maxf(0.0, _flap_timer - delta)
+	var state := "fall"
+	if _flap_timer > 0.0:
+		state = "flap"
+	elif Input.is_action_pressed("jump") and velocity.y >= glide_fall_speed:
+		state = "glide"
+	elif absf(horizontal) > 0.05:
+		state = "fly"
 
+	set_rig_state(
+		state,
+		{
+			"direction": horizontal,
+			"moving": absf(horizontal) > 0.05,
+			"vertical_speed": velocity.y
+		}
+	)
+	move_and_slide()

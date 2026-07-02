@@ -6,11 +6,13 @@ drawing as the body texture.
 
 ## Architecture
 
-- `game/config/entities.json` is the source of truth for the roster.
+- `game/config/entities.json` is the source of truth for the roster, scene paths,
+  and optional runtime rig metadata.
 - `model/` downloads Quick Draw data, trains a small CNN, exports ONNX, and writes
   `labels.json`, `model_metadata.json`, `metrics.json`, and `confusion_matrix.png`.
 - `backend/` serves `POST /predict` with FastAPI + ONNX Runtime.
-- `game/` is a Godot 4 project with manifest-backed entity spawning.
+- `game/` is a Godot 4 project with manifest-backed entity spawning and
+  class-guided procedural animation profiles in `game/config/rigs/`.
 
 ## Python Setup
 
@@ -62,7 +64,16 @@ uvicorn main:app --reload --port 8000
 ```
 
 The prediction response includes `entity`, `display_name`, `source_label`,
-`confidence`, `margin`, `runner_up`, `probabilities`, and the legacy `creature` alias.
+`confidence`, `margin`, `runner_up`, `probabilities`, `rig_profile`,
+`deform_strategy`, and the legacy `creature` alias.
+
+## Runtime Rigging
+
+Phase 2 keeps animation local to Godot. The backend still classifies the drawing;
+the spawned entity then crops the original canvas image, preserves it as the visible
+texture, and applies the class-specific procedural rig profile. Fish use segmented
+spline motion, frogs use squash/stretch, birds flap/glide, and spider/humanoid
+controllers report movement states into a reusable runtime rig node.
 
 ## Cross-Dataset Evaluation
 

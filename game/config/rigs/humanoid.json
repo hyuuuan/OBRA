@@ -1,0 +1,23 @@
+{
+  "id": "humanoid",
+  "deform_strategy": "limb_template",
+  "target_size": [74, 132],
+  "pivot": [0.5, 0.72],
+  "idle_bob": 0.9,
+  "idle_frequency": 1.1,
+  "walk_bob": 3.5,
+  "walk_frequency": 7.5,
+  "walk_squash": 0.045,
+  "jump_stretch": 0.10,
+  "landing_squash": 0.16,
+  "tilt_degrees": 4.5,
+  "limb_overlay_alpha": 0.32,
+  "limb_width": 4.0,
+  "limb_swing": 18.0,
+  "limbs": [
+    {"from": [0.43, 0.42], "to": [0.24, 0.62], "axis": [1.0, 0.0], "phase": 0.0},
+    {"from": [0.57, 0.42], "to": [0.76, 0.62], "axis": [-1.0, 0.0], "phase": 3.14},
+    {"from": [0.46, 0.70], "to": [0.34, 0.96], "axis": [1.0, 0.0], "phase": 3.14},
+    {"from": [0.54, 0.70], "to": [0.66, 0.96], "axis": [-1.0, 0.0], "phase": 0.0}
+  ]
+}

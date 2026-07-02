@@ -15,6 +15,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MANIFEST_PATH = REPO_ROOT / "game" / "config" / "entities.json"
 ALLOWED_SPAWN_MODES = {"playable", "pickup", "obstacle", "static"}
+ALLOWED_DEFORM_STRATEGIES = {"spline", "squash", "flap", "limb_template", "none"}
 
 
 @dataclass(frozen=True)
@@ -27,6 +28,8 @@ class EntityDefinition:
     movement_type: str
     scene_path: str
     evaluation_labels: tuple[str, ...]
+    rig_profile: str | None = None
+    deform_strategy: str | None = None
     enabled: bool = True
 
     @classmethod
@@ -56,6 +59,8 @@ class EntityDefinition:
             movement_type=_non_empty_string(raw, "movement_type"),
             scene_path=_non_empty_string(raw, "scene_path"),
             evaluation_labels=tuple(str(label) for label in raw.get("evaluation_labels", [])),
+            rig_profile=_optional_non_empty_string(raw, "rig_profile"),
+            deform_strategy=_optional_non_empty_string(raw, "deform_strategy"),
             enabled=bool(raw.get("enabled", True)),
         )
 
@@ -72,6 +77,8 @@ class EntityDefinition:
             "spawn_mode": self.spawn_mode,
             "movement_type": self.movement_type,
             "scene_path": self.scene_path,
+            "rig_profile": self.rig_profile,
+            "deform_strategy": self.deform_strategy,
             "enabled": self.enabled,
         }
 
@@ -154,6 +161,15 @@ def _validate_entities(
                 f"expected one of {sorted(ALLOWED_SPAWN_MODES)}"
             )
 
+        if (
+            entity.deform_strategy is not None
+            and entity.deform_strategy not in ALLOWED_DEFORM_STRATEGIES
+        ):
+            raise ValueError(
+                f"{entity.id} has invalid deform_strategy {entity.deform_strategy!r}; "
+                f"expected one of {sorted(ALLOWED_DEFORM_STRATEGIES)}"
+            )
+
         if entity.enabled:
             if entity.quickdraw_label in seen_source_labels:
                 raise ValueError(
@@ -167,6 +183,13 @@ def _validate_entities(
                     raise ValueError(
                         f"{entity.id} points to missing scene {entity.scene_path}"
                     )
+                if entity.rig_profile is not None:
+                    rig_profile_path = res_path_to_filesystem(entity.rig_profile)
+                    if not rig_profile_path.exists():
+                        raise ValueError(
+                            f"{entity.id} points to missing rig profile "
+                            f"{entity.rig_profile}"
+                        )
 
 
 def _non_empty_string(raw: dict[str, Any], key: str) -> str:
@@ -175,3 +198,11 @@ def _non_empty_string(raw: dict[str, Any], key: str) -> str:
         raise ValueError(f"{key} must be a non-empty string")
     return value.strip()
 
+
+def _optional_non_empty_string(raw: dict[str, Any], key: str) -> str | None:
+    value = raw.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{key} must be omitted or a non-empty string")
+    return value.strip()

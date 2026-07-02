@@ -17,5 +17,14 @@ func _physics_process(delta: float) -> void:
 	velocity = velocity.move_toward(input_vector * swim_speed, acceleration * delta)
 	if velocity.length() > 5.0:
 		rotation = lerp_angle(rotation, velocity.angle(), turn_speed * delta)
-	move_and_slide()
 
+	var speed_ratio := clampf(velocity.length() / swim_speed, 0.0, 1.0)
+	set_rig_state(
+		"swim" if speed_ratio > 0.05 else "idle",
+		{
+			"speed_ratio": speed_ratio,
+			"moving": speed_ratio > 0.05,
+			"direction": input_vector.x
+		}
+	)
+	move_and_slide()

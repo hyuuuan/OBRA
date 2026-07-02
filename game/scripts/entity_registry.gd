@@ -51,4 +51,7 @@ func instantiate_entity(entity_id: String) -> Node:
 	if packed == null:
 		push_error("Could not load scene for %s: %s" % [entity_id, scene_path])
 		return null
-	return packed.instantiate()
+	var instance := packed.instantiate()
+	if instance.has_method("configure_entity"):
+		instance.configure_entity(entry)
+	return instance

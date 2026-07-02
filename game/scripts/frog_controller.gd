@@ -15,7 +15,10 @@ var _charge: float = 0.0
 
 
 func _physics_process(delta: float) -> void:
-	if not is_on_floor():
+	var was_on_floor := is_on_floor()
+	var horizontal := Input.get_axis("move_left", "move_right")
+
+	if not was_on_floor:
 		velocity.y += gravity * delta
 	else:
 		velocity.x = 0.0  # frogs land and stop; they don't glide around
@@ -26,6 +29,7 @@ func _physics_process(delta: float) -> void:
 			_hop()
 
 	move_and_slide()
+	_update_rig_state(was_on_floor, horizontal)
 
 
 func _hop() -> void:
@@ -33,3 +37,22 @@ func _hop() -> void:
 	_charge = 0.0
 	velocity.y = -lerpf(min_hop_velocity, max_hop_velocity, power)
 	velocity.x = Input.get_axis("move_left", "move_right") * horizontal_speed
+
+
+func _update_rig_state(was_on_floor: bool, horizontal: float) -> void:
+	var grounded := is_on_floor()
+	var params := {
+		"direction": horizontal,
+		"charge_ratio": _charge / charge_time
+	}
+
+	if grounded and not was_on_floor:
+		set_rig_state("landed", params)
+	elif grounded and Input.is_action_pressed("jump"):
+		set_rig_state("charge", params)
+	elif grounded:
+		set_rig_state("idle", params)
+	elif velocity.y < 0.0:
+		set_rig_state("jump", params)
+	else:
+		set_rig_state("fall", params)

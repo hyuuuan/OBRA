@@ -1,6 +1,7 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/fish_controller.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/runtime_rig_2d.gd" id="2_rig"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
 size = Vector2(120, 80)
@@ -8,9 +9,10 @@ size = Vector2(120, 80)
 [node name="Fish" type="CharacterBody2D"]
 script = ExtResource("1_script")
 
-[node name="Body" type="Sprite2D" parent="."]
-scale = Vector2(0.25, 0.25)
+[node name="DrawingSkin" type="Node2D" parent="."]
+script = ExtResource("2_rig")
+
+[node name="Body" type="Sprite2D" parent="DrawingSkin"]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_body")
-

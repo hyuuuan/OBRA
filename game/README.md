@@ -31,6 +31,17 @@ To add a future animal or object:
 Playable entries should expose an `apply_drawing(drawing: Image)` method. The provided
 controllers inherit that from `scripts/playable_entity.gd`.
 
+Animation metadata is optional but recommended for playable entities:
+
+- `rig_profile`: points to a JSON profile in `config/rigs/`.
+- `deform_strategy`: one of `spline`, `squash`, `flap`, `limb_template`, or `none`.
+- Missing profiles fall back to the old simple drawing-as-sprite behavior.
+
+The runtime rig keeps the player's original drawing as the visible texture, crops
+transparent paper around it, and applies class-specific procedural motion locally in
+Godot. The backend still only classifies sketches; it does not generate animation
+frames.
+
 ## Controls
 
 - Move: WASD or arrow keys
@@ -41,7 +52,9 @@ controllers inherit that from `scripts/playable_entity.gd`.
 
 - `draw_screen.tscn`: drawing canvas, backend request, confidence/margin handling
 - `game_level.tscn`: manifest-backed spawn point and simple floor/walls
-- `creatures/*.tscn`: simple Sprite2D bodies skinned with the player's drawing
+- `creatures/*.tscn`: playable bodies with `DrawingSkin` runtime rig nodes
+- `config/rigs/*.json`: per-entity procedural animation profiles
 
-The first version intentionally uses Sprite2D bodies. Upgrade to Skeleton2D/Polygon2D
-after all five entities are reliable and fun to control.
+Phase 2 intentionally uses Godot-native procedural deformation first. Skeleton2D,
+Polygon2D, or model-assisted joint detection should come after the five entity
+controllers feel reliable and readable.
