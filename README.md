@@ -49,6 +49,11 @@ Download the enabled Quick Draw categories from the manifest:
 python3 model/download_data.py
 ```
 
+The enabled roster currently trains ten classes: `fish`, `frog`, `spider`, `bird`,
+`humanoid` from Quick Draw `yoga`, `cat`, `dog`, `rabbit`, `butterfly`, and `snake`.
+Whenever this list changes, retrain before starting the backend; stale
+`model.onnx`/`labels.json` files will fail manifest validation by design.
+
 Train in Google Colab or a local Python 3.11/3.12 environment:
 
 ```bash

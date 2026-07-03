@@ -1,0 +1,13 @@
+{
+  "id": "butterfly",
+  "rig_type": "flier",
+  "target_size": [116, 82],
+  "align": "center",
+  "wing_flap_degrees": 42,
+  "flap_cycle_hz": 7.5,
+  "flap_squash": 0.11,
+  "flap_lift": 5.0,
+  "glide_raise_degrees": 16,
+  "dive_pitch_degrees": 5.0,
+  "tilt_degrees": 7.0
+}

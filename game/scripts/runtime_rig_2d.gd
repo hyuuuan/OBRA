@@ -28,6 +28,7 @@ var _limbs: Array = [] # see _create_limb_node for the dictionary layout
 var _wave_lines: Array = [] # [{line: Line2D, base: PackedVector2Array}]
 var _wave_dirty: bool = false
 var _body_center: Vector2 = Vector2.ZERO
+var _head_direction: Vector2 = Vector2.RIGHT
 
 var _gait_phase: float = 0.0
 var _flap_phase: float = 0.0
@@ -120,6 +121,7 @@ func _build_vector_rig() -> void:
 	var strokes := get_vector_strokes()
 	if strokes.is_empty():
 		return
+	_normalize_head_orientation(strokes)
 
 	_rig_root = Node2D.new()
 	_rig_root.name = "RigRoot"
@@ -151,6 +153,62 @@ func _build_vector_rig() -> void:
 		_create_limb_node(record)
 
 	_assign_limb_roles()
+
+
+func _normalize_head_orientation(strokes: Array) -> void:
+	match _rig_type:
+		"biped":
+			_normalize_biped_head_up(strokes)
+		"swimmer":
+			_normalize_swimmer_head_forward(strokes)
+		_:
+			pass
+
+
+func _normalize_biped_head_up(strokes: Array) -> void:
+	var head := _detect_biped_head(strokes)
+	if not bool(head.get("found", false)):
+		return
+
+	var head_center: Vector2 = head["center"]
+	var head_index := int(head.get("stroke_index", -1))
+	var body_points := PackedVector2Array()
+	for index in range(strokes.size()):
+		if index == head_index:
+			continue
+		body_points.append_array(strokes[index]["points"])
+	if body_points.is_empty():
+		return
+
+	var body_center := _points_bounds(body_points).get_center()
+	var head_vector := head_center - body_center
+	if head_vector.length() < 1.0:
+		return
+
+	var rotation := wrapf(Vector2.UP.angle() - head_vector.angle(), -PI, PI)
+	if absf(rotation) < deg_to_rad(18.0):
+		return
+	_rotate_strokes(strokes, rotation, get_stroke_bounds().get_center())
+	_realign_vector_strokes(strokes)
+
+
+func _normalize_swimmer_head_forward(strokes: Array) -> void:
+	var points := _all_stroke_points(strokes)
+	if points.size() < 2:
+		return
+
+	var center := _points_bounds(points).get_center()
+	var axis := _principal_axis(points, center)
+	if axis.length() <= 0.001:
+		return
+
+	var head_sign := _detect_swimmer_head_sign(strokes, axis, center)
+	var head_vector := axis * head_sign
+	var rotation := wrapf(Vector2.RIGHT.angle() - head_vector.angle(), -PI, PI)
+	if absf(rotation) > deg_to_rad(1.0):
+		_rotate_strokes(strokes, rotation, center)
+	_realign_vector_strokes(strokes)
+	_head_direction = Vector2.RIGHT
 
 
 ## Groups strokes into a body cluster plus limb chains with resolved joints.
@@ -601,7 +659,9 @@ func _tick_swimmer(delta: float, speed: float) -> void:
 		return
 
 	_wave_phase += speed * delta / wave_length
-	var head := _profile_vector2("head_direction", Vector2(-1.0, 0.0))
+	var head := _head_direction
+	if head.length() <= 0.001:
+		head = _profile_vector2("head_direction", Vector2.RIGHT)
 	var tail_sign := 1.0 if head.x <= 0.0 else -1.0
 	var bounds := get_stroke_bounds()
 
@@ -774,6 +834,203 @@ func _legacy_rig_type() -> String:
 			return "walker"
 		_:
 			return "none"
+
+
+func _detect_biped_head(strokes: Array) -> Dictionary:
+	var bounds := get_stroke_bounds()
+	var bounds_center := bounds.get_center()
+	var diag := maxf(1.0, bounds.size.length())
+	var best_score := -INF
+	var best := {"found": false}
+
+	for index in range(strokes.size()):
+		var points: PackedVector2Array = strokes[index]["points"]
+		if points.size() < 2:
+			continue
+		var box := _points_bounds(points)
+		var center := box.get_center()
+		var length := _polyline_length(points)
+		var area := maxf(1.0, box.size.x * box.size.y)
+		var aspect := box.size.x / maxf(1.0, box.size.y)
+		var roundness := 1.0 - clampf(absf(aspect - 1.0), 0.0, 1.0)
+		var size_ratio := sqrt(area) / diag
+		var size_score := 1.0 - clampf(absf(size_ratio - 0.24) / 0.28, 0.0, 1.0)
+		var vertical_extreme := clampf(
+			absf(center.y - bounds_center.y) / maxf(1.0, bounds.size.y * 0.5),
+			0.0,
+			1.0
+		)
+		var closed := _stroke_is_closed(points, maxf(4.0, minf(box.size.x, box.size.y) * 0.45))
+		var long_penalty := clampf(length / diag - 1.35, 0.0, 1.0) * 2.0
+		var score := (5.0 if closed else 0.0) \
+			+ roundness * 2.0 \
+			+ size_score * 1.5 \
+			+ vertical_extreme * 2.0 \
+			- long_penalty
+
+		if score > best_score:
+			best_score = score
+			best = {
+				"found": true,
+				"stroke_index": index,
+				"center": center,
+				"score": score
+			}
+
+	if best_score < 1.5:
+		return {"found": false}
+	return best
+
+
+func _detect_swimmer_head_sign(strokes: Array, axis: Vector2, center: Vector2) -> float:
+	var bounds := get_stroke_bounds()
+	var diag := maxf(1.0, bounds.size.length())
+	var all_points := _all_stroke_points(strokes)
+	var min_proj := INF
+	var max_proj := -INF
+	for point in all_points:
+		var projected := (point - center).dot(axis)
+		min_proj = minf(min_proj, projected)
+		max_proj = maxf(max_proj, projected)
+
+	var span := maxf(1.0, max_proj - min_proj)
+	var low_cut := min_proj + span * 0.38
+	var high_cut := max_proj - span * 0.38
+	var low_eye_score := 0.0
+	var high_eye_score := 0.0
+	var low_endpoint_count := 0
+	var high_endpoint_count := 0
+	var low_point_count := 0
+	var high_point_count := 0
+	var bounds_area := maxf(1.0, bounds.size.x * bounds.size.y)
+
+	for stroke in strokes:
+		var points: PackedVector2Array = stroke["points"]
+		if points.is_empty():
+			continue
+
+		var box := _points_bounds(points)
+		var stroke_center_proj := (box.get_center() - center).dot(axis)
+		var length := _polyline_length(points)
+		var area := box.size.x * box.size.y
+		var closed := _stroke_is_closed(points, maxf(4.0, minf(box.size.x, box.size.y) * 0.45))
+		var compact := (closed and area < bounds_area * 0.10 and length < diag * 0.55) \
+			or length < diag * 0.16 \
+			or area < bounds_area * 0.035
+		if compact and stroke_center_proj <= low_cut:
+			low_eye_score += 1.0
+		elif compact and stroke_center_proj >= high_cut:
+			high_eye_score += 1.0
+
+		if not closed:
+			var first_proj := (points[0] - center).dot(axis)
+			var last_proj := (points[points.size() - 1] - center).dot(axis)
+			if first_proj <= low_cut:
+				low_endpoint_count += 1
+			elif first_proj >= high_cut:
+				high_endpoint_count += 1
+			if last_proj <= low_cut:
+				low_endpoint_count += 1
+			elif last_proj >= high_cut:
+				high_endpoint_count += 1
+
+		for point in points:
+			var projected := (point - center).dot(axis)
+			if projected <= low_cut:
+				low_point_count += 1
+			elif projected >= high_cut:
+				high_point_count += 1
+
+	if absf(high_eye_score - low_eye_score) >= 0.75:
+		return 1.0 if high_eye_score > low_eye_score else -1.0
+
+	if absi(high_endpoint_count - low_endpoint_count) >= 1:
+		var tail_sign := 1.0 if high_endpoint_count > low_endpoint_count else -1.0
+		return -tail_sign
+
+	if absi(high_point_count - low_point_count) >= 2:
+		return 1.0 if high_point_count > low_point_count else -1.0
+
+	var fallback := _profile_vector2("head_direction", Vector2.RIGHT)
+	if fallback.length() <= 0.001:
+		fallback = Vector2.RIGHT
+	return 1.0 if axis.dot(fallback.normalized()) >= 0.0 else -1.0
+
+
+func _all_stroke_points(strokes: Array) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for stroke in strokes:
+		points.append_array(stroke["points"])
+	return points
+
+
+func _principal_axis(points: PackedVector2Array, center: Vector2) -> Vector2:
+	var xx := 0.0
+	var xy := 0.0
+	var yy := 0.0
+	for point in points:
+		var local := point - center
+		xx += local.x * local.x
+		xy += local.x * local.y
+		yy += local.y * local.y
+	if absf(xx) + absf(yy) <= 0.001:
+		return Vector2.RIGHT
+	var angle := 0.5 * atan2(2.0 * xy, xx - yy)
+	return Vector2(cos(angle), sin(angle)).normalized()
+
+
+func _rotate_strokes(strokes: Array, rotation: float, pivot: Vector2) -> void:
+	for index in range(strokes.size()):
+		var stroke: Dictionary = strokes[index]
+		var points: PackedVector2Array = stroke["points"]
+		for point_index in range(points.size()):
+			points[point_index] = pivot + (points[point_index] - pivot).rotated(rotation)
+		stroke["points"] = points
+		strokes[index] = stroke
+	_refresh_vector_bounds(strokes)
+
+
+func _translate_strokes(strokes: Array, offset: Vector2) -> void:
+	for index in range(strokes.size()):
+		var stroke: Dictionary = strokes[index]
+		var points: PackedVector2Array = stroke["points"]
+		for point_index in range(points.size()):
+			points[point_index] += offset
+		stroke["points"] = points
+		strokes[index] = stroke
+	_refresh_vector_bounds(strokes)
+
+
+func _realign_vector_strokes(strokes: Array) -> void:
+	_refresh_vector_bounds(strokes)
+	var bounds := get_stroke_bounds()
+	var offset := Vector2(-bounds.get_center().x, 0.0)
+	if _align == "bottom":
+		offset.y = _ground_offset - (bounds.position.y + bounds.size.y)
+	else:
+		offset.y = -bounds.get_center().y
+	if offset.length() > 0.001:
+		_translate_strokes(strokes, offset)
+
+
+func _refresh_vector_bounds(strokes: Array) -> void:
+	var points := _all_stroke_points(strokes)
+	if points.is_empty():
+		return
+	_stroke_bounds = _points_bounds(points)
+	analysis["bounds"] = {
+		"x": _stroke_bounds.position.x,
+		"y": _stroke_bounds.position.y,
+		"width": _stroke_bounds.size.x,
+		"height": _stroke_bounds.size.y
+	}
+	analysis["aspect_ratio"] = _stroke_bounds.size.x / maxf(0.001, _stroke_bounds.size.y)
+
+
+func _stroke_is_closed(points: PackedVector2Array, radius: float) -> bool:
+	if points.size() < 3:
+		return false
+	return points[0].distance_to(points[points.size() - 1]) <= radius
 
 
 func _polyline_length(points: PackedVector2Array) -> float:

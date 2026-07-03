@@ -1,0 +1,13 @@
+{
+  "id": "rabbit",
+  "rig_type": "hopper",
+  "target_size": [96, 92],
+  "align": "bottom",
+  "ground_offset": 48,
+  "charge_squash": 0.28,
+  "jump_stretch": 0.18,
+  "landing_squash": 0.23,
+  "leg_fold_degrees": 26,
+  "leg_extend_degrees": 28,
+  "tilt_degrees": 4.0
+}

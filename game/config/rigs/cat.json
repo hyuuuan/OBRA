@@ -1,0 +1,14 @@
+{
+  "id": "cat",
+  "rig_type": "walker",
+  "target_size": [112, 74],
+  "align": "bottom",
+  "ground_offset": 36,
+  "stride_length": 40,
+  "leg_swing_degrees": 17,
+  "leg_phase_ripple": 0.32,
+  "walk_bob": 2.3,
+  "air_splay_degrees": 9,
+  "tilt_degrees": 3.0,
+  "landing_squash": 0.13
+}

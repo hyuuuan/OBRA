@@ -78,6 +78,81 @@
       "rig_type": "biped"
     },
     {
+      "id": "cat",
+      "display_name": "Cat",
+      "kind": "animal",
+      "quickdraw_label": "cat",
+      "spawn_mode": "playable",
+      "movement_type": "walk",
+      "scene_path": "res://creatures/cat.tscn",
+      "rig_profile": "res://config/rigs/cat.json",
+      "evaluation_labels": [
+        "cat"
+      ],
+      "enabled": true,
+      "rig_type": "walker"
+    },
+    {
+      "id": "dog",
+      "display_name": "Dog",
+      "kind": "animal",
+      "quickdraw_label": "dog",
+      "spawn_mode": "playable",
+      "movement_type": "walk",
+      "scene_path": "res://creatures/dog.tscn",
+      "rig_profile": "res://config/rigs/dog.json",
+      "evaluation_labels": [
+        "dog"
+      ],
+      "enabled": true,
+      "rig_type": "walker"
+    },
+    {
+      "id": "rabbit",
+      "display_name": "Rabbit",
+      "kind": "animal",
+      "quickdraw_label": "rabbit",
+      "spawn_mode": "playable",
+      "movement_type": "hop",
+      "scene_path": "res://creatures/rabbit.tscn",
+      "rig_profile": "res://config/rigs/rabbit.json",
+      "evaluation_labels": [
+        "rabbit"
+      ],
+      "enabled": true,
+      "rig_type": "hopper"
+    },
+    {
+      "id": "butterfly",
+      "display_name": "Butterfly",
+      "kind": "animal",
+      "quickdraw_label": "butterfly",
+      "spawn_mode": "playable",
+      "movement_type": "fly",
+      "scene_path": "res://creatures/butterfly.tscn",
+      "rig_profile": "res://config/rigs/butterfly.json",
+      "evaluation_labels": [
+        "butterfly"
+      ],
+      "enabled": true,
+      "rig_type": "flier"
+    },
+    {
+      "id": "snake",
+      "display_name": "Snake",
+      "kind": "animal",
+      "quickdraw_label": "snake",
+      "spawn_mode": "playable",
+      "movement_type": "slither",
+      "scene_path": "res://creatures/snake.tscn",
+      "rig_profile": "res://config/rigs/snake.json",
+      "evaluation_labels": [
+        "snake"
+      ],
+      "enabled": true,
+      "rig_type": "swimmer"
+    },
+    {
       "id": "dummy_static_object",
       "display_name": "Dummy Static Object",
       "kind": "object",

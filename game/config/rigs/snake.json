@@ -1,0 +1,9 @@
+{
+  "id": "snake",
+  "rig_type": "swimmer",
+  "target_size": [142, 58],
+  "align": "center",
+  "wave_length": 58,
+  "wave_amplitude": 8.0,
+  "head_direction": [1, 0]
+}

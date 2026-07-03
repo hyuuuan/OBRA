@@ -10,13 +10,21 @@ calls the Python backend, then spawns the entity returned by the classifier.
 3. Run the Godot project.
 4. Draw, click **Transform**, and the matching entity scene is spawned.
 
-The v1 playable entities are defined in `config/entities.json`:
+The playable entities are defined in `config/entities.json`:
 
 - `fish` -> Quick Draw `fish`, swim controller
 - `frog` -> Quick Draw `frog`, hop controller
 - `spider` -> Quick Draw `spider`, climb controller
 - `bird` -> Quick Draw `bird`, flap/glide controller
 - `humanoid` -> Quick Draw `yoga`, platform controller
+- `cat` -> Quick Draw `cat`, ground-walk controller
+- `dog` -> Quick Draw `dog`, ground-walk controller
+- `rabbit` -> Quick Draw `rabbit`, hop controller
+- `butterfly` -> Quick Draw `butterfly`, flap/glide controller
+- `snake` -> Quick Draw `snake`, swim/slither controller
+
+After editing enabled entities, retrain/export the ONNX model. The backend
+intentionally refuses to serve if `labels.json` does not match the enabled roster.
 
 ## Entity Expansion
 
