@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/physics_shape_object.gd" id="1_shape"]
+[ext_resource type="Script" path="res://scripts/runtime_rig_2d.gd" id="2_rig"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(96, 96)
+
+[node name="Square" type="RigidBody2D"]
+script = ExtResource("1_shape")
+shape_type = "square"
+
+[node name="DrawingSkin" type="Node2D" parent="."]
+script = ExtResource("2_rig")
+
+[node name="Body" type="Sprite2D" parent="DrawingSkin"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_body")

@@ -153,17 +153,52 @@
       "rig_type": "swimmer"
     },
     {
-      "id": "dummy_static_object",
-      "display_name": "Dummy Static Object",
+      "id": "circle",
+      "display_name": "Circle",
       "kind": "object",
       "quickdraw_label": "circle",
-      "spawn_mode": "static",
-      "movement_type": "static",
-      "scene_path": "res://creatures/dummy_static_object.tscn",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/circle.tscn",
       "rig_profile": "res://config/rigs/static_object.json",
-      "evaluation_labels": [],
-      "enabled": false,
-      "rig_type": "none"
+      "evaluation_labels": [
+        "circle"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "circle"
+    },
+    {
+      "id": "square",
+      "display_name": "Square",
+      "kind": "object",
+      "quickdraw_label": "square",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/square.tscn",
+      "rig_profile": "res://config/rigs/static_object.json",
+      "evaluation_labels": [
+        "square"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "square"
+    },
+    {
+      "id": "triangle",
+      "display_name": "Triangle",
+      "kind": "object",
+      "quickdraw_label": "triangle",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/triangle.tscn",
+      "rig_profile": "res://config/rigs/static_object.json",
+      "evaluation_labels": [
+        "triangle"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "triangle"
     }
   ]
 }

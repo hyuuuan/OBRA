@@ -49,8 +49,9 @@ Download the enabled Quick Draw categories from the manifest:
 python3 model/download_data.py
 ```
 
-The enabled roster currently trains ten classes: `fish`, `frog`, `spider`, `bird`,
-`humanoid` from Quick Draw `yoga`, `cat`, `dog`, `rabbit`, `butterfly`, and `snake`.
+The enabled roster currently trains thirteen classes: `fish`, `frog`, `spider`,
+`bird`, `humanoid` from Quick Draw `yoga`, `cat`, `dog`, `rabbit`, `butterfly`,
+`snake`, plus the physics objects `circle`, `square`, and `triangle`.
 Whenever this list changes, retrain before starting the backend; stale
 `model.onnx`/`labels.json` files will fail manifest validation by design.
 
@@ -83,6 +84,11 @@ animation — spiders and humanoids step with distance traveled, birds beat thei
 drawn wings on flap impulses and hold them while gliding, fish run a speed-scaled
 traveling wave through their stroke vertices, frogs crouch/extend on hop events —
 and every limb eases back to its drawn rest pose when movement stops.
+
+Basic object classes use the same recognition and skinning handoff, but spawn as
+Godot `RigidBody2D` props instead of playable creatures. Circles, squares, and
+triangles rebuild their collision shape from the recognized class so they roll,
+slide, tip, and tumble with shape-appropriate physics.
 
 ## Cross-Dataset Evaluation
 
