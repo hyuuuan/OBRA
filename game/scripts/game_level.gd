@@ -1,16 +1,19 @@
 extends Node2D
 
 @onready var registry: EntityRegistry = $EntityRegistry
-@onready var spawn_point: Marker2D = $SpawnPoint
+@onready var environment: Node = $EnvironmentBaseplate
+@onready var spawn_point: Marker2D = $EnvironmentBaseplate/GameplayPlane/SpawnPoint
+@onready var entity_root: Node2D = $EnvironmentBaseplate/GameplayPlane/EntityRoot
 @onready var status_label: Label = $CanvasLayer/StatusLabel
 @onready var draw_panel: CanvasLayer = $DrawPanel
 
-var player: Node = null
+var player: Node2D = null
 
 
 func _ready() -> void:
 	registry.load_manifest()
 	draw_panel.drawing_ready.connect(_on_drawing_ready)
+	environment.call("set_target", spawn_point)
 	# Draw-first: nothing spawns until the panel recognizes a drawing.
 	status_label.text = "Draw something!"
 
@@ -34,7 +37,7 @@ func _spawn_or_replace(
 	if entity_id.is_empty():
 		entity_id = "frog"
 
-	var new_player := registry.instantiate_entity(entity_id)
+	var new_player := registry.instantiate_entity(entity_id) as Node2D
 	if new_player == null:
 		status_label.text = "Spawn failed"
 		return
@@ -44,8 +47,9 @@ func _spawn_or_replace(
 		player.queue_free()
 	player = new_player
 
-	add_child(player)
+	entity_root.add_child(player)
 	player.global_position = spawn_point.global_position
+	environment.call("set_target", player)
 	if drawing != null and player.has_method("apply_drawing"):
 		player.apply_drawing(drawing, strokes)
 

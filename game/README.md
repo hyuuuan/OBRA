@@ -71,11 +71,18 @@ does not generate animation frames.
 ## Current Scenes
 
 - `draw_screen.tscn`: drawing canvas, backend request, confidence/margin handling
-- `game_level.tscn`: manifest-backed spawn point and simple floor/walls
+- `game_level.tscn`: manifest-backed drawing flow plus the semi-3D environment baseplate
+- `environment/environment_baseplate.tscn`: visual-only depth layers, parallax camera,
+  placeholder props, gameplay collision, spawn point, and entity root
 - `creatures/*.tscn`: playable bodies with `DrawingSkin` runtime rig nodes
 - `objects/*.tscn`: controllable physics bodies for simple recognized shapes
 - `config/rigs/*.json`: per-entity gait/animation profiles (stride, swing angles,
   squash amounts, ground offset)
+
+The environment baseplate is intentionally asset-light. Replace placeholder prop
+children inside the existing depth layers when adding art; keep `GameplayPlane`,
+`EntityRoot`, `SpawnPoint`, and the collision bodies in place so spawning, camera
+follow, and 2D movement continue to work.
 
 Phase 2 resolves joints heuristically from the drawn strokes and animates them with
 Godot-native transforms. Skeleton2D/Polygon2D mesh skinning or model-assisted joint
