@@ -86,8 +86,9 @@ traveling wave through their stroke vertices, frogs crouch/extend on hop events 
 and every limb eases back to its drawn rest pose when movement stops.
 
 Basic object classes use the same recognition and skinning handoff, but spawn as
-Godot `RigidBody2D` props instead of playable creatures. Circles, squares, and
-triangles rebuild their collision shape from the recognized class so they roll,
+controllable Godot `RigidBody2D` actors instead of creature controllers. Circles,
+squares, and triangles rebuild their collision shape from the recognized class;
+the same movement inputs apply force, torque, and jump impulses so they roll,
 slide, tip, and tumble with shape-appropriate physics.
 
 ## Cross-Dataset Evaluation

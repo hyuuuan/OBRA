@@ -1,4 +1,15 @@
-extends Control
+extends CanvasLayer
+## In-game drawing panel. Lives alongside the running game instead of being its
+## own scene: when the backend recognizes a drawing it emits `drawing_ready` and
+## the game level spawns/replaces the creature in place — no scene switch.
+
+signal drawing_ready(
+	entity: String,
+	display_name: String,
+	drawing: Image,
+	response: Dictionary,
+	strokes: Array
+)
 
 @onready var canvas_viewport: SubViewport = $SubViewportContainer/SubViewport
 @onready var canvas: Control = $SubViewportContainer/SubViewport/Canvas
@@ -17,7 +28,7 @@ func _ready() -> void:
 	clear_button.pressed.connect(canvas.clear_canvas)
 	client.entity_prediction_received.connect(_on_entity_prediction)
 	client.prediction_failed.connect(_on_prediction_failed)
-	status.text = "Ready"
+	status.text = "Draw something, then Transform!"
 
 
 func _on_transform_pressed() -> void:
@@ -35,10 +46,8 @@ func _on_entity_prediction(
 	response: Dictionary
 ) -> void:
 	status.text = "%s %.0f%%" % [display_name, confidence * 100.0]
-	GameState.set_pending_prediction(entity, display_name, drawing, response, _pending_strokes)
-	get_tree().change_scene_to_file("res://game_level.tscn")
+	drawing_ready.emit(entity, display_name, drawing, response, _pending_strokes)
 
 
 func _on_prediction_failed(message: String) -> void:
 	status.text = message
-

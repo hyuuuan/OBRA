@@ -37,6 +37,7 @@ var _wave_amp: float = 0.0
 var _impact_timer: float = 0.0
 var _impact_duration: float = 0.18
 var _facing: float = 1.0
+var _bird_style: String = "" # flier archetype resolved from the drawn build
 
 var _target_offset: Vector2 = Vector2.ZERO
 var _target_squash: Vector2 = Vector2.ONE
@@ -88,7 +89,7 @@ func _process(delta: float) -> void:
 			"biped":
 				_tick_biped(delta, speed)
 			"flier":
-				_tick_flier(delta)
+				_tick_flier(delta, speed)
 			"swimmer":
 				_tick_swimmer(delta, speed)
 			"hopper":
@@ -522,8 +523,9 @@ func _assign_limb_roles() -> void:
 				if (limb["tip"].y < limb["joint"].y or spread_x > absf(drop_y)) \
 						and limb["length"] > diag * 0.1:
 					limb["role"] = "wing"
-				elif drop_y > 0.0 and limb["length"] <= diag * 0.35:
+				elif drop_y > 0.0 and drop_y >= spread_x:
 					limb["role"] = "leg"
+			_assign_bird_style(diag)
 		"hopper":
 			for limb in _limbs:
 				if limb["tip"].y > limb["joint"].y:
@@ -601,44 +603,145 @@ func _tick_biped(delta: float, speed: float) -> void:
 	_apply_impact_squash(_profile_float("landing_squash", 0.12))
 
 
-func _tick_flier(delta: float) -> void:
-	var flap_deg := deg_to_rad(_profile_float("wing_flap_degrees", 34.0))
-	var glide_raise := deg_to_rad(_profile_float("glide_raise_degrees", 12.0))
+func _tick_flier(delta: float, speed: float) -> void:
+	if _motion_state == "walk" or _motion_state == "idle":
+		_tick_flier_ground(delta, speed)
+	else:
+		_tick_flier_air(delta)
+
+
+## On the ground the wings fold and the feet actually step, phased per style:
+## an alternating stride for soarers/striders, a two-footed bob for songbirds.
+func _tick_flier_ground(delta: float, speed: float) -> void:
+	var tuning := _flier_style_tuning()
+	var moving := _motion_state == "walk" and speed > 4.0
+	var stride := maxf(8.0, _profile_float("ground_stride_length", 26.0)) * float(tuning["stride"])
+	var swing := deg_to_rad(_profile_float("leg_swing_degrees", 22.0)) * float(tuning["leg"])
+
+	if moving:
+		_gait_phase += speed * delta / stride
+
+	for limb in _limbs:
+		limb["target"] = 0.0
+		if limb["role"] == "leg" and moving:
+			limb["target"] = swing * sin(TAU * _gait_phase + limb["phase"])
+
+	if moving:
+		_target_offset.y = -absf(sin(TAU * _gait_phase)) \
+			* _profile_float("walk_bob", 2.4) * float(tuning["bob"])
+		_target_tilt = deg_to_rad(
+			_param_float("direction", 0.0) * _profile_float("ground_tilt_degrees", 4.0)
+		)
+	_apply_impact_squash(_profile_float("landing_squash", 0.12))
+
+
+## In the air the wings beat continuously for powered flight, or lock into a
+## spread glide; the feet tuck up out of the way.
+func _tick_flier_air(delta: float) -> void:
+	var tuning := _flier_style_tuning()
+	var flap_hz := _profile_float("flap_cycle_hz", 6.5) * float(tuning["flap_hz"])
+	var flap_deg := deg_to_rad(_profile_float("wing_flap_degrees", 40.0) * float(tuning["flap_amp"]))
+	var glide_raise := deg_to_rad(_profile_float("glide_raise_degrees", 12.0) * float(tuning["glide"]))
+	var tuck := deg_to_rad(_profile_float("leg_tuck_degrees", 12.0) * float(tuning["tuck"]))
 	var direction := _param_float("direction", 0.0)
 	var vertical_speed := _param_float("vertical_speed", 0.0)
-	var airborne := _motion_state in ["flap", "glide", "fly", "fall"]
+	var gliding := _motion_state == "glide"
 
-	var beat := 0.0
-	if _motion_state == "flap":
-		_flap_phase += delta * _profile_float("flap_cycle_hz", 6.5)
-		beat = sin(TAU * _flap_phase)
-		var pulse := absf(beat) * _profile_float("flap_squash", 0.1)
+	_flap_phase += delta * flap_hz
+	var beat := sin(TAU * _flap_phase)
+	if not gliding:
+		# A fresh tap ("flap") is the strongest downstroke and gives the most lift.
+		var power := 1.0 if _motion_state == "flap" else 0.72
+		var pulse := absf(beat) * _profile_float("flap_squash", 0.12) * power
 		_target_squash = Vector2(1.0 + pulse, 1.0 - pulse)
-		_target_offset.y = -absf(beat) * _profile_float("flap_lift", 4.0)
+		_target_offset.y = -absf(beat) * _profile_float("flap_lift", 5.0) * power
 
 	for limb in _limbs:
 		limb["target"] = 0.0
 		match limb["role"]:
 			"wing":
-				if _motion_state == "flap":
-					limb["target"] = _rotation_sign(limb, Vector2.DOWN) * flap_deg * beat
-				elif _motion_state == "glide":
-					limb["target"] = _rotation_sign(limb, Vector2.UP) * glide_raise
-				elif _motion_state == "fly":
-					limb["target"] = _rotation_sign(limb, Vector2.UP) * glide_raise * 0.35
-				elif _motion_state == "fall":
-					limb["target"] = _rotation_sign(limb, Vector2.UP) * glide_raise * 0.15
+				if gliding:
+					var flex := sin(TAU * _flap_phase * 0.15) * deg_to_rad(2.0)
+					limb["target"] = _rotation_sign(limb, Vector2.UP) * glide_raise + flex
+				else:
+					var power_amp := 1.0 if _motion_state == "flap" else 0.82
+					limb["target"] = _rotation_sign(limb, Vector2.DOWN) * flap_deg * beat * power_amp
 			"leg":
-				if airborne:
-					limb["target"] = _rotation_sign(limb, Vector2.UP) * deg_to_rad(8.0)
+				limb["target"] = _rotation_sign(limb, Vector2.UP) * tuck
 			_:
 				pass
 
-	if airborne:
-		_target_tilt = deg_to_rad(direction * _profile_float("tilt_degrees", 8.0))
-		if _motion_state == "glide" or _motion_state == "fall":
-			var pitch := clampf(vertical_speed / 500.0, -1.0, 1.0)
-			_target_tilt += deg_to_rad(pitch * _profile_float("dive_pitch_degrees", 6.0) * _facing)
+	_target_tilt = deg_to_rad(direction * _profile_float("tilt_degrees", 8.0))
+	if gliding:
+		var pitch := clampf(vertical_speed / 500.0, -1.0, 1.0)
+		_target_tilt += deg_to_rad(pitch * _profile_float("dive_pitch_degrees", 6.0) * _facing)
+
+
+## Resolves the flier archetype from the drawn build (unless the profile forces
+## one) and phases the legs for an alternating walk or a two-footed hop.
+func _assign_bird_style(diag: float) -> void:
+	_bird_style = ""
+	var configured := _profile_string("flight_style", "")
+	if configured == "auto":
+		_bird_style = _detect_bird_style(diag)
+	elif configured != "":
+		_bird_style = configured
+
+	var legs: Array = []
+	for limb in _limbs:
+		if limb["role"] == "leg":
+			legs.append(limb)
+	legs.sort_custom(func(a, b): return a["joint"].x < b["joint"].x)
+	var hop := _bird_style == "flitter"
+	for leg_index in range(legs.size()):
+		legs[leg_index]["phase"] = 0.0 if hop else PI * float(leg_index)
+
+
+func _detect_bird_style(diag: float) -> String:
+	var max_wing := 0.0
+	var max_leg := 0.0
+	for limb in _limbs:
+		if limb["role"] == "wing":
+			max_wing = maxf(max_wing, limb["length"])
+		elif limb["role"] == "leg":
+			max_leg = maxf(max_leg, limb["length"])
+	var span := maxf(1.0, diag)
+	var wing_ratio := max_wing / span
+	var leg_ratio := max_leg / span
+	var leg_vs_wing := max_leg / maxf(max_wing, 1.0)
+	# Almost no wings -> a ground bird; legs rivalling the wings -> a strider;
+	# prominent wings with tucked-up legs -> a soaring raptor; else a songbird.
+	if wing_ratio < 0.16:
+		return "strider" if leg_ratio > 0.12 else "flitter"
+	if leg_vs_wing > 0.75 and leg_ratio > 0.20:
+		return "strider"
+	if wing_ratio > 0.33 and leg_ratio < 0.22:
+		return "soarer"
+	return "flitter"
+
+
+func _flier_style_tuning() -> Dictionary:
+	match _bird_style:
+		"soarer":
+			return {
+				"flap_hz": 0.62, "flap_amp": 1.28, "glide": 1.5, "tuck": 1.6,
+				"stride": 1.4, "leg": 1.0, "bob": 0.7
+			}
+		"strider":
+			return {
+				"flap_hz": 1.0, "flap_amp": 0.62, "glide": 0.5, "tuck": 0.35,
+				"stride": 1.5, "leg": 1.35, "bob": 1.0
+			}
+		"flitter":
+			return {
+				"flap_hz": 1.32, "flap_amp": 0.88, "glide": 0.7, "tuck": 0.9,
+				"stride": 0.8, "leg": 1.15, "bob": 1.5
+			}
+		_:
+			return {
+				"flap_hz": 1.0, "flap_amp": 1.0, "glide": 1.0, "tuck": 1.0,
+				"stride": 1.0, "leg": 1.0, "bob": 1.0
+			}
 
 
 func _tick_swimmer(delta: float, speed: float) -> void:
@@ -1158,3 +1261,19 @@ func _farthest_distance(points: PackedVector2Array, from: Vector2) -> float:
 	for point in points:
 		best = maxf(best, from.distance_to(point))
 	return best
+
+
+## Diagnostic string shown in the game HUD: skin mode, resolved style,
+## and how many wing/leg limbs were articulated from the drawing.
+func rig_summary() -> String:
+	if skin_mode() != "vector":
+		return skin_mode()
+	var wings := 0
+	var legs := 0
+	for limb in _limbs:
+		if limb["role"] == "wing":
+			wings += 1
+		elif limb["role"] == "leg":
+			legs += 1
+	var tag := _bird_style if _bird_style != "" else _rig_type
+	return "%s W%d L%d" % [tag, wings, legs]

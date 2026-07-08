@@ -4,11 +4,18 @@
   "target_size": [118, 74],
   "align": "bottom",
   "ground_offset": 38,
-  "wing_flap_degrees": 42,
+  "flight_style": "auto",
+  "wing_flap_degrees": 40,
   "flap_cycle_hz": 6.5,
-  "flap_squash": 0.13,
+  "flap_squash": 0.12,
   "flap_lift": 5.5,
   "glide_raise_degrees": 12,
   "dive_pitch_degrees": 6.0,
-  "tilt_degrees": 8.0
+  "tilt_degrees": 8.0,
+  "leg_tuck_degrees": 12,
+  "ground_stride_length": 26,
+  "leg_swing_degrees": 22,
+  "walk_bob": 2.4,
+  "ground_tilt_degrees": 4.0,
+  "landing_squash": 0.12
 }

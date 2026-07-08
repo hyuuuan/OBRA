@@ -1,7 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/game_level.gd" id="1_level"]
 [ext_resource type="Script" path="res://scripts/entity_registry.gd" id="2_registry"]
+[ext_resource type="Script" path="res://scripts/draw_panel.gd" id="3_panel"]
+[ext_resource type="Script" path="res://scripts/drawing_canvas.gd" id="4_canvas"]
+[ext_resource type="Script" path="res://scripts/sketch_client.gd" id="5_client"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_floor"]
 size = Vector2(1280, 48)
@@ -16,7 +19,7 @@ script = ExtResource("1_level")
 script = ExtResource("2_registry")
 
 [node name="SpawnPoint" type="Marker2D" parent="."]
-position = Vector2(180, 520)
+position = Vector2(760, 520)
 
 [node name="Floor" type="StaticBody2D" parent="."]
 position = Vector2(640, 696)
@@ -25,7 +28,7 @@ position = Vector2(640, 696)
 shape = SubResource("RectangleShape2D_floor")
 
 [node name="LeftWall" type="StaticBody2D" parent="."]
-position = Vector2(0, 360)
+position = Vector2(560, 360)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="LeftWall"]
 shape = SubResource("RectangleShape2D_wall")
@@ -39,8 +42,72 @@ shape = SubResource("RectangleShape2D_wall")
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
 [node name="StatusLabel" type="Label" parent="CanvasLayer"]
-offset_left = 24.0
+offset_left = 600.0
 offset_top = 20.0
-offset_right = 420.0
+offset_right = 1000.0
 offset_bottom = 52.0
 text = "Entity"
+
+[node name="DrawPanel" type="CanvasLayer" parent="."]
+script = ExtResource("3_panel")
+
+[node name="Background" type="ColorRect" parent="DrawPanel"]
+offset_right = 560.0
+offset_bottom = 720.0
+color = Color(0.12, 0.14, 0.16, 1)
+
+[node name="SubViewportContainer" type="SubViewportContainer" parent="DrawPanel"]
+custom_minimum_size = Vector2(512, 512)
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 536.0
+offset_bottom = 536.0
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="DrawPanel/SubViewportContainer"]
+size = Vector2i(512, 512)
+render_target_update_mode = 4
+
+[node name="Paper" type="ColorRect" parent="DrawPanel/SubViewportContainer/SubViewport"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(1, 1, 1, 1)
+
+[node name="Canvas" type="Control" parent="DrawPanel/SubViewportContainer/SubViewport"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_canvas")
+
+[node name="TransformButton" type="Button" parent="DrawPanel"]
+offset_left = 24.0
+offset_top = 552.0
+offset_right = 272.0
+offset_bottom = 600.0
+focus_mode = 0
+text = "Transform"
+
+[node name="ClearButton" type="Button" parent="DrawPanel"]
+offset_left = 288.0
+offset_top = 552.0
+offset_right = 536.0
+offset_bottom = 600.0
+focus_mode = 0
+text = "Clear"
+
+[node name="StatusLabel" type="Label" parent="DrawPanel"]
+offset_left = 24.0
+offset_top = 616.0
+offset_right = 536.0
+offset_bottom = 700.0
+text = "Ready"
+autowrap_mode = 3
+
+[node name="SketchClient" type="Node" parent="DrawPanel"]
+script = ExtResource("5_client")

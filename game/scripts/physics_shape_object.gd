@@ -6,12 +6,20 @@ extends RigidBody2D
 @export var collision_shape_path: NodePath = NodePath("CollisionShape2D")
 @export var shape_type: String = ""
 @export var default_target_size: Vector2 = Vector2(96, 96)
+@export var controllable: bool = true
+@export var max_horizontal_speed: float = 320.0
+@export var max_angular_speed: float = 12.0
+@export_range(0.0, 1.0) var air_control_multiplier: float = 0.35
 
 var entity_metadata: Dictionary = {}
 var rig_profile: Dictionary = {}
 
 var _collision_shape: CollisionShape2D
 var _spawn_motion_applied := false
+var _move_force := 1600.0
+var _roll_torque := 28000.0
+var _jump_impulse := 380.0
+var _grounded := false
 
 
 func _ready() -> void:
@@ -19,6 +27,8 @@ func _ready() -> void:
 	_configure_physics()
 	_configure_skin()
 	_rebuild_collision()
+	contact_monitor = true
+	max_contacts_reported = 8
 	call_deferred("_apply_spawn_motion")
 
 
@@ -63,6 +73,11 @@ func _configure_physics() -> void:
 			angular_damp = 0.02
 			material.friction = 0.25
 			material.bounce = 0.22
+			_move_force = 650.0
+			_roll_torque = 36000.0
+			_jump_impulse = 360.0
+			max_horizontal_speed = 360.0
+			max_angular_speed = 14.0
 		"square":
 			mass = 1.25
 			gravity_scale = 1.0
@@ -70,6 +85,11 @@ func _configure_physics() -> void:
 			angular_damp = 0.16
 			material.friction = 0.85
 			material.bounce = 0.04
+			_move_force = 2100.0
+			_roll_torque = 30000.0
+			_jump_impulse = 430.0
+			max_horizontal_speed = 280.0
+			max_angular_speed = 8.0
 		"triangle":
 			mass = 1.1
 			gravity_scale = 1.0
@@ -77,6 +97,11 @@ func _configure_physics() -> void:
 			angular_damp = 0.08
 			material.friction = 0.72
 			material.bounce = 0.07
+			_move_force = 1850.0
+			_roll_torque = 38000.0
+			_jump_impulse = 410.0
+			max_horizontal_speed = 300.0
+			max_angular_speed = 11.0
 		_:
 			mass = 1.0
 			gravity_scale = 1.0
@@ -84,9 +109,58 @@ func _configure_physics() -> void:
 			angular_damp = 0.08
 			material.friction = 0.55
 			material.bounce = 0.08
+			_move_force = 1600.0
+			_roll_torque = 28000.0
+			_jump_impulse = 380.0
+			max_horizontal_speed = 300.0
+			max_angular_speed = 10.0
 	physics_material_override = material
 	can_sleep = true
 	lock_rotation = false
+
+
+func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
+	if not controllable:
+		return
+
+	var horizontal := Input.get_axis("move_left", "move_right")
+	_grounded = _has_ground_contact(state)
+	if absf(horizontal) > 0.05:
+		sleeping = false
+		var control_scale := 1.0 if _grounded else air_control_multiplier
+		if absf(linear_velocity.x) < max_horizontal_speed or signf(linear_velocity.x) != signf(horizontal):
+			apply_central_force(Vector2(horizontal * _move_force * control_scale, 0.0))
+		if absf(angular_velocity) < max_angular_speed or signf(angular_velocity) != signf(horizontal):
+			apply_torque(horizontal * _roll_torque * control_scale)
+
+	if Input.is_action_just_pressed("jump") and _grounded:
+		sleeping = false
+		apply_central_impulse(Vector2(0.0, -_jump_impulse * mass))
+		apply_torque_impulse(_jump_spin_impulse(horizontal))
+
+
+func _has_ground_contact(state: PhysicsDirectBodyState2D) -> bool:
+	for index in range(state.get_contact_count()):
+		var normal := state.get_contact_local_normal(index)
+		var world_normal := normal.rotated(global_rotation)
+		if normal.dot(Vector2.UP) > 0.45 or world_normal.dot(Vector2.UP) > 0.45:
+			return true
+	return false
+
+
+func _jump_spin_impulse(horizontal: float) -> float:
+	var direction := horizontal
+	if absf(direction) <= 0.05:
+		direction = 1.0 if angular_velocity >= 0.0 else -1.0
+	match shape_type:
+		"circle":
+			return direction * 1400.0
+		"square":
+			return direction * 900.0
+		"triangle":
+			return direction * 1200.0
+		_:
+			return direction * 1000.0
 
 
 func _configure_skin() -> void:

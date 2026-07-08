@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="O.B.R.A."
-run/main_scene="res://draw_screen.tscn"
+run/main_scene="res://game_level.tscn"
 config/features=PackedStringArray("4.7")
 
 [autoload]

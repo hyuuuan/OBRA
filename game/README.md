@@ -22,9 +22,9 @@ The playable entities are defined in `config/entities.json`:
 - `rabbit` -> Quick Draw `rabbit`, hop controller
 - `butterfly` -> Quick Draw `butterfly`, flap/glide controller
 - `snake` -> Quick Draw `snake`, swim/slither controller
-- `circle` -> Quick Draw `circle`, dynamic round physics prop
-- `square` -> Quick Draw `square`, dynamic box physics prop
-- `triangle` -> Quick Draw `triangle`, dynamic polygon physics prop
+- `circle` -> Quick Draw `circle`, controllable round physics body
+- `square` -> Quick Draw `square`, controllable box physics body
+- `triangle` -> Quick Draw `triangle`, controllable polygon physics body
 
 After editing enabled entities, retrain/export the ONNX model. The backend
 intentionally refuses to serve if `labels.json` does not match the enabled roster.
@@ -42,7 +42,8 @@ To add a future animal or object:
 Playable entries should expose an `apply_drawing(drawing: Image, strokes: Array)`
 method. The provided controllers inherit that from `scripts/playable_entity.gd`.
 Dynamic shape objects expose the same method through `scripts/physics_shape_object.gd`;
-they apply the drawing as ink and rebuild a matching `RigidBody2D` collider.
+they apply the drawing as ink, rebuild a matching `RigidBody2D` collider, and map
+movement input to force, torque, and jump impulses.
 
 Animation metadata is optional but recommended for playable entities:
 
@@ -72,7 +73,7 @@ does not generate animation frames.
 - `draw_screen.tscn`: drawing canvas, backend request, confidence/margin handling
 - `game_level.tscn`: manifest-backed spawn point and simple floor/walls
 - `creatures/*.tscn`: playable bodies with `DrawingSkin` runtime rig nodes
-- `objects/*.tscn`: dynamic physics props for simple recognized shapes
+- `objects/*.tscn`: controllable physics bodies for simple recognized shapes
 - `config/rigs/*.json`: per-entity gait/animation profiles (stride, swing angles,
   squash amounts, ground offset)
 
