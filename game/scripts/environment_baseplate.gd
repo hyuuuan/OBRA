@@ -2,7 +2,7 @@ class_name EnvironmentBaseplate
 extends Node2D
 ## Owns the layered visual world, gameplay collision plane, and camera target.
 
-@export var world_bounds: Rect2 = Rect2(560.0, -520.0, 3200.0, 1200.0)
+@export var world_bounds: Rect2 = Rect2(0.0, -520.0, 3760.0, 1200.0)
 @export var floor_thickness: float = 48.0
 @export var wall_thickness: float = 48.0
 @export var fallback_target_path: NodePath = NodePath("GameplayPlane/SpawnPoint")

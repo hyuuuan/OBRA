@@ -5,17 +5,27 @@ extends Node2D
 @onready var spawn_point: Marker2D = $EnvironmentBaseplate/GameplayPlane/SpawnPoint
 @onready var entity_root: Node2D = $EnvironmentBaseplate/GameplayPlane/EntityRoot
 @onready var status_label: Label = $CanvasLayer/StatusLabel
-@onready var draw_panel: CanvasLayer = $DrawPanel
+@onready var draw_button: Button = $CanvasLayer/DrawButton
+@onready var draw_panel = $DrawPanel
 
 var player: Node2D = null
 
 
 func _ready() -> void:
 	registry.load_manifest()
+	draw_button.pressed.connect(_on_draw_button_pressed)
 	draw_panel.drawing_ready.connect(_on_drawing_ready)
+	draw_panel.panel_closed.connect(_on_draw_panel_closed)
 	environment.call("set_target", spawn_point)
-	# Draw-first: nothing spawns until the panel recognizes a drawing.
-	status_label.text = "Draw something!"
+	status_label.text = "Ready"
+
+
+func _on_draw_button_pressed() -> void:
+	draw_panel.open_panel()
+
+
+func _on_draw_panel_closed() -> void:
+	draw_button.grab_focus()
 
 
 func _on_drawing_ready(

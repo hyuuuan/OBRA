@@ -1,17 +1,17 @@
 class_name WorldCameraController
 extends Camera2D
-## Camera tuned for the fixed draw-panel layout. It follows a world target while
-## keeping the target centered in the right-side play area whenever bounds allow.
+## Camera tuned for the full game canvas. It follows a world target while
+## keeping the target centered in the visible play area whenever bounds allow.
 
 signal camera_moved(camera_position: Vector2)
 
-@export var play_area_left: float = 560.0
+@export var play_area_left: float = 0.0
 @export var follow_lerp_speed: float = 10.0
 @export var vertical_lerp_speed: float = 5.5
 @export var vertical_dead_zone: float = 20.0
 @export_range(0.0, 1.0) var vertical_follow_scale: float = 0.75
-@export var target_offset: Vector2 = Vector2(-280.0, -160.0)
-@export var world_bounds: Rect2 = Rect2(560.0, -520.0, 3200.0, 1200.0)
+@export var target_offset: Vector2 = Vector2(0.0, -160.0)
+@export var world_bounds: Rect2 = Rect2(0.0, -520.0, 3760.0, 1200.0)
 
 var target: Node2D = null
 var _vertical_rest_y: float = 0.0
@@ -104,5 +104,5 @@ func _max_camera_y() -> float:
 func _viewport_size() -> Vector2:
 	var viewport_size := get_viewport_rect().size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		viewport_size = Vector2(1280.0, 720.0)
+		viewport_size = Vector2(1600.0, 900.0)
 	return viewport_size

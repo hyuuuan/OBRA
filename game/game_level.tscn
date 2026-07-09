@@ -16,35 +16,68 @@ script = ExtResource("1_level")
 script = ExtResource("2_registry")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
+layer = 5
 
 [node name="StatusLabel" type="Label" parent="CanvasLayer"]
-offset_left = 600.0
+offset_left = 24.0
 offset_top = 20.0
-offset_right = 1000.0
+offset_right = 620.0
 offset_bottom = 52.0
-text = "Entity"
+text = "Ready"
+
+[node name="DrawButton" type="Button" parent="CanvasLayer"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -164.0
+offset_top = 20.0
+offset_right = -24.0
+offset_bottom = 64.0
+grow_horizontal = 0
+focus_mode = 0
+text = "Draw"
 
 [node name="DrawPanel" type="CanvasLayer" parent="."]
+visible = false
+layer = 10
 script = ExtResource("3_panel")
 
-[node name="Background" type="ColorRect" parent="DrawPanel"]
-offset_right = 560.0
-offset_bottom = 720.0
+[node name="Scrim" type="ColorRect" parent="DrawPanel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.42)
+
+[node name="PanelRoot" type="ColorRect" parent="DrawPanel"]
+custom_minimum_size = Vector2(608, 700)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -304.0
+offset_top = -350.0
+offset_right = 304.0
+offset_bottom = 350.0
+grow_horizontal = 2
+grow_vertical = 2
 color = Color(0.12, 0.14, 0.16, 1)
 
-[node name="SubViewportContainer" type="SubViewportContainer" parent="DrawPanel"]
+[node name="SubViewportContainer" type="SubViewportContainer" parent="DrawPanel/PanelRoot"]
 custom_minimum_size = Vector2(512, 512)
-offset_left = 24.0
-offset_top = 24.0
-offset_right = 536.0
-offset_bottom = 536.0
+offset_left = 48.0
+offset_top = 32.0
+offset_right = 560.0
+offset_bottom = 544.0
 stretch = true
 
-[node name="SubViewport" type="SubViewport" parent="DrawPanel/SubViewportContainer"]
+[node name="SubViewport" type="SubViewport" parent="DrawPanel/PanelRoot/SubViewportContainer"]
 size = Vector2i(512, 512)
 render_target_update_mode = 4
 
-[node name="Paper" type="ColorRect" parent="DrawPanel/SubViewportContainer/SubViewport"]
+[node name="Paper" type="ColorRect" parent="DrawPanel/PanelRoot/SubViewportContainer/SubViewport"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -52,7 +85,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(1, 1, 1, 1)
 
-[node name="Canvas" type="Control" parent="DrawPanel/SubViewportContainer/SubViewport"]
+[node name="Canvas" type="Control" parent="DrawPanel/PanelRoot/SubViewportContainer/SubViewport"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -61,29 +94,29 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("4_canvas")
 
-[node name="TransformButton" type="Button" parent="DrawPanel"]
-offset_left = 24.0
-offset_top = 552.0
-offset_right = 272.0
-offset_bottom = 600.0
+[node name="TransformButton" type="Button" parent="DrawPanel/PanelRoot"]
+offset_left = 48.0
+offset_top = 568.0
+offset_right = 292.0
+offset_bottom = 616.0
 focus_mode = 0
 text = "Transform"
 
-[node name="ClearButton" type="Button" parent="DrawPanel"]
-offset_left = 288.0
-offset_top = 552.0
-offset_right = 536.0
-offset_bottom = 600.0
+[node name="ClearButton" type="Button" parent="DrawPanel/PanelRoot"]
+offset_left = 316.0
+offset_top = 568.0
+offset_right = 560.0
+offset_bottom = 616.0
 focus_mode = 0
 text = "Clear"
 
-[node name="StatusLabel" type="Label" parent="DrawPanel"]
-offset_left = 24.0
-offset_top = 616.0
-offset_right = 536.0
-offset_bottom = 700.0
+[node name="StatusLabel" type="Label" parent="DrawPanel/PanelRoot"]
+offset_left = 48.0
+offset_top = 632.0
+offset_right = 560.0
+offset_bottom = 676.0
 text = "Ready"
 autowrap_mode = 3
 
-[node name="SketchClient" type="Node" parent="DrawPanel"]
+[node name="SketchClient" type="Node" parent="DrawPanel/PanelRoot"]
 script = ExtResource("5_client")
