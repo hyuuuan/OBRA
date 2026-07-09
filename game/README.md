@@ -25,6 +25,12 @@ The playable entities are defined in `config/entities.json`:
 - `circle` -> Quick Draw `circle`, controllable round physics body
 - `square` -> Quick Draw `square`, controllable box physics body
 - `triangle` -> Quick Draw `triangle`, controllable polygon physics body
+- `axe` -> Quick Draw `axe`, controllable physics body
+- `ladder` -> Quick Draw `ladder`, controllable tall physics body
+- `key` -> Quick Draw `key`, controllable elongated physics body
+- `umbrella` -> Quick Draw `umbrella`, controllable physics body
+- `flashlight` -> Quick Draw `flashlight`, controllable elongated physics body
+- `sailboat` -> Quick Draw `sailboat`, controllable physics body
 
 After editing enabled entities, retrain/export the ONNX model. The backend
 intentionally refuses to serve if `labels.json` does not match the enabled roster.

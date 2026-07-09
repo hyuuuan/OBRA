@@ -9,3 +9,6 @@ venv/
 
 # Godot
 .godot/
+
+# Thesis working documents
+thesisdocs/

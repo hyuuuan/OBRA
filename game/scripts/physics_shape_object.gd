@@ -102,6 +102,78 @@ func _configure_physics() -> void:
 			_jump_impulse = 410.0
 			max_horizontal_speed = 300.0
 			max_angular_speed = 11.0
+		"axe":
+			mass = 1.15
+			gravity_scale = 1.0
+			linear_damp = 0.16
+			angular_damp = 0.09
+			material.friction = 0.68
+			material.bounce = 0.06
+			_move_force = 1750.0
+			_roll_torque = 34000.0
+			_jump_impulse = 400.0
+			max_horizontal_speed = 300.0
+			max_angular_speed = 10.0
+		"ladder":
+			mass = 1.45
+			gravity_scale = 1.0
+			linear_damp = 0.22
+			angular_damp = 0.18
+			material.friction = 0.82
+			material.bounce = 0.03
+			_move_force = 2200.0
+			_roll_torque = 26000.0
+			_jump_impulse = 430.0
+			max_horizontal_speed = 260.0
+			max_angular_speed = 7.0
+		"key":
+			mass = 0.9
+			gravity_scale = 1.0
+			linear_damp = 0.12
+			angular_damp = 0.07
+			material.friction = 0.42
+			material.bounce = 0.10
+			_move_force = 1450.0
+			_roll_torque = 32000.0
+			_jump_impulse = 360.0
+			max_horizontal_speed = 330.0
+			max_angular_speed = 12.0
+		"umbrella":
+			mass = 1.05
+			gravity_scale = 0.92
+			linear_damp = 0.26
+			angular_damp = 0.14
+			material.friction = 0.52
+			material.bounce = 0.08
+			_move_force = 1500.0
+			_roll_torque = 30000.0
+			_jump_impulse = 390.0
+			max_horizontal_speed = 300.0
+			max_angular_speed = 9.0
+		"flashlight":
+			mass = 0.95
+			gravity_scale = 1.0
+			linear_damp = 0.13
+			angular_damp = 0.08
+			material.friction = 0.44
+			material.bounce = 0.09
+			_move_force = 1500.0
+			_roll_torque = 33000.0
+			_jump_impulse = 365.0
+			max_horizontal_speed = 330.0
+			max_angular_speed = 12.0
+		"sailboat":
+			mass = 1.2
+			gravity_scale = 0.95
+			linear_damp = 0.2
+			angular_damp = 0.12
+			material.friction = 0.48
+			material.bounce = 0.07
+			_move_force = 1650.0
+			_roll_torque = 31000.0
+			_jump_impulse = 405.0
+			max_horizontal_speed = 305.0
+			max_angular_speed = 9.0
 		_:
 			mass = 1.0
 			gravity_scale = 1.0
@@ -159,6 +231,18 @@ func _jump_spin_impulse(horizontal: float) -> float:
 			return direction * 900.0
 		"triangle":
 			return direction * 1200.0
+		"axe":
+			return direction * 1100.0
+		"ladder":
+			return direction * 750.0
+		"key":
+			return direction * 1150.0
+		"umbrella":
+			return direction * 900.0
+		"flashlight":
+			return direction * 1150.0
+		"sailboat":
+			return direction * 950.0
 		_:
 			return direction * 1000.0
 
@@ -199,6 +283,30 @@ func _rebuild_collision() -> void:
 				Vector2(half_width, half_height)
 			])
 			_collision_shape.shape = triangle
+		"axe":
+			var axe := RectangleShape2D.new()
+			axe.size = Vector2(target_size.x * 1.08, target_size.y * 0.96)
+			_collision_shape.shape = axe
+		"ladder":
+			var ladder := RectangleShape2D.new()
+			ladder.size = Vector2(target_size.x * 0.68, target_size.y * 1.38)
+			_collision_shape.shape = ladder
+		"key":
+			var key := RectangleShape2D.new()
+			key.size = Vector2(target_size.x * 1.18, target_size.y * 0.72)
+			_collision_shape.shape = key
+		"umbrella":
+			var umbrella := RectangleShape2D.new()
+			umbrella.size = Vector2(target_size.x * 1.05, target_size.y * 0.98)
+			_collision_shape.shape = umbrella
+		"flashlight":
+			var flashlight := RectangleShape2D.new()
+			flashlight.size = Vector2(target_size.x * 1.18, target_size.y * 0.7)
+			_collision_shape.shape = flashlight
+		"sailboat":
+			var sailboat := RectangleShape2D.new()
+			sailboat.size = Vector2(target_size.x * 1.05, target_size.y * 0.92)
+			_collision_shape.shape = sailboat
 		_:
 			var fallback := RectangleShape2D.new()
 			fallback.size = target_size
@@ -219,6 +327,24 @@ func _apply_spawn_motion() -> void:
 		"triangle":
 			linear_velocity = Vector2(70.0, -28.0)
 			angular_velocity = 3.1
+		"axe":
+			linear_velocity = Vector2(64.0, -24.0)
+			angular_velocity = 2.4
+		"ladder":
+			linear_velocity = Vector2(48.0, -18.0)
+			angular_velocity = 1.2
+		"key":
+			linear_velocity = Vector2(80.0, -26.0)
+			angular_velocity = 3.8
+		"umbrella":
+			linear_velocity = Vector2(58.0, -30.0)
+			angular_velocity = 1.8
+		"flashlight":
+			linear_velocity = Vector2(82.0, -24.0)
+			angular_velocity = 3.4
+		"sailboat":
+			linear_velocity = Vector2(62.0, -28.0)
+			angular_velocity = 1.7
 		_:
 			linear_velocity = Vector2(55.0, -20.0)
 			angular_velocity = 1.5

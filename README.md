@@ -49,9 +49,10 @@ Download the enabled Quick Draw categories from the manifest:
 python3 model/download_data.py
 ```
 
-The enabled roster currently trains thirteen classes: `fish`, `frog`, `spider`,
+The enabled roster currently trains nineteen classes: `fish`, `frog`, `spider`,
 `bird`, `humanoid` from Quick Draw `yoga`, `cat`, `dog`, `rabbit`, `butterfly`,
-`snake`, plus the physics objects `circle`, `square`, and `triangle`.
+`snake`, plus the physics objects `circle`, `square`, `triangle`, `axe`,
+`ladder`, `key`, `umbrella`, `flashlight`, and `sailboat`.
 Whenever this list changes, retrain before starting the backend; stale
 `model.onnx`/`labels.json` files will fail manifest validation by design.
 
@@ -87,9 +88,10 @@ and every limb eases back to its drawn rest pose when movement stops.
 
 Basic object classes use the same recognition and skinning handoff, but spawn as
 controllable Godot `RigidBody2D` actors instead of creature controllers. Circles,
-squares, and triangles rebuild their collision shape from the recognized class;
-the same movement inputs apply force, torque, and jump impulses so they roll,
-slide, tip, and tumble with shape-appropriate physics.
+squares, triangles, axes, ladders, keys, umbrellas, flashlights, and sailboats
+rebuild their collision shape from the recognized class; the same movement inputs
+apply force, torque, and jump impulses so they roll, slide, tip, and tumble with
+shape-appropriate physics.
 
 ## Cross-Dataset Evaluation
 

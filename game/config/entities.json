@@ -199,6 +199,102 @@
       "enabled": true,
       "rig_type": "none",
       "shape_type": "triangle"
+    },
+    {
+      "id": "axe",
+      "display_name": "Axe",
+      "kind": "object",
+      "quickdraw_label": "axe",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/axe.tscn",
+      "rig_profile": "res://config/rigs/static_object.json",
+      "evaluation_labels": [
+        "axe"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "axe"
+    },
+    {
+      "id": "ladder",
+      "display_name": "Ladder",
+      "kind": "object",
+      "quickdraw_label": "ladder",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/ladder.tscn",
+      "rig_profile": "res://config/rigs/static_object.json",
+      "evaluation_labels": [
+        "ladder"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "ladder"
+    },
+    {
+      "id": "key",
+      "display_name": "Key",
+      "kind": "object",
+      "quickdraw_label": "key",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/key.tscn",
+      "rig_profile": "res://config/rigs/static_object.json",
+      "evaluation_labels": [
+        "key"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "key"
+    },
+    {
+      "id": "umbrella",
+      "display_name": "Umbrella",
+      "kind": "object",
+      "quickdraw_label": "umbrella",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/umbrella.tscn",
+      "rig_profile": "res://config/rigs/static_object.json",
+      "evaluation_labels": [
+        "umbrella"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "umbrella"
+    },
+    {
+      "id": "flashlight",
+      "display_name": "Flashlight",
+      "kind": "object",
+      "quickdraw_label": "flashlight",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/flashlight.tscn",
+      "rig_profile": "res://config/rigs/static_object.json",
+      "evaluation_labels": [
+        "flashlight"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "flashlight"
+    },
+    {
+      "id": "sailboat",
+      "display_name": "Sailboat",
+      "kind": "object",
+      "quickdraw_label": "sailboat",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/sailboat.tscn",
+      "rig_profile": "res://config/rigs/static_object.json",
+      "evaluation_labels": [
+        "sailboat"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "sailboat"
     }
   ]
 }
