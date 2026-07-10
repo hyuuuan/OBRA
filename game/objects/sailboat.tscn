@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://scripts/physics_shape_object.gd" id="1_shape"]
+[ext_resource type="Script" path="res://scripts/utility_object.gd" id="1_shape"]
 [ext_resource type="Script" path="res://scripts/runtime_rig_2d.gd" id="2_rig"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]

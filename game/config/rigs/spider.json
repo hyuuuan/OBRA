@@ -1,6 +1,12 @@
 {
   "id": "spider",
   "rig_type": "walker",
+  "move_speed": 180,
+  "jump_impulse": 300,
+  "friction": 0.92,
+  "joint_spring": 1250,
+  "joint_damping": 78,
+  "joint_torque_limit": 3000,
   "target_size": [116, 72],
   "align": "bottom",
   "ground_offset": 35,

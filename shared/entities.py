@@ -16,6 +16,16 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MANIFEST_PATH = REPO_ROOT / "game" / "config" / "entities.json"
 ALLOWED_SPAWN_MODES = {"playable", "pickup", "obstacle", "static"}
 ALLOWED_RIG_TYPES = {"walker", "biped", "flier", "swimmer", "hopper", "none"}
+ALLOWED_RUNTIME_ROLES = {"active_ragdoll_morph", "physics_morph", "utility"}
+ALLOWED_MEDIA = {"any", "water"}
+ALLOWED_UTILITY_BEHAVIORS = {
+    "axe",
+    "ladder",
+    "key",
+    "umbrella",
+    "flashlight",
+    "sailboat",
+}
 # Older manifests used deform_strategy; map those onto the rig types.
 LEGACY_STRATEGY_TO_RIG_TYPE = {
     "spline": "swimmer",
@@ -38,6 +48,9 @@ class EntityDefinition:
     evaluation_labels: tuple[str, ...]
     rig_profile: str | None = None
     rig_type: str | None = None
+    runtime_role: str = "active_ragdoll_morph"
+    utility_behavior: str | None = None
+    required_medium: str = "any"
     enabled: bool = True
 
     @classmethod
@@ -69,6 +82,9 @@ class EntityDefinition:
             evaluation_labels=tuple(str(label) for label in raw.get("evaluation_labels", [])),
             rig_profile=_optional_non_empty_string(raw, "rig_profile"),
             rig_type=_resolve_rig_type(raw),
+            runtime_role=_non_empty_string(raw, "runtime_role"),
+            utility_behavior=_optional_non_empty_string(raw, "utility_behavior"),
+            required_medium=str(raw.get("required_medium", "any")).strip() or "any",
             enabled=bool(raw.get("enabled", True)),
         )
 
@@ -87,6 +103,9 @@ class EntityDefinition:
             "scene_path": self.scene_path,
             "rig_profile": self.rig_profile,
             "rig_type": self.rig_type,
+            "runtime_role": self.runtime_role,
+            "utility_behavior": self.utility_behavior,
+            "required_medium": self.required_medium,
             "enabled": self.enabled,
         }
 
@@ -173,6 +192,29 @@ def _validate_entities(
             raise ValueError(
                 f"{entity.id} has invalid rig_type {entity.rig_type!r}; "
                 f"expected one of {sorted(ALLOWED_RIG_TYPES)}"
+            )
+
+        if entity.runtime_role not in ALLOWED_RUNTIME_ROLES:
+            raise ValueError(
+                f"{entity.id} has invalid runtime_role {entity.runtime_role!r}; "
+                f"expected one of {sorted(ALLOWED_RUNTIME_ROLES)}"
+            )
+
+        if entity.required_medium not in ALLOWED_MEDIA:
+            raise ValueError(
+                f"{entity.id} has invalid required_medium {entity.required_medium!r}; "
+                f"expected one of {sorted(ALLOWED_MEDIA)}"
+            )
+
+        if entity.runtime_role == "utility":
+            if entity.utility_behavior not in ALLOWED_UTILITY_BEHAVIORS:
+                raise ValueError(
+                    f"{entity.id} utility_behavior must be one of "
+                    f"{sorted(ALLOWED_UTILITY_BEHAVIORS)}"
+                )
+        elif entity.utility_behavior is not None:
+            raise ValueError(
+                f"{entity.id} defines utility_behavior but is not a utility"
             )
 
         if entity.enabled:

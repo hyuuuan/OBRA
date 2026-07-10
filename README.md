@@ -72,26 +72,33 @@ uvicorn main:app --reload --port 8000
 
 The prediction response includes `entity`, `display_name`, `source_label`,
 `confidence`, `margin`, `runner_up`, `probabilities`, `rig_profile`,
-`rig_type`, and the legacy `creature` alias.
+`rig_type`, `runtime_role`, `utility_behavior`, `required_medium`, and the
+legacy `creature` alias.
 
-## Runtime Rigging
+## Runtime Physics, Utilities, and Ink
 
-Phase 2 keeps animation local to Godot. The backend still classifies the drawing;
-the game hands the drawn stroke polylines to the spawned entity, which resolves a
-skeleton from the actual ink: the most connected stroke cluster becomes the body and
-each stroke touching it becomes a limb pivoting where it meets the body (strokes
-drawn across the body split into two limbs at the crossing). Movement drives all
-animation — spiders and humanoids step with distance traveled, birds beat their
-drawn wings on flap impulses and hold them while gliding, fish run a speed-scaled
-traveling wave through their stroke vertices, frogs crouch/extend on hop events —
-and every limb eases back to its drawn rest pose when movement stops.
+The backend only classifies. Godot turns submitted stroke vectors into bounded
+physics graphs: a dynamic body cluster plus capsule/polygon limb bodies joined by
+motorized, angular-limited `PinJoint2D`s. Visible vector sections are children of
+their owning bodies, so rendered ink and collision always share a transform. Rigs
+are capped at 24 bodies and 23 joints and fall back to one compound body when a
+drawing does not contain an articulatable structure.
 
-Basic object classes use the same recognition and skinning handoff, but spawn as
-controllable Godot `RigidBody2D` actors instead of creature controllers. Circles,
-squares, triangles, axes, ladders, keys, umbrellas, flashlights, and sailboats
-rebuild their collision shape from the recognized class; the same movement inputs
-apply force, torque, and jump impulses so they roll, slide, tip, and tumble with
-shape-appropriate physics.
+Animals and the humanoid are force-driven active ragdolls with species-specific
+gaits. Circle, square, and triangle remain controllable physics morphs. Axe,
+ladder, key, umbrella, flashlight, and sailboat are placeable utilities that keep
+their exact image, strokes, and state through a six-slot inventory.
+
+Each level starts with twelve canvas diagonals of ink. The canvas charges geometric
+polyline length, clips the exact final segment at the limit, and reserves ink until
+a morph succeeds or a utility is placed/stored. Clearing, cancellation, backend
+failure, and low-confidence rejection refund the current reservation.
+
+```bash
+python -m unittest -v tests.test_manifest_contract
+godot --headless --path game --script res://tests/run_tests.gd
+godot --headless --path game --script res://tests/run_level_ready.gd
+```
 
 ## Cross-Dataset Evaluation
 

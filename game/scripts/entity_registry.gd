@@ -1,5 +1,8 @@
 class_name EntityRegistry
 extends Node
+
+const ALLOWED_RUNTIME_ROLES := ["active_ragdoll_morph", "physics_morph", "utility"]
+const ALLOWED_MEDIA := ["any", "water"]
 ## Loads game/config/entities.json and instantiates manifest-defined scenes.
 
 @export var manifest_path: String = "res://config/entities.json"
@@ -23,6 +26,9 @@ func load_manifest() -> void:
 	if not (parsed is Dictionary) or not parsed.has("entities"):
 		push_error("Entity manifest must contain an entities array")
 		return
+	if int(parsed.get("version", 0)) != 2:
+		push_error("Entity manifest version 2 is required")
+		return
 
 	for entry: Dictionary in parsed["entities"]:
 		if not bool(entry.get("enabled", true)):
@@ -30,6 +36,17 @@ func load_manifest() -> void:
 		var entity_id := String(entry.get("id", ""))
 		if entity_id.is_empty():
 			push_error("Entity manifest contains an enabled entry without an id")
+			continue
+		var role := String(entry.get("runtime_role", ""))
+		if role not in ALLOWED_RUNTIME_ROLES:
+			push_error("%s has invalid runtime_role: %s" % [entity_id, role])
+			continue
+		var medium := String(entry.get("required_medium", "any"))
+		if medium not in ALLOWED_MEDIA:
+			push_error("%s has invalid required_medium: %s" % [entity_id, medium])
+			continue
+		if role == "utility" and String(entry.get("utility_behavior", "")).is_empty():
+			push_error("%s utility is missing utility_behavior" % entity_id)
 			continue
 		_entities_by_id[entity_id] = entry
 

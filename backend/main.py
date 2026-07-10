@@ -142,6 +142,9 @@ def predict(payload: DrawingPayload) -> dict:
         "scene_path": entity.scene_path,
         "rig_profile": entity.rig_profile,
         "rig_type": entity.rig_type,
+        "runtime_role": entity.runtime_role,
+        "utility_behavior": entity.utility_behavior,
+        "required_medium": entity.required_medium,
         "confidence": float(probabilities[best]),
         "margin": margin,
         "runner_up": {

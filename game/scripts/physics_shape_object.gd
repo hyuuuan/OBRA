@@ -22,6 +22,8 @@ var _jump_impulse := 380.0
 var _grounded := false
 var _entity_configured := false
 var _collision_key := ""
+var _collision_generation: int = 0
+var _generated_collisions: Array[CollisionShape2D] = []
 
 
 func _ready() -> void:
@@ -37,6 +39,7 @@ func _ready() -> void:
 
 func configure_entity(entry: Dictionary) -> void:
 	entity_metadata = entry.duplicate(true)
+	controllable = String(entry.get("runtime_role", "physics_morph")) == "physics_morph"
 	shape_type = _resolve_shape_type()
 	rig_profile = _load_rig_profile(String(entry.get("rig_profile", "")))
 	if not rig_profile.has("rig_type"):
@@ -52,6 +55,45 @@ func apply_drawing(drawing: Image, strokes: Array = []) -> void:
 	if skin != null and skin.has_method("apply_drawing"):
 		skin.apply_drawing(drawing, strokes)
 	_rebuild_collision()
+
+
+func get_physics_anchor() -> RigidBody2D:
+	return self
+
+
+func get_grip_anchor() -> Node2D:
+	var grip := get_node_or_null("GripAnchor") as Node2D
+	if grip == null:
+		grip = Marker2D.new()
+		grip.name = "GripAnchor"
+		grip.position = Vector2(_target_size().x * 0.35, -_target_size().y * 0.15)
+		add_child(grip)
+	return grip
+
+
+func capture_morph_state() -> Dictionary:
+	return {
+		"position": global_position,
+		"linear_velocity": linear_velocity,
+		"rotation": global_rotation,
+		"angular_velocity": angular_velocity
+	}
+
+
+func apply_morph_state(state: Dictionary) -> void:
+	_spawn_motion_applied = true
+	global_position = Vector2(state.get("position", global_position))
+	linear_velocity = Vector2(state.get("linear_velocity", Vector2.ZERO)).limit_length(520.0)
+	global_rotation = float(state.get("rotation", global_rotation))
+	angular_velocity = clampf(float(state.get("angular_velocity", 0.0)), -8.0, 8.0)
+
+
+func apply_item_data(item: DrawnItemData) -> void:
+	if item == null:
+		return
+	apply_drawing(item.image, item.strokes)
+	if not item.runtime_state.is_empty() and has_method("restore_utility_state"):
+		call("restore_utility_state", item.runtime_state)
 
 
 func _resolve_shape_type() -> String:
@@ -196,11 +238,11 @@ func _configure_physics() -> void:
 
 
 func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
+	_grounded = _has_ground_contact(state)
 	if not controllable:
 		return
 
 	var horizontal := Input.get_axis("move_left", "move_right")
-	_grounded = _has_ground_contact(state)
 	if absf(horizontal) > 0.05:
 		sleeping = false
 		var control_scale := 1.0 if _grounded else air_control_multiplier
@@ -265,67 +307,112 @@ func _rebuild_collision() -> void:
 	_ensure_collision_shape()
 	if _collision_shape == null:
 		return
+	_collision_generation += 1
+	_clear_generated_collisions()
+	var skin := _get_skin()
+	var strokes: Array = []
+	if skin != null and skin.has_method("get_vector_strokes"):
+		strokes = skin.call("get_vector_strokes")
+	for stroke_value in strokes:
+		if _generated_collisions.size() >= 24 or not (stroke_value is Dictionary):
+			break
+		var stroke: Dictionary = stroke_value
+		var points_value: Variant = stroke.get("points")
+		if not (points_value is PackedVector2Array):
+			continue
+		var points: PackedVector2Array = points_value
+		var width := float(stroke.get("width", 6.0))
+		if _points_are_closed(points, width):
+			var hull := Geometry2D.convex_hull(points)
+			if hull.size() >= 3:
+				var polygon := ConvexPolygonShape2D.new()
+				polygon.points = hull
+				_add_generated_shape(polygon, Vector2.ZERO, 0.0)
+				continue
+		var sampled := _sample_collision_points(points, 12)
+		for index in range(sampled.size() - 1):
+			if _generated_collisions.size() >= 24:
+				break
+			var from := sampled[index]
+			var to := sampled[index + 1]
+			var length := from.distance_to(to)
+			if length <= 0.5:
+				continue
+			var radius := clampf(width * 0.5, 2.0, 7.0)
+			var capsule := CapsuleShape2D.new()
+			capsule.radius = radius
+			capsule.height = maxf(radius * 2.0, length + radius * 2.0)
+			_add_generated_shape(capsule, (from + to) * 0.5, (to - from).angle() + PI * 0.5)
+	if _generated_collisions.is_empty():
+		_add_class_fallback_collision()
+	_collision_key = "%s:%d" % [shape_type, _collision_generation]
 
+
+func _clear_generated_collisions() -> void:
+	for collision in _generated_collisions:
+		if collision != _collision_shape and is_instance_valid(collision):
+			collision.queue_free()
+	_generated_collisions.clear()
+	_collision_shape.shape = null
+	_collision_shape.position = Vector2.ZERO
+	_collision_shape.rotation = 0.0
+
+
+func _add_generated_shape(shape: Shape2D, at: Vector2, angle: float) -> void:
+	var collision := _collision_shape
+	if not _generated_collisions.is_empty():
+		collision = CollisionShape2D.new()
+		add_child(collision)
+	collision.shape = shape
+	collision.position = at
+	collision.rotation = angle
+	_generated_collisions.append(collision)
+
+
+func _add_class_fallback_collision() -> void:
 	var target_size := _target_size()
-	var next_key := "%s:%0.3f:%0.3f" % [shape_type, target_size.x, target_size.y]
-	if next_key == _collision_key and _collision_shape.shape != null:
-		return
-	_collision_key = next_key
-
 	var side := minf(target_size.x, target_size.y)
+	var shape: Shape2D
 	match shape_type:
 		"circle":
 			var circle := CircleShape2D.new()
 			circle.radius = side * 0.5
-			_collision_shape.shape = circle
-		"square":
-			var square := RectangleShape2D.new()
-			square.size = Vector2(side, side)
-			_collision_shape.shape = square
+			shape = circle
 		"triangle":
 			var triangle := ConvexPolygonShape2D.new()
-			var half_width := side * 0.56
-			var half_height := side * 0.5
 			triangle.points = PackedVector2Array([
-				Vector2(0.0, -half_height),
-				Vector2(-half_width, half_height),
-				Vector2(half_width, half_height)
+				Vector2(0.0, -side * 0.5),
+				Vector2(-side * 0.56, side * 0.5),
+				Vector2(side * 0.56, side * 0.5)
 			])
-			_collision_shape.shape = triangle
-		"axe":
-			var axe := RectangleShape2D.new()
-			axe.size = Vector2(target_size.x * 1.08, target_size.y * 0.96)
-			_collision_shape.shape = axe
-		"ladder":
-			var ladder := RectangleShape2D.new()
-			ladder.size = Vector2(target_size.x * 0.68, target_size.y * 1.38)
-			_collision_shape.shape = ladder
-		"key":
-			var key := RectangleShape2D.new()
-			key.size = Vector2(target_size.x * 1.18, target_size.y * 0.72)
-			_collision_shape.shape = key
-		"umbrella":
-			var umbrella := RectangleShape2D.new()
-			umbrella.size = Vector2(target_size.x * 1.05, target_size.y * 0.98)
-			_collision_shape.shape = umbrella
-		"flashlight":
-			var flashlight := RectangleShape2D.new()
-			flashlight.size = Vector2(target_size.x * 1.18, target_size.y * 0.7)
-			_collision_shape.shape = flashlight
-		"sailboat":
-			var sailboat := RectangleShape2D.new()
-			sailboat.size = Vector2(target_size.x * 1.05, target_size.y * 0.92)
-			_collision_shape.shape = sailboat
+			shape = triangle
 		_:
-			var fallback := RectangleShape2D.new()
-			fallback.size = target_size
-			_collision_shape.shape = fallback
+			var rectangle := RectangleShape2D.new()
+			rectangle.size = target_size
+			shape = rectangle
+	_add_generated_shape(shape, Vector2.ZERO, 0.0)
+
+
+func _points_are_closed(points: PackedVector2Array, width: float) -> bool:
+	return points.size() >= 3 and points[0].distance_to(points[points.size() - 1]) <= maxf(6.0, width * 1.5)
+
+
+func _sample_collision_points(points: PackedVector2Array, maximum: int) -> PackedVector2Array:
+	if points.size() <= maximum:
+		return points.duplicate()
+	var sampled := PackedVector2Array()
+	for index in range(maximum):
+		var source_index := int(round(float(index) * float(points.size() - 1) / float(maximum - 1)))
+		sampled.append(points[source_index])
+	return sampled
 
 
 func _apply_spawn_motion() -> void:
 	if _spawn_motion_applied:
 		return
 	_spawn_motion_applied = true
+	if String(entity_metadata.get("runtime_role", "physics_morph")) == "utility":
+		return
 	match shape_type:
 		"circle":
 			linear_velocity = Vector2(95.0, -35.0)

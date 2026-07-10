@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "description": "Single source of truth for trainable sketch classes and spawnable O.B.R.A. entities.",
   "entities": [
     {
@@ -15,7 +15,9 @@
         "fish"
       ],
       "enabled": true,
-      "rig_type": "swimmer"
+      "rig_type": "swimmer",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "water"
     },
     {
       "id": "frog",
@@ -30,7 +32,9 @@
         "frog"
       ],
       "enabled": true,
-      "rig_type": "hopper"
+      "rig_type": "hopper",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
     },
     {
       "id": "spider",
@@ -45,7 +49,9 @@
         "spider"
       ],
       "enabled": true,
-      "rig_type": "walker"
+      "rig_type": "walker",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
     },
     {
       "id": "bird",
@@ -62,7 +68,9 @@
         "standing bird"
       ],
       "enabled": true,
-      "rig_type": "flier"
+      "rig_type": "flier",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
     },
     {
       "id": "humanoid",
@@ -75,7 +83,9 @@
       "rig_profile": "res://config/rigs/humanoid.json",
       "evaluation_labels": [],
       "enabled": true,
-      "rig_type": "biped"
+      "rig_type": "biped",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
     },
     {
       "id": "cat",
@@ -90,7 +100,9 @@
         "cat"
       ],
       "enabled": true,
-      "rig_type": "walker"
+      "rig_type": "walker",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
     },
     {
       "id": "dog",
@@ -105,7 +117,9 @@
         "dog"
       ],
       "enabled": true,
-      "rig_type": "walker"
+      "rig_type": "walker",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
     },
     {
       "id": "rabbit",
@@ -120,7 +134,9 @@
         "rabbit"
       ],
       "enabled": true,
-      "rig_type": "hopper"
+      "rig_type": "hopper",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
     },
     {
       "id": "butterfly",
@@ -135,7 +151,9 @@
         "butterfly"
       ],
       "enabled": true,
-      "rig_type": "flier"
+      "rig_type": "flier",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
     },
     {
       "id": "snake",
@@ -150,7 +168,9 @@
         "snake"
       ],
       "enabled": true,
-      "rig_type": "swimmer"
+      "rig_type": "swimmer",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
     },
     {
       "id": "circle",
@@ -166,7 +186,9 @@
       ],
       "enabled": true,
       "rig_type": "none",
-      "shape_type": "circle"
+      "shape_type": "circle",
+      "runtime_role": "physics_morph",
+      "required_medium": "any"
     },
     {
       "id": "square",
@@ -182,7 +204,9 @@
       ],
       "enabled": true,
       "rig_type": "none",
-      "shape_type": "square"
+      "shape_type": "square",
+      "runtime_role": "physics_morph",
+      "required_medium": "any"
     },
     {
       "id": "triangle",
@@ -198,7 +222,9 @@
       ],
       "enabled": true,
       "rig_type": "none",
-      "shape_type": "triangle"
+      "shape_type": "triangle",
+      "runtime_role": "physics_morph",
+      "required_medium": "any"
     },
     {
       "id": "axe",
@@ -208,13 +234,15 @@
       "spawn_mode": "obstacle",
       "movement_type": "physics",
       "scene_path": "res://objects/axe.tscn",
-      "rig_profile": "res://config/rigs/static_object.json",
       "evaluation_labels": [
         "axe"
       ],
       "enabled": true,
       "rig_type": "none",
-      "shape_type": "axe"
+      "shape_type": "axe",
+      "runtime_role": "utility",
+      "utility_behavior": "axe",
+      "required_medium": "any"
     },
     {
       "id": "ladder",
@@ -224,13 +252,15 @@
       "spawn_mode": "obstacle",
       "movement_type": "physics",
       "scene_path": "res://objects/ladder.tscn",
-      "rig_profile": "res://config/rigs/static_object.json",
       "evaluation_labels": [
         "ladder"
       ],
       "enabled": true,
       "rig_type": "none",
-      "shape_type": "ladder"
+      "shape_type": "ladder",
+      "runtime_role": "utility",
+      "utility_behavior": "ladder",
+      "required_medium": "any"
     },
     {
       "id": "key",
@@ -240,13 +270,15 @@
       "spawn_mode": "obstacle",
       "movement_type": "physics",
       "scene_path": "res://objects/key.tscn",
-      "rig_profile": "res://config/rigs/static_object.json",
       "evaluation_labels": [
         "key"
       ],
       "enabled": true,
       "rig_type": "none",
-      "shape_type": "key"
+      "shape_type": "key",
+      "runtime_role": "utility",
+      "utility_behavior": "key",
+      "required_medium": "any"
     },
     {
       "id": "umbrella",
@@ -256,13 +288,15 @@
       "spawn_mode": "obstacle",
       "movement_type": "physics",
       "scene_path": "res://objects/umbrella.tscn",
-      "rig_profile": "res://config/rigs/static_object.json",
       "evaluation_labels": [
         "umbrella"
       ],
       "enabled": true,
       "rig_type": "none",
-      "shape_type": "umbrella"
+      "shape_type": "umbrella",
+      "runtime_role": "utility",
+      "utility_behavior": "umbrella",
+      "required_medium": "any"
     },
     {
       "id": "flashlight",
@@ -272,13 +306,15 @@
       "spawn_mode": "obstacle",
       "movement_type": "physics",
       "scene_path": "res://objects/flashlight.tscn",
-      "rig_profile": "res://config/rigs/static_object.json",
       "evaluation_labels": [
         "flashlight"
       ],
       "enabled": true,
       "rig_type": "none",
-      "shape_type": "flashlight"
+      "shape_type": "flashlight",
+      "runtime_role": "utility",
+      "utility_behavior": "flashlight",
+      "required_medium": "any"
     },
     {
       "id": "sailboat",
@@ -288,13 +324,15 @@
       "spawn_mode": "obstacle",
       "movement_type": "physics",
       "scene_path": "res://objects/sailboat.tscn",
-      "rig_profile": "res://config/rigs/static_object.json",
       "evaluation_labels": [
         "sailboat"
       ],
       "enabled": true,
       "rig_type": "none",
-      "shape_type": "sailboat"
+      "shape_type": "sailboat",
+      "runtime_role": "utility",
+      "utility_behavior": "sailboat",
+      "required_medium": "water"
     }
   ]
 }

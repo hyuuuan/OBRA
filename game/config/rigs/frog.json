@@ -1,6 +1,12 @@
 {
   "id": "frog",
   "rig_type": "hopper",
+  "move_speed": 180,
+  "charge_time": 0.8,
+  "friction": 0.88,
+  "joint_spring": 1350,
+  "joint_damping": 82,
+  "joint_torque_limit": 3400,
   "target_size": [100, 84],
   "align": "bottom",
   "ground_offset": 45,

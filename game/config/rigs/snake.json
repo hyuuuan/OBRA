@@ -1,6 +1,11 @@
 {
   "id": "snake",
   "rig_type": "swimmer",
+  "move_speed": 205,
+  "friction": 0.96,
+  "joint_spring": 740,
+  "joint_damping": 46,
+  "joint_torque_limit": 1700,
   "target_size": [142, 58],
   "align": "center",
   "wave_length": 58,

@@ -1,6 +1,11 @@
 {
   "id": "butterfly",
   "rig_type": "flier",
+  "move_speed": 220,
+  "friction": 0.55,
+  "joint_spring": 760,
+  "joint_damping": 42,
+  "joint_torque_limit": 1500,
   "target_size": [116, 82],
   "align": "center",
   "wing_flap_degrees": 42,

@@ -1,6 +1,11 @@
 {
   "id": "bird",
   "rig_type": "flier",
+  "move_speed": 245,
+  "friction": 0.7,
+  "joint_spring": 980,
+  "joint_damping": 58,
+  "joint_torque_limit": 2400,
   "target_size": [118, 74],
   "align": "bottom",
   "ground_offset": 38,

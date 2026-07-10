@@ -25,12 +25,12 @@ The playable entities are defined in `config/entities.json`:
 - `circle` -> Quick Draw `circle`, controllable round physics body
 - `square` -> Quick Draw `square`, controllable box physics body
 - `triangle` -> Quick Draw `triangle`, controllable polygon physics body
-- `axe` -> Quick Draw `axe`, controllable physics body
-- `ladder` -> Quick Draw `ladder`, controllable tall physics body
-- `key` -> Quick Draw `key`, controllable elongated physics body
-- `umbrella` -> Quick Draw `umbrella`, controllable physics body
-- `flashlight` -> Quick Draw `flashlight`, controllable elongated physics body
-- `sailboat` -> Quick Draw `sailboat`, controllable physics body
+- `axe` -> Quick Draw `axe`, placeable/equippable destructible tool
+- `ladder` -> Quick Draw `ladder`, settling climbable utility
+- `key` -> Quick Draw `key`, reusable lock utility
+- `umbrella` -> Quick Draw `umbrella`, toggleable fall-drag utility
+- `flashlight` -> Quick Draw `flashlight`, persistent toggleable light cone
+- `sailboat` -> Quick Draw `sailboat`, placeable water-aware vehicle
 
 After editing enabled entities, retrain/export the ONNX model. The backend
 intentionally refuses to serve if `labels.json` does not match the enabled roster.
@@ -45,11 +45,10 @@ To add a future animal or object:
 4. Create the scene named by `scene_path`.
 5. Run `python3 model/download_data.py`, retrain, and copy/export the new ONNX files.
 
-Playable entries should expose an `apply_drawing(drawing: Image, strokes: Array)`
-method. The provided controllers inherit that from `scripts/playable_entity.gd`.
-Dynamic shape objects expose the same method through `scripts/physics_shape_object.gd`;
-they apply the drawing as ink, rebuild a matching `RigidBody2D` collider, and map
-movement input to force, torque, and jump impulses.
+Every runtime entry exposes `apply_drawing(drawing: Image, strokes: Array)` and
+`configure_entity(entry)`. Living morphs also expose physics-anchor, grip-anchor,
+and morph-state methods. `runtime_role` in the version 2 manifest selects active
+ragdoll morph, controllable physics morph, or utility placement behavior.
 
 Animation metadata is optional but recommended for playable entities:
 
@@ -57,39 +56,37 @@ Animation metadata is optional but recommended for playable entities:
 - `rig_type`: one of `walker`, `biped`, `flier`, `swimmer`, `hopper`, or `none`.
 - Missing stroke data falls back to the simple drawing-as-sprite behavior.
 
-The runtime rig (`scripts/runtime_rig_2d.gd`) animates the player's actual drawn
-strokes — no template limbs are added. The drawing canvas hands the raw stroke
-polylines to the spawned entity, which resolves a skeleton from them: the most
-connected stroke cluster becomes the body, every open stroke touching it becomes a
-limb pivoting at the exact contact point, a stroke drawn across the body splits into
-two limbs at the crossing, and strokes touching a limb chain onto it. All motion is
-driven by real movement — gait phase advances with distance traveled, wings beat on
-flap impulses, the swim wave scales with speed — and every pose eases back to the
-drawn rest pose when movement stops. The backend still only classifies sketches; it
-does not generate animation frames.
+The runtime rig builds actual `RigidBody2D` sections and `PinJoint2D` constraints
+from the player's ink; no template limbs are added. Connected strokes become
+articulated chains, closed strokes become solid hulls, and open strokes become
+compound capsules. Malformed drawings degrade to a stable compound body rather
+than creating an unbounded joint graph.
 
 ## Controls
 
 - Move: WASD or arrow keys
 - Jump/flap/hop: Space
 - Return to drawing screen from the game level: R
+- Place: mouse, wheel or Q/E to rotate, left click confirm, right click cancel
+- Inventory slots: 1–6
+- Interact/equip/pick up: E
+- Use equipped utility: F
 
 ## Current Scenes
 
-- `draw_screen.tscn`: drawing canvas, backend request, confidence/margin handling
-- `game_level.tscn`: manifest-backed drawing flow plus the semi-3D environment baseplate
+- `game_level.tscn`: in-game draw panel, ink/inventory/placement systems, and environment baseplate
 - `environment/environment_baseplate.tscn`: visual-only depth layers, parallax camera,
   placeholder props, gameplay collision, spawn point, and entity root
-- `creatures/*.tscn`: playable bodies with `DrawingSkin` runtime rig nodes
-- `objects/*.tscn`: controllable physics bodies for simple recognized shapes
-- `config/rigs/*.json`: per-entity gait/animation profiles (stride, swing angles,
-  squash amounts, ground offset)
+- `creatures/*.tscn`: active-ragdoll containers with `DrawingSkin` physics rig nodes
+- `objects/*.tscn`: controllable shape morphs and placeable utility rigidbodies
+- `config/rigs/*.json`: per-entity gait, motor, mass/contact, and alignment tuning
 
 The environment baseplate is intentionally asset-light. Replace placeholder prop
 children inside the existing depth layers when adding art; keep `GameplayPlane`,
 `EntityRoot`, `SpawnPoint`, and the collision bodies in place so spawning, camera
 follow, and 2D movement continue to work.
 
-Phase 2 resolves joints heuristically from the drawn strokes and animates them with
-Godot-native transforms. Skeleton2D/Polygon2D mesh skinning or model-assisted joint
-detection can layer on later without changing the stroke pipeline.
+The physics rig resolves joints heuristically from the player's stroke graph and
+drives them with bounded motors and contact-aware forces. Future level content can
+add `WaterArea2D`, destructible, lockable, and utility-requirement targets without
+changing classification or drawing data.

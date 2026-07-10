@@ -1,6 +1,12 @@
 {
   "id": "dog",
   "rig_type": "walker",
+  "move_speed": 215,
+  "jump_impulse": 330,
+  "friction": 0.9,
+  "joint_spring": 1180,
+  "joint_damping": 74,
+  "joint_torque_limit": 3000,
   "target_size": [126, 78],
   "align": "bottom",
   "ground_offset": 38,

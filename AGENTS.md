@@ -1,8 +1,16 @@
 # O.B.R.A. Agent Notes
 
 O.B.R.A. is a Godot 4 thesis game prototype: the player draws a sketch, a
-FastAPI/ONNX backend classifies the raster image, and Godot spawns a controllable
-entity skinned and animated from the player's actual stroke vectors.
+FastAPI/ONNX backend classifies the raster image, and Godot either morphs the
+player or creates a placeable utility from the player's actual stroke vectors.
+
+## Code Discovery and Reading
+
+- Use `codebase-memory-mcp` as the default for code discovery and reading to
+  conserve context: locate symbols with `search_graph`, inspect their source
+  with `get_code_snippet`, and trace relationships with `trace_path`.
+- Read files directly only when graph output is insufficient or for non-code
+  artifacts such as configuration, scenes, manifests, and documentation.
 
 ## Project Map
 
@@ -25,22 +33,22 @@ entity skinned and animated from the player's actual stroke vectors.
   `game_level.gd` -> `apply_drawing(drawing, strokes)`.
 - Spawnable scenes should support `configure_entity(entry)` and
   `apply_drawing(drawing, strokes)`. Playable creatures inherit
-  `game/scripts/playable_entity.gd`; simple physics objects use
-  `game/scripts/physics_shape_object.gd`.
-- `RuntimeRig2D` builds rigs from the drawn strokes. Prefer preserving that
-  heuristic pipeline over adding template limbs or backend-generated animation.
-- `game/config/rigs/*.json` tunes target size, alignment, and motion parameters;
-  use those files for per-entity feel before hardcoding behavior.
+  `game/scripts/playable_entity.gd`; simple physics morphs use
+  `game/scripts/physics_shape_object.gd`; utilities use `utility_object.gd`.
+- Manifest `runtime_role` is authoritative: living forms are active-ragdoll
+  morphs, basic shapes are physics morphs, and six utility classes are placed or
+  stored without replacing the current player.
+- `RuntimeRig2D` builds bounded rigidbody/joint graphs from drawn strokes. Preserve
+  that no-template-limb pipeline and tune motors/contacts through rig profiles.
 
 ## Gameplay Shape
 
-- Flow: open draw panel, sketch, click Transform, backend predicts, Godot spawns
-  or replaces the active entity under `EnvironmentBaseplate/GameplayPlane/EntityRoot`.
+- Flow: a successful morph replaces the active player; a utility enters placement
+  and then lives under `WorldItemRoot` or in the six-slot inventory.
 - Controls are defined in `game/project.godot`: WASD/arrows for movement, Space
-  for jump/flap/hop, and R for redraw.
-- Creature movement controllers are intentionally small and state-driven. They
-  feed motion state into `set_rig_state`; the rig advances from actual movement
-  speed and eases back to the drawn rest pose when idle.
+  for jump/flap/hop, R for redraw, 1–6 for inventory, E to interact, and F to use.
+- Ink is level-scoped: twelve normalized canvas diagonals, transactionally reserved
+  while drawing and committed only by a successful morph or stored/placed utility.
 - The environment is asset-light on purpose. Keep `GameplayPlane`, `EntityRoot`,
   `SpawnPoint`, camera, floor, and walls intact when replacing placeholder art.
 
@@ -51,6 +59,8 @@ entity skinned and animated from the player's actual stroke vectors.
 - Download enabled Quick Draw data: `python3 model/download_data.py`
 - Train/export model: `python3 model/train_quickdraw.py`
 - Cross-dataset eval: `python3 model/evaluate_folder.py --dir <dataset-root>`
+- Contracts: `python3 -m unittest -v tests.test_manifest_contract`
+- Godot physics: `godot --headless --path game --script res://tests/run_tests.gd`
 
 ## Working Notes
 

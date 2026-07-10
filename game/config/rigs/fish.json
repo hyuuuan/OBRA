@@ -1,6 +1,11 @@
 {
   "id": "fish",
   "rig_type": "swimmer",
+  "move_speed": 260,
+  "friction": 0.35,
+  "joint_spring": 820,
+  "joint_damping": 48,
+  "joint_torque_limit": 1900,
   "target_size": [126, 76],
   "align": "center",
   "wave_length": 70,
