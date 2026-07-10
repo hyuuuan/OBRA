@@ -10,6 +10,7 @@ class_name DrawingSkin2D
 @export_range(0.0, 1.0) var paper_threshold: float = 0.92
 @export var visible_padding: int = 10
 @export var default_target_size: Vector2 = Vector2(96, 96)
+@export var debug_timing_logs: bool = false
 
 const VECTOR_MIN_SCALE := 0.02
 const VECTOR_MAX_SCALE := 4.0
@@ -49,6 +50,7 @@ func configure_skin(new_profile: Dictionary, new_entity_metadata: Dictionary = {
 
 
 func apply_drawing(drawing: Image, strokes: Array = []) -> Dictionary:
+	var started := Time.get_ticks_usec()
 	_vector_strokes.clear()
 	_mode = "none"
 
@@ -59,6 +61,9 @@ func apply_drawing(drawing: Image, strokes: Array = []) -> Dictionary:
 		_build_bitmap_skin(drawing)
 
 	_on_skin_rebuilt()
+	if debug_timing_logs:
+		var elapsed_ms := float(Time.get_ticks_usec() - started) / 1000.0
+		print("%s skin build %.2f ms (%s)" % [name, elapsed_ms, _mode])
 	return analysis
 
 
@@ -165,11 +170,12 @@ func _build_vector_strokes(raw_strokes: Array) -> void:
 		for point in local:
 			local_min = local_min.min(point)
 			local_max = local_max.max(point)
-		_vector_strokes.append({
+		var built_stroke := {
 			"points": local,
 			"width": clampf(float(widths[index]) * scale, 1.2, 12.0),
 			"color": colors[index]
-		})
+		}
+		_vector_strokes.append(_with_stroke_metrics(built_stroke))
 
 	_stroke_bounds = Rect2(local_min, (local_max - local_min).max(Vector2(0.1, 0.1)))
 	_mode = "vector"
@@ -331,6 +337,48 @@ func _set_body_visible(is_visible: bool) -> void:
 	_ensure_body()
 	if _body != null:
 		_body.visible = is_visible
+
+
+func _refresh_vector_stroke_metrics(strokes: Array) -> void:
+	for index in range(strokes.size()):
+		if strokes[index] is Dictionary:
+			strokes[index] = _with_stroke_metrics(strokes[index])
+
+
+func _with_stroke_metrics(stroke: Dictionary) -> Dictionary:
+	var points_value: Variant = stroke.get("points")
+	if not (points_value is PackedVector2Array):
+		return stroke
+	var points: PackedVector2Array = points_value
+	if points.is_empty():
+		stroke["bounds"] = Rect2()
+		stroke["area"] = 0.0
+		stroke["length"] = 0.0
+		stroke["endpoint_gap_sq"] = 0.0
+		return stroke
+
+	var bounds := _skin_points_bounds(points)
+	stroke["bounds"] = bounds
+	stroke["area"] = bounds.size.x * bounds.size.y
+	stroke["length"] = _skin_polyline_length(points)
+	stroke["endpoint_gap_sq"] = points[0].distance_squared_to(points[points.size() - 1])
+	return stroke
+
+
+func _skin_polyline_length(points: PackedVector2Array) -> float:
+	var total := 0.0
+	for index in range(points.size() - 1):
+		total += points[index].distance_to(points[index + 1])
+	return total
+
+
+func _skin_points_bounds(points: PackedVector2Array) -> Rect2:
+	if points.is_empty():
+		return Rect2()
+	var bounds := Rect2(points[0], Vector2.ZERO)
+	for point in points:
+		bounds = bounds.expand(point)
+	return bounds
 
 
 func _profile_float(key: String, default_value: float) -> float:

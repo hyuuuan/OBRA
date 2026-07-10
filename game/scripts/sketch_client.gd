@@ -19,9 +19,11 @@ signal prediction_failed(message: String)
 @export_range(0.0, 1.0) var confidence_threshold: float = 0.6
 ## Below this top-1 vs top-2 probability gap, the result is too ambiguous.
 @export_range(0.0, 1.0) var margin_threshold: float = 0.15
+@export var debug_timing_logs: bool = false
 
 var _http: HTTPRequest
 var _last_drawing: Image
+var _request_started_usec: int = 0
 
 
 func _ready() -> void:
@@ -32,16 +34,21 @@ func _ready() -> void:
 
 ## Call this from your "Transform!" button.
 func send_drawing() -> void:
+	var started := Time.get_ticks_usec()
 	await RenderingServer.frame_post_draw  # make sure the strokes are rendered
 	_last_drawing = canvas_viewport.get_texture().get_image()
 	var png_base64 := Marshalls.raw_to_base64(_last_drawing.save_png_to_buffer())
 	var body := JSON.stringify({"image_data": png_base64})
+	_request_started_usec = Time.get_ticks_usec()
 	var error := _http.request(
 		backend_url,
 		["Content-Type: application/json"],
 		HTTPClient.METHOD_POST,
 		body
 	)
+	if debug_timing_logs:
+		var capture_ms := float(_request_started_usec - started) / 1000.0
+		print("SketchClient capture/encode %.2f ms" % capture_ms)
 	if error != OK:
 		prediction_failed.emit("could not start the request (is another one running?)")
 
@@ -49,6 +56,9 @@ func send_drawing() -> void:
 func _on_request_completed(
 	result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray
 ) -> void:
+	if debug_timing_logs and _request_started_usec > 0:
+		var request_ms := float(Time.get_ticks_usec() - _request_started_usec) / 1000.0
+		print("SketchClient request %.2f ms" % request_ms)
 	if result != HTTPRequest.RESULT_SUCCESS:
 		prediction_failed.emit("backend unreachable — is the Python server running?")
 		return

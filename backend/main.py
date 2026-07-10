@@ -11,6 +11,7 @@ import base64
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent
@@ -64,6 +65,7 @@ if OUTPUT_SHAPE and isinstance(OUTPUT_SHAPE[-1], int) and OUTPUT_SHAPE[-1] != le
 MODEL_METADATA = (
     json.loads(MODEL_METADATA_PATH.read_text()) if MODEL_METADATA_PATH.exists() else {}
 )
+DEBUG_TIMING = os.environ.get("OBRA_DEBUG_TIMING", "").lower() in {"1", "true", "yes", "on"}
 
 app = FastAPI(title="O.B.R.A. Sketch Classifier")
 app.add_middleware(  # required so a Godot (web) client may call us
@@ -95,6 +97,7 @@ def health() -> dict:
 
 @app.post("/predict")
 def predict(payload: DrawingPayload) -> dict:
+    started = time.perf_counter()
     encoded = payload.image_data.split(",")[-1]  # strip "data:image/png;base64," if present
     try:
         image_bytes = base64.b64decode(encoded, validate=True)
@@ -102,13 +105,16 @@ def predict(payload: DrawingPayload) -> dict:
         raise HTTPException(status_code=400, detail="image_data is not valid base64")
 
     try:
+        preprocess_started = time.perf_counter()
         tensor = preprocess_image(image_bytes)
     except EmptyCanvasError:
         raise HTTPException(status_code=422, detail="the canvas appears to be empty")
     except Exception:
         raise HTTPException(status_code=400, detail="could not decode the image")
+    preprocessed = time.perf_counter()
 
     logits = SESSION.run([OUTPUT_NAME], {"input": tensor})[0][0]
+    inferred = time.perf_counter()
     probabilities = softmax(logits)
     best = int(probabilities.argmax())
     sorted_indices = np.argsort(probabilities)[::-1]
@@ -116,6 +122,15 @@ def predict(payload: DrawingPayload) -> dict:
     margin = float(probabilities[best] - probabilities[runner_up])
     source_label = LABELS[best]
     entity = ENTITY_BY_SOURCE_LABEL[source_label]
+    if DEBUG_TIMING:
+        print(
+            "predict timing decode+queue={:.2f}ms preprocess={:.2f}ms infer={:.2f}ms total={:.2f}ms".format(
+                (preprocess_started - started) * 1000.0,
+                (preprocessed - preprocess_started) * 1000.0,
+                (inferred - preprocessed) * 1000.0,
+                (time.perf_counter() - started) * 1000.0,
+            )
+        )
     return {
         "entity": entity.id,
         "creature": entity.id,  # temporary legacy alias for older Godot scripts

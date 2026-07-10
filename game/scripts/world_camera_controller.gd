@@ -12,10 +12,12 @@ signal camera_moved(camera_position: Vector2)
 @export_range(0.0, 1.0) var vertical_follow_scale: float = 0.75
 @export var target_offset: Vector2 = Vector2(0.0, -160.0)
 @export var world_bounds: Rect2 = Rect2(0.0, -520.0, 3760.0, 1200.0)
+@export var camera_move_epsilon: float = 0.05
 
 var target: Node2D = null
 var _vertical_rest_y: float = 0.0
 var _has_vertical_rest := false
+var _last_emitted_position := Vector2(INF, INF)
 
 
 func _ready() -> void:
@@ -32,11 +34,12 @@ func _process(delta: float) -> void:
 	if vertical_lerp_speed > 0.0:
 		y_weight = 1.0 - exp(-vertical_lerp_speed * delta)
 
-	global_position = Vector2(
+	var next_position := Vector2(
 		lerpf(global_position.x, desired.x, x_weight),
 		lerpf(global_position.y, desired.y, y_weight)
 	)
-	camera_moved.emit(global_position)
+	global_position = next_position
+	_emit_camera_moved_if_needed()
 
 
 func set_target(new_target: Node2D) -> void:
@@ -50,7 +53,7 @@ func set_bounds(bounds: Rect2) -> void:
 
 func snap_to_target() -> void:
 	global_position = _clamped_target_position()
-	camera_moved.emit(global_position)
+	_emit_camera_moved_if_needed(true)
 
 
 func _clamped_target_position() -> Vector2:
@@ -106,3 +109,10 @@ func _viewport_size() -> Vector2:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		viewport_size = Vector2(1600.0, 900.0)
 	return viewport_size
+
+
+func _emit_camera_moved_if_needed(force: bool = false) -> void:
+	var threshold_sq := camera_move_epsilon * camera_move_epsilon
+	if force or _last_emitted_position.distance_squared_to(global_position) >= threshold_sq:
+		_last_emitted_position = global_position
+		camera_moved.emit(global_position)

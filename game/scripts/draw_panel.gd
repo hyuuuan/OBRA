@@ -13,6 +13,8 @@ signal drawing_ready(
 )
 signal panel_closed
 
+@export var debug_timing_logs: bool = false
+
 @onready var scrim: ColorRect = $Scrim
 @onready var panel_root: Control = $PanelRoot
 @onready var canvas_viewport: SubViewport = $PanelRoot/SubViewportContainer/SubViewport
@@ -27,11 +29,13 @@ var _pending_strokes: Array = []
 var _is_open := false
 var _submitting := false
 var _open_tween: Tween = null
+var _submit_started_usec: int = 0
 
 
 func _ready() -> void:
 	visible = false
 	client.canvas_viewport = canvas_viewport
+	client.set("debug_timing_logs", debug_timing_logs)
 	transform_button.pressed.connect(_on_transform_pressed)
 	clear_button.pressed.connect(canvas.clear_canvas)
 	client.entity_prediction_received.connect(_on_entity_prediction)
@@ -44,6 +48,7 @@ func open_panel() -> void:
 		return
 	_is_open = true
 	_submitting = false
+	client.set("debug_timing_logs", debug_timing_logs)
 	visible = true
 	transform_button.disabled = false
 	clear_button.disabled = false
@@ -71,9 +76,13 @@ func _on_transform_pressed() -> void:
 	transform_button.disabled = true
 	clear_button.disabled = true
 	status.text = "Recognizing..."
+	_submit_started_usec = Time.get_ticks_usec()
 	# Capture the stroke vectors alongside the rasterized image so the rig can
 	# animate the actual drawn lines.
 	_pending_strokes = canvas.get_strokes()
+	if debug_timing_logs:
+		var stroke_ms := float(Time.get_ticks_usec() - _submit_started_usec) / 1000.0
+		print("DrawPanel collect strokes %.2f ms (%d strokes)" % [stroke_ms, _pending_strokes.size()])
 	client.send_drawing()
 
 
@@ -85,6 +94,9 @@ func _on_entity_prediction(
 	response: Dictionary
 ) -> void:
 	status.text = "%s %.0f%%" % [display_name, confidence * 100.0]
+	if debug_timing_logs and _submit_started_usec > 0:
+		var total_ms := float(Time.get_ticks_usec() - _submit_started_usec) / 1000.0
+		print("DrawPanel submit-to-prediction %.2f ms" % total_ms)
 	drawing_ready.emit(entity, display_name, drawing, response, _pending_strokes)
 	canvas.clear_canvas()
 	close_panel()

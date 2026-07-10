@@ -20,13 +20,16 @@ var _move_force := 1600.0
 var _roll_torque := 28000.0
 var _jump_impulse := 380.0
 var _grounded := false
+var _entity_configured := false
+var _collision_key := ""
 
 
 func _ready() -> void:
 	_ensure_collision_shape()
-	_configure_physics()
-	_configure_skin()
-	_rebuild_collision()
+	if not _entity_configured:
+		_configure_physics()
+		_configure_skin()
+		_rebuild_collision()
 	contact_monitor = true
 	max_contacts_reported = 8
 	call_deferred("_apply_spawn_motion")
@@ -41,6 +44,7 @@ func configure_entity(entry: Dictionary) -> void:
 	_configure_physics()
 	_configure_skin()
 	_rebuild_collision()
+	_entity_configured = true
 
 
 func apply_drawing(drawing: Image, strokes: Array = []) -> void:
@@ -263,6 +267,11 @@ func _rebuild_collision() -> void:
 		return
 
 	var target_size := _target_size()
+	var next_key := "%s:%0.3f:%0.3f" % [shape_type, target_size.x, target_size.y]
+	if next_key == _collision_key and _collision_shape.shape != null:
+		return
+	_collision_key = next_key
+
 	var side := minf(target_size.x, target_size.y)
 	match shape_type:
 		"circle":

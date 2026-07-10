@@ -45,12 +45,67 @@ var _target_tilt: float = 0.0
 
 var _character: CharacterBody2D
 
+var _leg_phase_ripple := 0.35
+var _walker_stride_length := 44.0
+var _walker_leg_swing := deg_to_rad(15.0)
+var _walker_air_splay := deg_to_rad(10.0)
+var _walker_walk_bob := 1.6
+var _walker_tilt := deg_to_rad(3.0)
+var _walker_landing_squash := 0.1
+var _biped_stride_length := 60.0
+var _biped_leg_swing := deg_to_rad(25.0)
+var _biped_arm_swing := deg_to_rad(15.0)
+var _biped_jump_tuck := deg_to_rad(26.0)
+var _biped_air_arm := deg_to_rad(30.0)
+var _biped_walk_bob := 2.2
+var _biped_tilt := deg_to_rad(3.0)
+var _biped_landing_squash := 0.12
+var _flier_ground_stride_length := 26.0
+var _flier_leg_swing := deg_to_rad(22.0)
+var _flier_walk_bob := 2.4
+var _flier_ground_tilt := deg_to_rad(4.0)
+var _flier_landing_squash := 0.12
+var _flier_flap_cycle_hz := 6.5
+var _flier_wing_flap := deg_to_rad(40.0)
+var _flier_glide_raise := deg_to_rad(12.0)
+var _flier_leg_tuck := deg_to_rad(12.0)
+var _flier_flap_squash := 0.12
+var _flier_flap_lift := 5.0
+var _flier_tilt := deg_to_rad(8.0)
+var _flier_dive_pitch := deg_to_rad(6.0)
+var _flier_style := "auto"
+var _flier_flap_hz_scale := 1.0
+var _flier_flap_amp_scale := 1.0
+var _flier_glide_scale := 1.0
+var _flier_tuck_scale := 1.0
+var _flier_stride_scale := 1.0
+var _flier_leg_scale := 1.0
+var _flier_bob_scale := 1.0
+var _swimmer_wave_length := 70.0
+var _swimmer_wave_amplitude := 5.0
+var _swimmer_head_direction := Vector2.RIGHT
+var _hopper_leg_fold := deg_to_rad(22.0)
+var _hopper_leg_extend := deg_to_rad(24.0)
+var _hopper_charge_squash := 0.22
+var _hopper_jump_stretch := 0.14
+var _hopper_tilt := deg_to_rad(4.0)
+var _hopper_landing_squash := 0.18
+var _bitmap_stride_length := 44.0
+var _bitmap_walk_bob := 2.0
+var _bitmap_tilt := deg_to_rad(3.0)
+var _bitmap_charge_squash := 0.2
+var _bitmap_jump_stretch := 0.12
+var _bitmap_flap_cycle_hz := 6.5
+var _bitmap_flap_squash := 0.1
+var _bitmap_landing_squash := 0.12
+
 
 func configure_rig(new_profile: Dictionary, new_entity_metadata: Dictionary = {}) -> void:
 	configure_skin(new_profile, new_entity_metadata)
 	_rig_type = _profile_string("rig_type", String(new_entity_metadata.get("rig_type", "")))
 	if _rig_type.is_empty():
 		_rig_type = _legacy_rig_type()
+	_cache_profile_values()
 
 
 func set_motion_state(state: String, params: Dictionary = {}) -> void:
@@ -119,10 +174,12 @@ func _clear_rig() -> void:
 
 
 func _build_vector_rig() -> void:
+	var started := Time.get_ticks_usec()
 	var strokes := get_vector_strokes()
 	if strokes.is_empty():
 		return
 	_normalize_head_orientation(strokes)
+	_refresh_vector_stroke_metrics(strokes)
 
 	_rig_root = Node2D.new()
 	_rig_root.name = "RigRoot"
@@ -142,6 +199,8 @@ func _build_vector_rig() -> void:
 			_body_group.add_child(line)
 			_wave_lines.append({"line": line, "base": line.points.duplicate()})
 		_body_center = get_stroke_bounds().get_center()
+		if debug_timing_logs:
+			_print_rig_build_timing(started)
 		return
 
 	var plan := _resolve_skeleton(strokes)
@@ -154,6 +213,8 @@ func _build_vector_rig() -> void:
 		_create_limb_node(record)
 
 	_assign_limb_roles()
+	if debug_timing_logs:
+		_print_rig_build_timing(started)
 
 
 func _normalize_head_orientation(strokes: Array) -> void:
@@ -216,6 +277,7 @@ func _normalize_swimmer_head_forward(strokes: Array) -> void:
 func _resolve_skeleton(strokes: Array) -> Dictionary:
 	var count := strokes.size()
 	var radius := clampf(get_stroke_bounds().size.length() * 0.07, 4.0, 18.0)
+	var radius_sq := radius * radius
 
 	var lengths: Array = []
 	var areas: Array = []
@@ -223,13 +285,15 @@ func _resolve_skeleton(strokes: Array) -> Dictionary:
 	var max_area := 0.001
 	var max_length := 0.001
 	for index in range(count):
-		var points: PackedVector2Array = strokes[index]["points"]
-		var length := _polyline_length(points)
-		var box := _points_bounds(points)
+		var stroke: Dictionary = strokes[index]
+		var points: PackedVector2Array = stroke["points"]
+		var length := _cached_stroke_length(stroke)
+		var area := _cached_stroke_area(stroke)
 		lengths.append(length)
-		areas.append(box.size.x * box.size.y)
-		is_closed.append(points[0].distance_to(points[points.size() - 1]) < maxf(radius, length * 0.2))
-		max_area = maxf(max_area, areas[index])
+		areas.append(area)
+		var closed_radius := maxf(radius, length * 0.2)
+		is_closed.append(_cached_stroke_endpoint_gap_sq(stroke) < closed_radius * closed_radius)
+		max_area = maxf(max_area, area)
 		max_length = maxf(max_length, length)
 
 	var incoming: Array = []
@@ -241,11 +305,11 @@ func _resolve_skeleton(strokes: Array) -> Dictionary:
 			if other == index:
 				continue
 			var other_points: PackedVector2Array = strokes[other]["points"]
-			var gap := minf(
-				_distance_to_points(points[0], other_points),
-				_distance_to_points(points[points.size() - 1], other_points)
+			var gap_sq := minf(
+				_distance_sq_to_points(points[0], other_points, radius_sq),
+				_distance_sq_to_points(points[points.size() - 1], other_points, radius_sq)
 			)
-			if gap < radius:
+			if gap_sq < radius_sq:
 				incoming[other] += 1
 
 	# The body root is the stroke everything else hangs off.
@@ -281,24 +345,25 @@ func _resolve_skeleton(strokes: Array) -> Dictionary:
 			if in_body[index]:
 				continue
 			var points: PackedVector2Array = strokes[index]["points"]
-			var gap_start := _gap_to_body(points[0], strokes, in_body)
-			var gap_end := _gap_to_body(points[points.size() - 1], strokes, in_body)
+			var gap_start_sq := _gap_sq_to_body(points[0], strokes, in_body)
+			var gap_end_sq := _gap_sq_to_body(points[points.size() - 1], strokes, in_body)
 			var absorb := false
-			if is_closed[index] and _min_gap_to_body(points, strokes, in_body) < radius:
+			if is_closed[index] and _min_gap_sq_to_body(points, strokes, in_body, radius_sq) < radius_sq:
 				absorb = true # closed shape touching the body (head, body scribble)
-			elif gap_start < radius and gap_end < radius:
+			elif gap_start_sq < radius_sq and gap_end_sq < radius_sq:
 				# Both ends anchored (mouth line, structural stroke) — except a
 				# flier's wing, drawn as an arc that leaves and rejoins the
 				# body outline: that must stay a flappable limb.
+				var wing_arc_radius := radius * 1.5
 				var wing_arc: bool = _rig_type == "flier" and not is_closed[index] \
-					and _max_gap_to_body(points, strokes, in_body) > radius * 1.5
+					and _max_gap_sq_to_body(points, strokes, in_body) > wing_arc_radius * wing_arc_radius
 				absorb = not wing_arc
 			elif _containment_ratio(points, body_box) > 0.8:
 				absorb = true # floating mark inside the body (eyes, patterns)
-			elif minf(gap_start, gap_end) < radius \
+			elif minf(gap_start_sq, gap_end_sq) < radius_sq \
 					and _junction_count(
 						index, strokes, in_body, junction_radius, radius * 0.6,
-						gap_start <= gap_end, radius * 1.5
+						gap_start_sq <= gap_end_sq, radius * 1.5
 					) >= junction_threshold:
 				# Structural member other strokes hang off (torso).
 				absorb = true
@@ -317,6 +382,7 @@ func _resolve_skeleton(strokes: Array) -> Dictionary:
 			work.append(index)
 
 	for threshold: float in [radius, soft_radius]:
+		var threshold_sq := threshold * threshold
 		var deferred: Array = []
 		for index: int in work:
 			# Only strokes long enough to read as limbs may bridge a gap;
@@ -325,12 +391,12 @@ func _resolve_skeleton(strokes: Array) -> Dictionary:
 				deferred.append(index)
 				continue
 			var points: PackedVector2Array = strokes[index]["points"]
-			var gap_start := _gap_to_body(points[0], strokes, in_body)
-			var gap_end := _gap_to_body(points[points.size() - 1], strokes, in_body)
-			if minf(gap_start, gap_end) < threshold:
-				var joint := points[0] if gap_start <= gap_end else points[points.size() - 1]
+			var gap_start_sq := _gap_sq_to_body(points[0], strokes, in_body)
+			var gap_end_sq := _gap_sq_to_body(points[points.size() - 1], strokes, in_body)
+			if minf(gap_start_sq, gap_end_sq) < threshold_sq:
+				var joint := points[0] if gap_start_sq <= gap_end_sq else points[points.size() - 1]
 				var ordered := points.duplicate()
-				if gap_end < gap_start:
+				if gap_end_sq < gap_start_sq:
 					ordered.reverse()
 				limbs.append(_new_limb_record(strokes[index], ordered, joint))
 				continue
@@ -338,11 +404,11 @@ func _resolve_skeleton(strokes: Array) -> Dictionary:
 			# One line drawn across the body: split it into two limbs at the
 			# point closest to the body.
 			var best_interior := -1
-			var best_gap := threshold
+			var best_gap_sq := threshold_sq
 			for point_index in range(1, points.size() - 1):
-				var gap := _gap_to_body(points[point_index], strokes, in_body)
-				if gap < best_gap:
-					best_gap = gap
+				var gap_sq := _gap_sq_to_body(points[point_index], strokes, in_body)
+				if gap_sq < best_gap_sq:
+					best_gap_sq = gap_sq
 					best_interior = point_index
 			if best_interior != -1:
 				var joint := points[best_interior]
@@ -361,6 +427,7 @@ func _resolve_skeleton(strokes: Array) -> Dictionary:
 
 	# Chain remaining strokes onto the limb they touch (lower leg, foot, ...).
 	var progressed := true
+	var soft_radius_sq := soft_radius * soft_radius
 	while progressed and not pending.is_empty():
 		progressed = false
 		for pending_position in range(pending.size() - 1, -1, -1):
@@ -368,11 +435,11 @@ func _resolve_skeleton(strokes: Array) -> Dictionary:
 			var points: PackedVector2Array = strokes[stroke_index]["points"]
 			for record in limbs:
 				var pool: PackedVector2Array = record["pool"]
-				var gap := minf(
-					_distance_to_points(points[0], pool),
-					_distance_to_points(points[points.size() - 1], pool)
+				var gap_sq := minf(
+					_distance_sq_to_points(points[0], pool, soft_radius_sq),
+					_distance_sq_to_points(points[points.size() - 1], pool, soft_radius_sq)
 				)
-				if gap < soft_radius:
+				if gap_sq < soft_radius_sq:
 					record["segments"].append(strokes[stroke_index])
 					record["pool"].append_array(points)
 					pending.remove_at(pending_position)
@@ -390,7 +457,8 @@ func _resolve_skeleton(strokes: Array) -> Dictionary:
 	# Fold stubs too short to read as limbs back into the body.
 	for record_index in range(limbs.size() - 1, -1, -1):
 		var record: Dictionary = limbs[record_index]
-		if _farthest_distance(record["pool"], record["joint"]) < radius * 1.2:
+		var stub_radius := radius * 1.2
+		if _farthest_distance_sq(record["pool"], record["joint"]) < stub_radius * stub_radius:
 			for segment in record["segments"]:
 				_body_group_extra(segment)
 			limbs.remove_at(record_index)
@@ -480,13 +548,12 @@ func _assign_limb_roles() -> void:
 	match _rig_type:
 		"walker":
 			var leg_index := 0
-			var ripple := _profile_float("leg_phase_ripple", 0.35)
 			for limb in _limbs:
 				var reaches_up: bool = limb["tip"].y < _body_center.y - diag * 0.18 \
 					and limb["tip"].y < limb["joint"].y
 				limb["role"] = "leg"
 				limb["amp_scale"] = 0.35 if reaches_up else 1.0
-				limb["phase"] = PI * float(leg_index % 2) + float(leg_index) * ripple
+				limb["phase"] = PI * float(leg_index % 2) + float(leg_index) * _leg_phase_ripple
 				leg_index += 1
 		"biped":
 			var candidates: Array = []
@@ -540,40 +607,32 @@ func _assign_limb_roles() -> void:
 func _tick_walker(delta: float, speed: float) -> void:
 	var moving := (_motion_state == "walk" or _motion_state == "climb") and speed > 4.0
 	var airborne := _motion_state == "jump" or _motion_state == "fall"
-	var stride := maxf(8.0, _profile_float("stride_length", 44.0))
-	var swing := deg_to_rad(_profile_float("leg_swing_degrees", 15.0))
-	var splay := deg_to_rad(_profile_float("air_splay_degrees", 10.0))
 
 	if moving:
-		_gait_phase += speed * delta / stride
+		_gait_phase += speed * delta / _walker_stride_length
 
 	for limb in _limbs:
 		if limb["role"] != "leg":
 			limb["target"] = 0.0
 			continue
 		if airborne:
-			limb["target"] = _rotation_sign(limb, _outward_dir(limb)) * splay
+			limb["target"] = _rotation_sign(limb, _outward_dir(limb)) * _walker_air_splay
 		elif moving:
-			limb["target"] = swing * limb["amp_scale"] * sin(TAU * _gait_phase + limb["phase"])
+			limb["target"] = _walker_leg_swing * limb["amp_scale"] * sin(TAU * _gait_phase + limb["phase"])
 		else:
 			limb["target"] = 0.0
 
 	if moving:
-		_target_offset.y = -absf(sin(TAU * _gait_phase)) * _profile_float("walk_bob", 1.6)
-		_target_tilt = deg_to_rad(_param_float("direction", 0.0) * _profile_float("tilt_degrees", 3.0))
-	_apply_impact_squash(_profile_float("landing_squash", 0.1))
+		_target_offset.y = -absf(sin(TAU * _gait_phase)) * _walker_walk_bob
+		_target_tilt = _param_float("direction", 0.0) * _walker_tilt
+	_apply_impact_squash(_walker_landing_squash)
 
 
 func _tick_biped(delta: float, speed: float) -> void:
 	var moving := _motion_state == "walk" and speed > 4.0
-	var stride := maxf(8.0, _profile_float("stride_length", 60.0))
-	var leg_swing := deg_to_rad(_profile_float("leg_swing_degrees", 25.0))
-	var arm_swing := deg_to_rad(_profile_float("arm_swing_degrees", 15.0))
-	var tuck := deg_to_rad(_profile_float("jump_tuck_degrees", 26.0))
-	var air_arm := deg_to_rad(_profile_float("air_arm_degrees", 30.0))
 
 	if moving:
-		_gait_phase += speed * delta / stride
+		_gait_phase += speed * delta / _biped_stride_length
 
 	for limb in _limbs:
 		var role: String = limb["role"]
@@ -581,26 +640,26 @@ func _tick_biped(delta: float, speed: float) -> void:
 		match _motion_state:
 			"walk":
 				if moving and role == "leg":
-					limb["target"] = leg_swing * sin(TAU * _gait_phase + limb["phase"])
+					limb["target"] = _biped_leg_swing * sin(TAU * _gait_phase + limb["phase"])
 				elif moving and role == "arm":
-					limb["target"] = arm_swing * sin(TAU * _gait_phase + limb["phase"])
+					limb["target"] = _biped_arm_swing * sin(TAU * _gait_phase + limb["phase"])
 			"jump":
 				if role == "leg":
-					limb["target"] = _rotation_sign(limb, Vector2.UP) * tuck
+					limb["target"] = _rotation_sign(limb, Vector2.UP) * _biped_jump_tuck
 				elif role == "arm":
-					limb["target"] = _rotation_sign(limb, Vector2.UP) * air_arm
+					limb["target"] = _rotation_sign(limb, Vector2.UP) * _biped_air_arm
 			"fall":
 				if role == "leg":
-					limb["target"] = _rotation_sign(limb, Vector2.UP) * tuck * 0.4
+					limb["target"] = _rotation_sign(limb, Vector2.UP) * _biped_jump_tuck * 0.4
 				elif role == "arm":
-					limb["target"] = _rotation_sign(limb, Vector2.UP) * air_arm
+					limb["target"] = _rotation_sign(limb, Vector2.UP) * _biped_air_arm
 			_:
 				pass
 
 	if moving:
-		_target_offset.y = -absf(sin(TAU * _gait_phase)) * _profile_float("walk_bob", 2.2)
-		_target_tilt = deg_to_rad(_param_float("direction", 0.0) * _profile_float("tilt_degrees", 3.0))
-	_apply_impact_squash(_profile_float("landing_squash", 0.12))
+		_target_offset.y = -absf(sin(TAU * _gait_phase)) * _biped_walk_bob
+		_target_tilt = _param_float("direction", 0.0) * _biped_tilt
+	_apply_impact_squash(_biped_landing_squash)
 
 
 func _tick_flier(delta: float, speed: float) -> void:
@@ -613,10 +672,9 @@ func _tick_flier(delta: float, speed: float) -> void:
 ## On the ground the wings fold and the feet actually step, phased per style:
 ## an alternating stride for soarers/striders, a two-footed bob for songbirds.
 func _tick_flier_ground(delta: float, speed: float) -> void:
-	var tuning := _flier_style_tuning()
 	var moving := _motion_state == "walk" and speed > 4.0
-	var stride := maxf(8.0, _profile_float("ground_stride_length", 26.0)) * float(tuning["stride"])
-	var swing := deg_to_rad(_profile_float("leg_swing_degrees", 22.0)) * float(tuning["leg"])
+	var stride := _flier_ground_stride_length * _flier_stride_scale
+	var swing := _flier_leg_swing * _flier_leg_scale
 
 	if moving:
 		_gait_phase += speed * delta / stride
@@ -628,21 +686,18 @@ func _tick_flier_ground(delta: float, speed: float) -> void:
 
 	if moving:
 		_target_offset.y = -absf(sin(TAU * _gait_phase)) \
-			* _profile_float("walk_bob", 2.4) * float(tuning["bob"])
-		_target_tilt = deg_to_rad(
-			_param_float("direction", 0.0) * _profile_float("ground_tilt_degrees", 4.0)
-		)
-	_apply_impact_squash(_profile_float("landing_squash", 0.12))
+			* _flier_walk_bob * _flier_bob_scale
+		_target_tilt = _param_float("direction", 0.0) * _flier_ground_tilt
+	_apply_impact_squash(_flier_landing_squash)
 
 
 ## In the air the wings beat continuously for powered flight, or lock into a
 ## spread glide; the feet tuck up out of the way.
 func _tick_flier_air(delta: float) -> void:
-	var tuning := _flier_style_tuning()
-	var flap_hz := _profile_float("flap_cycle_hz", 6.5) * float(tuning["flap_hz"])
-	var flap_deg := deg_to_rad(_profile_float("wing_flap_degrees", 40.0) * float(tuning["flap_amp"]))
-	var glide_raise := deg_to_rad(_profile_float("glide_raise_degrees", 12.0) * float(tuning["glide"]))
-	var tuck := deg_to_rad(_profile_float("leg_tuck_degrees", 12.0) * float(tuning["tuck"]))
+	var flap_hz := _flier_flap_cycle_hz * _flier_flap_hz_scale
+	var flap_deg := _flier_wing_flap * _flier_flap_amp_scale
+	var glide_raise := _flier_glide_raise * _flier_glide_scale
+	var tuck := _flier_leg_tuck * _flier_tuck_scale
 	var direction := _param_float("direction", 0.0)
 	var vertical_speed := _param_float("vertical_speed", 0.0)
 	var gliding := _motion_state == "glide"
@@ -652,9 +707,9 @@ func _tick_flier_air(delta: float) -> void:
 	if not gliding:
 		# A fresh tap ("flap") is the strongest downstroke and gives the most lift.
 		var power := 1.0 if _motion_state == "flap" else 0.72
-		var pulse := absf(beat) * _profile_float("flap_squash", 0.12) * power
+		var pulse := absf(beat) * _flier_flap_squash * power
 		_target_squash = Vector2(1.0 + pulse, 1.0 - pulse)
-		_target_offset.y = -absf(beat) * _profile_float("flap_lift", 5.0) * power
+		_target_offset.y = -absf(beat) * _flier_flap_lift * power
 
 	for limb in _limbs:
 		limb["target"] = 0.0
@@ -671,21 +726,21 @@ func _tick_flier_air(delta: float) -> void:
 			_:
 				pass
 
-	_target_tilt = deg_to_rad(direction * _profile_float("tilt_degrees", 8.0))
+	_target_tilt = direction * _flier_tilt
 	if gliding:
 		var pitch := clampf(vertical_speed / 500.0, -1.0, 1.0)
-		_target_tilt += deg_to_rad(pitch * _profile_float("dive_pitch_degrees", 6.0) * _facing)
+		_target_tilt += pitch * _flier_dive_pitch * _facing
 
 
 ## Resolves the flier archetype from the drawn build (unless the profile forces
 ## one) and phases the legs for an alternating walk or a two-footed hop.
 func _assign_bird_style(diag: float) -> void:
 	_bird_style = ""
-	var configured := _profile_string("flight_style", "")
-	if configured == "auto":
+	if _flier_style == "auto":
 		_bird_style = _detect_bird_style(diag)
-	elif configured != "":
-		_bird_style = configured
+	elif _flier_style != "":
+		_bird_style = _flier_style
+	_cache_flier_style_tuning()
 
 	var legs: Array = []
 	for limb in _limbs:
@@ -749,9 +804,7 @@ func _tick_swimmer(delta: float, speed: float) -> void:
 		return
 	var swimming := _motion_state == "swim" and speed > 4.0
 	var speed_ratio := clampf(_param_float("speed_ratio", 0.0), 0.0, 1.0)
-	var wave_length := maxf(20.0, _profile_float("wave_length", 70.0))
-	var amplitude := _profile_float("wave_amplitude", 5.0)
-	var target_amp := amplitude * (0.35 + 0.65 * speed_ratio) if swimming else 0.0
+	var target_amp := _swimmer_wave_amplitude * (0.35 + 0.65 * speed_ratio) if swimming else 0.0
 	_wave_amp = lerpf(_wave_amp, target_amp, 1.0 - exp(-6.0 * delta))
 
 	if _wave_amp <= 0.05:
@@ -761,10 +814,10 @@ func _tick_swimmer(delta: float, speed: float) -> void:
 			_wave_dirty = false
 		return
 
-	_wave_phase += speed * delta / wave_length
+	_wave_phase += speed * delta / _swimmer_wave_length
 	var head := _head_direction
 	if head.length() <= 0.001:
-		head = _profile_vector2("head_direction", Vector2.RIGHT)
+		head = _swimmer_head_direction
 	var tail_sign := 1.0 if head.x <= 0.0 else -1.0
 	var bounds := get_stroke_bounds()
 
@@ -779,34 +832,32 @@ func _tick_swimmer(delta: float, speed: float) -> void:
 			var toward_tail := along if tail_sign > 0.0 else 1.0 - along
 			var envelope := 0.12 + 0.88 * toward_tail
 			point.y += _wave_amp * envelope \
-				* sin(TAU * (point.x / wave_length) * tail_sign - TAU * _wave_phase)
+				* sin(TAU * (point.x / _swimmer_wave_length) * tail_sign - TAU * _wave_phase)
 			displaced[index] = point
 		line.points = displaced
 	_wave_dirty = true
 
 
 func _tick_hopper(_delta: float) -> void:
-	var fold := deg_to_rad(_profile_float("leg_fold_degrees", 22.0))
-	var extend := deg_to_rad(_profile_float("leg_extend_degrees", 24.0))
 	var charge_ratio := clampf(_param_float("charge_ratio", 0.0), 0.0, 1.0)
 	var direction := _param_float("direction", 0.0)
 
 	match _motion_state:
 		"charge":
-			var crouch := _profile_float("charge_squash", 0.22) * charge_ratio
+			var crouch := _hopper_charge_squash * charge_ratio
 			_target_squash = Vector2(1.0 + crouch, 1.0 - crouch)
 			_target_offset.y = crouch * 20.0
 		"jump":
-			var stretch := _profile_float("jump_stretch", 0.14)
+			var stretch := _hopper_jump_stretch
 			_target_squash = Vector2(1.0 - stretch * 0.5, 1.0 + stretch)
-			_target_tilt = deg_to_rad(direction * _profile_float("tilt_degrees", 4.0))
+			_target_tilt = direction * _hopper_tilt
 		"fall":
-			var stretch := _profile_float("jump_stretch", 0.14) * 0.5
+			var stretch := _hopper_jump_stretch * 0.5
 			_target_squash = Vector2(1.0 - stretch * 0.4, 1.0 + stretch)
-			_target_tilt = deg_to_rad(direction * _profile_float("tilt_degrees", 4.0))
+			_target_tilt = direction * _hopper_tilt
 		_:
 			pass
-	_apply_impact_squash(_profile_float("landing_squash", 0.18))
+	_apply_impact_squash(_hopper_landing_squash)
 
 	for limb in _limbs:
 		limb["target"] = 0.0
@@ -814,13 +865,13 @@ func _tick_hopper(_delta: float) -> void:
 			continue
 		match _motion_state:
 			"charge":
-				limb["target"] = _rotation_sign(limb, Vector2.UP) * fold * charge_ratio
+				limb["target"] = _rotation_sign(limb, Vector2.UP) * _hopper_leg_fold * charge_ratio
 			"jump":
-				limb["target"] = _rotation_sign(limb, Vector2.DOWN) * extend
+				limb["target"] = _rotation_sign(limb, Vector2.DOWN) * _hopper_leg_extend
 			"fall":
-				limb["target"] = _rotation_sign(limb, Vector2.DOWN) * extend * 0.45
+				limb["target"] = _rotation_sign(limb, Vector2.DOWN) * _hopper_leg_extend * 0.45
 			"landed":
-				limb["target"] = _rotation_sign(limb, Vector2.UP) * fold * _impact_ratio()
+				limb["target"] = _rotation_sign(limb, Vector2.UP) * _hopper_leg_fold * _impact_ratio()
 			_:
 				pass
 
@@ -831,27 +882,27 @@ func _tick_bitmap(delta: float, speed: float) -> void:
 	match _motion_state:
 		"walk", "climb":
 			if speed > 4.0:
-				_gait_phase += speed * delta / maxf(8.0, _profile_float("stride_length", 44.0))
-				_target_offset.y = -absf(sin(TAU * _gait_phase)) * _profile_float("walk_bob", 2.0)
-				_target_tilt = deg_to_rad(direction * _profile_float("tilt_degrees", 3.0))
+				_gait_phase += speed * delta / _bitmap_stride_length
+				_target_offset.y = -absf(sin(TAU * _gait_phase)) * _bitmap_walk_bob
+				_target_tilt = direction * _bitmap_tilt
 		"charge":
-			var crouch := _profile_float("charge_squash", 0.2) * clampf(_param_float("charge_ratio", 0.0), 0.0, 1.0)
+			var crouch := _bitmap_charge_squash * clampf(_param_float("charge_ratio", 0.0), 0.0, 1.0)
 			_target_squash = Vector2(1.0 + crouch, 1.0 - crouch)
 		"jump":
-			var stretch := _profile_float("jump_stretch", 0.12)
+			var stretch := _bitmap_jump_stretch
 			_target_squash = Vector2(1.0 - stretch * 0.5, 1.0 + stretch)
 		"fall":
-			var stretch := _profile_float("jump_stretch", 0.12) * 0.5
+			var stretch := _bitmap_jump_stretch * 0.5
 			_target_squash = Vector2(1.0 - stretch * 0.4, 1.0 + stretch)
 		"flap":
-			_flap_phase += delta * _profile_float("flap_cycle_hz", 6.5)
-			var pulse := absf(sin(TAU * _flap_phase)) * _profile_float("flap_squash", 0.1)
+			_flap_phase += delta * _bitmap_flap_cycle_hz
+			var pulse := absf(sin(TAU * _flap_phase)) * _bitmap_flap_squash
 			_target_squash = Vector2(1.0 + pulse, 1.0 - pulse)
 		"swim":
-			_target_tilt = deg_to_rad(direction * _profile_float("tilt_degrees", 3.0))
+			_target_tilt = direction * _bitmap_tilt
 		_:
 			pass
-	_apply_impact_squash(_profile_float("landing_squash", 0.12))
+	_apply_impact_squash(_bitmap_landing_squash)
 
 
 func _apply_pose(delta: float) -> void:
@@ -887,6 +938,102 @@ func _apply_impact_squash(amount: float) -> void:
 
 
 # --- Helpers -----------------------------------------------------------------
+
+
+func _cache_profile_values() -> void:
+	_leg_phase_ripple = _profile_float("leg_phase_ripple", 0.35)
+	_walker_stride_length = maxf(8.0, _profile_float("stride_length", 44.0))
+	_walker_leg_swing = deg_to_rad(_profile_float("leg_swing_degrees", 15.0))
+	_walker_air_splay = deg_to_rad(_profile_float("air_splay_degrees", 10.0))
+	_walker_walk_bob = _profile_float("walk_bob", 1.6)
+	_walker_tilt = deg_to_rad(_profile_float("tilt_degrees", 3.0))
+	_walker_landing_squash = _profile_float("landing_squash", 0.1)
+
+	_biped_stride_length = maxf(8.0, _profile_float("stride_length", 60.0))
+	_biped_leg_swing = deg_to_rad(_profile_float("leg_swing_degrees", 25.0))
+	_biped_arm_swing = deg_to_rad(_profile_float("arm_swing_degrees", 15.0))
+	_biped_jump_tuck = deg_to_rad(_profile_float("jump_tuck_degrees", 26.0))
+	_biped_air_arm = deg_to_rad(_profile_float("air_arm_degrees", 30.0))
+	_biped_walk_bob = _profile_float("walk_bob", 2.2)
+	_biped_tilt = deg_to_rad(_profile_float("tilt_degrees", 3.0))
+	_biped_landing_squash = _profile_float("landing_squash", 0.12)
+
+	_flier_ground_stride_length = maxf(8.0, _profile_float("ground_stride_length", 26.0))
+	_flier_leg_swing = deg_to_rad(_profile_float("leg_swing_degrees", 22.0))
+	_flier_walk_bob = _profile_float("walk_bob", 2.4)
+	_flier_ground_tilt = deg_to_rad(_profile_float("ground_tilt_degrees", 4.0))
+	_flier_landing_squash = _profile_float("landing_squash", 0.12)
+	_flier_flap_cycle_hz = _profile_float("flap_cycle_hz", 6.5)
+	_flier_wing_flap = deg_to_rad(_profile_float("wing_flap_degrees", 40.0))
+	_flier_glide_raise = deg_to_rad(_profile_float("glide_raise_degrees", 12.0))
+	_flier_leg_tuck = deg_to_rad(_profile_float("leg_tuck_degrees", 12.0))
+	_flier_flap_squash = _profile_float("flap_squash", 0.12)
+	_flier_flap_lift = _profile_float("flap_lift", 5.0)
+	_flier_tilt = deg_to_rad(_profile_float("tilt_degrees", 8.0))
+	_flier_dive_pitch = deg_to_rad(_profile_float("dive_pitch_degrees", 6.0))
+	_flier_style = _profile_string("flight_style", "")
+	_cache_flier_style_tuning()
+
+	_swimmer_wave_length = maxf(20.0, _profile_float("wave_length", 70.0))
+	_swimmer_wave_amplitude = _profile_float("wave_amplitude", 5.0)
+	_swimmer_head_direction = _profile_vector2("head_direction", Vector2.RIGHT)
+
+	_hopper_leg_fold = deg_to_rad(_profile_float("leg_fold_degrees", 22.0))
+	_hopper_leg_extend = deg_to_rad(_profile_float("leg_extend_degrees", 24.0))
+	_hopper_charge_squash = _profile_float("charge_squash", 0.22)
+	_hopper_jump_stretch = _profile_float("jump_stretch", 0.14)
+	_hopper_tilt = deg_to_rad(_profile_float("tilt_degrees", 4.0))
+	_hopper_landing_squash = _profile_float("landing_squash", 0.18)
+
+	_bitmap_stride_length = maxf(8.0, _profile_float("stride_length", 44.0))
+	_bitmap_walk_bob = _profile_float("walk_bob", 2.0)
+	_bitmap_tilt = deg_to_rad(_profile_float("tilt_degrees", 3.0))
+	_bitmap_charge_squash = _profile_float("charge_squash", 0.2)
+	_bitmap_jump_stretch = _profile_float("jump_stretch", 0.12)
+	_bitmap_flap_cycle_hz = _profile_float("flap_cycle_hz", 6.5)
+	_bitmap_flap_squash = _profile_float("flap_squash", 0.1)
+	_bitmap_landing_squash = _profile_float("landing_squash", 0.12)
+
+
+func _cache_flier_style_tuning() -> void:
+	match _bird_style:
+		"soarer":
+			_flier_flap_hz_scale = 0.62
+			_flier_flap_amp_scale = 1.28
+			_flier_glide_scale = 1.5
+			_flier_tuck_scale = 1.6
+			_flier_stride_scale = 1.4
+			_flier_leg_scale = 1.0
+			_flier_bob_scale = 0.7
+		"strider":
+			_flier_flap_hz_scale = 1.0
+			_flier_flap_amp_scale = 0.62
+			_flier_glide_scale = 0.5
+			_flier_tuck_scale = 0.35
+			_flier_stride_scale = 1.5
+			_flier_leg_scale = 1.35
+			_flier_bob_scale = 1.0
+		"flitter":
+			_flier_flap_hz_scale = 1.32
+			_flier_flap_amp_scale = 0.88
+			_flier_glide_scale = 0.7
+			_flier_tuck_scale = 0.9
+			_flier_stride_scale = 0.8
+			_flier_leg_scale = 1.15
+			_flier_bob_scale = 1.5
+		_:
+			_flier_flap_hz_scale = 1.0
+			_flier_flap_amp_scale = 1.0
+			_flier_glide_scale = 1.0
+			_flier_tuck_scale = 1.0
+			_flier_stride_scale = 1.0
+			_flier_leg_scale = 1.0
+			_flier_bob_scale = 1.0
+
+
+func _print_rig_build_timing(started_usec: int) -> void:
+	var elapsed_ms := float(Time.get_ticks_usec() - started_usec) / 1000.0
+	print("%s rig build %.2f ms (%s, %d limbs)" % [name, elapsed_ms, _rig_type, _limbs.size()])
 
 
 func _parent_speed() -> float:
@@ -947,13 +1094,14 @@ func _detect_biped_head(strokes: Array) -> Dictionary:
 	var best := {"found": false}
 
 	for index in range(strokes.size()):
-		var points: PackedVector2Array = strokes[index]["points"]
+		var stroke: Dictionary = strokes[index]
+		var points: PackedVector2Array = stroke["points"]
 		if points.size() < 2:
 			continue
-		var box := _points_bounds(points)
+		var box := _cached_stroke_bounds(stroke)
 		var center := box.get_center()
-		var length := _polyline_length(points)
-		var area := maxf(1.0, box.size.x * box.size.y)
+		var length := _cached_stroke_length(stroke)
+		var area := maxf(1.0, _cached_stroke_area(stroke))
 		var aspect := box.size.x / maxf(1.0, box.size.y)
 		var roundness := 1.0 - clampf(absf(aspect - 1.0), 0.0, 1.0)
 		var size_ratio := sqrt(area) / diag
@@ -963,7 +1111,8 @@ func _detect_biped_head(strokes: Array) -> Dictionary:
 			0.0,
 			1.0
 		)
-		var closed := _stroke_is_closed(points, maxf(4.0, minf(box.size.x, box.size.y) * 0.45))
+		var closed_radius := maxf(4.0, minf(box.size.x, box.size.y) * 0.45)
+		var closed := _cached_stroke_endpoint_gap_sq(stroke) <= closed_radius * closed_radius
 		var long_penalty := clampf(length / diag - 1.35, 0.0, 1.0) * 2.0
 		var score := (5.0 if closed else 0.0) \
 			+ roundness * 2.0 \
@@ -1012,11 +1161,12 @@ func _detect_swimmer_head_sign(strokes: Array, axis: Vector2, center: Vector2) -
 		if points.is_empty():
 			continue
 
-		var box := _points_bounds(points)
+		var box := _cached_stroke_bounds(stroke)
 		var stroke_center_proj := (box.get_center() - center).dot(axis)
-		var length := _polyline_length(points)
-		var area := box.size.x * box.size.y
-		var closed := _stroke_is_closed(points, maxf(4.0, minf(box.size.x, box.size.y) * 0.45))
+		var length := _cached_stroke_length(stroke)
+		var area := _cached_stroke_area(stroke)
+		var closed_radius := maxf(4.0, minf(box.size.x, box.size.y) * 0.45)
+		var closed := _cached_stroke_endpoint_gap_sq(stroke) <= closed_radius * closed_radius
 		var compact := (closed and area < bounds_area * 0.10 and length < diag * 0.55) \
 			or length < diag * 0.16 \
 			or area < bounds_area * 0.035
@@ -1117,6 +1267,7 @@ func _realign_vector_strokes(strokes: Array) -> void:
 
 
 func _refresh_vector_bounds(strokes: Array) -> void:
+	_refresh_vector_stroke_metrics(strokes)
 	var points := _all_stroke_points(strokes)
 	if points.is_empty():
 		return
@@ -1152,36 +1303,103 @@ func _points_bounds(points: PackedVector2Array) -> Rect2:
 	return bounds
 
 
-func _distance_to_points(point: Vector2, points: PackedVector2Array) -> float:
+func _cached_stroke_length(stroke: Dictionary) -> float:
+	var value: Variant = stroke.get("length")
+	if typeof(value) == TYPE_FLOAT or typeof(value) == TYPE_INT:
+		return float(value)
+	return _polyline_length(stroke["points"])
+
+
+func _cached_stroke_bounds(stroke: Dictionary) -> Rect2:
+	var value: Variant = stroke.get("bounds")
+	if value is Rect2:
+		return value
+	return _points_bounds(stroke["points"])
+
+
+func _cached_stroke_area(stroke: Dictionary) -> float:
+	var value: Variant = stroke.get("area")
+	if typeof(value) == TYPE_FLOAT or typeof(value) == TYPE_INT:
+		return float(value)
+	var bounds := _cached_stroke_bounds(stroke)
+	return bounds.size.x * bounds.size.y
+
+
+func _cached_stroke_endpoint_gap_sq(stroke: Dictionary) -> float:
+	var value: Variant = stroke.get("endpoint_gap_sq")
+	if typeof(value) == TYPE_FLOAT or typeof(value) == TYPE_INT:
+		return float(value)
+	var points: PackedVector2Array = stroke["points"]
+	if points.is_empty():
+		return 0.0
+	return points[0].distance_squared_to(points[points.size() - 1])
+
+
+func _distance_sq_to_points(
+	point: Vector2,
+	points: PackedVector2Array,
+	stop_at_sq: float = INF
+) -> float:
 	var best := INF
 	for candidate in points:
 		best = minf(best, point.distance_squared_to(candidate))
-	return sqrt(best)
+		if best <= stop_at_sq:
+			return best
+	return best
 
 
-func _gap_to_body(point: Vector2, strokes: Array, in_body: Array) -> float:
+func _distance_to_points(point: Vector2, points: PackedVector2Array) -> float:
+	return sqrt(_distance_sq_to_points(point, points))
+
+
+func _gap_sq_to_body(
+	point: Vector2,
+	strokes: Array,
+	in_body: Array,
+	stop_at_sq: float = INF
+) -> float:
 	var best := INF
 	for index in range(strokes.size()):
 		if not in_body[index]:
 			continue
-		best = minf(best, _distance_to_points(point, strokes[index]["points"]))
+		var points: PackedVector2Array = strokes[index]["points"]
+		best = minf(best, _distance_sq_to_points(point, points, minf(best, stop_at_sq)))
+		if best <= stop_at_sq:
+			return best
+	return best
+
+
+func _gap_to_body(point: Vector2, strokes: Array, in_body: Array) -> float:
+	return sqrt(_gap_sq_to_body(point, strokes, in_body))
+
+
+func _min_gap_sq_to_body(
+	points: PackedVector2Array,
+	strokes: Array,
+	in_body: Array,
+	stop_at_sq: float = INF
+) -> float:
+	var best := INF
+	for point in points:
+		best = minf(best, _gap_sq_to_body(point, strokes, in_body, minf(best, stop_at_sq)))
+		if best <= stop_at_sq:
+			return best
 	return best
 
 
 func _min_gap_to_body(points: PackedVector2Array, strokes: Array, in_body: Array) -> float:
-	var best := INF
+	return sqrt(_min_gap_sq_to_body(points, strokes, in_body))
+
+
+func _max_gap_sq_to_body(points: PackedVector2Array, strokes: Array, in_body: Array) -> float:
+	var worst := 0.0
 	for point in points:
-		best = minf(best, _gap_to_body(point, strokes, in_body))
-		if best <= 0.0:
-			break
-	return best
+		worst = maxf(worst, _gap_sq_to_body(point, strokes, in_body))
+	return worst
 
 
 func _max_gap_to_body(points: PackedVector2Array, strokes: Array, in_body: Array) -> float:
-	var worst := 0.0
-	for point in points:
-		worst = maxf(worst, _gap_to_body(point, strokes, in_body))
-	return worst
+	return sqrt(_max_gap_sq_to_body(points, strokes, in_body))
 
 
 ## How many other non-body strokes hang off this stroke away from its
@@ -1207,6 +1425,9 @@ func _junction_count(
 	if total_length <= 0.0:
 		return 0
 	var anchor := points[0] if attached_at_start else points[points.size() - 1]
+	var endpoint_radius_sq := endpoint_radius * endpoint_radius
+	var interior_radius_sq := interior_radius * interior_radius
+	var anchor_exclusion_sq := anchor_exclusion * anchor_exclusion
 
 	var arc: Array = []
 	arc.resize(points.size())
@@ -1228,11 +1449,11 @@ func _junction_count(
 			if from_anchor < total_length * 0.3:
 				continue
 			var mine := points[point_index]
-			if mine.distance_to(anchor) < anchor_exclusion:
+			if mine.distance_squared_to(anchor) < anchor_exclusion_sq:
 				continue
-			if mine.distance_to(other_first) < endpoint_radius \
-					or mine.distance_to(other_last) < endpoint_radius \
-					or _distance_to_points(mine, other_points) < interior_radius:
+			if mine.distance_squared_to(other_first) < endpoint_radius_sq \
+					or mine.distance_squared_to(other_last) < endpoint_radius_sq \
+					or _distance_sq_to_points(mine, other_points, interior_radius_sq) < interior_radius_sq:
 				count += 1
 				break
 	return count
@@ -1257,9 +1478,13 @@ func _body_bounds(strokes: Array, in_body: Array) -> Rect2:
 
 
 func _farthest_distance(points: PackedVector2Array, from: Vector2) -> float:
+	return sqrt(_farthest_distance_sq(points, from))
+
+
+func _farthest_distance_sq(points: PackedVector2Array, from: Vector2) -> float:
 	var best := 0.0
 	for point in points:
-		best = maxf(best, from.distance_to(point))
+		best = maxf(best, from.distance_squared_to(point))
 	return best
 
 
