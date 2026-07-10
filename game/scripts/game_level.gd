@@ -6,6 +6,7 @@ extends Node2D
 @onready var environment: Node = $EnvironmentBaseplate
 @onready var spawn_point: Marker2D = $EnvironmentBaseplate/GameplayPlane/SpawnPoint
 @onready var entity_root: Node2D = $EnvironmentBaseplate/GameplayPlane/EntityRoot
+@onready var backend_supervisor: Node = $BackendSupervisor
 @onready var status_label: Label = $CanvasLayer/StatusLabel
 @onready var draw_button: Button = $CanvasLayer/DrawButton
 @onready var draw_panel = $DrawPanel
@@ -19,12 +20,33 @@ func _ready() -> void:
 	draw_button.pressed.connect(_on_draw_button_pressed)
 	draw_panel.drawing_ready.connect(_on_drawing_ready)
 	draw_panel.panel_closed.connect(_on_draw_panel_closed)
+	backend_supervisor.set("debug_logs", debug_timing_logs)
+	backend_supervisor.connect("backend_ready", Callable(self, "_on_backend_ready"))
+	backend_supervisor.connect("backend_starting", Callable(self, "_on_backend_starting"))
+	backend_supervisor.connect("backend_failed", Callable(self, "_on_backend_failed"))
 	environment.call("set_target", spawn_point)
-	status_label.text = "Ready"
+	draw_button.disabled = true
+	status_label.text = "Checking backend..."
+	backend_supervisor.call("ensure_backend")
 
 
 func _on_draw_button_pressed() -> void:
 	draw_panel.open_panel()
+
+
+func _on_backend_ready() -> void:
+	draw_button.disabled = false
+	status_label.text = "Ready"
+
+
+func _on_backend_starting(message: String) -> void:
+	draw_button.disabled = true
+	status_label.text = message
+
+
+func _on_backend_failed(message: String) -> void:
+	draw_button.disabled = true
+	status_label.text = message
 
 
 func _on_draw_panel_closed() -> void:
