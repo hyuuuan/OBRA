@@ -70,6 +70,8 @@ func _on_camera_moved(camera_position: Vector2) -> void:
 
 
 func _update_layers(camera_position: Vector2) -> void:
+	if not is_finite(camera_position.x) or not is_finite(camera_position.y):
+		return
 	for layer in _layers:
 		layer.call("update_for_camera", camera_position)
 

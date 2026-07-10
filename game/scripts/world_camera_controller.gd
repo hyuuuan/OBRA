@@ -27,6 +27,10 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	var desired := _clamped_target_position()
+	if not _vector_is_finite(desired):
+		desired = world_bounds.get_center()
+	if not _vector_is_finite(global_position):
+		global_position = desired
 	var x_weight := 1.0
 	if follow_lerp_speed > 0.0:
 		x_weight = 1.0 - exp(-follow_lerp_speed * delta)
@@ -59,8 +63,10 @@ func snap_to_target() -> void:
 func _clamped_target_position() -> Vector2:
 	var desired := global_position
 	if target != null and is_instance_valid(target):
-		desired.x = target.global_position.x + target_offset.x
-		desired.y = _vertical_follow_y(target.global_position.y)
+		var target_position := target.global_position
+		if _vector_is_finite(target_position):
+			desired.x = target_position.x + target_offset.x
+			desired.y = _vertical_follow_y(target_position.y)
 
 	var viewport_size := _viewport_size()
 	var half_view := viewport_size * 0.5
@@ -76,6 +82,10 @@ func _clamped_target_position() -> Vector2:
 	desired.y = _clamp_camera_y(desired.y)
 
 	return desired
+
+
+func _vector_is_finite(value: Vector2) -> bool:
+	return is_finite(value.x) and is_finite(value.y)
 
 
 func _clamp_camera_y(value: float) -> float:

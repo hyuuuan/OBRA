@@ -11,6 +11,8 @@ const MAX_JOINTS := 23
 const MAX_SHAPES := 64
 const MAX_SEGMENTS_PER_LIMB := 3
 const MIN_SEGMENT_LENGTH := 8.0
+const MAX_JOINT_ERROR := 22.0
+const RECOVERY_PADDING := 180.0
 
 var _rig_type: String = "none"
 var _entity_id: String = ""
@@ -26,6 +28,10 @@ var _body_pool: PackedVector2Array = PackedVector2Array()
 var _shape_count: int = 0
 var _gait_phase: float = 0.0
 var _build_generation: int = 0
+var _rest_transforms: Dictionary = {}
+var _world_bounds: Rect2 = Rect2(0.0, -520.0, 3760.0, 1200.0)
+var _physics_frames_since_build: int = 0
+var _recovery_count: int = 0
 
 
 func configure_rig(new_profile: Dictionary, new_entity_metadata: Dictionary = {}) -> void:
@@ -37,6 +43,11 @@ func configure_rig(new_profile: Dictionary, new_entity_metadata: Dictionary = {}
 func set_motion_state(state: String, params: Dictionary = {}) -> void:
 	_motion_state = state
 	_motion_params = params.duplicate(true)
+
+
+func set_world_bounds(bounds: Rect2) -> void:
+	if bounds.size.x > 1.0 and bounds.size.y > 1.0:
+		_world_bounds = bounds
 
 
 func get_primary_body() -> ActiveRigBody2D:
@@ -63,6 +74,34 @@ func debug_motor_velocities() -> Array[float]:
 	for joint in _joints:
 		velocities.append(joint.motor_target_velocity)
 	return velocities
+
+
+func debug_drive_torques() -> Array[float]:
+	var torques: Array[float] = []
+	for segment_value in _segments:
+		torques.append(float((segment_value as Dictionary).get("last_drive_torque", 0.0)))
+	return torques
+
+
+func debug_max_joint_error() -> float:
+	var maximum := 0.0
+	for segment_value in _segments:
+		maximum = maxf(maximum, _segment_joint_error(segment_value as Dictionary))
+	return maximum
+
+
+func debug_max_body_distance() -> float:
+	if _primary_body == null:
+		return 0.0
+	var maximum := 0.0
+	for body in _bodies:
+		if is_instance_valid(body):
+			maximum = maxf(maximum, body.global_position.distance_to(_primary_body.global_position))
+	return maximum
+
+
+func debug_recovery_count() -> int:
+	return _recovery_count
 
 
 func is_in_water() -> bool:
@@ -93,7 +132,13 @@ func _on_skin_rebuilt() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if _primary_body == null or _segments.is_empty():
+	if _primary_body == null:
+		return
+	_physics_frames_since_build += 1
+	if _physics_frames_since_build > 4 and _rig_needs_recovery():
+		_recover_rig()
+		return
+	if _segments.is_empty():
 		return
 	var speed_ratio := clampf(float(_motion_params.get("speed_ratio", 0.0)), 0.0, 1.5)
 	if bool(_motion_params.get("moving", false)) or _motion_state in ["swim", "fly", "flap", "climb"]:
@@ -110,12 +155,17 @@ func _physics_process(delta: float) -> void:
 		var current := wrapf(child.rotation - parent.rotation - float(segment["rest_relative"]), -PI, PI)
 		var error := wrapf(target - current, -PI, PI)
 		var relative_velocity := child.angular_velocity - parent.angular_velocity
-		var target_velocity := clampf(error * 11.0 - relative_velocity * 0.8, -10.0, 10.0)
-		joint.motor_target_velocity = target_velocity
-		var spring := float(profile.get("joint_spring", 1050.0))
-		var damping := float(profile.get("joint_damping", 65.0))
-		var torque_limit := float(profile.get("joint_torque_limit", 2600.0))
+		# PinJoint motors do not expose a useful per-joint impulse cap in this
+		# setup. Driving the motor and applying PD torque at the same time made
+		# light limbs fight two solvers and launch the complete rig. Use one
+		# bounded muscle controller instead.
+		var mass_scale := clampf(minf(parent.mass, child.mass) / 0.4, 0.45, 1.35)
+		var distal_scale := 1.0 / (1.0 + float(int(segment["chain_index"])) * 0.35)
+		var spring := clampf(float(profile.get("joint_spring", 1050.0)) * 0.18 * mass_scale * distal_scale, 70.0, 360.0)
+		var damping := clampf(float(profile.get("joint_damping", 65.0)) * 0.25 * mass_scale, 6.0, 28.0)
+		var torque_limit := clampf(float(profile.get("joint_torque_limit", 2600.0)) * 0.10 * mass_scale * distal_scale, 90.0, 460.0)
 		var torque := clampf(error * spring - relative_velocity * damping, -torque_limit, torque_limit)
+		segment["last_drive_torque"] = torque
 		child.apply_torque(torque)
 		parent.apply_torque(-torque)
 
@@ -131,13 +181,15 @@ func _target_angle_for(segment: Dictionary) -> float:
 	if _entity_id == "spider" and role == "leg":
 		if _motion_state in ["walk", "climb"] and moving:
 			var alternating := 0.0 if limb_index % 2 == 0 else PI
-			return deg_to_rad(24.0) * sin(phase + alternating)
+			var stride := sin(phase + alternating)
+			return deg_to_rad(18.0) * stride if chain_index == 0 else deg_to_rad(-26.0) * stride
 		return 0.0
 
 	if _entity_id in ["cat", "dog"] and role == "leg":
 		if _motion_state == "walk" and moving:
 			var amplitude := deg_to_rad(19.0 if _entity_id == "cat" else 17.0)
-			return amplitude * sin(phase + (PI if limb_index % 2 else 0.0))
+			var stride := sin(phase + (PI if limb_index % 2 else 0.0))
+			return amplitude * stride if chain_index == 0 else amplitude * -0.72 * stride
 		if _motion_state in ["jump", "fall"]:
 			return deg_to_rad(10.0) * (-1.0 if limb_index % 2 else 1.0)
 		return 0.0
@@ -195,6 +247,7 @@ func _build_standard_rig(strokes: Array) -> void:
 
 	var attachment_radius := clampf(get_stroke_bounds().size.length() * 0.10, 8.0, 22.0)
 	var next_limb_index := 0
+	var limb_limit := _limb_limit_for_entity()
 	for index in range(strokes.size()):
 		if index == body_index:
 			continue
@@ -208,6 +261,9 @@ func _build_standard_rig(strokes: Array) -> void:
 			var path: PackedVector2Array = path_value
 			if _stroke_length(path) < MIN_SEGMENT_LENGTH:
 				continue
+			if next_limb_index >= limb_limit:
+				_add_stroke_to_body(_primary_body, stroke, body_center, false)
+				break
 			_build_limb_path(path, stroke, next_limb_index, body_center)
 			next_limb_index += 1
 
@@ -246,7 +302,10 @@ func _build_chain_rig(strokes: Array) -> void:
 					"limb_index": 0,
 					"chain_index": index,
 					"phase": 0.0,
-					"side": 1.0
+					"side": 1.0,
+					"parent_anchor": _body_local_anchor(parent, sampled[index]),
+					"child_anchor": _body_local_anchor(body, sampled[index]),
+					"last_drive_torque": 0.0
 				})
 		parent = body
 	for stroke_value in strokes:
@@ -263,13 +322,16 @@ func _build_limb_path(
 	body_center: Vector2
 ) -> void:
 	var length := _stroke_length(path)
-	var segment_count := clampi(int(ceil(length / 34.0)), 1, MAX_SEGMENTS_PER_LIMB)
+	var tip := path[path.size() - 1]
+	var role := _role_for_limb(path[0], tip, body_center)
+	var per_limb_cap := 2 if _entity_id != "snake" else MAX_SEGMENTS_PER_LIMB
+	var segment_count := clampi(int(ceil(length / 38.0)), 1, per_limb_cap)
+	if _minimum_limb_segments(role) >= 2 and length >= MIN_SEGMENT_LENGTH * 2.0:
+		segment_count = maxi(segment_count, 2)
 	segment_count = mini(segment_count, MAX_BODIES - _bodies.size())
 	if segment_count <= 0:
 		return
 	var parent := _primary_body
-	var tip := path[path.size() - 1]
-	var role := _role_for_limb(path[0], tip, body_center)
 	var side := -1.0 if tip.x < body_center.x else 1.0
 	for segment_index in range(segment_count):
 		if _joints.size() >= MAX_JOINTS:
@@ -298,7 +360,10 @@ func _build_limb_path(
 			"limb_index": limb_index,
 			"chain_index": segment_index,
 			"phase": float(limb_index) * 0.37,
-			"side": side
+			"side": side,
+			"parent_anchor": _body_local_anchor(parent, chunk[0]),
+			"child_anchor": _body_local_anchor(body, chunk[0]),
+			"last_drive_torque": 0.0
 		})
 		parent = body
 
@@ -331,17 +396,27 @@ func _create_body(body_name: String, at: Vector2, body_mass: float) -> ActiveRig
 	var body := ActiveRigBody2D.new()
 	body.name = body_name
 	body.position = at
-	body.mass = clampf(body_mass, 0.18, 5.0)
+	body.mass = clampf(body_mass, 0.30, 5.0)
 	body.gravity_scale = 1.0
-	body.linear_damp = 0.32
-	body.angular_damp = 0.5
-	body.max_linear_speed = float(profile.get("max_linear_speed", 850.0))
-	body.max_angular_speed = float(profile.get("max_angular_speed", 16.0))
+	body.linear_damp = 0.55
+	body.angular_damp = 2.2
+	body.max_linear_speed = clampf(float(profile.get("max_linear_speed", 580.0)), 300.0, 620.0)
+	body.max_angular_speed = clampf(float(profile.get("max_angular_speed", 8.0)), 5.0, 9.0)
 	var material := PhysicsMaterial.new()
 	material.friction = float(profile.get("friction", 0.78))
 	material.bounce = float(profile.get("bounce", 0.02))
 	body.physics_material_override = material
 	_physics_root.add_child(body)
+	# The bodies are physics-authoritative: the server drives their global
+	# transform every tick. While parented under the (moving) morph node, any
+	# transform activity elsewhere in that subtree — e.g. the per-frame camera
+	# anchor update — re-syncs each body from its stale LOCAL transform, silently
+	# teleporting it back in place and cancelling all locomotion. top_level makes
+	# the global transform independent of the parent; preserve the world transform
+	# across the switch so the built rig geometry stays put.
+	var world_transform := body.global_transform
+	body.top_level = true
+	body.global_transform = world_transform
 	_bodies.append(body)
 	return body
 
@@ -361,11 +436,15 @@ func _create_joint(
 	joint.node_a = joint.get_path_to(parent)
 	joint.node_b = joint.get_path_to(child)
 	joint.disable_collision = true
-	joint.softness = float(profile.get("joint_softness", 0.05))
-	joint.angular_limit_enabled = true
+	joint.softness = clampf(float(profile.get("joint_softness", 0.0)), 0.0, 0.02)
+	# Hard angular limits add a second constraint at the same anchor and become
+	# numerically singular on short, light stroke segments. The bounded muscle
+	# controller below provides a soft limit without poisoning the solver.
+	joint.angular_limit_enabled = false
 	joint.angular_limit_lower = -angular_limit
 	joint.angular_limit_upper = angular_limit
-	joint.motor_enabled = true
+	joint.motor_enabled = false
+	joint.motor_target_velocity = 0.0
 	_joints.append(joint)
 	return joint
 
@@ -464,6 +543,8 @@ func _finalize_rig() -> void:
 		var bounds := get_stroke_bounds()
 		grip.position = Vector2(bounds.size.x * 0.32, -bounds.size.y * 0.12)
 		_primary_body.add_child(grip)
+		_capture_rest_pose()
+	_physics_frames_since_build = 0
 
 
 func _clear_rig() -> void:
@@ -473,6 +554,9 @@ func _clear_rig() -> void:
 	_segments.clear()
 	_body_pool = PackedVector2Array()
 	_shape_count = 0
+	_rest_transforms.clear()
+	_physics_frames_since_build = 0
+	_recovery_count = 0
 	if _physics_root != null and is_instance_valid(_physics_root):
 		_physics_root.get_parent().remove_child(_physics_root)
 		_physics_root.queue_free()
@@ -554,6 +638,122 @@ func _role_for_limb(joint: Vector2, tip: Vector2, body_center: Vector2) -> Strin
 			return "tail" if absf(delta.x) > absf(delta.y) else "fin"
 		_:
 			return "limb"
+
+
+func _limb_limit_for_entity() -> int:
+	match _entity_id:
+		"spider": return 8
+		"cat", "dog": return 5
+		"humanoid", "frog", "rabbit": return 4
+		"bird", "butterfly": return 6
+		"fish": return 4
+		_: return 6
+
+
+func _minimum_limb_segments(role: String) -> int:
+	if role == "leg" and _entity_id in ["spider", "cat", "dog", "humanoid", "frog", "rabbit"]:
+		return 2
+	if role == "arm" and _entity_id == "humanoid":
+		return 2
+	return 1
+
+
+func _body_local_anchor(body: ActiveRigBody2D, rig_point: Vector2) -> Vector2:
+	return body.to_local(_physics_root.to_global(rig_point))
+
+
+func _segment_joint_error(segment: Dictionary) -> float:
+	var parent := segment.get("parent") as ActiveRigBody2D
+	var child := segment.get("body") as ActiveRigBody2D
+	if not is_instance_valid(parent) or not is_instance_valid(child):
+		return INF
+	var parent_anchor := Vector2(segment.get("parent_anchor", Vector2.ZERO))
+	var child_anchor := Vector2(segment.get("child_anchor", Vector2.ZERO))
+	var parent_point := parent.to_global(parent_anchor)
+	var child_point := child.to_global(child_anchor)
+	if not _vector_is_finite(parent_point) or not _vector_is_finite(child_point):
+		return INF
+	return parent_point.distance_to(child_point)
+
+
+func _capture_rest_pose() -> void:
+	_rest_transforms.clear()
+	if _primary_body == null:
+		return
+	var primary_inverse := _primary_body.global_transform.affine_inverse()
+	for body in _bodies:
+		if is_instance_valid(body):
+			_rest_transforms[body.get_instance_id()] = primary_inverse * body.global_transform
+
+
+func _rig_needs_recovery() -> bool:
+	if _primary_body == null:
+		return false
+	var primary_position := _primary_body.global_position
+	if not is_finite(primary_position.x) or not is_finite(primary_position.y):
+		return true
+	if not _world_bounds.grow(RECOVERY_PADDING).has_point(primary_position):
+		return true
+	var maximum_radius := maxf(120.0, get_stroke_bounds().size.length() * 2.2)
+	for body in _bodies:
+		if not is_instance_valid(body):
+			continue
+		if not _transform_is_finite(body.global_transform):
+			return true
+		var position := body.global_position
+		if position.distance_to(primary_position) > maximum_radius:
+			return true
+	for segment_value in _segments:
+		var error := _segment_joint_error(segment_value as Dictionary)
+		if not is_finite(error) or error > MAX_JOINT_ERROR:
+			return true
+	return false
+
+
+func _recover_rig() -> void:
+	if _primary_body == null:
+		return
+	_recovery_count += 1
+	var bounds_end := _world_bounds.end
+	var current := _primary_body.global_position
+	if not is_finite(current.x) or not is_finite(current.y):
+		current = _world_bounds.get_center()
+	var safe_position := Vector2(
+		clampf(current.x, _world_bounds.position.x + 42.0, bounds_end.x - 42.0),
+		clampf(current.y, _world_bounds.position.y + 42.0, bounds_end.y - 42.0)
+	)
+	var safe_rotation := _primary_body.global_rotation
+	if not is_finite(safe_rotation):
+		safe_rotation = 0.0
+	var primary_transform := Transform2D(safe_rotation, safe_position)
+	# Freeze the complete graph first so the constraint solver never observes a
+	# half-restored chain. Releasing bodies one-by-one was able to immediately
+	# re-contaminate repaired transforms through a still-invalid joint partner.
+	for body in _bodies:
+		if not is_instance_valid(body):
+			continue
+		body.freeze = true
+	for body in _bodies:
+		if not is_instance_valid(body):
+			continue
+		var relative: Transform2D = _rest_transforms.get(body.get_instance_id(), Transform2D.IDENTITY)
+		body.global_transform = primary_transform * relative
+		body.linear_velocity = Vector2.ZERO
+		body.angular_velocity = 0.0
+	for body in _bodies:
+		if not is_instance_valid(body):
+			continue
+		body.freeze = false
+		body.sleeping = false
+	_physics_frames_since_build = 0
+
+
+func _vector_is_finite(value: Vector2) -> bool:
+	return is_finite(value.x) and is_finite(value.y)
+
+
+func _transform_is_finite(value: Transform2D) -> bool:
+	return _vector_is_finite(value.x) and _vector_is_finite(value.y) and _vector_is_finite(value.origin)
 
 
 func _sample_points(points: PackedVector2Array, maximum: int) -> PackedVector2Array:

@@ -38,6 +38,7 @@ var _submit_started_usec: int = 0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
 	visible = false
+	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	client.canvas_viewport = canvas_viewport
 	client.set("debug_timing_logs", debug_timing_logs)
 	transform_button.pressed.connect(_on_transform_pressed)
@@ -56,6 +57,7 @@ func open_panel() -> void:
 	_submitting = false
 	client.set("debug_timing_logs", debug_timing_logs)
 	visible = true
+	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	transform_button.disabled = false
 	clear_button.disabled = false
 	canvas.clear_canvas()
@@ -77,6 +79,7 @@ func close_panel(emit_closed: bool = true, release_ink: bool = true) -> void:
 	transform_button.disabled = false
 	clear_button.disabled = false
 	visible = false
+	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	if release_ink and ink_manager != null:
 		ink_manager.release_attempt()
 	get_tree().paused = false
@@ -120,9 +123,13 @@ func _on_entity_prediction(
 		var total_ms := float(Time.get_ticks_usec() - _submit_started_usec) / 1000.0
 		print("DrawPanel submit-to-prediction %.2f ms" % total_ms)
 	var ink_cost: float = float(canvas.get_current_cost())
-	drawing_ready.emit(entity, display_name, drawing, response, _pending_strokes, ink_cost)
-	canvas.clear_canvas()
+	var submitted_strokes := _pending_strokes.duplicate(true)
+	# Remove the full-screen scrim and resume the world before constructing a
+	# potentially complex rig. This also guarantees that a downstream spawn
+	# failure cannot strand the player behind a gray paused overlay.
 	close_panel(true, false)
+	drawing_ready.emit(entity, display_name, drawing, response, submitted_strokes, ink_cost)
+	canvas.clear_canvas()
 
 
 func _on_prediction_failed(message: String) -> void:
@@ -141,6 +148,10 @@ func _clear_canvas() -> void:
 
 
 func _on_stroke_cost_changed(cost: float) -> void:
+	# Clearing the hidden canvas after a successful prediction must not replace
+	# the pending utility reservation with zero before placement/storage commits.
+	if not _is_open:
+		return
 	if ink_manager != null:
 		ink_manager.reserve_attempt(cost)
 		status.text = "Ink remaining %.1f / %.1f — attempt %.1f" % [ink_manager.remaining(), ink_manager.capacity, cost]

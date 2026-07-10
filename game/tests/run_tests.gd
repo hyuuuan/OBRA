@@ -25,9 +25,11 @@ func _run() -> void:
 	_test_inventory()
 	_test_canvas_clipping()
 	_test_game_level_contract()
+	_test_camera_non_finite_guard()
 	_test_target_contracts()
 	await _test_placement_collision()
 	await _test_active_ragdolls()
+	await _test_compound_fallback_recovery()
 	await _test_physics_morphs()
 	await _test_utilities()
 	world.queue_free()
@@ -84,6 +86,12 @@ func _test_ink_accounting() -> void:
 	manager.reserve_attempt(3.0)
 	manager.commit_attempt()
 	_expect(is_equal_approx(manager.remaining(), 9.0), "committed ink was refunded")
+	manager.reserve_attempt(1.0)
+	var hidden_panel := DrawPanel.new()
+	hidden_panel.ink_manager = manager
+	hidden_panel.call("_on_stroke_cost_changed", 0.0)
+	_expect(is_equal_approx(manager.reserved, 1.0), "hidden canvas clear erased a pending utility reservation")
+	hidden_panel.free()
 	manager.free()
 
 
@@ -132,6 +140,19 @@ func _test_game_level_contract() -> void:
 	]:
 		_expect(level.get_node_or_null(path) != null, "game level missing %s" % path)
 	level.free()
+
+
+func _test_camera_non_finite_guard() -> void:
+	var camera := WorldCameraController.new()
+	var bad_target := Node2D.new()
+	world.add_child(camera)
+	world.add_child(bad_target)
+	camera.set_target(bad_target)
+	bad_target.global_position = Vector2(NAN, INF)
+	var desired: Vector2 = camera.call("_clamped_target_position")
+	_expect(is_finite(desired.x) and is_finite(desired.y), "camera accepted a non-finite physics target")
+	camera.queue_free()
+	bad_target.queue_free()
 
 
 func _test_target_contracts() -> void:
@@ -203,6 +224,10 @@ func _test_active_ragdolls() -> void:
 		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
 		_expect(skin.get_rigid_bodies().size() <= 24, "%s exceeded body cap" % entity_id)
 		_expect(skin.get_joint_count() <= 23, "%s exceeded joint cap" % entity_id)
+		if entity_id == "spider":
+			_expect(skin.get_joint_count() >= 16, "spider legs regressed to single rigid segments")
+		elif entity_id in ["cat", "dog", "frog", "rabbit", "humanoid"]:
+			_expect(skin.get_joint_count() >= 8, "%s limbs regressed to single rigid segments" % entity_id)
 		if entity_id in ["spider", "cat", "dog", "frog", "rabbit", "bird", "butterfly", "humanoid", "snake"]:
 			_expect(skin.get_joint_count() > 0, "%s did not articulate fixture strokes" % entity_id)
 		var expected_role: String = String({
@@ -216,20 +241,45 @@ func _test_active_ragdolls() -> void:
 			"rabbit": "jump", "bird": "fly", "butterfly": "fly",
 			"humanoid": "walk", "fish": "swim", "snake": "walk"
 		}.get(entity_id, "walk"))
-		skin.set_motion_state(motion_state, {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
+		var motion_params := {"moving": true, "speed_ratio": 1.0, "direction": 1.0}
+		# Keep the fixture in its species gait; the normal controller would read
+		# zero headless input and replace this state with idle every frame.
+		instance.set_physics_process(false)
+		skin.set_motion_state(motion_state, motion_params)
 		skin._physics_process(0.1)
 		if skin.get_joint_count() > 0:
-			var motor_active := false
-			for velocity in skin.debug_motor_velocities():
-				motor_active = motor_active or absf(velocity) > 0.01
-			_expect(motor_active, "%s gait did not drive joint motors" % entity_id)
-		for _frame in range(60):
+			var muscle_active := false
+			for torque in skin.debug_drive_torques():
+				muscle_active = muscle_active or absf(torque) > 0.01
+			_expect(muscle_active, "%s gait did not drive bounded joint muscles" % entity_id)
+		var stress_frames := 300 if entity_id == "spider" else 120
+		var maximum_joint_error := 0.0
+		var maximum_body_distance := 0.0
+		for frame in range(stress_frames):
+			skin.set_motion_state(motion_state, motion_params)
+			if frame % 90 == 30 and anchor != null:
+				anchor.apply_central_impulse(Vector2(55.0, -35.0) * anchor.mass)
 			await physics_frame
+			maximum_joint_error = maxf(maximum_joint_error, skin.debug_max_joint_error())
+			maximum_body_distance = maxf(maximum_body_distance, skin.debug_max_body_distance())
 		if anchor != null:
 			_expect(is_finite(anchor.global_position.x) and is_finite(anchor.global_position.y), "%s physics became non-finite" % entity_id)
 			_expect(anchor.linear_velocity.length() <= anchor.max_linear_speed + 1.0, "%s exceeded velocity safety bound" % entity_id)
+			_expect(Rect2(-180.0, -700.0, 4120.0, 1560.0).has_point(anchor.global_position), "%s escaped the playable world" % entity_id)
+			var camera_target := instance.call("get_camera_target") as Node2D
+			_expect(camera_target != anchor, "%s camera still follows the raw rigidbody" % entity_id)
+			_expect(camera_target != null and is_finite(camera_target.global_position.x) and is_finite(camera_target.global_position.y), "%s camera target became invalid" % entity_id)
+		_expect(maximum_joint_error <= 22.5, "%s joint separated by %.2f px" % [entity_id, maximum_joint_error])
+		_expect(maximum_body_distance <= maxf(125.0, skin.get_stroke_bounds().size.length() * 2.25), "%s rig scattered to %.2f px" % [entity_id, maximum_body_distance])
+		_expect(skin.debug_recovery_count() <= 1, "%s needed repeated automatic recovery (%d)" % [entity_id, skin.debug_recovery_count()])
 		for rig_body in skin.get_rigid_bodies():
 			_expect(is_finite(rig_body.global_position.x) and is_finite(rig_body.global_position.y), "%s segment became non-finite" % entity_id)
+		if entity_id == "spider" and anchor != null:
+			anchor.global_position = Vector2(9000.0, 9000.0)
+			for _recovery_frame in range(8):
+				await physics_frame
+			_expect(Rect2(0.0, -520.0, 3760.0, 1200.0).has_point(anchor.global_position), "spider runaway recovery did not return the torso")
+			_expect(skin.debug_recovery_count() >= 1, "spider runaway recovery was not exercised")
 		instance.queue_free()
 		await process_frame
 
@@ -278,6 +328,24 @@ func _test_utilities() -> void:
 			_expect(utility.gravity_scale < 0.5, "sailboat did not switch to buoyancy physics")
 		utility.queue_free()
 		await process_frame
+
+
+func _test_compound_fallback_recovery() -> void:
+	var instance := registry.instantiate_entity("spider") as Node2D
+	world.add_child(instance)
+	instance.global_position = Vector2(320.0, 160.0)
+	instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+	instance.call("apply_drawing", _blank_image(), [])
+	var anchor := instance.call("get_physics_anchor") as ActiveRigBody2D
+	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+	_expect(anchor != null and skin.get_joint_count() == 0, "bitmap fallback did not build one compound body")
+	if anchor != null:
+		anchor.global_position = Vector2(9000.0, 9000.0)
+		for _frame in range(8):
+			await physics_frame
+		_expect(Rect2(0.0, -520.0, 3760.0, 1200.0).has_point(anchor.global_position), "compound fallback escaped without recovery")
+	instance.queue_free()
+	await process_frame
 
 
 func _test_physics_morphs() -> void:

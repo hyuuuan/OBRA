@@ -24,6 +24,8 @@ var _entity_configured := false
 var _collision_key := ""
 var _collision_generation: int = 0
 var _generated_collisions: Array[CollisionShape2D] = []
+var _world_bounds: Rect2 = Rect2(0.0, -520.0, 3760.0, 1200.0)
+var _last_safe_transform: Transform2D = Transform2D.IDENTITY
 
 
 func _ready() -> void:
@@ -34,6 +36,8 @@ func _ready() -> void:
 		_rebuild_collision()
 	contact_monitor = true
 	max_contacts_reported = 8
+	continuous_cd = RigidBody2D.CCD_MODE_CAST_SHAPE
+	_last_safe_transform = global_transform
 	call_deferred("_apply_spawn_motion")
 
 
@@ -61,6 +65,15 @@ func get_physics_anchor() -> RigidBody2D:
 	return self
 
 
+func get_camera_target() -> Node2D:
+	return self
+
+
+func set_world_bounds(bounds: Rect2) -> void:
+	if bounds.size.x > 1.0 and bounds.size.y > 1.0:
+		_world_bounds = bounds
+
+
 func get_grip_anchor() -> Node2D:
 	var grip := get_node_or_null("GripAnchor") as Node2D
 	if grip == null:
@@ -72,20 +85,26 @@ func get_grip_anchor() -> Node2D:
 
 
 func capture_morph_state() -> Dictionary:
+	var safe_position := global_position if _vector_is_finite(global_position) else _last_safe_transform.origin
+	var safe_velocity := linear_velocity if _vector_is_finite(linear_velocity) else Vector2.ZERO
 	return {
-		"position": global_position,
-		"linear_velocity": linear_velocity,
-		"rotation": global_rotation,
-		"angular_velocity": angular_velocity
+		"position": safe_position,
+		"linear_velocity": safe_velocity,
+		"rotation": global_rotation if is_finite(global_rotation) else 0.0,
+		"angular_velocity": angular_velocity if is_finite(angular_velocity) else 0.0
 	}
 
 
 func apply_morph_state(state: Dictionary) -> void:
 	_spawn_motion_applied = true
-	global_position = Vector2(state.get("position", global_position))
-	linear_velocity = Vector2(state.get("linear_velocity", Vector2.ZERO)).limit_length(520.0)
-	global_rotation = float(state.get("rotation", global_rotation))
-	angular_velocity = clampf(float(state.get("angular_velocity", 0.0)), -8.0, 8.0)
+	var position := Vector2(state.get("position", global_position))
+	global_position = position if _vector_is_finite(position) else global_position
+	var velocity := Vector2(state.get("linear_velocity", Vector2.ZERO))
+	linear_velocity = velocity.limit_length(520.0) if _vector_is_finite(velocity) else Vector2.ZERO
+	var rotation_value := float(state.get("rotation", global_rotation))
+	global_rotation = rotation_value if is_finite(rotation_value) else 0.0
+	var angular_value := float(state.get("angular_velocity", 0.0))
+	angular_velocity = clampf(angular_value if is_finite(angular_value) else 0.0, -8.0, 8.0)
 
 
 func apply_item_data(item: DrawnItemData) -> void:
@@ -239,6 +258,25 @@ func _configure_physics() -> void:
 
 func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	_grounded = _has_ground_contact(state)
+	var position := state.transform.origin
+	var velocity := state.linear_velocity
+	if not _vector_is_finite(position) or not _vector_is_finite(velocity) or not is_finite(state.angular_velocity):
+		state.transform = _last_safe_transform
+		state.linear_velocity = Vector2.ZERO
+		state.angular_velocity = 0.0
+		return
+	if not _world_bounds.grow(180.0).has_point(position):
+		var end := _world_bounds.end
+		state.transform.origin = Vector2(
+			clampf(position.x, _world_bounds.position.x + 42.0, end.x - 42.0),
+			clampf(position.y, _world_bounds.position.y + 42.0, end.y - 42.0)
+		)
+		state.linear_velocity = Vector2.ZERO
+		state.angular_velocity = 0.0
+	elif velocity.length() > 620.0:
+		state.linear_velocity = velocity.normalized() * 620.0
+	state.angular_velocity = clampf(state.angular_velocity, -max_angular_speed, max_angular_speed)
+	_last_safe_transform = state.transform
 	if not controllable:
 		return
 
@@ -483,3 +521,7 @@ func _load_rig_profile(profile_path: String) -> Dictionary:
 
 	push_warning("Rig profile is not a JSON object: %s" % profile_path)
 	return {}
+
+
+func _vector_is_finite(value: Vector2) -> bool:
+	return is_finite(value.x) and is_finite(value.y)

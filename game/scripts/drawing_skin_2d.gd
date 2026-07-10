@@ -15,6 +15,8 @@ class_name DrawingSkin2D
 const VECTOR_MIN_SCALE := 0.02
 const VECTOR_MAX_SCALE := 4.0
 const MAX_POINTS_PER_STROKE := 150
+const MAX_VECTOR_STROKES := 64
+const RAW_POINT_LIMIT := 2048.0
 
 var profile: Dictionary = {}
 var entity_metadata: Dictionary = {}
@@ -112,14 +114,21 @@ func _build_vector_strokes(raw_strokes: Array) -> void:
 	var bounds_max := Vector2(-INF, -INF)
 	var max_width := 0.0
 
-	for raw in raw_strokes:
+	for raw in raw_strokes.slice(0, MAX_VECTOR_STROKES):
 		if not (raw is Dictionary):
 			continue
 		var stroke: Dictionary = raw
 		var points_value: Variant = stroke.get("points")
 		if not (points_value is PackedVector2Array):
 			continue
-		var points: PackedVector2Array = points_value
+		var points: PackedVector2Array = PackedVector2Array()
+		for source_point in points_value as PackedVector2Array:
+			if not is_finite(source_point.x) or not is_finite(source_point.y):
+				continue
+			points.append(Vector2(
+				clampf(source_point.x, -RAW_POINT_LIMIT, RAW_POINT_LIMIT),
+				clampf(source_point.y, -RAW_POINT_LIMIT, RAW_POINT_LIMIT)
+			))
 		if points.is_empty():
 			continue
 		var width := 8.0
@@ -130,6 +139,12 @@ func _build_vector_strokes(raw_strokes: Array) -> void:
 		var color_value: Variant = stroke.get("color")
 		if color_value is Color:
 			color = color_value
+		color = Color(
+			clampf(color.r, 0.0, 1.0),
+			clampf(color.g, 0.0, 1.0),
+			clampf(color.b, 0.0, 1.0),
+			clampf(color.a, 0.0, 1.0)
+		)
 
 		canvas_points.append(points)
 		widths.append(width)
@@ -204,24 +219,27 @@ func _resample_polyline(points: PackedVector2Array, step: float) -> PackedVector
 	if total <= 0.001:
 		return PackedVector2Array([points[0], points[0] + Vector2(0.35, 0.0)])
 
-	var spacing := maxf(step, total / float(MAX_POINTS_PER_STROKE))
-	var out := PackedVector2Array()
-	out.append(points[0])
-	var carried := 0.0
+	var spacing := maxf(step, total / float(MAX_POINTS_PER_STROKE - 1))
+	var out := PackedVector2Array([points[0]])
+	var distance_since_sample := 0.0
 	for index in range(points.size() - 1):
-		var from := points[index]
-		var to := points[index + 1]
-		var segment := from.distance_to(to)
-		if segment <= 0.0001:
+		var cursor := points[index]
+		var endpoint := points[index + 1]
+		var remaining := cursor.distance_to(endpoint)
+		if remaining <= 0.0001:
 			continue
-		var direction := (to - from) / segment
-		var traveled := spacing - carried
-		while traveled < segment:
-			out.append(from + direction * traveled)
-			traveled += spacing
-		carried = fmod(carried + segment, spacing)
+		while distance_since_sample + remaining >= spacing and out.size() < MAX_POINTS_PER_STROKE:
+			var needed := spacing - distance_since_sample
+			cursor = cursor.move_toward(endpoint, needed)
+			out.append(cursor)
+			remaining = cursor.distance_to(endpoint)
+			distance_since_sample = 0.0
+		distance_since_sample += remaining
 	if out[out.size() - 1].distance_to(points[points.size() - 1]) > 0.01:
-		out.append(points[points.size() - 1])
+		if out.size() >= MAX_POINTS_PER_STROKE:
+			out[out.size() - 1] = points[points.size() - 1]
+		else:
+			out.append(points[points.size() - 1])
 	return out
 
 

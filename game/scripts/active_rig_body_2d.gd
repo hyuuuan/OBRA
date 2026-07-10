@@ -9,8 +9,8 @@ var wall_contact: bool = false
 var ceiling_contact: bool = false
 var dominant_surface_normal: Vector2 = Vector2.UP
 var contact_points: Array[Vector2] = []
-var max_linear_speed: float = 900.0
-var max_angular_speed: float = 18.0
+var max_linear_speed: float = 580.0
+var max_angular_speed: float = 8.0
 var last_safe_transform: Transform2D = Transform2D.IDENTITY
 
 
@@ -18,6 +18,11 @@ func _ready() -> void:
 	contact_monitor = true
 	max_contacts_reported = 16
 	can_sleep = false
+	# Shape-cast CCD on every one of the (up to 24) rig bodies is what pushed the
+	# 120 Hz solver past its real-time budget and dropped physics into slow motion.
+	# Ray-cast CCD still stops the torso tunnelling through the floor for a small
+	# fraction of the cost; the recovery pass handles any rare limb pass-through.
+	continuous_cd = RigidBody2D.CCD_MODE_CAST_RAY
 	last_safe_transform = global_transform
 
 
@@ -45,7 +50,7 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 
 	var linear := state.linear_velocity
 	var angular := state.angular_velocity
-	if not is_finite(linear.x) or not is_finite(linear.y) or not is_finite(angular):
+	if not _transform_is_finite(state.transform) or not is_finite(linear.x) or not is_finite(linear.y) or not is_finite(angular):
 		state.transform = last_safe_transform
 		state.linear_velocity = Vector2.ZERO
 		state.angular_velocity = 0.0
@@ -53,6 +58,11 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	if linear.length() > max_linear_speed:
 		state.linear_velocity = linear.normalized() * max_linear_speed
 	state.angular_velocity = clampf(angular, -max_angular_speed, max_angular_speed)
-	if absf(state.transform.origin.x) < 100000.0 and absf(state.transform.origin.y) < 100000.0:
+	if _transform_is_finite(state.transform) and absf(state.transform.origin.x) < 10000.0 and absf(state.transform.origin.y) < 10000.0:
 		last_safe_transform = state.transform
 
+
+func _transform_is_finite(value: Transform2D) -> bool:
+	return is_finite(value.x.x) and is_finite(value.x.y) \
+		and is_finite(value.y.x) and is_finite(value.y.y) \
+		and is_finite(value.origin.x) and is_finite(value.origin.y)

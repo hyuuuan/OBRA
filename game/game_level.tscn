@@ -125,7 +125,7 @@ stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="DrawPanel/PanelRoot/SubViewportContainer"]
 size = Vector2i(512, 512)
-render_target_update_mode = 4
+render_target_update_mode = 0
 
 [node name="Paper" type="ColorRect" parent="DrawPanel/PanelRoot/SubViewportContainer/SubViewport"]
 anchors_preset = 15

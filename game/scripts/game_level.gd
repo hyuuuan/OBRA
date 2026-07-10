@@ -98,7 +98,8 @@ func _on_backend_failed(message: String) -> void:
 
 
 func _on_draw_panel_closed() -> void:
-	draw_button.grab_focus()
+	if draw_button.focus_mode != Control.FOCUS_NONE:
+		draw_button.grab_focus()
 
 
 func _on_drawing_ready(
@@ -143,16 +144,28 @@ func _spawn_or_replace(
 		return false
 	entity_root.add_child(new_player)
 	new_player.global_position = spawn_point.global_position
+	if new_player.has_method("set_world_bounds"):
+		new_player.call("set_world_bounds", Rect2(environment.get("world_bounds")))
 	var skin := new_player.get_node_or_null("DrawingSkin")
 	if skin != null:
 		skin.set("debug_timing_logs", debug_timing_logs)
 	if drawing != null and new_player.has_method("apply_drawing"):
 		new_player.call("apply_drawing", drawing, strokes)
+	if new_player.has_method("get_physics_anchor"):
+		var built_anchor := new_player.call("get_physics_anchor") as Node2D
+		if built_anchor == null or not is_finite(built_anchor.global_position.x) or not is_finite(built_anchor.global_position.y):
+			status_label.text = "Rig build failed safely — previous morph kept"
+			new_player.queue_free()
+			return false
 	if not previous_state.is_empty() and new_player.has_method("apply_morph_state"):
 		new_player.call("apply_morph_state", previous_state)
 
 	var camera_target := new_player
-	if new_player.has_method("get_physics_anchor"):
+	if new_player.has_method("get_camera_target"):
+		var stable_target := new_player.call("get_camera_target") as Node2D
+		if stable_target != null:
+			camera_target = stable_target
+	elif new_player.has_method("get_physics_anchor"):
 		var anchor := new_player.call("get_physics_anchor") as Node2D
 		if anchor != null:
 			camera_target = anchor
