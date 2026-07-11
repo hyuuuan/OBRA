@@ -15,6 +15,7 @@ var transition_step_seconds := 0.012
 
 var _levels: Array[Dictionary] = []
 var _transitioning := false
+var _selector_requested := false
 var _transition_layer: CanvasLayer
 var _transition_root: Control
 var _blocks: Array[ColorRect] = []
@@ -62,8 +63,15 @@ func return_to_selector() -> bool:
 	if _transitioning or not ResourceLoader.exists(SELECTOR_SCENE):
 		return false
 	get_tree().paused = false
+	_selector_requested = true
 	_transition_to.call_deferred(SELECTOR_SCENE, "")
 	return true
+
+
+func consume_selector_request() -> bool:
+	var requested := _selector_requested
+	_selector_requested = false
+	return requested
 
 
 func _load_catalog() -> void:

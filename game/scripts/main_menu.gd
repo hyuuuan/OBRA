@@ -23,6 +23,11 @@ var _selector_open := false
 var _animating := false
 var _panel_tween: Tween
 var _parallax_target := Vector2.ZERO
+var _sky_base := Vector2.ZERO
+var _far_base := Vector2.ZERO
+var _green_base := Vector2.ZERO
+var _terraces_base := Vector2.ZERO
+var _backdrop_bases_ready := false
 
 
 func _ready() -> void:
@@ -33,22 +38,28 @@ func _ready() -> void:
 		cards[index].disabled = true
 	selector.visible = false
 	play_button.visible = true
-	get_viewport().size_changed.connect(_apply_current_layout)
+	get_viewport().size_changed.connect(_on_viewport_size_changed)
 	_apply_current_layout()
-	play_button.grab_focus()
+	_capture_backdrop_bases.call_deferred()
+	if LevelManager.consume_selector_request():
+		_show_selector.call_deferred()
+	else:
+		play_button.grab_focus()
 
 
 func _process(delta: float) -> void:
 	var viewport_size := get_viewport_rect().size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
+	if not _backdrop_bases_ready:
+		return
 	var mouse_offset := get_viewport().get_mouse_position() - viewport_size * 0.5
 	_parallax_target = mouse_offset / viewport_size
 	var weight := 1.0 - exp(-4.0 * delta)
-	sky.position = sky.position.lerp(_parallax_target * -4.0, weight)
-	far_mountains.position = far_mountains.position.lerp(_parallax_target * -10.0, weight)
-	green_mountains.position = green_mountains.position.lerp(_parallax_target * -18.0, weight)
-	terraces.position = terraces.position.lerp(_parallax_target * -28.0, weight)
+	sky.position = sky.position.lerp(_sky_base + _parallax_target * -4.0, weight)
+	far_mountains.position = far_mountains.position.lerp(_far_base + _parallax_target * -10.0, weight)
+	green_mountains.position = green_mountains.position.lerp(_green_base + _parallax_target * -18.0, weight)
+	terraces.position = terraces.position.lerp(_terraces_base + _parallax_target * -28.0, weight)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -141,6 +152,20 @@ func _apply_current_layout() -> void:
 	_set_panel_rect(_selector_panel_rect() if _selector_open else _play_panel_rect())
 	if _selector_open:
 		_layout_cards()
+
+
+func _on_viewport_size_changed() -> void:
+	_backdrop_bases_ready = false
+	_apply_current_layout()
+	_capture_backdrop_bases.call_deferred()
+
+
+func _capture_backdrop_bases() -> void:
+	_sky_base = sky.position
+	_far_base = far_mountains.position
+	_green_base = green_mountains.position
+	_terraces_base = terraces.position
+	_backdrop_bases_ready = true
 
 
 func _play_panel_rect() -> Rect2:

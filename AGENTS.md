@@ -14,8 +14,8 @@ player or creates a placeable utility from the player's actual stroke vectors.
 
 ## Project Map
 
-- `game/`: Godot client. Main scene is `game/game_level.tscn`; project config is
-  `game/project.godot`.
+- `game/`: Godot client. Startup scene is `game/ui/main_menu.tscn`, Level 1
+  gameplay is `game/game_level.tscn`, and project config is `game/project.godot`.
 - `backend/`: FastAPI inference server. `POST /predict` receives base64 image data
   and returns the recognized manifest entity plus confidence/margin metadata.
 - `model/`: Quick Draw download, training, ONNX export, labels, metrics, and
@@ -61,6 +61,24 @@ player or creates a placeable utility from the player's actual stroke vectors.
 - Cross-dataset eval: `python3 model/evaluate_folder.py --dir <dataset-root>`
 - Contracts: `python3 -m unittest -v tests.test_manifest_contract`
 - Godot physics: `godot --headless --path game --script res://tests/run_tests.gd`
+
+## Finding the Actual Godot Game Window on macOS
+
+- For Computer Use or screenshot QA, do **not** launch with `godot --path game`.
+  That CLI process may render the game but does not reliably register a macOS
+  application target, causing Computer Use to find or launch the Godot Project
+  Manager instead.
+- From the repository root, launch through LaunchServices so the debug game is
+  discoverable:
+  `open -n -a /Applications/Godot.app --args --path "$(git rev-parse --show-toplevel)/game"`
+- Only request Computer Use state after that command succeeds, targeting bundle
+  id `org.godotengine.godot`. The correct window title is `O.B.R.A. (DEBUG)`.
+- If Computer Use reports `Godot Engine - Project Manager`, stop immediately:
+  do not share that screenshot and do not waste time cycling windows. Refresh
+  its state, close the Project Manager with Cmd+Q, rerun the LaunchServices
+  command above, then query `org.godotengine.godot` again.
+- After visual QA, close the debug preview with Cmd+Q so a stale Godot window
+  cannot be mistaken for the next run.
 
 ## Working Notes
 
