@@ -1,0 +1,47 @@
+[
+  {
+    "id": "level_1",
+    "number": 1,
+    "title": "Banaue Rice Terraces",
+    "theme": "Mountain rice terraces and irrigation paddies",
+    "scene_path": "res://game_level.tscn",
+    "thumbnail": "res://assets/Level1/terraces_2.png",
+    "unlocked": true
+  },
+  {
+    "id": "level_2",
+    "number": 2,
+    "title": "Coming Soon",
+    "theme": "",
+    "scene_path": "",
+    "thumbnail": "",
+    "unlocked": false
+  },
+  {
+    "id": "level_3",
+    "number": 3,
+    "title": "Coming Soon",
+    "theme": "",
+    "scene_path": "",
+    "thumbnail": "",
+    "unlocked": false
+  },
+  {
+    "id": "level_4",
+    "number": 4,
+    "title": "Coming Soon",
+    "theme": "",
+    "scene_path": "",
+    "thumbnail": "",
+    "unlocked": false
+  },
+  {
+    "id": "level_5",
+    "number": 5,
+    "title": "Coming Soon",
+    "theme": "",
+    "scene_path": "",
+    "thumbnail": "",
+    "unlocked": false
+  }
+]

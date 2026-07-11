@@ -1,0 +1,418 @@
+[gd_scene load_steps=34 format=3]
+
+[ext_resource type="Script" path="res://scripts/environment_baseplate.gd" id="1_environment"]
+[ext_resource type="Script" path="res://scripts/world_camera_controller.gd" id="2_camera"]
+[ext_resource type="Script" path="res://scripts/depth_layer_2d.gd" id="3_depth"]
+[ext_resource type="Script" path="res://scripts/water_area_2d.gd" id="4_water"]
+[ext_resource type="Script" path="res://scripts/terrace_segment_2d.gd" id="5_terrace"]
+[ext_resource type="Texture2D" path="res://assets/Level1/bg_withclouds.png" id="6_sky"]
+[ext_resource type="Texture2D" path="res://assets/Level1/mountains_furthest_background.png" id="7_far"]
+[ext_resource type="Texture2D" path="res://assets/Level1/mountain_further_background.png" id="8_green"]
+[ext_resource type="Texture2D" path="res://assets/Level1/terraces_2.png" id="9_terraces"]
+[ext_resource type="Texture2D" path="res://assets/Level1/terraces_near_background.png" id="10_near"]
+[ext_resource type="Texture2D" path="res://assets/Level1/texturemap.png" id="11_map"]
+
+[sub_resource type="AtlasTexture" id="Atlas_sky"]
+atlas = ExtResource("6_sky")
+region = Rect2(88, 58, 1712, 963)
+
+[sub_resource type="AtlasTexture" id="Atlas_far"]
+atlas = ExtResource("7_far")
+region = Rect2(128, 295, 1656, 543)
+
+[sub_resource type="AtlasTexture" id="Atlas_green"]
+atlas = ExtResource("8_green")
+region = Rect2(108, 300, 1690, 563)
+
+[sub_resource type="AtlasTexture" id="Atlas_terraces"]
+atlas = ExtResource("9_terraces")
+region = Rect2(157, 204, 1560, 739)
+
+[sub_resource type="AtlasTexture" id="Atlas_near"]
+atlas = ExtResource("10_near")
+region = Rect2(110, 146, 1677, 808)
+
+[sub_resource type="AtlasTexture" id="Atlas_plant"]
+atlas = ExtResource("11_map")
+region = Rect2(741, 674, 70, 55)
+
+[sub_resource type="AtlasTexture" id="Atlas_bush"]
+atlas = ExtResource("11_map")
+region = Rect2(738, 826, 92, 70)
+
+[sub_resource type="AtlasTexture" id="Atlas_rock"]
+atlas = ExtResource("11_map")
+region = Rect2(739, 742, 77, 61)
+
+[sub_resource type="AtlasTexture" id="Atlas_fence"]
+atlas = ExtResource("11_map")
+region = Rect2(738, 905, 94, 58)
+
+[sub_resource type="AtlasTexture" id="Atlas_hut"]
+atlas = ExtResource("11_map")
+region = Rect2(1358, 652, 145, 130)
+
+[sub_resource type="RectangleShape2D" id="Rectangle_floor"]
+size = Vector2(3760, 48)
+
+[sub_resource type="RectangleShape2D" id="Rectangle_wall"]
+size = Vector2(48, 1200)
+
+[sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_down_a"]
+points = PackedVector2Array(0, 0, 28, 32, 0, 32)
+
+[sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_up_a"]
+points = PackedVector2Array(-28, 32, 0, 0, 0, 32)
+
+[sub_resource type="ConvexPolygonShape2D" id="Wedge_rise_40"]
+points = PackedVector2Array(-28, 40, 0, 0, 0, 40)
+
+[sub_resource type="ConvexPolygonShape2D" id="Wedge_rise_48"]
+points = PackedVector2Array(-30, 48, 0, 0, 0, 48)
+
+[sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_down_b"]
+points = PackedVector2Array(0, 0, 30, 36, 0, 36)
+
+[sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_up_b"]
+points = PackedVector2Array(-30, 36, 0, 0, 0, 36)
+
+[node name="EnvironmentBaseplate" type="Node2D"]
+texture_filter = 1
+script = ExtResource("1_environment")
+world_bounds = Rect2(0, -520, 3760, 1200)
+
+[node name="WorldCamera" type="Camera2D" parent="."]
+position = Vector2(800, 230)
+script = ExtResource("2_camera")
+target_offset = Vector2(0, -130)
+world_bounds = Rect2(0, -520, 3760, 1200)
+
+[node name="SkyLayer" type="Node2D" parent="."]
+z_index = -120
+script = ExtResource("3_depth")
+depth = 12.0
+scroll_scale = 0.02
+z_index_base = -120
+
+[node name="SkyFill" type="Polygon2D" parent="SkyLayer"]
+polygon = PackedVector2Array(-600, -600, 4400, -600, 4400, 900, -600, 900)
+color = Color(0.2, 0.64, 0.91, 1)
+
+[node name="CloudSky" type="Sprite2D" parent="SkyLayer"]
+position = Vector2(800, 230)
+scale = Vector2(1.05, 1)
+texture = SubResource("Atlas_sky")
+
+[node name="FarMountainLayer" type="Node2D" parent="."]
+z_index = -100
+script = ExtResource("3_depth")
+depth = 8.0
+scroll_scale = 0.08
+z_index_base = -100
+modulate = Color(0.9, 0.96, 1, 1)
+
+[node name="FarMountains" type="Sprite2D" parent="FarMountainLayer"]
+position = Vector2(900, 382)
+scale = Vector2(1.25, 1)
+texture = SubResource("Atlas_far")
+
+[node name="GreenMountainLayer" type="Node2D" parent="."]
+z_index = -80
+script = ExtResource("3_depth")
+depth = 5.0
+scroll_scale = 0.18
+z_index_base = -80
+modulate = Color(0.87, 0.94, 0.82, 1)
+
+[node name="GreenMountainsA" type="Sprite2D" parent="GreenMountainLayer"]
+position = Vector2(820, 385)
+scale = Vector2(1.04, 1)
+texture = SubResource("Atlas_green")
+
+[node name="GreenMountainsB" type="Sprite2D" parent="GreenMountainLayer"]
+position = Vector2(2510, 385)
+scale = Vector2(1.04, 1)
+texture = SubResource("Atlas_green")
+
+[node name="TerraceVistaLayer" type="Node2D" parent="."]
+z_index = -55
+script = ExtResource("3_depth")
+depth = 3.0
+scroll_scale = 0.38
+z_index_base = -55
+modulate = Color(0.82, 0.91, 0.7, 0.9)
+
+[node name="VistaA" type="Sprite2D" parent="TerraceVistaLayer"]
+position = Vector2(590, 382)
+scale = Vector2(0.76, 0.76)
+texture = SubResource("Atlas_terraces")
+
+[node name="VistaB" type="Sprite2D" parent="TerraceVistaLayer"]
+position = Vector2(1740, 382)
+scale = Vector2(0.76, 0.76)
+texture = SubResource("Atlas_terraces")
+
+[node name="VistaC" type="Sprite2D" parent="TerraceVistaLayer"]
+position = Vector2(2890, 382)
+scale = Vector2(0.76, 0.76)
+texture = SubResource("Atlas_terraces")
+
+[node name="NearSceneryLayer" type="Node2D" parent="."]
+z_index = -15
+script = ExtResource("3_depth")
+depth = 1.0
+scroll_scale = 0.72
+z_index_base = -15
+modulate = Color(0.82, 0.94, 0.72, 0.84)
+
+[node name="NearA" type="Sprite2D" parent="NearSceneryLayer"]
+position = Vector2(520, 425)
+scale = Vector2(0.57, 0.57)
+texture = SubResource("Atlas_near")
+
+[node name="NearB" type="Sprite2D" parent="NearSceneryLayer"]
+position = Vector2(1460, 425)
+scale = Vector2(0.57, 0.57)
+texture = SubResource("Atlas_near")
+
+[node name="NearC" type="Sprite2D" parent="NearSceneryLayer"]
+position = Vector2(2400, 425)
+scale = Vector2(0.57, 0.57)
+texture = SubResource("Atlas_near")
+
+[node name="NearD" type="Sprite2D" parent="NearSceneryLayer"]
+position = Vector2(3340, 425)
+scale = Vector2(0.57, 0.57)
+texture = SubResource("Atlas_near")
+
+[node name="GameplayPlane" type="Node2D" parent="."]
+script = ExtResource("3_depth")
+scroll_scale = 1.0
+
+[node name="EntityRoot" type="Node2D" parent="GameplayPlane"]
+
+[node name="SpawnPoint" type="Marker2D" parent="GameplayPlane"]
+position = Vector2(260, 500)
+
+[node name="Terrain" type="Node2D" parent="GameplayPlane"]
+
+[node name="LowerLeft" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(0, 600)
+script = ExtResource("5_terrace")
+segment_size = Vector2(520, 80)
+surface_style = 0
+
+[node name="LowerPaddyFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(520, 632)
+script = ExtResource("5_terrace")
+segment_size = Vector2(200, 48)
+surface_style = 2
+
+[node name="LowerRight" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(720, 600)
+script = ExtResource("5_terrace")
+segment_size = Vector2(40, 80)
+surface_style = 0
+
+[node name="Terrace1" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(760, 560)
+script = ExtResource("5_terrace")
+segment_size = Vector2(360, 120)
+surface_style = 0
+
+[node name="Terrace2" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(1120, 512)
+script = ExtResource("5_terrace")
+segment_size = Vector2(360, 168)
+surface_style = 1
+
+[node name="Terrace3" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(1480, 464)
+script = ExtResource("5_terrace")
+segment_size = Vector2(360, 216)
+surface_style = 0
+
+[node name="CentralLeft" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(1840, 464)
+script = ExtResource("5_terrace")
+segment_size = Vector2(180, 216)
+surface_style = 1
+
+[node name="CentralPaddyFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(2020, 500)
+script = ExtResource("5_terrace")
+segment_size = Vector2(280, 180)
+surface_style = 2
+
+[node name="CentralRight" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(2300, 464)
+script = ExtResource("5_terrace")
+segment_size = Vector2(100, 216)
+surface_style = 1
+
+[node name="Terrace4" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(2400, 416)
+script = ExtResource("5_terrace")
+segment_size = Vector2(360, 264)
+surface_style = 0
+
+[node name="Terrace5" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(2760, 368)
+script = ExtResource("5_terrace")
+segment_size = Vector2(360, 312)
+surface_style = 1
+
+[node name="Overlook" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(3120, 320)
+script = ExtResource("5_terrace")
+segment_size = Vector2(640, 360)
+surface_style = 0
+
+[node name="Transitions" type="Node2D" parent="GameplayPlane"]
+
+[node name="LowerPaddyDown" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+position = Vector2(520, 600)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/LowerPaddyDown"]
+shape = SubResource("Wedge_puddle_down_a")
+
+[node name="LowerPaddyUp" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+position = Vector2(720, 600)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/LowerPaddyUp"]
+shape = SubResource("Wedge_puddle_up_a")
+
+[node name="Rise1" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+position = Vector2(760, 560)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise1"]
+shape = SubResource("Wedge_rise_40")
+
+[node name="Rise2" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+position = Vector2(1120, 512)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise2"]
+shape = SubResource("Wedge_rise_48")
+
+[node name="Rise3" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+position = Vector2(1480, 464)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise3"]
+shape = SubResource("Wedge_rise_48")
+
+[node name="CentralPaddyDown" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+position = Vector2(2020, 464)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/CentralPaddyDown"]
+shape = SubResource("Wedge_puddle_down_b")
+
+[node name="CentralPaddyUp" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+position = Vector2(2300, 464)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/CentralPaddyUp"]
+shape = SubResource("Wedge_puddle_up_b")
+
+[node name="Rise4" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+position = Vector2(2400, 416)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise4"]
+shape = SubResource("Wedge_rise_48")
+
+[node name="Rise5" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+position = Vector2(2760, 368)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise5"]
+shape = SubResource("Wedge_rise_48")
+
+[node name="Rise6" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+position = Vector2(3120, 320)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise6"]
+shape = SubResource("Wedge_rise_48")
+
+[node name="WaterAreas" type="Node2D" parent="GameplayPlane"]
+
+[node name="LowerPaddy" type="Area2D" parent="GameplayPlane/WaterAreas"]
+position = Vector2(620, 614)
+z_index = 3
+script = ExtResource("4_water")
+surface_size = Vector2(200, 36)
+buoyancy = 0.7
+linear_drag = 3.4
+
+[node name="CentralPaddy" type="Area2D" parent="GameplayPlane/WaterAreas"]
+position = Vector2(2160, 480)
+z_index = 3
+script = ExtResource("4_water")
+surface_size = Vector2(280, 40)
+buoyancy = 0.9
+linear_drag = 3.1
+
+[node name="Decor" type="Node2D" parent="GameplayPlane"]
+z_index = 5
+
+[node name="FenceA" type="Sprite2D" parent="GameplayPlane/Decor"]
+position = Vector2(980, 526)
+texture = SubResource("Atlas_fence")
+
+[node name="RockA" type="Sprite2D" parent="GameplayPlane/Decor"]
+position = Vector2(1370, 480)
+texture = SubResource("Atlas_rock")
+
+[node name="PlantA" type="Sprite2D" parent="GameplayPlane/Decor"]
+position = Vector2(1660, 430)
+texture = SubResource("Atlas_plant")
+
+[node name="FenceB" type="Sprite2D" parent="GameplayPlane/Decor"]
+position = Vector2(2570, 382)
+texture = SubResource("Atlas_fence")
+
+[node name="BushA" type="Sprite2D" parent="GameplayPlane/Decor"]
+position = Vector2(2980, 332)
+texture = SubResource("Atlas_bush")
+
+[node name="HutOverlook" type="Sprite2D" parent="GameplayPlane/Decor"]
+position = Vector2(3450, 254)
+scale = Vector2(1.22, 1.22)
+texture = SubResource("Atlas_hut")
+
+[node name="Floor" type="StaticBody2D" parent="GameplayPlane"]
+position = Vector2(1880, 656)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Floor"]
+shape = SubResource("Rectangle_floor")
+
+[node name="LeftWall" type="StaticBody2D" parent="GameplayPlane"]
+position = Vector2(0, 80)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/LeftWall"]
+shape = SubResource("Rectangle_wall")
+
+[node name="RightWall" type="StaticBody2D" parent="GameplayPlane"]
+position = Vector2(3760, 80)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/RightWall"]
+shape = SubResource("Rectangle_wall")
+
+[node name="ForegroundLayer" type="Node2D" parent="."]
+z_index = 30
+script = ExtResource("3_depth")
+depth = -1.0
+scroll_scale = 1.08
+z_index_base = 30
+modulate = Color(0.75, 0.9, 0.66, 0.72)
+
+[node name="FrontPlantA" type="Sprite2D" parent="ForegroundLayer"]
+position = Vector2(120, 625)
+scale = Vector2(1.4, 1.4)
+texture = SubResource("Atlas_plant")
+
+[node name="FrontBushA" type="Sprite2D" parent="ForegroundLayer"]
+position = Vector2(1840, 620)
+scale = Vector2(1.25, 1.25)
+texture = SubResource("Atlas_bush")
+
+[node name="FrontPlantB" type="Sprite2D" parent="ForegroundLayer"]
+position = Vector2(3650, 610)
+scale = Vector2(1.45, 1.45)
+texture = SubResource("Atlas_plant")

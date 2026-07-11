@@ -1,16 +1,17 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/game_level.gd" id="1_level"]
 [ext_resource type="Script" path="res://scripts/entity_registry.gd" id="2_registry"]
 [ext_resource type="Script" path="res://scripts/draw_panel.gd" id="3_panel"]
 [ext_resource type="Script" path="res://scripts/drawing_canvas.gd" id="4_canvas"]
 [ext_resource type="Script" path="res://scripts/sketch_client.gd" id="5_client"]
-[ext_resource type="PackedScene" path="res://environment/environment_baseplate.tscn" id="6_environment"]
+[ext_resource type="PackedScene" path="res://levels/level_1/level_1_environment.tscn" id="6_environment"]
 [ext_resource type="Script" path="res://scripts/backend_supervisor.gd" id="7_backend"]
 [ext_resource type="Script" path="res://scripts/ink_manager.gd" id="8_ink"]
 [ext_resource type="Script" path="res://scripts/inventory_manager.gd" id="9_inventory"]
 [ext_resource type="Script" path="res://scripts/placement_controller.gd" id="10_placement"]
 [ext_resource type="Script" path="res://scripts/inventory_hud.gd" id="11_inventory_hud"]
+[ext_resource type="Script" path="res://scripts/pause_menu.gd" id="12_pause"]
 
 [node name="GameLevel" type="Node2D"]
 script = ExtResource("1_level")
@@ -86,6 +87,21 @@ grow_horizontal = 2
 grow_vertical = 0
 theme_override_constants/separation = 8
 script = ExtResource("11_inventory_hud")
+
+[node name="LevelBadge" type="Label" parent="CanvasLayer"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 20.0
+offset_bottom = 52.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.94, 0.9, 0.58, 1)
+theme_override_colors/font_shadow_color = Color(0.03, 0.09, 0.045, 0.9)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 18
+text = "LEVEL 1  ·  BANAUE RICE TERRACES"
+horizontal_alignment = 1
 
 [node name="DrawPanel" type="CanvasLayer" parent="."]
 visible = false
@@ -170,3 +186,72 @@ autowrap_mode = 3
 
 [node name="SketchClient" type="Node" parent="DrawPanel/PanelRoot"]
 script = ExtResource("5_client")
+
+[node name="PauseMenu" type="CanvasLayer" parent="."]
+visible = false
+layer = 50
+script = ExtResource("12_pause")
+
+[node name="PauseRoot" type="Control" parent="PauseMenu"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="PauseMenu/PauseRoot"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.015, 0.045, 0.025, 0.78)
+
+[node name="Panel" type="PanelContainer" parent="PauseMenu/PauseRoot"]
+custom_minimum_size = Vector2(430, 300)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -215.0
+offset_top = -150.0
+offset_right = 215.0
+offset_bottom = 150.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="PauseMenu/PauseRoot/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="Title" type="Label" parent="PauseMenu/PauseRoot/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.84, 0.38, 1)
+theme_override_font_sizes/font_size = 36
+text = "PAUSED"
+horizontal_alignment = 1
+
+[node name="Place" type="Label" parent="PauseMenu/PauseRoot/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.7, 0.46, 1)
+theme_override_font_sizes/font_size = 16
+text = "BANAUE RICE TERRACES"
+horizontal_alignment = 1
+
+[node name="ResumeButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "RESUME"
+
+[node name="LevelSelectButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "LEVEL SELECT"

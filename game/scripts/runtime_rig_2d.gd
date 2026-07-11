@@ -32,6 +32,7 @@ var _rest_transforms: Dictionary = {}
 var _world_bounds: Rect2 = Rect2(0.0, -520.0, 3760.0, 1200.0)
 var _physics_frames_since_build: int = 0
 var _recovery_count: int = 0
+var _gravity: float = 980.0
 
 
 func configure_rig(new_profile: Dictionary, new_entity_metadata: Dictionary = {}) -> void:
@@ -161,13 +162,40 @@ func _physics_process(delta: float) -> void:
 		# bounded muscle controller instead.
 		var mass_scale := clampf(minf(parent.mass, child.mass) / 0.4, 0.45, 1.35)
 		var distal_scale := 1.0 / (1.0 + float(int(segment["chain_index"])) * 0.35)
-		var spring := clampf(float(profile.get("joint_spring", 1050.0)) * 0.18 * mass_scale * distal_scale, 70.0, 360.0)
-		var damping := clampf(float(profile.get("joint_damping", 65.0)) * 0.25 * mass_scale, 6.0, 28.0)
-		var torque_limit := clampf(float(profile.get("joint_torque_limit", 2600.0)) * 0.10 * mass_scale * distal_scale, 90.0, 460.0)
-		var torque := clampf(error * spring - relative_velocity * damping, -torque_limit, torque_limit)
+		var spring := clampf(float(profile.get("joint_spring", 1050.0)) * 0.7 * mass_scale * distal_scale, 350.0, 1500.0)
+		# Damping tracks sqrt(spring) so the stiff pose spring stays near-critically
+		# damped instead of ringing itself unstable at 60 Hz.
+		var damping := clampf(sqrt(spring) * 6.5 * mass_scale, 45.0, 240.0)
+		var torque_limit := clampf(float(profile.get("joint_torque_limit", 2600.0)) * 0.7 * mass_scale * distal_scale, 1000.0, 4200.0)
+		var pd := clampf(error * spring - relative_velocity * damping, -torque_limit, torque_limit)
+		# Gravity compensation: the muscle PD above is far too weak to hold a limb
+		# out against its own weight (a horizontal limb needs ~mass*g*lever, which
+		# dwarfs the PD's bounded output), so without this the limbs droop to the
+		# floor like dead bones. Add the static torque that holds this joint's whole
+		# distal subtree up, leaving the PD free to supply pose/gait tension.
+		var gravity_comp := _gravity_hold_torque(segment, joint)
+		var torque := pd + gravity_comp
 		segment["last_drive_torque"] = torque
 		child.apply_torque(torque)
 		parent.apply_torque(-torque)
+
+
+## Static hold torque for a joint: the gravitational torque of its whole distal
+## subtree taken about the joint pivot, negated so the muscle cancels the droop.
+## apply_torque is a free couple, so a torque computed about the pivot balances the
+## limb's rotation about that pinned point. gravity_scale folds in float states.
+func _gravity_hold_torque(segment: Dictionary, joint: PinJoint2D) -> float:
+	var support: Array = segment.get("support", [])
+	if support.is_empty():
+		support = [segment["body"]]
+	var pivot := joint.global_position
+	var torque := 0.0
+	for support_value in support:
+		var body := support_value as ActiveRigBody2D
+		if not is_instance_valid(body):
+			continue
+		torque -= (body.global_position.x - pivot.x) * body.mass * _gravity * body.gravity_scale
+	return clampf(torque, -20000.0, 20000.0)
 
 
 func _target_angle_for(segment: Dictionary) -> float:
@@ -544,7 +572,35 @@ func _finalize_rig() -> void:
 		grip.position = Vector2(bounds.size.x * 0.32, -bounds.size.y * 0.12)
 		_primary_body.add_child(grip)
 		_capture_rest_pose()
+	_gravity = float(ProjectSettings.get_setting("physics/2d/default_gravity", 980.0))
+	_compute_support_sets()
 	_physics_frames_since_build = 0
+
+
+## For every joint, record the child body plus its whole distal subtree. The
+## muscle controller uses this to hold each limb up against the weight of
+## everything hanging off it (gravity compensation), so limbs keep tension
+## instead of drooping to the floor like dead bones.
+func _compute_support_sets() -> void:
+	var children_of: Dictionary = {}
+	for segment_value in _segments:
+		var seg: Dictionary = segment_value
+		var parent_id := (seg["parent"] as Object).get_instance_id()
+		if not children_of.has(parent_id):
+			children_of[parent_id] = []
+		children_of[parent_id].append(seg)
+	for segment_value in _segments:
+		var seg: Dictionary = segment_value
+		var support: Array = []
+		var stack: Array = [seg["body"]]
+		while not stack.is_empty():
+			var body := stack.pop_back() as ActiveRigBody2D
+			support.append(body)
+			var body_id := body.get_instance_id()
+			if children_of.has(body_id):
+				for child_seg in children_of[body_id]:
+					stack.append(child_seg["body"])
+		seg["support"] = support
 
 
 func _clear_rig() -> void:

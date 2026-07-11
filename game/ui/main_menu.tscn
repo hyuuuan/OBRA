@@ -1,0 +1,449 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
+[ext_resource type="Texture2D" path="res://assets/Level1/bg_withclouds.png" id="2_sky"]
+[ext_resource type="Texture2D" path="res://assets/Level1/mountains_furthest_background.png" id="3_far"]
+[ext_resource type="Texture2D" path="res://assets/Level1/mountain_further_background.png" id="4_green"]
+[ext_resource type="Texture2D" path="res://assets/Level1/terraces_2.png" id="5_terraces"]
+[ext_resource type="Script" path="res://scripts/pixel_lock.gd" id="6_lock"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sky"]
+atlas = ExtResource("2_sky")
+region = Rect2(88, 58, 1712, 963)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_far"]
+atlas = ExtResource("3_far")
+region = Rect2(128, 295, 1656, 543)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_green"]
+atlas = ExtResource("4_green")
+region = Rect2(108, 300, 1690, 563)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_terraces"]
+atlas = ExtResource("5_terraces")
+region = Rect2(157, 204, 1560, 739)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_panel"]
+bg_color = Color(0.055, 0.12, 0.075, 0.96)
+border_width_left = 5
+border_width_top = 5
+border_width_right = 5
+border_width_bottom = 5
+border_color = Color(0.52, 0.67, 0.22, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+shadow_color = Color(0.02, 0.035, 0.02, 0.7)
+shadow_size = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_play"]
+bg_color = Color(0.55, 0.71, 0.18, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.88, 0.85, 0.32, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_play_hover"]
+bg_color = Color(0.72, 0.82, 0.23, 1)
+border_width_left = 5
+border_width_top = 5
+border_width_right = 5
+border_width_bottom = 5
+border_color = Color(1, 0.94, 0.42, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_card"]
+bg_color = Color(0.1, 0.21, 0.12, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.72, 0.77, 0.24, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_card_hover"]
+bg_color = Color(0.15, 0.3, 0.16, 1)
+border_width_left = 6
+border_width_top = 6
+border_width_right = 6
+border_width_bottom = 6
+border_color = Color(0.98, 0.9, 0.31, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_locked"]
+bg_color = Color(0.075, 0.095, 0.075, 0.96)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.31, 0.34, 0.25, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="MainMenu" type="Node2D"]
+script = ExtResource("1_menu")
+
+[node name="Backdrop" type="Control" parent="."]
+layout_mode = 0
+mouse_filter = 2
+
+[node name="Sky" type="TextureRect" parent="Backdrop"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = SubResource("AtlasTexture_sky")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="FarMountains" type="TextureRect" parent="Backdrop"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -560.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+texture = SubResource("AtlasTexture_far")
+expand_mode = 1
+stretch_mode = 6
+modulate = Color(0.85, 0.93, 1, 1)
+
+[node name="GreenMountains" type="TextureRect" parent="Backdrop"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -620.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+texture = SubResource("AtlasTexture_green")
+expand_mode = 1
+stretch_mode = 6
+modulate = Color(0.86, 0.95, 0.83, 1)
+
+[node name="Terraces" type="TextureRect" parent="Backdrop"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -28.0
+offset_top = -630.0
+offset_right = 28.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+texture = SubResource("AtlasTexture_terraces")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Shade" type="ColorRect" parent="Backdrop"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.025, 0.075, 0.045, 0.31)
+
+[node name="MenuLayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="MenuRoot" type="Control" parent="MenuLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Title" type="Label" parent="MenuLayer/MenuRoot"]
+layout_mode = 0
+offset_left = 72.0
+offset_top = 44.0
+offset_right = 700.0
+offset_bottom = 142.0
+theme_override_colors/font_color = Color(0.98, 0.94, 0.63, 1)
+theme_override_colors/font_shadow_color = Color(0.04, 0.11, 0.055, 1)
+theme_override_constants/shadow_offset_x = 7
+theme_override_constants/shadow_offset_y = 7
+theme_override_font_sizes/font_size = 72
+text = "O.B.R.A."
+
+[node name="Subtitle" type="Label" parent="MenuLayer/MenuRoot"]
+layout_mode = 0
+offset_left = 80.0
+offset_top = 142.0
+offset_right = 720.0
+offset_bottom = 184.0
+theme_override_colors/font_color = Color(0.9, 0.94, 0.72, 1)
+theme_override_colors/font_shadow_color = Color(0.04, 0.09, 0.05, 1)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 21
+text = "DRAW  ·  BECOME  ·  DISCOVER"
+
+[node name="MorphPanel" type="PanelContainer" parent="MenuLayer/MenuRoot"]
+layout_mode = 0
+offset_left = 630.0
+offset_top = 710.0
+offset_right = 970.0
+offset_bottom = 794.0
+theme_override_styles/panel = SubResource("StyleBox_panel")
+
+[node name="PlayButton" type="Button" parent="MenuLayer/MenuRoot/MorphPanel"]
+layout_mode = 2
+focus_neighbor_top = NodePath(".")
+focus_neighbor_bottom = NodePath(".")
+theme_override_colors/font_color = Color(0.08, 0.13, 0.055, 1)
+theme_override_colors/font_hover_color = Color(0.04, 0.08, 0.035, 1)
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("StyleBox_play")
+theme_override_styles/hover = SubResource("StyleBox_play_hover")
+theme_override_styles/pressed = SubResource("StyleBox_card")
+text = "PLAY"
+
+[node name="Selector" type="Control" parent="MenuLayer/MenuRoot/MorphPanel"]
+visible = false
+layout_mode = 2
+mouse_filter = 1
+
+[node name="SelectorTitle" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+layout_mode = 0
+offset_left = 32.0
+offset_top = 24.0
+offset_right = 900.0
+offset_bottom = 98.0
+theme_override_colors/font_color = Color(0.96, 0.92, 0.61, 1)
+theme_override_font_sizes/font_size = 38
+text = "CHOOSE A LEVEL"
+
+[node name="SelectorHint" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+layout_mode = 0
+offset_left = 35.0
+offset_top = 86.0
+offset_right = 900.0
+offset_bottom = 120.0
+theme_override_colors/font_color = Color(0.65, 0.75, 0.55, 1)
+theme_override_font_sizes/font_size = 16
+text = "ESC TO CLOSE  ·  ENTER TO TRAVEL"
+
+[node name="Level1" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+clip_contents = true
+layout_mode = 0
+offset_left = 32.0
+offset_top = 154.0
+offset_right = 278.0
+offset_bottom = 450.0
+theme_override_styles/normal = SubResource("StyleBox_card")
+theme_override_styles/hover = SubResource("StyleBox_card_hover")
+theme_override_styles/focus = SubResource("StyleBox_card_hover")
+
+[node name="Thumbnail" type="TextureRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = 152.0
+grow_horizontal = 2
+mouse_filter = 2
+texture = SubResource("AtlasTexture_terraces")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Shade" type="ColorRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -130.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0.035, 0.09, 0.045, 0.91)
+
+[node name="Number" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 164.0
+offset_right = 218.0
+offset_bottom = 196.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.91, 0.85, 0.33, 1)
+theme_override_font_sizes/font_size = 17
+text = "LEVEL 1"
+
+[node name="Name" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 198.0
+offset_right = 224.0
+offset_bottom = 254.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.97, 0.96, 0.77, 1)
+theme_override_font_sizes/font_size = 20
+text = "BANAUE RICE\nTERRACES"
+
+[node name="Theme" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 262.0
+offset_right = 224.0
+offset_bottom = 289.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.63, 0.78, 0.52, 1)
+theme_override_font_sizes/font_size = 13
+text = "THE MOUNTAIN PADDIES"
+
+[node name="Level2" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+layout_mode = 0
+offset_left = 292.0
+offset_top = 136.0
+offset_right = 538.0
+offset_bottom = 432.0
+theme_override_styles/disabled = SubResource("StyleBox_locked")
+
+[node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+layout_mode = 0
+offset_left = 73.0
+offset_top = 66.0
+offset_right = 173.0
+offset_bottom = 166.0
+script = ExtResource("6_lock")
+
+[node name="Text" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -92.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.52, 0.55, 0.42, 1)
+theme_override_font_sizes/font_size = 17
+text = "LEVEL 2\nCOMING SOON"
+horizontal_alignment = 1
+
+[node name="Level3" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+layout_mode = 0
+offset_left = 552.0
+offset_top = 118.0
+offset_right = 798.0
+offset_bottom = 414.0
+theme_override_styles/disabled = SubResource("StyleBox_locked")
+
+[node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level3"]
+layout_mode = 0
+offset_left = 73.0
+offset_top = 66.0
+offset_right = 173.0
+offset_bottom = 166.0
+script = ExtResource("6_lock")
+
+[node name="Text" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level3"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -92.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.52, 0.55, 0.42, 1)
+theme_override_font_sizes/font_size = 17
+text = "LEVEL 3\nCOMING SOON"
+horizontal_alignment = 1
+
+[node name="Level4" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+layout_mode = 0
+offset_left = 812.0
+offset_top = 100.0
+offset_right = 1058.0
+offset_bottom = 396.0
+theme_override_styles/disabled = SubResource("StyleBox_locked")
+
+[node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level4"]
+layout_mode = 0
+offset_left = 73.0
+offset_top = 66.0
+offset_right = 173.0
+offset_bottom = 166.0
+script = ExtResource("6_lock")
+
+[node name="Text" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level4"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -92.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.52, 0.55, 0.42, 1)
+theme_override_font_sizes/font_size = 17
+text = "LEVEL 4\nCOMING SOON"
+horizontal_alignment = 1
+
+[node name="Level5" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+layout_mode = 0
+offset_left = 1072.0
+offset_top = 82.0
+offset_right = 1318.0
+offset_bottom = 378.0
+theme_override_styles/disabled = SubResource("StyleBox_locked")
+
+[node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level5"]
+layout_mode = 0
+offset_left = 73.0
+offset_top = 66.0
+offset_right = 173.0
+offset_bottom = 166.0
+script = ExtResource("6_lock")
+
+[node name="Text" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level5"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -92.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.52, 0.55, 0.42, 1)
+theme_override_font_sizes/font_size = 17
+text = "LEVEL 5\nCOMING SOON"
+horizontal_alignment = 1

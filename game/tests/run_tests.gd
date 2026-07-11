@@ -25,6 +25,8 @@ func _run() -> void:
 	_test_inventory()
 	_test_canvas_clipping()
 	_test_game_level_contract()
+	await _test_level_framework()
+	await _test_banaue_environment()
 	_test_camera_non_finite_guard()
 	_test_target_contracts()
 	await _test_placement_collision()
@@ -136,10 +138,98 @@ func _test_game_level_contract() -> void:
 		"InkManager", "InventoryManager", "PlacementController",
 		"EnvironmentBaseplate/GameplayPlane/EntityRoot",
 		"EnvironmentBaseplate/GameplayPlane/WorldItemRoot",
-		"CanvasLayer/InkBar", "CanvasLayer/InventoryHUD"
+		"CanvasLayer/InkBar", "CanvasLayer/InventoryHUD", "PauseMenu"
 	]:
 		_expect(level.get_node_or_null(path) != null, "game level missing %s" % path)
 	level.free()
+
+
+func _test_level_framework() -> void:
+	var level_manager := root.get_node_or_null("LevelManager")
+	_expect(level_manager != null, "LevelManager autoload is unavailable")
+	if level_manager == null:
+		return
+	var levels: Array = level_manager.call("get_levels")
+	_expect(levels.size() == 5, "level catalog must contain exactly five levels")
+	var unlocked_count := 0
+	for index in range(levels.size()):
+		var entry: Dictionary = levels[index] as Dictionary
+		_expect(int(entry.get("number", 0)) == index + 1, "level catalog order is not stable")
+		if bool(entry.get("unlocked", false)):
+			unlocked_count += 1
+	_expect(unlocked_count == 1 and bool(level_manager.call("is_unlocked", "level_1")), "only Level 1 should be unlocked")
+	_expect(not bool(level_manager.call("open_level", "level_2")), "locked Level 2 initiated a transition")
+	_expect(not bool(level_manager.call("open_level", "missing")), "invalid level initiated a transition")
+
+	var menu_scene := load("res://ui/main_menu.tscn") as PackedScene
+	_expect(menu_scene != null, "main menu scene did not load")
+	if menu_scene == null:
+		return
+	var menu := menu_scene.instantiate()
+	root.add_child(menu)
+	await process_frame
+	_expect(not bool(menu.call("is_selector_open")), "menu did not start in Play state")
+	menu.call("_show_selector")
+	await create_timer(0.7).timeout
+	_expect(bool(menu.call("is_selector_open")), "Play did not expand into the level selector")
+	var cards := menu.get_node("MenuLayer/MenuRoot/MorphPanel/Selector").get_children()
+	var disabled_cards := 0
+	for card in cards:
+		if card is Button and (card as Button).disabled:
+			disabled_cards += 1
+	_expect(disabled_cards == 4, "selector does not expose exactly four locked cards")
+	menu.call("_hide_selector")
+	await create_timer(0.5).timeout
+	_expect(not bool(menu.call("is_selector_open")), "selector did not collapse back into Play")
+	menu.queue_free()
+	await process_frame
+
+
+func _test_banaue_environment() -> void:
+	var environment_scene := load("res://levels/level_1/level_1_environment.tscn") as PackedScene
+	_expect(environment_scene != null, "Banaue environment scene did not load")
+	if environment_scene == null:
+		return
+	var environment := environment_scene.instantiate() as Node2D
+	world.add_child(environment)
+	await process_frame
+	var bounds: Rect2 = environment.get("world_bounds")
+	_expect(bounds.size == Vector2(3760.0, 1200.0), "Banaue world bounds changed unexpectedly")
+	var spawn := environment.get_node("GameplayPlane/SpawnPoint") as Marker2D
+	_expect(spawn.position == Vector2(260.0, 500.0), "Banaue spawn is not on the opening terrace")
+
+	var terrace_count := 0
+	for node in get_nodes_in_group("terrace_ground"):
+		if environment.is_ancestor_of(node):
+			terrace_count += 1
+	_expect(terrace_count == 12, "Banaue terrain does not contain the expected terrace segments")
+	var water_count := 0
+	for node in get_nodes_in_group("water_medium"):
+		if environment.is_ancestor_of(node):
+			water_count += 1
+	_expect(water_count == 2, "Banaue must contain exactly two physical paddies")
+
+	var camera_delta := Vector2(100.0, 0.0)
+	var far_layer := environment.get_node("FarMountainLayer") as DepthLayer2D
+	var green_layer := environment.get_node("GreenMountainLayer") as DepthLayer2D
+	var near_layer := environment.get_node("NearSceneryLayer") as DepthLayer2D
+	for layer in [far_layer, green_layer, near_layer]:
+		layer.set_camera_origin(Vector2.ZERO)
+		layer.update_for_camera(camera_delta)
+	var far_screen_motion := absf(camera_delta.x - far_layer.position.x)
+	var green_screen_motion := absf(camera_delta.x - green_layer.position.x)
+	var near_screen_motion := absf(camera_delta.x - near_layer.position.x)
+	_expect(far_screen_motion < green_screen_motion and green_screen_motion < near_screen_motion, "Banaue parallax depth ordering is reversed")
+
+	var probe := RigidBody2D.new()
+	var lower_paddy := environment.get_node("GameplayPlane/WaterAreas/LowerPaddy") as WaterArea2D
+	lower_paddy.call("_on_body_entered", probe)
+	_expect(probe.has_meta("water_area") and int(probe.get_meta("water_overlap_count", 0)) == 1, "paddy did not apply water metadata")
+	lower_paddy.call("_on_body_exited", probe)
+	_expect(not probe.has_meta("water_area") and int(probe.get_meta("water_overlap_count", 0)) == 0, "paddy did not clear water metadata")
+	probe.free()
+	environment.queue_free()
+	await process_frame
 
 
 func _test_camera_non_finite_guard() -> void:
