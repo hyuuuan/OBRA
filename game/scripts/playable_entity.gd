@@ -209,10 +209,14 @@ func _drive_grounded(body: ActiveRigBody2D, horizontal: float) -> String:
 
 func _drive_spider(body: ActiveRigBody2D, horizontal: float, vertical: float) -> String:
 	if (body.wall_contact or body.ceiling_contact) and absf(vertical) > 0.05:
+		body.lock_rotation = false
 		_set_rig_gravity(0.0)
 		_rig_force(Vector2(0.0, vertical * 1550.0))
 		_rig_force(-body.dominant_surface_normal * 520.0)
 		return "climb"
+	body.lock_rotation = true
+	body.rotation = 0.0
+	body.angular_velocity = 0.0
 	_set_rig_gravity(1.0)
 	_drive_horizontal(body, horizontal, 180.0)
 	if Input.is_action_just_pressed("jump") and (body.grounded or body.wall_contact):
@@ -378,8 +382,14 @@ func _apply_balance(body: ActiveRigBody2D, entity_id: String) -> void:
 	# into a rollable ball. A strong torso-only righting spring keeps the root
 	# upright and the joints carry the limbs along.
 	var error := wrapf(target_rotation - body.rotation, -PI, PI)
-	var torque_limit := body.mass * 3200.0
-	var torque := clampf(error * body.mass * 2200.0 - body.angular_velocity * body.mass * 240.0, -torque_limit, torque_limit)
+	# The torso is the reference frame for every rest-relative joint. If it rolls,
+	# the muscle system faithfully carries the complete anatomy into that roll.
+	# Use a critically damped, mass-scaled root servo with enough authority to
+	# resist the summed reactions of eight legs, while retaining a hard cap.
+	var torque_limit := body.mass * (6200.0 if entity_id == "spider" else 4400.0)
+	var balance_spring := 4300.0 if entity_id == "spider" else 3000.0
+	var balance_damping := 520.0 if entity_id == "spider" else 360.0
+	var torque := clampf(error * body.mass * balance_spring - body.angular_velocity * body.mass * balance_damping, -torque_limit, torque_limit)
 	body.apply_torque(torque)
 
 

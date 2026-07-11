@@ -7,6 +7,11 @@ extends RigidBody2D
 var grounded: bool = false
 var wall_contact: bool = false
 var ceiling_contact: bool = false
+## Set by RuntimeRig2D on the primary body: true while the virtual-leg support is
+## holding the creature standing. The torso itself never touches the ground once
+## it is held up on its legs, so without this the controller would read the whole
+## creature as permanently airborne (stuck in "fall": raised arms, no walk gait).
+var standing_hint: bool = false
 var dominant_surface_normal: Vector2 = Vector2.UP
 var contact_points: Array[Vector2] = []
 var max_linear_speed: float = 580.0
@@ -34,7 +39,13 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	contact_points.clear()
 	var best_up := -1.0
 	for index in range(state.get_contact_count()):
-		var normal := state.get_contact_local_normal(index).rotated(state.transform.get_rotation())
+		# get_contact_local_normal already returns the contact normal in WORLD
+		# space. The old code rotated it again by the body's own rotation, which
+		# corrupted every contact on a rotated body: a leg lying flat on the floor
+		# at 60-70 degrees reported up_dot ~0.31 and failed the >0.42 grounded gate,
+		# so feet never registered ground, walk/jump/gait state never engaged, and
+		# the spider's climb/balance surface normal was garbage.
+		var normal := state.get_contact_local_normal(index)
 		var point := state.get_contact_collider_position(index)
 		contact_points.append(point)
 		var up_dot := normal.dot(Vector2.UP)
@@ -47,6 +58,11 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 		if up_dot > best_up:
 			best_up = up_dot
 			dominant_surface_normal = normal
+
+	# The held-up torso has no ground contact of its own; treat an actively
+	# supported creature as grounded so idle/walk/jump logic engages.
+	if standing_hint:
+		grounded = true
 
 	var linear := state.linear_velocity
 	var angular := state.angular_velocity

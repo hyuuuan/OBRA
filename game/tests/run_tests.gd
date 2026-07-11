@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_camera_non_finite_guard()
 	_test_target_contracts()
 	await _test_placement_collision()
+	_test_anatomy_inference()
 	await _test_active_ragdolls()
 	await _test_compound_fallback_recovery()
 	await _test_physics_morphs()
@@ -372,6 +373,63 @@ func _test_active_ragdolls() -> void:
 			_expect(skin.debug_recovery_count() >= 1, "spider runaway recovery was not exercised")
 		instance.queue_free()
 		await process_frame
+
+
+func _test_anatomy_inference() -> void:
+	# Draw the spider legs first and in a deliberately scrambled order. Anatomy
+	# must come from geometry, never from the user's stroke order.
+	var spider_strokes: Array = []
+	for index in [3, 0, 6, 1, 5, 2, 7, 4]:
+		var angle := TAU * float(index) / 8.0
+		var start := Vector2(256.0, 256.0) + Vector2(cos(angle) * 58.0, sin(angle) * 38.0)
+		var knee := start + Vector2(cos(angle) * 70.0, sin(angle) * 54.0)
+		var tip := knee + Vector2(cos(angle) * 52.0, sin(angle) * 42.0)
+		spider_strokes.append(_stroke(PackedVector2Array([start, knee, tip])))
+	spider_strokes.append(_stroke(_closed_body()))
+	var spider := registry.instantiate_entity("spider") as Node2D
+	world.add_child(spider)
+	spider.call("apply_drawing", _blank_image(), spider_strokes)
+	var spider_skin := spider.get_node("DrawingSkin") as RuntimeRig2D
+	var spider_layout := spider_skin.debug_limb_layout()
+	_expect(spider_layout.size() == 8, "spider did not infer exactly eight appendages from scrambled strokes")
+	var left_legs := 0
+	var right_legs := 0
+	for limb in spider_layout:
+		_expect(String(limb.get("role", "")) == "leg", "spider appendage was not classified as a leg")
+		if float(limb.get("side", 0.0)) < 0.0:
+			left_legs += 1
+		else:
+			right_legs += 1
+	_expect(left_legs == 4 and right_legs == 4, "spider did not establish four legs on each side")
+	for rig_body in spider_skin.get_rigid_bodies():
+		if rig_body != spider_skin.get_primary_body():
+			_expect(spider_skin.debug_primary_mass() > rig_body.mass, "spider leg outweighed its abdomen")
+	spider.free()
+
+	var torso := PackedVector2Array([
+		Vector2(228, 160), Vector2(284, 160), Vector2(284, 330),
+		Vector2(228, 330), Vector2(228, 160)
+	])
+	var human_strokes: Array = [
+		_stroke(PackedVector2Array([Vector2(228, 215), Vector2(190, 245), Vector2(166, 286)])),
+		_stroke(PackedVector2Array([Vector2(284, 215), Vector2(322, 245), Vector2(346, 286)])),
+		_stroke(PackedVector2Array([Vector2(242, 328), Vector2(230, 382), Vector2(224, 438)])),
+		_stroke(PackedVector2Array([Vector2(270, 328), Vector2(282, 382), Vector2(288, 438)])),
+		_stroke(torso)
+	]
+	var human := registry.instantiate_entity("humanoid") as Node2D
+	world.add_child(human)
+	human.call("apply_drawing", _blank_image(), human_strokes)
+	var human_skin := human.get_node("DrawingSkin") as RuntimeRig2D
+	var arms := 0
+	var legs := 0
+	for limb in human_skin.debug_limb_layout():
+		if String(limb.get("role", "")) == "arm":
+			arms += 1
+		elif String(limb.get("role", "")) == "leg":
+			legs += 1
+	_expect(arms == 2 and legs == 2, "humanoid did not infer two shoulder arms and two hip legs")
+	human.free()
 
 
 func _test_utilities() -> void:

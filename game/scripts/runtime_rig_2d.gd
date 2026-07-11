@@ -25,6 +25,7 @@ var _bodies: Array[ActiveRigBody2D] = []
 var _joints: Array[PinJoint2D] = []
 var _segments: Array = []
 var _body_pool: PackedVector2Array = PackedVector2Array()
+var _body_bounds: Rect2 = Rect2()
 var _shape_count: int = 0
 var _gait_phase: float = 0.0
 var _build_generation: int = 0
@@ -33,6 +34,9 @@ var _world_bounds: Rect2 = Rect2(0.0, -520.0, 3760.0, 1200.0)
 var _physics_frames_since_build: int = 0
 var _recovery_count: int = 0
 var _gravity: float = 980.0
+var _stand_height: float = 0.0
+var _support_blend: float = 0.0
+var _stand_target_y: float = 0.0
 
 
 func configure_rig(new_profile: Dictionary, new_entity_metadata: Dictionary = {}) -> void:
@@ -105,6 +109,24 @@ func debug_recovery_count() -> int:
 	return _recovery_count
 
 
+func debug_primary_mass() -> float:
+	return _primary_body.mass if _primary_body != null else 0.0
+
+
+func debug_limb_layout() -> Array[Dictionary]:
+	var layout: Array[Dictionary] = []
+	for segment_value in _segments:
+		var segment: Dictionary = segment_value
+		if int(segment.get("chain_index", -1)) == 0:
+			layout.append({
+				"role": String(segment.get("role", "")),
+				"limb_index": int(segment.get("limb_index", -1)),
+				"side": float(segment.get("side", 0.0)),
+				"attachment": Vector2(segment.get("attachment", Vector2.ZERO))
+			})
+	return layout
+
+
 func is_in_water() -> bool:
 	return _primary_body != null and int(_primary_body.get_meta("water_overlap_count", 0)) > 0
 
@@ -141,6 +163,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if _segments.is_empty():
 		return
+	_update_stand_state(delta)
 	var speed_ratio := clampf(float(_motion_params.get("speed_ratio", 0.0)), 0.0, 1.5)
 	if bool(_motion_params.get("moving", false)) or _motion_state in ["swim", "fly", "flap", "climb"]:
 		_gait_phase += delta * lerpf(2.0, 7.0, minf(1.0, speed_ratio))
@@ -152,32 +175,117 @@ func _physics_process(delta: float) -> void:
 		var joint := segment["joint"] as PinJoint2D
 		if not is_instance_valid(parent) or not is_instance_valid(child) or not is_instance_valid(joint):
 			continue
+
+		# ONE coherent muscle per joint. It has exactly two jobs: (1) a stiff PD that
+		# holds this joint at its drawn rest angle plus any gait offset, and (2) a
+		# feedforward that cancels the static droop of everything hanging off it.
+		# Everything is applied as a single Newton-correct couple (+child / -parent);
+		# for the ground rig types the torso is lock_rotation, so those reactions are
+		# absorbed by the rotation lock while the legs hold and the ground reaction
+		# through the planted feet carries the body weight. No competing servos.
 		var target := _target_angle_for(segment)
 		var current := wrapf(child.rotation - parent.rotation - float(segment["rest_relative"]), -PI, PI)
 		var error := wrapf(target - current, -PI, PI)
 		var relative_velocity := child.angular_velocity - parent.angular_velocity
-		# PinJoint motors do not expose a useful per-joint impulse cap in this
-		# setup. Driving the motor and applying PD torque at the same time made
-		# light limbs fight two solvers and launch the complete rig. Use one
-		# bounded muscle controller instead.
-		var mass_scale := clampf(minf(parent.mass, child.mass) / 0.4, 0.45, 1.35)
-		var distal_scale := 1.0 / (1.0 + float(int(segment["chain_index"])) * 0.35)
-		var spring := clampf(float(profile.get("joint_spring", 1050.0)) * 0.7 * mass_scale * distal_scale, 350.0, 1500.0)
-		# Damping tracks sqrt(spring) so the stiff pose spring stays near-critically
-		# damped instead of ringing itself unstable at 60 Hz.
-		var damping := clampf(sqrt(spring) * 6.5 * mass_scale, 45.0, 240.0)
-		var torque_limit := clampf(float(profile.get("joint_torque_limit", 2600.0)) * 0.7 * mass_scale * distal_scale, 1000.0, 4200.0)
-		var pd := clampf(error * spring - relative_velocity * damping, -torque_limit, torque_limit)
-		# Gravity compensation: the muscle PD above is far too weak to hold a limb
-		# out against its own weight (a horizontal limb needs ~mass*g*lever, which
-		# dwarfs the PD's bounded output), so without this the limbs droop to the
-		# floor like dead bones. Add the static torque that holds this joint's whole
-		# distal subtree up, leaving the PD free to supply pose/gait tension.
-		var gravity_comp := _gravity_hold_torque(segment, joint)
-		var torque := pd + gravity_comp
-		segment["last_drive_torque"] = torque
-		child.apply_torque(torque)
-		parent.apply_torque(-torque)
+
+		# Distal joints (a knee, a toe) carry less and are shorter, so they need less
+		# authority than a hip; scaling by chain depth keeps the far links from
+		# over-driving and whipping.
+		var distal_scale := 1.0 / (1.0 + float(int(segment["chain_index"])) * 0.22)
+		var spring := clampf(float(profile.get("joint_spring", 1250.0)) * distal_scale, 300.0, 2400.0)
+		# Near-critical damping (relative to a unit-inertia link) keeps the stiff
+		# spring from ringing at the physics rate.
+		var damping := clampf(sqrt(spring) * 7.0, 40.0, 340.0)
+		# Muscle budget for pose/gait tension. Deliberately generous: a standing leg
+		# only needs a small torque because a near-vertical strut carries the torso
+		# load almost axially, but the budget must be high enough that a small angle
+		# error still produces enough restoring torque to resist buckling.
+		var muscle_budget := clampf(float(profile.get("joint_torque_limit", 3000.0)) * distal_scale, 900.0, 4200.0)
+		var pd := clampf(error * spring - relative_velocity * damping, -muscle_budget, muscle_budget)
+
+		# Feedforward gravity compensation: the gravitational torque of this joint's
+		# whole distal subtree about the pivot, negated, so an airborne or unsupported
+		# limb keeps tension instead of drooping like a dead bone (capped in
+		# _gravity_hold_torque so a long horizontal chain sags rather than exploding).
+		# While the stand-support carries the creature it cancels gravity, so the
+		# compensation is faded out in lockstep to avoid over-rotating a weightless
+		# limb (residual effective gravity is (1 - _support_blend) * g).
+		var gravity_comp := _gravity_hold_torque(segment, joint) * (1.0 - _support_blend)
+
+		var couple := pd + gravity_comp
+		segment["last_drive_torque"] = couple
+		child.apply_torque(couple)
+		parent.apply_torque(-couple)
+
+		# Hybrid stance: a foot that has not yet found the ground is pulled gently
+		# downward so a splayed or slightly-off leg rotates toward the floor and
+		# plants, then the pull vanishes the instant it makes contact. This nudges
+		# the drawn pose into a stance without adding or re-posing any geometry.
+		if bool(segment.get("is_leaf", false)) and String(segment["role"]) == "leg" and not child.grounded:
+			child.apply_central_force(Vector2(0.0, child.mass * _gravity * 1.4))
+
+	_apply_stand_support()
+
+
+## Decide whether the creature is standing on ground within leg reach and update
+## the smooth support blend. A downward ray from the torso finds the floor; if it
+## is within reach and the torso is not sailing well above stand height (a jump),
+## the blend ramps toward 1. move_toward keeps on/off transitions gradual so the
+## creature does not pop when it leaves or lands on the ground.
+func _update_stand_state(delta: float) -> void:
+	var want := 0.0
+	# Never suppress a jump: while jumping the ground reaction must be gone so the
+	# impulse actually lifts the creature.
+	if _rig_type in ["walker", "biped", "hopper"] and _motion_state != "jump" \
+			and _primary_body != null and _stand_height > 1.0 and _primary_body.gravity_scale > 0.01:
+		var from := _primary_body.global_position
+		if is_finite(from.x) and is_finite(from.y):
+			var space := _primary_body.get_world_2d().direct_space_state
+			var reach := _stand_height + 48.0
+			var query := PhysicsRayQueryParameters2D.create(from, from + Vector2(0.0, reach))
+			var exclude: Array[RID] = []
+			for body in _bodies:
+				if is_instance_valid(body):
+					exclude.append(body.get_rid())
+			query.exclude = exclude
+			query.collide_with_areas = false
+			var hit := space.intersect_ray(query)
+			if not hit.is_empty():
+				_stand_target_y = float((hit["position"] as Vector2).y) - _stand_height
+				if from.y - _stand_target_y > -14.0:
+					want = 1.0
+	_support_blend = move_toward(_support_blend, want, delta * 6.0)
+	if _primary_body != null:
+		_primary_body.standing_hint = _support_blend > 0.5
+
+
+## Virtual-leg support. Pin-jointed legs cannot rigidly hold an upright torso up
+## (a straight leg under a top load is an inverted pendulum needing unphysical
+## joint stiffness), so the torso would pancake onto its own body shape. Instead,
+## while standing the whole rig is made weightless (each body's own gravity is
+## cancelled, scaled by the blend) and an over-damped spring servos it to its
+## natural drawn standing height. The creature therefore holds the exact pose the
+## player drew, feet on the floor, with no torso-versus-legs bounce because every
+## body receives the same positioning acceleration. It is static while standing
+## (no perpetual motion) and disengages for jumps/falls when ground leaves reach.
+func _apply_stand_support() -> void:
+	if _support_blend <= 0.001 or _primary_body == null:
+		return
+	var vertical_velocity := _primary_body.linear_velocity.y
+	var height_error := _primary_body.global_position.y - _stand_target_y
+	# Positioning acceleration: over-damped spring on height. With gravity already
+	# cancelled below, equilibrium is zero error (no sag). Bounded so a hard landing
+	# is absorbed, not bounced.
+	var position_accel := clampf(height_error * 60.0 + vertical_velocity * 30.0, -_gravity * 0.5, _gravity * 0.6)
+	for body in _bodies:
+		if not is_instance_valid(body):
+			continue
+		# Cancel most of this body's own gravity (respecting its gravity_scale) plus
+		# the shared positioning term, all faded by the blend. A small fraction of
+		# weight is deliberately left uncancelled so the feet keep pressing on the
+		# floor and stay registered as grounded.
+		var accel_up := (_gravity * body.gravity_scale * 0.9 + position_accel) * _support_blend
+		body.apply_central_force(Vector2(0.0, -accel_up * body.mass))
 
 
 ## Static hold torque for a joint: the gravitational torque of its whole distal
@@ -195,7 +303,14 @@ func _gravity_hold_torque(segment: Dictionary, joint: PinJoint2D) -> float:
 		if not is_instance_valid(body):
 			continue
 		torque -= (body.global_position.x - pivot.x) * body.mass * _gravity * body.gravity_scale
-	return clampf(torque, -20000.0, 20000.0)
+	# Cap by the joint's muscle scale, not by the raw cantilever demand. Holding a
+	# long horizontal subtree (e.g. a snake stretched out) would otherwise need
+	# tens of thousands of torque and blow the light chain pins apart; physically
+	# such a limb should just sag/rest, which this clamp allows. Standing walkers
+	# do not rely on this term at all (the stand-support fades it to zero), so a
+	# tight cap costs them nothing while keeping every rig's pins stable.
+	var hold_limit := float(profile.get("joint_torque_limit", 3000.0)) * 1.5
+	return clampf(torque, -hold_limit, hold_limit)
 
 
 func _target_angle_for(segment: Dictionary) -> float:
@@ -208,9 +323,11 @@ func _target_angle_for(segment: Dictionary) -> float:
 
 	if _entity_id == "spider" and role == "leg":
 		if _motion_state in ["walk", "climb"] and moving:
-			var alternating := 0.0 if limb_index % 2 == 0 else PI
-			var stride := sin(phase + alternating)
-			return deg_to_rad(18.0) * stride if chain_index == 0 else deg_to_rad(-26.0) * stride
+			var stride := sin(phase)
+			# Proximal segments reach while distal segments bend in the opposite
+			# direction. Driving both the same way turns an articulated leg into a
+			# rigid paddle and pulls the abdomen onto the floor.
+			return deg_to_rad(16.0) * stride if chain_index == 0 else deg_to_rad(-24.0) * stride
 		return 0.0
 
 	if _entity_id in ["cat", "dog"] and role == "leg":
@@ -225,7 +342,8 @@ func _target_angle_for(segment: Dictionary) -> float:
 	if _rig_type == "biped":
 		if _motion_state == "walk" and moving:
 			var amp := deg_to_rad(30.0 if role == "leg" else 18.0)
-			return amp * sin(phase + (PI if limb_index % 2 else 0.0))
+			var swing := sin(phase)
+			return amp * swing if chain_index == 0 else amp * -0.62 * swing
 		if _motion_state in ["jump", "fall"]:
 			return deg_to_rad(-24.0 if role == "leg" else -35.0) * signf(float(segment["side"]))
 		if _motion_state == "climb":
@@ -269,31 +387,63 @@ func _build_standard_rig(strokes: Array) -> void:
 	var body_stroke: Dictionary = strokes[body_index]
 	var body_points: PackedVector2Array = body_stroke["points"]
 	_body_pool = body_points.duplicate()
+	_body_bounds = _bounds_for_points(body_points)
 	var body_center := _points_center(body_points)
-	_primary_body = _create_body("Torso", body_center, _mass_for_stroke(body_stroke, 1.5))
+	var appendage_mass := 0.0
+	for index in range(strokes.size()):
+		if index != body_index:
+			appendage_mass += _mass_for_stroke(strokes[index])
+	var torso_mass := clampf(maxf(_mass_for_stroke(body_stroke, 2.2), appendage_mass * 0.72), 1.8, 5.0)
+	_primary_body = _create_body("Torso", body_center, torso_mass)
+	_primary_body.angular_damp = 4.8
+	# Ground animals use the abdomen/torso as an active reference frame. Letting
+	# that reference freely roll makes every correctly inferred limb follow the
+	# roll and turns a walker into a wheel. Climbing code temporarily releases the
+	# spider root when it needs to align to a wall or ceiling.
+	_primary_body.lock_rotation = _rig_type in ["walker", "biped", "hopper"]
 	_add_stroke_to_body(_primary_body, body_stroke, body_center, true)
 
 	var attachment_radius := clampf(get_stroke_bounds().size.length() * 0.10, 8.0, 22.0)
-	var next_limb_index := 0
-	var limb_limit := _limb_limit_for_entity()
+	var candidates: Array[Dictionary] = []
+	var body_decorations: Array[Dictionary] = []
 	for index in range(strokes.size()):
 		if index == body_index:
 			continue
 		var stroke: Dictionary = strokes[index]
 		var points: PackedVector2Array = stroke["points"]
+		# A closed, roundish stroke that is not the torso is a head / eye / blob.
+		# Weld it to the torso as decoration instead of articulating it: a closed
+		# loop otherwise splits into two limb "paths" that flop around AND steal the
+		# limb-count budget from the real arms and legs (which then fail to attach,
+		# leaving the creature with no feet and nothing to stand on).
+		if _stroke_is_closed(points, float(stroke.get("width", 5.0))):
+			var blob_bounds := _bounds_for_points(points)
+			var blob_compactness := minf(blob_bounds.size.x, blob_bounds.size.y) / maxf(1.0, maxf(blob_bounds.size.x, blob_bounds.size.y))
+			if blob_compactness > 0.55:
+				body_decorations.append(stroke)
+				continue
 		var paths := _paths_attached_to_body(points, attachment_radius)
 		if paths.is_empty() or _stroke_length(points) < MIN_SEGMENT_LENGTH:
-			_add_stroke_to_body(_primary_body, stroke, body_center, false)
+			body_decorations.append(stroke)
 			continue
 		for path_value in paths:
 			var path: PackedVector2Array = path_value
-			if _stroke_length(path) < MIN_SEGMENT_LENGTH:
-				continue
-			if next_limb_index >= limb_limit:
-				_add_stroke_to_body(_primary_body, stroke, body_center, false)
-				break
-			_build_limb_path(path, stroke, next_limb_index, body_center)
-			next_limb_index += 1
+			if _stroke_length(path) >= MIN_SEGMENT_LENGTH:
+				candidates.append({"path": path, "stroke": stroke, "attachment": path[0]})
+	# Stroke order is drawing-order, not anatomy. Stable spatial ordering gives
+	# left/right counterparts predictable gait phases regardless of when the
+	# player happened to draw each leg.
+	candidates.sort_custom(_appendage_candidate_less)
+	var next_limb_index := 0
+	var limb_limit := _limb_limit_for_entity()
+	for candidate in candidates:
+		if next_limb_index >= limb_limit:
+			body_decorations.append(candidate["stroke"])
+			continue
+		_build_limb_path(candidate["path"], candidate["stroke"], next_limb_index, body_center)
+		next_limb_index += 1
+	for stroke in body_decorations:
+		_add_stroke_to_body(_primary_body, stroke, body_center, false)
 
 
 func _build_chain_rig(strokes: Array) -> void:
@@ -331,6 +481,7 @@ func _build_chain_rig(strokes: Array) -> void:
 					"chain_index": index,
 					"phase": 0.0,
 					"side": 1.0,
+					"angle_limit": deg_to_rad(58.0),
 					"parent_anchor": _body_local_anchor(parent, sampled[index]),
 					"child_anchor": _body_local_anchor(body, sampled[index]),
 					"last_drive_torque": 0.0
@@ -354,13 +505,13 @@ func _build_limb_path(
 	var role := _role_for_limb(path[0], tip, body_center)
 	var per_limb_cap := 2 if _entity_id != "snake" else MAX_SEGMENTS_PER_LIMB
 	var segment_count := clampi(int(ceil(length / 38.0)), 1, per_limb_cap)
-	if _minimum_limb_segments(role) >= 2 and length >= MIN_SEGMENT_LENGTH * 2.0:
+	if _minimum_limb_segments(role) >= 2 and length >= MIN_SEGMENT_LENGTH * 1.25:
 		segment_count = maxi(segment_count, 2)
 	segment_count = mini(segment_count, MAX_BODIES - _bodies.size())
 	if segment_count <= 0:
 		return
 	var parent := _primary_body
-	var side := -1.0 if tip.x < body_center.x else 1.0
+	var side := (-1.0 if limb_index < 4 else 1.0) if _entity_id == "spider" else (-1.0 if tip.x < body_center.x else 1.0)
 	for segment_index in range(segment_count):
 		if _joints.size() >= MAX_JOINTS:
 			break
@@ -372,7 +523,12 @@ func _build_limb_path(
 		if chunk.size() < 2 or _stroke_length(chunk) < MIN_SEGMENT_LENGTH * 0.45:
 			continue
 		var center := _points_center(chunk)
-		var body := _create_body("Limb%02d_%d" % [limb_index, segment_index], center, _mass_for_points(chunk, float(stroke.get("width", 5.0))))
+		var raw_mass := _mass_for_points(chunk, float(stroke.get("width", 5.0)))
+		var limb_mass := clampf(raw_mass * (0.62 if segment_index == 0 else 0.48), 0.16, 0.62)
+		var body := _create_body("Limb%02d_%d" % [limb_index, segment_index], center, limb_mass)
+		body.gravity_scale = 0.48 if segment_index == 0 else 0.32
+		body.angular_damp = 3.8 if segment_index == 0 else 4.6
+		_configure_limb_contact(body, role, segment_index, segment_count)
 		_add_polyline_to_body(body, chunk, float(stroke.get("width", 5.0)), Color(stroke.get("color", Color.BLACK)), center)
 		var limit := deg_to_rad(82.0 if role == "wing" else 68.0)
 		var joint := _create_joint(parent, body, chunk[0], limit)
@@ -387,8 +543,10 @@ func _build_limb_path(
 			"role": role,
 			"limb_index": limb_index,
 			"chain_index": segment_index,
-			"phase": float(limb_index) * 0.37,
+			"phase": _phase_for_limb(limb_index, side),
 			"side": side,
+			"angle_limit": limit,
+			"attachment": path[0],
 			"parent_anchor": _body_local_anchor(parent, chunk[0]),
 			"child_anchor": _body_local_anchor(body, chunk[0]),
 			"last_drive_torque": 0.0
@@ -424,7 +582,7 @@ func _create_body(body_name: String, at: Vector2, body_mass: float) -> ActiveRig
 	var body := ActiveRigBody2D.new()
 	body.name = body_name
 	body.position = at
-	body.mass = clampf(body_mass, 0.30, 5.0)
+	body.mass = clampf(body_mass, 0.16, 5.0)
 	body.gravity_scale = 1.0
 	body.linear_damp = 0.55
 	body.angular_damp = 2.2
@@ -475,6 +633,28 @@ func _create_joint(
 	joint.motor_target_velocity = 0.0
 	_joints.append(joint)
 	return joint
+
+
+func _configure_limb_contact(
+	body: ActiveRigBody2D,
+	role: String,
+	segment_index: int,
+	segment_count: int
+) -> void:
+	var material := body.physics_material_override
+	if material == null:
+		material = PhysicsMaterial.new()
+		body.physics_material_override = material
+	var is_foot := role == "leg" and segment_index == segment_count - 1
+	# Only feet should strongly grip the ground. High friction on every capsule in
+	# a leg pins knees and hips to the terrain and makes the rig somersault around
+	# whichever segment touched first.
+	material.friction = clampf(
+		float(profile.get("foot_friction", 1.05)) if is_foot else float(profile.get("limb_friction", 0.24)),
+		0.05,
+		1.4
+	)
+	material.bounce = 0.0
 
 
 func _add_stroke_to_body(
@@ -574,7 +754,27 @@ func _finalize_rig() -> void:
 		_capture_rest_pose()
 	_gravity = float(ProjectSettings.get_setting("physics/2d/default_gravity", 980.0))
 	_compute_support_sets()
+	_compute_stand_height()
 	_physics_frames_since_build = 0
+
+
+## Vertical distance from the torso centre down to the lowest drawn body in the
+## rest pose. Holding the torso this far above the ground lands the drawn feet on
+## the floor and keeps the torso body clear of it, so the creature stands in the
+## exact pose the player drew instead of pancaking onto its own belly.
+func _compute_stand_height() -> void:
+	_stand_height = 0.0
+	if _primary_body == null:
+		return
+	for body in _bodies:
+		if not is_instance_valid(body):
+			continue
+		var relative: Transform2D = _rest_transforms.get(body.get_instance_id(), Transform2D.IDENTITY)
+		_stand_height = maxf(_stand_height, relative.origin.y)
+	# Sit low enough that the drawn feet press a few px into the floor instead of
+	# grazing it, so contact actually registers and the controller reads the
+	# creature as grounded (idle/walk/jump) rather than perpetually "falling".
+	_stand_height -= 4.0
 
 
 ## For every joint, record the child body plus its whole distal subtree. The
@@ -601,6 +801,9 @@ func _compute_support_sets() -> void:
 				for child_seg in children_of[body_id]:
 					stack.append(child_seg["body"])
 		seg["support"] = support
+		# A leaf segment owns no further joints: it is the tip of its limb (a foot,
+		# a hand, a fin end). The hybrid foot-plant only acts on leg leaves.
+		seg["is_leaf"] = not children_of.has((seg["body"] as Object).get_instance_id())
 
 
 func _clear_rig() -> void:
@@ -609,6 +812,7 @@ func _clear_rig() -> void:
 	_joints.clear()
 	_segments.clear()
 	_body_pool = PackedVector2Array()
+	_body_bounds = Rect2()
 	_shape_count = 0
 	_rest_transforms.clear()
 	_physics_frames_since_build = 0
@@ -626,27 +830,87 @@ func _select_body_stroke(strokes: Array) -> int:
 	var max_area := 0.001
 	for stroke_value in strokes:
 		var stroke: Dictionary = stroke_value
-		max_length = maxf(max_length, _stroke_length(stroke["points"]))
-		max_area = maxf(max_area, absf(_polygon_area(stroke["points"])))
+		var points: PackedVector2Array = stroke["points"]
+		max_length = maxf(max_length, _stroke_length(points))
+		# Shoelace area is meaningless for an open bent limb because it silently
+		# closes tip-to-root. That made a large spider leg look like the abdomen.
+		if _stroke_is_closed(points, float(stroke.get("width", 5.0))):
+			max_area = maxf(max_area, absf(_polygon_area(points)))
+	var drawing_center := get_stroke_bounds().get_center()
+	var drawing_radius := maxf(1.0, get_stroke_bounds().size.length() * 0.5)
 	for index in range(strokes.size()):
 		var stroke: Dictionary = strokes[index]
 		var points: PackedVector2Array = stroke["points"]
+		var stroke_bounds := _bounds_for_points(points)
+		var stroke_center := stroke_bounds.get_center()
 		var incoming := 0
+		var attach_above := false
+		var attach_below := false
 		var radius := clampf(get_stroke_bounds().size.length() * 0.08, 6.0, 18.0)
 		for other_index in range(strokes.size()):
 			if index == other_index:
 				continue
 			var other: PackedVector2Array = strokes[other_index]["points"]
-			if _point_polyline_distance(other[0], points) <= radius or _point_polyline_distance(other[other.size() - 1], points) <= radius:
+			var head_gap := _point_polyline_distance(other[0], points)
+			var tail_gap := _point_polyline_distance(other[other.size() - 1], points)
+			if head_gap <= radius or tail_gap <= radius:
 				incoming += 1
-		var closed_bonus := 3.0 if _stroke_is_closed(points, float(stroke.get("width", 5.0))) else 0.0
-		var score := closed_bonus + float(incoming) * 2.0 \
-			+ absf(_polygon_area(points)) / max_area * 1.8 \
-			+ _stroke_length(points) / max_length * 0.6
+				# Which end of the other stroke touches, and is that contact above or
+				# below this stroke's centre? The torso is the hub that limbs radiate
+				# from ABOVE (head/arms) and BELOW (legs); a head only has the body
+				# joining it from below. This above-and-below test is what stops a big
+				# round head from being chosen as the body of a stick figure.
+				var contact := other[0] if head_gap <= tail_gap else other[other.size() - 1]
+				if contact.y < stroke_center.y:
+					attach_above = true
+				else:
+					attach_below = true
+		var closed := _stroke_is_closed(points, float(stroke.get("width", 5.0)))
+		var area_ratio := absf(_polygon_area(points)) / max_area if closed else 0.0
+		var compactness := minf(stroke_bounds.size.x, stroke_bounds.size.y) / maxf(1.0, maxf(stroke_bounds.size.x, stroke_bounds.size.y))
+		var centrality := 1.0 - clampf(stroke_center.distance_to(drawing_center) / drawing_radius, 0.0, 1.0)
+		# A stroke that limbs join from both above and below is almost certainly the
+		# torso. Weighted strongly so it beats the roundness bonus a head collects.
+		var hub_bonus := 5.0 if attach_above and attach_below else 0.0
+		var closed_weight := 7.0 if _entity_id in ["spider", "cat", "dog", "frog", "rabbit", "fish"] else 4.5
+		var score := (closed_weight if closed else 0.0) + float(incoming) * 2.2 + hub_bonus \
+			+ area_ratio * 1.6 + compactness * 0.7 + centrality * 1.8 \
+			+ _stroke_length(points) / max_length * 0.25
 		if score > best_score:
 			best_score = score
 			best_index = index
 	return best_index
+
+
+func _appendage_candidate_less(a: Dictionary, b: Dictionary) -> bool:
+	var a_point := Vector2(a["attachment"])
+	var b_point := Vector2(b["attachment"])
+	var center := _body_bounds.get_center()
+	if _entity_id == "spider":
+		# A spider's four legs per side are a stronger anatomical constraint than
+		# tiny floating-point differences around a near-vertical attachment.
+		if not is_equal_approx(a_point.x, b_point.x):
+			return a_point.x < b_point.x
+		return a_point.y < b_point.y
+	var a_side := 0 if a_point.x < center.x else 1
+	var b_side := 0 if b_point.x < center.x else 1
+	if a_side != b_side:
+		return a_side < b_side
+	if not is_equal_approx(a_point.y, b_point.y):
+		return a_point.y < b_point.y
+	return a_point.x < b_point.x
+
+
+func _phase_for_limb(limb_index: int, _side: float) -> float:
+	if _entity_id == "spider":
+		# Candidates are sorted four left, four right. Opposite-side counterparts
+		# alternate as a stable tetrapod gait: 0,2,5,7 versus 1,3,4,6.
+		var side_group := limb_index / 4
+		var rank_on_side := limb_index % 4
+		return 0.0 if (rank_on_side + side_group) % 2 == 0 else PI
+	if _rig_type in ["biped", "walker"]:
+		return 0.0 if limb_index % 2 == 0 else PI
+	return float(limb_index) * 0.47
 
 
 func _paths_attached_to_body(points: PackedVector2Array, radius: float) -> Array:
@@ -683,7 +947,10 @@ func _role_for_limb(joint: Vector2, tip: Vector2, body_center: Vector2) -> Strin
 		"walker":
 			return "leg"
 		"biped":
-			return "leg" if tip.y > body_center.y else "arm"
+			# Attachment height is more reliable than tip height: a raised foot can
+			# end above the torso center, while an arm drawn downward can end below it.
+			var hip_line := _body_bounds.position.y + _body_bounds.size.y * 0.56
+			return "leg" if joint.y >= hip_line else "arm"
 		"hopper":
 			return "leg" if delta.y > -4.0 else "limb"
 		"flier":
@@ -708,6 +975,8 @@ func _limb_limit_for_entity() -> int:
 
 func _minimum_limb_segments(role: String) -> int:
 	if role == "leg" and _entity_id in ["spider", "cat", "dog", "humanoid", "frog", "rabbit"]:
+		return 2
+	if role == "limb" and _entity_id in ["frog", "rabbit"]:
 		return 2
 	if role == "arm" and _entity_id == "humanoid":
 		return 2
@@ -861,6 +1130,15 @@ func _points_center(points: PackedVector2Array) -> Vector2:
 	for point in points:
 		bounds = bounds.expand(point)
 	return bounds.get_center()
+
+
+func _bounds_for_points(points: PackedVector2Array) -> Rect2:
+	if points.is_empty():
+		return Rect2()
+	var bounds := Rect2(points[0], Vector2.ZERO)
+	for point in points:
+		bounds = bounds.expand(point)
+	return bounds
 
 
 func _point_pool_distance(point: Vector2, pool: PackedVector2Array) -> float:
