@@ -31,6 +31,7 @@ func _run() -> void:
 	_test_target_contracts()
 	await _test_placement_collision()
 	await _test_active_ragdolls()
+	await _test_messy_fixtures()
 	await _test_compound_fallback_recovery()
 	await _test_physics_morphs()
 	await _test_utilities()
@@ -372,6 +373,78 @@ func _test_active_ragdolls() -> void:
 			_expect(skin.debug_recovery_count() >= 1, "spider runaway recovery was not exercised")
 		instance.queue_free()
 		await process_frame
+
+
+## Messy real-world-style drawings (single scribbles, gapped limbs, multi-stroke bodies,
+## jittery input, lone blobs) must still articulate, animate, and stay stable. Fixtures
+## live in res://tests/fixtures/ and are also inspectable via res://tests/rig_probe.gd.
+func _test_messy_fixtures() -> void:
+	var dir := DirAccess.open("res://tests/fixtures")
+	if dir == null:
+		return
+	var names := dir.get_files()
+	names.sort()
+	for file_name in names:
+		if file_name.ends_with(".json"):
+			await _check_messy_fixture("res://tests/fixtures/" + file_name)
+
+
+func _check_messy_fixture(path: String) -> void:
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if typeof(data) != TYPE_DICTIONARY:
+		_expect(false, "fixture %s did not parse" % path)
+		return
+	var label := String(data.get("description", path.get_file()))
+	var entity_id := String(data.get("entity_id", "cat"))
+	var strokes := _messy_strokes(data.get("strokes", []))
+	var states: Array = data.get("states", ["walk"])
+	var primary_state := String(states[0]) if not states.is_empty() else "walk"
+	var motion := {"moving": true, "speed_ratio": 1.0, "direction": 1.0, "charge_ratio": 1.0}
+
+	var instance := registry.instantiate_entity(entity_id) as Node2D
+	_expect(instance != null, "could not instantiate %s for fixture '%s'" % [entity_id, label])
+	if instance == null:
+		return
+	world.add_child(instance)
+	instance.global_position = Vector2(300.0, 200.0)
+	if instance.has_method("set_world_bounds"):
+		instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+	instance.call("apply_drawing", _blank_image(), strokes)
+	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+
+	_expect(skin.skin_mode() == "vector", "'%s' collapsed to bitmap" % label)
+	_expect(skin.get_joint_count() > 0, "'%s' produced no articulation" % label)
+	_expect(skin.get_rigid_bodies().size() <= 24 and skin.get_joint_count() <= 23, "'%s' exceeded rig caps" % label)
+
+	instance.set_physics_process(false)
+	skin.set_motion_state(primary_state, motion)
+	skin._physics_process(0.1)
+	var animated := false
+	for torque in skin.debug_drive_torques():
+		animated = animated or absf(torque) > 0.01
+	_expect(animated, "'%s' did not animate in state %s" % [label, primary_state])
+
+	var maximum_joint_error := 0.0
+	for _frame in range(90):
+		skin.set_motion_state(primary_state, motion)
+		await physics_frame
+		maximum_joint_error = maxf(maximum_joint_error, skin.debug_max_joint_error())
+	_expect(maximum_joint_error <= 22.5, "'%s' rig unstable (%.2f px)" % [label, maximum_joint_error])
+	_expect(skin.debug_recovery_count() <= 1, "'%s' needed repeated recovery" % label)
+
+	instance.queue_free()
+	await process_frame
+
+
+func _messy_strokes(raw: Array) -> Array:
+	var strokes: Array = []
+	for stroke_value in raw:
+		var stroke: Dictionary = stroke_value
+		var points := PackedVector2Array()
+		for pair in stroke.get("points", []):
+			points.append(Vector2(float(pair[0]), float(pair[1])))
+		strokes.append({"points": points, "width": float(stroke.get("width", 8.0)), "color": Color.BLACK})
+	return strokes
 
 
 func _test_utilities() -> void:

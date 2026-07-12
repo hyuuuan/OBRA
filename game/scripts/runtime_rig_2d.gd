@@ -25,8 +25,10 @@ var _bodies: Array[ActiveRigBody2D] = []
 var _joints: Array[PinJoint2D] = []
 var _segments: Array = []
 var _body_pool: PackedVector2Array = PackedVector2Array()
+var _body_polylines: Array = []
 var _shape_count: int = 0
 var _gait_phase: float = 0.0
+var _idle_phase: float = 0.0
 var _build_generation: int = 0
 var _rest_transforms: Dictionary = {}
 var _world_bounds: Rect2 = Rect2(0.0, -520.0, 3760.0, 1200.0)
@@ -123,6 +125,7 @@ func _on_skin_rebuilt() -> void:
 			_build_chain_rig(get_vector_strokes())
 		else:
 			_build_standard_rig(get_vector_strokes())
+			_ensure_articulation(get_vector_strokes())
 	else:
 		_build_bitmap_fallback()
 	_finalize_rig()
@@ -141,6 +144,9 @@ func _physics_process(delta: float) -> void:
 		return
 	if _segments.is_empty():
 		return
+	# Idle clock always advances so resting creatures can breathe/sway; the gait
+	# clock only advances under locomotion so a standing pose does not stride.
+	_idle_phase += delta * 1.6
 	var speed_ratio := clampf(float(_motion_params.get("speed_ratio", 0.0)), 0.0, 1.5)
 	if bool(_motion_params.get("moving", false)) or _motion_state in ["swim", "fly", "flap", "climb"]:
 		_gait_phase += delta * lerpf(2.0, 7.0, minf(1.0, speed_ratio))
@@ -200,18 +206,36 @@ func _gravity_hold_torque(segment: Dictionary, joint: PinJoint2D) -> float:
 
 func _target_angle_for(segment: Dictionary) -> float:
 	var role := String(segment["role"])
-	var limb_index := int(segment["limb_index"])
 	var chain_index := int(segment["chain_index"])
-	var direction := float(_motion_params.get("direction", 0.0))
 	var phase := _gait_phase + float(segment["phase"]) + float(chain_index) * 0.28
 	var moving := bool(_motion_params.get("moving", false))
+	var side := signf(float(segment.get("side", 1.0)))
+	# Species-specific gait wins; then a generic per-rig_type gait so no articulated
+	# limb is ever dead (covers geometry-driven creatures whose entity_id is not
+	# hardcoded); then a subtle idle pose so resting creatures breathe.
+	var species := _species_target_angle(segment, role, phase, moving)
+	if not is_nan(species):
+		return species
+	var generic := _generic_target_angle(segment, role, phase, moving)
+	if not is_nan(generic):
+		return generic
+	return _idle_pose(role, side)
+
+
+## Tuned per-species gait. Returns NAN to mean "no active opinion" so the caller
+## can fall through to the generic net and then the idle pose.
+func _species_target_angle(segment: Dictionary, role: String, phase: float, moving: bool) -> float:
+	var limb_index := int(segment["limb_index"])
+	var chain_index := int(segment["chain_index"])
+	var side := signf(float(segment.get("side", 1.0)))
+	var direction := float(_motion_params.get("direction", 0.0))
 
 	if _entity_id == "spider" and role == "leg":
 		if _motion_state in ["walk", "climb"] and moving:
 			var alternating := 0.0 if limb_index % 2 == 0 else PI
 			var stride := sin(phase + alternating)
 			return deg_to_rad(18.0) * stride if chain_index == 0 else deg_to_rad(-26.0) * stride
-		return 0.0
+		return NAN
 
 	if _entity_id in ["cat", "dog"] and role == "leg":
 		if _motion_state == "walk" and moving:
@@ -220,64 +244,102 @@ func _target_angle_for(segment: Dictionary) -> float:
 			return amplitude * stride if chain_index == 0 else amplitude * -0.72 * stride
 		if _motion_state in ["jump", "fall"]:
 			return deg_to_rad(10.0) * (-1.0 if limb_index % 2 else 1.0)
-		return 0.0
+		return NAN
 
 	if _rig_type == "biped":
 		if _motion_state == "walk" and moving:
 			var amp := deg_to_rad(30.0 if role == "leg" else 18.0)
 			return amp * sin(phase + (PI if limb_index % 2 else 0.0))
 		if _motion_state in ["jump", "fall"]:
-			return deg_to_rad(-24.0 if role == "leg" else -35.0) * signf(float(segment["side"]))
+			return deg_to_rad(-24.0 if role == "leg" else -35.0) * side
 		if _motion_state == "climb":
 			return deg_to_rad(28.0) * sin(phase + (PI if limb_index % 2 else 0.0))
+		return NAN
 
 	if _rig_type == "hopper" and role == "leg":
 		match _motion_state:
 			"charge":
-				return deg_to_rad(-34.0) * maxf(0.15, float(_motion_params.get("charge_ratio", 0.0))) * signf(float(segment["side"]))
+				return deg_to_rad(-34.0) * maxf(0.15, float(_motion_params.get("charge_ratio", 0.0))) * side
 			"jump":
-				return deg_to_rad(38.0) * signf(float(segment["side"]))
+				return deg_to_rad(38.0) * side
 			"fall":
-				return deg_to_rad(18.0) * signf(float(segment["side"]))
+				return deg_to_rad(18.0) * side
 			_:
-				return 0.0
+				return NAN
 
 	if _rig_type == "flier":
 		if role == "wing":
 			if _motion_state in ["fly", "flap"]:
 				var hz_scale := 1.25 if _entity_id == "butterfly" else 1.0
-				return deg_to_rad(48.0) * sin(phase * hz_scale) * signf(float(segment["side"]))
+				return deg_to_rad(48.0) * sin(phase * hz_scale) * side
 			if _motion_state == "glide":
-				return deg_to_rad(-18.0) * signf(float(segment["side"]))
+				return deg_to_rad(-18.0) * side
+			# Grounded or any other state: gentle wing flutter instead of a limp hang.
+			return deg_to_rad(10.0) * sin(_idle_phase) * side
 		if role == "leg" and _motion_state not in ["walk", "idle"]:
-			return deg_to_rad(-20.0) * signf(float(segment["side"]))
+			return deg_to_rad(-20.0) * side
+		return NAN
 
 	if _entity_id == "fish" and role in ["tail", "fin", "limb"]:
 		if _motion_state == "swim":
 			return deg_to_rad(22.0) * sin(phase + float(limb_index) * 0.55)
-		return 0.0
+		return NAN
 
 	if _entity_id == "snake" and role == "chain":
 		if moving or _motion_state == "swim":
 			return deg_to_rad(28.0) * sin(phase + float(chain_index) * 0.72) * (1.0 if direction >= 0.0 else -1.0)
-	return 0.0
+		return NAN
+
+	return NAN
+
+
+## Generic gait keyed on rig_type only, so a drawing whose entity_id is not one of
+## the hardcoded species still animates. Returns NAN when it has no opinion.
+func _generic_target_angle(segment: Dictionary, role: String, phase: float, moving: bool) -> float:
+	var limb_index := int(segment["limb_index"])
+	var chain_index := int(segment["chain_index"])
+	match _rig_type:
+		"walker":
+			if role == "leg" and moving:
+				var stride := sin(phase + (PI if limb_index % 2 else 0.0))
+				return deg_to_rad(18.0) * stride if chain_index == 0 else deg_to_rad(18.0) * -0.7 * stride
+		"swimmer":
+			if (moving or _motion_state == "swim") and role in ["tail", "fin", "limb", "chain"]:
+				return deg_to_rad(22.0) * sin(phase + float(chain_index) * 0.6)
+		_:
+			if moving and role in ["leg", "arm", "wing", "tail", "fin", "chain", "limb"]:
+				return deg_to_rad(14.0) * sin(phase + (PI if limb_index % 2 else 0.0))
+	return NAN
+
+
+## Small resting oscillation driven by the always-advancing idle clock so a standing
+## creature breathes/sways rather than freezing at its rest pose.
+func _idle_pose(role: String, side: float) -> float:
+	var amp := deg_to_rad(5.0 if role == "wing" else 4.0)
+	return amp * sin(_idle_phase) * (1.0 if side >= 0.0 else -1.0)
 
 
 func _build_standard_rig(strokes: Array) -> void:
 	_create_physics_root()
 	var body_index := _select_body_stroke(strokes)
 	var body_stroke: Dictionary = strokes[body_index]
-	var body_points: PackedVector2Array = body_stroke["points"]
-	_body_pool = body_points.duplicate()
-	var body_center := _points_center(body_points)
+	# The torso may be drawn as several overlapping strokes; gather them all so a
+	# multi-stroke body reads as one torso and limbs touching any of its sub-strokes
+	# still detect attachment.
+	var body_info := _gather_body_strokes(strokes, body_index)
+	var body_indices: Dictionary = body_info["indices"]
+	_body_pool = body_info["pool"]
+	_body_polylines = body_info["polylines"]
+	var body_center := _points_center(_body_pool)
 	_primary_body = _create_body("Torso", body_center, _mass_for_stroke(body_stroke, 1.5))
-	_add_stroke_to_body(_primary_body, body_stroke, body_center, true)
+	for gathered_index in body_indices:
+		_add_stroke_to_body(_primary_body, strokes[gathered_index], body_center, gathered_index == body_index)
 
-	var attachment_radius := clampf(get_stroke_bounds().size.length() * 0.10, 8.0, 22.0)
+	var attachment_radius := clampf(get_stroke_bounds().size.length() * 0.14, 12.0, 40.0)
 	var next_limb_index := 0
 	var limb_limit := _limb_limit_for_entity()
 	for index in range(strokes.size()):
-		if index == body_index:
+		if body_indices.has(index):
 			continue
 		var stroke: Dictionary = strokes[index]
 		var points: PackedVector2Array = stroke["points"]
@@ -412,6 +474,156 @@ func _build_bitmap_fallback() -> void:
 		sprite.scale = _body.scale
 		_primary_body.add_child(sprite)
 		_body.visible = false
+
+
+## Guaranteed-articulation guard. Runs only after the standard rig; if that produced
+## no joints but the drawing is large enough to plausibly have parts, rebuild it as an
+## articulated rig so it animates instead of a dead single body. Fires only at
+## joints==0, so clean multi-stroke drawings and the empty-strokes bitmap path (which
+## routes through _build_bitmap_fallback, not here) are never touched.
+func _ensure_articulation(strokes: Array) -> void:
+	if _joints.size() > 0 or strokes.is_empty():
+		return
+	if get_stroke_bounds().size.length() < _target_size.length() * 0.5:
+		return
+	var body_index := _select_body_stroke(strokes)
+	var body_stroke: Dictionary = strokes[body_index]
+	var decomposition := _decompose_scribble(body_stroke)
+	var limbs: Array = decomposition["limbs"]
+	# Tier A: a single continuous scribble split into a torso core + radial limbs.
+	if not limbs.is_empty():
+		_clear_rig()
+		_create_physics_root()
+		var body_pts: PackedVector2Array = decomposition["body"]
+		var width := float(body_stroke.get("width", 6.0))
+		var color := Color(body_stroke.get("color", Color.BLACK))
+		_body_pool = body_pts.duplicate()
+		_body_polylines = [body_pts]
+		var body_center := _points_center(body_pts)
+		_primary_body = _create_body("Torso", body_center, _mass_for_stroke(body_stroke, 1.5))
+		_add_polyline_to_body(_primary_body, body_pts, width, color, body_center)
+		var limb_limit := _limb_limit_for_entity()
+		var limb_index := 0
+		for limb_value in limbs:
+			if limb_index >= limb_limit or _joints.size() >= MAX_JOINTS:
+				break
+			_build_limb_path(limb_value as PackedVector2Array, body_stroke, limb_index, body_center)
+			limb_index += 1
+		if _joints.size() > 0:
+			return
+	# Tier B: no appendages found — split the body along its long axis into a short
+	# spine so idle sway/locomotion still animates instead of a dead box.
+	_clear_rig()
+	_build_blob_spine(strokes)
+
+
+## Detect limb-like radial spikes in a single continuous stroke and split it into a
+## torso core plus outgoing limb paths (each from the valley near the body out to the
+## peak tip). Returns empty limbs when the stroke has no clear appendages.
+func _decompose_scribble(stroke: Dictionary) -> Dictionary:
+	var empty := {"body": PackedVector2Array(), "limbs": []}
+	var pts: PackedVector2Array = stroke["points"]
+	if pts.size() < 7:
+		return empty
+	var center := _points_center(pts)
+	var diag := _points_bounds(pts).size.length()
+	if diag < 1.0:
+		return empty
+	var radii := PackedFloat32Array()
+	for point in pts:
+		radii.append(point.distance_to(center))
+	var median_r := _median(radii)
+	var prominence := 0.22 * diag
+	var limbs: Array = []
+	var i := 1
+	while i < pts.size() - 1:
+		if radii[i] > radii[i - 1] and radii[i] >= radii[i + 1]:
+			var left := i
+			while left > 0 and radii[left - 1] <= radii[left]:
+				left -= 1
+			var right := i
+			while right < pts.size() - 1 and radii[right + 1] <= radii[right]:
+				right += 1
+			var valley := minf(radii[left], radii[right])
+			if radii[i] - valley >= prominence and valley <= median_r * 1.15:
+				var limb := pts.slice(left, i + 1)
+				if _stroke_length(limb) >= MIN_SEGMENT_LENGTH * 2.0:
+					limbs.append(limb)
+				i = right + 1
+				continue
+		i += 1
+	if limbs.is_empty():
+		return empty
+	var body := PackedVector2Array()
+	for j in range(pts.size()):
+		if radii[j] <= median_r * 1.25:
+			body.append(pts[j])
+	if body.size() < 3:
+		body = pts
+	return {"body": body, "limbs": limbs}
+
+
+## Tier-B fallback: a limbless blob becomes a short spine along its long axis so idle
+## sway/locomotion still articulates. Blob points are shared across the spine nodes so
+## mass and collision are distributed rather than piled on one node.
+func _build_blob_spine(strokes: Array) -> void:
+	_create_physics_root()
+	var body_index := _select_body_stroke(strokes)
+	var stroke: Dictionary = strokes[body_index]
+	var pts: PackedVector2Array = stroke["points"]
+	var bounds := _points_bounds(pts)
+	var width := float(stroke.get("width", 8.0))
+	var color := Color(stroke.get("color", Color.BLACK))
+	var vertical := bounds.size.y >= bounds.size.x
+	var node_count := 3 if maxf(bounds.size.x, bounds.size.y) > 60.0 else 2
+	var axis_lo := bounds.position.y if vertical else bounds.position.x
+	var axis_hi := (bounds.position.y + bounds.size.y) if vertical else (bounds.position.x + bounds.size.x)
+	var cross := bounds.get_center().x if vertical else bounds.get_center().y
+	var parent: ActiveRigBody2D
+	for index in range(node_count):
+		var lo := lerpf(axis_lo, axis_hi, float(index) / float(node_count))
+		var hi := lerpf(axis_lo, axis_hi, float(index + 1) / float(node_count))
+		var group := PackedVector2Array()
+		for point in pts:
+			var coord := point.y if vertical else point.x
+			if coord >= lo and coord <= hi:
+				group.append(point)
+		var center := (Vector2(cross, (lo + hi) * 0.5) if vertical else Vector2((lo + hi) * 0.5, cross))
+		if group.size() >= 2:
+			center = _points_center(group)
+		var body := _create_body("Spine%02d" % index, center, 0.7)
+		if group.size() >= 2:
+			_add_polyline_to_body(body, group, width, color, center)
+		if index == 0:
+			_primary_body = body
+			_body_pool = (group.duplicate() if group.size() >= 2 else pts.duplicate())
+			_body_polylines = [_body_pool]
+		else:
+			var anchor := (Vector2(cross, lo) if vertical else Vector2(lo, cross))
+			var joint := _create_joint(parent, body, anchor, deg_to_rad(35.0))
+			if joint != null:
+				_segments.append({
+					"parent": parent, "body": body, "joint": joint,
+					"rest_relative": wrapf(body.rotation - parent.rotation, -PI, PI),
+					"role": "chain", "limb_index": 0, "chain_index": index,
+					"phase": float(index) * 0.4, "side": 1.0,
+					"parent_anchor": _body_local_anchor(parent, anchor),
+					"child_anchor": _body_local_anchor(body, anchor),
+					"last_drive_torque": 0.0
+				})
+		parent = body
+	for index in range(strokes.size()):
+		if index == body_index:
+			continue
+		_add_stroke_to_body(_primary_body, strokes[index], _primary_body.position, false)
+
+
+func _median(values: PackedFloat32Array) -> float:
+	if values.is_empty():
+		return 0.0
+	var sorted := values.duplicate()
+	sorted.sort()
+	return sorted[sorted.size() / 2]
 
 
 func _create_physics_root() -> void:
@@ -609,6 +821,7 @@ func _clear_rig() -> void:
 	_joints.clear()
 	_segments.clear()
 	_body_pool = PackedVector2Array()
+	_body_polylines = []
 	_shape_count = 0
 	_rest_transforms.clear()
 	_physics_frames_since_build = 0
@@ -653,8 +866,8 @@ func _paths_attached_to_body(points: PackedVector2Array, radius: float) -> Array
 	var result: Array = []
 	if points.size() < 2:
 		return result
-	var start_gap := _point_pool_distance(points[0], _body_pool)
-	var end_gap := _point_pool_distance(points[points.size() - 1], _body_pool)
+	var start_gap := _point_body_distance(points[0])
+	var end_gap := _point_body_distance(points[points.size() - 1])
 	if minf(start_gap, end_gap) <= radius:
 		var ordered := points.duplicate()
 		if end_gap < start_gap:
@@ -664,7 +877,7 @@ func _paths_attached_to_body(points: PackedVector2Array, radius: float) -> Array
 	var closest_index := -1
 	var closest_gap := radius
 	for index in range(1, points.size() - 1):
-		var gap := _point_pool_distance(points[index], _body_pool)
+		var gap := _point_body_distance(points[index])
 		if gap < closest_gap:
 			closest_gap = gap
 			closest_index = index
@@ -675,6 +888,66 @@ func _paths_attached_to_body(points: PackedVector2Array, radius: float) -> Array
 		result.append(first)
 		result.append(second)
 	return result
+
+
+## Distance from a point to the whole torso, measured against the body polylines
+## (true segment distance) rather than only the nearest torso vertex, so a limb that
+## lands on a torso edge attaches instead of being dropped as decoration.
+func _point_body_distance(point: Vector2) -> float:
+	if _body_polylines.is_empty():
+		return _point_pool_distance(point, _body_pool)
+	var best := INF
+	for polyline_value in _body_polylines:
+		best = minf(best, _point_polyline_distance(point, polyline_value as PackedVector2Array))
+	return best
+
+
+## Start from the picked body stroke and absorb other body-like strokes: centroid
+## inside the current body bounds, either closed or substantially overlapping the body
+## bounds, and not limb-shaped (elongation < 2.2 so legs/arms are never swallowed).
+func _gather_body_strokes(strokes: Array, body_index: int) -> Dictionary:
+	var indices := {body_index: true}
+	var pool := PackedVector2Array()
+	var polylines: Array = []
+	var body_points: PackedVector2Array = strokes[body_index]["points"]
+	pool.append_array(body_points)
+	polylines.append(body_points)
+	var body_bounds := _points_bounds(body_points)
+	for index in range(strokes.size()):
+		if index == body_index:
+			continue
+		var pts: PackedVector2Array = strokes[index]["points"]
+		if pts.size() < 2:
+			continue
+		var b := _points_bounds(pts)
+		var longside := maxf(b.size.x, b.size.y)
+		var shortside := maxf(1.0, minf(b.size.x, b.size.y))
+		var elongation := longside / shortside
+		var closed := _stroke_is_closed(pts, float(strokes[index].get("width", 5.0)))
+		var overlaps := _bounds_overlap_ratio(body_bounds, b) > 0.6
+		if body_bounds.has_point(b.get_center()) and (closed or overlaps) and elongation < 2.2:
+			indices[index] = true
+			pool.append_array(pts)
+			polylines.append(pts)
+			body_bounds = body_bounds.merge(b)
+	return {"indices": indices, "pool": pool, "polylines": polylines}
+
+
+func _points_bounds(points: PackedVector2Array) -> Rect2:
+	if points.is_empty():
+		return Rect2()
+	var bounds := Rect2(points[0], Vector2.ZERO)
+	for point in points:
+		bounds = bounds.expand(point)
+	return bounds
+
+
+## Area of the intersection over the smaller of the two boxes (0..1).
+func _bounds_overlap_ratio(a: Rect2, b: Rect2) -> float:
+	var inter := a.intersection(b)
+	var inter_area := inter.size.x * inter.size.y
+	var min_area := maxf(1.0, minf(a.size.x * a.size.y, b.size.x * b.size.y))
+	return inter_area / min_area
 
 
 func _role_for_limb(joint: Vector2, tip: Vector2, body_center: Vector2) -> String:
