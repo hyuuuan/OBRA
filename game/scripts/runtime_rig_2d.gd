@@ -685,7 +685,10 @@ func _role_for_limb(joint: Vector2, tip: Vector2, body_center: Vector2) -> Strin
 		"biped":
 			return "leg" if tip.y > body_center.y else "arm"
 		"hopper":
-			return "leg" if delta.y > -4.0 else "limb"
+			# Hoppers (frog/rabbit) treat every attached limb as a driven leg so
+			# each one articulates into 2 segments; upward-pointing limbs used to
+			# demote to the passive "limb" role and collapse to a single segment.
+			return "leg"
 		"flier":
 			if absf(delta.x) >= absf(delta.y) * 0.7 or delta.y < 0.0:
 				return "wing"
