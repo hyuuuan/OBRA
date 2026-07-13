@@ -176,10 +176,22 @@ func _physics_process(delta: float) -> void:
 		# floor like dead bones. Add the static torque that holds this joint's whole
 		# distal subtree up, leaving the PD free to supply pose/gait tension.
 		var gravity_comp := _gravity_hold_torque(segment, joint)
-		var torque := pd + gravity_comp
-		segment["last_drive_torque"] = torque
-		child.apply_torque(torque)
-		parent.apply_torque(-torque)
+		segment["last_drive_torque"] = pd + gravity_comp
+		# The PD muscle spans the joint, so it is a couple: equal and opposite on the
+		# two bodies. Gravity compensation is an EXTERNAL anti-droop assist on the limb,
+		# not a muscle, so it acts on the child only -- reacting it back onto the parent
+		# torso is what summed into a net torque and spun multi-limb creatures in place.
+		child.apply_torque(pd + gravity_comp)
+		parent.apply_torque(-pd)
+		# gravity_comp is an undamped, position-dependent feed-forward torque that
+		# excites a whole-limb swing the joint's relative-velocity PD cannot see. When
+		# the limb has no active gait target it is meant to hold still, so bleed that
+		# swing and any residual drift with drag on the child's ABSOLUTE angular and
+		# linear velocity (child only, removing energy instead of redistributing it).
+		# Skipped while actively driven, so gait and jumps are unaffected.
+		if absf(target) < 0.0001:
+			child.apply_torque(-child.angular_velocity * child.mass * 900.0)
+			child.apply_central_force(-child.linear_velocity * child.mass * 6.0)
 
 
 ## Static hold torque for a joint: the gravitational torque of its whole distal

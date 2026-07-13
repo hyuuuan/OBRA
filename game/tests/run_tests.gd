@@ -31,6 +31,7 @@ func _run() -> void:
 	_test_target_contracts()
 	await _test_placement_collision()
 	await _test_active_ragdolls()
+	await _test_idle_stability()
 	await _test_messy_fixtures()
 	await _test_compound_fallback_recovery()
 	await _test_physics_morphs()
@@ -371,6 +372,31 @@ func _test_active_ragdolls() -> void:
 				await physics_frame
 			_expect(Rect2(0.0, -520.0, 3760.0, 1200.0).has_point(anchor.global_position), "spider runaway recovery did not return the torso")
 			_expect(skin.debug_recovery_count() >= 1, "spider runaway recovery was not exercised")
+		instance.queue_free()
+		await process_frame
+
+
+## An uncontrolled, grounded creature must stay put. The active ragdoll must not pump
+## energy through its limbs (via undamped gravity compensation) and wander/spin on its
+## own when the player gives no input.
+func _test_idle_stability() -> void:
+	for entity_id in ["spider", "cat", "humanoid"]:
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		world.add_child(instance)
+		instance.global_position = Vector2(400.0, 360.0)
+		instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+		instance.call("apply_drawing", _blank_image(), _fixture_for(entity_id))
+		var anchor := instance.call("get_physics_anchor") as ActiveRigBody2D
+		for _settle in range(90):
+			await physics_frame
+		var start := anchor.global_position
+		var start_rotation := anchor.global_rotation
+		for _hold in range(180):
+			await physics_frame
+		var drift := anchor.global_position.distance_to(start)
+		var spin := rad_to_deg(absf(wrapf(anchor.global_rotation - start_rotation, -PI, PI)))
+		_expect(drift < 40.0, "%s wandered %.1f px with zero input (self-propelling ragdoll)" % [entity_id, drift])
+		_expect(spin < 45.0, "%s spun %.1f deg with zero input" % [entity_id, spin])
 		instance.queue_free()
 		await process_frame
 
