@@ -184,7 +184,11 @@ func _physics_process(delta: float) -> void:
 		var excess := body.linear_velocity.y - 130.0
 		_rig_force(Vector2(0.0, -excess * 5.5))
 
-	_apply_balance(body, entity_id)
+	# The dedicated spider stance controller owns torso attitude. Applying the
+	# generic root servo as well makes the two controllers fight each other and
+	# was a major source of the old rolling/locked-body behaviour.
+	if entity_id != "spider":
+		_apply_balance(body, entity_id)
 	var max_speed := maxf(1.0, _profile_float("move_speed", _default_speed(entity_id)))
 	set_rig_state(state, {
 		"direction": horizontal,
@@ -208,23 +212,85 @@ func _drive_grounded(body: ActiveRigBody2D, horizontal: float) -> String:
 
 
 func _drive_spider(body: ActiveRigBody2D, horizontal: float, vertical: float) -> String:
-	if (body.wall_contact or body.ceiling_contact) and absf(vertical) > 0.05:
-		body.lock_rotation = false
-		_set_rig_gravity(0.0)
-		_rig_force(Vector2(0.0, vertical * 1550.0))
-		_rig_force(-body.dominant_surface_normal * 520.0)
-		return "climb"
-	body.lock_rotation = true
-	body.rotation = 0.0
-	body.angular_velocity = 0.0
+	var skin := _get_skin()
+	var contacts: Dictionary = {}
+	var has_contact_summary := false
+	if skin != null and skin.has_method("get_contact_summary"):
+		var summary_value: Variant = skin.call("get_contact_summary")
+		if summary_value is Dictionary:
+			contacts = summary_value
+			has_contact_summary = true
+
+	var feet_value: Variant = contacts.get("feet", [])
+	var has_terminal_feet := feet_value is Array and not (feet_value as Array).is_empty()
+	# A valid spider is grounded exclusively by terminal feet. The body flags are
+	# retained only for a legacy/malformed compound-rig fallback with no feet.
+	var grounded := bool(contacts.get("grounded", body.grounded))
+	if not has_terminal_feet:
+		grounded = body.grounded
+	var wall_contact := bool(contacts.get("wall_contact", body.wall_contact))
+	var ceiling_contact := bool(contacts.get("ceiling_contact", body.ceiling_contact))
+	var surface_normal := body.dominant_surface_normal
+	var normal_value: Variant = contacts.get("dominant_surface_normal", surface_normal)
+	if normal_value is Vector2:
+		surface_normal = normal_value
+
+	# Normal gravity remains enabled in every mode. Stance support and adhesion are
+	# forces, not gravity cancellation or direct transform writes.
 	_set_rig_gravity(1.0)
-	_drive_horizontal(body, horizontal, 180.0)
-	if Input.is_action_just_pressed("jump") and (body.grounded or body.wall_contact):
-		_rig_impulse(Vector2(horizontal * 90.0, -300.0))
+	if Input.is_action_just_pressed("jump") and (grounded or wall_contact):
+		if skin != null and skin.has_method("release_stance"):
+			skin.call("release_stance")
+		var jump_horizontal := _profile_float("jump_horizontal_impulse", 90.0)
+		var jump_impulse := _profile_float("jump_impulse", 300.0)
+		_rig_impulse(Vector2(horizontal * jump_horizontal, -jump_impulse))
 		return "jump"
-	if not body.grounded:
-		return "fall"
+
+	if (wall_contact or ceiling_contact) and absf(vertical) > 0.05:
+		if skin != null and skin.has_method("release_stance"):
+			skin.call("release_stance")
+		var climb_speed := _profile_float("climb_speed", 155.0)
+		var climb_gain := _profile_float("climb_velocity_gain", 12.0)
+		var climb_force := _profile_float("climb_force", 1850.0)
+		var climb_error := vertical * climb_speed - body.linear_velocity.y
+		_apply_spider_torso_acceleration(
+			skin,
+			body,
+			Vector2(0.0, clampf(climb_error * climb_gain, -climb_force, climb_force))
+		)
+		if surface_normal.length_squared() > 0.01:
+			var adhesion := _profile_float("climb_adhesion_force", 520.0)
+			_apply_spider_torso_acceleration(skin, body, -surface_normal.normalized() * adhesion)
+			if skin != null and skin.has_method("apply_spider_surface_attitude"):
+				skin.call("apply_spider_surface_attitude", surface_normal)
+		return "climb"
+
+	var move_speed := _profile_float("move_speed", _default_speed("spider"))
+	if not grounded:
+		# A modest torso force provides air correction while no foot is planted.
+		# Ground propulsion remains exclusively owned by the stance controller.
+		var air_control := clampf(_profile_float("air_control", 0.22), 0.0, 1.0)
+		if absf(horizontal) > 0.05 and air_control > 0.0:
+			var air_error := horizontal * move_speed - body.linear_velocity.x
+			var air_accel := clampf(air_error * 6.0 * air_control, -420.0, 420.0)
+			_apply_spider_torso_acceleration(skin, body, Vector2(air_accel, 0.0))
+		return "jump" if body.linear_velocity.y < 0.0 else "fall"
+
+	# A safe compound fallback has no terminal feet or active stance controller.
+	# Drive its torso only; never reinstate the old whole-rig dragging path.
+	if (not has_contact_summary or not has_terminal_feet) and absf(horizontal) > 0.05:
+		var target_speed := horizontal * move_speed
+		var move_accel := _profile_float("move_acceleration", 1350.0)
+		var torso_accel := clampf((target_speed - body.linear_velocity.x) * 6.0, -move_accel, move_accel)
+		body.apply_central_force(Vector2(torso_accel * body.mass, 0.0))
 	return "walk" if absf(horizontal) > 0.05 else "idle"
+
+
+func _apply_spider_torso_acceleration(skin: Node, body: ActiveRigBody2D, acceleration: Vector2) -> void:
+	if skin != null and skin.has_method("apply_spider_torso_acceleration"):
+		skin.call("apply_spider_torso_acceleration", acceleration)
+	elif is_instance_valid(body):
+		body.apply_central_force(acceleration * body.mass)
 
 
 func _drive_flier(body: ActiveRigBody2D, horizontal: float, _delta: float, butterfly: bool) -> String:
@@ -375,8 +441,6 @@ func _apply_balance(body: ActiveRigBody2D, entity_id: String) -> void:
 	var target_rotation := 0.0
 	if _ladder != null and is_instance_valid(_ladder):
 		target_rotation = _ladder.global_rotation
-	elif entity_id == "spider" and (body.wall_contact or body.ceiling_contact):
-		target_rotation = body.dominant_surface_normal.angle() + PI * 0.5
 	# Right the torso only. The muscle controller already owns the limbs' angles;
 	# torquing every body toward upright fought the gait and curled the creature
 	# into a rollable ball. A strong torso-only righting spring keeps the root
@@ -385,10 +449,10 @@ func _apply_balance(body: ActiveRigBody2D, entity_id: String) -> void:
 	# The torso is the reference frame for every rest-relative joint. If it rolls,
 	# the muscle system faithfully carries the complete anatomy into that roll.
 	# Use a critically damped, mass-scaled root servo with enough authority to
-	# resist the summed reactions of eight legs, while retaining a hard cap.
-	var torque_limit := body.mass * (6200.0 if entity_id == "spider" else 4400.0)
-	var balance_spring := 4300.0 if entity_id == "spider" else 3000.0
-	var balance_damping := 520.0 if entity_id == "spider" else 360.0
+	# resist the summed limb reactions, while retaining a hard cap.
+	var torque_limit := body.mass * 4400.0
+	var balance_spring := 3000.0
+	var balance_damping := 360.0
 	var torque := clampf(error * body.mass * balance_spring - body.angular_velocity * body.mass * balance_damping, -torque_limit, torque_limit)
 	body.apply_torque(torque)
 

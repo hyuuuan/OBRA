@@ -13,6 +13,9 @@ var ceiling_contact: bool = false
 ## creature as permanently airborne (stuck in "fall": raised arms, no walk gait).
 var standing_hint: bool = false
 var dominant_surface_normal: Vector2 = Vector2.UP
+var floor_surface_normal: Vector2 = Vector2.UP
+var wall_surface_normal: Vector2 = Vector2.ZERO
+var ceiling_surface_normal: Vector2 = Vector2.DOWN
 var contact_points: Array[Vector2] = []
 var max_linear_speed: float = 580.0
 var max_angular_speed: float = 8.0
@@ -36,8 +39,13 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	wall_contact = false
 	ceiling_contact = false
 	dominant_surface_normal = Vector2.UP
+	floor_surface_normal = Vector2.UP
+	wall_surface_normal = Vector2.ZERO
+	ceiling_surface_normal = Vector2.DOWN
 	contact_points.clear()
 	var best_up := -1.0
+	var best_wall := -1.0
+	var best_ceiling := -1.0
 	for index in range(state.get_contact_count()):
 		# get_contact_local_normal already returns the contact normal in WORLD
 		# space. The old code rotated it again by the body's own rotation, which
@@ -51,10 +59,18 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 		var up_dot := normal.dot(Vector2.UP)
 		if up_dot > 0.42:
 			grounded = true
+			if up_dot > best_up:
+				floor_surface_normal = normal
 		if up_dot < -0.42:
 			ceiling_contact = true
+			if -up_dot > best_ceiling:
+				best_ceiling = -up_dot
+				ceiling_surface_normal = normal
 		if absf(normal.x) > 0.55:
 			wall_contact = true
+			if absf(normal.x) > best_wall:
+				best_wall = absf(normal.x)
+				wall_surface_normal = normal
 		if up_dot > best_up:
 			best_up = up_dot
 			dominant_surface_normal = normal

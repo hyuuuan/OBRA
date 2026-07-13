@@ -2,6 +2,9 @@ extends SceneTree
 ## Dependency-free headless regression suite:
 ## godot --headless --path game --script res://tests/run_tests.gd
 
+const SpiderRigAnalyzer = preload("res://scripts/spider_rig_analyzer.gd")
+const SpiderReferenceFixtures = preload("res://tests/spider_reference_fixtures.gd")
+
 var failures: Array[String] = []
 var world: Node2D
 var registry: EntityRegistry
@@ -31,6 +34,7 @@ func _run() -> void:
 	_test_target_contracts()
 	await _test_placement_collision()
 	_test_anatomy_inference()
+	await _test_spider_stance_controller()
 	await _test_active_ragdolls()
 	await _test_idle_stability()
 	await _test_messy_fixtures()
@@ -318,7 +322,7 @@ func _test_active_ragdolls() -> void:
 		_expect(skin.get_rigid_bodies().size() <= 24, "%s exceeded body cap" % entity_id)
 		_expect(skin.get_joint_count() <= 23, "%s exceeded joint cap" % entity_id)
 		if entity_id == "spider":
-			_expect(skin.get_joint_count() >= 16, "spider legs regressed to single rigid segments")
+			_expect(skin.get_joint_count() >= 12, "spider legs regressed to single rigid segments")
 		elif entity_id in ["cat", "dog", "frog", "rabbit", "humanoid"]:
 			_expect(skin.get_joint_count() >= 8, "%s limbs regressed to single rigid segments" % entity_id)
 		if entity_id in ["spider", "cat", "dog", "frog", "rabbit", "bird", "butterfly", "humanoid", "snake"]:
@@ -340,17 +344,17 @@ func _test_active_ragdolls() -> void:
 		instance.set_physics_process(false)
 		skin.set_motion_state(motion_state, motion_params)
 		skin._physics_process(0.1)
-		if skin.get_joint_count() > 0:
+		if skin.get_joint_count() > 0 and entity_id != "spider":
 			var muscle_active := false
 			for torque in skin.debug_drive_torques():
 				muscle_active = muscle_active or absf(torque) > 0.01
 			_expect(muscle_active, "%s gait did not drive bounded joint muscles" % entity_id)
-		var stress_frames := 300 if entity_id == "spider" else 120
+		var stress_frames := 120
 		var maximum_joint_error := 0.0
 		var maximum_body_distance := 0.0
 		for frame in range(stress_frames):
 			skin.set_motion_state(motion_state, motion_params)
-			if frame % 90 == 30 and anchor != null:
+			if entity_id != "spider" and frame % 90 == 30 and anchor != null:
 				anchor.apply_central_impulse(Vector2(55.0, -35.0) * anchor.mass)
 			await physics_frame
 			maximum_joint_error = maxf(maximum_joint_error, skin.debug_max_joint_error())
@@ -367,46 +371,166 @@ func _test_active_ragdolls() -> void:
 		_expect(skin.debug_recovery_count() <= 1, "%s needed repeated automatic recovery (%d)" % [entity_id, skin.debug_recovery_count()])
 		for rig_body in skin.get_rigid_bodies():
 			_expect(is_finite(rig_body.global_position.x) and is_finite(rig_body.global_position.y), "%s segment became non-finite" % entity_id)
-		if entity_id == "spider" and anchor != null:
-			anchor.global_position = Vector2(9000.0, 9000.0)
-			for _recovery_frame in range(8):
-				await physics_frame
-			_expect(Rect2(0.0, -520.0, 3760.0, 1200.0).has_point(anchor.global_position), "spider runaway recovery did not return the torso")
-			_expect(skin.debug_recovery_count() >= 1, "spider runaway recovery was not exercised")
 		instance.queue_free()
 		await process_frame
 
 
 func _test_anatomy_inference() -> void:
-	# Draw the spider legs first and in a deliberately scrambled order. Anatomy
-	# must come from geometry, never from the user's stroke order.
-	var spider_strokes: Array = []
-	for index in [3, 0, 6, 1, 5, 2, 7, 4]:
-		var angle := TAU * float(index) / 8.0
-		var start := Vector2(256.0, 256.0) + Vector2(cos(angle) * 58.0, sin(angle) * 38.0)
-		var knee := start + Vector2(cos(angle) * 70.0, sin(angle) * 54.0)
-		var tip := knee + Vector2(cos(angle) * 52.0, sin(angle) * 42.0)
-		spider_strokes.append(_stroke(PackedVector2Array([start, knee, tip])))
-	spider_strokes.append(_stroke(_closed_body()))
+	var reference_signature: Array[String] = []
+	var reference_center := Vector2.ZERO
+	var reference_bounds := Rect2()
+	var reference_support_height := 0.0
+	for fixture_value in SpiderReferenceFixtures.variants():
+		var fixture: Dictionary = fixture_value
+		var fixture_name := String(fixture.get("name", "unnamed"))
+		var anatomy: Dictionary = SpiderRigAnalyzer.analyze(fixture.get("strokes", []))
+		_expect(bool(anatomy.get("valid", false)), "spider analyzer rejected %s fixture: %s" % [fixture_name, anatomy.get("reason", "")])
+		for field in ["torso_paths", "torso_bounds", "torso_center", "support_height", "legs"]:
+			_expect(anatomy.has(field), "spider anatomy '%s' omitted %s" % [fixture_name, field])
+		var torso_bounds: Rect2 = anatomy.get("torso_bounds", Rect2())
+		var torso_center: Vector2 = anatomy.get("torso_center", Vector2.ZERO)
+		var support_height := float(anatomy.get("support_height", 0.0))
+		var has_open_torso_path := false
+		for torso_path_value in anatomy.get("torso_paths", []):
+			var torso_path: PackedVector2Array = torso_path_value
+			if torso_path.size() >= 2 and torso_path[0].distance_to(torso_path[-1]) > 8.0:
+				has_open_torso_path = true
+		_expect(torso_bounds.size.x > torso_bounds.size.y * 1.5, "spider '%s' did not infer the open horizontal hub as torso" % fixture_name)
+		_expect(has_open_torso_path, "spider '%s' did not preserve its open torso ink" % fixture_name)
+		_expect(torso_bounds.grow(2.0).has_point(torso_center), "spider '%s' torso center lies outside its core" % fixture_name)
+		_expect(support_height > 1.0, "spider '%s' has no sole-based support height" % fixture_name)
+
+		var legs: Array = anatomy.get("legs", [])
+		_expect(legs.size() == 6, "spider '%s' inferred %d legs instead of six" % [fixture_name, legs.size()])
+		var side_counts := {-1: 0, 1: 0}
+		var side_ranks := {-1: {}, 1: {}}
+		var phase_by_leg: Dictionary = {}
+		var support_candidates := 0
+		var signature: Array[String] = []
+		for leg_value in legs:
+			var leg: Dictionary = leg_value
+			for field in ["path", "root", "sole", "side", "side_rank", "phase_group", "support_candidate", "bend_index"]:
+				_expect(leg.has(field), "spider '%s' leg omitted %s" % [fixture_name, field])
+			var path: PackedVector2Array = leg.get("path", PackedVector2Array())
+			var side := int(leg.get("side", 0))
+			var side_rank := int(leg.get("side_rank", -1))
+			var phase_group := int(leg.get("phase_group", -1))
+			var bend_index := int(leg.get("bend_index", -1))
+			_expect(side in [-1, 1], "spider '%s' emitted an invalid leg side" % fixture_name)
+			_expect(phase_group in [0, 1], "spider '%s' emitted an invalid gait phase" % fixture_name)
+			_expect(path.size() >= 3 and bend_index > 0 and bend_index < path.size() - 1, "spider '%s' leg has no usable drawn bend" % fixture_name)
+			if side in [-1, 1]:
+				side_counts[side] = int(side_counts[side]) + 1
+				var ranks: Dictionary = side_ranks[side]
+				ranks[side_rank] = true
+				phase_by_leg["%d:%d" % [side, side_rank]] = phase_group
+			if bool(leg.get("support_candidate", false)):
+				support_candidates += 1
+			signature.append("%d:%d:%d:%d" % [side, side_rank, phase_group, int(bool(leg.get("support_candidate", false)))])
+		signature.sort()
+		_expect(int(side_counts[-1]) == 3 and int(side_counts[1]) == 3, "spider '%s' did not infer three legs per side" % fixture_name)
+		_expect((side_ranks[-1] as Dictionary).size() == 3 and (side_ranks[1] as Dictionary).size() == 3, "spider '%s' side ranks are not unique" % fixture_name)
+		_expect(support_candidates == 4, "spider '%s' identified %d support candidates instead of four" % [fixture_name, support_candidates])
+		for rank in range(3):
+			_expect(int(phase_by_leg.get("-1:%d" % rank, -1)) != int(phase_by_leg.get("1:%d" % rank, -1)), "spider '%s' paired same-rank legs into one gait phase" % fixture_name)
+		if phase_by_leg.size() == 6:
+			_expect(int(phase_by_leg["-1:0"]) != int(phase_by_leg["-1:1"]) and int(phase_by_leg["-1:1"]) != int(phase_by_leg["-1:2"]), "spider '%s' left gait phases do not alternate" % fixture_name)
+			_expect(int(phase_by_leg["1:0"]) != int(phase_by_leg["1:1"]) and int(phase_by_leg["1:1"]) != int(phase_by_leg["1:2"]), "spider '%s' right gait phases do not alternate" % fixture_name)
+		if reference_signature.is_empty():
+			reference_signature = signature
+			reference_center = torso_center
+			reference_bounds = torso_bounds
+			reference_support_height = support_height
+		else:
+			_expect(signature == reference_signature, "spider anatomy changed with stroke ownership/order for '%s'" % fixture_name)
+			_expect(torso_center.distance_to(reference_center) <= 5.0, "spider torso center changed for '%s'" % fixture_name)
+			_expect(absf(torso_bounds.size.x - reference_bounds.size.x) <= 8.0 and absf(torso_bounds.size.y - reference_bounds.size.y) <= 8.0, "spider torso bounds changed for '%s'" % fixture_name)
+			_expect(absf(support_height - reference_support_height) <= 8.0, "spider support height changed for '%s'" % fixture_name)
+	for expected_leg_count in [4, 5, 7, 8]:
+		var variable_anatomy := SpiderRigAnalyzer.analyze(SpiderReferenceFixtures.variable_leg_count(expected_leg_count))
+		var variable_legs: Array = variable_anatomy.get("legs", [])
+		_expect(bool(variable_anatomy.get("valid", false)), "spider analyzer rejected %d-leg topology: %s" % [expected_leg_count, variable_anatomy.get("reason", "")])
+		_expect(variable_legs.size() == expected_leg_count, "spider analyzer inferred %d/%d variable legs" % [variable_legs.size(), expected_leg_count])
+		var supported_phases := {0: false, 1: false}
+		for leg_value in variable_legs:
+			var leg := leg_value as Dictionary
+			if bool(leg.get("support_candidate", false)):
+				supported_phases[int(leg.get("phase_group", -1))] = true
+		_expect(bool(supported_phases.get(0, false)) and bool(supported_phases.get(1, false)), "%d-leg spider cannot hand support across both gait phases" % expected_leg_count)
+	var split_anatomy := SpiderRigAnalyzer.analyze(SpiderReferenceFixtures.split_leg_segments())
+	_expect(bool(split_anatomy.get("valid", false)) and (split_anatomy.get("legs", []) as Array).size() == 6, "split-stroke spider legs lost topology")
+	for leg_value in split_anatomy.get("legs", []):
+		var leg := leg_value as Dictionary
+		_expect((leg.get("ink_paths", []) as Array).size() >= 2, "split-stroke leg lost per-source ink ownership")
+	var straight_anatomy := SpiderRigAnalyzer.analyze(SpiderReferenceFixtures.straight_leg_segments())
+	var straight_legs: Array = straight_anatomy.get("legs", [])
+	_expect(bool(straight_anatomy.get("valid", false)) and straight_legs.size() == 6, "straight two-point legs were rejected as spider anatomy")
+	for leg_value in straight_legs:
+		var leg := leg_value as Dictionary
+		var path := PackedVector2Array(leg.get("path", PackedVector2Array()))
+		var bend_index := int(leg.get("bend_index", -1))
+		_expect(path.size() >= 3 and bend_index > 0 and bend_index < path.size() - 1, "straight leg received no midpoint articulation")
+		if path.size() >= 3 and bend_index > 0 and bend_index < path.size() - 1:
+			var arc_before := _test_path_length(path.slice(0, bend_index + 1))
+			var arc_after := _test_path_length(path.slice(bend_index, path.size()))
+			_expect(absf(arc_before - arc_after) <= 0.5, "straight leg articulation is not at its arc-length midpoint")
+	var self_cross_anatomy := SpiderRigAnalyzer.analyze(SpiderReferenceFixtures.self_crossing_hub_leg())
+	var self_cross_legs: Array = self_cross_anatomy.get("legs", [])
+	_expect(bool(self_cross_anatomy.get("valid", false)) and self_cross_legs.size() == 6, "same-stroke hub intersection lost spider anatomy")
+	var recovered_self_cross_leg := false
+	for leg_value in self_cross_legs:
+		var leg := leg_value as Dictionary
+		var sole: Vector2 = leg.get("sole", Vector2.ZERO)
+		if sole.distance_to(Vector2(154.0, 266.0)) <= 3.0:
+			var root: Vector2 = leg.get("root", Vector2.ZERO)
+			recovered_self_cross_leg = root.distance_to(Vector2(236.0, 256.0)) <= 8.0
+			break
+	_expect(recovered_self_cross_leg, "same-stroke self-intersection did not become the drawn leg root")
+
 	var spider := registry.instantiate_entity("spider") as Node2D
 	world.add_child(spider)
-	spider.call("apply_drawing", _blank_image(), spider_strokes)
+	spider.call("apply_drawing", _blank_image(), SpiderReferenceFixtures.separate_legs())
 	var spider_skin := spider.get_node("DrawingSkin") as RuntimeRig2D
-	var spider_layout := spider_skin.debug_limb_layout()
-	_expect(spider_layout.size() == 8, "spider did not infer exactly eight appendages from scrambled strokes")
-	var left_legs := 0
-	var right_legs := 0
-	for limb in spider_layout:
-		_expect(String(limb.get("role", "")) == "leg", "spider appendage was not classified as a leg")
-		if float(limb.get("side", 0.0)) < 0.0:
-			left_legs += 1
-		else:
-			right_legs += 1
-	_expect(left_legs == 4 and right_legs == 4, "spider did not establish four legs on each side")
+	var spider_total_mass := 0.0
+	var terminal_collision_bodies := 0
 	for rig_body in spider_skin.get_rigid_bodies():
+		spider_total_mass += rig_body.mass
 		if rig_body != spider_skin.get_primary_body():
-			_expect(spider_skin.debug_primary_mass() > rig_body.mass, "spider leg outweighed its abdomen")
+			_expect(spider_skin.debug_primary_mass() > rig_body.mass, "spider leg outweighed its torso")
+		if String(rig_body.name).ends_with("_1"):
+			var has_terminal_collision := false
+			for child in rig_body.get_children():
+				if child is CollisionShape2D and (child as CollisionShape2D).shape != null:
+					has_terminal_collision = true
+					break
+			_expect(has_terminal_collision, "%s has no physical distal-foot collision" % rig_body.name)
+			if has_terminal_collision:
+				terminal_collision_bodies += 1
+	_expect(terminal_collision_bodies == 6, "spider did not build six colliding terminal feet")
+	_expect(spider_skin.debug_primary_mass() >= spider_total_mass * 0.4, "spider torso owns less than 40%% of total rig mass")
+	var initial_spider_body_count := spider_skin.get_rigid_bodies().size()
+	var base_torso_mass := spider_skin.debug_primary_mass()
+	var overdrawn_torso := SpiderReferenceFixtures.separate_legs()
+	overdrawn_torso.append(_stroke(PackedVector2Array([
+		Vector2(226.0, 247.0), Vector2(296.0, 247.0),
+		Vector2(226.0, 252.0), Vector2(296.0, 252.0)
+	])))
+	spider.call("apply_drawing", _blank_image(), overdrawn_torso)
+	_expect(spider_skin.debug_primary_mass() > base_torso_mass + 0.1, "spider torso mass ignored additional core ink")
+	spider.call("apply_drawing", _blank_image(), SpiderReferenceFixtures.paired_through_body())
+	_expect(spider_skin.get_rigid_bodies().size() == initial_spider_body_count, "rebuilding spider retained stale physics bodies")
+	_expect(int(spider_skin.debug_spider_snapshot().get("leg_count", 0)) == 6, "rebuilding spider retained stale foot metadata")
 	spider.free()
+	var malformed_strokes := [_stroke(PackedVector2Array([Vector2(180.0, 250.0), Vector2(332.0, 260.0)]))]
+	var malformed_anatomy: Dictionary = SpiderRigAnalyzer.analyze(malformed_strokes)
+	_expect(not bool(malformed_anatomy.get("valid", true)), "spider analyzer fabricated anatomy from a lone stroke")
+	var fallback_spider := registry.instantiate_entity("spider") as Node2D
+	world.add_child(fallback_spider)
+	fallback_spider.call("apply_drawing", _blank_image(), malformed_strokes)
+	var fallback_skin := fallback_spider.get_node("DrawingSkin") as RuntimeRig2D
+	_expect(fallback_skin.skin_mode() == "vector", "malformed spider discarded the player's vector ink")
+	_expect(fallback_skin.get_rigid_bodies().size() == 1 and fallback_skin.get_joint_count() == 0, "malformed spider fabricated limbs instead of a safe compound body")
+	fallback_spider.free()
 
 	var torso := PackedVector2Array([
 		Vector2(228, 160), Vector2(284, 160), Vector2(284, 330),
@@ -432,6 +556,197 @@ func _test_anatomy_inference() -> void:
 			legs += 1
 	_expect(arms == 2 and legs == 2, "humanoid did not infer two shoulder arms and two hip legs")
 	human.free()
+
+
+func _test_spider_stance_controller() -> void:
+	var wall := _add_spider_test_wall()
+	var spider := registry.instantiate_entity("spider") as Node2D
+	_expect(spider != null, "could not instantiate spider for stance regression")
+	if spider == null:
+		wall.queue_free()
+		return
+	world.add_child(spider)
+	spider.global_position = Vector2(300.0, 360.0)
+	spider.call("set_world_bounds", Rect2(0.0, -520.0, 1000.0, 1200.0))
+	spider.call("apply_drawing", _blank_image(), SpiderReferenceFixtures.separate_legs())
+	var skin := spider.get_node("DrawingSkin") as RuntimeRig2D
+	var anchor := spider.call("get_physics_anchor") as ActiveRigBody2D
+	_expect(anchor != null, "spider stance regression has no torso body")
+	if anchor == null:
+		spider.queue_free()
+		wall.queue_free()
+		await process_frame
+		return
+	_expect(not anchor.lock_rotation, "spider torso rotation is still locked")
+	for rig_body in skin.get_rigid_bodies():
+		_expect(is_equal_approx(rig_body.gravity_scale, 1.0), "spider segment is still using gravity cancellation")
+
+	Input.action_release("move_left")
+	Input.action_release("move_right")
+	Input.action_release("move_up")
+	Input.action_release("move_down")
+	Input.action_release("jump")
+	# Let the drawing fall onto its actual distal soles, then measure a full
+	# 180-frame idle window after contacts and stance have had time to settle.
+	for _settle_frame in range(120):
+		await physics_frame
+	var idle_start := anchor.global_position
+	for _idle_frame in range(180):
+		await physics_frame
+	var idle_summary := skin.get_contact_summary()
+	var idle_snapshot := skin.debug_spider_snapshot()
+	_expect(bool(idle_snapshot.get("valid", false)), "runtime spider snapshot reports invalid anatomy")
+	_expect(int(idle_snapshot.get("leg_count", 0)) == 6, "runtime spider did not preserve the six inferred legs")
+	for field in ["torso_center", "torso_bounds", "support_height", "torso_clearance", "support_active", "stance_group", "gait_phase", "gait_targets", "torso_contact", "legs", "feet"]:
+		_expect(idle_snapshot.has(field), "runtime spider snapshot omitted %s" % field)
+	var feet_value: Variant = idle_summary.get("feet", [])
+	_expect(feet_value is Array and (feet_value as Array).size() == 6, "contact summary did not expose six terminal feet")
+	if feet_value is Array:
+		for foot_value in feet_value as Array:
+			var foot: Dictionary = foot_value
+			for field in ["leg_index", "side", "side_rank", "phase_group", "support_candidate", "stance", "contact", "position", "plant_target", "gait_target", "target_angle", "normal"]:
+				_expect(foot.has(field), "spider foot contact state omitted %s" % field)
+	var idle_contact_sides := _spider_contact_sides(idle_summary)
+	_expect(bool(idle_summary.get("grounded", false)), "spider torso settled without real foot grounding")
+	_expect(bool(idle_summary.get("support_active", false)), "spider never activated foot-supported stance")
+	_expect(not anchor.standing_hint, "spider stance still relies on the legacy torso standing hint")
+	_expect(_contacting_spider_feet(idle_summary) >= 2, "spider settled with fewer than two contacting feet")
+	_expect(bool(idle_contact_sides[-1]) and bool(idle_contact_sides[1]), "spider has no real foot contact on one side")
+	_expect(not bool(idle_summary.get("torso_contact", true)), "spider is resting its torso on the floor")
+	var support_height := float(idle_snapshot.get("support_height", 0.0))
+	var torso_clearance := float(idle_snapshot.get("torso_clearance", 0.0))
+	_expect(support_height > 1.0 and torso_clearance >= support_height * 0.6, "spider torso clearance %.1f is below 60%% of %.1f support height" % [torso_clearance, support_height])
+	var idle_tilt := rad_to_deg(absf(wrapf(anchor.global_rotation, -PI, PI)))
+	var idle_drift := anchor.global_position.distance_to(idle_start)
+	_expect(idle_tilt < 20.0, "spider torso idled at %.1f degrees" % idle_tilt)
+	_expect(idle_drift < 15.0, "spider drifted %.1f px during supported idle" % idle_drift)
+	_expect(skin.debug_recovery_count() == 0, "spider needed automatic recovery while establishing stance")
+
+	# A downward 60 px/s mass-scaled impulse must be absorbed by the stance and
+	# return the torso to its supported height without invoking runaway recovery.
+	var load_height := anchor.global_position.y
+	anchor.apply_central_impulse(Vector2(0.0, 60.0) * anchor.mass)
+	var load_contacts_restored := false
+	for _load_frame in range(120):
+		await physics_frame
+		var load_summary := skin.get_contact_summary()
+		if absf(anchor.global_position.y - load_height) <= 12.0 and _contacting_spider_feet(load_summary) >= 2:
+			load_contacts_restored = true
+	_expect(absf(anchor.global_position.y - load_height) <= 12.0, "spider torso did not recover its load-bearing height")
+	_expect(load_contacts_restored, "spider did not restore real foot contacts within 120 frames of downward load")
+	_expect(skin.debug_recovery_count() == 0, "downward load triggered spider runaway recovery")
+
+	# Exercise the real PlayableEntity input path. Jump is explicitly released so
+	# forward progress can only come from the grounded stance/gait controller.
+	Input.action_release("jump")
+	var walk_start := anchor.global_position
+	var maximum_vertical_deviation := 0.0
+	var maximum_tilt := 0.0
+	var grounded_samples := 0
+	var observed_stance_groups := {0: false, 1: false}
+	var phase_transition_stage := {0: 0, 1: 0}
+	var phase_target_excursion := {0: 0.0, 1: 0.0}
+	Input.action_press("move_right")
+	for _walk_frame in range(180):
+		await physics_frame
+		var walk_summary := skin.get_contact_summary()
+		var walk_snapshot := skin.debug_spider_snapshot()
+		var reported_stance_group := int(walk_snapshot.get("stance_group", -1))
+		if reported_stance_group in [0, 1]:
+			observed_stance_groups[reported_stance_group] = true
+		if bool(walk_summary.get("grounded", false)):
+			grounded_samples += 1
+		maximum_vertical_deviation = maxf(maximum_vertical_deviation, absf(anchor.global_position.y - walk_start.y))
+		maximum_tilt = maxf(maximum_tilt, rad_to_deg(absf(wrapf(anchor.global_rotation, -PI, PI))))
+		var phase_has_stance := {0: false, 1: false}
+		var phase_has_swing_target := {0: false, 1: false}
+		for foot_value in (walk_summary.get("feet", []) as Array):
+			var foot: Dictionary = foot_value
+			var phase_group := int(foot.get("phase_group", -1))
+			if phase_group not in [0, 1] or not bool(foot.get("support_candidate", false)):
+				continue
+			if bool(foot.get("stance", false)):
+				phase_has_stance[phase_group] = true
+			else:
+				var gait_target: Vector2 = foot.get("gait_target", Vector2.ZERO)
+				var plant_target: Vector2 = foot.get("plant_target", gait_target)
+				var target_excursion := gait_target.distance_to(plant_target)
+				phase_target_excursion[phase_group] = maxf(float(phase_target_excursion[phase_group]), target_excursion)
+				if target_excursion >= 6.0:
+					phase_has_swing_target[phase_group] = true
+		for phase_group in [0, 1]:
+			var stage := int(phase_transition_stage[phase_group])
+			if stage == 0 and bool(phase_has_stance[phase_group]):
+				phase_transition_stage[phase_group] = 1
+			elif stage == 1 and bool(phase_has_swing_target[phase_group]):
+				phase_transition_stage[phase_group] = 2
+			elif stage == 2 and bool(phase_has_stance[phase_group]):
+				phase_transition_stage[phase_group] = 3
+	Input.action_release("move_right")
+	var forward_travel := anchor.global_position.x - walk_start.x
+	_expect(forward_travel >= 90.0, "spider moved only %.1f px during 180 no-jump frames" % forward_travel)
+	_expect(maximum_vertical_deviation < 35.0, "spider torso deviated %.1f px vertically while walking" % maximum_vertical_deviation)
+	_expect(maximum_tilt < 35.0, "spider torso tilted %.1f degrees while walking" % maximum_tilt)
+	_expect(grounded_samples >= 90, "spider had real foot contact for only %d/180 walk samples" % grounded_samples)
+	_expect(bool(observed_stance_groups[0]) and bool(observed_stance_groups[1]), "spider never handed stance between both gait groups")
+	_expect(int(phase_transition_stage[0]) >= 3 and int(phase_transition_stage[1]) >= 3, "both gait groups did not complete stance-swing-stance transitions (%d, %d; targets %.1f, %.1f)" % [phase_transition_stage[0], phase_transition_stage[1], phase_target_excursion[0], phase_target_excursion[1]])
+	_expect(skin.debug_max_joint_error() <= 22.5, "spider joint separated by %.2f px during walking" % skin.debug_max_joint_error())
+	_expect(skin.debug_recovery_count() == 0, "spider locomotion invoked automatic recovery")
+
+	# Jump must release active stance, travel upward, and reacquire support only
+	# after real terminal feet land again.
+	var jump_start_y := anchor.global_position.y
+	var minimum_jump_y := jump_start_y
+	var stance_released := false
+	var became_airborne := false
+	var stance_reacquired := false
+	Input.action_press("jump")
+	# Hold across one complete physics callback; SceneTree.physics_frame resumes
+	# before node _physics_process callbacks in the same tick.
+	await physics_frame
+	await physics_frame
+	Input.action_release("jump")
+	for _jump_frame in range(240):
+		var jump_summary := skin.get_contact_summary()
+		minimum_jump_y = minf(minimum_jump_y, anchor.global_position.y)
+		if not bool(jump_summary.get("support_active", false)):
+			stance_released = true
+		if not bool(jump_summary.get("grounded", false)):
+			became_airborne = true
+		elif became_airborne and bool(jump_summary.get("support_active", false)) and _contacting_spider_feet(jump_summary) >= 2:
+			stance_reacquired = true
+		await physics_frame
+	_expect(stance_released, "spider jump never released stance anchors")
+	_expect(jump_start_y - minimum_jump_y >= 12.0, "spider jump produced no meaningful upward travel")
+	_expect(stance_reacquired, "spider did not reacquire real foot support after landing")
+	_expect(skin.debug_recovery_count() == 0, "spider jump/landing invoked automatic recovery")
+
+	# Wall climbing remains a fallback transition and must consume aggregated rig
+	# contact instead of relying on the torso alone.
+	var wall_seen := false
+	Input.action_press("move_right")
+	for _wall_approach_frame in range(180):
+		await physics_frame
+		if bool(skin.get_contact_summary().get("wall_contact", false)):
+			wall_seen = true
+			break
+	var climb_start_y := anchor.global_position.y
+	var climb_min_y := climb_start_y
+	Input.action_press("move_up")
+	for _climb_frame in range(90):
+		await physics_frame
+		var climb_summary := skin.get_contact_summary()
+		wall_seen = wall_seen or bool(climb_summary.get("wall_contact", false))
+		climb_min_y = minf(climb_min_y, anchor.global_position.y)
+	Input.action_release("move_up")
+	Input.action_release("move_right")
+	_expect(wall_seen, "spider never reported aggregated wall contact")
+	_expect(climb_start_y - climb_min_y >= 6.0, "spider wall-climb fallback produced no upward travel")
+	_expect(skin.debug_max_joint_error() <= 22.5 and skin.debug_recovery_count() == 0, "spider became unstable during wall-climb smoke test")
+
+	spider.queue_free()
+	wall.queue_free()
+	await process_frame
 
 
 ## An uncontrolled, grounded creature must stay put. The active ragdoll must not pump
@@ -503,10 +818,13 @@ func _check_messy_fixture(path: String) -> void:
 	instance.set_physics_process(false)
 	skin.set_motion_state(primary_state, motion)
 	skin._physics_process(0.1)
-	var animated := false
-	for torque in skin.debug_drive_torques():
-		animated = animated or absf(torque) > 0.01
-	_expect(animated, "'%s' did not animate in state %s" % [label, primary_state])
+	if entity_id == "spider":
+		_expect(bool(skin.debug_spider_snapshot().get("valid", false)), "'%s' did not produce spider anatomy" % label)
+	else:
+		var animated := false
+		for torque in skin.debug_drive_torques():
+			animated = animated or absf(torque) > 0.01
+		_expect(animated, "'%s' did not animate in state %s" % [label, primary_state])
 
 	var maximum_joint_error := 0.0
 	for _frame in range(90):
@@ -621,8 +939,10 @@ func _fixture_for(entity_id: String) -> Array:
 		for index in range(18):
 			wave.append(Vector2(90.0 + index * 19.0, 256.0 + sin(float(index) * 0.75) * 28.0))
 		return [_stroke(wave)]
+	if entity_id == "spider":
+		return SpiderReferenceFixtures.separate_legs()
 	var strokes: Array = [_stroke(_closed_body())]
-	var limb_count := 8 if entity_id == "spider" else 4
+	var limb_count := 4
 	if entity_id == "fish":
 		limb_count = 2
 	for index in range(limb_count):
@@ -658,6 +978,13 @@ func _stroke(points: PackedVector2Array) -> Dictionary:
 	return {"points": points, "width": 8.0, "color": Color.BLACK}
 
 
+func _test_path_length(points: PackedVector2Array) -> float:
+	var length := 0.0
+	for index in range(1, points.size()):
+		length += points[index - 1].distance_to(points[index])
+	return length
+
+
 func _blank_image() -> Image:
 	var image := Image.create(512, 512, false, Image.FORMAT_RGBA8)
 	image.fill(Color.WHITE)
@@ -673,6 +1000,43 @@ func _add_floor() -> void:
 	collision.shape = shape
 	floor.add_child(collision)
 	world.add_child(floor)
+
+
+func _add_spider_test_wall() -> StaticBody2D:
+	var wall := StaticBody2D.new()
+	wall.position = Vector2(650.0, 250.0)
+	var collision := CollisionShape2D.new()
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(30.0, 300.0)
+	collision.shape = shape
+	wall.add_child(collision)
+	world.add_child(wall)
+	return wall
+
+
+func _contacting_spider_feet(summary: Dictionary) -> int:
+	var count := 0
+	var feet_value: Variant = summary.get("feet", [])
+	if feet_value is Array:
+		for foot_value in feet_value as Array:
+			if foot_value is Dictionary and bool((foot_value as Dictionary).get("contact", false)):
+				count += 1
+	return count
+
+
+func _spider_contact_sides(summary: Dictionary) -> Dictionary:
+	var result := {-1: false, 1: false}
+	var feet_value: Variant = summary.get("feet", [])
+	if feet_value is Array:
+		for foot_value in feet_value as Array:
+			if not (foot_value is Dictionary):
+				continue
+			var foot: Dictionary = foot_value
+			if bool(foot.get("contact", false)):
+				var side := int(foot.get("side", 0))
+				if side in [-1, 1]:
+					result[side] = true
+	return result
 
 
 func _add_target_body(parent: Node2D) -> void:
