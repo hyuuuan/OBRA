@@ -10,5 +10,11 @@ venv/
 # Godot
 .godot/
 
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+
 # Thesis working documents
 thesisdocs/
