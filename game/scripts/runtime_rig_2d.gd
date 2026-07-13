@@ -53,6 +53,7 @@ var _spider_total_mass: float = 0.0
 var _spider_floor_y: float = 0.0
 var _spider_floor_normal: Vector2 = Vector2.UP
 var _spider_force_release_frames: int = 0
+var _spider_leg_drive_force: Vector2 = Vector2.ZERO
 
 
 func configure_rig(new_profile: Dictionary, new_entity_metadata: Dictionary = {}) -> void:
@@ -92,6 +93,7 @@ func get_contact_summary() -> Dictionary:
 			"support_active": false,
 			"torso_contact": _primary_body != null and _primary_body.grounded,
 			"dominant_surface_normal": _primary_body.dominant_surface_normal if _primary_body != null else Vector2.UP,
+			"leg_drive_force": Vector2.ZERO,
 			"feet": []
 		}
 	_update_spider_contact_cache()
@@ -143,7 +145,8 @@ func get_contact_summary() -> Dictionary:
 			"plant_target": Vector2(foot.get("plant_target", _spider_sole_global(foot))),
 			"gait_target": Vector2(foot.get("last_target", _spider_sole_global(foot))),
 			"normal": normal,
-			"target_angle": _spider_foot_target_angle(foot)
+			"target_angle": _spider_foot_target_angle(foot),
+			"drive_reaction": Vector2(foot.get("drive_reaction", Vector2.ZERO))
 		})
 	for rig_body in _bodies:
 		if not is_instance_valid(rig_body):
@@ -173,6 +176,7 @@ func get_contact_summary() -> Dictionary:
 		"support_active": _spider_support_active,
 		"torso_contact": _primary_body != null and _primary_body.grounded,
 		"dominant_surface_normal": dominant_normal,
+		"leg_drive_force": _spider_leg_drive_force,
 		"feet": feet_report
 	}
 func release_stance() -> void:
@@ -250,6 +254,7 @@ func debug_spider_snapshot() -> Dictionary:
 		"gait_phase": _spider_gait_phase,
 		"gait_targets": gait_targets,
 		"torso_contact": bool(contact.get("torso_contact", false)),
+		"leg_drive_force": _spider_leg_drive_force,
 		"leg_count": legs_report.size(),
 		"legs": legs_report,
 		"feet": contact.get("feet", [])
@@ -427,6 +432,9 @@ func _physics_process_spider(delta: float) -> void:
 	if _primary_body == null:
 		return
 	_primary_body.standing_hint = false
+	_spider_leg_drive_force = Vector2.ZERO
+	for foot_value in _spider_feet:
+		(foot_value as Dictionary)["drive_reaction"] = Vector2.ZERO
 	if _spider_force_release_frames > 0:
 		_spider_force_release_frames -= 1
 	_update_spider_contact_cache()
@@ -671,9 +679,23 @@ func _apply_spider_stance_forces() -> void:
 
 	var direction := clampf(float(_motion_params.get("direction", 0.0)), -1.0, 1.0)
 	var target_speed := direction * float(profile.get("move_speed", 180.0))
-	var move_acceleration := float(profile.get("move_acceleration", 1350.0))
-	var drive_accel := clampf((target_speed - _primary_body.linear_velocity.x) * 7.0, -move_acceleration, move_acceleration)
-	_primary_body.apply_central_force(Vector2(drive_accel * total_mass, 0.0))
+	var move_acceleration := float(profile.get("leg_drive_acceleration", 1350.0))
+	var drive_gain := float(profile.get("leg_drive_velocity_gain", 8.5))
+	var drive_accel := clampf((target_speed - _primary_body.linear_velocity.x) * drive_gain, -move_acceleration, move_acceleration)
+	var drive_force := Vector2(drive_accel * total_mass, 0.0)
+	# Horizontal drive is an internal leg-muscle pair, never a free force on the
+	# torso. The torso-side force is matched by an opposite push through the
+	# contacting stance feet. Only the ground reaction at those feet can propel
+	# the rig; if contact disappears, this entire controller stops running.
+	_spider_leg_drive_force = drive_force
+	_primary_body.apply_central_force(drive_force)
+	for foot_index in range(stance_feet.size()):
+		var foot := stance_feet[foot_index]
+		var body := foot.get("body") as ActiveRigBody2D
+		if is_instance_valid(body):
+			var drive_reaction := -drive_force * float(reaction_weights[foot_index])
+			foot["drive_reaction"] = drive_reaction
+			body.apply_central_force(drive_reaction)
 
 
 func _spider_reaction_weights(stance_feet: Array[Dictionary]) -> PackedFloat32Array:
@@ -750,8 +772,9 @@ func _set_spider_foot_friction(foot: Dictionary, stance: bool) -> void:
 	material.friction = clampf(
 		float(profile.get("stance_friction", 1.25)) if stance else float(profile.get("swing_friction", 0.08)),
 		0.02,
-		1.4
+		4.0
 	)
+	material.rough = stance
 	material.bounce = 0.0
 
 
@@ -1191,7 +1214,8 @@ func _build_spider_leg(leg: Dictionary, leg_index: int, strokes: Array, torso_ce
 		"stance": false,
 		"contact": false,
 		"plant_target": sole,
-		"last_target": sole
+		"last_target": sole,
+		"drive_reaction": Vector2.ZERO
 	}
 	_spider_feet.append(foot)
 	_set_spider_foot_friction(foot, false)
@@ -1869,6 +1893,7 @@ func _clear_rig() -> void:
 	_spider_floor_y = 0.0
 	_spider_floor_normal = Vector2.UP
 	_spider_force_release_frames = 0
+	_spider_leg_drive_force = Vector2.ZERO
 	if _physics_root != null and is_instance_valid(_physics_root):
 		_physics_root.get_parent().remove_child(_physics_root)
 		_physics_root.queue_free()

@@ -61,11 +61,15 @@ func _run() -> void:
 	Input.action_press("move_right")
 	for walk_frame in range(180):
 		await physics_frame
+		# Match the regression suite and gameplay controller's per-frame contact
+		# inspection; contact sampling must not change locomotion behaviour.
+		skin.get_contact_summary()
+		var sampled_snapshot := skin.debug_spider_snapshot()
 		var current_tilt := rad_to_deg(absf(wrapf(anchor.global_rotation, -PI, PI)))
 		if current_tilt > walk_max_tilt:
 			walk_max_tilt = current_tilt
 			walk_max_tilt_frame = walk_frame
-			walk_max_tilt_state = skin.debug_spider_snapshot()
+			walk_max_tilt_state = sampled_snapshot
 		walk_max_vertical = maxf(walk_max_vertical, absf(anchor.global_position.y - walk_start.y))
 	Input.action_release("move_right")
 	var displacement := anchor.global_position - walk_start
