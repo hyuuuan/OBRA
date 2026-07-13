@@ -6,6 +6,7 @@ extends "res://scripts/drawing_skin_2d.gd"
 
 signal rig_built(success: bool)
 
+const SpiderRigAnalyzer = preload("res://scripts/spider_rig_analyzer.gd")
 const MAX_BODIES := 24
 const MAX_JOINTS := 23
 const MAX_SHAPES := 64
@@ -39,6 +40,20 @@ var _stand_height: float = 0.0
 var _support_blend: float = 0.0
 var _stand_target_y: float = 0.0
 
+# Spider-only semantic and stance state. Other entities continue through the
+# legacy active-ragdoll path above/below; keeping the state separate prevents a
+# second controller from silently fighting the spider stance solver.
+var _spider_anatomy: Dictionary = {}
+var _spider_feet: Array[Dictionary] = []
+var _spider_support_height: float = 0.0
+var _spider_support_active: bool = false
+var _spider_stance_group: int = 0
+var _spider_gait_phase: float = 0.0
+var _spider_total_mass: float = 0.0
+var _spider_floor_y: float = 0.0
+var _spider_floor_normal: Vector2 = Vector2.UP
+var _spider_force_release_frames: int = 0
+
 
 func configure_rig(new_profile: Dictionary, new_entity_metadata: Dictionary = {}) -> void:
 	configure_skin(new_profile, new_entity_metadata)
@@ -66,6 +81,179 @@ func get_rigid_bodies() -> Array[ActiveRigBody2D]:
 
 func get_joint_count() -> int:
 	return _joints.size()
+
+
+func get_contact_summary() -> Dictionary:
+	if _entity_id != "spider" or _spider_feet.is_empty():
+		return {
+			"grounded": _primary_body != null and _primary_body.grounded,
+			"wall_contact": _primary_body != null and _primary_body.wall_contact,
+			"ceiling_contact": _primary_body != null and _primary_body.ceiling_contact,
+			"support_active": false,
+			"torso_contact": _primary_body != null and _primary_body.grounded,
+			"dominant_surface_normal": _primary_body.dominant_surface_normal if _primary_body != null else Vector2.UP,
+			"feet": []
+		}
+	_update_spider_contact_cache()
+	var feet_report: Array[Dictionary] = []
+	var grounded := false
+	var wall_contact := false
+	var ceiling_contact := false
+	var dominant_normal := Vector2.UP
+	var floor_normal := Vector2.UP
+	var wall_normal := Vector2.ZERO
+	var ceiling_normal := Vector2.DOWN
+	var best_floor_score := -INF
+	var best_wall_score := -INF
+	var best_ceiling_score := -INF
+	for foot_value in _spider_feet:
+		var foot: Dictionary = foot_value
+		var body := foot.get("body") as ActiveRigBody2D
+		if not is_instance_valid(body):
+			continue
+		var contacted := bool(foot.get("contact", false))
+		grounded = grounded or contacted
+		wall_contact = wall_contact or body.wall_contact
+		ceiling_contact = ceiling_contact or body.ceiling_contact
+		var normal := body.floor_surface_normal if contacted else body.dominant_surface_normal
+		if contacted:
+			var floor_score := body.floor_surface_normal.dot(Vector2.UP)
+			if floor_score > best_floor_score:
+				best_floor_score = floor_score
+				floor_normal = body.floor_surface_normal
+		if body.wall_contact:
+			var wall_score := absf(body.wall_surface_normal.x)
+			if wall_score > best_wall_score:
+				best_wall_score = wall_score
+				wall_normal = body.wall_surface_normal
+		if body.ceiling_contact:
+			var ceiling_score := body.ceiling_surface_normal.dot(Vector2.DOWN)
+			if ceiling_score > best_ceiling_score:
+				best_ceiling_score = ceiling_score
+				ceiling_normal = body.ceiling_surface_normal
+		feet_report.append({
+			"leg_index": int(foot.get("leg_index", -1)),
+			"side": float(foot.get("side", 0.0)),
+			"side_rank": int(foot.get("side_rank", -1)),
+			"phase_group": int(foot.get("phase_group", 0)),
+			"support_candidate": bool(foot.get("support_candidate", false)),
+			"stance": bool(foot.get("stance", false)),
+			"contact": contacted,
+			"position": _spider_sole_global(foot),
+			"plant_target": Vector2(foot.get("plant_target", _spider_sole_global(foot))),
+			"gait_target": Vector2(foot.get("last_target", _spider_sole_global(foot))),
+			"normal": normal,
+			"target_angle": _spider_foot_target_angle(foot)
+		})
+	for rig_body in _bodies:
+		if not is_instance_valid(rig_body):
+			continue
+		wall_contact = wall_contact or rig_body.wall_contact
+		ceiling_contact = ceiling_contact or rig_body.ceiling_contact
+		if rig_body.wall_contact:
+			var wall_score := absf(rig_body.wall_surface_normal.x)
+			if wall_score > best_wall_score:
+				best_wall_score = wall_score
+				wall_normal = rig_body.wall_surface_normal
+		if rig_body.ceiling_contact:
+			var ceiling_score := rig_body.ceiling_surface_normal.dot(Vector2.DOWN)
+			if ceiling_score > best_ceiling_score:
+				best_ceiling_score = ceiling_score
+				ceiling_normal = rig_body.ceiling_surface_normal
+	if wall_contact and wall_normal.length_squared() > 0.01:
+		dominant_normal = wall_normal.normalized()
+	elif ceiling_contact and ceiling_normal.length_squared() > 0.01:
+		dominant_normal = ceiling_normal.normalized()
+	elif grounded:
+		dominant_normal = floor_normal.normalized()
+	return {
+		"grounded": grounded,
+		"wall_contact": wall_contact,
+		"ceiling_contact": ceiling_contact,
+		"support_active": _spider_support_active,
+		"torso_contact": _primary_body != null and _primary_body.grounded,
+		"dominant_surface_normal": dominant_normal,
+		"feet": feet_report
+	}
+func release_stance() -> void:
+	_spider_support_active = false
+	_spider_force_release_frames = 8
+	for foot_value in _spider_feet:
+		var foot: Dictionary = foot_value
+		foot["stance"] = false
+		_set_spider_foot_friction(foot, false)
+	if _primary_body != null:
+		_primary_body.standing_hint = false
+
+
+func apply_spider_torso_acceleration(acceleration: Vector2) -> void:
+	if _entity_id != "spider" or not is_instance_valid(_primary_body):
+		return
+	var total_mass := maxf(_spider_total_mass, _primary_body.mass)
+	_primary_body.apply_central_force(acceleration * total_mass)
+
+
+func apply_spider_surface_attitude(surface_normal: Vector2) -> void:
+	if _entity_id != "spider" or not is_instance_valid(_primary_body) \
+	or surface_normal.length_squared() <= 0.01:
+		return
+	var tangent := Vector2(-surface_normal.y, surface_normal.x).normalized()
+	var target_a := tangent.angle()
+	var target_b := (-tangent).angle()
+	var error_a := wrapf(target_a - _primary_body.global_rotation, -PI, PI)
+	var error_b := wrapf(target_b - _primary_body.global_rotation, -PI, PI)
+	var attitude_error := error_a if absf(error_a) <= absf(error_b) else error_b
+	var spring := float(profile.get("climb_attitude_spring", 18000.0))
+	var damping := float(profile.get("climb_attitude_damping", 4500.0))
+	var torque_limit := float(profile.get("climb_attitude_torque_limit", 65000.0))
+	var torque := clampf(
+		attitude_error * spring - _primary_body.angular_velocity * damping,
+		-torque_limit,
+		torque_limit
+	)
+	_primary_body.apply_torque(torque)
+
+
+func debug_spider_snapshot() -> Dictionary:
+	var contact := get_contact_summary()
+	var safe_anatomy := _spider_anatomy.duplicate(true)
+	# Runtime objects are deliberately not part of the test/debug contract.
+	var legs_report: Array[Dictionary] = []
+	for leg_value in safe_anatomy.get("legs", []):
+		var leg: Dictionary = leg_value
+		legs_report.append({
+			"root": Vector2(leg.get("root", Vector2.ZERO)),
+			"sole": Vector2(leg.get("sole", Vector2.ZERO)),
+			"side": float(leg.get("side", 0.0)),
+			"side_rank": int(leg.get("side_rank", -1)),
+			"phase_group": int(leg.get("phase_group", 0)),
+			"support_candidate": bool(leg.get("support_candidate", false)),
+			"bend_index": int(leg.get("bend_index", -1)),
+			"path": PackedVector2Array(leg.get("path", PackedVector2Array()))
+		})
+	var clearance := 0.0
+	if _primary_body != null and is_finite(_spider_floor_y):
+		clearance = _spider_floor_y - _primary_body.global_position.y
+	var gait_targets: Array[Vector2] = []
+	for foot_value in contact.get("feet", []):
+		if foot_value is Dictionary:
+			gait_targets.append(Vector2((foot_value as Dictionary).get("gait_target", Vector2.ZERO)))
+	return {
+		"valid": bool(_spider_anatomy.get("valid", false)),
+		"reason": String(_spider_anatomy.get("reason", "not-spider")),
+		"torso_center": Vector2(_spider_anatomy.get("torso_center", Vector2.ZERO)),
+		"torso_bounds": Rect2(_spider_anatomy.get("torso_bounds", Rect2())),
+		"support_height": _spider_support_height,
+		"torso_clearance": clearance,
+		"support_active": _spider_support_active,
+		"stance_group": _spider_stance_group,
+		"gait_phase": _spider_gait_phase,
+		"gait_targets": gait_targets,
+		"torso_contact": bool(contact.get("torso_contact", false)),
+		"leg_count": legs_report.size(),
+		"legs": legs_report,
+		"feet": contact.get("feet", [])
+	}
 
 
 func debug_segment_roles() -> Array[String]:
@@ -142,7 +330,9 @@ func _on_skin_rebuilt() -> void:
 	_build_generation += 1
 	_clear_rig()
 	if skin_mode() == "vector" and not get_vector_strokes().is_empty():
-		if _entity_id == "snake":
+		if _entity_id == "spider":
+			_build_spider_rig(get_vector_strokes())
+		elif _entity_id == "snake":
 			_build_chain_rig(get_vector_strokes())
 		else:
 			_build_standard_rig(get_vector_strokes())
@@ -164,6 +354,9 @@ func _physics_process(delta: float) -> void:
 		_recover_rig()
 		return
 	if _segments.is_empty():
+		return
+	if _entity_id == "spider" and not _spider_feet.is_empty():
+		_physics_process_spider(delta)
 		return
 	_update_stand_state(delta)
 	var speed_ratio := clampf(float(_motion_params.get("speed_ratio", 0.0)), 0.0, 1.5)
@@ -228,6 +421,338 @@ func _physics_process(delta: float) -> void:
 			child.apply_central_force(-child.linear_velocity * child.mass * 6.0)
 
 	_apply_stand_support()
+
+
+func _physics_process_spider(delta: float) -> void:
+	if _primary_body == null:
+		return
+	_primary_body.standing_hint = false
+	if _spider_force_release_frames > 0:
+		_spider_force_release_frames -= 1
+	_update_spider_contact_cache()
+	var grounded_mode := _motion_state in ["idle", "walk"] \
+		and _primary_body.gravity_scale > 0.01 and _spider_force_release_frames <= 0
+	if grounded_mode:
+		_update_spider_gait(delta)
+	else:
+		_spider_support_active = false
+		for foot_value in _spider_feet:
+			var foot: Dictionary = foot_value
+			foot["stance"] = false
+			_set_spider_foot_friction(foot, false)
+			var rest_target := _primary_body.global_position + Vector2(foot.get("rest_offset", Vector2.ZERO)).rotated(_primary_body.rotation)
+			foot["last_target"] = rest_target
+			_set_spider_leg_target(foot, rest_target)
+	_apply_spider_joint_muscles()
+	if _spider_support_active:
+		_apply_spider_stance_forces()
+
+
+func _update_spider_contact_cache() -> void:
+	var floor_total := 0.0
+	var floor_count := 0
+	var normal_total := Vector2.ZERO
+	for foot_value in _spider_feet:
+		var foot: Dictionary = foot_value
+		var body := foot.get("body") as ActiveRigBody2D
+		if not is_instance_valid(body):
+			foot["contact"] = false
+			continue
+		# Only a terminal leg body can contribute floor support. The primary torso's
+		# grounded flag is exposed separately and never promoted into foot contact.
+		var contacted := body.grounded
+		foot["contact"] = contacted
+		if contacted:
+			var sole := _spider_sole_global(foot)
+			floor_total += sole.y
+			floor_count += 1
+			normal_total += body.dominant_surface_normal
+	if floor_count > 0:
+		_spider_floor_y = floor_total / float(floor_count)
+		if normal_total.length_squared() > 0.001:
+			_spider_floor_normal = normal_total.normalized()
+
+
+func _update_spider_gait(delta: float) -> void:
+	var moving := bool(_motion_params.get("moving", false))
+	var direction := clampf(float(_motion_params.get("direction", 0.0)), -1.0, 1.0)
+	if absf(direction) <= 0.05:
+		moving = false
+	var support_contacts_by_group := [0, 0]
+	var support_contacts := 0
+	for foot_value in _spider_feet:
+		var foot: Dictionary = foot_value
+		if bool(foot.get("support_candidate", false)) and _spider_foot_reached_ground_target(foot):
+			var group := clampi(int(foot.get("phase_group", 0)), 0, 1)
+			support_contacts_by_group[group] += 1
+			support_contacts += 1
+
+	if not moving:
+		_spider_support_active = support_contacts > 0
+		for foot_value in _spider_feet:
+			var foot: Dictionary = foot_value
+			var can_stance := bool(foot.get("support_candidate", false)) and bool(foot.get("contact", false))
+			if can_stance and not bool(foot.get("stance", false)):
+				foot["plant_target"] = _spider_sole_global(foot)
+			foot["stance"] = can_stance
+			_set_spider_foot_friction(foot, can_stance)
+			var target := Vector2(foot.get("plant_target", _spider_sole_global(foot))) if can_stance \
+				else _primary_body.global_position + Vector2(foot.get("rest_offset", Vector2.ZERO)).rotated(_primary_body.rotation)
+			foot["last_target"] = target
+			_set_spider_leg_target(foot, target)
+		return
+
+	var gait_frequency := clampf(float(profile.get("gait_frequency", 2.2)), 0.4, 4.0)
+	_spider_gait_phase = fposmod(_spider_gait_phase + delta * gait_frequency * TAU, TAU)
+	var desired_swing_group := 0 if _spider_gait_phase < PI else 1
+	var desired_stance_group := 1 - desired_swing_group
+	# Do not lift the currently supporting group until its counterpart has made
+	# real contact. This prevents a sketch with uneven legs from entering a frame
+	# where every foot is in swing.
+	if support_contacts_by_group[desired_stance_group] > 0:
+		_spider_stance_group = desired_stance_group
+	elif support_contacts_by_group[_spider_stance_group] <= 0 and support_contacts_by_group[1 - _spider_stance_group] > 0:
+		_spider_stance_group = 1 - _spider_stance_group
+	var swing_group := 1 - _spider_stance_group
+	var half_progress := fposmod(_spider_gait_phase, PI) / PI
+	var smooth_progress := half_progress * half_progress * (3.0 - 2.0 * half_progress)
+	_spider_support_active = support_contacts_by_group[_spider_stance_group] > 0
+	var stride := float(profile.get("stride_length", 42.0))
+	var clearance := float(profile.get("swing_clearance", 18.0))
+	for foot_value in _spider_feet:
+		var foot: Dictionary = foot_value
+		var group := clampi(int(foot.get("phase_group", 0)), 0, 1)
+		var support_candidate := bool(foot.get("support_candidate", false))
+		var should_stance := support_candidate and group == _spider_stance_group and _spider_foot_reached_ground_target(foot)
+		if should_stance and not bool(foot.get("stance", false)):
+			var plant_target := _spider_sole_global(foot)
+			plant_target.y = _spider_floor_y
+			foot["plant_target"] = plant_target
+		foot["stance"] = should_stance
+		_set_spider_foot_friction(foot, should_stance)
+		var target: Vector2
+		if should_stance:
+			target = Vector2(foot.get("plant_target", _spider_sole_global(foot)))
+		elif group == swing_group or not support_candidate:
+			var rest_offset := Vector2(foot.get("rest_offset", Vector2.ZERO)).rotated(_primary_body.rotation)
+			target = _primary_body.global_position + rest_offset
+			target.x += direction * lerpf(-stride * 0.35, stride * 0.55, smooth_progress)
+			target.y = _spider_floor_y - sin(half_progress * PI) * clearance
+		else:
+			# A stance-group foot can momentarily lose contact after the phase handoff.
+			# Drive its drawn sole back to the measured floor instead of returning it
+			# to an airborne rest pose; support is enabled only after contact returns.
+			target = _primary_body.global_position + Vector2(foot.get("rest_offset", Vector2.ZERO)).rotated(_primary_body.rotation)
+			target.y = _spider_floor_y
+		foot["last_target"] = target
+		_set_spider_leg_target(foot, target)
+
+
+func _spider_foot_reached_ground_target(foot: Dictionary) -> bool:
+	if not bool(foot.get("contact", false)):
+		return false
+	if bool(foot.get("stance", false)):
+		return true
+	var sole := _spider_sole_global(foot)
+	var target := Vector2(foot.get("last_target", sole))
+	var plant_distance := clampf(float(profile.get("plant_distance", 14.0)), 4.0, 24.0)
+	return sole.distance_to(target) <= plant_distance \
+		and absf(sole.y - _spider_floor_y) <= plant_distance
+
+
+func _set_spider_leg_target(foot: Dictionary, world_target: Vector2) -> void:
+	var records: Array = foot.get("segments", [])
+	if records.size() < 2 or _primary_body == null:
+		return
+	var torso_center := Vector2(_spider_anatomy.get("torso_center", Vector2.ZERO))
+	var root_rig := Vector2(foot.get("root_rig", torso_center))
+	var root_local := root_rig - torso_center
+	var root_world := _primary_body.to_global(root_local)
+	var target_vector := world_target - root_world
+	var length_a := maxf(2.0, float(foot.get("length_a", 2.0)))
+	var length_b := maxf(2.0, float(foot.get("length_b", 2.0)))
+	var distance := clampf(target_vector.length(), absf(length_a - length_b) + 0.5, length_a + length_b - 0.5)
+	if distance <= 0.001:
+		return
+	var elbow_cos := clampf((distance * distance - length_a * length_a - length_b * length_b) / (2.0 * length_a * length_b), -1.0, 1.0)
+	var elbow := acos(elbow_cos) * signf(float(foot.get("bend_sign", 1.0)))
+	var shoulder := target_vector.angle() - atan2(length_b * sin(elbow), length_a + length_b * cos(elbow))
+	var first: Dictionary = records[0]
+	var second: Dictionary = records[1]
+	var first_parent := first.get("parent") as ActiveRigBody2D
+	var second_parent := second.get("parent") as ActiveRigBody2D
+	if not is_instance_valid(first_parent) or not is_instance_valid(second_parent):
+		return
+	var desired_first_body_rotation := shoulder - float(first.get("rest_axis_angle", 0.0))
+	var desired_second_body_rotation := shoulder + elbow - float(second.get("rest_axis_angle", 0.0))
+	first["target_angle"] = wrapf(desired_first_body_rotation - first_parent.rotation - float(first.get("rest_relative", 0.0)), -PI, PI)
+	second["target_angle"] = wrapf(desired_second_body_rotation - second_parent.rotation - float(second.get("rest_relative", 0.0)), -PI, PI)
+
+
+func _apply_spider_joint_muscles() -> void:
+	for segment_value in _segments:
+		var segment: Dictionary = segment_value
+		var parent := segment.get("parent") as ActiveRigBody2D
+		var child := segment.get("body") as ActiveRigBody2D
+		var joint := segment.get("joint") as PinJoint2D
+		if not is_instance_valid(parent) or not is_instance_valid(child) or not is_instance_valid(joint):
+			continue
+		var limit := float(segment.get("angle_limit", deg_to_rad(78.0)))
+		var target := clampf(float(segment.get("target_angle", 0.0)), -limit, limit)
+		var current := wrapf(child.rotation - parent.rotation - float(segment.get("rest_relative", 0.0)), -PI, PI)
+		var error := wrapf(target - current, -PI, PI)
+		var relative_velocity := child.angular_velocity - parent.angular_velocity
+		var mass_scale := clampf(minf(parent.mass, child.mass) / 0.24, 0.55, 1.4)
+		var distal_scale := 1.0 if int(segment.get("chain_index", 0)) == 0 else 0.78
+		var spring := float(profile.get("joint_spring", 1250.0)) * mass_scale * distal_scale
+		var damping := float(profile.get("joint_damping", 78.0)) * mass_scale
+		var torque_limit := float(profile.get("joint_torque_limit", 3000.0)) * distal_scale
+		var torque := clampf(error * spring - relative_velocity * damping, -torque_limit, torque_limit)
+		segment["last_drive_torque"] = torque
+		child.apply_torque(torque)
+		parent.apply_torque(-torque)
+
+
+func _apply_spider_stance_forces() -> void:
+	if _primary_body == null:
+		return
+	var stance_feet: Array[Dictionary] = []
+	for foot_value in _spider_feet:
+		var foot: Dictionary = foot_value
+		if bool(foot.get("stance", false)) and bool(foot.get("contact", false)):
+			stance_feet.append(foot)
+	if stance_feet.is_empty():
+		_spider_support_active = false
+		return
+
+	var stance_spring := float(profile.get("stance_spring", 850.0))
+	var stance_damping := float(profile.get("stance_damping", 70.0))
+	var stance_limit := float(profile.get("stance_force_limit", 2200.0))
+	for foot in stance_feet:
+		var body := foot.get("body") as ActiveRigBody2D
+		if not is_instance_valid(body):
+			continue
+		var error := Vector2(foot.get("plant_target", _spider_sole_global(foot))) - _spider_sole_global(foot)
+		var force := (error * stance_spring - body.linear_velocity * stance_damping) * body.mass
+		force = force.limit_length(stance_limit * body.mass)
+		body.apply_central_force(force)
+
+	var desired_y := _spider_floor_y - _spider_support_height
+	var height_error := _primary_body.global_position.y - desired_y
+	var support_spring := float(profile.get("support_spring", 65.0))
+	var support_damping := float(profile.get("support_damping", 30.0))
+	var support_limit := float(profile.get("support_force", 2250.0))
+	var support_accel := clampf(_gravity + height_error * support_spring + _primary_body.linear_velocity.y * support_damping, 0.0, support_limit)
+	var total_mass := maxf(_spider_total_mass, _primary_body.mass)
+	var upward_force := total_mass * support_accel
+	# The hidden stance actuator is an equal-and-opposite pair: the torso receives
+	# the bounded lift and physically contacted feet receive the complete downward
+	# reaction, divided across the current stance set. Ground reaction, not a net
+	# levitation force, is what then carries the rig's weight.
+	var reaction_weights := _spider_reaction_weights(stance_feet)
+	_primary_body.apply_central_force(Vector2(0.0, -upward_force))
+	for foot_index in range(stance_feet.size()):
+		var foot := stance_feet[foot_index]
+		var body := foot.get("body") as ActiveRigBody2D
+		if is_instance_valid(body):
+			var reaction_force := upward_force * float(reaction_weights[foot_index])
+			body.apply_central_force(Vector2(0.0, reaction_force))
+
+	var attitude_spring := float(profile.get("attitude_spring", 2600.0))
+	var attitude_damping := float(profile.get("attitude_damping", 300.0))
+	var attitude_limit := float(profile.get("attitude_torque_limit", 5200.0))
+	var attitude_torque := clampf(
+		-_primary_body.rotation * attitude_spring
+		- _primary_body.angular_velocity * attitude_damping,
+		-attitude_limit,
+		attitude_limit
+	)
+	_primary_body.apply_torque(attitude_torque)
+
+	var direction := clampf(float(_motion_params.get("direction", 0.0)), -1.0, 1.0)
+	var target_speed := direction * float(profile.get("move_speed", 180.0))
+	var move_acceleration := float(profile.get("move_acceleration", 1350.0))
+	var drive_accel := clampf((target_speed - _primary_body.linear_velocity.x) * 7.0, -move_acceleration, move_acceleration)
+	_primary_body.apply_central_force(Vector2(drive_accel * total_mass, 0.0))
+
+
+func _spider_reaction_weights(stance_feet: Array[Dictionary]) -> PackedFloat32Array:
+	var count := stance_feet.size()
+	var weights := PackedFloat32Array()
+	weights.resize(count)
+	if count <= 0:
+		return weights
+	var equal_weight := 1.0 / float(count)
+	var mean_x := 0.0
+	var foot_x := PackedFloat32Array()
+	foot_x.resize(count)
+	var minimum_x := INF
+	var maximum_x := -INF
+	var has_left := false
+	var has_right := false
+	for index in range(count):
+		foot_x[index] = _spider_sole_global(stance_feet[index]).x
+		mean_x += foot_x[index]
+		minimum_x = minf(minimum_x, foot_x[index])
+		maximum_x = maxf(maximum_x, foot_x[index])
+		has_left = has_left or float(stance_feet[index].get("side", 0.0)) < 0.0
+		has_right = has_right or float(stance_feet[index].get("side", 0.0)) > 0.0
+	mean_x /= float(count)
+	# Moment balancing is safe only for a real cross-side support polygon. When a
+	# gait transition briefly leaves one side in contact, keep an even reaction
+	# instead of concentrating the complete load into its outermost foot.
+	if not has_left or not has_right \
+	or _primary_body.global_position.x <= minimum_x or _primary_body.global_position.x >= maximum_x:
+		for index in range(count):
+			weights[index] = equal_weight
+		return weights
+	var spread := 0.0
+	for index in range(count):
+		spread += pow(foot_x[index] - mean_x, 2.0)
+	var adjustment := 0.0
+	if count >= 2 and spread > 1.0:
+		adjustment = (_primary_body.global_position.x - mean_x) / spread
+	var total := 0.0
+	for index in range(count):
+		weights[index] = maxf(0.0, equal_weight + adjustment * (foot_x[index] - mean_x))
+		total += weights[index]
+	if total <= 0.001:
+		for index in range(count):
+			weights[index] = equal_weight
+	else:
+		for index in range(count):
+			weights[index] /= total
+	return weights
+
+
+func _spider_sole_global(foot: Dictionary) -> Vector2:
+	var body := foot.get("body") as ActiveRigBody2D
+	if not is_instance_valid(body):
+		return Vector2.ZERO
+	return body.to_global(Vector2(foot.get("sole_local", Vector2.ZERO)))
+
+
+func _spider_foot_target_angle(foot: Dictionary) -> float:
+	var records: Array = foot.get("segments", [])
+	if records.is_empty():
+		return 0.0
+	return float((records[0] as Dictionary).get("target_angle", 0.0))
+
+
+func _set_spider_foot_friction(foot: Dictionary, stance: bool) -> void:
+	var body := foot.get("body") as ActiveRigBody2D
+	if not is_instance_valid(body):
+		return
+	var material := body.physics_material_override
+	if material == null:
+		material = PhysicsMaterial.new()
+		body.physics_material_override = material
+	material.friction = clampf(
+		float(profile.get("stance_friction", 1.25)) if stance else float(profile.get("swing_friction", 0.08)),
+		0.02,
+		1.4
+	)
+	material.bounce = 0.0
 
 
 ## Decide whether the creature is standing on ground within leg reach and update
@@ -342,16 +867,6 @@ func _species_target_angle(segment: Dictionary, role: String, phase: float, movi
 	var side := signf(float(segment.get("side", 1.0)))
 	var direction := float(_motion_params.get("direction", 0.0))
 
-	if _entity_id == "spider" and role == "leg":
-		if _motion_state in ["walk", "climb"] and moving:
-			var alternating := 0.0 if limb_index % 2 == 0 else PI
-			var stride := sin(phase + alternating)
-			# Proximal segments reach while distal segments bend in the opposite
-			# direction. Driving both the same way turns an articulated leg into a
-			# rigid paddle and pulls the abdomen onto the floor.
-			return deg_to_rad(18.0) * stride if chain_index == 0 else deg_to_rad(-26.0) * stride
-		return NAN
-
 	if _entity_id in ["cat", "dog"] and role == "leg":
 		if _motion_state == "walk" and moving:
 			var amplitude := deg_to_rad(19.0 if _entity_id == "cat" else 17.0)
@@ -428,6 +943,387 @@ func _generic_target_angle(segment: Dictionary, role: String, phase: float, movi
 			if moving and role in ["leg", "arm", "wing", "tail", "fin", "chain", "limb"]:
 				return deg_to_rad(14.0) * sin(phase + (PI if limb_index % 2 else 0.0))
 	return NAN
+
+
+func _build_spider_rig(strokes: Array) -> void:
+	_spider_anatomy = SpiderRigAnalyzer.analyze(strokes)
+	if not bool(_spider_anatomy.get("valid", false)):
+		_build_spider_compound(strokes)
+		return
+
+	_create_physics_root()
+	var torso_paths: Array = _spider_anatomy.get("torso_paths", [])
+	var decoration_paths: Array = _spider_anatomy.get("decoration_paths", [])
+	var torso_owners: Array = _spider_anatomy.get("torso_path_owners", [])
+	var decoration_owners: Array = _spider_anatomy.get("decoration_path_owners", [])
+	var torso_center := Vector2(_spider_anatomy.get("torso_center", get_stroke_bounds().get_center()))
+	_body_bounds = Rect2(_spider_anatomy.get("torso_bounds", get_stroke_bounds()))
+	_body_pool = PackedVector2Array()
+	_body_polylines = []
+	for path_value in torso_paths:
+		var path := PackedVector2Array(path_value)
+		if path.size() < 2:
+			continue
+		_body_pool.append_array(path)
+		_body_polylines.append(path)
+	for path_value in decoration_paths:
+		var path := PackedVector2Array(path_value)
+		if path.size() >= 2:
+			_body_pool.append_array(path)
+	if _body_pool.is_empty():
+		_build_spider_compound(strokes)
+		return
+
+	var legs: Array = _spider_anatomy.get("legs", [])
+	# Mass starts with every real core/decor ink interval assigned to the compound
+	# torso. After the legs are built below, a structural floor guarantees the
+	# torso still carries at least forty percent of the complete articulated rig.
+	var torso_mass := clampf(
+		_spider_path_mass(torso_paths, torso_owners, strokes)
+		+ _spider_path_mass(decoration_paths, decoration_owners, strokes),
+		0.8,
+		8.0
+	)
+	_primary_body = _create_body("Torso", torso_center, torso_mass)
+	_primary_body.lock_rotation = false
+	_primary_body.angular_damp = 4.0
+	_primary_body.linear_damp = 0.7
+	var torso_collision_paths: Array[Dictionary] = []
+	for path_index in range(torso_paths.size()):
+		var path := PackedVector2Array(torso_paths[path_index])
+		if path.size() < 2:
+			continue
+		var source_index := _spider_owner_source(torso_owners, path_index)
+		var width := _spider_stroke_width(strokes, source_index)
+		var color := _spider_stroke_color(strokes, source_index)
+		_add_visual_line(_primary_body, path, width, color, torso_center)
+		torso_collision_paths.append({"path": path, "width": width})
+	for path_index in range(decoration_paths.size()):
+		var path := PackedVector2Array(decoration_paths[path_index])
+		if path.size() < 2:
+			continue
+		var source_index := _spider_owner_source(decoration_owners, path_index)
+		var width := _spider_stroke_width(strokes, source_index)
+		var color := _spider_stroke_color(strokes, source_index)
+		_add_visual_line(_primary_body, path, width, color, torso_center)
+		torso_collision_paths.append({"path": path, "width": width})
+
+	# Build every real leg before spending the shared shape budget on decorative
+	# torso detail. This guarantees each terminal body retains a colliding capsule
+	# even for an overdrawn hub with many unclassified ink fragments.
+	for leg_index in range(legs.size()):
+		_build_spider_leg(legs[leg_index] as Dictionary, leg_index, strokes, torso_center)
+	if _spider_feet.size() < 4:
+		# The analyzer should have guarded this already. Keep a defensive non-phantom
+		# fallback so a malformed result cannot enter a half-built stance solver.
+		_clear_rig()
+		_spider_anatomy["valid"] = false
+		_spider_anatomy["reason"] = "fewer-than-four-built-legs"
+		_build_spider_compound(strokes)
+		return
+	var total_leg_mass := 0.0
+	var maximum_leg_mass := 0.0
+	for body in _bodies:
+		if not is_instance_valid(body) or body == _primary_body:
+			continue
+		total_leg_mass += body.mass
+		maximum_leg_mass = maxf(maximum_leg_mass, body.mass)
+	_primary_body.mass = maxf(
+		_primary_body.mass,
+		maxf(maximum_leg_mass + 0.05, total_leg_mass * (2.0 / 3.0))
+	)
+	for collision_value in torso_collision_paths:
+		var collision_info := collision_value as Dictionary
+		_add_capsules(
+			_primary_body,
+			_sample_points(PackedVector2Array(collision_info.get("path", PackedVector2Array())), 4),
+			float(collision_info.get("width", 5.0)),
+			torso_center
+		)
+	_spider_support_height = maxf(8.0, float(_spider_anatomy.get("support_height", 0.0)))
+	_spider_total_mass = 0.0
+	for body in _bodies:
+		if is_instance_valid(body):
+			_spider_total_mass += body.mass
+	_spider_floor_y = torso_center.y + _spider_support_height
+
+
+func _build_spider_compound(strokes: Array) -> void:
+	if _physics_root == null:
+		_create_physics_root()
+	var pool := PackedVector2Array()
+	for stroke_value in strokes:
+		var stroke: Dictionary = stroke_value
+		var points := PackedVector2Array(stroke.get("points", PackedVector2Array()))
+		pool.append_array(points)
+	if pool.is_empty():
+		_build_bitmap_fallback()
+		return
+	var center := _points_center(pool)
+	_body_pool = pool
+	_body_bounds = _bounds_for_points(pool)
+	_body_polylines = []
+	_primary_body = _create_body("SpiderCompound", center, clampf(_mass_for_points(pool, 5.0), 1.4, 3.8))
+	_primary_body.angular_damp = 4.0
+	for stroke_value in strokes:
+		var stroke: Dictionary = stroke_value
+		var points := PackedVector2Array(stroke.get("points", PackedVector2Array()))
+		if points.size() < 2:
+			continue
+		_body_polylines.append(points)
+		_add_spider_polyline_to_body(
+			_primary_body,
+			points,
+			float(stroke.get("width", 5.0)),
+			Color(stroke.get("color", Color.BLACK)),
+			center,
+			8
+		)
+	_spider_support_height = 0.0
+	_spider_total_mass = _primary_body.mass
+
+
+func _build_spider_leg(leg: Dictionary, leg_index: int, strokes: Array, torso_center: Vector2) -> void:
+	var path := PackedVector2Array(leg.get("path", PackedVector2Array()))
+	if path.size() < 3 or _stroke_length(path) < MIN_SEGMENT_LENGTH * 1.25:
+		return
+	var bend_index := clampi(int(leg.get("bend_index", path.size() / 2)), 1, path.size() - 2)
+	var first := path.slice(0, bend_index + 1)
+	var second := path.slice(bend_index, path.size())
+	if first.size() < 2 or second.size() < 2:
+		return
+	var source_index := int(leg.get("source_index", leg.get("source_stroke_index", -1)))
+	var width := _spider_stroke_width(strokes, source_index)
+	var color := _spider_stroke_color(strokes, source_index)
+	var chunks: Array[PackedVector2Array] = [first, second]
+	var segment_ink_paths := _spider_segment_ink_paths(leg, path, bend_index)
+	var segment_records: Array[Dictionary] = []
+	var parent := _primary_body
+	for segment_index in range(2):
+		if _bodies.size() >= MAX_BODIES or _joints.size() >= MAX_JOINTS:
+			return
+		var chunk := chunks[segment_index]
+		var center := _points_center(chunk)
+		var raw_mass := _mass_for_points(chunk, width)
+		var segment_mass := clampf(raw_mass * 0.34, 0.16, 0.26)
+		var body := _create_body("SpiderLeg%02d_%d" % [leg_index, segment_index], center, segment_mass)
+		body.gravity_scale = 1.0
+		body.angular_damp = 3.2
+		body.linear_damp = 0.65
+		var ink_descriptors: Array = segment_ink_paths[segment_index]
+		if ink_descriptors.is_empty():
+			# Defensive compatibility for analyzer results created before ink ownership
+			# metadata existed. Current results always take the exact-path branch below.
+			_add_spider_polyline_to_body(body, chunk, width, color, center, 3)
+		else:
+			var collision_descriptor: Dictionary = {}
+			for descriptor_value in ink_descriptors:
+				var descriptor := descriptor_value as Dictionary
+				var ink_points := PackedVector2Array(descriptor.get("points", PackedVector2Array()))
+				if ink_points.size() < 2:
+					continue
+				_add_visual_line(
+					body,
+					ink_points,
+					float(descriptor.get("width", width)),
+					Color(descriptor.get("color", color)),
+					center
+				)
+				# The proximal body collides along its root-most real piece; the distal
+				# body uses its sole-most piece so every terminal foot is guaranteed a
+				# shape. Other welded pieces remain exact visible ink but cannot consume
+				# the bounded shape budget ahead of later feet.
+				if collision_descriptor.is_empty() or segment_index == 1:
+					collision_descriptor = descriptor
+			if not collision_descriptor.is_empty():
+				var collision_points := PackedVector2Array(collision_descriptor.get("points", PackedVector2Array()))
+				_add_capsules(
+					body,
+					_sample_points(collision_points, 3),
+					float(collision_descriptor.get("width", width)),
+					center
+				)
+		var joint := _create_joint(parent, body, chunk[0], deg_to_rad(78.0))
+		if joint == null:
+			body.queue_free()
+			return
+		var record := {
+			"parent": parent,
+			"body": body,
+			"joint": joint,
+			"rest_relative": wrapf(body.rotation - parent.rotation, -PI, PI),
+			"role": "leg",
+			"limb_index": leg_index,
+			"chain_index": segment_index,
+			"phase": float(int(leg.get("phase_group", 0))) * PI,
+			"phase_group": int(leg.get("phase_group", 0)),
+			"side": float(leg.get("side", 1.0)),
+			"side_rank": int(leg.get("side_rank", 0)),
+			"support_candidate": bool(leg.get("support_candidate", false)),
+			"angle_limit": deg_to_rad(78.0),
+			"attachment": Vector2(leg.get("root", path[0])),
+			"parent_anchor": _body_local_anchor(parent, chunk[0]),
+			"child_anchor": _body_local_anchor(body, chunk[0]),
+			"rest_axis_angle": (chunk[chunk.size() - 1] - chunk[0]).angle(),
+			"target_angle": 0.0,
+			"last_drive_torque": 0.0
+		}
+		_segments.append(record)
+		segment_records.append(record)
+		parent = body
+	var sole := Vector2(leg.get("sole", path[path.size() - 1]))
+	var foot := {
+		"leg_index": leg_index,
+		"side": float(leg.get("side", 1.0)),
+		"side_rank": int(leg.get("side_rank", 0)),
+		"phase_group": int(leg.get("phase_group", 0)),
+		"support_candidate": bool(leg.get("support_candidate", false)),
+		"body": parent,
+		"sole_local": _body_local_anchor(parent, sole),
+		"rest_offset": sole - torso_center,
+		"root_rig": Vector2(leg.get("root", path[0])),
+		"bend_rig": path[bend_index],
+		"sole_rig": sole,
+		"length_a": maxf(2.0, path[0].distance_to(path[bend_index])),
+		"length_b": maxf(2.0, path[bend_index].distance_to(sole)),
+		"bend_sign": _spider_bend_sign(path[0], path[bend_index], sole),
+		"segments": segment_records,
+		"stance": false,
+		"contact": false,
+		"plant_target": sole,
+		"last_target": sole
+	}
+	_spider_feet.append(foot)
+	_set_spider_foot_friction(foot, false)
+
+
+func _spider_owner_source(owners: Array, index: int) -> int:
+	if index < 0 or index >= owners.size():
+		return -1
+	var owner: Variant = owners[index]
+	if owner is Dictionary:
+		return int((owner as Dictionary).get("source_index", (owner as Dictionary).get("stroke_index", -1)))
+	return int(owner) if typeof(owner) == TYPE_INT else -1
+
+
+func _spider_path_mass(paths: Array, owners: Array, strokes: Array) -> float:
+	var mass := 0.0
+	for path_index in range(paths.size()):
+		var path := PackedVector2Array(paths[path_index])
+		if path.size() < 2:
+			continue
+		var source_index := _spider_owner_source(owners, path_index)
+		var width := _spider_stroke_width(strokes, source_index)
+		mass += _stroke_length(path) * width * 0.0018
+	return mass
+
+
+func _spider_segment_ink_paths(leg: Dictionary, composite_path: PackedVector2Array, bend_index: int) -> Array:
+	var proximal: Array[Dictionary] = []
+	var distal: Array[Dictionary] = []
+	var ink_paths: Array = leg.get("ink_paths", [])
+	if ink_paths.is_empty():
+		return [proximal, distal]
+	var total_ink_length := 0.0
+	for descriptor_value in ink_paths:
+		var descriptor := descriptor_value as Dictionary
+		total_ink_length += _stroke_length(PackedVector2Array(descriptor.get("points", PackedVector2Array())))
+	if total_ink_length <= 0.01:
+		return [proximal, distal]
+	var composite_length := maxf(0.01, _stroke_length(composite_path))
+	var bend_length := _stroke_length(composite_path.slice(0, bend_index + 1))
+	var split_length := total_ink_length * clampf(bend_length / composite_length, 0.05, 0.95)
+	var traveled := 0.0
+	for descriptor_value in ink_paths:
+		var descriptor := (descriptor_value as Dictionary).duplicate(true)
+		var points := PackedVector2Array(descriptor.get("points", PackedVector2Array()))
+		var piece_length := _stroke_length(points)
+		if points.size() < 2 or piece_length <= 0.01:
+			continue
+		if traveled + piece_length <= split_length + 0.01:
+			proximal.append(descriptor)
+		elif traveled >= split_length - 0.01:
+			distal.append(descriptor)
+		else:
+			var local_split := split_length - traveled
+			var proximal_points := _spider_slice_polyline(points, 0.0, local_split)
+			var distal_points := _spider_slice_polyline(points, local_split, piece_length)
+			if proximal_points.size() >= 2:
+				var proximal_descriptor := descriptor.duplicate(true)
+				proximal_descriptor["points"] = proximal_points
+				proximal.append(proximal_descriptor)
+			if distal_points.size() >= 2:
+				var distal_descriptor := descriptor.duplicate(true)
+				distal_descriptor["points"] = distal_points
+				distal.append(distal_descriptor)
+		traveled += piece_length
+	return [proximal, distal]
+
+
+func _spider_slice_polyline(points: PackedVector2Array, from_length: float, to_length: float) -> PackedVector2Array:
+	var result := PackedVector2Array()
+	if points.size() < 2 or to_length <= from_length:
+		return result
+	var total_length := _stroke_length(points)
+	var clamped_from := clampf(from_length, 0.0, total_length)
+	var clamped_to := clampf(to_length, clamped_from, total_length)
+	var traveled := 0.0
+	for index in range(points.size() - 1):
+		var start := points[index]
+		var finish := points[index + 1]
+		var segment_length := start.distance_to(finish)
+		if segment_length <= 0.001:
+			continue
+		var segment_start := traveled
+		var segment_end := traveled + segment_length
+		if segment_end < clamped_from:
+			traveled = segment_end
+			continue
+		if segment_start > clamped_to:
+			break
+		var local_from := clampf((clamped_from - segment_start) / segment_length, 0.0, 1.0)
+		var local_to := clampf((clamped_to - segment_start) / segment_length, 0.0, 1.0)
+		var first_point := start.lerp(finish, local_from)
+		var last_point := start.lerp(finish, local_to)
+		if result.is_empty() or result[result.size() - 1].distance_squared_to(first_point) > 0.0001:
+			result.append(first_point)
+		if result[result.size() - 1].distance_squared_to(last_point) > 0.0001:
+			result.append(last_point)
+		traveled = segment_end
+		if segment_end >= clamped_to:
+			break
+	return result
+
+
+func _spider_stroke_width(strokes: Array, source_index: int) -> float:
+	if source_index >= 0 and source_index < strokes.size() and strokes[source_index] is Dictionary:
+		return float((strokes[source_index] as Dictionary).get("width", 5.0))
+	return float((strokes[0] as Dictionary).get("width", 5.0)) if not strokes.is_empty() else 5.0
+
+
+func _spider_stroke_color(strokes: Array, source_index: int) -> Color:
+	if source_index >= 0 and source_index < strokes.size() and strokes[source_index] is Dictionary:
+		return Color((strokes[source_index] as Dictionary).get("color", Color.BLACK))
+	return Color.BLACK
+
+
+func _spider_bend_sign(root: Vector2, bend: Vector2, sole: Vector2) -> float:
+	var cross := (bend - root).cross(sole - bend)
+	if absf(cross) < 0.001:
+		return 1.0 if sole.x >= root.x else -1.0
+	return signf(cross)
+
+
+func _add_spider_polyline_to_body(
+	body: ActiveRigBody2D,
+	points: PackedVector2Array,
+	width: float,
+	color: Color,
+	body_center: Vector2,
+	maximum_collision_points: int
+) -> void:
+	_add_visual_line(body, points, width, color, body_center)
+	_add_capsules(body, _sample_points(points, maxi(2, maximum_collision_points)), width, body_center)
 
 
 func _build_standard_rig(strokes: Array) -> void:
@@ -561,7 +1457,7 @@ func _build_limb_path(
 	if segment_count <= 0:
 		return
 	var parent := _primary_body
-	var side := (-1.0 if limb_index < 4 else 1.0) if _entity_id == "spider" else (-1.0 if tip.x < body_center.x else 1.0)
+	var side := -1.0 if tip.x < body_center.x else 1.0
 	for segment_index in range(segment_count):
 		if _joints.size() >= MAX_JOINTS:
 			break
@@ -908,6 +1804,9 @@ func _compute_stand_height() -> void:
 	_stand_height = 0.0
 	if _primary_body == null:
 		return
+	if _entity_id == "spider" and not _spider_feet.is_empty():
+		_stand_height = _spider_support_height
+		return
 	for body in _bodies:
 		if not is_instance_valid(body):
 			continue
@@ -960,6 +1859,16 @@ func _clear_rig() -> void:
 	_rest_transforms.clear()
 	_physics_frames_since_build = 0
 	_recovery_count = 0
+	_spider_anatomy = {}
+	_spider_feet.clear()
+	_spider_support_height = 0.0
+	_spider_support_active = false
+	_spider_stance_group = 0
+	_spider_gait_phase = 0.0
+	_spider_total_mass = 0.0
+	_spider_floor_y = 0.0
+	_spider_floor_normal = Vector2.UP
+	_spider_force_release_frames = 0
 	if _physics_root != null and is_instance_valid(_physics_root):
 		_physics_root.get_parent().remove_child(_physics_root)
 		_physics_root.queue_free()
@@ -1029,12 +1938,6 @@ func _appendage_candidate_less(a: Dictionary, b: Dictionary) -> bool:
 	var a_point := Vector2(a["attachment"])
 	var b_point := Vector2(b["attachment"])
 	var center := _body_bounds.get_center()
-	if _entity_id == "spider":
-		# A spider's four legs per side are a stronger anatomical constraint than
-		# tiny floating-point differences around a near-vertical attachment.
-		if not is_equal_approx(a_point.x, b_point.x):
-			return a_point.x < b_point.x
-		return a_point.y < b_point.y
 	var a_side := 0 if a_point.x < center.x else 1
 	var b_side := 0 if b_point.x < center.x else 1
 	if a_side != b_side:
@@ -1045,12 +1948,6 @@ func _appendage_candidate_less(a: Dictionary, b: Dictionary) -> bool:
 
 
 func _phase_for_limb(limb_index: int, _side: float) -> float:
-	if _entity_id == "spider":
-		# Candidates are sorted four left, four right. Opposite-side counterparts
-		# alternate as a stable tetrapod gait: 0,2,5,7 versus 1,3,4,6.
-		var side_group := limb_index / 4
-		var rank_on_side := limb_index % 4
-		return 0.0 if (rank_on_side + side_group) % 2 == 0 else PI
 	if _rig_type in ["biped", "walker"]:
 		return 0.0 if limb_index % 2 == 0 else PI
 	return float(limb_index) * 0.47
