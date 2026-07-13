@@ -28,7 +28,6 @@ var _body_pool: PackedVector2Array = PackedVector2Array()
 var _body_polylines: Array = []
 var _shape_count: int = 0
 var _gait_phase: float = 0.0
-var _idle_phase: float = 0.0
 var _build_generation: int = 0
 var _rest_transforms: Dictionary = {}
 var _world_bounds: Rect2 = Rect2(0.0, -520.0, 3760.0, 1200.0)
@@ -144,9 +143,6 @@ func _physics_process(delta: float) -> void:
 		return
 	if _segments.is_empty():
 		return
-	# Idle clock always advances so resting creatures can breathe/sway; the gait
-	# clock only advances under locomotion so a standing pose does not stride.
-	_idle_phase += delta * 1.6
 	var speed_ratio := clampf(float(_motion_params.get("speed_ratio", 0.0)), 0.0, 1.5)
 	if bool(_motion_params.get("moving", false)) or _motion_state in ["swim", "fly", "flap", "climb"]:
 		_gait_phase += delta * lerpf(2.0, 7.0, minf(1.0, speed_ratio))
@@ -209,17 +205,17 @@ func _target_angle_for(segment: Dictionary) -> float:
 	var chain_index := int(segment["chain_index"])
 	var phase := _gait_phase + float(segment["phase"]) + float(chain_index) * 0.28
 	var moving := bool(_motion_params.get("moving", false))
-	var side := signf(float(segment.get("side", 1.0)))
-	# Species-specific gait wins; then a generic per-rig_type gait so no articulated
-	# limb is ever dead (covers geometry-driven creatures whose entity_id is not
-	# hardcoded); then a subtle idle pose so resting creatures breathe.
+	# Species-specific gait wins; then a generic per-rig_type gait so a creature whose
+	# entity_id is not hardcoded still animates while moving. When neither has an
+	# opinion the limb holds its rest pose (0) so an uncontrolled creature stands still
+	# rather than twitching.
 	var species := _species_target_angle(segment, role, phase, moving)
 	if not is_nan(species):
 		return species
 	var generic := _generic_target_angle(segment, role, phase, moving)
 	if not is_nan(generic):
 		return generic
-	return _idle_pose(role, side)
+	return 0.0
 
 
 ## Tuned per-species gait. Returns NAN to mean "no active opinion" so the caller
@@ -274,8 +270,10 @@ func _species_target_angle(segment: Dictionary, role: String, phase: float, movi
 				return deg_to_rad(48.0) * sin(phase * hz_scale) * side
 			if _motion_state == "glide":
 				return deg_to_rad(-18.0) * side
-			# Grounded or any other state: gentle wing flutter instead of a limp hang.
-			return deg_to_rad(10.0) * sin(_idle_phase) * side
+			# Grounded and moving: gentle wing beat; standing still holds the wing.
+			if moving:
+				return deg_to_rad(12.0) * sin(phase) * side
+			return NAN
 		if role == "leg" and _motion_state not in ["walk", "idle"]:
 			return deg_to_rad(-20.0) * side
 		return NAN
@@ -310,13 +308,6 @@ func _generic_target_angle(segment: Dictionary, role: String, phase: float, movi
 			if moving and role in ["leg", "arm", "wing", "tail", "fin", "chain", "limb"]:
 				return deg_to_rad(14.0) * sin(phase + (PI if limb_index % 2 else 0.0))
 	return NAN
-
-
-## Small resting oscillation driven by the always-advancing idle clock so a standing
-## creature breathes/sways rather than freezing at its rest pose.
-func _idle_pose(role: String, side: float) -> float:
-	var amp := deg_to_rad(5.0 if role == "wing" else 4.0)
-	return amp * sin(_idle_phase) * (1.0 if side >= 0.0 else -1.0)
 
 
 func _build_standard_rig(strokes: Array) -> void:
@@ -476,13 +467,15 @@ func _build_bitmap_fallback() -> void:
 		_body.visible = false
 
 
-## Guaranteed-articulation guard. Runs only after the standard rig; if that produced
-## no joints but the drawing is large enough to plausibly have parts, rebuild it as an
-## articulated rig so it animates instead of a dead single body. Fires only at
-## joints==0, so clean multi-stroke drawings and the empty-strokes bitmap path (which
-## routes through _build_bitmap_fallback, not here) are never touched.
+## Recover articulation for a creature drawn as a single continuous scribble. Runs only
+## after the standard rig and only when it produced no joints; it never fabricates limbs
+## the player did not draw — if the stroke has no clear radial appendages it leaves the
+## single-body rig alone. Skipped entirely for rig_type "none" (physics objects and
+## utilities), which must stay rigid, and for the empty-strokes bitmap path.
 func _ensure_articulation(strokes: Array) -> void:
 	if _joints.size() > 0 or strokes.is_empty():
+		return
+	if _rig_type == "none":
 		return
 	if get_stroke_bounds().size.length() < _target_size.length() * 0.5:
 		return
@@ -490,31 +483,26 @@ func _ensure_articulation(strokes: Array) -> void:
 	var body_stroke: Dictionary = strokes[body_index]
 	var decomposition := _decompose_scribble(body_stroke)
 	var limbs: Array = decomposition["limbs"]
-	# Tier A: a single continuous scribble split into a torso core + radial limbs.
-	if not limbs.is_empty():
-		_clear_rig()
-		_create_physics_root()
-		var body_pts: PackedVector2Array = decomposition["body"]
-		var width := float(body_stroke.get("width", 6.0))
-		var color := Color(body_stroke.get("color", Color.BLACK))
-		_body_pool = body_pts.duplicate()
-		_body_polylines = [body_pts]
-		var body_center := _points_center(body_pts)
-		_primary_body = _create_body("Torso", body_center, _mass_for_stroke(body_stroke, 1.5))
-		_add_polyline_to_body(_primary_body, body_pts, width, color, body_center)
-		var limb_limit := _limb_limit_for_entity()
-		var limb_index := 0
-		for limb_value in limbs:
-			if limb_index >= limb_limit or _joints.size() >= MAX_JOINTS:
-				break
-			_build_limb_path(limb_value as PackedVector2Array, body_stroke, limb_index, body_center)
-			limb_index += 1
-		if _joints.size() > 0:
-			return
-	# Tier B: no appendages found — split the body along its long axis into a short
-	# spine so idle sway/locomotion still animates instead of a dead box.
+	if limbs.is_empty():
+		return
+	# A single continuous scribble split into a torso core + its actual drawn spikes.
 	_clear_rig()
-	_build_blob_spine(strokes)
+	_create_physics_root()
+	var body_pts: PackedVector2Array = decomposition["body"]
+	var width := float(body_stroke.get("width", 6.0))
+	var color := Color(body_stroke.get("color", Color.BLACK))
+	_body_pool = body_pts.duplicate()
+	_body_polylines = [body_pts]
+	var body_center := _points_center(body_pts)
+	_primary_body = _create_body("Torso", body_center, _mass_for_stroke(body_stroke, 1.5))
+	_add_polyline_to_body(_primary_body, body_pts, width, color, body_center)
+	var limb_limit := _limb_limit_for_entity()
+	var limb_index := 0
+	for limb_value in limbs:
+		if limb_index >= limb_limit or _joints.size() >= MAX_JOINTS:
+			break
+		_build_limb_path(limb_value as PackedVector2Array, body_stroke, limb_index, body_center)
+		limb_index += 1
 
 
 ## Detect limb-like radial spikes in a single continuous stroke and split it into a
@@ -561,61 +549,6 @@ func _decompose_scribble(stroke: Dictionary) -> Dictionary:
 	if body.size() < 3:
 		body = pts
 	return {"body": body, "limbs": limbs}
-
-
-## Tier-B fallback: a limbless blob becomes a short spine along its long axis so idle
-## sway/locomotion still articulates. Blob points are shared across the spine nodes so
-## mass and collision are distributed rather than piled on one node.
-func _build_blob_spine(strokes: Array) -> void:
-	_create_physics_root()
-	var body_index := _select_body_stroke(strokes)
-	var stroke: Dictionary = strokes[body_index]
-	var pts: PackedVector2Array = stroke["points"]
-	var bounds := _points_bounds(pts)
-	var width := float(stroke.get("width", 8.0))
-	var color := Color(stroke.get("color", Color.BLACK))
-	var vertical := bounds.size.y >= bounds.size.x
-	var node_count := 3 if maxf(bounds.size.x, bounds.size.y) > 60.0 else 2
-	var axis_lo := bounds.position.y if vertical else bounds.position.x
-	var axis_hi := (bounds.position.y + bounds.size.y) if vertical else (bounds.position.x + bounds.size.x)
-	var cross := bounds.get_center().x if vertical else bounds.get_center().y
-	var parent: ActiveRigBody2D
-	for index in range(node_count):
-		var lo := lerpf(axis_lo, axis_hi, float(index) / float(node_count))
-		var hi := lerpf(axis_lo, axis_hi, float(index + 1) / float(node_count))
-		var group := PackedVector2Array()
-		for point in pts:
-			var coord := point.y if vertical else point.x
-			if coord >= lo and coord <= hi:
-				group.append(point)
-		var center := (Vector2(cross, (lo + hi) * 0.5) if vertical else Vector2((lo + hi) * 0.5, cross))
-		if group.size() >= 2:
-			center = _points_center(group)
-		var body := _create_body("Spine%02d" % index, center, 0.7)
-		if group.size() >= 2:
-			_add_polyline_to_body(body, group, width, color, center)
-		if index == 0:
-			_primary_body = body
-			_body_pool = (group.duplicate() if group.size() >= 2 else pts.duplicate())
-			_body_polylines = [_body_pool]
-		else:
-			var anchor := (Vector2(cross, lo) if vertical else Vector2(lo, cross))
-			var joint := _create_joint(parent, body, anchor, deg_to_rad(35.0))
-			if joint != null:
-				_segments.append({
-					"parent": parent, "body": body, "joint": joint,
-					"rest_relative": wrapf(body.rotation - parent.rotation, -PI, PI),
-					"role": "chain", "limb_index": 0, "chain_index": index,
-					"phase": float(index) * 0.4, "side": 1.0,
-					"parent_anchor": _body_local_anchor(parent, anchor),
-					"child_anchor": _body_local_anchor(body, anchor),
-					"last_drive_torque": 0.0
-				})
-		parent = body
-	for index in range(strokes.size()):
-		if index == body_index:
-			continue
-		_add_stroke_to_body(_primary_body, strokes[index], _primary_body.position, false)
 
 
 func _median(values: PackedFloat32Array) -> float:
