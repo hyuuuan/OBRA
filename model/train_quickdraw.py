@@ -24,14 +24,16 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from sklearn.metrics import classification_report, confusion_matrix
 from torch.utils.data import DataLoader, Dataset
-from torchvision.transforms import RandomAffine
+from torchvision.transforms import GaussianBlur, RandomAffine
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
 sys.path.insert(0, str(REPO_ROOT))
 
+from backend.preprocess import canonicalize_ink  # noqa: E402
 from shared.entities import (  # noqa: E402
     DEFAULT_MANIFEST_PATH,
     entity_ids,
@@ -60,21 +62,35 @@ class QuickDrawDataset(Dataset):
     def __init__(self, images: np.ndarray, labels: np.ndarray, augment: bool):
         self.images = torch.from_numpy(images).float().reshape(-1, 1, 28, 28) / 255.0
         self.labels = torch.from_numpy(labels).long()
-        # Mild geometric augmentation so the model tolerates how differently people
-        # draw on the live game canvas (rotation, size, position all vary).
-        self.augment = (
-            RandomAffine(degrees=12, translate=(0.08, 0.08), scale=(0.85, 1.15))
-            if augment
-            else None
-        )
+        self.augment = augment
+        # Geometric variation (rotation/size/position) plus a simulation of the live
+        # backend's render->preprocess path: the game rasterizes strokes on a 512px
+        # antialiased canvas and downsamples, so its 28x28 is blurrier and its stroke
+        # crispness varies. Training on crisp Quick Draw bitmaps alone leaves those
+        # inputs out-of-distribution and collapses the model's confidence, so we blur
+        # and randomly resample to cover that range.
+        self._affine = RandomAffine(degrees=12, translate=(0.08, 0.08), scale=(0.85, 1.15))
+        self._blur = GaussianBlur(3, sigma=(0.4, 1.4))
 
     def __len__(self) -> int:
         return len(self.labels)
 
+    def _render_sim(self, image: torch.Tensor) -> torch.Tensor:
+        image = self._affine(image)
+        if torch.rand(1).item() < 0.8:
+            image = self._blur(image)
+        if torch.rand(1).item() < 0.5:
+            size = int(np.random.choice([20, 22, 24]))
+            image = F.interpolate(
+                F.interpolate(image.unsqueeze(0), size=size, mode="bilinear", align_corners=False),
+                size=28, mode="bilinear", align_corners=False,
+            ).squeeze(0)
+        return image.clamp(0.0, 1.0)
+
     def __getitem__(self, idx: int):
         image = self.images[idx]
-        if self.augment is not None:
-            image = self.augment(image)
+        if self.augment:
+            image = self._render_sim(image)
         return image, self.labels[idx]
 
 
@@ -100,6 +116,20 @@ class SketchCNN(nn.Module):
         return self.classifier(self.features(x))
 
 
+def canonicalize_batch(flat: np.ndarray) -> np.ndarray:
+    """Apply the backend's inference framing (crop-to-ink -> rescale -> center) to a
+    stack of raw Quick Draw bitmaps (N, 784) so the model trains on exactly what the
+    live game feeds it. Quick Draw bitmaps are already white-on-black, so no inversion
+    is needed. Blank rows (no ink) are passed through unchanged."""
+    out = np.empty((len(flat), 28, 28), dtype=np.float32)
+    for i, row in enumerate(flat.reshape(-1, 28, 28)):
+        try:
+            out[i] = canonicalize_ink(row.astype(np.float32))
+        except Exception:
+            out[i] = row.astype(np.float32) / 255.0
+    return (out * 255.0).astype(np.uint8).reshape(len(flat), 784)
+
+
 def load_splits(source_names: list[str], samples_per_class: int):
     """80/10/10 train/val/test split, shuffled with a fixed seed."""
     images, labels = [], []
@@ -111,9 +141,10 @@ def load_splits(source_names: list[str], samples_per_class: int):
                 f"Missing {data_path}. Run: python3 model/download_data.py"
             )
         arr = np.load(data_path)[:samples_per_class]
+        print(f"loaded {name}: {len(arr)} drawings (canonicalizing to backend framing)")
+        arr = canonicalize_batch(arr)
         images.append(arr)
         labels.append(np.full(len(arr), class_index))
-        print(f"loaded {name}: {len(arr)} drawings")
     images = np.concatenate(images)
     labels = np.concatenate(labels)
 
