@@ -604,7 +604,7 @@ func _test_spider_stance_controller() -> void:
 	if feet_value is Array:
 		for foot_value in feet_value as Array:
 			var foot: Dictionary = foot_value
-			for field in ["leg_index", "side", "side_rank", "phase_group", "support_candidate", "stance", "contact", "position", "plant_target", "gait_target", "target_angle", "normal"]:
+			for field in ["leg_index", "side", "side_rank", "phase_group", "support_candidate", "stance", "contact", "position", "plant_target", "gait_target", "target_angle", "normal", "drive_reaction"]:
 				_expect(foot.has(field), "spider foot contact state omitted %s" % field)
 	var idle_contact_sides := _spider_contact_sides(idle_summary)
 	_expect(bool(idle_summary.get("grounded", false)), "spider torso settled without real foot grounding")
@@ -646,6 +646,10 @@ func _test_spider_stance_controller() -> void:
 	var observed_stance_groups := {0: false, 1: false}
 	var phase_transition_stage := {0: 0, 1: 0}
 	var phase_target_excursion := {0: 0.0, 1: 0.0}
+	var observed_leg_drive := false
+	var drive_on_unplanted_foot := false
+	var maximum_leg_drive := 0.0
+	var maximum_drive_balance_error := 0.0
 	Input.action_press("move_right")
 	for _walk_frame in range(180):
 		await physics_frame
@@ -660,8 +664,16 @@ func _test_spider_stance_controller() -> void:
 		maximum_tilt = maxf(maximum_tilt, rad_to_deg(absf(wrapf(anchor.global_rotation, -PI, PI))))
 		var phase_has_stance := {0: false, 1: false}
 		var phase_has_swing_target := {0: false, 1: false}
+		var leg_drive_force := Vector2(walk_summary.get("leg_drive_force", Vector2.ZERO))
+		var drive_reaction_sum := Vector2.ZERO
+		maximum_leg_drive = maxf(maximum_leg_drive, leg_drive_force.length())
 		for foot_value in (walk_summary.get("feet", []) as Array):
 			var foot: Dictionary = foot_value
+			var drive_reaction := Vector2(foot.get("drive_reaction", Vector2.ZERO))
+			drive_reaction_sum += drive_reaction
+			if drive_reaction.length_squared() > 1.0:
+				observed_leg_drive = true
+				drive_on_unplanted_foot = drive_on_unplanted_foot or not bool(foot.get("stance", false))
 			var phase_group := int(foot.get("phase_group", -1))
 			if phase_group not in [0, 1] or not bool(foot.get("support_candidate", false)):
 				continue
@@ -674,6 +686,7 @@ func _test_spider_stance_controller() -> void:
 				phase_target_excursion[phase_group] = maxf(float(phase_target_excursion[phase_group]), target_excursion)
 				if target_excursion >= 6.0:
 					phase_has_swing_target[phase_group] = true
+		maximum_drive_balance_error = maxf(maximum_drive_balance_error, (leg_drive_force + drive_reaction_sum).length())
 		for phase_group in [0, 1]:
 			var stage := int(phase_transition_stage[phase_group])
 			if stage == 0 and bool(phase_has_stance[phase_group]):
@@ -688,6 +701,9 @@ func _test_spider_stance_controller() -> void:
 	_expect(maximum_vertical_deviation < 35.0, "spider torso deviated %.1f px vertically while walking" % maximum_vertical_deviation)
 	_expect(maximum_tilt < 35.0, "spider torso tilted %.1f degrees while walking" % maximum_tilt)
 	_expect(grounded_samples >= 90, "spider had real foot contact for only %d/180 walk samples" % grounded_samples)
+	_expect(observed_leg_drive and maximum_leg_drive > 1.0, "spider walked without stance-leg drive forces")
+	_expect(not drive_on_unplanted_foot, "spider applied locomotion drive through an unplanted foot")
+	_expect(maximum_drive_balance_error <= maxf(0.5, maximum_leg_drive * 0.001), "spider leg drive injected an unbalanced %.2f N torso force" % maximum_drive_balance_error)
 	_expect(bool(observed_stance_groups[0]) and bool(observed_stance_groups[1]), "spider never handed stance between both gait groups")
 	_expect(int(phase_transition_stage[0]) >= 3 and int(phase_transition_stage[1]) >= 3, "both gait groups did not complete stance-swing-stance transitions (%d, %d; targets %.1f, %.1f)" % [phase_transition_stage[0], phase_transition_stage[1], phase_target_excursion[0], phase_target_excursion[1]])
 	_expect(skin.debug_max_joint_error() <= 22.5, "spider joint separated by %.2f px during walking" % skin.debug_max_joint_error())
@@ -700,6 +716,7 @@ func _test_spider_stance_controller() -> void:
 	var stance_released := false
 	var became_airborne := false
 	var stance_reacquired := false
+	var airborne_leg_drive := false
 	Input.action_press("jump")
 	# Hold across one complete physics callback; SceneTree.physics_frame resumes
 	# before node _physics_process callbacks in the same tick.
@@ -713,12 +730,15 @@ func _test_spider_stance_controller() -> void:
 			stance_released = true
 		if not bool(jump_summary.get("grounded", false)):
 			became_airborne = true
+			airborne_leg_drive = airborne_leg_drive \
+				or Vector2(jump_summary.get("leg_drive_force", Vector2.ZERO)).length_squared() > 1.0
 		elif became_airborne and bool(jump_summary.get("support_active", false)) and _contacting_spider_feet(jump_summary) >= 2:
 			stance_reacquired = true
 		await physics_frame
 	_expect(stance_released, "spider jump never released stance anchors")
 	_expect(jump_start_y - minimum_jump_y >= 12.0, "spider jump produced no meaningful upward travel")
 	_expect(stance_reacquired, "spider did not reacquire real foot support after landing")
+	_expect(not airborne_leg_drive, "spider retained stance-leg propulsion while airborne")
 	_expect(skin.debug_recovery_count() == 0, "spider jump/landing invoked automatic recovery")
 
 	# Wall climbing remains a fallback transition and must consume aggregated rig
@@ -1004,7 +1024,9 @@ func _add_floor() -> void:
 
 func _add_spider_test_wall() -> StaticBody2D:
 	var wall := StaticBody2D.new()
-	wall.position = Vector2(650.0, 250.0)
+	# Keep the wall reachable within the fixed smoke-test window now that grounded
+	# translation comes from traction-limited stance legs instead of free torso thrust.
+	wall.position = Vector2(500.0, 250.0)
 	var collision := CollisionShape2D.new()
 	var shape := RectangleShape2D.new()
 	shape.size = Vector2(30.0, 300.0)
