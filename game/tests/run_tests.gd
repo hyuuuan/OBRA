@@ -38,6 +38,8 @@ func _run() -> void:
 	await _test_active_ragdolls()
 	await _test_idle_stability()
 	await _test_messy_fixtures()
+	await _test_ink_integrity()
+	await _test_grazing_stroke_not_split()
 	await _test_compound_fallback_recovery()
 	await _test_physics_morphs()
 	await _test_utilities()
@@ -867,6 +869,116 @@ func _messy_strokes(raw: Array) -> Array:
 			points.append(Vector2(float(pair[0]), float(pair[1])))
 		strokes.append({"points": points, "width": float(stroke.get("width", 8.0)), "color": Color.BLACK})
 	return strokes
+
+
+## Everything the rig renders must be the player's ink: on-stroke (no fabricated
+## chords slashing across the figure) and length-conserving (no ink silently
+## dropped or duplicated). Checked for every living entity's clean fixture and
+## every messy fixture — spider included, since its analyzer claims exact slices.
+func _test_ink_integrity() -> void:
+	var cases: Array = []
+	for entity_id in ["fish", "frog", "spider", "bird", "humanoid", "cat", "dog", "rabbit", "butterfly", "snake"]:
+		cases.append({"label": "clean %s" % entity_id, "entity_id": entity_id, "strokes": _fixture_for(entity_id)})
+	var dir := DirAccess.open("res://tests/fixtures")
+	if dir != null:
+		var names := dir.get_files()
+		names.sort()
+		for file_name in names:
+			if not file_name.ends_with(".json"):
+				continue
+			var data: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/" + file_name))
+			if typeof(data) != TYPE_DICTIONARY:
+				continue
+			var fixture := data as Dictionary
+			cases.append({
+				"label": String(fixture.get("description", file_name)),
+				"entity_id": String(fixture.get("entity_id", "cat")),
+				"strokes": _messy_strokes(fixture.get("strokes", []))
+			})
+	for case_value in cases:
+		var case_data := case_value as Dictionary
+		var label := String(case_data["label"])
+		var instance := registry.instantiate_entity(String(case_data["entity_id"])) as Node2D
+		if instance == null:
+			_expect(false, "ink integrity could not instantiate %s" % label)
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(300.0, 200.0)
+		instance.call("apply_drawing", _blank_image(), case_data["strokes"])
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		var strokes := skin.get_vector_strokes()
+		var rendered := skin.debug_rendered_ink()
+		_expect(not rendered.is_empty(), "'%s' rendered no ink" % label)
+		_expect(skin.get_rigid_bodies().size() <= 24 and skin.get_joint_count() <= 23, "'%s' exceeded rig caps" % label)
+		_expect(
+			skin.get_joint_count() > 0 or skin.get_rigid_bodies().size() == 1,
+			"'%s' degraded partially: %d jointless bodies" % [label, skin.get_rigid_bodies().size()]
+		)
+		var input_length := 0.0
+		for stroke_value in strokes:
+			input_length += _test_path_length((stroke_value as Dictionary)["points"])
+		var core_length := 0.0
+		var off_ink := 0
+		for entry_value in rendered:
+			var entry := entry_value as Dictionary
+			var points: PackedVector2Array = entry["points"]
+			if points.size() < 2:
+				continue
+			for index in range(points.size()):
+				if not _point_is_on_ink(points[index], strokes):
+					off_ink += 1
+				if index > 0 and not _point_is_on_ink((points[index - 1] + points[index]) * 0.5, strokes):
+					off_ink += 1
+			var prefix := int(entry.get("overlap_prefix", 0))
+			var suffix := int(entry.get("overlap_suffix", 0))
+			var core := points.slice(prefix, points.size() - suffix)
+			if core.size() >= 2:
+				core_length += _test_path_length(core)
+		_expect(off_ink == 0, "'%s' rendered %d points off the drawn ink" % [label, off_ink])
+		if input_length > 0.0:
+			var ratio := core_length / input_length
+			_expect(
+				ratio >= 0.92 and ratio <= 1.08,
+				"'%s' rendered %.0f%% of the drawn ink length" % [label, ratio * 100.0]
+			)
+		instance.queue_free()
+		await process_frame
+
+
+func _point_is_on_ink(point: Vector2, strokes: Array) -> bool:
+	for stroke_value in strokes:
+		var points: PackedVector2Array = (stroke_value as Dictionary)["points"]
+		for index in range(points.size() - 1):
+			var nearest := Geometry2D.get_closest_point_to_segment(point, points[index], points[index + 1])
+			if point.distance_to(nearest) <= 2.0:
+				return true
+	return false
+
+
+## A limb stroke whose midpoint merely grazes the torso must stay one limb; the
+## old interior split cut it into two half-limbs that tore the drawing apart.
+func _test_grazing_stroke_not_split() -> void:
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/grazing_limb.json"))
+	if typeof(data) != TYPE_DICTIONARY:
+		_expect(false, "grazing_limb fixture did not parse")
+		return
+	var strokes := _messy_strokes((data as Dictionary).get("strokes", []))
+	var instance := registry.instantiate_entity("cat") as Node2D
+	_expect(instance != null, "could not instantiate cat for grazing check")
+	if instance == null:
+		return
+	world.add_child(instance)
+	instance.global_position = Vector2(300.0, 200.0)
+	instance.call("apply_drawing", _blank_image(), strokes)
+	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+	# The grazing stroke is the fixture's last stroke; normalization keeps order.
+	var normalized := skin.get_vector_strokes()
+	var graze: Dictionary = normalized[normalized.size() - 1]
+	var radius := clampf(skin.get_stroke_bounds().size.length() * 0.14, 12.0, 40.0)
+	var paths: Array = skin._paths_attached_to_body(graze["points"], radius)
+	_expect(paths.size() <= 1, "grazing stroke split into %d limb paths" % paths.size())
+	instance.queue_free()
+	await process_frame
 
 
 func _test_utilities() -> void:
