@@ -46,6 +46,7 @@ var _body_pool: PackedVector2Array = PackedVector2Array()
 var _body_bounds: Rect2 = Rect2()
 var _body_polylines: Array = []
 var _rendered_ink: Array[Dictionary] = []
+var _max_tracked_angle: float = 0.0
 var _shape_count: int = 0
 var _gait_phase: float = 0.0
 var _build_generation: int = 0
@@ -345,6 +346,13 @@ func debug_rendered_ink() -> Array[Dictionary]:
 	return _rendered_ink.duplicate()
 
 
+## Largest continuous joint angle (radians, relative to rest) any segment has
+## reached since the rig was built. A windmilling limb makes this grow past TAU;
+## a disciplined rig stays near its drawn angle limits.
+func debug_max_tracked_angle() -> float:
+	return _max_tracked_angle
+
+
 func is_in_water() -> bool:
 	return _primary_body != null and int(_primary_body.get_meta("water_overlap_count", 0)) > 0
 
@@ -421,8 +429,12 @@ func _physics_process(delta: float) -> void:
 		# rotation lock while the legs hold and the ground reaction through the
 		# planted feet carries the body weight. No competing servos.
 		var target := _target_angle_for(segment)
-		var current := wrapf(child.rotation - parent.rotation - float(segment["rest_relative"]), -PI, PI)
-		var error := wrapf(target - current, -PI, PI)
+		# Track the CONTINUOUS relative angle instead of a wrapped one. With the
+		# wrapped error a limb knocked past 180deg was pulled the short way onward
+		# around, so limbs windmilled in full circles instead of holding the gait
+		# pose; the unwrapped error always pulls back the way the limb came.
+		var current := _tracked_joint_angle(segment)
+		var error := target - current
 		var relative_velocity := child.angular_velocity - parent.angular_velocity
 		# PinJoint motors do not expose a useful per-joint impulse cap in this
 		# setup. Driving the motor and applying PD torque at the same time made
@@ -444,14 +456,41 @@ func _physics_process(delta: float) -> void:
 		# While the stand-support carries the creature it cancels gravity, so the
 		# compensation is faded out in lockstep to avoid over-rotating a weightless
 		# limb (residual effective gravity is (1 - _support_blend) * g).
-		var gravity_comp := _gravity_hold_torque(segment, joint) * (1.0 - _support_blend)
-		segment["last_drive_torque"] = pd + gravity_comp
+		# Soft angular limit. Hard PinJoint limits are numerically singular on short
+		# light segments, and the bounded PD saturates under impacts, so past the
+		# drawn limit a strong unbounded restoring couple takes over. Without it a
+		# kicked limb winds up turn after turn.
+		var angle_limit := float(segment.get("angle_limit", deg_to_rad(68.0)))
+		var excess := 0.0
+		if current > angle_limit:
+			excess = current - angle_limit
+		elif current < -angle_limit:
+			excess = current + angle_limit
+		var limit_torque := 0.0
+		if excess != 0.0:
+			limit_torque = clampf(
+				-excess * spring * 4.0 - relative_velocity * damping * 2.0,
+				-torque_limit * 2.5,
+				torque_limit * 2.5
+			)
+		# Gravity compensation rotates with the limb, so past the angular limit it
+		# stops being a hold and becomes a propeller that out-muscles the soft
+		# limit. Fade it out across the first 30deg of excess; a limb that far out
+		# of pose should come back, not be held up.
+		var comp_fade := clampf(1.0 - absf(excess) / deg_to_rad(30.0), 0.0, 1.0)
+		var gravity_comp := _gravity_hold_torque(segment, joint) * (1.0 - _support_blend) * comp_fade
+		segment["last_drive_torque"] = pd + gravity_comp + limit_torque
 		# The PD muscle spans the joint, so it is a couple: equal and opposite on the
 		# two bodies. Gravity compensation is an EXTERNAL anti-droop assist on the limb,
 		# not a muscle, so it acts on the child only -- reacting it back onto the parent
 		# torso is what summed into a net torque and spun multi-limb creatures in place.
-		child.apply_torque(pd + gravity_comp)
-		parent.apply_torque(-pd)
+		child.apply_torque(pd + gravity_comp + limit_torque)
+		parent.apply_torque(-pd - limit_torque)
+		# Light always-on relative drag (a pure dissipative couple) bleeds spin
+		# energy the clamped PD cannot absorb, even while a gait target is active.
+		var drag := -relative_velocity * 22.0 * mass_scale
+		child.apply_torque(drag)
+		parent.apply_torque(-drag)
 		# gravity_comp is an undamped, position-dependent feed-forward torque that
 		# excites a whole-limb swing the joint's relative-velocity PD cannot see. When
 		# the limb has no active gait target it is meant to hold still, so bleed that
@@ -578,6 +617,10 @@ func _update_spider_gait(delta: float) -> void:
 		var target: Vector2
 		if should_stance:
 			target = Vector2(foot.get("plant_target", _spider_sole_global(foot)))
+		elif _spider_leg_overstrained(foot):
+			# A wound-up leg gets a calm rest-pose target instead of the striding
+			# swing arc, so it unwinds instead of being whipped further around.
+			target = _primary_body.global_position + Vector2(foot.get("rest_offset", Vector2.ZERO)).rotated(_primary_body.rotation)
 		elif group == swing_group or not support_candidate:
 			var rest_offset := Vector2(foot.get("rest_offset", Vector2.ZERO)).rotated(_primary_body.rotation)
 			target = _primary_body.global_position + rest_offset
@@ -591,6 +634,15 @@ func _update_spider_gait(delta: float) -> void:
 			target.y = _spider_floor_y
 		foot["last_target"] = target
 		_set_spider_leg_target(foot, target)
+
+
+## A leg wound well past its drawn envelope is on its way over-center; it needs
+## a recovery target, not a stride target.
+func _spider_leg_overstrained(foot: Dictionary) -> bool:
+	for record_value in foot.get("segments", []):
+		if absf(float((record_value as Dictionary).get("tracked_angle", 0.0))) > deg_to_rad(140.0):
+			return true
+	return false
 
 
 func _spider_foot_reached_ground_target(foot: Dictionary) -> bool:
@@ -620,7 +672,10 @@ func _set_spider_leg_target(foot: Dictionary, world_target: Vector2) -> void:
 	if distance <= 0.001:
 		return
 	var elbow_cos := clampf((distance * distance - length_a * length_a - length_b * length_b) / (2.0 * length_a * length_b), -1.0, 1.0)
-	var elbow := acos(elbow_cos) * signf(float(foot.get("bend_sign", 1.0)))
+	# Cap the commanded fold: a target passing near the leg root asks for a
+	# ~180deg elbow, and driving that folds the leg over its own root and flips
+	# it a full turn. A spider leg never needs more than a deep crouch.
+	var elbow := clampf(acos(elbow_cos), 0.0, deg_to_rad(148.0)) * signf(float(foot.get("bend_sign", 1.0)))
 	var shoulder := target_vector.angle() - atan2(length_b * sin(elbow), length_a + length_b * cos(elbow))
 	var first: Dictionary = records[0]
 	var second: Dictionary = records[1]
@@ -630,8 +685,16 @@ func _set_spider_leg_target(foot: Dictionary, world_target: Vector2) -> void:
 		return
 	var desired_first_body_rotation := shoulder - float(first.get("rest_axis_angle", 0.0))
 	var desired_second_body_rotation := shoulder + elbow - float(second.get("rest_axis_angle", 0.0))
-	first["target_angle"] = wrapf(desired_first_body_rotation - first_parent.rotation - float(first.get("rest_relative", 0.0)), -PI, PI)
-	second["target_angle"] = wrapf(desired_second_body_rotation - second_parent.rotation - float(second.get("rest_relative", 0.0)), -PI, PI)
+	# Express each target in the winding closest to the muscle's continuous
+	# tracked angle. A plain wrapf here could flip the target by a full turn
+	# against a leg that had been forced past 180deg, and the muscle then spun it
+	# the long way around instead of settling.
+	var tracked_first := float(first.get("tracked_angle", 0.0))
+	var raw_first := desired_first_body_rotation - first_parent.rotation - float(first.get("rest_relative", 0.0))
+	first["target_angle"] = tracked_first + wrapf(raw_first - tracked_first, -PI, PI)
+	var tracked_second := float(second.get("tracked_angle", 0.0))
+	var raw_second := desired_second_body_rotation - second_parent.rotation - float(second.get("rest_relative", 0.0))
+	second["target_angle"] = tracked_second + wrapf(raw_second - tracked_second, -PI, PI)
 
 
 func _apply_spider_joint_muscles() -> void:
@@ -644,8 +707,10 @@ func _apply_spider_joint_muscles() -> void:
 			continue
 		var limit := float(segment.get("angle_limit", deg_to_rad(78.0)))
 		var target := clampf(float(segment.get("target_angle", 0.0)), -limit, limit)
-		var current := wrapf(child.rotation - parent.rotation - float(segment.get("rest_relative", 0.0)), -PI, PI)
-		var error := wrapf(target - current, -PI, PI)
+		# Continuous angle, same reasoning as the generic muscle: a wrapped error
+		# let a knocked leg segment wind up full turns instead of coming back.
+		var current := _tracked_joint_angle(segment)
+		var error := target - current
 		var relative_velocity := child.angular_velocity - parent.angular_velocity
 		var mass_scale := clampf(minf(parent.mass, child.mass) / 0.24, 0.55, 1.4)
 		var distal_scale := 1.0 if int(segment.get("chain_index", 0)) == 0 else 0.78
@@ -653,9 +718,32 @@ func _apply_spider_joint_muscles() -> void:
 		var damping := float(profile.get("joint_damping", 78.0)) * mass_scale
 		var torque_limit := float(profile.get("joint_torque_limit", 3000.0)) * distal_scale
 		var torque := clampf(error * spring - relative_velocity * damping, -torque_limit, torque_limit)
-		segment["last_drive_torque"] = torque
-		child.apply_torque(torque)
-		parent.apply_torque(-torque)
+		# Soft limit anchored at the drawn envelope. Besides preventing full-turn
+		# windup, the restoring couple doubles as tendon-like recoil that returns
+		# a deep stance sweep through its power stroke — widening this envelope
+		# measurably REDUCED the stance gait's forward travel.
+		var excess := 0.0
+		if current > limit:
+			excess = current - limit
+		elif current < -limit:
+			excess = current + limit
+		var limit_torque := 0.0
+		if excess != 0.0:
+			limit_torque = clampf(
+				-excess * spring * 4.0 - relative_velocity * damping * 2.0,
+				-torque_limit * 2.5,
+				torque_limit * 2.5
+			)
+		segment["last_drive_torque"] = torque + limit_torque
+		child.apply_torque(torque + limit_torque)
+		parent.apply_torque(-torque - limit_torque)
+		# Past the soft limit, drag and brake the segment's spin (dissipative
+		# only) so a whipped leg sheds the momentum of a would-be full turn.
+		if absf(excess) > deg_to_rad(15.0):
+			var drag := -relative_velocity * 44.0 * mass_scale
+			child.apply_torque(drag)
+			parent.apply_torque(-drag)
+			child.apply_torque(-child.angular_velocity * child.mass * 520.0)
 
 
 func _apply_spider_stance_forces() -> void:
@@ -880,6 +968,21 @@ func _apply_stand_support() -> void:
 ## subtree taken about the joint pivot, negated so the muscle cancels the droop.
 ## apply_torque is a free couple, so a torque computed about the pivot balances the
 ## limb's rotation about that pinned point. gravity_scale folds in float states.
+## Integrate the continuous (unwrapped) joint angle relative to the drawn rest
+## pose. wrapf on the raw measurement loses full turns; integrating the minimal
+## per-tick step keeps them, so the muscles can pull a wound-up limb back the way
+## it came and the soft limit knows how far the limb really strayed.
+func _tracked_joint_angle(segment: Dictionary) -> float:
+	var parent := segment["parent"] as ActiveRigBody2D
+	var child := segment["body"] as ActiveRigBody2D
+	var measured := wrapf(child.rotation - parent.rotation - float(segment["rest_relative"]), -PI, PI)
+	var tracked := float(segment.get("tracked_angle", 0.0))
+	tracked += wrapf(measured - wrapf(tracked, -PI, PI), -PI, PI)
+	segment["tracked_angle"] = tracked
+	_max_tracked_angle = maxf(_max_tracked_angle, absf(tracked))
+	return tracked
+
+
 func _gravity_hold_torque(segment: Dictionary, joint: PinJoint2D) -> float:
 	var support: Array = segment.get("support", [])
 	if support.is_empty():
@@ -2102,6 +2205,7 @@ func _clear_rig() -> void:
 	_body_bounds = Rect2()
 	_body_polylines = []
 	_rendered_ink.clear()
+	_max_tracked_angle = 0.0
 	_shape_count = 0
 	_rest_transforms.clear()
 	_physics_frames_since_build = 0
@@ -2151,16 +2255,29 @@ func _select_body_stroke(strokes: Array) -> int:
 			if index == other_index:
 				continue
 			var other: PackedVector2Array = strokes[other_index]["points"]
-			var head_gap := _point_polyline_distance(other[0], points)
+			# Which point of the other stroke comes closest to this one? Endpoints
+			# alone are not enough: a closed head circle's seam sits wherever the
+			# player happened to start drawing it, and an arm stroke crosses the
+			# spine mid-stroke. Missing those contacts made the head out-score the
+			# spine as a stick figure's torso.
+			var best_gap := _point_polyline_distance(other[0], points)
+			var contact := other[0]
 			var tail_gap := _point_polyline_distance(other[other.size() - 1], points)
-			if head_gap <= radius or tail_gap <= radius:
+			if tail_gap < best_gap:
+				best_gap = tail_gap
+				contact = other[other.size() - 1]
+			for sample in _sample_points(other, 9):
+				var gap := _point_polyline_distance(sample, points)
+				if gap < best_gap:
+					best_gap = gap
+					contact = sample
+			if best_gap <= radius:
 				incoming += 1
-				# Which end of the other stroke touches, and is that contact above or
-				# below this stroke's centre? The torso is the hub that limbs radiate
-				# from ABOVE (head/arms) and BELOW (legs); a head only has the body
-				# joining it from below. This above-and-below test is what stops a big
-				# round head from being chosen as the body of a stick figure.
-				var contact := other[0] if head_gap <= tail_gap else other[other.size() - 1]
+				# Is the contact above or below this stroke's centre? The torso is
+				# the hub that limbs radiate from ABOVE (head/arms) and BELOW (legs);
+				# a head only has the body joining it from below. This above-and-below
+				# test is what stops a big round head from being chosen as the body
+				# of a stick figure.
 				if contact.y < stroke_center.y:
 					attach_above = true
 				else:
@@ -2232,7 +2349,7 @@ func _paths_attached_to_body(points: PackedVector2Array, radius: float) -> Array
 		var second := points.slice(closest_index, points.size())
 		if _stroke_length(first) >= MIN_SEGMENT_LENGTH * 2.0 \
 				and _stroke_length(second) >= MIN_SEGMENT_LENGTH * 2.0 \
-				and _halves_form_limb_pair(first, second, radius):
+				and (_halves_form_limb_pair(first, second, radius) or _halves_cross_body(first, second, radius)):
 			result.append(first)
 			result.append(second)
 			return result
@@ -2266,6 +2383,40 @@ func _point_at_arc_length(points: PackedVector2Array, distance: float) -> Vector
 			return points[index].lerp(points[index + 1], (distance - traveled) / segment)
 		traveled += segment
 	return points[points.size() - 1]
+
+
+## True when the stroke actually CROSSES the torso ink at the contact: the two
+## halves continue on opposite sides of the nearest torso segment's line. Arms
+## drawn straight across a stick figure's spine cross (and must split into two
+## limbs); a tail passing beside the torso outline stays on one side (and must
+## stay whole).
+func _halves_cross_body(first: PackedVector2Array, second: PackedVector2Array, radius: float) -> bool:
+	var contact := first[0]
+	var body_segment := _nearest_body_segment(contact)
+	if body_segment.is_empty():
+		return false
+	var segment_start := Vector2(body_segment["start"])
+	var direction := Vector2(body_segment["end"]) - segment_start
+	if direction.length() < 0.001:
+		return false
+	var probe := maxf(radius * 0.5, MIN_SEGMENT_LENGTH)
+	var side_a := direction.cross(_point_at_arc_length(first, probe) - segment_start)
+	var side_b := direction.cross(_point_at_arc_length(second, probe) - segment_start)
+	return side_a * side_b < -0.001
+
+
+func _nearest_body_segment(point: Vector2) -> Dictionary:
+	var best := INF
+	var result := {}
+	for polyline_value in _body_polylines:
+		var polyline := polyline_value as PackedVector2Array
+		for index in range(polyline.size() - 1):
+			var nearest := Geometry2D.get_closest_point_to_segment(point, polyline[index], polyline[index + 1])
+			var gap := point.distance_to(nearest)
+			if gap < best:
+				best = gap
+				result = {"start": polyline[index], "end": polyline[index + 1]}
+	return result
 
 
 ## Distance from a point to the whole torso, measured against the body polylines
@@ -2460,6 +2611,10 @@ func _recover_rig() -> void:
 			continue
 		body.freeze = false
 		body.sleeping = false
+	# Bodies snapped back to the rest pose: the integrated joint angles are zero
+	# again by construction.
+	for segment_value in _segments:
+		(segment_value as Dictionary)["tracked_angle"] = 0.0
 	_physics_frames_since_build = 0
 
 
