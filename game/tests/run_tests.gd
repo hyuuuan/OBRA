@@ -40,6 +40,8 @@ func _run() -> void:
 	await _test_messy_fixtures()
 	await _test_ink_integrity()
 	await _test_grazing_stroke_not_split()
+	await _test_limb_angle_discipline()
+	await _test_stick_figure_anatomy()
 	await _test_compound_fallback_recovery()
 	await _test_physics_morphs()
 	await _test_utilities()
@@ -953,6 +955,86 @@ func _point_is_on_ink(point: Vector2, strokes: Array) -> bool:
 			if point.distance_to(nearest) <= 2.0:
 				return true
 	return false
+
+
+## Joints must HOLD their gait poses, not just keep their pin anchors together.
+## Before the continuous-angle muscles, limbs windmilled in full circles (pin
+## error stayed at zero, so no other test saw it): birds could not flap and
+## walkers flailed. A disciplined rig keeps every joint's integrated angle within
+## its drawn limit plus bounded overshoot.
+func _test_limb_angle_discipline() -> void:
+	var cases := [
+		{"entity_id": "cat", "state": "walk", "limit_deg": 250.0},
+		{"entity_id": "bird", "state": "fly", "limit_deg": 250.0},
+		{"entity_id": "humanoid", "state": "walk", "limit_deg": 250.0},
+		{"entity_id": "spider", "state": "walk", "limit_deg": 280.0}
+	]
+	for case_value in cases:
+		var case_data := case_value as Dictionary
+		var entity_id := String(case_data["entity_id"])
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		if instance == null:
+			_expect(false, "angle discipline could not instantiate %s" % entity_id)
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(300.0, 200.0)
+		instance.call("apply_drawing", _blank_image(), _fixture_for(entity_id))
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		instance.set_physics_process(false)
+		var params := {"moving": true, "speed_ratio": 1.0, "direction": 1.0}
+		for _frame in range(120):
+			skin.set_motion_state(String(case_data["state"]), params)
+			await physics_frame
+		var max_angle := rad_to_deg(skin.debug_max_tracked_angle())
+		_expect(
+			max_angle <= float(case_data["limit_deg"]),
+			"%s joints windmilled to %.0f deg (limit %.0f)" % [entity_id, max_angle, float(case_data["limit_deg"])]
+		)
+		instance.queue_free()
+		await process_frame
+
+
+## A stick figure must rig as spine-torso with articulated arms and legs. Two
+## regressions guarded here: the closed head circle out-scoring the spine as the
+## torso (its stroke seam hid it from the hub test), and arms drawn as one stroke
+## crossing the spine being welded rigid instead of split into two limbs.
+func _test_stick_figure_anatomy() -> void:
+	var instance := registry.instantiate_entity("humanoid") as Node2D
+	_expect(instance != null, "could not instantiate humanoid for stick figure check")
+	if instance == null:
+		return
+	world.add_child(instance)
+	instance.global_position = Vector2(300.0, 200.0)
+	instance.call("apply_drawing", _blank_image(), _stick_figure_fixture())
+	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+	_expect(skin.get_joint_count() >= 6, "stick figure articulated only %d joints" % skin.get_joint_count())
+	var roles := skin.debug_segment_roles()
+	_expect(roles.count("arm") >= 2, "stick figure arms did not split into limbs (roles: %s)" % str(roles))
+	_expect(roles.count("leg") >= 2, "stick figure legs missing (roles: %s)" % str(roles))
+	instance.queue_free()
+	await process_frame
+
+
+func _stick_figure_fixture() -> Array:
+	var strokes: Array = []
+	var head := PackedVector2Array()
+	for index in range(19):
+		var angle := TAU * float(index) / 18.0
+		head.append(Vector2(256.0 + cos(angle) * 30.0, 150.0 + sin(angle) * 30.0))
+	strokes.append(_stroke(head))
+	strokes.append(_stroke(_dense_line(Vector2(256.0, 180.0), Vector2(256.0, 300.0))))
+	strokes.append(_stroke(_dense_line(Vector2(180.0, 230.0), Vector2(332.0, 230.0))))
+	strokes.append(_stroke(_dense_line(Vector2(256.0, 300.0), Vector2(208.0, 404.0))))
+	strokes.append(_stroke(_dense_line(Vector2(256.0, 300.0), Vector2(304.0, 404.0))))
+	return strokes
+
+
+func _dense_line(from: Vector2, to: Vector2) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	var count := maxi(2, int(from.distance_to(to) / 6.0))
+	for index in range(count + 1):
+		points.append(from.lerp(to, float(index) / float(count)))
+	return points
 
 
 ## A limb stroke whose midpoint merely grazes the torso must stay one limb; the
