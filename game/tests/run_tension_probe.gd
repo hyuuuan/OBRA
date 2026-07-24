@@ -21,7 +21,7 @@ func _run() -> void:
 	var cs := floor_body.get_node("CollisionShape2D") as CollisionShape2D
 	var floor_top: float = floor_body.global_position.y - (cs.shape as RectangleShape2D).size.y * 0.5
 
-	for entity_id in ["humanoid", "spider", "cat", "frog"]:
+	for entity_id in ["monkey", "spider", "pig", "frog"]:
 		await _probe(level, entity_id, floor_top)
 
 	level.queue_free()

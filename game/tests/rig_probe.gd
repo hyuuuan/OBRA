@@ -49,7 +49,7 @@ func _probe_fixture(path: String) -> void:
 		failures += 1
 		return
 	var label := String(data.get("description", path.get_file()))
-	var entity_id := String(data.get("entity_id", "cat"))
+	var entity_id := String(data.get("entity_id", "pig"))
 	var strokes := _strokes_from_json(data.get("strokes", []))
 	var states: Array = data.get("states", ["walk", "idle"])
 

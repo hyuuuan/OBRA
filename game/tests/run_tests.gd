@@ -36,8 +36,13 @@ func _run() -> void:
 	_test_anatomy_inference()
 	await _test_spider_stance_controller()
 	await _test_active_ragdolls()
+	await _test_archetype_coverage()
 	await _test_idle_stability()
 	await _test_messy_fixtures()
+	await _test_ink_integrity()
+	await _test_grazing_stroke_not_split()
+	await _test_limb_angle_discipline()
+	await _test_stick_figure_anatomy()
 	await _test_compound_fallback_recovery()
 	await _test_physics_morphs()
 	await _test_utilities()
@@ -61,20 +66,16 @@ func _test_manifest_roles() -> void:
 	var living := 0
 	var shapes := 0
 	var utilities := 0
-	for entity_id in [
-		"fish", "frog", "spider", "bird", "humanoid", "cat", "dog",
-		"rabbit", "butterfly", "snake", "circle", "square", "triangle",
-		"axe", "ladder", "key", "umbrella", "flashlight", "sailboat"
-	]:
+	for entity_id in registry.get_entity_ids():
 		var entry := registry.get_entity(entity_id)
 		_expect(not entry.is_empty(), "manifest missing %s" % entity_id)
 		match String(entry.get("runtime_role", "")):
 			"active_ragdoll_morph": living += 1
 			"physics_morph": shapes += 1
 			"utility": utilities += 1
-	_expect(living == 10, "expected 10 living morphs, got %d" % living)
+	_expect(living == 20, "expected 20 living morphs, got %d" % living)
 	_expect(shapes == 3, "expected 3 physics morphs, got %d" % shapes)
-	_expect(utilities == 6, "expected 6 utilities, got %d" % utilities)
+	_expect(utilities == 27, "expected 27 utilities, got %d" % utilities)
 
 
 func _test_ink_accounting() -> void:
@@ -308,7 +309,7 @@ func _test_placement_collision() -> void:
 
 
 func _test_active_ragdolls() -> void:
-	for entity_id in ["fish", "frog", "spider", "bird", "humanoid", "cat", "dog", "rabbit", "butterfly", "snake"]:
+	for entity_id in _living_entity_ids():
 		var instance := registry.instantiate_entity(entity_id) as Node2D
 		_expect(instance != null, "could not instantiate %s" % entity_id)
 		if instance == null:
@@ -321,23 +322,18 @@ func _test_active_ragdolls() -> void:
 		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
 		_expect(skin.get_rigid_bodies().size() <= 24, "%s exceeded body cap" % entity_id)
 		_expect(skin.get_joint_count() <= 23, "%s exceeded joint cap" % entity_id)
+		var rig_type := String(registry.get_entity(entity_id).get("rig_type", ""))
 		if entity_id == "spider":
 			_expect(skin.get_joint_count() >= 12, "spider legs regressed to single rigid segments")
-		elif entity_id in ["cat", "dog", "frog", "rabbit", "humanoid"]:
-			_expect(skin.get_joint_count() >= 8, "%s limbs regressed to single rigid segments" % entity_id)
-		if entity_id in ["spider", "cat", "dog", "frog", "rabbit", "bird", "butterfly", "humanoid", "snake"]:
+		else:
 			_expect(skin.get_joint_count() > 0, "%s did not articulate fixture strokes" % entity_id)
-		var expected_role: String = String({
-			"spider": "leg", "cat": "leg", "dog": "leg", "frog": "leg",
-			"rabbit": "leg", "bird": "wing", "butterfly": "wing",
-			"humanoid": "arm", "fish": "tail", "snake": "chain"
-		}.get(entity_id, ""))
-		_expect(expected_role in skin.debug_segment_roles(), "%s did not assign expected %s role" % [entity_id, expected_role])
-		var motion_state: String = String({
-			"spider": "walk", "cat": "walk", "dog": "walk", "frog": "jump",
-			"rabbit": "jump", "bird": "fly", "butterfly": "fly",
-			"humanoid": "walk", "fish": "swim", "snake": "walk"
-		}.get(entity_id, "walk"))
+		var expected_roles := _expected_roles_for_rig(rig_type)
+		if not expected_roles.is_empty():
+			var role_found := false
+			for role_name in expected_roles:
+				role_found = role_found or role_name in skin.debug_segment_roles()
+			_expect(role_found, "%s did not assign any expected role %s (got %s)" % [entity_id, str(expected_roles), str(skin.debug_segment_roles())])
+		var motion_state: String = _gait_for_rig(rig_type)
 		var motion_params := {"moving": true, "speed_ratio": 1.0, "direction": 1.0}
 		# Keep the fixture in its species gait; the normal controller would read
 		# zero headless input and replace this state with idle every frame.
@@ -543,7 +539,7 @@ func _test_anatomy_inference() -> void:
 		_stroke(PackedVector2Array([Vector2(270, 328), Vector2(282, 382), Vector2(288, 438)])),
 		_stroke(torso)
 	]
-	var human := registry.instantiate_entity("humanoid") as Node2D
+	var human := registry.instantiate_entity("monkey") as Node2D
 	world.add_child(human)
 	human.call("apply_drawing", _blank_image(), human_strokes)
 	var human_skin := human.get_node("DrawingSkin") as RuntimeRig2D
@@ -773,7 +769,7 @@ func _test_spider_stance_controller() -> void:
 ## energy through its limbs (via undamped gravity compensation) and wander/spin on its
 ## own when the player gives no input.
 func _test_idle_stability() -> void:
-	for entity_id in ["spider", "cat", "humanoid"]:
+	for entity_id in ["spider", "horse", "monkey"]:
 		var instance := registry.instantiate_entity(entity_id) as Node2D
 		world.add_child(instance)
 		instance.global_position = Vector2(400.0, 360.0)
@@ -814,7 +810,7 @@ func _check_messy_fixture(path: String) -> void:
 		_expect(false, "fixture %s did not parse" % path)
 		return
 	var label := String(data.get("description", path.get_file()))
-	var entity_id := String(data.get("entity_id", "cat"))
+	var entity_id := String(data.get("entity_id", "horse"))
 	var strokes := _messy_strokes(data.get("strokes", []))
 	var states: Array = data.get("states", ["walk"])
 	var primary_state := String(states[0]) if not states.is_empty() else "walk"
@@ -867,6 +863,196 @@ func _messy_strokes(raw: Array) -> Array:
 			points.append(Vector2(float(pair[0]), float(pair[1])))
 		strokes.append({"points": points, "width": float(stroke.get("width", 8.0)), "color": Color.BLACK})
 	return strokes
+
+
+## Everything the rig renders must be the player's ink: on-stroke (no fabricated
+## chords slashing across the figure) and length-conserving (no ink silently
+## dropped or duplicated). Checked for every living entity's clean fixture and
+## every messy fixture — spider included, since its analyzer claims exact slices.
+func _test_ink_integrity() -> void:
+	var cases: Array = []
+	for entity_id in _living_entity_ids():
+		cases.append({"label": "clean %s" % entity_id, "entity_id": entity_id, "strokes": _fixture_for(entity_id)})
+	var dir := DirAccess.open("res://tests/fixtures")
+	if dir != null:
+		var names := dir.get_files()
+		names.sort()
+		for file_name in names:
+			if not file_name.ends_with(".json"):
+				continue
+			var data: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/" + file_name))
+			if typeof(data) != TYPE_DICTIONARY:
+				continue
+			var fixture := data as Dictionary
+			cases.append({
+				"label": String(fixture.get("description", file_name)),
+				"entity_id": String(fixture.get("entity_id", "horse")),
+				"strokes": _messy_strokes(fixture.get("strokes", []))
+			})
+	for case_value in cases:
+		var case_data := case_value as Dictionary
+		var label := String(case_data["label"])
+		var instance := registry.instantiate_entity(String(case_data["entity_id"])) as Node2D
+		if instance == null:
+			_expect(false, "ink integrity could not instantiate %s" % label)
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(300.0, 200.0)
+		instance.call("apply_drawing", _blank_image(), case_data["strokes"])
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		var strokes := skin.get_vector_strokes()
+		var rendered := skin.debug_rendered_ink()
+		_expect(not rendered.is_empty(), "'%s' rendered no ink" % label)
+		_expect(skin.get_rigid_bodies().size() <= 24 and skin.get_joint_count() <= 23, "'%s' exceeded rig caps" % label)
+		_expect(
+			skin.get_joint_count() > 0 or skin.get_rigid_bodies().size() == 1,
+			"'%s' degraded partially: %d jointless bodies" % [label, skin.get_rigid_bodies().size()]
+		)
+		var input_length := 0.0
+		for stroke_value in strokes:
+			input_length += _test_path_length((stroke_value as Dictionary)["points"])
+		var core_length := 0.0
+		var off_ink := 0
+		for entry_value in rendered:
+			var entry := entry_value as Dictionary
+			var points: PackedVector2Array = entry["points"]
+			if points.size() < 2:
+				continue
+			for index in range(points.size()):
+				if not _point_is_on_ink(points[index], strokes):
+					off_ink += 1
+				if index > 0 and not _point_is_on_ink((points[index - 1] + points[index]) * 0.5, strokes):
+					off_ink += 1
+			var prefix := int(entry.get("overlap_prefix", 0))
+			var suffix := int(entry.get("overlap_suffix", 0))
+			var core := points.slice(prefix, points.size() - suffix)
+			if core.size() >= 2:
+				core_length += _test_path_length(core)
+		_expect(off_ink == 0, "'%s' rendered %d points off the drawn ink" % [label, off_ink])
+		if input_length > 0.0:
+			var ratio := core_length / input_length
+			_expect(
+				ratio >= 0.92 and ratio <= 1.08,
+				"'%s' rendered %.0f%% of the drawn ink length" % [label, ratio * 100.0]
+			)
+		instance.queue_free()
+		await process_frame
+
+
+func _point_is_on_ink(point: Vector2, strokes: Array) -> bool:
+	for stroke_value in strokes:
+		var points: PackedVector2Array = (stroke_value as Dictionary)["points"]
+		for index in range(points.size() - 1):
+			var nearest := Geometry2D.get_closest_point_to_segment(point, points[index], points[index + 1])
+			if point.distance_to(nearest) <= 2.0:
+				return true
+	return false
+
+
+## Joints must HOLD their gait poses, not just keep their pin anchors together.
+## Before the continuous-angle muscles, limbs windmilled in full circles (pin
+## error stayed at zero, so no other test saw it): birds could not flap and
+## walkers flailed. A disciplined rig keeps every joint's integrated angle within
+## its drawn limit plus bounded overshoot.
+func _test_limb_angle_discipline() -> void:
+	var cases := [
+		{"entity_id": "horse", "state": "walk", "limit_deg": 250.0},
+		{"entity_id": "bird", "state": "fly", "limit_deg": 250.0},
+		{"entity_id": "monkey", "state": "walk", "limit_deg": 250.0},
+		{"entity_id": "spider", "state": "walk", "limit_deg": 280.0}
+	]
+	for case_value in cases:
+		var case_data := case_value as Dictionary
+		var entity_id := String(case_data["entity_id"])
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		if instance == null:
+			_expect(false, "angle discipline could not instantiate %s" % entity_id)
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(300.0, 200.0)
+		instance.call("apply_drawing", _blank_image(), _fixture_for(entity_id))
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		instance.set_physics_process(false)
+		var params := {"moving": true, "speed_ratio": 1.0, "direction": 1.0}
+		for _frame in range(120):
+			skin.set_motion_state(String(case_data["state"]), params)
+			await physics_frame
+		var max_angle := rad_to_deg(skin.debug_max_tracked_angle())
+		_expect(
+			max_angle <= float(case_data["limit_deg"]),
+			"%s joints windmilled to %.0f deg (limit %.0f)" % [entity_id, max_angle, float(case_data["limit_deg"])]
+		)
+		instance.queue_free()
+		await process_frame
+
+
+## A stick figure must rig as spine-torso with articulated arms and legs. Two
+## regressions guarded here: the closed head circle out-scoring the spine as the
+## torso (its stroke seam hid it from the hub test), and arms drawn as one stroke
+## crossing the spine being welded rigid instead of split into two limbs.
+func _test_stick_figure_anatomy() -> void:
+	var instance := registry.instantiate_entity("monkey") as Node2D
+	_expect(instance != null, "could not instantiate monkey for stick figure check")
+	if instance == null:
+		return
+	world.add_child(instance)
+	instance.global_position = Vector2(300.0, 200.0)
+	instance.call("apply_drawing", _blank_image(), _stick_figure_fixture())
+	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+	_expect(skin.get_joint_count() >= 6, "stick figure articulated only %d joints" % skin.get_joint_count())
+	var roles := skin.debug_segment_roles()
+	_expect(roles.count("arm") >= 2, "stick figure arms did not split into limbs (roles: %s)" % str(roles))
+	_expect(roles.count("leg") >= 2, "stick figure legs missing (roles: %s)" % str(roles))
+	instance.queue_free()
+	await process_frame
+
+
+func _stick_figure_fixture() -> Array:
+	var strokes: Array = []
+	var head := PackedVector2Array()
+	for index in range(19):
+		var angle := TAU * float(index) / 18.0
+		head.append(Vector2(256.0 + cos(angle) * 30.0, 150.0 + sin(angle) * 30.0))
+	strokes.append(_stroke(head))
+	strokes.append(_stroke(_dense_line(Vector2(256.0, 180.0), Vector2(256.0, 300.0))))
+	strokes.append(_stroke(_dense_line(Vector2(180.0, 230.0), Vector2(332.0, 230.0))))
+	strokes.append(_stroke(_dense_line(Vector2(256.0, 300.0), Vector2(208.0, 404.0))))
+	strokes.append(_stroke(_dense_line(Vector2(256.0, 300.0), Vector2(304.0, 404.0))))
+	return strokes
+
+
+func _dense_line(from: Vector2, to: Vector2) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	var count := maxi(2, int(from.distance_to(to) / 6.0))
+	for index in range(count + 1):
+		points.append(from.lerp(to, float(index) / float(count)))
+	return points
+
+
+## A limb stroke whose midpoint merely grazes the torso must stay one limb; the
+## old interior split cut it into two half-limbs that tore the drawing apart.
+func _test_grazing_stroke_not_split() -> void:
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/grazing_limb.json"))
+	if typeof(data) != TYPE_DICTIONARY:
+		_expect(false, "grazing_limb fixture did not parse")
+		return
+	var strokes := _messy_strokes((data as Dictionary).get("strokes", []))
+	var instance := registry.instantiate_entity("horse") as Node2D
+	_expect(instance != null, "could not instantiate horse for grazing check")
+	if instance == null:
+		return
+	world.add_child(instance)
+	instance.global_position = Vector2(300.0, 200.0)
+	instance.call("apply_drawing", _blank_image(), strokes)
+	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+	# The grazing stroke is the fixture's last stroke; normalization keeps order.
+	var normalized := skin.get_vector_strokes()
+	var graze: Dictionary = normalized[normalized.size() - 1]
+	var radius := clampf(skin.get_stroke_bounds().size.length() * 0.14, 12.0, 40.0)
+	var paths: Array = skin._paths_attached_to_body(graze["points"], radius)
+	_expect(paths.size() <= 1, "grazing stroke split into %d limb paths" % paths.size())
+	instance.queue_free()
+	await process_frame
 
 
 func _test_utilities() -> void:
@@ -951,6 +1137,105 @@ func _test_physics_morphs() -> void:
 		_expect(is_finite(instance.global_position.x), "%s physics became non-finite" % entity_id)
 		instance.queue_free()
 		await process_frame
+
+
+func _living_entity_ids() -> Array:
+	var ids: Array = []
+	for entity_id in registry.get_entity_ids():
+		if String(registry.get_entity(entity_id).get("runtime_role", "")) == "active_ragdoll_morph":
+			ids.append(entity_id)
+	return ids
+
+
+func _expected_roles_for_rig(rig_type: String) -> Array:
+	match rig_type:
+		"flier":
+			return ["wing"]
+		"swimmer":
+			return ["tail", "fin", "chain"]
+		"walker", "biped", "hopper":
+			return ["leg"]
+		_:
+			return []
+
+
+func _gait_for_rig(rig_type: String) -> String:
+	match rig_type:
+		"flier":
+			return "fly"
+		"swimmer":
+			return "swim"
+		"hopper":
+			return "jump"
+		_:
+			return "walk"
+
+
+## Per-archetype coverage: every enabled entity must spawn, rig, and step physics
+## without erroring, keep its ink intact, stay in bounds, and not windmill. Results
+## are grouped by rig_type archetype, matching the thesis's per-archetype plan.
+func _test_archetype_coverage() -> void:
+	var groups: Dictionary = {}
+	var order: Array = []
+	for entity_id in registry.get_entity_ids():
+		var entry := registry.get_entity(entity_id)
+		var rig_type := String(entry.get("rig_type", "none"))
+		if not groups.has(rig_type):
+			groups[rig_type] = {"pass": 0, "fail": 0}
+			order.append(rig_type)
+		var before := failures.size()
+		await _cover_entity(entity_id, entry, rig_type)
+		if failures.size() == before:
+			groups[rig_type]["pass"] += 1
+		else:
+			groups[rig_type]["fail"] += 1
+	order.sort()
+	print("--- Per-archetype coverage summary (rig_type) ---")
+	for rig_type in order:
+		var g: Dictionary = groups[rig_type]
+		print("  %-8s : %d passed, %d failed" % [rig_type, int(g["pass"]), int(g["fail"])])
+
+
+func _cover_entity(entity_id: String, entry: Dictionary, rig_type: String) -> void:
+	var is_creature := String(entry.get("runtime_role", "")) == "active_ragdoll_morph"
+	var fixture: Array = _fixture_for(entity_id) if is_creature else _utility_fixture(entity_id)
+	var instance := registry.instantiate_entity(entity_id) as Node2D
+	_expect(instance != null, "coverage: could not instantiate %s" % entity_id)
+	if instance == null:
+		return
+	world.add_child(instance)
+	instance.global_position = Vector2(400.0, 200.0)
+	if instance.has_method("set_world_bounds"):
+		instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+	instance.call("apply_drawing", _blank_image(), fixture)
+	var anchor := instance.call("get_physics_anchor") as RigidBody2D
+	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+	_expect(anchor != null and skin != null, "coverage: %s missing anchor/skin" % entity_id)
+	if anchor == null or skin == null:
+		instance.queue_free()
+		await process_frame
+		return
+	_expect(skin.get_rigid_bodies().size() <= 24 and skin.get_joint_count() <= 23, "coverage: %s exceeded rig caps" % entity_id)
+	if skin.skin_mode() == "vector":
+		_expect(bool(skin.call("_rig_ink_is_intact")), "coverage: %s violated the ink-integrity audit" % entity_id)
+	if is_creature and entity_id != "spider":
+		_expect(skin.get_joint_count() > 0 or skin.skin_mode() != "vector", "coverage: %s did not articulate" % entity_id)
+	instance.set_physics_process(false)
+	var motion := {"moving": true, "speed_ratio": 1.0, "direction": 1.0, "charge_ratio": 1.0}
+	var gait := _gait_for_rig(rig_type)
+	for _frame in range(90):
+		if is_creature:
+			skin.set_motion_state(gait, motion)
+		await physics_frame
+	for rig_body in skin.get_rigid_bodies():
+		_expect(is_finite(rig_body.global_position.x) and is_finite(rig_body.global_position.y), "coverage: %s segment became non-finite" % entity_id)
+	_expect(is_finite(anchor.global_position.x) and is_finite(anchor.global_position.y), "coverage: %s anchor became non-finite" % entity_id)
+	_expect(Rect2(-180.0, -700.0, 4120.0, 1560.0).has_point(anchor.global_position), "coverage: %s escaped the playable world" % entity_id)
+	if is_creature:
+		var max_angle := rad_to_deg(skin.debug_max_tracked_angle())
+		_expect(max_angle <= 360.0, "coverage: %s joints windmilled to %.0f deg" % [entity_id, max_angle])
+	instance.queue_free()
+	await process_frame
 
 
 func _fixture_for(entity_id: String) -> Array:

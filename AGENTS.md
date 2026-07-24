@@ -40,6 +40,10 @@ player or creates a placeable utility from the player's actual stroke vectors.
   stored without replacing the current player.
 - `RuntimeRig2D` builds bounded rigidbody/joint graphs from drawn strokes. Preserve
   that no-template-limb pipeline and tune motors/contacts through rig profiles.
+- Ink integrity is a contract: every polyline the rig renders must be an exact
+  contiguous slice of the player's strokes (never a reassembly), and a post-build
+  audit demotes any diverging rig to one intact compound body. `_test_ink_integrity`
+  in `game/tests/run_tests.gd` enforces this on clean and messy fixtures.
 
 ## Gameplay Shape
 

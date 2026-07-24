@@ -1,0 +1,15 @@
+{
+  "id": "octopus",
+  "rig_type": "swimmer",
+  "move_speed": 235,
+  "friction": 0.4,
+  "joint_spring": 700,
+  "joint_damping": 44,
+  "joint_torque_limit": 1600,
+  "target_size": [112, 100],
+  "align": "center",
+  "swim_style": "swim",
+  "wave_length": 60,
+  "wave_amplitude": 8.5,
+  "head_direction": [1, 0]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "horse",
+  "rig_type": "walker",
+  "move_speed": 280,
+  "jump_impulse": 380,
+  "friction": 0.9,
+  "joint_spring": 1350,
+  "joint_damping": 94,
+  "joint_torque_limit": 3800,
+  "target_size": [148, 108],
+  "align": "bottom",
+  "ground_offset": 58,
+  "stride_length": 58,
+  "leg_swing_degrees": 18,
+  "leg_phase_ripple": 0.28,
+  "walk_bob": 2.6,
+  "air_splay_degrees": 8,
+  "tilt_degrees": 3.0,
+  "landing_squash": 0.13
+}
