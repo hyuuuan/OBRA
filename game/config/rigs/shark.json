@@ -1,0 +1,15 @@
+{
+  "id": "shark",
+  "rig_type": "swimmer",
+  "move_speed": 285,
+  "friction": 0.32,
+  "joint_spring": 900,
+  "joint_damping": 54,
+  "joint_torque_limit": 2200,
+  "target_size": [156, 82],
+  "align": "center",
+  "swim_style": "swim",
+  "wave_length": 82,
+  "wave_amplitude": 6.0,
+  "head_direction": [1, 0]
+}

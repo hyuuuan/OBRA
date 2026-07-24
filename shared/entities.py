@@ -14,17 +14,47 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MANIFEST_PATH = REPO_ROOT / "game" / "config" / "entities.json"
+DEFAULT_ABILITIES_PATH = REPO_ROOT / "game" / "config" / "abilities.json"
 ALLOWED_SPAWN_MODES = {"playable", "pickup", "obstacle", "static"}
 ALLOWED_RIG_TYPES = {"walker", "biped", "flier", "swimmer", "hopper", "none"}
 ALLOWED_RUNTIME_ROLES = {"active_ragdoll_morph", "physics_morph", "utility"}
 ALLOWED_MEDIA = {"any", "water"}
+# ConceptNet ability provenance relations. Creatures resolve from CapableOf, objects
+# from UsedFor; the three geometric primitives have no commonsense relation and are
+# hand-authored. Resolution is offline (tools/build_abilities.py) and committed.
+ALLOWED_ABILITY_RELATIONS = {"CapableOf", "UsedFor", "hand_authored"}
+# The three geometric primitives that must carry hand-authored abilities.
+PRIMITIVE_IDS = {"circle", "square", "triangle"}
+# All 27 roster objects are provisionally placeable utilities (per team decision to
+# expand the utility set); the six-slot inventory still holds instances, not types.
 ALLOWED_UTILITY_BEHAVIORS = {
     "axe",
-    "ladder",
-    "key",
-    "umbrella",
+    "sword",
+    "cannon",
+    "boomerang",
     "flashlight",
+    "campfire",
+    "cloud",
+    "sun",
+    "fan",
+    "ladder",
+    "stairs",
+    "parachute",
+    "hot_air_balloon",
+    "bridge",
     "sailboat",
+    "submarine",
+    "key",
+    "door",
+    "rake",
+    "scissors",
+    "clock",
+    "anvil",
+    "bucket",
+    "umbrella",
+    "tree",
+    "mushroom",
+    "wheel",
 }
 # Older manifests used deform_strategy; map those onto the rig types.
 LEGACY_STRATEGY_TO_RIG_TYPE = {
@@ -162,6 +192,95 @@ def validate_model_labels(
             f"Found: {labels}\n"
             "Retrain/export the model after editing game/config/entities.json."
         )
+
+
+@dataclass(frozen=True)
+class AbilityDefinition:
+    entity_id: str
+    ability: str
+    ability_relation: str
+    ability_assertion: str
+    ability_weight: float | None = None
+
+    def to_public_dict(self) -> dict[str, Any]:
+        return {
+            "ability": self.ability,
+            "ability_relation": self.ability_relation,
+            "ability_assertion": self.ability_assertion,
+            "ability_weight": self.ability_weight,
+        }
+
+
+def load_abilities(
+    abilities_path: str | Path | None = None,
+    *,
+    entities: list[EntityDefinition] | None = None,
+) -> dict[str, AbilityDefinition]:
+    """Load the committed ConceptNet ability table, keyed by entity id.
+
+    The table is resolved offline (see tools/build_abilities.py) and committed; the
+    game and backend only ever read it -- never query ConceptNet at runtime. When
+    ``entities`` is provided, every enabled entity is required to carry a valid entry
+    and the geometric primitives must be hand-authored.
+    """
+    path = Path(abilities_path) if abilities_path is not None else DEFAULT_ABILITIES_PATH
+    doc = json.loads(path.read_text())
+    raw = doc.get("abilities", doc) if isinstance(doc, dict) else doc
+    if not isinstance(raw, dict):
+        raise ValueError(f"{path} must contain an 'abilities' object keyed by entity id")
+
+    abilities: dict[str, AbilityDefinition] = {}
+    for entity_id, entry in raw.items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"ability entry for {entity_id!r} must be an object")
+        relation = _non_empty_string(entry, "ability_relation")
+        if relation not in ALLOWED_ABILITY_RELATIONS:
+            raise ValueError(
+                f"{entity_id} has invalid ability_relation {relation!r}; "
+                f"expected one of {sorted(ALLOWED_ABILITY_RELATIONS)}"
+            )
+        weight = entry.get("ability_weight")
+        if relation == "hand_authored":
+            weight_value = None if weight is None else float(weight)
+        elif isinstance(weight, (int, float)) and float(weight) > 0.0:
+            weight_value = float(weight)
+        else:
+            raise ValueError(
+                f"{entity_id} ability_weight must be a positive number for a "
+                f"{relation} assertion"
+            )
+        abilities[entity_id] = AbilityDefinition(
+            entity_id=entity_id,
+            ability=_non_empty_string(entry, "ability"),
+            ability_relation=relation,
+            ability_assertion=_non_empty_string(entry, "ability_assertion"),
+            ability_weight=weight_value,
+        )
+
+    if entities is not None:
+        _validate_abilities(abilities, entities, source=str(path))
+    return abilities
+
+
+def _validate_abilities(
+    abilities: dict[str, AbilityDefinition],
+    entities: list[EntityDefinition],
+    *,
+    source: str,
+) -> None:
+    for entity in entities:
+        if not entity.enabled:
+            continue
+        ability = abilities.get(entity.id)
+        if ability is None:
+            raise ValueError(
+                f"{source} is missing an ability for enabled entity {entity.id!r}"
+            )
+        if entity.id in PRIMITIVE_IDS and ability.ability_relation != "hand_authored":
+            raise ValueError(
+                f"{entity.id} is a geometric primitive and must use a hand_authored "
+                f"ability, got {ability.ability_relation!r}"
+            )
 
 
 def res_path_to_filesystem(res_path: str) -> Path:
