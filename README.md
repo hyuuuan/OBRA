@@ -71,9 +71,9 @@ uvicorn main:app --reload --port 8000
 ```
 
 The prediction response includes `entity`, `display_name`, `source_label`,
-`confidence`, `margin`, `runner_up`, `probabilities`, `rig_profile`,
-`rig_type`, `runtime_role`, `utility_behavior`, `required_medium`, and the
-legacy `creature` alias.
+`confidence`, `margin`, `runner_up`, `probabilities`, `timing`
+(decode/preprocess/infer/total ms), `rig_profile`, `rig_type`, `runtime_role`,
+`utility_behavior`, `required_medium`, and the legacy `creature` alias.
 
 ## Runtime Physics, Utilities, and Ink
 
@@ -96,8 +96,33 @@ failure, and low-confidence rejection refund the current reservation.
 
 ```bash
 python -m unittest -v tests.test_manifest_contract
+python -m unittest -v tests.test_backend_telemetry
 godot --headless --path game --script res://tests/run_tests.gd
 godot --headless --path game --script res://tests/run_level_ready.gd
+godot --headless --path game --script res://tests/test_player_profile.gd
+```
+
+## Telemetry and Player Profile
+
+Progression persists in a single JSON player profile at `user://profile.json`
+(atomic temp-then-rename write, schema-versioned, no database). Anonymous, local
+gameplay telemetry is written per session to `user://telemetry/session_<UTC>.jsonl`.
+On macOS `user://` resolves to
+`~/Library/Application Support/Godot/app_userdata/O.B.R.A/`.
+
+The backend additionally logs one anonymous record per prediction when enabled:
+
+```bash
+OBRA_TELEMETRY=1 uvicorn main:app --port 8000          # writes telemetry/backend_<date>.jsonl
+OBRA_TELEMETRY_DIR=/path OBRA_TELEMETRY=1 uvicorn ...  # optional directory override
+```
+
+`/predict` also returns a `timing` breakdown so end-to-end latency can be decomposed
+across the game and the backend. Summarize the logs (redraw rate, latency, per-class
+precision/recall, confusion matrix) with:
+
+```bash
+python3 tools/aggregate_telemetry.py <telemetry-dir-or-file>
 ```
 
 ## Cross-Dataset Evaluation

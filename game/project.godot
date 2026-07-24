@@ -22,6 +22,8 @@ config/features=PackedStringArray("4.7")
 
 GameState="*res://scripts/game_state.gd"
 LevelManager="*res://scripts/level_manager.gd"
+PlayerProfile="*res://scripts/player_profile.gd"
+Telemetry="*res://scripts/telemetry.gd"
 
 [display]
 

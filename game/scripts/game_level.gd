@@ -2,6 +2,9 @@ extends Node2D
 
 @export var debug_timing_logs: bool = false
 
+## A morph whose anchor comes within this radius of the level's GoalMarker completes it.
+const GOAL_RADIUS := 120.0
+
 @onready var registry: EntityRegistry = $EntityRegistry
 @onready var environment: Node = $EnvironmentBaseplate
 @onready var spawn_point: Marker2D = $EnvironmentBaseplate/GameplayPlane/SpawnPoint
@@ -17,13 +20,16 @@ extends Node2D
 @onready var ink_manager: InkManager = $InkManager
 @onready var inventory_manager: InventoryManager = $InventoryManager
 @onready var placement_controller: PlacementController = $PlacementController
+@onready var goal_marker: Node2D = get_node_or_null("EnvironmentBaseplate/GameplayPlane/GoalMarker")
 
 var player: Node2D
 var _equipped_utility: UtilityObject
+var _level_completed := false
 
 
 func _ready() -> void:
 	registry.load_manifest()
+	Telemetry.begin_level(LevelManager.current_level_id)
 	ink_manager.begin_level(12.0)
 	inventory_manager.begin_level()
 	placement_controller.registry = registry
@@ -359,3 +365,28 @@ func _on_ink_changed(remaining: float, capacity: float, reserved: float) -> void
 		capacity,
 		" (%.1f reserved)" % reserved if reserved > 0.001 else ""
 	]
+
+
+func _physics_process(_delta: float) -> void:
+	if _level_completed or goal_marker == null:
+		return
+	if player == null or not is_instance_valid(player):
+		return
+	var anchor_position := player.global_position
+	if player.has_method("get_physics_anchor"):
+		var anchor := player.call("get_physics_anchor") as Node2D
+		if anchor != null:
+			anchor_position = anchor.global_position
+	if anchor_position.distance_to(goal_marker.global_position) <= GOAL_RADIUS:
+		_complete_level()
+
+
+func _complete_level() -> void:
+	if _level_completed:
+		return
+	_level_completed = true
+	var level_id := LevelManager.current_level_id
+	Telemetry.end_level(level_id, "completed")
+	PlayerProfile.mark_level_completed(level_id)
+	status_label.text = "Level complete!"
+	LevelManager.return_to_selector()

@@ -33,10 +33,16 @@ var _is_open := false
 var _submitting := false
 var _open_tween: Tween = null
 var _submit_started_usec: int = 0
+# Autoloads resolved through the tree so this class_name script compiles even when a
+# tool precompiles it before the autoloads register. Untyped for dynamic dispatch.
+var _telemetry
+var _profile
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	_telemetry = get_node_or_null("/root/Telemetry")
+	_profile = get_node_or_null("/root/PlayerProfile")
 	visible = false
 	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	client.canvas_viewport = canvas_viewport
@@ -46,6 +52,7 @@ func _ready() -> void:
 	canvas.stroke_cost_changed.connect(_on_stroke_cost_changed)
 	canvas.ink_blocked.connect(_on_ink_blocked)
 	client.entity_prediction_received.connect(_on_entity_prediction)
+	client.entity_declined.connect(_on_entity_declined)
 	client.prediction_failed.connect(_on_prediction_failed)
 	status.text = "Draw something, then Transform!"
 
@@ -119,9 +126,22 @@ func _on_entity_prediction(
 	response: Dictionary
 ) -> void:
 	status.text = "%s %.0f%%" % [display_name, confidence * 100.0]
+	var latency_ms := _submit_latency_ms()
 	if debug_timing_logs and _submit_started_usec > 0:
-		var total_ms := float(Time.get_ticks_usec() - _submit_started_usec) / 1000.0
-		print("DrawPanel submit-to-prediction %.2f ms" % total_ms)
+		print("DrawPanel submit-to-prediction %.2f ms" % latency_ms)
+	if _telemetry:
+		_telemetry.record_recognition({
+			"outcome": "accept",
+			"entity": entity,
+			"source_label": response.get("source_label", ""),
+			"confidence": confidence,
+			"margin": response.get("margin", 0.0),
+			"runner_up": response.get("runner_up", {}),
+			"latency_ms": latency_ms,
+		})
+	if _profile:
+		_profile.record_class_drawn(entity)
+		_profile.note_submission(true)
 	var ink_cost: float = float(canvas.get_current_cost())
 	var submitted_strokes := _pending_strokes.duplicate(true)
 	# Remove the full-screen scrim and resume the world before constructing a
@@ -130,6 +150,38 @@ func _on_entity_prediction(
 	close_panel(true, false)
 	drawing_ready.emit(entity, display_name, drawing, response, submitted_strokes, ink_cost)
 	canvas.clear_canvas()
+
+
+func _on_entity_declined(
+	entity: String,
+	confidence: float,
+	margin: float,
+	response: Dictionary
+) -> void:
+	if _telemetry:
+		_telemetry.record_recognition({
+			"outcome": "decline",
+			"entity": entity,
+			"source_label": response.get("source_label", ""),
+			"confidence": confidence,
+			"margin": margin,
+			"runner_up": response.get("runner_up", {}),
+			"latency_ms": _submit_latency_ms(),
+		})
+	if _profile:
+		_profile.note_submission(false)
+	if ink_manager != null:
+		ink_manager.release_attempt()
+	_submitting = false
+	transform_button.disabled = false
+	clear_button.disabled = false
+	status.text = "not sure what that is — try drawing it more clearly!"
+
+
+func _submit_latency_ms() -> float:
+	if _submit_started_usec <= 0:
+		return 0.0
+	return float(Time.get_ticks_usec() - _submit_started_usec) / 1000.0
 
 
 func _on_prediction_failed(message: String) -> void:

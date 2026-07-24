@@ -35,6 +35,9 @@ script = ExtResource("10_placement")
 
 [node name="WorldItemRoot" type="Node2D" parent="EnvironmentBaseplate/GameplayPlane"]
 
+[node name="GoalMarker" type="Marker2D" parent="EnvironmentBaseplate/GameplayPlane"]
+position = Vector2(3450, 300)
+
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 layer = 5
 

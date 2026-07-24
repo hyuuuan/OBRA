@@ -33,9 +33,10 @@ var _backdrop_bases_ready := false
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	play_button.pressed.connect(_show_selector)
-	cards[0].pressed.connect(_open_level_one)
-	for index in range(1, cards.size()):
-		cards[index].disabled = true
+	for index in range(cards.size()):
+		var level_id := "level_%d" % (index + 1)
+		cards[index].pressed.connect(_open_level.bind(level_id))
+	_refresh_cards()
 	selector.visible = false
 	play_button.visible = true
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
@@ -124,6 +125,7 @@ func _reveal_selector() -> void:
 	selector.visible = true
 	selector_title.visible = true
 	_layout_cards()
+	_refresh_cards()
 	for card in cards:
 		card.visible = false
 		card.modulate.a = 0.0
@@ -137,11 +139,34 @@ func _reveal_selector() -> void:
 	)
 
 
-func _open_level_one() -> void:
+func _open_level(level_id: String) -> void:
 	if _animating or LevelManager.is_transitioning():
 		return
-	if LevelManager.open_level("level_1"):
+	if LevelManager.open_level(level_id):
 		_animating = true
+
+
+## Reflect the persisted profile in the level cards: lock levels the player has not
+## reached yet, and tint completed ones.
+func _refresh_cards() -> void:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	for index in range(cards.size()):
+		var level_id := "level_%d" % (index + 1)
+		var card := cards[index]
+		var unlocked := LevelManager.is_unlocked(level_id)
+		card.disabled = not unlocked
+		var completed: bool = profile != null and profile.is_level_completed(level_id)
+		# Tint completed cards green while preserving the alpha the reveal tween drives.
+		var rgb := Color(0.66, 0.94, 0.70) if completed else Color.WHITE
+		card.modulate = Color(rgb.r, rgb.g, rgb.b, card.modulate.a)
+		var entry := LevelManager.get_level(level_id)
+		var title := String(entry.get("title", level_id))
+		if not unlocked:
+			card.tooltip_text = "%s — locked" % title
+		elif completed:
+			card.tooltip_text = "%s — completed" % title
+		else:
+			card.tooltip_text = title
 
 
 func _apply_current_layout() -> void:
