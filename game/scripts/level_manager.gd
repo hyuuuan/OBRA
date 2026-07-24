@@ -40,7 +40,13 @@ func get_level(level_id: String) -> Dictionary:
 
 func is_unlocked(level_id: String) -> bool:
 	var entry := get_level(level_id)
-	return not entry.is_empty() and bool(entry.get("unlocked", false))
+	if entry.is_empty():
+		return false
+	if bool(entry.get("unlocked", false)):
+		return true
+	# Progression unlocks earned in play persist in the player profile across sessions.
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	return profile != null and profile.is_level_unlocked(level_id)
 
 
 func is_transitioning() -> bool:

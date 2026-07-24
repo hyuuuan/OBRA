@@ -26,6 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from preprocess import EmptyCanvasError, preprocess_image
+from telemetry import TelemetryWriter
 
 from shared.entities import (  # noqa: E402
     entities_by_source_label,
@@ -68,6 +69,7 @@ MODEL_METADATA = (
     json.loads(MODEL_METADATA_PATH.read_text()) if MODEL_METADATA_PATH.exists() else {}
 )
 DEBUG_TIMING = os.environ.get("OBRA_DEBUG_TIMING", "").lower() in {"1", "true", "yes", "on"}
+TELEMETRY = TelemetryWriter.from_env(REPO_ROOT / "telemetry")
 
 app = FastAPI(title="O.B.R.A. Sketch Classifier")
 app.add_middleware(  # required so a Godot (web) client may call us
@@ -125,15 +127,33 @@ def predict(payload: DrawingPayload) -> dict:
     margin = float(probabilities[best] - probabilities[runner_up])
     source_label = LABELS[best]
     entity = ENTITY_BY_SOURCE_LABEL[source_label]
+    timing = {
+        "decode_ms": (preprocess_started - started) * 1000.0,
+        "preprocess_ms": (preprocessed - preprocess_started) * 1000.0,
+        "infer_ms": (inferred - preprocessed) * 1000.0,
+        "total_ms": (time.perf_counter() - started) * 1000.0,
+    }
     if DEBUG_TIMING:
         print(
-            "predict timing decode+queue={:.2f}ms preprocess={:.2f}ms infer={:.2f}ms total={:.2f}ms".format(
-                (preprocess_started - started) * 1000.0,
-                (preprocessed - preprocess_started) * 1000.0,
-                (inferred - preprocessed) * 1000.0,
-                (time.perf_counter() - started) * 1000.0,
-            )
+            "predict timing decode+queue={decode_ms:.2f}ms preprocess={preprocess_ms:.2f}ms "
+            "infer={infer_ms:.2f}ms total={total_ms:.2f}ms".format(**timing)
         )
+    runner_up_payload = {
+        "entity": ENTITY_BY_SOURCE_LABEL[LABELS[runner_up]].id,
+        "source_label": LABELS[runner_up],
+        "confidence": float(probabilities[runner_up]),
+    }
+    # Anonymous, local, best-effort telemetry (thesis §4.7). No image or PII stored.
+    TELEMETRY.record_prediction(
+        {
+            "source_label": source_label,
+            "entity": entity.id,
+            "confidence": float(probabilities[best]),
+            "margin": margin,
+            "runner_up": runner_up_payload,
+            "timing_ms": timing,
+        }
+    )
     return {
         "entity": entity.id,
         "creature": entity.id,  # temporary legacy alias for older Godot scripts
@@ -153,13 +173,10 @@ def predict(payload: DrawingPayload) -> dict:
         "ability_weight": ABILITIES[entity.id].ability_weight,
         "confidence": float(probabilities[best]),
         "margin": margin,
-        "runner_up": {
-            "entity": ENTITY_BY_SOURCE_LABEL[LABELS[runner_up]].id,
-            "source_label": LABELS[runner_up],
-            "confidence": float(probabilities[runner_up]),
-        },
+        "runner_up": runner_up_payload,
         "probabilities": {
             ENTITY_BY_SOURCE_LABEL[label].id: float(p) for label, p in zip(LABELS, probabilities)
         },
         "source_probabilities": {label: float(p) for label, p in zip(LABELS, probabilities)},
+        "timing": timing,
     }
