@@ -1030,15 +1030,6 @@ func _species_target_angle(segment: Dictionary, role: String, phase: float, movi
 	var side := signf(float(segment.get("side", 1.0)))
 	var direction := float(_motion_params.get("direction", 0.0))
 
-	if _entity_id in ["cat", "dog"] and role == "leg":
-		if _motion_state == "walk" and moving:
-			var amplitude := deg_to_rad(19.0 if _entity_id == "cat" else 17.0)
-			var stride := sin(phase + (PI if limb_index % 2 else 0.0))
-			return amplitude * stride if chain_index == 0 else amplitude * -0.72 * stride
-		if _motion_state in ["jump", "fall"]:
-			return deg_to_rad(10.0) * (-1.0 if limb_index % 2 else 1.0)
-		return NAN
-
 	if _rig_type == "biped":
 		if _motion_state == "walk" and moving:
 			var amp := deg_to_rad(30.0 if role == "leg" else 18.0)
@@ -2289,7 +2280,8 @@ func _select_body_stroke(strokes: Array) -> int:
 		# A stroke that limbs join from both above and below is almost certainly the
 		# torso. Weighted strongly so it beats the roundness bonus a head collects.
 		var hub_bonus := 5.0 if attach_above and attach_below else 0.0
-		var closed_weight := 7.0 if _entity_id in ["spider", "cat", "dog", "frog", "rabbit", "fish"] else 4.5
+		var bodied := _entity_id == "spider" or _rig_type in ["walker", "hopper", "swimmer"]
+		var closed_weight := 7.0 if bodied else 4.5
 		var score := (closed_weight if closed else 0.0) + float(incoming) * 2.2 + hub_bonus \
 			+ area_ratio * 1.6 + compactness * 0.7 + centrality * 1.8 \
 			+ _stroke_length(points) / max_length * 0.25
@@ -2505,21 +2497,23 @@ func _role_for_limb(joint: Vector2, tip: Vector2, body_center: Vector2) -> Strin
 
 
 func _limb_limit_for_entity() -> int:
-	match _entity_id:
-		"spider": return 8
-		"cat", "dog": return 5
-		"humanoid", "frog", "rabbit": return 4
-		"bird", "butterfly": return 6
-		"fish": return 4
+	if _entity_id == "spider":
+		return 8
+	match _rig_type:
+		"walker": return 6
+		"biped": return 4
+		"hopper": return 4
+		"flier": return 6
+		"swimmer": return 4
 		_: return 6
 
 
 func _minimum_limb_segments(role: String) -> int:
-	if role == "leg" and _entity_id in ["spider", "cat", "dog", "humanoid", "frog", "rabbit"]:
+	if role == "leg" and (_entity_id == "spider" or _rig_type in ["walker", "biped", "hopper"]):
 		return 2
-	if role == "limb" and _entity_id in ["frog", "rabbit"]:
+	if role == "limb" and _rig_type == "hopper":
 		return 2
-	if role == "arm" and _entity_id == "humanoid":
+	if role == "arm" and _rig_type == "biped":
 		return 2
 	return 1
 

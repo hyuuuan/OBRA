@@ -13,11 +13,11 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	for entity_id in ["humanoid", "spider", "cat", "frog"]:
+	for entity_id in ["monkey", "spider", "pig", "frog"]:
 		await _probe(entity_id, entity_id, _fixture_for(entity_id))
 	# A stick figure (big round head on a thin body, arms, legs) is what players
 	# actually draw; it must resolve to a standing figure, not a headless tangle.
-	await _probe("humanoid", "stickman", _stick_fixture())
+	await _probe("monkey", "stickman", _stick_fixture())
 	print("OBRA_RIG_ISOLATED_%s" % ("FAILED" if _failed else "OK"))
 	quit(1 if _failed else 0)
 
@@ -91,7 +91,7 @@ func _stick_fixture() -> Array:
 
 
 func _fixture_for(entity_id: String) -> Array:
-	if entity_id == "humanoid":
+	if entity_id == "monkey":
 		var body := PackedVector2Array([
 			Vector2(240, 150), Vector2(272, 150), Vector2(280, 220),
 			Vector2(272, 285), Vector2(240, 285), Vector2(232, 220), Vector2(240, 150)

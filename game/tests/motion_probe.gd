@@ -23,11 +23,11 @@ func _run() -> void:
 
 	await _probe("bird freehand", "bird", _bird_freehand(), "fly", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
 	await _probe("bird flap", "bird", _bird_freehand(), "flap", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
-	await _probe("stickman freehand", "humanoid", _stickman_freehand(), "walk", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
+	await _probe("stickman freehand", "monkey", _stickman_freehand(), "walk", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
 	await _probe("spider freehand", "spider", _spider_freehand(), "walk", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
 	var reference_fixtures := load("res://tests/spider_reference_fixtures.gd")
 	await _probe("spider clean", "spider", reference_fixtures.separate_legs(), "walk", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
-	await _probe("cat clean reference", "cat", _cat_clean(), "walk", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
+	await _probe("cat clean reference", "pig", _cat_clean(), "walk", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
 	quit(0)
 
 

@@ -1,0 +1,20 @@
+{
+  "id": "crab",
+  "rig_type": "walker",
+  "move_speed": 185,
+  "jump_impulse": 300,
+  "friction": 0.9,
+  "joint_spring": 1100,
+  "joint_damping": 70,
+  "joint_torque_limit": 2700,
+  "target_size": [110, 60],
+  "align": "bottom",
+  "ground_offset": 30,
+  "stride_length": 34,
+  "leg_swing_degrees": 16,
+  "leg_phase_ripple": 0.34,
+  "walk_bob": 1.8,
+  "air_splay_degrees": 8,
+  "tilt_degrees": 2.0,
+  "landing_squash": 0.12
+}

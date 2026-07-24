@@ -14,7 +14,7 @@ func _initialize() -> void:
 func _run() -> void:
 	var entity_id := OS.get_environment("OBRA_ENTITY")
 	if entity_id.is_empty():
-		entity_id = "humanoid"
+		entity_id = "monkey"
 	var fixture_strokes: Array = []
 	var capture_suffix := entity_id
 	var fixture_name := OS.get_environment("OBRA_FIXTURE")
@@ -24,7 +24,7 @@ func _run() -> void:
 			print("OBRA_IDLE_BAD_FIXTURE %s" % fixture_name)
 			quit(1)
 			return
-		entity_id = String((data as Dictionary).get("entity_id", "cat"))
+		entity_id = String((data as Dictionary).get("entity_id", "pig"))
 		capture_suffix = fixture_name.get_basename()
 		for stroke_value in (data as Dictionary).get("strokes", []):
 			var stroke: Dictionary = stroke_value
@@ -74,7 +74,7 @@ func _stroke(points: PackedVector2Array) -> Dictionary:
 
 
 func _fixture_for(entity_id: String) -> Array:
-	if entity_id == "humanoid":
+	if entity_id == "monkey":
 		# Upright body with two arms out and two legs down, as drawn.
 		var body := PackedVector2Array([
 			Vector2(240, 150), Vector2(272, 150), Vector2(280, 220),

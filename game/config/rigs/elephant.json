@@ -1,0 +1,20 @@
+{
+  "id": "elephant",
+  "rig_type": "walker",
+  "move_speed": 130,
+  "jump_impulse": 300,
+  "friction": 0.94,
+  "joint_spring": 1500,
+  "joint_damping": 92,
+  "joint_torque_limit": 4200,
+  "target_size": [182, 138],
+  "align": "bottom",
+  "ground_offset": 70,
+  "stride_length": 48,
+  "leg_swing_degrees": 12,
+  "leg_phase_ripple": 0.24,
+  "walk_bob": 1.6,
+  "air_splay_degrees": 5,
+  "tilt_degrees": 2.0,
+  "landing_squash": 0.10
+}

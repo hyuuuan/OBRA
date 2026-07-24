@@ -8,6 +8,7 @@
   "joint_torque_limit": 1500,
   "target_size": [116, 82],
   "align": "center",
+  "flight_style": "flutter",
   "wing_flap_degrees": 42,
   "flap_cycle_hz": 7.5,
   "flap_squash": 0.11,

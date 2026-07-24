@@ -1,0 +1,20 @@
+{
+  "id": "ant",
+  "rig_type": "walker",
+  "move_speed": 205,
+  "jump_impulse": 320,
+  "friction": 0.88,
+  "joint_spring": 1080,
+  "joint_damping": 68,
+  "joint_torque_limit": 2600,
+  "target_size": [104, 62],
+  "align": "bottom",
+  "ground_offset": 30,
+  "stride_length": 32,
+  "leg_swing_degrees": 18,
+  "leg_phase_ripple": 0.36,
+  "walk_bob": 1.8,
+  "air_splay_degrees": 9,
+  "tilt_degrees": 2.5,
+  "landing_squash": 0.12
+}
