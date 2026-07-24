@@ -11,6 +11,15 @@ signal entity_prediction_received(
 	drawing: Image,
 	response: Dictionary
 )
+## Emitted when a prediction was returned but rejected by the confidence/margin
+## gate — the "redraw" case. Distinct from prediction_failed, which signals a
+## transport or backend error rather than a recognised-but-declined drawing.
+signal entity_declined(
+	entity: String,
+	confidence: float,
+	margin: float,
+	response: Dictionary
+)
 signal prediction_failed(message: String)
 
 @export var backend_url: String = "http://127.0.0.1:8000/predict"
@@ -69,10 +78,12 @@ func _on_request_completed(
 		return
 	var confidence: float = parsed["confidence"]
 	var margin: float = parsed.get("margin", 1.0)
-	if confidence < confidence_threshold or margin < margin_threshold:
-		prediction_failed.emit("not sure what that is — try drawing it more clearly!")
-		return
 	var entity := String(parsed.get("entity", parsed.get("creature", "")))
 	var display_name := String(parsed.get("display_name", entity.capitalize()))
+	if confidence < confidence_threshold or margin < margin_threshold:
+		# A prediction came back but was rejected by the gate — surface it as a
+		# decline (redraw) carrying its class/confidence/margin instead of dropping it.
+		entity_declined.emit(entity, confidence, margin, parsed)
+		return
 	entity_prediction_received.emit(entity, display_name, confidence, _last_drawing, parsed)
 	prediction_received.emit(entity, confidence, _last_drawing)

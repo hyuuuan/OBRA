@@ -56,6 +56,32 @@ player or creates a placeable utility from the player's actual stroke vectors.
 - The environment is asset-light on purpose. Keep `GameplayPlane`, `EntityRoot`,
   `SpawnPoint`, camera, floor, and walls intact when replacing placeholder art.
 
+## Persistence, Telemetry, and Progression
+
+- `PlayerProfile` (autoload, `game/scripts/player_profile.gd`) holds the only durable
+  player state: a single JSON file at `user://profile.json`, written atomically
+  (temp-then-rename), schema-versioned, and treated as a fresh profile when
+  unreadable. There is no database. It stores unlocked/completed levels,
+  drawn-and-accepted classes, routes, collectibles, and submission counts, and
+  derives class diversity (out of the 50-class roster) and redraw rate.
+- `Telemetry` (autoload, `game/scripts/telemetry.gd`) writes an anonymous, local
+  per-session event stream to `user://telemetry/session_<UTC>.jsonl`: session and
+  level lifecycle plus one recognition record per submission (class, confidence,
+  margin, runner-up, accept/decline, end-to-end latency). Nothing is uploaded.
+- The backend logs one anonymous prediction record to `telemetry/backend_<date>.jsonl`
+  only when `OBRA_TELEMETRY=1` (dir override `OBRA_TELEMETRY_DIR`); `/predict` also
+  returns a `timing` split so end-to-end latency decomposes across game and backend.
+  `tools/aggregate_telemetry.py` reports redraw rate, latency, and per-class
+  precision/recall from the logs.
+- Recognition outcomes split in `sketch_client.gd`: `entity_prediction_received`
+  (accepted), `entity_declined` (rejected by the 0.60 confidence / 0.15 margin gate),
+  and `prediction_failed` (transport/backend error). Accept and decline both feed
+  telemetry and the profile.
+- Progression persists: `game_level.gd` completes a level when the player's morph
+  reaches the `GoalMarker` in `game_level.tscn`, which marks it complete and unlocks
+  the next level in the profile. `LevelManager.is_unlocked()` and the main menu read
+  the profile, so unlocks survive across sessions.
+
 ## Common Commands
 
 - Backend setup: `python3 -m venv .venv && . .venv/bin/activate && pip install -r backend/requirements.txt`
@@ -64,7 +90,10 @@ player or creates a placeable utility from the player's actual stroke vectors.
 - Train/export model: `python3 model/train_quickdraw.py`
 - Cross-dataset eval: `python3 model/evaluate_folder.py --dir <dataset-root>`
 - Contracts: `python3 -m unittest -v tests.test_manifest_contract`
+- Backend telemetry: `python3 -m unittest -v tests.test_backend_telemetry`
 - Godot physics: `godot --headless --path game --script res://tests/run_tests.gd`
+- Profile persistence: `godot --headless --path game --script res://tests/test_player_profile.gd`
+- Aggregate telemetry: `python3 tools/aggregate_telemetry.py <telemetry-dir-or-file>`
 
 ## Finding the Actual Godot Game Window on macOS
 
