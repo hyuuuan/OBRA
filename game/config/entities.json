@@ -3,176 +3,6 @@
   "description": "Single source of truth for trainable sketch classes and spawnable O.B.R.A. entities.",
   "entities": [
     {
-      "id": "fish",
-      "display_name": "Fish",
-      "kind": "animal",
-      "quickdraw_label": "fish",
-      "spawn_mode": "playable",
-      "movement_type": "swim",
-      "scene_path": "res://creatures/fish.tscn",
-      "rig_profile": "res://config/rigs/fish.json",
-      "evaluation_labels": [
-        "fish"
-      ],
-      "enabled": true,
-      "rig_type": "swimmer",
-      "runtime_role": "active_ragdoll_morph",
-      "required_medium": "water"
-    },
-    {
-      "id": "frog",
-      "display_name": "Frog",
-      "kind": "animal",
-      "quickdraw_label": "frog",
-      "spawn_mode": "playable",
-      "movement_type": "hop",
-      "scene_path": "res://creatures/frog.tscn",
-      "rig_profile": "res://config/rigs/frog.json",
-      "evaluation_labels": [
-        "frog"
-      ],
-      "enabled": true,
-      "rig_type": "hopper",
-      "runtime_role": "active_ragdoll_morph",
-      "required_medium": "any"
-    },
-    {
-      "id": "spider",
-      "display_name": "Spider",
-      "kind": "animal",
-      "quickdraw_label": "spider",
-      "spawn_mode": "playable",
-      "movement_type": "climb",
-      "scene_path": "res://creatures/spider.tscn",
-      "rig_profile": "res://config/rigs/spider.json",
-      "evaluation_labels": [
-        "spider"
-      ],
-      "enabled": true,
-      "rig_type": "walker",
-      "runtime_role": "active_ragdoll_morph",
-      "required_medium": "any"
-    },
-    {
-      "id": "bird",
-      "display_name": "Bird",
-      "kind": "animal",
-      "quickdraw_label": "bird",
-      "spawn_mode": "playable",
-      "movement_type": "fly",
-      "scene_path": "res://creatures/bird.tscn",
-      "rig_profile": "res://config/rigs/bird.json",
-      "evaluation_labels": [
-        "bird",
-        "flying bird",
-        "standing bird"
-      ],
-      "enabled": true,
-      "rig_type": "flier",
-      "runtime_role": "active_ragdoll_morph",
-      "required_medium": "any"
-    },
-    {
-      "id": "humanoid",
-      "display_name": "Humanoid",
-      "kind": "humanoid",
-      "quickdraw_label": "yoga",
-      "spawn_mode": "playable",
-      "movement_type": "platform",
-      "scene_path": "res://creatures/humanoid.tscn",
-      "rig_profile": "res://config/rigs/humanoid.json",
-      "evaluation_labels": [],
-      "enabled": true,
-      "rig_type": "biped",
-      "runtime_role": "active_ragdoll_morph",
-      "required_medium": "any"
-    },
-    {
-      "id": "cat",
-      "display_name": "Cat",
-      "kind": "animal",
-      "quickdraw_label": "cat",
-      "spawn_mode": "playable",
-      "movement_type": "walk",
-      "scene_path": "res://creatures/cat.tscn",
-      "rig_profile": "res://config/rigs/cat.json",
-      "evaluation_labels": [
-        "cat"
-      ],
-      "enabled": true,
-      "rig_type": "walker",
-      "runtime_role": "active_ragdoll_morph",
-      "required_medium": "any"
-    },
-    {
-      "id": "dog",
-      "display_name": "Dog",
-      "kind": "animal",
-      "quickdraw_label": "dog",
-      "spawn_mode": "playable",
-      "movement_type": "walk",
-      "scene_path": "res://creatures/dog.tscn",
-      "rig_profile": "res://config/rigs/dog.json",
-      "evaluation_labels": [
-        "dog"
-      ],
-      "enabled": true,
-      "rig_type": "walker",
-      "runtime_role": "active_ragdoll_morph",
-      "required_medium": "any"
-    },
-    {
-      "id": "rabbit",
-      "display_name": "Rabbit",
-      "kind": "animal",
-      "quickdraw_label": "rabbit",
-      "spawn_mode": "playable",
-      "movement_type": "hop",
-      "scene_path": "res://creatures/rabbit.tscn",
-      "rig_profile": "res://config/rigs/rabbit.json",
-      "evaluation_labels": [
-        "rabbit"
-      ],
-      "enabled": true,
-      "rig_type": "hopper",
-      "runtime_role": "active_ragdoll_morph",
-      "required_medium": "any"
-    },
-    {
-      "id": "butterfly",
-      "display_name": "Butterfly",
-      "kind": "animal",
-      "quickdraw_label": "butterfly",
-      "spawn_mode": "playable",
-      "movement_type": "fly",
-      "scene_path": "res://creatures/butterfly.tscn",
-      "rig_profile": "res://config/rigs/butterfly.json",
-      "evaluation_labels": [
-        "butterfly"
-      ],
-      "enabled": true,
-      "rig_type": "flier",
-      "runtime_role": "active_ragdoll_morph",
-      "required_medium": "any"
-    },
-    {
-      "id": "snake",
-      "display_name": "Snake",
-      "kind": "animal",
-      "quickdraw_label": "snake",
-      "spawn_mode": "playable",
-      "movement_type": "slither",
-      "scene_path": "res://creatures/snake.tscn",
-      "rig_profile": "res://config/rigs/snake.json",
-      "evaluation_labels": [
-        "snake"
-      ],
-      "enabled": true,
-      "rig_type": "swimmer",
-      "runtime_role": "active_ragdoll_morph",
-      "required_medium": "any"
-    },
-    {
       "id": "circle",
       "display_name": "Circle",
       "kind": "object",
@@ -227,6 +57,348 @@
       "required_medium": "any"
     },
     {
+      "id": "bird",
+      "display_name": "Bird",
+      "kind": "animal",
+      "quickdraw_label": "bird",
+      "spawn_mode": "playable",
+      "movement_type": "fly",
+      "scene_path": "res://creatures/bird.tscn",
+      "rig_profile": "res://config/rigs/bird.json",
+      "evaluation_labels": [
+        "bird",
+        "flying bird",
+        "standing bird"
+      ],
+      "enabled": true,
+      "rig_type": "flier",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "bat",
+      "display_name": "Bat",
+      "kind": "animal",
+      "quickdraw_label": "bat",
+      "spawn_mode": "playable",
+      "movement_type": "fly",
+      "scene_path": "res://creatures/bird.tscn",
+      "rig_profile": "res://config/rigs/bat.json",
+      "evaluation_labels": [
+        "bat"
+      ],
+      "enabled": true,
+      "rig_type": "flier",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "butterfly",
+      "display_name": "Butterfly",
+      "kind": "animal",
+      "quickdraw_label": "butterfly",
+      "spawn_mode": "playable",
+      "movement_type": "fly",
+      "scene_path": "res://creatures/butterfly.tscn",
+      "rig_profile": "res://config/rigs/butterfly.json",
+      "evaluation_labels": [
+        "butterfly"
+      ],
+      "enabled": true,
+      "rig_type": "flier",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "spider",
+      "display_name": "Spider",
+      "kind": "animal",
+      "quickdraw_label": "spider",
+      "spawn_mode": "playable",
+      "movement_type": "climb",
+      "scene_path": "res://creatures/spider.tscn",
+      "rig_profile": "res://config/rigs/spider.json",
+      "evaluation_labels": [
+        "spider"
+      ],
+      "enabled": true,
+      "rig_type": "walker",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "monkey",
+      "display_name": "Monkey",
+      "kind": "animal",
+      "quickdraw_label": "monkey",
+      "spawn_mode": "playable",
+      "movement_type": "climb",
+      "scene_path": "res://creatures/biped.tscn",
+      "rig_profile": "res://config/rigs/monkey.json",
+      "evaluation_labels": [
+        "monkey"
+      ],
+      "enabled": true,
+      "rig_type": "biped",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "frog",
+      "display_name": "Frog",
+      "kind": "animal",
+      "quickdraw_label": "frog",
+      "spawn_mode": "playable",
+      "movement_type": "hop",
+      "scene_path": "res://creatures/frog.tscn",
+      "rig_profile": "res://config/rigs/frog.json",
+      "evaluation_labels": [
+        "frog"
+      ],
+      "enabled": true,
+      "rig_type": "hopper",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "fish",
+      "display_name": "Fish",
+      "kind": "animal",
+      "quickdraw_label": "fish",
+      "spawn_mode": "playable",
+      "movement_type": "swim",
+      "scene_path": "res://creatures/fish.tscn",
+      "rig_profile": "res://config/rigs/fish.json",
+      "evaluation_labels": [
+        "fish"
+      ],
+      "enabled": true,
+      "rig_type": "swimmer",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "water"
+    },
+    {
+      "id": "shark",
+      "display_name": "Shark",
+      "kind": "animal",
+      "quickdraw_label": "shark",
+      "spawn_mode": "playable",
+      "movement_type": "swim",
+      "scene_path": "res://creatures/fish.tscn",
+      "rig_profile": "res://config/rigs/shark.json",
+      "evaluation_labels": [
+        "shark"
+      ],
+      "enabled": true,
+      "rig_type": "swimmer",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "water"
+    },
+    {
+      "id": "octopus",
+      "display_name": "Octopus",
+      "kind": "animal",
+      "quickdraw_label": "octopus",
+      "spawn_mode": "playable",
+      "movement_type": "swim",
+      "scene_path": "res://creatures/fish.tscn",
+      "rig_profile": "res://config/rigs/octopus.json",
+      "evaluation_labels": [
+        "octopus"
+      ],
+      "enabled": true,
+      "rig_type": "swimmer",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "water"
+    },
+    {
+      "id": "crab",
+      "display_name": "Crab",
+      "kind": "animal",
+      "quickdraw_label": "crab",
+      "spawn_mode": "playable",
+      "movement_type": "walk",
+      "scene_path": "res://creatures/walker.tscn",
+      "rig_profile": "res://config/rigs/crab.json",
+      "evaluation_labels": [
+        "crab"
+      ],
+      "enabled": true,
+      "rig_type": "walker",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "horse",
+      "display_name": "Horse",
+      "kind": "animal",
+      "quickdraw_label": "horse",
+      "spawn_mode": "playable",
+      "movement_type": "walk",
+      "scene_path": "res://creatures/walker.tscn",
+      "rig_profile": "res://config/rigs/horse.json",
+      "evaluation_labels": [
+        "horse"
+      ],
+      "enabled": true,
+      "rig_type": "walker",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "elephant",
+      "display_name": "Elephant",
+      "kind": "animal",
+      "quickdraw_label": "elephant",
+      "spawn_mode": "playable",
+      "movement_type": "walk",
+      "scene_path": "res://creatures/walker.tscn",
+      "rig_profile": "res://config/rigs/elephant.json",
+      "evaluation_labels": [
+        "elephant"
+      ],
+      "enabled": true,
+      "rig_type": "walker",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "snake",
+      "display_name": "Snake",
+      "kind": "animal",
+      "quickdraw_label": "snake",
+      "spawn_mode": "playable",
+      "movement_type": "slither",
+      "scene_path": "res://creatures/snake.tscn",
+      "rig_profile": "res://config/rigs/snake.json",
+      "evaluation_labels": [
+        "snake"
+      ],
+      "enabled": true,
+      "rig_type": "swimmer",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "sea_turtle",
+      "display_name": "Sea Turtle",
+      "kind": "animal",
+      "quickdraw_label": "sea turtle",
+      "spawn_mode": "playable",
+      "movement_type": "walk",
+      "scene_path": "res://creatures/walker.tscn",
+      "rig_profile": "res://config/rigs/sea_turtle.json",
+      "evaluation_labels": [
+        "sea turtle"
+      ],
+      "enabled": true,
+      "rig_type": "walker",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "snail",
+      "display_name": "Snail",
+      "kind": "animal",
+      "quickdraw_label": "snail",
+      "spawn_mode": "playable",
+      "movement_type": "slither",
+      "scene_path": "res://creatures/snake.tscn",
+      "rig_profile": "res://config/rigs/snail.json",
+      "evaluation_labels": [
+        "snail"
+      ],
+      "enabled": true,
+      "rig_type": "swimmer",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "ant",
+      "display_name": "Ant",
+      "kind": "animal",
+      "quickdraw_label": "ant",
+      "spawn_mode": "playable",
+      "movement_type": "walk",
+      "scene_path": "res://creatures/walker.tscn",
+      "rig_profile": "res://config/rigs/ant.json",
+      "evaluation_labels": [
+        "ant"
+      ],
+      "enabled": true,
+      "rig_type": "walker",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "bee",
+      "display_name": "Bee",
+      "kind": "animal",
+      "quickdraw_label": "bee",
+      "spawn_mode": "playable",
+      "movement_type": "fly",
+      "scene_path": "res://creatures/butterfly.tscn",
+      "rig_profile": "res://config/rigs/bee.json",
+      "evaluation_labels": [
+        "bee"
+      ],
+      "enabled": true,
+      "rig_type": "flier",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "pig",
+      "display_name": "Pig",
+      "kind": "animal",
+      "quickdraw_label": "pig",
+      "spawn_mode": "playable",
+      "movement_type": "walk",
+      "scene_path": "res://creatures/walker.tscn",
+      "rig_profile": "res://config/rigs/pig.json",
+      "evaluation_labels": [
+        "pig"
+      ],
+      "enabled": true,
+      "rig_type": "walker",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "penguin",
+      "display_name": "Penguin",
+      "kind": "animal",
+      "quickdraw_label": "penguin",
+      "spawn_mode": "playable",
+      "movement_type": "walk",
+      "scene_path": "res://creatures/biped.tscn",
+      "rig_profile": "res://config/rigs/penguin.json",
+      "evaluation_labels": [
+        "penguin"
+      ],
+      "enabled": true,
+      "rig_type": "biped",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
+      "id": "scorpion",
+      "display_name": "Scorpion",
+      "kind": "animal",
+      "quickdraw_label": "scorpion",
+      "spawn_mode": "playable",
+      "movement_type": "walk",
+      "scene_path": "res://creatures/walker.tscn",
+      "rig_profile": "res://config/rigs/scorpion.json",
+      "evaluation_labels": [
+        "scorpion"
+      ],
+      "enabled": true,
+      "rig_type": "walker",
+      "runtime_role": "active_ragdoll_morph",
+      "required_medium": "any"
+    },
+    {
       "id": "axe",
       "display_name": "Axe",
       "kind": "object",
@@ -245,57 +417,57 @@
       "required_medium": "any"
     },
     {
-      "id": "ladder",
-      "display_name": "Ladder",
+      "id": "sword",
+      "display_name": "Sword",
       "kind": "object",
-      "quickdraw_label": "ladder",
+      "quickdraw_label": "sword",
       "spawn_mode": "obstacle",
       "movement_type": "physics",
-      "scene_path": "res://objects/ladder.tscn",
+      "scene_path": "res://objects/utility_object.tscn",
       "evaluation_labels": [
-        "ladder"
+        "sword"
       ],
       "enabled": true,
       "rig_type": "none",
-      "shape_type": "ladder",
+      "shape_type": "sword",
       "runtime_role": "utility",
-      "utility_behavior": "ladder",
+      "utility_behavior": "sword",
       "required_medium": "any"
     },
     {
-      "id": "key",
-      "display_name": "Key",
+      "id": "cannon",
+      "display_name": "Cannon",
       "kind": "object",
-      "quickdraw_label": "key",
+      "quickdraw_label": "cannon",
       "spawn_mode": "obstacle",
       "movement_type": "physics",
-      "scene_path": "res://objects/key.tscn",
+      "scene_path": "res://objects/utility_object.tscn",
       "evaluation_labels": [
-        "key"
+        "cannon"
       ],
       "enabled": true,
       "rig_type": "none",
-      "shape_type": "key",
+      "shape_type": "cannon",
       "runtime_role": "utility",
-      "utility_behavior": "key",
+      "utility_behavior": "cannon",
       "required_medium": "any"
     },
     {
-      "id": "umbrella",
-      "display_name": "Umbrella",
+      "id": "boomerang",
+      "display_name": "Boomerang",
       "kind": "object",
-      "quickdraw_label": "umbrella",
+      "quickdraw_label": "boomerang",
       "spawn_mode": "obstacle",
       "movement_type": "physics",
-      "scene_path": "res://objects/umbrella.tscn",
+      "scene_path": "res://objects/utility_object.tscn",
       "evaluation_labels": [
-        "umbrella"
+        "boomerang"
       ],
       "enabled": true,
       "rig_type": "none",
-      "shape_type": "umbrella",
+      "shape_type": "boomerang",
       "runtime_role": "utility",
-      "utility_behavior": "umbrella",
+      "utility_behavior": "boomerang",
       "required_medium": "any"
     },
     {
@@ -317,6 +489,168 @@
       "required_medium": "any"
     },
     {
+      "id": "campfire",
+      "display_name": "Campfire",
+      "kind": "object",
+      "quickdraw_label": "campfire",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "campfire"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "campfire",
+      "runtime_role": "utility",
+      "utility_behavior": "campfire",
+      "required_medium": "any"
+    },
+    {
+      "id": "cloud",
+      "display_name": "Cloud",
+      "kind": "object",
+      "quickdraw_label": "cloud",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "cloud"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "cloud",
+      "runtime_role": "utility",
+      "utility_behavior": "cloud",
+      "required_medium": "any"
+    },
+    {
+      "id": "sun",
+      "display_name": "Sun",
+      "kind": "object",
+      "quickdraw_label": "sun",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "sun"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "sun",
+      "runtime_role": "utility",
+      "utility_behavior": "sun",
+      "required_medium": "any"
+    },
+    {
+      "id": "fan",
+      "display_name": "Fan",
+      "kind": "object",
+      "quickdraw_label": "fan",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "fan"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "fan",
+      "runtime_role": "utility",
+      "utility_behavior": "fan",
+      "required_medium": "any"
+    },
+    {
+      "id": "ladder",
+      "display_name": "Ladder",
+      "kind": "object",
+      "quickdraw_label": "ladder",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/ladder.tscn",
+      "evaluation_labels": [
+        "ladder"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "ladder",
+      "runtime_role": "utility",
+      "utility_behavior": "ladder",
+      "required_medium": "any"
+    },
+    {
+      "id": "stairs",
+      "display_name": "Stairs",
+      "kind": "object",
+      "quickdraw_label": "stairs",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "stairs"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "stairs",
+      "runtime_role": "utility",
+      "utility_behavior": "stairs",
+      "required_medium": "any"
+    },
+    {
+      "id": "parachute",
+      "display_name": "Parachute",
+      "kind": "object",
+      "quickdraw_label": "parachute",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "parachute"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "parachute",
+      "runtime_role": "utility",
+      "utility_behavior": "parachute",
+      "required_medium": "any"
+    },
+    {
+      "id": "hot_air_balloon",
+      "display_name": "Hot Air Balloon",
+      "kind": "object",
+      "quickdraw_label": "hot air balloon",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "hot air balloon"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "hot_air_balloon",
+      "runtime_role": "utility",
+      "utility_behavior": "hot_air_balloon",
+      "required_medium": "any"
+    },
+    {
+      "id": "bridge",
+      "display_name": "Bridge",
+      "kind": "object",
+      "quickdraw_label": "bridge",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "bridge"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "bridge",
+      "runtime_role": "utility",
+      "utility_behavior": "bridge",
+      "required_medium": "any"
+    },
+    {
       "id": "sailboat",
       "display_name": "Sailboat",
       "kind": "object",
@@ -333,6 +667,222 @@
       "runtime_role": "utility",
       "utility_behavior": "sailboat",
       "required_medium": "water"
+    },
+    {
+      "id": "submarine",
+      "display_name": "Submarine",
+      "kind": "object",
+      "quickdraw_label": "submarine",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "submarine"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "submarine",
+      "runtime_role": "utility",
+      "utility_behavior": "submarine",
+      "required_medium": "water"
+    },
+    {
+      "id": "key",
+      "display_name": "Key",
+      "kind": "object",
+      "quickdraw_label": "key",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/key.tscn",
+      "evaluation_labels": [
+        "key"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "key",
+      "runtime_role": "utility",
+      "utility_behavior": "key",
+      "required_medium": "any"
+    },
+    {
+      "id": "door",
+      "display_name": "Door",
+      "kind": "object",
+      "quickdraw_label": "door",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "door"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "door",
+      "runtime_role": "utility",
+      "utility_behavior": "door",
+      "required_medium": "any"
+    },
+    {
+      "id": "rake",
+      "display_name": "Rake",
+      "kind": "object",
+      "quickdraw_label": "rake",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "rake"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "rake",
+      "runtime_role": "utility",
+      "utility_behavior": "rake",
+      "required_medium": "any"
+    },
+    {
+      "id": "scissors",
+      "display_name": "Scissors",
+      "kind": "object",
+      "quickdraw_label": "scissors",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "scissors"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "scissors",
+      "runtime_role": "utility",
+      "utility_behavior": "scissors",
+      "required_medium": "any"
+    },
+    {
+      "id": "clock",
+      "display_name": "Clock",
+      "kind": "object",
+      "quickdraw_label": "clock",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "clock"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "clock",
+      "runtime_role": "utility",
+      "utility_behavior": "clock",
+      "required_medium": "any"
+    },
+    {
+      "id": "anvil",
+      "display_name": "Anvil",
+      "kind": "object",
+      "quickdraw_label": "anvil",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "anvil"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "anvil",
+      "runtime_role": "utility",
+      "utility_behavior": "anvil",
+      "required_medium": "any"
+    },
+    {
+      "id": "bucket",
+      "display_name": "Bucket",
+      "kind": "object",
+      "quickdraw_label": "bucket",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "bucket"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "bucket",
+      "runtime_role": "utility",
+      "utility_behavior": "bucket",
+      "required_medium": "any"
+    },
+    {
+      "id": "umbrella",
+      "display_name": "Umbrella",
+      "kind": "object",
+      "quickdraw_label": "umbrella",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/umbrella.tscn",
+      "evaluation_labels": [
+        "umbrella"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "umbrella",
+      "runtime_role": "utility",
+      "utility_behavior": "umbrella",
+      "required_medium": "any"
+    },
+    {
+      "id": "tree",
+      "display_name": "Tree",
+      "kind": "object",
+      "quickdraw_label": "tree",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "tree"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "tree",
+      "runtime_role": "utility",
+      "utility_behavior": "tree",
+      "required_medium": "any"
+    },
+    {
+      "id": "mushroom",
+      "display_name": "Mushroom",
+      "kind": "object",
+      "quickdraw_label": "mushroom",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "mushroom"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "mushroom",
+      "runtime_role": "utility",
+      "utility_behavior": "mushroom",
+      "required_medium": "any"
+    },
+    {
+      "id": "wheel",
+      "display_name": "Wheel",
+      "kind": "object",
+      "quickdraw_label": "wheel",
+      "spawn_mode": "obstacle",
+      "movement_type": "physics",
+      "scene_path": "res://objects/utility_object.tscn",
+      "evaluation_labels": [
+        "wheel"
+      ],
+      "enabled": true,
+      "rig_type": "none",
+      "shape_type": "wheel",
+      "runtime_role": "utility",
+      "utility_behavior": "wheel",
+      "required_medium": "any"
     }
   ]
 }

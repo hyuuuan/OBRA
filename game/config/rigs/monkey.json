@@ -1,0 +1,21 @@
+{
+  "id": "monkey",
+  "rig_type": "biped",
+  "move_speed": 250,
+  "jump_impulse": 440,
+  "friction": 0.88,
+  "joint_spring": 1280,
+  "joint_damping": 82,
+  "joint_torque_limit": 3400,
+  "target_size": [84, 118],
+  "align": "bottom",
+  "ground_offset": 60,
+  "stride_length": 58,
+  "leg_swing_degrees": 30,
+  "arm_swing_degrees": 24,
+  "walk_bob": 3.0,
+  "jump_tuck_degrees": 28,
+  "air_arm_degrees": 34,
+  "landing_squash": 0.16,
+  "tilt_degrees": 3.0
+}

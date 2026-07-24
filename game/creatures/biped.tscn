@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/humanoid_controller.gd" id="1_script"]
 [ext_resource type="Script" path="res://scripts/runtime_rig_2d.gd" id="2_rig"]
 
-[node name="Humanoid" type="Node2D"]
+[node name="Biped" type="Node2D"]
 script = ExtResource("1_script")
 
 [node name="DrawingSkin" type="Node2D" parent="."]

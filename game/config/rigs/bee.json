@@ -1,0 +1,19 @@
+{
+  "id": "bee",
+  "rig_type": "flier",
+  "move_speed": 235,
+  "friction": 0.5,
+  "joint_spring": 720,
+  "joint_damping": 40,
+  "joint_torque_limit": 1400,
+  "target_size": [72, 60],
+  "align": "center",
+  "flight_style": "flutter",
+  "wing_flap_degrees": 46,
+  "flap_cycle_hz": 9.0,
+  "flap_squash": 0.10,
+  "flap_lift": 4.6,
+  "glide_raise_degrees": 14,
+  "dive_pitch_degrees": 5.0,
+  "tilt_degrees": 6.0
+}

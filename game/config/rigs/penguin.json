@@ -1,0 +1,21 @@
+{
+  "id": "penguin",
+  "rig_type": "biped",
+  "move_speed": 150,
+  "jump_impulse": 360,
+  "friction": 0.92,
+  "joint_spring": 1300,
+  "joint_damping": 84,
+  "joint_torque_limit": 3400,
+  "target_size": [74, 110],
+  "align": "bottom",
+  "ground_offset": 58,
+  "stride_length": 40,
+  "leg_swing_degrees": 20,
+  "arm_swing_degrees": 14,
+  "walk_bob": 3.4,
+  "jump_tuck_degrees": 22,
+  "air_arm_degrees": 24,
+  "landing_squash": 0.16,
+  "tilt_degrees": 5.0
+}

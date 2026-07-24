@@ -29,6 +29,7 @@ from preprocess import EmptyCanvasError, preprocess_image
 
 from shared.entities import (  # noqa: E402
     entities_by_source_label,
+    load_abilities,
     load_entities,
     validate_model_labels,
 )
@@ -53,6 +54,7 @@ if not LABELS_PATH.exists():
 
 ENTITIES = load_entities(validate_scene_paths=True)
 ENTITY_BY_SOURCE_LABEL = entities_by_source_label(ENTITIES)
+ABILITIES = load_abilities(entities=ENTITIES)  # ConceptNet-grounded, validated on load
 LABELS: list[str] = json.loads(LABELS_PATH.read_text())
 validate_model_labels(LABELS, ENTITIES, source=str(LABELS_PATH))
 SESSION = onnxruntime.InferenceSession(str(MODEL_PATH))
@@ -91,6 +93,7 @@ def health() -> dict:
         "status": "ok",
         "source_labels": LABELS,
         "entities": [entity.to_public_dict() for entity in ENTITIES],
+        "abilities": {eid: ability.to_public_dict() for eid, ability in ABILITIES.items()},
         "model_metadata": MODEL_METADATA,
     }
 
@@ -145,6 +148,9 @@ def predict(payload: DrawingPayload) -> dict:
         "runtime_role": entity.runtime_role,
         "utility_behavior": entity.utility_behavior,
         "required_medium": entity.required_medium,
+        "ability": ABILITIES[entity.id].ability,
+        "ability_relation": ABILITIES[entity.id].ability_relation,
+        "ability_weight": ABILITIES[entity.id].ability_weight,
         "confidence": float(probabilities[best]),
         "margin": margin,
         "runner_up": {
