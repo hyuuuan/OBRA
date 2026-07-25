@@ -14,6 +14,18 @@ const MAX_SEGMENTS_PER_LIMB := 3
 const MIN_SEGMENT_LENGTH := 8.0
 const MAX_JOINT_ERROR := 22.0
 const RECOVERY_PADDING := 180.0
+# Largest angle any gait asks a joint for. Used to scale the hold damping down
+# while a limb is actively swinging, so the stabiliser never fights the gait.
+const MAX_GAIT_TARGET := deg_to_rad(48.0)
+# Frames spent easing the muscles in after a build. A rig starts exactly in its
+# drawn pose; applying full torque on frame one is what made limbs whip around at
+# the angular-velocity cap for the first second of a creature's life.
+const MUSCLE_SETTLE_FRAMES := 14.0
+# Ceiling on limb spin. A gait swings a limb at roughly amplitude * gait rate
+# (~3 rad/s), so this leaves headroom for impacts while making the sustained
+# high-speed thrash that reads on screen as "spinning" impossible. The torso keeps
+# the higher default so jumps and knockback still read.
+const LIMB_MAX_ANGULAR_SPEED := 5.5
 # Extra resampled points rendered past each limb chunk boundary so the ink stays
 # continuous across a joint even while the PD muscle lets the bodies drift a little.
 const LIMB_JOINT_OVERLAP_POINTS := 2
@@ -409,8 +421,13 @@ func _physics_process(delta: float) -> void:
 		_physics_process_spider(delta)
 		return
 	_update_stand_state(delta)
+	# Ease the muscles in over the rig's first few frames, and hold the gait until
+	# they are in. A freshly built rig sits exactly in its drawn pose, so driving it
+	# at full torque immediately is what kicked the limbs into their opening thrash.
+	var settle := clampf(float(_physics_frames_since_build) / MUSCLE_SETTLE_FRAMES, 0.0, 1.0)
 	var speed_ratio := clampf(float(_motion_params.get("speed_ratio", 0.0)), 0.0, 1.5)
-	if bool(_motion_params.get("moving", false)) or _motion_state in ["swim", "fly", "flap", "climb"]:
+	if settle >= 1.0 and (bool(_motion_params.get("moving", false)) \
+			or _motion_state in ["swim", "fly", "flap", "climb"]):
 		_gait_phase += delta * lerpf(2.0, 7.0, minf(1.0, speed_ratio))
 
 	for segment_value in _segments:
@@ -442,11 +459,19 @@ func _physics_process(delta: float) -> void:
 		# bounded muscle controller instead.
 		var mass_scale := clampf(minf(parent.mass, child.mass) / 0.4, 0.45, 1.35)
 		var distal_scale := 1.0 / (1.0 + float(int(segment["chain_index"])) * 0.35)
-		var spring := clampf(float(profile.get("joint_spring", 1050.0)) * 0.7 * mass_scale * distal_scale, 350.0, 1500.0)
+		# A standing creature's own weight presses its feet into the floor, and the
+		# ground reaction on a splayed limb is a torque of order 2000 about the hip.
+		# The old envelope (spring <= 1500, i.e. ~400 of restoring torque at a 40 deg
+		# error) lost that argument outright, so limbs splayed and stayed splayed:
+		# the drawing collapsed into a heap and no amount of gait tuning showed,
+		# because the pose it was animating around was already gone. This envelope is
+		# stiff enough to hold the drawn pose against ground reaction, while staying
+		# far below the stiffness at which the pin solver tears its own joints apart.
+		var spring := clampf(float(profile.get("joint_spring", 1050.0)) * 0.7 * mass_scale * distal_scale, 2600.0, 4200.0)
 		# Damping tracks sqrt(spring) so the stiff pose spring stays near-critically
 		# damped instead of ringing itself unstable at 60 Hz.
-		var damping := clampf(sqrt(spring) * 6.5 * mass_scale, 45.0, 240.0)
-		var torque_limit := clampf(float(profile.get("joint_torque_limit", 2600.0)) * 0.7 * mass_scale * distal_scale, 1000.0, 4200.0)
+		var damping := clampf(sqrt(spring) * 6.5 * mass_scale, 45.0, 380.0)
+		var torque_limit := clampf(float(profile.get("joint_torque_limit", 2600.0)) * 0.7 * mass_scale * distal_scale, 8000.0, 14000.0)
 		var pd := clampf(error * spring - relative_velocity * damping, -torque_limit, torque_limit)
 		# Gravity compensation: the muscle PD above is far too weak to hold a limb
 		# out against its own weight (a horizontal limb needs ~mass*g*lever, which
@@ -468,38 +493,55 @@ func _physics_process(delta: float) -> void:
 			excess = current + angle_limit
 		var limit_torque := 0.0
 		if excess != 0.0:
+			# Softer than a wall. At spring*4.0 this term dwarfed the PD and switched
+			# hard on/off at the boundary, so a limb resting near its limit buzzed
+			# between the two states -- the chatter that read on screen as a
+			# vibrating, scattering limb. A gentler restoring couple with more
+			# damping brings the limb back without exciting it.
 			limit_torque = clampf(
-				-excess * spring * 4.0 - relative_velocity * damping * 2.0,
-				-torque_limit * 2.5,
-				torque_limit * 2.5
+				-excess * spring * 1.6 - relative_velocity * damping * 2.4,
+				-torque_limit * 1.5,
+				torque_limit * 1.5
 			)
 		# Gravity compensation rotates with the limb, so past the angular limit it
-		# stops being a hold and becomes a propeller that out-muscles the soft
-		# limit. Fade it out across the first 30deg of excess; a limb that far out
-		# of pose should come back, not be held up.
+		# stops being a hold and becomes a propeller that out-muscles the soft limit.
+		# It is faded with excess -- but NOT to zero: cutting the hold completely at
+		# the boundary latched limbs in a permanent droop (a limb sagged past the
+		# limit, lost the only torque holding it up, and could never climb back), which
+		# is why limbs settled tens of degrees below the pose the player drew. Keeping
+		# a floor of hold keeps the limb recoverable while still letting the limit win.
 		var comp_fade := clampf(1.0 - absf(excess) / deg_to_rad(30.0), 0.0, 1.0)
-		var gravity_comp := _gravity_hold_torque(segment, joint) * (1.0 - _support_blend) * comp_fade
-		segment["last_drive_torque"] = pd + gravity_comp + limit_torque
+		var gravity_comp := _gravity_hold_torque(segment, joint) \
+			* (1.0 - _support_blend) * lerpf(0.55, 1.0, comp_fade)
+		# Fade the whole drive in while the rig settles into its drawn pose.
+		var muscle := (pd + limit_torque) * settle
+		var assist := gravity_comp * settle
+		segment["last_drive_torque"] = muscle + assist
 		# The PD muscle spans the joint, so it is a couple: equal and opposite on the
 		# two bodies. Gravity compensation is an EXTERNAL anti-droop assist on the limb,
 		# not a muscle, so it acts on the child only -- reacting it back onto the parent
 		# torso is what summed into a net torque and spun multi-limb creatures in place.
-		child.apply_torque(pd + gravity_comp + limit_torque)
-		parent.apply_torque(-pd - limit_torque)
+		child.apply_torque(muscle + assist)
+		parent.apply_torque(-muscle)
 		# Light always-on relative drag (a pure dissipative couple) bleeds spin
 		# energy the clamped PD cannot absorb, even while a gait target is active.
 		var drag := -relative_velocity * 22.0 * mass_scale
 		child.apply_torque(drag)
 		parent.apply_torque(-drag)
 		# gravity_comp is an undamped, position-dependent feed-forward torque that
-		# excites a whole-limb swing the joint's relative-velocity PD cannot see. When
-		# the limb has no active gait target it is meant to hold still, so bleed that
-		# swing and any residual drift with drag on the child's ABSOLUTE angular and
-		# linear velocity (child only, removing energy instead of redistributing it).
-		# Skipped while actively driven, so gait and jumps are unaffected.
-		if absf(target) < 0.0001:
-			child.apply_torque(-child.angular_velocity * child.mass * 900.0)
-			child.apply_central_force(-child.linear_velocity * child.mass * 6.0)
+		# excites a whole-limb swing the joint's relative-velocity PD cannot see, so
+		# bleed that swing off the child's ABSOLUTE angular velocity (child only,
+		# removing energy instead of redistributing it). This used to be gated on
+		# "no gait target", which meant it snapped on and off every time the gait
+		# sinusoid crossed zero -- a discontinuity that fed the very chatter it was
+		# meant to remove. It is now continuous, and simply eases off while the limb
+		# is being actively driven so the gait keeps its swing.
+		# Strong while the limb is meant to hold still, easing to almost nothing at
+		# full gait so the stabiliser never damps out the animation it is protecting.
+		var drive_ratio := clampf(absf(target) / MAX_GAIT_TARGET, 0.0, 1.0)
+		var hold_damping: float = lerpf(900.0, 40.0, sqrt(drive_ratio))
+		child.apply_torque(-child.angular_velocity * child.mass * hold_damping)
+		child.apply_central_force(-child.linear_velocity * child.mass * 6.0)
 
 	_apply_stand_support()
 
@@ -1676,6 +1718,7 @@ func _build_limb_path(
 		var body := _create_body("Limb%02d_%d" % [limb_index, segment_index], center, limb_mass)
 		body.gravity_scale = 0.48 if segment_index == 0 else 0.32
 		body.angular_damp = 3.8 if segment_index == 0 else 4.6
+		body.max_angular_speed = LIMB_MAX_ANGULAR_SPEED
 		_configure_limb_contact(body, role, segment_index, segment_count)
 		# Collision, mass, and the joint anchor use the exact chunk; the visible
 		# ink covers everything pending plus a little padding past each joint so
@@ -2151,11 +2194,46 @@ func _compute_stand_height() -> void:
 		if not is_instance_valid(body):
 			continue
 		var relative: Transform2D = _rest_transforms.get(body.get_instance_id(), Transform2D.IDENTITY)
-		_stand_height = maxf(_stand_height, relative.origin.y)
+		# Measure to the bottom of the body's COLLISION SHAPES, not to its origin.
+		# Using the origin measured to the middle of the foot segment, so the rig was
+		# parked with the lower half of every leg buried in the floor: the ground then
+		# shoved the legs backwards until the drawing lay splayed flat, which is the
+		# collapse that made creatures look broken no matter how the gait was tuned.
+		_stand_height = maxf(_stand_height, relative.origin.y + _body_lower_extent(body, relative))
 	# Sit low enough that the drawn feet press a few px into the floor instead of
 	# grazing it, so contact actually registers and the controller reads the
 	# creature as grounded (idle/walk/jump) rather than perpetually "falling".
 	_stand_height -= 4.0
+
+
+## How far the lowest point of a body's collision shapes sits below its origin,
+## expressed in the rest frame (so a rotated limb reports its true reach).
+func _body_lower_extent(body: PhysicsBody2D, relative: Transform2D) -> float:
+	var lowest := 0.0
+	for child in body.get_children():
+		var collision := child as CollisionShape2D
+		if collision == null or collision.shape == null:
+			continue
+		var extents := Vector2.ZERO
+		var shape := collision.shape
+		if shape is CapsuleShape2D:
+			var capsule := shape as CapsuleShape2D
+			extents = Vector2(capsule.radius, capsule.height * 0.5)
+		elif shape is RectangleShape2D:
+			extents = (shape as RectangleShape2D).size * 0.5
+		elif shape is CircleShape2D:
+			var radius := (shape as CircleShape2D).radius
+			extents = Vector2(radius, radius)
+		else:
+			continue
+		# Corners of the shape's bounding box, taken into the rest frame.
+		var basis := Transform2D(relative.get_rotation(), Vector2.ZERO) * collision.transform
+		for corner in [
+			Vector2(-extents.x, -extents.y), Vector2(extents.x, -extents.y),
+			Vector2(-extents.x, extents.y), Vector2(extents.x, extents.y)
+		]:
+			lowest = maxf(lowest, (basis * corner).y)
+	return lowest
 
 
 ## For every joint, record the child body plus its whole distal subtree. The

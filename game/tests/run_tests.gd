@@ -38,6 +38,7 @@ func _run() -> void:
 	await _test_active_ragdolls()
 	await _test_archetype_coverage()
 	await _test_idle_stability()
+	await _test_pose_holding()
 	await _test_messy_fixtures()
 	await _test_ink_integrity()
 	await _test_grazing_stroke_not_split()
@@ -768,6 +769,74 @@ func _test_spider_stance_controller() -> void:
 ## An uncontrolled, grounded creature must stay put. The active ragdoll must not pump
 ## energy through its limbs (via undamped gravity compensation) and wander/spin on its
 ## own when the player gives no input.
+## A drawn creature standing on the ground must still LOOK like the thing the
+## player drew. Two regressions are guarded here, both of which made creatures
+## read as broken no matter how the gait was tuned:
+##   1. Stand height was measured to the middle of the foot segment rather than to
+##      the bottom of its collision shape, so the rig was parked with the lower
+##      half of every leg inside the floor and the ground shoved the legs flat.
+##   2. The pose muscles were too soft to hold a limb against the ground reaction
+##      of the creature's own weight, so limbs splayed and stayed splayed.
+func _test_pose_holding() -> void:
+	# The floor added by _add_floor() spans y 400..440 at x 0..1000.
+	var floor_top := 400.0
+	for entity_id in ["horse", "pig", "crab", "monkey"]:
+		var entry := registry.get_entity(entity_id)
+		if entry.is_empty():
+			continue
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		if instance == null:
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(500.0, 300.0)
+		instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+		instance.call("apply_drawing", _blank_image(), _quadruped_fixture())
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		var primary := skin.get_primary_body()
+		var rest_angles: Dictionary = {}
+		for body in skin.get_rigid_bodies():
+			if is_instance_valid(body) and body != primary:
+				rest_angles[body.get_instance_id()] = body.rotation - primary.rotation
+		for _settle in range(180):
+			await physics_frame
+
+		var deepest := 0.0
+		var collapse := 0.0
+		for body in skin.get_rigid_bodies():
+			if not is_instance_valid(body) or body == primary:
+				continue
+			deepest = maxf(deepest, body.global_position.y - floor_top)
+			if rest_angles.has(body.get_instance_id()):
+				var rest: float = rest_angles[body.get_instance_id()]
+				collapse = maxf(collapse, absf(wrapf(body.rotation - primary.rotation - rest, -PI, PI)))
+		_expect(
+			deepest < 26.0,
+			"%s sank %.1f px of limb below the floor (feet buried, legs get shoved flat)" % [entity_id, deepest]
+		)
+		_expect(
+			rad_to_deg(collapse) < 45.0,
+			"%s limbs collapsed %.1f deg from the drawn pose" % [entity_id, rad_to_deg(collapse)]
+		)
+		instance.queue_free()
+		await process_frame
+
+
+## A body with four legs hanging beneath it: what a player actually draws for a
+## four-legged animal, as opposed to limbs radiating in every direction.
+func _quadruped_fixture() -> Array:
+	var body := PackedVector2Array()
+	for index in range(17):
+		var angle := TAU * float(index) / 16.0
+		body.append(Vector2(256.0 + cos(angle) * 70.0, 240.0 + sin(angle) * 38.0))
+	var strokes: Array = [_stroke(body)]
+	for offset in [-46.0, -16.0, 16.0, 46.0]:
+		var hip := Vector2(256.0 + offset, 274.0)
+		strokes.append(_stroke(PackedVector2Array([
+			hip, hip + Vector2(0.0, 34.0), hip + Vector2(0.0, 68.0)
+		])))
+	return strokes
+
+
 func _test_idle_stability() -> void:
 	for entity_id in ["spider", "horse", "monkey"]:
 		var instance := registry.instantiate_entity(entity_id) as Node2D
