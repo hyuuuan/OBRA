@@ -40,6 +40,7 @@ func _run() -> void:
 	await _test_idle_stability()
 	await _test_pose_holding()
 	await _test_wing_anatomy()
+	await _test_fidelity_mode()
 	await _test_messy_fixtures()
 	await _test_ink_integrity()
 	await _test_grazing_stroke_not_split()
@@ -870,6 +871,76 @@ func _test_wing_anatomy() -> void:
 	)
 	instance.queue_free()
 	await process_frame
+
+
+## Fidelity mode. A drawing made of several broad loop-shaped appendages cannot be
+## articulated without ceasing to look like itself, so it is built as ONE rigid piece
+## and animated as a whole body. Both halves of that bargain are asserted: the messy
+## drawing must go rigid, and an ordinary thin-limbed drawing must NOT -- otherwise
+## the rule would quietly swallow every creature and nothing would animate its limbs.
+func _test_fidelity_mode() -> void:
+	var messy := registry.instantiate_entity("butterfly") as Node2D
+	if messy != null:
+		world.add_child(messy)
+		messy.global_position = Vector2(500.0, 200.0)
+		messy.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+		messy.call("apply_drawing", _blank_image(), _four_loop_fixture())
+		var messy_skin := messy.get_node("DrawingSkin") as RuntimeRig2D
+		_expect(
+			messy_skin.get_rigid_bodies().size() == 1 and messy_skin.get_joint_count() == 0,
+			"four-loop drawing must stay one rigid piece, got %d bodies/%d joints" % [
+				messy_skin.get_rigid_bodies().size(), messy_skin.get_joint_count()
+			]
+		)
+		_expect(messy_skin.skin_mode() == "vector", "fidelity mode discarded the player's vector ink")
+		# It still has to move: a rigid creature that never animates is not a fix.
+		messy.set_physics_process(false)
+		var pivot := messy_skin.get_primary_body().get_node_or_null("WholeBodyPivot") as Node2D
+		_expect(pivot != null, "fidelity rig has no whole-body animation pivot")
+		if pivot != null:
+			var moved := false
+			for _frame in range(90):
+				messy_skin.set_motion_state("fly", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
+				await physics_frame
+				if pivot.position.length() > 0.35 or absf(pivot.rotation) > 0.01:
+					moved = true
+			_expect(moved, "fidelity rig never animated as a whole body")
+		messy.queue_free()
+		await process_frame
+
+	# The ordinary case must keep its articulated limbs.
+	var thin := registry.instantiate_entity("horse") as Node2D
+	if thin != null:
+		world.add_child(thin)
+		thin.global_position = Vector2(500.0, 200.0)
+		thin.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+		thin.call("apply_drawing", _blank_image(), _quadruped_fixture())
+		var thin_skin := thin.get_node("DrawingSkin") as RuntimeRig2D
+		_expect(
+			thin_skin.get_joint_count() > 0,
+			"a thin-limbed quadruped must keep articulated limbs, not fall into fidelity mode"
+		)
+		thin.queue_free()
+		await process_frame
+
+
+## Four broad wing loops around a body line: the shape that cannot be articulated
+## without scrambling, and the drawing that sent this whole investigation off.
+func _four_loop_fixture() -> Array:
+	var strokes: Array = []
+	for spec in [
+		[200.0, 210.0, 62.0, 55.0], [312.0, 220.0, 62.0, 52.0],
+		[212.0, 305.0, 52.0, 48.0], [300.0, 312.0, 48.0, 44.0]
+	]:
+		var loop := PackedVector2Array()
+		for index in range(15):
+			var t := TAU * float(index) / 14.0
+			loop.append(Vector2(spec[0] + cos(t) * spec[2], spec[1] + sin(t) * spec[3]))
+		strokes.append(_stroke(loop))
+	strokes.append(_stroke(PackedVector2Array([
+		Vector2(256, 160), Vector2(254, 220), Vector2(252, 280), Vector2(250, 350)
+	])))
+	return strokes
 
 
 ## A thin body line with a closed wing loop either side of it.

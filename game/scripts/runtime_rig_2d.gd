@@ -63,6 +63,9 @@ var _motion_params: Dictionary = {}
 
 var _physics_root: Node2D
 var _primary_body: ActiveRigBody2D
+## Set only in fidelity mode: the ink hangs off this so the whole creature can bob
+## and tilt without any force touching the drawing's shape.
+var _visual_pivot: Node2D
 var _bodies: Array[ActiveRigBody2D] = []
 var _joints: Array[PinJoint2D] = []
 var _segments: Array = []
@@ -393,6 +396,19 @@ func _on_skin_rebuilt() -> void:
 	if skin_mode() == "vector" and not get_vector_strokes().is_empty():
 		if _entity_id == "spider":
 			_build_spider_rig(get_vector_strokes())
+		elif _drawing_is_scramble_prone(get_vector_strokes()):
+			# Fidelity mode. Some drawings cannot be articulated without ceasing to
+			# look like themselves: broad loop-shaped appendages sweep a long way
+			# when they rotate, so a drawing made of several of them ends up an
+			# unrecognisable cluster however carefully the muscles are tuned. Those
+			# are built as ONE rigid piece and animated as a whole body instead, so
+			# what the player drew is exactly what stays on screen.
+			_build_compound_rig(
+				get_vector_strokes(),
+				"FidelityBody",
+				_rig_type in ["walker", "biped", "hopper"]
+			)
+			_setup_whole_body_animation()
 		else:
 			if _entity_id == "snake":
 				_build_chain_rig(get_vector_strokes())
@@ -426,6 +442,10 @@ func _physics_process(delta: float) -> void:
 	_physics_frames_since_build += 1
 	if _physics_frames_since_build > 4 and _rig_needs_recovery():
 		_recover_rig()
+		return
+	if _visual_pivot != null:
+		# Fidelity mode: one rigid piece, animated as a whole.
+		_animate_whole_body(delta)
 		return
 	if _segments.is_empty():
 		return
@@ -1294,6 +1314,74 @@ func _build_spider_compound(strokes: Array) -> void:
 
 ## Weld the entire drawing into one rigid body. The universal safe degradation:
 ## the creature cannot articulate, but the player's ink cannot be cut apart.
+## Would articulating this drawing destroy it? The failure mode is specific: an
+## appendage drawn as a closed loop is broad, so hinging it at the point where it
+## meets the body swings its far side a long way, and a drawing built from several
+## of them drifts into a cluster that no longer reads as what was drawn. A couple of
+## loops still animate acceptably; three or more is where the layout comes apart.
+## Thin open strokes (legs, arms, a bird's wing lines, a tail) are unaffected and
+## keep full articulation.
+func _drawing_is_scramble_prone(strokes: Array) -> bool:
+	if strokes.size() < 3:
+		return false
+	var body_index := _select_body_stroke(strokes)
+	var loops := 0
+	for index in range(strokes.size()):
+		if index == body_index:
+			continue
+		var stroke: Dictionary = strokes[index]
+		var points := PackedVector2Array(stroke.get("points", PackedVector2Array()))
+		if points.size() < 3 or not _stroke_is_closed(points, float(stroke.get("width", 5.0))):
+			continue
+		var bounds := _bounds_for_points(points)
+		var compactness := minf(bounds.size.x, bounds.size.y) / maxf(1.0, maxf(bounds.size.x, bounds.size.y))
+		if compactness > 0.55:
+			loops += 1
+	return loops >= 3
+
+
+## Whole-body animation for a fidelity-mode rig. The ink is reparented under a
+## pivot so the creature can bob, tilt and lean as one piece without any force ever
+## being applied to the drawing's geometry -- the shape simply cannot deform.
+func _setup_whole_body_animation() -> void:
+	if _primary_body == null:
+		return
+	_visual_pivot = Node2D.new()
+	_visual_pivot.name = "WholeBodyPivot"
+	_primary_body.add_child(_visual_pivot)
+	for child in _primary_body.get_children():
+		if child == _visual_pivot:
+			continue
+		if child is Line2D:
+			_primary_body.remove_child(child)
+			_visual_pivot.add_child(child)
+
+
+## Bob, tilt and lean driven by the gait, applied to the pivot only.
+func _animate_whole_body(delta: float) -> void:
+	if _visual_pivot == null or not is_instance_valid(_visual_pivot):
+		return
+	var moving := bool(_motion_params.get("moving", false))
+	var speed_ratio := clampf(float(_motion_params.get("speed_ratio", 0.0)), 0.0, 1.5)
+	var airborne := _motion_state in ["jump", "fall", "fly", "flap", "glide", "swim"]
+	if moving or airborne:
+		_gait_phase += delta * lerpf(2.0, 7.0, minf(1.0, speed_ratio))
+	var scale_reference := maxf(8.0, get_stroke_bounds().size.y)
+	var bob_amplitude := clampf(scale_reference * 0.035, 1.0, 6.0)
+	var target_bob := 0.0
+	var target_tilt := 0.0
+	if moving or airborne:
+		# Flap/swim read as a faster, deeper bob; walking is a gentle step bounce.
+		var beat := 2.0 if _motion_state in ["fly", "flap", "swim"] else 1.0
+		target_bob = -absf(sin(_gait_phase * beat)) * bob_amplitude
+		target_tilt = deg_to_rad(6.0) * float(_motion_params.get("direction", 0.0)) * minf(1.0, speed_ratio)
+	if _motion_state in ["jump", "fall"]:
+		target_tilt += deg_to_rad(-4.0 if _motion_state == "jump" else 4.0)
+	var weight := 1.0 - exp(-10.0 * delta)
+	_visual_pivot.position = _visual_pivot.position.lerp(Vector2(0.0, target_bob), weight)
+	_visual_pivot.rotation = lerpf(_visual_pivot.rotation, target_tilt, weight)
+
+
 func _build_compound_rig(strokes: Array, body_name: String, lock_upright: bool) -> void:
 	if _physics_root == null:
 		_create_physics_root()
@@ -2377,6 +2465,7 @@ func _compute_support_sets() -> void:
 
 func _clear_rig() -> void:
 	_primary_body = null
+	_visual_pivot = null  # freed with its body; a stale one would fake fidelity mode
 	_bodies.clear()
 	_joints.clear()
 	_segments.clear()
