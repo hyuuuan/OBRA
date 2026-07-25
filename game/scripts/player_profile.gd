@@ -17,8 +17,11 @@ signal profile_changed
 
 const PROFILE_PATH := "user://profile.json"
 const ENTITIES_PATH := "res://config/entities.json"
-const SCHEMA_VERSION := 1
+const SCHEMA_VERSION := 2
 const DEFAULT_ROSTER_SIZE := 50
+## Older schemas that can be migrated forward instead of being discarded.
+const MIGRATABLE_SCHEMAS := [1]
+const ROUTES := ["artist", "pragmatist", "protector"]
 
 var _data: Dictionary = {}
 var _roster_ids: Dictionary = {}  # entity_id -> true, the recognised class roster
@@ -35,9 +38,11 @@ func _default_profile() -> Dictionary:
 		"schema_version": SCHEMA_VERSION,
 		"unlocked_classes": [],          # classes the player has been taught (future gate)
 		"classes_drawn_accepted": [],    # distinct classes drawn and accepted at least once
+		"acquired_objects": [],          # object/tool ids owned across levels and sessions
 		"levels_completed": [],
 		"levels_unlocked": [],
-		"routes": {},                    # level_id -> route taken (populated by branching, future)
+		"routes": {},                    # level_id -> most recent route taken
+		"route_counts": {"artist": 0, "pragmatist": 0, "protector": 0},
 		"collectibles": [],
 		"counts": {"submissions": 0, "declines": 0},
 	}
@@ -56,10 +61,14 @@ func load_profile() -> void:
 		push_warning("Player profile unreadable; starting a new profile")
 		return
 	var incoming := parsed as Dictionary
-	if int(incoming.get("schema_version", -1)) != SCHEMA_VERSION:
+	var version := int(incoming.get("schema_version", -1))
+	if version != SCHEMA_VERSION and version not in MIGRATABLE_SCHEMAS:
 		push_warning("Player profile schema mismatch; starting a new profile")
 		return
+	# Older-but-known schemas keep their progress: missing fields fall back to the
+	# defaults and the profile is stamped forward on the next save.
 	_data = _merge_defaults(incoming)
+	_data["schema_version"] = SCHEMA_VERSION
 
 
 ## Persist the profile atomically. Returns true on success.
@@ -118,13 +127,49 @@ func is_level_completed(level_id: String) -> bool:
 	return (_data["levels_completed"] as Array).has(level_id)
 
 
-## Record the narrative route chosen for a level (schema-ready; the branching
-## system that produces routes is out of scope, so this stays empty until then).
+## Record an object/tool the player has acquired. Ownership is global and permanent:
+## a concept acquired in a later level retroactively opens every gate that needs it.
+func record_object_acquired(entity_id: String) -> void:
+	if entity_id.is_empty():
+		return
+	var owned: Array = _data["acquired_objects"]
+	if not owned.has(entity_id):
+		owned.append(entity_id)
+		_commit()
+
+
+## The backtracking gate's "can pass?" query.
+func has_object(entity_id: String) -> bool:
+	return (_data["acquired_objects"] as Array).has(entity_id)
+
+
+## Design-language alias for has_object().
+func is_concept_unlocked(concept_id: String) -> bool:
+	return has_object(concept_id)
+
+
+func acquired_objects() -> Array:
+	return (_data["acquired_objects"] as Array).duplicate()
+
+
+## Record the narrative route chosen at a dialogue node. Both the per-level choice
+## and a cumulative tally are kept: the tally drives ending selection and must not be
+## overwritten when a level is replayed.
 func record_route(level_id: String, route: String) -> void:
-	if level_id.is_empty():
+	if level_id.is_empty() or route not in ROUTES:
 		return
 	(_data["routes"] as Dictionary)[level_id] = route
+	var counts: Dictionary = _data["route_counts"]
+	counts[route] = int(counts.get(route, 0)) + 1
 	_commit()
+
+
+func route_counts() -> Dictionary:
+	return (_data["route_counts"] as Dictionary).duplicate()
+
+
+func route_count(route: String) -> int:
+	return int((_data["route_counts"] as Dictionary).get(route, 0))
 
 
 func record_collectible(collectible_id: String) -> void:
@@ -134,6 +179,14 @@ func record_collectible(collectible_id: String) -> void:
 	if not found.has(collectible_id):
 		found.append(collectible_id)
 		_commit()
+
+
+func is_collectible_found(collectible_id: String) -> bool:
+	return (_data["collectibles"] as Array).has(collectible_id)
+
+
+func collectible_count() -> int:
+	return (_data["collectibles"] as Array).size()
 
 
 # --- Derived quantities ------------------------------------------------------
@@ -178,6 +231,15 @@ func _merge_defaults(incoming: Dictionary) -> Dictionary:
 		base[key] = incoming[key]
 	if not (base["counts"] is Dictionary):
 		base["counts"] = {"submissions": 0, "declines": 0}
+	if not (base["route_counts"] is Dictionary):
+		base["route_counts"] = {"artist": 0, "pragmatist": 0, "protector": 0}
+	else:
+		for route in ROUTES:  # a partial tally from an older save must still resolve
+			var counts: Dictionary = base["route_counts"]
+			counts[route] = int(counts.get(route, 0))
+	for key in ["acquired_objects", "collectibles", "classes_drawn_accepted", "levels_completed", "levels_unlocked"]:
+		if not (base[key] is Array):
+			base[key] = []
 	return base
 
 

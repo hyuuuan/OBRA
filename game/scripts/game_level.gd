@@ -124,6 +124,13 @@ func _on_drawing_ready(
 	var role := String(entry.get("runtime_role", "active_ragdoll_morph"))
 	if role == "utility":
 		var item := DrawnItemData.from_prediction(entity_id, display_name, drawing, strokes, ink_cost, entry)
+		if PlayerProfile.has_object(entity_id):
+			# Re-summoning an object the player already owns is free: refund the
+			# reservation and mark the item settled so no later path charges it.
+			ink_manager.release_attempt()
+			item.ink_committed = true
+		else:
+			PlayerProfile.record_object_acquired(entity_id)
 		_begin_new_utility(item)
 		return
 	if _spawn_or_replace(entity_id, display_name, drawing, strokes):
@@ -198,15 +205,17 @@ func _begin_new_utility(item: DrawnItemData) -> void:
 			status_label.text = "Draw an animal first; inventory is full"
 			ink_manager.release_attempt()
 			return
-		item.ink_committed = true
-		ink_manager.commit_attempt()
+		if not item.ink_committed:
+			item.ink_committed = true
+			ink_manager.commit_attempt()
 		status_label.text = "%s stored in slot %d — draw a morph to place it" % [item.display_name, stored_slot + 1]
 		return
 	if not placement_controller.begin_placement(item, player, -1):
 		var slot := inventory_manager.add_item(item)
 		if slot >= 0:
-			item.ink_committed = true
-			ink_manager.commit_attempt()
+			if not item.ink_committed:
+				item.ink_committed = true
+				ink_manager.commit_attempt()
 			status_label.text = "%s stored in slot %d" % [item.display_name, slot + 1]
 		else:
 			ink_manager.release_attempt()

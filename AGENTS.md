@@ -62,8 +62,18 @@ player or creates a placeable utility from the player's actual stroke vectors.
   player state: a single JSON file at `user://profile.json`, written atomically
   (temp-then-rename), schema-versioned, and treated as a fresh profile when
   unreadable. There is no database. It stores unlocked/completed levels,
-  drawn-and-accepted classes, routes, collectibles, and submission counts, and
-  derives class diversity (out of the 50-class roster) and redraw rate.
+  drawn-and-accepted classes, acquired objects, route tallies, collectibles, and
+  submission counts, and derives class diversity (out of the 50-class roster) and
+  redraw rate. Schema is v2; a v1 profile migrates forward keeping its progress, so
+  bump `SCHEMA_VERSION` and extend `MIGRATABLE_SCHEMAS` rather than breaking saves.
+- Object ownership is global and permanent: `record_object_acquired()` on first
+  successful recognition, `has_object()` as the backtracking gate query. An owned
+  object costs no ink to summon again. `ConceptGate2D` (`concept_gate_2d.gd`) reads
+  that query, so acquiring a concept later retroactively opens gates in every level.
+- `EndingResolver` (`game/scripts/ending_resolver.gd`) is total and deterministic:
+  fixed precedence A → B → C → D, with D as the default so every profile resolves to
+  exactly one ending. Keep it pure — `resolve_values()` must stay directly testable.
+- Remaining gaps and their blockers are tracked in `PERSISTENCE_BACKTRACKING_TODO.md`.
 - `Telemetry` (autoload, `game/scripts/telemetry.gd`) writes an anonymous, local
   per-session event stream to `user://telemetry/session_<UTC>.jsonl`: session and
   level lifecycle plus one recognition record per submission (class, confidence,
