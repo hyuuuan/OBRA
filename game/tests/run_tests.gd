@@ -39,6 +39,7 @@ func _run() -> void:
 	await _test_archetype_coverage()
 	await _test_idle_stability()
 	await _test_pose_holding()
+	await _test_wing_anatomy()
 	await _test_messy_fixtures()
 	await _test_ink_integrity()
 	await _test_grazing_stroke_not_split()
@@ -819,6 +820,68 @@ func _test_pose_holding() -> void:
 		)
 		instance.queue_free()
 		await process_frame
+
+
+## Players draw wings as closed loops either side of a thin body. Three separate
+## rules used to conspire to wreck that drawing, and all three are guarded here:
+##   1. Limb role came from the LAST point drawn, which for a loop returns to its
+##      start -- so a wing reported no direction and was classified as a leg, and
+##      the wing-flap gait never ran on it.
+##   2. Torso choice only looked for limbs attaching above/below, so a wing loop's
+##      closed+area bonus beat the body line, the wing became the torso and
+##      swallowed the other wing.
+##   3. A closed roundish stroke was welded to the torso as a head/eye blob, and
+##      when it was not, it was split across bodies so the loop tore open mid-beat.
+func _test_wing_anatomy() -> void:
+	var instance := registry.instantiate_entity("butterfly") as Node2D
+	_expect(instance != null, "could not instantiate butterfly")
+	if instance == null:
+		return
+	world.add_child(instance)
+	instance.global_position = Vector2(400.0, 200.0)
+	instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+	instance.call("apply_drawing", _blank_image(), _butterfly_fixture())
+	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+	var primary := skin.get_primary_body()
+	var roles := skin.debug_segment_roles()
+	_expect(roles.count("wing") >= 2, "butterfly wings were not rigged as wings (roles: %s)" % str(roles))
+	# One body per wing plus the torso: a split wing loop tears open when it beats.
+	_expect(
+		skin.get_rigid_bodies().size() == 3,
+		"butterfly built %d bodies; each wing loop must stay one intact piece" % skin.get_rigid_bodies().size()
+	)
+	var rest_angles: Dictionary = {}
+	for body in skin.get_rigid_bodies():
+		if is_instance_valid(body) and body != primary:
+			rest_angles[body.get_instance_id()] = body.rotation - primary.rotation
+	instance.set_physics_process(false)
+	var collapse := 0.0
+	for _frame in range(180):
+		skin.set_motion_state("fly", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
+		await physics_frame
+		for body in skin.get_rigid_bodies():
+			if not is_instance_valid(body) or body == primary or not rest_angles.has(body.get_instance_id()):
+				continue
+			var rest: float = rest_angles[body.get_instance_id()]
+			collapse = maxf(collapse, absf(wrapf(body.rotation - primary.rotation - rest, -PI, PI)))
+	_expect(
+		rad_to_deg(collapse) < 70.0,
+		"butterfly wings swung %.1f deg from the drawn pose; the silhouette stops reading as a butterfly" % rad_to_deg(collapse)
+	)
+	instance.queue_free()
+	await process_frame
+
+
+## A thin body line with a closed wing loop either side of it.
+func _butterfly_fixture() -> Array:
+	var bodyline := PackedVector2Array([Vector2(256, 200), Vector2(256, 250), Vector2(256, 300)])
+	var left := PackedVector2Array()
+	var right := PackedVector2Array()
+	for index in range(13):
+		var t := TAU * float(index) / 12.0
+		left.append(Vector2(256.0 - 55.0 + cos(t) * 48.0, 240.0 + sin(t) * 40.0))
+		right.append(Vector2(256.0 + 55.0 + cos(t) * 48.0, 240.0 + sin(t) * 40.0))
+	return [_stroke(bodyline), _stroke(left), _stroke(right)]
 
 
 ## A body with four legs hanging beneath it: what a player actually draws for a

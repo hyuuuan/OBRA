@@ -1098,7 +1098,9 @@ func _species_target_angle(segment: Dictionary, role: String, phase: float, movi
 		if role == "wing":
 			if _motion_state in ["fly", "flap"]:
 				var hz_scale := 1.25 if _entity_id == "butterfly" else 1.0
-				return deg_to_rad(48.0) * sin(phase * hz_scale) * side
+				# Kept inside the wing's angle envelope: a beat commanded wider than
+				# the joint allows just pins the wing against its limit every cycle.
+				return deg_to_rad(26.0) * sin(phase * hz_scale) * side
 			if _motion_state == "glide":
 				return deg_to_rad(-18.0) * side
 			# Grounded and moving: gentle wing beat; standing still holds the wing.
@@ -1570,8 +1572,19 @@ func _build_standard_rig(strokes: Array) -> void:
 			var blob_bounds := _bounds_for_points(points)
 			var blob_compactness := minf(blob_bounds.size.x, blob_bounds.size.y) / maxf(1.0, maxf(blob_bounds.size.x, blob_bounds.size.y))
 			if blob_compactness > 0.55:
-				body_decorations.append(stroke)
-				continue
+				if not _closed_stroke_is_appendage(blob_bounds, body_center):
+					body_decorations.append(stroke)
+					continue
+				# Keep a loop-shaped appendage INTACT on one body, hinged where it
+				# meets the torso. Splitting it the usual way leaves part of the loop
+				# welded to the torso and part on the limb, so the moment the wing
+				# beats, the drawn loop visibly tears open into a "C".
+				var hinged := _loop_from_attachment(points)
+				if not hinged.is_empty():
+					candidates.append({
+						"path": hinged, "stroke": stroke, "attachment": hinged[0]
+					})
+					continue
 		var paths := _paths_attached_to_body(points, attachment_radius)
 		if paths.is_empty() or _stroke_length(points) < MIN_SEGMENT_LENGTH:
 			body_decorations.append(stroke)
@@ -1602,6 +1615,43 @@ func _build_standard_rig(strokes: Array) -> void:
 		next_limb_index += 1
 	for stroke in body_decorations:
 		_add_stroke_to_body(_primary_body, stroke, body_center, false)
+
+
+## Wings and fins are drawn as closed roundish loops, exactly like a head is, so
+## the head/eye/blob rule welded them rigidly to the torso and a drawn butterfly
+## could never flap. Two things separate an appendage from a head: it comes off the
+## SIDE of the body rather than sitting on its axis, and it is comparable in size to
+## the body rather than a small feature on it. Only creatures whose gait is actually
+## driven by paired appendages take this path, so a bird's or fish's head still welds.
+## Re-orders a closed loop so it begins at the point nearest the torso. That point
+## becomes the limb's hinge, and because the whole loop travels on a single body the
+## drawn shape stays intact through the beat.
+func _loop_from_attachment(points: PackedVector2Array) -> PackedVector2Array:
+	if points.size() < 3 or _body_polylines.is_empty():
+		return PackedVector2Array()
+	var best_index := 0
+	var best_distance := INF
+	for index in range(points.size()):
+		for polyline_value in _body_polylines:
+			var distance := _point_polyline_distance(points[index], polyline_value as PackedVector2Array)
+			if distance < best_distance:
+				best_distance = distance
+				best_index = index
+	var ordered := PackedVector2Array()
+	for offset in range(points.size()):
+		ordered.append(points[(best_index + offset) % points.size()])
+	ordered.append(points[best_index])  # close the loop back onto its hinge
+	return ordered
+
+
+func _closed_stroke_is_appendage(blob_bounds: Rect2, body_center: Vector2) -> bool:
+	if _rig_type not in ["flier", "swimmer"]:
+		return false
+	var lateral := absf(blob_bounds.get_center().x - body_center.x)
+	var body_extent := maxf(1.0, _body_bounds.size.length())
+	var big_enough := blob_bounds.size.length() >= body_extent * 0.35
+	var off_axis := lateral >= maxf(6.0, _body_bounds.size.x * 0.35)
+	return big_enough and off_axis
 
 
 func _build_chain_rig(strokes: Array) -> void:
@@ -1681,13 +1731,23 @@ func _build_limb_path(
 ) -> void:
 	var length := _stroke_length(path)
 	var tip := path[path.size() - 1]
-	var role := _role_for_limb(path[0], tip, body_center)
+	# Classify from the point that reaches FURTHEST from the attachment, not from
+	# the last point drawn. Players draw wings, fins and flippers as closed loops,
+	# and a loop's last point comes back to its start -- so the limb reported a
+	# near-zero direction and a butterfly's wings were classified as legs, which
+	# meant the wing flap gait never ran on them and they hung and folded instead.
+	var role := _role_for_limb(path[0], _furthest_point(path), body_center)
 	var width := float(stroke.get("width", 5.0))
 	var color := Color(stroke.get("color", Color.BLACK))
 	var per_limb_cap := 2 if _entity_id != "snake" else MAX_SEGMENTS_PER_LIMB
 	var segment_count := clampi(int(ceil(length / 38.0)), 1, per_limb_cap)
 	if _minimum_limb_segments(role) >= 2 and length >= MIN_SEGMENT_LENGTH * 1.25:
 		segment_count = maxi(segment_count, 2)
+	# A limb whose path returns to where it started is a drawn loop (a wing, a fin).
+	# Chunking it would put the two halves of the loop on bodies that then rotate
+	# apart, tearing the shape open, so it travels as one rigid piece.
+	if path.size() > 2 and path[0].distance_to(path[path.size() - 1]) <= maxf(6.0, width * 1.5):
+		segment_count = 1
 	segment_count = mini(segment_count, MAX_BODIES - _bodies.size())
 	if segment_count <= 0:
 		# No body budget left: keep the limb's ink intact on the torso.
@@ -1735,7 +1795,11 @@ func _build_limb_path(
 			visual_end - end_index
 		)
 		_add_capsules(body, chunk, width, center)
-		var limit := deg_to_rad(82.0 if role == "wing" else 68.0)
+		# A wing is often drawn as a broad loop pinned along the body, so a wide
+		# envelope does not read as flapping -- it reads as the wing tumbling off
+		# the creature. Keep wing travel tight enough that the silhouette stays a
+		# butterfly/bird through the whole beat.
+		var limit := deg_to_rad(34.0 if role == "wing" else 68.0)
 		var joint := _create_joint(parent, body, chunk[0], limit)
 		if joint == null:
 			body.queue_free()
@@ -2319,6 +2383,8 @@ func _select_body_stroke(strokes: Array) -> int:
 		var incoming := 0
 		var attach_above := false
 		var attach_below := false
+		var attach_left := false
+		var attach_right := false
 		var radius := clampf(get_stroke_bounds().size.length() * 0.08, 6.0, 18.0)
 		for other_index in range(strokes.size()):
 			if index == other_index:
@@ -2351,13 +2417,25 @@ func _select_body_stroke(strokes: Array) -> int:
 					attach_above = true
 				else:
 					attach_below = true
+				if contact.x < stroke_center.x:
+					attach_left = true
+				else:
+					attach_right = true
 		var closed := _stroke_is_closed(points, float(stroke.get("width", 5.0)))
 		var area_ratio := absf(_polygon_area(points)) / max_area if closed else 0.0
 		var compactness := minf(stroke_bounds.size.x, stroke_bounds.size.y) / maxf(1.0, maxf(stroke_bounds.size.x, stroke_bounds.size.y))
 		var centrality := 1.0 - clampf(stroke_center.distance_to(drawing_center) / drawing_radius, 0.0, 1.0)
-		# A stroke that limbs join from both above and below is almost certainly the
-		# torso. Weighted strongly so it beats the roundness bonus a head collects.
-		var hub_bonus := 5.0 if attach_above and attach_below else 0.0
+		# A stroke that limbs join from opposite sides is almost certainly the torso.
+		# Weighted strongly so it beats the roundness bonus a head collects.
+		# BOTH axes count: limbs radiate above/below on a stick figure, but a
+		# butterfly's or bird's wings radiate left/right off a thin body line. With
+		# only the vertical test, a drawn wing loop out-scored the body on its closed
+		# and area bonuses, became the torso, absorbed the other wing, and left the
+		# body line flailing as a "leg" -- so the butterfly could never flap.
+		# Outweighs closed+area+compactness combined, because being the hub that
+		# appendages radiate from is stronger evidence of a torso than being the
+		# roundest or largest closed shape in the drawing.
+		var hub_bonus := 7.5 if (attach_above and attach_below) or (attach_left and attach_right) else 0.0
 		var bodied := _entity_id == "spider" or _rig_type in ["walker", "hopper", "swimmer"]
 		var closed_weight := 7.0 if bodied else 4.5
 		var score := (closed_weight if closed else 0.0) + float(incoming) * 2.2 + hub_bonus \
@@ -2547,6 +2625,23 @@ func _bounds_overlap_ratio(a: Rect2, b: Rect2) -> float:
 	var inter_area := inter.size.x * inter.size.y
 	var min_area := maxf(1.0, minf(a.size.x * a.size.y, b.size.x * b.size.y))
 	return inter_area / min_area
+
+
+## The point of a limb path lying furthest from where it attaches. For an open
+## stroke this is essentially the tip; for a closed loop (a drawn wing or fin) it
+## is the far side of the loop, which is what the limb actually reaches towards.
+func _furthest_point(path: PackedVector2Array) -> Vector2:
+	if path.is_empty():
+		return Vector2.ZERO
+	var origin := path[0]
+	var best := path[path.size() - 1]
+	var best_distance := origin.distance_squared_to(best)
+	for point in path:
+		var distance := origin.distance_squared_to(point)
+		if distance > best_distance:
+			best_distance = distance
+			best = point
+	return best
 
 
 func _role_for_limb(joint: Vector2, tip: Vector2, body_center: Vector2) -> String:
