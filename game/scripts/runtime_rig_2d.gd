@@ -26,6 +26,18 @@ const MUSCLE_SETTLE_FRAMES := 14.0
 # high-speed thrash that reads on screen as "spinning" impossible. The torso keeps
 # the higher default so jumps and knockback still read.
 const LIMB_MAX_ANGULAR_SPEED := 5.5
+# --- Pose leash --------------------------------------------------------------
+# The muscles control joint ANGLES only, which is not enough to keep a drawing
+# looking like itself: a broad appendage pinned at its edge sweeps a long way when
+# it rotates, so over time the pieces migrate and a butterfly drawn as four loops
+# around a body ends up an asymmetric cluster. The leash pulls every piece back
+# toward the offset it was DRAWN at, relative to the torso. It is slack inside a
+# deadzone so ordinary gait travel is untouched, and only pulls once a piece has
+# wandered far enough to break the silhouette.
+const POSE_LEASH_SLACK_RATIO := 0.12
+const POSE_LEASH_MIN_SLACK := 12.0
+const POSE_LEASH_STIFFNESS := 55.0
+const POSE_LEASH_DAMPING := 8.0
 # Extra resampled points rendered past each limb chunk boundary so the ink stays
 # continuous across a joint even while the PD muscle lets the bodies drift a little.
 const LIMB_JOINT_OVERLAP_POINTS := 2
@@ -543,6 +555,7 @@ func _physics_process(delta: float) -> void:
 		child.apply_torque(-child.angular_velocity * child.mass * hold_damping)
 		child.apply_central_force(-child.linear_velocity * child.mass * 6.0)
 
+	_apply_pose_leash(settle)
 	_apply_stand_support()
 
 
@@ -986,6 +999,33 @@ func _update_stand_state(delta: float) -> void:
 ## player drew, feet on the floor, with no torso-versus-legs bounce because every
 ## body receives the same positioning acceleration. It is static while standing
 ## (no perpetual motion) and disengages for jumps/falls when ground leaves reach.
+## Holds the drawing's LAYOUT, not just its joint angles. Each piece is pulled back
+## toward where it was drawn relative to the torso, but only once it has strayed
+## past a slack radius, so gait travel is unaffected and only genuine drift — the
+## slow migration that turns a drawing into an unrecognisable cluster — is pulled in.
+func _apply_pose_leash(settle: float) -> void:
+	if _primary_body == null or _rest_transforms.is_empty():
+		return
+	var slack := maxf(POSE_LEASH_MIN_SLACK, get_stroke_bounds().size.length() * POSE_LEASH_SLACK_RATIO)
+	var primary_transform := _primary_body.global_transform
+	for body in _bodies:
+		if body == _primary_body or not is_instance_valid(body):
+			continue
+		var rest: Variant = _rest_transforms.get(body.get_instance_id())
+		if rest == null:
+			continue
+		var desired: Vector2 = primary_transform * (rest as Transform2D).origin
+		var offset := desired - body.global_position
+		var distance := offset.length()
+		if distance <= slack or not is_finite(distance):
+			continue
+		# Only the excess past the slack radius is corrected.
+		var pull := offset.normalized() * (distance - slack)
+		var relative_velocity := body.linear_velocity - _primary_body.linear_velocity
+		var force := (pull * POSE_LEASH_STIFFNESS - relative_velocity * POSE_LEASH_DAMPING) * body.mass
+		body.apply_central_force(force * settle)
+
+
 func _apply_stand_support() -> void:
 	if _support_blend <= 0.001 or _primary_body == null:
 		return
@@ -1799,7 +1839,13 @@ func _build_limb_path(
 		# envelope does not read as flapping -- it reads as the wing tumbling off
 		# the creature. Keep wing travel tight enough that the silhouette stays a
 		# butterfly/bird through the whole beat.
-		var limit := deg_to_rad(34.0 if role == "wing" else 68.0)
+		# The drawing has to keep looking like the drawing. Every gait in the game asks
+		# for at most ~38 degrees (a hopper's jump), so an envelope just above that
+		# leaves every animation intact while making it impossible for a limb to fold
+		# far enough that the silhouette stops reading as the thing the player drew.
+		# A wing is tighter still: it is usually a broad loop, so the same rotation
+		# distorts it much more than it distorts a thin leg.
+		var limit := deg_to_rad(34.0 if role == "wing" else 46.0)
 		var joint := _create_joint(parent, body, chunk[0], limit)
 		if joint == null:
 			body.queue_free()
@@ -2463,6 +2509,12 @@ func _appendage_candidate_less(a: Dictionary, b: Dictionary) -> bool:
 func _phase_for_limb(limb_index: int, _side: float) -> float:
 	if _rig_type in ["biped", "walker"]:
 		return 0.0 if limb_index % 2 == 0 else PI
+	if _rig_type == "flier":
+		# Wings beat TOGETHER, mirrored left against right by the gait's `side` term.
+		# Giving each wing its own phase offset is right for a walker's legs but
+		# turns a butterfly drawn as four loops into an asymmetric scramble: each
+		# loop sat at a different angle instead of the pairs sweeping as one.
+		return 0.0
 	return float(limb_index) * 0.47
 
 
@@ -2660,9 +2712,12 @@ func _role_for_limb(joint: Vector2, tip: Vector2, body_center: Vector2) -> Strin
 			# demote to the passive "limb" role and collapse to a single segment.
 			return "leg"
 		"flier":
-			if absf(delta.x) >= absf(delta.y) * 0.7 or delta.y < 0.0:
-				return "wing"
-			return "leg"
+			# Every appendage on a flier is a wing, the same way a hopper treats every
+			# appendage as a driven leg. A butterfly is drawn as several loops around a
+			# body and the lower pair read as "downward" limbs, so the old direction
+			# test called them legs -- which on a flier means a static -20 degree pose
+			# and no animation at all. Half the wings simply hung there.
+			return "wing"
 		"swimmer":
 			return "tail" if absf(delta.x) > absf(delta.y) else "fin"
 		_:
