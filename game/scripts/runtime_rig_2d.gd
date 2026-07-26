@@ -1984,10 +1984,29 @@ func _build_standard_rig(strokes: Array) -> void:
 		if paths.is_empty() or _stroke_length(points) < MIN_SEGMENT_LENGTH:
 			body_decorations.append(stroke)
 			continue
+		# ONE stroke hinges in ONE place. A stroke that touches the body more than
+		# once -- a wing loop crossing the body line, which is how a butterfly is
+		# normally drawn -- was cut into an arc per contact, and each arc became its
+		# own limb hinged separately. The halves of one drawn line then swung apart
+		# and the wing visibly tore. The longest reach becomes the limb; anything
+		# left over stays on the torso as intact ink rather than a second hinge.
+		var longest_path := PackedVector2Array()
 		for path_value in paths:
 			var path: PackedVector2Array = path_value
-			if _stroke_length(path) >= MIN_SEGMENT_LENGTH:
-				candidates.append({"path": path, "stroke": stroke, "attachment": path[0]})
+			if _stroke_length(path) > _stroke_length(longest_path):
+				longest_path = path
+		if _stroke_length(longest_path) >= MIN_SEGMENT_LENGTH:
+			candidates.append({
+				"path": longest_path, "stroke": stroke, "attachment": longest_path[0]
+			})
+		for path_value in paths:
+			var leftover: PackedVector2Array = path_value
+			if leftover != longest_path and leftover.size() >= 2:
+				body_decorations.append({
+					"points": leftover,
+					"width": stroke.get("width", 5.0),
+					"color": stroke.get("color", Color.BLACK)
+				})
 	# Stroke order is drawing-order, not anatomy. Stable spatial ordering gives
 	# left/right counterparts predictable gait phases regardless of when the
 	# player happened to draw each leg.
