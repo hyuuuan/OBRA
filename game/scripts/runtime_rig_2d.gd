@@ -2608,6 +2608,13 @@ func _select_body_stroke(strokes: Array) -> int:
 		var score := (closed_weight if closed else 0.0) + float(incoming) * 2.2 + hub_bonus \
 			+ area_ratio * 1.6 + compactness * 0.7 + centrality * 1.8 \
 			+ _stroke_length(points) / max_length * 0.25
+		# On a flier, the closed round shapes are the WINGS and the body is the thing
+		# they hang off. Scored purely on roundness and area a wing outscores a thin
+		# body line, becomes the torso, and then both wings sit on the same side of
+		# it -- so they beat together instead of mirroring and the drawing reads
+		# lopsided. An off-centre closed shape is disqualified from being the body.
+		if _rig_type == "flier" and closed and centrality < 0.85:
+			score -= 9.0
 		if score > best_score:
 			best_score = score
 			best_index = index
