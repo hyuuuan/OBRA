@@ -38,6 +38,22 @@ const POSE_LEASH_SLACK_RATIO := 0.12
 const POSE_LEASH_MIN_SLACK := 12.0
 const POSE_LEASH_STIFFNESS := 55.0
 const POSE_LEASH_DAMPING := 8.0
+# --- Fidelity guarantee ------------------------------------------------------
+# Whether a drawing survives being articulated cannot be predicted from its
+# strokes: it depends on how the physics happens to resolve, so any rule based on
+# stroke shape is guessing. Instead the rig is MEASURED against the pose it was
+# drawn in, and if it strays this far for this long it stops being a ragdoll and
+# locks into the drawn pose, animating as a whole body from then on. Ordinary
+# gaits stay far below the bound (walkers reach ~30 degrees, fliers ~14), so only
+# a rig that is genuinely coming apart trips it: a limb more than a right angle
+# past where it was drawn is not animating any more, it has fallen off the pose.
+const FIDELITY_MAX_DEVIATION := deg_to_rad(100.0)
+const FIDELITY_GRACE_FRAMES := 40
+## Deviation is only judged once the rig has settled out of its spawn transient.
+const FIDELITY_SETTLE_FRAMES := 60
+## The spider keeps its shape through a tighter drawn envelope rather than the
+## pose lock, because its legs are what move it.
+const SPIDER_LEG_LIMIT := deg_to_rad(78.0)
 # Extra resampled points rendered past each limb chunk boundary so the ink stays
 # continuous across a joint even while the PD muscle lets the bodies drift a little.
 const LIMB_JOINT_OVERLAP_POINTS := 2
@@ -66,6 +82,9 @@ var _primary_body: ActiveRigBody2D
 ## Set only in fidelity mode: the ink hangs off this so the whole creature can bob
 ## and tilt without any force touching the drawing's shape.
 var _visual_pivot: Node2D
+## True once the rig has been locked into its drawn pose because it strayed too far.
+var _pose_locked := false
+var _fidelity_strain_frames := 0
 var _bodies: Array[ActiveRigBody2D] = []
 var _joints: Array[PinJoint2D] = []
 var _segments: Array = []
@@ -376,6 +395,15 @@ func debug_rendered_ink() -> Array[Dictionary]:
 ## Largest continuous joint angle (radians, relative to rest) any segment has
 ## reached since the rig was built. A windmilling limb makes this grow past TAU;
 ## a disciplined rig stays near its drawn angle limits.
+## True once the fidelity guard has locked this rig into its drawn pose.
+func debug_pose_locked() -> bool:
+	return _pose_locked
+
+
+func debug_pose_deviation() -> float:
+	return _pose_deviation()
+
+
 func debug_max_tracked_angle() -> float:
 	return _max_tracked_angle
 
@@ -443,11 +471,18 @@ func _physics_process(delta: float) -> void:
 	if _physics_frames_since_build > 4 and _rig_needs_recovery():
 		_recover_rig()
 		return
-	if _visual_pivot != null:
-		# Fidelity mode: one rigid piece, animated as a whole.
-		_animate_whole_body(delta)
+	if _pose_locked:
+		_apply_locked_pose(delta)
 		return
 	if _segments.is_empty():
+		if _visual_pivot != null:
+			# Built straight into fidelity mode: one rigid piece, animated as a whole.
+			_animate_whole_body(delta)
+		return
+	# Runs for every rig type, spider included, so the fidelity guarantee is global.
+	_update_fidelity_guard()
+	if _pose_locked:
+		_apply_locked_pose(delta)
 		return
 	if _entity_id == "spider" and not _spider_feet.is_empty():
 		_physics_process_spider(delta)
@@ -1340,10 +1375,83 @@ func _drawing_is_scramble_prone(strokes: Array) -> bool:
 	return loops >= 3
 
 
-## Whole-body animation for a fidelity-mode rig. The ink is reparented under a
-## pivot so the creature can bob, tilt and lean as one piece without any force ever
-## being applied to the drawing's geometry -- the shape simply cannot deform.
-func _setup_whole_body_animation() -> void:
+## How far the rig has strayed, in radians, from the pose the player drew.
+func _pose_deviation() -> float:
+	if _primary_body == null or _rest_transforms.is_empty():
+		return 0.0
+	var primary_rotation := _primary_body.global_rotation
+	var worst := 0.0
+	for body in _bodies:
+		if body == _primary_body or not is_instance_valid(body):
+			continue
+		var rest: Variant = _rest_transforms.get(body.get_instance_id())
+		if rest == null:
+			continue
+		var drawn := (rest as Transform2D).get_rotation()
+		worst = maxf(worst, absf(wrapf(body.global_rotation - primary_rotation - drawn, -PI, PI)))
+	return worst
+
+
+## Watches the rig against its drawn pose and locks it if it comes apart. Runs for
+## every rig type, including the spider, so the guarantee holds for all 50 classes.
+func _update_fidelity_guard() -> void:
+	if _pose_locked or _primary_body == null or _rest_transforms.is_empty():
+		return
+	# The spider is the one rig whose legs ARE its locomotion: it walks by planting
+	# and pushing with individual feet, so freezing them would leave it unable to
+	# move at all. Its shape is kept by a tighter drawn envelope instead (see the
+	# limit passed to _create_joint in _build_spider_rig).
+	if _entity_id == "spider" and not _spider_feet.is_empty():
+		return
+	if _physics_frames_since_build < FIDELITY_SETTLE_FRAMES:
+		return
+	if _pose_deviation() > FIDELITY_MAX_DEVIATION:
+		_fidelity_strain_frames += 1
+		if _fidelity_strain_frames >= FIDELITY_GRACE_FRAMES:
+			_lock_pose()
+	else:
+		_fidelity_strain_frames = 0
+
+
+## Stop simulating the limbs and hold the drawing exactly as it was drawn. The
+## torso keeps its physics (so movement, jumping and collision are untouched) while
+## every other piece is frozen and driven from the torso's transform, which makes
+## deforming the drawing impossible rather than merely unlikely.
+func _lock_pose() -> void:
+	if _pose_locked or _primary_body == null:
+		return
+	_pose_locked = true
+	_ensure_visual_pivot()
+	for body in _bodies:
+		if body == _primary_body or not is_instance_valid(body):
+			continue
+		body.freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC
+		body.freeze = true
+
+
+## Drives a locked rig: every piece is placed from the torso plus the whole-body
+## animation offset, so the creature still bobs, tilts and leans as one drawing.
+func _apply_locked_pose(delta: float) -> void:
+	if _primary_body == null:
+		return
+	_animate_whole_body(delta)
+	var offset := Transform2D(0.0, Vector2.ZERO)
+	if _visual_pivot != null and is_instance_valid(_visual_pivot):
+		offset = Transform2D(_visual_pivot.rotation, _visual_pivot.position)
+	var base := _primary_body.global_transform * offset
+	for body in _bodies:
+		if body == _primary_body or not is_instance_valid(body):
+			continue
+		var rest: Variant = _rest_transforms.get(body.get_instance_id())
+		if rest == null:
+			continue
+		body.global_transform = base * (rest as Transform2D)
+
+
+## Reparents the torso's own ink under an animation pivot, creating it on demand.
+func _ensure_visual_pivot() -> void:
+	if _visual_pivot != null and is_instance_valid(_visual_pivot):
+		return
 	if _primary_body == null:
 		return
 	_visual_pivot = Node2D.new()
@@ -1355,6 +1463,13 @@ func _setup_whole_body_animation() -> void:
 		if child is Line2D:
 			_primary_body.remove_child(child)
 			_visual_pivot.add_child(child)
+
+
+## Whole-body animation for a fidelity-mode rig. The ink is reparented under a
+## pivot so the creature can bob, tilt and lean as one piece without any force ever
+## being applied to the drawing's geometry -- the shape simply cannot deform.
+func _setup_whole_body_animation() -> void:
+	_ensure_visual_pivot()
 
 
 ## Bob, tilt and lean driven by the gait, applied to the pivot only.
@@ -1476,7 +1591,7 @@ func _build_spider_leg(leg: Dictionary, leg_index: int, strokes: Array, torso_ce
 					float(collision_descriptor.get("width", width)),
 					center
 				)
-		var joint := _create_joint(parent, body, chunk[0], deg_to_rad(78.0))
+		var joint := _create_joint(parent, body, chunk[0], SPIDER_LEG_LIMIT)
 		if joint == null:
 			body.queue_free()
 			return
@@ -1493,7 +1608,7 @@ func _build_spider_leg(leg: Dictionary, leg_index: int, strokes: Array, torso_ce
 			"side": float(leg.get("side", 1.0)),
 			"side_rank": int(leg.get("side_rank", 0)),
 			"support_candidate": bool(leg.get("support_candidate", false)),
-			"angle_limit": deg_to_rad(78.0),
+			"angle_limit": SPIDER_LEG_LIMIT,
 			"attachment": Vector2(leg.get("root", path[0])),
 			"parent_anchor": _body_local_anchor(parent, chunk[0]),
 			"child_anchor": _body_local_anchor(body, chunk[0]),
@@ -2466,6 +2581,8 @@ func _compute_support_sets() -> void:
 func _clear_rig() -> void:
 	_primary_body = null
 	_visual_pivot = null  # freed with its body; a stale one would fake fidelity mode
+	_pose_locked = false
+	_fidelity_strain_frames = 0
 	_bodies.clear()
 	_joints.clear()
 	_segments.clear()

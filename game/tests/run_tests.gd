@@ -41,6 +41,7 @@ func _run() -> void:
 	await _test_pose_holding()
 	await _test_wing_anatomy()
 	await _test_fidelity_mode()
+	await _test_fidelity_guard()
 	await _test_messy_fixtures()
 	await _test_ink_integrity()
 	await _test_grazing_stroke_not_split()
@@ -921,6 +922,55 @@ func _test_fidelity_mode() -> void:
 			"a thin-limbed quadruped must keep articulated limbs, not fall into fidelity mode"
 		)
 		thin.queue_free()
+		await process_frame
+
+
+## The runtime fidelity guarantee. Whether a drawing survives being articulated
+## cannot be predicted from its strokes, so the rig is measured against the pose it
+## was drawn in and locked into that pose if it comes apart. Both directions are
+## asserted: a rig that folds far past its drawn pose must end up holding that pose,
+## and a healthy walker must NOT be locked -- otherwise the guard would silently
+## freeze every creature in the game and no limb would ever animate again.
+func _test_fidelity_guard() -> void:
+	var frog := registry.instantiate_entity("frog") as Node2D
+	if frog != null:
+		world.add_child(frog)
+		frog.global_position = Vector2(500.0, 250.0)
+		frog.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+		frog.call("apply_drawing", _blank_image(), _quadruped_fixture())
+		var frog_skin := frog.get_node("DrawingSkin") as RuntimeRig2D
+		frog.set_physics_process(false)
+		for _frame in range(200):
+			frog_skin.set_motion_state("jump", {"moving": true, "speed_ratio": 1.0, "charge_ratio": 1.0})
+			await physics_frame
+		_expect(
+			frog_skin.debug_pose_locked(),
+			"a rig that folded past the fidelity bound was never locked into its drawn pose"
+		)
+		_expect(
+			rad_to_deg(frog_skin.debug_pose_deviation()) < 30.0,
+			"locked rig still sits %.1f deg from the drawn pose" % rad_to_deg(frog_skin.debug_pose_deviation())
+		)
+		frog.queue_free()
+		await process_frame
+
+	var horse := registry.instantiate_entity("horse") as Node2D
+	if horse != null:
+		world.add_child(horse)
+		horse.global_position = Vector2(500.0, 250.0)
+		horse.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+		horse.call("apply_drawing", _blank_image(), _quadruped_fixture())
+		var horse_skin := horse.get_node("DrawingSkin") as RuntimeRig2D
+		horse.set_physics_process(false)
+		for _frame in range(200):
+			horse_skin.set_motion_state("walk", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
+			await physics_frame
+		_expect(
+			not horse_skin.debug_pose_locked(),
+			"a healthy walking rig was locked; the guard must not freeze creatures that animate correctly"
+		)
+		_expect(horse_skin.get_joint_count() > 0, "walker lost its articulation")
+		horse.queue_free()
 		await process_frame
 
 
