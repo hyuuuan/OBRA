@@ -42,6 +42,7 @@ func _run() -> void:
 	await _test_wing_anatomy()
 	await _test_fidelity_mode()
 	await _test_fidelity_guard()
+	await _test_every_class_animates()
 	await _test_messy_fixtures()
 	await _test_ink_integrity()
 	await _test_grazing_stroke_not_split()
@@ -1032,6 +1033,82 @@ func _butterfly_fixture() -> Array:
 		left.append(Vector2(256.0 - 55.0 + cos(t) * 48.0, 240.0 + sin(t) * 40.0))
 		right.append(Vector2(256.0 + 55.0 + cos(t) * 48.0, 240.0 + sin(t) * 40.0))
 	return [_stroke(bodyline), _stroke(left), _stroke(right)]
+
+
+## This is a drawing game: EVERY playable class has to visibly animate, not just the
+## handful that get looked at by hand. Each creature is rigged from a drawing shaped
+## the way its archetype is normally drawn and driven through its own gait, and its
+## limbs must actually swing. A creature that rigs no hinges, or hinges that never
+## move, is a creature the player sees frozen.
+func _test_every_class_animates() -> void:
+	var silent: Array = []
+	for entity_id in registry.get_entity_ids():
+		var entry := registry.get_entity(entity_id)
+		if String(entry.get("runtime_role", "")) != "active_ragdoll_morph":
+			continue
+		var rig_type := String(entry.get("rig_type", ""))
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		if instance == null:
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(500.0, 250.0)
+		instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+		instance.call("apply_drawing", _blank_image(), _archetype_fixture(entity_id, rig_type))
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		var pivots: Array = skin.get("_ink_pivots")
+		instance.set_physics_process(false)
+		var lowest := INF
+		var highest := -INF
+		for _frame in range(120):
+			skin.set_motion_state(_gait_for_rig(rig_type), {
+				"moving": true, "speed_ratio": 1.0, "direction": 1.0, "charge_ratio": 1.0
+			})
+			await physics_frame
+			for entry_value in pivots:
+				var node := (entry_value as Dictionary)["node"] as Node2D
+				if is_instance_valid(node):
+					lowest = minf(lowest, node.rotation)
+					highest = maxf(highest, node.rotation)
+		var swing := rad_to_deg(highest - lowest) if pivots.size() > 0 and is_finite(highest - lowest) else 0.0
+		if swing < 5.0:
+			silent.append("%s(%s, %d hinges, %.1f deg)" % [entity_id, rig_type, pivots.size(), swing])
+		instance.queue_free()
+		await process_frame
+	_expect(silent.is_empty(), "these classes render frozen: %s" % str(silent))
+
+
+## A drawing shaped the way each archetype is actually drawn: a finned body for a
+## swimmer, a body with two wings for a flier, a body on four legs for a walker.
+func _archetype_fixture(entity_id: String, rig_type: String) -> Array:
+	if entity_id == "spider":
+		return SpiderReferenceFixtures.separate_legs()
+	if entity_id == "snake":
+		var wave := PackedVector2Array()
+		for index in range(18):
+			wave.append(Vector2(120.0 + index * 17.0, 256.0 + sin(float(index) * 0.75) * 30.0))
+		return [_stroke(wave)]
+	if rig_type == "swimmer":
+		return [
+			_stroke(_oval(256.0, 250.0, 70.0, 38.0)),
+			_stroke(PackedVector2Array([
+				Vector2(186, 250), Vector2(140, 215), Vector2(126, 250), Vector2(140, 285)
+			]))
+		]
+	if rig_type == "flier":
+		return [
+			_stroke(_oval(256.0, 250.0, 44.0, 30.0)),
+			_stroke(PackedVector2Array([Vector2(232, 236), Vector2(190, 196), Vector2(150, 178)])),
+			_stroke(PackedVector2Array([Vector2(280, 236), Vector2(322, 196), Vector2(362, 178)]))
+		]
+	return _quadruped_fixture()
+
+
+func _oval(cx: float, cy: float, rx: float, ry: float) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for index in range(17):
+		var angle := TAU * float(index) / 16.0
+		points.append(Vector2(cx + cos(angle) * rx, cy + sin(angle) * ry))
+	return points
 
 
 ## A body with four legs hanging beneath it: what a player actually draws for a
