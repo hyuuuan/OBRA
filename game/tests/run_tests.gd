@@ -931,51 +931,64 @@ func _test_fidelity_mode() -> void:
 ## asserted: a rig that folds far past its drawn pose must end up holding that pose,
 ## and a healthy walker must NOT be locked -- otherwise the guard would silently
 ## freeze every creature in the game and no limb would ever animate again.
+## The fidelity guarantee, stated as what the player actually sees: however far the
+## physics rig deviates while it walks, jumps and collides, the INK is rendered from
+## the pose the drawing was made in. Constraining the simulation to hold the shape
+## was tried first and always cost locomotion instead (freezing the spider's legs
+## left it unable to walk at all), so the drawing and the simulation are separated:
+## the rig keeps full freedom, the drawing never deforms.
 func _test_fidelity_guard() -> void:
-	var frog := registry.instantiate_entity("frog") as Node2D
-	if frog != null:
-		world.add_child(frog)
-		frog.global_position = Vector2(500.0, 250.0)
-		frog.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
-		frog.call("apply_drawing", _blank_image(), _quadruped_fixture())
-		var frog_skin := frog.get_node("DrawingSkin") as RuntimeRig2D
-		frog.set_physics_process(false)
+	for entity_id in ["frog", "spider", "horse"]:
+		var entry := registry.get_entity(entity_id)
+		if entry.is_empty():
+			continue
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		if instance == null:
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(500.0, 250.0)
+		instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+		instance.call("apply_drawing", _blank_image(), _quadruped_fixture())
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		var primary := skin.get_primary_body()
+		_expect(primary != null, "%s has no primary body" % entity_id)
+		if primary == null:
+			instance.queue_free()
+			continue
+		# Where every piece of ink sits relative to the creature, as drawn.
+		var drawn: Dictionary = {}
+		for line in _ink_lines(primary):
+			drawn[line.get_instance_id()] = primary.global_transform.affine_inverse() * line.global_position
+		_expect(not drawn.is_empty(), "%s rendered no ink" % entity_id)
+		instance.set_physics_process(false)
 		for _frame in range(200):
-			frog_skin.set_motion_state("jump", {"moving": true, "speed_ratio": 1.0, "charge_ratio": 1.0})
+			skin.set_motion_state("walk", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
 			await physics_frame
+		# The rig is free to have deviated; the drawing is not.
+		var drift := 0.0
+		for line in _ink_lines(primary):
+			if not drawn.has(line.get_instance_id()):
+				continue
+			var now: Vector2 = primary.global_transform.affine_inverse() * line.global_position
+			drift = maxf(drift, now.distance_to(drawn[line.get_instance_id()]))
 		_expect(
-			frog_skin.debug_pose_locked(),
-			"a rig that folded past the fidelity bound was never locked into its drawn pose"
+			drift < 12.0,
+			"%s ink drifted %.1f px from the drawn layout; the drawing must not deform" % [entity_id, drift]
 		)
-		_expect(
-			rad_to_deg(frog_skin.debug_pose_deviation()) < 30.0,
-			"locked rig still sits %.1f deg from the drawn pose" % rad_to_deg(frog_skin.debug_pose_deviation())
-		)
-		frog.queue_free()
+		instance.queue_free()
 		await process_frame
 
-	var horse := registry.instantiate_entity("horse") as Node2D
-	if horse != null:
-		world.add_child(horse)
-		horse.global_position = Vector2(500.0, 250.0)
-		horse.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
-		horse.call("apply_drawing", _blank_image(), _quadruped_fixture())
-		var horse_skin := horse.get_node("DrawingSkin") as RuntimeRig2D
-		horse.set_physics_process(false)
-		for _frame in range(200):
-			horse_skin.set_motion_state("walk", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
-			await physics_frame
-		_expect(
-			not horse_skin.debug_pose_locked(),
-			"a healthy walking rig was locked; the guard must not freeze creatures that animate correctly"
-		)
-		_expect(horse_skin.get_joint_count() > 0, "walker lost its articulation")
-		horse.queue_free()
-		await process_frame
+
+## Every Line2D the rig renders, wherever it was parented.
+func _ink_lines(root_node: Node) -> Array:
+	var found: Array = []
+	for child in root_node.get_children():
+		if child is Line2D:
+			found.append(child)
+		found.append_array(_ink_lines(child))
+	return found
 
 
-## Four broad wing loops around a body line: the shape that cannot be articulated
-## without scrambling, and the drawing that sent this whole investigation off.
 func _four_loop_fixture() -> Array:
 	var strokes: Array = []
 	for spec in [
