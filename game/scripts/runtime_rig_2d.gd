@@ -466,6 +466,9 @@ func _on_skin_rebuilt() -> void:
 				)
 	else:
 		_build_bitmap_fallback()
+	# Every rig, every class: the drawing is rendered from the pose it was drawn in
+	# while the physics underneath keeps its full freedom to walk, jump and collide.
+	_consolidate_ink_to_pivot()
 	_finalize_rig()
 	analysis["physics_bodies"] = _bodies.size()
 	analysis["physics_joints"] = _joints.size()
@@ -480,18 +483,11 @@ func _physics_process(delta: float) -> void:
 	if _physics_frames_since_build > 4 and _rig_needs_recovery():
 		_recover_rig()
 		return
-	if _pose_locked:
-		_apply_locked_pose(delta)
-		return
+	# The drawing is rendered from its drawn pose (see _consolidate_ink_to_pivot), so
+	# the whole creature bobs and tilts as one piece while the rig below simulates
+	# freely. Runs for every class, articulated or not.
+	_animate_whole_body(delta)
 	if _segments.is_empty():
-		if _visual_pivot != null:
-			# Built straight into fidelity mode: one rigid piece, animated as a whole.
-			_animate_whole_body(delta)
-		return
-	# Runs for every rig type, spider included, so the fidelity guarantee is global.
-	_update_fidelity_guard()
-	if _pose_locked:
-		_apply_locked_pose(delta)
 		return
 	if _entity_id == "spider" and not _spider_feet.is_empty():
 		_physics_process_spider(delta)
@@ -1520,6 +1516,40 @@ func _apply_locked_pose(delta: float) -> void:
 	_animate_whole_body(delta)
 
 
+## Gather EVERY body's ink onto one pivot under the torso, at the exact offsets it
+## was drawn at, and leave the physics rig completely untouched underneath.
+##
+## This is the difference between what the player sees and what the simulation does.
+## The rig has to articulate: legs plant and push, the spider walks on its feet, the
+## torso collides and jumps. But an active ragdoll built from arbitrary ink will
+## always deviate -- that is what a ragdoll IS -- and every attempt to hold the shape
+## by constraining the physics cost locomotion instead (freeze the spider's legs and
+## it cannot walk; tighten its envelope and it barely moves). Rendering the ink from
+## the drawn pose settles it: the simulation keeps its full freedom, and the drawing
+## on screen is exactly the drawing that was made, for all 50 classes and any shape a
+## player draws. Whole-body bob and tilt then animate it as one piece.
+##
+## Called the moment the rig is built, while the bodies still sit exactly where the
+## strokes were, so preserving world transforms captures the drawn layout precisely.
+func _consolidate_ink_to_pivot() -> void:
+	if _primary_body == null:
+		return
+	_ensure_visual_pivot()
+	if _visual_pivot == null:
+		return
+	for body in _bodies:
+		if body == _primary_body or not is_instance_valid(body):
+			continue
+		for child in body.get_children():
+			var line := child as Line2D
+			if line == null:
+				continue
+			var world_transform := line.global_transform
+			body.remove_child(line)
+			_visual_pivot.add_child(line)
+			line.global_transform = world_transform
+
+
 ## Reparents the torso's own ink under an animation pivot, creating it on demand.
 func _ensure_visual_pivot() -> void:
 	if _visual_pivot != null and is_instance_valid(_visual_pivot):
@@ -1551,7 +1581,9 @@ func _animate_whole_body(delta: float) -> void:
 	var moving := bool(_motion_params.get("moving", false))
 	var speed_ratio := clampf(float(_motion_params.get("speed_ratio", 0.0)), 0.0, 1.5)
 	var airborne := _motion_state in ["jump", "fall", "fly", "flap", "glide", "swim"]
-	if moving or airborne:
+	# Only drive the phase here when nothing else does. An articulated rig advances
+	# it in the muscle loop, and advancing it twice would double every gait's speed.
+	if _segments.is_empty() and (moving or airborne):
 		_gait_phase += delta * lerpf(2.0, 7.0, minf(1.0, speed_ratio))
 	var scale_reference := maxf(8.0, get_stroke_bounds().size.y)
 	var bob_amplitude := clampf(scale_reference * 0.035, 1.0, 6.0)
