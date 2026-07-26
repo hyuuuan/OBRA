@@ -1205,7 +1205,10 @@ func _species_target_angle(segment: Dictionary, role: String, phase: float, movi
 				var hz_scale := 1.25 if _entity_id == "butterfly" else 1.0
 				# Kept inside the wing's angle envelope: a beat commanded wider than
 				# the joint allows just pins the wing against its limit every cycle.
-				return deg_to_rad(26.0) * sin(phase * hz_scale) * side
+				# A broad loop-shaped wing swings its far side a long way for very
+				# little rotation, so a wide beat visibly walks it off the body. Small
+				# enough to stay attached, large enough to read as a flap.
+				return deg_to_rad(15.0) * sin(phase * hz_scale) * side
 			if _motion_state == "glide":
 				return deg_to_rad(-18.0) * side
 			# Grounded and moving: gentle wing beat; standing still holds the wing.
@@ -1647,9 +1650,16 @@ func _animate_whole_body(delta: float) -> void:
 		target_tilt = deg_to_rad(6.0) * float(_motion_params.get("direction", 0.0)) * minf(1.0, speed_ratio)
 	if _motion_state in ["jump", "fall"]:
 		target_tilt += deg_to_rad(-4.0 if _motion_state == "jump" else 4.0)
+	# Walkers keep their torso upright through lock_rotation, but a flier's or
+	# swimmer's body is free to tumble -- and the drawing hangs off it, so the whole
+	# creature ends up sideways or upside down for no reason the player can see.
+	# Cancel the torso's spin out of the drawing so it reads the way it was drawn,
+	# leaving only the deliberate lean.
+	if _rig_type in ["flier", "swimmer"] and is_instance_valid(_primary_body):
+		target_tilt -= _primary_body.global_rotation
 	var weight := 1.0 - exp(-10.0 * delta)
 	_visual_pivot.position = _visual_pivot.position.lerp(Vector2(0.0, target_bob), weight)
-	_visual_pivot.rotation = lerpf(_visual_pivot.rotation, target_tilt, weight)
+	_visual_pivot.rotation = lerp_angle(_visual_pivot.rotation, target_tilt, weight)
 
 
 func _build_compound_rig(strokes: Array, body_name: String, lock_upright: bool) -> void:
@@ -2154,7 +2164,11 @@ func _build_limb_path(
 			_add_visual_line(_primary_body, extra_value as PackedVector2Array, width, color, _primary_body.position)
 		return
 	var parent := _primary_body
-	var side := -1.0 if tip.x < body_center.x else 1.0
+	# Which side of the body this limb reaches towards. Taken from the point that
+	# reaches FURTHEST, because a loop-shaped wing ends where it began -- at its
+	# hinge, next to the body -- so the last point put both wings on the same side
+	# and they beat together instead of mirroring.
+	var side := -1.0 if _furthest_point(path).x < body_center.x else 1.0
 	# Built chunk records drive the trailing-ink weld and the extra-ink split below.
 	var built: Array[Dictionary] = []
 	# First path index whose ink has not been rendered on a limb body yet. Skipped
@@ -2203,7 +2217,7 @@ func _build_limb_path(
 		# far enough that the silhouette stops reading as the thing the player drew.
 		# A wing is tighter still: it is usually a broad loop, so the same rotation
 		# distorts it much more than it distorts a thin leg.
-		var limit := deg_to_rad(34.0 if role == "wing" else 46.0)
+		var limit := deg_to_rad(22.0 if role == "wing" else 46.0)
 		var joint := _create_joint(parent, body, chunk[0], limit)
 		if joint == null:
 			body.queue_free()
