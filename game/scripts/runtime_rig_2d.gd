@@ -404,6 +404,10 @@ func debug_pose_deviation() -> float:
 	return _pose_deviation()
 
 
+func debug_pose_separation() -> float:
+	return _pose_separation()
+
+
 func debug_max_tracked_angle() -> float:
 	return _max_tracked_angle
 
@@ -1392,6 +1396,33 @@ func _pose_deviation() -> float:
 	return worst
 
 
+## How far a piece has slid from where it was drawn, in pixels, measured in the
+## torso's frame so travelling across the world does not count. Rotation alone does
+## not describe what players actually see go wrong: pieces pull APART, and a drawing
+## whose parts have visibly detached is broken however little they have rotated.
+func _pose_separation() -> float:
+	if _primary_body == null or _rest_transforms.is_empty():
+		return 0.0
+	var into_primary := _primary_body.global_transform.affine_inverse()
+	var worst := 0.0
+	for body in _bodies:
+		if body == _primary_body or not is_instance_valid(body):
+			continue
+		var rest: Variant = _rest_transforms.get(body.get_instance_id())
+		if rest == null:
+			continue
+		var drawn: Vector2 = (rest as Transform2D).origin
+		var actual: Vector2 = into_primary * body.global_position
+		worst = maxf(worst, actual.distance_to(drawn))
+	return worst
+
+
+## Detachment bound, scaled to the drawing so a big creature is judged the same way
+## as a small one. Generous enough that gait travel never trips it.
+func _separation_bound() -> float:
+	return maxf(40.0, get_stroke_bounds().size.length() * 0.30)
+
+
 ## Watches the rig against its drawn pose and locks it if it comes apart. Runs for
 ## every rig type, including the spider, so the guarantee holds for all 50 classes.
 func _update_fidelity_guard() -> void:
@@ -1405,7 +1436,7 @@ func _update_fidelity_guard() -> void:
 		return
 	if _physics_frames_since_build < FIDELITY_SETTLE_FRAMES:
 		return
-	if _pose_deviation() > FIDELITY_MAX_DEVIATION:
+	if _pose_deviation() > FIDELITY_MAX_DEVIATION or _pose_separation() > _separation_bound():
 		_fidelity_strain_frames += 1
 		if _fidelity_strain_frames >= FIDELITY_GRACE_FRAMES:
 			_lock_pose()
@@ -1422,11 +1453,43 @@ func _lock_pose() -> void:
 		return
 	_pose_locked = true
 	_ensure_visual_pivot()
+	# Release the joints FIRST. A frozen body is immovable to the solver, so leaving
+	# the torso pinned to one hangs the whole creature in mid-air -- it stops falling
+	# and simply floats. The limbs no longer need joints anyway: they are placed
+	# directly from the torso's transform every frame.
+	for joint in _joints:
+		if is_instance_valid(joint):
+			joint.queue_free()
+	_joints.clear()
+	# Move every limb's ink and collision onto the torso and delete the limb bodies,
+	# so the creature becomes genuinely ONE body. Freezing them instead left
+	# immovable bodies overlapping the torso, which shoved it a little every frame:
+	# on landing the frog picked up a constant upward velocity and flew off into the
+	# sky. With no second body there is nothing left to push, nothing to drift apart,
+	# and the drawing is carried exactly as drawn.
 	for body in _bodies:
 		if body == _primary_body or not is_instance_valid(body):
 			continue
+		for child in body.get_children():
+			var node := child as Node2D
+			if node == null:
+				continue
+			var world_transform := node.global_transform
+			body.remove_child(node)
+			if node is Line2D:
+				_visual_pivot.add_child(node)
+			else:
+				_primary_body.add_child(node)
+			node.global_transform = world_transform
+		# The emptied bodies are kept (the controller caches this list, and freeing
+		# them mid-frame would leave it holding dangling handles) but they now own no
+		# ink and no collision shape, so they cannot be seen, cannot collide, and
+		# cannot push anything. Freezing them stops them falling away on their own.
 		body.freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC
 		body.freeze = true
+		body.global_transform = _primary_body.global_transform
+	_segments.clear()
+	_rest_transforms.clear()
 
 
 ## Drives a locked rig: every piece is placed from the torso plus the whole-body
@@ -1434,18 +1497,9 @@ func _lock_pose() -> void:
 func _apply_locked_pose(delta: float) -> void:
 	if _primary_body == null:
 		return
+	# All the ink now lives on one body under the animation pivot, so holding the
+	# drawn shape costs nothing: the whole creature simply bobs, tilts and leans.
 	_animate_whole_body(delta)
-	var offset := Transform2D(0.0, Vector2.ZERO)
-	if _visual_pivot != null and is_instance_valid(_visual_pivot):
-		offset = Transform2D(_visual_pivot.rotation, _visual_pivot.position)
-	var base := _primary_body.global_transform * offset
-	for body in _bodies:
-		if body == _primary_body or not is_instance_valid(body):
-			continue
-		var rest: Variant = _rest_transforms.get(body.get_instance_id())
-		if rest == null:
-			continue
-		body.global_transform = base * (rest as Transform2D)
 
 
 ## Reparents the torso's own ink under an animation pivot, creating it on demand.
@@ -2997,10 +3051,13 @@ func _rig_needs_recovery() -> bool:
 		var position := body.global_position
 		if position.distance_to(primary_position) > maximum_radius:
 			return true
-	for segment_value in _segments:
-		var error := _segment_joint_error(segment_value as Dictionary)
-		if not is_finite(error) or error > MAX_JOINT_ERROR:
-			return true
+	# A locked rig has no joints left to check: its pieces are placed directly from
+	# the torso, so joint error is meaningless and the segments hold freed handles.
+	if not _pose_locked:
+		for segment_value in _segments:
+			var error := _segment_joint_error(segment_value as Dictionary)
+			if not is_finite(error) or error > MAX_JOINT_ERROR:
+				return true
 	return false
 
 
