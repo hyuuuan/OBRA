@@ -49,10 +49,6 @@ const POSE_LEASH_DAMPING := 8.0
 # gaits stay far below the bound (walkers reach ~30 degrees, fliers ~14), so only
 # a rig that is genuinely coming apart trips it: a limb more than a right angle
 # past where it was drawn is not animating any more, it has fallen off the pose.
-const FIDELITY_MAX_DEVIATION := deg_to_rad(100.0)
-const FIDELITY_GRACE_FRAMES := 40
-## Deviation is only judged once the rig has settled out of its spawn transient.
-const FIDELITY_SETTLE_FRAMES := 60
 ## The spider keeps its shape through a tighter drawn envelope rather than the
 ## pose lock, because its legs are what move it.
 const SPIDER_LEG_LIMIT := deg_to_rad(78.0)
@@ -87,8 +83,6 @@ var _visual_pivot: Node2D
 ## One entry per limb: {node: Node2D pivot at the drawn joint, segment: Dictionary}.
 var _ink_pivots: Array = []
 ## True once the rig has been locked into its drawn pose because it strayed too far.
-var _pose_locked := false
-var _fidelity_strain_frames := 0
 var _bodies: Array[ActiveRigBody2D] = []
 var _joints: Array[PinJoint2D] = []
 var _segments: Array = []
@@ -396,20 +390,10 @@ func debug_rendered_ink() -> Array[Dictionary]:
 	return _rendered_ink.duplicate()
 
 
-## Largest continuous joint angle (radians, relative to rest) any segment has
-## reached since the rig was built. A windmilling limb makes this grow past TAU;
-## a disciplined rig stays near its drawn angle limits.
-## True once the fidelity guard has locked this rig into its drawn pose.
-func debug_pose_locked() -> bool:
-	return _pose_locked
 
 
-func debug_pose_deviation() -> float:
-	return _pose_deviation()
 
 
-func debug_pose_separation() -> float:
-	return _pose_separation()
 
 
 ## True when this rig animates as one whole body rather than through joints.
@@ -1347,168 +1331,58 @@ func _build_spider_compound(strokes: Array) -> void:
 	_spider_total_mass = _primary_body.mass if _primary_body != null else 0.0
 
 
-## Weld the entire drawing into one rigid body. The universal safe degradation:
-## the creature cannot articulate, but the player's ink cannot be cut apart.
-## Would articulating this drawing destroy it? The failure mode is specific: an
-## appendage drawn as a closed loop is broad, so hinging it at the point where it
-## meets the body swings its far side a long way, and a drawing built from several
-## of them drifts into a cluster that no longer reads as what was drawn. A couple of
-## loops still animate acceptably; three or more is where the layout comes apart.
-## Thin open strokes (legs, arms, a bird's wing lines, a tail) are unaffected and
-## keep full articulation.
-func _drawing_is_scramble_prone(strokes: Array) -> bool:
-	if strokes.size() < 3:
-		return false
-	var body_index := _select_body_stroke(strokes)
-	var loops := 0
-	for index in range(strokes.size()):
-		if index == body_index:
-			continue
-		var stroke: Dictionary = strokes[index]
-		var points := PackedVector2Array(stroke.get("points", PackedVector2Array()))
-		if points.size() < 3 or not _stroke_is_closed(points, float(stroke.get("width", 5.0))):
-			continue
-		var bounds := _bounds_for_points(points)
-		var compactness := minf(bounds.size.x, bounds.size.y) / maxf(1.0, maxf(bounds.size.x, bounds.size.y))
-		if compactness > 0.55:
-			loops += 1
-	return loops >= 3
 
 
-## How far the rig has strayed, in radians, from the pose the player drew.
-func _pose_deviation() -> float:
-	if _primary_body == null or _rest_transforms.is_empty():
-		return 0.0
-	var primary_rotation := _primary_body.global_rotation
-	var worst := 0.0
+	var pivot_for_body: Dictionary = {}
+	for segment_value in _segments:
+		var segment: Dictionary = segment_value
+		var body := segment.get("body") as ActiveRigBody2D
+		var parent := segment.get("parent") as ActiveRigBody2D
+		var joint := segment.get("joint") as PinJoint2D
+		if not is_instance_valid(body) or not is_instance_valid(parent) or not is_instance_valid(joint):
+			continue
+		var parent_pivot: Node2D = pivot_for_body.get(parent.get_instance_id(), _visual_pivot)
+		var pivot := Node2D.new()
+		pivot.name = "InkPivot_%d" % _ink_pivots.size()
+		parent_pivot.add_child(pivot)
+		pivot.global_position = joint.global_position
+		pivot.rotation = 0.0
+		pivot_for_body[body.get_instance_id()] = pivot
+		_ink_pivots.append({"node": pivot, "segment": segment})
 	for body in _bodies:
-		if body == _primary_body or not is_instance_valid(body):
+		if not is_instance_valid(body):
 			continue
-		var rest: Variant = _rest_transforms.get(body.get_instance_id())
-		if rest == null:
-			continue
-		var drawn := (rest as Transform2D).get_rotation()
-		worst = maxf(worst, absf(wrapf(body.global_rotation - primary_rotation - drawn, -PI, PI)))
-	return worst
-
-
-## How far a piece has slid from where it was drawn, in pixels, measured in the
-## torso's frame so travelling across the world does not count. Rotation alone does
-## not describe what players actually see go wrong: pieces pull APART, and a drawing
-## whose parts have visibly detached is broken however little they have rotated.
-func _pose_separation() -> float:
-	if _primary_body == null or _rest_transforms.is_empty():
-		return 0.0
-	var into_primary := _primary_body.global_transform.affine_inverse()
-	var worst := 0.0
-	for body in _bodies:
-		if body == _primary_body or not is_instance_valid(body):
-			continue
-		var rest: Variant = _rest_transforms.get(body.get_instance_id())
-		if rest == null:
-			continue
-		var drawn: Vector2 = (rest as Transform2D).origin
-		var actual: Vector2 = into_primary * body.global_position
-		worst = maxf(worst, actual.distance_to(drawn))
-	return worst
-
-
-## How far a limb may rotate from its drawn angle before the drawing is judged to
-## have come apart. A ground creature's legs carry it -- they need room to swing, and
-## locking them early would cost real locomotion -- so they get the loose bound. A
-## flier or swimmer moves its whole body through the air or water instead: its wings
-## and fins do no load-bearing work, so holding their drawn shape costs nothing and
-## they are held to a much tighter bound.
-func _deviation_bound() -> float:
-	if _rig_type in ["flier", "swimmer"]:
-		return FIDELITY_MAX_DEVIATION * 0.32
-	# The spider is covered too, but loosely. Its stance controller sweeps each leg
-	# through a deliberately wide arc to plant and push -- that IS how it walks -- so
-	# it legitimately reaches angles that would mean "come apart" on any other rig.
-	# A loose bound still catches a spider that has genuinely collapsed without
-	# stealing the leg travel it moves with.
-	if _entity_id == "spider" and not _spider_feet.is_empty():
-		return FIDELITY_MAX_DEVIATION * 1.8
-	return FIDELITY_MAX_DEVIATION
-
-
-## Detachment bound, scaled to the drawing so a big creature is judged the same way
-## as a small one. Generous enough that gait travel never trips it.
-func _separation_bound() -> float:
-	return maxf(40.0, get_stroke_bounds().size.length() * 0.30)
-
-
-## Watches the rig against its drawn pose and locks it if it comes apart. Runs for
-## every rig type, including the spider, so the guarantee holds for all 50 classes.
-func _update_fidelity_guard() -> void:
-	if _pose_locked or _primary_body == null or _rest_transforms.is_empty():
-		return
-	if _physics_frames_since_build < FIDELITY_SETTLE_FRAMES:
-		return
-	if _pose_deviation() > _deviation_bound() or _pose_separation() > _separation_bound():
-		_fidelity_strain_frames += 1
-		if _fidelity_strain_frames >= FIDELITY_GRACE_FRAMES:
-			_lock_pose()
-	else:
-		_fidelity_strain_frames = 0
-
-
-## Stop simulating the limbs and hold the drawing exactly as it was drawn. The
-## torso keeps its physics (so movement, jumping and collision are untouched) while
-## every other piece is frozen and driven from the torso's transform, which makes
-## deforming the drawing impossible rather than merely unlikely.
-func _lock_pose() -> void:
-	if _pose_locked or _primary_body == null:
-		return
-	_pose_locked = true
-	_ensure_visual_pivot()
-	# Release the joints FIRST. A frozen body is immovable to the solver, so leaving
-	# the torso pinned to one hangs the whole creature in mid-air -- it stops falling
-	# and simply floats. The limbs no longer need joints anyway: they are placed
-	# directly from the torso's transform every frame.
-	for joint in _joints:
-		if is_instance_valid(joint):
-			joint.queue_free()
-	_joints.clear()
-	# Move every limb's ink and collision onto the torso and delete the limb bodies,
-	# so the creature becomes genuinely ONE body. Freezing them instead left
-	# immovable bodies overlapping the torso, which shoved it a little every frame:
-	# on landing the frog picked up a constant upward velocity and flew off into the
-	# sky. With no second body there is nothing left to push, nothing to drift apart,
-	# and the drawing is carried exactly as drawn.
-	for body in _bodies:
-		if body == _primary_body or not is_instance_valid(body):
-			continue
+		var target: Node2D = pivot_for_body.get(body.get_instance_id(), _visual_pivot)
 		for child in body.get_children():
-			var node := child as Node2D
-			if node == null:
+			var line := child as Line2D
+			if line == null:
 				continue
-			var world_transform := node.global_transform
-			body.remove_child(node)
-			if node is Line2D:
-				_visual_pivot.add_child(node)
-			else:
-				_primary_body.add_child(node)
-			node.global_transform = world_transform
-		# The emptied bodies are kept (the controller caches this list, and freeing
-		# them mid-frame would leave it holding dangling handles) but they now own no
-		# ink and no collision shape, so they cannot be seen, cannot collide, and
-		# cannot push anything. Freezing them stops them falling away on their own.
-		body.freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC
-		body.freeze = true
-		body.global_transform = _primary_body.global_transform
-	_segments.clear()
-	_rest_transforms.clear()
+			var world_transform := line.global_transform
+			body.remove_child(line)
+			target.add_child(line)
+			line.global_transform = world_transform
 
 
-## Drives a locked rig: every piece is placed from the torso plus the whole-body
-## animation offset, so the creature still bobs, tilts and leans as one drawing.
-func _apply_locked_pose(delta: float) -> void:
-	if _primary_body == null:
+## Swing each limb's ink about its drawn joint, following the same gait the muscles
+## are given. The drawing animates without the ragdoll ever being allowed to move it.
+func _animate_ink_limbs(delta: float) -> void:
+	if _ink_pivots.is_empty():
 		return
-	# All the ink now lives on one body under the animation pivot, so holding the
-	# drawn shape costs nothing: the whole creature simply bobs, tilts and leans.
-	_animate_whole_body(delta)
+	var weight := 1.0 - exp(-INK_LIMB_RESPONSE * delta)
+	for entry_value in _ink_pivots:
+		var entry: Dictionary = entry_value
+		var node := entry["node"] as Node2D
+		if not is_instance_valid(node):
+			continue
+		var segment: Dictionary = entry["segment"]
+		# The spider's stance controller publishes its own per-leg target; every other
+		# rig uses the species/generic gait the muscle loop reads.
+		var target: float = float(segment["target_angle"]) if segment.has("target_angle") \
+			else _target_angle_for(segment)
+		if not is_finite(target):
+			target = 0.0
+		var limit := float(segment.get("angle_limit", deg_to_rad(46.0)))
+		node.rotation = lerpf(node.rotation, clampf(target, -limit, limit), weight)
 
 
 ## Gather EVERY body's ink onto one pivot under the torso, at the exact offsets it
@@ -1571,24 +1445,6 @@ func _consolidate_ink_to_pivot() -> void:
 
 ## Swing each limb's ink about its drawn joint, following the same gait the muscles
 ## are given. The drawing animates without the ragdoll ever being allowed to move it.
-func _animate_ink_limbs(delta: float) -> void:
-	if _ink_pivots.is_empty():
-		return
-	var weight := 1.0 - exp(-INK_LIMB_RESPONSE * delta)
-	for entry_value in _ink_pivots:
-		var entry: Dictionary = entry_value
-		var node := entry["node"] as Node2D
-		if not is_instance_valid(node):
-			continue
-		var segment: Dictionary = entry["segment"]
-		# The spider's stance controller publishes its own per-leg target; every other
-		# rig uses the species/generic gait the muscle loop reads.
-		var target: float = float(segment["target_angle"]) if segment.has("target_angle") \
-			else _target_angle_for(segment)
-		if not is_finite(target):
-			target = 0.0
-		var limit := float(segment.get("angle_limit", deg_to_rad(46.0)))
-		node.rotation = lerpf(node.rotation, clampf(target, -limit, limit), weight)
 
 
 ## Reparents the torso's own ink under an animation pivot, creating it on demand.
@@ -2324,61 +2180,6 @@ func _ensure_articulation(_strokes: Array) -> void:
 	_setup_whole_body_animation()
 
 
-func _decompose_scribble(stroke: Dictionary) -> Dictionary:
-	var empty := {"body_paths": [], "limbs": []}
-	var pts: PackedVector2Array = stroke["points"]
-	if pts.size() < 7:
-		return empty
-	var center := _points_center(pts)
-	var diag := _points_bounds(pts).size.length()
-	if diag < 1.0:
-		return empty
-	var radii := PackedFloat32Array()
-	for point in pts:
-		radii.append(point.distance_to(center))
-	var median_r := _median(radii)
-	var prominence := 0.22 * diag
-	var limbs: Array = []
-	var i := 1
-	while i < pts.size() - 1:
-		if radii[i] > radii[i - 1] and radii[i] >= radii[i + 1]:
-			var left := i
-			while left > 0 and radii[left - 1] <= radii[left]:
-				left -= 1
-			var right := i
-			while right < pts.size() - 1 and radii[right + 1] <= radii[right]:
-				right += 1
-			var valley := minf(radii[left], radii[right])
-			if radii[i] - valley >= prominence and valley <= median_r * 1.15:
-				var skeleton := pts.slice(left, i + 1)
-				if _stroke_length(skeleton) >= MIN_SEGMENT_LENGTH * 2.0:
-					limbs.append({
-						"skeleton": skeleton,
-						"return_ink": pts.slice(i, right + 1),
-						"left": left,
-						"right": right
-					})
-				i = right + 1
-				continue
-		i += 1
-	if limbs.is_empty():
-		return empty
-	# The torso is whatever the accepted limbs did not claim: the contiguous
-	# intervals between spikes, each kept as its own polyline.
-	var body_paths: Array = []
-	var cursor := 0
-	for limb_value in limbs:
-		var limb := limb_value as Dictionary
-		var interval := pts.slice(cursor, int(limb["left"]) + 1)
-		if interval.size() >= 2:
-			body_paths.append(interval)
-		cursor = int(limb["right"])
-	var tail := pts.slice(cursor, pts.size())
-	if tail.size() >= 2:
-		body_paths.append(tail)
-	# body_paths may legitimately be empty: a star-shaped scribble whose spikes
-	# claim every point has no torso ink, only a hub where the spikes meet.
-	return {"body_paths": body_paths, "limbs": limbs}
 
 
 func _median(values: PackedFloat32Array) -> float:
@@ -2692,8 +2493,6 @@ func _clear_rig() -> void:
 	_primary_body = null
 	_visual_pivot = null  # freed with its body; a stale one would fake fidelity mode
 	_ink_pivots.clear()
-	_pose_locked = false
-	_fidelity_strain_frames = 0
 	_bodies.clear()
 	_joints.clear()
 	_segments.clear()
@@ -3108,13 +2907,10 @@ func _rig_needs_recovery() -> bool:
 		var position := body.global_position
 		if position.distance_to(primary_position) > maximum_radius:
 			return true
-	# A locked rig has no joints left to check: its pieces are placed directly from
-	# the torso, so joint error is meaningless and the segments hold freed handles.
-	if not _pose_locked:
-		for segment_value in _segments:
-			var error := _segment_joint_error(segment_value as Dictionary)
-			if not is_finite(error) or error > MAX_JOINT_ERROR:
-				return true
+	for segment_value in _segments:
+		var error := _segment_joint_error(segment_value as Dictionary)
+		if not is_finite(error) or error > MAX_JOINT_ERROR:
+			return true
 	return false
 
 
