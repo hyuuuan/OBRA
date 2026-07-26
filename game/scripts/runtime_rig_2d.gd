@@ -437,19 +437,6 @@ func _on_skin_rebuilt() -> void:
 	if skin_mode() == "vector" and not get_vector_strokes().is_empty():
 		if _entity_id == "spider":
 			_build_spider_rig(get_vector_strokes())
-		elif _drawing_is_scramble_prone(get_vector_strokes()):
-			# Fidelity mode. Some drawings cannot be articulated without ceasing to
-			# look like themselves: broad loop-shaped appendages sweep a long way
-			# when they rotate, so a drawing made of several of them ends up an
-			# unrecognisable cluster however carefully the muscles are tuned. Those
-			# are built as ONE rigid piece and animated as a whole body instead, so
-			# what the player drew is exactly what stays on screen.
-			_build_compound_rig(
-				get_vector_strokes(),
-				"FidelityBody",
-				_rig_type in ["walker", "biped", "hopper"]
-			)
-			_setup_whole_body_animation()
 		else:
 			if _entity_id == "snake":
 				_build_chain_rig(get_vector_strokes())
@@ -1208,7 +1195,7 @@ func _species_target_angle(segment: Dictionary, role: String, phase: float, movi
 				# A broad loop-shaped wing swings its far side a long way for very
 				# little rotation, so a wide beat visibly walks it off the body. Small
 				# enough to stay attached, large enough to read as a flap.
-				return deg_to_rad(15.0) * sin(phase * hz_scale) * side
+				return deg_to_rad(24.0) * sin(phase * hz_scale) * side
 			if _motion_state == "glide":
 				return deg_to_rad(-18.0) * side
 			# Grounded and moving: gentle wing beat; standing still holds the wing.
@@ -2217,7 +2204,7 @@ func _build_limb_path(
 		# far enough that the silhouette stops reading as the thing the player drew.
 		# A wing is tighter still: it is usually a broad loop, so the same rotation
 		# distorts it much more than it distorts a thin leg.
-		var limit := deg_to_rad(22.0 if role == "wing" else 46.0)
+		var limit := deg_to_rad(30.0 if role == "wing" else 46.0)
 		var joint := _create_joint(parent, body, chunk[0], limit)
 		if joint == null:
 			body.queue_free()
