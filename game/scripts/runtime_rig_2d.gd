@@ -1823,7 +1823,10 @@ func _build_standard_rig(strokes: Array) -> void:
 			var blob_bounds := _bounds_for_points(points)
 			var blob_compactness := minf(blob_bounds.size.x, blob_bounds.size.y) / maxf(1.0, maxf(blob_bounds.size.x, blob_bounds.size.y))
 			if blob_compactness > 0.55:
-				if not _closed_stroke_is_appendage(blob_bounds, body_center):
+				# A wing drawn meeting the body in the middle has no lateral offset, so
+				# the head/eye/blob rule welded it. Being one of a pair settles it.
+				if not _is_wing_like(strokes, index) \
+						and not _closed_stroke_is_appendage(blob_bounds, body_center):
 					body_decorations.append(stroke)
 					continue
 				# Keep a loop-shaped appendage INTACT on one body, hinged where it
@@ -2613,12 +2616,46 @@ func _select_body_stroke(strokes: Array) -> int:
 		# body line, becomes the torso, and then both wings sit on the same side of
 		# it -- so they beat together instead of mirroring and the drawing reads
 		# lopsided. An off-centre closed shape is disqualified from being the body.
-		if _rig_type == "flier" and closed and centrality < 0.85:
+		if _is_wing_like(strokes, index):
 			score -= 9.0
 		if score > best_score:
 			best_score = score
 			best_index = index
 	return best_index
+
+
+## A flier's wings are recognised by coming in PAIRS: a closed round shape that has a
+## closed round twin of comparable size is one of a pair, and a body never is.
+## Position deliberately plays no part -- a butterfly's wings meet in the middle,
+## exactly where its body is, so anything based on being off-centre cannot tell them
+## apart. A lone closed shape is not wing-like, so a bird's oval body still reads as
+## a body. This one answer drives all three decisions that were disagreeing: what
+## becomes the torso, what gets absorbed into it, and what gets hinged.
+func _is_wing_like(strokes: Array, index: int) -> bool:
+	if _rig_type != "flier":
+		return false
+	var stroke: Dictionary = strokes[index]
+	var points := PackedVector2Array(stroke.get("points", PackedVector2Array()))
+	if points.size() < 3 or not _stroke_is_closed(points, float(stroke.get("width", 5.0))):
+		return false
+	var bounds := _bounds_for_points(points)
+	var compactness := minf(bounds.size.x, bounds.size.y) / maxf(1.0, maxf(bounds.size.x, bounds.size.y))
+	if compactness <= 0.45:
+		return false
+	var mine := bounds.size.length()
+	if mine <= 0.001:
+		return false
+	for other in range(strokes.size()):
+		if other == index:
+			continue
+		var sibling: Dictionary = strokes[other]
+		var sibling_points := PackedVector2Array(sibling.get("points", PackedVector2Array()))
+		if sibling_points.size() < 3 or not _stroke_is_closed(sibling_points, float(sibling.get("width", 5.0))):
+			continue
+		var theirs := _bounds_for_points(sibling_points).size.length()
+		if theirs > 0.001 and maxf(mine, theirs) / minf(mine, theirs) <= 1.7:
+			return true
+	return false
 
 
 func _appendage_candidate_less(a: Dictionary, b: Dictionary) -> bool:
@@ -2782,6 +2819,10 @@ func _gather_body_strokes(strokes: Array, body_index: int) -> Dictionary:
 		var elongation := longside / shortside
 		var closed := _stroke_is_closed(pts, float(strokes[index].get("width", 5.0)))
 		var overlaps := _bounds_overlap_ratio(body_bounds, b) > 0.6
+		# A wing overlapping the body must stay a separate, hingeable piece; absorbing
+		# it welds it rigid and the creature flies with one wing.
+		if _is_wing_like(strokes, index):
+			continue
 		if body_bounds.has_point(b.get_center()) and (closed or overlaps) and elongation < 2.2:
 			indices[index] = true
 			pool.append_array(pts)
