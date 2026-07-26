@@ -880,6 +880,11 @@ func _test_wing_anatomy() -> void:
 ## drawing must go rigid, and an ordinary thin-limbed drawing must NOT -- otherwise
 ## the rule would quietly swallow every creature and nothing would animate its limbs.
 func _test_fidelity_mode() -> void:
+	# A drawing made of several broad loop-shaped appendages -- the four-loop
+	# butterfly that started this -- must ARTICULATE those appendages, not be
+	# flattened into one rigid piece. Collapsing it was an earlier answer to the
+	# loops scrambling; the ink now hinges on pivots at the joints it was drawn on,
+	# so the shape holds by construction and flattening it only costs the wings.
 	var messy := registry.instantiate_entity("butterfly") as Node2D
 	if messy != null:
 		world.add_child(messy)
@@ -887,29 +892,30 @@ func _test_fidelity_mode() -> void:
 		messy.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
 		messy.call("apply_drawing", _blank_image(), _four_loop_fixture())
 		var messy_skin := messy.get_node("DrawingSkin") as RuntimeRig2D
+		_expect(messy_skin.skin_mode() == "vector", "four-loop drawing discarded the vector ink")
+		var pivots: Array = messy_skin.get("_ink_pivots")
 		_expect(
-			messy_skin.get_rigid_bodies().size() == 1 and messy_skin.get_joint_count() == 0,
-			"four-loop drawing must stay one rigid piece, got %d bodies/%d joints" % [
-				messy_skin.get_rigid_bodies().size(), messy_skin.get_joint_count()
-			]
+			pivots.size() >= 3,
+			"four-loop drawing rigged only %d hinged appendages; its wings cannot animate" % pivots.size()
 		)
-		_expect(messy_skin.skin_mode() == "vector", "fidelity mode discarded the player's vector ink")
-		# It still has to move: a rigid creature that never animates is not a fix.
 		messy.set_physics_process(false)
-		var pivot := messy_skin.get_primary_body().get_node_or_null("WholeBodyPivot") as Node2D
-		_expect(pivot != null, "fidelity rig has no whole-body animation pivot")
-		if pivot != null:
-			var moved := false
-			for _frame in range(90):
-				messy_skin.set_motion_state("fly", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
-				await physics_frame
-				if pivot.position.length() > 0.35 or absf(pivot.rotation) > 0.01:
-					moved = true
-			_expect(moved, "fidelity rig never animated as a whole body")
+		var lowest := INF
+		var highest := -INF
+		for _frame in range(150):
+			messy_skin.set_motion_state("fly", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
+			await physics_frame
+			for entry_value in pivots:
+				var node := (entry_value as Dictionary)["node"] as Node2D
+				if is_instance_valid(node):
+					lowest = minf(lowest, node.rotation)
+					highest = maxf(highest, node.rotation)
+		_expect(
+			is_finite(highest - lowest) and rad_to_deg(highest - lowest) > 8.0,
+			"four-loop drawing's wings never beat (%.1f deg of swing)" % rad_to_deg(highest - lowest)
+		)
 		messy.queue_free()
 		await process_frame
 
-	# The ordinary case must keep its articulated limbs.
 	var thin := registry.instantiate_entity("horse") as Node2D
 	if thin != null:
 		world.add_child(thin)
@@ -917,26 +923,11 @@ func _test_fidelity_mode() -> void:
 		thin.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
 		thin.call("apply_drawing", _blank_image(), _quadruped_fixture())
 		var thin_skin := thin.get_node("DrawingSkin") as RuntimeRig2D
-		_expect(
-			thin_skin.get_joint_count() > 0,
-			"a thin-limbed quadruped must keep articulated limbs, not fall into fidelity mode"
-		)
+		_expect(thin_skin.get_joint_count() > 0, "walker lost its articulation")
 		thin.queue_free()
 		await process_frame
 
 
-## The runtime fidelity guarantee. Whether a drawing survives being articulated
-## cannot be predicted from its strokes, so the rig is measured against the pose it
-## was drawn in and locked into that pose if it comes apart. Both directions are
-## asserted: a rig that folds far past its drawn pose must end up holding that pose,
-## and a healthy walker must NOT be locked -- otherwise the guard would silently
-## freeze every creature in the game and no limb would ever animate again.
-## The fidelity guarantee, stated as what the player actually sees: however far the
-## physics rig deviates while it walks, jumps and collides, the INK is rendered from
-## the pose the drawing was made in. Constraining the simulation to hold the shape
-## was tried first and always cost locomotion instead (freezing the spider's legs
-## left it unable to walk at all), so the drawing and the simulation are separated:
-## the rig keeps full freedom, the drawing never deforms.
 func _test_fidelity_guard() -> void:
 	for entity_id in ["frog", "spider", "horse"]:
 		var entry := registry.get_entity(entity_id)
