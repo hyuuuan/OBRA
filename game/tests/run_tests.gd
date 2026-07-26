@@ -955,25 +955,50 @@ func _test_fidelity_guard() -> void:
 		if primary == null:
 			instance.queue_free()
 			continue
-		# Where every piece of ink sits relative to the creature, as drawn.
-		var drawn: Dictionary = {}
-		for line in _ink_lines(primary):
-			drawn[line.get_instance_id()] = primary.global_transform.affine_inverse() * line.global_position
-		_expect(not drawn.is_empty(), "%s rendered no ink" % entity_id)
+		# Every limb's ink hinges on a pivot placed at the joint it was DRAWN to hinge
+		# on. The pivot may rotate -- that is the animation -- but it must never
+		# translate away from the torso, and it must stay inside the limb's envelope.
+		# Those two together are what "the drawing animates without deforming" means.
+		var pivots: Array = skin.get("_ink_pivots")
+		# Each hinge is measured against its OWN parent hinge. Global positions would
+		# count intended motion -- the whole-body bob, and a shin legitimately swinging
+		# with its thigh -- whereas the offset between a limb and the thing it hangs
+		# off is fixed by the drawing and must never change. That is exactly the
+		# difference between a limb animating and a drawing coming apart.
+		var frame_node := primary.get_node_or_null("WholeBodyPivot") as Node2D
+		_expect(frame_node != null, "%s has no whole-body pivot" % entity_id)
+		if frame_node == null:
+			instance.queue_free()
+			continue
+		var anchored: Dictionary = {}
+		for entry_value in pivots:
+			var node := (entry_value as Dictionary)["node"] as Node2D
+			if is_instance_valid(node):
+				anchored[node.get_instance_id()] = node.position
 		instance.set_physics_process(false)
+		var swing := 0.0
 		for _frame in range(200):
 			skin.set_motion_state("walk", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
 			await physics_frame
-		# The rig is free to have deviated; the drawing is not.
 		var drift := 0.0
-		for line in _ink_lines(primary):
-			if not drawn.has(line.get_instance_id()):
+		var overshoot := 0.0
+		for checked_value in pivots:
+			var checked: Dictionary = checked_value
+			var pivot_node := checked["node"] as Node2D
+			if not is_instance_valid(pivot_node) or not anchored.has(pivot_node.get_instance_id()):
 				continue
-			var now: Vector2 = primary.global_transform.affine_inverse() * line.global_position
-			drift = maxf(drift, now.distance_to(drawn[line.get_instance_id()]))
+			var now: Vector2 = pivot_node.position
+			drift = maxf(drift, now.distance_to(anchored[pivot_node.get_instance_id()]))
+			var limit := float((checked["segment"] as Dictionary).get("angle_limit", deg_to_rad(46.0)))
+			overshoot = maxf(overshoot, absf(pivot_node.rotation) - limit)
+			swing = maxf(swing, absf(pivot_node.rotation))
 		_expect(
-			drift < 12.0,
-			"%s ink drifted %.1f px from the drawn layout; the drawing must not deform" % [entity_id, drift]
+			drift < 6.0,
+			"%s limb ink drifted %.1f px from where it was drawn to hinge" % [entity_id, drift]
+		)
+		_expect(
+			overshoot < deg_to_rad(6.0),
+			"%s limb ink swung %.1f deg past its envelope" % [entity_id, rad_to_deg(overshoot)]
 		)
 		instance.queue_free()
 		await process_frame

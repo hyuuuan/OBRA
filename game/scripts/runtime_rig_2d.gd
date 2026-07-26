@@ -26,6 +26,8 @@ const MUSCLE_SETTLE_FRAMES := 14.0
 # high-speed thrash that reads on screen as "spinning" impossible. The torso keeps
 # the higher default so jumps and knockback still read.
 const LIMB_MAX_ANGULAR_SPEED := 5.5
+## How quickly drawn ink follows its gait target (higher == snappier limbs).
+const INK_LIMB_RESPONSE := 12.0
 # --- Pose leash --------------------------------------------------------------
 # The muscles control joint ANGLES only, which is not enough to keep a drawing
 # looking like itself: a broad appendage pinned at its edge sweeps a long way when
@@ -82,6 +84,8 @@ var _primary_body: ActiveRigBody2D
 ## Set only in fidelity mode: the ink hangs off this so the whole creature can bob
 ## and tilt without any force touching the drawing's shape.
 var _visual_pivot: Node2D
+## One entry per limb: {node: Node2D pivot at the drawn joint, segment: Dictionary}.
+var _ink_pivots: Array = []
 ## True once the rig has been locked into its drawn pose because it strayed too far.
 var _pose_locked := false
 var _fidelity_strain_frames := 0
@@ -487,6 +491,7 @@ func _physics_process(delta: float) -> void:
 	# the whole creature bobs and tilts as one piece while the rig below simulates
 	# freely. Runs for every class, articulated or not.
 	_animate_whole_body(delta)
+	_animate_ink_limbs(delta)
 	if _segments.is_empty():
 		return
 	if _entity_id == "spider" and not _spider_feet.is_empty():
@@ -1537,17 +1542,63 @@ func _consolidate_ink_to_pivot() -> void:
 	_ensure_visual_pivot()
 	if _visual_pivot == null:
 		return
-	for body in _bodies:
-		if body == _primary_body or not is_instance_valid(body):
+	_ink_pivots.clear()
+	# One pivot per limb, placed at the joint that limb is actually drawn to hinge on,
+	# and nested so a chain composes (a shin turns with its thigh). The gait drives
+	# these directly, which is what lets the limbs animate while the shape holds: ink
+	# can only ever swing about the point it was drawn attached to, by the bounded
+	# angle the gait asks for. It never drifts, stretches or detaches, because the
+	# ragdoll's own deviation is not what positions it.
+	var pivot_for_body: Dictionary = {}
+	for segment_value in _segments:
+		var segment: Dictionary = segment_value
+		var body := segment.get("body") as ActiveRigBody2D
+		var parent := segment.get("parent") as ActiveRigBody2D
+		var joint := segment.get("joint") as PinJoint2D
+		if not is_instance_valid(body) or not is_instance_valid(parent) or not is_instance_valid(joint):
 			continue
+		var parent_pivot: Node2D = pivot_for_body.get(parent.get_instance_id(), _visual_pivot)
+		var pivot := Node2D.new()
+		pivot.name = "InkPivot_%d" % _ink_pivots.size()
+		parent_pivot.add_child(pivot)
+		pivot.global_position = joint.global_position
+		pivot.rotation = 0.0
+		pivot_for_body[body.get_instance_id()] = pivot
+		_ink_pivots.append({"node": pivot, "segment": segment})
+	for body in _bodies:
+		if not is_instance_valid(body):
+			continue
+		var target: Node2D = pivot_for_body.get(body.get_instance_id(), _visual_pivot)
 		for child in body.get_children():
 			var line := child as Line2D
 			if line == null:
 				continue
 			var world_transform := line.global_transform
 			body.remove_child(line)
-			_visual_pivot.add_child(line)
+			target.add_child(line)
 			line.global_transform = world_transform
+
+
+## Swing each limb's ink about its drawn joint, following the same gait the muscles
+## are given. The drawing animates without the ragdoll ever being allowed to move it.
+func _animate_ink_limbs(delta: float) -> void:
+	if _ink_pivots.is_empty():
+		return
+	var weight := 1.0 - exp(-INK_LIMB_RESPONSE * delta)
+	for entry_value in _ink_pivots:
+		var entry: Dictionary = entry_value
+		var node := entry["node"] as Node2D
+		if not is_instance_valid(node):
+			continue
+		var segment: Dictionary = entry["segment"]
+		# The spider's stance controller publishes its own per-leg target; every other
+		# rig uses the species/generic gait the muscle loop reads.
+		var target: float = float(segment["target_angle"]) if segment.has("target_angle") \
+			else _target_angle_for(segment)
+		if not is_finite(target):
+			target = 0.0
+		var limit := float(segment.get("angle_limit", deg_to_rad(46.0)))
+		node.rotation = lerpf(node.rotation, clampf(target, -limit, limit), weight)
 
 
 ## Reparents the torso's own ink under an animation pivot, creating it on demand.
@@ -2620,6 +2671,7 @@ func _compute_support_sets() -> void:
 func _clear_rig() -> void:
 	_primary_body = null
 	_visual_pivot = null  # freed with its body; a stale one would fake fidelity mode
+	_ink_pivots.clear()
 	_pose_locked = false
 	_fidelity_strain_frames = 0
 	_bodies.clear()
