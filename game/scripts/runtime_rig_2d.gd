@@ -2013,10 +2013,15 @@ func _build_limb_path(
 	var segment_count := clampi(int(ceil(length / 38.0)), 1, per_limb_cap)
 	if _minimum_limb_segments(role) >= 2 and length >= MIN_SEGMENT_LENGTH * 1.25:
 		segment_count = maxi(segment_count, 2)
-	# A limb whose path returns to where it started is a drawn loop (a wing, a fin).
-	# Chunking it would put the two halves of the loop on bodies that then rotate
-	# apart, tearing the shape open, so it travels as one rigid piece.
-	if path.size() > 2 and path[0].distance_to(path[path.size() - 1]) <= maxf(6.0, width * 1.5):
+	# A wing is one surface, and a drawn loop is one closed shape. Splitting either
+	# along its length puts halves of the same ink on bodies that then rotate apart,
+	# so the wing visibly breaks in the middle -- which is what "the wings detach"
+	# was. Both stay a single piece. (The closed-loop test alone was not enough: once
+	# a loop is trimmed to the arc that attaches, it is no longer closed, so a wing
+	# was still being cut in two.)
+	if role == "wing":
+		segment_count = 1
+	elif path.size() > 2 and path[0].distance_to(path[path.size() - 1]) <= maxf(6.0, width * 1.5):
 		segment_count = 1
 	segment_count = mini(segment_count, MAX_BODIES - _bodies.size())
 	if segment_count <= 0:
