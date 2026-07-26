@@ -408,6 +408,11 @@ func debug_pose_separation() -> float:
 	return _pose_separation()
 
 
+## True when this rig animates as one whole body rather than through joints.
+func debug_whole_body_animated() -> bool:
+	return _visual_pivot != null and is_instance_valid(_visual_pivot)
+
+
 func debug_max_tracked_angle() -> float:
 	return _max_tracked_angle
 
@@ -2190,84 +2195,19 @@ func _build_bitmap_fallback() -> void:
 ## the player did not draw — if the stroke has no clear radial appendages it leaves the
 ## single-body rig alone. Skipped entirely for rig_type "none" (physics objects and
 ## utilities), which must stay rigid, and for the empty-strokes bitmap path.
-func _ensure_articulation(strokes: Array) -> void:
-	if _joints.size() > 0 or strokes.is_empty():
+func _ensure_articulation(_strokes: Array) -> void:
+	if _joints.size() > 0:
 		return
-	if _rig_type == "none":
-		return
-	if get_stroke_bounds().size.length() < _target_size.length() * 0.5:
-		return
-	var body_index := _select_body_stroke(strokes)
-	var body_stroke: Dictionary = strokes[body_index]
-	var decomposition := _decompose_scribble(body_stroke)
-	var limbs: Array = decomposition["limbs"]
-	if limbs.is_empty():
-		return
-	# A single continuous scribble split into a torso core + its actual drawn spikes.
-	_clear_rig()
-	_create_physics_root()
-	var body_paths: Array = decomposition["body_paths"]
-	var width := float(body_stroke.get("width", 6.0))
-	var color := Color(body_stroke.get("color", Color.BLACK))
-	_body_polylines = body_paths.duplicate()
-	_body_pool = PackedVector2Array()
-	for path_value in body_paths:
-		_body_pool.append_array(path_value as PackedVector2Array)
-	if _body_pool.is_empty():
-		# Star scribble: the spikes claim every drawn point, so the torso is just
-		# the hub where they meet. It gets collision below but no ink of its own —
-		# all visible ink stays on the limb bodies that own it.
-		for limb_value in limbs:
-			var skeleton_points: PackedVector2Array = (limb_value as Dictionary)["skeleton"]
-			_body_pool.append(skeleton_points[0])
-	var body_center := _points_center(_body_pool)
-	_primary_body = _create_body("Torso", body_center, _mass_for_stroke(body_stroke, 1.5))
-	_primary_body.lock_rotation = _rig_type in ["walker", "biped", "hopper"]
-	for path_value in body_paths:
-		_add_visual_line(_primary_body, path_value as PackedVector2Array, width, color, body_center)
-	var limb_limit := _limb_limit_for_entity()
-	var limb_index := 0
-	for limb_value in limbs:
-		var limb := limb_value as Dictionary
-		var skeleton: PackedVector2Array = limb["skeleton"]
-		var return_ink: PackedVector2Array = (limb["return_ink"] as PackedVector2Array).duplicate()
-		if limb_index >= limb_limit or _joints.size() >= MAX_JOINTS:
-			# Out of limb budget: keep the spike's ink intact on the torso rather
-			# than dropping it.
-			_add_visual_line(_primary_body, skeleton, width, color, body_center)
-			_add_visual_line(_primary_body, limb["return_ink"], width, color, body_center)
-			continue
-		# The skeleton runs torso->tip; reverse the return side to match so the
-		# per-chunk arc split assigns matching ink to each limb segment.
-		return_ink.reverse()
-		_build_limb_path(skeleton, body_stroke, limb_index, body_center, [return_ink])
-		limb_index += 1
-	# Other strokes (eyes, decorations) keep riding the torso; the previous code
-	# silently discarded them when rebuilding from the scribble.
-	for index in range(strokes.size()):
-		if index != body_index:
-			_add_stroke_to_body(_primary_body, strokes[index], body_center, false)
-	# Torso capsules last so limb segments never starve on the shared shape budget.
-	for path_value in body_paths:
-		_add_capsules(_primary_body, path_value as PackedVector2Array, width, body_center)
-	if body_paths.is_empty() and _shape_count < MAX_SHAPES:
-		# Ink-less hub torso still needs a collider sized to the spike bases.
-		var hub_radius := 0.0
-		for point in _body_pool:
-			hub_radius = maxf(hub_radius, point.distance_to(body_center))
-		var circle := CircleShape2D.new()
-		circle.radius = clampf(hub_radius + width * 0.5, 4.0, 24.0)
-		var hub_collision := CollisionShape2D.new()
-		hub_collision.shape = circle
-		_primary_body.add_child(hub_collision)
-		_shape_count += 1
+	# A drawing that produced no limbs is one continuous shape. It used to be CUT
+	# here into a torso plus invented "spikes", which put the pieces of a single
+	# unbroken line onto different bodies -- and the moment those bodies rotated,
+	# the line visibly tore apart. That is the detachment players reported, and it
+	# is invented articulation: nothing in the drawing said those were limbs.
+	# A continuous drawing now stays whole and animates as one body instead, so what
+	# the player drew is what stays on screen.
+	_setup_whole_body_animation()
 
 
-## Detect limb-like radial spikes in a single continuous stroke and split it into
-## contiguous torso intervals plus outgoing limb slices. Every returned polyline is
-## an exact index-range slice of the input stroke — never a reassembly of scattered
-## points, which used to draw chords slashing across the figure. Returns empty
-## limbs when the stroke has no clear appendages.
 func _decompose_scribble(stroke: Dictionary) -> Dictionary:
 	var empty := {"body_paths": [], "limbs": []}
 	var pts: PackedVector2Array = stroke["points"]
