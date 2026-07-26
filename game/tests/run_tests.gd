@@ -1081,7 +1081,15 @@ func _check_messy_fixture(path: String) -> void:
 	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
 
 	_expect(skin.skin_mode() == "vector", "'%s' collapsed to bitmap" % label)
-	_expect(skin.get_joint_count() > 0, "'%s' produced no articulation" % label)
+	# Either outcome is correct, and which one is chosen is the point: a drawing with
+	# real limbs articulates, while one continuous shape stays WHOLE and animates as
+	# a single body. Inventing joints inside an unbroken line is what tore drawings
+	# apart, so "no articulation" is a valid result now, not a failure -- what is not
+	# allowed is a drawing that neither articulates nor animates at all.
+	_expect(
+		skin.get_joint_count() > 0 or skin.debug_whole_body_animated(),
+		"'%s' neither articulated nor animates as a whole body" % label
+	)
 	_expect(skin.get_rigid_bodies().size() <= 24 and skin.get_joint_count() <= 23, "'%s' exceeded rig caps" % label)
 
 	instance.set_physics_process(false)
@@ -1089,6 +1097,18 @@ func _check_messy_fixture(path: String) -> void:
 	skin._physics_process(0.1)
 	if entity_id == "spider":
 		_expect(bool(skin.debug_spider_snapshot().get("valid", false)), "'%s' did not produce spider anatomy" % label)
+	elif skin.debug_whole_body_animated():
+		# One continuous drawing: it must move as a whole rather than through joints.
+		var pivot := skin.get_primary_body().get_node_or_null("WholeBodyPivot") as Node2D
+		_expect(pivot != null, "'%s' has no whole-body animation pivot" % label)
+		if pivot != null:
+			var moved := false
+			for _frame in range(60):
+				skin.set_motion_state(primary_state, motion)
+				await physics_frame
+				if pivot.position.length() > 0.35 or absf(pivot.rotation) > 0.01:
+					moved = true
+			_expect(moved, "'%s' stayed whole but never animated" % label)
 	else:
 		var animated := false
 		for torque in skin.debug_drive_torques():
