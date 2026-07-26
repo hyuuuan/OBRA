@@ -1422,6 +1422,25 @@ func _pose_separation() -> float:
 	return worst
 
 
+## How far a limb may rotate from its drawn angle before the drawing is judged to
+## have come apart. A ground creature's legs carry it -- they need room to swing, and
+## locking them early would cost real locomotion -- so they get the loose bound. A
+## flier or swimmer moves its whole body through the air or water instead: its wings
+## and fins do no load-bearing work, so holding their drawn shape costs nothing and
+## they are held to a much tighter bound.
+func _deviation_bound() -> float:
+	if _rig_type in ["flier", "swimmer"]:
+		return FIDELITY_MAX_DEVIATION * 0.32
+	# The spider is covered too, but loosely. Its stance controller sweeps each leg
+	# through a deliberately wide arc to plant and push -- that IS how it walks -- so
+	# it legitimately reaches angles that would mean "come apart" on any other rig.
+	# A loose bound still catches a spider that has genuinely collapsed without
+	# stealing the leg travel it moves with.
+	if _entity_id == "spider" and not _spider_feet.is_empty():
+		return FIDELITY_MAX_DEVIATION * 1.8
+	return FIDELITY_MAX_DEVIATION
+
+
 ## Detachment bound, scaled to the drawing so a big creature is judged the same way
 ## as a small one. Generous enough that gait travel never trips it.
 func _separation_bound() -> float:
@@ -1433,15 +1452,9 @@ func _separation_bound() -> float:
 func _update_fidelity_guard() -> void:
 	if _pose_locked or _primary_body == null or _rest_transforms.is_empty():
 		return
-	# The spider is the one rig whose legs ARE its locomotion: it walks by planting
-	# and pushing with individual feet, so freezing them would leave it unable to
-	# move at all. Its shape is kept by a tighter drawn envelope instead (see the
-	# limit passed to _create_joint in _build_spider_rig).
-	if _entity_id == "spider" and not _spider_feet.is_empty():
-		return
 	if _physics_frames_since_build < FIDELITY_SETTLE_FRAMES:
 		return
-	if _pose_deviation() > FIDELITY_MAX_DEVIATION or _pose_separation() > _separation_bound():
+	if _pose_deviation() > _deviation_bound() or _pose_separation() > _separation_bound():
 		_fidelity_strain_frames += 1
 		if _fidelity_strain_frames >= FIDELITY_GRACE_FRAMES:
 			_lock_pose()
