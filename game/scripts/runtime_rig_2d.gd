@@ -2571,8 +2571,18 @@ func _select_body_stroke(strokes: Array) -> int:
 			if tail_gap < best_gap:
 				best_gap = tail_gap
 				contact = other[other.size() - 1]
-			for sample in _sample_points(other, 9):
+			for sample in _sample_points(other, 17):
 				var gap := _point_polyline_distance(sample, points)
+				if gap < best_gap:
+					best_gap = gap
+					contact = sample
+			# Also measure THIS stroke's points against the other one. Sampling only
+			# the other stroke misses a thin line crossed by a big loop: the loop's
+			# samples land around its rim and step over the crossing entirely, so a
+			# butterfly's body line saw only one of its two wings, collected no
+			# hub bonus, and lost the torso to a wing.
+			for sample in _sample_points(points, 17):
+				var gap := _point_polyline_distance(sample, other)
 				if gap < best_gap:
 					best_gap = gap
 					contact = sample
