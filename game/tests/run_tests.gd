@@ -38,6 +38,7 @@ func _run() -> void:
 	_test_target_contracts()
 	await _test_ui_router_cancel_chain()
 	await _test_overlay_pause_refcount()
+	await _test_shared_overlays()
 	await _test_placement_collision()
 	_test_anatomy_inference()
 	await _test_spider_stance_controller()
@@ -152,6 +153,68 @@ func _test_ui_router_cancel_chain() -> void:
 
 	level.queue_free()
 	await process_frame
+
+
+## The settings, controls and confirm screens, in both scenes that instance them.
+##
+## They are one definition used twice, so the failure to guard against is one copy
+## drifting -- a button renamed in the scene, or an overlay wired into only one of
+## the two places it is reachable from.
+func _test_shared_overlays() -> void:
+	for scene_path in ["res://game_level.tscn", "res://ui/main_menu.tscn"]:
+		var instance: Node = (load(scene_path) as PackedScene).instantiate()
+		world.add_child(instance)
+		await process_frame
+		var label: String = scene_path.get_file()
+		for overlay_name in ["SettingsOverlay", "ControlsOverlay", "ConfirmOverlay"]:
+			var overlay: Node = instance.get_node_or_null(overlay_name)
+			_expect(overlay != null, "%s does not instance %s" % [label, overlay_name])
+			if overlay == null:
+				continue
+			_expect(not bool(overlay.call("is_open")), "%s in %s started open" % [overlay_name, label])
+			overlay.call("open")
+			_expect(bool(overlay.call("is_open")), "%s in %s did not open" % [overlay_name, label])
+			# Every shared overlay must be in the cancel chain of whichever scene it is
+			# in, or it opens with no way back out except the mouse.
+			_expect(bool(overlay.call("handle_cancel")), "%s in %s does not close on cancel" % [overlay_name, label])
+			_expect(not bool(overlay.call("is_open")), "%s in %s stayed open after cancel" % [overlay_name, label])
+		var router: Node = instance.get_node_or_null("UIRouter")
+		_expect(router != null, "%s has no UIRouter" % label)
+		if router != null:
+			var chain_names: Array[String] = []
+			for path in (router.get("cancel_chain") as Array):
+				chain_names.append(String(path).get_file())
+			for overlay_name in ["SettingsOverlay", "ControlsOverlay", "ConfirmOverlay"]:
+				_expect(
+					chain_names.has(overlay_name),
+					"%s's cancel chain omits %s" % [label, overlay_name]
+				)
+		instance.queue_free()
+		await process_frame
+	paused = false
+
+	# The controls screen derives its key glyphs from the live InputMap, so the only
+	# thing that can rot is an action name in the JSON. A row naming an action that
+	# does not exist is silently skipped, which would quietly empty the screen.
+	var text := FileAccess.get_file_as_string("res://config/controls.json")
+	var parsed: Variant = JSON.parse_string(text)
+	_expect(parsed is Dictionary, "controls.json did not parse")
+	if parsed is Dictionary:
+		var rows: Array = (parsed as Dictionary).get("rows", [])
+		_expect(rows.size() > 0, "controls.json lists no rows")
+		for row_value: Variant in rows:
+			var row: Dictionary = row_value
+			var action := String(row.get("action", ""))
+			_expect(
+				InputMap.has_action(action),
+				"controls.json names '%s', which is not in the InputMap" % action
+			)
+			var through := String(row.get("through", ""))
+			if not through.is_empty():
+				_expect(
+					InputMap.has_action(through),
+					"controls.json range ends at '%s', which is not in the InputMap" % through
+				)
 
 
 ## Pause is derived from whoever is open, not toggled by whoever closes.
