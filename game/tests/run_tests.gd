@@ -1459,6 +1459,44 @@ func _test_skeleton_manifest() -> void:
 			continue
 		for problem in SkeletonLibrary.validate(skeleton):
 			_expect(false, "%s skeleton: %s" % [entity_id, problem])
+
+		# A named profile key resolving to a value of the WRONG KIND is the failure this
+		# design invites, and it does not raise: every key here exists and is a number.
+		# The swimmers named wave_length as their gait frequency -- 44 to 82 PIXELS read
+		# as hertz -- so they ran at more than a cycle per frame, aliased into noise, and
+		# rendered motionless. The hopper named landing_squash as a continuous body
+		# scale, so its legs shrank by a fifth on every hop. Both are in range for a
+		# number and absurd for a frequency and a scale, which is what is checked.
+		var profile_path := "res://config/rigs/%s.json" % entity_id
+		var profile_for_rig: Variant = JSON.parse_string(
+			FileAccess.get_file_as_string(profile_path)
+		) if FileAccess.file_exists(profile_path) else null
+		if profile_for_rig is Dictionary:
+			var placed := Skeleton2D_Rig.build(skeleton, Rect2(0.0, 0.0, 200.0, 200.0), profile_for_rig)
+			# Nyquist: above 30 Hz a 60 fps sine is sampled less than twice per cycle and
+			# stops being an animation. Real gaits here are 1.2 to 9.
+			_expect(
+				placed.frequency_hz > 0.05 and placed.frequency_hz <= 15.0,
+				"%s (%s) resolves a gait frequency of %.1f Hz, which is not a gait" % [
+					entity_id, rig_type, placed.frequency_hz
+				]
+			)
+			var motion: Dictionary = skeleton.get("body_motion", {})
+			# Calibrated to what renders correctly rather than to a round number. The
+			# flier has a field built for this (flap_squash, 0.10-0.12); everyone else
+			# borrows landing_squash, and 0.10-0.16 reads as squash-and-stretch on a
+			# walker or a biped. The hopper's 0.22 was where it stopped reading as a
+			# body pulse and started reading as the legs changing length.
+			var squash := float(profile_for_rig.get(String(motion.get("squash_key", "")), motion.get("squash", 0.0)))
+			_expect(
+				absf(squash) <= 0.18,
+				"%s squashes the whole creature by %.0f%% every cycle" % [entity_id, squash * 100.0]
+			)
+			var bob := float(profile_for_rig.get(String(motion.get("bob_key", "")), motion.get("bob_px", 0.0)))
+			_expect(
+				absf(bob) <= 24.0,
+				"%s bobs %.0f px every cycle, which is a jump and not a bob" % [entity_id, bob]
+			)
 		for key in SkeletonLibrary.referenced_profile_keys(skeleton):
 			_expect(
 				profile_fields.has(key),
