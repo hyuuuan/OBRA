@@ -7,6 +7,7 @@ signal transition_finished(destination: String)
 
 const CATALOG_PATH := "res://config/levels.json"
 const SELECTOR_SCENE := "res://ui/main_menu.tscn"
+const ENDING_SCENE := "res://ui/ending_screen.tscn"
 const GRID_COLUMNS := 20
 const GRID_ROWS := 12
 
@@ -63,6 +64,25 @@ func open_level(level_id: String) -> bool:
 	current_level_id = level_id
 	_transition_to.call_deferred(scene_path, level_id)
 	return true
+
+
+## Show the run's ending. Reached from the level marked "ends_run" in the catalog, so
+## that when levels 2-5 exist only the last one carries the flag and no code changes.
+func show_ending() -> bool:
+	if _transitioning or not ResourceLoader.exists(ENDING_SCENE):
+		return false
+	get_tree().paused = false
+	_transition_to.call_deferred(ENDING_SCENE, "")
+	return true
+
+
+## Whether a level has content behind it. Deliberately separate from is_unlocked,
+## which means PROGRESSION: finishing level 1 unlocks level 2 in the profile, and the
+## menu would then enable a card whose scene_path is empty -- an enabled button that
+## silently does nothing when clicked.
+func is_playable(level_id: String) -> bool:
+	var scene_path := String(get_level(level_id).get("scene_path", ""))
+	return not scene_path.is_empty() and ResourceLoader.exists(scene_path)
 
 
 ## Reload the level currently being played.
