@@ -63,10 +63,13 @@ func _process(delta: float) -> void:
 	terraces.position = terraces.position.lerp(_terraces_base + _parallax_target * -28.0, weight)
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel") and _selector_open and not _animating:
-		get_viewport().set_input_as_handled()
-		_hide_selector()
+## Called by UIRouter. The menu declines while the morph tween is running, so cancel
+## cannot interrupt an animation halfway and leave the panel between its two rects.
+func handle_cancel() -> bool:
+	if not _selector_open or _animating:
+		return false
+	_hide_selector()
+	return true
 
 
 func is_selector_open() -> bool:

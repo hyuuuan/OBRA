@@ -25,6 +25,18 @@ func is_placing() -> bool:
 	return _preview != null and is_instance_valid(_preview)
 
 
+## Called by UIRouter, AHEAD of the pause menu in the cancel chain. This used to be a
+## ui_cancel branch in _unhandled_input and was unreachable: the pause menu is the
+## last child of GameLevel and input propagates in reverse tree order, so Escape while
+## placing opened the pause menu instead. Right-click still cancels, which is why the
+## placement was never actually stuck -- but Escape did the wrong thing.
+func handle_cancel() -> bool:
+	if not is_placing():
+		return false
+	cancel_placement()
+	return true
+
+
 func begin_placement(item: DrawnItemData, actor: Node2D, source_slot: int = -1) -> bool:
 	if item == null or actor == null or registry == null or world_item_root == null:
 		return false
@@ -82,9 +94,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			get_viewport().set_input_as_handled()
 			cancel_placement()
-	elif event.is_action_pressed("ui_cancel"):
-		get_viewport().set_input_as_handled()
-		cancel_placement()
 
 
 func confirm_placement() -> bool:

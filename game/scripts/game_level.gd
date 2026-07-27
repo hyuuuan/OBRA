@@ -104,8 +104,11 @@ func _on_backend_failed(message: String) -> void:
 
 
 func _on_draw_panel_closed() -> void:
-	if draw_button.focus_mode != Control.FOCUS_NONE:
-		draw_button.grab_focus()
+	# Release focus rather than park it on the Draw button. The old branch here tried
+	# to grab focus back and could never run -- the button is focus_mode = NONE in the
+	# scene, deliberately, so it cannot eat the movement keys. Dropping focus is what
+	# it was reaching for: keyboard input goes to the player again.
+	get_viewport().gui_release_focus()
 
 
 func _on_drawing_ready(

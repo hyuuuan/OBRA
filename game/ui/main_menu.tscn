@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
 [ext_resource type="Texture2D" path="res://assets/Level1/bg_withclouds.png" id="2_sky"]
@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" path="res://assets/Level1/mountain_further_background.png" id="4_green"]
 [ext_resource type="Texture2D" path="res://assets/Level1/terraces_2.png" id="5_terraces"]
 [ext_resource type="Script" path="res://scripts/pixel_lock.gd" id="6_lock"]
+[ext_resource type="Script" path="res://scripts/ui_router.gd" id="99_ui_router"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_sky"]
 atlas = ExtResource("2_sky")
@@ -447,3 +448,7 @@ theme_override_colors/font_color = Color(0.52, 0.55, 0.42, 1)
 theme_override_font_sizes/font_size = 17
 text = "LEVEL 5\nCOMING SOON"
 horizontal_alignment = 1
+
+[node name="UIRouter" type="Node" parent="."]
+script = ExtResource("99_ui_router")
+cancel_chain = [NodePath("..")]

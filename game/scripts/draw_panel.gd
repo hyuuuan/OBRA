@@ -30,6 +30,8 @@ var ink_manager: InkManager
 
 var _pending_strokes: Array = []
 var _is_open := false
+## Read by UIRouter.refresh_pause through the modal_overlays group.
+var pauses_game := true
 var _submitting := false
 var _open_tween: Tween = null
 var _submit_started_usec: int = 0
@@ -41,6 +43,11 @@ var _profile
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	# Not a ModalOverlay -- it owns a SubViewport, an ink transaction and a tween, and
+	# none of that belongs in a shared base. It joins the group anyway so the derived
+	# pause state can SEE it: otherwise any overlay closing anywhere would recompute
+	# the tree as unpaused while the draw panel is still up over a live game.
+	add_to_group(ModalOverlay.GROUP)
 	_telemetry = get_node_or_null("/root/Telemetry")
 	_profile = get_node_or_null("/root/PlayerProfile")
 	visible = false
@@ -55,6 +62,11 @@ func _ready() -> void:
 	client.entity_declined.connect(_on_entity_declined)
 	client.prediction_failed.connect(_on_prediction_failed)
 	status.text = "Draw something, then Transform!"
+
+
+## Part of the modal_overlays contract, so the derived pause state can see this.
+func is_open() -> bool:
+	return _is_open
 
 
 func open_panel() -> void:
@@ -73,7 +85,7 @@ func open_panel() -> void:
 		status.text = "Ink remaining %.1f / %.1f — draw, then Transform" % [ink_manager.remaining(), ink_manager.capacity]
 	else:
 		status.text = "Draw something, then Transform!"
-	get_tree().paused = true
+	UIRouter.refresh_pause(get_tree())
 	_play_open_animation()
 
 
@@ -89,7 +101,7 @@ func close_panel(emit_closed: bool = true, release_ink: bool = true) -> void:
 	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	if release_ink and ink_manager != null:
 		ink_manager.release_attempt()
-	get_tree().paused = false
+	UIRouter.refresh_pause(get_tree())
 	if emit_closed:
 		panel_closed.emit()
 
@@ -215,13 +227,16 @@ func _on_ink_blocked() -> void:
 	status.text = "Ink limit reached — transform or clear"
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not _is_open:
-		return
-	if event.is_action_pressed("ui_cancel") and not _submitting:
-		get_viewport().set_input_as_handled()
-		canvas.clear_canvas()
-		close_panel(true, true)
+## Called by UIRouter, ahead of the pause menu in the cancel chain. Mid-submission the
+## panel declines rather than closing: the drawing is already with the recogniser and
+## the ink is reserved, so tearing the panel down there would strand the transaction.
+## Declining lets the key fall through to the pause menu, which is the honest result.
+func handle_cancel() -> bool:
+	if not _is_open or _submitting:
+		return false
+	canvas.clear_canvas()
+	close_panel(true, true)
+	return true
 
 
 func _play_open_animation() -> void:
