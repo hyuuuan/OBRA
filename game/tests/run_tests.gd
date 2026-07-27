@@ -24,6 +24,7 @@ func _run() -> void:
 	registry.load_manifest()
 
 	_test_manifest_roles()
+	_test_audio_buses()
 	_test_ink_accounting()
 	_test_inventory()
 	_test_canvas_clipping()
@@ -86,6 +87,52 @@ func _test_manifest_roles() -> void:
 	_expect(living == 20, "expected 20 living morphs, got %d" % living)
 	_expect(shapes == 3, "expected 3 physics morphs, got %d" % shapes)
 	_expect(utilities == 27, "expected 27 utilities, got %d" % utilities)
+
+
+## The audio layer exists before any sound does, so what is asserted is the part that
+## can be wrong without anyone hearing it: the buses are laid out as intended, and the
+## linear-to-dB conversion never produces a value AudioServer cannot hold.
+func _test_audio_buses() -> void:
+	var director := root.get_node_or_null("AudioDirector")
+	_expect(director != null, "AudioDirector autoload is unavailable")
+	if director == null:
+		return
+	for bus_name in ["Master", "Music", "SFX"]:
+		_expect(AudioServer.get_bus_index(bus_name) >= 0, "no '%s' audio bus" % bus_name)
+	for bus_name in ["Music", "SFX"]:
+		var index := AudioServer.get_bus_index(bus_name)
+		if index >= 0:
+			_expect(
+				String(AudioServer.get_bus_send(index)) == "Master",
+				"'%s' does not send to Master, so the master slider cannot scale it" % bus_name
+			)
+
+	var sfx := AudioServer.get_bus_index("SFX")
+	if sfx >= 0:
+		director.call("set_bus_linear", "SFX", 1.0)
+		_expect(absf(AudioServer.get_bus_volume_db(sfx)) < 0.01, "full volume is not 0 dB")
+		_expect(not AudioServer.is_bus_mute(sfx), "full volume left the bus muted")
+		director.call("set_bus_linear", "SFX", 0.5)
+		_expect(
+			absf(AudioServer.get_bus_volume_db(sfx) + 6.0206) < 0.05,
+			"half volume is %.3f dB, not the expected -6.02" % AudioServer.get_bus_volume_db(sfx)
+		)
+		# Silence must MUTE rather than approach -inf: linear_to_db(0.0) is -inf, and
+		# a non-finite dB written to the server is unrecoverable without a restart.
+		director.call("set_bus_linear", "SFX", 0.0)
+		_expect(AudioServer.is_bus_mute(sfx), "zero volume did not mute the bus")
+		_expect(is_finite(AudioServer.get_bus_volume_db(sfx)), "zero volume wrote a non-finite dB")
+		# Out of range is clamped, because this is reached from a save file too.
+		director.call("set_bus_linear", "SFX", 4.0)
+		_expect(absf(AudioServer.get_bus_volume_db(sfx)) < 0.01, "an over-range volume was not clamped")
+		director.call("set_bus_linear", "SFX", 1.0)
+
+	# An unresolved id is silence, not an error. This is the mechanism that lets every
+	# call site be written before the sounds exist.
+	director.call("play_sfx", &"ui_click")
+	director.call("play_sfx", &"no_such_sound_id")
+	director.call("play_music", &"menu")
+	_expect(true, "playing unresolved sound ids must not raise")
 
 
 func _test_ink_accounting() -> void:

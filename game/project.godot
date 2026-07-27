@@ -18,11 +18,16 @@ config/name="O.B.R.A."
 run/main_scene="res://ui/main_menu.tscn"
 config/features=PackedStringArray("4.7")
 
+[audio]
+
+buses/default_bus_layout="res://audio/default_bus_layout.tres"
+
 [autoload]
 
 LevelManager="*res://scripts/level_manager.gd"
 PlayerProfile="*res://scripts/player_profile.gd"
 Telemetry="*res://scripts/telemetry.gd"
+AudioDirector="*res://scripts/audio_director.gd"
 
 [display]
 

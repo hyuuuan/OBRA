@@ -1,0 +1,21 @@
+{
+  "_comment": [
+    "Sound ids and the files behind them. Ids are authored first and paths filled in",
+    "later: AudioDirector treats an empty path as 'this sound has no file yet' and",
+    "returns silently, so every call site can be written now and becomes audible the",
+    "moment a file lands here. Nothing needs changing in code to add a sound.",
+    "",
+    "Paths are res:// paths to .ogg or .wav. A missing file warns once at load,",
+    "not once per play."
+  ],
+  "sfx": {
+    "ui_click": "",
+    "ui_open": "",
+    "ui_close": "",
+    "level_complete": ""
+  },
+  "music": {
+    "menu": "",
+    "level_1": ""
+  }
+}
