@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
 [ext_resource type="Texture2D" path="res://assets/Level1/bg_withclouds.png" id="2_sky"]
@@ -7,6 +7,9 @@
 [ext_resource type="Texture2D" path="res://assets/Level1/terraces_2.png" id="5_terraces"]
 [ext_resource type="Script" path="res://scripts/pixel_lock.gd" id="6_lock"]
 [ext_resource type="Script" path="res://scripts/ui_router.gd" id="99_ui_router"]
+[ext_resource type="PackedScene" path="res://ui/settings_overlay.tscn" id="96_settings"]
+[ext_resource type="PackedScene" path="res://ui/controls_overlay.tscn" id="97_controls"]
+[ext_resource type="PackedScene" path="res://ui/confirm_overlay.tscn" id="98_confirm"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_sky"]
 atlas = ExtResource("2_sky")
@@ -209,6 +212,32 @@ theme_override_constants/shadow_offset_x = 3
 theme_override_constants/shadow_offset_y = 3
 theme_override_font_sizes/font_size = 21
 text = "DRAW  ·  BECOME  ·  DISCOVER"
+
+[node name="SideButtons" type="HBoxContainer" parent="MenuLayer/MenuRoot"]
+layout_mode = 0
+offset_left = 84.0
+offset_top = 200.0
+offset_right = 484.0
+offset_bottom = 244.0
+theme_override_constants/separation = 12
+
+[node name="SettingsButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
+custom_minimum_size = Vector2(126, 44)
+layout_mode = 2
+theme_type_variation = &"DialogButton"
+text = "SETTINGS"
+
+[node name="ControlsButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
+custom_minimum_size = Vector2(126, 44)
+layout_mode = 2
+theme_type_variation = &"DialogButton"
+text = "CONTROLS"
+
+[node name="QuitButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
+custom_minimum_size = Vector2(126, 44)
+layout_mode = 2
+theme_type_variation = &"DialogButton"
+text = "QUIT"
 
 [node name="MorphPanel" type="PanelContainer" parent="MenuLayer/MenuRoot"]
 layout_mode = 0
@@ -449,6 +478,12 @@ theme_override_font_sizes/font_size = 17
 text = "LEVEL 5\nCOMING SOON"
 horizontal_alignment = 1
 
+[node name="SettingsOverlay" parent="." instance=ExtResource("96_settings")]
+
+[node name="ControlsOverlay" parent="." instance=ExtResource("97_controls")]
+
+[node name="ConfirmOverlay" parent="." instance=ExtResource("98_confirm")]
+
 [node name="UIRouter" type="Node" parent="."]
 script = ExtResource("99_ui_router")
-cancel_chain = [NodePath("..")]
+cancel_chain = [NodePath("../ConfirmOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("..")]

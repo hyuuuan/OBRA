@@ -65,6 +65,22 @@ func open_level(level_id: String) -> bool:
 	return true
 
 
+## Reload the level currently being played.
+##
+## Deliberately not open_level(current_level_id): that refuses when the level is
+## locked, and a level you are standing in is by definition reachable -- refusing to
+## restart it because of a progression rule would strand the player in it.
+func restart_level() -> bool:
+	if _transitioning or current_level_id.is_empty():
+		return false
+	var scene_path := String(get_level(current_level_id).get("scene_path", ""))
+	if scene_path.is_empty() or not ResourceLoader.exists(scene_path):
+		return false
+	get_tree().paused = false
+	_transition_to.call_deferred(scene_path, current_level_id)
+	return true
+
+
 func return_to_selector() -> bool:
 	if _transitioning or not ResourceLoader.exists(SELECTOR_SCENE):
 		return false

@@ -11,6 +11,9 @@ const PANEL_SNAP := 8.0
 @onready var play_button: Button = $MenuLayer/MenuRoot/MorphPanel/PlayButton
 @onready var selector: Control = $MenuLayer/MenuRoot/MorphPanel/Selector
 @onready var selector_title: Label = $MenuLayer/MenuRoot/MorphPanel/Selector/SelectorTitle
+@onready var settings_button: Button = $MenuLayer/MenuRoot/SideButtons/SettingsButton
+@onready var controls_button: Button = $MenuLayer/MenuRoot/SideButtons/ControlsButton
+@onready var quit_button: Button = $MenuLayer/MenuRoot/SideButtons/QuitButton
 @onready var cards: Array[Button] = [
 	$MenuLayer/MenuRoot/MorphPanel/Selector/Level1,
 	$MenuLayer/MenuRoot/MorphPanel/Selector/Level2,
@@ -33,6 +36,9 @@ var _backdrop_bases_ready := false
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	play_button.pressed.connect(_show_selector)
+	settings_button.pressed.connect(_open_overlay.bind(^"SettingsOverlay"))
+	controls_button.pressed.connect(_open_overlay.bind(^"ControlsOverlay"))
+	quit_button.pressed.connect(_ask_quit)
 	for index in range(cards.size()):
 		var level_id := "level_%d" % (index + 1)
 		cards[index].pressed.connect(_open_level.bind(level_id))
@@ -61,6 +67,26 @@ func _process(delta: float) -> void:
 	far_mountains.position = far_mountains.position.lerp(_far_base + _parallax_target * -10.0, weight)
 	green_mountains.position = green_mountains.position.lerp(_green_base + _parallax_target * -18.0, weight)
 	terraces.position = terraces.position.lerp(_terraces_base + _parallax_target * -28.0, weight)
+
+
+## The shared overlays are siblings of this node, instanced into the menu scene.
+func _open_overlay(overlay_name: StringName) -> void:
+	var overlay := get_node_or_null(NodePath(overlay_name)) as ModalOverlay
+	if overlay != null:
+		overlay.open()
+
+
+func _ask_quit() -> void:
+	var confirm := get_node_or_null(^"ConfirmOverlay")
+	if confirm == null:
+		return
+	if not confirm.is_connected(&"confirmed", _quit_to_desktop):
+		confirm.connect(&"confirmed", _quit_to_desktop)
+	confirm.call(&"ask", "QUIT TO DESKTOP?", "Your progress is saved.", "QUIT")
+
+
+func _quit_to_desktop() -> void:
+	get_tree().quit()
 
 
 ## Called by UIRouter. The menu declines while the morph tween is running, so cancel
