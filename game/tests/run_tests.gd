@@ -44,6 +44,8 @@ func _run() -> void:
 	await _test_fidelity_guard()
 	await _test_every_class_animates()
 	_test_skeleton_manifest()
+	_test_skin_weights()
+	_test_skinned_rest_identity()
 	await _test_messy_fixtures()
 	await _test_ink_integrity()
 	await _test_grazing_stroke_not_split()
@@ -1081,6 +1083,124 @@ func _test_skeleton_manifest() -> void:
 				if not ((bone_value as Dictionary).get("gait", {}) as Dictionary).is_empty():
 					gaited += 1
 			_expect(gaited >= 1, "%s (%s) has no bone with a gait" % [entity_id, rig_type])
+
+
+## Every ink point must be bound to something, with weights that sum to one. If a point
+## can end up with no bone, it would stay behind while the rest of the drawing moved --
+## a piece detaching, which is precisely what players kept reporting.
+func _test_skin_weights() -> void:
+	for case_value in _skin_cases():
+		var case_data: Dictionary = case_value
+		var label := String(case_data["label"])
+		var binding := _bind_case(case_data)
+		if binding == null:
+			continue
+		var report := binding.report()
+		_expect(int(report["point_count"]) > 0, "'%s' bound no points" % label)
+		_expect(
+			int(report["unbound_points"]) == 0,
+			"'%s' left %d ink points with no bone" % [label, int(report["unbound_points"])]
+		)
+		_expect(
+			absf(float(report["min_weight_sum"]) - 1.0) < 1e-3,
+			"'%s' weights sum to %.4f, not 1" % [label, float(report["min_weight_sum"])]
+		)
+
+
+## At rest the creature must BE the drawing. With every bone unrotated the skinning
+## transforms cancel exactly, so this is an equality, not a tolerance -- and it is the
+## property the whole approach rests on: whatever the gait later does, frame zero is
+## always the player's own ink.
+func _test_skinned_rest_identity() -> void:
+	for case_value in _skin_cases():
+		var case_data: Dictionary = case_value
+		var label := String(case_data["label"])
+		var binding := _bind_case(case_data)
+		if binding == null:
+			continue
+		var skeleton := binding.skeleton()
+		var angles := PackedFloat32Array()
+		angles.resize(skeleton.bones.size())
+		var posed := skeleton.pose(angles)
+		var worst := 0.0
+		for stroke_index in range(binding.stroke_count()):
+			var rest := binding.rest_points(stroke_index)
+			var deformed := binding.deform(stroke_index, posed)
+			_expect(
+				deformed.size() == rest.size(),
+				"'%s' stroke %d changed point count" % [label, stroke_index]
+			)
+			for i in range(mini(rest.size(), deformed.size())):
+				worst = maxf(worst, rest[i].distance_to(deformed[i]))
+		_expect(worst < 0.01, "'%s' rest pose moved ink by %.4f px" % [label, worst])
+
+
+## Drawings spanning the shapes that broke the old rig: wings apart, wings meeting in
+## the middle, a single continuous scribble, and an extreme aspect ratio.
+func _skin_cases() -> Array:
+	return [
+		{"label": "butterfly wings apart", "rig": "flier", "profile": "butterfly",
+		 "strokes": _butterfly_fixture()},
+		{"label": "butterfly four loops", "rig": "flier", "profile": "butterfly",
+		 "strokes": _four_loop_fixture()},
+		{"label": "quadruped", "rig": "walker", "profile": "horse",
+		 "strokes": _quadruped_fixture()},
+		{"label": "single scribble", "rig": "walker", "profile": "horse",
+		 "strokes": _scribble_fixture()},
+		{"label": "extreme aspect", "rig": "swimmer", "profile": "fish",
+		 "strokes": _wide_fixture()},
+	]
+
+
+func _bind_case(case_data: Dictionary) -> SkinBinding:
+	var strokes: Array = case_data["strokes"]
+	var skeleton_data := SkeletonLibrary.resolve(String(case_data["profile"]), String(case_data["rig"]))
+	if skeleton_data.is_empty():
+		_expect(false, "no skeleton for %s" % String(case_data["label"]))
+		return null
+	var profile: Dictionary = {}
+	var parsed: Variant = JSON.parse_string(
+		FileAccess.get_file_as_string("res://config/rigs/%s.json" % String(case_data["profile"]))
+	)
+	if parsed is Dictionary:
+		profile = parsed
+	var bounds := _fixture_bounds(strokes)
+	var skeleton := Skeleton2D_Rig.build(skeleton_data, bounds, profile)
+	var binding := SkinBinding.new()
+	binding.bind(strokes, skeleton)
+	return binding
+
+
+func _fixture_bounds(strokes: Array) -> Rect2:
+	var bounds := Rect2()
+	var started := false
+	for stroke_value in strokes:
+		for point: Vector2 in PackedVector2Array((stroke_value as Dictionary)["points"]):
+			if not started:
+				bounds = Rect2(point, Vector2.ZERO)
+				started = true
+			else:
+				bounds = bounds.expand(point)
+	return bounds
+
+
+## One unbroken line that loops back on itself -- no separate limbs to find.
+func _scribble_fixture() -> Array:
+	var points := PackedVector2Array()
+	for index in range(48):
+		var t := TAU * float(index) / 24.0
+		points.append(Vector2(256.0 + cos(t) * (60.0 + 18.0 * sin(t * 3.0)),
+							  250.0 + sin(t) * (44.0 + 14.0 * cos(t * 2.0))))
+	return [_stroke(points)]
+
+
+## 10:1 aspect: the skeleton must stretch with the drawing, not smear onto a line.
+func _wide_fixture() -> Array:
+	var body := PackedVector2Array()
+	for index in range(17):
+		var angle := TAU * float(index) / 16.0
+		body.append(Vector2(256.0 + cos(angle) * 200.0, 250.0 + sin(angle) * 20.0))
+	return [_stroke(body)]
 
 
 ## This is a drawing game: EVERY playable class has to visibly animate, not just the
