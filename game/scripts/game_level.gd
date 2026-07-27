@@ -21,10 +21,15 @@ const GOAL_RADIUS := 120.0
 @onready var inventory_manager: InventoryManager = $InventoryManager
 @onready var placement_controller: PlacementController = $PlacementController
 @onready var goal_marker: Node2D = get_node_or_null("EnvironmentBaseplate/GameplayPlane/GoalMarker")
+@onready var complete_overlay: ModalOverlay = $LevelCompleteOverlay
+@onready var out_of_ink_overlay: ModalOverlay = $OutOfInkOverlay
 
 var player: Node2D
 var _equipped_utility: UtilityObject
 var _level_completed := false
+var _run_started_msec := 0
+## entity_id -> true, for the "things drawn" stat. Distinct classes, not attempts.
+var _classes_this_run: Dictionary = {}
 
 
 func _ready() -> void:
@@ -46,6 +51,13 @@ func _ready() -> void:
 	placement_controller.placement_confirmed.connect(_on_placement_confirmed)
 	placement_controller.placement_canceled.connect(_on_placement_canceled)
 	placement_controller.placement_changed.connect(_on_placement_changed)
+	complete_overlay.connect(&"continue_pressed", _on_complete_continue)
+	complete_overlay.connect(&"retry_pressed", _on_restart_requested)
+	out_of_ink_overlay.connect(&"restart_pressed", _on_restart_requested)
+	out_of_ink_overlay.connect(&"level_select_pressed", LevelManager.return_to_selector)
+	ink_manager.ink_exhausted.connect(_on_ink_exhausted)
+	_run_started_msec = Time.get_ticks_msec()
+	_apply_level_identity()
 
 	backend_supervisor.set("debug_logs", debug_timing_logs)
 	backend_supervisor.connect("backend_ready", Callable(self, "_on_backend_ready"))
@@ -124,6 +136,7 @@ func _on_drawing_ready(
 		status_label.text = "Unknown recognized entity: %s" % entity_id
 		ink_manager.release_attempt()
 		return
+	_classes_this_run[entity_id] = true
 	var role := String(entry.get("runtime_role", "active_ragdoll_morph"))
 	if role == "utility":
 		var item := DrawnItemData.from_prediction(entity_id, display_name, drawing, strokes, ink_cost, entry)
@@ -393,6 +406,35 @@ func _physics_process(_delta: float) -> void:
 		_complete_level()
 
 
+## Name the level from the catalog instead of from strings typed into the scene. The
+## badge and the pause menu's subtitle both said "BANAUE RICE TERRACES" literally, so
+## a second level would have shipped mislabelled.
+func _apply_level_identity() -> void:
+	var entry := LevelManager.get_level(LevelManager.current_level_id)
+	if entry.is_empty():
+		return
+	var badge := get_node_or_null(^"CanvasLayer/LevelBadge") as Label
+	if badge != null:
+		badge.text = "LEVEL %d  \u00b7  %s" % [int(entry.get("number", 0)), String(entry.get("title", "")).to_upper()]
+	var place := get_node_or_null(^"PauseMenu/PauseRoot/Panel/VBox/Place") as Label
+	if place != null:
+		place.text = String(entry.get("title", "")).to_upper()
+
+
+## What the completion screen shows. Ink comes from the manager rather than being
+## tracked again here, so there is one number and it cannot drift.
+func run_stats() -> Dictionary:
+	var level_id := LevelManager.current_level_id
+	return {
+		"level_id": level_id,
+		"level_title": String(LevelManager.get_level(level_id).get("title", "")),
+		"ink_used": ink_manager.committed,
+		"ink_capacity": ink_manager.capacity,
+		"classes_drawn": _classes_this_run.size(),
+		"elapsed_seconds": float(Time.get_ticks_msec() - _run_started_msec) / 1000.0,
+	}
+
+
 func _complete_level() -> void:
 	if _level_completed:
 		return
@@ -401,4 +443,28 @@ func _complete_level() -> void:
 	Telemetry.end_level(level_id, "completed")
 	PlayerProfile.mark_level_completed(level_id)
 	status_label.text = "Level complete!"
+	# The transition used to fire HERE, on the same frame, so the one moment the game
+	# acknowledges the player lasted a frame and was never read. It now waits for them.
+	complete_overlay.call("present", run_stats())
+
+
+## Whether the run ends with this level, or the level select comes next. The branch
+## lives here rather than in the overlay so the overlay stays a view, and it is read
+## from the catalog so that when levels 2-5 exist only level 5 carries the flag.
+func _on_complete_continue() -> void:
+	var ends_run := bool(LevelManager.get_level(LevelManager.current_level_id).get("ends_run", false))
+	if ends_run and LevelManager.show_ending():
+		return
 	LevelManager.return_to_selector()
+
+
+func _on_restart_requested() -> void:
+	Telemetry.end_level(LevelManager.current_level_id, "restarted")
+	LevelManager.restart_level()
+
+
+func _on_ink_exhausted() -> void:
+	# Advisory, not a loss: the morph already spawned is still playable and the goal
+	# may still be reachable. Not shown once the level is already won.
+	if not _level_completed:
+		out_of_ink_overlay.open()

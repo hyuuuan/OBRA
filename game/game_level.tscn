@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/game_level.gd" id="1_level"]
 [ext_resource type="Script" path="res://scripts/entity_registry.gd" id="2_registry"]
@@ -16,6 +16,8 @@
 [ext_resource type="PackedScene" path="res://ui/settings_overlay.tscn" id="14_settings"]
 [ext_resource type="PackedScene" path="res://ui/controls_overlay.tscn" id="15_controls"]
 [ext_resource type="PackedScene" path="res://ui/confirm_overlay.tscn" id="16_confirm"]
+[ext_resource type="PackedScene" path="res://ui/level_complete_overlay.tscn" id="17_complete"]
+[ext_resource type="PackedScene" path="res://ui/out_of_ink_overlay.tscn" id="18_out_of_ink"]
 
 [node name="GameLevel" type="Node2D"]
 script = ExtResource("1_level")
@@ -285,6 +287,10 @@ layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "QUIT TO DESKTOP"
 
+[node name="LevelCompleteOverlay" parent="." instance=ExtResource("17_complete")]
+
+[node name="OutOfInkOverlay" parent="." instance=ExtResource("18_out_of_ink")]
+
 [node name="SettingsOverlay" parent="." instance=ExtResource("14_settings")]
 
 [node name="ControlsOverlay" parent="." instance=ExtResource("15_controls")]
@@ -293,4 +299,4 @@ text = "QUIT TO DESKTOP"
 
 [node name="UIRouter" type="Node" parent="."]
 script = ExtResource("13_ui_router")
-cancel_chain = [NodePath("../ConfirmOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("../DrawPanel"), NodePath("../PlacementController"), NodePath("../PauseMenu")]
+cancel_chain = [NodePath("../LevelCompleteOverlay"), NodePath("../ConfirmOverlay"), NodePath("../OutOfInkOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("../DrawPanel"), NodePath("../PlacementController"), NodePath("../PauseMenu")]

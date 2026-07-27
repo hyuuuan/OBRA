@@ -39,6 +39,7 @@ func _run() -> void:
 	await _test_ui_router_cancel_chain()
 	await _test_overlay_pause_refcount()
 	await _test_shared_overlays()
+	await _test_level_completion_screen()
 	await _test_placement_collision()
 	_test_anatomy_inference()
 	await _test_spider_stance_controller()
@@ -215,6 +216,78 @@ func _test_shared_overlays() -> void:
 					InputMap.has_action(through),
 					"controls.json range ends at '%s', which is not in the InputMap" % through
 				)
+
+
+## Finishing a level must be readable, and reaching the ending must be possible.
+##
+## The completion overlay is driven with synthetic stats rather than by playing the
+## level: this asserts the SCREEN, and deliberately writes nothing to the profile, so
+## the suite never starts touching user://profile.json (which it does not today).
+func _test_level_completion_screen() -> void:
+	var level: Node = (load("res://game_level.tscn") as PackedScene).instantiate()
+	world.add_child(level)
+	await process_frame
+	var complete: Node = level.get_node_or_null("LevelCompleteOverlay")
+	var out_of_ink: Node = level.get_node_or_null("OutOfInkOverlay")
+	_expect(complete != null, "game_level has no LevelCompleteOverlay")
+	_expect(out_of_ink != null, "game_level has no OutOfInkOverlay")
+	if complete == null or out_of_ink == null:
+		level.queue_free()
+		await process_frame
+		return
+
+	complete.call("present", {
+		"level_title": "Banaue Rice Terraces",
+		"ink_used": 7.5, "ink_capacity": 12.0,
+		"classes_drawn": 3, "elapsed_seconds": 95.0,
+	})
+	_expect(bool(complete.call("is_open")), "the completion screen did not open")
+	_expect(paused, "the completion screen did not pause the level behind it")
+
+	# Every stat must reach the screen. Rendering the panel but leaving it blank is a
+	# failure the "did it open" check alone would pass.
+	var rendered: Array[String] = []
+	for row in complete.get_node("Root/Panel/VBox/Stats").get_children():
+		if row is HBoxContainer:
+			rendered.append("%s %s" % [(row.get_child(0) as Label).text, (row.get_child(1) as Label).text])
+	var joined := " | ".join(rendered)
+	_expect(joined.contains("1:35"), "elapsed time is not rendered as m:ss (got '%s')" % joined)
+	_expect(joined.contains("7.5"), "ink used is not rendered (got '%s')" % joined)
+	_expect(joined.contains("3"), "classes drawn is not rendered (got '%s')" % joined)
+
+	# It must NOT be dismissable: cancelling out would strand the player in a finished
+	# level with nothing telling them what happens next.
+	_expect(bool(complete.call("handle_cancel")), "the completion screen let the cancel key past it")
+	_expect(bool(complete.call("is_open")), "the completion screen closed on cancel")
+
+	level.queue_free()
+	await process_frame
+	paused = false
+
+	# level_1 ends the run, so CONTINUE has an ending to reach and that ending exists.
+	# Resolved through the tree like the rest of this suite: the autoloads are not
+	# registered when a --script run compiles its own script.
+	var manager := root.get_node_or_null("LevelManager")
+	_expect(manager != null, "LevelManager autoload is unavailable")
+	if manager != null:
+		_expect(
+			bool((manager.call("get_level", "level_1") as Dictionary).get("ends_run", false)),
+			"level_1 does not end the run, so nothing reaches the ending screen"
+		)
+	_expect(ResourceLoader.exists("res://ui/ending_screen.tscn"), "the ending scene is missing")
+
+	# The ending screen renders EndingResolver's payload rather than a blank verdict.
+	var ending: Node = (load("res://ui/ending_screen.tscn") as PackedScene).instantiate()
+	world.add_child(ending)
+	await process_frame
+	var ending_name := (ending.get_node("Panel/VBox/EndingName") as Label).text
+	_expect(not ending_name.is_empty(), "the ending screen named no ending")
+	_expect(
+		ending.get_node("Panel/VBox/Rows").get_child_count() > 0,
+		"the ending screen showed no reasons for its verdict"
+	)
+	ending.queue_free()
+	await process_frame
 
 
 ## Pause is derived from whoever is open, not toggled by whoever closes.

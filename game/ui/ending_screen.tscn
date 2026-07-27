@@ -1,0 +1,55 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ending_screen.gd" id="1_5i7lb"]
+
+[node name="EndingScreen" type="Control" unique_id=1067590959]
+layout_mode = 3
+anchors_preset = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_5i7lb")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1110054784]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.035, 0.075, 0.05, 1)
+
+[node name="Panel" type="PanelContainer" parent="." unique_id=1943039999]
+custom_minimum_size = Vector2(660, 520)
+layout_mode = 0
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -330.0
+offset_top = -260.0
+offset_right = 330.0
+offset_bottom = 260.0
+
+[node name="VBox" type="VBoxContainer" parent="Panel" unique_id=554159136]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="Title" type="Label" parent="Panel/VBox" unique_id=444359524]
+layout_mode = 2
+theme_type_variation = &"HudHint"
+text = "YOUR ENDING"
+horizontal_alignment = 1
+
+[node name="EndingName" type="Label" parent="Panel/VBox" unique_id=1455736252]
+layout_mode = 2
+theme_type_variation = &"ScreenTitle"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Rows" type="VBoxContainer" parent="Panel/VBox" unique_id=1159289153]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ContinueButton" type="Button" parent="Panel/VBox" unique_id=2086780243]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_type_variation = &"DialogButton"
+text = "CONTINUE"
