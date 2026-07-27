@@ -3,7 +3,7 @@ extends Node2D
 ## Cursor-driven placement transaction. It owns only the preview; confirmed
 ## objects stay under WorldItemRoot and canceled previews are destroyed.
 
-signal placement_confirmed(item: DrawnItemData, utility: UtilityObject, source_slot: int)
+signal placement_confirmed(item: DrawnItemData, utility: PhysicsShapeObject, source_slot: int)
 signal placement_canceled(item: DrawnItemData, source_slot: int)
 signal placement_changed(active: bool, valid: bool)
 
@@ -15,7 +15,9 @@ var registry: EntityRegistry
 var world_item_root: Node2D
 
 var _item: DrawnItemData
-var _preview: UtilityObject
+## Typed as the BASE, not UtilityObject: a drawn circle or ramp is placed the same way
+## a drawn axe is, and casting to UtilityObject made every shape fail to start.
+var _preview: PhysicsShapeObject
 var _actor: Node2D
 var _source_slot: int = -1
 var _valid: bool = false
@@ -42,7 +44,7 @@ func begin_placement(item: DrawnItemData, actor: Node2D, source_slot: int = -1) 
 		return false
 	if is_placing():
 		cancel_placement()
-	var instance := registry.instantiate_entity(item.entity_id) as UtilityObject
+	var instance := registry.instantiate_entity(item.entity_id) as PhysicsShapeObject
 	if instance == null:
 		return false
 	_item = item

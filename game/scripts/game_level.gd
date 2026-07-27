@@ -337,6 +337,7 @@ func _on_utility_equipped(utility: UtilityObject, _actor: Node2D) -> void:
 			_on_utility_pickup_requested(previous)
 	_equipped_utility = utility
 	status_label.text = "%s equipped — press F to use" % utility.item_data.display_name
+	_show_carried(utility.item_data.entity_id)
 
 
 func _on_utility_used(behavior: String, item: DrawnItemData) -> void:
@@ -418,6 +419,22 @@ func _physics_process(_delta: float) -> void:
 	goal_label.text = "GOAL  %d m" % int(distance / 32.0) if distance > GOAL_RADIUS else "GOAL REACHED"
 	if distance <= GOAL_RADIUS:
 		_complete_level()
+
+
+## Put the held item in the character's hand, and light the slot it came from, so what
+## is equipped is visible on the character and in the HUD rather than only in a status
+## line that the next message overwrites.
+func _show_carried(entity_id: String) -> void:
+	if player != null and is_instance_valid(player) and player.has_method("set_carried"):
+		player.call("set_carried", entity_id)
+	var slot := -1
+	var items := inventory_manager.items()
+	for index in range(items.size()):
+		var item := items[index] as DrawnItemData
+		if item != null and item.entity_id == entity_id:
+			slot = index
+			break
+	inventory_hud.set_selected(slot)
 
 
 ## The player character, present from the first frame so the level is something to be
