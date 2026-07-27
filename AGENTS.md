@@ -94,6 +94,28 @@ player or creates a placeable utility from the player's actual stroke vectors.
   reaches the `GoalMarker` in `game_level.tscn`, which marks it complete and unlocks
   the next level in the profile. `LevelManager.is_unlocked()` and the main menu read
   the profile, so unlocks survive across sessions.
+- `is_unlocked()` (progression) and `is_playable()` (a scene exists) are deliberately
+  different questions. Offering a card on unlock alone is what enabled a Level 2 that
+  silently did nothing when clicked. A card needs both.
+
+## UI Contracts
+
+- Autoloads are `LevelManager`, `PlayerProfile`, `Telemetry`, `AudioDirector`. Scripts
+  that a tool might precompile should resolve them through the tree
+  (`get_node_or_null("/root/...")`) rather than by global name — autoloads are not
+  registered when a `--script` run compiles its own script.
+- **`UIRouter` owns the `pause` action.** Nothing else reads it. Overlays expose
+  `handle_cancel() -> bool` and the router walks an authored `cancel_chain`, so
+  priority is data rather than an accident of node order in a `.tscn`.
+- **Pause is derived, never assigned.** Overlays join the `modal_overlays` group and
+  `UIRouter.refresh_pause()` recomputes `get_tree().paused` from whoever is open.
+  Writing `paused` directly unpauses the game when a nested overlay closes.
+- Styling lives in `game/ui/obra_theme.tres`, applied project-wide via
+  `gui/theme/custom`. The main menu keeps its own per-node overrides and must stay
+  pixel-identical; a `focus` stylebox with an opaque background will cover buttons it
+  is drawn over, and a `Label` font in the theme would restyle the menu.
+- Screens read their content from `config/` (`levels.json`, `controls.json`,
+  `audio.json`) rather than from strings typed into a `.tscn`.
 
 ## Common Commands
 

@@ -341,18 +341,20 @@ offset_bottom = 254.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.97, 0.96, 0.77, 1)
 theme_override_font_sizes/font_size = 20
-text = "BANAUE RICE\nTERRACES"
+text = "BANAUE RICE TERRACES"
+autowrap_mode = 3
 
 [node name="Theme" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1"]
 layout_mode = 0
 offset_left = 18.0
-offset_top = 262.0
-offset_right = 224.0
-offset_bottom = 289.0
+offset_top = 258.0
+offset_right = 228.0
+offset_bottom = 292.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.63, 0.78, 0.52, 1)
-theme_override_font_sizes/font_size = 13
-text = "THE MOUNTAIN PADDIES"
+theme_override_font_sizes/font_size = 12
+text = "MOUNTAIN RICE TERRACES AND IRRIGATION PADDIES"
+autowrap_mode = 3
 
 [node name="Level2" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
 layout_mode = 0

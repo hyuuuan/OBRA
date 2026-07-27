@@ -10,6 +10,7 @@ var _buttons: Array[Button] = []
 func _ready() -> void:
 	for index in range(6):
 		var button := Button.new()
+		button.theme_type_variation = &"InventorySlot"
 		button.custom_minimum_size = Vector2(118.0, 52.0)
 		button.focus_mode = Control.FOCUS_NONE
 		button.text = "%d  Empty" % (index + 1)
