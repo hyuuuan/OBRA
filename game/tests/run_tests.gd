@@ -46,6 +46,8 @@ func _run() -> void:
 	_test_skeleton_manifest()
 	_test_skin_weights()
 	_test_skinned_rest_identity()
+	await _test_skinned_rig_renders_the_drawing()
+	await _test_gait_reaches_the_ink()
 	await _test_messy_fixtures()
 	await _test_ink_integrity()
 	await _test_grazing_stroke_not_split()
@@ -897,26 +899,22 @@ func _test_fidelity_mode() -> void:
 		messy.call("apply_drawing", _blank_image(), _four_loop_fixture())
 		var messy_skin := messy.get_node("DrawingSkin") as RuntimeRig2D
 		_expect(messy_skin.skin_mode() == "vector", "four-loop drawing discarded the vector ink")
-		var pivots: Array = messy_skin.get("_ink_pivots")
+		_expect(messy_skin.debug_skin_active(), "four-loop drawing was not skinned to its class skeleton")
+		# A butterfly is a flier whatever it looks like, so it HAS wing bones -- the
+		# question a class-driven skeleton raises is whether they own any ink. Bones
+		# that carry nothing beat invisibly, which is the failure this design invites
+		# and the old geometric one could not have.
+		var mass := messy_skin.debug_bone_ink_mass()
+		var wing_mass := float(mass.get("wing_l", 0.0)) + float(mass.get("wing_r", 0.0))
 		_expect(
-			pivots.size() >= 3,
-			"four-loop drawing rigged only %d hinged appendages; its wings cannot animate" % pivots.size()
+			wing_mass > 0.15,
+			"four-loop drawing's wing bones carry only %.0f%% of its ink" % (wing_mass * 100.0)
 		)
 		messy.set_physics_process(false)
-		var lowest := INF
-		var highest := -INF
-		for _frame in range(150):
-			messy_skin.set_motion_state("fly", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
-			await physics_frame
-			for entry_value in pivots:
-				var node := (entry_value as Dictionary)["node"] as Node2D
-				if is_instance_valid(node):
-					lowest = minf(lowest, node.rotation)
-					highest = maxf(highest, node.rotation)
-		_expect(
-			is_finite(highest - lowest) and rad_to_deg(highest - lowest) > 8.0,
-			"four-loop drawing's wings never beat (%.1f deg of swing)" % rad_to_deg(highest - lowest)
+		var travel: float = await _ink_travel(
+			messy_skin, "fly", {"moving": true, "speed_ratio": 1.0, "direction": 1.0}, 150
 		)
+		_expect(travel > 2.0, "four-loop drawing's wings never beat (%.2f px of ink travel)" % travel)
 		messy.queue_free()
 		await process_frame
 
@@ -950,53 +948,80 @@ func _test_fidelity_guard() -> void:
 		if primary == null:
 			instance.queue_free()
 			continue
-		# Every limb's ink hinges on a pivot placed at the joint it was DRAWN to hinge
-		# on. The pivot may rotate -- that is the animation -- but it must never
-		# translate away from the torso, and it must stay inside the limb's envelope.
-		# Those two together are what "the drawing animates without deforming" means.
-		var pivots: Array = skin.get("_ink_pivots")
-		# Each hinge is measured against its OWN parent hinge. Global positions would
-		# count intended motion -- the whole-body bob, and a shin legitimately swinging
-		# with its thigh -- whereas the offset between a limb and the thing it hangs
-		# off is fixed by the drawing and must never change. That is exactly the
-		# difference between a limb animating and a drawing coming apart.
-		var frame_node := primary.get_node_or_null("WholeBodyPivot") as Node2D
-		_expect(frame_node != null, "%s has no whole-body pivot" % entity_id)
-		if frame_node == null:
-			instance.queue_free()
-			continue
-		var anchored: Dictionary = {}
-		for entry_value in pivots:
-			var node := (entry_value as Dictionary)["node"] as Node2D
-			if is_instance_valid(node):
-				anchored[node.get_instance_id()] = node.position
+		# What "the drawing animates without coming apart" means once the ink is skinned
+		# rather than hung off pivots. The old rig could tear a stroke or leave part of
+		# it behind because strokes were cut between bodies; a skinned stroke is one
+		# polyline for life, so the way it could still fail is by STRETCHING -- blended
+		# bone transforms pulling a limb away from the body it joins.
+		_expect(skin.debug_skin_active(), "%s is not skinned to its class skeleton" % entity_id)
 		instance.set_physics_process(false)
-		var swing := 0.0
-		for _frame in range(200):
-			skin.set_motion_state("walk", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
-			await physics_frame
-		var drift := 0.0
-		var overshoot := 0.0
-		for checked_value in pivots:
-			var checked: Dictionary = checked_value
-			var pivot_node := checked["node"] as Node2D
-			if not is_instance_valid(pivot_node) or not anchored.has(pivot_node.get_instance_id()):
-				continue
-			var now: Vector2 = pivot_node.position
-			drift = maxf(drift, now.distance_to(anchored[pivot_node.get_instance_id()]))
-			var limit := float((checked["segment"] as Dictionary).get("angle_limit", deg_to_rad(46.0)))
-			overshoot = maxf(overshoot, absf(pivot_node.rotation) - limit)
-			swing = maxf(swing, absf(pivot_node.rotation))
+		var motion := {"moving": true, "speed_ratio": 1.0, "direction": 1.0}
+		# The bound is on the drawing COMING APART, not on the blend being perfect.
+		# Linear blend skinning shears ink that straddles a weight gradient, and the
+		# measured envelope across the roster is: swimmer/flier/spider 100-101%,
+		# walker 113%, hopper/biped 131-135% -- worst where a limb rotates furthest
+		# while a third of its ink still belongs to the body. It is bounded and it
+		# recovers every cycle. A stroke actually tearing free grows without bound and
+		# never comes back, which is what this still catches. Dual-quaternion skinning
+		# in SkinBinding.deform is what would remove the residual.
+		var stretch: float = await _ink_stretch(skin, "walk", motion, 200)
 		_expect(
-			drift < 6.0,
-			"%s limb ink drifted %.1f px from where it was drawn to hinge" % [entity_id, drift]
+			stretch < 1.40,
+			"%s limb ink stretched to %.0f%% of its drawn length" % [entity_id, stretch * 100.0]
 		)
+		# And it must stay a drawing of this creature: the gait is bounded by each
+		# bone's authored limit, so no point can wander far from where it was drawn.
+		var bounds := skin.get_stroke_bounds()
+		var travel: float = await _ink_travel(skin, "walk", motion, 60)
 		_expect(
-			overshoot < deg_to_rad(6.0),
-			"%s limb ink swung %.1f deg past its envelope" % [entity_id, rad_to_deg(overshoot)]
+			travel < bounds.size.length() * 0.5,
+			"%s ink travelled %.1f px, over half its own diagonal" % [entity_id, travel]
 		)
 		instance.queue_free()
 		await process_frame
+
+
+## How far the rendered drawing actually moves over `frames` of the given motion: the
+## largest distance any single ink point travels from where it started.
+##
+## Measured on the ink itself rather than on the nodes that carry it. A pivot node can
+## rotate, and a bone can swing through its whole range, while the drawing on screen
+## sits perfectly still -- if the thing that moved owned no ink, the player sees
+## nothing. Only the rendered points can tell the difference.
+func _ink_travel(skin: RuntimeRig2D, state: String, motion: Dictionary, frames: int) -> float:
+	var first := skin.debug_skin_points()
+	var travel := 0.0
+	for _frame in range(frames):
+		skin.set_motion_state(state, motion)
+		await physics_frame
+		var now := skin.debug_skin_points()
+		for stroke_index in range(mini(first.size(), now.size())):
+			var before: PackedVector2Array = first[stroke_index]
+			var after: PackedVector2Array = now[stroke_index]
+			for point_index in range(mini(before.size(), after.size())):
+				travel = maxf(travel, before[point_index].distance_to(after[point_index]))
+	return travel
+
+
+## The worst ratio between a stroke's rendered length and its drawn length, over
+## `frames` of motion. Skinning moves ink by blending bone transforms, so a little
+## stretch across a joint is inherent; a drawing coming apart is not, and shows up
+## here as a stroke growing without bound.
+func _ink_stretch(skin: RuntimeRig2D, state: String, motion: Dictionary, frames: int) -> float:
+	var rest: Array[float] = []
+	for stroke_value in skin.get_vector_strokes():
+		rest.append(_test_path_length((stroke_value as Dictionary)["points"]))
+	var worst := 1.0
+	for _frame in range(frames):
+		skin.set_motion_state(state, motion)
+		await physics_frame
+		var now := skin.debug_skin_points()
+		for stroke_index in range(mini(rest.size(), now.size())):
+			if rest[stroke_index] <= 0.001:
+				continue
+			var ratio := _test_path_length(now[stroke_index]) / rest[stroke_index]
+			worst = maxf(worst, maxf(ratio, 1.0 / maxf(0.001, ratio)))
+	return worst
 
 
 ## Every Line2D the rig renders, wherever it was parented.
@@ -1135,6 +1160,96 @@ func _test_skinned_rest_identity() -> void:
 		_expect(worst < 0.01, "'%s' rest pose moved ink by %.4f px" % [label, worst])
 
 
+## The same guarantee, but measured on the LIVE rig instead of the binding in
+## isolation. Stage 1 proved the skinning transforms cancel at rest; this proves that
+## nothing between them and the screen undoes it -- where the skin root is placed on
+## the torso, how the Line2Ds are rebuilt from the strokes, what the gait does on its
+## very first tick. The instant a creature exists it must be the player's drawing, to
+## the pixel, or every claim made for the rig is about something the player never saw.
+func _test_skinned_rig_renders_the_drawing() -> void:
+	for entity_id in _living_entity_ids():
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		if instance == null:
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(420.0, 240.0)
+		instance.call("apply_drawing", _blank_image(), _fixture_for(entity_id))
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		if skin.debug_skin_active():
+			var drawn := skin.get_vector_strokes()
+			var rendered := skin.debug_skin_points()
+			_expect(
+				rendered.size() == drawn.size(),
+				"%s renders %d strokes for %d drawn" % [entity_id, rendered.size(), drawn.size()]
+			)
+			# Compared in WORLD space, against where the entity holding the drawing
+			# actually is. Comparing the ink to itself in its own local space would pass
+			# no matter where that space had been put, which is most of what this is
+			# here to check.
+			var to_world := skin.debug_skin_transform()
+			var drawn_to_world := instance.global_transform
+			var worst := 0.0
+			for index in range(mini(rendered.size(), drawn.size())):
+				var source: PackedVector2Array = (drawn[index] as Dictionary)["points"]
+				var shown: PackedVector2Array = rendered[index]
+				_expect(
+					shown.size() == source.size(),
+					"%s stroke %d renders %d points for %d drawn" % [entity_id, index, shown.size(), source.size()]
+				)
+				for point_index in range(mini(source.size(), shown.size())):
+					var here := to_world * shown[point_index]
+					var expected := drawn_to_world * source[point_index]
+					worst = maxf(worst, here.distance_to(expected))
+			_expect(worst < 0.01, "%s renders its first frame %.4f px off the drawing" % [entity_id, worst])
+			# And drawn ONCE. Every Line2D under the entity must be one the skin owns --
+			# an ink line the builders left behind renders the drawing a second time,
+			# frozen, underneath the one that animates. Two of them per stroke: the ink
+			# and the halo beneath it.
+			_expect(
+				_ink_lines(instance).size() == rendered.size() * 2,
+				"%s renders %d ink lines for %d strokes; the drawing is doubled" % [
+					entity_id, _ink_lines(instance).size(), rendered.size()
+				]
+			)
+		instance.queue_free()
+		await process_frame
+
+
+## The failure a class-driven skeleton invites, and a geometric one could not have:
+## the skeleton is right for the CLASS, and wrong for THIS DRAWING. Every bone is
+## placed, the gait drives them all correctly -- and they own none of the player's
+## ink, so a fully rigged creature renders frozen. Nothing raises an error; the
+## drawing simply never moves. So the ink is followed through to the bones that move.
+func _test_gait_reaches_the_ink() -> void:
+	var stranded: Array = []
+	for entity_id in _living_entity_ids():
+		var rig_type := String(registry.get_entity(entity_id).get("rig_type", ""))
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		if instance == null:
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(420.0, 240.0)
+		instance.call("apply_drawing", _blank_image(), _fixture_for(entity_id))
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		if skin.debug_skin_active():
+			var state := _gait_for_rig(rig_type)
+			var mass := skin.debug_bone_ink_mass()
+			var carried := 0.0
+			for bone_value in SkeletonLibrary.resolve(entity_id, rig_type).get("bones", []):
+				var bone: Dictionary = bone_value
+				var gait: Dictionary = bone.get("gait", {})
+				if gait.is_empty():
+					continue
+				var states: Dictionary = gait.get("states", {})
+				if states.is_empty() or float(states.get(state, 0.0)) > 0.0:
+					carried += float(mass.get(String(bone.get("name", "")), 0.0))
+			if carried < 0.10:
+				stranded.append("%s(%s in %s, %.0f%%)" % [entity_id, rig_type, state, carried * 100.0])
+		instance.queue_free()
+		await process_frame
+	_expect(stranded.is_empty(), "these classes move bones that carry no ink: %s" % str(stranded))
+
+
 ## Drawings spanning the shapes that broke the old rig: wings apart, wings meeting in
 ## the middle, a single continuous scribble, and an extreme aspect ratio.
 func _skin_cases() -> Array:
@@ -1223,23 +1338,21 @@ func _test_every_class_animates() -> void:
 		instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
 		instance.call("apply_drawing", _blank_image(), _archetype_fixture(entity_id, rig_type))
 		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
-		var pivots: Array = skin.get("_ink_pivots")
 		instance.set_physics_process(false)
-		var lowest := INF
-		var highest := -INF
-		for _frame in range(120):
-			skin.set_motion_state(_gait_for_rig(rig_type), {
-				"moving": true, "speed_ratio": 1.0, "direction": 1.0, "charge_ratio": 1.0
-			})
-			await physics_frame
-			for entry_value in pivots:
-				var node := (entry_value as Dictionary)["node"] as Node2D
-				if is_instance_valid(node):
-					lowest = minf(lowest, node.rotation)
-					highest = maxf(highest, node.rotation)
-		var swing := rad_to_deg(highest - lowest) if pivots.size() > 0 and is_finite(highest - lowest) else 0.0
-		if swing < 5.0:
-			silent.append("%s(%s, %d hinges, %.1f deg)" % [entity_id, rig_type, pivots.size(), swing])
+		if not skin.debug_skin_active():
+			silent.append("%s(%s, not skinned)" % [entity_id, rig_type])
+			instance.queue_free()
+			await process_frame
+			continue
+		# Measured on the rendered ink, not on the bones. Every playable class has a
+		# skeleton by construction now, so "does it have hinges" no longer distinguishes
+		# anything -- what still can, and is the whole point, is whether the drawing the
+		# player is looking at actually moves.
+		var travel: float = await _ink_travel(skin, _gait_for_rig(rig_type), {
+			"moving": true, "speed_ratio": 1.0, "direction": 1.0, "charge_ratio": 1.0
+		}, 120)
+		if travel < 2.0:
+			silent.append("%s(%s, %.2f px)" % [entity_id, rig_type, travel])
 		instance.queue_free()
 		await process_frame
 	_expect(silent.is_empty(), "these classes render frozen: %s" % str(silent))
@@ -1371,18 +1484,20 @@ func _check_messy_fixture(path: String) -> void:
 	skin._physics_process(0.1)
 	if entity_id == "spider":
 		_expect(bool(skin.debug_spider_snapshot().get("valid", false)), "'%s' did not produce spider anatomy" % label)
-	elif skin.debug_whole_body_animated():
-		# One continuous drawing: it must move as a whole rather than through joints.
-		var pivot := skin.get_primary_body().get_node_or_null("WholeBodyPivot") as Node2D
-		_expect(pivot != null, "'%s' has no whole-body animation pivot" % label)
-		if pivot != null:
-			var moved := false
-			for _frame in range(60):
-				skin.set_motion_state(primary_state, motion)
-				await physics_frame
-				if pivot.position.length() > 0.35 or absf(pivot.rotation) > 0.01:
-					moved = true
-			_expect(moved, "'%s' stayed whole but never animated" % label)
+	elif skin.debug_skin_active():
+		# However the physics underneath was decomposed -- articulated or one rigid
+		# piece -- the drawing itself must move, because that is the only part of this
+		# the player can see.
+		var travel: float = await _ink_travel(skin, primary_state, motion, 60)
+		_expect(travel > 0.5, "'%s' never animated (%.2f px of ink travel)" % [label, travel])
+		# Drawn once. These fixtures are where a LIMBLESS drawing lands, and a limbless
+		# drawing has its ink moved under a whole-body pivot while the rig is built --
+		# so if that copy is not cleared when the skin takes over, the player sees the
+		# drawing twice: one frozen underneath, one animating over it. Two lines per
+		# stroke is the ink and the halo beneath it.
+		var lines := _ink_lines(instance).size()
+		var expected := skin.debug_skin_points().size() * 2
+		_expect(lines == expected, "'%s' renders %d ink lines, expected %d" % [label, lines, expected])
 	else:
 		var animated := false
 		for torque in skin.debug_drive_torques():
