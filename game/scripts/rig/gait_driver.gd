@@ -30,9 +30,9 @@ const MOVING_RATE_MAX := 1.5
 ## lifts per wingbeat.
 const BODY_BEAT := 2.0
 
-## Angle smoothing. The sinusoid is already continuous; this exists so that a CHANGE
-## OF STATE eases in. Snapping the amplitude when walk becomes idle is a visible pop.
-const ANGLE_RESPONSE := 12.0
+## How fast a change of STATE eases in. Applied to the per-bone weight rather than to
+## the finished angle, so it cannot attenuate the gait itself (see advance).
+const STATE_RESPONSE := 12.0
 
 ## Lean added by jump/fall on top of the directional lean.
 const AIR_PITCH_DEG := 4.0
@@ -49,6 +49,10 @@ var _limit := PackedFloat32Array()         ## radians
 var _states: Array = []                    ## Dictionary per bone; empty == always on
 var _bias_states: Array = []               ## Optional per-bone state weights for the bias
 var _angles := PackedFloat32Array()
+## Eased state weights. These are what smoothing acts on, so a state change settles
+## without the gait sinusoid losing amplitude to a low-pass filter.
+var _weight_now := PackedFloat32Array()
+var _bias_now := PackedFloat32Array()
 
 # --- resolved whole-body motion --------------------------------------------
 var _frequency_hz: float = 0.0
@@ -68,6 +72,8 @@ var _direction: float = 0.0
 var _bob: float = 0.0
 var _tilt: float = 0.0
 var _squash_now: float = 0.0
+## Eased 0..1 "is moving", so whole-body motion fades in and out at full amplitude.
+var _activity: float = 0.0
 
 
 ## Resolve `rig`'s authored gait against `profile` (the entity's rigs/<id>.json).
@@ -78,6 +84,7 @@ func prepare(rig: Skeleton2D_Rig, profile: Dictionary) -> void:
 	_bob = 0.0
 	_tilt = 0.0
 	_squash_now = 0.0
+	_activity = 0.0
 	var count := rig.bones.size() if rig != null else 0
 	_amplitude.resize(count)
 	_bias.resize(count)
@@ -85,6 +92,8 @@ func prepare(rig: Skeleton2D_Rig, profile: Dictionary) -> void:
 	_sign.resize(count)
 	_limit.resize(count)
 	_angles.resize(count)
+	_weight_now.resize(count)
+	_bias_now.resize(count)
 	_states.clear()
 	_states.resize(count)
 	_bias_states.clear()
@@ -105,6 +114,8 @@ func prepare(rig: Skeleton2D_Rig, profile: Dictionary) -> void:
 		var gait: Dictionary = bone.gait
 		_limit[index] = bone.limit
 		_angles[index] = 0.0
+		_weight_now[index] = 0.0
+		_bias_now[index] = 0.0
 		if gait.is_empty():
 			_amplitude[index] = 0.0
 			_bias[index] = 0.0
@@ -139,31 +150,40 @@ func advance(delta: float, state: String, params: Dictionary) -> void:
 		if _active else IDLE_RATE_SCALE)
 	_phase = fposmod(_phase + delta * rate, 1.0)
 
-	var weight := 1.0 - exp(-ANGLE_RESPONSE * maxf(0.0, delta))
+	# THE SMOOTHING GOES ON THE STATE WEIGHT, NOT ON THE ANGLE.
+	#
+	# Easing the finished angle also low-passes the gait sinusoid, which is already
+	# continuous and needs no help. A first-order lag of time constant t attenuates a
+	# sinusoid of frequency f by 1/sqrt(1 + (2*PI*f*t)^2), so smoothing the result cost
+	# every class a measured 15-40% of its authored amplitude -- and a bird, flapping
+	# at 6.5 Hz, reached 29% of its authored 40 degrees. The filter was eating the
+	# animation it exists to protect.
+	#
+	# What actually needs easing is the STATE CHANGE: walk becoming idle drops the
+	# amplitude discontinuously, and that pops. So the weight is smoothed and the
+	# sinusoid then runs at full authored amplitude.
+	var response := 1.0 - exp(-STATE_RESPONSE * maxf(0.0, delta))
 	for index in range(_angles.size()):
-		var swing := _amplitude[index] * _state_weight(index) \
+		_weight_now[index] = lerpf(_weight_now[index], _state_weight(index), response)
+		_bias_now[index] = lerpf(_bias_now[index], _bias_weight(index), response)
+		var swing := _amplitude[index] * _weight_now[index] \
 			* sin(TAU * (_phase + _phase_offset[index]))
-		var offset := _bias[index] * _bias_weight(index)
-		var target := clampf((swing + offset) * _sign[index], -_limit[index], _limit[index])
-		_angles[index] = lerpf(_angles[index], target, weight)
+		var offset := _bias[index] * _bias_now[index]
+		_angles[index] = clampf((swing + offset) * _sign[index], -_limit[index], _limit[index])
 
-	# Whole-body motion is eased on the same curve as the bones, and for the same
-	# reason: a creature that stops walking drops its bob to zero in one frame
-	# otherwise, and the drawing visibly jumps at the moment it comes to rest.
-	var bob_target := 0.0
-	var tilt_target := 0.0
-	var squash_target := 0.0
-	if _active:
-		bob_target = -absf(sin(TAU * _phase * BODY_BEAT)) * _bob_px
-		tilt_target = _tilt_rad * _direction * minf(1.0, _speed)
-		squash_target = _squash * sin(TAU * _phase * BODY_BEAT)
+	# Whole-body motion, the same way: the sinusoid is exact and only the transition
+	# between moving and at rest is eased, so a creature coming to a stop settles
+	# rather than snapping while a moving one keeps its full bob.
+	_activity = lerpf(_activity, 1.0 if _active else 0.0, response)
+	_bob = -absf(sin(TAU * _phase * BODY_BEAT)) * _bob_px * _activity
+	_squash_now = _squash * sin(TAU * _phase * BODY_BEAT) * _activity
+	var tilt_target := _tilt_rad * _direction * minf(1.0, _speed) * _activity
 	if _state == "jump":
 		tilt_target -= deg_to_rad(AIR_PITCH_DEG)
 	elif _state == "fall":
 		tilt_target += deg_to_rad(AIR_PITCH_DEG)
-	_bob = lerpf(_bob, bob_target, weight)
-	_tilt = lerpf(_tilt, tilt_target, weight)
-	_squash_now = lerpf(_squash_now, squash_target, weight)
+	# Lean is a pose rather than a cycle, so easing this one costs no amplitude.
+	_tilt = lerpf(_tilt, tilt_target, response)
 
 
 ## Per-bone local rotation, for Skeleton2D_Rig.pose.
