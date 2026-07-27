@@ -27,7 +27,6 @@ const MUSCLE_SETTLE_FRAMES := 14.0
 # the higher default so jumps and knockback still read.
 const LIMB_MAX_ANGULAR_SPEED := 5.5
 ## How quickly drawn ink follows its gait target (higher == snappier limbs).
-const INK_LIMB_RESPONSE := 12.0
 # --- Pose leash --------------------------------------------------------------
 # The muscles control joint ANGLES only, which is not enough to keep a drawing
 # looking like itself: a broad appendage pinned at its edge sweeps a long way when
@@ -77,19 +76,14 @@ var _motion_params: Dictionary = {}
 
 var _physics_root: Node2D
 var _primary_body: ActiveRigBody2D
-## Set only in fidelity mode: the ink hangs off this so the whole creature can bob
-## and tilt without any force touching the drawing's shape.
-var _visual_pivot: Node2D
-## One entry per limb: {node: Node2D pivot at the drawn joint, segment: Dictionary}.
-var _ink_pivots: Array = []
 
 # --- skinned ink: the class-driven rig ----------------------------------------
 # What the player sees is rendered from a skeleton looked up by the RECOGNISED CLASS
 # and deformed by smooth skinning, instead of from anatomy guessed off the strokes.
 # One Line2D per drawn stroke, for the life of the creature: a stroke is never split
 # between bodies or reparented, so it cannot tear in half or shed part of itself.
-# _skin_active is false only where there is no vector ink to skin (the bitmap
-# fallback), which is the one case still rendered the old way.
+# _skin_active is false only where there is no vector ink to skin -- the bitmap
+# fallback, which carries its own sprite and is the one thing this does not draw.
 var _skin_active: bool = false
 var _skin_rig: Skeleton2D_Rig = null
 var _skin_binding: SkinBinding = null
@@ -106,7 +100,9 @@ var _segments: Array = []
 var _body_pool: PackedVector2Array = PackedVector2Array()
 var _body_bounds: Rect2 = Rect2()
 var _body_polylines: Array = []
-var _rendered_ink: Array[Dictionary] = []
+## Which slice of the drawn ink each physics body was built from. Bookkeeping for
+## the decomposition audit only -- nothing renders from it.
+var _body_ink: Array[Dictionary] = []
 var _max_tracked_angle: float = 0.0
 var _shape_count: int = 0
 var _gait_phase: float = 0.0
@@ -348,13 +344,6 @@ func debug_segment_roles() -> Array[String]:
 	return roles
 
 
-func debug_motor_velocities() -> Array[float]:
-	var velocities: Array[float] = []
-	for joint in _joints:
-		velocities.append(joint.motor_target_velocity)
-	return velocities
-
-
 func debug_drive_torques() -> Array[float]:
 	var torques: Array[float] = []
 	for segment_value in _segments:
@@ -401,24 +390,25 @@ func debug_limb_layout() -> Array[Dictionary]:
 	return layout
 
 
-## Every polyline the rig rendered, in rig space, with the overlap point counts
-## that pad limb chunks across joints. Tests assert these against the drawn strokes.
+## Every polyline the rig renders, in rig space, at rest. One entry per DRAWN STROKE:
+## the skinned layer never divides a stroke, so the overlap padding that used to
+## account for slices meeting across a joint is always zero now. Tests assert these
+## against the player's strokes.
 func debug_rendered_ink() -> Array[Dictionary]:
-	return _rendered_ink.duplicate()
-
-
-
-
-
-
-
-
-## True when this rig animates as one whole body rather than through joints. A
-## skinned rig always does: bob, lean and squash ride the skeleton's root.
-func debug_whole_body_animated() -> bool:
-	if _skin_active:
-		return true
-	return _visual_pivot != null and is_instance_valid(_visual_pivot)
+	var out: Array[Dictionary] = []
+	if _skin_binding == null:
+		return out
+	var strokes := get_vector_strokes()
+	for index in range(_skin_binding.stroke_count()):
+		var stroke: Dictionary = strokes[index] if index < strokes.size() else {}
+		out.append({
+			"points": _skin_binding.rest_points(index),
+			"width": float(stroke.get("width", 8.0)),
+			"color": stroke.get("color", Color.BLACK),
+			"overlap_prefix": 0,
+			"overlap_suffix": 0
+		})
+	return out
 
 
 ## True when the drawing is rendered from the recognised class's skeleton.
@@ -483,11 +473,12 @@ func _on_skin_rebuilt() -> void:
 				_build_chain_rig(get_vector_strokes())
 			else:
 				_build_standard_rig(get_vector_strokes())
-				_ensure_articulation(get_vector_strokes())
-			# Ink-integrity gate: if any builder rendered geometry the player did not
-			# draw (or lost some of their ink), degrade to an intact compound body
-			# instead of showing a mangled drawing. The spider branch is exempt: its
-			# analyzer already only emits exact ink slices and self-falls-back.
+			# Decomposition gate: if a builder cut bodies out of geometry the player did
+			# not draw, or lost some of it, degrade to one intact compound body. It no
+			# longer guards what is DRAWN -- the skinned layer draws the player's own
+			# strokes whatever the physics does -- but a body built from a fabricated
+			# chord still carries a collider the drawing cannot account for. The spider
+			# branch is exempt: its analyzer only emits exact ink slices and self-falls-back.
 			if not _rig_ink_is_intact():
 				push_warning("RuntimeRig2D: %s rig diverged from the drawn ink; rebuilding as compound body." % _entity_id)
 				_clear_rig()
@@ -500,10 +491,9 @@ func _on_skin_rebuilt() -> void:
 		_build_bitmap_fallback()
 	# Every rig, every class: the drawing is rendered from the pose it was drawn in
 	# while the physics underneath keeps its full freedom to walk, jump and collide.
-	# The skeleton for the recognised class drives it; only a drawing with no vector
-	# ink to skin (the bitmap fallback) still hangs off the inferred limb pivots.
-	if not _bind_skinned_ink():
-		_consolidate_ink_to_pivot()
+	# A bitmap-fallback drawing has no strokes to skin, and renders as its own sprite
+	# carried by the body -- there is nothing else left that draws a creature.
+	_bind_skinned_ink()
 	_finalize_rig()
 	analysis["physics_bodies"] = _bodies.size()
 	analysis["physics_joints"] = _joints.size()
@@ -519,14 +509,8 @@ func _physics_process(delta: float) -> void:
 		_recover_rig()
 		return
 	# The drawing is rendered from its drawn pose, so the creature animates while the
-	# rig below simulates freely. Runs for every class, articulated or not: the
-	# skinned path poses the class's skeleton, and the bitmap fallback keeps the
-	# pivot path because it has no strokes to skin.
-	if _skin_active:
-		_animate_skinned_ink(delta)
-	else:
-		_animate_whole_body(delta)
-		_animate_ink_limbs(delta)
+	# rig below simulates freely. Runs for every class, articulated or not.
+	_animate_skinned_ink(delta)
 	if _segments.is_empty():
 		return
 	if _entity_id == "spider" and not _spider_feet.is_empty():
@@ -1337,7 +1321,7 @@ func _build_spider_rig(strokes: Array) -> void:
 		var source_index := _spider_owner_source(torso_owners, path_index)
 		var width := _spider_stroke_width(strokes, source_index)
 		var color := _spider_stroke_color(strokes, source_index)
-		_add_visual_line(_primary_body, path, width, color, torso_center)
+		_record_ink_slice(path)
 		torso_collision_paths.append({"path": path, "width": width})
 	for path_index in range(decoration_paths.size()):
 		var path := PackedVector2Array(decoration_paths[path_index])
@@ -1346,7 +1330,7 @@ func _build_spider_rig(strokes: Array) -> void:
 		var source_index := _spider_owner_source(decoration_owners, path_index)
 		var width := _spider_stroke_width(strokes, source_index)
 		var color := _spider_stroke_color(strokes, source_index)
-		_add_visual_line(_primary_body, path, width, color, torso_center)
+		_record_ink_slice(path)
 		torso_collision_paths.append({"path": path, "width": width})
 
 	# Build every real leg before spending the shared shape budget on decorative
@@ -1395,188 +1379,6 @@ func _build_spider_compound(strokes: Array) -> void:
 	_spider_total_mass = _primary_body.mass if _primary_body != null else 0.0
 
 
-
-
-	var pivot_for_body: Dictionary = {}
-	for segment_value in _segments:
-		var segment: Dictionary = segment_value
-		var body := segment.get("body") as ActiveRigBody2D
-		var parent := segment.get("parent") as ActiveRigBody2D
-		var joint := segment.get("joint") as PinJoint2D
-		if not is_instance_valid(body) or not is_instance_valid(parent) or not is_instance_valid(joint):
-			continue
-		var parent_pivot: Node2D = pivot_for_body.get(parent.get_instance_id(), _visual_pivot)
-		var pivot := Node2D.new()
-		pivot.name = "InkPivot_%d" % _ink_pivots.size()
-		parent_pivot.add_child(pivot)
-		pivot.global_position = joint.global_position
-		pivot.rotation = 0.0
-		pivot_for_body[body.get_instance_id()] = pivot
-		_ink_pivots.append({"node": pivot, "segment": segment})
-	for body in _bodies:
-		if not is_instance_valid(body):
-			continue
-		var target: Node2D = pivot_for_body.get(body.get_instance_id(), _visual_pivot)
-		for child in body.get_children():
-			var line := child as Line2D
-			if line == null:
-				continue
-			var world_transform := line.global_transform
-			body.remove_child(line)
-			target.add_child(line)
-			line.global_transform = world_transform
-
-
-## Swing each limb's ink about its drawn joint, following the same gait the muscles
-## are given. The drawing animates without the ragdoll ever being allowed to move it.
-func _animate_ink_limbs(delta: float) -> void:
-	if _ink_pivots.is_empty():
-		return
-	var weight := 1.0 - exp(-INK_LIMB_RESPONSE * delta)
-	for entry_value in _ink_pivots:
-		var entry: Dictionary = entry_value
-		var node := entry["node"] as Node2D
-		if not is_instance_valid(node):
-			continue
-		var segment: Dictionary = entry["segment"]
-		# The spider's stance controller publishes its own per-leg target; every other
-		# rig uses the species/generic gait the muscle loop reads.
-		var target: float = float(segment["target_angle"]) if segment.has("target_angle") \
-			else _target_angle_for(segment)
-		if not is_finite(target):
-			target = 0.0
-		var limit := float(segment.get("angle_limit", deg_to_rad(46.0)))
-		node.rotation = lerpf(node.rotation, clampf(target, -limit, limit), weight)
-
-
-## Gather EVERY body's ink onto one pivot under the torso, at the exact offsets it
-## was drawn at, and leave the physics rig completely untouched underneath.
-##
-## This is the difference between what the player sees and what the simulation does.
-## The rig has to articulate: legs plant and push, the spider walks on its feet, the
-## torso collides and jumps. But an active ragdoll built from arbitrary ink will
-## always deviate -- that is what a ragdoll IS -- and every attempt to hold the shape
-## by constraining the physics cost locomotion instead (freeze the spider's legs and
-## it cannot walk; tighten its envelope and it barely moves). Rendering the ink from
-## the drawn pose settles it: the simulation keeps its full freedom, and the drawing
-## on screen is exactly the drawing that was made, for all 50 classes and any shape a
-## player draws. Whole-body bob and tilt then animate it as one piece.
-##
-## Called the moment the rig is built, while the bodies still sit exactly where the
-## strokes were, so preserving world transforms captures the drawn layout precisely.
-func _consolidate_ink_to_pivot() -> void:
-	if _primary_body == null:
-		return
-	_ensure_visual_pivot()
-	if _visual_pivot == null:
-		return
-	_ink_pivots.clear()
-	# One pivot per limb, placed at the joint that limb is actually drawn to hinge on,
-	# and nested so a chain composes (a shin turns with its thigh). The gait drives
-	# these directly, which is what lets the limbs animate while the shape holds: ink
-	# can only ever swing about the point it was drawn attached to, by the bounded
-	# angle the gait asks for. It never drifts, stretches or detaches, because the
-	# ragdoll's own deviation is not what positions it.
-	var pivot_for_body: Dictionary = {}
-	for segment_value in _segments:
-		var segment: Dictionary = segment_value
-		var body := segment.get("body") as ActiveRigBody2D
-		var parent := segment.get("parent") as ActiveRigBody2D
-		var joint := segment.get("joint") as PinJoint2D
-		if not is_instance_valid(body) or not is_instance_valid(parent) or not is_instance_valid(joint):
-			continue
-		var parent_pivot: Node2D = pivot_for_body.get(parent.get_instance_id(), _visual_pivot)
-		var pivot := Node2D.new()
-		pivot.name = "InkPivot_%d" % _ink_pivots.size()
-		parent_pivot.add_child(pivot)
-		pivot.global_position = joint.global_position
-		pivot.rotation = 0.0
-		pivot_for_body[body.get_instance_id()] = pivot
-		_ink_pivots.append({"node": pivot, "segment": segment})
-	for body in _bodies:
-		if not is_instance_valid(body):
-			continue
-		var target: Node2D = pivot_for_body.get(body.get_instance_id(), _visual_pivot)
-		for child in body.get_children():
-			var line := child as Line2D
-			if line == null:
-				continue
-			var world_transform := line.global_transform
-			body.remove_child(line)
-			target.add_child(line)
-			line.global_transform = world_transform
-
-
-## Swing each limb's ink about its drawn joint, following the same gait the muscles
-## are given. The drawing animates without the ragdoll ever being allowed to move it.
-
-
-## Reparents the torso's own ink under an animation pivot, creating it on demand.
-func _ensure_visual_pivot() -> void:
-	if _visual_pivot != null and is_instance_valid(_visual_pivot):
-		return
-	if _primary_body == null:
-		return
-	_visual_pivot = Node2D.new()
-	_visual_pivot.name = "WholeBodyPivot"
-	_primary_body.add_child(_visual_pivot)
-	for child in _primary_body.get_children():
-		if child == _visual_pivot:
-			continue
-		if child is Line2D:
-			_primary_body.remove_child(child)
-			_visual_pivot.add_child(child)
-
-
-## Whole-body animation for a fidelity-mode rig. The ink is reparented under a
-## pivot so the creature can bob, tilt and lean as one piece without any force ever
-## being applied to the drawing's geometry -- the shape simply cannot deform.
-func _setup_whole_body_animation() -> void:
-	_ensure_visual_pivot()
-
-
-## Bob, tilt and lean driven by the gait, applied to the pivot only.
-func _animate_whole_body(delta: float) -> void:
-	if _visual_pivot == null or not is_instance_valid(_visual_pivot):
-		return
-	var moving := bool(_motion_params.get("moving", false))
-	var speed_ratio := clampf(float(_motion_params.get("speed_ratio", 0.0)), 0.0, 1.5)
-	var airborne := _motion_state in ["jump", "fall", "fly", "flap", "glide", "swim"]
-	# Only drive the phase here when nothing else does. An articulated rig advances
-	# it in the muscle loop, and advancing it twice would double every gait's speed.
-	if _segments.is_empty() and (moving or airborne):
-		_gait_phase += delta * lerpf(2.0, 7.0, minf(1.0, speed_ratio))
-	var scale_reference := maxf(8.0, get_stroke_bounds().size.y)
-	var bob_amplitude := clampf(scale_reference * 0.035, 1.0, 6.0)
-	var target_bob := 0.0
-	var target_tilt := 0.0
-	if moving or airborne:
-		# Flap/swim read as a faster, deeper bob; walking is a gentle step bounce.
-		var beat := 2.0 if _motion_state in ["fly", "flap", "swim"] else 1.0
-		target_bob = -absf(sin(_gait_phase * beat)) * bob_amplitude
-		target_tilt = deg_to_rad(6.0) * float(_motion_params.get("direction", 0.0)) * minf(1.0, speed_ratio)
-	if _motion_state in ["jump", "fall"]:
-		target_tilt += deg_to_rad(-4.0 if _motion_state == "jump" else 4.0)
-	# Walkers keep their torso upright through lock_rotation, but a flier's or
-	# swimmer's body is free to tumble -- and the drawing hangs off it, so the whole
-	# creature ends up sideways or upside down for no reason the player can see.
-	# Cancel the torso's spin out of the drawing so it reads the way it was drawn,
-	# leaving only the deliberate lean.
-	if _rig_type in ["flier", "swimmer"] and is_instance_valid(_primary_body):
-		target_tilt -= _primary_body.global_rotation
-	var weight := 1.0 - exp(-10.0 * delta)
-	_visual_pivot.position = _visual_pivot.position.lerp(Vector2(0.0, target_bob), weight)
-	_visual_pivot.rotation = lerp_angle(_visual_pivot.rotation, target_tilt, weight)
-
-
-## Render the drawing from the skeleton its RECOGNISED CLASS defines, and bind every
-## drawn stroke to it. False when there is no vector ink to skin, which leaves the
-## bitmap fallback on the old pivot path.
-##
-## This is where the class-driven rig replaces the inferred one. The builders below
-## still decide the PHYSICS decomposition and are untouched; what changes is that the
-## drawing on screen no longer comes from their guesses about which stroke is a torso
-## and which is a limb. It comes from skeletons.json, keyed on what the CNN
 ## recognised, and every stroke stays whole.
 func _bind_skinned_ink() -> bool:
 	_release_skinned_ink()
@@ -1597,10 +1399,6 @@ func _bind_skinned_ink() -> bool:
 	if binding.stroke_count() == 0:
 		return false
 
-	# The builders rendered the ink in slices, one per physics body. The skinned layer
-	# draws whole strokes, so those slices go rather than draw the same drawing twice.
-	_discard_body_ink()
-
 	_skin_root = Node2D.new()
 	_skin_root.name = "SkinRoot"
 	_primary_body.add_child(_skin_root)
@@ -1610,21 +1408,11 @@ func _bind_skinned_ink() -> bool:
 	_skin_root.global_transform = _physics_root.global_transform
 	_skin_anchor_local = _skin_root.to_local(_primary_body.global_position)
 
-	_rendered_ink.clear()
 	for index in range(binding.stroke_count()):
 		var stroke: Dictionary = strokes[index]
 		var points := binding.rest_points(index)
 		var width := float(stroke.get("width", 8.0))
 		var color: Color = stroke.get("color", Color.BLACK)
-		# The whole stroke, undivided: prefix/suffix padding existed to account for the
-		# overlap between adjacent slices, and there are no slices any more.
-		_rendered_ink.append({
-			"points": points.duplicate(),
-			"width": width,
-			"color": color,
-			"overlap_prefix": 0,
-			"overlap_suffix": 0
-		})
 		var draw_width := maxf(width, INK_MIN_DRAW_WIDTH)
 		var halo := _new_ink_line(draw_width + INK_HALO_EXTRA_WIDTH * 2.0, 0)
 		halo.default_color = INK_HALO_LIGHT if color.get_luminance() < 0.55 else INK_HALO_DARK
@@ -1658,28 +1446,6 @@ func _new_ink_line(width: float, layer: int) -> Line2D:
 	# Relative z, so every halo stays under every ink line across the whole drawing.
 	line.z_index = layer
 	return line
-
-
-## Drop the per-body ink the builders rendered. Their collision shapes stay: the
-## physics rig is unchanged, it simply stops being what draws the creature.
-##
-## Swept recursively, because a limbless drawing has already had its ink moved under a
-## WholeBodyPivot by the time this runs. Sweeping only direct children left that copy
-## behind, and the player saw the drawing twice: one frozen underneath, one animating
-## over it.
-func _discard_body_ink() -> void:
-	for body in _bodies:
-		if is_instance_valid(body):
-			_free_ink_lines(body)
-
-
-func _free_ink_lines(node: Node) -> void:
-	for child in node.get_children():
-		if child is Line2D:
-			node.remove_child(child)
-			child.queue_free()
-		else:
-			_free_ink_lines(child)
 
 
 func _release_skinned_ink() -> void:
@@ -1787,13 +1553,7 @@ func _build_spider_leg(leg: Dictionary, leg_index: int, strokes: Array, torso_ce
 				var ink_points := PackedVector2Array(descriptor.get("points", PackedVector2Array()))
 				if ink_points.size() < 2:
 					continue
-				_add_visual_line(
-					body,
-					ink_points,
-					float(descriptor.get("width", width)),
-					Color(descriptor.get("color", color)),
-					center
-				)
+				_record_ink_slice(ink_points)
 				# The proximal body collides along its root-most real piece; the distal
 				# body uses its sole-most piece so every terminal foot is guaranteed a
 				# shape. Other welded pieces remain exact visible ink but cannot consume
@@ -1988,7 +1748,7 @@ func _add_spider_polyline_to_body(
 	body_center: Vector2,
 	maximum_collision_points: int
 ) -> void:
-	_add_visual_line(body, points, width, color, body_center)
+	_record_ink_slice(points)
 	_add_capsules(body, _sample_points(points, maxi(2, maximum_collision_points)), width, body_center)
 
 
@@ -2149,7 +1909,6 @@ func _build_chain_rig(strokes: Array) -> void:
 		_build_standard_rig(strokes)
 		return
 	var width := float(longest.get("width", 5.0))
-	var color := Color(longest.get("color", Color.BLACK))
 	var parent: ActiveRigBody2D
 	for index in range(link_indices.size() - 1):
 		if _bodies.size() >= MAX_BODIES:
@@ -2165,15 +1924,7 @@ func _build_chain_rig(strokes: Array) -> void:
 		# renders the wave the player drew, padded a little past each joint.
 		var visual_start := maxi(0, from_index - LIMB_JOINT_OVERLAP_POINTS)
 		var visual_end := mini(chain_points.size() - 1, to_index + LIMB_JOINT_OVERLAP_POINTS)
-		_add_visual_line(
-			body,
-			chain_points.slice(visual_start, visual_end + 1),
-			width,
-			color,
-			center,
-			from_index - visual_start,
-			visual_end - to_index
-		)
+		_record_ink_slice(chain_points.slice(visual_start, visual_end + 1), from_index - visual_start, visual_end - to_index)
 		_add_capsules(body, PackedVector2Array([from_point, to_point]), width, center)
 		if index == 0:
 			_primary_body = body
@@ -2212,7 +1963,6 @@ func _build_limb_path(
 	extra_ink: Array = []
 ) -> void:
 	var length := _stroke_length(path)
-	var tip := path[path.size() - 1]
 	# Classify from the point that reaches FURTHEST from the attachment, not from
 	# the last point drawn. Players draw wings, fins and flippers as closed loops,
 	# and a loop's last point comes back to its start -- so the limb reported a
@@ -2220,7 +1970,6 @@ func _build_limb_path(
 	# meant the wing flap gait never ran on them and they hung and folded instead.
 	var role := _role_for_limb(path[0], _furthest_point(path), body_center)
 	var width := float(stroke.get("width", 5.0))
-	var color := Color(stroke.get("color", Color.BLACK))
 	var per_limb_cap := 2 if _entity_id != "snake" else MAX_SEGMENTS_PER_LIMB
 	var segment_count := clampi(int(ceil(length / 38.0)), 1, per_limb_cap)
 	if _minimum_limb_segments(role) >= 2 and length >= MIN_SEGMENT_LENGTH * 1.25:
@@ -2238,9 +1987,9 @@ func _build_limb_path(
 	segment_count = mini(segment_count, MAX_BODIES - _bodies.size())
 	if segment_count <= 0:
 		# No body budget left: keep the limb's ink intact on the torso.
-		_add_visual_line(_primary_body, path, width, color, _primary_body.position)
+		_record_ink_slice(path)
 		for extra_value in extra_ink:
-			_add_visual_line(_primary_body, extra_value as PackedVector2Array, width, color, _primary_body.position)
+			_record_ink_slice(extra_value as PackedVector2Array)
 		return
 	var parent := _primary_body
 	# Which side of the body this limb reaches towards. Taken from the point that
@@ -2276,15 +2025,7 @@ func _build_limb_path(
 		# the drawing stays continuous while the PD muscle lets bodies drift.
 		var visual_start := maxi(0, pending_index - LIMB_JOINT_OVERLAP_POINTS)
 		var visual_end := mini(path.size() - 1, end_index + LIMB_JOINT_OVERLAP_POINTS)
-		_add_visual_line(
-			body,
-			path.slice(visual_start, visual_end + 1),
-			width,
-			color,
-			center,
-			pending_index - visual_start,
-			visual_end - end_index
-		)
+		_record_ink_slice(path.slice(visual_start, visual_end + 1), pending_index - visual_start, visual_end - end_index)
 		_add_capsules(body, chunk, width, center)
 		# A wing is often drawn as a broad loop pinned along the body, so a wide
 		# envelope does not read as flapping -- it reads as the wing tumbling off
@@ -2329,20 +2070,12 @@ func _build_limb_path(
 		if not built.is_empty():
 			weld_center = built[built.size() - 1]["center"]
 		var weld_start := maxi(0, pending_index - LIMB_JOINT_OVERLAP_POINTS)
-		_add_visual_line(
-			weld_target,
-			path.slice(weld_start, path.size()),
-			width,
-			color,
-			weld_center,
-			pending_index - weld_start,
-			0
-		)
+		_record_ink_slice(path.slice(weld_start, path.size()), pending_index - weld_start, 0)
 		if not built.is_empty():
 			built[built.size() - 1]["end_index"] = path.size() - 1
 	if built.is_empty():
 		for extra_value in extra_ink:
-			_add_visual_line(_primary_body, extra_value as PackedVector2Array, width, color, _primary_body.position)
+			_record_ink_slice(extra_value as PackedVector2Array)
 		return
 	# Split companion ink (e.g. the return side of a scribble spike) at the same
 	# arc ratios as the built chunks so each limb segment carries its share.
@@ -2358,7 +2091,7 @@ func _build_limb_path(
 			var to_ratio := 1.0 if build_index == built.size() - 1 else _stroke_length(path.slice(0, int(info["end_index"]) + 1)) / arc_total
 			var piece := _spider_slice_polyline(extra, from_ratio * extra_length, to_ratio * extra_length)
 			if piece.size() >= 2:
-				_add_visual_line(info["body"], piece, width, color, info["center"])
+				_record_ink_slice(piece)
 
 
 func _build_bitmap_fallback() -> void:
@@ -2384,27 +2117,6 @@ func _build_bitmap_fallback() -> void:
 ## the player did not draw — if the stroke has no clear radial appendages it leaves the
 ## single-body rig alone. Skipped entirely for rig_type "none" (physics objects and
 ## utilities), which must stay rigid, and for the empty-strokes bitmap path.
-func _ensure_articulation(_strokes: Array) -> void:
-	if _joints.size() > 0:
-		return
-	# A drawing that produced no limbs is one continuous shape. It used to be CUT
-	# here into a torso plus invented "spikes", which put the pieces of a single
-	# unbroken line onto different bodies -- and the moment those bodies rotated,
-	# the line visibly tore apart. That is the detachment players reported, and it
-	# is invented articulation: nothing in the drawing said those were limbs.
-	# A continuous drawing now stays whole and animates as one body instead, so what
-	# the player drew is what stays on screen.
-	_setup_whole_body_animation()
-
-
-
-
-func _median(values: PackedFloat32Array) -> float:
-	if values.is_empty():
-		return 0.0
-	var sorted := values.duplicate()
-	sorted.sort()
-	return sorted[sorted.size() / 2]
 
 
 func _create_physics_root() -> void:
@@ -2503,8 +2215,7 @@ func _add_stroke_to_body(
 ) -> void:
 	var points: PackedVector2Array = stroke["points"]
 	var width := float(stroke.get("width", 5.0))
-	var color := Color(stroke.get("color", Color.BLACK))
-	_add_visual_line(body, points, width, color, body_center)
+	_record_ink_slice(points)
 	if prefer_polygon and _stroke_is_closed(points, width) and points.size() >= 3:
 		var local := PackedVector2Array()
 		for point in points:
@@ -2521,59 +2232,21 @@ func _add_stroke_to_body(
 	_add_capsules(body, points, width, body_center)
 
 
-func _add_polyline_to_body(
-	body: ActiveRigBody2D,
+## Record which slice of the drawn ink a body was built from. The builders used to
+## RENDER these slices, one Line2D per body, and that is what the skinned layer
+## replaced -- so they are only bookkeeping now, and the audit below is what reads
+## them: a decomposition that invents geometry the player never drew, or loses some of
+## it, gives that body a collider the drawing does not account for.
+func _record_ink_slice(
 	points: PackedVector2Array,
-	width: float,
-	color: Color,
-	body_center: Vector2
-) -> void:
-	_add_visual_line(body, points, width, color, body_center)
-	_add_capsules(body, points, width, body_center)
-
-
-func _add_visual_line(
-	body: ActiveRigBody2D,
-	points: PackedVector2Array,
-	width: float,
-	color: Color,
-	body_center: Vector2,
 	overlap_prefix: int = 0,
 	overlap_suffix: int = 0
 ) -> void:
-	_rendered_ink.append({
+	_body_ink.append({
 		"points": points.duplicate(),
-		"width": width,
-		"color": color,
 		"overlap_prefix": overlap_prefix,
 		"overlap_suffix": overlap_suffix
 	})
-	var local := PackedVector2Array()
-	for point in points:
-		local.append(point - body_center)
-	var draw_width := maxf(width, INK_MIN_DRAW_WIDTH)
-	# Halo first so it renders under the ink. z is relative, so every halo (0)
-	# stays below every ink line (1) across all rig bodies.
-	var halo := Line2D.new()
-	halo.width = draw_width + INK_HALO_EXTRA_WIDTH * 2.0
-	halo.default_color = INK_HALO_LIGHT if color.get_luminance() < 0.55 else INK_HALO_DARK
-	halo.joint_mode = Line2D.LINE_JOINT_ROUND
-	halo.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	halo.end_cap_mode = Line2D.LINE_CAP_ROUND
-	halo.antialiased = true
-	halo.z_index = 0
-	halo.points = local
-	body.add_child(halo)
-	var line := Line2D.new()
-	line.width = draw_width
-	line.default_color = color
-	line.joint_mode = Line2D.LINE_JOINT_ROUND
-	line.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	line.end_cap_mode = Line2D.LINE_CAP_ROUND
-	line.antialiased = true
-	line.z_index = 1
-	line.points = local
-	body.add_child(line)
 
 
 func _add_capsules(
@@ -2708,8 +2381,6 @@ func _compute_support_sets() -> void:
 
 func _clear_rig() -> void:
 	_primary_body = null
-	_visual_pivot = null  # freed with its body; a stale one would fake fidelity mode
-	_ink_pivots.clear()
 	_release_skinned_ink()
 	_bodies.clear()
 	_joints.clear()
@@ -2717,7 +2388,7 @@ func _clear_rig() -> void:
 	_body_pool = PackedVector2Array()
 	_body_bounds = Rect2()
 	_body_polylines = []
-	_rendered_ink.clear()
+	_body_ink.clear()
 	_max_tracked_angle = 0.0
 	_shape_count = 0
 	_rest_transforms.clear()
@@ -3338,10 +3009,10 @@ func _rig_ink_is_intact() -> bool:
 		input_length += _stroke_length((stroke_value as Dictionary)["points"])
 	if input_length <= 0.001:
 		return true
-	if _rendered_ink.is_empty():
+	if _body_ink.is_empty():
 		return false
 	var core_length := 0.0
-	for entry_value in _rendered_ink:
+	for entry_value in _body_ink:
 		var entry := entry_value as Dictionary
 		var points: PackedVector2Array = entry["points"]
 		if points.size() < 2:

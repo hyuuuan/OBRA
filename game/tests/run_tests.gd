@@ -1468,15 +1468,14 @@ func _check_messy_fixture(path: String) -> void:
 	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
 
 	_expect(skin.skin_mode() == "vector", "'%s' collapsed to bitmap" % label)
-	# Either outcome is correct, and which one is chosen is the point: a drawing with
-	# real limbs articulates, while one continuous shape stays WHOLE and animates as
-	# a single body. Inventing joints inside an unbroken line is what tore drawings
-	# apart, so "no articulation" is a valid result now, not a failure -- what is not
-	# allowed is a drawing that neither articulates nor animates at all.
-	_expect(
-		skin.get_joint_count() > 0 or skin.debug_whole_body_animated(),
-		"'%s' neither articulated nor animates as a whole body" % label
-	)
+	# Whether the physics underneath articulated is now genuinely free: a drawing with
+	# real limbs gets joints, one continuous shape stays a single body, and inventing
+	# joints inside an unbroken line is what tore drawings apart. Neither outcome
+	# decides what the player sees any more, so what is asserted is the thing that does
+	# -- the drawing is bound to its class's skeleton, and it moves. (The old form of
+	# this, "articulated OR animates as a whole body", could not fail once every skinned
+	# rig reported the second: it was true by construction.)
+	_expect(skin.debug_skin_active(), "'%s' is not skinned to its class skeleton" % label)
 	_expect(skin.get_rigid_bodies().size() <= 24 and skin.get_joint_count() <= 23, "'%s' exceeded rig caps" % label)
 
 	instance.set_physics_process(false)
