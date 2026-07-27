@@ -1,0 +1,209 @@
+{
+  "_comment": [
+    "Canonical skeletons, one per rig_type. Anatomy comes from the RECOGNISED CLASS, not",
+    "from guessing at the player's strokes -- that guessing is what made drawn creatures",
+    "tear, weld and animate the wrong parts.",
+    "",
+    "pivot/tip are fractions of the drawing's bounding box: [0,0] is its top-left corner,",
+    "[1,1] its bottom-right. So the skeleton stretches to whatever the player drew.",
+    "influence is a falloff radius as a fraction of the bbox diagonal; the root bone uses 0",
+    "to mean UNBOUNDED, which is what guarantees every ink point has some bone to follow.",
+    "capture softly biases which region of ink a bone claims -- it never cuts anything.",
+    "amplitude_key / frequency_key name a field in game/config/rigs/<id>.json, so per-species",
+    "tuning lives with the species instead of hardcoded in GDScript.",
+    "states scales the amplitude per motion state; a missing state means the bone holds rest.",
+    "",
+    "An entity may add a \"skeleton\" block to its own rigs/<id>.json; bones merge BY NAME",
+    "over the archetype (add, override, or {\"remove\": true})."
+  ],
+  "version": 1,
+  "archetypes": {
+    "flier": {
+      "aspect": [1.4, 1.0],
+      "frequency_key": "flap_cycle_hz",
+      "frequency_hz": 6.0,
+      "body_motion": {
+        "bob_key": "flap_lift", "bob_px": 4.0,
+        "tilt_key": "tilt_degrees", "tilt_deg": 8.0,
+        "squash_key": "flap_squash",
+        "cancel_anchor_rotation": true
+      },
+      "bones": [
+        { "name": "body", "role": "body", "parent": "",
+          "pivot": [0.50, 0.50], "tip": [0.50, 0.90], "influence": 0.0 },
+        { "name": "wing_l", "role": "wing", "parent": "body", "side": -1, "index": 0,
+          "pivot": [0.47, 0.46], "tip": [0.06, 0.30], "influence": 0.62, "limit_deg": 55,
+          "capture": { "u": [0.00, 0.52], "v": [0.00, 1.00] },
+          "gait": { "amplitude_key": "wing_flap_degrees", "amplitude_deg": 40,
+                    "phase": 0.0, "mirror": true,
+                    "bias_key": "glide_raise_degrees", "bias_deg": 0,
+                    "states": { "fly": 1.0, "flap": 1.15, "glide": 0.0, "walk": 0.30,
+                                "jump": 0.8, "fall": 0.6, "idle": 0.06 } } },
+        { "name": "wing_r", "role": "wing", "parent": "body", "side": 1, "index": 0,
+          "pivot": [0.53, 0.46], "tip": [0.94, 0.30], "influence": 0.62, "limit_deg": 55,
+          "capture": { "u": [0.48, 1.00], "v": [0.00, 1.00] },
+          "gait": { "$ref": "wing_l" } },
+        { "name": "tail", "role": "tail", "parent": "body",
+          "pivot": [0.50, 0.74], "tip": [0.50, 0.99], "influence": 0.26, "limit_deg": 30,
+          "gait": { "amplitude_deg": 10, "phase": 0.5,
+                    "states": { "fly": 1.0, "flap": 1.0, "glide": 0.2, "idle": 0.1 } } }
+      ]
+    },
+
+    "walker": {
+      "aspect": [1.5, 1.0],
+      "frequency_key": "gait_frequency",
+      "frequency_hz": 1.6,
+      "foot_planting": false,
+      "body_motion": {
+        "bob_key": "walk_bob", "bob_px": 2.5,
+        "tilt_key": "tilt_degrees", "tilt_deg": 3.0,
+        "squash_key": "landing_squash"
+      },
+      "bones": [
+        { "name": "body", "role": "body", "parent": "",
+          "pivot": [0.50, 0.42], "tip": [0.50, 0.72], "influence": 0.0 },
+        { "name": "head", "role": "head", "parent": "body",
+          "pivot": [0.72, 0.40], "tip": [0.93, 0.30], "influence": 0.24, "limit_deg": 18,
+          "gait": { "amplitude_deg": 4, "phase": 0.25,
+                    "states": { "walk": 1.0, "idle": 0.25 } } },
+        { "name": "tail", "role": "tail", "parent": "body",
+          "pivot": [0.26, 0.40], "tip": [0.04, 0.32], "influence": 0.22, "limit_deg": 28,
+          "gait": { "amplitude_deg": 12, "phase": 0.5,
+                    "states": { "walk": 1.0, "jump": 0.6, "idle": 0.2 } } },
+        { "name": "leg_fl", "role": "leg", "parent": "body", "side": -1, "index": 0,
+          "pivot": [0.66, 0.64], "tip": [0.66, 0.99], "influence": 0.30, "limit_deg": 45,
+          "capture": { "u": [0.48, 1.00], "v": [0.50, 1.00] },
+          "gait": { "amplitude_key": "leg_swing_degrees", "amplitude_deg": 20, "phase": 0.0,
+                    "states": { "walk": 1.0, "jump": 0.5, "fall": 0.4, "climb": 0.8,
+                                "idle": 0.04 } } },
+        { "name": "leg_fr", "role": "leg", "parent": "body", "side": 1, "index": 1,
+          "pivot": [0.76, 0.64], "tip": [0.76, 0.99], "influence": 0.30, "limit_deg": 45,
+          "capture": { "u": [0.52, 1.00], "v": [0.50, 1.00] },
+          "gait": { "$ref": "leg_fl", "phase": 0.5 } },
+        { "name": "leg_bl", "role": "leg", "parent": "body", "side": -1, "index": 2,
+          "pivot": [0.26, 0.64], "tip": [0.26, 0.99], "influence": 0.30, "limit_deg": 45,
+          "capture": { "u": [0.00, 0.50], "v": [0.50, 1.00] },
+          "gait": { "$ref": "leg_fl", "phase": 0.5 } },
+        { "name": "leg_br", "role": "leg", "parent": "body", "side": 1, "index": 3,
+          "pivot": [0.36, 0.64], "tip": [0.36, 0.99], "influence": 0.30, "limit_deg": 45,
+          "capture": { "u": [0.00, 0.52], "v": [0.50, 1.00] },
+          "gait": { "$ref": "leg_fl", "phase": 0.0 } }
+      ]
+    },
+
+    "biped": {
+      "aspect": [0.8, 1.0],
+      "frequency_hz": 1.5,
+      "body_motion": {
+        "bob_key": "walk_bob", "bob_px": 2.5,
+        "tilt_key": "tilt_degrees", "tilt_deg": 3.0,
+        "squash_key": "landing_squash"
+      },
+      "bones": [
+        { "name": "body", "role": "body", "parent": "",
+          "pivot": [0.50, 0.42], "tip": [0.50, 0.70], "influence": 0.0 },
+        { "name": "head", "role": "head", "parent": "body",
+          "pivot": [0.50, 0.26], "tip": [0.50, 0.04], "influence": 0.24, "limit_deg": 16,
+          "gait": { "amplitude_deg": 4, "phase": 0.25,
+                    "states": { "walk": 1.0, "idle": 0.25 } } },
+        { "name": "arm_l", "role": "arm", "parent": "body", "side": -1, "index": 0,
+          "pivot": [0.42, 0.40], "tip": [0.12, 0.62], "influence": 0.40, "limit_deg": 50,
+          "capture": { "u": [0.00, 0.48], "v": [0.18, 0.72] },
+          "gait": { "amplitude_key": "arm_swing_degrees", "amplitude_deg": 18, "phase": 0.5,
+                    "bias_key": "air_arm_degrees",
+                    "states": { "walk": 1.0, "climb": 1.2, "jump": 0.9, "fall": 0.7,
+                                "idle": 0.05 } } },
+        { "name": "arm_r", "role": "arm", "parent": "body", "side": 1, "index": 1,
+          "pivot": [0.58, 0.40], "tip": [0.88, 0.62], "influence": 0.40, "limit_deg": 50,
+          "capture": { "u": [0.52, 1.00], "v": [0.18, 0.72] },
+          "gait": { "$ref": "arm_l", "phase": 0.0 } },
+        { "name": "leg_l", "role": "leg", "parent": "body", "side": -1, "index": 0,
+          "pivot": [0.44, 0.68], "tip": [0.40, 0.99], "influence": 0.34, "limit_deg": 45,
+          "capture": { "u": [0.00, 0.52], "v": [0.55, 1.00] },
+          "gait": { "amplitude_key": "leg_swing_degrees", "amplitude_deg": 26, "phase": 0.0,
+                    "bias_key": "jump_tuck_degrees",
+                    "states": { "walk": 1.0, "jump": 0.8, "fall": 0.6, "climb": 0.9,
+                                "idle": 0.04 } } },
+        { "name": "leg_r", "role": "leg", "parent": "body", "side": 1, "index": 1,
+          "pivot": [0.56, 0.68], "tip": [0.60, 0.99], "influence": 0.34, "limit_deg": 45,
+          "capture": { "u": [0.48, 1.00], "v": [0.55, 1.00] },
+          "gait": { "$ref": "leg_l", "phase": 0.5 } }
+      ]
+    },
+
+    "swimmer": {
+      "aspect": [1.8, 1.0],
+      "frequency_key": "wave_length",
+      "frequency_hz": 1.8,
+      "body_motion": {
+        "bob_px": 1.5,
+        "tilt_deg": 5.0,
+        "cancel_anchor_rotation": true
+      },
+      "bones": [
+        { "name": "body", "role": "body", "parent": "",
+          "pivot": [0.60, 0.50], "tip": [0.90, 0.50], "influence": 0.0 },
+        { "name": "spine_0", "role": "chain", "parent": "body", "index": 0,
+          "pivot": [0.48, 0.50], "tip": [0.34, 0.50], "influence": 0.34, "limit_deg": 26,
+          "capture": { "u": [0.00, 0.62], "v": [0.00, 1.00] },
+          "gait": { "amplitude_key": "wave_amplitude", "amplitude_deg": 14, "phase": 0.0,
+                    "states": { "swim": 1.0, "walk": 0.7, "jump": 0.5, "idle": 0.12 } } },
+        { "name": "spine_1", "role": "chain", "parent": "spine_0", "index": 1,
+          "pivot": [0.32, 0.50], "tip": [0.18, 0.50], "influence": 0.30, "limit_deg": 30,
+          "capture": { "u": [0.00, 0.42], "v": [0.00, 1.00] },
+          "gait": { "$ref": "spine_0", "phase": 0.22, "amplitude_deg": 18 } },
+        { "name": "tail", "role": "tail", "parent": "spine_1", "index": 2,
+          "pivot": [0.16, 0.50], "tip": [0.02, 0.50], "influence": 0.28, "limit_deg": 34,
+          "capture": { "u": [0.00, 0.26], "v": [0.00, 1.00] },
+          "gait": { "$ref": "spine_0", "phase": 0.44, "amplitude_deg": 24 } },
+        { "name": "fin_u", "role": "fin", "parent": "body", "side": -1, "index": 0,
+          "pivot": [0.58, 0.42], "tip": [0.50, 0.10], "influence": 0.24, "limit_deg": 22,
+          "capture": { "u": [0.20, 0.90], "v": [0.00, 0.46] },
+          "gait": { "amplitude_deg": 10, "phase": 0.3, "mirror": true,
+                    "states": { "swim": 1.0, "idle": 0.15 } } },
+        { "name": "fin_d", "role": "fin", "parent": "body", "side": 1, "index": 1,
+          "pivot": [0.58, 0.58], "tip": [0.50, 0.90], "influence": 0.24, "limit_deg": 22,
+          "capture": { "u": [0.20, 0.90], "v": [0.54, 1.00] },
+          "gait": { "$ref": "fin_u" } }
+      ]
+    },
+
+    "hopper": {
+      "aspect": [1.1, 1.0],
+      "frequency_hz": 1.2,
+      "body_motion": {
+        "bob_px": 2.0,
+        "tilt_key": "tilt_degrees", "tilt_deg": 4.0,
+        "squash_key": "landing_squash"
+      },
+      "bones": [
+        { "name": "body", "role": "body", "parent": "",
+          "pivot": [0.50, 0.44], "tip": [0.50, 0.72], "influence": 0.0 },
+        { "name": "head", "role": "head", "parent": "body",
+          "pivot": [0.62, 0.38], "tip": [0.88, 0.28], "influence": 0.24, "limit_deg": 16,
+          "gait": { "amplitude_deg": 4, "phase": 0.25,
+                    "states": { "jump": 1.0, "charge": 0.6, "idle": 0.2 } } },
+        { "name": "leg_l", "role": "leg", "parent": "body", "side": -1, "index": 0,
+          "pivot": [0.40, 0.66], "tip": [0.24, 0.98], "influence": 0.36, "limit_deg": 50,
+          "capture": { "u": [0.00, 0.54], "v": [0.50, 1.00] },
+          "gait": { "amplitude_key": "leg_extend_degrees", "amplitude_deg": 30, "phase": 0.0,
+                    "bias_key": "leg_fold_degrees", "mirror": true,
+                    "states": { "jump": 1.0, "charge": 0.9, "fall": 0.6, "walk": 0.7,
+                                "idle": 0.05 } } },
+        { "name": "leg_r", "role": "leg", "parent": "body", "side": 1, "index": 1,
+          "pivot": [0.60, 0.66], "tip": [0.76, 0.98], "influence": 0.36, "limit_deg": 50,
+          "capture": { "u": [0.46, 1.00], "v": [0.50, 1.00] },
+          "gait": { "$ref": "leg_l" } }
+      ]
+    },
+
+    "none": {
+      "frequency_hz": 0.0,
+      "bones": [
+        { "name": "body", "role": "body", "parent": "",
+          "pivot": [0.50, 0.50], "tip": [0.50, 0.90], "influence": 0.0 }
+      ]
+    }
+  }
+}
