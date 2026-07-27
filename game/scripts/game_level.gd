@@ -59,12 +59,13 @@ func _ready() -> void:
 	ink_manager.ink_exhausted.connect(_on_ink_exhausted)
 	_run_started_msec = Time.get_ticks_msec()
 	_apply_level_identity()
+	_spawn_wanderer()
 
 	backend_supervisor.set("debug_logs", debug_timing_logs)
 	backend_supervisor.connect("backend_ready", Callable(self, "_on_backend_ready"))
 	backend_supervisor.connect("backend_starting", Callable(self, "_on_backend_starting"))
 	backend_supervisor.connect("backend_failed", Callable(self, "_on_backend_failed"))
-	environment.call("set_target", spawn_point)
+	# camera target is set by _spawn_wanderer; the spawn marker is only a location
 	draw_button.disabled = true
 	status_label.text = "Checking backend..."
 	_on_ink_changed(ink_manager.remaining(), ink_manager.capacity, ink_manager.reserved)
@@ -139,7 +140,11 @@ func _on_drawing_ready(
 		return
 	_classes_this_run[entity_id] = true
 	var role := String(entry.get("runtime_role", "active_ragdoll_morph"))
-	if role == "utility":
+	# A drawn shape is scenery the player positions, not a body they become. It used
+	# to replace the player the instant it was recognised, which dropped them into a
+	# circle wherever they happened to be standing; it takes the same placement path
+	# as a utility now, so a ramp or a step lands where it was wanted.
+	if role == "utility" or role == "physics_morph":
 		var item := DrawnItemData.from_prediction(entity_id, display_name, drawing, strokes, ink_cost, entry)
 		if PlayerProfile.has_object(entity_id):
 			# Re-summoning an object the player already owns is free: refund the
@@ -189,6 +194,9 @@ func _spawn_or_replace(
 			return false
 	if not previous_state.is_empty() and new_player.has_method("apply_morph_state"):
 		new_player.call("apply_morph_state", previous_state)
+	# The swap is otherwise a single frame -- one body gone, another in its place --
+	# which reads as a glitch rather than as the transformation the game is about.
+	MorphFlash.play(entity_root, new_player.global_position, new_player)
 
 	var camera_target := new_player
 	if new_player.has_method("get_camera_target"):
@@ -410,6 +418,23 @@ func _physics_process(_delta: float) -> void:
 	goal_label.text = "GOAL  %d m" % int(distance / 32.0) if distance > GOAL_RADIUS else "GOAL REACHED"
 	if distance <= GOAL_RADIUS:
 		_complete_level()
+
+
+## The player character, present from the first frame so the level is something to be
+## walked around in before anything has been drawn. A recognised animal replaces it
+## through the same path that replaces one morph with another -- the wanderer answers
+## the same calls a drawn creature does, which is the whole reason the swap is uniform.
+func _spawn_wanderer() -> void:
+	var scene := load("res://creatures/wanderer.tscn") as PackedScene
+	if scene == null:
+		push_warning("GameLevel: no wanderer scene; the level starts empty")
+		return
+	var wanderer := scene.instantiate() as Node2D
+	entity_root.add_child(wanderer)
+	wanderer.global_position = spawn_point.global_position
+	wanderer.call("set_world_bounds", Rect2(environment.get("world_bounds")))
+	player = wanderer
+	environment.call("set_target", wanderer)
 
 
 ## Name the level from the catalog instead of from strings typed into the scene. The
