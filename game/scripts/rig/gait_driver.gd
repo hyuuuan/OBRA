@@ -47,6 +47,7 @@ var _phase_offset := PackedFloat32Array()  ## cycles
 var _sign := PackedFloat32Array()          ## +1, or the bone's side when mirrored
 var _limit := PackedFloat32Array()         ## radians
 var _states: Array = []                    ## Dictionary per bone; empty == always on
+var _bias_states: Array = []               ## Optional per-bone state weights for the bias
 var _angles := PackedFloat32Array()
 
 # --- resolved whole-body motion --------------------------------------------
@@ -86,6 +87,8 @@ func prepare(rig: Skeleton2D_Rig, profile: Dictionary) -> void:
 	_angles.resize(count)
 	_states.clear()
 	_states.resize(count)
+	_bias_states.clear()
+	_bias_states.resize(count)
 	if rig == null:
 		return
 
@@ -108,6 +111,7 @@ func prepare(rig: Skeleton2D_Rig, profile: Dictionary) -> void:
 			_phase_offset[index] = 0.0
 			_sign[index] = 1.0
 			_states[index] = {}
+			_bias_states[index] = {}
 			continue
 		_amplitude[index] = deg_to_rad(_resolved(gait, "amplitude_key", "amplitude_deg", profile, 0.0))
 		_bias[index] = deg_to_rad(_resolved(gait, "bias_key", "bias_deg", profile, 0.0))
@@ -118,6 +122,7 @@ func prepare(rig: Skeleton2D_Rig, profile: Dictionary) -> void:
 		var mirrored := bool(gait.get("mirror", false)) and bone.side != 0.0
 		_sign[index] = bone.side if mirrored else 1.0
 		_states[index] = gait.get("states", {})
+		_bias_states[index] = gait.get("bias_states", {})
 
 
 ## Step the gait by `delta` under the given motion, and recompute the bone angles.
@@ -227,11 +232,21 @@ func _state_weight(index: int) -> float:
 ## be standing folded the moment it is created, or it is no longer the player's
 ## drawing at rest, which is the one thing the whole rig is built to guarantee.
 ##
-## With one exception, and it is the reason bias exists at all: a state the author
-## listed with NO swing is a hold, not an absence. Gliding is authored as wings that
-## do not beat; what they do instead is sit at glide_raise_degrees. So a listed zero
-## means the bias IS the pose for that state, and applies in full.
+## A bias is a POSE, and the states it belongs to are not the states its bone swings
+## in: air_arm_degrees means the arms go out in the AIR, jump_tuck_degrees means the
+## legs tuck to JUMP. Sharing the swing's weights applied both at full strength during
+## a walk, and the bipeds walked permanently crouched with their arms raised. So a bone
+## may give its bias its own `bias_states`, and only falls back to the swing's when it
+## does not.
+##
+## In that fallback there is one exception, and it is the reason bias exists at all: a
+## state the author listed with NO swing is a hold, not an absence. Gliding is authored
+## as wings that do not beat; what they do instead is sit at glide_raise_degrees. So a
+## listed zero means the bias IS the pose for that state, and applies in full.
 func _bias_weight(index: int) -> float:
+	var explicit: Dictionary = _bias_states[index]
+	if not explicit.is_empty():
+		return float(explicit.get(_state, explicit.get("idle", 0.0)))
 	var states: Dictionary = _states[index]
 	if states.is_empty():
 		return 1.0

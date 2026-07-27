@@ -4,6 +4,8 @@ extends SceneTree
 ##   godot --path game --script res://tests/run_visual_gait.gd
 ## Frames land in /tmp/obra_gait_<entity>_<frame>.png
 
+const RosterFixtures = preload("res://tests/roster_fixtures.gd")
+
 const OUTPUT_DIR := "/tmp"
 
 var world: Node2D
@@ -33,7 +35,7 @@ func _run() -> void:
 	world.add_child(registry)
 	registry.load_manifest()
 
-	for entity_id in ["horse", "fish", "bird"]:
+	for entity_id in ["horse", "fish", "bird", "monkey"]:
 		await _capture_gait(entity_id)
 	world.queue_free()
 	await process_frame
@@ -106,6 +108,10 @@ func _stroke(points: PackedVector2Array) -> Dictionary:
 ## Drawings shaped the way a player actually draws these animals, rather than
 ## limbs radiating in every direction.
 func _fixture_for(entity_id: String) -> Array:
+	# A biped is drawn as a torso with arms at the shoulders and legs at the hips, which
+	# is the shape its skeleton is authored for.
+	if entity_id in ["monkey", "penguin"]:
+		return RosterFixtures.biped()
 	var body := PackedVector2Array()
 	for index in range(17):
 		var angle := TAU * float(index) / 16.0
