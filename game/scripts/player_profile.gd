@@ -14,14 +14,28 @@ extends Node
 ## loss ... "as a new profile rather than as a fatal error").
 
 signal profile_changed
+signal settings_changed(key: String, value: Variant)
 
 const PROFILE_PATH := "user://profile.json"
 const ENTITIES_PATH := "res://config/entities.json"
-const SCHEMA_VERSION := 2
+const SCHEMA_VERSION := 3
 const DEFAULT_ROSTER_SIZE := 50
 ## Older schemas that can be migrated forward instead of being discarded.
-const MIGRATABLE_SCHEMAS := [1]
+const MIGRATABLE_SCHEMAS := [1, 2]
 const ROUTES := ["artist", "pragmatist", "protector"]
+
+## Every setting the player can change, with its default. Nothing outside this list
+## is storable: a typo must not quietly grow the save, because each key written here
+## is a key every future migration has to keep understanding.
+##
+## Volumes are LINEAR 0..1 -- what a slider shows. The audio layer converts to dB,
+## because dB is a display-hostile scale to persist and linear_to_db(0.0) is -inf.
+const SETTING_DEFAULTS := {
+	"master_volume": 1.0,
+	"music_volume": 0.8,
+	"sfx_volume": 1.0,
+	"fullscreen": false,
+}
 
 var _data: Dictionary = {}
 var _roster_ids: Dictionary = {}  # entity_id -> true, the recognised class roster
@@ -45,7 +59,12 @@ func _default_profile() -> Dictionary:
 		"route_counts": {"artist": 0, "pragmatist": 0, "protector": 0},
 		"collectibles": [],
 		"counts": {"submissions": 0, "declines": 0},
+		"settings": _default_settings(),
 	}
+
+
+func _default_settings() -> Dictionary:
+	return SETTING_DEFAULTS.duplicate(true)
 
 
 ## Reload the profile from disk, falling back to a fresh profile on any problem.
@@ -189,6 +208,48 @@ func collectible_count() -> int:
 	return (_data["collectibles"] as Array).size()
 
 
+# --- Settings ----------------------------------------------------------------
+
+## Read-only copy of every setting, with each key guaranteed present.
+func get_settings() -> Dictionary:
+	return (_data["settings"] as Dictionary).duplicate(true)
+
+
+func get_setting(key: String) -> Variant:
+	return (_data["settings"] as Dictionary).get(key, SETTING_DEFAULTS.get(key))
+
+
+## Store one setting and persist immediately.
+##
+## This writes the WHOLE profile, atomically, on every call. A slider dragged across
+## its track emits value_changed once per pixel, so a settings screen must apply the
+## change live through AudioDirector and call this only when the drag ends and when
+## it closes. Applying and persisting are separate for exactly that reason.
+##
+## An unchanged value is dropped before the write, so a slider returned to where it
+## started costs nothing.
+func set_setting(key: String, value: Variant) -> void:
+	if not SETTING_DEFAULTS.has(key):
+		push_warning("Unknown player setting '%s' ignored" % key)
+		return
+	var stored: Variant = _coerce_setting(key, value)
+	var settings: Dictionary = _data["settings"]
+	if settings.get(key) == stored:
+		return
+	settings[key] = stored
+	_commit()
+	settings_changed.emit(key, stored)
+
+
+## Force a stored value into the shape its default declares. A hand-edited profile
+## carrying "master_volume": 7 must not be able to deafen anyone, and a JSON round
+## trip turns every number into a float whether it was written as one or not.
+func _coerce_setting(key: String, value: Variant) -> Variant:
+	if typeof(SETTING_DEFAULTS[key]) == TYPE_BOOL:
+		return bool(value)
+	return clampf(float(value), 0.0, 1.0)
+
+
 # --- Derived quantities ------------------------------------------------------
 
 ## Number of distinct roster classes drawn and accepted at least once.
@@ -240,6 +301,17 @@ func _merge_defaults(incoming: Dictionary) -> Dictionary:
 	for key in ["acquired_objects", "collectibles", "classes_drawn_accepted", "levels_completed", "levels_unlocked"]:
 		if not (base[key] is Array):
 			base[key] = []
+	# A v2 profile has no settings block at all and simply keeps the defaults above.
+	# The case that needs work is a PARTIAL one -- written before a setting existed,
+	# or hand-edited -- because the loop over incoming keys replaced the whole
+	# dictionary wholesale and every key it omitted would be gone. The settings screen
+	# reads all of them unconditionally, so each has to resolve.
+	if not (base["settings"] is Dictionary):
+		base["settings"] = _default_settings()
+	else:
+		var settings: Dictionary = base["settings"]
+		for key: Variant in SETTING_DEFAULTS.keys():
+			settings[key] = _coerce_setting(String(key), settings.get(key, SETTING_DEFAULTS[key]))
 	return base
 
 

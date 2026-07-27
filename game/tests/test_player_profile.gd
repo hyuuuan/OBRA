@@ -8,6 +8,10 @@ extends SceneTree
 
 const PROFILE_PATH := "user://profile.json"
 const TMP_PATH := "user://profile.json.tmp"
+## Bumped in lockstep with PlayerProfile.SCHEMA_VERSION. It is written here as a
+## separate literal on purpose: a bump fails this suite loudly until someone has
+## confirmed the migration carries the old profile forward rather than wiping it.
+const EXPECTED_SCHEMA := 3
 
 var failures: Array[String] = []
 
@@ -88,6 +92,8 @@ func _run() -> void:
 	_expect(int(profile.call("route_count", "artist")) == 3, "replayed route overwrote the tally")
 
 	_test_ending_resolver()
+	_test_settings_persistence(profile)
+	_test_ending_screen_payload(profile)
 	_test_schema_migration(profile)
 
 	# --- Corrupt profile -> fresh, not fatal -------------------------------
@@ -96,7 +102,7 @@ func _run() -> void:
 	corrupt.close()
 	profile.call("load_profile")
 	_expect((profile.call("get_snapshot")["classes_drawn_accepted"] as Array).is_empty(), "corrupt profile was not reset")
-	_expect(int(profile.call("get_snapshot")["schema_version"]) == 2, "fresh profile has wrong schema version")
+	_expect(int(profile.call("get_snapshot")["schema_version"]) == EXPECTED_SCHEMA, "fresh profile has wrong schema version")
 
 	# --- Schema mismatch -> fresh, not fatal -------------------------------
 	var wrong := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
@@ -139,6 +145,83 @@ func _test_ending_resolver() -> void:
 	_expect(not EndingResolver.title_for(EndingResolver.ENDING_A).is_empty(), "ending A has no title")
 
 
+## Settings survive a round trip through disk, and cannot be corrupted by whatever
+## a caller passes in — the settings screen is not the only thing that can reach
+## set_setting, and a hand-edited profile reaches it too.
+func _test_settings_persistence(profile) -> void:
+	profile.call("set_setting", "master_volume", 0.42)
+	profile.call("set_setting", "music_volume", 0.0)
+	profile.call("set_setting", "sfx_volume", 0.9)
+	profile.call("set_setting", "fullscreen", true)
+	profile.call("save_profile")
+	profile.call("load_profile")
+	_expect(
+		is_equal_approx(float(profile.call("get_setting", "master_volume")), 0.42),
+		"master_volume did not survive a save/load round trip"
+	)
+	_expect(
+		is_equal_approx(float(profile.call("get_setting", "music_volume")), 0.0),
+		"a zero volume did not survive the round trip"
+	)
+	_expect(bool(profile.call("get_setting", "fullscreen")), "fullscreen did not survive the round trip")
+
+	# Out of range clamps rather than being rejected, so a hand-edited profile cannot
+	# deafen anyone or invert a slider.
+	profile.call("set_setting", "sfx_volume", 1.7)
+	_expect(
+		is_equal_approx(float(profile.call("get_setting", "sfx_volume")), 1.0),
+		"an out-of-range volume was not clamped"
+	)
+	profile.call("set_setting", "sfx_volume", -3.0)
+	_expect(
+		is_equal_approx(float(profile.call("get_setting", "sfx_volume")), 0.0),
+		"a negative volume was not clamped"
+	)
+
+	# An unknown key is refused outright. Every key stored here is a key some future
+	# migration has to keep understanding, so a typo must not be able to create one.
+	profile.call("set_setting", "volume", 0.5)
+	_expect(
+		not (profile.call("get_settings") as Dictionary).has("volume"),
+		"an unknown setting key was written into the profile"
+	)
+
+	# The signal carries the STORED value, not the requested one — a listener that
+	# applies it must see what was actually kept.
+	var seen: Array = []
+	var handler := func(key: String, value: Variant) -> void: seen.append([key, value])
+	profile.connect("settings_changed", handler)
+	profile.call("set_setting", "master_volume", 4.0)
+	profile.disconnect("settings_changed", handler)
+	_expect(seen.size() == 1, "settings_changed did not fire exactly once")
+	if seen.size() == 1:
+		_expect(String(seen[0][0]) == "master_volume", "settings_changed reported the wrong key")
+		_expect(is_equal_approx(float(seen[0][1]), 1.0), "settings_changed reported the unclamped value")
+
+	# Restore defaults so later assertions in this suite start from a known state.
+	profile.call("set_setting", "master_volume", 1.0)
+	profile.call("set_setting", "music_volume", 0.8)
+	profile.call("set_setting", "sfx_volume", 1.0)
+	profile.call("set_setting", "fullscreen", false)
+
+
+## explain() is the ending screen's entire data contract and had no caller and no
+## coverage — only resolve() was tested. Every key the screen reads is asserted here
+## so a rename cannot reach the screen as a blank field.
+func _test_ending_screen_payload(profile) -> void:
+	var payload: Dictionary = EndingResolver.explain(profile)
+	for key in ["ending", "title", "route_counts", "class_diversity", "roster_size", "redraw_rate", "collectibles"]:
+		_expect(payload.has(key), "explain() is missing '%s', which the ending screen reads" % key)
+	_expect(not String(payload.get("title", "")).is_empty(), "explain() returned an empty ending title")
+	_expect(payload.get("route_counts") is Dictionary, "explain() route_counts is not a dictionary")
+	_expect(int(payload.get("roster_size", 0)) > 0, "explain() reported an empty roster")
+
+	# A null profile is the pre-first-launch case, and must still name an ending
+	# rather than crash the screen that displays it.
+	var fallback: Dictionary = EndingResolver.explain(null)
+	_expect(not String(fallback.get("title", "")).is_empty(), "explain(null) produced no ending title")
+
+
 ## A profile written by the previous schema keeps its progress instead of being wiped.
 func _test_schema_migration(profile) -> void:
 	var legacy := {
@@ -156,11 +239,59 @@ func _test_schema_migration(profile) -> void:
 	var snapshot: Dictionary = profile.call("get_snapshot")
 	_expect((snapshot["levels_completed"] as Array).has("level_1"), "v1 migration lost level progress")
 	_expect(int((snapshot["counts"] as Dictionary)["submissions"]) == 4, "v1 migration lost counts")
-	_expect(int(snapshot["schema_version"]) == 2, "migrated profile was not stamped to v2")
+	_expect(int(snapshot["schema_version"]) == EXPECTED_SCHEMA, "migrated profile was not stamped forward")
 	_expect(snapshot["acquired_objects"] is Array, "v1 migration did not add acquired_objects")
 	_expect(snapshot["route_counts"] is Dictionary, "v1 migration did not add route_counts")
 	_expect(int(profile.call("route_count", "artist")) == 0, "migrated route tally is not zeroed")
 	_expect(not bool(profile.call("has_object", "torch")), "migrated profile invented an acquisition")
+
+	# v2 -> v3. A v2 profile predates settings entirely, so the defaults must appear
+	# without the progress beside them being disturbed.
+	var v2 := {
+		"schema_version": 2,
+		"classes_drawn_accepted": ["frog", "bird"],
+		"levels_completed": ["level_1"],
+		"levels_unlocked": ["level_2"],
+		"acquired_objects": ["axe"],
+		"routes": {"level_1": "artist"},
+		"route_counts": {"artist": 2, "pragmatist": 0, "protector": 0},
+		"collectibles": [],
+		"counts": {"submissions": 9, "declines": 2},
+	}
+	var v2_file := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
+	v2_file.store_string(JSON.stringify(v2))
+	v2_file.close()
+	profile.call("load_profile")
+	snapshot = profile.call("get_snapshot")
+	_expect(int(snapshot["schema_version"]) == EXPECTED_SCHEMA, "v2 profile was not stamped to v3")
+	_expect(bool(profile.call("has_object", "axe")), "v2 migration lost acquired objects")
+	_expect(int(profile.call("route_count", "artist")) == 2, "v2 migration lost the route tally")
+	_expect(int((snapshot["counts"] as Dictionary)["submissions"]) == 9, "v2 migration lost counts")
+	_expect(snapshot["settings"] is Dictionary, "v2 migration did not add settings")
+	_expect(
+		is_equal_approx(float(profile.call("get_setting", "master_volume")), 1.0),
+		"v2 migration did not default master_volume"
+	)
+
+	# A profile carrying only SOME settings is the case that needs the merge: the
+	# incoming block replaces the default wholesale, so every key it omits must be
+	# put back or the settings screen reads a null.
+	var partial := v2.duplicate(true)
+	partial["schema_version"] = 3
+	partial["settings"] = {"music_volume": 0.25}
+	var partial_file := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
+	partial_file.store_string(JSON.stringify(partial))
+	partial_file.close()
+	profile.call("load_profile")
+	_expect(
+		is_equal_approx(float(profile.call("get_setting", "music_volume")), 0.25),
+		"a partial settings block lost the value it did carry"
+	)
+	for key in ["master_volume", "sfx_volume", "fullscreen"]:
+		_expect(
+			profile.call("get_setting", key) != null,
+			"a partial settings block left '%s' unresolved" % key
+		)
 
 
 func _clean_files() -> void:
