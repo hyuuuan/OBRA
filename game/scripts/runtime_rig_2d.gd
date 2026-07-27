@@ -82,6 +82,23 @@ var _primary_body: ActiveRigBody2D
 var _visual_pivot: Node2D
 ## One entry per limb: {node: Node2D pivot at the drawn joint, segment: Dictionary}.
 var _ink_pivots: Array = []
+
+# --- skinned ink: the class-driven rig ----------------------------------------
+# What the player sees is rendered from a skeleton looked up by the RECOGNISED CLASS
+# and deformed by smooth skinning, instead of from anatomy guessed off the strokes.
+# One Line2D per drawn stroke, for the life of the creature: a stroke is never split
+# between bodies or reparented, so it cannot tear in half or shed part of itself.
+# _skin_active is false only where there is no vector ink to skin (the bitmap
+# fallback), which is the one case still rendered the old way.
+var _skin_active: bool = false
+var _skin_rig: Skeleton2D_Rig = null
+var _skin_binding: SkinBinding = null
+var _skin_driver: GaitDriver = null
+var _skin_root: Node2D = null
+var _skin_lines: Array[Line2D] = []
+var _skin_halos: Array[Line2D] = []
+## The torso's origin in rig space, for cancelling its spin out of a flier's drawing.
+var _skin_anchor_local: Vector2 = Vector2.ZERO
 ## True once the rig has been locked into its drawn pose because it strayed too far.
 var _bodies: Array[ActiveRigBody2D] = []
 var _joints: Array[PinJoint2D] = []
@@ -396,9 +413,49 @@ func debug_rendered_ink() -> Array[Dictionary]:
 
 
 
-## True when this rig animates as one whole body rather than through joints.
+## True when this rig animates as one whole body rather than through joints. A
+## skinned rig always does: bob, lean and squash ride the skeleton's root.
 func debug_whole_body_animated() -> bool:
+	if _skin_active:
+		return true
 	return _visual_pivot != null and is_instance_valid(_visual_pivot)
+
+
+## True when the drawing is rendered from the recognised class's skeleton.
+func debug_skin_active() -> bool:
+	return _skin_active
+
+
+## What is on screen right now, in rig space: one entry per drawn stroke, deformed by
+## the current pose. This is the only honest thing to measure a creature's animation
+## against -- a pivot node can turn while the ink it holds sits still.
+func debug_skin_points() -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	for line in _skin_lines:
+		if is_instance_valid(line):
+			out.append(line.points)
+	return out
+
+
+## Where the skinned ink sits in the world. debug_skin_points is in this space, so the
+## two together say where on screen the drawing actually is.
+func debug_skin_transform() -> Transform2D:
+	if _skin_root == null or not is_instance_valid(_skin_root):
+		return Transform2D.IDENTITY
+	return _skin_root.global_transform
+
+
+## Share of the drawing each bone carries, by bone name. A bone that owns almost no
+## ink can swing as hard as it likes and the player sees nothing move.
+func debug_bone_ink_mass() -> Dictionary:
+	var out: Dictionary = {}
+	if _skin_binding == null or _skin_rig == null:
+		return out
+	var mass := _skin_binding.bone_ink_mass()
+	for index in range(_skin_rig.bones.size()):
+		if index < mass.size():
+			out[_skin_rig.bones[index].name] = mass[index]
+	return out
 
 
 func debug_max_tracked_angle() -> float:
@@ -443,7 +500,10 @@ func _on_skin_rebuilt() -> void:
 		_build_bitmap_fallback()
 	# Every rig, every class: the drawing is rendered from the pose it was drawn in
 	# while the physics underneath keeps its full freedom to walk, jump and collide.
-	_consolidate_ink_to_pivot()
+	# The skeleton for the recognised class drives it; only a drawing with no vector
+	# ink to skin (the bitmap fallback) still hangs off the inferred limb pivots.
+	if not _bind_skinned_ink():
+		_consolidate_ink_to_pivot()
 	_finalize_rig()
 	analysis["physics_bodies"] = _bodies.size()
 	analysis["physics_joints"] = _joints.size()
@@ -458,11 +518,15 @@ func _physics_process(delta: float) -> void:
 	if _physics_frames_since_build > 4 and _rig_needs_recovery():
 		_recover_rig()
 		return
-	# The drawing is rendered from its drawn pose (see _consolidate_ink_to_pivot), so
-	# the whole creature bobs and tilts as one piece while the rig below simulates
-	# freely. Runs for every class, articulated or not.
-	_animate_whole_body(delta)
-	_animate_ink_limbs(delta)
+	# The drawing is rendered from its drawn pose, so the creature animates while the
+	# rig below simulates freely. Runs for every class, articulated or not: the
+	# skinned path poses the class's skeleton, and the bitmap fallback keeps the
+	# pivot path because it has no strokes to skin.
+	if _skin_active:
+		_animate_skinned_ink(delta)
+	else:
+		_animate_whole_body(delta)
+		_animate_ink_limbs(delta)
 	if _segments.is_empty():
 		return
 	if _entity_id == "spider" and not _spider_feet.is_empty():
@@ -1505,6 +1569,151 @@ func _animate_whole_body(delta: float) -> void:
 	_visual_pivot.rotation = lerp_angle(_visual_pivot.rotation, target_tilt, weight)
 
 
+## Render the drawing from the skeleton its RECOGNISED CLASS defines, and bind every
+## drawn stroke to it. False when there is no vector ink to skin, which leaves the
+## bitmap fallback on the old pivot path.
+##
+## This is where the class-driven rig replaces the inferred one. The builders below
+## still decide the PHYSICS decomposition and are untouched; what changes is that the
+## drawing on screen no longer comes from their guesses about which stroke is a torso
+## and which is a limb. It comes from skeletons.json, keyed on what the CNN
+## recognised, and every stroke stays whole.
+func _bind_skinned_ink() -> bool:
+	_release_skinned_ink()
+	if _primary_body == null or _physics_root == null:
+		return false
+	var strokes := get_vector_strokes()
+	if strokes.is_empty():
+		return false
+	var skeleton := SkeletonLibrary.resolve(_entity_id, _rig_type)
+	if skeleton.is_empty():
+		push_warning("RuntimeRig2D: no skeleton for %s/%s; keeping the pivot path." % [_entity_id, _rig_type])
+		return false
+	var rig := Skeleton2D_Rig.build(skeleton, get_stroke_bounds(), profile)
+	if rig.bones.is_empty():
+		return false
+	var binding := SkinBinding.new()
+	binding.bind(strokes, rig)
+	if binding.stroke_count() == 0:
+		return false
+
+	# The builders rendered the ink in slices, one per physics body. The skinned layer
+	# draws whole strokes, so those slices go rather than draw the same drawing twice.
+	_discard_body_ink()
+
+	_skin_root = Node2D.new()
+	_skin_root.name = "SkinRoot"
+	_primary_body.add_child(_skin_root)
+	# Called while the bodies still sit exactly where the strokes were drawn, so this
+	# makes the skin root's local space the space the strokes are authored in: their
+	# coordinates are then used directly, and the whole layer rides the torso.
+	_skin_root.global_transform = _physics_root.global_transform
+	_skin_anchor_local = _skin_root.to_local(_primary_body.global_position)
+
+	_rendered_ink.clear()
+	for index in range(binding.stroke_count()):
+		var stroke: Dictionary = strokes[index]
+		var points := binding.rest_points(index)
+		var width := float(stroke.get("width", 8.0))
+		var color: Color = stroke.get("color", Color.BLACK)
+		# The whole stroke, undivided: prefix/suffix padding existed to account for the
+		# overlap between adjacent slices, and there are no slices any more.
+		_rendered_ink.append({
+			"points": points.duplicate(),
+			"width": width,
+			"color": color,
+			"overlap_prefix": 0,
+			"overlap_suffix": 0
+		})
+		var draw_width := maxf(width, INK_MIN_DRAW_WIDTH)
+		var halo := _new_ink_line(draw_width + INK_HALO_EXTRA_WIDTH * 2.0, 0)
+		halo.default_color = INK_HALO_LIGHT if color.get_luminance() < 0.55 else INK_HALO_DARK
+		halo.points = points
+		_skin_root.add_child(halo)
+		_skin_halos.append(halo)
+		var line := _new_ink_line(draw_width, 1)
+		line.default_color = color
+		line.points = points
+		_skin_root.add_child(line)
+		_skin_lines.append(line)
+
+	_skin_rig = rig
+	_skin_binding = binding
+	_skin_driver = GaitDriver.new()
+	_skin_driver.prepare(rig, profile)
+	_skin_active = true
+	# Pose once at zero delta so the first rendered frame is the drawn pose exactly,
+	# rather than whatever the gait happens to be a frame later.
+	_animate_skinned_ink(0.0)
+	return true
+
+
+func _new_ink_line(width: float, layer: int) -> Line2D:
+	var line := Line2D.new()
+	line.width = width
+	line.joint_mode = Line2D.LINE_JOINT_ROUND
+	line.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	line.end_cap_mode = Line2D.LINE_CAP_ROUND
+	line.antialiased = true
+	# Relative z, so every halo stays under every ink line across the whole drawing.
+	line.z_index = layer
+	return line
+
+
+## Drop the per-body ink the builders rendered. Their collision shapes stay: the
+## physics rig is unchanged, it simply stops being what draws the creature.
+##
+## Swept recursively, because a limbless drawing has already had its ink moved under a
+## WholeBodyPivot by the time this runs. Sweeping only direct children left that copy
+## behind, and the player saw the drawing twice: one frozen underneath, one animating
+## over it.
+func _discard_body_ink() -> void:
+	for body in _bodies:
+		if is_instance_valid(body):
+			_free_ink_lines(body)
+
+
+func _free_ink_lines(node: Node) -> void:
+	for child in node.get_children():
+		if child is Line2D:
+			node.remove_child(child)
+			child.queue_free()
+		else:
+			_free_ink_lines(child)
+
+
+func _release_skinned_ink() -> void:
+	_skin_active = false
+	_skin_rig = null
+	_skin_binding = null
+	_skin_driver = null
+	_skin_lines.clear()
+	_skin_halos.clear()
+	_skin_anchor_local = Vector2.ZERO
+	# Freed with its body on a rebuild; clearing the reference keeps a stale node from
+	# being animated after the rig it belonged to is gone.
+	_skin_root = null
+
+
+## Pose the skeleton for this frame's gait and redraw every stroke through the skin.
+func _animate_skinned_ink(delta: float) -> void:
+	if not _skin_active or _skin_rig == null or _skin_binding == null or _skin_driver == null:
+		return
+	if _skin_root == null or not is_instance_valid(_skin_root):
+		return
+	_skin_driver.advance(delta, _motion_state, _motion_params)
+	var anchor_rotation := _primary_body.global_rotation if is_instance_valid(_primary_body) else 0.0
+	var posed := _skin_rig.pose(
+		_skin_driver.angles(),
+		_skin_driver.body_transform(anchor_rotation, _skin_anchor_local)
+	)
+	for index in range(_skin_lines.size()):
+		var points := _skin_binding.deform(index, posed)
+		# Reassigned rather than written through: Line2D.points hands back a copy.
+		_skin_lines[index].points = points
+		_skin_halos[index].points = points
+
+
 func _build_compound_rig(strokes: Array, body_name: String, lock_upright: bool) -> void:
 	if _physics_root == null:
 		_create_physics_root()
@@ -2501,6 +2710,7 @@ func _clear_rig() -> void:
 	_primary_body = null
 	_visual_pivot = null  # freed with its body; a stale one would fake fidelity mode
 	_ink_pivots.clear()
+	_release_skinned_ink()
 	_bodies.clear()
 	_joints.clear()
 	_segments.clear()
