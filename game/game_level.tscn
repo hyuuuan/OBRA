@@ -235,26 +235,24 @@ alignment = 1
 
 [node name="Title" type="Label" parent="PauseMenu/PauseRoot/Panel/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.82, 0.84, 0.38, 1)
-theme_override_font_sizes/font_size = 36
+theme_type_variation = &"ScreenTitle"
 text = "PAUSED"
 horizontal_alignment = 1
 
 [node name="Place" type="Label" parent="PauseMenu/PauseRoot/Panel/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.58, 0.7, 0.46, 1)
-theme_override_font_sizes/font_size = 16
+theme_type_variation = &"HudHint"
 text = "BANAUE RICE TERRACES"
 horizontal_alignment = 1
 
 [node name="ResumeButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
+theme_type_variation = &"DialogButton"
 text = "RESUME"
 
 [node name="LevelSelectButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
+theme_type_variation = &"DialogButton"
 text = "LEVEL SELECT"
