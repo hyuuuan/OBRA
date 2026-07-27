@@ -43,6 +43,7 @@ func _run() -> void:
 	await _test_fidelity_mode()
 	await _test_fidelity_guard()
 	await _test_every_class_animates()
+	_test_skeleton_manifest()
 	await _test_messy_fixtures()
 	await _test_ink_integrity()
 	await _test_grazing_stroke_not_split()
@@ -1033,6 +1034,53 @@ func _butterfly_fixture() -> Array:
 		left.append(Vector2(256.0 - 55.0 + cos(t) * 48.0, 240.0 + sin(t) * 40.0))
 		right.append(Vector2(256.0 + 55.0 + cos(t) * 48.0, 240.0 + sin(t) * 40.0))
 	return [_stroke(bodyline), _stroke(left), _stroke(right)]
+
+
+## A skeleton is data, so it fails by typo: a misspelled bone name, a parent that does
+## not exist, a pivot outside the drawing, or an amplitude_key naming a field no rig
+## profile has. None of those raise an error at build time -- they surface as a creature
+## that quietly will not move. Every one is caught here instead.
+func _test_skeleton_manifest() -> void:
+	var archetypes := SkeletonLibrary.archetype_names()
+	for required in ["walker", "biped", "flier", "swimmer", "hopper", "none"]:
+		_expect(required in archetypes, "skeletons.json has no '%s' archetype" % required)
+
+	# Every field a skeleton names by string must exist in at least one rig profile,
+	# otherwise the gait silently reads zero.
+	var profile_fields: Dictionary = {}
+	var dir := DirAccess.open("res://config/rigs")
+	if dir != null:
+		for file_name in dir.get_files():
+			if not file_name.ends_with(".json"):
+				continue
+			var parsed: Variant = JSON.parse_string(
+				FileAccess.get_file_as_string("res://config/rigs/" + file_name)
+			)
+			if parsed is Dictionary:
+				for field: String in (parsed as Dictionary).keys():
+					profile_fields[field] = true
+
+	for entity_id in registry.get_entity_ids():
+		var entry := registry.get_entity(entity_id)
+		var rig_type := String(entry.get("rig_type", "none"))
+		var skeleton := SkeletonLibrary.resolve(entity_id, rig_type)
+		_expect(not skeleton.is_empty(), "%s (%s) resolved no skeleton" % [entity_id, rig_type])
+		if skeleton.is_empty():
+			continue
+		for problem in SkeletonLibrary.validate(skeleton):
+			_expect(false, "%s skeleton: %s" % [entity_id, problem])
+		for key in SkeletonLibrary.referenced_profile_keys(skeleton):
+			_expect(
+				profile_fields.has(key),
+				"%s skeleton names profile field '%s', which no rig profile defines" % [entity_id, key]
+			)
+		# A creature whose gait drives nothing would render frozen.
+		if rig_type != "none":
+			var gaited := 0
+			for bone_value in skeleton.get("bones", []):
+				if not ((bone_value as Dictionary).get("gait", {}) as Dictionary).is_empty():
+					gaited += 1
+			_expect(gaited >= 1, "%s (%s) has no bone with a gait" % [entity_id, rig_type])
 
 
 ## This is a drawing game: EVERY playable class has to visibly animate, not just the
