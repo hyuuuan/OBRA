@@ -175,27 +175,59 @@ func _open_level(level_id: String) -> void:
 		_animating = true
 
 
-## Reflect the persisted profile in the level cards: lock levels the player has not
-## reached yet, and tint completed ones.
+## Reflect the catalog and the persisted profile in the level cards.
+##
+## A card is offered only when the level is BOTH unlocked and playable, and those are
+## different questions. Finishing level 1 unlocks level 2 in the profile, so
+## is_unlocked started returning true for it -- and the card became enabled while its
+## scene_path was still empty. Clicking it called open_level, which returned false, and
+## nothing happened: an enabled button reading "COMING SOON" that silently did nothing.
+## A button that lies is worse than one that is greyed out.
 func _refresh_cards() -> void:
 	var profile := get_node_or_null(^"/root/PlayerProfile")
 	for index in range(cards.size()):
 		var level_id := "level_%d" % (index + 1)
 		var card := cards[index]
+		var entry := LevelManager.get_level(level_id)
+		var title := String(entry.get("title", level_id))
+		var playable := LevelManager.is_playable(level_id)
 		var unlocked := LevelManager.is_unlocked(level_id)
-		card.disabled = not unlocked
+		card.disabled = not (unlocked and playable)
 		var completed: bool = profile != null and profile.is_level_completed(level_id)
 		# Tint completed cards green while preserving the alpha the reveal tween drives.
 		var rgb := Color(0.66, 0.94, 0.70) if completed else Color.WHITE
 		card.modulate = Color(rgb.r, rgb.g, rgb.b, card.modulate.a)
-		var entry := LevelManager.get_level(level_id)
-		var title := String(entry.get("title", level_id))
-		if not unlocked:
+		_write_card_text(card, index + 1, entry, playable)
+		if not playable:
+			card.tooltip_text = "%s — not made yet" % title
+		elif not unlocked:
 			card.tooltip_text = "%s — locked" % title
 		elif completed:
 			card.tooltip_text = "%s — completed" % title
 		else:
 			card.tooltip_text = title
+
+
+## Fill whichever labels a card actually has. A playable card carries Number/Name/Theme
+## over a thumbnail; a card with no level behind it carries a padlock and one Text
+## label. Both are filled from the catalog rather than from strings typed into the
+## scene, which is what let the level 1 card read "BANAUE RICE TERRACES" while
+## levels.json was the thing everything else believed.
+func _write_card_text(card: Button, number: int, entry: Dictionary, playable: bool) -> void:
+	var title := String(entry.get("title", "")).to_upper()
+	var flavour := String(entry.get("theme", "")).to_upper()
+	var number_label := card.get_node_or_null(^"Number") as Label
+	if number_label != null:
+		number_label.text = "LEVEL %d" % number
+	var name_label := card.get_node_or_null(^"Name") as Label
+	if name_label != null:
+		name_label.text = title
+	var theme_label := card.get_node_or_null(^"Theme") as Label
+	if theme_label != null:
+		theme_label.text = flavour
+	var text_label := card.get_node_or_null(^"Text") as Label
+	if text_label != null:
+		text_label.text = "LEVEL %d\n%s" % [number, title if playable else "COMING SOON"]
 
 
 func _apply_current_layout() -> void:

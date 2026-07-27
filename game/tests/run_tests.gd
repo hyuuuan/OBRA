@@ -506,6 +506,19 @@ func _test_level_framework() -> void:
 	_expect(not bool(level_manager.call("open_level", "level_2")), "locked Level 2 initiated a transition")
 	_expect(not bool(level_manager.call("open_level", "missing")), "invalid level initiated a transition")
 
+	# Playable and unlocked are different questions, and conflating them is the dead
+	# card. Level 2 has no scene, so it is never playable however the profile's
+	# progression feels about it -- including on a machine where level 1 was finished
+	# in a real session, which is exactly when the old code enabled a card that then
+	# did nothing.
+	_expect(bool(level_manager.call("is_playable", "level_1")), "level_1 is not playable")
+	for missing_id in ["level_2", "level_3", "level_4", "level_5"]:
+		_expect(
+			not bool(level_manager.call("is_playable", missing_id)),
+			"%s reports playable with no scene behind it" % missing_id
+		)
+	_expect(not bool(level_manager.call("is_playable", "nonexistent")), "an unknown level reports playable")
+
 	var menu_scene := load("res://ui/main_menu.tscn") as PackedScene
 	_expect(menu_scene != null, "main menu scene did not load")
 	if menu_scene == null:
@@ -523,6 +536,29 @@ func _test_level_framework() -> void:
 		if card is Button and (card as Button).disabled:
 			disabled_cards += 1
 	_expect(disabled_cards == 4, "selector does not expose exactly four locked cards")
+
+	# The dead card, stated directly. Level 2's card must be disabled REGARDLESS of
+	# what progression thinks, because no scene exists behind it -- and the previous
+	# code disabled it only on is_unlocked, so finishing level 1 in a real session
+	# enabled a card that then silently did nothing when clicked. Asserted without
+	# touching the profile: this suite must never write user://profile.json.
+	var level2 := menu.get_node_or_null("MenuLayer/MenuRoot/MorphPanel/Selector/Level2") as Button
+	_expect(level2 != null, "the level 2 card is missing")
+	if level2 != null:
+		_expect(level2.disabled, "level 2's card is offered with no scene behind it")
+		_expect(
+			not bool(level_manager.call("open_level", "level_2")),
+			"level 2 would start a transition to a scene that does not exist"
+		)
+
+	# Card text comes from the catalog, not from strings typed into the scene.
+	var name_label := menu.get_node_or_null("MenuLayer/MenuRoot/MorphPanel/Selector/Level1/Name") as Label
+	if name_label != null:
+		var expected := String((level_manager.call("get_level", "level_1") as Dictionary).get("title", "")).to_upper()
+		_expect(
+			name_label.text == expected,
+			"level 1's card reads '%s' but the catalog says '%s'" % [name_label.text, expected]
+		)
 	menu.call("_hide_selector")
 	await create_timer(0.5).timeout
 	_expect(not bool(menu.call("is_selector_open")), "selector did not collapse back into Play")

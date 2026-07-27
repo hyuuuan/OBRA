@@ -53,6 +53,32 @@ func _run() -> void:
 	_expect((snapshot["classes_drawn_accepted"] as Array).has(real_id), "drawn class did not persist")
 	_expect((snapshot["levels_completed"] as Array).has("level_1"), "level completion did not persist")
 	_expect(bool(profile.call("is_level_unlocked", "level_2")), "completing level_1 did not unlock level_2")
+
+	# THE DEAD CARD, in the only suite that can produce the state that causes it.
+	#
+	# Level 2 is now unlocked in the profile, which is correct progression -- and it
+	# still has no scene. The menu used to disable a card on is_unlocked alone, so from
+	# this point on it OFFERED level 2, and clicking it called open_level, which
+	# returned false, and nothing happened. An enabled button reading "COMING SOON"
+	# that silently did nothing.
+	#
+	# This lives here rather than in run_tests.gd because run_tests must never write
+	# user://profile.json, and with a fresh profile level 2 is locked anyway -- so the
+	# assertion there cannot tell the fixed code from the broken code. This one can.
+	var manager := root.get_node_or_null("LevelManager")
+	if manager != null:
+		_expect(
+			bool(manager.call("is_unlocked", "level_2")),
+			"progression did not reach LevelManager"
+		)
+		_expect(
+			not bool(manager.call("is_playable", "level_2")),
+			"level_2 reports playable with an empty scene_path, so its card would be offered"
+		)
+		_expect(
+			not bool(manager.call("open_level", "level_2")),
+			"an unlocked-but-unbuilt level started a transition"
+		)
 	_expect(int((snapshot["counts"] as Dictionary)["submissions"]) == 2, "submission count did not persist")
 	_expect(int((snapshot["counts"] as Dictionary)["declines"]) == 1, "decline count did not persist")
 	_expect(int(profile.call("class_diversity")) == 1, "class diversity counted a non-roster id (got %d)" % int(profile.call("class_diversity")))

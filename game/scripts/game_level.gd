@@ -21,6 +21,7 @@ const GOAL_RADIUS := 120.0
 @onready var inventory_manager: InventoryManager = $InventoryManager
 @onready var placement_controller: PlacementController = $PlacementController
 @onready var goal_marker: Node2D = get_node_or_null("EnvironmentBaseplate/GameplayPlane/GoalMarker")
+@onready var goal_label: Label = $CanvasLayer/GoalLabel
 @onready var complete_overlay: ModalOverlay = $LevelCompleteOverlay
 @onready var out_of_ink_overlay: ModalOverlay = $OutOfInkOverlay
 
@@ -402,7 +403,12 @@ func _physics_process(_delta: float) -> void:
 		var anchor := player.call("get_physics_anchor") as Node2D
 		if anchor != null:
 			anchor_position = anchor.global_position
-	if anchor_position.distance_to(goal_marker.global_position) <= GOAL_RADIUS:
+	var distance := anchor_position.distance_to(goal_marker.global_position)
+	# The distance is already being computed to decide completion, so showing it costs
+	# nothing and gives the level a legible objective -- until now the only thing
+	# telling the player where to go was the level ending when they arrived.
+	goal_label.text = "GOAL  %d m" % int(distance / 32.0) if distance > GOAL_RADIUS else "GOAL REACHED"
+	if distance <= GOAL_RADIUS:
 		_complete_level()
 
 
