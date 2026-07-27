@@ -52,6 +52,7 @@ func _run() -> void:
 	await _test_fidelity_guard()
 	await _test_every_class_animates()
 	_test_skeleton_manifest()
+	_test_gait_reaches_its_amplitude()
 	_test_skin_weights()
 	_test_skinned_rest_identity()
 	await _test_skinned_rig_renders_the_drawing()
@@ -1514,6 +1515,63 @@ func _test_skeleton_manifest() -> void:
 ## Every ink point must be bound to something, with weights that sum to one. If a point
 ## can end up with no bone, it would stay behind while the rest of the drawing moved --
 ## a piece detaching, which is precisely what players kept reporting.
+## What the data says a bone swings by is what it must actually swing by.
+##
+## Nothing else catches this. Smoothing the finished angle rather than the state weight
+## turned the driver into a low-pass filter on its own gait: a first-order lag of time
+## constant t attenuates frequency f by 1/sqrt(1 + (2*PI*f*t)^2), so every class quietly
+## ran under its authored amplitude and the worst case was the fastest one -- a bird
+## flapping at 6.5 Hz reached 29% of its authored 40 degrees. Every creature still
+## moved, every test still passed, and every one of them was wrong by a factor that
+## depended on its own frequency.
+func _test_gait_reaches_its_amplitude() -> void:
+	var weak: Array = []
+	for entity_id in registry.get_entity_ids():
+		var entry := registry.get_entity(entity_id)
+		if String(entry.get("runtime_role", "")) != "active_ragdoll_morph":
+			continue
+		var rig_type := String(entry.get("rig_type", ""))
+		var profile_path := "res://config/rigs/%s.json" % entity_id
+		if not FileAccess.file_exists(profile_path):
+			continue
+		var profile: Variant = JSON.parse_string(FileAccess.get_file_as_string(profile_path))
+		if not (profile is Dictionary):
+			continue
+		var rig := Skeleton2D_Rig.build(
+			SkeletonLibrary.resolve(entity_id, rig_type), Rect2(0.0, 0.0, 200.0, 140.0), profile
+		)
+		var driver := GaitDriver.new()
+		driver.prepare(rig, profile)
+		var peak := PackedFloat32Array()
+		peak.resize(rig.bones.size())
+		var state := _gait_for_rig(rig_type)
+		# Long enough to cover the slowest gait here (1.2 Hz) several times over.
+		for _step in range(300):
+			driver.advance(1.0 / 60.0, state, {
+				"moving": true, "speed_ratio": 1.0, "direction": 1.0, "charge_ratio": 1.0
+			})
+			var angles := driver.angles()
+			for b in range(rig.bones.size()):
+				peak[b] = maxf(peak[b], absf(angles[b]))
+
+		for b in range(rig.bones.size()):
+			var gait: Dictionary = rig.bones[b].gait
+			if gait.is_empty():
+				continue
+			var authored := float(gait.get("amplitude_deg", 0.0))
+			if gait.has("amplitude_key"):
+				authored = float((profile as Dictionary).get(String(gait["amplitude_key"]), authored))
+			var states: Dictionary = gait.get("states", {})
+			var weight := float(states.get(state, 1.0 if states.is_empty() else states.get("idle", 0.0)))
+			var expected := minf(authored * weight, rad_to_deg(rig.bones[b].limit))
+			if expected < 3.0:
+				continue  # too small to judge, and not something a player can see anyway
+			var achieved := rad_to_deg(peak[b])
+			if achieved < expected * 0.85:
+				weak.append("%s/%s %.0f of %.0f deg" % [entity_id, rig.bones[b].name, achieved, expected])
+	_expect(weak.is_empty(), "these gaits do not reach the amplitude they are authored with: %s" % str(weak))
+
+
 func _test_skin_weights() -> void:
 	for case_value in _skin_cases():
 		var case_data: Dictionary = case_value
