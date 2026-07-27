@@ -36,6 +36,8 @@ func _run() -> void:
 	await _test_banaue_environment()
 	_test_camera_non_finite_guard()
 	_test_target_contracts()
+	await _test_ui_router_cancel_chain()
+	await _test_overlay_pause_refcount()
 	await _test_placement_collision()
 	_test_anatomy_inference()
 	await _test_spider_stance_controller()
@@ -90,6 +92,99 @@ func _test_manifest_roles() -> void:
 	_expect(living == 20, "expected 20 living morphs, got %d" % living)
 	_expect(shapes == 3, "expected 3 physics morphs, got %d" % shapes)
 	_expect(utilities == 27, "expected 27 utilities, got %d" % utilities)
+
+
+## The reported bug, as a regression test: Escape while placing an object opened the
+## pause menu instead of cancelling the placement.
+##
+## It was never a logic error in either script. Both read ui_cancel from
+## _unhandled_input, Godot propagates that in reverse tree order, and PauseMenu is the
+## last child of GameLevel while PlacementController is the sixth -- so the pause menu
+## always won and placement_controller's cancel branch was unreachable code. The fix
+## is an authored chain rather than an accident of node order, so what is asserted is
+## the chain's decisions, driven directly and deterministically.
+func _test_ui_router_cancel_chain() -> void:
+	var level: Node = (load("res://game_level.tscn") as PackedScene).instantiate()
+	world.add_child(level)
+	await process_frame
+	var router: Node = level.get_node_or_null("UIRouter")
+	var pause: Node = level.get_node_or_null("PauseMenu")
+	var placement: Node = level.get_node_or_null("PlacementController")
+	var panel: Node = level.get_node_or_null("DrawPanel")
+	_expect(router != null, "game_level has no UIRouter")
+	_expect(pause != null and placement != null and panel != null, "cancel chain targets are missing")
+	if router == null or pause == null or placement == null or panel == null:
+		level.queue_free()
+		await process_frame
+		return
+
+	# The chain must name the placement controller AHEAD of the pause menu. Order is
+	# the entire fix, so it is asserted rather than assumed.
+	var chain: Array = router.get("cancel_chain")
+	var names: Array[String] = []
+	for path in chain:
+		names.append(String(path).get_file())
+	_expect(
+		names.find("PlacementController") >= 0 and names.find("PauseMenu") >= 0
+			and names.find("PlacementController") < names.find("PauseMenu"),
+		"cancel chain does not put placement ahead of pause: %s" % str(names)
+	)
+
+	# Nothing modal up: the key reaches the last link and opens the pause menu.
+	_expect(not bool(pause.call("is_open")), "pause menu started open")
+	_expect(bool(pause.call("handle_cancel")), "pause menu did not consume the key")
+	_expect(bool(pause.call("is_open")), "pause menu did not open")
+	pause.call("handle_cancel")
+	_expect(not bool(pause.call("is_open")), "pause menu did not close again")
+
+	# Nothing to cancel: every handler ahead of the pause menu declines, which is what
+	# lets the key fall through instead of being swallowed by an idle overlay.
+	_expect(not bool(placement.call("handle_cancel")), "idle placement consumed the cancel key")
+	_expect(not bool(panel.call("handle_cancel")), "closed draw panel consumed the cancel key")
+
+	# The draw panel consumes it while open, and its close must not leave the tree
+	# paused behind it.
+	panel.call("open_panel")
+	_expect(bool(panel.call("is_open")), "draw panel did not open")
+	_expect(bool(panel.call("handle_cancel")), "open draw panel did not consume the cancel key")
+	_expect(not bool(panel.call("is_open")), "draw panel did not close on cancel")
+	_expect(not paused, "closing the draw panel left the tree paused")
+
+	level.queue_free()
+	await process_frame
+
+
+## Pause is derived from whoever is open, not toggled by whoever closes.
+##
+## The bug this prevents: Settings opened over the pause menu, then closed, would set
+## paused = false and drop the player back into a live level while still looking at
+## the pause menu. Two overlays are enough to demonstrate it.
+func _test_overlay_pause_refcount() -> void:
+	var outer := ModalOverlay.new()
+	var inner := ModalOverlay.new()
+	world.add_child(outer)
+	world.add_child(inner)
+	await process_frame
+
+	outer.open()
+	_expect(paused, "an open overlay did not pause the tree")
+	inner.open()
+	_expect(paused, "a second overlay unpaused the tree")
+	inner.close()
+	_expect(paused, "closing the top overlay unpaused a game still behind one")
+	outer.close()
+	_expect(not paused, "closing the last overlay left the tree paused")
+
+	# An overlay that does not want pause must not cause it.
+	outer.pauses_game = false
+	outer.open()
+	_expect(not paused, "a non-pausing overlay paused the tree")
+	outer.close()
+
+	outer.queue_free()
+	inner.queue_free()
+	await process_frame
+	paused = false
 
 
 ## Every name a scene asks the theme for must exist in it.

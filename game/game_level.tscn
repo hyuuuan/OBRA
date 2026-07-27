@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/game_level.gd" id="1_level"]
 [ext_resource type="Script" path="res://scripts/entity_registry.gd" id="2_registry"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://scripts/placement_controller.gd" id="10_placement"]
 [ext_resource type="Script" path="res://scripts/inventory_hud.gd" id="11_inventory_hud"]
 [ext_resource type="Script" path="res://scripts/pause_menu.gd" id="12_pause"]
+[ext_resource type="Script" path="res://scripts/ui_router.gd" id="13_ui_router"]
 
 [node name="GameLevel" type="Node2D"]
 script = ExtResource("1_level")
@@ -256,3 +257,7 @@ custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "LEVEL SELECT"
+
+[node name="UIRouter" type="Node" parent="."]
+script = ExtResource("13_ui_router")
+cancel_chain = [NodePath("../DrawPanel"), NodePath("../PlacementController"), NodePath("../PauseMenu")]
