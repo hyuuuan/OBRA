@@ -31,6 +31,7 @@ var world_bounds := Rect2(0.0, -520.0, 3760.0, 1200.0)
 var _gravity: float = 980.0
 var _phase: float = 0.0
 var _facing: float = 1.0
+var _carrying := ""
 
 
 func _ready() -> void:
@@ -65,6 +66,7 @@ func _physics_process(delta: float) -> void:
 	_phase += delta * STRIDE_HZ * (absf(velocity.x) / SPEED if moving else 0.0)
 	_figure.scale.x = _facing
 	_figure.set("stride", _phase)
+	_figure.set("carrying", _carrying)
 	_figure.queue_redraw()
 
 
@@ -101,6 +103,15 @@ func apply_morph_state(state: Dictionary) -> void:
 		velocity = state["velocity"]
 	if state.has("facing"):
 		_facing = float(state["facing"])
+
+
+## Show an item in the character's hand. The level calls this when a utility is
+## equipped, so what the player is holding is visible on the character rather than
+## only in a status line that has already scrolled away.
+func set_carried(entity_id: String) -> void:
+	_carrying = entity_id
+	if _figure != null:
+		_figure.queue_redraw()
 
 
 ## Phase of the stride, so the morph flash can start from the pose it was standing in.

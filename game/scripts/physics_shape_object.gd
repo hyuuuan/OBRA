@@ -107,6 +107,42 @@ func apply_morph_state(state: Dictionary) -> void:
 	angular_velocity = clampf(angular_value if is_finite(angular_value) else 0.0, -8.0, 8.0)
 
 
+## Preview state, here rather than on UtilityObject because a drawn SHAPE is placed
+## too. The placement controller used to cast its preview to UtilityObject, so a
+## circle -- whose scene is a PhysicsShapeObject and not a utility -- came back null
+## and placement silently refused to start.
+var is_preview := false
+## The drawn item this object was built from, kept so confirming a placement can
+## record where it ended up.
+var item_data: DrawnItemData = null
+
+
+func set_preview(enabled: bool) -> void:
+	is_preview = enabled
+	freeze = enabled
+	gravity_scale = 0.0 if enabled else 1.0
+	collision_layer = 0 if enabled else 1
+	collision_mask = 1
+	modulate = Color(0.45, 1.0, 0.55, 0.65) if enabled else Color.WHITE
+
+
+func set_preview_valid(valid: bool) -> void:
+	if is_preview:
+		modulate = Color(0.45, 1.0, 0.55, 0.65) if valid else Color(1.0, 0.35, 0.32, 0.65)
+
+
+func confirm_placement() -> void:
+	is_preview = false
+	freeze = false
+	gravity_scale = 1.0
+	collision_layer = 1
+	collision_mask = 1
+	modulate = Color.WHITE
+	sleeping = false
+	if item_data != null:
+		item_data.placement_transform = global_transform
+
+
 func apply_item_data(item: DrawnItemData) -> void:
 	if item == null:
 		return

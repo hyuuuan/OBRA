@@ -8,10 +8,8 @@ signal equipped(utility: UtilityObject, actor: Node2D)
 signal utility_used(behavior: String, item: DrawnItemData)
 signal utility_consumed(utility: UtilityObject)
 
-var item_data: DrawnItemData
 var utility_behavior: String = ""
 var required_medium: String = "any"
-var is_preview: bool = false
 
 var _active: bool = false
 var _settle_time: float = 0.0
@@ -46,20 +44,11 @@ func apply_item_data(item: DrawnItemData) -> void:
 		restore_utility_state(item.runtime_state)
 
 
+## A utility also has an interaction area, which must not react while it is a ghost.
 func set_preview(enabled: bool) -> void:
-	is_preview = enabled
-	freeze = enabled
-	gravity_scale = 0.0 if enabled else gravity_scale
-	collision_layer = 0 if enabled else 1
-	collision_mask = 1
-	modulate = Color(0.45, 1.0, 0.55, 0.65) if enabled else Color.WHITE
+	super.set_preview(enabled)
 	if _interaction_area != null:
 		_interaction_area.monitoring = not enabled
-
-
-func set_preview_valid(valid: bool) -> void:
-	if is_preview:
-		modulate = Color(0.45, 1.0, 0.55, 0.65) if valid else Color(1.0, 0.35, 0.32, 0.65)
 
 
 func confirm_placement() -> void:

@@ -4,16 +4,16 @@
 [ext_resource type="Script" path="res://scripts/wanderer_figure.gd" id="2_rgatw"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_c80ni"]
-radius = 11.0
-height = 52.0
+radius = 15.0
+height = 80.0
 
-[node name="Wanderer" type="CharacterBody2D" unique_id=1269799335]
+[node name="Wanderer" type="CharacterBody2D" unique_id=786000843]
 script = ExtResource("1_lrmts")
 
-[node name="Collision" type="CollisionShape2D" parent="." unique_id=1847591614]
-position = Vector2(0, -26)
+[node name="Collision" type="CollisionShape2D" parent="." unique_id=1128164855]
+position = Vector2(0, -40)
 shape = SubResource("CapsuleShape2D_c80ni")
 
-[node name="Figure" type="Node2D" parent="." unique_id=1543018383]
+[node name="Figure" type="Node2D" parent="." unique_id=1911751559]
 z_index = 10
 script = ExtResource("2_rgatw")

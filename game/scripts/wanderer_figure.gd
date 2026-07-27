@@ -8,7 +8,7 @@ extends Node2D
 
 const INK := Color(0.08, 0.09, 0.07, 1.0)
 const HALO := Color(1.0, 1.0, 1.0, 0.75)
-const WIDTH := 5.0
+const WIDTH := 6.0
 
 ## How far the limbs swing at full stride. Held here rather than read off Wanderer so
 ## this file compiles on its own: a script that names a class_name not yet registered
@@ -16,17 +16,19 @@ const WIDTH := 5.0
 ## all -- silently, and visible only as a figure that never draws.
 const STRIDE := 0.7
 
-const HEAD_RADIUS := 9.0
-const HEAD_Y := -48.0
-const HIP_Y := -20.0
-const SHOULDER_Y := -34.0
-const LEG := 20.0
-const ARM := 15.0
+const HEAD_RADIUS := 13.0
+const HEAD_Y := -70.0
+const HIP_Y := -30.0
+const SHOULDER_Y := -50.0
+const LEG := 30.0
+const ARM := 22.0
 ## Resting spread, so the limbs are distinguishable when standing still.
 const ARM_SPLAY := 0.30
 const LEG_SPLAY := 0.20
 
 @export var stride: float = 0.0
+## Name of what the character is carrying, drawn in its hand. Empty for nothing.
+@export var carrying: String = ""
 
 
 func _draw() -> void:
@@ -44,6 +46,32 @@ func _draw() -> void:
 		_limb(Vector2(0.0, SHOULDER_Y), ARM, -swing - ARM_SPLAY, colour, width)
 		_limb(Vector2(0.0, HIP_Y), LEG, -swing - LEG_SPLAY, colour, width)
 		_limb(Vector2(0.0, HIP_Y), LEG, swing + LEG_SPLAY, colour, width)
+		var hand := Vector2(0.0, SHOULDER_Y) + Vector2(
+			sin(swing + ARM_SPLAY), cos(swing + ARM_SPLAY)) * ARM
+		_draw_carried(hand, colour, width)
+
+
+## What the character is holding, drawn at the end of the forward arm.
+##
+## A silhouette rather than the player's actual drawing: the item is a few pixels
+## across at this size and the real ink would be an unreadable smudge, while a shape
+## in the hand reads instantly as "carrying something".
+func _draw_carried(hand: Vector2, colour: Color, width: float) -> void:
+	if carrying.is_empty():
+		return
+	match carrying:
+		"axe", "sword", "rake":
+			draw_line(hand, hand + Vector2(3.0, -18.0), colour, width, true)
+			draw_line(hand + Vector2(-4.0, -15.0), hand + Vector2(9.0, -19.0), colour, width, true)
+		"key", "flashlight", "boomerang":
+			draw_arc(hand + Vector2(4.0, -7.0), 5.0, 0.0, TAU, 10, colour, width, true)
+			draw_line(hand, hand + Vector2(4.0, -7.0), colour, width, true)
+		"umbrella", "parachute":
+			draw_arc(hand + Vector2(0.0, -16.0), 11.0, PI, TAU, 12, colour, width, true)
+			draw_line(hand, hand + Vector2(0.0, -16.0), colour, width, true)
+		_:
+			# Anything else: a box, which is what "an object" looks like from here.
+			draw_rect(Rect2(hand + Vector2(-6.0, -13.0), Vector2(12.0, 12.0)), colour, false, width)
 
 
 ## One straight limb hanging from `origin`, rotated `angle` off vertical.
