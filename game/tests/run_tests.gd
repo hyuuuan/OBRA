@@ -5,6 +5,8 @@ extends SceneTree
 const SpiderRigAnalyzer = preload("res://scripts/spider_rig_analyzer.gd")
 const SpiderReferenceFixtures = preload("res://tests/spider_reference_fixtures.gd")
 
+const THEME_PATH := "res://ui/obra_theme.tres"
+
 var failures: Array[String] = []
 var world: Node2D
 var registry: EntityRegistry
@@ -24,6 +26,7 @@ func _run() -> void:
 	registry.load_manifest()
 
 	_test_manifest_roles()
+	_test_theme_resource()
 	_test_audio_buses()
 	_test_ink_accounting()
 	_test_inventory()
@@ -87,6 +90,52 @@ func _test_manifest_roles() -> void:
 	_expect(living == 20, "expected 20 living morphs, got %d" % living)
 	_expect(shapes == 3, "expected 3 physics morphs, got %d" % shapes)
 	_expect(utilities == 27, "expected 27 utilities, got %d" % utilities)
+
+
+## Every name a scene asks the theme for must exist in it.
+##
+## This is the only thing that can catch a renamed type variation. A Control whose
+## theme_type_variation names something the theme does not define does not warn and
+## does not fail -- it silently falls back to the engine's default look, which is
+## precisely the mismatch the theme was added to remove, reappearing invisibly.
+func _test_theme_resource() -> void:
+	var configured := String(ProjectSettings.get_setting("gui/theme/custom", ""))
+	_expect(configured == THEME_PATH, "gui/theme/custom is '%s', not the project theme" % configured)
+	var theme := load(THEME_PATH) as Theme
+	_expect(theme != null, "the project theme failed to load")
+	if theme == null:
+		return
+	for variation in ["PrimaryButton", "DialogButton", "LevelCard", "InventorySlot", "ScreenTitle", "ScreenSubtitle", "HudHint"]:
+		_expect(
+			theme.is_type_variation(variation, theme.get_type_variation_base(variation)),
+			"theme has no type variation '%s'" % variation
+		)
+	# The base types the HUD and every new screen inherit from, which have no
+	# overrides of their own and would otherwise render as raw engine defaults.
+	_expect(theme.has_stylebox("normal", "Button"), "theme does not style a plain Button")
+	_expect(theme.has_stylebox("disabled", "Button"), "theme does not style a disabled Button")
+	_expect(theme.has_stylebox("panel", "PanelContainer"), "theme does not style a PanelContainer")
+	_expect(theme.has_stylebox("fill", "ProgressBar"), "theme does not style the ink bar")
+	_expect(theme.has_stylebox("grabber_area", "HSlider"), "theme does not style a volume slider")
+	_expect(theme.has_color("font_color", "Label"), "theme does not colour a plain Label")
+	# A font here WOULD reach the main menu, whose overrides are all colours and sizes.
+	# The menu is deliberately left alone, so this must stay absent.
+	_expect(not theme.has_font("font", "Label"), "theme defines a Label font, which would restyle the main menu")
+
+	# Focus is drawn ON TOP of the state stylebox, not instead of it, so an opaque
+	# focus box hides the button beneath. This is not hypothetical: the first version
+	# of this theme did exactly that and covered the menu's bright PLAY button with a
+	# flat dark panel, while every one of the menu's own overrides was still in force.
+	# Overrides do not protect a state the scene does not override.
+	for type_name in ["Button", "PrimaryButton", "LevelCard"]:
+		if not theme.has_stylebox("focus", type_name):
+			continue
+		var box := theme.get_stylebox("focus", type_name)
+		if box is StyleBoxFlat:
+			_expect(
+				(box as StyleBoxFlat).bg_color.a < 0.05,
+				"%s's focus stylebox is opaque and will hide the button under it" % type_name
+			)
 
 
 ## The audio layer exists before any sound does, so what is asserted is the part that
