@@ -24,8 +24,22 @@ const GOAL_RADIUS := 120.0
 @onready var goal_label: Label = $CanvasLayer/GoalLabel
 @onready var complete_overlay: ModalOverlay = $LevelCompleteOverlay
 @onready var out_of_ink_overlay: ModalOverlay = $OutOfInkOverlay
+@onready var dialogue_overlay: ModalOverlay = $DialogueChoiceOverlay
+@onready var memory_overlay: ModalOverlay = $MemoryOverlay
+@onready var dialogue_node: DialogueNode2D = get_node_or_null(
+	^"EnvironmentBaseplate/GameplayPlane/Gorge/DialogueNode")
+@onready var route_layout: RouteLayout2D = get_node_or_null(
+	^"EnvironmentBaseplate/GameplayPlane/Routes")
+@onready var cave_gate: ConceptGate2D = get_node_or_null(
+	^"EnvironmentBaseplate/GameplayPlane/Gorge/CaveGate")
+@onready var hidden_flower: HiddenFlower2D = get_node_or_null(
+	^"EnvironmentBaseplate/GameplayPlane/Gorge/HiddenFlower")
 
 var player: Node2D
+var lolo: Lolo
+## Lolo's lines for this level, from config/dialogue.json.
+var _script_lines: Dictionary = {}
+var _memory_shown := false
 var _equipped_utility: UtilityObject
 var _level_completed := false
 var _run_started_msec := 0
@@ -35,6 +49,14 @@ var _classes_this_run: Dictionary = {}
 
 func _ready() -> void:
 	registry.load_manifest()
+	# Running this scene directly -- from the editor, or from a test -- never goes
+	# through LevelManager.open_level, so nothing has said which level this is. The
+	# level badge, the dialogue and the telemetry all read it, so resolving it once
+	# here is what stops a direct run being an anonymous, silent, unlabelled level.
+	if LevelManager.current_level_id.is_empty():
+		var catalog := LevelManager.get_levels()
+		if not catalog.is_empty():
+			LevelManager.current_level_id = String(catalog[0].get("id", ""))
 	Telemetry.begin_level(LevelManager.current_level_id)
 	ink_manager.begin_level(12.0)
 	inventory_manager.begin_level()
@@ -61,6 +83,9 @@ func _ready() -> void:
 	_run_started_msec = Time.get_ticks_msec()
 	_apply_level_identity()
 	_spawn_wanderer()
+	_load_dialogue()
+	_spawn_lolo()
+	_wire_dialogue_node()
 
 	backend_supervisor.set("debug_logs", debug_timing_logs)
 	backend_supervisor.connect("backend_ready", Callable(self, "_on_backend_ready"))
@@ -212,6 +237,8 @@ func _spawn_or_replace(
 
 	var old_player := player
 	player = new_player
+	if lolo != null and is_instance_valid(lolo):
+		lolo.follow(new_player)
 	if old_player != null and is_instance_valid(old_player):
 		old_player.queue_free()
 
@@ -435,6 +462,10 @@ func _physics_process(_delta: float) -> void:
 		var anchor := player.call("get_physics_anchor") as Node2D
 		if anchor != null:
 			anchor_position = anchor.global_position
+	# Crossing the far lip is what earns the memory, not choosing the route that would
+	# have earned it: the reward is for having rebuilt her bridge and walked over it.
+	if anchor_position.x > 2980.0:
+		_show_memory_if_earned()
 	var distance := anchor_position.distance_to(goal_marker.global_position)
 	# The distance is already being computed to decide completion, so showing it costs
 	# nothing and gives the level a legible objective -- until now the only thing
@@ -475,6 +506,107 @@ func _spawn_wanderer() -> void:
 	wanderer.call("set_world_bounds", Rect2(environment.get("world_bounds")))
 	player = wanderer
 	environment.call("set_target", wanderer)
+
+
+## Lolo's script, from config rather than from strings typed into this file, for the
+## same reason the level's title is: a second level must not need a code change to say
+## anything, and the writing has to be editable by whoever is writing it.
+func _load_dialogue() -> void:
+	var text := FileAccess.get_file_as_string("res://config/dialogue.json")
+	if text.is_empty():
+		push_warning("GameLevel: no dialogue config; Lolo will stay quiet")
+		return
+	var parsed: Variant = JSON.parse_string(text)
+	if not (parsed is Dictionary):
+		push_warning("GameLevel: dialogue config is not a JSON object")
+		return
+	var levels: Dictionary = (parsed as Dictionary).get("levels", {})
+	_script_lines = levels.get(LevelManager.current_level_id, {})
+
+
+## The companion, present from the first frame. His ART is a placeholder; the level
+## talks to him through follow/say, which a designed Lolo answers the same way.
+func _spawn_lolo() -> void:
+	var scene := load("res://creatures/lolo.tscn") as PackedScene
+	if scene == null:
+		push_warning("GameLevel: no Lolo scene; the level runs without a companion")
+		return
+	lolo = scene.instantiate() as Lolo
+	entity_root.add_child(lolo)
+	lolo.follow(player)
+	_lolo_says("greeting")
+
+
+func _lolo_says(key: String, seconds: float = 0.0) -> void:
+	if lolo == null or not is_instance_valid(lolo):
+		return
+	var line := String(_script_lines.get(key, ""))
+	if not line.is_empty():
+		lolo.say(line, seconds)
+
+
+func _wire_dialogue_node() -> void:
+	if cave_gate != null and hidden_flower != null:
+		# The gate is the only thing that may reveal the flower, so a player who has
+		# not learned Illumination sees a dark cave rather than a prize behind glass.
+		if cave_gate.can_pass():
+			hidden_flower.reveal()
+		cave_gate.connect(&"passage_allowed", func(_concept: String) -> void: hidden_flower.reveal())
+		cave_gate.connect(&"passage_blocked", func(_concept: String, hint: String) -> void:
+			status_label.text = hint)
+	if dialogue_node == null:
+		return
+	dialogue_node.approached.connect(_on_dialogue_node_approached)
+	dialogue_node.route_chosen.connect(_on_route_chosen)
+	dialogue_overlay.connect(&"route_picked", _on_route_picked)
+	memory_overlay.connect(&"dismissed", func() -> void: _lolo_says("arrival"))
+
+
+## Lolo pauses time to talk (Game Design section 3). The overlay is what does the
+## pausing -- it is a ModalOverlay, and UIRouter derives the tree's pause state from
+## whoever is open -- so this only has to decide what he asks.
+func _on_dialogue_node_approached() -> void:
+	var node_lines: Dictionary = _script_lines.get("node", {})
+	if node_lines.is_empty():
+		return
+	if lolo != null and is_instance_valid(lolo):
+		lolo.hush()
+	dialogue_overlay.call(
+		"present",
+		String(node_lines.get("speaker", "Lolo")),
+		String(node_lines.get("context", "")),
+		node_lines.get("choices", {})
+	)
+
+
+func _on_route_picked(route: String) -> void:
+	if dialogue_node != null:
+		dialogue_node.choose(route)
+
+
+## The answer physically alters the level: one branch opens, the other two are freed.
+func _on_route_chosen(route: String) -> void:
+	if route_layout != null:
+		route_layout.apply_route(route)
+	var routes: Dictionary = _script_lines.get("routes", {})
+	if lolo != null and is_instance_valid(lolo):
+		lolo.say(String(routes.get(route, "")))
+	status_label.text = "Route: %s" % route.capitalize()
+
+
+## The Empathy route's reward, shown once the player has actually crossed the gorge
+## they chose to rebuild rather than the moment they chose to.
+func _show_memory_if_earned() -> void:
+	if _memory_shown or route_layout == null or route_layout.chosen_route() != "artist":
+		return
+	var memory: Dictionary = _script_lines.get("memory", {})
+	if memory.is_empty():
+		return
+	_memory_shown = true
+	var lines := PackedStringArray()
+	for line in memory.get("lines", []):
+		lines.append(String(line))
+	memory_overlay.call("present", String(memory.get("title", "A memory")), lines)
 
 
 ## Name the level from the catalog instead of from strings typed into the scene. The

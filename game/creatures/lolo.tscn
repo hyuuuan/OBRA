@@ -1,0 +1,37 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/lolo.gd" id="1_lolo"]
+[ext_resource type="Script" path="res://scripts/lolo_figure.gd" id="2_lolofig"]
+
+[node name="Lolo" type="Node2D"]
+z_index = 12
+script = ExtResource("1_lolo")
+
+[node name="Figure" type="Node2D" parent="."]
+script = ExtResource("2_lolofig")
+
+[node name="Bubble" type="Control" parent="."]
+anchors_preset = 0
+offset_left = -150.0
+offset_top = -128.0
+offset_right = 150.0
+offset_bottom = -40.0
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Bubble"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Text" type="Label" parent="Bubble/Panel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 17
+text = "..."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
