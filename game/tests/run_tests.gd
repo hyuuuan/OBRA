@@ -71,6 +71,7 @@ func _run() -> void:
 	await _test_placement_aiming()
 	await _test_confirmed_utility_can_interact()
 	await _test_every_utility_acts()
+	await _test_level_1_needs_drawing()
 	world.queue_free()
 	registry = null
 	world = null
@@ -590,7 +591,9 @@ func _test_banaue_environment() -> void:
 	for node in get_nodes_in_group("terrace_ground"):
 		if environment.is_ancestor_of(node):
 			terrace_count += 1
-	_expect(terrace_count == 12, "Banaue terrain does not contain the expected terrace segments")
+	# 11 shared segments plus the five that belong to the two route branches. Terrace4
+	# is deliberately absent: that span is the gorge the level is built around.
+	_expect(terrace_count == 16, "Banaue terrain does not contain the expected terrace segments")
 	var water_count := 0
 	for node in get_nodes_in_group("water_medium"):
 		if environment.is_ancestor_of(node):
@@ -768,6 +771,63 @@ func _test_placement_aiming() -> void:
 	actor.queue_free()
 	item_root.queue_free()
 	placement.queue_free()
+	await process_frame
+
+
+## Level 1's whole point is that walking is not enough (Game Design: "basic vertical
+## traversal and getting comfortable with the CNN drawing interface"). Every step used
+## to carry a wedge at its foot, so the wanderer strolled from the spawn to the goal
+## without drawing anything -- the level had no reason to exist. These are the numbers
+## that make it a drawing level, measured against what the wanderer can actually do.
+func _test_level_1_needs_drawing() -> void:
+	# From wanderer.gd: v^2/2g for the rise, and speed * hang time for the reach.
+	var jump_height := pow(430.0, 2.0) / (2.0 * 980.0)
+	var jump_reach := 260.0 * (2.0 * 430.0 / 980.0)
+	var scene := load("res://levels/level_1/level_1_environment.tscn") as PackedScene
+	_expect(scene != null, "level 1 environment scene is missing")
+	if scene == null:
+		return
+	var level := scene.instantiate() as Node2D
+	world.add_child(level)
+	await physics_frame
+
+	var terrain := level.get_node_or_null(^"GameplayPlane/Terrain")
+	_expect(terrain != null, "level 1 has no terrain")
+	var tops: Dictionary = {}
+	for child in terrain.get_children():
+		tops[child.name] = (child as Node2D).global_position.y
+	for climb in [["LowerLeft", "Terrace1"], ["Terrace1", "Terrace2"]]:
+		var rise: float = float(tops.get(climb[0], 0.0)) - float(tops.get(climb[1], 0.0))
+		_expect(rise > jump_height + 12.0,
+			"%s -> %s is a %.0fpx step, which the wanderer can jump (%.0fpx)" % [climb[0], climb[1], rise, jump_height])
+
+	# The gorge: Terrace3's far edge to the far lip. Nothing may bridge it by default,
+	# which is what makes the dialogue node a question rather than scenery.
+	var near_lip: float = 2400.0
+	var far_lip: float = float((terrain.get_node(^"Terrace5") as Node2D).global_position.x)
+	_expect(far_lip - near_lip > jump_reach + 100.0,
+		"the gorge is %.0fpx, which the wanderer can clear (%.0fpx)" % [far_lip - near_lip, jump_reach])
+
+	var routes := level.get_node_or_null(^"GameplayPlane/Routes") as RouteLayout2D
+	_expect(routes != null, "level 1 has no route layout")
+	if routes != null:
+		for branch_name in ["Artist", "Pragmatist", "Protector"]:
+			var branch := routes.get_node_or_null(NodePath(branch_name))
+			_expect(branch != null, "route branch %s is missing" % branch_name)
+			for node in branch.find_children("*", "CollisionObject2D", true, false):
+				_expect((node as CollisionObject2D).collision_layer == 0,
+					"%s is solid before the player has chosen it" % branch_name)
+		routes.apply_route("protector")
+		await process_frame
+		await process_frame
+		_expect(routes.get_node_or_null(^"Artist") == null, "the unchosen artist branch survived")
+		_expect(routes.get_node_or_null(^"Pragmatist") == null, "the unchosen pragmatist branch survived")
+		var kept := routes.get_node_or_null(^"Protector")
+		_expect(kept != null, "the chosen branch was removed")
+
+	var node := level.get_node_or_null(^"GameplayPlane/Gorge/DialogueNode") as DialogueNode2D
+	_expect(node != null, "level 1 has no dialogue node at the gorge")
+	level.queue_free()
 	await process_frame
 
 

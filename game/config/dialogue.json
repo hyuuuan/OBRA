@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "note": "Lolo's lines, per level. Dialogue-node text follows Game Design section 6; the choice wording is the design's verbatim, because the three answers are what the player is choosing between and paraphrasing them changes the choice.",
+  "levels": {
+    "level_1": {
+      "greeting": "You're holding her brush. Press R and draw — anything you draw, this place believes.",
+      "climb": "That wall is taller than you. Draw a way up it, or draw something that climbs.",
+      "node": {
+        "speaker": "Lolo",
+        "context": "The gorge. Her hanging bridge is rotted clean away — nothing left but the posts and a bit of rope.",
+        "choices": {
+          "artist": "Let's restore her work.",
+          "pragmatist": "Let's just climb down and go around.",
+          "protector": "I'll carve us a new path."
+        }
+      },
+      "routes": {
+        "artist": "Then we build it the way she did. Plank by plank — draw them and set them in the gaps.",
+        "pragmatist": "Down we go, then. Draw something that can hold a wall — a spider would do it.",
+        "protector": "The dead tree, then. Draw an edge, pick it up with E, and swing with F."
+      },
+      "memory": {
+        "title": "A memory",
+        "lines": [
+          "She is younger here, and the light is the same gold it is now.",
+          "Lola is painting this bridge — the ropes first, then the planks, one at a time, humming something you almost remember.",
+          "She looks up from the canvas, straight out of it, and smiles like she knew you would come this way."
+        ]
+      },
+      "cave": "There's a cave down there. Too dark to see into — we'd need to bring our own light. Not today.",
+      "arrival": "That's her overlook. Go on — she'd want you to see it."
+    }
+  }
+}
