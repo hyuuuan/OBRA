@@ -20,18 +20,6 @@ signal panel_closed
 ## this paces the RENDER-and-encode cost, not inference, and keeps the readout from
 ## flickering through a new class on every stroke point.
 @export var live_guess_interval: float = 0.28
-## Quick, Draw!'s move: once the picture is unmistakable, say so and get on with it
-## rather than making the player confirm what the game has already told them it sees.
-@export var auto_transform: bool = true
-## Deliberately stricter than the manual gate in SketchClient. Transforming is spent
-## ink and a changed body, so doing it unasked has to be near-certain, not merely
-## good enough to accept when the player asked for it.
-@export_range(0.0, 1.0) var auto_transform_confidence: float = 0.9
-@export_range(0.0, 1.0) var auto_transform_margin: float = 0.45
-## How long the drawing must sit unchanged first, so it fires when the player pauses
-## to look at what they made -- not through the middle of a stroke. Long enough that
-## the "locking in" warning below is readable and one more stroke calls it off.
-@export var auto_transform_settle: float = 0.9
 
 var ink_manager: InkManager
 
@@ -59,14 +47,10 @@ var _submit_started_usec: int = 0
 ## stopped and the guess describes the finished drawing.
 var _guessed_revision: int = -1
 var _live_cooldown: float = 0.0
-var _settled_time: float = 0.0
 var _guess_entity: String = ""
 var _guess_display: String = ""
 var _guess_confidence: float = 0.0
 var _guess_margin: float = 0.0
-## The revision auto-transform already fired on, so a failed submission is not retried
-## in a loop against ink the player has not touched since.
-var _auto_transform_revision: int = -1
 # Autoloads resolved through the tree so this class_name script compiles even when a
 # tool precompiles it before the autoloads register. Untyped for dynamic dispatch.
 var _telemetry
@@ -150,18 +134,19 @@ func close_panel(emit_closed: bool = true, release_ink: bool = true) -> void:
 ## so the player found out whether the game had understood their drawing only after
 ## spending the ink on it -- and a wrong read looked like the game being broken rather
 ## than like a drawing that needed another line. Now the guess is on screen the whole
-## time they are drawing, the way Quick, Draw! does it.
+## time they are drawing.
+##
+## It only ever REPORTS. Transforming is spent ink and a changed body, and nothing here
+## decides on the player's behalf that the drawing is finished -- pausing to look at
+## what you have made is not the same as saying you are done with it.
 func _process(delta: float) -> void:
 	if not _is_open or _submitting:
 		return
 	_live_cooldown = maxf(0.0, _live_cooldown - delta)
 	var revision: int = canvas.content_revision()
+	# The last guess was taken from exactly this ink: nothing new to ask about.
 	if revision == _guessed_revision:
-		# The last guess was taken from exactly this ink, so the hand has stopped.
-		_settled_time += delta
-		_consider_auto_transform()
 		return
-	_settled_time = 0.0
 	if _live_cooldown > 0.0:
 		return
 	if not canvas.has_ink():
@@ -175,28 +160,6 @@ func _process(delta: float) -> void:
 	if not await client.request_live_guess():
 		if _guessed_revision == claimed:
 			_guessed_revision = -1
-
-
-func _consider_auto_transform() -> void:
-	if not auto_transform or _guess_entity.is_empty():
-		return
-	if _guess_confidence < auto_transform_confidence or _guess_margin < auto_transform_margin:
-		return
-	# One attempt per drawing. Without this, a submission that comes back as a backend
-	# error leaves every condition below still true and the panel re-fires it forever.
-	if _auto_transform_revision == _guessed_revision:
-		return
-	if _settled_time < auto_transform_settle:
-		# Warn before spending the player's ink for them. Drawing one more line bumps
-		# the canvas revision, which resets the settle timer and calls this off -- so
-		# pausing mid-drawing to think never costs anything.
-		guess_label.text = "Locking in %s…" % _guess_display
-		guess_label.modulate = Color(0.55, 0.95, 0.6)
-		return
-	_auto_transform_revision = _guessed_revision
-	# On the guess label rather than the status line, which the ink readout rewrites.
-	guess_label.text = "Got it — %s!" % _guess_display
-	_on_transform_pressed()
 
 
 func _on_live_prediction(
@@ -246,8 +209,6 @@ func _forget_guess() -> void:
 	_guess_display = ""
 	_guess_confidence = 0.0
 	_guess_margin = 0.0
-	_auto_transform_revision = -1
-	_settled_time = 0.0
 	guess_label.text = "…"
 	guess_label.modulate = Color(0.62, 0.64, 0.68)
 	transform_button.text = "Transform"
