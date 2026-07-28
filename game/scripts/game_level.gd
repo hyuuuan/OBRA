@@ -272,24 +272,95 @@ func _begin_new_utility(item: DrawnItemData) -> void:
 	status_label.text = "%s drawn — press %d to place it" % [item.display_name, slot + 1]
 
 
-## Taking something out of the bag is what starts a placement -- the only thing that
-## does, now that drawing no longer forces one.
+## What a slot does depends on what is in it, because the two kinds of drawn object are
+## used in genuinely different ways: a ladder or a bridge is something you SET DOWN and
+## then use where it stands, and an axe is something you HOLD.
+##
+## Everything used to go down the placement path, so using an axe meant standing it up
+## in the world, walking to it, pressing E to pick the same axe back up, and only then
+## swinging it. A tool now goes straight from the bag into the hand.
 func _on_inventory_slot_pressed(slot: int) -> void:
 	if placement_controller.is_placing():
 		return
 	if player == null or not is_instance_valid(player):
-		status_label.text = "Nothing to place it with yet"
+		status_label.text = "Nothing to hold it with yet"
 		return
-	var item := inventory_manager.take_item(slot)
+	var item := inventory_manager.peek_item(slot)
 	if item == null:
 		status_label.text = "Slot %d is empty — press R to draw something" % (slot + 1)
 		return
+	if _is_held_tool(item):
+		_equip_from_slot(slot, item)
+		return
+	item = inventory_manager.take_item(slot)
 	if not placement_controller.begin_placement(item, player, slot):
 		inventory_manager.add_item(item, slot)
 		status_label.text = "Could not start placement"
 		return
 	inventory_hud.set_selected(slot)
 	status_label.text = "Placing %s — click to set it down, right-click to put it back" % item.display_name
+
+
+func _is_held_tool(item: DrawnItemData) -> bool:
+	var entry := registry.get_entity(item.entity_id)
+	return String(entry.get("utility_behavior", "")) in UtilityObject.HELD_TOOLS
+
+
+## Puts a tool in the player's hand without it ever touching the ground, and WITHOUT
+## taking it out of the bag -- it is still yours, the slot still shows it, and pressing
+## the slot again puts it away. Pressing a different tool's slot swaps.
+func _equip_from_slot(slot: int, item: DrawnItemData) -> void:
+	if _equipped_utility != null and is_instance_valid(_equipped_utility) \
+		and _equipped_utility.item_data != null \
+		and _equipped_utility.item_data.entity_id == item.entity_id:
+		_stow_equipped()
+		status_label.text = "%s put away" % item.display_name
+		return
+	_stow_equipped()
+	var instance := registry.instantiate_entity(item.entity_id) as UtilityObject
+	if instance == null:
+		status_label.text = "Could not take out %s" % item.display_name
+		return
+	world_item_root.add_child(instance)
+	instance.apply_item_data(item)
+	instance.global_position = _player_anchor_position()
+	_connect_utility(instance)
+	instance.equip_to(player)
+	inventory_hud.set_selected(slot)
+	status_label.text = "%s in hand — F to use, %d again to put it away" % [item.display_name, slot + 1]
+
+
+## Held tools live in the bag, so putting one away is destroying the instance rather
+## than handing it back to the inventory -- it never left.
+func _stow_equipped() -> void:
+	if _equipped_utility == null or not is_instance_valid(_equipped_utility):
+		_equipped_utility = null
+		return
+	var stowed := _equipped_utility
+	_equipped_utility = null
+	stowed.prepare_for_inventory()
+	stowed.queue_free()
+	if player != null and is_instance_valid(player) and player.has_method("set_carried"):
+		player.call("set_carried", "")
+
+
+func _slot_holding(entity_id: String) -> int:
+	var stored := inventory_manager.items()
+	for index in range(stored.size()):
+		var item := stored[index] as DrawnItemData
+		if item != null and item.entity_id == entity_id:
+			return index
+	return -1
+
+
+func _player_anchor_position() -> Vector2:
+	if player == null or not is_instance_valid(player):
+		return Vector2.ZERO
+	if player.has_method("get_physics_anchor"):
+		var anchor := player.call("get_physics_anchor") as Node2D
+		if anchor != null:
+			return anchor.global_position
+	return player.global_position
 
 
 ## Typed as the BASE for the same reason begin_placement is: a drawn circle is placed
@@ -354,6 +425,16 @@ func _connect_utility(utility: UtilityObject) -> void:
 
 func _on_utility_pickup_requested(utility: UtilityObject) -> void:
 	if utility == null or not is_instance_valid(utility):
+		return
+	# A tool taken out of a slot never left the bag, so putting it away must not put a
+	# second copy in. Without this, E on a held axe handed the inventory an axe it was
+	# already holding and the player duplicated it every time they stowed it.
+	if utility.item_data != null and _slot_holding(utility.item_data.entity_id) >= 0:
+		if utility == _equipped_utility:
+			_stow_equipped()
+		else:
+			utility.queue_free()
+		status_label.text = "%s put away" % utility.item_data.display_name
 		return
 	if inventory_manager.is_full():
 		status_label.text = "Inventory full"

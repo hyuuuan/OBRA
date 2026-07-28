@@ -242,19 +242,20 @@ surface_style = 0
 [node name="CentralLeft" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(1840, 300)
 script = ExtResource("5_terrace")
-segment_size = Vector2(180, 380)
+segment_size = Vector2(60, 380)
 surface_style = 1
 
 [node name="CentralPaddyFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(2020, 336)
+position = Vector2(1900, 372)
 script = ExtResource("5_terrace")
-segment_size = Vector2(280, 344)
+segment_size = Vector2(400, 308)
 surface_style = 2
 
 [node name="CentralRight" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(2300, 300)
 script = ExtResource("5_terrace")
 segment_size = Vector2(100, 380)
+surface_style = 1
 surface_style = 1
 
 [node name="Terrace5" type="StaticBody2D" parent="GameplayPlane/Terrain"]
@@ -290,7 +291,7 @@ position = Vector2(1480, 300)
 shape = SubResource("Wedge_rise_48")
 
 [node name="CentralPaddyDown" type="StaticBody2D" parent="GameplayPlane/Transitions"]
-position = Vector2(2020, 300)
+position = Vector2(1900, 300)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/CentralPaddyDown"]
 shape = SubResource("Wedge_puddle_down_b")
@@ -312,10 +313,10 @@ buoyancy = 0.7
 linear_drag = 3.4
 
 [node name="CentralPaddy" type="Area2D" parent="GameplayPlane/WaterAreas"]
-position = Vector2(2160, 316)
+position = Vector2(2100, 336)
 z_index = 3
 script = ExtResource("4_water")
-surface_size = Vector2(280, 40)
+surface_size = Vector2(400, 96)
 buoyancy = 0.9
 linear_drag = 3.1
 

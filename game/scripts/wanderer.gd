@@ -24,6 +24,15 @@ const MAX_FALL := 900.0
 const STRIDE := 0.7
 const STRIDE_HZ := 2.2
 
+## Climbing a drawn ladder. Slower than walking, and sideways movement is throttled so
+## stepping off is deliberate rather than something that happens while aiming upward.
+const CLIMB_SPEED := 190.0
+const CLIMB_DRIFT := 0.35
+## How far from the ladder you can get before you are no longer on it.
+const CLIMB_RELEASE := 78.0
+## An open umbrella is a parachute you are holding.
+const UMBRELLA_FALL_LIMIT := 190.0
+
 @onready var _figure: Node2D = $Figure
 
 var world_bounds := Rect2(0.0, -520.0, 3760.0, 1200.0)
@@ -36,6 +45,13 @@ var _carrying := ""
 var _assist := Vector2.ZERO
 var _impulse := Vector2.ZERO
 var _fall_limit := MAX_FALL
+## The rest of the contract the utilities call on whoever the player is. None of this
+## was answered before, so for the character the player actually starts as, a drawn
+## ladder was scenery and a drawn umbrella did nothing.
+var _ladder: Node2D = null
+var _equipped_utility: Node2D = null
+var _umbrella_open := false
+var _grip: Marker2D = null
 
 
 func _ready() -> void:
@@ -51,10 +67,21 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, FRICTION * delta)
 
-	if is_on_floor():
+	if _climbing():
+		# On a ladder the whole point is that gravity is not the thing deciding where
+		# you go. Up and down drive directly; sideways is throttled so stepping off is
+		# something you mean rather than something that happens while aiming upward.
+		velocity.y = Input.get_axis(&"move_up", &"move_down") * CLIMB_SPEED
+		velocity.x = direction * SPEED * CLIMB_DRIFT
+		if Input.is_action_just_pressed(&"jump"):
+			end_ladder()
+			velocity.y = JUMP_VELOCITY
+	elif is_on_floor():
 		if Input.is_action_just_pressed(&"jump"):
 			velocity.y = JUMP_VELOCITY
 	else:
+		if _umbrella_open:
+			_fall_limit = minf(_fall_limit, UMBRELLA_FALL_LIMIT)
 		velocity.y = minf(velocity.y + (_gravity + _assist.y) * delta, _fall_limit)
 	velocity.x += _assist.x * delta
 	velocity += _impulse
@@ -100,6 +127,59 @@ func apply_external_impulse(velocity_change: Vector2) -> void:
 ## Caps how fast the player may fall this frame. A parachute is mostly this.
 func limit_fall_speed(limit: float) -> void:
 	_fall_limit = minf(_fall_limit, maxf(0.0, limit))
+
+
+## Where a held tool sits: the forward hand, so an equipped axe is in a hand rather
+## than at the character's feet. equip_to falls back to the actor itself when this is
+## missing, which is why every tool used to hang off the wanderer's origin.
+func get_grip_anchor() -> Node2D:
+	if _grip == null or not is_instance_valid(_grip):
+		_grip = Marker2D.new()
+		_grip.name = "GripAnchor"
+		add_child(_grip)
+	_grip.position = Vector2(14.0 * _facing, -48.0)
+	return _grip
+
+
+func set_equipped_utility(utility: Node2D) -> void:
+	_equipped_utility = utility
+	if utility == null:
+		_umbrella_open = false
+
+
+func begin_ladder(ladder: Node2D) -> void:
+	_ladder = ladder
+
+
+func end_ladder() -> void:
+	_ladder = null
+
+
+func is_using_ladder(ladder: Node2D) -> bool:
+	return _ladder == ladder
+
+
+func set_umbrella_open(is_open: bool) -> void:
+	_umbrella_open = is_open
+
+
+## WaterArea2D tags the bodies inside it, so this is the same answer a drawn creature
+## gives -- a boat asking "is my passenger in the water" gets a real reply either way.
+func is_in_water() -> bool:
+	return int(get_meta("water_overlap_count", 0)) > 0
+
+
+## Letting go of a ladder by walking away from it, rather than only by pressing E again.
+## A ladder you can drift off and still be silently attached to is a ladder that eats
+## the next jump.
+func _climbing() -> bool:
+	if _ladder == null or not is_instance_valid(_ladder):
+		_ladder = null
+		return false
+	if global_position.distance_to((_ladder as Node2D).global_position) > CLIMB_RELEASE:
+		_ladder = null
+		return false
+	return true
 
 
 func set_world_bounds(bounds: Rect2) -> void:
