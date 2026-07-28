@@ -251,44 +251,45 @@ func _spawn_or_replace(
 	return true
 
 
+## Drawing something is making it, not using it. A recognised object goes into the bag
+## and stays there until the player asks for it.
+##
+## It used to shove the player straight into a placement the moment the recogniser
+## answered: the panel closed, and they were already holding a live preview stuck to
+## the cursor that they had not asked for and could not put down without either
+## placing it or right-clicking. Deciding WHAT to draw and deciding WHERE it goes are
+## two separate thoughts, and the game was making the second one for them.
 func _begin_new_utility(item: DrawnItemData) -> void:
-	if player == null or not is_instance_valid(player):
-		var stored_slot := inventory_manager.add_item(item)
-		if stored_slot == -1:
-			status_label.text = "Draw an animal first; inventory is full"
-			ink_manager.release_attempt()
-			return
-		if not item.ink_committed:
-			item.ink_committed = true
-			ink_manager.commit_attempt()
-		status_label.text = "%s stored in slot %d — draw a morph to place it" % [item.display_name, stored_slot + 1]
+	var slot := inventory_manager.add_item(item)
+	if slot == -1:
+		ink_manager.release_attempt()
+		status_label.text = "Inventory full — no room for %s" % item.display_name
 		return
-	if not placement_controller.begin_placement(item, player, -1):
-		var slot := inventory_manager.add_item(item)
-		if slot >= 0:
-			if not item.ink_committed:
-				item.ink_committed = true
-				ink_manager.commit_attempt()
-			status_label.text = "%s stored in slot %d" % [item.display_name, slot + 1]
-		else:
-			ink_manager.release_attempt()
-			status_label.text = "Could not place or store %s" % item.display_name
-	else:
-		status_label.text = "Place %s: click confirm, right-click store" % item.display_name
+	if not item.ink_committed:
+		item.ink_committed = true
+		ink_manager.commit_attempt()
+	inventory_hud.set_selected(slot)
+	status_label.text = "%s drawn — press %d to place it" % [item.display_name, slot + 1]
 
 
+## Taking something out of the bag is what starts a placement -- the only thing that
+## does, now that drawing no longer forces one.
 func _on_inventory_slot_pressed(slot: int) -> void:
 	if placement_controller.is_placing():
 		return
 	if player == null or not is_instance_valid(player):
-		status_label.text = "Draw a morph before placing utilities"
+		status_label.text = "Nothing to place it with yet"
 		return
 	var item := inventory_manager.take_item(slot)
 	if item == null:
+		status_label.text = "Slot %d is empty — press R to draw something" % (slot + 1)
 		return
 	if not placement_controller.begin_placement(item, player, slot):
 		inventory_manager.add_item(item, slot)
 		status_label.text = "Could not start placement"
+		return
+	inventory_hud.set_selected(slot)
+	status_label.text = "Placing %s — click to set it down, right-click to put it back" % item.display_name
 
 
 ## Typed as the BASE for the same reason begin_placement is: a drawn circle is placed

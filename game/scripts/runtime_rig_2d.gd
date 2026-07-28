@@ -677,7 +677,12 @@ func _physics_process_spider(delta: float) -> void:
 			foot["last_target"] = rest_target
 			_set_spider_leg_target(foot, rest_target)
 	_apply_spider_joint_muscles()
-	if _spider_support_active:
+	# Called whenever the spider is in grounded mode, not only when the gait already
+	# believes it is supported. _spider_support_active was both the gate here AND the
+	# thing the stance forces compute, so the one frame the gait lost its stance set was
+	# the frame the torso stopped being held up -- and a spider on its belly can never
+	# satisfy the condition that would switch its own support back on.
+	if grounded_mode:
 		_apply_spider_stance_forces()
 
 
@@ -899,13 +904,27 @@ func _apply_spider_stance_forces() -> void:
 	if _primary_body == null:
 		return
 	var stance_feet: Array[Dictionary] = []
+	var contacting_feet: Array[Dictionary] = []
 	for foot_value in _spider_feet:
 		var foot: Dictionary = foot_value
-		if bool(foot.get("stance", false)) and bool(foot.get("contact", false)):
+		if not bool(foot.get("contact", false)):
+			continue
+		contacting_feet.append(foot)
+		if bool(foot.get("stance", false)):
 			stance_feet.append(foot)
-	if stance_feet.is_empty():
+	# WHAT CARRIES THE SPIDER IS GROUND CONTACT, NOT THE GAIT'S BOOKKEEPING. "stance"
+	# additionally requires a foot to be within plant_distance of the target it was
+	# last sent to -- and mid-stride the gait has already moved that target on, so a
+	# foot flat on the floor routinely reads as not-stance. When both leg groups were
+	# between targets at once this returned early, skipped the torso lift entirely, and
+	# the spider dropped onto its belly under plain gravity. From there it could not
+	# recover: with the abdomen down the legs cannot reach their targets, so no foot
+	# ever became stance again, and the walk turned into a 0.4px-per-frame drag.
+	var carrying_feet := stance_feet if not stance_feet.is_empty() else contacting_feet
+	if carrying_feet.is_empty():
 		_spider_support_active = false
 		return
+	_spider_support_active = true
 
 	var stance_spring := float(profile.get("stance_spring", 850.0))
 	var stance_damping := float(profile.get("stance_damping", 70.0))
@@ -931,10 +950,10 @@ func _apply_spider_stance_forces() -> void:
 	# the bounded lift and physically contacted feet receive the complete downward
 	# reaction, divided across the current stance set. Ground reaction, not a net
 	# levitation force, is what then carries the rig's weight.
-	var reaction_weights := _spider_reaction_weights(stance_feet)
+	var reaction_weights := _spider_reaction_weights(carrying_feet)
 	_primary_body.apply_central_force(Vector2(0.0, -upward_force))
-	for foot_index in range(stance_feet.size()):
-		var foot := stance_feet[foot_index]
+	for foot_index in range(carrying_feet.size()):
+		var foot := carrying_feet[foot_index]
 		var body := foot.get("body") as ActiveRigBody2D
 		if is_instance_valid(body):
 			var reaction_force := upward_force * float(reaction_weights[foot_index])
@@ -961,13 +980,22 @@ func _apply_spider_stance_forces() -> void:
 	# torso. The torso-side force is matched by an opposite push through the
 	# contacting stance feet. Only the ground reaction at those feet can propel
 	# the rig; if contact disappears, this entire controller stops running.
+	# WEIGHT AND PROPULSION REST ON DIFFERENT FEET. Anything touching the ground helps
+	# hold the body up, but only a PLANTED foot has anything to push against -- driving
+	# through one that is still swinging is pushing on a foot that would simply slide.
+	# So the drive uses the stance set and its own weights, and on a frame with no
+	# planted feet there is no drive at all, rather than a free force on the torso.
+	if stance_feet.is_empty():
+		_spider_leg_drive_force = Vector2.ZERO
+		return
+	var drive_weights := _spider_reaction_weights(stance_feet)
 	_spider_leg_drive_force = drive_force
 	_primary_body.apply_central_force(drive_force)
 	for foot_index in range(stance_feet.size()):
 		var foot := stance_feet[foot_index]
 		var body := foot.get("body") as ActiveRigBody2D
 		if is_instance_valid(body):
-			var drive_reaction := -drive_force * float(reaction_weights[foot_index])
+			var drive_reaction := -drive_force * float(drive_weights[foot_index])
 			foot["drive_reaction"] = drive_reaction
 			body.apply_central_force(drive_reaction)
 
