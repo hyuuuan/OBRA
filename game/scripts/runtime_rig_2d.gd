@@ -76,6 +76,8 @@ var _motion_params: Dictionary = {}
 
 var _physics_root: Node2D
 var _primary_body: ActiveRigBody2D
+## rig_type "none": the graph is welded to the object body instead of simulating.
+var _rigid_object_rig: bool = false
 
 # --- skinned ink: the class-driven rig ----------------------------------------
 # What the player sees is rendered from a skeleton looked up by the RECOGNISED CLASS
@@ -495,9 +497,11 @@ func _on_skin_rebuilt() -> void:
 	# carried by the body -- there is nothing else left that draws a creature.
 	_bind_skinned_ink()
 	_finalize_rig()
+	if _rig_type == "none":
+		_pin_rig_to_owner()
 	analysis["physics_bodies"] = _bodies.size()
 	analysis["physics_joints"] = _joints.size()
-	analysis["active_ragdoll"] = _joints.size() > 0
+	analysis["active_ragdoll"] = _joints.size() > 0 and not _rigid_object_rig
 	rig_built.emit(_primary_body != null)
 
 
@@ -505,6 +509,12 @@ func _physics_process(delta: float) -> void:
 	if _primary_body == null:
 		return
 	_physics_frames_since_build += 1
+	if _rigid_object_rig:
+		# Pinned to its owner: nothing simulates, so there is no drift to recover from
+		# and no gait to run. The ink still updates so a utility that changes pose
+		# (an umbrella opening) redraws.
+		_animate_skinned_ink(delta)
+		return
 	if _physics_frames_since_build > 4 and _rig_needs_recovery():
 		_recover_rig()
 		return
@@ -2128,6 +2138,41 @@ func _create_physics_root() -> void:
 	get_parent().add_child(_physics_root)
 
 
+## Objects and utilities are rigid by definition, but the builders articulate them
+## anyway -- a drawn key or ramp goes through the same stroke rig a horse does. Every
+## rig body is top_level, so those bodies simulate INDEPENDENTLY of the object that
+## owns them, and the skinned ink is parented to the torso. What the player saw was the
+## drawing sliding off its own collider: a placement preview whose collision followed
+## the cursor while the picture stayed on the floor where the torso had fallen, and a
+## placed object whose picture wandered away from the thing it was supposed to be.
+## Worse, those loose bodies are on the same collision layer as the terrain, so the
+## placement overlap test found them -- an object reported "no room" wherever it was
+## pointed, which is what made shapes and utilities feel unplaceable.
+##
+## Pinning the graph back onto the owning body and switching its collision off leaves
+## exactly one physics representation: the object's own, whose shapes
+## PhysicsShapeObject already rebuilds from these same strokes.
+func _pin_rig_to_owner() -> void:
+	if _bodies.is_empty():
+		return
+	_rigid_object_rig = true
+	for body in _bodies:
+		if not is_instance_valid(body):
+			continue
+		body.freeze = true
+		body.freeze_mode = RigidBody2D.FREEZE_MODE_STATIC
+		body.collision_layer = 0
+		body.collision_mask = 0
+		body.linear_velocity = Vector2.ZERO
+		body.angular_velocity = 0.0
+		# Runs before the first physics step, so the body is still exactly where the
+		# strokes put it; re-assigning the global transform after clearing top_level
+		# is what converts that world pose into the local offset it keeps from here on.
+		var world := body.global_transform
+		body.top_level = false
+		body.global_transform = world
+
+
 func _create_body(body_name: String, at: Vector2, body_mass: float) -> ActiveRigBody2D:
 	var body := ActiveRigBody2D.new()
 	body.name = body_name
@@ -2381,6 +2426,7 @@ func _compute_support_sets() -> void:
 
 func _clear_rig() -> void:
 	_primary_body = null
+	_rigid_object_rig = false
 	_release_skinned_ink()
 	_bodies.clear()
 	_joints.clear()

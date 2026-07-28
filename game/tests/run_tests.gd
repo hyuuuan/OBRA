@@ -65,6 +65,12 @@ func _run() -> void:
 	await _test_compound_fallback_recovery()
 	await _test_physics_morphs()
 	await _test_utilities()
+	# Last on purpose: these add and free bodies in the shared world, and the spider's
+	# travel assertion is close enough to its bound that the resulting shift in solver
+	# ordering is enough to fail it.
+	await _test_placement_aiming()
+	await _test_confirmed_utility_can_interact()
+	await _test_every_utility_acts()
 	world.queue_free()
 	registry = null
 	world = null
@@ -671,6 +677,7 @@ func _test_placement_collision() -> void:
 	var placement := PlacementController.new()
 	world.add_child(placement)
 	placement.set("_preview", utility)
+	placement.call("_refresh_preview_exclusions")
 	await physics_frame
 	_expect(not bool(placement.call("_position_is_clear")), "placement accepted overlapping solid collision")
 	utility.global_position = Vector2(1800.0, -500.0)
@@ -680,6 +687,168 @@ func _test_placement_collision() -> void:
 	utility.queue_free()
 	obstacle.queue_free()
 	placement.queue_free()
+
+
+## The reported bug, as a test: nothing could be placed. Three separate faults, each
+## of which alone made placement unusable, and none of which the old collision-only
+## test could produce -- it never aimed the preview at anything.
+func _test_placement_aiming() -> void:
+	var item_root := Node2D.new()
+	world.add_child(item_root)
+	var actor := Node2D.new()
+	# Standing on the floor _add_floor() laid down at y 400..440, x 0..1000.
+	actor.global_position = Vector2(300.0, 380.0)
+	world.add_child(actor)
+	var placement := PlacementController.new()
+	placement.registry = registry
+	placement.world_item_root = item_root
+	world.add_child(placement)
+	# Headless has no pointer, and _process would re-aim every preview at the mouse
+	# origin between the calls below.
+	placement.set_process(false)
+
+	var item := DrawnItemData.from_prediction(
+		"circle", "Circle", _blank_image(), [_stroke(_closed_body())], 0.4, registry.get_entity("circle")
+	)
+	_expect(placement.begin_placement(item, actor, -1), "placement would not start for a drawn shape")
+	await physics_frame
+	var preview := placement.get("_preview") as PhysicsShapeObject
+
+	# 1. Aiming past arm's reach pinned the preview to the reach ring and then judged
+	#    it against the PRE-clamp cursor distance, so the spot it had just chosen for
+	#    the player was permanently "out of range" and every click was swallowed.
+	placement.update_target(actor.global_position + Vector2(4000.0, 0.0))
+	await physics_frame
+	_expect(
+		preview.global_position.distance_to(actor.global_position) <= placement.maximum_distance + 1.0,
+		"preview was not pinned inside arm's reach"
+	)
+	_expect(placement.is_at_reach_limit(), "reach clamp did not report itself")
+	_expect(bool(placement.get("_valid")), "a spot the controller chose itself was rejected as out of range")
+
+	# 2. Aiming at the ground -- the one thing a player does -- overlapped the floor,
+	#    and any overlap was an outright refusal. The preview now climbs onto the
+	#    surface instead.
+	placement.update_target(Vector2(300.0, 430.0))
+	await physics_frame
+	_expect(bool(placement.get("_valid")), "aiming at the ground was refused instead of resting on it")
+	_expect(preview.global_position.y < 430.0, "preview did not climb out of the floor")
+	_expect(preview.global_position.y > 300.0, "preview climbed far past the surface it should sit on")
+
+	# 3. A drawn object's rig bodies are top_level and simulate on their own, so the
+	#    ink slid off the object: the collider tracked the cursor while the drawing
+	#    stayed where the torso had fallen. Those loose bodies also share the terrain's
+	#    collision layer, so the overlap test found them and reported "no room"
+	#    wherever the player pointed.
+	placement.update_target(Vector2(300.0, 200.0))
+	await physics_frame
+	await physics_frame
+	for node in preview.find_children("*", "RigidBody2D", true, false):
+		var rig_body := node as RigidBody2D
+		_expect(
+			rig_body.global_position.distance_to(preview.global_position) < 64.0,
+			"%s drifted off the object carrying it" % rig_body.name
+		)
+		_expect(rig_body.collision_layer == 0, "%s still collides as an obstacle" % rig_body.name)
+	_expect(bool(placement.get("_valid")), "the preview's own rig bodies blocked its placement")
+
+	# 4. A preview is a held object, but _apply_spawn_motion still landed on it a frame
+	#    after it was built and loaded it with the toss velocity a free-spawned shape
+	#    gets. Frozen that is invisible -- and then confirming let go of a body already
+	#    moving, so the thing the player had just positioned rolled away.
+	_expect(preview.linear_velocity == Vector2.ZERO, "preview was handed a spawn velocity")
+	_expect(preview.angular_velocity == 0.0, "preview was handed a spawn spin")
+	var placed_at := preview.global_position
+	_expect(placement.confirm_placement(), "a valid placement refused to confirm")
+	_expect(preview.linear_velocity == Vector2.ZERO, "placed object launched itself")
+	_expect(not preview.controllable, "placed scenery still answers the movement keys")
+	_expect(preview.global_position.is_equal_approx(placed_at), "placed object moved on confirm")
+
+	preview.queue_free()
+	actor.queue_free()
+	item_root.queue_free()
+	placement.queue_free()
+	await process_frame
+
+
+## The reported hole: 21 of the 27 drawn objects did nothing when used. Most could not
+## even be equipped -- interact() only handed over four of them -- so F reached a match
+## whose `_:` branch returned false in silence. Every behavior in the 50-class table now
+## has to answer for itself, and the answer has to be something the player can read.
+func _test_every_utility_acts() -> void:
+	var actor := Node2D.new()
+	actor.add_to_group(&"player_character")
+	actor.global_position = Vector2(500.0, 360.0)
+	world.add_child(actor)
+	var vehicles := ["sailboat", "submarine"]
+	# Spelled out from the In-Game Function column of the 50-class table rather than
+	# read back from is_held_tool(): asking the code under test what it expects of
+	# itself is how this passed while fifteen tools were unreachable.
+	var must_be_held := [
+		"axe", "sword", "cannon", "boomerang", "flashlight", "cloud", "sun", "fan",
+		"parachute", "hot_air_balloon", "key", "rake", "scissors", "clock", "anvil",
+		"bucket", "umbrella", "wheel",
+	]
+	var acted := 0
+	for entity_id in registry.get_entity_ids():
+		var entry := registry.get_entity(entity_id)
+		if String(entry.get("runtime_role", "")) != "utility":
+			continue
+		var behavior := String(entry.get("utility_behavior", ""))
+		var utility := registry.instantiate_entity(entity_id) as UtilityObject
+		_expect(utility != null, "could not instantiate utility %s" % entity_id)
+		if utility == null:
+			continue
+		world.add_child(utility)
+		utility.apply_item_data(DrawnItemData.from_prediction(
+			entity_id, entity_id.capitalize(), _blank_image(), _utility_fixture(entity_id), 0.4, entry
+		))
+		utility.global_position = actor.global_position + Vector2(40.0, 0.0)
+		await physics_frame
+		if behavior in vehicles:
+			# A boat only answers afloat, so put it in the water its behavior needs.
+			utility.set_meta("water_overlap_count", 1)
+		# Through the real door: E, then F. Reaching describe_use directly would hide
+		# the actual fault, which was that fifteen of these could never be picked up
+		# into a hand in the first place.
+		utility.interact(actor)
+		if behavior in must_be_held:
+			_expect(utility.get("_equipped_actor") == actor, "%s could not be taken in hand" % entity_id)
+		var outcome := utility.describe_use(actor)
+		_expect(not outcome.is_empty(), "%s (%s) did nothing and said nothing on F" % [entity_id, behavior])
+		if not outcome.is_empty():
+			acted += 1
+		# Whatever the use spawned -- a shot, a pool -- must not be left in the world
+		# for the next entity to trip over.
+		for spawned in world.get_children():
+			if spawned is WaterArea2D or (spawned is RigidBody2D and spawned != utility and spawned.get_script() == null):
+				spawned.queue_free()
+		utility.queue_free()
+		await process_frame
+	_expect(acted == 27, "expected all 27 utilities to act, got %d" % acted)
+	actor.queue_free()
+	await process_frame
+
+
+## Confirming a utility went through a copy of the base method that forgot to re-arm
+## the interaction area set_preview had switched off, so a placed axe found nothing to
+## chop and a placed key found no lock.
+func _test_confirmed_utility_can_interact() -> void:
+	var utility := registry.instantiate_entity("key") as UtilityObject
+	world.add_child(utility)
+	utility.apply_item_data(DrawnItemData.from_prediction(
+		"key", "Key", _blank_image(), _utility_fixture("key"), 0.4, registry.get_entity("key")
+	))
+	utility.global_position = Vector2(300.0, 200.0)
+	var area := utility.get_node_or_null("InteractionArea") as Area2D
+	_expect(area != null, "utility has no interaction area")
+	utility.set_preview(true)
+	_expect(not area.monitoring, "preview utility kept its interaction area live")
+	utility.confirm_placement()
+	_expect(area.monitoring, "confirmed utility never re-armed its interaction area")
+	_expect(not utility.is_preview, "confirmed utility still reads as a preview")
+	utility.queue_free()
+	await process_frame
 
 
 func _test_active_ragdolls() -> void:

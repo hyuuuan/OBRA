@@ -124,6 +124,13 @@ func set_preview(enabled: bool) -> void:
 	collision_layer = 0 if enabled else 1
 	collision_mask = 1
 	modulate = Color(0.45, 1.0, 0.55, 0.65) if enabled else Color.WHITE
+	if enabled:
+		# _apply_spawn_motion is deferred from _ready and would otherwise land on the
+		# preview a frame later, loading it with the toss velocity a free-spawned
+		# shape gets. Frozen it looks fine -- and then confirming unfroze a body
+		# already carrying (95, -35) at 5 rad/s, so the thing the player had just
+		# carefully positioned rolled away the instant they clicked.
+		_spawn_motion_applied = true
 
 
 func set_preview_valid(valid: bool) -> void:
@@ -132,13 +139,20 @@ func set_preview_valid(valid: bool) -> void:
 
 
 func confirm_placement() -> void:
-	is_preview = false
-	freeze = false
-	gravity_scale = 1.0
-	collision_layer = 1
-	collision_mask = 1
-	modulate = Color.WHITE
+	# Leaving the preview IS the whole of confirming, so it goes through set_preview
+	# rather than restating its fields. UtilityObject overrode this method with a
+	# byte-for-byte copy that forgot to re-arm the interaction area set_preview had
+	# switched off -- so a placed axe never found anything to chop and a placed key
+	# never found a lock. Routing through the setter makes that impossible to forget.
+	set_preview(false)
 	sleeping = false
+	linear_velocity = Vector2.ZERO
+	angular_velocity = 0.0
+	# A placed shape is scenery, not a body the player is driving. Shapes route to
+	# placement rather than to the morph path, so leaving controllable set meant every
+	# square and circle in the level answered the movement keys remotely -- press D and
+	# the step you just built rolled off the ledge with you nowhere near it.
+	controllable = false
 	if item_data != null:
 		item_data.placement_transform = global_transform
 

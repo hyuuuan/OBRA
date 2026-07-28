@@ -156,16 +156,16 @@ grow_vertical = 2
 color = Color(0, 0, 0, 0.42)
 
 [node name="PanelRoot" type="ColorRect" parent="DrawPanel"]
-custom_minimum_size = Vector2(608, 700)
+custom_minimum_size = Vector2(608, 772)
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -304.0
-offset_top = -350.0
+offset_top = -386.0
 offset_right = 304.0
-offset_bottom = 350.0
+offset_bottom = 386.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.12, 0.14, 0.16, 1)
@@ -199,27 +199,39 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("4_canvas")
 
+[node name="GuessLabel" type="Label" parent="DrawPanel/PanelRoot"]
+offset_left = 48.0
+offset_top = 556.0
+offset_right = 560.0
+offset_bottom = 608.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 30
+text = "…"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
 [node name="TransformButton" type="Button" parent="DrawPanel/PanelRoot"]
 offset_left = 48.0
-offset_top = 568.0
+offset_top = 620.0
 offset_right = 292.0
-offset_bottom = 616.0
+offset_bottom = 668.0
 focus_mode = 0
 text = "Transform"
 
 [node name="ClearButton" type="Button" parent="DrawPanel/PanelRoot"]
 offset_left = 316.0
-offset_top = 568.0
+offset_top = 620.0
 offset_right = 560.0
-offset_bottom = 616.0
+offset_bottom = 668.0
 focus_mode = 0
 text = "Clear"
 
 [node name="StatusLabel" type="Label" parent="DrawPanel/PanelRoot"]
 offset_left = 48.0
-offset_top = 632.0
+offset_top = 684.0
 offset_right = 560.0
-offset_bottom = 676.0
+offset_bottom = 732.0
 text = "Ready"
 autowrap_mode = 3
 

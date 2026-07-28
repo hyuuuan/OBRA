@@ -16,6 +16,23 @@ signal panel_closed
 
 @export var debug_timing_logs: bool = false
 
+## Seconds between live guesses. The model answers in single-digit milliseconds, so
+## this paces the RENDER-and-encode cost, not inference, and keeps the readout from
+## flickering through a new class on every stroke point.
+@export var live_guess_interval: float = 0.28
+## Quick, Draw!'s move: once the picture is unmistakable, say so and get on with it
+## rather than making the player confirm what the game has already told them it sees.
+@export var auto_transform: bool = true
+## Deliberately stricter than the manual gate in SketchClient. Transforming is spent
+## ink and a changed body, so doing it unasked has to be near-certain, not merely
+## good enough to accept when the player asked for it.
+@export_range(0.0, 1.0) var auto_transform_confidence: float = 0.9
+@export_range(0.0, 1.0) var auto_transform_margin: float = 0.45
+## How long the drawing must sit unchanged first, so it fires when the player pauses
+## to look at what they made -- not through the middle of a stroke. Long enough that
+## the "locking in" warning below is readable and one more stroke calls it off.
+@export var auto_transform_settle: float = 0.9
+
 var ink_manager: InkManager
 
 @onready var scrim: ColorRect = $Scrim
@@ -25,6 +42,7 @@ var ink_manager: InkManager
 @onready var transform_button: Button = $PanelRoot/TransformButton
 @onready var clear_button: Button = $PanelRoot/ClearButton
 @onready var status: Label = $PanelRoot/StatusLabel
+@onready var guess_label: Label = $PanelRoot/GuessLabel
 @onready var client: Node = $PanelRoot/SketchClient
 
 
@@ -35,6 +53,20 @@ var pauses_game := true
 var _submitting := false
 var _open_tween: Tween = null
 var _submit_started_usec: int = 0
+## --- live guessing ---------------------------------------------------------
+## The canvas revision the last live guess was taken from. While it trails the
+## canvas there is new ink the guess has not seen; while it matches, the player has
+## stopped and the guess describes the finished drawing.
+var _guessed_revision: int = -1
+var _live_cooldown: float = 0.0
+var _settled_time: float = 0.0
+var _guess_entity: String = ""
+var _guess_display: String = ""
+var _guess_confidence: float = 0.0
+var _guess_margin: float = 0.0
+## The revision auto-transform already fired on, so a failed submission is not retried
+## in a loop against ink the player has not touched since.
+var _auto_transform_revision: int = -1
 # Autoloads resolved through the tree so this class_name script compiles even when a
 # tool precompiles it before the autoloads register. Untyped for dynamic dispatch.
 var _telemetry
@@ -61,6 +93,10 @@ func _ready() -> void:
 	client.entity_prediction_received.connect(_on_entity_prediction)
 	client.entity_declined.connect(_on_entity_declined)
 	client.prediction_failed.connect(_on_prediction_failed)
+	client.live_prediction.connect(_on_live_prediction)
+	client.live_prediction_failed.connect(_on_live_prediction_failed)
+	set_process(false)
+	_clear_guess()
 	status.text = "Draw something, then Transform!"
 
 
@@ -80,6 +116,8 @@ func open_panel() -> void:
 	transform_button.disabled = false
 	clear_button.disabled = false
 	canvas.clear_canvas()
+	_clear_guess()
+	set_process(true)
 	if ink_manager != null:
 		canvas.set_ink_budget(ink_manager.total_uncommitted_available(), ink_manager.canvas_size)
 		status.text = "Ink remaining %.1f / %.1f — draw, then Transform" % [ink_manager.remaining(), ink_manager.capacity]
@@ -98,12 +136,121 @@ func close_panel(emit_closed: bool = true, release_ink: bool = true) -> void:
 	transform_button.disabled = false
 	clear_button.disabled = false
 	visible = false
+	set_process(false)
+	_clear_guess()
 	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	if release_ink and ink_manager != null:
 		ink_manager.release_attempt()
 	UIRouter.refresh_pause(get_tree())
 	if emit_closed:
 		panel_closed.emit()
+
+
+## The running guess. The panel used to say nothing at all until Transform was pressed,
+## so the player found out whether the game had understood their drawing only after
+## spending the ink on it -- and a wrong read looked like the game being broken rather
+## than like a drawing that needed another line. Now the guess is on screen the whole
+## time they are drawing, the way Quick, Draw! does it.
+func _process(delta: float) -> void:
+	if not _is_open or _submitting:
+		return
+	_live_cooldown = maxf(0.0, _live_cooldown - delta)
+	var revision: int = canvas.content_revision()
+	if revision == _guessed_revision:
+		# The last guess was taken from exactly this ink, so the hand has stopped.
+		_settled_time += delta
+		_consider_auto_transform()
+		return
+	_settled_time = 0.0
+	if _live_cooldown > 0.0:
+		return
+	if not canvas.has_ink():
+		_clear_guess()
+		return
+	_live_cooldown = live_guess_interval
+	# Claimed before the request so a slow answer does not re-send the same ink; a
+	# refusal (one already in flight) hands it back to be retried next tick.
+	var claimed := revision
+	_guessed_revision = claimed
+	if not await client.request_live_guess():
+		if _guessed_revision == claimed:
+			_guessed_revision = -1
+
+
+func _consider_auto_transform() -> void:
+	if not auto_transform or _guess_entity.is_empty():
+		return
+	if _guess_confidence < auto_transform_confidence or _guess_margin < auto_transform_margin:
+		return
+	# One attempt per drawing. Without this, a submission that comes back as a backend
+	# error leaves every condition below still true and the panel re-fires it forever.
+	if _auto_transform_revision == _guessed_revision:
+		return
+	if _settled_time < auto_transform_settle:
+		# Warn before spending the player's ink for them. Drawing one more line bumps
+		# the canvas revision, which resets the settle timer and calls this off -- so
+		# pausing mid-drawing to think never costs anything.
+		guess_label.text = "Locking in %s…" % _guess_display
+		guess_label.modulate = Color(0.55, 0.95, 0.6)
+		return
+	_auto_transform_revision = _guessed_revision
+	# On the guess label rather than the status line, which the ink readout rewrites.
+	guess_label.text = "Got it — %s!" % _guess_display
+	_on_transform_pressed()
+
+
+func _on_live_prediction(
+	entity: String,
+	display_name: String,
+	confidence: float,
+	margin: float,
+	_response: Dictionary
+) -> void:
+	if not _is_open or _submitting:
+		return
+	_guess_entity = entity
+	_guess_display = display_name
+	_guess_confidence = confidence
+	_guess_margin = margin
+	guess_label.text = "I see a %s  ·  %.0f%%" % [display_name, confidence * 100.0]
+	# Colour carries the same judgement the Transform gate will apply, so the player can
+	# tell "it knows what this is" from "it is guessing" without reading the number.
+	var sure: bool = confidence >= 0.6 and margin >= 0.15
+	guess_label.modulate = Color(0.55, 0.95, 0.6) if sure else Color(0.95, 0.85, 0.45)
+	transform_button.text = "Transform into %s" % display_name if sure else "Transform"
+
+
+func _on_live_prediction_failed(message: String) -> void:
+	if not _is_open or _submitting:
+		return
+	_forget_guess()
+	# Deliberately NOT resetting the cooldown: it was set when the request went out, so
+	# leaving it alone is what paces the retry. Clearing it here would turn a backend
+	# that is down into a request every frame.
+	_guessed_revision = -1
+	# An empty-canvas answer arrives with no message and is not worth reporting -- the
+	# player has simply not drawn enough of anything yet.
+	if not message.is_empty():
+		guess_label.text = message
+		guess_label.modulate = Color(0.7, 0.7, 0.72)
+
+
+func _clear_guess() -> void:
+	_forget_guess()
+	_guessed_revision = -1
+	_live_cooldown = 0.0
+
+
+func _forget_guess() -> void:
+	_guess_entity = ""
+	_guess_display = ""
+	_guess_confidence = 0.0
+	_guess_margin = 0.0
+	_auto_transform_revision = -1
+	_settled_time = 0.0
+	guess_label.text = "…"
+	guess_label.modulate = Color(0.62, 0.64, 0.68)
+	transform_button.text = "Transform"
 
 
 func _on_transform_pressed() -> void:
@@ -207,6 +354,7 @@ func _on_prediction_failed(message: String) -> void:
 
 func _clear_canvas() -> void:
 	canvas.clear_canvas()
+	_clear_guess()
 	if ink_manager != null:
 		ink_manager.release_attempt()
 
