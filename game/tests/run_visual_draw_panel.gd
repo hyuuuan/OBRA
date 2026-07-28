@@ -38,9 +38,6 @@ func _run() -> void:
 
 func _round(label: String, draw_it: Callable, aim: Vector2) -> void:
 	print("--- %s ---" % label)
-	# Watched by hand first, so the readout can be seen mid-drawing rather than only
-	# after it has already fired.
-	panel.auto_transform = false
 	panel.open_panel()
 	await _wait(0.4)
 	draw_it.call()
@@ -49,15 +46,11 @@ func _round(label: String, draw_it: Callable, aim: Vector2) -> void:
 	print("  guess:  '%s'" % (panel.get_node("PanelRoot/GuessLabel") as Label).text)
 	print("  button: '%s'" % (panel.get_node("PanelRoot/TransformButton") as Button).text)
 
-	# Now let it behave the way it will in play: settle, announce, transform.
-	panel.auto_transform = true
-	await _wait(2.5)
-	print("  panel still open: %s   status: '%s'" % [panel.is_open(), status.text])
-	if panel.is_open():
-		# Not confident enough to fire on its own -- take the manual path instead.
-		panel.call("_on_transform_pressed")
-		await _wait(2.0)
-		print("  after manual transform: '%s'" % status.text)
+	# Nothing transforms on its own: the player presses the button, always.
+	print("  panel still open before pressing Transform (must be true): %s" % panel.is_open())
+	panel.call("_on_transform_pressed")
+	await _wait(2.2)
+	print("  after pressing Transform: '%s'" % status.text)
 
 	# Drawing an object no longer forces a placement: it goes in the bag, and taking it
 	# out again is what starts one.
