@@ -59,8 +59,15 @@ func _round(label: String, draw_it: Callable, aim: Vector2) -> void:
 		await _wait(2.0)
 		print("  after manual transform: '%s'" % status.text)
 
+	# Drawing an object no longer forces a placement: it goes in the bag, and taking it
+	# out again is what starts one.
+	print("  placing straight after drawing (should be false): %s" % placement.is_placing())
+	var inventory = level.get_node("InventoryManager")
+	print("  inventory holds: %d" % inventory.call("items").size())
+	level.call("_on_inventory_slot_pressed", 0)
+	await _wait(0.3)
 	if not placement.is_placing():
-		print("  NOT PLACING (recognised a morph, or nothing was recognised)")
+		print("  NOT PLACING after taking slot 1 (recognised a morph, or nothing stored)")
 		await _capture("%s_result" % label)
 		return
 	placement.set_process(false)
