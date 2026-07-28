@@ -31,6 +31,8 @@ const PARACHUTE_FALL_LIMIT := 120.0
 const CLOCK_FREEZE_SECONDS := 4.0
 ## Radius the weather tools work over.
 const WEATHER_RADIUS := 220.0
+## How fast a drawn hull will go, however long the player holds the stick.
+const VEHICLE_TOP_SPEED := 240.0
 
 var utility_behavior: String = ""
 var required_medium: String = "any"
@@ -86,6 +88,13 @@ func set_preview(enabled: bool) -> void:
 	super.set_preview(enabled)
 	if _interaction_area != null:
 		_interaction_area.monitoring = not enabled
+	# A doorway you cannot walk into is not a doorway. Every other placed object is
+	# meant to be solid; the teleport door's whole job is to be stepped through, and a
+	# solid one simply shoved the player back out of its own threshold before the
+	# portal could ever see them standing in it.
+	if not enabled and utility_behavior == "door":
+		collision_layer = 0
+		freeze = true
 
 
 func interact(actor: Node2D) -> void:
@@ -280,6 +289,11 @@ func _physics_process(delta: float) -> void:
 				angular_velocity = 0.0
 		else:
 			_settle_time = 0.0
+	if utility_behavior in ["sailboat", "submarine"] and _boarded_actor != null and not _is_in_water():
+		# Run aground. Putting the passenger down where the hull stopped is the honest
+		# outcome; carrying on without them meant the boat sailed off across dry land
+		# and the player was left standing at the water's edge with no way to say so.
+		_unboard_actor()
 	if utility_behavior in ["sailboat", "submarine"] and _is_in_water() and _boarded_actor != null:
 		_seat_carried_actor()
 		var horizontal := Input.get_axis("move_left", "move_right")
@@ -399,13 +413,19 @@ func _player_of(node: Node) -> Node2D:
 
 func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	_grounded = _has_ground_contact(state)
-	if utility_behavior != "sailboat" or not _is_in_water():
+	if utility_behavior not in ["sailboat", "submarine"] or not _is_in_water():
 		return
-	gravity_scale = 0.18
+	# The submarine was left out of this entirely, so the one vessel whose whole job is
+	# to sit in water had no buoyancy and no drag at all.
+	gravity_scale = 0.18 if utility_behavior == "sailboat" else 0.62
 	var velocity := state.linear_velocity
 	state.apply_central_force(-state.total_gravity * mass * 0.82)
 	state.apply_central_force(-velocity * mass * 2.4)
 	state.apply_torque(-state.angular_velocity * mass * 1.8)
+	# A hull has a top speed. Clamped HERE and not in _physics_process, because a write
+	# to linear_velocity outside the physics callback is overwritten by the solver --
+	# which is why the cap did nothing and the boat crossed the level in two seconds.
+	state.linear_velocity.x = clampf(state.linear_velocity.x, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED)
 
 
 ## Chop, slash and snip are one motion against different things: the tool name is
@@ -765,9 +785,13 @@ func _board_actor(actor: Node2D) -> void:
 		# pinning them; _seat_carried_actor keeps them aboard.
 		_boarded_actor = actor
 		actor.global_position = seat_position
+		if actor.has_method("begin_ride"):
+			actor.call("begin_ride", self)
 		utility_used.emit(utility_behavior, item_data)
 		return
 	_boarded_actor = actor
+	if actor.has_method("begin_ride"):
+		actor.call("begin_ride", self)
 	if actor.has_method("apply_morph_state"):
 		actor.call("apply_morph_state", {
 			"position": seat_position,
@@ -797,6 +821,9 @@ func _seat_carried_actor() -> void:
 
 
 func _unboard_actor() -> void:
+	if _boarded_actor != null and is_instance_valid(_boarded_actor) \
+		and _boarded_actor.has_method("end_ride"):
+		_boarded_actor.call("end_ride")
 	_boarded_actor = null
 	if _vehicle_joint != null and is_instance_valid(_vehicle_joint):
 		_vehicle_joint.queue_free()

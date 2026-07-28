@@ -29,7 +29,7 @@ const STRIDE_HZ := 2.2
 const CLIMB_SPEED := 190.0
 const CLIMB_DRIFT := 0.35
 ## How far from the ladder you can get before you are no longer on it.
-const CLIMB_RELEASE := 78.0
+const CLIMB_RELEASE := 120.0
 ## An open umbrella is a parachute you are holding.
 const UMBRELLA_FALL_LIMIT := 190.0
 
@@ -49,6 +49,7 @@ var _fall_limit := MAX_FALL
 ## was answered before, so for the character the player actually starts as, a drawn
 ## ladder was scenery and a drawn umbrella did nothing.
 var _ladder: Node2D = null
+var _vehicle: Node2D = null
 var _equipped_utility: Node2D = null
 var _umbrella_open := false
 var _grip: Marker2D = null
@@ -67,6 +68,16 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, FRICTION * delta)
 
+	if _riding():
+		# A passenger does not walk. The vehicle puts us where it is going, and our own
+		# locomotion would otherwise carry us straight off the deck -- which is exactly
+		# what a boat "leaving the player behind" was.
+		velocity = Vector2.ZERO
+		if Input.is_action_just_pressed(&"jump"):
+			end_ride()
+			velocity.y = JUMP_VELOCITY
+		_advance_stride(delta, 0.0)
+		return
 	if _climbing():
 		# On a ladder the whole point is that gravity is not the thing deciding where
 		# you go. Up and down drive directly; sideways is throttled so stepping off is
@@ -98,10 +109,14 @@ func _physics_process(delta: float) -> void:
 		global_position = Vector2(global_position.x, world_bounds.position.y)
 		velocity = Vector2.ZERO
 
-	# The stride advances with actual speed, so it cannot look like it is running on
-	# the spot while sliding to a stop.
-	var moving := absf(velocity.x) > 12.0
-	_phase += delta * STRIDE_HZ * (absf(velocity.x) / SPEED if moving else 0.0)
+	_advance_stride(delta, velocity.x)
+
+
+## The stride advances with actual speed, so it cannot look like it is running on the
+## spot while sliding to a stop -- or while sitting still on a boat.
+func _advance_stride(delta: float, horizontal_speed: float) -> void:
+	var moving := absf(horizontal_speed) > 12.0
+	_phase += delta * STRIDE_HZ * (absf(horizontal_speed) / SPEED if moving else 0.0)
 	_figure.scale.x = _facing
 	_figure.set("stride", _phase)
 	_figure.set("carrying", _carrying)
@@ -147,6 +162,27 @@ func set_equipped_utility(utility: Node2D) -> void:
 		_umbrella_open = false
 
 
+## Riding a drawn vehicle. Same shape as the ladder: the thing you are on takes over
+## where you go, and you get off deliberately.
+func begin_ride(vehicle: Node2D) -> void:
+	_vehicle = vehicle
+
+
+func end_ride() -> void:
+	_vehicle = null
+
+
+func is_riding(vehicle: Node2D = null) -> bool:
+	if _vehicle == null or not is_instance_valid(_vehicle):
+		_vehicle = null
+		return false
+	return vehicle == null or vehicle == _vehicle
+
+
+func _riding() -> bool:
+	return is_riding()
+
+
 func begin_ladder(ladder: Node2D) -> void:
 	_ladder = ladder
 
@@ -176,7 +212,10 @@ func _climbing() -> bool:
 	if _ladder == null or not is_instance_valid(_ladder):
 		_ladder = null
 		return false
-	if global_position.distance_to((_ladder as Node2D).global_position) > CLIMB_RELEASE:
+	# Measured HORIZONTALLY, and generously: a ladder is a tall thing whose origin sits
+	# at its middle, so a straight distance check released the player the moment they
+	# had climbed a bit of it -- which read as the ladder simply not working.
+	if absf(global_position.x - (_ladder as Node2D).global_position.x) > CLIMB_RELEASE:
 		_ladder = null
 		return false
 	return true
