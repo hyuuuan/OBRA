@@ -32,6 +32,10 @@ var _gravity: float = 980.0
 var _phase: float = 0.0
 var _facing: float = 1.0
 var _carrying := ""
+## Outside forces, in acceleration and in velocity, both cleared every physics frame.
+var _assist := Vector2.ZERO
+var _impulse := Vector2.ZERO
+var _fall_limit := MAX_FALL
 
 
 func _ready() -> void:
@@ -51,7 +55,14 @@ func _physics_process(delta: float) -> void:
 		if Input.is_action_just_pressed(&"jump"):
 			velocity.y = JUMP_VELOCITY
 	else:
-		velocity.y = minf(velocity.y + _gravity * delta, MAX_FALL)
+		velocity.y = minf(velocity.y + (_gravity + _assist.y) * delta, _fall_limit)
+	velocity.x += _assist.x * delta
+	velocity += _impulse
+	_impulse = Vector2.ZERO
+	# One frame's worth. A utility that means it re-applies every frame, which is what
+	# makes a parachute stop lifting the moment it is folded away.
+	_assist = Vector2.ZERO
+	_fall_limit = MAX_FALL
 
 	move_and_slide()
 	# Keep it inside the level rather than letting it walk off the end of the world.
@@ -71,6 +82,25 @@ func _physics_process(delta: float) -> void:
 
 
 # --- the contract every player answers ---------------------------------------
+
+## A utility pushing on the player: an acceleration held for one frame. A fan, a
+## parachute's drag, a balloon's lift all arrive here and are re-applied every frame
+## for as long as the utility is doing it. Drawn creatures answer the same call by
+## pushing their whole rig, so an effect feels identical whoever the player is --
+## which matters because the wanderer is who the player IS until they draw an animal.
+func apply_external_force(acceleration: Vector2) -> void:
+	_assist += acceleration
+
+
+## An instant velocity change: a mushroom's bounce, a cannon's recoil.
+func apply_external_impulse(velocity_change: Vector2) -> void:
+	_impulse += velocity_change
+
+
+## Caps how fast the player may fall this frame. A parachute is mostly this.
+func limit_fall_speed(limit: float) -> void:
+	_fall_limit = minf(_fall_limit, maxf(0.0, limit))
+
 
 func set_world_bounds(bounds: Rect2) -> void:
 	world_bounds = bounds

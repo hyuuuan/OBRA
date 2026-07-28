@@ -150,6 +150,24 @@ func set_umbrella_open(is_open: bool) -> void:
 	_umbrella_open = is_open
 
 
+## The same contract the wanderer answers, so a utility pushes "the player" without
+## caring which of the two it is. A drawn creature is a whole rig, so the force goes
+## to every body: pushing only the torso drags a creature out of its own drawing.
+func apply_external_force(acceleration: Vector2) -> void:
+	_rig_force(acceleration)
+
+
+func apply_external_impulse(velocity_change: Vector2) -> void:
+	_rig_impulse(velocity_change)
+
+
+func limit_fall_speed(limit: float) -> void:
+	for candidate in _drive_targets():
+		var body := candidate as RigidBody2D
+		if body != null and is_instance_valid(body) and body.linear_velocity.y > limit:
+			body.linear_velocity.y = limit
+
+
 func is_in_water() -> bool:
 	var skin := _get_skin()
 	return skin != null and skin.has_method("is_in_water") and bool(skin.call("is_in_water"))

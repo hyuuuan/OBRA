@@ -14,6 +14,9 @@ var _drawn_length: float = 0.0
 var _max_length: float = INF
 var _cost_diagonal: float = Vector2(512.0, 512.0).length()
 var _blocked_emitted := false
+## Bumped by every accepted point and by clearing. Live recognition polls against it
+## so it re-reads the canvas when the ink actually changed and not on a timer alone.
+var _revision: int = 0
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -72,6 +75,7 @@ func _append_budgeted_point(from: Vector2, to: Vector2, distance: float) -> void
 		point = from + (to - from) * (accepted / distance)
 	_current_line.add_point(point)
 	_drawn_length += accepted
+	_revision += 1
 	stroke_cost_changed.emit(get_current_cost())
 	if accepted < distance or _drawn_length >= _max_length - 0.001:
 		_emit_blocked_once()
@@ -81,10 +85,24 @@ func clear_canvas() -> void:
 	_current_line = null
 	_drawn_length = 0.0
 	_blocked_emitted = false
+	_revision += 1
 	for child in get_children():
 		if child is Line2D:
 			child.queue_free()
 	stroke_cost_changed.emit(0.0)
+
+
+## What the ink looks like right now, as a single number. Live recognition compares it
+## against the revision it last sent so a paused hand costs nothing.
+func content_revision() -> int:
+	return _revision
+
+
+func has_ink() -> bool:
+	for child in get_children():
+		if child is Line2D and (child as Line2D).get_point_count() > 1:
+			return true
+	return false
 
 
 func set_ink_budget(ink_units: float, canvas_size: Vector2 = Vector2(512.0, 512.0)) -> void:

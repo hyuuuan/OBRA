@@ -15,9 +15,20 @@ the clean 20 / 3 / 27 runtime-role split the thesis targets (20 creatures →
 Key facts behind the call:
 - The six-slot inventory holds up to six *instances*, not six *types* — so growing the
   set of distinct `utility_behavior` types beyond six needs no inventory changes.
-- `utility_object.gd` / `physics_shape_object.gd` already have safe `_:` default branches,
+- ~~`utility_object.gd` / `physics_shape_object.gd` already have safe `_:` default branches,
   so the 21 new behaviors get **generic placement/pickup** behavior. The bespoke per-object
-  gameplay from `50 Classes.pdf` (chop, unlock, freeze time, …) is **out of scope** here.
+  gameplay from `50 Classes.pdf` (chop, unlock, freeze time, …) is **out of scope** here.~~
+  **Superseded.** The `_:` branch was not a safe default in practice: `interact()` only ever
+  equipped four behaviors, so most drawn objects could be pocketed and never used, and F
+  returned `false` in silence — indistinguishable from a broken key. All 27 now implement
+  their In-Game Function against the player and the physics world (`HELD_TOOLS` vs. placed
+  props in `utility_object.gd`), and `_test_every_utility_acts` asserts that each one
+  answers F with something the player can read. What is still **out of scope** is the level
+  furniture some functions are aimed at — there are no barricades to chop, locks to open,
+  moving platforms to stop or carts to repair in Level 1 — so those tools act on the loose
+  physics bodies and water in reach instead of on bespoke targets. The target contracts
+  (`Destructible2D`, `Lockable2D`, `ConceptGate2D`, `UtilityRequirement2D`) are ready for
+  a level that places them; `Destructible2D.tool_effectiveness` now names which tools bite.
 
 **Sign-off question:** keep all 27 as `utility`, or reclassify some as `physics_morph`
 (a controllable physics body the player *becomes*, like the primitives)? Reasonable

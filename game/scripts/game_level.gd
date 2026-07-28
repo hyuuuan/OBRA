@@ -52,6 +52,7 @@ func _ready() -> void:
 	placement_controller.placement_confirmed.connect(_on_placement_confirmed)
 	placement_controller.placement_canceled.connect(_on_placement_canceled)
 	placement_controller.placement_changed.connect(_on_placement_changed)
+	placement_controller.placement_rejected.connect(_on_placement_rejected)
 	complete_overlay.connect(&"continue_pressed", _on_complete_continue)
 	complete_overlay.connect(&"retry_pressed", _on_restart_requested)
 	out_of_ink_overlay.connect(&"restart_pressed", _on_restart_requested)
@@ -263,15 +264,19 @@ func _on_inventory_slot_pressed(slot: int) -> void:
 		status_label.text = "Could not start placement"
 
 
+## Typed as the BASE for the same reason begin_placement is: a drawn circle is placed
+## through this path too, and a UtilityObject parameter made the whole handler fail to
+## bind -- the signal emitted, Godot refused the argument, and confirming a shape
+## silently never committed its ink or said anything on screen.
 func _on_placement_confirmed(
 	item: DrawnItemData,
-	utility: UtilityObject,
+	placed: PhysicsShapeObject,
 	_source_slot: int
 ) -> void:
 	if not item.ink_committed:
 		ink_manager.commit_attempt()
 		item.ink_committed = true
-	_connect_utility(utility)
+	_connect_utility(placed as UtilityObject)
 	status_label.text = "%s placed" % item.display_name
 
 
@@ -288,9 +293,22 @@ func _on_placement_canceled(item: DrawnItemData, source_slot: int) -> void:
 	status_label.text = "Inventory full — %s discarded" % item.display_name
 
 
+## The old line here read "Placement blocked or out of range" and said nothing about
+## which, or what to do about it -- and because the controller re-emitted every frame,
+## it was also the only thing the status line could ever say while placing.
 func _on_placement_changed(active: bool, valid: bool) -> void:
-	if active:
-		status_label.text = "Placement %s" % ("valid" if valid else "blocked or out of range")
+	if not active:
+		return
+	if not valid:
+		status_label.text = "No room there — aim at a clearer spot"
+	elif placement_controller.is_at_reach_limit():
+		status_label.text = "At arm's reach — click to place, right-click to store"
+	else:
+		status_label.text = "Click to place, right-click to store, scroll to rotate"
+
+
+func _on_placement_rejected() -> void:
+	status_label.text = "Can't build that into solid ground — move the cursor out first"
 
 
 func _connect_utility(utility: UtilityObject) -> void:
@@ -376,11 +394,16 @@ func _interact_with_nearest_utility() -> void:
 		nearest.interact(player)
 
 
+## F used to call through and ignore the answer, so for most utilities the key did
+## nothing AND said nothing -- indistinguishable from a broken build. Every behavior
+## now reports what it did, including when it could not act.
 func _use_equipped_utility() -> void:
 	if _equipped_utility == null or not is_instance_valid(_equipped_utility):
-		status_label.text = "No utility equipped"
+		status_label.text = "Nothing in hand — press E next to something you drew"
 		return
-	_equipped_utility.use_utility(player)
+	var outcome := _equipped_utility.describe_use(player)
+	status_label.text = outcome if not outcome.is_empty() \
+		else "%s can't do that here" % _equipped_utility.item_data.display_name
 
 
 func _drop_equipped_before_morph(previous_state: Dictionary) -> void:
