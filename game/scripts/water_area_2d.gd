@@ -29,6 +29,29 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+## Water that does nothing is a blue rectangle. `buoyancy` and the two drag numbers
+## were declared and then never read by anything, so a drawn boat did not float, a
+## dropped anvil did not sink, and the only thing water meant was a flag saying you
+## were standing in it.
+##
+## Lift scales with how deep a body is, which is what makes the surface a surface: a
+## body barely in gets barely pushed, one fully under gets pushed hard enough to rise,
+## and something heavy still loses. Drag is what stops all of that oscillating.
+func _physics_process(_delta: float) -> void:
+	var surface_y := global_position.y - surface_size.y * 0.5
+	for node in get_overlapping_bodies():
+		var body := node as RigidBody2D
+		if body == null or body.freeze:
+			continue
+		var depth := clampf((body.global_position.y - surface_y) / maxf(1.0, surface_size.y), 0.0, 1.0)
+		if depth <= 0.0:
+			continue
+		var gravity_pull := float(ProjectSettings.get_setting("physics/2d/default_gravity", 980.0))
+		body.apply_central_force(Vector2(0.0, -gravity_pull * buoyancy * depth * body.mass))
+		body.apply_central_force(-body.linear_velocity * linear_drag * body.mass)
+		body.apply_torque(-body.angular_velocity * angular_drag * body.mass)
+
+
 func _draw() -> void:
 	var rect := Rect2(-surface_size * 0.5, surface_size)
 	draw_rect(rect, water_color)
