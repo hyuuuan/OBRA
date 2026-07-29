@@ -4,9 +4,20 @@ extends SceneTree
 ## two of its rows are currently expected to fail (see the vehicle note below).
 ##   godot --headless --path game --script res://tests/run_behaviour_audit.gd
 ##
-## KNOWN FAILING: sailboat and submarine "left the player behind". The hull sails and
-## the passenger is attached (begin_ride stops them walking off), but the seat is not
-## holding them across a long run in this harness. Not yet diagnosed.
+## KNOWN FAILING: the two vehicle rows. The hull sails and the passenger attaches, but
+## the boat sinks out of the bottom of the pool -- once below it, _is_in_water() goes
+## false, _integrate_forces early-returns, and it loses both its buoyancy and its speed
+## cap in the same frame and falls through the world. The rider is put down correctly
+## when that happens, so what shows up here as "left the player behind" is the aground
+## handling doing its job after the real fault. Not yet fixed. Note also that
+## UtilityObject._integrate_forces does not call super, so the base class's
+## world-bounds clamp never runs for a utility -- likely part of the same problem.
+##
+## The harness checks its own preconditions. Two earlier versions of it reported the
+## ladder and the boats as broken when the fault was the setup: the ladder had slid away
+## from where the player was standing, and the vehicle pool sat below the wanderer's
+## world_bounds, where falling teleports it to the top of the world. Every row that can
+## be wrecked by its own scaffolding now says "harness fault" when it is.
 
 var world: Node2D
 var registry: EntityRegistry
@@ -194,16 +205,22 @@ func _check_axe_on_wood() -> void:
 
 
 func _check_vehicle(entity_id: String) -> void:
-	var bed := _ground(Vector2(1200.0, 1200.0), Vector2(2400.0, 120.0))
+	# Everything stays inside Rect2(0, -520, 3760, 1200): a wanderer that falls past
+	# world_bounds.end.y (680) is teleported back to the top of the world, and a
+	# passenger yanked out of the sky looks exactly like a boat leaving them behind.
+	var bed := _ground(Vector2(1500.0, 620.0), Vector2(3000.0, 120.0))
 	var pool := WaterArea2D.new()
-	pool.surface_size = Vector2(2600.0, 240.0)
+	pool.surface_size = Vector2(2600.0, 260.0)
+	pool.position = Vector2(1500.0, 430.0)
 	world.add_child(pool)
-	pool.global_position = Vector2(1500.0, 1030.0)
-	var hero := _wanderer(Vector2(400.0, 980.0))
-	var boat := _utility(entity_id, Vector2(420.0, 1000.0))
+	var hero := _wanderer(Vector2(900.0, 260.0))
+	hero.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+	var boat := _utility(entity_id, Vector2(920.0, 300.0))
 	await _settle(50)
 	if not bool(boat.call("_is_in_water")):
-		_fail(entity_id, "did not register as afloat")
+		_fail(entity_id, "did not register as afloat -- harness fault")
+	elif boat.global_position.y > 560.0:
+		_fail(entity_id, "sank to the bed at y=%.0f before boarding" % boat.global_position.y)
 	else:
 		boat.interact(hero)
 		await physics_frame
@@ -216,7 +233,9 @@ func _check_vehicle(entity_id: String) -> void:
 		if absf(sailed) > 80.0 and carried:
 			_pass(entity_id, "travelled %.0fpx carrying the player" % sailed)
 		elif absf(sailed) > 80.0:
-			_fail(entity_id, "moved %.0fpx but left the player behind" % sailed)
+			_fail(entity_id, "moved %.0fpx but left the player behind (boat %s, player %s, riding=%s)" % [
+				sailed, boat.global_position, hero.global_position,
+				hero.call("is_riding") if hero.has_method("is_riding") else "n/a"])
 		else:
 			_fail(entity_id, "only moved %.0fpx" % sailed)
 	hero.queue_free()
