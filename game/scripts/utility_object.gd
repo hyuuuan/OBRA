@@ -799,11 +799,13 @@ func _board_actor(actor: Node2D) -> void:
 		# pinning them; _seat_carried_actor keeps them aboard.
 		_boarded_actor = actor
 		actor.global_position = seat_position
+		_ignore_collisions_with(actor, true)
 		if actor.has_method("begin_ride"):
 			actor.call("begin_ride", self)
 		utility_used.emit(utility_behavior, item_data)
 		return
 	_boarded_actor = actor
+	_ignore_collisions_with(actor, true)
 	if actor.has_method("begin_ride"):
 		actor.call("begin_ride", self)
 	if actor.has_method("apply_morph_state"):
@@ -834,7 +836,27 @@ func _seat_carried_actor() -> void:
 		+ Vector2(0.0, -_target_size().y * 0.25).rotated(global_rotation)
 
 
+## A passenger is cargo, not an obstacle. The seat is inside the hull and the rider is
+## force-placed there every frame, so with both on the same collision layer the solver
+## saw a body teleporting into the boat and blew them apart -- which is where the hull's
+## impossible speed came from AND why the rider ended up somewhere else. It was one
+## fault presenting as two, and no amount of clamping the velocity would have fixed
+## either, because the clamp was never the thing being outrun.
+func _ignore_collisions_with(actor: Node2D, ignore: bool) -> void:
+	var body := actor as PhysicsBody2D
+	if body == null:
+		return
+	if ignore:
+		add_collision_exception_with(body)
+		body.add_collision_exception_with(self)
+	else:
+		remove_collision_exception_with(body)
+		body.remove_collision_exception_with(self)
+
+
 func _unboard_actor() -> void:
+	if _boarded_actor != null and is_instance_valid(_boarded_actor):
+		_ignore_collisions_with(_boarded_actor, false)
 	if _boarded_actor != null and is_instance_valid(_boarded_actor) \
 		and _boarded_actor.has_method("end_ride"):
 		_boarded_actor.call("end_ride")

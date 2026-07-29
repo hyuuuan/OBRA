@@ -4,15 +4,6 @@ extends SceneTree
 ## two of its rows are currently expected to fail (see the vehicle note below).
 ##   godot --headless --path game --script res://tests/run_behaviour_audit.gd
 ##
-## KNOWN FAILING: the two vehicle rows. The hull sails and the passenger attaches, but
-## the boat sinks out of the bottom of the pool -- once below it, _is_in_water() goes
-## false, _integrate_forces early-returns, and it loses both its buoyancy and its speed
-## cap in the same frame and falls through the world. The rider is put down correctly
-## when that happens, so what shows up here as "left the player behind" is the aground
-## handling doing its job after the real fault. Not yet fixed. Note also that
-## UtilityObject._integrate_forces does not call super, so the base class's
-## world-bounds clamp never runs for a utility -- likely part of the same problem.
-##
 ## The harness checks its own preconditions. Two earlier versions of it reported the
 ## ladder and the boats as broken when the fault was the setup: the ladder had slid away
 ## from where the player was standing, and the vehicle pool sat below the wanderer's
