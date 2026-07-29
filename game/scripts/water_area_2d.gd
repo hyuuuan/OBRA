@@ -2,7 +2,13 @@ class_name WaterArea2D
 extends Area2D
 ## Future levels can add this area without changing fish or sailboat code.
 
-@export var buoyancy: float = 1.0
+## How many times its own weight the water pushes back with when a body is FULLY
+## under. It has to be greater than 1 or nothing can ever float: at 1.0 a submerged
+## body is exactly weightless and anything less than fully under still sinks, which is
+## how a cork ended up resting on the riverbed. A body settles where lift matches
+## weight -- at 2.4 that is a little under half submerged, which is what a boat sitting
+## in water looks like.
+@export var buoyancy: float = 2.4
 @export var linear_drag: float = 2.8
 @export var angular_drag: float = 1.8
 @export var surface_size: Vector2 = Vector2(240.0, 40.0)
@@ -41,7 +47,7 @@ func _physics_process(_delta: float) -> void:
 	var surface_y := global_position.y - surface_size.y * 0.5
 	for node in get_overlapping_bodies():
 		var body := node as RigidBody2D
-		if body == null or body.freeze:
+		if body == null or body.freeze or body.has_meta(&"self_buoyant"):
 			continue
 		var depth := clampf((body.global_position.y - surface_y) / maxf(1.0, surface_size.y), 0.0, 1.0)
 		if depth <= 0.0:

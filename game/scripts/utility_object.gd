@@ -67,6 +67,10 @@ func _ready() -> void:
 		_active = true
 		_set_light_active(true)
 	add_to_group("drawn_utilities")
+	if utility_behavior in ["sailboat", "submarine"]:
+		# Hulls do their own buoyancy in _integrate_forces. Without this the pool lifts
+		# them too and the two together launch the boat clean out of the water.
+		set_meta(&"self_buoyant", true)
 
 
 func configure_entity(entry: Dictionary) -> void:
@@ -417,6 +421,11 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 		return
 	# The submarine was left out of this entirely, so the one vessel whose whole job is
 	# to sit in water had no buoyancy and no drag at all.
+	# The hull floats ITSELF, and tells the water to keep its hands off (see the meta in
+	# _ready). Letting the pool lift it as well double-counted the buoyancy and threw it
+	# out of the water; letting the pool do it INSTEAD is the tidier design but it is not
+	# a swap to make while the vehicles are still unreliable, so the hull keeps the
+	# behaviour its own test documents.
 	gravity_scale = 0.18 if utility_behavior == "sailboat" else 0.62
 	var velocity := state.linear_velocity
 	state.apply_central_force(-state.total_gravity * mass * 0.82)
@@ -425,7 +434,12 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	# A hull has a top speed. Clamped HERE and not in _physics_process, because a write
 	# to linear_velocity outside the physics callback is overwritten by the solver --
 	# which is why the cap did nothing and the boat crossed the level in two seconds.
-	state.linear_velocity.x = clampf(state.linear_velocity.x, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED)
+	# Assigned as a whole vector. Writing state.linear_velocity.x on its own left the
+	# cap doing nothing at all, which is why the hull still crossed the level in seconds
+	# after the cap had supposedly been moved into the physics callback.
+	state.linear_velocity = Vector2(
+		clampf(state.linear_velocity.x, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED),
+		clampf(state.linear_velocity.y, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED))
 
 
 ## Chop, slash and snip are one motion against different things: the tool name is

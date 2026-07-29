@@ -309,7 +309,7 @@ position = Vector2(620, 614)
 z_index = 3
 script = ExtResource("4_water")
 surface_size = Vector2(200, 36)
-buoyancy = 0.7
+buoyancy = 2.2
 linear_drag = 3.4
 
 [node name="CentralPaddy" type="Area2D" parent="GameplayPlane/WaterAreas"]
@@ -317,7 +317,7 @@ position = Vector2(2100, 336)
 z_index = 3
 script = ExtResource("4_water")
 surface_size = Vector2(400, 96)
-buoyancy = 0.9
+buoyancy = 2.6
 linear_drag = 3.1
 
 [node name="Gorge" type="Node2D" parent="GameplayPlane"]

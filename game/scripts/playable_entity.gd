@@ -337,11 +337,12 @@ func _drive_flier(body: ActiveRigBody2D, horizontal: float, _delta: float, butte
 
 func _drive_fish(body: ActiveRigBody2D, input_vector: Vector2) -> String:
 	if is_in_water():
-		# Slightly heavier than the water, so a fish that stops swimming SINKS instead of
-		# hanging wherever it happened to enter. Holding a direction beats it easily --
-		# that is the difference between a fish in water and a sprite pinned to the
-		# surface, which is what zero gravity here made it.
-		_set_rig_gravity(0.06)
+		# Full weight, and let the water do the rest. Zeroing gravity here pinned the fish
+		# to whatever depth it entered at; hand-picking a small value fought the buoyancy
+		# instead of using it. At its own weight against the pool's lift it sinks from the
+		# surface and settles a little under halfway down, and a held direction takes it
+		# anywhere from there -- which is a fish, rather than a sprite on the surface.
+		_set_rig_gravity(1.0)
 		body.linear_damp = 1.5
 		if input_vector.length() > 1.0:
 			input_vector = input_vector.normalized()
