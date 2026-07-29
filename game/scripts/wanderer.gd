@@ -33,6 +33,13 @@ const CLIMB_RELEASE := 120.0
 ## An open umbrella is a parachute you are holding.
 const UMBRELLA_FALL_LIMIT := 190.0
 
+## Wading. Deep water is meant to stop a walker, so it costs most of your speed, pulls
+## you steadily down, and leaves you barely able to jump out of it.
+const WADE_DRAG := 0.55
+const WADE_SINK := 0.42
+const WADE_SINK_SPEED := 120.0
+const WADE_JUMP := 0.45
+
 @onready var _figure: Node2D = $Figure
 
 var world_bounds := Rect2(0.0, -520.0, 3760.0, 1200.0)
@@ -87,6 +94,16 @@ func _physics_process(delta: float) -> void:
 		if Input.is_action_just_pressed(&"jump"):
 			end_ladder()
 			velocity.y = JUMP_VELOCITY
+	elif is_in_water():
+		# WADING, NOT WALKING. Water used to be scenery you strolled through at full
+		# speed, which made a drawn boat pointless and a swimmer morph a novelty. It
+		# drags now, and it pulls you down: you can cross a shallow paddy on foot and
+		# you cannot cross deep water, which is the whole reason to draw something that
+		# floats or something that swims.
+		velocity.x *= WADE_DRAG
+		velocity.y = minf(velocity.y + _gravity * WADE_SINK * delta, WADE_SINK_SPEED)
+		if Input.is_action_just_pressed(&"jump"):
+			velocity.y = JUMP_VELOCITY * WADE_JUMP
 	elif is_on_floor():
 		if Input.is_action_just_pressed(&"jump"):
 			velocity.y = JUMP_VELOCITY

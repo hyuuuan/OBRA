@@ -33,6 +33,13 @@ AudioDirector="*res://scripts/audio_director.gd"
 
 window/size/viewport_width=1600
 window/size/viewport_height=900
+; Fullscreen used to just hand the game the monitor's own resolution, so on any screen
+; shorter in proportion than 16:9 the bottom of the drawing panel and the inventory bar
+; simply fell off the edge. keep_height guarantees the full authored 900px of height is
+; always on screen whatever the aspect; a wider monitor sees more of the level sideways,
+; which is what a side-scroller wants anyway.
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep_height"
 
 [gui]
 
