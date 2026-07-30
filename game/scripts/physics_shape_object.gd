@@ -157,6 +157,19 @@ func confirm_placement() -> void:
 	sleeping = false
 	linear_velocity = Vector2.ZERO
 	angular_velocity = 0.0
+	# A PLACED OBJECT KEEPS THE POSE IT WAS PLACED IN. Aiming a ladder upright and
+	# watching it topple flat the moment it is let go makes placement pointless -- the
+	# player set an orientation and the physics threw it away. Rotation is locked to what
+	# they chose. The exceptions are the things whose whole ability is turning: a circle
+	# rolls (that IS its ConceptNet ability) and a wheel has to spin to drive anything.
+	if not _rolls():
+		lock_rotation = true
+	# And the spawn toss is suppressed here for the same reason set_preview does it: a
+	# confirmed placement is deliberate. Utilities were spared because _apply_spawn_motion
+	# returns early for them, so only the SHAPES got a spin applied a frame after being
+	# set down -- which is why a placed square span to 64 degrees with its rotation
+	# supposedly locked. The lock was fine; something was still handing it a spin.
+	_spawn_motion_applied = true
 	# A placed shape is scenery, not a body the player is driving. Shapes route to
 	# placement rather than to the morph path, so leaving controllable set meant every
 	# square and circle in the level answered the movement keys remotely -- press D and
@@ -164,6 +177,11 @@ func confirm_placement() -> void:
 	controllable = false
 	if item_data != null:
 		item_data.placement_transform = global_transform
+
+
+## Things whose function is rotation, and which must therefore stay free to tumble.
+func _rolls() -> bool:
+	return shape_type in ["circle", "wheel"]
 
 
 func apply_item_data(item: DrawnItemData) -> void:

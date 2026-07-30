@@ -206,19 +206,19 @@ position = Vector2(260, 460)
 [node name="LowerLeft" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(0, 560)
 script = ExtResource("5_terrace")
-segment_size = Vector2(520, 120)
+segment_size = Vector2(480, 120)
 surface_style = 0
 
 [node name="LowerPaddyFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(520, 632)
+position = Vector2(480, 632)
 script = ExtResource("5_terrace")
-segment_size = Vector2(200, 48)
+segment_size = Vector2(160, 48)
 surface_style = 2
 
 [node name="LowerRight" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(720, 560)
+position = Vector2(640, 560)
 script = ExtResource("5_terrace")
-segment_size = Vector2(40, 120)
+segment_size = Vector2(120, 120)
 surface_style = 0
 
 [node name="Terrace1" type="StaticBody2D" parent="GameplayPlane/Terrain"]
@@ -273,13 +273,13 @@ surface_style = 0
 [node name="Transitions" type="Node2D" parent="GameplayPlane"]
 
 [node name="LowerPaddyDown" type="StaticBody2D" parent="GameplayPlane/Transitions"]
-position = Vector2(520, 560)
+position = Vector2(480, 560)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/LowerPaddyDown"]
 shape = SubResource("Wedge_puddle_down_a")
 
 [node name="LowerPaddyUp" type="StaticBody2D" parent="GameplayPlane/Transitions"]
-position = Vector2(720, 560)
+position = Vector2(640, 560)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/LowerPaddyUp"]
 shape = SubResource("Wedge_puddle_up_a")
@@ -299,7 +299,7 @@ shape = SubResource("Wedge_puddle_down_b")
 [node name="WaterAreas" type="Node2D" parent="GameplayPlane"]
 
 [node name="LowerPaddy" type="Area2D" parent="GameplayPlane/WaterAreas"]
-position = Vector2(620, 596)
+position = Vector2(560, 596)
 z_index = 3
 script = ExtResource("4_water")
 surface_size = Vector2(200, 72)

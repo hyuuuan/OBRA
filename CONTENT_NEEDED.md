@@ -93,9 +93,22 @@ These are **developer** gaps, flagged here so the team can see the whole picture
 - **Lola's Studio hub** — the level-select screen stands in for it.
 - **Levels 2–5** — the level catalog lists them as locked "Coming Soon"; the framework
   loads any level from config, so they are content-blocked, not code-blocked.
-- **Level furniture for the drawn tools** — all 27 utilities work, but Level 1 only has
-  targets for the cutting tools (the dead tree). Locks, gates and switches exist as
-  reusable contracts with nothing placed in the world yet.
+- **Level furniture for the drawn tools.** All 27 utilities work, but **Level 1 places
+  exactly one target: the dead tree on the Protector route.** Every other tool acts on
+  loose physics bodies and water because there is nothing authored for it to act on. The
+  contracts are written, tested and waiting — placing them is level-design work, not
+  code:
+
+  | Contract | What it wants placed | Which tools it would give a purpose |
+  |---|---|---|
+  | `Destructible2D` | wooden barricades, crates, roots, thick vines | axe, sword, scissors, cannon, anvil (`tool_effectiveness` already names them) |
+  | `Lockable2D` | a locked door or chest | key |
+  | `ConceptGate2D` | anything needing a concept from a later level | whatever the gate names — the gorge cave already uses one for the Flashlight |
+  | `UtilityRequirement2D` | "this room needs X used in it" objectives | any tool, as a level-completion condition |
+
+  Until these are placed, a player who draws a sword or a key gets a tool that works
+  and has nothing to work on, which reads as the tool being broken. **This is the
+  single highest-value thing a level designer can add**, and it needs no code.
 
 ---
 
