@@ -585,7 +585,15 @@ func _test_banaue_environment() -> void:
 	var bounds: Rect2 = environment.get("world_bounds")
 	_expect(bounds.size == Vector2(3760.0, 1200.0), "Banaue world bounds changed unexpectedly")
 	var spawn := environment.get_node("GameplayPlane/SpawnPoint") as Marker2D
-	_expect(spawn.position == Vector2(260.0, 500.0), "Banaue spawn is not on the opening terrace")
+	# Read against the terrace rather than pinned to a literal: the opening bank has moved
+	# twice while deepening the paddy, and a hardcoded spawn point turns every legitimate
+	# terrain change into a test failure that says nothing useful about it.
+	var opening := environment.get_node("GameplayPlane/Terrain/LowerLeft") as Node2D
+	_expect(spawn.position.x > opening.position.x and spawn.position.x < opening.position.x + 520.0,
+		"Banaue spawn at x=%.0f is not over the opening terrace" % spawn.position.x)
+	_expect(absf(spawn.position.y - opening.position.y) <= 120.0,
+		"Banaue spawn at y=%.0f is not standing on the opening terrace (top y=%.0f)" % [
+			spawn.position.y, opening.position.y])
 
 	var terrace_count := 0
 	for node in get_nodes_in_group("terrace_ground"):

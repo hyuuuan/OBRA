@@ -29,6 +29,8 @@ const PARACHUTE_DRAG := -820.0
 const PARACHUTE_FALL_LIMIT := 120.0
 ## How long the clock holds nearby movement still.
 const CLOCK_FREEZE_SECONDS := 4.0
+## Long enough that one landing is one bounce, short enough to feel like a trampoline.
+const MUSHROOM_RECHARGE := 0.45
 ## Radius the weather tools work over.
 const WEATHER_RADIUS := 220.0
 ## How fast a drawn hull will go, however long the player holds the stick.
@@ -348,21 +350,30 @@ func _apply_prop_effects(_delta: float) -> void:
 		return
 	match utility_behavior:
 		"mushroom":
-			# Bounce: anything that lands on the cap is thrown back up.
-			for target in _reachable_targets(_target_size().y * 0.75):
+			# Bounce: anything that LANDS on the cap is thrown back up -- once per landing.
+			# Applied every frame it was in reach, the impulse compounded and fired the
+			# player clean out of the level; the audit found them 837px above the sky.
+			# The reach is the cap's half-height plus room for a body standing on it,
+			# because tied to the cap alone a tall mushroom cannot reach what it is
+			# holding up.
+			if _effect_time > 0.0:
+				return
+			for target in _reachable_targets(_target_size().y * 0.5 + 72.0):
 				var body := target as Node2D
 				if body == null or body == self or body.global_position.y > global_position.y:
 					continue
 				if _is_player_body(body):
 					_push_actor_impulse(_player_of(body), Vector2(0.0, -560.0))
+					_effect_time = MUSHROOM_RECHARGE
 				elif body is RigidBody2D and not (body as RigidBody2D).freeze:
 					(body as RigidBody2D).apply_central_impulse(Vector2(0.0, -430.0) * (body as RigidBody2D).mass)
+					_effect_time = MUSHROOM_RECHARGE
 		"wheel":
 			# Roll/Fix: a driven roller. What rests on it is carried along.
 			if not _active:
 				return
 			angular_velocity = 6.5
-			for target in _reachable_targets(_target_size().x * 0.7):
+			for target in _reachable_targets(_target_size().x * 0.5 + 64.0):
 				var body := target as RigidBody2D
 				if body != null and body != self and not body.freeze and body.global_position.y < global_position.y:
 					body.apply_central_force(Vector2(240.0, 0.0) * body.mass)
@@ -377,7 +388,7 @@ func _run_door() -> void:
 	var partner := _door_partner()
 	if partner == null:
 		return
-	for target in _reachable_targets(_target_size().length() * 0.4):
+	for target in _reachable_targets(_target_size().length() * 0.5 + 32.0):
 		if not _is_player_body(target):
 			continue
 		var player := _player_of(target)
