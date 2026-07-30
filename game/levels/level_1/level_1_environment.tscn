@@ -5,6 +5,13 @@
 [ext_resource type="Script" path="res://scripts/depth_layer_2d.gd" id="3_depth"]
 [ext_resource type="Script" path="res://scripts/water_area_2d.gd" id="4_water"]
 [ext_resource type="Script" path="res://scripts/terrace_segment_2d.gd" id="5_terrace"]
+[ext_resource type="Script" path="res://scripts/ruined_bridge_2d.gd" id="12_bridge"]
+[ext_resource type="Script" path="res://scripts/dialogue_node_2d.gd" id="13_dialogue"]
+[ext_resource type="Script" path="res://scripts/route_layout_2d.gd" id="14_routes"]
+[ext_resource type="Script" path="res://scripts/dead_tree_2d.gd" id="15_tree"]
+[ext_resource type="Script" path="res://scripts/collapsing_platform_2d.gd" id="16_collapse"]
+[ext_resource type="Script" path="res://scripts/concept_gate_2d.gd" id="17_gate"]
+[ext_resource type="Script" path="res://scripts/hidden_flower_2d.gd" id="18_flower"]
 [ext_resource type="Texture2D" path="res://assets/Level1/bg_withclouds.png" id="6_sky"]
 [ext_resource type="Texture2D" path="res://assets/Level1/mountains_furthest_background.png" id="7_far"]
 [ext_resource type="Texture2D" path="res://assets/Level1/mountain_further_background.png" id="8_green"]
@@ -215,57 +222,52 @@ segment_size = Vector2(40, 80)
 surface_style = 0
 
 [node name="Terrace1" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(760, 560)
+position = Vector2(760, 480)
 script = ExtResource("5_terrace")
-segment_size = Vector2(360, 120)
+segment_size = Vector2(360, 200)
 surface_style = 0
 
 [node name="Terrace2" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(1120, 512)
+position = Vector2(1120, 360)
 script = ExtResource("5_terrace")
-segment_size = Vector2(360, 168)
+segment_size = Vector2(360, 320)
 surface_style = 1
 
 [node name="Terrace3" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(1480, 464)
+position = Vector2(1480, 300)
 script = ExtResource("5_terrace")
-segment_size = Vector2(360, 216)
+segment_size = Vector2(360, 380)
 surface_style = 0
 
 [node name="CentralLeft" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(1840, 464)
+position = Vector2(1840, 300)
 script = ExtResource("5_terrace")
-segment_size = Vector2(180, 216)
+segment_size = Vector2(60, 380)
 surface_style = 1
 
 [node name="CentralPaddyFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(2020, 500)
+position = Vector2(1900, 372)
 script = ExtResource("5_terrace")
-segment_size = Vector2(280, 180)
+segment_size = Vector2(400, 308)
 surface_style = 2
 
 [node name="CentralRight" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(2300, 464)
+position = Vector2(2300, 300)
 script = ExtResource("5_terrace")
-segment_size = Vector2(100, 216)
+segment_size = Vector2(100, 380)
+surface_style = 1
 surface_style = 1
 
-[node name="Terrace4" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(2400, 416)
-script = ExtResource("5_terrace")
-segment_size = Vector2(360, 264)
-surface_style = 0
-
 [node name="Terrace5" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(2760, 368)
+position = Vector2(2960, 300)
 script = ExtResource("5_terrace")
-segment_size = Vector2(360, 312)
+segment_size = Vector2(360, 380)
 surface_style = 1
 
 [node name="Overlook" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(3120, 320)
+position = Vector2(3320, 260)
 script = ExtResource("5_terrace")
-segment_size = Vector2(640, 360)
+segment_size = Vector2(440, 420)
 surface_style = 0
 
 [node name="Transitions" type="Node2D" parent="GameplayPlane"]
@@ -282,53 +284,23 @@ position = Vector2(720, 600)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/LowerPaddyUp"]
 shape = SubResource("Wedge_puddle_up_a")
 
-[node name="Rise1" type="StaticBody2D" parent="GameplayPlane/Transitions"]
-position = Vector2(760, 560)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise1"]
-shape = SubResource("Wedge_rise_40")
-
-[node name="Rise2" type="StaticBody2D" parent="GameplayPlane/Transitions"]
-position = Vector2(1120, 512)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise2"]
-shape = SubResource("Wedge_rise_48")
-
 [node name="Rise3" type="StaticBody2D" parent="GameplayPlane/Transitions"]
-position = Vector2(1480, 464)
+position = Vector2(1480, 300)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise3"]
 shape = SubResource("Wedge_rise_48")
 
 [node name="CentralPaddyDown" type="StaticBody2D" parent="GameplayPlane/Transitions"]
-position = Vector2(2020, 464)
+position = Vector2(1900, 300)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/CentralPaddyDown"]
 shape = SubResource("Wedge_puddle_down_b")
 
 [node name="CentralPaddyUp" type="StaticBody2D" parent="GameplayPlane/Transitions"]
-position = Vector2(2300, 464)
+position = Vector2(2300, 300)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/CentralPaddyUp"]
 shape = SubResource("Wedge_puddle_up_b")
-
-[node name="Rise4" type="StaticBody2D" parent="GameplayPlane/Transitions"]
-position = Vector2(2400, 416)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise4"]
-shape = SubResource("Wedge_rise_48")
-
-[node name="Rise5" type="StaticBody2D" parent="GameplayPlane/Transitions"]
-position = Vector2(2760, 368)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise5"]
-shape = SubResource("Wedge_rise_48")
-
-[node name="Rise6" type="StaticBody2D" parent="GameplayPlane/Transitions"]
-position = Vector2(3120, 320)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise6"]
-shape = SubResource("Wedge_rise_48")
 
 [node name="WaterAreas" type="Node2D" parent="GameplayPlane"]
 
@@ -337,16 +309,96 @@ position = Vector2(620, 614)
 z_index = 3
 script = ExtResource("4_water")
 surface_size = Vector2(200, 36)
-buoyancy = 0.7
+buoyancy = 2.2
 linear_drag = 3.4
 
 [node name="CentralPaddy" type="Area2D" parent="GameplayPlane/WaterAreas"]
-position = Vector2(2160, 480)
+position = Vector2(2100, 336)
 z_index = 3
 script = ExtResource("4_water")
-surface_size = Vector2(280, 40)
-buoyancy = 0.9
+surface_size = Vector2(400, 96)
+buoyancy = 2.6
 linear_drag = 3.1
+
+[node name="Gorge" type="Node2D" parent="GameplayPlane"]
+
+[node name="RuinedBridge" type="Node2D" parent="GameplayPlane/Gorge"]
+z_index = 6
+position = Vector2(2400, 300)
+script = ExtResource("12_bridge")
+span = 560.0
+
+[node name="DialogueNode" type="Area2D" parent="GameplayPlane/Gorge"]
+position = Vector2(2330, 300)
+script = ExtResource("13_dialogue")
+level_id = "level_1"
+
+[node name="CaveGate" type="Node2D" parent="GameplayPlane/Gorge"]
+position = Vector2(2620, 632)
+script = ExtResource("17_gate")
+required_concept_id = "flashlight"
+hint_text = "Something is in there, but the dark is too thick to see through."
+
+[node name="HiddenFlower" type="Area2D" parent="GameplayPlane/Gorge"]
+position = Vector2(2700, 596)
+script = ExtResource("18_flower")
+collectible_id = "flower_1"
+
+[node name="Routes" type="Node2D" parent="GameplayPlane"]
+script = ExtResource("14_routes")
+
+[node name="Artist" type="Node2D" parent="GameplayPlane/Routes"]
+
+[node name="MidPost" type="StaticBody2D" parent="GameplayPlane/Routes/Artist"]
+position = Vector2(2650, 300)
+script = ExtResource("5_terrace")
+segment_size = Vector2(60, 332)
+surface_style = 2
+
+[node name="Pragmatist" type="Node2D" parent="GameplayPlane/Routes"]
+
+[node name="LedgeA" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist"]
+position = Vector2(2400, 396)
+script = ExtResource("5_terrace")
+segment_size = Vector2(104, 28)
+surface_style = 2
+
+[node name="LedgeB" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist"]
+position = Vector2(2464, 492)
+script = ExtResource("5_terrace")
+segment_size = Vector2(104, 28)
+surface_style = 2
+
+[node name="LedgeC" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist"]
+position = Vector2(2400, 584)
+script = ExtResource("5_terrace")
+segment_size = Vector2(120, 28)
+surface_style = 2
+
+[node name="ExitShelf" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist"]
+position = Vector2(2860, 584)
+script = ExtResource("5_terrace")
+segment_size = Vector2(100, 28)
+surface_style = 2
+
+[node name="Protector" type="Node2D" parent="GameplayPlane/Routes"]
+
+[node name="DeadTree" type="Node2D" parent="GameplayPlane/Routes/Protector"]
+position = Vector2(2360, 300)
+script = ExtResource("15_tree")
+trunk_size = Vector2(54, 300)
+span_length = 250.0
+health = 100.0
+
+[node name="CrumbleA" type="StaticBody2D" parent="GameplayPlane/Routes/Protector"]
+position = Vector2(2700, 292)
+script = ExtResource("16_collapse")
+platform_size = Vector2(220, 34)
+
+[node name="CrumbleB" type="StaticBody2D" parent="GameplayPlane/Routes/Protector"]
+position = Vector2(2890, 292)
+script = ExtResource("16_collapse")
+platform_size = Vector2(220, 34)
 
 [node name="Decor" type="Node2D" parent="GameplayPlane"]
 z_index = 5
@@ -356,23 +408,23 @@ position = Vector2(980, 526)
 texture = SubResource("Atlas_fence")
 
 [node name="RockA" type="Sprite2D" parent="GameplayPlane/Decor"]
-position = Vector2(1370, 480)
+position = Vector2(1370, 330)
 texture = SubResource("Atlas_rock")
 
 [node name="PlantA" type="Sprite2D" parent="GameplayPlane/Decor"]
-position = Vector2(1660, 430)
+position = Vector2(1660, 268)
 texture = SubResource("Atlas_plant")
 
 [node name="FenceB" type="Sprite2D" parent="GameplayPlane/Decor"]
-position = Vector2(2570, 382)
+position = Vector2(2180, 268)
 texture = SubResource("Atlas_fence")
 
 [node name="BushA" type="Sprite2D" parent="GameplayPlane/Decor"]
-position = Vector2(2980, 332)
+position = Vector2(3060, 268)
 texture = SubResource("Atlas_bush")
 
 [node name="HutOverlook" type="Sprite2D" parent="GameplayPlane/Decor"]
-position = Vector2(3450, 254)
+position = Vector2(3480, 194)
 scale = Vector2(1.22, 1.22)
 texture = SubResource("Atlas_hut")
 

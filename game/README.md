@@ -67,10 +67,11 @@ than creating an unbounded joint graph.
 - Move: WASD or arrow keys
 - Jump/flap/hop: Space
 - Return to drawing screen from the game level: R
-- Place: mouse, wheel or Q/E to rotate, left click confirm, right click cancel
+- Place: mouse, wheel or Z/X to rotate, left click confirm, right click cancel
 - Inventory slots: 1–6
 - Interact/equip/pick up: E
 - Use equipped utility: F
+- Pause: Escape
 
 ## Current Scenes
 

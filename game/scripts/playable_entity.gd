@@ -150,6 +150,24 @@ func set_umbrella_open(is_open: bool) -> void:
 	_umbrella_open = is_open
 
 
+## The same contract the wanderer answers, so a utility pushes "the player" without
+## caring which of the two it is. A drawn creature is a whole rig, so the force goes
+## to every body: pushing only the torso drags a creature out of its own drawing.
+func apply_external_force(acceleration: Vector2) -> void:
+	_rig_force(acceleration)
+
+
+func apply_external_impulse(velocity_change: Vector2) -> void:
+	_rig_impulse(velocity_change)
+
+
+func limit_fall_speed(limit: float) -> void:
+	for candidate in _drive_targets():
+		var body := candidate as RigidBody2D
+		if body != null and is_instance_valid(body) and body.linear_velocity.y > limit:
+			body.linear_velocity.y = limit
+
+
 func is_in_water() -> bool:
 	var skin := _get_skin()
 	return skin != null and skin.has_method("is_in_water") and bool(skin.call("is_in_water"))
@@ -162,6 +180,11 @@ func _physics_process(delta: float) -> void:
 	var horizontal := Input.get_axis("move_left", "move_right")
 	var vertical := Input.get_axis("move_up", "move_down")
 	var entity_id := String(entity_metadata.get("id", ""))
+	# Drive is selected by archetype rig_type; spider keeps its bespoke stance
+	# controller. Species nuances (flutter/soar, slither/swim, bound/charge) come
+	# from rig-profile flags, so new creatures move through the generic gait
+	# without an entity_id branch.
+	var rig_type := String(rig_profile.get("rig_type", entity_metadata.get("rig_type", "")))
 	var state := "idle"
 	var moving := absf(horizontal) > 0.05 or absf(vertical) > 0.05
 
@@ -169,14 +192,15 @@ func _physics_process(delta: float) -> void:
 		state = _drive_ladder(body, vertical)
 	elif entity_id == "spider":
 		state = _drive_spider(body, horizontal, vertical)
-	elif entity_id in ["bird", "butterfly"]:
-		state = _drive_flier(body, horizontal, delta, entity_id == "butterfly")
-	elif entity_id == "fish":
-		state = _drive_fish(body, Vector2(horizontal, vertical))
-	elif entity_id == "snake":
-		state = _drive_snake(body, Vector2(horizontal, vertical))
-	elif entity_id in ["frog", "rabbit"]:
-		state = _drive_hopper(body, horizontal, delta, entity_id == "rabbit")
+	elif rig_type == "flier":
+		state = _drive_flier(body, horizontal, delta, String(rig_profile.get("flight_style", "")) == "flutter")
+	elif rig_type == "swimmer":
+		if String(rig_profile.get("swim_style", "")) == "slither":
+			state = _drive_snake(body, Vector2(horizontal, vertical))
+		else:
+			state = _drive_fish(body, Vector2(horizontal, vertical))
+	elif rig_type == "hopper":
+		state = _drive_hopper(body, horizontal, delta, String(rig_profile.get("hop_style", "")) == "bound")
 	else:
 		state = _drive_grounded(body, horizontal)
 
@@ -188,7 +212,7 @@ func _physics_process(delta: float) -> void:
 	# generic root servo as well makes the two controllers fight each other and
 	# was a major source of the old rolling/locked-body behaviour.
 	if entity_id != "spider":
-		_apply_balance(body, entity_id)
+		_apply_balance(body, rig_type)
 	var max_speed := maxf(1.0, _profile_float("move_speed", _default_speed(entity_id)))
 	set_rig_state(state, {
 		"direction": horizontal,
@@ -313,7 +337,12 @@ func _drive_flier(body: ActiveRigBody2D, horizontal: float, _delta: float, butte
 
 func _drive_fish(body: ActiveRigBody2D, input_vector: Vector2) -> String:
 	if is_in_water():
-		_set_rig_gravity(0.0)
+		# Full weight, and let the water do the rest. Zeroing gravity here pinned the fish
+		# to whatever depth it entered at; hand-picking a small value fought the buoyancy
+		# instead of using it. At its own weight against the pool's lift it sinks from the
+		# surface and settles a little under halfway down, and a held direction takes it
+		# anywhere from there -- which is a fish, rather than a sprite on the surface.
+		_set_rig_gravity(1.0)
 		body.linear_damp = 1.5
 		if input_vector.length() > 1.0:
 			input_vector = input_vector.normalized()
@@ -435,8 +464,8 @@ func _set_rig_gravity(scale: float) -> void:
 			b.gravity_scale = scale
 
 
-func _apply_balance(body: ActiveRigBody2D, entity_id: String) -> void:
-	if entity_id in ["fish", "snake"] or (entity_id in ["bird", "butterfly"] and not body.grounded):
+func _apply_balance(body: ActiveRigBody2D, rig_type: String) -> void:
+	if rig_type == "swimmer" or (rig_type == "flier" and not body.grounded):
 		return
 	var target_rotation := 0.0
 	if _ladder != null and is_instance_valid(_ladder):
@@ -489,9 +518,6 @@ func _vector_is_finite(value: Vector2) -> bool:
 func _default_speed(entity_id: String) -> float:
 	match entity_id:
 		"spider": return 180.0
-		"cat": return 225.0
-		"dog": return 215.0
-		"rabbit": return 210.0
 		"frog": return 180.0
 		"bird": return 245.0
 		"butterfly": return 220.0

@@ -7,6 +7,7 @@ signal transition_finished(destination: String)
 
 const CATALOG_PATH := "res://config/levels.json"
 const SELECTOR_SCENE := "res://ui/main_menu.tscn"
+const ENDING_SCENE := "res://ui/ending_screen.tscn"
 const GRID_COLUMNS := 20
 const GRID_ROWS := 12
 
@@ -40,7 +41,13 @@ func get_level(level_id: String) -> Dictionary:
 
 func is_unlocked(level_id: String) -> bool:
 	var entry := get_level(level_id)
-	return not entry.is_empty() and bool(entry.get("unlocked", false))
+	if entry.is_empty():
+		return false
+	if bool(entry.get("unlocked", false)):
+		return true
+	# Progression unlocks earned in play persist in the player profile across sessions.
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	return profile != null and profile.is_level_unlocked(level_id)
 
 
 func is_transitioning() -> bool:
@@ -56,6 +63,41 @@ func open_level(level_id: String) -> bool:
 		return false
 	current_level_id = level_id
 	_transition_to.call_deferred(scene_path, level_id)
+	return true
+
+
+## Show the run's ending. Reached from the level marked "ends_run" in the catalog, so
+## that when levels 2-5 exist only the last one carries the flag and no code changes.
+func show_ending() -> bool:
+	if _transitioning or not ResourceLoader.exists(ENDING_SCENE):
+		return false
+	get_tree().paused = false
+	_transition_to.call_deferred(ENDING_SCENE, "")
+	return true
+
+
+## Whether a level has content behind it. Deliberately separate from is_unlocked,
+## which means PROGRESSION: finishing level 1 unlocks level 2 in the profile, and the
+## menu would then enable a card whose scene_path is empty -- an enabled button that
+## silently does nothing when clicked.
+func is_playable(level_id: String) -> bool:
+	var scene_path := String(get_level(level_id).get("scene_path", ""))
+	return not scene_path.is_empty() and ResourceLoader.exists(scene_path)
+
+
+## Reload the level currently being played.
+##
+## Deliberately not open_level(current_level_id): that refuses when the level is
+## locked, and a level you are standing in is by definition reachable -- refusing to
+## restart it because of a progression rule would strand the player in it.
+func restart_level() -> bool:
+	if _transitioning or current_level_id.is_empty():
+		return false
+	var scene_path := String(get_level(current_level_id).get("scene_path", ""))
+	if scene_path.is_empty() or not ResourceLoader.exists(scene_path):
+		return false
+	get_tree().paused = false
+	_transition_to.call_deferred(scene_path, current_level_id)
 	return true
 
 

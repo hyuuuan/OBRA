@@ -11,6 +11,9 @@ const PANEL_SNAP := 8.0
 @onready var play_button: Button = $MenuLayer/MenuRoot/MorphPanel/PlayButton
 @onready var selector: Control = $MenuLayer/MenuRoot/MorphPanel/Selector
 @onready var selector_title: Label = $MenuLayer/MenuRoot/MorphPanel/Selector/SelectorTitle
+@onready var settings_button: Button = $MenuLayer/MenuRoot/SideButtons/SettingsButton
+@onready var controls_button: Button = $MenuLayer/MenuRoot/SideButtons/ControlsButton
+@onready var quit_button: Button = $MenuLayer/MenuRoot/SideButtons/QuitButton
 @onready var cards: Array[Button] = [
 	$MenuLayer/MenuRoot/MorphPanel/Selector/Level1,
 	$MenuLayer/MenuRoot/MorphPanel/Selector/Level2,
@@ -33,9 +36,13 @@ var _backdrop_bases_ready := false
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	play_button.pressed.connect(_show_selector)
-	cards[0].pressed.connect(_open_level_one)
-	for index in range(1, cards.size()):
-		cards[index].disabled = true
+	settings_button.pressed.connect(_open_overlay.bind(^"SettingsOverlay"))
+	controls_button.pressed.connect(_open_overlay.bind(^"ControlsOverlay"))
+	quit_button.pressed.connect(_ask_quit)
+	for index in range(cards.size()):
+		var level_id := "level_%d" % (index + 1)
+		cards[index].pressed.connect(_open_level.bind(level_id))
+	_refresh_cards()
 	selector.visible = false
 	play_button.visible = true
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
@@ -62,10 +69,33 @@ func _process(delta: float) -> void:
 	terraces.position = terraces.position.lerp(_terraces_base + _parallax_target * -28.0, weight)
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel") and _selector_open and not _animating:
-		get_viewport().set_input_as_handled()
-		_hide_selector()
+## The shared overlays are siblings of this node, instanced into the menu scene.
+func _open_overlay(overlay_name: StringName) -> void:
+	var overlay := get_node_or_null(NodePath(overlay_name)) as ModalOverlay
+	if overlay != null:
+		overlay.open()
+
+
+func _ask_quit() -> void:
+	var confirm := get_node_or_null(^"ConfirmOverlay")
+	if confirm == null:
+		return
+	if not confirm.is_connected(&"confirmed", _quit_to_desktop):
+		confirm.connect(&"confirmed", _quit_to_desktop)
+	confirm.call(&"ask", "QUIT TO DESKTOP?", "Your progress is saved.", "QUIT")
+
+
+func _quit_to_desktop() -> void:
+	get_tree().quit()
+
+
+## Called by UIRouter. The menu declines while the morph tween is running, so cancel
+## cannot interrupt an animation halfway and leave the panel between its two rects.
+func handle_cancel() -> bool:
+	if not _selector_open or _animating:
+		return false
+	_hide_selector()
+	return true
 
 
 func is_selector_open() -> bool:
@@ -124,6 +154,7 @@ func _reveal_selector() -> void:
 	selector.visible = true
 	selector_title.visible = true
 	_layout_cards()
+	_refresh_cards()
 	for card in cards:
 		card.visible = false
 		card.modulate.a = 0.0
@@ -137,11 +168,66 @@ func _reveal_selector() -> void:
 	)
 
 
-func _open_level_one() -> void:
+func _open_level(level_id: String) -> void:
 	if _animating or LevelManager.is_transitioning():
 		return
-	if LevelManager.open_level("level_1"):
+	if LevelManager.open_level(level_id):
 		_animating = true
+
+
+## Reflect the catalog and the persisted profile in the level cards.
+##
+## A card is offered only when the level is BOTH unlocked and playable, and those are
+## different questions. Finishing level 1 unlocks level 2 in the profile, so
+## is_unlocked started returning true for it -- and the card became enabled while its
+## scene_path was still empty. Clicking it called open_level, which returned false, and
+## nothing happened: an enabled button reading "COMING SOON" that silently did nothing.
+## A button that lies is worse than one that is greyed out.
+func _refresh_cards() -> void:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	for index in range(cards.size()):
+		var level_id := "level_%d" % (index + 1)
+		var card := cards[index]
+		var entry := LevelManager.get_level(level_id)
+		var title := String(entry.get("title", level_id))
+		var playable := LevelManager.is_playable(level_id)
+		var unlocked := LevelManager.is_unlocked(level_id)
+		card.disabled = not (unlocked and playable)
+		var completed: bool = profile != null and profile.is_level_completed(level_id)
+		# Tint completed cards green while preserving the alpha the reveal tween drives.
+		var rgb := Color(0.66, 0.94, 0.70) if completed else Color.WHITE
+		card.modulate = Color(rgb.r, rgb.g, rgb.b, card.modulate.a)
+		_write_card_text(card, index + 1, entry, playable)
+		if not playable:
+			card.tooltip_text = "%s — not made yet" % title
+		elif not unlocked:
+			card.tooltip_text = "%s — locked" % title
+		elif completed:
+			card.tooltip_text = "%s — completed" % title
+		else:
+			card.tooltip_text = title
+
+
+## Fill whichever labels a card actually has. A playable card carries Number/Name/Theme
+## over a thumbnail; a card with no level behind it carries a padlock and one Text
+## label. Both are filled from the catalog rather than from strings typed into the
+## scene, which is what let the level 1 card read "BANAUE RICE TERRACES" while
+## levels.json was the thing everything else believed.
+func _write_card_text(card: Button, number: int, entry: Dictionary, playable: bool) -> void:
+	var title := String(entry.get("title", "")).to_upper()
+	var flavour := String(entry.get("theme", "")).to_upper()
+	var number_label := card.get_node_or_null(^"Number") as Label
+	if number_label != null:
+		number_label.text = "LEVEL %d" % number
+	var name_label := card.get_node_or_null(^"Name") as Label
+	if name_label != null:
+		name_label.text = title
+	var theme_label := card.get_node_or_null(^"Theme") as Label
+	if theme_label != null:
+		theme_label.text = flavour
+	var text_label := card.get_node_or_null(^"Text") as Label
+	if text_label != null:
+		text_label.text = "LEVEL %d\n%s" % [number, title if playable else "COMING SOON"]
 
 
 func _apply_current_layout() -> void:

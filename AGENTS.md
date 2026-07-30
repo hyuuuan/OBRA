@@ -40,17 +40,82 @@ player or creates a placeable utility from the player's actual stroke vectors.
   stored without replacing the current player.
 - `RuntimeRig2D` builds bounded rigidbody/joint graphs from drawn strokes. Preserve
   that no-template-limb pipeline and tune motors/contacts through rig profiles.
+- Ink integrity is a contract: every polyline the rig renders must be an exact
+  contiguous slice of the player's strokes (never a reassembly), and a post-build
+  audit demotes any diverging rig to one intact compound body. `_test_ink_integrity`
+  in `game/tests/run_tests.gd` enforces this on clean and messy fixtures.
 
 ## Gameplay Shape
 
 - Flow: a successful morph replaces the active player; a utility enters placement
   and then lives under `WorldItemRoot` or in the six-slot inventory.
 - Controls are defined in `game/project.godot`: WASD/arrows for movement, Space
-  for jump/flap/hop, R for redraw, 1–6 for inventory, E to interact, and F to use.
+  for jump/flap/hop, R for redraw, 1–6 for inventory, E to interact, F to use,
+  Z/X to rotate a placement, and Escape to pause. `interact` and `rotate_right`
+  both sat on E until the rotate pair moved to Z/X — check for a clash before
+  adding a binding.
 - Ink is level-scoped: twelve normalized canvas diagonals, transactionally reserved
   while drawing and committed only by a successful morph or stored/placed utility.
 - The environment is asset-light on purpose. Keep `GameplayPlane`, `EntityRoot`,
   `SpawnPoint`, camera, floor, and walls intact when replacing placeholder art.
+
+## Persistence, Telemetry, and Progression
+
+- `PlayerProfile` (autoload, `game/scripts/player_profile.gd`) holds the only durable
+  player state: a single JSON file at `user://profile.json`, written atomically
+  (temp-then-rename), schema-versioned, and treated as a fresh profile when
+  unreadable. There is no database. It stores unlocked/completed levels,
+  drawn-and-accepted classes, acquired objects, route tallies, collectibles, and
+  submission counts, and derives class diversity (out of the 50-class roster) and
+  redraw rate. Schema is v2; a v1 profile migrates forward keeping its progress, so
+  bump `SCHEMA_VERSION` and extend `MIGRATABLE_SCHEMAS` rather than breaking saves.
+- Object ownership is global and permanent: `record_object_acquired()` on first
+  successful recognition, `has_object()` as the backtracking gate query. An owned
+  object costs no ink to summon again. `ConceptGate2D` (`concept_gate_2d.gd`) reads
+  that query, so acquiring a concept later retroactively opens gates in every level.
+- `EndingResolver` (`game/scripts/ending_resolver.gd`) is total and deterministic:
+  fixed precedence A → B → C → D, with D as the default so every profile resolves to
+  exactly one ending. Keep it pure — `resolve_values()` must stay directly testable.
+- Remaining gaps and their blockers are tracked in `PERSISTENCE_BACKTRACKING_TODO.md`.
+- `Telemetry` (autoload, `game/scripts/telemetry.gd`) writes an anonymous, local
+  per-session event stream to `user://telemetry/session_<UTC>.jsonl`: session and
+  level lifecycle plus one recognition record per submission (class, confidence,
+  margin, runner-up, accept/decline, end-to-end latency). Nothing is uploaded.
+- The backend logs one anonymous prediction record to `telemetry/backend_<date>.jsonl`
+  only when `OBRA_TELEMETRY=1` (dir override `OBRA_TELEMETRY_DIR`); `/predict` also
+  returns a `timing` split so end-to-end latency decomposes across game and backend.
+  `tools/aggregate_telemetry.py` reports redraw rate, latency, and per-class
+  precision/recall from the logs.
+- Recognition outcomes split in `sketch_client.gd`: `entity_prediction_received`
+  (accepted), `entity_declined` (rejected by the 0.60 confidence / 0.15 margin gate),
+  and `prediction_failed` (transport/backend error). Accept and decline both feed
+  telemetry and the profile.
+- Progression persists: `game_level.gd` completes a level when the player's morph
+  reaches the `GoalMarker` in `game_level.tscn`, which marks it complete and unlocks
+  the next level in the profile. `LevelManager.is_unlocked()` and the main menu read
+  the profile, so unlocks survive across sessions.
+- `is_unlocked()` (progression) and `is_playable()` (a scene exists) are deliberately
+  different questions. Offering a card on unlock alone is what enabled a Level 2 that
+  silently did nothing when clicked. A card needs both.
+
+## UI Contracts
+
+- Autoloads are `LevelManager`, `PlayerProfile`, `Telemetry`, `AudioDirector`. Scripts
+  that a tool might precompile should resolve them through the tree
+  (`get_node_or_null("/root/...")`) rather than by global name — autoloads are not
+  registered when a `--script` run compiles its own script.
+- **`UIRouter` owns the `pause` action.** Nothing else reads it. Overlays expose
+  `handle_cancel() -> bool` and the router walks an authored `cancel_chain`, so
+  priority is data rather than an accident of node order in a `.tscn`.
+- **Pause is derived, never assigned.** Overlays join the `modal_overlays` group and
+  `UIRouter.refresh_pause()` recomputes `get_tree().paused` from whoever is open.
+  Writing `paused` directly unpauses the game when a nested overlay closes.
+- Styling lives in `game/ui/obra_theme.tres`, applied project-wide via
+  `gui/theme/custom`. The main menu keeps its own per-node overrides and must stay
+  pixel-identical; a `focus` stylebox with an opaque background will cover buttons it
+  is drawn over, and a `Label` font in the theme would restyle the menu.
+- Screens read their content from `config/` (`levels.json`, `controls.json`,
+  `audio.json`) rather than from strings typed into a `.tscn`.
 
 ## Common Commands
 
@@ -60,7 +125,10 @@ player or creates a placeable utility from the player's actual stroke vectors.
 - Train/export model: `python3 model/train_quickdraw.py`
 - Cross-dataset eval: `python3 model/evaluate_folder.py --dir <dataset-root>`
 - Contracts: `python3 -m unittest -v tests.test_manifest_contract`
+- Backend telemetry: `python3 -m unittest -v tests.test_backend_telemetry`
 - Godot physics: `godot --headless --path game --script res://tests/run_tests.gd`
+- Profile persistence: `godot --headless --path game --script res://tests/test_player_profile.gd`
+- Aggregate telemetry: `python3 tools/aggregate_telemetry.py <telemetry-dir-or-file>`
 
 ## Finding the Actual Godot Game Window on macOS
 

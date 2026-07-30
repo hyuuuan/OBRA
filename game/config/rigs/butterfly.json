@@ -6,10 +6,14 @@
   "joint_spring": 760,
   "joint_damping": 42,
   "joint_torque_limit": 1500,
-  "target_size": [116, 82],
+  "target_size": [
+    116,
+    82
+  ],
   "align": "center",
+  "flight_style": "flutter",
   "wing_flap_degrees": 42,
-  "flap_cycle_hz": 7.5,
+  "flap_cycle_hz": 3.0,
   "flap_squash": 0.11,
   "flap_lift": 5.0,
   "glide_raise_degrees": 16,

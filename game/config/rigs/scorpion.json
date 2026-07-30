@@ -1,0 +1,20 @@
+{
+  "id": "scorpion",
+  "rig_type": "walker",
+  "move_speed": 195,
+  "jump_impulse": 300,
+  "friction": 0.9,
+  "joint_spring": 1120,
+  "joint_damping": 70,
+  "joint_torque_limit": 2800,
+  "target_size": [126, 66],
+  "align": "bottom",
+  "ground_offset": 30,
+  "stride_length": 34,
+  "leg_swing_degrees": 16,
+  "leg_phase_ripple": 0.34,
+  "walk_bob": 1.7,
+  "air_splay_degrees": 8,
+  "tilt_degrees": 2.0,
+  "landing_squash": 0.12
+}

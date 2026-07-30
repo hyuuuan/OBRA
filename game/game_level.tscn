@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/game_level.gd" id="1_level"]
 [ext_resource type="Script" path="res://scripts/entity_registry.gd" id="2_registry"]
@@ -12,6 +12,14 @@
 [ext_resource type="Script" path="res://scripts/placement_controller.gd" id="10_placement"]
 [ext_resource type="Script" path="res://scripts/inventory_hud.gd" id="11_inventory_hud"]
 [ext_resource type="Script" path="res://scripts/pause_menu.gd" id="12_pause"]
+[ext_resource type="Script" path="res://scripts/ui_router.gd" id="13_ui_router"]
+[ext_resource type="PackedScene" path="res://ui/settings_overlay.tscn" id="14_settings"]
+[ext_resource type="PackedScene" path="res://ui/controls_overlay.tscn" id="15_controls"]
+[ext_resource type="PackedScene" path="res://ui/confirm_overlay.tscn" id="16_confirm"]
+[ext_resource type="PackedScene" path="res://ui/level_complete_overlay.tscn" id="17_complete"]
+[ext_resource type="PackedScene" path="res://ui/out_of_ink_overlay.tscn" id="18_out_of_ink"]
+[ext_resource type="PackedScene" path="res://ui/dialogue_choice_overlay.tscn" id="19_dialogue"]
+[ext_resource type="PackedScene" path="res://ui/memory_overlay.tscn" id="20_memory"]
 
 [node name="GameLevel" type="Node2D"]
 script = ExtResource("1_level")
@@ -34,6 +42,9 @@ script = ExtResource("9_inventory")
 script = ExtResource("10_placement")
 
 [node name="WorldItemRoot" type="Node2D" parent="EnvironmentBaseplate/GameplayPlane"]
+
+[node name="GoalMarker" type="Marker2D" parent="EnvironmentBaseplate/GameplayPlane"]
+position = Vector2(3480, 210)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 layer = 5
@@ -103,6 +114,36 @@ theme_override_font_sizes/font_size = 18
 text = "LEVEL 1  ·  BANAUE RICE TERRACES"
 horizontal_alignment = 1
 
+[node name="HintLabel" type="Label" parent="CanvasLayer"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -108.0
+offset_right = 620.0
+offset_bottom = -84.0
+grow_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"HudHint"
+text = "R DRAW  ·  E PICK UP  ·  F USE  ·  ESC MENU"
+
+[node name="GoalLabel" type="Label" parent="CanvasLayer"]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -320.0
+offset_top = -108.0
+offset_right = -24.0
+offset_bottom = -84.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"HudHint"
+text = ""
+horizontal_alignment = 2
+
 [node name="DrawPanel" type="CanvasLayer" parent="."]
 visible = false
 layer = 10
@@ -117,16 +158,16 @@ grow_vertical = 2
 color = Color(0, 0, 0, 0.42)
 
 [node name="PanelRoot" type="ColorRect" parent="DrawPanel"]
-custom_minimum_size = Vector2(608, 700)
+custom_minimum_size = Vector2(608, 772)
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -304.0
-offset_top = -350.0
+offset_top = -386.0
 offset_right = 304.0
-offset_bottom = 350.0
+offset_bottom = 386.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.12, 0.14, 0.16, 1)
@@ -160,32 +201,48 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("4_canvas")
 
+[node name="GuessLabel" type="Label" parent="DrawPanel/PanelRoot"]
+offset_left = 48.0
+offset_top = 556.0
+offset_right = 560.0
+offset_bottom = 608.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 30
+text = "…"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
 [node name="TransformButton" type="Button" parent="DrawPanel/PanelRoot"]
 offset_left = 48.0
-offset_top = 568.0
+offset_top = 620.0
 offset_right = 292.0
-offset_bottom = 616.0
+offset_bottom = 668.0
 focus_mode = 0
 text = "Transform"
 
 [node name="ClearButton" type="Button" parent="DrawPanel/PanelRoot"]
 offset_left = 316.0
-offset_top = 568.0
+offset_top = 620.0
 offset_right = 560.0
-offset_bottom = 616.0
+offset_bottom = 668.0
 focus_mode = 0
 text = "Clear"
 
 [node name="StatusLabel" type="Label" parent="DrawPanel/PanelRoot"]
 offset_left = 48.0
-offset_top = 632.0
+offset_top = 684.0
 offset_right = 560.0
-offset_bottom = 676.0
+offset_bottom = 732.0
 text = "Ready"
 autowrap_mode = 3
 
 [node name="SketchClient" type="Node" parent="DrawPanel/PanelRoot"]
 script = ExtResource("5_client")
+
+[node name="DialogueChoiceOverlay" parent="." instance=ExtResource("19_dialogue")]
+
+[node name="MemoryOverlay" parent="." instance=ExtResource("20_memory")]
 
 [node name="PauseMenu" type="CanvasLayer" parent="."]
 visible = false
@@ -211,7 +268,7 @@ mouse_filter = 2
 color = Color(0.015, 0.045, 0.025, 0.78)
 
 [node name="Panel" type="PanelContainer" parent="PauseMenu/PauseRoot"]
-custom_minimum_size = Vector2(430, 300)
+custom_minimum_size = Vector2(430, 520)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -219,39 +276,75 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -215.0
-offset_top = -150.0
+offset_top = -260.0
 offset_right = 215.0
-offset_bottom = 150.0
+offset_bottom = 260.0
 grow_horizontal = 2
 grow_vertical = 2
 
 [node name="VBox" type="VBoxContainer" parent="PauseMenu/PauseRoot/Panel"]
 layout_mode = 2
-theme_override_constants/separation = 18
+theme_override_constants/separation = 10
 alignment = 1
 
 [node name="Title" type="Label" parent="PauseMenu/PauseRoot/Panel/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.82, 0.84, 0.38, 1)
-theme_override_font_sizes/font_size = 36
+theme_type_variation = &"ScreenTitle"
 text = "PAUSED"
 horizontal_alignment = 1
 
 [node name="Place" type="Label" parent="PauseMenu/PauseRoot/Panel/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.58, 0.7, 0.46, 1)
-theme_override_font_sizes/font_size = 16
+theme_type_variation = &"HudHint"
 text = "BANAUE RICE TERRACES"
 horizontal_alignment = 1
 
 [node name="ResumeButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
+theme_type_variation = &"DialogButton"
 text = "RESUME"
 
-[node name="LevelSelectButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
-custom_minimum_size = Vector2(0, 54)
+[node name="RestartButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
+custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
+theme_type_variation = &"DialogButton"
+text = "RESTART LEVEL"
+
+[node name="SettingsButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_type_variation = &"DialogButton"
+text = "SETTINGS"
+
+[node name="ControlsButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_type_variation = &"DialogButton"
+text = "CONTROLS"
+
+[node name="LevelSelectButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_type_variation = &"DialogButton"
 text = "LEVEL SELECT"
+
+[node name="QuitButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_type_variation = &"DialogButton"
+text = "QUIT TO DESKTOP"
+
+[node name="LevelCompleteOverlay" parent="." instance=ExtResource("17_complete")]
+
+[node name="OutOfInkOverlay" parent="." instance=ExtResource("18_out_of_ink")]
+
+[node name="SettingsOverlay" parent="." instance=ExtResource("14_settings")]
+
+[node name="ControlsOverlay" parent="." instance=ExtResource("15_controls")]
+
+[node name="ConfirmOverlay" parent="." instance=ExtResource("16_confirm")]
+
+[node name="UIRouter" type="Node" parent="."]
+script = ExtResource("13_ui_router")
+cancel_chain = [NodePath("../LevelCompleteOverlay"), NodePath("../ConfirmOverlay"), NodePath("../OutOfInkOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("../DrawPanel"), NodePath("../PlacementController"), NodePath("../PauseMenu")]
