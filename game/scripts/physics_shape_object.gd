@@ -179,6 +179,41 @@ func confirm_placement() -> void:
 		item_data.placement_transform = global_transform
 
 
+## The object's own collision, as one world-space rectangle. Anything asking "how far
+## away is this thing" wants this and not global_position: the origin of a tall object is
+## its middle, so a standing 244px ladder reads as 122px away from someone with their
+## hand on it.
+func world_extent() -> Rect2:
+	var bounds := Rect2()
+	var started := false
+	for child in get_children():
+		var collision := child as CollisionShape2D
+		if collision == null or collision.shape == null or not collision.shape.has_method("get_rect"):
+			continue
+		var rect: Rect2 = collision.shape.call("get_rect")
+		var basis := collision.global_transform
+		for corner in [
+			rect.position,
+			Vector2(rect.end.x, rect.position.y),
+			Vector2(rect.position.x, rect.end.y),
+			rect.end,
+		]:
+			var point: Vector2 = basis * corner
+			bounds = bounds.expand(point) if started else Rect2(point, Vector2.ZERO)
+			started = true
+	return bounds if started else Rect2(global_position, Vector2.ZERO)
+
+
+## How far a point is from the object's surface, rather than from its middle.
+func distance_from(point: Vector2) -> float:
+	var bounds := world_extent()
+	if bounds.size == Vector2.ZERO:
+		return point.distance_to(global_position)
+	return point.distance_to(Vector2(
+		clampf(point.x, bounds.position.x, bounds.end.x),
+		clampf(point.y, bounds.position.y, bounds.end.y)))
+
+
 ## Things whose function is rotation, and which must therefore stay free to tumble.
 func _rolls() -> bool:
 	return shape_type in ["circle", "wheel"]

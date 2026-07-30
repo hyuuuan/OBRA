@@ -494,7 +494,10 @@ func _interact_with_nearest_utility() -> void:
 		var utility := candidate as UtilityObject
 		if utility == null or utility.is_preview:
 			continue
-		var distance := origin.distance_to(utility.global_position)
+		# Measured to the object's SURFACE. Against its centre, a standing ladder was
+		# 122px away from someone with their hand on it and E could never reach it --
+		# and it got worse the moment ladders were given their proper height.
+		var distance := utility.distance_from(origin)
 		if distance <= nearest_distance:
 			nearest = utility
 			nearest_distance = distance
