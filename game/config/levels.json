@@ -6,7 +6,8 @@
     "theme": "Mountain rice terraces and irrigation paddies",
     "scene_path": "res://game_level.tscn",
     "thumbnail": "res://assets/Level1/terraces_2.png",
-    "unlocked": true
+    "unlocked": true,
+    "ends_run": true
   },
   {
     "id": "level_2",
@@ -15,7 +16,8 @@
     "theme": "",
     "scene_path": "",
     "thumbnail": "",
-    "unlocked": false
+    "unlocked": false,
+    "ends_run": false
   },
   {
     "id": "level_3",
@@ -24,7 +26,8 @@
     "theme": "",
     "scene_path": "",
     "thumbnail": "",
-    "unlocked": false
+    "unlocked": false,
+    "ends_run": false
   },
   {
     "id": "level_4",
@@ -33,7 +36,8 @@
     "theme": "",
     "scene_path": "",
     "thumbnail": "",
-    "unlocked": false
+    "unlocked": false,
+    "ends_run": false
   },
   {
     "id": "level_5",
@@ -42,6 +46,7 @@
     "theme": "",
     "scene_path": "",
     "thumbnail": "",
-    "unlocked": false
+    "unlocked": false,
+    "ends_run": false
   }
 ]

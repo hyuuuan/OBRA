@@ -1,0 +1,55 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/memory_overlay.gd" id="1_memory"]
+
+[node name="MemoryOverlay" type="CanvasLayer"]
+layer = 69
+script = ExtResource("1_memory")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Scrim" type="ColorRect" parent="Root"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.06, 0.03, 0.02, 0.9)
+
+[node name="Panel" type="PanelContainer" parent="Root"]
+custom_minimum_size = Vector2(680, 420)
+layout_mode = 0
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -340.0
+offset_top = -210.0
+offset_right = 340.0
+offset_bottom = 210.0
+
+[node name="VBox" type="VBoxContainer" parent="Root/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="Title" type="Label" parent="Root/Panel/VBox"]
+layout_mode = 2
+theme_type_variation = &"ScreenSubtitle"
+text = "A MEMORY"
+horizontal_alignment = 1
+
+[node name="Body" type="Label" parent="Root/Panel/VBox"]
+layout_mode = 2
+theme_type_variation = &"HudHint"
+text = "..."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ContinueButton" type="Button" parent="Root/Panel/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_type_variation = &"DialogButton"
+text = "CONTINUE"

@@ -8,6 +8,7 @@
   "joint_torque_limit": 1900,
   "target_size": [126, 76],
   "align": "center",
+  "swim_style": "swim",
   "wave_length": 70,
   "wave_amplitude": 6.5,
   "head_direction": [1, 0]

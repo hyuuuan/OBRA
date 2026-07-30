@@ -5,6 +5,8 @@ extends SceneTree
 const SpiderRigAnalyzer = preload("res://scripts/spider_rig_analyzer.gd")
 const SpiderReferenceFixtures = preload("res://tests/spider_reference_fixtures.gd")
 
+const THEME_PATH := "res://ui/obra_theme.tres"
+
 var failures: Array[String] = []
 var world: Node2D
 var registry: EntityRegistry
@@ -24,6 +26,8 @@ func _run() -> void:
 	registry.load_manifest()
 
 	_test_manifest_roles()
+	_test_theme_resource()
+	_test_audio_buses()
 	_test_ink_accounting()
 	_test_inventory()
 	_test_canvas_clipping()
@@ -32,15 +36,42 @@ func _run() -> void:
 	await _test_banaue_environment()
 	_test_camera_non_finite_guard()
 	_test_target_contracts()
+	await _test_ui_router_cancel_chain()
+	await _test_overlay_pause_refcount()
+	await _test_shared_overlays()
+	await _test_level_completion_screen()
 	await _test_placement_collision()
 	_test_anatomy_inference()
 	await _test_spider_stance_controller()
 	await _test_active_ragdolls()
+	await _test_archetype_coverage()
 	await _test_idle_stability()
+	await _test_pose_holding()
+	await _test_wing_anatomy()
+	await _test_fidelity_mode()
+	await _test_fidelity_guard()
+	await _test_every_class_animates()
+	_test_skeleton_manifest()
+	_test_gait_reaches_its_amplitude()
+	_test_skin_weights()
+	_test_skinned_rest_identity()
+	await _test_skinned_rig_renders_the_drawing()
+	await _test_gait_reaches_the_ink()
 	await _test_messy_fixtures()
+	await _test_ink_integrity()
+	await _test_grazing_stroke_not_split()
+	await _test_limb_angle_discipline()
+	await _test_stick_figure_anatomy()
 	await _test_compound_fallback_recovery()
 	await _test_physics_morphs()
 	await _test_utilities()
+	# Last on purpose: these add and free bodies in the shared world, and the spider's
+	# travel assertion is close enough to its bound that the resulting shift in solver
+	# ordering is enough to fail it.
+	await _test_placement_aiming()
+	await _test_confirmed_utility_can_interact()
+	await _test_every_utility_acts()
+	await _test_level_1_needs_drawing()
 	world.queue_free()
 	registry = null
 	world = null
@@ -61,20 +92,335 @@ func _test_manifest_roles() -> void:
 	var living := 0
 	var shapes := 0
 	var utilities := 0
-	for entity_id in [
-		"fish", "frog", "spider", "bird", "humanoid", "cat", "dog",
-		"rabbit", "butterfly", "snake", "circle", "square", "triangle",
-		"axe", "ladder", "key", "umbrella", "flashlight", "sailboat"
-	]:
+	for entity_id in registry.get_entity_ids():
 		var entry := registry.get_entity(entity_id)
 		_expect(not entry.is_empty(), "manifest missing %s" % entity_id)
 		match String(entry.get("runtime_role", "")):
 			"active_ragdoll_morph": living += 1
 			"physics_morph": shapes += 1
 			"utility": utilities += 1
-	_expect(living == 10, "expected 10 living morphs, got %d" % living)
+	_expect(living == 20, "expected 20 living morphs, got %d" % living)
 	_expect(shapes == 3, "expected 3 physics morphs, got %d" % shapes)
-	_expect(utilities == 6, "expected 6 utilities, got %d" % utilities)
+	_expect(utilities == 27, "expected 27 utilities, got %d" % utilities)
+
+
+## The reported bug, as a regression test: Escape while placing an object opened the
+## pause menu instead of cancelling the placement.
+##
+## It was never a logic error in either script. Both read ui_cancel from
+## _unhandled_input, Godot propagates that in reverse tree order, and PauseMenu is the
+## last child of GameLevel while PlacementController is the sixth -- so the pause menu
+## always won and placement_controller's cancel branch was unreachable code. The fix
+## is an authored chain rather than an accident of node order, so what is asserted is
+## the chain's decisions, driven directly and deterministically.
+func _test_ui_router_cancel_chain() -> void:
+	var level: Node = (load("res://game_level.tscn") as PackedScene).instantiate()
+	world.add_child(level)
+	await process_frame
+	var router: Node = level.get_node_or_null("UIRouter")
+	var pause: Node = level.get_node_or_null("PauseMenu")
+	var placement: Node = level.get_node_or_null("PlacementController")
+	var panel: Node = level.get_node_or_null("DrawPanel")
+	_expect(router != null, "game_level has no UIRouter")
+	_expect(pause != null and placement != null and panel != null, "cancel chain targets are missing")
+	if router == null or pause == null or placement == null or panel == null:
+		level.queue_free()
+		await process_frame
+		return
+
+	# The chain must name the placement controller AHEAD of the pause menu. Order is
+	# the entire fix, so it is asserted rather than assumed.
+	var chain: Array = router.get("cancel_chain")
+	var names: Array[String] = []
+	for path in chain:
+		names.append(String(path).get_file())
+	_expect(
+		names.find("PlacementController") >= 0 and names.find("PauseMenu") >= 0
+			and names.find("PlacementController") < names.find("PauseMenu"),
+		"cancel chain does not put placement ahead of pause: %s" % str(names)
+	)
+
+	# Nothing modal up: the key reaches the last link and opens the pause menu.
+	_expect(not bool(pause.call("is_open")), "pause menu started open")
+	_expect(bool(pause.call("handle_cancel")), "pause menu did not consume the key")
+	_expect(bool(pause.call("is_open")), "pause menu did not open")
+	pause.call("handle_cancel")
+	_expect(not bool(pause.call("is_open")), "pause menu did not close again")
+
+	# Nothing to cancel: every handler ahead of the pause menu declines, which is what
+	# lets the key fall through instead of being swallowed by an idle overlay.
+	_expect(not bool(placement.call("handle_cancel")), "idle placement consumed the cancel key")
+	_expect(not bool(panel.call("handle_cancel")), "closed draw panel consumed the cancel key")
+
+	# The draw panel consumes it while open, and its close must not leave the tree
+	# paused behind it.
+	panel.call("open_panel")
+	_expect(bool(panel.call("is_open")), "draw panel did not open")
+	_expect(bool(panel.call("handle_cancel")), "open draw panel did not consume the cancel key")
+	_expect(not bool(panel.call("is_open")), "draw panel did not close on cancel")
+	_expect(not paused, "closing the draw panel left the tree paused")
+
+	level.queue_free()
+	await process_frame
+
+
+## The settings, controls and confirm screens, in both scenes that instance them.
+##
+## They are one definition used twice, so the failure to guard against is one copy
+## drifting -- a button renamed in the scene, or an overlay wired into only one of
+## the two places it is reachable from.
+func _test_shared_overlays() -> void:
+	for scene_path in ["res://game_level.tscn", "res://ui/main_menu.tscn"]:
+		var instance: Node = (load(scene_path) as PackedScene).instantiate()
+		world.add_child(instance)
+		await process_frame
+		var label: String = scene_path.get_file()
+		for overlay_name in ["SettingsOverlay", "ControlsOverlay", "ConfirmOverlay"]:
+			var overlay: Node = instance.get_node_or_null(overlay_name)
+			_expect(overlay != null, "%s does not instance %s" % [label, overlay_name])
+			if overlay == null:
+				continue
+			_expect(not bool(overlay.call("is_open")), "%s in %s started open" % [overlay_name, label])
+			overlay.call("open")
+			_expect(bool(overlay.call("is_open")), "%s in %s did not open" % [overlay_name, label])
+			# Every shared overlay must be in the cancel chain of whichever scene it is
+			# in, or it opens with no way back out except the mouse.
+			_expect(bool(overlay.call("handle_cancel")), "%s in %s does not close on cancel" % [overlay_name, label])
+			_expect(not bool(overlay.call("is_open")), "%s in %s stayed open after cancel" % [overlay_name, label])
+		var router: Node = instance.get_node_or_null("UIRouter")
+		_expect(router != null, "%s has no UIRouter" % label)
+		if router != null:
+			var chain_names: Array[String] = []
+			for path in (router.get("cancel_chain") as Array):
+				chain_names.append(String(path).get_file())
+			for overlay_name in ["SettingsOverlay", "ControlsOverlay", "ConfirmOverlay"]:
+				_expect(
+					chain_names.has(overlay_name),
+					"%s's cancel chain omits %s" % [label, overlay_name]
+				)
+		instance.queue_free()
+		await process_frame
+	paused = false
+
+	# The controls screen derives its key glyphs from the live InputMap, so the only
+	# thing that can rot is an action name in the JSON. A row naming an action that
+	# does not exist is silently skipped, which would quietly empty the screen.
+	var text := FileAccess.get_file_as_string("res://config/controls.json")
+	var parsed: Variant = JSON.parse_string(text)
+	_expect(parsed is Dictionary, "controls.json did not parse")
+	if parsed is Dictionary:
+		var rows: Array = (parsed as Dictionary).get("rows", [])
+		_expect(rows.size() > 0, "controls.json lists no rows")
+		for row_value: Variant in rows:
+			var row: Dictionary = row_value
+			var action := String(row.get("action", ""))
+			_expect(
+				InputMap.has_action(action),
+				"controls.json names '%s', which is not in the InputMap" % action
+			)
+			var through := String(row.get("through", ""))
+			if not through.is_empty():
+				_expect(
+					InputMap.has_action(through),
+					"controls.json range ends at '%s', which is not in the InputMap" % through
+				)
+
+
+## Finishing a level must be readable, and reaching the ending must be possible.
+##
+## The completion overlay is driven with synthetic stats rather than by playing the
+## level: this asserts the SCREEN, and deliberately writes nothing to the profile, so
+## the suite never starts touching user://profile.json (which it does not today).
+func _test_level_completion_screen() -> void:
+	var level: Node = (load("res://game_level.tscn") as PackedScene).instantiate()
+	world.add_child(level)
+	await process_frame
+	var complete: Node = level.get_node_or_null("LevelCompleteOverlay")
+	var out_of_ink: Node = level.get_node_or_null("OutOfInkOverlay")
+	_expect(complete != null, "game_level has no LevelCompleteOverlay")
+	_expect(out_of_ink != null, "game_level has no OutOfInkOverlay")
+	if complete == null or out_of_ink == null:
+		level.queue_free()
+		await process_frame
+		return
+
+	complete.call("present", {
+		"level_title": "Banaue Rice Terraces",
+		"ink_used": 7.5, "ink_capacity": 12.0,
+		"classes_drawn": 3, "elapsed_seconds": 95.0,
+	})
+	_expect(bool(complete.call("is_open")), "the completion screen did not open")
+	_expect(paused, "the completion screen did not pause the level behind it")
+
+	# Every stat must reach the screen. Rendering the panel but leaving it blank is a
+	# failure the "did it open" check alone would pass.
+	var rendered: Array[String] = []
+	for row in complete.get_node("Root/Panel/VBox/Stats").get_children():
+		if row is HBoxContainer:
+			rendered.append("%s %s" % [(row.get_child(0) as Label).text, (row.get_child(1) as Label).text])
+	var joined := " | ".join(rendered)
+	_expect(joined.contains("1:35"), "elapsed time is not rendered as m:ss (got '%s')" % joined)
+	_expect(joined.contains("7.5"), "ink used is not rendered (got '%s')" % joined)
+	_expect(joined.contains("3"), "classes drawn is not rendered (got '%s')" % joined)
+
+	# It must NOT be dismissable: cancelling out would strand the player in a finished
+	# level with nothing telling them what happens next.
+	_expect(bool(complete.call("handle_cancel")), "the completion screen let the cancel key past it")
+	_expect(bool(complete.call("is_open")), "the completion screen closed on cancel")
+
+	level.queue_free()
+	await process_frame
+	paused = false
+
+	# level_1 ends the run, so CONTINUE has an ending to reach and that ending exists.
+	# Resolved through the tree like the rest of this suite: the autoloads are not
+	# registered when a --script run compiles its own script.
+	var manager := root.get_node_or_null("LevelManager")
+	_expect(manager != null, "LevelManager autoload is unavailable")
+	if manager != null:
+		_expect(
+			bool((manager.call("get_level", "level_1") as Dictionary).get("ends_run", false)),
+			"level_1 does not end the run, so nothing reaches the ending screen"
+		)
+	_expect(ResourceLoader.exists("res://ui/ending_screen.tscn"), "the ending scene is missing")
+
+	# The ending screen renders EndingResolver's payload rather than a blank verdict.
+	var ending: Node = (load("res://ui/ending_screen.tscn") as PackedScene).instantiate()
+	world.add_child(ending)
+	await process_frame
+	var ending_name := (ending.get_node("Panel/VBox/EndingName") as Label).text
+	_expect(not ending_name.is_empty(), "the ending screen named no ending")
+	_expect(
+		ending.get_node("Panel/VBox/Rows").get_child_count() > 0,
+		"the ending screen showed no reasons for its verdict"
+	)
+	ending.queue_free()
+	await process_frame
+
+
+## Pause is derived from whoever is open, not toggled by whoever closes.
+##
+## The bug this prevents: Settings opened over the pause menu, then closed, would set
+## paused = false and drop the player back into a live level while still looking at
+## the pause menu. Two overlays are enough to demonstrate it.
+func _test_overlay_pause_refcount() -> void:
+	var outer := ModalOverlay.new()
+	var inner := ModalOverlay.new()
+	world.add_child(outer)
+	world.add_child(inner)
+	await process_frame
+
+	outer.open()
+	_expect(paused, "an open overlay did not pause the tree")
+	inner.open()
+	_expect(paused, "a second overlay unpaused the tree")
+	inner.close()
+	_expect(paused, "closing the top overlay unpaused a game still behind one")
+	outer.close()
+	_expect(not paused, "closing the last overlay left the tree paused")
+
+	# An overlay that does not want pause must not cause it.
+	outer.pauses_game = false
+	outer.open()
+	_expect(not paused, "a non-pausing overlay paused the tree")
+	outer.close()
+
+	outer.queue_free()
+	inner.queue_free()
+	await process_frame
+	paused = false
+
+
+## Every name a scene asks the theme for must exist in it.
+##
+## This is the only thing that can catch a renamed type variation. A Control whose
+## theme_type_variation names something the theme does not define does not warn and
+## does not fail -- it silently falls back to the engine's default look, which is
+## precisely the mismatch the theme was added to remove, reappearing invisibly.
+func _test_theme_resource() -> void:
+	var configured := String(ProjectSettings.get_setting("gui/theme/custom", ""))
+	_expect(configured == THEME_PATH, "gui/theme/custom is '%s', not the project theme" % configured)
+	var theme := load(THEME_PATH) as Theme
+	_expect(theme != null, "the project theme failed to load")
+	if theme == null:
+		return
+	for variation in ["PrimaryButton", "DialogButton", "LevelCard", "InventorySlot", "ScreenTitle", "ScreenSubtitle", "HudHint"]:
+		_expect(
+			theme.is_type_variation(variation, theme.get_type_variation_base(variation)),
+			"theme has no type variation '%s'" % variation
+		)
+	# The base types the HUD and every new screen inherit from, which have no
+	# overrides of their own and would otherwise render as raw engine defaults.
+	_expect(theme.has_stylebox("normal", "Button"), "theme does not style a plain Button")
+	_expect(theme.has_stylebox("disabled", "Button"), "theme does not style a disabled Button")
+	_expect(theme.has_stylebox("panel", "PanelContainer"), "theme does not style a PanelContainer")
+	_expect(theme.has_stylebox("fill", "ProgressBar"), "theme does not style the ink bar")
+	_expect(theme.has_stylebox("grabber_area", "HSlider"), "theme does not style a volume slider")
+	_expect(theme.has_color("font_color", "Label"), "theme does not colour a plain Label")
+	# A font here WOULD reach the main menu, whose overrides are all colours and sizes.
+	# The menu is deliberately left alone, so this must stay absent.
+	_expect(not theme.has_font("font", "Label"), "theme defines a Label font, which would restyle the main menu")
+
+	# Focus is drawn ON TOP of the state stylebox, not instead of it, so an opaque
+	# focus box hides the button beneath. This is not hypothetical: the first version
+	# of this theme did exactly that and covered the menu's bright PLAY button with a
+	# flat dark panel, while every one of the menu's own overrides was still in force.
+	# Overrides do not protect a state the scene does not override.
+	for type_name in ["Button", "PrimaryButton", "LevelCard"]:
+		if not theme.has_stylebox("focus", type_name):
+			continue
+		var box := theme.get_stylebox("focus", type_name)
+		if box is StyleBoxFlat:
+			_expect(
+				(box as StyleBoxFlat).bg_color.a < 0.05,
+				"%s's focus stylebox is opaque and will hide the button under it" % type_name
+			)
+
+
+## The audio layer exists before any sound does, so what is asserted is the part that
+## can be wrong without anyone hearing it: the buses are laid out as intended, and the
+## linear-to-dB conversion never produces a value AudioServer cannot hold.
+func _test_audio_buses() -> void:
+	var director := root.get_node_or_null("AudioDirector")
+	_expect(director != null, "AudioDirector autoload is unavailable")
+	if director == null:
+		return
+	for bus_name in ["Master", "Music", "SFX"]:
+		_expect(AudioServer.get_bus_index(bus_name) >= 0, "no '%s' audio bus" % bus_name)
+	for bus_name in ["Music", "SFX"]:
+		var index := AudioServer.get_bus_index(bus_name)
+		if index >= 0:
+			_expect(
+				String(AudioServer.get_bus_send(index)) == "Master",
+				"'%s' does not send to Master, so the master slider cannot scale it" % bus_name
+			)
+
+	var sfx := AudioServer.get_bus_index("SFX")
+	if sfx >= 0:
+		director.call("set_bus_linear", "SFX", 1.0)
+		_expect(absf(AudioServer.get_bus_volume_db(sfx)) < 0.01, "full volume is not 0 dB")
+		_expect(not AudioServer.is_bus_mute(sfx), "full volume left the bus muted")
+		director.call("set_bus_linear", "SFX", 0.5)
+		_expect(
+			absf(AudioServer.get_bus_volume_db(sfx) + 6.0206) < 0.05,
+			"half volume is %.3f dB, not the expected -6.02" % AudioServer.get_bus_volume_db(sfx)
+		)
+		# Silence must MUTE rather than approach -inf: linear_to_db(0.0) is -inf, and
+		# a non-finite dB written to the server is unrecoverable without a restart.
+		director.call("set_bus_linear", "SFX", 0.0)
+		_expect(AudioServer.is_bus_mute(sfx), "zero volume did not mute the bus")
+		_expect(is_finite(AudioServer.get_bus_volume_db(sfx)), "zero volume wrote a non-finite dB")
+		# Out of range is clamped, because this is reached from a save file too.
+		director.call("set_bus_linear", "SFX", 4.0)
+		_expect(absf(AudioServer.get_bus_volume_db(sfx)) < 0.01, "an over-range volume was not clamped")
+		director.call("set_bus_linear", "SFX", 1.0)
+
+	# An unresolved id is silence, not an error. This is the mechanism that lets every
+	# call site be written before the sounds exist.
+	director.call("play_sfx", &"ui_click")
+	director.call("play_sfx", &"no_such_sound_id")
+	director.call("play_music", &"menu")
+	_expect(true, "playing unresolved sound ids must not raise")
 
 
 func _test_ink_accounting() -> void:
@@ -168,6 +514,19 @@ func _test_level_framework() -> void:
 	_expect(not bool(level_manager.call("open_level", "level_2")), "locked Level 2 initiated a transition")
 	_expect(not bool(level_manager.call("open_level", "missing")), "invalid level initiated a transition")
 
+	# Playable and unlocked are different questions, and conflating them is the dead
+	# card. Level 2 has no scene, so it is never playable however the profile's
+	# progression feels about it -- including on a machine where level 1 was finished
+	# in a real session, which is exactly when the old code enabled a card that then
+	# did nothing.
+	_expect(bool(level_manager.call("is_playable", "level_1")), "level_1 is not playable")
+	for missing_id in ["level_2", "level_3", "level_4", "level_5"]:
+		_expect(
+			not bool(level_manager.call("is_playable", missing_id)),
+			"%s reports playable with no scene behind it" % missing_id
+		)
+	_expect(not bool(level_manager.call("is_playable", "nonexistent")), "an unknown level reports playable")
+
 	var menu_scene := load("res://ui/main_menu.tscn") as PackedScene
 	_expect(menu_scene != null, "main menu scene did not load")
 	if menu_scene == null:
@@ -185,6 +544,29 @@ func _test_level_framework() -> void:
 		if card is Button and (card as Button).disabled:
 			disabled_cards += 1
 	_expect(disabled_cards == 4, "selector does not expose exactly four locked cards")
+
+	# The dead card, stated directly. Level 2's card must be disabled REGARDLESS of
+	# what progression thinks, because no scene exists behind it -- and the previous
+	# code disabled it only on is_unlocked, so finishing level 1 in a real session
+	# enabled a card that then silently did nothing when clicked. Asserted without
+	# touching the profile: this suite must never write user://profile.json.
+	var level2 := menu.get_node_or_null("MenuLayer/MenuRoot/MorphPanel/Selector/Level2") as Button
+	_expect(level2 != null, "the level 2 card is missing")
+	if level2 != null:
+		_expect(level2.disabled, "level 2's card is offered with no scene behind it")
+		_expect(
+			not bool(level_manager.call("open_level", "level_2")),
+			"level 2 would start a transition to a scene that does not exist"
+		)
+
+	# Card text comes from the catalog, not from strings typed into the scene.
+	var name_label := menu.get_node_or_null("MenuLayer/MenuRoot/MorphPanel/Selector/Level1/Name") as Label
+	if name_label != null:
+		var expected := String((level_manager.call("get_level", "level_1") as Dictionary).get("title", "")).to_upper()
+		_expect(
+			name_label.text == expected,
+			"level 1's card reads '%s' but the catalog says '%s'" % [name_label.text, expected]
+		)
 	menu.call("_hide_selector")
 	await create_timer(0.5).timeout
 	_expect(not bool(menu.call("is_selector_open")), "selector did not collapse back into Play")
@@ -209,7 +591,9 @@ func _test_banaue_environment() -> void:
 	for node in get_nodes_in_group("terrace_ground"):
 		if environment.is_ancestor_of(node):
 			terrace_count += 1
-	_expect(terrace_count == 12, "Banaue terrain does not contain the expected terrace segments")
+	# 11 shared segments plus the five that belong to the two route branches. Terrace4
+	# is deliberately absent: that span is the gorge the level is built around.
+	_expect(terrace_count == 16, "Banaue terrain does not contain the expected terrace segments")
 	var water_count := 0
 	for node in get_nodes_in_group("water_medium"):
 		if environment.is_ancestor_of(node):
@@ -296,6 +680,7 @@ func _test_placement_collision() -> void:
 	var placement := PlacementController.new()
 	world.add_child(placement)
 	placement.set("_preview", utility)
+	placement.call("_refresh_preview_exclusions")
 	await physics_frame
 	_expect(not bool(placement.call("_position_is_clear")), "placement accepted overlapping solid collision")
 	utility.global_position = Vector2(1800.0, -500.0)
@@ -307,8 +692,227 @@ func _test_placement_collision() -> void:
 	placement.queue_free()
 
 
+## The reported bug, as a test: nothing could be placed. Three separate faults, each
+## of which alone made placement unusable, and none of which the old collision-only
+## test could produce -- it never aimed the preview at anything.
+func _test_placement_aiming() -> void:
+	var item_root := Node2D.new()
+	world.add_child(item_root)
+	var actor := Node2D.new()
+	# Standing on the floor _add_floor() laid down at y 400..440, x 0..1000.
+	actor.global_position = Vector2(300.0, 380.0)
+	world.add_child(actor)
+	var placement := PlacementController.new()
+	placement.registry = registry
+	placement.world_item_root = item_root
+	world.add_child(placement)
+	# Headless has no pointer, and _process would re-aim every preview at the mouse
+	# origin between the calls below.
+	placement.set_process(false)
+
+	var item := DrawnItemData.from_prediction(
+		"circle", "Circle", _blank_image(), [_stroke(_closed_body())], 0.4, registry.get_entity("circle")
+	)
+	_expect(placement.begin_placement(item, actor, -1), "placement would not start for a drawn shape")
+	await physics_frame
+	var preview := placement.get("_preview") as PhysicsShapeObject
+
+	# 1. Aiming past arm's reach pinned the preview to the reach ring and then judged
+	#    it against the PRE-clamp cursor distance, so the spot it had just chosen for
+	#    the player was permanently "out of range" and every click was swallowed.
+	placement.update_target(actor.global_position + Vector2(4000.0, 0.0))
+	await physics_frame
+	_expect(
+		preview.global_position.distance_to(actor.global_position) <= placement.maximum_distance + 1.0,
+		"preview was not pinned inside arm's reach"
+	)
+	_expect(placement.is_at_reach_limit(), "reach clamp did not report itself")
+	_expect(bool(placement.get("_valid")), "a spot the controller chose itself was rejected as out of range")
+
+	# 2. Aiming at the ground -- the one thing a player does -- overlapped the floor,
+	#    and any overlap was an outright refusal. The preview now climbs onto the
+	#    surface instead.
+	placement.update_target(Vector2(300.0, 430.0))
+	await physics_frame
+	_expect(bool(placement.get("_valid")), "aiming at the ground was refused instead of resting on it")
+	_expect(preview.global_position.y < 430.0, "preview did not climb out of the floor")
+	_expect(preview.global_position.y > 300.0, "preview climbed far past the surface it should sit on")
+
+	# 3. A drawn object's rig bodies are top_level and simulate on their own, so the
+	#    ink slid off the object: the collider tracked the cursor while the drawing
+	#    stayed where the torso had fallen. Those loose bodies also share the terrain's
+	#    collision layer, so the overlap test found them and reported "no room"
+	#    wherever the player pointed.
+	placement.update_target(Vector2(300.0, 200.0))
+	await physics_frame
+	await physics_frame
+	for node in preview.find_children("*", "RigidBody2D", true, false):
+		var rig_body := node as RigidBody2D
+		_expect(
+			rig_body.global_position.distance_to(preview.global_position) < 64.0,
+			"%s drifted off the object carrying it" % rig_body.name
+		)
+		_expect(rig_body.collision_layer == 0, "%s still collides as an obstacle" % rig_body.name)
+	_expect(bool(placement.get("_valid")), "the preview's own rig bodies blocked its placement")
+
+	# 4. A preview is a held object, but _apply_spawn_motion still landed on it a frame
+	#    after it was built and loaded it with the toss velocity a free-spawned shape
+	#    gets. Frozen that is invisible -- and then confirming let go of a body already
+	#    moving, so the thing the player had just positioned rolled away.
+	_expect(preview.linear_velocity == Vector2.ZERO, "preview was handed a spawn velocity")
+	_expect(preview.angular_velocity == 0.0, "preview was handed a spawn spin")
+	var placed_at := preview.global_position
+	_expect(placement.confirm_placement(), "a valid placement refused to confirm")
+	_expect(preview.linear_velocity == Vector2.ZERO, "placed object launched itself")
+	_expect(not preview.controllable, "placed scenery still answers the movement keys")
+	_expect(preview.global_position.is_equal_approx(placed_at), "placed object moved on confirm")
+
+	preview.queue_free()
+	actor.queue_free()
+	item_root.queue_free()
+	placement.queue_free()
+	await process_frame
+
+
+## Level 1's whole point is that walking is not enough (Game Design: "basic vertical
+## traversal and getting comfortable with the CNN drawing interface"). Every step used
+## to carry a wedge at its foot, so the wanderer strolled from the spawn to the goal
+## without drawing anything -- the level had no reason to exist. These are the numbers
+## that make it a drawing level, measured against what the wanderer can actually do.
+func _test_level_1_needs_drawing() -> void:
+	# From wanderer.gd: v^2/2g for the rise, and speed * hang time for the reach.
+	var jump_height := pow(430.0, 2.0) / (2.0 * 980.0)
+	var jump_reach := 260.0 * (2.0 * 430.0 / 980.0)
+	var scene := load("res://levels/level_1/level_1_environment.tscn") as PackedScene
+	_expect(scene != null, "level 1 environment scene is missing")
+	if scene == null:
+		return
+	var level := scene.instantiate() as Node2D
+	world.add_child(level)
+	await physics_frame
+
+	var terrain := level.get_node_or_null(^"GameplayPlane/Terrain")
+	_expect(terrain != null, "level 1 has no terrain")
+	var tops: Dictionary = {}
+	for child in terrain.get_children():
+		tops[child.name] = (child as Node2D).global_position.y
+	for climb in [["LowerLeft", "Terrace1"], ["Terrace1", "Terrace2"]]:
+		var rise: float = float(tops.get(climb[0], 0.0)) - float(tops.get(climb[1], 0.0))
+		_expect(rise > jump_height + 12.0,
+			"%s -> %s is a %.0fpx step, which the wanderer can jump (%.0fpx)" % [climb[0], climb[1], rise, jump_height])
+
+	# The gorge: Terrace3's far edge to the far lip. Nothing may bridge it by default,
+	# which is what makes the dialogue node a question rather than scenery.
+	var near_lip: float = 2400.0
+	var far_lip: float = float((terrain.get_node(^"Terrace5") as Node2D).global_position.x)
+	_expect(far_lip - near_lip > jump_reach + 100.0,
+		"the gorge is %.0fpx, which the wanderer can clear (%.0fpx)" % [far_lip - near_lip, jump_reach])
+
+	var routes := level.get_node_or_null(^"GameplayPlane/Routes") as RouteLayout2D
+	_expect(routes != null, "level 1 has no route layout")
+	if routes != null:
+		for branch_name in ["Artist", "Pragmatist", "Protector"]:
+			var branch := routes.get_node_or_null(NodePath(branch_name))
+			_expect(branch != null, "route branch %s is missing" % branch_name)
+			for node in branch.find_children("*", "CollisionObject2D", true, false):
+				_expect((node as CollisionObject2D).collision_layer == 0,
+					"%s is solid before the player has chosen it" % branch_name)
+		routes.apply_route("protector")
+		await process_frame
+		await process_frame
+		_expect(routes.get_node_or_null(^"Artist") == null, "the unchosen artist branch survived")
+		_expect(routes.get_node_or_null(^"Pragmatist") == null, "the unchosen pragmatist branch survived")
+		var kept := routes.get_node_or_null(^"Protector")
+		_expect(kept != null, "the chosen branch was removed")
+
+	var node := level.get_node_or_null(^"GameplayPlane/Gorge/DialogueNode") as DialogueNode2D
+	_expect(node != null, "level 1 has no dialogue node at the gorge")
+	level.queue_free()
+	await process_frame
+
+
+## The reported hole: 21 of the 27 drawn objects did nothing when used. Most could not
+## even be equipped -- interact() only handed over four of them -- so F reached a match
+## whose `_:` branch returned false in silence. Every behavior in the 50-class table now
+## has to answer for itself, and the answer has to be something the player can read.
+func _test_every_utility_acts() -> void:
+	var actor := Node2D.new()
+	actor.add_to_group(&"player_character")
+	actor.global_position = Vector2(500.0, 360.0)
+	world.add_child(actor)
+	var vehicles := ["sailboat", "submarine"]
+	# Spelled out from the In-Game Function column of the 50-class table rather than
+	# read back from is_held_tool(): asking the code under test what it expects of
+	# itself is how this passed while fifteen tools were unreachable.
+	var must_be_held := [
+		"axe", "sword", "cannon", "boomerang", "flashlight", "cloud", "sun", "fan",
+		"parachute", "hot_air_balloon", "key", "rake", "scissors", "clock", "anvil",
+		"bucket", "umbrella", "wheel",
+	]
+	var acted := 0
+	for entity_id in registry.get_entity_ids():
+		var entry := registry.get_entity(entity_id)
+		if String(entry.get("runtime_role", "")) != "utility":
+			continue
+		var behavior := String(entry.get("utility_behavior", ""))
+		var utility := registry.instantiate_entity(entity_id) as UtilityObject
+		_expect(utility != null, "could not instantiate utility %s" % entity_id)
+		if utility == null:
+			continue
+		world.add_child(utility)
+		utility.apply_item_data(DrawnItemData.from_prediction(
+			entity_id, entity_id.capitalize(), _blank_image(), _utility_fixture(entity_id), 0.4, entry
+		))
+		utility.global_position = actor.global_position + Vector2(40.0, 0.0)
+		await physics_frame
+		if behavior in vehicles:
+			# A boat only answers afloat, so put it in the water its behavior needs.
+			utility.set_meta("water_overlap_count", 1)
+		# Through the real door: E, then F. Reaching describe_use directly would hide
+		# the actual fault, which was that fifteen of these could never be picked up
+		# into a hand in the first place.
+		utility.interact(actor)
+		if behavior in must_be_held:
+			_expect(utility.get("_equipped_actor") == actor, "%s could not be taken in hand" % entity_id)
+		var outcome := utility.describe_use(actor)
+		_expect(not outcome.is_empty(), "%s (%s) did nothing and said nothing on F" % [entity_id, behavior])
+		if not outcome.is_empty():
+			acted += 1
+		# Whatever the use spawned -- a shot, a pool -- must not be left in the world
+		# for the next entity to trip over.
+		for spawned in world.get_children():
+			if spawned is WaterArea2D or (spawned is RigidBody2D and spawned != utility and spawned.get_script() == null):
+				spawned.queue_free()
+		utility.queue_free()
+		await process_frame
+	_expect(acted == 27, "expected all 27 utilities to act, got %d" % acted)
+	actor.queue_free()
+	await process_frame
+
+
+## Confirming a utility went through a copy of the base method that forgot to re-arm
+## the interaction area set_preview had switched off, so a placed axe found nothing to
+## chop and a placed key found no lock.
+func _test_confirmed_utility_can_interact() -> void:
+	var utility := registry.instantiate_entity("key") as UtilityObject
+	world.add_child(utility)
+	utility.apply_item_data(DrawnItemData.from_prediction(
+		"key", "Key", _blank_image(), _utility_fixture("key"), 0.4, registry.get_entity("key")
+	))
+	utility.global_position = Vector2(300.0, 200.0)
+	var area := utility.get_node_or_null("InteractionArea") as Area2D
+	_expect(area != null, "utility has no interaction area")
+	utility.set_preview(true)
+	_expect(not area.monitoring, "preview utility kept its interaction area live")
+	utility.confirm_placement()
+	_expect(area.monitoring, "confirmed utility never re-armed its interaction area")
+	_expect(not utility.is_preview, "confirmed utility still reads as a preview")
+	utility.queue_free()
+	await process_frame
+
+
 func _test_active_ragdolls() -> void:
-	for entity_id in ["fish", "frog", "spider", "bird", "humanoid", "cat", "dog", "rabbit", "butterfly", "snake"]:
+	for entity_id in _living_entity_ids():
 		var instance := registry.instantiate_entity(entity_id) as Node2D
 		_expect(instance != null, "could not instantiate %s" % entity_id)
 		if instance == null:
@@ -321,23 +925,18 @@ func _test_active_ragdolls() -> void:
 		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
 		_expect(skin.get_rigid_bodies().size() <= 24, "%s exceeded body cap" % entity_id)
 		_expect(skin.get_joint_count() <= 23, "%s exceeded joint cap" % entity_id)
+		var rig_type := String(registry.get_entity(entity_id).get("rig_type", ""))
 		if entity_id == "spider":
 			_expect(skin.get_joint_count() >= 12, "spider legs regressed to single rigid segments")
-		elif entity_id in ["cat", "dog", "frog", "rabbit", "humanoid"]:
-			_expect(skin.get_joint_count() >= 8, "%s limbs regressed to single rigid segments" % entity_id)
-		if entity_id in ["spider", "cat", "dog", "frog", "rabbit", "bird", "butterfly", "humanoid", "snake"]:
+		else:
 			_expect(skin.get_joint_count() > 0, "%s did not articulate fixture strokes" % entity_id)
-		var expected_role: String = String({
-			"spider": "leg", "cat": "leg", "dog": "leg", "frog": "leg",
-			"rabbit": "leg", "bird": "wing", "butterfly": "wing",
-			"humanoid": "arm", "fish": "tail", "snake": "chain"
-		}.get(entity_id, ""))
-		_expect(expected_role in skin.debug_segment_roles(), "%s did not assign expected %s role" % [entity_id, expected_role])
-		var motion_state: String = String({
-			"spider": "walk", "cat": "walk", "dog": "walk", "frog": "jump",
-			"rabbit": "jump", "bird": "fly", "butterfly": "fly",
-			"humanoid": "walk", "fish": "swim", "snake": "walk"
-		}.get(entity_id, "walk"))
+		var expected_roles := _expected_roles_for_rig(rig_type)
+		if not expected_roles.is_empty():
+			var role_found := false
+			for role_name in expected_roles:
+				role_found = role_found or role_name in skin.debug_segment_roles()
+			_expect(role_found, "%s did not assign any expected role %s (got %s)" % [entity_id, str(expected_roles), str(skin.debug_segment_roles())])
+		var motion_state: String = _gait_for_rig(rig_type)
 		var motion_params := {"moving": true, "speed_ratio": 1.0, "direction": 1.0}
 		# Keep the fixture in its species gait; the normal controller would read
 		# zero headless input and replace this state with idle every frame.
@@ -543,7 +1142,7 @@ func _test_anatomy_inference() -> void:
 		_stroke(PackedVector2Array([Vector2(270, 328), Vector2(282, 382), Vector2(288, 438)])),
 		_stroke(torso)
 	]
-	var human := registry.instantiate_entity("humanoid") as Node2D
+	var human := registry.instantiate_entity("monkey") as Node2D
 	world.add_child(human)
 	human.call("apply_drawing", _blank_image(), human_strokes)
 	var human_skin := human.get_node("DrawingSkin") as RuntimeRig2D
@@ -772,8 +1371,733 @@ func _test_spider_stance_controller() -> void:
 ## An uncontrolled, grounded creature must stay put. The active ragdoll must not pump
 ## energy through its limbs (via undamped gravity compensation) and wander/spin on its
 ## own when the player gives no input.
+## A drawn creature standing on the ground must still LOOK like the thing the
+## player drew. Two regressions are guarded here, both of which made creatures
+## read as broken no matter how the gait was tuned:
+##   1. Stand height was measured to the middle of the foot segment rather than to
+##      the bottom of its collision shape, so the rig was parked with the lower
+##      half of every leg inside the floor and the ground shoved the legs flat.
+##   2. The pose muscles were too soft to hold a limb against the ground reaction
+##      of the creature's own weight, so limbs splayed and stayed splayed.
+func _test_pose_holding() -> void:
+	# The floor added by _add_floor() spans y 400..440 at x 0..1000.
+	var floor_top := 400.0
+	for entity_id in ["horse", "pig", "crab", "monkey"]:
+		var entry := registry.get_entity(entity_id)
+		if entry.is_empty():
+			continue
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		if instance == null:
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(500.0, 300.0)
+		instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+		instance.call("apply_drawing", _blank_image(), _quadruped_fixture())
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		var primary := skin.get_primary_body()
+		var rest_angles: Dictionary = {}
+		for body in skin.get_rigid_bodies():
+			if is_instance_valid(body) and body != primary:
+				rest_angles[body.get_instance_id()] = body.rotation - primary.rotation
+		for _settle in range(180):
+			await physics_frame
+
+		var deepest := 0.0
+		var collapse := 0.0
+		for body in skin.get_rigid_bodies():
+			if not is_instance_valid(body) or body == primary:
+				continue
+			deepest = maxf(deepest, body.global_position.y - floor_top)
+			if rest_angles.has(body.get_instance_id()):
+				var rest: float = rest_angles[body.get_instance_id()]
+				collapse = maxf(collapse, absf(wrapf(body.rotation - primary.rotation - rest, -PI, PI)))
+		_expect(
+			deepest < 26.0,
+			"%s sank %.1f px of limb below the floor (feet buried, legs get shoved flat)" % [entity_id, deepest]
+		)
+		_expect(
+			rad_to_deg(collapse) < 45.0,
+			"%s limbs collapsed %.1f deg from the drawn pose" % [entity_id, rad_to_deg(collapse)]
+		)
+		instance.queue_free()
+		await process_frame
+
+
+## Players draw wings as closed loops either side of a thin body. Three separate
+## rules used to conspire to wreck that drawing, and all three are guarded here:
+##   1. Limb role came from the LAST point drawn, which for a loop returns to its
+##      start -- so a wing reported no direction and was classified as a leg, and
+##      the wing-flap gait never ran on it.
+##   2. Torso choice only looked for limbs attaching above/below, so a wing loop's
+##      closed+area bonus beat the body line, the wing became the torso and
+##      swallowed the other wing.
+##   3. A closed roundish stroke was welded to the torso as a head/eye blob, and
+##      when it was not, it was split across bodies so the loop tore open mid-beat.
+func _test_wing_anatomy() -> void:
+	var instance := registry.instantiate_entity("butterfly") as Node2D
+	_expect(instance != null, "could not instantiate butterfly")
+	if instance == null:
+		return
+	world.add_child(instance)
+	instance.global_position = Vector2(400.0, 200.0)
+	instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+	instance.call("apply_drawing", _blank_image(), _butterfly_fixture())
+	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+	var primary := skin.get_primary_body()
+	var roles := skin.debug_segment_roles()
+	_expect(roles.count("wing") >= 2, "butterfly wings were not rigged as wings (roles: %s)" % str(roles))
+	# One body per wing plus the torso: a split wing loop tears open when it beats.
+	_expect(
+		skin.get_rigid_bodies().size() == 3,
+		"butterfly built %d bodies; each wing loop must stay one intact piece" % skin.get_rigid_bodies().size()
+	)
+	var rest_angles: Dictionary = {}
+	for body in skin.get_rigid_bodies():
+		if is_instance_valid(body) and body != primary:
+			rest_angles[body.get_instance_id()] = body.rotation - primary.rotation
+	instance.set_physics_process(false)
+	var collapse := 0.0
+	for _frame in range(180):
+		skin.set_motion_state("fly", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
+		await physics_frame
+		for body in skin.get_rigid_bodies():
+			if not is_instance_valid(body) or body == primary or not rest_angles.has(body.get_instance_id()):
+				continue
+			var rest: float = rest_angles[body.get_instance_id()]
+			collapse = maxf(collapse, absf(wrapf(body.rotation - primary.rotation - rest, -PI, PI)))
+	_expect(
+		rad_to_deg(collapse) < 70.0,
+		"butterfly wings swung %.1f deg from the drawn pose; the silhouette stops reading as a butterfly" % rad_to_deg(collapse)
+	)
+	instance.queue_free()
+	await process_frame
+
+
+## Fidelity mode. A drawing made of several broad loop-shaped appendages cannot be
+## articulated without ceasing to look like itself, so it is built as ONE rigid piece
+## and animated as a whole body. Both halves of that bargain are asserted: the messy
+## drawing must go rigid, and an ordinary thin-limbed drawing must NOT -- otherwise
+## the rule would quietly swallow every creature and nothing would animate its limbs.
+func _test_fidelity_mode() -> void:
+	# A drawing made of several broad loop-shaped appendages -- the four-loop
+	# butterfly that started this -- must ARTICULATE those appendages, not be
+	# flattened into one rigid piece. Collapsing it was an earlier answer to the
+	# loops scrambling; the ink now hinges on pivots at the joints it was drawn on,
+	# so the shape holds by construction and flattening it only costs the wings.
+	var messy := registry.instantiate_entity("butterfly") as Node2D
+	if messy != null:
+		world.add_child(messy)
+		messy.global_position = Vector2(500.0, 200.0)
+		messy.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+		messy.call("apply_drawing", _blank_image(), _four_loop_fixture())
+		var messy_skin := messy.get_node("DrawingSkin") as RuntimeRig2D
+		_expect(messy_skin.skin_mode() == "vector", "four-loop drawing discarded the vector ink")
+		_expect(messy_skin.debug_skin_active(), "four-loop drawing was not skinned to its class skeleton")
+		# A butterfly is a flier whatever it looks like, so it HAS wing bones -- the
+		# question a class-driven skeleton raises is whether they own any ink. Bones
+		# that carry nothing beat invisibly, which is the failure this design invites
+		# and the old geometric one could not have.
+		var mass := messy_skin.debug_bone_ink_mass()
+		var wing_mass := float(mass.get("wing_l", 0.0)) + float(mass.get("wing_r", 0.0))
+		_expect(
+			wing_mass > 0.15,
+			"four-loop drawing's wing bones carry only %.0f%% of its ink" % (wing_mass * 100.0)
+		)
+		messy.set_physics_process(false)
+		var travel: float = await _ink_travel(
+			messy_skin, "fly", {"moving": true, "speed_ratio": 1.0, "direction": 1.0}, 150
+		)
+		_expect(travel > 2.0, "four-loop drawing's wings never beat (%.2f px of ink travel)" % travel)
+		messy.queue_free()
+		await process_frame
+
+	var thin := registry.instantiate_entity("horse") as Node2D
+	if thin != null:
+		world.add_child(thin)
+		thin.global_position = Vector2(500.0, 200.0)
+		thin.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+		thin.call("apply_drawing", _blank_image(), _quadruped_fixture())
+		var thin_skin := thin.get_node("DrawingSkin") as RuntimeRig2D
+		_expect(thin_skin.get_joint_count() > 0, "walker lost its articulation")
+		thin.queue_free()
+		await process_frame
+
+
+func _test_fidelity_guard() -> void:
+	for entity_id in ["frog", "spider", "horse"]:
+		var entry := registry.get_entity(entity_id)
+		if entry.is_empty():
+			continue
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		if instance == null:
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(500.0, 250.0)
+		instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+		instance.call("apply_drawing", _blank_image(), _quadruped_fixture())
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		var primary := skin.get_primary_body()
+		_expect(primary != null, "%s has no primary body" % entity_id)
+		if primary == null:
+			instance.queue_free()
+			continue
+		# What "the drawing animates without coming apart" means once the ink is skinned
+		# rather than hung off pivots. The old rig could tear a stroke or leave part of
+		# it behind because strokes were cut between bodies; a skinned stroke is one
+		# polyline for life, so the way it could still fail is by STRETCHING -- blended
+		# bone transforms pulling a limb away from the body it joins.
+		_expect(skin.debug_skin_active(), "%s is not skinned to its class skeleton" % entity_id)
+		instance.set_physics_process(false)
+		var motion := {"moving": true, "speed_ratio": 1.0, "direction": 1.0}
+		# The bound is on the drawing COMING APART, not on the blend being perfect.
+		# Linear blend skinning shears ink that straddles a weight gradient, and the
+		# measured envelope across the roster is: swimmer/flier/spider 100-101%,
+		# walker 113%, hopper/biped 131-135% -- worst where a limb rotates furthest
+		# while a third of its ink still belongs to the body. It is bounded and it
+		# recovers every cycle. A stroke actually tearing free grows without bound and
+		# never comes back, which is what this still catches. Dual-quaternion skinning
+		# in SkinBinding.deform is what would remove the residual.
+		var stretch: float = await _ink_stretch(skin, "walk", motion, 200)
+		_expect(
+			stretch < 1.40,
+			"%s limb ink stretched to %.0f%% of its drawn length" % [entity_id, stretch * 100.0]
+		)
+		# And it must stay a drawing of this creature: the gait is bounded by each
+		# bone's authored limit, so no point can wander far from where it was drawn.
+		var bounds := skin.get_stroke_bounds()
+		var travel: float = await _ink_travel(skin, "walk", motion, 60)
+		_expect(
+			travel < bounds.size.length() * 0.5,
+			"%s ink travelled %.1f px, over half its own diagonal" % [entity_id, travel]
+		)
+		instance.queue_free()
+		await process_frame
+
+
+## How far the rendered drawing actually moves over `frames` of the given motion: the
+## largest distance any single ink point travels from where it started.
+##
+## Measured on the ink itself rather than on the nodes that carry it. A pivot node can
+## rotate, and a bone can swing through its whole range, while the drawing on screen
+## sits perfectly still -- if the thing that moved owned no ink, the player sees
+## nothing. Only the rendered points can tell the difference.
+func _ink_travel(skin: RuntimeRig2D, state: String, motion: Dictionary, frames: int) -> float:
+	var first := skin.debug_skin_points()
+	var travel := 0.0
+	for _frame in range(frames):
+		skin.set_motion_state(state, motion)
+		await physics_frame
+		var now := skin.debug_skin_points()
+		for stroke_index in range(mini(first.size(), now.size())):
+			var before: PackedVector2Array = first[stroke_index]
+			var after: PackedVector2Array = now[stroke_index]
+			for point_index in range(mini(before.size(), after.size())):
+				travel = maxf(travel, before[point_index].distance_to(after[point_index]))
+	return travel
+
+
+## The worst ratio between a stroke's rendered length and its drawn length, over
+## `frames` of motion. Skinning moves ink by blending bone transforms, so a little
+## stretch across a joint is inherent; a drawing coming apart is not, and shows up
+## here as a stroke growing without bound.
+func _ink_stretch(skin: RuntimeRig2D, state: String, motion: Dictionary, frames: int) -> float:
+	var rest: Array[float] = []
+	for stroke_value in skin.get_vector_strokes():
+		rest.append(_test_path_length((stroke_value as Dictionary)["points"]))
+	var worst := 1.0
+	for _frame in range(frames):
+		skin.set_motion_state(state, motion)
+		await physics_frame
+		var now := skin.debug_skin_points()
+		for stroke_index in range(mini(rest.size(), now.size())):
+			if rest[stroke_index] <= 0.001:
+				continue
+			var ratio := _test_path_length(now[stroke_index]) / rest[stroke_index]
+			worst = maxf(worst, maxf(ratio, 1.0 / maxf(0.001, ratio)))
+	return worst
+
+
+## Every Line2D the rig renders, wherever it was parented.
+func _ink_lines(root_node: Node) -> Array:
+	var found: Array = []
+	for child in root_node.get_children():
+		if child is Line2D:
+			found.append(child)
+		found.append_array(_ink_lines(child))
+	return found
+
+
+func _four_loop_fixture() -> Array:
+	var strokes: Array = []
+	for spec in [
+		[200.0, 210.0, 62.0, 55.0], [312.0, 220.0, 62.0, 52.0],
+		[212.0, 305.0, 52.0, 48.0], [300.0, 312.0, 48.0, 44.0]
+	]:
+		var loop := PackedVector2Array()
+		for index in range(15):
+			var t := TAU * float(index) / 14.0
+			loop.append(Vector2(spec[0] + cos(t) * spec[2], spec[1] + sin(t) * spec[3]))
+		strokes.append(_stroke(loop))
+	strokes.append(_stroke(PackedVector2Array([
+		Vector2(256, 160), Vector2(254, 220), Vector2(252, 280), Vector2(250, 350)
+	])))
+	return strokes
+
+
+## A thin body line with a closed wing loop either side of it.
+func _butterfly_fixture() -> Array:
+	var bodyline := PackedVector2Array([Vector2(256, 200), Vector2(256, 250), Vector2(256, 300)])
+	var left := PackedVector2Array()
+	var right := PackedVector2Array()
+	for index in range(13):
+		var t := TAU * float(index) / 12.0
+		left.append(Vector2(256.0 - 55.0 + cos(t) * 48.0, 240.0 + sin(t) * 40.0))
+		right.append(Vector2(256.0 + 55.0 + cos(t) * 48.0, 240.0 + sin(t) * 40.0))
+	return [_stroke(bodyline), _stroke(left), _stroke(right)]
+
+
+## A skeleton is data, so it fails by typo: a misspelled bone name, a parent that does
+## not exist, a pivot outside the drawing, or an amplitude_key naming a field no rig
+## profile has. None of those raise an error at build time -- they surface as a creature
+## that quietly will not move. Every one is caught here instead.
+func _test_skeleton_manifest() -> void:
+	var archetypes := SkeletonLibrary.archetype_names()
+	for required in ["walker", "biped", "flier", "swimmer", "hopper", "none"]:
+		_expect(required in archetypes, "skeletons.json has no '%s' archetype" % required)
+
+	# Every field a skeleton names by string must exist in at least one rig profile,
+	# otherwise the gait silently reads zero.
+	var profile_fields: Dictionary = {}
+	var dir := DirAccess.open("res://config/rigs")
+	if dir != null:
+		for file_name in dir.get_files():
+			if not file_name.ends_with(".json"):
+				continue
+			var parsed: Variant = JSON.parse_string(
+				FileAccess.get_file_as_string("res://config/rigs/" + file_name)
+			)
+			if parsed is Dictionary:
+				for field: String in (parsed as Dictionary).keys():
+					profile_fields[field] = true
+
+	for entity_id in registry.get_entity_ids():
+		var entry := registry.get_entity(entity_id)
+		var rig_type := String(entry.get("rig_type", "none"))
+		var skeleton := SkeletonLibrary.resolve(entity_id, rig_type)
+		_expect(not skeleton.is_empty(), "%s (%s) resolved no skeleton" % [entity_id, rig_type])
+		if skeleton.is_empty():
+			continue
+		for problem in SkeletonLibrary.validate(skeleton):
+			_expect(false, "%s skeleton: %s" % [entity_id, problem])
+
+		# A named profile key resolving to a value of the WRONG KIND is the failure this
+		# design invites, and it does not raise: every key here exists and is a number.
+		# The swimmers named wave_length as their gait frequency -- 44 to 82 PIXELS read
+		# as hertz -- so they ran at more than a cycle per frame, aliased into noise, and
+		# rendered motionless. The hopper named landing_squash as a continuous body
+		# scale, so its legs shrank by a fifth on every hop. Both are in range for a
+		# number and absurd for a frequency and a scale, which is what is checked.
+		var profile_path := "res://config/rigs/%s.json" % entity_id
+		var profile_for_rig: Variant = JSON.parse_string(
+			FileAccess.get_file_as_string(profile_path)
+		) if FileAccess.file_exists(profile_path) else null
+		if profile_for_rig is Dictionary:
+			var placed := Skeleton2D_Rig.build(skeleton, Rect2(0.0, 0.0, 200.0, 200.0), profile_for_rig)
+			# Nyquist: above 30 Hz a 60 fps sine is sampled less than twice per cycle and
+			# stops being an animation. Real gaits here are 1.2 to 9.
+			_expect(
+				placed.frequency_hz > 0.05 and placed.frequency_hz <= 15.0,
+				"%s (%s) resolves a gait frequency of %.1f Hz, which is not a gait" % [
+					entity_id, rig_type, placed.frequency_hz
+				]
+			)
+			var motion: Dictionary = skeleton.get("body_motion", {})
+			# Calibrated to what renders correctly rather than to a round number. The
+			# flier has a field built for this (flap_squash, 0.10-0.12); everyone else
+			# borrows landing_squash, and 0.10-0.16 reads as squash-and-stretch on a
+			# walker or a biped. The hopper's 0.22 was where it stopped reading as a
+			# body pulse and started reading as the legs changing length.
+			var squash := float(profile_for_rig.get(String(motion.get("squash_key", "")), motion.get("squash", 0.0)))
+			_expect(
+				absf(squash) <= 0.18,
+				"%s squashes the whole creature by %.0f%% every cycle" % [entity_id, squash * 100.0]
+			)
+			var bob := float(profile_for_rig.get(String(motion.get("bob_key", "")), motion.get("bob_px", 0.0)))
+			_expect(
+				absf(bob) <= 24.0,
+				"%s bobs %.0f px every cycle, which is a jump and not a bob" % [entity_id, bob]
+			)
+		for key in SkeletonLibrary.referenced_profile_keys(skeleton):
+			_expect(
+				profile_fields.has(key),
+				"%s skeleton names profile field '%s', which no rig profile defines" % [entity_id, key]
+			)
+		# A creature whose gait drives nothing would render frozen.
+		if rig_type != "none":
+			var gaited := 0
+			for bone_value in skeleton.get("bones", []):
+				if not ((bone_value as Dictionary).get("gait", {}) as Dictionary).is_empty():
+					gaited += 1
+			_expect(gaited >= 1, "%s (%s) has no bone with a gait" % [entity_id, rig_type])
+
+
+## Every ink point must be bound to something, with weights that sum to one. If a point
+## can end up with no bone, it would stay behind while the rest of the drawing moved --
+## a piece detaching, which is precisely what players kept reporting.
+## What the data says a bone swings by is what it must actually swing by.
+##
+## Nothing else catches this. Smoothing the finished angle rather than the state weight
+## turned the driver into a low-pass filter on its own gait: a first-order lag of time
+## constant t attenuates frequency f by 1/sqrt(1 + (2*PI*f*t)^2), so every class quietly
+## ran under its authored amplitude and the worst case was the fastest one -- a bird
+## flapping at 6.5 Hz reached 29% of its authored 40 degrees. Every creature still
+## moved, every test still passed, and every one of them was wrong by a factor that
+## depended on its own frequency.
+func _test_gait_reaches_its_amplitude() -> void:
+	var weak: Array = []
+	for entity_id in registry.get_entity_ids():
+		var entry := registry.get_entity(entity_id)
+		if String(entry.get("runtime_role", "")) != "active_ragdoll_morph":
+			continue
+		var rig_type := String(entry.get("rig_type", ""))
+		var profile_path := "res://config/rigs/%s.json" % entity_id
+		if not FileAccess.file_exists(profile_path):
+			continue
+		var profile: Variant = JSON.parse_string(FileAccess.get_file_as_string(profile_path))
+		if not (profile is Dictionary):
+			continue
+		var rig := Skeleton2D_Rig.build(
+			SkeletonLibrary.resolve(entity_id, rig_type), Rect2(0.0, 0.0, 200.0, 140.0), profile
+		)
+		var driver := GaitDriver.new()
+		driver.prepare(rig, profile)
+		var peak := PackedFloat32Array()
+		peak.resize(rig.bones.size())
+		var state := _gait_for_rig(rig_type)
+		# Long enough to cover the slowest gait here (1.2 Hz) several times over.
+		for _step in range(300):
+			driver.advance(1.0 / 60.0, state, {
+				"moving": true, "speed_ratio": 1.0, "direction": 1.0, "charge_ratio": 1.0
+			})
+			var angles := driver.angles()
+			for b in range(rig.bones.size()):
+				peak[b] = maxf(peak[b], absf(angles[b]))
+
+		for b in range(rig.bones.size()):
+			var gait: Dictionary = rig.bones[b].gait
+			if gait.is_empty():
+				continue
+			var authored := float(gait.get("amplitude_deg", 0.0))
+			if gait.has("amplitude_key"):
+				authored = float((profile as Dictionary).get(String(gait["amplitude_key"]), authored))
+			var states: Dictionary = gait.get("states", {})
+			var weight := float(states.get(state, 1.0 if states.is_empty() else states.get("idle", 0.0)))
+			var expected := minf(authored * weight, rad_to_deg(rig.bones[b].limit))
+			if expected < 3.0:
+				continue  # too small to judge, and not something a player can see anyway
+			var achieved := rad_to_deg(peak[b])
+			if achieved < expected * 0.85:
+				weak.append("%s/%s %.0f of %.0f deg" % [entity_id, rig.bones[b].name, achieved, expected])
+	_expect(weak.is_empty(), "these gaits do not reach the amplitude they are authored with: %s" % str(weak))
+
+
+func _test_skin_weights() -> void:
+	for case_value in _skin_cases():
+		var case_data: Dictionary = case_value
+		var label := String(case_data["label"])
+		var binding := _bind_case(case_data)
+		if binding == null:
+			continue
+		var report := binding.report()
+		_expect(int(report["point_count"]) > 0, "'%s' bound no points" % label)
+		_expect(
+			int(report["unbound_points"]) == 0,
+			"'%s' left %d ink points with no bone" % [label, int(report["unbound_points"])]
+		)
+		_expect(
+			absf(float(report["min_weight_sum"]) - 1.0) < 1e-3,
+			"'%s' weights sum to %.4f, not 1" % [label, float(report["min_weight_sum"])]
+		)
+
+
+## At rest the creature must BE the drawing. With every bone unrotated the skinning
+## transforms cancel exactly, so this is an equality, not a tolerance -- and it is the
+## property the whole approach rests on: whatever the gait later does, frame zero is
+## always the player's own ink.
+func _test_skinned_rest_identity() -> void:
+	for case_value in _skin_cases():
+		var case_data: Dictionary = case_value
+		var label := String(case_data["label"])
+		var binding := _bind_case(case_data)
+		if binding == null:
+			continue
+		var skeleton := binding.skeleton()
+		var angles := PackedFloat32Array()
+		angles.resize(skeleton.bones.size())
+		var posed := skeleton.pose(angles)
+		var worst := 0.0
+		for stroke_index in range(binding.stroke_count()):
+			var rest := binding.rest_points(stroke_index)
+			var deformed := binding.deform(stroke_index, posed)
+			_expect(
+				deformed.size() == rest.size(),
+				"'%s' stroke %d changed point count" % [label, stroke_index]
+			)
+			for i in range(mini(rest.size(), deformed.size())):
+				worst = maxf(worst, rest[i].distance_to(deformed[i]))
+		_expect(worst < 0.01, "'%s' rest pose moved ink by %.4f px" % [label, worst])
+
+
+## The same guarantee, but measured on the LIVE rig instead of the binding in
+## isolation. Stage 1 proved the skinning transforms cancel at rest; this proves that
+## nothing between them and the screen undoes it -- where the skin root is placed on
+## the torso, how the Line2Ds are rebuilt from the strokes, what the gait does on its
+## very first tick. The instant a creature exists it must be the player's drawing, to
+## the pixel, or every claim made for the rig is about something the player never saw.
+func _test_skinned_rig_renders_the_drawing() -> void:
+	for entity_id in _living_entity_ids():
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		if instance == null:
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(420.0, 240.0)
+		instance.call("apply_drawing", _blank_image(), _fixture_for(entity_id))
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		if skin.debug_skin_active():
+			var drawn := skin.get_vector_strokes()
+			var rendered := skin.debug_skin_points()
+			_expect(
+				rendered.size() == drawn.size(),
+				"%s renders %d strokes for %d drawn" % [entity_id, rendered.size(), drawn.size()]
+			)
+			# Compared in WORLD space, against where the entity holding the drawing
+			# actually is. Comparing the ink to itself in its own local space would pass
+			# no matter where that space had been put, which is most of what this is
+			# here to check.
+			var to_world := skin.debug_skin_transform()
+			var drawn_to_world := instance.global_transform
+			var worst := 0.0
+			for index in range(mini(rendered.size(), drawn.size())):
+				var source: PackedVector2Array = (drawn[index] as Dictionary)["points"]
+				var shown: PackedVector2Array = rendered[index]
+				_expect(
+					shown.size() == source.size(),
+					"%s stroke %d renders %d points for %d drawn" % [entity_id, index, shown.size(), source.size()]
+				)
+				for point_index in range(mini(source.size(), shown.size())):
+					var here := to_world * shown[point_index]
+					var expected := drawn_to_world * source[point_index]
+					worst = maxf(worst, here.distance_to(expected))
+			_expect(worst < 0.01, "%s renders its first frame %.4f px off the drawing" % [entity_id, worst])
+			# And drawn ONCE. Every Line2D under the entity must be one the skin owns --
+			# an ink line the builders left behind renders the drawing a second time,
+			# frozen, underneath the one that animates. Two of them per stroke: the ink
+			# and the halo beneath it.
+			_expect(
+				_ink_lines(instance).size() == rendered.size() * 2,
+				"%s renders %d ink lines for %d strokes; the drawing is doubled" % [
+					entity_id, _ink_lines(instance).size(), rendered.size()
+				]
+			)
+		instance.queue_free()
+		await process_frame
+
+
+## The failure a class-driven skeleton invites, and a geometric one could not have:
+## the skeleton is right for the CLASS, and wrong for THIS DRAWING. Every bone is
+## placed, the gait drives them all correctly -- and they own none of the player's
+## ink, so a fully rigged creature renders frozen. Nothing raises an error; the
+## drawing simply never moves. So the ink is followed through to the bones that move.
+func _test_gait_reaches_the_ink() -> void:
+	var stranded: Array = []
+	for entity_id in _living_entity_ids():
+		var rig_type := String(registry.get_entity(entity_id).get("rig_type", ""))
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		if instance == null:
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(420.0, 240.0)
+		instance.call("apply_drawing", _blank_image(), _fixture_for(entity_id))
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		if skin.debug_skin_active():
+			var state := _gait_for_rig(rig_type)
+			var mass := skin.debug_bone_ink_mass()
+			var carried := 0.0
+			for bone_value in SkeletonLibrary.resolve(entity_id, rig_type).get("bones", []):
+				var bone: Dictionary = bone_value
+				var gait: Dictionary = bone.get("gait", {})
+				if gait.is_empty():
+					continue
+				var states: Dictionary = gait.get("states", {})
+				if states.is_empty() or float(states.get(state, 0.0)) > 0.0:
+					carried += float(mass.get(String(bone.get("name", "")), 0.0))
+			if carried < 0.10:
+				stranded.append("%s(%s in %s, %.0f%%)" % [entity_id, rig_type, state, carried * 100.0])
+		instance.queue_free()
+		await process_frame
+	_expect(stranded.is_empty(), "these classes move bones that carry no ink: %s" % str(stranded))
+
+
+## Drawings spanning the shapes that broke the old rig: wings apart, wings meeting in
+## the middle, a single continuous scribble, and an extreme aspect ratio.
+func _skin_cases() -> Array:
+	return [
+		{"label": "butterfly wings apart", "rig": "flier", "profile": "butterfly",
+		 "strokes": _butterfly_fixture()},
+		{"label": "butterfly four loops", "rig": "flier", "profile": "butterfly",
+		 "strokes": _four_loop_fixture()},
+		{"label": "quadruped", "rig": "walker", "profile": "horse",
+		 "strokes": _quadruped_fixture()},
+		{"label": "single scribble", "rig": "walker", "profile": "horse",
+		 "strokes": _scribble_fixture()},
+		{"label": "extreme aspect", "rig": "swimmer", "profile": "fish",
+		 "strokes": _wide_fixture()},
+	]
+
+
+func _bind_case(case_data: Dictionary) -> SkinBinding:
+	var strokes: Array = case_data["strokes"]
+	var skeleton_data := SkeletonLibrary.resolve(String(case_data["profile"]), String(case_data["rig"]))
+	if skeleton_data.is_empty():
+		_expect(false, "no skeleton for %s" % String(case_data["label"]))
+		return null
+	var profile: Dictionary = {}
+	var parsed: Variant = JSON.parse_string(
+		FileAccess.get_file_as_string("res://config/rigs/%s.json" % String(case_data["profile"]))
+	)
+	if parsed is Dictionary:
+		profile = parsed
+	var bounds := _fixture_bounds(strokes)
+	var skeleton := Skeleton2D_Rig.build(skeleton_data, bounds, profile)
+	var binding := SkinBinding.new()
+	binding.bind(strokes, skeleton)
+	return binding
+
+
+func _fixture_bounds(strokes: Array) -> Rect2:
+	var bounds := Rect2()
+	var started := false
+	for stroke_value in strokes:
+		for point: Vector2 in PackedVector2Array((stroke_value as Dictionary)["points"]):
+			if not started:
+				bounds = Rect2(point, Vector2.ZERO)
+				started = true
+			else:
+				bounds = bounds.expand(point)
+	return bounds
+
+
+## One unbroken line that loops back on itself -- no separate limbs to find.
+func _scribble_fixture() -> Array:
+	var points := PackedVector2Array()
+	for index in range(48):
+		var t := TAU * float(index) / 24.0
+		points.append(Vector2(256.0 + cos(t) * (60.0 + 18.0 * sin(t * 3.0)),
+							  250.0 + sin(t) * (44.0 + 14.0 * cos(t * 2.0))))
+	return [_stroke(points)]
+
+
+## 10:1 aspect: the skeleton must stretch with the drawing, not smear onto a line.
+func _wide_fixture() -> Array:
+	var body := PackedVector2Array()
+	for index in range(17):
+		var angle := TAU * float(index) / 16.0
+		body.append(Vector2(256.0 + cos(angle) * 200.0, 250.0 + sin(angle) * 20.0))
+	return [_stroke(body)]
+
+
+## This is a drawing game: EVERY playable class has to visibly animate, not just the
+## handful that get looked at by hand. Each creature is rigged from a drawing shaped
+## the way its archetype is normally drawn and driven through its own gait, and its
+## limbs must actually swing. A creature that rigs no hinges, or hinges that never
+## move, is a creature the player sees frozen.
+func _test_every_class_animates() -> void:
+	var silent: Array = []
+	for entity_id in registry.get_entity_ids():
+		var entry := registry.get_entity(entity_id)
+		if String(entry.get("runtime_role", "")) != "active_ragdoll_morph":
+			continue
+		var rig_type := String(entry.get("rig_type", ""))
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		if instance == null:
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(500.0, 250.0)
+		instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+		instance.call("apply_drawing", _blank_image(), _archetype_fixture(entity_id, rig_type))
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		instance.set_physics_process(false)
+		if not skin.debug_skin_active():
+			silent.append("%s(%s, not skinned)" % [entity_id, rig_type])
+			instance.queue_free()
+			await process_frame
+			continue
+		# Measured on the rendered ink, not on the bones. Every playable class has a
+		# skeleton by construction now, so "does it have hinges" no longer distinguishes
+		# anything -- what still can, and is the whole point, is whether the drawing the
+		# player is looking at actually moves.
+		var travel: float = await _ink_travel(skin, _gait_for_rig(rig_type), {
+			"moving": true, "speed_ratio": 1.0, "direction": 1.0, "charge_ratio": 1.0
+		}, 120)
+		if travel < 2.0:
+			silent.append("%s(%s, %.2f px)" % [entity_id, rig_type, travel])
+		instance.queue_free()
+		await process_frame
+	_expect(silent.is_empty(), "these classes render frozen: %s" % str(silent))
+
+
+## A drawing shaped the way each archetype is actually drawn: a finned body for a
+## swimmer, a body with two wings for a flier, a body on four legs for a walker.
+func _archetype_fixture(entity_id: String, rig_type: String) -> Array:
+	if entity_id == "spider":
+		return SpiderReferenceFixtures.separate_legs()
+	if entity_id == "snake":
+		var wave := PackedVector2Array()
+		for index in range(18):
+			wave.append(Vector2(120.0 + index * 17.0, 256.0 + sin(float(index) * 0.75) * 30.0))
+		return [_stroke(wave)]
+	if rig_type == "swimmer":
+		return [
+			_stroke(_oval(256.0, 250.0, 70.0, 38.0)),
+			_stroke(PackedVector2Array([
+				Vector2(186, 250), Vector2(140, 215), Vector2(126, 250), Vector2(140, 285)
+			]))
+		]
+	if rig_type == "flier":
+		return [
+			_stroke(_oval(256.0, 250.0, 44.0, 30.0)),
+			_stroke(PackedVector2Array([Vector2(232, 236), Vector2(190, 196), Vector2(150, 178)])),
+			_stroke(PackedVector2Array([Vector2(280, 236), Vector2(322, 196), Vector2(362, 178)]))
+		]
+	return _quadruped_fixture()
+
+
+func _oval(cx: float, cy: float, rx: float, ry: float) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for index in range(17):
+		var angle := TAU * float(index) / 16.0
+		points.append(Vector2(cx + cos(angle) * rx, cy + sin(angle) * ry))
+	return points
+
+
+## A body with four legs hanging beneath it: what a player actually draws for a
+## four-legged animal, as opposed to limbs radiating in every direction.
+func _quadruped_fixture() -> Array:
+	var body := PackedVector2Array()
+	for index in range(17):
+		var angle := TAU * float(index) / 16.0
+		body.append(Vector2(256.0 + cos(angle) * 70.0, 240.0 + sin(angle) * 38.0))
+	var strokes: Array = [_stroke(body)]
+	for offset in [-46.0, -16.0, 16.0, 46.0]:
+		var hip := Vector2(256.0 + offset, 274.0)
+		strokes.append(_stroke(PackedVector2Array([
+			hip, hip + Vector2(0.0, 34.0), hip + Vector2(0.0, 68.0)
+		])))
+	return strokes
+
+
 func _test_idle_stability() -> void:
-	for entity_id in ["spider", "cat", "humanoid"]:
+	for entity_id in ["spider", "horse", "monkey"]:
 		var instance := registry.instantiate_entity(entity_id) as Node2D
 		world.add_child(instance)
 		instance.global_position = Vector2(400.0, 360.0)
@@ -814,7 +2138,7 @@ func _check_messy_fixture(path: String) -> void:
 		_expect(false, "fixture %s did not parse" % path)
 		return
 	var label := String(data.get("description", path.get_file()))
-	var entity_id := String(data.get("entity_id", "cat"))
+	var entity_id := String(data.get("entity_id", "horse"))
 	var strokes := _messy_strokes(data.get("strokes", []))
 	var states: Array = data.get("states", ["walk"])
 	var primary_state := String(states[0]) if not states.is_empty() else "walk"
@@ -832,7 +2156,14 @@ func _check_messy_fixture(path: String) -> void:
 	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
 
 	_expect(skin.skin_mode() == "vector", "'%s' collapsed to bitmap" % label)
-	_expect(skin.get_joint_count() > 0, "'%s' produced no articulation" % label)
+	# Whether the physics underneath articulated is now genuinely free: a drawing with
+	# real limbs gets joints, one continuous shape stays a single body, and inventing
+	# joints inside an unbroken line is what tore drawings apart. Neither outcome
+	# decides what the player sees any more, so what is asserted is the thing that does
+	# -- the drawing is bound to its class's skeleton, and it moves. (The old form of
+	# this, "articulated OR animates as a whole body", could not fail once every skinned
+	# rig reported the second: it was true by construction.)
+	_expect(skin.debug_skin_active(), "'%s' is not skinned to its class skeleton" % label)
 	_expect(skin.get_rigid_bodies().size() <= 24 and skin.get_joint_count() <= 23, "'%s' exceeded rig caps" % label)
 
 	instance.set_physics_process(false)
@@ -840,6 +2171,20 @@ func _check_messy_fixture(path: String) -> void:
 	skin._physics_process(0.1)
 	if entity_id == "spider":
 		_expect(bool(skin.debug_spider_snapshot().get("valid", false)), "'%s' did not produce spider anatomy" % label)
+	elif skin.debug_skin_active():
+		# However the physics underneath was decomposed -- articulated or one rigid
+		# piece -- the drawing itself must move, because that is the only part of this
+		# the player can see.
+		var travel: float = await _ink_travel(skin, primary_state, motion, 60)
+		_expect(travel > 0.5, "'%s' never animated (%.2f px of ink travel)" % [label, travel])
+		# Drawn once. These fixtures are where a LIMBLESS drawing lands, and a limbless
+		# drawing has its ink moved under a whole-body pivot while the rig is built --
+		# so if that copy is not cleared when the skin takes over, the player sees the
+		# drawing twice: one frozen underneath, one animating over it. Two lines per
+		# stroke is the ink and the halo beneath it.
+		var lines := _ink_lines(instance).size()
+		var expected := skin.debug_skin_points().size() * 2
+		_expect(lines == expected, "'%s' renders %d ink lines, expected %d" % [label, lines, expected])
 	else:
 		var animated := false
 		for torque in skin.debug_drive_torques():
@@ -867,6 +2212,196 @@ func _messy_strokes(raw: Array) -> Array:
 			points.append(Vector2(float(pair[0]), float(pair[1])))
 		strokes.append({"points": points, "width": float(stroke.get("width", 8.0)), "color": Color.BLACK})
 	return strokes
+
+
+## Everything the rig renders must be the player's ink: on-stroke (no fabricated
+## chords slashing across the figure) and length-conserving (no ink silently
+## dropped or duplicated). Checked for every living entity's clean fixture and
+## every messy fixture — spider included, since its analyzer claims exact slices.
+func _test_ink_integrity() -> void:
+	var cases: Array = []
+	for entity_id in _living_entity_ids():
+		cases.append({"label": "clean %s" % entity_id, "entity_id": entity_id, "strokes": _fixture_for(entity_id)})
+	var dir := DirAccess.open("res://tests/fixtures")
+	if dir != null:
+		var names := dir.get_files()
+		names.sort()
+		for file_name in names:
+			if not file_name.ends_with(".json"):
+				continue
+			var data: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/" + file_name))
+			if typeof(data) != TYPE_DICTIONARY:
+				continue
+			var fixture := data as Dictionary
+			cases.append({
+				"label": String(fixture.get("description", file_name)),
+				"entity_id": String(fixture.get("entity_id", "horse")),
+				"strokes": _messy_strokes(fixture.get("strokes", []))
+			})
+	for case_value in cases:
+		var case_data := case_value as Dictionary
+		var label := String(case_data["label"])
+		var instance := registry.instantiate_entity(String(case_data["entity_id"])) as Node2D
+		if instance == null:
+			_expect(false, "ink integrity could not instantiate %s" % label)
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(300.0, 200.0)
+		instance.call("apply_drawing", _blank_image(), case_data["strokes"])
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		var strokes := skin.get_vector_strokes()
+		var rendered := skin.debug_rendered_ink()
+		_expect(not rendered.is_empty(), "'%s' rendered no ink" % label)
+		_expect(skin.get_rigid_bodies().size() <= 24 and skin.get_joint_count() <= 23, "'%s' exceeded rig caps" % label)
+		_expect(
+			skin.get_joint_count() > 0 or skin.get_rigid_bodies().size() == 1,
+			"'%s' degraded partially: %d jointless bodies" % [label, skin.get_rigid_bodies().size()]
+		)
+		var input_length := 0.0
+		for stroke_value in strokes:
+			input_length += _test_path_length((stroke_value as Dictionary)["points"])
+		var core_length := 0.0
+		var off_ink := 0
+		for entry_value in rendered:
+			var entry := entry_value as Dictionary
+			var points: PackedVector2Array = entry["points"]
+			if points.size() < 2:
+				continue
+			for index in range(points.size()):
+				if not _point_is_on_ink(points[index], strokes):
+					off_ink += 1
+				if index > 0 and not _point_is_on_ink((points[index - 1] + points[index]) * 0.5, strokes):
+					off_ink += 1
+			var prefix := int(entry.get("overlap_prefix", 0))
+			var suffix := int(entry.get("overlap_suffix", 0))
+			var core := points.slice(prefix, points.size() - suffix)
+			if core.size() >= 2:
+				core_length += _test_path_length(core)
+		_expect(off_ink == 0, "'%s' rendered %d points off the drawn ink" % [label, off_ink])
+		if input_length > 0.0:
+			var ratio := core_length / input_length
+			_expect(
+				ratio >= 0.92 and ratio <= 1.08,
+				"'%s' rendered %.0f%% of the drawn ink length" % [label, ratio * 100.0]
+			)
+		instance.queue_free()
+		await process_frame
+
+
+func _point_is_on_ink(point: Vector2, strokes: Array) -> bool:
+	for stroke_value in strokes:
+		var points: PackedVector2Array = (stroke_value as Dictionary)["points"]
+		for index in range(points.size() - 1):
+			var nearest := Geometry2D.get_closest_point_to_segment(point, points[index], points[index + 1])
+			if point.distance_to(nearest) <= 2.0:
+				return true
+	return false
+
+
+## Joints must HOLD their gait poses, not just keep their pin anchors together.
+## Before the continuous-angle muscles, limbs windmilled in full circles (pin
+## error stayed at zero, so no other test saw it): birds could not flap and
+## walkers flailed. A disciplined rig keeps every joint's integrated angle within
+## its drawn limit plus bounded overshoot.
+func _test_limb_angle_discipline() -> void:
+	var cases := [
+		{"entity_id": "horse", "state": "walk", "limit_deg": 250.0},
+		{"entity_id": "bird", "state": "fly", "limit_deg": 250.0},
+		{"entity_id": "monkey", "state": "walk", "limit_deg": 250.0},
+		{"entity_id": "spider", "state": "walk", "limit_deg": 280.0}
+	]
+	for case_value in cases:
+		var case_data := case_value as Dictionary
+		var entity_id := String(case_data["entity_id"])
+		var instance := registry.instantiate_entity(entity_id) as Node2D
+		if instance == null:
+			_expect(false, "angle discipline could not instantiate %s" % entity_id)
+			continue
+		world.add_child(instance)
+		instance.global_position = Vector2(300.0, 200.0)
+		instance.call("apply_drawing", _blank_image(), _fixture_for(entity_id))
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		instance.set_physics_process(false)
+		var params := {"moving": true, "speed_ratio": 1.0, "direction": 1.0}
+		for _frame in range(120):
+			skin.set_motion_state(String(case_data["state"]), params)
+			await physics_frame
+		var max_angle := rad_to_deg(skin.debug_max_tracked_angle())
+		_expect(
+			max_angle <= float(case_data["limit_deg"]),
+			"%s joints windmilled to %.0f deg (limit %.0f)" % [entity_id, max_angle, float(case_data["limit_deg"])]
+		)
+		instance.queue_free()
+		await process_frame
+
+
+## A stick figure must rig as spine-torso with articulated arms and legs. Two
+## regressions guarded here: the closed head circle out-scoring the spine as the
+## torso (its stroke seam hid it from the hub test), and arms drawn as one stroke
+## crossing the spine being welded rigid instead of split into two limbs.
+func _test_stick_figure_anatomy() -> void:
+	var instance := registry.instantiate_entity("monkey") as Node2D
+	_expect(instance != null, "could not instantiate monkey for stick figure check")
+	if instance == null:
+		return
+	world.add_child(instance)
+	instance.global_position = Vector2(300.0, 200.0)
+	instance.call("apply_drawing", _blank_image(), _stick_figure_fixture())
+	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+	_expect(skin.get_joint_count() >= 6, "stick figure articulated only %d joints" % skin.get_joint_count())
+	var roles := skin.debug_segment_roles()
+	_expect(roles.count("arm") >= 2, "stick figure arms did not split into limbs (roles: %s)" % str(roles))
+	_expect(roles.count("leg") >= 2, "stick figure legs missing (roles: %s)" % str(roles))
+	instance.queue_free()
+	await process_frame
+
+
+func _stick_figure_fixture() -> Array:
+	var strokes: Array = []
+	var head := PackedVector2Array()
+	for index in range(19):
+		var angle := TAU * float(index) / 18.0
+		head.append(Vector2(256.0 + cos(angle) * 30.0, 150.0 + sin(angle) * 30.0))
+	strokes.append(_stroke(head))
+	strokes.append(_stroke(_dense_line(Vector2(256.0, 180.0), Vector2(256.0, 300.0))))
+	strokes.append(_stroke(_dense_line(Vector2(180.0, 230.0), Vector2(332.0, 230.0))))
+	strokes.append(_stroke(_dense_line(Vector2(256.0, 300.0), Vector2(208.0, 404.0))))
+	strokes.append(_stroke(_dense_line(Vector2(256.0, 300.0), Vector2(304.0, 404.0))))
+	return strokes
+
+
+func _dense_line(from: Vector2, to: Vector2) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	var count := maxi(2, int(from.distance_to(to) / 6.0))
+	for index in range(count + 1):
+		points.append(from.lerp(to, float(index) / float(count)))
+	return points
+
+
+## A limb stroke whose midpoint merely grazes the torso must stay one limb; the
+## old interior split cut it into two half-limbs that tore the drawing apart.
+func _test_grazing_stroke_not_split() -> void:
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/grazing_limb.json"))
+	if typeof(data) != TYPE_DICTIONARY:
+		_expect(false, "grazing_limb fixture did not parse")
+		return
+	var strokes := _messy_strokes((data as Dictionary).get("strokes", []))
+	var instance := registry.instantiate_entity("horse") as Node2D
+	_expect(instance != null, "could not instantiate horse for grazing check")
+	if instance == null:
+		return
+	world.add_child(instance)
+	instance.global_position = Vector2(300.0, 200.0)
+	instance.call("apply_drawing", _blank_image(), strokes)
+	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+	# The grazing stroke is the fixture's last stroke; normalization keeps order.
+	var normalized := skin.get_vector_strokes()
+	var graze: Dictionary = normalized[normalized.size() - 1]
+	var radius := clampf(skin.get_stroke_bounds().size.length() * 0.14, 12.0, 40.0)
+	var paths: Array = skin._paths_attached_to_body(graze["points"], radius)
+	_expect(paths.size() <= 1, "grazing stroke split into %d limb paths" % paths.size())
+	instance.queue_free()
+	await process_frame
 
 
 func _test_utilities() -> void:
@@ -951,6 +2486,105 @@ func _test_physics_morphs() -> void:
 		_expect(is_finite(instance.global_position.x), "%s physics became non-finite" % entity_id)
 		instance.queue_free()
 		await process_frame
+
+
+func _living_entity_ids() -> Array:
+	var ids: Array = []
+	for entity_id in registry.get_entity_ids():
+		if String(registry.get_entity(entity_id).get("runtime_role", "")) == "active_ragdoll_morph":
+			ids.append(entity_id)
+	return ids
+
+
+func _expected_roles_for_rig(rig_type: String) -> Array:
+	match rig_type:
+		"flier":
+			return ["wing"]
+		"swimmer":
+			return ["tail", "fin", "chain"]
+		"walker", "biped", "hopper":
+			return ["leg"]
+		_:
+			return []
+
+
+func _gait_for_rig(rig_type: String) -> String:
+	match rig_type:
+		"flier":
+			return "fly"
+		"swimmer":
+			return "swim"
+		"hopper":
+			return "jump"
+		_:
+			return "walk"
+
+
+## Per-archetype coverage: every enabled entity must spawn, rig, and step physics
+## without erroring, keep its ink intact, stay in bounds, and not windmill. Results
+## are grouped by rig_type archetype, matching the thesis's per-archetype plan.
+func _test_archetype_coverage() -> void:
+	var groups: Dictionary = {}
+	var order: Array = []
+	for entity_id in registry.get_entity_ids():
+		var entry := registry.get_entity(entity_id)
+		var rig_type := String(entry.get("rig_type", "none"))
+		if not groups.has(rig_type):
+			groups[rig_type] = {"pass": 0, "fail": 0}
+			order.append(rig_type)
+		var before := failures.size()
+		await _cover_entity(entity_id, entry, rig_type)
+		if failures.size() == before:
+			groups[rig_type]["pass"] += 1
+		else:
+			groups[rig_type]["fail"] += 1
+	order.sort()
+	print("--- Per-archetype coverage summary (rig_type) ---")
+	for rig_type in order:
+		var g: Dictionary = groups[rig_type]
+		print("  %-8s : %d passed, %d failed" % [rig_type, int(g["pass"]), int(g["fail"])])
+
+
+func _cover_entity(entity_id: String, entry: Dictionary, rig_type: String) -> void:
+	var is_creature := String(entry.get("runtime_role", "")) == "active_ragdoll_morph"
+	var fixture: Array = _fixture_for(entity_id) if is_creature else _utility_fixture(entity_id)
+	var instance := registry.instantiate_entity(entity_id) as Node2D
+	_expect(instance != null, "coverage: could not instantiate %s" % entity_id)
+	if instance == null:
+		return
+	world.add_child(instance)
+	instance.global_position = Vector2(400.0, 200.0)
+	if instance.has_method("set_world_bounds"):
+		instance.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1200.0))
+	instance.call("apply_drawing", _blank_image(), fixture)
+	var anchor := instance.call("get_physics_anchor") as RigidBody2D
+	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+	_expect(anchor != null and skin != null, "coverage: %s missing anchor/skin" % entity_id)
+	if anchor == null or skin == null:
+		instance.queue_free()
+		await process_frame
+		return
+	_expect(skin.get_rigid_bodies().size() <= 24 and skin.get_joint_count() <= 23, "coverage: %s exceeded rig caps" % entity_id)
+	if skin.skin_mode() == "vector":
+		_expect(bool(skin.call("_rig_ink_is_intact")), "coverage: %s violated the ink-integrity audit" % entity_id)
+	if is_creature and entity_id != "spider":
+		_expect(skin.get_joint_count() > 0 or skin.skin_mode() != "vector", "coverage: %s did not articulate" % entity_id)
+	instance.set_physics_process(false)
+	var motion := {"moving": true, "speed_ratio": 1.0, "direction": 1.0, "charge_ratio": 1.0}
+	var gait := _gait_for_rig(rig_type)
+	for _frame in range(90):
+		if is_creature:
+			skin.set_motion_state(gait, motion)
+		await physics_frame
+	for rig_body in skin.get_rigid_bodies():
+		_expect(is_finite(rig_body.global_position.x) and is_finite(rig_body.global_position.y), "coverage: %s segment became non-finite" % entity_id)
+	_expect(is_finite(anchor.global_position.x) and is_finite(anchor.global_position.y), "coverage: %s anchor became non-finite" % entity_id)
+	_expect(Rect2(-180.0, -700.0, 4120.0, 1560.0).has_point(anchor.global_position), "coverage: %s escaped the playable world" % entity_id)
+	if is_creature:
+		var max_angle := rad_to_deg(skin.debug_max_tracked_angle())
+		_expect(max_angle <= 360.0, "coverage: %s joints windmilled to %.0f deg" % [entity_id, max_angle])
+	instance.queue_free()
+	await process_frame
 
 
 func _fixture_for(entity_id: String) -> Array:

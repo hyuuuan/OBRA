@@ -1,6 +1,8 @@
 extends SceneTree
 ## Renders a creature standing idle so limb tension (vs dead-bone collapse) is
-## visible. Run without --headless. OBRA_ENTITY selects the creature.
+## visible. Run without --headless. OBRA_ENTITY selects the creature, or
+## OBRA_FIXTURE names a res://tests/fixtures/*.json messy drawing to replay
+## through the real panel path instead.
 
 const OUTPUT_DIR := "/tmp"
 
@@ -12,7 +14,24 @@ func _initialize() -> void:
 func _run() -> void:
 	var entity_id := OS.get_environment("OBRA_ENTITY")
 	if entity_id.is_empty():
-		entity_id = "humanoid"
+		entity_id = "monkey"
+	var fixture_strokes: Array = []
+	var capture_suffix := entity_id
+	var fixture_name := OS.get_environment("OBRA_FIXTURE")
+	if not fixture_name.is_empty():
+		var data: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/" + fixture_name))
+		if typeof(data) != TYPE_DICTIONARY:
+			print("OBRA_IDLE_BAD_FIXTURE %s" % fixture_name)
+			quit(1)
+			return
+		entity_id = String((data as Dictionary).get("entity_id", "pig"))
+		capture_suffix = fixture_name.get_basename()
+		for stroke_value in (data as Dictionary).get("strokes", []):
+			var stroke: Dictionary = stroke_value
+			var points := PackedVector2Array()
+			for pair in stroke.get("points", []):
+				points.append(Vector2(float(pair[0]), float(pair[1])))
+			fixture_strokes.append({"points": points, "width": float(stroke.get("width", 8.0)), "color": Color.BLACK})
 	var packed := load("res://game_level.tscn") as PackedScene
 	var level := packed.instantiate()
 	var supervisor := level.get_node("BackendSupervisor") as BackendSupervisor
@@ -24,13 +43,13 @@ func _run() -> void:
 
 	var panel := level.get_node("DrawPanel") as DrawPanel
 	panel.open_panel()
-	panel.set("_pending_strokes", _fixture_for(entity_id))
+	panel.set("_pending_strokes", fixture_strokes if not fixture_strokes.is_empty() else _fixture_for(entity_id))
 	level.get_node("InkManager").call("reserve_attempt", 1.0)
 	panel.call("_on_entity_prediction", entity_id, entity_id.capitalize(), 0.99, _blank_image(), {})
 
 	for _f in range(150):
 		await physics_frame
-	await _capture("obra_idle_%s.png" % entity_id)
+	await _capture("obra_idle_%s.png" % capture_suffix)
 
 	level.queue_free()
 	await process_frame
@@ -55,7 +74,7 @@ func _stroke(points: PackedVector2Array) -> Dictionary:
 
 
 func _fixture_for(entity_id: String) -> Array:
-	if entity_id == "humanoid":
+	if entity_id == "monkey":
 		# Upright body with two arms out and two legs down, as drawn.
 		var body := PackedVector2Array([
 			Vector2(240, 150), Vector2(272, 150), Vector2(280, 220),

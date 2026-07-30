@@ -14,6 +14,60 @@ const MAX_SEGMENTS_PER_LIMB := 3
 const MIN_SEGMENT_LENGTH := 8.0
 const MAX_JOINT_ERROR := 22.0
 const RECOVERY_PADDING := 180.0
+# Largest angle any gait asks a joint for. Used to scale the hold damping down
+# while a limb is actively swinging, so the stabiliser never fights the gait.
+const MAX_GAIT_TARGET := deg_to_rad(48.0)
+# Frames spent easing the muscles in after a build. A rig starts exactly in its
+# drawn pose; applying full torque on frame one is what made limbs whip around at
+# the angular-velocity cap for the first second of a creature's life.
+const MUSCLE_SETTLE_FRAMES := 14.0
+# Ceiling on limb spin. A gait swings a limb at roughly amplitude * gait rate
+# (~3 rad/s), so this leaves headroom for impacts while making the sustained
+# high-speed thrash that reads on screen as "spinning" impossible. The torso keeps
+# the higher default so jumps and knockback still read.
+const LIMB_MAX_ANGULAR_SPEED := 5.5
+## How quickly drawn ink follows its gait target (higher == snappier limbs).
+# --- Pose leash --------------------------------------------------------------
+# The muscles control joint ANGLES only, which is not enough to keep a drawing
+# looking like itself: a broad appendage pinned at its edge sweeps a long way when
+# it rotates, so over time the pieces migrate and a butterfly drawn as four loops
+# around a body ends up an asymmetric cluster. The leash pulls every piece back
+# toward the offset it was DRAWN at, relative to the torso. It is slack inside a
+# deadzone so ordinary gait travel is untouched, and only pulls once a piece has
+# wandered far enough to break the silhouette.
+const POSE_LEASH_SLACK_RATIO := 0.12
+const POSE_LEASH_MIN_SLACK := 12.0
+const POSE_LEASH_STIFFNESS := 55.0
+const POSE_LEASH_DAMPING := 8.0
+# --- Fidelity guarantee ------------------------------------------------------
+# Whether a drawing survives being articulated cannot be predicted from its
+# strokes: it depends on how the physics happens to resolve, so any rule based on
+# stroke shape is guessing. Instead the rig is MEASURED against the pose it was
+# drawn in, and if it strays this far for this long it stops being a ragdoll and
+# locks into the drawn pose, animating as a whole body from then on. Ordinary
+# gaits stay far below the bound (walkers reach ~30 degrees, fliers ~14), so only
+# a rig that is genuinely coming apart trips it: a limb more than a right angle
+# past where it was drawn is not animating any more, it has fallen off the pose.
+## The spider keeps its shape through a tighter drawn envelope rather than the
+## pose lock, because its legs are what move it.
+const SPIDER_LEG_LIMIT := deg_to_rad(78.0)
+# Extra resampled points rendered past each limb chunk boundary so the ink stays
+# continuous across a joint even while the PD muscle lets the bodies drift a little.
+const LIMB_JOINT_OVERLAP_POINTS := 2
+# Every rendered polyline must stay within this distance of the drawn strokes and
+# the total rendered length within this tolerance of the drawn length, or the rig
+# is rebuilt as one intact compound body.
+const INK_AUDIT_EPSILON := 2.0
+const INK_AUDIT_LENGTH_TOLERANCE := 0.08
+# Visual-only stroke presentation: the physics width (masses, capsule radii,
+# analyzer weld radius) keeps the skin's stored width; only the Line2D is floored
+# and haloed so thin downscaled ink stays legible over the level art.
+const INK_MIN_DRAW_WIDTH := 3.5
+const INK_HALO_EXTRA_WIDTH := 3.0
+const INK_HALO_LIGHT := Color(1.0, 1.0, 1.0, 0.78)
+const INK_HALO_DARK := Color(0.08, 0.08, 0.08, 0.62)
+# Above WaterAreas (3) and Decor (5), below ForegroundLayer (30).
+const INK_Z_INDEX := 10
 
 var _rig_type: String = "none"
 var _entity_id: String = ""
@@ -22,12 +76,36 @@ var _motion_params: Dictionary = {}
 
 var _physics_root: Node2D
 var _primary_body: ActiveRigBody2D
+## rig_type "none": the graph is welded to the object body instead of simulating.
+var _rigid_object_rig: bool = false
+
+# --- skinned ink: the class-driven rig ----------------------------------------
+# What the player sees is rendered from a skeleton looked up by the RECOGNISED CLASS
+# and deformed by smooth skinning, instead of from anatomy guessed off the strokes.
+# One Line2D per drawn stroke, for the life of the creature: a stroke is never split
+# between bodies or reparented, so it cannot tear in half or shed part of itself.
+# _skin_active is false only where there is no vector ink to skin -- the bitmap
+# fallback, which carries its own sprite and is the one thing this does not draw.
+var _skin_active: bool = false
+var _skin_rig: Skeleton2D_Rig = null
+var _skin_binding: SkinBinding = null
+var _skin_driver: GaitDriver = null
+var _skin_root: Node2D = null
+var _skin_lines: Array[Line2D] = []
+var _skin_halos: Array[Line2D] = []
+## The torso's origin in rig space, for cancelling its spin out of a flier's drawing.
+var _skin_anchor_local: Vector2 = Vector2.ZERO
+## True once the rig has been locked into its drawn pose because it strayed too far.
 var _bodies: Array[ActiveRigBody2D] = []
 var _joints: Array[PinJoint2D] = []
 var _segments: Array = []
 var _body_pool: PackedVector2Array = PackedVector2Array()
 var _body_bounds: Rect2 = Rect2()
 var _body_polylines: Array = []
+## Which slice of the drawn ink each physics body was built from. Bookkeeping for
+## the decomposition audit only -- nothing renders from it.
+var _body_ink: Array[Dictionary] = []
+var _max_tracked_angle: float = 0.0
 var _shape_count: int = 0
 var _gait_phase: float = 0.0
 var _build_generation: int = 0
@@ -268,13 +346,6 @@ func debug_segment_roles() -> Array[String]:
 	return roles
 
 
-func debug_motor_velocities() -> Array[float]:
-	var velocities: Array[float] = []
-	for joint in _joints:
-		velocities.append(joint.motor_target_velocity)
-	return velocities
-
-
 func debug_drive_torques() -> Array[float]:
 	var torques: Array[float] = []
 	for segment_value in _segments:
@@ -321,6 +392,68 @@ func debug_limb_layout() -> Array[Dictionary]:
 	return layout
 
 
+## Every polyline the rig renders, in rig space, at rest. One entry per DRAWN STROKE:
+## the skinned layer never divides a stroke, so the overlap padding that used to
+## account for slices meeting across a joint is always zero now. Tests assert these
+## against the player's strokes.
+func debug_rendered_ink() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if _skin_binding == null:
+		return out
+	var strokes := get_vector_strokes()
+	for index in range(_skin_binding.stroke_count()):
+		var stroke: Dictionary = strokes[index] if index < strokes.size() else {}
+		out.append({
+			"points": _skin_binding.rest_points(index),
+			"width": float(stroke.get("width", 8.0)),
+			"color": stroke.get("color", Color.BLACK),
+			"overlap_prefix": 0,
+			"overlap_suffix": 0
+		})
+	return out
+
+
+## True when the drawing is rendered from the recognised class's skeleton.
+func debug_skin_active() -> bool:
+	return _skin_active
+
+
+## What is on screen right now, in rig space: one entry per drawn stroke, deformed by
+## the current pose. This is the only honest thing to measure a creature's animation
+## against -- a pivot node can turn while the ink it holds sits still.
+func debug_skin_points() -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	for line in _skin_lines:
+		if is_instance_valid(line):
+			out.append(line.points)
+	return out
+
+
+## Where the skinned ink sits in the world. debug_skin_points is in this space, so the
+## two together say where on screen the drawing actually is.
+func debug_skin_transform() -> Transform2D:
+	if _skin_root == null or not is_instance_valid(_skin_root):
+		return Transform2D.IDENTITY
+	return _skin_root.global_transform
+
+
+## Share of the drawing each bone carries, by bone name. A bone that owns almost no
+## ink can swing as hard as it likes and the player sees nothing move.
+func debug_bone_ink_mass() -> Dictionary:
+	var out: Dictionary = {}
+	if _skin_binding == null or _skin_rig == null:
+		return out
+	var mass := _skin_binding.bone_ink_mass()
+	for index in range(_skin_rig.bones.size()):
+		if index < mass.size():
+			out[_skin_rig.bones[index].name] = mass[index]
+	return out
+
+
+func debug_max_tracked_angle() -> float:
+	return _max_tracked_angle
+
+
 func is_in_water() -> bool:
 	return _primary_body != null and int(_primary_body.get_meta("water_overlap_count", 0)) > 0
 
@@ -337,17 +470,38 @@ func _on_skin_rebuilt() -> void:
 	if skin_mode() == "vector" and not get_vector_strokes().is_empty():
 		if _entity_id == "spider":
 			_build_spider_rig(get_vector_strokes())
-		elif _entity_id == "snake":
-			_build_chain_rig(get_vector_strokes())
 		else:
-			_build_standard_rig(get_vector_strokes())
-			_ensure_articulation(get_vector_strokes())
+			if _entity_id == "snake":
+				_build_chain_rig(get_vector_strokes())
+			else:
+				_build_standard_rig(get_vector_strokes())
+			# Decomposition gate: if a builder cut bodies out of geometry the player did
+			# not draw, or lost some of it, degrade to one intact compound body. It no
+			# longer guards what is DRAWN -- the skinned layer draws the player's own
+			# strokes whatever the physics does -- but a body built from a fabricated
+			# chord still carries a collider the drawing cannot account for. The spider
+			# branch is exempt: its analyzer only emits exact ink slices and self-falls-back.
+			if not _rig_ink_is_intact():
+				push_warning("RuntimeRig2D: %s rig diverged from the drawn ink; rebuilding as compound body." % _entity_id)
+				_clear_rig()
+				_build_compound_rig(
+					get_vector_strokes(),
+					"CompoundBody",
+					_rig_type in ["walker", "biped", "hopper"]
+				)
 	else:
 		_build_bitmap_fallback()
+	# Every rig, every class: the drawing is rendered from the pose it was drawn in
+	# while the physics underneath keeps its full freedom to walk, jump and collide.
+	# A bitmap-fallback drawing has no strokes to skin, and renders as its own sprite
+	# carried by the body -- there is nothing else left that draws a creature.
+	_bind_skinned_ink()
 	_finalize_rig()
+	if _rig_type == "none":
+		_pin_rig_to_owner()
 	analysis["physics_bodies"] = _bodies.size()
 	analysis["physics_joints"] = _joints.size()
-	analysis["active_ragdoll"] = _joints.size() > 0
+	analysis["active_ragdoll"] = _joints.size() > 0 and not _rigid_object_rig
 	rig_built.emit(_primary_body != null)
 
 
@@ -355,17 +509,31 @@ func _physics_process(delta: float) -> void:
 	if _primary_body == null:
 		return
 	_physics_frames_since_build += 1
+	if _rigid_object_rig:
+		# Pinned to its owner: nothing simulates, so there is no drift to recover from
+		# and no gait to run. The ink still updates so a utility that changes pose
+		# (an umbrella opening) redraws.
+		_animate_skinned_ink(delta)
+		return
 	if _physics_frames_since_build > 4 and _rig_needs_recovery():
 		_recover_rig()
 		return
+	# The drawing is rendered from its drawn pose, so the creature animates while the
+	# rig below simulates freely. Runs for every class, articulated or not.
+	_animate_skinned_ink(delta)
 	if _segments.is_empty():
 		return
 	if _entity_id == "spider" and not _spider_feet.is_empty():
 		_physics_process_spider(delta)
 		return
 	_update_stand_state(delta)
+	# Ease the muscles in over the rig's first few frames, and hold the gait until
+	# they are in. A freshly built rig sits exactly in its drawn pose, so driving it
+	# at full torque immediately is what kicked the limbs into their opening thrash.
+	var settle := clampf(float(_physics_frames_since_build) / MUSCLE_SETTLE_FRAMES, 0.0, 1.0)
 	var speed_ratio := clampf(float(_motion_params.get("speed_ratio", 0.0)), 0.0, 1.5)
-	if bool(_motion_params.get("moving", false)) or _motion_state in ["swim", "fly", "flap", "climb"]:
+	if settle >= 1.0 and (bool(_motion_params.get("moving", false)) \
+			or _motion_state in ["swim", "fly", "flap", "climb"]):
 		_gait_phase += delta * lerpf(2.0, 7.0, minf(1.0, speed_ratio))
 
 	for segment_value in _segments:
@@ -384,8 +552,12 @@ func _physics_process(delta: float) -> void:
 		# rotation lock while the legs hold and the ground reaction through the
 		# planted feet carries the body weight. No competing servos.
 		var target := _target_angle_for(segment)
-		var current := wrapf(child.rotation - parent.rotation - float(segment["rest_relative"]), -PI, PI)
-		var error := wrapf(target - current, -PI, PI)
+		# Track the CONTINUOUS relative angle instead of a wrapped one. With the
+		# wrapped error a limb knocked past 180deg was pulled the short way onward
+		# around, so limbs windmilled in full circles instead of holding the gait
+		# pose; the unwrapped error always pulls back the way the limb came.
+		var current := _tracked_joint_angle(segment)
+		var error := target - current
 		var relative_velocity := child.angular_velocity - parent.angular_velocity
 		# PinJoint motors do not expose a useful per-joint impulse cap in this
 		# setup. Driving the motor and applying PD torque at the same time made
@@ -393,11 +565,19 @@ func _physics_process(delta: float) -> void:
 		# bounded muscle controller instead.
 		var mass_scale := clampf(minf(parent.mass, child.mass) / 0.4, 0.45, 1.35)
 		var distal_scale := 1.0 / (1.0 + float(int(segment["chain_index"])) * 0.35)
-		var spring := clampf(float(profile.get("joint_spring", 1050.0)) * 0.7 * mass_scale * distal_scale, 350.0, 1500.0)
+		# A standing creature's own weight presses its feet into the floor, and the
+		# ground reaction on a splayed limb is a torque of order 2000 about the hip.
+		# The old envelope (spring <= 1500, i.e. ~400 of restoring torque at a 40 deg
+		# error) lost that argument outright, so limbs splayed and stayed splayed:
+		# the drawing collapsed into a heap and no amount of gait tuning showed,
+		# because the pose it was animating around was already gone. This envelope is
+		# stiff enough to hold the drawn pose against ground reaction, while staying
+		# far below the stiffness at which the pin solver tears its own joints apart.
+		var spring := clampf(float(profile.get("joint_spring", 1050.0)) * 0.7 * mass_scale * distal_scale, 2600.0, 4200.0)
 		# Damping tracks sqrt(spring) so the stiff pose spring stays near-critically
 		# damped instead of ringing itself unstable at 60 Hz.
-		var damping := clampf(sqrt(spring) * 6.5 * mass_scale, 45.0, 240.0)
-		var torque_limit := clampf(float(profile.get("joint_torque_limit", 2600.0)) * 0.7 * mass_scale * distal_scale, 1000.0, 4200.0)
+		var damping := clampf(sqrt(spring) * 6.5 * mass_scale, 45.0, 380.0)
+		var torque_limit := clampf(float(profile.get("joint_torque_limit", 2600.0)) * 0.7 * mass_scale * distal_scale, 8000.0, 14000.0)
 		var pd := clampf(error * spring - relative_velocity * damping, -torque_limit, torque_limit)
 		# Gravity compensation: the muscle PD above is far too weak to hold a limb
 		# out against its own weight (a horizontal limb needs ~mass*g*lever, which
@@ -407,24 +587,69 @@ func _physics_process(delta: float) -> void:
 		# While the stand-support carries the creature it cancels gravity, so the
 		# compensation is faded out in lockstep to avoid over-rotating a weightless
 		# limb (residual effective gravity is (1 - _support_blend) * g).
-		var gravity_comp := _gravity_hold_torque(segment, joint) * (1.0 - _support_blend)
-		segment["last_drive_torque"] = pd + gravity_comp
+		# Soft angular limit. Hard PinJoint limits are numerically singular on short
+		# light segments, and the bounded PD saturates under impacts, so past the
+		# drawn limit a strong unbounded restoring couple takes over. Without it a
+		# kicked limb winds up turn after turn.
+		var angle_limit := float(segment.get("angle_limit", deg_to_rad(68.0)))
+		var excess := 0.0
+		if current > angle_limit:
+			excess = current - angle_limit
+		elif current < -angle_limit:
+			excess = current + angle_limit
+		var limit_torque := 0.0
+		if excess != 0.0:
+			# Softer than a wall. At spring*4.0 this term dwarfed the PD and switched
+			# hard on/off at the boundary, so a limb resting near its limit buzzed
+			# between the two states -- the chatter that read on screen as a
+			# vibrating, scattering limb. A gentler restoring couple with more
+			# damping brings the limb back without exciting it.
+			limit_torque = clampf(
+				-excess * spring * 1.6 - relative_velocity * damping * 2.4,
+				-torque_limit * 1.5,
+				torque_limit * 1.5
+			)
+		# Gravity compensation rotates with the limb, so past the angular limit it
+		# stops being a hold and becomes a propeller that out-muscles the soft limit.
+		# It is faded with excess -- but NOT to zero: cutting the hold completely at
+		# the boundary latched limbs in a permanent droop (a limb sagged past the
+		# limit, lost the only torque holding it up, and could never climb back), which
+		# is why limbs settled tens of degrees below the pose the player drew. Keeping
+		# a floor of hold keeps the limb recoverable while still letting the limit win.
+		var comp_fade := clampf(1.0 - absf(excess) / deg_to_rad(30.0), 0.0, 1.0)
+		var gravity_comp := _gravity_hold_torque(segment, joint) \
+			* (1.0 - _support_blend) * lerpf(0.55, 1.0, comp_fade)
+		# Fade the whole drive in while the rig settles into its drawn pose.
+		var muscle := (pd + limit_torque) * settle
+		var assist := gravity_comp * settle
+		segment["last_drive_torque"] = muscle + assist
 		# The PD muscle spans the joint, so it is a couple: equal and opposite on the
 		# two bodies. Gravity compensation is an EXTERNAL anti-droop assist on the limb,
 		# not a muscle, so it acts on the child only -- reacting it back onto the parent
 		# torso is what summed into a net torque and spun multi-limb creatures in place.
-		child.apply_torque(pd + gravity_comp)
-		parent.apply_torque(-pd)
+		child.apply_torque(muscle + assist)
+		parent.apply_torque(-muscle)
+		# Light always-on relative drag (a pure dissipative couple) bleeds spin
+		# energy the clamped PD cannot absorb, even while a gait target is active.
+		var drag := -relative_velocity * 22.0 * mass_scale
+		child.apply_torque(drag)
+		parent.apply_torque(-drag)
 		# gravity_comp is an undamped, position-dependent feed-forward torque that
-		# excites a whole-limb swing the joint's relative-velocity PD cannot see. When
-		# the limb has no active gait target it is meant to hold still, so bleed that
-		# swing and any residual drift with drag on the child's ABSOLUTE angular and
-		# linear velocity (child only, removing energy instead of redistributing it).
-		# Skipped while actively driven, so gait and jumps are unaffected.
-		if absf(target) < 0.0001:
-			child.apply_torque(-child.angular_velocity * child.mass * 900.0)
-			child.apply_central_force(-child.linear_velocity * child.mass * 6.0)
+		# excites a whole-limb swing the joint's relative-velocity PD cannot see, so
+		# bleed that swing off the child's ABSOLUTE angular velocity (child only,
+		# removing energy instead of redistributing it). This used to be gated on
+		# "no gait target", which meant it snapped on and off every time the gait
+		# sinusoid crossed zero -- a discontinuity that fed the very chatter it was
+		# meant to remove. It is now continuous, and simply eases off while the limb
+		# is being actively driven so the gait keeps its swing.
+		# Strong while the limb is meant to hold still, easing to almost nothing at
+		# full gait so the stabiliser never damps out the animation it is protecting.
+		var drive_ratio := clampf(absf(target) / MAX_GAIT_TARGET, 0.0, 1.0)
+		var hold_damping: float = lerpf(900.0, 40.0, sqrt(drive_ratio))
+		child.apply_torque(-child.angular_velocity * child.mass * hold_damping)
+		child.apply_central_force(-child.linear_velocity * child.mass * 6.0)
 
+	_apply_pose_leash(settle)
 	_apply_stand_support()
 
 
@@ -452,7 +677,12 @@ func _physics_process_spider(delta: float) -> void:
 			foot["last_target"] = rest_target
 			_set_spider_leg_target(foot, rest_target)
 	_apply_spider_joint_muscles()
-	if _spider_support_active:
+	# Called whenever the spider is in grounded mode, not only when the gait already
+	# believes it is supported. _spider_support_active was both the gate here AND the
+	# thing the stance forces compute, so the one frame the gait lost its stance set was
+	# the frame the torso stopped being held up -- and a spider on its belly can never
+	# satisfy the condition that would switch its own support back on.
+	if grounded_mode:
 		_apply_spider_stance_forces()
 
 
@@ -541,6 +771,10 @@ func _update_spider_gait(delta: float) -> void:
 		var target: Vector2
 		if should_stance:
 			target = Vector2(foot.get("plant_target", _spider_sole_global(foot)))
+		elif _spider_leg_overstrained(foot):
+			# A wound-up leg gets a calm rest-pose target instead of the striding
+			# swing arc, so it unwinds instead of being whipped further around.
+			target = _primary_body.global_position + Vector2(foot.get("rest_offset", Vector2.ZERO)).rotated(_primary_body.rotation)
 		elif group == swing_group or not support_candidate:
 			var rest_offset := Vector2(foot.get("rest_offset", Vector2.ZERO)).rotated(_primary_body.rotation)
 			target = _primary_body.global_position + rest_offset
@@ -554,6 +788,15 @@ func _update_spider_gait(delta: float) -> void:
 			target.y = _spider_floor_y
 		foot["last_target"] = target
 		_set_spider_leg_target(foot, target)
+
+
+## A leg wound well past its drawn envelope is on its way over-center; it needs
+## a recovery target, not a stride target.
+func _spider_leg_overstrained(foot: Dictionary) -> bool:
+	for record_value in foot.get("segments", []):
+		if absf(float((record_value as Dictionary).get("tracked_angle", 0.0))) > deg_to_rad(140.0):
+			return true
+	return false
 
 
 func _spider_foot_reached_ground_target(foot: Dictionary) -> bool:
@@ -583,7 +826,10 @@ func _set_spider_leg_target(foot: Dictionary, world_target: Vector2) -> void:
 	if distance <= 0.001:
 		return
 	var elbow_cos := clampf((distance * distance - length_a * length_a - length_b * length_b) / (2.0 * length_a * length_b), -1.0, 1.0)
-	var elbow := acos(elbow_cos) * signf(float(foot.get("bend_sign", 1.0)))
+	# Cap the commanded fold: a target passing near the leg root asks for a
+	# ~180deg elbow, and driving that folds the leg over its own root and flips
+	# it a full turn. A spider leg never needs more than a deep crouch.
+	var elbow := clampf(acos(elbow_cos), 0.0, deg_to_rad(148.0)) * signf(float(foot.get("bend_sign", 1.0)))
 	var shoulder := target_vector.angle() - atan2(length_b * sin(elbow), length_a + length_b * cos(elbow))
 	var first: Dictionary = records[0]
 	var second: Dictionary = records[1]
@@ -593,8 +839,16 @@ func _set_spider_leg_target(foot: Dictionary, world_target: Vector2) -> void:
 		return
 	var desired_first_body_rotation := shoulder - float(first.get("rest_axis_angle", 0.0))
 	var desired_second_body_rotation := shoulder + elbow - float(second.get("rest_axis_angle", 0.0))
-	first["target_angle"] = wrapf(desired_first_body_rotation - first_parent.rotation - float(first.get("rest_relative", 0.0)), -PI, PI)
-	second["target_angle"] = wrapf(desired_second_body_rotation - second_parent.rotation - float(second.get("rest_relative", 0.0)), -PI, PI)
+	# Express each target in the winding closest to the muscle's continuous
+	# tracked angle. A plain wrapf here could flip the target by a full turn
+	# against a leg that had been forced past 180deg, and the muscle then spun it
+	# the long way around instead of settling.
+	var tracked_first := float(first.get("tracked_angle", 0.0))
+	var raw_first := desired_first_body_rotation - first_parent.rotation - float(first.get("rest_relative", 0.0))
+	first["target_angle"] = tracked_first + wrapf(raw_first - tracked_first, -PI, PI)
+	var tracked_second := float(second.get("tracked_angle", 0.0))
+	var raw_second := desired_second_body_rotation - second_parent.rotation - float(second.get("rest_relative", 0.0))
+	second["target_angle"] = tracked_second + wrapf(raw_second - tracked_second, -PI, PI)
 
 
 func _apply_spider_joint_muscles() -> void:
@@ -607,8 +861,10 @@ func _apply_spider_joint_muscles() -> void:
 			continue
 		var limit := float(segment.get("angle_limit", deg_to_rad(78.0)))
 		var target := clampf(float(segment.get("target_angle", 0.0)), -limit, limit)
-		var current := wrapf(child.rotation - parent.rotation - float(segment.get("rest_relative", 0.0)), -PI, PI)
-		var error := wrapf(target - current, -PI, PI)
+		# Continuous angle, same reasoning as the generic muscle: a wrapped error
+		# let a knocked leg segment wind up full turns instead of coming back.
+		var current := _tracked_joint_angle(segment)
+		var error := target - current
 		var relative_velocity := child.angular_velocity - parent.angular_velocity
 		var mass_scale := clampf(minf(parent.mass, child.mass) / 0.24, 0.55, 1.4)
 		var distal_scale := 1.0 if int(segment.get("chain_index", 0)) == 0 else 0.78
@@ -616,22 +872,59 @@ func _apply_spider_joint_muscles() -> void:
 		var damping := float(profile.get("joint_damping", 78.0)) * mass_scale
 		var torque_limit := float(profile.get("joint_torque_limit", 3000.0)) * distal_scale
 		var torque := clampf(error * spring - relative_velocity * damping, -torque_limit, torque_limit)
-		segment["last_drive_torque"] = torque
-		child.apply_torque(torque)
-		parent.apply_torque(-torque)
+		# Soft limit anchored at the drawn envelope. Besides preventing full-turn
+		# windup, the restoring couple doubles as tendon-like recoil that returns
+		# a deep stance sweep through its power stroke — widening this envelope
+		# measurably REDUCED the stance gait's forward travel.
+		var excess := 0.0
+		if current > limit:
+			excess = current - limit
+		elif current < -limit:
+			excess = current + limit
+		var limit_torque := 0.0
+		if excess != 0.0:
+			limit_torque = clampf(
+				-excess * spring * 4.0 - relative_velocity * damping * 2.0,
+				-torque_limit * 2.5,
+				torque_limit * 2.5
+			)
+		segment["last_drive_torque"] = torque + limit_torque
+		child.apply_torque(torque + limit_torque)
+		parent.apply_torque(-torque - limit_torque)
+		# Past the soft limit, drag and brake the segment's spin (dissipative
+		# only) so a whipped leg sheds the momentum of a would-be full turn.
+		if absf(excess) > deg_to_rad(15.0):
+			var drag := -relative_velocity * 44.0 * mass_scale
+			child.apply_torque(drag)
+			parent.apply_torque(-drag)
+			child.apply_torque(-child.angular_velocity * child.mass * 520.0)
 
 
 func _apply_spider_stance_forces() -> void:
 	if _primary_body == null:
 		return
 	var stance_feet: Array[Dictionary] = []
+	var contacting_feet: Array[Dictionary] = []
 	for foot_value in _spider_feet:
 		var foot: Dictionary = foot_value
-		if bool(foot.get("stance", false)) and bool(foot.get("contact", false)):
+		if not bool(foot.get("contact", false)):
+			continue
+		contacting_feet.append(foot)
+		if bool(foot.get("stance", false)):
 			stance_feet.append(foot)
-	if stance_feet.is_empty():
+	# WHAT CARRIES THE SPIDER IS GROUND CONTACT, NOT THE GAIT'S BOOKKEEPING. "stance"
+	# additionally requires a foot to be within plant_distance of the target it was
+	# last sent to -- and mid-stride the gait has already moved that target on, so a
+	# foot flat on the floor routinely reads as not-stance. When both leg groups were
+	# between targets at once this returned early, skipped the torso lift entirely, and
+	# the spider dropped onto its belly under plain gravity. From there it could not
+	# recover: with the abdomen down the legs cannot reach their targets, so no foot
+	# ever became stance again, and the walk turned into a 0.4px-per-frame drag.
+	var carrying_feet := stance_feet if not stance_feet.is_empty() else contacting_feet
+	if carrying_feet.is_empty():
 		_spider_support_active = false
 		return
+	_spider_support_active = true
 
 	var stance_spring := float(profile.get("stance_spring", 850.0))
 	var stance_damping := float(profile.get("stance_damping", 70.0))
@@ -657,10 +950,10 @@ func _apply_spider_stance_forces() -> void:
 	# the bounded lift and physically contacted feet receive the complete downward
 	# reaction, divided across the current stance set. Ground reaction, not a net
 	# levitation force, is what then carries the rig's weight.
-	var reaction_weights := _spider_reaction_weights(stance_feet)
+	var reaction_weights := _spider_reaction_weights(carrying_feet)
 	_primary_body.apply_central_force(Vector2(0.0, -upward_force))
-	for foot_index in range(stance_feet.size()):
-		var foot := stance_feet[foot_index]
+	for foot_index in range(carrying_feet.size()):
+		var foot := carrying_feet[foot_index]
 		var body := foot.get("body") as ActiveRigBody2D
 		if is_instance_valid(body):
 			var reaction_force := upward_force * float(reaction_weights[foot_index])
@@ -687,13 +980,22 @@ func _apply_spider_stance_forces() -> void:
 	# torso. The torso-side force is matched by an opposite push through the
 	# contacting stance feet. Only the ground reaction at those feet can propel
 	# the rig; if contact disappears, this entire controller stops running.
+	# WEIGHT AND PROPULSION REST ON DIFFERENT FEET. Anything touching the ground helps
+	# hold the body up, but only a PLANTED foot has anything to push against -- driving
+	# through one that is still swinging is pushing on a foot that would simply slide.
+	# So the drive uses the stance set and its own weights, and on a frame with no
+	# planted feet there is no drive at all, rather than a free force on the torso.
+	if stance_feet.is_empty():
+		_spider_leg_drive_force = Vector2.ZERO
+		return
+	var drive_weights := _spider_reaction_weights(stance_feet)
 	_spider_leg_drive_force = drive_force
 	_primary_body.apply_central_force(drive_force)
 	for foot_index in range(stance_feet.size()):
 		var foot := stance_feet[foot_index]
 		var body := foot.get("body") as ActiveRigBody2D
 		if is_instance_valid(body):
-			var drive_reaction := -drive_force * float(reaction_weights[foot_index])
+			var drive_reaction := -drive_force * float(drive_weights[foot_index])
 			foot["drive_reaction"] = drive_reaction
 			body.apply_central_force(drive_reaction)
 
@@ -819,6 +1121,33 @@ func _update_stand_state(delta: float) -> void:
 ## player drew, feet on the floor, with no torso-versus-legs bounce because every
 ## body receives the same positioning acceleration. It is static while standing
 ## (no perpetual motion) and disengages for jumps/falls when ground leaves reach.
+## Holds the drawing's LAYOUT, not just its joint angles. Each piece is pulled back
+## toward where it was drawn relative to the torso, but only once it has strayed
+## past a slack radius, so gait travel is unaffected and only genuine drift — the
+## slow migration that turns a drawing into an unrecognisable cluster — is pulled in.
+func _apply_pose_leash(settle: float) -> void:
+	if _primary_body == null or _rest_transforms.is_empty():
+		return
+	var slack := maxf(POSE_LEASH_MIN_SLACK, get_stroke_bounds().size.length() * POSE_LEASH_SLACK_RATIO)
+	var primary_transform := _primary_body.global_transform
+	for body in _bodies:
+		if body == _primary_body or not is_instance_valid(body):
+			continue
+		var rest: Variant = _rest_transforms.get(body.get_instance_id())
+		if rest == null:
+			continue
+		var desired: Vector2 = primary_transform * (rest as Transform2D).origin
+		var offset := desired - body.global_position
+		var distance := offset.length()
+		if distance <= slack or not is_finite(distance):
+			continue
+		# Only the excess past the slack radius is corrected.
+		var pull := offset.normalized() * (distance - slack)
+		var relative_velocity := body.linear_velocity - _primary_body.linear_velocity
+		var force := (pull * POSE_LEASH_STIFFNESS - relative_velocity * POSE_LEASH_DAMPING) * body.mass
+		body.apply_central_force(force * settle)
+
+
 func _apply_stand_support() -> void:
 	if _support_blend <= 0.001 or _primary_body == null:
 		return
@@ -843,6 +1172,21 @@ func _apply_stand_support() -> void:
 ## subtree taken about the joint pivot, negated so the muscle cancels the droop.
 ## apply_torque is a free couple, so a torque computed about the pivot balances the
 ## limb's rotation about that pinned point. gravity_scale folds in float states.
+## Integrate the continuous (unwrapped) joint angle relative to the drawn rest
+## pose. wrapf on the raw measurement loses full turns; integrating the minimal
+## per-tick step keeps them, so the muscles can pull a wound-up limb back the way
+## it came and the soft limit knows how far the limb really strayed.
+func _tracked_joint_angle(segment: Dictionary) -> float:
+	var parent := segment["parent"] as ActiveRigBody2D
+	var child := segment["body"] as ActiveRigBody2D
+	var measured := wrapf(child.rotation - parent.rotation - float(segment["rest_relative"]), -PI, PI)
+	var tracked := float(segment.get("tracked_angle", 0.0))
+	tracked += wrapf(measured - wrapf(tracked, -PI, PI), -PI, PI)
+	segment["tracked_angle"] = tracked
+	_max_tracked_angle = maxf(_max_tracked_angle, absf(tracked))
+	return tracked
+
+
 func _gravity_hold_torque(segment: Dictionary, joint: PinJoint2D) -> float:
 	var support: Array = segment.get("support", [])
 	if support.is_empty():
@@ -890,15 +1234,6 @@ func _species_target_angle(segment: Dictionary, role: String, phase: float, movi
 	var side := signf(float(segment.get("side", 1.0)))
 	var direction := float(_motion_params.get("direction", 0.0))
 
-	if _entity_id in ["cat", "dog"] and role == "leg":
-		if _motion_state == "walk" and moving:
-			var amplitude := deg_to_rad(19.0 if _entity_id == "cat" else 17.0)
-			var stride := sin(phase + (PI if limb_index % 2 else 0.0))
-			return amplitude * stride if chain_index == 0 else amplitude * -0.72 * stride
-		if _motion_state in ["jump", "fall"]:
-			return deg_to_rad(10.0) * (-1.0 if limb_index % 2 else 1.0)
-		return NAN
-
 	if _rig_type == "biped":
 		if _motion_state == "walk" and moving:
 			var amp := deg_to_rad(30.0 if role == "leg" else 18.0)
@@ -925,7 +1260,12 @@ func _species_target_angle(segment: Dictionary, role: String, phase: float, movi
 		if role == "wing":
 			if _motion_state in ["fly", "flap"]:
 				var hz_scale := 1.25 if _entity_id == "butterfly" else 1.0
-				return deg_to_rad(48.0) * sin(phase * hz_scale) * side
+				# Kept inside the wing's angle envelope: a beat commanded wider than
+				# the joint allows just pins the wing against its limit every cycle.
+				# A broad loop-shaped wing swings its far side a long way for very
+				# little rotation, so a wide beat visibly walks it off the body. Small
+				# enough to stay attached, large enough to read as a flap.
+				return deg_to_rad(24.0) * sin(phase * hz_scale) * side
 			if _motion_state == "glide":
 				return deg_to_rad(-18.0) * side
 			# Grounded and moving: gentle wing beat; standing still holds the wing.
@@ -1019,7 +1359,7 @@ func _build_spider_rig(strokes: Array) -> void:
 		var source_index := _spider_owner_source(torso_owners, path_index)
 		var width := _spider_stroke_width(strokes, source_index)
 		var color := _spider_stroke_color(strokes, source_index)
-		_add_visual_line(_primary_body, path, width, color, torso_center)
+		_record_ink_slice(path)
 		torso_collision_paths.append({"path": path, "width": width})
 	for path_index in range(decoration_paths.size()):
 		var path := PackedVector2Array(decoration_paths[path_index])
@@ -1028,7 +1368,7 @@ func _build_spider_rig(strokes: Array) -> void:
 		var source_index := _spider_owner_source(decoration_owners, path_index)
 		var width := _spider_stroke_width(strokes, source_index)
 		var color := _spider_stroke_color(strokes, source_index)
-		_add_visual_line(_primary_body, path, width, color, torso_center)
+		_record_ink_slice(path)
 		torso_collision_paths.append({"path": path, "width": width})
 
 	# Build every real leg before spending the shared shape budget on decorative
@@ -1072,6 +1412,113 @@ func _build_spider_rig(strokes: Array) -> void:
 
 
 func _build_spider_compound(strokes: Array) -> void:
+	_build_compound_rig(strokes, "SpiderCompound", false)
+	_spider_support_height = 0.0
+	_spider_total_mass = _primary_body.mass if _primary_body != null else 0.0
+
+
+## recognised, and every stroke stays whole.
+func _bind_skinned_ink() -> bool:
+	_release_skinned_ink()
+	if _primary_body == null or _physics_root == null:
+		return false
+	var strokes := get_vector_strokes()
+	if strokes.is_empty():
+		return false
+	var skeleton := SkeletonLibrary.resolve(_entity_id, _rig_type)
+	if skeleton.is_empty():
+		push_warning("RuntimeRig2D: no skeleton for %s/%s; keeping the pivot path." % [_entity_id, _rig_type])
+		return false
+	var rig := Skeleton2D_Rig.build(skeleton, get_stroke_bounds(), profile)
+	if rig.bones.is_empty():
+		return false
+	var binding := SkinBinding.new()
+	binding.bind(strokes, rig)
+	if binding.stroke_count() == 0:
+		return false
+
+	_skin_root = Node2D.new()
+	_skin_root.name = "SkinRoot"
+	_primary_body.add_child(_skin_root)
+	# Called while the bodies still sit exactly where the strokes were drawn, so this
+	# makes the skin root's local space the space the strokes are authored in: their
+	# coordinates are then used directly, and the whole layer rides the torso.
+	_skin_root.global_transform = _physics_root.global_transform
+	_skin_anchor_local = _skin_root.to_local(_primary_body.global_position)
+
+	for index in range(binding.stroke_count()):
+		var stroke: Dictionary = strokes[index]
+		var points := binding.rest_points(index)
+		var width := float(stroke.get("width", 8.0))
+		var color: Color = stroke.get("color", Color.BLACK)
+		var draw_width := maxf(width, INK_MIN_DRAW_WIDTH)
+		var halo := _new_ink_line(draw_width + INK_HALO_EXTRA_WIDTH * 2.0, 0)
+		halo.default_color = INK_HALO_LIGHT if color.get_luminance() < 0.55 else INK_HALO_DARK
+		halo.points = points
+		_skin_root.add_child(halo)
+		_skin_halos.append(halo)
+		var line := _new_ink_line(draw_width, 1)
+		line.default_color = color
+		line.points = points
+		_skin_root.add_child(line)
+		_skin_lines.append(line)
+
+	_skin_rig = rig
+	_skin_binding = binding
+	_skin_driver = GaitDriver.new()
+	_skin_driver.prepare(rig, profile)
+	_skin_active = true
+	# Pose once at zero delta so the first rendered frame is the drawn pose exactly,
+	# rather than whatever the gait happens to be a frame later.
+	_animate_skinned_ink(0.0)
+	return true
+
+
+func _new_ink_line(width: float, layer: int) -> Line2D:
+	var line := Line2D.new()
+	line.width = width
+	line.joint_mode = Line2D.LINE_JOINT_ROUND
+	line.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	line.end_cap_mode = Line2D.LINE_CAP_ROUND
+	line.antialiased = true
+	# Relative z, so every halo stays under every ink line across the whole drawing.
+	line.z_index = layer
+	return line
+
+
+func _release_skinned_ink() -> void:
+	_skin_active = false
+	_skin_rig = null
+	_skin_binding = null
+	_skin_driver = null
+	_skin_lines.clear()
+	_skin_halos.clear()
+	_skin_anchor_local = Vector2.ZERO
+	# Freed with its body on a rebuild; clearing the reference keeps a stale node from
+	# being animated after the rig it belonged to is gone.
+	_skin_root = null
+
+
+## Pose the skeleton for this frame's gait and redraw every stroke through the skin.
+func _animate_skinned_ink(delta: float) -> void:
+	if not _skin_active or _skin_rig == null or _skin_binding == null or _skin_driver == null:
+		return
+	if _skin_root == null or not is_instance_valid(_skin_root):
+		return
+	_skin_driver.advance(delta, _motion_state, _motion_params)
+	var anchor_rotation := _primary_body.global_rotation if is_instance_valid(_primary_body) else 0.0
+	var posed := _skin_rig.pose(
+		_skin_driver.angles(),
+		_skin_driver.body_transform(anchor_rotation, _skin_anchor_local)
+	)
+	for index in range(_skin_lines.size()):
+		var points := _skin_binding.deform(index, posed)
+		# Reassigned rather than written through: Line2D.points hands back a copy.
+		_skin_lines[index].points = points
+		_skin_halos[index].points = points
+
+
+func _build_compound_rig(strokes: Array, body_name: String, lock_upright: bool) -> void:
 	if _physics_root == null:
 		_create_physics_root()
 	var pool := PackedVector2Array()
@@ -1086,8 +1533,9 @@ func _build_spider_compound(strokes: Array) -> void:
 	_body_pool = pool
 	_body_bounds = _bounds_for_points(pool)
 	_body_polylines = []
-	_primary_body = _create_body("SpiderCompound", center, clampf(_mass_for_points(pool, 5.0), 1.4, 3.8))
+	_primary_body = _create_body(body_name, center, clampf(_mass_for_points(pool, 5.0), 1.4, 3.8))
 	_primary_body.angular_damp = 4.0
+	_primary_body.lock_rotation = lock_upright
 	for stroke_value in strokes:
 		var stroke: Dictionary = stroke_value
 		var points := PackedVector2Array(stroke.get("points", PackedVector2Array()))
@@ -1102,8 +1550,6 @@ func _build_spider_compound(strokes: Array) -> void:
 			center,
 			8
 		)
-	_spider_support_height = 0.0
-	_spider_total_mass = _primary_body.mass
 
 
 func _build_spider_leg(leg: Dictionary, leg_index: int, strokes: Array, torso_center: Vector2) -> void:
@@ -1145,13 +1591,7 @@ func _build_spider_leg(leg: Dictionary, leg_index: int, strokes: Array, torso_ce
 				var ink_points := PackedVector2Array(descriptor.get("points", PackedVector2Array()))
 				if ink_points.size() < 2:
 					continue
-				_add_visual_line(
-					body,
-					ink_points,
-					float(descriptor.get("width", width)),
-					Color(descriptor.get("color", color)),
-					center
-				)
+				_record_ink_slice(ink_points)
 				# The proximal body collides along its root-most real piece; the distal
 				# body uses its sole-most piece so every terminal foot is guaranteed a
 				# shape. Other welded pieces remain exact visible ink but cannot consume
@@ -1166,7 +1606,7 @@ func _build_spider_leg(leg: Dictionary, leg_index: int, strokes: Array, torso_ce
 					float(collision_descriptor.get("width", width)),
 					center
 				)
-		var joint := _create_joint(parent, body, chunk[0], deg_to_rad(78.0))
+		var joint := _create_joint(parent, body, chunk[0], SPIDER_LEG_LIMIT)
 		if joint == null:
 			body.queue_free()
 			return
@@ -1183,7 +1623,7 @@ func _build_spider_leg(leg: Dictionary, leg_index: int, strokes: Array, torso_ce
 			"side": float(leg.get("side", 1.0)),
 			"side_rank": int(leg.get("side_rank", 0)),
 			"support_candidate": bool(leg.get("support_candidate", false)),
-			"angle_limit": deg_to_rad(78.0),
+			"angle_limit": SPIDER_LEG_LIMIT,
 			"attachment": Vector2(leg.get("root", path[0])),
 			"parent_anchor": _body_local_anchor(parent, chunk[0]),
 			"child_anchor": _body_local_anchor(body, chunk[0]),
@@ -1346,7 +1786,7 @@ func _add_spider_polyline_to_body(
 	body_center: Vector2,
 	maximum_collision_points: int
 ) -> void:
-	_add_visual_line(body, points, width, color, body_center)
+	_record_ink_slice(points)
 	_add_capsules(body, _sample_points(points, maxi(2, maximum_collision_points)), width, body_center)
 
 
@@ -1390,16 +1830,49 @@ func _build_standard_rig(strokes: Array) -> void:
 			var blob_bounds := _bounds_for_points(points)
 			var blob_compactness := minf(blob_bounds.size.x, blob_bounds.size.y) / maxf(1.0, maxf(blob_bounds.size.x, blob_bounds.size.y))
 			if blob_compactness > 0.55:
-				body_decorations.append(stroke)
-				continue
+				# A wing drawn meeting the body in the middle has no lateral offset, so
+				# the head/eye/blob rule welded it. Being one of a pair settles it.
+				if not _is_wing_like(strokes, index) \
+						and not _closed_stroke_is_appendage(blob_bounds, body_center):
+					body_decorations.append(stroke)
+					continue
+				# Keep a loop-shaped appendage INTACT on one body, hinged where it
+				# meets the torso. Splitting it the usual way leaves part of the loop
+				# welded to the torso and part on the limb, so the moment the wing
+				# beats, the drawn loop visibly tears open into a "C".
+				var hinged := _loop_from_attachment(points)
+				if not hinged.is_empty():
+					candidates.append({
+						"path": hinged, "stroke": stroke, "attachment": hinged[0]
+					})
+					continue
 		var paths := _paths_attached_to_body(points, attachment_radius)
 		if paths.is_empty() or _stroke_length(points) < MIN_SEGMENT_LENGTH:
 			body_decorations.append(stroke)
 			continue
+		# ONE stroke hinges in ONE place. A stroke that touches the body more than
+		# once -- a wing loop crossing the body line, which is how a butterfly is
+		# normally drawn -- was cut into an arc per contact, and each arc became its
+		# own limb hinged separately. The halves of one drawn line then swung apart
+		# and the wing visibly tore. The longest reach becomes the limb; anything
+		# left over stays on the torso as intact ink rather than a second hinge.
+		var longest_path := PackedVector2Array()
 		for path_value in paths:
 			var path: PackedVector2Array = path_value
-			if _stroke_length(path) >= MIN_SEGMENT_LENGTH:
-				candidates.append({"path": path, "stroke": stroke, "attachment": path[0]})
+			if _stroke_length(path) > _stroke_length(longest_path):
+				longest_path = path
+		if _stroke_length(longest_path) >= MIN_SEGMENT_LENGTH:
+			candidates.append({
+				"path": longest_path, "stroke": stroke, "attachment": longest_path[0]
+			})
+		for path_value in paths:
+			var leftover: PackedVector2Array = path_value
+			if leftover != longest_path and leftover.size() >= 2:
+				body_decorations.append({
+					"points": leftover,
+					"width": stroke.get("width", 5.0),
+					"color": stroke.get("color", Color.BLACK)
+				})
 	# Stroke order is drawing-order, not anatomy. Stable spatial ordering gives
 	# left/right counterparts predictable gait phases regardless of when the
 	# player happened to draw each leg.
@@ -1408,12 +1881,57 @@ func _build_standard_rig(strokes: Array) -> void:
 	var limb_limit := _limb_limit_for_entity()
 	for candidate in candidates:
 		if next_limb_index >= limb_limit:
-			body_decorations.append(candidate["stroke"])
+			# Weld the overflowing candidate's own path, not its whole stroke: a
+			# split stroke may already have its other half built as a limb, and
+			# re-welding the full stroke would duplicate that ink on a second body.
+			var source: Dictionary = candidate["stroke"]
+			body_decorations.append({
+				"points": candidate["path"],
+				"width": source.get("width", 5.0),
+				"color": source.get("color", Color.BLACK)
+			})
 			continue
 		_build_limb_path(candidate["path"], candidate["stroke"], next_limb_index, body_center)
 		next_limb_index += 1
 	for stroke in body_decorations:
 		_add_stroke_to_body(_primary_body, stroke, body_center, false)
+
+
+## Wings and fins are drawn as closed roundish loops, exactly like a head is, so
+## the head/eye/blob rule welded them rigidly to the torso and a drawn butterfly
+## could never flap. Two things separate an appendage from a head: it comes off the
+## SIDE of the body rather than sitting on its axis, and it is comparable in size to
+## the body rather than a small feature on it. Only creatures whose gait is actually
+## driven by paired appendages take this path, so a bird's or fish's head still welds.
+## Re-orders a closed loop so it begins at the point nearest the torso. That point
+## becomes the limb's hinge, and because the whole loop travels on a single body the
+## drawn shape stays intact through the beat.
+func _loop_from_attachment(points: PackedVector2Array) -> PackedVector2Array:
+	if points.size() < 3 or _body_polylines.is_empty():
+		return PackedVector2Array()
+	var best_index := 0
+	var best_distance := INF
+	for index in range(points.size()):
+		for polyline_value in _body_polylines:
+			var distance := _point_polyline_distance(points[index], polyline_value as PackedVector2Array)
+			if distance < best_distance:
+				best_distance = distance
+				best_index = index
+	var ordered := PackedVector2Array()
+	for offset in range(points.size()):
+		ordered.append(points[(best_index + offset) % points.size()])
+	ordered.append(points[best_index])  # close the loop back onto its hinge
+	return ordered
+
+
+func _closed_stroke_is_appendage(blob_bounds: Rect2, body_center: Vector2) -> bool:
+	if _rig_type not in ["flier", "swimmer"]:
+		return false
+	var lateral := absf(blob_bounds.get_center().x - body_center.x)
+	var body_extent := maxf(1.0, _body_bounds.size.length())
+	var big_enough := blob_bounds.size.length() >= body_extent * 0.35
+	var off_axis := lateral >= maxf(6.0, _body_bounds.size.x * 0.35)
+	return big_enough and off_axis
 
 
 func _build_chain_rig(strokes: Array) -> void:
@@ -1423,23 +1941,34 @@ func _build_chain_rig(strokes: Array) -> void:
 		var stroke: Dictionary = stroke_value
 		if _stroke_length(stroke["points"]) > _stroke_length(longest["points"]):
 			longest = stroke
-	var sampled := _sample_points(longest["points"], 13)
-	if sampled.size() < 2:
+	var chain_points: PackedVector2Array = longest["points"]
+	var link_indices := _sample_indices(chain_points, 13)
+	if link_indices.size() < 2:
 		_build_standard_rig(strokes)
 		return
+	var width := float(longest.get("width", 5.0))
 	var parent: ActiveRigBody2D
-	for index in range(sampled.size() - 1):
+	for index in range(link_indices.size() - 1):
 		if _bodies.size() >= MAX_BODIES:
 			break
-		var pair := PackedVector2Array([sampled[index], sampled[index + 1]])
-		var center := (pair[0] + pair[1]) * 0.5
+		var from_index := link_indices[index]
+		var to_index := link_indices[index + 1]
+		var from_point := chain_points[from_index]
+		var to_point := chain_points[to_index]
+		var center := (from_point + to_point) * 0.5
 		var body := _create_body("Chain%02d" % index, center, 0.35)
-		_add_polyline_to_body(body, pair, float(longest.get("width", 5.0)), Color(longest.get("color", Color.BLACK)), center)
+		# Joints and the collision capsule stay on the straight sampled pair; the
+		# visible ink is the exact drawn slice between the samples so the snake
+		# renders the wave the player drew, padded a little past each joint.
+		var visual_start := maxi(0, from_index - LIMB_JOINT_OVERLAP_POINTS)
+		var visual_end := mini(chain_points.size() - 1, to_index + LIMB_JOINT_OVERLAP_POINTS)
+		_record_ink_slice(chain_points.slice(visual_start, visual_end + 1), from_index - visual_start, visual_end - to_index)
+		_add_capsules(body, PackedVector2Array([from_point, to_point]), width, center)
 		if index == 0:
 			_primary_body = body
-			_body_pool = pair.duplicate()
+			_body_pool = PackedVector2Array([from_point, to_point])
 		else:
-			var joint := _create_joint(parent, body, sampled[index], deg_to_rad(58.0))
+			var joint := _create_joint(parent, body, from_point, deg_to_rad(58.0))
 			if joint != null:
 				_segments.append({
 					"parent": parent,
@@ -1452,8 +1981,8 @@ func _build_chain_rig(strokes: Array) -> void:
 					"phase": 0.0,
 					"side": 1.0,
 					"angle_limit": deg_to_rad(58.0),
-					"parent_anchor": _body_local_anchor(parent, sampled[index]),
-					"child_anchor": _body_local_anchor(body, sampled[index]),
+					"parent_anchor": _body_local_anchor(parent, from_point),
+					"child_anchor": _body_local_anchor(body, from_point),
 					"last_drive_torque": 0.0
 				})
 		parent = body
@@ -1468,20 +1997,49 @@ func _build_limb_path(
 	path: PackedVector2Array,
 	stroke: Dictionary,
 	limb_index: int,
-	body_center: Vector2
+	body_center: Vector2,
+	extra_ink: Array = []
 ) -> void:
 	var length := _stroke_length(path)
-	var tip := path[path.size() - 1]
-	var role := _role_for_limb(path[0], tip, body_center)
+	# Classify from the point that reaches FURTHEST from the attachment, not from
+	# the last point drawn. Players draw wings, fins and flippers as closed loops,
+	# and a loop's last point comes back to its start -- so the limb reported a
+	# near-zero direction and a butterfly's wings were classified as legs, which
+	# meant the wing flap gait never ran on them and they hung and folded instead.
+	var role := _role_for_limb(path[0], _furthest_point(path), body_center)
+	var width := float(stroke.get("width", 5.0))
 	var per_limb_cap := 2 if _entity_id != "snake" else MAX_SEGMENTS_PER_LIMB
 	var segment_count := clampi(int(ceil(length / 38.0)), 1, per_limb_cap)
 	if _minimum_limb_segments(role) >= 2 and length >= MIN_SEGMENT_LENGTH * 1.25:
 		segment_count = maxi(segment_count, 2)
+	# A wing is one surface, and a drawn loop is one closed shape. Splitting either
+	# along its length puts halves of the same ink on bodies that then rotate apart,
+	# so the wing visibly breaks in the middle -- which is what "the wings detach"
+	# was. Both stay a single piece. (The closed-loop test alone was not enough: once
+	# a loop is trimmed to the arc that attaches, it is no longer closed, so a wing
+	# was still being cut in two.)
+	if role == "wing":
+		segment_count = 1
+	elif path.size() > 2 and path[0].distance_to(path[path.size() - 1]) <= maxf(6.0, width * 1.5):
+		segment_count = 1
 	segment_count = mini(segment_count, MAX_BODIES - _bodies.size())
 	if segment_count <= 0:
+		# No body budget left: keep the limb's ink intact on the torso.
+		_record_ink_slice(path)
+		for extra_value in extra_ink:
+			_record_ink_slice(extra_value as PackedVector2Array)
 		return
 	var parent := _primary_body
-	var side := -1.0 if tip.x < body_center.x else 1.0
+	# Which side of the body this limb reaches towards. Taken from the point that
+	# reaches FURTHEST, because a loop-shaped wing ends where it began -- at its
+	# hinge, next to the body -- so the last point put both wings on the same side
+	# and they beat together instead of mirroring.
+	var side := -1.0 if _furthest_point(path).x < body_center.x else 1.0
+	# Built chunk records drive the trailing-ink weld and the extra-ink split below.
+	var built: Array[Dictionary] = []
+	# First path index whose ink has not been rendered on a limb body yet. Skipped
+	# short chunks stay pending and ride the next built body (or the trailing weld).
+	var pending_index := 0
 	for segment_index in range(segment_count):
 		if _joints.size() >= MAX_JOINTS:
 			break
@@ -1493,17 +2051,35 @@ func _build_limb_path(
 		if chunk.size() < 2 or _stroke_length(chunk) < MIN_SEGMENT_LENGTH * 0.45:
 			continue
 		var center := _points_center(chunk)
-		var raw_mass := _mass_for_points(chunk, float(stroke.get("width", 5.0)))
+		var raw_mass := _mass_for_points(chunk, width)
 		var limb_mass := clampf(raw_mass * (0.62 if segment_index == 0 else 0.48), 0.16, 0.62)
 		var body := _create_body("Limb%02d_%d" % [limb_index, segment_index], center, limb_mass)
 		body.gravity_scale = 0.48 if segment_index == 0 else 0.32
 		body.angular_damp = 3.8 if segment_index == 0 else 4.6
+		body.max_angular_speed = LIMB_MAX_ANGULAR_SPEED
 		_configure_limb_contact(body, role, segment_index, segment_count)
-		_add_polyline_to_body(body, chunk, float(stroke.get("width", 5.0)), Color(stroke.get("color", Color.BLACK)), center)
-		var limit := deg_to_rad(82.0 if role == "wing" else 68.0)
+		# Collision, mass, and the joint anchor use the exact chunk; the visible
+		# ink covers everything pending plus a little padding past each joint so
+		# the drawing stays continuous while the PD muscle lets bodies drift.
+		var visual_start := maxi(0, pending_index - LIMB_JOINT_OVERLAP_POINTS)
+		var visual_end := mini(path.size() - 1, end_index + LIMB_JOINT_OVERLAP_POINTS)
+		_record_ink_slice(path.slice(visual_start, visual_end + 1), pending_index - visual_start, visual_end - end_index)
+		_add_capsules(body, chunk, width, center)
+		# A wing is often drawn as a broad loop pinned along the body, so a wide
+		# envelope does not read as flapping -- it reads as the wing tumbling off
+		# the creature. Keep wing travel tight enough that the silhouette stays a
+		# butterfly/bird through the whole beat.
+		# The drawing has to keep looking like the drawing. Every gait in the game asks
+		# for at most ~38 degrees (a hopper's jump), so an envelope just above that
+		# leaves every animation intact while making it impossible for a limb to fold
+		# far enough that the silhouette stops reading as the thing the player drew.
+		# A wing is tighter still: it is usually a broad loop, so the same rotation
+		# distorts it much more than it distorts a thin leg.
+		var limit := deg_to_rad(30.0 if role == "wing" else 46.0)
 		var joint := _create_joint(parent, body, chunk[0], limit)
 		if joint == null:
 			body.queue_free()
+			_bodies.erase(body)
 			break
 		_segments.append({
 			"parent": parent,
@@ -1521,7 +2097,39 @@ func _build_limb_path(
 			"child_anchor": _body_local_anchor(body, chunk[0]),
 			"last_drive_torque": 0.0
 		})
+		built.append({"body": body, "center": center, "start_index": pending_index, "end_index": end_index})
+		pending_index = end_index
 		parent = body
+	# Any trailing ink the loop could not give a body (joint budget, short chunk)
+	# is welded onto the last built body so no part of the drawing disappears.
+	if pending_index < path.size() - 1:
+		var weld_target := parent if parent != null else _primary_body
+		var weld_center := weld_target.position
+		if not built.is_empty():
+			weld_center = built[built.size() - 1]["center"]
+		var weld_start := maxi(0, pending_index - LIMB_JOINT_OVERLAP_POINTS)
+		_record_ink_slice(path.slice(weld_start, path.size()), pending_index - weld_start, 0)
+		if not built.is_empty():
+			built[built.size() - 1]["end_index"] = path.size() - 1
+	if built.is_empty():
+		for extra_value in extra_ink:
+			_record_ink_slice(extra_value as PackedVector2Array)
+		return
+	# Split companion ink (e.g. the return side of a scribble spike) at the same
+	# arc ratios as the built chunks so each limb segment carries its share.
+	var arc_total := maxf(length, 0.001)
+	for extra_value in extra_ink:
+		var extra := extra_value as PackedVector2Array
+		var extra_length := _stroke_length(extra)
+		if extra.size() < 2 or extra_length <= 0.001:
+			continue
+		for build_index in range(built.size()):
+			var info: Dictionary = built[build_index]
+			var from_ratio := 0.0 if build_index == 0 else _stroke_length(path.slice(0, int(info["start_index"]) + 1)) / arc_total
+			var to_ratio := 1.0 if build_index == built.size() - 1 else _stroke_length(path.slice(0, int(info["end_index"]) + 1)) / arc_total
+			var piece := _spider_slice_polyline(extra, from_ratio * extra_length, to_ratio * extra_length)
+			if piece.size() >= 2:
+				_record_ink_slice(piece)
 
 
 func _build_bitmap_fallback() -> void:
@@ -1547,97 +2155,50 @@ func _build_bitmap_fallback() -> void:
 ## the player did not draw — if the stroke has no clear radial appendages it leaves the
 ## single-body rig alone. Skipped entirely for rig_type "none" (physics objects and
 ## utilities), which must stay rigid, and for the empty-strokes bitmap path.
-func _ensure_articulation(strokes: Array) -> void:
-	if _joints.size() > 0 or strokes.is_empty():
-		return
-	if _rig_type == "none":
-		return
-	if get_stroke_bounds().size.length() < _target_size.length() * 0.5:
-		return
-	var body_index := _select_body_stroke(strokes)
-	var body_stroke: Dictionary = strokes[body_index]
-	var decomposition := _decompose_scribble(body_stroke)
-	var limbs: Array = decomposition["limbs"]
-	if limbs.is_empty():
-		return
-	# A single continuous scribble split into a torso core + its actual drawn spikes.
-	_clear_rig()
-	_create_physics_root()
-	var body_pts: PackedVector2Array = decomposition["body"]
-	var width := float(body_stroke.get("width", 6.0))
-	var color := Color(body_stroke.get("color", Color.BLACK))
-	_body_pool = body_pts.duplicate()
-	_body_polylines = [body_pts]
-	var body_center := _points_center(body_pts)
-	_primary_body = _create_body("Torso", body_center, _mass_for_stroke(body_stroke, 1.5))
-	_add_polyline_to_body(_primary_body, body_pts, width, color, body_center)
-	var limb_limit := _limb_limit_for_entity()
-	var limb_index := 0
-	for limb_value in limbs:
-		if limb_index >= limb_limit or _joints.size() >= MAX_JOINTS:
-			break
-		_build_limb_path(limb_value as PackedVector2Array, body_stroke, limb_index, body_center)
-		limb_index += 1
-
-
-## Detect limb-like radial spikes in a single continuous stroke and split it into a
-## torso core plus outgoing limb paths (each from the valley near the body out to the
-## peak tip). Returns empty limbs when the stroke has no clear appendages.
-func _decompose_scribble(stroke: Dictionary) -> Dictionary:
-	var empty := {"body": PackedVector2Array(), "limbs": []}
-	var pts: PackedVector2Array = stroke["points"]
-	if pts.size() < 7:
-		return empty
-	var center := _points_center(pts)
-	var diag := _points_bounds(pts).size.length()
-	if diag < 1.0:
-		return empty
-	var radii := PackedFloat32Array()
-	for point in pts:
-		radii.append(point.distance_to(center))
-	var median_r := _median(radii)
-	var prominence := 0.22 * diag
-	var limbs: Array = []
-	var i := 1
-	while i < pts.size() - 1:
-		if radii[i] > radii[i - 1] and radii[i] >= radii[i + 1]:
-			var left := i
-			while left > 0 and radii[left - 1] <= radii[left]:
-				left -= 1
-			var right := i
-			while right < pts.size() - 1 and radii[right + 1] <= radii[right]:
-				right += 1
-			var valley := minf(radii[left], radii[right])
-			if radii[i] - valley >= prominence and valley <= median_r * 1.15:
-				var limb := pts.slice(left, i + 1)
-				if _stroke_length(limb) >= MIN_SEGMENT_LENGTH * 2.0:
-					limbs.append(limb)
-				i = right + 1
-				continue
-		i += 1
-	if limbs.is_empty():
-		return empty
-	var body := PackedVector2Array()
-	for j in range(pts.size()):
-		if radii[j] <= median_r * 1.25:
-			body.append(pts[j])
-	if body.size() < 3:
-		body = pts
-	return {"body": body, "limbs": limbs}
-
-
-func _median(values: PackedFloat32Array) -> float:
-	if values.is_empty():
-		return 0.0
-	var sorted := values.duplicate()
-	sorted.sort()
-	return sorted[sorted.size() / 2]
 
 
 func _create_physics_root() -> void:
 	_physics_root = Node2D.new()
 	_physics_root.name = "GeneratedPhysicsRig"
+	# top_level on the rig bodies detaches transforms, not canvas z, so this lifts
+	# all rendered ink above the level decor sprites.
+	_physics_root.z_index = INK_Z_INDEX
 	get_parent().add_child(_physics_root)
+
+
+## Objects and utilities are rigid by definition, but the builders articulate them
+## anyway -- a drawn key or ramp goes through the same stroke rig a horse does. Every
+## rig body is top_level, so those bodies simulate INDEPENDENTLY of the object that
+## owns them, and the skinned ink is parented to the torso. What the player saw was the
+## drawing sliding off its own collider: a placement preview whose collision followed
+## the cursor while the picture stayed on the floor where the torso had fallen, and a
+## placed object whose picture wandered away from the thing it was supposed to be.
+## Worse, those loose bodies are on the same collision layer as the terrain, so the
+## placement overlap test found them -- an object reported "no room" wherever it was
+## pointed, which is what made shapes and utilities feel unplaceable.
+##
+## Pinning the graph back onto the owning body and switching its collision off leaves
+## exactly one physics representation: the object's own, whose shapes
+## PhysicsShapeObject already rebuilds from these same strokes.
+func _pin_rig_to_owner() -> void:
+	if _bodies.is_empty():
+		return
+	_rigid_object_rig = true
+	for body in _bodies:
+		if not is_instance_valid(body):
+			continue
+		body.freeze = true
+		body.freeze_mode = RigidBody2D.FREEZE_MODE_STATIC
+		body.collision_layer = 0
+		body.collision_mask = 0
+		body.linear_velocity = Vector2.ZERO
+		body.angular_velocity = 0.0
+		# Runs before the first physics step, so the body is still exactly where the
+		# strokes put it; re-assigning the global transform after clearing top_level
+		# is what converts that world pose into the local offset it keeps from here on.
+		var world := body.global_transform
+		body.top_level = false
+		body.global_transform = world
 
 
 func _create_body(body_name: String, at: Vector2, body_mass: float) -> ActiveRigBody2D:
@@ -1727,8 +2288,7 @@ func _add_stroke_to_body(
 ) -> void:
 	var points: PackedVector2Array = stroke["points"]
 	var width := float(stroke.get("width", 5.0))
-	var color := Color(stroke.get("color", Color.BLACK))
-	_add_visual_line(body, points, width, color, body_center)
+	_record_ink_slice(points)
 	if prefer_polygon and _stroke_is_closed(points, width) and points.size() >= 3:
 		var local := PackedVector2Array()
 		for point in points:
@@ -1745,35 +2305,21 @@ func _add_stroke_to_body(
 	_add_capsules(body, points, width, body_center)
 
 
-func _add_polyline_to_body(
-	body: ActiveRigBody2D,
+## Record which slice of the drawn ink a body was built from. The builders used to
+## RENDER these slices, one Line2D per body, and that is what the skinned layer
+## replaced -- so they are only bookkeeping now, and the audit below is what reads
+## them: a decomposition that invents geometry the player never drew, or loses some of
+## it, gives that body a collider the drawing does not account for.
+func _record_ink_slice(
 	points: PackedVector2Array,
-	width: float,
-	color: Color,
-	body_center: Vector2
+	overlap_prefix: int = 0,
+	overlap_suffix: int = 0
 ) -> void:
-	_add_visual_line(body, points, width, color, body_center)
-	_add_capsules(body, points, width, body_center)
-
-
-func _add_visual_line(
-	body: ActiveRigBody2D,
-	points: PackedVector2Array,
-	width: float,
-	color: Color,
-	body_center: Vector2
-) -> void:
-	var line := Line2D.new()
-	line.width = width
-	line.default_color = color
-	line.joint_mode = Line2D.LINE_JOINT_ROUND
-	line.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	line.end_cap_mode = Line2D.LINE_CAP_ROUND
-	var local := PackedVector2Array()
-	for point in points:
-		local.append(point - body_center)
-	line.points = local
-	body.add_child(line)
+	_body_ink.append({
+		"points": points.duplicate(),
+		"overlap_prefix": overlap_prefix,
+		"overlap_suffix": overlap_suffix
+	})
 
 
 func _add_capsules(
@@ -1835,11 +2381,46 @@ func _compute_stand_height() -> void:
 		if not is_instance_valid(body):
 			continue
 		var relative: Transform2D = _rest_transforms.get(body.get_instance_id(), Transform2D.IDENTITY)
-		_stand_height = maxf(_stand_height, relative.origin.y)
+		# Measure to the bottom of the body's COLLISION SHAPES, not to its origin.
+		# Using the origin measured to the middle of the foot segment, so the rig was
+		# parked with the lower half of every leg buried in the floor: the ground then
+		# shoved the legs backwards until the drawing lay splayed flat, which is the
+		# collapse that made creatures look broken no matter how the gait was tuned.
+		_stand_height = maxf(_stand_height, relative.origin.y + _body_lower_extent(body, relative))
 	# Sit low enough that the drawn feet press a few px into the floor instead of
 	# grazing it, so contact actually registers and the controller reads the
 	# creature as grounded (idle/walk/jump) rather than perpetually "falling".
 	_stand_height -= 4.0
+
+
+## How far the lowest point of a body's collision shapes sits below its origin,
+## expressed in the rest frame (so a rotated limb reports its true reach).
+func _body_lower_extent(body: PhysicsBody2D, relative: Transform2D) -> float:
+	var lowest := 0.0
+	for child in body.get_children():
+		var collision := child as CollisionShape2D
+		if collision == null or collision.shape == null:
+			continue
+		var extents := Vector2.ZERO
+		var shape := collision.shape
+		if shape is CapsuleShape2D:
+			var capsule := shape as CapsuleShape2D
+			extents = Vector2(capsule.radius, capsule.height * 0.5)
+		elif shape is RectangleShape2D:
+			extents = (shape as RectangleShape2D).size * 0.5
+		elif shape is CircleShape2D:
+			var radius := (shape as CircleShape2D).radius
+			extents = Vector2(radius, radius)
+		else:
+			continue
+		# Corners of the shape's bounding box, taken into the rest frame.
+		var basis := Transform2D(relative.get_rotation(), Vector2.ZERO) * collision.transform
+		for corner in [
+			Vector2(-extents.x, -extents.y), Vector2(extents.x, -extents.y),
+			Vector2(-extents.x, extents.y), Vector2(extents.x, extents.y)
+		]:
+			lowest = maxf(lowest, (basis * corner).y)
+	return lowest
 
 
 ## For every joint, record the child body plus its whole distal subtree. The
@@ -1873,12 +2454,16 @@ func _compute_support_sets() -> void:
 
 func _clear_rig() -> void:
 	_primary_body = null
+	_rigid_object_rig = false
+	_release_skinned_ink()
 	_bodies.clear()
 	_joints.clear()
 	_segments.clear()
 	_body_pool = PackedVector2Array()
 	_body_bounds = Rect2()
 	_body_polylines = []
+	_body_ink.clear()
+	_max_tracked_angle = 0.0
 	_shape_count = 0
 	_rest_transforms.clear()
 	_physics_frames_since_build = 0
@@ -1923,40 +2508,119 @@ func _select_body_stroke(strokes: Array) -> int:
 		var incoming := 0
 		var attach_above := false
 		var attach_below := false
+		var attach_left := false
+		var attach_right := false
 		var radius := clampf(get_stroke_bounds().size.length() * 0.08, 6.0, 18.0)
 		for other_index in range(strokes.size()):
 			if index == other_index:
 				continue
 			var other: PackedVector2Array = strokes[other_index]["points"]
-			var head_gap := _point_polyline_distance(other[0], points)
+			# Which point of the other stroke comes closest to this one? Endpoints
+			# alone are not enough: a closed head circle's seam sits wherever the
+			# player happened to start drawing it, and an arm stroke crosses the
+			# spine mid-stroke. Missing those contacts made the head out-score the
+			# spine as a stick figure's torso.
+			var best_gap := _point_polyline_distance(other[0], points)
+			var contact := other[0]
 			var tail_gap := _point_polyline_distance(other[other.size() - 1], points)
-			if head_gap <= radius or tail_gap <= radius:
+			if tail_gap < best_gap:
+				best_gap = tail_gap
+				contact = other[other.size() - 1]
+			for sample in _sample_points(other, 17):
+				var gap := _point_polyline_distance(sample, points)
+				if gap < best_gap:
+					best_gap = gap
+					contact = sample
+			# Also measure THIS stroke's points against the other one. Sampling only
+			# the other stroke misses a thin line crossed by a big loop: the loop's
+			# samples land around its rim and step over the crossing entirely, so a
+			# butterfly's body line saw only one of its two wings, collected no
+			# hub bonus, and lost the torso to a wing.
+			for sample in _sample_points(points, 17):
+				var gap := _point_polyline_distance(sample, other)
+				if gap < best_gap:
+					best_gap = gap
+					contact = sample
+			if best_gap <= radius:
 				incoming += 1
-				# Which end of the other stroke touches, and is that contact above or
-				# below this stroke's centre? The torso is the hub that limbs radiate
-				# from ABOVE (head/arms) and BELOW (legs); a head only has the body
-				# joining it from below. This above-and-below test is what stops a big
-				# round head from being chosen as the body of a stick figure.
-				var contact := other[0] if head_gap <= tail_gap else other[other.size() - 1]
+				# Is the contact above or below this stroke's centre? The torso is
+				# the hub that limbs radiate from ABOVE (head/arms) and BELOW (legs);
+				# a head only has the body joining it from below. This above-and-below
+				# test is what stops a big round head from being chosen as the body
+				# of a stick figure.
 				if contact.y < stroke_center.y:
 					attach_above = true
 				else:
 					attach_below = true
+				if contact.x < stroke_center.x:
+					attach_left = true
+				else:
+					attach_right = true
 		var closed := _stroke_is_closed(points, float(stroke.get("width", 5.0)))
 		var area_ratio := absf(_polygon_area(points)) / max_area if closed else 0.0
 		var compactness := minf(stroke_bounds.size.x, stroke_bounds.size.y) / maxf(1.0, maxf(stroke_bounds.size.x, stroke_bounds.size.y))
 		var centrality := 1.0 - clampf(stroke_center.distance_to(drawing_center) / drawing_radius, 0.0, 1.0)
-		# A stroke that limbs join from both above and below is almost certainly the
-		# torso. Weighted strongly so it beats the roundness bonus a head collects.
-		var hub_bonus := 5.0 if attach_above and attach_below else 0.0
-		var closed_weight := 7.0 if _entity_id in ["spider", "cat", "dog", "frog", "rabbit", "fish"] else 4.5
+		# A stroke that limbs join from opposite sides is almost certainly the torso.
+		# Weighted strongly so it beats the roundness bonus a head collects.
+		# BOTH axes count: limbs radiate above/below on a stick figure, but a
+		# butterfly's or bird's wings radiate left/right off a thin body line. With
+		# only the vertical test, a drawn wing loop out-scored the body on its closed
+		# and area bonuses, became the torso, absorbed the other wing, and left the
+		# body line flailing as a "leg" -- so the butterfly could never flap.
+		# Outweighs closed+area+compactness combined, because being the hub that
+		# appendages radiate from is stronger evidence of a torso than being the
+		# roundest or largest closed shape in the drawing.
+		var hub_bonus := 7.5 if (attach_above and attach_below) or (attach_left and attach_right) else 0.0
+		var bodied := _entity_id == "spider" or _rig_type in ["walker", "hopper", "swimmer"]
+		var closed_weight := 7.0 if bodied else 4.5
 		var score := (closed_weight if closed else 0.0) + float(incoming) * 2.2 + hub_bonus \
 			+ area_ratio * 1.6 + compactness * 0.7 + centrality * 1.8 \
 			+ _stroke_length(points) / max_length * 0.25
+		# On a flier, the closed round shapes are the WINGS and the body is the thing
+		# they hang off. Scored purely on roundness and area a wing outscores a thin
+		# body line, becomes the torso, and then both wings sit on the same side of
+		# it -- so they beat together instead of mirroring and the drawing reads
+		# lopsided. An off-centre closed shape is disqualified from being the body.
+		if _is_wing_like(strokes, index):
+			score -= 9.0
 		if score > best_score:
 			best_score = score
 			best_index = index
 	return best_index
+
+
+## A flier's wings are recognised by coming in PAIRS: a closed round shape that has a
+## closed round twin of comparable size is one of a pair, and a body never is.
+## Position deliberately plays no part -- a butterfly's wings meet in the middle,
+## exactly where its body is, so anything based on being off-centre cannot tell them
+## apart. A lone closed shape is not wing-like, so a bird's oval body still reads as
+## a body. This one answer drives all three decisions that were disagreeing: what
+## becomes the torso, what gets absorbed into it, and what gets hinged.
+func _is_wing_like(strokes: Array, index: int) -> bool:
+	if _rig_type != "flier":
+		return false
+	var stroke: Dictionary = strokes[index]
+	var points := PackedVector2Array(stroke.get("points", PackedVector2Array()))
+	if points.size() < 3 or not _stroke_is_closed(points, float(stroke.get("width", 5.0))):
+		return false
+	var bounds := _bounds_for_points(points)
+	var compactness := minf(bounds.size.x, bounds.size.y) / maxf(1.0, maxf(bounds.size.x, bounds.size.y))
+	if compactness <= 0.45:
+		return false
+	var mine := bounds.size.length()
+	if mine <= 0.001:
+		return false
+	for other in range(strokes.size()):
+		if other == index:
+			continue
+		var sibling: Dictionary = strokes[other]
+		var sibling_points := PackedVector2Array(sibling.get("points", PackedVector2Array()))
+		if sibling_points.size() < 3 or not _stroke_is_closed(sibling_points, float(sibling.get("width", 5.0))):
+			continue
+		var theirs := _bounds_for_points(sibling_points).size.length()
+		if theirs > 0.001 and maxf(mine, theirs) / minf(mine, theirs) <= 1.7:
+			return true
+	return false
 
 
 func _appendage_candidate_less(a: Dictionary, b: Dictionary) -> bool:
@@ -1975,6 +2639,12 @@ func _appendage_candidate_less(a: Dictionary, b: Dictionary) -> bool:
 func _phase_for_limb(limb_index: int, _side: float) -> float:
 	if _rig_type in ["biped", "walker"]:
 		return 0.0 if limb_index % 2 == 0 else PI
+	if _rig_type == "flier":
+		# Wings beat TOGETHER, mirrored left against right by the gait's `side` term.
+		# Giving each wing its own phase offset is right for a walker's legs but
+		# turns a butterfly drawn as four loops into an asymmetric scramble: each
+		# loop sat at a different angle instead of the pairs sweeping as one.
+		return 0.0
 	return float(limb_index) * 0.47
 
 
@@ -1990,8 +2660,14 @@ func _paths_attached_to_body(points: PackedVector2Array, radius: float) -> Array
 			ordered.reverse()
 		result.append(ordered)
 		return result
+	# Both endpoints are free. Splitting at an interior torso contact is only
+	# justified for a genuine limb pair drawn in one stroke (down one leg, up to
+	# the hip, down the other leg): the stroke must touch the torso closely, both
+	# halves must be limb-sized, and the stroke must fold back at the contact. A
+	# long stroke that merely grazes the torso mid-way keeps going in the same
+	# direction and must never be cut in half.
 	var closest_index := -1
-	var closest_gap := radius
+	var closest_gap := radius * 0.6
 	for index in range(1, points.size() - 1):
 		var gap := _point_body_distance(points[index])
 		if gap < closest_gap:
@@ -2001,8 +2677,75 @@ func _paths_attached_to_body(points: PackedVector2Array, radius: float) -> Array
 		var first := points.slice(0, closest_index + 1)
 		first.reverse()
 		var second := points.slice(closest_index, points.size())
-		result.append(first)
-		result.append(second)
+		if _stroke_length(first) >= MIN_SEGMENT_LENGTH * 2.0 \
+				and _stroke_length(second) >= MIN_SEGMENT_LENGTH * 2.0 \
+				and (_halves_form_limb_pair(first, second, radius) or _halves_cross_body(first, second, radius)):
+			result.append(first)
+			result.append(second)
+			return result
+	# Near-miss endpoint attachment rescues a limb drawn with a small gap to the
+	# body (previously dropped to decoration or, worse, split at the graze point).
+	if minf(start_gap, end_gap) <= radius * 1.8:
+		var near_ordered := points.duplicate()
+		if end_gap < start_gap:
+			near_ordered.reverse()
+		result.append(near_ordered)
+	return result
+
+
+## Both halves start at the interior torso contact. A limb pair folds back there,
+## so the two halves leave the contact in a similar direction; a grazing stroke
+## continues onward, so its halves leave in opposite directions.
+func _halves_form_limb_pair(first: PackedVector2Array, second: PackedVector2Array, radius: float) -> bool:
+	var contact := first[0]
+	var out_a := _point_at_arc_length(first, radius) - contact
+	var out_b := _point_at_arc_length(second, radius) - contact
+	if out_a.length() < 0.5 or out_b.length() < 0.5:
+		return false
+	return out_a.normalized().dot(out_b.normalized()) > 0.2
+
+
+func _point_at_arc_length(points: PackedVector2Array, distance: float) -> Vector2:
+	var traveled := 0.0
+	for index in range(points.size() - 1):
+		var segment := points[index].distance_to(points[index + 1])
+		if traveled + segment >= distance and segment > 0.001:
+			return points[index].lerp(points[index + 1], (distance - traveled) / segment)
+		traveled += segment
+	return points[points.size() - 1]
+
+
+## True when the stroke actually CROSSES the torso ink at the contact: the two
+## halves continue on opposite sides of the nearest torso segment's line. Arms
+## drawn straight across a stick figure's spine cross (and must split into two
+## limbs); a tail passing beside the torso outline stays on one side (and must
+## stay whole).
+func _halves_cross_body(first: PackedVector2Array, second: PackedVector2Array, radius: float) -> bool:
+	var contact := first[0]
+	var body_segment := _nearest_body_segment(contact)
+	if body_segment.is_empty():
+		return false
+	var segment_start := Vector2(body_segment["start"])
+	var direction := Vector2(body_segment["end"]) - segment_start
+	if direction.length() < 0.001:
+		return false
+	var probe := maxf(radius * 0.5, MIN_SEGMENT_LENGTH)
+	var side_a := direction.cross(_point_at_arc_length(first, probe) - segment_start)
+	var side_b := direction.cross(_point_at_arc_length(second, probe) - segment_start)
+	return side_a * side_b < -0.001
+
+
+func _nearest_body_segment(point: Vector2) -> Dictionary:
+	var best := INF
+	var result := {}
+	for polyline_value in _body_polylines:
+		var polyline := polyline_value as PackedVector2Array
+		for index in range(polyline.size() - 1):
+			var nearest := Geometry2D.get_closest_point_to_segment(point, polyline[index], polyline[index + 1])
+			var gap := point.distance_to(nearest)
+			if gap < best:
+				best = gap
+				result = {"start": polyline[index], "end": polyline[index + 1]}
 	return result
 
 
@@ -2041,6 +2784,10 @@ func _gather_body_strokes(strokes: Array, body_index: int) -> Dictionary:
 		var elongation := longside / shortside
 		var closed := _stroke_is_closed(pts, float(strokes[index].get("width", 5.0)))
 		var overlaps := _bounds_overlap_ratio(body_bounds, b) > 0.6
+		# A wing overlapping the body must stay a separate, hingeable piece; absorbing
+		# it welds it rigid and the creature flies with one wing.
+		if _is_wing_like(strokes, index):
+			continue
 		if body_bounds.has_point(b.get_center()) and (closed or overlaps) and elongation < 2.2:
 			indices[index] = true
 			pool.append_array(pts)
@@ -2066,6 +2813,23 @@ func _bounds_overlap_ratio(a: Rect2, b: Rect2) -> float:
 	return inter_area / min_area
 
 
+## The point of a limb path lying furthest from where it attaches. For an open
+## stroke this is essentially the tip; for a closed loop (a drawn wing or fin) it
+## is the far side of the loop, which is what the limb actually reaches towards.
+func _furthest_point(path: PackedVector2Array) -> Vector2:
+	if path.is_empty():
+		return Vector2.ZERO
+	var origin := path[0]
+	var best := path[path.size() - 1]
+	var best_distance := origin.distance_squared_to(best)
+	for point in path:
+		var distance := origin.distance_squared_to(point)
+		if distance > best_distance:
+			best_distance = distance
+			best = point
+	return best
+
+
 func _role_for_limb(joint: Vector2, tip: Vector2, body_center: Vector2) -> String:
 	var delta := tip - joint
 	match _rig_type:
@@ -2082,9 +2846,12 @@ func _role_for_limb(joint: Vector2, tip: Vector2, body_center: Vector2) -> Strin
 			# demote to the passive "limb" role and collapse to a single segment.
 			return "leg"
 		"flier":
-			if absf(delta.x) >= absf(delta.y) * 0.7 or delta.y < 0.0:
-				return "wing"
-			return "leg"
+			# Every appendage on a flier is a wing, the same way a hopper treats every
+			# appendage as a driven leg. A butterfly is drawn as several loops around a
+			# body and the lower pair read as "downward" limbs, so the old direction
+			# test called them legs -- which on a flier means a static -20 degree pose
+			# and no animation at all. Half the wings simply hung there.
+			return "wing"
 		"swimmer":
 			return "tail" if absf(delta.x) > absf(delta.y) else "fin"
 		_:
@@ -2092,21 +2859,23 @@ func _role_for_limb(joint: Vector2, tip: Vector2, body_center: Vector2) -> Strin
 
 
 func _limb_limit_for_entity() -> int:
-	match _entity_id:
-		"spider": return 8
-		"cat", "dog": return 5
-		"humanoid", "frog", "rabbit": return 4
-		"bird", "butterfly": return 6
-		"fish": return 4
+	if _entity_id == "spider":
+		return 8
+	match _rig_type:
+		"walker": return 6
+		"biped": return 4
+		"hopper": return 4
+		"flier": return 6
+		"swimmer": return 4
 		_: return 6
 
 
 func _minimum_limb_segments(role: String) -> int:
-	if role == "leg" and _entity_id in ["spider", "cat", "dog", "humanoid", "frog", "rabbit"]:
+	if role == "leg" and (_entity_id == "spider" or _rig_type in ["walker", "biped", "hopper"]):
 		return 2
-	if role == "limb" and _entity_id in ["frog", "rabbit"]:
+	if role == "limb" and _rig_type == "hopper":
 		return 2
-	if role == "arm" and _entity_id == "humanoid":
+	if role == "arm" and _rig_type == "biped":
 		return 2
 	return 1
 
@@ -2198,6 +2967,10 @@ func _recover_rig() -> void:
 			continue
 		body.freeze = false
 		body.sleeping = false
+	# Bodies snapped back to the rest pose: the integrated joint angles are zero
+	# again by construction.
+	for segment_value in _segments:
+		(segment_value as Dictionary)["tracked_angle"] = 0.0
 	_physics_frames_since_build = 0
 
 
@@ -2217,6 +2990,17 @@ func _sample_points(points: PackedVector2Array, maximum: int) -> PackedVector2Ar
 		var source_index := int(round(float(index) * float(points.size() - 1) / float(maximum - 1)))
 		sampled.append(points[source_index])
 	return sampled
+
+
+func _sample_indices(points: PackedVector2Array, maximum: int) -> PackedInt32Array:
+	var indices := PackedInt32Array()
+	if points.size() <= maximum:
+		for index in range(points.size()):
+			indices.append(index)
+		return indices
+	for index in range(maximum):
+		indices.append(int(round(float(index) * float(points.size() - 1) / float(maximum - 1))))
+	return indices
 
 
 func _mass_for_stroke(stroke: Dictionary, multiplier: float = 1.0) -> float:
@@ -2286,3 +3070,71 @@ func _point_polyline_distance(point: Vector2, points: PackedVector2Array) -> flo
 		var nearest := Geometry2D.get_closest_point_to_segment(point, points[index], points[index + 1])
 		best = minf(best, point.distance_to(nearest))
 	return best
+
+
+## True when everything the rig rendered is the player's ink: every rendered
+## polyline lies on a drawn stroke (no fabricated chords) and the total rendered
+## length, excluding joint-overlap padding, conserves the drawn length (no ink
+## silently dropped or duplicated).
+func _rig_ink_is_intact() -> bool:
+	var strokes := get_vector_strokes()
+	var input_length := 0.0
+	for stroke_value in strokes:
+		input_length += _stroke_length((stroke_value as Dictionary)["points"])
+	if input_length <= 0.001:
+		return true
+	if _body_ink.is_empty():
+		return false
+	var core_length := 0.0
+	for entry_value in _body_ink:
+		var entry := entry_value as Dictionary
+		var points: PackedVector2Array = entry["points"]
+		if points.size() < 2:
+			continue
+		if not _polyline_lies_on_ink(points, strokes):
+			return false
+		var prefix := int(entry.get("overlap_prefix", 0))
+		var suffix := int(entry.get("overlap_suffix", 0))
+		var core := points.slice(prefix, points.size() - suffix)
+		if core.size() >= 2:
+			core_length += _stroke_length(core)
+	return absf(core_length - input_length) <= input_length * INK_AUDIT_LENGTH_TOLERANCE
+
+
+## A rendered polyline is always a slice of exactly one drawn stroke. Find that
+## stroke with a few probe points, then require every vertex and every segment
+## midpoint to sit on it (full-stroke fallback keeps overlapping strokes from
+## producing false alarms).
+func _polyline_lies_on_ink(points: PackedVector2Array, strokes: Array) -> bool:
+	var candidate := PackedVector2Array()
+	var candidate_score := INF
+	var probe_count := mini(points.size(), 5)
+	for stroke_value in strokes:
+		var source: PackedVector2Array = (stroke_value as Dictionary)["points"]
+		var score := 0.0
+		for probe_index in range(probe_count):
+			var probe := points[int(round(float(probe_index) * float(points.size() - 1) / float(maxi(1, probe_count - 1))))]
+			score = maxf(score, _point_polyline_distance(probe, source))
+			if score >= candidate_score:
+				break
+		if score < candidate_score:
+			candidate_score = score
+			candidate = source
+	if candidate_score > INK_AUDIT_EPSILON:
+		return false
+	for index in range(points.size()):
+		if not _point_near_ink(points[index], candidate, strokes):
+			return false
+		if index > 0 and not _point_near_ink((points[index - 1] + points[index]) * 0.5, candidate, strokes):
+			return false
+	return true
+
+
+func _point_near_ink(point: Vector2, candidate: PackedVector2Array, strokes: Array) -> bool:
+	if _point_polyline_distance(point, candidate) <= INK_AUDIT_EPSILON:
+		return true
+	for stroke_value in strokes:
+		var source: PackedVector2Array = (stroke_value as Dictionary)["points"]
+		if source != candidate and _point_polyline_distance(point, source) <= INK_AUDIT_EPSILON:
+			return true
+	return false

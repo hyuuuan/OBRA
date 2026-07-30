@@ -1,0 +1,456 @@
+{
+  "version": 1,
+  "note": "ConceptNet-grounded ability provenance for the 50-class roster. Resolved offline by tools/build_abilities.py and committed; the game/backend only read this table. Entries flagged provenance=conceptnet_curated use documented assertions with approximate weights because api.conceptnet.io was unreachable at build time -- re-run the builder when the API is healthy to upgrade them to conceptnet_api.",
+  "abilities": {
+    "circle": {
+      "ability": "roll",
+      "ability_relation": "hand_authored",
+      "ability_assertion": "Hand-authored: a circle rolls as a heavy boulder/bumper (geometric primitive; no ConceptNet relation).",
+      "ability_weight": null,
+      "assertion_uri": null,
+      "concept": null,
+      "provenance": "hand_authored"
+    },
+    "square": {
+      "ability": "weight",
+      "ability_relation": "hand_authored",
+      "ability_assertion": "Hand-authored: a square acts as a static weight holding pressure plates (geometric primitive; no ConceptNet relation).",
+      "ability_weight": null,
+      "assertion_uri": null,
+      "concept": null,
+      "provenance": "hand_authored"
+    },
+    "triangle": {
+      "ability": "wedge",
+      "ability_relation": "hand_authored",
+      "ability_assertion": "Hand-authored: a triangle acts as a wedge/ramp to launch or jam mechanisms (geometric primitive; no ConceptNet relation).",
+      "ability_weight": null,
+      "assertion_uri": null,
+      "concept": null,
+      "provenance": "hand_authored"
+    },
+    "bird": {
+      "ability": "fly",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A bird can fly.",
+      "ability_weight": 6.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/bird/,/c/en/fly/]",
+      "concept": "/c/en/bird",
+      "provenance": "conceptnet_curated"
+    },
+    "bat": {
+      "ability": "fly",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A bat can fly.",
+      "ability_weight": 2.83,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/bat/,/c/en/fly/]",
+      "concept": "/c/en/bat",
+      "provenance": "conceptnet_curated"
+    },
+    "butterfly": {
+      "ability": "fly",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A butterfly can fly.",
+      "ability_weight": 3.46,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/butterfly/,/c/en/fly/]",
+      "concept": "/c/en/butterfly",
+      "provenance": "conceptnet_curated"
+    },
+    "spider": {
+      "ability": "climb",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A spider can climb walls.",
+      "ability_weight": 2.83,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/spider/,/c/en/climb/]",
+      "concept": "/c/en/spider",
+      "provenance": "conceptnet_curated"
+    },
+    "monkey": {
+      "ability": "climb",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A monkey can climb trees.",
+      "ability_weight": 3.46,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/monkey/,/c/en/climb/]",
+      "concept": "/c/en/monkey",
+      "provenance": "conceptnet_curated"
+    },
+    "frog": {
+      "ability": "jump",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A frog can jump.",
+      "ability_weight": 3.46,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/frog/,/c/en/jump/]",
+      "concept": "/c/en/frog",
+      "provenance": "conceptnet_curated"
+    },
+    "fish": {
+      "ability": "swim",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A fish can swim.",
+      "ability_weight": 6.32,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/fish/,/c/en/swim/]",
+      "concept": "/c/en/fish",
+      "provenance": "conceptnet_curated"
+    },
+    "shark": {
+      "ability": "swim",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A shark can swim.",
+      "ability_weight": 2.83,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/shark/,/c/en/swim/]",
+      "concept": "/c/en/shark",
+      "provenance": "conceptnet_curated"
+    },
+    "octopus": {
+      "ability": "swim",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "An octopus can swim.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/octopus/,/c/en/swim/]",
+      "concept": "/c/en/octopus",
+      "provenance": "conceptnet_curated"
+    },
+    "crab": {
+      "ability": "pinch",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A crab can pinch.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/crab/,/c/en/pinch/]",
+      "concept": "/c/en/crab",
+      "provenance": "conceptnet_curated"
+    },
+    "horse": {
+      "ability": "gallop",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A horse can gallop.",
+      "ability_weight": 2.83,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/horse/,/c/en/gallop/]",
+      "concept": "/c/en/horse",
+      "provenance": "conceptnet_curated"
+    },
+    "elephant": {
+      "ability": "stomp",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "An elephant can stomp.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/elephant/,/c/en/stomp/]",
+      "concept": "/c/en/elephant",
+      "provenance": "conceptnet_curated"
+    },
+    "snake": {
+      "ability": "slither",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A snake can slither.",
+      "ability_weight": 2.83,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/snake/,/c/en/slither/]",
+      "concept": "/c/en/snake",
+      "provenance": "conceptnet_curated"
+    },
+    "sea_turtle": {
+      "ability": "swim",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A sea turtle can swim.",
+      "ability_weight": 2.83,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/sea_turtle/,/c/en/swim/]",
+      "concept": "/c/en/sea_turtle",
+      "provenance": "conceptnet_curated"
+    },
+    "snail": {
+      "ability": "crawl",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A snail can crawl slowly.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/snail/,/c/en/crawl/]",
+      "concept": "/c/en/snail",
+      "provenance": "conceptnet_curated"
+    },
+    "ant": {
+      "ability": "carry",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "An ant can carry objects heavier than itself.",
+      "ability_weight": 2.83,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/ant/,/c/en/carry/]",
+      "concept": "/c/en/ant",
+      "provenance": "conceptnet_curated"
+    },
+    "bee": {
+      "ability": "pollinate",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A bee can pollinate flowers.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/bee/,/c/en/pollinate/]",
+      "concept": "/c/en/bee",
+      "provenance": "conceptnet_curated"
+    },
+    "pig": {
+      "ability": "dig",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A pig can dig for food.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/pig/,/c/en/dig/]",
+      "concept": "/c/en/pig",
+      "provenance": "conceptnet_curated"
+    },
+    "penguin": {
+      "ability": "slide",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A penguin can slide on ice.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/penguin/,/c/en/slide/]",
+      "concept": "/c/en/penguin",
+      "provenance": "conceptnet_curated"
+    },
+    "scorpion": {
+      "ability": "sting",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A scorpion can sting.",
+      "ability_weight": 2.83,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/scorpion/,/c/en/sting/]",
+      "concept": "/c/en/scorpion",
+      "provenance": "conceptnet_curated"
+    },
+    "axe": {
+      "ability": "chop",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "An axe is used to chop wood.",
+      "ability_weight": 4.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/axe/,/c/en/chop/]",
+      "concept": "/c/en/axe",
+      "provenance": "conceptnet_curated"
+    },
+    "sword": {
+      "ability": "cut",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A sword is used to cut and fight.",
+      "ability_weight": 2.83,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/sword/,/c/en/cut/]",
+      "concept": "/c/en/sword",
+      "provenance": "conceptnet_curated"
+    },
+    "cannon": {
+      "ability": "shoot",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A cannon is used to shoot projectiles.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/cannon/,/c/en/shoot/]",
+      "concept": "/c/en/cannon",
+      "provenance": "conceptnet_curated"
+    },
+    "boomerang": {
+      "ability": "throw",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A boomerang is used to throw and return.",
+      "ability_weight": 2.83,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/boomerang/,/c/en/throw/]",
+      "concept": "/c/en/boomerang",
+      "provenance": "conceptnet_curated"
+    },
+    "flashlight": {
+      "ability": "light",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A flashlight is used to see in the dark.",
+      "ability_weight": 2.83,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/flashlight/,/c/en/light/]",
+      "concept": "/c/en/flashlight",
+      "provenance": "conceptnet_curated"
+    },
+    "campfire": {
+      "ability": "warm",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A campfire is used for warmth.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/campfire/,/c/en/warm/]",
+      "concept": "/c/en/campfire",
+      "provenance": "conceptnet_curated"
+    },
+    "cloud": {
+      "ability": "rain",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A cloud is used to make rain.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/cloud/,/c/en/rain/]",
+      "concept": "/c/en/cloud",
+      "provenance": "conceptnet_curated"
+    },
+    "sun": {
+      "ability": "heat",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "The sun is used to give heat and light.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/sun/,/c/en/heat/]",
+      "concept": "/c/en/sun",
+      "provenance": "conceptnet_curated"
+    },
+    "fan": {
+      "ability": "cool",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A fan is used to cool by blowing air.",
+      "ability_weight": 3.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/fan/,/c/en/cool/]",
+      "concept": "/c/en/fan",
+      "provenance": "conceptnet_curated"
+    },
+    "ladder": {
+      "ability": "climb",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A ladder is used for climbing.",
+      "ability_weight": 5.29,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/ladder/,/c/en/climb/]",
+      "concept": "/c/en/ladder",
+      "provenance": "conceptnet_curated"
+    },
+    "stairs": {
+      "ability": "climb",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "Stairs are used to climb between floors.",
+      "ability_weight": 3.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/stairs/,/c/en/climb/]",
+      "concept": "/c/en/stairs",
+      "provenance": "conceptnet_curated"
+    },
+    "parachute": {
+      "ability": "glide",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A parachute is used to slow a fall.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/parachute/,/c/en/glide/]",
+      "concept": "/c/en/parachute",
+      "provenance": "conceptnet_curated"
+    },
+    "hot_air_balloon": {
+      "ability": "float",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A hot air balloon is used to float upward.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/hot_air_balloon/,/c/en/float/]",
+      "concept": "/c/en/hot_air_balloon",
+      "provenance": "conceptnet_curated"
+    },
+    "bridge": {
+      "ability": "cross",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A bridge is used to cross a gap.",
+      "ability_weight": 4.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/bridge/,/c/en/cross/]",
+      "concept": "/c/en/bridge",
+      "provenance": "conceptnet_curated"
+    },
+    "sailboat": {
+      "ability": "sail",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A sailboat is used to sail on water.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/sailboat/,/c/en/sail/]",
+      "concept": "/c/en/sailboat",
+      "provenance": "conceptnet_curated"
+    },
+    "submarine": {
+      "ability": "dive",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A submarine is used to dive underwater.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/submarine/,/c/en/dive/]",
+      "concept": "/c/en/submarine",
+      "provenance": "conceptnet_curated"
+    },
+    "key": {
+      "ability": "unlock",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A key is used to unlock a door.",
+      "ability_weight": 5.29,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/key/,/c/en/unlock/]",
+      "concept": "/c/en/key",
+      "provenance": "conceptnet_curated"
+    },
+    "door": {
+      "ability": "enter",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A door is used to enter a room.",
+      "ability_weight": 3.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/door/,/c/en/enter/]",
+      "concept": "/c/en/door",
+      "provenance": "conceptnet_curated"
+    },
+    "rake": {
+      "ability": "gather",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A rake is used to gather leaves.",
+      "ability_weight": 3.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/rake/,/c/en/gather/]",
+      "concept": "/c/en/rake",
+      "provenance": "conceptnet_curated"
+    },
+    "scissors": {
+      "ability": "cut",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "Scissors are used for cutting.",
+      "ability_weight": 5.29,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/scissors/,/c/en/cut/]",
+      "concept": "/c/en/scissors",
+      "provenance": "conceptnet_curated"
+    },
+    "clock": {
+      "ability": "tell time",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A clock is used to tell time.",
+      "ability_weight": 4.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/clock/,/c/en/tell_time/]",
+      "concept": "/c/en/clock",
+      "provenance": "conceptnet_curated"
+    },
+    "anvil": {
+      "ability": "forge",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "An anvil is used to forge metal.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/anvil/,/c/en/forge/]",
+      "concept": "/c/en/anvil",
+      "provenance": "conceptnet_curated"
+    },
+    "bucket": {
+      "ability": "carry",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A bucket is used to carry water.",
+      "ability_weight": 3.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/bucket/,/c/en/carry/]",
+      "concept": "/c/en/bucket",
+      "provenance": "conceptnet_curated"
+    },
+    "umbrella": {
+      "ability": "shelter",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "An umbrella is used to shelter from rain.",
+      "ability_weight": 3.46,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/umbrella/,/c/en/shelter/]",
+      "concept": "/c/en/umbrella",
+      "provenance": "conceptnet_curated"
+    },
+    "tree": {
+      "ability": "shade",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A tree is used to provide shade.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/tree/,/c/en/shade/]",
+      "concept": "/c/en/tree",
+      "provenance": "conceptnet_curated"
+    },
+    "mushroom": {
+      "ability": "eat",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A mushroom is used for eating.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/mushroom/,/c/en/eat/]",
+      "concept": "/c/en/mushroom",
+      "provenance": "conceptnet_curated"
+    },
+    "wheel": {
+      "ability": "roll",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "A wheel is used to roll and move vehicles.",
+      "ability_weight": 2.83,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/wheel/,/c/en/roll/]",
+      "concept": "/c/en/wheel",
+      "provenance": "conceptnet_curated"
+    }
+  }
+}

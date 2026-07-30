@@ -1,0 +1,20 @@
+{
+  "id": "pig",
+  "rig_type": "walker",
+  "move_speed": 175,
+  "jump_impulse": 330,
+  "friction": 0.9,
+  "joint_spring": 1120,
+  "joint_damping": 70,
+  "joint_torque_limit": 2800,
+  "target_size": [116, 78],
+  "align": "bottom",
+  "ground_offset": 38,
+  "stride_length": 40,
+  "leg_swing_degrees": 15,
+  "leg_phase_ripple": 0.30,
+  "walk_bob": 2.0,
+  "air_splay_degrees": 7,
+  "tilt_degrees": 3.0,
+  "landing_squash": 0.13
+}

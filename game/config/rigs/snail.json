@@ -1,0 +1,15 @@
+{
+  "id": "snail",
+  "rig_type": "swimmer",
+  "move_speed": 72,
+  "friction": 0.98,
+  "joint_spring": 720,
+  "joint_damping": 46,
+  "joint_torque_limit": 1500,
+  "target_size": [92, 66],
+  "align": "center",
+  "swim_style": "slither",
+  "wave_length": 44,
+  "wave_amplitude": 5.0,
+  "head_direction": [1, 0]
+}

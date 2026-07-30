@@ -1,0 +1,74 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/out_of_ink_overlay.gd" id="1_4bjnj"]
+
+[node name="OutOfInkOverlay" type="CanvasLayer" unique_id=360644569]
+layer = 65
+script = ExtResource("1_4bjnj")
+
+[node name="Root" type="Control" parent="." unique_id=1254195842]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Scrim" type="ColorRect" parent="Root" unique_id=1381942289]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.015, 0.045, 0.025, 0.86)
+
+[node name="Panel" type="PanelContainer" parent="Root" unique_id=1471695219]
+custom_minimum_size = Vector2(620, 320)
+layout_mode = 0
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -310.0
+offset_top = -160.0
+offset_right = 310.0
+offset_bottom = 160.0
+
+[node name="VBox" type="VBoxContainer" parent="Root/Panel" unique_id=1380014790]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="Title" type="Label" parent="Root/Panel/VBox" unique_id=811402225]
+layout_mode = 2
+theme_type_variation = &"ScreenTitle"
+text = "OUT OF INK"
+horizontal_alignment = 1
+
+[node name="Body" type="Label" parent="Root/Panel/VBox" unique_id=958026758]
+layout_mode = 2
+theme_type_variation = &"ScreenSubtitle"
+text = "You can keep going with what you have already drawn, or start the level over."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Buttons" type="HBoxContainer" parent="Root/Panel/VBox" unique_id=305611588]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ResumeButton" type="Button" parent="Root/Panel/VBox/Buttons" unique_id=1675818599]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"DialogButton"
+text = "KEEP PLAYING"
+
+[node name="RestartButton" type="Button" parent="Root/Panel/VBox/Buttons" unique_id=264248934]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"DialogButton"
+text = "RESTART"
+
+[node name="LevelSelectButton" type="Button" parent="Root/Panel/VBox/Buttons" unique_id=1511251495]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"DialogButton"
+text = "LEVEL SELECT"

@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "What the controls screen SAYS each action is for. The keys themselves are not",
+    "listed here on purpose -- ControlsOverlay reads them out of the live InputMap at",
+    "runtime, so a rebinding in project.godot cannot leave this file telling the",
+    "player something that is no longer true.",
+    "",
+    "Rows appear in this order, grouped by 'group'. An action missing from the",
+    "InputMap is skipped rather than shown with a blank key. An optional 'through'",
+    "names a last action, and the row shows the range rather than only the first key."
+  ],
+  "rows": [
+    {"group": "MOVEMENT", "action": "move_left", "label": "Move left"},
+    {"group": "MOVEMENT", "action": "move_right", "label": "Move right"},
+    {"group": "MOVEMENT", "action": "move_up", "label": "Look up / swim up"},
+    {"group": "MOVEMENT", "action": "move_down", "label": "Crouch / swim down"},
+    {"group": "MOVEMENT", "action": "jump", "label": "Jump, flap or hop"},
+
+    {"group": "DRAWING", "action": "redraw", "label": "Open the drawing panel"},
+
+    {"group": "UTILITIES", "action": "interact", "label": "Pick up or equip"},
+    {"group": "UTILITIES", "action": "use_utility", "label": "Use what you hold"},
+    {"group": "UTILITIES", "action": "rotate_left", "label": "Rotate while placing"},
+    {"group": "UTILITIES", "action": "rotate_right", "label": "Rotate the other way"},
+    {"group": "UTILITIES", "action": "inventory_slot_1", "through": "inventory_slot_6", "label": "Inventory slots"},
+
+    {"group": "SYSTEM", "action": "pause", "label": "Pause, or back out"}
+  ]
+}
