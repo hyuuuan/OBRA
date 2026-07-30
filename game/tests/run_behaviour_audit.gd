@@ -125,16 +125,17 @@ func _check_ladder() -> void:
 func _check_mushroom() -> void:
 	var hero := _wanderer(Vector2(800.0, 480.0))
 	var shroom := _utility("mushroom", Vector2(800.0, 640.0))
-	await _settle(90)
 	var lowest := hero.global_position.y
-	for i in range(90):
+	var highest := hero.global_position.y
+	for i in range(150):
 		await physics_frame
 		lowest = maxf(lowest, hero.global_position.y)
-	var rebound := lowest - hero.global_position.y
-	if rebound > 20.0:
-		_pass("mushroom", "bounced the player %.0fpx back up" % rebound)
+		highest = minf(highest, hero.global_position.y)
+	var rebound := lowest - highest
+	if rebound > 20.0 and highest > -400.0:
+		_pass("mushroom", "bounced the player %.0fpx back up (peak y=%.0f)" % [rebound, highest])
 	else:
-		_fail("mushroom", "player landed and stayed (rebound %.0fpx)" % rebound)
+		_fail("mushroom", "rebound %.0fpx, peak y=%.0f%s" % [rebound, highest, " -- launched out of the level" if highest <= -400.0 else " -- no bounce"])
 	hero.queue_free()
 	shroom.queue_free()
 	await process_frame

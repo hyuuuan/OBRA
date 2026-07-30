@@ -48,6 +48,15 @@ func configure_entity(entry: Dictionary) -> void:
 	rig_profile = _load_rig_profile(String(entry.get("rig_profile", "")))
 	if not rig_profile.has("rig_type"):
 		rig_profile["rig_type"] = String(entry.get("rig_type", "none"))
+	# An authored size, before the skin is built from the profile. 21 of the 27 utilities
+	# share one scene, so its 96x96 export was the size of every one of them: a bridge
+	# drawn as a long span was squashed to fit a square and came out too short to reach
+	# across anything. A scene export cannot tell those 21 apart; config/object_sizes.json
+	# can.
+	var authored := _authored_target_size(String(entry.get("id", "")))
+	if authored != Vector2.ZERO:
+		rig_profile["target_size"] = [authored.x, authored.y]
+		default_target_size = authored
 	_configure_physics()
 	_configure_skin()
 	_rebuild_collision()
@@ -554,6 +563,27 @@ func _get_skin() -> Node:
 	if skin == null:
 		skin = find_child("DrawingSkin", true, false)
 	return skin
+
+
+## Cached per run: every placement instantiates an object, and re-reading the table for
+## each one would put a file read on the placement path.
+static var _authored_sizes: Dictionary = {}
+static var _authored_sizes_loaded := false
+
+
+func _authored_target_size(entity_id: String) -> Vector2:
+	if not _authored_sizes_loaded:
+		_authored_sizes_loaded = true
+		var text := FileAccess.get_file_as_string("res://config/object_sizes.json")
+		var parsed: Variant = JSON.parse_string(text) if not text.is_empty() else null
+		if parsed is Dictionary:
+			_authored_sizes = (parsed as Dictionary).get("sizes", {})
+		else:
+			push_warning("Could not read config/object_sizes.json; drawn objects keep their scene sizes")
+	var value: Variant = _authored_sizes.get(entity_id)
+	if value is Array and (value as Array).size() >= 2:
+		return Vector2(float(value[0]), float(value[1]))
+	return Vector2.ZERO
 
 
 func _load_rig_profile(profile_path: String) -> Dictionary:
