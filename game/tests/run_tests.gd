@@ -71,6 +71,7 @@ func _run() -> void:
 	await _test_placement_aiming()
 	await _test_confirmed_utility_can_interact()
 	await _test_every_utility_acts()
+	await _test_placed_props_keep_their_pose()
 	await _test_level_1_needs_drawing()
 	world.queue_free()
 	registry = null
@@ -816,6 +817,31 @@ func _test_level_1_needs_drawing() -> void:
 	_expect(far_lip - near_lip > jump_reach + 100.0,
 		"the gorge is %.0fpx, which the wanderer can clear (%.0fpx)" % [far_lip - near_lip, jump_reach])
 
+	# EVERY CLIMB NEEDS SOMEWHERE TO BUILD AT ITS FOOT. The bank below the first wall was
+	# 40px wide against a 72px ladder, so the one spot the player HAS to build in could
+	# not hold the thing they had to build -- the ladder slid off it into the paddy. A
+	# gate you cannot answer is worse than no gate.
+	var widest_standing_prop := 0.0
+	var sizes_text := FileAccess.get_file_as_string("res://config/object_sizes.json")
+	var sizes_parsed: Variant = JSON.parse_string(sizes_text) if not sizes_text.is_empty() else null
+	if sizes_parsed is Dictionary:
+		for prop in ["ladder"]:
+			var size_value: Variant = ((sizes_parsed as Dictionary).get("sizes", {}) as Dictionary).get(prop)
+			if size_value is Array and (size_value as Array).size() >= 1:
+				widest_standing_prop = maxf(widest_standing_prop, float(size_value[0]))
+	_expect(widest_standing_prop > 0.0, "could not read object_sizes.json to size the build banks")
+	# Plus clearance, so the prop is standing ON the bank rather than balanced on its lip.
+	widest_standing_prop += 40.0
+	for foot in [["LowerRight", "Terrace1"], ["Terrace1", "Terrace2"]]:
+		var bank := terrain.get_node_or_null(NodePath(String(foot[0]))) as Node2D
+		_expect(bank != null, "no bank at the foot of the climb onto %s" % foot[1])
+		if bank == null:
+			continue
+		var bank_width := float(bank.get("segment_size").x)
+		_expect(bank_width >= widest_standing_prop,
+			"the bank at %s is %.0fpx, too narrow to stand a ladder with clearance (%.0fpx) the climb onto %s needs" % [
+				foot[0], bank_width, widest_standing_prop, foot[1]])
+
 	var routes := level.get_node_or_null(^"GameplayPlane/Routes") as RouteLayout2D
 	_expect(routes != null, "level 1 has no route layout")
 	if routes != null:
@@ -837,6 +863,45 @@ func _test_level_1_needs_drawing() -> void:
 	_expect(node != null, "level 1 has no dialogue node at the gorge")
 	level.queue_free()
 	await process_frame
+
+
+## The reported bug, from a screenshot: a ladder aimed upright fell flat the instant it
+## was let go, which makes placement pointless -- the player chose an orientation and the
+## physics threw it away. A placed object keeps the pose it was placed in.
+func _test_placed_props_keep_their_pose() -> void:
+	for entity_id in ["ladder", "stairs", "tree", "door", "square"]:
+		var entry := registry.get_entity(entity_id)
+		if entry.is_empty():
+			continue
+		var prop := registry.instantiate_entity(entity_id) as PhysicsShapeObject
+		_expect(prop != null, "could not instantiate %s" % entity_id)
+		if prop == null:
+			continue
+		world.add_child(prop)
+		prop.apply_item_data(DrawnItemData.from_prediction(
+			entity_id, entity_id.capitalize(), _blank_image(), [_stroke(_closed_body())], 0.4, entry))
+		# Standing on the floor _add_floor() laid at y 400..440.
+		prop.global_position = Vector2(500.0, 340.0)
+		prop.rotation = 0.0
+		prop.confirm_placement()
+		for frame in range(90):
+			await physics_frame
+		_expect(absf(prop.rotation) < 0.12,
+			"%s toppled to %.0f degrees after being placed upright (lock_rotation=%s)" % [
+				entity_id, rad_to_deg(prop.rotation), prop.lock_rotation])
+		prop.queue_free()
+		await process_frame
+	# A circle is the exception: rolling IS its ConceptNet ability, so it must stay free.
+	var ball := registry.instantiate_entity("circle") as PhysicsShapeObject
+	if ball != null:
+		world.add_child(ball)
+		ball.apply_item_data(DrawnItemData.from_prediction(
+			"circle", "Circle", _blank_image(), [_stroke(_closed_body())], 0.4, registry.get_entity("circle")))
+		ball.global_position = Vector2(700.0, 340.0)
+		ball.confirm_placement()
+		_expect(not ball.lock_rotation, "a placed circle had its rotation locked and cannot roll")
+		ball.queue_free()
+		await process_frame
 
 
 ## The reported hole: 21 of the 27 drawn objects did nothing when used. Most could not
