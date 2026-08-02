@@ -5,6 +5,9 @@ extends Node2D
 ## A morph whose anchor comes within this radius of the level's GoalMarker completes it.
 const GOAL_RADIUS := 120.0
 
+## The body the player starts in and can always get back to.
+const WANDERER_SCENE := "res://creatures/wanderer.tscn"
+
 @onready var registry: EntityRegistry = $EntityRegistry
 @onready var environment: Node = $EnvironmentBaseplate
 @onready var spawn_point: Marker2D = $EnvironmentBaseplate/GameplayPlane/SpawnPoint
@@ -42,6 +45,8 @@ var _script_lines: Dictionary = {}
 var _memory_shown := false
 var _equipped_utility: UtilityObject
 var _level_completed := false
+## What the player is currently wearing, so changing back can name what it cost them.
+var _current_form_name := ""
 var _run_started_msec := 0
 ## entity_id -> true, for the "things drawn" stat. Distinct classes, not attempts.
 var _classes_this_run: Dictionary = {}
@@ -120,6 +125,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("use_utility"):
 		get_viewport().set_input_as_handled()
 		_use_equipped_utility()
+	elif event.is_action_pressed("revert_form"):
+		get_viewport().set_input_as_handled()
+		_revert_to_base_form()
 
 
 func _on_draw_button_pressed() -> void:
@@ -218,31 +226,11 @@ func _spawn_or_replace(
 			status_label.text = "Rig build failed safely — previous morph kept"
 			new_player.queue_free()
 			return false
-	if not previous_state.is_empty() and new_player.has_method("apply_morph_state"):
-		new_player.call("apply_morph_state", previous_state)
-	# The swap is otherwise a single frame -- one body gone, another in its place --
-	# which reads as a glitch rather than as the transformation the game is about.
-	MorphFlash.play(entity_root, new_player.global_position, new_player)
-
-	var camera_target := new_player
-	if new_player.has_method("get_camera_target"):
-		var stable_target := new_player.call("get_camera_target") as Node2D
-		if stable_target != null:
-			camera_target = stable_target
-	elif new_player.has_method("get_physics_anchor"):
-		var anchor := new_player.call("get_physics_anchor") as Node2D
-		if anchor != null:
-			camera_target = anchor
-	environment.call("set_target", camera_target)
-
-	var old_player := player
-	player = new_player
-	if lolo != null and is_instance_valid(lolo):
-		lolo.follow(new_player)
-	if old_player != null and is_instance_valid(old_player):
-		old_player.queue_free()
+	_adopt_player(new_player, previous_state, true)
 
 	var label := display_name if not display_name.is_empty() else entity_id.capitalize()
+	# The bare name, before the rig summary is appended: it is what Q reports losing.
+	_current_form_name = label
 	if skin != null and skin.has_method("rig_summary"):
 		label += " [%s | %d strokes]" % [skin.call("rig_summary"), strokes.size()]
 	status_label.text = label
@@ -581,16 +569,99 @@ func _show_carried(entity_id: String) -> void:
 ## through the same path that replaces one morph with another -- the wanderer answers
 ## the same calls a drawn creature does, which is the whole reason the swap is uniform.
 func _spawn_wanderer() -> void:
-	var scene := load("res://creatures/wanderer.tscn") as PackedScene
+	var wanderer := _instantiate_wanderer()
+	if wanderer == null:
+		return
+	wanderer.global_position = spawn_point.global_position
+	# No flash on the first frame: there is nothing to transform FROM, and a level that
+	# opens on an effect reads as something having already happened offscreen.
+	_adopt_player(wanderer, {}, false)
+
+
+func _instantiate_wanderer() -> Node2D:
+	var scene := load(WANDERER_SCENE) as PackedScene
 	if scene == null:
 		push_warning("GameLevel: no wanderer scene; the level starts empty")
-		return
+		return null
 	var wanderer := scene.instantiate() as Node2D
 	entity_root.add_child(wanderer)
-	wanderer.global_position = spawn_point.global_position
 	wanderer.call("set_world_bounds", Rect2(environment.get("world_bounds")))
-	player = wanderer
-	environment.call("set_target", wanderer)
+	return wanderer
+
+
+## Q: give the player their own body back.
+##
+## Being a drawn animal is a commitment -- a fish cannot climb and a bird cannot push --
+## and until now the only way out of one was to spend more ink drawing your way into a
+## different one. That makes a wrong guess about which creature a section wants into a
+## dead end, which is the opposite of what a game about trying things should do. Changing
+## back is therefore FREE: it draws nothing, so it costs no ink.
+##
+## It is not an undo. The creature is gone and the ink that made it stays spent, so the
+## status line says so rather than letting the player find out by looking for it.
+func _revert_to_base_form() -> void:
+	if player is Wanderer:
+		status_label.text = "You are already yourself"
+		return
+	var previous_state: Dictionary = {}
+	if player != null and is_instance_valid(player) and player.has_method("capture_morph_state"):
+		previous_state = player.call("capture_morph_state")
+	# Same reason a morph drops what it holds: the held item is parented to the OLD body's
+	# grip, so it has to be re-homed into the world before that body is freed.
+	_drop_equipped_before_morph(previous_state)
+
+	# Where the creature was, not the spawn point -- changing back is not restarting. Both
+	# kinds of player report "position", so the fallback only covers a body that answered
+	# capture_morph_state with nothing at all.
+	var landing := spawn_point.global_position
+	if player != null and is_instance_valid(player):
+		landing = player.global_position
+	landing = Vector2(previous_state.get("position", landing))
+
+	var wanderer := _instantiate_wanderer()
+	if wanderer == null:
+		status_label.text = "Could not change back"
+		return
+	wanderer.global_position = landing
+	_adopt_player(wanderer, previous_state, true)
+
+	var was := _current_form_name
+	_current_form_name = ""
+	if was.is_empty():
+		status_label.text = "Back to yourself"
+	else:
+		status_label.text = "Back to yourself — the %s is gone" % was.to_lower()
+
+
+## Everything that has to happen when one body becomes the player in place of another,
+## in one place because the wanderer and a drawn creature answer the same calls -- that
+## is the whole reason the swap is uniform, and three copies of it would be three chances
+## for one of them to forget the camera or leave the old body in the world.
+func _adopt_player(new_player: Node2D, previous_state: Dictionary, flash: bool) -> void:
+	if not previous_state.is_empty() and new_player.has_method("apply_morph_state"):
+		new_player.call("apply_morph_state", previous_state)
+	# The swap is otherwise a single frame -- one body gone, another in its place --
+	# which reads as a glitch rather than as the transformation the game is about.
+	if flash:
+		MorphFlash.play(entity_root, new_player.global_position, new_player)
+
+	var camera_target := new_player
+	if new_player.has_method("get_camera_target"):
+		var stable_target := new_player.call("get_camera_target") as Node2D
+		if stable_target != null:
+			camera_target = stable_target
+	elif new_player.has_method("get_physics_anchor"):
+		var anchor := new_player.call("get_physics_anchor") as Node2D
+		if anchor != null:
+			camera_target = anchor
+	environment.call("set_target", camera_target)
+
+	var old_player := player
+	player = new_player
+	if lolo != null and is_instance_valid(lolo):
+		lolo.follow(new_player)
+	if old_player != null and is_instance_valid(old_player):
+		old_player.queue_free()
 
 
 ## Lolo's script, from config rather than from strings typed into this file, for the
