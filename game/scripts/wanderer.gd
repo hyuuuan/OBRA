@@ -267,6 +267,17 @@ func apply_morph_state(state: Dictionary) -> void:
 		global_position = state["position"]
 	if state.has("velocity"):
 		velocity = state["velocity"]
+	elif state.has("linear_velocity"):
+		# The two players describe the same thing with different words. A drawn creature is
+		# a rigid body and calls its momentum linear_velocity; this read only "velocity",
+		# which did not matter while the swap only ever went wanderer -> creature. Changing
+		# BACK goes the other way, and without this a player who pressed Q mid-leap landed
+		# in the right place with every bit of their speed silently thrown away.
+		var inherited := Vector2(state["linear_velocity"])
+		# Capped for the same reason PlayableEntity caps it: a diving bird moves far faster
+		# than a walker ever does, and inheriting all of that is a launch, not a landing.
+		velocity = inherited.limit_length(520.0) \
+			if is_finite(inherited.x) and is_finite(inherited.y) else Vector2.ZERO
 	if state.has("facing"):
 		_facing = float(state["facing"])
 
