@@ -48,12 +48,16 @@ player or creates a placeable utility from the player's actual stroke vectors.
 ## Gameplay Shape
 
 - Flow: a successful morph replaces the active player; a utility enters placement
-  and then lives under `WorldItemRoot` or in the six-slot inventory.
+  and then lives under `WorldItemRoot` or in the six-slot inventory. Q changes
+  back to the wanderer where the creature stood, for free — it draws nothing, so
+  it costs no ink, but the creature and the ink already spent on it are gone.
+  Every swap goes through `GameLevel._adopt_player`, which is the only place that
+  moves the camera, retargets Lolo, and frees the old body.
 - Controls are defined in `game/project.godot`: WASD/arrows for movement, Space
   for jump/flap/hop, R for redraw, 1–6 for inventory, E to interact, F to use,
-  Z/X to rotate a placement, and Escape to pause. `interact` and `rotate_right`
-  both sat on E until the rotate pair moved to Z/X — check for a clash before
-  adding a binding.
+  Q to change back to the wanderer, Z/X to rotate a placement, and Escape to
+  pause. `interact` and `rotate_right` both sat on E until the rotate pair moved
+  to Z/X — check for a clash before adding a binding.
 - Ink is level-scoped: twelve normalized canvas diagonals, transactionally reserved
   while drawing and committed only by a successful morph or stored/placed utility.
 - The environment is asset-light on purpose. Keep `GameplayPlane`, `EntityRoot`,
