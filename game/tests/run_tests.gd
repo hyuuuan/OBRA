@@ -73,6 +73,7 @@ func _run() -> void:
 	await _test_every_utility_acts()
 	await _test_placed_props_keep_their_pose()
 	await _test_level_1_needs_drawing()
+	await _test_revert_to_base_form()
 	world.queue_free()
 	registry = null
 	world = null
@@ -861,6 +862,119 @@ func _test_level_1_needs_drawing() -> void:
 
 	var node := level.get_node_or_null(^"GameplayPlane/Gorge/DialogueNode") as DialogueNode2D
 	_expect(node != null, "level 1 has no dialogue node at the gorge")
+	level.queue_free()
+	await process_frame
+
+
+## Q gives the player their own body back.
+##
+## Three things can each break this on their own, so all three are checked. The key can be
+## unbound, which is a feature nobody can reach. The controls screen can fail to mention
+## it, which is a feature nobody knows about. And the handover itself can go wrong: a
+## drawn creature is a rigid body and reports its momentum as "linear_velocity", while the
+## wanderer read only "velocity" -- so the obvious version of this feature lands the player
+## in the right place with every bit of their speed silently dropped. That last one passes
+## any test that only asks "is the player a stickman again", which is why the velocity is
+## asserted separately and against a live morph rather than a hand-built dictionary.
+func _test_revert_to_base_form() -> void:
+	_expect(InputMap.has_action("revert_form"), "no revert_form action: Q is bound to nothing")
+	if InputMap.has_action("revert_form"):
+		var on_q := false
+		for event in InputMap.action_get_events("revert_form"):
+			var key := event as InputEventKey
+			if key != null and key.physical_keycode == KEY_Q:
+				on_q = true
+		_expect(on_q, "revert_form exists but is not on Q")
+	# The controls screen takes its keys from the InputMap but its ROWS from this file, so
+	# an action missing here is one the player is never told exists.
+	_expect(FileAccess.get_file_as_string("res://config/controls.json").find("revert_form") != -1,
+		"the controls screen never mentions changing back")
+
+	var packed := load("res://game_level.tscn") as PackedScene
+	_expect(packed != null, "game level scene did not load")
+	if packed == null:
+		return
+	var level := packed.instantiate()
+	# Without this the level starts a real Python process on import.
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	world.add_child(level)
+	await process_frame
+	await process_frame
+	_expect(level.get("player") is Wanderer, "the level did not start the player as the wanderer")
+
+	# Become something else through the real recognition path, not by calling the swap.
+	var drawing := Image.create(512, 512, false, Image.FORMAT_RGBA8)
+	drawing.fill(Color.WHITE)
+	var panel := level.get_node("DrawPanel") as DrawPanel
+	panel.open_panel()
+	panel.set("_pending_strokes", SpiderReferenceFixtures.separate_legs())
+	level.get_node("InkManager").call("reserve_attempt", 1.0)
+	panel.call("_on_entity_prediction", "spider", "Spider", 0.99, drawing, {})
+	for _frame in range(90):
+		await physics_frame
+	var morphed := level.get("player") as Node2D
+	_expect(morphed != null and not (morphed is Wanderer),
+		"drawing a spider did not replace the wanderer, so there is nothing to change back from")
+	if morphed == null or morphed is Wanderer:
+		level.queue_free()
+		await process_frame
+		return
+	# MOVE THE CREATURE OFF THE SPAWN POINT FIRST. It morphs where the wanderer was
+	# standing, which IS the spawn point, so a revert that simply respawns the wanderer
+	# lands a few pixels from the right answer and passes. Mutation-tested: without this
+	# the naive respawn scores 65px and slips under any sane threshold; with it, 622px.
+	var spawn_at := (level.get_node("EnvironmentBaseplate/GameplayPlane/SpawnPoint") as Node2D).global_position
+	morphed.call("apply_morph_state", {"position": spawn_at + Vector2(620.0, -40.0)})
+	for _frame in range(60):
+		await physics_frame
+
+	# Measured off the same anchor the level itself uses to decide where the player is.
+	var was_at := morphed.global_position
+	if morphed.has_method("get_physics_anchor"):
+		var anchor := morphed.call("get_physics_anchor") as Node2D
+		if anchor != null:
+			was_at = anchor.global_position
+	_expect(was_at.distance_to(spawn_at) > 300.0,
+		"the harness could not get the creature away from the spawn point, so this cannot tell a revert from a respawn")
+	# A creature that has finished falling is standing still, and a still creature cannot
+	# show whether momentum survives the handover. Give it some so the question is live.
+	var anchor_body := morphed.call("get_physics_anchor") as RigidBody2D
+	if anchor_body != null:
+		anchor_body.linear_velocity = Vector2(180.0, -60.0)
+	var moving := Vector2.ZERO
+	if morphed.has_method("capture_morph_state"):
+		moving = Vector2((morphed.call("capture_morph_state") as Dictionary).get("linear_velocity", Vector2.ZERO))
+
+	level.call("_revert_to_base_form")
+	await process_frame
+	var back := level.get("player") as Node2D
+	_expect(back is Wanderer, "Q did not put the player back in their own body")
+	_expect(not is_instance_valid(morphed) or morphed.is_queued_for_deletion(),
+		"the spider was left in the world after the player changed out of it")
+	if back is Wanderer:
+		var landed: Vector2 = (back as Wanderer).global_position
+		_expect(landed.distance_to(was_at) < 120.0,
+			"changing back moved the player %.0fpx, from %s to %s -- it is not a respawn" % [
+				landed.distance_to(was_at), was_at, landed])
+		# The harness gave the creature its speed, so a still one here is the harness
+		# failing rather than the feature passing -- said out loud, because a skipped
+		# assertion that reports nothing is how this check would quietly stop testing.
+		_expect(moving.length() > 20.0,
+			"the harness could not get the creature moving (%.1f px/s), so momentum was never tested" % moving.length())
+		if moving.length() > 20.0:
+			_expect((back as Wanderer).velocity.length() > 1.0,
+				"the wanderer inherited none of the creature's %.0f px/s (linear_velocity dropped)" % moving.length())
+
+	# Pressing it again must be a no-op, not a second wanderer on top of the first.
+	level.call("_revert_to_base_form")
+	await process_frame
+	_expect(level.get("player") == back, "Q while already yourself built another wanderer")
+	var wanderers := 0
+	for node in level.get_node("EnvironmentBaseplate/GameplayPlane/EntityRoot").get_children():
+		if node is Wanderer and not node.is_queued_for_deletion():
+			wanderers += 1
+	_expect(wanderers == 1, "%d wanderers in the world after changing back twice" % wanderers)
+
 	level.queue_free()
 	await process_frame
 

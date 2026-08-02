@@ -17,6 +17,7 @@
     {"group": "MOVEMENT", "action": "jump", "label": "Jump, flap or hop"},
 
     {"group": "DRAWING", "action": "redraw", "label": "Open the drawing panel"},
+    {"group": "DRAWING", "action": "revert_form", "label": "Change back to yourself"},
 
     {"group": "UTILITIES", "action": "interact", "label": "Pick up or equip"},
     {"group": "UTILITIES", "action": "use_utility", "label": "Use what you hold"},
