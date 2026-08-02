@@ -48,6 +48,15 @@ func configure_entity(entry: Dictionary) -> void:
 	rig_profile = _load_rig_profile(String(entry.get("rig_profile", "")))
 	if not rig_profile.has("rig_type"):
 		rig_profile["rig_type"] = String(entry.get("rig_type", "none"))
+	# An authored size, before the skin is built from the profile. 21 of the 27 utilities
+	# share one scene, so its 96x96 export was the size of every one of them: a bridge
+	# drawn as a long span was squashed to fit a square and came out too short to reach
+	# across anything. A scene export cannot tell those 21 apart; config/object_sizes.json
+	# can.
+	var authored := _authored_target_size(String(entry.get("id", "")))
+	if authored != Vector2.ZERO:
+		rig_profile["target_size"] = [authored.x, authored.y]
+		default_target_size = authored
 	_configure_physics()
 	_configure_skin()
 	_rebuild_collision()
@@ -148,6 +157,19 @@ func confirm_placement() -> void:
 	sleeping = false
 	linear_velocity = Vector2.ZERO
 	angular_velocity = 0.0
+	# A PLACED OBJECT KEEPS THE POSE IT WAS PLACED IN. Aiming a ladder upright and
+	# watching it topple flat the moment it is let go makes placement pointless -- the
+	# player set an orientation and the physics threw it away. Rotation is locked to what
+	# they chose. The exceptions are the things whose whole ability is turning: a circle
+	# rolls (that IS its ConceptNet ability) and a wheel has to spin to drive anything.
+	if not _rolls():
+		lock_rotation = true
+	# And the spawn toss is suppressed here for the same reason set_preview does it: a
+	# confirmed placement is deliberate. Utilities were spared because _apply_spawn_motion
+	# returns early for them, so only the SHAPES got a spin applied a frame after being
+	# set down -- which is why a placed square span to 64 degrees with its rotation
+	# supposedly locked. The lock was fine; something was still handing it a spin.
+	_spawn_motion_applied = true
 	# A placed shape is scenery, not a body the player is driving. Shapes route to
 	# placement rather than to the morph path, so leaving controllable set meant every
 	# square and circle in the level answered the movement keys remotely -- press D and
@@ -155,6 +177,46 @@ func confirm_placement() -> void:
 	controllable = false
 	if item_data != null:
 		item_data.placement_transform = global_transform
+
+
+## The object's own collision, as one world-space rectangle. Anything asking "how far
+## away is this thing" wants this and not global_position: the origin of a tall object is
+## its middle, so a standing 244px ladder reads as 122px away from someone with their
+## hand on it.
+func world_extent() -> Rect2:
+	var bounds := Rect2()
+	var started := false
+	for child in get_children():
+		var collision := child as CollisionShape2D
+		if collision == null or collision.shape == null or not collision.shape.has_method("get_rect"):
+			continue
+		var rect: Rect2 = collision.shape.call("get_rect")
+		var basis := collision.global_transform
+		for corner in [
+			rect.position,
+			Vector2(rect.end.x, rect.position.y),
+			Vector2(rect.position.x, rect.end.y),
+			rect.end,
+		]:
+			var point: Vector2 = basis * corner
+			bounds = bounds.expand(point) if started else Rect2(point, Vector2.ZERO)
+			started = true
+	return bounds if started else Rect2(global_position, Vector2.ZERO)
+
+
+## How far a point is from the object's surface, rather than from its middle.
+func distance_from(point: Vector2) -> float:
+	var bounds := world_extent()
+	if bounds.size == Vector2.ZERO:
+		return point.distance_to(global_position)
+	return point.distance_to(Vector2(
+		clampf(point.x, bounds.position.x, bounds.end.x),
+		clampf(point.y, bounds.position.y, bounds.end.y)))
+
+
+## Things whose function is rotation, and which must therefore stay free to tumble.
+func _rolls() -> bool:
+	return shape_type in ["circle", "wheel"]
 
 
 func apply_item_data(item: DrawnItemData) -> void:
@@ -554,6 +616,27 @@ func _get_skin() -> Node:
 	if skin == null:
 		skin = find_child("DrawingSkin", true, false)
 	return skin
+
+
+## Cached per run: every placement instantiates an object, and re-reading the table for
+## each one would put a file read on the placement path.
+static var _authored_sizes: Dictionary = {}
+static var _authored_sizes_loaded := false
+
+
+func _authored_target_size(entity_id: String) -> Vector2:
+	if not _authored_sizes_loaded:
+		_authored_sizes_loaded = true
+		var text := FileAccess.get_file_as_string("res://config/object_sizes.json")
+		var parsed: Variant = JSON.parse_string(text) if not text.is_empty() else null
+		if parsed is Dictionary:
+			_authored_sizes = (parsed as Dictionary).get("sizes", {})
+		else:
+			push_warning("Could not read config/object_sizes.json; drawn objects keep their scene sizes")
+	var value: Variant = _authored_sizes.get(entity_id)
+	if value is Array and (value as Array).size() >= 2:
+		return Vector2(float(value[0]), float(value[1]))
+	return Vector2.ZERO
 
 
 func _load_rig_profile(profile_path: String) -> Dictionary:

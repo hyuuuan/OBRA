@@ -69,6 +69,28 @@ func _wanderer(at: Vector2) -> Node2D:
 	return node
 
 
+## Two rails and five rungs, tall: the shape the size table is sized for.
+func _ladder_strokes() -> Array:
+	var strokes: Array = []
+	for x in [0.0, 90.0]:
+		strokes.append({"points": PackedVector2Array([Vector2(x, 0.0), Vector2(x, 380.0)]),
+			"width": 7.0, "color": Color.BLACK})
+	for y in [60.0, 140.0, 220.0, 300.0, 360.0]:
+		strokes.append({"points": PackedVector2Array([Vector2(0.0, y), Vector2(90.0, y)]),
+			"width": 7.0, "color": Color.BLACK})
+	return strokes
+
+
+func _utility_shaped(entity_id: String, at: Vector2, strokes: Array) -> UtilityObject:
+	var node := registry.instantiate_entity(entity_id) as UtilityObject
+	world.add_child(node)
+	node.apply_item_data(DrawnItemData.from_prediction(
+		entity_id, entity_id.capitalize(), _blank(), strokes, 0.5, registry.get_entity(entity_id)))
+	node.global_position = at
+	node.confirm_placement()
+	return node
+
+
 func _utility(entity_id: String, at: Vector2) -> UtilityObject:
 	var node := registry.instantiate_entity(entity_id) as UtilityObject
 	world.add_child(node)
@@ -99,10 +121,20 @@ func _settle(frames: int = 30) -> void:
 
 func _check_ladder() -> void:
 	var hero := _wanderer(Vector2(400.0, 600.0))
-	var ladder := _utility("ladder", Vector2(430.0, 600.0))
+	var ladder := _utility_shaped("ladder", Vector2(430.0, 600.0), _ladder_strokes())
 	await _settle(140)
 	hero.global_position = Vector2(ladder.global_position.x, hero.global_position.y)
 	await _settle(4)
+	# THE RANGE CHECK FIRST, and through the same measurement game_level uses. Calling
+	# interact() straight was how this row passed while E could not reach a ladder at all
+	# in the real game: the level measures to the utility and gives up past 96px, and a
+	# standing ladder's ORIGIN is 122px above the ground the player is on. A row that
+	# skips the way the player actually gets there is not testing the feature.
+	var reach := ladder.distance_from(hero.global_position)
+	if reach > 96.0:
+		_fail("ladder reach", "E cannot reach it: %.0fpx away, limit is 96" % reach)
+	else:
+		_pass("ladder reach", "%.0fpx away, within E's 96px" % reach)
 	ladder.interact(hero)
 	await physics_frame
 	if not bool(hero.call("is_using_ladder", ladder)):
@@ -125,16 +157,17 @@ func _check_ladder() -> void:
 func _check_mushroom() -> void:
 	var hero := _wanderer(Vector2(800.0, 480.0))
 	var shroom := _utility("mushroom", Vector2(800.0, 640.0))
-	await _settle(90)
 	var lowest := hero.global_position.y
-	for i in range(90):
+	var highest := hero.global_position.y
+	for i in range(150):
 		await physics_frame
 		lowest = maxf(lowest, hero.global_position.y)
-	var rebound := lowest - hero.global_position.y
-	if rebound > 20.0:
-		_pass("mushroom", "bounced the player %.0fpx back up" % rebound)
+		highest = minf(highest, hero.global_position.y)
+	var rebound := lowest - highest
+	if rebound > 20.0 and highest > -400.0:
+		_pass("mushroom", "bounced the player %.0fpx back up (peak y=%.0f)" % [rebound, highest])
 	else:
-		_fail("mushroom", "player landed and stayed (rebound %.0fpx)" % rebound)
+		_fail("mushroom", "rebound %.0fpx, peak y=%.0f%s" % [rebound, highest, " -- launched out of the level" if highest <= -400.0 else " -- no bounce"])
 	hero.queue_free()
 	shroom.queue_free()
 	await process_frame

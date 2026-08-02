@@ -29,6 +29,8 @@ const PARACHUTE_DRAG := -820.0
 const PARACHUTE_FALL_LIMIT := 120.0
 ## How long the clock holds nearby movement still.
 const CLOCK_FREEZE_SECONDS := 4.0
+## Long enough that one landing is one bounce, short enough to feel like a trampoline.
+const MUSHROOM_RECHARGE := 0.45
 ## Radius the weather tools work over.
 const WEATHER_RADIUS := 220.0
 ## How fast a drawn hull will go, however long the player holds the stick.
@@ -284,7 +286,7 @@ func restore_utility_state(state: Dictionary) -> void:
 func _physics_process(delta: float) -> void:
 	if is_preview:
 		return
-	if utility_behavior == "ladder" and not freeze:
+	if not is_held_tool() and utility_behavior not in ["sailboat", "submarine"] and not freeze:
 		if _grounded and linear_velocity.length() < 8.0 and absf(angular_velocity) < 0.18:
 			_settle_time += delta
 			if _settle_time >= 0.75:
@@ -348,21 +350,30 @@ func _apply_prop_effects(_delta: float) -> void:
 		return
 	match utility_behavior:
 		"mushroom":
-			# Bounce: anything that lands on the cap is thrown back up.
-			for target in _reachable_targets(_target_size().y * 0.75):
+			# Bounce: anything that LANDS on the cap is thrown back up -- once per landing.
+			# Applied every frame it was in reach, the impulse compounded and fired the
+			# player clean out of the level; the audit found them 837px above the sky.
+			# The reach is the cap's half-height plus room for a body standing on it,
+			# because tied to the cap alone a tall mushroom cannot reach what it is
+			# holding up.
+			if _effect_time > 0.0:
+				return
+			for target in _reachable_targets(_target_size().y * 0.5 + 72.0):
 				var body := target as Node2D
 				if body == null or body == self or body.global_position.y > global_position.y:
 					continue
 				if _is_player_body(body):
 					_push_actor_impulse(_player_of(body), Vector2(0.0, -560.0))
+					_effect_time = MUSHROOM_RECHARGE
 				elif body is RigidBody2D and not (body as RigidBody2D).freeze:
 					(body as RigidBody2D).apply_central_impulse(Vector2(0.0, -430.0) * (body as RigidBody2D).mass)
+					_effect_time = MUSHROOM_RECHARGE
 		"wheel":
 			# Roll/Fix: a driven roller. What rests on it is carried along.
 			if not _active:
 				return
 			angular_velocity = 6.5
-			for target in _reachable_targets(_target_size().x * 0.7):
+			for target in _reachable_targets(_target_size().x * 0.5 + 64.0):
 				var body := target as RigidBody2D
 				if body != null and body != self and not body.freeze and body.global_position.y < global_position.y:
 					body.apply_central_force(Vector2(240.0, 0.0) * body.mass)
@@ -377,7 +388,7 @@ func _run_door() -> void:
 	var partner := _door_partner()
 	if partner == null:
 		return
-	for target in _reachable_targets(_target_size().length() * 0.4):
+	for target in _reachable_targets(_target_size().length() * 0.5 + 32.0):
 		if not _is_player_body(target):
 			continue
 		var player := _player_of(target)
@@ -416,7 +427,12 @@ func _player_of(node: Node) -> Node2D:
 
 
 func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
-	_grounded = _has_ground_contact(state)
+	# The base pass first, and this override existed for a long time without it: the
+	# world-bounds clamp, the non-finite-transform recovery and the speed ceiling all
+	# live up there, so no drawn utility had any of them. A boat that got loose left the
+	# level entirely instead of being stopped at its edge. It sets _grounded too, so
+	# there is nothing left here to repeat.
+	super._integrate_forces(state)
 	if utility_behavior not in ["sailboat", "submarine"] or not _is_in_water():
 		return
 	# The submarine was left out of this entirely, so the one vessel whose whole job is
@@ -499,9 +515,15 @@ func _fire_cannon(actor: Node2D) -> String:
 	shot.body_entered.connect(func(hit: Node) -> void: _on_shot_landed(shot, hit, actor))
 	# Recoil, so firing is something the player feels rather than only sees.
 	_push_actor_impulse(actor, Vector2(-facing * 120.0, -40.0))
-	get_tree().create_timer(6.0).timeout.connect(func() -> void:
-		if is_instance_valid(shot):
-			shot.queue_free())
+	# The despawn timer is a CHILD of the shot, so it dies with it. A SceneTree timer
+	# holding the shot in a lambda outlives the shot when something else frees it first,
+	# and Godot rightly complains that the capture was freed out from under it.
+	var despawn := Timer.new()
+	despawn.one_shot = true
+	despawn.wait_time = 6.0
+	shot.add_child(despawn)
+	despawn.timeout.connect(shot.queue_free)
+	despawn.start()
 	return "Cannon fired"
 
 
