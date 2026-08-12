@@ -280,6 +280,14 @@ func apply_morph_state(state: Dictionary) -> void:
 			if is_finite(inherited.x) and is_finite(inherited.y) else Vector2.ZERO
 	if state.has("facing"):
 		_facing = float(state["facing"])
+	elif absf(velocity.x) > 1.0:
+		# A drawn creature has no notion of facing at all -- PlayableEntity never reports
+		# one -- so a revert carries no "facing" key and the wanderer kept whichever way it
+		# was last pointed, which is right by default. A player running left as a horse
+		# turned around on the spot the moment they changed back. The direction they were
+		# actually travelling is the honest answer. Guarded above zero because signf(0)
+		# is 0, and _facing scales the figure: a zero would make it vanish.
+		_facing = signf(velocity.x)
 
 
 ## Show an item in the character's hand. The level calls this when a utility is

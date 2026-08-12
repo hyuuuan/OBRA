@@ -938,9 +938,11 @@ func _test_revert_to_base_form() -> void:
 		"the harness could not get the creature away from the spawn point, so this cannot tell a revert from a respawn")
 	# A creature that has finished falling is standing still, and a still creature cannot
 	# show whether momentum survives the handover. Give it some so the question is live.
+	# LEFTWARD on purpose: the wanderer's default facing is right, so a creature sent
+	# right would satisfy the facing assertion below without the feature existing at all.
 	var anchor_body := morphed.call("get_physics_anchor") as RigidBody2D
 	if anchor_body != null:
-		anchor_body.linear_velocity = Vector2(180.0, -60.0)
+		anchor_body.linear_velocity = Vector2(-180.0, -60.0)
 	var moving := Vector2.ZERO
 	if morphed.has_method("capture_morph_state"):
 		moving = Vector2((morphed.call("capture_morph_state") as Dictionary).get("linear_velocity", Vector2.ZERO))
@@ -964,6 +966,15 @@ func _test_revert_to_base_form() -> void:
 		if moving.length() > 20.0:
 			_expect((back as Wanderer).velocity.length() > 1.0,
 				"the wanderer inherited none of the creature's %.0f px/s (linear_velocity dropped)" % moving.length())
+		# A creature reports no facing, so it is taken from the direction of travel. The
+		# figure's scale is what the player actually sees, and it is written in
+		# _advance_stride, so this needs a physics frame rather than a process one.
+		await physics_frame
+		var figure := (back as Wanderer).get_node_or_null("Figure") as Node2D
+		_expect(figure != null, "the wanderer has no Figure to face anywhere")
+		if figure != null:
+			_expect(figure.scale.x < 0.0,
+				"the wanderer faces %+.0f after changing back out of a creature running left" % figure.scale.x)
 
 	# Pressing it again must be a no-op, not a second wanderer on top of the first.
 	level.call("_revert_to_base_form")
