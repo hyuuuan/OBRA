@@ -45,8 +45,10 @@ var _script_lines: Dictionary = {}
 var _memory_shown := false
 var _equipped_utility: UtilityObject
 var _level_completed := false
-## What the player is currently wearing, so changing back can name what it cost them.
+## What the player is currently wearing, so changing back can name what it cost them
+## and say in the telemetry which class was abandoned.
 var _current_form_name := ""
+var _current_form_id := ""
 var _run_started_msec := 0
 ## entity_id -> true, for the "things drawn" stat. Distinct classes, not attempts.
 var _classes_this_run: Dictionary = {}
@@ -231,6 +233,7 @@ func _spawn_or_replace(
 	var label := display_name if not display_name.is_empty() else entity_id.capitalize()
 	# The bare name, before the rig summary is appended: it is what Q reports losing.
 	_current_form_name = label
+	_current_form_id = entity_id
 	if skin != null and skin.has_method("rig_summary"):
 		label += " [%s | %d strokes]" % [skin.call("rig_summary"), strokes.size()]
 	status_label.text = label
@@ -625,8 +628,20 @@ func _revert_to_base_form() -> void:
 	wanderer.global_position = landing
 	_adopt_player(wanderer, previous_state, true)
 
+	# Which class was abandoned, and how far into the level. A creature the player draws
+	# and then backs out of is the clearest signal there is that its attributed ability
+	# was not the one that section needed -- a decline says the recogniser was unsure,
+	# but this says the recogniser was right and the ability still did not fit.
+	Telemetry.record_event("morph_reverted", {
+		"level_id": LevelManager.current_level_id,
+		"from_entity": _current_form_id,
+		"ink_remaining": ink_manager.remaining(),
+		"seconds_into_level": float(Time.get_ticks_msec() - _run_started_msec) / 1000.0,
+	})
+
 	var was := _current_form_name
 	_current_form_name = ""
+	_current_form_id = ""
 	if was.is_empty():
 		status_label.text = "Back to yourself"
 	else:
