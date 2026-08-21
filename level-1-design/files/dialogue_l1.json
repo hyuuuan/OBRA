@@ -1,0 +1,95 @@
+{
+  "$comment": "OBRA Level 1 dialogue. RULE: no line may name a drawable class. Tags appear in exactly one surface form, marked with **. Lolo speaks Taglish; tags stay English so they match the Ability Book.",
+  "level_id": "L1_PAYYO",
+  "speaker_default": "lolo",
+  "lines": [
+
+    { "id": "L1_B0_001", "at": "B0_HAGDAN.enter", "text": "Ayan. Hindi ito ang lugar na iniwan niya sa'kin sa isip ko — ito ang lugar na *pininta* niya. Halos pareho." },
+    { "id": "L1_B0_002", "at": "B0_HAGDAN.enter", "text": "Tingnan mo ang hagdan. Tatlong baitang ang nawala." },
+    { "id": "L1_B0_003", "at": "B0_HAGDAN.sub1", "text": "Ikaw ang may lapis, apo. Gumuhit ka ng kayang **span** — kahit anong makakatawid sa puwang." },
+    { "id": "L1_B0_004", "at": "B0_HAGDAN.sub1.solved", "text": "O. Ganyan. Hindi mahalaga kung pangit — mahalaga kung nabasa ko." },
+    { "id": "L1_B0_005", "at": "B0_HAGDAN.sub2", "text": "Yang isa, lumulutang. Kailangan natin ng kayang **roll** — mabigat, gumugulong." },
+
+    { "id": "L1_B0_006", "at": "on_first_decline", "once": true,
+      "text": "Hindi ko mabasa, apo. Not because you drew it wrong — because I could not tell it apart from something else. Ulitin mo. Mas malaki, mas mabagal." },
+    { "id": "L1_B0_007", "at": "after_first_decline_solved", "once": true, "text": "Ayan. Nakita ko na." },
+
+    { "id": "L1_N1_001", "at": "L1_N1.enter", "text": "Dito." },
+    { "id": "L1_N1_002", "at": "L1_N1.enter", "text": "May tulay dati. Kahoy. Ginawa ng lolo ng lolo ko, tapos ginawang muli, tapos muli." },
+    { "id": "L1_N1_003", "at": "L1_N1.enter", "speaker": "apo", "text": "Two thousand years, sabi sa libro." },
+    { "id": "L1_N1_004", "at": "L1_N1.enter", "text": "Sabi sa libro." },
+    { "id": "L1_N1_005", "at": "L1_N1.enter", "text": "Hindi sabi ng lupa." },
+    { "id": "L1_N1_006", "at": "L1_N1.enter", "text": "Four hundred. Maybe less. They built this while the Spanish were burning the lowlands. Hindi ito naiwan, apo. Ito ay sagot. This is an answer." },
+    { "id": "L1_N1_007", "at": "L1_N1.enter", "text": "Ang taas na tinatakbuhan mo ay hindi lumang bato. Ito ay isang bagay na ginawa ng tao dahil pinili nilang huwag sumuko." },
+
+    { "id": "L1_N1_008", "at": "L1_N1.teach", "text": "Tatlong paraan lang ang alam ko. Isa: gumawa ng kayang **span**." },
+    { "id": "L1_N1_009", "at": "L1_N1.teach", "text": "Dalawa: sundan ang mga pader — kailangan ng kayang **leap**, o kayang **climb**." },
+    { "id": "L1_N1_010", "at": "L1_N1.teach", "text": "Tatlo: may puno sa gilid ng gubat. Kayang **cut**." },
+    { "id": "L1_N1_011", "at": "L1_N1.choice", "text": "Ikaw ang bahala. Anong gagawin natin?" },
+
+    { "id": "L1_N1_012", "at": "L1_N1.artist.commit", "speaker": "apo", "choice_label": "Ibalik natin.", "text": "Ibalik natin. Let's put it back." },
+    { "id": "L1_N1_013", "at": "L1_N1.artist.solved", "text": "Ganyan din siya. Hindi siya umiikot — inaayos niya." },
+    { "id": "L1_N1_014", "at": "L1_N1.artist.cutscene", "text": "Anim na beses niyang pininta ang tulay na 'to sa isang araw. Iba-ibang oras. Sabi niya, iba ang tubig kada oras." },
+
+    { "id": "L1_N1_015", "at": "L1_N1.pragmatist.commit", "speaker": "apo", "choice_label": "May ibang daan.", "text": "May ibang daan. Go around." },
+    { "id": "L1_N1_016", "at": "L1_N1.pragmatist.solved", "text": "Alam mo, ganyan talaga kami naglalakad dati. Yung pader — daan yun, hindi lang hangganan." },
+
+    { "id": "L1_N1_017", "at": "L1_N1.protector.commit", "speaker": "apo", "choice_label": "Gagawa ako ng daan.", "text": "Gagawa ako ng daan." },
+    { "id": "L1_N1_018", "at": "L1_N1.protector.solved", "text": "Tumawid tayo." },
+    { "id": "L1_N1_019", "at": "L1_N1.protector.solved", "text": "Yang gubat na yan — may nagmamay-ari. Hindi tao. Isang pamilya, simula nang may pamilya dito." },
+    { "id": "L1_N1_020", "at": "L1_N1.protector.solved", "text": "Hindi yan kahoy lang. Iyon ang tubig ng mga payyo sa baba." },
+
+    { "id": "L1_N2_001", "at": "L1_N2.enter", "text": "Tumigil siya dito. Tingnan mo — upuan niya, bote ng brush." },
+    { "id": "L1_N2_002", "at": "L1_N2.enter", "text": "Nandiyan yan, nasa loob ng dayami. Tinatago niya yung mga gamit niya doon pag umuulan at hindi na siya makabalik sa bahay." },
+    { "id": "L1_N2_003", "at": "L1_N2.teach", "text": "Puwedeng dahan-dahan — kayang **forage**, maghalungkat." },
+    { "id": "L1_N2_004", "at": "L1_N2.teach", "text": "Puwedeng pumasok sa ilalim — kayang **carry**, makahatak palabas." },
+    { "id": "L1_N2_005", "at": "L1_N2.teach", "text": "O puwedeng kalatin — kayang **weather**, may dalang hangin." },
+    { "id": "L1_N2_006", "at": "L1_N2.choice", "text": "Gaano ka ba katiyaga ngayon, apo?" },
+
+    { "id": "L1_N2_007", "at": "L1_N2.artist.commit", "speaker": "apo", "choice_label": "Dahan-dahan.", "text": "Dahan-dahan. Hanapin natin nang maayos." },
+    { "id": "L1_N2_008", "at": "L1_N2.artist.pass2", "text": "Brush. Tuyo na." },
+    { "id": "L1_N2_009", "at": "L1_N2.artist.pass3", "text": "Papel. May petsa. At may sinulat siya sa gilid." },
+    { "id": "L1_N2_010", "at": "L1_N2.artist.pass3", "text": "'Nasa pako pa rin ang susi.' Tandaan mo yan." },
+
+    { "id": "L1_N2_011", "at": "L1_N2.pragmatist.commit", "speaker": "apo", "choice_label": "Ako na.", "text": "Ako na." },
+    { "id": "L1_N2_012", "at": "L1_N2.pragmatist.solved", "text": "Mabilis. Hindi mo na nakita yung iba." },
+
+    { "id": "L1_N2_013", "at": "L1_N2.protector.commit", "speaker": "apo", "choice_label": "Kalatin natin.", "text": "Kalatin natin." },
+    { "id": "L1_N2_014", "at": "L1_N2.protector.solved", "text": "Nakuha mo." },
+
+    { "id": "L1_N2_015", "at": "L1_N2.solved", "text": "Nakakandado. Syempre." },
+
+    { "id": "L1_N3_001", "at": "L1_N3.enter", "text": "Ayan ang bahay." },
+    { "id": "L1_N3_002", "at": "L1_N3.enter", "text": "Walang bintana. Isang pinto. At wala ang hagdan." },
+    { "id": "L1_N3_003", "at": "L1_N3.enter", "text": "Alisin ang hagdan sa gabi. Iyon ang kandado. Wala nang iba." },
+    { "id": "L1_N3_004", "at": "L1_N3.enter", "text": "Pero yang baul na yan — dala niya galing sa baba. Yan may susi." },
+    { "id": "L1_N3_005", "at": "L1_N3.teach", "text": "Puwede tayong umakyat. Kayang **climb** — pero hindi sa poste. May halipan yun, para sa daga. Hindi mo makakapitan." },
+    { "id": "L1_N3_006", "at": "L1_N3.teach", "text": "O kaya, kayang **unlock**. Kung kaya mong gumawa ng tama." },
+    { "id": "L1_N3_007", "at": "L1_N3.teach", "text": "O kayang **cut**, at tapos na ang usapan." },
+    { "id": "L1_N3_008", "at": "L1_N3.choice", "text": "Alin?" },
+
+    { "id": "L1_N3_009", "at": "L1_N3.artist.commit", "speaker": "apo", "choice_label": "Nasa loob ang susi.", "text": "Nasa loob ang susi. Hanapin natin." },
+    { "id": "L1_N3_010", "at": "L1_N3.artist.attic", "text": "Ang bubong. Sa ilalim ng dulo — may siwang doon." },
+    { "id": "L1_N3_011", "at": "L1_N3.artic.found", "text": "Nasa pako. Sabi na nga ba." },
+    { "id": "L1_N3_012", "at": "L1_N3.artist.photo", "text": "Litrato." },
+    { "id": "L1_N3_013", "at": "L1_N3.artist.photo", "text": "Bata pa siya diyan. Hindi pa tapos yang pininta niya." },
+    { "id": "L1_N3_014", "at": "L1_N3.artist.photo", "speaker": "apo", "text": "Lolo — sino yung katabi niya?" },
+    { "id": "L1_N3_015", "at": "L1_N3.artist.photo", "text": "..." },
+    { "id": "L1_N3_016", "at": "L1_N3.artist.photo", "text": "Bumaba na tayo." },
+    { "id": "L1_N3_017", "at": "L1_N3.bulul_approach", "text": "Huwag. Hindi yan palamuti, at hindi yan sa'yo." },
+
+    { "id": "L1_N3_018", "at": "L1_N3.pragmatist.commit", "speaker": "apo", "choice_label": "Gagawa ako ng susi.", "text": "Gagawa ako ng susi." },
+    { "id": "L1_N3_019", "at": "L1_N3.ward.fail1", "text": "Umikot, tapos tumigil. Masyadong makapal ang ngipin." },
+    { "id": "L1_N3_020", "at": "L1_N3.ward.fail2", "text": "Malapit na. Tingnan mo yung hugis sa loob — nakikita mo na ngayon." },
+    { "id": "L1_N3_021", "at": "L1_N3.ward.solved", "text": "Ayan." },
+
+    { "id": "L1_N3_022", "at": "L1_N3.protector.commit", "speaker": "apo", "choice_label": "Buksan natin.", "text": "Buksan natin." },
+    { "id": "L1_N3_023", "at": "L1_N3.protector.solved", "text": "Nabuksan mo." },
+
+    { "id": "L1_EX_001", "at": "EXIT_MARKER", "text": "Ayan ang bato. Doon kami tumitigil pag-uwi." },
+    { "id": "L1_EX_002", "at": "EXIT_MARKER", "condition": "straw_scattered", "text": "May pumutol niyan. May maglalagay sana niyan sa bubong bago umulan." },
+    { "id": "L1_EX_003", "at": "EXIT_MARKER", "condition": "muyong_stump_dry_terrace", "text": "Tingnan mo yung payyo sa baba. Natutuyo na." },
+    { "id": "L1_EX_004", "at": "EXIT_MARKER.canvas", "text": "Pista. Sabi niya, nakakatulong daw ang ingay para makapag-isip siya." },
+    { "id": "L1_EX_005", "at": "EXIT_MARKER.canvas", "text": "Apo — tingnan mo yung gilid. Yung balabal. Kilala ko yan." }
+  ]
+}

@@ -1,0 +1,189 @@
+{
+  "$comment": "OBRA Level 1 data. Obstacles declare ability TAGS; satisfying classes resolve from entities.json at load time (REQ-4.22-2). Values under 'tuning' are PLACEHOLDERS for building and must not enter the manuscript.",
+  "schema_version": 1,
+  "level_id": "L1_PAYYO",
+  "display_name": "Payyo",
+  "display_name_note": "REQ-4.11-1 currently reads 'Bahay Kubo'. See build spec 12.1.",
+  "order": 1,
+  "unlocks_on_complete": "L2_PISTA",
+  "unlocks_at_checkpoint": "CP3",
+
+  "tags_unlocked": [
+    { "tag": "span",    "at": "B0_HAGDAN.sub1" },
+    { "tag": "roll",    "at": "B0_HAGDAN.sub2" },
+    { "tag": "climb",   "at": "L1_N1.dialogue" },
+    { "tag": "leap",    "at": "L1_N1.dialogue" },
+    { "tag": "cut",     "at": "L1_N1.dialogue" },
+    { "tag": "forage",  "at": "L1_N2.dialogue" },
+    { "tag": "carry",   "at": "L1_N2.dialogue" },
+    { "tag": "weather", "at": "L1_N2.dialogue" },
+    { "tag": "unlock",  "at": "L1_N3.dialogue" }
+  ],
+
+  "checkpoints": [
+    { "id": "CP0",  "at": "B0_HAGDAN.top",     "trigger": "area" },
+    { "id": "CP1",  "at": "L1_N1",             "trigger": "route_commit" },
+    { "id": "CP1b", "at": "L1_N1.log_midpoint","trigger": "area", "routes": ["protector"] },
+    { "id": "CP2",  "at": "L1_N2",             "trigger": "route_commit" },
+    { "id": "CP3",  "at": "L1_N3",             "trigger": "route_commit" },
+    { "id": "CP4",  "at": "EXIT_MARKER",       "trigger": "area" }
+  ],
+
+  "obstacles": [
+    {
+      "id": "B0_HAGDAN",
+      "type": "tutorial",
+      "dialogue_node": false,
+      "fail_state": false,
+      "sub_beats": [
+        { "id": "sub1", "teaches": "span", "required_tags": ["span"], "exclude": ["bridge", "ladder"] },
+        { "id": "sub2", "teaches": "roll", "required_tags": ["roll"], "exclude": [] }
+      ],
+      "scripted": { "on_first_decline": "L1_B0_006" }
+    },
+
+    {
+      "id": "L1_N1",
+      "type": "dialogue_node",
+      "display_name": "Ang Tulay",
+      "teaches_before_choice": ["climb", "leap", "cut"],
+      "checkpoint_on_commit": "CP1",
+      "routes": {
+        "artist": {
+          "required_tags": ["span"],
+          "exclude": [],
+          "then": { "required_tags": ["climb"], "exclude": ["crab", "snake"] },
+          "reward": "cutscene_L1_bridge_memory"
+        },
+        "pragmatist": {
+          "required_tags": ["leap", "climb"],
+          "match": "any",
+          "exclude": []
+        },
+        "protector": {
+          "required_tags": ["cut"],
+          "exclude": ["scissors"],
+          "grants_tool": "axe",
+          "persistent_effect": "muyong_stump_dry_terrace"
+        }
+      }
+    },
+
+    {
+      "id": "L1_N2",
+      "type": "dialogue_node",
+      "display_name": "Ang Dayami",
+      "teaches_before_choice": ["forage", "carry", "weather"],
+      "checkpoint_on_commit": "CP2",
+      "routes": {
+        "artist": {
+          "required_tags": ["forage"],
+          "exclude": [],
+          "reward": "item_sketchbook_page_key_hint",
+          "sets_flag": "knows_about_key"
+        },
+        "pragmatist": {
+          "required_tags": ["carry"],
+          "exclude": ["horse", "elephant"]
+        },
+        "protector": {
+          "required_tags": ["weather"],
+          "exclude": ["cloud", "sun", "bucket"],
+          "persistent_effect": "straw_scattered"
+        }
+      },
+      "grants_item": "baul_locked"
+    },
+
+    {
+      "id": "L1_N3",
+      "type": "dialogue_node",
+      "display_name": "Ang Bale",
+      "teaches_before_choice": ["unlock"],
+      "checkpoint_on_commit": "CP3",
+      "routes": {
+        "artist": {
+          "required_tags": ["climb"],
+          "exclude": ["crab", "snake"],
+          "reward": "item_photograph_unnamed_woman",
+          "search_time_modifier_if_flag": { "knows_about_key": 0.5 }
+        },
+        "pragmatist": {
+          "required_tags": ["unlock"],
+          "exclude": [],
+          "special": {
+            "key": "ward_matching_sequence",
+            "door": "place_on_baul_lid"
+          }
+        },
+        "protector": {
+          "required_tags": ["cut"],
+          "exclude": ["elephant"],
+          "persistent_effect": "canvas_2_creased",
+          "cross_level_effect": "L2_PISTA.hidden_flower_2.unreachable"
+        }
+      },
+      "grants_item": "canvas_2_pista"
+    }
+  ],
+
+  "hidden_flowers": [
+    {
+      "id": "HF1",
+      "at": "gorge_floor_cave",
+      "gate_tag": "light",
+      "gate_unlocked_at_level": 4,
+      "behaviour_when_locked": "canvas_opens_normally_entities_spawn_inert",
+      "not_a_fail_state": true
+    }
+  ],
+
+  "hint_escalation": {
+    "t0": { "trigger": "on_approach",                          "reveals": "flavor" },
+    "t1": { "trigger": "canvas_open_or_idle_s",  "value": 30,  "reveals": "required_tags" },
+    "t2": { "trigger": "failed_attempts_or_idle_s", "attempts": 2, "value": 90, "reveals": "ability_book_with_owned_classes" },
+    "t3": { "trigger": "failed_attempts_or_idle_s", "attempts": 4, "value": 180,
+            "reveals": "accept_set_expands_to_union_of_all_routes",
+            "logs": "assisted", "affects_tally": false }
+  },
+
+  "recognition": {
+    "confidence_threshold": 0.60,
+    "margin_threshold": 0.15,
+    "decline_costs_ink": false,
+    "decline_message_source": "dialogue"
+  },
+
+  "tuning": {
+    "$comment": "PLACEHOLDERS. Build with these; do not cite them. See build spec 12.6.",
+    "starting_ink": 100,
+    "cost_primitive": 8,
+    "cost_object": 15,
+    "cost_morph": 25,
+    "cost_tool_purchase": 30,
+    "cost_tool_reuse": 0,
+    "ink_restored_at_checkpoint": "full",
+    "ward_sequence_attempts": 3
+  },
+
+  "cultural_constraints": {
+    "bulul": { "collision": false, "interactable": false, "puzzle_function": false, "on_approach_dialogue": "L1_N3_017" },
+    "audio": { "forbid": ["hudhud_recording", "bandurria"], "use": ["gangsa", "nose_flute", "bamboo"] },
+    "straw_pile_is_grain": false,
+    "cave_contains_burials": false
+  },
+
+  "lighting_states": [
+    { "id": "dawn",        "from": "B0_HAGDAN", "to": "L1_N1" },
+    { "id": "overcast",    "from": "L1_N2",     "to": "L1_N3" },
+    { "id": "golden_hour", "from": "EXIT_MARKER", "to": "EXIT_MARKER" }
+  ],
+
+  "load_time_assertions": [
+    "every obstacle route resolves >= 2 classes AFTER exclusions",
+    "every tag in tags_unlocked exists in entities.json",
+    "every morph-capable route is preceded by a checkpoint",
+    "every teaches_before_choice tag is unlocked before its choice is presented",
+    "no dialogue line in this level names a class"
+  ]
+}
