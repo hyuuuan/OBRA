@@ -22,6 +22,8 @@
 [ext_resource type="Script" path="res://scripts/stair_tread_2d.gd" id="20_ryned"]
 [ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="20_y6bxt"]
 [ext_resource type="Script" path="res://scripts/floating_tread_2d.gd" id="21_a6y54"]
+[ext_resource type="Script" path="res://scripts/straw_pile_2d.gd" id="23_3uax6"]
+[ext_resource type="Script" path="res://scripts/baul_2d.gd" id="24_vekj0"]
 
 [sub_resource type="AtlasTexture" id="Atlas_sky"]
 atlas = ExtResource("6_sky")
@@ -86,6 +88,9 @@ size = Vector2(360, 300)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ryned"]
 size = Vector2(460, 420)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_owbyo"]
+size = Vector2(400, 300)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_a6y54"]
 size = Vector2(88, 20)
@@ -461,6 +466,15 @@ trigger_size = Vector2(460, 420)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N1" unique_id=1714758991]
 shape = SubResource("RectangleShape2D_ryned")
 
+[node name="L1_N2" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=1349389394]
+position = Vector2(3140, 160)
+script = ExtResource("19_j5wv8")
+obstacle_id = "L1_N2"
+trigger_size = Vector2(400, 300)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N2" unique_id=1992905006]
+shape = SubResource("RectangleShape2D_owbyo")
+
 [node name="Hagdan" type="Node2D" parent="GameplayPlane" unique_id=1689954354]
 
 [node name="TreadUpper" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=950612297]
@@ -523,6 +537,37 @@ trigger_size = Vector2(150, 200)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Hagdan/CP0" unique_id=318478695]
 shape = SubResource("RectangleShape2D_3uax6")
+
+[node name="Dayami" type="Node2D" parent="GameplayPlane" unique_id=291343289]
+
+[node name="StrawPileA" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1230508619]
+position = Vector2(3040, 240)
+script = ExtResource("23_3uax6")
+pile_size = Vector2(140, 88)
+
+[node name="StrawPileB" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1226213335]
+position = Vector2(3160, 240)
+script = ExtResource("23_3uax6")
+pile_size = Vector2(158, 100)
+
+[node name="StrawPileC" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1006328619]
+position = Vector2(3268, 240)
+script = ExtResource("23_3uax6")
+pile_size = Vector2(132, 82)
+
+[node name="FoldingStool" type="Polygon2D" parent="GameplayPlane/Dayami" unique_id=1479238481]
+position = Vector2(2990, 240)
+color = Color(0.42, 0.31, 0.2, 1)
+polygon = PackedVector2Array(-16, 0, -13, -26, 13, -26, 16, 0, 11, 0, 9, -22, -9, -22, -11, 0)
+
+[node name="BrushJar" type="Polygon2D" parent="GameplayPlane/Dayami" unique_id=796148671]
+position = Vector2(3014, 240)
+color = Color(0.55, 0.5, 0.42, 1)
+polygon = PackedVector2Array(-9, 0, -7, -20, 7, -20, 9, 0)
+
+[node name="Baul" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319160]
+position = Vector2(3160, 240)
+script = ExtResource("24_vekj0")
 
 [node name="ForegroundLayer" type="Node2D" parent="." unique_id=3763005]
 modulate = Color(0.75, 0.9, 0.66, 0.72)
