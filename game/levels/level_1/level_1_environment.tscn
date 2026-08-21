@@ -19,6 +19,7 @@
 [ext_resource type="Script" path="res://scripts/concept_gate_2d.gd" id="17_gate"]
 [ext_resource type="Script" path="res://scripts/hidden_flower_2d.gd" id="18_flower"]
 [ext_resource type="Script" path="res://scripts/level_obstacle_2d.gd" id="19_j5wv8"]
+[ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="20_y6bxt"]
 
 [sub_resource type="AtlasTexture" id="Atlas_sky"]
 atlas = ExtResource("6_sky")
@@ -83,6 +84,18 @@ size = Vector2(360, 300)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ryned"]
 size = Vector2(460, 420)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_a6y54"]
+size = Vector2(76, 24)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_7hgod"]
+size = Vector2(76, 24)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_3uax6"]
+size = Vector2(88, 20)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_vekj0"]
+size = Vector2(150, 200)
 
 [node name="EnvironmentBaseplate" type="Node2D" unique_id=1910596875]
 texture_filter = 1
@@ -447,6 +460,46 @@ trigger_size = Vector2(460, 420)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N1" unique_id=1714758991]
 shape = SubResource("RectangleShape2D_ryned")
+
+[node name="Hagdan" type="Node2D" parent="GameplayPlane" unique_id=2064496671]
+
+[node name="TreadA" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=1530607607]
+position = Vector2(648, 548)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Hagdan/TreadA" unique_id=1167669210]
+shape = SubResource("RectangleShape2D_a6y54")
+
+[node name="TreadB" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=1359757451]
+position = Vector2(700, 512)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Hagdan/TreadB" unique_id=1686442545]
+shape = SubResource("RectangleShape2D_7hgod")
+
+[node name="GapSlot1" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=1082994207]
+position = Vector2(742, 476)
+
+[node name="GapSlot2" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=1286299129]
+position = Vector2(772, 448)
+
+[node name="GapSlot3" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=1059153424]
+position = Vector2(800, 424)
+
+[node name="FloatingTread" type="RigidBody2D" parent="GameplayPlane/Hagdan" unique_id=389727663]
+position = Vector2(560, 600)
+mass = 0.6
+gravity_scale = 0.35
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Hagdan/FloatingTread" unique_id=1740902279]
+shape = SubResource("RectangleShape2D_3uax6")
+
+[node name="CP0" type="Area2D" parent="GameplayPlane/Hagdan" unique_id=580475717]
+position = Vector2(830, 380)
+script = ExtResource("20_y6bxt")
+checkpoint_id = "CP0"
+trigger_size = Vector2(150, 200)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Hagdan/CP0" unique_id=1982881960]
+shape = SubResource("RectangleShape2D_vekj0")
 
 [node name="ForegroundLayer" type="Node2D" parent="." unique_id=3763005]
 modulate = Color(0.75, 0.9, 0.66, 0.72)
