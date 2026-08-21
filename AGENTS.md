@@ -81,8 +81,11 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
   unreadable. There is no database. It stores unlocked/completed levels,
   drawn-and-accepted classes, acquired objects, route tallies, collectibles, and
   submission counts, and derives class diversity (out of the 50-class roster) and
-  redraw rate. Schema is v2; a v1 profile migrates forward keeping its progress, so
-  bump `SCHEMA_VERSION` and extend `MIGRATABLE_SCHEMAS` rather than breaking saves.
+  redraw rate, plus unlocked ability tags and cross-level canvas damage. Schema is
+  **v5**; v1-v4 profiles migrate forward keeping their progress, so bump `SCHEMA_VERSION`
+  and extend `MIGRATABLE_SCHEMAS` rather than breaking saves. `test_player_profile.gd`
+  holds `EXPECTED_SCHEMA` as its own literal, so a bump fails the suite loudly until
+  someone has confirmed the migration carries an old profile rather than wiping it.
 - Object ownership is global and permanent: `record_object_acquired()` on first
   successful recognition, `has_object()` as the backtracking gate query. An owned
   object costs no ink to summon again. `ConceptGate2D` (`concept_gate_2d.gd`) reads
@@ -114,7 +117,8 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
 
 ## UI Contracts
 
-- Autoloads are `LevelManager`, `PlayerProfile`, `Telemetry`, `AudioDirector`. Scripts
+- Autoloads are `LevelManager`, `PlayerProfile`, `AbilityTags`, `Telemetry`,
+  `AudioDirector`. Scripts
   that a tool might precompile should resolve them through the tree
   (`get_node_or_null("/root/...")`) rather than by global name — autoloads are not
   registered when a `--script` run compiles its own script.
