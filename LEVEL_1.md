@@ -98,7 +98,9 @@ one door above head height, ladder taken inside at night, which is the lock.
 | Protector | Cut (excl. elephant) | through the hasp. **Creases the canvas** |
 
 **CP3** on commit; the level is marked complete there, not at the marker stone, so a player
-who stops after Node 3 keeps the progress.
+who stops after Node 3 keeps the progress. CP3 is also what opens the exit: the GoalMarker
+sits inside the bale, and until the data's `unlocks_at_checkpoint` has been reached, arriving
+at it does nothing. Without that, walking up to the house ended Level 1.
 
 #### The ward sequence (`ward_lock_2d.gd`)
 
@@ -176,6 +178,9 @@ godot --headless --path game --script res://tests/run_level_ready.gd
 ```bash
 godot --path game --script res://tests/run_visual_level1.gd
 ```
+```bash
+godot --path game --script res://tests/run_visual_level1_nodes.gd
+```
 
 The audit is seconds; `run_tests.gd` takes >10 minutes. The visual runners need a **real
 viewport** — no `--headless` — and their frames must be *looked at*: four defects in this
@@ -206,6 +211,18 @@ project passed green suites and were caught only by screenshotting.
    player appeared in `get_colliding_bodies()`). Use an `Area2D`.
 7. **Do not write `global_position` on an active `RigidBody2D`** — the physics server
    overwrites it the same frame. Freeze first, then move.
+9. **A `Polygon2D` cannot be filled from an `AtlasTexture`.** It samples the whole atlas
+   page, using the polygon's vertex coordinates as UVs, so the prop draws whatever art lies
+   near the region — for this atlas mostly dark, which against the terraces is
+   indistinguishable from absent. Writing `uv` does not help; wrapping into the region's
+   size still samples the page. Use `atlas_tile.gd`, which cuts the region into its own
+   texture and anchors the UV. The terrain escaped it by filling with a `TextureRect` in
+   `STRETCH_TILE`, which does honour the region. `run_level1_audit` now refuses both
+   mistakes. Every prop in Nodes 2 and 3 shipped this way and none of them was on screen.
+10. **The atlas regions are terrace slices, not materials.** `RICE_TOP` is straw over green
+   blades over mud; the wall tile is mud under a fringe of grass. A roof filled with the
+   whole tile wears a band of soil, and a chest grows a lawn along its lid. Take the band
+   you mean: straw is `Rect2(828, 81, 84, 23)`, mud is `Rect2(217, 248, 146, 96)`.
 8. **A stale path in a *test* can look like engine failure.** One wrong node path threw
    inside a test that then aborted with an overlay open, leaving the tree paused — twenty
    creatures reported "render frozen". Read the *first* error, not the loudest.
@@ -214,13 +231,24 @@ project passed green suites and were caught only by screenshotting.
 
 ## Not built
 
-- **No visual pass on Nodes 2 or 3.** The bale, the bulul and the ward are all new on screen.
 - Node 1's memory cutscene · the full Ability Book panel · Hidden Flower 1 · the exit marker
-  and second-canvas presentation.
-- The straw piles use `RICE_TOP`, the same atlas region as the terraces, so they camouflage.
+  and second-canvas presentation. `WardLock2D` exists and is unit-tested but is not wired
+  into a scene — the ward sequence has no on-screen presentation yet.
+- **Combed and tunnelled read the same.** The three routes leave three different marks, but
+  a heap at 0.82 × 0.90 and one at 0.94 × 0.78 are the same heap to look at. A tunnel is
+  supposed to be a hole; `tunnel()` only reshapes. Design call, not a bug.
 - **Authoring:** the opening line still comes from the *old* `dialogue.json` and is out of
   voice; `B0_HAGDAN.sub2.solved` does not exist, so Beat 0's second lesson ends without
-  acknowledgement.
+  acknowledgement; and `L1_N3.attic.found` says **"On the nail. Just as she said."** to
+  every player, including one who never combed the straw and was therefore never told about
+  a nail. The loader supports `condition`, but a hook fires *every* matching line, so a
+  conditional pair needs either an `unless` key in `dialogue_script.gd` or a rewording that
+  works for both.
+
+**The visual pass happened (2026-08-21) and found four things**, all now fixed: every prop
+in both nodes was invisible (trap 9), the fills drifted when a shape resized, HutOverlook
+was standing on top of the bale with the bulul behind it, and walking up to the house ended
+the level. Frames: `godot --path game --script res://tests/run_visual_level1_nodes.gd`.
 
 ### Do not retry without redesigning
 
