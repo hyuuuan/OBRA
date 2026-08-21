@@ -610,6 +610,40 @@ func _audit_live_level() -> void:
 	_check(d.is_solved("B0_HAGDAN"), "beat completes in the live level", "B0_HAGDAN solved")
 	_check(not strip.visible, "solved obstacle clears the strip", "nothing left to ask for")
 
+	# --- falling puts you back, and brings your things with you --------------
+	# Writing a checkpoint was already covered; nothing called restore(), so the one
+	# situation it exists for was untested. Driven by an actual fall rather than by
+	# calling the restore directly, because the trigger is half of the feature.
+	var cp_before = level.get("checkpoints")
+	level.call("_write_checkpoint", "CP_TEST")
+	var ink_at_checkpoint: float = (level.get_node("InkManager") as InkManager).committed
+	var home: Vector2 = (level.get("player") as Node2D).global_position
+
+	# Spend ink and drop a prop AFTER the checkpoint. Both must be undone.
+	var ink := level.get_node("InkManager") as InkManager
+	ink.reserve_attempt(3.0)
+	ink.commit_attempt()
+	var stray := _fake_prop(level)
+	await process_frame
+	_check(stray != null and is_instance_valid(stray), "prop placed after the checkpoint",
+		"a stray prop exists to be cleaned up")
+
+	# Off the bottom of the world.
+	var bounds := Rect2(level.get_node("EnvironmentBaseplate").get("world_bounds"))
+	(level.get("player") as Node2D).global_position = Vector2(home.x, bounds.end.y + 600.0)
+	for _frame in range(8):
+		await physics_frame
+
+	var landed: Vector2 = (level.get("player") as Node2D).global_position
+	_check(landed.distance_to(home) < 200.0, "a fall returns you to the checkpoint",
+		"landed %.0fpx from where the checkpoint was written" % landed.distance_to(home))
+	_check(is_equal_approx((level.get_node("InkManager") as InkManager).committed, ink_at_checkpoint),
+		"restore gives the ink back", "committed is back to %.1f" % ink_at_checkpoint)
+	_check(stray == null or not is_instance_valid(stray) or stray.is_queued_for_deletion(),
+		"props placed since are removed", "the stray prop is gone")
+	_check(cp_before.restore_count("CP_TEST") == 1, "the restore is counted",
+		"CP_TEST restored once")
+
 	# --- the choice must count ONCE ------------------------------------------
 	# DialogueNode2D used to write the tally itself and so did the director, so a single
 	# answer counted twice towards an ending that needs 7 of 12. One writer now, and this
@@ -644,6 +678,26 @@ func _lolo_bubble(level: Node) -> String:
 	if lolo == null or not is_instance_valid(lolo):
 		return ""
 	return _collect_labels(lolo)
+
+
+## A minimal placed prop, so the restore has something to clean up. Not a real drawing --
+## the restore only ever looks at instance ids and transforms.
+func _fake_prop(level: Node) -> PhysicsShapeObject:
+	var registry := level.get_node("EntityRegistry") as EntityRegistry
+	var prop := registry.instantiate_entity("square") as PhysicsShapeObject
+	if prop == null:
+		return null
+	level.get_node("EnvironmentBaseplate/GameplayPlane/WorldItemRoot").add_child(prop)
+	prop.apply_item_data(DrawnItemData.from_prediction(
+		"square", "Square", _blank_image(), [], 0.4, registry.get_entity("square")))
+	prop.global_position = Vector2(900.0, 300.0)
+	return prop
+
+
+func _blank_image() -> Image:
+	var image := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	image.fill(Color.WHITE)
+	return image
 
 
 func _strip_text(strip) -> String:
