@@ -48,12 +48,43 @@ func say(text: String, seconds: float = 0.0) -> void:
 		hush()
 		return
 	_bubble_label.text = text
+	_fit_bubble(text)
 	_speech_time = seconds
 	if not _bubble.visible:
 		_bubble.visible = true
 		var appear := create_tween()
 		appear.tween_property(_bubble, "modulate:a", 1.0, 0.18)
 	_figure.set("talking", true)
+
+
+## Size the bubble to the line instead of to a fixed box.
+##
+## It was pinned at 300x88 whatever was in it, so a short line sat in a wide empty
+## rectangle and a long one wrapped to four cramped rows inside the same rectangle. Payyo's
+## lines run from "Here." to a full sentence about the Spanish burning the lowlands, and
+## one fixed box cannot serve both.
+##
+## The bubble's BOTTOM edge stays put -- it is what points at Lolo -- and the box grows
+## upward, so his head is never covered by his own speech.
+func _fit_bubble(text: String) -> void:
+	const MIN_WIDTH := 170.0
+	const MAX_WIDTH := 340.0
+	const PADDING := Vector2(26.0, 20.0)
+	const BOTTOM := -40.0          # where the bubble sits relative to Lolo
+
+	var font := _bubble_label.get_theme_font(&"font")
+	var size := _bubble_label.get_theme_font_size(&"font_size")
+	var single := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x
+	var width := clampf(single + PADDING.x, MIN_WIDTH, MAX_WIDTH)
+	# How tall that width makes it once wrapped.
+	var wrapped := font.get_multiline_string_size(
+		text, HORIZONTAL_ALIGNMENT_CENTER, width - PADDING.x, size)
+	var height := wrapped.y + PADDING.y
+
+	_bubble.offset_left = -width * 0.5
+	_bubble.offset_right = width * 0.5
+	_bubble.offset_bottom = BOTTOM
+	_bubble.offset_top = BOTTOM - height
 
 
 func hush() -> void:
