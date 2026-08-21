@@ -20,6 +20,7 @@ signal searched(how: String)
 
 enum State { INTACT, COMBED, TUNNELLED, SCATTERED }
 
+const AtlasTile = preload("res://scripts/atlas_tile.gd")
 const TEXTURE_MAP := preload("res://assets/Level1/texturemap.png")
 ## The same yellow the terraces use for standing rice, which is what this was.
 const STRAW := Rect2(828, 80, 84, 84)
@@ -137,8 +138,8 @@ func _build_scatter() -> void:
 		_scatter.add_child(tuft)
 
 
-func _atlas(region: Rect2) -> AtlasTexture:
-	var atlas := AtlasTexture.new()
-	atlas.atlas = TEXTURE_MAP
-	atlas.region = region
-	return atlas
+## A Polygon2D cannot be filled from an AtlasTexture: it samples the whole atlas page
+## rather than the region, and the prop draws the wrong art or none at all. See
+## atlas_tile.gd, which cuts the region out into a texture that tiles honestly.
+func _atlas(region: Rect2) -> ImageTexture:
+	return AtlasTile.cut(TEXTURE_MAP, region)

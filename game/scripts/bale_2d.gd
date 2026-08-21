@@ -19,6 +19,7 @@ extends Node2D
 
 signal attic_entered()
 
+const AtlasTile = preload("res://scripts/atlas_tile.gd")
 const TEXTURE_MAP := preload("res://assets/Level1/texturemap.png")
 const THATCH := Rect2(828, 80, 84, 84)
 const WOOD := Rect2(217, 228, 146, 129)
@@ -169,8 +170,8 @@ func _on_attic_entered(body: Node) -> void:
 		node = node.get_parent()
 
 
-func _atlas(region: Rect2) -> AtlasTexture:
-	var atlas := AtlasTexture.new()
-	atlas.atlas = TEXTURE_MAP
-	atlas.region = region
-	return atlas
+## A Polygon2D cannot be filled from an AtlasTexture: it samples the whole atlas page
+## rather than the region, and the prop draws the wrong art or none at all. See
+## atlas_tile.gd, which cuts the region out into a texture that tiles honestly.
+func _atlas(region: Rect2) -> ImageTexture:
+	return AtlasTile.cut(TEXTURE_MAP, region)

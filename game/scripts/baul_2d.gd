@@ -12,6 +12,7 @@ extends Node2D
 
 signal found()
 
+const AtlasTile = preload("res://scripts/atlas_tile.gd")
 const TEXTURE_MAP := preload("res://assets/Level1/texturemap.png")
 ## Dark banded wood. The stone regions read as too grey next to straw, so this borrows the
 ## mud wall, which is the warmest brown in the atlas.
@@ -89,8 +90,8 @@ func _build() -> void:
 	_art.add_child(lock)
 
 
-func _atlas(region: Rect2) -> AtlasTexture:
-	var atlas := AtlasTexture.new()
-	atlas.atlas = TEXTURE_MAP
-	atlas.region = region
-	return atlas
+## A Polygon2D cannot be filled from an AtlasTexture: it samples the whole atlas page
+## rather than the region, and the prop draws the wrong art or none at all. See
+## atlas_tile.gd, which cuts the region out into a texture that tiles honestly.
+func _atlas(region: Rect2) -> ImageTexture:
+	return AtlasTile.cut(TEXTURE_MAP, region)
