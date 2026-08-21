@@ -610,6 +610,26 @@ func _audit_live_level() -> void:
 	_check(d.is_solved("B0_HAGDAN"), "beat completes in the live level", "B0_HAGDAN solved")
 	_check(not strip.visible, "solved obstacle clears the strip", "nothing left to ask for")
 
+	# --- CP0: a checkpoint you reach by walking ------------------------------
+	# Beat 0 has no dialogue node, so before this it had no checkpoint at all and a slip on
+	# the terrace above sent the player back to the level's start with both sub-beats
+	# already solved.
+	var cp_area := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/Hagdan/CP0") as CheckpointArea2D
+	_check(cp_area != null, "CP0 exists", "at the top of the flight")
+	if cp_area != null:
+		(level.get("player") as Node2D).global_position = cp_area.global_position
+		for _frame in range(10):
+			await physics_frame
+		_check(cp_area.is_written(), "walking into CP0 writes it", "reached")
+		_check((level.get("checkpoints")).latest_id() == "CP0",
+			"CP0 is the restore point", "latest is '%s'" % (level.get("checkpoints")).latest_id())
+		# Re-entering is not progress; it must not re-write.
+		cp_area.emit_signal("reached", "CP0")
+		await process_frame
+		_check((level.get("checkpoints")).count() >= 1, "re-entry does not stack",
+			"%d snapshot(s)" % (level.get("checkpoints")).count())
+
 	# --- falling puts you back, and brings your things with you --------------
 	# Writing a checkpoint was already covered; nothing called restore(), so the one
 	# situation it exists for was untested. Driven by an actual fall rather than by
