@@ -24,6 +24,8 @@
 [ext_resource type="Script" path="res://scripts/floating_tread_2d.gd" id="21_a6y54"]
 [ext_resource type="Script" path="res://scripts/straw_pile_2d.gd" id="23_3uax6"]
 [ext_resource type="Script" path="res://scripts/baul_2d.gd" id="24_vekj0"]
+[ext_resource type="Script" path="res://scripts/bale_2d.gd" id="25_owbyo"]
+[ext_resource type="Script" path="res://scripts/bulul_2d.gd" id="26_jto6m"]
 
 [sub_resource type="AtlasTexture" id="Atlas_sky"]
 atlas = ExtResource("6_sky")
@@ -91,6 +93,9 @@ size = Vector2(460, 420)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_owbyo"]
 size = Vector2(400, 300)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_aty4c"]
+size = Vector2(420, 320)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_a6y54"]
 size = Vector2(88, 20)
@@ -475,6 +480,15 @@ trigger_size = Vector2(400, 300)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N2" unique_id=1992905006]
 shape = SubResource("RectangleShape2D_owbyo")
 
+[node name="L1_N3" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=1170798170]
+position = Vector2(3500, 110)
+script = ExtResource("19_j5wv8")
+obstacle_id = "L1_N3"
+trigger_size = Vector2(420, 320)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N3" unique_id=1566155730]
+shape = SubResource("RectangleShape2D_aty4c")
+
 [node name="Hagdan" type="Node2D" parent="GameplayPlane" unique_id=1689954354]
 
 [node name="TreadUpper" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=950612297]
@@ -568,6 +582,20 @@ polygon = PackedVector2Array(-9, 0, -7, -20, 7, -20, 9, 0)
 [node name="Baul" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319160]
 position = Vector2(3160, 240)
 script = ExtResource("24_vekj0")
+
+[node name="Bale" type="Node2D" parent="GameplayPlane" unique_id=913205178]
+
+[node name="House" type="Node2D" parent="GameplayPlane/Bale" unique_id=1120996384]
+position = Vector2(3500, 200)
+script = ExtResource("25_owbyo")
+
+[node name="Bulul1" type="Node2D" parent="GameplayPlane/Bale" unique_id=525187676]
+position = Vector2(3452, 174)
+script = ExtResource("26_jto6m")
+
+[node name="Bulul2" type="Node2D" parent="GameplayPlane/Bale" unique_id=1716894567]
+position = Vector2(3496, 174)
+script = ExtResource("26_jto6m")
 
 [node name="ForegroundLayer" type="Node2D" parent="." unique_id=3763005]
 modulate = Color(0.75, 0.9, 0.66, 0.72)
