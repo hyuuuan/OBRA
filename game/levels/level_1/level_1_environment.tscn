@@ -21,6 +21,7 @@
 [ext_resource type="Script" path="res://scripts/level_obstacle_2d.gd" id="19_j5wv8"]
 [ext_resource type="Script" path="res://scripts/stair_tread_2d.gd" id="20_ryned"]
 [ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="20_y6bxt"]
+[ext_resource type="Script" path="res://scripts/floating_tread_2d.gd" id="21_a6y54"]
 
 [sub_resource type="AtlasTexture" id="Atlas_sky"]
 atlas = ExtResource("6_sky")
@@ -503,6 +504,7 @@ position = Vector2(636, 548)
 position = Vector2(560, 600)
 mass = 0.6
 gravity_scale = 0.35
+script = ExtResource("21_a6y54")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Hagdan/FloatingTread" unique_id=1837793347]
 shape = SubResource("RectangleShape2D_a6y54")
