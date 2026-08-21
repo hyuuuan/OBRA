@@ -1210,15 +1210,27 @@ func _audit_completion_gate() -> void:
 	_check(not bool(overlay.call("is_open")), "arriving at the bale does not end the level",
 		"the player is standing on the goal marker and Ang Bale is unanswered")
 
-	# CP3 is written by the route commit, which is what the level data names as its unlock.
+	# Choosing a way in is not the same as getting in. CP3 is written on the commit, so a
+	# gate that only asked whether the checkpoint existed would let the player finish by
+	# pressing a dialogue button and walking four metres without drawing anything.
 	d.enter_obstacle("L1_N3")
 	d.commit_route("L1_N3", "pragmatist")
 	await process_frame
 	player.global_position = marker.global_position
 	for _frame in range(30):
 		await physics_frame
+	_check(not bool(overlay.call("is_open")), "committing to a route does not end it either",
+		"CP3 is written, the bale is still shut")
+
+	# Now answer it.
+	level.call("_judge_submission", "key")
+	for _frame in range(60):
+		await physics_frame
+	player.global_position = marker.global_position
+	for _frame in range(30):
+		await physics_frame
 	_check(bool(overlay.call("is_open")), "answering the bale does end it",
-		"CP3 reached, so the goal marker completes the level")
+		"L1_N3 solved, so the goal marker completes the level")
 
 	level.queue_free()
 	await process_frame
