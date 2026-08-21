@@ -549,6 +549,8 @@ func _audit_live_level() -> void:
 	var strip = level.get("requirement_strip")
 	_check(d != null and strip != null, "obstacle layer built",
 		"director and strip exist on the level")
+
+	_audit_polygon_fills(level)
 	if d == null:
 		level.queue_free()
 		await process_frame
@@ -1133,6 +1135,45 @@ func _walk_node_three(route: String) -> void:
 			"nothing damaged -- only cutting costs Pista a hidden flower")
 	level.queue_free()
 	await process_frame
+
+
+## Nothing in the level may be filled from an AtlasTexture through a Polygon2D.
+##
+## It does not draw the region. It samples the whole atlas page using the polygon's own
+## vertex coordinates as UVs, so the prop comes out as whatever art lies near the region --
+## for this atlas mostly dark, which against the terraces is indistinguishable from not
+## being there. Every prop built for Nodes 2 and 3 shipped that way and none of them was
+## on screen: three straw piles, the baul's body, and the bale's posts, deck and thatch.
+## It cost a screenshotting session to find, because each one reported present, positioned
+## and visible the whole time.
+##
+## The UV is checked too. Left empty it defaults to the vertex coordinates, which move
+## when the shape does -- a settling straw pile slid its own texture off itself.
+## atlas_tile.gd does both correctly; this is here so the next prop cannot quietly not.
+func _audit_polygon_fills(level: Node) -> void:
+	var atlas_filled: Array[String] = []
+	var unanchored: Array[String] = []
+	for node in _all_nodes(level):
+		var poly := node as Polygon2D
+		if poly == null or poly.texture == null:
+			continue
+		if poly.texture is AtlasTexture:
+			atlas_filled.append(String(poly.get_path()))
+		elif poly.uv.is_empty():
+			unanchored.append(String(poly.get_path()))
+	_check(atlas_filled.is_empty(), "no polygon is filled from an atlas region",
+		"every textured polygon has a cut-out texture" if atlas_filled.is_empty()
+		else "invisible in play: %s" % ", ".join(atlas_filled))
+	_check(unanchored.is_empty(), "every textured polygon anchors its own UV",
+		"none inherits its vertices as UVs" if unanchored.is_empty()
+		else "fill will drift when reshaped: %s" % ", ".join(unanchored))
+
+
+func _all_nodes(node: Node) -> Array[Node]:
+	var out: Array[Node] = [node]
+	for child in node.get_children():
+		out.append_array(_all_nodes(child))
+	return out
 
 
 ## Walking up to the house is not the same as finishing the level.
