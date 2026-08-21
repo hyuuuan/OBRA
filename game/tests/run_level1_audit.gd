@@ -18,6 +18,7 @@ const DialogueScriptClass = preload("res://scripts/dialogue_script.gd")
 const CheckpointManagerClass = preload("res://scripts/checkpoint_manager.gd")
 ## Preloaded, not named: class_name is not registered yet in a --script run.
 const StairTreadClass = preload("res://scripts/stair_tread_2d.gd")
+const FloatingTreadClass = preload("res://scripts/floating_tread_2d.gd")
 const LevelDirectorClass = preload("res://scripts/level_director.gd")
 
 const TAGS_PATH := "res://config/tags.json"
@@ -668,6 +669,49 @@ func _audit_live_level() -> void:
 			"%d step(s), all climbable" % maxi(0, treads.size() - 1) if unreachable.is_empty()
 			else "; ".join(unreachable))
 
+	# --- the tread that floated off, and what Roll does to it ----------------
+	# Sub-beat 0.2's whole lesson. It was drawn and it floated, but nothing made weighing it
+	# down mean anything, so the mechanic was fiction: the strip asked for ROLL and any
+	# rolling thing placed anywhere satisfied it.
+	var floater := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/Hagdan/FloatingTread")
+	_check(floater != null and floater.get_script() == FloatingTreadClass,
+		"the floating tread is live", "carries FloatingTread2D")
+	if floater != null and floater.get_script() == FloatingTreadClass:
+		_check(not bool(floater.call("is_settled")), "loose to begin with",
+			"nothing is holding it down yet")
+
+		# Something that does NOT roll must not settle it, or the tag is decorative.
+		var wrong := _drop_on(level, floater, "square")
+		for _frame in range(40):
+			await physics_frame
+		_check(not bool(floater.call("is_settled")), "a non-rolling weight does not settle it",
+			"a square on it is still just a square on it")
+		if wrong != null and is_instance_valid(wrong):
+			wrong.queue_free()
+		await process_frame
+
+		# Something that does.
+		var roller := _drop_on(level, floater, "circle")
+		_check(roller != null, "a rolling weight exists to drop", "circle placed above it")
+		for _frame in range(140):
+			await physics_frame
+		var touching := PackedStringArray()
+		for b in (floater as RigidBody2D).get_colliding_bodies():
+			touching.append("%s@%s" % [b.name, (b as Node2D).global_position.round()])
+		_check(bool(floater.call("is_settled")), "a rolling weight settles it",
+			"settled by '%s'" % floater.call("settling_class") if bool(floater.call("is_settled"))
+			else "tread@%s vy=%.1f rot=%.2f touching=[%s] roller@%s" % [
+				(floater as Node2D).global_position.round(),
+				(floater as RigidBody2D).linear_velocity.y,
+				float(floater.get("rotation")), ", ".join(touching),
+				roller.global_position.round() if roller != null and is_instance_valid(roller) else "gone"])
+		if bool(floater.call("is_settled")):
+			_check(bool(floater.get("freeze")), "settled means solid",
+				"frozen, so the water cannot lift it back up")
+			_check(absf(float(floater.get("rotation"))) < 0.05, "it settles level",
+				"%.3f rad -- a crooked tread is a ramp nobody asked for" % floater.get("rotation"))
+
 	# --- CP0: a checkpoint you reach by walking ------------------------------
 	# Beat 0 has no dialogue node, so before this it had no checkpoint at all and a slip on
 	# the terrace above sent the player back to the level's start with both sub-beats
@@ -756,6 +800,21 @@ func _lolo_bubble(level: Node) -> String:
 	if lolo == null or not is_instance_valid(lolo):
 		return ""
 	return _collect_labels(lolo)
+
+
+## Drop a placed prop of `class_id` just above `target`, the way a player placing one
+## there would. Returns it so the caller can clear it away again.
+func _drop_on(level: Node, target: Node2D, class_id: String) -> PhysicsShapeObject:
+	var registry := level.get_node("EntityRegistry") as EntityRegistry
+	var prop := registry.instantiate_entity(class_id) as PhysicsShapeObject
+	if prop == null:
+		return null
+	level.get_node("EnvironmentBaseplate/GameplayPlane/WorldItemRoot").add_child(prop)
+	prop.apply_item_data(DrawnItemData.from_prediction(
+		class_id, class_id.capitalize(), _blank_image(), [], 0.4, registry.get_entity(class_id)))
+	prop.global_position = target.global_position - Vector2(0.0, 46.0)
+	prop.confirm_placement()
+	return prop
 
 
 ## A minimal placed prop, so the restore has something to clean up. Not a real drawing --
