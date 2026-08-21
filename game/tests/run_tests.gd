@@ -257,7 +257,7 @@ func _test_level_completion_screen() -> void:
 	# Every stat must reach the screen. Rendering the panel but leaving it blank is a
 	# failure the "did it open" check alone would pass.
 	var rendered: Array[String] = []
-	for row in complete.get_node("Root/Panel/VBox/Stats").get_children():
+	for row in complete.get_node("Root/Center/Panel/VBox/Stats").get_children():
 		if row is HBoxContainer:
 			rendered.append("%s %s" % [(row.get_child(0) as Label).text, (row.get_child(1) as Label).text])
 	var joined := " | ".join(rendered)
