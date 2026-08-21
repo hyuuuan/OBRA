@@ -13,6 +13,11 @@ signal drawing_ready(
 	ink_cost: float
 )
 signal panel_closed
+## A declined recognition, so the level can answer it. The panel already handles the
+## player-facing part (ink released, buttons re-enabled); this exists because Lolo speaks
+## over the FIRST decline anywhere in the level -- "not because you drew it wrong, because
+## I could not tell it apart from something else" -- and only the level knows it is first.
+signal recognition_declined(entity: String, confidence: float, margin: float, reason: String)
 
 @export var debug_timing_logs: bool = false
 
@@ -296,6 +301,11 @@ func _on_entity_declined(
 	transform_button.disabled = false
 	clear_button.disabled = false
 	status.text = "not sure what that is — try drawing it more clearly!"
+	# Which half of the dual gate refused it. The thesis reports these separately, and
+	# they mean different things to a player: a low margin is "it looked like two things",
+	# a low confidence is "it looked like nothing".
+	var reason := "margin" if confidence >= 0.6 else "confidence"
+	recognition_declined.emit(entity, confidence, margin, reason)
 
 
 func _submit_latency_ms() -> float:
