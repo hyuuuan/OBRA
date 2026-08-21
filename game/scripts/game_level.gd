@@ -49,6 +49,14 @@ var _level_completed := false
 ## and say in the telemetry which class was abandoned.
 var _current_form_name := ""
 var _current_form_id := ""
+## Payyo's obstacle layer. The director decides what an obstacle accepts, the checkpoints
+## decide what a death costs, and the script decides what Lolo says about either.
+var director: LevelDirector
+var checkpoints: CheckpointManager
+var script_lines_l1: DialogueScript
+var requirement_strip: RequirementStrip
+## The refusal beat fires on the FIRST decline anywhere in the level, then never again.
+var _refusal_spoken := false
 var _run_started_msec := 0
 ## entity_id -> true, for the "things drawn" stat. Distinct classes, not attempts.
 var _classes_this_run: Dictionary = {}
@@ -76,6 +84,7 @@ func _ready() -> void:
 	draw_button.pressed.connect(_on_draw_button_pressed)
 	draw_panel.drawing_ready.connect(_on_drawing_ready)
 	draw_panel.panel_closed.connect(_on_draw_panel_closed)
+	draw_panel.recognition_declined.connect(_on_recognition_declined)
 	ink_manager.ink_changed.connect(_on_ink_changed)
 	inventory_hud.slot_pressed.connect(_on_inventory_slot_pressed)
 	placement_controller.placement_confirmed.connect(_on_placement_confirmed)
@@ -89,6 +98,7 @@ func _ready() -> void:
 	ink_manager.ink_exhausted.connect(_on_ink_exhausted)
 	_run_started_msec = Time.get_ticks_msec()
 	_apply_level_identity()
+	_build_obstacle_layer()
 	_spawn_wanderer()
 	_load_dialogue()
 	_spawn_lolo()
@@ -114,6 +124,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("redraw"):
 		get_viewport().set_input_as_handled()
+		if director != null:
+			director.note_canvas_opened()
 		draw_panel.open_panel()
 		return
 	for slot in range(6):
@@ -135,6 +147,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_draw_button_pressed() -> void:
 	if placement_controller.is_placing():
 		placement_controller.cancel_placement()
+	if director != null:
+		director.note_canvas_opened()
 	draw_panel.open_panel()
 
 
@@ -151,6 +165,229 @@ func _on_backend_starting(message: String) -> void:
 func _on_backend_failed(message: String) -> void:
 	draw_button.disabled = true
 	status_label.text = message
+
+
+## Payyo's obstacle layer, built in code rather than authored into game_level.tscn. The
+## director and the checkpoints have no scene presence worth authoring, and the strip's
+## whole content is dynamic -- generating scene files by hand is also the single trap that
+## has bitten this project most often.
+func _build_obstacle_layer() -> void:
+	director = LevelDirector.new()
+	director.name = "LevelDirector"
+	add_child(director)
+	if not director.load_level():
+		push_warning("GameLevel: no level data; obstacles will accept nothing")
+
+	checkpoints = CheckpointManager.new()
+	checkpoints.name = "CheckpointManager"
+	add_child(checkpoints)
+
+	script_lines_l1 = DialogueScript.new()
+	script_lines_l1.load_from("res://config/dialogue_l1.json")
+
+	requirement_strip = RequirementStrip.new()
+	requirement_strip.name = "RequirementStrip"
+	# Clear of the keybind strip, which sits at -108 and was being covered by this at
+	# -164: the panel grows DOWNWARD from its top offset, so a two-line requirement ran
+	# straight over "ESC MENU". -220 leaves room for the tallest state (tag line, own
+	# classes, and the T3 note) with the keybind row still readable underneath.
+	requirement_strip.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	requirement_strip.offset_left = 24.0
+	requirement_strip.offset_top = -220.0
+	requirement_strip.offset_right = 760.0
+	requirement_strip.offset_bottom = -140.0
+	requirement_strip.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	$CanvasLayer.add_child(requirement_strip)
+
+	director.obstacle_entered.connect(_on_obstacle_entered)
+	director.obstacle_exited.connect(_on_obstacle_exited)
+	director.requirements_changed.connect(_on_requirements_changed)
+	director.hint_tier_changed.connect(_on_hint_tier_changed)
+	director.route_committed.connect(_on_obstacle_route_committed)
+	director.obstacle_solved.connect(_on_obstacle_solved)
+
+	for node in get_tree().get_nodes_in_group(&"level_obstacles"):
+		var area := node as LevelObstacle2D
+		if area == null:
+			continue
+		# An obstacle volume whose id is not in the data is a dead trigger: the player
+		# walks through it and nothing ever asks them for anything. Loud, not silent.
+		if director.obstacle(area.obstacle_id).is_empty():
+			push_error("GameLevel: obstacle volume '%s' has no entry in level_01.json"
+				% area.obstacle_id)
+			continue
+		area.player_entered.connect(director.enter_obstacle)
+		area.player_exited.connect(director.exit_obstacle)
+
+
+func _on_obstacle_entered(obstacle_id: String) -> void:
+	_speak(script_lines_l1.fire("%s.enter" % obstacle_id))
+	# A node teaches all three of its routes' verbs BEFORE the choice, because a player
+	# cannot choose a path whose verb they have never been told.
+	var teaches: Array = director.obstacle(obstacle_id).get("teaches_before_choice", [])
+	if not teaches.is_empty():
+		_speak(script_lines_l1.fire("%s.teach" % obstacle_id))
+		director.teach_before_choice(obstacle_id)
+	_speak_current_stage(obstacle_id)
+	_refresh_requirements()
+
+
+## Lolo asking for the thing this sub-beat needs -- "gumuhit ka ng kayang span".
+##
+## These lines existed in the script from the start and nothing fired them, so Beat 0's
+## actual instructions were dead: the tutorial asked for nothing out loud and the only
+## thing naming the requirement was the strip, which does not appear until T1. A player
+## who walks in and waits was told nothing at all for thirty seconds.
+func _speak_current_stage(obstacle_id: String) -> void:
+	var stage := director.stage_id(obstacle_id)
+	if stage.is_empty():
+		return
+	_speak(script_lines_l1.fire("%s.%s" % [obstacle_id, stage]))
+
+
+func _on_obstacle_exited(_obstacle_id: String) -> void:
+	if requirement_strip != null:
+		requirement_strip.clear()
+
+
+func _on_requirements_changed(_obstacle_id: String, _required: Array) -> void:
+	_refresh_requirements()
+
+
+func _on_hint_tier_changed(obstacle_id: String, tier: int) -> void:
+	_refresh_requirements()
+	Telemetry.record_event("hint_tier_changed", {
+		"level_id": LevelManager.current_level_id,
+		"obstacle_id": obstacle_id, "tier": tier,
+	})
+
+
+func _refresh_requirements() -> void:
+	if requirement_strip == null or director == null:
+		return
+	var obstacle_id := director.current_obstacle()
+	if obstacle_id.is_empty() or director.is_solved(obstacle_id):
+		requirement_strip.clear()
+		return
+	var spec := director.requirement_spec()
+	var owned := AbilityTags.known_solutions(
+		spec.get("required_tags", []),
+		String(spec.get("match", "all")),
+		spec.get("exclude", []))
+	requirement_strip.show_requirements(director.required_tags(), director.hint_tier(), owned)
+
+
+## The checkpoint is written HERE, on the commit, not on the solve -- so that every morph
+## on the route is protected and a death cannot make the player answer Lolo twice.
+func _on_obstacle_route_committed(obstacle_id: String, route: String) -> void:
+	_speak(script_lines_l1.fire("%s.%s.commit" % [obstacle_id, route]))
+	var checkpoint_id := String(director.obstacle(obstacle_id).get("checkpoint_on_commit", ""))
+	if not checkpoint_id.is_empty():
+		_write_checkpoint(checkpoint_id)
+
+
+func _on_obstacle_solved(obstacle_id: String, route: String, label: String, attempt_count: int, tier: int) -> void:
+	_speak(script_lines_l1.fire("%s.%s.solved" % [obstacle_id, route]))
+	_refresh_requirements()
+	Telemetry.record_event("obstacle_solved", {
+		"level_id": LevelManager.current_level_id,
+		"obstacle_id": obstacle_id, "route": route, "accepted_label": label,
+		"attempts": attempt_count, "hint_tier": tier,
+		"assisted": director.was_assisted(obstacle_id),
+	})
+
+
+## Offer what just entered the world to whatever obstacle the player is standing in.
+##
+## Silent when there is no obstacle, which is most of the level: drawing a frog in an
+## empty paddy is a thing the player is allowed to do for its own sake, and answering it
+## with "that is not what this needs" would turn the whole level into a quiz.
+func _judge_submission(entity_id: String) -> void:
+	if director == null or director.current_obstacle().is_empty():
+		return
+	var verdict := director.note_submission(entity_id)
+	# The strip re-reads the director either way: a solve moves it to the next stage, and
+	# a miss may have opened the next hint tier.
+	_refresh_requirements()
+	if bool(verdict["solves"]) and not String(verdict["stage_id"]).is_empty():
+		# Beat 0's sub-beats have their own lines ("B0_HAGDAN.sub1.solved"); a route's
+		# second stage does not, and reports an empty stage id rather than a missing hook.
+		_speak(script_lines_l1.fire("%s.%s.solved" % [
+			verdict["obstacle_id"], verdict["stage_id"]]))
+	if bool(verdict["stage_advanced"]):
+		# The next sub-beat has to ask for itself, or the second half of the tutorial is
+		# silent and the player is left guessing what changed.
+		_speak_current_stage(String(verdict["obstacle_id"]))
+
+
+func _write_checkpoint(checkpoint_id: String) -> void:
+	var anchor_position := spawn_point.global_position
+	if player != null and is_instance_valid(player) and player.has_method("capture_morph_state"):
+		anchor_position = Vector2((player.call("capture_morph_state") as Dictionary).get(
+			"position", anchor_position))
+	checkpoints.write(checkpoint_id, {
+		"position": anchor_position,
+		"ink_committed": ink_manager.committed,
+		"toolbelt": PlayerProfile.acquired_objects(),
+		"obstacles": director.obstacle_state(),
+		"placed": _placed_entity_records(),
+	})
+	Telemetry.record_event("checkpoint_written", {
+		"level_id": LevelManager.current_level_id, "checkpoint_id": checkpoint_id,
+	})
+
+
+## Placed props, as data rather than as nodes: a checkpoint outlives the bodies it
+## describes, so storing references would restore a world full of freed objects.
+func _placed_entity_records() -> Array:
+	var records: Array = []
+	for child in world_item_root.get_children():
+		var prop := child as PhysicsShapeObject
+		if prop == null or prop.is_preview or prop.item_data == null:
+			continue
+		records.append({
+			"entity_id": prop.item_data.entity_id,
+			"transform": prop.global_transform,
+		})
+	return records
+
+
+## Payyo's lines, routed by who is saying them.
+##
+## The visual pass caught this: everything went to the status label, so Lolo's own voice
+## appeared as a caption at the top of the screen while his speech bubble carried an
+## unrelated line from the old dialogue file. Two narrators, disagreeing, in the level
+## whose job is to teach the game.
+##
+## Lolo speaks in his bubble, because that is where the player is already looking for him.
+## The apo is the player's own thought and stays in the status line. Lines arrive as a
+## list because most beats are several in a row, and the bubble shows them in sequence.
+func _speak(lines: Array) -> void:
+	for line_value: Variant in lines:
+		var line: Dictionary = line_value
+		var text := script_lines_l1.display_text(line)
+		if text.is_empty():
+			continue
+		if String(line.get("speaker", "lolo")) == "lolo" and lolo != null and is_instance_valid(lolo):
+			lolo.say(text)
+		else:
+			status_label.text = text
+
+
+## The refusal beat. It fires on the FIRST decline anywhere in the level and never again,
+## and it is scripted as dialogue rather than as a rejection: the model is not rigged to
+## fail, and the player is not being told they drew badly. No ink is spent -- the panel
+## already released it before this runs.
+func _on_recognition_declined(_entity: String, _confidence: float, _margin: float, reason: String) -> void:
+	if director != null:
+		director.note_decline(reason)
+	if _refusal_spoken:
+		return
+	var lines := script_lines_l1.fire("on_first_decline")
+	if lines.is_empty():
+		return
+	_refusal_spoken = true
+	_speak(lines)
 
 
 func _on_draw_panel_closed() -> void:
@@ -239,6 +476,7 @@ func _spawn_or_replace(
 	status_label.text = label
 	if debug_timing_logs:
 		print("Morph %s built in %.2f ms" % [entity_id, float(Time.get_ticks_usec() - spawn_started) / 1000.0])
+	_judge_submission(entity_id)
 	return true
 
 
@@ -368,6 +606,10 @@ func _on_placement_confirmed(
 		item.ink_committed = true
 	_connect_utility(placed as UtilityObject)
 	status_label.text = "%s placed" % item.display_name
+	# Judged HERE and not at recognition. A square that was drawn but never put down has
+	# not bridged anything, and letting the gap solve on recognition would mean the
+	# tutorial's one lesson -- that you place what you draw -- could be skipped.
+	_judge_submission(item.entity_id)
 
 
 func _on_placement_canceled(item: DrawnItemData, source_slot: int) -> void:
@@ -737,11 +979,21 @@ func _wire_dialogue_node() -> void:
 ## pausing -- it is a ModalOverlay, and UIRouter derives the tree's pause state from
 ## whoever is open -- so this only has to decide what he asks.
 func _on_dialogue_node_approached() -> void:
+	if lolo != null and is_instance_valid(lolo):
+		lolo.hush()
+	# Payyo's own script, when it has one. The three buttons are read off the commit
+	# lines rather than authored twice, so the button and the line the apo says when it
+	# is pressed are literally the same string and cannot drift.
+	var choices: Dictionary = script_lines_l1.choices_for("L1_N1") if script_lines_l1 != null else {}
+	if not choices.is_empty():
+		var context := ""
+		for line_value: Variant in script_lines_l1.peek("L1_N1.choice"):
+			context = String((line_value as Dictionary).get("text", ""))
+		dialogue_overlay.call("present", "Lolo", context, choices)
+		return
 	var node_lines: Dictionary = _script_lines.get("node", {})
 	if node_lines.is_empty():
 		return
-	if lolo != null and is_instance_valid(lolo):
-		lolo.hush()
 	dialogue_overlay.call(
 		"present",
 		String(node_lines.get("speaker", "Lolo")),
@@ -759,10 +1011,15 @@ func _on_route_picked(route: String) -> void:
 func _on_route_chosen(route: String) -> void:
 	if route_layout != null:
 		route_layout.apply_route(route)
-	var routes: Dictionary = _script_lines.get("routes", {})
-	if lolo != null and is_instance_valid(lolo):
-		lolo.say(String(routes.get(route, "")))
-	status_label.text = "Route: %s" % route.capitalize()
+	# The single write: the tally, the checkpoint and the telemetry all happen inside
+	# commit_route, and the commit line Lolo speaks is fired from route_committed.
+	if director != null:
+		director.commit_route("L1_N1", route)
+	else:
+		var routes: Dictionary = _script_lines.get("routes", {})
+		if lolo != null and is_instance_valid(lolo):
+			lolo.say(String(routes.get(route, "")))
+		status_label.text = "Route: %s" % route.capitalize()
 
 
 ## The Empathy route's reward, shown once the player has actually crossed the gorge
