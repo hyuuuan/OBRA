@@ -16,6 +16,8 @@ const AbilityTagsScript = preload("res://scripts/ability_tags.gd")
 ## Preloaded rather than named: a class_name is not registered yet in a --script run.
 const DialogueScriptClass = preload("res://scripts/dialogue_script.gd")
 const CheckpointManagerClass = preload("res://scripts/checkpoint_manager.gd")
+## Preloaded, not named: class_name is not registered yet in a --script run.
+const StairTreadClass = preload("res://scripts/stair_tread_2d.gd")
 const LevelDirectorClass = preload("res://scripts/level_director.gd")
 
 const TAGS_PATH := "res://config/tags.json"
@@ -609,6 +611,62 @@ func _audit_live_level() -> void:
 	await process_frame
 	_check(d.is_solved("B0_HAGDAN"), "beat completes in the live level", "B0_HAGDAN solved")
 	_check(not strip.visible, "solved obstacle clears the strip", "nothing left to ask for")
+
+	# --- the stair must still be a stair the player cannot just walk up ------
+	# THE TREADS DEFEATED THE BEAT ONCE ALREADY. Added centre-anchored while the terrain is
+	# top-left anchored, every riser came out half a tread short: 24, 36 and 80px against a
+	# 94.3px jump, so the player could walk straight up and Beat 0 asked them for nothing.
+	# Art that illustrates a gap must not fill it.
+	var hagdan := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane/Hagdan")
+	_check(hagdan != null, "Ang Hagdan exists", "the stair is in the level")
+	if hagdan != null:
+		var jump: float = pow(430.0, 2.0) / (2.0 * 980.0)   # from wanderer.gd
+		var lower := level.get_node_or_null(
+			"EnvironmentBaseplate/GameplayPlane/Terrain/LowerRight") as Node2D
+		# ONLY the stones you can stand on. The broken stubs share the script -- they are
+		# what the missing treads left behind -- but they carry no collision, so counting
+		# them would measure the gap from a thing that cannot hold the player.
+		var treads: Array[Node2D] = []
+		for child in hagdan.get_children():
+			if child.get_script() == StairTreadClass and not bool(child.get("is_broken")):
+				treads.append(child as Node2D)
+		var stubs := 0
+		for child in hagdan.get_children():
+			if child.get_script() == StairTreadClass and bool(child.get("is_broken")):
+				stubs += 1
+		# The absence has to be drawn or two stones read as two rocks rather than as a
+		# stair someone has to repair.
+		_check(stubs == 3, "the three missing treads are drawn",
+			"%d broken stub(s) where the gone ones were" % stubs)
+		# And a stub must never be standable, or the gap quietly fills itself.
+		var solid_stubs: Array[String] = []
+		for child in hagdan.get_children():
+			if child.get_script() == StairTreadClass and bool(child.get("is_broken")):
+				for grandchild in child.get_children():
+					if grandchild is CollisionShape2D or grandchild is CollisionPolygon2D:
+						solid_stubs.append(String(child.name))
+		_check(solid_stubs.is_empty(), "broken stubs are not standable",
+			"none carry collision" if solid_stubs.is_empty() else ", ".join(solid_stubs))
+		# Highest surface_y is the lowest stone on screen: y grows downward.
+		treads.sort_custom(func(a, b): return float(a.call("surface_y")) > float(b.call("surface_y")))
+		_check(not treads.is_empty(), "the stair has treads", "%d stone(s) survive" % treads.size())
+
+		if not treads.is_empty() and lower != null:
+			var rise: float = lower.global_position.y - float(treads[0].call("surface_y"))
+			_check(rise > jump + 8.0, "the gap is still ungated",
+				"%.0fpx from the bank to the lowest stone, against a %.0fpx jump" % [rise, jump])
+
+		# And once the gap IS bridged the treads have to connect, or the player pays for a
+		# step and is stranded one stone higher.
+		var unreachable: Array[String] = []
+		for index in range(treads.size() - 1):
+			var step: float = float(treads[index].call("surface_y")) - float(treads[index + 1].call("surface_y"))
+			if step > jump:
+				unreachable.append("%s -> %s is %.0fpx" % [
+					treads[index].name, treads[index + 1].name, step])
+		_check(unreachable.is_empty(), "the surviving treads connect",
+			"%d step(s), all climbable" % maxi(0, treads.size() - 1) if unreachable.is_empty()
+			else "; ".join(unreachable))
 
 	# --- CP0: a checkpoint you reach by walking ------------------------------
 	# Beat 0 has no dialogue node, so before this it had no checkpoint at all and a slip on
