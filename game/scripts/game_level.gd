@@ -217,6 +217,8 @@ func _build_obstacle_layer() -> void:
 			continue
 		area.reached.connect(_on_checkpoint_area_reached)
 
+	_wire_the_bulul()
+
 	for node in get_tree().get_nodes_in_group(&"level_obstacles"):
 		var area := node as LevelObstacle2D
 		if area == null:
@@ -314,6 +316,8 @@ func _on_obstacle_route_committed(obstacle_id: String, route: String) -> void:
 func _on_obstacle_solved(obstacle_id: String, route: String, label: String, attempt_count: int, tier: int) -> void:
 	if obstacle_id == "L1_N2":
 		_search_the_straw(route)
+	elif obstacle_id == "L1_N3":
+		_open_the_baul(route)
 	else:
 		_speak(script_lines_l1.fire("%s.%s.solved" % [obstacle_id, route]))
 	_refresh_requirements()
@@ -406,6 +410,76 @@ func _uncover_the_baul() -> void:
 		if chest != null:
 			chest.reveal()
 	_speak(script_lines_l1.fire("L1_N2.solved"))
+
+
+## Ang Bale: three ways into the same chest, and the third one costs something.
+func _open_the_baul(route: String) -> void:
+	match route:
+		"artist":
+			await _into_the_attic()
+		"pragmatist":
+			# The ward sequence runs on its own, driven by the drawn key rather than by
+			# the solve -- see _on_key_offered. Getting here means the lock is open.
+			_speak(script_lines_l1.fire("L1_N3.ward.solved"))
+		"protector":
+			# THE ONE COST THAT LEAVES THIS LEVEL. Cutting the hasp creases what is inside,
+			# and the player finds out in Pista rather than here: the seam runs through the
+			# painted street and Hidden Flower 2 sits on the damaged side of it.
+			script_lines_l1.set_flag("canvas_2_creased")
+			PlayerProfile.record_canvas_damage("canvas_2_pista")
+			Telemetry.record_event("persistent_effect", {
+				"level_id": LevelManager.current_level_id,
+				"obstacle_id": "L1_N3", "effect": "canvas_2_creased",
+				"cross_level_effect": "L2_PISTA.hidden_flower_2.unreachable",
+			})
+			_speak(script_lines_l1.fire("L1_N3.protector.solved"))
+	_grant_the_canvas()
+
+
+## Over the thatch and in under the eaves. The halipan are what make this the way in rather
+## than the posts, and the attic is where she left the key.
+##
+## A player who combed the straw at Node 2 already knows to look on a nail; one who did not
+## is searching a dark granary for something nobody mentioned. Same room, different length.
+func _into_the_attic() -> void:
+	_speak(script_lines_l1.fire("L1_N3.artist.attic"))
+	var search := 1.6
+	if script_lines_l1.is_flag_set("knows_about_key"):
+		search *= float(director.obstacle("L1_N3")
+			.get("routes", {})
+			.get("artist", {})
+			.get("search_time_modifier_if_flag", {})
+			.get("knows_about_key", 1.0))
+	await get_tree().create_timer(search).timeout
+	_speak(script_lines_l1.fire("L1_N3.attic.found"))
+	await get_tree().create_timer(1.2).timeout
+	_speak(script_lines_l1.fire("L1_N3.artist.photo"))
+	Telemetry.record_event("route_reward", {
+		"level_id": LevelManager.current_level_id,
+		"obstacle_id": "L1_N3", "reward": "photograph_unnamed_woman",
+		"knew_about_key": script_lines_l1.is_flag_set("knows_about_key"),
+		"search_seconds": search,
+	})
+
+
+## What the chest held, and the reason Pista opens. The unlock happens at CP3 rather than
+## at the marker stone, so a player who stops after this keeps the progress.
+func _grant_the_canvas() -> void:
+	PlayerProfile.record_object_acquired("canvas_2_pista")
+	PlayerProfile.mark_level_completed(LevelManager.current_level_id)
+	Telemetry.record_event("item_granted", {
+		"level_id": LevelManager.current_level_id, "item": "canvas_2_pista",
+	})
+
+
+## The bulul, and the only thing they do. A refusal, not a hint: nothing unlocks, nothing
+## is recorded as progress, and Lolo says it once.
+func _wire_the_bulul() -> void:
+	for node in get_tree().get_nodes_in_group(&"bulul"):
+		var figure := node as Bulul2D
+		if figure != null:
+			figure.approached.connect(func() -> void:
+				_speak(script_lines_l1.fire("L1_N3.bulul_approach")))
 
 
 func _write_checkpoint(checkpoint_id: String) -> void:
