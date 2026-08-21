@@ -1054,16 +1054,33 @@ func _physics_process(_delta: float) -> void:
 ## photographing the bale.
 ##
 ## The condition is not written here. Level 1's own file names the checkpoint that unlocks
-## it (`unlocks_at_checkpoint`, CP3, Ang Bale's route commit), and this asks whether that
-## checkpoint has been reached. A level that names no such checkpoint ends on arrival as
-## before, which is what the levels without an obstacle layer want.
+## it (`unlocks_at_checkpoint`, CP3), the checkpoint list says which obstacle that
+## checkpoint belongs to (CP3 is `at: L1_N3`), and the level may end once that obstacle has
+## been SOLVED. Not committed: CP3 is written on the route commit, so asking only whether
+## the checkpoint exists would let a player finish by pressing a dialogue button and walking
+## four metres, without drawing anything. A level that names no such checkpoint ends on
+## arrival exactly as before, which is what the levels with no obstacle layer want.
 func _completion_unlocked() -> bool:
-	if director == null or checkpoints == null:
+	if director == null:
 		return true
-	var required := String(director.level_data().get("unlocks_at_checkpoint", ""))
-	if required.is_empty():
+	var obstacle_id := _obstacle_that_unlocks_the_exit()
+	if obstacle_id.is_empty():
 		return true
-	return Array(checkpoints.ids()).has(required)
+	return director.is_solved(obstacle_id)
+
+
+func _obstacle_that_unlocks_the_exit() -> String:
+	var data := director.level_data()
+	var checkpoint_id := String(data.get("unlocks_at_checkpoint", ""))
+	if checkpoint_id.is_empty():
+		return ""
+	for entry_value: Variant in (data.get("checkpoints", []) as Array):
+		var entry: Dictionary = entry_value
+		if String(entry.get("id", "")) != checkpoint_id:
+			continue
+		# "L1_N3", or "B0_HAGDAN.top" for the ones that name a place within an obstacle.
+		return String(entry.get("at", "")).split(".")[0]
+	return ""
 
 
 ## Put the held item in the character's hand, and light the slot it came from, so what
