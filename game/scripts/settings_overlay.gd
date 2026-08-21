@@ -14,17 +14,17 @@ const SETTING_FOR_BUS := {
 }
 
 @onready var _sliders: Dictionary = {
-	"master_volume": $Root/Panel/VBox/MasterRow/Slider,
-	"music_volume": $Root/Panel/VBox/MusicRow/Slider,
-	"sfx_volume": $Root/Panel/VBox/SfxRow/Slider,
+	"master_volume": $Root/Center/Panel/VBox/MasterRow/Slider,
+	"music_volume": $Root/Center/Panel/VBox/MusicRow/Slider,
+	"sfx_volume": $Root/Center/Panel/VBox/SfxRow/Slider,
 }
 @onready var _readouts: Dictionary = {
-	"master_volume": $Root/Panel/VBox/MasterRow/Value,
-	"music_volume": $Root/Panel/VBox/MusicRow/Value,
-	"sfx_volume": $Root/Panel/VBox/SfxRow/Value,
+	"master_volume": $Root/Center/Panel/VBox/MasterRow/Value,
+	"music_volume": $Root/Center/Panel/VBox/MusicRow/Value,
+	"sfx_volume": $Root/Center/Panel/VBox/SfxRow/Value,
 }
-@onready var _fullscreen: CheckButton = $Root/Panel/VBox/FullscreenToggle
-@onready var _back_button: Button = $Root/Panel/VBox/BackButton
+@onready var _fullscreen: CheckButton = $Root/Center/Panel/VBox/FullscreenToggle
+@onready var _back_button: Button = $Root/Center/Panel/VBox/BackButton
 
 var _profile: Node = null
 var _director: Node = null

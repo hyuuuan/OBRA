@@ -16,11 +16,11 @@ extends ModalOverlay
 signal continue_pressed
 signal retry_pressed
 
-@onready var _title: Label = $Root/Panel/VBox/Title
-@onready var _subtitle: Label = $Root/Panel/VBox/Subtitle
-@onready var _stats: VBoxContainer = $Root/Panel/VBox/Stats
-@onready var _continue_button: Button = $Root/Panel/VBox/Buttons/ContinueButton
-@onready var _retry_button: Button = $Root/Panel/VBox/Buttons/RetryButton
+@onready var _title: Label = $Root/Center/Panel/VBox/Title
+@onready var _subtitle: Label = $Root/Center/Panel/VBox/Subtitle
+@onready var _stats: VBoxContainer = $Root/Center/Panel/VBox/Stats
+@onready var _continue_button: Button = $Root/Center/Panel/VBox/Buttons/ContinueButton
+@onready var _retry_button: Button = $Root/Center/Panel/VBox/Buttons/RetryButton
 
 
 func _ready() -> void:

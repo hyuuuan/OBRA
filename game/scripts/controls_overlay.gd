@@ -10,8 +10,8 @@ extends ModalOverlay
 
 const CONFIG_PATH := "res://config/controls.json"
 
-@onready var _rows: VBoxContainer = $Root/Panel/VBox/Rows
-@onready var _back_button: Button = $Root/Panel/VBox/BackButton
+@onready var _rows: VBoxContainer = $Root/Center/Panel/VBox/Rows
+@onready var _back_button: Button = $Root/Center/Panel/VBox/BackButton
 
 var _built := false
 

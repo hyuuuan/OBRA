@@ -12,9 +12,9 @@ signal route_picked(route: String)
 ## Route ids in PlayerProfile.ROUTES order, one per button.
 const ROUTES := ["artist", "pragmatist", "protector"]
 
-@onready var _speaker: Label = $Root/Panel/VBox/Speaker
-@onready var _context: Label = $Root/Panel/VBox/Context
-@onready var _buttons: VBoxContainer = $Root/Panel/VBox/Choices
+@onready var _speaker: Label = $Root/Center/Panel/VBox/Speaker
+@onready var _context: Label = $Root/Center/Panel/VBox/Context
+@onready var _buttons: VBoxContainer = $Root/Center/Panel/VBox/Choices
 
 
 func _ready() -> void:
