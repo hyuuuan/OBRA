@@ -20,6 +20,9 @@ const CheckpointManagerClass = preload("res://scripts/checkpoint_manager.gd")
 const StairTreadClass = preload("res://scripts/stair_tread_2d.gd")
 const FloatingTreadClass = preload("res://scripts/floating_tread_2d.gd")
 const StrawPileClass = preload("res://scripts/straw_pile_2d.gd")
+const WardLockClass = preload("res://scripts/ward_lock_2d.gd")
+const BululClass = preload("res://scripts/bulul_2d.gd")
+const BaleClass = preload("res://scripts/bale_2d.gd")
 const LevelDirectorClass = preload("res://scripts/level_director.gd")
 
 const TAGS_PATH := "res://config/tags.json"
@@ -72,6 +75,8 @@ func _run() -> void:
 	_audit_level_director()
 	await _audit_live_level()
 	await _audit_node_two()
+	_audit_ward_lock()
+	await _audit_node_three()
 
 	print("\n===== LEVEL 1 DATA AUDIT =====")
 	for line in results:
@@ -940,6 +945,189 @@ func _walk_node_two(route: String) -> void:
 		_check(scattered, "scattering is recorded",
 			"straw_scattered is set, and the exit line is gated on it")
 
+	level.queue_free()
+	await process_frame
+
+
+## The ward sequence: does a drawn key's SHAPE decide anything?
+##
+## The recogniser only gets the player through the door -- it says "that is a key" and has
+## no opinion about whether it is THIS key. Everything below is geometry on the player's own
+## strokes, which is the point: the drawing is not a token standing in for a key, it is the
+## key, and its shape is load-bearing.
+func _audit_ward_lock() -> void:
+	# Three teeth, standing well off a long thin blade: what the slot wants.
+	var right := _key_strokes(3, 26.0, 200.0)
+	var measured: Dictionary = WardLockClass.measure(right)
+	_check(int(measured["bits"]) == 3, "it counts the teeth",
+		"read %d bit(s) off a three-toothed key" % measured["bits"])
+	_check(float(measured["aspect"]) > 2.0, "it measures the blade",
+		"aspect %.1f -- long and thin, not a comb" % measured["aspect"])
+
+	# A key of the same shape drawn twice the size must measure the same. The player draws
+	# at whatever scale they like and the lock cannot care.
+	var big: Dictionary = WardLockClass.measure(_key_strokes(3, 52.0, 400.0))
+	_check(int(big["bits"]) == int(measured["bits"])
+		and absf(float(big["aspect"]) - float(measured["aspect"])) < 0.6,
+		"scale does not change the answer",
+		"same key at 2x reads %d bits, aspect %.1f" % [big["bits"], big["aspect"]])
+
+	# Wrong tooth count is refused, and the refusal names what is wrong.
+	var lock = WardLockClass.new()
+	var wrong: Dictionary = lock.try_key(_key_strokes(6, 26.0, 200.0))
+	_check(not bool(wrong["opens"]) and String(wrong["reason"]) == "bits",
+		"the wrong key turns and stops", "refused on '%s'" % wrong["reason"])
+	_check(float(wrong["revealed"]) > 0.0, "a failed turn shows more of the ward",
+		"%.0f%% of the shape is now drawn on the canvas" % (float(wrong["revealed"]) * 100.0))
+	lock.free()
+
+	# The right key opens it first time.
+	var fresh = WardLockClass.new()
+	var good: Dictionary = fresh.try_key(right)
+	_check(bool(good["opens"]) and not bool(good["forced"]),
+		"the right key opens it", "on attempt %d, unforced" % good["attempt"])
+	fresh.free()
+
+	# NOBODY FAILS PERMANENTLY. Three wrong keys and it opens anyway -- being locked out of
+	# the level by a shape nobody described is not a lesson.
+	var stubborn = WardLockClass.new()
+	var last: Dictionary = {}
+	for attempt in range(3):
+		last = stubborn.try_key(_key_strokes(7, 4.0, 60.0))
+	_check(bool(last["opens"]) and bool(last["forced"]),
+		"the third turn opens it regardless",
+		"forced on attempt %d, so there is no dead end" % last["attempt"])
+	stubborn.free()
+
+
+## A key drawn as a person draws one: a long blade with teeth standing off one edge.
+func _key_strokes(teeth: int, tooth_depth: float, blade_length: float) -> Array:
+	var spine: Array[Vector2] = []
+	for step in range(24):
+		spine.append(Vector2(blade_length * float(step) / 23.0, 0.0))
+	var points := PackedVector2Array(spine)
+	var strokes: Array = [{"points": points, "width": 6.0, "color": Color.BLACK}]
+	for index in range(teeth):
+		var x: float = blade_length * (0.55 + 0.4 * float(index) / maxf(1.0, float(teeth)))
+		strokes.append({
+			"points": PackedVector2Array([Vector2(x, 0.0), Vector2(x, tooth_depth)]),
+			"width": 6.0, "color": Color.BLACK,
+		})
+	return strokes
+
+
+## Ang Bale. Three ways into the same chest, one of which costs something in Pista.
+func _audit_node_three() -> void:
+	# START FROM A CLEAN PROFILE. Canvas damage is deliberately permanent -- it has to
+	# outlive the session for Pista to know about it -- so a profile left over from the
+	# last run already has the crease recorded, and "the protector route creases it" passes
+	# without the route doing anything. Mutation-testing caught exactly that: removing the
+	# write left the check green.
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://profile.json"))
+	var profile := root.get_node_or_null("PlayerProfile")
+	if profile != null:
+		profile.call("load_profile")
+	for route in ["artist", "pragmatist", "protector"]:
+		await _walk_node_three(route)
+
+
+func _walk_node_three(route: String) -> void:
+	var packed := load("res://game_level.tscn") as PackedScene
+	var level := packed.instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	await process_frame
+	await process_frame
+
+	var d = level.get("director")
+	var script_lines = level.get("script_lines_l1")
+	var bale_root := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane/Bale")
+	if d == null or bale_root == null:
+		_fail("node 3 (%s)" % route, "the level has no Bale or no director")
+		level.queue_free()
+		await process_frame
+		return
+
+	if route == "artist":
+		var house := bale_root.get_node_or_null("House")
+		_check(house != null and house.get_script() == BaleClass,
+			"the bale is standing", "four posts and a roof")
+		# THE HALIPAN ARE SOLID. They are why "climb the post" is not an answer, so if they
+		# stop being collidable the Artist route stops having a reason to exist.
+		var guards := 0
+		var posts := 0
+		if house != null:
+			for child in house.get_children():
+				if String(child.name).begins_with("Halipan"):
+					for grandchild in child.get_children():
+						if grandchild is CollisionShape2D:
+							guards += 1
+				elif String(child.name).begins_with("Post"):
+					posts += 1
+		_check(posts == 4, "four posts", "%d" % posts)
+		_check(guards == 4, "every post carries a solid halipan",
+			"%d rat guard(s) with collision -- this is why the posts cannot be climbed" % guards)
+
+		# THE CULTURAL GUARDRAIL, as an assertion rather than a comment.
+		var figures: Array[Node] = []
+		for child in bale_root.get_children():
+			if child.get_script() == BululClass:
+				figures.append(child)
+		_check(figures.size() == 2, "two bulul", "%d" % figures.size())
+		var solid: Array[String] = []
+		for figure in figures:
+			if bool(figure.call("has_collision")):
+				solid.append(String(figure.name))
+		_check(solid.is_empty(), "no bulul has collision",
+			"none can be stood on, pushed or chopped" if solid.is_empty()
+			else "SOLID: %s" % ", ".join(solid))
+		var in_data := false
+		for obstacle_value: Variant in (d.level_data().get("obstacles", []) as Array):
+			for route_value: Variant in ((obstacle_value as Dictionary).get("routes", {}) as Dictionary).values():
+				if String(JSON.stringify(route_value)).to_lower().contains("bulul"):
+					in_data = true
+		_check(not in_data, "no route requires a bulul",
+			"they carry no puzzle function anywhere in the level data")
+
+	var player := level.get("player") as Node2D
+	# On the terrace BESIDE the house, not on top of it: the posts, deck and thatch are
+	# solid, and dropping the player into the middle of them wedges them in the geometry
+	# instead of walking them up to it.
+	player.global_position = Vector2(3360.0, 170.0)
+	for _frame in range(20):
+		await physics_frame
+	if route == "artist":
+		_check(d.current_obstacle() == "L1_N3", "arriving at the bale registers",
+			"director is at '%s' (player at %s)" % [d.current_obstacle(), player.global_position.round()])
+		_check(bool(tags.call("is_unlocked", "unlock")), "Unlock is taught on arrival",
+			"the verb exists before the choice that needs it")
+
+	var profile_pre := root.get_node_or_null("PlayerProfile")
+	var creased_before := profile_pre != null \
+		and bool(profile_pre.call("is_canvas_damaged", "canvas_2_pista"))
+
+	d.commit_route("L1_N3", route)
+	await process_frame
+	var solver: String = {"artist": "spider", "pragmatist": "key", "protector": "axe"}[route]
+	level.call("_judge_submission", solver)
+	for _frame in range(260):
+		await physics_frame
+
+	_check(d.is_solved("L1_N3"), "%s solves it" % route, "with '%s'" % solver)
+	var profile3 := root.get_node_or_null("PlayerProfile")
+	_check(profile3 != null and bool(profile3.call("has_object", "canvas_2_pista")),
+		"the chest yields the second canvas", "granted on the %s route" % route)
+
+	# The cost that leaves the level, checked as a TRANSITION rather than a state.
+	var creased := profile3 != null and bool(profile3.call("is_canvas_damaged", "canvas_2_pista"))
+	if route == "protector":
+		_check(not creased_before, "the crease is not there before the hasp is cut",
+			"clean going in, so the check below means something")
+		_check(creased, "cutting the hasp creases the canvas",
+			"recorded on the profile, so Pista still knows two levels later")
+	else:
+		_check(not creased, "the %s route leaves the canvas whole" % route,
+			"nothing damaged -- only cutting costs Pista a hidden flower")
 	level.queue_free()
 	await process_frame
 
