@@ -24,6 +24,7 @@ extends ModalOverlay
 
 
 func _ready() -> void:
+	_shrink_panel_to_content()
 	super()
 	resume_button.pressed.connect(close_pause)
 	restart_button.pressed.connect(_restart_level)
@@ -82,3 +83,28 @@ func _ask_quit() -> void:
 
 func _quit_to_desktop() -> void:
 	get_tree().quit()
+
+
+## Size the panel to what is in it, instead of to the fixed 520x560 slab it was authored
+## as -- which left a band of empty green under "Quit to Desktop".
+##
+## Done in CODE and not by editing game_level.tscn, deliberately. Round-tripping that
+## scene through instantiate()/pack() is LOSSY: it dropped WorldItemRoot and GoalMarker,
+## which are nodes added onto the instanced EnvironmentBaseplate, and an earlier attempt
+## flattened all eight sub-scene instances into the file. The overlays under ui/ are
+## standalone scenes with nothing instanced inside them and round-trip cleanly; this one
+## does not, so it is never packed.
+func _shrink_panel_to_content() -> void:
+	var panel := get_node_or_null(^"PauseRoot/Panel") as PanelContainer
+	if panel == null:
+		return
+	var vbox := panel.get_node_or_null(^"VBox") as VBoxContainer
+	if vbox != null:
+		vbox.alignment = BoxContainer.ALIGNMENT_BEGIN
+		vbox.add_theme_constant_override("separation", 12)
+	panel.custom_minimum_size = Vector2(520.0, 0.0)
+	# A frame for the container to work out how tall its children actually are; asking
+	# before that returns the authored size and nothing changes.
+	await get_tree().process_frame
+	panel.set_anchors_and_offsets_preset(
+		Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
