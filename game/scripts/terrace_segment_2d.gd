@@ -41,6 +41,7 @@ func _build_visuals() -> void:
 	wall.texture = _atlas(STONE_WALL if use_stone_wall else MUD_WALL)
 	wall.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	wall.stretch_mode = TextureRect.STRETCH_TILE
+	wall.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	wall.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wall.show_behind_parent = true
 	add_child(wall)
@@ -58,6 +59,7 @@ func _build_visuals() -> void:
 			top.texture = _atlas(GRASS_TOP)
 	top.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	top.stretch_mode = TextureRect.STRETCH_TILE
+	top.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(top)
 

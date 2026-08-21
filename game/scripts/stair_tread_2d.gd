@@ -78,6 +78,7 @@ func _build_visuals() -> void:
 	wall.texture = _atlas(STONE_WALL)
 	wall.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	wall.stretch_mode = TextureRect.STRETCH_TILE
+	wall.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	wall.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wall.show_behind_parent = true
 	add_child(wall)
@@ -89,6 +90,7 @@ func _build_visuals() -> void:
 	cap.texture = _atlas(STONE_TOP)
 	cap.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	cap.stretch_mode = TextureRect.STRETCH_TILE
+	cap.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(cap)
 
@@ -104,6 +106,7 @@ func _build_stub() -> void:
 	stub.texture = _atlas(STONE_WALL)
 	stub.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	stub.stretch_mode = TextureRect.STRETCH_TILE
+	stub.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	stub.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# Sunk into shadow, so it reads as a scar rather than as a ledge.
 	stub.modulate = Color(0.46, 0.44, 0.40, 1.0)
