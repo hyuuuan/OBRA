@@ -19,6 +19,7 @@ const CheckpointManagerClass = preload("res://scripts/checkpoint_manager.gd")
 ## Preloaded, not named: class_name is not registered yet in a --script run.
 const StairTreadClass = preload("res://scripts/stair_tread_2d.gd")
 const FloatingTreadClass = preload("res://scripts/floating_tread_2d.gd")
+const StrawPileClass = preload("res://scripts/straw_pile_2d.gd")
 const LevelDirectorClass = preload("res://scripts/level_director.gd")
 
 const TAGS_PATH := "res://config/tags.json"
@@ -70,6 +71,7 @@ func _run() -> void:
 	_audit_checkpoint_manager()
 	_audit_level_director()
 	await _audit_live_level()
+	await _audit_node_two()
 
 	print("\n===== LEVEL 1 DATA AUDIT =====")
 	for line in results:
@@ -835,6 +837,111 @@ func _blank_image() -> Image:
 	var image := Image.create(64, 64, false, Image.FORMAT_RGBA8)
 	image.fill(Color.WHITE)
 	return image
+
+
+## Ang Dayami. Three routes to the same chest that must NOT be the same thing.
+##
+## Run three times over, one route each, in a fresh level -- a route is a commitment and
+## cannot be taken back, so they cannot share a world.
+func _audit_node_two() -> void:
+	for route in ["artist", "pragmatist", "protector"]:
+		await _walk_node_two(route)
+
+
+func _walk_node_two(route: String) -> void:
+	var packed := load("res://game_level.tscn") as PackedScene
+	var level := packed.instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	await process_frame
+	await process_frame
+
+	var d = level.get("director")
+	var script_lines = level.get("script_lines_l1")
+	var dayami := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane/Dayami")
+	if d == null or dayami == null:
+		_fail("node 2 (%s)" % route, "the level has no Dayami or no director")
+		level.queue_free()
+		await process_frame
+		return
+
+	if route == "artist":
+		# Only checked once: the volume and its wiring are the same for all three.
+		_check(not (d.obstacle("L1_N2") as Dictionary).is_empty(),
+			"L1_N2 is in the level data", "the obstacle exists")
+		var piles := 0
+		for child in dayami.get_children():
+			if child.get_script() == StrawPileClass:
+				piles += 1
+		_check(piles == 3, "three heaps of straw", "%d pile(s)" % piles)
+		var chest := dayami.get_node_or_null("Baul") as Baul2D
+		_check(chest != null and not chest.visible,
+			"the baul starts hidden", "it is in the straw, not on the terrace")
+
+	# Walk in. Entering must teach all three verbs BEFORE the choice, or the player is
+	# choosing between words they have never been told.
+	var player := level.get("player") as Node2D
+	var volume := level.get_node("EnvironmentBaseplate/GameplayPlane/Obstacles/L1_N2") as Node2D
+	player.global_position = volume.global_position
+	for _frame in range(12):
+		await physics_frame
+	if route == "artist":
+		_check(d.current_obstacle() == "L1_N2", "walking onto the terrace registers",
+			"director is at '%s'" % d.current_obstacle())
+		var taught: Array[String] = []
+		for tag in ["forage", "carry", "weather"]:
+			if bool(tags.call("is_unlocked", tag)):
+				taught.append(tag)
+		_check(taught.size() == 3, "all three verbs taught on arrival",
+			"%s" % [taught])
+
+	d.commit_route("L1_N2", route)
+	await process_frame
+
+	# Solve it the way that route asks for.
+	var solver: String = {"artist": "rake", "pragmatist": "ant", "protector": "fan"}[route]
+	level.call("_judge_submission", solver)
+	# The artist route plays out over a couple of seconds; the others are immediate.
+	for _frame in range(150):
+		await physics_frame
+
+	_check(d.is_solved("L1_N2"), "%s solves it" % route, "with '%s'" % solver)
+
+	# THE STRAW REMEMBERS WHICH ROUTE. This is the whole difference between them.
+	var states: Array[int] = []
+	for child in dayami.get_children():
+		if child.get_script() == StrawPileClass:
+			states.append(int(child.call("state")))
+	var expected: int = {"artist": StrawPileClass.State.COMBED,
+		"pragmatist": StrawPileClass.State.TUNNELLED,
+		"protector": StrawPileClass.State.SCATTERED}[route]
+	var all_match := not states.is_empty()
+	for value in states:
+		if value != expected:
+			all_match = false
+	_check(all_match, "%s leaves its own mark on the straw" % route,
+		"every heap is %s" % ["intact", "combed", "tunnelled", "scattered"][expected])
+
+	var chest2 := dayami.get_node_or_null("Baul") as Baul2D
+	_check(chest2 != null and chest2.is_found(), "the chest turns up either way",
+		"found on the %s route" % route)
+
+	# The rewards, which are the reason the routes are not interchangeable.
+	var knows := bool(script_lines.call("is_flag_set", "knows_about_key"))
+	var scattered := bool(script_lines.call("is_flag_set", "straw_scattered"))
+	if route == "artist":
+		_check(knows, "combing pays out at NODE 3",
+			"knows_about_key is set -- the page is the only place a nail is mentioned")
+		_check(not scattered, "the patient route costs nothing", "the straw is left standing")
+	else:
+		_check(not knows, "the fast routes miss the page",
+			"knows_about_key unset, so Node 3 is searched blind")
+	if route == "protector":
+		_check(scattered, "scattering is recorded",
+			"straw_scattered is set, and the exit line is gated on it")
+
+	level.queue_free()
+	await process_frame
 
 
 func _strip_text(strip) -> String:
