@@ -429,7 +429,7 @@ position = Vector2(3060, 208)
 texture = SubResource("Atlas_bush")
 
 [node name="HutOverlook" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=962046339]
-position = Vector2(3480, 134)
+position = Vector2(3700, 134)
 scale = Vector2(1.22, 1.22)
 texture = SubResource("Atlas_hut")
 
@@ -590,11 +590,11 @@ position = Vector2(3500, 200)
 script = ExtResource("25_owbyo")
 
 [node name="Bulul1" type="Node2D" parent="GameplayPlane/Bale" unique_id=525187676]
-position = Vector2(3452, 174)
+position = Vector2(3452, 200)
 script = ExtResource("26_jto6m")
 
 [node name="Bulul2" type="Node2D" parent="GameplayPlane/Bale" unique_id=1716894567]
-position = Vector2(3496, 174)
+position = Vector2(3496, 200)
 script = ExtResource("26_jto6m")
 
 [node name="ForegroundLayer" type="Node2D" parent="." unique_id=3763005]
