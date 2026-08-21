@@ -21,8 +21,11 @@ signal attic_entered()
 
 const AtlasTile = preload("res://scripts/atlas_tile.gd")
 const TEXTURE_MAP := preload("res://assets/Level1/texturemap.png")
-const THATCH := Rect2(828, 80, 84, 84)
-const WOOD := Rect2(217, 228, 146, 129)
+## The straw band off the top of the rice tile, and the mud below the grass fringe of the
+## wall tile. Both whole tiles are slices of terrace: filled with those, the roof wore a
+## band of dirt along its eaves and the posts sprouted grass halfway up.
+const THATCH := Rect2(828, 81, 84, 23)
+const WOOD := Rect2(217, 248, 146, 96)
 
 @export var floor_size := Vector2(240.0, 22.0)
 @export var post_height := 96.0
@@ -71,8 +74,7 @@ func _build_posts() -> void:
 			Vector2(-8.0, 0.0), Vector2(-8.0, -post_height),
 			Vector2(8.0, -post_height), Vector2(8.0, 0.0),
 		])
-		art.texture = _atlas(WOOD)
-		art.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+		AtlasTile.fill(art, TEXTURE_MAP, WOOD)
 		art.color = Color(0.74, 0.6, 0.42)
 		post.add_child(art)
 
@@ -114,8 +116,7 @@ func _build_floor() -> void:
 		Vector2(-half.x, 0.0), Vector2(-half.x, -floor_size.y),
 		Vector2(half.x, -floor_size.y), Vector2(half.x, 0.0),
 	])
-	art.texture = _atlas(WOOD)
-	art.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	AtlasTile.fill(art, TEXTURE_MAP, WOOD)
 	art.color = Color(0.62, 0.5, 0.36)
 	deck.add_child(art)
 
@@ -136,8 +137,7 @@ func _build_roof() -> void:
 	roof.add_child(collision)
 	var art := Polygon2D.new()
 	art.polygon = points
-	art.texture = _atlas(THATCH)
-	art.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	AtlasTile.fill(art, TEXTURE_MAP, THATCH)
 	art.color = Color(0.72, 0.6, 0.38)
 	roof.add_child(art)
 
@@ -168,10 +168,3 @@ func _on_attic_entered(body: Node) -> void:
 			attic_entered.emit()
 			return
 		node = node.get_parent()
-
-
-## A Polygon2D cannot be filled from an AtlasTexture: it samples the whole atlas page
-## rather than the region, and the prop draws the wrong art or none at all. See
-## atlas_tile.gd, which cuts the region out into a texture that tiles honestly.
-func _atlas(region: Rect2) -> ImageTexture:
-	return AtlasTile.cut(TEXTURE_MAP, region)
