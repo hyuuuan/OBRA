@@ -15,8 +15,9 @@ signal found()
 const AtlasTile = preload("res://scripts/atlas_tile.gd")
 const TEXTURE_MAP := preload("res://assets/Level1/texturemap.png")
 ## Dark banded wood. The stone regions read as too grey next to straw, so this borrows the
-## mud wall, which is the warmest brown in the atlas.
-const WOOD := Rect2(217, 228, 146, 129)
+## mud wall, which is the warmest brown in the atlas -- below its grass fringe, or the
+## chest comes up out of the straw with a lawn along its lid.
+const WOOD := Rect2(217, 248, 146, 96)
 
 @export var chest_size := Vector2(74.0, 52.0)
 @export var start_hidden := true
@@ -64,8 +65,7 @@ func _build() -> void:
 		Vector2(-half.x, 0.0), Vector2(-half.x, -chest_size.y),
 		Vector2(half.x, -chest_size.y), Vector2(half.x, 0.0),
 	])
-	body.texture = _atlas(WOOD)
-	body.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	AtlasTile.fill(body, TEXTURE_MAP, WOOD)
 	body.color = Color(0.86, 0.72, 0.52)
 	_art.add_child(body)
 
@@ -88,10 +88,3 @@ func _build() -> void:
 	])
 	lock.color = Color(0.78, 0.72, 0.34)
 	_art.add_child(lock)
-
-
-## A Polygon2D cannot be filled from an AtlasTexture: it samples the whole atlas page
-## rather than the region, and the prop draws the wrong art or none at all. See
-## atlas_tile.gd, which cuts the region out into a texture that tiles honestly.
-func _atlas(region: Rect2) -> ImageTexture:
-	return AtlasTile.cut(TEXTURE_MAP, region)

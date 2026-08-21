@@ -22,8 +22,10 @@ enum State { INTACT, COMBED, TUNNELLED, SCATTERED }
 
 const AtlasTile = preload("res://scripts/atlas_tile.gd")
 const TEXTURE_MAP := preload("res://assets/Level1/texturemap.png")
-## The same yellow the terraces use for standing rice, which is what this was.
-const STRAW := Rect2(828, 80, 84, 84)
+## Only the straw band off the top of the rice tile. The whole tile is a slice of terrace
+## -- rice tops, then green blades, then mud -- so a heap filled with it wears a stripe of
+## dirt across its middle and reads as a piece of the field it is standing on.
+const STRAW := Rect2(828, 81, 84, 23)
 
 @export var pile_size := Vector2(150.0, 96.0)
 ## Straw catches the light unevenly; a row of identical mounds reads as wallpaper.
@@ -81,8 +83,7 @@ func _build() -> void:
 	_mound = Polygon2D.new()
 	_mound.name = "Mound"
 	_mound.polygon = _mound_shape(1.0, 1.0)
-	_mound.texture = _atlas(STRAW)
-	_mound.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	AtlasTile.fill(_mound, TEXTURE_MAP, STRAW)
 	_mound.color = tint
 	add_child(_mound)
 
@@ -103,9 +104,12 @@ func _mound_shape(width_scale: float, height_scale: float) -> PackedVector2Array
 	])
 
 
+## The fill is re-anchored with the shape. A Polygon2D pins its texture to its vertices,
+## so a heap that settles by nine pixels slides the straw off the top of itself.
 func _reshape(width_scale: float, height_scale: float) -> void:
 	if _mound != null:
 		_mound.polygon = _mound_shape(width_scale, height_scale)
+		_mound.uv = AtlasTile.anchor_uv(_mound.polygon)
 
 
 ## What is left after the wind: loose handfuls across the terrace, which is the whole
@@ -128,18 +132,10 @@ func _build_scatter() -> void:
 			Vector2(-w * 0.5, 0.0), Vector2(-w * 0.3, -h),
 			Vector2(w * 0.3, -h * 0.7), Vector2(w * 0.5, 0.0),
 		])
-		tuft.texture = _atlas(STRAW)
-		tuft.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+		AtlasTile.fill(tuft, TEXTURE_MAP, STRAW)
 		tuft.color = tint
 		tuft.position = Vector2(
 			rng.randf_range(-pile_size.x * 1.4, pile_size.x * 1.4),
 			rng.randf_range(-6.0, 2.0))
 		tuft.rotation = rng.randf_range(-0.5, 0.5)
 		_scatter.add_child(tuft)
-
-
-## A Polygon2D cannot be filled from an AtlasTexture: it samples the whole atlas page
-## rather than the region, and the prop draws the wrong art or none at all. See
-## atlas_tile.gd, which cuts the region out into a texture that tiles honestly.
-func _atlas(region: Rect2) -> ImageTexture:
-	return AtlasTile.cut(TEXTURE_MAP, region)

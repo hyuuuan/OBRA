@@ -22,6 +22,33 @@ extends RefCounted
 static var _cache: Dictionary = {}
 
 
+## Texture a polygon from one region of an atlas. `poly.polygon` must already be set --
+## the UV is pinned to the vertices, so filling an empty shape anchors the fill to nothing.
+static func fill(poly: Polygon2D, atlas: Texture2D, region: Rect2) -> void:
+	poly.texture = cut(atlas, region)
+	poly.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	poly.uv = anchor_uv(poly.polygon)
+
+
+## UVs anchored to the shape's own top-left corner.
+##
+## Left empty, Godot uses the vertex coordinates themselves, which for these props are
+## wherever the shape sits around its origin -- negative, since they are all built upward
+## from a baseline. Worse, they MOVE when the shape does: a straw pile settling from 88
+## units tall to 79 slid the tile down it and turned the heap from straw to mud, which
+## reads as a deliberate difference between two routes and is not one.
+static func anchor_uv(polygon: PackedVector2Array) -> PackedVector2Array:
+	if polygon.is_empty():
+		return polygon
+	var bounds := Rect2(polygon[0], Vector2.ZERO)
+	for point in polygon:
+		bounds = bounds.expand(point)
+	var uv := PackedVector2Array()
+	for point in polygon:
+		uv.append(point - bounds.position)
+	return uv
+
+
 static func cut(atlas: Texture2D, region: Rect2) -> ImageTexture:
 	if atlas == null:
 		return null
