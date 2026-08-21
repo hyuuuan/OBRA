@@ -77,6 +77,9 @@ func _run() -> void:
 	await _audit_node_two()
 	_audit_ward_lock()
 	await _audit_node_three()
+	# LAST. It opens the completion overlay, which pauses the tree, and a paused tree
+	# makes every physics check after it read zero.
+	await _audit_completion_gate()
 
 	print("\n===== LEVEL 1 DATA AUDIT =====")
 	for line in results:
@@ -1130,6 +1133,57 @@ func _walk_node_three(route: String) -> void:
 			"nothing damaged -- only cutting costs Pista a hidden flower")
 	level.queue_free()
 	await process_frame
+
+
+## Walking up to the house is not the same as finishing the level.
+##
+## The GoalMarker sits inside Ang Bale and completion used to be a distance check and
+## nothing else, so arriving at Node 3 ended Level 1 before Lolo had offered a way in and
+## before the chest was opened. This asserts both halves: arriving does not finish it, and
+## answering the bale does.
+func _audit_completion_gate() -> void:
+	# The overlay is the visible effect. Asserting the private flag behind it would pass
+	# against a level that completed silently and showed the player nothing.
+	var packed := load("res://game_level.tscn") as PackedScene
+	var level := packed.instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	await process_frame
+	await process_frame
+
+	var d = level.get("director")
+	var player := level.get("player") as Node2D
+	var overlay := level.get_node_or_null("LevelCompleteOverlay")
+	var marker := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/GoalMarker") as Node2D
+	if d == null or player == null or overlay == null or marker == null:
+		_fail("completion gate", "the level has no goal marker, player, director or overlay")
+		level.queue_free()
+		await process_frame
+		return
+
+	# Standing ON the marker, which is as arrived as it is possible to be.
+	player.global_position = marker.global_position
+	for _frame in range(30):
+		await physics_frame
+	_check(not bool(overlay.call("is_open")), "arriving at the bale does not end the level",
+		"the player is standing on the goal marker and Ang Bale is unanswered")
+
+	# CP3 is written by the route commit, which is what the level data names as its unlock.
+	d.enter_obstacle("L1_N3")
+	d.commit_route("L1_N3", "pragmatist")
+	await process_frame
+	player.global_position = marker.global_position
+	for _frame in range(30):
+		await physics_frame
+	_check(bool(overlay.call("is_open")), "answering the bale does end it",
+		"CP3 reached, so the goal marker completes the level")
+
+	level.queue_free()
+	await process_frame
+	# The overlay paused the tree on its way up, and it is not this run's job to leave it
+	# that way -- a paused tree is how one failing test once looked like twenty.
+	paused = false
 
 
 func _strip_text(strip) -> String:

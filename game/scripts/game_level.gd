@@ -1038,9 +1038,32 @@ func _physics_process(_delta: float) -> void:
 	# The distance is already being computed to decide completion, so showing it costs
 	# nothing and gives the level a legible objective -- until now the only thing
 	# telling the player where to go was the level ending when they arrived.
-	goal_label.text = "GOAL  %d m" % int(distance / 32.0) if distance > GOAL_RADIUS else "GOAL REACHED"
-	if distance <= GOAL_RADIUS:
+	var may_finish := _completion_unlocked()
+	goal_label.text = "GOAL  %d m" % int(distance / 32.0) \
+		if distance > GOAL_RADIUS or not may_finish else "GOAL REACHED"
+	if distance <= GOAL_RADIUS and may_finish:
 		_complete_level()
+
+
+## Whether the level is allowed to end yet.
+##
+## The GoalMarker sits inside Ang Bale, and coming within its radius used to be the whole
+## condition -- so walking up to the house ENDED LEVEL 1. Lolo had not offered the three
+## ways in, the chest was still shut, the second canvas was never granted, and the
+## completion screen came up over a node the player had not played. Caught by
+## photographing the bale.
+##
+## The condition is not written here. Level 1's own file names the checkpoint that unlocks
+## it (`unlocks_at_checkpoint`, CP3, Ang Bale's route commit), and this asks whether that
+## checkpoint has been reached. A level that names no such checkpoint ends on arrival as
+## before, which is what the levels without an obstacle layer want.
+func _completion_unlocked() -> bool:
+	if director == null or checkpoints == null:
+		return true
+	var required := String(director.level_data().get("unlocks_at_checkpoint", ""))
+	if required.is_empty():
+		return true
+	return Array(checkpoints.ids()).has(required)
 
 
 ## Put the held item in the character's hand, and light the slot it came from, so what
