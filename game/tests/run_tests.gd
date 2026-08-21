@@ -924,7 +924,11 @@ func _test_revert_to_base_form() -> void:
 	# lands a few pixels from the right answer and passes. Mutation-tested: without this
 	# the naive respawn scores 65px and slips under any sane threshold; with it, 622px.
 	var spawn_at := (level.get_node("EnvironmentBaseplate/GameplayPlane/SpawnPoint") as Node2D).global_position
-	morphed.call("apply_morph_state", {"position": spawn_at + Vector2(620.0, -40.0)})
+	# Onto Terrace1's open surface. +620 used to be clear ground and is now inside Ang
+	# Hagdan's treads, which caught the creature and left it too near the spawn for this
+	# to tell a revert from a respawn -- which is exactly what the precondition below is
+	# for, and it said so rather than passing quietly.
+	morphed.call("apply_morph_state", {"position": spawn_at + Vector2(740.0, -80.0)})
 	for _frame in range(60):
 		await physics_frame
 
