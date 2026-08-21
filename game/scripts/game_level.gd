@@ -312,7 +312,10 @@ func _on_obstacle_route_committed(obstacle_id: String, route: String) -> void:
 
 
 func _on_obstacle_solved(obstacle_id: String, route: String, label: String, attempt_count: int, tier: int) -> void:
-	_speak(script_lines_l1.fire("%s.%s.solved" % [obstacle_id, route]))
+	if obstacle_id == "L1_N2":
+		_search_the_straw(route)
+	else:
+		_speak(script_lines_l1.fire("%s.%s.solved" % [obstacle_id, route]))
 	_refresh_requirements()
 	Telemetry.record_event("obstacle_solved", {
 		"level_id": LevelManager.current_level_id,
@@ -343,6 +346,66 @@ func _judge_submission(entity_id: String) -> void:
 		# The next sub-beat has to ask for itself, or the second half of the tutorial is
 		# silent and the player is left guessing what changed.
 		_speak_current_stage(String(verdict["obstacle_id"]))
+
+
+## Ang Dayami: three ways to find the same chest, and they are not the same.
+##
+## The route decides what happens to the straw AND what the player walks away knowing. That
+## second part is the one that matters later: combing turns up her sketchbook page, which is
+## the only place in the level anyone is told to look for something on a nail. A player who
+## took the fast route reaches Node 3 without that, and searches longer for it.
+func _search_the_straw(route: String) -> void:
+	var piles: Array[StrawPile2D] = []
+	for node in get_tree().get_nodes_in_group(&"straw_piles"):
+		var pile := node as StrawPile2D
+		if pile != null:
+			piles.append(pile)
+
+	match route:
+		"artist":
+			for pile in piles:
+				pile.comb()
+			await _comb_the_piles()
+		"pragmatist":
+			for pile in piles:
+				pile.tunnel()
+			_speak(script_lines_l1.fire("L1_N2.pragmatist.solved"))
+		"protector":
+			for pile in piles:
+				pile.scatter()
+			# The cost, recorded rather than described: Lolo says nothing about it here and
+			# mentions it at the marker stone, and the exit line is gated on this flag.
+			script_lines_l1.set_flag("straw_scattered")
+			Telemetry.record_event("persistent_effect", {
+				"level_id": LevelManager.current_level_id,
+				"obstacle_id": "L1_N2", "effect": "straw_scattered",
+			})
+			_speak(script_lines_l1.fire("L1_N2.protector.solved"))
+	_uncover_the_baul()
+
+
+## Three passes, and the middle two are the reward. Slowest route, and the only one that
+## surfaces anything besides the chest.
+func _comb_the_piles() -> void:
+	await get_tree().create_timer(0.7).timeout
+	_speak(script_lines_l1.fire("L1_N2.artist.pass2"))
+	await get_tree().create_timer(1.4).timeout
+	_speak(script_lines_l1.fire("L1_N2.artist.pass3"))
+	# What the page is FOR. Node 3's Artist route reads this flag, so the patient player
+	# arrives already knowing where to look.
+	script_lines_l1.set_flag("knows_about_key")
+	Telemetry.record_event("route_reward", {
+		"level_id": LevelManager.current_level_id,
+		"obstacle_id": "L1_N2", "reward": "sketchbook_page", "sets_flag": "knows_about_key",
+	})
+
+
+func _uncover_the_baul() -> void:
+	for node in get_tree().get_nodes_in_group(&"baul"):
+		var chest := node as Baul2D
+		if chest != null:
+			chest.reveal()
+	_speak(script_lines_l1.fire("L1_N2.solved"))
 
 
 func _write_checkpoint(checkpoint_id: String) -> void:
