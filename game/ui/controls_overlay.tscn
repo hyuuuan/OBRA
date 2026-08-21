@@ -5,13 +5,15 @@
 [node name="ControlsOverlay" type="CanvasLayer" unique_id=470222643]
 layer = 60
 script = ExtResource("1_8byaj")
-default_focus_path = NodePath("Root/Panel/VBox/BackButton")
+default_focus_path = NodePath("Root/Center/Panel/VBox/BackButton")
 
 [node name="Root" type="Control" parent="." unique_id=287360325]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="Scrim" type="ColorRect" parent="Root" unique_id=766808763]
 layout_mode = 0
@@ -19,35 +21,34 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0.015, 0.045, 0.025, 0.82)
 
-[node name="Panel" type="PanelContainer" parent="Root" unique_id=1047633528]
-custom_minimum_size = Vector2(680, 640)
+[node name="Center" type="CenterContainer" parent="Root" unique_id=1019133223]
 layout_mode = 0
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -340.0
-offset_top = -320.0
-offset_right = 340.0
-offset_bottom = 320.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
 
-[node name="VBox" type="VBoxContainer" parent="Root/Panel" unique_id=484438082]
+[node name="Panel" type="PanelContainer" parent="Root/Center" unique_id=1047633528]
+custom_minimum_size = Vector2(660, 0)
 layout_mode = 2
-theme_override_constants/separation = 16
-alignment = 1
+size_flags_horizontal = 4
+size_flags_vertical = 4
 
-[node name="Title" type="Label" parent="Root/Panel/VBox" unique_id=1387489429]
+[node name="VBox" type="VBoxContainer" parent="Root/Center/Panel" unique_id=484438082]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Root/Center/Panel/VBox" unique_id=1387489429]
 layout_mode = 2
 theme_type_variation = &"ScreenTitle"
 text = "CONTROLS"
 horizontal_alignment = 1
 
-[node name="Rows" type="VBoxContainer" parent="Root/Panel/VBox" unique_id=10265643]
+[node name="Rows" type="VBoxContainer" parent="Root/Center/Panel/VBox" unique_id=10265643]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 6
 
-[node name="BackButton" type="Button" parent="Root/Panel/VBox" unique_id=123153286]
+[node name="BackButton" type="Button" parent="Root/Center/Panel/VBox" unique_id=123153286]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 theme_type_variation = &"DialogButton"

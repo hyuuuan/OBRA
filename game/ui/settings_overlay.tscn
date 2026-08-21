@@ -5,13 +5,15 @@
 [node name="SettingsOverlay" type="CanvasLayer" unique_id=402722245]
 layer = 60
 script = ExtResource("1_4ysea")
-default_focus_path = NodePath("Root/Panel/VBox/BackButton")
+default_focus_path = NodePath("Root/Center/Panel/VBox/BackButton")
 
 [node name="Root" type="Control" parent="." unique_id=1601716249]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="Scrim" type="ColorRect" parent="Root" unique_id=551728405]
 layout_mode = 0
@@ -19,98 +21,97 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0.015, 0.045, 0.025, 0.82)
 
-[node name="Panel" type="PanelContainer" parent="Root" unique_id=201362034]
-custom_minimum_size = Vector2(620, 460)
+[node name="Center" type="CenterContainer" parent="Root" unique_id=543453781]
 layout_mode = 0
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -310.0
-offset_top = -230.0
-offset_right = 310.0
-offset_bottom = 230.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
 
-[node name="VBox" type="VBoxContainer" parent="Root/Panel" unique_id=175385337]
+[node name="Panel" type="PanelContainer" parent="Root/Center" unique_id=201362034]
+custom_minimum_size = Vector2(620, 0)
 layout_mode = 2
-theme_override_constants/separation = 16
-alignment = 1
+size_flags_horizontal = 4
+size_flags_vertical = 4
 
-[node name="Title" type="Label" parent="Root/Panel/VBox" unique_id=376759527]
+[node name="VBox" type="VBoxContainer" parent="Root/Center/Panel" unique_id=175385337]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Root/Center/Panel/VBox" unique_id=376759527]
 layout_mode = 2
 theme_type_variation = &"ScreenTitle"
 text = "SETTINGS"
 horizontal_alignment = 1
 
-[node name="MasterRow" type="HBoxContainer" parent="Root/Panel/VBox" unique_id=1311449142]
+[node name="MasterRow" type="HBoxContainer" parent="Root/Center/Panel/VBox" unique_id=1311449142]
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="Caption" type="Label" parent="Root/Panel/VBox/MasterRow" unique_id=961320410]
+[node name="Caption" type="Label" parent="Root/Center/Panel/VBox/MasterRow" unique_id=961320410]
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 text = "Master"
 
-[node name="Slider" type="HSlider" parent="Root/Panel/VBox/MasterRow" unique_id=1250614053]
+[node name="Slider" type="HSlider" parent="Root/Center/Panel/VBox/MasterRow" unique_id=1250614053]
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 
-[node name="Value" type="Label" parent="Root/Panel/VBox/MasterRow" unique_id=2048456211]
+[node name="Value" type="Label" parent="Root/Center/Panel/VBox/MasterRow" unique_id=2048456211]
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 text = "100%"
 horizontal_alignment = 2
 
-[node name="MusicRow" type="HBoxContainer" parent="Root/Panel/VBox" unique_id=2072418749]
+[node name="MusicRow" type="HBoxContainer" parent="Root/Center/Panel/VBox" unique_id=2072418749]
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="Caption" type="Label" parent="Root/Panel/VBox/MusicRow" unique_id=43439359]
+[node name="Caption" type="Label" parent="Root/Center/Panel/VBox/MusicRow" unique_id=43439359]
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 text = "Music"
 
-[node name="Slider" type="HSlider" parent="Root/Panel/VBox/MusicRow" unique_id=1568792427]
+[node name="Slider" type="HSlider" parent="Root/Center/Panel/VBox/MusicRow" unique_id=1568792427]
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 
-[node name="Value" type="Label" parent="Root/Panel/VBox/MusicRow" unique_id=481177084]
+[node name="Value" type="Label" parent="Root/Center/Panel/VBox/MusicRow" unique_id=481177084]
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 text = "100%"
 horizontal_alignment = 2
 
-[node name="SfxRow" type="HBoxContainer" parent="Root/Panel/VBox" unique_id=1422656753]
+[node name="SfxRow" type="HBoxContainer" parent="Root/Center/Panel/VBox" unique_id=1422656753]
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="Caption" type="Label" parent="Root/Panel/VBox/SfxRow" unique_id=1076627090]
+[node name="Caption" type="Label" parent="Root/Center/Panel/VBox/SfxRow" unique_id=1076627090]
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 text = "Sound effects"
 
-[node name="Slider" type="HSlider" parent="Root/Panel/VBox/SfxRow" unique_id=301180186]
+[node name="Slider" type="HSlider" parent="Root/Center/Panel/VBox/SfxRow" unique_id=301180186]
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 
-[node name="Value" type="Label" parent="Root/Panel/VBox/SfxRow" unique_id=787263299]
+[node name="Value" type="Label" parent="Root/Center/Panel/VBox/SfxRow" unique_id=787263299]
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 text = "100%"
 horizontal_alignment = 2
 
-[node name="FullscreenToggle" type="CheckButton" parent="Root/Panel/VBox" unique_id=1549799137]
-size_flags_horizontal = 4
+[node name="FullscreenToggle" type="CheckButton" parent="Root/Center/Panel/VBox" unique_id=1549799137]
 layout_mode = 2
+size_flags_horizontal = 4
 text = "Fullscreen"
 
-[node name="BackButton" type="Button" parent="Root/Panel/VBox" unique_id=2020193288]
+[node name="BackButton" type="Button" parent="Root/Center/Panel/VBox" unique_id=2020193288]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
