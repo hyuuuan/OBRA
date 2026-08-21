@@ -206,6 +206,17 @@ func _build_obstacle_layer() -> void:
 	director.route_committed.connect(_on_obstacle_route_committed)
 	director.obstacle_solved.connect(_on_obstacle_solved)
 
+	# Checkpoints you walk into, for the beats with no dialogue to hang one on.
+	for node in get_tree().get_nodes_in_group(&"checkpoint_areas"):
+		var area := node as CheckpointArea2D
+		if area == null:
+			continue
+		if not _checkpoint_is_declared(area.checkpoint_id):
+			push_error("GameLevel: checkpoint area '%s' is not in level_01.json"
+				% area.checkpoint_id)
+			continue
+		area.reached.connect(_on_checkpoint_area_reached)
+
 	for node in get_tree().get_nodes_in_group(&"level_obstacles"):
 		var area := node as LevelObstacle2D
 		if area == null:
@@ -218,6 +229,20 @@ func _build_obstacle_layer() -> void:
 			continue
 		area.player_entered.connect(director.enter_obstacle)
 		area.player_exited.connect(director.exit_obstacle)
+
+
+func _checkpoint_is_declared(checkpoint_id: String) -> bool:
+	if checkpoint_id.is_empty() or director == null:
+		return false
+	for entry_value: Variant in (director.level_data().get("checkpoints", []) as Array):
+		if String((entry_value as Dictionary).get("id", "")) == checkpoint_id:
+			return true
+	return false
+
+
+func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
+	_write_checkpoint(checkpoint_id)
+	status_label.text = "Checkpoint"
 
 
 func _on_obstacle_entered(obstacle_id: String) -> void:
