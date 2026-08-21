@@ -603,7 +603,8 @@ func _test_banaue_environment() -> void:
 			terrace_count += 1
 	# 11 shared segments plus the five that belong to the two route branches. Terrace4
 	# is deliberately absent: that span is the gorge the level is built around.
-	_expect(terrace_count == 16, "Banaue terrain does not contain the expected terrace segments")
+	_expect(terrace_count == 16,
+		"Banaue terrain has %d terrace segments, expected 16 -- if something new joined the\n\t\tterrace_ground group, it probably should not have" % terrace_count)
 	var water_count := 0
 	for node in get_nodes_in_group("water_medium"):
 		if environment.is_ancestor_of(node):
