@@ -90,6 +90,13 @@ func load_level(path: String = LEVEL_PATH) -> bool:
 	return true
 
 
+## The raw level document, for the few callers that need something the director does not
+## model -- the declared checkpoint list, so a walk-in checkpoint can be validated against
+## it rather than trusted.
+func level_data() -> Dictionary:
+	return _level.duplicate(true)
+
+
 func level_id() -> String:
 	return String(_level.get("level_id", ""))
 
