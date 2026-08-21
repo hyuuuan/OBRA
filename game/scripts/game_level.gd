@@ -347,9 +347,81 @@ func _placed_entity_records() -> Array:
 			continue
 		records.append({
 			"entity_id": prop.item_data.entity_id,
+			"instance_id": prop.get_instance_id(),
 			"transform": prop.global_transform,
 		})
 	return records
+
+
+## How far below the world the player may fall before the level takes them back.
+const FALL_LIMIT_MARGIN := 160.0
+
+## Put the player back at the last checkpoint.
+##
+## Beat 0 has no fail state and neither does anything else in Payyo -- this is not a death,
+## it is the level declining to let a fall be the end of ten minutes. What comes back is
+## what the spec asks for: where they were, the ink they had, the obstacles they had
+## already answered, and the props that existed at the time.
+##
+## PROPS ARE RE-HOMED, NOT REBUILT. A snapshot cannot carry a drawing -- the strokes and the
+## image belong to the entity, not to the record -- so anything freed and re-instantiated
+## would come back blank. Instead the props that existed at checkpoint time are moved back
+## to where they were, and anything placed SINCE is removed, which is the part a restore
+## actually has to undo.
+func _restore_checkpoint() -> String:
+	if checkpoints == null or not checkpoints.has_checkpoint():
+		return ""
+	var state := checkpoints.restore()
+	if state.is_empty():
+		return ""
+
+	if director != null and state.has("obstacles"):
+		director.restore_obstacle_state(state["obstacles"])
+
+	# Ink is level-scoped and lives in committed, so restoring it is a subtraction rather
+	# than a refill: anything spent since the checkpoint is given back.
+	if state.has("ink_committed"):
+		ink_manager.committed = minf(ink_manager.capacity, float(state["ink_committed"]))
+		ink_manager.reserved = 0.0
+		_on_ink_changed(ink_manager.remaining(), ink_manager.capacity, ink_manager.reserved)
+
+	_restore_placed_entities(state.get("placed", []))
+
+	var landing := Vector2(state.get("position", spawn_point.global_position))
+	if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
+		player.call("apply_morph_state", {"position": landing, "linear_velocity": Vector2.ZERO})
+	elif player != null and is_instance_valid(player):
+		player.global_position = landing
+
+	_refresh_requirements()
+	var checkpoint_id := checkpoints.latest_id()
+	Telemetry.record_event("checkpoint_restored", {
+		"level_id": LevelManager.current_level_id,
+		"checkpoint_id": checkpoint_id,
+		"restores_here": checkpoints.restore_count(checkpoint_id),
+	})
+	return checkpoint_id
+
+
+func _restore_placed_entities(records: Array) -> void:
+	var kept: Dictionary = {}
+	for record_value: Variant in records:
+		var record: Dictionary = record_value
+		kept[int(record.get("instance_id", 0))] = record
+	for child in world_item_root.get_children():
+		var prop := child as PhysicsShapeObject
+		if prop == null or prop.is_preview:
+			continue
+		var id := prop.get_instance_id()
+		if kept.has(id):
+			prop.global_transform = Transform2D((kept[id] as Dictionary)["transform"])
+			if prop is RigidBody2D:
+				(prop as RigidBody2D).linear_velocity = Vector2.ZERO
+				(prop as RigidBody2D).angular_velocity = 0.0
+		else:
+			# Placed after the checkpoint, so it did not exist at the moment being
+			# restored to. The ink that paid for it comes back with the ink line above.
+			prop.queue_free()
 
 
 ## Payyo's lines, routed by who is saying them.
@@ -780,6 +852,22 @@ func _physics_process(_delta: float) -> void:
 		var anchor := player.call("get_physics_anchor") as Node2D
 		if anchor != null:
 			anchor_position = anchor.global_position
+	# A fall is not an ending. The wanderer used to wrap to the top of the world and a
+	# drawn creature did not handle it at all, so falling off as a fish meant falling
+	# forever. Either way the level takes them back to the last checkpoint instead.
+	var floor_limit: float = Rect2(environment.get("world_bounds")).end.y + FALL_LIMIT_MARGIN
+	if anchor_position.y > floor_limit:
+		var restored := _restore_checkpoint()
+		if restored.is_empty():
+			# Nothing written yet -- Beat 0 before its own checkpoint. Back to the start
+			# of the level, which is the only earlier place there is.
+			if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
+				player.call("apply_morph_state",
+					{"position": spawn_point.global_position, "linear_velocity": Vector2.ZERO})
+			status_label.text = "Back to the start"
+		else:
+			status_label.text = "Back to %s" % restored
+		return
 	# Crossing the far lip is what earns the memory, not choosing the route that would
 	# have earned it: the reward is for having rebuilt her bridge and walked over it.
 	if anchor_position.x > 2980.0:
