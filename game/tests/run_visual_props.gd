@@ -18,11 +18,9 @@ const SHOTS: Array = [
 	{"name": "lolo", "at": "lolo", "size": Vector2(300, 300)},
 	{"name": "hagdan_stair", "at": Vector2(676, 502), "size": Vector2(420, 320)},
 	{"name": "floating_tread", "at": Vector2(560, 592), "size": Vector2(340, 250)},
-	{"name": "ruined_bridge", "at": Vector2(2620, 170), "size": Vector2(860, 360)},
-	{"name": "dead_tree", "at": Vector2(2360, 90), "size": Vector2(480, 420), "do": "open_protector"},
-	{"name": "crumbling_ledges", "at": Vector2(2795, 226), "size": Vector2(620, 240)},
+	{"name": "ruined_bridge", "at": Vector2(2680, 180), "size": Vector2(700, 300)},
 	{"name": "hidden_flower", "at": Vector2(2700, 578), "size": Vector2(260, 240), "do": "light_flower"},
-	{"name": "stool_and_jar", "at": Vector2(3002, 214), "size": Vector2(220, 170)},
+	{"name": "stool_and_jar", "at": Vector2(2998, 227), "size": Vector2(130, 100)},
 	{"name": "straw_1_intact", "at": Vector2(3150, 186), "size": Vector2(620, 270)},
 	{"name": "straw_2_combed", "at": Vector2(3150, 186), "size": Vector2(620, 270), "do": "comb"},
 	{"name": "straw_3_tunnelled", "at": Vector2(3150, 186), "size": Vector2(620, 270), "do": "tunnel"},
@@ -30,6 +28,8 @@ const SHOTS: Array = [
 	{"name": "baul", "at": Vector2(3160, 202), "size": Vector2(260, 220), "do": "uncover"},
 	{"name": "bale", "at": Vector2(3500, 116), "size": Vector2(540, 420)},
 	{"name": "bulul", "at": Vector2(3474, 172), "size": Vector2(240, 190)},
+	{"name": "dead_tree", "at": Vector2(2360, 90), "size": Vector2(480, 420), "do": "open_protector"},
+	{"name": "crumbling_ledges", "at": Vector2(2795, 226), "size": Vector2(620, 240)},
 ]
 
 var level: Node
@@ -60,6 +60,13 @@ func _run() -> void:
 	var hud := level.get_node_or_null("CanvasLayer") as CanvasLayer
 	if hud != null:
 		hud.visible = false
+	# Lolo's bubble is a world-space node rather than HUD, and it is wide enough to cover
+	# whatever is being photographed -- Lolo himself included.
+	var companion := level.get("lolo") as Node2D
+	if companion != null:
+		var bubble := companion.get_node_or_null("Bubble") as CanvasItem
+		if bubble != null:
+			bubble.visible = false
 
 	# The camera clamps itself to the level's bounds, which would refuse to look at
 	# anything within half a screen of either edge -- the bale among them.
