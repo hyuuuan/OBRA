@@ -18,12 +18,13 @@ signal settings_changed(key: String, value: Variant)
 
 const PROFILE_PATH := "user://profile.json"
 const ENTITIES_PATH := "res://config/entities.json"
-const SCHEMA_VERSION := 4
+const SCHEMA_VERSION := 5
 const DEFAULT_ROSTER_SIZE := 50
 ## Older schemas that can be migrated forward instead of being discarded.
-## v3 -> v4 added unlocked_tags; _merge_defaults supplies it, so a v3 profile keeps
-## every level, route and object it had and simply starts with no tags unlocked.
-const MIGRATABLE_SCHEMAS := [1, 2, 3]
+## v3 -> v4 added unlocked_tags; v4 -> v5 added canvas_damage. _merge_defaults supplies
+## both, so an older profile keeps every level, route and object it had and simply starts
+## with nothing unlocked and nothing damaged.
+const MIGRATABLE_SCHEMAS := [1, 2, 3, 4]
 const ROUTES := ["artist", "pragmatist", "protector"]
 
 ## Every setting the player can change, with its default. Nothing outside this list
@@ -54,6 +55,7 @@ func _default_profile() -> Dictionary:
 		"schema_version": SCHEMA_VERSION,
 		"unlocked_classes": [],          # classes the player has been taught (future gate)
 		"unlocked_tags": [],             # ability tags the player has been taught, across levels
+		"canvas_damage": [],             # canvases harmed by a route taken in an earlier level
 		"classes_drawn_accepted": [],    # distinct classes drawn and accepted at least once
 		"acquired_objects": [],          # object/tool ids owned across levels and sessions
 		"levels_completed": [],
@@ -205,6 +207,32 @@ func get_drawn_classes() -> Array:
 	return (_data["classes_drawn_accepted"] as Array).duplicate()
 
 
+## A canvas harmed by a route taken in an earlier level.
+##
+## This is the only consequence in Payyo that leaves Payyo: cutting the hasp off Lola's
+## chest creases what is inside, and the crease is still there in Pista, where it runs as a
+## seam through the painted street with Hidden Flower 2 on the wrong side of it. The player
+## is told none of this at the time -- they find out a level later, which is the point.
+##
+## It has to survive the session, so it lives here rather than in a checkpoint: a mid-level
+## death must not undo a decision made two levels ago. Build spec 12.4.
+func record_canvas_damage(canvas_id: String) -> void:
+	if canvas_id.is_empty():
+		return
+	var damaged: Array = _data["canvas_damage"]
+	if not damaged.has(canvas_id):
+		damaged.append(canvas_id)
+		_commit()
+
+
+func is_canvas_damaged(canvas_id: String) -> bool:
+	return (_data["canvas_damage"] as Array).has(canvas_id)
+
+
+func damaged_canvases() -> Array:
+	return (_data["canvas_damage"] as Array).duplicate()
+
+
 func record_tag_unlocked(tag: String) -> void:
 	if tag.is_empty():
 		return
@@ -329,7 +357,7 @@ func _merge_defaults(incoming: Dictionary) -> Dictionary:
 		for route in ROUTES:  # a partial tally from an older save must still resolve
 			var counts: Dictionary = base["route_counts"]
 			counts[route] = int(counts.get(route, 0))
-	for key in ["acquired_objects", "collectibles", "classes_drawn_accepted", "levels_completed", "levels_unlocked", "unlocked_tags"]:
+	for key in ["acquired_objects", "collectibles", "classes_drawn_accepted", "levels_completed", "levels_unlocked", "unlocked_tags", "canvas_damage"]:
 		if not (base[key] is Array):
 			base[key] = []
 	# A v2 profile has no settings block at all and simply keeps the defaults above.

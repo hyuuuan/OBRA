@@ -11,7 +11,7 @@ const TMP_PATH := "user://profile.json.tmp"
 ## Bumped in lockstep with PlayerProfile.SCHEMA_VERSION. It is written here as a
 ## separate literal on purpose: a bump fails this suite loudly until someone has
 ## confirmed the migration carries the old profile forward rather than wiping it.
-const EXPECTED_SCHEMA := 4
+const EXPECTED_SCHEMA := 5
 
 var failures: Array[String] = []
 
@@ -330,7 +330,7 @@ func _test_schema_migration(profile) -> void:
 func _test_tag_unlocks(profile) -> void:
 	_clean_files()
 	var v3 := {
-		"schema_version": 3,
+		"schema_version": 4,
 		"classes_drawn_accepted": ["spider", "frog"],
 		"acquired_objects": ["axe"],
 		"levels_completed": ["level_1"],
@@ -347,18 +347,33 @@ func _test_tag_unlocks(profile) -> void:
 
 	var snapshot: Dictionary = profile.call("get_snapshot")
 	_expect(int(snapshot["schema_version"]) == EXPECTED_SCHEMA,
-		"v3 profile was not stamped forward")
+		"v4 profile was not stamped forward")
 	# The whole point of the bump: nothing the player had may be lost.
 	_expect((snapshot["levels_completed"] as Array).has("level_1"),
-		"v3 migration lost a completed level")
+		"migration lost a completed level")
 	_expect(int(profile.call("route_count", "artist")) == 2,
-		"v3 migration lost the route tally")
+		"migration lost the route tally")
 	_expect(bool(profile.call("has_object", "axe")),
-		"v3 migration lost an acquired object")
+		"migration lost an acquired object")
 	_expect(bool(profile.call("is_collectible_found", "hidden_flower_1")),
-		"v3 migration lost a collectible")
+		"migration lost a collectible")
 	_expect((profile.call("unlocked_tags") as Array).is_empty(),
-		"a migrated v3 profile should start with no tags unlocked")
+		"a migrated profile should start with no tags unlocked")
+	_expect((profile.call("damaged_canvases") as Array).is_empty(),
+		"a migrated profile should start with no canvas damage")
+
+	# v4 -> v5: the one consequence that leaves the level it was caused in.
+	_expect(not bool(profile.call("is_canvas_damaged", "canvas_2_pista")),
+		"a canvas was damaged before anything cut it")
+	profile.call("record_canvas_damage", "canvas_2_pista")
+	profile.call("record_canvas_damage", "canvas_2_pista")
+	_expect(bool(profile.call("is_canvas_damaged", "canvas_2_pista")),
+		"cutting the hasp did not mark the canvas")
+	_expect((profile.call("damaged_canvases") as Array).size() == 1,
+		"the same damage was recorded twice")
+	profile.call("load_profile")
+	_expect(bool(profile.call("is_canvas_damaged", "canvas_2_pista")),
+		"canvas damage did not survive a reload -- Pista would never know")
 
 	# The tag API. Tags accumulate and never fall.
 	_expect(not bool(profile.call("is_tag_unlocked", "span")),
