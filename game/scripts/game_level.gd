@@ -109,7 +109,10 @@ func _ready() -> void:
 	backend_supervisor.connect("backend_starting", Callable(self, "_on_backend_starting"))
 	backend_supervisor.connect("backend_failed", Callable(self, "_on_backend_failed"))
 	# camera target is set by _spawn_wanderer; the spawn marker is only a location
-	draw_button.disabled = true
+	# The Draw button is NOT gated on the backend. It used to start disabled and be
+	# enabled only by `backend_ready`, so a backend that was slow, absent or wedged left
+	# it grey for the rest of the session with nothing watching to re-enable it -- while
+	# R opened the same panel regardless. Two doors into one room, one of them locked.
 	status_label.text = "Checking backend..."
 	_on_ink_changed(ink_manager.remaining(), ink_manager.capacity, ink_manager.reserved)
 	backend_supervisor.call("ensure_backend")
@@ -153,17 +156,18 @@ func _on_draw_button_pressed() -> void:
 
 
 func _on_backend_ready() -> void:
-	draw_button.disabled = false
 	status_label.text = "Ready — draw a morph or utility"
 
 
 func _on_backend_starting(message: String) -> void:
-	draw_button.disabled = true
 	status_label.text = message
 
 
+## Reported, not enforced. The panel says the same thing where the player is actually
+## looking when it matters (draw_panel says "backend unreachable" under the canvas), and
+## shutting the door to the panel does not make the backend arrive any sooner -- it only
+## removes the one screen that explains what is wrong.
 func _on_backend_failed(message: String) -> void:
-	draw_button.disabled = true
 	status_label.text = message
 
 
