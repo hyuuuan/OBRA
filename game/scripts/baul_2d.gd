@@ -14,10 +14,10 @@ signal found()
 
 const AtlasTile = preload("res://scripts/atlas_tile.gd")
 const TEXTURE_MAP := preload("res://assets/Level1/texturemap.png")
-## Dark banded wood. The stone regions read as too grey next to straw, so this borrows the
-## mud wall, which is the warmest brown in the atlas -- below its grass fringe, or the
-## chest comes up out of the straw with a lawn along its lid.
-const WOOD := Rect2(217, 248, 146, 96)
+## The atlas has no chest, so this is the plank door out of the hut-accent row: boards, a
+## rail top and bottom, and a round fitting on the face. At chest size that reads as a
+## banded lowland trunk, which is what it is meant to be. It was a rectangle of mud wall.
+const PLANKS := Rect2(910, 1001, 44, 61)
 
 @export var chest_size := Vector2(74.0, 52.0)
 @export var start_hidden := true
@@ -45,9 +45,14 @@ func reveal() -> void:
 	visible = true
 	# Rises out of the pile rather than appearing, so the moment reads as uncovering
 	# something rather than as the level spawning it.
+	# Rises TO its resting place, from below it. Tweening away from the rest position
+	# left the chest hanging ten pixels off the terrace for the rest of the level, which
+	# is what the old version did -- there was nothing to bring it back down.
+	var resting := position.y
+	position.y = resting + 10.0
 	var lift := create_tween()
 	lift.set_parallel(true)
-	lift.tween_property(self, "position:y", position.y - 10.0, 0.35) \
+	lift.tween_property(self, "position:y", resting, 0.35) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	lift.tween_property(self, "modulate:a", 1.0, 0.3).from(0.0)
 	found.emit()
@@ -58,33 +63,23 @@ func _build() -> void:
 	_art.name = "Chest"
 	add_child(_art)
 
-	var body := Polygon2D.new()
-	body.name = "Body"
 	var half := chest_size * 0.5
-	body.polygon = PackedVector2Array([
-		Vector2(-half.x, 0.0), Vector2(-half.x, -chest_size.y),
-		Vector2(half.x, -chest_size.y), Vector2(half.x, 0.0),
-	])
-	AtlasTile.fill(body, TEXTURE_MAP, WOOD)
-	body.color = Color(0.86, 0.72, 0.52)
+	var body := Sprite2D.new()
+	body.name = "Body"
+	body.texture = AtlasTile.cut(TEXTURE_MAP, PLANKS)
+	# Bottom-centre anchored like every prop: `position` is where it meets the ground.
+	body.position = Vector2(0.0, -half.y)
+	body.scale = chest_size / PLANKS.size
 	_art.add_child(body)
-
-	# The bands, which are what make a box read as a chest at this size.
-	for offset in [-chest_size.x * 0.26, chest_size.x * 0.26]:
-		var band := Polygon2D.new()
-		band.polygon = PackedVector2Array([
-			Vector2(offset - 4.0, 1.0), Vector2(offset - 4.0, -chest_size.y - 1.0),
-			Vector2(offset + 4.0, -chest_size.y - 1.0), Vector2(offset + 4.0, 1.0),
-		])
-		band.color = Color(0.32, 0.26, 0.19)
-		_art.add_child(band)
 
 	# The padlock. Node 3's whole Pragmatist route is about this shape.
 	var lock := Polygon2D.new()
 	lock.name = "Padlock"
+	# On the lid line, small. The plank face already carries a fitting of its own, and a
+	# tan slab across the middle of it read as a sticker rather than as a padlock.
 	lock.polygon = PackedVector2Array([
-		Vector2(-7.0, -chest_size.y * 0.42), Vector2(-7.0, -chest_size.y * 0.62),
-		Vector2(7.0, -chest_size.y * 0.62), Vector2(7.0, -chest_size.y * 0.42),
+		Vector2(-5.0, -chest_size.y * 0.72), Vector2(-5.0, -chest_size.y * 0.86),
+		Vector2(5.0, -chest_size.y * 0.86), Vector2(5.0, -chest_size.y * 0.72),
 	])
-	lock.color = Color(0.78, 0.72, 0.34)
+	lock.color = Color(0.86, 0.8, 0.36)
 	_art.add_child(lock)
