@@ -1394,5 +1394,13 @@ func _on_restart_requested() -> void:
 func _on_ink_exhausted() -> void:
 	# Advisory, not a loss: the morph already spawned is still playable and the goal
 	# may still be reachable. Not shown once the level is already won.
-	if not _level_completed:
-		out_of_ink_overlay.open()
+	if _level_completed:
+		return
+	# And never over the canvas. The last of the ink is spent by a drawing being
+	# accepted, and the panel is still on screen at that moment -- an overlay eight
+	# layers above it would land on top of the drawing that just succeeded.
+	if draw_panel.is_open():
+		if not draw_panel.panel_closed.is_connected(_on_ink_exhausted):
+			draw_panel.panel_closed.connect(_on_ink_exhausted, CONNECT_ONE_SHOT)
+		return
+	out_of_ink_overlay.open()
