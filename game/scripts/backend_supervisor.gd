@@ -31,7 +31,13 @@ var _backend_pid := -1
 var _gave_up := false
 
 
+## Anything that is about to quit the game calls this group, so the Python child does not
+## outlive the process that started it.
+const GROUP := &"backend_supervisors"
+
+
 func _ready() -> void:
+	add_to_group(GROUP)
 	_http = HTTPRequest.new()
 	add_child(_http)
 	_http.request_completed.connect(_on_health_completed)
@@ -51,6 +57,26 @@ func ensure_backend() -> void:
 	_gave_up = false
 	_deadline_msec = Time.get_ticks_msec() + int(startup_timeout_sec * 1000.0)
 	_request_health()
+
+
+## Kill the backend we started, if we started it.
+##
+## Only ever ours: `_start_backend` runs solely when nothing answered the health check, so
+## a server the player launched by hand is never touched. Left alone, the child outlives
+## the game, keeps port 8000, and the next launch's server fails to bind against it.
+##
+## NOT called from _exit_tree -- this node dies on every level change, and killing the
+## backend between levels would buy a fresh cold start each time.
+func stop_backend() -> void:
+	if _backend_pid > 0:
+		OS.kill(_backend_pid)
+		_backend_pid = -1
+		_started_process = false
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_CRASH:
+		stop_backend()
 
 
 func backend_url(path: String = "") -> String:
