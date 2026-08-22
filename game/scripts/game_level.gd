@@ -863,6 +863,9 @@ func _on_placement_canceled(item: DrawnItemData, source_slot: int) -> void:
 ## which, or what to do about it -- and because the controller re-emitted every frame,
 ## it was also the only thing the status line could ever say while placing.
 func _on_placement_changed(active: bool, valid: bool) -> void:
+	# Before the early return: the bar has to come back when the placement ends, and that
+	# is the call that arrives with active = false.
+	inventory_hud.set_click_through(active)
 	if not active:
 		return
 	if not valid:
