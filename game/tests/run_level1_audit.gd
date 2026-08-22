@@ -22,6 +22,7 @@ const FloatingTreadClass = preload("res://scripts/floating_tread_2d.gd")
 const StrawPileClass = preload("res://scripts/straw_pile_2d.gd")
 const WardLockClass = preload("res://scripts/ward_lock_2d.gd")
 const BululClass = preload("res://scripts/bulul_2d.gd")
+const WandererClass = preload("res://scripts/wanderer.gd")
 const BaleClass = preload("res://scripts/bale_2d.gd")
 const LevelDirectorClass = preload("res://scripts/level_director.gd")
 
@@ -633,7 +634,11 @@ func _audit_live_level() -> void:
 	var hagdan := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane/Hagdan")
 	_check(hagdan != null, "Ang Hagdan exists", "the stair is in the level")
 	if hagdan != null:
-		var jump: float = pow(430.0, 2.0) / (2.0 * 980.0)   # from wanderer.gd
+		# Read off the wanderer itself. This used to be the literal 430.0 with a comment
+		# saying "from wanderer.gd", so retuning the jump would have left the assertion
+		# measuring a number nobody was using any more.
+		var jump: float = pow(WandererClass.JUMP_VELOCITY, 2.0) / (2.0 * float(
+			ProjectSettings.get_setting("physics/2d/default_gravity", 980.0)))
 		var lower := level.get_node_or_null(
 			"EnvironmentBaseplate/GameplayPlane/Terrain/LowerRight") as Node2D
 		# ONLY the stones you can stand on. The broken stubs share the script -- they are
