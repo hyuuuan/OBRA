@@ -75,6 +75,14 @@ region = Rect2(741, 674, 70, 55)
 atlas = ExtResource("11_map")
 region = Rect2(738, 826, 92, 70)
 
+[sub_resource type="AtlasTexture" id="Atlas_stool"]
+atlas = ExtResource("11_map")
+region = Rect2(1045, 1028, 70, 34)
+
+[sub_resource type="AtlasTexture" id="Atlas_jar"]
+atlas = ExtResource("11_map")
+region = Rect2(903, 917, 27, 39)
+
 [sub_resource type="AtlasTexture" id="Atlas_hut"]
 atlas = ExtResource("11_map")
 region = Rect2(1358, 652, 145, 130)
@@ -573,15 +581,16 @@ position = Vector2(3268, 240)
 script = ExtResource("23_3uax6")
 pile_size = Vector2(132, 82)
 
-[node name="FoldingStool" type="Polygon2D" parent="GameplayPlane/Dayami" unique_id=1479238481]
+[node name="FoldingStool" type="Sprite2D" parent="GameplayPlane/Dayami" unique_id=1479238481]
 position = Vector2(2990, 240)
-color = Color(0.42, 0.31, 0.2, 1)
-polygon = PackedVector2Array(-16, 0, -13, -26, 13, -26, 16, 0, 11, 0, 9, -22, -9, -22, -11, 0)
+scale = Vector2(0.7, 0.7)
+offset = Vector2(0, -17)
+texture = SubResource("Atlas_stool")
 
-[node name="BrushJar" type="Polygon2D" parent="GameplayPlane/Dayami" unique_id=796148671]
+[node name="BrushJar" type="Sprite2D" parent="GameplayPlane/Dayami" unique_id=796148671]
 position = Vector2(3014, 240)
-color = Color(0.55, 0.5, 0.42, 1)
-polygon = PackedVector2Array(-9, 0, -7, -20, 7, -20, 9, 0)
+offset = Vector2(0, -19)
+texture = SubResource("Atlas_jar")
 
 [node name="Baul" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319160]
 position = Vector2(3160, 240)

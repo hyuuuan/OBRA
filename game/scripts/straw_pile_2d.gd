@@ -22,10 +22,10 @@ enum State { INTACT, COMBED, TUNNELLED, SCATTERED }
 
 const AtlasTile = preload("res://scripts/atlas_tile.gd")
 const TEXTURE_MAP := preload("res://assets/Level1/texturemap.png")
-## Only the straw band off the top of the rice tile. The whole tile is a slice of terrace
-## -- rice tops, then green blades, then mud -- so a heap filled with it wears a stripe of
-## dirt across its middle and reads as a piece of the field it is standing on.
-const STRAW := Rect2(828, 81, 84, 23)
+## Real thatch, cut from the middle of the atlas's hut panel. This was the straw band off
+## the top of a rice tile, which is standing crop rather than cut straw -- the heaps read
+## as a piece of the field they were lying in.
+const STRAW := Rect2(734, 1012, 70, 44)
 
 @export var pile_size := Vector2(150.0, 96.0)
 ## Straw catches the light unevenly; a row of identical mounds reads as wallpaper.
