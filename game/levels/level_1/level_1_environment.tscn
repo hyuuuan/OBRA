@@ -492,41 +492,41 @@ shape = SubResource("RectangleShape2D_aty4c")
 [node name="Hagdan" type="Node2D" parent="GameplayPlane" unique_id=1689954354]
 
 [node name="TreadUpper" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=950612297]
-position = Vector2(668, 452)
+position = Vector2(696, 424)
 script = ExtResource("20_ryned")
-tread_size = Vector2(96, 34)
+tread_size = Vector2(64, 34)
 
 [node name="TreadTop" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=480847419]
-position = Vector2(700, 432)
+position = Vector2(724, 402)
 script = ExtResource("20_ryned")
-tread_size = Vector2(64, 28)
+tread_size = Vector2(36, 26)
 
 [node name="BrokenA" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=47185594]
-position = Vector2(654, 486)
+position = Vector2(668, 486)
 script = ExtResource("20_ryned")
-tread_size = Vector2(92, 30)
+tread_size = Vector2(60, 30)
 is_broken = true
 
 [node name="GapSlotA" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=648570639]
-position = Vector2(654, 486)
+position = Vector2(668, 486)
 
 [node name="BrokenB" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=2607205]
-position = Vector2(644, 518)
+position = Vector2(652, 518)
 script = ExtResource("20_ryned")
-tread_size = Vector2(88, 30)
+tread_size = Vector2(56, 30)
 is_broken = true
 
 [node name="GapSlotB" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=1576016004]
-position = Vector2(644, 518)
+position = Vector2(652, 518)
 
 [node name="BrokenC" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=700847353]
-position = Vector2(636, 548)
+position = Vector2(640, 548)
 script = ExtResource("20_ryned")
-tread_size = Vector2(84, 30)
+tread_size = Vector2(52, 30)
 is_broken = true
 
 [node name="GapSlotC" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=562414549]
-position = Vector2(636, 548)
+position = Vector2(640, 548)
 
 [node name="FloatingTread" type="RigidBody2D" parent="GameplayPlane/Hagdan" unique_id=1182508414]
 position = Vector2(560, 600)
