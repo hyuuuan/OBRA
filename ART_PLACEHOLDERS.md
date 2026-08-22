@@ -5,6 +5,17 @@ circles and lines by a developer so the level could be built and tested, and eac
 waiting to be replaced. None of them is a design; they are stand-ins that hold the right
 amount of space in the right place.
 
+> **Updated 22 August.** Four of these are no longer placeholders. The atlas turned out to
+> be a labelled tileset with most of it unreferenced — a thatch panel, bamboo wall panels,
+> a plank door, a post-and-beam frame, a jar, a packed-earth path material and a full set
+> of nine-way edge tiles. **The bale, the straw, the baul, and Lola's stool and jar are now
+> built from those**, so they are the artist's own pixels rather than a developer's
+> rectangles. Their entries below say what they are made of. Everything else on this list
+> is still waiting.
+>
+> The walkable terraces also took the unused packed-earth path material, so the ground you
+> stand on stops matching the painted scenery behind it.
+
 **How to use it.** Every entry says what is there now, the exact space it occupies, what its
 collision is, and — the part that matters — **what the player has to understand from looking
 at it**. A replacement can look like anything as long as it still says that sentence. Where a
@@ -113,7 +124,7 @@ the rise from the bank to the first surviving stone is 108 px, and the player ca
 
 | | |
 |---|---|
-| **Now** | A lopsided seven-point mound filled with the straw band of the rice tile (region 828,81,84,23), tinted `#FFF7DB`. |
+| **Now** | **Real thatch** — a lopsided seven-point mound filled from the atlas's hut thatch panel (region 734,1012,70,44), tinted `#FFF7DB`. It used to take the band off the top of a *rice* tile, which is standing crop rather than cut straw. |
 | **Sizes** | **140 × 88**, **158 × 100**, **132 × 82**. Bottom-centre anchored. |
 | **Collision** | **None**, deliberately — a solid heap would wall off the only route out of the level. It is something you push through. |
 | **Must read as** | **Cut straw, never harvested grain.** This is a build constraint, not a preference: the Protector route scatters it across the terrace, and scattering somebody's *tinawon* harvest is not a neutral image to stage. |
@@ -124,15 +135,16 @@ the rise from the bank to the first surviving stone is 108 px, and the player ca
 
 | | |
 |---|---|
-| **Now** | A box **74 × 52**, bottom-centre anchored, mud-brown fill with two dark bands 8 px wide at ±19 px, and a 14 × 10 brass padlock. Rises 10 px and fades in when uncovered. |
+| **Now** | **The plank door sprite** (region 910,1001,44,61) scaled to **74 × 52** — boards, a rail top and bottom, a round fitting on the face — with a small brass padlock on the lid line. It was a mud-wall rectangle with two painted bars. Rises into place and fades in when uncovered. |
 | **Must read as** | Lola's chest: small, banded, and **locked**. "Locked. Of course." is the line that closes the beat, and the padlock is the whole of Node 3's Pragmatist route — the player will be drawing a key against it. |
 | **Declared liberty** | An Ifugao house had no locks. This one is hers, carried up from the lowlands, and the padlock came with it. That is recorded in the build spec rather than smuggled past, so the chest should look like a lowland trunk, not local joinery. |
 
 ### Lola's stool and brush jar · inline in `level_1_environment.tscn` · at (2990, 240) and (3014, 240)
 
-Flat polygons: a stool **32 × 26** in `#6B4F33`, a jar **18 × 20** in `#8C806B`. No collision.
-Pure set-dressing, and the only sign that somebody worked this terrace. Small, but they are
-what makes the straw somebody's rather than scenery.
+**BUILT** — both are sprites from the atlas's small-props row now: a low bamboo bench
+(region 1045,1028,70,34 at 0.7 scale) and a bamboo vessel (region 903,917,27,39). They were
+two flat polygons of solid brown. No collision. Pure set-dressing, and the only sign that
+somebody worked this terrace — which is worth more than their size suggests.
 
 ---
 
@@ -151,10 +163,15 @@ each feature below has to be legible or its route stops making sense.
 | Thatch | A 278 × 92 pyramid from y −118 | The way in, if you can get onto it |
 | Attic | A 168 × 55 volume under the roof | The granary the Artist route climbs into, entered **under the eaves** at (+101, −137), never through the door |
 
-**Missing from the placeholder entirely:** the house has **no walls and no door**. Right now
-it reads as a covered pavilion, while the puzzle's premise is a closed house — no windows,
-one door above head height, and the ladder taken inside at night, which is the lock. Those
-three facts are what make all three routes necessary, and none of them is currently drawn.
+**BUILT — no longer a placeholder.** It has walls and a door now, from the atlas's
+hut-accent row: a storey of bamboo slats between the deck and the roof with one plank door
+in it, and a real thatch roof with a bamboo ridge pole instead of a triangle of rice
+terrace. The walls are solid, which is what makes going over the thatch and in under the
+eaves the Artist route rather than one of two ways in.
+
+Still a developer's: the four **halipan** discs, which have no source anywhere in the atlas
+and are flat trapezoids. They carry the whole reason "climb the post" is not an answer, so
+they are the piece of this building most worth drawing properly.
 
 ### The bulul · `game/scripts/bulul_2d.gd` · 2 at (3452, 200) and (3496, 200)
 
@@ -179,11 +196,13 @@ would rather use it than borrow the rice and mud tiles they use today.
 
 ## Where to start
 
-1. **The bale** — walls and a door, which do not exist at all, plus the halipan reading as
-   guards. Node 3 has three routes and the building has to justify them.
-2. **The stair and its three stubs** — Beat 0 is the first thing a player meets, and its
-   whole read is "three of these are gone".
-3. **The straw's four states** — the visible difference between Node 2's three routes.
-4. **The bulul** — small, and the one with the least room for error.
-5. The baul, then the gorge set (bridge, dead tree, ledges), then the flower, then the stool
-   and jar.
+1. **The bulul** — small, the one with the least room for error, and the only prop here
+   that should stay bespoke rather than be assembled out of tileset parts.
+2. **The halipan** — the four rat guards on the bale's posts, still flat trapezoids. They
+   carry the whole reason "climb the post" is not an answer.
+3. **The gorge set** — the ruined bridge, the dead tree and the crumbling ledges are all
+   still drawn from primitives, and the atlas has nothing close to any of them.
+4. **The stair and its three stubs** — composed from terrace tiles rather than drawn as a
+   stair. It works, but Beat 0 is the first thing a player meets and its whole read is
+   "three of these are gone".
+5. Hidden Flower 1, then the two characters (tracked in `CONTENT_NEEDED.md` §2).
