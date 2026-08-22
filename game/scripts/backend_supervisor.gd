@@ -11,8 +11,13 @@ signal backend_failed(message: String)
 @export var backend_port: int = 8000
 @export var health_path: String = "/"
 @export var python_executable: String = ""
-@export var startup_timeout_sec: float = 10.0
+## A cold start is uvicorn plus an onnxruntime import plus an InferenceSession over a
+## 3.6 MB model. Ten seconds was optimistic on a warm machine and wrong on a cold one.
+@export var startup_timeout_sec: float = 45.0
 @export var poll_interval_sec: float = 0.35
+## How often to look again after the budget has run out. Slower, because by then this is
+## waiting on a person rather than on a process.
+@export var recovery_poll_sec: float = 2.0
 @export var debug_logs: bool = false
 
 var _http: HTTPRequest
@@ -21,6 +26,9 @@ var _started_process := false
 var _ensuring := false
 var _deadline_msec := 0
 var _backend_pid := -1
+## Whether the failure has already been announced. It is said once; the watching carries
+## on silently after that.
+var _gave_up := false
 
 
 func _ready() -> void:
@@ -40,6 +48,7 @@ func ensure_backend() -> void:
 	_ensuring = true
 	_started_process = false
 	_backend_pid = -1
+	_gave_up = false
 	_deadline_msec = Time.get_ticks_msec() + int(startup_timeout_sec * 1000.0)
 	_request_health()
 
@@ -67,6 +76,7 @@ func _on_health_completed(
 		var parsed: Variant = JSON.parse_string(body.get_string_from_utf8())
 		if parsed is Dictionary and String(parsed.get("status", "")) == "ok":
 			_ensuring = false
+			_gave_up = false
 			if debug_logs:
 				print("BackendSupervisor ready at %s" % backend_url())
 			backend_ready.emit()
@@ -76,15 +86,11 @@ func _on_health_completed(
 
 
 func _handle_health_failure(reason: String) -> void:
-	if not _started_process:
-		if auto_start_backend:
-			_start_backend()
-		else:
-			_fail("Backend is not running.")
-			return
+	if not _started_process and auto_start_backend:
+		_start_backend()
 
 	if Time.get_ticks_msec() >= _deadline_msec:
-		_fail("Backend did not become ready. Start it manually from backend/.")
+		_fail("Backend is not answering. Start it from backend/ — the game will notice.")
 		return
 
 	if debug_logs:
@@ -116,9 +122,18 @@ func _start_backend() -> void:
 		_fail("Could not launch backend process. Check .venv and backend requirements.")
 
 
+## Say so once, and then KEEP LOOKING.
+##
+## This used to stop dead: `_ensuring` went false, the retry timer was never restarted,
+## and nothing checked again for the life of the scene. A backend that came up two seconds
+## after the budget expired -- which is most first launches -- was never noticed, and the
+## game stayed in its failed state until the player quit. Every situation that reaches
+## here is one a person can resolve while the game is running.
 func _fail(message: String) -> void:
-	_ensuring = false
-	backend_failed.emit(message)
+	if not _gave_up:
+		_gave_up = true
+		backend_failed.emit(message)
+	_retry_timer.start(recovery_poll_sec)
 
 
 func _resolve_python_executable() -> String:
