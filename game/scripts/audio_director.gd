@@ -49,6 +49,24 @@ func _ready() -> void:
 	if profile != null:
 		profile.settings_changed.connect(_on_setting_changed)
 	apply_saved_settings()
+	# Every button in the game, including the ones built at runtime -- the six inventory
+	# slots and the three answers to Lolo's question are made in code, so connecting at
+	# each authored call site would have missed exactly the buttons a player presses most.
+	get_tree().node_added.connect(_on_node_added)
+
+
+## `ui_click` was defined in the catalogue and called from nowhere, so no button in the
+## game made a sound. Silence plus no press animation beyond the theme's stylebox is a
+## large part of why the UI was reported as not responding at all.
+func _on_node_added(node: Node) -> void:
+	var button := node as BaseButton
+	if button == null or button.pressed.is_connected(_on_any_button_pressed):
+		return
+	button.pressed.connect(_on_any_button_pressed)
+
+
+func _on_any_button_pressed() -> void:
+	play_sfx(&"ui_click")
 
 
 ## Push every saved volume onto its bus. Called on launch, so the player's choice is
