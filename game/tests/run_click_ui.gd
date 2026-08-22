@@ -43,6 +43,7 @@ func _run() -> void:
 	await _inventory_slot_answers_a_click()
 	await _placing_click_reaches_the_world()
 	await _dialogue_choices_answer_a_click()
+	await _escape_during_a_question_is_not_a_pause_menu()
 
 	print("\n===== UI CLICK AUDIT =====")
 	for line in results:
@@ -204,6 +205,51 @@ func _dialogue_choices_answer_a_click() -> void:
 	if bool(overlay.call("is_open")):
 		overlay.call("close")
 	await process_frame
+
+
+## Escape while Lolo is asking his question.
+##
+## The router walks an authored chain and the first willing handler wins. Both decision
+## overlays were missing from it, so every entry declined and the PAUSE MENU opened -- at
+## layer 50, underneath their layer-68 scrim, where it stole focus and could not be
+## clicked. A ghost menu bleeding through the dim, over a question that still needs
+## answering.
+func _escape_during_a_question_is_not_a_pause_menu() -> void:
+	var overlay := level.get_node_or_null("DialogueChoiceOverlay")
+	var pause := level.get_node_or_null("PauseMenu")
+	if overlay == null or pause == null:
+		_fail("escape during a question", "the level has no dialogue overlay or no pause menu")
+		return
+	overlay.call("present", "Lolo", "Which?", {"artist": "Let us put it back."})
+	await _wait(0.4)
+
+	# Through the InputMap, as a key: the router listens in _shortcut_input, which sees
+	# InputEventKey and never a synthetic action.
+	for event in [_key(true), _key(false)]:
+		Input.parse_input_event(event)
+		await process_frame
+	await _wait(0.3)
+
+	_check(not bool(pause.call("is_open")), "escape during a question opens no pause menu",
+		"the question keeps the key" if not bool(pause.call("is_open"))
+		else "a pause menu opened under the scrim, unclickable")
+	_check(bool(overlay.call("is_open")), "the question is still on screen",
+		"a decision point is not dismissable")
+	if bool(pause.call("is_open")):
+		pause.call("close")
+	if bool(overlay.call("is_open")):
+		overlay.call("close")
+	await process_frame
+
+
+func _key(pressed: bool) -> InputEventKey:
+	for event in InputMap.action_get_events(&"pause"):
+		var key := event as InputEventKey
+		if key != null:
+			var copy := key.duplicate() as InputEventKey
+			copy.pressed = pressed
+			return copy
+	return InputEventKey.new()
 
 
 ## A real click: move there, press, release. Buttons fire on RELEASE by default, so a

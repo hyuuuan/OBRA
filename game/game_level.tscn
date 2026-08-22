@@ -347,4 +347,4 @@ text = "QUIT TO DESKTOP"
 
 [node name="UIRouter" type="Node" parent="."]
 script = ExtResource("13_ui_router")
-cancel_chain = [NodePath("../LevelCompleteOverlay"), NodePath("../ConfirmOverlay"), NodePath("../OutOfInkOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("../DrawPanel"), NodePath("../PlacementController"), NodePath("../PauseMenu")]
+cancel_chain = [NodePath("../ConfirmOverlay"), NodePath("../LevelCompleteOverlay"), NodePath("../MemoryOverlay"), NodePath("../DialogueChoiceOverlay"), NodePath("../OutOfInkOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("../DrawPanel"), NodePath("../PlacementController"), NodePath("../PauseMenu")]
