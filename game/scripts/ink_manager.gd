@@ -40,8 +40,11 @@ func reserve_attempt(cost: float) -> bool:
 		return false
 	reserved = requested
 	_emit_changed()
-	if remaining() <= 0.0001:
-		ink_exhausted.emit()
+	# NOT exhausted. Reserved ink is provisional -- the stroke is on the canvas and
+	# clearing it hands every unit straight back -- so announcing it here threw the
+	# out-of-ink screen over the player's own drawing, mid-stroke, the moment a sketch
+	# grew to the size of the budget. Exhaustion is something that happens when ink is
+	# SPENT, which is commit_attempt below.
 	return true
 
 
@@ -50,6 +53,8 @@ func commit_attempt() -> float:
 	committed = minf(capacity, committed + amount)
 	reserved = 0.0
 	_emit_changed()
+	if total_uncommitted_available() <= 0.0001:
+		ink_exhausted.emit()
 	return amount
 
 
