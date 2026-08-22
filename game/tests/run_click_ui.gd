@@ -121,10 +121,27 @@ func _panel_buttons_answer_a_click() -> void:
 	await _click(clear)
 	_check(cleared[0], "Clear answers a click", "the handler ran")
 
+	_check(transform.disabled, "Transform is not offered for an empty canvas",
+		"nothing drawn, nothing to transform" if transform.disabled
+		else "OFFERED -- pressing it posts a blank image and is answered with a 422")
+
+	# Put something on the canvas, the way the panel's own pointer handler would.
+	var canvas := panel.get_node_or_null(
+		"PanelRoot/SubViewportContainer/SubViewport/Canvas")
+	if canvas != null:
+		canvas.call("_start_stroke", Vector2(180.0, 120.0))
+		for step in range(1, 25):
+			canvas.call("_append_point", Vector2(180.0, 120.0).lerp(Vector2(330.0, 380.0),
+				float(step) / 24.0))
+		canvas.call("_append_point", Vector2(330.0, 380.0), true)
+		canvas.set("_current_line", null)
+		await _wait(0.3)
+
 	var transformed := [false]
 	transform.pressed.connect(func() -> void: transformed[0] = true)
 	await _click(transform)
-	_check(transformed[0], "Transform answers a click", "the handler ran")
+	_check(transformed[0], "Transform answers a click once there is ink",
+		"the handler ran")
 
 	panel.call("close_panel")
 	await _wait(0.3)

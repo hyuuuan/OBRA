@@ -108,10 +108,19 @@ func open_panel() -> void:
 	_clear_guess()
 	set_process(true)
 	if ink_manager != null:
-		canvas.set_ink_budget(ink_manager.total_uncommitted_available(), ink_manager.canvas_size)
-		status.text = "Ink remaining %.1f / %.1f — draw, then Transform" % [ink_manager.remaining(), ink_manager.capacity]
+		var available := ink_manager.total_uncommitted_available()
+		canvas.set_ink_budget(available, ink_manager.canvas_size)
+		if available <= 0.0001:
+			# Otherwise the panel opens looking perfectly normal and then refuses every
+			# stroke without a word: the budget is spent, so the canvas silently rejects
+			# each one and Transform posts an empty image to be told it is empty.
+			status.text = "No ink left — nothing more can be drawn in this level"
+		else:
+			status.text = "Ink remaining %.1f / %.1f — draw, then Transform" % [ink_manager.remaining(), ink_manager.capacity]
 	else:
 		status.text = "Draw something, then Transform!"
+	# Nothing has been drawn yet, so there is nothing to transform.
+	transform_button.disabled = true
 	UIRouter.refresh_pause(get_tree())
 	_play_open_animation()
 
@@ -326,6 +335,7 @@ func _on_prediction_failed(message: String) -> void:
 func _clear_canvas() -> void:
 	canvas.clear_canvas()
 	_clear_guess()
+	transform_button.disabled = true
 	if ink_manager != null:
 		ink_manager.release_attempt()
 
@@ -335,6 +345,8 @@ func _on_stroke_cost_changed(cost: float) -> void:
 	# the pending utility reservation with zero before placement/storage commits.
 	if not _is_open:
 		return
+	# There is ink on the canvas now, so there is something to offer the recogniser.
+	transform_button.disabled = cost <= 0.0
 	if ink_manager != null:
 		ink_manager.reserve_attempt(cost)
 		status.text = "Ink remaining %.1f / %.1f — attempt %.1f" % [ink_manager.remaining(), ink_manager.capacity, cost]
