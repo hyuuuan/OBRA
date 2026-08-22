@@ -133,7 +133,7 @@ scale = Vector2(1.05, 1)
 texture = SubResource("Atlas_sky")
 
 [node name="FarMountainLayer" type="Node2D" parent="." unique_id=615819855]
-modulate = Color(0.9, 0.96, 1, 1)
+modulate = Color(0.66, 0.76, 0.92, 1)
 z_index = -100
 script = ExtResource("3_depth")
 depth = 8.0
@@ -146,7 +146,7 @@ scale = Vector2(1.25, 1)
 texture = SubResource("Atlas_far")
 
 [node name="GreenMountainLayer" type="Node2D" parent="." unique_id=1234888788]
-modulate = Color(0.87, 0.94, 0.82, 1)
+modulate = Color(0.6, 0.72, 0.76, 1)
 z_index = -80
 script = ExtResource("3_depth")
 depth = 5.0
@@ -164,7 +164,7 @@ scale = Vector2(1.04, 1)
 texture = SubResource("Atlas_green")
 
 [node name="TerraceVistaLayer" type="Node2D" parent="." unique_id=1871817744]
-modulate = Color(0.82, 0.91, 0.7, 0.9)
+modulate = Color(0.58, 0.7, 0.62, 0.94)
 z_index = -55
 script = ExtResource("3_depth")
 depth = 3.0
@@ -187,7 +187,7 @@ scale = Vector2(0.76, 0.76)
 texture = SubResource("Atlas_terraces")
 
 [node name="NearSceneryLayer" type="Node2D" parent="." unique_id=252645397]
-modulate = Color(0.82, 0.94, 0.72, 0.84)
+modulate = Color(0.66, 0.78, 0.66, 0.9)
 z_index = -15
 script = ExtResource("3_depth")
 depth = 1.0
@@ -228,7 +228,7 @@ position = Vector2(260, 460)
 position = Vector2(0, 560)
 script = ExtResource("5_terrace")
 segment_size = Vector2(480, 120)
-surface_style = 0
+surface_style = 3
 
 [node name="LowerPaddyFloor" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1153780803]
 position = Vector2(480, 632)
@@ -240,29 +240,31 @@ surface_style = 2
 position = Vector2(640, 560)
 script = ExtResource("5_terrace")
 segment_size = Vector2(120, 120)
-surface_style = 0
+surface_style = 3
 
 [node name="Terrace1" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=414892212]
 position = Vector2(760, 420)
 script = ExtResource("5_terrace")
 segment_size = Vector2(360, 260)
-surface_style = 0
+surface_style = 3
 
 [node name="Terrace2" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1355529605]
 position = Vector2(1120, 280)
 script = ExtResource("5_terrace")
 segment_size = Vector2(360, 400)
+surface_style = 3
 
 [node name="Terrace3" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=979666756]
 position = Vector2(1480, 240)
 script = ExtResource("5_terrace")
 segment_size = Vector2(360, 440)
-surface_style = 0
+surface_style = 3
 
 [node name="CentralLeft" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1543895957]
 position = Vector2(1840, 240)
 script = ExtResource("5_terrace")
 segment_size = Vector2(60, 440)
+surface_style = 3
 
 [node name="CentralPaddyFloor" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1699466670]
 position = Vector2(1900, 400)
@@ -274,17 +276,19 @@ surface_style = 2
 position = Vector2(2200, 240)
 script = ExtResource("5_terrace")
 segment_size = Vector2(200, 440)
+surface_style = 3
 
 [node name="Terrace5" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=431271399]
 position = Vector2(2960, 240)
 script = ExtResource("5_terrace")
 segment_size = Vector2(360, 440)
+surface_style = 3
 
 [node name="Overlook" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1246413088]
 position = Vector2(3320, 200)
 script = ExtResource("5_terrace")
 segment_size = Vector2(440, 480)
-surface_style = 0
+surface_style = 3
 
 [node name="Transitions" type="Node2D" parent="GameplayPlane" unique_id=345990059]
 
