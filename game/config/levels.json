@@ -2,8 +2,8 @@
   {
     "id": "level_1",
     "number": 1,
-    "title": "Banaue Rice Terraces",
-    "theme": "Mountain rice terraces and irrigation paddies",
+    "title": "Payyo",
+    "theme": "Ifugao rice terraces of the Cordillera Central",
     "scene_path": "res://game_level.tscn",
     "thumbnail": "res://assets/Level1/terraces_2.png",
     "unlocked": true,

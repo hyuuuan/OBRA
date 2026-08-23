@@ -125,7 +125,7 @@ offset_bottom = -84.0
 grow_vertical = 0
 mouse_filter = 2
 theme_type_variation = &"HudHint"
-text = "R DRAW  ·  E PICK UP  ·  F USE  ·  ESC MENU"
+text = "R DRAW  ·  E PICK UP  ·  F USE  ·  Q CHANGE BACK  ·  ESC MENU"
 
 [node name="GoalLabel" type="Label" parent="CanvasLayer"]
 anchors_preset = 3
@@ -347,4 +347,4 @@ text = "QUIT TO DESKTOP"
 
 [node name="UIRouter" type="Node" parent="."]
 script = ExtResource("13_ui_router")
-cancel_chain = [NodePath("../LevelCompleteOverlay"), NodePath("../ConfirmOverlay"), NodePath("../OutOfInkOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("../DrawPanel"), NodePath("../PlacementController"), NodePath("../PauseMenu")]
+cancel_chain = [NodePath("../ConfirmOverlay"), NodePath("../LevelCompleteOverlay"), NodePath("../MemoryOverlay"), NodePath("../DialogueChoiceOverlay"), NodePath("../OutOfInkOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("../DrawPanel"), NodePath("../PlacementController"), NodePath("../PauseMenu")]

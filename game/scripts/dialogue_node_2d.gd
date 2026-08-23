@@ -42,16 +42,17 @@ func is_answered() -> bool:
 
 ## Answering is separate from the trigger so the choice overlay -- and a test -- can
 ## resolve the node without needing a body to walk into it.
+## Report the answer. It does NOT write the tally or the telemetry any more.
+##
+## LevelDirector.commit_route owns both now, because it also writes the checkpoint, and
+## three writers for one act is three chances to disagree about whether it happened. It
+## was concretely wrong once the director arrived: this recorded the route, the director
+## recorded it again, and a single choice counted twice towards an ending that needs
+## 7 of 12. One writer, and the tally means what it says.
 func choose(route: String) -> void:
 	if _answered:
 		return
 	_answered = true
-	var profile := get_node_or_null(^"/root/PlayerProfile")
-	if profile != null:
-		profile.call("record_route", level_id, route)
-	var telemetry := get_node_or_null(^"/root/Telemetry")
-	if telemetry != null:
-		telemetry.call("record_event", "route_chosen", {"level_id": level_id, "route": route})
 	route_chosen.emit(route)
 
 

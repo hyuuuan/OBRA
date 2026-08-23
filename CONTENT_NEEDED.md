@@ -53,7 +53,7 @@ the build right now and needs replacing · **READY** = code and hook exist, wait
 | What | Status | Where it goes | Notes |
 |---|---|---|---|
 | Level 1 backgrounds & tiles | **READY** | `game/assets/Level1/` | Parallax layers and a texture atlas, in use. |
-| Level 1 gorge set-dressing | **PLACEHOLDER** | code-drawn | The ruined bridge posts and rope (`ruined_bridge_2d.gd`), the dead tree (`dead_tree_2d.gd`), the crumbling ledges (`collapsing_platform_2d.gd`) and the Hidden Flower (`hidden_flower_2d.gd`) are all drawn with primitives. Each is one `_draw()` function to replace with a sprite. |
+| **All of Level 1's props** | **PLACEHOLDER** | code-drawn | Fifteen of them, and they now have their own brief: **`ART_PLACEHOLDERS.md`** lists every one with its exact size, its anchor, its collision, what the player has to understand from it, and every state it needs. `run_visual_props.gd` photographs the lot. That file supersedes this row. |
 | **Levels 2–5 art** | **MISSING** | `game/assets/Level<N>/` | Piyesta (night festival, neon, buntings) · Dagat (storm sea, Coron cliffs) · Dilim (pitch-black forest, bioluminescence) · Mayon (erupting paint). Nothing exists for any of them. |
 | **Lola's Studio (the Hub)** | **MISSING** | — | Design §2.2 anchors the whole game here — paintings on easels act as level portals. **It does not exist at all.** Right now the game goes menu → level select → level. This is the single biggest missing piece of structure, not just art. |
 | Hidden Flowers 2–5 | **MISSING** | one per level | Flower 1 is placed in Level 1's gorge cave. The rest need their levels to exist first. |

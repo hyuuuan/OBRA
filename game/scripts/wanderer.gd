@@ -20,6 +20,20 @@ const FRICTION := 2200.0
 const JUMP_VELOCITY := -430.0
 const MAX_FALL := 900.0
 
+## Platformer forgiveness. None of these change how high the jump goes -- the peak is
+## still JUMP_VELOCITY^2 / 2g = 94.3px, which is what every gate in Level 1 is measured
+## against and what run_level1_audit asserts the 108px stair against.
+##
+## They change how easy it is to GET that jump. Before them, the jump fired only on the
+## exact frame the key went down while is_on_floor() was true: press a frame early and
+## nothing happened, walk off a lip and nothing happened. On a level whose first gate is
+## 108px against 94.3px, every dropped input is felt as the character not obeying.
+const COYOTE_TIME := 0.10
+const JUMP_BUFFER_TIME := 0.12
+## How much of the rise survives letting go of the button early, so a tap is a hop and a
+## hold is a full jump. It can only ever make the jump shorter.
+const JUMP_CUT := 0.45
+
 ## Limbs swing this far at full stride, in radians.
 const STRIDE := 0.7
 const STRIDE_HZ := 2.2
@@ -51,6 +65,10 @@ var _carrying := ""
 ## Outside forces, in acceleration and in velocity, both cleared every physics frame.
 var _assist := Vector2.ZERO
 var _impulse := Vector2.ZERO
+## Seconds of grace left after walking off an edge, and how long a jump pressed in the air
+## keeps waiting for the ground.
+var _coyote_left := 0.0
+var _jump_buffered := 0.0
 var _fall_limit := MAX_FALL
 ## The rest of the contract the utilities call on whoever the player is. None of this
 ## was answered before, so for the character the player actually starts as, a drawn
@@ -62,12 +80,26 @@ var _umbrella_open := false
 var _grip: Marker2D = null
 
 
+## One jump, from wherever it was allowed. Spends both the buffer and the grace so a
+## single press cannot be cashed twice on the way up.
+func _jump() -> void:
+	velocity.y = JUMP_VELOCITY
+	_jump_buffered = 0.0
+	_coyote_left = 0.0
+
+
 func _ready() -> void:
 	_gravity = float(ProjectSettings.get_setting("physics/2d/default_gravity", 980.0))
 	add_to_group(&"player_character")
 
 
 func _physics_process(delta: float) -> void:
+	_coyote_left = COYOTE_TIME if is_on_floor() else maxf(0.0, _coyote_left - delta)
+	if Input.is_action_just_pressed(&"jump"):
+		_jump_buffered = JUMP_BUFFER_TIME
+	else:
+		_jump_buffered = maxf(0.0, _jump_buffered - delta)
+
 	var direction := Input.get_axis(&"move_left", &"move_right")
 	if direction != 0.0:
 		velocity.x = move_toward(velocity.x, direction * SPEED, ACCELERATION * delta)
@@ -82,7 +114,7 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector2.ZERO
 		if Input.is_action_just_pressed(&"jump"):
 			end_ride()
-			velocity.y = JUMP_VELOCITY
+			_jump()
 		_advance_stride(delta, 0.0)
 		return
 	if _climbing():
@@ -93,7 +125,7 @@ func _physics_process(delta: float) -> void:
 		velocity.x = direction * SPEED * CLIMB_DRIFT
 		if Input.is_action_just_pressed(&"jump"):
 			end_ladder()
-			velocity.y = JUMP_VELOCITY
+			_jump()
 	elif is_in_water():
 		# WADING, NOT WALKING. Water used to be scenery you strolled through at full
 		# speed, which made a drawn boat pointless and a swimmer morph a novelty. It
@@ -103,14 +135,26 @@ func _physics_process(delta: float) -> void:
 		velocity.x *= WADE_DRAG
 		velocity.y = minf(velocity.y + _gravity * WADE_SINK * delta, WADE_SINK_SPEED)
 		if Input.is_action_just_pressed(&"jump"):
+			# Its own weaker jump, but the press is still spent: wading out of a shallow
+			# paddy must not also cash a full jump the moment a foot touches the bank.
+			_jump_buffered = 0.0
 			velocity.y = JUMP_VELOCITY * WADE_JUMP
 	elif is_on_floor():
-		if Input.is_action_just_pressed(&"jump"):
-			velocity.y = JUMP_VELOCITY
+		# Buffered, so a press that arrived a few frames before landing still counts.
+		if _jump_buffered > 0.0:
+			_jump()
+	elif _jump_buffered > 0.0 and _coyote_left > 0.0:
+		# Coyote time: the ground was there a moment ago, and a player who pressed jump
+		# as they ran off the lip meant to jump.
+		_jump()
 	else:
 		if _umbrella_open:
 			_fall_limit = minf(_fall_limit, UMBRELLA_FALL_LIMIT)
 		velocity.y = minf(velocity.y + (_gravity + _assist.y) * delta, _fall_limit)
+	# Let go early and the rise is cut short. Only ever downward, so the 94.3px peak
+	# stands as the maximum rather than becoming a new minimum.
+	if Input.is_action_just_released(&"jump") and velocity.y < 0.0:
+		velocity.y *= JUMP_CUT
 	velocity.x += _assist.x * delta
 	velocity += _impulse
 	_impulse = Vector2.ZERO

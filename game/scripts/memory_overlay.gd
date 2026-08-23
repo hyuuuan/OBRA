@@ -10,9 +10,9 @@ extends ModalOverlay
 
 signal dismissed()
 
-@onready var _title: Label = $Root/Panel/VBox/Title
-@onready var _body: Label = $Root/Panel/VBox/Body
-@onready var _continue: Button = $Root/Panel/VBox/ContinueButton
+@onready var _title: Label = $Root/Center/Panel/VBox/Title
+@onready var _body: Label = $Root/Center/Panel/VBox/Body
+@onready var _continue: Button = $Root/Center/Panel/VBox/ContinueButton
 
 
 func _ready() -> void:

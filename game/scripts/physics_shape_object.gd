@@ -222,6 +222,14 @@ func _rolls() -> bool:
 func apply_item_data(item: DrawnItemData) -> void:
 	if item == null:
 		return
+	# WHAT THIS OBJECT IS, recorded here rather than only in UtilityObject.
+	#
+	# `item_data` is declared on this class but was assigned only by the utility subclass,
+	# so the three primitives -- circle, square, triangle -- carried none. Anything asking a
+	# placed object what it is got null for exactly the classes most likely to be placed:
+	# the checkpoint snapshot skipped them, so a restore never cleaned up a placed square,
+	# and the floating tread could not tell a circle resting on it from a rock.
+	item_data = item
 	apply_drawing(item.image, item.strokes)
 	if not item.runtime_state.is_empty() and has_method("restore_utility_state"):
 		call("restore_utility_state", item.runtime_state)

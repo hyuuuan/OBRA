@@ -5,13 +5,15 @@
 [node name="ConfirmOverlay" type="CanvasLayer" unique_id=1286241803]
 layer = 80
 script = ExtResource("1_js6a7")
-default_focus_path = NodePath("Root/Panel/VBox/Buttons/CancelButton")
+default_focus_path = NodePath("Root/Center/Panel/VBox/Buttons/CancelButton")
 
 [node name="Root" type="Control" parent="." unique_id=1873116340]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="Scrim" type="ColorRect" parent="Root" unique_id=1535766771]
 layout_mode = 0
@@ -19,48 +21,47 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0.015, 0.045, 0.025, 0.82)
 
-[node name="Panel" type="PanelContainer" parent="Root" unique_id=1652704177]
-custom_minimum_size = Vector2(560, 300)
+[node name="Center" type="CenterContainer" parent="Root" unique_id=2124370805]
 layout_mode = 0
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -280.0
-offset_top = -150.0
-offset_right = 280.0
-offset_bottom = 150.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
 
-[node name="VBox" type="VBoxContainer" parent="Root/Panel" unique_id=771424525]
+[node name="Panel" type="PanelContainer" parent="Root/Center" unique_id=1652704177]
+custom_minimum_size = Vector2(560, 0)
 layout_mode = 2
-theme_override_constants/separation = 16
-alignment = 1
+size_flags_horizontal = 4
+size_flags_vertical = 4
 
-[node name="Title" type="Label" parent="Root/Panel/VBox" unique_id=963388779]
+[node name="VBox" type="VBoxContainer" parent="Root/Center/Panel" unique_id=771424525]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Title" type="Label" parent="Root/Center/Panel/VBox" unique_id=963388779]
 layout_mode = 2
 theme_type_variation = &"ScreenTitle"
 text = "ARE YOU SURE?"
 horizontal_alignment = 1
 
-[node name="Body" type="Label" parent="Root/Panel/VBox" unique_id=58812997]
+[node name="Body" type="Label" parent="Root/Center/Panel/VBox" unique_id=58812997]
 layout_mode = 2
 theme_type_variation = &"ScreenSubtitle"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="Buttons" type="HBoxContainer" parent="Root/Panel/VBox" unique_id=1924085024]
+[node name="Buttons" type="HBoxContainer" parent="Root/Center/Panel/VBox" unique_id=1924085024]
 layout_mode = 2
 theme_override_constants/separation = 16
 alignment = 1
 
-[node name="ConfirmButton" type="Button" parent="Root/Panel/VBox/Buttons" unique_id=1854173695]
+[node name="ConfirmButton" type="Button" parent="Root/Center/Panel/VBox/Buttons" unique_id=1854173695]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"DialogButton"
 text = "CONFIRM"
 
-[node name="CancelButton" type="Button" parent="Root/Panel/VBox/Buttons" unique_id=1124946764]
+[node name="CancelButton" type="Button" parent="Root/Center/Panel/VBox/Buttons" unique_id=1124946764]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3

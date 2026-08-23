@@ -11,7 +11,7 @@ const TMP_PATH := "user://profile.json.tmp"
 ## Bumped in lockstep with PlayerProfile.SCHEMA_VERSION. It is written here as a
 ## separate literal on purpose: a bump fails this suite loudly until someone has
 ## confirmed the migration carries the old profile forward rather than wiping it.
-const EXPECTED_SCHEMA := 3
+const EXPECTED_SCHEMA := 5
 
 var failures: Array[String] = []
 
@@ -121,6 +121,7 @@ func _run() -> void:
 	_test_settings_persistence(profile)
 	_test_ending_screen_payload(profile)
 	_test_schema_migration(profile)
+	_test_tag_unlocks(profile)
 
 	# --- Corrupt profile -> fresh, not fatal -------------------------------
 	var corrupt := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
@@ -289,7 +290,7 @@ func _test_schema_migration(profile) -> void:
 	v2_file.close()
 	profile.call("load_profile")
 	snapshot = profile.call("get_snapshot")
-	_expect(int(snapshot["schema_version"]) == EXPECTED_SCHEMA, "v2 profile was not stamped to v3")
+	_expect(int(snapshot["schema_version"]) == EXPECTED_SCHEMA, "v2 profile was not stamped forward")
 	_expect(bool(profile.call("has_object", "axe")), "v2 migration lost acquired objects")
 	_expect(int(profile.call("route_count", "artist")) == 2, "v2 migration lost the route tally")
 	_expect(int((snapshot["counts"] as Dictionary)["submissions"]) == 9, "v2 migration lost counts")
@@ -318,6 +319,77 @@ func _test_schema_migration(profile) -> void:
 			profile.call("get_setting", key) != null,
 			"a partial settings block left '%s' unresolved" % key
 		)
+
+
+## v3 -> v4 added unlocked_tags. The bump is only safe if a v3 profile keeps everything
+## it had, so this asserts the PROGRESS survives rather than just the version stamp --
+## a migration that zeroes a player's levels but stamps the number is still a wipe.
+##
+## Also covers the tag API itself, which is what the ability layer reads to decide
+## whether a drawing spawns with its ability or spawns inert.
+func _test_tag_unlocks(profile) -> void:
+	_clean_files()
+	var v3 := {
+		"schema_version": 4,
+		"classes_drawn_accepted": ["spider", "frog"],
+		"acquired_objects": ["axe"],
+		"levels_completed": ["level_1"],
+		"levels_unlocked": ["level_1", "level_2"],
+		"routes": {"level_1": "artist"},
+		"route_counts": {"artist": 2, "pragmatist": 0, "protector": 1},
+		"collectibles": ["hidden_flower_1"],
+		"counts": {"submissions": 9, "declines": 2},
+	}
+	var file := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
+	file.store_string(JSON.stringify(v3))
+	file.close()
+	profile.call("load_profile")
+
+	var snapshot: Dictionary = profile.call("get_snapshot")
+	_expect(int(snapshot["schema_version"]) == EXPECTED_SCHEMA,
+		"v4 profile was not stamped forward")
+	# The whole point of the bump: nothing the player had may be lost.
+	_expect((snapshot["levels_completed"] as Array).has("level_1"),
+		"migration lost a completed level")
+	_expect(int(profile.call("route_count", "artist")) == 2,
+		"migration lost the route tally")
+	_expect(bool(profile.call("has_object", "axe")),
+		"migration lost an acquired object")
+	_expect(bool(profile.call("is_collectible_found", "hidden_flower_1")),
+		"migration lost a collectible")
+	_expect((profile.call("unlocked_tags") as Array).is_empty(),
+		"a migrated profile should start with no tags unlocked")
+	_expect((profile.call("damaged_canvases") as Array).is_empty(),
+		"a migrated profile should start with no canvas damage")
+
+	# v4 -> v5: the one consequence that leaves the level it was caused in.
+	_expect(not bool(profile.call("is_canvas_damaged", "canvas_2_pista")),
+		"a canvas was damaged before anything cut it")
+	profile.call("record_canvas_damage", "canvas_2_pista")
+	profile.call("record_canvas_damage", "canvas_2_pista")
+	_expect(bool(profile.call("is_canvas_damaged", "canvas_2_pista")),
+		"cutting the hasp did not mark the canvas")
+	_expect((profile.call("damaged_canvases") as Array).size() == 1,
+		"the same damage was recorded twice")
+	profile.call("load_profile")
+	_expect(bool(profile.call("is_canvas_damaged", "canvas_2_pista")),
+		"canvas damage did not survive a reload -- Pista would never know")
+
+	# The tag API. Tags accumulate and never fall.
+	_expect(not bool(profile.call("is_tag_unlocked", "span")),
+		"span was unlocked before anything taught it")
+	profile.call("record_tag_unlocked", "span")
+	profile.call("record_tag_unlocked", "climb")
+	profile.call("record_tag_unlocked", "span")  # twice must not double-count
+	_expect(bool(profile.call("is_tag_unlocked", "span")), "span did not unlock")
+	_expect((profile.call("unlocked_tags") as Array).size() == 2,
+		"unlocking the same tag twice recorded it twice")
+
+	# And they survive a reload, because the Ability Book is a cross-session record.
+	profile.call("load_profile")
+	_expect(bool(profile.call("is_tag_unlocked", "climb")),
+		"an unlocked tag did not persist across a reload")
+	_clean_files()
 
 
 func _clean_files() -> void:

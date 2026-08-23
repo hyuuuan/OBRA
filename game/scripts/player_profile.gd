@@ -18,10 +18,13 @@ signal settings_changed(key: String, value: Variant)
 
 const PROFILE_PATH := "user://profile.json"
 const ENTITIES_PATH := "res://config/entities.json"
-const SCHEMA_VERSION := 3
+const SCHEMA_VERSION := 5
 const DEFAULT_ROSTER_SIZE := 50
 ## Older schemas that can be migrated forward instead of being discarded.
-const MIGRATABLE_SCHEMAS := [1, 2]
+## v3 -> v4 added unlocked_tags; v4 -> v5 added canvas_damage. _merge_defaults supplies
+## both, so an older profile keeps every level, route and object it had and simply starts
+## with nothing unlocked and nothing damaged.
+const MIGRATABLE_SCHEMAS := [1, 2, 3, 4]
 const ROUTES := ["artist", "pragmatist", "protector"]
 
 ## Every setting the player can change, with its default. Nothing outside this list
@@ -51,6 +54,8 @@ func _default_profile() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"unlocked_classes": [],          # classes the player has been taught (future gate)
+		"unlocked_tags": [],             # ability tags the player has been taught, across levels
+		"canvas_damage": [],             # canvases harmed by a route taken in an earlier level
 		"classes_drawn_accepted": [],    # distinct classes drawn and accepted at least once
 		"acquired_objects": [],          # object/tool ids owned across levels and sessions
 		"levels_completed": [],
@@ -191,6 +196,60 @@ func route_count(route: String) -> int:
 	return int((_data["route_counts"] as Dictionary).get(route, 0))
 
 
+## Ability tags the player has been taught. These accumulate ACROSS levels and never
+## fall: the Ability Book is a record of what has been learned, and a tag taught in
+## Payyo is still known in Pista. Obstacles resolve their solutions from tags, so this
+## is also what decides whether a drawing spawns with its ability or spawns inert.
+## The distinct classes the player has drawn and had accepted. The Ability Book shows
+## the player their OWN qualifying drawings for an obstacle, which is a different thing
+## from the classes that would qualify -- the book is a record of what they have done.
+func get_drawn_classes() -> Array:
+	return (_data["classes_drawn_accepted"] as Array).duplicate()
+
+
+## A canvas harmed by a route taken in an earlier level.
+##
+## This is the only consequence in Payyo that leaves Payyo: cutting the hasp off Lola's
+## chest creases what is inside, and the crease is still there in Pista, where it runs as a
+## seam through the painted street with Hidden Flower 2 on the wrong side of it. The player
+## is told none of this at the time -- they find out a level later, which is the point.
+##
+## It has to survive the session, so it lives here rather than in a checkpoint: a mid-level
+## death must not undo a decision made two levels ago. Build spec 12.4.
+func record_canvas_damage(canvas_id: String) -> void:
+	if canvas_id.is_empty():
+		return
+	var damaged: Array = _data["canvas_damage"]
+	if not damaged.has(canvas_id):
+		damaged.append(canvas_id)
+		_commit()
+
+
+func is_canvas_damaged(canvas_id: String) -> bool:
+	return (_data["canvas_damage"] as Array).has(canvas_id)
+
+
+func damaged_canvases() -> Array:
+	return (_data["canvas_damage"] as Array).duplicate()
+
+
+func record_tag_unlocked(tag: String) -> void:
+	if tag.is_empty():
+		return
+	var tags: Array = _data["unlocked_tags"]
+	if not tags.has(tag):
+		tags.append(tag)
+		_commit()
+
+
+func is_tag_unlocked(tag: String) -> bool:
+	return (_data["unlocked_tags"] as Array).has(tag)
+
+
+func unlocked_tags() -> Array:
+	return (_data["unlocked_tags"] as Array).duplicate()
+
+
 func record_collectible(collectible_id: String) -> void:
 	if collectible_id.is_empty():
 		return
@@ -298,7 +357,7 @@ func _merge_defaults(incoming: Dictionary) -> Dictionary:
 		for route in ROUTES:  # a partial tally from an older save must still resolve
 			var counts: Dictionary = base["route_counts"]
 			counts[route] = int(counts.get(route, 0))
-	for key in ["acquired_objects", "collectibles", "classes_drawn_accepted", "levels_completed", "levels_unlocked"]:
+	for key in ["acquired_objects", "collectibles", "classes_drawn_accepted", "levels_completed", "levels_unlocked", "unlocked_tags", "canvas_damage"]:
 		if not (base[key] is Array):
 			base[key] = []
 	# A v2 profile has no settings block at all and simply keeps the defaults above.

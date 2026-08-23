@@ -8,10 +8,10 @@ extends ModalOverlay
 
 signal confirmed
 
-@onready var _title: Label = $Root/Panel/VBox/Title
-@onready var _body: Label = $Root/Panel/VBox/Body
-@onready var _confirm_button: Button = $Root/Panel/VBox/Buttons/ConfirmButton
-@onready var _cancel_button: Button = $Root/Panel/VBox/Buttons/CancelButton
+@onready var _title: Label = $Root/Center/Panel/VBox/Title
+@onready var _body: Label = $Root/Center/Panel/VBox/Body
+@onready var _confirm_button: Button = $Root/Center/Panel/VBox/Buttons/ConfirmButton
+@onready var _cancel_button: Button = $Root/Center/Panel/VBox/Buttons/CancelButton
 
 
 func _ready() -> void:

@@ -42,6 +42,25 @@ func selected_slot() -> int:
 	return _selected
 
 
+## Stand out of the way of the mouse while something is being placed.
+##
+## The bar is 756x52 across the bottom-centre of the screen, and a placement is confirmed
+## from PlacementController._unhandled_input -- which never runs for a click the GUI has
+## already consumed. Setting a drawn step down near the ground means clicking low, so the
+## click landed on a slot button, which does nothing during a placement, and vanished with
+## nothing on screen to say why. That is Beat 0: the player draws the step and then cannot
+## put it anywhere.
+##
+## Every button is set individually. A Control is hit-tested on its own filter, not its
+## parent's, so making the container ignore the mouse would leave six live buttons sitting
+## in the hole.
+func set_click_through(click_through: bool) -> void:
+	var filter := Control.MOUSE_FILTER_IGNORE if click_through else Control.MOUSE_FILTER_STOP
+	mouse_filter = filter
+	for button in _buttons:
+		button.mouse_filter = filter
+
+
 func _refresh(items: Array) -> void:
 	for index in range(_buttons.size()):
 		var item := items[index] as DrawnItemData if index < items.size() else null

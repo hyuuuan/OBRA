@@ -13,6 +13,11 @@ signal drawing_ready(
 	ink_cost: float
 )
 signal panel_closed
+## A declined recognition, so the level can answer it. The panel already handles the
+## player-facing part (ink released, buttons re-enabled); this exists because Lolo speaks
+## over the FIRST decline anywhere in the level -- "not because you drew it wrong, because
+## I could not tell it apart from something else" -- and only the level knows it is first.
+signal recognition_declined(entity: String, confidence: float, margin: float, reason: String)
 
 @export var debug_timing_logs: bool = false
 
@@ -103,10 +108,19 @@ func open_panel() -> void:
 	_clear_guess()
 	set_process(true)
 	if ink_manager != null:
-		canvas.set_ink_budget(ink_manager.total_uncommitted_available(), ink_manager.canvas_size)
-		status.text = "Ink remaining %.1f / %.1f — draw, then Transform" % [ink_manager.remaining(), ink_manager.capacity]
+		var available := ink_manager.total_uncommitted_available()
+		canvas.set_ink_budget(available, ink_manager.canvas_size)
+		if available <= 0.0001:
+			# Otherwise the panel opens looking perfectly normal and then refuses every
+			# stroke without a word: the budget is spent, so the canvas silently rejects
+			# each one and Transform posts an empty image to be told it is empty.
+			status.text = "No ink left — nothing more can be drawn in this level"
+		else:
+			status.text = "Ink remaining %.1f / %.1f — draw, then Transform" % [ink_manager.remaining(), ink_manager.capacity]
 	else:
 		status.text = "Draw something, then Transform!"
+	# Nothing has been drawn yet, so there is nothing to transform.
+	transform_button.disabled = true
 	UIRouter.refresh_pause(get_tree())
 	_play_open_animation()
 
@@ -296,6 +310,11 @@ func _on_entity_declined(
 	transform_button.disabled = false
 	clear_button.disabled = false
 	status.text = "not sure what that is — try drawing it more clearly!"
+	# Which half of the dual gate refused it. The thesis reports these separately, and
+	# they mean different things to a player: a low margin is "it looked like two things",
+	# a low confidence is "it looked like nothing".
+	var reason := "margin" if confidence >= 0.6 else "confidence"
+	recognition_declined.emit(entity, confidence, margin, reason)
 
 
 func _submit_latency_ms() -> float:
@@ -316,6 +335,7 @@ func _on_prediction_failed(message: String) -> void:
 func _clear_canvas() -> void:
 	canvas.clear_canvas()
 	_clear_guess()
+	transform_button.disabled = true
 	if ink_manager != null:
 		ink_manager.release_attempt()
 
@@ -325,6 +345,8 @@ func _on_stroke_cost_changed(cost: float) -> void:
 	# the pending utility reservation with zero before placement/storage commits.
 	if not _is_open:
 		return
+	# There is ink on the canvas now, so there is something to offer the recogniser.
+	transform_button.disabled = cost <= 0.0
 	if ink_manager != null:
 		ink_manager.reserve_attempt(cost)
 		status.text = "Ink remaining %.1f / %.1f — attempt %.1f" % [ink_manager.remaining(), ink_manager.capacity, cost]
