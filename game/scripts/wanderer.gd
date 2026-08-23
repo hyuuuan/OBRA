@@ -44,6 +44,9 @@ const CLIMB_SPEED := 190.0
 const CLIMB_DRIFT := 0.35
 ## How far from the ladder you can get before you are no longer on it.
 const CLIMB_RELEASE := 120.0
+## How far past the top of a ladder the climb keeps working, so the player can get their
+## feet above the last rung and step off onto whatever they climbed up to.
+const CLIMB_OVERSHOOT := 40.0
 ## An open umbrella is a parachute you are holding.
 const UMBRELLA_FALL_LIMIT := 190.0
 
@@ -87,6 +90,9 @@ var _fall_limit := MAX_FALL
 ## was answered before, so for the character the player actually starts as, a drawn
 ## ladder was scenery and a drawn umbrella did nothing.
 var _ladder: Node2D = null
+## How tall the ladder in hand is, measured from its own collision when it is taken hold
+## of. A ladder is a thing with a top; without this, climbing had no end.
+var _ladder_half_height := 0.0
 var _vehicle: Node2D = null
 var _equipped_utility: Node2D = null
 var _umbrella_open := false
@@ -259,9 +265,20 @@ func _riding() -> bool:
 
 func begin_ladder(ladder: Node2D) -> void:
 	_ladder = ladder
+	_ladder_half_height = _measure_half_height(ladder)
+	# You climb THROUGH a ladder, not beside it. A placed ladder freezes into a solid body,
+	# so without this the player was pressed against its face the whole way up and could
+	# never step off at the top -- which made a ladder leaned against a cliff a wall with
+	# rungs.
+	var body := ladder as PhysicsBody2D
+	if body != null:
+		add_collision_exception_with(body)
 
 
 func end_ladder() -> void:
+	var body := _ladder as PhysicsBody2D
+	if body != null and is_instance_valid(body):
+		remove_collision_exception_with(body)
 	_ladder = null
 
 
@@ -289,10 +306,35 @@ func _climbing() -> bool:
 	# Measured HORIZONTALLY, and generously: a ladder is a tall thing whose origin sits
 	# at its middle, so a straight distance check released the player the moment they
 	# had climbed a bit of it -- which read as the ladder simply not working.
-	if absf(global_position.x - (_ladder as Node2D).global_position.x) > CLIMB_RELEASE:
-		_ladder = null
+	var ladder := _ladder as Node2D
+	if absf(global_position.x - ladder.global_position.x) > CLIMB_RELEASE:
+		end_ladder()
+		return false
+	# AND vertically, past its top. The horizontal-only check meant holding up on a ladder
+	# raised the player forever: place one anywhere, climb into the sky, walk over every
+	# gate in the level. A ladder reaches as far as a ladder reaches.
+	if global_position.y < ladder.global_position.y - _ladder_half_height - CLIMB_OVERSHOOT:
+		end_ladder()
 		return false
 	return true
+
+
+## The ladder's own vertical half-extent, from whatever collision it carries.
+func _measure_half_height(ladder: Node2D) -> float:
+	var half := 0.0
+	for child in ladder.get_children():
+		var collision := child as CollisionShape2D
+		if collision == null or collision.shape == null:
+			continue
+		var reach := absf(collision.position.y)
+		if collision.shape is RectangleShape2D:
+			reach += (collision.shape as RectangleShape2D).size.y * 0.5
+		elif collision.shape is CapsuleShape2D:
+			reach += (collision.shape as CapsuleShape2D).height * 0.5
+		else:
+			reach += CLIMB_RELEASE
+		half = maxf(half, reach)
+	return half if half > 0.0 else CLIMB_RELEASE
 
 
 func set_world_bounds(bounds: Rect2) -> void:
