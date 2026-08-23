@@ -26,7 +26,7 @@ func _run() -> void:
 	panel = level.get_node("DrawPanel") as DrawPanel
 	canvas = panel.get_node("PanelRoot/SubViewportContainer/SubViewport/Canvas") as Control
 	placement = level.get_node("PlacementController") as PlacementController
-	status = level.get_node("CanvasLayer/StatusLabel") as Label
+	status = level.get("status_label") as Label
 
 	# Different aim points so the first round's object is not sitting in the second's way.
 	await _round("circle", _draw_circle_stroke, Vector2(170.0, 80.0))

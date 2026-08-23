@@ -25,6 +25,10 @@ const WANDERER_SCENE := "res://creatures/wanderer.tscn"
 @onready var placement_controller: PlacementController = $PlacementController
 @onready var goal_marker: Node2D = get_node_or_null("EnvironmentBaseplate/GameplayPlane/GoalMarker")
 @onready var goal_label: Label = $CanvasLayer/GoalLabel
+@onready var level_badge: Label = $CanvasLayer/LevelBadge
+## Built in code rather than authored into the scene, like the requirement strip: it owns
+## its own frame and gauge and there is nothing to lay out by hand.
+var hud_panel: HudPanel
 @onready var complete_overlay: ModalOverlay = $LevelCompleteOverlay
 @onready var out_of_ink_overlay: ModalOverlay = $OutOfInkOverlay
 @onready var dialogue_overlay: ModalOverlay = $DialogueChoiceOverlay
@@ -80,6 +84,7 @@ func _ready() -> void:
 	draw_panel.ink_manager = ink_manager
 	draw_panel.set("debug_timing_logs", debug_timing_logs)
 	inventory_hud.set_manager(inventory_manager)
+	_build_hud_frame()
 
 	draw_button.pressed.connect(_on_draw_button_pressed)
 	draw_panel.drawing_ready.connect(_on_drawing_ready)
@@ -1001,14 +1006,92 @@ func _drop_equipped_before_morph(previous_state: Dictionary) -> void:
 	_equipped_utility = null
 
 
+## One frame, top left, holding the two things the player is actually tracking: how much
+## ink is left and what the game just said. They were a bare progress bar, a number beside
+## it and an unstyled line of text over the level art, none of them wearing the language
+## the main menu already had.
+func _build_hud_frame() -> void:
+	hud_panel = HudPanel.new()
+	hud_panel.name = "HudPanel"
+	hud_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	hud_panel.offset_left = 24.0
+	hud_panel.offset_top = 20.0
+	hud_panel.offset_right = 380.0
+	$CanvasLayer.add_child(hud_panel)
+	hud_panel.adopt_status(status_label)
+	# Superseded by the gauge, kept so nothing that writes to them has to care.
+	ink_bar.visible = false
+	ink_label.visible = false
+	# The keybind row is a wall of text that never changes and never stops being on screen.
+	# It is worth having while the player is learning where the keys are, and the same five
+	# lines are in the Controls screen for the rest of the time.
+	# The two readouts at the far corners get the same frame, so the HUD is one language
+	# rather than two framed things and two lines of text floating on the level art.
+	_wrap_in_chip(level_badge, "top_centre", Vector2(0.0, 18.0), 0.0)
+	# A fixed width, because this one's text changes every frame: the chip is placed
+	# once, and a container that grows with "GOAL REACHED" grows rightward off the
+	# edge of the screen from wherever it was parked.
+	_wrap_in_chip(goal_label, "bottom_right", Vector2(-24.0, -80.0), 168.0)
+
+	var keys := $CanvasLayer/HintLabel as Label
+	if keys != null:
+		var fade := create_tween()
+		fade.tween_interval(14.0)
+		fade.tween_property(keys, "modulate:a", 0.0, 1.2)
+
+
+## A label sized to its own text, parked in a corner.
+##
+## Styling the Label itself is not enough: these are anchored with fixed offsets, so the
+## level badge's rect is the full width of the screen and a background on it painted a bar
+## from edge to edge, straight over the Draw button. A PanelContainer shrinks to what is
+## inside it, which is what a chip has to do.
+##
+## Placed by hand rather than with an anchor preset. PRESET_MODE_MINSIZE measures a label
+## that has not laid out yet and gets zero, and a preset without it keeps the offsets the
+## label already had -- which is the full width of the screen. Both were tried; both put a
+## dark slab across the HUD.
+func _wrap_in_chip(label: Label, corner: String, offset: Vector2,
+		min_width: float) -> void:
+	if label == null:
+		return
+	var parent := label.get_parent()
+	if parent == null:
+		return
+	var chip := PanelContainer.new()
+	chip.name = "%sChip" % label.name
+	chip.add_theme_stylebox_override(&"panel", HudPanel.chip())
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.remove_child(label)
+	chip.add_child(label)
+	parent.add_child(chip)
+	label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	label.custom_minimum_size = Vector2(min_width, 0.0)
+	label.add_theme_color_override(&"font_color", HudPanel.CREAM)
+	chip.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	_place_chip(chip, corner, offset)
+	# Deferred as well, because the first call runs before the label has been laid out and
+	# measures a chip with no text in it yet.
+	_place_chip.call_deferred(chip, corner, offset)
+	get_viewport().size_changed.connect(_place_chip.bind(chip, corner, offset))
+
+
+func _place_chip(chip: PanelContainer, corner: String, offset: Vector2) -> void:
+	if chip == null or not is_instance_valid(chip):
+		return
+	var chip_size := chip.get_combined_minimum_size()
+	chip.size = chip_size
+	var view := get_viewport_rect().size
+	match corner:
+		"bottom_right":
+			chip.position = Vector2(view.x - chip_size.x + offset.x, view.y - chip_size.y + offset.y)
+		_:
+			chip.position = Vector2((view.x - chip_size.x) * 0.5 + offset.x, offset.y)
+
+
 func _on_ink_changed(remaining: float, capacity: float, reserved: float) -> void:
-	ink_bar.max_value = 100.0
-	ink_bar.value = remaining / maxf(0.001, capacity) * 100.0
-	ink_label.text = "Ink %.1f / %.1f%s" % [
-		remaining,
-		capacity,
-		" (%.1f reserved)" % reserved if reserved > 0.001 else ""
-	]
+	if hud_panel != null:
+		hud_panel.set_ink(remaining, capacity, reserved)
 
 
 func _physics_process(_delta: float) -> void:
@@ -1341,7 +1424,7 @@ func _apply_level_identity() -> void:
 	var entry := LevelManager.get_level(LevelManager.current_level_id)
 	if entry.is_empty():
 		return
-	var badge := get_node_or_null(^"CanvasLayer/LevelBadge") as Label
+	var badge := level_badge
 	if badge != null:
 		badge.text = "LEVEL %d  \u00b7  %s" % [int(entry.get("number", 0)), String(entry.get("title", "")).to_upper()]
 	var place := get_node_or_null(^"PauseMenu/PauseRoot/Panel/VBox/Place") as Label
