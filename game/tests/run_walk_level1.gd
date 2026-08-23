@@ -60,6 +60,7 @@ func _run() -> void:
 	await _the_paddy_needs_a_crossing()
 	await _cannot_be_climbed_bare()
 	await _can_be_climbed_with_a_step()
+	await _the_overlook_needs_a_climb()
 
 	print("\n===== BEAT 0 WALKTHROUGH =====")
 	for line in results:
@@ -170,6 +171,73 @@ func _can_be_climbed_with_a_step() -> void:
 		else "STILL STUCK -- the step is down and the beat is unbeatable")
 
 
+## The Overlook stands 140px over Terrace5, so the last stretch before the bale is a climb
+## rather than a walk. Same rule as the paddy: prove it opens, or it is a wall.
+func _the_overlook_needs_a_climb() -> void:
+	var inventory := level.get("inventory_manager") as Node
+	var placement := level.get("placement_controller") as Node2D
+	player.set("velocity", Vector2.ZERO)
+	player.global_position = Vector2(3230.0, 200.0)
+	for _frame in range(20):
+		await physics_frame
+
+	var item := DrawnItemData.new()
+	item.entity_id = "ladder"
+	item.display_name = "Ladder"
+	var slot: int = inventory.call("add_item", item)
+	level.call("_on_inventory_slot_pressed", slot)
+	await process_frame
+	if not bool(placement.call("is_placing")):
+		_fail("climbing to the bale", "the placement never started")
+		return
+	placement.set_process(false)
+	# Standing ON Terrace5 against the cliff face, not overlapping the Overlook -- a
+	# ladder that clips the cliff gets lifted clear of it and ends up on top, which is no
+	# use to somebody standing at the bottom.
+	placement.call("update_target", Vector2(3280.0, 40.0))
+	for _frame in range(4):
+		await physics_frame
+	var placed: bool = placement.call("confirm_placement")
+	_check(placed, "something to climb can be stood against the Overlook",
+		"placed" if placed else "REFUSED -- there is nowhere to stand it")
+	if not placed:
+		return
+	for _frame in range(30):
+		await physics_frame
+
+	# Take hold of it, then climb. A ladder is not scenery you touch: it is grabbed with
+	# the interact key, the same as every other utility.
+	# Let it fall, land and settle: a utility freezes only once it has been grounded and
+	# still for three quarters of a second, and an unfrozen ladder cannot be climbed.
+	for _frame in range(110):
+		await physics_frame
+	for event in [_key(&"interact", true), _key(&"interact", false)]:
+		Input.parse_input_event(event)
+		await physics_frame
+	for _frame in range(6):
+		await physics_frame
+	# Up, and leaning toward the cliff: a ladder allows slow sideways movement, and the
+	# point of this one is the terrace beside it.
+	Input.action_press(&"move_up")
+	Input.action_press(&"move_right")
+	for _frame in range(150):
+		await physics_frame
+		if player.global_position.y < 40.0:
+			break
+	Input.action_release(&"move_up")
+	# Off the top and onto the terrace it leans against.
+	var arrived := false
+	for _frame in range(120):
+		await physics_frame
+		if player.global_position.x > 3340.0 and player.global_position.y < 120.0:
+			arrived = true
+			break
+	Input.action_release(&"move_right")
+	_check(arrived, "and the player climbs to the bale",
+		"reached the Overlook" if arrived
+		else "STILL BELOW at %s -- the last stretch is a wall" % player.global_position.round())
+
+
 ## Hold right, tap jump, the way a person does it. Polled input, so the actions are held
 ## through the Input singleton rather than fed as events.
 func _run_at_the_stair() -> bool:
@@ -190,6 +258,17 @@ func _run_at_the_stair() -> bool:
 	Input.action_release(&"move_right")
 	Input.action_release(&"jump")
 	return arrived
+
+
+## A real key press for an action, so it goes through the same routing a keyboard does.
+func _key(action: StringName, pressed: bool) -> InputEventKey:
+	for event in InputMap.action_get_events(action):
+		var key := event as InputEventKey
+		if key != null:
+			var copy := key.duplicate() as InputEventKey
+			copy.pressed = pressed
+			return copy
+	return InputEventKey.new()
 
 
 ## On the bank below the gap, standing still.
