@@ -57,6 +57,7 @@ func _run() -> void:
 	_check(bank_top - tread_top > jump_height, "the stair is a real gate",
 		"%.0fpx of rise against a %.0fpx jump" % [bank_top - tread_top, jump_height])
 
+	await _the_paddy_needs_a_crossing()
 	await _cannot_be_climbed_bare()
 	await _can_be_climbed_with_a_step()
 
@@ -69,6 +70,57 @@ func _run() -> void:
 	else:
 		print("OBRA_WALK_L1_FAILED=%d" % failures)
 		quit(1)
+
+
+## The paddy is 300px of water, deeper than the apo can climb out of and wider than she
+## can jump. That makes it a gate -- and a gate is only a gate if it OPENS. A crossing that
+## cannot be crossed even with the right drawing is not a puzzle, it is a wall.
+func _the_paddy_needs_a_crossing() -> void:
+	var inventory := level.get("inventory_manager") as Node
+	var placement := level.get("placement_controller") as Node2D
+	player.set("velocity", Vector2.ZERO)
+	player.global_position = Vector2(300.0, 500.0)
+	for _frame in range(20):
+		await physics_frame
+
+	var item := DrawnItemData.new()
+	item.entity_id = "bridge"
+	item.display_name = "Bridge"
+	var slot: int = inventory.call("add_item", item)
+	level.call("_on_inventory_slot_pressed", slot)
+	await process_frame
+	if not bool(placement.call("is_placing")):
+		_fail("bridging the paddy", "the placement never started")
+		return
+	placement.set_process(false)
+	# Across the water, resting on both banks.
+	placement.call("update_target", Vector2(490.0, 545.0))
+	for _frame in range(4):
+		await physics_frame
+	var placed: bool = placement.call("confirm_placement")
+	_check(placed, "something that spans it can be set across the paddy",
+		"placed" if placed else "REFUSED -- the crossing cannot be built")
+	if not placed:
+		return
+	for _frame in range(40):
+		await physics_frame
+
+	Input.action_press(&"move_right")
+	var crossed := false
+	for frame in range(300):
+		if frame % 24 == 0:
+			Input.action_press(&"jump")
+		elif frame % 24 == 18:
+			Input.action_release(&"jump")
+		await physics_frame
+		if player.global_position.x > 660.0:
+			crossed = true
+			break
+	Input.action_release(&"move_right")
+	Input.action_release(&"jump")
+	_check(crossed, "and the player walks across it",
+		"reached the far bank" if crossed
+		else "STILL STUCK at x %.0f -- the paddy is a wall" % player.global_position.x)
 
 
 ## The beat has to ASK for something. If the bare stair can be climbed, Beat 0 is scenery.
