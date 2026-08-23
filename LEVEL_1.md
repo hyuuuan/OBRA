@@ -164,6 +164,13 @@ the number the thesis reports.
 
 ---
 
+## What stops the player
+
+`GATES.md` — every gate west to east with an id, what opens it, and the test that proves
+it. If you are retuning a jump, a gap or an object size, read R1-R6 there first: the
+numbers in this level are measured against each other, and the ones that look arbitrary
+are not.
+
 ## Verify
 
 ```bash
