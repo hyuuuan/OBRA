@@ -24,7 +24,7 @@ var _gauge: Gauge
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_theme_stylebox_override(&"panel", _frame())
+	add_theme_stylebox_override(&"panel", frame())
 
 	var column := VBoxContainer.new()
 	column.name = "Column"
@@ -99,7 +99,7 @@ static func chip() -> StyleBoxFlat:
 	return box
 
 
-func _frame() -> StyleBoxFlat:
+static func frame() -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
 	box.bg_color = FRAME_BG
 	box.border_color = FRAME_BORDER

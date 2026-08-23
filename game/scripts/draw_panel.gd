@@ -38,6 +38,11 @@ var ink_manager: InkManager
 @onready var guess_label: Label = $PanelRoot/GuessLabel
 @onready var client: Node = $PanelRoot/SketchClient
 
+## The header's own ink readout. The scrim covers the HUD, so while the panel is open the
+## gauge in the corner of the screen is hidden -- at exactly the moment ink matters most.
+var _ink_gauge: HudPanel.Gauge
+var _ink_value: Label
+
 
 var _pending_strokes: Array = []
 var _is_open := false
@@ -73,6 +78,7 @@ func _ready() -> void:
 	_profile = get_node_or_null("/root/PlayerProfile")
 	visible = false
 	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_style_panel()
 	client.canvas_viewport = canvas_viewport
 	client.set("debug_timing_logs", debug_timing_logs)
 	transform_button.pressed.connect(_on_transform_pressed)
@@ -116,11 +122,15 @@ func open_panel() -> void:
 			# each one and Transform posts an empty image to be told it is empty.
 			status.text = "No ink left — nothing more can be drawn in this level"
 		else:
-			status.text = "Ink remaining %.1f / %.1f — draw, then Transform" % [ink_manager.remaining(), ink_manager.capacity]
+			# The header gauge carries the budget. This said "Ink remaining 12.0 / 12.0"
+			# beneath a gauge already showing it, in decimals, and then went stale the
+			# moment the first stroke landed.
+			status.text = "Draw something, then Transform"
 	else:
-		status.text = "Draw something, then Transform!"
+		status.text = "Draw something, then Transform"
 	# Nothing has been drawn yet, so there is nothing to transform.
 	transform_button.disabled = true
+	_refresh_ink_row(0.0)
 	UIRouter.refresh_pause(get_tree())
 	_play_open_animation()
 
@@ -210,6 +220,117 @@ func _on_live_prediction_failed(message: String) -> void:
 	if not message.is_empty():
 		guess_label.text = message
 		guess_label.modulate = Color(0.7, 0.7, 0.72)
+
+
+## Dress the panel in the game's own language.
+##
+## It was a cold blue-grey slab with a white square on it and two identical buttons: the
+## screen the player spends the most time looking at, and the one least like the rest of
+## the game. Everything below is appearance -- no node is added or removed that the panel's
+## behaviour depends on.
+func _style_panel() -> void:
+	scrim.color = Color(0.03, 0.05, 0.03, 0.62)
+	# The ColorRect stops painting its own slab; a Panel behind everything carries the
+	# frame instead, because a ColorRect cannot hold a stylebox.
+	panel_root.set("color", Color(0.0, 0.0, 0.0, 0.0))
+	var frame := Panel.new()
+	frame.name = "Frame"
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	frame.add_theme_stylebox_override(&"panel", HudPanel.frame())
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel_root.add_child(frame)
+	panel_root.move_child(frame, 0)
+
+	# The page, set into the frame rather than lying on it.
+	var page := Panel.new()
+	page.name = "PageEdge"
+	page.add_theme_stylebox_override(&"panel", _page_edge())
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.position = Vector2(42.0, 26.0)
+	page.size = Vector2(524.0, 524.0)
+	panel_root.add_child(page)
+	panel_root.move_child(page, 1)
+	var paper := canvas_viewport.get_node_or_null("Paper") as ColorRect
+	if paper != null:
+		# Paper, not printer white. The ink is black and the drawing is the point, so this
+		# only comes far enough off white to stop the square glaring.
+		paper.color = Color(0.965, 0.95, 0.9, 1.0)
+
+	_build_header()
+
+	guess_label.add_theme_font_size_override(&"font_size", 22)
+	status.add_theme_font_size_override(&"font_size", 15)
+	status.add_theme_color_override(&"font_color", HudPanel.CREAM)
+
+	# Hierarchy: one of these is the thing you came here to do and the other undoes your
+	# work. They were identical twins.
+	for state in [&"normal", &"hover", &"pressed", &"focus"]:
+		transform_button.add_theme_stylebox_override(state, _primary_button(state == &"hover"))
+	transform_button.add_theme_color_override(&"font_color", Color(0.08, 0.13, 0.055))
+	transform_button.add_theme_color_override(&"font_hover_color", Color(0.04, 0.08, 0.035))
+	transform_button.add_theme_color_override(&"font_disabled_color", Color(0.4, 0.45, 0.35))
+	transform_button.add_theme_font_size_override(&"font_size", 19)
+	clear_button.add_theme_font_size_override(&"font_size", 17)
+
+
+## DRAW on the left, ink on the right, in the strip above the page.
+func _build_header() -> void:
+	var caption := Label.new()
+	caption.name = "Caption"
+	caption.text = "DRAW"
+	caption.add_theme_font_size_override(&"font_size", 15)
+	caption.add_theme_color_override(&"font_color", HudPanel.LIME)
+	caption.position = Vector2(48.0, 4.0)
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel_root.add_child(caption)
+
+	_ink_value = Label.new()
+	_ink_value.name = "InkValue"
+	_ink_value.text = ""
+	_ink_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_ink_value.add_theme_font_size_override(&"font_size", 15)
+	_ink_value.add_theme_color_override(&"font_color", HudPanel.CREAM)
+	_ink_value.position = Vector2(392.0, 4.0)
+	_ink_value.size = Vector2(168.0, 20.0)
+	_ink_value.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel_root.add_child(_ink_value)
+
+	_ink_gauge = HudPanel.Gauge.new()
+	_ink_gauge.name = "InkGauge"
+	_ink_gauge.position = Vector2(196.0, 8.0)
+	_ink_gauge.size = Vector2(188.0, 12.0)
+	panel_root.add_child(_ink_gauge)
+
+
+## Keep the header honest while the player draws: what is left, and what the strokes on
+## the page have claimed so far.
+func _refresh_ink_row(cost: float) -> void:
+	if _ink_gauge == null or ink_manager == null:
+		return
+	_ink_gauge.capacity = ink_manager.capacity
+	_ink_gauge.remaining = ink_manager.remaining()
+	_ink_gauge.reserved = maxf(0.0, cost)
+	_ink_gauge.queue_redraw()
+	_ink_value.text = "%d of %d" % [
+		floori(maxf(0.0, ink_manager.remaining())), roundi(ink_manager.capacity)]
+
+
+func _page_edge() -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.06, 0.08, 0.06, 1.0)
+	box.border_color = Color(0.35, 0.4, 0.26, 1.0)
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(2)
+	return box
+
+
+func _primary_button(bright: bool) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.72, 0.82, 0.23, 1.0) if bright else Color(0.55, 0.71, 0.18, 1.0)
+	box.border_color = Color(0.98, 0.9, 0.31, 1.0)
+	box.set_border_width_all(3)
+	box.set_corner_radius_all(2)
+	return box
 
 
 func _clear_guess() -> void:
@@ -347,11 +468,13 @@ func _on_stroke_cost_changed(cost: float) -> void:
 		return
 	# There is ink on the canvas now, so there is something to offer the recogniser.
 	transform_button.disabled = cost <= 0.0
+	_refresh_ink_row(cost)
 	if ink_manager != null:
 		ink_manager.reserve_attempt(cost)
-		status.text = "Ink remaining %.1f / %.1f — attempt %.1f" % [ink_manager.remaining(), ink_manager.capacity, cost]
-	else:
-		status.text = "Ink used: %.1f diagonals" % cost
+	# The status line no longer recites the ink. It used to read "Ink remaining 10.7 / 12.0
+	# -- attempt 1.3" on every stroke point, which is the header gauge's job now, said in
+	# decimals, over the top of whatever the panel had last told the player. This line is
+	# for messages; the gauge is for the budget.
 
 
 func _on_ink_blocked() -> void:
