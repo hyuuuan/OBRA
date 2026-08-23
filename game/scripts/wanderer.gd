@@ -52,7 +52,20 @@ const UMBRELLA_FALL_LIMIT := 190.0
 const WADE_DRAG := 0.55
 const WADE_SINK := 0.42
 const WADE_SINK_SPEED := 120.0
-const WADE_JUMP := 0.45
+## All a jump gets you in water: a kick far weaker than the sink rate. THE APO CANNOT
+## SWIM, and that has to be true of every jump, not most of them.
+##
+## This is what made water free. The old kick was -193px/s against a sink capped at 120,
+## so a player who held jump ROSE, and holding jump while walking right carried them over
+## the surface of a paddy as if it were a floor -- both paddies in Level 1 are 300px of
+## water and both were being walked across.
+##
+## An earlier version of this fix gave a strong jump when is_on_floor() was true, on the
+## reasoning that you can push off the bottom. It turned the floating tread into a
+## launchpad: standing on it counts as standing on a floor, and a full-strength jump from
+## the middle of the paddy cleared the far bank. There is no version of "sometimes you can
+## jump properly in water" that does not hand the player a way across.
+const WADE_KICK := 55.0
 
 @onready var _figure: Node2D = $Figure
 
@@ -135,10 +148,10 @@ func _physics_process(delta: float) -> void:
 		velocity.x *= WADE_DRAG
 		velocity.y = minf(velocity.y + _gravity * WADE_SINK * delta, WADE_SINK_SPEED)
 		if Input.is_action_just_pressed(&"jump"):
-			# Its own weaker jump, but the press is still spent: wading out of a shallow
-			# paddy must not also cash a full jump the moment a foot touches the bank.
+			# The press is still spent: wading out of a paddy must not also cash a full jump
+			# the moment a foot touches the bank.
 			_jump_buffered = 0.0
-			velocity.y = JUMP_VELOCITY * WADE_JUMP
+			velocity.y = -WADE_KICK
 	elif is_on_floor():
 		# Buffered, so a press that arrived a few frames before landing still counts.
 		if _jump_buffered > 0.0:
