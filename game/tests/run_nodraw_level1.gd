@@ -22,15 +22,24 @@ const SEGMENT_SECONDS := 22.0
 const SEGMENTS: Array = [
 	{"name": "the paddy and Ang Hagdan", "at": Vector2(260.0, 460.0)},
 	{"name": "above the stair, to the gorge", "at": Vector2(840.0, 360.0)},
-	{"name": "the gorge itself", "at": Vector2(2320.0, 200.0)},
+	# All three, because they are physically different crossings: the Artist route puts a
+	# post mid-gorge, the Pragmatist route drops ledges down and leaves a bare wall out, and
+	# the Protector route stands a tree up to be felled. Testing whichever answer happens to
+	# be first tests one of them.
+	{"name": "the gorge, Artist route", "at": Vector2(2320.0, 200.0), "route": 0},
+	{"name": "the gorge, Pragmatist route", "at": Vector2(2320.0, 200.0), "route": 1},
+	{"name": "the gorge, Protector route", "at": Vector2(2320.0, 200.0), "route": 2},
 	{"name": "past the gorge, along Terrace5", "at": Vector2(2980.0, 200.0)},
-	{"name": "the Overlook and the bale", "at": Vector2(3360.0, 160.0)},
+	{"name": "the Overlook and the bale", "at": Vector2(3360.0, 40.0)},
 ]
 
 var level: Node
 var player: CharacterBody2D
 var completed := false
 var answered := 0
+## Which of Lolo's answers to take when a question comes up. The gorge's three routes are
+## three different crossings and only one of them gets tested if this is always the first.
+var _route_choice := 0
 
 
 func _initialize() -> void:
@@ -38,21 +47,17 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	var packed := load("res://game_level.tscn") as PackedScene
-	level = packed.instantiate()
-	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
-	root.add_child(level)
-	for _frame in range(30):
-		await physics_frame
-	player = level.get("player") as CharacterBody2D
+	await _open_level()
 	var goal := level.get_node_or_null(
 		"EnvironmentBaseplate/GameplayPlane/GoalMarker") as Node2D
 	var goal_x: float = goal.global_position.x if goal != null else 0.0
+	_close_level()
 
 	var report: Array[String] = []
 	var broken := 0
 	for entry: Variant in SEGMENTS:
 		var segment: Dictionary = entry
+		_route_choice = int(segment.get("route", 0))
 		var reached := await _try_segment(segment["at"])
 		var line := "  %-34s x %.0f -> %.0f" % [segment["name"], Vector2(segment["at"]).x, reached]
 		if completed:
@@ -79,12 +84,26 @@ func _run() -> void:
 
 ## Drop the player at the start of a stretch and drive them as hard as a determined person
 ## would: hold right, jump constantly, swim in water, answer anything Lolo asks.
+func _open_level() -> void:
+	var packed := load("res://game_level.tscn") as PackedScene
+	level = packed.instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	for _frame in range(30):
+		await physics_frame
+	player = level.get("player") as CharacterBody2D
+
+
+func _close_level() -> void:
+	if level != null and is_instance_valid(level):
+		level.queue_free()
+	level = null
+	player = null
+
+
 func _try_segment(at: Vector2) -> float:
 	completed = false
-	# Re-fetch every time. A fall past the world bounds restores a checkpoint and the level
-	# may adopt a different body, which leaves a held reference pointing at nothing -- and a
-	# segment that never moves reads exactly like a segment that is properly gated.
-	player = level.get("player") as CharacterBody2D
+	await _open_level()
 	if player == null or not is_instance_valid(player):
 		return 0.0
 	player.velocity = Vector2.ZERO
@@ -131,6 +150,9 @@ func _try_segment(at: Vector2) -> float:
 	if completed and overlay != null:
 		overlay.call("close")
 		await process_frame
+	paused = false
+	_close_level()
+	await process_frame
 	return reached
 
 
@@ -147,18 +169,20 @@ func _answer_any_question() -> void:
 			continue
 		if node.name == "LevelCompleteOverlay":
 			continue    # that one is the result, not an obstacle
-		var button := _first_button(node)
-		if button != null and not button.disabled:
+		var buttons := _buttons_in(node)
+		if buttons.is_empty():
+			continue
+		var button: Button = buttons[mini(_route_choice, buttons.size() - 1)]
+		if not button.disabled:
 			button.emit_signal("pressed")
 			answered += 1
 			return
 
 
-func _first_button(node: Node) -> Button:
+func _buttons_in(node: Node) -> Array[Button]:
+	var out: Array[Button] = []
 	for child in node.get_children():
 		if child is Button and (child as Button).visible:
-			return child as Button
-		var found := _first_button(child)
-		if found != null:
-			return found
-	return null
+			out.append(child as Button)
+		out.append_array(_buttons_in(child))
+	return out
