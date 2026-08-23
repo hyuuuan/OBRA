@@ -28,7 +28,7 @@ const TEXTURE_MAP := preload("res://assets/Level1/texturemap.png")
 ## The solid middle of the thatch panel. The panel itself is a trapezoid with transparent
 ## corners, so tiling the whole thing across a roof printed the gaps too and the slope came
 ## out as three small roofs instead of one.
-const THATCH := Rect2(734, 1006, 70, 50)
+const THATCH := Rect2(734, 1012, 70, 44)
 const THATCH_RIDGE := Rect2(732, 1002, 74, 14)
 const WALL_PANEL := Rect2(966, 1001, 69, 61)
 const DOOR := Rect2(910, 1001, 44, 61)
