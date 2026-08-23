@@ -293,9 +293,9 @@ segment_size = Vector2(360, 440)
 surface_style = 3
 
 [node name="Overlook" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1246413088]
-position = Vector2(3320, 200)
+position = Vector2(3320, 80)
 script = ExtResource("5_terrace")
-segment_size = Vector2(440, 480)
+segment_size = Vector2(440, 600)
 surface_style = 3
 
 [node name="Transitions" type="Node2D" parent="GameplayPlane" unique_id=345990059]
@@ -442,7 +442,7 @@ position = Vector2(3060, 208)
 texture = SubResource("Atlas_bush")
 
 [node name="HutOverlook" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=962046339]
-position = Vector2(3700, 134)
+position = Vector2(3700, 14)
 scale = Vector2(1.22, 1.22)
 texture = SubResource("Atlas_hut")
 
@@ -494,7 +494,7 @@ trigger_size = Vector2(400, 300)
 shape = SubResource("RectangleShape2D_owbyo")
 
 [node name="L1_N3" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=1170798170]
-position = Vector2(3500, 110)
+position = Vector2(3500, -10)
 script = ExtResource("19_j5wv8")
 obstacle_id = "L1_N3"
 trigger_size = Vector2(420, 320)
@@ -601,15 +601,15 @@ script = ExtResource("24_vekj0")
 [node name="Bale" type="Node2D" parent="GameplayPlane" unique_id=913205178]
 
 [node name="House" type="Node2D" parent="GameplayPlane/Bale" unique_id=1120996384]
-position = Vector2(3500, 200)
+position = Vector2(3500, 80)
 script = ExtResource("25_owbyo")
 
 [node name="Bulul1" type="Node2D" parent="GameplayPlane/Bale" unique_id=525187676]
-position = Vector2(3452, 200)
+position = Vector2(3452, 80)
 script = ExtResource("26_jto6m")
 
 [node name="Bulul2" type="Node2D" parent="GameplayPlane/Bale" unique_id=1716894567]
-position = Vector2(3496, 200)
+position = Vector2(3496, 80)
 script = ExtResource("26_jto6m")
 
 [node name="ForegroundLayer" type="Node2D" parent="." unique_id=3763005]

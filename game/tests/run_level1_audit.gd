@@ -1103,7 +1103,7 @@ func _walk_node_three(route: String) -> void:
 	# On the terrace BESIDE the house, not on top of it: the posts, deck and thatch are
 	# solid, and dropping the player into the middle of them wedges them in the geometry
 	# instead of walking them up to it.
-	player.global_position = Vector2(3360.0, 170.0)
+	player.global_position = Vector2(3360.0, 50.0)
 	for _frame in range(20):
 		await physics_frame
 	if route == "artist":
