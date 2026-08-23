@@ -29,6 +29,10 @@ const WANDERER_SCENE := "res://creatures/wanderer.tscn"
 ## Built in code rather than authored into the scene, like the requirement strip: it owns
 ## its own frame and gauge and there is nothing to lay out by hand.
 var hud_panel: HudPanel
+## The corner readouts and where each belongs, so they can be re-placed together.
+var _chips: Array = []
+## How long the player has been under the water in their own body.
+var _submerged_seconds := 0.0
 @onready var complete_overlay: ModalOverlay = $LevelCompleteOverlay
 @onready var out_of_ink_overlay: ModalOverlay = $OutOfInkOverlay
 @onready var dialogue_overlay: ModalOverlay = $DialogueChoiceOverlay
@@ -1073,7 +1077,18 @@ func _wrap_in_chip(label: Label, corner: String, offset: Vector2,
 	# Deferred as well, because the first call runs before the label has been laid out and
 	# measures a chip with no text in it yet.
 	_place_chip.call_deferred(chip, corner, offset)
-	get_viewport().size_changed.connect(_place_chip.bind(chip, corner, offset))
+	# Remembered rather than connected per chip: two bound callables over the same method
+	# read as one connection, so the second chip's connect failed with an error on every
+	# level load and its chip stopped following the window.
+	_chips.append({"chip": chip, "corner": corner, "offset": offset})
+	if not get_viewport().size_changed.is_connected(_place_all_chips):
+		get_viewport().size_changed.connect(_place_all_chips)
+
+
+func _place_all_chips() -> void:
+	for entry: Variant in _chips:
+		var spec: Dictionary = entry
+		_place_chip(spec["chip"], String(spec["corner"]), Vector2(spec["offset"]))
 
 
 func _place_chip(chip: PanelContainer, corner: String, offset: Vector2) -> void:
@@ -1109,17 +1124,22 @@ func _physics_process(_delta: float) -> void:
 	# forever. Either way the level takes them back to the last checkpoint instead.
 	var floor_limit: float = Rect2(environment.get("world_bounds")).end.y + FALL_LIMIT_MARGIN
 	if anchor_position.y > floor_limit:
-		var restored := _restore_checkpoint()
-		if restored.is_empty():
-			# Nothing written yet -- Beat 0 before its own checkpoint. Back to the start
-			# of the level, which is the only earlier place there is.
-			if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
-				player.call("apply_morph_state",
-					{"position": spawn_point.global_position, "linear_velocity": Vector2.ZERO})
-			status_label.text = "Back to the start"
-		else:
-			status_label.text = "Back to %s" % restored
+		_return_to_safety("Back to the start", "Back to %s")
 		return
+
+	# THE APO CANNOT SWIM. The paddy is deep enough that wading in is not wading across --
+	# the wading jump clears about twenty pixels and the bank is a hundred above the floor
+	# -- so without this the water is not a gate, it is a hole to be stuck in. A drawn
+	# creature that swims is not rescued: being in the water is the whole point of it.
+	if player is Wanderer and bool(player.call("is_in_water")):
+		_submerged_seconds += _delta
+		if _submerged_seconds > 1.1:
+			_submerged_seconds = 0.0
+			_return_to_safety("You cannot swim, apo — draw something that can cross it",
+				"You cannot swim, apo. Back to %s")
+			return
+	else:
+		_submerged_seconds = 0.0
 	# Crossing the far lip is what earns the memory, not choosing the route that would
 	# have earned it: the reward is for having rebuilt her bridge and walked over it.
 	if anchor_position.x > 2980.0:
@@ -1133,6 +1153,23 @@ func _physics_process(_delta: float) -> void:
 		if distance > GOAL_RADIUS or not may_finish else "GOAL REACHED"
 	if distance <= GOAL_RADIUS and may_finish:
 		_complete_level()
+
+
+## Put the player back somewhere they can stand, and say why.
+##
+## A fall is not an ending and neither is stepping into the paddy: both take back the
+## climb, not the run.
+func _return_to_safety(nothing_written: String, restored_format: String) -> void:
+	var restored := _restore_checkpoint()
+	if restored.is_empty():
+		# Nothing written yet -- Beat 0 before its own checkpoint. Back to the start of the
+		# level, which is the only earlier place there is.
+		if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
+			player.call("apply_morph_state",
+				{"position": spawn_point.global_position, "linear_velocity": Vector2.ZERO})
+		status_label.text = nothing_written
+	else:
+		status_label.text = restored_format % restored
 
 
 ## Whether the level is allowed to end yet.

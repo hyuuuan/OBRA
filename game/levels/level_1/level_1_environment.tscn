@@ -235,13 +235,13 @@ position = Vector2(260, 460)
 [node name="LowerLeft" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1435800377]
 position = Vector2(0, 560)
 script = ExtResource("5_terrace")
-segment_size = Vector2(480, 120)
+segment_size = Vector2(340, 120)
 surface_style = 3
 
 [node name="LowerPaddyFloor" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1153780803]
-position = Vector2(480, 632)
+position = Vector2(340, 660)
 script = ExtResource("5_terrace")
-segment_size = Vector2(160, 48)
+segment_size = Vector2(300, 48)
 surface_style = 2
 
 [node name="LowerRight" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1292630397]
@@ -301,7 +301,7 @@ surface_style = 3
 [node name="Transitions" type="Node2D" parent="GameplayPlane" unique_id=345990059]
 
 [node name="LowerPaddyDown" type="StaticBody2D" parent="GameplayPlane/Transitions" unique_id=1378645730]
-position = Vector2(480, 560)
+position = Vector2(340, 560)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/LowerPaddyDown" unique_id=500860707]
 shape = SubResource("Wedge_puddle_down_a")
@@ -328,11 +328,12 @@ shape = SubResource("Wedge_puddle_down_b")
 
 [node name="LowerPaddy" type="Area2D" parent="GameplayPlane/WaterAreas" unique_id=2049447611]
 z_index = 3
-position = Vector2(560, 596)
+position = Vector2(490, 610)
+collision_mask = 5
 script = ExtResource("4_water")
 buoyancy = 2.2
 linear_drag = 3.4
-surface_size = Vector2(200, 72)
+surface_size = Vector2(300, 100)
 
 [node name="CentralPaddy" type="Area2D" parent="GameplayPlane/WaterAreas" unique_id=1991169185]
 z_index = 3
@@ -466,10 +467,10 @@ shape = SubResource("Rectangle_wall")
 [node name="Obstacles" type="Node2D" parent="GameplayPlane" unique_id=89777346]
 
 [node name="B0_HAGDAN" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=153923965]
-position = Vector2(700, 470)
+position = Vector2(620, 470)
 script = ExtResource("19_j5wv8")
 obstacle_id = "B0_HAGDAN"
-trigger_size = Vector2(360, 300)
+trigger_size = Vector2(560, 300)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/B0_HAGDAN" unique_id=732542801]
 shape = SubResource("RectangleShape2D_y6bxt")
@@ -541,7 +542,8 @@ is_broken = true
 position = Vector2(640, 548)
 
 [node name="FloatingTread" type="RigidBody2D" parent="GameplayPlane/Hagdan" unique_id=1182508414]
-position = Vector2(560, 600)
+position = Vector2(420, 578)
+collision_layer = 4
 mass = 0.6
 gravity_scale = 0.35
 script = ExtResource("21_a6y54")
