@@ -11,6 +11,8 @@ layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="Scrim" type="ColorRect" parent="Root" unique_id=1193305019]
 layout_mode = 0
@@ -18,50 +20,49 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0.015, 0.045, 0.025, 0.86)
 
-[node name="Panel" type="PanelContainer" parent="Root" unique_id=881584107]
-custom_minimum_size = Vector2(600, 460)
+[node name="Center" type="CenterContainer" parent="Root" unique_id=1752264447]
 layout_mode = 0
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -300.0
-offset_top = -230.0
-offset_right = 300.0
-offset_bottom = 230.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
 
-[node name="VBox" type="VBoxContainer" parent="Root/Panel" unique_id=2024389560]
+[node name="Panel" type="PanelContainer" parent="Root/Center" unique_id=881584107]
+custom_minimum_size = Vector2(600, 0)
 layout_mode = 2
-theme_override_constants/separation = 14
-alignment = 1
+size_flags_horizontal = 4
+size_flags_vertical = 4
 
-[node name="Title" type="Label" parent="Root/Panel/VBox" unique_id=845512015]
+[node name="VBox" type="VBoxContainer" parent="Root/Center/Panel" unique_id=2024389560]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Title" type="Label" parent="Root/Center/Panel/VBox" unique_id=845512015]
 layout_mode = 2
 theme_type_variation = &"ScreenTitle"
 text = "LEVEL COMPLETE"
 horizontal_alignment = 1
 
-[node name="Subtitle" type="Label" parent="Root/Panel/VBox" unique_id=687178853]
+[node name="Subtitle" type="Label" parent="Root/Center/Panel/VBox" unique_id=687178853]
 layout_mode = 2
 theme_type_variation = &"HudHint"
 horizontal_alignment = 1
 
-[node name="Stats" type="VBoxContainer" parent="Root/Panel/VBox" unique_id=1869616467]
+[node name="Stats" type="VBoxContainer" parent="Root/Center/Panel/VBox" unique_id=1869616467]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Buttons" type="HBoxContainer" parent="Root/Panel/VBox" unique_id=1299293192]
+[node name="Buttons" type="HBoxContainer" parent="Root/Center/Panel/VBox" unique_id=1299293192]
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="ContinueButton" type="Button" parent="Root/Panel/VBox/Buttons" unique_id=1414008956]
+[node name="ContinueButton" type="Button" parent="Root/Center/Panel/VBox/Buttons" unique_id=1414008956]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"DialogButton"
 text = "CONTINUE"
 
-[node name="RetryButton" type="Button" parent="Root/Panel/VBox/Buttons" unique_id=2114185662]
+[node name="RetryButton" type="Button" parent="Root/Center/Panel/VBox/Buttons" unique_id=2114185662]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3

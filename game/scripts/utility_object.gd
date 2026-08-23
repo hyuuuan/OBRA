@@ -83,7 +83,7 @@ func configure_entity(entry: Dictionary) -> void:
 
 
 func apply_item_data(item: DrawnItemData) -> void:
-	item_data = item
+	# The base class records item_data now, for every shape and not just utilities.
 	super.apply_item_data(item)
 	if not item.runtime_state.is_empty():
 		restore_utility_state(item.runtime_state)

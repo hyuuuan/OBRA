@@ -13,9 +13,9 @@ extends ModalOverlay
 signal restart_pressed
 signal level_select_pressed
 
-@onready var _resume_button: Button = $Root/Panel/VBox/Buttons/ResumeButton
-@onready var _restart_button: Button = $Root/Panel/VBox/Buttons/RestartButton
-@onready var _level_select_button: Button = $Root/Panel/VBox/Buttons/LevelSelectButton
+@onready var _resume_button: Button = $Root/Center/Panel/VBox/Buttons/ResumeButton
+@onready var _restart_button: Button = $Root/Center/Panel/VBox/Buttons/RestartButton
+@onready var _level_select_button: Button = $Root/Center/Panel/VBox/Buttons/LevelSelectButton
 
 
 func _ready() -> void:

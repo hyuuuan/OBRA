@@ -17,31 +17,109 @@
     "jump height. Sizes are compared against those two numbers, not chosen by eye."
   ],
   "sizes": {
-    "bridge": [340, 56],
-    "stairs": [232, 176],
-    "ladder": [72, 244],
-    "tree": [150, 268],
-    "door": [116, 208],
-    "mushroom": [156, 116],
-    "wheel": [128, 128],
-    "anvil": [116, 92],
-    "cannon": [148, 96],
-    "sword": [136, 118],
-    "rake": [118, 150],
-    "scissors": [104, 116],
-    "clock": [104, 104],
-    "bucket": [104, 96],
-    "boomerang": [110, 104],
-    "parachute": [188, 132],
-    "hot_air_balloon": [164, 220],
-    "submarine": [206, 104],
-    "sailboat": [196, 168],
-    "campfire": [132, 104],
-    "cloud": [176, 100],
-    "sun": [132, 132],
-    "fan": [124, 124],
-    "circle": [116, 116],
-    "square": [116, 116],
-    "triangle": [124, 116]
+    "bridge": [
+      340,
+      56
+    ],
+    "stairs": [
+      232,
+      176
+    ],
+    "ladder": [
+      72,
+      244
+    ],
+    "tree": [
+      150,
+      268
+    ],
+    "door": [
+      116,
+      208
+    ],
+    "mushroom": [
+      156,
+      116
+    ],
+    "wheel": [
+      128,
+      128
+    ],
+    "anvil": [
+      116,
+      92
+    ],
+    "cannon": [
+      148,
+      96
+    ],
+    "sword": [
+      136,
+      118
+    ],
+    "rake": [
+      118,
+      150
+    ],
+    "scissors": [
+      104,
+      116
+    ],
+    "clock": [
+      104,
+      104
+    ],
+    "bucket": [
+      104,
+      96
+    ],
+    "boomerang": [
+      110,
+      104
+    ],
+    "parachute": [
+      188,
+      132
+    ],
+    "hot_air_balloon": [
+      164,
+      220
+    ],
+    "submarine": [
+      206,
+      104
+    ],
+    "sailboat": [
+      196,
+      168
+    ],
+    "campfire": [
+      132,
+      104
+    ],
+    "cloud": [
+      176,
+      100
+    ],
+    "sun": [
+      132,
+      132
+    ],
+    "fan": [
+      124,
+      124
+    ],
+    "circle": [
+      80,
+      80
+    ],
+    "square": [
+      80,
+      80
+    ],
+    "triangle": [
+      88,
+      80
+    ]
   }
 }

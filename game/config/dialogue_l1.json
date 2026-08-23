@@ -1,0 +1,383 @@
+{
+  "$comment": "OBRA Level 1 dialogue. RULE: no line may name a drawable class. Tags appear in exactly one surface form, marked with **. English for now; the Taglish original is kept in level-1-design/files/dialogue_l1.json. NOTE: the Tagalog was masking class references -- tulay/bridge, hagdan/stairs, susi/key, pinto/door, puno/tree -- so a literal translation would have broken the rule in eight lines. Those are phrased around: 'a crossing', 'the way up', 'it', 'one way in', 'old growth'.",
+  "level_id": "level_1",
+  "speaker_default": "lolo",
+  "lines": [
+    {
+      "id": "L1_B0_001",
+      "at": "B0_HAGDAN.enter",
+      "text": "There. This is not the place she left with me in my memory — this is the place she *painted*. Almost the same."
+    },
+    {
+      "id": "L1_B0_002",
+      "at": "B0_HAGDAN.enter",
+      "text": "Look at the stone steps. Three of them are gone."
+    },
+    {
+      "id": "L1_B0_003",
+      "at": "B0_HAGDAN.sub1",
+      "text": "You are the one holding the pencil, apo. Draw something that can **span** it — anything that will cross the gap."
+    },
+    {
+      "id": "L1_B0_004",
+      "at": "B0_HAGDAN.sub1.solved",
+      "text": "There. Like that. It does not matter that it is ugly — it matters that I could read it."
+    },
+    {
+      "id": "L1_B0_005",
+      "at": "B0_HAGDAN.sub2",
+      "text": "That one is floating. We need something that can **roll** — heavy, something that rolls."
+    },
+    {
+      "id": "L1_B0_006",
+      "at": "on_first_decline",
+      "once": true,
+      "text": "I could not read it, apo. Not because you drew it wrong — because I could not tell it apart from something else. Try again. Bigger, slower."
+    },
+    {
+      "id": "L1_B0_007",
+      "at": "after_first_decline_solved",
+      "once": true,
+      "text": "There. Now I see it."
+    },
+    {
+      "id": "L1_N1_001",
+      "at": "L1_N1.enter",
+      "text": "Here."
+    },
+    {
+      "id": "L1_N1_002",
+      "at": "L1_N1.enter",
+      "text": "There was a crossing here once. Wood. My grandfather's grandfather made it, then made it again, then again."
+    },
+    {
+      "id": "L1_N1_003",
+      "at": "L1_N1.enter",
+      "speaker": "apo",
+      "text": "Two thousand years, the books say."
+    },
+    {
+      "id": "L1_N1_004",
+      "at": "L1_N1.enter",
+      "text": "The books say."
+    },
+    {
+      "id": "L1_N1_005",
+      "at": "L1_N1.enter",
+      "text": "The land does not."
+    },
+    {
+      "id": "L1_N1_006",
+      "at": "L1_N1.enter",
+      "text": "Four hundred. Maybe less. They built this while the Spanish were burning the lowlands. This was not left behind, apo. This is an answer."
+    },
+    {
+      "id": "L1_N1_007",
+      "at": "L1_N1.enter",
+      "text": "The height you are walking on is not old stone. It is a thing people made because they chose not to give up."
+    },
+    {
+      "id": "L1_N1_008",
+      "at": "L1_N1.teach",
+      "text": "I know only three ways. One: make something that can **span** it."
+    },
+    {
+      "id": "L1_N1_009",
+      "at": "L1_N1.teach",
+      "text": "Two: follow the walls — that needs something that can **leap**, or something that can **climb**."
+    },
+    {
+      "id": "L1_N1_010",
+      "at": "L1_N1.teach",
+      "text": "Three: there is old growth at the forest's edge. Something that can **cut**."
+    },
+    {
+      "id": "L1_N1_011",
+      "at": "L1_N1.choice",
+      "text": "It is up to you. What do we do?"
+    },
+    {
+      "id": "L1_N1_012",
+      "at": "L1_N1.artist.commit",
+      "speaker": "apo",
+      "choice_label": "Let us put it back.",
+      "text": "Let us put it back."
+    },
+    {
+      "id": "L1_N1_013",
+      "at": "L1_N1.artist.solved",
+      "text": "She was the same. She never went around a thing — she mended it."
+    },
+    {
+      "id": "L1_N1_014",
+      "at": "L1_N1.artist.cutscene",
+      "text": "She painted this crossing six times in one day. Different hours. She said the water is different every hour."
+    },
+    {
+      "id": "L1_N1_015",
+      "at": "L1_N1.pragmatist.commit",
+      "speaker": "apo",
+      "choice_label": "There is another way.",
+      "text": "There is another way. We go around."
+    },
+    {
+      "id": "L1_N1_016",
+      "at": "L1_N1.pragmatist.solved",
+      "text": "You know, that is how we used to walk. The wall — that is a road, not only an edge."
+    },
+    {
+      "id": "L1_N1_017",
+      "at": "L1_N1.protector.commit",
+      "speaker": "apo",
+      "choice_label": "I will make a way.",
+      "text": "I will make a way."
+    },
+    {
+      "id": "L1_N1_018",
+      "at": "L1_N1.protector.solved",
+      "text": "We crossed."
+    },
+    {
+      "id": "L1_N1_019",
+      "at": "L1_N1.protector.solved",
+      "text": "That forest — someone owns it. Not a person. A family, since there have been families here."
+    },
+    {
+      "id": "L1_N1_020",
+      "at": "L1_N1.protector.solved",
+      "text": "That was not only wood. That is the water for every terrace below."
+    },
+    {
+      "id": "L1_N2_001",
+      "at": "L1_N2.enter",
+      "text": "She stopped here. Look — her stool, her jar of brushes."
+    },
+    {
+      "id": "L1_N2_002",
+      "at": "L1_N2.enter",
+      "text": "It is in there, inside the straw. She hid her things there when the rain came and she could not get back to the house."
+    },
+    {
+      "id": "L1_N2_003",
+      "at": "L1_N2.teach",
+      "text": "We can do it slowly — something that can **forage**, that sifts through."
+    },
+    {
+      "id": "L1_N2_004",
+      "at": "L1_N2.teach",
+      "text": "We can go in underneath — something that can **carry**, that can drag it out."
+    },
+    {
+      "id": "L1_N2_005",
+      "at": "L1_N2.teach",
+      "text": "Or we can scatter it — something that can bring **weather**, that carries wind."
+    },
+    {
+      "id": "L1_N2_006",
+      "at": "L1_N2.choice",
+      "text": "How patient are you today, apo?"
+    },
+    {
+      "id": "L1_N2_007",
+      "at": "L1_N2.artist.commit",
+      "speaker": "apo",
+      "choice_label": "Slowly.",
+      "text": "Slowly. Let us look properly."
+    },
+    {
+      "id": "L1_N2_008",
+      "at": "L1_N2.artist.pass2",
+      "text": "A brush. Dried out."
+    },
+    {
+      "id": "L1_N2_009",
+      "at": "L1_N2.artist.pass3",
+      "text": "Paper. It has a date. And she wrote something in the margin."
+    },
+    {
+      "id": "L1_N2_010",
+      "at": "L1_N2.artist.pass3",
+      "text": "'It is still on the nail.' Remember that."
+    },
+    {
+      "id": "L1_N2_011",
+      "at": "L1_N2.pragmatist.commit",
+      "speaker": "apo",
+      "choice_label": "I will do it.",
+      "text": "I will do it."
+    },
+    {
+      "id": "L1_N2_012",
+      "at": "L1_N2.pragmatist.solved",
+      "text": "Fast. You did not see the rest of it."
+    },
+    {
+      "id": "L1_N2_013",
+      "at": "L1_N2.protector.commit",
+      "speaker": "apo",
+      "choice_label": "Let us scatter it.",
+      "text": "Let us scatter it."
+    },
+    {
+      "id": "L1_N2_014",
+      "at": "L1_N2.protector.solved",
+      "text": "You got it."
+    },
+    {
+      "id": "L1_N2_015",
+      "at": "L1_N2.solved",
+      "text": "Locked. Of course."
+    },
+    {
+      "id": "L1_N3_001",
+      "at": "L1_N3.enter",
+      "text": "There is the house."
+    },
+    {
+      "id": "L1_N3_002",
+      "at": "L1_N3.enter",
+      "text": "No windows. One way in, above head height. And the way up is gone."
+    },
+    {
+      "id": "L1_N3_003",
+      "at": "L1_N3.enter",
+      "text": "You take the way up inside at night. That is the lock. There is nothing else."
+    },
+    {
+      "id": "L1_N3_004",
+      "at": "L1_N3.enter",
+      "text": "But that chest — she carried it up from the lowlands. That one was made to be opened."
+    },
+    {
+      "id": "L1_N3_005",
+      "at": "L1_N3.teach",
+      "text": "We can go up. Something that can **climb** — but not the posts. Those carry rat guards. You will find nothing to hold."
+    },
+    {
+      "id": "L1_N3_006",
+      "at": "L1_N3.teach",
+      "text": "Or something that can **unlock** it. If you can make the right one."
+    },
+    {
+      "id": "L1_N3_007",
+      "at": "L1_N3.teach",
+      "text": "Or something that can **cut**, and the conversation is over."
+    },
+    {
+      "id": "L1_N3_008",
+      "at": "L1_N3.choice",
+      "text": "Which?"
+    },
+    {
+      "id": "L1_N3_009",
+      "at": "L1_N3.artist.commit",
+      "speaker": "apo",
+      "choice_label": "It is inside.",
+      "text": "It is inside. Let us find it."
+    },
+    {
+      "id": "L1_N3_010",
+      "at": "L1_N3.artist.attic",
+      "text": "The roof. Under the edge — there is a gap there."
+    },
+    {
+      "id": "L1_N3_011",
+      "at": "L1_N3.attic.found",
+      "text": "On the nail. Just as she said."
+    },
+    {
+      "id": "L1_N3_012",
+      "at": "L1_N3.artist.photo",
+      "text": "A photograph."
+    },
+    {
+      "id": "L1_N3_013",
+      "at": "L1_N3.artist.photo",
+      "text": "She is young there. That painting is not finished yet."
+    },
+    {
+      "id": "L1_N3_014",
+      "at": "L1_N3.artist.photo",
+      "speaker": "apo",
+      "text": "Lolo — who is that beside her?"
+    },
+    {
+      "id": "L1_N3_015",
+      "at": "L1_N3.artist.photo",
+      "text": "..."
+    },
+    {
+      "id": "L1_N3_016",
+      "at": "L1_N3.artist.photo",
+      "text": "Let us go back down."
+    },
+    {
+      "id": "L1_N3_017",
+      "at": "L1_N3.bulul_approach",
+      "text": "Do not. Those are not decoration, and they are not yours."
+    },
+    {
+      "id": "L1_N3_018",
+      "at": "L1_N3.pragmatist.commit",
+      "speaker": "apo",
+      "choice_label": "I will make something that opens it.",
+      "text": "I will make something that opens it."
+    },
+    {
+      "id": "L1_N3_019",
+      "at": "L1_N3.ward.fail1",
+      "text": "It turned, then stopped. The teeth are too thick."
+    },
+    {
+      "id": "L1_N3_020",
+      "at": "L1_N3.ward.fail2",
+      "text": "Close. Look at the shape inside — you can see it now."
+    },
+    {
+      "id": "L1_N3_021",
+      "at": "L1_N3.ward.solved",
+      "text": "There."
+    },
+    {
+      "id": "L1_N3_022",
+      "at": "L1_N3.protector.commit",
+      "speaker": "apo",
+      "choice_label": "Let us open it.",
+      "text": "Let us open it."
+    },
+    {
+      "id": "L1_N3_023",
+      "at": "L1_N3.protector.solved",
+      "text": "You opened it."
+    },
+    {
+      "id": "L1_EX_001",
+      "at": "EXIT_MARKER",
+      "text": "There is the marker stone. That is where we stopped on the way home."
+    },
+    {
+      "id": "L1_EX_002",
+      "at": "EXIT_MARKER",
+      "condition": "straw_scattered",
+      "text": "Someone cut that. Someone meant to lay it on a roof before the rain."
+    },
+    {
+      "id": "L1_EX_003",
+      "at": "EXIT_MARKER",
+      "condition": "muyong_stump_dry_terrace",
+      "text": "Look at the terrace below. It is drying out."
+    },
+    {
+      "id": "L1_EX_004",
+      "at": "EXIT_MARKER.canvas",
+      "text": "Pista. She said the noise helped her think."
+    },
+    {
+      "id": "L1_EX_005",
+      "at": "EXIT_MARKER.canvas",
+      "text": "Apo — look at the edge. The shawl. I know that shawl."
+    }
+  ],
+  "design_level_id": "L1_PAYYO",
+  "language": "en"
+}

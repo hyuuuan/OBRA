@@ -1,10 +1,16 @@
-[gd_scene load_steps=34 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/environment_baseplate.gd" id="1_environment"]
 [ext_resource type="Script" path="res://scripts/world_camera_controller.gd" id="2_camera"]
 [ext_resource type="Script" path="res://scripts/depth_layer_2d.gd" id="3_depth"]
 [ext_resource type="Script" path="res://scripts/water_area_2d.gd" id="4_water"]
 [ext_resource type="Script" path="res://scripts/terrace_segment_2d.gd" id="5_terrace"]
+[ext_resource type="Texture2D" path="res://assets/Level1/bg_withclouds.png" id="6_sky"]
+[ext_resource type="Texture2D" path="res://assets/Level1/mountains_furthest_background.png" id="7_far"]
+[ext_resource type="Texture2D" path="res://assets/Level1/mountain_further_background.png" id="8_green"]
+[ext_resource type="Texture2D" path="res://assets/Level1/terraces_2.png" id="9_terraces"]
+[ext_resource type="Texture2D" path="res://assets/Level1/terraces_near_background.png" id="10_near"]
+[ext_resource type="Texture2D" path="res://assets/Level1/texturemap.png" id="11_map"]
 [ext_resource type="Script" path="res://scripts/ruined_bridge_2d.gd" id="12_bridge"]
 [ext_resource type="Script" path="res://scripts/dialogue_node_2d.gd" id="13_dialogue"]
 [ext_resource type="Script" path="res://scripts/route_layout_2d.gd" id="14_routes"]
@@ -12,12 +18,14 @@
 [ext_resource type="Script" path="res://scripts/collapsing_platform_2d.gd" id="16_collapse"]
 [ext_resource type="Script" path="res://scripts/concept_gate_2d.gd" id="17_gate"]
 [ext_resource type="Script" path="res://scripts/hidden_flower_2d.gd" id="18_flower"]
-[ext_resource type="Texture2D" path="res://assets/Level1/bg_withclouds.png" id="6_sky"]
-[ext_resource type="Texture2D" path="res://assets/Level1/mountains_furthest_background.png" id="7_far"]
-[ext_resource type="Texture2D" path="res://assets/Level1/mountain_further_background.png" id="8_green"]
-[ext_resource type="Texture2D" path="res://assets/Level1/terraces_2.png" id="9_terraces"]
-[ext_resource type="Texture2D" path="res://assets/Level1/terraces_near_background.png" id="10_near"]
-[ext_resource type="Texture2D" path="res://assets/Level1/texturemap.png" id="11_map"]
+[ext_resource type="Script" path="res://scripts/level_obstacle_2d.gd" id="19_j5wv8"]
+[ext_resource type="Script" path="res://scripts/stair_tread_2d.gd" id="20_ryned"]
+[ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="20_y6bxt"]
+[ext_resource type="Script" path="res://scripts/floating_tread_2d.gd" id="21_a6y54"]
+[ext_resource type="Script" path="res://scripts/straw_pile_2d.gd" id="23_3uax6"]
+[ext_resource type="Script" path="res://scripts/baul_2d.gd" id="24_vekj0"]
+[ext_resource type="Script" path="res://scripts/bale_2d.gd" id="25_owbyo"]
+[ext_resource type="Script" path="res://scripts/bulul_2d.gd" id="26_jto6m"]
 
 [sub_resource type="AtlasTexture" id="Atlas_sky"]
 atlas = ExtResource("6_sky")
@@ -39,6 +47,26 @@ region = Rect2(157, 204, 1560, 739)
 atlas = ExtResource("10_near")
 region = Rect2(110, 146, 1677, 808)
 
+[sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_down_a"]
+points = PackedVector2Array(0, 0, 28, 32, 0, 32)
+
+[sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_up_a"]
+points = PackedVector2Array(-28, 32, 0, 0, 0, 32)
+
+[sub_resource type="ConvexPolygonShape2D" id="Wedge_rise_48"]
+points = PackedVector2Array(-30, 48, 0, 0, 0, 48)
+
+[sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_down_b"]
+points = PackedVector2Array(0, 0, 30, 36, 0, 36)
+
+[sub_resource type="AtlasTexture" id="Atlas_fence"]
+atlas = ExtResource("11_map")
+region = Rect2(738, 905, 94, 58)
+
+[sub_resource type="AtlasTexture" id="Atlas_rock"]
+atlas = ExtResource("11_map")
+region = Rect2(739, 742, 77, 61)
+
 [sub_resource type="AtlasTexture" id="Atlas_plant"]
 atlas = ExtResource("11_map")
 region = Rect2(741, 674, 70, 55)
@@ -47,13 +75,13 @@ region = Rect2(741, 674, 70, 55)
 atlas = ExtResource("11_map")
 region = Rect2(738, 826, 92, 70)
 
-[sub_resource type="AtlasTexture" id="Atlas_rock"]
+[sub_resource type="AtlasTexture" id="Atlas_stool"]
 atlas = ExtResource("11_map")
-region = Rect2(739, 742, 77, 61)
+region = Rect2(1045, 1028, 70, 34)
 
-[sub_resource type="AtlasTexture" id="Atlas_fence"]
+[sub_resource type="AtlasTexture" id="Atlas_jar"]
 atlas = ExtResource("11_map")
-region = Rect2(738, 905, 94, 58)
+region = Rect2(903, 917, 27, 39)
 
 [sub_resource type="AtlasTexture" id="Atlas_hut"]
 atlas = ExtResource("11_map")
@@ -65,400 +93,542 @@ size = Vector2(3760, 48)
 [sub_resource type="RectangleShape2D" id="Rectangle_wall"]
 size = Vector2(48, 1200)
 
-[sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_down_a"]
-points = PackedVector2Array(0, 0, 28, 32, 0, 32)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_y6bxt"]
+size = Vector2(360, 300)
 
-[sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_up_a"]
-points = PackedVector2Array(-28, 32, 0, 0, 0, 32)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ryned"]
+size = Vector2(460, 420)
 
-[sub_resource type="ConvexPolygonShape2D" id="Wedge_rise_40"]
-points = PackedVector2Array(-28, 40, 0, 0, 0, 40)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_owbyo"]
+size = Vector2(400, 300)
 
-[sub_resource type="ConvexPolygonShape2D" id="Wedge_rise_48"]
-points = PackedVector2Array(-30, 48, 0, 0, 0, 48)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_aty4c"]
+size = Vector2(420, 320)
 
-[sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_down_b"]
-points = PackedVector2Array(0, 0, 30, 36, 0, 36)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_a6y54"]
+size = Vector2(88, 20)
 
-[sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_up_b"]
-points = PackedVector2Array(-30, 36, 0, 0, 0, 36)
+[sub_resource type="AtlasTexture" id="AtlasTexture_7hgod"]
+atlas = ExtResource("11_map")
+region = Rect2(828, 343, 84, 86)
 
-[node name="EnvironmentBaseplate" type="Node2D"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_3uax6"]
+size = Vector2(150, 200)
+
+[node name="EnvironmentBaseplate" type="Node2D" unique_id=1910596875]
 texture_filter = 1
 script = ExtResource("1_environment")
-world_bounds = Rect2(0, -520, 3760, 1200)
 
-[node name="WorldCamera" type="Camera2D" parent="."]
+[node name="WorldCamera" type="Camera2D" parent="." unique_id=449082578]
 position = Vector2(800, 230)
 script = ExtResource("2_camera")
 target_offset = Vector2(0, -130)
-world_bounds = Rect2(0, -520, 3760, 1200)
 
-[node name="SkyLayer" type="Node2D" parent="."]
+[node name="SkyLayer" type="Node2D" parent="." unique_id=880744867]
 z_index = -120
 script = ExtResource("3_depth")
 depth = 12.0
 scroll_scale = 0.02
 z_index_base = -120
 
-[node name="SkyFill" type="Polygon2D" parent="SkyLayer"]
-polygon = PackedVector2Array(-600, -600, 4400, -600, 4400, 900, -600, 900)
+[node name="SkyFill" type="Polygon2D" parent="SkyLayer" unique_id=1713159355]
 color = Color(0.2, 0.64, 0.91, 1)
+polygon = PackedVector2Array(-600, -600, 4400, -600, 4400, 900, -600, 900)
 
-[node name="CloudSky" type="Sprite2D" parent="SkyLayer"]
+[node name="CloudSky" type="Sprite2D" parent="SkyLayer" unique_id=884648311]
 position = Vector2(800, 230)
 scale = Vector2(1.05, 1)
 texture = SubResource("Atlas_sky")
 
-[node name="FarMountainLayer" type="Node2D" parent="."]
+[node name="FarMountainLayer" type="Node2D" parent="." unique_id=615819855]
+modulate = Color(0.66, 0.76, 0.92, 1)
 z_index = -100
 script = ExtResource("3_depth")
 depth = 8.0
 scroll_scale = 0.08
 z_index_base = -100
-modulate = Color(0.9, 0.96, 1, 1)
 
-[node name="FarMountains" type="Sprite2D" parent="FarMountainLayer"]
+[node name="FarMountains" type="Sprite2D" parent="FarMountainLayer" unique_id=801990268]
 position = Vector2(900, 382)
 scale = Vector2(1.25, 1)
 texture = SubResource("Atlas_far")
 
-[node name="GreenMountainLayer" type="Node2D" parent="."]
+[node name="GreenMountainLayer" type="Node2D" parent="." unique_id=1234888788]
+modulate = Color(0.6, 0.72, 0.76, 1)
 z_index = -80
 script = ExtResource("3_depth")
 depth = 5.0
 scroll_scale = 0.18
 z_index_base = -80
-modulate = Color(0.87, 0.94, 0.82, 1)
 
-[node name="GreenMountainsA" type="Sprite2D" parent="GreenMountainLayer"]
+[node name="GreenMountainsA" type="Sprite2D" parent="GreenMountainLayer" unique_id=1992931869]
 position = Vector2(820, 385)
 scale = Vector2(1.04, 1)
 texture = SubResource("Atlas_green")
 
-[node name="GreenMountainsB" type="Sprite2D" parent="GreenMountainLayer"]
+[node name="GreenMountainsB" type="Sprite2D" parent="GreenMountainLayer" unique_id=1306307865]
 position = Vector2(2510, 385)
 scale = Vector2(1.04, 1)
 texture = SubResource("Atlas_green")
 
-[node name="TerraceVistaLayer" type="Node2D" parent="."]
+[node name="TerraceVistaLayer" type="Node2D" parent="." unique_id=1871817744]
+modulate = Color(0.58, 0.7, 0.62, 0.94)
 z_index = -55
 script = ExtResource("3_depth")
 depth = 3.0
 scroll_scale = 0.38
 z_index_base = -55
-modulate = Color(0.82, 0.91, 0.7, 0.9)
 
-[node name="VistaA" type="Sprite2D" parent="TerraceVistaLayer"]
+[node name="VistaA" type="Sprite2D" parent="TerraceVistaLayer" unique_id=655679593]
 position = Vector2(590, 382)
 scale = Vector2(0.76, 0.76)
 texture = SubResource("Atlas_terraces")
 
-[node name="VistaB" type="Sprite2D" parent="TerraceVistaLayer"]
+[node name="VistaB" type="Sprite2D" parent="TerraceVistaLayer" unique_id=216234178]
 position = Vector2(1740, 382)
 scale = Vector2(0.76, 0.76)
 texture = SubResource("Atlas_terraces")
 
-[node name="VistaC" type="Sprite2D" parent="TerraceVistaLayer"]
+[node name="VistaC" type="Sprite2D" parent="TerraceVistaLayer" unique_id=525731432]
 position = Vector2(2890, 382)
 scale = Vector2(0.76, 0.76)
 texture = SubResource("Atlas_terraces")
 
-[node name="NearSceneryLayer" type="Node2D" parent="."]
+[node name="NearSceneryLayer" type="Node2D" parent="." unique_id=252645397]
+modulate = Color(0.66, 0.78, 0.66, 0.9)
 z_index = -15
 script = ExtResource("3_depth")
 depth = 1.0
 scroll_scale = 0.72
 z_index_base = -15
-modulate = Color(0.82, 0.94, 0.72, 0.84)
 
-[node name="NearA" type="Sprite2D" parent="NearSceneryLayer"]
+[node name="NearA" type="Sprite2D" parent="NearSceneryLayer" unique_id=2109191667]
 position = Vector2(520, 425)
 scale = Vector2(0.57, 0.57)
 texture = SubResource("Atlas_near")
 
-[node name="NearB" type="Sprite2D" parent="NearSceneryLayer"]
+[node name="NearB" type="Sprite2D" parent="NearSceneryLayer" unique_id=1823592587]
 position = Vector2(1460, 425)
 scale = Vector2(0.57, 0.57)
 texture = SubResource("Atlas_near")
 
-[node name="NearC" type="Sprite2D" parent="NearSceneryLayer"]
+[node name="NearC" type="Sprite2D" parent="NearSceneryLayer" unique_id=1302642103]
 position = Vector2(2400, 425)
 scale = Vector2(0.57, 0.57)
 texture = SubResource("Atlas_near")
 
-[node name="NearD" type="Sprite2D" parent="NearSceneryLayer"]
+[node name="NearD" type="Sprite2D" parent="NearSceneryLayer" unique_id=159114400]
 position = Vector2(3340, 425)
 scale = Vector2(0.57, 0.57)
 texture = SubResource("Atlas_near")
 
-[node name="GameplayPlane" type="Node2D" parent="."]
+[node name="GameplayPlane" type="Node2D" parent="." unique_id=441320924]
 script = ExtResource("3_depth")
-scroll_scale = 1.0
 
-[node name="EntityRoot" type="Node2D" parent="GameplayPlane"]
+[node name="EntityRoot" type="Node2D" parent="GameplayPlane" unique_id=1842870253]
 
-[node name="SpawnPoint" type="Marker2D" parent="GameplayPlane"]
+[node name="SpawnPoint" type="Marker2D" parent="GameplayPlane" unique_id=156026164]
 position = Vector2(260, 460)
 
-[node name="Terrain" type="Node2D" parent="GameplayPlane"]
+[node name="Terrain" type="Node2D" parent="GameplayPlane" unique_id=806191575]
 
-[node name="LowerLeft" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+[node name="LowerLeft" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1435800377]
 position = Vector2(0, 560)
 script = ExtResource("5_terrace")
 segment_size = Vector2(480, 120)
-surface_style = 0
+surface_style = 3
 
-[node name="LowerPaddyFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+[node name="LowerPaddyFloor" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1153780803]
 position = Vector2(480, 632)
 script = ExtResource("5_terrace")
 segment_size = Vector2(160, 48)
 surface_style = 2
 
-[node name="LowerRight" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+[node name="LowerRight" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1292630397]
 position = Vector2(640, 560)
 script = ExtResource("5_terrace")
 segment_size = Vector2(120, 120)
-surface_style = 0
+surface_style = 3
 
-[node name="Terrace1" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+[node name="Terrace1" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=414892212]
 position = Vector2(760, 420)
 script = ExtResource("5_terrace")
 segment_size = Vector2(360, 260)
-surface_style = 0
+surface_style = 3
 
-[node name="Terrace2" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+[node name="Terrace2" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1355529605]
 position = Vector2(1120, 280)
 script = ExtResource("5_terrace")
 segment_size = Vector2(360, 400)
-surface_style = 1
+surface_style = 3
 
-[node name="Terrace3" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+[node name="Terrace3" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=979666756]
 position = Vector2(1480, 240)
 script = ExtResource("5_terrace")
 segment_size = Vector2(360, 440)
-surface_style = 0
+surface_style = 3
 
-[node name="CentralLeft" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+[node name="CentralLeft" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1543895957]
 position = Vector2(1840, 240)
 script = ExtResource("5_terrace")
 segment_size = Vector2(60, 440)
-surface_style = 1
+surface_style = 3
 
-[node name="CentralPaddyFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+[node name="CentralPaddyFloor" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1699466670]
 position = Vector2(1900, 400)
 script = ExtResource("5_terrace")
 segment_size = Vector2(300, 280)
 surface_style = 2
 
-[node name="CentralRight" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+[node name="CentralRight" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1740253419]
 position = Vector2(2200, 240)
 script = ExtResource("5_terrace")
 segment_size = Vector2(200, 440)
-surface_style = 1
-surface_style = 1
+surface_style = 3
 
-[node name="Terrace5" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+[node name="Terrace5" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=431271399]
 position = Vector2(2960, 240)
 script = ExtResource("5_terrace")
 segment_size = Vector2(360, 440)
-surface_style = 1
+surface_style = 3
 
-[node name="Overlook" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+[node name="Overlook" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1246413088]
 position = Vector2(3320, 200)
 script = ExtResource("5_terrace")
 segment_size = Vector2(440, 480)
-surface_style = 0
+surface_style = 3
 
-[node name="Transitions" type="Node2D" parent="GameplayPlane"]
+[node name="Transitions" type="Node2D" parent="GameplayPlane" unique_id=345990059]
 
-[node name="LowerPaddyDown" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+[node name="LowerPaddyDown" type="StaticBody2D" parent="GameplayPlane/Transitions" unique_id=1378645730]
 position = Vector2(480, 560)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/LowerPaddyDown"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/LowerPaddyDown" unique_id=500860707]
 shape = SubResource("Wedge_puddle_down_a")
 
-[node name="LowerPaddyUp" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+[node name="LowerPaddyUp" type="StaticBody2D" parent="GameplayPlane/Transitions" unique_id=79891091]
 position = Vector2(640, 560)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/LowerPaddyUp"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/LowerPaddyUp" unique_id=1882669361]
 shape = SubResource("Wedge_puddle_up_a")
 
-[node name="Rise3" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+[node name="Rise3" type="StaticBody2D" parent="GameplayPlane/Transitions" unique_id=216567244]
 position = Vector2(1480, 240)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise3"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/Rise3" unique_id=1152263559]
 shape = SubResource("Wedge_rise_48")
 
-[node name="CentralPaddyDown" type="StaticBody2D" parent="GameplayPlane/Transitions"]
+[node name="CentralPaddyDown" type="StaticBody2D" parent="GameplayPlane/Transitions" unique_id=1372162065]
 position = Vector2(1900, 240)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/CentralPaddyDown"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/CentralPaddyDown" unique_id=28919375]
 shape = SubResource("Wedge_puddle_down_b")
 
-[node name="WaterAreas" type="Node2D" parent="GameplayPlane"]
+[node name="WaterAreas" type="Node2D" parent="GameplayPlane" unique_id=1471465019]
 
-[node name="LowerPaddy" type="Area2D" parent="GameplayPlane/WaterAreas"]
-position = Vector2(560, 596)
+[node name="LowerPaddy" type="Area2D" parent="GameplayPlane/WaterAreas" unique_id=2049447611]
 z_index = 3
+position = Vector2(560, 596)
 script = ExtResource("4_water")
-surface_size = Vector2(200, 72)
 buoyancy = 2.2
 linear_drag = 3.4
+surface_size = Vector2(200, 72)
 
-[node name="CentralPaddy" type="Area2D" parent="GameplayPlane/WaterAreas"]
-position = Vector2(2050, 320)
+[node name="CentralPaddy" type="Area2D" parent="GameplayPlane/WaterAreas" unique_id=1991169185]
 z_index = 3
+position = Vector2(2050, 320)
 script = ExtResource("4_water")
-surface_size = Vector2(300, 160)
 buoyancy = 2.6
 linear_drag = 3.1
+surface_size = Vector2(300, 160)
 
-[node name="Gorge" type="Node2D" parent="GameplayPlane"]
+[node name="Gorge" type="Node2D" parent="GameplayPlane" unique_id=962075642]
 
-[node name="RuinedBridge" type="Node2D" parent="GameplayPlane/Gorge"]
+[node name="RuinedBridge" type="Node2D" parent="GameplayPlane/Gorge" unique_id=1288469916]
 z_index = 6
 position = Vector2(2400, 240)
 script = ExtResource("12_bridge")
-span = 560.0
 
-[node name="DialogueNode" type="Area2D" parent="GameplayPlane/Gorge"]
+[node name="DialogueNode" type="Area2D" parent="GameplayPlane/Gorge" unique_id=1784507671]
 position = Vector2(2330, 240)
 script = ExtResource("13_dialogue")
-level_id = "level_1"
 
-[node name="CaveGate" type="Node2D" parent="GameplayPlane/Gorge"]
+[node name="CaveGate" type="Node2D" parent="GameplayPlane/Gorge" unique_id=1588459808]
 position = Vector2(2620, 632)
 script = ExtResource("17_gate")
 required_concept_id = "flashlight"
 hint_text = "Something is in there, but the dark is too thick to see through."
 
-[node name="HiddenFlower" type="Area2D" parent="GameplayPlane/Gorge"]
+[node name="HiddenFlower" type="Area2D" parent="GameplayPlane/Gorge" unique_id=737202559]
 position = Vector2(2700, 596)
 script = ExtResource("18_flower")
-collectible_id = "flower_1"
 
-[node name="Routes" type="Node2D" parent="GameplayPlane"]
+[node name="Routes" type="Node2D" parent="GameplayPlane" unique_id=960648785]
 script = ExtResource("14_routes")
 
-[node name="Artist" type="Node2D" parent="GameplayPlane/Routes"]
+[node name="Artist" type="Node2D" parent="GameplayPlane/Routes" unique_id=1122981442]
 
-[node name="MidPost" type="StaticBody2D" parent="GameplayPlane/Routes/Artist"]
+[node name="MidPost" type="StaticBody2D" parent="GameplayPlane/Routes/Artist" unique_id=342179837]
 position = Vector2(2650, 240)
 script = ExtResource("5_terrace")
 segment_size = Vector2(60, 332)
 surface_style = 2
 
-[node name="Pragmatist" type="Node2D" parent="GameplayPlane/Routes"]
+[node name="Pragmatist" type="Node2D" parent="GameplayPlane/Routes" unique_id=818647650]
 
-[node name="LedgeA" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist"]
+[node name="LedgeA" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist" unique_id=253390672]
 position = Vector2(2400, 336)
 script = ExtResource("5_terrace")
 segment_size = Vector2(104, 28)
 surface_style = 2
 
-[node name="LedgeB" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist"]
+[node name="LedgeB" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist" unique_id=387456915]
 position = Vector2(2464, 432)
 script = ExtResource("5_terrace")
 segment_size = Vector2(104, 28)
 surface_style = 2
 
-[node name="LedgeC" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist"]
+[node name="LedgeC" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist" unique_id=204425953]
 position = Vector2(2400, 560)
 script = ExtResource("5_terrace")
 segment_size = Vector2(120, 28)
 surface_style = 2
 
-[node name="ExitShelf" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist"]
+[node name="ExitShelf" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist" unique_id=1137262035]
 position = Vector2(2860, 560)
 script = ExtResource("5_terrace")
 segment_size = Vector2(100, 28)
 surface_style = 2
 
-[node name="Protector" type="Node2D" parent="GameplayPlane/Routes"]
+[node name="Protector" type="Node2D" parent="GameplayPlane/Routes" unique_id=301092398]
 
-[node name="DeadTree" type="Node2D" parent="GameplayPlane/Routes/Protector"]
+[node name="DeadTree" type="Node2D" parent="GameplayPlane/Routes/Protector" unique_id=102827750]
 position = Vector2(2360, 240)
 script = ExtResource("15_tree")
-trunk_size = Vector2(54, 300)
 span_length = 250.0
-health = 100.0
 
-[node name="CrumbleA" type="StaticBody2D" parent="GameplayPlane/Routes/Protector"]
+[node name="CrumbleA" type="StaticBody2D" parent="GameplayPlane/Routes/Protector" unique_id=526046282]
 position = Vector2(2700, 232)
 script = ExtResource("16_collapse")
 platform_size = Vector2(220, 34)
 
-[node name="CrumbleB" type="StaticBody2D" parent="GameplayPlane/Routes/Protector"]
+[node name="CrumbleB" type="StaticBody2D" parent="GameplayPlane/Routes/Protector" unique_id=1574591224]
 position = Vector2(2890, 232)
 script = ExtResource("16_collapse")
 platform_size = Vector2(220, 34)
 
-[node name="Decor" type="Node2D" parent="GameplayPlane"]
+[node name="Decor" type="Node2D" parent="GameplayPlane" unique_id=1401248588]
 z_index = 5
 
-[node name="FenceA" type="Sprite2D" parent="GameplayPlane/Decor"]
+[node name="FenceA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1125018844]
 position = Vector2(980, 406)
 texture = SubResource("Atlas_fence")
 
-[node name="RockA" type="Sprite2D" parent="GameplayPlane/Decor"]
+[node name="RockA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1234385817]
 position = Vector2(1370, 250)
 texture = SubResource("Atlas_rock")
 
-[node name="PlantA" type="Sprite2D" parent="GameplayPlane/Decor"]
+[node name="PlantA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1363963344]
 position = Vector2(1660, 208)
 texture = SubResource("Atlas_plant")
 
-[node name="FenceB" type="Sprite2D" parent="GameplayPlane/Decor"]
+[node name="FenceB" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=2061273148]
 position = Vector2(2180, 208)
 texture = SubResource("Atlas_fence")
 
-[node name="BushA" type="Sprite2D" parent="GameplayPlane/Decor"]
+[node name="BushA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1430528708]
 position = Vector2(3060, 208)
 texture = SubResource("Atlas_bush")
 
-[node name="HutOverlook" type="Sprite2D" parent="GameplayPlane/Decor"]
-position = Vector2(3480, 134)
+[node name="HutOverlook" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=962046339]
+position = Vector2(3700, 134)
 scale = Vector2(1.22, 1.22)
 texture = SubResource("Atlas_hut")
 
-[node name="Floor" type="StaticBody2D" parent="GameplayPlane"]
+[node name="Floor" type="StaticBody2D" parent="GameplayPlane" unique_id=1952527368]
 position = Vector2(1880, 656)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Floor"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Floor" unique_id=1785748573]
 shape = SubResource("Rectangle_floor")
 
-[node name="LeftWall" type="StaticBody2D" parent="GameplayPlane"]
+[node name="LeftWall" type="StaticBody2D" parent="GameplayPlane" unique_id=369458767]
 position = Vector2(0, 80)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/LeftWall"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/LeftWall" unique_id=2080581112]
 shape = SubResource("Rectangle_wall")
 
-[node name="RightWall" type="StaticBody2D" parent="GameplayPlane"]
+[node name="RightWall" type="StaticBody2D" parent="GameplayPlane" unique_id=1871620131]
 position = Vector2(3760, 80)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/RightWall"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/RightWall" unique_id=1719693980]
 shape = SubResource("Rectangle_wall")
 
-[node name="ForegroundLayer" type="Node2D" parent="."]
+[node name="Obstacles" type="Node2D" parent="GameplayPlane" unique_id=89777346]
+
+[node name="B0_HAGDAN" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=153923965]
+position = Vector2(700, 470)
+script = ExtResource("19_j5wv8")
+obstacle_id = "B0_HAGDAN"
+trigger_size = Vector2(360, 300)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/B0_HAGDAN" unique_id=732542801]
+shape = SubResource("RectangleShape2D_y6bxt")
+
+[node name="L1_N1" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=508987752]
+position = Vector2(2360, 300)
+script = ExtResource("19_j5wv8")
+obstacle_id = "L1_N1"
+trigger_size = Vector2(460, 420)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N1" unique_id=1714758991]
+shape = SubResource("RectangleShape2D_ryned")
+
+[node name="L1_N2" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=1349389394]
+position = Vector2(3140, 160)
+script = ExtResource("19_j5wv8")
+obstacle_id = "L1_N2"
+trigger_size = Vector2(400, 300)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N2" unique_id=1992905006]
+shape = SubResource("RectangleShape2D_owbyo")
+
+[node name="L1_N3" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=1170798170]
+position = Vector2(3500, 110)
+script = ExtResource("19_j5wv8")
+obstacle_id = "L1_N3"
+trigger_size = Vector2(420, 320)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N3" unique_id=1566155730]
+shape = SubResource("RectangleShape2D_aty4c")
+
+[node name="Hagdan" type="Node2D" parent="GameplayPlane" unique_id=1689954354]
+
+[node name="TreadUpper" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=950612297]
+position = Vector2(696, 424)
+script = ExtResource("20_ryned")
+tread_size = Vector2(64, 34)
+
+[node name="TreadTop" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=480847419]
+position = Vector2(724, 402)
+script = ExtResource("20_ryned")
+tread_size = Vector2(36, 26)
+
+[node name="BrokenA" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=47185594]
+position = Vector2(668, 486)
+script = ExtResource("20_ryned")
+tread_size = Vector2(60, 30)
+is_broken = true
+
+[node name="GapSlotA" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=648570639]
+position = Vector2(668, 486)
+
+[node name="BrokenB" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=2607205]
+position = Vector2(652, 518)
+script = ExtResource("20_ryned")
+tread_size = Vector2(56, 30)
+is_broken = true
+
+[node name="GapSlotB" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=1576016004]
+position = Vector2(652, 518)
+
+[node name="BrokenC" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=700847353]
+position = Vector2(640, 548)
+script = ExtResource("20_ryned")
+tread_size = Vector2(52, 30)
+is_broken = true
+
+[node name="GapSlotC" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=562414549]
+position = Vector2(640, 548)
+
+[node name="FloatingTread" type="RigidBody2D" parent="GameplayPlane/Hagdan" unique_id=1182508414]
+position = Vector2(560, 600)
+mass = 0.6
+gravity_scale = 0.35
+script = ExtResource("21_a6y54")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Hagdan/FloatingTread" unique_id=1837793347]
+shape = SubResource("RectangleShape2D_a6y54")
+
+[node name="Stone" type="Sprite2D" parent="GameplayPlane/Hagdan/FloatingTread" unique_id=211348818]
+z_index = 3
+texture_filter = 1
+scale = Vector2(1.0476191, 0.25581396)
+texture = SubResource("AtlasTexture_7hgod")
+
+[node name="CP0" type="Area2D" parent="GameplayPlane/Hagdan" unique_id=2079276445]
+position = Vector2(830, 380)
+script = ExtResource("20_y6bxt")
+checkpoint_id = "CP0"
+trigger_size = Vector2(150, 200)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Hagdan/CP0" unique_id=318478695]
+shape = SubResource("RectangleShape2D_3uax6")
+
+[node name="Dayami" type="Node2D" parent="GameplayPlane" unique_id=291343289]
+
+[node name="StrawPileA" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1230508619]
+position = Vector2(3040, 240)
+script = ExtResource("23_3uax6")
+pile_size = Vector2(140, 88)
+
+[node name="StrawPileB" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1226213335]
+position = Vector2(3160, 240)
+script = ExtResource("23_3uax6")
+pile_size = Vector2(158, 100)
+
+[node name="StrawPileC" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1006328619]
+position = Vector2(3268, 240)
+script = ExtResource("23_3uax6")
+pile_size = Vector2(132, 82)
+
+[node name="FoldingStool" type="Sprite2D" parent="GameplayPlane/Dayami" unique_id=1479238481]
+position = Vector2(2990, 240)
+scale = Vector2(0.7, 0.7)
+offset = Vector2(0, -17)
+texture = SubResource("Atlas_stool")
+
+[node name="BrushJar" type="Sprite2D" parent="GameplayPlane/Dayami" unique_id=796148671]
+position = Vector2(3014, 240)
+offset = Vector2(0, -19)
+texture = SubResource("Atlas_jar")
+
+[node name="Baul" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319160]
+position = Vector2(3160, 240)
+script = ExtResource("24_vekj0")
+
+[node name="Bale" type="Node2D" parent="GameplayPlane" unique_id=913205178]
+
+[node name="House" type="Node2D" parent="GameplayPlane/Bale" unique_id=1120996384]
+position = Vector2(3500, 200)
+script = ExtResource("25_owbyo")
+
+[node name="Bulul1" type="Node2D" parent="GameplayPlane/Bale" unique_id=525187676]
+position = Vector2(3452, 200)
+script = ExtResource("26_jto6m")
+
+[node name="Bulul2" type="Node2D" parent="GameplayPlane/Bale" unique_id=1716894567]
+position = Vector2(3496, 200)
+script = ExtResource("26_jto6m")
+
+[node name="ForegroundLayer" type="Node2D" parent="." unique_id=3763005]
+modulate = Color(0.75, 0.9, 0.66, 0.72)
 z_index = 30
 script = ExtResource("3_depth")
 depth = -1.0
 scroll_scale = 1.08
 z_index_base = 30
-modulate = Color(0.75, 0.9, 0.66, 0.72)
 
-[node name="FrontPlantA" type="Sprite2D" parent="ForegroundLayer"]
+[node name="FrontPlantA" type="Sprite2D" parent="ForegroundLayer" unique_id=1148351854]
 position = Vector2(120, 625)
 scale = Vector2(1.4, 1.4)
 texture = SubResource("Atlas_plant")
 
-[node name="FrontBushA" type="Sprite2D" parent="ForegroundLayer"]
+[node name="FrontBushA" type="Sprite2D" parent="ForegroundLayer" unique_id=2076773605]
 position = Vector2(1840, 620)
 scale = Vector2(1.25, 1.25)
 texture = SubResource("Atlas_bush")
 
-[node name="FrontPlantB" type="Sprite2D" parent="ForegroundLayer"]
+[node name="FrontPlantB" type="Sprite2D" parent="ForegroundLayer" unique_id=1744903510]
 position = Vector2(3650, 610)
 scale = Vector2(1.45, 1.45)
 texture = SubResource("Atlas_plant")

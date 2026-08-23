@@ -49,6 +49,14 @@ var _level_completed := false
 ## and say in the telemetry which class was abandoned.
 var _current_form_name := ""
 var _current_form_id := ""
+## Payyo's obstacle layer. The director decides what an obstacle accepts, the checkpoints
+## decide what a death costs, and the script decides what Lolo says about either.
+var director: LevelDirector
+var checkpoints: CheckpointManager
+var script_lines_l1: DialogueScript
+var requirement_strip: RequirementStrip
+## The refusal beat fires on the FIRST decline anywhere in the level, then never again.
+var _refusal_spoken := false
 var _run_started_msec := 0
 ## entity_id -> true, for the "things drawn" stat. Distinct classes, not attempts.
 var _classes_this_run: Dictionary = {}
@@ -76,6 +84,7 @@ func _ready() -> void:
 	draw_button.pressed.connect(_on_draw_button_pressed)
 	draw_panel.drawing_ready.connect(_on_drawing_ready)
 	draw_panel.panel_closed.connect(_on_draw_panel_closed)
+	draw_panel.recognition_declined.connect(_on_recognition_declined)
 	ink_manager.ink_changed.connect(_on_ink_changed)
 	inventory_hud.slot_pressed.connect(_on_inventory_slot_pressed)
 	placement_controller.placement_confirmed.connect(_on_placement_confirmed)
@@ -89,6 +98,7 @@ func _ready() -> void:
 	ink_manager.ink_exhausted.connect(_on_ink_exhausted)
 	_run_started_msec = Time.get_ticks_msec()
 	_apply_level_identity()
+	_build_obstacle_layer()
 	_spawn_wanderer()
 	_load_dialogue()
 	_spawn_lolo()
@@ -99,7 +109,10 @@ func _ready() -> void:
 	backend_supervisor.connect("backend_starting", Callable(self, "_on_backend_starting"))
 	backend_supervisor.connect("backend_failed", Callable(self, "_on_backend_failed"))
 	# camera target is set by _spawn_wanderer; the spawn marker is only a location
-	draw_button.disabled = true
+	# The Draw button is NOT gated on the backend. It used to start disabled and be
+	# enabled only by `backend_ready`, so a backend that was slow, absent or wedged left
+	# it grey for the rest of the session with nothing watching to re-enable it -- while
+	# R opened the same panel regardless. Two doors into one room, one of them locked.
 	status_label.text = "Checking backend..."
 	_on_ink_changed(ink_manager.remaining(), ink_manager.capacity, ink_manager.reserved)
 	backend_supervisor.call("ensure_backend")
@@ -114,6 +127,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("redraw"):
 		get_viewport().set_input_as_handled()
+		if director != null:
+			director.note_canvas_opened()
 		draw_panel.open_panel()
 		return
 	for slot in range(6):
@@ -135,22 +150,482 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_draw_button_pressed() -> void:
 	if placement_controller.is_placing():
 		placement_controller.cancel_placement()
+	if director != null:
+		director.note_canvas_opened()
 	draw_panel.open_panel()
 
 
 func _on_backend_ready() -> void:
-	draw_button.disabled = false
 	status_label.text = "Ready — draw a morph or utility"
 
 
 func _on_backend_starting(message: String) -> void:
-	draw_button.disabled = true
 	status_label.text = message
 
 
+## Reported, not enforced. The panel says the same thing where the player is actually
+## looking when it matters (draw_panel says "backend unreachable" under the canvas), and
+## shutting the door to the panel does not make the backend arrive any sooner -- it only
+## removes the one screen that explains what is wrong.
 func _on_backend_failed(message: String) -> void:
-	draw_button.disabled = true
 	status_label.text = message
+
+
+## Payyo's obstacle layer, built in code rather than authored into game_level.tscn. The
+## director and the checkpoints have no scene presence worth authoring, and the strip's
+## whole content is dynamic -- generating scene files by hand is also the single trap that
+## has bitten this project most often.
+func _build_obstacle_layer() -> void:
+	director = LevelDirector.new()
+	director.name = "LevelDirector"
+	add_child(director)
+	if not director.load_level():
+		push_warning("GameLevel: no level data; obstacles will accept nothing")
+
+	checkpoints = CheckpointManager.new()
+	checkpoints.name = "CheckpointManager"
+	add_child(checkpoints)
+
+	script_lines_l1 = DialogueScript.new()
+	script_lines_l1.load_from("res://config/dialogue_l1.json")
+
+	requirement_strip = RequirementStrip.new()
+	requirement_strip.name = "RequirementStrip"
+	# Clear of the keybind strip, which sits at -108 and was being covered by this at
+	# -164: the panel grows DOWNWARD from its top offset, so a two-line requirement ran
+	# straight over "ESC MENU". -220 leaves room for the tallest state (tag line, own
+	# classes, and the T3 note) with the keybind row still readable underneath.
+	requirement_strip.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	requirement_strip.offset_left = 24.0
+	requirement_strip.offset_top = -220.0
+	requirement_strip.offset_right = 760.0
+	requirement_strip.offset_bottom = -140.0
+	requirement_strip.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	$CanvasLayer.add_child(requirement_strip)
+
+	director.obstacle_entered.connect(_on_obstacle_entered)
+	director.obstacle_exited.connect(_on_obstacle_exited)
+	director.requirements_changed.connect(_on_requirements_changed)
+	director.hint_tier_changed.connect(_on_hint_tier_changed)
+	director.route_committed.connect(_on_obstacle_route_committed)
+	director.obstacle_solved.connect(_on_obstacle_solved)
+
+	# Checkpoints you walk into, for the beats with no dialogue to hang one on.
+	for node in get_tree().get_nodes_in_group(&"checkpoint_areas"):
+		var area := node as CheckpointArea2D
+		if area == null:
+			continue
+		if not _checkpoint_is_declared(area.checkpoint_id):
+			push_error("GameLevel: checkpoint area '%s' is not in level_01.json"
+				% area.checkpoint_id)
+			continue
+		area.reached.connect(_on_checkpoint_area_reached)
+
+	_wire_the_bulul()
+
+	for node in get_tree().get_nodes_in_group(&"level_obstacles"):
+		var area := node as LevelObstacle2D
+		if area == null:
+			continue
+		# An obstacle volume whose id is not in the data is a dead trigger: the player
+		# walks through it and nothing ever asks them for anything. Loud, not silent.
+		if director.obstacle(area.obstacle_id).is_empty():
+			push_error("GameLevel: obstacle volume '%s' has no entry in level_01.json"
+				% area.obstacle_id)
+			continue
+		area.player_entered.connect(director.enter_obstacle)
+		area.player_exited.connect(director.exit_obstacle)
+
+
+func _checkpoint_is_declared(checkpoint_id: String) -> bool:
+	if checkpoint_id.is_empty() or director == null:
+		return false
+	for entry_value: Variant in (director.level_data().get("checkpoints", []) as Array):
+		if String((entry_value as Dictionary).get("id", "")) == checkpoint_id:
+			return true
+	return false
+
+
+func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
+	_write_checkpoint(checkpoint_id)
+	status_label.text = "Checkpoint"
+
+
+func _on_obstacle_entered(obstacle_id: String) -> void:
+	_speak(script_lines_l1.fire("%s.enter" % obstacle_id))
+	# A node teaches all three of its routes' verbs BEFORE the choice, because a player
+	# cannot choose a path whose verb they have never been told.
+	var teaches: Array = director.obstacle(obstacle_id).get("teaches_before_choice", [])
+	if not teaches.is_empty():
+		_speak(script_lines_l1.fire("%s.teach" % obstacle_id))
+		director.teach_before_choice(obstacle_id)
+	_speak_current_stage(obstacle_id)
+	_refresh_requirements()
+
+
+## Lolo asking for the thing this sub-beat needs -- "gumuhit ka ng kayang span".
+##
+## These lines existed in the script from the start and nothing fired them, so Beat 0's
+## actual instructions were dead: the tutorial asked for nothing out loud and the only
+## thing naming the requirement was the strip, which does not appear until T1. A player
+## who walks in and waits was told nothing at all for thirty seconds.
+func _speak_current_stage(obstacle_id: String) -> void:
+	var stage := director.stage_id(obstacle_id)
+	if stage.is_empty():
+		return
+	_speak(script_lines_l1.fire("%s.%s" % [obstacle_id, stage]))
+
+
+func _on_obstacle_exited(_obstacle_id: String) -> void:
+	if requirement_strip != null:
+		requirement_strip.clear()
+
+
+func _on_requirements_changed(_obstacle_id: String, _required: Array) -> void:
+	_refresh_requirements()
+
+
+func _on_hint_tier_changed(obstacle_id: String, tier: int) -> void:
+	_refresh_requirements()
+	Telemetry.record_event("hint_tier_changed", {
+		"level_id": LevelManager.current_level_id,
+		"obstacle_id": obstacle_id, "tier": tier,
+	})
+
+
+func _refresh_requirements() -> void:
+	if requirement_strip == null or director == null:
+		return
+	var obstacle_id := director.current_obstacle()
+	if obstacle_id.is_empty() or director.is_solved(obstacle_id):
+		requirement_strip.clear()
+		return
+	var spec := director.requirement_spec()
+	var owned := AbilityTags.known_solutions(
+		spec.get("required_tags", []),
+		String(spec.get("match", "all")),
+		spec.get("exclude", []))
+	requirement_strip.show_requirements(director.required_tags(), director.hint_tier(), owned)
+
+
+## The checkpoint is written HERE, on the commit, not on the solve -- so that every morph
+## on the route is protected and a death cannot make the player answer Lolo twice.
+func _on_obstacle_route_committed(obstacle_id: String, route: String) -> void:
+	_speak(script_lines_l1.fire("%s.%s.commit" % [obstacle_id, route]))
+	var checkpoint_id := String(director.obstacle(obstacle_id).get("checkpoint_on_commit", ""))
+	if not checkpoint_id.is_empty():
+		_write_checkpoint(checkpoint_id)
+
+
+func _on_obstacle_solved(obstacle_id: String, route: String, label: String, attempt_count: int, tier: int) -> void:
+	if obstacle_id == "L1_N2":
+		_search_the_straw(route)
+	elif obstacle_id == "L1_N3":
+		_open_the_baul(route)
+	else:
+		_speak(script_lines_l1.fire("%s.%s.solved" % [obstacle_id, route]))
+	_refresh_requirements()
+	Telemetry.record_event("obstacle_solved", {
+		"level_id": LevelManager.current_level_id,
+		"obstacle_id": obstacle_id, "route": route, "accepted_label": label,
+		"attempts": attempt_count, "hint_tier": tier,
+		"assisted": director.was_assisted(obstacle_id),
+	})
+
+
+## Offer what just entered the world to whatever obstacle the player is standing in.
+##
+## Silent when there is no obstacle, which is most of the level: drawing a frog in an
+## empty paddy is a thing the player is allowed to do for its own sake, and answering it
+## with "that is not what this needs" would turn the whole level into a quiz.
+func _judge_submission(entity_id: String) -> void:
+	if director == null or director.current_obstacle().is_empty():
+		return
+	var verdict := director.note_submission(entity_id)
+	# The strip re-reads the director either way: a solve moves it to the next stage, and
+	# a miss may have opened the next hint tier.
+	_refresh_requirements()
+	if bool(verdict["solves"]) and not String(verdict["stage_id"]).is_empty():
+		# Beat 0's sub-beats have their own lines ("B0_HAGDAN.sub1.solved"); a route's
+		# second stage does not, and reports an empty stage id rather than a missing hook.
+		_speak(script_lines_l1.fire("%s.%s.solved" % [
+			verdict["obstacle_id"], verdict["stage_id"]]))
+	if bool(verdict["stage_advanced"]):
+		# The next sub-beat has to ask for itself, or the second half of the tutorial is
+		# silent and the player is left guessing what changed.
+		_speak_current_stage(String(verdict["obstacle_id"]))
+
+
+## Ang Dayami: three ways to find the same chest, and they are not the same.
+##
+## The route decides what happens to the straw AND what the player walks away knowing. That
+## second part is the one that matters later: combing turns up her sketchbook page, which is
+## the only place in the level anyone is told to look for something on a nail. A player who
+## took the fast route reaches Node 3 without that, and searches longer for it.
+func _search_the_straw(route: String) -> void:
+	var piles: Array[StrawPile2D] = []
+	for node in get_tree().get_nodes_in_group(&"straw_piles"):
+		var pile := node as StrawPile2D
+		if pile != null:
+			piles.append(pile)
+
+	match route:
+		"artist":
+			for pile in piles:
+				pile.comb()
+			await _comb_the_piles()
+		"pragmatist":
+			for pile in piles:
+				pile.tunnel()
+			_speak(script_lines_l1.fire("L1_N2.pragmatist.solved"))
+		"protector":
+			for pile in piles:
+				pile.scatter()
+			# The cost, recorded rather than described: Lolo says nothing about it here and
+			# mentions it at the marker stone, and the exit line is gated on this flag.
+			script_lines_l1.set_flag("straw_scattered")
+			Telemetry.record_event("persistent_effect", {
+				"level_id": LevelManager.current_level_id,
+				"obstacle_id": "L1_N2", "effect": "straw_scattered",
+			})
+			_speak(script_lines_l1.fire("L1_N2.protector.solved"))
+	_uncover_the_baul()
+
+
+## Three passes, and the middle two are the reward. Slowest route, and the only one that
+## surfaces anything besides the chest.
+func _comb_the_piles() -> void:
+	await get_tree().create_timer(0.7).timeout
+	_speak(script_lines_l1.fire("L1_N2.artist.pass2"))
+	await get_tree().create_timer(1.4).timeout
+	_speak(script_lines_l1.fire("L1_N2.artist.pass3"))
+	# What the page is FOR. Node 3's Artist route reads this flag, so the patient player
+	# arrives already knowing where to look.
+	script_lines_l1.set_flag("knows_about_key")
+	Telemetry.record_event("route_reward", {
+		"level_id": LevelManager.current_level_id,
+		"obstacle_id": "L1_N2", "reward": "sketchbook_page", "sets_flag": "knows_about_key",
+	})
+
+
+func _uncover_the_baul() -> void:
+	for node in get_tree().get_nodes_in_group(&"baul"):
+		var chest := node as Baul2D
+		if chest != null:
+			chest.reveal()
+	_speak(script_lines_l1.fire("L1_N2.solved"))
+
+
+## Ang Bale: three ways into the same chest, and the third one costs something.
+func _open_the_baul(route: String) -> void:
+	match route:
+		"artist":
+			await _into_the_attic()
+		"pragmatist":
+			# The ward sequence runs on its own, driven by the drawn key rather than by
+			# the solve -- see _on_key_offered. Getting here means the lock is open.
+			_speak(script_lines_l1.fire("L1_N3.ward.solved"))
+		"protector":
+			# THE ONE COST THAT LEAVES THIS LEVEL. Cutting the hasp creases what is inside,
+			# and the player finds out in Pista rather than here: the seam runs through the
+			# painted street and Hidden Flower 2 sits on the damaged side of it.
+			script_lines_l1.set_flag("canvas_2_creased")
+			PlayerProfile.record_canvas_damage("canvas_2_pista")
+			Telemetry.record_event("persistent_effect", {
+				"level_id": LevelManager.current_level_id,
+				"obstacle_id": "L1_N3", "effect": "canvas_2_creased",
+				"cross_level_effect": "L2_PISTA.hidden_flower_2.unreachable",
+			})
+			_speak(script_lines_l1.fire("L1_N3.protector.solved"))
+	_grant_the_canvas()
+
+
+## Over the thatch and in under the eaves. The halipan are what make this the way in rather
+## than the posts, and the attic is where she left the key.
+##
+## A player who combed the straw at Node 2 already knows to look on a nail; one who did not
+## is searching a dark granary for something nobody mentioned. Same room, different length.
+func _into_the_attic() -> void:
+	_speak(script_lines_l1.fire("L1_N3.artist.attic"))
+	var search := 1.6
+	if script_lines_l1.is_flag_set("knows_about_key"):
+		search *= float(director.obstacle("L1_N3")
+			.get("routes", {})
+			.get("artist", {})
+			.get("search_time_modifier_if_flag", {})
+			.get("knows_about_key", 1.0))
+	await get_tree().create_timer(search).timeout
+	_speak(script_lines_l1.fire("L1_N3.attic.found"))
+	await get_tree().create_timer(1.2).timeout
+	_speak(script_lines_l1.fire("L1_N3.artist.photo"))
+	Telemetry.record_event("route_reward", {
+		"level_id": LevelManager.current_level_id,
+		"obstacle_id": "L1_N3", "reward": "photograph_unnamed_woman",
+		"knew_about_key": script_lines_l1.is_flag_set("knows_about_key"),
+		"search_seconds": search,
+	})
+
+
+## What the chest held, and the reason Pista opens. The unlock happens at CP3 rather than
+## at the marker stone, so a player who stops after this keeps the progress.
+func _grant_the_canvas() -> void:
+	PlayerProfile.record_object_acquired("canvas_2_pista")
+	PlayerProfile.mark_level_completed(LevelManager.current_level_id)
+	Telemetry.record_event("item_granted", {
+		"level_id": LevelManager.current_level_id, "item": "canvas_2_pista",
+	})
+
+
+## The bulul, and the only thing they do. A refusal, not a hint: nothing unlocks, nothing
+## is recorded as progress, and Lolo says it once.
+func _wire_the_bulul() -> void:
+	for node in get_tree().get_nodes_in_group(&"bulul"):
+		var figure := node as Bulul2D
+		if figure != null:
+			figure.approached.connect(func() -> void:
+				_speak(script_lines_l1.fire("L1_N3.bulul_approach")))
+
+
+func _write_checkpoint(checkpoint_id: String) -> void:
+	var anchor_position := spawn_point.global_position
+	if player != null and is_instance_valid(player) and player.has_method("capture_morph_state"):
+		anchor_position = Vector2((player.call("capture_morph_state") as Dictionary).get(
+			"position", anchor_position))
+	checkpoints.write(checkpoint_id, {
+		"position": anchor_position,
+		"ink_committed": ink_manager.committed,
+		"toolbelt": PlayerProfile.acquired_objects(),
+		"obstacles": director.obstacle_state(),
+		"placed": _placed_entity_records(),
+	})
+	Telemetry.record_event("checkpoint_written", {
+		"level_id": LevelManager.current_level_id, "checkpoint_id": checkpoint_id,
+	})
+
+
+## Placed props, as data rather than as nodes: a checkpoint outlives the bodies it
+## describes, so storing references would restore a world full of freed objects.
+func _placed_entity_records() -> Array:
+	var records: Array = []
+	for child in world_item_root.get_children():
+		var prop := child as PhysicsShapeObject
+		if prop == null or prop.is_preview or prop.item_data == null:
+			continue
+		records.append({
+			"entity_id": prop.item_data.entity_id,
+			"instance_id": prop.get_instance_id(),
+			"transform": prop.global_transform,
+		})
+	return records
+
+
+## How far below the world the player may fall before the level takes them back.
+const FALL_LIMIT_MARGIN := 160.0
+
+## Put the player back at the last checkpoint.
+##
+## Beat 0 has no fail state and neither does anything else in Payyo -- this is not a death,
+## it is the level declining to let a fall be the end of ten minutes. What comes back is
+## what the spec asks for: where they were, the ink they had, the obstacles they had
+## already answered, and the props that existed at the time.
+##
+## PROPS ARE RE-HOMED, NOT REBUILT. A snapshot cannot carry a drawing -- the strokes and the
+## image belong to the entity, not to the record -- so anything freed and re-instantiated
+## would come back blank. Instead the props that existed at checkpoint time are moved back
+## to where they were, and anything placed SINCE is removed, which is the part a restore
+## actually has to undo.
+func _restore_checkpoint() -> String:
+	if checkpoints == null or not checkpoints.has_checkpoint():
+		return ""
+	var state := checkpoints.restore()
+	if state.is_empty():
+		return ""
+
+	if director != null and state.has("obstacles"):
+		director.restore_obstacle_state(state["obstacles"])
+
+	# Ink is level-scoped and lives in committed, so restoring it is a subtraction rather
+	# than a refill: anything spent since the checkpoint is given back.
+	if state.has("ink_committed"):
+		ink_manager.committed = minf(ink_manager.capacity, float(state["ink_committed"]))
+		ink_manager.reserved = 0.0
+		_on_ink_changed(ink_manager.remaining(), ink_manager.capacity, ink_manager.reserved)
+
+	_restore_placed_entities(state.get("placed", []))
+
+	var landing := Vector2(state.get("position", spawn_point.global_position))
+	if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
+		player.call("apply_morph_state", {"position": landing, "linear_velocity": Vector2.ZERO})
+	elif player != null and is_instance_valid(player):
+		player.global_position = landing
+
+	_refresh_requirements()
+	var checkpoint_id := checkpoints.latest_id()
+	Telemetry.record_event("checkpoint_restored", {
+		"level_id": LevelManager.current_level_id,
+		"checkpoint_id": checkpoint_id,
+		"restores_here": checkpoints.restore_count(checkpoint_id),
+	})
+	return checkpoint_id
+
+
+func _restore_placed_entities(records: Array) -> void:
+	var kept: Dictionary = {}
+	for record_value: Variant in records:
+		var record: Dictionary = record_value
+		kept[int(record.get("instance_id", 0))] = record
+	for child in world_item_root.get_children():
+		var prop := child as PhysicsShapeObject
+		if prop == null or prop.is_preview:
+			continue
+		var id := prop.get_instance_id()
+		if kept.has(id):
+			prop.global_transform = Transform2D((kept[id] as Dictionary)["transform"])
+			if prop is RigidBody2D:
+				(prop as RigidBody2D).linear_velocity = Vector2.ZERO
+				(prop as RigidBody2D).angular_velocity = 0.0
+		else:
+			# Placed after the checkpoint, so it did not exist at the moment being
+			# restored to. The ink that paid for it comes back with the ink line above.
+			prop.queue_free()
+
+
+## Payyo's lines, routed by who is saying them.
+##
+## The visual pass caught this: everything went to the status label, so Lolo's own voice
+## appeared as a caption at the top of the screen while his speech bubble carried an
+## unrelated line from the old dialogue file. Two narrators, disagreeing, in the level
+## whose job is to teach the game.
+##
+## Lolo speaks in his bubble, because that is where the player is already looking for him.
+## The apo is the player's own thought and stays in the status line. Lines arrive as a
+## list because most beats are several in a row, and the bubble shows them in sequence.
+func _speak(lines: Array) -> void:
+	for line_value: Variant in lines:
+		var line: Dictionary = line_value
+		var text := script_lines_l1.display_text(line)
+		if text.is_empty():
+			continue
+		if String(line.get("speaker", "lolo")) == "lolo" and lolo != null and is_instance_valid(lolo):
+			lolo.say(text)
+		else:
+			status_label.text = text
+
+
+## The refusal beat. It fires on the FIRST decline anywhere in the level and never again,
+## and it is scripted as dialogue rather than as a rejection: the model is not rigged to
+## fail, and the player is not being told they drew badly. No ink is spent -- the panel
+## already released it before this runs.
+func _on_recognition_declined(_entity: String, _confidence: float, _margin: float, reason: String) -> void:
+	if director != null:
+		director.note_decline(reason)
+	if _refusal_spoken:
+		return
+	var lines := script_lines_l1.fire("on_first_decline")
+	if lines.is_empty():
+		return
+	_refusal_spoken = true
+	_speak(lines)
 
 
 func _on_draw_panel_closed() -> void:
@@ -239,6 +714,7 @@ func _spawn_or_replace(
 	status_label.text = label
 	if debug_timing_logs:
 		print("Morph %s built in %.2f ms" % [entity_id, float(Time.get_ticks_usec() - spawn_started) / 1000.0])
+	_judge_submission(entity_id)
 	return true
 
 
@@ -368,6 +844,10 @@ func _on_placement_confirmed(
 		item.ink_committed = true
 	_connect_utility(placed as UtilityObject)
 	status_label.text = "%s placed" % item.display_name
+	# Judged HERE and not at recognition. A square that was drawn but never put down has
+	# not bridged anything, and letting the gap solve on recognition would mean the
+	# tutorial's one lesson -- that you place what you draw -- could be skipped.
+	_judge_submission(item.entity_id)
 
 
 func _on_placement_canceled(item: DrawnItemData, source_slot: int) -> void:
@@ -387,6 +867,9 @@ func _on_placement_canceled(item: DrawnItemData, source_slot: int) -> void:
 ## which, or what to do about it -- and because the controller re-emitted every frame,
 ## it was also the only thing the status line could ever say while placing.
 func _on_placement_changed(active: bool, valid: bool) -> void:
+	# Before the early return: the bar has to come back when the placement ends, and that
+	# is the call that arrives with active = false.
+	inventory_hud.set_click_through(active)
 	if not active:
 		return
 	if not valid:
@@ -538,6 +1021,22 @@ func _physics_process(_delta: float) -> void:
 		var anchor := player.call("get_physics_anchor") as Node2D
 		if anchor != null:
 			anchor_position = anchor.global_position
+	# A fall is not an ending. The wanderer used to wrap to the top of the world and a
+	# drawn creature did not handle it at all, so falling off as a fish meant falling
+	# forever. Either way the level takes them back to the last checkpoint instead.
+	var floor_limit: float = Rect2(environment.get("world_bounds")).end.y + FALL_LIMIT_MARGIN
+	if anchor_position.y > floor_limit:
+		var restored := _restore_checkpoint()
+		if restored.is_empty():
+			# Nothing written yet -- Beat 0 before its own checkpoint. Back to the start
+			# of the level, which is the only earlier place there is.
+			if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
+				player.call("apply_morph_state",
+					{"position": spawn_point.global_position, "linear_velocity": Vector2.ZERO})
+			status_label.text = "Back to the start"
+		else:
+			status_label.text = "Back to %s" % restored
+		return
 	# Crossing the far lip is what earns the memory, not choosing the route that would
 	# have earned it: the reward is for having rebuilt her bridge and walked over it.
 	if anchor_position.x > 2980.0:
@@ -546,9 +1045,49 @@ func _physics_process(_delta: float) -> void:
 	# The distance is already being computed to decide completion, so showing it costs
 	# nothing and gives the level a legible objective -- until now the only thing
 	# telling the player where to go was the level ending when they arrived.
-	goal_label.text = "GOAL  %d m" % int(distance / 32.0) if distance > GOAL_RADIUS else "GOAL REACHED"
-	if distance <= GOAL_RADIUS:
+	var may_finish := _completion_unlocked()
+	goal_label.text = "GOAL  %d m" % int(distance / 32.0) \
+		if distance > GOAL_RADIUS or not may_finish else "GOAL REACHED"
+	if distance <= GOAL_RADIUS and may_finish:
 		_complete_level()
+
+
+## Whether the level is allowed to end yet.
+##
+## The GoalMarker sits inside Ang Bale, and coming within its radius used to be the whole
+## condition -- so walking up to the house ENDED LEVEL 1. Lolo had not offered the three
+## ways in, the chest was still shut, the second canvas was never granted, and the
+## completion screen came up over a node the player had not played. Caught by
+## photographing the bale.
+##
+## The condition is not written here. Level 1's own file names the checkpoint that unlocks
+## it (`unlocks_at_checkpoint`, CP3), the checkpoint list says which obstacle that
+## checkpoint belongs to (CP3 is `at: L1_N3`), and the level may end once that obstacle has
+## been SOLVED. Not committed: CP3 is written on the route commit, so asking only whether
+## the checkpoint exists would let a player finish by pressing a dialogue button and walking
+## four metres, without drawing anything. A level that names no such checkpoint ends on
+## arrival exactly as before, which is what the levels with no obstacle layer want.
+func _completion_unlocked() -> bool:
+	if director == null:
+		return true
+	var obstacle_id := _obstacle_that_unlocks_the_exit()
+	if obstacle_id.is_empty():
+		return true
+	return director.is_solved(obstacle_id)
+
+
+func _obstacle_that_unlocks_the_exit() -> String:
+	var data := director.level_data()
+	var checkpoint_id := String(data.get("unlocks_at_checkpoint", ""))
+	if checkpoint_id.is_empty():
+		return ""
+	for entry_value: Variant in (data.get("checkpoints", []) as Array):
+		var entry: Dictionary = entry_value
+		if String(entry.get("id", "")) != checkpoint_id:
+			continue
+		# "L1_N3", or "B0_HAGDAN.top" for the ones that name a place within an obstacle.
+		return String(entry.get("at", "")).split(".")[0]
+	return ""
 
 
 ## Put the held item in the character's hand, and light the slot it came from, so what
@@ -737,11 +1276,21 @@ func _wire_dialogue_node() -> void:
 ## pausing -- it is a ModalOverlay, and UIRouter derives the tree's pause state from
 ## whoever is open -- so this only has to decide what he asks.
 func _on_dialogue_node_approached() -> void:
+	if lolo != null and is_instance_valid(lolo):
+		lolo.hush()
+	# Payyo's own script, when it has one. The three buttons are read off the commit
+	# lines rather than authored twice, so the button and the line the apo says when it
+	# is pressed are literally the same string and cannot drift.
+	var choices: Dictionary = script_lines_l1.choices_for("L1_N1") if script_lines_l1 != null else {}
+	if not choices.is_empty():
+		var context := ""
+		for line_value: Variant in script_lines_l1.peek("L1_N1.choice"):
+			context = String((line_value as Dictionary).get("text", ""))
+		dialogue_overlay.call("present", "Lolo", context, choices)
+		return
 	var node_lines: Dictionary = _script_lines.get("node", {})
 	if node_lines.is_empty():
 		return
-	if lolo != null and is_instance_valid(lolo):
-		lolo.hush()
 	dialogue_overlay.call(
 		"present",
 		String(node_lines.get("speaker", "Lolo")),
@@ -759,10 +1308,15 @@ func _on_route_picked(route: String) -> void:
 func _on_route_chosen(route: String) -> void:
 	if route_layout != null:
 		route_layout.apply_route(route)
-	var routes: Dictionary = _script_lines.get("routes", {})
-	if lolo != null and is_instance_valid(lolo):
-		lolo.say(String(routes.get(route, "")))
-	status_label.text = "Route: %s" % route.capitalize()
+	# The single write: the tally, the checkpoint and the telemetry all happen inside
+	# commit_route, and the commit line Lolo speaks is fired from route_committed.
+	if director != null:
+		director.commit_route("L1_N1", route)
+	else:
+		var routes: Dictionary = _script_lines.get("routes", {})
+		if lolo != null and is_instance_valid(lolo):
+			lolo.say(String(routes.get(route, "")))
+		status_label.text = "Route: %s" % route.capitalize()
 
 
 ## The Empathy route's reward, shown once the player has actually crossed the gorge
@@ -840,5 +1394,13 @@ func _on_restart_requested() -> void:
 func _on_ink_exhausted() -> void:
 	# Advisory, not a loss: the morph already spawned is still playable and the goal
 	# may still be reachable. Not shown once the level is already won.
-	if not _level_completed:
-		out_of_ink_overlay.open()
+	if _level_completed:
+		return
+	# And never over the canvas. The last of the ink is spent by a drawing being
+	# accepted, and the panel is still on screen at that moment -- an overlay eight
+	# layers above it would land on top of the drawing that just succeeded.
+	if draw_panel.is_open():
+		if not draw_panel.panel_closed.is_connected(_on_ink_exhausted):
+			draw_panel.panel_closed.connect(_on_ink_exhausted, CONNECT_ONE_SHOT)
+		return
+	out_of_ink_overlay.open()
