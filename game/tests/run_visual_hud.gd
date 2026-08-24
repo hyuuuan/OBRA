@@ -50,16 +50,26 @@ func _run() -> void:
 	hud.call("set_ink", 12.0, 12.0, 0.0)
 	level.get("status_label").text = "Ready — draw a morph or utility"
 
-	# The framed box, both voices, and the state that only exists for a second and a half:
-	# a line still arriving. If the reveal ever breaks it breaks here and nowhere else.
-	level.get("lolo").call("say", "Four hundred years. Maybe less. They built this while the Spanish were burning the lowlands — this was not left behind, apo. This is an answer.")
+	# A real beat: three lines, queued, with the world stopped and the camera pushed in on
+	# the speaker. Photographed mid-type and again once the arrow is up, because those are
+	# the two states the player actually sees.
+	level.call("_focus_camera_for", "lolo")
+	level.get("dialogue_box").call("speak", [
+		{"text": "Four hundred years. Maybe less. They built this while the Spanish were burning the lowlands.", "speaker": "Lolo"},
+		{"text": "This was not left behind, apo. This is an answer.", "speaker": "Lolo"},
+		{"text": "Her brush is still warm.", "speaker": "Apo"},
+	])
 	await _wait(0.5)
 	await _capture("03_dialogue_typing")
 	await _wait(3.0)
 	await _capture("04_dialogue_full")
-	level.get("dialogue_box").call("show_line", "Her brush is still warm.", "Apo")
-	await _wait(1.2)
-	await _capture("05_dialogue_apo")
+	level.get("dialogue_box").call("skip_all")
+	await _wait(0.8)
+
+	# The other channel: a hint, which never stops play and needs no key.
+	level.get("lolo").call("say", "Draw something that can SPAN it — anything that will cross the gap.")
+	await _wait(0.6)
+	await _capture("05_hint_bar")
 	level.get("lolo").call("hush")
 	await _wait(0.4)
 

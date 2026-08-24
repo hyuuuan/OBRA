@@ -21,13 +21,24 @@ extends Control
 ##     what makes a line feel spoken, and it gives a slow reader a pace to follow.
 ##   * AN ARROW WHEN IT IS DONE. A blinking mark is the difference between "the game is
 ##     still talking" and "the game is waiting for you".
+##   * THE PLAYER TURNS THE PAGE. A beat is a QUEUE of lines and the player advances it --
+##     first press finishes the line being typed, next press moves on. Before this the
+##     level handed a whole beat over in one synchronous loop, so five lines were written
+##     into the same label in the same frame and only the last one was ever visible. Four
+##     of every five lines in Level 1 could not be read at all.
+##
+## While a conversation is up the world is stopped and the camera is pushed in on whoever
+## is talking. Both of those are the same idea: a line of dialogue over a live wide shot is
+## a caption on a landscape, and the player reads the box without ever looking at who is
+## speaking.
 ##
 ## The frame is UIFrame, for the reason written at the top of that file: in this game the
 ## story is a painting, so it is presented in a picture frame.
 
-## Emitted when the last character has landed, so a caller can gate on the line being
-## readable rather than on the line having been requested.
+## Emitted when the last character of the current line has landed.
 signal finished()
+## Emitted when the whole conversation has been read and the box has closed.
+signal conversation_finished()
 
 ## Characters per second. Fast enough not to be a wait, slow enough to read along with.
 ## A line of Payyo's runs about ninety characters, so this is a shade under two seconds.
@@ -53,10 +64,20 @@ var _arrow: Control
 ## a caller asking "am I still speaking?" means itself, not the box.
 var current_speaker := ""
 
+## Lines still to be read, each {text, speaker}. The box shows the head of it.
+var _queue: Array[Dictionary] = []
 var _full := ""
 var _shown := 0.0
 var _hold := 0.0
 var _blink := 0.0
+## True while a queued beat is being read. A hint shown with show_line() alone does not
+## stop the world; a conversation does.
+var _blocking := false
+## Read by UIRouter.refresh_pause through the modal_overlays group. A conversation stops
+## the world; that is what makes it a conversation rather than a caption.
+var pauses_game := true
+## See set_auto_dismiss().
+var auto_dismiss := false
 
 
 func _init() -> void:
@@ -120,9 +141,39 @@ const GROUP := &"dialogue_box"
 
 
 func _ready() -> void:
+	# Must keep running while the tree is paused: this box IS what paused it, and the key
+	# that advances it has to reach something.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group(GROUP)
+	add_to_group(ModalOverlay.GROUP)
 	_relayout()
 	get_viewport().size_changed.connect(_relayout)
+
+
+## Read a whole beat, one line at a time, at the player's pace.
+##
+## `lines` is a list of {text, speaker}. Appending to a conversation already up is
+## deliberate: two hooks can fire in the same frame and the player should get both, in
+## order, rather than the second silently replacing the first.
+func speak(lines: Array) -> void:
+	for entry: Variant in lines:
+		var line: Dictionary = entry
+		if not String(line.get("text", "")).is_empty():
+			_queue.append(line)
+	if _queue.is_empty():
+		return
+	if auto_dismiss:
+		_queue.clear()
+		return
+	if not visible:
+		_advance()
+	UIRouter.refresh_pause(get_tree())
+
+
+## Part of the modal_overlays contract. A CONVERSATION stops the world; a single line put
+## up by show_line() does not, which is what keeps a one-off narration from freezing play.
+func is_open() -> bool:
+	return _blocking
 
 
 ## Say something. `speaker` may be empty for narration, which shows no tab.
@@ -149,6 +200,29 @@ func show_line(text: String, speaker: String = "", seconds: float = 0.0) -> void
 	_relayout()
 
 
+## Read and dismiss every beat the moment it starts.
+##
+## What a "skip cutscenes" switch does, and what every unattended fixture needs: a
+## conversation stops the tree until somebody presses a key, and a headless walkthrough has
+## nobody to press one. Without it, walking into the first obstacle pauses the world and
+## the walker reports the paddy as a wall.
+func set_auto_dismiss(on: bool) -> void:
+	auto_dismiss = on
+	if on:
+		skip_all()
+
+
+## Drop the rest of the beat and give the world back.
+##
+## A real skip -- what a player who has read it before wants, and what every headless
+## fixture needs, because a conversation stops the tree until somebody presses a key and
+## there is nobody there to press one. Without this, spawning the level in a test simply
+## hangs at the greeting.
+func skip_all() -> void:
+	_queue.clear()
+	_advance()
+
+
 ## Skip to the end of the line. What a press of the advance key does.
 func complete() -> void:
 	if not visible:
@@ -157,6 +231,12 @@ func complete() -> void:
 	_label.visible_ratio = 1.0
 	_arrow.visible = true
 	finished.emit()
+
+
+## The line currently on the box, whole, whether or not it has finished arriving. Reading
+## the label instead would give a test whatever fraction had been typed when it looked.
+func current_line() -> String:
+	return _full
 
 
 func is_typing() -> bool:
@@ -183,6 +263,38 @@ func _fade_to(alpha: float) -> Tween:
 	return tween
 
 
+## One key, two jobs, in the order a reader expects: the first press catches up the text
+## it is still typing, and the next one turns the page. A single press that did both would
+## make a fast reader skip a line they never saw.
+func _unhandled_input(event: InputEvent) -> void:
+	if not _blocking or not visible:
+		return
+	var pressed := event.is_action_pressed(&"ui_accept")
+	if not pressed and event is InputEventMouseButton:
+		var click := event as InputEventMouseButton
+		pressed = click.pressed and click.button_index == MOUSE_BUTTON_LEFT
+	if not pressed:
+		return
+	get_viewport().set_input_as_handled()
+	if is_typing():
+		complete()
+	else:
+		_advance()
+
+
+## Show the next line, or end the conversation if that was the last.
+func _advance() -> void:
+	if _queue.is_empty():
+		_blocking = false
+		hide_line()
+		UIRouter.refresh_pause(get_tree())
+		conversation_finished.emit()
+		return
+	_blocking = true
+	var line: Dictionary = _queue.pop_front()
+	show_line(String(line.get("text", "")), String(line.get("speaker", "")))
+
+
 func _process(delta: float) -> void:
 	var length := float(_full.length())
 	if _shown < length:
@@ -198,7 +310,7 @@ func _process(delta: float) -> void:
 
 	# A line given a duration clears itself; one given none stays until something
 	# replaces it, which is what a hint about the obstacle in front of you wants.
-	if _hold > 0.0:
+	if _hold > 0.0 and not _blocking:
 		_hold -= delta
 		if _hold <= 0.0:
 			hide_line()

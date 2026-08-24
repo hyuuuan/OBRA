@@ -26,9 +26,11 @@ const SPEAKER := "Lolo"
 
 @onready var _figure: Node2D = $Figure
 
-## Where his lines are shown. Screen space, owned by the level, handed to him at spawn --
-## see set_dialogue_box(). He no longer carries a bubble.
-var _box: DialogueBox
+## Where his HINTS are shown. Screen space, owned by the level, handed to him at spawn.
+## He no longer carries a bubble, and he no longer owns the story channel either: a beat
+## goes to the framed box through GameLevel, because it is a conversation with a queue and
+## a key to advance it, and none of that belongs to a companion who floats.
+var _hints: HintBar
 
 var _target: Node2D
 var _phase: float = 0.0
@@ -56,27 +58,27 @@ func say(text: String, seconds: float = 0.0) -> void:
 	if text.is_empty():
 		hush()
 		return
-	if _box != null:
-		_box.show_line(text, SPEAKER, seconds)
+	if _hints != null:
+		_hints.show_hint(text, SPEAKER, seconds)
 	_speech_time = seconds
 	_figure.set("talking", true)
 
 
-## Handed the screen-space box to speak through. Without one he simply says nothing, which
-## keeps every headless fixture that spawns a bare Lolo working.
-func set_dialogue_box(box: DialogueBox) -> void:
-	_box = box
+## Handed the hint bar to speak through. Without one he simply says nothing, which keeps
+## every headless fixture that spawns a bare Lolo working.
+func set_hint_bar(bar: HintBar) -> void:
+	_hints = bar
 
 
 func hush() -> void:
 	_speech_time = 0.0
 	_figure.set("talking", false)
-	if _box != null:
-		_box.hide_line()
+	if _hints != null:
+		_hints.clear()
 
 
 func is_speaking() -> bool:
-	return _box != null and _box.visible and _box.current_speaker == SPEAKER
+	return _hints != null and _hints.is_showing()
 
 
 func _process(delta: float) -> void:
