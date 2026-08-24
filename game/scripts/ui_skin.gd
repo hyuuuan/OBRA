@@ -40,6 +40,23 @@ const MUTED := Color(0.471, 0.502, 0.353, 1.0)        # 78805A
 ## canvas hands it straight back.
 const PENDING := Color(0.980, 0.900, 0.310, 1.0)      # FAE64F
 
+# --- The frame -------------------------------------------------------------------------
+## A gilt ramp, and the only warm colours in the interface.
+##
+## Deliberately not lime. The frame is a PAINTING'S frame, not a piece of UI chrome, and
+## the whole point of framing the story is that it is a different kind of thing from the
+## menu it opens over. Sharing the HUD's palette would have undone that -- a lime frame
+## reads as one more panel. Warm against the lime also happens to be what gilt looks like.
+const GILT_EDGE := Color(0.478, 0.114, 0.047, 1.0)    # 7A1D0C  the outline
+const GILT_DEEP := Color(0.753, 0.204, 0.094, 1.0)    # C03418  the red band
+const GILT_MID := Color(0.929, 0.439, 0.086, 1.0)     # ED7016  the orange band
+const GILT_LIT := Color(0.949, 0.757, 0.243, 1.0)     # F2C13E  the gold band
+const GILT_PALE := Color(0.973, 0.871, 0.549, 1.0)    # F8DE8C  the lit edge of the gold
+const GILT_RABBET := Color(0.420, 0.165, 0.078, 1.0)  # 6B2A14  the inner lip
+## The pins at the inner corners. Near white, because on a gilt frame they are the
+## brightest thing and that is what makes them read as hardware rather than as decoration.
+const GILT_PIN := Color(1.0, 0.957, 0.839, 1.0)       # FFF4D6
+
 # --- Button anatomy ---------------------------------------------------------------------
 ## The grey highlight ring immediately inside a button's edge. Identical across all three
 ## families in the mockup -- it is what makes a button read as raised rather than painted.

@@ -28,8 +28,8 @@ extends Control
 		unit = value
 		queue_redraw()
 
-## Carved ticks along the moulding. Worth turning off for a small frame, where the ticks
-## land closer together than they are wide and read as a dotted line.
+## The crest and the pins. Worth turning off for a small frame, where a crest is a bigger
+## fraction of the rail than of the object and the pins land on top of each other.
 @export var ornament: bool = true:
 	set(value):
 		ornament = value
@@ -55,17 +55,29 @@ extends Control
 
 ## Widths in units, outermost first. Named rather than inlined because the dialogue box
 ## measures its own text against them.
-const KEYLINE_U := 1.0
-## The lit step at the outer edge and the shaded one at the inner edge. One unit each --
-## a bevel is a catch of light, not a band, and widening it turns the moulding into two
-## flat colours instead of one piece of wood with an edge.
-const BEVEL_U := 1.0
-const MOULDING_U := 3.0
-const RABBET_U := 1.0
-const MAT_U := 2.0
+## The bands, outermost first: width in units, and what colour that width is painted.
+## Read as a table because that is what it is -- change a width or a colour here and the
+## whole frame follows, including the padding the dialogue box lays its text out against.
+const BANDS := [
+	[1.0, "EDGE"],
+	[3.0, "DEEP"],
+	[1.0, "MID"],
+	[1.0, "PALE"],
+	[1.0, "LIT"],
+	[2.0, "RABBET"],
+]
+
+## How far each corner is cut back, in steps of one unit. Three reads as a chamfer at a
+## glance and as a staircase up close, which is the whole idea.
+const CORNER_STEPS := 3
+
+## The crest at the top and bottom centre: how far it stands proud of the rail, and how
+## much of the frame's width it spans.
+const CREST_U := 5.0
+const CREST_SPAN := 0.20
 
 ## How much of the rect the frame itself eats, in units. What is left is canvas.
-const TOTAL_U := KEYLINE_U + BEVEL_U * 2.0 + MOULDING_U + RABBET_U + MAT_U
+const TOTAL_U := 9.0
 
 
 func _init() -> void:
@@ -109,123 +121,89 @@ func _draw() -> void:
 	if rect.size.x < u * TOTAL_U * 2.0 or rect.size.y < u * TOTAL_U * 2.0:
 		return
 
-	rect = _ring(rect, u * KEYLINE_U, UISkin.INK)
-	# Kept, because the joint blocks are drawn over the whole moulding at the end and need
-	# to know where its outer edge was.
-	var moulding := rect
-	var moulding_w := u * (BEVEL_U * 2.0 + MOULDING_U)
+	# Snapped to the unit grid so the crest's two halves are the same width. An odd number
+	# of units either side of centre puts one more step on the left than the right, and at
+	# this scale that is visible.
+	var crest_w := floorf(rect.size.x * CREST_SPAN / (u * 2.0)) * u * 2.0 if ornament else 0.0
 
-	# Light from the top left, and the two bevels lean opposite ways: the outer edge
-	# catches it and the inner edge falls into shadow. That opposition is the whole trick
-	# -- it is what makes the flat band between them read as the top of something raised
-	# rather than as a stripe.
-	rect = _bevel(rect, u * BEVEL_U, UISkin.LIME, UISkin.RING_OUTER)
-	var body := rect
-	rect = _ring(rect, u * MOULDING_U, UISkin.RING_MID)
+	# Each band is drawn as a SOLID silhouette and then covered by the next one in, rather
+	# than as a ring. A ring with stepped corners and a crest on it is four awkward shapes;
+	# a solid one is a stack of rows, and the stack is the same code for every band.
+	var inset := 0.0
+	for band: Array in BANDS:
+		_silhouette(rect.grow(-inset), u, crest_w - inset,
+			u * CREST_U - inset, _band_color(String(band[1])))
+		inset += float(band[0]) * u
+
 	if ornament:
-		_notches(body, u * MOULDING_U, u)
-	rect = _bevel(rect, u * BEVEL_U, UISkin.RING_OUTER, UISkin.LIME)
-
-	_joints(moulding, moulding_w, u)
-	rect = _ring(rect, u * RABBET_U, UISkin.INK)
-	rect = _ring(rect, u * MAT_U, UISkin.PANEL_LIT)
-	draw_rect(rect, canvas_color)
+		_pins(rect, u)
+	_silhouette(rect.grow(-inset), u, 0.0, 0.0, canvas_color)
 
 
-## Paint a ring `w` thick inside `rect` and hand back what is left. Four rects rather than
-## an unfilled draw_rect, because an unfilled one strokes centred on the boundary and
-## leaves the ring half outside the rect it was supposed to fit in.
-func _ring(rect: Rect2, w: float, color: Color) -> Rect2:
-	draw_rect(Rect2(rect.position, Vector2(rect.size.x, w)), color)
-	draw_rect(Rect2(rect.position + Vector2(0.0, rect.size.y - w),
-		Vector2(rect.size.x, w)), color)
-	draw_rect(Rect2(rect.position + Vector2(0.0, w), Vector2(w, rect.size.y - w * 2.0)), color)
-	draw_rect(Rect2(rect.position + Vector2(rect.size.x - w, w),
-		Vector2(w, rect.size.y - w * 2.0)), color)
-	return Rect2(rect.position + Vector2(w, w), rect.size - Vector2(w, w) * 2.0)
+func _band_color(name: String) -> Color:
+	match name:
+		"EDGE":
+			return UISkin.GILT_EDGE
+		"DEEP":
+			return UISkin.GILT_DEEP
+		"MID":
+			return UISkin.GILT_MID
+		"PALE":
+			return UISkin.GILT_PALE
+		"LIT":
+			return UISkin.GILT_LIT
+		_:
+			return UISkin.GILT_RABBET
 
 
-## A ring whose top and left take one colour and whose bottom and right take another.
-## Mitred at the corners, so the two colours meet on the diagonal the way a real moulding
-## is cut, rather than one overrunning the other and putting a bright notch in a dark edge.
-func _bevel(rect: Rect2, w: float, lit: Color, dark: Color) -> Rect2:
-	draw_colored_polygon(PackedVector2Array([
-		rect.position,
-		rect.position + Vector2(rect.size.x, 0.0),
-		rect.position + Vector2(rect.size.x - w, w),
-		rect.position + Vector2(w, w),
-	]), lit)
-	draw_colored_polygon(PackedVector2Array([
-		rect.position,
-		rect.position + Vector2(w, w),
-		rect.position + Vector2(w, rect.size.y - w),
-		rect.position + Vector2(0.0, rect.size.y),
-	]), lit)
-	draw_colored_polygon(PackedVector2Array([
-		rect.position + Vector2(0.0, rect.size.y),
-		rect.position + Vector2(w, rect.size.y - w),
-		rect.position + Vector2(rect.size.x - w, rect.size.y - w),
-		rect.position + rect.size,
-	]), dark)
-	draw_colored_polygon(PackedVector2Array([
-		rect.position + Vector2(rect.size.x, 0.0),
-		rect.position + rect.size,
-		rect.position + Vector2(rect.size.x - w, rect.size.y - w),
-		rect.position + Vector2(rect.size.x - w, w),
-	]), dark)
-	return Rect2(rect.position + Vector2(w, w), rect.size - Vector2(w, w) * 2.0)
-
-
-## Carving. Notches cut INTO the moulding, so they are darker than it rather than brighter:
-## a recess catches less light, not more. The first version drew them in lime at a tight
-## pitch, which made the whole top rail read as one bright dashed line instead of as wood
-## with marks in it.
-func _notches(rect: Rect2, thickness: float, u: float) -> void:
-	var pitch := u * 6.0
-	var depth := thickness - u * 2.0
-	if depth <= 0.0:
+## One solid band: a rectangle whose four corners are cut back in steps, with a crest
+## standing proud of the top and bottom rails.
+func _silhouette(rect: Rect2, u: float, crest_w: float, crest_h: float,
+		color: Color) -> void:
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
 		return
-	var inset := u
+	if crest_w > u * 4.0 and crest_h >= u:
+		var cx := rect.position.x + floorf(rect.size.x * 0.5)
+		for edge in [-1.0, 1.0]:
+			var top := rect.position.y - crest_h if edge < 0.0 else rect.position.y + rect.size.y
+			# The crest's own outer corners are cut by one step, so it reads as part of
+			# the same moulding rather than as a tab stuck onto it.
+			var lip := top if edge < 0.0 else top + crest_h - u
+			draw_rect(Rect2(Vector2(cx - crest_w * 0.5 + u, lip),
+				Vector2(crest_w - u * 2.0, u)), color)
+			var rest := top + u if edge < 0.0 else top
+			draw_rect(Rect2(Vector2(cx - crest_w * 0.5, rest),
+				Vector2(crest_w, crest_h - u)), color)
 
-	var span_x := rect.size.x - thickness * 2.0
-	var count_x := int(span_x / pitch)
-	# Centred on the run rather than started from one end, or the pattern is symmetrical
-	# on one side of the frame and cut off on the other.
-	var start_x := rect.position.x + thickness + (span_x - float(count_x) * pitch) * 0.5
-	for i in range(count_x):
-		var x := floorf(start_x + float(i) * pitch)
-		draw_rect(Rect2(Vector2(x, rect.position.y + inset), Vector2(u, depth)),
-			UISkin.RING_OUTER)
-		draw_rect(Rect2(Vector2(x, rect.position.y + rect.size.y - thickness + inset),
-			Vector2(u, depth)), UISkin.RING_OUTER)
-
-	var span_y := rect.size.y - thickness * 2.0
-	var count_y := int(span_y / pitch)
-	var start_y := rect.position.y + thickness + (span_y - float(count_y) * pitch) * 0.5
-	for i in range(count_y):
-		var y := floorf(start_y + float(i) * pitch)
-		draw_rect(Rect2(Vector2(rect.position.x + inset, y), Vector2(depth, u)),
-			UISkin.RING_OUTER)
-		draw_rect(Rect2(Vector2(rect.position.x + rect.size.x - thickness + inset, y),
-			Vector2(depth, u)), UISkin.RING_OUTER)
+	var steps := CORNER_STEPS
+	var cut := float(steps) * u
+	if rect.size.y <= cut * 2.0 or rect.size.x <= cut * 2.0:
+		draw_rect(rect, color)
+		return
+	for i in range(steps):
+		var side := float(steps - i) * u
+		var width := rect.size.x - side * 2.0
+		draw_rect(Rect2(Vector2(rect.position.x + side,
+			rect.position.y + float(i) * u), Vector2(width, u)), color)
+		draw_rect(Rect2(Vector2(rect.position.x + side,
+			rect.position.y + rect.size.y - float(i + 1) * u), Vector2(width, u)), color)
+	draw_rect(Rect2(Vector2(rect.position.x, rect.position.y + cut),
+		Vector2(rect.size.x, rect.size.y - cut * 2.0)), color)
 
 
-## The four corners, where the mitres meet, capped with a joint block.
-##
-## This is the strongest single cue that the thing is a frame and not a border, because it
-## is the one piece of a frame that has no equivalent in a UI panel. Drawn last, over the
-## bevels and the carving, which is exactly what a real corner block does.
-func _joints(rect: Rect2, thickness: float, u: float) -> void:
-	var block := Vector2(thickness, thickness)
+## The four pins, set into the gold band just inside each cut corner. They are the
+## brightest thing on the frame, which is what makes them read as hardware rather than as
+## more decoration -- and they are the detail that says "this object was made and joined"
+## more cheaply than any amount of carving.
+func _pins(rect: Rect2, u: float) -> void:
+	var depth := (float(BANDS[0][0]) + float(BANDS[1][0]) + float(BANDS[2][0])) * u
+	var band := rect.grow(-depth)
+	var step := float(CORNER_STEPS) * u
+	var size_px := Vector2(u, u) * 2.0
 	for corner in [
-		rect.position,
-		rect.position + Vector2(rect.size.x - thickness, 0.0),
-		rect.position + Vector2(0.0, rect.size.y - thickness),
-		rect.position + rect.size - block,
+		band.position + Vector2(step, step),
+		band.position + Vector2(band.size.x - step - size_px.x, step),
+		band.position + Vector2(step, band.size.y - step - size_px.y),
+		band.position + band.size - Vector2(step, step) - size_px,
 	]:
-		draw_rect(Rect2(corner, block), UISkin.RING_MID)
-		draw_rect(Rect2(corner, block), UISkin.LIME, false, u)
-		# A pin in the middle of the block. Two units across, so it survives being drawn
-		# at unit 3 for a small frame.
-		draw_rect(Rect2(corner + block * 0.5 - Vector2(u, u), Vector2(u, u) * 2.0),
-			UISkin.LIME)
+		draw_rect(Rect2(corner.floor(), size_px), UISkin.GILT_PIN)
