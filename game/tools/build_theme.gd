@@ -36,8 +36,19 @@ func _initialize() -> void:
 		return
 	theme.default_font = font
 
+	# A LABEL ON A BUTTON IS THE ONE PIECE OF TYPE THAT HAS TO CARRY AT A GLANCE, and Geist
+	# Pixel ships one weight. Rather than pull in a second face -- which would be a second
+	# thing to keep consistent, and there is no bold Geist Pixel to pull -- the same font is
+	# emboldened: FreeType dilates the outline before rasterising, so the stems thicken and
+	# the glyph stays on its own grid. Kept small on purpose; a pixel face pushed hard
+	# closes up its own counters and stops being readable at exactly the moment it looks
+	# strongest in the editor.
+	var bold := FontVariation.new()
+	bold.base_font = font
+	bold.variation_embolden = 0.08
+
 	_labels(theme)
-	_buttons(theme)
+	_buttons(theme, bold)
 	_panels(theme)
 	_ranges(theme)
 
@@ -88,11 +99,11 @@ func _label_variation(theme: Theme, name: String, color: Color, size: int) -> vo
 ## Three families, and which one a button belongs to is a statement about what pressing it
 ## does. Cream is the default because most buttons navigate; green is reserved for the act
 ## the screen exists for; red for the one that ends something.
-func _buttons(theme: Theme) -> void:
-	_family(theme, "Button", Palette.Family.CREAM, Palette.FONT_BUTTON)
-	_family(theme, "PrimaryButton", Palette.Family.GREEN, 26)
-	_family(theme, "DangerButton", Palette.Family.RED, Palette.FONT_BUTTON)
-	_family(theme, "DialogButton", Palette.Family.CREAM, 22)
+func _buttons(theme: Theme, bold: Font) -> void:
+	_family(theme, "Button", Palette.Family.CREAM, Palette.FONT_BUTTON, bold)
+	_family(theme, "PrimaryButton", Palette.Family.GREEN, Palette.FONT_BUTTON, bold)
+	_family(theme, "DangerButton", Palette.Family.RED, Palette.FONT_BUTTON, bold)
+	_family(theme, "DialogButton", Palette.Family.CREAM, Palette.FONT_BUTTON, bold)
 
 	## A level card is a panel you can press, not a button: it holds a title, a subtitle
 	## and a lock state, so it wears the frame and brightens rather than changing colour.
@@ -122,7 +133,7 @@ func _buttons(theme: Theme) -> void:
 	theme.set_font_size("font_size", "InventorySlot", Palette.FONT_CAPTION)
 
 
-func _family(theme: Theme, name: String, family: int, size: int) -> void:
+func _family(theme: Theme, name: String, family: int, size: int, bold: Font = null) -> void:
 	if name != "Button":
 		theme.set_type_variation(name, "Button")
 	theme.set_stylebox("normal", name, Palette.button(family, Palette.State.NORMAL))
@@ -130,6 +141,8 @@ func _family(theme: Theme, name: String, family: int, size: int) -> void:
 	theme.set_stylebox("pressed", name, Palette.button(family, Palette.State.PRESSED))
 	theme.set_stylebox("disabled", name, Palette.button(family, Palette.State.DISABLED))
 	theme.set_stylebox("focus", name, Palette.focus_ring())
+	if bold != null:
+		theme.set_font("font", name, bold)
 	var label := Palette.label_color(family)
 	theme.set_color("font_color", name, label)
 	theme.set_color("font_hover_color", name, label)

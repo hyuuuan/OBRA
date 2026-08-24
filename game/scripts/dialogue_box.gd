@@ -49,6 +49,19 @@ const SPEED := 52.0
 ## first word every time, and Payyo's script runs from "Here." to a full sentence about the
 ## Spanish burning the lowlands.
 const BOX := Vector2(1040.0, 310.0)
+## How far the box slides off centre to get out of the speaker's way.
+##
+## The box is 1040 wide on a 1600 screen, so there are 280 pixels of slack either side and
+## this spends most of them. Centred, it covered whoever was talking -- which defeats the
+## camera pushing in on them in the first place.
+const BIAS := 250.0
+## Kept clear at the screen edge, so the biased box never looks like it fell off.
+const EDGE_MARGIN := 30.0
+
+## Answers "which node is this speaker?", so the box can find out where they are on screen
+## without knowing anything about the level. Set by GameLevel.
+var subject_resolver: Callable = Callable()
+
 ## Reserved along the bottom of the canvas for the advance arrow, so the last line of a
 ## full paragraph does not run underneath it.
 const ARROW_GUTTER := 26.0
@@ -70,6 +83,8 @@ var _full := ""
 var _shown := 0.0
 var _hold := 0.0
 var _blink := 0.0
+## Which way this line's box is shifted, in pixels. Positive is right.
+var _bias := 0.0
 ## True while a queued beat is being read. A hint shown with show_line() alone does not
 ## stop the world; a conversation does.
 var _blocking := false
@@ -192,6 +207,10 @@ func show_line(text: String, speaker: String = "", seconds: float = 0.0) -> void
 	_label.visible_ratio = 0.0
 	_speaker.text = speaker.to_upper()
 	_speaker_tab.visible = not speaker.is_empty()
+	# Settled once per line rather than followed per frame. The camera is still easing in
+	# while the first characters arrive, and a box that slid around under the text as it
+	# typed would be worse than one that covered the speaker.
+	_bias = _bias_for(speaker)
 	_arrow.visible = false
 	set_process(true)
 	if not visible:
@@ -237,6 +256,11 @@ func complete() -> void:
 ## the label instead would give a test whatever fraction had been typed when it looked.
 func current_line() -> String:
 	return _full
+
+
+## Where the frame actually ended up, so a test can ask whether it got out of the way.
+func frame_rect() -> Rect2:
+	return Rect2(_frame.position, _frame.size)
 
 
 func is_typing() -> bool:
@@ -319,12 +343,29 @@ func _process(delta: float) -> void:
 func _relayout() -> void:
 	var view := get_viewport_rect().size
 	_frame.size = BOX
-	_frame.position = ((view - BOX) * 0.5).floor()
+	var centred := (view - BOX) * 0.5
+	var x := clampf(centred.x + _bias, EDGE_MARGIN, view.x - BOX.x - EDGE_MARGIN)
+	_frame.position = Vector2(floorf(x), floorf(centred.y))
 	# On the top rail, indented from the corner boss so it does not sit on the joint.
 	_speaker_tab.position = Vector2(UNIT * 6.0, -UNIT * 2.5)
 	_speaker_tab.size = _speaker_tab.get_combined_minimum_size()
 	var pad := UIFrame.inset_for(UNIT) + 16.0
 	_arrow.position = Vector2(BOX.x - pad - _arrow.size.x, BOX.y - pad - 4.0)
+
+
+## Which side to sit on: away from the speaker, so the push-in has something to show.
+##
+## Measured in SCREEN space rather than world space, because that is the question being
+## asked -- the camera has already moved and zoomed by the time this runs, and a world
+## coordinate says nothing about which half of the screen someone ended up in.
+func _bias_for(speaker: String) -> float:
+	if speaker.is_empty() or not subject_resolver.is_valid():
+		return 0.0
+	var subject := subject_resolver.call(speaker) as Node2D
+	if subject == null or not is_instance_valid(subject):
+		return 0.0
+	var on_screen := subject.get_global_transform_with_canvas().origin.x
+	return BIAS if on_screen < get_viewport_rect().size.x * 0.5 else -BIAS
 
 
 func _tab_style() -> StyleBoxFlat:

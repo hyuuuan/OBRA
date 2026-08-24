@@ -666,6 +666,13 @@ func _speak(lines: Array) -> void:
 	dialogue_box.speak(beat)
 
 
+## Who a plaque name refers to, in the world.
+func _speaker_node(speaker: String) -> Node2D:
+	if speaker == Lolo.SPEAKER:
+		return lolo if lolo != null and is_instance_valid(lolo) else null
+	return player if player != null and is_instance_valid(player) else null
+
+
 ## Push the camera in on whoever is talking, and give it back when the beat is over.
 func _focus_camera_for(speaker: String) -> void:
 	# Reached through the baseplate, which owns it -- the level does not hold a reference,
@@ -1186,6 +1193,10 @@ func _build_dialogue_box() -> void:
 	hint_bar = HintBar.new()
 	hint_bar.name = "HintBar"
 	layer.add_child(hint_bar)
+	# So the box can get out of the way of whoever is talking. A callable rather than the
+	# nodes themselves, because `player` is replaced on every morph and a stored reference
+	# would be pointing at a freed body by the second conversation.
+	dialogue_box.subject_resolver = _speaker_node
 
 
 ## The Draw button, as a key prompt rather than a button.
