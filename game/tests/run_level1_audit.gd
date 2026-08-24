@@ -870,13 +870,17 @@ func _audit_live_level() -> void:
 	await process_frame
 
 
-## What is in Lolo's speech bubble right now. His voice, as the player sees it -- not the
-## status label, which carries the apo's own lines.
+## What Lolo is saying right now. His voice as the player sees it, read out of the framed
+## box he shares with the apo -- and only when the box says the line is his, or this would
+## report the player's own thoughts as though he had spoken them.
 func _lolo_bubble(level: Node) -> String:
 	var lolo = level.get("lolo")
 	if lolo == null or not is_instance_valid(lolo):
 		return ""
-	return _collect_labels(lolo)
+	if not lolo.call("is_speaking"):
+		return ""
+	var box = level.get("dialogue_box")
+	return "" if box == null else _collect_labels(box)
 
 
 ## Drop a placed prop of `class_id` just above `target`, the way a player placing one

@@ -10,6 +10,11 @@ extends Node2D
 ## He deliberately does not collide with anything. A companion who can be stood on, or
 ## who can wedge the player into a wall, is a hazard rather than a guide.
 
+## What the box's plaque says when he is the one talking. The apo shares the same box for
+## their own thoughts, so the name is how either of them is told apart -- by the player
+## reading it, and by is_speaking() below.
+const SPEAKER := "Lolo"
+
 ## How far behind and above the player he settles.
 @export var follow_offset := Vector2(-92.0, -74.0)
 ## Higher is snappier. He is slower than the camera so he trails rather than sticks.
@@ -20,8 +25,10 @@ extends Node2D
 @export var bob_hz: float = 0.55
 
 @onready var _figure: Node2D = $Figure
-@onready var _bubble: Control = $Bubble
-@onready var _bubble_label: Label = $Bubble/Panel/Text
+
+## Where his lines are shown. Screen space, owned by the level, handed to him at spawn --
+## see set_dialogue_box(). He no longer carries a bubble.
+var _box: DialogueBox
 
 var _target: Node2D
 var _phase: float = 0.0
@@ -31,8 +38,6 @@ var _facing: float = 1.0
 
 func _ready() -> void:
 	add_to_group(&"companion")
-	_bubble.visible = false
-	_bubble.modulate.a = 0.0
 
 
 func follow(target: Node2D) -> void:
@@ -43,62 +48,35 @@ func follow(target: Node2D) -> void:
 
 ## Show a line until something replaces it. `seconds` of 0 means "until told
 ## otherwise", which is what a hint about the obstacle in front of you wants to be.
+##
+## THE SIGNATURE IS THE CONTRACT. TutorialDirector, LevelDirector and game_level all call
+## say/hush/is_speaking and none of them should have to know that the line is now drawn in
+## a framed box at the bottom of the screen rather than in a bubble over his head.
 func say(text: String, seconds: float = 0.0) -> void:
 	if text.is_empty():
 		hush()
 		return
-	_bubble_label.text = text
-	_fit_bubble(text)
+	if _box != null:
+		_box.show_line(text, SPEAKER, seconds)
 	_speech_time = seconds
-	if not _bubble.visible:
-		_bubble.visible = true
-		var appear := create_tween()
-		appear.tween_property(_bubble, "modulate:a", 1.0, 0.18)
 	_figure.set("talking", true)
 
 
-## Size the bubble to the line instead of to a fixed box.
-##
-## It was pinned at 300x88 whatever was in it, so a short line sat in a wide empty
-## rectangle and a long one wrapped to four cramped rows inside the same rectangle. Payyo's
-## lines run from "Here." to a full sentence about the Spanish burning the lowlands, and
-## one fixed box cannot serve both.
-##
-## The bubble's BOTTOM edge stays put -- it is what points at Lolo -- and the box grows
-## upward, so his head is never covered by his own speech.
-func _fit_bubble(text: String) -> void:
-	const MIN_WIDTH := 170.0
-	const MAX_WIDTH := 340.0
-	const PADDING := Vector2(26.0, 20.0)
-	const BOTTOM := -40.0          # where the bubble sits relative to Lolo
-
-	var font := _bubble_label.get_theme_font(&"font")
-	var size := _bubble_label.get_theme_font_size(&"font_size")
-	var single := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x
-	var width := clampf(single + PADDING.x, MIN_WIDTH, MAX_WIDTH)
-	# How tall that width makes it once wrapped.
-	var wrapped := font.get_multiline_string_size(
-		text, HORIZONTAL_ALIGNMENT_CENTER, width - PADDING.x, size)
-	var height := wrapped.y + PADDING.y
-
-	_bubble.offset_left = -width * 0.5
-	_bubble.offset_right = width * 0.5
-	_bubble.offset_bottom = BOTTOM
-	_bubble.offset_top = BOTTOM - height
+## Handed the screen-space box to speak through. Without one he simply says nothing, which
+## keeps every headless fixture that spawns a bare Lolo working.
+func set_dialogue_box(box: DialogueBox) -> void:
+	_box = box
 
 
 func hush() -> void:
 	_speech_time = 0.0
 	_figure.set("talking", false)
-	if not _bubble.visible:
-		return
-	var fade := create_tween()
-	fade.tween_property(_bubble, "modulate:a", 0.0, 0.18)
-	fade.tween_callback(func() -> void: _bubble.visible = false)
+	if _box != null:
+		_box.hide_line()
 
 
 func is_speaking() -> bool:
-	return _bubble.visible
+	return _box != null and _box.visible and _box.current_speaker == SPEAKER
 
 
 func _process(delta: float) -> void:
@@ -107,10 +85,14 @@ func _process(delta: float) -> void:
 	_figure.set("facing", _facing)
 	_figure.queue_redraw()
 
+	# The box counts its own line down -- it is the thing that knows whether the text has
+	# even finished arriving yet. What is kept here is the mouth: he stops talking when
+	# the line is no longer up, however it went away.
 	if _speech_time > 0.0:
 		_speech_time -= delta
 		if _speech_time <= 0.0:
-			hush()
+			_speech_time = 0.0
+			_figure.set("talking", false)
 
 	if _target == null or not is_instance_valid(_target):
 		return
@@ -122,9 +104,6 @@ func _process(delta: float) -> void:
 	var to_target := _target_position().x - global_position.x
 	if absf(to_target) > 24.0:
 		_facing = signf(to_target)
-	# The bubble hangs above him in world space but must not flip with him, or the
-	# text would read backwards every time the player turned around.
-	_bubble.scale = Vector2.ONE
 
 
 func _desired_position() -> Vector2:
