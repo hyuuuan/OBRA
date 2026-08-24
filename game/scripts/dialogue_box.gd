@@ -77,13 +77,13 @@ func _init() -> void:
 	_label.name = "Text"
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_label.add_theme_font_size_override(&"font_size", 19)
+	_label.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
 	_label.add_theme_color_override(&"font_color", UISkin.CREAM_TEXT)
 	# No drop shadow. The canvas behind it is flat and dark; a shadow on type that is
 	# already high-contrast only makes it look out of focus.
 	_label.add_theme_constant_override(&"shadow_offset_x", 0)
 	_label.add_theme_constant_override(&"shadow_offset_y", 0)
-	_label.add_theme_constant_override(&"line_spacing", 6)
+	_label.add_theme_constant_override(&"line_spacing", 8)
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_frame.add_child(_label)
 	_label.position = Vector2(pad, pad)

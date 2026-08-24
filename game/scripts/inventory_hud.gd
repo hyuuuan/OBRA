@@ -65,7 +65,7 @@ func _ready() -> void:
 		var number := Label.new()
 		number.name = "Number"
 		number.text = str(index + 1)
-		number.add_theme_font_size_override(&"font_size", 14)
+		number.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
 		number.add_theme_color_override(&"font_color", LIME)
 		# Outlined, because it sits on a dark slot when the slot is empty and on the white
 		# paper of a drawing when it is not.

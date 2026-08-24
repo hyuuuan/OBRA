@@ -280,6 +280,16 @@ func _set_panel_rect(rect: Rect2) -> void:
 	morph_panel.size = snapped_size
 
 
+## Cards are sized here, not in the scene: the panel is a morph target whose width depends
+## on the window, so the five have to be divided out of whatever it turns out to be.
+##
+## THE HEIGHT CAP IS WHAT THE UNLOCKED CARD'S BLURB NEEDS. It was 300, which fitted the
+## proportional font this menu was built with; the bitmap face is wider per character, so
+## the same sentence went from two lines to four and the last one was clipped by the card's
+## own clip_contents. Anything that changes the type scale has to come back here.
+const CARD_HEIGHT := 372.0
+
+
 func _layout_cards() -> void:
 	var available_width := maxf(300.0, morph_panel.size.x - 64.0)
 	var separation := 14.0
@@ -288,4 +298,5 @@ func _layout_cards() -> void:
 	for index in range(cards.size()):
 		var card := cards[index]
 		card.position = Vector2(32.0 + float(index) * (card_width + separation), base_y - float(index) * 18.0)
-		card.size = Vector2(card_width, minf(300.0, morph_panel.size.y - card.position.y - 34.0))
+		card.size = Vector2(card_width,
+			minf(CARD_HEIGHT, morph_panel.size.y - card.position.y - 34.0))
