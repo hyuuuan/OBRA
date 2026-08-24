@@ -72,6 +72,16 @@ PROP_OUT = ROOT / "game" / "assets" / "Level1" / "props"
 SHEET = "Obra Assets Male.png"
 
 # Panel interiors, measured off the tan border lines that box each section.
+## The hero panel in the sheet's top-left corner, inside its border stroke.
+##
+## THE SHEET CARRIES A SECOND, BIGGER DRAWING OF THE CHARACTER and it went unused for
+## months. The twenty-three poses are cut down to a 96px standing height because that is
+## what the game world needs; this one is 312px tall in the source and is a different
+## drawing rather than the same one enlarged -- there is shading in the hair and folds in
+## the shirt that the small frames do not have room for. It is exactly what a dialogue
+## portrait wants, and cutting it costs nothing because the keying is already written.
+HERO_PANEL = (40, 115, 305, 470)
+
 PANEL_X = (340, 1232)
 PANELS = [
     ("turnaround", (30, 382), ["front", "34front", "side", "34back", "back"]),
@@ -334,6 +344,22 @@ def build_character(write: bool) -> dict[str, bytes]:
     return written, cell_w, cell_h
 
 
+def build_portrait(write: bool) -> dict[str, bytes]:
+    """The big hero drawing, keyed and trimmed, for the dialogue box."""
+    sheet = Image.open(SOURCE / SHEET).convert("RGB")
+    rgb = np.asarray(sheet.crop(HERO_PANEL), dtype=int)
+    solid = fill_from_border(foreground_mask(rgb).copy())
+    keyed = keyed_image(sheet, {"box": HERO_PANEL, "mask": solid})
+    # Trimmed to the figure. The panel is mostly empty and the drop shadow under the feet
+    # is keyed out with the background, so the bbox is the character and nothing else.
+    bounds = keyed.getchannel("A").getbbox()
+    if bounds is None:
+        raise SystemExit("the hero panel keyed to nothing; HERO_PANEL needs re-measuring")
+    portrait = keyed.crop(bounds)
+    path = CHARACTER_OUT / "apo_portrait.png"
+    return {str(path.relative_to(ROOT)): _emit(portrait, path, write)}, portrait.size
+
+
 def build_props(write: bool) -> dict[str, bytes]:
     written: dict[str, bytes] = {}
     for filename, name in PROPS:
@@ -387,8 +413,9 @@ def main() -> int:
     args = parser.parse_args()
 
     character, cell_w, cell_h = build_character(write=not args.check)
+    portrait, portrait_size = build_portrait(write=not args.check)
     props = build_props(write=not args.check)
-    everything = {**character, **props}
+    everything = {**character, **portrait, **props}
 
     if args.check:
         stale = []
@@ -405,6 +432,7 @@ def main() -> int:
         return 0
 
     print(f"character cell {cell_w}x{cell_h}px, standing height {STANDING_HEIGHT:.0f}px")
+    print(f"dialogue portrait {portrait_size[0]}x{portrait_size[1]}px")
     for rel in sorted(everything):
         print(f"   {len(everything[rel]):7d}  {rel}")
     return 0
