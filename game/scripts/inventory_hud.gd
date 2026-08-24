@@ -33,11 +33,10 @@ var _selected: int = -1
 
 func _ready() -> void:
 	add_theme_constant_override(&"separation", 8)
-	# Left-packed, because the bar is now anchored bottom-LEFT and sized to exactly its
-	# six slots. It used to be centred inside a 756px band across the bottom of the
-	# screen, which is both more of the screen than six slots need and directly over the
-	# ground the player sets objects down on.
-	alignment = BoxContainer.ALIGNMENT_BEGIN
+	# Centred in its band, which is anchored bottom-CENTRE and sized to exactly its six
+	# slots -- 424px rather than the 756px it used to span, so it covers a third less of
+	# the ground the player sets objects down on while staying where the eye looks for it.
+	alignment = BoxContainer.ALIGNMENT_CENTER
 	for index in range(6):
 		var button := Button.new()
 		button.theme_type_variation = &"InventorySlot"
