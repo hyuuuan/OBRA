@@ -21,7 +21,7 @@ const SEGMENT_SECONDS := 22.0
 ## bot stops at Beat 0 and the whole level behind it goes unexamined.
 const SEGMENTS: Array = [
 	{"name": "the paddy and Ang Hagdan", "at": Vector2(260.0, 460.0)},
-	{"name": "above the stair, to the gorge", "at": Vector2(840.0, 360.0)},
+	{"name": "above the stair, to the gorge", "at": Vector2(960.0, 360.0)},
 	# All three, because they are physically different crossings: the Artist route puts a
 	# post mid-gorge, the Pragmatist route drops ledges down and leaves a bare wall out, and
 	# the Protector route stands a tree up to be felled. Testing whichever answer happens to

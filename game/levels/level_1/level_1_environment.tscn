@@ -94,7 +94,7 @@ size = Vector2(3760, 48)
 size = Vector2(48, 1200)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_y6bxt"]
-size = Vector2(360, 300)
+size = Vector2(700, 300)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ryned"]
 size = Vector2(460, 420)
@@ -247,19 +247,19 @@ surface_style = 2
 [node name="LowerRight" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1292630397]
 position = Vector2(640, 560)
 script = ExtResource("5_terrace")
-segment_size = Vector2(120, 120)
+segment_size = Vector2(280, 120)
 surface_style = 3
 
 [node name="Terrace1" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=414892212]
-position = Vector2(760, 420)
+position = Vector2(920, 420)
 script = ExtResource("5_terrace")
-segment_size = Vector2(360, 260)
+segment_size = Vector2(240, 260)
 surface_style = 3
 
 [node name="Terrace2" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1355529605]
-position = Vector2(1120, 280)
+position = Vector2(1160, 280)
 script = ExtResource("5_terrace")
-segment_size = Vector2(360, 400)
+segment_size = Vector2(320, 400)
 surface_style = 3
 
 [node name="Terrace3" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=979666756]
@@ -467,10 +467,10 @@ shape = SubResource("Rectangle_wall")
 [node name="Obstacles" type="Node2D" parent="GameplayPlane" unique_id=89777346]
 
 [node name="B0_HAGDAN" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=153923965]
-position = Vector2(620, 470)
+position = Vector2(690, 470)
 script = ExtResource("19_j5wv8")
 obstacle_id = "B0_HAGDAN"
-trigger_size = Vector2(560, 300)
+trigger_size = Vector2(700, 300)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/B0_HAGDAN" unique_id=732542801]
 shape = SubResource("RectangleShape2D_y6bxt")
@@ -505,41 +505,41 @@ shape = SubResource("RectangleShape2D_aty4c")
 [node name="Hagdan" type="Node2D" parent="GameplayPlane" unique_id=1689954354]
 
 [node name="TreadUpper" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=950612297]
-position = Vector2(696, 424)
+position = Vector2(856, 424)
 script = ExtResource("20_ryned")
 tread_size = Vector2(64, 34)
 
 [node name="TreadTop" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=480847419]
-position = Vector2(724, 402)
+position = Vector2(884, 402)
 script = ExtResource("20_ryned")
 tread_size = Vector2(36, 26)
 
 [node name="BrokenA" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=47185594]
-position = Vector2(668, 486)
+position = Vector2(828, 486)
 script = ExtResource("20_ryned")
 tread_size = Vector2(60, 30)
 is_broken = true
 
 [node name="GapSlotA" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=648570639]
-position = Vector2(668, 486)
+position = Vector2(828, 486)
 
 [node name="BrokenB" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=2607205]
-position = Vector2(652, 518)
+position = Vector2(812, 518)
 script = ExtResource("20_ryned")
 tread_size = Vector2(56, 30)
 is_broken = true
 
 [node name="GapSlotB" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=1576016004]
-position = Vector2(652, 518)
+position = Vector2(812, 518)
 
 [node name="BrokenC" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=700847353]
-position = Vector2(640, 548)
+position = Vector2(800, 548)
 script = ExtResource("20_ryned")
 tread_size = Vector2(52, 30)
 is_broken = true
 
 [node name="GapSlotC" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=562414549]
-position = Vector2(640, 548)
+position = Vector2(800, 548)
 
 [node name="FloatingTread" type="RigidBody2D" parent="GameplayPlane/Hagdan" unique_id=1182508414]
 position = Vector2(420, 578)
@@ -558,7 +558,7 @@ scale = Vector2(1.0476191, 0.25581396)
 texture = SubResource("AtlasTexture_7hgod")
 
 [node name="CP0" type="Area2D" parent="GameplayPlane/Hagdan" unique_id=2079276445]
-position = Vector2(830, 380)
+position = Vector2(990, 380)
 script = ExtResource("20_y6bxt")
 checkpoint_id = "CP0"
 trigger_size = Vector2(150, 200)
