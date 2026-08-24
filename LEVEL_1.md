@@ -52,7 +52,9 @@ stale.
 
 ### Beat 0 — Ang Hagdan (no dialogue node, no fail state)
 
-A stone stair out of the lower paddy with three treads gone. **The gate is a 136px rise
+An earth-and-stone stair out of the lower paddy with three treads gone. Its steps and the
+tread that floated off are cut from one piece of delivered art, which is the point: the
+thing bobbing in the water has to read as a piece of the thing above it. **The gate is a 136px rise
 against the wanderer's 94.3px jump.** Two solid treads survive above the gap; three
 `is_broken` stubs are drawn where the missing ones were, because two stones on their own
 read as two rocks rather than as a stair someone has to repair.
