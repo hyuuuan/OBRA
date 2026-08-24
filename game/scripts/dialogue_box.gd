@@ -11,10 +11,11 @@ extends Control
 ## Presented the way a console RPG presents it, because those conventions are load-bearing
 ## and players already know them:
 ##
-##   * ONE PLACE. The middle of the screen, always, so the eye never hunts for it. It does
-##     cover the ground the player is standing on while it is up -- that is the trade for
-##     putting the story where the story belongs, and it is why a line with a duration
-##     clears itself.
+##   * ONE PLACE. Across the bottom, always, with the speaker's bust standing above it.
+##     The two together are the shot: a face at the top of the screen and the words at the
+##     bottom, which is the arrangement every game that leans on dialogue arrives at,
+##     because it leaves the middle of the screen -- where the reader's eye travels
+##     between the two -- clear.
 ##   * ONE SIZE, and a generous one. A fixed box whatever the line: one that resizes per
 ##     line makes the reader re-find the first word every time.
 ##   * TYPED OUT. Text arrives at a readable rate rather than appearing whole. This is
@@ -48,20 +49,11 @@ const SPEED := 52.0
 ## whatever the line -- a box that grows and shrinks per line makes the reader re-find the
 ## first word every time, and Payyo's script runs from "Here." to a full sentence about the
 ## Spanish burning the lowlands.
-const BOX := Vector2(1040.0, 310.0)
-## How far the box slides off centre to get out of the speaker's way.
-##
-## The box is 1040 wide on a 1600 screen, so there are 280 pixels of slack either side and
-## this spends most of them. Centred, it covered whoever was talking -- which defeats the
-## camera pushing in on them in the first place.
-const BIAS := 250.0
-## Kept clear at the screen edge, so the biased box never looks like it fell off.
-const EDGE_MARGIN := 30.0
-
-## Answers "which node is this speaker?", so the box can find out where they are on screen
-## without knowing anything about the level. Set by GameLevel.
-var subject_resolver: Callable = Callable()
-
+## Wide and low. It no longer has to leave room beside itself for the speaker, because the
+## speaker is above it now rather than behind it, so it can have the whole width.
+const BOX := Vector2(1300.0, 300.0)
+## How far the bottom of the box sits above the bottom of the screen.
+const LIFT := 44.0
 ## Reserved along the bottom of the canvas for the advance arrow, so the last line of a
 ## full paragraph does not run underneath it.
 const ARROW_GUTTER := 26.0
@@ -84,8 +76,6 @@ var _full := ""
 var _shown := 0.0
 var _hold := 0.0
 var _blink := 0.0
-## Which way this line's box is shifted, in pixels. Positive is right.
-var _bias := 0.0
 ## True while a queued beat is being read. A hint shown with show_line() alone does not
 ## stop the world; a conversation does.
 var _blocking := false
@@ -216,9 +206,7 @@ func show_line(text: String, speaker: String = "", seconds: float = 0.0) -> void
 	# Settled once per line rather than followed per frame. The camera is still easing in
 	# while the first characters arrive, and a box that slid around under the text as it
 	# typed would be worse than one that covered the speaker.
-	_bias = _bias_for(speaker)
-	# The portrait takes the side the box just gave up.
-	_portrait.show_for(speaker, -1.0 if _bias > 0.0 else 1.0)
+	_portrait.show_for(speaker)
 	_arrow.visible = false
 	set_process(true)
 	if not visible:
@@ -272,9 +260,14 @@ func current_line() -> String:
 	return _full
 
 
-## Where the frame actually ended up, so a test can ask whether it got out of the way.
+## Where the frame actually ended up, so a test can ask how it sits against the portrait.
 func frame_rect() -> Rect2:
 	return Rect2(_frame.position, _frame.size)
+
+
+## Where the speaker's bust ended up.
+func portrait_rect() -> Rect2:
+	return _portrait.bust_rect()
 
 
 func is_typing() -> bool:
@@ -358,29 +351,13 @@ func _process(delta: float) -> void:
 func _relayout() -> void:
 	var view := get_viewport_rect().size
 	_frame.size = BOX
-	var centred := (view - BOX) * 0.5
-	var x := clampf(centred.x + _bias, EDGE_MARGIN, view.x - BOX.x - EDGE_MARGIN)
-	_frame.position = Vector2(floorf(x), floorf(centred.y))
+	_frame.position = Vector2(
+		floorf((view.x - BOX.x) * 0.5), floorf(view.y - LIFT - BOX.y))
 	# On the top rail, indented from the corner boss so it does not sit on the joint.
 	_speaker_tab.position = Vector2(UNIT * 6.0, -UNIT * 2.5)
 	_speaker_tab.size = _speaker_tab.get_combined_minimum_size()
 	var pad := UIFrame.inset_for(UNIT) + 16.0
 	_arrow.position = Vector2(BOX.x - pad - _arrow.size.x, BOX.y - pad - 4.0)
-
-
-## Which side to sit on: away from the speaker, so the push-in has something to show.
-##
-## Measured in SCREEN space rather than world space, because that is the question being
-## asked -- the camera has already moved and zoomed by the time this runs, and a world
-## coordinate says nothing about which half of the screen someone ended up in.
-func _bias_for(speaker: String) -> float:
-	if speaker.is_empty() or not subject_resolver.is_valid():
-		return 0.0
-	var subject := subject_resolver.call(speaker) as Node2D
-	if subject == null or not is_instance_valid(subject):
-		return 0.0
-	var on_screen := subject.get_global_transform_with_canvas().origin.x
-	return BIAS if on_screen < get_viewport_rect().size.x * 0.5 else -BIAS
 
 
 func _tab_style() -> StyleBoxFlat:
