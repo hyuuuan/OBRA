@@ -137,6 +137,14 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
   buttons it is drawn over, and a `Label` font in the theme would restyle the menu. The
   main menu still holds copies of the palette inline in its own `.tscn`, because a scene
   cannot call a function -- change a colour there too.
+- **Story is framed; menus are not.** `UIFrame` (`game/scripts/ui_frame.gd`) draws a pixel
+  picture frame, and everything the world says wears it -- Lolo's dialogue, the route
+  decision, the Lola memory. Pause/settings/controls/confirm keep the plain panel.
+- **`DialogueBox` is the only place a story line is drawn.** Lolo no longer carries a
+  bubble; `say`/`hush`/`is_speaking` are unchanged and forward to the box, which the level
+  builds and hands him at spawn. The apo's lines go to the same box with a different
+  plaque -- the status label is for the game talking about itself, not for story. Anything
+  that opens with story of its own must `call_group(DialogueBox.GROUP, &"hide_line")`.
 - Screens read their content from `config/` (`levels.json`, `controls.json`,
   `audio.json`) rather than from strings typed into a `.tscn`.
 
