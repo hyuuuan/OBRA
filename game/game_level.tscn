@@ -85,13 +85,16 @@ offset_bottom = 88.0
 text = "Ink 12.0 / 12.0"
 
 [node name="InventoryHUD" type="HBoxContainer" parent="CanvasLayer"]
-anchors_preset = 2
+anchors_preset = 7
+anchor_left = 0.5
 anchor_top = 1.0
+anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = 24.0
+offset_left = -212.0
 offset_top = -122.0
-offset_right = 448.0
+offset_right = 212.0
 offset_bottom = -58.0
+grow_horizontal = 2
 grow_vertical = 0
 theme_override_constants/separation = 8
 script = ExtResource("11_inventory_hud")
