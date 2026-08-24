@@ -37,8 +37,9 @@ the build right now and needs replacing · **READY** = code and hook exist, wait
 
 | What | Status | Where it goes | Notes |
 |---|---|---|---|
-| **The player character** | **PLACEHOLDER** | `game/scripts/wanderer_figure.gd` | A stick figure drawn in code from lines and arcs. **Replacing it means replacing that one file** — nothing else knows what the player looks like. It also draws what the player is carrying (`_draw_carried`), which the replacement needs to keep. |
+| **The player character** | **DONE** (2026-08-24) | `game/assets/characters/apo/`, cut by `tools/build_art.py` | The delivered design sheet, twenty-three poses: a turnaround, a six-frame walk, a six-frame run, and idle / look up / look down / wave / jump / cheer. `wanderer_figure.gd` draws them; `Wanderer._pose_for` picks which. Six are wired to gameplay — the walk and run cycles, idle, the jump, and the two look poses — and climbing borrows the turnaround's BACK view. **Wave and cheer are cut and unused**: cheer is the obvious level-complete pose and wave the obvious one for talking to Lolo, and neither is wired to anything yet. |
 | **Lolo** | **PLACEHOLDER** | `game/scripts/lolo_figure.gd` | A floating yellow blob with a leaf and two dot eyes, drawn in code. Same deal: one file. He is deliberately a floater, not a walker, so he needs no walk cycle — if the design gives him legs, tell us, because that changes the follow behaviour. His speech bubble is a separate node (`creatures/lolo.tscn` → `Bubble`) and can be restyled independently. |
+| **Lolo's dialogue portrait** | **PLACEHOLDER** | `game/scripts/dialogue_portrait.gd` stands a large portrait of whoever is speaking behind the dialogue box. The apo has one: their delivered turnaround sheet has a front view, and it is that, blown up. **Lolo does not** -- his portrait is the same code-drawn blob that represents him in the world, rasterised small and scaled up so it is at least pixel-consistent. He is the character who speaks most of Level 1, so this is the portrait the game shows most often. A replacement is one 80 x 106 front-facing frame in the apo's style; drop it in and the code path is already there. |
 | **Lola (the grandmother)** | **MISSING** | — | Appears in the Level 1 memory and at the Level 5 climax. No design, no art, no representation anywhere in the build. |
 | **The Aswang** | **MISSING** | — | Level 4's confrontation (design §6). Nothing exists. |
 | Lolo's spirit form | **MISSING** | — | Ending C has Lolo "sacrifice his spectral form". Undesigned. |
@@ -59,6 +60,14 @@ the build right now and needs replacing · **READY** = code and hook exist, wait
 | Hidden Flowers 2–5 | **MISSING** | one per level | Flower 1 is placed in Level 1's gorge cave. The rest need their levels to exist first. |
 
 ---
+
+## 3b. Interface
+
+**Nothing outstanding.** The HUD, the menus and every overlay wear the 8-bit skin in
+`HUD-assets-ideas/`, story boxes wear a drawn picture frame, and the whole game is set in
+**Geist Pixel** (SIL Open Font License 1.1, bundled with its licence in
+`game/ui/fonts/`), so no licensing decision is pending on anyone. **HUD_SKIN.md** says how to change
+any of it.
 
 ## 4. Audio
 

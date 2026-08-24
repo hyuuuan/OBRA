@@ -38,6 +38,11 @@ var ink_manager: InkManager
 @onready var guess_label: Label = $PanelRoot/GuessLabel
 @onready var client: Node = $PanelRoot/SketchClient
 
+## The header's own ink readout. The scrim covers the HUD, so while the panel is open the
+## gauge in the corner of the screen is hidden -- at exactly the moment ink matters most.
+var _ink_gauge: HudPanel.Gauge
+var _ink_value: Label
+
 
 var _pending_strokes: Array = []
 var _is_open := false
@@ -73,6 +78,7 @@ func _ready() -> void:
 	_profile = get_node_or_null("/root/PlayerProfile")
 	visible = false
 	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_style_panel()
 	client.canvas_viewport = canvas_viewport
 	client.set("debug_timing_logs", debug_timing_logs)
 	transform_button.pressed.connect(_on_transform_pressed)
@@ -116,11 +122,15 @@ func open_panel() -> void:
 			# each one and Transform posts an empty image to be told it is empty.
 			status.text = "No ink left — nothing more can be drawn in this level"
 		else:
-			status.text = "Ink remaining %.1f / %.1f — draw, then Transform" % [ink_manager.remaining(), ink_manager.capacity]
+			# The header gauge carries the budget. This said "Ink remaining 12.0 / 12.0"
+			# beneath a gauge already showing it, in decimals, and then went stale the
+			# moment the first stroke landed.
+			status.text = "Draw something, then Transform"
 	else:
-		status.text = "Draw something, then Transform!"
+		status.text = "Draw something, then Transform"
 	# Nothing has been drawn yet, so there is nothing to transform.
 	transform_button.disabled = true
+	_refresh_ink_row(0.0)
 	UIRouter.refresh_pause(get_tree())
 	_play_open_animation()
 
@@ -193,7 +203,9 @@ func _on_live_prediction(
 	# Colour carries the same judgement the Transform gate will apply, so the player can
 	# tell "it knows what this is" from "it is guessing" without reading the number.
 	var sure: bool = confidence >= 0.6 and margin >= 0.15
-	guess_label.modulate = Color(0.55, 0.95, 0.6) if sure else Color(0.95, 0.85, 0.45)
+	guess_label.modulate = Color.WHITE
+	guess_label.add_theme_color_override(&"font_color",
+		UISkin.LIME_PALE if sure else UISkin.PENDING)
 	transform_button.text = "Transform into %s" % display_name if sure else "Transform"
 
 
@@ -209,7 +221,105 @@ func _on_live_prediction_failed(message: String) -> void:
 	# player has simply not drawn enough of anything yet.
 	if not message.is_empty():
 		guess_label.text = message
-		guess_label.modulate = Color(0.7, 0.7, 0.72)
+		guess_label.add_theme_color_override(&"font_color", UISkin.MUTED)
+
+
+## Dress the panel in the game's own language.
+##
+## It was a cold blue-grey slab with a white square on it and two identical buttons: the
+## screen the player spends the most time looking at, and the one least like the rest of
+## the game. Everything below is appearance -- no node is added or removed that the panel's
+## behaviour depends on.
+func _style_panel() -> void:
+	scrim.color = Color(UISkin.INK.r, UISkin.INK.g, UISkin.INK.b, 0.62)
+	# The ColorRect stops painting its own slab; a Panel behind everything carries the
+	# frame instead, because a ColorRect cannot hold a stylebox.
+	panel_root.set("color", Color(0.0, 0.0, 0.0, 0.0))
+	var frame := Panel.new()
+	frame.name = "Frame"
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	frame.add_theme_stylebox_override(&"panel", HudPanel.frame())
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel_root.add_child(frame)
+	panel_root.move_child(frame, 0)
+
+	# The page, set into the frame rather than lying on it.
+	var page := Panel.new()
+	page.name = "PageEdge"
+	page.add_theme_stylebox_override(&"panel", UISkin.well())
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.position = Vector2(42.0, 48.0)
+	page.size = Vector2(524.0, 524.0)
+	panel_root.add_child(page)
+	panel_root.move_child(page, 1)
+
+	# Brackets at the four corners, drawn OVER the page rather than around it. A full
+	# second ring would be a third frame inside two others; four corners say "this square
+	# is the thing you are working in" and then get out of the way of the drawing.
+	var brackets := PageBrackets.new()
+	brackets.name = "PageBrackets"
+	brackets.position = page.position
+	brackets.size = page.size
+	panel_root.add_child(brackets)
+	var paper := canvas_viewport.get_node_or_null("Paper") as ColorRect
+	if paper != null:
+		# Paper, not printer white. The ink is black and the drawing is the point, so this
+		# only comes far enough off white to stop the square glaring.
+		paper.color = Color(0.965, 0.95, 0.9, 1.0)
+
+	_build_header()
+
+	guess_label.add_theme_font_size_override(&"font_size", UISkin.FONT_SUBTITLE)
+	status.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
+	status.add_theme_color_override(&"font_color", UISkin.MUTED)
+
+	# Hierarchy: one of these is the thing you came here to do and the other undoes your
+	# work. They were identical twins. It is a family now rather than a stylebox built
+	# here, so the green button in this panel and the green button on the pause menu
+	# cannot drift apart.
+	transform_button.theme_type_variation = &"PrimaryButton"
+	transform_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
+	clear_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
+
+
+## DRAW on the left, ink on the right, in the strip above the page.
+func _build_header() -> void:
+	var caption := Label.new()
+	caption.name = "Caption"
+	caption.text = "DRAW"
+	caption.theme_type_variation = &"HudCaption"
+	caption.position = Vector2(48.0, 14.0)
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel_root.add_child(caption)
+
+	_ink_value = Label.new()
+	_ink_value.name = "InkValue"
+	_ink_value.text = ""
+	_ink_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_ink_value.theme_type_variation = &"HudValue"
+	_ink_value.position = Vector2(392.0, 14.0)
+	_ink_value.size = Vector2(168.0, 24.0)
+	_ink_value.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel_root.add_child(_ink_value)
+
+	_ink_gauge = HudPanel.Gauge.new()
+	_ink_gauge.name = "InkGauge"
+	_ink_gauge.position = Vector2(210.0, 20.0)
+	_ink_gauge.size = Vector2(164.0, 14.0)
+	panel_root.add_child(_ink_gauge)
+
+
+## Keep the header honest while the player draws: what is left, and what the strokes on
+## the page have claimed so far.
+func _refresh_ink_row(cost: float) -> void:
+	if _ink_gauge == null or ink_manager == null:
+		return
+	_ink_gauge.capacity = ink_manager.capacity
+	_ink_gauge.remaining = ink_manager.remaining()
+	_ink_gauge.reserved = maxf(0.0, cost)
+	_ink_gauge.queue_redraw()
+	_ink_value.text = "%d of %d" % [
+		floori(maxf(0.0, ink_manager.remaining())), roundi(ink_manager.capacity)]
 
 
 func _clear_guess() -> void:
@@ -224,7 +334,7 @@ func _forget_guess() -> void:
 	_guess_confidence = 0.0
 	_guess_margin = 0.0
 	guess_label.text = "…"
-	guess_label.modulate = Color(0.62, 0.64, 0.68)
+	guess_label.add_theme_color_override(&"font_color", UISkin.MUTED)
 	transform_button.text = "Transform"
 
 
@@ -347,11 +457,13 @@ func _on_stroke_cost_changed(cost: float) -> void:
 		return
 	# There is ink on the canvas now, so there is something to offer the recogniser.
 	transform_button.disabled = cost <= 0.0
+	_refresh_ink_row(cost)
 	if ink_manager != null:
 		ink_manager.reserve_attempt(cost)
-		status.text = "Ink remaining %.1f / %.1f — attempt %.1f" % [ink_manager.remaining(), ink_manager.capacity, cost]
-	else:
-		status.text = "Ink used: %.1f diagonals" % cost
+	# The status line no longer recites the ink. It used to read "Ink remaining 10.7 / 12.0
+	# -- attempt 1.3" on every stroke point, which is the header gauge's job now, said in
+	# decimals, over the top of whatever the panel had last told the player. This line is
+	# for messages; the gauge is for the budget.
 
 
 func _on_ink_blocked() -> void:
@@ -385,3 +497,29 @@ func _play_open_animation() -> void:
 	_open_tween.tween_property(panel_root, "scale", Vector2.ONE, 0.18) \
 		.set_trans(Tween.TRANS_BACK) \
 		.set_ease(Tween.EASE_OUT)
+
+
+## Four corner brackets, sized to whatever rect they are given.
+class PageBrackets extends Control:
+	## How far along each edge a bracket runs, and how thick it is drawn.
+	const ARM := 26.0
+	const WEIGHT := 4.0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var w := size.x
+		var h := size.y
+		for corner: Vector2 in [Vector2(0, 0), Vector2(1, 0), Vector2(0, 1), Vector2(1, 1)]:
+			var x := corner.x * w
+			var y := corner.y * h
+			var dx := 1.0 if corner.x < 0.5 else -1.0
+			var dy := 1.0 if corner.y < 0.5 else -1.0
+			# Drawn inward from the corner, so a bracket never leaves the page it marks.
+			draw_rect(Rect2(
+				Vector2(minf(x, x + dx * ARM), minf(y, y + dy * WEIGHT)),
+				Vector2(ARM, WEIGHT)), UISkin.LIME)
+			draw_rect(Rect2(
+				Vector2(minf(x, x + dx * WEIGHT), minf(y, y + dy * ARM)),
+				Vector2(WEIGHT, ARM)), UISkin.LIME)

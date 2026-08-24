@@ -34,9 +34,12 @@ const JUMP_BUFFER_TIME := 0.12
 ## hold is a full jump. It can only ever make the jump shorter.
 const JUMP_CUT := 0.45
 
-## Limbs swing this far at full stride, in radians.
-const STRIDE := 0.7
+## How fast the walk cycle plays, in cycles per second at full speed.
 const STRIDE_HZ := 2.2
+## Above this share of SPEED the character is running rather than walking. Placed so the
+## acceleration ramp is visible -- set it near 1.0 and the walk cycle never plays, set it
+## near 0 and the run cycle is the only one anybody sees.
+const RUN_FRACTION := 0.72
 
 ## Climbing a drawn ladder. Slower than walking, and sideways movement is throttled so
 ## stepping off is deliberate rather than something that happens while aiming upward.
@@ -44,6 +47,9 @@ const CLIMB_SPEED := 190.0
 const CLIMB_DRIFT := 0.35
 ## How far from the ladder you can get before you are no longer on it.
 const CLIMB_RELEASE := 120.0
+## How far past the top of a ladder the climb keeps working, so the player can get their
+## feet above the last rung and step off onto whatever they climbed up to.
+const CLIMB_OVERSHOOT := 40.0
 ## An open umbrella is a parachute you are holding.
 const UMBRELLA_FALL_LIMIT := 190.0
 
@@ -52,7 +58,20 @@ const UMBRELLA_FALL_LIMIT := 190.0
 const WADE_DRAG := 0.55
 const WADE_SINK := 0.42
 const WADE_SINK_SPEED := 120.0
-const WADE_JUMP := 0.45
+## All a jump gets you in water: a kick far weaker than the sink rate. THE APO CANNOT
+## SWIM, and that has to be true of every jump, not most of them.
+##
+## This is what made water free. The old kick was -193px/s against a sink capped at 120,
+## so a player who held jump ROSE, and holding jump while walking right carried them over
+## the surface of a paddy as if it were a floor -- both paddies in Level 1 are 300px of
+## water and both were being walked across.
+##
+## An earlier version of this fix gave a strong jump when is_on_floor() was true, on the
+## reasoning that you can push off the bottom. It turned the floating tread into a
+## launchpad: standing on it counts as standing on a floor, and a full-strength jump from
+## the middle of the paddy cleared the far bank. There is no version of "sometimes you can
+## jump properly in water" that does not hand the player a way across.
+const WADE_KICK := 55.0
 
 @onready var _figure: Node2D = $Figure
 
@@ -74,6 +93,9 @@ var _fall_limit := MAX_FALL
 ## was answered before, so for the character the player actually starts as, a drawn
 ## ladder was scenery and a drawn umbrella did nothing.
 var _ladder: Node2D = null
+## How tall the ladder in hand is, measured from its own collision when it is taken hold
+## of. A ladder is a thing with a top; without this, climbing had no end.
+var _ladder_half_height := 0.0
 var _vehicle: Node2D = null
 var _equipped_utility: Node2D = null
 var _umbrella_open := false
@@ -135,10 +157,10 @@ func _physics_process(delta: float) -> void:
 		velocity.x *= WADE_DRAG
 		velocity.y = minf(velocity.y + _gravity * WADE_SINK * delta, WADE_SINK_SPEED)
 		if Input.is_action_just_pressed(&"jump"):
-			# Its own weaker jump, but the press is still spent: wading out of a shallow
-			# paddy must not also cash a full jump the moment a foot touches the bank.
+			# The press is still spent: wading out of a paddy must not also cash a full jump
+			# the moment a foot touches the bank.
 			_jump_buffered = 0.0
-			velocity.y = JUMP_VELOCITY * WADE_JUMP
+			velocity.y = -WADE_KICK
 	elif is_on_floor():
 		# Buffered, so a press that arrived a few frames before landing still counts.
 		if _jump_buffered > 0.0:
@@ -179,9 +201,36 @@ func _advance_stride(delta: float, horizontal_speed: float) -> void:
 	var moving := absf(horizontal_speed) > 12.0
 	_phase += delta * STRIDE_HZ * (absf(horizontal_speed) / SPEED if moving else 0.0)
 	_figure.scale.x = _facing
-	_figure.set("stride", _phase)
-	_figure.set("carrying", _carrying)
-	_figure.queue_redraw()
+	_figure.set(&"pose", _pose_for(horizontal_speed))
+	_figure.set(&"stride", _phase)
+	_figure.set(&"carrying", _carrying)
+	_figure.call(&"refresh")
+
+
+## Which drawing of the character to show. Written here and not in the figure because
+## every fact it needs -- on a ladder, in the air, in the water, riding something, how
+## fast -- is already known here, and asking the art to work it out again from a position
+## and a velocity is how the two end up disagreeing.
+func _pose_for(horizontal_speed: float) -> StringName:
+	if _climbing():
+		return &"climb"
+	var speed := absf(horizontal_speed)
+	# Riding is standing on something that is moving. The deck carries the player, so the
+	# hull's speed is not theirs and a walk cycle here is running on the spot.
+	if not _riding() and speed > 12.0:
+		# Both cycles get used. There is one SPEED in this game, but there is also an
+		# acceleration ramp up to it, so setting off reads as a walk that breaks into a
+		# run -- which is what the artist drew two cycles for.
+		return &"run" if speed > SPEED * RUN_FRACTION else &"walk"
+	# Standing still, and only then, the look poses. Held while moving they would fight
+	# the walk cycle for the same frames.
+	if not is_on_floor() and not is_in_water() and not _riding():
+		return &"air"
+	if Input.is_action_pressed(&"move_up"):
+		return &"look_up"
+	if Input.is_action_pressed(&"move_down"):
+		return &"look_down"
+	return &"idle"
 
 
 # --- the contract every player answers ---------------------------------------
@@ -246,9 +295,20 @@ func _riding() -> bool:
 
 func begin_ladder(ladder: Node2D) -> void:
 	_ladder = ladder
+	_ladder_half_height = _measure_half_height(ladder)
+	# You climb THROUGH a ladder, not beside it. A placed ladder freezes into a solid body,
+	# so without this the player was pressed against its face the whole way up and could
+	# never step off at the top -- which made a ladder leaned against a cliff a wall with
+	# rungs.
+	var body := ladder as PhysicsBody2D
+	if body != null:
+		add_collision_exception_with(body)
 
 
 func end_ladder() -> void:
+	var body := _ladder as PhysicsBody2D
+	if body != null and is_instance_valid(body):
+		remove_collision_exception_with(body)
 	_ladder = null
 
 
@@ -276,10 +336,35 @@ func _climbing() -> bool:
 	# Measured HORIZONTALLY, and generously: a ladder is a tall thing whose origin sits
 	# at its middle, so a straight distance check released the player the moment they
 	# had climbed a bit of it -- which read as the ladder simply not working.
-	if absf(global_position.x - (_ladder as Node2D).global_position.x) > CLIMB_RELEASE:
-		_ladder = null
+	var ladder := _ladder as Node2D
+	if absf(global_position.x - ladder.global_position.x) > CLIMB_RELEASE:
+		end_ladder()
+		return false
+	# AND vertically, past its top. The horizontal-only check meant holding up on a ladder
+	# raised the player forever: place one anywhere, climb into the sky, walk over every
+	# gate in the level. A ladder reaches as far as a ladder reaches.
+	if global_position.y < ladder.global_position.y - _ladder_half_height - CLIMB_OVERSHOOT:
+		end_ladder()
 		return false
 	return true
+
+
+## The ladder's own vertical half-extent, from whatever collision it carries.
+func _measure_half_height(ladder: Node2D) -> float:
+	var half := 0.0
+	for child in ladder.get_children():
+		var collision := child as CollisionShape2D
+		if collision == null or collision.shape == null:
+			continue
+		var reach := absf(collision.position.y)
+		if collision.shape is RectangleShape2D:
+			reach += (collision.shape as RectangleShape2D).size.y * 0.5
+		elif collision.shape is CapsuleShape2D:
+			reach += (collision.shape as CapsuleShape2D).height * 0.5
+		else:
+			reach += CLIMB_RELEASE
+		half = maxf(half, reach)
+	return half if half > 0.0 else CLIMB_RELEASE
 
 
 func set_world_bounds(bounds: Rect2) -> void:

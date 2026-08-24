@@ -52,19 +52,30 @@ stale.
 
 ### Beat 0 — Ang Hagdan (no dialogue node, no fail state)
 
-A stone stair out of the lower paddy with three treads gone. **The gate is a 108px rise
+An earth-and-stone stair out of the lower paddy with three treads gone. Its steps and the
+tread that floated off are cut from one piece of delivered art, which is the point: the
+thing bobbing in the water has to read as a piece of the thing above it. **The gate is a 136px rise
 against the wanderer's 94.3px jump.** Two solid treads survive above the gap; three
 `is_broken` stubs are drawn where the missing ones were, because two stones on their own
 read as two rocks rather than as a stair someone has to repair.
+
+The bank you answer it from runs x 640–920, and 216px of that is under open sky — the
+lowest surviving stone overhangs its right end, and the pocket beneath is 102px, enough to
+stand in and not enough to stand a drawing up in. That distinction is rule **R7** in
+`GATES.md`: it was 56px until 2026-08-24 and the level was effectively unplayable there.
 
 - **sub1 = Span** (excludes bridge, ladder → square, triangle)
 - **sub2 = Roll** — the tread that floated off into the paddy. A Roll-tagged prop resting on
   it sinks it, it freezes solid, and removing the weight releases it.
 - **CP0** at the top, reached by walking into it.
 
-⚠ **The paddy is deliberately NOT a gate.** It is "ankle-deep" per the spec: 160px wide with
-a floor and a ramp at each end, crossable for free. The floating tread *teaches* that
-objects have weight; it does not block. See "Do not retry" below.
+⚠ **The paddy IS a gate** (since 2026-08-24, reversing the note that used to stand here).
+It is 300px wide and 100px deep — wider than a running jump and deeper than the apo can
+climb out of — and no jump in water lifts you out of it. Going under for more than a second
+puts you back on the bank with a line rather than trapping you. The floating tread keeps its
+Roll lesson and stops being a bridge: it is on its own collision layer, so it still floats,
+still settles under a rolling weight and still carries a drawn prop, but the player passes
+through it. That is the trap the first attempt at this fell into.
 
 ### Node 1 — Ang Tulay (the gorge)
 
@@ -118,6 +129,21 @@ drawn. **Nobody fails permanently.**
 
 ---
 
+## Taking a placement back
+
+Ink is committed when a drawing is **set down**, not when it is drawn, and the slot empties
+when it leaves the bag. So a placement that cannot be undone costs a drawing, costs the ink
+that made it, and leaves a solid body wherever it landed. **E** picks up whatever placed
+drawing is within 96px of the body; **right-click** takes back whichever one the cursor is
+over, at any range. Both go through `PhysicsShapeObject.pickup_requested` — the contract is on
+the base class, because the three primitives are not `UtilityObject`s and used to fall through
+every version of this that lived one class down.
+
+⚠ **Known and accepted:** picking up a prop that existed at checkpoint time and then falling
+gives back both the item and the ink, because `_restore_placed_entities` skips the freed
+instance while `ink_committed` is restored wholesale. This was already true of utilities before
+primitives could be picked up at all. Not chased.
+
 ## Cross-cutting state
 
 | Flag | Set by | Read by |
@@ -163,6 +189,13 @@ the number the thesis reports.
   no collision.
 
 ---
+
+## What stops the player
+
+`GATES.md` — every gate west to east with an id, what opens it, and the test that proves
+it. If you are retuning a jump, a gap or an object size, read R1-R6 there first: the
+numbers in this level are measured against each other, and the ones that look arbitrary
+are not.
 
 ## Verify
 
@@ -252,12 +285,15 @@ the level. Frames: `godot --path game --script res://tests/run_visual_level1_nod
 
 ### Do not retry without redesigning
 
-**Making the paddy gate.** Attempted and reverted. A 300px gap plus removing the far ramp
-does stop the wade, but the loose slab floats *above* bank level and is a better stepping
-stone than the terrain — and it cannot be made to give way for the reasons in traps 6 and 7.
-The circle is radius 58, wider than the tread, so it rolls off; resting on the deck it is a
-116px wall against a 94px jump. If revisited: make the crossing a **Span** problem sized to
-what a drawn plank actually spans (a ladder is 244px) and leave Roll as the demonstration.
+**Making the paddy gate by taking the width off the near bank.** The obvious way to widen
+the landing between the paddy and the stair is to slide the water west. It measures right and
+every headless suite passes, and it is wrong: at x 190 the spawn is past the point where the
+camera can still scroll left, so the apo stands in the corner of the screen and Lola's opening
+line is cut off the side of it. Take the width from the east. Only rendering the frame says so.
+
+**Driving a live `RigidBody2D` by writing `global_position`,** or expecting a kinematic
+`CharacterBody2D` to put weight on one. Both were tried on the floating tread; see traps 6
+and 7.
 
 **BR-7 (spec §12.7) cannot be closed.** No per-class recall data exists — the model is not
 trained. Five obstacles sit at exactly two solutions (`B0.sub1`, `B0.sub2`, `N2.artist`,

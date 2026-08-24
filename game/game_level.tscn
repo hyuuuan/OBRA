@@ -44,7 +44,7 @@ script = ExtResource("10_placement")
 [node name="WorldItemRoot" type="Node2D" parent="EnvironmentBaseplate/GameplayPlane"]
 
 [node name="GoalMarker" type="Marker2D" parent="EnvironmentBaseplate/GameplayPlane"]
-position = Vector2(3480, 150)
+position = Vector2(3600, 30)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 layer = 5
@@ -60,10 +60,10 @@ text = "Ready"
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -164.0
+offset_left = -156.0
 offset_top = 20.0
 offset_right = -24.0
-offset_bottom = 64.0
+offset_bottom = 56.0
 grow_horizontal = 0
 focus_mode = 0
 text = "Draw"
@@ -90,10 +90,10 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -378.0
-offset_top = -76.0
-offset_right = 378.0
-offset_bottom = -20.0
+offset_left = -212.0
+offset_top = -122.0
+offset_right = 212.0
+offset_bottom = -58.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_constants/separation = 8
@@ -106,11 +106,7 @@ offset_top = 20.0
 offset_bottom = 52.0
 grow_horizontal = 2
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.94, 0.9, 0.58, 1)
-theme_override_colors/font_shadow_color = Color(0.03, 0.09, 0.045, 0.9)
-theme_override_constants/shadow_offset_x = 3
-theme_override_constants/shadow_offset_y = 3
-theme_override_font_sizes/font_size = 18
+theme_type_variation = &"HudBanner"
 text = "LEVEL 1  ·  BANAUE RICE TERRACES"
 horizontal_alignment = 1
 
@@ -125,7 +121,7 @@ offset_bottom = -84.0
 grow_vertical = 0
 mouse_filter = 2
 theme_type_variation = &"HudHint"
-text = "R DRAW  ·  E PICK UP  ·  F USE  ·  Q CHANGE BACK  ·  ESC MENU"
+text = "R DRAW  ·  E PICK UP  ·  RIGHT-CLICK UNDO  ·  F USE  ·  Q CHANGE BACK  ·  ESC MENU"
 
 [node name="GoalLabel" type="Label" parent="CanvasLayer"]
 anchors_preset = 3
@@ -140,7 +136,7 @@ offset_bottom = -84.0
 grow_horizontal = 0
 grow_vertical = 0
 mouse_filter = 2
-theme_type_variation = &"HudHint"
+theme_type_variation = &"HudValue"
 text = ""
 horizontal_alignment = 2
 
@@ -158,16 +154,16 @@ grow_vertical = 2
 color = Color(0, 0, 0, 0.42)
 
 [node name="PanelRoot" type="ColorRect" parent="DrawPanel"]
-custom_minimum_size = Vector2(608, 772)
+custom_minimum_size = Vector2(608, 790)
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -304.0
-offset_top = -386.0
+offset_top = -395.0
 offset_right = 304.0
-offset_bottom = 386.0
+offset_bottom = 395.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.12, 0.14, 0.16, 1)
@@ -175,9 +171,9 @@ color = Color(0.12, 0.14, 0.16, 1)
 [node name="SubViewportContainer" type="SubViewportContainer" parent="DrawPanel/PanelRoot"]
 custom_minimum_size = Vector2(512, 512)
 offset_left = 48.0
-offset_top = 32.0
+offset_top = 54.0
 offset_right = 560.0
-offset_bottom = 544.0
+offset_bottom = 566.0
 stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="DrawPanel/PanelRoot/SubViewportContainer"]
@@ -203,11 +199,11 @@ script = ExtResource("4_canvas")
 
 [node name="GuessLabel" type="Label" parent="DrawPanel/PanelRoot"]
 offset_left = 48.0
-offset_top = 556.0
+offset_top = 580.0
 offset_right = 560.0
-offset_bottom = 608.0
+offset_bottom = 626.0
 mouse_filter = 2
-theme_override_font_sizes/font_size = 30
+theme_override_font_sizes/font_size = 40
 text = "…"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -215,25 +211,25 @@ clip_text = true
 
 [node name="TransformButton" type="Button" parent="DrawPanel/PanelRoot"]
 offset_left = 48.0
-offset_top = 620.0
+offset_top = 638.0
 offset_right = 292.0
-offset_bottom = 668.0
+offset_bottom = 698.0
 focus_mode = 0
 text = "Transform"
 
 [node name="ClearButton" type="Button" parent="DrawPanel/PanelRoot"]
 offset_left = 316.0
-offset_top = 620.0
+offset_top = 638.0
 offset_right = 560.0
-offset_bottom = 668.0
+offset_bottom = 698.0
 focus_mode = 0
 text = "Clear"
 
 [node name="StatusLabel" type="Label" parent="DrawPanel/PanelRoot"]
 offset_left = 48.0
-offset_top = 684.0
+offset_top = 710.0
 offset_right = 560.0
-offset_bottom = 732.0
+offset_bottom = 764.0
 text = "Ready"
 autowrap_mode = 3
 
@@ -265,7 +261,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.015, 0.045, 0.025, 0.78)
+color = Color(0.027, 0.035, 0.024, 0.78)
 
 [node name="Panel" type="PanelContainer" parent="PauseMenu/PauseRoot"]
 custom_minimum_size = Vector2(430, 520)
@@ -293,6 +289,9 @@ theme_type_variation = &"ScreenTitle"
 text = "PAUSED"
 horizontal_alignment = 1
 
+[node name="Rule" type="HSeparator" parent="PauseMenu/PauseRoot/Panel/VBox"]
+layout_mode = 2
+
 [node name="Place" type="Label" parent="PauseMenu/PauseRoot/Panel/VBox"]
 layout_mode = 2
 theme_type_variation = &"HudHint"
@@ -302,7 +301,7 @@ horizontal_alignment = 1
 [node name="ResumeButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
-theme_type_variation = &"DialogButton"
+theme_type_variation = &"PrimaryButton"
 text = "RESUME"
 
 [node name="RestartButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
@@ -332,7 +331,7 @@ text = "LEVEL SELECT"
 [node name="QuitButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
-theme_type_variation = &"DialogButton"
+theme_type_variation = &"DangerButton"
 text = "QUIT TO DESKTOP"
 
 [node name="LevelCompleteOverlay" parent="." instance=ExtResource("17_complete")]

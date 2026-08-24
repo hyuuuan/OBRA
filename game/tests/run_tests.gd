@@ -118,6 +118,11 @@ func _test_manifest_roles() -> void:
 func _test_ui_router_cancel_chain() -> void:
 	var level: Node = (load("res://game_level.tscn") as PackedScene).instantiate()
 	world.add_child(level)
+	# The level opens on a line of dialogue, and a conversation stops the tree until the
+	# player turns the page. Nobody is here to press a key, so dismiss it the way a skip
+	# button would, and keep dismissing them -- otherwise the first obstacle the
+	# walker reaches stops the world and it reports the level as a wall.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await process_frame
 	var router: Node = level.get_node_or_null("UIRouter")
 	var pause: Node = level.get_node_or_null("PauseMenu")
@@ -207,6 +212,11 @@ func _test_shared_overlays() -> void:
 	# The controls screen derives its key glyphs from the live InputMap, so the only
 	# thing that can rot is an action name in the JSON. A row naming an action that
 	# does not exist is silently skipped, which would quietly empty the screen.
+	#
+	# A row may instead carry `keys` and name them outright. That is for the mouse: aiming,
+	# rotating and setting a drawing down are not InputMap actions, and neither is the
+	# right-click that takes a placement back -- so before that existed the screen could not
+	# mention the mouse at all. Such a row has no action to check, and must have text.
 	var text := FileAccess.get_file_as_string("res://config/controls.json")
 	var parsed: Variant = JSON.parse_string(text)
 	_expect(parsed is Dictionary, "controls.json did not parse")
@@ -216,10 +226,17 @@ func _test_shared_overlays() -> void:
 		for row_value: Variant in rows:
 			var row: Dictionary = row_value
 			var action := String(row.get("action", ""))
-			_expect(
-				InputMap.has_action(action),
-				"controls.json names '%s', which is not in the InputMap" % action
-			)
+			var literal_keys := String(row.get("keys", ""))
+			if literal_keys.is_empty():
+				_expect(
+					InputMap.has_action(action),
+					"controls.json names '%s', which is not in the InputMap" % action
+				)
+			else:
+				_expect(
+					not String(row.get("label", "")).is_empty(),
+					"controls.json row for keys '%s' has no label" % literal_keys
+				)
 			var through := String(row.get("through", ""))
 			if not through.is_empty():
 				_expect(
@@ -236,6 +253,11 @@ func _test_shared_overlays() -> void:
 func _test_level_completion_screen() -> void:
 	var level: Node = (load("res://game_level.tscn") as PackedScene).instantiate()
 	world.add_child(level)
+	# The level opens on a line of dialogue, and a conversation stops the tree until the
+	# player turns the page. Nobody is here to press a key, so dismiss it the way a skip
+	# button would, and keep dismissing them -- otherwise the first obstacle the
+	# walker reaches stops the world and it reports the level as a wall.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await process_frame
 	var complete: Node = level.get_node_or_null("LevelCompleteOverlay")
 	var out_of_ink: Node = level.get_node_or_null("OutOfInkOverlay")
@@ -346,7 +368,7 @@ func _test_theme_resource() -> void:
 	_expect(theme != null, "the project theme failed to load")
 	if theme == null:
 		return
-	for variation in ["PrimaryButton", "DialogButton", "LevelCard", "InventorySlot", "ScreenTitle", "ScreenSubtitle", "HudHint"]:
+	for variation in ["PrimaryButton", "DangerButton", "DialogButton", "LevelCard", "InventorySlot", "ScreenTitle", "ScreenSubtitle", "HudHint", "HudCaption", "HudValue", "HudBanner"]:
 		_expect(
 			theme.is_type_variation(variation, theme.get_type_variation_base(variation)),
 			"theme has no type variation '%s'" % variation
@@ -359,9 +381,66 @@ func _test_theme_resource() -> void:
 	_expect(theme.has_stylebox("fill", "ProgressBar"), "theme does not style the ink bar")
 	_expect(theme.has_stylebox("grabber_area", "HSlider"), "theme does not style a volume slider")
 	_expect(theme.has_color("font_color", "Label"), "theme does not colour a plain Label")
-	# A font here WOULD reach the main menu, whose overrides are all colours and sizes.
-	# The menu is deliberately left alone, so this must stay absent.
-	_expect(not theme.has_font("font", "Label"), "theme defines a Label font, which would restyle the main menu")
+	# The game has its own hand-drawn bitmap face and the whole interface wears it. It is
+	# set as the theme's DEFAULT rather than on Label, so it reaches buttons and slider
+	# readouts and tooltips too -- putting it on Label alone is how you end up with only
+	# some of the text gone 8-bit.
+	_expect(theme.default_font != null, "the theme has no font -- run tools/build_font.py")
+	var skin := load("res://scripts/ui_skin.gd")
+	# Read from the skin, never written here as a number. A hardcoded copy of the font's
+	# line height is exactly the drift this whole assertion exists to catch, and it went
+	# stale the first time the face was redrawn on a taller grid.
+	var unit: int = skin.FONT_UNIT
+	_expect(
+		theme.default_font_size % unit == 0,
+		"default font size %d is not a multiple of the bitmap font's %dpx line"
+			% [theme.default_font_size, unit]
+	)
+
+	# The theme is generated from ui_skin.gd by tools/build_theme.gd. If someone edits the
+	# palette and does not regenerate, the theme still loads and still looks like the OLD
+	# palette -- no error, no warning, and the two disagree from then on. Spot-checking one
+	# value from each family is enough to catch it, because a palette change that leaves
+	# all three families untouched is not a palette change.
+	var checks := {
+		"Button": skin.CREAM_FILL,
+		"PrimaryButton": skin.GREEN_FILL,
+		"DangerButton": skin.RED_FILL,
+	}
+	for type_name: String in checks:
+		var normal := theme.get_stylebox("normal", type_name) as StyleBoxFlat
+		if normal == null:
+			continue
+		_expect(
+			normal.bg_color.is_equal_approx(checks[type_name]),
+			"%s is %s but ui_skin.gd says %s -- run tools/build_theme.gd" % [
+				type_name, normal.bg_color, checks[type_name]]
+		)
+
+	# The frame is drawn rather than styled, so the theme cannot vouch for it. What CAN go
+	# wrong silently is the fit: the dialogue box lays its text out against
+	# UIFrame.inset_for, and if the frame grows a band, or the box's padding shrinks, the
+	# text slides under the moulding. It still renders, it still reads in a headless
+	# label dump, and it is only wrong to look at.
+	#
+	# Asserting that TOTAL_U equals the sum of its own bands would prove nothing -- it IS
+	# that sum. This measures the thing that matters instead: where the text actually ends
+	# up, against where the frame actually stops.
+	var frame := load("res://scripts/ui_frame.gd")
+	var box_script := load("res://scripts/dialogue_box.gd")
+	var probe = box_script.new()
+	var text := probe.get_node_or_null("Frame/Text") as Control
+	if text != null:
+		var inset: float = frame.inset_for(box_script.UNIT)
+		var canvas := Rect2(Vector2(inset, inset),
+			Vector2(box_script.BOX) - Vector2(inset, inset) * 2.0)
+		var written := Rect2(text.position, text.size)
+		_expect(
+			canvas.encloses(written),
+			"the dialogue text runs under the frame: text %s is not inside canvas %s" % [
+				written, canvas]
+		)
+	probe.free()
 
 	# Focus is drawn ON TOP of the state stylebox, not instead of it, so an opaque
 	# focus box hides the button beneath. This is not hypothetical: the first version
@@ -585,7 +664,10 @@ func _test_banaue_environment() -> void:
 	world.add_child(environment)
 	await process_frame
 	var bounds: Rect2 = environment.get("world_bounds")
-	_expect(bounds.size == Vector2(3760.0, 1200.0), "Banaue world bounds changed unexpectedly")
+	# 3920 since the bale stepped back off the cliff: the Overlook grew 160px east to carry
+	# it, so there is a shelf in front of the house to stand a ladder in and room behind it
+	# for the route that goes over the thatch. See R7 in GATES.md.
+	_expect(bounds.size == Vector2(3920.0, 1200.0), "Banaue world bounds changed unexpectedly")
 	var spawn := environment.get_node("GameplayPlane/SpawnPoint") as Marker2D
 	# Read against the terrace rather than pinned to a literal: the opening bank has moved
 	# twice while deepening the paddy, and a hardcoded spawn point turns every legitimate
@@ -800,6 +882,11 @@ func _test_level_1_needs_drawing() -> void:
 		return
 	var level := scene.instantiate() as Node2D
 	world.add_child(level)
+	# Dismiss the level's opening line. A conversation stops the tree until the player
+	# turns the page, and a paused tree means every `await physics_frame` below
+	# advances nothing -- which does not fail loudly, it fails as a body that never
+	# moved. A no-op anywhere there is no dialogue box.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await physics_frame
 
 	var terrain := level.get_node_or_null(^"GameplayPlane/Terrain")
@@ -899,6 +986,11 @@ func _test_revert_to_base_form() -> void:
 	# Without this the level starts a real Python process on import.
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	world.add_child(level)
+	# Dismiss the level's opening line. A conversation stops the tree until the player
+	# turns the page, and a paused tree means every `await physics_frame` below
+	# advances nothing -- which does not fail loudly, it fails as a body that never
+	# moved. A no-op anywhere there is no dialogue box.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await process_frame
 	await process_frame
 	_expect(level.get("player") is Wanderer, "the level did not start the player as the wanderer")

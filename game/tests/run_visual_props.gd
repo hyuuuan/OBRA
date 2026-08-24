@@ -16,8 +16,8 @@ const OUTPUT_DIR := "/tmp"
 const SHOTS: Array = [
 	{"name": "wanderer", "at": "player", "size": Vector2(300, 300)},
 	{"name": "lolo", "at": "lolo", "size": Vector2(300, 300)},
-	{"name": "hagdan_stair", "at": Vector2(676, 502), "size": Vector2(420, 320)},
-	{"name": "floating_tread", "at": Vector2(560, 592), "size": Vector2(340, 250)},
+	{"name": "hagdan_stair", "at": Vector2(836, 500), "size": Vector2(420, 320)},
+	{"name": "floating_tread", "at": Vector2(440, 585), "size": Vector2(300, 220)},
 	{"name": "ruined_bridge", "at": Vector2(2680, 180), "size": Vector2(700, 300)},
 	{"name": "hidden_flower", "at": Vector2(2700, 578), "size": Vector2(260, 240), "do": "light_flower"},
 	{"name": "stool_and_jar", "at": Vector2(2998, 227), "size": Vector2(130, 100)},
@@ -46,6 +46,11 @@ func _run() -> void:
 	level = packed.instantiate()
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
+	# The level opens on a line of dialogue, and a conversation stops the tree until the
+	# player turns the page. Nobody is here to press a key, so dismiss it the way a skip
+	# button would, and keep dismissing them -- otherwise the first obstacle the
+	# walker reaches stops the world and it reports the level as a wall.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _wait(1.2)
 
 	player = level.get("player") as Node2D
@@ -60,13 +65,12 @@ func _run() -> void:
 	var hud := level.get_node_or_null("CanvasLayer") as CanvasLayer
 	if hud != null:
 		hud.visible = false
-	# Lolo's bubble is a world-space node rather than HUD, and it is wide enough to cover
-	# whatever is being photographed -- Lolo himself included.
-	var companion := level.get("lolo") as Node2D
-	if companion != null:
-		var bubble := companion.get_node_or_null("Bubble") as CanvasItem
-		if bubble != null:
-			bubble.visible = false
+	# The dialogue box is wide enough to cover whatever is being photographed. It used to
+	# be a world-space bubble hanging off Lolo; it is now its own layer, so hiding the
+	# HUD layer above does not take it with it.
+	var dialogue := level.get_node_or_null("DialogueLayer") as CanvasLayer
+	if dialogue != null:
+		dialogue.visible = false
 
 	# The camera clamps itself to the level's bounds, which would refuse to look at
 	# anything within half a screen of either edge -- the bale among them.

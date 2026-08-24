@@ -128,10 +128,37 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
 - **Pause is derived, never assigned.** Overlays join the `modal_overlays` group and
   `UIRouter.refresh_pause()` recomputes `get_tree().paused` from whoever is open.
   Writing `paused` directly unpauses the game when a nested overlay closes.
-- Styling lives in `game/ui/obra_theme.tres`, applied project-wide via
-  `gui/theme/custom`. The main menu keeps its own per-node overrides and must stay
-  pixel-identical; a `focus` stylebox with an opaque background will cover buttons it
-  is drawn over, and a `Label` font in the theme would restyle the menu.
+- **Styling lives in `game/scripts/ui_skin.gd`** -- the whole palette and every frame
+  factory. `game/ui/obra_theme.tres` is GENERATED from it by
+  `godot --headless --path game --script res://tools/build_theme.gd` and must not be hand
+  edited. Read **HUD_SKIN.md** before changing how anything looks: it carries the palette,
+  the three button families and what each means, and the four things Godot will not do the
+  way the design sheet asks. A `focus` stylebox with an opaque background will cover
+  buttons it is drawn over, and a `Label` font in the theme would restyle the menu. The
+  main menu still holds copies of the palette inline in its own `.tscn`, because a scene
+  cannot call a function -- change a colour there too.
+- **Story is framed; menus are not.** `UIFrame` (`game/scripts/ui_frame.gd`) draws a pixel
+  picture frame, and everything the world says wears it -- Lolo's dialogue, the route
+  decision, the Lola memory. Pause/settings/controls/confirm keep the plain panel.
+- **Story and hints are two channels.** A beat of story goes to `DialogueBox` -- queued,
+  advanced by the player with `ui_accept` or a click, world paused, camera pushed in on the
+  speaker. A hint goes to `HintBar` -- no key, no pause, clears itself. `dialogue_script.kind_of`
+  decides from the hook (`.teach`, `.sub1`, `.ward.fail*` are hints); a line's own `kind`
+  wins. **Any fixture that plays the level unattended must call
+  `call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)`**, or the first beat stops the
+  tree and nothing moves again.
+- **`DialogueBox` is the only place a story line is drawn.** Lolo no longer carries a
+  bubble; `say`/`hush`/`is_speaking` are unchanged and forward to the box, which the level
+  builds and hands him at spawn. Lolo's own `say()` is the HINT channel now. The apo's
+  story lines share the box with a different plaque -- the status label is for the game
+  talking about itself. Anything that opens with story of its own must
+  `call_group(DialogueBox.GROUP, &"hide_line")`.
+- **The typeface is Geist Pixel** (SIL OFL 1.1), in `game/ui/fonts/` with its licence. It
+  is the theme's DEFAULT font. Its `.import` turns antialiasing, hinting and subpixel
+  positioning OFF -- a pixel face rendered like an outline face is a blurry pixel face, and
+  that is the first thing to check if text goes soft. **Every font size must be a multiple
+  of `UISkin.FONT_UNIT`** (10). Changing the face or the scale moves layouts; HUD_SKIN.md
+  lists the five places it already has.
 - Screens read their content from `config/` (`levels.json`, `controls.json`,
   `audio.json`) rather than from strings typed into a `.tscn`.
 
