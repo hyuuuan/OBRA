@@ -145,6 +145,10 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
   builds and hands him at spawn. The apo's lines go to the same box with a different
   plaque -- the status label is for the game talking about itself, not for story. Anything
   that opens with story of its own must `call_group(DialogueBox.GROUP, &"hide_line")`.
+- **The game has its own bitmap typeface**, drawn in `tools/font_glyphs.py` and built by
+  `tools/build_font.py` into `game/ui/obra_font.fnt`. It is the theme's DEFAULT font, and
+  **every font size in the project must be a multiple of 8** -- a bitmap scaled by a
+  fraction has some rows twice as thick as others.
 - Screens read their content from `config/` (`levels.json`, `controls.json`,
   `audio.json`) rather than from strings typed into a `.tscn`.
 
