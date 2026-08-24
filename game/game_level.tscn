@@ -85,16 +85,13 @@ offset_bottom = 88.0
 text = "Ink 12.0 / 12.0"
 
 [node name="InventoryHUD" type="HBoxContainer" parent="CanvasLayer"]
-anchors_preset = 7
-anchor_left = 0.5
+anchors_preset = 2
 anchor_top = 1.0
-anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -378.0
-offset_top = -76.0
-offset_right = 378.0
-offset_bottom = -20.0
-grow_horizontal = 2
+offset_left = 24.0
+offset_top = -122.0
+offset_right = 448.0
+offset_bottom = -58.0
 grow_vertical = 0
 theme_override_constants/separation = 8
 script = ExtResource("11_inventory_hud")
@@ -106,11 +103,7 @@ offset_top = 20.0
 offset_bottom = 52.0
 grow_horizontal = 2
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.94, 0.9, 0.58, 1)
-theme_override_colors/font_shadow_color = Color(0.03, 0.09, 0.045, 0.9)
-theme_override_constants/shadow_offset_x = 3
-theme_override_constants/shadow_offset_y = 3
-theme_override_font_sizes/font_size = 18
+theme_type_variation = &"HudBanner"
 text = "LEVEL 1  ·  BANAUE RICE TERRACES"
 horizontal_alignment = 1
 
@@ -140,7 +133,7 @@ offset_bottom = -84.0
 grow_horizontal = 0
 grow_vertical = 0
 mouse_filter = 2
-theme_type_variation = &"HudHint"
+theme_type_variation = &"HudValue"
 text = ""
 horizontal_alignment = 2
 
