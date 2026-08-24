@@ -19,8 +19,48 @@ the skin, so a palette edit without a regeneration fails the suite instead of sh
 **See it.** `godot --path game --script res://tests/run_visual_hud.gd` writes six frames
 to `/tmp/obra_hud_*.png`: the HUD over the level, the gauge full, mid-stroke and nearly
 spent, a line still typing and the same line finished, both voices, the drawing panel, the
-pause menu and settings. `run_visual_popups.gd` covers the decision and memory boxes. Nothing in it is an assertion, on
+pause menu and settings. `run_visual_popups.gd` covers the decision and memory boxes, and `run_visual_menu.gd` the
+title screen and the level selector — the menu is the one screen still carrying its own
+StyleBoxes and sizes inline, so it is where a palette or type-scale change silently fails
+to arrive. Nothing in it is an assertion, on
 purpose — see *Why there is no test for this* below.
+
+---
+
+## The typeface
+
+The game has its own. `tools/font_glyphs.py` is ninety-eight glyphs, five pixels wide and
+eight tall, drawn as `#` and `.` — all of printable ASCII plus `·`, `—` and `…`, which a
+scan of every string in the project says are the only ones beyond ASCII it renders.
+
+```bash
+python3 tools/build_font.py     # -> game/ui/obra_font.png + .fnt
+```
+
+Both outputs are generated; edit the glyph table, never them. Godot imports the `.fnt` as a
+`FontFile` and `build_theme.gd` sets it as the theme's **default** font — not on `Label`,
+because that leaves buttons, slider readouts and tooltips on the engine's face, which shows
+up as *some* of the text having gone 8-bit.
+
+**The type scale is multiples of eight and has to be.** A bitmap scaled by 2.375 is a
+bitmap with some rows twice as thick as others. `FONT_UNIT` is 8; every size is a multiple
+of it, in the theme, in the scripts and in the `.tscn` files. Adding a size means adding a
+multiple, not a number.
+
+| | px | = |
+|---|---|---|
+| `FONT_TINY` · `FONT_CAPTION` · `FONT_BODY` | 16 | 2× |
+| `FONT_BUTTON` · `FONT_SUBTITLE` | 24 | 3× |
+| `FONT_TITLE` | 32 | 4× |
+
+**Changing the type scale moves layouts.** The face is wider per character than the
+proportional one the screens were measured against. Two places already had to grow and are
+the first to check if it changes again: the ink panel's width (`game_level.gd`,
+`_build_hud_frame`) and `MainMenu.CARD_HEIGHT`, where the level blurb went from two lines
+to four and was clipped by the card's own `clip_contents`.
+
+Digits are the one monospaced part — the ink readout counts down while you draw, and a
+proportional `1` makes the whole number jump sideways.
 
 ---
 
@@ -153,11 +193,11 @@ Which ring gets dropped differs by element, and both choices are deliberate:
 
 If you ever need all four, nest two `PanelContainer`s. Nothing does yet.
 
-### 2. Some of it is drawn, not shipped
+### 2. Almost none of it is shipped as an image
 
-No part of this skin is a PNG. The droplet and the flag (`ui_glyph.gd`) are eight-row
-bitmaps; the ink gauge, the drawing page's corner brackets and the key badge are drawn in
-`_draw()`. That is cheaper than four textures, it scales to whatever the row turns out to
+The only PNG in the skin is the font atlas, and that is generated from a text file. The
+droplet and the flag (`ui_glyph.gd`) are eight-row bitmaps; the picture frame, the ink
+gauge, the drawing page's corner brackets and the key badge are drawn in `_draw()`. That is cheaper than four textures, it scales to whatever the row turns out to
 be, it cannot be imported with the wrong texture filter, and it does not put binaries in
 the repo that nobody can diff. It also sidesteps the `assets/level1` / `assets/Level1`
 case trap, which is real on this project.
@@ -192,7 +232,8 @@ at 5 painted a ten-pixel olive slab across every panel. It is 1, with separation
 
 | On screen | File |
 |---|---|
-| Palette, every frame factory, the two generated textures | `game/scripts/ui_skin.gd` |
+| Palette, type scale, every frame factory, the two generated textures | `game/scripts/ui_skin.gd` |
+| The typeface | `tools/font_glyphs.py` → `tools/build_font.py` → `game/ui/obra_font.fnt` |
 | The generated theme | `game/ui/obra_theme.tres` ← `game/tools/build_theme.gd` |
 | The picture frame every story box wears | `game/scripts/ui_frame.gd` |
 | Lolo's dialogue, the plaque, the typing, the arrow | `game/scripts/dialogue_box.gd` |
@@ -204,7 +245,7 @@ at 5 painted a ten-pixel olive slab across every panel. It is 1, with separation
 | Drawing panel, page brackets, live guess | `game/scripts/draw_panel.gd` |
 | Slider handle and fullscreen switch | `game/scripts/settings_overlay.gd` (`_skin_controls`) |
 | Pause menu | `game/game_level.tscn` (`PauseMenu`) |
-| Main menu | `game/ui/main_menu.tscn` — see below |
+| Main menu | `game/ui/main_menu.tscn` + `main_menu.gd` (`CARD_HEIGHT`) — see below |
 | Every other screen | `game/ui/*.tscn`, all through theme variations |
 
 **The main menu still carries its own StyleBoxes inline.** They now hold palette values,
@@ -217,12 +258,6 @@ hazard; changing it on purpose is fine.
 
 ## What is deliberately not built
 
-- **No custom font.** The sheet is set in a pixel typeface and the build uses Godot's
-  default. A font is a licensing decision and an import, not a colour, so it is the team's
-  call — everything else here is already sized for one. Dropping it in is one
-  `theme.set_font` in `build_theme.gd`; note the suite asserts the theme defines **no**
-  `Label` font today, because one would restyle the main menu, so that assertion moves at
-  the same time.
 - **The keybind row still fades after fourteen seconds.** That is a design decision, not a
   look. The sheet shows it present because a sheet has no time axis.
 
