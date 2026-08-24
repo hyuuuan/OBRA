@@ -1092,22 +1092,107 @@ func _build_hud_frame() -> void:
 	# Superseded by the gauge, kept so nothing that writes to them has to care.
 	ink_bar.visible = false
 	ink_label.visible = false
-	# The keybind row is a wall of text that never changes and never stops being on screen.
-	# It is worth having while the player is learning where the keys are, and the same five
-	# lines are in the Controls screen for the rest of the time.
 	# The two readouts at the far corners get the same frame, so the HUD is one language
 	# rather than two framed things and two lines of text floating on the level art.
 	_wrap_in_chip(level_badge, "top_centre", Vector2(0.0, 18.0), 0.0)
 	# A fixed width, because this one's text changes every frame: the chip is placed
 	# once, and a container that grows with "GOAL REACHED" grows rightward off the
 	# edge of the screen from wherever it was parked.
-	_wrap_in_chip(goal_label, "bottom_right", Vector2(-24.0, -80.0), 168.0)
+	_wrap_in_chip(goal_label, "bottom_right", Vector2(-24.0, -80.0), 150.0,
+		UIGlyph.Kind.FLAG)
+	_style_action_tag()
+	_frame_controls_legend()
 
+
+## The Draw button, as a key prompt rather than a button.
+##
+## It was the only control on the HUD shaped like a button, which made it the loudest
+## thing on screen and said the wrong thing twice: that drawing is done by clicking here
+## (it is done by pressing R, from anywhere) and that this is a place to look (it is a
+## reminder). Now it wears the chip frame the other readouts wear, with the key itself set
+## into it, so it reads as "R does this" -- which is what the player needs to learn once
+## and then never read again.
+##
+## It stays a Button. Clicking it still opens the panel, which is worth keeping for anyone
+## who reaches for the mouse first, and the hit area is unchanged.
+func _style_action_tag() -> void:
+	if draw_button == null:
+		return
+	for state in [&"normal", &"hover", &"pressed", &"disabled"]:
+		draw_button.add_theme_stylebox_override(state, UISkin.chip(8.0, 4.0))
+	draw_button.add_theme_color_override(&"font_color", UISkin.LIME_PALE)
+	draw_button.add_theme_color_override(&"font_hover_color", UISkin.LIME)
+	draw_button.add_theme_color_override(&"font_disabled_color", UISkin.MUTED)
+	draw_button.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION + 2)
+	draw_button.add_theme_constant_override(&"h_separation", 8)
+	# Room made on the left for the key badge, which is drawn over the button rather than
+	# laid out inside it: a Button is not a container, so a child Control added to it is
+	# positioned, not packed, and the label centres itself in the whole rect regardless.
+	draw_button.alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	draw_button.add_theme_constant_override(&"align_to_largest_stylebox", 0)
+	draw_button.add_child(_key_badge("R"))
+
+
+## One key, drawn as a key: a lime tile with the letter cut out of it dark. The same shape
+## the controls legend uses, at the size a chip can hold.
+func _key_badge(key: String) -> Control:
+	var badge := PanelContainer.new()
+	badge.name = "KeyBadge"
+	var cap := StyleBoxFlat.new()
+	cap.bg_color = UISkin.LIME
+	cap.set_corner_radius_all(UISkin.RADIUS)
+	cap.content_margin_left = 5.0
+	cap.content_margin_right = 5.0
+	cap.content_margin_top = 1.0
+	cap.content_margin_bottom = 1.0
+	badge.add_theme_stylebox_override(&"panel", cap)
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.position = Vector2(8.0, 7.0)
+	var letter := Label.new()
+	letter.text = key
+	letter.add_theme_color_override(&"font_color", UISkin.GREEN_LABEL)
+	letter.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
+	letter.add_theme_constant_override(&"shadow_offset_x", 0)
+	letter.add_theme_constant_override(&"shadow_offset_y", 0)
+	badge.add_child(letter)
+	return badge
+
+
+## The keybind row, on a ground it can be read against.
+##
+## It was bare outlined text lying directly on the level, along the bottom edge -- which
+## in Level 1 is grass, stone and water, all of it the same value as the text. The row was
+## unreadable in exactly the first thirty seconds it exists to serve.
+##
+## It still fades. That is a deliberate decision and not a look: the row is worth having
+## while the player is learning where the keys are, and the Controls screen has the same
+## five lines for the rest of the time.
+func _frame_controls_legend() -> void:
 	var keys := $CanvasLayer/HintLabel as Label
-	if keys != null:
-		var fade := create_tween()
-		fade.tween_interval(14.0)
-		fade.tween_property(keys, "modulate:a", 0.0, 1.2)
+	if keys == null:
+		return
+	var strip := PanelContainer.new()
+	strip.name = "ControlsStrip"
+	strip.add_theme_stylebox_override(&"panel", UISkin.strip())
+	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var parent := keys.get_parent()
+	parent.remove_child(keys)
+	strip.add_child(keys)
+	parent.add_child(strip)
+	keys.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	# Outlined type on a solid strip is a belt over a belt, and the outline is what makes
+	# a small font look furry.
+	keys.add_theme_constant_override(&"outline_size", 0)
+	strip.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	_place_chip(strip, "bottom_left", Vector2(24.0, -18.0))
+	_place_chip.call_deferred(strip, "bottom_left", Vector2(24.0, -18.0))
+	_chips.append({"chip": strip, "corner": "bottom_left", "offset": Vector2(24.0, -18.0)})
+	if not get_viewport().size_changed.is_connected(_place_all_chips):
+		get_viewport().size_changed.connect(_place_all_chips)
+
+	var fade := create_tween()
+	fade.tween_interval(14.0)
+	fade.tween_property(strip, "modulate:a", 0.0, 1.2)
 
 
 ## A label sized to its own text, parked in a corner.
@@ -1122,7 +1207,7 @@ func _build_hud_frame() -> void:
 ## label already had -- which is the full width of the screen. Both were tried; both put a
 ## dark slab across the HUD.
 func _wrap_in_chip(label: Label, corner: String, offset: Vector2,
-		min_width: float) -> void:
+		min_width: float, glyph: int = -1) -> void:
 	if label == null:
 		return
 	var parent := label.get_parent()
@@ -1130,14 +1215,27 @@ func _wrap_in_chip(label: Label, corner: String, offset: Vector2,
 		return
 	var chip := PanelContainer.new()
 	chip.name = "%sChip" % label.name
-	chip.add_theme_stylebox_override(&"panel", HudPanel.chip())
+	chip.add_theme_stylebox_override(&"panel", UISkin.chip())
 	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.remove_child(label)
-	chip.add_child(label)
+	# A glyph needs a row to sit in; without one the chip has a single child and the
+	# pictogram would have to be positioned by hand against a label that resizes.
+	if glyph >= 0:
+		var row := HBoxContainer.new()
+		row.name = "Row"
+		row.add_theme_constant_override(&"separation", 7)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var mark := UIGlyph.new()
+		mark.kind = glyph as UIGlyph.Kind
+		mark.custom_minimum_size = Vector2(14.0, 16.0)
+		row.add_child(mark)
+		row.add_child(label)
+		chip.add_child(row)
+	else:
+		chip.add_child(label)
 	parent.add_child(chip)
 	label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	label.custom_minimum_size = Vector2(min_width, 0.0)
-	label.add_theme_color_override(&"font_color", HudPanel.CREAM)
 	chip.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	_place_chip(chip, corner, offset)
 	# Deferred as well, because the first call runs before the label has been laid out and
@@ -1166,6 +1264,8 @@ func _place_chip(chip: PanelContainer, corner: String, offset: Vector2) -> void:
 	match corner:
 		"bottom_right":
 			chip.position = Vector2(view.x - chip_size.x + offset.x, view.y - chip_size.y + offset.y)
+		"bottom_left":
+			chip.position = Vector2(offset.x, view.y - chip_size.y + offset.y)
 		_:
 			chip.position = Vector2((view.x - chip_size.x) * 0.5 + offset.x, offset.y)
 
