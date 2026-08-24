@@ -686,6 +686,66 @@ func _audit_live_level() -> void:
 			"%d step(s), all climbable" % maxi(0, treads.size() - 1) if unreachable.is_empty()
 			else "; ".join(unreachable))
 
+	# --- R7: a gate is only a puzzle if there is floor to build on ------------
+	# Every gate in this level is measured as a RISE or a GAP, and both of those can be
+	# right while the level is still unplayable. What was never measured is the floor the
+	# player stands on to answer it. The bank between the paddy and the stair was 120px
+	# wide with a 30px body standing in it, and the shelf between the Overlook and the
+	# bale's posts was 60px -- which is where a 244px ladder has to go for the last gate
+	# in the level. Both passed every suite in the repo, because no suite asked.
+	#
+	# Read off the nodes, so moving a piece is what fails this rather than editing a copy
+	# of the number.
+	var bank := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/Terrain/LowerRight") as Node2D
+	if bank != null:
+		var bank_width: float = Vector2(bank.get("segment_size")).x
+		_check(bank_width >= 240.0, "the landing between the paddy and the stair has room",
+			"%.0fpx of bank" % bank_width)
+		# And most of it has to be under open sky. The lowest surviving stone overhangs the
+		# right end of the bank, and the pocket under it is 102px for an 80px character --
+		# usable to stand in, not to stand a drawing up in.
+		var hagdan_node := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane/Hagdan")
+		var overhang := INF
+		if hagdan_node != null:
+			for child in hagdan_node.get_children():
+				if child.get_script() == StairTreadClass and not bool(child.get("is_broken")):
+					overhang = minf(overhang, (child as Node2D).global_position.x)
+		if overhang < INF:
+			# Bank floor, not distance to the stone: clamped to the bank's own right edge, or a
+			# narrow bank that ends before the overhang even starts would score the full gap.
+			var open_sky: float = minf(overhang, bank.global_position.x + bank_width) \
+				- bank.global_position.x
+			_check(open_sky >= 180.0, "and most of it is under open sky",
+				"%.0fpx of bank clear of the overhanging stone" % open_sky)
+
+	var terrace1 := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/Terrain/Terrace1") as Node2D
+	if terrace1 != null:
+		var run_up: float = Vector2(terrace1.get("segment_size")).x
+		_check(run_up >= 200.0, "there is room to answer the terrace face above it",
+			"%.0fpx of Terrace1" % run_up)
+
+	# The last gate is the one with the biggest answer: a ladder is 244px tall and has to
+	# be stood up between the cliff the player just climbed and the posts of the house.
+	var overlook := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/Terrain/Overlook") as Node2D
+	var house := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane/Bale/House") as Node2D
+	if overlook != null and house != null:
+		var posts_start: float = house.global_position.x - Vector2(house.get("floor_size")).x * 0.5
+		var shelf: float = posts_start - overlook.global_position.x
+		_check(shelf >= 180.0, "the shelf in front of the bale has room for a ladder",
+			"%.0fpx between the cliff lip and the posts" % shelf)
+		# And the house must not be pressed against the far wall either, or the route that
+		# goes over the thatch has nowhere to come down.
+		var baseplate := level.get_node_or_null("EnvironmentBaseplate")
+		if baseplate != null:
+			var bounds := Rect2(baseplate.get("world_bounds"))
+			var behind: float = bounds.end.x - (house.global_position.x
+				+ Vector2(house.get("floor_size")).x * 0.5)
+			_check(behind >= 120.0, "and the house is not pressed against the world's edge",
+				"%.0fpx behind it" % behind)
+
 	# --- the tread that floated off, and what Roll does to it ----------------
 	# Sub-beat 0.2's whole lesson. It was drawn and it floated, but nothing made weighing it
 	# down mean anything, so the mechanic was fiction: the strip asked for ROLL and any
