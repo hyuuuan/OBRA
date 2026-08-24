@@ -60,6 +60,16 @@ the build right now and needs replacing · **READY** = code and hook exist, wait
 
 ---
 
+## 3b. Interface
+
+The HUD, the menus and every overlay wear the 8-bit skin in `HUD-assets-ideas/`, applied in
+full. **HUD_SKIN.md** says how to change it and what is deliberately unbuilt. One item is
+the team's call rather than the developers':
+
+| Item | State | Notes |
+|---|---|---|
+| **A pixel font** | **MISSING** | The design sheet is set in a pixel typeface; the build uses Godot's default and every size in the theme is already picked for one. This is a licensing decision -- choose a face the project may ship. Wiring it is one line in `tools/build_theme.gd`, plus moving the suite's assertion that the theme defines no `Label` font. It is the single biggest remaining gap between the build and the sheet. |
+
 ## 4. Audio
 
 **Status: nothing recorded, everything wired.** `game/config/audio.json` lists sound ids
