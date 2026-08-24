@@ -1,6 +1,6 @@
 class_name UIFrame
 extends Control
-## A pixelated picture frame, drawn rather than shipped.
+## A picture frame, drawn rather than shipped.
 ##
 ## THE LORE IS THE REASON. OBRA is a game about a grandmother's paintings -- the hub is her
 ## studio, the levels are her canvases, and the player is holding her brush. So when the
@@ -8,14 +8,19 @@ extends Control
 ## painting is presented. A dialogue box that looks like a UI panel says "this is software";
 ## a dialogue box that looks like a frame says "this is one of hers".
 ##
-## Three things make a frame read as a frame rather than as a thick border, and all three
-## have to be here or it just looks like a panel someone made chunky:
+## Dark wood with a gold liner, and restrained. An earlier cut of this was vermillion and
+## gold with a crest on the top rail, stepped corners and pins at every joint -- a
+## fairground frame. It drew more attention than the words inside it, which is the one
+## thing a frame must never do.
+##
+## What makes it read as a frame rather than as a thick brown border is not ornament:
 ##
 ##   1. DEPTH. Bands of different widths, not one ring. A real moulding steps.
-##   2. LIGHT. The top and left edges catch it, the bottom and right fall away. This is
-##      what makes it look carved instead of printed.
-##   3. CORNERS. Real frames are joined at the corners and the joint is decorated. The
-##      corner bosses are the single strongest cue and the cheapest to draw.
+##   2. LIGHT. Two bevels leaning OPPOSITE ways -- the outer edge catches the light, the
+##      inner edge falls away from it. That opposition is what makes the flat band between
+##      them read as the top of something raised rather than as a stripe.
+##   3. THE LINER. One pixel of gold between the wood and the picture. It is the whole
+##      difference between a brown rectangle and a frame, and it costs a single band.
 ##
 ## Sized to whatever rect it is given, so the same frame serves a two-line hint and a
 ## six-line memory without a second asset.
@@ -26,13 +31,6 @@ extends Control
 @export var unit: float = 4.0:
 	set(value):
 		unit = value
-		queue_redraw()
-
-## The crest and the pins. Worth turning off for a small frame, where a crest is a bigger
-## fraction of the rail than of the object and the pins land on top of each other.
-@export var ornament: bool = true:
-	set(value):
-		ornament = value
 		queue_redraw()
 
 ## How far past its own rect the frame draws, on every side.
@@ -55,29 +53,23 @@ extends Control
 
 ## Widths in units, outermost first. Named rather than inlined because the dialogue box
 ## measures its own text against them.
-## The bands, outermost first: width in units, and what colour that width is painted.
-## Read as a table because that is what it is -- change a width or a colour here and the
-## whole frame follows, including the padding the dialogue box lays its text out against.
+## The bands, outermost first: width in units, and how that width is painted. A band is
+## either FLAT (one colour) or a BEVEL (lit on the top and left, shaded on the bottom and
+## right, or the reverse). Read as a table because that is what it is -- change a width or
+## a colour here and the whole frame follows, including the padding the dialogue box lays
+## its text out against.
 const BANDS := [
-	[1.0, "EDGE"],
-	[3.0, "DEEP"],
-	[1.0, "MID"],
-	[1.0, "PALE"],
-	[1.0, "LIT"],
-	[2.0, "RABBET"],
+	[1.0, "flat", "EDGE"],
+	[1.0, "bevel", "WOOD_LIT"],   # the outer arris, catching the light
+	[3.0, "flat", "WOOD"],        # the face of the moulding
+	[1.0, "bevel", "WOOD_DARK"],  # stepping down into the picture, so it turns away
+	[1.0, "bevel", "FILLET"],     # the gold liner
+	[1.0, "flat", "EDGE"],        # the rabbet: the shadow the glass would sit in
+	[2.0, "flat", "MAT"],
 ]
 
-## How far each corner is cut back, in steps of one unit. Three reads as a chamfer at a
-## glance and as a staircase up close, which is the whole idea.
-const CORNER_STEPS := 3
-
-## The crest at the top and bottom centre: how far it stands proud of the rail, and how
-## much of the frame's width it spans.
-const CREST_U := 5.0
-const CREST_SPAN := 0.20
-
 ## How much of the rect the frame itself eats, in units. What is left is canvas.
-const TOTAL_U := 9.0
+const TOTAL_U := 10.0
 
 
 func _init() -> void:
@@ -93,8 +85,7 @@ static func inset_for(unit_size: float) -> float:
 ## Frame an existing PanelContainer in place: the panel stops drawing its own background,
 ## takes enough padding to keep its content off the moulding, and gets a frame behind
 ## everything it holds.
-static func wrap(panel: PanelContainer, unit_size: float = 4.0,
-		with_ornament: bool = true) -> UIFrame:
+static func wrap(panel: PanelContainer, unit_size: float = 4.0) -> UIFrame:
 	var pad := inset_for(unit_size) + 14.0
 	var hollow := StyleBoxEmpty.new()
 	hollow.content_margin_left = pad
@@ -106,7 +97,6 @@ static func wrap(panel: PanelContainer, unit_size: float = 4.0,
 	var frame := UIFrame.new()
 	frame.name = "Frame"
 	frame.unit = unit_size
-	frame.ornament = with_ornament
 	frame.overdraw = pad
 	panel.add_child(frame)
 	# First child, so it is drawn before -- and therefore behind -- the content.
@@ -121,89 +111,79 @@ func _draw() -> void:
 	if rect.size.x < u * TOTAL_U * 2.0 or rect.size.y < u * TOTAL_U * 2.0:
 		return
 
-	# Snapped to the unit grid so the crest's two halves are the same width. An odd number
-	# of units either side of centre puts one more step on the left than the right, and at
-	# this scale that is visible.
-	var crest_w := floorf(rect.size.x * CREST_SPAN / (u * 2.0)) * u * 2.0 if ornament else 0.0
-
-	# Each band is drawn as a SOLID silhouette and then covered by the next one in, rather
-	# than as a ring. A ring with stepped corners and a crest on it is four awkward shapes;
-	# a solid one is a stack of rows, and the stack is the same code for every band.
-	var inset := 0.0
 	for band: Array in BANDS:
-		_silhouette(rect.grow(-inset), u, crest_w - inset,
-			u * CREST_U - inset, _band_color(String(band[1])))
-		inset += float(band[0]) * u
-
-	if ornament:
-		_pins(rect, u)
-	_silhouette(rect.grow(-inset), u, 0.0, 0.0, canvas_color)
+		var w := float(band[0]) * u
+		if String(band[1]) == "bevel":
+			rect = _bevel(rect, w, String(band[2]))
+		else:
+			rect = _ring(rect, w, _band_color(String(band[2])))
+	draw_rect(rect, canvas_color)
 
 
 func _band_color(name: String) -> Color:
 	match name:
 		"EDGE":
-			return UISkin.GILT_EDGE
-		"DEEP":
-			return UISkin.GILT_DEEP
-		"MID":
-			return UISkin.GILT_MID
-		"PALE":
-			return UISkin.GILT_PALE
-		"LIT":
-			return UISkin.GILT_LIT
+			return UISkin.WOOD_EDGE
+		"WOOD":
+			return UISkin.WOOD
+		"WOOD_LIT":
+			return UISkin.WOOD_LIT
+		"WOOD_DARK":
+			return UISkin.WOOD_DARK
+		"FILLET":
+			return UISkin.FILLET
 		_:
-			return UISkin.GILT_RABBET
+			return UISkin.MAT
 
 
-## One solid band: a rectangle whose four corners are cut back in steps, with a crest
-## standing proud of the top and bottom rails.
-func _silhouette(rect: Rect2, u: float, crest_w: float, crest_h: float,
-		color: Color) -> void:
-	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
-		return
-	if crest_w > u * 4.0 and crest_h >= u:
-		var cx := rect.position.x + floorf(rect.size.x * 0.5)
-		for edge in [-1.0, 1.0]:
-			var top := rect.position.y - crest_h if edge < 0.0 else rect.position.y + rect.size.y
-			# The crest's own outer corners are cut by one step, so it reads as part of
-			# the same moulding rather than as a tab stuck onto it.
-			var lip := top if edge < 0.0 else top + crest_h - u
-			draw_rect(Rect2(Vector2(cx - crest_w * 0.5 + u, lip),
-				Vector2(crest_w - u * 2.0, u)), color)
-			var rest := top + u if edge < 0.0 else top
-			draw_rect(Rect2(Vector2(cx - crest_w * 0.5, rest),
-				Vector2(crest_w, crest_h - u)), color)
-
-	var steps := CORNER_STEPS
-	var cut := float(steps) * u
-	if rect.size.y <= cut * 2.0 or rect.size.x <= cut * 2.0:
-		draw_rect(rect, color)
-		return
-	for i in range(steps):
-		var side := float(steps - i) * u
-		var width := rect.size.x - side * 2.0
-		draw_rect(Rect2(Vector2(rect.position.x + side,
-			rect.position.y + float(i) * u), Vector2(width, u)), color)
-		draw_rect(Rect2(Vector2(rect.position.x + side,
-			rect.position.y + rect.size.y - float(i + 1) * u), Vector2(width, u)), color)
-	draw_rect(Rect2(Vector2(rect.position.x, rect.position.y + cut),
-		Vector2(rect.size.x, rect.size.y - cut * 2.0)), color)
+## Paint a ring `w` thick inside `rect` and hand back what is left. Four rects rather than
+## an unfilled draw_rect, because an unfilled one strokes centred on the boundary and
+## leaves the ring half outside the rect it was supposed to fit in.
+func _ring(rect: Rect2, w: float, color: Color) -> Rect2:
+	draw_rect(Rect2(rect.position, Vector2(rect.size.x, w)), color)
+	draw_rect(Rect2(rect.position + Vector2(0.0, rect.size.y - w),
+		Vector2(rect.size.x, w)), color)
+	draw_rect(Rect2(rect.position + Vector2(0.0, w), Vector2(w, rect.size.y - w * 2.0)), color)
+	draw_rect(Rect2(rect.position + Vector2(rect.size.x - w, w),
+		Vector2(w, rect.size.y - w * 2.0)), color)
+	return Rect2(rect.position + Vector2(w, w), rect.size - Vector2(w, w) * 2.0)
 
 
-## The four pins, set into the gold band just inside each cut corner. They are the
-## brightest thing on the frame, which is what makes them read as hardware rather than as
-## more decoration -- and they are the detail that says "this object was made and joined"
-## more cheaply than any amount of carving.
-func _pins(rect: Rect2, u: float) -> void:
-	var depth := (float(BANDS[0][0]) + float(BANDS[1][0]) + float(BANDS[2][0])) * u
-	var band := rect.grow(-depth)
-	var step := float(CORNER_STEPS) * u
-	var size_px := Vector2(u, u) * 2.0
-	for corner in [
-		band.position + Vector2(step, step),
-		band.position + Vector2(band.size.x - step - size_px.x, step),
-		band.position + Vector2(step, band.size.y - step - size_px.y),
-		band.position + band.size - Vector2(step, step) - size_px,
-	]:
-		draw_rect(Rect2(corner.floor(), size_px), UISkin.GILT_PIN)
+## A ring whose top and left take the lit tone and whose bottom and right take the shaded
+## one. Mitred at the corners, so the two meet on the diagonal the way a moulding is
+## actually cut rather than one overrunning the other and putting a bright notch in a dark
+## edge.
+##
+## WOOD_DARK is named as the lit tone for the inner arris on purpose: there the surface
+## turns AWAY from the light, so the pair swaps and the wood below it becomes the highlight.
+func _bevel(rect: Rect2, w: float, name: String) -> Rect2:
+	var lit := _band_color(name)
+	var dark := UISkin.WOOD_DARK if name != "WOOD_DARK" else UISkin.WOOD_LIT
+	if name == "FILLET":
+		lit = UISkin.FILLET_LIT
+		dark = UISkin.FILLET
+	draw_colored_polygon(PackedVector2Array([
+		rect.position,
+		rect.position + Vector2(rect.size.x, 0.0),
+		rect.position + Vector2(rect.size.x - w, w),
+		rect.position + Vector2(w, w),
+	]), lit)
+	draw_colored_polygon(PackedVector2Array([
+		rect.position,
+		rect.position + Vector2(w, w),
+		rect.position + Vector2(w, rect.size.y - w),
+		rect.position + Vector2(0.0, rect.size.y),
+	]), lit)
+	draw_colored_polygon(PackedVector2Array([
+		rect.position + Vector2(0.0, rect.size.y),
+		rect.position + Vector2(w, rect.size.y - w),
+		rect.position + Vector2(rect.size.x - w, rect.size.y - w),
+		rect.position + rect.size,
+	]), dark)
+	draw_colored_polygon(PackedVector2Array([
+		rect.position + Vector2(rect.size.x, 0.0),
+		rect.position + rect.size,
+		rect.position + Vector2(rect.size.x - w, rect.size.y - w),
+		rect.position + Vector2(rect.size.x - w, w),
+	]), dark)
+	return Rect2(rect.position + Vector2(w, w), rect.size - Vector2(w, w) * 2.0)

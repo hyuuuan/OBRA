@@ -209,7 +209,7 @@ theme_override_colors/font_color = Color(0.875, 0.914, 0.549, 1)
 theme_override_colors/font_shadow_color = Color(0.027, 0.035, 0.024, 1)
 theme_override_constants/shadow_offset_x = 7
 theme_override_constants/shadow_offset_y = 7
-theme_override_font_sizes/font_size = 64
+theme_override_font_sizes/font_size = 60
 text = "O.B.R.A."
 
 [node name="Subtitle" type="Label" parent="MenuLayer/MenuRoot"]
@@ -222,7 +222,7 @@ theme_override_colors/font_color = Color(0.91, 0.89, 0.769, 1)
 theme_override_colors/font_shadow_color = Color(0.027, 0.035, 0.024, 1)
 theme_override_constants/shadow_offset_x = 3
 theme_override_constants/shadow_offset_y = 3
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 30
 text = "DRAW  ·  BECOME  ·  DISCOVER"
 
 [node name="SideButtons" type="HBoxContainer" parent="MenuLayer/MenuRoot"]
@@ -265,7 +265,7 @@ focus_neighbor_top = NodePath(".")
 focus_neighbor_bottom = NodePath(".")
 theme_override_colors/font_color = Color(0.071, 0.094, 0.031, 1)
 theme_override_colors/font_hover_color = Color(0.071, 0.094, 0.031, 1)
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 40
 theme_override_styles/normal = SubResource("StyleBox_play")
 theme_override_styles/hover = SubResource("StyleBox_play_hover")
 theme_override_styles/pressed = SubResource("StyleBox_card")
@@ -283,7 +283,7 @@ offset_top = 24.0
 offset_right = 900.0
 offset_bottom = 98.0
 theme_override_colors/font_color = Color(0.875, 0.914, 0.549, 1)
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 40
 text = "CHOOSE A LEVEL"
 
 [node name="SelectorHint" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
@@ -293,7 +293,7 @@ offset_top = 86.0
 offset_right = 900.0
 offset_bottom = 120.0
 theme_override_colors/font_color = Color(0.471, 0.502, 0.353, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 20
 text = "ESC TO CLOSE  ·  ENTER TO TRAVEL"
 
 [node name="Level1" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
@@ -341,7 +341,7 @@ offset_right = 218.0
 offset_bottom = 182.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.788, 0.851, 0.29, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 20
 text = "LEVEL 1"
 
 [node name="Name" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1"]
@@ -352,7 +352,7 @@ offset_right = 228.0
 offset_bottom = 248.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.91, 0.89, 0.769, 1)
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 30
 text = "BANAUE RICE TERRACES"
 autowrap_mode = 3
 
@@ -364,7 +364,7 @@ offset_right = 228.0
 offset_bottom = 336.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.471, 0.502, 0.353, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 20
 text = "MOUNTAIN RICE TERRACES AND IRRIGATION PADDIES"
 autowrap_mode = 3
 
@@ -395,7 +395,7 @@ grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.4, 0.424, 0.353, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 20
 text = "LEVEL 2\nCOMING SOON"
 horizontal_alignment = 1
 
@@ -426,7 +426,7 @@ grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.4, 0.424, 0.353, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 20
 text = "LEVEL 3\nCOMING SOON"
 horizontal_alignment = 1
 
@@ -457,7 +457,7 @@ grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.4, 0.424, 0.353, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 20
 text = "LEVEL 4\nCOMING SOON"
 horizontal_alignment = 1
 
@@ -488,7 +488,7 @@ grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.4, 0.424, 0.353, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 20
 text = "LEVEL 5\nCOMING SOON"
 horizontal_alignment = 1
 

@@ -35,27 +35,36 @@ const LIME_PALE := Color(0.875, 0.914, 0.549, 1.0)    # DFE98C
 ## Body text on a dark fill.
 const CREAM_TEXT := Color(0.910, 0.890, 0.769, 1.0)   # E8E3C4
 ## Secondary text: a status line, a caption, an empty slot's number.
-const MUTED := Color(0.471, 0.502, 0.353, 1.0)        # 78805A
+##
+## Was 78805A, which measured like a sensible "quiet" olive and was in practice unreadable:
+## against PANEL it has barely two stops of contrast, and at HUD sizes the status line --
+## the one that tells you why the game just refused something -- was the hardest text on
+## screen to read. Quiet is a job for size and placement. Not for hiding it.
+const MUTED := Color(0.663, 0.706, 0.529, 1.0)        # A9B487
 ## Ink the current sketch has claimed but not yet spent. Warm, because clearing the
 ## canvas hands it straight back.
 const PENDING := Color(0.980, 0.900, 0.310, 1.0)      # FAE64F
 
 # --- The frame -------------------------------------------------------------------------
-## A gilt ramp, and the only warm colours in the interface.
+## Dark wood and a gold liner, and the only warm colours in the interface.
 ##
 ## Deliberately not lime. The frame is a PAINTING'S frame, not a piece of UI chrome, and
 ## the whole point of framing the story is that it is a different kind of thing from the
-## menu it opens over. Sharing the HUD's palette would have undone that -- a lime frame
-## reads as one more panel. Warm against the lime also happens to be what gilt looks like.
-const GILT_EDGE := Color(0.478, 0.114, 0.047, 1.0)    # 7A1D0C  the outline
-const GILT_DEEP := Color(0.753, 0.204, 0.094, 1.0)    # C03418  the red band
-const GILT_MID := Color(0.929, 0.439, 0.086, 1.0)     # ED7016  the orange band
-const GILT_LIT := Color(0.949, 0.757, 0.243, 1.0)     # F2C13E  the gold band
-const GILT_PALE := Color(0.973, 0.871, 0.549, 1.0)    # F8DE8C  the lit edge of the gold
-const GILT_RABBET := Color(0.420, 0.165, 0.078, 1.0)  # 6B2A14  the inner lip
-## The pins at the inner corners. Near white, because on a gilt frame they are the
-## brightest thing and that is what makes them read as hardware rather than as decoration.
-const GILT_PIN := Color(1.0, 0.957, 0.839, 1.0)       # FFF4D6
+## menu it opens over. Sharing the HUD's palette would have undone that.
+##
+## Restrained on purpose too. The first cut was a bright vermillion-and-gold thing with a
+## crest and stepped corners, which is a fairground frame -- it drew more attention than
+## the words inside it, which is the one thing a frame must never do.
+const WOOD_EDGE := Color(0.078, 0.047, 0.024, 1.0)    # 140C06  the outer keyline
+const WOOD_DARK := Color(0.180, 0.106, 0.055, 1.0)    # 2E1B0E  the shaded side
+const WOOD := Color(0.290, 0.180, 0.102, 1.0)         # 4A2E1A  the body of the moulding
+const WOOD_LIT := Color(0.420, 0.271, 0.149, 1.0)     # 6B4526  the side the light hits
+## The gold liner between the wood and the picture. One pixel of it is the whole difference
+## between a brown rectangle and a frame.
+const FILLET := Color(0.690, 0.541, 0.235, 1.0)       # B08A3C
+const FILLET_LIT := Color(0.847, 0.725, 0.408, 1.0)   # D8B968
+## The mount the picture sits on, inside the rabbet.
+const MAT := Color(0.220, 0.161, 0.110, 1.0)          # 38291C
 
 # --- Button anatomy ---------------------------------------------------------------------
 ## The grey highlight ring immediately inside a button's edge. Identical across all three
@@ -101,20 +110,25 @@ const THIN := 2
 ## debug rect; a 2 px radius reads as a drawn box.
 const RADIUS := 2
 
-## THE TYPE SCALE IS MULTIPLES OF EIGHT, and it has to be.
+## THE TYPE SCALE IS MULTIPLES OF THE FONT'S OWN LINE, and it has to be.
 ##
-## The font is a bitmap -- eight pixels to the line, hand-drawn in tools/font_glyphs.py --
-## and a bitmap scaled by 2.375 is a bitmap with some rows twice as thick as others. Every
-## size here is an integer multiple of that eight, so a glyph is always whole pixels, and
-## the scale is short for the same reason: there are only so many multiples worth having
-## between "readable" and "shouting". Adding a size means adding a multiple, not a number.
-const FONT_UNIT := 8
-const FONT_TITLE := FONT_UNIT * 4    # 32
-const FONT_SUBTITLE := FONT_UNIT * 3 # 24
-const FONT_BUTTON := FONT_UNIT * 3   # 24
-const FONT_BODY := FONT_UNIT * 2     # 16
-const FONT_CAPTION := FONT_UNIT * 2  # 16
-const FONT_TINY := FONT_UNIT * 2     # 16
+## The font is a bitmap -- ten pixels to the line, hand-drawn in tools/font_glyphs.py --
+## and a bitmap scaled by 1.9 is a bitmap with some rows twice as thick as others. Every
+## size here is an integer multiple of that ten, so a glyph is always whole pixels, and the
+## scale is short for the same reason: there are only so many multiples worth having
+## between readable and shouting. Adding a size means adding a multiple, not a number.
+##
+## Everything moved up one step from the first cut of this face. Two times ten is the
+## FLOOR for anything a player has to read, not the default for anything small -- the
+## previous scale put the status line and the keybind row at a size where the letterforms
+## stopped resolving, and shrinking type is not how you make something secondary.
+const FONT_UNIT := 10
+const FONT_TITLE := FONT_UNIT * 4     # 40
+const FONT_SUBTITLE := FONT_UNIT * 3  # 30
+const FONT_BUTTON := FONT_UNIT * 3    # 30
+const FONT_BODY := FONT_UNIT * 3      # 30
+const FONT_CAPTION := FONT_UNIT * 2   # 20
+const FONT_TINY := FONT_UNIT * 2      # 20
 
 enum Family { GREEN, CREAM, RED }
 enum State { NORMAL, HOVER, PRESSED, DISABLED }

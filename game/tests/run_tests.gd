@@ -376,10 +376,15 @@ func _test_theme_resource() -> void:
 	# readouts and tooltips too -- putting it on Label alone is how you end up with only
 	# some of the text gone 8-bit.
 	_expect(theme.default_font != null, "the theme has no font -- run tools/build_font.py")
+	var skin := load("res://scripts/ui_skin.gd")
+	# Read from the skin, never written here as a number. A hardcoded copy of the font's
+	# line height is exactly the drift this whole assertion exists to catch, and it went
+	# stale the first time the face was redrawn on a taller grid.
+	var unit: int = skin.FONT_UNIT
 	_expect(
-		theme.default_font_size % 8 == 0,
-		"default font size %d is not a multiple of the bitmap font's 8px line"
-			% theme.default_font_size
+		theme.default_font_size % unit == 0,
+		"default font size %d is not a multiple of the bitmap font's %dpx line"
+			% [theme.default_font_size, unit]
 	)
 
 	# The theme is generated from ui_skin.gd by tools/build_theme.gd. If someone edits the
@@ -387,7 +392,6 @@ func _test_theme_resource() -> void:
 	# palette -- no error, no warning, and the two disagree from then on. Spot-checking one
 	# value from each family is enough to catch it, because a palette change that leaves
 	# all three families untouched is not a palette change.
-	var skin := load("res://scripts/ui_skin.gd")
 	var checks := {
 		"Button": skin.CREAM_FILL,
 		"PrimaryButton": skin.GREEN_FILL,
