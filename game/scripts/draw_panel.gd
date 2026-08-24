@@ -248,7 +248,7 @@ func _style_panel() -> void:
 	page.name = "PageEdge"
 	page.add_theme_stylebox_override(&"panel", UISkin.well())
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	page.position = Vector2(42.0, 26.0)
+	page.position = Vector2(42.0, 48.0)
 	page.size = Vector2(524.0, 524.0)
 	panel_root.add_child(page)
 	panel_root.move_child(page, 1)
@@ -288,7 +288,7 @@ func _build_header() -> void:
 	caption.name = "Caption"
 	caption.text = "DRAW"
 	caption.theme_type_variation = &"HudCaption"
-	caption.position = Vector2(48.0, 4.0)
+	caption.position = Vector2(48.0, 14.0)
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel_root.add_child(caption)
 
@@ -297,15 +297,15 @@ func _build_header() -> void:
 	_ink_value.text = ""
 	_ink_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_ink_value.theme_type_variation = &"HudValue"
-	_ink_value.position = Vector2(392.0, 4.0)
-	_ink_value.size = Vector2(168.0, 20.0)
+	_ink_value.position = Vector2(392.0, 14.0)
+	_ink_value.size = Vector2(168.0, 24.0)
 	_ink_value.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel_root.add_child(_ink_value)
 
 	_ink_gauge = HudPanel.Gauge.new()
 	_ink_gauge.name = "InkGauge"
-	_ink_gauge.position = Vector2(196.0, 8.0)
-	_ink_gauge.size = Vector2(188.0, 12.0)
+	_ink_gauge.position = Vector2(210.0, 20.0)
+	_ink_gauge.size = Vector2(164.0, 14.0)
 	panel_root.add_child(_ink_gauge)
 
 

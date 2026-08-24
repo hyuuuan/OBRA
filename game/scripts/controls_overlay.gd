@@ -63,16 +63,22 @@ func _build() -> void:
 func _group_heading(text: String) -> Control:
 	var label := Label.new()
 	label.text = text
-	label.theme_type_variation = &"HudHint"
+	label.theme_type_variation = &"HudCaption"
 	return label
 
 
 func _control_row(
 	label_text: String, action: String, through: String = "", literal_keys: String = ""
 ) -> Control:
+	# This screen is a TABLE, and it is the one place in the game that has to fit twenty
+	# rows on screen at once. At body size those rows are eight hundred pixels of list and
+	# the last of them falls off the bottom, so it is set a step down -- and the two columns
+	# are given a gap, because "…one already down" and "Right click" were touching.
 	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 36)
 	var name_label := Label.new()
 	name_label.text = label_text
+	name_label.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name_label)
 	var keys := Label.new()
@@ -82,7 +88,7 @@ func _control_row(
 	keys.text = literal_keys if not literal_keys.is_empty() else _keys_for(action)
 	if literal_keys.is_empty() and not through.is_empty() and InputMap.has_action(through):
 		keys.text = "%s  -  %s" % [_keys_for(action), _keys_for(through)]
-	keys.theme_type_variation = &"ScreenSubtitle"
+	keys.theme_type_variation = &"HudValue"
 	keys.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(keys)
 	return row

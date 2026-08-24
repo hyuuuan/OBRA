@@ -45,7 +45,7 @@ func present(speaker: String, context: String, choices: Dictionary) -> void:
 			continue
 		var button := Button.new()
 		button.text = line
-		button.custom_minimum_size = Vector2(0, 56)
+		button.custom_minimum_size = Vector2(0, 68)
 		button.theme_type_variation = &"DialogButton"
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.pressed.connect(_on_route_pressed.bind(route))

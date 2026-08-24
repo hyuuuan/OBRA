@@ -11,10 +11,12 @@ extends Control
 ## Presented the way a console RPG presents it, because those conventions are load-bearing
 ## and players already know them:
 ##
-##   * ONE PLACE. Lower centre, always, so the eye never hunts for it and it never covers
-##     the obstacle the line is telling you to look at.
-##   * ONE SIZE. A fixed box, whatever the line. A box that resizes per line makes the
-##     reader re-find the first word every time.
+##   * ONE PLACE. The middle of the screen, always, so the eye never hunts for it. It does
+##     cover the ground the player is standing on while it is up -- that is the trade for
+##     putting the story where the story belongs, and it is why a line with a duration
+##     clears itself.
+##   * ONE SIZE, and a generous one. A fixed box whatever the line: one that resizes per
+##     line makes the reader re-find the first word every time.
 ##   * TYPED OUT. Text arrives at a readable rate rather than appearing whole. This is
 ##     what makes a line feel spoken, and it gives a slow reader a pace to follow.
 ##   * AN ARROW WHEN IT IS DONE. A blinking mark is the difference between "the game is
@@ -35,14 +37,10 @@ const SPEED := 52.0
 ## whatever the line -- a box that grows and shrinks per line makes the reader re-find the
 ## first word every time, and Payyo's script runs from "Here." to a full sentence about the
 ## Spanish burning the lowlands.
-const BOX := Vector2(800.0, 205.0)
+const BOX := Vector2(1040.0, 330.0)
 ## Reserved along the bottom of the canvas for the advance arrow, so the last line of a
-## three-line paragraph does not run underneath it.
-const ARROW_GUTTER := 18.0
-## How far the bottom of the box sits above the bottom of the screen. Clears the hotbar
-## and the controls strip, both of which live down there.
-const LIFT := 150.0
-
+## full paragraph does not run underneath it.
+const ARROW_GUTTER := 26.0
 const UNIT := 4.0
 
 var _frame: UIFrame
@@ -72,7 +70,7 @@ func _init() -> void:
 	_frame.unit = UNIT
 	add_child(_frame)
 
-	var pad := UIFrame.inset_for(UNIT) + 12.0
+	var pad := UIFrame.inset_for(UNIT) + 16.0
 	_label = Label.new()
 	_label.name = "Text"
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -83,7 +81,7 @@ func _init() -> void:
 	# already high-contrast only makes it look out of focus.
 	_label.add_theme_constant_override(&"shadow_offset_x", 0)
 	_label.add_theme_constant_override(&"shadow_offset_y", 0)
-	_label.add_theme_constant_override(&"line_spacing", 8)
+	_label.add_theme_constant_override(&"line_spacing", 10)
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_frame.add_child(_label)
 	_label.position = Vector2(pad, pad)
@@ -100,7 +98,7 @@ func _init() -> void:
 	_frame.add_child(_speaker_tab)
 	_speaker = Label.new()
 	_speaker.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
-	_speaker.add_theme_color_override(&"font_color", UISkin.GILT_PALE)
+	_speaker.add_theme_color_override(&"font_color", UISkin.WOOD_EDGE)
 	_speaker.add_theme_constant_override(&"shadow_offset_x", 0)
 	_speaker.add_theme_constant_override(&"shadow_offset_y", 0)
 	_speaker_tab.add_child(_speaker)
@@ -109,7 +107,7 @@ func _init() -> void:
 	_arrow.name = "Arrow"
 	_arrow.visible = false
 	_frame.add_child(_arrow)
-	_arrow.size = Vector2(18.0, 12.0)
+	_arrow.size = Vector2(22.0, 14.0)
 
 	set_process(false)
 
@@ -209,21 +207,22 @@ func _process(delta: float) -> void:
 func _relayout() -> void:
 	var view := get_viewport_rect().size
 	_frame.size = BOX
-	_frame.position = Vector2(floorf((view.x - BOX.x) * 0.5), floorf(view.y - LIFT - BOX.y))
+	_frame.position = ((view - BOX) * 0.5).floor()
 	# On the top rail, indented from the corner boss so it does not sit on the joint.
-	_speaker_tab.position = Vector2(UNIT * 7.0, -UNIT * 2.0)
+	_speaker_tab.position = Vector2(UNIT * 6.0, -UNIT * 2.5)
 	_speaker_tab.size = _speaker_tab.get_combined_minimum_size()
-	var pad := UIFrame.inset_for(UNIT) + 12.0
+	var pad := UIFrame.inset_for(UNIT) + 16.0
 	_arrow.position = Vector2(BOX.x - pad - _arrow.size.x, BOX.y - pad - 4.0)
 
 
 func _tab_style() -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
-	# Dark with pale gold on it, not lime. The plaque is screwed to the frame, so it
-	# belongs to the frame's palette -- a lime one reads as a HUD chip that has drifted
-	# down the screen and landed on a painting.
-	box.bg_color = UISkin.GILT_RABBET
-	box.border_color = UISkin.GILT_EDGE
+	# Brass: gold ground, dark letters. The plaque belongs to the frame's palette rather
+	# than the HUD's -- a lime one reads as a chip that has drifted down the screen and
+	# landed on a painting -- but dark-on-dark made the one word on it the hardest thing
+	# in the box to read, which for a name is the whole job.
+	box.bg_color = UISkin.FILLET
+	box.border_color = UISkin.WOOD_EDGE
 	box.set_border_width_all(2)
 	box.set_corner_radius_all(UISkin.RADIUS)
 	box.content_margin_left = 9.0
@@ -246,4 +245,4 @@ class Arrow extends Control:
 		var h := size.y
 		draw_colored_polygon(PackedVector2Array([
 			Vector2(0.0, 0.0), Vector2(w, 0.0), Vector2(w * 0.5, h),
-		]), UISkin.GILT_PALE)
+		]), UISkin.FILLET_LIT)

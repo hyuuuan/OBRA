@@ -29,8 +29,8 @@ purpose — see *Why there is no test for this* below.
 
 ## The typeface
 
-The game has its own. `tools/font_glyphs.py` is ninety-eight glyphs, five pixels wide and
-eight tall, drawn as `#` and `.` — all of printable ASCII plus `·`, `—` and `…`, which a
+The game has its own. `tools/font_glyphs.py` is ninety-eight glyphs, **six pixels wide and
+ten tall**, drawn as `#` and `.` — all of printable ASCII plus `·`, `—` and `…`, which a
 scan of every string in the project says are the only ones beyond ASCII it renders.
 
 ```bash
@@ -42,22 +42,35 @@ Both outputs are generated; edit the glyph table, never them. Godot imports the 
 because that leaves buttons, slider readouts and tooltips on the engine's face, which shows
 up as *some* of the text having gone 8-bit.
 
-**The type scale is multiples of eight and has to be.** A bitmap scaled by 2.375 is a
-bitmap with some rows twice as thick as others. `FONT_UNIT` is 8; every size is a multiple
-of it, in the theme, in the scripts and in the `.tscn` files. Adding a size means adding a
-multiple, not a number.
+**Six wide, not five.** The first cut was five, and at HUD sizes `a`, `e` and `o` collapsed
+into the same blob while `r` and `n` ran together. A pixel letter needs an interior counter
+that survives being two pixels across, and five columns does not leave one once you have
+spent two on the stems.
+
+**The type scale is multiples of the font's own line and has to be.** A bitmap scaled by
+1.9 has some rows twice as thick as others. `FONT_UNIT` is 10; every size is a multiple of
+it, in the theme, in the scripts and in the `.tscn` files.
 
 | | px | = |
 |---|---|---|
-| `FONT_TINY` · `FONT_CAPTION` · `FONT_BODY` | 16 | 2× |
-| `FONT_BUTTON` · `FONT_SUBTITLE` | 24 | 3× |
-| `FONT_TITLE` | 32 | 4× |
+| `FONT_TINY` · `FONT_CAPTION` | 20 | 2× |
+| `FONT_BODY` · `FONT_BUTTON` · `FONT_SUBTITLE` | 30 | 3× |
+| `FONT_TITLE` | 40 | 4× |
 
-**Changing the type scale moves layouts.** The face is wider per character than the
-proportional one the screens were measured against. Two places already had to grow and are
-the first to check if it changes again: the ink panel's width (`game_level.gd`,
-`_build_hud_frame`) and `MainMenu.CARD_HEIGHT`, where the level blurb went from two lines
-to four and was clipped by the card's own `clip_contents`.
+**Two times the unit is the FLOOR for anything a player reads**, not the default for
+anything small. The first scale put the status line and the keybind row at a size where the
+letterforms stopped resolving; shrinking type is not how you make something secondary.
+Placement and colour are.
+
+**Changing the scale moves layouts**, and these are the places it has already moved:
+
+| Where | What |
+|---|---|
+| `game_level.gd` `_build_hud_frame` | the ink panel's width, so a status line does not wrap |
+| `MainMenu.CARD_HEIGHT` | the level blurb went from two lines to four |
+| `settings_overlay.tscn` | the caption column, so "Sound effects" stops shortening its slider |
+| `draw_panel.gd` `_build_header` | the header row, which was sitting on the frame |
+| `controls_overlay.gd` | the table is a step down — twenty rows at body size overflow the screen |
 
 Digits are the one monospaced part — the ink readout counts down while you draw, and a
 proportional `1` makes the whole number jump sideways.
@@ -75,12 +88,15 @@ Taken pixel by pixel off the sheet, not approximated.
 | `PANEL_LIT` | `161810` | a surface raised off the panel — a full inventory slot |
 | `RING_OUTER` | `1E2210` | the dark halo that separates a frame from bright level art |
 | `RING_MID` | `4A5418` | an inset edge: the gauge channel, a slider track, a title rule |
+| `MUTED` | `A9B487` | a status line, an empty slot's number, the keybind row |
 | **`LIME`** | **`C9D94A`** | **every frame's bright ring, every meter's fill, every caption** |
 | `LIME_PALE` | `DFE98C` | headline type — a banner, a screen title |
 | `CREAM_TEXT` | `E8E3C4` | body type on a dark fill |
-| `MUTED` | `78805A` | a status line, an empty slot's number, the keybind row |
 | `PENDING` | `FAE64F` | ink claimed but not spent; the slot currently in hand |
 | `BEVEL` | `4D4E48` | the grey highlight ring inside a button's edge |
+| `WOOD_EDGE` · `WOOD_DARK` · `WOOD` · `WOOD_LIT` | `140C06` `2E1B0E` `4A2E1A` `6B4526` | the frame's moulding, dark to lit |
+| `FILLET` · `FILLET_LIT` | `B08A3C` `D8B968` | the frame's gold liner, and the speaker plaque |
+| `MAT` | `38291C` | the mount between the frame and the picture |
 | `KEYLINE` | `18140A` | the near-black outside a button |
 
 Three button families, three states each:
@@ -150,11 +166,12 @@ asked, so this needs no layout special case.
 `game/scripts/dialogue_box.gd`, presented the way a console RPG presents dialogue, because
 those conventions are load-bearing and players already know them.
 
-- **One place.** Lower centre, always. The eye never hunts, and it never covers the
-  obstacle the line is telling you to look at. Decision and memory boxes are dead centre
-  instead, because those pause the world.
-- **One size.** Fixed at three lines whatever the line. A box that resizes per line makes
-  the reader re-find the first word every time.
+- **One place.** The middle of the screen, always, like the decision and memory boxes. It
+  does cover the ground the player is standing on while it is up — that is the trade for
+  putting the story where the story belongs, and it is why a line given a duration clears
+  itself.
+- **One size, and a generous one.** 1040 × 330, fixed whatever the line. A box that resizes
+  per line makes the reader re-find the first word every time.
 - **Typed out**, then a **blinking arrow**. The arrow is the difference between "the game
   is still talking" and "the game is waiting for you", and it has its own gutter along the
   bottom so a three-line paragraph never runs underneath it.

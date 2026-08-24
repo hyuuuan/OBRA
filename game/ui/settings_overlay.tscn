@@ -28,7 +28,7 @@ anchor_bottom = 1.0
 mouse_filter = 2
 
 [node name="Panel" type="PanelContainer" parent="Root/Center" unique_id=201362034]
-custom_minimum_size = Vector2(620, 0)
+custom_minimum_size = Vector2(820, 0)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
@@ -51,7 +51,7 @@ layout_mode = 2
 theme_override_constants/separation = 14
 
 [node name="Caption" type="Label" parent="Root/Center/Panel/VBox/MasterRow" unique_id=961320410]
-custom_minimum_size = Vector2(150, 0)
+custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
 text = "Master"
 
@@ -62,7 +62,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 4
 
 [node name="Value" type="Label" parent="Root/Center/Panel/VBox/MasterRow" unique_id=2048456211]
-custom_minimum_size = Vector2(64, 0)
+custom_minimum_size = Vector2(110, 0)
 layout_mode = 2
 text = "100%"
 horizontal_alignment = 2
@@ -72,7 +72,7 @@ layout_mode = 2
 theme_override_constants/separation = 14
 
 [node name="Caption" type="Label" parent="Root/Center/Panel/VBox/MusicRow" unique_id=43439359]
-custom_minimum_size = Vector2(150, 0)
+custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
 text = "Music"
 
@@ -83,7 +83,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 4
 
 [node name="Value" type="Label" parent="Root/Center/Panel/VBox/MusicRow" unique_id=481177084]
-custom_minimum_size = Vector2(64, 0)
+custom_minimum_size = Vector2(110, 0)
 layout_mode = 2
 text = "100%"
 horizontal_alignment = 2
@@ -93,7 +93,7 @@ layout_mode = 2
 theme_override_constants/separation = 14
 
 [node name="Caption" type="Label" parent="Root/Center/Panel/VBox/SfxRow" unique_id=1076627090]
-custom_minimum_size = Vector2(150, 0)
+custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
 text = "Sound effects"
 
@@ -104,7 +104,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 4
 
 [node name="Value" type="Label" parent="Root/Center/Panel/VBox/SfxRow" unique_id=787263299]
-custom_minimum_size = Vector2(64, 0)
+custom_minimum_size = Vector2(110, 0)
 layout_mode = 2
 text = "100%"
 horizontal_alignment = 2
@@ -115,7 +115,7 @@ size_flags_horizontal = 4
 text = "Fullscreen"
 
 [node name="BackButton" type="Button" parent="Root/Center/Panel/VBox" unique_id=2020193288]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 62)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "BACK"

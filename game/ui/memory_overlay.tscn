@@ -27,7 +27,7 @@ anchor_bottom = 1.0
 mouse_filter = 2
 
 [node name="Panel" type="PanelContainer" parent="Root/Center" unique_id=1019395284]
-custom_minimum_size = Vector2(640, 0)
+custom_minimum_size = Vector2(900, 0)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
@@ -44,13 +44,12 @@ horizontal_alignment = 1
 
 [node name="Body" type="Label" parent="Root/Center/Panel/VBox" unique_id=1459151582]
 layout_mode = 2
-theme_type_variation = &"HudHint"
 text = "..."
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="ContinueButton" type="Button" parent="Root/Center/Panel/VBox" unique_id=1898498818]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 62)
 layout_mode = 2
 theme_type_variation = &"PrimaryButton"
 text = "CONTINUE"
