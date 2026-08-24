@@ -66,6 +66,7 @@ CHARACTER_OUT = ROOT / "game" / "assets" / "characters" / "apo"
 # silently, so a res:// path spelled level1 loads here and fails on any case-sensitive
 # platform the game is exported to.
 PROP_OUT = ROOT / "game" / "assets" / "Level1" / "props"
+UI_OUT = ROOT / "game" / "assets" / "ui"
 
 # --- the character sheet -------------------------------------------------------------
 
@@ -148,6 +149,31 @@ STAIR_BANDS = [
     ("stair_riser", (2, 20, 46, 12)),
 ]
 BAND_UPSCALE = 2
+
+
+# --- the wordmark ----------------------------------------------------------------------
+
+LOGO_SOURCE = ROOT / "HUD-assets-ideas" / "Logo.jpg"
+## The flat page the wordmark was presented on.
+LOGO_PAGE = (0x14, 0x35, 0x1A)
+## How far off that colour a pixel has to be to belong to the mark.
+LOGO_KEY = 26
+## THE LOGO IS 3x PIXEL ART INSIDE A JPEG, which is the worst way to receive pixel art:
+## every hard edge in it is a block boundary, and JPEG puts its ringing exactly there. The
+## run lengths still divide by three, so the grid survives -- what does not survive is the
+## colour, which comes back as four thousand shades of gold instead of a dozen.
+##
+## So the downsample takes the MEDIAN of each 3x3 block rather than the mean. A mean drags
+## every block toward the ringing around it; a median ignores it, because the ringing is a
+## minority of the samples. The phase below was measured by trying all nine and keeping the
+## one whose blocks came out most uniform.
+LOGO_UPSCALE = 3
+LOGO_PHASE = (1, 2)
+## And then the palette is rebuilt by k-means over the opaque pixels only. Twenty-four is
+## where the gold stops banding: the mark is shaded, not flat, so it needs more than a
+## poster palette, and the error curve has no knee to pick instead.
+LOGO_COLOURS = 24
+LOGO_SEED = 7
 
 
 def foreground_mask(rgb: np.ndarray) -> np.ndarray:
@@ -395,6 +421,43 @@ def build_props(write: bool) -> dict[str, bytes]:
     return written
 
 
+def build_logo(write: bool) -> tuple[dict[str, bytes], tuple[int, int]]:
+    """The OBRA wordmark, off its presentation page and back onto its own grid."""
+    page = np.asarray(Image.open(LOGO_SOURCE).convert("RGB"), dtype=float)
+    height, width, _ = page.shape
+    ox, oy = LOGO_PHASE
+    mark = np.abs(page - np.array(LOGO_PAGE, dtype=float)).max(axis=2) > LOGO_KEY
+    ys, xs = np.where(mark)
+    x0 = ox + LOGO_UPSCALE * ((int(xs.min()) - ox) // LOGO_UPSCALE)
+    y0 = oy + LOGO_UPSCALE * ((int(ys.min()) - oy) // LOGO_UPSCALE)
+    x1 = x0 + LOGO_UPSCALE * ((int(xs.max()) - x0) // LOGO_UPSCALE + 1)
+    y1 = y0 + LOGO_UPSCALE * ((int(ys.max()) - y0) // LOGO_UPSCALE + 1)
+    crop = page[y0:min(y1, height), x0:min(x1, width)]
+    rows, cols = crop.shape[0] // LOGO_UPSCALE, crop.shape[1] // LOGO_UPSCALE
+    crop = crop[:rows * LOGO_UPSCALE, :cols * LOGO_UPSCALE]
+    blocks = crop.reshape(rows, LOGO_UPSCALE, cols, LOGO_UPSCALE, 3)
+    native = np.median(blocks.transpose(0, 2, 1, 3, 4).reshape(rows, cols, -1, 3), axis=2)
+
+    opaque = np.abs(native - np.array(LOGO_PAGE, dtype=float)).max(axis=2) > LOGO_KEY
+    flat = native[opaque]
+    generator = np.random.default_rng(LOGO_SEED)
+    centres = flat[generator.choice(len(flat), LOGO_COLOURS, replace=False)].copy()
+    labels = np.zeros(len(flat), dtype=int)
+    for _ in range(40):
+        labels = ((flat[:, None, :] - centres[None, :, :]) ** 2).sum(axis=2).argmin(axis=1)
+        for index in range(LOGO_COLOURS):
+            chosen = labels == index
+            if chosen.any():
+                centres[index] = flat[chosen].mean(axis=0)
+    native[opaque] = np.rint(centres[labels])
+
+    out = np.dstack([native, (opaque * 255).astype(float)]).astype(np.uint8)
+    image = Image.fromarray(out, "RGBA")
+    image = image.crop(image.split()[-1].getbbox())
+    path = UI_OUT / "obra_logo.png"
+    return {str(path.relative_to(ROOT)): _emit(image, path, write)}, image.size
+
+
 def _emit(image: Image.Image, path: Path, write: bool) -> bytes:
     import io
     buffer = io.BytesIO()
@@ -415,7 +478,8 @@ def main() -> int:
     character, cell_w, cell_h = build_character(write=not args.check)
     portrait, portrait_size = build_portrait(write=not args.check)
     props = build_props(write=not args.check)
-    everything = {**character, **portrait, **props}
+    logo, logo_size = build_logo(write=not args.check)
+    everything = {**character, **portrait, **props, **logo}
 
     if args.check:
         stale = []
@@ -433,6 +497,7 @@ def main() -> int:
 
     print(f"character cell {cell_w}x{cell_h}px, standing height {STANDING_HEIGHT:.0f}px")
     print(f"dialogue portrait {portrait_size[0]}x{portrait_size[1]}px")
+    print(f"wordmark {logo_size[0]}x{logo_size[1]}px native")
     for rel in sorted(everything):
         print(f"   {len(everything[rel]):7d}  {rel}")
     return 0
