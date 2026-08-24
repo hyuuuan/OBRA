@@ -163,34 +163,50 @@ past its own rect via `overdraw`, because a container lays its children out insi
 padding the frame has to cover. Godot does not clip a Control's drawing to its rect unless
 asked, so this needs no layout special case.
 
-## The dialogue box
+## Two channels: story and hints
+
+They are not the same act, and they were sharing one box.
+
+| | Story | Hint |
+|---|---|---|
+| Example | "Four hundred years. They built this while the Spanish were burning the lowlands." | "Draw something that can SPAN it." |
+| Where | `dialogue_box.gd` — the picture frame, screen centre | `hint_bar.gd` — a compact HUD strip above the hotbar |
+| Stops the world | yes | no |
+| Advanced by | the player, one line at a time | nothing; it clears itself |
+| Camera | pushes in on the speaker | untouched |
+
+**Which channel a line takes is decided by the script, from the hook.** `dialogue_script.gd`
+treats `.teach`, `.sub1`, `.sub2` and `.ward.fail*` as hints — they fire when the player is
+stuck in front of something — and everything else as story. A line may carry an explicit
+`"kind": "hint"` or `"lore"`, and the data wins.
+
+### The story box
 
 `game/scripts/dialogue_box.gd`, presented the way a console RPG presents dialogue, because
 those conventions are load-bearing and players already know them.
 
-- **One place.** The middle of the screen, always, like the decision and memory boxes. It
-  does cover the ground the player is standing on while it is up — that is the trade for
-  putting the story where the story belongs, and it is why a line given a duration clears
-  itself.
-- **One size, and a generous one.** 1040 × 330, fixed whatever the line. A box that resizes
-  per line makes the reader re-find the first word every time.
-- **Typed out**, then a **blinking arrow**. The arrow is the difference between "the game
-  is still talking" and "the game is waiting for you", and it has its own gutter along the
-  bottom so a three-line paragraph never runs underneath it.
-- **A plaque** on the top rail says who is speaking.
+- **A queue, and the player turns the page.** First press catches up the line being typed,
+  the next moves on. One press doing both lets a fast reader skip a line they never saw.
+  Advance is `ui_accept` or a left click.
+- **One place, one size.** Screen centre, 1040 × 310, fixed whatever the line — a box that
+  resizes per line makes the reader re-find the first word every time.
+- **Typed out**, then a **blinking arrow** in its own gutter: the difference between "still
+  talking" and "waiting for you".
+- **A plaque** on the top rail says who is speaking. Two voices share the box — Lolo and the
+  apo's own thoughts — so `current_speaker` says whose line is up.
+- **The world stops and the camera pushes in** on the speaker
+  (`WorldCameraController.focus_on`). A line over a live wide shot is a caption on a
+  landscape.
 
-**Two voices share it** — Lolo and the apo's own thoughts — so `current_speaker` says whose
-line is up, and `Lolo.is_speaking()` compares against it rather than asking whether the box
-is merely visible.
+**`set_auto_dismiss(true)` is the skip.** Every headless fixture needs it, because a
+conversation stops the tree until somebody presses a key and there is nobody there —
+and it has to stay on, not fire once: the first obstacle queues a beat of its own, and
+without it a walkthrough reports the paddy as a wall.
 
 **The reveal is `visible_ratio` on a label whose text is already complete, never an
 append.** Appending re-wraps on every character, so a word about to overflow jumps to the
-next line as it is typed and the paragraph reflows under the reader. It also means a test
-reading the label gets the whole line no matter when it looks.
-
-**Anything that opens with story of its own calls `hide_line` first**, through the
-`dialogue_box` group. A line left underneath a decision box is a second voice arguing with
-the first.
+next line as it is typed. It also means a test reading the label gets the whole line no
+matter when it looks.
 
 ---
 

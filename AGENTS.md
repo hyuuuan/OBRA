@@ -140,11 +140,19 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
 - **Story is framed; menus are not.** `UIFrame` (`game/scripts/ui_frame.gd`) draws a pixel
   picture frame, and everything the world says wears it -- Lolo's dialogue, the route
   decision, the Lola memory. Pause/settings/controls/confirm keep the plain panel.
+- **Story and hints are two channels.** A beat of story goes to `DialogueBox` -- queued,
+  advanced by the player with `ui_accept` or a click, world paused, camera pushed in on the
+  speaker. A hint goes to `HintBar` -- no key, no pause, clears itself. `dialogue_script.kind_of`
+  decides from the hook (`.teach`, `.sub1`, `.ward.fail*` are hints); a line's own `kind`
+  wins. **Any fixture that plays the level unattended must call
+  `call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)`**, or the first beat stops the
+  tree and nothing moves again.
 - **`DialogueBox` is the only place a story line is drawn.** Lolo no longer carries a
   bubble; `say`/`hush`/`is_speaking` are unchanged and forward to the box, which the level
-  builds and hands him at spawn. The apo's lines go to the same box with a different
-  plaque -- the status label is for the game talking about itself, not for story. Anything
-  that opens with story of its own must `call_group(DialogueBox.GROUP, &"hide_line")`.
+  builds and hands him at spawn. Lolo's own `say()` is the HINT channel now. The apo's
+  story lines share the box with a different plaque -- the status label is for the game
+  talking about itself. Anything that opens with story of its own must
+  `call_group(DialogueBox.GROUP, &"hide_line")`.
 - **The typeface is Geist Pixel** (SIL OFL 1.1), in `game/ui/fonts/` with its licence. It
   is the theme's DEFAULT font. Its `.import` turns antialiasing, hinting and subpixel
   positioning OFF -- a pixel face rendered like an outline face is a blurry pixel face, and
