@@ -101,12 +101,20 @@ const THIN := 2
 ## debug rect; a 2 px radius reads as a drawn box.
 const RADIUS := 2
 
-const FONT_TITLE := 38
-const FONT_SUBTITLE := 21
-const FONT_BUTTON := 20
-const FONT_BODY := 18
-const FONT_CAPTION := 15
-const FONT_TINY := 12
+## THE TYPE SCALE IS MULTIPLES OF EIGHT, and it has to be.
+##
+## The font is a bitmap -- eight pixels to the line, hand-drawn in tools/font_glyphs.py --
+## and a bitmap scaled by 2.375 is a bitmap with some rows twice as thick as others. Every
+## size here is an integer multiple of that eight, so a glyph is always whole pixels, and
+## the scale is short for the same reason: there are only so many multiples worth having
+## between "readable" and "shouting". Adding a size means adding a multiple, not a number.
+const FONT_UNIT := 8
+const FONT_TITLE := FONT_UNIT * 4    # 32
+const FONT_SUBTITLE := FONT_UNIT * 3 # 24
+const FONT_BUTTON := FONT_UNIT * 3   # 24
+const FONT_BODY := FONT_UNIT * 2     # 16
+const FONT_CAPTION := FONT_UNIT * 2  # 16
+const FONT_TINY := FONT_UNIT * 2     # 16
 
 enum Family { GREEN, CREAM, RED }
 enum State { NORMAL, HOVER, PRESSED, DISABLED }

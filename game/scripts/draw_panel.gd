@@ -269,7 +269,7 @@ func _style_panel() -> void:
 
 	_build_header()
 
-	guess_label.add_theme_font_size_override(&"font_size", 22)
+	guess_label.add_theme_font_size_override(&"font_size", UISkin.FONT_SUBTITLE)
 	status.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
 	status.add_theme_color_override(&"font_color", UISkin.MUTED)
 
@@ -278,8 +278,8 @@ func _style_panel() -> void:
 	# here, so the green button in this panel and the green button on the pause menu
 	# cannot drift apart.
 	transform_button.theme_type_variation = &"PrimaryButton"
-	transform_button.add_theme_font_size_override(&"font_size", 19)
-	clear_button.add_theme_font_size_override(&"font_size", 17)
+	transform_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
+	clear_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
 
 
 ## DRAW on the left, ink on the right, in the strip above the page.

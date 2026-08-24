@@ -371,9 +371,16 @@ func _test_theme_resource() -> void:
 	_expect(theme.has_stylebox("fill", "ProgressBar"), "theme does not style the ink bar")
 	_expect(theme.has_stylebox("grabber_area", "HSlider"), "theme does not style a volume slider")
 	_expect(theme.has_color("font_color", "Label"), "theme does not colour a plain Label")
-	# A font here WOULD reach the main menu, whose overrides are all colours and sizes.
-	# The menu is deliberately left alone, so this must stay absent.
-	_expect(not theme.has_font("font", "Label"), "theme defines a Label font, which would restyle the main menu")
+	# The game has its own hand-drawn bitmap face and the whole interface wears it. It is
+	# set as the theme's DEFAULT rather than on Label, so it reaches buttons and slider
+	# readouts and tooltips too -- putting it on Label alone is how you end up with only
+	# some of the text gone 8-bit.
+	_expect(theme.default_font != null, "the theme has no font -- run tools/build_font.py")
+	_expect(
+		theme.default_font_size % 8 == 0,
+		"default font size %d is not a multiple of the bitmap font's 8px line"
+			% theme.default_font_size
+	)
 
 	# The theme is generated from ui_skin.gd by tools/build_theme.gd. If someone edits the
 	# palette and does not regenerate, the theme still loads and still looks like the OLD

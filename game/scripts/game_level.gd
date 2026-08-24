@@ -1100,7 +1100,10 @@ func _build_hud_frame() -> void:
 	hud_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	hud_panel.offset_left = 24.0
 	hud_panel.offset_top = 20.0
-	hud_panel.offset_right = 380.0
+	# Wide enough for the longest one-line status the level writes. The bitmap face is
+	# wider per character than the one this was measured against, and a status line that
+	# wraps makes the whole frame grow and shrink under the gauge as messages change.
+	hud_panel.offset_right = 448.0
 	$CanvasLayer.add_child(hud_panel)
 	hud_panel.adopt_status(status_label)
 	# Superseded by the gauge, kept so nothing that writes to them has to care.
@@ -1152,7 +1155,7 @@ func _style_action_tag() -> void:
 	draw_button.add_theme_color_override(&"font_color", UISkin.LIME_PALE)
 	draw_button.add_theme_color_override(&"font_hover_color", UISkin.LIME)
 	draw_button.add_theme_color_override(&"font_disabled_color", UISkin.MUTED)
-	draw_button.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION + 2)
+	draw_button.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
 	draw_button.add_theme_constant_override(&"h_separation", 8)
 	# Room made on the left for the key badge, which is drawn over the button rather than
 	# laid out inside it: a Button is not a container, so a child Control added to it is
