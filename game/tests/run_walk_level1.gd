@@ -61,6 +61,7 @@ func _run() -> void:
 	await _cannot_be_climbed_bare()
 	await _can_be_climbed_with_a_step()
 	await _a_placement_can_be_taken_back()
+	await _the_ghost_is_where_it_lands()
 	await _the_overlook_needs_a_climb()
 
 	print("\n===== BEAT 0 WALKTHROUGH =====")
@@ -304,6 +305,85 @@ func _slot_holding(inventory: Node, entity_id: String) -> int:
 		if item != null and item.entity_id == entity_id:
 			return index
 	return -1
+
+
+## AIM AT YOUR OWN FEET, WHICH IS WHERE A PLAYER BUILDING A STEP AIMS. Two faults met here
+## and each made the other invisible. The player stands on collision layer 1 like the terrain,
+## so the preview called the ground under them occupied; the climb out of "solid" ground then
+## lifted the object a body's height over their head and stopped, went green up there, and
+## confirming dropped it back down on them. The object did not land where the ghost was, and
+## the ghost was not somewhere the player had asked for.
+##
+## So this asserts both halves at once: the spot under the body is placeable, and what gets
+## placed ends up where the ghost was standing.
+func _the_ghost_is_where_it_lands() -> void:
+	var inventory := level.get("inventory_manager") as Node
+	var placement := level.get("placement_controller") as Node2D
+	var world_items := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/WorldItemRoot") as Node2D
+	player.set("velocity", Vector2.ZERO)
+	player.global_position = CLEAR_GROUND
+	for _frame in range(30):
+		await physics_frame
+
+	var item := DrawnItemData.new()
+	item.entity_id = "square"
+	item.display_name = "Square"
+	var slot: int = inventory.call("add_item", item)
+	level.call("_on_inventory_slot_pressed", slot)
+	await process_frame
+	if not bool(placement.call("is_placing")):
+		_fail("aiming at the player's feet", "the placement never started")
+		return
+	placement.set_process(false)
+	placement.call("update_target", player.global_position)
+	for _frame in range(4):
+		await physics_frame
+
+	var ghost := _preview_in(world_items)
+	if ghost == null:
+		placement.call("cancel_placement")
+		_fail("aiming at the player's feet", "there is no preview to look at")
+		return
+	var ghost_at := ghost.global_position
+	var lifted: float = player.global_position.y - ghost_at.y
+	# Half the square is under the aim point, so it rests about 40px up. Anything near a body
+	# height means the climb went over the player's head instead.
+	_check(lifted < 72.0, "the ghost sits at the player's feet",
+		"%.0fpx above the aim" % lifted)
+
+	var placed: bool = placement.call("confirm_placement")
+	_check(placed, "the ground under the player is placeable",
+		"placed" if placed else "REFUSED -- your own body is vetoing the spot")
+	if not placed:
+		placement.call("cancel_placement")
+		return
+	for _frame in range(40):
+		await physics_frame
+	var landed_at := ghost_at if not is_instance_valid(ghost) else ghost.global_position
+	var drift: float = ghost_at.distance_to(landed_at)
+	# The settle puts it on the surface exactly, so a passing run measures about a pixel.
+	# The climb it replaced steps in 12px rungs, so the failure it guards against is a
+	# whole rung out -- 4px separates the two with room on both sides.
+	_check(drift <= 4.0, "and the square lands where the ghost was",
+		"%.1fpx of drift" % drift)
+
+	# Leave the terrace as it was found: the runs after this one place things too.
+	if is_instance_valid(ghost):
+		level.call("_take_back_under_cursor", ghost.global_position)
+		for _frame in range(10):
+			await physics_frame
+	var back := _slot_holding(inventory, "square")
+	if back >= 0:
+		inventory.call("take_item", back)
+
+
+func _preview_in(world_items: Node2D) -> PhysicsShapeObject:
+	for child in world_items.get_children():
+		var prop := child as PhysicsShapeObject
+		if prop != null and prop.is_preview:
+			return prop
+	return null
 
 
 ## The Overlook stands 140px over Terrace5, so the last stretch before the bale is a climb
