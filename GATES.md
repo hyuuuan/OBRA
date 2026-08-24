@@ -69,7 +69,7 @@ numbers above, and they are worth checking before retuning anything.
 | **R4** | **A drawn primitive must be climbable** — 80 px, under the 94.3 px jump | They were 116 px, so no square, circle or triangle could be got on top of, anywhere in the game. |
 | **R5** | **No jump in water lifts you out** | Not even off the bottom. Every exception hands the player a way across; see X3. |
 | **R6** | **Never gate progress on a route commit** | Answering Lolo costs no ink. What counts is a drawing being accepted. |
-| **R7** | **A gate must have floor to build on** — at least 180 px of clear ground on the approach side, and never less than twice the width of the widest thing that opens it | A rise and a gap can both be right while the level is unplayable. This is the one that was never measured, and both places it was wrong passed every suite in the repo. `run_level1_audit` measures four of them off the nodes. |
+| **R7** | **A gate must have floor to build on** — at least 180 px of clear ground on the approach side, and never less than twice the width of the widest thing that opens it | A rise and a gap can both be right while the level is unplayable. This is the one that was never measured, and both places it was wrong passed every suite in the repo. `run_level1_audit` measures five of them off the nodes. |
 | **R8** | **What is placed can be taken back** — E within reach, right-click at any range | A placement spends ink, empties a slot and leaves a solid body behind. If it cannot be undone, one misjudged click is permanent, and four drawings on the critical path against a budget of 12 does not leave room for that. |
 
 ---

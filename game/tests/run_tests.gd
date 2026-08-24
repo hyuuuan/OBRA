@@ -207,6 +207,11 @@ func _test_shared_overlays() -> void:
 	# The controls screen derives its key glyphs from the live InputMap, so the only
 	# thing that can rot is an action name in the JSON. A row naming an action that
 	# does not exist is silently skipped, which would quietly empty the screen.
+	#
+	# A row may instead carry `keys` and name them outright. That is for the mouse: aiming,
+	# rotating and setting a drawing down are not InputMap actions, and neither is the
+	# right-click that takes a placement back -- so before that existed the screen could not
+	# mention the mouse at all. Such a row has no action to check, and must have text.
 	var text := FileAccess.get_file_as_string("res://config/controls.json")
 	var parsed: Variant = JSON.parse_string(text)
 	_expect(parsed is Dictionary, "controls.json did not parse")
@@ -216,10 +221,17 @@ func _test_shared_overlays() -> void:
 		for row_value: Variant in rows:
 			var row: Dictionary = row_value
 			var action := String(row.get("action", ""))
-			_expect(
-				InputMap.has_action(action),
-				"controls.json names '%s', which is not in the InputMap" % action
-			)
+			var literal_keys := String(row.get("keys", ""))
+			if literal_keys.is_empty():
+				_expect(
+					InputMap.has_action(action),
+					"controls.json names '%s', which is not in the InputMap" % action
+				)
+			else:
+				_expect(
+					not String(row.get("label", "")).is_empty(),
+					"controls.json row for keys '%s' has no label" % literal_keys
+				)
 			var through := String(row.get("through", ""))
 			if not through.is_empty():
 				_expect(
@@ -585,7 +597,10 @@ func _test_banaue_environment() -> void:
 	world.add_child(environment)
 	await process_frame
 	var bounds: Rect2 = environment.get("world_bounds")
-	_expect(bounds.size == Vector2(3760.0, 1200.0), "Banaue world bounds changed unexpectedly")
+	# 3920 since the bale stepped back off the cliff: the Overlook grew 160px east to carry
+	# it, so there is a shelf in front of the house to stand a ladder in and room behind it
+	# for the route that goes over the thatch. See R7 in GATES.md.
+	_expect(bounds.size == Vector2(3920.0, 1200.0), "Banaue world bounds changed unexpectedly")
 	var spawn := environment.get_node("GameplayPlane/SpawnPoint") as Marker2D
 	# Read against the terrace rather than pinned to a literal: the opening bank has moved
 	# twice while deepening the paddy, and a hardcoded spawn point turns every legitimate
