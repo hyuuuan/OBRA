@@ -1100,10 +1100,10 @@ func _build_hud_frame() -> void:
 	hud_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	hud_panel.offset_left = 24.0
 	hud_panel.offset_top = 20.0
-	# Wide enough for the longest one-line status the level writes. The bitmap face is
-	# wider per character than the one this was measured against, and a status line that
-	# wraps makes the whole frame grow and shrink under the gauge as messages change.
-	hud_panel.offset_right = 448.0
+	# Wide enough for the longest one-line status the level writes, and no wider. A status
+	# line that wraps makes the whole frame grow and shrink under the gauge as messages
+	# change, and a frame with half its width empty reads as a mistake.
+	hud_panel.offset_right = 404.0
 	$CanvasLayer.add_child(hud_panel)
 	hud_panel.adopt_status(status_label)
 	# Superseded by the gauge, kept so nothing that writes to them has to care.
