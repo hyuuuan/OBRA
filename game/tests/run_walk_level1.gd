@@ -152,13 +152,13 @@ func _can_be_climbed_with_a_step() -> void:
 		_fail("placing the step", "the placement never started")
 		return
 
-	# In the gap the missing stones left, which is the only place it helps:
-	# clear of the surviving tread that overhangs the bank to the right.
+	# At the foot of the stair, under open sky: the surviving tread overhangs the right
+	# end of the bank, so the useful ground is west of it.
 	# The controller re-aims at the live cursor every frame in _process, and a
 	# headless run has no cursor -- the preview was being dragged to (0,0) and
 	# clamped to the reach radius, which put the step in the paddy. Hold the aim.
 	placement.set_process(false)
-	placement.call("update_target", Vector2(712.0, 505.0))
+	placement.call("update_target", Vector2(810.0, 505.0))
 	for _frame in range(4):
 		await physics_frame
 	var placed: bool = placement.call("confirm_placement")
@@ -489,7 +489,7 @@ func _key(action: StringName, pressed: bool) -> InputEventKey:
 ## On the bank below the gap, standing still.
 func _stand_on_the_bank() -> void:
 	player.set("velocity", Vector2.ZERO)
-	player.global_position = Vector2(645.0, bank_top - 40.0)
+	player.global_position = Vector2(740.0, bank_top - 40.0)
 	for _frame in range(20):
 		await physics_frame
 
