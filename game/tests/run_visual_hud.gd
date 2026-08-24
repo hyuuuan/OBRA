@@ -63,6 +63,17 @@ func _run() -> void:
 	await _capture("03_dialogue_typing")
 	await _wait(3.0)
 	await _capture("04_dialogue_full")
+	# Through to the apo's line, so the other portrait and the other side are both
+	# photographed -- a portrait system that only ever shows one face is untested.
+	# Pressed until the apo's line is up rather than a fixed count: the greeting is already
+	# queued ahead of this beat, and counting presses means recounting them whenever the
+	# script changes.
+	for _press in range(12):
+		if String(level.get("dialogue_box").call("current_speaker")).begins_with("Apo"):
+			break
+		await _press_advance()
+	await _wait(2.6)
+	await _capture("04b_dialogue_apo")
 	level.get("dialogue_box").call("skip_all")
 	await _wait(0.8)
 
@@ -94,6 +105,20 @@ func _run() -> void:
 
 	print("OBRA_VISUAL_HUD_DONE")
 	quit(0)
+
+
+func _press_advance() -> void:
+	var press := InputEventAction.new()
+	press.action = &"ui_accept"
+	press.pressed = true
+	Input.parse_input_event(press)
+	await process_frame
+	var release := InputEventAction.new()
+	release.action = &"ui_accept"
+	release.pressed = false
+	Input.parse_input_event(release)
+	await process_frame
+	await process_frame
 
 
 func _capture(label: String) -> void:

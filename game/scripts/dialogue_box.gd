@@ -67,6 +67,7 @@ var subject_resolver: Callable = Callable()
 const ARROW_GUTTER := 26.0
 const UNIT := 4.0
 
+var _portrait: DialoguePortrait
 var _frame: UIFrame
 var _label: Label
 var _speaker_tab: PanelContainer
@@ -75,7 +76,7 @@ var _arrow: Control
 
 ## Whose line is up. Two voices share this box -- Lolo and the apo's own thoughts -- and
 ## a caller asking "am I still speaking?" means itself, not the box.
-var current_speaker := ""
+var current_speaker_name := ""
 
 ## Lines still to be read, each {text, speaker}. The box shows the head of it.
 var _queue: Array[Dictionary] = []
@@ -100,6 +101,11 @@ func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	visible = false
 	modulate.a = 0.0
+
+	# Added before the frame, so the speaker stands BEHIND the box they are talking over.
+	_portrait = DialoguePortrait.new()
+	_portrait.name = "Portrait"
+	add_child(_portrait)
 
 	_frame = UIFrame.new()
 	_frame.name = "Frame"
@@ -197,7 +203,7 @@ func show_line(text: String, speaker: String = "", seconds: float = 0.0) -> void
 		hide_line()
 		return
 	_full = text
-	current_speaker = speaker
+	current_speaker_name = speaker
 	_shown = 0.0
 	_hold = seconds
 	_label.text = text
@@ -211,6 +217,8 @@ func show_line(text: String, speaker: String = "", seconds: float = 0.0) -> void
 	# while the first characters arrive, and a box that slid around under the text as it
 	# typed would be worse than one that covered the speaker.
 	_bias = _bias_for(speaker)
+	# The portrait takes the side the box just gave up.
+	_portrait.show_for(speaker, -1.0 if _bias > 0.0 else 1.0)
 	_arrow.visible = false
 	set_process(true)
 	if not visible:
@@ -254,6 +262,12 @@ func complete() -> void:
 
 ## The line currently on the box, whole, whether or not it has finished arriving. Reading
 ## the label instead would give a test whatever fraction had been typed when it looked.
+## Whose line is up, as a call rather than a bare property read, so a fixture driving the
+## box through `call` gets the same answer as code holding a reference.
+func current_speaker() -> String:
+	return current_speaker_name
+
+
 func current_line() -> String:
 	return _full
 
@@ -268,7 +282,8 @@ func is_typing() -> bool:
 
 
 func hide_line() -> void:
-	current_speaker = ""
+	current_speaker_name = ""
+	_portrait.hide_portrait()
 	_hold = 0.0
 	set_process(false)
 	if not visible:

@@ -204,9 +204,24 @@ those conventions are load-bearing and players already know them.
   talking" and "waiting for you".
 - **A plaque** on the top rail says who is speaking. Two voices share the box — Lolo and the
   apo's own thoughts — so `current_speaker` says whose line is up.
+- **A portrait of the speaker stands behind it** (`dialogue_portrait.gd`), full figure on
+  the bottom edge of the screen, on the side the box gave up. This is what the camera
+  push-in could not do: zooming the world makes the speaker slightly larger and still forty
+  pixels tall and still side-on, and what a player needs while someone talks is a face.
 - **The world stops and the camera pushes in** on the speaker
-  (`WorldCameraController.focus_on`). A line over a live wide shot is a caption on a
-  landscape.
+  (`WorldCameraController.focus_on`), gently — the portrait carries the focus, and a hard
+  push-in behind a large figure makes the background compete with it.
+
+**A full figure, not a bust.** A bust cropped at the waist works when the box overlaps it,
+the way a visual novel stacks them — but this box sits *beside* the portrait, so the cut
+line has nothing to hide behind and reads as a character sawn in half.
+
+**Lolo's portrait is rendered through a `SubViewport` and scaled up with nearest
+filtering.** He is drawn in code from circles and arcs, and drawing him big draws him
+*smooth* — a 400-pixel antialiased circle beside a six-pixels-per-pixel sprite looks like a
+bug rather than a placeholder. Rasterising him at sprite size first makes him chunky in the
+same way everything around him is. He is still a blob; that is logged in
+`CONTENT_NEEDED.md` as art the team owes, and he speaks most of Level 1.
 
 **The box asks `subject_resolver` where a speaker is**, so it can find them on screen
 without knowing anything about the level. A Callable rather than the nodes themselves,
@@ -287,6 +302,8 @@ at 5 painted a ten-pixel olive slab across every panel. It is 1, with separation
 | The generated theme | `game/ui/obra_theme.tres` ← `game/tools/build_theme.gd` |
 | The picture frame every story box wears | `game/scripts/ui_frame.gd` |
 | Lolo's dialogue, the plaque, the typing, the arrow | `game/scripts/dialogue_box.gd` |
+| The speaker's portrait behind the box | `game/scripts/dialogue_portrait.gd` |
+| Hints, which never stop play | `game/scripts/hint_bar.gd` |
 | Route decision · Lola memory (both call `UIFrame.wrap`) | `game/scripts/dialogue_choice_overlay.gd` · `memory_overlay.gd` |
 | Ink meter, its segmented gauge, the status line | `game/scripts/hud_panel.gd` |
 | Droplet and flag pictograms | `game/scripts/ui_glyph.gd` |
