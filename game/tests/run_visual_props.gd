@@ -16,8 +16,8 @@ const OUTPUT_DIR := "/tmp"
 const SHOTS: Array = [
 	{"name": "wanderer", "at": "player", "size": Vector2(300, 300)},
 	{"name": "lolo", "at": "lolo", "size": Vector2(300, 300)},
-	{"name": "hagdan_stair", "at": Vector2(676, 502), "size": Vector2(420, 320)},
-	{"name": "floating_tread", "at": Vector2(560, 592), "size": Vector2(340, 250)},
+	{"name": "hagdan_stair", "at": Vector2(836, 500), "size": Vector2(420, 320)},
+	{"name": "floating_tread", "at": Vector2(440, 585), "size": Vector2(300, 220)},
 	{"name": "ruined_bridge", "at": Vector2(2680, 180), "size": Vector2(700, 300)},
 	{"name": "hidden_flower", "at": Vector2(2700, 578), "size": Vector2(260, 240), "do": "light_flower"},
 	{"name": "stool_and_jar", "at": Vector2(2998, 227), "size": Vector2(130, 100)},
