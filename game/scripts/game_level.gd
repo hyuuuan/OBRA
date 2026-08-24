@@ -35,6 +35,8 @@ var hud_panel: HudPanel
 ## The framed box every story line is shown in. Built here rather than authored into the
 ## scene because it is pure presentation with no state to save and nothing to wire.
 var dialogue_box: DialogueBox
+## The other channel: what the game says while you keep playing.
+var hint_bar: HintBar
 ## The corner readouts and where each belongs, so they can be re-placed together.
 var _chips: Array = []
 ## How long the player has been under the water in their own body.
@@ -623,27 +625,74 @@ func _restore_placed_entities(records: Array) -> void:
 ## unrelated line from the old dialogue file. Two narrators, disagreeing, in the level
 ## whose job is to teach the game.
 ##
-## BOTH VOICES NOW GO TO THE SAME BOX, and the plaque on it says which one is talking.
-## Splitting them was the old fix for the same problem -- Lolo in a bubble over his head,
-## the apo as a caption at the top of the screen -- and it worked by keeping them so far
-## apart that nobody could confuse them. That is not a presentation, it is an evasion, and
-## it cost the apo's lines any weight at all: the player's own thoughts appeared in the
-## same grey line that says "Not enough ink".
+## TWO CHANNELS, and which one a line takes is a statement about what the line is FOR.
 ##
-## The status label keeps what it should have kept all along: the game talking about
-## itself. Story is story, and story is framed.
+## A beat of story goes to the framed box: queued, one line at a time, the player turning
+## the page, the world stopped and the camera pushed in on whoever is speaking. A hint goes
+## to the bar: no key, no pause, clears itself. They were sharing one box, and that could
+## only ever be wrong for one of them -- in practice it was wrong for both, because the
+## hint froze the game AND the story went past unread.
+##
+## Unread is not an exaggeration. This used to hand a whole beat over in one synchronous
+## loop, writing five lines into the same label in the same frame. Only the last survived.
 func _speak(lines: Array) -> void:
+	var beat: Array[Dictionary] = []
 	for line_value: Variant in lines:
 		var line: Dictionary = line_value
 		var text := script_lines_l1.display_text(line)
 		if text.is_empty():
 			continue
-		if String(line.get("speaker", "lolo")) == "lolo" and lolo != null and is_instance_valid(lolo):
-			lolo.say(text)
-		elif dialogue_box != null:
-			dialogue_box.show_line(text, APO_SPEAKER)
-		else:
-			status_label.text = text
+		var speaker := String(line.get("speaker", "lolo"))
+		if script_lines_l1.kind_of(line) == "hint":
+			if hint_bar != null:
+				hint_bar.show_hint(text,
+					Lolo.SPEAKER if speaker == "lolo" else APO_SPEAKER)
+			else:
+				status_label.text = text
+			continue
+		beat.append({
+			"text": text,
+			"speaker": Lolo.SPEAKER if speaker == "lolo" else APO_SPEAKER,
+			"at": speaker,
+		})
+	if beat.is_empty() or dialogue_box == null:
+		if not beat.is_empty():
+			status_label.text = String(beat[-1]["text"])
+		return
+	# A hint left on screen under a conversation is the two channels talking at once.
+	if hint_bar != null:
+		hint_bar.clear()
+	_focus_camera_for(String(beat[0]["at"]))
+	dialogue_box.speak(beat)
+
+
+## Push the camera in on whoever is talking, and give it back when the beat is over.
+func _focus_camera_for(speaker: String) -> void:
+	# Reached through the baseplate, which owns it -- the level does not hold a reference,
+	# and a `camera` of its own would be a second thing to keep pointed at the right node
+	# every time the player is swapped.
+	var world_camera := _world_camera()
+	if world_camera == null:
+		return
+	var subject: Node2D = lolo if speaker == "lolo" and lolo != null else player
+	if subject == null or not is_instance_valid(subject):
+		return
+	world_camera.focus_on(subject)
+	if not dialogue_box.conversation_finished.is_connected(_release_camera_focus):
+		dialogue_box.conversation_finished.connect(_release_camera_focus)
+
+
+func _release_camera_focus() -> void:
+	var world_camera := _world_camera()
+	if world_camera != null:
+		world_camera.release_focus()
+
+
+func _world_camera() -> WorldCameraController:
+	var baseplate := get_node_or_null(^"EnvironmentBaseplate")
+	if baseplate == null:
+		return null
+	return baseplate.get("camera") as WorldCameraController
 
 
 ## The refusal beat. It fires on the FIRST decline anywhere in the level and never again,
@@ -1134,6 +1183,9 @@ func _build_dialogue_box() -> void:
 	dialogue_box = DialogueBox.new()
 	dialogue_box.name = "DialogueBox"
 	layer.add_child(dialogue_box)
+	hint_bar = HintBar.new()
+	hint_bar.name = "HintBar"
+	layer.add_child(hint_bar)
 
 
 ## The Draw button, as a key prompt rather than a button.
@@ -1562,17 +1614,29 @@ func _spawn_lolo() -> void:
 	lolo = scene.instantiate() as Lolo
 	entity_root.add_child(lolo)
 	lolo.follow(player)
-	if dialogue_box != null:
-		lolo.set_dialogue_box(dialogue_box)
-	_lolo_says("greeting")
+	if hint_bar != null:
+		lolo.set_hint_bar(hint_bar)
+	_greet()
 
 
+## The two set-piece lines from the old script -- the greeting and the arrival after the
+## memory -- are story, not hints, so they take the framed box like everything else that
+## is. They are single-line beats, which the queue handles as a conversation of one.
 func _lolo_says(key: String, seconds: float = 0.0) -> void:
 	if lolo == null or not is_instance_valid(lolo):
 		return
 	var line := String(_script_lines.get(key, ""))
-	if not line.is_empty():
+	if line.is_empty():
+		return
+	if dialogue_box == null:
 		lolo.say(line, seconds)
+		return
+	_focus_camera_for("lolo")
+	dialogue_box.speak([{"text": line, "speaker": Lolo.SPEAKER}])
+
+
+func _greet() -> void:
+	_lolo_says("greeting")
 
 
 func _wire_dialogue_node() -> void:
@@ -1635,7 +1699,10 @@ func _on_route_chosen(route: String) -> void:
 	else:
 		var routes: Dictionary = _script_lines.get("routes", {})
 		if lolo != null and is_instance_valid(lolo):
-			lolo.say(String(routes.get(route, "")))
+			var chosen := String(routes.get(route, ""))
+			if not chosen.is_empty() and dialogue_box != null:
+				_focus_camera_for("lolo")
+				dialogue_box.speak([{"text": chosen, "speaker": Lolo.SPEAKER}])
 		status_label.text = "Route: %s" % route.capitalize()
 
 

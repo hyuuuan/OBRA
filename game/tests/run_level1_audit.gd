@@ -543,6 +543,11 @@ func _audit_live_level() -> void:
 	var level := packed.instantiate()
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
+	# The level opens on a line of dialogue, and a conversation stops the tree until the
+	# player turns the page. Nobody is here to press a key, so dismiss it the way a skip
+	# button would, and keep dismissing them -- otherwise the first obstacle the
+	# walker reaches stops the world and it reports the level as a wall.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await process_frame
 	await process_frame
 
@@ -870,17 +875,19 @@ func _audit_live_level() -> void:
 	await process_frame
 
 
-## What Lolo is saying right now. His voice as the player sees it, read out of the framed
-## box he shares with the apo -- and only when the box says the line is his, or this would
-## report the player's own thoughts as though he had spoken them.
+## What Lolo is saying right now, read out of the HINT BAR.
+##
+## His voice is the hint channel: the lines this audit asks about -- "draw something that
+## can span it" -- are the game telling the player what to do, and those never stop play.
+## Story goes to the framed box instead, which these fixtures dismiss on sight.
 func _lolo_bubble(level: Node) -> String:
 	var lolo = level.get("lolo")
 	if lolo == null or not is_instance_valid(lolo):
 		return ""
 	if not lolo.call("is_speaking"):
 		return ""
-	var box = level.get("dialogue_box")
-	return "" if box == null else _collect_labels(box)
+	var bar = level.get("hint_bar")
+	return "" if bar == null else _collect_labels(bar)
 
 
 ## Drop a placed prop of `class_id` just above `target`, the way a player placing one
@@ -932,6 +939,11 @@ func _walk_node_two(route: String) -> void:
 	var level := packed.instantiate()
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
+	# The level opens on a line of dialogue, and a conversation stops the tree until the
+	# player turns the page. Nobody is here to press a key, so dismiss it the way a skip
+	# button would, and keep dismissing them -- otherwise the first obstacle the
+	# walker reaches stops the world and it reports the level as a wall.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await process_frame
 	await process_frame
 
@@ -1110,6 +1122,11 @@ func _walk_node_three(route: String) -> void:
 	var level := packed.instantiate()
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
+	# The level opens on a line of dialogue, and a conversation stops the tree until the
+	# player turns the page. Nobody is here to press a key, so dismiss it the way a skip
+	# button would, and keep dismissing them -- otherwise the first obstacle the
+	# walker reaches stops the world and it reports the level as a wall.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await process_frame
 	await process_frame
 
@@ -1258,6 +1275,11 @@ func _audit_completion_gate() -> void:
 	var level := packed.instantiate()
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
+	# The level opens on a line of dialogue, and a conversation stops the tree until the
+	# player turns the page. Nobody is here to press a key, so dismiss it the way a skip
+	# button would, and keep dismissing them -- otherwise the first obstacle the
+	# walker reaches stops the world and it reports the level as a wall.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await process_frame
 	await process_frame
 

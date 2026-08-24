@@ -46,6 +46,11 @@ func _run() -> void:
 	level = packed.instantiate()
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
+	# The level opens on a line of dialogue, and a conversation stops the tree until the
+	# player turns the page. Nobody is here to press a key, so dismiss it the way a skip
+	# button would, and keep dismissing them -- otherwise the first obstacle the
+	# walker reaches stops the world and it reports the level as a wall.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _wait(1.2)
 
 	player = level.get("player") as Node2D

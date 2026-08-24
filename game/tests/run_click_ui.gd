@@ -30,6 +30,11 @@ func _run() -> void:
 	# asks the recogniser.
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
+	# The level opens on a line of dialogue, and a conversation stops the tree until the
+	# player turns the page. Nobody is here to press a key, so dismiss it the way a skip
+	# button would, and keep dismissing them -- otherwise the first obstacle the
+	# walker reaches stops the world and it reports the level as a wall.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _wait(1.0)
 	player = level.get("player") as Node2D
 
@@ -41,6 +46,7 @@ func _run() -> void:
 	await _draw_button_opens_the_panel()
 	await _panel_buttons_answer_a_click()
 	await _inventory_slot_answers_a_click()
+	await _dialogue_can_be_advanced()
 	await _placing_click_reaches_the_world()
 	await _a_click_places_it_and_right_click_takes_it_back()
 	await _dialogue_choices_answer_a_click()
@@ -305,6 +311,78 @@ func _screen_of(world_position: Vector2) -> Vector2:
 
 ## A press and release at a point on the screen, with no Control under it. The take-back
 ## reads the position off the event, which is what makes this testable at all.
+## THE ONE THE PLAYER ACTUALLY HIT. A beat is a queue of lines and there was no way to
+## reach the second one: the level wrote every line of a beat into the same label in the
+## same frame, so four of every five lines in Level 1 were never on screen long enough to
+## read. Nothing failed -- the labels said the right words, briefly.
+##
+## Driven with a real key event, for the same reason the button tests use a real mouse:
+## calling _advance() directly cannot fail the way a keypress can.
+func _dialogue_can_be_advanced() -> void:
+	var box = level.get("dialogue_box")
+	if box == null:
+		_fail("dialogue", "the level built no dialogue box")
+		return
+	# The draw-panel checks above leave the panel up, and it pauses too -- so the world
+	# would still be stopped at the end of this and the assertion would be measuring the
+	# wrong overlay.
+	level.get_node("DrawPanel").call("close_panel")
+	# This runner dismisses beats on sight so the rest of it can drive a live world. Turn
+	# that off for the one check whose whole subject is reading a beat.
+	box.call("set_auto_dismiss", false)
+	await _wait(0.2)
+	box.call("skip_all")
+	await _wait(0.3)
+	box.call("speak", [
+		{"text": "First line.", "speaker": "Lolo"},
+		{"text": "Second line.", "speaker": "Lolo"},
+	])
+	await _wait(0.2)
+	_check(bool(paused), "a conversation stops the world",
+		"paused while a beat is being read")
+
+	# First press catches up the typing, second turns the page.
+	await _press_accept()
+	await _press_accept()
+	var second: String = String(box.call("current_line"))
+	_check(second.begins_with("Second"),
+		"the advance key reaches the next line", "showing '%s'" % second)
+
+	# Pressed until the beat is done rather than a fixed number of times. The level is
+	# live while this runs and can queue a beat of its own -- the declined recognition
+	# above does exactly that when there is no backend -- and the property worth asserting
+	# is not "two presses" but "the player can always read their way out".
+	var presses := 0
+	while box.call("is_open") and presses < 24:
+		await _press_accept()
+		presses += 1
+	_check(not box.call("is_open"), "a beat can always be read to the end",
+		"finished after %d presses" % presses)
+	await _wait(0.3)
+	var holding: Array[String] = []
+	for node in get_nodes_in_group(ModalOverlay.GROUP):
+		if node.has_method(&"is_open") and bool(node.call(&"is_open")):
+			holding.append(String(node.name))
+	_check(not bool(paused), "reading the last line gives the world back",
+		"unpaused once the beat is over" if not paused
+		else "still paused, held by %s" % str(holding))
+	box.call("set_auto_dismiss", true)
+
+
+func _press_accept() -> void:
+	var event := InputEventAction.new()
+	event.action = &"ui_accept"
+	event.pressed = true
+	Input.parse_input_event(event)
+	await process_frame
+	var release := InputEventAction.new()
+	release.action = &"ui_accept"
+	release.pressed = false
+	Input.parse_input_event(release)
+	await process_frame
+	await process_frame
+
+
 func _click_at(at: Vector2, button: int) -> void:
 	Input.parse_input_event(_motion(at))
 	await process_frame

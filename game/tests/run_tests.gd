@@ -118,6 +118,11 @@ func _test_manifest_roles() -> void:
 func _test_ui_router_cancel_chain() -> void:
 	var level: Node = (load("res://game_level.tscn") as PackedScene).instantiate()
 	world.add_child(level)
+	# The level opens on a line of dialogue, and a conversation stops the tree until the
+	# player turns the page. Nobody is here to press a key, so dismiss it the way a skip
+	# button would, and keep dismissing them -- otherwise the first obstacle the
+	# walker reaches stops the world and it reports the level as a wall.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await process_frame
 	var router: Node = level.get_node_or_null("UIRouter")
 	var pause: Node = level.get_node_or_null("PauseMenu")
@@ -248,6 +253,11 @@ func _test_shared_overlays() -> void:
 func _test_level_completion_screen() -> void:
 	var level: Node = (load("res://game_level.tscn") as PackedScene).instantiate()
 	world.add_child(level)
+	# The level opens on a line of dialogue, and a conversation stops the tree until the
+	# player turns the page. Nobody is here to press a key, so dismiss it the way a skip
+	# button would, and keep dismissing them -- otherwise the first obstacle the
+	# walker reaches stops the world and it reports the level as a wall.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await process_frame
 	var complete: Node = level.get_node_or_null("LevelCompleteOverlay")
 	var out_of_ink: Node = level.get_node_or_null("OutOfInkOverlay")
@@ -872,6 +882,11 @@ func _test_level_1_needs_drawing() -> void:
 		return
 	var level := scene.instantiate() as Node2D
 	world.add_child(level)
+	# Dismiss the level's opening line. A conversation stops the tree until the player
+	# turns the page, and a paused tree means every `await physics_frame` below
+	# advances nothing -- which does not fail loudly, it fails as a body that never
+	# moved. A no-op anywhere there is no dialogue box.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await physics_frame
 
 	var terrain := level.get_node_or_null(^"GameplayPlane/Terrain")
@@ -971,6 +986,11 @@ func _test_revert_to_base_form() -> void:
 	# Without this the level starts a real Python process on import.
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	world.add_child(level)
+	# Dismiss the level's opening line. A conversation stops the tree until the player
+	# turns the page, and a paused tree means every `await physics_frame` below
+	# advances nothing -- which does not fail loudly, it fails as a body that never
+	# moved. A no-op anywhere there is no dialogue box.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await process_frame
 	await process_frame
 	_expect(level.get("player") is Wanderer, "the level did not start the player as the wanderer")
