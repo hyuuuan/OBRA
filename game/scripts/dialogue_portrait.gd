@@ -8,30 +8,31 @@ extends Control
 ## game that leans on dialogue solves it the same way: a bust of the speaker, drawn at a
 ## size the in-game sprite never reaches, standing behind the text.
 ##
-## FULL FIGURE STANDING ON THE BOTTOM EDGE, not a bust floating in the middle. A bust
-## cropped at the waist works when the box overlaps it, the way a visual novel stacks them
-## -- but this box sits BESIDE the portrait rather than over it, so the cut line has
-## nothing to hide behind and reads as a character sawn in half. Standing them on the
-## bottom of the screen costs nothing and reads as someone who is there.
+## HALF THE BODY, ABOVE THE BOX. Head, shoulders and hands, cut at the hip and standing on
+## the box's top rail -- the two read as one object, a face with its words underneath.
 ##
-## On the opposite side to the box, which biases away from the speaker, so the portrait
-## takes exactly the room that leaves.
+## A full figure was tried and is wrong for this arrangement: standing someone at the
+## bottom of the screen puts their head in the middle of it, which is exactly where the
+## reader's eye travels between the portrait and the text. Cutting at the hip lifts the
+## face to the top of the screen and leaves that path clear. The cut line has the box's own
+## rail to sit on, which is what a bust needs and what it did not have when the box was
+## beside it.
 
-## The whole of the apo's sheet: one frame is 80 x 106.
-const BUST_ROWS := 106
+## Of the apo's 106-row frame: head, shoulders and hands, cut at the hip.
+const BUST_ROWS := 68
 const SOURCE_WIDTH := 80
-## How tall the figure stands on screen. Everything else is derived, so the portrait scales
+## How tall the bust stands on screen. Everything else is derived, so the portrait scales
 ## by whole pixels and never lands the sprite on a half.
-const HEIGHT := 620.0
-## How far in from the screen edge it stands.
-const INSET := 40.0
+const HEIGHT := 408.0
+## How far the bust's cut edge sinks behind the box's top rail, so it stands ON the box
+## rather than balancing above it.
+const OVERLAP := 18.0
 
 const APO_SHEET := preload("res://assets/characters/apo/apo_turnaround.png")
 
 var _apo: TextureRect
 var _lolo: TextureRect
 var _lolo_viewport: SubViewport
-var _side := -1.0
 
 
 func _init() -> void:
@@ -81,8 +82,8 @@ func _init() -> void:
 	# a hovering companion planted on the ground would be a different character.
 	# Sat low enough that the leaf above his head has room -- the viewport clips, and a
 	# cropped leaf reads as a stem growing out of nothing.
-	figure.position = Vector2(float(SOURCE_WIDTH) * 0.5, float(BUST_ROWS) * 0.55)
-	figure.scale = Vector2(1.3, 1.3)
+	figure.position = Vector2(float(SOURCE_WIDTH) * 0.5, float(BUST_ROWS) * 0.62)
+	figure.scale = Vector2(1.35, 1.35)
 	_lolo_viewport.add_child(figure)
 
 	_lolo = TextureRect.new()
@@ -100,9 +101,7 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_relayout)
 
 
-## `side` is -1 to stand on the left of the screen, +1 on the right.
-func show_for(speaker: String, side: float) -> void:
-	_side = -1.0 if side < 0.0 else 1.0
+func show_for(speaker: String) -> void:
 	var is_lolo := speaker == Lolo.SPEAKER
 	_lolo.visible = is_lolo
 	_apo.visible = not is_lolo
@@ -115,6 +114,12 @@ func show_for(speaker: String, side: float) -> void:
 	appear.tween_property(self, "modulate:a", 1.0, 0.18)
 
 
+## Where the bust is standing. Both faces share it, so which one is showing does not
+## change the answer.
+func bust_rect() -> Rect2:
+	return Rect2(_apo.position, _apo.size)
+
+
 func hide_portrait() -> void:
 	if not visible:
 		return
@@ -124,22 +129,19 @@ func hide_portrait() -> void:
 	fade.tween_callback(func() -> void: visible = false)
 
 
-## Both portraits stand on the same baseline so a beat that changes speaker does not make
-## the head jump. The baseline is the box's own top edge plus a little, so the shoulders
-## are behind the frame and the head is clear of it.
+## Both portraits stand on the same baseline and at the same size, so a beat that changes
+## speaker swaps the face without moving the head.
 func _relayout() -> void:
 	var view := get_viewport_rect().size
 	var scale := maxf(1.0, floorf(HEIGHT / float(BUST_ROWS)))
 	var width := float(SOURCE_WIDTH) * scale
 	var height := float(BUST_ROWS) * scale
-	# Feet on the bottom edge of the screen. The keybind strip lies across the very bottom
-	# and is meant to be stood in front of.
-	var baseline := view.y
-	var x := INSET if _side < 0.0 else view.x - INSET - width
+	# The box's own top rail is the shelf the bust stands on.
+	var box_top := view.y - DialogueBox.LIFT - DialogueBox.BOX.y
+	var rect := Rect2(
+		Vector2(floorf((view.x - width) * 0.5), floorf(box_top + OVERLAP - height)),
+		Vector2(width, height))
 
-	# Both stand on the same baseline and at the same size, so a beat that changes speaker
-	# swaps the face without moving the head.
-	var rect := Rect2(Vector2(floorf(x), floorf(baseline - height)), Vector2(width, height))
 	_apo.position = rect.position
 	_apo.size = rect.size
 	_lolo.position = rect.position

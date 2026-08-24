@@ -195,26 +195,29 @@ those conventions are load-bearing and players already know them.
 - **A queue, and the player turns the page.** First press catches up the line being typed,
   the next moves on. One press doing both lets a fast reader skip a line they never saw.
   Advance is `ui_accept` or a left click.
-- **One size, biased off centre.** 1040 × 310, fixed whatever the line — a box that resizes
-  per line makes the reader re-find the first word every time. It slides 250 px to the side
-  the speaker is **not** on, settled once per line rather than followed per frame: the
-  camera is still easing in while the first characters arrive, and a box sliding under the
-  text as it types is worse than one covering the speaker.
+- **Face at the top, words at the bottom.** The speaker's bust stands on the box's top
+  rail and the box runs across the bottom of the screen, 1300 × 300. The two are one
+  object, and the arrangement leaves the middle of the screen — where the reader's eye
+  travels between them — clear.
+- **One size**, fixed whatever the line: a box that resizes per line makes the reader
+  re-find the first word every time.
 - **Typed out**, then a **blinking arrow** in its own gutter: the difference between "still
   talking" and "waiting for you".
 - **A plaque** on the top rail says who is speaking. Two voices share the box — Lolo and the
   apo's own thoughts — so `current_speaker` says whose line is up.
-- **A portrait of the speaker stands behind it** (`dialogue_portrait.gd`), full figure on
-  the bottom edge of the screen, on the side the box gave up. This is what the camera
-  push-in could not do: zooming the world makes the speaker slightly larger and still forty
-  pixels tall and still side-on, and what a player needs while someone talks is a face.
+- **A bust of the speaker stands above it** (`dialogue_portrait.gd`) — head, shoulders and
+  hands, cut at the hip. This is what the camera push-in could not do: zooming the world
+  makes the speaker slightly larger and still forty pixels tall and still side-on, and what
+  a player needs while someone talks is a face.
 - **The world stops and the camera pushes in** on the speaker
   (`WorldCameraController.focus_on`), gently — the portrait carries the focus, and a hard
   push-in behind a large figure makes the background compete with it.
 
-**A full figure, not a bust.** A bust cropped at the waist works when the box overlaps it,
-the way a visual novel stacks them — but this box sits *beside* the portrait, so the cut
-line has nothing to hide behind and reads as a character sawn in half.
+**Half the body, not the whole of it.** A full figure standing at the bottom of the screen
+puts the head in the *middle* of it, which is exactly where the eye travels between the
+face and the text. Cutting at the hip lifts the face to the top and leaves that path clear
+— and the cut line has the box's own rail to hide behind, which is what a bust needs and
+what it did not have when the box sat beside it rather than under it.
 
 **Lolo's portrait is rendered through a `SubViewport` and scaled up with nearest
 filtering.** He is drawn in code from circles and arcs, and drawing him big draws him
@@ -222,11 +225,6 @@ filtering.** He is drawn in code from circles and arcs, and drawing him big draw
 bug rather than a placeholder. Rasterising him at sprite size first makes him chunky in the
 same way everything around him is. He is still a blob; that is logged in
 `CONTENT_NEEDED.md` as art the team owes, and he speaks most of Level 1.
-
-**The box asks `subject_resolver` where a speaker is**, so it can find them on screen
-without knowing anything about the level. A Callable rather than the nodes themselves,
-because `player` is replaced on every morph and a stored reference would point at a freed
-body by the second conversation.
 
 **`set_auto_dismiss(true)` is the skip.** Every headless fixture needs it, because a
 conversation stops the tree until somebody presses a key and there is nobody there —
