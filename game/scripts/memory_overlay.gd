@@ -18,6 +18,16 @@ signal dismissed()
 func _ready() -> void:
 	super()
 	closes_on_cancel = false
+	# The memory is literally a painting of Lola's -- the Empathy route shows her painting
+	# this exact bridge -- so of everything in the game this is the one that most has to
+	# arrive in a frame.
+	UIFrame.wrap($Root/Center/Panel as PanelContainer)
+
+
+## The running dialogue line is cleared before this opens. Both are story, both are framed,
+## and one behind the other reads as two people talking over each other.
+func _on_opened() -> void:
+	get_tree().call_group(DialogueBox.GROUP, &"hide_line")
 	_continue.pressed.connect(_on_continue)
 
 

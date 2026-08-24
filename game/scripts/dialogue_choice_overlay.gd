@@ -20,6 +20,16 @@ const ROUTES := ["artist", "pragmatist", "protector"]
 func _ready() -> void:
 	super()
 	closes_on_cancel = false
+	# A decision is the most story-laden thing in the level -- the answer physically
+	# rearranges it -- so it is framed like the rest of the story rather than presented as
+	# a settings dialog with three long buttons in it.
+	UIFrame.wrap($Root/Center/Panel as PanelContainer)
+
+
+## The running dialogue line is cleared before this opens. Both are story, both are framed,
+## and one behind the other reads as two people talking over each other.
+func _on_opened() -> void:
+	get_tree().call_group(DialogueBox.GROUP, &"hide_line")
 
 
 ## `choices` is one line per route, in ROUTES order. Anything missing is skipped

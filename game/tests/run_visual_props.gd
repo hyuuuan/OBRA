@@ -60,13 +60,12 @@ func _run() -> void:
 	var hud := level.get_node_or_null("CanvasLayer") as CanvasLayer
 	if hud != null:
 		hud.visible = false
-	# Lolo's bubble is a world-space node rather than HUD, and it is wide enough to cover
-	# whatever is being photographed -- Lolo himself included.
-	var companion := level.get("lolo") as Node2D
-	if companion != null:
-		var bubble := companion.get_node_or_null("Bubble") as CanvasItem
-		if bubble != null:
-			bubble.visible = false
+	# The dialogue box is wide enough to cover whatever is being photographed. It used to
+	# be a world-space bubble hanging off Lolo; it is now its own layer, so hiding the
+	# HUD layer above does not take it with it.
+	var dialogue := level.get_node_or_null("DialogueLayer") as CanvasLayer
+	if dialogue != null:
+		dialogue.visible = false
 
 	# The camera clamps itself to the level's bounds, which would refuse to look at
 	# anything within half a screen of either edge -- the bale among them.

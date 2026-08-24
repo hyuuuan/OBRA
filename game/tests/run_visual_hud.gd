@@ -11,7 +11,8 @@ extends SceneTree
 ## caught only this way.
 ##
 ## The states are chosen to be the ones that differ: a full gauge and a nearly-spent one,
-## ink reserved mid-stroke, an empty bag and a bag with something held in it.
+## ink reserved mid-stroke, a line still typing and the same line finished, and both of
+## the voices that share the framed box.
 
 var level: Node2D
 
@@ -49,18 +50,31 @@ func _run() -> void:
 	hud.call("set_ink", 12.0, 12.0, 0.0)
 	level.get("status_label").text = "Ready — draw a morph or utility"
 
+	# The framed box, both voices, and the state that only exists for a second and a half:
+	# a line still arriving. If the reveal ever breaks it breaks here and nowhere else.
+	level.get("lolo").call("say", "Four hundred years. Maybe less. They built this while the Spanish were burning the lowlands — this was not left behind, apo. This is an answer.")
+	await _wait(0.5)
+	await _capture("03_dialogue_typing")
+	await _wait(3.0)
+	await _capture("04_dialogue_full")
+	level.get("dialogue_box").call("show_line", "Her brush is still warm.", "Apo")
+	await _wait(1.2)
+	await _capture("05_dialogue_apo")
+	level.get("lolo").call("hush")
+	await _wait(0.4)
+
 	level.get_node("DrawPanel").call("open_panel")
 	await _wait(0.9)
-	await _capture("03_draw_panel")
+	await _capture("06_draw_panel")
 	level.get_node("DrawPanel").call("close_panel")
 	await _wait(0.5)
 
 	level.get_node("PauseMenu").call("open")
 	await _wait(0.8)
-	await _capture("04_pause")
+	await _capture("07_pause")
 	level.get_node("PauseMenu").get("settings_button").emit_signal("pressed")
 	await _wait(1.0)
-	await _capture("05_settings")
+	await _capture("08_settings")
 	var settings := level.get_node_or_null("SettingsOverlay")
 	if settings != null:
 		settings.call("close")

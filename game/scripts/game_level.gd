@@ -4,6 +4,9 @@ extends Node2D
 
 ## A morph whose anchor comes within this radius of the level's GoalMarker completes it.
 const GOAL_RADIUS := 120.0
+## What the box's plaque says when the line is the player's own thought rather than Lolo's
+## voice. "Apo" is what Lolo calls them, so it is the name the player already knows.
+const APO_SPEAKER := "Apo"
 
 ## The body the player starts in and can always get back to.
 const WANDERER_SCENE := "res://creatures/wanderer.tscn"
@@ -29,6 +32,9 @@ const WANDERER_SCENE := "res://creatures/wanderer.tscn"
 ## Built in code rather than authored into the scene, like the requirement strip: it owns
 ## its own frame and gauge and there is nothing to lay out by hand.
 var hud_panel: HudPanel
+## The framed box every story line is shown in. Built here rather than authored into the
+## scene because it is pure presentation with no state to save and nothing to wire.
+var dialogue_box: DialogueBox
 ## The corner readouts and where each belongs, so they can be re-placed together.
 var _chips: Array = []
 ## How long the player has been under the water in their own body.
@@ -617,9 +623,15 @@ func _restore_placed_entities(records: Array) -> void:
 ## unrelated line from the old dialogue file. Two narrators, disagreeing, in the level
 ## whose job is to teach the game.
 ##
-## Lolo speaks in his bubble, because that is where the player is already looking for him.
-## The apo is the player's own thought and stays in the status line. Lines arrive as a
-## list because most beats are several in a row, and the bubble shows them in sequence.
+## BOTH VOICES NOW GO TO THE SAME BOX, and the plaque on it says which one is talking.
+## Splitting them was the old fix for the same problem -- Lolo in a bubble over his head,
+## the apo as a caption at the top of the screen -- and it worked by keeping them so far
+## apart that nobody could confuse them. That is not a presentation, it is an evasion, and
+## it cost the apo's lines any weight at all: the player's own thoughts appeared in the
+## same grey line that says "Not enough ink".
+##
+## The status label keeps what it should have kept all along: the game talking about
+## itself. Story is story, and story is framed.
 func _speak(lines: Array) -> void:
 	for line_value: Variant in lines:
 		var line: Dictionary = line_value
@@ -628,6 +640,8 @@ func _speak(lines: Array) -> void:
 			continue
 		if String(line.get("speaker", "lolo")) == "lolo" and lolo != null and is_instance_valid(lolo):
 			lolo.say(text)
+		elif dialogue_box != null:
+			dialogue_box.show_line(text, APO_SPEAKER)
 		else:
 			status_label.text = text
 
@@ -1102,6 +1116,21 @@ func _build_hud_frame() -> void:
 		UIGlyph.Kind.FLAG)
 	_style_action_tag()
 	_frame_controls_legend()
+	_build_dialogue_box()
+
+
+## Its own layer, above the HUD and below every modal. A story line must sit over the ink
+## meter -- it is the more important of the two whenever it is up -- but a decision box or
+## the pause menu has to sit over IT, and the layer budget in modal_overlay.gd starts the
+## modals at 50.
+func _build_dialogue_box() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "DialogueLayer"
+	layer.layer = 8
+	add_child(layer)
+	dialogue_box = DialogueBox.new()
+	dialogue_box.name = "DialogueBox"
+	layer.add_child(dialogue_box)
 
 
 ## The Draw button, as a key prompt rather than a button.
@@ -1530,6 +1559,8 @@ func _spawn_lolo() -> void:
 	lolo = scene.instantiate() as Lolo
 	entity_root.add_child(lolo)
 	lolo.follow(player)
+	if dialogue_box != null:
+		lolo.set_dialogue_box(dialogue_box)
 	_lolo_says("greeting")
 
 
