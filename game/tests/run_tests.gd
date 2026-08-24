@@ -358,7 +358,7 @@ func _test_theme_resource() -> void:
 	_expect(theme != null, "the project theme failed to load")
 	if theme == null:
 		return
-	for variation in ["PrimaryButton", "DialogButton", "LevelCard", "InventorySlot", "ScreenTitle", "ScreenSubtitle", "HudHint"]:
+	for variation in ["PrimaryButton", "DangerButton", "DialogButton", "LevelCard", "InventorySlot", "ScreenTitle", "ScreenSubtitle", "HudHint", "HudCaption", "HudValue", "HudBanner"]:
 		_expect(
 			theme.is_type_variation(variation, theme.get_type_variation_base(variation)),
 			"theme has no type variation '%s'" % variation
@@ -374,6 +374,27 @@ func _test_theme_resource() -> void:
 	# A font here WOULD reach the main menu, whose overrides are all colours and sizes.
 	# The menu is deliberately left alone, so this must stay absent.
 	_expect(not theme.has_font("font", "Label"), "theme defines a Label font, which would restyle the main menu")
+
+	# The theme is generated from ui_skin.gd by tools/build_theme.gd. If someone edits the
+	# palette and does not regenerate, the theme still loads and still looks like the OLD
+	# palette -- no error, no warning, and the two disagree from then on. Spot-checking one
+	# value from each family is enough to catch it, because a palette change that leaves
+	# all three families untouched is not a palette change.
+	var skin := load("res://scripts/ui_skin.gd")
+	var checks := {
+		"Button": skin.CREAM_FILL,
+		"PrimaryButton": skin.GREEN_FILL,
+		"DangerButton": skin.RED_FILL,
+	}
+	for type_name: String in checks:
+		var normal := theme.get_stylebox("normal", type_name) as StyleBoxFlat
+		if normal == null:
+			continue
+		_expect(
+			normal.bg_color.is_equal_approx(checks[type_name]),
+			"%s is %s but ui_skin.gd says %s -- run tools/build_theme.gd" % [
+				type_name, normal.bg_color, checks[type_name]]
+		)
 
 	# Focus is drawn ON TOP of the state stylebox, not instead of it, so an opaque
 	# focus box hides the button beneath. This is not hypothetical: the first version
