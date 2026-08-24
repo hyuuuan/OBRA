@@ -206,6 +206,58 @@ static func slot(occupied: bool, selected: bool) -> StyleBoxFlat:
 	return box
 
 
+# --- Generated pictograms ----------------------------------------------------------------
+
+## A round grabber for a slider, drawn rather than shipped.
+##
+## Godot draws HSlider's handle from a TEXTURE, which is the one part of this skin a
+## StyleBox cannot express -- so it is built as an image at load. It is deliberately NOT
+## saved into the theme: an ImageTexture written to a .tres keeps its header and loses its
+## pixels, so the file would load with an invisible handle and nothing to say why.
+static func disc_texture(diameter: int, fill: Color, ring: Color) -> ImageTexture:
+	var image := Image.create(diameter, diameter, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+	var centre := (float(diameter) - 1.0) * 0.5
+	var radius := float(diameter) * 0.5
+	for y in range(diameter):
+		for x in range(diameter):
+			var distance := Vector2(float(x) - centre, float(y) - centre).length()
+			if distance <= radius - 2.0:
+				image.set_pixel(x, y, fill)
+			elif distance <= radius:
+				image.set_pixel(x, y, ring)
+	return ImageTexture.create_from_image(image)
+
+
+## The fullscreen switch: a track with the knob at whichever end it is pointing to, lime
+## when on and dark when off. Same reason as the disc -- CheckButton's two states are
+## icons, not styleboxes.
+static func switch_texture(on: bool) -> ImageTexture:
+	var width := 48
+	var height := 24
+	var image := Image.create(width, height, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+	var track := LIME if on else PANEL
+	var edge := LIME if on else RING_MID
+	for y in range(height):
+		for x in range(width):
+			if x < 1 or x >= width - 1 or y < 1 or y >= height - 1:
+				continue
+			var border: bool = x < 4 or x >= width - 4 or y < 3 or y >= height - 3
+			image.set_pixel(x, y, edge if border else track)
+	# The knob's END is the only cue that survives being looked at for a quarter second.
+	var knob := GREEN_LABEL if on else MUTED
+	var knob_radius := float(height - 8) * 0.5
+	var knob_centre := Vector2(
+		float(width) - 5.0 - knob_radius if on else 5.0 + knob_radius,
+		float(height - 1) * 0.5)
+	for y in range(height):
+		for x in range(width):
+			if Vector2(float(x), float(y)).distance_to(knob_centre) <= knob_radius:
+				image.set_pixel(x, y, knob)
+	return ImageTexture.create_from_image(image)
+
+
 # --- Internals --------------------------------------------------------------------------
 
 ## fill + inner ring (border) + outer ring (shadow). The shadow is Godot's only second

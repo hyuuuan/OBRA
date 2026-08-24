@@ -142,7 +142,13 @@ func _ranges(theme: Theme) -> void:
 	theme.set_stylebox("fill", "ProgressBar", fill)
 	theme.set_color("font_color", "ProgressBar", Palette.CREAM_TEXT)
 
-	theme.set_stylebox("slider", "HSlider", Palette.well())
+	# A trough with a thickness. A StyleBox with no content margins has no minimum height
+	# and HSlider takes the track's height from exactly that, so the volume sliders were
+	# drawn as a hairline with a handle threaded onto it.
+	var track := Palette.well()
+	track.content_margin_top = 6.0
+	track.content_margin_bottom = 6.0
+	theme.set_stylebox("slider", "HSlider", track)
 	var grabbed := StyleBoxFlat.new()
 	grabbed.bg_color = Palette.LIME
 	grabbed.set_corner_radius_all(Palette.RADIUS)
@@ -152,6 +158,18 @@ func _ranges(theme: Theme) -> void:
 	grabbed_lit.set_corner_radius_all(Palette.RADIUS)
 	theme.set_stylebox("grabber_area_highlight", "HSlider", grabbed_lit)
 	theme.set_constant("grabber_offset", "HSlider", 0)
+
+	# The hairline under a screen's title. The engine's default separator is a grey line
+	# that belongs to no palette, and it was showing through on every panel.
+	# A HAIRLINE, not a bar. HSeparator draws this stylebox at its own minimum height and
+	# gets its breathing room from the separation constant, so the margins here set the
+	# thickness of the line and anything above 1 paints a slab across the panel.
+	var rule := StyleBoxFlat.new()
+	rule.bg_color = Palette.RING_MID
+	rule.content_margin_top = 1.0
+	rule.content_margin_bottom = 1.0
+	theme.set_stylebox("separator", "HSeparator", rule)
+	theme.set_constant("separation", "HSeparator", 16)
 
 	theme.set_color("font_color", "CheckButton", Palette.CREAM_TEXT)
 	theme.set_color("font_hover_color", "CheckButton", Palette.LIME_PALE)

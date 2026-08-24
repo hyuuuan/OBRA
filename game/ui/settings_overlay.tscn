@@ -19,7 +19,7 @@ grow_vertical = 2
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0.015, 0.045, 0.025, 0.82)
+color = Color(0.027, 0.035, 0.024, 0.82)
 
 [node name="Center" type="CenterContainer" parent="Root" unique_id=543453781]
 layout_mode = 0
@@ -42,6 +42,9 @@ layout_mode = 2
 theme_type_variation = &"ScreenTitle"
 text = "SETTINGS"
 horizontal_alignment = 1
+
+[node name="Rule" type="HSeparator" parent="Root/Center/Panel/VBox"]
+layout_mode = 2
 
 [node name="MasterRow" type="HBoxContainer" parent="Root/Center/Panel/VBox" unique_id=1311449142]
 layout_mode = 2

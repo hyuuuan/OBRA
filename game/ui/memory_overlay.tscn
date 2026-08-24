@@ -18,7 +18,7 @@ grow_vertical = 2
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0.06, 0.03, 0.02, 0.9)
+color = Color(0.047, 0.031, 0.024, 0.9)
 
 [node name="Center" type="CenterContainer" parent="Root" unique_id=1588630937]
 layout_mode = 0
@@ -52,5 +52,5 @@ autowrap_mode = 3
 [node name="ContinueButton" type="Button" parent="Root/Center/Panel/VBox" unique_id=1898498818]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
-theme_type_variation = &"DialogButton"
+theme_type_variation = &"PrimaryButton"
 text = "CONTINUE"
