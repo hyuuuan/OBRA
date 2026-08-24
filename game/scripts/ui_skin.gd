@@ -192,11 +192,16 @@ static func label_color(family: Family) -> Color:
 
 # --- Slots ------------------------------------------------------------------------------
 
-## An inventory slot. Empty it recedes to the panel; holding a drawing it takes the lime
-## ring; selected it takes the warm one, so held and merely-full are two cues apart.
+## An inventory slot.
+##
+## The ring stays lime whatever the slot holds, because the ring is the SLOT -- six of
+## them in a row are the bag, and a bag that dims to invisible when it is empty stops
+## telling the player they have one. What changes is the fill (raised once something is
+## in it) and, for the one in hand, the ring going warm to match the ink it was drawn
+## with. Two cues, so held and merely-full are never one step apart.
 static func slot(occupied: bool, selected: bool) -> StyleBoxFlat:
-	var ring := PENDING if selected else (LIME if occupied else RING_MID)
-	var box := _ringed(PANEL_LIT if occupied else PANEL, ring, THIN, RING_OUTER, THIN)
+	var box := _ringed(PANEL_LIT if occupied else PANEL,
+		PENDING if selected else LIME, THIN, RING_OUTER, THIN)
 	box.set_corner_radius_all(RADIUS)
 	return box
 

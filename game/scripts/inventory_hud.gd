@@ -13,14 +13,17 @@ extends HBoxContainer
 
 signal slot_pressed(slot: int)
 
-const SLOT := Vector2(72.0, 72.0)
-const LIME := Color(0.72, 0.82, 0.23, 1.0)
-const DIM := Color(0.62, 0.66, 0.58, 1.0)
+const SLOT := Vector2(64.0, 64.0)
+const LIME := UISkin.LIME
+const DIM := UISkin.MUTED
 
 var _manager: InventoryManager
 var _buttons: Array[Button] = []
 var _art: Array[TextureRect] = []
 var _numbers: Array[Label] = []
+## The word SEL under the number of the slot in hand. A brighter frame says "this one"
+## only if you already know what the frames mean; a word says it outright.
+var _tags: Array[Label] = []
 ## One texture per drawing, keyed by the item that owns it. Rebuilding a 512x512 image
 ## into a texture on every inventory change, six at a time, is work for nothing.
 var _thumbnails: Dictionary = {}
@@ -30,9 +33,11 @@ var _selected: int = -1
 
 func _ready() -> void:
 	add_theme_constant_override(&"separation", 8)
-	# Centred in its band. The container is anchored bottom-centre and spans 756px, so
-	# left-packed slots sat off to one side of the screen they were supposed to be under.
-	alignment = BoxContainer.ALIGNMENT_CENTER
+	# Left-packed, because the bar is now anchored bottom-LEFT and sized to exactly its
+	# six slots. It used to be centred inside a 756px band across the bottom of the
+	# screen, which is both more of the screen than six slots need and directly over the
+	# ground the player sets objects down on.
+	alignment = BoxContainer.ALIGNMENT_BEGIN
 	for index in range(6):
 		var button := Button.new()
 		button.theme_type_variation = &"InventorySlot"
@@ -67,10 +72,23 @@ func _ready() -> void:
 		# paper of a drawing when it is not.
 		number.add_theme_constant_override(&"outline_size", 5)
 		number.add_theme_color_override(&"font_outline_color", Color(0.04, 0.06, 0.04, 1.0))
-		number.position = Vector2(7.0, 2.0)
+		number.position = Vector2(6.0, 1.0)
 		number.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(number)
 		_numbers.append(number)
+
+		var tag := Label.new()
+		tag.name = "Tag"
+		tag.text = "SEL"
+		tag.visible = false
+		tag.add_theme_font_size_override(&"font_size", UISkin.FONT_TINY)
+		tag.add_theme_color_override(&"font_color", UISkin.PENDING)
+		tag.add_theme_constant_override(&"outline_size", 5)
+		tag.add_theme_color_override(&"font_outline_color", UISkin.INK)
+		tag.position = Vector2(6.0, SLOT.y - 20.0)
+		tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.add_child(tag)
+		_tags.append(tag)
 
 
 func set_manager(manager: InventoryManager) -> void:
@@ -117,16 +135,20 @@ func _refresh(items: Array) -> void:
 		var button := _buttons[index]
 		button.tooltip_text = "Place %s" % item.display_name if occupied else "Empty"
 		_art[index].texture = _thumbnail(item) if occupied else null
-		# Held reads as brightness and a lime frame. The old version lifted the button six
-		# pixels, which an HBoxContainer undoes on its next layout pass -- so the only cue
-		# that ever survived was a modulate.
-		button.modulate = Color(1.15, 1.15, 1.05) if chosen else (
-			Color.WHITE if occupied else Color(0.55, 0.58, 0.52))
+		# Three states, three cues, because two of them have to be told apart at a glance
+		# while something is being placed: empty recedes to the panel, holding takes the
+		# lime ring, in-hand takes the warm ring AND says SEL. The old version lifted the
+		# button six pixels, which an HBoxContainer undoes on its next layout pass -- so
+		# the only cue that ever survived was a modulate.
+		#
+		# The frame is applied to every state, not only the chosen one. The theme leaves
+		# InventorySlot unstyled precisely so this can own it; removing the override left
+		# a slot with no frame at all.
+		for state in [&"normal", &"hover", &"pressed", &"disabled"]:
+			button.add_theme_stylebox_override(state, UISkin.slot(occupied, chosen))
+		button.modulate = Color(1.12, 1.12, 1.04) if chosen else Color.WHITE
 		_numbers[index].add_theme_color_override(&"font_color", LIME if occupied else DIM)
-		if chosen:
-			button.add_theme_stylebox_override(&"normal", _held_frame())
-		else:
-			button.remove_theme_stylebox_override(&"normal")
+		_tags[index].visible = chosen
 	_forget_stale_thumbnails(items)
 
 
@@ -152,14 +174,6 @@ func _forget_stale_thumbnails(items: Array) -> void:
 		if not live.has(key):
 			_thumbnails.erase(key)
 
-
-func _held_frame() -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.14, 0.2, 0.1, 0.96)
-	box.border_color = Color(0.98, 0.9, 0.31, 1.0)
-	box.set_border_width_all(3)
-	box.set_corner_radius_all(2)
-	return box
 
 
 func _on_slot_pressed(slot: int) -> void:
