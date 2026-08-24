@@ -60,6 +60,7 @@ func _run() -> void:
 	await _the_paddy_needs_a_crossing()
 	await _cannot_be_climbed_bare()
 	await _can_be_climbed_with_a_step()
+	await _a_placement_can_be_taken_back()
 	await _the_overlook_needs_a_climb()
 
 	print("\n===== BEAT 0 WALKTHROUGH =====")
@@ -169,6 +170,140 @@ func _can_be_climbed_with_a_step() -> void:
 	_check(reached, "and the stair can then be climbed",
 		"the player reached the top" if reached
 		else "STILL STUCK -- the step is down and the beat is unbeatable")
+
+
+## A PLACEMENT THE PLAYER CANNOT UNDO IS A TRAP. Ink is committed when the object is set
+## down, the slot is emptied when it is taken out of the bag, and a placed body is solid --
+## so one misjudged click used to cost a drawing, cost the ink that made it, and leave the
+## thing standing in the level for the rest of the run.
+##
+## Both ways in are tested, because they are two mechanisms and only one of them is the one
+## a stuck player reaches for. E walks the `placed_drawings` group and needs the object
+## within 96px of the body; right-click hit-tests under the cursor and works wherever the
+## mouse can point. Before this pass NEITHER worked for a square, a circle or a triangle:
+## pick-up lived on UtilityObject, and the three primitives are not utilities.
+##
+## Run on an empty terrace on purpose. The bank at Beat 0 is littered with the step from the
+## case above by the time this runs, and a square set down on top of another square is a
+## test of stacking, not of taking things back.
+const CLEAR_GROUND := Vector2(1600.0, 236.0)
+
+
+func _a_placement_can_be_taken_back() -> void:
+	var inventory := level.get("inventory_manager") as Node
+	var placement := level.get("placement_controller") as Node2D
+	var world_items := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/WorldItemRoot") as Node2D
+	if world_items == null:
+		_fail("taking a placement back", "WorldItemRoot is not in the scene")
+		return
+
+	for pass_index in range(2):
+		var by_hand := pass_index == 0
+		var how := "E" if by_hand else "right-click"
+		player.set("velocity", Vector2.ZERO)
+		player.global_position = CLEAR_GROUND
+		for _frame in range(30):
+			await physics_frame
+		var before := _squares_in(world_items)
+
+		var item := DrawnItemData.new()
+		item.entity_id = "square"
+		item.display_name = "Square"
+		var slot: int = inventory.call("add_item", item)
+		level.call("_on_inventory_slot_pressed", slot)
+		await process_frame
+		if not bool(placement.call("is_placing")):
+			_fail("placing a square to take back (%s)" % how, "the placement never started")
+			return
+		placement.set_process(false)
+		# Right beside the character, which is where a player building a step aims -- and
+		# which used to be refused outright, because their own body counted as an obstacle.
+		placement.call("update_target", player.global_position + Vector2(84.0, -40.0))
+		for _frame in range(4):
+			await physics_frame
+		if not bool(placement.call("confirm_placement")):
+			placement.call("cancel_placement")
+			_fail("placing a square to take back (%s)" % how, "REFUSED beside the player")
+			return
+		for _frame in range(30):
+			await physics_frame
+		_check(_squares_in(world_items) == before + 1,
+			"the square is in the world (%s)" % how,
+			"%d placed square(s)" % _squares_in(world_items))
+
+		var target := _last_square_in(world_items)
+		if target == null:
+			_fail("taking it back (%s)" % how, "no square to take")
+			return
+		# WIRED UP AT CONFIRM, not the first time somebody presses a key. Both take-back
+		# paths call _connect_utility themselves, so a placement that binds nothing still
+		# works and the regression hides -- until something else that only confirm connects
+		# (equipping, using, consuming) is the thing that goes quiet. Assert the contract
+		# where it is made: `placed as UtilityObject` is null for all three primitives, and
+		# Godot refuses a mistyped bind without a word.
+		_check(target.pickup_requested.get_connections().size() > 0,
+			"confirming a placement wires it up (%s)" % how,
+			"the level is listening for it to be taken back" if target.pickup_requested.get_connections().size() > 0
+			else "NOTHING BOUND -- the object was cast to a type it is not")
+		# THE REACH IS PART OF THE TEST. E is a 96px surface measure, so a square the
+		# placement dropped somewhere else than the ghost is one E cannot answer.
+		var reach: float = target.distance_from(player.global_position)
+		_check(by_hand == false or reach <= 96.0, "and it is within arm's reach (%s)" % how,
+			"%.0fpx from the body" % reach)
+		var where := target.global_position
+		if by_hand:
+			level.call("_interact_with_nearest_utility")
+		else:
+			level.call("_take_back_under_cursor", where)
+		for _frame in range(10):
+			await physics_frame
+
+		var left := _squares_in(world_items)
+		_check(left == before, "%s takes the square out of the world" % how,
+			"gone" if left == before
+			else "STILL THERE -- a bad placement is permanent")
+		var back := _slot_holding(inventory, "square")
+		_check(back >= 0, "and puts it back in the bag (%s)" % how,
+			"slot %d" % (back + 1) if back >= 0
+			else "LOST -- the drawing and the ink that made it are both gone")
+
+		# Empty the bag before the second pass so the count means the same thing twice.
+		if back >= 0:
+			inventory.call("take_item", back)
+
+
+## Freed nodes stay in the child list until the tree flushes them, so a count that does not
+## ask is_instance_valid reports a picked-up object as still standing there.
+func _squares_in(world_items: Node2D) -> int:
+	var count := 0
+	for child in world_items.get_children():
+		var prop := child as PhysicsShapeObject
+		if prop != null and is_instance_valid(prop) and not prop.is_queued_for_deletion() \
+			and not prop.is_preview and prop.item_data != null \
+			and prop.item_data.entity_id == "square":
+			count += 1
+	return count
+
+
+func _last_square_in(world_items: Node2D) -> PhysicsShapeObject:
+	var found: PhysicsShapeObject = null
+	for child in world_items.get_children():
+		var prop := child as PhysicsShapeObject
+		if prop != null and is_instance_valid(prop) and not prop.is_queued_for_deletion() \
+			and not prop.is_preview and prop.item_data != null \
+			and prop.item_data.entity_id == "square":
+			found = prop
+	return found
+
+
+func _slot_holding(inventory: Node, entity_id: String) -> int:
+	var items: Array = inventory.call("items")
+	for index in range(items.size()):
+		var item := items[index] as DrawnItemData
+		if item != null and item.entity_id == entity_id:
+			return index
+	return -1
 
 
 ## The Overlook stands 140px over Terrace5, so the last stretch before the bale is a climb
