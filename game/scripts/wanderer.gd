@@ -34,9 +34,12 @@ const JUMP_BUFFER_TIME := 0.12
 ## hold is a full jump. It can only ever make the jump shorter.
 const JUMP_CUT := 0.45
 
-## Limbs swing this far at full stride, in radians.
-const STRIDE := 0.7
+## How fast the walk cycle plays, in cycles per second at full speed.
 const STRIDE_HZ := 2.2
+## Above this share of SPEED the character is running rather than walking. Placed so the
+## acceleration ramp is visible -- set it near 1.0 and the walk cycle never plays, set it
+## near 0 and the run cycle is the only one anybody sees.
+const RUN_FRACTION := 0.72
 
 ## Climbing a drawn ladder. Slower than walking, and sideways movement is throttled so
 ## stepping off is deliberate rather than something that happens while aiming upward.
@@ -198,9 +201,36 @@ func _advance_stride(delta: float, horizontal_speed: float) -> void:
 	var moving := absf(horizontal_speed) > 12.0
 	_phase += delta * STRIDE_HZ * (absf(horizontal_speed) / SPEED if moving else 0.0)
 	_figure.scale.x = _facing
-	_figure.set("stride", _phase)
-	_figure.set("carrying", _carrying)
-	_figure.queue_redraw()
+	_figure.set(&"pose", _pose_for(horizontal_speed))
+	_figure.set(&"stride", _phase)
+	_figure.set(&"carrying", _carrying)
+	_figure.call(&"refresh")
+
+
+## Which drawing of the character to show. Written here and not in the figure because
+## every fact it needs -- on a ladder, in the air, in the water, riding something, how
+## fast -- is already known here, and asking the art to work it out again from a position
+## and a velocity is how the two end up disagreeing.
+func _pose_for(horizontal_speed: float) -> StringName:
+	if _climbing():
+		return &"climb"
+	var speed := absf(horizontal_speed)
+	# Riding is standing on something that is moving. The deck carries the player, so the
+	# hull's speed is not theirs and a walk cycle here is running on the spot.
+	if not _riding() and speed > 12.0:
+		# Both cycles get used. There is one SPEED in this game, but there is also an
+		# acceleration ramp up to it, so setting off reads as a walk that breaks into a
+		# run -- which is what the artist drew two cycles for.
+		return &"run" if speed > SPEED * RUN_FRACTION else &"walk"
+	# Standing still, and only then, the look poses. Held while moving they would fight
+	# the walk cycle for the same frames.
+	if not is_on_floor() and not is_in_water() and not _riding():
+		return &"air"
+	if Input.is_action_pressed(&"move_up"):
+		return &"look_up"
+	if Input.is_action_pressed(&"move_down"):
+		return &"look_down"
+	return &"idle"
 
 
 # --- the contract every player answers ---------------------------------------
