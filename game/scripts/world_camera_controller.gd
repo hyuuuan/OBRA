@@ -65,7 +65,9 @@ func _process(delta: float) -> void:
 ## `lift` is how far up the SCREEN the subject is placed, in pixels, so the dialogue box
 ## sitting across the middle does not cover the person talking. The camera moves down by
 ## that much in world units, which is why it is divided by the zoom.
-func focus_on(node: Node2D, zoom_scale: float = 1.3, seconds: float = 0.45,
+## Gentler than it was. The portrait carries the focus now, and a hard push-in behind a
+## large figure makes the background compete with it rather than recede.
+func focus_on(node: Node2D, zoom_scale: float = 1.15, seconds: float = 0.45,
 		lift: float = 240.0) -> void:
 	if node == null or not is_instance_valid(node):
 		return
