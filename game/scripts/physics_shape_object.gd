@@ -2,6 +2,13 @@ class_name PhysicsShapeObject
 extends RigidBody2D
 ## Dynamic sketch object for simple recognized shapes.
 
+## THE PLAYER WANTS THIS BACK. Declared here and not on UtilityObject, because the three
+## primitives -- circle, square, triangle -- are NOT utilities, and they are exactly what
+## Beat 0's Span requirement resolves to. Pick-up living one class down meant the most
+## placed object in the game was the one that could never be removed: the ink was spent,
+## the slot was gone, and a body the player did not want was standing in the level for good.
+signal pickup_requested(object: PhysicsShapeObject)
+
 @export var skin_node_path: NodePath = NodePath("DrawingSkin")
 @export var collision_shape_path: NodePath = NodePath("CollisionShape2D")
 @export var shape_type: String = ""
@@ -38,6 +45,10 @@ func _ready() -> void:
 	max_contacts_reported = 8
 	continuous_cd = RigidBody2D.CCD_MODE_CAST_SHAPE
 	_last_safe_transform = global_transform
+	# Every drawn thing that can be set down, utility or not. `drawn_utilities` stays what it
+	# always was -- utilities only, which is what _door_partner() wants -- and this is the
+	# group that answers "is there something of mine here to take back".
+	add_to_group(&"placed_drawings")
 	call_deferred("_apply_spawn_motion")
 
 
@@ -177,6 +188,25 @@ func confirm_placement() -> void:
 	controllable = false
 	if item_data != null:
 		item_data.placement_transform = global_transform
+
+
+## What E does when the player is stood next to this. The base answer is the one every
+## placed drawing owes them: take it back. UtilityObject overrides to climb a ladder, board
+## a boat or equip a tool first, and falls through to super for the plain case.
+func interact(_actor: Node2D) -> void:
+	if is_preview:
+		return
+	pickup_requested.emit(self)
+
+
+## Hand the drawing back to the bag. The transform is recorded first so a re-placement can
+## start from where it was, and serialize_utility_state is asked for by name rather than by
+## type -- a square has no runtime state and must not need one to be picked up.
+func prepare_for_inventory() -> DrawnItemData:
+	if item_data == null:
+		return null
+	item_data.save_world_state(self)
+	return item_data
 
 
 ## The object's own collision, as one world-space rectangle. Anything asking "how far

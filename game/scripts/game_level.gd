@@ -145,6 +145,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			_on_inventory_slot_pressed(slot)
 			return
+	var click := event as InputEventMouseButton
+	if click != null and click.button_index == MOUSE_BUTTON_RIGHT and click.pressed:
+		get_viewport().set_input_as_handled()
+		_take_back_under_cursor(get_global_mouse_position())
+		return
 	if event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
 		_interact_with_nearest_utility()
@@ -851,8 +856,12 @@ func _on_placement_confirmed(
 	if not item.ink_committed:
 		ink_manager.commit_attempt()
 		item.ink_committed = true
-	_connect_utility(placed as UtilityObject)
-	status_label.text = "%s placed" % item.display_name
+	_connect_utility(placed)
+	# A placed object clamps itself to the world it was built with, and only the PLAYER was
+	# ever told how big that is -- so every drawing carried the script's own 3760px default.
+	if placed.has_method("set_world_bounds"):
+		placed.call("set_world_bounds", Rect2(environment.get("world_bounds")))
+	status_label.text = "%s placed — E or right-click to take it back" % item.display_name
 	# Judged HERE and not at recognition. A square that was drawn but never put down has
 	# not bridged anything, and letting the gap solve on recognition would mean the
 	# tutorial's one lesson -- that you place what you draw -- could be skipped.
@@ -893,11 +902,20 @@ func _on_placement_rejected() -> void:
 	status_label.text = "Can't build that into solid ground — move the cursor out first"
 
 
-func _connect_utility(utility: UtilityObject) -> void:
+## TYPED TO THE BASE, and the reason is the same one written on begin_placement and on
+## _on_placement_confirmed: a drawn circle is a PhysicsShapeObject and not a UtilityObject,
+## and Godot silently refuses a signal bind whose parameter type does not match. This used to
+## take a UtilityObject, so `placed as UtilityObject` came back null for every primitive and
+## nothing was ever wired up -- which is the whole of "I can't remove a drawing I just placed".
+func _connect_utility(placed: PhysicsShapeObject) -> void:
+	if placed == null:
+		return
+	# Every placed drawing owes the player a way back. This one is on the base.
+	if not placed.pickup_requested.is_connected(_on_utility_pickup_requested):
+		placed.pickup_requested.connect(_on_utility_pickup_requested)
+	var utility := placed as UtilityObject
 	if utility == null:
 		return
-	if not utility.pickup_requested.is_connected(_on_utility_pickup_requested):
-		utility.pickup_requested.connect(_on_utility_pickup_requested)
 	if not utility.equipped.is_connected(_on_utility_equipped):
 		utility.equipped.connect(_on_utility_equipped)
 	if not utility.utility_used.is_connected(_on_utility_used):
@@ -906,7 +924,7 @@ func _connect_utility(utility: UtilityObject) -> void:
 		utility.utility_consumed.connect(_on_utility_consumed)
 
 
-func _on_utility_pickup_requested(utility: UtilityObject) -> void:
+func _on_utility_pickup_requested(utility: PhysicsShapeObject) -> void:
 	if utility == null or not is_instance_valid(utility):
 		return
 	# A tool taken out of a slot never left the bag, so putting it away must not put a
@@ -971,10 +989,13 @@ func _interact_with_nearest_utility() -> void:
 		var anchor := player.call("get_physics_anchor") as Node2D
 		if anchor != null:
 			origin = anchor.global_position
-	var nearest: UtilityObject
+	var nearest: PhysicsShapeObject
 	var nearest_distance := 96.0
-	for candidate in get_tree().get_nodes_in_group("drawn_utilities"):
-		var utility := candidate as UtilityObject
+	# `placed_drawings`, not `drawn_utilities`: the second group is joined by UtilityObject
+	# alone, so a placed square or triangle was not in it and E walked straight past the one
+	# thing the player most wanted to pick back up.
+	for candidate in get_tree().get_nodes_in_group(&"placed_drawings"):
+		var utility := candidate as PhysicsShapeObject
 		if utility == null or utility.is_preview:
 			continue
 		# Measured to the object's SURFACE. Against its centre, a standing ladder was
@@ -987,6 +1008,45 @@ func _interact_with_nearest_utility() -> void:
 	if nearest != null:
 		_connect_utility(nearest)
 		nearest.interact(player)
+
+
+## POINT AT IT AND TAKE IT BACK. E reaches 96px, which is no help once a drawing has rolled
+## into the paddy or been set on a ledge out of arm's reach -- and a placement that cannot be
+## undone costs a slot, costs ink, and leaves a solid body standing in the level for good.
+## Right-click already means "put it back" during a placement, so the gesture carries over
+## unchanged to a drawing that is already down.
+##
+## This is deliberately NOT routed through interact(): right-click means one thing and always
+## the same thing. Sending it through interact() would board a drawn boat and climb a drawn
+## ladder instead of picking either of them up.
+func _take_back_under_cursor(world_position: Vector2) -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	var nearest: PhysicsShapeObject
+	# Measured to the SURFACE, so a click anywhere on the drawing reads as zero and the
+	# tolerance is forgiveness for a near miss rather than a radius around its middle.
+	var nearest_distance := 24.0
+	for candidate in get_tree().get_nodes_in_group(&"placed_drawings"):
+		var placed := candidate as PhysicsShapeObject
+		if placed == null or placed.is_preview:
+			continue
+		# A tool in the player's hand is not in the world. Putting that away is what pressing
+		# its slot again does; reaching into their hand with the mouse is a different verb.
+		if placed == _equipped_utility or placed.get_parent() != world_item_root:
+			continue
+		var distance := placed.distance_from(world_position)
+		if distance <= nearest_distance:
+			nearest = placed
+			nearest_distance = distance
+	if nearest == null:
+		return
+	# Let go of it first if they are stood on it: the wanderer holds a collision exception
+	# against the ladder it is climbing, and freeing the body without clearing that leaves
+	# the exception pointing at nothing.
+	if player.has_method("is_using_ladder") and bool(player.call("is_using_ladder", nearest)):
+		player.call("end_ladder")
+	_connect_utility(nearest)
+	_on_utility_pickup_requested(nearest)
 
 
 ## F used to call through and ignore the answer, so for most utilities the key did
