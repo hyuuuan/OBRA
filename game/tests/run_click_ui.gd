@@ -348,6 +348,26 @@ func _dialogue_can_be_advanced() -> void:
 	_check(second.begins_with("Second"),
 		"the advance key reaches the next line", "showing '%s'" % second)
 
+	# The camera pushes in on the speaker, so the box has to sit on the other side of the
+	# screen from them or the push-in has nothing to show. Asserted as SIDES rather than a
+	# pixel offset: the amount is taste, but covering the person talking is a bug.
+	var speaker := level.get("lolo") as Node2D
+	if speaker != null:
+		var middle: float = root.get_visible_rect().size.x * 0.5
+		var rect: Rect2 = box.call("frame_rect")
+		var box_side: float = signf(rect.position.x + rect.size.x * 0.5 - middle)
+		var speaker_side: float = signf(
+			speaker.get_global_transform_with_canvas().origin.x - middle)
+		# `!=` would not do: a box left dead centre has side 0, which differs from the
+		# speaker's side without having moved anywhere. What is asserted is that it
+		# deliberately went to the OTHER side, which a centred box fails.
+		_check(speaker_side == 0.0 or box_side == -speaker_side,
+			"the box sits away from whoever is talking",
+			"speaker %s of centre, box %s of it" % [
+				"left" if speaker_side < 0.0 else "right",
+				"centred" if box_side == 0.0
+					else ("left" if box_side < 0.0 else "right")])
+
 	# Pressed until the beat is done rather than a fixed number of times. The level is
 	# live while this runs and can queue a beat of its own -- the declined recognition
 	# above does exactly that when there is no backend -- and the property worth asserting

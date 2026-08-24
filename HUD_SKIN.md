@@ -109,6 +109,13 @@ Three button families, three states each:
 | **cream** — everything that navigates | `E8E3C4` | `F5F1D6` | `CDC7A6` | `302812` | `1E1A0E` |
 | **red** — the one that ends something | `C46048` | `D67660` | `A04E3A` | `78382A` | `1E0C08` |
 
+**Button labels are emboldened.** Geist Pixel ships one weight, so rather than pull in a
+second face `build_theme.gd` gives the button families a `FontVariation` with
+`variation_embolden = 0.08` — FreeType dilates the outline before rasterising, so stems
+thicken and the glyph stays on its own grid. Kept small on purpose: a pixel face pushed
+hard closes its own counters and stops being readable at exactly the point it looks
+strongest in the editor.
+
 Assign one with a `theme_type_variation`: `PrimaryButton` (green), `DangerButton` (red),
 `Button` or `DialogButton` (cream, the default). **Which family a button is in is a
 statement about what pressing it does, not a decoration.** RESUME is green wherever it
@@ -188,8 +195,11 @@ those conventions are load-bearing and players already know them.
 - **A queue, and the player turns the page.** First press catches up the line being typed,
   the next moves on. One press doing both lets a fast reader skip a line they never saw.
   Advance is `ui_accept` or a left click.
-- **One place, one size.** Screen centre, 1040 × 310, fixed whatever the line — a box that
-  resizes per line makes the reader re-find the first word every time.
+- **One size, biased off centre.** 1040 × 310, fixed whatever the line — a box that resizes
+  per line makes the reader re-find the first word every time. It slides 250 px to the side
+  the speaker is **not** on, settled once per line rather than followed per frame: the
+  camera is still easing in while the first characters arrive, and a box sliding under the
+  text as it types is worse than one covering the speaker.
 - **Typed out**, then a **blinking arrow** in its own gutter: the difference between "still
   talking" and "waiting for you".
 - **A plaque** on the top rail says who is speaking. Two voices share the box — Lolo and the
@@ -197,6 +207,11 @@ those conventions are load-bearing and players already know them.
 - **The world stops and the camera pushes in** on the speaker
   (`WorldCameraController.focus_on`). A line over a live wide shot is a caption on a
   landscape.
+
+**The box asks `subject_resolver` where a speaker is**, so it can find them on screen
+without knowing anything about the level. A Callable rather than the nodes themselves,
+because `player` is replaced on every morph and a stored reference would point at a freed
+body by the second conversation.
 
 **`set_auto_dismiss(true)` is the skip.** Every headless fixture needs it, because a
 conversation stops the tree until somebody presses a key and there is nobody there —
