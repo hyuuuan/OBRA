@@ -32,6 +32,7 @@ var ink_manager: InkManager
 @onready var panel_root: Control = $PanelRoot
 @onready var canvas_viewport: SubViewport = $PanelRoot/SubViewportContainer/SubViewport
 @onready var canvas: Control = $PanelRoot/SubViewportContainer/SubViewport/Canvas
+@onready var canvas_frame: UIOvalFrame = $PanelRoot/CanvasFrame
 @onready var transform_button: Button = $PanelRoot/TransformButton
 @onready var clear_button: Button = $PanelRoot/ClearButton
 @onready var status: Label = $PanelRoot/StatusLabel
@@ -83,6 +84,9 @@ func _ready() -> void:
 	client.set("debug_timing_logs", debug_timing_logs)
 	transform_button.pressed.connect(_on_transform_pressed)
 	clear_button.pressed.connect(_clear_canvas)
+	# The frame sits over the viewport at the same size and origin, so its opening is
+	# already in the canvas's coordinates -- no mapping, and nothing to get out of step.
+	canvas.call(&"set_drawable_bounds", canvas_frame.opening())
 	canvas.stroke_cost_changed.connect(_on_stroke_cost_changed)
 	canvas.ink_blocked.connect(_on_ink_blocked)
 	client.entity_prediction_received.connect(_on_entity_prediction)
@@ -243,24 +247,13 @@ func _style_panel() -> void:
 	panel_root.add_child(frame)
 	panel_root.move_child(frame, 0)
 
-	# The page, set into the frame rather than lying on it.
-	var page := Panel.new()
-	page.name = "PageEdge"
-	page.add_theme_stylebox_override(&"panel", UISkin.well())
-	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	page.position = Vector2(42.0, 48.0)
-	page.size = Vector2(524.0, 524.0)
-	panel_root.add_child(page)
-	panel_root.move_child(page, 1)
+	# No sunken well behind the page any more. The gilt oval is the thing the paper is set
+	# into, and a rectangle drawn a few pixels outside it only showed as a stray box around
+	# a round frame -- two edges disagreeing about what shape the canvas is.
 
-	# Brackets at the four corners, drawn OVER the page rather than around it. A full
-	# second ring would be a third frame inside two others; four corners say "this square
-	# is the thing you are working in" and then get out of the way of the drawing.
-	var brackets := PageBrackets.new()
-	brackets.name = "PageBrackets"
-	brackets.position = page.position
-	brackets.size = page.size
-	panel_root.add_child(brackets)
+	# The four lime corner brackets that used to sit on the page are gone: the gilt oval
+	# says "this is the thing you are working in" far better than they did, and two frames
+	# around one piece of paper is one frame too many.
 	var paper := canvas_viewport.get_node_or_null("Paper") as ColorRect
 	if paper != null:
 		# Paper, not printer white. The ink is black and the drawing is the point, so this
@@ -497,29 +490,3 @@ func _play_open_animation() -> void:
 	_open_tween.tween_property(panel_root, "scale", Vector2.ONE, 0.18) \
 		.set_trans(Tween.TRANS_BACK) \
 		.set_ease(Tween.EASE_OUT)
-
-
-## Four corner brackets, sized to whatever rect they are given.
-class PageBrackets extends Control:
-	## How far along each edge a bracket runs, and how thick it is drawn.
-	const ARM := 26.0
-	const WEIGHT := 4.0
-
-	func _init() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	func _draw() -> void:
-		var w := size.x
-		var h := size.y
-		for corner: Vector2 in [Vector2(0, 0), Vector2(1, 0), Vector2(0, 1), Vector2(1, 1)]:
-			var x := corner.x * w
-			var y := corner.y * h
-			var dx := 1.0 if corner.x < 0.5 else -1.0
-			var dy := 1.0 if corner.y < 0.5 else -1.0
-			# Drawn inward from the corner, so a bracket never leaves the page it marks.
-			draw_rect(Rect2(
-				Vector2(minf(x, x + dx * ARM), minf(y, y + dy * WEIGHT)),
-				Vector2(ARM, WEIGHT)), UISkin.LIME)
-			draw_rect(Rect2(
-				Vector2(minf(x, x + dx * WEIGHT), minf(y, y + dy * ARM)),
-				Vector2(WEIGHT, ARM)), UISkin.LIME)
