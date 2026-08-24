@@ -115,6 +115,27 @@ func choices_for(obstacle_id: String) -> Dictionary:
 	return out
 
 
+## Hooks whose lines are the game telling you what to DO rather than telling you
+## something. They go to the hint bar, which never stops play and needs no key.
+##
+## Derived from the hook rather than authored per line, because the hook already carries
+## the distinction: `.teach` and `.sub1` fire when the player is standing in front of an
+## obstacle, `.ward.fail1` fires when they have just got it wrong. A line may override with
+## an explicit "kind" of "hint" or "lore" -- the data wins where the two disagree.
+const HINT_HOOKS := ["teach", "sub1", "sub2", "ward.fail1", "ward.fail2"]
+
+
+func kind_of(line: Dictionary) -> String:
+	var explicit := String(line.get("kind", ""))
+	if explicit == "hint" or explicit == "lore":
+		return explicit
+	var hook := String(line.get("at", ""))
+	var suffix := hook.split(".", false)
+	if suffix.size() > 1 and HINT_HOOKS.has(".".join(suffix.slice(1))):
+		return "hint"
+	return "lore"
+
+
 func speaker_of(line: Dictionary) -> String:
 	return String(line.get("speaker", DEFAULT_SPEAKER))
 

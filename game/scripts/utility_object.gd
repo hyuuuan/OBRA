@@ -3,7 +3,6 @@ extends "res://scripts/physics_shape_object.gd"
 ## One placed/equipped instance of a drawn utility. Unique behavior is selected
 ## by manifest metadata; future level targets integrate through method checks.
 
-signal pickup_requested(utility: UtilityObject)
 signal equipped(utility: UtilityObject, actor: Node2D)
 signal utility_used(behavior: String, item: DrawnItemData)
 signal utility_consumed(utility: UtilityObject)
@@ -109,7 +108,7 @@ func interact(actor: Node2D) -> void:
 	if utility_behavior == "ladder" and freeze:
 		if actor.has_method("is_using_ladder") and bool(actor.call("is_using_ladder", self)):
 			actor.call("end_ladder")
-			pickup_requested.emit(self)
+			super.interact(actor)
 			return
 		if actor.has_method("begin_ladder"):
 			actor.call("begin_ladder", self)
@@ -122,12 +121,12 @@ func interact(actor: Node2D) -> void:
 		_board_actor(actor)
 		return
 	if _equipped_actor == actor:
-		pickup_requested.emit(self)
+		super.interact(actor)
 		return
 	if is_held_tool():
 		equip_to(actor)
 	else:
-		pickup_requested.emit(self)
+		super.interact(actor)
 
 
 ## A tool the player carries and works with (F), as opposed to a prop they stand a
@@ -156,9 +155,9 @@ func equip_to(actor: Node2D) -> void:
 
 
 func prepare_for_inventory() -> DrawnItemData:
-	if item_data == null:
+	var item := super.prepare_for_inventory()
+	if item == null:
 		return null
-	item_data.save_world_state(self)
 	if _equipped_actor != null and is_instance_valid(_equipped_actor):
 		if utility_behavior == "umbrella" and _equipped_actor.has_method("set_umbrella_open"):
 			_equipped_actor.call("set_umbrella_open", false)
@@ -166,7 +165,7 @@ func prepare_for_inventory() -> DrawnItemData:
 			_equipped_actor.call("set_equipped_utility", null)
 	_equipped_actor = null
 	_unboard_actor()
-	return item_data
+	return item
 
 
 func drop_to_world(world_root: Node2D, at: Vector2) -> void:

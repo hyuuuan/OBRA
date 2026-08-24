@@ -18,7 +18,7 @@ grow_vertical = 2
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0.06, 0.03, 0.02, 0.9)
+color = Color(0.047, 0.031, 0.024, 0.9)
 
 [node name="Center" type="CenterContainer" parent="Root" unique_id=1588630937]
 layout_mode = 0
@@ -27,7 +27,7 @@ anchor_bottom = 1.0
 mouse_filter = 2
 
 [node name="Panel" type="PanelContainer" parent="Root/Center" unique_id=1019395284]
-custom_minimum_size = Vector2(640, 0)
+custom_minimum_size = Vector2(900, 0)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
@@ -44,13 +44,12 @@ horizontal_alignment = 1
 
 [node name="Body" type="Label" parent="Root/Center/Panel/VBox" unique_id=1459151582]
 layout_mode = 2
-theme_type_variation = &"HudHint"
 text = "..."
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="ContinueButton" type="Button" parent="Root/Center/Panel/VBox" unique_id=1898498818]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 62)
 layout_mode = 2
-theme_type_variation = &"DialogButton"
+theme_type_variation = &"PrimaryButton"
 text = "CONTINUE"

@@ -18,7 +18,7 @@ grow_vertical = 2
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0.015, 0.045, 0.025, 0.86)
+color = Color(0.027, 0.035, 0.024, 0.86)
 
 [node name="Center" type="CenterContainer" parent="Root" unique_id=1752264447]
 layout_mode = 0
@@ -42,6 +42,9 @@ theme_type_variation = &"ScreenTitle"
 text = "LEVEL COMPLETE"
 horizontal_alignment = 1
 
+[node name="Rule" type="HSeparator" parent="Root/Center/Panel/VBox"]
+layout_mode = 2
+
 [node name="Subtitle" type="Label" parent="Root/Center/Panel/VBox" unique_id=687178853]
 layout_mode = 2
 theme_type_variation = &"HudHint"
@@ -59,7 +62,7 @@ theme_override_constants/separation = 14
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_type_variation = &"DialogButton"
+theme_type_variation = &"PrimaryButton"
 text = "CONTINUE"
 
 [node name="RetryButton" type="Button" parent="Root/Center/Panel/VBox/Buttons" unique_id=2114185662]

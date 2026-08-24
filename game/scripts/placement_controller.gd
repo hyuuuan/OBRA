@@ -24,6 +24,10 @@ signal placement_rejected()
 ## Granularity of the climb out of an obstacle. Small enough that the object looks
 ## like it is resting on the surface rather than hovering over it.
 const _LIFT_STEP := 12.0
+## How far below the preview to look for the ground when it is NOT resting on anything, so
+## the drop line can be drawn to where the object is really going to end up. Longer than any
+## fall in the level; it is one shape cast per aim, not a loop.
+const _FALL_PROBE := 1800.0
 
 var registry: EntityRegistry
 var world_item_root: Node2D
@@ -39,6 +43,11 @@ var _valid: bool = false
 ## Reported separately from validity because it is not a refusal -- the pinned spot
 ## is placeable -- it just explains why the preview stopped following the mouse.
 var _at_reach_limit: bool = false
+## Whether the preview is standing on something. When it is not, confirming drops the
+## object and the ghost is no longer a promise -- so the fall gets drawn instead of hidden.
+var _resting: bool = false
+var _fall_landing: Vector2 = Vector2.ZERO
+var _will_fall: bool = false
 var _excluded_rids: Array[RID] = []
 
 
@@ -161,13 +170,17 @@ func update_target(world_position: Vector2) -> void:
 	# refused it forever -- the object looked like it had been dropped at random and
 	# every click was swallowed with "blocked or out of range".
 	var placeable := _lift_clear_of_obstacles()
+	if placeable:
+		_settle_onto_support()
+	else:
+		_resting = false
+	_refresh_fall_line(placeable)
 	if placeable != _valid or beyond_reach != _at_reach_limit:
 		_valid = placeable
 		_at_reach_limit = beyond_reach
 		placement_changed.emit(true, _valid)
 	_preview.set_preview_valid(_valid)
-	if show_reach_ring:
-		queue_redraw()
+	queue_redraw()
 
 
 ## Climbs the preview out of anything solid it landed in and reports whether it found
@@ -179,10 +192,7 @@ func update_target(world_position: Vector2) -> void:
 ## say no; it only ever meant "spawned inside something", which the lift resolves.
 func _lift_clear_of_obstacles() -> bool:
 	var base := _preview.global_position
-	# An object buried in the ground has to travel most of its own height before it is
-	# standing on top of it, so the budget scales with the object. A fixed one sized for
-	# a small shape let circles through and reported "no room" for a ladder.
-	var limit := maxf(maximum_lift, _preview_height() * 1.25)
+	var limit := _climb_budget()
 	var lifted := 0.0
 	while lifted <= limit:
 		_preview.global_position = base - Vector2(0.0, lifted)
@@ -191,6 +201,73 @@ func _lift_clear_of_obstacles() -> bool:
 		lifted += _LIFT_STEP
 	_preview.global_position = base
 	return false
+
+
+## How far the preview may travel vertically, up out of solid ground or back down onto it.
+## An object buried in the ground has to move most of its own height before it is standing on
+## top of it, so the budget scales with the object -- a fixed one sized for a small shape let
+## circles through and reported "no room" for a ladder.
+func _climb_budget() -> float:
+	return maxf(maximum_lift, _preview_height() * 1.25)
+
+
+## PUT THE GHOST WHERE THE OBJECT IS GOING TO BE. The climb above takes the preview UP out of
+## anything solid it landed in and stops there. Nothing ever brought it back down, and
+## confirming unfreezes it -- so it fell from wherever the climb happened to end. Aim at your
+## own feet, which is exactly where a player building a step aims, and the climb went a body's
+## height over your head, went green up there, and dropped the thing on you when you clicked.
+##
+## The drop budget is the climb's budget on purpose. Any lift out of solid ground is undone
+## back onto the first surface beneath it, and a deliberate aim into open air with nothing
+## within reach below stays where it was put rather than teleporting to the floor.
+func _settle_onto_support() -> void:
+	var drop := _fall_distance(_climb_budget())
+	_resting = drop >= 0.0
+	if drop > 0.0:
+		_preview.global_position += Vector2(0.0, drop)
+
+
+## How far the preview would fall before something stopped it, or -1.0 if nothing does within
+## `distance`. Same shapes, mask and exclusions as the overlap test, so it never settles onto
+## the player -- who is excluded precisely because they can walk away.
+func _fall_distance(distance: float) -> float:
+	if distance <= 0.0:
+		return -1.0
+	var space := get_world_2d().direct_space_state
+	var closest := 1.0
+	var supported := false
+	for child in _preview.get_children():
+		var collision := child as CollisionShape2D
+		if collision == null or collision.shape == null:
+			continue
+		var query := PhysicsShapeQueryParameters2D.new()
+		query.shape = collision.shape
+		query.transform = collision.global_transform
+		query.motion = Vector2(0.0, distance)
+		query.collision_mask = 1
+		query.exclude = _excluded_rids
+		var result := space.cast_motion(query)
+		if result.size() < 1:
+			continue
+		var safe := float(result[0])
+		if safe < 1.0:
+			supported = true
+		closest = minf(closest, safe)
+	return closest * distance if supported else -1.0
+
+
+## A placement into open air is allowed -- a bridge is set across a gorge, not onto its
+## floor -- but it should not be a surprise. When the preview is resting on nothing, find
+## where it lands and draw the fall.
+func _refresh_fall_line(placeable: bool) -> void:
+	_will_fall = false
+	if not placeable or _resting:
+		return
+	var drop := _fall_distance(_FALL_PROBE)
+	if drop <= 0.0:
+		return
+	_will_fall = true
+	_fall_landing = _preview.global_position + Vector2(0.0, drop)
 
 
 ## World-space vertical extent of the preview's own collision, rotation included.
@@ -216,14 +293,23 @@ func _preview_height() -> float:
 
 
 func _draw() -> void:
-	if not show_reach_ring or not is_placing() or not is_instance_valid(_actor):
+	if not is_placing() or not is_instance_valid(_actor):
 		return
-	var origin := to_local(_actor_position())
 	var tint := Color(0.42, 0.95, 0.55) if _valid else Color(1.0, 0.42, 0.38)
-	# Drawn twice: a wide soft band that reads over busy level art, and a crisp line on
-	# top so the edge the preview pins to is unambiguous.
-	draw_arc(origin, maximum_distance, 0.0, TAU, 96, Color(tint, 0.16), 9.0, true)
-	draw_arc(origin, maximum_distance, 0.0, TAU, 96, Color(tint, 0.85), 2.5, true)
+	if show_reach_ring:
+		var origin := to_local(_actor_position())
+		# Drawn twice: a wide soft band that reads over busy level art, and a crisp line on
+		# top so the edge the preview pins to is unambiguous.
+		draw_arc(origin, maximum_distance, 0.0, TAU, 96, Color(tint, 0.16), 9.0, true)
+		draw_arc(origin, maximum_distance, 0.0, TAU, 96, Color(tint, 0.85), 2.5, true)
+	if _will_fall:
+		# It is legal to place into the air, and sometimes it is the answer. It should just
+		# never be a surprise: this is the one case where the ghost is not where the object
+		# ends up, so the drop is drawn rather than left to be discovered on the click.
+		var from := to_local(_preview.global_position)
+		var to := to_local(_fall_landing)
+		draw_dashed_line(from, to, Color(tint, 0.55), 2.0, 10.0)
+		draw_arc(to, 12.0, 0.0, TAU, 32, Color(tint, 0.8), 2.0, true)
 
 
 func _actor_position() -> Vector2:
@@ -237,9 +323,27 @@ func _actor_position() -> Vector2:
 ## Everything the preview carries that could report itself as an obstacle: its own
 ## body, its interaction area, and the skin's rig bodies. Rebuilt per aim because a
 ## rig can be replaced under a live preview.
+##
+## AND THE PLAYER. They stand on collision layer 1 like the terrain, so the ground under
+## their own feet came back occupied and the spot a player most wants -- right here, at the
+## foot of the thing I am trying to climb -- was the one spot the preview refused. It did not
+## even refuse honestly: the climb lifted the object a body's height over their head, went
+## green up there, and dropped it on them. The player is the only obstacle in the world that
+## can walk away, so it is the only one that should not get a vote.
 func _refresh_preview_exclusions() -> void:
 	_excluded_rids = [_preview.get_rid()]
 	for node in _preview.find_children("*", "CollisionObject2D", true, false):
+		var object := node as CollisionObject2D
+		if object != null:
+			_excluded_rids.append(object.get_rid())
+	if _actor == null or not is_instance_valid(_actor):
+		return
+	# A drawn creature is a body with rig bodies under it; the wanderer is one body. Both
+	# answer the same sweep.
+	var actor_body := _actor as CollisionObject2D
+	if actor_body != null:
+		_excluded_rids.append(actor_body.get_rid())
+	for node in _actor.find_children("*", "CollisionObject2D", true, false):
 		var object := node as CollisionObject2D
 		if object != null:
 			_excluded_rids.append(object.get_rid())
@@ -276,5 +380,6 @@ func _clear_transaction() -> void:
 	_preview = null
 	_valid = false
 	_at_reach_limit = false
-	if show_reach_ring:
-		queue_redraw()
+	_resting = false
+	_will_fall = false
+	queue_redraw()

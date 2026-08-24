@@ -61,7 +61,12 @@ static func refresh_pause(tree: SceneTree) -> void:
 	var wants_pause := false
 	for node in tree.get_nodes_in_group(ModalOverlay.GROUP):
 		if node.has_method(&"is_open") and bool(node.call(&"is_open")):
-			if bool(node.get(&"pauses_game")):
+			# Defaulted rather than read blind: `get` on a property the node does not have
+			# returns null, and bool(null) is not a conversion in GDScript, it is a crash.
+			# An overlay that joins the group without declaring the flag is a mistake, but
+			# it should not take the pause state down with it.
+			var declares: Variant = node.get(&"pauses_game")
+			if declares == null or bool(declares):
 				wants_pause = true
 				break
 	tree.paused = wants_pause

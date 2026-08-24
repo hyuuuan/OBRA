@@ -4,6 +4,9 @@ extends Node2D
 
 ## A morph whose anchor comes within this radius of the level's GoalMarker completes it.
 const GOAL_RADIUS := 120.0
+## What the box's plaque says when the line is the player's own thought rather than Lolo's
+## voice. "Apo" is what Lolo calls them, so it is the name the player already knows.
+const APO_SPEAKER := "Apo"
 
 ## The body the player starts in and can always get back to.
 const WANDERER_SCENE := "res://creatures/wanderer.tscn"
@@ -25,6 +28,19 @@ const WANDERER_SCENE := "res://creatures/wanderer.tscn"
 @onready var placement_controller: PlacementController = $PlacementController
 @onready var goal_marker: Node2D = get_node_or_null("EnvironmentBaseplate/GameplayPlane/GoalMarker")
 @onready var goal_label: Label = $CanvasLayer/GoalLabel
+@onready var level_badge: Label = $CanvasLayer/LevelBadge
+## Built in code rather than authored into the scene, like the requirement strip: it owns
+## its own frame and gauge and there is nothing to lay out by hand.
+var hud_panel: HudPanel
+## The framed box every story line is shown in. Built here rather than authored into the
+## scene because it is pure presentation with no state to save and nothing to wire.
+var dialogue_box: DialogueBox
+## The other channel: what the game says while you keep playing.
+var hint_bar: HintBar
+## The corner readouts and where each belongs, so they can be re-placed together.
+var _chips: Array = []
+## How long the player has been under the water in their own body.
+var _submerged_seconds := 0.0
 @onready var complete_overlay: ModalOverlay = $LevelCompleteOverlay
 @onready var out_of_ink_overlay: ModalOverlay = $OutOfInkOverlay
 @onready var dialogue_overlay: ModalOverlay = $DialogueChoiceOverlay
@@ -80,6 +96,7 @@ func _ready() -> void:
 	draw_panel.ink_manager = ink_manager
 	draw_panel.set("debug_timing_logs", debug_timing_logs)
 	inventory_hud.set_manager(inventory_manager)
+	_build_hud_frame()
 
 	draw_button.pressed.connect(_on_draw_button_pressed)
 	draw_panel.drawing_ready.connect(_on_drawing_ready)
@@ -136,6 +153,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			_on_inventory_slot_pressed(slot)
 			return
+	var click := event as InputEventMouseButton
+	if click != null and click.button_index == MOUSE_BUTTON_RIGHT and click.pressed:
+		get_viewport().set_input_as_handled()
+		# The CLICK's own position, not the live cursor. They are the same thing in play and
+		# they are not the same thing anywhere else: the cursor is wherever the pointer is
+		# right now, while the event carries where the button actually went down. Reading the
+		# cursor made the right-click untestable -- a synthesised event asks about a spot the
+		# real pointer was never at -- and it is the event that is authoritative regardless.
+		_take_back_under_cursor(
+			get_viewport().get_canvas_transform().affine_inverse() * click.position)
+		return
 	if event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
 		_interact_with_nearest_utility()
@@ -597,19 +625,74 @@ func _restore_placed_entities(records: Array) -> void:
 ## unrelated line from the old dialogue file. Two narrators, disagreeing, in the level
 ## whose job is to teach the game.
 ##
-## Lolo speaks in his bubble, because that is where the player is already looking for him.
-## The apo is the player's own thought and stays in the status line. Lines arrive as a
-## list because most beats are several in a row, and the bubble shows them in sequence.
+## TWO CHANNELS, and which one a line takes is a statement about what the line is FOR.
+##
+## A beat of story goes to the framed box: queued, one line at a time, the player turning
+## the page, the world stopped and the camera pushed in on whoever is speaking. A hint goes
+## to the bar: no key, no pause, clears itself. They were sharing one box, and that could
+## only ever be wrong for one of them -- in practice it was wrong for both, because the
+## hint froze the game AND the story went past unread.
+##
+## Unread is not an exaggeration. This used to hand a whole beat over in one synchronous
+## loop, writing five lines into the same label in the same frame. Only the last survived.
 func _speak(lines: Array) -> void:
+	var beat: Array[Dictionary] = []
 	for line_value: Variant in lines:
 		var line: Dictionary = line_value
 		var text := script_lines_l1.display_text(line)
 		if text.is_empty():
 			continue
-		if String(line.get("speaker", "lolo")) == "lolo" and lolo != null and is_instance_valid(lolo):
-			lolo.say(text)
-		else:
-			status_label.text = text
+		var speaker := String(line.get("speaker", "lolo"))
+		if script_lines_l1.kind_of(line) == "hint":
+			if hint_bar != null:
+				hint_bar.show_hint(text,
+					Lolo.SPEAKER if speaker == "lolo" else APO_SPEAKER)
+			else:
+				status_label.text = text
+			continue
+		beat.append({
+			"text": text,
+			"speaker": Lolo.SPEAKER if speaker == "lolo" else APO_SPEAKER,
+			"at": speaker,
+		})
+	if beat.is_empty() or dialogue_box == null:
+		if not beat.is_empty():
+			status_label.text = String(beat[-1]["text"])
+		return
+	# A hint left on screen under a conversation is the two channels talking at once.
+	if hint_bar != null:
+		hint_bar.clear()
+	_focus_camera_for(String(beat[0]["at"]))
+	dialogue_box.speak(beat)
+
+
+## Push the camera in on whoever is talking, and give it back when the beat is over.
+func _focus_camera_for(speaker: String) -> void:
+	# Reached through the baseplate, which owns it -- the level does not hold a reference,
+	# and a `camera` of its own would be a second thing to keep pointed at the right node
+	# every time the player is swapped.
+	var world_camera := _world_camera()
+	if world_camera == null:
+		return
+	var subject: Node2D = lolo if speaker == "lolo" and lolo != null else player
+	if subject == null or not is_instance_valid(subject):
+		return
+	world_camera.focus_on(subject)
+	if not dialogue_box.conversation_finished.is_connected(_release_camera_focus):
+		dialogue_box.conversation_finished.connect(_release_camera_focus)
+
+
+func _release_camera_focus() -> void:
+	var world_camera := _world_camera()
+	if world_camera != null:
+		world_camera.release_focus()
+
+
+func _world_camera() -> WorldCameraController:
+	var baseplate := get_node_or_null(^"EnvironmentBaseplate")
+	if baseplate == null:
+		return null
+	return baseplate.get("camera") as WorldCameraController
 
 
 ## The refusal beat. It fires on the FIRST decline anywhere in the level and never again,
@@ -842,8 +925,12 @@ func _on_placement_confirmed(
 	if not item.ink_committed:
 		ink_manager.commit_attempt()
 		item.ink_committed = true
-	_connect_utility(placed as UtilityObject)
-	status_label.text = "%s placed" % item.display_name
+	_connect_utility(placed)
+	# A placed object clamps itself to the world it was built with, and only the PLAYER was
+	# ever told how big that is -- so every drawing carried the script's own 3760px default.
+	if placed.has_method("set_world_bounds"):
+		placed.call("set_world_bounds", Rect2(environment.get("world_bounds")))
+	status_label.text = "%s placed — E or right-click to take it back" % item.display_name
 	# Judged HERE and not at recognition. A square that was drawn but never put down has
 	# not bridged anything, and letting the gap solve on recognition would mean the
 	# tutorial's one lesson -- that you place what you draw -- could be skipped.
@@ -884,11 +971,20 @@ func _on_placement_rejected() -> void:
 	status_label.text = "Can't build that into solid ground — move the cursor out first"
 
 
-func _connect_utility(utility: UtilityObject) -> void:
+## TYPED TO THE BASE, and the reason is the same one written on begin_placement and on
+## _on_placement_confirmed: a drawn circle is a PhysicsShapeObject and not a UtilityObject,
+## and Godot silently refuses a signal bind whose parameter type does not match. This used to
+## take a UtilityObject, so `placed as UtilityObject` came back null for every primitive and
+## nothing was ever wired up -- which is the whole of "I can't remove a drawing I just placed".
+func _connect_utility(placed: PhysicsShapeObject) -> void:
+	if placed == null:
+		return
+	# Every placed drawing owes the player a way back. This one is on the base.
+	if not placed.pickup_requested.is_connected(_on_utility_pickup_requested):
+		placed.pickup_requested.connect(_on_utility_pickup_requested)
+	var utility := placed as UtilityObject
 	if utility == null:
 		return
-	if not utility.pickup_requested.is_connected(_on_utility_pickup_requested):
-		utility.pickup_requested.connect(_on_utility_pickup_requested)
 	if not utility.equipped.is_connected(_on_utility_equipped):
 		utility.equipped.connect(_on_utility_equipped)
 	if not utility.utility_used.is_connected(_on_utility_used):
@@ -897,7 +993,7 @@ func _connect_utility(utility: UtilityObject) -> void:
 		utility.utility_consumed.connect(_on_utility_consumed)
 
 
-func _on_utility_pickup_requested(utility: UtilityObject) -> void:
+func _on_utility_pickup_requested(utility: PhysicsShapeObject) -> void:
 	if utility == null or not is_instance_valid(utility):
 		return
 	# A tool taken out of a slot never left the bag, so putting it away must not put a
@@ -962,10 +1058,13 @@ func _interact_with_nearest_utility() -> void:
 		var anchor := player.call("get_physics_anchor") as Node2D
 		if anchor != null:
 			origin = anchor.global_position
-	var nearest: UtilityObject
+	var nearest: PhysicsShapeObject
 	var nearest_distance := 96.0
-	for candidate in get_tree().get_nodes_in_group("drawn_utilities"):
-		var utility := candidate as UtilityObject
+	# `placed_drawings`, not `drawn_utilities`: the second group is joined by UtilityObject
+	# alone, so a placed square or triangle was not in it and E walked straight past the one
+	# thing the player most wanted to pick back up.
+	for candidate in get_tree().get_nodes_in_group(&"placed_drawings"):
+		var utility := candidate as PhysicsShapeObject
 		if utility == null or utility.is_preview:
 			continue
 		# Measured to the object's SURFACE. Against its centre, a standing ladder was
@@ -978,6 +1077,45 @@ func _interact_with_nearest_utility() -> void:
 	if nearest != null:
 		_connect_utility(nearest)
 		nearest.interact(player)
+
+
+## POINT AT IT AND TAKE IT BACK. E reaches 96px, which is no help once a drawing has rolled
+## into the paddy or been set on a ledge out of arm's reach -- and a placement that cannot be
+## undone costs a slot, costs ink, and leaves a solid body standing in the level for good.
+## Right-click already means "put it back" during a placement, so the gesture carries over
+## unchanged to a drawing that is already down.
+##
+## This is deliberately NOT routed through interact(): right-click means one thing and always
+## the same thing. Sending it through interact() would board a drawn boat and climb a drawn
+## ladder instead of picking either of them up.
+func _take_back_under_cursor(world_position: Vector2) -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	var nearest: PhysicsShapeObject
+	# Measured to the SURFACE, so a click anywhere on the drawing reads as zero and the
+	# tolerance is forgiveness for a near miss rather than a radius around its middle.
+	var nearest_distance := 24.0
+	for candidate in get_tree().get_nodes_in_group(&"placed_drawings"):
+		var placed := candidate as PhysicsShapeObject
+		if placed == null or placed.is_preview:
+			continue
+		# A tool in the player's hand is not in the world. Putting that away is what pressing
+		# its slot again does; reaching into their hand with the mouse is a different verb.
+		if placed == _equipped_utility or placed.get_parent() != world_item_root:
+			continue
+		var distance := placed.distance_from(world_position)
+		if distance <= nearest_distance:
+			nearest = placed
+			nearest_distance = distance
+	if nearest == null:
+		return
+	# Let go of it first if they are stood on it: the wanderer holds a collision exception
+	# against the ladder it is climbing, and freeing the body without clearing that leaves
+	# the exception pointing at nothing.
+	if player.has_method("is_using_ladder") and bool(player.call("is_using_ladder", nearest)):
+		player.call("end_ladder")
+	_connect_utility(nearest)
+	_on_utility_pickup_requested(nearest)
 
 
 ## F used to call through and ignore the answer, so for most utilities the key did
@@ -1001,14 +1139,224 @@ func _drop_equipped_before_morph(previous_state: Dictionary) -> void:
 	_equipped_utility = null
 
 
+## One frame, top left, holding the two things the player is actually tracking: how much
+## ink is left and what the game just said. They were a bare progress bar, a number beside
+## it and an unstyled line of text over the level art, none of them wearing the language
+## the main menu already had.
+func _build_hud_frame() -> void:
+	hud_panel = HudPanel.new()
+	hud_panel.name = "HudPanel"
+	hud_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	hud_panel.offset_left = 24.0
+	hud_panel.offset_top = 20.0
+	# Wide enough for the longest one-line status the level writes, and no wider. A status
+	# line that wraps makes the whole frame grow and shrink under the gauge as messages
+	# change, and a frame with half its width empty reads as a mistake.
+	hud_panel.offset_right = 404.0
+	$CanvasLayer.add_child(hud_panel)
+	hud_panel.adopt_status(status_label)
+	# Superseded by the gauge, kept so nothing that writes to them has to care.
+	ink_bar.visible = false
+	ink_label.visible = false
+	# The two readouts at the far corners get the same frame, so the HUD is one language
+	# rather than two framed things and two lines of text floating on the level art.
+	_wrap_in_chip(level_badge, "top_centre", Vector2(0.0, 18.0), 0.0)
+	# A fixed width, because this one's text changes every frame: the chip is placed
+	# once, and a container that grows with "GOAL REACHED" grows rightward off the
+	# edge of the screen from wherever it was parked.
+	_wrap_in_chip(goal_label, "bottom_right", Vector2(-24.0, -80.0), 150.0,
+		UIGlyph.Kind.FLAG)
+	_style_action_tag()
+	_frame_controls_legend()
+	_build_dialogue_box()
+
+
+## Its own layer, above the HUD and below every modal. A story line must sit over the ink
+## meter -- it is the more important of the two whenever it is up -- but a decision box or
+## the pause menu has to sit over IT, and the layer budget in modal_overlay.gd starts the
+## modals at 50.
+func _build_dialogue_box() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "DialogueLayer"
+	layer.layer = 8
+	add_child(layer)
+	dialogue_box = DialogueBox.new()
+	dialogue_box.name = "DialogueBox"
+	layer.add_child(dialogue_box)
+	hint_bar = HintBar.new()
+	hint_bar.name = "HintBar"
+	layer.add_child(hint_bar)
+
+
+## The Draw button, as a key prompt rather than a button.
+##
+## It was the only control on the HUD shaped like a button, which made it the loudest
+## thing on screen and said the wrong thing twice: that drawing is done by clicking here
+## (it is done by pressing R, from anywhere) and that this is a place to look (it is a
+## reminder). Now it wears the chip frame the other readouts wear, with the key itself set
+## into it, so it reads as "R does this" -- which is what the player needs to learn once
+## and then never read again.
+##
+## It stays a Button. Clicking it still opens the panel, which is worth keeping for anyone
+## who reaches for the mouse first, and the hit area is unchanged.
+func _style_action_tag() -> void:
+	if draw_button == null:
+		return
+	for state in [&"normal", &"hover", &"pressed", &"disabled"]:
+		draw_button.add_theme_stylebox_override(state, UISkin.chip(8.0, 4.0))
+	draw_button.add_theme_color_override(&"font_color", UISkin.LIME_PALE)
+	draw_button.add_theme_color_override(&"font_hover_color", UISkin.LIME)
+	draw_button.add_theme_color_override(&"font_disabled_color", UISkin.MUTED)
+	draw_button.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
+	draw_button.add_theme_constant_override(&"h_separation", 8)
+	# Room made on the left for the key badge, which is drawn over the button rather than
+	# laid out inside it: a Button is not a container, so a child Control added to it is
+	# positioned, not packed, and the label centres itself in the whole rect regardless.
+	draw_button.alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	draw_button.add_theme_constant_override(&"align_to_largest_stylebox", 0)
+	draw_button.add_child(_key_badge("R"))
+
+
+## One key, drawn as a key: a lime tile with the letter cut out of it dark. The same shape
+## the controls legend uses, at the size a chip can hold.
+func _key_badge(key: String) -> Control:
+	var badge := PanelContainer.new()
+	badge.name = "KeyBadge"
+	var cap := StyleBoxFlat.new()
+	cap.bg_color = UISkin.LIME
+	cap.set_corner_radius_all(UISkin.RADIUS)
+	cap.content_margin_left = 5.0
+	cap.content_margin_right = 5.0
+	cap.content_margin_top = 1.0
+	cap.content_margin_bottom = 1.0
+	badge.add_theme_stylebox_override(&"panel", cap)
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.position = Vector2(8.0, 7.0)
+	var letter := Label.new()
+	letter.text = key
+	letter.add_theme_color_override(&"font_color", UISkin.GREEN_LABEL)
+	letter.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
+	letter.add_theme_constant_override(&"shadow_offset_x", 0)
+	letter.add_theme_constant_override(&"shadow_offset_y", 0)
+	badge.add_child(letter)
+	return badge
+
+
+## The keybind row, on a ground it can be read against.
+##
+## It was bare outlined text lying directly on the level, along the bottom edge -- which
+## in Level 1 is grass, stone and water, all of it the same value as the text. The row was
+## unreadable in exactly the first thirty seconds it exists to serve.
+##
+## It still fades. That is a deliberate decision and not a look: the row is worth having
+## while the player is learning where the keys are, and the Controls screen has the same
+## five lines for the rest of the time.
+func _frame_controls_legend() -> void:
+	var keys := $CanvasLayer/HintLabel as Label
+	if keys == null:
+		return
+	var strip := PanelContainer.new()
+	strip.name = "ControlsStrip"
+	strip.add_theme_stylebox_override(&"panel", UISkin.strip())
+	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var parent := keys.get_parent()
+	parent.remove_child(keys)
+	strip.add_child(keys)
+	parent.add_child(strip)
+	keys.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	# Outlined type on a solid strip is a belt over a belt, and the outline is what makes
+	# a small font look furry.
+	keys.add_theme_constant_override(&"outline_size", 0)
+	strip.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	_place_chip(strip, "bottom_left", Vector2(24.0, -18.0))
+	_place_chip.call_deferred(strip, "bottom_left", Vector2(24.0, -18.0))
+	_chips.append({"chip": strip, "corner": "bottom_left", "offset": Vector2(24.0, -18.0)})
+	if not get_viewport().size_changed.is_connected(_place_all_chips):
+		get_viewport().size_changed.connect(_place_all_chips)
+
+	var fade := create_tween()
+	fade.tween_interval(14.0)
+	fade.tween_property(strip, "modulate:a", 0.0, 1.2)
+
+
+## A label sized to its own text, parked in a corner.
+##
+## Styling the Label itself is not enough: these are anchored with fixed offsets, so the
+## level badge's rect is the full width of the screen and a background on it painted a bar
+## from edge to edge, straight over the Draw button. A PanelContainer shrinks to what is
+## inside it, which is what a chip has to do.
+##
+## Placed by hand rather than with an anchor preset. PRESET_MODE_MINSIZE measures a label
+## that has not laid out yet and gets zero, and a preset without it keeps the offsets the
+## label already had -- which is the full width of the screen. Both were tried; both put a
+## dark slab across the HUD.
+func _wrap_in_chip(label: Label, corner: String, offset: Vector2,
+		min_width: float, glyph: int = -1) -> void:
+	if label == null:
+		return
+	var parent := label.get_parent()
+	if parent == null:
+		return
+	var chip := PanelContainer.new()
+	chip.name = "%sChip" % label.name
+	chip.add_theme_stylebox_override(&"panel", UISkin.chip())
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.remove_child(label)
+	# A glyph needs a row to sit in; without one the chip has a single child and the
+	# pictogram would have to be positioned by hand against a label that resizes.
+	if glyph >= 0:
+		var row := HBoxContainer.new()
+		row.name = "Row"
+		row.add_theme_constant_override(&"separation", 7)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var mark := UIGlyph.new()
+		mark.kind = glyph as UIGlyph.Kind
+		mark.custom_minimum_size = Vector2(14.0, 16.0)
+		row.add_child(mark)
+		row.add_child(label)
+		chip.add_child(row)
+	else:
+		chip.add_child(label)
+	parent.add_child(chip)
+	label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	label.custom_minimum_size = Vector2(min_width, 0.0)
+	chip.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	_place_chip(chip, corner, offset)
+	# Deferred as well, because the first call runs before the label has been laid out and
+	# measures a chip with no text in it yet.
+	_place_chip.call_deferred(chip, corner, offset)
+	# Remembered rather than connected per chip: two bound callables over the same method
+	# read as one connection, so the second chip's connect failed with an error on every
+	# level load and its chip stopped following the window.
+	_chips.append({"chip": chip, "corner": corner, "offset": offset})
+	if not get_viewport().size_changed.is_connected(_place_all_chips):
+		get_viewport().size_changed.connect(_place_all_chips)
+
+
+func _place_all_chips() -> void:
+	for entry: Variant in _chips:
+		var spec: Dictionary = entry
+		_place_chip(spec["chip"], String(spec["corner"]), Vector2(spec["offset"]))
+
+
+func _place_chip(chip: PanelContainer, corner: String, offset: Vector2) -> void:
+	if chip == null or not is_instance_valid(chip):
+		return
+	var chip_size := chip.get_combined_minimum_size()
+	chip.size = chip_size
+	var view := get_viewport_rect().size
+	match corner:
+		"bottom_right":
+			chip.position = Vector2(view.x - chip_size.x + offset.x, view.y - chip_size.y + offset.y)
+		"bottom_left":
+			chip.position = Vector2(offset.x, view.y - chip_size.y + offset.y)
+		_:
+			chip.position = Vector2((view.x - chip_size.x) * 0.5 + offset.x, offset.y)
+
+
 func _on_ink_changed(remaining: float, capacity: float, reserved: float) -> void:
-	ink_bar.max_value = 100.0
-	ink_bar.value = remaining / maxf(0.001, capacity) * 100.0
-	ink_label.text = "Ink %.1f / %.1f%s" % [
-		remaining,
-		capacity,
-		" (%.1f reserved)" % reserved if reserved > 0.001 else ""
-	]
+	if hud_panel != null:
+		hud_panel.set_ink(remaining, capacity, reserved)
 
 
 func _physics_process(_delta: float) -> void:
@@ -1026,17 +1374,22 @@ func _physics_process(_delta: float) -> void:
 	# forever. Either way the level takes them back to the last checkpoint instead.
 	var floor_limit: float = Rect2(environment.get("world_bounds")).end.y + FALL_LIMIT_MARGIN
 	if anchor_position.y > floor_limit:
-		var restored := _restore_checkpoint()
-		if restored.is_empty():
-			# Nothing written yet -- Beat 0 before its own checkpoint. Back to the start
-			# of the level, which is the only earlier place there is.
-			if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
-				player.call("apply_morph_state",
-					{"position": spawn_point.global_position, "linear_velocity": Vector2.ZERO})
-			status_label.text = "Back to the start"
-		else:
-			status_label.text = "Back to %s" % restored
+		_return_to_safety("Back to the start", "Back to %s")
 		return
+
+	# THE APO CANNOT SWIM. The paddy is deep enough that wading in is not wading across --
+	# the wading jump clears about twenty pixels and the bank is a hundred above the floor
+	# -- so without this the water is not a gate, it is a hole to be stuck in. A drawn
+	# creature that swims is not rescued: being in the water is the whole point of it.
+	if player is Wanderer and bool(player.call("is_in_water")):
+		_submerged_seconds += _delta
+		if _submerged_seconds > 1.1:
+			_submerged_seconds = 0.0
+			_return_to_safety("You cannot swim, apo — draw something that can cross it",
+				"You cannot swim, apo. Back to %s")
+			return
+	else:
+		_submerged_seconds = 0.0
 	# Crossing the far lip is what earns the memory, not choosing the route that would
 	# have earned it: the reward is for having rebuilt her bridge and walked over it.
 	if anchor_position.x > 2980.0:
@@ -1050,6 +1403,23 @@ func _physics_process(_delta: float) -> void:
 		if distance > GOAL_RADIUS or not may_finish else "GOAL REACHED"
 	if distance <= GOAL_RADIUS and may_finish:
 		_complete_level()
+
+
+## Put the player back somewhere they can stand, and say why.
+##
+## A fall is not an ending and neither is stepping into the paddy: both take back the
+## climb, not the run.
+func _return_to_safety(nothing_written: String, restored_format: String) -> void:
+	var restored := _restore_checkpoint()
+	if restored.is_empty():
+		# Nothing written yet -- Beat 0 before its own checkpoint. Back to the start of the
+		# level, which is the only earlier place there is.
+		if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
+			player.call("apply_morph_state",
+				{"position": spawn_point.global_position, "linear_velocity": Vector2.ZERO})
+		status_label.text = nothing_written
+	else:
+		status_label.text = restored_format % restored
 
 
 ## Whether the level is allowed to end yet.
@@ -1244,15 +1614,29 @@ func _spawn_lolo() -> void:
 	lolo = scene.instantiate() as Lolo
 	entity_root.add_child(lolo)
 	lolo.follow(player)
-	_lolo_says("greeting")
+	if hint_bar != null:
+		lolo.set_hint_bar(hint_bar)
+	_greet()
 
 
+## The two set-piece lines from the old script -- the greeting and the arrival after the
+## memory -- are story, not hints, so they take the framed box like everything else that
+## is. They are single-line beats, which the queue handles as a conversation of one.
 func _lolo_says(key: String, seconds: float = 0.0) -> void:
 	if lolo == null or not is_instance_valid(lolo):
 		return
 	var line := String(_script_lines.get(key, ""))
-	if not line.is_empty():
+	if line.is_empty():
+		return
+	if dialogue_box == null:
 		lolo.say(line, seconds)
+		return
+	_focus_camera_for("lolo")
+	dialogue_box.speak([{"text": line, "speaker": Lolo.SPEAKER}])
+
+
+func _greet() -> void:
+	_lolo_says("greeting")
 
 
 func _wire_dialogue_node() -> void:
@@ -1315,7 +1699,10 @@ func _on_route_chosen(route: String) -> void:
 	else:
 		var routes: Dictionary = _script_lines.get("routes", {})
 		if lolo != null and is_instance_valid(lolo):
-			lolo.say(String(routes.get(route, "")))
+			var chosen := String(routes.get(route, ""))
+			if not chosen.is_empty() and dialogue_box != null:
+				_focus_camera_for("lolo")
+				dialogue_box.speak([{"text": chosen, "speaker": Lolo.SPEAKER}])
 		status_label.text = "Route: %s" % route.capitalize()
 
 
@@ -1341,7 +1728,7 @@ func _apply_level_identity() -> void:
 	var entry := LevelManager.get_level(LevelManager.current_level_id)
 	if entry.is_empty():
 		return
-	var badge := get_node_or_null(^"CanvasLayer/LevelBadge") as Label
+	var badge := level_badge
 	if badge != null:
 		badge.text = "LEVEL %d  \u00b7  %s" % [int(entry.get("number", 0)), String(entry.get("title", "")).to_upper()]
 	var place := get_node_or_null(^"PauseMenu/PauseRoot/Panel/VBox/Place") as Label

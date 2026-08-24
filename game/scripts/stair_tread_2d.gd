@@ -1,7 +1,7 @@
 class_name StairTread2D
 extends StaticBody2D
-## One stone step of Ang Hagdan, drawn from the Level 1 atlas so it reads as cut stone
-## rather than as an invisible collider.
+## One step of Ang Hagdan, cut from the delivered stair art so it reads as a step someone
+## packed out of earth and stone rather than as an invisible collider.
 ##
 ## Follows TerraceSegment2D's conventions on purpose -- same atlas, same regions, same
 ## TOP-LEFT anchoring -- because a tread that anchors differently from the terrain it sits
@@ -14,10 +14,16 @@ extends StaticBody2D
 ## be moved, drawn on, or destroyed -- the ones that are gone are gone, and the gap they
 ## left is the whole point of the beat.
 
-const TEXTURE_MAP := preload("res://assets/Level1/texturemap.png")
-## Same atlas regions TerraceSegment2D uses for its stone faces.
-const STONE_TOP := Rect2(828, 343, 84, 86)
-const STONE_WALL := Rect2(217, 401, 146, 125)
+## Two bands cut out of the delivered stair art by tools/build_art.py: the grass you stand
+## on and the earth face under it. The stair used to borrow TerraceSegment2D's stone regions
+## out of the shared atlas, which made every step look like a slice of the retaining wall
+## behind it -- and made the tread that floated off into the paddy look like a different
+## object from the stair it fell out of, when the whole of sub-beat 0.2 is that it IS one.
+##
+## Both bands are bigger than any tread that uses them, so a step CROPS them. Tiling a
+## grass strip inside a 64px cap would run a seam across the middle of it.
+const CAP_BAND := preload("res://assets/Level1/props/stair_cap.png")
+const RISER_BAND := preload("res://assets/Level1/props/stair_riser.png")
 
 ## Top-left anchored, like every terrace. `position` is the tread's upper-left corner and
 ## `tread_size.y` is how far its stone face drops below the surface you stand on.
@@ -36,8 +42,8 @@ const STONE_WALL := Rect2(217, 401, 146, 125)
 func _ready() -> void:
 	add_to_group(&"stair_treads")
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	# Drawn over the retaining wall behind it. Cut stone against rubble is already a
-	# different texture, but at this scale the silhouette is what separates them, and a
+	# Drawn over the retaining wall behind it. The step is already a different texture from
+	# the rubble, but at this scale the silhouette is what separates them, and a
 	# tread half-buried behind the wall it is set into has no silhouette at all.
 	z_index = 3
 	if is_broken:
@@ -75,7 +81,7 @@ func _build_visuals() -> void:
 	wall.name = "Riser"
 	wall.position = Vector2(0.0, cap_height)
 	wall.size = Vector2(tread_size.x, maxf(1.0, tread_size.y - cap_height))
-	wall.texture = _atlas(STONE_WALL)
+	wall.texture = RISER_BAND
 	wall.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	wall.stretch_mode = TextureRect.STRETCH_TILE
 	wall.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -87,7 +93,7 @@ func _build_visuals() -> void:
 	cap.name = "Cap"
 	cap.position = Vector2.ZERO
 	cap.size = Vector2(tread_size.x, cap_height)
-	cap.texture = _atlas(STONE_TOP)
+	cap.texture = CAP_BAND
 	cap.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	cap.stretch_mode = TextureRect.STRETCH_TILE
 	cap.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -103,7 +109,7 @@ func _build_stub() -> void:
 	stub.name = "Stub"
 	stub.position = Vector2.ZERO
 	stub.size = Vector2(maxf(12.0, tread_size.x * 0.34), tread_size.y * 0.8)
-	stub.texture = _atlas(STONE_WALL)
+	stub.texture = RISER_BAND
 	stub.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	stub.stretch_mode = TextureRect.STRETCH_TILE
 	stub.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -112,9 +118,3 @@ func _build_stub() -> void:
 	stub.modulate = Color(0.46, 0.44, 0.40, 1.0)
 	add_child(stub)
 
-
-func _atlas(region: Rect2) -> AtlasTexture:
-	var atlas := AtlasTexture.new()
-	atlas.atlas = TEXTURE_MAP
-	atlas.region = region
-	return atlas

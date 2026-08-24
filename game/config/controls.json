@@ -7,7 +7,12 @@
     "",
     "Rows appear in this order, grouped by 'group'. An action missing from the",
     "InputMap is skipped rather than shown with a blank key. An optional 'through'",
-    "names a last action, and the row shows the range rather than only the first key."
+    "names a last action, and the row shows the range rather than only the first key.",
+    "",
+    "A row may carry 'keys' INSTEAD of 'action' and name its keys outright. That is for",
+    "the mouse: aiming, rotating and setting a drawing down are not InputMap actions, so",
+    "before this the controls screen could not say them at all -- and a player who cannot",
+    "find how to undo a placement will conclude the game does not let them."
   ],
   "rows": [
     {"group": "MOVEMENT", "action": "move_left", "label": "Move left"},
@@ -19,10 +24,13 @@
     {"group": "DRAWING", "action": "redraw", "label": "Open the drawing panel"},
     {"group": "DRAWING", "action": "revert_form", "label": "Change back to yourself"},
 
-    {"group": "UTILITIES", "action": "interact", "label": "Pick up or equip"},
+    {"group": "UTILITIES", "action": "interact", "label": "Pick up, equip, or take back what you placed"},
     {"group": "UTILITIES", "action": "use_utility", "label": "Use what you hold"},
     {"group": "UTILITIES", "action": "rotate_left", "label": "Rotate while placing"},
     {"group": "UTILITIES", "action": "rotate_right", "label": "Rotate the other way"},
+    {"group": "PLACING", "keys": "Left click", "label": "Set the drawing down"},
+    {"group": "PLACING", "keys": "Right click", "label": "Put it back, or take back one already down"},
+    {"group": "PLACING", "keys": "Scroll", "label": "Turn it before you set it down"},
     {"group": "UTILITIES", "action": "inventory_slot_1", "through": "inventory_slot_6", "label": "Inventory slots"},
 
     {"group": "SYSTEM", "action": "pause", "label": "Pause, or back out"}

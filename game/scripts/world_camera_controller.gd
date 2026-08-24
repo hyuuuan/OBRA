@@ -15,6 +15,13 @@ signal camera_moved(camera_position: Vector2)
 @export var camera_move_epsilon: float = 0.05
 
 var target: Node2D = null
+## What the camera is pushed in on for a beat, and how far. Null means it is doing its
+## ordinary job of following the player.
+var _focus: Node2D = null
+var _focus_zoom := 1.0
+var _focus_lift := 0.0
+var _focus_tween: Tween = null
+var _rest_process_mode := Node.PROCESS_MODE_INHERIT
 var _vertical_rest_y: float = 0.0
 var _has_vertical_rest := false
 var _last_emitted_position := Vector2(INF, INF)
@@ -46,6 +53,59 @@ func _process(delta: float) -> void:
 	_emit_camera_moved_if_needed()
 
 
+## Push in on something and hold there until released.
+##
+## A line of dialogue over a wide shot is a caption on a landscape: the player reads the
+## box and never looks at who is talking. Moving the camera in makes the speaker the
+## subject, which is the whole difference between a cutscene and a notification.
+##
+## The camera keeps processing while the tree is paused, because that is exactly when this
+## is used -- the world is stopped for the conversation and the push-in is the only thing
+## that should still be moving.
+## `lift` is how far up the SCREEN the subject is placed, in pixels, so the dialogue box
+## sitting across the middle does not cover the person talking. The camera moves down by
+## that much in world units, which is why it is divided by the zoom.
+## Gentler than it was. The portrait carries the focus now, and a hard push-in behind a
+## large figure makes the background compete with it rather than recede.
+func focus_on(node: Node2D, zoom_scale: float = 1.15, seconds: float = 0.45,
+		lift: float = 240.0) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	if _focus == null:
+		_rest_process_mode = process_mode
+	_focus = node
+	_focus_zoom = maxf(0.1, zoom_scale)
+	_focus_lift = lift
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	_tween_zoom(Vector2(_focus_zoom, _focus_zoom), seconds)
+
+
+func release_focus(seconds: float = 0.35) -> void:
+	if _focus == null:
+		return
+	_focus = null
+	_focus_zoom = 1.0
+	var restore := _rest_process_mode
+	_tween_zoom(Vector2.ONE, seconds).finished.connect(
+		func() -> void: process_mode = restore)
+
+
+func is_focused() -> bool:
+	return _focus != null
+
+
+## Pause-immune, because a tween is bound to its node's pause state by default and this
+## one exists to run while the tree is stopped.
+func _tween_zoom(to: Vector2, seconds: float) -> Tween:
+	if _focus_tween != null and _focus_tween.is_valid():
+		_focus_tween.kill()
+	_focus_tween = create_tween()
+	_focus_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_focus_tween.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_focus_tween.tween_property(self, "zoom", to, seconds)
+	return _focus_tween
+
+
 func set_target(new_target: Node2D) -> void:
 	target = new_target
 	_has_vertical_rest = false
@@ -62,14 +122,25 @@ func snap_to_target() -> void:
 
 func _clamped_target_position() -> Vector2:
 	var desired := global_position
+	# While focused the subject wins, and the vertical follow's "rest" logic is skipped:
+	# it exists to stop the camera chasing a jumping player, and there is nobody jumping.
+	if _focus != null and is_instance_valid(_focus):
+		var focus_position := _focus.global_position
+		if _vector_is_finite(focus_position):
+			var drop := _focus_lift / maxf(0.01, zoom.y)
+			desired = Vector2(focus_position.x, _clamp_camera_y(focus_position.y + drop))
+			return _clamp_to_bounds(desired)
 	if target != null and is_instance_valid(target):
 		var target_position := target.global_position
 		if _vector_is_finite(target_position):
 			desired.x = target_position.x + target_offset.x
 			desired.y = _vertical_follow_y(target_position.y)
 
-	var viewport_size := _viewport_size()
-	var half_view := viewport_size * 0.5
+	return _clamp_to_bounds(desired)
+
+
+func _clamp_to_bounds(desired: Vector2) -> Vector2:
+	var half_view := _viewport_size() * 0.5
 	var bounds_end := world_bounds.position + world_bounds.size
 
 	var min_x := world_bounds.position.x + half_view.x - play_area_left
@@ -114,11 +185,15 @@ func _max_camera_y() -> float:
 	return world_bounds.position.y + world_bounds.size.y - _viewport_size().y * 0.5
 
 
+## How much WORLD the camera can see, which is the viewport divided by the zoom. It used
+## to return the raw viewport, which was right for as long as the zoom was always one --
+## and would have clamped a pushed-in camera as though it still saw the whole screen.
 func _viewport_size() -> Vector2:
 	var viewport_size := get_viewport_rect().size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		viewport_size = Vector2(1600.0, 900.0)
-	return viewport_size
+	var scale := Vector2(maxf(0.01, zoom.x), maxf(0.01, zoom.y))
+	return viewport_size / scale
 
 
 func _emit_camera_moved_if_needed(force: bool = false) -> void:

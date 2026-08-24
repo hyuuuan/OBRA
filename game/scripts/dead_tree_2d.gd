@@ -11,6 +11,12 @@ extends Destructible2D
 
 signal felled()
 
+const ART := preload("res://assets/Level1/props/dead_tree.png")
+## The trunk is columns 10..21 of the art; everything either side is bare branches. The
+## sprite is hung off the middle of THOSE, not the middle of the picture, so the collision
+## box and the wood the axe is aimed at are the same column.
+const TRUNK_CENTRE := 15.5
+
 @export var trunk_size := Vector2(54.0, 300.0)
 ## How far the fallen trunk reaches across the gorge. It lands to the right, which is
 ## the way the player is travelling.
@@ -19,6 +25,7 @@ signal felled()
 
 var _standing: StaticBody2D
 var _fallen: StaticBody2D
+var _art: Sprite2D
 var _initial_health: float = 100.0
 var _is_felled := false
 
@@ -50,6 +57,21 @@ func _build() -> void:
 	collision.position = Vector2(0.0, -trunk_size.y * 0.5)
 	_standing.add_child(collision)
 
+	# Hung off the trunk body rather than off this node, so the lean every axe hit adds
+	# moves the tree and not just its collider.
+	_art = Sprite2D.new()
+	_art.name = "Art"
+	_art.texture = ART
+	_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_art.centered = false
+	# Whole multiples only. 300/58 is 5.17, and the sixth of a pixel that buys is paid for
+	# with a resampled trunk -- five is 290px of tree against a 300px box, which nobody can
+	# see, and every pixel stays square.
+	var factor := maxf(1.0, roundf(trunk_size.y / float(ART.get_height())))
+	_art.scale = Vector2(factor, factor)
+	_art.offset = Vector2(-TRUNK_CENTRE, -float(ART.get_height()))
+	_standing.add_child(_art)
+
 	# The crossing it becomes, built now and kept intangible until it is earned. Making
 	# it up front means the felled trunk lands on a surface that is already the right
 	# shape, rather than one assembled a frame later under the player's feet.
@@ -65,37 +87,6 @@ func _build() -> void:
 	span_collision.position = Vector2(span_length * 0.5, -17.0)
 	_fallen.add_child(span_collision)
 	z_index = 6
-	queue_redraw()
-
-
-func _draw() -> void:
-	if _is_felled:
-		_draw_span()
-		return
-	var half := trunk_size.x * 0.5
-	var top := -trunk_size.y
-	draw_rect(Rect2(Vector2(-half, top), trunk_size), Color(0.32, 0.24, 0.18))
-	draw_rect(Rect2(Vector2(-half, top), trunk_size), Color(0.13, 0.09, 0.06), false, 4.0)
-	# Bare branches, so it reads as dead rather than as a post.
-	for branch in [
-		[-half, top + 40.0, -46.0, -34.0],
-		[half, top + 74.0, 52.0, -28.0],
-		[-half, top + 120.0, -38.0, 24.0],
-	]:
-		var start := Vector2(branch[0], branch[1])
-		draw_line(start, start + Vector2(branch[2], branch[3]), Color(0.24, 0.18, 0.13), 7.0, true)
-	# Grain, which is also where the axe bites.
-	for offset in [-12.0, 4.0, 16.0]:
-		draw_line(Vector2(offset, top + 20.0), Vector2(offset, -14.0), Color(0.22, 0.16, 0.11), 2.5)
-
-
-func _draw_span() -> void:
-	var span := Rect2(Vector2(0.0, -34.0), Vector2(span_length, 34.0))
-	draw_rect(span, Color(0.32, 0.24, 0.18))
-	draw_rect(span, Color(0.13, 0.09, 0.06), false, 4.0)
-	for step in range(1, 9):
-		var x := span_length * float(step) / 9.0
-		draw_line(Vector2(x, -32.0), Vector2(x, -2.0), Color(0.22, 0.16, 0.11), 2.5)
 
 
 ## Every hit leans it further toward the gorge, so a swing that did not finish the job
@@ -114,9 +105,19 @@ func _on_destroyed() -> void:
 	if _is_felled:
 		return
 	_is_felled = true
+	# THE SAME TREE LIES THERE. It is taken off the trunk body before that is freed and
+	# turned a quarter clockwise, so what the player walks across is the thing they were
+	# just looking at rather than a plank that appeared where it used to be.
+	#
+	# A quarter turn CLOCKWISE, not anticlockwise: rotating by +PI/2 sends the art's own
+	# up-axis to +x, which is the way the gorge runs and the way the player is travelling.
+	# The other direction lays it back across the ground they came from.
+	if _art != null and is_instance_valid(_art):
+		_art.reparent(self, false)
+		_art.rotation = PI * 0.5
+		_art.position = Vector2(0.0, -17.0)
 	if _standing != null and is_instance_valid(_standing):
 		_standing.queue_free()
 	_fallen.collision_layer = 1
 	_fallen.collision_mask = 1
-	queue_redraw()
 	felled.emit()
