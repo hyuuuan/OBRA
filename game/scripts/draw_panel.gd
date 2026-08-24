@@ -203,7 +203,9 @@ func _on_live_prediction(
 	# Colour carries the same judgement the Transform gate will apply, so the player can
 	# tell "it knows what this is" from "it is guessing" without reading the number.
 	var sure: bool = confidence >= 0.6 and margin >= 0.15
-	guess_label.modulate = Color(0.55, 0.95, 0.6) if sure else Color(0.95, 0.85, 0.45)
+	guess_label.modulate = Color.WHITE
+	guess_label.add_theme_color_override(&"font_color",
+		UISkin.LIME_PALE if sure else UISkin.PENDING)
 	transform_button.text = "Transform into %s" % display_name if sure else "Transform"
 
 
@@ -219,7 +221,7 @@ func _on_live_prediction_failed(message: String) -> void:
 	# player has simply not drawn enough of anything yet.
 	if not message.is_empty():
 		guess_label.text = message
-		guess_label.modulate = Color(0.7, 0.7, 0.72)
+		guess_label.add_theme_color_override(&"font_color", UISkin.MUTED)
 
 
 ## Dress the panel in the game's own language.
@@ -229,7 +231,7 @@ func _on_live_prediction_failed(message: String) -> void:
 ## the game. Everything below is appearance -- no node is added or removed that the panel's
 ## behaviour depends on.
 func _style_panel() -> void:
-	scrim.color = Color(0.03, 0.05, 0.03, 0.62)
+	scrim.color = Color(UISkin.INK.r, UISkin.INK.g, UISkin.INK.b, 0.62)
 	# The ColorRect stops painting its own slab; a Panel behind everything carries the
 	# frame instead, because a ColorRect cannot hold a stylebox.
 	panel_root.set("color", Color(0.0, 0.0, 0.0, 0.0))
@@ -244,12 +246,21 @@ func _style_panel() -> void:
 	# The page, set into the frame rather than lying on it.
 	var page := Panel.new()
 	page.name = "PageEdge"
-	page.add_theme_stylebox_override(&"panel", _page_edge())
+	page.add_theme_stylebox_override(&"panel", UISkin.well())
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	page.position = Vector2(42.0, 26.0)
 	page.size = Vector2(524.0, 524.0)
 	panel_root.add_child(page)
 	panel_root.move_child(page, 1)
+
+	# Brackets at the four corners, drawn OVER the page rather than around it. A full
+	# second ring would be a third frame inside two others; four corners say "this square
+	# is the thing you are working in" and then get out of the way of the drawing.
+	var brackets := PageBrackets.new()
+	brackets.name = "PageBrackets"
+	brackets.position = page.position
+	brackets.size = page.size
+	panel_root.add_child(brackets)
 	var paper := canvas_viewport.get_node_or_null("Paper") as ColorRect
 	if paper != null:
 		# Paper, not printer white. The ink is black and the drawing is the point, so this
@@ -259,16 +270,14 @@ func _style_panel() -> void:
 	_build_header()
 
 	guess_label.add_theme_font_size_override(&"font_size", 22)
-	status.add_theme_font_size_override(&"font_size", 15)
-	status.add_theme_color_override(&"font_color", HudPanel.CREAM)
+	status.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
+	status.add_theme_color_override(&"font_color", UISkin.MUTED)
 
 	# Hierarchy: one of these is the thing you came here to do and the other undoes your
-	# work. They were identical twins.
-	for state in [&"normal", &"hover", &"pressed", &"focus"]:
-		transform_button.add_theme_stylebox_override(state, _primary_button(state == &"hover"))
-	transform_button.add_theme_color_override(&"font_color", Color(0.08, 0.13, 0.055))
-	transform_button.add_theme_color_override(&"font_hover_color", Color(0.04, 0.08, 0.035))
-	transform_button.add_theme_color_override(&"font_disabled_color", Color(0.4, 0.45, 0.35))
+	# work. They were identical twins. It is a family now rather than a stylebox built
+	# here, so the green button in this panel and the green button on the pause menu
+	# cannot drift apart.
+	transform_button.theme_type_variation = &"PrimaryButton"
 	transform_button.add_theme_font_size_override(&"font_size", 19)
 	clear_button.add_theme_font_size_override(&"font_size", 17)
 
@@ -278,8 +287,7 @@ func _build_header() -> void:
 	var caption := Label.new()
 	caption.name = "Caption"
 	caption.text = "DRAW"
-	caption.add_theme_font_size_override(&"font_size", 15)
-	caption.add_theme_color_override(&"font_color", HudPanel.LIME)
+	caption.theme_type_variation = &"HudCaption"
 	caption.position = Vector2(48.0, 4.0)
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel_root.add_child(caption)
@@ -288,8 +296,7 @@ func _build_header() -> void:
 	_ink_value.name = "InkValue"
 	_ink_value.text = ""
 	_ink_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_ink_value.add_theme_font_size_override(&"font_size", 15)
-	_ink_value.add_theme_color_override(&"font_color", HudPanel.CREAM)
+	_ink_value.theme_type_variation = &"HudValue"
 	_ink_value.position = Vector2(392.0, 4.0)
 	_ink_value.size = Vector2(168.0, 20.0)
 	_ink_value.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -315,24 +322,6 @@ func _refresh_ink_row(cost: float) -> void:
 		floori(maxf(0.0, ink_manager.remaining())), roundi(ink_manager.capacity)]
 
 
-func _page_edge() -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.06, 0.08, 0.06, 1.0)
-	box.border_color = Color(0.35, 0.4, 0.26, 1.0)
-	box.set_border_width_all(2)
-	box.set_corner_radius_all(2)
-	return box
-
-
-func _primary_button(bright: bool) -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.72, 0.82, 0.23, 1.0) if bright else Color(0.55, 0.71, 0.18, 1.0)
-	box.border_color = Color(0.98, 0.9, 0.31, 1.0)
-	box.set_border_width_all(3)
-	box.set_corner_radius_all(2)
-	return box
-
-
 func _clear_guess() -> void:
 	_forget_guess()
 	_guessed_revision = -1
@@ -345,7 +334,7 @@ func _forget_guess() -> void:
 	_guess_confidence = 0.0
 	_guess_margin = 0.0
 	guess_label.text = "…"
-	guess_label.modulate = Color(0.62, 0.64, 0.68)
+	guess_label.add_theme_color_override(&"font_color", UISkin.MUTED)
 	transform_button.text = "Transform"
 
 
@@ -508,3 +497,29 @@ func _play_open_animation() -> void:
 	_open_tween.tween_property(panel_root, "scale", Vector2.ONE, 0.18) \
 		.set_trans(Tween.TRANS_BACK) \
 		.set_ease(Tween.EASE_OUT)
+
+
+## Four corner brackets, sized to whatever rect they are given.
+class PageBrackets extends Control:
+	## How far along each edge a bracket runs, and how thick it is drawn.
+	const ARM := 26.0
+	const WEIGHT := 4.0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var w := size.x
+		var h := size.y
+		for corner: Vector2 in [Vector2(0, 0), Vector2(1, 0), Vector2(0, 1), Vector2(1, 1)]:
+			var x := corner.x * w
+			var y := corner.y * h
+			var dx := 1.0 if corner.x < 0.5 else -1.0
+			var dy := 1.0 if corner.y < 0.5 else -1.0
+			# Drawn inward from the corner, so a bracket never leaves the page it marks.
+			draw_rect(Rect2(
+				Vector2(minf(x, x + dx * ARM), minf(y, y + dy * WEIGHT)),
+				Vector2(ARM, WEIGHT)), UISkin.LIME)
+			draw_rect(Rect2(
+				Vector2(minf(x, x + dx * WEIGHT), minf(y, y + dy * ARM)),
+				Vector2(WEIGHT, ARM)), UISkin.LIME)
