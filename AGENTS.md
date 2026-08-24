@@ -128,10 +128,15 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
 - **Pause is derived, never assigned.** Overlays join the `modal_overlays` group and
   `UIRouter.refresh_pause()` recomputes `get_tree().paused` from whoever is open.
   Writing `paused` directly unpauses the game when a nested overlay closes.
-- Styling lives in `game/ui/obra_theme.tres`, applied project-wide via
-  `gui/theme/custom`. The main menu keeps its own per-node overrides and must stay
-  pixel-identical; a `focus` stylebox with an opaque background will cover buttons it
-  is drawn over, and a `Label` font in the theme would restyle the menu.
+- **Styling lives in `game/scripts/ui_skin.gd`** -- the whole palette and every frame
+  factory. `game/ui/obra_theme.tres` is GENERATED from it by
+  `godot --headless --path game --script res://tools/build_theme.gd` and must not be hand
+  edited. Read **HUD_SKIN.md** before changing how anything looks: it carries the palette,
+  the three button families and what each means, and the four things Godot will not do the
+  way the design sheet asks. A `focus` stylebox with an opaque background will cover
+  buttons it is drawn over, and a `Label` font in the theme would restyle the menu. The
+  main menu still holds copies of the palette inline in its own `.tscn`, because a scene
+  cannot call a function -- change a colour there too.
 - Screens read their content from `config/` (`levels.json`, `controls.json`,
   `audio.json`) rather than from strings typed into a `.tscn`.
 
