@@ -148,7 +148,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	var click := event as InputEventMouseButton
 	if click != null and click.button_index == MOUSE_BUTTON_RIGHT and click.pressed:
 		get_viewport().set_input_as_handled()
-		_take_back_under_cursor(get_global_mouse_position())
+		# The CLICK's own position, not the live cursor. They are the same thing in play and
+		# they are not the same thing anywhere else: the cursor is wherever the pointer is
+		# right now, while the event carries where the button actually went down. Reading the
+		# cursor made the right-click untestable -- a synthesised event asks about a spot the
+		# real pointer was never at -- and it is the event that is authoritative regardless.
+		_take_back_under_cursor(
+			get_viewport().get_canvas_transform().affine_inverse() * click.position)
 		return
 	if event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()

@@ -42,6 +42,7 @@ func _run() -> void:
 	await _panel_buttons_answer_a_click()
 	await _inventory_slot_answers_a_click()
 	await _placing_click_reaches_the_world()
+	await _a_click_places_it_and_right_click_takes_it_back()
 	await _dialogue_choices_answer_a_click()
 	await _escape_during_a_question_is_not_a_pause_menu()
 
@@ -197,6 +198,122 @@ func _placing_click_reaches_the_world() -> void:
 	await process_frame
 
 
+## THE WHOLE LOOP, WITH A MOUSE. Everything above proves a click is not swallowed; this
+## proves the click does the thing. A placement is confirmed from _unhandled_input and a
+## take-back is a right-click in the same place, so both are exactly the kind of thing
+## emit_signal cannot test -- calling the handler skips the routing that decides whether a
+## modal, an overlay or the HUD gets the event first, which IS the step under test.
+##
+## The AIM is set directly and _process is frozen, deliberately. The controller follows
+## get_global_mouse_position(), and this project stretches canvas_items -- so the viewport
+## is 1600x900 whatever the window is, Input.warp_mouse takes WINDOW pixels, and a warp
+## computed from the canvas transform lands somewhere else entirely. Where the preview is
+## pointing is not what this suite is for; whether the button press reaches the world and
+## confirms it is.
+func _a_click_places_it_and_right_click_takes_it_back() -> void:
+	var placement := level.get("placement_controller") as Node2D
+	var inventory := level.get("inventory_manager") as Node
+	var world_items := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/WorldItemRoot") as Node2D
+	if placement == null or inventory == null or world_items == null or player == null:
+		_fail("placing with the mouse", "the level did not build what this needs")
+		return
+	var panel := level.get_node_or_null("DrawPanel")
+	if panel != null and bool(panel.call("is_open")):
+		panel.call("close_panel")
+		await _wait(0.3)
+	# Counted, not looked for: an earlier case in this file confirms a placement of its own
+	# as a side effect of proving the click gets past the HUD, so "is there a square" is
+	# already true before this one starts.
+	var before := _squares_in(world_items)
+
+	var item := DrawnItemData.new()
+	item.entity_id = "square"
+	item.display_name = "Square"
+	var slot_index: int = inventory.call("add_item", item)
+	await process_frame
+	level.call("_on_inventory_slot_pressed", slot_index)
+	await _wait(0.3)
+	if not bool(placement.call("is_placing")):
+		_fail("placing with the mouse", "the placement never started")
+		return
+
+	# West of the body: at the spawn the water is to the east, and a square dropped in it
+	# drifts, which makes a click aimed at where it used to be a flake rather than a test.
+	placement.set_process(false)
+	placement.call("update_target", player.global_position + Vector2(-96.0, -40.0))
+	await _wait(0.2)
+	await _click_at(_screen_of(player.global_position + Vector2(-96.0, -40.0)), MOUSE_BUTTON_LEFT)
+	await _wait(0.4)
+	_check(not bool(placement.call("is_placing")), "a left click sets the drawing down",
+		"the placement closed" if not bool(placement.call("is_placing"))
+		else "STILL PLACING -- the click never confirmed")
+	var placed := _last_square(world_items)
+	_check(_squares_in(world_items) == before + 1, "and the square is in the world",
+		"at %s" % (placed.global_position.round() if placed != null else "nowhere"))
+	if placed == null:
+		if bool(placement.call("is_placing")):
+			placement.call("cancel_placement")
+		placement.set_process(true)
+		return
+
+	await _click_at(_screen_of(placed.global_position), MOUSE_BUTTON_RIGHT)
+	await _wait(0.4)
+	_check(_squares_in(world_items) == before, "a right click takes it back out",
+		"gone" if _squares_in(world_items) == before
+		else "STILL THERE -- the undo the keybind row promises does not answer a mouse")
+	var back := -1
+	var items: Array = inventory.call("items")
+	for index in range(items.size()):
+		var bagged := items[index] as DrawnItemData
+		if bagged != null and bagged.entity_id == "square":
+			back = index
+	_check(back >= 0, "and it is back in the bag", "slot %d" % (back + 1) if back >= 0
+		else "LOST -- the drawing and the ink that made it are both gone")
+	if back >= 0:
+		inventory.call("take_item", back)
+	placement.set_process(true)
+	await process_frame
+
+
+func _squares_in(world_items: Node2D) -> int:
+	var count := 0
+	for child in world_items.get_children():
+		if _is_placed_square(child):
+			count += 1
+	return count
+
+
+func _last_square(world_items: Node2D) -> PhysicsShapeObject:
+	var found: PhysicsShapeObject = null
+	for child in world_items.get_children():
+		if _is_placed_square(child):
+			found = child as PhysicsShapeObject
+	return found
+
+
+func _is_placed_square(child: Node) -> bool:
+	var prop := child as PhysicsShapeObject
+	return prop != null and is_instance_valid(prop) and not prop.is_queued_for_deletion() \
+		and not prop.is_preview and prop.item_data != null \
+		and prop.item_data.entity_id == "square"
+
+
+func _screen_of(world_position: Vector2) -> Vector2:
+	return level.get_viewport().get_canvas_transform() * world_position
+
+
+## A press and release at a point on the screen, with no Control under it. The take-back
+## reads the position off the event, which is what makes this testable at all.
+func _click_at(at: Vector2, button: int) -> void:
+	Input.parse_input_event(_motion(at))
+	await process_frame
+	for pressed in [true, false]:
+		Input.parse_input_event(_button(at, pressed, button))
+		await process_frame
+	await process_frame
+
+
 func _dialogue_choices_answer_a_click() -> void:
 	var overlay := level.get_node_or_null("DialogueChoiceOverlay")
 	if overlay == null:
@@ -286,9 +403,9 @@ func _motion(at: Vector2) -> InputEventMouseMotion:
 	return motion
 
 
-func _button(at: Vector2, pressed: bool) -> InputEventMouseButton:
+func _button(at: Vector2, pressed: bool, button: int = MOUSE_BUTTON_LEFT) -> InputEventMouseButton:
 	var event := InputEventMouseButton.new()
-	event.button_index = MOUSE_BUTTON_LEFT
+	event.button_index = button
 	event.pressed = pressed
 	event.position = at
 	event.global_position = at
