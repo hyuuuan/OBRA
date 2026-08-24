@@ -100,7 +100,7 @@ func _init() -> void:
 	_frame.add_child(_speaker_tab)
 	_speaker = Label.new()
 	_speaker.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
-	_speaker.add_theme_color_override(&"font_color", UISkin.GREEN_LABEL)
+	_speaker.add_theme_color_override(&"font_color", UISkin.GILT_PALE)
 	_speaker.add_theme_constant_override(&"shadow_offset_x", 0)
 	_speaker.add_theme_constant_override(&"shadow_offset_y", 0)
 	_speaker_tab.add_child(_speaker)
@@ -219,7 +219,12 @@ func _relayout() -> void:
 
 func _tab_style() -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
-	box.bg_color = UISkin.LIME
+	# Dark with pale gold on it, not lime. The plaque is screwed to the frame, so it
+	# belongs to the frame's palette -- a lime one reads as a HUD chip that has drifted
+	# down the screen and landed on a painting.
+	box.bg_color = UISkin.GILT_RABBET
+	box.border_color = UISkin.GILT_EDGE
+	box.set_border_width_all(2)
 	box.set_corner_radius_all(UISkin.RADIUS)
 	box.content_margin_left = 9.0
 	box.content_margin_right = 9.0
@@ -241,4 +246,4 @@ class Arrow extends Control:
 		var h := size.y
 		draw_colored_polygon(PackedVector2Array([
 			Vector2(0.0, 0.0), Vector2(w, 0.0), Vector2(w * 0.5, h),
-		]), UISkin.LIME)
+		]), UISkin.GILT_PALE)
