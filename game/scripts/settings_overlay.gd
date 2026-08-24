@@ -41,10 +41,30 @@ func _ready() -> void:
 		slider.step = 0.01
 		slider.value_changed.connect(_on_slider_changed.bind(String(key)))
 		slider.drag_ended.connect(_on_drag_ended.bind(String(key)))
+	_skin_controls()
 	_fullscreen.toggled.connect(_on_fullscreen_toggled)
 	_back_button.pressed.connect(close)
 	_pull_from_profile()
 	_apply_fullscreen(bool(_setting("fullscreen", false)))
+
+
+## The two controls on this screen that Godot draws from a TEXTURE rather than a
+## StyleBox: a slider's handle and a CheckButton's two states. They are built here at
+## load instead of living in the theme, because an ImageTexture saved into a .tres keeps
+## its header and loses its pixels -- the file would load with an invisible handle and
+## nothing to say why.
+func _skin_controls() -> void:
+	var grabber := UISkin.disc_texture(20, UISkin.CREAM_FILL, UISkin.RING_MID)
+	var grabber_lit := UISkin.disc_texture(20, UISkin.CREAM_LIT, UISkin.LIME)
+	for key: Variant in _sliders.keys():
+		var slider: HSlider = _sliders[key]
+		slider.add_theme_icon_override(&"grabber", grabber)
+		slider.add_theme_icon_override(&"grabber_highlight", grabber_lit)
+		slider.add_theme_icon_override(&"grabber_disabled", grabber)
+	_fullscreen.add_theme_icon_override(&"checked", UISkin.switch_texture(true))
+	_fullscreen.add_theme_icon_override(&"unchecked", UISkin.switch_texture(false))
+	_fullscreen.add_theme_icon_override(&"checked_disabled", UISkin.switch_texture(true))
+	_fullscreen.add_theme_icon_override(&"unchecked_disabled", UISkin.switch_texture(false))
 
 
 func _on_opened() -> void:

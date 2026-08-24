@@ -258,7 +258,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.015, 0.045, 0.025, 0.78)
+color = Color(0.027, 0.035, 0.024, 0.78)
 
 [node name="Panel" type="PanelContainer" parent="PauseMenu/PauseRoot"]
 custom_minimum_size = Vector2(430, 520)
@@ -286,6 +286,9 @@ theme_type_variation = &"ScreenTitle"
 text = "PAUSED"
 horizontal_alignment = 1
 
+[node name="Rule" type="HSeparator" parent="PauseMenu/PauseRoot/Panel/VBox"]
+layout_mode = 2
+
 [node name="Place" type="Label" parent="PauseMenu/PauseRoot/Panel/VBox"]
 layout_mode = 2
 theme_type_variation = &"HudHint"
@@ -295,7 +298,7 @@ horizontal_alignment = 1
 [node name="ResumeButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
-theme_type_variation = &"DialogButton"
+theme_type_variation = &"PrimaryButton"
 text = "RESUME"
 
 [node name="RestartButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
@@ -325,7 +328,7 @@ text = "LEVEL SELECT"
 [node name="QuitButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
-theme_type_variation = &"DialogButton"
+theme_type_variation = &"DangerButton"
 text = "QUIT TO DESKTOP"
 
 [node name="LevelCompleteOverlay" parent="." instance=ExtResource("17_complete")]
