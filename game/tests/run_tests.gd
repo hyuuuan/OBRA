@@ -396,6 +396,31 @@ func _test_theme_resource() -> void:
 				type_name, normal.bg_color, checks[type_name]]
 		)
 
+	# The frame is drawn rather than styled, so the theme cannot vouch for it. What CAN go
+	# wrong silently is the fit: the dialogue box lays its text out against
+	# UIFrame.inset_for, and if the frame grows a band, or the box's padding shrinks, the
+	# text slides under the moulding. It still renders, it still reads in a headless
+	# label dump, and it is only wrong to look at.
+	#
+	# Asserting that TOTAL_U equals the sum of its own bands would prove nothing -- it IS
+	# that sum. This measures the thing that matters instead: where the text actually ends
+	# up, against where the frame actually stops.
+	var frame := load("res://scripts/ui_frame.gd")
+	var box_script := load("res://scripts/dialogue_box.gd")
+	var probe = box_script.new()
+	var text := probe.get_node_or_null("Frame/Text") as Control
+	if text != null:
+		var inset: float = frame.inset_for(box_script.UNIT)
+		var canvas := Rect2(Vector2(inset, inset),
+			Vector2(box_script.BOX) - Vector2(inset, inset) * 2.0)
+		var written := Rect2(text.position, text.size)
+		_expect(
+			canvas.encloses(written),
+			"the dialogue text runs under the frame: text %s is not inside canvas %s" % [
+				written, canvas]
+		)
+	probe.free()
+
 	# Focus is drawn ON TOP of the state stylebox, not instead of it, so an opaque
 	# focus box hides the button beneath. This is not hypothetical: the first version
 	# of this theme did exactly that and covered the menu's bright PLAY button with a

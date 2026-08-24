@@ -18,7 +18,8 @@ the skin, so a palette edit without a regeneration fails the suite instead of sh
 
 **See it.** `godot --path game --script res://tests/run_visual_hud.gd` writes six frames
 to `/tmp/obra_hud_*.png`: the HUD over the level, the gauge full, mid-stroke and nearly
-spent, the drawing panel, the pause menu and settings. Nothing in it is an assertion, on
+spent, a line still typing and the same line finished, both voices, the drawing panel, the
+pause menu and settings. `run_visual_popups.gd` covers the decision and memory boxes. Nothing in it is an assertion, on
 purpose — see *Why there is no test for this* below.
 
 ---
@@ -54,6 +55,83 @@ Assign one with a `theme_type_variation`: `PrimaryButton` (green), `DangerButton
 `Button` or `DialogButton` (cream, the default). **Which family a button is in is a
 statement about what pressing it does, not a decoration.** RESUME is green wherever it
 appears; QUIT is red wherever it appears.
+
+---
+
+## The picture frame
+
+Story is framed. Menus are not.
+
+`game/scripts/ui_frame.gd` draws a pixel picture frame at whatever size it is given, and
+everything the *world* says wears it: Lolo's dialogue, the route decision, the Lola memory.
+Pause, settings, controls, confirm and out-of-ink keep the plain HUD panel — they are
+menus, and framing them would make the settings screen look like part of the fiction.
+
+**Why a frame at all.** OBRA is about a grandmother's paintings. The hub is her studio, the
+levels are her canvases, the player is holding her brush. A box that looks like a UI panel
+says *this is software*; a box that looks like a frame says *this is one of hers*.
+
+**The bands, outermost first** — widths in units, and `unit` defaults to 4 px:
+
+| Band | Units | Colour |
+|---|---|---|
+| keyline | 1 | `INK` |
+| outer bevel | 1 | `LIME` top+left, `RING_OUTER` bottom+right |
+| moulding | 3 | `RING_MID`, with `RING_OUTER` notches cut into it |
+| inner bevel | 1 | `RING_OUTER` top+left, `LIME` bottom+right |
+| rabbet | 1 | `INK` |
+| mat | 2 | `PANEL_LIT` |
+| canvas | — | `PANEL` |
+
+**Three things make it read as a frame rather than a thick border.** All three are load
+bearing; drop any one and it looks like a panel someone made chunky.
+
+1. **Bands of different widths.** A real moulding steps.
+2. **The two bevels lean opposite ways.** The outer edge catches light, the inner edge
+   falls into shadow. That opposition is what makes the band between them read as the top
+   of something raised. Both bevels are mitred, so the light and dark meet on the diagonal
+   the way a moulding is actually cut.
+3. **Joint blocks at the corners.** The one part of a frame that has no equivalent in a UI
+   panel, and therefore the strongest single cue. Drawn last, over everything.
+
+**The carving is darker than the wood.** The first version drew lime ticks at a tight
+pitch and the whole top rail became one bright dashed line. A notch is a recess and a
+recess catches *less* light. They are `RING_OUTER` at a pitch of six units.
+
+**To frame an existing panel**, call `UIFrame.wrap(panel)`. The panel stops drawing its own
+background and takes enough padding to keep its content off the moulding. The frame is
+added as that panel's first child so it draws behind the content — and it draws *outward*
+past its own rect via `overdraw`, because a container lays its children out inside the very
+padding the frame has to cover. Godot does not clip a Control's drawing to its rect unless
+asked, so this needs no layout special case.
+
+## The dialogue box
+
+`game/scripts/dialogue_box.gd`, presented the way a console RPG presents dialogue, because
+those conventions are load-bearing and players already know them.
+
+- **One place.** Lower centre, always. The eye never hunts, and it never covers the
+  obstacle the line is telling you to look at. Decision and memory boxes are dead centre
+  instead, because those pause the world.
+- **One size.** Fixed at three lines whatever the line. A box that resizes per line makes
+  the reader re-find the first word every time.
+- **Typed out**, then a **blinking arrow**. The arrow is the difference between "the game
+  is still talking" and "the game is waiting for you", and it has its own gutter along the
+  bottom so a three-line paragraph never runs underneath it.
+- **A plaque** on the top rail says who is speaking.
+
+**Two voices share it** — Lolo and the apo's own thoughts — so `current_speaker` says whose
+line is up, and `Lolo.is_speaking()` compares against it rather than asking whether the box
+is merely visible.
+
+**The reveal is `visible_ratio` on a label whose text is already complete, never an
+append.** Appending re-wraps on every character, so a word about to overflow jumps to the
+next line as it is typed and the paragraph reflows under the reader. It also means a test
+reading the label gets the whole line no matter when it looks.
+
+**Anything that opens with story of its own calls `hide_line` first**, through the
+`dialogue_box` group. A line left underneath a decision box is a second voice arguing with
+the first.
 
 ---
 
@@ -95,7 +173,13 @@ StyleBox can express. They are generated as images in `UISkin.disc_texture` and
 keeps its header and loses its pixels: the file loads fine, the handle is invisible, and
 nothing says why.
 
-### 4. An `HSeparator`'s margins set the thickness of the line
+### 4. A Tween is bound to its node's pause state
+
+The dialogue box's fade-out never advanced under a modal that paused the game, so a stale
+line sat on screen underneath the decision box. Its tweens are `TWEEN_PAUSE_PROCESS` now.
+Anything that has to animate *because* a modal opened has the same problem.
+
+### 5. An `HSeparator`'s margins set the thickness of the line
 
 The rule under a screen title is an `HSeparator`. Godot draws its stylebox at the
 **stylebox's own minimum height** and takes the surrounding space from the `separation`
@@ -110,6 +194,9 @@ at 5 painted a ten-pixel olive slab across every panel. It is 1, with separation
 |---|---|
 | Palette, every frame factory, the two generated textures | `game/scripts/ui_skin.gd` |
 | The generated theme | `game/ui/obra_theme.tres` ← `game/tools/build_theme.gd` |
+| The picture frame every story box wears | `game/scripts/ui_frame.gd` |
+| Lolo's dialogue, the plaque, the typing, the arrow | `game/scripts/dialogue_box.gd` |
+| Route decision · Lola memory (both call `UIFrame.wrap`) | `game/scripts/dialogue_choice_overlay.gd` · `memory_overlay.gd` |
 | Ink meter, its segmented gauge, the status line | `game/scripts/hud_panel.gd` |
 | Droplet and flag pictograms | `game/scripts/ui_glyph.gd` |
 | Level banner, goal chip, R-key action tag, controls strip | `game/scripts/game_level.gd` (`_build_hud_frame`) |
@@ -136,9 +223,6 @@ hazard; changing it on purpose is fine.
   `theme.set_font` in `build_theme.gd`; note the suite asserts the theme defines **no**
   `Label` font today, because one would restyle the main menu, so that assertion moves at
   the same time.
-- **No second dialogue box.** The sheet shows a screen-anchored dialogue panel. Lolo's
-  speech is a world-space bubble that points at him and follows him, and it already reads
-  like the sheet's box. Adding a screen-space one would be two places for one line.
 - **The keybind row still fades after fourteen seconds.** That is a design decision, not a
   look. The sheet shows it present because a sheet has no time axis.
 
