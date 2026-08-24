@@ -62,7 +62,10 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "level-1-assets"
 CHARACTER_OUT = ROOT / "game" / "assets" / "characters" / "apo"
-PROP_OUT = ROOT / "game" / "assets" / "level1" / "props"
+# Level1, capital L: the folder already exists under that name and macOS merges the two
+# silently, so a res:// path spelled level1 loads here and fails on any case-sensitive
+# platform the game is exported to.
+PROP_OUT = ROOT / "game" / "assets" / "Level1" / "props"
 
 # --- the character sheet -------------------------------------------------------------
 
@@ -116,6 +119,25 @@ PROPS = [
     ("Level 1 Asset Treetrunk.png", "dead_tree"),
     ("Rice Terraces Broken Bridge.png", "broken_bridge"),
 ]
+
+# StairTread2D does not draw a stair, it draws ONE step, at whatever size the level gives
+# it -- and the delivered art is a three-step run. So two bands come out of it: the grass
+# the player stands on and the earth face below. They are cut from the widest step, where
+# the art is opaque corner to corner, and doubled so their pixels come out the same size
+# as the props' when the level draws those at 2x.
+#
+# Their sizes are chosen so a tread CROPS them rather than tiling them. A cap is 14px tall
+# and a riser at most 24; anything shorter repeats inside the box and puts a seam of grass
+# across the middle of a step.
+STAIR_BANDS = [
+    # The cap comes off the TOP step, which is the only place the grass is a clean strip
+    # rather than a fringe overhanging the step below it. It is 18px of art, so it repeats
+    # across a wide tread -- grass is irregular enough that the seam does not read, and a
+    # step with no green on it does not look like the terraces it is cut into.
+    ("stair_cap", (30, 0, 18, 7)),
+    ("stair_riser", (2, 20, 46, 12)),
+]
+BAND_UPSCALE = 2
 
 
 def foreground_mask(rgb: np.ndarray) -> np.ndarray:
@@ -334,6 +356,16 @@ def build_props(write: bool) -> dict[str, bytes]:
                 "detail. Ship it at the delivered size instead of guessing a scale.")
         path = PROP_OUT / f"{name}.png"
         written[str(path.relative_to(ROOT))] = _emit(native, path, write)
+        if name == "stair_step":
+            for band_name, (bx, by, bw, bh) in STAIR_BANDS:
+                band = native.crop((bx, by, bx + bw, by + bh))
+                if np.asarray(band)[:, :, 3].min() < 255:
+                    raise SystemExit(
+                        f"{band_name} is not fully opaque -- a tread would show holes "
+                        "through it. The band bounds need re-measuring against the art.")
+                band = band.resize((bw * BAND_UPSCALE, bh * BAND_UPSCALE), Image.NEAREST)
+                band_path = PROP_OUT / f"{band_name}.png"
+                written[str(band_path.relative_to(ROOT))] = _emit(band, band_path, write)
     return written
 
 
