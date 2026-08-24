@@ -29,27 +29,27 @@ purpose — see *Why there is no test for this* below.
 
 ## The typeface
 
-The game has its own. `tools/font_glyphs.py` is ninety-eight glyphs, **six pixels wide and
-ten tall**, drawn as `#` and `.` — all of printable ASCII plus `·`, `—` and `…`, which a
-scan of every string in the project says are the only ones beyond ASCII it renders.
+**Geist Pixel**, by the Geist Project (Vercel), under the SIL Open Font License 1.1. The
+`.ttf` and its `OFL.txt` live in `game/ui/fonts/`. Nothing needs generating — Godot imports
+the font directly and `build_theme.gd` sets it as the theme's **default** font, not on
+`Label`, because that leaves buttons, slider readouts and tooltips on the engine's face,
+which shows up as *some* of the text having gone 8-bit.
 
-```bash
-python3 tools/build_font.py     # -> game/ui/obra_font.png + .fnt
-```
+**The import options are the whole trick.** A pixel face rendered like an outline face is a
+blurry pixel face, so `GeistPixel-Regular.ttf.import` sets:
 
-Both outputs are generated; edit the glyph table, never them. Godot imports the `.fnt` as a
-`FontFile` and `build_theme.gd` sets it as the theme's **default** font — not on `Label`,
-because that leaves buttons, slider readouts and tooltips on the engine's face, which shows
-up as *some* of the text having gone 8-bit.
+| Option | Value | Why |
+|---|---|---|
+| `antialiasing` | `0` | no grey softening the edge of a hard pixel |
+| `hinting` | `0` | hinting nudges stems off the grid the face was drawn on |
+| `subpixel_positioning` | `0` | otherwise identical letters land on half-pixels and render differently along one line |
+| `keep_rounding_remainders` | `false` | same reason, for advances |
 
-**Six wide, not five.** The first cut was five, and at HUD sizes `a`, `e` and `o` collapsed
-into the same blob while `r` and `n` ran together. A pixel letter needs an interior counter
-that survives being two pixels across, and five columns does not leave one once you have
-spent two on the stems.
+If text ever goes soft, check those four before anything else.
 
-**The type scale is multiples of the font's own line and has to be.** A bitmap scaled by
-1.9 has some rows twice as thick as others. `FONT_UNIT` is 10; every size is a multiple of
-it, in the theme, in the scripts and in the `.tscn` files.
+**The type scale** is multiples of `FONT_UNIT` (10). An outline font will render at any
+size, so this is not a rasteriser constraint — it is so that four sizes chosen on a grid
+stay in proportion when one of them changes. The suite checks it.
 
 | | px | = |
 |---|---|---|
@@ -58,22 +58,24 @@ it, in the theme, in the scripts and in the `.tscn` files.
 | `FONT_TITLE` | 40 | 4× |
 
 **Two times the unit is the FLOOR for anything a player reads**, not the default for
-anything small. The first scale put the status line and the keybind row at a size where the
-letterforms stopped resolving; shrinking type is not how you make something secondary.
-Placement and colour are.
+anything small. Shrinking type is not how you make something secondary — placement and
+colour are.
 
-**Changing the scale moves layouts**, and these are the places it has already moved:
+**Changing the face or the scale moves layouts.** These are the places it has already
+moved, and the first ones to check next time:
 
 | Where | What |
 |---|---|
-| `game_level.gd` `_build_hud_frame` | the ink panel's width, so a status line does not wrap |
-| `MainMenu.CARD_HEIGHT` | the level blurb went from two lines to four |
+| `game_level.gd` `_build_hud_frame` | the ink panel's width, so a status line neither wraps nor sits in half an empty frame |
+| `MainMenu.CARD_HEIGHT` | the level blurb runs to four lines |
 | `settings_overlay.tscn` | the caption column, so "Sound effects" stops shortening its slider |
 | `draw_panel.gd` `_build_header` | the header row, which was sitting on the frame |
-| `controls_overlay.gd` | the table is a step down — twenty rows at body size overflow the screen |
+| `controls_overlay.gd` + `.tscn` | twenty-five rows, the tallest thing in the game — its own tighter panel padding and row separation, or BACK falls off the bottom |
 
-Digits are the one monospaced part — the ink readout counts down while you draw, and a
-proportional `1` makes the whole number jump sideways.
+**Handjet was in the same request and is deliberately not used.** It is a condensed
+dot-matrix face: at 20 px it is markedly harder to read than Geist Pixel, and mixing the
+two would have cost the consistency that was the point of the change. It is a drop-in if
+it is ever wanted for titles alone.
 
 ---
 

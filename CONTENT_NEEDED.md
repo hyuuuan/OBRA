@@ -64,8 +64,8 @@ the build right now and needs replacing · **READY** = code and hook exist, wait
 
 **Nothing outstanding.** The HUD, the menus and every overlay wear the 8-bit skin in
 `HUD-assets-ideas/`, story boxes wear a drawn picture frame, and the whole game is set in
-its own hand-drawn 8-bit typeface — ninety-eight glyphs in `tools/font_glyphs.py`, owned
-outright, so no licensing decision is pending on anyone. **HUD_SKIN.md** says how to change
+**Geist Pixel** (SIL Open Font License 1.1, bundled with its licence in
+`game/ui/fonts/`), so no licensing decision is pending on anyone. **HUD_SKIN.md** says how to change
 any of it.
 
 ## 4. Audio

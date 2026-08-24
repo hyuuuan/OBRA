@@ -110,18 +110,20 @@ const THIN := 2
 ## debug rect; a 2 px radius reads as a drawn box.
 const RADIUS := 2
 
-## THE TYPE SCALE IS MULTIPLES OF THE FONT'S OWN LINE, and it has to be.
+## THE TYPE SCALE.
 ##
-## The font is a bitmap -- ten pixels to the line, hand-drawn in tools/font_glyphs.py --
-## and a bitmap scaled by 1.9 is a bitmap with some rows twice as thick as others. Every
-## size here is an integer multiple of that ten, so a glyph is always whole pixels, and the
-## scale is short for the same reason: there are only so many multiples worth having
-## between readable and shouting. Adding a size means adding a multiple, not a number.
+## The face is Geist Pixel (SIL OFL 1.1, ui/fonts/OFL.txt) -- a real outline font drawn on
+## a pixel grid, rasterised with antialiasing, hinting and subpixel positioning all off.
+## That last part is what keeps it crisp, and it is set in the .import file rather than
+## here; a pixel face rendered with any of the three on is a blurry pixel face.
 ##
-## Everything moved up one step from the first cut of this face. Two times ten is the
-## FLOOR for anything a player has to read, not the default for anything small -- the
-## previous scale put the status line and the keybind row at a size where the letterforms
-## stopped resolving, and shrinking type is not how you make something secondary.
+## FONT_UNIT is what a step of this scale is worth, and every size is a multiple of it.
+## Not because the rasteriser demands it -- an outline font will render at any size -- but
+## because four sizes chosen on a grid stay in proportion when one of them changes, and a
+## scale of arbitrary numbers does not. It is also what the suite checks.
+##
+## Two times the unit is the FLOOR for anything a player has to read. Shrinking type is
+## not how you make something secondary; placement and colour are.
 const FONT_UNIT := 10
 const FONT_TITLE := FONT_UNIT * 4     # 40
 const FONT_SUBTITLE := FONT_UNIT * 3  # 30

@@ -18,6 +18,11 @@ var _built := false
 
 func _ready() -> void:
 	super()
+	# This screen holds twenty-five rows and is the only one that runs out of screen. The
+	# shared panel padding is sized for a six-line dialog, and here it is the difference
+	# between the BACK button being on screen and being under it.
+	var tight := UISkin.frame(24.0, 14.0)
+	($Root/Center/Panel as PanelContainer).add_theme_stylebox_override(&"panel", tight)
 	_back_button.pressed.connect(close)
 
 

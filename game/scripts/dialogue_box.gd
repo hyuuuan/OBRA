@@ -37,7 +37,7 @@ const SPEED := 52.0
 ## whatever the line -- a box that grows and shrinks per line makes the reader re-find the
 ## first word every time, and Payyo's script runs from "Here." to a full sentence about the
 ## Spanish burning the lowlands.
-const BOX := Vector2(1040.0, 330.0)
+const BOX := Vector2(1040.0, 310.0)
 ## Reserved along the bottom of the canvas for the advance arrow, so the last line of a
 ## full paragraph does not run underneath it.
 const ARROW_GUTTER := 26.0
