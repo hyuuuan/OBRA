@@ -68,6 +68,7 @@ func _run() -> void:
 	await _can_be_climbed_with_a_step()
 	await _a_placement_can_be_taken_back()
 	await _the_ghost_is_where_it_lands()
+	await _the_heap_has_an_inside()
 	await _the_overlook_needs_a_climb()
 
 	print("\n===== BEAT 0 WALKTHROUGH =====")
@@ -230,6 +231,64 @@ func _the_paddy_needs_a_crossing() -> void:
 	_check(crossed, "and the player walks across it",
 		"reached the far bank" if crossed
 		else "STILL STUCK at x %.0f -- the paddy is a wall" % player.global_position.x)
+
+
+## THE ROUND TRIP, and both halves of it. Node 2's heap is the only thing in Level 1 with an
+## inside, and the inside is a room in the empty sky above the level rather than a cutaway
+## where the heap stands -- so getting in is a fade and a teleport, and getting out is
+## another one. A room you can enter and not leave is worse than no room, and the way back
+## is a hole in a wall rather than a key press, so nothing tells the player it is broken.
+func _the_heap_has_an_inside() -> void:
+	var pile: Node2D = null
+	for node in level.get_tree().get_nodes_in_group(&"straw_piles"):
+		if bool((node as Node2D).get("entrance")):
+			pile = node as Node2D
+	var room := level.get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	if pile == null or room == null:
+		_fail("the heap has an inside", "no heap with a way in, or no room behind it")
+		return
+	var outside := pile.global_position
+	var mouth := Rect2(pile.call("mouth_rect"))
+	player.set("velocity", Vector2.ZERO)
+	player.global_position = outside + Vector2(mouth.get_center().x, 0.0)
+	for _frame in range(10):
+		await physics_frame
+	# GOING IN IS A PRESS. Standing in the doorway only makes the offer -- the mouth is on
+	# the path east and a heap that swallows passers-by is a hole in the floor of the level.
+	Input.parse_input_event(_key(&"move_down", true))
+	await physics_frame
+	Input.parse_input_event(_key(&"move_down", false))
+	# The fade is 0.16 in and 0.24 out, and the teleport is on the turn between them.
+	for _frame in range(80):
+		await physics_frame
+	var size := Vector2(room.get("room_size"))
+	var inside := Rect2(room.global_position - Vector2(size.x * 0.5, size.y), size)
+	_check(inside.grow(60.0).has_point(player.global_position),
+		"ducking into the heap puts her inside it",
+		"at %s, in a room at %s" % [player.global_position.round(), inside])
+	if not inside.grow(60.0).has_point(player.global_position):
+		return
+
+	Input.action_press(&"move_left")
+	var out := false
+	for _frame in range(140):
+		await physics_frame
+		if player.global_position.distance_to(outside) < 400.0:
+			out = true
+			break
+	Input.action_release(&"move_left")
+	for _frame in range(30):
+		await physics_frame
+	_check(out and not inside.has_point(player.global_position),
+		"and the way out puts her back on the terrace",
+		"at %s, beside the heap at %s" % [player.global_position.round(), outside.round()]
+		if out else "STILL INSIDE at %s -- the room is a trap" % player.global_position.round())
+	# And she must not be standing in the mouth when she lands, or walking out walks her
+	# straight back in and the heap is a revolving door.
+	_check(not mouth.has_point(player.global_position - outside),
+		"and not standing in the doorway she just came out of",
+		"clear of the mouth by %.0fpx"
+		% absf(player.global_position.x - (outside.x + mouth.position.x)))
 
 
 ## The beat has to ASK for something. If the bare stair can be climbed, Beat 0 is scenery.

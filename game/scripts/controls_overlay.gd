@@ -90,9 +90,9 @@ func _control_row(
 	# A row may cover a contiguous block of actions -- the six inventory slots are one
 	# idea to the player, not six rows. Showing only the first key would have the
 	# screen say "1" beside a label reading "slots".
-	keys.text = literal_keys if not literal_keys.is_empty() else _keys_for(action)
+	keys.text = literal_keys if not literal_keys.is_empty() else keys_for(action)
 	if literal_keys.is_empty() and not through.is_empty() and InputMap.has_action(through):
-		keys.text = "%s  -  %s" % [_keys_for(action), _keys_for(through)]
+		keys.text = "%s  -  %s" % [keys_for(action), keys_for(through)]
 	keys.theme_type_variation = &"HudValue"
 	keys.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(keys)
@@ -104,7 +104,10 @@ func _control_row(
 ## physical_keycode is what this project binds for letters, and it is a position on
 ## the keyboard rather than a character -- so it has to be translated through the
 ## active layout to be shown, or a non-QWERTY player is told to press the wrong key.
-func _keys_for(action: String) -> String:
+## STATIC AND PUBLIC, because the controls screen is no longer the only thing that has to
+## name a key. The straw room's doorway prompts for one too, and a second copy of this would
+## be a second chance to tell a non-QWERTY player to press the wrong thing.
+static func keys_for(action: String) -> String:
 	var names: Array[String] = []
 	for event in InputMap.action_get_events(action):
 		if event is InputEventKey:
@@ -128,7 +131,7 @@ func _keys_for(action: String) -> String:
 ## most players and the wrong one only for a player on a non-QWERTY layout -- which
 ## is the same thing every hardcoded keybind list does, and better than the headless
 ## display server logging an error per row.
-func _layout_keycode(physical: int) -> int:
+static func _layout_keycode(physical: int) -> int:
 	if DisplayServer.get_name() == "headless":
 		return physical
 	return DisplayServer.keyboard_get_keycode_from_physical(physical)

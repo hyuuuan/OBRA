@@ -123,17 +123,41 @@ it is pressed are literally the same string. **CP1** on commit.
 Three heaps of cut straw, Lola's stool and brush jar, and **the one place in Level 1 with an
 inside**: the middle heap is 220 × 200 and you can walk into it.
 
-**The room.** Standing in the mouth stops the front of the heap being drawn and draws the
-hollow instead — straw walls, an earth floor, and in it one of **Lola's canvases** (the hub's
-own painting of Pista), her **baul**, and a small **brass key** on the floor. Walking onto
-the key takes it; it is recorded on the profile as `L1_straw_key`, not on a checkpoint, for
-the same reason canvas damage is. It does **not** open the chest lying beside it — that lock
-is Node 3's, and finding a key that does not fit is the point rather than an oversight. The
-canvas is the promise of where the key goes.
+**Going in is a press.** Standing in the mouth only makes the offer — the hint bar says so
+and names the key out of the live InputMap. Down is the platformer's key for a door and is
+unused outside a ladder. ⚠ It cannot be a walk-in: Terrace5 is the way to Node 3 and the
+mouth is on it, so a heap that swallows whoever passes is a hole in the floor of the level.
+`run_nodraw_level1` found exactly that — its walk east stopped dead at the doorway at x 3154
+and never reached the bale.
 
-It is a **cutaway**, not a room somewhere else: the terrace, the sky and the other two heaps
-stay where they were and the apo never leaves the world, which is why none of it needs
-collision, a second camera or a way back. Walking out is walking out.
+**The room.** Ducking into the mouth fades to somewhere else: a cavern of straw **1700 ×
+900**, sitting in the empty sky above the level at **(1900, −900)**, reachable only through
+the heap. A little hole and a big room — the two must not be the same size, which is why the
+first version, a cutaway drawn where the heap stands, was thrown away.
+
+In it: one of **Lola's canvases** (the hub's own painting of Pista, at 2×), her **baul**, a
+**brass key** on the earth floor, and ants. Walking onto the key takes it; it is recorded on
+the profile as `L1_straw_key`, not on a checkpoint, for the same reason canvas damage is. It
+does **not** open the chest lying beside it — that lock is Node 3's, and finding a key that
+does not fit is the point rather than an oversight. The canvas is the promise of where it
+goes. The way back is the daylight in the wall, which is the only bright thing in the room.
+
+It costs a teleport and a fade and nothing else: the apo is the same body in the same level,
+so ink, the bag, the drawing panel and every checkpoint carry in with her, and Lolo follows
+without being asked (he teleports past 900px and the room is thousands away).
+
+⚠ **Three things this needed that are not obvious.**
+- `world_bounds` grew upward to `Rect2(0, −1800, 3920, 2480)` so the room has sky to sit in.
+  The floor, the fall limit and `_max_camera_y` are all measured off the BOTTOM of the
+  bounds and are unchanged; only `_min_camera_y` moved.
+- `WorldCameraController.vertical_free`. The camera's ordinary job is to pin itself near the
+  ground and let the player rise off it by three quarters — correct for a level, useless a
+  thousand units above one, where it stays below the floor and points at nothing. It is
+  **not** `focus_on`: focus is what a line of dialogue takes and gives back, so a room would
+  lose its framing the moment somebody finished a sentence.
+- Everything drawn in the room runs **700 units past its own walls**. The camera sees seven
+  hundred either way, so standing near an end otherwise puts the end of the floor on screen
+  with the sky behind it.
 
 | Route | Tag | Straw ends up | Reward |
 |---|---|---|---|

@@ -25,7 +25,7 @@ const SHOTS: Array = [
 	{"name": "straw_2_combed", "at": Vector2(3160, 150), "size": Vector2(620, 320), "do": "comb"},
 	{"name": "straw_3_tunnelled", "at": Vector2(3160, 150), "size": Vector2(620, 320), "do": "tunnel"},
 	{"name": "straw_4_scattered", "at": Vector2(3160, 150), "size": Vector2(620, 320), "do": "scatter"},
-	{"name": "straw_5_inside", "at": Vector2(3170, 150), "size": Vector2(440, 300),
+	{"name": "straw_5_inside", "at": Vector2(2010, -1040), "size": Vector2(1000, 660),
 		"do": "enter_straw", "keep_player": true},
 	{"name": "baul", "at": Vector2(3238, 202), "size": Vector2(260, 220), "do": "uncover"},
 	{"name": "bale", "at": Vector2(3500, 116), "size": Vector2(540, 420)},
@@ -147,10 +147,31 @@ func _prepare(what: String) -> void:
 				player.set("velocity", Vector2.ZERO)
 				player.global_position = pile.global_position \
 					+ Vector2(mouth.get_center().x, 0.0)
-			# The mouth notices her through an Area2D, and an Area2D notices nothing until
-			# the physics has run. Without this the frame is of a heap she is standing in
-			# and which has not been told yet.
-			for _frame in range(4):
+			# The mouth notices her through an Area2D, which notices nothing until the
+			# physics has run -- and standing in it only makes the offer. Going in is a
+			# press, because the doorway is on the path east and a heap that swallows
+			# passers-by is a hole in the floor of the level.
+			for _frame in range(8):
+				await physics_frame
+			var down := InputEventAction.new()
+			down.action = &"move_down"
+			down.pressed = true
+			Input.parse_input_event(down)
+			await physics_frame
+			var up := InputEventAction.new()
+			up.action = &"move_down"
+			up.pressed = false
+			Input.parse_input_event(up)
+			# The fade in and out is four tenths of a second, with the teleport on the turn.
+			for _frame in range(70):
+				await physics_frame
+			# Entering speaks a beat, and a beat pushes the camera onto whoever is talking
+			# and holds it there. This shot is of the room.
+			var world_camera := level.get_node_or_null(
+				"EnvironmentBaseplate/WorldCamera")
+			if world_camera != null:
+				world_camera.call("release_focus", 0.01)
+			for _frame in range(10):
 				await physics_frame
 		"uncover":
 			for node in level.get_tree().get_nodes_in_group(&"baul"):

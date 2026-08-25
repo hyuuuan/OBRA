@@ -147,8 +147,8 @@ the paddy is missing three stones**: the rise from the bank to the first survivi
 
 | | |
 |---|---|
-| **Now** | Drawn in code, and shown only while the apo is standing in the heap. One of **Lola's canvases** — the hub's own `assets/hub/paintings/level_2.png` at 96 × 54, in the same stepped gilt moulding the pictures in the house wear — a small **brass key** lying on the earth at local (42, −10), and three **ants**. |
-| **Must read as** | Somewhere she kept things. The canvas is the promise: every level is somewhere Lola painted, and one of those paintings propped in the straw beside her chest says where this is going without a line of exposition. |
+| **Now** | A **1700 × 900 cavern** in the empty sky at (1900, −900), reachable only through the heap's mouth. Straw hangs across the whole frame — every column its own value, a third of them the shadow BETWEEN the stalks — and the room is the hollow worn out of the middle of them, not a dark shape drawn over them. Earth floor, a daylight arch for the way out, and in the hollow one of **Lola's canvases** (the hub's own `level_2.png` at exactly 2×, in the stepped gilt the pictures in the house wear), a **brass key** on the floor, and **ants**. |
+| **Must read as** | Somewhere much bigger than the hole suggested. The canvas is the promise: every level is somewhere Lola painted, and one of those paintings propped in the straw beside her chest says where this is going without a line of exposition. |
 | **The key** | Walked onto, not pressed at — E reaches only placed drawings, and a second meaning for that button in the room where the player has just learned the first is one meaning too many. It sits by the chest rather than by the door, or the room's whole beat is over on the frame she walks in. It does **not** open the chest, and that is the point. |
 | **The ants** | Scenery, and nothing else: no collision, nothing reads their position, and drawing one does not make one appear. |
 
