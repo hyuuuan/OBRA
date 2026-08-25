@@ -73,8 +73,10 @@ func painting_anchor(index: int) -> Vector2:
 func _draw() -> void:
 	_draw_wall()
 	_draw_bays()
+	_draw_windows()
 	_draw_wainscot()
 	_draw_floor()
+	_draw_furniture()
 	_draw_chandeliers()
 
 
@@ -161,6 +163,113 @@ func _draw_floor() -> void:
 			x += 380.0
 		y2 += 28.0
 		course += 1
+
+
+## Capiz shutters: the sliding window panels of a bahay na bato, glazed with translucent
+## shell instead of glass.
+##
+## They go in the gaps the paintings do not use, and they are the only bright thing on this
+## wall -- the room is all one brown otherwise, and a wall of pictures with no light source
+## in it looks like a corridor. The panes are drawn as a grid with a thin muntin between,
+## because that grid IS the thing anybody recognises capiz by.
+func _draw_windows() -> void:
+	for slot: int in [1, 4]:
+		var centre := first_painting_x + painting_gap * (float(slot) + 0.5)
+		_draw_window(Vector2(centre, painting_y + 6.0))
+
+
+func _draw_window(at: Vector2) -> void:
+	var panes := Vector2i(3, 2)
+	var pane := Vector2(30.0, 36.0)
+	var glazing := Vector2(float(panes.x) * pane.x, float(panes.y) * pane.y)
+	var frame := 14.0
+	var outer := Rect2(at - glazing * 0.5 - Vector2.ONE * frame, glazing + Vector2.ONE * frame * 2.0)
+	# The sash, in the same wood as the wall so the window is part of the joinery.
+	draw_rect(outer, WALL_LIT)
+	draw_rect(outer, WALL_EDGE, false, PIXEL)
+	draw_rect(Rect2(at - glazing * 0.5, glazing), CAPIZ_SHADE)
+	for row in range(panes.y):
+		for col in range(panes.x):
+			var cell := Rect2(at - glazing * 0.5 + Vector2(float(col) * pane.x, float(row) * pane.y),
+				pane - Vector2.ONE * PIXEL)
+			# Daylight falls off down the window, so the top row is the brightest.
+			draw_rect(cell, CAPIZ.lerp(CAPIZ_SHADE, float(row) / float(panes.y)))
+			draw_rect(Rect2(cell.position, Vector2(cell.size.x, PIXEL)), Color(1, 1, 1, 0.35))
+
+
+## The furniture along the wall, from the reference photograph: a caned settee under the
+## middle of the room, a low side table with a jar on it, and a baul.
+##
+## It is scenery and carries no collision. The apo walks in front of all of it -- a room you
+## have to jump over to cross would be a platforming level, and this one is a house.
+func _draw_furniture() -> void:
+	_draw_settee(Vector2(first_painting_x + painting_gap * 0.5, floor_y))
+	_draw_side_table(Vector2(first_painting_x + painting_gap * 2.5, floor_y))
+	_draw_baul(Vector2(first_painting_x + painting_gap * 3.5, floor_y))
+
+
+## A caned settee: dark frame, pale woven back and seat, turned legs.
+func _draw_settee(at: Vector2) -> void:
+	var width := 176.0
+	var seat := 46.0
+	var back := 64.0
+	var cane := Color(0.729, 0.647, 0.478, 1.0)
+	var cane_dark := Color(0.573, 0.498, 0.353, 1.0)
+	# Legs first so the frame sits over them.
+	for side: float in [-1.0, 1.0]:
+		draw_rect(Rect2(at.x + side * (width * 0.5 - 14.0) - 5.0, at.y - seat, 10.0, seat),
+			WALL_EDGE)
+	var back_rect := Rect2(at.x - width * 0.5, at.y - seat - back, width, back)
+	draw_rect(back_rect, cane_dark)
+	# The caning: a lattice, which at this size is two sets of ruled lines.
+	var step := 12.0
+	var line := back_rect.position.x + step
+	while line < back_rect.end.x:
+		draw_rect(Rect2(line, back_rect.position.y + PIXEL, PIXEL, back_rect.size.y - PIXEL * 2.0),
+			cane)
+		line += step
+	var rung := back_rect.position.y + step
+	while rung < back_rect.end.y:
+		draw_rect(Rect2(back_rect.position.x, rung, back_rect.size.x, PIXEL), cane)
+		rung += step
+	draw_rect(back_rect, WALL_EDGE, false, PIXEL)
+	# The seat, proud of the back.
+	var seat_rect := Rect2(at.x - width * 0.5 - 8.0, at.y - seat, width + 16.0, seat * 0.5)
+	draw_rect(seat_rect, WALL)
+	draw_rect(Rect2(seat_rect.position, Vector2(seat_rect.size.x, PIXEL)), WALL_LIT)
+	draw_rect(seat_rect, WALL_EDGE, false, PIXEL)
+
+
+## A low table with a lidded jar on it -- the palayok in the corner of every old house.
+func _draw_side_table(at: Vector2) -> void:
+	var top := Rect2(at.x - 52.0, at.y - 62.0, 104.0, 12.0)
+	for side: float in [-1.0, 1.0]:
+		draw_rect(Rect2(at.x + side * 40.0 - 5.0, at.y - 50.0, 10.0, 50.0), WALL_EDGE)
+	draw_rect(top, WALL_LIT)
+	draw_rect(top, WALL_EDGE, false, PIXEL)
+	# The jar: a belly, a shoulder and a lid, in fired clay.
+	var clay := Color(0.518, 0.310, 0.192, 1.0)
+	var clay_lit := Color(0.639, 0.412, 0.259, 1.0)
+	draw_rect(Rect2(at.x - 22.0, at.y - 104.0, 44.0, 42.0), clay)
+	draw_rect(Rect2(at.x - 18.0, at.y - 104.0, 12.0, 42.0), clay_lit)
+	draw_rect(Rect2(at.x - 16.0, at.y - 114.0, 32.0, 12.0), clay)
+	draw_rect(Rect2(at.x - 20.0, at.y - 120.0, 40.0, 8.0), clay_lit)
+	draw_rect(Rect2(at.x - 22.0, at.y - 104.0, 44.0, 42.0), WALL_EDGE, false, PIXEL)
+
+
+## The baul: the carved chest at the foot of the wall, the same object Node 2 of Payyo hides
+## the sketchbook page in.
+func _draw_baul(at: Vector2) -> void:
+	var body := Rect2(at.x - 66.0, at.y - 58.0, 132.0, 58.0)
+	draw_rect(body, WALL)
+	draw_rect(Rect2(body.position, Vector2(body.size.x, 14.0)), WALL_LIT)
+	draw_rect(Rect2(body.position.x, body.position.y + 14.0, body.size.x, PIXEL), WALL_EDGE)
+	# Iron banding and a lock plate.
+	for band: float in [0.25, 0.75]:
+		draw_rect(Rect2(body.position.x + body.size.x * band - 5.0, body.position.y,
+			10.0, body.size.y), Color(0.239, 0.227, 0.212, 1.0))
+	draw_rect(Rect2(at.x - 9.0, body.position.y + 18.0, 18.0, 16.0), UISkin.GILT_DARK)
+	draw_rect(body, WALL_EDGE, false, PIXEL)
 
 
 ## Two chandeliers on the ceiling, over the gaps rather than over the pictures.
