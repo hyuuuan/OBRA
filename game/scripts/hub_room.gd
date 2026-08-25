@@ -70,9 +70,13 @@ const WALL_DARK := Color(0.208, 0.118, 0.063, 1.0)    # 351E10  the shadowed bay
 const WALL := Color(0.310, 0.180, 0.094, 1.0)         # 4F2E18  the field
 const WALL_LIT := Color(0.396, 0.239, 0.129, 1.0)     # 653D21  the lit stile
 const WALL_EDGE := Color(0.129, 0.071, 0.039, 1.0)    # 21120A  the shadow line
-## The floor, a shade cooler than the wall so the two do not merge at the skirting.
-const FLOOR := Color(0.278, 0.157, 0.082, 1.0)        # 472815
-const FLOOR_LIT := Color(0.345, 0.204, 0.110, 1.0)    # 58341C
+## The floor, a shade cooler than the wall so the two do not merge at the skirting -- and
+## LIGHTER than the wall, which took a screenshot to see. Narra darkens with age but a
+## floor is walked on and waxed, so it is the one surface in a house that catches the light
+## rather than absorbing it; drawn darker than the panelling it read as a hole in the
+## bottom third of the frame.
+const FLOOR := Color(0.365, 0.208, 0.106, 1.0)        # 5D351B
+const FLOOR_LIT := Color(0.451, 0.278, 0.153, 1.0)    # 734727
 ## Capiz: shell panes, milk-white and faintly warm, in a grid of thin muntins.
 const CAPIZ := Color(0.902, 0.878, 0.784, 1.0)        # E6E0C8
 const CAPIZ_SHADE := Color(0.780, 0.749, 0.647, 1.0)  # C7BFA5
@@ -118,6 +122,38 @@ func _draw() -> void:
 	_draw_floor()
 	_draw_furniture()
 	_draw_chandeliers()
+
+
+## The wood grain. Narra is a striped timber and the stripe is the whole reason a wall of
+## it does not read as cardboard, but it has to be UNDER the joinery rather than on top of
+## it: a stripe that crosses a stile is a scratch.
+const GRAIN_PITCH := 7
+
+
+## A deterministic scatter, so the grain does not crawl from one redraw to the next.
+func _hash(value: int) -> int:
+	var x := (value * 374761393 + 668265263) & 0x7FFFFFFF
+	x = (x ^ (x >> 13)) * 1274126177
+	return x & 0x7FFFFFFF
+
+
+## Vertical grain over a rectangle, in the two tones either side of `base`.
+func _grain(area: Rect2, light: Color, dark: Color) -> void:
+	if area.size.x <= 0.0 or area.size.y <= 0.0:
+		return
+	var x := ceilf(area.position.x)
+	while x < area.end.x:
+		var roll := _hash(int(x))
+		var step := GRAIN_PITCH + roll % 5
+		# Not every stripe, and not every stripe the same length: an even comb of lines is
+		# corduroy, and this is supposed to be timber.
+		if roll % 3 != 0:
+			var top := area.position.y + float((roll >> 5) % 11)
+			var height := area.size.y - float((roll >> 9) % 17) - (top - area.position.y)
+			if height > 6.0:
+				draw_rect(Rect2(x, top, 1.0, height),
+					light if (roll >> 3) % 2 == 0 else dark)
+		x += float(step)
 
 
 func _draw_wall() -> void:
@@ -216,26 +252,38 @@ func _draw_wainscot() -> void:
 ## Plank floor, running away from the wall. The boards are drawn as bands rather than in
 ## perspective: this is a side-on game and a receding floor would fight the flatness of
 ## everything else in it.
+##
+## IT USED TO READ AS BRICKWORK. Board ends the full height of a course, spaced evenly and
+## offset course by course, is exactly the drawing of a stretcher bond -- so the floor of
+## this house was a brick wall lying down. What separates a floor from a wall is that the
+## joints between boards are HAIRLINE and the boards are long, so the ends are rare and the
+## eye follows the length instead of the courses.
 func _draw_floor() -> void:
 	draw_rect(Rect2(0.0, floor_y, room_width, floor_depth), FLOOR)
-	var y := floor_y + 8.0
-	var band := 0
-	while y < floor_y + floor_depth:
-		draw_rect(Rect2(0.0, y, room_width, PIXEL), FLOOR_LIT if band % 2 == 0 else WALL_EDGE)
-		y += 20.0
-		band += 1
-	# The board ends. Only one per board row and offset by a different amount on each, so
-	# the floor reads as planks laid in courses -- an even grid of them reads as tiling, which
-	# is what a first pass at this looked like.
-	var y2 := floor_y + 8.0
+	var y := floor_y
 	var course := 0
-	while y2 < floor_y + floor_depth:
-		var x := float((course * 71) % 170)
+	while y < floor_y + floor_depth:
+		var height := 20.0
+		# Each course a slightly different timber, because a floor is boards and not a
+		# painted surface.
+		var shade := FLOOR.lerp(FLOOR_LIT, float(_hash(course) % 100) / 240.0)
+		draw_rect(Rect2(0.0, y, room_width, height), shade)
+		_grain(Rect2(0.0, y + 3.0, room_width, height - 6.0),
+			shade.lightened(0.06), shade.darkened(0.14))
+		# The joint between this course and the last: one hairline, not a gap.
+		draw_rect(Rect2(0.0, y, room_width, 1.0), WALL_EDGE)
+		draw_rect(Rect2(0.0, y + 1.0, room_width, 1.0), shade.lightened(0.10))
+		# Board ends, far apart and never twice in the same place.
+		var x := float(_hash(course * 3 + 1) % 400)
 		while x < room_width:
-			draw_rect(Rect2(x, y2, PIXEL, 20.0), WALL_EDGE)
-			x += 260.0
-		y2 += 20.0
+			draw_rect(Rect2(x, y + 2.0, 1.0, height - 3.0), WALL_EDGE)
+			x += 300.0 + float(_hash(course * 7 + int(x)) % 220)
+		y += height
 		course += 1
+	# It darkens into the skirting, because that is where no light reaches at all.
+	draw_rect(Rect2(0.0, floor_y, room_width, 3.0), Color(0.0, 0.0, 0.0, 0.34))
+	draw_rect(Rect2(0.0, floor_y + 3.0, room_width, 3.0), Color(0.0, 0.0, 0.0, 0.20))
+	draw_rect(Rect2(0.0, floor_y + 6.0, room_width, 4.0), Color(0.0, 0.0, 0.0, 0.10))
 
 
 ## Capiz shutters: the sliding window panels of a bahay na bato, glazed with translucent
