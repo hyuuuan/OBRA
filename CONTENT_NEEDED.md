@@ -56,7 +56,7 @@ the build right now and needs replacing · **READY** = code and hook exist, wait
 | Level 1 backgrounds & tiles | **READY** | `game/assets/Level1/` | Parallax layers and a texture atlas, in use. |
 | **All of Level 1's props** | **PLACEHOLDER** | code-drawn | Fifteen of them, and they now have their own brief: **`ART_PLACEHOLDERS.md`** lists every one with its exact size, its anchor, its collision, what the player has to understand from it, and every state it needs. `run_visual_props.gd` photographs the lot. That file supersedes this row. |
 | **Levels 2–5 art** | **MISSING** | `game/assets/Level<N>/` | Piyesta (night festival, neon, buntings) · Dagat (storm sea, Coron cliffs) · Dilim (pitch-black forest, bioluminescence) · Mayon (erupting paint). Nothing exists for any of them. |
-| **Lola's Studio (the Hub)** | **MISSING** | — | Design §2.2 anchors the whole game here — paintings on easels act as level portals. **It does not exist at all.** Right now the game goes menu → level select → level. This is the single biggest missing piece of structure, not just art. |
+| **Lola's house (the Hub)** | **DONE** (2026-08-25) | `game/scripts/hub_room.gd`, `hub.gd`, `painting_2d.gd` | Design §2.2 anchors the whole game here, and it is where the game now starts: you walk in as the apo and choose a level by standing in front of the painting of it. The room is drawn in code rather than tiled from art, because the bays have to line up with the pictures and the pictures are spaced by how far apart five levels want to be. It is a **bahay na bato salon**, not the studio the design names — piers of panelled narra with a capiz door in every gap, calado transoms, a pressed-tin ceiling, chandeliers, a plank floor and a caned settee. If the design still wants easels and an unfinished canvas in here, that is an addition to a room that exists rather than a room to build. Everything in it is measured at 72 px to the metre off the apo's 96px height. |
 | Hidden Flowers 2–5 | **MISSING** | one per level | Flower 1 is placed in Level 1's gorge cave. The rest need their levels to exist first. |
 
 ---
@@ -99,7 +99,7 @@ silent. **Dropping a file path into that JSON is the entire integration** — no
 These are **developer** gaps, flagged here so the team can see the whole picture:
 
 - **Priority-queue dialogue** (design §4) — blocked on the line pool in §1.
-- **Lola's Studio hub** — the level-select screen stands in for it.
+- ~~**Lola's Studio hub**~~ — done 2026-08-25; the game starts in the house and the level-select screen is gone.
 - **Levels 2–5** — the level catalog lists them as locked "Coming Soon"; the framework
   loads any level from config, so they are content-blocked, not code-blocked.
 - **Level furniture for the drawn tools.** All 27 utilities work, but **Level 1 places
