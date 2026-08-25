@@ -133,6 +133,8 @@ class CharacterSheet(NamedTuple):
     ## How to build a walk cycle for this character, or None if it does not need one.
     ## See WalkCycle and build_walk.
     walk: "WalkCycle | None" = None
+    ## How to give the delivered run its foot travel, or None. See RunCycle and build_run.
+    run: "RunCycle | None" = None
 
 
 # --- the walk that was not on the sheet ----------------------------------------------
@@ -175,6 +177,23 @@ class WalkCycle(NamedTuple):
     ## one row snaps off the leg; spread over the whole shin it smears into a diagonal
     ## streak. Five rows is where the leg bends instead of doing either.
     ramp: int
+    ## Where the gap between the two legs is, on the cell. The walk's legs stand either
+    ## side of the middle; the run's are both left of it, because the character leans.
+    split: int = 40
+
+
+class RunCycle(NamedTuple):
+    """How to give a delivered run its foot travel. See build_run."""
+
+    ## The same three numbers the walk uses, measured on the run's own pose.
+    knee: int
+    split: int
+    ramp: int
+    ## One (draw, lift) per delivered frame, rather than one per synthesised frame. THE RUN
+    ## KEEPS ALL SIX OF THE ARTIST'S POSES -- the bent knee, the reach, the tuck are the best
+    ## thing on that sheet and none of them is reproducible -- and only the distance between
+    ## the feet is changed.
+    steps: tuple[tuple[int, int], ...]
 
 
 ## The apo, at ninety-six pixels.
@@ -188,6 +207,31 @@ APO = CharacterSheet(
     source=SOURCE / "Obra Assets Male.png",
     hero=(40, 115, 305, 470),
     standing=96.0,
+    ## THE RUN CANNOT BE GIVEN ALTERNATING FEET, and it is worth writing down why so that
+    ## nobody spends another afternoon on it. The trick that works for the walk is to
+    ## reflect the shins about the body: it works there because the apo's rear leg is drawn
+    ## BELOW the satchel -- a whole boot and shin, from row 92 down -- so there is a second
+    ## leg to bring forward.
+    ##
+    ## In the run he leans, and the satchel swings down with him. It covers rows 68 to 95
+    ## over the whole of the rear leg, so the rear boot and the bag occupy the SAME ROWS and
+    ## no horizontal cut separates them. Reflect below the bag and only the front boot moves
+    ## and comes off its shin; reflect above it and the bag changes shoulders halfway
+    ## through every stride. There is no second leg on that sheet, only a bag with a boot
+    ## under it.
+    ##
+    ## What the run can have is the other half of the problem: FEET THAT TRAVEL. The
+    ## delivered frames pin both boots at the same two columns in all six, so the body never
+    ## passes over its own foot. Drawing the legs together through each stride is exactly
+    ## that motion, and it costs none of the artist's poses.
+    run=RunCycle(
+        knee=92,
+        # Both legs are left of the middle here, so the gap between them is not where the
+        # walk's is.
+        split=31,
+        ramp=5,
+        steps=((0, 0), (7, 1), (13, 3), (0, 0), (7, 1), (13, 3)),
+    ),
     walk=WalkCycle(
         source=("walk", "3"),
         knee=92,
@@ -590,7 +634,7 @@ def scaled(image: Image.Image, factor: float) -> Image.Image:
         np.dstack([np.clip(colour, 0, 255), out_alpha]).astype(np.uint8), "RGBA")
 
 
-def close_legs(cell: np.ndarray, gait: WalkCycle, axis: int, draw: int,
+def close_legs(cell: np.ndarray, knee: int, ramp: int, axis: int, draw: int,
                lift: int) -> np.ndarray:
     """Bring the boots toward each other under the body, and lift the swinging one.
 
@@ -601,10 +645,10 @@ def close_legs(cell: np.ndarray, gait: WalkCycle, axis: int, draw: int,
     long before the legs are close enough to read as passing.
     """
     out = cell.copy()
-    out[gait.knee:, :, :] = 0
+    out[knee:, :, :] = 0
     height = cell.shape[0]
-    for y in range(gait.knee, height):
-        travelled = min(1.0, (y - gait.knee) / float(gait.ramp))
+    for y in range(knee, height):
+        travelled = min(1.0, (y - knee) / float(ramp))
         shift = int(round(draw * travelled))
         for x in range(cell.shape[1]):
             if cell[y, x, 3] == 0:
@@ -612,7 +656,7 @@ def close_legs(cell: np.ndarray, gait: WalkCycle, axis: int, draw: int,
             rear = x < axis
             nx = x + shift if rear else x - shift
             ny = y - (lift if rear else 0)
-            if 0 <= nx < cell.shape[1] and gait.knee <= ny < height:
+            if 0 <= nx < cell.shape[1] and knee <= ny < height:
                 out[ny, nx, :] = cell[y, x, :]
     return out
 
@@ -633,10 +677,20 @@ def swap_legs(cell: np.ndarray, gait: WalkCycle) -> np.ndarray:
 def build_walk(cell: Image.Image, gait: WalkCycle) -> list[Image.Image]:
     """One delivered stride, made into a cycle. See WalkCycle for why it is not on the sheet."""
     source = np.asarray(cell.convert("RGBA")).copy()
-    axis = source.shape[1] // 2
-    half = [close_legs(source, gait, axis, draw, lift) for draw, lift in gait.steps]
+    half = [close_legs(source, gait.knee, gait.ramp, gait.split, draw, lift)
+            for draw, lift in gait.steps]
     frames = half + [swap_legs(f, gait) for f in half]
     return [Image.fromarray(f, "RGBA") for f in frames]
+
+
+def build_run(cells: list[Image.Image], gait: RunCycle) -> list[Image.Image]:
+    """The delivered run, with its feet given somewhere to go. See RunCycle."""
+    out: list[Image.Image] = []
+    for cell, (draw, lift) in zip(cells, gait.steps):
+        source = np.asarray(cell.convert("RGBA")).copy()
+        out.append(Image.fromarray(
+            close_legs(source, gait.knee, gait.ramp, gait.split, draw, lift), "RGBA"))
+    return out
 
 
 def build_character(spec: CharacterSheet, write: bool) -> tuple[dict[str, bytes], int, int]:
@@ -678,9 +732,11 @@ def build_character(spec: CharacterSheet, write: bool) -> tuple[dict[str, bytes]
         # The walk is BUILT rather than cut, because it is not on the sheet -- see WalkCycle.
         # It is made on the shared cell like everything else, so switching to it from any
         # other pose still moves nothing.
-        cells = (build_walk(compose(spec.walk.source), spec.walk)
-                 if name == "walk" and spec.walk is not None
-                 else [compose(key) for key in keys])
+        cells = [compose(key) for key in keys]
+        if name == "walk" and spec.walk is not None:
+            cells = build_walk(compose(spec.walk.source), spec.walk)
+        elif name == "run" and spec.run is not None:
+            cells = build_run(cells, spec.run)
         strip = Image.new("RGBA", (cell_w * len(cells), cell_h), (0, 0, 0, 0))
         for index, cell in enumerate(cells):
             strip.alpha_composite(cell, (index * cell_w, 0))
