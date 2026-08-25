@@ -1034,10 +1034,11 @@ func _walk_node_two(route: String) -> void:
 			if child.get_script() == StrawPileClass:
 				piles += 1
 		_check(piles == 3, "three heaps of straw", "%d pile(s)" % piles)
-		# ONE OF THEM HAS AN INSIDE, and it has to be big enough to have one. The apo
-		# stands 96px (an 80px capsule under a 106px cell, see tools/build_art.py), so a
-		# heap whose mouth is shorter than that is one she cannot walk into, and the
-		# cutaway it draws when she is in it has no headroom to put anything in.
+		# ONE OF THEM HAS AN INSIDE, and its mouth has to read as a way in and be one.
+		# It does not have to be tall enough to stand up in: what is through it is a
+		# separate place at its own scale, so she ducks in rather than standing about in
+		# the heap. It does have to be wider than she is (her body is about 30px) and tall
+		# enough that nobody mistakes it for a shadow on the front of a haystack.
 		var enterable := 0
 		var mouth := Vector2.ZERO
 		for child in dayami.get_children():
@@ -1046,9 +1047,9 @@ func _walk_node_two(route: String) -> void:
 				mouth = Rect2(child.call("mouth_rect")).size
 		_check(enterable == 1, "exactly one of them has a way in",
 			"%d heap(s) with an entrance" % enterable)
-		_check(mouth.y >= 110.0 and mouth.x >= 90.0,
-			"and it is big enough to stand up in",
-			"a %.0f x %.0f mouth for a 96px apo" % [mouth.x, mouth.y])
+		_check(mouth.y >= 56.0 and mouth.x >= 48.0,
+			"and its mouth reads as a way in",
+			"a %.0f x %.0f opening against a 30px body" % [mouth.x, mouth.y])
 		var chest := dayami.get_node_or_null("Baul") as Baul2D
 		_check(chest != null and not chest.visible,
 			"the baul starts hidden", "it is in the straw, not on the terrace")

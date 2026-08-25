@@ -50,12 +50,16 @@ var _inside := false
 
 ## The golds, darkest to lightest. Straw is one hue and a dozen values of it: a heap with
 ## contrasting colours in it reads as a bonfire, which this is not.
-const EDGE := Color(0.361, 0.196, 0.020, 1.0)   # 5C3305  the shadow between stalks
-const DARK := Color(0.573, 0.333, 0.024, 1.0)   # 925506
-const MID := Color(0.769, 0.478, 0.031, 1.0)    # C47A08
-const BODY := Color(0.898, 0.635, 0.043, 1.0)   # E5A20B
-const LIT := Color(0.980, 0.780, 0.075, 1.0)    # FAC713
-const HI := Color(1.000, 0.882, 0.235, 1.0)     # FFE13C  the catch on a stalk facing up
+##
+## WHEAT, NOT NEON. The first cut of this was pure saturated yellow and sat on the terrace
+## like a highlighter next to the tileset, which is warm and slightly dusty in everything it
+## draws. These are the same golds pulled toward ochre.
+const EDGE := Color(0.369, 0.227, 0.071, 1.0)   # 5E3A12  the shadow between clumps
+const DARK := Color(0.588, 0.376, 0.118, 1.0)   # 96601E
+const MID := Color(0.788, 0.541, 0.169, 1.0)    # C98A2B
+const BODY := Color(0.929, 0.710, 0.227, 1.0)   # EDB53A
+const LIT := Color(1.000, 0.843, 0.369, 1.0)    # FFD75E
+const HI := Color(1.000, 0.941, 0.659, 1.0)     # FFF0A8  the catch on a stalk facing up
 ## Inside the heap, seen through a hole. Not black: it is straw in shade, and a black hole
 ## in a yellow mound reads as a bite taken out of it rather than as a way in.
 const HOLLOW := Color(0.267, 0.145, 0.031, 1.0) # 442508
@@ -208,37 +212,27 @@ func _draw() -> void:
 	_draw_heap()
 
 
-## The heap: a solid body so no gap shows the terrace through it, then stalks over it,
-## radiating from the crown out to a ragged silhouette.
+## The heap.
+##
+## DRAWN IN COLUMNS, ONE WORLD UNIT WIDE, and that is the whole of why this version sits on
+## the terrace and the one before it did not. The first cut fanned hundreds of thin diagonal
+## lines out of a crown: at any angle that is not 0 or 45 degrees a line has no pixel grid to
+## sit on, so it came out as scratchy hairlines with ragged points all over the silhouette --
+## spikey, and nothing like the tileset it stands next to.
+##
+## The tileset, and hub_room.gd, and every frame in this game are built the same way instead:
+## axis-aligned runs, each with a lit edge and a shadow edge. So is this. Straw hangs, so the
+## runs are vertical; the heap is a shaded dome of them, with clump seams cut down through it
+## and a crown of short strands over the top where the last armful landed.
 func _draw_heap() -> void:
 	var settle := _settle()
 	var half := pile_size.x * 0.5 * settle.x
 	var high := pile_size.y * settle.y
 	var rng := _rng()
-	# The crown leans, because an armful of straw is thrown onto a heap and not placed on it.
-	# It sits BELOW the top of the outline, not at it: a fan from the apex is a cone, and a
-	# heap of straw is a bell -- rounded over the top, flaring at the base. Dropping the
-	# origin and letting the topmost stalks overshoot is what turns one into the other.
-	var crown := Vector2(half * rng.randf_range(-0.16, 0.16), -high * 0.82)
-
-	# The body under the stalks is nearly black, not brown. Whatever shows between the
-	# stalks has to read as the shade between them; drawn in a mid gold it reads as a flat
-	# painted shape with straw sprinkled on it, which is what the first cut of this looked
-	# like.
-	draw_colored_polygon(_silhouette(half, high), _tone(EDGE))
-	# Back stalks first and front stalks last: the ones drawn last are the ones nearest the
-	# viewer, and they are lighter, which is the whole of the depth in this.
-	# TWO FAMILIES, AND THE HEAP DOES NOT READ WITHOUT BOTH. Aiming every stalk at a point
-	# on the outline puts almost none of them low down: tips spread evenly by ANGLE cluster
-	# where the outline turns, so the cap came out dense and the bottom two thirds stayed a
-	# flat brown shape with a fan sitting on top of it. The cap is a starburst over the top;
-	# the skirt is the long straw hanging off it to the ground, and it is most of the heap.
-	var count := int(maxf(200.0, 430.0 * strand_density * (half / 75.0)))
-	_draw_cap(rng, crown, half, high, int(count * 0.5), -0.06, 1.0)
-	_draw_skirt(rng, crown, half, high, count, -0.04, 1.0)
-	_draw_skirt(rng, crown, half, high, count, 0.16, 0.86)
-	_draw_cap(rng, crown, half, high, int(count * 0.4), 0.30, 0.7)
-	_draw_skirt(rng, crown, half, high, int(count * 0.6), 0.32, 0.62)
+	_draw_ground_shadow(half)
+	_draw_columns(rng, half, high)
+	_draw_clump_seams(rng, half, high)
+	_draw_crown(rng, half, high)
 	if entrance:
 		var mouth := mouth_rect()
 		_draw_mouth(rng, Vector2(mouth.get_center().x, 0.0),
@@ -247,7 +241,137 @@ func _draw_heap() -> void:
 		# WHAT A TUNNEL LOOKS LIKE. Combed and tunnelled were the same heap at two sizes
 		# for as long as this node has existed, which made two of its three routes the same
 		# route to look at.
-		_draw_mouth(rng, Vector2(half * -0.14, 0.0), half * 0.62, high * 0.68)
+		_draw_mouth(rng, Vector2(half * -0.14, 0.0), half * 0.5, high * 0.6)
+
+
+## What stops it floating. Everything in the house that stands on the floor has one of these
+## and the heaps did not.
+func _draw_ground_shadow(half: float) -> void:
+	draw_rect(Rect2(-half - 4.0, -3.0, half * 2.0 + 8.0, 5.0), Color(0.0, 0.0, 0.0, 0.30))
+	draw_rect(Rect2(-half - 9.0, -1.0, half * 2.0 + 18.0, 3.0), Color(0.0, 0.0, 0.0, 0.16))
+
+
+## How tall the heap is at `across`, -1 to 1. A bell rather than a half-ellipse: a heap of
+## straw is dropped from the middle, so it is rounded over the top and flares at the foot.
+func _profile(across: float) -> float:
+	var t := clampf(absf(across), 0.0, 1.0)
+	return pow(cos(t * PI * 0.5), 0.62)
+
+
+## The body of it, a column at a time.
+##
+## Three things and no more: a lumpy outline, a shaded dome, and a grain of stalk ends.
+##
+## THE OUTLINE IS TUFTED, not smooth. A bell curve with per-column noise on it is still a
+## bell curve -- the noise is one unit tall and invisible -- so the top edge is cut into
+## tufts six to twelve units wide, each sitting at its own height. That is what makes the
+## silhouette read as an armful of straw rather than as a loaf.
+##
+## THE GRAIN IS STALK ENDS. Each column is broken into short runs a value or two apart, and
+## every column starts its run at a different offset, so the breaks stagger across the heap.
+## Even runs would band it horizontally, which is the one thing straw never does.
+func _draw_columns(rng: RandomNumberGenerator, half: float, high: float) -> void:
+	var tuft_top := 0.0
+	var tuft_left := -half - 1.0
+	var tuft_width := 0.0
+	var x := -half
+	while x < half:
+		if x >= tuft_left + tuft_width:
+			tuft_left = x
+			tuft_width = rng.randf_range(6.0, 12.0)
+			tuft_top = rng.randf_range(-0.055, 0.03)
+		var across := x / half
+		var top := -high * (_profile(across) + tuft_top)
+		if top > -3.0:
+			x += 1.0
+			continue
+		# Left flank lit, right flank in shade, and the foot darker than the shoulder.
+		var side := 0.74 - across * 0.46
+		var phase := rng.randf_range(0.0, 6.0)
+		var run := top + phase
+		draw_rect(Rect2(x, top, 1.0, phase), _tone(_ramp(clampf(side + 0.2, 0.0, 1.0))))
+		while run < 0.0:
+			var depth := run / top if top < 0.0 else 0.0
+			# THE FOOT IS IN SHADE. Straw hanging off a heap keeps almost none of the light
+			# by the time it reaches the ground, and a dome lit evenly top to bottom is a
+			# dome with no weight to it.
+			var lit := clampf(side + depth * 0.52 - 0.36
+				+ rng.randf_range(-0.11, 0.11), 0.0, 1.0)
+			var step := rng.randf_range(3.0, 7.0)
+			draw_rect(Rect2(x, run, 1.0, minf(step, -run)), _tone(_ramp(lit)))
+			# The end of a stalk, one unit of shade where the next one starts behind it.
+			if rng.randf() < 0.42 and run + step < 0.0:
+				draw_rect(Rect2(x, run + step - 1.0, 1.0, 1.0), _tone(EDGE))
+			run += step
+		x += 1.0
+
+
+## The seams between one armful and the next.
+##
+## THEY RADIATE, they do not hang plumb. Drawn as vertical rects they came out as a picket
+## fence across the front of the heap; straw thrown on a pile falls away from where it
+## landed, so a seam leans further from upright the further out it is. Each one is a dark
+## line with a lit stalk beside it, which is the trick the joinery in the house uses to make
+## a stile stand proud of a panel.
+func _draw_clump_seams(rng: RandomNumberGenerator, half: float, high: float) -> void:
+	var count := int(maxf(14.0, half / 3.4))
+	var apex := Vector2(0.0, -high * 0.92)
+	for index in range(count):
+		var across := lerpf(-0.96, 0.96, (float(index) + rng.randf_range(0.15, 0.85))
+			/ float(count))
+		var foot := Vector2(roundf(half * across), -high * rng.randf_range(0.0, 0.16))
+		var from := apex.lerp(foot, rng.randf_range(0.28, 0.72))
+		_pixel_line(from, foot, _tone(EDGE))
+		_pixel_line(from + Vector2(1.0, 3.0), foot + Vector2(1.0, -rng.randf_range(3.0, 12.0)),
+			_tone(LIT if across < 0.05 else MID))
+		# A stray or two hanging off the seam, because straw is not joinery.
+		if rng.randf() < 0.45:
+			var at := from.lerp(foot, rng.randf_range(0.3, 0.8))
+			_pixel_line(at, at + Vector2(rng.randf_range(-5.0, 5.0),
+				rng.randf_range(6.0, 18.0)), _tone(DARK))
+	# And the line where the whole heap meets the ground.
+	draw_rect(Rect2(-half, -5.0, half * 2.0, 5.0), _tone(EDGE))
+	draw_rect(Rect2(-half, -7.0, half * 2.0, 2.0), _tone(DARK))
+
+
+## The crown: the last armful, dropped on top and still splayed. Stepped rather than ruled --
+## each strand is a stair of one-unit rects, so it lands on the same grid as everything else.
+func _draw_crown(rng: RandomNumberGenerator, half: float, high: float) -> void:
+	var count := int(maxf(22.0, half / 2.6))
+	var apex := Vector2(roundf(half * rng.randf_range(-0.12, 0.12)), -high)
+	for index in range(count):
+		var angle := lerpf(PI * 0.86, PI * 0.14, (float(index) + rng.randf())
+			/ float(count))
+		var length := high * rng.randf_range(0.06, 0.22)
+		var tip := apex + Vector2(-cos(angle), -sin(angle)) * length
+		var lit := clampf(0.74 - (tip.x - apex.x) / maxf(1.0, half) * 0.5
+			+ rng.randf_range(-0.1, 0.1), 0.0, 1.0)
+		_pixel_line(apex, tip, _tone(_ramp(lit)))
+		if rng.randf() < 0.45:
+			_pixel_line(apex + Vector2(0.0, 1.0), tip + Vector2(0.0, 2.0), _tone(EDGE))
+
+
+## A line as a stair of single units, so a strand at any angle still lands on whole pixels.
+## draw_line does not: at anything off the axis or the diagonal it lays down a smear that is
+## a value paler than what it is drawn in, which is exactly what made the first version of
+## this look like scratches rather than art.
+func _pixel_line(from: Vector2, to: Vector2, colour: Color) -> void:
+	var at := Vector2(roundf(from.x), roundf(from.y))
+	var end := Vector2(roundf(to.x), roundf(to.y))
+	var delta := (end - at).abs()
+	var step := Vector2(signf(end.x - at.x), signf(end.y - at.y))
+	var error := delta.x - delta.y
+	for guard in range(400):
+		draw_rect(Rect2(at, Vector2.ONE), colour)
+		if at.is_equal_approx(end):
+			return
+		var doubled := error * 2.0
+		if doubled > -delta.y:
+			error -= delta.y
+			at.x += step.x
+		if doubled < delta.x:
+			error += delta.x
+			at.y += step.y
 
 
 ## INSIDE THE HEAP, which is the one place in Level 1 that has an inside.
@@ -333,58 +457,6 @@ func _silhouette(half: float, high: float) -> PackedVector2Array:
 	points.append(Vector2(half, 0.0))
 	points.append(Vector2(-half, 0.0))
 	return points
-
-
-## One fan of stalks from the crown to the outline.
-##
-## The tips land ON the silhouette, which is what makes the top of the heap a dense
-## starburst of short stalks and the flanks a sweep of long ones -- the crown IS the top of
-## the outline, so a stalk aimed there has nowhere to go. That is what a heap looks like.
-##
-## `bias` lightens or darkens the whole pass and `spread` decides how far off the crown the
-## stalks start; between them the two passes read as straw in front of straw rather than as
-## one layer drawn twice.
-func _draw_cap(rng: RandomNumberGenerator, crown: Vector2, half: float, high: float,
-		count: int, bias: float, spread: float) -> void:
-	for index in range(count):
-		# The upper arc only. The flanks belong to the skirt.
-		var phi := lerpf(PI * 0.12, PI * 0.88, (float(index) + rng.randf()) / float(count))
-		# Ragged: some stalks fall short of the outline and some stick out past it, which is
-		# the difference between a heap of straw and a haircut.
-		var reach := rng.randf_range(0.9, 1.14)
-		_stalk(rng, crown, Vector2(-half * cos(phi) * reach, -high * sin(phi) * reach),
-			half, high, bias, spread)
-
-
-## The skirt: long straw hanging off the crown to the ground, spread evenly along the base.
-## This is the bulk of the heap and the reason its silhouette flares.
-func _draw_skirt(rng: RandomNumberGenerator, crown: Vector2, half: float, high: float,
-		count: int, bias: float, spread: float) -> void:
-	for index in range(count):
-		var across := lerpf(-1.0, 1.0, (float(index) + rng.randf()) / float(count))
-		var tip := Vector2(half * across * rng.randf_range(0.94, 1.08),
-			rng.randf_range(-high * 0.05, 0.0))
-		_stalk(rng, crown, tip, half, high, bias, spread)
-
-
-## One stalk, bowed. Two segments with the middle pushed off the straight line, so the fan
-## curves the way dropped straw does rather than reading as a ruled starburst.
-func _stalk(rng: RandomNumberGenerator, crown: Vector2, tip: Vector2, half: float,
-		high: float, bias: float, spread: float) -> void:
-	var origin := crown + Vector2(
-		rng.randf_range(-1.0, 1.0) * half * 0.20 * spread,
-		rng.randf_range(-0.6, 1.0) * high * 0.13 * spread)
-	var run := tip - origin
-	if run.length() < 4.0:
-		return
-	var normal := Vector2(-run.y, run.x).normalized()
-	var middle := origin + run * 0.55 + normal * run.length() * rng.randf_range(-0.14, 0.14)
-	var lit := clampf(0.5 + 0.5 * run.normalized().dot(LIGHT)
-		+ bias + rng.randf_range(-0.14, 0.14), 0.0, 1.0)
-	var colour := _tone(_ramp(lit))
-	var width := 3.0 if rng.randf() < 0.14 else 2.0
-	draw_line(origin, middle, colour, width, false)
-	draw_line(middle, tip, colour, width, false)
 
 
 ## A hole in the heap, and the way into it.
