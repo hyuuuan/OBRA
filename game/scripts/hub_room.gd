@@ -596,13 +596,22 @@ func _draw_chandelier(x: float) -> void:
 	while link < hang + drop - 10.0:
 		draw_rect(Rect2(x - 2.0, link, 4.0, 5.0), brass)
 		link += 9.0
-	# The corona: two rings, the lower one wider.
+	# The corona: two rings, the lower one wider, with a dark underside.
+	#
+	# IT HANGS IN FRONT OF A CALADO PANEL, which is the one place on this wall with light
+	# behind it, so every pale part of the fixture needs something dark of its own to be
+	# seen against or the two dissolve into each other -- a chandelier of white candles in
+	# front of a row of lit cut-outs read as neither.
 	var body := hang + drop
 	draw_rect(Rect2(x - 9.0, body - 11.0, 18.0, 9.0), brass_lit)
+	draw_rect(Rect2(x - 32.0, body - 2.0, 64.0, 2.0), Color(0.0, 0.0, 0.0, 0.45))
 	draw_rect(Rect2(x - 30.0, body, 60.0, 8.0), brass_lit)
-	draw_rect(Rect2(x - 30.0, body + 8.0, 60.0, 2.0), brass)
+	draw_rect(Rect2(x - 30.0, body + 8.0, 60.0, 3.0), brass)
+	draw_rect(Rect2(x - 30.0, body + 11.0, 60.0, 2.0), Color(0.0, 0.0, 0.0, 0.40))
 	# Candles standing on the ring, with a flame apiece.
 	for offset: float in [-23.0, -8.0, 8.0, 23.0]:
+		draw_rect(Rect2(x + offset - 4.0, body - 15.0, 7.0, 15.0),
+			Color(0.0, 0.0, 0.0, 0.45))
 		draw_rect(Rect2(x + offset - 3.0, body - 14.0, 5.0, 14.0),
 			Color(0.914, 0.886, 0.800, 1.0))
 		draw_rect(Rect2(x + offset - 2.0, body - 19.0, 4.0, 5.0),
