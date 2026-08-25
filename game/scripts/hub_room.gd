@@ -519,31 +519,74 @@ func _draw_settee(at: Vector2) -> void:
 	var width := 112.0
 	var seat := 30.0
 	var back := 31.0
-	var cane := Color(0.729, 0.647, 0.478, 1.0)
-	var cane_dark := Color(0.573, 0.498, 0.353, 1.0)
-	# Legs first so the frame sits over them.
+	var half := width * 0.5
+
+	# Legs, turned: a square block at the top, a waist, and a foot. Four of them, but the
+	# back pair is only a hint -- they are behind the front pair and mostly hidden by the
+	# stretcher, and drawing them in full puts a picket fence under the seat.
 	for side: float in [-1.0, 1.0]:
-		draw_rect(Rect2(at.x + side * (width * 0.5 - 10.0) - 3.0, at.y - seat, 6.0, seat),
-			WALL_EDGE)
-	var back_rect := Rect2(at.x - width * 0.5, at.y - seat - back, width, back)
-	draw_rect(back_rect, cane_dark)
-	# The caning: a lattice, which at this size is two sets of ruled lines.
-	var step := 8.0
-	var line := back_rect.position.x + step
-	while line < back_rect.end.x:
-		draw_rect(Rect2(line, back_rect.position.y + PIXEL, PIXEL, back_rect.size.y - PIXEL * 2.0),
-			cane)
-		line += step
-	var rung := back_rect.position.y + step
-	while rung < back_rect.end.y:
-		draw_rect(Rect2(back_rect.position.x, rung, back_rect.size.x, PIXEL), cane)
-		rung += step
-	draw_rect(back_rect, WALL_EDGE, false, PIXEL)
-	# The seat, proud of the back.
-	var seat_rect := Rect2(at.x - width * 0.5 - 5.0, at.y - seat, width + 10.0, seat * 0.5)
-	draw_rect(seat_rect, WALL)
-	draw_rect(Rect2(seat_rect.position, Vector2(seat_rect.size.x, PIXEL)), WALL_LIT)
-	draw_rect(seat_rect, WALL_EDGE, false, PIXEL)
+		var leg := at.x + side * (half - 9.0)
+		draw_rect(Rect2(leg - 8.0, at.y - seat, 5.0, seat), WALL_DARK)
+		draw_rect(Rect2(leg - 3.0, at.y - seat, 6.0, 6.0), WALL_LIT)
+		draw_rect(Rect2(leg - 2.0, at.y - seat + 6.0, 4.0, seat - 11.0), WALL)
+		draw_rect(Rect2(leg - 3.0, at.y - 5.0, 6.0, 5.0), WALL_LIT)
+	# The stretcher between them, low down where one goes.
+	draw_rect(Rect2(at.x - half + 12.0, at.y - 9.0, width - 24.0, 3.0), WALL_DARK)
+
+	# The seat: a caned panel in a frame, with the front rail proud of it.
+	var seat_top := at.y - seat - 4.0
+	_cane(Rect2(at.x - half + 4.0, seat_top, width - 8.0, 10.0))
+	draw_rect(Rect2(at.x - half - 4.0, seat_top + 8.0, width + 8.0, 7.0), WALL_LIT)
+	draw_rect(Rect2(at.x - half - 4.0, seat_top + 15.0, width + 8.0, 2.0), WALL_EDGE)
+	draw_rect(Rect2(at.x - half - 4.0, seat_top, width + 8.0, 2.0), WALL_LIT)
+
+	# Arms: a post at each end and a rail along the top of it.
+	for side: float in [-1.0, 1.0]:
+		var post := at.x + side * half
+		draw_rect(Rect2(post - 4.0, seat_top - 14.0, 8.0, 16.0), WALL)
+		draw_rect(Rect2(post - 4.0, seat_top - 14.0, 3.0, 16.0), WALL_LIT)
+		draw_rect(Rect2(post - 6.0, seat_top - 18.0, 12.0, 5.0), WALL_LIT)
+		draw_rect(Rect2(post - 6.0, seat_top - 13.0, 12.0, 2.0), WALL_EDGE)
+
+	# The back: caning in a frame, with a crest rail over it.
+	var frame := Rect2(at.x - half + 8.0, seat_top - back, width - 16.0, back - 4.0)
+	draw_rect(frame, WALL)
+	_cane(frame.grow(-4.0))
+	draw_rect(frame, WALL_EDGE, false, 2.0)
+	draw_rect(Rect2(frame.position.x - 4.0, frame.position.y - 6.0, frame.size.x + 8.0, 7.0),
+		WALL_LIT)
+	draw_rect(Rect2(frame.position.x - 4.0, frame.position.y + 1.0, frame.size.x + 8.0, 2.0),
+		WALL_EDGE)
+
+
+## Rattan caning: a woven panel, drawn as the STRANDS with the gaps dark between them.
+##
+## It used to be drawn the other way about -- pale lines ruled over a dark ground -- and at
+## this size that fills in as a solid pale rectangle with a few dark specks, which is a
+## cushion. What makes caning read is the holes.
+func _cane(area: Rect2) -> void:
+	if area.size.x <= 4.0 or area.size.y <= 4.0:
+		return
+	var straw := Color(0.729, 0.647, 0.478, 1.0)
+	var straw_dark := Color(0.573, 0.498, 0.353, 1.0)
+	draw_rect(area, straw)
+	# ONE STRAND EVERY FOUR PIXELS, and only every second gap dark. At five with both lines
+	# dark it came out half holes by area, which at this size is a typewriter keyboard: the
+	# weave has to be finer than the eye can count for it to read as weave at all.
+	var x := area.position.x + 2.0
+	var column := 0
+	while x < area.end.x:
+		draw_rect(Rect2(x, area.position.y, 1.0, area.size.y),
+			WALL_EDGE if column % 2 == 0 else straw_dark)
+		x += 4.0
+		column += 1
+	var y := area.position.y + 2.0
+	var row := 0
+	while y < area.end.y:
+		draw_rect(Rect2(area.position.x, y, area.size.x, 1.0),
+			WALL_EDGE if row % 2 == 0 else straw_dark)
+		y += 4.0
+		row += 1
 
 
 ## A low table with a lidded jar on it -- the palayok in the corner of every old house.
