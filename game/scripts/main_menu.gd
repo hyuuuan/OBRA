@@ -35,7 +35,9 @@ var _backdrop_bases_ready := false
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	play_button.pressed.connect(_show_selector)
+	# PLAY opens the HOUSE, not a grid of cards. Levels are chosen by walking up to the
+	# painting of one, which is the whole reason the house exists.
+	play_button.pressed.connect(func() -> void: LevelManager.open_house())
 	settings_button.pressed.connect(_open_overlay.bind(^"SettingsOverlay"))
 	controls_button.pressed.connect(_open_overlay.bind(^"ControlsOverlay"))
 	quit_button.pressed.connect(_ask_quit)
