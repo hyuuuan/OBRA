@@ -3,12 +3,12 @@ extends SceneTree
 ##
 ##   godot --path game --script res://tests/run_visual_signposts.gd
 ##
-## Needs a REAL viewport -- no --headless. The thing being judged is whether four marks on
-## a board the size of a fist are four DIFFERENT shapes at the distance a player sees them
+## Needs a REAL viewport -- no --headless. The thing being judged is whether five marks on
+## a board the size of a fist are five DIFFERENT shapes at the distance a player sees them
 ## from, and there is no way to assert that.
 
 const CARD := preload("res://scripts/signpost_2d.gd")
-const MARKS := [0, 1, 2, 3]          # TALK, CHOICE, MEMORY, FIND
+const MARKS := [0, 1, 2, 3, 4]       # STORY, HINT, CHOICE, MEMORY, FIND
 const PITCH := 150
 const GROUND := 210
 const ZOOM := 3
