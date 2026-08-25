@@ -28,8 +28,8 @@ prop to `/tmp/obra_prop_*.png`, cropped, with the HUD hidden. Re-run it any time
 **What is NOT on this list**, because it is already yours and is the style everything below
 should match: `game/assets/Level1/` — the parallax layers, the texture atlas, the hut and
 fence and plant sprites. The terraces and the stair are *composed* in code but take their
-pixels from your atlas. Lolo is a placeholder too, tracked in `CONTENT_NEEDED.md` §2 with
-the rest of the character work.
+pixels from your atlas. Lolo is delivered art now too, tracked in `CONTENT_NEEDED.md` §2
+with the rest of the character work.
 
 **Four of the props below and the player character are DONE (2026-08-24)** — the stair
 treads, the floating tread, the ruined bridge and the dead tree all draw delivered art now,
