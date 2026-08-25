@@ -592,19 +592,44 @@ func _cane(area: Rect2) -> void:
 ## A low table with a lidded jar on it -- the palayok in the corner of every old house.
 ## Seventy-five centimetres to the top, which is a table; the jar on it stands a foot high.
 func _draw_side_table(at: Vector2) -> void:
-	var top := Rect2(at.x - 30.0, at.y - 54.0, 60.0, 7.0)
+	# Legs, splayed a little, with a stretcher between them.
 	for side: float in [-1.0, 1.0]:
-		draw_rect(Rect2(at.x + side * 23.0 - 3.0, at.y - 47.0, 6.0, 47.0), WALL_EDGE)
-	draw_rect(top, WALL_LIT)
-	draw_rect(top, WALL_EDGE, false, 2.0)
-	# The jar: a belly, a shoulder and a lid, in fired clay.
+		draw_rect(Rect2(at.x + side * 24.0 - 3.0, at.y - 47.0, 6.0, 47.0), WALL_DARK)
+		draw_rect(Rect2(at.x + side * 24.0 - 3.0, at.y - 47.0, 2.0, 47.0), WALL)
+	draw_rect(Rect2(at.x - 24.0, at.y - 16.0, 48.0, 3.0), WALL_DARK)
+	# The top, with an apron under it so it is a table and not a plank on sticks.
+	draw_rect(Rect2(at.x - 30.0, at.y - 54.0, 60.0, 6.0), WALL_LIT)
+	draw_rect(Rect2(at.x - 30.0, at.y - 48.0, 60.0, 2.0), WALL_EDGE)
+	draw_rect(Rect2(at.x - 26.0, at.y - 46.0, 52.0, 4.0), WALL)
+	_draw_palayok(Vector2(at.x, at.y - 54.0))
+
+
+## The palayok: a round earthenware cooking pot, wide at the belly, drawn in courses whose
+## width follows the curve.
+##
+## IT WAS A BROWN BOX. Three stacked rectangles is not a pot -- what makes a pot a pot at
+## any size is that it is WIDER IN THE MIDDLE than at either end, and no amount of shading
+## on a rectangle gets there. Twelve courses is enough to turn the corner.
+func _draw_palayok(base: Vector2) -> void:
 	var clay := Color(0.518, 0.310, 0.192, 1.0)
 	var clay_lit := Color(0.639, 0.412, 0.259, 1.0)
-	draw_rect(Rect2(at.x - 13.0, at.y - 78.0, 26.0, 24.0), clay)
-	draw_rect(Rect2(at.x - 11.0, at.y - 78.0, 7.0, 24.0), clay_lit)
-	draw_rect(Rect2(at.x - 9.0, at.y - 84.0, 18.0, 7.0), clay)
-	draw_rect(Rect2(at.x - 12.0, at.y - 88.0, 24.0, 5.0), clay_lit)
-	draw_rect(Rect2(at.x - 13.0, at.y - 78.0, 26.0, 24.0), WALL_EDGE, false, 2.0)
+	var clay_dark := Color(0.361, 0.208, 0.125, 1.0)
+	# Half-widths from the foot up: a narrow base, a swelling belly, a waisted neck and a
+	# flared rim.
+	var profile: Array[float] = [7.0, 10.0, 12.0, 13.0, 13.0, 12.0, 10.0, 8.0, 6.0, 6.0]
+	for course in range(profile.size()):
+		var half: float = profile[course]
+		var y := base.y - 2.0 * float(course + 1)
+		draw_rect(Rect2(base.x - half, y, half * 2.0, 2.0), clay)
+		# Lit down the left, in shadow on the right, so the belly turns.
+		draw_rect(Rect2(base.x - half, y, maxf(2.0, half * 0.45), 2.0), clay_lit)
+		draw_rect(Rect2(base.x + half - 2.0, y, 2.0, 2.0), clay_dark)
+	# The lid: a shallow dome with a knob.
+	var lip := base.y - 2.0 * float(profile.size())
+	draw_rect(Rect2(base.x - 9.0, lip - 3.0, 18.0, 3.0), clay_lit)
+	draw_rect(Rect2(base.x - 7.0, lip - 5.0, 14.0, 2.0), clay)
+	draw_rect(Rect2(base.x - 2.0, lip - 8.0, 4.0, 3.0), clay_dark)
+	draw_rect(Rect2(base.x - 13.0, lip, 26.0, 2.0), clay_dark)
 
 
 ## The baul: the carved chest at the foot of the wall, the same object Node 2 of Payyo hides
