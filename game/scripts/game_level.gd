@@ -1584,6 +1584,13 @@ func _adopt_player(new_player: Node2D, previous_state: Dictionary, flash: bool) 
 	player = new_player
 	if lolo != null and is_instance_valid(lolo):
 		lolo.follow(new_player)
+	# Whoever the player is now, a loose floating tread has to ignore them -- see
+	# FloatingTread2D.except_player. It is re-pointed here rather than watched from the
+	# tread, because this is already the one place in the game that anything about who the
+	# player is may change, and a fourth swap path is a fourth chance to forget one.
+	for node in get_tree().get_nodes_in_group(&"floating_treads"):
+		if node.has_method("except_player"):
+			node.call("except_player", new_player)
 	if old_player != null and is_instance_valid(old_player):
 		old_player.queue_free()
 

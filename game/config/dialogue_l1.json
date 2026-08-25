@@ -11,22 +11,27 @@
     {
       "id": "L1_B0_002",
       "at": "B0_HAGDAN.enter",
-      "text": "Look at the stone steps. Three of them are gone."
+      "text": "The paddy is deeper than she painted it. Walk in and it takes you — I have seen it take a carabao."
     },
     {
       "id": "L1_B0_003",
       "at": "B0_HAGDAN.sub1",
-      "text": "You are the one holding the pencil, apo. Draw something that can **span** it — anything that will cross the gap."
+      "text": "That plank out there is one of the missing steps. You are the one holding the pencil, apo — draw something that can **roll**, and set it on top. Weight is the only thing water listens to."
     },
     {
       "id": "L1_B0_004",
       "at": "B0_HAGDAN.sub1.solved",
-      "text": "There. Like that. It does not matter that it is ugly — it matters that I could read it."
+      "text": "There. Like that. It does not matter that it is ugly — it matters that I could read it. Flat and steady now. Cross while it holds."
     },
     {
       "id": "L1_B0_005",
       "at": "B0_HAGDAN.sub2",
-      "text": "That one is floating. We need something that can **roll** — heavy, something that rolls."
+      "text": "Now look up. Three of the stone steps are gone and the first one is over your head. Draw something that can **span** the gap — anything you can get on top of."
+    },
+    {
+      "id": "L1_B0_008",
+      "at": "B0_HAGDAN.sub2.solved",
+      "text": "Up you go. She would have laughed at that step, and then she would have used it."
     },
     {
       "id": "L1_B0_006",

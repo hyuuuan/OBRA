@@ -446,24 +446,26 @@ func _audit_level_director() -> void:
 	# --- Beat 0: sub-beats run in order, and each is its own requirement -------
 	d.enter_obstacle("B0_HAGDAN")
 	_check(d.current_obstacle() == "B0_HAGDAN", "enter", "at B0_HAGDAN")
-	_check((d.required_tags() as Array) == ["span"], "sub-beat 1 asks for span",
+	# ROLL FIRST, because the paddy is what the player meets first and the plank floating in
+	# it is the answer. Span comes second, at the stair on the far bank.
+	_check((d.required_tags() as Array) == ["roll"], "sub-beat 1 asks for roll",
 		"%s" % [d.required_tags()])
 
 	# A wrong-tag drawing must not solve it, and must cost an attempt.
 	var wrong: Dictionary = d.note_submission("frog")
 	_check(not wrong["solves"] and not wrong["tag_match"] and int(wrong["attempts"]) == 1,
-		"wrong tag is refused", "frog vs span -> attempts %d" % wrong["attempts"])
+		"wrong tag is refused", "frog vs roll -> attempts %d" % wrong["attempts"])
 
-	var right: Dictionary = d.note_submission("square")
-	_check(right["solves"] and right["tag_match"], "right tag solves", "square carries span")
+	var right: Dictionary = d.note_submission("circle")
+	_check(right["solves"] and right["tag_match"], "right tag solves", "circle carries roll")
 	# Two sub-beats, so the first solve ADVANCES rather than completing the beat.
 	_check(bool(right["stage_advanced"]) and not bool(right["obstacle_complete"]),
 		"sub-beat advances", "stage moved to sub2 instead of finishing the beat")
-	_check((d.required_tags() as Array) == ["roll"], "sub-beat 2 asks for roll",
+	_check((d.required_tags() as Array) == ["span"], "sub-beat 2 asks for span",
 		"%s" % [d.required_tags()])
-	var done: Dictionary = d.note_submission("circle")
+	var done: Dictionary = d.note_submission("square")
 	_check(bool(done["obstacle_complete"]) and d.is_solved("B0_HAGDAN"),
-		"beat completes", "circle closed B0_HAGDAN")
+		"beat completes", "square closed B0_HAGDAN")
 
 	# --- Node 1: the choice gates the requirement -----------------------------
 	d.exit_obstacle("B0_HAGDAN")
@@ -597,7 +599,7 @@ func _audit_live_level() -> void:
 	# walked in and waited heard nothing for thirty seconds. Read off the live bubble,
 	# because "the hook exists in the file" was true the whole time it was broken.
 	var asked := _lolo_bubble(level)
-	_check(asked.to_lower().contains("span"), "beat 0 asks out loud at T0",
+	_check(asked.to_lower().contains("roll"), "beat 0 asks out loud at T0",
 		"Lolo: %s" % asked.substr(0, 64))
 	# The script marks tags with **asterisks**; Lolo's bubble is a plain Label with no
 	# markup and printed them literally, which reads as a typo in the one line the
@@ -611,22 +613,22 @@ func _audit_live_level() -> void:
 	_check(d.hint_tier() >= 1 and strip.visible, "canvas open raises to T1",
 		"tier %d, strip visible" % d.hint_tier())
 	var shown := _strip_text(strip)
-	_check(shown.to_lower().contains("span"), "T1 names the tag", shown)
+	_check(shown.to_lower().contains("roll"), "T1 names the tag", shown)
 	# The cardinal rule, enforced on the live HUD and not just on the dialogue file.
 	var named := _class_named_in(shown)
 	_check(named.is_empty(), "the strip names no class",
 		shown if named.is_empty() else "strip said '%s'" % named)
 
 	# Solving it through the real level entry point, not the director directly.
-	level.call("_judge_submission", "square")
+	level.call("_judge_submission", "circle")
 	await process_frame
 	_check(d.stage_id("B0_HAGDAN") == "sub2", "solving advances the beat",
 		"now at sub-beat '%s'" % d.stage_id("B0_HAGDAN"))
 	var asked2 := _lolo_bubble(level)
-	_check(asked2.to_lower().contains("roll"), "the second sub-beat asks for itself",
+	_check(asked2.to_lower().contains("span"), "the second sub-beat asks for itself",
 		"Lolo: %s" % asked2.substr(0, 64))
 
-	level.call("_judge_submission", "circle")
+	level.call("_judge_submission", "square")
 	await process_frame
 	_check(d.is_solved("B0_HAGDAN"), "beat completes in the live level", "B0_HAGDAN solved")
 	_check(not strip.visible, "solved obstacle clears the strip", "nothing left to ask for")
@@ -772,6 +774,12 @@ func _audit_live_level() -> void:
 		if wrong != null and is_instance_valid(wrong):
 			wrong.queue_free()
 		await process_frame
+		# LET IT COME BACK UP FIRST. A square rides it forty-five pixels under before it is
+		# taken away, and a circle dropped into that gap floats up past the plank rising to
+		# meet it -- the plank ends up sitting ON the circle, which is a fair reading of
+		# "things slide off a loose plank" and is not what this check is asking about.
+		for _frame in range(90):
+			await physics_frame
 
 		# Something that does.
 		var roller := _drop_on(level, floater, "circle")
@@ -793,6 +801,33 @@ func _audit_live_level() -> void:
 				"frozen, so the water cannot lift it back up")
 			_check(absf(float(floater.get("rotation"))) < 0.05, "it settles level",
 				"%.3f rad -- a crooked tread is a ramp nobody asked for" % floater.get("rotation"))
+
+			# --- and the settled plank has to be a CROSSING ---------------------
+			# This is sub-beat 1's whole answer now: three hundred pixels of water, and
+			# nothing the beat accepts is eighty pixels wide, let alone three hundred. The
+			# plank is what gets you over, so the two hops either side of it and the height
+			# of its deck are gates in their own right and are measured like any other.
+			var paddy := level.get_node_or_null(
+				"EnvironmentBaseplate/GameplayPlane/WaterAreas/LowerPaddy") as Node2D
+			if paddy != null:
+				var pool := Vector2(paddy.get("surface_size"))
+				var surface_y: float = paddy.global_position.y - pool.y * 0.5
+				var deck: float = (floater as Node2D).global_position.y - _half_of(floater).y
+				# ABOVE THE WATERLINE, and this one is not cosmetic. wanderer.gd tests
+				# `elif is_in_water():` before `elif is_on_floor():`, so a deck at or under
+				# the surface gets the wading branch and its 55px kick -- the player would
+				# step on and never be able to step off, and the drowning rescue would fish
+				# them out while they stood on a solid floor.
+				_check(deck < surface_y, "the settled deck is out of the water",
+					"%.0fpx of dry plank above the surface" % (surface_y - deck))
+				# And the player has to be able to reach it from the bank and leave it on
+				# the far side. A running jump covers about 228px; both hops are flat.
+				var half: float = _half_of(floater).x
+				var plank_x: float = (floater as Node2D).global_position.x
+				var west: float = (plank_x - half) - (paddy.global_position.x - pool.x * 0.5)
+				var east: float = (paddy.global_position.x + pool.x * 0.5) - (plank_x + half)
+				_check(maxf(west, east) <= 228.0, "and both hops are inside a running jump",
+					"%.0fpx to it and %.0fpx off it, against 228px" % [west, east])
 
 	# --- CP0: a checkpoint you reach by walking ------------------------------
 	# Beat 0 has no dialogue node, so before this it had no checkpoint at all and a slip on
@@ -900,7 +935,19 @@ func _drop_on(level: Node, target: Node2D, class_id: String) -> PhysicsShapeObje
 	level.get_node("EnvironmentBaseplate/GameplayPlane/WorldItemRoot").add_child(prop)
 	prop.apply_item_data(DrawnItemData.from_prediction(
 		class_id, class_id.capitalize(), _blank_image(), [], 0.4, registry.get_entity(class_id)))
-	prop.global_position = target.global_position - Vector2(0.0, 46.0)
+	# CLEAR ABOVE IT, not inside it. A flat 46 put an 80px square's bottom edge six pixels
+	# INSIDE a 20px plank, so the solver ejected it and kicked the plank halfway across the
+	# paddy before anything could come to rest on it -- the fixture was measuring its own
+	# spawn overlap. The real game never does this: placement refuses an overlapping spot
+	# and drops the object onto the first surface under it.
+	var clearance := 8.0
+	for child in target.get_children():
+		var collision := child as CollisionShape2D
+		if collision != null and collision.shape != null and collision.shape.has_method("get_rect"):
+			clearance += Rect2(collision.shape.call("get_rect")).size.y * 0.5
+			break
+	prop.global_position = target.global_position - Vector2(0.0,
+		clearance + prop.world_extent().size.y * 0.5)
 	prop.confirm_placement()
 	return prop
 
@@ -917,6 +964,16 @@ func _fake_prop(level: Node) -> PhysicsShapeObject:
 		"square", "Square", _blank_image(), [], 0.4, registry.get_entity("square")))
 	prop.global_position = Vector2(900.0, 300.0)
 	return prop
+
+
+## Half a body's own collision box, so a measurement is taken off the shape that is
+## actually in the level rather than off a number repeated here.
+func _half_of(body: Node) -> Vector2:
+	for child in body.get_children():
+		var collision := child as CollisionShape2D
+		if collision != null and collision.shape != null and collision.shape.has_method("get_rect"):
+			return Rect2(collision.shape.call("get_rect")).size * 0.5
+	return Vector2.ZERO
 
 
 func _blank_image() -> Image:
