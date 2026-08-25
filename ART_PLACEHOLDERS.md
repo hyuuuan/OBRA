@@ -133,12 +133,13 @@ the paddy is missing three stones**: the rise from the bank to the first survivi
 
 | | |
 |---|---|
-| **Now** | **Real thatch** — a lopsided seven-point mound filled from the atlas's hut thatch panel (region 734,1012,70,44), tinted `#FFF7DB`. It used to take the band off the top of a *rice* tile, which is standing crop rather than cut straw. |
+| **Now** | **Drawn as stalks, not as a textured shape.** A near-black body polygon so the terrace never shows through, then five passes of bowed two-segment stalks over it: a *cap* radiating from a crown at 82% of the height out to the upper outline, and a *skirt* of long straw hanging from the same crown down to the ground. Six values of one gold (`#5C3305` → `#FFE13C`), lit from up-and-left like everything else in the game. Seeded from the pile's own position, so it does not crawl between redraws or reshuffle on a death. |
 | **Sizes** | **140 × 88**, **158 × 100**, **132 × 82**. Bottom-centre anchored. |
+| **Why stalks** | A textured mound is a shape with straw printed on it. Only a heap made of stalks has a silhouette that reads at a glance, and only a heap made of stalks can have a **hole** in it — which is what the three routes need. |
 | **Collision** | **None**, deliberately — a solid heap would wall off the only route out of the level. It is something you push through. |
 | **Must read as** | **Cut straw, never harvested grain.** This is a build constraint, not a preference: the Protector route scatters it across the terrace, and scattering somebody's *tinawon* harvest is not a neutral image to stage. |
-| **States — all four are needed** | **Intact.** · **Combed**: searched section by section, settles slightly, left standing (now 0.82 wide × 0.90 tall). · **Tunnelled**: gone in underneath and out again — one hole, the top keeps its shape (now 0.94 × 0.78). · **Scattered**: the mound is gone, nine loose tufts 16–30 × 5–11 across ±1.4 pile-widths, and it does not come back. |
-| **Known weakness** | Combed and tunnelled are currently the same heap slightly resized, and cannot be told apart. A tunnel should read as a hole. Three routes that leave three marks is the point of the whole node. |
+| **States — all four are needed** | **Intact.** · **Combed**: searched section by section, settles and tidies, left standing (0.88 wide × 0.86 tall). · **Tunnelled**: gone in underneath and out again — a real arched **hole** at the base, dark inside, with stalks still hanging across the top of it, and the heap keeps its height (0.98 × 0.96). · **Scattered**: the heap is gone and ~150 loose stalks lie across ±1.25 pile-widths, thickest where it stood. It does not come back. |
+| **Fixed** | Combed and tunnelled used to be the same heap at two sizes. Two things were wrong: a textured polygon could not have a hole cut in it, and the prop photographer called `comb()` and then `tunnel()` on the same three piles — and `tunnel()` refuses to run on a pile that is not intact, so the frame labelled "tunnelled" was a picture of a combed one. It resets them between shots now. |
 
 ### The baul · `game/scripts/baul_2d.gd` · 1 at (3160, 240), hidden until found
 

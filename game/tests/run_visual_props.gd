@@ -114,7 +114,12 @@ func _focus(at: Variant) -> Vector2:
 func _prepare(what: String) -> void:
 	match what:
 		"comb", "tunnel", "scatter":
+			# PUT IT BACK FIRST. comb() and tunnel() both refuse to run on a pile that is
+			# not intact, and these four shots share one level -- so the frame labelled
+			# "tunnelled" was a picture of the pile comb() had already left behind, every
+			# run, for as long as this list has existed.
 			for node in level.get_tree().get_nodes_in_group(&"straw_piles"):
+				node.call("restore_intact")
 				node.call(what)
 		"uncover":
 			for node in level.get_tree().get_nodes_in_group(&"baul"):

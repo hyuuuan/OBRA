@@ -302,9 +302,11 @@ project passed green suites and were caught only by screenshotting.
 - Node 1's memory cutscene · the full Ability Book panel · Hidden Flower 1 · the exit marker
   and second-canvas presentation. `WardLock2D` exists and is unit-tested but is not wired
   into a scene — the ward sequence has no on-screen presentation yet.
-- **Combed and tunnelled read the same.** The three routes leave three different marks, but
-  a heap at 0.82 × 0.90 and one at 0.94 × 0.78 are the same heap to look at. A tunnel is
-  supposed to be a hole; `tunnel()` only reshapes. Design call, not a bug.
+- ~~**Combed and tunnelled read the same.**~~ Fixed 2026-08-26. The heaps are drawn as
+  stalks now rather than as a textured polygon, so a tunnel can be an actual arched hole
+  with straw hanging over it. The prop photographer was also lying: it called `comb()` then
+  `tunnel()` on the same three piles, and `tunnel()` refuses a pile that is not intact, so
+  every "tunnelled" frame ever taken was a picture of a combed heap.
 - **Authoring:** the opening line still comes from the *old* `dialogue.json` and is out of
   voice; `B0_HAGDAN.sub2.solved` does not exist, so Beat 0's second lesson ends without
   acknowledgement; and `L1_N3.attic.found` says **"On the nail. Just as she said."** to
