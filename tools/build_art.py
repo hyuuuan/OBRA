@@ -183,17 +183,13 @@ class WalkCycle(NamedTuple):
 
 
 class RunCycle(NamedTuple):
-    """How to give a delivered run its foot travel. See build_run."""
+    """How to give a delivered run legs that alternate. See build_run."""
 
-    ## The same three numbers the walk uses, measured on the run's own pose.
-    knee: int
-    split: int
-    ramp: int
-    ## One (draw, lift) per delivered frame, rather than one per synthesised frame. THE RUN
-    ## KEEPS ALL SIX OF THE ARTIST'S POSES -- the bent knee, the reach, the tuck are the best
-    ## thing on that sheet and none of them is reproducible -- and only the distance between
-    ## the feet is changed.
-    steps: tuple[tuple[int, int], ...]
+    ## The row the run's torso ends and the walk's legs begin.
+    cut: int
+    ## How far to slide those legs to meet the leaning hips. A running figure is pitched
+    ## forward, so its hips sit further back over its feet than a walking one's.
+    offset: int
 
 
 ## The apo, at ninety-six pixels.
@@ -207,31 +203,25 @@ APO = CharacterSheet(
     source=SOURCE / "Obra Assets Male.png",
     hero=(40, 115, 305, 470),
     standing=96.0,
-    ## THE RUN CANNOT BE GIVEN ALTERNATING FEET, and it is worth writing down why so that
-    ## nobody spends another afternoon on it. The trick that works for the walk is to
-    ## reflect the shins about the body: it works there because the apo's rear leg is drawn
-    ## BELOW the satchel -- a whole boot and shin, from row 92 down -- so there is a second
-    ## leg to bring forward.
+    ## THE RUN BORROWS THE WALK'S LEGS, because it has none of its own worth keeping and
+    ## everything else about it is worth keeping.
     ##
-    ## In the run he leans, and the satchel swings down with him. It covers rows 68 to 95
-    ## over the whole of the rear leg, so the rear boot and the bag occupy the SAME ROWS and
-    ## no horizontal cut separates them. Reflect below the bag and only the front boot moves
-    ## and comes off its shin; reflect above it and the bag changes shoulders halfway
-    ## through every stride. There is no second leg on that sheet, only a bag with a boot
-    ## under it.
+    ## The delivered run pins both boots at the same two columns in all six frames and
+    ## plants the same foot in every one of them, so on screen it is a boy hopping. It
+    ## cannot be fixed in place the way the walk was: the walk's trick is to reflect the
+    ## shins about the body, and that works there because the apo's rear leg is drawn BELOW
+    ## the satchel -- a whole boot and shin from row 92 down. In the run he leans and the
+    ## satchel swings down with him, covering rows 68 to 95 over the whole of the rear leg,
+    ## so the bag and the boot occupy the SAME ROWS and no horizontal cut separates them.
+    ## Reflect below the bag and only the front boot moves, and it comes off its shin;
+    ## reflect above it and the bag changes shoulders halfway through every stride.
     ##
-    ## What the run can have is the other half of the problem: FEET THAT TRAVEL. The
-    ## delivered frames pin both boots at the same two columns in all six, so the body never
-    ## passes over its own foot. Drawing the legs together through each stride is exactly
-    ## that motion, and it costs none of the artist's poses.
-    run=RunCycle(
-        knee=92,
-        # Both legs are left of the middle here, so the gap between them is not where the
-        # walk's is.
-        split=31,
-        ramp=5,
-        steps=((0, 0), (7, 1), (13, 3), (0, 0), (7, 1), (13, 3)),
-    ),
+    ## But the run sheet's value was never its legs. It is the LEAN and the pumped arms --
+    ## the torso is pitched forward, the elbows are up, and none of that is anywhere else on
+    ## the sheet. So the run keeps its own six torsos and takes the walk's six pairs of
+    ## legs, which alternate. The legs slide back to meet the hips, because a running figure
+    ## sits further forward over its feet than a walking one.
+    run=RunCycle(cut=92, offset=-12),
     walk=WalkCycle(
         source=("walk", "3"),
         knee=92,
@@ -683,13 +673,23 @@ def build_walk(cell: Image.Image, gait: WalkCycle) -> list[Image.Image]:
     return [Image.fromarray(f, "RGBA") for f in frames]
 
 
-def build_run(cells: list[Image.Image], gait: RunCycle) -> list[Image.Image]:
-    """The delivered run, with its feet given somewhere to go. See RunCycle."""
+def build_run(torsos: list[Image.Image], legs: list[Image.Image],
+              gait: RunCycle) -> list[Image.Image]:
+    """The delivered run above the cut, the built walk's legs below it. See RunCycle."""
     out: list[Image.Image] = []
-    for cell, (draw, lift) in zip(cells, gait.steps):
-        source = np.asarray(cell.convert("RGBA")).copy()
-        out.append(Image.fromarray(
-            close_legs(source, gait.knee, gait.ramp, gait.split, draw, lift), "RGBA"))
+    for torso, leg in zip(torsos, legs):
+        top = np.asarray(torso.convert("RGBA")).copy()
+        bottom = np.asarray(leg.convert("RGBA"))
+        height, width = top.shape[0], top.shape[1]
+        top[gait.cut:, :, :] = 0
+        for y in range(gait.cut, height):
+            for x in range(width):
+                if bottom[y, x, 3] == 0:
+                    continue
+                moved = x + gait.offset
+                if 0 <= moved < width:
+                    top[y, moved, :] = bottom[y, x, :]
+        out.append(Image.fromarray(top, "RGBA"))
     return out
 
 
@@ -735,8 +735,9 @@ def build_character(spec: CharacterSheet, write: bool) -> tuple[dict[str, bytes]
         cells = [compose(key) for key in keys]
         if name == "walk" and spec.walk is not None:
             cells = build_walk(compose(spec.walk.source), spec.walk)
-        elif name == "run" and spec.run is not None:
-            cells = build_run(cells, spec.run)
+        elif name == "run" and spec.run is not None and spec.walk is not None:
+            cells = build_run(cells, build_walk(compose(spec.walk.source), spec.walk),
+                              spec.run)
         strip = Image.new("RGBA", (cell_w * len(cells), cell_h), (0, 0, 0, 0))
         for index, cell in enumerate(cells):
             strip.alpha_composite(cell, (index * cell_w, 0))
