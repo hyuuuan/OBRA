@@ -214,6 +214,15 @@ func _advance_stride(delta: float, horizontal_speed: float) -> void:
 func _pose_for(horizontal_speed: float) -> StringName:
 	if _climbing():
 		return &"climb"
+	# OFF THE GROUND BEATS MOVING, and this test has to come first.
+	#
+	# It used to sit under the speed check, which meant it only ever ran when the player was
+	# standing still -- and nobody jumps standing still. Every jump in the game is taken at a
+	# run, so the pose stayed on the walk cycle the whole way up and down and the apo crossed
+	# the gap paddling his legs, which is what "hovering while jumping" was. The one case the
+	# old order got right was the vertical hop, which is the case players never do.
+	if not is_on_floor() and not is_in_water() and not _riding() and not _climbing():
+		return &"air"
 	var speed := absf(horizontal_speed)
 	# Riding is standing on something that is moving. The deck carries the player, so the
 	# hull's speed is not theirs and a walk cycle here is running on the spot.
@@ -224,8 +233,6 @@ func _pose_for(horizontal_speed: float) -> StringName:
 		return &"run" if speed > SPEED * RUN_FRACTION else &"walk"
 	# Standing still, and only then, the look poses. Held while moving they would fight
 	# the walk cycle for the same frames.
-	if not is_on_floor() and not is_in_water() and not _riding():
-		return &"air"
 	if Input.is_action_pressed(&"move_up"):
 		return &"look_up"
 	if Input.is_action_pressed(&"move_down"):
