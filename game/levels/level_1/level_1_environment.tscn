@@ -25,6 +25,7 @@
 [ext_resource type="Texture2D" path="res://assets/Level1/props/floating_tread.png" id="22_tread"]
 [ext_resource type="Script" path="res://scripts/straw_pile_2d.gd" id="23_3uax6"]
 [ext_resource type="Script" path="res://scripts/baul_2d.gd" id="24_vekj0"]
+[ext_resource type="Script" path="res://scripts/straw_room_2d.gd" id="24_strawroom"]
 [ext_resource type="Script" path="res://scripts/bale_2d.gd" id="25_owbyo"]
 [ext_resource type="Script" path="res://scripts/bulul_2d.gd" id="26_jto6m"]
 
@@ -604,8 +605,14 @@ offset = Vector2(0, -19)
 texture = SubResource("Atlas_jar")
 
 [node name="Baul" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319160]
-position = Vector2(3160, 240)
+z_index = 3
+position = Vector2(3238, 240)
 script = ExtResource("24_vekj0")
+
+[node name="StrawRoom" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319161]
+z_index = 3
+position = Vector2(3180, 240)
+script = ExtResource("24_strawroom")
 
 [node name="Bale" type="Node2D" parent="GameplayPlane" unique_id=913205178]
 

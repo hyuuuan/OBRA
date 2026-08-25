@@ -120,7 +120,20 @@ it is pressed are literally the same string. **CP1** on commit.
 
 ### Node 2 — Ang Dayami (Terrace5, x 2960–3320)
 
-Three heaps of cut straw, Lola's stool and brush jar, the baul hidden in the middle heap.
+Three heaps of cut straw, Lola's stool and brush jar, and **the one place in Level 1 with an
+inside**: the middle heap is 220 × 200 and you can walk into it.
+
+**The room.** Standing in the mouth stops the front of the heap being drawn and draws the
+hollow instead — straw walls, an earth floor, and in it one of **Lola's canvases** (the hub's
+own painting of Pista), her **baul**, and a small **brass key** on the floor. Walking onto
+the key takes it; it is recorded on the profile as `L1_straw_key`, not on a checkpoint, for
+the same reason canvas damage is. It does **not** open the chest lying beside it — that lock
+is Node 3's, and finding a key that does not fit is the point rather than an oversight. The
+canvas is the promise of where the key goes.
+
+It is a **cutaway**, not a room somewhere else: the terrace, the sky and the other two heaps
+stay where they were and the apo never leaves the world, which is why none of it needs
+collision, a second camera or a way back. Walking out is walking out.
 
 | Route | Tag | Straw ends up | Reward |
 |---|---|---|---|

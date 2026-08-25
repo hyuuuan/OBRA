@@ -229,6 +229,26 @@
       "text": "You got it."
     },
     {
+      "id": "L1_N2_016",
+      "at": "L1_N2.inside",
+      "text": "Ay — you can stand up in here. She kept things in here. Of course she did."
+    },
+    {
+      "id": "L1_N2_017",
+      "at": "L1_N2.inside",
+      "text": "Mind where you step. They were living in here before either of us came looking."
+    },
+    {
+      "id": "L1_N2_018",
+      "at": "L1_N2.key",
+      "text": "Brass. Too small for that lock — look at the size of it. This one belongs somewhere else."
+    },
+    {
+      "id": "L1_N2_019",
+      "at": "L1_N2.key",
+      "text": "Somewhere she has only ever shown you as a painting. Keep it."
+    },
+    {
       "id": "L1_N2_015",
       "at": "L1_N2.solved",
       "text": "Locked. Of course."
