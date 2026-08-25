@@ -190,6 +190,12 @@ class RunCycle(NamedTuple):
     ## How far to slide those legs to meet the leaning hips. A running figure is pitched
     ## forward, so its hips sit further back over its feet than a walking one's.
     offset: int
+    ## How far the legs close, in the run's own terms. NOT the walk's: a walk brings its
+    ## feet together and stands on one of them, and a run never does -- both feet are off
+    ## the ground in the middle of a running stride, and the legs stay scissored through
+    ## it. Borrowing the walk's full pass put the boots on top of each other under a
+    ## leaning torso and read as a stumble.
+    steps: tuple[tuple[int, int], ...]
 
 
 ## The apo, at ninety-six pixels.
@@ -221,7 +227,12 @@ APO = CharacterSheet(
     ## the sheet. So the run keeps its own six torsos and takes the walk's six pairs of
     ## legs, which alternate. The legs slide back to meet the hips, because a running figure
     ## sits further forward over its feet than a walking one.
-    run=RunCycle(cut=92, offset=-12),
+    ## The cut and the slide are MEASURED, not chosen: for every row from 88 to 96 and
+    ## every offset from -20 to -4, the average distance between the torso's edges just
+    ## above the seam and the legs' edges just below it. 88 and -11 win it by three times,
+    ## and cutting there takes the shorts with the legs rather than leaving the run's own
+    ## shorts ending in a flat horizontal line above a pair of legs that do not fit them.
+    run=RunCycle(cut=88, offset=-11, steps=((0, 0), (4, 1), (8, 2))),
     walk=WalkCycle(
         source=("walk", "3"),
         knee=92,
@@ -673,9 +684,18 @@ def build_walk(cell: Image.Image, gait: WalkCycle) -> list[Image.Image]:
     return [Image.fromarray(f, "RGBA") for f in frames]
 
 
+def run_legs(cell: Image.Image, walk: WalkCycle, gait: RunCycle) -> list[Image.Image]:
+    """The walk's legs, swung the run's distance rather than the walk's. See RunCycle."""
+    source = np.asarray(cell.convert("RGBA")).copy()
+    half = [close_legs(source, walk.knee, walk.ramp, walk.split, draw, lift)
+            for draw, lift in gait.steps]
+    frames = half + [swap_legs(f, walk) for f in half]
+    return [Image.fromarray(f, "RGBA") for f in frames]
+
+
 def build_run(torsos: list[Image.Image], legs: list[Image.Image],
               gait: RunCycle) -> list[Image.Image]:
-    """The delivered run above the cut, the built walk's legs below it. See RunCycle."""
+    """The delivered run above the cut, the borrowed legs below it. See RunCycle."""
     out: list[Image.Image] = []
     for torso, leg in zip(torsos, legs):
         top = np.asarray(torso.convert("RGBA")).copy()
@@ -736,7 +756,8 @@ def build_character(spec: CharacterSheet, write: bool) -> tuple[dict[str, bytes]
         if name == "walk" and spec.walk is not None:
             cells = build_walk(compose(spec.walk.source), spec.walk)
         elif name == "run" and spec.run is not None and spec.walk is not None:
-            cells = build_run(cells, build_walk(compose(spec.walk.source), spec.walk),
+            cells = build_run(cells,
+                              run_legs(compose(spec.walk.source), spec.walk, spec.run),
                               spec.run)
         strip = Image.new("RGBA", (cell_w * len(cells), cell_h), (0, 0, 0, 0))
         for index, cell in enumerate(cells):
