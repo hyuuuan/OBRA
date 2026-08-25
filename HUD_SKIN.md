@@ -286,7 +286,7 @@ matter when it looks.
 
 ---
 
-## Four things that are not obvious
+## Six things that are not obvious
 
 ### 1. Godot gives you three tones per frame, and the sheet draws four
 
@@ -336,6 +336,28 @@ The rule under a screen title is an `HSeparator`. Godot draws its stylebox at th
 **stylebox's own minimum height** and takes the surrounding space from the `separation`
 constant. So content margins on that box are the LINE, not the padding — the first version
 at 5 painted a ten-pixel olive slab across every panel. It is 1, with separation 16.
+
+### 6. A theme override does not reach a Control until it is in the tree
+
+`add_theme_font_size_override` is silent outside the tree. Godot only fires
+`NOTIFICATION_THEME_CHANGED` for an override when there is a tree to notify through, so a
+`Label` built in code still holds the theme's own `font_size` in its cache until
+`add_child`. Anything measured before that — and `Control.set_size` **clamps up to the
+minimum size and never back down** — is measured against the wrong number and stays wrong.
+
+This is what made the names under the hub's paintings crooked. The plates are sized at
+`FONT_CAPTION` (20) and the theme's default is 30; `"MAYON  —  NOT YET PAINTED"` is 277px
+at 20 and **416px at 30**, so the label reserved 416, and a plate positioned by a fixed
+left offset carried the whole 96px difference sideways — 48px to the right of its own
+picture, out past the moulding and across the doorway beside it. The text drew at 20 the
+entire time, so nothing about it looked like a font problem.
+
+**The rule: `add_child` first, then set `size` and `position`, and derive a centred
+position from the size you actually got** (`-size.x * scale.x * 0.5`), not from the size
+you asked for. Controls inside a container are safe — the container re-lays them out from
+the correct minimum once they are in the tree — so this only bites where a Control is
+placed by hand. `run_hub_audit` asserts every plate is centred within a pixel, because a
+headless suite could not otherwise see it and a screenshot is how it was found.
 
 ---
 

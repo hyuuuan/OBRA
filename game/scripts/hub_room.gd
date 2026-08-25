@@ -146,6 +146,14 @@ func door_count() -> int:
 	return 6
 
 
+## Half a doorway, architrave included: where a pier stops, and therefore how much room a
+## picture and the plate under it have to stay inside. Named rather than repeated, because
+## run_hub_audit measures the plates against it and a second copy of the arithmetic is a
+## second thing to keep in step.
+func doorway_half() -> float:
+	return DOOR_WIDTH * 0.5 + 10.0
+
+
 ## How wide a doorway is, and how much pier it leaves either side of it.
 const DOOR_WIDTH := 116.0
 ## How tall: two metres sixty, which is a door in a room with four-metre ceilings.
@@ -239,8 +247,8 @@ func _draw_ceiling(top: float, cornice: float) -> void:
 func _draw_piers() -> void:
 	var edges: Array[float] = [0.0]
 	for index in range(door_count()):
-		edges.append(door_anchor(index) - DOOR_WIDTH * 0.5 - 10.0)
-		edges.append(door_anchor(index) + DOOR_WIDTH * 0.5 + 10.0)
+		edges.append(door_anchor(index) - doorway_half())
+		edges.append(door_anchor(index) + doorway_half())
 	edges.append(room_width)
 	var pair := 0
 	while pair + 1 < edges.size():

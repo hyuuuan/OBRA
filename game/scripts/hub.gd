@@ -136,16 +136,20 @@ func _build_hud() -> void:
 	title.text = "THE HOUSE"
 	title.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
 	title.add_theme_color_override(&"font_color", UISkin.GILT_LIT)
-	title.position = Vector2(40.0, 32.0)
+	# ADDED FIRST, PLACED SECOND. A font-size override does not reach a Control until it is
+	# in the tree, so anything positioned or sized before add_child is laid out against the
+	# theme's 30pt rather than the 20 it draws at. See Painting2D._build_plate, where this
+	# same ordering put every picture's name to the right of its picture.
 	layer.add_child(title)
+	title.position = Vector2(40.0, 32.0)
 
 	_status = Label.new()
 	_status.name = "Status"
 	_status.text = "Walk to a painting and press E"
 	_status.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
 	_status.add_theme_color_override(&"font_color", UISkin.MUTED)
-	_status.position = Vector2(40.0, 62.0)
 	layer.add_child(_status)
+	_status.position = Vector2(40.0, 62.0)
 
 	# The prompt follows the painting rather than the player: it is a label on the picture,
 	# and one pinned over the apo's head covers the thing they are looking at.
@@ -158,9 +162,9 @@ func _build_hud() -> void:
 	_prompt.add_theme_color_override(&"font_shadow_color", Color(0.0, 0.0, 0.0, 0.85))
 	_prompt.add_theme_constant_override(&"shadow_offset_x", 2)
 	_prompt.add_theme_constant_override(&"shadow_offset_y", 2)
-	_prompt.size = Vector2(240.0, 30.0)
 	_prompt.visible = false
 	layer.add_child(_prompt)
+	_prompt.size = Vector2(240.0, 30.0)
 
 
 func _process(_delta: float) -> void:
