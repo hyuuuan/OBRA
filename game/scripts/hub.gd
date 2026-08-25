@@ -32,6 +32,11 @@ const WALL: Array[Dictionary] = [
 ## Where the apo comes in: in front of the first painting rather than at the end of the
 ## wall, so the first thing on screen is a picture and not an empty corner.
 const SPAWN_X := 300.0
+## How far in the camera sits. Chosen so one screen holds the ceiling, the pictures at eye
+## height and a strip of floor -- roughly the ground-to-air ratio the levels have.
+const ZOOM := 1.25
+## Where the eye rests: between the pictures and the floor, not on the apo's head.
+const EYE_Y := 250.0
 
 var _room: Node2D
 var _player: Node2D
@@ -74,12 +79,15 @@ func _ready() -> void:
 
 	_camera = Camera2D.new()
 	_camera.name = "Camera"
+	# CLOSER THAN THE LEVELS, because a room is closer than a valley. At 1:1 the apo was a
+	# ninety-six pixel figure against a wall two and a half thousand wide and read as an ant
+	# in a hall; the levels get away with that scale because there is terrain and sky doing
+	# the work. Here the subject is the person and the pictures, so the camera comes in.
+	_camera.zoom = Vector2(ZOOM, ZOOM)
 	# Vertically pinned. The room is one storey and the floor never moves, so a camera that
 	# follows the apo up and down would sway the whole wall every time they jumped.
 	_camera.position_smoothing_enabled = true
 	_camera.position_smoothing_speed = 6.0
-	_camera.limit_left = 0
-	_camera.limit_right = int(_room.get("room_width"))
 	add_child(_camera)
 	_camera.make_current()
 
@@ -141,14 +149,20 @@ func _build_hud() -> void:
 func _process(_delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
-	_camera.global_position = Vector2(_player.global_position.x, _room.call("ground_y") - 210.0)
+	# Held inside the room by hand rather than with the camera's own limits, which are in
+	# screen pixels and so do not know about the zoom -- with limits set to the room width the
+	# view slid past the end of the wall at anything other than 1:1.
+	var half := get_viewport_rect().size.x / (2.0 * ZOOM)
+	var span := float(_room.get("room_width"))
+	_camera.global_position = Vector2(
+		clampf(_player.global_position.x, half, maxf(half, span - half)), EYE_Y)
 	_near = _nearest_painting()
 	_prompt.visible = _near != null
 	if _near == null:
 		return
 	# Placed under the plate, in screen space, so it reads with the picture it belongs to.
 	var canvas := get_viewport().get_canvas_transform()
-	var at := canvas * (_near.global_position + Vector2(0.0, 128.0))
+	var at := canvas * (_near.global_position + Vector2(0.0, 152.0))
 	_prompt.position = at - Vector2(_prompt.size.x * 0.5, 0.0)
 
 
