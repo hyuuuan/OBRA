@@ -2,6 +2,12 @@ extends Node2D
 
 @export var debug_timing_logs: bool = false
 
+## WHERE THE INTERFACE NAMES A KEY. The doorway into the straw prompts for one, and the
+## controls screen already translates a physical keycode through the active layout so a
+## non-QWERTY player is not told to press the wrong thing. Preloaded rather than reached by
+## class name, because controls_overlay.gd declares none.
+const ControlsKeys = preload("res://scripts/controls_overlay.gd")
+
 ## A morph whose anchor comes within this radius of the level's GoalMarker completes it.
 const GOAL_RADIUS := 120.0
 ## What the box's plaque says when the line is the player's own thought rather than Lolo's
@@ -41,6 +47,10 @@ var hint_bar: HintBar
 var _chips: Array = []
 ## How long the player has been under the water in their own body.
 var _submerged_seconds := 0.0
+## Where on the terrace to put the apo back when she comes out of the straw room.
+var _straw_return := Vector2.ZERO
+## Whether she is standing in the heap's doorway, and so whether Down means "go in".
+var _at_straw_mouth := false
 @onready var complete_overlay: ModalOverlay = $LevelCompleteOverlay
 @onready var out_of_ink_overlay: ModalOverlay = $OutOfInkOverlay
 @onready var dialogue_overlay: ModalOverlay = $DialogueChoiceOverlay
@@ -164,6 +174,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_take_back_under_cursor(
 			get_viewport().get_canvas_transform().affine_inverse() * click.position)
 		return
+	if event.is_action_pressed("move_down") and _at_straw_mouth:
+		get_viewport().set_input_as_handled()
+		_on_straw_entered()
+		return
 	if event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
 		_interact_with_nearest_utility()
@@ -244,11 +258,13 @@ func _build_obstacle_layer() -> void:
 	# she is in it, and an interior with a picture on the wall and nothing on the floor is a
 	# room the level forgot to furnish.
 	for node in get_tree().get_nodes_in_group(&"straw_piles"):
-		if node.has_signal(&"entered"):
-			node.connect(&"entered", _on_straw_entered)
+		if node.has_signal(&"at_mouth"):
+			node.connect(&"at_mouth", _on_straw_mouth)
 	for node in get_tree().get_nodes_in_group(&"straw_rooms"):
 		if node.has_signal(&"key_taken"):
 			node.connect(&"key_taken", _on_straw_key_taken)
+		if node.has_signal(&"exit_reached"):
+			node.connect(&"exit_reached", _on_straw_exit)
 
 	# Checkpoints you walk into, for the beats with no dialogue to hang one on.
 	for node in get_tree().get_nodes_in_group(&"checkpoint_areas"):
@@ -396,10 +412,121 @@ func _judge_submission(entity_id: String) -> void:
 		_speak_current_stage(String(verdict["obstacle_id"]))
 
 
-## Ducking into the heap. The chest is in there whichever way the player got to it.
+## Standing in the doorway of the heap. The offer, not the act.
+##
+## Walking in cannot be walking in: Terrace5 is the way to Node 3 and the mouth is on it, so
+## a heap that swallows whoever walks past is a hole in the floor of the level. run_nodraw
+## found that on the first run -- its walk east stopped at the doorway and never reached the
+## bale. Down is the platformer's key for a door, it is bound and unused outside a ladder,
+## and the prompt reads the live InputMap rather than naming a letter that a rebinding could
+## make a lie.
+func _on_straw_mouth(standing: bool) -> void:
+	_at_straw_mouth = standing
+	if hint_bar == null:
+		return
+	if standing:
+		hint_bar.show_hint("There is a way in under the straw  —  press %s"
+			% ControlsKeys.keys_for("move_down"))
+	else:
+		hint_bar.clear()
+
+
+## Ducking into the heap, which is the only place in Level 1 with an inside -- and the
+## inside is a room the size of a screen sitting in the empty sky above the level, not a
+## cutaway of the heap where the heap stands. A little hole and a big room is the whole
+## point of it, and it does not survive the two being the same size.
+##
+## It is the same body in the same level, so ink, the bag, the drawing panel and every
+## checkpoint carry in with her. Lolo comes too without being asked: he teleports to his
+## target past 900px and the room is thousands away.
 func _on_straw_entered() -> void:
 	_uncover_the_baul()
+	var room := get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	if room == null or player == null or not is_instance_valid(player):
+		return
+	# CLEAR OF THE MOUTH, or coming back out walks straight into it again and the room is a
+	# trap. Remembered on the way in rather than computed on the way out, so it is the heap
+	# she actually used.
+	_straw_return = _beside_the_mouth()
+	_step_through(Vector2(room.call("entry_point")))
 	_speak(script_lines_l1.fire("L1_N2.inside"))
+
+
+func _on_straw_exit() -> void:
+	if _straw_return != Vector2.ZERO:
+		_step_through(_straw_return)
+
+
+## A spot on the terrace beside the way in, far enough off it that walking out does not
+## count as walking back in.
+func _beside_the_mouth() -> Vector2:
+	for node in get_tree().get_nodes_in_group(&"straw_piles"):
+		var pile := node as Node2D
+		if pile == null or not bool(pile.get("entrance")):
+			continue
+		var mouth := Rect2(pile.call("mouth_rect"))
+		return pile.global_position + Vector2(mouth.position.x - 46.0, 0.0)
+	return player.global_position if player != null else Vector2.ZERO
+
+
+## Through the straw and out the other side. Deferred because both ends of this run inside a
+## body_entered callback, and moving the player out from under the physics mid-signal is the
+## same class of mistake as switching an area's monitoring there.
+func _step_through(to: Vector2) -> void:
+	_walk_through.call_deferred(to)
+
+
+func _walk_through(to: Vector2) -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	var veil := _straw_veil()
+	var fade := create_tween()
+	fade.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	fade.tween_property(veil, "color:a", 1.0, 0.16)
+	fade.tween_callback(func() -> void:
+		if player == null or not is_instance_valid(player):
+			return
+		player.call("apply_morph_state", {"position": to, "linear_velocity": Vector2.ZERO})
+		# The camera eases toward its target, and easing across four thousand units is a
+		# whip pan through the whole level. It has to arrive already there.
+		var world_camera := _world_camera()
+		if world_camera != null:
+			# The room is a thousand units above the terrain, and the camera's ordinary job
+			# is to keep the ground in shot -- so in here it centres on her instead.
+			world_camera.set_vertical_free(_in_the_straw_room())
+			world_camera.snap_to_target())
+	fade.tween_property(veil, "color:a", 0.0, 0.24)
+
+
+## Whether the apo is standing in the straw room rather than on the terrace. Asked of the
+## room's own bounds rather than tracked with a flag, so a checkpoint restore or a fall that
+## moves her without going through the doorway cannot leave the camera in room mode.
+func _in_the_straw_room() -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	var room := get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	if room == null:
+		return false
+	var size := Vector2(room.get("room_size"))
+	return Rect2(room.global_position - Vector2(size.x * 0.5, size.y),
+		size).grow(120.0).has_point(player.global_position)
+
+
+## The black it fades through. One rect on a layer above everything, built once.
+func _straw_veil() -> ColorRect:
+	var layer := get_node_or_null("StrawVeil") as CanvasLayer
+	if layer == null:
+		layer = CanvasLayer.new()
+		layer.name = "StrawVeil"
+		layer.layer = 90
+		add_child(layer)
+		var rect := ColorRect.new()
+		rect.name = "Veil"
+		rect.color = Color(0.0, 0.0, 0.0, 0.0)
+		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		layer.add_child(rect)
+	return layer.get_node("Veil") as ColorRect
 
 
 ## The key off the floor of the straw room. It does not open the chest beside it and it is

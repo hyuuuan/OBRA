@@ -13,6 +13,16 @@ signal camera_moved(camera_position: Vector2)
 @export var target_offset: Vector2 = Vector2(0.0, -160.0)
 @export var world_bounds: Rect2 = Rect2(0.0, -520.0, 3760.0, 1200.0)
 @export var camera_move_epsilon: float = 0.05
+## CENTRE ON THE TARGET INSTEAD OF ANCHORING TO THE GROUND.
+##
+## The vertical follow below exists for a level: it pins the camera near the bottom of the
+## world and lets the player rise off it by three quarters of the distance, so the ground
+## stays in shot and a jump does not swing the view. Somewhere that is not a level -- the
+## room inside the straw heap, which sits in the empty sky above it -- that is exactly
+## wrong: the camera stays a thousand units below the floor being stood on and points at
+## nothing. This is not `focus_on`, deliberately: focus is what a line of dialogue takes and
+## gives back, and a room would lose its framing the moment somebody finished a sentence.
+@export var vertical_free: bool = false
 
 var target: Node2D = null
 ## What the camera is pushed in on for a beat, and how far. Null means it is doing its
@@ -115,6 +125,15 @@ func set_bounds(bounds: Rect2) -> void:
 	world_bounds = bounds
 
 
+## Going back to anchoring on the ground forgets where the ground was, or the camera keeps
+## measuring the player's height above a rest line taken somewhere they are no longer.
+func set_vertical_free(free: bool) -> void:
+	if vertical_free == free:
+		return
+	vertical_free = free
+	_has_vertical_rest = false
+
+
 func snap_to_target() -> void:
 	global_position = _clamped_target_position()
 	_emit_camera_moved_if_needed(true)
@@ -134,7 +153,8 @@ func _clamped_target_position() -> Vector2:
 		var target_position := target.global_position
 		if _vector_is_finite(target_position):
 			desired.x = target_position.x + target_offset.x
-			desired.y = _vertical_follow_y(target_position.y)
+			desired.y = _clamp_camera_y(target_position.y + target_offset.y) \
+				if vertical_free else _vertical_follow_y(target_position.y)
 
 	return _clamp_to_bounds(desired)
 

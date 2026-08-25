@@ -24,9 +24,13 @@ extends Node2D
 ## you climb, and a solid one would be a wall across the only route out of the level.
 
 signal searched(how: String)
-## The apo has stepped into the mouth of a heap that has one, or back out of it.
-signal entered()
-signal left()
+## The apo is standing in the mouth of a heap that has one, or has stepped back off it.
+##
+## IT IS NOT "SHE HAS GONE IN". The mouth sits on the path east -- Terrace5 is how you get
+## to Node 3 -- so a heap that swallows anybody who walks past it is a hole in the floor of
+## the level, and run_nodraw found exactly that: the bot's run east stopped dead at the
+## doorway. Going in is a deliberate press; this only says the offer is there.
+signal at_mouth(standing: bool)
 
 enum State { INTACT, COMBED, TUNNELLED, SCATTERED }
 
@@ -124,10 +128,7 @@ func _on_mouth_body(body: Node, coming_in: bool) -> void:
 				return
 			_inside = coming_in
 			queue_redraw()
-			if coming_in:
-				entered.emit()
-			else:
-				left.emit()
+			at_mouth.emit(coming_in)
 			return
 		node = node.get_parent()
 

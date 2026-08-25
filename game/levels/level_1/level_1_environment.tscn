@@ -116,7 +116,7 @@ size = Vector2(150, 200)
 [node name="EnvironmentBaseplate" type="Node2D" unique_id=1910596875]
 texture_filter = 1
 script = ExtResource("1_environment")
-world_bounds = Rect2(0, -520, 3920, 1200)
+world_bounds = Rect2(0, -1800, 3920, 2480)
 
 [node name="WorldCamera" type="Camera2D" parent="." unique_id=449082578]
 position = Vector2(800, 230)
@@ -605,13 +605,13 @@ offset = Vector2(0, -19)
 texture = SubResource("Atlas_jar")
 
 [node name="Baul" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319160]
-z_index = 3
-position = Vector2(3238, 240)
+z_index = 41
+position = Vector2(2140, -900)
 script = ExtResource("24_vekj0")
 
 [node name="StrawRoom" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319161]
-z_index = 3
-position = Vector2(3180, 240)
+z_index = 40
+position = Vector2(1900, -900)
 script = ExtResource("24_strawroom")
 
 [node name="Bale" type="Node2D" parent="GameplayPlane" unique_id=913205178]
