@@ -124,19 +124,47 @@ func _draw_wall() -> void:
 	var top := ceiling_y()
 	var cornice := cornice_y()
 	draw_rect(Rect2(0.0, top, room_width, floor_y - top), WALL)
-	# The pressed-tin ceiling of the reference photo: a pale band above the picture rail,
-	# ruled into panels. It is what makes the room read as a storey rather than as a
-	# backdrop, and it is what the chandeliers hang from.
-	draw_rect(Rect2(0.0, top, room_width, ceiling_depth - 12.0),
-		Color(0.435, 0.455, 0.400, 1.0))
-	var rib := 0.0
-	while rib < room_width:
-		draw_rect(Rect2(rib, top, PIXEL, ceiling_depth - 12.0),
-			Color(0.318, 0.337, 0.290, 1.0))
-		rib += 36.0
-	# The cornice the ceiling sits on.
-	draw_rect(Rect2(0.0, cornice - 12.0, room_width, 12.0), WALL_LIT)
-	draw_rect(Rect2(0.0, cornice - PIXEL, room_width, PIXEL), WALL_EDGE)
+	_draw_ceiling(top, cornice)
+	# The cornice: the moulded band the ceiling sits on, stepped out from the wall in three
+	# courses so it catches light the way a run of moulding does.
+	draw_rect(Rect2(0.0, cornice - 18.0, room_width, 6.0), WALL_LIT)
+	draw_rect(Rect2(0.0, cornice - 12.0, room_width, 2.0), WALL_EDGE)
+	draw_rect(Rect2(0.0, cornice - 10.0, room_width, 8.0), WALL)
+	draw_rect(Rect2(0.0, cornice - 2.0, room_width, 2.0), WALL_EDGE)
+
+
+## The pressed-tin ceiling of the reference photograph, seen from underneath.
+##
+## It was a strip with vertical ribs down it, which is a corrugated roof, not a ceiling. A
+## stamped tin ceiling is a GRID OF PANELS with a motif punched into each -- that is the
+## whole of what makes one recognisable -- and seen from below at this angle the grid is
+## foreshortened into two shallow courses rather than squares.
+func _draw_ceiling(top: float, cornice: float) -> void:
+	var depth := cornice - 18.0 - top
+	var tin := Color(0.435, 0.455, 0.400, 1.0)
+	var tin_dark := Color(0.318, 0.337, 0.290, 1.0)
+	var tin_lit := Color(0.529, 0.549, 0.486, 1.0)
+	draw_rect(Rect2(0.0, top, room_width, depth), tin)
+	var courses := 2
+	var course_h := depth / float(courses)
+	for course in range(courses):
+		var y := top + course_h * float(course)
+		draw_rect(Rect2(0.0, y, room_width, 2.0), tin_dark)
+		var x := 0.0
+		while x < room_width:
+			# The panel: a sunk field with a raised bead round it.
+			var panel := Rect2(x + 4.0, y + 5.0, 64.0, course_h - 12.0)
+			draw_rect(panel, tin_dark)
+			draw_rect(Rect2(panel.position, Vector2(panel.size.x, 1.0)), tin_lit)
+			draw_rect(Rect2(panel.position.x, panel.end.y - 1.0, panel.size.x, 1.0), tin_lit)
+			# The stamped motif in the middle of it: a small four-pointed star, which at
+			# this size is a cross with its corners knocked off.
+			var mid := panel.get_center()
+			draw_rect(Rect2(mid.x - 6.0, mid.y - 1.0, 12.0, 2.0), tin_lit)
+			draw_rect(Rect2(mid.x - 1.0, mid.y - 6.0, 2.0, 12.0), tin_lit)
+			draw_rect(Rect2(mid.x - 3.0, mid.y - 3.0, 6.0, 6.0), tin)
+			draw_rect(Rect2(x + 70.0, y + 2.0, 2.0, course_h - 4.0), tin_dark)
+			x += 72.0
 
 
 ## The tall panelled bays the pictures hang between. One bay per gap between paintings,
