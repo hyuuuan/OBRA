@@ -55,13 +55,14 @@ import math
 import sys
 from collections import Counter, deque
 from pathlib import Path
+from typing import NamedTuple
 
 import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "level-1-assets"
-CHARACTER_OUT = ROOT / "game" / "assets" / "characters" / "apo"
+CHARACTER_OUT = ROOT / "game" / "assets" / "characters"
 # Level1, capital L: the folder already exists under that name and macOS merges the two
 # silently, so a res:// path spelled level1 loads here and fails on any case-sensitive
 # platform the game is exported to.
@@ -69,21 +70,17 @@ PROP_OUT = ROOT / "game" / "assets" / "Level1" / "props"
 UI_OUT = ROOT / "game" / "assets" / "ui"
 HUB_OUT = ROOT / "game" / "assets" / "hub" / "paintings"
 
-# --- the character sheet -------------------------------------------------------------
-
-SHEET = "Obra Assets Male.png"
+# --- the character sheets ------------------------------------------------------------
+#
+# TWO CHARACTERS ARRIVE ON THE SAME PRESENTATION TEMPLATE. The apo and Lolo were drawn
+# months apart and delivered as separate 1254x1254 pages, but the pages are laid out to
+# the identical grid: a hero card down the left, then TURNAROUND, WALK CYCLE, RUN CYCLE
+# and EXTRA POSES stacked in bordered panels down the right. So the panel bounds below
+# are shared, and one cutter serves both -- measured against Lolo's page and found to
+# land inside every frame on it, which is the only reason sharing them is safe rather
+# than lucky.
 
 # Panel interiors, measured off the tan border lines that box each section.
-## The hero panel in the sheet's top-left corner, inside its border stroke.
-##
-## THE SHEET CARRIES A SECOND, BIGGER DRAWING OF THE CHARACTER and it went unused for
-## months. The twenty-three poses are cut down to a 96px standing height because that is
-## what the game world needs; this one is 312px tall in the source and is a different
-## drawing rather than the same one enlarged -- there is shading in the hair and folds in
-## the shirt that the small frames do not have room for. It is exactly what a dialogue
-## portrait wants, and cutting it costs nothing because the keying is already written.
-HERO_PANEL = (40, 115, 305, 470)
-
 PANEL_X = (340, 1232)
 PANELS = [
     ("turnaround", (30, 382), ["front", "34front", "side", "34back", "back"]),
@@ -92,16 +89,9 @@ PANELS = [
     ("extra", (930, 1221), ["idle", "look_up", "look_down", "wave", "jump", "cheer"]),
 ]
 
-# How tall the character stands, in world pixels, measured on the idle pose.
-#
-# The collision capsule it replaces is 80px from the feet up, and the stick figure that
-# stood in for it was 83. Ninety-six puts the eyeline above the capsule and lets the hair
-# overhang it, which is what makes a chibi silhouette read; the body inside the capsule is
-# unchanged, so no gate in GATES.md is affected by this number.
-STANDING_HEIGHT = 96.0
-# The pose the height is measured on. Every frame in walk/run/extra is drawn at one scale,
-# so one factor derived from this pose keeps their differences intact -- run is shorter
-# because it leans, not because it is smaller.
+# The pose the standing height is measured on. Every frame in walk/run/extra is drawn at
+# one scale, so one factor derived from this pose keeps their differences intact -- run is
+# shorter because it leans, not because it is smaller.
 SCALE_REFERENCE = ("extra", "idle")
 # The turnaround panel is drawn larger than the rest of the sheet and gets its own factor,
 # derived from the standing pose in it rather than guessed.
@@ -109,17 +99,54 @@ TURNAROUND_REFERENCE = ("turnaround", "front")
 
 # Which frames become which file. A strip is one row of frames, left to right.
 STRIPS = [
-    ("apo_idle", [("extra", "idle")]),
-    ("apo_walk", [("walk", str(i)) for i in range(6)]),
-    ("apo_run", [("run", str(i)) for i in range(6)]),
-    ("apo_jump", [("extra", "jump")]),
-    ("apo_look_up", [("extra", "look_up")]),
-    ("apo_look_down", [("extra", "look_down")]),
-    ("apo_wave", [("extra", "wave")]),
-    ("apo_cheer", [("extra", "cheer")]),
-    ("apo_turnaround", [("turnaround", n) for n in
-                        ["front", "34front", "side", "34back", "back"]]),
+    ("idle", [("extra", "idle")]),
+    ("walk", [("walk", str(i)) for i in range(6)]),
+    ("run", [("run", str(i)) for i in range(6)]),
+    ("jump", [("extra", "jump")]),
+    ("look_up", [("extra", "look_up")]),
+    ("look_down", [("extra", "look_down")]),
+    ("wave", [("extra", "wave")]),
+    ("cheer", [("extra", "cheer")]),
+    ("turnaround", [("turnaround", n) for n in
+                    ["front", "34front", "side", "34back", "back"]]),
 ]
+
+
+class CharacterSheet(NamedTuple):
+    """One delivered design page and what the game wants out of it."""
+
+    ## What the files are called and which folder they land in: apo_walk.png under
+    ## characters/apo, lolo_walk.png under characters/lolo.
+    name: str
+    source: Path
+    ## The hero card in the page's top-left corner, inside its border stroke.
+    ##
+    ## EACH SHEET CARRIES A SECOND, BIGGER DRAWING OF THE CHARACTER and on the apo's page
+    ## it went unused for months. The pose strips are cut down to what the game world
+    ## needs; this one is three hundred pixels tall in the source and is a different
+    ## drawing rather than the same one enlarged -- shading in the hair, folds in the
+    ## cloth that the small frames have no room for. It is exactly what a dialogue
+    ## portrait wants, and cutting it costs nothing because the keying is already written.
+    hero: tuple[int, int, int, int]
+    ## How tall the character stands in the world, in game pixels, on the idle pose.
+    standing: float
+
+
+## The apo, at ninety-six pixels.
+##
+## The collision capsule it replaces is 80px from the feet up, and the stick figure that
+## stood in for it was 83. Ninety-six puts the eyeline above the capsule and lets the hair
+## overhang it, which is what makes a chibi silhouette read; the body inside the capsule is
+## unchanged, so no gate in GATES.md is affected by this number.
+APO = CharacterSheet(
+    name="apo",
+    source=SOURCE / "Obra Assets Male.png",
+    hero=(40, 115, 305, 470),
+    standing=96.0,
+)
+
+SHEETS = [APO]
+
 
 # --- the props -----------------------------------------------------------------------
 
@@ -285,9 +312,9 @@ def tallest_row_band(mask: np.ndarray, y0: int) -> tuple[int, int]:
     return bands[0]
 
 
-def cut_sheet() -> dict[tuple[str, str], dict]:
-    """Every pose on the sheet, keyed, with the numbers needed to line them up."""
-    sheet = Image.open(SOURCE / SHEET).convert("RGB")
+def cut_sheet(page: Path) -> dict[tuple[str, str], dict]:
+    """Every pose on one design page, keyed, with the numbers needed to line them up."""
+    sheet = Image.open(page).convert("RGB")
     rgb = np.asarray(sheet, dtype=int)
     mask = foreground_mask(rgb)
     solid_only = without_thin_columns(mask)
@@ -300,8 +327,9 @@ def cut_sheet() -> dict[tuple[str, str], dict]:
         groups = column_groups(band, x0)
         if len(groups) != len(names):
             raise SystemExit(
-                f"{panel}: expected {len(names)} frames, found {len(groups)}. "
-                "The sheet layout changed; the panel bounds above need re-measuring.")
+                f"{page.name}: {panel} expected {len(names)} frames, found "
+                f"{len(groups)}. The sheet layout changed; the panel bounds above need "
+                "re-measuring against this page.")
 
         cut: list[dict] = []
         for (gx0, gx1), name in zip(groups, names):
@@ -356,14 +384,14 @@ def scaled(image: Image.Image, factor: float) -> Image.Image:
         np.dstack([np.clip(colour, 0, 255), out_alpha]).astype(np.uint8), "RGBA")
 
 
-def build_character(write: bool) -> dict[str, bytes]:
-    sheet = Image.open(SOURCE / SHEET).convert("RGB")
-    frames = cut_sheet()
+def build_character(spec: CharacterSheet, write: bool) -> tuple[dict[str, bytes], int, int]:
+    sheet = Image.open(spec.source).convert("RGB")
+    frames = cut_sheet(spec.source)
 
     reference = frames[SCALE_REFERENCE]
-    base_scale = STANDING_HEIGHT / (reference["box"][3] - reference["box"][1])
+    base_scale = spec.standing / (reference["box"][3] - reference["box"][1])
     turn = frames[TURNAROUND_REFERENCE]
-    turn_scale = STANDING_HEIGHT / (turn["box"][3] - turn["box"][1])
+    turn_scale = spec.standing / (turn["box"][3] - turn["box"][1])
     scales = {"turnaround": turn_scale, "walk": base_scale, "run": base_scale,
               "extra": base_scale}
 
@@ -390,24 +418,26 @@ def build_character(write: bool) -> dict[str, bytes]:
             x = index * cell_w + int(round(cell_w / 2.0 - anchor))
             y = cell_h - 1 - int(round(image.height + lift))
             strip.alpha_composite(image, (x, y))
-        path = CHARACTER_OUT / f"{name}.png"
+        path = CHARACTER_OUT / spec.name / f"{spec.name}_{name}.png"
         written[str(path.relative_to(ROOT))] = _emit(strip, path, write)
     return written, cell_w, cell_h
 
 
-def build_portrait(write: bool) -> dict[str, bytes]:
+def build_portrait(spec: CharacterSheet, write: bool) -> tuple[dict[str, bytes], tuple[int, int]]:
     """The big hero drawing, keyed and trimmed, for the dialogue box."""
-    sheet = Image.open(SOURCE / SHEET).convert("RGB")
-    rgb = np.asarray(sheet.crop(HERO_PANEL), dtype=int)
+    sheet = Image.open(spec.source).convert("RGB")
+    rgb = np.asarray(sheet.crop(spec.hero), dtype=int)
     solid = fill_from_border(foreground_mask(rgb).copy())
-    keyed = keyed_image(sheet, {"box": HERO_PANEL, "mask": solid})
+    keyed = keyed_image(sheet, {"box": spec.hero, "mask": solid})
     # Trimmed to the figure. The panel is mostly empty and the drop shadow under the feet
     # is keyed out with the background, so the bbox is the character and nothing else.
     bounds = keyed.getchannel("A").getbbox()
     if bounds is None:
-        raise SystemExit("the hero panel keyed to nothing; HERO_PANEL needs re-measuring")
+        raise SystemExit(
+            f"{spec.source.name}: the hero card keyed to nothing; its `hero` bounds need "
+            "re-measuring")
     portrait = keyed.crop(bounds)
-    path = CHARACTER_OUT / "apo_portrait.png"
+    path = CHARACTER_OUT / spec.name / f"{spec.name}_portrait.png"
     return {str(path.relative_to(ROOT)): _emit(portrait, path, write)}, portrait.size
 
 
@@ -519,12 +549,21 @@ def main() -> int:
                         help="fail if the committed files differ from a fresh build")
     args = parser.parse_args()
 
-    character, cell_w, cell_h = build_character(write=not args.check)
-    portrait, portrait_size = build_portrait(write=not args.check)
+    everything: dict[str, bytes] = {}
+    figures: list[str] = []
+    for spec in SHEETS:
+        character, cell_w, cell_h = build_character(spec, write=not args.check)
+        portrait, portrait_size = build_portrait(spec, write=not args.check)
+        everything.update(character)
+        everything.update(portrait)
+        figures.append(
+            f"{spec.name}: cell {cell_w}x{cell_h}px at {spec.standing:.0f}px standing, "
+            f"portrait {portrait_size[0]}x{portrait_size[1]}px")
+
     props = build_props(write=not args.check)
     logo, logo_size = build_logo(write=not args.check)
     paintings = build_paintings(write=not args.check)
-    everything = {**character, **portrait, **props, **logo, **paintings}
+    everything.update({**props, **logo, **paintings})
 
     if args.check:
         stale = []
@@ -540,8 +579,8 @@ def main() -> int:
         print(f"art is up to date ({len(everything)} files)")
         return 0
 
-    print(f"character cell {cell_w}x{cell_h}px, standing height {STANDING_HEIGHT:.0f}px")
-    print(f"dialogue portrait {portrait_size[0]}x{portrait_size[1]}px")
+    for line in figures:
+        print(line)
     print(f"wordmark {logo_size[0]}x{logo_size[1]}px native")
     for rel in sorted(everything):
         print(f"   {len(everything[rel]):7d}  {rel}")
