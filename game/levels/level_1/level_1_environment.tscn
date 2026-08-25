@@ -540,9 +540,10 @@ is_broken = true
 position = Vector2(800, 548)
 
 [node name="FloatingTread" type="RigidBody2D" parent="GameplayPlane/Hagdan" unique_id=1182508414]
-position = Vector2(420, 578)
+position = Vector2(490, 578)
 collision_layer = 4
-mass = 0.6
+mass = 2.4
+angular_damp = 4.0
 gravity_scale = 0.35
 script = ExtResource("21_a6y54")
 
