@@ -35,7 +35,16 @@ func _run() -> void:
 	# button would, and keep dismissing them -- otherwise the first obstacle the
 	# walker reaches stops the world and it reports the level as a wall.
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
-	await _wait(1.0)
+	# WAIT ON THE THING, NOT ON A CLOCK. This was `await _wait(1.0)`, and one second is
+	# plenty on an idle machine and not always enough on a busy one -- which is exactly the
+	# state this suite runs in, because it is usually started the moment another Godot is
+	# still shutting down. When it was not enough the HUD had not built its slot buttons
+	# yet, so the canary found nothing to click, reported NEEDS_VIEWPORT, and blamed the
+	# display server for a race in its own setup.
+	if not await _ready_to_click():
+		print("OBRA_CLICK_UI_NEEDS_VIEWPORT  (the level never finished building)")
+		quit(2)
+		return
 	player = level.get("player") as Node2D
 
 	if not await _mouse_reaches_the_gui():
@@ -61,6 +70,32 @@ func _run() -> void:
 	else:
 		print("OBRA_CLICK_UI_FAILED=%d" % failures)
 		quit(1)
+
+
+## Everything the run is about to click, actually on screen and laid out.
+##
+## The window is checked for FOCUS too. Events go straight into the viewport now rather
+## than through the window manager, so focus is not needed to deliver them -- but an
+## unfocused window on this platform is one that has not finished being mapped, and a
+## Control laid out during that has not necessarily settled where it will end up.
+func _ready_to_click() -> bool:
+	for _attempt in range(240):
+		await process_frame
+		var hud := level.get("inventory_hud") as Node
+		var draw_button := level.get_node_or_null("CanvasLayer/DrawButton") as Button
+		if hud == null or draw_button == null or level.get("player") == null:
+			continue
+		if _first_button(hud) == null:
+			continue
+		if draw_button.get_global_rect().get_center().x <= 0.0:
+			continue
+		if not DisplayServer.window_is_focused():
+			continue
+		# Settled, then two more frames for the layout pass that follows the last one.
+		await process_frame
+		await process_frame
+		return true
+	return false
 
 
 ## Does a mouse event reach a Control at all? Everything else here is meaningless if not,
@@ -479,7 +514,18 @@ func _key(pressed: bool) -> InputEventKey:
 ## press alone proves nothing, and the motion first is what a mouse actually does.
 func _click(control: Control) -> void:
 	var at := control.get_global_rect().get_center()
-	for event in [_motion(at), _button(at, true), _button(at, false)]:
+	# Move first, then WAIT FOR THE HOVER TO ARRIVE. Input.warp_mouse asks the display
+	# server to move the pointer and that is not answered within the frame -- so a press
+	# sent on the next frame can still be picked against where the mouse used to be, which
+	# left about one run in eight failing after the warp went in. Waiting on the hover is
+	# waiting on the thing itself.
+	_inject(_motion(at))
+	for _frame in range(20):
+		await process_frame
+		var hovered := root.gui_get_hovered_control()
+		if hovered != null and (hovered == control or control.is_ancestor_of(hovered)):
+			break
+	for event in [_button(at, true), _button(at, false)]:
 		_inject(event)
 		await process_frame
 	await process_frame
@@ -506,6 +552,24 @@ func _click(control: Control) -> void:
 ## Actions stay on Input.parse_input_event -- those exist to move the Input singleton's own
 ## state, which is what the code under test reads them back out of.
 func _inject(event: InputEvent) -> void:
+	# THE REAL POINTER HAS TO BE THERE TOO, and this is the whole of the flakiness.
+	#
+	# Godot picks the Control under the mouse from the DisplayServer's actual pointer, not
+	# from the position on a pushed event -- so with the physical mouse parked outside the
+	# window, gui_get_hovered_control() is null and a pushed button event lands on nothing.
+	# Whether a run passed therefore depended on where somebody had last left their mouse,
+	# which is why "clicking Draw opens the panel" came and went on code nobody had touched
+	# and why chasing it through the button, the badge and the injection API found nothing.
+	# Diagnosed by printing root.get_mouse_position() on a failing run: (-558, -286).
+	#
+	# warp_mouse takes WINDOW pixels while these events are in the 1600x900 content the game
+	# is laid out in, so the position is scaled by whatever the window is doing.
+	if event is InputEventMouse:
+		var at := (event as InputEventMouse).position
+		var window := Vector2(DisplayServer.window_get_size())
+		var content := root.get_visible_rect().size
+		if content.x > 0.0 and content.y > 0.0:
+			Input.warp_mouse(at * (window / content))
 	root.push_input(event, true)
 
 
