@@ -40,7 +40,21 @@ const TURNAROUND := preload("res://assets/characters/apo/apo_turnaround.png")
 ## facing away from you, and the walk cycle seen from the side reads as walking on air.
 const POSES := {
 	&"idle": {"texture": IDLE, "count": 1, "cycle": false, "frame": 0},
-	&"walk": {"texture": WALK, "count": 6, "cycle": true, "frame": 0},
+	# BOTH GROUND POSES DRAW THE RUN SHEET, and that is not a typo.
+	#
+	# The delivered walk sheet is not a cycle. Measured across its six frames: the gap
+	# between the feet stays between 53 and 56 pixels, so the legs NEVER PASS EACH OTHER --
+	# a walk is contact, pass, contact on the other foot, and the pass is missing entirely.
+	# Every frame has the same leg mass in front of and behind the body axis. What plays is
+	# six near-identical striding poses with the hair and the satchel jittering, which on
+	# screen is a boy sliding along the floor.
+	#
+	# The run sheet IS a cycle: its foot gap runs 53, 54, 39, 54, 57, 39, and those 39s are
+	# the passing poses. So walking plays the run cycle slowly. A child hurrying between two
+	# terraces is a defensible thing for it to look like, and it is emphatically better than
+	# a glide. Point this at the walk sheet again the day one arrives with a pass in it --
+	# it is still loaded, and `WALK` is still here for that.
+	&"walk": {"texture": RUN, "count": 6, "cycle": true, "frame": 0},
 	&"run": {"texture": RUN, "count": 6, "cycle": true, "frame": 0},
 	&"air": {"texture": JUMP, "count": 1, "cycle": false, "frame": 0},
 	&"look_up": {"texture": LOOK_UP, "count": 1, "cycle": false, "frame": 0},
@@ -98,3 +112,27 @@ func refresh() -> void:
 		# a negative frame index leaves the sprite showing nothing at all.
 		frame = posmod(int(floor(stride * float(count))), count)
 	_sprite.frame = frame
+	_sprite.position.y = _bob(bool(entry["cycle"]))
+
+
+## The rise and fall of a body over its own legs.
+##
+## NEITHER SHEET HAS ONE. The head sits within a pixel of the same row in all six frames of
+## both cycles, and a figure that travels without rising and falling is the definition of a
+## glide -- it is the single thing most responsible for the character reading as though he
+## were on rails rather than on feet.
+##
+## TWICE THE STRIDE FREQUENCY, because there are two footfalls in a stride and the body
+## comes up over each of them. The same reason gait_driver.gd runs its bob at double the
+## limb rate for the drawn creatures, and it is why a bob at the stride rate reads as a limp.
+##
+## Two pixels, and rounded to whole ones. It has to be small: these frames are drawn with
+## both feet planted wide, so lifting the whole figure lifts a foot off the floor with it,
+## and past about two pixels that is what the eye notices instead.
+const BOB_PIXELS := 2.0
+
+
+func _bob(cycling: bool) -> float:
+	if not cycling:
+		return 0.0
+	return -roundf(absf(sin(TAU * stride)) * BOB_PIXELS)
