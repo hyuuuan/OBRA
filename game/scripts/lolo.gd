@@ -32,6 +32,9 @@ const SPEAKER := "Lolo"
 ## How fast he has to be moving before the drift becomes a hurry, in pixels per second.
 ## Above this he is visibly chasing the player rather than keeping pace with them.
 @export var hurry_speed: float = 180.0
+## Below this he is holding station rather than travelling, and shows the idle rather than
+## the drift. Well under hurry_speed: the three poses are stopped, drifting and chasing.
+@export var drift_threshold: float = 26.0
 
 @onready var _figure: Node2D = $Figure
 
@@ -129,11 +132,33 @@ func _process(delta: float) -> void:
 	# Whole cycles either way. Holding station he drifts at his own rate; chasing, the
 	# cycle is driven by the ground he is covering, so the pose and the motion agree.
 	_stride = fmod(_stride + delta * (speed / 90.0 if hurrying else drift_hz), 1.0)
-	_figure.set("pose", &"hurry" if hurrying else &"float")
+	_figure.set("pose", _pose_for(speed, hurrying))
 	_figure.set("stride", _stride)
 	_figure.set("bob", _phase)
 	_figure.set("facing", _facing)
 	_figure.call("refresh")
+
+
+## Which of the ghost's drawings to show.
+##
+## HE HAD FOUR HE NEVER USED. The sheet came with an idle, a wave, a cheer and a head-on
+## turnaround, and every one of them sat in the pose table unreferenced while he played the
+## drift cycle through all of it -- holding station, catching up, and talking alike. What
+## that reads as on screen is a companion whose animation has nothing to do with what he is
+## doing, which is worse than a companion with one animation, because the game keeps
+## implying he is about to do something and he never does.
+##
+## Talking wins over moving. A line of Lola's story is the only moment in this game where
+## Lolo is the thing you are meant to be looking at, and a gesture is what says it is him
+## saying it rather than the box.
+func _pose_for(speed: float, hurrying: bool) -> StringName:
+	if _speech_time != 0.0 or bool(_figure.get("talking")):
+		return &"wave"
+	if hurrying:
+		return &"hurry"
+	# The drift is for actually covering ground. Parked at the player's shoulder he is
+	# STILL -- which is not motionless, because the idle frame still rides the bob.
+	return &"float" if speed > drift_threshold else &"still"
 
 
 func _desired_position() -> Vector2:
