@@ -7,6 +7,13 @@ extends Node2D
 ## and the Protector route below does exactly that -- straw keeps the picture and removes
 ## the problem. See the build spec's cultural guardrails.
 ##
+## IT IS DRAWN AS STRANDS, and that is the whole difference from what was here before. A
+## textured mound is a shape with straw printed on it; a heap of straw is hundreds of stalks
+## thrown over one another, radiating from where the last armful was dropped on top. Only
+## the second one has a silhouette that reads at a glance, and only the second one can have
+## a HOLE in it -- which is what Node 2 needs, because "combed" and "tunnelled" were the
+## same heap at two slightly different sizes and could not be told apart.
+##
 ## Three ways to search it, and the pile remembers which:
 ##   comb    patient, section by section. The pile is left standing
 ##   tunnel  in underneath and out again. One hole, otherwise undisturbed
@@ -20,26 +27,38 @@ signal searched(how: String)
 
 enum State { INTACT, COMBED, TUNNELLED, SCATTERED }
 
-const AtlasTile = preload("res://scripts/atlas_tile.gd")
-const TEXTURE_MAP := preload("res://assets/Level1/texturemap.png")
-## Real thatch, cut from the middle of the atlas's hut panel. This was the straw band off
-## the top of a rice tile, which is standing crop rather than cut straw -- the heaps read
-## as a piece of the field they were lying in.
-const STRAW := Rect2(734, 1012, 70, 44)
-
 @export var pile_size := Vector2(150.0, 96.0)
-## Straw catches the light unevenly; a row of identical mounds reads as wallpaper.
-@export var tint := Color(1.0, 0.97, 0.86, 1.0)
+## Straw catches the light unevenly; a row of identical mounds reads as wallpaper. This
+## multiplies the whole ramp, so a pile can be a shade greener or greyer than its neighbour
+## without any of them leaving the same family of golds.
+@export var tint := Color(1.0, 1.0, 1.0, 1.0)
+## How many stalks. Scaled by the pile's own width so a big heap is not a sparse one.
+@export var strand_density := 1.0
+
+## The golds, darkest to lightest. Straw is one hue and a dozen values of it: a heap with
+## contrasting colours in it reads as a bonfire, which this is not.
+const EDGE := Color(0.361, 0.196, 0.020, 1.0)   # 5C3305  the shadow between stalks
+const DARK := Color(0.573, 0.333, 0.024, 1.0)   # 925506
+const MID := Color(0.769, 0.478, 0.031, 1.0)    # C47A08
+const BODY := Color(0.898, 0.635, 0.043, 1.0)   # E5A20B
+const LIT := Color(0.980, 0.780, 0.075, 1.0)    # FAC713
+const HI := Color(1.000, 0.882, 0.235, 1.0)     # FFE13C  the catch on a stalk facing up
+## Inside the heap, seen through a hole. Not black: it is straw in shade, and a black hole
+## in a yellow mound reads as a bite taken out of it rather than as a way in.
+const HOLLOW := Color(0.267, 0.145, 0.031, 1.0) # 442508
+const HOLLOW_DEEP := Color(0.161, 0.086, 0.024, 1.0) # 291606
+
+## Where the light comes from. Up and a little to the left, the same as the joinery in the
+## house and the gilt on every frame in this game.
+const LIGHT := Vector2(-0.35, -0.94)
 
 var _state: int = State.INTACT
-var _mound: Polygon2D
-var _scatter: Node2D
 
 
 func _ready() -> void:
 	add_to_group(&"straw_piles")
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_build()
+	queue_redraw()
 
 
 func state() -> int:
@@ -55,7 +74,7 @@ func comb() -> void:
 	if _state != State.INTACT:
 		return
 	_state = State.COMBED
-	_reshape(0.82, 0.9)
+	queue_redraw()
 	searched.emit("comb")
 
 
@@ -64,7 +83,7 @@ func tunnel() -> void:
 	if _state != State.INTACT:
 		return
 	_state = State.TUNNELLED
-	_reshape(0.94, 0.78)
+	queue_redraw()
 	searched.emit("tunnel")
 
 
@@ -73,69 +92,204 @@ func scatter() -> void:
 	if _state == State.SCATTERED:
 		return
 	_state = State.SCATTERED
-	if _mound != null:
-		_mound.visible = false
-	_build_scatter()
+	queue_redraw()
 	searched.emit("scatter")
 
 
-func _build() -> void:
-	_mound = Polygon2D.new()
-	_mound.name = "Mound"
-	_mound.polygon = _mound_shape(1.0, 1.0)
-	AtlasTile.fill(_mound, TEXTURE_MAP, STRAW)
-	_mound.color = tint
-	add_child(_mound)
+## Put it back the way it was found.
+##
+## Nothing in the level calls this yet -- a checkpoint restore re-homes placed props and
+## leaves the straw where the route left it, which is arguably right, since a route commit
+## is written to a checkpoint and is not meant to be undone. It exists because the prop
+## photographer has to take four pictures of one heap, and comb() and tunnel() both refuse
+## to run on a pile that is not intact: it was calling them in order on the same three
+## piles, so the frame labelled "tunnelled" has been a picture of a COMBED pile for as long
+## as the node has existed. That is half of why the two were recorded as indistinguishable.
+func restore_intact() -> void:
+	_state = State.INTACT
+	queue_redraw()
 
 
-## A heap, not a box: wider at the base, rounded over, and slightly lopsided so three of
-## them side by side do not read as one repeated sprite.
-func _mound_shape(width_scale: float, height_scale: float) -> PackedVector2Array:
-	var half := pile_size.x * 0.5 * width_scale
-	var high := pile_size.y * height_scale
-	return PackedVector2Array([
-		Vector2(-half, 0.0),
-		Vector2(-half * 0.86, -high * 0.42),
-		Vector2(-half * 0.44, -high * 0.86),
-		Vector2(0.0, -high),
-		Vector2(half * 0.5, -high * 0.82),
-		Vector2(half * 0.88, -high * 0.36),
-		Vector2(half, 0.0),
-	])
+## How wide and how tall the heap stands in each state. Combed settles and tidies; tunnelled
+## keeps its height because the hole is underneath it.
+func _settle() -> Vector2:
+	match _state:
+		State.COMBED:
+			return Vector2(0.88, 0.86)
+		State.TUNNELLED:
+			return Vector2(0.98, 0.96)
+		_:
+			return Vector2.ONE
 
 
-## The fill is re-anchored with the shape. A Polygon2D pins its texture to its vertices,
-## so a heap that settles by nine pixels slides the straw off the top of itself.
-func _reshape(width_scale: float, height_scale: float) -> void:
-	if _mound != null:
-		_mound.polygon = _mound_shape(width_scale, height_scale)
-		_mound.uv = AtlasTile.anchor_uv(_mound.polygon)
+## SEEDED FROM WHERE THE PILE STANDS, so the same heap draws the same way every frame and
+## after a restored checkpoint. A heap that reshuffles on every redraw crawls, and a heap
+## that reshuffles on a death is a different heap.
+func _rng() -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(absf(position.x) * 7919.0 + absf(position.y) * 104729.0) | 1
+	return rng
+
+
+func _draw() -> void:
+	if _state == State.SCATTERED:
+		_draw_scattered()
+		return
+	_draw_heap()
+
+
+## The heap: a solid body so no gap shows the terrace through it, then stalks over it,
+## radiating from the crown out to a ragged silhouette.
+func _draw_heap() -> void:
+	var settle := _settle()
+	var half := pile_size.x * 0.5 * settle.x
+	var high := pile_size.y * settle.y
+	var rng := _rng()
+	# The crown leans, because an armful of straw is thrown onto a heap and not placed on it.
+	# It sits BELOW the top of the outline, not at it: a fan from the apex is a cone, and a
+	# heap of straw is a bell -- rounded over the top, flaring at the base. Dropping the
+	# origin and letting the topmost stalks overshoot is what turns one into the other.
+	var crown := Vector2(half * rng.randf_range(-0.16, 0.16), -high * 0.82)
+
+	# The body under the stalks is nearly black, not brown. Whatever shows between the
+	# stalks has to read as the shade between them; drawn in a mid gold it reads as a flat
+	# painted shape with straw sprinkled on it, which is what the first cut of this looked
+	# like.
+	draw_colored_polygon(_silhouette(half, high), _tone(EDGE))
+	# Back stalks first and front stalks last: the ones drawn last are the ones nearest the
+	# viewer, and they are lighter, which is the whole of the depth in this.
+	# TWO FAMILIES, AND THE HEAP DOES NOT READ WITHOUT BOTH. Aiming every stalk at a point
+	# on the outline puts almost none of them low down: tips spread evenly by ANGLE cluster
+	# where the outline turns, so the cap came out dense and the bottom two thirds stayed a
+	# flat brown shape with a fan sitting on top of it. The cap is a starburst over the top;
+	# the skirt is the long straw hanging off it to the ground, and it is most of the heap.
+	var count := int(maxf(200.0, 430.0 * strand_density * (half / 75.0)))
+	_draw_cap(rng, crown, half, high, int(count * 0.5), -0.06, 1.0)
+	_draw_skirt(rng, crown, half, high, count, -0.04, 1.0)
+	_draw_skirt(rng, crown, half, high, count, 0.16, 0.86)
+	_draw_cap(rng, crown, half, high, int(count * 0.4), 0.30, 0.7)
+	_draw_skirt(rng, crown, half, high, int(count * 0.6), 0.32, 0.62)
+	if _state == State.TUNNELLED:
+		# WHAT A TUNNEL LOOKS LIKE. Combed and tunnelled were the same heap at two sizes
+		# for as long as this node has existed, which made two of its three routes the same
+		# route to look at.
+		_draw_mouth(rng, Vector2(half * -0.14, 0.0), half * 0.62, high * 0.68)
+
+
+## The body under the stalks. A half-ellipse, sampled coarsely: it never has to look like
+## anything on its own, it only has to stop the terrace showing between the stalks.
+func _silhouette(half: float, high: float) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	var steps := 22
+	for index in range(steps + 1):
+		var phi := PI * float(index) / float(steps)
+		points.append(Vector2(-half * cos(phi) * 0.94, -high * sin(phi) * 0.92))
+	points.append(Vector2(half, 0.0))
+	points.append(Vector2(-half, 0.0))
+	return points
+
+
+## One fan of stalks from the crown to the outline.
+##
+## The tips land ON the silhouette, which is what makes the top of the heap a dense
+## starburst of short stalks and the flanks a sweep of long ones -- the crown IS the top of
+## the outline, so a stalk aimed there has nowhere to go. That is what a heap looks like.
+##
+## `bias` lightens or darkens the whole pass and `spread` decides how far off the crown the
+## stalks start; between them the two passes read as straw in front of straw rather than as
+## one layer drawn twice.
+func _draw_cap(rng: RandomNumberGenerator, crown: Vector2, half: float, high: float,
+		count: int, bias: float, spread: float) -> void:
+	for index in range(count):
+		# The upper arc only. The flanks belong to the skirt.
+		var phi := lerpf(PI * 0.12, PI * 0.88, (float(index) + rng.randf()) / float(count))
+		# Ragged: some stalks fall short of the outline and some stick out past it, which is
+		# the difference between a heap of straw and a haircut.
+		var reach := rng.randf_range(0.9, 1.14)
+		_stalk(rng, crown, Vector2(-half * cos(phi) * reach, -high * sin(phi) * reach),
+			half, high, bias, spread)
+
+
+## The skirt: long straw hanging off the crown to the ground, spread evenly along the base.
+## This is the bulk of the heap and the reason its silhouette flares.
+func _draw_skirt(rng: RandomNumberGenerator, crown: Vector2, half: float, high: float,
+		count: int, bias: float, spread: float) -> void:
+	for index in range(count):
+		var across := lerpf(-1.0, 1.0, (float(index) + rng.randf()) / float(count))
+		var tip := Vector2(half * across * rng.randf_range(0.94, 1.08),
+			rng.randf_range(-high * 0.05, 0.0))
+		_stalk(rng, crown, tip, half, high, bias, spread)
+
+
+## One stalk, bowed. Two segments with the middle pushed off the straight line, so the fan
+## curves the way dropped straw does rather than reading as a ruled starburst.
+func _stalk(rng: RandomNumberGenerator, crown: Vector2, tip: Vector2, half: float,
+		high: float, bias: float, spread: float) -> void:
+	var origin := crown + Vector2(
+		rng.randf_range(-1.0, 1.0) * half * 0.20 * spread,
+		rng.randf_range(-0.6, 1.0) * high * 0.13 * spread)
+	var run := tip - origin
+	if run.length() < 4.0:
+		return
+	var normal := Vector2(-run.y, run.x).normalized()
+	var middle := origin + run * 0.55 + normal * run.length() * rng.randf_range(-0.14, 0.14)
+	var lit := clampf(0.5 + 0.5 * run.normalized().dot(LIGHT)
+		+ bias + rng.randf_range(-0.14, 0.14), 0.0, 1.0)
+	var colour := _tone(_ramp(lit))
+	var width := 3.0 if rng.randf() < 0.14 else 2.0
+	draw_line(origin, middle, colour, width, false)
+	draw_line(middle, tip, colour, width, false)
+
+
+## A hole in the heap, and the way into it.
+##
+## DRAWN AFTER THE STALKS AND THEN FRINGED. A dark arch on its own is a shape painted on the
+## front of the pile; what says "this goes in" is the handful of stalks still hanging across
+## the top of it, in front of the dark. Same reason a doorway in the house has an architrave.
+func _draw_mouth(rng: RandomNumberGenerator, at: Vector2, half: float, high: float) -> void:
+	var arch := PackedVector2Array()
+	var steps := 16
+	for index in range(steps + 1):
+		var phi := PI * float(index) / float(steps)
+		var wobble := rng.randf_range(0.9, 1.1)
+		arch.append(at + Vector2(-half * cos(phi) * wobble, -high * sin(phi) * wobble))
+	draw_colored_polygon(arch, _tone(HOLLOW))
+	var inner := PackedVector2Array()
+	for index in range(steps + 1):
+		var phi := PI * float(index) / float(steps)
+		inner.append(at + Vector2(-half * 0.66 * cos(phi), -high * 0.7 * sin(phi)))
+	draw_colored_polygon(inner, _tone(HOLLOW_DEEP))
+	# The fringe: stalks hanging over the opening, in front of the dark.
+	for index in range(int(half * 0.34)):
+		var x := at.x + rng.randf_range(-half, half)
+		var top := at.y - high * (0.35 + 0.55 * rng.randf())
+		var drop := high * rng.randf_range(0.18, 0.55)
+		draw_line(Vector2(x, top), Vector2(x + rng.randf_range(-4.0, 4.0), top + drop),
+			_tone(_ramp(rng.randf_range(0.15, 0.55))), 2.0, false)
 
 
 ## What is left after the wind: loose handfuls across the terrace, which is the whole
 ## point of the Protector cost being visible rather than described.
-func _build_scatter() -> void:
-	if _scatter != null:
-		return
-	_scatter = Node2D.new()
-	_scatter.name = "Scattered"
-	add_child(_scatter)
-	var rng := RandomNumberGenerator.new()
-	# Seeded from where the pile stands, so a restored checkpoint scatters it the same way
-	# rather than reshuffling every time the player dies.
-	rng.seed = int(abs(position.x) * 7.0 + abs(position.y) * 13.0)
-	for index in range(9):
-		var tuft := Polygon2D.new()
-		var w: float = rng.randf_range(16.0, 30.0)
-		var h: float = rng.randf_range(5.0, 11.0)
-		tuft.polygon = PackedVector2Array([
-			Vector2(-w * 0.5, 0.0), Vector2(-w * 0.3, -h),
-			Vector2(w * 0.3, -h * 0.7), Vector2(w * 0.5, 0.0),
-		])
-		AtlasTile.fill(tuft, TEXTURE_MAP, STRAW)
-		tuft.color = tint
-		tuft.position = Vector2(
-			rng.randf_range(-pile_size.x * 1.4, pile_size.x * 1.4),
-			rng.randf_range(-6.0, 2.0))
-		tuft.rotation = rng.randf_range(-0.5, 0.5)
-		_scatter.add_child(tuft)
+func _draw_scattered() -> void:
+	var rng := _rng()
+	# LOOSE HANDFULS, not a few scratches. It has to read from across the terrace as the
+	# heap having been pulled apart, because it is the only one of the three routes whose
+	# cost the player can see, and Lolo brings it up again at the marker stone.
+	for index in range(int(150.0 * strand_density)):
+		var across := rng.randf_range(-1.0, 1.0)
+		# Thickest where the heap stood and thinning outward, the way thrown straw lands.
+		var at := Vector2(across * pile_size.x * 1.25,
+			rng.randf_range(-11.0, 1.0) * (1.0 - absf(across) * 0.6))
+		var run := Vector2(rng.randf_range(-24.0, 24.0), rng.randf_range(-8.0, 2.0))
+		draw_line(at, at + run, _tone(_ramp(rng.randf_range(0.3, 1.0))),
+			3.0 if rng.randf() < 0.2 else 2.0, false)
+
+
+## Six values of one gold. `lit` is how much of the light a stalk is catching, 0 to 1.
+func _ramp(lit: float) -> Color:
+	var ramp: Array[Color] = [EDGE, DARK, MID, BODY, LIT, HI]
+	return ramp[int(round(clampf(lit, 0.0, 1.0) * float(ramp.size() - 1)))]
+
+
+func _tone(colour: Color) -> Color:
+	return colour * tint
