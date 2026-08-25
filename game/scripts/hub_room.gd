@@ -17,15 +17,28 @@ extends Node2D
 const PIXEL := 4.0
 
 ## How long the wall is and where the floor sits under it.
-@export var room_width: float = 2560.0
-@export var floor_y: float = 620.0
+##
+## THE ROOM IS A ROOM, NOT A HALL. The first cut put the ceiling four hundred pixels above
+## the pictures and gave the floor four hundred below them, so two thirds of the screen was
+## empty wall and bare boards and the apo crossed it like an ant. Everything here is now
+## sized to what a camera at 1.25 shows at once: ceiling at the top of frame, pictures at
+## eye height, and the floor a strip along the bottom -- the same proportion of ground to
+## air the levels have.
+@export var room_width: float = 2700.0
+@export var ceiling_y: float = -60.0
+@export var floor_y: float = 560.0
+## How deep the floorboards run before the frame ends.
+@export var floor_depth: float = 150.0
 ## How far up the wall the wainscot panelling reaches.
-@export var wainscot_height: float = 190.0
+@export var wainscot_height: float = 150.0
 ## Where the paintings hang, measured to their middle.
-@export var painting_y: float = 300.0
+@export var painting_y: float = 190.0
 ## The first painting's centre, and the gap to the next.
-@export var first_painting_x: float = 480.0
-@export var painting_gap: float = 420.0
+@export var first_painting_x: float = 420.0
+## Wide enough that a shutter fits between two pictures. At 400 the gap between frames was
+## 120px and the window was 164 -- it hung across the corner of the Dagat painting, which is
+## the sort of thing that only shows up when you look at the room.
+@export var painting_gap: float = 470.0
 
 ## Hardwood, in four tones. Narra darkens with age and these are all one hue apart on
 ## purpose -- a wall of contrasting browns reads as a woodpile rather than as joinery.
@@ -65,10 +78,17 @@ func _draw() -> void:
 
 
 func _draw_wall() -> void:
-	draw_rect(Rect2(0.0, -400.0, room_width, floor_y + 400.0), WALL)
-	# A ceiling line, so the wall has a top rather than running off into nothing.
-	draw_rect(Rect2(0.0, -400.0, room_width, 24.0), WALL_EDGE)
-	draw_rect(Rect2(0.0, -376.0, room_width, 8.0), WALL_LIT)
+	draw_rect(Rect2(0.0, ceiling_y, room_width, floor_y - ceiling_y), WALL)
+	# The pressed-tin ceiling of the reference photo: a pale band above the picture rail,
+	# ruled into panels. It is what makes the room read as a storey rather than as a
+	# backdrop, and it is what the chandeliers hang from.
+	draw_rect(Rect2(0.0, ceiling_y, room_width, 40.0), Color(0.435, 0.455, 0.400, 1.0))
+	var rib := 0.0
+	while rib < room_width:
+		draw_rect(Rect2(rib, ceiling_y, PIXEL, 40.0), Color(0.318, 0.337, 0.290, 1.0))
+		rib += 56.0
+	draw_rect(Rect2(0.0, ceiling_y + 40.0, room_width, 12.0), WALL_LIT)
+	draw_rect(Rect2(0.0, ceiling_y + 52.0, room_width, PIXEL), WALL_EDGE)
 
 
 ## The tall panelled bays the pictures hang between. One bay per gap between paintings,
@@ -80,11 +100,13 @@ func _draw_bays() -> void:
 	while x < room_width:
 		var width := painting_gap * 0.5
 		# The stile: the raised upright between two panels, lit down its left edge.
-		draw_rect(Rect2(x, -368.0, stile, floor_y + 368.0), WALL_LIT)
-		draw_rect(Rect2(x, -368.0, PIXEL, floor_y + 368.0), WALL_EDGE)
-		draw_rect(Rect2(x + stile - PIXEL, -368.0, PIXEL, floor_y + 368.0), WALL_EDGE)
+		var top := ceiling_y + 56.0
+		draw_rect(Rect2(x, top, stile, floor_y - top), WALL_LIT)
+		draw_rect(Rect2(x, top, PIXEL, floor_y - top), WALL_EDGE)
+		draw_rect(Rect2(x + stile - PIXEL, top, PIXEL, floor_y - top), WALL_EDGE)
 		# The panel between stiles, sunk a shade darker.
-		var panel := Rect2(x + stile, -344.0, maxf(0.0, width - stile), floor_y + 320.0)
+		var panel := Rect2(x + stile, top + 16.0, maxf(0.0, width - stile),
+			floor_y - top - 16.0)
 		if panel.size.x > 0.0:
 			draw_rect(panel, WALL_DARK)
 			draw_rect(Rect2(panel.position, Vector2(panel.size.x, PIXEL)), WALL_EDGE)
@@ -119,10 +141,10 @@ func _draw_wainscot() -> void:
 ## perspective: this is a side-on game and a receding floor would fight the flatness of
 ## everything else in it.
 func _draw_floor() -> void:
-	draw_rect(Rect2(0.0, floor_y, room_width, 400.0), FLOOR)
+	draw_rect(Rect2(0.0, floor_y, room_width, floor_depth), FLOOR)
 	var y := floor_y + 12.0
 	var band := 0
-	while y < floor_y + 400.0:
+	while y < floor_y + floor_depth:
 		draw_rect(Rect2(0.0, y, room_width, PIXEL), FLOOR_LIT if band % 2 == 0 else WALL_EDGE)
 		y += 28.0
 		band += 1
@@ -131,10 +153,11 @@ func _draw_floor() -> void:
 	# is what a first pass at this looked like.
 	var y2 := floor_y + 12.0
 	var course := 0
-	while y2 < floor_y + 400.0:
+	while y2 < floor_y + floor_depth:
 		var x := float((course * 97) % 240)
 		while x < room_width:
 			draw_rect(Rect2(x, y2, PIXEL, 28.0), WALL_EDGE)
 			x += 380.0
 		y2 += 28.0
 		course += 1
+
