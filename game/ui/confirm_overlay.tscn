@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/confirm_overlay.gd" id="1_js6a7"]
 
 [node name="ConfirmOverlay" type="CanvasLayer" unique_id=1286241803]
+visible = false
 layer = 80
 script = ExtResource("1_js6a7")
 default_focus_path = NodePath("Root/Center/Panel/VBox/Buttons/CancelButton")
