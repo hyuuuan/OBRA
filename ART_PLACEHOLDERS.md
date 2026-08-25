@@ -134,14 +134,24 @@ the paddy is missing three stones**: the rise from the bank to the first survivi
 | | |
 |---|---|
 | **Now** | **Drawn as stalks, not as a textured shape.** A near-black body polygon so the terrace never shows through, then five passes of bowed two-segment stalks over it: a *cap* radiating from a crown at 82% of the height out to the upper outline, and a *skirt* of long straw hanging from the same crown down to the ground. Six values of one gold (`#5C3305` → `#FFE13C`), lit from up-and-left like everything else in the game. Seeded from the pile's own position, so it does not crawl between redraws or reshuffle on a death. |
-| **Sizes** | **140 × 88**, **158 × 100**, **132 × 82**. Bottom-centre anchored. |
+| **Sizes** | **118 × 82** at 3030, **220 × 200** at 3180, **96 × 70** at 3290. Bottom-centre anchored. The middle one is big because it is the one with a **way in**: its mouth is 101 × 124 against a 96px apo, and `run_level1_audit` measures that rather than trusting the numbers to stay put. |
+| **Inside it** | While the apo is standing in the mouth the front is not drawn at all: what is left is the hollow, two walls of straw hanging down the inside, short stalks off the roof and a floor of trodden earth. It is a **cutaway**, not a room somewhere else — the terrace, the sky and the other two heaps stay where they were, so it needs no collision, no second camera and no way back. |
 | **Why stalks** | A textured mound is a shape with straw printed on it. Only a heap made of stalks has a silhouette that reads at a glance, and only a heap made of stalks can have a **hole** in it — which is what the three routes need. |
 | **Collision** | **None**, deliberately — a solid heap would wall off the only route out of the level. It is something you push through. |
 | **Must read as** | **Cut straw, never harvested grain.** This is a build constraint, not a preference: the Protector route scatters it across the terrace, and scattering somebody's *tinawon* harvest is not a neutral image to stage. |
 | **States — all four are needed** | **Intact.** · **Combed**: searched section by section, settles and tidies, left standing (0.88 wide × 0.86 tall). · **Tunnelled**: gone in underneath and out again — a real arched **hole** at the base, dark inside, with stalks still hanging across the top of it, and the heap keeps its height (0.98 × 0.96). · **Scattered**: the heap is gone and ~150 loose stalks lie across ±1.25 pile-widths, thickest where it stood. It does not come back. |
 | **Fixed** | Combed and tunnelled used to be the same heap at two sizes. Two things were wrong: a textured polygon could not have a hole cut in it, and the prop photographer called `comb()` and then `tunnel()` on the same three piles — and `tunnel()` refuses to run on a pile that is not intact, so the frame labelled "tunnelled" was a picture of a combed one. It resets them between shots now. |
 
-### The baul · `game/scripts/baul_2d.gd` · 1 at (3160, 240), hidden until found
+### Inside the heap · `game/scripts/straw_room_2d.gd` · 1 at (3180, 240)
+
+| | |
+|---|---|
+| **Now** | Drawn in code, and shown only while the apo is standing in the heap. One of **Lola's canvases** — the hub's own `assets/hub/paintings/level_2.png` at 96 × 54, in the same stepped gilt moulding the pictures in the house wear — a small **brass key** lying on the earth at local (42, −10), and three **ants**. |
+| **Must read as** | Somewhere she kept things. The canvas is the promise: every level is somewhere Lola painted, and one of those paintings propped in the straw beside her chest says where this is going without a line of exposition. |
+| **The key** | Walked onto, not pressed at — E reaches only placed drawings, and a second meaning for that button in the room where the player has just learned the first is one meaning too many. It sits by the chest rather than by the door, or the room's whole beat is over on the frame she walks in. It does **not** open the chest, and that is the point. |
+| **The ants** | Scenery, and nothing else: no collision, nothing reads their position, and drawing one does not make one appear. |
+
+### The baul · `game/scripts/baul_2d.gd` · 1 at (3238, 240), inside the heap, hidden until found
 
 | | |
 |---|---|

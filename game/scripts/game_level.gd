@@ -238,6 +238,18 @@ func _build_obstacle_layer() -> void:
 	director.route_committed.connect(_on_obstacle_route_committed)
 	director.obstacle_solved.connect(_on_obstacle_solved)
 
+	# WALKING INTO THE HEAP IS FINDING THE CHEST. Node 2's routes uncover it too, and
+	# reveal() is idempotent, so a player who searches the straw first and one who simply
+	# ducks inside both end up looking at the same thing -- but the room is drawn the moment
+	# she is in it, and an interior with a picture on the wall and nothing on the floor is a
+	# room the level forgot to furnish.
+	for node in get_tree().get_nodes_in_group(&"straw_piles"):
+		if node.has_signal(&"entered"):
+			node.connect(&"entered", _on_straw_entered)
+	for node in get_tree().get_nodes_in_group(&"straw_rooms"):
+		if node.has_signal(&"key_taken"):
+			node.connect(&"key_taken", _on_straw_key_taken)
+
 	# Checkpoints you walk into, for the beats with no dialogue to hang one on.
 	for node in get_tree().get_nodes_in_group(&"checkpoint_areas"):
 		var area := node as CheckpointArea2D
@@ -382,6 +394,24 @@ func _judge_submission(entity_id: String) -> void:
 		# The next sub-beat has to ask for itself, or the second half of the tutorial is
 		# silent and the player is left guessing what changed.
 		_speak_current_stage(String(verdict["obstacle_id"]))
+
+
+## Ducking into the heap. The chest is in there whichever way the player got to it.
+func _on_straw_entered() -> void:
+	_uncover_the_baul()
+	_speak(script_lines_l1.fire("L1_N2.inside"))
+
+
+## The key off the floor of the straw room. It does not open the chest beside it and it is
+## not meant to: that lock is Node 3's, and this one belongs to somewhere the player has
+## only seen as a painting. Recorded on the PROFILE rather than on a checkpoint, for the
+## same reason canvas damage is -- a death two beats later must not take it back.
+func _on_straw_key_taken() -> void:
+	_speak(script_lines_l1.fire("L1_N2.key"))
+	Telemetry.record_event("collectible", {
+		"level_id": LevelManager.current_level_id,
+		"obstacle_id": "L1_N2", "collectible": "L1_straw_key",
+	})
 
 
 ## Ang Dayami: three ways to find the same chest, and they are not the same.

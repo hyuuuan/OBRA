@@ -283,9 +283,14 @@ func _release() -> void:
 	collision_layer &= ~1
 	freeze = false
 	lock_rotation = false
-	var load_body := _settling_body as RigidBody2D
-	if load_body != null and is_instance_valid(load_body):
-		load_body.freeze = false
+	# VALID FIRST, CAST SECOND. This runs when the weight has STOPPED being there, and the
+	# ordinary way for that to happen is the player picking it up, which frees it -- and
+	# `freed as RigidBody2D` is an error in Godot 4, not a null. It only ever printed to the
+	# log, so every suite stayed green and only the bot walking the whole level found it.
+	if is_instance_valid(_settling_body):
+		var load_body := _settling_body as RigidBody2D
+		if load_body != null:
+			load_body.freeze = false
 	_settling_body = null
 	# Loose again, so the player passes through it again.
 	_raise_exceptions()
