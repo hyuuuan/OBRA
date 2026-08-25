@@ -15,7 +15,14 @@ extends Control
 
 ## Where it sits: centred, above the hotbar, out of the middle of the screen where the
 ## thing the hint is about usually is.
-const LIFT := 210.0
+## How far the bar's BOTTOM sits above the bottom of the screen.
+##
+## Clear of the dialogue box, which is the whole reason for the number. The box is 300 tall
+## and lifted 44, so it owns everything from 556 down; at 210 the hint sat at 620 and the
+## two drew straight through each other -- a hint about what to draw printed across a line
+## of Lola's story. This clears the box's top rail with a margin, and it is horizontally
+## clear of the speaker's portrait too, which stands on that rail over at the right.
+const LIFT := 396.0
 const MAX_WIDTH := 720.0
 
 var _panel: PanelContainer
@@ -64,6 +71,17 @@ func _ready() -> void:
 
 ## `seconds` of 0 means "until something replaces it", which is what a hint about the
 ## obstacle in front of you wants to be.
+## Whether a story line is up. A hint and a line of dialogue on screen together are two
+## voices talking over each other, and the hint is the one that can wait: it is advice about
+## the obstacle in front of you and the obstacle is not going anywhere.
+func _someone_is_speaking() -> bool:
+	for node in get_tree().get_nodes_in_group(DialogueBox.GROUP):
+		var box := node as CanvasItem
+		if box != null and box.visible:
+			return true
+	return false
+
+
 func show_hint(text: String, speaker: String = "", seconds: float = 0.0) -> void:
 	if text.is_empty():
 		clear()
@@ -102,6 +120,22 @@ func current_speaker() -> String:
 
 
 func _process(delta: float) -> void:
+	# Stood down while the box is speaking, and back up the moment it closes. Suppressed
+	# rather than cancelled: the hint the director asked for is still the current one, so a
+	# player who reads a line of story does not have to re-trigger the advice underneath it.
+	# FADED, NEVER HIDDEN. _relayout sizes the panel from get_combined_minimum_size(), and a
+	# container measured while it is invisible does not report the size it will be -- so
+	# toggling `visible` here let a deferred relayout land on a hidden frame and stick an
+	# eight-hundred-pixel empty black slab across the top of the level. Alpha changes nothing
+	# about layout.
+	#
+	# It is the PANEL's alpha and not this node's, because show_hint and clear both tween
+	# this node's, and two things writing one property is how a bar ends up half-faded.
+	var speaking := _someone_is_speaking()
+	if _panel != null:
+		_panel.modulate.a = 0.0 if speaking else 1.0
+	if speaking:
+		return
 	if _life <= 0.0:
 		return
 	_life -= delta
