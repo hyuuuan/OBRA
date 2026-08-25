@@ -579,19 +579,19 @@ shape = SubResource("RectangleShape2D_3uax6")
 [node name="StrawPileA" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1230508619]
 position = Vector2(3030, 240)
 script = ExtResource("23_3uax6")
-pile_size = Vector2(118, 82)
+pile_size = Vector2(104, 74)
 
 [node name="StrawPileB" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1226213335]
 z_index = 2
 position = Vector2(3180, 240)
 script = ExtResource("23_3uax6")
-pile_size = Vector2(220, 200)
+pile_size = Vector2(190, 150)
 entrance = true
 
 [node name="StrawPileC" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1006328619]
 position = Vector2(3290, 240)
 script = ExtResource("23_3uax6")
-pile_size = Vector2(96, 70)
+pile_size = Vector2(88, 62)
 
 [node name="FoldingStool" type="Sprite2D" parent="GameplayPlane/Dayami" unique_id=1479238481]
 position = Vector2(2990, 240)
