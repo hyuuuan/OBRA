@@ -111,7 +111,7 @@ func _ready() -> void:
 	complete_overlay.connect(&"continue_pressed", _on_complete_continue)
 	complete_overlay.connect(&"retry_pressed", _on_restart_requested)
 	out_of_ink_overlay.connect(&"restart_pressed", _on_restart_requested)
-	out_of_ink_overlay.connect(&"level_select_pressed", LevelManager.return_to_selector)
+	out_of_ink_overlay.connect(&"level_select_pressed", LevelManager.return_to_house)
 	ink_manager.ink_exhausted.connect(_on_ink_exhausted)
 	_run_started_msec = Time.get_ticks_msec()
 	_apply_level_identity()
@@ -1770,7 +1770,7 @@ func _on_complete_continue() -> void:
 	var ends_run := bool(LevelManager.get_level(LevelManager.current_level_id).get("ends_run", false))
 	if ends_run and LevelManager.show_ending():
 		return
-	LevelManager.return_to_selector()
+	LevelManager.return_to_house()
 
 
 func _on_restart_requested() -> void:

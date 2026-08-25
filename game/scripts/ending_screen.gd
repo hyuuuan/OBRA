@@ -62,4 +62,4 @@ func _add_row(caption: String, value: String) -> void:
 func _on_continue() -> void:
 	var manager := get_node_or_null(^"/root/LevelManager")
 	if manager != null:
-		manager.return_to_selector()
+		manager.return_to_house()
