@@ -40,6 +40,16 @@ signal unsettled()
 ## floor. Eight pixels is enough to be outside the rectangle and little enough to read as
 ## a loaded plank riding low.
 @export var deck_clearance: float = 8.0
+## How far the weight is left standing proud of the deck once the plank has locked.
+##
+## IT BEDS INTO THE STONE, and this is a gameplay number, not a look. A drawn primitive is
+## 80px, the deck is 176px of a 300px paddy, and a ball that size sitting on top of it is
+## not a bump -- it is a ramp. Measured: the player jumps the near gap, sails over the deck,
+## lands on the ball at its apex, rolls off the far side with a full run's speed and eighty
+## pixels of fall, and clears the entire far half of the deck to splash down twenty-one
+## pixels short of the bank. Every time. Bedded in, the deck is a deck: they land on it,
+## walk it, and jump the far gap from its edge.
+@export var load_proud: float = 8.0
 ## A body counts as resting ON it only if its centre is at least this far above the
 ## tread's own. Otherwise a prop drifting alongside in the water would hold it down.
 @export var contact_margin: float = 6.0
@@ -181,13 +191,13 @@ func _is_resting_on(body: Node2D) -> bool:
 
 
 ## WHETHER THE WEIGHT IS STILL THERE, asked of the body itself rather than of the contact
-## list. A settled tread is frozen STATIC, and a static body reports no contacts of its
-## own -- so re-deriving the load from get_colliding_bodies() after settling would come
-## back empty on the very next frame and unfreeze the step out from under whoever was
-## standing on it. What settled it is remembered instead, and the only question left is
-## whether it is still sitting there.
+## list. A settled tread is frozen STATIC, and a static body reports no contacts of its own
+## -- so re-deriving the load from get_colliding_bodies() after settling would come back
+## empty on the very next frame and unfreeze the step out from under whoever was standing on
+## it. Settling freezes the weight where it is bedded, so the only way it stops being there
+## is the player taking it back, which is R8 and is what this is watching for.
 func _still_loaded() -> bool:
-	return _is_resting_on(_settling_body)
+	return _settling_body != null and is_instance_valid(_settling_body)
 
 
 ## What a colliding body IS, as far as the roster is concerned. Placed props carry their
@@ -235,28 +245,37 @@ func _ride_the_waterline() -> void:
 	var surface_y: float = water.global_position.y - surface.y * 0.5
 	# The DECK is what has to clear the water, so the plank's middle sits half a plank below
 	# the line the deck wants to be on.
-	var lift := surface_y - deck_clearance + _half_extent().y - global_position.y
-	global_position.y += lift
-	# AND THE LOAD COMES UP WITH IT. A weight rides the plank down while it is sinking, so
-	# by the time the dwell is up the two can be sixty pixels under -- and a plank that
-	# lifts out from under its own load lands inside it, whereupon the solver throws the
-	# pair apart and the plank tumbles off across the paddy. Which is the exact thing this
-	# beat exists to stop doing. It is one body and we are already holding it.
+	global_position.y = surface_y - deck_clearance + _half_extent().y
+	# AND THE WEIGHT BEDS INTO IT. It cannot simply be carried up with the plank: a weight
+	# rides it down while it is sinking, so by the time the dwell is up the two can be sixty
+	# pixels under, and a plank that lifts out from under its own load lands inside it and
+	# the solver throws the pair apart. Nor can it be left sitting on top -- see load_proud
+	# for why an 80px ball on a 176px deck is a ramp rather than a step.
+	#
+	# So it is set into the stone, standing a little proud, and frozen there. That is what
+	# "settled" means for the pair of them: the weight is wedged, the plank cannot rise, and
+	# the deck is something to walk on. Taking the weight back releases both.
 	var load_body := _settling_body as RigidBody2D
 	if load_body != null and is_instance_valid(load_body):
-		load_body.global_position.y += lift
+		var deck := global_position.y - _half_extent().y
+		load_body.global_position.y = deck - load_proud + _half_of(load_body).y
 		load_body.linear_velocity = Vector2.ZERO
 		load_body.angular_velocity = 0.0
+		load_body.freeze_mode = RigidBody2D.FREEZE_MODE_STATIC
+		load_body.freeze = true
 
 
 func _release() -> void:
 	_settled = false
 	_settling_class = ""
-	_settling_body = null
 	_loaded_for = 0.0
 	collision_layer &= ~1
 	freeze = false
 	lock_rotation = false
+	var load_body := _settling_body as RigidBody2D
+	if load_body != null and is_instance_valid(load_body):
+		load_body.freeze = false
+	_settling_body = null
 	# Loose again, so the player passes through it again.
 	_raise_exceptions()
 	unsettled.emit()
@@ -265,9 +284,17 @@ func _release() -> void:
 ## Half the plank, from its own collision rather than from a number typed here -- the shape
 ## is authored in the level and the deck height is measured off it.
 func _half_extent() -> Vector2:
-	for child in get_children():
+	var half := _half_of(self)
+	return half if half != Vector2.ZERO else Vector2(88.0, 10.0)
+
+
+## Half a body's own collision box.
+func _half_of(body: Node) -> Vector2:
+	var prop := body as PhysicsShapeObject
+	if prop != null:
+		return prop.world_extent().size * 0.5
+	for child in body.get_children():
 		var collision := child as CollisionShape2D
 		if collision != null and collision.shape != null and collision.shape.has_method("get_rect"):
-			var rect: Rect2 = collision.shape.call("get_rect")
-			return rect.size * 0.5
-	return Vector2(44.0, 10.0)
+			return Rect2(collision.shape.call("get_rect")).size * 0.5
+	return Vector2.ZERO

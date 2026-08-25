@@ -67,9 +67,9 @@ stand in and not enough to stand a drawing up in. That distinction is rule **R7*
 
 **Two sub-beats, two problems, in the order the player meets them.**
 
-- **sub1 = Roll** — the paddy, and the plank floating in it. Set something that rolls on the
-  plank and it steadies, lies flat, locks, and is a step: two 106px hops instead of 300px of
-  water. Take the weight away and it comes loose again.
+- **sub1 = Roll** — the paddy, and the **two** treads floating in it. Set something that
+  rolls on them and they steady, lie flat, lock, and are a deck: a 62px hop at each end
+  instead of 300px of water. Take the weight away and they come loose again.
 - **sub2 = Span** (excludes bridge, ladder → square, triangle) — the stair on the far bank.
   A drawn primitive is 80px, which under a 94.3px jump is exactly a step.
 - **CP0** at the top, reached by walking into it.
@@ -96,6 +96,13 @@ locks **8px clear of the waterline**, because `wanderer.gd` tests `is_in_water()
 `is_on_floor()` and a deck at or under the surface would strand the player on a solid floor;
 and `settle_dwell` is **0.12s**, because every frame it waits is a frame the plank spends
 sinking under the load, and at 0.3s it went 50px under and threw itself apart coming back up.
+
+⚠ **The plank is TWO treads (176px) and the weight beds into it**, and both of those were
+forced by measurement. One 88px tread with an 80px weight standing on it leaves no deck to
+land on: the player jumps the near gap, sails over the deck, lands on the ball at its apex,
+rolls off the far side with a full run's speed and 80px of fall, and clears the whole far
+half of the crossing to splash down 21px short of the bank — every time. Two treads give
+somewhere to land; `load_proud` (8px) is what stops the weight being a ramp.
 
 ### Node 1 — Ang Tulay (the gorge)
 
