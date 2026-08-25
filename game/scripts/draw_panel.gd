@@ -30,6 +30,7 @@ var ink_manager: InkManager
 
 @onready var scrim: ColorRect = $Scrim
 @onready var panel_root: Control = $PanelRoot
+@onready var canvas_viewport_container: Control = $PanelRoot/SubViewportContainer
 @onready var canvas_viewport: SubViewport = $PanelRoot/SubViewportContainer/SubViewport
 @onready var canvas: Control = $PanelRoot/SubViewportContainer/SubViewport/Canvas
 @onready var canvas_frame: UIOvalFrame = $PanelRoot/CanvasFrame
@@ -84,9 +85,12 @@ func _ready() -> void:
 	client.set("debug_timing_logs", debug_timing_logs)
 	transform_button.pressed.connect(_on_transform_pressed)
 	clear_button.pressed.connect(_clear_canvas)
-	# The frame sits over the viewport at the same size and origin, so its opening is
-	# already in the canvas's coordinates -- no mapping, and nothing to get out of step.
-	canvas.call(&"set_drawable_bounds", canvas_frame.opening())
+	# The frame is bigger than the viewport and offset from it, so the opening has to be
+	# carried into the canvas's own coordinates. It is the one number both of them read: the
+	# ellipse the moulding opens and the ellipse ink is allowed inside are the same ellipse.
+	var hole := canvas_frame.opening()
+	hole.position += canvas_frame.position - canvas_viewport_container.position
+	canvas.call(&"set_drawable_bounds", hole)
 	canvas.stroke_cost_changed.connect(_on_stroke_cost_changed)
 	canvas.ink_blocked.connect(_on_ink_blocked)
 	client.entity_prediction_received.connect(_on_entity_prediction)
@@ -111,6 +115,7 @@ func open_panel() -> void:
 	_submitting = false
 	client.set("debug_timing_logs", debug_timing_logs)
 	visible = true
+	_set_world_hud_visible(false)
 	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	transform_button.disabled = false
 	clear_button.disabled = false
@@ -139,6 +144,18 @@ func open_panel() -> void:
 	_play_open_animation()
 
 
+## The in-world HUD steps aside while the canvas is up.
+##
+## It has to now. The panel used to be an opaque slab that simply covered the ink gauge, the
+## bag and the keybind row; with the slab gone they are still there behind the frame, and
+## the bag in particular sits exactly where the status line does. Dimming them was not
+## enough -- two rows of interface reading through each other is worse than either.
+func _set_world_hud_visible(shown: bool) -> void:
+	var layer := get_parent().get_node_or_null("CanvasLayer") as CanvasLayer
+	if layer != null:
+		layer.visible = shown
+
+
 func close_panel(emit_closed: bool = true, release_ink: bool = true) -> void:
 	if _open_tween != null:
 		_open_tween.kill()
@@ -148,6 +165,7 @@ func close_panel(emit_closed: bool = true, release_ink: bool = true) -> void:
 	transform_button.disabled = false
 	clear_button.disabled = false
 	visible = false
+	_set_world_hud_visible(true)
 	set_process(false)
 	_clear_guess()
 	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -235,25 +253,16 @@ func _on_live_prediction_failed(message: String) -> void:
 ## the game. Everything below is appearance -- no node is added or removed that the panel's
 ## behaviour depends on.
 func _style_panel() -> void:
-	scrim.color = Color(UISkin.INK.r, UISkin.INK.g, UISkin.INK.b, 0.62)
-	# The ColorRect stops painting its own slab; a Panel behind everything carries the
-	# frame instead, because a ColorRect cannot hold a stylebox.
+	# Darker than it was, because the panel behind the controls is gone. With a slab under
+	# them the buttons and the status line had their own ground; floating over the level they
+	# only have the scrim, and at 0.62 the terraces still read straight through the words.
+	scrim.color = Color(UISkin.INK.r, UISkin.INK.g, UISkin.INK.b, 0.88)
+	# NOTHING BEHIND THE FRAME. The panel used to be a lime-bordered slab with the gilt oval
+	# drawn on top of it, which read as two objects -- a mirror sitting in a box -- and the
+	# box was the one the eye found first. The oval IS the panel now: what opens is the
+	# frame, over the scrim, with the header above it and the buttons below. The root keeps
+	# its size because everything else is laid out against it, and paints nothing.
 	panel_root.set("color", Color(0.0, 0.0, 0.0, 0.0))
-	var frame := Panel.new()
-	frame.name = "Frame"
-	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	frame.add_theme_stylebox_override(&"panel", HudPanel.frame())
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel_root.add_child(frame)
-	panel_root.move_child(frame, 0)
-
-	# No sunken well behind the page any more. The gilt oval is the thing the paper is set
-	# into, and a rectangle drawn a few pixels outside it only showed as a stray box around
-	# a round frame -- two edges disagreeing about what shape the canvas is.
-
-	# The four lime corner brackets that used to sit on the page are gone: the gilt oval
-	# says "this is the thing you are working in" far better than they did, and two frames
-	# around one piece of paper is one frame too many.
 	var paper := canvas_viewport.get_node_or_null("Paper") as ColorRect
 	if paper != null:
 		# Paper, not printer white. The ink is black and the drawing is the point, so this
@@ -281,7 +290,7 @@ func _build_header() -> void:
 	caption.name = "Caption"
 	caption.text = "DRAW"
 	caption.theme_type_variation = &"HudCaption"
-	caption.position = Vector2(48.0, 14.0)
+	caption.position = Vector2(86.0, 26.0)
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel_root.add_child(caption)
 
@@ -290,14 +299,14 @@ func _build_header() -> void:
 	_ink_value.text = ""
 	_ink_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_ink_value.theme_type_variation = &"HudValue"
-	_ink_value.position = Vector2(392.0, 14.0)
+	_ink_value.position = Vector2(406.0, 26.0)
 	_ink_value.size = Vector2(168.0, 24.0)
 	_ink_value.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel_root.add_child(_ink_value)
 
 	_ink_gauge = HudPanel.Gauge.new()
 	_ink_gauge.name = "InkGauge"
-	_ink_gauge.position = Vector2(210.0, 20.0)
+	_ink_gauge.position = Vector2(248.0, 32.0)
 	_ink_gauge.size = Vector2(164.0, 14.0)
 	panel_root.add_child(_ink_gauge)
 
