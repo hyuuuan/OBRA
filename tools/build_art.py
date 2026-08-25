@@ -55,33 +55,32 @@ import math
 import sys
 from collections import Counter, deque
 from pathlib import Path
+from typing import NamedTuple
 
 import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "level-1-assets"
-CHARACTER_OUT = ROOT / "game" / "assets" / "characters" / "apo"
+CHARACTER_OUT = ROOT / "game" / "assets" / "characters"
 # Level1, capital L: the folder already exists under that name and macOS merges the two
 # silently, so a res:// path spelled level1 loads here and fails on any case-sensitive
 # platform the game is exported to.
 PROP_OUT = ROOT / "game" / "assets" / "Level1" / "props"
+UI_OUT = ROOT / "game" / "assets" / "ui"
+HUB_OUT = ROOT / "game" / "assets" / "hub" / "paintings"
 
-# --- the character sheet -------------------------------------------------------------
-
-SHEET = "Obra Assets Male.png"
+# --- the character sheets ------------------------------------------------------------
+#
+# TWO CHARACTERS ARRIVE ON THE SAME PRESENTATION TEMPLATE. The apo and Lolo were drawn
+# months apart and delivered as separate 1254x1254 pages, but the pages are laid out to
+# the identical grid: a hero card down the left, then TURNAROUND, WALK CYCLE, RUN CYCLE
+# and EXTRA POSES stacked in bordered panels down the right. So the panel bounds below
+# are shared, and one cutter serves both -- measured against Lolo's page and found to
+# land inside every frame on it, which is the only reason sharing them is safe rather
+# than lucky.
 
 # Panel interiors, measured off the tan border lines that box each section.
-## The hero panel in the sheet's top-left corner, inside its border stroke.
-##
-## THE SHEET CARRIES A SECOND, BIGGER DRAWING OF THE CHARACTER and it went unused for
-## months. The twenty-three poses are cut down to a 96px standing height because that is
-## what the game world needs; this one is 312px tall in the source and is a different
-## drawing rather than the same one enlarged -- there is shading in the hair and folds in
-## the shirt that the small frames do not have room for. It is exactly what a dialogue
-## portrait wants, and cutting it costs nothing because the keying is already written.
-HERO_PANEL = (40, 115, 305, 470)
-
 PANEL_X = (340, 1232)
 PANELS = [
     ("turnaround", (30, 382), ["front", "34front", "side", "34back", "back"]),
@@ -90,16 +89,9 @@ PANELS = [
     ("extra", (930, 1221), ["idle", "look_up", "look_down", "wave", "jump", "cheer"]),
 ]
 
-# How tall the character stands, in world pixels, measured on the idle pose.
-#
-# The collision capsule it replaces is 80px from the feet up, and the stick figure that
-# stood in for it was 83. Ninety-six puts the eyeline above the capsule and lets the hair
-# overhang it, which is what makes a chibi silhouette read; the body inside the capsule is
-# unchanged, so no gate in GATES.md is affected by this number.
-STANDING_HEIGHT = 96.0
-# The pose the height is measured on. Every frame in walk/run/extra is drawn at one scale,
-# so one factor derived from this pose keeps their differences intact -- run is shorter
-# because it leans, not because it is smaller.
+# The pose the standing height is measured on. Every frame in walk/run/extra is drawn at
+# one scale, so one factor derived from this pose keeps their differences intact -- run is
+# shorter because it leans, not because it is smaller.
 SCALE_REFERENCE = ("extra", "idle")
 # The turnaround panel is drawn larger than the rest of the sheet and gets its own factor,
 # derived from the standing pose in it rather than guessed.
@@ -107,17 +99,71 @@ TURNAROUND_REFERENCE = ("turnaround", "front")
 
 # Which frames become which file. A strip is one row of frames, left to right.
 STRIPS = [
-    ("apo_idle", [("extra", "idle")]),
-    ("apo_walk", [("walk", str(i)) for i in range(6)]),
-    ("apo_run", [("run", str(i)) for i in range(6)]),
-    ("apo_jump", [("extra", "jump")]),
-    ("apo_look_up", [("extra", "look_up")]),
-    ("apo_look_down", [("extra", "look_down")]),
-    ("apo_wave", [("extra", "wave")]),
-    ("apo_cheer", [("extra", "cheer")]),
-    ("apo_turnaround", [("turnaround", n) for n in
-                        ["front", "34front", "side", "34back", "back"]]),
+    ("idle", [("extra", "idle")]),
+    ("walk", [("walk", str(i)) for i in range(6)]),
+    ("run", [("run", str(i)) for i in range(6)]),
+    ("jump", [("extra", "jump")]),
+    ("look_up", [("extra", "look_up")]),
+    ("look_down", [("extra", "look_down")]),
+    ("wave", [("extra", "wave")]),
+    ("cheer", [("extra", "cheer")]),
+    ("turnaround", [("turnaround", n) for n in
+                    ["front", "34front", "side", "34back", "back"]]),
 ]
+
+
+class CharacterSheet(NamedTuple):
+    """One delivered design page and what the game wants out of it."""
+
+    ## What the files are called and which folder they land in: apo_walk.png under
+    ## characters/apo, lolo_walk.png under characters/lolo.
+    name: str
+    source: Path
+    ## The hero card in the page's top-left corner, inside its border stroke.
+    ##
+    ## EACH SHEET CARRIES A SECOND, BIGGER DRAWING OF THE CHARACTER and on the apo's page
+    ## it went unused for months. The pose strips are cut down to what the game world
+    ## needs; this one is three hundred pixels tall in the source and is a different
+    ## drawing rather than the same one enlarged -- shading in the hair, folds in the
+    ## cloth that the small frames have no room for. It is exactly what a dialogue
+    ## portrait wants, and cutting it costs nothing because the keying is already written.
+    hero: tuple[int, int, int, int]
+    ## How tall the character stands in the world, in game pixels, on the idle pose.
+    standing: float
+
+
+## The apo, at ninety-six pixels.
+##
+## The collision capsule it replaces is 80px from the feet up, and the stick figure that
+## stood in for it was 83. Ninety-six puts the eyeline above the capsule and lets the hair
+## overhang it, which is what makes a chibi silhouette read; the body inside the capsule is
+## unchanged, so no gate in GATES.md is affected by this number.
+APO = CharacterSheet(
+    name="apo",
+    source=SOURCE / "Obra Assets Male.png",
+    hero=(40, 115, 305, 470),
+    standing=96.0,
+)
+
+## Lolo, at eighty-four -- deliberately shorter than the apo he floats beside.
+##
+## He is the grandfather and a ghost, and both of those pull in opposite directions: an
+## elder should not be dwarfed by a child, but a COMPANION that stands as tall as the
+## player reads as a second protagonist walking alongside them rather than as a guide at
+## their shoulder. Seven eighths splits it -- he is unmistakably a person rather than a
+## pet, and the eye still lands on the apo first.
+##
+## The height is measured tail tip to crown, and the tail is most of what makes him read
+## as a spirit, so he occupies less of that box than a figure with legs would.
+LOLO = CharacterSheet(
+    name="lolo",
+    source=ROOT / "HUD-assets-ideas" / "Lolo-Ghost.png",
+    hero=(30, 111, 300, 500),
+    standing=84.0,
+)
+
+SHEETS = [APO, LOLO]
+
 
 # --- the props -----------------------------------------------------------------------
 
@@ -150,11 +196,94 @@ STAIR_BANDS = [
 BAND_UPSCALE = 2
 
 
+# --- the paintings in Lolo and Lola's house ---------------------------------------------
+
+PAINTING_SOURCE = ROOT / "Painting_Covers"
+## How big a painting hangs in the hub. 16:9, because that is what the covers are drawn at,
+## and a painting letterboxed inside its own frame looks like a screenshot rather than a
+## picture.
+##
+## A HUNDRED AND TWENTY-EIGHT IS A SIZE IN THE ROOM, not a thumbnail size. The house is
+## built to the apo, who is ninety-six pixels tall, so this is a picture about as tall as
+## the child looking at it and a shade under two metres wide -- a grand thing to have on a
+## wall and still a thing rather than a mural. At 256 it was three and a half metres across
+## and the room had to be a hall to hold five of them.
+PAINTING_SIZE = (128, 72)
+
+## WHICH COVER IS WHICH LEVEL, BY WHAT IS IN IT rather than by its filename.
+##
+## The filenames disagree with themselves: two of the five are called "Level 4", one is
+## labelled "from Dagat" and shows a fiesta, and the one called "Mt Makiling" is a storm at
+## sea. Going by content instead, the five line up exactly with the levels the design
+## already names -- terraces, pista, dagat, the forest, Mayon -- so that is the order used
+## here, and the mismatch is worth knowing about before anyone renames a file to match.
+PAINTINGS = [
+    ("level_1", "Level 1 Rice Terraces Completed Look.png"),      # Ifugao terraces
+    ("level_2", "Level 2 Completed Look from Dagat.png"),         # a fiesta plaza
+    ("level_3", "Level 4 Mt Makiling Completed Look.png"),        # a storm at sea
+    ("level_4", "Level 4 Completed Look from Mayon.png"),         # rainforest under Makiling
+    ("level_5", "Level 5.png"),                                   # Mayon over the ruins
+]
+
+
+# --- the wordmark ----------------------------------------------------------------------
+
+LOGO_SOURCE = ROOT / "HUD-assets-ideas" / "Logo.jpg"
+## The flat page the wordmark was presented on.
+LOGO_PAGE = (0x14, 0x35, 0x1A)
+## How far off that colour a pixel has to be to belong to the mark.
+LOGO_KEY = 26
+## THE LOGO IS 3x PIXEL ART INSIDE A JPEG, which is the worst way to receive pixel art:
+## every hard edge in it is a block boundary, and JPEG puts its ringing exactly there. The
+## run lengths still divide by three, so the grid survives -- what does not survive is the
+## colour, which comes back as four thousand shades of gold instead of a dozen.
+##
+## So the downsample takes the MEDIAN of each 3x3 block rather than the mean. A mean drags
+## every block toward the ringing around it; a median ignores it, because the ringing is a
+## minority of the samples. The phase below was measured by trying all nine and keeping the
+## one whose blocks came out most uniform.
+LOGO_UPSCALE = 3
+LOGO_PHASE = (1, 2)
+## And then the palette is rebuilt by k-means over the opaque pixels only. Twenty-four is
+## where the gold stops banding: the mark is shaded, not flat, so it needs more than a
+## poster palette, and the error curve has no knee to pick instead.
+LOGO_COLOURS = 24
+LOGO_SEED = 7
+
+
 def foreground_mask(rgb: np.ndarray) -> np.ndarray:
     """Warm or bright is the sprite; near-neutral and dark is the panel or its shadow."""
     high = rgb.max(axis=2)
     low = rgb.min(axis=2)
     return ((high - low) > 10) | (high > 48)
+
+
+def page_colour(rgb: np.ndarray) -> int:
+    """How bright the flat page behind the figures is, as one number.
+
+    Measured off the sheet rather than written down, because the two pages are not the
+    same colour -- the apo's is 201F1B and Lolo's a good deal darker at 131413 -- and a
+    third would be a third. It is the modal pixel of the whole page, which on a design
+    sheet is overwhelmingly empty background.
+    """
+    sample = rgb[::3, ::3].reshape(-1, 3)
+    common = Counter(map(tuple, sample)).most_common(1)[0][0]
+    return int(max(common))
+
+
+## How much darker than the page a pocket has to be before it counts as ink.
+##
+## THE FILL CANNOT TELL A HOLE FROM AN OUTLINE on its own -- both are dark and both are
+## sealed off from the outside -- so it rescues them alike, and Lolo's tail curls round on
+## itself in half his poses. Each of those curls encloses a bite of page, and each came
+## back as a dark blot pasted on the tail.
+##
+## What separates them is that a HOLE IS THE PAGE SHOWING THROUGH and is therefore exactly
+## as bright as the page, while ink is drawn darker than it. Measured across both sheets
+## the two populations sit either side of this margin with room to spare: pockets of page
+## read within six of it, and the darkest thing that is genuinely drawn -- Lolo's eyes and
+## mouth, which are flat black -- is twenty below.
+PAGE_MARGIN = 6
 
 
 def without_thin_columns(mask: np.ndarray, radius: int = 2) -> np.ndarray:
@@ -173,8 +302,49 @@ def without_thin_columns(mask: np.ndarray, radius: int = 2) -> np.ndarray:
     return out
 
 
+def without_page_holes(solid: np.ndarray, raw: np.ndarray, rgb: np.ndarray,
+                       page: int) -> np.ndarray:
+    """Reopen the pockets of page that the border fill sealed up. See PAGE_MARGIN."""
+    out = solid.copy()
+    sealed = solid & ~raw
+    height, width = sealed.shape
+    seen = np.zeros_like(sealed, dtype=bool)
+    for sy in range(height):
+        for sx in range(width):
+            if not sealed[sy, sx] or seen[sy, sx]:
+                continue
+            queue: deque = deque([(sy, sx)])
+            seen[sy, sx] = True
+            pocket = [(sy, sx)]
+            while queue:
+                y, x = queue.popleft()
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    ny, nx = y + dy, x + dx
+                    if (0 <= ny < height and 0 <= nx < width
+                            and sealed[ny, nx] and not seen[ny, nx]):
+                        seen[ny, nx] = True
+                        queue.append((ny, nx))
+                        pocket.append((ny, nx))
+            brightness = np.median([rgb[y, x].max() for y, x in pocket])
+            if brightness >= page - PAGE_MARGIN:
+                for y, x in pocket:
+                    out[y, x] = False
+    return out
+
+
 def fill_from_border(mask: np.ndarray) -> np.ndarray:
-    """Keep only background the outside can reach, so eyes stay eyes."""
+    """Keep only background the outside can reach, so eyes stay eyes.
+
+    THE CROP IS PADDED WITH A RING OF BACKGROUND FIRST, so the flood can always get all
+    the way round the figure. Without it the function silently depends on the caller
+    having left a margin, and a box cut tight to the drawing has none: the gap between an
+    arm and a torso opens at the edge of the crop, the flood cannot reach round into it,
+    and it fills solid. That is what happened to the apo's three-quarter view the day the
+    frame boxes were tightened onto the drawing itself -- three thousand pixels of daylight
+    under one arm turned into shirt, with nothing about the alignment changed to hint at
+    why.
+    """
+    mask = np.pad(mask, 1, constant_values=False)
     height, width = mask.shape
     background = np.zeros_like(mask, dtype=bool)
     queue: deque = deque()
@@ -196,7 +366,57 @@ def fill_from_border(mask: np.ndarray) -> np.ndarray:
             ny, nx = y + dy, x + dx
             if 0 <= ny < height and 0 <= nx < width:
                 seed(ny, nx)
-    return ~background
+    return ~background[1:-1, 1:-1]
+
+
+def largest_blob(mask: np.ndarray) -> np.ndarray:
+    """The biggest single drawing in a cell, with every other speck dropped.
+
+    A POSE IS ONE DRAWING, and that is the only thing separating a frame from the panel
+    chrome printed around it. Lolo's page puts its section heading and the rule under it
+    INSIDE the sprite row rather than above it -- the jump pose reaches higher than the
+    rule does, so no horizontal cut divides the two -- and the thin verticals ruling one
+    pose off from the next run the whole height of the panel. All of it keys as
+    foreground: it is gold on near-black, which is exactly what a chroma test is looking
+    for. Taken on bounding boxes, `idle` came out with EXTRA POSES / ACTIONS printed
+    across its head.
+
+    Measured across both delivered sheets, this rule has three orders of magnitude of
+    daylight in it: every one of the forty-six poses is a single blob of eight to
+    twenty-three thousand pixels, and the largest thing that is NOT part of a pose is
+    twenty. No frame on either page has a detached hand or a floating accessory that this
+    would eat -- which is the assumption to re-test, on the frames rather than in the
+    abstract, if a third sheet is ever cut through here.
+    """
+    height, width = mask.shape
+    seen = np.zeros_like(mask, dtype=bool)
+    best: np.ndarray | None = None
+    best_size = 0
+    for sy in range(height):
+        for sx in range(width):
+            if not mask[sy, sx] or seen[sy, sx]:
+                continue
+            blob = np.zeros_like(mask, dtype=bool)
+            queue: deque = deque([(sy, sx)])
+            seen[sy, sx] = True
+            blob[sy, sx] = True
+            size = 0
+            while queue:
+                y, x = queue.popleft()
+                size += 1
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        ny, nx = y + dy, x + dx
+                        if (0 <= ny < height and 0 <= nx < width
+                                and mask[ny, nx] and not seen[ny, nx]):
+                            seen[ny, nx] = True
+                            blob[ny, nx] = True
+                            queue.append((ny, nx))
+            if size > best_size:
+                best_size, best = size, blob
+    if best is None:
+        raise SystemExit("a frame cell keyed to nothing at all")
+    return best
 
 
 def column_groups(band: np.ndarray, x0: int) -> list[tuple[int, int]]:
@@ -234,11 +454,12 @@ def tallest_row_band(mask: np.ndarray, y0: int) -> tuple[int, int]:
     return bands[0]
 
 
-def cut_sheet() -> dict[tuple[str, str], dict]:
-    """Every pose on the sheet, keyed, with the numbers needed to line them up."""
-    sheet = Image.open(SOURCE / SHEET).convert("RGB")
+def cut_sheet(page: Path) -> dict[tuple[str, str], dict]:
+    """Every pose on one design page, keyed, with the numbers needed to line them up."""
+    sheet = Image.open(page).convert("RGB")
     rgb = np.asarray(sheet, dtype=int)
     mask = foreground_mask(rgb)
+    page = page_colour(rgb)
     solid_only = without_thin_columns(mask)
     x0, x1 = PANEL_X
     frames: dict[tuple[str, str], dict] = {}
@@ -249,15 +470,25 @@ def cut_sheet() -> dict[tuple[str, str], dict]:
         groups = column_groups(band, x0)
         if len(groups) != len(names):
             raise SystemExit(
-                f"{panel}: expected {len(names)} frames, found {len(groups)}. "
-                "The sheet layout changed; the panel bounds above need re-measuring.")
+                f"{page.name}: {panel} expected {len(names)} frames, found "
+                f"{len(groups)}. The sheet layout changed; the panel bounds above need "
+                "re-measuring against this page.")
 
         cut: list[dict] = []
         for (gx0, gx1), name in zip(groups, names):
-            column = mask[band_y0:band_y1 + 1, gx0:gx1 + 1]
-            rows = np.where(column.any(axis=1))[0]
+            # The pose itself, with the heading, the rules and the speckle of the page
+            # left behind -- see largest_blob. The box is taken off the blob on BOTH axes:
+            # a column group that has swallowed a divider is too wide as well as too tall,
+            # and an anchor measured across that extra width puts the character off centre.
+            blob = largest_blob(mask[band_y0:band_y1 + 1, gx0:gx1 + 1])
+            rows = np.where(blob.any(axis=1))[0]
+            cols = np.where(blob.any(axis=0))[0]
             ty0, ty1 = band_y0 + rows[0], band_y0 + rows[-1]
-            solid = fill_from_border(mask[ty0:ty1 + 1, gx0:gx1 + 1].copy())
+            gx0, gx1 = gx0 + int(cols[0]), gx0 + int(cols[-1])
+            window = mask[ty0:ty1 + 1, gx0:gx1 + 1]
+            solid = without_page_holes(
+                fill_from_border(window.copy()), window,
+                rgb[ty0:ty1 + 1, gx0:gx1 + 1], page)
             # Head centre, not bbox centre: the arms and legs swing and the head does not.
             head = solid[:max(1, int(solid.shape[0] * 0.30))]
             head_columns = np.where(head.any(axis=0))[0]
@@ -305,14 +536,14 @@ def scaled(image: Image.Image, factor: float) -> Image.Image:
         np.dstack([np.clip(colour, 0, 255), out_alpha]).astype(np.uint8), "RGBA")
 
 
-def build_character(write: bool) -> dict[str, bytes]:
-    sheet = Image.open(SOURCE / SHEET).convert("RGB")
-    frames = cut_sheet()
+def build_character(spec: CharacterSheet, write: bool) -> tuple[dict[str, bytes], int, int]:
+    sheet = Image.open(spec.source).convert("RGB")
+    frames = cut_sheet(spec.source)
 
     reference = frames[SCALE_REFERENCE]
-    base_scale = STANDING_HEIGHT / (reference["box"][3] - reference["box"][1])
+    base_scale = spec.standing / (reference["box"][3] - reference["box"][1])
     turn = frames[TURNAROUND_REFERENCE]
-    turn_scale = STANDING_HEIGHT / (turn["box"][3] - turn["box"][1])
+    turn_scale = spec.standing / (turn["box"][3] - turn["box"][1])
     scales = {"turnaround": turn_scale, "walk": base_scale, "run": base_scale,
               "extra": base_scale}
 
@@ -339,24 +570,26 @@ def build_character(write: bool) -> dict[str, bytes]:
             x = index * cell_w + int(round(cell_w / 2.0 - anchor))
             y = cell_h - 1 - int(round(image.height + lift))
             strip.alpha_composite(image, (x, y))
-        path = CHARACTER_OUT / f"{name}.png"
+        path = CHARACTER_OUT / spec.name / f"{spec.name}_{name}.png"
         written[str(path.relative_to(ROOT))] = _emit(strip, path, write)
     return written, cell_w, cell_h
 
 
-def build_portrait(write: bool) -> dict[str, bytes]:
+def build_portrait(spec: CharacterSheet, write: bool) -> tuple[dict[str, bytes], tuple[int, int]]:
     """The big hero drawing, keyed and trimmed, for the dialogue box."""
-    sheet = Image.open(SOURCE / SHEET).convert("RGB")
-    rgb = np.asarray(sheet.crop(HERO_PANEL), dtype=int)
+    sheet = Image.open(spec.source).convert("RGB")
+    rgb = np.asarray(sheet.crop(spec.hero), dtype=int)
     solid = fill_from_border(foreground_mask(rgb).copy())
-    keyed = keyed_image(sheet, {"box": HERO_PANEL, "mask": solid})
+    keyed = keyed_image(sheet, {"box": spec.hero, "mask": solid})
     # Trimmed to the figure. The panel is mostly empty and the drop shadow under the feet
     # is keyed out with the background, so the bbox is the character and nothing else.
     bounds = keyed.getchannel("A").getbbox()
     if bounds is None:
-        raise SystemExit("the hero panel keyed to nothing; HERO_PANEL needs re-measuring")
+        raise SystemExit(
+            f"{spec.source.name}: the hero card keyed to nothing; its `hero` bounds need "
+            "re-measuring")
     portrait = keyed.crop(bounds)
-    path = CHARACTER_OUT / "apo_portrait.png"
+    path = CHARACTER_OUT / spec.name / f"{spec.name}_portrait.png"
     return {str(path.relative_to(ROOT)): _emit(portrait, path, write)}, portrait.size
 
 
@@ -395,6 +628,62 @@ def build_props(write: bool) -> dict[str, bytes]:
     return written
 
 
+def build_paintings(write: bool) -> dict[str, bytes]:
+    """The five covers, down to the size they hang at.
+
+    Area-averaged rather than filtered: these come in at 1672x941 and go on a wall at 256
+    wide, which is a seven-fold reduction. A sharpening filter at that ratio turns every
+    rice terrace into a fence of alternating pixels; averaging keeps the picture reading as
+    a picture at a size where none of the detail can survive anyway.
+    """
+    written: dict[str, bytes] = {}
+    for level_id, filename in PAINTINGS:
+        source = PAINTING_SOURCE / filename
+        if not source.exists():
+            raise SystemExit(f"missing painting cover: {filename}")
+        image = Image.open(source).convert("RGB").resize(PAINTING_SIZE, Image.BOX)
+        path = HUB_OUT / f"{level_id}.png"
+        written[str(path.relative_to(ROOT))] = _emit(image, path, write)
+    return written
+
+
+def build_logo(write: bool) -> tuple[dict[str, bytes], tuple[int, int]]:
+    """The OBRA wordmark, off its presentation page and back onto its own grid."""
+    page = np.asarray(Image.open(LOGO_SOURCE).convert("RGB"), dtype=float)
+    height, width, _ = page.shape
+    ox, oy = LOGO_PHASE
+    mark = np.abs(page - np.array(LOGO_PAGE, dtype=float)).max(axis=2) > LOGO_KEY
+    ys, xs = np.where(mark)
+    x0 = ox + LOGO_UPSCALE * ((int(xs.min()) - ox) // LOGO_UPSCALE)
+    y0 = oy + LOGO_UPSCALE * ((int(ys.min()) - oy) // LOGO_UPSCALE)
+    x1 = x0 + LOGO_UPSCALE * ((int(xs.max()) - x0) // LOGO_UPSCALE + 1)
+    y1 = y0 + LOGO_UPSCALE * ((int(ys.max()) - y0) // LOGO_UPSCALE + 1)
+    crop = page[y0:min(y1, height), x0:min(x1, width)]
+    rows, cols = crop.shape[0] // LOGO_UPSCALE, crop.shape[1] // LOGO_UPSCALE
+    crop = crop[:rows * LOGO_UPSCALE, :cols * LOGO_UPSCALE]
+    blocks = crop.reshape(rows, LOGO_UPSCALE, cols, LOGO_UPSCALE, 3)
+    native = np.median(blocks.transpose(0, 2, 1, 3, 4).reshape(rows, cols, -1, 3), axis=2)
+
+    opaque = np.abs(native - np.array(LOGO_PAGE, dtype=float)).max(axis=2) > LOGO_KEY
+    flat = native[opaque]
+    generator = np.random.default_rng(LOGO_SEED)
+    centres = flat[generator.choice(len(flat), LOGO_COLOURS, replace=False)].copy()
+    labels = np.zeros(len(flat), dtype=int)
+    for _ in range(40):
+        labels = ((flat[:, None, :] - centres[None, :, :]) ** 2).sum(axis=2).argmin(axis=1)
+        for index in range(LOGO_COLOURS):
+            chosen = labels == index
+            if chosen.any():
+                centres[index] = flat[chosen].mean(axis=0)
+    native[opaque] = np.rint(centres[labels])
+
+    out = np.dstack([native, (opaque * 255).astype(float)]).astype(np.uint8)
+    image = Image.fromarray(out, "RGBA")
+    image = image.crop(image.split()[-1].getbbox())
+    path = UI_OUT / "obra_logo.png"
+    return {str(path.relative_to(ROOT)): _emit(image, path, write)}, image.size
+
+
 def _emit(image: Image.Image, path: Path, write: bool) -> bytes:
     import io
     buffer = io.BytesIO()
@@ -412,10 +701,21 @@ def main() -> int:
                         help="fail if the committed files differ from a fresh build")
     args = parser.parse_args()
 
-    character, cell_w, cell_h = build_character(write=not args.check)
-    portrait, portrait_size = build_portrait(write=not args.check)
+    everything: dict[str, bytes] = {}
+    figures: list[str] = []
+    for spec in SHEETS:
+        character, cell_w, cell_h = build_character(spec, write=not args.check)
+        portrait, portrait_size = build_portrait(spec, write=not args.check)
+        everything.update(character)
+        everything.update(portrait)
+        figures.append(
+            f"{spec.name}: cell {cell_w}x{cell_h}px at {spec.standing:.0f}px standing, "
+            f"portrait {portrait_size[0]}x{portrait_size[1]}px")
+
     props = build_props(write=not args.check)
-    everything = {**character, **portrait, **props}
+    logo, logo_size = build_logo(write=not args.check)
+    paintings = build_paintings(write=not args.check)
+    everything.update({**props, **logo, **paintings})
 
     if args.check:
         stale = []
@@ -431,8 +731,9 @@ def main() -> int:
         print(f"art is up to date ({len(everything)} files)")
         return 0
 
-    print(f"character cell {cell_w}x{cell_h}px, standing height {STANDING_HEIGHT:.0f}px")
-    print(f"dialogue portrait {portrait_size[0]}x{portrait_size[1]}px")
+    for line in figures:
+        print(line)
+    print(f"wordmark {logo_size[0]}x{logo_size[1]}px native")
     for rel in sorted(everything):
         print(f"   {len(everything[rel]):7d}  {rel}")
     return 0

@@ -66,6 +66,27 @@ const FILLET_LIT := Color(0.847, 0.725, 0.408, 1.0)   # D8B968
 ## The mount the picture sits on, inside the rabbet.
 const MAT := Color(0.220, 0.161, 0.110, 1.0)          # 38291C
 
+# --- The gilt oval ----------------------------------------------------------------------
+## Lifted off the wordmark, which is where this shape comes from: the O of OBRA is an
+## ornate oval mirror with a little landscape inside it, and the canvas the player draws on
+## is the same object -- you look into it and something appears.
+##
+## Six stops rather than the wood frame's four, because an oval has no flat sides to carry
+## a bevel. A rectangle can be shaded with one light edge and one dark one; a ring is lit
+## differently at every point around it, so it needs enough steps to turn smoothly and not
+## band into a string of beads.
+const GILT_HI := Color(0.984, 0.898, 0.404, 1.0)      # FBE567  the catch of light
+const GILT_LIT := Color(0.929, 0.792, 0.322, 1.0)     # EDCA52
+const GILT := Color(0.859, 0.655, 0.212, 1.0)         # DBA736  the body of the moulding
+const GILT_MID := Color(0.784, 0.588, 0.216, 1.0)     # C89637
+const GILT_DARK := Color(0.647, 0.447, 0.137, 1.0)    # A57223
+const GILT_EDGE := Color(0.549, 0.341, 0.114, 1.0)    # 8C571D  the keyline and the shadow
+
+## Light comes from up and to the left, which is where it comes from in the wordmark. Every
+## bevel in the frame is derived from this one vector rather than from a per-part guess.
+const GILT_LIGHT := Vector2(-0.7071, -0.7071)
+
+
 # --- Button anatomy ---------------------------------------------------------------------
 ## The grey highlight ring immediately inside a button's edge. Identical across all three
 ## families in the mockup -- it is what makes a button read as raised rather than painted.

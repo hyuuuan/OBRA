@@ -3,9 +3,11 @@ extends Node2D
 ## The tutorial companion: he floats along beside whoever the player currently is and
 ## says the one thing that is worth saying where they are standing.
 ##
-## His LOOK is a placeholder (see lolo_figure.gd). What is not placeholder is this
-## interface -- follow(), say(), is_speaking() -- because TutorialDirector talks to it
-## and a designed Lolo has to answer the same three calls.
+## His LOOK lives in lolo_figure.gd, which draws the delivered ghost art. What this file
+## owns is the same three calls it always did -- follow(), say(), is_speaking() -- because
+## TutorialDirector talks to them and none of them care what he looks like. What it also
+## owns now, exactly as wanderer.gd does for the apo, is WHICH POSE he is in: the figure
+## draws a pose, it does not decide one.
 ##
 ## He deliberately does not collide with anything. A companion who can be stood on, or
 ## who can wedge the player into a wall, is a hazard rather than a guide.
@@ -23,6 +25,13 @@ const SPEAKER := "Lolo"
 ## a companion drifting through the scenery for ten seconds looks broken.
 @export var teleport_distance: float = 900.0
 @export var bob_hz: float = 0.55
+## How fast his drift cycle runs when he is holding station, in cycles per second. Slower
+## than a walk on purpose -- it is a hover, and six frames a second on a ghost reads as
+## paddling.
+@export var drift_hz: float = 0.9
+## How fast he has to be moving before the drift becomes a hurry, in pixels per second.
+## Above this he is visibly chasing the player rather than keeping pace with them.
+@export var hurry_speed: float = 180.0
 
 @onready var _figure: Node2D = $Figure
 
@@ -34,6 +43,7 @@ var _hints: HintBar
 
 var _target: Node2D
 var _phase: float = 0.0
+var _stride: float = 0.0
 var _speech_time: float = 0.0
 var _facing: float = 1.0
 
@@ -83,9 +93,6 @@ func is_speaking() -> bool:
 
 func _process(delta: float) -> void:
 	_phase = fmod(_phase + delta * bob_hz, 1.0)
-	_figure.set("bob", _phase)
-	_figure.set("facing", _facing)
-	_figure.queue_redraw()
 
 	# The box counts its own line down -- it is the thing that knows whether the text has
 	# even finished arriving yet. What is kept here is the mouth: he stops talking when
@@ -96,16 +103,37 @@ func _process(delta: float) -> void:
 			_speech_time = 0.0
 			_figure.set("talking", false)
 
-	if _target == null or not is_instance_valid(_target):
-		return
-	var desired := _desired_position()
-	if global_position.distance_to(desired) > teleport_distance:
-		global_position = desired
-	else:
-		global_position = global_position.lerp(desired, clampf(follow_speed * delta, 0.0, 1.0))
-	var to_target := _target_position().x - global_position.x
-	if absf(to_target) > 24.0:
-		_facing = signf(to_target)
+	var was := global_position
+	if _target != null and is_instance_valid(_target):
+		var desired := _desired_position()
+		if global_position.distance_to(desired) > teleport_distance:
+			global_position = desired
+		else:
+			global_position = global_position.lerp(
+				desired, clampf(follow_speed * delta, 0.0, 1.0))
+		var to_target := _target_position().x - global_position.x
+		if absf(to_target) > 24.0:
+			_facing = signf(to_target)
+
+	# Measured off how far he actually moved rather than off the player's speed, because
+	# the two are not the same thing: he lerps toward a point behind their shoulder, so he
+	# is still hurrying for a moment after they have stopped, which is exactly when a
+	# companion should still look like he is catching up.
+	#
+	# A TELEPORT IS NOT A SPRINT. Crossing the level in one frame after a morph would read
+	# as an enormous speed and flip him to the hurry cycle for the frame he arrives on.
+	var speed := 0.0 if delta <= 0.0 else was.distance_to(global_position) / delta
+	if speed > teleport_distance:
+		speed = 0.0
+	var hurrying := speed > hurry_speed
+	# Whole cycles either way. Holding station he drifts at his own rate; chasing, the
+	# cycle is driven by the ground he is covering, so the pose and the motion agree.
+	_stride = fmod(_stride + delta * (speed / 90.0 if hurrying else drift_hz), 1.0)
+	_figure.set("pose", &"hurry" if hurrying else &"float")
+	_figure.set("stride", _stride)
+	_figure.set("bob", _phase)
+	_figure.set("facing", _facing)
+	_figure.call("refresh")
 
 
 func _desired_position() -> Vector2:
