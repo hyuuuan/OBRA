@@ -75,6 +75,7 @@ func _draw() -> void:
 	_draw_bays()
 	_draw_wainscot()
 	_draw_floor()
+	_draw_chandeliers()
 
 
 func _draw_wall() -> void:
@@ -161,3 +162,41 @@ func _draw_floor() -> void:
 		y2 += 28.0
 		course += 1
 
+
+## Two chandeliers on the ceiling, over the gaps rather than over the pictures.
+##
+## The reference photo has one enormous cut-glass fixture and it is the first thing the eye
+## goes to; at this scale a faithful copy would be a grey smear, so this is the SILHOUETTE of
+## one -- a chain, a brass corona, candles, and a skirt of drops that catches the light.
+func _draw_chandeliers() -> void:
+	for slot: int in [0, 3]:
+		_draw_chandelier(first_painting_x + painting_gap * (float(slot) + 0.5))
+
+
+func _draw_chandelier(x: float) -> void:
+	var hang := ceiling_y + 52.0
+	var drop := 96.0
+	var brass := UISkin.GILT_DARK
+	var brass_lit := UISkin.GILT
+	var crystal := Color(0.827, 0.882, 0.878, 0.85)
+	# The chain.
+	var link := hang
+	while link < hang + drop - 16.0:
+		draw_rect(Rect2(x - 3.0, link, 6.0, 8.0), brass)
+		link += 14.0
+	# The corona: two rings, the lower one wider.
+	var body := hang + drop
+	draw_rect(Rect2(x - 14.0, body - 18.0, 28.0, 14.0), brass_lit)
+	draw_rect(Rect2(x - 46.0, body, 92.0, 12.0), brass_lit)
+	draw_rect(Rect2(x - 46.0, body + 12.0, 92.0, PIXEL), brass)
+	# Candles standing on the ring, with a flame apiece.
+	for offset: float in [-36.0, -12.0, 12.0, 36.0]:
+		draw_rect(Rect2(x + offset - 4.0, body - 22.0, 8.0, 22.0), Color(0.914, 0.886, 0.800, 1.0))
+		draw_rect(Rect2(x + offset - 3.0, body - 30.0, 6.0, 8.0), Color(1.0, 0.839, 0.400, 1.0))
+		draw_rect(Rect2(x + offset - 2.0, body - 34.0, 4.0, 5.0), Color(1.0, 0.949, 0.729, 1.0))
+	# The skirt of drops. Longest in the middle, so the fixture reads as a bell.
+	for index in range(9):
+		var offset := (float(index) - 4.0) * 11.0
+		var length := 26.0 - absf(float(index) - 4.0) * 3.5
+		draw_rect(Rect2(x + offset - 3.0, body + 14.0, 6.0, length), crystal)
+		draw_rect(Rect2(x + offset - 3.0, body + 14.0, PIXEL, length), Color(1, 1, 1, 0.55))
