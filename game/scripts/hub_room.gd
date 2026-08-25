@@ -142,6 +142,9 @@ func door_count() -> int:
 const DOOR_WIDTH := 116.0
 ## How tall: two metres sixty, which is a door in a room with four-metre ceilings.
 const DOOR_HEIGHT := 187.0
+## The pierced fretwork panel above it. Calado is what a house with this much heat and no
+## glass does instead of a fanlight -- air moves between the rooms with the doors shut.
+const TRANSOM_HEIGHT := 69.0
 
 ## The wood grain. Narra is a striped timber and the stripe is the whole reason a wall of
 ## it does not read as cardboard, but it has to be UNDER the joinery rather than on top of
@@ -316,13 +319,15 @@ func _draw_door(centre: float) -> void:
 	var head := floor_y - DOOR_HEIGHT
 	var jamb := 10.0
 
-	# The architrave: the moulded surround, running from the floor up over the head.
-	var surround := Rect2(centre - half - jamb, head - jamb,
-		DOOR_WIDTH + jamb * 2.0, DOOR_HEIGHT + jamb)
+	# The architrave: the moulded surround, running from the floor up round the transom.
+	var surround := Rect2(centre - half - jamb, head - TRANSOM_HEIGHT - jamb * 2.0,
+		DOOR_WIDTH + jamb * 2.0, DOOR_HEIGHT + TRANSOM_HEIGHT + jamb * 2.0)
 	draw_rect(surround, WALL_LIT)
 	draw_rect(surround, WALL_EDGE, false, 2.0)
 
-	# The lintel over the opening.
+	_draw_calado(Rect2(centre - half, head - TRANSOM_HEIGHT - jamb, DOOR_WIDTH,
+		TRANSOM_HEIGHT))
+	# The lintel between the transom and the door.
 	draw_rect(Rect2(centre - half - jamb, head - jamb, DOOR_WIDTH + jamb * 2.0, jamb),
 		WALL)
 	draw_rect(Rect2(centre - half - jamb, head - 2.0, DOOR_WIDTH + jamb * 2.0, 2.0),
@@ -379,6 +384,64 @@ func _draw_capiz(area: Rect2) -> void:
 				Color(1.0, 1.0, 1.0, 0.35))
 			draw_rect(Rect2(pane.position.x, pane.end.y - 2.0, pane.size.x, 2.0),
 				Color(0.0, 0.0, 0.0, 0.12))
+
+
+## Calado: the pierced fretwork panel over a doorway, which is how air crosses a house
+## with the doors shut.
+##
+## DRAWN AS THE WOOD, WITH HOLES IN IT. The first cut drew it the other way round -- a lit
+## field with spindles standing in front of it -- and a row of pale uprights with a swelling
+## at the middle is not fretwork, it is a row of candles. Six of them along the wall, under
+## a chandelier that is also a row of candles, and the eye could not tell which was the
+## light fitting.
+##
+## So the panel is a solid board and the daylight comes through a row of diamonds cut out
+## of it. That is both the right way round physically and the thing that makes it legible:
+## the wood is the majority, so the transom sits back on the wall instead of glaring off
+## it, and the chandelier hanging in front has something dark to be seen against.
+func _draw_calado(area: Rect2) -> void:
+	if area.size.x <= 8.0 or area.size.y <= 8.0:
+		return
+	draw_rect(area, WALL)
+	_grain(area.grow(-3.0), WALL_LIT, WALL_DARK)
+	# The light in the next room, which is what you actually see through a calado.
+	# Dim, and dimmer than the capiz below it: this is borrowed light from the next room
+	# through a hole the size of a hand, not the daylight coming through a whole doorway.
+	# Drawn at the brightness of the shell it came out looking like a row of lamps.
+	var glow := Color(0.510, 0.463, 0.361, 1.0)
+	var pitch := 22.0
+	var half := Vector2(8.0, area.size.y * 0.5 - 12.0)
+	var x := area.position.x + pitch * 0.5
+	while x < area.end.x - 4.0:
+		var centre := Vector2(x, area.get_center().y)
+		_diamond(centre, half + Vector2.ONE * 2.0, WALL_EDGE)
+		_diamond(centre, half, glow)
+		# A catch of light down the left cheek of the cut, so the board has a thickness.
+		_diamond(centre - Vector2(1.0, 0.0), half - Vector2(3.0, 3.0),
+			glow.lightened(0.18))
+		_diamond(centre, half - Vector2(4.0, 4.0), glow)
+		x += pitch
+	# The rails top and bottom, which is what the diamonds are cut between.
+	draw_rect(Rect2(area.position, Vector2(area.size.x, 5.0)), WALL_LIT)
+	draw_rect(Rect2(area.position.x, area.position.y + 5.0, area.size.x, 2.0), WALL_EDGE)
+	draw_rect(Rect2(area.position.x, area.end.y - 5.0, area.size.x, 5.0), WALL_LIT)
+	draw_rect(Rect2(area.position.x, area.end.y - 7.0, area.size.x, 2.0), WALL_EDGE)
+	draw_rect(area, WALL_EDGE, false, 2.0)
+
+
+## A filled diamond, a row of pixels at a time. There is no primitive for one and a
+## polygon would be the only anti-aliased thing in the room.
+func _diamond(centre: Vector2, half: Vector2, colour: Color) -> void:
+	if half.x <= 0.0 or half.y <= 0.0:
+		return
+	var rows := int(half.y * 2.0)
+	for row in range(rows):
+		var taper := absf(float(row) - half.y) / half.y
+		var width := roundf(half.x * (1.0 - taper))
+		if width <= 0.0:
+			continue
+		draw_rect(Rect2(centre.x - width, centre.y - half.y + float(row),
+			width * 2.0, 1.0), colour)
 
 
 ## Plank floor, running away from the wall. The boards are drawn as bands rather than in
