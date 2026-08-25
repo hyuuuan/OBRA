@@ -664,10 +664,19 @@ func _test_banaue_environment() -> void:
 	world.add_child(environment)
 	await process_frame
 	var bounds: Rect2 = environment.get("world_bounds")
-	# 3920 since the bale stepped back off the cliff: the Overlook grew 160px east to carry
-	# it, so there is a shelf in front of the house to stand a ladder in and room behind it
-	# for the route that goes over the thatch. See R7 in GATES.md.
-	_expect(bounds.size == Vector2(3920.0, 1200.0), "Banaue world bounds changed unexpectedly")
+	# 3920 wide since the bale stepped back off the cliff: the Overlook grew 160px east to
+	# carry it, so there is a shelf in front of the house to stand a ladder in and room
+	# behind it for the route that goes over the thatch. See R7 in GATES.md.
+	#
+	# MEASURED FROM THE BOTTOM, not as a raw size. Everything that matters here hangs off
+	# the floor of the world: the baseplate builds its floor body at the bottom edge, the
+	# fall limit is that edge plus a margin, and the camera anchors itself there. The TOP
+	# moved to -1800 to make sky for the room inside the straw heap to sit in, which changes
+	# the size and none of the things the size was standing in for.
+	_expect(bounds.size.x == 3920.0, "Banaue world width changed unexpectedly")
+	_expect(is_equal_approx(bounds.end.y, 680.0),
+		"the floor of the Banaue world moved -- the fall limit and the camera hang off it")
+	_expect(bounds.position.y <= -520.0, "the Banaue world lost its headroom")
 	var spawn := environment.get_node("GameplayPlane/SpawnPoint") as Marker2D
 	# Read against the terrace rather than pinned to a literal: the opening bank has moved
 	# twice while deepening the paddy, and a hardcoded spawn point turns every legitimate
