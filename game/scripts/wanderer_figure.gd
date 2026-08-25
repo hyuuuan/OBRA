@@ -40,21 +40,19 @@ const TURNAROUND := preload("res://assets/characters/apo/apo_turnaround.png")
 ## facing away from you, and the walk cycle seen from the side reads as walking on air.
 const POSES := {
 	&"idle": {"texture": IDLE, "count": 1, "cycle": false, "frame": 0},
-	# BOTH GROUND POSES DRAW THE RUN SHEET, and that is not a typo.
+	# THE WALK IS BUILT, NOT CUT. The delivered walk sheet is six near-identical striding
+	# poses -- the gap between the feet stays between 53 and 56 pixels across all of them, so
+	# the legs never pass each other, and the leg mass either side of the body axis is the
+	# same in every one. For a while this pose drew the RUN sheet instead, on the grounds
+	# that a hurrying child beats a gliding one; that sheet turns out to plant the same foot
+	# at the same place in all six of its frames, so what it actually looked like was a boy
+	# hopping.
 	#
-	# The delivered walk sheet is not a cycle. Measured across its six frames: the gap
-	# between the feet stays between 53 and 56 pixels, so the legs NEVER PASS EACH OTHER --
-	# a walk is contact, pass, contact on the other foot, and the pass is missing entirely.
-	# Every frame has the same leg mass in front of and behind the body axis. What plays is
-	# six near-identical striding poses with the hair and the satchel jittering, which on
-	# screen is a boy sliding along the floor.
-	#
-	# The run sheet IS a cycle: its foot gap runs 53, 54, 39, 54, 57, 39, and those 39s are
-	# the passing poses. So walking plays the run cycle slowly. A child hurrying between two
-	# terraces is a defensible thing for it to look like, and it is emphatically better than
-	# a glide. Point this at the walk sheet again the day one arrives with a pass in it --
-	# it is still loaded, and `WALK` is still here for that.
-	&"walk": {"texture": RUN, "count": 6, "cycle": true, "frame": 0},
+	# tools/build_art.py now makes a real cycle out of the one stride the sheet does have,
+	# by moving the legs below the knee and leaving every pixel above it alone. Contact,
+	# closing, pass, and the same three with the feet exchanged. The feet alternate: the
+	# planted foot at the pass is at x=47 in one half of the cycle and x=31 in the other.
+	&"walk": {"texture": WALK, "count": 6, "cycle": true, "frame": 0},
 	&"run": {"texture": RUN, "count": 6, "cycle": true, "frame": 0},
 	&"air": {"texture": JUMP, "count": 1, "cycle": false, "frame": 0},
 	&"look_up": {"texture": LOOK_UP, "count": 1, "cycle": false, "frame": 0},
