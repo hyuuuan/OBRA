@@ -520,6 +520,7 @@ func _draw_settee(at: Vector2) -> void:
 	var seat := 30.0
 	var back := 31.0
 	var half := width * 0.5
+	_contact_shadow(at, half + 6.0)
 
 	# Legs, turned: a square block at the top, a waist, and a foot. Four of them, but the
 	# back pair is only a hint -- they are behind the front pair and mostly hidden by the
@@ -592,6 +593,7 @@ func _cane(area: Rect2) -> void:
 ## A low table with a lidded jar on it -- the palayok in the corner of every old house.
 ## Seventy-five centimetres to the top, which is a table; the jar on it stands a foot high.
 func _draw_side_table(at: Vector2) -> void:
+	_contact_shadow(at, 34.0)
 	# Legs, splayed a little, with a stretcher between them.
 	for side: float in [-1.0, 1.0]:
 		draw_rect(Rect2(at.x + side * 24.0 - 3.0, at.y - 47.0, 6.0, 47.0), WALL_DARK)
@@ -635,6 +637,7 @@ func _draw_palayok(base: Vector2) -> void:
 ## The baul: the carved chest at the foot of the wall, the same object Node 2 of Payyo hides
 ## the sketchbook page in.
 func _draw_baul(at: Vector2) -> void:
+	_contact_shadow(at, 42.0)
 	var body := Rect2(at.x - 38.0, at.y - 32.0, 76.0, 32.0)
 	draw_rect(body, WALL)
 	_grain(body.grow(-4.0), WALL_LIT, WALL_DARK)
@@ -657,6 +660,15 @@ func _draw_baul(at: Vector2) -> void:
 	draw_rect(Rect2(at.x - 6.0, body.position.y - 4.0, 12.0, 2.0), UISkin.GILT)
 	draw_rect(Rect2(at.x - 2.0, body.position.y + 3.0, 4.0, 4.0), WALL_EDGE)
 	draw_rect(body, WALL_EDGE, false, 2.0)
+
+
+## What stops a piece of furniture floating: a smear of dark on the boards under it, wider
+## than the thing casting it and thinner at the edges. Everything in this room stands on
+## the same floor and none of it was touching.
+func _contact_shadow(at: Vector2, half: float) -> void:
+	draw_rect(Rect2(at.x - half, at.y - 2.0, half * 2.0, 7.0), Color(0.0, 0.0, 0.0, 0.30))
+	draw_rect(Rect2(at.x - half - 5.0, at.y - 1.0, half * 2.0 + 10.0, 4.0),
+		Color(0.0, 0.0, 0.0, 0.16))
 
 
 ## Two chandeliers on the ceiling, over the gaps rather than over the pictures.
