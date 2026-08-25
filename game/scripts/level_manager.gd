@@ -7,6 +7,10 @@ signal transition_finished(destination: String)
 
 const CATALOG_PATH := "res://config/levels.json"
 const SELECTOR_SCENE := "res://ui/main_menu.tscn"
+## Where levels are chosen: Lolo and Lola's house, with the paintings on the wall. This is
+## what PLAY opens and what leaving a level returns to -- the menu's card grid is no longer
+## the way in.
+const HOUSE_SCENE := "res://levels/hub/hub.tscn"
 const ENDING_SCENE := "res://ui/ending_screen.tscn"
 const GRID_COLUMNS := 20
 const GRID_ROWS := 12
@@ -98,6 +102,25 @@ func restart_level() -> bool:
 		return false
 	get_tree().paused = false
 	_transition_to.call_deferred(scene_path, current_level_id)
+	return true
+
+
+## Into the house, from the menu.
+func open_house() -> bool:
+	if _transitioning or not ResourceLoader.exists(HOUSE_SCENE):
+		return false
+	_transition_to.call_deferred(HOUSE_SCENE, "")
+	return true
+
+
+## Out of a level and back to the wall of paintings. Named for where it goes rather than
+## for the selector it used to open: levels are chosen in a room now, not off a grid.
+func return_to_house() -> bool:
+	if _transitioning or not ResourceLoader.exists(HOUSE_SCENE):
+		return false
+	current_level_id = ""
+	_transitioning = true
+	_transition_to.call_deferred(HOUSE_SCENE, "")
 	return true
 
 
