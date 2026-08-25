@@ -118,8 +118,16 @@ func open_house() -> bool:
 func return_to_house() -> bool:
 	if _transitioning or not ResourceLoader.exists(HOUSE_SCENE):
 		return false
+	# THE TREE IS PAUSED WHEN THIS IS PRESSED. It is on the pause menu and on the out-of-ink
+	# screen, both of which stop the world to show themselves, and a scene change that leaves
+	# the flag set hands the house to the player frozen.
+	get_tree().paused = false
 	current_level_id = ""
-	_transitioning = true
+	# NOT _transitioning = true HERE. _transition_to opens with `if _transitioning: return`,
+	# so setting it first meant the deferred call arrived, saw its own guard already tripped,
+	# and returned -- the button reported success and nothing on screen moved. Every other
+	# route out of a level leaves the flag to _transition_to; this one was copied from
+	# return_to_selector and gained a line that one does not have.
 	_transition_to.call_deferred(HOUSE_SCENE, "")
 	return true
 
