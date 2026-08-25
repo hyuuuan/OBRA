@@ -1,10 +1,11 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
 [ext_resource type="Texture2D" path="res://assets/Level1/bg_withclouds.png" id="2_sky"]
 [ext_resource type="Texture2D" path="res://assets/Level1/mountains_furthest_background.png" id="3_far"]
 [ext_resource type="Texture2D" path="res://assets/Level1/mountain_further_background.png" id="4_green"]
 [ext_resource type="Texture2D" path="res://assets/Level1/terraces_2.png" id="5_terraces"]
+[ext_resource type="Texture2D" path="res://assets/ui/obra_logo.png" id="7_logo"]
 [ext_resource type="Script" path="res://scripts/pixel_lock.gd" id="6_lock"]
 [ext_resource type="Script" path="res://scripts/ui_router.gd" id="99_ui_router"]
 [ext_resource type="PackedScene" path="res://ui/settings_overlay.tscn" id="96_settings"]
@@ -199,25 +200,23 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Title" type="Label" parent="MenuLayer/MenuRoot"]
+[node name="Title" type="TextureRect" parent="MenuLayer/MenuRoot"]
 layout_mode = 0
 offset_left = 72.0
-offset_top = 44.0
-offset_right = 700.0
-offset_bottom = 142.0
-theme_override_colors/font_color = Color(0.875, 0.914, 0.549, 1)
-theme_override_colors/font_shadow_color = Color(0.027, 0.035, 0.024, 1)
-theme_override_constants/shadow_offset_x = 7
-theme_override_constants/shadow_offset_y = 7
-theme_override_font_sizes/font_size = 60
-text = "O.B.R.A."
+offset_top = 34.0
+offset_right = 495.0
+offset_bottom = 259.0
+texture_filter = 1
+texture = ExtResource("7_logo")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="Subtitle" type="Label" parent="MenuLayer/MenuRoot"]
 layout_mode = 0
 offset_left = 80.0
-offset_top = 142.0
+offset_top = 272.0
 offset_right = 720.0
-offset_bottom = 184.0
+offset_bottom = 314.0
 theme_override_colors/font_color = Color(0.91, 0.89, 0.769, 1)
 theme_override_colors/font_shadow_color = Color(0.027, 0.035, 0.024, 1)
 theme_override_constants/shadow_offset_x = 3
@@ -228,9 +227,9 @@ text = "DRAW  ·  BECOME  ·  DISCOVER"
 [node name="SideButtons" type="HBoxContainer" parent="MenuLayer/MenuRoot"]
 layout_mode = 0
 offset_left = 84.0
-offset_top = 200.0
+offset_top = 330.0
 offset_right = 484.0
-offset_bottom = 244.0
+offset_bottom = 374.0
 theme_override_constants/separation = 12
 
 [node name="SettingsButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
