@@ -21,10 +21,12 @@ const SHOTS: Array = [
 	{"name": "ruined_bridge", "at": Vector2(2680, 180), "size": Vector2(700, 300)},
 	{"name": "hidden_flower", "at": Vector2(2700, 578), "size": Vector2(260, 240), "do": "light_flower"},
 	{"name": "stool_and_jar", "at": Vector2(2998, 227), "size": Vector2(130, 100)},
-	{"name": "straw_1_intact", "at": Vector2(3150, 186), "size": Vector2(620, 270)},
-	{"name": "straw_2_combed", "at": Vector2(3150, 186), "size": Vector2(620, 270), "do": "comb"},
-	{"name": "straw_3_tunnelled", "at": Vector2(3150, 186), "size": Vector2(620, 270), "do": "tunnel"},
-	{"name": "straw_4_scattered", "at": Vector2(3150, 186), "size": Vector2(620, 270), "do": "scatter"},
+	{"name": "straw_1_intact", "at": Vector2(3160, 150), "size": Vector2(620, 320)},
+	{"name": "straw_2_combed", "at": Vector2(3160, 150), "size": Vector2(620, 320), "do": "comb"},
+	{"name": "straw_3_tunnelled", "at": Vector2(3160, 150), "size": Vector2(620, 320), "do": "tunnel"},
+	{"name": "straw_4_scattered", "at": Vector2(3160, 150), "size": Vector2(620, 320), "do": "scatter"},
+	{"name": "straw_5_inside", "at": Vector2(3170, 150), "size": Vector2(440, 300),
+		"do": "enter_straw", "keep_player": true},
 	{"name": "baul", "at": Vector2(3160, 202), "size": Vector2(260, 220), "do": "uncover"},
 	{"name": "bale", "at": Vector2(3500, 116), "size": Vector2(540, 420)},
 	{"name": "bulul", "at": Vector2(3474, 172), "size": Vector2(240, 190)},
@@ -81,15 +83,22 @@ func _run() -> void:
 	for shot_value: Variant in SHOTS:
 		var shot: Dictionary = shot_value
 		var name := String(shot["name"])
-		_prepare(String(shot.get("do", "")))
+		await _prepare(String(shot.get("do", "")))
 		var focus: Vector2 = _focus(shot["at"])
-		if name != "wanderer" and name != "lolo":
+		# Most shots put the apo out of frame. A shot OF something she has to be standing
+		# in is not one of them.
+		if name != "wanderer" and name != "lolo" and not bool(shot.get("keep_player", false)):
 			# Out of shot, and above the fall line rather than below it: dropping the
 			# player out of the world triggers a checkpoint restore, which would put him
 			# back in the middle of the next photograph.
 			player.global_position = Vector2(-3000.0, 0.0)
 		camera.global_position = focus
 		await _wait(0.35)
+		# AND AGAIN AFTER THE WAIT. The camera eases toward where it was told to look and
+		# does not stop wanting to when it is told to look somewhere else -- over a third of
+		# a second it drifted a hundred and sixty pixels off the mark, which does not show
+		# on a shot whose subject fills the frame and put the straw shots on the wrong hill.
+		camera.global_position = focus
 		await _capture(name, shot["size"])
 		count += 1
 
@@ -121,6 +130,28 @@ func _prepare(what: String) -> void:
 			for node in level.get_tree().get_nodes_in_group(&"straw_piles"):
 				node.call("restore_intact")
 				node.call(what)
+		"enter_straw":
+			# The one prop in this level with an INSIDE, and it only draws it while the apo
+			# is standing in it -- so photographing it means putting her there.
+			for node in level.get_tree().get_nodes_in_group(&"straw_piles"):
+				var pile := node as Node2D
+				if pile == null:
+					continue
+				# All three, not just the one with the door: the shot before this one
+				# scattered them, and a heap you can walk into flanked by two that have
+				# been pulled apart is a picture of two different things.
+				pile.call("restore_intact")
+				if not bool(pile.get("entrance")):
+					continue
+				var mouth: Rect2 = pile.call("mouth_rect")
+				player.set("velocity", Vector2.ZERO)
+				player.global_position = pile.global_position \
+					+ Vector2(mouth.get_center().x, 0.0)
+			# The mouth notices her through an Area2D, and an Area2D notices nothing until
+			# the physics has run. Without this the frame is of a heap she is standing in
+			# and which has not been told yet.
+			for _frame in range(4):
+				await physics_frame
 		"uncover":
 			for node in level.get_tree().get_nodes_in_group(&"baul"):
 				node.call("reveal")

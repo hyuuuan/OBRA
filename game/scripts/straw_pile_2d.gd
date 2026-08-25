@@ -24,6 +24,9 @@ extends Node2D
 ## you climb, and a solid one would be a wall across the only route out of the level.
 
 signal searched(how: String)
+## The apo has stepped into the mouth of a heap that has one, or back out of it.
+signal entered()
+signal left()
 
 enum State { INTACT, COMBED, TUNNELLED, SCATTERED }
 
@@ -34,6 +37,16 @@ enum State { INTACT, COMBED, TUNNELLED, SCATTERED }
 @export var tint := Color(1.0, 1.0, 1.0, 1.0)
 ## How many stalks. Scaled by the pile's own width so a big heap is not a sparse one.
 @export var strand_density := 1.0
+## THIS ONE HAS A WAY IN.
+##
+## One heap on the terrace is big enough to walk into and is hollow, and it is the only
+## place in Level 1 with an inside. Standing in the mouth cuts the front of it away -- you
+## are looking into the heap rather than at it -- which is why the pile has to be tall
+## enough to stand up in: the apo is 96px, so a heap under about 190 has a mouth she has to
+## crawl through and a cutaway with no headroom. run_level1_audit measures it.
+@export var entrance := false
+
+var _inside := false
 
 ## The golds, darkest to lightest. Straw is one hue and a dozen values of it: a heap with
 ## contrasting colours in it reads as a bonfire, which this is not.
@@ -47,6 +60,12 @@ const HI := Color(1.000, 0.882, 0.235, 1.0)     # FFE13C  the catch on a stalk f
 ## in a yellow mound reads as a bite taken out of it rather than as a way in.
 const HOLLOW := Color(0.267, 0.145, 0.031, 1.0) # 442508
 const HOLLOW_DEEP := Color(0.161, 0.086, 0.024, 1.0) # 291606
+## The floor of the hollow: trodden earth, because a heap that has been crawled into has a
+## worn floor and not a straw one. Same reasoning as the pool of light out of the doorways
+## in the house -- it is the small untidy thing that says somebody has been here.
+const EARTH := Color(0.235, 0.157, 0.098, 1.0)      # 3C2819
+const EARTH_LIT := Color(0.337, 0.239, 0.153, 1.0)  # 563D27
+const PEBBLE := Color(0.443, 0.404, 0.353, 1.0)     # 71675A
 
 ## Where the light comes from. Up and a little to the left, the same as the joinery in the
 ## house and the gilt on every frame in this game.
@@ -58,7 +77,55 @@ var _state: int = State.INTACT
 func _ready() -> void:
 	add_to_group(&"straw_piles")
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if entrance:
+		_build_mouth_area()
 	queue_redraw()
+
+
+func is_inside() -> bool:
+	return _inside
+
+
+## Where the way in is, in the heap's own space: sitting on the ground, a little off centre
+## because a hole worn in a heap of straw is not an architectural feature.
+func mouth_rect() -> Rect2:
+	var size := Vector2(pile_size.x * 0.46, pile_size.y * 0.62)
+	return Rect2(Vector2(pile_size.x * -0.06 - size.x * 0.5, -size.y), size)
+
+
+## The volume that notices the apo standing in the mouth. It is an Area2D and nothing else:
+## the heap has no collision, deliberately, so walking in is walking in.
+func _build_mouth_area() -> void:
+	var area := Area2D.new()
+	area.name = "Mouth"
+	area.collision_layer = 0
+	area.collision_mask = 1
+	add_child(area)
+	var shape := CollisionShape2D.new()
+	var box := RectangleShape2D.new()
+	var mouth := mouth_rect()
+	box.size = mouth.size
+	shape.shape = box
+	shape.position = mouth.get_center()
+	area.add_child(shape)
+	area.body_entered.connect(_on_mouth_body.bind(true))
+	area.body_exited.connect(_on_mouth_body.bind(false))
+
+
+func _on_mouth_body(body: Node, coming_in: bool) -> void:
+	var node := body as Node
+	while node != null:
+		if node.is_in_group(&"player_character") or node is ActiveRagdollMorph:
+			if _inside == coming_in:
+				return
+			_inside = coming_in
+			queue_redraw()
+			if coming_in:
+				entered.emit()
+			else:
+				left.emit()
+			return
+		node = node.get_parent()
 
 
 func state() -> int:
@@ -135,6 +202,9 @@ func _draw() -> void:
 	if _state == State.SCATTERED:
 		_draw_scattered()
 		return
+	if entrance and _inside:
+		_draw_cutaway()
+		return
 	_draw_heap()
 
 
@@ -169,11 +239,87 @@ func _draw_heap() -> void:
 	_draw_skirt(rng, crown, half, high, count, 0.16, 0.86)
 	_draw_cap(rng, crown, half, high, int(count * 0.4), 0.30, 0.7)
 	_draw_skirt(rng, crown, half, high, int(count * 0.6), 0.32, 0.62)
-	if _state == State.TUNNELLED:
+	if entrance:
+		var mouth := mouth_rect()
+		_draw_mouth(rng, Vector2(mouth.get_center().x, 0.0),
+			mouth.size.x * 0.5, mouth.size.y)
+	elif _state == State.TUNNELLED:
 		# WHAT A TUNNEL LOOKS LIKE. Combed and tunnelled were the same heap at two sizes
 		# for as long as this node has existed, which made two of its three routes the same
 		# route to look at.
 		_draw_mouth(rng, Vector2(half * -0.14, 0.0), half * 0.62, high * 0.68)
+
+
+## INSIDE THE HEAP, which is the one place in Level 1 that has an inside.
+##
+## The front of the heap is simply not drawn while the apo is standing in it: what is left
+## is the hollow, its two straw walls, the straw hanging off the roof of it, and a floor of
+## trodden earth. It is a cutaway rather than a room somewhere else, so the terrace, the
+## sky and the other two heaps stay exactly where they were and the apo never leaves the
+## world -- which is also why nothing here needs collision, a second camera or a way back.
+func _draw_cutaway() -> void:
+	var half := pile_size.x * 0.5
+	var high := pile_size.y
+	var rng := _rng()
+	draw_colored_polygon(_silhouette(half, high), _tone(HOLLOW_DEEP))
+	_draw_hollow_wall(rng, half, high, -1.0)
+	_draw_hollow_wall(rng, half, high, 1.0)
+	_draw_hollow_roof(rng, half, high)
+	_draw_hollow_floor(rng, half)
+
+
+## One wall of the hollow: straw hanging from the crown down the inside of the heap, lit on
+## the edge nearest the opening because that is where the light is coming from.
+func _draw_hollow_wall(rng: RandomNumberGenerator, half: float, high: float,
+		side: float) -> void:
+	var count := int(maxf(40.0, 70.0 * strand_density * (half / 75.0)))
+	for index in range(count):
+		var across := lerpf(0.30, 1.04, (float(index) + rng.randf()) / float(count))
+		var x := side * half * across
+		var top := -high * rng.randf_range(0.72, 1.0) * (1.0 - (across - 0.3) * 0.35)
+		var drop := absf(top) * rng.randf_range(0.55, 1.05)
+		# Inner stalks catch the daylight coming in the mouth; the ones deep in the corner
+		# do not. That gradient is the only thing making this read as a space with a
+		# near side and a far side.
+		var lit := clampf(1.05 - across + rng.randf_range(-0.16, 0.16), 0.0, 1.0)
+		draw_line(Vector2(x + side * rng.randf_range(-3.0, 3.0), top),
+			Vector2(x + rng.randf_range(-7.0, 7.0), top + drop),
+			_tone(_ramp(lit)), 3.0 if rng.randf() < 0.2 else 2.0, false)
+
+
+## The roof of it, so the top of the hollow is straw hanging down rather than a cut edge.
+func _draw_hollow_roof(rng: RandomNumberGenerator, half: float, high: float) -> void:
+	var count := int(maxf(30.0, 60.0 * strand_density * (half / 75.0)))
+	for index in range(count):
+		var across := lerpf(-0.72, 0.72, (float(index) + rng.randf()) / float(count))
+		# SHORT, AND SPARSE IN THE MIDDLE. Long stalks hanging down the centre read as bars
+		# across the opening rather than as the underside of a roof, and the middle of the
+		# hollow is the part that has to stay dark and empty -- it is where the player is
+		# standing and where everything worth looking at is going to be.
+		if absf(across) < 0.34 and rng.randf() < 0.7:
+			continue
+		var x := half * across
+		var top := -high * (0.88 - absf(across) * 0.24)
+		draw_line(Vector2(x, top), Vector2(x + rng.randf_range(-5.0, 5.0),
+			top + high * rng.randf_range(0.03, 0.13)),
+			_tone(_ramp(rng.randf_range(0.1, 0.45))), 2.0, false)
+
+
+## Trodden earth, with what has been walked into it.
+func _draw_hollow_floor(rng: RandomNumberGenerator, half: float) -> void:
+	draw_rect(Rect2(-half, -13.0, half * 2.0, 13.0), EARTH)
+	draw_rect(Rect2(-half, -13.0, half * 2.0, 3.0), EARTH_LIT)
+	for index in range(int(half * 0.5)):
+		var at := Vector2(rng.randf_range(-half * 0.94, half * 0.94),
+			rng.randf_range(-11.0, -2.0))
+		var wide := rng.randf_range(2.0, 5.0)
+		draw_rect(Rect2(at, Vector2(wide, maxf(2.0, wide * 0.6))),
+			PEBBLE if rng.randf() < 0.4 else EARTH_LIT)
+	# A few stalks trodden into the floor, so the two materials meet rather than abut.
+	for index in range(int(half * 0.3)):
+		var at := Vector2(rng.randf_range(-half, half), rng.randf_range(-12.0, -1.0))
+		draw_line(at, at + Vector2(rng.randf_range(-16.0, 16.0), rng.randf_range(-3.0, 2.0)),
+			_tone(_ramp(rng.randf_range(0.2, 0.6))), 2.0, false)
 
 
 ## The body under the stalks. A half-ellipse, sampled coarsely: it never has to look like
