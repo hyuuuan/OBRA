@@ -1385,7 +1385,10 @@ func _physics_process(_delta: float) -> void:
 		_submerged_seconds += _delta
 		if _submerged_seconds > 1.1:
 			_submerged_seconds = 0.0
-			_return_to_safety("You cannot swim, apo — draw something that can cross it",
+			# POINTED AT THE ANSWER, not at the problem. It used to say "draw something that
+			# can cross it", which is what the beat asked for when Span came first -- and
+			# Span cannot cross three hundred pixels of water. The way over is the plank.
+			_return_to_safety("You cannot swim, apo — put something heavy on that plank",
 				"You cannot swim, apo. Back to %s")
 			return
 	else:
