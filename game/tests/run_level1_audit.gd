@@ -829,6 +829,18 @@ func _audit_live_level() -> void:
 				_check(maxf(west, east) <= 228.0, "and both hops are inside a running jump",
 					"%.0fpx to it and %.0fpx off it, against 228px" % [west, east])
 
+			# AND IT LETS GO AGAIN. R8 says what is placed can be taken back, and the plank
+			# has to come loose when it is -- a crossing that survives the removal of the
+			# thing that bought it is a crossing the ink was not really spent on. The layer
+			# has to go back too, or the player keeps standing on a plank that is adrift.
+			if roller != null and is_instance_valid(roller):
+				roller.queue_free()
+				for _frame in range(20):
+					await physics_frame
+				_check(not bool(floater.call("is_settled")) and int(floater.get("collision_layer")) & 1 == 0,
+					"and taking the weight away lets it go",
+					"loose again on layer %d" % floater.get("collision_layer"))
+
 	# --- CP0: a checkpoint you reach by walking ------------------------------
 	# Beat 0 has no dialogue node, so before this it had no checkpoint at all and a slip on
 	# the terrace above sent the player back to the level's start with both sub-beats
