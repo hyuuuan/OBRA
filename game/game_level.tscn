@@ -1,6 +1,7 @@
 [gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/game_level.gd" id="1_level"]
+[ext_resource type="Script" path="res://scripts/ui_oval_frame.gd" id="40_oval"]
 [ext_resource type="Script" path="res://scripts/entity_registry.gd" id="2_registry"]
 [ext_resource type="Script" path="res://scripts/draw_panel.gd" id="3_panel"]
 [ext_resource type="Script" path="res://scripts/drawing_canvas.gd" id="4_canvas"]
@@ -154,30 +155,43 @@ grow_vertical = 2
 color = Color(0, 0, 0, 0.42)
 
 [node name="PanelRoot" type="ColorRect" parent="DrawPanel"]
-custom_minimum_size = Vector2(608, 790)
+custom_minimum_size = Vector2(660, 860)
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -304.0
-offset_top = -395.0
-offset_right = 304.0
-offset_bottom = 395.0
+offset_left = -330.0
+offset_top = -430.0
+offset_right = 330.0
+offset_bottom = 430.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.12, 0.14, 0.16, 1)
 
+[node name="CanvasPaper" type="Control" parent="DrawPanel/PanelRoot"]
+layout_mode = 0
+offset_left = 46.0
+offset_top = 64.0
+offset_right = 614.0
+offset_bottom = 632.0
+mouse_filter = 2
+script = ExtResource("40_oval")
+moulding = 0.10
+ornament_reach = 0.141
+shows_paper = true
+shows_moulding = false
+
 [node name="SubViewportContainer" type="SubViewportContainer" parent="DrawPanel/PanelRoot"]
-custom_minimum_size = Vector2(512, 512)
-offset_left = 48.0
-offset_top = 54.0
-offset_right = 560.0
-offset_bottom = 566.0
+custom_minimum_size = Vector2(400, 400)
+offset_left = 130.0
+offset_top = 148.0
+offset_right = 530.0
+offset_bottom = 548.0
 stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="DrawPanel/PanelRoot/SubViewportContainer"]
-size = Vector2i(512, 512)
+size = Vector2i(400, 400)
 render_target_update_mode = 0
 
 [node name="Paper" type="ColorRect" parent="DrawPanel/PanelRoot/SubViewportContainer/SubViewport"]
@@ -197,11 +211,22 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("4_canvas")
 
+[node name="CanvasFrame" type="Control" parent="DrawPanel/PanelRoot"]
+layout_mode = 0
+offset_left = 46.0
+offset_top = 64.0
+offset_right = 614.0
+offset_bottom = 632.0
+moulding = 0.155
+ornament_reach = 0.141
+mouse_filter = 2
+script = ExtResource("40_oval")
+
 [node name="GuessLabel" type="Label" parent="DrawPanel/PanelRoot"]
-offset_left = 48.0
-offset_top = 580.0
-offset_right = 560.0
-offset_bottom = 626.0
+offset_left = 74.0
+offset_top = 682.0
+offset_right = 586.0
+offset_bottom = 728.0
 mouse_filter = 2
 theme_override_font_sizes/font_size = 40
 text = "…"
@@ -210,26 +235,26 @@ vertical_alignment = 1
 clip_text = true
 
 [node name="TransformButton" type="Button" parent="DrawPanel/PanelRoot"]
-offset_left = 48.0
-offset_top = 638.0
-offset_right = 292.0
-offset_bottom = 698.0
+offset_left = 74.0
+offset_top = 738.0
+offset_right = 398.0
+offset_bottom = 798.0
 focus_mode = 0
 text = "Transform"
 
 [node name="ClearButton" type="Button" parent="DrawPanel/PanelRoot"]
-offset_left = 316.0
-offset_top = 638.0
-offset_right = 560.0
-offset_bottom = 698.0
+offset_left = 422.0
+offset_top = 738.0
+offset_right = 586.0
+offset_bottom = 798.0
 focus_mode = 0
 text = "Clear"
 
 [node name="StatusLabel" type="Label" parent="DrawPanel/PanelRoot"]
-offset_left = 48.0
-offset_top = 710.0
-offset_right = 560.0
-offset_bottom = 764.0
+offset_left = 74.0
+offset_top = 806.0
+offset_right = 586.0
+offset_bottom = 852.0
 text = "Ready"
 autowrap_mode = 3
 

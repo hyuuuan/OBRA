@@ -7,7 +7,10 @@ signal ink_changed(remaining: float, capacity: float, reserved: float)
 signal ink_exhausted
 
 @export var capacity: float = 12.0
-@export var canvas_size: Vector2 = Vector2(512.0, 512.0)
+## The canvas one ink unit is measured against. Follows the viewport: a unit is a canvas
+## diagonal of stroke, so shrinking the surface without moving this would quietly make every
+## drawing cost more ink than the budget was tuned for.
+@export var canvas_size: Vector2 = Vector2(400.0, 400.0)
 
 var committed: float = 0.0
 var reserved: float = 0.0

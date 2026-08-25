@@ -69,7 +69,7 @@ func _restart_level() -> void:
 
 func _return_to_levels() -> void:
 	close()
-	LevelManager.return_to_selector()
+	LevelManager.return_to_house()
 
 
 func _ask_quit() -> void:
