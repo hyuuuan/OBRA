@@ -83,43 +83,88 @@ func _run() -> void:
 ## The paddy is 300px of water, deeper than the apo can climb out of and wider than she
 ## can jump. That makes it a gate -- and a gate is only a gate if it OPENS. A crossing that
 ## cannot be crossed even with the right drawing is not a puzzle, it is a wall.
+##
+## THIS USED TO PROVE IT WITH A BRIDGE, which is the one answer the beat rejects. Sub-beat
+## 1 excludes bridge and ladder, so what it actually accepts is a square or a triangle at
+## eighty pixels -- and no eighty-pixel object crosses three hundred pixels of water. The
+## gate had never been shown to open, because with what it accepted it could not.
+##
+## What opens it is the plank already floating in it: set something that rolls on top and
+## it steadies, lies flat, locks, and is a step. So this walks the real loop -- weigh the
+## plank down from the near bank, then cross it.
 func _the_paddy_needs_a_crossing() -> void:
 	var inventory := level.get("inventory_manager") as Node
 	var placement := level.get("placement_controller") as Node2D
+	var tread := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/Hagdan/FloatingTread") as RigidBody2D
+	if tread == null:
+		_fail("crossing the paddy", "the level has no floating tread")
+		return
 	player.set("velocity", Vector2.ZERO)
 	player.global_position = Vector2(300.0, 500.0)
 	for _frame in range(20):
 		await physics_frame
 
+	# LOOSE, IT IS NOT A STEP, and that has to be true or the water costs nothing. The
+	# player's own layer is 1; a plank they could stand on before paying for it would halve
+	# the crossing into two hops of a hundred and six pixels, which a running jump covers.
+	_check(tread.collision_layer & 1 == 0, "a loose plank is not something to stand on",
+		"layer %d -- the player passes through it" % tread.collision_layer)
+
 	var item := DrawnItemData.new()
-	item.entity_id = "bridge"
-	item.display_name = "Bridge"
+	item.entity_id = "circle"
+	item.display_name = "Circle"
 	var slot: int = inventory.call("add_item", item)
 	level.call("_on_inventory_slot_pressed", slot)
 	await process_frame
 	if not bool(placement.call("is_placing")):
-		_fail("bridging the paddy", "the placement never started")
+		_fail("weighting the plank", "the placement never started")
 		return
 	placement.set_process(false)
-	# Across the water, resting on both banks.
-	placement.call("update_target", Vector2(490.0, 545.0))
+	# On the deck, from the bank. 150px away against a 360px reach.
+	placement.call("update_target", tread.global_position - Vector2(0.0, 52.0))
 	for _frame in range(4):
 		await physics_frame
 	var placed: bool = placement.call("confirm_placement")
-	_check(placed, "something that spans it can be set across the paddy",
-		"placed" if placed else "REFUSED -- the crossing cannot be built")
+	_check(placed, "something that rolls can be set on the plank",
+		"placed" if placed else "REFUSED -- the weight cannot be put where it is needed")
 	if not placed:
 		return
-	for _frame in range(40):
+	for _frame in range(60):
 		await physics_frame
+	_check(bool(tread.call("is_settled")), "and the weight settles it",
+		"locked at y=%.0f" % tread.global_position.y if bool(tread.call("is_settled"))
+		else "STILL LOOSE at %s -- there is no way over the water"
+			% tread.global_position.round())
+	if not bool(tread.call("is_settled")):
+		return
+	_check(tread.collision_layer & 1 != 0, "a settled plank is",
+		"layer %d -- it carries the player now" % tread.collision_layer)
 
+	# JUMPED AT THE LIP, not on a metronome. The old loop pressed jump every twenty-four
+	# frames whatever was under the player, which is fine for a wall you run at and useless
+	# for two 106px gaps: whether it cleared them was down to where in the cycle the run
+	# happened to start, and a miss lands in water nobody can climb out of. A player aims;
+	# so does this.
+	var plank_east: float = tread.global_position.x + 44.0
+	var lips: Array[float] = [340.0, plank_east]
 	Input.action_press(&"move_right")
 	var crossed := false
-	for frame in range(300):
-		if frame % 24 == 0:
+	var airborne := false
+	for _frame in range(360):
+		var here: float = player.global_position.x
+		var grounded: bool = bool(player.call("is_on_floor"))
+		var at_a_lip := false
+		for lip in lips:
+			if here > lip - 34.0 and here < lip:
+				at_a_lip = true
+		if grounded and at_a_lip and not airborne:
 			Input.action_press(&"jump")
-		elif frame % 24 == 18:
+			airborne = true
+		elif airborne and not grounded:
 			Input.action_release(&"jump")
+		elif grounded:
+			airborne = false
 		await physics_frame
 		if player.global_position.x > 660.0:
 			crossed = true

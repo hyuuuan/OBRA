@@ -46,6 +46,8 @@ func _run() -> void:
 		quit(2)
 		return
 	player = level.get("player") as Node2D
+	_stock_the_bag()
+	await process_frame
 
 	if not await _mouse_reaches_the_gui():
 		print("OBRA_CLICK_UI_NEEDS_VIEWPORT  (run without --headless)")
@@ -78,6 +80,20 @@ func _run() -> void:
 ## than through the window manager, so focus is not needed to deliver them -- but an
 ## unfocused window on this platform is one that has not finished being mapped, and a
 ## Control laid out during that has not necessarily settled where it will end up.
+## AN EMPTY BAG DRAWS NOTHING, so a suite that clicks a slot has to put something in it
+## first. That is also the honest test: a player clicks a slot to place the drawing that is
+## in it, and there is no reason to click one that is empty. Without this the canary finds
+## no slot to click and blames the display server for a bag with nothing in it.
+func _stock_the_bag() -> void:
+	var inventory := level.get("inventory_manager") as Node
+	if inventory == null:
+		return
+	var item := DrawnItemData.new()
+	item.entity_id = "square"
+	item.display_name = "Square"
+	inventory.call("add_item", item)
+
+
 func _ready_to_click() -> bool:
 	for _attempt in range(240):
 		await process_frame
