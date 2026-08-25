@@ -500,10 +500,14 @@ func _draw_floor() -> void:
 ##
 ## It is scenery and carries no collision. The apo walks in front of all of it -- a room you
 ## have to jump over to cross would be a platforming level, and this one is a house.
+## ON THE PIERS, NOT IN THE DOORWAYS. All three used to stand at the half-gaps between
+## pictures, which is exactly where the doors went in -- a settee across a doorway and a
+## chest in another. Under a picture is where a settee goes anyway, and it is what the
+## reference photograph does.
 func _draw_furniture() -> void:
-	_draw_settee(Vector2(first_painting_x + painting_gap * 0.5, floor_y))
-	_draw_side_table(Vector2(first_painting_x + painting_gap * 2.5, floor_y))
-	_draw_baul(Vector2(first_painting_x + painting_gap * 3.5, floor_y))
+	_draw_settee(Vector2(painting_anchor(1).x, floor_y))
+	_draw_side_table(Vector2(painting_anchor(3).x + 56.0, floor_y))
+	_draw_baul(Vector2(painting_anchor(4).x - 44.0, floor_y))
 
 
 ## A caned settee: dark frame, pale woven back and seat, turned legs.
