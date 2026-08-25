@@ -1,15 +1,19 @@
 class_name FloatingTread2D
 extends RigidBody2D
-## The stair tread that floated off into the paddy, and sub-beat 0.2's whole lesson:
+## Two of the stair treads, floated off into the paddy -- and sub-beat 0.1's whole lesson:
 ## the things in this world have weight, and weight is something you can use.
 ##
-## LOOSE, IT IS NOT A STEP. It is a plank riding on water -- light, free to rotate, and
-## buoyant enough that anything landing on one end tips it and slides off. That is not a
-## punishment, it is the observation the beat is built on: the player tries to use it,
-## feels it roll out from under them, and now has a reason to want it held down.
+## IT IS THE WAY ACROSS THE WATER, which is the thing to understand before changing
+## anything here. The paddy is three hundred pixels wide and nothing the beat accepts is
+## eighty pixels across, let alone three hundred, so there is no drawing that spans it.
+## What there is, is this: a loose plank you cannot stand on, and a way to make it stand
+## still. Held down by something that rolls it locks level and becomes a deck with a
+## sixty-two pixel hop at each end.
 ##
-## HELD DOWN BY SOMETHING THAT ROLLS, it becomes one. A circle or a wheel resting on it is
-## mass the water cannot lift; it levels out, settles, and freezes into a solid platform.
+## LOOSE, IT IS NOT A STEP, and the player does not merely find that out -- they pass
+## straight through it. Letting them stand on a plank they have not paid for halves the
+## crossing for free, which is X3 in GATES.md; making the layer say so and leaving the mask
+## alone is X14, and is why they shoved it the length of the paddy instead.
 ##
 ## The tag is what is checked, never the class. Roll resolves to whatever tags.json says it
 ## resolves to, so adding a class to Roll makes it work here with nothing changed -- the
