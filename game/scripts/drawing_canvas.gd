@@ -17,6 +17,29 @@ var _blocked_emitted := false
 ## Bumped by every accepted point and by clearing. Live recognition polls against it
 ## so it re-reads the canvas when the ink actually changed and not on a timer alone.
 var _revision: int = 0
+## The ellipse ink is allowed inside, in this control's own coordinates, or a zero rect
+## while nothing has told us there is one.
+##
+## THE FRAME AND THE INK READ THE SAME ELLIPSE. UIOvalFrame's matting hides the corners of
+## the paper, and a canvas that accepted a stroke out there would be taking ink for a line
+## nobody can see and handing it to the recogniser as part of the drawing. So the hole is
+## authored once, on the frame, and passed here.
+var _bounds: Rect2 = Rect2()
+
+
+## Told by DrawPanel, which gets it from the frame. Empty means no limit, which is what a
+## canvas with no frame around it -- a test fixture, a future unframed surface -- gets.
+func set_drawable_bounds(bounds: Rect2) -> void:
+	_bounds = bounds
+
+
+## Whether a point is on the paper the player can actually see.
+func accepts(at: Vector2) -> bool:
+	if _bounds.size.x <= 0.0 or _bounds.size.y <= 0.0:
+		return true
+	var radii := _bounds.size * 0.5
+	var offset := (at - (_bounds.position + radii)) / radii
+	return offset.length_squared() <= 1.0
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -34,6 +57,8 @@ func _start_stroke(at: Vector2) -> void:
 	if _drawn_length >= _max_length - 0.001:
 		_emit_blocked_once()
 		return
+	if not accepts(at):
+		return
 	_current_line = Line2D.new()
 	_current_line.default_color = stroke_color
 	_current_line.width = stroke_width
@@ -46,6 +71,12 @@ func _start_stroke(at: Vector2) -> void:
 
 func _append_point(at: Vector2, force: bool = false) -> void:
 	if _current_line == null:
+		return
+	# Dropped rather than clamped to the edge. Clamping draws a line along the inside of the
+	# frame every time the hand wanders out of it, which looks like the canvas scribbling on
+	# itself; dropping just stops the stroke where it left the paper and picks it up when it
+	# comes back, which is what a real edge does.
+	if not accepts(at):
 		return
 	var count := _current_line.get_point_count()
 	if count == 0:
