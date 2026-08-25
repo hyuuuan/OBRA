@@ -145,7 +145,24 @@ APO = CharacterSheet(
     standing=96.0,
 )
 
-SHEETS = [APO]
+## Lolo, at eighty-four -- deliberately shorter than the apo he floats beside.
+##
+## He is the grandfather and a ghost, and both of those pull in opposite directions: an
+## elder should not be dwarfed by a child, but a COMPANION that stands as tall as the
+## player reads as a second protagonist walking alongside them rather than as a guide at
+## their shoulder. Seven eighths splits it -- he is unmistakably a person rather than a
+## pet, and the eye still lands on the apo first.
+##
+## The height is measured tail tip to crown, and the tail is most of what makes him read
+## as a spirit, so he occupies less of that box than a figure with legs would.
+LOLO = CharacterSheet(
+    name="lolo",
+    source=ROOT / "HUD-assets-ideas" / "Lolo-Ghost.png",
+    hero=(30, 111, 300, 500),
+    standing=84.0,
+)
+
+SHEETS = [APO, LOLO]
 
 
 # --- the props -----------------------------------------------------------------------
