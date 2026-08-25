@@ -288,6 +288,56 @@ def fill_from_border(mask: np.ndarray) -> np.ndarray:
     return ~background[1:-1, 1:-1]
 
 
+def largest_blob(mask: np.ndarray) -> np.ndarray:
+    """The biggest single drawing in a cell, with every other speck dropped.
+
+    A POSE IS ONE DRAWING, and that is the only thing separating a frame from the panel
+    chrome printed around it. Lolo's page puts its section heading and the rule under it
+    INSIDE the sprite row rather than above it -- the jump pose reaches higher than the
+    rule does, so no horizontal cut divides the two -- and the thin verticals ruling one
+    pose off from the next run the whole height of the panel. All of it keys as
+    foreground: it is gold on near-black, which is exactly what a chroma test is looking
+    for. Taken on bounding boxes, `idle` came out with EXTRA POSES / ACTIONS printed
+    across its head.
+
+    Measured across both delivered sheets, this rule has three orders of magnitude of
+    daylight in it: every one of the forty-six poses is a single blob of eight to
+    twenty-three thousand pixels, and the largest thing that is NOT part of a pose is
+    twenty. No frame on either page has a detached hand or a floating accessory that this
+    would eat -- which is the assumption to re-test, on the frames rather than in the
+    abstract, if a third sheet is ever cut through here.
+    """
+    height, width = mask.shape
+    seen = np.zeros_like(mask, dtype=bool)
+    best: np.ndarray | None = None
+    best_size = 0
+    for sy in range(height):
+        for sx in range(width):
+            if not mask[sy, sx] or seen[sy, sx]:
+                continue
+            blob = np.zeros_like(mask, dtype=bool)
+            queue: deque = deque([(sy, sx)])
+            seen[sy, sx] = True
+            blob[sy, sx] = True
+            size = 0
+            while queue:
+                y, x = queue.popleft()
+                size += 1
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        ny, nx = y + dy, x + dx
+                        if (0 <= ny < height and 0 <= nx < width
+                                and mask[ny, nx] and not seen[ny, nx]):
+                            seen[ny, nx] = True
+                            blob[ny, nx] = True
+                            queue.append((ny, nx))
+            if size > best_size:
+                best_size, best = size, blob
+    if best is None:
+        raise SystemExit("a frame cell keyed to nothing at all")
+    return best
+
+
 def column_groups(band: np.ndarray, x0: int) -> list[tuple[int, int]]:
     """Split a panel's sprite row into one span per frame."""
     profile = band.sum(axis=0)
@@ -344,9 +394,15 @@ def cut_sheet(page: Path) -> dict[tuple[str, str], dict]:
 
         cut: list[dict] = []
         for (gx0, gx1), name in zip(groups, names):
-            column = mask[band_y0:band_y1 + 1, gx0:gx1 + 1]
-            rows = np.where(column.any(axis=1))[0]
+            # The pose itself, with the heading, the rules and the speckle of the page
+            # left behind -- see largest_blob. The box is taken off the blob on BOTH axes:
+            # a column group that has swallowed a divider is too wide as well as too tall,
+            # and an anchor measured across that extra width puts the character off centre.
+            blob = largest_blob(mask[band_y0:band_y1 + 1, gx0:gx1 + 1])
+            rows = np.where(blob.any(axis=1))[0]
+            cols = np.where(blob.any(axis=0))[0]
             ty0, ty1 = band_y0 + rows[0], band_y0 + rows[-1]
+            gx0, gx1 = gx0 + int(cols[0]), gx0 + int(cols[-1])
             solid = fill_from_border(mask[ty0:ty1 + 1, gx0:gx1 + 1].copy())
             # Head centre, not bbox centre: the arms and legs swing and the head does not.
             head = solid[:max(1, int(solid.shape[0] * 0.30))]
