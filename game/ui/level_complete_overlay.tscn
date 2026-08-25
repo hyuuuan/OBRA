@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/level_complete_overlay.gd" id="1_ak68f"]
 
 [node name="LevelCompleteOverlay" type="CanvasLayer" unique_id=2127495900]
+visible = false
 layer = 70
 script = ExtResource("1_ak68f")
 

@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/out_of_ink_overlay.gd" id="1_4bjnj"]
 
 [node name="OutOfInkOverlay" type="CanvasLayer" unique_id=360644569]
+visible = false
 layer = 65
 script = ExtResource("1_4bjnj")
 

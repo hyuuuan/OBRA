@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/memory_overlay.gd" id="1_memory"]
 
 [node name="MemoryOverlay" type="CanvasLayer" unique_id=469227227]
+visible = false
 layer = 69
 script = ExtResource("1_memory")
 
