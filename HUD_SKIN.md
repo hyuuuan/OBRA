@@ -187,6 +187,54 @@ treats `.teach`, `.sub1`, `.sub2` and `.ward.fail*` as hints — they fire when 
 stuck in front of something — and everything else as story. A line may carry an explicit
 `"kind": "hint"` or `"lore"`, and the data wins.
 
+### Signposts: the two channels, standing in the world
+
+Both channels are triggered by walking into an `Area2D` that nothing draws. A player who
+does not know one is there has no way to tell a stretch of terrace where something happens
+from a stretch where nothing does — so a beat they walked past reads as a beat that is not
+in the game. The trigger itself cannot be shown: it is a box up to seven hundred pixels
+wide and three hundred tall, and drawing one is drawing the machinery rather than the
+promise.
+
+`signpost_2d.gd` draws the promise. A small pale board on a post, standing on the ground
+where the beat fires, carrying one of five marks:
+
+| Mark | Board | Means | Planted by |
+|---|---|---|---|
+| `STORY` | a speech bubble | Somebody speaks and there is nothing to solve. An arrival, an ending. | `level_obstacle_2d.gd`, at the trigger's leading edge |
+| `HINT` | a question mark | There is a problem here, and Lolo will help if you stand still long enough. | `level_obstacle_2d.gd`, at the obstacle itself |
+| `CHOICE` | a fork in the road | A decision that changes the level and cannot be taken back. | `dialogue_node_2d.gd` |
+| `MEMORY` | a written page | Something of Lola's — a page, a memory, the inside of the chest. | `baul_2d.gd`, `concept_gate_2d.gd` |
+| `FIND` | a four-petal flower | A thing to find rather than a thing to solve. | nothing yet — see below |
+
+Each mark is built so its **silhouette** carries it. At twenty-four pixels of board nobody
+reads a picture, they read a shape, and the five have to be different shapes before they
+are different drawings. `run_visual_signposts.gd` photographs all five side by side, which
+is the only way to check that.
+
+**A beat is two moments in two places.** An obstacle's opening line fires the instant the
+player crosses the leading edge of its trigger, and the thing to be solved is somewhere in
+the middle of it — so an obstacle plants two signs, a `STORY` at the edge and a `HINT` at
+the middle. Planted at the trigger's origin instead, the first sign in Level 1 stood three
+hundred and fifty pixels past the point where the game's first line of dialogue had already
+come and gone.
+
+**Where two land together, rank decides.** `CHOICE` > `MEMORY` > `FIND` > `HINT` > `STORY`,
+because every one of the others speaks as well and the more specific thing is worth the
+board. That is why the gorge shows a fork rather than a question mark, and the sketchbook
+chest a page.
+
+**Two things deliberately have no sign, and both would be actively wrong.** The bulul,
+because `bulul_2d.gd` exists to make a granary guardian un-interactable and a signpost
+beside one says "interact here" — Lolo still speaks when you walk up, he is just not
+advertised. And the hidden flower, because it is hidden; signing it is removing it. The
+gate into the cave it sits behind does get one, which is the honest amount of help.
+
+**The sign finds its own ground.** It waits one physics frame — the terraces build their
+collision in `_ready`, so at plant time the physics server has not been told about the
+floor yet — then casts down and stands on what it finds. It only ever falls: a hit above
+where it was planted is a ceiling, not a floor.
+
 ### The story box
 
 `game/scripts/dialogue_box.gd`, presented the way a console RPG presents dialogue, because
@@ -302,6 +350,7 @@ at 5 painted a ten-pixel olive slab across every panel. It is 1, with separation
 | Lolo's dialogue, the plaque, the typing, the arrow | `game/scripts/dialogue_box.gd` |
 | The speaker's portrait behind the box | `game/scripts/dialogue_portrait.gd` |
 | Hints, which never stop play | `game/scripts/hint_bar.gd` |
+| The signs in the world saying which of those two is coming | `game/scripts/signpost_2d.gd` |
 | Route decision · Lola memory (both call `UIFrame.wrap`) | `game/scripts/dialogue_choice_overlay.gd` · `memory_overlay.gd` |
 | Ink meter, its segmented gauge, the status line | `game/scripts/hud_panel.gd` |
 | Droplet and flag pictograms | `game/scripts/ui_glyph.gd` |

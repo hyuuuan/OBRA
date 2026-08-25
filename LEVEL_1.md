@@ -37,6 +37,7 @@ at every obstacle needing that tag, at once.
 | Scene-side obstacle volume | `game/scripts/level_obstacle_2d.gd` |
 | Checkpoints | `checkpoint_manager.gd` (in memory) + `checkpoint_area_2d.gd` (walk-in) |
 | Dialogue loader | `game/scripts/dialogue_script.gd` |
+| The signs marking where a beat fires | `game/scripts/signpost_2d.gd` — five marks, meanings in **HUD_SKIN.md** |
 | HUD requirement strip | `game/scripts/requirement_strip.gd` |
 | Level geometry | `game/levels/level_1/level_1_environment.tscn` |
 | Wiring | `game/scripts/game_level.gd` |
