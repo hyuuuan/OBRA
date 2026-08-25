@@ -42,7 +42,7 @@ West to east, in the order a player meets them. "Reaches" is where T1's bot stop
 
 | id | where | x | what stops you | what opens it | reaches |
 |---|---|---|---|---|---|
-| **G1** | The paddy | 340–640 | **300 px of water, 100 px deep.** Wider than a running jump (228 px) and deeper than the apo can climb out of. Going under for a second puts you back on the bank. | **Roll** — set something that rolls on the plank floating mid-paddy and it steadies, locks and becomes a step, leaving two 106 px hops | 537 |
+| **G1** | The paddy | 340–640 | **300 px of water, 100 px deep.** Wider than a running jump (228 px) and deeper than the apo can climb out of. Going under for a second puts you back on the bank. | **Roll** — set something that rolls on the two treads floating mid-paddy and they steady, lock and become a deck, leaving a 62 px hop at each end | 537 |
 | **G2** | Ang Hagdan | 640–920 | **136 px of rise** from the bank to the lowest surviving stone, against a 94.3 px jump. Three treads are missing. | **Span** — a drawn primitive at the foot of it, to stand on | — (G1 stops the bot first) |
 | **G3** | Terrace 1 → 2 | ~1160 | A **140 px terrace face**. No dialogue, no strip — just a wall that is too tall. | **Span** or **Climb** | 1145 |
 | **G4** | The gorge — Artist | 2400–2960 | A post mid-gorge splits it into **two 250 px spans** | **Span**, twice | 2635 |

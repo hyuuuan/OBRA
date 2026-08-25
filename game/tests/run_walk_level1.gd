@@ -62,6 +62,7 @@ func _run() -> void:
 	_check(bank_top - tread_top > jump_height, "the stair is a real gate",
 		"%.0fpx of rise against a %.0fpx jump" % [bank_top - tread_top, jump_height])
 
+	await _the_player_cannot_shove_the_plank()
 	await _the_paddy_needs_a_crossing()
 	await _cannot_be_climbed_bare()
 	await _can_be_climbed_with_a_step()
@@ -78,6 +79,42 @@ func _run() -> void:
 	else:
 		print("OBRA_WALK_L1_FAILED=%d" % failures)
 		quit(1)
+
+
+## THE REPORTED BUG, and it is a regression test with a name: "the floating dirt just flies
+## when I go to the water".
+##
+## The plank is on its own collision layer so the player cannot use it as a free stepping
+## stone -- but Godot pairs two bodies when EITHER side matches, and the plank's mask was
+## the default 1, which is the layer the player is on. The pair existed, so the apo passed
+## through it exactly as designed and shoved it the length of the paddy on the way, because
+## a kinematic body against a light rigid one wins every contact.
+##
+## Standing IN it is the sharpest version of the question: if the pair is live, the solver
+## ejects the plank the moment the two overlap.
+func _the_player_cannot_shove_the_plank() -> void:
+	var tread := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/Hagdan/FloatingTread") as Node2D
+	if tread == null:
+		_fail("wading past the plank", "the level has no floating tread")
+		return
+	var before := tread.global_position
+	player.set("velocity", Vector2.ZERO)
+	player.global_position = tread.global_position
+	# Well under the 1.1s the drowning rescue waits, so this measures the contact and not
+	# the teleport that follows it.
+	for _frame in range(40):
+		await physics_frame
+	var shoved := before.distance_to(tread.global_position)
+	_check(shoved < 12.0, "wading through the plank does not shove it",
+		"%.0fpx of drift" % shoved)
+	# BACK ON DRY LAND BEFORE THE NEXT CASE. The drowning timer is on the level, not on this
+	# body, and it keeps counting through whatever the next test is doing -- so a case that
+	# leaves the player in the water hands the one after it a teleport it never asked for.
+	player.set("velocity", Vector2.ZERO)
+	player.global_position = Vector2(200.0, 520.0)
+	for _frame in range(30):
+		await physics_frame
 
 
 ## The paddy is 300px of water, deeper than the apo can climb out of and wider than she
@@ -102,8 +139,13 @@ func _the_paddy_needs_a_crossing() -> void:
 		return
 	player.set("velocity", Vector2.ZERO)
 	player.global_position = Vector2(300.0, 500.0)
-	for _frame in range(20):
+	# ON THE BANK, not still falling onto it. The crossing below jumps when the player is
+	# grounded and near a lip, and a body still dropping the last few pixels walks straight
+	# past the lip without ever being grounded in the window.
+	for _frame in range(60):
 		await physics_frame
+		if bool(player.call("is_on_floor")):
+			break
 
 	# LOOSE, IT IS NOT A STEP, and that has to be true or the water costs nothing. The
 	# player's own layer is 1; a plank they could stand on before paying for it would halve
@@ -146,11 +188,25 @@ func _the_paddy_needs_a_crossing() -> void:
 	# for two 106px gaps: whether it cleared them was down to where in the cycle the run
 	# happened to start, and a miss lands in water nobody can climb out of. A player aims;
 	# so does this.
-	var plank_east: float = tread.global_position.x + 44.0
+	# Read off the plank's own collision, not a number typed here: it is two of the missing
+	# treads lodged together, and a stale half-width aims the second jump from the middle of
+	# the deck instead of from the end of it.
+	var plank_half := 44.0
+	for child in tread.get_children():
+		var collision := child as CollisionShape2D
+		if collision != null and collision.shape != null and collision.shape.has_method("get_rect"):
+			plank_half = Rect2(collision.shape.call("get_rect")).size.x * 0.5
+			break
+	var plank_east: float = tread.global_position.x + plank_half
 	var lips: Array[float] = [340.0, plank_east]
+	# HELD, THEN LET GO, THEN PRESSED AGAIN. The wanderer jumps on
+	# is_action_just_pressed, so a key held down from the first gap never fires the second
+	# one -- the player walked the deck, stepped off the far end and drowned, and the trace
+	# showed a jump that was pressed and did nothing. Ten frames is a full-height jump; the
+	# release is what makes the next press count.
 	Input.action_press(&"move_right")
 	var crossed := false
-	var airborne := false
+	var hold := 0
 	for _frame in range(360):
 		var here: float = player.global_position.x
 		var grounded: bool = bool(player.call("is_on_floor"))
@@ -158,13 +214,13 @@ func _the_paddy_needs_a_crossing() -> void:
 		for lip in lips:
 			if here > lip - 34.0 and here < lip:
 				at_a_lip = true
-		if grounded and at_a_lip and not airborne:
+		if hold > 0:
+			hold -= 1
+			if hold == 0:
+				Input.action_release(&"jump")
+		elif grounded and at_a_lip:
 			Input.action_press(&"jump")
-			airborne = true
-		elif airborne and not grounded:
-			Input.action_release(&"jump")
-		elif grounded:
-			airborne = false
+			hold = 10
 		await physics_frame
 		if player.global_position.x > 660.0:
 			crossed = true
