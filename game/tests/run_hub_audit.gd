@@ -63,9 +63,29 @@ func _run() -> void:
 	_check(enterable == ["level_1"], "only what is built can be walked into",
 		"enterable: " + ", ".join(enterable))
 
+	# THE ROOM HAS TO FILL THE FRAME. The camera is pinned vertically -- one storey, a floor
+	# that never moves -- so any part of the screen the room does not cover is grey void,
+	# and it is void along the top edge, where a screenshot looks least wrong and a player
+	# looks first. The house showed exactly that for as long as it was built at the scale of
+	# a level, and nothing in this suite could see it.
+	#
+	# Measured off the camera's real zoom rather than the constant behind it, so that
+	# somebody pulling the camera back to fit more of the wall on screen fails here rather
+	# than in a frame nobody photographed.
+	var room: Node2D = hub.get_node("Room")
+	var camera := hub.get_node("Camera") as Camera2D
+	var authored := Vector2(
+		float(ProjectSettings.get_setting("display/window/size/viewport_width")),
+		float(ProjectSettings.get_setting("display/window/size/viewport_height")))
+	var shown := authored / camera.zoom.y
+	var drawn: float = room.call("drawn_height")
+	_check(drawn >= shown.y, "the room fills the frame top to bottom",
+		"%.0fpx of room against %.0fpx of screen" % [drawn, shown.y])
+	_check(float(room.get("room_width")) >= shown.x, "and end to end",
+		"%.0fpx of wall against %.0fpx of screen" % [float(room.get("room_width")), shown.x])
+
 	# And a painting answers from where the apo actually stands, which is on the floor a
 	# long way below it -- measured as a straight line to the picture, none ever would.
-	var room: Node2D = hub.get_node("Room")
 	var standing := Vector2(room.call("painting_anchor", 0).x, room.call("ground_y"))
 	var answered := 0
 	for node in paintings:
