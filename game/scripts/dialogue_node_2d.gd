@@ -34,6 +34,9 @@ func _ready() -> void:
 	collision.position = Vector2(0.0, -trigger_size.y * 0.5)
 	add_child(collision)
 	body_entered.connect(_on_body_entered)
+	# The one moment in the level that cannot be taken back gets its own glyph, and it
+	# stands at the gorge rather than being sprung on the player. See Signpost2D.
+	Signpost2D.plant(self, Signpost2D.Mark.CHOICE)
 
 
 func is_answered() -> bool:

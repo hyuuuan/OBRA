@@ -171,6 +171,9 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
 - Cross-dataset eval: `python3 model/evaluate_folder.py --dir <dataset-root>`
 - Contracts: `python3 -m unittest -v tests.test_manifest_contract`
 - Backend telemetry: `python3 -m unittest -v tests.test_backend_telemetry`
+- **Import after any fetch that changes art:** `godot --headless --path game --import`
+  — `.godot/` is gitignored, and without it no `class_name` resolves and the game comes
+  up behind an undismissable ARE YOU SURE? dialog. See README.
 - Godot physics: `godot --headless --path game --script res://tests/run_tests.gd`
 - Profile persistence: `godot --headless --path game --script res://tests/test_player_profile.gd`
 - Aggregate telemetry: `python3 tools/aggregate_telemetry.py <telemetry-dir-or-file>`

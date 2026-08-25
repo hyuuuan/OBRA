@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/controls_overlay.gd" id="1_8byaj"]
 
 [node name="ControlsOverlay" type="CanvasLayer" unique_id=470222643]
+visible = false
 layer = 60
 script = ExtResource("1_8byaj")
 default_focus_path = NodePath("Root/Center/Panel/VBox/BackButton")

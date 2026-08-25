@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/dialogue_choice_overlay.gd" id="1_dialogue"]
 
 [node name="DialogueChoiceOverlay" type="CanvasLayer" unique_id=1435497440]
+visible = false
 layer = 68
 script = ExtResource("1_dialogue")
 

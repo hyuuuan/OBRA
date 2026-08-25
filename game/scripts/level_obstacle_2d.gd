@@ -21,6 +21,20 @@ var _inside := false
 
 func _ready() -> void:
 	add_to_group(&"level_obstacles")
+	# TWO SIGNS, BECAUSE A BEAT IS TWO MOMENTS IN TWO PLACES. See Signpost2D.
+	#
+	# The trigger is up to seven hundred pixels wide, and the beat's opening line fires the
+	# instant the player crosses its LEADING EDGE while the thing to be solved is somewhere
+	# in the middle of it. Planted at the trigger's own origin, the first sign in the level
+	# stood three hundred and fifty pixels past the point where the level's first line of
+	# dialogue had already come and gone -- so the story the game opens with was the one
+	# beat with nothing to announce it.
+	#
+	# So the story sign stands where the story fires and the hint sign stands at the
+	# obstacle. On a narrow trigger the two land on the same spot and Signpost2D drops one
+	# of them, which is the right answer there too.
+	Signpost2D.plant(self, Signpost2D.Mark.STORY, Vector2(-trigger_size.x * 0.5, 0.0))
+	Signpost2D.plant(self, Signpost2D.Mark.HINT)
 	monitoring = true
 	# Layer 0 / mask 1: it detects the player without being something the player, or a
 	# placed object, can collide with. An obstacle volume that pushed things around would

@@ -29,6 +29,8 @@ func _ready() -> void:
 	# so a returning player does not have to re-trigger it.
 	if not required_concept_id.is_empty() and can_pass():
 		is_open = true
+	# A gate is a promise about what is behind it, and the cave has a memory in it.
+	Signpost2D.plant(self, Signpost2D.Mark.MEMORY)
 
 
 ## True when the player owns the required concept. An empty requirement is an open gate.
