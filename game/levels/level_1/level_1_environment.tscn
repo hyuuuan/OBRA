@@ -551,14 +551,14 @@ script = ExtResource("21_a6y54")
 shape = SubResource("RectangleShape2D_a6y54")
 
 [node name="Stone" type="Sprite2D" parent="GameplayPlane/Hagdan/FloatingTread" unique_id=211348818]
-z_index = 3
+z_index = 6
 texture_filter = 1
 position = Vector2(-44, 0)
 scale = Vector2(2, 2)
 texture = ExtResource("22_tread")
 
 [node name="Stone2" type="Sprite2D" parent="GameplayPlane/Hagdan/FloatingTread" unique_id=211348819]
-z_index = 3
+z_index = 6
 texture_filter = 1
 position = Vector2(44, 0)
 scale = Vector2(2, 2)

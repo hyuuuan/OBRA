@@ -97,12 +97,20 @@ locks **8px clear of the waterline**, because `wanderer.gd` tests `is_in_water()
 and `settle_dwell` is **0.12s**, because every frame it waits is a frame the plank spends
 sinking under the load, and at 0.3s it went 50px under and threw itself apart coming back up.
 
-⚠ **The plank is TWO treads (176px) and the weight beds into it**, and both of those were
-forced by measurement. One 88px tread with an 80px weight standing on it leaves no deck to
-land on: the player jumps the near gap, sails over the deck, lands on the ball at its apex,
-rolls off the far side with a full run's speed and 80px of fall, and clears the whole far
-half of the crossing to splash down 21px short of the bank — every time. Two treads give
-somewhere to land; `load_proud` (8px) is what stops the weight being a ramp.
+⚠ **The plank is TWO treads (176px) and the weight beds into it FLUSH**, and every part of
+that was forced by measurement. One 88px tread with an 80px weight standing on it leaves no
+deck to land on: the player jumps the near gap, sails over the deck, lands on the ball at
+its apex, rolls off the far side with a full run's speed and 80px of fall, and clears the
+whole far half of the crossing to splash down 21px short of the bank — every time. Two
+treads give somewhere to land. Cutting the weight down to a 24px cap instead does not work
+either: a `CharacterBody2D` does not step up, so a cap is a wall to walk into.
+`load_bed_depth` sets it 4px under the deck, and what the player sees of their drawing is
+the rest of it hanging under the plank in the water.
+
+⚠ **`WorldItemRoot` is z 5 and the water is z 3.** Placed drawings used to be at 0, behind
+water drawn at 72–82% opacity — so anything set down in either paddy was invisible, which is
+now the whole of sub-beat 1. The tread's own sprites are at 6, above the drawings, so a
+bedded weight reads as set *into* the stone rather than pasted over it.
 
 ### Node 1 — Ang Tulay (the gorge)
 

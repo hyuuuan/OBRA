@@ -40,16 +40,23 @@ signal unsettled()
 ## floor. Eight pixels is enough to be outside the rectangle and little enough to read as
 ## a loaded plank riding low.
 @export var deck_clearance: float = 8.0
-## How far the weight is left standing proud of the deck once the plank has locked.
+## How far BELOW the deck the weight's top is set once the plank has locked.
 ##
-## IT BEDS INTO THE STONE, and this is a gameplay number, not a look. A drawn primitive is
-## 80px, the deck is 176px of a 300px paddy, and a ball that size sitting on top of it is
-## not a bump -- it is a ramp. Measured: the player jumps the near gap, sails over the deck,
-## lands on the ball at its apex, rolls off the far side with a full run's speed and eighty
-## pixels of fall, and clears the entire far half of the deck to splash down twenty-one
-## pixels short of the bank. Every time. Bedded in, the deck is a deck: they land on it,
-## walk it, and jump the far gap from its edge.
-@export var load_proud: float = 8.0
+## THE WEIGHT BEDS INTO THE STONE, and this is a gameplay number, not a look. A drawn
+## primitive is 80px and the deck is 176px of a 300px paddy, so a ball that size left
+## standing on it is the crossing rather than something on the crossing. Both ways of
+## leaving it up were measured and both fail. At its full eighty the player jumps the near
+## gap, sails over a deck that is only eight pixels below the bank, lands on the ball at its
+## apex, rolls off the far side with a full run's speed and eighty pixels of fall, and
+## clears the whole far half of the deck to splash down twenty-one pixels short of the bank.
+## Cut down to a cap of twenty-four they walk into it and stop, because a CharacterBody2D
+## does not step up.
+##
+## Set flush, the deck is a deck. Four pixels under it, so the stone is unambiguously the
+## surface being stood on and the physics has nothing to catch on. What is left to see of
+## the drawing is the rest of it hanging under the plank in the water, which is where a
+## thing holding a plank down belongs.
+@export var load_bed_depth: float = 4.0
 ## A body counts as resting ON it only if its centre is at least this far above the
 ## tread's own. Otherwise a prop drifting alongside in the water would hold it down.
 @export var contact_margin: float = 6.0
@@ -249,16 +256,16 @@ func _ride_the_waterline() -> void:
 	# AND THE WEIGHT BEDS INTO IT. It cannot simply be carried up with the plank: a weight
 	# rides it down while it is sinking, so by the time the dwell is up the two can be sixty
 	# pixels under, and a plank that lifts out from under its own load lands inside it and
-	# the solver throws the pair apart. Nor can it be left sitting on top -- see load_proud
-	# for why an 80px ball on a 176px deck is a ramp rather than a step.
+	# the solver throws the pair apart. Nor can it be left sitting on top -- see
+	# load_bed_depth for why an 80px ball on a 176px deck is the crossing, not a step on it.
 	#
-	# So it is set into the stone, standing a little proud, and frozen there. That is what
+	# So it is set into the stone, flush with the deck, and frozen there. That is what
 	# "settled" means for the pair of them: the weight is wedged, the plank cannot rise, and
 	# the deck is something to walk on. Taking the weight back releases both.
 	var load_body := _settling_body as RigidBody2D
 	if load_body != null and is_instance_valid(load_body):
 		var deck := global_position.y - _half_extent().y
-		load_body.global_position.y = deck - load_proud + _half_of(load_body).y
+		load_body.global_position.y = deck + load_bed_depth + _half_of(load_body).y
 		load_body.linear_velocity = Vector2.ZERO
 		load_body.angular_velocity = 0.0
 		load_body.freeze_mode = RigidBody2D.FREEZE_MODE_STATIC

@@ -84,7 +84,8 @@ the paddy is missing three stones**: the rise from the bank to the first survivi
 | | |
 |---|---|
 | **Now** | **Two** of the missing stones, lodged together: the same stone cap texture twice at ±44, **176 × 22** in all, riding **mid-paddy at (490, 578)** — which leaves a 62 px hop of open water at each end. One tread alone was 88 px, and an 80 px weight standing on it left no deck to land on. |
-| **Physics** | A real `RigidBody2D` — mass 2.4, gravity 0.35, angular damp 4, collision **176 × 20**. Loose it rocks and the player passes straight through it; with something that rolls resting on it, it steadies, levels, locks and rides at the waterline, and the weight **beds into the stone** standing 8 px proud. |
+| **Physics** | A real `RigidBody2D` — mass 2.4, gravity 0.35, angular damp 4, collision **176 × 20**. Loose it rocks and the player passes straight through it; with something that rolls resting on it, it steadies, levels, locks and rides at the waterline, and the weight **beds into the stone flush with the deck** so what you see of your drawing is the rest of it hanging underneath in the water. |
+| **Z-order** | Stone at **6**, above `WorldItemRoot`'s **5**, so the drawing sits *into* the plank rather than over it — and `WorldItemRoot` is above the water's **3**, which is what makes a drawing in the paddy visible at all. |
 | **Must read as** | One of the missing treads, floated off into the water. Loose, light, and obviously not fixed to anything. |
 | **States** | Floating (free, rocks, 8 px awash) · settled (level, solid, deck 8 px proud of the water). **The settled state is the only crossing in Beat 0** and must read as somewhere to put your feet — this is the one prop in the level whose two states the player has to be able to tell apart at a glance. |
 
