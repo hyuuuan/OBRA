@@ -94,6 +94,28 @@ polyline length, clips the exact final segment at the limit, and reserves ink un
 a morph succeeds or a utility is placed/stored. Clearing, cancellation, backend
 failure, and low-confidence rejection refund the current reservation.
 
+## Running it the first time, and after a fetch that brings new art
+
+**Import once before you run the game.**
+
+```bash
+godot --headless --path game --import
+```
+
+`game/.godot/` is generated and gitignored, so a fresh clone has none — and neither does
+anyone who has just pulled a commit that changed the assets. Everything Godot needs at
+startup lives in there: the imported textures, the imported font, and
+`global_script_class_cache.cfg`, which is the file that makes every `class_name` in this
+project resolvable.
+
+**If you skip it, the symptom does not look like a missing cache.** Without the class
+cache no script that names a `class_name` type can parse, so none of their `_ready()`
+methods run — and the game comes up with a full-screen dialog reading **ARE YOU SURE?**
+that nothing dismisses, because the script that would close it is one of the scripts that
+did not load. The fix is the command above; then run the game again.
+
+Opening the project in the Godot editor once does the same job, with a progress bar.
+
 ```bash
 python -m unittest -v tests.test_manifest_contract
 python -m unittest -v tests.test_backend_telemetry
