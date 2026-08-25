@@ -70,6 +70,7 @@ const WALL_DARK := Color(0.208, 0.118, 0.063, 1.0)    # 351E10  the shadowed bay
 const WALL := Color(0.310, 0.180, 0.094, 1.0)         # 4F2E18  the field
 const WALL_LIT := Color(0.396, 0.239, 0.129, 1.0)     # 653D21  the lit stile
 const WALL_EDGE := Color(0.129, 0.071, 0.039, 1.0)    # 21120A  the shadow line
+const WALL_HI := Color(0.494, 0.318, 0.184, 1.0)      # 7E512F  the catch on a stile
 ## The floor, a shade cooler than the wall so the two do not merge at the skirting -- and
 ## LIGHTER than the wall, which took a screenshot to see. Narra darkens with age but a
 ## floor is walked on and waxed, so it is the one surface in a house that catches the light
@@ -116,13 +117,31 @@ func painting_anchor(index: int) -> Vector2:
 
 func _draw() -> void:
 	_draw_wall()
-	_draw_bays()
-	_draw_windows()
-	_draw_wainscot()
+	_draw_piers()
+	_draw_doors()
 	_draw_floor()
 	_draw_furniture()
 	_draw_chandeliers()
 
+
+## Where the nth door stands, counting from zero. One between every pair of pictures and
+## one at each end of the wall, so what you walk past is picture, door, picture, door.
+##
+## That rhythm is the reference photograph's and it is why the pictures are spaced the way
+## they are: a bahay na bato salon is not a corridor with things hung along it, it is a run
+## of piers with a doorway in every gap, and the pictures go on the piers.
+func door_anchor(index: int) -> float:
+	return first_painting_x + painting_gap * (float(index) - 0.5)
+
+
+func door_count() -> int:
+	return 6
+
+
+## How wide a doorway is, and how much pier it leaves either side of it.
+const DOOR_WIDTH := 116.0
+## How tall: two metres sixty, which is a door in a room with four-metre ceilings.
+const DOOR_HEIGHT := 187.0
 
 ## The wood grain. Narra is a striped timber and the stripe is the whole reason a wall of
 ## it does not read as cardboard, but it has to be UNDER the joinery rather than on top of
@@ -203,50 +222,163 @@ func _draw_ceiling(top: float, cornice: float) -> void:
 			x += 72.0
 
 
-## The tall panelled bays the pictures hang between. One bay per gap between paintings,
-## plus one at each end, so a painting always has wall either side of it rather than
-## landing on a joint.
-func _draw_bays() -> void:
-	var stile := 16.0
-	var x := 0.0
-	while x < room_width:
-		var width := painting_gap * 0.5
-		# The stile: the raised upright between two panels, lit down its left edge.
-		var top := cornice_y()
-		draw_rect(Rect2(x, top, stile, floor_y - top), WALL_LIT)
-		draw_rect(Rect2(x, top, PIXEL, floor_y - top), WALL_EDGE)
-		draw_rect(Rect2(x + stile - PIXEL, top, PIXEL, floor_y - top), WALL_EDGE)
-		# The panel between stiles, sunk a shade darker.
-		var panel := Rect2(x + stile, top + 10.0, maxf(0.0, width - stile),
-			floor_y - top - 10.0)
-		if panel.size.x > 0.0:
-			draw_rect(panel, WALL_DARK)
-			draw_rect(Rect2(panel.position, Vector2(panel.size.x, PIXEL)), WALL_EDGE)
-			draw_rect(Rect2(panel.position, Vector2(PIXEL, panel.size.y)), WALL_EDGE)
-		x += width
+## The piers: the panelled stretches of wall the pictures hang on, between one doorway and
+## the next. Each is a pair of stiles with a tall raised panel between them, a dado across
+## the bottom, and grain under all of it.
+func _draw_piers() -> void:
+	var edges: Array[float] = [0.0]
+	for index in range(door_count()):
+		edges.append(door_anchor(index) - DOOR_WIDTH * 0.5 - 10.0)
+		edges.append(door_anchor(index) + DOOR_WIDTH * 0.5 + 10.0)
+	edges.append(room_width)
+	var pair := 0
+	while pair + 1 < edges.size():
+		_draw_pier(edges[pair], edges[pair + 1])
+		pair += 2
 
 
-## The dado running the length of the room: a rail, then shorter panels beneath it.
-func _draw_wainscot() -> void:
-	var top := floor_y - wainscot_height
-	draw_rect(Rect2(0.0, top, room_width, wainscot_height), WALL)
+func _draw_pier(left: float, right: float) -> void:
+	var width := right - left
+	if width <= 0.0:
+		return
+	var top := cornice_y()
+	var stile := minf(14.0, width * 0.5)
+	draw_rect(Rect2(left, top, width, floor_y - top), WALL)
+	_grain(Rect2(left, top, width, floor_y - top), WALL_LIT, WALL_DARK)
+
+	# The two uprights, lit down the left edge because the light in this room comes from
+	# the left, the same way it does round the gilt on a frame.
+	for edge: float in [left, right - stile]:
+		draw_rect(Rect2(edge, top, stile, floor_y - top), WALL_LIT)
+		draw_rect(Rect2(edge, top, 2.0, floor_y - top), WALL_HI)
+		draw_rect(Rect2(edge + stile - 2.0, top, 2.0, floor_y - top), WALL_EDGE)
+
+	# The raised panel between them, above the dado.
+	var dado := floor_y - wainscot_height
+	var field := Rect2(left + stile, top + 12.0, maxf(0.0, width - stile * 2.0),
+		dado - top - 24.0)
+	_draw_raised_panel(field)
+	_draw_dado(left, right, dado)
+
+
+## One sunk panel with a bevel round it: dark at the top and left where the moulding turns
+## away from the light, light at the bottom and right where it turns into it, which is the
+## opposite of a raised surface and is the only thing that says "sunk" at this size.
+func _draw_raised_panel(field: Rect2) -> void:
+	if field.size.x <= 8.0 or field.size.y <= 8.0:
+		return
+	draw_rect(field, WALL_DARK)
+	_grain(field.grow(-4.0), WALL, WALL_EDGE)
+	draw_rect(Rect2(field.position, Vector2(field.size.x, 3.0)), WALL_EDGE)
+	draw_rect(Rect2(field.position, Vector2(3.0, field.size.y)), WALL_EDGE)
+	draw_rect(Rect2(field.position.x, field.end.y - 3.0, field.size.x, 3.0), WALL_LIT)
+	draw_rect(Rect2(field.end.x - 3.0, field.position.y, 3.0, field.size.y), WALL_LIT)
+
+
+## The dado: a chair rail with shorter panels under it, running across a pier and stopping
+## at the door jamb rather than ploughing through it.
+func _draw_dado(left: float, right: float, top: float) -> void:
+	var width := right - left
+	draw_rect(Rect2(left, top, width, wainscot_height), WALL)
+	_grain(Rect2(left, top + 12.0, width, wainscot_height - 24.0), WALL_LIT, WALL_DARK)
 	# The rail, proud of the wall above it.
-	draw_rect(Rect2(0.0, top, room_width, 10.0), WALL_LIT)
-	draw_rect(Rect2(0.0, top, room_width, PIXEL), WALL_EDGE)
-	draw_rect(Rect2(0.0, top + 10.0, room_width, PIXEL), WALL_EDGE)
-	# Panels under it, one every half-gap so they march with the bays above.
-	var pitch := painting_gap * 0.5
-	var x := 8.0
-	while x < room_width - 8.0:
-		var panel := Rect2(x + 8.0, top + 20.0, pitch - 24.0, wainscot_height - 36.0)
+	draw_rect(Rect2(left, top, width, 4.0), WALL_LIT)
+	draw_rect(Rect2(left, top + 4.0, width, 2.0), WALL_EDGE)
+	draw_rect(Rect2(left, top + 6.0, width, 4.0), WALL)
+	# One panel under it, inset from the stiles so it lines up with the field above.
+	var panel := Rect2(left + 18.0, top + 16.0, maxf(0.0, width - 36.0),
+		wainscot_height - 30.0)
+	if panel.size.x > 8.0:
 		draw_rect(panel, WALL_DARK)
-		draw_rect(Rect2(panel.position, Vector2(panel.size.x, PIXEL)), WALL_EDGE)
-		draw_rect(Rect2(Vector2(panel.position.x, panel.end.y - PIXEL),
-			Vector2(panel.size.x, PIXEL)), WALL_LIT)
-		x += pitch
+		draw_rect(Rect2(panel.position, Vector2(panel.size.x, 2.0)), WALL_EDGE)
+		draw_rect(Rect2(panel.position, Vector2(2.0, panel.size.y)), WALL_EDGE)
+		draw_rect(Rect2(panel.position.x, panel.end.y - 2.0, panel.size.x, 2.0), WALL_LIT)
 	# The skirting the floor meets.
-	draw_rect(Rect2(0.0, floor_y - 12.0, room_width, 12.0), WALL_LIT)
-	draw_rect(Rect2(0.0, floor_y - 12.0, room_width, PIXEL), WALL_EDGE)
+	draw_rect(Rect2(left, floor_y - 12.0, width, 12.0), WALL_LIT)
+	draw_rect(Rect2(left, floor_y - 12.0, width, 2.0), WALL_EDGE)
+	draw_rect(Rect2(left, floor_y - 3.0, width, 3.0), WALL_EDGE)
+
+
+## The doorways, glazed with capiz and topped with calado.
+##
+## THEY ARE THE ONLY LIGHT IN THE ROOM. Everything else here is one brown, and a wall of
+## pictures with no light source in it looks like a corridor rather than a room in a house.
+## What used to be here was a single small shuttered window floating in the middle of a
+## panel with no sill and nothing holding it up, which looked like a mistake; a doorway
+## reaches the floor, and the eye reads it without being told.
+func _draw_doors() -> void:
+	for index in range(door_count()):
+		_draw_door(door_anchor(index))
+
+
+func _draw_door(centre: float) -> void:
+	var half := DOOR_WIDTH * 0.5
+	var head := floor_y - DOOR_HEIGHT
+	var jamb := 10.0
+
+	# The architrave: the moulded surround, running from the floor up over the head.
+	var surround := Rect2(centre - half - jamb, head - jamb,
+		DOOR_WIDTH + jamb * 2.0, DOOR_HEIGHT + jamb)
+	draw_rect(surround, WALL_LIT)
+	draw_rect(surround, WALL_EDGE, false, 2.0)
+
+	# The lintel over the opening.
+	draw_rect(Rect2(centre - half - jamb, head - jamb, DOOR_WIDTH + jamb * 2.0, jamb),
+		WALL)
+	draw_rect(Rect2(centre - half - jamb, head - 2.0, DOOR_WIDTH + jamb * 2.0, 2.0),
+		WALL_EDGE)
+
+	# THE LEAF ITSELF, in three courses: shell above, a lock rail level with the dado on
+	# the piers either side, and a solid panel below. Lining the rail up with the chair
+	# rail is what a joiner does and what stops the wall reading as two unrelated things
+	# meeting at a door.
+	var rail := floor_y - wainscot_height
+	var leaf := Rect2(centre - half, head, DOOR_WIDTH, DOOR_HEIGHT)
+	draw_rect(leaf, WALL)
+	_draw_capiz(Rect2(leaf.position.x + 6.0, leaf.position.y + 6.0,
+		leaf.size.x - 12.0, rail - leaf.position.y - 12.0))
+	draw_rect(Rect2(leaf.position.x, rail - 6.0, leaf.size.x, 12.0), WALL_LIT)
+	draw_rect(Rect2(leaf.position.x, rail + 6.0, leaf.size.x, 2.0), WALL_EDGE)
+	var lower := Rect2(leaf.position.x + 6.0, rail + 14.0, leaf.size.x - 12.0,
+		floor_y - rail - 26.0)
+	if lower.size.y > 8.0:
+		draw_rect(lower, WALL_DARK)
+		_grain(lower.grow(-3.0), WALL, WALL_EDGE)
+		draw_rect(Rect2(lower.position, Vector2(lower.size.x, 2.0)), WALL_EDGE)
+		draw_rect(Rect2(lower.position.x, lower.end.y - 2.0, lower.size.x, 2.0), WALL_LIT)
+	# The threshold.
+	draw_rect(Rect2(leaf.position.x, floor_y - 10.0, leaf.size.x, 10.0), WALL_LIT)
+	draw_rect(Rect2(leaf.position.x, floor_y - 10.0, leaf.size.x, 2.0), WALL_EDGE)
+	draw_rect(leaf, WALL_EDGE, false, 2.0)
+
+
+## Capiz: the shell panes a bahay na bato is glazed with instead of glass, in a grid of
+## thin muntins. The grid IS the thing anybody recognises capiz by, so it is drawn as a
+## grid before it is drawn as anything else.
+func _draw_capiz(area: Rect2) -> void:
+	if area.size.x <= 0.0 or area.size.y <= 0.0:
+		return
+	draw_rect(area, WALL_EDGE)
+	var cols := 4
+	var rows := int(maxf(1.0, roundf(area.size.y / 22.0)))
+	var cell := Vector2(area.size.x / float(cols), area.size.y / float(rows))
+	for row in range(rows):
+		for col in range(cols):
+			var pane := Rect2(
+				area.position + Vector2(float(col) * cell.x, float(row) * cell.y)
+					+ Vector2.ONE * 2.0,
+				cell - Vector2.ONE * 4.0)
+			# Daylight falls off down the opening, so the top row is the brightest. Each
+			# shell is a slightly different milk, which is what shell does.
+			var fade := float(row) / float(maxi(rows, 1))
+			var tint := CAPIZ.lerp(CAPIZ_SHADE, fade)
+			if _hash(col * 31 + row * 7 + int(area.position.x)) % 3 == 0:
+				tint = tint.darkened(0.06)
+			draw_rect(pane, tint)
+			draw_rect(Rect2(pane.position, Vector2(pane.size.x, 2.0)),
+				Color(1.0, 1.0, 1.0, 0.35))
+			draw_rect(Rect2(pane.position.x, pane.end.y - 2.0, pane.size.x, 2.0),
+				Color(0.0, 0.0, 0.0, 0.12))
 
 
 ## Plank floor, running away from the wall. The boards are drawn as bands rather than in
@@ -284,38 +416,6 @@ func _draw_floor() -> void:
 	draw_rect(Rect2(0.0, floor_y, room_width, 3.0), Color(0.0, 0.0, 0.0, 0.34))
 	draw_rect(Rect2(0.0, floor_y + 3.0, room_width, 3.0), Color(0.0, 0.0, 0.0, 0.20))
 	draw_rect(Rect2(0.0, floor_y + 6.0, room_width, 4.0), Color(0.0, 0.0, 0.0, 0.10))
-
-
-## Capiz shutters: the sliding window panels of a bahay na bato, glazed with translucent
-## shell instead of glass.
-##
-## They go in the gaps the paintings do not use, and they are the only bright thing on this
-## wall -- the room is all one brown otherwise, and a wall of pictures with no light source
-## in it looks like a corridor. The panes are drawn as a grid with a thin muntin between,
-## because that grid IS the thing anybody recognises capiz by.
-func _draw_windows() -> void:
-	for slot: int in [1, 3]:
-		var centre := first_painting_x + painting_gap * (float(slot) + 0.5)
-		_draw_window(Vector2(centre, painting_y))
-
-
-func _draw_window(at: Vector2) -> void:
-	var panes := Vector2i(3, 2)
-	var pane := Vector2(20.0, 24.0)
-	var glazing := Vector2(float(panes.x) * pane.x, float(panes.y) * pane.y)
-	var frame := 8.0
-	var outer := Rect2(at - glazing * 0.5 - Vector2.ONE * frame, glazing + Vector2.ONE * frame * 2.0)
-	# The sash, in the same wood as the wall so the window is part of the joinery.
-	draw_rect(outer, WALL_LIT)
-	draw_rect(outer, WALL_EDGE, false, PIXEL)
-	draw_rect(Rect2(at - glazing * 0.5, glazing), CAPIZ_SHADE)
-	for row in range(panes.y):
-		for col in range(panes.x):
-			var cell := Rect2(at - glazing * 0.5 + Vector2(float(col) * pane.x, float(row) * pane.y),
-				pane - Vector2.ONE * PIXEL)
-			# Daylight falls off down the window, so the top row is the brightest.
-			draw_rect(cell, CAPIZ.lerp(CAPIZ_SHADE, float(row) / float(panes.y)))
-			draw_rect(Rect2(cell.position, Vector2(cell.size.x, PIXEL)), Color(1, 1, 1, 0.35))
 
 
 ## The furniture along the wall, from the reference photograph: a caned settee under the
