@@ -94,6 +94,44 @@ func _run() -> void:
 	_check(answered == 1, "standing at one painting reaches that one",
 		"%d painting(s) answer from the floor at Payyo" % answered)
 
+	# THE NAME UNDER THE PICTURE HAS TO BE UNDER THE PICTURE.
+	#
+	# Nothing in this suite could see the plates at all, and they were wrong for as long as
+	# they existed: sized before add_child, a Label is measured against the theme's 30pt
+	# instead of the 20 it draws at, Control.set_size clamps up to that and never back, and
+	# a plate positioned by a fixed left offset carries the whole difference sideways. The
+	# four long plates sat up to 48px right of their own paintings, out past the moulding
+	# and across the doorway beside them, while the one short one was dead centre -- which
+	# is exactly the shape of failure a screenshot shows and a headless suite does not.
+	#
+	# Measured off the built Label rather than off the arithmetic that made it, so the check
+	# still means something the day the plate is built some other way.
+	var gap: float = float(room.get("painting_gap"))
+	var doorway: float = room.call("doorway_half")
+	var worst_offset := 0.0
+	var tightest := INF
+	for index in range(paintings.size()):
+		var painting := paintings[index] as Node2D
+		var plate := painting.get_node_or_null("Plate") as Control
+		if plate == null:
+			_check(false, "every painting carries a name plate",
+				"%s has none" % String(painting.get("level_id")))
+			continue
+		var plate_rect := Rect2(plate.position, plate.size * plate.scale)
+		worst_offset = maxf(worst_offset, absf(plate_rect.position.x + plate_rect.size.x * 0.5))
+		# A doorway sits half a painting-gap either side of every picture, and the pier the
+		# picture hangs on stops at its architrave. That edge is what the lettering may not
+		# reach -- measured on the TEXT and not on the label box, because the box is the
+		# picture's own width and would report the same clearance whatever was written in it.
+		var font: Font = plate.get_theme_font(&"font")
+		var ink: float = font.get_string_size(plate.text, HORIZONTAL_ALIGNMENT_LEFT, -1.0,
+			plate.get_theme_font_size(&"font_size")).x * plate.scale.x
+		tightest = minf(tightest, gap * 0.5 - doorway - ink * 0.5)
+	_check(worst_offset <= 1.0, "every name plate is centred on its painting",
+		"worst is %.1fpx off centre" % worst_offset)
+	_check(tightest > 0.0, "and none of them reaches the doorway beside it",
+		"%.1fpx of clearance at the tightest" % tightest)
+
 	if failures == 0:
 		print("OBRA_HUB_AUDIT_OK")
 	else:
