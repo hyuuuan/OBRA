@@ -202,7 +202,13 @@ PAINTING_SOURCE = ROOT / "Painting_Covers"
 ## How big a painting hangs in the hub. 16:9, because that is what the covers are drawn at,
 ## and a painting letterboxed inside its own frame looks like a screenshot rather than a
 ## picture.
-PAINTING_SIZE = (256, 144)
+##
+## A HUNDRED AND TWENTY-EIGHT IS A SIZE IN THE ROOM, not a thumbnail size. The house is
+## built to the apo, who is ninety-six pixels tall, so this is a picture about as tall as
+## the child looking at it and a shade under two metres wide -- a grand thing to have on a
+## wall and still a thing rather than a mural. At 256 it was three and a half metres across
+## and the room had to be a hall to hold five of them.
+PAINTING_SIZE = (128, 72)
 
 ## WHICH COVER IS WHICH LEVEL, BY WHAT IS IN IT rather than by its filename.
 ##
