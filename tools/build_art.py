@@ -252,7 +252,18 @@ def without_thin_columns(mask: np.ndarray, radius: int = 2) -> np.ndarray:
 
 
 def fill_from_border(mask: np.ndarray) -> np.ndarray:
-    """Keep only background the outside can reach, so eyes stay eyes."""
+    """Keep only background the outside can reach, so eyes stay eyes.
+
+    THE CROP IS PADDED WITH A RING OF BACKGROUND FIRST, so the flood can always get all
+    the way round the figure. Without it the function silently depends on the caller
+    having left a margin, and a box cut tight to the drawing has none: the gap between an
+    arm and a torso opens at the edge of the crop, the flood cannot reach round into it,
+    and it fills solid. That is what happened to the apo's three-quarter view the day the
+    frame boxes were tightened onto the drawing itself -- three thousand pixels of daylight
+    under one arm turned into shirt, with nothing about the alignment changed to hint at
+    why.
+    """
+    mask = np.pad(mask, 1, constant_values=False)
     height, width = mask.shape
     background = np.zeros_like(mask, dtype=bool)
     queue: deque = deque()
@@ -274,7 +285,7 @@ def fill_from_border(mask: np.ndarray) -> np.ndarray:
             ny, nx = y + dy, x + dx
             if 0 <= ny < height and 0 <= nx < width:
                 seed(ny, nx)
-    return ~background
+    return ~background[1:-1, 1:-1]
 
 
 def column_groups(band: np.ndarray, x0: int) -> list[tuple[int, int]]:
