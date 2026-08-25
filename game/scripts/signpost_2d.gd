@@ -19,11 +19,21 @@ extends Node2D
 ## nothing reads its position. Planted by the node it belongs to, in that node's `_ready`,
 ## so a beat that moves takes its sign with it and one that is deleted takes its sign away.
 
-## What the board says. Four, because there are four kinds of moment in this level and a
-## player can learn four shapes without being taught them.
+## What the board says. Five, because there are five kinds of moment in this level and a
+## player can learn five shapes without being taught them.
+##
+## STORY AND HINT ARE THE TWO CHANNELS THE GAME ALREADY HAS. A beat of story goes to the
+## framed DialogueBox -- the world stops, somebody speaks, the player presses a key. A hint
+## goes to the HintBar -- no key, no pause, it clears itself. dialogue_script.kind_of has
+## sorted every line in the game into one or the other for as long as there has been a
+## script, and the signs had been flattening both into a single speech bubble, which told
+## the player that a place where Lola is remembered and a place where a stair is broken
+## are the same kind of place.
 enum Mark {
-	## Somebody is going to talk: an obstacle's beat, or Lolo at the bulul.
-	TALK,
+	## Somebody is going to talk and there is nothing to solve: an arrival, an ending.
+	STORY,
+	## There is a problem here, and Lolo will help with it if you stand still long enough.
+	HINT,
 	## A choice that changes the level, and cannot be taken back. The gorge.
 	CHOICE,
 	## Something of Lola's -- a page, a memory, the inside of the chest.
@@ -61,7 +71,7 @@ const POST_WIDTH := 5.0
 const SWAY_PIXELS := 1.0
 const SWAY_HZ := 0.35
 
-@export var mark: Mark = Mark.TALK
+@export var mark: Mark = Mark.STORY
 ## Set from the planting node so two signs side by side do not sway in lockstep.
 @export var phase: float = 0.0
 ## How far down to look for something to stand on, and how far above the plant point to
@@ -167,14 +177,25 @@ func _yield_if_crowded() -> void:
 			continue
 		if absf(rival.global_position.x - global_position.x) > CROWD:
 			continue
-		var mine := mark != Mark.TALK
-		var theirs := rival.mark != Mark.TALK
-		if theirs and not mine:
+		if _rank(rival.mark) > _rank(mark):
 			queue_free()
 			return
-		if mine == theirs and get_instance_id() > rival.get_instance_id():
+		if _rank(rival.mark) == _rank(mark) and get_instance_id() > rival.get_instance_id():
 			queue_free()
 			return
+
+
+## Which mark survives when two signs land on the same spot. A choice that cannot be taken
+## back outranks a memory, a memory outranks a puzzle, and anything outranks "someone
+## speaks here" -- because every one of the others speaks as well, and the more specific
+## thing is the one worth the board.
+func _rank(what: Mark) -> int:
+	match what:
+		Mark.CHOICE: return 4
+		Mark.MEMORY: return 3
+		Mark.FIND: return 2
+		Mark.HINT: return 1
+		_: return 0
 
 
 func _process(delta: float) -> void:
@@ -223,8 +244,18 @@ func _draw_board(at: Vector2) -> void:
 ## shape, and the four have to be different shapes before they are different drawings.
 func _draw_mark(at: Vector2) -> void:
 	match mark:
-		Mark.TALK:
-			# A speech bubble with a tail: the roundest of the four.
+		Mark.HINT:
+			# A question mark. Nothing else on a board this size says "work something out"
+			# in one shape, and it is the one glyph here nobody has to be taught.
+			draw_rect(Rect2(at.x - 6.0, at.y - 9.0, 12.0, 4.0), INK)
+			draw_rect(Rect2(at.x - 8.0, at.y - 7.0, 4.0, 4.0), INK)
+			draw_rect(Rect2(at.x + 4.0, at.y - 7.0, 4.0, 5.0), INK)
+			draw_rect(Rect2(at.x, at.y - 3.0, 5.0, 4.0), INK)
+			draw_rect(Rect2(at.x - 2.0, at.y + 1.0, 4.0, 4.0), INK)
+			draw_rect(Rect2(at.x - 2.0, at.y + 7.0, 4.0, 4.0), INK)
+			draw_rect(Rect2(at.x - 5.0, at.y - 8.0, 10.0, 2.0), LIT)
+		Mark.STORY:
+			# A speech bubble with a tail: the roundest of the five.
 			draw_rect(Rect2(at.x - 9.0, at.y - 7.0, 18.0, 10.0), INK)
 			draw_rect(Rect2(at.x - 7.0, at.y - 8.0, 14.0, 1.0), INK)
 			draw_rect(Rect2(at.x - 7.0, at.y + 3.0, 9.0, 2.0), INK)
