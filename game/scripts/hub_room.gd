@@ -475,7 +475,21 @@ func _draw_floor() -> void:
 			x += 300.0 + float(_hash(course * 7 + int(x)) % 220)
 		y += height
 		course += 1
-	# It darkens into the skirting, because that is where no light reaches at all.
+	# LIGHT FALLS OUT OF THE DOORWAYS ONTO IT. Six lit openings along a wall and none of
+	# them reaching the floor is the sort of thing nobody names and everybody feels: it is
+	# what makes the capiz read as a source rather than as a pale panel, and it is the only
+	# thing tying the boards to the wall above them.
+	for index in range(door_count()):
+		var centre := door_anchor(index)
+		var spill := 0
+		while spill < int(floor_depth):
+			# Widening and fading as it goes, the way a pool of light out of a doorway does.
+			var reach := float(spill) / floor_depth
+			var half := DOOR_WIDTH * (0.5 + reach * 0.26)
+			draw_rect(Rect2(centre - half, floor_y + float(spill), half * 2.0, 4.0),
+				Color(0.929, 0.867, 0.694, 0.13 * (1.0 - reach)))
+			spill += 4
+	# And it darkens into the skirting, because that is where no light reaches at all.
 	draw_rect(Rect2(0.0, floor_y, room_width, 3.0), Color(0.0, 0.0, 0.0, 0.34))
 	draw_rect(Rect2(0.0, floor_y + 3.0, room_width, 3.0), Color(0.0, 0.0, 0.0, 0.20))
 	draw_rect(Rect2(0.0, floor_y + 6.0, room_width, 4.0), Color(0.0, 0.0, 0.0, 0.10))
