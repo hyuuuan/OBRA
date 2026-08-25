@@ -62,9 +62,11 @@ prop — the file is named in each entry.
 
 ## Beat 0 — Ang Hagdan, the broken stair
 
-The beat the whole tutorial rests on: **the stair out of the paddy is missing three stones**,
-the rise from the bank to the first surviving stone is 108 px, and the player can only jump
-94 px. They have to draw something to bridge it.
+The beat the whole tutorial rests on, and it is two problems in the order the player meets
+them. **The paddy is 300 px of water** and the plank floating in it is the way over — set
+something that rolls on it and it steadies, locks, and is a step. Then **the stair out of
+the paddy is missing three stones**: the rise from the bank to the first surviving stone is
+136 px against a 94 px jump, so they draw something to stand on.
 
 ### Stair treads · `game/scripts/stair_tread_2d.gd` · 5 in the scene
 
@@ -81,10 +83,10 @@ the rise from the bank to the first surviving stone is 108 px, and the player ca
 
 | | |
 |---|---|
-| **Now** | The same stone cap texture, squashed to a slab: **88 × 22**, centre-anchored, riding in the paddy at (560, 600). |
-| **Physics** | A real `RigidBody2D` — mass 0.6, gravity 0.35, collision **88 × 20**. Loose it tips and rolls; with something that rolls resting on it, it sinks, levels and freezes solid. |
+| **Now** | The same stone cap texture, squashed to a slab: **88 × 22**, centre-anchored, riding **mid-paddy at (490, 578)** — which is what leaves a 106 px hop of open water on each side of it. |
+| **Physics** | A real `RigidBody2D` — mass 2.4, gravity 0.35, angular damp 4, collision **88 × 20**. Loose it rocks and the player passes straight through it; with something that rolls resting on it, it steadies, levels, locks and rides at the waterline. |
 | **Must read as** | One of the missing treads, floated off into the water. Loose, light, and obviously not fixed to anything. |
-| **States** | Floating (free, tilts) · settled (level, solid). The settled state is a platform and should look like one. |
+| **States** | Floating (free, rocks, 8 px awash) · settled (level, solid, deck 8 px proud of the water). **The settled state is the only crossing in Beat 0** and must read as somewhere to put your feet — this is the one prop in the level whose two states the player has to be able to tell apart at a glance. |
 
 ---
 
