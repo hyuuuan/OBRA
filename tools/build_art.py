@@ -235,6 +235,34 @@ def foreground_mask(rgb: np.ndarray) -> np.ndarray:
     return ((high - low) > 10) | (high > 48)
 
 
+def page_colour(rgb: np.ndarray) -> int:
+    """How bright the flat page behind the figures is, as one number.
+
+    Measured off the sheet rather than written down, because the two pages are not the
+    same colour -- the apo's is 201F1B and Lolo's a good deal darker at 131413 -- and a
+    third would be a third. It is the modal pixel of the whole page, which on a design
+    sheet is overwhelmingly empty background.
+    """
+    sample = rgb[::3, ::3].reshape(-1, 3)
+    common = Counter(map(tuple, sample)).most_common(1)[0][0]
+    return int(max(common))
+
+
+## How much darker than the page a pocket has to be before it counts as ink.
+##
+## THE FILL CANNOT TELL A HOLE FROM AN OUTLINE on its own -- both are dark and both are
+## sealed off from the outside -- so it rescues them alike, and Lolo's tail curls round on
+## itself in half his poses. Each of those curls encloses a bite of page, and each came
+## back as a dark blot pasted on the tail.
+##
+## What separates them is that a HOLE IS THE PAGE SHOWING THROUGH and is therefore exactly
+## as bright as the page, while ink is drawn darker than it. Measured across both sheets
+## the two populations sit either side of this margin with room to spare: pockets of page
+## read within six of it, and the darkest thing that is genuinely drawn -- Lolo's eyes and
+## mouth, which are flat black -- is twenty below.
+PAGE_MARGIN = 6
+
+
 def without_thin_columns(mask: np.ndarray, radius: int = 2) -> np.ndarray:
     """Erode horizontally, so anything narrower than 2*radius+1 disappears.
 
@@ -248,6 +276,36 @@ def without_thin_columns(mask: np.ndarray, radius: int = 2) -> np.ndarray:
     out = mask.copy()
     for step in range(1, radius + 1):
         out &= np.roll(mask, step, axis=1) & np.roll(mask, -step, axis=1)
+    return out
+
+
+def without_page_holes(solid: np.ndarray, raw: np.ndarray, rgb: np.ndarray,
+                       page: int) -> np.ndarray:
+    """Reopen the pockets of page that the border fill sealed up. See PAGE_MARGIN."""
+    out = solid.copy()
+    sealed = solid & ~raw
+    height, width = sealed.shape
+    seen = np.zeros_like(sealed, dtype=bool)
+    for sy in range(height):
+        for sx in range(width):
+            if not sealed[sy, sx] or seen[sy, sx]:
+                continue
+            queue: deque = deque([(sy, sx)])
+            seen[sy, sx] = True
+            pocket = [(sy, sx)]
+            while queue:
+                y, x = queue.popleft()
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    ny, nx = y + dy, x + dx
+                    if (0 <= ny < height and 0 <= nx < width
+                            and sealed[ny, nx] and not seen[ny, nx]):
+                        seen[ny, nx] = True
+                        queue.append((ny, nx))
+                        pocket.append((ny, nx))
+            brightness = np.median([rgb[y, x].max() for y, x in pocket])
+            if brightness >= page - PAGE_MARGIN:
+                for y, x in pocket:
+                    out[y, x] = False
     return out
 
 
@@ -378,6 +436,7 @@ def cut_sheet(page: Path) -> dict[tuple[str, str], dict]:
     sheet = Image.open(page).convert("RGB")
     rgb = np.asarray(sheet, dtype=int)
     mask = foreground_mask(rgb)
+    page = page_colour(rgb)
     solid_only = without_thin_columns(mask)
     x0, x1 = PANEL_X
     frames: dict[tuple[str, str], dict] = {}
@@ -403,7 +462,10 @@ def cut_sheet(page: Path) -> dict[tuple[str, str], dict]:
             cols = np.where(blob.any(axis=0))[0]
             ty0, ty1 = band_y0 + rows[0], band_y0 + rows[-1]
             gx0, gx1 = gx0 + int(cols[0]), gx0 + int(cols[-1])
-            solid = fill_from_border(mask[ty0:ty1 + 1, gx0:gx1 + 1].copy())
+            window = mask[ty0:ty1 + 1, gx0:gx1 + 1]
+            solid = without_page_holes(
+                fill_from_border(window.copy()), window,
+                rgb[ty0:ty1 + 1, gx0:gx1 + 1], page)
             # Head centre, not bbox centre: the arms and legs swing and the head does not.
             head = solid[:max(1, int(solid.shape[0] * 0.30))]
             head_columns = np.where(head.any(axis=0))[0]
