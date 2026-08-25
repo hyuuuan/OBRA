@@ -67,6 +67,7 @@ CHARACTER_OUT = ROOT / "game" / "assets" / "characters" / "apo"
 # platform the game is exported to.
 PROP_OUT = ROOT / "game" / "assets" / "Level1" / "props"
 UI_OUT = ROOT / "game" / "assets" / "ui"
+HUB_OUT = ROOT / "game" / "assets" / "hub" / "paintings"
 
 # --- the character sheet -------------------------------------------------------------
 
@@ -149,6 +150,30 @@ STAIR_BANDS = [
     ("stair_riser", (2, 20, 46, 12)),
 ]
 BAND_UPSCALE = 2
+
+
+# --- the paintings in Lolo and Lola's house ---------------------------------------------
+
+PAINTING_SOURCE = ROOT / "Painting_Covers"
+## How big a painting hangs in the hub. 16:9, because that is what the covers are drawn at,
+## and a painting letterboxed inside its own frame looks like a screenshot rather than a
+## picture.
+PAINTING_SIZE = (256, 144)
+
+## WHICH COVER IS WHICH LEVEL, BY WHAT IS IN IT rather than by its filename.
+##
+## The filenames disagree with themselves: two of the five are called "Level 4", one is
+## labelled "from Dagat" and shows a fiesta, and the one called "Mt Makiling" is a storm at
+## sea. Going by content instead, the five line up exactly with the levels the design
+## already names -- terraces, pista, dagat, the forest, Mayon -- so that is the order used
+## here, and the mismatch is worth knowing about before anyone renames a file to match.
+PAINTINGS = [
+    ("level_1", "Level 1 Rice Terraces Completed Look.png"),      # Ifugao terraces
+    ("level_2", "Level 2 Completed Look from Dagat.png"),         # a fiesta plaza
+    ("level_3", "Level 4 Mt Makiling Completed Look.png"),        # a storm at sea
+    ("level_4", "Level 4 Completed Look from Mayon.png"),         # rainforest under Makiling
+    ("level_5", "Level 5.png"),                                   # Mayon over the ruins
+]
 
 
 # --- the wordmark ----------------------------------------------------------------------
@@ -421,6 +446,25 @@ def build_props(write: bool) -> dict[str, bytes]:
     return written
 
 
+def build_paintings(write: bool) -> dict[str, bytes]:
+    """The five covers, down to the size they hang at.
+
+    Area-averaged rather than filtered: these come in at 1672x941 and go on a wall at 256
+    wide, which is a seven-fold reduction. A sharpening filter at that ratio turns every
+    rice terrace into a fence of alternating pixels; averaging keeps the picture reading as
+    a picture at a size where none of the detail can survive anyway.
+    """
+    written: dict[str, bytes] = {}
+    for level_id, filename in PAINTINGS:
+        source = PAINTING_SOURCE / filename
+        if not source.exists():
+            raise SystemExit(f"missing painting cover: {filename}")
+        image = Image.open(source).convert("RGB").resize(PAINTING_SIZE, Image.BOX)
+        path = HUB_OUT / f"{level_id}.png"
+        written[str(path.relative_to(ROOT))] = _emit(image, path, write)
+    return written
+
+
 def build_logo(write: bool) -> tuple[dict[str, bytes], tuple[int, int]]:
     """The OBRA wordmark, off its presentation page and back onto its own grid."""
     page = np.asarray(Image.open(LOGO_SOURCE).convert("RGB"), dtype=float)
@@ -479,7 +523,8 @@ def main() -> int:
     portrait, portrait_size = build_portrait(write=not args.check)
     props = build_props(write=not args.check)
     logo, logo_size = build_logo(write=not args.check)
-    everything = {**character, **portrait, **props, **logo}
+    paintings = build_paintings(write=not args.check)
+    everything = {**character, **portrait, **props, **logo, **paintings}
 
     if args.check:
         stale = []
