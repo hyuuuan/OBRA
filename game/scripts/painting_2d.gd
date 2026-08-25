@@ -22,20 +22,21 @@ signal chosen(level_id: String)
 @export var art: Texture2D
 ## What the little brass plate under it says.
 @export var plate_text: String = ""
-## How wide the gilt moulding is around the picture.
-@export var moulding: float = 12.0
+## How wide the gilt moulding is around the picture. Eight, against a picture 128 wide: a
+## frame is a hand's breadth of gold round the edge of a canvas, not a border round it.
+@export var moulding: float = 8.0
 ## How far ALONG THE WALL the apo has to be standing for this painting to answer.
 ##
 ## Horizontal only, because you stand under a picture to look at it, not next to it. Judged
 ## as a straight distance to the painting's middle -- which is what it was first -- the apo
-## is three hundred pixels below it at all times and no painting ever answers.
-@export var reach: float = 170.0
-
-## Screen pixels per art pixel in the moulding, so it steps like everything else does.
-const PIXEL := 4.0
+## is a room's height below it at all times and no painting ever answers.
+##
+## Under half the gap between two pictures, so that standing at one never reaches the next.
+## run_hub_audit asserts exactly that, from where the apo actually stands.
+@export var reach: float = 110.0
 
 var _playable := false
-var _art_size := Vector2(256.0, 144.0)
+var _art_size := Vector2(128.0, 72.0)
 
 
 func _ready() -> void:
@@ -73,9 +74,16 @@ func _build_plate() -> void:
 	plate.add_theme_constant_override(&"shadow_offset_x", 2)
 	plate.add_theme_constant_override(&"shadow_offset_y", 2)
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var width := _art_size.x + moulding * 4.0
+	# HALF SIZE, IN A ROOM THE CAMERA DRAWS AT DOUBLE. The plate hangs on the wall, so it is
+	# in world space and the hub's zoom of 2 applies to it: at the caption size it came out
+	# forty screen pixels tall, which is HUD lettering on a brass plate the size of a hand.
+	# Halved, it reads at the size the label under a picture in a gallery reads at -- and it
+	# lands back on whole screen pixels, because the caption size is two font units and half
+	# of it is one, which is the rule HUD_SKIN.md gives for keeping a pixel face crisp.
+	plate.scale = Vector2(0.5, 0.5)
+	var width := (_art_size.x + moulding * 4.0) * 2.0
 	plate.size = Vector2(width, 28.0)
-	plate.position = Vector2(-width * 0.5, _art_size.y * 0.5 + moulding + 14.0)
+	plate.position = Vector2(-width * 0.25, _art_size.y * 0.5 + moulding + 6.0)
 	add_child(plate)
 
 
@@ -131,8 +139,8 @@ func _draw_moulding(picture: Rect2) -> void:
 			Vector2(rect.size.x, thickness)), _tone(0.16, crown))
 		draw_rect(Rect2(Vector2(rect.end.x - thickness, rect.position.y),
 			Vector2(thickness, rect.size.y)), _tone(0.24, crown))
-	draw_rect(picture.grow(1.0), UISkin.GILT_EDGE, false, 2.0)
-	draw_rect(picture.grow(moulding), UISkin.GILT_EDGE, false, 2.0)
+	draw_rect(picture.grow(1.0), UISkin.GILT_EDGE, false, 1.0)
+	draw_rect(picture.grow(moulding), UISkin.GILT_EDGE, false, 1.0)
 
 
 ## `lit` is how much this side faces the light, 0 to 1. Same ramp the canvas frame uses, so
