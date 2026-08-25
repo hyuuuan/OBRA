@@ -100,6 +100,13 @@ func _ready() -> void:
 	_camera.position_smoothing_speed = 6.0
 	add_child(_camera)
 	_camera.make_current()
+	# STANDING WHERE IT BELONGS BEFORE THE FIRST FRAME. Smoothing starts a camera wherever
+	# the node happens to be, which is the origin, and it then slides into place over about
+	# half a second -- so the game opened on the corner of the ceiling and a band of grey
+	# void down the left of the screen, and slid off it. That is the first thing a player
+	# ever sees of this house.
+	_camera.global_position = _eye_on(_player.global_position.x)
+	_camera.reset_smoothing()
 
 	_build_hud()
 	set_process(true)
@@ -159,13 +166,7 @@ func _build_hud() -> void:
 func _process(_delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
-	# Held inside the room by hand rather than with the camera's own limits, which are in
-	# screen pixels and so do not know about the zoom -- with limits set to the room width the
-	# view slid past the end of the wall at anything other than 1:1.
-	var half := get_viewport_rect().size.x / (2.0 * ZOOM)
-	var span := float(_room.get("room_width"))
-	_camera.global_position = Vector2(
-		clampf(_player.global_position.x, half, maxf(half, span - half)), EYE_Y)
+	_camera.global_position = _eye_on(_player.global_position.x)
 	_near = _nearest_painting()
 	_prompt.visible = _near != null
 	if _near == null:
@@ -174,6 +175,17 @@ func _process(_delta: float) -> void:
 	var canvas := get_viewport().get_canvas_transform()
 	var at := canvas * (_near.global_position + Vector2(0.0, 66.0))
 	_prompt.position = at - Vector2(_prompt.size.x * 0.5, 0.0)
+
+
+## Where the camera sits to look at somebody standing at `x`.
+##
+## Held inside the room by hand rather than with the camera's own limits, which are in
+## screen pixels and so do not know about the zoom -- with limits set to the room width the
+## view slid past the end of the wall at anything other than 1:1.
+func _eye_on(x: float) -> Vector2:
+	var half := get_viewport_rect().size.x / (2.0 * ZOOM)
+	var span := float(_room.get("room_width"))
+	return Vector2(clampf(x, half, maxf(half, span - half)), EYE_Y)
 
 
 ## The one the apo is standing closest to, if they are close enough to any.
