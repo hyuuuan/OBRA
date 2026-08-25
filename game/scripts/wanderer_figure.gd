@@ -124,13 +124,22 @@ func refresh() -> void:
 ## comes up over each of them. The same reason gait_driver.gd runs its bob at double the
 ## limb rate for the drawn creatures, and it is why a bob at the stride rate reads as a limp.
 ##
-## Two pixels, and rounded to whole ones. It has to be small: these frames are drawn with
-## both feet planted wide, so lifting the whole figure lifts a foot off the floor with it,
-## and past about two pixels that is what the eye notices instead.
-const BOB_PIXELS := 2.0
+## Two pixels for the walk, and rounded to whole ones. It has to be small there: a walk
+## always has a foot down, so lifting the whole figure lifts that foot off the floor with
+## it, and past about two pixels that is what the eye notices instead of the gait.
+##
+## FIVE FOR THE RUN, because a run is the gait that LEAVES THE GROUND. Both feet are off it
+## for part of every stride, which is the thing that separates running from walking quickly
+## and the thing the delivered run sheet has none of -- its head sits within a pixel of the
+## same row in all six frames. At two pixels the run was a walk played fast; at five the
+## boy bounds.
+const BOB_PIXELS := {
+	&"walk": 2.0,
+	&"run": 5.0,
+}
 
 
 func _bob(cycling: bool) -> float:
 	if not cycling:
 		return 0.0
-	return -roundf(absf(sin(TAU * stride)) * BOB_PIXELS)
+	return -roundf(absf(sin(TAU * stride)) * float(BOB_PIXELS.get(pose, 2.0)))
