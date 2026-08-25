@@ -35,8 +35,13 @@ func _run() -> void:
 	quit()
 
 
+## WAITS FOR THE DRAW, not for two more frames of logic. Every other visual runner here
+## already does; this one did not, and the last frame it wrote was always a copy of the one
+## before it, because the tree had moved the apo on and the renderer had not yet been asked
+## for a picture of that. It photographed a room the apo had already left -- which is a
+## particularly bad failure in a runner whose whole job is that four defects in this project
+## passed green suites and were caught only by looking at frames.
 func _shot(name: String) -> void:
-	await process_frame
-	await process_frame
+	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
 	image.save_png("/tmp/obra_hub_%s.png" % name)
