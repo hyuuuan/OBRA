@@ -31,6 +31,8 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_build()
 	visible = not start_hidden
+	# What is inside is Lola's, so the sign says memory rather than talk.
+	Signpost2D.plant(self, Signpost2D.Mark.MEMORY)
 
 
 func is_found() -> bool:

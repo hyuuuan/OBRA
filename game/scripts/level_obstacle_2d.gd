@@ -21,6 +21,8 @@ var _inside := false
 
 func _ready() -> void:
 	add_to_group(&"level_obstacles")
+	# A beat the player cannot see coming is a beat they walk past. See Signpost2D.
+	Signpost2D.plant(self, Signpost2D.Mark.TALK)
 	monitoring = true
 	# Layer 0 / mask 1: it detects the player without being something the player, or a
 	# placed object, can collide with. An obstacle volume that pushed things around would
