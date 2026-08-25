@@ -1417,9 +1417,27 @@ func _return_to_safety(nothing_written: String, restored_format: String) -> void
 		if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
 			player.call("apply_morph_state",
 				{"position": spawn_point.global_position, "linear_velocity": Vector2.ZERO})
-		status_label.text = nothing_written
+		_say_why(nothing_written)
 	else:
-		status_label.text = restored_format % restored
+		_say_why(restored_format % restored)
+
+
+## Why the player is suddenly standing somewhere else.
+##
+## IT USED TO GO TO A LABEL IN THE CORNER, forty pixels tall in the top left of a
+## sixteen-hundred-pixel screen, while the camera was busy carrying the player back across
+## the level -- so "you cannot swim, apo, draw something that can cross it" was written in
+## the one place nobody was looking at the one moment they were looking somewhere else.
+## Being fished out of the water and not knowing why is most of what makes the paddy read
+## as a bug rather than as a gate.
+##
+## The hint bar is the channel for this: centre screen, above the hotbar, no key to press,
+## and it stays up until something replaces it. The status label keeps it too, because it
+## is the transcript of what the level has said and costs nothing.
+func _say_why(text: String) -> void:
+	status_label.text = text
+	if hint_bar != null:
+		hint_bar.show_hint(text, Lolo.SPEAKER)
 
 
 ## Whether the level is allowed to end yet.

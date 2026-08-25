@@ -65,18 +65,37 @@ lowest surviving stone overhangs its right end, and the pocket beneath is 102px,
 stand in and not enough to stand a drawing up in. That distinction is rule **R7** in
 `GATES.md`: it was 56px until 2026-08-24 and the level was effectively unplayable there.
 
-- **sub1 = Span** (excludes bridge, ladder → square, triangle)
-- **sub2 = Roll** — the tread that floated off into the paddy. A Roll-tagged prop resting on
-  it sinks it, it freezes solid, and removing the weight releases it.
+**Two sub-beats, two problems, in the order the player meets them.**
+
+- **sub1 = Roll** — the paddy, and the plank floating in it. Set something that rolls on the
+  plank and it steadies, lies flat, locks, and is a step: two 106px hops instead of 300px of
+  water. Take the weight away and it comes loose again.
+- **sub2 = Span** (excludes bridge, ladder → square, triangle) — the stair on the far bank.
+  A drawn primitive is 80px, which under a 94.3px jump is exactly a step.
 - **CP0** at the top, reached by walking into it.
 
-⚠ **The paddy IS a gate** (since 2026-08-24, reversing the note that used to stand here).
-It is 300px wide and 100px deep — wider than a running jump and deeper than the apo can
-climb out of — and no jump in water lifts you out of it. Going under for more than a second
-puts you back on the bank with a line rather than trapping you. The floating tread keeps its
-Roll lesson and stops being a bridge: it is on its own collision layer, so it still floats,
-still settles under a rolling weight and still carries a drawn prop, but the player passes
-through it. That is the trap the first attempt at this fell into.
+⚠ **This order was the other way round until 2026-08-26 and the beat could not be
+finished.** Span asked first, at the water — but after its own exclusions Span is a square
+or a triangle at 80px, and nothing 80px wide crosses 300px. The only class long enough is
+`bridge`, which is the class the sub-beat excludes; `run_walk_level1` had been proving the
+crossing opened with a bridge the whole time, which is the one answer the obstacle rejects.
+See **X15** in `GATES.md`.
+
+⚠ **The paddy IS a gate** (since 2026-08-24). It is 300px wide and 100px deep — wider than a
+running jump and deeper than the apo can climb out of — and no jump in water lifts you out
+of it. Going under for more than a second puts you back on the bank with a line rather than
+trapping you.
+
+⚠ **The plank is only a step once it is paid for.** Loose, it is on its own collision layer
+and the player passes through it — plus an explicit exception against whatever the player
+currently is, because setting the layer alone was never enough (Godot pairs two bodies when
+EITHER side matches, so the apo shoved it the length of the paddy on the way through; see
+**X14**). Settled, the exception comes off and it joins layer 1. Two numbers in
+`floating_tread_2d.gd` are measured rather than chosen and are commented as such: the deck
+locks **8px clear of the waterline**, because `wanderer.gd` tests `is_in_water()` before
+`is_on_floor()` and a deck at or under the surface would strand the player on a solid floor;
+and `settle_dwell` is **0.12s**, because every frame it waits is a frame the plank spends
+sinking under the load, and at 0.3s it went 50px under and threw itself apart coming back up.
 
 ### Node 1 — Ang Tulay (the gorge)
 

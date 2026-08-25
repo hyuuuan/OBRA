@@ -127,6 +127,18 @@ func set_click_through(click_through: bool) -> void:
 
 
 func _refresh(items: Array) -> void:
+	# AN EMPTY BAG DRAWS NOTHING. Six boxes with nothing in them say nothing, and this band
+	# is anchored across the bottom-centre of the screen -- which at Level 1's spawn is
+	# exactly where the paddy is. It hid most of the water's depth behind a row of empty
+	# frames, so the first gate in the game read as a puddle you could walk through, and
+	# the player walked into it. All six come back the moment anything is held, so the slot
+	# numbers never move.
+	var holding := false
+	for item_value: Variant in items:
+		if item_value != null:
+			holding = true
+			break
+	visible = holding
 	for index in range(_buttons.size()):
 		var item := items[index] as DrawnItemData if index < items.size() else null
 		var occupied := item != null
