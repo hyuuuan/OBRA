@@ -3,6 +3,16 @@ extends Node2D
 ## The tutorial companion: he floats along beside whoever the player currently is and
 ## says the one thing that is worth saying where they are standing.
 ##
+## HE HANGS BEHIND WHAT THE PLAYER DRAWS. `lolo.tscn` puts him at z 7, and the number is
+## load-bearing: the drawn ink renders at 10 (RuntimeRig2D.INK_Z_INDEX) and so does the apo,
+## so at the 12 he used to be at he floated over every ladder, plank and creature the player
+## had put down -- hovering at their shoulder is exactly the height a drawing tends to be,
+## so he was in front of the thing they had just made about half the time they made one.
+##
+## Seven keeps him clear of the terrain he must never sink into: the terraces are 0, the
+## stair is 3, the felled tree and the crumbling ledges are 6. It puts him under the hidden
+## flower at 8, which is correct -- a secret should not be behind a companion either.
+##
 ## His LOOK lives in lolo_figure.gd, which draws the delivered ghost art. What this file
 ## owns is the same three calls it always did -- follow(), say(), is_speaking() -- because
 ## TutorialDirector talks to them and none of them care what he looks like. What it also
