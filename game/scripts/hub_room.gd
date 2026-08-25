@@ -635,15 +635,27 @@ func _draw_palayok(base: Vector2) -> void:
 ## The baul: the carved chest at the foot of the wall, the same object Node 2 of Payyo hides
 ## the sketchbook page in.
 func _draw_baul(at: Vector2) -> void:
-	var body := Rect2(at.x - 38.0, at.y - 40.0, 76.0, 40.0)
+	var body := Rect2(at.x - 38.0, at.y - 32.0, 76.0, 32.0)
 	draw_rect(body, WALL)
-	draw_rect(Rect2(body.position, Vector2(body.size.x, 9.0)), WALL_LIT)
-	draw_rect(Rect2(body.position.x, body.position.y + 9.0, body.size.x, 2.0), WALL_EDGE)
-	# Iron banding and a lock plate.
-	for band: float in [0.25, 0.75]:
-		draw_rect(Rect2(body.position.x + body.size.x * band - 3.0, body.position.y,
-			6.0, body.size.y), Color(0.239, 0.227, 0.212, 1.0))
-	draw_rect(Rect2(at.x - 5.0, body.position.y + 12.0, 10.0, 9.0), UISkin.GILT_DARK)
+	_grain(body.grow(-4.0), WALL_LIT, WALL_DARK)
+	# The lid, domed: three stepped courses, each narrower than the last.
+	for step in range(3):
+		var inset := float(step) * 3.0
+		var lid := Rect2(body.position.x + inset, body.position.y - 4.0 - float(step) * 3.0,
+			body.size.x - inset * 2.0, 4.0)
+		draw_rect(lid, WALL_LIT if step < 2 else WALL_HI)
+		draw_rect(Rect2(lid.position, Vector2(lid.size.x, 1.0)), WALL_HI)
+	draw_rect(Rect2(body.position.x, body.position.y, body.size.x, 2.0), WALL_EDGE)
+	# Iron banding over the lid and down the front, and a lock plate between them.
+	for band: float in [0.22, 0.78]:
+		var x := body.position.x + body.size.x * band - 3.0
+		draw_rect(Rect2(x, body.position.y - 10.0, 6.0, body.size.y + 10.0),
+			Color(0.239, 0.227, 0.212, 1.0))
+		draw_rect(Rect2(x, body.position.y - 10.0, 2.0, body.size.y + 10.0),
+			Color(0.353, 0.337, 0.318, 1.0))
+	draw_rect(Rect2(at.x - 6.0, body.position.y - 4.0, 12.0, 13.0), UISkin.GILT_DARK)
+	draw_rect(Rect2(at.x - 6.0, body.position.y - 4.0, 12.0, 2.0), UISkin.GILT)
+	draw_rect(Rect2(at.x - 2.0, body.position.y + 3.0, 4.0, 4.0), WALL_EDGE)
 	draw_rect(body, WALL_EDGE, false, 2.0)
 
 
