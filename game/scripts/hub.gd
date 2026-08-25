@@ -32,11 +32,22 @@ const WALL: Array[Dictionary] = [
 ## Where the apo comes in: in front of the first painting rather than at the end of the
 ## wall, so the first thing on screen is a picture and not an empty corner.
 const SPAWN_X := 300.0
-## How far in the camera sits. Chosen so one screen holds the ceiling, the pictures at eye
-## height and a strip of floor -- roughly the ground-to-air ratio the levels have.
-const ZOOM := 1.25
-## Where the eye rests: between the pictures and the floor, not on the apo's head.
-const EYE_Y := 250.0
+## How far in the camera sits.
+##
+## TWO IS WHAT MAKES THE ROOM A ROOM. The house is built to the apo at seventy-two pixels
+## to the metre, so one screen at this zoom is eleven metres of wall by six and a quarter
+## of air -- which is a room you are standing in rather than a hall seen from the far end.
+## He comes out a fifth of the screen tall, where at 1.25 he was an eighth of it.
+##
+## It is also the number the ROOM IS DRAWN TO FILL. Any less and the ceiling runs out before
+## the top of the frame does and the view opens onto grey nothing, which is what the top
+## of every screenshot of this room used to show. run_hub_audit asserts it, because it
+## costs nothing there and it is invisible everywhere else.
+const ZOOM := 2.0
+## Where the eye rests: between the pictures and the floor, not on the apo's head. It is the
+## middle of the drawn room, so what runs off the top and what runs off the bottom are the
+## same nine pixels rather than all of the slack going one way.
+const EYE_Y := 234.0
 
 var _room: Node2D
 var _player: Node2D
@@ -79,10 +90,9 @@ func _ready() -> void:
 
 	_camera = Camera2D.new()
 	_camera.name = "Camera"
-	# CLOSER THAN THE LEVELS, because a room is closer than a valley. At 1:1 the apo was a
-	# ninety-six pixel figure against a wall two and a half thousand wide and read as an ant
-	# in a hall; the levels get away with that scale because there is terrain and sky doing
-	# the work. Here the subject is the person and the pictures, so the camera comes in.
+	# CLOSER THAN THE LEVELS, because a room is closer than a valley. The levels get away
+	# with a wide view because there is terrain and sky doing the work; here the subject is
+	# a person and five pictures, so the camera comes in until the room fills the frame.
 	_camera.zoom = Vector2(ZOOM, ZOOM)
 	# Vertically pinned. The room is one storey and the floor never moves, so a camera that
 	# follows the apo up and down would sway the whole wall every time they jumped.
@@ -162,7 +172,7 @@ func _process(_delta: float) -> void:
 		return
 	# Placed under the plate, in screen space, so it reads with the picture it belongs to.
 	var canvas := get_viewport().get_canvas_transform()
-	var at := canvas * (_near.global_position + Vector2(0.0, 152.0))
+	var at := canvas * (_near.global_position + Vector2(0.0, 66.0))
 	_prompt.position = at - Vector2(_prompt.size.x * 0.5, 0.0)
 
 
