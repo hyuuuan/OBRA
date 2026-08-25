@@ -395,10 +395,10 @@ func _press_accept() -> void:
 
 
 func _click_at(at: Vector2, button: int) -> void:
-	Input.parse_input_event(_motion(at))
+	_inject(_motion(at))
 	await process_frame
 	for pressed in [true, false]:
-		Input.parse_input_event(_button(at, pressed, button))
+		_inject(_button(at, pressed, button))
 		await process_frame
 	await process_frame
 
@@ -449,7 +449,7 @@ func _escape_during_a_question_is_not_a_pause_menu() -> void:
 	# Through the InputMap, as a key: the router listens in _shortcut_input, which sees
 	# InputEventKey and never a synthetic action.
 	for event in [_key(true), _key(false)]:
-		Input.parse_input_event(event)
+		_inject(event)
 		await process_frame
 	await _wait(0.3)
 
@@ -480,9 +480,33 @@ func _key(pressed: bool) -> InputEventKey:
 func _click(control: Control) -> void:
 	var at := control.get_global_rect().get_center()
 	for event in [_motion(at), _button(at, true), _button(at, false)]:
-		Input.parse_input_event(event)
+		_inject(event)
 		await process_frame
 	await process_frame
+
+
+## INTO THE VIEWPORT, NOT THROUGH THE INPUT SINGLETON.
+##
+## THIS IS WHAT MADE THE SUITE FLAKY. Input.parse_input_event hands the event to the
+## DisplayServer's focused window, and a Godot started while another one is still closing
+## does not have focus for the first second or so -- so the events went nowhere. What that
+## produced was not an honest failure but a random one: no focus at all and the canary
+## tripped and reported NEEDS_VIEWPORT on a machine that has a perfectly good viewport;
+## focus arriving midway and the canary passed while the first click after it did not,
+## which is how "clicking Draw opens the panel" came and went between runs on unchanged
+## code. Two hours were spent looking at the Draw button.
+##
+## push_input skips the window manager and hands the event to the viewport directly. It is
+## NOT the shortcut that would defeat the point of this file: the viewport still does GUI
+## hit testing, still honours `disabled`, still respects whatever Control is lying on top,
+## still consults the pause state, and still falls through to _input and _unhandled_input
+## in that order. The only thing it does not need is the mouse pointer to be over the
+## window, which is not something a player's click depends on either.
+##
+## Actions stay on Input.parse_input_event -- those exist to move the Input singleton's own
+## state, which is what the code under test reads them back out of.
+func _inject(event: InputEvent) -> void:
+	root.push_input(event, true)
 
 
 func _motion(at: Vector2) -> InputEventMouseMotion:
