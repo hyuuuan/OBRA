@@ -10,11 +10,14 @@ extends Node2D
 ## have to line up with the paintings, and the paintings are spaced by how far apart five
 ## levels want to be, not by a tile size.
 ##
-## Everything is drawn on a four-pixel grid and nothing is anti-aliased, so it belongs with
-## the rest of the 8-bit interface rather than looking like a vector illustration of a room.
-
-## The art grid. Every rectangle in this room snaps to it.
-const PIXEL := 4.0
+## Every rectangle in it is whole pixels and nothing is anti-aliased, so it belongs with the
+## rest of the 8-bit interface rather than looking like a vector illustration of a room.
+##
+## IT USED TO SNAP TO A FOUR-PIXEL GRID, and that went when the camera came in to 2. A world
+## pixel is two screen pixels now, so a four-pixel step is eight on screen -- coarser than
+## the keylines round the joinery, and far coarser than the grain, which does not exist at
+## all at that step. What the grid was there to protect is protected instead by the zoom
+## being a whole number.
 
 ## THE ROOM IS MEASURED IN THE PERSON STANDING IN IT.
 ##
@@ -32,8 +35,13 @@ const PIXEL := 4.0
 ##
 ## The virtue of a ruler is that it answers the next question too. If the settee looks
 ## wrong, it is because 1.55 m is the wrong length for a settee, and that is arguable in a
-## way that "112" is not.
-const METRE := 72.0
+## way that "112" is not -- so every measurement below carries the metres it came from in
+## the comment beside it.
+##
+## The ruler is deliberately NOT a constant the numbers are multiplied by. These are pixel
+## dimensions and they have to be whole: a dado at 0.95 m is 68.4, and a room built out of
+## expressions like that lands half its joinery on a half pixel, which on a wall of
+## one-pixel keylines is the difference between a line and a smear.
 
 ## How long the wall is and where the floor sits under it. The floor line is what the apo
 ## stands on; everything else is measured off it.
@@ -147,8 +155,8 @@ const DOOR_HEIGHT := 187.0
 const TRANSOM_HEIGHT := 69.0
 
 ## The wood grain. Narra is a striped timber and the stripe is the whole reason a wall of
-## it does not read as cardboard, but it has to be UNDER the joinery rather than on top of
-## it: a stripe that crosses a stile is a scratch.
+## it does not read as a wall of cardboard, but it has to be UNDER the joinery rather than
+## on top of it: a stripe that crosses a stile is a scratch.
 const GRAIN_PITCH := 7
 
 
