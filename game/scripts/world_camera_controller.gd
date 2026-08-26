@@ -45,6 +45,16 @@ signal camera_moved(camera_position: Vector2)
 ## slides as she walks and the top of the wall leaves the screen. NAN means "no opinion",
 ## which is centring on her.
 @export var vertical_pin_y: float = NAN
+## THE BOX THE CAMERA MAY NOT LOOK OUT OF, when what is being looked at is smaller than the
+## level.
+##
+## An interior is a room parked in the empty sky above the valley, and outside its own walls
+## there is nothing painted at all. The camera's ordinary clamp is the LEVEL's bounds --
+## four thousand units of terrace -- so walking to the end of a small room slid the view off
+## the picture and filled the screen with the void the room is standing in. Rooms hand their
+## own box in here on the way through the door and take it back on the way out; an empty
+## rect means "no opinion", which is the level clamping itself as it always did.
+@export var room_bounds: Rect2 = Rect2()
 
 var target: Node2D = null
 ## What the camera is pushed in on for a beat, and how far. Null means it is doing its
@@ -150,6 +160,20 @@ func set_bounds(bounds: Rect2) -> void:
 	world_bounds = bounds
 
 
+## What the camera is framing: a room while it is in one, the level otherwise.
+func set_room_bounds(rect: Rect2) -> void:
+	room_bounds = rect
+
+
+## The box the clamps below measure against. Both the horizontal clamp and the vertical one
+## read this rather than `world_bounds` directly, or a room would hold the view in on one
+## axis and let it wander off the picture on the other.
+func _framing_bounds() -> Rect2:
+	if room_bounds.size.x > 1.0 and room_bounds.size.y > 1.0:
+		return room_bounds
+	return world_bounds
+
+
 ## Going back to anchoring on the ground forgets where the ground was, or the camera keeps
 ## measuring the player's height above a rest line taken somewhere they are no longer.
 func set_vertical_free(free: bool, pin_y: float = NAN) -> void:
@@ -164,8 +188,16 @@ func set_vertical_free(free: bool, pin_y: float = NAN) -> void:
 ## in which case that beat gives it back at the new number when it is done.
 func set_base_zoom(scale: float) -> void:
 	base_zoom = maxf(0.1, scale)
-	if _focus == null:
-		_tween_zoom(Vector2(base_zoom, base_zoom), 0.0)
+	if _focus != null:
+		return
+	# APPLIED AT ONCE, not tweened over zero seconds. A zero-length tween still does not land
+	# until the next process step, and the caller's very next line is snap_to_target() --
+	# which works out how much WORLD the camera can see by dividing the viewport by the zoom.
+	# Snapping at the old zoom framed the first frame in a room against the level's ruler and
+	# then slid out of it.
+	if _focus_tween != null and _focus_tween.is_valid():
+		_focus_tween.kill()
+	zoom = Vector2(base_zoom, base_zoom)
 
 
 func snap_to_target() -> void:
@@ -198,15 +230,16 @@ func _clamped_target_position() -> Vector2:
 
 
 func _clamp_to_bounds(desired: Vector2) -> Vector2:
+	var frame := _framing_bounds()
 	var half_view := _viewport_size() * 0.5
-	var bounds_end := world_bounds.position + world_bounds.size
+	var bounds_end := frame.position + frame.size
 
-	var min_x := world_bounds.position.x + half_view.x - play_area_left
+	var min_x := frame.position.x + half_view.x - play_area_left
 	var max_x := bounds_end.x - half_view.x
 	if min_x <= max_x:
 		desired.x = clampf(desired.x, min_x, max_x)
 	else:
-		desired.x = world_bounds.position.x + world_bounds.size.x * 0.5
+		desired.x = frame.position.x + frame.size.x * 0.5
 
 	desired.y = _clamp_camera_y(desired.y)
 
@@ -222,7 +255,8 @@ func _clamp_camera_y(value: float) -> float:
 	var max_y := _max_camera_y()
 	if min_y <= max_y:
 		return clampf(value, min_y, max_y)
-	return world_bounds.position.y + world_bounds.size.y * 0.5
+	var frame := _framing_bounds()
+	return frame.position.y + frame.size.y * 0.5
 
 
 func _vertical_follow_y(target_y: float) -> float:
@@ -236,13 +270,15 @@ func _vertical_follow_y(target_y: float) -> float:
 
 
 func _min_camera_y() -> float:
-	var top := world_bounds.position.y if vertical_free \
-		else maxf(world_bounds.position.y, sky_top_y)
+	var frame := _framing_bounds()
+	var top := frame.position.y if vertical_free \
+		else maxf(frame.position.y, sky_top_y)
 	return top + _viewport_size().y * 0.5
 
 
 func _max_camera_y() -> float:
-	return world_bounds.position.y + world_bounds.size.y - _viewport_size().y * 0.5
+	var frame := _framing_bounds()
+	return frame.position.y + frame.size.y - _viewport_size().y * 0.5
 
 
 ## How much WORLD the camera can see, which is the viewport divided by the zoom. It used

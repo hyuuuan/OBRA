@@ -59,7 +59,7 @@ func is_transitioning() -> bool:
 
 
 func open_level(level_id: String) -> bool:
-	if _transitioning or not is_unlocked(level_id):
+	if _transitioning or not is_unlocked(level_id) or not has_brush():
 		return false
 	var entry := get_level(level_id)
 	var scene_path := String(entry.get("scene_path", ""))
@@ -78,6 +78,24 @@ func show_ending() -> bool:
 	get_tree().paused = false
 	_transition_to.call_deferred(ENDING_SCENE, "")
 	return true
+
+
+## Whether the apo is carrying Lola's brush, which is the third question a level asks and
+## the only one with a single answer for all five of them.
+##
+## THE GAME IS DRAWING. Every verb in a level goes through the canvas, so a player who
+## walked past the stand in the house would arrive in Payyo with no way to do anything at
+## all -- which is not a hard level, it is a broken one. The brush is taken once, off the
+## stand at the end of the hall, and it is then true forever.
+##
+## Checked HERE rather than only in the house, because the house is not the only door: the
+## menu's card grid calls open_level directly, and a gate that lives in one caller is a
+## gate the other caller walks around. restart_level deliberately does not ask -- a level
+## you are standing in is one you already got into, and refusing to reload it on a rule
+## about the hub would strand the player inside it.
+func has_brush() -> bool:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	return profile != null and bool(profile.call("has_brush"))
 
 
 ## Whether a level has content behind it. Deliberately separate from is_unlocked,

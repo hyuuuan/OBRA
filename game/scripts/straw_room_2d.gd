@@ -107,10 +107,26 @@ var _taken := false
 var _key_area: Area2D
 var _exit_area: Area2D
 var _ants: StrawAnts2D
+## The brass leaving the nail: how far it has risen and how much of it is left. Driven by a
+## tween through the setters, so the node has no idle work while nothing is being taken.
+##
+## IT USED TO JUST STOP BEING DRAWN -- one frame on the nail, the next frame gone. The whole
+## of Node 2 is about getting up to this, and the moment it paid out said nothing at all.
+var _key_lift := 0.0:
+	set(value):
+		_key_lift = value
+		queue_redraw()
+var _key_fade := 1.0:
+	set(value):
+		_key_fade = value
+		queue_redraw()
 
 
 func _ready() -> void:
 	add_to_group(&"straw_rooms")
+	# The group the level asks "which room is the player standing in", shared with the bale's
+	# interior so one camera rule covers both insides.
+	add_to_group(&"interiors")
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_build_floor()
 	_build_key_area()
@@ -159,6 +175,19 @@ func _span() -> float:
 func bounds() -> Rect2:
 	return Rect2(global_position - Vector2(room_length * 0.5, wall_height + roof_height),
 		Vector2(room_length, wall_height + roof_height + floor_depth))
+
+
+## THE BOX THE CAMERA MAY NOT LOOK OUT OF, which is NOT `bounds()`.
+##
+## `bounds()` is the walkable room, and this one is deliberately longer than a screenful --
+## fifteen metres of barn against eleven of view, so there is somewhere to walk to. Clamping
+## the camera to that would pin it to the middle three hundred units and let the apo walk to
+## the edge of the frame and out of it. The room is DRAWN a good deal wider than it is walked
+## (see `_span`) precisely so the camera can lead her, and this is that painted extent.
+func camera_rect() -> Rect2:
+	var span := _span()
+	return Rect2(global_position - Vector2(span, wall_height + roof_height),
+		Vector2(span * 2.0, wall_height + roof_height + floor_depth))
 
 
 ## Kept for the level and the suites, which ask how big the room is rather than where it is.
@@ -287,6 +316,15 @@ func _on_key_body(body: Node) -> void:
 	var profile := get_node_or_null(^"/root/PlayerProfile")
 	if profile != null:
 		profile.call("record_collectible", collectible_id)
+	# IT COMES OFF THE NAIL AND GOES UP, and it is thrown a flourish on the way. The signal
+	# fires NOW rather than at the end of the tween: nothing downstream should wait on an
+	# animation to know the player has it, and the beat that follows plays over the top.
+	PickupFlourish2D.burst(self, key_at + Vector2(0.0, -8.0), BRASS_LIT)
+	var take := create_tween()
+	take.set_parallel(true)
+	take.tween_property(self, "_key_lift", 30.0, 0.45) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	take.tween_property(self, "_key_fade", 0.0, 0.4).set_delay(0.1)
 	queue_redraw()
 	key_taken.emit()
 
@@ -310,9 +348,12 @@ func _draw() -> void:
 	_draw_roof()
 	_draw_way_out()
 	_draw_floor()
-	if not _taken:
-		_draw_nail(key_at)
-		_draw_key(key_at)
+	# THE NAIL STAYS. It is part of the wall, and an empty nail is the room telling a player
+	# who comes back that they already took what was hanging on it -- which the old code,
+	# which stopped drawing both together, could not say.
+	_draw_nail(key_at)
+	if _key_fade > 0.0:
+		_draw_key(key_at - Vector2(0.0, _key_lift), _key_fade)
 
 
 ## What the room is seen against, and only just bigger than the room: a ground that reaches
@@ -547,16 +588,18 @@ func _draw_nail(at: Vector2) -> void:
 ## A key, lying flat: a bow, a shank and two teeth. Twenty centimetres of brass, which is a
 ## door key of the age the chest beside it is -- and the reason it is worth drawing at all
 ## rather than being a glint on the floor.
-func _draw_key(at: Vector2) -> void:
-	draw_rect(Rect2(at + Vector2(-20.0, -3.0), Vector2(44.0, 5.0)), Color(0, 0, 0, 0.45))
+func _draw_key(at: Vector2, alpha: float = 1.0) -> void:
+	# The shadow it casts on the wall goes as it leaves, so the brass does not fade out over
+	# a dark smear that stays behind.
+	draw_rect(Rect2(at + Vector2(-20.0, -3.0), Vector2(44.0, 5.0)), Color(0, 0, 0, 0.45 * alpha))
 	# The bow.
-	draw_rect(Rect2(at + Vector2(-19.0, -15.0), Vector2(15.0, 15.0)), BRASS_DARK)
-	draw_rect(Rect2(at + Vector2(-18.0, -14.0), Vector2(13.0, 13.0)), BRASS)
-	draw_rect(Rect2(at + Vector2(-18.0, -14.0), Vector2(13.0, 2.0)), BRASS_LIT)
-	draw_rect(Rect2(at + Vector2(-14.0, -11.0), Vector2(6.0, 7.0)), DEEPER)
+	draw_rect(Rect2(at + Vector2(-19.0, -15.0), Vector2(15.0, 15.0)), Color(BRASS_DARK, alpha))
+	draw_rect(Rect2(at + Vector2(-18.0, -14.0), Vector2(13.0, 13.0)), Color(BRASS, alpha))
+	draw_rect(Rect2(at + Vector2(-18.0, -14.0), Vector2(13.0, 2.0)), Color(BRASS_LIT, alpha))
+	draw_rect(Rect2(at + Vector2(-14.0, -11.0), Vector2(6.0, 7.0)), Color(DEEPER, alpha))
 	# The shank, and the two teeth on the end of it.
-	draw_rect(Rect2(at + Vector2(-4.0, -11.0), Vector2(26.0, 6.0)), BRASS_DARK)
-	draw_rect(Rect2(at + Vector2(-4.0, -11.0), Vector2(26.0, 4.0)), BRASS)
-	draw_rect(Rect2(at + Vector2(-4.0, -11.0), Vector2(26.0, 1.0)), BRASS_LIT)
-	draw_rect(Rect2(at + Vector2(14.0, -5.0), Vector2(4.0, 5.0)), BRASS_DARK)
-	draw_rect(Rect2(at + Vector2(20.0, -5.0), Vector2(3.0, 4.0)), BRASS_DARK)
+	draw_rect(Rect2(at + Vector2(-4.0, -11.0), Vector2(26.0, 6.0)), Color(BRASS_DARK, alpha))
+	draw_rect(Rect2(at + Vector2(-4.0, -11.0), Vector2(26.0, 4.0)), Color(BRASS, alpha))
+	draw_rect(Rect2(at + Vector2(-4.0, -11.0), Vector2(26.0, 1.0)), Color(BRASS_LIT, alpha))
+	draw_rect(Rect2(at + Vector2(14.0, -5.0), Vector2(4.0, 5.0)), Color(BRASS_DARK, alpha))
+	draw_rect(Rect2(at + Vector2(20.0, -5.0), Vector2(3.0, 4.0)), Color(BRASS_DARK, alpha))

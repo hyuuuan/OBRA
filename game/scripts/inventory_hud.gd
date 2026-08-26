@@ -14,7 +14,7 @@ extends HBoxContainer
 signal slot_pressed(slot: int)
 
 const SLOT := Vector2(64.0, 64.0)
-const LIME := UISkin.LIME
+const GOLD := UISkin.GOLD
 const DIM := UISkin.MUTED
 
 var _manager: InventoryManager
@@ -66,7 +66,7 @@ func _ready() -> void:
 		number.name = "Number"
 		number.text = str(index + 1)
 		number.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
-		number.add_theme_color_override(&"font_color", LIME)
+		number.add_theme_color_override(&"font_color", GOLD)
 		# Outlined, because it sits on a dark slot when the slot is empty and on the white
 		# paper of a drawing when it is not.
 		number.add_theme_constant_override(&"outline_size", 5)
@@ -158,7 +158,7 @@ func _refresh(items: Array) -> void:
 		for state in [&"normal", &"hover", &"pressed", &"disabled"]:
 			button.add_theme_stylebox_override(state, UISkin.slot(occupied, chosen))
 		button.modulate = Color(1.12, 1.12, 1.04) if chosen else Color.WHITE
-		_numbers[index].add_theme_color_override(&"font_color", LIME if occupied else DIM)
+		_numbers[index].add_theme_color_override(&"font_color", GOLD if occupied else DIM)
 		_tags[index].visible = chosen
 	_forget_stale_thumbnails(items)
 

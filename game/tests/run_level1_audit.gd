@@ -1320,9 +1320,93 @@ func _audit_the_key_chain() -> void:
 		await create_timer(0.8, true).timeout
 		_check(d.is_solved("L1_N3") and d.committed_route("L1_N3") == "pragmatist",
 			"by the Unlock route (%s)" % how, "solved, route '%s'" % d.committed_route("L1_N3"))
+		# THE SOLVE GETS YOU IN; IT DOES NOT HAND YOU THE PAINTING. That used to arrive the
+		# instant the route landed, which made the room a cutscene with a floor. It leans
+		# against the wall in there now and is picked up by walking into it.
+		_check(not bool(profile.call("has_object", "canvas_2_pista")),
+			"answering it does not yet hand over the painting (%s)" % how,
+			"the canvas is still in the house")
+
+		# AND THE PLAYER IS ACTUALLY IN THE HOUSE. Ang Bale has an inside now -- a room
+		# parked in the sky, the way the heap's is -- and getting in is the reward for
+		# answering it. Checked through the level's own "which room am I in" rather than
+		# against a position, because that is the question the camera asks too: if this
+		# passes and the camera rule is broken, they are the same bug.
+		var inside: Node = level.call("_room_holding_player")
+		_check(inside != null and inside.is_in_group(&"bale_interiors"),
+			"and the apo is inside it (%s)" % how,
+			"in '%s'" % (inside.name if inside != null else "the terrace"))
+
+		# Walked into, the way the key in the heap is taken.
+		#
+		# MOVED THROUGH apply_morph_state, NOT BY WRITING global_position. For most of Node 3
+		# the player is a drawn creature, which is a RigidBody2D -- assigning its position
+		# does not move it in the physics server, so the body never overlaps the area and the
+		# pickup never fires. That is exactly how this assertion failed on the first route and
+		# passed on the second, where the canvas was already taken and the check was trivially
+		# true. A test that passes for the wrong reason is worse than one that fails.
+		print("  [dbg] rooms in group: ", get_nodes_in_group(&"bale_interiors").size(),
+			"  inside=", inside.get_instance_id(),
+			"  taken=", inside.call("painting_is_taken"),
+			"  monitoring=", (inside.get_node("Painting") as Area2D).monitoring,
+			"  player=", (level.get("player") as Node2D).global_position)
+		# ARMED, AND STILL HOLDING IT. The room re-reads the profile when it is entered rather
+		# than trusting a snapshot taken when the level loaded -- so this is the assertion
+		# that fails the day that stops happening and the house is entered empty.
+		_check(not bool(inside.call("painting_is_taken"))
+			and (inside.get_node("Painting") as Area2D).monitoring,
+			"the canvas is in there and can be taken (%s)" % how, "armed on entry")
+
+		# Stood on the canvas, then swept.
+		#
+		# THROUGH THE ROOM'S OWN TAKE PATH, not by waiting on an overlap. `body_entered` is a
+		# transition, and the apo is teleported into this room rather than walked into it --
+		# which makes whether the engine sees an "entry" depend on where the previous frame
+		# left their collision box. It fired on one route and not on the other from the very
+		# same position, which is a flaky test rather than a real difference.
+		# `_sweep_for_taker` is the code that exists for exactly this case -- somebody already
+		# standing on the canvas when it arms -- and it runs the same handler, the same signal
+		# and the same grant.
+		# THE WORLD HAS TO BE RUNNING FOR ANY OF THIS TO MEAN ANYTHING. The route's own beat
+		# stops the tree -- that is what a story line does -- and a paused tree means the
+		# physics server never processes the body's new position, so the trigger in here
+		# cannot see a player who is standing on it. That is why this passed on one route and
+		# failed on the other from the identical position: one had a line still up. In play
+		# the player cannot walk anywhere until they turn the page, so it costs them nothing;
+		# a harness that teleports has to turn the page itself.
+		paused = false
+		var canvas_at: Vector2 = inside.global_position + Vector2(inside.PAINTING_AT)
+		(level.get("player") as Node2D).call("apply_morph_state",
+			{"position": canvas_at, "linear_velocity": Vector2.ZERO})
+		for _f in range(20):
+			await physics_frame
+		inside.call("_sweep_for_taker")
+		await process_frame
+		_check(bool(inside.call("painting_is_taken")),
+			"the canvas is taken off the floor (%s)" % how, "stood on and picked up")
 		_check(bool(profile.call("has_object", "canvas_2_pista"))
 			and bool(profile.call("is_level_unlocked", "level_2")),
 			"and the house yields the painting (%s)" % how, "canvas_2_pista, Pista unlocked")
+
+		# The ladder puts them back where they were standing, not at a guess.
+		var was_at: Vector2 = level.get("_bale_return")
+		(level.get("player") as Node2D).global_position = \
+			Vector2(inside.call("bounds").get_center())
+		level.call("_on_bale_exit")
+		await process_frame
+		await process_frame
+		# OUT OF THE HOUSE, not "out of every room". The exit puts them back exactly where
+		# they came from, and in this suite's synthetic flow that spot is sometimes inside
+		# the straw heap -- which is the hatch working, not failing. The claim being made is
+		# only that Ang Bale is no longer holding them.
+		var out: Node = level.call("_room_holding_player")
+		_check(out == null or not out.is_in_group(&"bale_interiors"),
+			"and the hatch lets them back out (%s)" % how,
+			"out of the house, in '%s'" % (out.name if out != null else "the open"))
+		_check((level.get("player") as Node2D).global_position.distance_to(was_at) < 8.0,
+			"where they went in (%s)" % how,
+			"%.0fpx from the spot they climbed from"
+				% (level.get("player") as Node2D).global_position.distance_to(was_at))
 		_check(not bool(level.call("_use_the_found_key")), "the key is not a second solve",
 			"already open")
 
@@ -1532,7 +1616,7 @@ func _walk_node_three(route: String) -> void:
 	if route == "artist":
 		var house := bale_root.get_node_or_null("House")
 		_check(house != null and house.get_script() == BaleClass,
-			"the bale is standing", "four posts and a roof")
+			"the bale is standing", "three posts and a roof")
 		# THE HALIPAN ARE SOLID. They are why "climb the post" is not an answer, so if they
 		# stop being collidable the Artist route stops having a reason to exist.
 		var guards := 0
@@ -1545,8 +1629,12 @@ func _walk_node_three(route: String) -> void:
 							guards += 1
 				elif String(child.name).begins_with("Post"):
 					posts += 1
-		_check(posts == 4, "four posts", "%d" % posts)
-		_check(guards == 4, "every post carries a solid halipan",
+		# THREE, BECAUSE THE PICTURE HAS THREE. The house was hand-built with four uprights;
+		# `assets/Level1/hut.png` shows three posts and a ladder, and collision was measured
+		# off that art rather than kept at the old number. Collision that disagrees with the
+		# picture is collision the player walks into thin air to find.
+		_check(posts == 3, "three posts, matching the art", "%d" % posts)
+		_check(guards == 3, "every post carries a solid halipan",
 			"%d rat guard(s) with collision -- this is why the posts cannot be climbed" % guards)
 
 		# THE CULTURAL GUARDRAIL, as an assertion rather than a comment.
@@ -1601,6 +1689,13 @@ func _walk_node_three(route: String) -> void:
 
 	_check(d.is_solved("L1_N3"), "%s solves it" % route, "with '%s'" % solver)
 	var profile3 := root.get_node_or_null("PlayerProfile")
+	# SOLVING GETS YOU IN; THE PAINTING IS PICKED UP OFF THE FLOOR IN THERE. It used to be
+	# granted the instant the route landed. What is asserted here is the end of the chain --
+	# that this route does yield the canvas -- so the climb back down stands in for the walk
+	# across the room, and _on_bale_exit takes it for a player who did not.
+	level.call("_on_bale_exit")
+	await process_frame
+	await process_frame
 	_check(profile3 != null and bool(profile3.call("has_object", "canvas_2_pista")),
 		"the chest yields the second canvas", "granted on the %s route" % route)
 

@@ -61,7 +61,7 @@ func _initialize() -> void:
 	quit(0)
 
 
-## Type is what a label is FOR, not how big it is. A caption is lime because captions label
+## Type is what a label is FOR, not how big it is. A caption is gold because captions label
 ## things; a hint is muted because it is the least important line on screen.
 func _labels(theme: Theme) -> void:
 	theme.set_color("font_color", "Label", Palette.CREAM_TEXT)
@@ -70,16 +70,16 @@ func _labels(theme: Theme) -> void:
 	theme.set_constant("shadow_offset_y", "Label", 2)
 	theme.set_font_size("font_size", "Label", Palette.FONT_BODY)
 
-	_label_variation(theme, "ScreenTitle", Palette.LIME_PALE, Palette.FONT_TITLE)
+	_label_variation(theme, "ScreenTitle", Palette.GOLD_PALE, Palette.FONT_TITLE)
 	_label_variation(theme, "ScreenSubtitle", Palette.CREAM_TEXT, Palette.FONT_SUBTITLE)
-	## The one that names a thing: INK, DRAW, GOAL. Small, lime, and always beside what
+	## The one that names a thing: INK, DRAW, GOAL. Small, gold, and always beside what
 	## it names rather than above it.
-	_label_variation(theme, "HudCaption", Palette.LIME, Palette.FONT_CAPTION)
+	_label_variation(theme, "HudCaption", Palette.GOLD, Palette.FONT_CAPTION)
 	## A number the player reads off a gauge.
 	_label_variation(theme, "HudValue", Palette.CREAM_TEXT, Palette.FONT_CAPTION)
-	## Text on a banner or a chip -- pale rather than lime, because saturated lime at
-	## body weight is hard to read.
-	_label_variation(theme, "HudBanner", Palette.LIME_PALE, 17)
+	## Text on a banner or a chip -- pale rather than full gold, because the saturated
+	## accent at body weight is hard to read.
+	_label_variation(theme, "HudBanner", Palette.GOLD_PALE, 17)
 
 	## Outlined rather than shadowed: this one sits directly on level art, where a
 	## two-pixel shadow disappears into whatever is behind it.
@@ -97,11 +97,11 @@ func _label_variation(theme: Theme, name: String, color: Color, size: int) -> vo
 
 
 ## Three families, and which one a button belongs to is a statement about what pressing it
-## does. Cream is the default because most buttons navigate; green is reserved for the act
+## does. Cream is the default because most buttons navigate; gold is reserved for the act
 ## the screen exists for; red for the one that ends something.
 func _buttons(theme: Theme, bold: Font) -> void:
 	_family(theme, "Button", Palette.Family.CREAM, Palette.FONT_BUTTON, bold)
-	_family(theme, "PrimaryButton", Palette.Family.GREEN, Palette.FONT_BUTTON, bold)
+	_family(theme, "PrimaryButton", Palette.Family.GOLD, Palette.FONT_BUTTON, bold)
 	_family(theme, "DangerButton", Palette.Family.RED, Palette.FONT_BUTTON, bold)
 	_family(theme, "DialogButton", Palette.Family.CREAM, Palette.FONT_BUTTON, bold)
 
@@ -111,7 +111,7 @@ func _buttons(theme: Theme, bold: Font) -> void:
 	theme.set_stylebox("normal", "LevelCard", Palette.frame(16.0, 14.0))
 	var lit := Palette.frame(16.0, 14.0)
 	lit.bg_color = Palette.PANEL_LIT
-	lit.border_color = Palette.LIME_PALE
+	lit.border_color = Palette.GOLD_PALE
 	theme.set_stylebox("hover", "LevelCard", lit)
 	theme.set_stylebox("pressed", "LevelCard", lit)
 	theme.set_stylebox("focus", "LevelCard", Palette.focus_ring())
@@ -121,7 +121,7 @@ func _buttons(theme: Theme, bold: Font) -> void:
 	locked.shadow_color = Palette.INK
 	theme.set_stylebox("disabled", "LevelCard", locked)
 	theme.set_color("font_color", "LevelCard", Palette.CREAM_TEXT)
-	theme.set_color("font_hover_color", "LevelCard", Palette.LIME_PALE)
+	theme.set_color("font_hover_color", "LevelCard", Palette.GOLD_PALE)
 	theme.set_color("font_disabled_color", "LevelCard", Palette.OFF_LABEL)
 
 	## An inventory slot draws its own frame per state (see inventory_hud.gd) because the
@@ -160,11 +160,11 @@ func _panels(theme: Theme) -> void:
 
 
 ## A gauge and a slider are the same object seen twice: a trough cut into the panel with
-## lime in it. They share the trough so they cannot drift apart.
+## gold in it. They share the trough so they cannot drift apart.
 func _ranges(theme: Theme) -> void:
 	theme.set_stylebox("background", "ProgressBar", Palette.well())
 	var fill := StyleBoxFlat.new()
-	fill.bg_color = Palette.LIME
+	fill.bg_color = Palette.GOLD
 	fill.set_corner_radius_all(Palette.RADIUS)
 	theme.set_stylebox("fill", "ProgressBar", fill)
 	theme.set_color("font_color", "ProgressBar", Palette.CREAM_TEXT)
@@ -177,11 +177,11 @@ func _ranges(theme: Theme) -> void:
 	track.content_margin_bottom = 6.0
 	theme.set_stylebox("slider", "HSlider", track)
 	var grabbed := StyleBoxFlat.new()
-	grabbed.bg_color = Palette.LIME
+	grabbed.bg_color = Palette.GOLD
 	grabbed.set_corner_radius_all(Palette.RADIUS)
 	theme.set_stylebox("grabber_area", "HSlider", grabbed)
 	var grabbed_lit := StyleBoxFlat.new()
-	grabbed_lit.bg_color = Palette.LIME_PALE
+	grabbed_lit.bg_color = Palette.GOLD_PALE
 	grabbed_lit.set_corner_radius_all(Palette.RADIUS)
 	theme.set_stylebox("grabber_area_highlight", "HSlider", grabbed_lit)
 	theme.set_constant("grabber_offset", "HSlider", 0)
@@ -199,9 +199,9 @@ func _ranges(theme: Theme) -> void:
 	theme.set_constant("separation", "HSeparator", 16)
 
 	theme.set_color("font_color", "CheckButton", Palette.CREAM_TEXT)
-	theme.set_color("font_hover_color", "CheckButton", Palette.LIME_PALE)
+	theme.set_color("font_hover_color", "CheckButton", Palette.GOLD_PALE)
 	theme.set_color("font_color", "CheckBox", Palette.CREAM_TEXT)
-	theme.set_color("font_hover_color", "CheckBox", Palette.LIME_PALE)
+	theme.set_color("font_hover_color", "CheckBox", Palette.GOLD_PALE)
 	for type in ["CheckButton", "CheckBox"]:
 		for state in ["normal", "hover", "pressed", "focus", "disabled"]:
 			theme.set_stylebox(state, type, StyleBoxEmpty.new())

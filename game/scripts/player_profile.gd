@@ -58,6 +58,7 @@ func _default_profile() -> Dictionary:
 		"canvas_damage": [],             # canvases harmed by a route taken in an earlier level
 		"classes_drawn_accepted": [],    # distinct classes drawn and accepted at least once
 		"acquired_objects": [],          # object/tool ids owned across levels and sessions
+		"brush_acquired": false,         # Lola's brush, taken off the stand in the house
 		"levels_completed": [],
 		"levels_unlocked": [],
 		"routes": {},                    # level_id -> most recent route taken
@@ -170,6 +171,27 @@ func has_object(entity_id: String) -> bool:
 ## Design-language alias for has_object().
 func is_concept_unlocked(concept_id: String) -> bool:
 	return has_object(concept_id)
+
+
+## Lola's brush, off the stand at the end of the hall. Its own field rather than an entry
+## in acquired_objects, which holds ids from the entity manifest and is read by
+## ConceptGate2D -- the brush is not a concept the player drew, it is the thing they draw
+## WITH, and the one gate it opens is the door out of the house.
+##
+## NO SCHEMA BUMP. A v5 profile written before this existed simply has no such key, and
+## _merge_defaults starts from the defaults and overlays what it read, so it loads as
+## false: a returning player has not taken the brush, which is exactly true. Bumping the
+## version would force MIGRATABLE_SCHEMAS and the suite's EXPECTED_SCHEMA to move for a
+## field that breaks nothing when it is absent.
+func record_brush_acquired() -> void:
+	if has_brush():
+		return
+	_data["brush_acquired"] = true
+	_commit()
+
+
+func has_brush() -> bool:
+	return bool(_data.get("brush_acquired", false))
 
 
 func acquired_objects() -> Array:

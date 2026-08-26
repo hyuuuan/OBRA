@@ -45,7 +45,14 @@ extends Node2D
 
 ## How long the wall is and where the floor sits under it. The floor line is what the apo
 ## stands on; everything else is measured off it.
-@export var room_width: float = 1800.0
+##
+## THE LAST THREE HUNDRED IS THE END BAY. Five pictures and six doors fill the wall to
+## 1800, and the room used to stop there. It runs on now, past the last doorway, into a
+## stretch of blank panelling with nothing on it but Lola's brush on its stand -- see
+## BrushStand2D. An alcove is what the extra width is FOR: the shrine wants a piece of wall
+## that is not competing with a picture, and the apo wants somewhere to walk to that is
+## obviously not another level.
+@export var room_width: float = 2100.0
 @export var floor_y: float = 360.0
 ## Floor to cornice: four metres, which is a storey in a house with these ceilings.
 @export var wall_height: float = 288.0

@@ -68,8 +68,97 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
   Q to change back to the wanderer, Z/X to rotate a placement, and Escape to
   pause. `interact` and `rotate_right` both sat on E until the rotate pair moved
   to Z/X — check for a clash before adding a binding.
-- Ink is level-scoped: twelve normalized canvas diagonals, transactionally reserved
-  while drawing and committed only by a successful morph or stored/placed utility.
+- **A level has two clocks.** Ink is level-scoped: twelve normalized canvas diagonals,
+  transactionally reserved while drawing and committed only by a successful morph or
+  stored/placed utility. `MorphLife` (`game/scripts/morph_life.gd`, a node on
+  `game_level.tscn`) is the second: a drawing stays alive for `seconds` (10 by default,
+  exported on the node — it is balance, not architecture) and then dies, putting the apo
+  back. Ink buys a transformation; life is what keeping it costs. Ten seconds makes a morph
+  a BURST spent on one obstacle rather than a body you travel in, so twelve units of ink
+  reads as "twelve bursts" rather than as a budget for the run. The wanderer is not a
+  drawing and has no life, so nothing ticks while the player is themselves.
+- **Expiry reverts through `_revert_to_base_form()`, the same door Q uses.** That function
+  already lands the apo where the creature stood, re-homes anything it carried and files
+  the telemetry; a second copy of it for the timed case would be a second chance to strand
+  the player in a wall. Redrawing starts a NEW life rather than topping up the old one.
+  The low-life warning goes to `HintBar`, never `DialogueBox` — running out is exactly when
+  the player is mid-jump. The HUD for it is `MorphCard` (top right, where the R-DRAW chip
+  was): the sketch itself, the recogniser's confidence, and the life bar; hidden whenever
+  the player is the apo.
+- **Checkpoints have a visible mark, and it stands on the GROUND.** `CheckpointFlag2D` is
+  planted by `CheckpointArea2D` and raises when the snapshot is written. Before it, a
+  checkpoint was a trigger and a dictionary entry and said nothing at all. It used to be
+  planted at the foot of the trigger BOX, which is not the ground: a trigger is authored
+  tall enough to catch a player jumping through it, so at CP0 the foot of the box was sixty
+  units inside the terrace and the whole flag was buried under the path. The area casts a
+  ray down from the top of its box on its first physics frame and stands the flag on the
+  first thing it meets, at `FLAG_Z` so the terrace tops do not draw over it.
+- **Ang Bale and its interior are the artist's sprites, with collision MEASURED OFF THE
+  ART.** `assets/Level1/hut.png` and `hut_interior.png` come from `level-1-assets/`, reduced
+  to their in-game size offline (`Image.BOX`) so nothing is rescaled at runtime. Every band
+  and post position in `bale_2d.gd` was read out of the picture's own alpha — collision that
+  disagrees with the picture is collision the player walks into thin air to find. The house
+  has **three** posts and a ladder, not four posts.
+- **The hut is drawn at three world pixels to one of the artist's.** Four made it 472 wide
+  and the Overlook is 600 — there was no shelf left in front of it for a ladder to stand in,
+  which `run_level1_audit` asserts. If the art is re-exported, that check is the constraint.
+- **The canvas is picked up, not granted.** It leans against the wall inside the house and is
+  taken by walking into it, like the key in the heap. `_on_bale_exit` takes it for a player
+  who climbed down without it — the painting is why Pista opens, and a player who left it
+  behind would have finished Level 1 with nothing and no way back in.
+- **A room re-reads the profile when it is ENTERED** (`refresh_from_profile`). Rooms are
+  built at level load and entered much later; a snapshot taken at build time goes stale in
+  the worst direction — the room decides its contents are already gone and disarms for good.
+- **`body_entered` is a transition, so a trigger sweeps once when it arms.** A player put
+  down *on top of* a pickup by a teleport never generates an entry. See
+  `BaleInterior2D._sweep_for_taker`.
+- **An exterior and its inside are two different objects, wired the way the heap is.** The
+  house stands on the terrace; its interior is a room parked in the sky above the level, and
+  solving L1_N3 by ANY route steps the same body into it (ink, bag and checkpoints carry
+  in). Walking into the floor hatch steps them back to where they were standing — remembered
+  on the way IN, not computed on the way out.
+- **Both insides answer one question.** Rooms join the `interiors` group and expose
+  `bounds()`, `entry_point()`, `eye_level()`, `how_far_in()`, `exit_rect()`, and optionally
+  `camera_rect()`. `_room_holding_player()` asks each room's own bounds rather than tracking
+  a flag, so a checkpoint restore or a fall that moves the player without going through a
+  doorway cannot strand the camera in room mode. Anything that used to name the straw room
+  specifically — the dialogue framing especially — asks this instead.
+- **`GameLevel._refresh_room_framing()` is the ONE place a room changes anything**, and it
+  runs every physics frame, acting only when the answer changes. It sets four things: the
+  camera's vertical rule, its zoom, the box it may not look out of
+  (`WorldCameraController.set_room_bounds`) and the box a placement may not leave
+  (`PlacementController.set_allowed_area`). Setting them once on the way through a doorway
+  was right for exactly as long as a doorway was the only way in or out, which it is not.
+- **A room clamps the camera to `camera_rect()`, not to `bounds()`.** `bounds()` is what the
+  room OCCUPIES and is the right answer to "is the player in here"; the heap is deliberately
+  longer than a screenful and drawn wider still, so clamping the view to its walkable extent
+  would pin the camera to the middle of it. A room with no opinion falls back to `bounds()`,
+  which is what a single-screen room wants anyway.
+- **A single-screen room must be at least a screenful at its own zoom.** Ang Bale's inside
+  is one 557x314 picture: at 2 a screenful was 800x450 and the room sat in the middle of the
+  frame with a black border painted around it. It is 3 — an INTEGER, so the art's pixel grid
+  survives — and `run_room_probe` asserts the picture still covers the view.
+- **A placement inside a room is HELD inside it.** The reach circle is 360 units, which is
+  arm's length in a valley and most of the screen in a room; a room's floor is a few hundred
+  units long with two thousand units of nothing under it. Aiming past the boards used to put
+  the drawing down in mid-air and confirming dropped it out of the room onto the valley
+  floor. `_held_inside` pins the preview to the room the way the reach circle pins it to
+  arm's length.
+- **`_step_through()` releases any camera focus before it moves anyone.** A dialogue focus
+  held on a speaker the player has just teleported away from points at the wrong place, and
+  `set_base_zoom` *defers while a focus is held* — which is how a walk into a room got drawn
+  at the focus's 1.15 instead of the room's 2. `set_base_zoom` also applies AT ONCE rather
+  than tweening over zero seconds, because the next line is `snap_to_target()` and that
+  works out how much world the camera sees by dividing the viewport by the zoom.
+  The gauge for ink is `InkBrush` (`game/scripts/ink_brush.gd`) — Lola's brush, lit from
+  the handle and going dry toward the bristles, drawn from the two pixel-aligned sheets
+  in `game/assets/hud/`. Both the level HUD and the drawing panel show the same control.
+- **The brush is acquired before any level can be entered.** It stands in a glass case at
+  the end of the hub's wall (`BrushStand2D`); taking it writes `brush_acquired` to the
+  profile, permanently. `LevelManager.open_level()` refuses without it, which is the real
+  gate — the house and the menu's card grid both add their own wording on top, because a
+  refusal the player cannot read is a key press that does nothing. `restart_level()`
+  deliberately does not ask.
 - The environment is asset-light on purpose. Keep `GameplayPlane`, `EntityRoot`,
   `SpawnPoint`, camera, floor, and walls intact when replacing placeholder art.
 
@@ -81,10 +170,14 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
   unreadable. There is no database. It stores unlocked/completed levels,
   drawn-and-accepted classes, acquired objects, route tallies, collectibles, and
   submission counts, and derives class diversity (out of the 50-class roster) and
-  redraw rate, plus unlocked ability tags and cross-level canvas damage. Schema is
+  redraw rate, plus unlocked ability tags and cross-level canvas damage, and whether Lola's
+  brush has been taken (`brush_acquired`, its own field rather than an entry in
+  `acquired_objects`, which holds manifest ids and is what `ConceptGate2D` reads). Schema is
   **v5**; v1-v4 profiles migrate forward keeping their progress, so bump `SCHEMA_VERSION`
-  and extend `MIGRATABLE_SCHEMAS` rather than breaking saves. `test_player_profile.gd`
-  holds `EXPECTED_SCHEMA` as its own literal, so a bump fails the suite loudly until
+  and extend `MIGRATABLE_SCHEMAS` rather than breaking saves. A purely additive field with a
+  safe default needs no bump — `_merge_defaults` starts from the defaults and overlays what
+  it read, which is how `brush_acquired` reached a v5 profile written before it existed.
+  `test_player_profile.gd` holds `EXPECTED_SCHEMA` as its own literal, so a bump fails the suite loudly until
   someone has confirmed the migration carries an old profile rather than wiping it.
 - Object ownership is global and permanent: `record_object_acquired()` on first
   successful recognition, `has_object()` as the backtracking gate query. An owned
@@ -111,9 +204,10 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
   reaches the `GoalMarker` in `game_level.tscn`, which marks it complete and unlocks
   the next level in the profile. `LevelManager.is_unlocked()` and the main menu read
   the profile, so unlocks survive across sessions.
-- `is_unlocked()` (progression) and `is_playable()` (a scene exists) are deliberately
+- `is_unlocked()` (progression), `is_playable()` (a scene exists) and `has_brush()` (the
+  apo is carrying the thing every verb in the game runs through) are deliberately three
   different questions. Offering a card on unlock alone is what enabled a Level 2 that
-  silently did nothing when clicked. A card needs both.
+  silently did nothing when clicked. A card needs all three.
 
 ## UI Contracts
 
@@ -153,6 +247,20 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
   story lines share the box with a different plaque -- the status label is for the game
   talking about itself. Anything that opens with story of its own must
   `call_group(DialogueBox.GROUP, &"hide_line")`.
+- **`hide_line()` ENDS the conversation it was showing.** It used to only fade the frame,
+  leaving `_blocking` true and the rest of the beat in the queue, and three separate bugs
+  came out of that one omission: the tree stayed paused (UIRouter derives pause from
+  `is_open()`), the camera stayed pushed in on the last speaker (the push-in is given back
+  on `conversation_finished`, which never arrived — so the route decision opened framed on
+  a stretch of empty terrace instead of on the player), and the abandoned lines sat in the
+  queue until some unrelated beat called `speak()` and popped the stale one FIRST. It now
+  drops the queue, lifts the block, refreshes the pause and emits `conversation_finished`.
+  `_advance` clears `_blocking` before calling it, so an ordinary ending still fires once.
+- **A decision is framed on the PLAYER.** `_frame_the_decision()` runs after `present()` —
+  after, because opening the overlay takes the running line down and that is what releases
+  the stale focus. The hint bar sits at the TOP of the screen (`HintBar.TOP`), not lifted
+  off the bottom: it never shares the screen with a story line, so it had nothing to clear
+  down there and was sitting across the middle of the play area.
 - **The typeface is Geist Pixel** (SIL OFL 1.1), in `game/ui/fonts/` with its licence. It
   is the theme's DEFAULT font. Its `.import` turns antialiasing, hinting and subpixel
   positioning OFF -- a pixel face rendered like an outline face is a blurry pixel face, and
@@ -175,6 +283,8 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
   — `.godot/` is gitignored, and without it no `class_name` resolves and the game comes
   up behind an undismissable ARE YOU SURE? dialog. See README.
 - Godot physics: `godot --headless --path game --script res://tests/run_tests.gd`
+- The two insides: `godot --headless --path game --script res://tests/run_room_probe.gd`
+- The house, photographed: `godot --path game --script res://tests/run_visual_hub.gd`
 - Profile persistence: `godot --headless --path game --script res://tests/test_player_profile.gd`
 - Aggregate telemetry: `python3 tools/aggregate_telemetry.py <telemetry-dir-or-file>`
 

@@ -55,7 +55,7 @@ func _ready() -> void:
 ## nothing to say why.
 func _skin_controls() -> void:
 	var grabber := UISkin.disc_texture(20, UISkin.CREAM_FILL, UISkin.RING_MID)
-	var grabber_lit := UISkin.disc_texture(20, UISkin.CREAM_LIT, UISkin.LIME)
+	var grabber_lit := UISkin.disc_texture(20, UISkin.CREAM_LIT, UISkin.GOLD)
 	for key: Variant in _sliders.keys():
 		var slider: HSlider = _sliders[key]
 		slider.add_theme_icon_override(&"grabber", grabber)

@@ -74,6 +74,7 @@ func _run() -> void:
 	await _test_placed_props_keep_their_pose()
 	await _test_level_1_needs_drawing()
 	await _test_revert_to_base_form()
+	await _test_morph_life()
 	world.queue_free()
 	registry = null
 	world = null
@@ -404,7 +405,7 @@ func _test_theme_resource() -> void:
 	# all three families untouched is not a palette change.
 	var checks := {
 		"Button": skin.CREAM_FILL,
-		"PrimaryButton": skin.GREEN_FILL,
+		"PrimaryButton": skin.GOLD_FILL,
 		"DangerButton": skin.RED_FILL,
 	}
 	for type_name: String in checks:
@@ -592,6 +593,31 @@ func _test_level_framework() -> void:
 		if bool(entry.get("unlocked", false)):
 			unlocked_count += 1
 	_expect(unlocked_count == 1 and bool(level_manager.call("is_unlocked", "level_1")), "only Level 1 should be unlocked")
+
+	# THE BRUSH IS THE THIRD GATE, asserted first because everything below this runs in the
+	# state a real player is in the moment they walk out of the house holding it.
+	#
+	# Level 1 is both unlocked and playable, so it is the one level where refusing can ONLY
+	# be the brush -- which is what makes it the honest case to check. The game's single
+	# verb is drawing and the brush is where drawing comes from, so a player who walked past
+	# the stand would arrive in Payyo unable to do anything at all.
+	#
+	# IN MEMORY ONLY. This suite must never write user://profile.json, so the flag is set on
+	# the loaded dictionary rather than through record_brush_acquired, which commits -- and
+	# whatever it was on this machine is put back at the end.
+	var profile := root.get_node_or_null("PlayerProfile")
+	_expect(profile != null, "PlayerProfile autoload is unavailable")
+	if profile == null:
+		return
+	var profile_data: Dictionary = profile.get("_data")
+	var had_brush := bool(profile_data.get("brush_acquired", false))
+	profile_data["brush_acquired"] = false
+	_expect(not bool(level_manager.call("has_brush")), "the profile claims a brush it was just denied")
+	_expect(not bool(level_manager.call("open_level", "level_1")),
+		"level 1 opened for a player who has not taken Lola's brush")
+	profile_data["brush_acquired"] = true
+	_expect(bool(level_manager.call("has_brush")), "the profile lost a brush it was just given")
+
 	_expect(not bool(level_manager.call("open_level", "level_2")), "locked Level 2 initiated a transition")
 	_expect(not bool(level_manager.call("open_level", "missing")), "invalid level initiated a transition")
 
@@ -626,6 +652,28 @@ func _test_level_framework() -> void:
 			disabled_cards += 1
 	_expect(disabled_cards == 4, "selector does not expose exactly four locked cards")
 
+	# And with the brush put back on its stand, the fifth locks too. The house is not the
+	# only door -- this grid calls open_level directly -- so a gate that lived only in
+	# hub.gd would leave a card here that opens a level the player cannot play.
+	profile_data["brush_acquired"] = false
+	menu.call("_refresh_cards")
+	await process_frame
+	# Counted over the BUTTONS among the selector's children, the same way the four above
+	# are: the node carries a couple of non-button children and measuring against the raw
+	# child count asserts something about them instead.
+	var offered := 0
+	var buttons := 0
+	for card in cards:
+		if not (card is Button):
+			continue
+		buttons += 1
+		if not (card as Button).disabled:
+			offered += 1
+	_expect(offered == 0,
+		"%d of %d cards are still offered without Lola's brush" % [offered, buttons])
+	profile_data["brush_acquired"] = true
+	menu.call("_refresh_cards")
+
 	# The dead card, stated directly. Level 2's card must be disabled REGARDLESS of
 	# what progression thinks, because no scene exists behind it -- and the previous
 	# code disabled it only on is_unlocked, so finishing level 1 in a real session
@@ -652,6 +700,9 @@ func _test_level_framework() -> void:
 	await create_timer(0.5).timeout
 	_expect(not bool(menu.call("is_selector_open")), "selector did not collapse back into Play")
 	menu.queue_free()
+	# Left exactly as it was found. Nothing here was written to disk, but the autoload
+	# outlives this test and the ones after it would otherwise inherit a brush.
+	profile_data["brush_acquired"] = had_brush
 	await process_frame
 
 
@@ -973,6 +1024,90 @@ func _test_level_1_needs_drawing() -> void:
 ## in the right place with every bit of their speed silently dropped. That last one passes
 ## any test that only asks "is the player a stickman again", which is why the velocity is
 ## asserted separately and against a live morph rather than a hand-built dictionary.
+## A drawing is not permanent: it has a life, and when the life runs out the apo is
+## themselves again wherever the creature was standing.
+##
+## THE CLOCK IS SHORTENED FOR THE TEST, not simulated. MorphLife counts real seconds off
+## _process, so the honest way to watch it expire is to give this one a one-second fuse and
+## let the tree run -- which exercises the same countdown, the same expiry signal and the
+## same revert the forty-five-second version does, in a suite that has to finish.
+func _test_morph_life() -> void:
+	var packed := load("res://game_level.tscn") as PackedScene
+	if packed == null:
+		_expect(false, "game level scene did not load")
+		return
+	var level := packed.instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	world.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await process_frame
+	await process_frame
+
+	var life := level.get_node_or_null("MorphLife")
+	_expect(life != null, "the level has no MorphLife: a drawing would last forever")
+	if life == null:
+		level.queue_free()
+		await process_frame
+		return
+
+	# THE APO IS NOT A DRAWING and must not have a bar. Checked first because it is the
+	# state the level starts in, and a life that ticks for the wanderer would revert the
+	# player out of a body they never drew.
+	_expect(not bool(life.call("is_alive")),
+		"the wanderer has a life clock running, so being yourself expires")
+	_expect(String(life.call("form_name")).is_empty(),
+		"the HUD would name a form the player has not drawn")
+
+	life.set("seconds", 1.0)
+	var drawing := Image.create(512, 512, false, Image.FORMAT_RGBA8)
+	drawing.fill(Color.WHITE)
+	var panel := level.get_node("DrawPanel") as DrawPanel
+	panel.open_panel()
+	panel.set("_pending_strokes", SpiderReferenceFixtures.separate_legs())
+	level.get_node("InkManager").call("reserve_attempt", 1.0)
+	panel.call("_on_entity_prediction", "spider", "Spider", 0.99, drawing, {})
+	await process_frame
+
+	_expect(not (level.get("player") is Wanderer),
+		"drawing a spider did not replace the wanderer, so there is no life to run down")
+	_expect(bool(life.call("is_alive")), "the drawing was adopted without starting its life")
+	_expect(String(life.call("form_name")) == "Spider",
+		"the plate names '%s' rather than the drawing that was adopted" % String(life.call("form_name")))
+
+	# Half a second in: draining, not yet gone. Both bounds matter -- a clock stuck at full
+	# and a clock that jumped to zero would each pass one of them alone.
+	await create_timer(0.5, true).timeout
+	var ratio := float(life.call("remaining_ratio"))
+	_expect(ratio > 0.0 and ratio < 1.0, "the life clock reads %.2f half a second in" % ratio)
+
+	# And out the other side. The revert goes through the same door Q uses, so what is
+	# asserted is what the player sees: their own body back, and the plate empty.
+	await create_timer(0.8, true).timeout
+	_expect(not bool(life.call("is_alive")), "the life clock ran past zero and kept going")
+	_expect(level.get("player") is Wanderer,
+		"the drawing expired and the player was left in it")
+	_expect(String(life.call("form_name")).is_empty(),
+		"the drawing expired and the HUD still names it")
+
+	# Redrawing is a NEW life, not the remains of the old one -- otherwise topping up a
+	# second before death would be the cheapest way to live forever.
+	panel.open_panel()
+	panel.set("_pending_strokes", SpiderReferenceFixtures.separate_legs())
+	level.get_node("InkManager").call("reserve_attempt", 1.0)
+	panel.call("_on_entity_prediction", "spider", "Spider", 0.99, drawing, {})
+	await process_frame
+	_expect(is_equal_approx(float(life.call("remaining_ratio")), 1.0),
+		"a redrawn creature started at %.2f rather than full" % float(life.call("remaining_ratio")))
+
+	# And Q stops the clock, so a reverted player carries no countdown into their own body.
+	level.call("_revert_to_base_form")
+	await process_frame
+	_expect(not bool(life.call("is_alive")), "changing back with Q left the life clock running")
+
+	level.queue_free()
+	await process_frame
+
+
 func _test_revert_to_base_form() -> void:
 	_expect(InputMap.has_action("revert_form"), "no revert_form action: Q is bound to nothing")
 	if InputMap.has_action("revert_form"):

@@ -197,7 +197,12 @@ func _refresh_cards() -> void:
 		var title := String(entry.get("title", level_id))
 		var playable := LevelManager.is_playable(level_id)
 		var unlocked := LevelManager.is_unlocked(level_id)
-		card.disabled = not (unlocked and playable)
+		# THREE QUESTIONS, and the card is only offered when all three answer yes. The
+		# brush is the third: open_level refuses without it, so a card that ignored it
+		# would be the same enabled-button-that-does-nothing the note below is about --
+		# only worse, because the reason is a room the player has not been in yet.
+		var armed := LevelManager.has_brush()
+		card.disabled = not (unlocked and playable and armed)
 		var completed: bool = profile != null and profile.is_level_completed(level_id)
 		# Tint completed cards green while preserving the alpha the reveal tween drives.
 		var rgb := Color(0.66, 0.94, 0.70) if completed else Color.WHITE
@@ -207,6 +212,8 @@ func _refresh_cards() -> void:
 			card.tooltip_text = "%s — not made yet" % title
 		elif not unlocked:
 			card.tooltip_text = "%s — locked" % title
+		elif not armed:
+			card.tooltip_text = "%s — take Lola's brush in the house first" % title
 		elif completed:
 			card.tooltip_text = "%s — completed" % title
 		else:
