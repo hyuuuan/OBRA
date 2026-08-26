@@ -23,6 +23,14 @@ signal camera_moved(camera_position: Vector2)
 ## nothing. This is not `focus_on`, deliberately: focus is what a line of dialogue takes and
 ## gives back, and a room would lose its framing the moment somebody finished a sentence.
 @export var vertical_free: bool = false
+## THE TOP OF THE PAINTED SKY, which is not the top of the world any more.
+##
+## The world grew a thousand units of headroom so the room inside the straw heap has
+## somewhere to be, and the camera's ceiling came with it -- so flying up as a bird went
+## straight past the sky and showed the black above it. The bounds are for physics; this is
+## for the camera, and in ordinary play it stops here. Somewhere that brings its own
+## backdrop turns `vertical_free` on and is allowed the rest.
+@export var sky_top_y: float = -520.0
 
 var target: Node2D = null
 ## What the camera is pushed in on for a beat, and how far. Null means it is doing its
@@ -198,7 +206,9 @@ func _vertical_follow_y(target_y: float) -> float:
 
 
 func _min_camera_y() -> float:
-	return world_bounds.position.y + _viewport_size().y * 0.5
+	var top := world_bounds.position.y if vertical_free \
+		else maxf(world_bounds.position.y, sky_top_y)
+	return top + _viewport_size().y * 0.5
 
 
 func _max_camera_y() -> float:

@@ -577,21 +577,22 @@ shape = SubResource("RectangleShape2D_3uax6")
 [node name="Dayami" type="Node2D" parent="GameplayPlane" unique_id=291343289]
 
 [node name="StrawPileA" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1230508619]
-position = Vector2(3030, 240)
+position = Vector2(3026, 240)
 script = ExtResource("23_3uax6")
-pile_size = Vector2(104, 74)
+pile_size = Vector2(104, 72)
 
 [node name="StrawPileB" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1226213335]
 z_index = 2
 position = Vector2(3180, 240)
 script = ExtResource("23_3uax6")
-pile_size = Vector2(190, 150)
+pile_size = Vector2(208, 144)
 entrance = true
 
 [node name="StrawPileC" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1006328619]
-position = Vector2(3290, 240)
+position = Vector2(3296, 240)
 script = ExtResource("23_3uax6")
-pile_size = Vector2(88, 62)
+pile_size = Vector2(104, 72)
+flipped = true
 
 [node name="FoldingStool" type="Sprite2D" parent="GameplayPlane/Dayami" unique_id=1479238481]
 position = Vector2(2990, 240)
@@ -605,12 +606,12 @@ offset = Vector2(0, -19)
 texture = SubResource("Atlas_jar")
 
 [node name="Baul" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319160]
-z_index = 41
+z_index = 2
 position = Vector2(2140, -900)
 script = ExtResource("24_vekj0")
 
 [node name="StrawRoom" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319161]
-z_index = 40
+z_index = 0
 position = Vector2(1900, -900)
 script = ExtResource("24_strawroom")
 

@@ -123,6 +123,14 @@ it is pressed are literally the same string. **CP1** on commit.
 Three heaps of cut straw, Lola's stool and brush jar, and **the one place in Level 1 with an
 inside**: the middle heap is 220 × 200 and you can walk into it.
 
+**The art is Kent's.** The heap is `level-1-assets/Haybale.png` and the room's wall is
+`Haybale Interior Idea.png`, both cut by `tools/build_art.py`. One picture serves four
+states: the cutter also produces a **mouthless copy** (the doorway filled by mirroring the
+straw from the far side of the heap, feathered), so intact and combed draw the solid one and
+tunnelled draws the one with the hole. The ants are drawn and animated in code from a
+reference — ⚠ `ant pixel art.webp` is a **watermarked stock image**, a thing to work from
+and not a thing to ship.
+
 **Going in is a press.** Standing in the mouth only makes the offer — the hint bar says so
 and names the key out of the live InputMap. Down is the platformer's key for a door and is
 unused outside a ladder. ⚠ It cannot be a walk-in: Terrace5 is the way to Node 3 and the
