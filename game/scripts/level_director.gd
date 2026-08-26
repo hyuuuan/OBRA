@@ -38,7 +38,12 @@ const LEVEL_PATH := "res://config/level_01.json"
 ## is trying and failing and one who is stuck staring both want help, and only one of
 ## them is generating attempts.
 const TIER_IDLE_SECONDS := [0.0, 30.0, 90.0, 180.0]
-const TIER_ATTEMPTS := [0, 0, 2, 4]
+## T1 OPENS ON THE FIRST MISS. It was 0, meaning "never by failure", so a player who was
+## actively drawing and getting it wrong could not reach T1 at all -- only standing still
+## for thirty seconds did that, and someone trying things is not standing still. They got
+## nothing until the second failure took them to T2. A wrong answer is the clearest request
+## for help there is, and T1 only names the tags.
+const TIER_ATTEMPTS := [0, 1, 2, 4]
 const MAX_TIER := 3
 
 var _level: Dictionary = {}

@@ -79,6 +79,7 @@ func _run() -> void:
 	_audit_ward_lock()
 	await _audit_node_three()
 	await _audit_arrival_speaks_once()
+	await _audit_a_miss_says_why()
 	# LAST. It opens the completion overlay, which pauses the tree, and a paused tree
 	# makes every physics check after it read zero.
 	await _audit_completion_gate()
@@ -1193,6 +1194,62 @@ func _audit_arrival_speaks_once() -> void:
 			await physics_frame
 		_check(not bool(level.call("_read_nearest_sign")), "out of range it does nothing",
 			"400px away is not standing at the board")
+
+	level.queue_free()
+	await process_frame
+
+
+## --- 13. A drawing that does not fit says so, and counts ----------------------------
+##
+## Two failures that looked like one. A submission was judged against the volume the PLAYER
+## is standing in, and Beat 0's volume did not reach the left bank -- which is where you
+## stand to put something on the plank, because the plank is in the water and you cannot
+## swim. So every drawing placed from there was judged against no obstacle at all: no
+## attempt counted, no tier moved, no requirement strip appeared, and the beat never
+## registered as solved even when the plank physically sank.
+##
+## And a miss said nothing. The verdict was computed and thrown away, so the player watched
+## their drawing land and got silence whether the game had noticed or not.
+func _audit_a_miss_says_why() -> void:
+	var packed := load("res://game_level.tscn") as PackedScene
+	var level := packed.instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	# A CONVERSATION STOPS THE TREE, and this check needs real physics: walking a body into
+	# a volume is the thing under test. Without the dismiss, `await physics_frame` never
+	# advances, body_entered never fires, and every case below fails for that reason
+	# instead of the one it is asking about.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await create_timer(1.2, true).timeout
+
+	var director_node = level.get("director")
+	var hint = level.get("hint_bar")
+	var player := level.get("player") as Node2D
+
+	# The left bank: LowerLeft runs x 0..340 with its surface at y 560, and the plank the
+	# first sub-beat is about floats at x 490. There is nowhere else to stand.
+	player.global_position = Vector2(320.0, 500.0)
+	for _frame in range(20):
+		await physics_frame
+	_check(String(director_node.current_obstacle()) == "B0_HAGDAN",
+		"the bank counts as being at the beat",
+		"standing at x 320, director is at '%s'" % director_node.current_obstacle())
+
+	# Sub-beat 1 wants Roll. A frog leaps.
+	level.call("_judge_submission", "frog")
+	await process_frame
+	_check(director_node.attempts("B0_HAGDAN") == 1, "a miss from the bank counts",
+		"%d attempt(s) recorded" % director_node.attempts("B0_HAGDAN"))
+	_check(director_node.hint_tier("B0_HAGDAN") >= 1, "one miss opens T1",
+		"tier %d -- a wrong answer is a request for help" % director_node.hint_tier("B0_HAGDAN"))
+
+	var said := String(hint.call("current_text"))
+	_check(said.contains("LEAP") and said.contains("ROLL"),
+		"the miss says what it can do and what is needed", said)
+	# The requirement's own tag, not a class that would satisfy it: naming the player's own
+	# drawing is fine, naming the answer is the thing the tag layer exists to prevent.
+	_check(not said.to_lower().contains("circle") and not said.to_lower().contains("wheel"),
+		"and it does not name a class that would work", said)
 
 	level.queue_free()
 	await process_frame
