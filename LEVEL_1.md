@@ -250,10 +250,49 @@ as its own literal so a bump fails loudly until the migration is confirmed.
 
 ---
 
+## Arrival speaks once
+
+`<obstacle>.enter` and `L1_N2.inside` play themselves the **first** time and never again.
+`DialogueScript.has_heard` tracks it per hook; `game_level._speak_on_arrival` is the only
+caller allowed to fire an arrival.
+
+This is not the same as a line's authored `once`, which means "spent, never again for
+anyone" and is right for the refusal beat. Arrival lore stays **readable** — it moves to
+the interact key at the beat's `STORY` board (see **HUD_SKIN.md**).
+
+*Why.* The straw heap sits inside `L1_N2`'s trigger and so does the ledge the player lands
+on climbing back out, so leaving the heap re-entered the obstacle and replayed two lines of
+Lolo with the world paused — every time. `L1_N1` is seven lines. A narrower volume does not
+fix it: a trigger that contains the thing it is about is a trigger the player crosses more
+than once. The beat needs a memory, not a smaller box.
+
+The volumes were narrowed anyway, because they were firing story hundreds of pixels before
+the thing it was about, and `B0_HAGDAN` began 80px from the spawn point. `trigger_size` is
+now the single source of truth — `level_obstacle_2d.gd` fits the authored `RectangleShape2D`
+to it at `_ready`, so the exported number and the scene's shape can no longer disagree.
+
+| Obstacle | Spans | What is in it |
+|---|---|---|
+| `B0_HAGDAN` | 430 – 950 | the floating plank (490), the three broken treads (800–884) |
+| `L1_N1` | 2170 – 2550 | the dialogue node (2330), the dead tree (2360), the ruined bridge (2400) |
+| `L1_N2` | 2960 – 3360 | the three straw piles (2974–3348), on Terrace5 |
+| `L1_N3` | 3410 – 3790 | the bale's floor (3500–3740) and both bululs |
+
+No two overlap now; `L1_N2` and `L1_N3` used to share 20px.
+
+---
+
 ## Hint ladder
 
-T0 says nothing · T1 names the tags · T2 adds the player's **own** qualifying drawings ·
-T3 widens the accept-set to the union of all three routes.
+T0 says nothing · T1 names the tags **and glosses them** · T2 adds the player's **own**
+qualifying drawings · T3 widens the accept-set to the union of all three routes.
+
+**T1 prints what the tag means, not only its name.** "NEEDS SPAN" names the problem without
+describing it, and the tags are this game's invention — nobody arrives knowing them. Each
+carries a one-line gloss ("long and stiff enough to lie across a gap and take your weight")
+authored in `GLOSS` in `tools/build_tags.py`. Every gloss describes a **property and names
+no class**, which is the constraint the whole tag layer exists to hold; the strip joins
+several with *or* / *and* from the spec's own `match` rule rather than a house style.
 
 T3 is the only tier that changes the rules, and it replaces per-obstacle fallback authoring.
 Two things must stay true through it: the **tally records the choice** made at the dialogue,
