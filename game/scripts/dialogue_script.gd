@@ -27,6 +27,7 @@ const DEFAULT_SPEAKER := "lolo"
 var _by_hook: Dictionary = {}      # hook -> Array[Dictionary]
 var _by_id: Dictionary = {}        # line id -> Dictionary
 var _fired_once: Dictionary = {}   # line id -> true, for `once`
+var _heard: Dictionary = {}        # hook -> true, for beats that play themselves once
 var _flags: Dictionary = {}        # narrative flags, e.g. knows_about_key
 var _level_id := ""
 
@@ -35,6 +36,7 @@ func load_from(path: String) -> bool:
 	_by_hook.clear()
 	_by_id.clear()
 	_fired_once.clear()
+	_heard.clear()
 	var text := FileAccess.get_file_as_string(path)
 	if text.is_empty():
 		push_error("DialogueScript: %s is missing or empty" % path)
@@ -76,11 +78,29 @@ func hooks() -> Array:
 ## of playing them -- use `peek` if you only want to look.
 func fire(hook: String) -> Array:
 	var out := peek(hook)
+	if not out.is_empty():
+		_heard[hook] = true
 	for line_value: Variant in out:
 		var line: Dictionary = line_value
 		if bool(line.get("once", false)):
 			_fired_once[String(line.get("id", ""))] = true
 	return out
+
+
+## Whether this hook has ever played. Distinct from `once`, and the two do different jobs:
+## `once` is authored per line and means "this line is spent, never give it to anyone
+## again", which is right for the refusal beat and wrong for an arrival. A beat of arrival
+## lore should still be READABLE afterwards -- it is the level telling you where you are --
+## it just must not seize the screen every time you walk back through the door.
+##
+## THE BUG THIS EXISTS FOR. Level 1's straw heap sits inside L1_N2's trigger, and so does
+## the spot the player is put down on when they climb back out of it. Leaving the heap
+## therefore re-entered the obstacle, which re-fired `L1_N2.enter`, which paused the world
+## for two lines of Lolo -- every single time. L1_N1 is worse: seven lines. The volume was
+## not the fault, and neither was the sign standing next to it; the fault was that arrival
+## had no memory.
+func has_heard(hook: String) -> bool:
+	return _heard.has(hook)
 
 
 func peek(hook: String) -> Array:

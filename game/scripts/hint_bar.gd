@@ -119,6 +119,14 @@ func current_speaker() -> String:
 	return _speaker.text
 
 
+## What the bar is saying right now. One channel carries several voices -- Lolo's advice
+## about the obstacle, the way into the straw heap, the key that re-reads a board -- and a
+## writer that wants to take its own message down has to be able to tell whether the
+## message still IS its own. Clearing unconditionally takes somebody else's with it.
+func current_text() -> String:
+	return _text.text
+
+
 func _process(delta: float) -> void:
 	# Stood down while the box is speaking, and back up the moment it closes. Suppressed
 	# rather than cancelled: the hint the director asked for is still the current one, so a
