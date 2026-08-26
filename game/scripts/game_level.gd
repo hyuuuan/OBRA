@@ -51,6 +51,10 @@ var _submerged_seconds := 0.0
 var _straw_return := Vector2.ZERO
 ## Whether she is standing in the heap's doorway, and so whether Down means "go in".
 var _at_straw_mouth := false
+## The "press E to read" prompt while it is up, so the hint bar is written to on the frame
+## it changes rather than on every frame the player stands still -- and so it can be taken
+## down again only while it is still the thing on the bar.
+var _sign_prompt := ""
 @onready var complete_overlay: ModalOverlay = $LevelCompleteOverlay
 @onready var out_of_ink_overlay: ModalOverlay = $OutOfInkOverlay
 @onready var dialogue_overlay: ModalOverlay = $DialogueChoiceOverlay
@@ -180,7 +184,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
-		_interact_with_nearest_utility()
+		# A drawing you can reach comes first. Both are "the thing in front of you" and
+		# both are on one key, but only one of them is something the player put there --
+		# reading a board instead of picking up the ladder you just placed would be the
+		# game ignoring you, while the reverse is a key press that says nothing this time.
+		if not _interact_with_nearest_utility():
+			_read_nearest_sign()
 	elif event.is_action_pressed("use_utility"):
 		get_viewport().set_input_as_handled()
 		_use_equipped_utility()
@@ -308,7 +317,7 @@ func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
 
 
 func _on_obstacle_entered(obstacle_id: String) -> void:
-	_speak(script_lines_l1.fire("%s.enter" % obstacle_id))
+	_speak_on_arrival("%s.enter" % obstacle_id)
 	# A node teaches all three of its routes' verbs BEFORE the choice, because a player
 	# cannot choose a path whose verb they have never been told.
 	var teaches: Array = director.obstacle(obstacle_id).get("teaches_before_choice", [])
@@ -317,6 +326,104 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 		director.teach_before_choice(obstacle_id)
 	_speak_current_stage(obstacle_id)
 	_refresh_requirements()
+
+
+## ARRIVAL SPEAKS ONCE. Walking in somewhere is news the first time and an interruption
+## every time after it, and the level is full of places the player walks into twice: the
+## straw heap sits inside L1_N2's trigger and so does the ledge they are put back on when
+## they climb out of it, so leaving the heap re-entered the obstacle and re-fired two lines
+## of Lolo with the world paused. At L1_N1 it is seven lines.
+##
+## Narrowing the volumes was worth doing on its own and does not fix this: a trigger that
+## contains the thing it is about will always be a trigger the player crosses more than
+## once. The beat needs a memory, not a smaller box.
+##
+## THE LINES ARE NOT LOST, they move to a key. The board standing at the beat re-reads them
+## on the interact key -- see _read_nearest_sign -- so a player who walked in mid-jump can
+## still get the arrival, and one who has heard it can walk past in silence.
+func _speak_on_arrival(hook: String) -> void:
+	if script_lines_l1.has_heard(hook):
+		return
+	_speak(script_lines_l1.fire(hook))
+
+
+## The board the player is standing at, if it has something to say again. Nearest wins, so
+## two beats whose signs are within reach of one spot resolve rather than fighting.
+func _readable_sign() -> Signpost2D:
+	if player == null or not is_instance_valid(player):
+		return null
+	var origin := player.global_position
+	var nearest: Signpost2D
+	var nearest_distance := Signpost2D.READ_RANGE
+	for node in get_tree().get_nodes_in_group(&"signposts"):
+		var board := node as Signpost2D
+		if board == null or not board.can_be_read_from(origin):
+			continue
+		# ONLY ONCE IT HAS ALREADY PLAYED. Before that the beat is still going to announce
+		# itself when they walk in, and a board offering to tell them something they are
+		# about to be told anyway is a key press that changes nothing.
+		if not script_lines_l1.has_heard(board.reads):
+			continue
+		var distance := origin.distance_to(board.global_position)
+		if distance <= nearest_distance:
+			nearest = board
+			nearest_distance = distance
+	return nearest
+
+
+## Say a board's lines again, on the key. Fired rather than peeked, so a `once` line that
+## was spent the first time stays spent -- re-reading an arrival is not a way to collect a
+## beat the level meant you to get exactly one of.
+func _read_nearest_sign() -> bool:
+	var board := _readable_sign()
+	if board == null:
+		return false
+	var lines := script_lines_l1.fire(board.reads)
+	if lines.is_empty():
+		return false
+	_speak(lines)
+	return true
+
+
+## Light the board the player is standing at, and say which key reads it. Driven from the
+## physics step rather than from a signal because there is nothing to signal on -- the
+## player walks toward a sign, and nothing about a sign is a trigger.
+##
+## THE HINT BAR IS A SHARED CHANNEL and this is the least important thing on it. Lolo's
+## advice about the obstacle in front of you and the way into the straw heap both live
+## here, both matter more than an offer to re-read a line you have already heard, and
+## either can be on screen when the player wanders past a board.
+##
+## So the prompt only ever writes to an EMPTY bar and only ever clears its own text. The
+## first cut did neither and cost two hints: it overwrote "draw something that can span the
+## gap" the moment the player stepped near the sign at the same beat, and then cleared
+## whatever had replaced it on the way out.
+func _offer_the_nearest_sign() -> void:
+	var board := _readable_sign()
+	for node in get_tree().get_nodes_in_group(&"signposts"):
+		var other := node as Signpost2D
+		if other != null:
+			other.offer(other == board)
+	if hint_bar == null:
+		return
+	# The claim lapses the moment somebody writes over us -- the straw heap's doorway does
+	# exactly that. Held blindly, the flag would say the prompt is still up long after it
+	# was replaced, and the offer would never appear again for the rest of the run.
+	if not _sign_prompt.is_empty() and hint_bar.current_text() != _sign_prompt:
+		_sign_prompt = ""
+	if board == null:
+		if not _sign_prompt.is_empty():
+			hint_bar.clear()
+			_sign_prompt = ""
+		return
+	if not _sign_prompt.is_empty():
+		return
+	# Somebody else is talking on this bar. The board is lit, which already says it can be
+	# read; the sentence can wait until the bar is free.
+	if hint_bar.is_showing():
+		return
+	_sign_prompt = "Press %s to read the sign" % ControlsKeys.keys_for("interact")
+	hint_bar.show_hint(_sign_prompt)
 
 
 ## Lolo asking for the thing this sub-beat needs -- "gumuhit ka ng kayang span".
@@ -361,7 +468,8 @@ func _refresh_requirements() -> void:
 		spec.get("required_tags", []),
 		String(spec.get("match", "all")),
 		spec.get("exclude", []))
-	requirement_strip.show_requirements(director.required_tags(), director.hint_tier(), owned)
+	requirement_strip.show_requirements(director.required_tags(), director.hint_tier(), owned,
+		String(spec.get("match", "all")))
 
 
 ## The checkpoint is written HERE, on the commit, not on the solve -- so that every morph
@@ -449,7 +557,7 @@ func _on_straw_entered() -> void:
 	# she actually used.
 	_straw_return = _beside_the_mouth()
 	_step_through(Vector2(room.call("entry_point")))
-	_speak(script_lines_l1.fire("L1_N2.inside"))
+	_speak_on_arrival("L1_N2.inside")
 
 
 func _on_straw_exit() -> void:
@@ -1205,9 +1313,11 @@ func _on_utility_consumed(utility: UtilityObject) -> void:
 	status_label.text = "Key consumed"
 
 
-func _interact_with_nearest_utility() -> void:
+## True when it actually reached something, so the interact key can fall through to
+## whatever else is standing here.
+func _interact_with_nearest_utility() -> bool:
 	if player == null or not is_instance_valid(player):
-		return
+		return false
 	var origin := player.global_position
 	if player.has_method("get_physics_anchor"):
 		var anchor := player.call("get_physics_anchor") as Node2D
@@ -1229,9 +1339,11 @@ func _interact_with_nearest_utility() -> void:
 		if distance <= nearest_distance:
 			nearest = utility
 			nearest_distance = distance
-	if nearest != null:
-		_connect_utility(nearest)
-		nearest.interact(player)
+	if nearest == null:
+		return false
+	_connect_utility(nearest)
+	nearest.interact(player)
+	return true
 
 
 ## POINT AT IT AND TAKE IT BACK. E reaches 96px, which is no help once a drawing has rolled
@@ -1519,6 +1631,7 @@ func _physics_process(_delta: float) -> void:
 		return
 	if player == null or not is_instance_valid(player):
 		return
+	_offer_the_nearest_sign()
 	var anchor_position := player.global_position
 	if player.has_method("get_physics_anchor"):
 		var anchor := player.call("get_physics_anchor") as Node2D
