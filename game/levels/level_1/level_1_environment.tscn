@@ -607,7 +607,7 @@ texture = SubResource("Atlas_jar")
 
 [node name="Baul" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319160]
 z_index = 2
-position = Vector2(2140, -900)
+position = Vector2(2076, -900)
 script = ExtResource("24_vekj0")
 
 [node name="StrawRoom" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319161]

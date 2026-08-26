@@ -147,18 +147,22 @@ columns and read as a shaded dome with scratches on it.
 
 ### Inside the heap · `game/scripts/straw_room_2d.gd` · 1 at (1900, −900)
 
-**DELIVERED ART.** `level-1-assets/Haybale Interior Idea.png`, cut to a **tileable strip**
-by `tools/build_art.py` — 400 wide off the left end, which is wall and floor and nothing
-else. The chest and the canvas painted into the middle of Kent's version are real nodes in
-this level; the baul outlives this room.
+**BUILT, NOT PAINTED — and it took three goes.** A cutaway of the heap read as a close-up of
+a haystack. Kent's delivered interior, tiled across the room, read as "a mere drawing". What
+was missing both times is that a room is *made*: it has courses, joints, a lintel over the
+door and a floor laid in bands. `hub_room.gd` is that argument already won once, so this is
+the same argument in straw.
 
 | | |
 |---|---|
-| **Now** | A **1700 × 900 room** in the empty sky, reachable only through the heap's mouth. The strip tiles across it, **mirrored on alternate tiles** — its two edges are different straw, so butting copies put a hard seam every 400 units. It carries its own floor line (1096 down the 400 × 1660 tile) and the level lines that up with the ground the apo stands on. |
-| **Extended** | The strip is 680 tall and the camera sees 780, so the straw band is repeated **flipped** upward (vertical stalks upside down are still vertical stalks; a straight repeat seams) and the dirt downward. |
-| **In it** | Lola's canvas (the hub's own `level_2.png` at exactly 2×, in the stepped gilt the pictures in the house wear), a **brass key** on the floor, the **baul**, and the **ants**. |
-| **The way out** | Drawn over the top, because the delivered interior has no doorway: a ragged arch of daylight with straw hanging across it, and the light it throws on the floor. It is the only bright thing in the room, which is what makes it read as the way out without a label. |
-| **Must read as** | Somewhere much bigger than the hole suggested. |
+| **The ruler** | The apo, exactly as in the house: 96px for a child of about 1.30 m puts a **metre at 72 px**, and every number carries the metres it came from. A four-metre wall because that is a barn. A doorway one metre by two. A chest at knee height. |
+| **Seen at 2**, like the house | The level is drawn at 1 because it is a valley; a room is somewhere you stand in, so the camera comes in until the room fills the frame and the apo is a fifth of its height. The camera is **pinned at the room's eye level** rather than following her, or the framing slides as she walks. |
+| **The wall** | **Thatch on a frame.** A first cut stacked bound *bales* in a running bond, and however much the tone and grain varied, the eye found the boxes before the material — crisp rectangles are right for timber and wrong for straw. So: vertical straw in **clumps** (a run of strands shares a tone and a length), held by horizontal **split-bamboo binding poles** at four heights plus a sill, with nodes and lashings. The structure comes from the frame; the material stays soft. |
+| **Lit from the door** | The straw falls a value darker past 62% of the room's length. It is the only thing in here saying the far end is further away — there is nowhere else for light to come from inside a heap. |
+| **The floor** | Trodden earth in courses, the way the boards in the house are: bands a shade apart, a hairline joint, grit and wisps of straw walked into it, and the doorway's light spilling across it. |
+| **The way out** | An opening with a **pole lintel** over it — a hole with nothing over it reads as damage, not a door — and the valley beyond as three bands: sky, the terrace behind, the earth she is standing on. |
+| **Drawn 480 units past the walls she can reach** | The camera sees 400 either side at this zoom and she can walk to the end wall, so a room drawn only as far as it is walkable puts its own edge on screen with the level's sky behind it. Safe to be generous **because the room is not drawn at all while she is somewhere else** — left switched on it painted the whole valley, which is what "the map in the overworld is still black at some parts" was. |
+| **In it** | Lola's canvas (the hub's own `level_2.png`, in the stepped gilt the pictures in the house wear, hung with a shadow under it), the **baul**, a **brass key** on the floor, and the **ants**. |
 
 ### The ants · `game/scripts/straw_ants_2d.gd` · 5 on the floor of the room
 
