@@ -2,8 +2,18 @@ extends Node2D
 
 @export var debug_timing_logs: bool = false
 
+## WHERE THE INTERFACE NAMES A KEY. The doorway into the straw prompts for one, and the
+## controls screen already translates a physical keycode through the active layout so a
+## non-QWERTY player is not told to press the wrong thing. Preloaded rather than reached by
+## class name, because controls_overlay.gd declares none.
+const ControlsKeys = preload("res://scripts/controls_overlay.gd")
+
 ## A morph whose anchor comes within this radius of the level's GoalMarker completes it.
 const GOAL_RADIUS := 120.0
+## The key on the nail in the heap. One name, read by the room that grants it and the door
+## it opens -- see straw_room_2d.gd's collectible_id.
+const FOUND_KEY := "L1_bale_key"
+
 ## What the box's plaque says when the line is the player's own thought rather than Lolo's
 ## voice. "Apo" is what Lolo calls them, so it is the name the player already knows.
 const APO_SPEAKER := "Apo"
@@ -24,6 +34,8 @@ const WANDERER_SCENE := "res://creatures/wanderer.tscn"
 @onready var inventory_hud: InventoryHUD = $CanvasLayer/InventoryHUD
 @onready var draw_panel: DrawPanel = $DrawPanel
 @onready var ink_manager: InkManager = $InkManager
+## The level's SECOND clock. Ink buys a drawing; this is how long the drawing lasts.
+@onready var morph_life: MorphLife = $MorphLife
 @onready var inventory_manager: InventoryManager = $InventoryManager
 @onready var placement_controller: PlacementController = $PlacementController
 @onready var goal_marker: Node2D = get_node_or_null("EnvironmentBaseplate/GameplayPlane/GoalMarker")
@@ -32,6 +44,20 @@ const WANDERER_SCENE := "res://creatures/wanderer.tscn"
 ## Built in code rather than authored into the scene, like the requirement strip: it owns
 ## its own frame and gauge and there is nothing to lay out by hand.
 var hud_panel: HudPanel
+## Top right: the drawing the player is currently wearing, and how long it has left.
+var morph_card: MorphCard
+## What the recogniser scored the sketch that is currently being adopted.
+##
+## Carried on the level rather than threaded through _spawn_or_replace, which is called from
+## three places and cares about none of it. The score belongs to the SUBMISSION, and the
+## submission is the thing that set this a moment before the morph -- see _on_drawing_ready.
+var _last_confidence := 0.0
+## Where the apo was standing on the terrace when they got into Ang Bale, so the ladder puts
+## them back there rather than at a guess. Remembered on the way in, like _straw_return.
+var _bale_return := Vector2.ZERO
+## The inside the camera and the placement reach are currently framed for, or null for the
+## level itself. See _refresh_room_framing.
+var _framed_room: Node2D = null
 ## The framed box every story line is shown in. Built here rather than authored into the
 ## scene because it is pure presentation with no state to save and nothing to wire.
 var dialogue_box: DialogueBox
@@ -41,6 +67,18 @@ var hint_bar: HintBar
 var _chips: Array = []
 ## How long the player has been under the water in their own body.
 var _submerged_seconds := 0.0
+## Where on the terrace to put the apo back when she comes out of the straw room.
+var _straw_return := Vector2.ZERO
+## Whether she is standing in the heap's doorway, and so whether Down means "go in".
+var _at_straw_mouth := false
+## The "press E to read" prompt while it is up, so the hint bar is written to on the frame
+## it changes rather than on every frame the player stands still -- and so it can be taken
+## down again only while it is still the thing on the bar.
+var _sign_prompt := ""
+## Ang Bale's padlock, which judges the STROKES of a drawn key rather than its class.
+var ward_lock: WardLock2D
+## The same, for the offer to open Ang Bale with the key found in the heap.
+var _key_prompt := ""
 @onready var complete_overlay: ModalOverlay = $LevelCompleteOverlay
 @onready var out_of_ink_overlay: ModalOverlay = $OutOfInkOverlay
 @onready var dialogue_overlay: ModalOverlay = $DialogueChoiceOverlay
@@ -113,6 +151,9 @@ func _ready() -> void:
 	out_of_ink_overlay.connect(&"restart_pressed", _on_restart_requested)
 	out_of_ink_overlay.connect(&"level_select_pressed", LevelManager.return_to_house)
 	ink_manager.ink_exhausted.connect(_on_ink_exhausted)
+	morph_life.life_changed.connect(_on_life_changed)
+	morph_life.life_expired.connect(_on_life_expired)
+	morph_life.form_changed.connect(_on_form_changed)
 	_run_started_msec = Time.get_ticks_msec()
 	_apply_level_identity()
 	_build_obstacle_layer()
@@ -164,9 +205,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		_take_back_under_cursor(
 			get_viewport().get_canvas_transform().affine_inverse() * click.position)
 		return
+	if event.is_action_pressed("move_down") and _at_straw_mouth:
+		get_viewport().set_input_as_handled()
+		_on_straw_entered()
+		return
 	if event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
-		_interact_with_nearest_utility()
+		# A drawing you can reach comes first. Both are "the thing in front of you" and
+		# both are on one key, but only one of them is something the player put there --
+		# reading a board instead of picking up the ladder you just placed would be the
+		# game ignoring you, while the reverse is a key press that says nothing this time.
+		if not _interact_with_nearest_utility() and not _use_the_found_key():
+			_read_nearest_sign()
 	elif event.is_action_pressed("use_utility"):
 		get_viewport().set_input_as_handled()
 		_use_equipped_utility()
@@ -217,6 +267,15 @@ func _build_obstacle_layer() -> void:
 	script_lines_l1 = DialogueScript.new()
 	script_lines_l1.load_from("res://config/dialogue_l1.json")
 
+	# Ang Bale's padlock. It draws nothing and sits nowhere -- it is a measurement, not a
+	# prop -- so it is built here beside the director rather than authored into the scene.
+	# level_01.json has declared L1_N3's Pragmatist route as `ward_matching_sequence` since
+	# the route existed; until now nothing read that, the route was a plain Unlock tag
+	# check, and WardLock2D was a class with a unit test and no caller.
+	ward_lock = WardLock2D.new()
+	ward_lock.name = "WardLock"
+	add_child(ward_lock)
+
 	requirement_strip = RequirementStrip.new()
 	requirement_strip.name = "RequirementStrip"
 	# Clear of the keybind strip, which sits at -108 and was being covered by this at
@@ -237,6 +296,32 @@ func _build_obstacle_layer() -> void:
 	director.hint_tier_changed.connect(_on_hint_tier_changed)
 	director.route_committed.connect(_on_obstacle_route_committed)
 	director.obstacle_solved.connect(_on_obstacle_solved)
+
+	# WALKING INTO THE HEAP IS FINDING THE CHEST. Node 2's routes uncover it too, and
+	# reveal() is idempotent, so a player who searches the straw first and one who simply
+	# ducks inside both end up looking at the same thing -- but the room is drawn the moment
+	# she is in it, and an interior with a picture on the wall and nothing on the floor is a
+	# room the level forgot to furnish.
+	for node in get_tree().get_nodes_in_group(&"bale_interiors"):
+		if node.has_signal(&"exit_reached"):
+			node.connect(&"exit_reached", _on_bale_exit)
+		if node.has_signal(&"painting_taken"):
+			node.connect(&"painting_taken", _on_painting_taken)
+		# What is in the room besides the canvas. The HINT channel, not the story box: none
+		# of it is a beat, none of it may pause the world, and it clears itself.
+		if node.has_signal(&"noticed"):
+			node.connect(&"noticed", _on_room_notice)
+		if node.has_signal(&"notice_left"):
+			node.connect(&"notice_left", _on_room_notice_left)
+
+	for node in get_tree().get_nodes_in_group(&"straw_piles"):
+		if node.has_signal(&"at_mouth"):
+			node.connect(&"at_mouth", _on_straw_mouth)
+	for node in get_tree().get_nodes_in_group(&"straw_rooms"):
+		if node.has_signal(&"key_taken"):
+			node.connect(&"key_taken", _on_straw_key_taken)
+		if node.has_signal(&"exit_reached"):
+			node.connect(&"exit_reached", _on_straw_exit)
 
 	# Checkpoints you walk into, for the beats with no dialogue to hang one on.
 	for node in get_tree().get_nodes_in_group(&"checkpoint_areas"):
@@ -280,7 +365,7 @@ func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
 
 
 func _on_obstacle_entered(obstacle_id: String) -> void:
-	_speak(script_lines_l1.fire("%s.enter" % obstacle_id))
+	_speak_on_arrival("%s.enter" % obstacle_id)
 	# A node teaches all three of its routes' verbs BEFORE the choice, because a player
 	# cannot choose a path whose verb they have never been told.
 	var teaches: Array = director.obstacle(obstacle_id).get("teaches_before_choice", [])
@@ -289,6 +374,127 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 		director.teach_before_choice(obstacle_id)
 	_speak_current_stage(obstacle_id)
 	_refresh_requirements()
+
+
+## ARRIVAL SPEAKS ONCE. Walking in somewhere is news the first time and an interruption
+## every time after it, and the level is full of places the player walks into twice: the
+## straw heap sits inside L1_N2's trigger and so does the ledge they are put back on when
+## they climb out of it, so leaving the heap re-entered the obstacle and re-fired two lines
+## of Lolo with the world paused. At L1_N1 it is seven lines.
+##
+## Narrowing the volumes was worth doing on its own and does not fix this: a trigger that
+## contains the thing it is about will always be a trigger the player crosses more than
+## once. The beat needs a memory, not a smaller box.
+##
+## THE LINES ARE NOT LOST, they move to a key. The board standing at the beat re-reads them
+## on the interact key -- see _read_nearest_sign -- so a player who walked in mid-jump can
+## still get the arrival, and one who has heard it can walk past in silence.
+func _speak_on_arrival(hook: String) -> void:
+	if script_lines_l1.has_heard(hook):
+		return
+	_speak(script_lines_l1.fire(hook))
+
+
+## The board the player is standing at, if it has something to say again. Nearest wins, so
+## two beats whose signs are within reach of one spot resolve rather than fighting.
+func _readable_sign() -> Signpost2D:
+	if player == null or not is_instance_valid(player):
+		return null
+	var origin := player.global_position
+	var nearest: Signpost2D
+	var nearest_distance := Signpost2D.READ_RANGE
+	for node in get_tree().get_nodes_in_group(&"signposts"):
+		var board := node as Signpost2D
+		if board == null or not board.can_be_read_from(origin):
+			continue
+		# ONLY ONCE IT HAS ALREADY PLAYED. Before that the beat is still going to announce
+		# itself when they walk in, and a board offering to tell them something they are
+		# about to be told anyway is a key press that changes nothing.
+		if not script_lines_l1.has_heard(board.reads):
+			continue
+		var distance := origin.distance_to(board.global_position)
+		if distance <= nearest_distance:
+			nearest = board
+			nearest_distance = distance
+	return nearest
+
+
+## Say a board's lines again, on the key. Fired rather than peeked, so a `once` line that
+## was spent the first time stays spent -- re-reading an arrival is not a way to collect a
+## beat the level meant you to get exactly one of.
+func _read_nearest_sign() -> bool:
+	var board := _readable_sign()
+	if board == null:
+		return false
+	var lines := script_lines_l1.fire(board.reads)
+	if lines.is_empty():
+		return false
+	_speak(lines)
+	return true
+
+
+## Light the board the player is standing at, and say which key reads it. Driven from the
+## physics step rather than from a signal because there is nothing to signal on -- the
+## player walks toward a sign, and nothing about a sign is a trigger.
+##
+## THE HINT BAR IS A SHARED CHANNEL and this is the least important thing on it. Lolo's
+## advice about the obstacle in front of you and the way into the straw heap both live
+## here, both matter more than an offer to re-read a line you have already heard, and
+## either can be on screen when the player wanders past a board.
+##
+## So the prompt only ever writes to an EMPTY bar and only ever clears its own text. The
+## first cut did neither and cost two hints: it overwrote "draw something that can span the
+## gap" the moment the player stepped near the sign at the same beat, and then cleared
+## whatever had replaced it on the way out.
+func _offer_the_nearest_sign() -> void:
+	var board := _readable_sign()
+	for node in get_tree().get_nodes_in_group(&"signposts"):
+		var other := node as Signpost2D
+		if other != null:
+			other.offer(other == board)
+	if hint_bar == null:
+		return
+	# The claim lapses the moment somebody writes over us -- the straw heap's doorway does
+	# exactly that. Held blindly, the flag would say the prompt is still up long after it
+	# was replaced, and the offer would never appear again for the rest of the run.
+	if not _sign_prompt.is_empty() and hint_bar.current_text() != _sign_prompt:
+		_sign_prompt = ""
+	if board == null:
+		if not _sign_prompt.is_empty():
+			hint_bar.clear()
+			_sign_prompt = ""
+		return
+	if not _sign_prompt.is_empty():
+		return
+	# Somebody else is talking on this bar. The board is lit, which already says it can be
+	# read; the sentence can wait until the bar is free.
+	if hint_bar.is_showing():
+		return
+	_sign_prompt = "Press %s to read the sign" % ControlsKeys.keys_for("interact")
+	hint_bar.show_hint(_sign_prompt)
+
+
+## THE KEY IN THE BAG HAS TO ANNOUNCE ITSELF. A player can pick it off the nail at Node 2
+## and reach the house twenty minutes later; expecting them to remember that a brass key
+## they found in a straw heap is the answer to this particular door, and to guess that the
+## interact key is how you offer it, is expecting them to read the code. So the door says
+## so, on the same bar and under the same rule as the sign prompt: an empty bar only, and it
+## clears only its own words.
+func _offer_the_found_key() -> void:
+	if hint_bar == null:
+		return
+	if not _key_prompt.is_empty() and hint_bar.current_text() != _key_prompt:
+		_key_prompt = ""
+	if not _found_key_would_open():
+		if not _key_prompt.is_empty():
+			hint_bar.clear()
+			_key_prompt = ""
+		return
+	if not _key_prompt.is_empty() or hint_bar.is_showing():
+		return
+	_key_prompt = "You are carrying her key  —  press %s to try it" \
+		% ControlsKeys.keys_for("interact")
+	hint_bar.show_hint(_key_prompt, Lolo.SPEAKER)
 
 
 ## Lolo asking for the thing this sub-beat needs -- "gumuhit ka ng kayang span".
@@ -333,7 +539,8 @@ func _refresh_requirements() -> void:
 		spec.get("required_tags", []),
 		String(spec.get("match", "all")),
 		spec.get("exclude", []))
-	requirement_strip.show_requirements(director.required_tags(), director.hint_tier(), owned)
+	requirement_strip.show_requirements(director.required_tags(), director.hint_tier(), owned,
+		String(spec.get("match", "all")))
 
 
 ## The checkpoint is written HERE, on the commit, not on the solve -- so that every morph
@@ -366,13 +573,18 @@ func _on_obstacle_solved(obstacle_id: String, route: String, label: String, atte
 ## Silent when there is no obstacle, which is most of the level: drawing a frog in an
 ## empty paddy is a thing the player is allowed to do for its own sake, and answering it
 ## with "that is not what this needs" would turn the whole level into a quiz.
-func _judge_submission(entity_id: String) -> void:
+func _judge_submission(entity_id: String, strokes: Array = []) -> void:
 	if director == null or director.current_obstacle().is_empty():
+		return
+	if _ward_refuses(entity_id, strokes):
 		return
 	var verdict := director.note_submission(entity_id)
 	# The strip re-reads the director either way: a solve moves it to the next stage, and
 	# a miss may have opened the next hint tier.
 	_refresh_requirements()
+	if not bool(verdict["solves"]):
+		_say_it_did_not_fit(entity_id, verdict)
+		return
 	if bool(verdict["solves"]) and not String(verdict["stage_id"]).is_empty():
 		# Beat 0's sub-beats have their own lines ("B0_HAGDAN.sub1.solved"); a route's
 		# second stage does not, and reports an empty stage id rather than a missing hook.
@@ -382,6 +594,351 @@ func _judge_submission(entity_id: String) -> void:
 		# The next sub-beat has to ask for itself, or the second half of the tutorial is
 		# silent and the player is left guessing what changed.
 		_speak_current_stage(String(verdict["obstacle_id"]))
+
+
+## RECOGNITION IS NOT THE PUZZLE AT ANG BALE'S DOOR.
+##
+## Everywhere else in the level a class is the answer: the obstacle asks for Span and a
+## ladder is a ladder. Here the recogniser only gets the player through the door -- once it
+## accepts `key`, the lock measures THEIR OWN STROKES against the slot: how many bits they
+## drew, how deep, and how long the blade is against its width. A key that is recognisably a
+## key and the wrong shape turns partway and stops.
+##
+## This is the level's clearest demonstration of the thesis's own claim that the drawing IS
+## the entity rather than a token standing in for one, and it is a geometric test on vector
+## data, NOT a CNN function. The model recognises a class and has no opinion about whether a
+## particular key fits a particular lock.
+##
+## Returns true when the lock refused, which means the caller must NOT go on to judge the
+## submission: a key that did not turn has not solved anything.
+##
+## NOBODY FAILS PERMANENTLY -- the third turn opens it whatever was drawn. Being locked out
+## of a tutorial level by a padlock is not a lesson.
+func _ward_refuses(entity_id: String, strokes: Array) -> bool:
+	if ward_lock == null or entity_id != "key":
+		return false
+	if director.current_obstacle() != "L1_N3" or director.is_solved("L1_N3"):
+		return false
+	# A key with no strokes behind it is not a drawn key -- a fixture, or one restored from
+	# a checkpoint. The lock has nothing to measure, so it stands aside and the ordinary
+	# Unlock tag check answers.
+	if strokes.is_empty():
+		return false
+	var turn := ward_lock.try_key(strokes)
+	if bool(turn["opens"]):
+		return false
+	# It turned and stopped. The attempt is real and is counted as one, which is what moves
+	# the hint tier -- the player tried and it did not work -- and it is counted WITHOUT a
+	# class, because the class was right and the shape was wrong. Pushing it through
+	# note_submission would need an entity id, and any id put there is a class nobody drew
+	# landing in the per-class figures the evaluation rests on.
+	director.note_failed_attempt("L1_N3", "ward_%s" % String(turn["reason"]))
+	_refresh_requirements()
+	_speak(script_lines_l1.fire("L1_N3.ward.fail%d" % int(turn["attempt"])))
+	if hint_bar != null:
+		hint_bar.show_hint(_ward_note(String(turn["reason"]), turn["measured"]),
+			Lolo.SPEAKER)
+	Telemetry.record_event("ward_attempt", {
+		"level_id": LevelManager.current_level_id, "obstacle_id": "L1_N3",
+		"attempt": turn["attempt"], "reason": turn["reason"], "measured": turn["measured"],
+	})
+	return true
+
+
+## WHICH PROPERTY WAS WRONG, said out loud.
+##
+## The authored fail lines carry the drama and say nothing actionable -- "It turned, then
+## stopped. The teeth are too thick." A player who cannot see what the lock measured has
+## three tries at a shape nobody described, and the third opens it regardless, which turns
+## the whole sequence into a wait rather than a puzzle.
+##
+## So the hint channel names the one measurement that failed, and the number it read, and
+## never the number it wants. Knowing you drew four teeth when the lock counted them is
+## enough to draw three; being told "draw three" is the spelling test this level is built
+## to avoid.
+func _ward_note(reason: String, measured: Dictionary) -> String:
+	match reason:
+		"bits":
+			return "It counted %d teeth on that one." % int(measured.get("bits", 0))
+		"depth":
+			return "The teeth are the wrong depth for this ward."
+		"aspect":
+			return "Too stubby for that slot — a longer blade."
+		_:
+			return "It turned, and stopped."
+
+
+## The key off the nail in the heap opens Ang Bale, and that is the whole chain: what you
+## find in the heap is the way into the house, and what you find in the house is the
+## painting of the next place.
+##
+## It answers the Pragmatist route, the one that asks for Unlock -- so a player who took the
+## trouble to get up to the nail does not also have to draw a key, and one who never went
+## inside still can. The route is committed the ordinary way rather than the obstacle being
+## marked solved behind the director's back, so the tally, CP3 and the telemetry all record
+## it exactly as they would a drawn key.
+##
+## NOT A TAG MATCH AND NOT ASSISTED EITHER. `note_submission` is the wrong door for this: it
+## takes a recognised CLASS, and this is a thing already in the bag. It is recorded as its
+## own kind of solve so Chapter 5 can count "opened it with the key they found" separately
+## from "drew a key that fitted", which are different claims about the same lock.
+func _use_the_found_key() -> bool:
+	if director == null or director.current_obstacle() != "L1_N3":
+		return false
+	if director.is_solved("L1_N3"):
+		return false
+	if not PlayerProfile.is_collectible_found(FOUND_KEY):
+		return false
+	director.commit_route("L1_N3", "pragmatist")
+	director.solve_with_item("L1_N3", FOUND_KEY)
+	Telemetry.record_event("obstacle_solved", {
+		"level_id": LevelManager.current_level_id,
+		"obstacle_id": "L1_N3", "route": "pragmatist", "accepted_label": FOUND_KEY,
+		"solved_with": "found_item", "attempts": director.attempts("L1_N3"),
+		"hint_tier": director.hint_tier("L1_N3"), "assisted": false,
+	})
+	return true
+
+
+## Whether the house can be opened with what is already in the bag, so the level can offer
+## it rather than leaving the player to guess that a key they picked up an hour ago is the
+## answer to the door in front of them.
+func _found_key_would_open() -> bool:
+	return director != null and director.current_obstacle() == "L1_N3" \
+		and not director.is_solved("L1_N3") \
+		and PlayerProfile.is_collectible_found(FOUND_KEY)
+
+
+## A DRAWING THAT DOES NOT WORK USED TO SAY NOTHING AT ALL.
+##
+## This is the single biggest reason the hint ladder was not helping: a player could draw,
+## place, and watch the thing land, and the game would not say whether it had even noticed.
+## The verdict was computed, the attempt was counted, the tier moved -- and the only outward
+## sign of any of it was a strip in the corner that says what is needed, never what was
+## wrong with what you just tried. Drawing repeatedly into silence reads as a game that is
+## broken, not as a game that is asking for something else.
+##
+## So a miss now answers, in the hint channel, which never stops play: what the thing you
+## drew CAN do, and what this needs.
+##
+## IT NAMES THE PLAYER'S OWN DRAWING AND THAT IS ALLOWED. The rule the tag layer exists to
+## hold is that the game must not name a class it would ACCEPT -- that turns a puzzle with
+## four answers into a spelling test. Reflecting back the class the player themselves just
+## chose gives away nothing they did not already know, and it is the same thing the strip
+## already does at T2 with "you have drawn: circle". Without it the sentence has to say
+## "that" and the player is left matching a pronoun to one of six things on screen.
+func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
+	if hint_bar == null:
+		return
+	var needed := _tag_phrase(verdict.get("required_tags", []),
+		String(director.requirement_spec().get("match", "all")))
+	if needed.is_empty():
+		return
+	var drawn := entity_id.replace("_", " ")
+	var mine: Array = AbilityTags.tags_for_class(entity_id)
+	var text := ""
+	if mine.is_empty():
+		# One of the roster's unhintable classes -- a clock, a bee. It carries no tag at
+		# all, so there is nothing to contrast, only the requirement to repeat.
+		text = "A %s cannot do this. It needs something that can %s." % [drawn, needed]
+	else:
+		text = "A %s can %s. This needs something that can %s." % [
+			drawn, _tag_phrase(mine, "any"), needed]
+	hint_bar.show_hint(text, Lolo.SPEAKER)
+
+
+## Tag names as the player sees them everywhere else: upper case, joined by the rule the
+## requirement actually uses. Shared with the strip's vocabulary on purpose -- SPAN in
+## Lolo's mouth, SPAN on the strip and SPAN in the Ability Book have to be one word.
+func _tag_phrase(tags: Array, match: String) -> String:
+	var parts := PackedStringArray()
+	for tag_value: Variant in tags:
+		parts.append(String(AbilityTags.display_name(String(tag_value))).to_upper())
+	if parts.is_empty():
+		return ""
+	if parts.size() == 1:
+		return parts[0]
+	var joiner := " or " if match == "any" else " and "
+	return joiner.join(parts)
+
+
+## Standing in the doorway of the heap. The offer, not the act.
+##
+## Walking in cannot be walking in: Terrace5 is the way to Node 3 and the mouth is on it, so
+## a heap that swallows whoever walks past is a hole in the floor of the level. run_nodraw
+## found that on the first run -- its walk east stopped at the doorway and never reached the
+## bale. Down is the platformer's key for a door, it is bound and unused outside a ladder,
+## and the prompt reads the live InputMap rather than naming a letter that a rebinding could
+## make a lie.
+func _on_straw_mouth(standing: bool) -> void:
+	_at_straw_mouth = standing
+	if hint_bar == null:
+		return
+	if standing:
+		hint_bar.show_hint("There is a way in under the straw  —  press %s"
+			% ControlsKeys.keys_for("move_down"))
+	else:
+		hint_bar.clear()
+
+
+## Ducking into the heap, which is the only place in Level 1 with an inside -- and the
+## inside is a room the size of a screen sitting in the empty sky above the level, not a
+## cutaway of the heap where the heap stands. A little hole and a big room is the whole
+## point of it, and it does not survive the two being the same size.
+##
+## It is the same body in the same level, so ink, the bag, the drawing panel and every
+## checkpoint carry in with her. Lolo comes too without being asked: he teleports to his
+## target past 900px and the room is thousands away.
+func _on_straw_entered() -> void:
+	var room := get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	if room == null or player == null or not is_instance_valid(player):
+		_uncover_the_baul()
+		return
+	# CLEAR OF THE MOUTH, or coming back out walks straight into it again and the room is a
+	# trap. Remembered on the way in rather than computed on the way out, so it is the heap
+	# she actually used.
+	_straw_return = _beside_the_mouth()
+	_step_through(Vector2(room.call("entry_point")))
+	# ARRIVING FIRST, THEN THE CHEST. `speak` appends to the queue, so the order these are
+	# called in is the order the player reads them -- and uncovering first put "Locked. Of
+	# course.", which is the line that CLOSES this node, ahead of "you can stand up in here",
+	# which is the line that opens the room. The player was told about a lock they had not
+	# seen yet, in a room they had not been told they were in.
+	_speak_on_arrival("L1_N2.inside")
+	_uncover_the_baul()
+
+
+func _on_straw_exit() -> void:
+	if _straw_return != Vector2.ZERO:
+		_step_through(_straw_return)
+
+
+## A spot on the terrace beside the way in, far enough off it that walking out does not
+## count as walking back in.
+func _beside_the_mouth() -> Vector2:
+	for node in get_tree().get_nodes_in_group(&"straw_piles"):
+		var pile := node as Node2D
+		if pile == null or not bool(pile.get("entrance")):
+			continue
+		var mouth := Rect2(pile.call("mouth_rect"))
+		return pile.global_position + Vector2(mouth.position.x - 46.0, 0.0)
+	return player.global_position if player != null else Vector2.ZERO
+
+
+## Through the straw and out the other side. Deferred because both ends of this can run
+## inside a body_entered callback, and moving the player out from under the physics
+## mid-signal is the same class of mistake as switching an area's monitoring there.
+##
+## NO FADE, AND NO TRANSITION OF ANY KIND. It had one, and it was wrong: a doorway you have
+## already chosen to walk through does not want a beat of black in the middle of it, and at
+## a fifth of a second twice it read as the game stopping to load. Press down and you are
+## inside.
+func _step_through(to: Vector2) -> void:
+	_walk_through.call_deferred(to)
+
+
+func _walk_through(to: Vector2) -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	player.call("apply_morph_state", {"position": to, "linear_velocity": Vector2.ZERO})
+	# And it has to arrive already framed: easing across four thousand units is a whip pan
+	# through the whole level.
+	_refresh_room_framing(true)
+
+
+## Point the camera and the placement reach at whichever inside the player is standing in,
+## or back at the level when they are out on the terrace.
+##
+## ASKED EVERY FRAME AND ACTED ON ONLY WHEN THE ANSWER CHANGES. This used to be set once, on
+## the way through a doorway, which is correct for exactly as long as a doorway is the only
+## way in or out of a room -- and it is not. A checkpoint restore, a fall, a morph or an
+## expiry can all move the player between a room and the terrace without going through one,
+## and every one of them left the camera framing somewhere the player no longer was. Asking
+## `_room_holding_player` is the whole point of that function existing.
+##
+## WHAT A ROOM CHANGES, in order:
+##  - the vertical rule: a level pins the camera near the ground, a room in the sky cannot;
+##  - how far in it sits, which is the room's own number;
+##  - the box it may not look out of, so the void the room is parked in never shows;
+##  - and the box a placement may not leave, which is what stopped drawings being dropped
+##    through the floor of a room and onto the valley two thousand units below it.
+func _refresh_room_framing(snap: bool = false) -> void:
+	var room := _room_holding_player()
+	if room == _framed_room and not snap:
+		return
+	_framed_room = room
+	var world_camera := _world_camera()
+	if world_camera == null:
+		return
+	# LET GO OF WHATEVER THE CAMERA WAS LOOKING AT. Stepping through a doorway teleports the
+	# player thousands of units; a dialogue focus held on a speaker they have just left is
+	# pointing at the wrong place by definition. It also has to be dropped BEFORE the zoom
+	# is set, because set_base_zoom defers while a focus is held -- which is how a walk into
+	# a room ended up drawn at the focus's 1.15 instead of the room's 2.
+	world_camera.release_focus(0.0)
+	var inside := room != null
+	world_camera.set_vertical_free(inside,
+		float(room.call("eye_level")) if inside else NAN)
+	world_camera.set_base_zoom(float(room.call("how_far_in")) if inside else 1.0)
+	world_camera.set_room_bounds(_camera_rect_for(room) if inside else Rect2())
+	if placement_controller != null:
+		placement_controller.set_allowed_area(
+			Rect2(room.call("bounds")) if inside else Rect2())
+	if snap:
+		world_camera.snap_to_target()
+
+
+## The box the camera may not look out of, for a room that has an opinion about it.
+##
+## Rooms answer `bounds()` with the box they OCCUPY, which is the right answer for "is the
+## player in here" and the wrong one for framing: the heap is deliberately longer than a
+## screenful and is drawn wider still, so clamping the camera to its walkable extent would
+## pin the view to the middle of it and let the apo walk out of frame. A room that cares says
+## so; one that does not gets its bounds, which is what a single-screen room wants anyway.
+func _camera_rect_for(room: Node2D) -> Rect2:
+	if room.has_method("camera_rect"):
+		return Rect2(room.call("camera_rect"))
+	return Rect2(room.call("bounds"))
+
+
+## The interior the apo is standing in, or null if they are out on the terrace.
+##
+## Asked of each room's own bounds rather than tracked with a flag, so a checkpoint restore
+## or a fall that moves them without going through a doorway cannot leave the camera in room
+## mode -- which is the bug this shape exists to make impossible.
+func _room_holding_player() -> Node2D:
+	if player == null or not is_instance_valid(player):
+		return null
+	for node in get_tree().get_nodes_in_group(&"interiors"):
+		var room := node as Node2D
+		if room == null:
+			continue
+		if Rect2(room.call("bounds")).grow(90.0).has_point(player.global_position):
+			return room
+	return null
+
+
+## The key off the floor of the straw room. It does not open the chest beside it and it is
+## not meant to: that lock is Node 3's, and this one belongs to somewhere the player has
+## only seen as a painting. Recorded on the PROFILE rather than on a checkpoint, for the
+## same reason canvas damage is -- a death two beats later must not take it back.
+func _on_straw_key_taken() -> void:
+	_speak(script_lines_l1.fire("L1_N2.key"))
+	_take_the_bale_key("off_the_nail")
+
+
+## The brass key, however it was come by: off the nail inside the heap, or out of the wreck
+## of one. StrawRoom2D writes the profile itself when the nail is reached, so this is
+## idempotent on purpose -- it is the telemetry and the hint that must not fire twice, and
+## the profile that must not care how many times it is told.
+func _take_the_bale_key(how: String) -> void:
+	if PlayerProfile.is_collectible_found(FOUND_KEY):
+		return
+	PlayerProfile.record_collectible(FOUND_KEY)
+	Telemetry.record_event("collectible", {
+		"level_id": LevelManager.current_level_id,
+		"obstacle_id": "L1_N2", "collectible": FOUND_KEY, "found_by": how,
+	})
 
 
 ## Ang Dayami: three ways to find the same chest, and they are not the same.
@@ -409,6 +966,12 @@ func _search_the_straw(route: String) -> void:
 		"protector":
 			for pile in piles:
 				pile.scatter()
+			# WRECKING THE HEAP TURNS THE KEY OUT OF IT. The nail is inside, out of reach,
+			# and a player who blew the whole heap across the terrace has plainly got at
+			# whatever was hanging in it -- refusing them the key would mean the fast route
+			# locks the door the slow one opens. It is the same key by the same name, so
+			# taking both routes cannot yield two.
+			_take_the_bale_key("straw_scattered")
 			# The cost, recorded rather than described: Lolo says nothing about it here and
 			# mentions it at the marker stone, and the exit line is gated on this flag.
 			script_lines_l1.set_flag("straw_scattered")
@@ -423,9 +986,15 @@ func _search_the_straw(route: String) -> void:
 ## Three passes, and the middle two are the reward. Slowest route, and the only one that
 ## surfaces anything besides the chest.
 func _comb_the_piles() -> void:
-	await get_tree().create_timer(0.7).timeout
+	# PAUSE-AWARE, all four of the level's narrative timers. `create_timer` counts down while
+	# the tree is stopped unless it is told not to, and the tree is stopped exactly when a
+	# beat is on screen being read -- so a beat timed to land a second and a half after the
+	# last one landed while the player was still on the first line of it, and the two arrived
+	# together. Waiting on real seconds that only pass while the game is running is what
+	# "a beat later" was always supposed to mean.
+	await get_tree().create_timer(0.7, false).timeout
 	_speak(script_lines_l1.fire("L1_N2.artist.pass2"))
-	await get_tree().create_timer(1.4).timeout
+	await get_tree().create_timer(1.4, false).timeout
 	_speak(script_lines_l1.fire("L1_N2.artist.pass3"))
 	# What the page is FOR. Node 3's Artist route reads this flag, so the patient player
 	# arrives already knowing where to look.
@@ -436,16 +1005,32 @@ func _comb_the_piles() -> void:
 	})
 
 
+## The chest, uncovered -- by the route that dug it out, or by ducking into the heap and
+## finding it standing there.
+##
+## SAID ONCE. Both of those happen more than once: the route can be re-run and the heap can
+## be walked into as often as the player likes, and every single entry re-fired "Locked. Of
+## course." with the world stopped for it. A line that closes a beat is news the first time
+## and an interruption every time after, which is the whole argument written on
+## _speak_on_arrival -- so this goes through the same door.
 func _uncover_the_baul() -> void:
 	for node in get_tree().get_nodes_in_group(&"baul"):
 		var chest := node as Baul2D
 		if chest != null:
 			chest.reveal()
-	_speak(script_lines_l1.fire("L1_N2.solved"))
+	_speak_on_arrival("L1_N2.solved")
 
 
 ## Ang Bale: three ways into the same chest, and the third one costs something.
+## GETTING IN IS THE SOLVE; THE PAINTING IS PICKED UP. It used to be granted here, the
+## instant the route landed, which made the room a cutscene with a floor -- the reward
+## arrived before the player had looked at anything. It leans against the wall in there now
+## and is taken by walking into it, the same way the key in the heap is taken.
 func _open_the_baul(route: String) -> void:
+	# IN FIRST, THEN THE BEAT. The route lines are said by people standing in the house, and
+	# saying them before the player is moved framed the camera on a speaker out on the
+	# terrace while the apo was already a thousand units up in the room.
+	await _into_the_bale()
 	match route:
 		"artist":
 			await _into_the_attic()
@@ -465,7 +1050,6 @@ func _open_the_baul(route: String) -> void:
 				"cross_level_effect": "L2_PISTA.hidden_flower_2.unreachable",
 			})
 			_speak(script_lines_l1.fire("L1_N3.protector.solved"))
-	_grant_the_canvas()
 
 
 ## Over the thatch and in under the eaves. The halipan are what make this the way in rather
@@ -482,9 +1066,9 @@ func _into_the_attic() -> void:
 			.get("artist", {})
 			.get("search_time_modifier_if_flag", {})
 			.get("knows_about_key", 1.0))
-	await get_tree().create_timer(search).timeout
+	await get_tree().create_timer(search, false).timeout
 	_speak(script_lines_l1.fire("L1_N3.attic.found"))
-	await get_tree().create_timer(1.2).timeout
+	await get_tree().create_timer(1.2, false).timeout
 	_speak(script_lines_l1.fire("L1_N3.artist.photo"))
 	Telemetry.record_event("route_reward", {
 		"level_id": LevelManager.current_level_id,
@@ -492,6 +1076,86 @@ func _into_the_attic() -> void:
 		"knew_about_key": script_lines_l1.is_flag_set("knows_about_key"),
 		"search_seconds": search,
 	})
+
+
+## In, by whichever way was taken.
+##
+## THE HOUSE HAS AN INSIDE, and this is where the player finally sees it. All three routes
+## arrive here because all three are ways THROUGH THE SAME WALL -- over the thatch, through
+## the door, or through the hasp -- and what is on the other side does not change according
+## to how you got there. The beats above still differ; the room does not.
+##
+## It is the arrangement the heap already uses: the room is parked in the sky a long way
+## from the terrace, and this is the same body walking into it, so ink, the bag and every
+## checkpoint carry in. Where they came from is remembered on the way IN rather than worked
+## out on the way out, so the ladder puts them back exactly where they were standing.
+func _into_the_bale() -> void:
+	var room := get_tree().get_first_node_in_group(&"bale_interiors") as Node2D
+	if room == null or player == null or not is_instance_valid(player):
+		return
+	# IDEMPOTENT, and it has to be. Node 3 reaches this by more than one path -- the solve
+	# and the route both arrive here -- and a second call while the player is already inside
+	# would overwrite the terrace spot with a spot IN THE ROOM. The ladder would then put
+	# them back into the house they had just climbed out of, which is a trap that only shows
+	# up on the way out and reads as the exit being broken.
+	if _room_holding_player() == room:
+		return
+	# The room was built when the level loaded and is being entered now; the profile may
+	# have moved in between. See BaleInterior2D.refresh_from_profile.
+	if room.has_method("refresh_from_profile"):
+		room.call("refresh_from_profile")
+	_bale_return = player.global_position
+	_step_through(Vector2(room.call("entry_point")))
+	# The step is deferred, so anything that frames a camera on the player has to wait a
+	# frame for them to actually be in the room.
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
+## Something in a room worth a sentence, and the sentence going away again.
+##
+## It takes the bar back down only if the bar is still saying what this put there -- one
+## channel carries several voices, and clearing unconditionally takes somebody else's message
+## with it. Same rule the straw mouth's prompt follows.
+func _on_room_notice(text: String) -> void:
+	if hint_bar != null:
+		hint_bar.show_hint(text)
+
+
+func _on_room_notice_left() -> void:
+	if hint_bar == null:
+		return
+	for entry: Variant in BaleInterior2D.NOTICES:
+		if hint_bar.current_text() == String((entry as Dictionary)["text"]):
+			hint_bar.clear()
+			return
+
+
+## Lola's canvas, off the floor of her own house.
+##
+## IT USED TO SAY "ON THE NAIL. JUST AS SHE SAID." That line is `L1_N3.attic.found` and it is
+## about the BRASS in the roof space on the Artist route -- the one line in the level that
+## fires from a timer while the player is walking about. Firing it here meant picking the
+## canvas up was answered with a sentence about something else entirely, in a room the player
+## had already searched, which is exactly what "dialogue pops up randomly" looks like from the
+## outside. The canvas has its own beat now.
+func _on_painting_taken() -> void:
+	_speak(script_lines_l1.fire("L1_N3.canvas.taken"))
+	_grant_the_canvas()
+
+
+## Back down the ladder, onto the terrace they climbed from.
+##
+## AND THEY DO NOT LEAVE WITHOUT IT. The painting is the reason Pista opens and the reason
+## this level is over; a player who climbed down without walking into it would have solved
+## Node 3, satisfied the goal marker, and finished Level 1 with nothing to show for it and
+## no way back in. So the ladder takes it for them -- you would not leave it -- which costs
+## the deliberate player nothing and cannot strand the distracted one.
+func _on_bale_exit() -> void:
+	if not PlayerProfile.has_object("canvas_2_pista"):
+		_grant_the_canvas()
+	if _bale_return != Vector2.ZERO:
+		_step_through(_bale_return)
 
 
 ## What the chest held, and the reason Pista opens. The unlock happens at CP3 rather than
@@ -510,8 +1174,12 @@ func _wire_the_bulul() -> void:
 	for node in get_tree().get_nodes_in_group(&"bulul"):
 		var figure := node as Bulul2D
 		if figure != null:
+			# ONCE, and it said so here while firing every time. There are TWO of them and
+			# each has its own trigger, so walking along the terrace in front of the house
+			# said the same refusal twice with the world stopped for both. The hook carries
+			# the memory; see _speak_on_arrival.
 			figure.approached.connect(func() -> void:
-				_speak(script_lines_l1.fire("L1_N3.bulul_approach")))
+				_speak_on_arrival("L1_N3.bulul_approach"))
 
 
 func _write_checkpoint(checkpoint_id: String) -> void:
@@ -674,10 +1342,28 @@ func _focus_camera_for(speaker: String) -> void:
 	var world_camera := _world_camera()
 	if world_camera == null:
 		return
+	# LET GO OF WHATEVER THE CAMERA WAS LOOKING AT. Stepping through a doorway teleports the
+	# player thousands of units; a dialogue focus held on a speaker they have just left is
+	# pointing at the wrong place by definition. It also has to be dropped BEFORE the zoom
+	# is set, because set_base_zoom defers while a focus is held -- which is how a walk into
+	# a room ended up drawn at the focus's 1.15 instead of the room's 2.
+	world_camera.release_focus(0.0)
 	var subject: Node2D = lolo if speaker == "lolo" and lolo != null else player
 	if subject == null or not is_instance_valid(subject):
 		return
-	world_camera.focus_on(subject)
+	# A BEAT IN A ROOM DOES NOT PUSH IN THE WAY A BEAT IN A VALLEY DOES. The default lift
+	# drops the camera 240 units below the speaker, which frames a figure against a hillside
+	# and, in a room already seen at 2, puts the floor across half the screen and the roof
+	# off the top of it. In here the camera stays at eye level and barely moves.
+	# ANY inside, not just the heap's. This asked `_in_the_straw_room` while there was only
+	# one room in the game; Ang Bale has an interior now, and a beat fired in there took the
+	# valley framing -- which pushed the camera back out to 1 and put the player in a lit
+	# box in the corner of a black screen. The question was always "is this a room", so it
+	# is asked that way.
+	if _room_holding_player() != null:
+		world_camera.focus_on(subject, 1.04, 0.45, -18.0)
+	else:
+		world_camera.focus_on(subject)
 	if not dialogue_box.conversation_finished.is_connected(_release_camera_focus):
 		dialogue_box.conversation_finished.connect(_release_camera_focus)
 
@@ -727,6 +1413,7 @@ func _on_drawing_ready(
 	strokes: Array,
 	ink_cost: float
 ) -> void:
+	_last_confidence = float(_response.get("confidence", 0.0))
 	var entry := registry.get_entity(entity_id)
 	if entry.is_empty():
 		status_label.text = "Unknown recognized entity: %s" % entity_id
@@ -792,6 +1479,12 @@ func _spawn_or_replace(
 	# The bare name, before the rig summary is appended: it is what Q reports losing.
 	_current_form_name = label
 	_current_form_id = entity_id
+	# A NEW LIFE, not the remains of the old one. Drawing a second creature over the first
+	# is a fresh drawing and it starts full -- otherwise the cheapest way to keep a body
+	# alive forever would be to redraw it a second before it died.
+	morph_life.begin(label, entity_id)
+	if morph_card != null:
+		morph_card.show_form(label, drawing, _last_confidence)
 	if skin != null and skin.has_method("rig_summary"):
 		label += " [%s | %d strokes]" % [skin.call("rig_summary"), strokes.size()]
 	status_label.text = label
@@ -934,7 +1627,7 @@ func _on_placement_confirmed(
 	# Judged HERE and not at recognition. A square that was drawn but never put down has
 	# not bridged anything, and letting the gap solve on recognition would mean the
 	# tutorial's one lesson -- that you place what you draw -- could be skipped.
-	_judge_submission(item.entity_id)
+	_judge_submission(item.entity_id, item.strokes)
 
 
 func _on_placement_canceled(item: DrawnItemData, source_slot: int) -> void:
@@ -961,6 +1654,11 @@ func _on_placement_changed(active: bool, valid: bool) -> void:
 		return
 	if not valid:
 		status_label.text = "No room there — aim at a clearer spot"
+	elif placement_controller.is_held_by_room():
+		# Said differently from the reach limit on purpose. Inside a room the wall is much
+		# nearer than arm's length, and "at arm's reach" sends the player looking for a
+		# problem with their own reach that is not there.
+		status_label.text = "That is as far as this room goes — click to set it down here"
 	elif placement_controller.is_at_reach_limit():
 		status_label.text = "At arm's reach — click to place, right-click to store"
 	else:
@@ -1050,9 +1748,11 @@ func _on_utility_consumed(utility: UtilityObject) -> void:
 	status_label.text = "Key consumed"
 
 
-func _interact_with_nearest_utility() -> void:
+## True when it actually reached something, so the interact key can fall through to
+## whatever else is standing here.
+func _interact_with_nearest_utility() -> bool:
 	if player == null or not is_instance_valid(player):
-		return
+		return false
 	var origin := player.global_position
 	if player.has_method("get_physics_anchor"):
 		var anchor := player.call("get_physics_anchor") as Node2D
@@ -1074,9 +1774,11 @@ func _interact_with_nearest_utility() -> void:
 		if distance <= nearest_distance:
 			nearest = utility
 			nearest_distance = distance
-	if nearest != null:
-		_connect_utility(nearest)
-		nearest.interact(player)
+	if nearest == null:
+		return false
+	_connect_utility(nearest)
+	nearest.interact(player)
+	return true
 
 
 ## POINT AT IT AND TAKE IT BACK. E reaches 96px, which is no help once a drawing has rolled
@@ -1139,20 +1841,21 @@ func _drop_equipped_before_morph(previous_state: Dictionary) -> void:
 	_equipped_utility = null
 
 
-## One frame, top left, holding the two things the player is actually tracking: how much
-## ink is left and what the game just said. They were a bare progress bar, a number beside
-## it and an unstyled line of text over the level art, none of them wearing the language
-## the main menu already had.
+## One frame, top left, holding everything the player is actually tracking: what they
+## currently ARE and how much of it is left, the brush and what is in it, and whatever the
+## game last said. See HudPanel for why the plate at the top is shaped like a nameplate and
+## why the frame around all of it came back.
 func _build_hud_frame() -> void:
 	hud_panel = HudPanel.new()
 	hud_panel.name = "HudPanel"
 	hud_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	hud_panel.offset_left = 24.0
 	hud_panel.offset_top = 20.0
-	# Wide enough for the longest one-line status the level writes, and no wider. A status
-	# line that wraps makes the whole frame grow and shrink under the gauge as messages
-	# change, and a frame with half its width empty reads as a mistake.
-	hud_panel.offset_right = 404.0
+	# Wide enough for the brush at full size INSIDE the frame's padding: 366 of artwork plus
+	# fourteen either side. At 404 the content box came out 352 and InkBrush, which only
+	# scales in whole art pixels, quietly dropped to five -- the brush got smaller and
+	# nothing said why.
+	hud_panel.offset_right = 24.0 + 366.0 + 28.0
 	$CanvasLayer.add_child(hud_panel)
 	hud_panel.adopt_status(status_label)
 	# Superseded by the gauge, kept so nothing that writes to them has to care.
@@ -1166,7 +1869,7 @@ func _build_hud_frame() -> void:
 	# edge of the screen from wherever it was parked.
 	_wrap_in_chip(goal_label, "bottom_right", Vector2(-24.0, -80.0), 150.0,
 		UIGlyph.Kind.FLAG)
-	_style_action_tag()
+	_build_morph_card()
 	_frame_controls_legend()
 	_build_dialogue_box()
 
@@ -1188,7 +1891,28 @@ func _build_dialogue_box() -> void:
 	layer.add_child(hint_bar)
 
 
-## The Draw button, as a key prompt rather than a button.
+## The top-right corner: what the player currently IS.
+##
+## THIS REPLACED THE R-DRAW CHIP. That chip said one word the player needs to read once, in
+## the corner most likely to be looked at -- and the controls strip along the bottom already
+## says R DRAW, so retiring it loses nothing and frees the corner for something that changes.
+func _build_morph_card() -> void:
+	draw_button.visible = false
+	morph_card = MorphCard.new()
+	morph_card.name = "MorphCard"
+	morph_card.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	morph_card.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	# Anchored by its RIGHT edge, so a long creature name grows the card leftward into the
+	# sky instead of pushing the slot off the side of the screen.
+	morph_card.offset_left = -(MorphCard.PLATE.x + MorphCard.PORTRAIT - MorphCard.OVERLAP) - 24.0
+	morph_card.offset_right = -24.0
+	morph_card.offset_top = 20.0
+	$CanvasLayer.add_child(morph_card)
+
+
+## The Draw button, as a key prompt rather than a button. Kept because the scene still owns
+## the node and `_on_draw_pressed` is still wired to it; it is simply not shown any more --
+## see _build_morph_card for what stands in that corner now.
 ##
 ## It was the only control on the HUD shaped like a button, which made it the loudest
 ## thing on screen and said the wrong thing twice: that drawing is done by clicking here
@@ -1204,8 +1928,8 @@ func _style_action_tag() -> void:
 		return
 	for state in [&"normal", &"hover", &"pressed", &"disabled"]:
 		draw_button.add_theme_stylebox_override(state, UISkin.chip(8.0, 4.0))
-	draw_button.add_theme_color_override(&"font_color", UISkin.LIME_PALE)
-	draw_button.add_theme_color_override(&"font_hover_color", UISkin.LIME)
+	draw_button.add_theme_color_override(&"font_color", UISkin.GOLD_PALE)
+	draw_button.add_theme_color_override(&"font_hover_color", UISkin.GOLD)
 	draw_button.add_theme_color_override(&"font_disabled_color", UISkin.MUTED)
 	draw_button.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
 	draw_button.add_theme_constant_override(&"h_separation", 8)
@@ -1223,7 +1947,7 @@ func _key_badge(key: String) -> Control:
 	var badge := PanelContainer.new()
 	badge.name = "KeyBadge"
 	var cap := StyleBoxFlat.new()
-	cap.bg_color = UISkin.LIME
+	cap.bg_color = UISkin.GOLD
 	cap.set_corner_radius_all(UISkin.RADIUS)
 	cap.content_margin_left = 5.0
 	cap.content_margin_right = 5.0
@@ -1234,7 +1958,7 @@ func _key_badge(key: String) -> Control:
 	badge.position = Vector2(8.0, 7.0)
 	var letter := Label.new()
 	letter.text = key
-	letter.add_theme_color_override(&"font_color", UISkin.GREEN_LABEL)
+	letter.add_theme_color_override(&"font_color", UISkin.GOLD_LABEL)
 	letter.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
 	letter.add_theme_constant_override(&"shadow_offset_x", 0)
 	letter.add_theme_constant_override(&"shadow_offset_y", 0)
@@ -1354,6 +2078,46 @@ func _place_chip(chip: PanelContainer, corner: String, offset: Vector2) -> void:
 			chip.position = Vector2((view.x - chip_size.x) * 0.5 + offset.x, offset.y)
 
 
+## The drawing's clock moved. The HUD is the only thing that cares every frame; the level
+## itself only wants to know once, when it gets low enough to be worth saying.
+func _on_life_changed(remaining: float, capacity: float) -> void:
+	if morph_card != null:
+		morph_card.set_life(remaining, capacity)
+	if morph_life.consume_warning():
+		# THE HINT CHANNEL, not the dialogue box. A story beat stops the tree until the
+		# player turns the page, and running low is exactly the moment they are mid-jump
+		# over something -- see AGENTS.md on the two channels.
+		hint_bar.show_hint("The %s is fading" % _current_form_name.to_lower())
+
+
+## The drawing died of its own accord.
+##
+## REVERTED THROUGH THE SAME DOOR Q USES, deliberately. _revert_to_base_form already puts
+## the apo down where the creature was standing, re-homes anything it was carrying, and
+## files the telemetry -- an expiry that did its own version of that would be a second copy
+## of the one piece of code in this file most likely to strand the player in a wall.
+##
+## The status line is then overwritten, because Q's wording is about a choice the player
+## made and this was not one.
+func _on_life_expired() -> void:
+	var was := _current_form_name
+	_revert_to_base_form()
+	if was.is_empty():
+		status_label.text = "The drawing did not last"
+	else:
+		status_label.text = "The %s ran out — you are yourself again" % was.to_lower()
+
+
+## What the player currently IS. An empty name means the apo, which has no card at all.
+##
+## The card wants the DRAWING, and MorphLife only knows names -- it is a clock, and handing
+## it an Image to carry around would make it one. So the picture is set at the morph site,
+## where the submitted image is in hand, and this only has to answer the empty case.
+func _on_form_changed(form_name: String, _form_id: String) -> void:
+	if morph_card != null and form_name.is_empty():
+		morph_card.hide_form()
+
+
 func _on_ink_changed(remaining: float, capacity: float, reserved: float) -> void:
 	if hud_panel != null:
 		hud_panel.set_ink(remaining, capacity, reserved)
@@ -1364,6 +2128,9 @@ func _physics_process(_delta: float) -> void:
 		return
 	if player == null or not is_instance_valid(player):
 		return
+	_refresh_room_framing()
+	_offer_the_nearest_sign()
+	_offer_the_found_key()
 	var anchor_position := player.global_position
 	if player.has_method("get_physics_anchor"):
 		var anchor := player.call("get_physics_anchor") as Node2D
@@ -1385,7 +2152,10 @@ func _physics_process(_delta: float) -> void:
 		_submerged_seconds += _delta
 		if _submerged_seconds > 1.1:
 			_submerged_seconds = 0.0
-			_return_to_safety("You cannot swim, apo — draw something that can cross it",
+			# POINTED AT THE ANSWER, not at the problem. It used to say "draw something that
+			# can cross it", which is what the beat asked for when Span came first -- and
+			# Span cannot cross three hundred pixels of water. The way over is the plank.
+			_return_to_safety("You cannot swim, apo — put something heavy on that plank",
 				"You cannot swim, apo. Back to %s")
 			return
 	else:
@@ -1417,9 +2187,27 @@ func _return_to_safety(nothing_written: String, restored_format: String) -> void
 		if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
 			player.call("apply_morph_state",
 				{"position": spawn_point.global_position, "linear_velocity": Vector2.ZERO})
-		status_label.text = nothing_written
+		_say_why(nothing_written)
 	else:
-		status_label.text = restored_format % restored
+		_say_why(restored_format % restored)
+
+
+## Why the player is suddenly standing somewhere else.
+##
+## IT USED TO GO TO A LABEL IN THE CORNER, forty pixels tall in the top left of a
+## sixteen-hundred-pixel screen, while the camera was busy carrying the player back across
+## the level -- so "you cannot swim, apo, draw something that can cross it" was written in
+## the one place nobody was looking at the one moment they were looking somewhere else.
+## Being fished out of the water and not knowing why is most of what makes the paddy read
+## as a bug rather than as a gate.
+##
+## The hint bar is the channel for this: centre screen, above the hotbar, no key to press,
+## and it stays up until something replaces it. The status label keeps it too, because it
+## is the transcript of what the level has said and costs nothing.
+func _say_why(text: String) -> void:
+	status_label.text = text
+	if hint_bar != null:
+		hint_bar.show_hint(text, Lolo.SPEAKER)
 
 
 ## Whether the level is allowed to end yet.
@@ -1551,6 +2339,7 @@ func _revert_to_base_form() -> void:
 	var was := _current_form_name
 	_current_form_name = ""
 	_current_form_id = ""
+	morph_life.clear()
 	if was.is_empty():
 		status_label.text = "Back to yourself"
 	else:
@@ -1584,6 +2373,13 @@ func _adopt_player(new_player: Node2D, previous_state: Dictionary, flash: bool) 
 	player = new_player
 	if lolo != null and is_instance_valid(lolo):
 		lolo.follow(new_player)
+	# Whoever the player is now, a loose floating tread has to ignore them -- see
+	# FloatingTread2D.except_player. It is re-pointed here rather than watched from the
+	# tread, because this is already the one place in the game that anything about who the
+	# player is may change, and a fourth swap path is a fourth chance to forget one.
+	for node in get_tree().get_nodes_in_group(&"floating_treads"):
+		if node.has_method("except_player"):
+			node.call("except_player", new_player)
 	if old_player != null and is_instance_valid(old_player):
 		old_player.queue_free()
 
@@ -1671,6 +2467,7 @@ func _on_dialogue_node_approached() -> void:
 		for line_value: Variant in script_lines_l1.peek("L1_N1.choice"):
 			context = String((line_value as Dictionary).get("text", ""))
 		dialogue_overlay.call("present", "Lolo", context, choices)
+		_frame_the_decision()
 		return
 	var node_lines: Dictionary = _script_lines.get("node", {})
 	if node_lines.is_empty():
@@ -1681,9 +2478,38 @@ func _on_dialogue_node_approached() -> void:
 		String(node_lines.get("context", "")),
 		node_lines.get("choices", {})
 	)
+	_frame_the_decision()
+
+
+## A DECISION IS FRAMED ON THE PLAYER, and it had no framing of its own at all.
+##
+## The choice screen inherited whatever the camera happened to be holding when it opened,
+## which is a push-in on the last person who spoke -- taken by a beat that fired somewhere
+## back along the terrace and never given back, because the box was hidden rather than
+## finished (see DialogueBox.hide_line). So the world behind the three answers was a shot of
+## a stretch of terrace or a marker the player had walked past, and the character the
+## decision is ABOUT was off screen entirely.
+##
+## Called AFTER `present`, deliberately: opening the overlay takes the running line down,
+## which is what releases the stale focus, and doing this before that would be undone by it.
+func _frame_the_decision() -> void:
+	var world_camera := _world_camera()
+	if world_camera == null:
+		return
+	# AND FRAMING IT MEANS GIVING THE CAMERA BACK, not taking it. A push-in behind a panel
+	# that fills the middle of the screen frames nothing anybody can see; what the player
+	# needs is for the shot to be the shot they were playing in, so that the moment they
+	# answer they are looking at themselves and at the thing they just decided about. The
+	# ordinary follow does that already -- the bug was only ever that a stale focus from a
+	# beat two hundred units back was still holding it.
+	world_camera.release_focus(0.0)
 
 
 func _on_route_picked(route: String) -> void:
+	# The decision held the camera; answering it gives the camera back. A commit line then
+	# takes its own focus a moment later, and one that does not leaves the player followed
+	# normally rather than pinned to where they were standing when they answered.
+	_release_camera_focus()
 	if dialogue_node != null:
 		dialogue_node.choose(route)
 

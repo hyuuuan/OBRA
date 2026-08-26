@@ -62,9 +62,11 @@ prop — the file is named in each entry.
 
 ## Beat 0 — Ang Hagdan, the broken stair
 
-The beat the whole tutorial rests on: **the stair out of the paddy is missing three stones**,
-the rise from the bank to the first surviving stone is 108 px, and the player can only jump
-94 px. They have to draw something to bridge it.
+The beat the whole tutorial rests on, and it is two problems in the order the player meets
+them. **The paddy is 300 px of water** and the plank floating in it is the way over — set
+something that rolls on it and it steadies, locks, and is a step. Then **the stair out of
+the paddy is missing three stones**: the rise from the bank to the first surviving stone is
+136 px against a 94 px jump, so they draw something to stand on.
 
 ### Stair treads · `game/scripts/stair_tread_2d.gd` · 5 in the scene
 
@@ -81,10 +83,11 @@ the rise from the bank to the first surviving stone is 108 px, and the player ca
 
 | | |
 |---|---|
-| **Now** | The same stone cap texture, squashed to a slab: **88 × 22**, centre-anchored, riding in the paddy at (560, 600). |
-| **Physics** | A real `RigidBody2D` — mass 0.6, gravity 0.35, collision **88 × 20**. Loose it tips and rolls; with something that rolls resting on it, it sinks, levels and freezes solid. |
+| **Now** | **Two** of the missing stones, lodged together: the same stone cap texture twice at ±44, **176 × 22** in all, riding **mid-paddy at (490, 578)** — which leaves a 62 px hop of open water at each end. One tread alone was 88 px, and an 80 px weight standing on it left no deck to land on. |
+| **Physics** | A real `RigidBody2D` — mass 2.4, gravity 0.35, angular damp 4, collision **176 × 20**. Loose it rocks and the player passes straight through it; with something that rolls resting on it, it steadies, levels, locks and rides at the waterline, and the weight **beds into the stone flush with the deck** so what you see of your drawing is the rest of it hanging underneath in the water. |
+| **Z-order** | Stone at **6**, above `WorldItemRoot`'s **5**, so the drawing sits *into* the plank rather than over it — and `WorldItemRoot` is above the water's **3**, which is what makes a drawing in the paddy visible at all. |
 | **Must read as** | One of the missing treads, floated off into the water. Loose, light, and obviously not fixed to anything. |
-| **States** | Floating (free, tilts) · settled (level, solid). The settled state is a platform and should look like one. |
+| **States** | Floating (free, rocks, 8 px awash) · settled (level, solid, deck 8 px proud of the water). **The settled state is the only crossing in Beat 0** and must read as somewhere to put your feet — this is the one prop in the level whose two states the player has to be able to tell apart at a glance. |
 
 ---
 
@@ -126,18 +129,51 @@ the rise from the bank to the first surviving stone is 108 px, and the player ca
 
 ## Node 2 — Ang Dayami, the straw
 
-### Straw piles · `game/scripts/straw_pile_2d.gd` · 3 at (3040, 240), (3160, 240), (3268, 240)
+### Straw piles · `game/scripts/straw_pile_2d.gd` · 3 at (3026, 240), (3180, 240), (3296, 240)
+
+**DELIVERED ART.** `level-1-assets/Haybale.png`, keyed off its white page and cut down by
+`tools/build_art.py`. Two goes at drawing straw in code came and went first — one fanned
+thin diagonal lines out of a crown and read as scratches, one built it from axis-aligned
+columns and read as a shaded dome with scratches on it.
 
 | | |
 |---|---|
-| **Now** | **Real thatch** — a lopsided seven-point mound filled from the atlas's hut thatch panel (region 734,1012,70,44), tinted `#FFF7DB`. It used to take the band off the top of a *rice* tile, which is standing crop rather than cut straw. |
-| **Sizes** | **140 × 88**, **158 × 100**, **132 × 82**. Bottom-centre anchored. |
-| **Collision** | **None**, deliberately — a solid heap would wall off the only route out of the level. It is something you push through. |
-| **Must read as** | **Cut straw, never harvested grain.** This is a build constraint, not a preference: the Protector route scatters it across the terrace, and scattering somebody's *tinawon* harvest is not a neutral image to stage. |
-| **States — all four are needed** | **Intact.** · **Combed**: searched section by section, settles slightly, left standing (now 0.82 wide × 0.90 tall). · **Tunnelled**: gone in underneath and out again — one hole, the top keeps its shape (now 0.94 × 0.78). · **Scattered**: the mound is gone, nine loose tufts 16–30 × 5–11 across ±1.4 pile-widths, and it does not come back. |
-| **Known weakness** | Combed and tunnelled are currently the same heap slightly resized, and cannot be told apart. A tunnel should read as a hole. Three routes that leave three marks is the point of the whole node. |
+| **Now** | `haybale.png` **208 × 144**, and `haybale_solid.png` beside it — the same picture with the doorway filled by mirroring the straw from the far side of the heap over it, feathered over 30px so the join cannot show. |
+| **Sizes** | **208 × 144** at 3180 (1:1 with the art), **104 × 72** at 3026 and 3296 (exactly half, so the pixels stay square). The right-hand one is mirrored so the two smalls are not one sprite printed twice. |
+| **One picture, four states** | **Intact** and **combed** draw the solid cut, combed at 0.92 × 0.88. **Tunnelled** draws the cut WITH the mouth — the hole is the tunnel. **Scattered** is still drawn in code: there is no picture of a heap pulled apart, and a heap is a silhouette while scattered straw is a scatter. |
+| **The way in** | Read off the art rather than typed here: the mouth is x 292–570 of a source that crops to 22–1004, and y 414–748 of one that crops to 71–748, so `mouth_rect()` is those fractions of whatever size the heap is given. Moving the doorway means redrawing the heap. |
+| **Collision** | **None**, deliberately — a solid heap would wall off the only route out of the level. |
+| **Must read as** | **Cut straw, never harvested grain.** A build constraint, not a preference: the Protector route scatters it across the terrace, and scattering somebody's *tinawon* harvest is not a neutral image to stage. |
 
-### The baul · `game/scripts/baul_2d.gd` · 1 at (3160, 240), hidden until found
+### Inside the heap · `game/scripts/straw_room_2d.gd` · 1 at (1900, −900)
+
+**BUILT, NOT PAINTED — and it took three goes.** A cutaway of the heap read as a close-up of
+a haystack. Kent's delivered interior, tiled across the room, read as "a mere drawing". What
+was missing both times is that a room is *made*: it has courses, joints, a lintel over the
+door and a floor laid in bands. `hub_room.gd` is that argument already won once, so this is
+the same argument in straw.
+
+| | |
+|---|---|
+| **The ruler** | The apo, exactly as in the house: 96px for a child of about 1.30 m puts a **metre at 72 px**, and every number carries the metres it came from. A four-metre wall because that is a barn. A doorway one metre by two. A chest at knee height. |
+| **Seen at 2**, like the house | The level is drawn at 1 because it is a valley; a room is somewhere you stand in, so the camera comes in until the room fills the frame and the apo is a fifth of its height. The camera is **pinned at the room's eye level** rather than following her, or the framing slides as she walks. |
+| **The wall** | **Thatch on a frame.** A first cut stacked bound *bales* in a running bond, and however much the tone and grain varied, the eye found the boxes before the material — crisp rectangles are right for timber and wrong for straw. So: vertical straw in **clumps** (a run of strands shares a tone and a length), held by horizontal **split-bamboo binding poles** at four heights plus a sill, with nodes and lashings. The structure comes from the frame; the material stays soft. |
+| **Lit from the door** | The straw falls a value darker past 62% of the room's length. It is the only thing in here saying the far end is further away — there is nowhere else for light to come from inside a heap. |
+| **The floor** | Trodden earth in courses, the way the boards in the house are: bands a shade apart, a hairline joint, grit and wisps of straw walked into it, and the doorway's light spilling across it. |
+| **The way out** | An opening with a **pole lintel** over it — a hole with nothing over it reads as damage, not a door — and the valley beyond as three bands: sky, the terrace behind, the earth she is standing on. |
+| **Drawn 480 units past the walls she can reach** | The camera sees 400 either side at this zoom and she can walk to the end wall, so a room drawn only as far as it is walkable puts its own edge on screen with the level's sky behind it. Safe to be generous **because the room is not drawn at all while she is somewhere else** — left switched on it painted the whole valley, which is what "the map in the overworld is still black at some parts" was. |
+| **In it** | Lola's canvas (the hub's own `level_2.png`, in the stepped gilt the pictures in the house wear, hung with a shadow under it), the **baul**, a **brass key** on the floor, and the **ants**. |
+
+### The ants · `game/scripts/straw_ants_2d.gd` · 5 on the floor of the room
+
+| | |
+|---|---|
+| **Now** | Drawn and animated in code from `level-1-assets/ant pixel art.webp`. ⚠ **That file is a watermarked stock image** — it is a reference to work from, not an asset to ship. The shape, the three-segment body and the two oranges (`#D1671B`, `#BD4B2F`) are its; the walk is not. |
+| **The walk** | A tripod gait — front and back leg on one side swinging with the middle leg on the other, which is what an insect does and what stops six legs paddling in unison. The body only bobs a pixel; the legs are the walk. |
+| **Their own node** | So the room does not repaint to animate them: the walls are a couple of thousand units of tiled art, and redrawing all of it sixty times a second to move six legs would be the smallest thing on screen costing the most. |
+| **Scenery, and nothing else** | No collision, nothing reads their position, and drawing an ant on the canvas does not make one appear here. |
+
+### The baul · `game/scripts/baul_2d.gd` · 1 at (3238, 240), inside the heap, hidden until found
 
 | | |
 |---|---|

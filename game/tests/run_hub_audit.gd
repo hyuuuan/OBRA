@@ -28,7 +28,32 @@ func _x_of(node: Variant) -> float:
 	return (node as Node2D).global_position.x
 
 
+## Leave user://profile.json exactly as it was found.
+func _restore_profile(profile: Node, had_brush: bool, had_profile: bool) -> void:
+	(profile.get("_data") as Dictionary)["brush_acquired"] = had_brush
+	if had_profile:
+		profile.call("save_profile")
+	elif FileAccess.file_exists("user://profile.json"):
+		DirAccess.remove_absolute("user://profile.json")
+
+
 func _run() -> void:
+	# ARRANGED BEFORE THE HOUSE IS BUILT. BrushStand2D asks the profile whether the brush is
+	# still under the glass in its _ready(), so a "before" state set after the hub is in the
+	# tree sets nothing -- the case has already made up its mind and the three assertions at
+	# the bottom of this file fail on a gate that is working perfectly.
+	var profile := root.get_node_or_null("PlayerProfile")
+	var manager := root.get_node_or_null("LevelManager")
+	_check(profile != null and manager != null, "the autoloads the house needs are up",
+		"PlayerProfile and LevelManager")
+	if profile == null or manager == null:
+		quit(1)
+		return
+	var data: Dictionary = profile.get("_data")
+	var had_brush := bool(data.get("brush_acquired", false))
+	var had_profile := FileAccess.file_exists("user://profile.json")
+	data["brush_acquired"] = false
+
 	var hub := (load(HUB) as PackedScene).instantiate()
 	root.add_child(hub)
 	for _frame in range(8):
@@ -93,6 +118,98 @@ func _run() -> void:
 			answered += 1
 	_check(answered == 1, "standing at one painting reaches that one",
 		"%d painting(s) answer from the floor at Payyo" % answered)
+
+	# THE NAME UNDER THE PICTURE HAS TO BE UNDER THE PICTURE.
+	#
+	# Nothing in this suite could see the plates at all, and they were wrong for as long as
+	# they existed: sized before add_child, a Label is measured against the theme's 30pt
+	# instead of the 20 it draws at, Control.set_size clamps up to that and never back, and
+	# a plate positioned by a fixed left offset carries the whole difference sideways. The
+	# four long plates sat up to 48px right of their own paintings, out past the moulding
+	# and across the doorway beside them, while the one short one was dead centre -- which
+	# is exactly the shape of failure a screenshot shows and a headless suite does not.
+	#
+	# Measured off the built Label rather than off the arithmetic that made it, so the check
+	# still means something the day the plate is built some other way.
+	var gap: float = float(room.get("painting_gap"))
+	var doorway: float = room.call("doorway_half")
+	var worst_offset := 0.0
+	var tightest := INF
+	for index in range(paintings.size()):
+		var painting := paintings[index] as Node2D
+		var plate := painting.get_node_or_null("Plate") as Control
+		if plate == null:
+			_check(false, "every painting carries a name plate",
+				"%s has none" % String(painting.get("level_id")))
+			continue
+		var plate_rect := Rect2(plate.position, plate.size * plate.scale)
+		worst_offset = maxf(worst_offset, absf(plate_rect.position.x + plate_rect.size.x * 0.5))
+		# A doorway sits half a painting-gap either side of every picture, and the pier the
+		# picture hangs on stops at its architrave. That edge is what the lettering may not
+		# reach -- measured on the TEXT and not on the label box, because the box is the
+		# picture's own width and would report the same clearance whatever was written in it.
+		var font: Font = plate.get_theme_font(&"font")
+		var ink: float = font.get_string_size(plate.text, HORIZONTAL_ALIGNMENT_LEFT, -1.0,
+			plate.get_theme_font_size(&"font_size")).x * plate.scale.x
+		tightest = minf(tightest, gap * 0.5 - doorway - ink * 0.5)
+	_check(worst_offset <= 1.0, "every name plate is centred on its painting",
+		"worst is %.1fpx off centre" % worst_offset)
+	_check(tightest > 0.0, "and none of them reaches the doorway beside it",
+		"%.1fpx of clearance at the tightest" % tightest)
+
+	# THE BRUSH, WHICH IS THE WAY OUT OF THIS ROOM.
+	#
+	# Every verb in this game is drawing, so a player who leaves the house without the brush
+	# arrives in Payyo with nothing to do. These check the whole of that: it is here, it
+	# answers where the apo can reach it, it refuses the paintings until it is taken, and
+	# taking it empties the case and opens them. A gate that only half works is worse than
+	# no gate -- one that refuses forever strands the player in the hub, and one that lets
+	# them past strands them in the level.
+	#
+	# THE PROFILE FILE IS PUT BACK at the end of this block. The "before" state above was
+	# arranged in memory and touched nothing on disk, but `take()` is the thing under test
+	# and it commits, so by here user://profile.json really does claim a brush. Whoever ran
+	# this must not be handed one they did not walk over and take.
+	var stand := hub.get_node_or_null("BrushStand") as Node2D
+	_check(stand != null, "the brush stands at the end of the hall",
+		"at x %.0f" % [stand.global_position.x if stand != null else -1.0])
+	if stand == null:
+		_restore_profile(profile, had_brush, had_profile)
+		quit(1)
+		return
+
+	# Inside the room, past the last picture, and reachable by an apo standing at it. The
+	# stand is placed by a constant in hub.gd and the wall's length by one in hub_room.gd,
+	# so this is the check that fires the day either moves without the other.
+	var wall_end: float = float(room.get("room_width"))
+	var last_painting: float = _x_of(paintings[paintings.size() - 1])
+	_check(stand.global_position.x > last_painting and stand.global_position.x < wall_end,
+		"and it stands past the paintings, inside the room",
+		"%.0f, between the last picture at %.0f and the wall at %.0f" % [
+			stand.global_position.x, last_painting, wall_end])
+	_check(bool(stand.call("within_reach", stand.global_position)),
+		"an apo standing at it can reach it", "reach %.0f" % float(stand.get("reach")))
+	# And it does not reach back down the hall to the picture beside it, the way a painting
+	# must not reach the next painting.
+	_check(not bool(stand.call("within_reach", Vector2(last_painting, 0.0))),
+		"and it does not answer from the last painting",
+		"%.0fpx away" % absf(stand.global_position.x - last_painting))
+
+	_check(bool(stand.call("holds_brush")), "it holds the brush before anyone takes it",
+		"under the glass")
+	_check(not bool(manager.call("open_level", "level_1")),
+		"and Payyo refuses until it is taken", "open_level said no")
+
+	stand.call("take")
+	await process_frame
+	_check(bool(profile.call("has_brush")), "taking it is written to the profile",
+		"brush_acquired")
+	_check(not bool(stand.call("holds_brush")), "and the case is empty afterwards",
+		"nothing left under the glass")
+	_check(bool(manager.call("open_level", "level_1")), "and Payyo opens",
+		"open_level started the transition")
+
+	_restore_profile(profile, had_brush, had_profile)
 
 	if failures == 0:
 		print("OBRA_HUB_AUDIT_OK")

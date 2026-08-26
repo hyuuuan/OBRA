@@ -18,44 +18,51 @@ extends Control
 ## rail to sit on, which is what a bust needs and what it did not have when the box was
 ## beside it.
 
-## THE PORTRAIT IS ITS OWN DRAWING, not the world sprite enlarged.
+## THE SPEAKER IS WAVING, because a portrait behind a dialogue box is somebody addressing
+## you and the sheets have a pose that is exactly that.
 ##
-## Both are cut by tools/build_art.py from the hero card of the speaker's design sheet:
-## around two hundred by three hundred against the world sprite's eighty by a hundred, and
-## a different drawing rather than the same one bigger -- shading in the hair, folds in the
-## cloth. A dialogue portrait is the one place a game can afford detail the world sprite
-## has no room for, and both sheets had been carrying it.
+## This used to be the HERO CARD off each design sheet -- a separate drawing, two hundred by
+## three hundred against the world sprite's eighty by a hundred, with shading in the hair
+## and folds in the cloth that the small frames have no room for. That is more detail, and
+## it is the wrong detail: the hero card is a character standing still and looking at the
+## camera, which is a title screen's pose. The wave has a raised hand and an open mouth. It
+## reads as a line being spoken, which is what this rectangle is for.
 ##
-## LOLO USED TO BE THE EXCEPTION AND IS NOT ANY MORE. He had no design, so he was rendered
-## from primitives into a SubViewport at his own tiny size, blown back up with nearest
-## filtering to keep his edges chunky, and stood at a little over half the apo's height so
+## THE COST IS RESOLUTION, and it is worth naming. The world sprite is a fifth the height of
+## the hero card, so it is blown up five times rather than twice and its pixels are five
+## screen pixels across. That is a deliberate look and not an accident -- it is the same
+## nearest-neighbour blow-up the rest of the interface uses, and both speakers land on the
+## same multiple, so their pixels are the same size as each other's. If the detail is ever
+## wanted back, the hero cards are still cut and still shipped as `*_portrait.png`.
+##
+## LOLO IS NOT A SPECIAL CASE ANY MORE. He had no design once, so he was rendered from
+## primitives into a SubViewport at his own tiny size and stood at half the apo's height so
 ## that a four-hundred-pixel smooth yellow circle with two dots on it never appeared in the
-## corner of the screen. All of that was scaffolding around a missing drawing. He has one
-## now, so the two speakers are one code path again: one rectangle, one scale rule, one
-## baseline, and a row in the table below apiece.
+## corner of the screen. All of that was scaffolding around a missing drawing, and it went
+## when his sheet arrived. Two speakers, one rectangle, one scale rule, one baseline.
 
-## `bust` is how much of the drawing is head, shoulders and hands, before the cut.
+## `bust` is how much of the drawing is head, shoulders and the raised hand, before the cut.
 ##
-## IT IS PER SPEAKER BECAUSE THEY ARE NOT BUILT THE SAME. The apo is a child drawn at
-## roughly four heads tall and cuts at the hip. Lolo is a chibi ghost whose head is two
-## fifths of him and whose legs are a tail, so the same fraction landed just under his
-## chin and put a head on a plate behind the box. His cut is where the tail starts, which
-## is the lowest line that is not through a hand.
+## IT IS PER SPEAKER BECAUSE THEY ARE NOT BUILT THE SAME. The apo is a child at roughly four
+## heads tall and cuts at the hip. Lolo is a chibi ghost whose head is two fifths of him and
+## whose legs are a tail, so the same fraction lands under his chin and puts a head on a
+## plate behind the box; his cut is where the tail starts. Both are measured so the raised
+## hand survives -- it is the whole reason this pose was chosen, and a cut through it would
+## leave a speaker gesturing with a stump.
 const PORTRAITS := {
-	"Lolo": {"art": preload("res://assets/characters/lolo/lolo_portrait.png"),
-		"bust": 0.78},
+	"Lolo": {"art": preload("res://assets/characters/lolo/lolo_wave.png"),
+		"bust": 0.83},
 }
 ## Anyone without an entry above. The apo's own lines share the box with a different
 ## plaque, and they are the only other speaker there is.
 const DEFAULT_PORTRAIT := {
-	"art": preload("res://assets/characters/apo/apo_portrait.png"), "bust": 0.62,
+	"art": preload("res://assets/characters/apo/apo_wave.png"), "bust": 0.74,
 }
 ## How tall the bust wants to stand on screen. A TARGET, not a ceiling: what it is rounded
 ## to is a whole multiple of the source, so the drawing is never resampled onto a half
-## pixel, and the nearest multiple is taken rather than the one below. Lolo's bust is a
-## third taller than the apo's in source pixels for the same face, and rounding down put
-## him at 1x -- a portrait half the size of the other one, for no reason a player could
-## see. Both land on 2x, which is why their faces come out the same size.
+## pixel, and the nearest multiple is taken rather than the one below -- rounding down once
+## put a speaker at half the other one's size for no reason a player could see. Both land
+## on the same multiple, which is what keeps their pixels the same size as each other's.
 const HEIGHT := 400.0
 ## How far the bust's cut edge sinks behind the box's top rail, so it stands ON the box
 ## rather than balancing above it.

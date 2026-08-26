@@ -81,10 +81,23 @@ func _build_plate() -> void:
 	# lands back on whole screen pixels, because the caption size is two font units and half
 	# of it is one, which is the rule HUD_SKIN.md gives for keeping a pixel face crisp.
 	plate.scale = Vector2(0.5, 0.5)
-	var width := (_art_size.x + moulding * 4.0) * 2.0
-	plate.size = Vector2(width, 28.0)
-	plate.position = Vector2(-width * 0.25, _art_size.y * 0.5 + moulding + 6.0)
+	# IN THE TREE BEFORE IT IS MEASURED, and this is the whole of why the names under the
+	# pictures were crooked. A theme override does not reach a Control until it is inside the
+	# tree -- Godot fires NOTIFICATION_THEME_CHANGED for one only when there is a tree to be
+	# notified through -- so a Label sized out here is measured against the project theme's
+	# 30pt rather than the 20 it will actually draw at, Control.set_size clamps up to that
+	# minimum and never back down, and a plate positioned by a fixed left offset carries the
+	# whole difference sideways. "MAYON  --  NOT YET PAINTED" measures 277px at 20 and 416 at
+	# 30, so the name sat 48px right of its own picture, out past the moulding and into the
+	# doorway beside it. The text drew at the right size the entire time, which is why this
+	# took measuring a screenshot to see at all.
 	add_child(plate)
+	plate.size = Vector2((_art_size.x + moulding * 4.0) * 2.0, 28.0)
+	# Centred on the width it GOT, not the width it asked for -- so a plate string long
+	# enough to beat that minimum is still centred, instead of being centred right up until
+	# the day somebody renames a level.
+	plate.position = Vector2(-plate.size.x * plate.scale.x * 0.5,
+		_art_size.y * 0.5 + moulding + 6.0)
 
 
 func is_playable() -> bool:

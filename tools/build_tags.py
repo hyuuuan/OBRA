@@ -74,6 +74,38 @@ DISPLAY = {
     "light": "Light", "shield": "Shield",
 }
 
+# What the tag MEANS, in the player's words rather than the designer's.
+#
+# The requirement strip printed the display name and nothing else, so the one instruction
+# the game gives at an obstacle was a single capitalised verb -- "NEEDS SPAN" -- and a
+# player who does not already know the tag vocabulary has been told the name of the
+# problem rather than anything about it. The tags are ours, invented for this game; there
+# is no reason to expect anyone to arrive knowing them.
+#
+# EVERY GLOSS DESCRIBES A PROPERTY AND NAMES NO CLASS. That is the whole constraint the
+# tag layer exists to hold (see ability_tags.gd): an obstacle with one answer is a
+# spelling test. "Long and stiff enough to lie across a gap" has four answers and leaves
+# room to be clever; "draw a ladder" has one. So these say what the drawing has to DO,
+# which is the same information the player needs and none of the information that would
+# close the puzzle.
+GLOSS = {
+    "span": "long and stiff enough to lie across a gap and take your weight",
+    "roll": "round, and heavy enough to sink what it lands on",
+    "climb": "able to grip a wall and go up it",
+    "leap": "able to jump higher than you can",
+    "cut": "an edge sharp enough to go through old wood",
+    "forage": "able to sift and comb through a loose heap",
+    "carry": "strong enough to drag a load out from underneath",
+    "weather": "able to move air -- wind enough to scatter what is loose",
+    "unlock": "shaped to the ward inside the lock",
+    "fly": "able to stay up without holding on to anything",
+    "swim": "able to move through deep water",
+    "crush": "heavy enough to break what is under it",
+    "strike": "able to hit hard in one place",
+    "light": "able to throw light into the dark",
+    "shield": "able to stand between you and what is coming",
+}
+
 # Which level first unlocks each tag. Level 1 unlocks 9 of 15 because a tutorial has to
 # show the breadth of the system; later levels add classes under tags already known.
 UNLOCK_LEVEL = {t: 1 for t in LEVEL_1_TAGS} | {
@@ -125,6 +157,7 @@ def build() -> dict:
 
         tags[tag] = {
             "display_name": DISPLAY[tag],
+            "gloss": GLOSS[tag],
             "unlocked_in_level": UNLOCK_LEVEL[tag],
             "declared_only": not members,
             "classes": classes,

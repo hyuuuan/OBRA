@@ -45,7 +45,14 @@ extends Node2D
 
 ## How long the wall is and where the floor sits under it. The floor line is what the apo
 ## stands on; everything else is measured off it.
-@export var room_width: float = 1800.0
+##
+## THE LAST THREE HUNDRED IS THE END BAY. Five pictures and six doors fill the wall to
+## 1800, and the room used to stop there. It runs on now, past the last doorway, into a
+## stretch of blank panelling with nothing on it but Lola's brush on its stand -- see
+## BrushStand2D. An alcove is what the extra width is FOR: the shrine wants a piece of wall
+## that is not competing with a picture, and the apo wants somewhere to walk to that is
+## obviously not another level.
+@export var room_width: float = 2100.0
 @export var floor_y: float = 360.0
 ## Floor to cornice: four metres, which is a storey in a house with these ceilings.
 @export var wall_height: float = 288.0
@@ -146,6 +153,14 @@ func door_count() -> int:
 	return 6
 
 
+## Half a doorway, architrave included: where a pier stops, and therefore how much room a
+## picture and the plate under it have to stay inside. Named rather than repeated, because
+## run_hub_audit measures the plates against it and a second copy of the arithmetic is a
+## second thing to keep in step.
+func doorway_half() -> float:
+	return DOOR_WIDTH * 0.5 + 10.0
+
+
 ## How wide a doorway is, and how much pier it leaves either side of it.
 const DOOR_WIDTH := 116.0
 ## How tall: two metres sixty, which is a door in a room with four-metre ceilings.
@@ -239,8 +254,8 @@ func _draw_ceiling(top: float, cornice: float) -> void:
 func _draw_piers() -> void:
 	var edges: Array[float] = [0.0]
 	for index in range(door_count()):
-		edges.append(door_anchor(index) - DOOR_WIDTH * 0.5 - 10.0)
-		edges.append(door_anchor(index) + DOOR_WIDTH * 0.5 + 10.0)
+		edges.append(door_anchor(index) - doorway_half())
+		edges.append(door_anchor(index) + doorway_half())
 	edges.append(room_width)
 	var pair := 0
 	while pair + 1 < edges.size():

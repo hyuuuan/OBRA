@@ -274,14 +274,35 @@ func is_typing() -> bool:
 	return visible and _label.visible_ratio < 1.0
 
 
+## Take the box down.
+##
+## TAKING THE BOX DOWN ENDS THE CONVERSATION IT WAS SHOWING, and for a long time it did not
+## -- it faded the frame and left `_blocking` true with the rest of the beat still in the
+## queue. Three things followed from that, and every one of them was reported as a separate
+## bug. The tree stayed paused, because UIRouter derives pause from `is_open()` and this box
+## still said it was. The camera stayed pushed in on whoever had been speaking, because the
+## push-in is given back on `conversation_finished` and that never arrived -- so a decision
+## box opened over a camera parked on the last speaker instead of on the player. And the
+## abandoned lines sat in the queue until some unrelated beat called `speak()` hours later,
+## which popped the stale line FIRST: story from the gorge arriving inside the straw heap.
+##
+## So this is the door out of a conversation as well as the way to clear a single line. The
+## queue is dropped, the block is lifted, and anyone waiting on the end of the beat is told.
+## `_advance` clears `_blocking` before it calls this, so the ordinary end of a conversation
+## does not announce itself twice.
 func hide_line() -> void:
 	current_speaker_name = ""
 	_portrait.hide_portrait()
 	_hold = 0.0
 	set_process(false)
-	if not visible:
-		return
-	_fade_to(0.0).tween_callback(func() -> void: visible = false)
+	var was_blocking := _blocking
+	_blocking = false
+	_queue.clear()
+	if visible:
+		_fade_to(0.0).tween_callback(func() -> void: visible = false)
+	if was_blocking:
+		UIRouter.refresh_pause(get_tree())
+		conversation_finished.emit()
 
 
 ## A tween is bound to its node's pause state by default, and this box is a plain child of

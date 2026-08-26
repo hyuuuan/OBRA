@@ -65,18 +65,52 @@ lowest surviving stone overhangs its right end, and the pocket beneath is 102px,
 stand in and not enough to stand a drawing up in. That distinction is rule **R7** in
 `GATES.md`: it was 56px until 2026-08-24 and the level was effectively unplayable there.
 
-- **sub1 = Span** (excludes bridge, ladder → square, triangle)
-- **sub2 = Roll** — the tread that floated off into the paddy. A Roll-tagged prop resting on
-  it sinks it, it freezes solid, and removing the weight releases it.
+**Two sub-beats, two problems, in the order the player meets them.**
+
+- **sub1 = Roll** — the paddy, and the **two** treads floating in it. Set something that
+  rolls on them and they steady, lie flat, lock, and are a deck: a 62px hop at each end
+  instead of 300px of water. Take the weight away and they come loose again.
+- **sub2 = Span** (excludes bridge, ladder → square, triangle) — the stair on the far bank.
+  A drawn primitive is 80px, which under a 94.3px jump is exactly a step.
 - **CP0** at the top, reached by walking into it.
 
-⚠ **The paddy IS a gate** (since 2026-08-24, reversing the note that used to stand here).
-It is 300px wide and 100px deep — wider than a running jump and deeper than the apo can
-climb out of — and no jump in water lifts you out of it. Going under for more than a second
-puts you back on the bank with a line rather than trapping you. The floating tread keeps its
-Roll lesson and stops being a bridge: it is on its own collision layer, so it still floats,
-still settles under a rolling weight and still carries a drawn prop, but the player passes
-through it. That is the trap the first attempt at this fell into.
+⚠ **This order was the other way round until 2026-08-26 and the beat could not be
+finished.** Span asked first, at the water — but after its own exclusions Span is a square
+or a triangle at 80px, and nothing 80px wide crosses 300px. The only class long enough is
+`bridge`, which is the class the sub-beat excludes; `run_walk_level1` had been proving the
+crossing opened with a bridge the whole time, which is the one answer the obstacle rejects.
+See **X15** in `GATES.md`.
+
+⚠ **The paddy IS a gate** (since 2026-08-24). It is 300px wide and 100px deep — wider than a
+running jump and deeper than the apo can climb out of — and no jump in water lifts you out
+of it. Going under for more than a second puts you back on the bank with a line rather than
+trapping you.
+
+⚠ **The plank is only a step once it is paid for.** Loose, it is on its own collision layer
+and the player passes through it — plus an explicit exception against whatever the player
+currently is, because setting the layer alone was never enough (Godot pairs two bodies when
+EITHER side matches, so the apo shoved it the length of the paddy on the way through; see
+**X14**). Settled, the exception comes off and it joins layer 1. Two numbers in
+`floating_tread_2d.gd` are measured rather than chosen and are commented as such: the deck
+locks **8px clear of the waterline**, because `wanderer.gd` tests `is_in_water()` before
+`is_on_floor()` and a deck at or under the surface would strand the player on a solid floor;
+and `settle_dwell` is **0.12s**, because every frame it waits is a frame the plank spends
+sinking under the load, and at 0.3s it went 50px under and threw itself apart coming back up.
+
+⚠ **The plank is TWO treads (176px) and the weight beds into it FLUSH**, and every part of
+that was forced by measurement. One 88px tread with an 80px weight standing on it leaves no
+deck to land on: the player jumps the near gap, sails over the deck, lands on the ball at
+its apex, rolls off the far side with a full run's speed and 80px of fall, and clears the
+whole far half of the crossing to splash down 21px short of the bank — every time. Two
+treads give somewhere to land. Cutting the weight down to a 24px cap instead does not work
+either: a `CharacterBody2D` does not step up, so a cap is a wall to walk into.
+`load_bed_depth` sets it 4px under the deck, and what the player sees of their drawing is
+the rest of it hanging under the plank in the water.
+
+⚠ **`WorldItemRoot` is z 5 and the water is z 3.** Placed drawings used to be at 0, behind
+water drawn at 72–82% opacity — so anything set down in either paddy was invisible, which is
+now the whole of sub-beat 1. The tread's own sprites are at 6, above the drawings, so a
+bedded weight reads as set *into* the stone rather than pasted over it.
 
 ### Node 1 — Ang Tulay (the gorge)
 
@@ -86,13 +120,96 @@ it is pressed are literally the same string. **CP1** on commit.
 
 ### Node 2 — Ang Dayami (Terrace5, x 2960–3320)
 
-Three heaps of cut straw, Lola's stool and brush jar, the baul hidden in the middle heap.
+Three heaps of cut straw, Lola's stool and brush jar, and **the one place in Level 1 with an
+inside**: the middle heap is 220 × 200 and you can walk into it.
+
+**The art is Kent's.** The heap is `level-1-assets/Haybale.png` and the room's wall is
+`Haybale Interior Idea.png`, both cut by `tools/build_art.py`. One picture serves four
+states: the cutter also produces a **mouthless copy** (the doorway filled by mirroring the
+straw from the far side of the heap, feathered), so intact and combed draw the solid one and
+tunnelled draws the one with the hole. The ants are drawn and animated in code from a
+reference — ⚠ `ant pixel art.webp` is a **watermarked stock image**, a thing to work from
+and not a thing to ship.
+
+**Going in is a press.** Standing in the mouth only makes the offer — the hint bar says so
+and names the key out of the live InputMap. Down is the platformer's key for a door and is
+unused outside a ladder. ⚠ It cannot be a walk-in: Terrace5 is the way to Node 3 and the
+mouth is on it, so a heap that swallows whoever passes is a hole in the floor of the level.
+`run_nodraw_level1` found exactly that — its walk east stopped dead at the doorway at x 3154
+and never reached the bale.
+
+**The room is built like the hub's house.** Same ruler (the apo, 72px to the metre), same
+zoom (2), same idiom — courses, joints, a lintel over the door, a floor laid in bands. The
+wall is **thatch on a bamboo frame**: vertical straw in clumps held by binding poles, because
+the crisp rectangles that are right for timber gave a wall of crates when they were tried on
+straw. ⚠ The room is **not drawn at all while she is somewhere else** — its dark ground
+reaches past its walls so the camera never sees an edge, and left switched on that painted
+the whole valley black.
+
+**Ducking into the mouth takes her somewhere else:** a cavern of straw **1700 ×
+900**, sitting in the empty sky above the level at **(1900, −900)**, reachable only through
+the heap. A little hole and a big room — the two must not be the same size, which is why the
+first version, a cutaway drawn where the heap stands, was thrown away.
+
+In it: her **baul**, the **brass key to the house** hanging on a nail, and ants. The key is
+recorded on the profile as `L1_bale_key`, not on a checkpoint, for the same reason canvas
+damage is. The way back is the daylight in the wall, which is the only bright thing in it.
+
+**The nail is out of reach, and that is the room's puzzle.** It hangs 250 above the floor;
+the apo is 96 tall and her jump apex is 94.3 (`wanderer.gd`), so she is about forty pixels
+short. Anything at all to stand on closes that — the one place in the level where the puzzle
+is height and nothing else, with no tag to satisfy and no wrong answer.
+
+> ⚠ A drawing placed in here needs the **level's** bounds. `PhysicsShapeObject` defaults to
+> `Rect2(0, −520, 3760, 1200)` and clamps itself back inside it; the room is a thousand units
+> above that, so an object put down here without `set_world_bounds` is snapped to the valley
+> floor and the room reads as a dead end. `_on_placement_confirmed` passes them — a fixture
+> that forgets to is testing the default, not the game.
+
+**The chain is heap → key → house → painting.** The room used to hold the hub's painting of
+Pista *and* a key that opened nothing ("finding a key that does not fit is the point"), which
+made the heap the place you collect the next level and the house the place you collect
+nothing — backwards, since the house is the harder of the two and the one the level ends at.
+Each thing you find is now the way into the next thing rather than a promise about it.
+
+It costs a teleport and a fade and nothing else: the apo is the same body in the same level,
+so ink, the bag, the drawing panel and every checkpoint carry in with her, and Lolo follows
+without being asked (he teleports past 900px and the room is thousands away).
+
+⚠ **Three things this needed that are not obvious.**
+- `world_bounds` grew upward to `Rect2(0, −1800, 3920, 2480)` so the room has sky to sit in.
+  The floor, the fall limit and `_max_camera_y` are all measured off the BOTTOM of the
+  bounds and are unchanged; only `_min_camera_y` moved.
+- `WorldCameraController.vertical_free`. The camera's ordinary job is to pin itself near the
+  ground and let the player rise off it by three quarters — correct for a level, useless a
+  thousand units above one, where it stays below the floor and points at nothing. It is
+  **not** `focus_on`: focus is what a line of dialogue takes and gives back, so a room would
+  lose its framing the moment somebody finished a sentence.
+- Everything drawn in the room runs **700 units past its own walls**. The camera sees seven
+  hundred either way, so standing near an end otherwise puts the end of the floor on screen
+  with the sky behind it.
 
 | Route | Tag | Straw ends up | Reward |
 |---|---|---|---|
 | Artist | Forage | combed, left standing | **sets `knows_about_key`** |
 | Pragmatist | Carry | tunnelled | — |
-| Protector | Weather | scattered, permanent | sets `straw_scattered` |
+| Protector | Weather | scattered, permanent | sets `straw_scattered`, **and turns out the key** |
+
+**Wrecking the heap turns the key out of it.** The nail is inside and out of reach; a player
+who blew the whole heap across the terrace has plainly got at whatever was hanging in it, and
+refusing them the key would mean the fast route locks the door the slow one opens. Same key,
+same name, so taking both ways in cannot yield two.
+
+⚠ **THE DRAWING IS THE CHOICE at Nodes 2 and 3.** Node 1 stops the world and puts three
+buttons up, so a route is committed before anything is drawn. Nodes 2 and 3 never ask — how
+you deal with the heap *is* which thing you drew — and nothing was closing that loop:
+`_committed` stayed empty all level, `obstacle_solved` reported an empty route, and both
+handlers that switch on it matched no case. The straw was never combed, tunnelled or
+scattered, `knows_about_key` and `straw_scattered` were never set, no route reached the
+tally, and CP2 and CP3 were never written. Three routes each at two nodes, and in play the
+level had one. `LevelDirector._route_carrying` closes it: **declared order wins** where a
+class carries more than one route's tag (a bucket is both Carry and Weather), because a rule
+that reads the same every run is what makes a route reproducible.
 
 **`knows_about_key` is the load-bearing one.** The sketchbook page is the only place in the
 level anyone is told to look on a nail, and Node 3's Artist route reads it. **CP2** on commit.
@@ -106,8 +223,42 @@ one door above head height, ladder taken inside at night, which is the lock.
 | Route | Tag | How |
 |---|---|---|
 | Artist | Climb (excl. crab, snake) | over the thatch, in under the eaves, key on a nail. **Search halved if `knows_about_key`** |
-| Pragmatist | Unlock | the ward sequence — see below |
+| Pragmatist | Unlock | the ward sequence — see below — **or the key found in the heap** |
 | Protector | Cut (excl. elephant) | through the hasp. **Creases the canvas** |
+
+**The Unlock route has two honest answers**: draw a key that fits the ward, or use the brass
+one off the nail. The door says so on the hint bar rather than expecting the player to
+remember, twenty minutes later, that a key found in a straw heap is the answer to this
+particular door. Only the drawn one is a *submission*: `LevelDirector.solve_with_item` is its
+own verb, recording no attempt, no tag match and no tier change, so per-class statistics
+never count a thing nobody drew and Chapter 5 can tell "opened it with the key they found"
+from "drew a key that fitted".
+
+#### Inside the house
+
+All three routes arrive in the same room — they are three ways through the same wall — and
+the room is `bale_interior_2d.gd`: the artist's own 557×314 picture, parked in the empty sky
+above the level like the heap's inside, with its own floor and end walls.
+
+**It fills the screen.** At the heap's zoom of 2 a screenful is 800×450 and the picture is
+557×314, so the house sat in the middle of the frame at two-thirds size with a black border
+painted round it. `room_zoom` is **3**: a screenful is then 533×300, which the picture covers
+with a dozen pixels to spare on each side, and 3 is an integer so every art pixel is exactly
+three screen pixels. `camera_rect()` holds the camera inside the picture, because at 3 it can
+still see all but 24 units of it and following the player slid the void back on screen.
+
+**It has things in it besides the canvas.** `NOTICES` are three bands on the floor — the
+hearth, her stacked jars, the sleeping platform — read off the artist's own picture and
+raised on the **hint** channel: no key press, no pause, cleared when the player walks away.
+Getting in is the hard part of this node, and what was on the other side of it was a
+corridor with one pickup in it.
+
+**The canvas is picked up and it says so.** `PickupFlourish2D` — a ring, sparks and a glint,
+in the interface's gold — plays for this and for the brass on the nail in the heap, which
+both used to be sprites that simply stopped being drawn. Taking it fires `L1_N3.canvas.taken`
+and **not** `L1_N3.attic.found`: that line is "On the nail. Just as she said." and belongs to
+the Artist route's search of the roof space, so firing it here answered picking up a painting
+with a sentence about a key.
 
 **CP3** on commit; the level is marked complete there, not at the marker stone, so a player
 who stops after Node 3 keeps the progress. CP3 is also what opens the exit: the GoalMarker
@@ -115,6 +266,27 @@ sits inside the bale, and until the data's `unlocks_at_checkpoint` has been reac
 at it does nothing. Without that, walking up to the house ended Level 1.
 
 #### The ward sequence (`ward_lock_2d.gd`)
+
+⚠ **It was not wired to anything until now.** `level_01.json` has declared this route as
+`ward_matching_sequence` since the route existed, nothing read that field, the route was a
+plain Unlock tag check, and any key-shaped key opened the door first time. `WardLock2D` had a
+unit test the whole while — a green suite over a feature that was not in the build, which is
+what `_audit_the_ward_is_wired` now exists to prevent. The lock is built beside the director
+in `_build_obstacle_layer`: it draws nothing and stands nowhere, being a measurement rather
+than a prop.
+
+A refused turn is counted through `LevelDirector.note_failed_attempt`, **not**
+`note_submission`. The class was right and the shape was wrong, which no accept-set can
+express, and pushing it through the ordinary door would need an entity id — putting a class
+nobody drew into the per-class precision and recall the evaluation rests on.
+
+**Not built: the ward drawn on the canvas.** `try_key` returns `revealed` (a third more of
+the shape per attempt) and there is no canvas guide to receive it. Instead the hint bar names
+the one measurement that failed and the number it read — "It counted 4 teeth on that one" —
+never the number it wants, which would be the spelling test this level avoids. The authored
+fail line `L1_N3.ward.fail2` says "you can see it now", which is a promise the build does not
+keep until the guide exists.
+
 
 **Classification is not the puzzle.** The recogniser only gets the player through the door —
 once it accepts `key`, the lock measures *their own strokes*: tooth count, depth ratio,
@@ -163,10 +335,49 @@ as its own literal so a bump fails loudly until the migration is confirmed.
 
 ---
 
+## Arrival speaks once
+
+`<obstacle>.enter` and `L1_N2.inside` play themselves the **first** time and never again.
+`DialogueScript.has_heard` tracks it per hook; `game_level._speak_on_arrival` is the only
+caller allowed to fire an arrival.
+
+This is not the same as a line's authored `once`, which means "spent, never again for
+anyone" and is right for the refusal beat. Arrival lore stays **readable** — it moves to
+the interact key at the beat's `STORY` board (see **HUD_SKIN.md**).
+
+*Why.* The straw heap sits inside `L1_N2`'s trigger and so does the ledge the player lands
+on climbing back out, so leaving the heap re-entered the obstacle and replayed two lines of
+Lolo with the world paused — every time. `L1_N1` is seven lines. A narrower volume does not
+fix it: a trigger that contains the thing it is about is a trigger the player crosses more
+than once. The beat needs a memory, not a smaller box.
+
+The volumes were narrowed anyway, because they were firing story hundreds of pixels before
+the thing it was about, and `B0_HAGDAN` began 80px from the spawn point. `trigger_size` is
+now the single source of truth — `level_obstacle_2d.gd` fits the authored `RectangleShape2D`
+to it at `_ready`, so the exported number and the scene's shape can no longer disagree.
+
+| Obstacle | Spans | What is in it |
+|---|---|---|
+| `B0_HAGDAN` | 430 – 950 | the floating plank (490), the three broken treads (800–884) |
+| `L1_N1` | 2170 – 2550 | the dialogue node (2330), the dead tree (2360), the ruined bridge (2400) |
+| `L1_N2` | 2960 – 3360 | the three straw piles (2974–3348), on Terrace5 |
+| `L1_N3` | 3410 – 3790 | the bale's floor (3500–3740) and both bululs |
+
+No two overlap now; `L1_N2` and `L1_N3` used to share 20px.
+
+---
+
 ## Hint ladder
 
-T0 says nothing · T1 names the tags · T2 adds the player's **own** qualifying drawings ·
-T3 widens the accept-set to the union of all three routes.
+T0 says nothing · T1 names the tags **and glosses them** · T2 adds the player's **own**
+qualifying drawings · T3 widens the accept-set to the union of all three routes.
+
+**T1 prints what the tag means, not only its name.** "NEEDS SPAN" names the problem without
+describing it, and the tags are this game's invention — nobody arrives knowing them. Each
+carries a one-line gloss ("long and stiff enough to lie across a gap and take your weight")
+authored in `GLOSS` in `tools/build_tags.py`. Every gloss describes a **property and names
+no class**, which is the constraint the whole tag layer exists to hold; the strip joins
+several with *or* / *and* from the spec's own `match` rule rather than a house style.
 
 T3 is the only tier that changes the rules, and it replaces per-obstacle fallback authoring.
 Two things must stay true through it: the **tally records the choice** made at the dialogue,
@@ -210,7 +421,13 @@ godot --headless --path game --script res://tests/run_tests.gd
 godot --headless --path game --script res://tests/run_level_ready.gd
 ```
 ```bash
+godot --headless --path game --script res://tests/run_room_probe.gd
+```
+```bash
 godot --path game --script res://tests/run_visual_level1.gd
+```
+```bash
+godot --path game --script res://tests/run_visual_rooms.gd
 ```
 ```bash
 godot --path game --script res://tests/run_visual_level1_nodes.gd
@@ -268,9 +485,11 @@ project passed green suites and were caught only by screenshotting.
 - Node 1's memory cutscene · the full Ability Book panel · Hidden Flower 1 · the exit marker
   and second-canvas presentation. `WardLock2D` exists and is unit-tested but is not wired
   into a scene — the ward sequence has no on-screen presentation yet.
-- **Combed and tunnelled read the same.** The three routes leave three different marks, but
-  a heap at 0.82 × 0.90 and one at 0.94 × 0.78 are the same heap to look at. A tunnel is
-  supposed to be a hole; `tunnel()` only reshapes. Design call, not a bug.
+- ~~**Combed and tunnelled read the same.**~~ Fixed 2026-08-26. The heaps are drawn as
+  stalks now rather than as a textured polygon, so a tunnel can be an actual arched hole
+  with straw hanging over it. The prop photographer was also lying: it called `comb()` then
+  `tunnel()` on the same three piles, and `tunnel()` refuses a pile that is not intact, so
+  every "tunnelled" frame ever taken was a picture of a combed heap.
 - **Authoring:** the opening line still comes from the *old* `dialogue.json` and is out of
   voice; `B0_HAGDAN.sub2.solved` does not exist, so Beat 0's second lesson ends without
   acknowledgement; and `L1_N3.attic.found` says **"On the nail. Just as she said."** to

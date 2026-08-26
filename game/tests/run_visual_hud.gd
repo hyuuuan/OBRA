@@ -36,15 +36,63 @@ func _run() -> void:
 	# Mid-stroke: some of the budget gone, some claimed by ink on the canvas that has not
 	# been spent yet. The two-tone block is the whole reason the gauge is drawn by hand.
 	var hud = level.get("hud_panel")
+
+	# THE NAMEPLATE, which only exists while the player is a drawing. Three frames, because
+	# the bar changes colour twice on the way down and a still of the full one proves none
+	# of that. The apo's own state -- no plate at all -- is what 00 above already shows.
+	# THE CARD IN THE OPPOSITE CORNER, which is where what-you-are lives now. Three frames,
+	# because the bar changes colour twice on the way down and a still of the full one proves
+	# none of that. Fed a stand-in drawing rather than a real submission: what is being
+	# photographed is the card, and a real morph would also move the camera.
+	var card = level.get("morph_card")
+	var sketch := Image.create(96, 96, false, Image.FORMAT_RGBA8)
+	sketch.fill(Color(0.96, 0.94, 0.88, 1.0))
+	for i in range(18, 78):
+		sketch.set_pixel(i, 48, Color.BLACK)
+		sketch.set_pixel(48, i, Color.BLACK)
+		sketch.set_pixel(i, i, Color.BLACK)
+		sketch.set_pixel(96 - i, i, Color.BLACK)
+	card.call("show_form", "Spider", sketch, 0.94)
+	card.call("set_life", 10.0, 10.0)
+	await _wait(0.4)
+	await _capture("00a_form_full")
+
+	card.call("set_life", 4.2, 10.0)
+	await _wait(0.4)
+	await _capture("00b_form_low")
+
+	card.call("set_life", 1.4, 10.0)
+	level.get("status_label").text = "The spider is fading"
+	await _wait(0.4)
+	await _capture("00c_form_critical")
+
+	# And gone: the corner is empty again the moment the drawing expires.
+	card.call("hide_form")
+	level.get("status_label").text = "Checking backend…"
+	await _wait(0.3)
+	await _capture("00d_form_expired")
+
 	hud.call("set_ink", 7.4, 12.0, 2.2)
 	level.get("status_label").text = "Recognizing…"
 	await _wait(0.4)
 	await _capture("01_ink_reserved")
 
+	# Running low, which is now a state with a COLOUR and not just a length: the brush warms
+	# toward amber under a third of the budget and goes red under an eighth, so these are two
+	# separate frames rather than one nearly-empty one.
+	hud.call("set_ink", 3.4, 12.0, 0.0)
+	level.get("status_label").text = "Ink running low"
+	await _wait(0.4)
+	await _capture("02a_ink_low")
+
 	hud.call("set_ink", 0.8, 12.0, 0.0)
 	level.get("status_label").text = "No ink left — nothing more can be drawn in this level"
 	await _wait(0.4)
 	await _capture("02_ink_spent")
+
+	hud.call("set_ink", 0.0, 12.0, 0.0)
+	await _wait(0.4)
+	await _capture("02b_ink_dry")
 	# Both restored, or every frame after this one is photographed with a spent gauge and
 	# a line about running out of ink that has nothing to do with what it is showing.
 	hud.call("set_ink", 12.0, 12.0, 0.0)

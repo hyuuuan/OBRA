@@ -28,6 +28,16 @@ const _LIFT_STEP := 12.0
 ## the drop line can be drawn to where the object is really going to end up. Longer than any
 ## fall in the level; it is one shape cast per aim, not a loop.
 const _FALL_PROBE := 1800.0
+## How far inside the allowed box the preview is held, when there is one, ON TOP OF the
+## object's own half-size.
+##
+## A room's box is its PICTURE, and the walls the player can actually touch stand inside
+## that: the heap's bamboo is 8 units outside its bounds and the house's is 22 inside them.
+## So the clamp has to clear the widest of those by more than the object's own half-width,
+## or the aim pins itself to a spot the overlap test then refuses -- a preview stuck red
+## against a wall, which is worse than the fall it replaced. Fifty-six is about half a body
+## and clears both rooms' bamboo with the biggest thing that can be drawn.
+const _INSIDE_MARGIN := 56.0
 
 var registry: EntityRegistry
 var world_item_root: Node2D
@@ -43,12 +53,27 @@ var _valid: bool = false
 ## Reported separately from validity because it is not a refusal -- the pinned spot
 ## is placeable -- it just explains why the preview stopped following the mouse.
 var _at_reach_limit: bool = false
+## The cursor was outside the room and the preview was pinned to its wall. Reported apart
+## from the reach limit because they are two different refusals and the player is owed the
+## right one: "your arm does not reach" and "the room ends here" call for different moves.
+var _held_by_room: bool = false
 ## Whether the preview is standing on something. When it is not, confirming drops the
 ## object and the ghost is no longer a promise -- so the fall gets drawn instead of hidden.
 var _resting: bool = false
 var _fall_landing: Vector2 = Vector2.ZERO
 var _will_fall: bool = false
 var _excluded_rids: Array[RID] = []
+## THE BOX A PLACEMENT MAY NOT LEAVE. Empty means the level, which needs none.
+##
+## The reach circle is 360 units wide because that is arm's length in a valley four thousand
+## units across. Inside a room it is most of the screen -- and a room is a floor a few hundred
+## units long parked in the empty sky above the level, with nothing under it for two thousand
+## units. So aiming anywhere past the boards put the object down in the sky, and confirming
+## dropped it out of the room, through the roof of the world and onto the valley floor. It
+## looked exactly like the game throwing the thing off the map, because it was.
+##
+## The room hands its own box in on the way through the door and takes it back on the way out.
+var _allowed: Rect2 = Rect2()
 
 
 func _ready() -> void:
@@ -63,6 +88,34 @@ func is_placing() -> bool:
 
 func is_at_reach_limit() -> bool:
 	return _at_reach_limit
+
+
+func is_held_by_room() -> bool:
+	return _held_by_room
+
+
+## Where placement is allowed from now on. An empty rect lifts the restriction.
+func set_allowed_area(rect: Rect2) -> void:
+	_allowed = rect
+	if is_placing():
+		update_target(_preview.global_position)
+
+
+## Pull an aim back inside the allowed box, if there is one.
+##
+## The inset is the clearance PLUS the object's own half-size, because what is clamped is the
+## preview's CENTRE: pinning the middle of a wide object to the wall stands half of it inside
+## the bamboo.
+func _held_inside(at: Vector2) -> Vector2:
+	if _allowed.size.x <= 1.0 or _allowed.size.y <= 1.0:
+		return at
+	var margin := Vector2(_INSIDE_MARGIN, _INSIDE_MARGIN) + _preview_rect().size * 0.5
+	var inset := Rect2(_allowed.position + margin, _allowed.size - margin * 2.0)
+	if inset.size.x <= 0.0 or inset.size.y <= 0.0:
+		return _allowed.get_center()
+	return Vector2(
+		clampf(at.x, inset.position.x, inset.end.x),
+		clampf(at.y, inset.position.y, inset.end.y))
 
 
 ## Called by UIRouter, AHEAD of the pause menu in the cancel chain. This used to be a
@@ -162,6 +215,12 @@ func update_target(world_position: Vector2) -> void:
 	var beyond_reach := offset.length() > maximum_distance
 	if beyond_reach:
 		world_position = origin + offset.normalized() * maximum_distance
+	# AND INSIDE THE ROOM, if there is one. Held rather than refused: pinning the preview to
+	# the wall is the same answer the reach circle gives, and a spot the player can see the
+	# ghost sitting in is a better answer than a click that does nothing.
+	var pulled_in := _held_inside(world_position)
+	var held_by_room := not pulled_in.is_equal_approx(world_position)
+	world_position = pulled_in
 	_preview.global_position = world_position
 	_refresh_preview_exclusions()
 	# Aim first, then climb. Validity is judged where the preview ACTUALLY ended up:
@@ -175,9 +234,11 @@ func update_target(world_position: Vector2) -> void:
 	else:
 		_resting = false
 	_refresh_fall_line(placeable)
-	if placeable != _valid or beyond_reach != _at_reach_limit:
+	if placeable != _valid or beyond_reach != _at_reach_limit \
+			or held_by_room != _held_by_room:
 		_valid = placeable
 		_at_reach_limit = beyond_reach
+		_held_by_room = held_by_room
 		placement_changed.emit(true, _valid)
 	_preview.set_preview_valid(_valid)
 	queue_redraw()
@@ -270,8 +331,9 @@ func _refresh_fall_line(placeable: bool) -> void:
 	_fall_landing = _preview.global_position + Vector2(0.0, drop)
 
 
-## World-space vertical extent of the preview's own collision, rotation included.
-func _preview_height() -> float:
+## World-space box the preview's own collision occupies, rotation included. Only its SIZE is
+## ever used, which is why it does not matter that this is measured before the aim moves it.
+func _preview_rect() -> Rect2:
 	var bounds := Rect2()
 	var started := false
 	for child in _preview.get_children():
@@ -289,7 +351,12 @@ func _preview_height() -> float:
 			var point: Vector2 = basis * corner
 			bounds = bounds.expand(point) if started else Rect2(point, Vector2.ZERO)
 			started = true
-	return bounds.size.y
+	return bounds
+
+
+## World-space vertical extent of the preview's own collision, rotation included.
+func _preview_height() -> float:
+	return _preview_rect().size.y
 
 
 func _draw() -> void:
@@ -380,6 +447,7 @@ func _clear_transaction() -> void:
 	_preview = null
 	_valid = false
 	_at_reach_limit = false
+	_held_by_room = false
 	_resting = false
 	_will_fall = false
 	queue_redraw()

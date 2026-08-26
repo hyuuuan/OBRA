@@ -71,6 +71,20 @@ const POST_WIDTH := 5.0
 const SWAY_PIXELS := 1.0
 const SWAY_HZ := 0.35
 
+## The dialogue hook this board will say again when the player presses the interact key
+## beside it. Empty on most signs: a board with nothing to re-read is still a board that
+## says "something happens here", which is what they were all for to begin with.
+##
+## WHY THE SIGN AND NOT THE TRIGGER. Arrival lore plays itself once and then stops seizing
+## the screen (see DialogueScript.has_heard) -- but "stops" cannot mean "is gone", because
+## the arrival line is the level telling you where you are and a player who walked in while
+## reading something else has lost it for good. So it needs somewhere to live afterwards,
+## and it wants to be somewhere the player can SEE, not a key that works invisibly across a
+## four-hundred-pixel volume. The sign is already standing at the beat, already means
+## "something here", and was already the thing Kent pointed at when describing the beat. It
+## is the obvious place to put it and it costs no new art.
+@export var reads: String = ""
+
 @export var mark: Mark = Mark.STORY
 ## Set from the planting node so two signs side by side do not sway in lockstep.
 @export var phase: float = 0.0
@@ -80,17 +94,23 @@ const SWAY_HZ := 0.35
 const LOOK_UP := 40.0
 ## How close two signs have to be before one of them is redundant. See _yield_if_crowded.
 const CROWD := 90.0
+## How close the player stands before the board offers to be read. Matched to the 96px the
+## interact key already reaches for a placed drawing, so one key has one range.
+const READ_RANGE := 96.0
 
 var _time: float = 0.0
 var _sway: float = 0.0
+var _offered := false
 
 
 ## Stand a sign at `where`, in `host`'s parent so it keeps the host's place in the world
 ## without inheriting a scale or a rotation the trigger might be carrying.
-static func plant(host: Node2D, what: Mark, offset: Vector2 = Vector2.ZERO) -> Signpost2D:
+static func plant(host: Node2D, what: Mark, offset: Vector2 = Vector2.ZERO,
+		reads: String = "") -> Signpost2D:
 	var sign := Signpost2D.new()
 	sign.name = "Signpost"
 	sign.mark = what
+	sign.reads = reads
 	sign.position = offset
 	# Seeded off where it stands, so the sway is scattered along the level rather than
 	# synchronised, and so it is the same every run.
@@ -178,11 +198,25 @@ func _yield_if_crowded() -> void:
 		if absf(rival.global_position.x - global_position.x) > CROWD:
 			continue
 		if _rank(rival.mark) > _rank(mark):
+			_hand_over(rival)
 			queue_free()
 			return
 		if _rank(rival.mark) == _rank(mark) and get_instance_id() > rival.get_instance_id():
+			_hand_over(rival)
 			queue_free()
 			return
+
+
+## A board that stands down passes on whatever it could re-read, so crowding removes a
+## post and never a beat. Without this, the sign carrying an arrival hook could be the one
+## deleted -- silently, at load, on any narrow trigger where the two signs land together --
+## and the player would be left with a key that does nothing beside the only board there is.
+##
+## The survivor keeps its own hook if it already has one. Two hooks on one board would need
+## the player to press twice for a reason nothing on screen explains.
+func _hand_over(survivor: Signpost2D) -> void:
+	if survivor.reads.is_empty():
+		survivor.reads = reads
 
 
 ## Which mark survives when two signs land on the same spot. A choice that cannot be taken
@@ -196,6 +230,22 @@ func _rank(what: Mark) -> int:
 		Mark.FIND: return 2
 		Mark.HINT: return 1
 		_: return 0
+
+
+## Whether the player is close enough to read this board, and it has something to say.
+func can_be_read_from(where: Vector2) -> bool:
+	return not reads.is_empty() and global_position.distance_to(where) <= READ_RANGE
+
+
+## Light the board up because the player is standing at it. Set by the level, which is the
+## only thing that knows both where the player is and whether the beat has been heard yet --
+## a sign polling for a player every frame would be one raycast per board, forever, for a
+## highlight.
+func offer(on: bool) -> void:
+	if _offered == on:
+		return
+	_offered = on
+	queue_redraw()
 
 
 func _process(delta: float) -> void:
@@ -212,7 +262,15 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	_draw_post()
-	_draw_board(Vector2(0.0, -POST_HEIGHT - BOARD_SIZE.y * 0.5 + _sway))
+	var at := Vector2(0.0, -POST_HEIGHT - BOARD_SIZE.y * 0.5 + _sway)
+	if _offered:
+		# A ring of the same warm yellow the glyphs are painted in, one pixel off the
+		# board on every side. It is not a key badge: the hint bar is already saying which
+		# key, in the live binding, and a letter drawn on a 34-pixel plank would be four
+		# pixels tall and unreadable at the distance the player is actually standing.
+		draw_rect(Rect2(at - BOARD_SIZE * 0.5 - Vector2(3.0, 3.0),
+			BOARD_SIZE + Vector2(6.0, 6.0)), LIT, false, 2.0)
+	_draw_board(at)
 
 
 ## The post, with a little heap of earth at its foot so it reads as driven in rather than
