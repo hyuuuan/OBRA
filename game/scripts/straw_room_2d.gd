@@ -67,7 +67,19 @@ const FRAME_EDGE := Color(0.361, 0.212, 0.055, 1.0)   # 5C360E
 const BRASS := Color(0.831, 0.667, 0.216, 1.0)        # D4AA37
 const BRASS_LIT := Color(0.949, 0.851, 0.427, 1.0)    # F2D96D
 const BRASS_DARK := Color(0.502, 0.376, 0.098, 1.0)   # 806019
-const ANT := Color(0.180, 0.106, 0.075, 1.0)          # 2E1B13
+## Kent's interior, cut to a tileable strip by tools/build_art.py, and where the dirt
+## starts in it. The level lines that line up with its own floor.
+const INTERIOR := preload("res://assets/Level1/props/haybale_interior.png")
+const INTERIOR_FLOOR := 1096.0
+
+## The wall, mirrored, built once.
+##
+## NEITHER OF THE TWO OBVIOUS WAYS WORKS. draw_texture_rect's fifth argument is `transpose`,
+## which swaps the axes rather than mirroring -- pass `true` and a 400x1660 wall is drawn
+## sideways into a 400-wide box and disappears. A Rect2 with a negative width, which is how
+## the docs say to flip, draws nothing at all in 4.7. So the flip is baked into a second
+## texture at load and the tiling just picks one of the two.
+var _flipped: Texture2D
 
 var _taken := false
 var _art: Texture2D
@@ -81,10 +93,26 @@ func _ready() -> void:
 	var path := "res://assets/hub/paintings/%s.png" % canvas_level_id
 	if ResourceLoader.exists(path):
 		_art = load(path)
+	var mirror := INTERIOR.get_image()
+	mirror.flip_x()
+	_flipped = ImageTexture.create_from_image(mirror)
 	_build_floor()
 	_build_key_area()
 	_build_exit_area()
+	_build_ants()
 	queue_redraw()
+
+
+## They walk about on their own, so they get their own node: the walls of this room are a
+## couple of thousand units of tiled art and repainting all of it every frame to move six
+## legs would be the smallest thing on screen costing the most.
+func _build_ants() -> void:
+	var ants := StrawAnts2D.new()
+	ants.name = "Ants"
+	ants.patrol = Vector2(-room_size.x * 0.34, room_size.x * 0.34)
+	ants.position = Vector2(0.0, 26.0)
+	ants.z_index = 1
+	add_child(ants)
 
 
 func key_is_taken() -> bool:
@@ -196,85 +224,48 @@ func _on_exit_body(body: Node) -> void:
 
 func _draw() -> void:
 	_draw_dark()
-	_draw_straw_field()
+	_draw_walls()
 	_draw_way_out()
-	_draw_floor()
 	_draw_canvas()
 	if not _taken:
 		_draw_key(key_at)
-	_draw_ants()
 
 
-## What everything in here is seen against. Drawn well past the room on every side: the
-## camera leads the apo, so a backdrop that stops at the walls shows sky over her head.
+## Behind everything, for the sliver the tiles do not reach.
 func _draw_dark() -> void:
 	var half := room_size * 0.5
-	draw_rect(Rect2(-half.x - 600.0, -room_size.y - 700.0,
-		room_size.x + 1200.0, room_size.y + 1400.0), DEEPER)
+	draw_rect(Rect2(-half.x - 1200.0, -room_size.y - 1200.0,
+		room_size.x + 2400.0, room_size.y + 2400.0), DEEPER)
 
 
-## STRAW ALL THE WAY ACROSS, and the hollow is WHERE THE STRAW STOPS.
+## KENT'S INTERIOR, TILED. Two goes at drawing the inside of a heap in code came and went;
+## this is the picture he drew, cut by tools/build_art.py into a strip that is wall and
+## floor and nothing else -- the chest and the canvas painted into the middle of his version
+## are real nodes in this level, and the baul outlives this room.
 ##
-## That is what the inside of a heap looks like and what the reference shows: the frame is
-## full of hanging stalks, and the room is the space worn out of the middle of them. The
-## first cut of this drew a full field and then a dark arch over the top of it, which reads
-## as a hole cut in a photograph -- and left the straw stopping short of the floor with
-## black underneath, so the middle of the room came out looking like a city skyline.
-##
-## So every column hangs from above the top of the view down to a foot that follows the
-## hollow: at the sides it reaches the floor, in the middle it stops high. Same columns,
-## same tufts and same grain as the heap outside, because it is the same heap.
-func _draw_straw_field() -> void:
-	var rng := _rng(23)
-	var half := room_size.x * 0.5
-	var hollow_centre := 110.0
-	var hollow_half := 470.0
-	var tuft := 0.0
-	var tuft_left := -half - 400.0
-	var tuft_width := 0.0
-	var x := -half - 400.0
-	while x < half + 400.0:
-		if x >= tuft_left + tuft_width:
-			tuft_left = x
-			tuft_width = rng.randf_range(7.0, 20.0)
-			tuft = rng.randf_range(-0.11, 0.09)
-		# 1 in the middle of the hollow, 0 outside it, eased so the straw curves in rather
-		# than stepping down.
-		var inside := clampf(1.0 - absf(x - hollow_centre) / hollow_half, 0.0, 1.0)
-		var hollow := inside * inside * (3.0 - 2.0 * inside)
-		var foot := -room_size.y * clampf(hollow * 0.66 + tuft * hollow, 0.0, 0.9)
-		var across := clampf(absf(x) / half, 0.0, 1.0)
-		# EVERY COLUMN ITS OWN VALUE, and most of them dark. A field where each stalk is
-		# shaded from the same smooth function is a painted slab -- the first cut of this
-		# came out as a sheet of cream with a few specks on it. What makes a wall of straw
-		# read as straw is that a third of it is the shadow BETWEEN the stalks, so the
-		# column tone is drawn from a distribution bent toward the dark end and only the
-		# lucky ones catch the light.
-		var glow := 0.20 + across * 0.30 - hollow * 0.30
-		var pick := rng.randf()
-		var column := glow + (0.34 if pick > 0.72 else (-0.20 if pick < 0.34 else 0.04))
-		var top := -room_size.y - 400.0
-		var phase := rng.randf_range(0.0, 9.0)
-		var run := top + phase
-		while run < foot:
-			var down := (run - top) / maxf(1.0, foot - top)
-			# Nearer the floor is nearer the viewer and catches a little more.
-			var lit := clampf(column + down * 0.16
-				+ rng.randf_range(-0.09, 0.09), 0.0, 1.0)
-			var length := rng.randf_range(7.0, 26.0)
-			draw_rect(Rect2(x, run, 1.0, minf(length, foot - run)), _ramp(lit))
-			if rng.randf() < 0.40 and run + length < foot:
-				draw_rect(Rect2(x, run + length - 2.0, 1.0, 2.0), EDGE)
-			run += length
-		# The ends of the stalks along the lip of the hollow, hanging into the dark.
-		if hollow > 0.02 and rng.randf() < 0.5:
-			draw_rect(Rect2(x, foot, 1.0, rng.randf_range(8.0, 64.0)),
-				_ramp(rng.randf_range(0.02, 0.30)))
-		x += 1.0
+## The strip carries its own floor line, so the level lines the two up rather than either
+## end guessing: everything above INTERIOR_FLOOR is wall, everything below is dirt, and y=0
+## in this node is the ground the apo stands on.
+func _draw_walls() -> void:
+	# MIRRORED EVERY OTHER TILE. The strip's left and right edges are different straw, so
+	# butting copies of it put a hard vertical seam every four hundred units across the
+	# room -- the one thing a wall of hanging stalks must not have. Flipping alternate
+	# copies makes each join a reflection of itself, which cannot show.
+	var span := room_size.x * 0.5 + 900.0
+	var width := float(INTERIOR.get_width())
+	var first := floorf(-span / width)
+	var index := first
+	while index * width < span:
+		var mirrored := int(absf(index)) % 2 == 1
+		draw_texture_rect(_flipped if mirrored else INTERIOR,
+			Rect2(Vector2(index * width, -INTERIOR_FLOOR),
+				Vector2(width, float(INTERIOR.get_height()))), false)
+		index += 1.0
 
 
-## The way back out: a ragged opening with the terrace's daylight behind it. It is the only
-## bright thing in the room, which is what makes it read as the way out without a label.
+## The way back out: the terrace's daylight through a hole worn in the wall. It is the only
+## bright thing in the room, which is what makes it read as the way out without a label --
+## and the delivered interior has no doorway in it, so this is drawn over the top.
 func _draw_way_out() -> void:
 	var rng := _rng(41)
 	var opening := exit_rect()
@@ -309,28 +300,6 @@ func _draw_way_out() -> void:
 		spill += 4
 
 
-func _draw_floor() -> void:
-	var rng := _rng(67)
-	# PAST THE WALLS ON BOTH SIDES. The camera centres on the apo and sees seven hundred
-	# units either way, so standing anywhere near an end of the room puts the end of the
-	# floor on screen -- a hard edge with the sky behind it. Everything drawn in here runs
-	# well past the box she is actually allowed to walk in.
-	var half := room_size.x * 0.5 + 700.0
-	draw_rect(Rect2(-half, 0.0, half * 2.0, 900.0), EARTH_DARK)
-	draw_rect(Rect2(-half, 0.0, half * 2.0, 26.0), EARTH)
-	draw_rect(Rect2(-half, 0.0, half * 2.0, 4.0), EARTH_LIT)
-	for index in range(int(half * 0.6)):
-		var at := Vector2(rng.randf_range(-half, half), rng.randf_range(2.0, 24.0))
-		var wide := rng.randf_range(2.0, 6.0)
-		draw_rect(Rect2(at, Vector2(wide, maxf(2.0, wide * 0.55))),
-			PEBBLE if rng.randf() < 0.35 else EARTH_LIT)
-	# Straw trodden into it, so the two materials meet rather than abut.
-	for index in range(int(half * 0.5)):
-		var at := Vector2(roundf(rng.randf_range(-half, half)), rng.randf_range(1.0, 22.0))
-		draw_rect(Rect2(at, Vector2(rng.randf_range(6.0, 26.0), 1.0)),
-			_ramp(rng.randf_range(0.15, 0.5)))
-
-
 ## One of Lola's, propped against the straw. Framed like the ones in the house, because it
 ## is one of the ones in the house.
 func _draw_canvas() -> void:
@@ -362,20 +331,6 @@ func _draw_key(at: Vector2) -> void:
 	draw_rect(Rect2(at + Vector2(-6.0, -16.0), Vector2(38.0, 2.0)), BRASS_LIT)
 	draw_rect(Rect2(at + Vector2(20.0, -8.0), Vector2(6.0, 8.0)), BRASS_DARK)
 	draw_rect(Rect2(at + Vector2(28.0, -8.0), Vector2(4.0, 6.0)), BRASS_DARK)
-
-
-## The tenants. Scenery, and deliberately nothing else: they carry no collision, nothing
-## reads their position, and drawing one does not make one appear. A heap of straw left on a
-## terrace for a season has ants in it, and that is the whole of the reason they are here.
-func _draw_ants() -> void:
-	for at: Vector2 in [Vector2(-260.0, -8.0), Vector2(-186.0, -4.0), Vector2(330.0, -10.0),
-			Vector2(410.0, -5.0)]:
-		draw_rect(Rect2(at + Vector2(-8.0, -4.0), Vector2(6.0, 6.0)), ANT)
-		draw_rect(Rect2(at + Vector2(-2.0, -6.0), Vector2(6.0, 8.0)), ANT)
-		draw_rect(Rect2(at + Vector2(4.0, -4.0), Vector2(4.0, 6.0)), ANT)
-		for leg in range(3):
-			draw_rect(Rect2(Vector2(at.x - 6.0 + float(leg) * 6.0, at.y + 2.0),
-				Vector2(2.0, 4.0)), ANT)
 
 
 ## Seeded, so the room is the same room every time it is walked into.

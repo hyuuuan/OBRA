@@ -25,7 +25,7 @@ const SHOTS: Array = [
 	{"name": "straw_2_combed", "at": Vector2(3160, 150), "size": Vector2(620, 320), "do": "comb"},
 	{"name": "straw_3_tunnelled", "at": Vector2(3160, 150), "size": Vector2(620, 320), "do": "tunnel"},
 	{"name": "straw_4_scattered", "at": Vector2(3160, 150), "size": Vector2(620, 320), "do": "scatter"},
-	{"name": "straw_5_inside", "at": Vector2(2010, -1040), "size": Vector2(1000, 660),
+	{"name": "straw_5_inside", "at": Vector2(1710, -1020), "size": Vector2(1100, 700),
 		"do": "enter_straw", "keep_player": true},
 	{"name": "baul", "at": Vector2(3238, 202), "size": Vector2(260, 220), "do": "uncover"},
 	{"name": "bale", "at": Vector2(3500, 116), "size": Vector2(540, 420)},

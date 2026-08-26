@@ -129,28 +129,45 @@ the paddy is missing three stones**: the rise from the bank to the first survivi
 
 ## Node 2 — Ang Dayami, the straw
 
-### Straw piles · `game/scripts/straw_pile_2d.gd` · 3 at (3040, 240), (3160, 240), (3268, 240)
+### Straw piles · `game/scripts/straw_pile_2d.gd` · 3 at (3026, 240), (3180, 240), (3296, 240)
+
+**DELIVERED ART.** `level-1-assets/Haybale.png`, keyed off its white page and cut down by
+`tools/build_art.py`. Two goes at drawing straw in code came and went first — one fanned
+thin diagonal lines out of a crown and read as scratches, one built it from axis-aligned
+columns and read as a shaded dome with scratches on it.
 
 | | |
 |---|---|
-| **Now** | **Drawn in columns one world unit wide**, which is the grid the tileset is on. A tufted outline (the top edge is cut into 6–12 unit tufts at their own heights), a shaded dome under it — lit up-and-left, the foot in shade — a grain of staggered stalk ends, seams that radiate from the crown with a lit stalk beside each, a splayed crown, and a contact shadow. Six values of one gold pulled toward ochre (`#5E3A12` → `#FFF0A8`). Seeded from the pile's own position, so it does not crawl between redraws or reshuffle on a death. |
-| **Why columns** | The version before this fanned hundreds of thin diagonal `draw_line` stalks out of a crown. At any angle that is not 0 or 45° a line has no pixel grid to sit on, so it came out as scratchy hairlines with ragged points all over the silhouette — spikey, and nothing like the tileset beside it. The tileset, `hub_room.gd` and every frame in this game are built from axis-aligned runs with a lit edge and a shadow edge. So is this. Straw hangs, so the runs are vertical. |
-| **Sizes** | **104 × 74** at 3030, **190 × 150** at 3180, **88 × 62** at 3290. Bottom-centre anchored. The middle one is the one with a **way in**: an 87 × 93 mouth, which she ducks into rather than stands in, because what is through it is somewhere else. |
-| **Inside it** | While the apo is standing in the mouth the front is not drawn at all: what is left is the hollow, two walls of straw hanging down the inside, short stalks off the roof and a floor of trodden earth. It is a **cutaway**, not a room somewhere else — the terrace, the sky and the other two heaps stay where they were, so it needs no collision, no second camera and no way back. |
-| **Why stalks** | A textured mound is a shape with straw printed on it. Only a heap made of stalks has a silhouette that reads at a glance, and only a heap made of stalks can have a **hole** in it — which is what the three routes need. |
-| **Collision** | **None**, deliberately — a solid heap would wall off the only route out of the level. It is something you push through. |
-| **Must read as** | **Cut straw, never harvested grain.** This is a build constraint, not a preference: the Protector route scatters it across the terrace, and scattering somebody's *tinawon* harvest is not a neutral image to stage. |
-| **States — all four are needed** | **Intact.** · **Combed**: searched section by section, settles and tidies, left standing (0.88 wide × 0.86 tall). · **Tunnelled**: gone in underneath and out again — a real arched **hole** at the base, dark inside, with stalks still hanging across the top of it, and the heap keeps its height (0.98 × 0.96). · **Scattered**: the heap is gone and ~150 loose stalks lie across ±1.25 pile-widths, thickest where it stood. It does not come back. |
-| **Fixed** | Combed and tunnelled used to be the same heap at two sizes. Two things were wrong: a textured polygon could not have a hole cut in it, and the prop photographer called `comb()` and then `tunnel()` on the same three piles — and `tunnel()` refuses to run on a pile that is not intact, so the frame labelled "tunnelled" was a picture of a combed one. It resets them between shots now. |
+| **Now** | `haybale.png` **208 × 144**, and `haybale_solid.png` beside it — the same picture with the doorway filled by mirroring the straw from the far side of the heap over it, feathered over 30px so the join cannot show. |
+| **Sizes** | **208 × 144** at 3180 (1:1 with the art), **104 × 72** at 3026 and 3296 (exactly half, so the pixels stay square). The right-hand one is mirrored so the two smalls are not one sprite printed twice. |
+| **One picture, four states** | **Intact** and **combed** draw the solid cut, combed at 0.92 × 0.88. **Tunnelled** draws the cut WITH the mouth — the hole is the tunnel. **Scattered** is still drawn in code: there is no picture of a heap pulled apart, and a heap is a silhouette while scattered straw is a scatter. |
+| **The way in** | Read off the art rather than typed here: the mouth is x 292–570 of a source that crops to 22–1004, and y 414–748 of one that crops to 71–748, so `mouth_rect()` is those fractions of whatever size the heap is given. Moving the doorway means redrawing the heap. |
+| **Collision** | **None**, deliberately — a solid heap would wall off the only route out of the level. |
+| **Must read as** | **Cut straw, never harvested grain.** A build constraint, not a preference: the Protector route scatters it across the terrace, and scattering somebody's *tinawon* harvest is not a neutral image to stage. |
 
-### Inside the heap · `game/scripts/straw_room_2d.gd` · 1 at (3180, 240)
+### Inside the heap · `game/scripts/straw_room_2d.gd` · 1 at (1900, −900)
+
+**DELIVERED ART.** `level-1-assets/Haybale Interior Idea.png`, cut to a **tileable strip**
+by `tools/build_art.py` — 400 wide off the left end, which is wall and floor and nothing
+else. The chest and the canvas painted into the middle of Kent's version are real nodes in
+this level; the baul outlives this room.
 
 | | |
 |---|---|
-| **Now** | A **1700 × 900 cavern** in the empty sky at (1900, −900), reachable only through the heap's mouth. Straw hangs across the whole frame — every column its own value, a third of them the shadow BETWEEN the stalks — and the room is the hollow worn out of the middle of them, not a dark shape drawn over them. Earth floor, a daylight arch for the way out, and in the hollow one of **Lola's canvases** (the hub's own `level_2.png` at exactly 2×, in the stepped gilt the pictures in the house wear), a **brass key** on the floor, and **ants**. |
-| **Must read as** | Somewhere much bigger than the hole suggested. The canvas is the promise: every level is somewhere Lola painted, and one of those paintings propped in the straw beside her chest says where this is going without a line of exposition. |
-| **The key** | Walked onto, not pressed at — E reaches only placed drawings, and a second meaning for that button in the room where the player has just learned the first is one meaning too many. It sits by the chest rather than by the door, or the room's whole beat is over on the frame she walks in. It does **not** open the chest, and that is the point. |
-| **The ants** | Scenery, and nothing else: no collision, nothing reads their position, and drawing one does not make one appear. |
+| **Now** | A **1700 × 900 room** in the empty sky, reachable only through the heap's mouth. The strip tiles across it, **mirrored on alternate tiles** — its two edges are different straw, so butting copies put a hard seam every 400 units. It carries its own floor line (1096 down the 400 × 1660 tile) and the level lines that up with the ground the apo stands on. |
+| **Extended** | The strip is 680 tall and the camera sees 780, so the straw band is repeated **flipped** upward (vertical stalks upside down are still vertical stalks; a straight repeat seams) and the dirt downward. |
+| **In it** | Lola's canvas (the hub's own `level_2.png` at exactly 2×, in the stepped gilt the pictures in the house wear), a **brass key** on the floor, the **baul**, and the **ants**. |
+| **The way out** | Drawn over the top, because the delivered interior has no doorway: a ragged arch of daylight with straw hanging across it, and the light it throws on the floor. It is the only bright thing in the room, which is what makes it read as the way out without a label. |
+| **Must read as** | Somewhere much bigger than the hole suggested. |
+
+### The ants · `game/scripts/straw_ants_2d.gd` · 5 on the floor of the room
+
+| | |
+|---|---|
+| **Now** | Drawn and animated in code from `level-1-assets/ant pixel art.webp`. ⚠ **That file is a watermarked stock image** — it is a reference to work from, not an asset to ship. The shape, the three-segment body and the two oranges (`#D1671B`, `#BD4B2F`) are its; the walk is not. |
+| **The walk** | A tripod gait — front and back leg on one side swinging with the middle leg on the other, which is what an insect does and what stops six legs paddling in unison. The body only bobs a pixel; the legs are the walk. |
+| **Their own node** | So the room does not repaint to animate them: the walls are a couple of thousand units of tiled art, and redrawing all of it sixty times a second to move six legs would be the smallest thing on screen costing the most. |
+| **Scenery, and nothing else** | No collision, nothing reads their position, and drawing an ant on the canvas does not make one appear here. |
 
 ### The baul · `game/scripts/baul_2d.gd` · 1 at (3238, 240), inside the heap, hidden until found
 

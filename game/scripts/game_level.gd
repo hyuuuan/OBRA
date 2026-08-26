@@ -469,9 +469,14 @@ func _beside_the_mouth() -> Vector2:
 	return player.global_position if player != null else Vector2.ZERO
 
 
-## Through the straw and out the other side. Deferred because both ends of this run inside a
-## body_entered callback, and moving the player out from under the physics mid-signal is the
-## same class of mistake as switching an area's monitoring there.
+## Through the straw and out the other side. Deferred because both ends of this can run
+## inside a body_entered callback, and moving the player out from under the physics
+## mid-signal is the same class of mistake as switching an area's monitoring there.
+##
+## NO FADE, AND NO TRANSITION OF ANY KIND. It had one, and it was wrong: a doorway you have
+## already chosen to walk through does not want a beat of black in the middle of it, and at
+## a fifth of a second twice it read as the game stopping to load. Press down and you are
+## inside.
 func _step_through(to: Vector2) -> void:
 	_walk_through.call_deferred(to)
 
@@ -479,23 +484,15 @@ func _step_through(to: Vector2) -> void:
 func _walk_through(to: Vector2) -> void:
 	if player == null or not is_instance_valid(player):
 		return
-	var veil := _straw_veil()
-	var fade := create_tween()
-	fade.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	fade.tween_property(veil, "color:a", 1.0, 0.16)
-	fade.tween_callback(func() -> void:
-		if player == null or not is_instance_valid(player):
-			return
-		player.call("apply_morph_state", {"position": to, "linear_velocity": Vector2.ZERO})
-		# The camera eases toward its target, and easing across four thousand units is a
-		# whip pan through the whole level. It has to arrive already there.
-		var world_camera := _world_camera()
-		if world_camera != null:
-			# The room is a thousand units above the terrain, and the camera's ordinary job
-			# is to keep the ground in shot -- so in here it centres on her instead.
-			world_camera.set_vertical_free(_in_the_straw_room())
-			world_camera.snap_to_target())
-	fade.tween_property(veil, "color:a", 0.0, 0.24)
+	player.call("apply_morph_state", {"position": to, "linear_velocity": Vector2.ZERO})
+	var world_camera := _world_camera()
+	if world_camera == null:
+		return
+	# The room is a thousand units above the terrain, and the camera's ordinary job is to
+	# keep the ground in shot -- so in here it centres on her instead. And it has to arrive
+	# already there: easing across four thousand units is a whip pan through the level.
+	world_camera.set_vertical_free(_in_the_straw_room())
+	world_camera.snap_to_target()
 
 
 ## Whether the apo is standing in the straw room rather than on the terrace. Asked of the
@@ -510,23 +507,6 @@ func _in_the_straw_room() -> bool:
 	var size := Vector2(room.get("room_size"))
 	return Rect2(room.global_position - Vector2(size.x * 0.5, size.y),
 		size).grow(120.0).has_point(player.global_position)
-
-
-## The black it fades through. One rect on a layer above everything, built once.
-func _straw_veil() -> ColorRect:
-	var layer := get_node_or_null("StrawVeil") as CanvasLayer
-	if layer == null:
-		layer = CanvasLayer.new()
-		layer.name = "StrawVeil"
-		layer.layer = 90
-		add_child(layer)
-		var rect := ColorRect.new()
-		rect.name = "Veil"
-		rect.color = Color(0.0, 0.0, 0.0, 0.0)
-		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-		layer.add_child(rect)
-	return layer.get_node("Veil") as ColorRect
 
 
 ## The key off the floor of the straw room. It does not open the chest beside it and it is
