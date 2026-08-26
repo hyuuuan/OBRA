@@ -78,6 +78,7 @@ func _run() -> void:
 	await _audit_node_two()
 	_audit_ward_lock()
 	await _audit_node_three()
+	await _audit_arrival_speaks_once()
 	# LAST. It opens the completion overlay, which pauses the tree, and a paused tree
 	# makes every physics check after it read zero.
 	await _audit_completion_gate()
@@ -1126,6 +1127,77 @@ func _walk_node_two(route: String) -> void:
 ## no opinion about whether it is THIS key. Everything below is geometry on the player's own
 ## strokes, which is the point: the drawing is not a token standing in for a key, it is the
 ## key, and its shape is load-bearing.
+## --- 12. Arrival speaks once, and the board says it again ---------------------------
+##
+## THE BUG THIS GUARDS. Every arrival line in the level used to re-fire on every re-entry,
+## with the world paused while it played. That is not a rare path: the straw heap sits
+## inside L1_N2's trigger and so does the ledge the player is put back on when they climb
+## out of it, so leaving the heap replayed two lines of Lolo, every time, forever. L1_N1
+## is seven lines.
+##
+## Both halves are checked, because either alone is a different bug. Arrival that never
+## repeats but cannot be recovered LOSES the line for anyone who walked in mid-jump;
+## arrival that can be recovered but still repeats is the original complaint.
+func _audit_arrival_speaks_once() -> void:
+	var packed := load("res://game_level.tscn") as PackedScene
+	var level := packed.instantiate()
+	root.add_child(level)
+	for _frame in range(60):
+		await physics_frame
+
+	var script_lines: RefCounted = level.get("script_lines_l1")
+	var box: CanvasItem = level.get("dialogue_box")
+	var player := level.get("player") as Node2D
+
+	_check(not script_lines.call("has_heard", "L1_N2.enter"),
+		"arrival is unheard at the start", "nothing has played yet")
+	level.call("_on_obstacle_entered", "L1_N2")
+	await process_frame
+	_check(bool(script_lines.call("has_heard", "L1_N2.enter")),
+		"arriving marks the beat heard", "L1_N2.enter")
+
+	# hide_line fades over 0.16s before it clears `visible`, so the box has to be given the
+	# fade before anything can ask whether it is gone. Asking after one frame reports the
+	# box as still open and blames the code under test.
+	box.call("hide_line")
+	for _frame in range(24):
+		await process_frame
+	_check(not box.visible, "the beat can be dismissed", "box closed")
+
+	level.call("_on_obstacle_entered", "L1_N2")
+	for _frame in range(4):
+		await physics_frame
+	_check(not box.visible, "walking back in says nothing",
+		"leaving the heap no longer replays the arrival")
+
+	var board: Signpost2D
+	for node in level.get_tree().get_nodes_in_group(&"signposts"):
+		var post := node as Signpost2D
+		if post != null and post.reads == "L1_N2.enter":
+			board = post
+			break
+	_check(board != null, "a board carries the arrival hook",
+		"L1_N2.enter" if board != null else "no signpost has it -- crowding may have eaten it")
+	if board != null:
+		player.global_position = board.global_position + Vector2(40.0, 0.0)
+		for _frame in range(4):
+			await physics_frame
+		_check(bool(level.call("_read_nearest_sign")), "standing at it, the key reads it",
+			"the arrival is recoverable, not lost")
+
+		box.call("hide_line")
+		for _frame in range(24):
+			await process_frame
+		player.global_position = board.global_position + Vector2(400.0, 0.0)
+		for _frame in range(4):
+			await physics_frame
+		_check(not bool(level.call("_read_nearest_sign")), "out of range it does nothing",
+			"400px away is not standing at the board")
+
+	level.queue_free()
+	await process_frame
+
+
 func _audit_ward_lock() -> void:
 	# Three teeth, standing well off a long thin blade: what the slot wants.
 	var right := _key_strokes(3, 26.0, 200.0)
@@ -1269,7 +1341,12 @@ func _walk_node_three(route: String) -> void:
 	# On the terrace BESIDE the house, not on top of it: the posts, deck and thatch are
 	# solid, and dropping the player into the middle of them wedges them in the geometry
 	# instead of walking them up to it.
-	player.global_position = Vector2(3360.0, 50.0)
+	#
+	# INSIDE L1_N3, which is a thing to keep checking when a trigger moves. This was 3360,
+	# which registered only because L1_N3's volume used to reach 140px past the left edge
+	# of the house and 90px back down the terrace the straw is on. The Overlook runs from
+	# 3320 and the bale's floor from 3500, so this is on the walkable strip between them.
+	player.global_position = Vector2(3450.0, 50.0)
 	for _frame in range(20):
 		await physics_frame
 	if route == "artist":

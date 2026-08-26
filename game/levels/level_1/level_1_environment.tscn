@@ -96,16 +96,16 @@ size = Vector2(3760, 48)
 size = Vector2(48, 1200)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_y6bxt"]
-size = Vector2(700, 300)
+size = Vector2(520, 300)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ryned"]
-size = Vector2(460, 420)
+size = Vector2(380, 420)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_owbyo"]
 size = Vector2(400, 300)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_aty4c"]
-size = Vector2(520, 320)
+size = Vector2(380, 320)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_a6y54"]
 size = Vector2(176, 20)
@@ -469,7 +469,7 @@ shape = SubResource("Rectangle_wall")
 position = Vector2(690, 470)
 script = ExtResource("19_j5wv8")
 obstacle_id = "B0_HAGDAN"
-trigger_size = Vector2(700, 300)
+trigger_size = Vector2(520, 300)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/B0_HAGDAN" unique_id=732542801]
 shape = SubResource("RectangleShape2D_y6bxt")
@@ -478,13 +478,13 @@ shape = SubResource("RectangleShape2D_y6bxt")
 position = Vector2(2360, 300)
 script = ExtResource("19_j5wv8")
 obstacle_id = "L1_N1"
-trigger_size = Vector2(460, 420)
+trigger_size = Vector2(380, 420)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N1" unique_id=1714758991]
 shape = SubResource("RectangleShape2D_ryned")
 
 [node name="L1_N2" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=1349389394]
-position = Vector2(3140, 160)
+position = Vector2(3160, 160)
 script = ExtResource("19_j5wv8")
 obstacle_id = "L1_N2"
 trigger_size = Vector2(400, 300)
@@ -493,10 +493,10 @@ trigger_size = Vector2(400, 300)
 shape = SubResource("RectangleShape2D_owbyo")
 
 [node name="L1_N3" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=1170798170]
-position = Vector2(3580, -10)
+position = Vector2(3600, -10)
 script = ExtResource("19_j5wv8")
 obstacle_id = "L1_N3"
-trigger_size = Vector2(520, 320)
+trigger_size = Vector2(380, 320)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N3" unique_id=1566155730]
 shape = SubResource("RectangleShape2D_aty4c")
