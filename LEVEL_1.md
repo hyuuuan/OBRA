@@ -241,6 +241,27 @@ at it does nothing. Without that, walking up to the house ended Level 1.
 
 #### The ward sequence (`ward_lock_2d.gd`)
 
+⚠ **It was not wired to anything until now.** `level_01.json` has declared this route as
+`ward_matching_sequence` since the route existed, nothing read that field, the route was a
+plain Unlock tag check, and any key-shaped key opened the door first time. `WardLock2D` had a
+unit test the whole while — a green suite over a feature that was not in the build, which is
+what `_audit_the_ward_is_wired` now exists to prevent. The lock is built beside the director
+in `_build_obstacle_layer`: it draws nothing and stands nowhere, being a measurement rather
+than a prop.
+
+A refused turn is counted through `LevelDirector.note_failed_attempt`, **not**
+`note_submission`. The class was right and the shape was wrong, which no accept-set can
+express, and pushing it through the ordinary door would need an entity id — putting a class
+nobody drew into the per-class precision and recall the evaluation rests on.
+
+**Not built: the ward drawn on the canvas.** `try_key` returns `revealed` (a third more of
+the shape per attempt) and there is no canvas guide to receive it. Instead the hint bar names
+the one measurement that failed and the number it read — "It counted 4 teeth on that one" —
+never the number it wants, which would be the spelling test this level avoids. The authored
+fail line `L1_N3.ward.fail2` says "you can see it now", which is a promise the build does not
+keep until the guide exists.
+
+
 **Classification is not the puzzle.** The recogniser only gets the player through the door —
 once it accepts `key`, the lock measures *their own strokes*: tooth count, depth ratio,
 blade aspect. Scale-invariant, so the same key drawn twice as large measures the same.

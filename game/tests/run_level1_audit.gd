@@ -81,6 +81,7 @@ func _run() -> void:
 	await _audit_arrival_speaks_once()
 	await _audit_a_miss_says_why()
 	await _audit_the_key_chain()
+	await _audit_the_ward_is_wired()
 	# LAST. It opens the completion overlay, which pauses the tree, and a paused tree
 	# makes every physics check after it read zero.
 	await _audit_completion_gate()
@@ -1376,6 +1377,58 @@ func _audit_the_nail_is_out_of_reach(level: Node, room: Node2D, player: Node2D,
 			await physics_frame
 	_check(bool(profile.call("is_collectible_found", "L1_bale_key")),
 		"and from the step she reaches it", "the room is a puzzle, not a dead end")
+
+
+## --- 15. The ward is actually wired to the door --------------------------------------
+##
+## _audit_ward_lock proves WardLock2D measures a key correctly. It did that for as long as
+## the class existed while nothing in the game ever called it: level_01.json declared
+## L1_N3's Pragmatist route as `ward_matching_sequence`, nothing read that field, the route
+## was a plain Unlock tag check, and any key-shaped key opened the door on the first try.
+## A unit test on an unreachable class is the exact shape of a green suite over a feature
+## that is not in the build.
+func _audit_the_ward_is_wired() -> void:
+	var level := (load("res://game_level.tscn") as PackedScene).instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await create_timer(1.2, true).timeout
+
+	var profile := root.get_node_or_null("PlayerProfile")
+	# Carrying the key would open the door without drawing anything, which is the other
+	# answer to this route and not the one under test.
+	(profile.get("_data")["collectibles"] as Array).erase("L1_bale_key")
+
+	var d = level.get("director")
+	var lock = level.get("ward_lock")
+	var player := level.get("player") as Node2D
+	_check(lock != null, "the level owns a ward lock", "built beside the director")
+
+	player.global_position = Vector2(3500.0, 40.0)
+	for _frame in range(24):
+		await physics_frame
+
+	# A key with the wrong tooth count: recognisably a key, wrong shape.
+	# _key_strokes takes PIXELS -- teeth, tooth depth, blade length -- not the ratios the
+	# lock compares them as. 26 off a 200 blade is the 0.13 depth ratio the slot wants.
+	var wrong := _key_strokes(6, 26.0, 200.0)
+	level.call("_judge_submission", "key", wrong)
+	await process_frame
+	_check(not d.is_solved("L1_N3"), "a key of the wrong shape does not open it",
+		"six teeth against a three-tooth ward")
+	_check(d.attempts("L1_N3") == 1, "and the turn counts as an attempt",
+		"%d attempt(s)" % d.attempts("L1_N3"))
+
+	# The right one does.
+	var right := _key_strokes(3, 26.0, 200.0)
+	level.call("_judge_submission", "key", right)
+	await create_timer(0.8, true).timeout
+	_check(d.is_solved("L1_N3"), "the right shape opens it", "three teeth, ward matched")
+	_check(d.committed_route("L1_N3") == "pragmatist", "by the Unlock route",
+		"route '%s'" % d.committed_route("L1_N3"))
+
+	level.queue_free()
+	await process_frame
 
 
 func _audit_ward_lock() -> void:
