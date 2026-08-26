@@ -62,11 +62,13 @@ func _run() -> void:
 	_check(bank_top - tread_top > jump_height, "the stair is a real gate",
 		"%.0fpx of rise against a %.0fpx jump" % [bank_top - tread_top, jump_height])
 
+	await _the_player_cannot_shove_the_plank()
 	await _the_paddy_needs_a_crossing()
 	await _cannot_be_climbed_bare()
 	await _can_be_climbed_with_a_step()
 	await _a_placement_can_be_taken_back()
 	await _the_ghost_is_where_it_lands()
+	await _the_heap_has_an_inside()
 	await _the_overlook_needs_a_climb()
 
 	print("\n===== BEAT 0 WALKTHROUGH =====")
@@ -80,46 +82,146 @@ func _run() -> void:
 		quit(1)
 
 
+## THE REPORTED BUG, and it is a regression test with a name: "the floating dirt just flies
+## when I go to the water".
+##
+## The plank is on its own collision layer so the player cannot use it as a free stepping
+## stone -- but Godot pairs two bodies when EITHER side matches, and the plank's mask was
+## the default 1, which is the layer the player is on. The pair existed, so the apo passed
+## through it exactly as designed and shoved it the length of the paddy on the way, because
+## a kinematic body against a light rigid one wins every contact.
+##
+## Standing IN it is the sharpest version of the question: if the pair is live, the solver
+## ejects the plank the moment the two overlap.
+func _the_player_cannot_shove_the_plank() -> void:
+	var tread := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/Hagdan/FloatingTread") as Node2D
+	if tread == null:
+		_fail("wading past the plank", "the level has no floating tread")
+		return
+	var before := tread.global_position
+	player.set("velocity", Vector2.ZERO)
+	player.global_position = tread.global_position
+	# Well under the 1.1s the drowning rescue waits, so this measures the contact and not
+	# the teleport that follows it.
+	for _frame in range(40):
+		await physics_frame
+	var shoved := before.distance_to(tread.global_position)
+	_check(shoved < 12.0, "wading through the plank does not shove it",
+		"%.0fpx of drift" % shoved)
+	# BACK ON DRY LAND BEFORE THE NEXT CASE. The drowning timer is on the level, not on this
+	# body, and it keeps counting through whatever the next test is doing -- so a case that
+	# leaves the player in the water hands the one after it a teleport it never asked for.
+	player.set("velocity", Vector2.ZERO)
+	player.global_position = Vector2(200.0, 520.0)
+	for _frame in range(30):
+		await physics_frame
+
+
 ## The paddy is 300px of water, deeper than the apo can climb out of and wider than she
 ## can jump. That makes it a gate -- and a gate is only a gate if it OPENS. A crossing that
 ## cannot be crossed even with the right drawing is not a puzzle, it is a wall.
+##
+## THIS USED TO PROVE IT WITH A BRIDGE, which is the one answer the beat rejects. Sub-beat
+## 1 excludes bridge and ladder, so what it actually accepts is a square or a triangle at
+## eighty pixels -- and no eighty-pixel object crosses three hundred pixels of water. The
+## gate had never been shown to open, because with what it accepted it could not.
+##
+## What opens it is the plank already floating in it: set something that rolls on top and
+## it steadies, lies flat, locks, and is a step. So this walks the real loop -- weigh the
+## plank down from the near bank, then cross it.
 func _the_paddy_needs_a_crossing() -> void:
 	var inventory := level.get("inventory_manager") as Node
 	var placement := level.get("placement_controller") as Node2D
+	var tread := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/Hagdan/FloatingTread") as RigidBody2D
+	if tread == null:
+		_fail("crossing the paddy", "the level has no floating tread")
+		return
 	player.set("velocity", Vector2.ZERO)
 	player.global_position = Vector2(300.0, 500.0)
-	for _frame in range(20):
+	# ON THE BANK, not still falling onto it. The crossing below jumps when the player is
+	# grounded and near a lip, and a body still dropping the last few pixels walks straight
+	# past the lip without ever being grounded in the window.
+	for _frame in range(60):
 		await physics_frame
+		if bool(player.call("is_on_floor")):
+			break
+
+	# LOOSE, IT IS NOT A STEP, and that has to be true or the water costs nothing. The
+	# player's own layer is 1; a plank they could stand on before paying for it would halve
+	# the crossing into two hops of a hundred and six pixels, which a running jump covers.
+	_check(tread.collision_layer & 1 == 0, "a loose plank is not something to stand on",
+		"layer %d -- the player passes through it" % tread.collision_layer)
 
 	var item := DrawnItemData.new()
-	item.entity_id = "bridge"
-	item.display_name = "Bridge"
+	item.entity_id = "circle"
+	item.display_name = "Circle"
 	var slot: int = inventory.call("add_item", item)
 	level.call("_on_inventory_slot_pressed", slot)
 	await process_frame
 	if not bool(placement.call("is_placing")):
-		_fail("bridging the paddy", "the placement never started")
+		_fail("weighting the plank", "the placement never started")
 		return
 	placement.set_process(false)
-	# Across the water, resting on both banks.
-	placement.call("update_target", Vector2(490.0, 545.0))
+	# On the deck, from the bank. 150px away against a 360px reach.
+	placement.call("update_target", tread.global_position - Vector2(0.0, 52.0))
 	for _frame in range(4):
 		await physics_frame
 	var placed: bool = placement.call("confirm_placement")
-	_check(placed, "something that spans it can be set across the paddy",
-		"placed" if placed else "REFUSED -- the crossing cannot be built")
+	_check(placed, "something that rolls can be set on the plank",
+		"placed" if placed else "REFUSED -- the weight cannot be put where it is needed")
 	if not placed:
 		return
-	for _frame in range(40):
+	for _frame in range(60):
 		await physics_frame
+	_check(bool(tread.call("is_settled")), "and the weight settles it",
+		"locked at y=%.0f" % tread.global_position.y if bool(tread.call("is_settled"))
+		else "STILL LOOSE at %s -- there is no way over the water"
+			% tread.global_position.round())
+	if not bool(tread.call("is_settled")):
+		return
+	_check(tread.collision_layer & 1 != 0, "a settled plank is",
+		"layer %d -- it carries the player now" % tread.collision_layer)
 
+	# JUMPED AT THE LIP, not on a metronome. The old loop pressed jump every twenty-four
+	# frames whatever was under the player, which is fine for a wall you run at and useless
+	# for two 106px gaps: whether it cleared them was down to where in the cycle the run
+	# happened to start, and a miss lands in water nobody can climb out of. A player aims;
+	# so does this.
+	# Read off the plank's own collision, not a number typed here: it is two of the missing
+	# treads lodged together, and a stale half-width aims the second jump from the middle of
+	# the deck instead of from the end of it.
+	var plank_half := 44.0
+	for child in tread.get_children():
+		var collision := child as CollisionShape2D
+		if collision != null and collision.shape != null and collision.shape.has_method("get_rect"):
+			plank_half = Rect2(collision.shape.call("get_rect")).size.x * 0.5
+			break
+	var plank_east: float = tread.global_position.x + plank_half
+	var lips: Array[float] = [340.0, plank_east]
+	# HELD, THEN LET GO, THEN PRESSED AGAIN. The wanderer jumps on
+	# is_action_just_pressed, so a key held down from the first gap never fires the second
+	# one -- the player walked the deck, stepped off the far end and drowned, and the trace
+	# showed a jump that was pressed and did nothing. Ten frames is a full-height jump; the
+	# release is what makes the next press count.
 	Input.action_press(&"move_right")
 	var crossed := false
-	for frame in range(300):
-		if frame % 24 == 0:
+	var hold := 0
+	for _frame in range(360):
+		var here: float = player.global_position.x
+		var grounded: bool = bool(player.call("is_on_floor"))
+		var at_a_lip := false
+		for lip in lips:
+			if here > lip - 34.0 and here < lip:
+				at_a_lip = true
+		if hold > 0:
+			hold -= 1
+			if hold == 0:
+				Input.action_release(&"jump")
+		elif grounded and at_a_lip:
 			Input.action_press(&"jump")
-		elif frame % 24 == 18:
-			Input.action_release(&"jump")
+			hold = 10
 		await physics_frame
 		if player.global_position.x > 660.0:
 			crossed = true
@@ -129,6 +231,64 @@ func _the_paddy_needs_a_crossing() -> void:
 	_check(crossed, "and the player walks across it",
 		"reached the far bank" if crossed
 		else "STILL STUCK at x %.0f -- the paddy is a wall" % player.global_position.x)
+
+
+## THE ROUND TRIP, and both halves of it. Node 2's heap is the only thing in Level 1 with an
+## inside, and the inside is a room in the empty sky above the level rather than a cutaway
+## where the heap stands -- so getting in is a fade and a teleport, and getting out is
+## another one. A room you can enter and not leave is worse than no room, and the way back
+## is a hole in a wall rather than a key press, so nothing tells the player it is broken.
+func _the_heap_has_an_inside() -> void:
+	var pile: Node2D = null
+	for node in level.get_tree().get_nodes_in_group(&"straw_piles"):
+		if bool((node as Node2D).get("entrance")):
+			pile = node as Node2D
+	var room := level.get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	if pile == null or room == null:
+		_fail("the heap has an inside", "no heap with a way in, or no room behind it")
+		return
+	var outside := pile.global_position
+	var mouth := Rect2(pile.call("mouth_rect"))
+	player.set("velocity", Vector2.ZERO)
+	player.global_position = outside + Vector2(mouth.get_center().x, 0.0)
+	for _frame in range(10):
+		await physics_frame
+	# GOING IN IS A PRESS. Standing in the doorway only makes the offer -- the mouth is on
+	# the path east and a heap that swallows passers-by is a hole in the floor of the level.
+	Input.parse_input_event(_key(&"move_down", true))
+	await physics_frame
+	Input.parse_input_event(_key(&"move_down", false))
+	# The fade is 0.16 in and 0.24 out, and the teleport is on the turn between them.
+	for _frame in range(80):
+		await physics_frame
+	var size := Vector2(room.get("room_size"))
+	var inside := Rect2(room.global_position - Vector2(size.x * 0.5, size.y), size)
+	_check(inside.grow(60.0).has_point(player.global_position),
+		"ducking into the heap puts her inside it",
+		"at %s, in a room at %s" % [player.global_position.round(), inside])
+	if not inside.grow(60.0).has_point(player.global_position):
+		return
+
+	Input.action_press(&"move_left")
+	var out := false
+	for _frame in range(140):
+		await physics_frame
+		if player.global_position.distance_to(outside) < 400.0:
+			out = true
+			break
+	Input.action_release(&"move_left")
+	for _frame in range(30):
+		await physics_frame
+	_check(out and not inside.has_point(player.global_position),
+		"and the way out puts her back on the terrace",
+		"at %s, beside the heap at %s" % [player.global_position.round(), outside.round()]
+		if out else "STILL INSIDE at %s -- the room is a trap" % player.global_position.round())
+	# And she must not be standing in the mouth when she lands, or walking out walks her
+	# straight back in and the heap is a revolving door.
+	_check(not mouth.has_point(player.global_position - outside),
+		"and not standing in the doorway she just came out of",
+		"clear of the mouth by %.0fpx"
+		% absf(player.global_position.x - (outside.x + mouth.position.x)))
 
 
 ## The beat has to ASK for something. If the bare stair can be climbed, Beat 0 is scenery.

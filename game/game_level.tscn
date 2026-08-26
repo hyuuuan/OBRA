@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scripts/game_level.gd" id="1_level"]
 [ext_resource type="Script" path="res://scripts/ui_oval_frame.gd" id="40_oval"]
@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://levels/level_1/level_1_environment.tscn" id="6_environment"]
 [ext_resource type="Script" path="res://scripts/backend_supervisor.gd" id="7_backend"]
 [ext_resource type="Script" path="res://scripts/ink_manager.gd" id="8_ink"]
+[ext_resource type="Script" path="res://scripts/morph_life.gd" id="8_life"]
 [ext_resource type="Script" path="res://scripts/inventory_manager.gd" id="9_inventory"]
 [ext_resource type="Script" path="res://scripts/placement_controller.gd" id="10_placement"]
 [ext_resource type="Script" path="res://scripts/inventory_hud.gd" id="11_inventory_hud"]
@@ -36,6 +37,9 @@ script = ExtResource("7_backend")
 [node name="InkManager" type="Node" parent="."]
 script = ExtResource("8_ink")
 
+[node name="MorphLife" type="Node" parent="."]
+script = ExtResource("8_life")
+
 [node name="InventoryManager" type="Node" parent="."]
 script = ExtResource("9_inventory")
 
@@ -43,6 +47,7 @@ script = ExtResource("9_inventory")
 script = ExtResource("10_placement")
 
 [node name="WorldItemRoot" type="Node2D" parent="EnvironmentBaseplate/GameplayPlane"]
+z_index = 5
 
 [node name="GoalMarker" type="Marker2D" parent="EnvironmentBaseplate/GameplayPlane"]
 position = Vector2(3600, 30)

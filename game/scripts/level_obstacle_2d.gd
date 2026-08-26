@@ -33,7 +33,10 @@ func _ready() -> void:
 	# So the story sign stands where the story fires and the hint sign stands at the
 	# obstacle. On a narrow trigger the two land on the same spot and Signpost2D drops one
 	# of them, which is the right answer there too.
-	Signpost2D.plant(self, Signpost2D.Mark.STORY, Vector2(-trigger_size.x * 0.5, 0.0))
+	# The story board carries this beat's arrival hook, so the lines it announces can be
+	# read again at the board after they have played themselves once. See Signpost2D.reads.
+	Signpost2D.plant(self, Signpost2D.Mark.STORY, Vector2(-trigger_size.x * 0.5, 0.0),
+		"%s.enter" % obstacle_id)
 	Signpost2D.plant(self, Signpost2D.Mark.HINT)
 	monitoring = true
 	# Layer 0 / mask 1: it detects the player without being something the player, or a
@@ -47,8 +50,36 @@ func _ready() -> void:
 		box.size = trigger_size
 		collision.shape = box
 		add_child(collision)
+	else:
+		_fit_authored_shape()
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
+
+
+## `trigger_size` IS THE VOLUME, even when the shape was authored in the scene.
+##
+## The level file carried both -- an exported trigger_size and a RectangleShape2D
+## sub-resource -- and only the sub-resource was doing anything. trigger_size was read by
+## exactly one caller, the offset the story signpost is planted at, so the two numbers
+## could disagree and the only visible symptom was a sign standing somewhere that was not
+## the edge of the trigger. They disagreed silently for as long as both existed.
+##
+## So the shape is fitted to the export rather than trusted alongside it, and re-sizing a
+## trigger is one number in one place. DUPLICATED FIRST: a sub-resource can be shared
+## between two nodes in a scene file, and resizing a shared shape would quietly resize the
+## other obstacle too. Anything that is not a plain rectangle is left alone -- a level that
+## wants a polygon means it.
+func _fit_authored_shape() -> void:
+	for child in get_children():
+		var collision := child as CollisionShape2D
+		if collision == null:
+			continue
+		var box := collision.shape as RectangleShape2D
+		if box == null:
+			continue
+		box = box.duplicate() as RectangleShape2D
+		box.size = trigger_size
+		collision.shape = box
 
 
 func get_shape_count() -> int:

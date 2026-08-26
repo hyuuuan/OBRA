@@ -78,6 +78,10 @@ func _run() -> void:
 	await _audit_node_two()
 	_audit_ward_lock()
 	await _audit_node_three()
+	await _audit_arrival_speaks_once()
+	await _audit_a_miss_says_why()
+	await _audit_the_key_chain()
+	await _audit_the_ward_is_wired()
 	# LAST. It opens the completion overlay, which pauses the tree, and a paused tree
 	# makes every physics check after it read zero.
 	await _audit_completion_gate()
@@ -446,24 +450,26 @@ func _audit_level_director() -> void:
 	# --- Beat 0: sub-beats run in order, and each is its own requirement -------
 	d.enter_obstacle("B0_HAGDAN")
 	_check(d.current_obstacle() == "B0_HAGDAN", "enter", "at B0_HAGDAN")
-	_check((d.required_tags() as Array) == ["span"], "sub-beat 1 asks for span",
+	# ROLL FIRST, because the paddy is what the player meets first and the plank floating in
+	# it is the answer. Span comes second, at the stair on the far bank.
+	_check((d.required_tags() as Array) == ["roll"], "sub-beat 1 asks for roll",
 		"%s" % [d.required_tags()])
 
 	# A wrong-tag drawing must not solve it, and must cost an attempt.
 	var wrong: Dictionary = d.note_submission("frog")
 	_check(not wrong["solves"] and not wrong["tag_match"] and int(wrong["attempts"]) == 1,
-		"wrong tag is refused", "frog vs span -> attempts %d" % wrong["attempts"])
+		"wrong tag is refused", "frog vs roll -> attempts %d" % wrong["attempts"])
 
-	var right: Dictionary = d.note_submission("square")
-	_check(right["solves"] and right["tag_match"], "right tag solves", "square carries span")
+	var right: Dictionary = d.note_submission("circle")
+	_check(right["solves"] and right["tag_match"], "right tag solves", "circle carries roll")
 	# Two sub-beats, so the first solve ADVANCES rather than completing the beat.
 	_check(bool(right["stage_advanced"]) and not bool(right["obstacle_complete"]),
 		"sub-beat advances", "stage moved to sub2 instead of finishing the beat")
-	_check((d.required_tags() as Array) == ["roll"], "sub-beat 2 asks for roll",
+	_check((d.required_tags() as Array) == ["span"], "sub-beat 2 asks for span",
 		"%s" % [d.required_tags()])
-	var done: Dictionary = d.note_submission("circle")
+	var done: Dictionary = d.note_submission("square")
 	_check(bool(done["obstacle_complete"]) and d.is_solved("B0_HAGDAN"),
-		"beat completes", "circle closed B0_HAGDAN")
+		"beat completes", "square closed B0_HAGDAN")
 
 	# --- Node 1: the choice gates the requirement -----------------------------
 	d.exit_obstacle("B0_HAGDAN")
@@ -597,7 +603,7 @@ func _audit_live_level() -> void:
 	# walked in and waited heard nothing for thirty seconds. Read off the live bubble,
 	# because "the hook exists in the file" was true the whole time it was broken.
 	var asked := _lolo_bubble(level)
-	_check(asked.to_lower().contains("span"), "beat 0 asks out loud at T0",
+	_check(asked.to_lower().contains("roll"), "beat 0 asks out loud at T0",
 		"Lolo: %s" % asked.substr(0, 64))
 	# The script marks tags with **asterisks**; Lolo's bubble is a plain Label with no
 	# markup and printed them literally, which reads as a typo in the one line the
@@ -611,22 +617,22 @@ func _audit_live_level() -> void:
 	_check(d.hint_tier() >= 1 and strip.visible, "canvas open raises to T1",
 		"tier %d, strip visible" % d.hint_tier())
 	var shown := _strip_text(strip)
-	_check(shown.to_lower().contains("span"), "T1 names the tag", shown)
+	_check(shown.to_lower().contains("roll"), "T1 names the tag", shown)
 	# The cardinal rule, enforced on the live HUD and not just on the dialogue file.
 	var named := _class_named_in(shown)
 	_check(named.is_empty(), "the strip names no class",
 		shown if named.is_empty() else "strip said '%s'" % named)
 
 	# Solving it through the real level entry point, not the director directly.
-	level.call("_judge_submission", "square")
+	level.call("_judge_submission", "circle")
 	await process_frame
 	_check(d.stage_id("B0_HAGDAN") == "sub2", "solving advances the beat",
 		"now at sub-beat '%s'" % d.stage_id("B0_HAGDAN"))
 	var asked2 := _lolo_bubble(level)
-	_check(asked2.to_lower().contains("roll"), "the second sub-beat asks for itself",
+	_check(asked2.to_lower().contains("span"), "the second sub-beat asks for itself",
 		"Lolo: %s" % asked2.substr(0, 64))
 
-	level.call("_judge_submission", "circle")
+	level.call("_judge_submission", "square")
 	await process_frame
 	_check(d.is_solved("B0_HAGDAN"), "beat completes in the live level", "B0_HAGDAN solved")
 	_check(not strip.visible, "solved obstacle clears the strip", "nothing left to ask for")
@@ -772,6 +778,12 @@ func _audit_live_level() -> void:
 		if wrong != null and is_instance_valid(wrong):
 			wrong.queue_free()
 		await process_frame
+		# LET IT COME BACK UP FIRST. A square rides it forty-five pixels under before it is
+		# taken away, and a circle dropped into that gap floats up past the plank rising to
+		# meet it -- the plank ends up sitting ON the circle, which is a fair reading of
+		# "things slide off a loose plank" and is not what this check is asking about.
+		for _frame in range(90):
+			await physics_frame
 
 		# Something that does.
 		var roller := _drop_on(level, floater, "circle")
@@ -793,6 +805,45 @@ func _audit_live_level() -> void:
 				"frozen, so the water cannot lift it back up")
 			_check(absf(float(floater.get("rotation"))) < 0.05, "it settles level",
 				"%.3f rad -- a crooked tread is a ramp nobody asked for" % floater.get("rotation"))
+
+			# --- and the settled plank has to be a CROSSING ---------------------
+			# This is sub-beat 1's whole answer now: three hundred pixels of water, and
+			# nothing the beat accepts is eighty pixels wide, let alone three hundred. The
+			# plank is what gets you over, so the two hops either side of it and the height
+			# of its deck are gates in their own right and are measured like any other.
+			var paddy := level.get_node_or_null(
+				"EnvironmentBaseplate/GameplayPlane/WaterAreas/LowerPaddy") as Node2D
+			if paddy != null:
+				var pool := Vector2(paddy.get("surface_size"))
+				var surface_y: float = paddy.global_position.y - pool.y * 0.5
+				var deck: float = (floater as Node2D).global_position.y - _half_of(floater).y
+				# ABOVE THE WATERLINE, and this one is not cosmetic. wanderer.gd tests
+				# `elif is_in_water():` before `elif is_on_floor():`, so a deck at or under
+				# the surface gets the wading branch and its 55px kick -- the player would
+				# step on and never be able to step off, and the drowning rescue would fish
+				# them out while they stood on a solid floor.
+				_check(deck < surface_y, "the settled deck is out of the water",
+					"%.0fpx of dry plank above the surface" % (surface_y - deck))
+				# And the player has to be able to reach it from the bank and leave it on
+				# the far side. A running jump covers about 228px; both hops are flat.
+				var half: float = _half_of(floater).x
+				var plank_x: float = (floater as Node2D).global_position.x
+				var west: float = (plank_x - half) - (paddy.global_position.x - pool.x * 0.5)
+				var east: float = (paddy.global_position.x + pool.x * 0.5) - (plank_x + half)
+				_check(maxf(west, east) <= 228.0, "and both hops are inside a running jump",
+					"%.0fpx to it and %.0fpx off it, against 228px" % [west, east])
+
+			# AND IT LETS GO AGAIN. R8 says what is placed can be taken back, and the plank
+			# has to come loose when it is -- a crossing that survives the removal of the
+			# thing that bought it is a crossing the ink was not really spent on. The layer
+			# has to go back too, or the player keeps standing on a plank that is adrift.
+			if roller != null and is_instance_valid(roller):
+				roller.queue_free()
+				for _frame in range(20):
+					await physics_frame
+				_check(not bool(floater.call("is_settled")) and int(floater.get("collision_layer")) & 1 == 0,
+					"and taking the weight away lets it go",
+					"loose again on layer %d" % floater.get("collision_layer"))
 
 	# --- CP0: a checkpoint you reach by walking ------------------------------
 	# Beat 0 has no dialogue node, so before this it had no checkpoint at all and a slip on
@@ -900,7 +951,19 @@ func _drop_on(level: Node, target: Node2D, class_id: String) -> PhysicsShapeObje
 	level.get_node("EnvironmentBaseplate/GameplayPlane/WorldItemRoot").add_child(prop)
 	prop.apply_item_data(DrawnItemData.from_prediction(
 		class_id, class_id.capitalize(), _blank_image(), [], 0.4, registry.get_entity(class_id)))
-	prop.global_position = target.global_position - Vector2(0.0, 46.0)
+	# CLEAR ABOVE IT, not inside it. A flat 46 put an 80px square's bottom edge six pixels
+	# INSIDE a 20px plank, so the solver ejected it and kicked the plank halfway across the
+	# paddy before anything could come to rest on it -- the fixture was measuring its own
+	# spawn overlap. The real game never does this: placement refuses an overlapping spot
+	# and drops the object onto the first surface under it.
+	var clearance := 8.0
+	for child in target.get_children():
+		var collision := child as CollisionShape2D
+		if collision != null and collision.shape != null and collision.shape.has_method("get_rect"):
+			clearance += Rect2(collision.shape.call("get_rect")).size.y * 0.5
+			break
+	prop.global_position = target.global_position - Vector2(0.0,
+		clearance + prop.world_extent().size.y * 0.5)
 	prop.confirm_placement()
 	return prop
 
@@ -917,6 +980,16 @@ func _fake_prop(level: Node) -> PhysicsShapeObject:
 		"square", "Square", _blank_image(), [], 0.4, registry.get_entity("square")))
 	prop.global_position = Vector2(900.0, 300.0)
 	return prop
+
+
+## Half a body's own collision box, so a measurement is taken off the shape that is
+## actually in the level rather than off a number repeated here.
+func _half_of(body: Node) -> Vector2:
+	for child in body.get_children():
+		var collision := child as CollisionShape2D
+		if collision != null and collision.shape != null and collision.shape.has_method("get_rect"):
+			return Rect2(collision.shape.call("get_rect")).size * 0.5
+	return Vector2.ZERO
 
 
 func _blank_image() -> Image:
@@ -965,6 +1038,22 @@ func _walk_node_two(route: String) -> void:
 			if child.get_script() == StrawPileClass:
 				piles += 1
 		_check(piles == 3, "three heaps of straw", "%d pile(s)" % piles)
+		# ONE OF THEM HAS AN INSIDE, and its mouth has to read as a way in and be one.
+		# It does not have to be tall enough to stand up in: what is through it is a
+		# separate place at its own scale, so she ducks in rather than standing about in
+		# the heap. It does have to be wider than she is (her body is about 30px) and tall
+		# enough that nobody mistakes it for a shadow on the front of a haystack.
+		var enterable := 0
+		var mouth := Vector2.ZERO
+		for child in dayami.get_children():
+			if child.get_script() == StrawPileClass and bool(child.get("entrance")):
+				enterable += 1
+				mouth = Rect2(child.call("mouth_rect")).size
+		_check(enterable == 1, "exactly one of them has a way in",
+			"%d heap(s) with an entrance" % enterable)
+		_check(mouth.y >= 56.0 and mouth.x >= 48.0,
+			"and its mouth reads as a way in",
+			"a %.0f x %.0f opening against a 30px body" % [mouth.x, mouth.y])
 		var chest := dayami.get_node_or_null("Baul") as Baul2D
 		_check(chest != null and not chest.visible,
 			"the baul starts hidden", "it is in the straw, not on the terrace")
@@ -1041,6 +1130,391 @@ func _walk_node_two(route: String) -> void:
 ## no opinion about whether it is THIS key. Everything below is geometry on the player's own
 ## strokes, which is the point: the drawing is not a token standing in for a key, it is the
 ## key, and its shape is load-bearing.
+## --- 12. Arrival speaks once, and the board says it again ---------------------------
+##
+## THE BUG THIS GUARDS. Every arrival line in the level used to re-fire on every re-entry,
+## with the world paused while it played. That is not a rare path: the straw heap sits
+## inside L1_N2's trigger and so does the ledge the player is put back on when they climb
+## out of it, so leaving the heap replayed two lines of Lolo, every time, forever. L1_N1
+## is seven lines.
+##
+## Both halves are checked, because either alone is a different bug. Arrival that never
+## repeats but cannot be recovered LOSES the line for anyone who walked in mid-jump;
+## arrival that can be recovered but still repeats is the original complaint.
+func _audit_arrival_speaks_once() -> void:
+	var packed := load("res://game_level.tscn") as PackedScene
+	var level := packed.instantiate()
+	root.add_child(level)
+	for _frame in range(60):
+		await physics_frame
+
+	var script_lines: RefCounted = level.get("script_lines_l1")
+	var box: CanvasItem = level.get("dialogue_box")
+	var player := level.get("player") as Node2D
+
+	_check(not script_lines.call("has_heard", "L1_N2.enter"),
+		"arrival is unheard at the start", "nothing has played yet")
+	level.call("_on_obstacle_entered", "L1_N2")
+	await process_frame
+	_check(bool(script_lines.call("has_heard", "L1_N2.enter")),
+		"arriving marks the beat heard", "L1_N2.enter")
+
+	# hide_line fades over 0.16s before it clears `visible`, so the box has to be given the
+	# fade before anything can ask whether it is gone. Asking after one frame reports the
+	# box as still open and blames the code under test.
+	box.call("hide_line")
+	for _frame in range(24):
+		await process_frame
+	_check(not box.visible, "the beat can be dismissed", "box closed")
+
+	level.call("_on_obstacle_entered", "L1_N2")
+	for _frame in range(4):
+		await physics_frame
+	_check(not box.visible, "walking back in says nothing",
+		"leaving the heap no longer replays the arrival")
+
+	var board: Signpost2D
+	for node in level.get_tree().get_nodes_in_group(&"signposts"):
+		var post := node as Signpost2D
+		if post != null and post.reads == "L1_N2.enter":
+			board = post
+			break
+	_check(board != null, "a board carries the arrival hook",
+		"L1_N2.enter" if board != null else "no signpost has it -- crowding may have eaten it")
+	if board != null:
+		player.global_position = board.global_position + Vector2(40.0, 0.0)
+		for _frame in range(4):
+			await physics_frame
+		_check(bool(level.call("_read_nearest_sign")), "standing at it, the key reads it",
+			"the arrival is recoverable, not lost")
+
+		box.call("hide_line")
+		for _frame in range(24):
+			await process_frame
+		player.global_position = board.global_position + Vector2(400.0, 0.0)
+		for _frame in range(4):
+			await physics_frame
+		_check(not bool(level.call("_read_nearest_sign")), "out of range it does nothing",
+			"400px away is not standing at the board")
+
+	level.queue_free()
+	await process_frame
+
+
+## --- 13. A drawing that does not fit says so, and counts ----------------------------
+##
+## Two failures that looked like one. A submission was judged against the volume the PLAYER
+## is standing in, and Beat 0's volume did not reach the left bank -- which is where you
+## stand to put something on the plank, because the plank is in the water and you cannot
+## swim. So every drawing placed from there was judged against no obstacle at all: no
+## attempt counted, no tier moved, no requirement strip appeared, and the beat never
+## registered as solved even when the plank physically sank.
+##
+## And a miss said nothing. The verdict was computed and thrown away, so the player watched
+## their drawing land and got silence whether the game had noticed or not.
+func _audit_a_miss_says_why() -> void:
+	var packed := load("res://game_level.tscn") as PackedScene
+	var level := packed.instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	# A CONVERSATION STOPS THE TREE, and this check needs real physics: walking a body into
+	# a volume is the thing under test. Without the dismiss, `await physics_frame` never
+	# advances, body_entered never fires, and every case below fails for that reason
+	# instead of the one it is asking about.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await create_timer(1.2, true).timeout
+
+	var director_node = level.get("director")
+	var hint = level.get("hint_bar")
+	var player := level.get("player") as Node2D
+
+	# The left bank: LowerLeft runs x 0..340 with its surface at y 560, and the plank the
+	# first sub-beat is about floats at x 490. There is nowhere else to stand.
+	player.global_position = Vector2(320.0, 500.0)
+	for _frame in range(20):
+		await physics_frame
+	_check(String(director_node.current_obstacle()) == "B0_HAGDAN",
+		"the bank counts as being at the beat",
+		"standing at x 320, director is at '%s'" % director_node.current_obstacle())
+
+	# Sub-beat 1 wants Roll. A frog leaps.
+	level.call("_judge_submission", "frog")
+	await process_frame
+	_check(director_node.attempts("B0_HAGDAN") == 1, "a miss from the bank counts",
+		"%d attempt(s) recorded" % director_node.attempts("B0_HAGDAN"))
+	_check(director_node.hint_tier("B0_HAGDAN") >= 1, "one miss opens T1",
+		"tier %d -- a wrong answer is a request for help" % director_node.hint_tier("B0_HAGDAN"))
+
+	var said := String(hint.call("current_text"))
+	_check(said.contains("LEAP") and said.contains("ROLL"),
+		"the miss says what it can do and what is needed", said)
+	# The requirement's own tag, not a class that would satisfy it: naming the player's own
+	# drawing is fine, naming the answer is the thing the tag layer exists to prevent.
+	_check(not said.to_lower().contains("circle") and not said.to_lower().contains("wheel"),
+		"and it does not name a class that would work", said)
+
+	level.queue_free()
+	await process_frame
+
+
+## --- 14. Heap -> key -> house -> painting -------------------------------------------
+##
+## The chain the level actually runs on, end to end and by both ways into the key. What you
+## find in the heap is the way into the house; what you find in the house is the painting of
+## the next place. Before this the heap held the painting and the key opened nothing, which
+## made the harder of the two beats the one that paid out less.
+##
+## THE REACH IS CHECKED FIRST because it is the only part that can silently stop being a
+## puzzle. The nail is 250 above the floor and the apo's jump apex is 94.3 (wanderer.gd), so
+## it is out of reach by about forty pixels -- and forty pixels is close enough that a change
+## to the jump, her height, or the room's floor could hand it over for free without anyone
+## noticing. It also checks the other direction: that something put underneath still gets
+## her there, or the room is a dead end rather than a puzzle.
+func _audit_the_key_chain() -> void:
+	var profile := root.get_node_or_null("PlayerProfile")
+	var carried: Array = profile.get("_data")["collectibles"]
+
+	for how in ["off the nail", "wrecking the heap"]:
+		# The profile is a live autoload carrying whatever this machine has played. Clear
+		# only the facts under test, so the run says something about the build rather than
+		# about the tester's save file.
+		carried.clear()
+		(profile.get("_data")["acquired_objects"] as Array).erase("canvas_2_pista")
+		(profile.get("_data")["levels_unlocked"] as Array).erase("level_2")
+
+		var level := (load("res://game_level.tscn") as PackedScene).instantiate()
+		(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+		root.add_child(level)
+		call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+		await create_timer(1.2, true).timeout
+
+		var d = level.get("director")
+		var player := level.get("player") as Node2D
+		var room := level.get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+		var nail: Vector2 = room.global_position + Vector2(room.get("key_at"))
+
+		if how == "off the nail":
+			await _audit_the_nail_is_out_of_reach(level, room, player, nail, profile)
+		else:
+			# Weather is the Protector route: scatter the heap, and the key comes out of
+			# the wreck of it. No route is committed first -- the drawing IS the choice.
+			player.global_position = Vector2(3100.0, 180.0)
+			for _frame in range(24):
+				await physics_frame
+			level.call("_judge_submission", "fan")
+			await create_timer(0.6, true).timeout
+			_check(d.committed_route("L1_N2") == "protector",
+				"a weather drawing commits the Protector route",
+				"route '%s' -- the drawing is the choice at a node that never asks"
+					% d.committed_route("L1_N2"))
+
+		_check(bool(profile.call("is_collectible_found", "L1_bale_key")),
+			"the key is in the bag (%s)" % how, "L1_bale_key")
+
+		player.global_position = Vector2(3500.0, 40.0)
+		for _frame in range(24):
+			await physics_frame
+		_check(bool(level.call("_found_key_would_open")), "the door offers it (%s)" % how,
+			"at '%s', carrying the key" % d.current_obstacle())
+		_check(bool(level.call("_use_the_found_key")), "and it opens (%s)" % how, "pragmatist")
+		await create_timer(0.8, true).timeout
+		_check(d.is_solved("L1_N3") and d.committed_route("L1_N3") == "pragmatist",
+			"by the Unlock route (%s)" % how, "solved, route '%s'" % d.committed_route("L1_N3"))
+		# THE SOLVE GETS YOU IN; IT DOES NOT HAND YOU THE PAINTING. That used to arrive the
+		# instant the route landed, which made the room a cutscene with a floor. It leans
+		# against the wall in there now and is picked up by walking into it.
+		_check(not bool(profile.call("has_object", "canvas_2_pista")),
+			"answering it does not yet hand over the painting (%s)" % how,
+			"the canvas is still in the house")
+
+		# AND THE PLAYER IS ACTUALLY IN THE HOUSE. Ang Bale has an inside now -- a room
+		# parked in the sky, the way the heap's is -- and getting in is the reward for
+		# answering it. Checked through the level's own "which room am I in" rather than
+		# against a position, because that is the question the camera asks too: if this
+		# passes and the camera rule is broken, they are the same bug.
+		var inside: Node = level.call("_room_holding_player")
+		_check(inside != null and inside.is_in_group(&"bale_interiors"),
+			"and the apo is inside it (%s)" % how,
+			"in '%s'" % (inside.name if inside != null else "the terrace"))
+
+		# Walked into, the way the key in the heap is taken.
+		#
+		# MOVED THROUGH apply_morph_state, NOT BY WRITING global_position. For most of Node 3
+		# the player is a drawn creature, which is a RigidBody2D -- assigning its position
+		# does not move it in the physics server, so the body never overlaps the area and the
+		# pickup never fires. That is exactly how this assertion failed on the first route and
+		# passed on the second, where the canvas was already taken and the check was trivially
+		# true. A test that passes for the wrong reason is worse than one that fails.
+		print("  [dbg] rooms in group: ", get_nodes_in_group(&"bale_interiors").size(),
+			"  inside=", inside.get_instance_id(),
+			"  taken=", inside.call("painting_is_taken"),
+			"  monitoring=", (inside.get_node("Painting") as Area2D).monitoring,
+			"  player=", (level.get("player") as Node2D).global_position)
+		# ARMED, AND STILL HOLDING IT. The room re-reads the profile when it is entered rather
+		# than trusting a snapshot taken when the level loaded -- so this is the assertion
+		# that fails the day that stops happening and the house is entered empty.
+		_check(not bool(inside.call("painting_is_taken"))
+			and (inside.get_node("Painting") as Area2D).monitoring,
+			"the canvas is in there and can be taken (%s)" % how, "armed on entry")
+
+		# Stood on the canvas, then swept.
+		#
+		# THROUGH THE ROOM'S OWN TAKE PATH, not by waiting on an overlap. `body_entered` is a
+		# transition, and the apo is teleported into this room rather than walked into it --
+		# which makes whether the engine sees an "entry" depend on where the previous frame
+		# left their collision box. It fired on one route and not on the other from the very
+		# same position, which is a flaky test rather than a real difference.
+		# `_sweep_for_taker` is the code that exists for exactly this case -- somebody already
+		# standing on the canvas when it arms -- and it runs the same handler, the same signal
+		# and the same grant.
+		# THE WORLD HAS TO BE RUNNING FOR ANY OF THIS TO MEAN ANYTHING. The route's own beat
+		# stops the tree -- that is what a story line does -- and a paused tree means the
+		# physics server never processes the body's new position, so the trigger in here
+		# cannot see a player who is standing on it. That is why this passed on one route and
+		# failed on the other from the identical position: one had a line still up. In play
+		# the player cannot walk anywhere until they turn the page, so it costs them nothing;
+		# a harness that teleports has to turn the page itself.
+		paused = false
+		var canvas_at: Vector2 = inside.global_position + Vector2(inside.PAINTING_AT)
+		(level.get("player") as Node2D).call("apply_morph_state",
+			{"position": canvas_at, "linear_velocity": Vector2.ZERO})
+		for _f in range(20):
+			await physics_frame
+		inside.call("_sweep_for_taker")
+		await process_frame
+		_check(bool(inside.call("painting_is_taken")),
+			"the canvas is taken off the floor (%s)" % how, "stood on and picked up")
+		_check(bool(profile.call("has_object", "canvas_2_pista"))
+			and bool(profile.call("is_level_unlocked", "level_2")),
+			"and the house yields the painting (%s)" % how, "canvas_2_pista, Pista unlocked")
+
+		# The ladder puts them back where they were standing, not at a guess.
+		var was_at: Vector2 = level.get("_bale_return")
+		(level.get("player") as Node2D).global_position = \
+			Vector2(inside.call("bounds").get_center())
+		level.call("_on_bale_exit")
+		await process_frame
+		await process_frame
+		# OUT OF THE HOUSE, not "out of every room". The exit puts them back exactly where
+		# they came from, and in this suite's synthetic flow that spot is sometimes inside
+		# the straw heap -- which is the hatch working, not failing. The claim being made is
+		# only that Ang Bale is no longer holding them.
+		var out: Node = level.call("_room_holding_player")
+		_check(out == null or not out.is_in_group(&"bale_interiors"),
+			"and the hatch lets them back out (%s)" % how,
+			"out of the house, in '%s'" % (out.name if out != null else "the open"))
+		_check((level.get("player") as Node2D).global_position.distance_to(was_at) < 8.0,
+			"where they went in (%s)" % how,
+			"%.0fpx from the spot they climbed from"
+				% (level.get("player") as Node2D).global_position.distance_to(was_at))
+		_check(not bool(level.call("_use_the_found_key")), "the key is not a second solve",
+			"already open")
+
+		level.queue_free()
+		await process_frame
+
+
+## The nail is above her, and stays above her.
+func _audit_the_nail_is_out_of_reach(level: Node, room: Node2D, player: Node2D,
+		nail: Vector2, profile: Node) -> void:
+	player.global_position = Vector2(nail.x, room.global_position.y - 40.0)
+	for _frame in range(40):
+		await physics_frame
+	for _burst in range(6):
+		Input.action_press("jump")
+		for _frame in range(4):
+			await physics_frame
+		Input.action_release("jump")
+		for _frame in range(22):
+			await physics_frame
+	_check(not bool(profile.call("is_collectible_found", "L1_bale_key")),
+		"the nail is out of jump reach", "six jumps from the room's floor, no key")
+
+	# And something to stand on gets her there. WITH THE LEVEL'S OWN BOUNDS: a placed
+	# object clamps itself to PhysicsShapeObject's default Rect2(0, -520, 3760, 1200), and
+	# the room is a thousand units above that -- so without this the step is snapped back
+	# down to the valley and the room reads as a dead end.
+	var registry := level.get_node("EntityRegistry") as EntityRegistry
+	var step := registry.instantiate_entity("square") as PhysicsShapeObject
+	level.get_node("EnvironmentBaseplate/GameplayPlane/WorldItemRoot").add_child(step)
+	step.apply_item_data(DrawnItemData.from_prediction(
+		"square", "Square", _blank_image(), [], 0.4, registry.get_entity("square")))
+	step.global_position = Vector2(nail.x, room.global_position.y - 90.0)
+	step.set_world_bounds(Rect2(level.get_node("EnvironmentBaseplate").get("world_bounds")))
+	step.confirm_placement()
+	for _frame in range(60):
+		await physics_frame
+	_check(step.global_position.y < room.global_position.y,
+		"a step put down in the room stays in the room",
+		"settled at y %.0f, the floor is at %.0f" % [step.global_position.y,
+			room.global_position.y])
+
+	player.global_position = Vector2(nail.x, step.global_position.y - 90.0)
+	for _frame in range(40):
+		await physics_frame
+	for _burst in range(4):
+		Input.action_press("jump")
+		for _frame in range(4):
+			await physics_frame
+		Input.action_release("jump")
+		for _frame in range(22):
+			await physics_frame
+	_check(bool(profile.call("is_collectible_found", "L1_bale_key")),
+		"and from the step she reaches it", "the room is a puzzle, not a dead end")
+
+
+## --- 15. The ward is actually wired to the door --------------------------------------
+##
+## _audit_ward_lock proves WardLock2D measures a key correctly. It did that for as long as
+## the class existed while nothing in the game ever called it: level_01.json declared
+## L1_N3's Pragmatist route as `ward_matching_sequence`, nothing read that field, the route
+## was a plain Unlock tag check, and any key-shaped key opened the door on the first try.
+## A unit test on an unreachable class is the exact shape of a green suite over a feature
+## that is not in the build.
+func _audit_the_ward_is_wired() -> void:
+	var level := (load("res://game_level.tscn") as PackedScene).instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await create_timer(1.2, true).timeout
+
+	var profile := root.get_node_or_null("PlayerProfile")
+	# Carrying the key would open the door without drawing anything, which is the other
+	# answer to this route and not the one under test.
+	(profile.get("_data")["collectibles"] as Array).erase("L1_bale_key")
+
+	var d = level.get("director")
+	var lock = level.get("ward_lock")
+	var player := level.get("player") as Node2D
+	_check(lock != null, "the level owns a ward lock", "built beside the director")
+
+	player.global_position = Vector2(3500.0, 40.0)
+	for _frame in range(24):
+		await physics_frame
+
+	# A key with the wrong tooth count: recognisably a key, wrong shape.
+	# _key_strokes takes PIXELS -- teeth, tooth depth, blade length -- not the ratios the
+	# lock compares them as. 26 off a 200 blade is the 0.13 depth ratio the slot wants.
+	var wrong := _key_strokes(6, 26.0, 200.0)
+	level.call("_judge_submission", "key", wrong)
+	await process_frame
+	_check(not d.is_solved("L1_N3"), "a key of the wrong shape does not open it",
+		"six teeth against a three-tooth ward")
+	_check(d.attempts("L1_N3") == 1, "and the turn counts as an attempt",
+		"%d attempt(s)" % d.attempts("L1_N3"))
+
+	# The right one does.
+	var right := _key_strokes(3, 26.0, 200.0)
+	level.call("_judge_submission", "key", right)
+	await create_timer(0.8, true).timeout
+	_check(d.is_solved("L1_N3"), "the right shape opens it", "three teeth, ward matched")
+	_check(d.committed_route("L1_N3") == "pragmatist", "by the Unlock route",
+		"route '%s'" % d.committed_route("L1_N3"))
+
+	level.queue_free()
+	await process_frame
+
+
 func _audit_ward_lock() -> void:
 	# Three teeth, standing well off a long thin blade: what the slot wants.
 	var right := _key_strokes(3, 26.0, 200.0)
@@ -1142,7 +1616,7 @@ func _walk_node_three(route: String) -> void:
 	if route == "artist":
 		var house := bale_root.get_node_or_null("House")
 		_check(house != null and house.get_script() == BaleClass,
-			"the bale is standing", "four posts and a roof")
+			"the bale is standing", "three posts and a roof")
 		# THE HALIPAN ARE SOLID. They are why "climb the post" is not an answer, so if they
 		# stop being collidable the Artist route stops having a reason to exist.
 		var guards := 0
@@ -1155,8 +1629,12 @@ func _walk_node_three(route: String) -> void:
 							guards += 1
 				elif String(child.name).begins_with("Post"):
 					posts += 1
-		_check(posts == 4, "four posts", "%d" % posts)
-		_check(guards == 4, "every post carries a solid halipan",
+		# THREE, BECAUSE THE PICTURE HAS THREE. The house was hand-built with four uprights;
+		# `assets/Level1/hut.png` shows three posts and a ladder, and collision was measured
+		# off that art rather than kept at the old number. Collision that disagrees with the
+		# picture is collision the player walks into thin air to find.
+		_check(posts == 3, "three posts, matching the art", "%d" % posts)
+		_check(guards == 3, "every post carries a solid halipan",
 			"%d rat guard(s) with collision -- this is why the posts cannot be climbed" % guards)
 
 		# THE CULTURAL GUARDRAIL, as an assertion rather than a comment.
@@ -1184,7 +1662,12 @@ func _walk_node_three(route: String) -> void:
 	# On the terrace BESIDE the house, not on top of it: the posts, deck and thatch are
 	# solid, and dropping the player into the middle of them wedges them in the geometry
 	# instead of walking them up to it.
-	player.global_position = Vector2(3360.0, 50.0)
+	#
+	# INSIDE L1_N3, which is a thing to keep checking when a trigger moves. This was 3360,
+	# which registered only because L1_N3's volume used to reach 140px past the left edge
+	# of the house and 90px back down the terrace the straw is on. The Overlook runs from
+	# 3320 and the bale's floor from 3500, so this is on the walkable strip between them.
+	player.global_position = Vector2(3450.0, 50.0)
 	for _frame in range(20):
 		await physics_frame
 	if route == "artist":
@@ -1206,6 +1689,13 @@ func _walk_node_three(route: String) -> void:
 
 	_check(d.is_solved("L1_N3"), "%s solves it" % route, "with '%s'" % solver)
 	var profile3 := root.get_node_or_null("PlayerProfile")
+	# SOLVING GETS YOU IN; THE PAINTING IS PICKED UP OFF THE FLOOR IN THERE. It used to be
+	# granted the instant the route landed. What is asserted here is the end of the chain --
+	# that this route does yield the canvas -- so the climb back down stands in for the walk
+	# across the room, and _on_bale_exit takes it for a player who did not.
+	level.call("_on_bale_exit")
+	await process_frame
+	await process_frame
 	_check(profile3 != null and bool(profile3.call("has_object", "canvas_2_pista")),
 		"the chest yields the second canvas", "granted on the %s route" % route)
 

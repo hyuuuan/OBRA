@@ -11,22 +11,27 @@
     {
       "id": "L1_B0_002",
       "at": "B0_HAGDAN.enter",
-      "text": "Look at the stone steps. Three of them are gone."
+      "text": "The paddy is deeper than she painted it. Walk in and it takes you — I have seen it take a carabao."
     },
     {
       "id": "L1_B0_003",
       "at": "B0_HAGDAN.sub1",
-      "text": "You are the one holding the pencil, apo. Draw something that can **span** it — anything that will cross the gap."
+      "text": "That plank out there is one of the missing steps. You are the one holding the pencil, apo — draw something that can **roll**, and set it on top. Weight is the only thing water listens to."
     },
     {
       "id": "L1_B0_004",
       "at": "B0_HAGDAN.sub1.solved",
-      "text": "There. Like that. It does not matter that it is ugly — it matters that I could read it."
+      "text": "There. Like that. It does not matter that it is ugly — it matters that I could read it. Flat and steady now. Cross while it holds."
     },
     {
       "id": "L1_B0_005",
       "at": "B0_HAGDAN.sub2",
-      "text": "That one is floating. We need something that can **roll** — heavy, something that rolls."
+      "text": "Now look up. Three of the stone steps are gone and the first one is over your head. Draw something that can **span** the gap — anything you can get on top of."
+    },
+    {
+      "id": "L1_B0_008",
+      "at": "B0_HAGDAN.sub2.solved",
+      "text": "Up you go. She would have laughed at that step, and then she would have used it."
     },
     {
       "id": "L1_B0_006",
@@ -224,6 +229,26 @@
       "text": "You got it."
     },
     {
+      "id": "L1_N2_016",
+      "at": "L1_N2.inside",
+      "text": "Ay — you can stand up in here. She kept things in here. Of course she did."
+    },
+    {
+      "id": "L1_N2_017",
+      "at": "L1_N2.inside",
+      "text": "Mind where you step. They were living in here before either of us came looking."
+    },
+    {
+      "id": "L1_N2_018",
+      "at": "L1_N2.key",
+      "text": "Brass. Too small for that lock — look at the size of it. This one belongs somewhere else."
+    },
+    {
+      "id": "L1_N2_019",
+      "at": "L1_N2.key",
+      "text": "Somewhere she has only ever shown you as a painting. Keep it."
+    },
+    {
       "id": "L1_N2_015",
       "at": "L1_N2.solved",
       "text": "Locked. Of course."
@@ -349,6 +374,16 @@
       "id": "L1_N3_023",
       "at": "L1_N3.protector.solved",
       "text": "You opened it."
+    },
+    {
+      "id": "L1_N3_024",
+      "at": "L1_N3.canvas.taken",
+      "text": "That is the one. Pista \u2014 the plaza, the bunting, the whole town out in the street."
+    },
+    {
+      "id": "L1_N3_025",
+      "at": "L1_N3.canvas.taken",
+      "text": "She never hung this one. Carry it carefully, apo."
     },
     {
       "id": "L1_EX_001",

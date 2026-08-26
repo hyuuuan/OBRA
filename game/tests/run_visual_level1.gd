@@ -79,12 +79,13 @@ func _run() -> void:
 	await _capture("04_t3_widened")
 
 	# --- solving it, which must clear the strip -------------------------------
-	level.call("_judge_submission", "square")
+	# Roll first, at the water, then Span at the stair -- the order the player meets them.
+	level.call("_judge_submission", "circle")
 	await _wait(0.6)
 	print("after sub1: stage=%s text=%s" % [director.stage_id("B0_HAGDAN"), _strip_text()])
-	await _capture("05_sub2_roll")
+	await _capture("05_sub2_span")
 
-	level.call("_judge_submission", "circle")
+	level.call("_judge_submission", "square")
 	await _wait(0.6)
 	print("solved=%s strip visible=%s" % [director.is_solved("B0_HAGDAN"), strip.visible])
 	await _capture("06_beat0_solved")

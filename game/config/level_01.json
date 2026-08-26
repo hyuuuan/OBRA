@@ -9,11 +9,11 @@
   "unlocks_at_checkpoint": "CP3",
   "tags_unlocked": [
     {
-      "tag": "span",
+      "tag": "roll",
       "at": "B0_HAGDAN.sub1"
     },
     {
-      "tag": "roll",
+      "tag": "span",
       "at": "B0_HAGDAN.sub2"
     },
     {
@@ -89,6 +89,15 @@
       "sub_beats": [
         {
           "id": "sub1",
+          "teaches": "roll",
+          "required_tags": [
+            "roll"
+          ],
+          "exclude": [],
+          "$comment": "The paddy, and it comes first because it is what the player meets first. Three hundred pixels of water, and nothing 80px wide spans that -- so the crossing is the plank already floating in it: weigh it down with something that rolls and it lies flat, steadies and becomes a step. Span used to be asked here and could not be answered, because the only class long enough to reach across is the one this beat excludes."
+        },
+        {
+          "id": "sub2",
           "teaches": "span",
           "required_tags": [
             "span"
@@ -96,15 +105,8 @@
           "exclude": [
             "bridge",
             "ladder"
-          ]
-        },
-        {
-          "id": "sub2",
-          "teaches": "roll",
-          "required_tags": [
-            "roll"
           ],
-          "exclude": []
+          "$comment": "The stair, past the water: a 136px rise against a 94.3px jump with three treads missing. A drawn primitive is 80px, which is a step -- so bridge and ladder are excluded here to keep the answer a thing you build up to rather than a thing you lay across."
         }
       ],
       "scripted": {

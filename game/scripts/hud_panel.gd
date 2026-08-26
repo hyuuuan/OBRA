@@ -1,31 +1,36 @@
 class_name HudPanel
 extends PanelContainer
-## The player's own state, in one frame instead of scattered across the screen.
+## What the player has to draw with, and what the game just said, in one frame.
 ##
-## The HUD used to be five separate things in five places -- a bare status line top left, a
-## progress bar and a number beside it, a level badge, a permanent keybind row, a goal
-## readout -- all in unstyled text over busy pixel art, and none of it wearing the language
-## the main menu had already established. This is the top-left half of the fix: ink and
-## whatever the game is currently telling you, framed together, so there is one place to
-## look for "how am I doing".
+## THE FRAME IS BACK, and the unframed version is why. The brush was drawn straight onto the
+## level with an outline on every line of type, which reads fine in a still and badly in
+## motion: this corner sits over Payyo's SKY on nearly every frame, a large bright field,
+## and a gold brush with a dark edge on pale blue is a gold brush you have to look for. An
+## outline gives a glyph an edge. It does not give it a GROUND, and small type over moving
+## art needs a ground. So the rectangle is back, and the brush keeps the size it earned.
 ##
-## INK IS THE WHOLE ECONOMY, so it gets a gauge rather than a sentence. "Ink 12.0 / 12.0"
-## is a debug print: the decimals move while you draw, they invite reading a number that
-## does not mean anything on its own, and 12.0 of 12.0 tells you nothing 12 does not.
+## WHAT YOU ARE IS NOT HERE. The nameplate and the life bar used to sit above the brush;
+## they are `MorphCard` in the opposite corner now, holding the drawing itself rather than
+## a word for it. This corner is the things that are true whoever you currently are.
 ##
-## Every colour here comes from UISkin. The frame factories stay on this class because
-## draw_panel and game_level already call them by name.
+## INK IS THE CLOCK THIS CORNER OWNS. "Ink 12.0 / 12.0" was a debug print -- the decimals
+## move while you draw, and 12.0 of 12.0 tells you nothing 12 does not -- so it gets the
+## brush at six screen pixels to the art pixel, which is the artwork at native size.
 
-const LIME := UISkin.LIME
+const GOLD := UISkin.GOLD
 const CREAM := UISkin.CREAM_TEXT
 
+## Screen pixels to the art pixel. Six is the artwork 1:1 -- 366 by 66 -- as big as the
+## brush can be drawn without inventing pixels, and the size this corner is built around.
+const GAUGE_SCALE := 6
+
 var _value: Label
-var _gauge: Gauge
+var _gauge: InkBrush
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_theme_stylebox_override(&"panel", frame())
+	add_theme_stylebox_override(&"panel", UISkin.frame())
 
 	var column := VBoxContainer.new()
 	column.name = "Column"
@@ -33,10 +38,27 @@ func _init() -> void:
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(column)
 
+	_build_ink(column)
+
+
+## The brush, and the count under it.
+func _build_ink(column: VBoxContainer) -> void:
+	# Sized exactly and pinned left. A VBoxContainer stretches its children to its own
+	# width, which would leave InkBrush centring itself in whatever was left over and
+	# drifting sideways every time the status line under it changed length.
+	_gauge = InkBrush.new()
+	_gauge.name = "Gauge"
+	_gauge.custom_minimum_size = InkBrush.size_at(GAUGE_SCALE)
+	_gauge.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	column.add_child(_gauge)
+
 	var heading := HBoxContainer.new()
 	heading.name = "Heading"
 	heading.add_theme_constant_override(&"separation", 7)
 	heading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The brush's own width, so the count lands under the bristles.
+	heading.custom_minimum_size = Vector2(InkBrush.size_at(GAUGE_SCALE).x, 0.0)
+	heading.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	column.add_child(heading)
 
 	var drop := UIGlyph.new()
@@ -59,19 +81,10 @@ func _init() -> void:
 	_value.theme_type_variation = &"HudValue"
 	heading.add_child(_value)
 
-	_gauge = Gauge.new()
-	_gauge.name = "Gauge"
-	_gauge.custom_minimum_size = Vector2(0.0, 16.0)
-	column.add_child(_gauge)
 
-
-## The status line lives inside the frame rather than floating on the level behind it, so
-## it has something to be read against. It stays the node the rest of game_level already
-## writes to -- there are thirty of those call sites and none of them need to know.
-##
-## Muted, and deliberately quieter than the gauge above it. It is the least urgent thing
-## in the frame: the gauge is a resource the player is spending, this is the game saying
-## what just happened.
+## The status line lives inside the frame rather than floating on the level behind it, so it
+## has something to be read against. It stays the node the rest of game_level already writes
+## to -- there are thirty of those call sites and none of them need to know.
 func adopt_status(label: Label) -> void:
 	if label == null:
 		return
@@ -86,88 +99,12 @@ func adopt_status(label: Label) -> void:
 	($Column as VBoxContainer).add_child(label)
 
 
-## Whole units. `remaining` is continuous, so it is floored -- a gauge that rounds up
-## claims ink the player does not have, and the one number they act on is "can I still
-## draw something".
+## Whole units. `remaining` is continuous, so it is floored -- a gauge that rounds up claims
+## ink the player does not have, and the one number they act on is "can I still draw
+## something".
 func set_ink(remaining: float, capacity: float, reserved: float) -> void:
 	_value.text = "%d of %d" % [floori(maxf(0.0, remaining)), roundi(capacity)]
 	_gauge.remaining = remaining
 	_gauge.capacity = capacity
 	_gauge.reserved = reserved
 	_gauge.queue_redraw()
-
-
-## A compact version of the same frame, for the readouts pinned to the far corners.
-static func chip() -> StyleBoxFlat:
-	return UISkin.chip()
-
-
-static func frame() -> StyleBoxFlat:
-	return UISkin.frame()
-
-
-## The gauge. Drawn rather than a ProgressBar because it carries two quantities: what is
-## left, and how much of it the sketch on the canvas is about to cost. A player mid-drawing
-## needs to see the second one eating the first.
-##
-## ONE BLOCK PER UNIT, with a gap between them. It was a continuous bar with hairlines
-## scratched across it, which is a bar with marks on it -- you read the length and then
-## have to count the marks to turn it into a number. Twelve separate blocks IS the number:
-## the ink budget is twelve discrete things you can spend and the gauge should look like
-## twelve discrete things.
-class Gauge extends Control:
-	const TROUGH := UISkin.INK
-	const EDGE := UISkin.RING_MID
-	const FILL := UISkin.LIME
-	## Ink the current sketch has claimed but not yet spent. Warm, because it is not gone
-	## and clearing the canvas hands it straight back.
-	const PENDING := UISkin.PENDING
-	## Between blocks. Held constant rather than scaled with the gauge, because it is a
-	## gap and a gap that grows reads as a second colour.
-	const GUTTER := 3.0
-
-	var remaining := 12.0
-	var capacity := 12.0
-	var reserved := 0.0
-
-	func _init() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	func _draw() -> void:
-		draw_rect(Rect2(Vector2.ZERO, size), TROUGH)
-		draw_rect(Rect2(Vector2.ZERO, size), EDGE, false, 2.0)
-
-		var units := maxi(1, roundi(capacity))
-		var span := maxf(0.001, capacity)
-		var inset := 2.0
-		var track := size.x - inset * 2.0 - GUTTER * float(units - 1)
-		if track <= 0.0:
-			return
-		var block := track / float(units)
-		var spent_at := clampf(remaining / span, 0.0, 1.0) * span
-		var claimed_to := clampf((remaining + maxf(0.0, reserved)) / span, 0.0, 1.0) * span
-
-		for index in range(units):
-			# What this one block covers of the budget, so a block straddling the boundary
-			# is drawn part full and part warm rather than rounded to whichever wins.
-			var low := float(index) / float(units) * span
-			var high := float(index + 1) / float(units) * span
-			var left := inset + float(index) * (block + GUTTER)
-			var top := inset
-			var height := size.y - inset * 2.0
-			_band(left, top, block, height, low, high, 0.0, spent_at, FILL)
-			_band(left, top, block, height, low, high, spent_at, claimed_to, PENDING)
-
-	## Paint the part of one block that falls inside [from, to] of the budget.
-	func _band(left: float, top: float, block: float, height: float,
-			low: float, high: float, from: float, to: float, color: Color) -> void:
-		var start := maxf(low, from)
-		var end := minf(high, to)
-		if end <= start:
-			return
-		var unit := high - low
-		var x := left + (start - low) / unit * block
-		var width := (end - start) / unit * block
-		if width <= 0.0:
-			return
-		draw_rect(Rect2(Vector2(x, top), Vector2(width, height)), color)

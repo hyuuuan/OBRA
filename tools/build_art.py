@@ -58,7 +58,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "level-1-assets"
@@ -293,6 +293,46 @@ STAIR_BANDS = [
     ("stair_riser", (2, 20, 46, 12)),
 ]
 BAND_UPSCALE = 2
+
+
+# --- the haybale and what is inside it ---------------------------------------------------
+
+# THESE TWO ARE PAINTED, NOT PIXEL ART, and that is why they are handled apart from PROPS.
+# The four props above are 6x upscaled pixel art and the cutter asserts it: blow the
+# downsample back up and it has to reproduce the source exactly. Neither of these would,
+# because neither was ever on a pixel grid -- so they are area-averaged down to the size
+# they are drawn at instead, and drawn at 1:1 from there.
+HAYBALE_SOURCE = "Haybale.png"
+## How big the heap is in the level. The delivered art crops to 983x678, so this is that
+## shape at a size the apo (96px) stands beside as a heap she could duck into rather than a
+## hill. The two smaller heaps on the terrace draw the same texture at exactly HALF this, so
+## their pixels stay square.
+HAYBALE_SIZE = (208, 144)
+## The mouth in the delivered heap, in source pixels, and the straw to cover it with.
+##
+## ONE PICTURE HAS TO SERVE FOUR STATES. The heap Kent drew has a way in; the other two on
+## the terrace do not, and a heap that has been combed is not one with a doorway in it. So a
+## second cut fills the mouth by MIRRORING the straw from the far side of the heap over it
+## -- same picture, same lighting, same stalks, and no seam that is not already in the art.
+HAYBALE_MOUTH = (292, 414, 570, 760)
+HAYBALE_PATCH_FROM = (600, 414, 878, 760)
+
+HAYBALE_INTERIOR_SOURCE = "Haybale Interior Idea.png"
+## A TILEABLE STRIP, not the whole picture. The delivered interior has the chest and the
+## canvas painted into the middle of it, and both of those are real nodes in the level --
+## the baul is Node 3's problem and outlives this room. So the backdrop is cut from the left
+## end, which is wall and floor and nothing else, and repeated across the room.
+HAYBALE_INTERIOR_STRIP = (24, 0, 424, 680)
+## Where the dirt starts in that strip, so the level can line the floor up with it.
+HAYBALE_INTERIOR_FLOOR = 536
+## How much straw to put above it and how much floor below.
+##
+## The camera sees seven hundred and eighty units of world and the strip is six hundred and
+## eighty tall, so on its own it leaves sky above the straw and nothing under the floor. The
+## straw band is extended by FLIPPING it rather than repeating it: vertical stalks upside
+## down are still vertical stalks, and a repeat puts a visible seam across the wall.
+HAYBALE_INTERIOR_ABOVE = 560
+HAYBALE_INTERIOR_BELOW = 420
 
 
 # --- the paintings in Lolo and Lola's house ---------------------------------------------
@@ -820,6 +860,71 @@ def build_props(write: bool) -> dict[str, bytes]:
     return written
 
 
+def build_haybale(write: bool) -> tuple[dict[str, bytes], str]:
+    """The heap on the terrace, a mouthless copy of it, and the wall inside it."""
+    written: dict[str, bytes] = {}
+    source = SOURCE / HAYBALE_SOURCE
+    if not source.exists():
+        raise SystemExit(f"missing {HAYBALE_SOURCE}")
+    image = Image.open(source).convert("RGBA")
+    pixels = np.asarray(image).astype(int)
+    # Delivered on a white page. Keyed on distance from white rather than on brightness:
+    # the palest straw in it is within twenty of white and a brightness threshold eats it.
+    # SOFT, or the heap keeps a white rind. The page is anti-aliased against the straw, so
+    # a hard threshold leaves every edge pixel opaque and one value off white -- a bright
+    # halo round a heap standing on a green terrace. Alpha ramps over the same distance
+    # instead, which is what the artist's own edge already is.
+    flat = pixels[:, :, :3]
+    distance = np.abs(flat - 255).max(axis=2)
+    alpha = np.clip(distance / 40.0, 0.0, 1.0) * 255.0
+    keyed = np.dstack([flat.astype(np.uint8), alpha.astype(np.uint8)])
+    cut = Image.fromarray(keyed, "RGBA")
+    box = cut.split()[-1].getbbox()
+
+    mouthless = cut.copy()
+    patch = cut.crop(HAYBALE_PATCH_FROM).transpose(Image.FLIP_LEFT_RIGHT)
+    # FEATHERED, or the patch is a rectangle of slightly brighter straw with four visible
+    # sides -- which is what it was, and reads worse than the doorway it was covering. A
+    # blurred mask lets the two overlap over thirty pixels, which is longer than any stalk
+    # in the picture is wide, so nothing lines up to give the join away.
+    mask = Image.new("L", patch.size, 0)
+    ImageDraw.Draw(mask).rectangle((34, 34, patch.width - 35, patch.height - 35), fill=255)
+    mouthless.paste(patch, HAYBALE_MOUTH[:2],
+                    mask.filter(ImageFilter.GaussianBlur(18)))
+
+    for name, art in [("haybale", cut), ("haybale_solid", mouthless)]:
+        # BOX, not a filter. This is a five-fold reduction of painted straw; anything
+        # sharpening turns every stalk into a fence of alternating pixels.
+        small = art.crop(box).resize(HAYBALE_SIZE, Image.BOX)
+        path = PROP_OUT / f"{name}.png"
+        written[str(path.relative_to(ROOT))] = _emit(small, path, write)
+
+    inside = SOURCE / HAYBALE_INTERIOR_SOURCE
+    if not inside.exists():
+        raise SystemExit(f"missing {HAYBALE_INTERIOR_SOURCE}")
+    strip = Image.open(inside).convert("RGB").crop(HAYBALE_INTERIOR_STRIP)
+    width, height = strip.size
+    tall = Image.new("RGB",
+                     (width, HAYBALE_INTERIOR_ABOVE + height + HAYBALE_INTERIOR_BELOW))
+    straw = strip.crop((0, 0, width, HAYBALE_INTERIOR_FLOOR - 140))
+    flipped = straw.transpose(Image.FLIP_TOP_BOTTOM)
+    y = HAYBALE_INTERIOR_ABOVE
+    while y > 0:
+        y -= flipped.height
+        tall.paste(flipped, (0, y))
+    tall.paste(strip, (0, HAYBALE_INTERIOR_ABOVE))
+    floor = strip.crop((0, height - 24, width, height))
+    y = HAYBALE_INTERIOR_ABOVE + height
+    while y < tall.height:
+        tall.paste(floor, (0, y))
+        y += floor.height
+    path = PROP_OUT / "haybale_interior.png"
+    written[str(path.relative_to(ROOT))] = _emit(tall, path, write)
+    return written, (f"haybale {HAYBALE_SIZE[0]}x{HAYBALE_SIZE[1]}px, "
+                     f"interior tile {tall.width}x{tall.height}px with its floor at "
+                     f"{HAYBALE_INTERIOR_ABOVE + HAYBALE_INTERIOR_FLOOR}")
+
+
 def build_paintings(write: bool) -> dict[str, bytes]:
     """The five covers, down to the size they hang at.
 
@@ -907,7 +1012,9 @@ def main() -> int:
     props = build_props(write=not args.check)
     logo, logo_size = build_logo(write=not args.check)
     paintings = build_paintings(write=not args.check)
-    everything.update({**props, **logo, **paintings})
+    haybale, haybale_note = build_haybale(write=not args.check)
+    everything.update({**props, **logo, **paintings, **haybale})
+    figures.append(haybale_note)
 
     if args.check:
         stale = []
