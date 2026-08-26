@@ -96,7 +96,7 @@ size = Vector2(3760, 48)
 size = Vector2(48, 1200)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_y6bxt"]
-size = Vector2(520, 300)
+size = Vector2(700, 300)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ryned"]
 size = Vector2(380, 420)
@@ -466,10 +466,10 @@ shape = SubResource("Rectangle_wall")
 [node name="Obstacles" type="Node2D" parent="GameplayPlane" unique_id=89777346]
 
 [node name="B0_HAGDAN" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=153923965]
-position = Vector2(690, 470)
+position = Vector2(650, 470)
 script = ExtResource("19_j5wv8")
 obstacle_id = "B0_HAGDAN"
-trigger_size = Vector2(520, 300)
+trigger_size = Vector2(700, 300)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/B0_HAGDAN" unique_id=732542801]
 shape = SubResource("RectangleShape2D_y6bxt")

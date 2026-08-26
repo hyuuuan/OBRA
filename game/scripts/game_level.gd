@@ -509,6 +509,9 @@ func _judge_submission(entity_id: String) -> void:
 	# The strip re-reads the director either way: a solve moves it to the next stage, and
 	# a miss may have opened the next hint tier.
 	_refresh_requirements()
+	if not bool(verdict["solves"]):
+		_say_it_did_not_fit(entity_id, verdict)
+		return
 	if bool(verdict["solves"]) and not String(verdict["stage_id"]).is_empty():
 		# Beat 0's sub-beats have their own lines ("B0_HAGDAN.sub1.solved"); a route's
 		# second stage does not, and reports an empty stage id rather than a missing hook.
@@ -518,6 +521,59 @@ func _judge_submission(entity_id: String) -> void:
 		# The next sub-beat has to ask for itself, or the second half of the tutorial is
 		# silent and the player is left guessing what changed.
 		_speak_current_stage(String(verdict["obstacle_id"]))
+
+
+## A DRAWING THAT DOES NOT WORK USED TO SAY NOTHING AT ALL.
+##
+## This is the single biggest reason the hint ladder was not helping: a player could draw,
+## place, and watch the thing land, and the game would not say whether it had even noticed.
+## The verdict was computed, the attempt was counted, the tier moved -- and the only outward
+## sign of any of it was a strip in the corner that says what is needed, never what was
+## wrong with what you just tried. Drawing repeatedly into silence reads as a game that is
+## broken, not as a game that is asking for something else.
+##
+## So a miss now answers, in the hint channel, which never stops play: what the thing you
+## drew CAN do, and what this needs.
+##
+## IT NAMES THE PLAYER'S OWN DRAWING AND THAT IS ALLOWED. The rule the tag layer exists to
+## hold is that the game must not name a class it would ACCEPT -- that turns a puzzle with
+## four answers into a spelling test. Reflecting back the class the player themselves just
+## chose gives away nothing they did not already know, and it is the same thing the strip
+## already does at T2 with "you have drawn: circle". Without it the sentence has to say
+## "that" and the player is left matching a pronoun to one of six things on screen.
+func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
+	if hint_bar == null:
+		return
+	var needed := _tag_phrase(verdict.get("required_tags", []),
+		String(director.requirement_spec().get("match", "all")))
+	if needed.is_empty():
+		return
+	var drawn := entity_id.replace("_", " ")
+	var mine: Array = AbilityTags.tags_for_class(entity_id)
+	var text := ""
+	if mine.is_empty():
+		# One of the roster's unhintable classes -- a clock, a bee. It carries no tag at
+		# all, so there is nothing to contrast, only the requirement to repeat.
+		text = "A %s cannot do this. It needs something that can %s." % [drawn, needed]
+	else:
+		text = "A %s can %s. This needs something that can %s." % [
+			drawn, _tag_phrase(mine, "any"), needed]
+	hint_bar.show_hint(text, Lolo.SPEAKER)
+
+
+## Tag names as the player sees them everywhere else: upper case, joined by the rule the
+## requirement actually uses. Shared with the strip's vocabulary on purpose -- SPAN in
+## Lolo's mouth, SPAN on the strip and SPAN in the Ability Book have to be one word.
+func _tag_phrase(tags: Array, match: String) -> String:
+	var parts := PackedStringArray()
+	for tag_value: Variant in tags:
+		parts.append(String(AbilityTags.display_name(String(tag_value))).to_upper())
+	if parts.is_empty():
+		return ""
+	if parts.size() == 1:
+		return parts[0]
+	var joiner := " or " if match == "any" else " and "
+	return joiner.join(parts)
 
 
 ## Standing in the doorway of the heap. The offer, not the act.
