@@ -151,12 +151,26 @@ the whole valley black.
 the heap. A little hole and a big room — the two must not be the same size, which is why the
 first version, a cutaway drawn where the heap stands, was thrown away.
 
-In it: one of **Lola's canvases** (the hub's own painting of Pista, at 2×), her **baul**, a
-**brass key** on the earth floor, and ants. Walking onto the key takes it; it is recorded on
-the profile as `L1_straw_key`, not on a checkpoint, for the same reason canvas damage is. It
-does **not** open the chest lying beside it — that lock is Node 3's, and finding a key that
-does not fit is the point rather than an oversight. The canvas is the promise of where it
-goes. The way back is the daylight in the wall, which is the only bright thing in the room.
+In it: her **baul**, the **brass key to the house** hanging on a nail, and ants. The key is
+recorded on the profile as `L1_bale_key`, not on a checkpoint, for the same reason canvas
+damage is. The way back is the daylight in the wall, which is the only bright thing in it.
+
+**The nail is out of reach, and that is the room's puzzle.** It hangs 250 above the floor;
+the apo is 96 tall and her jump apex is 94.3 (`wanderer.gd`), so she is about forty pixels
+short. Anything at all to stand on closes that — the one place in the level where the puzzle
+is height and nothing else, with no tag to satisfy and no wrong answer.
+
+> ⚠ A drawing placed in here needs the **level's** bounds. `PhysicsShapeObject` defaults to
+> `Rect2(0, −520, 3760, 1200)` and clamps itself back inside it; the room is a thousand units
+> above that, so an object put down here without `set_world_bounds` is snapped to the valley
+> floor and the room reads as a dead end. `_on_placement_confirmed` passes them — a fixture
+> that forgets to is testing the default, not the game.
+
+**The chain is heap → key → house → painting.** The room used to hold the hub's painting of
+Pista *and* a key that opened nothing ("finding a key that does not fit is the point"), which
+made the heap the place you collect the next level and the house the place you collect
+nothing — backwards, since the house is the harder of the two and the one the level ends at.
+Each thing you find is now the way into the next thing rather than a promise about it.
 
 It costs a teleport and a fade and nothing else: the apo is the same body in the same level,
 so ink, the bag, the drawing panel and every checkpoint carry in with her, and Lolo follows
@@ -179,7 +193,23 @@ without being asked (he teleports past 900px and the room is thousands away).
 |---|---|---|---|
 | Artist | Forage | combed, left standing | **sets `knows_about_key`** |
 | Pragmatist | Carry | tunnelled | — |
-| Protector | Weather | scattered, permanent | sets `straw_scattered` |
+| Protector | Weather | scattered, permanent | sets `straw_scattered`, **and turns out the key** |
+
+**Wrecking the heap turns the key out of it.** The nail is inside and out of reach; a player
+who blew the whole heap across the terrace has plainly got at whatever was hanging in it, and
+refusing them the key would mean the fast route locks the door the slow one opens. Same key,
+same name, so taking both ways in cannot yield two.
+
+⚠ **THE DRAWING IS THE CHOICE at Nodes 2 and 3.** Node 1 stops the world and puts three
+buttons up, so a route is committed before anything is drawn. Nodes 2 and 3 never ask — how
+you deal with the heap *is* which thing you drew — and nothing was closing that loop:
+`_committed` stayed empty all level, `obstacle_solved` reported an empty route, and both
+handlers that switch on it matched no case. The straw was never combed, tunnelled or
+scattered, `knows_about_key` and `straw_scattered` were never set, no route reached the
+tally, and CP2 and CP3 were never written. Three routes each at two nodes, and in play the
+level had one. `LevelDirector._route_carrying` closes it: **declared order wins** where a
+class carries more than one route's tag (a bucket is both Carry and Weather), because a rule
+that reads the same every run is what makes a route reproducible.
 
 **`knows_about_key` is the load-bearing one.** The sketchbook page is the only place in the
 level anyone is told to look on a nail, and Node 3's Artist route reads it. **CP2** on commit.
@@ -193,8 +223,16 @@ one door above head height, ladder taken inside at night, which is the lock.
 | Route | Tag | How |
 |---|---|---|
 | Artist | Climb (excl. crab, snake) | over the thatch, in under the eaves, key on a nail. **Search halved if `knows_about_key`** |
-| Pragmatist | Unlock | the ward sequence — see below |
+| Pragmatist | Unlock | the ward sequence — see below — **or the key found in the heap** |
 | Protector | Cut (excl. elephant) | through the hasp. **Creases the canvas** |
+
+**The Unlock route has two honest answers**: draw a key that fits the ward, or use the brass
+one off the nail. The door says so on the hint bar rather than expecting the player to
+remember, twenty minutes later, that a key found in a straw heap is the answer to this
+particular door. Only the drawn one is a *submission*: `LevelDirector.solve_with_item` is its
+own verb, recording no attempt, no tag match and no tier change, so per-class statistics
+never count a thing nobody drew and Chapter 5 can tell "opened it with the key they found"
+from "drew a key that fitted".
 
 **CP3** on commit; the level is marked complete there, not at the marker stone, so a player
 who stops after Node 3 keeps the progress. CP3 is also what opens the exit: the GoalMarker

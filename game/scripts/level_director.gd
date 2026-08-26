@@ -362,6 +362,22 @@ func note_submission(entity_id: String) -> Dictionary:
 		_record_attempt(entity_id, verdict)
 		return verdict
 
+	# THE DRAWING IS THE CHOICE, at every node that does not ask out loud.
+	#
+	# Node 1 stops the world and puts three buttons on screen, so a route is committed
+	# before anything is drawn. Nodes 2 and 3 never ask -- the way you deal with the heap
+	# IS which thing you drew -- and nothing was closing that loop. `_committed` stayed
+	# empty for the whole level, so `obstacle_solved` reported an empty route, and the two
+	# handlers that switch on it matched no case at all: the straw was never combed,
+	# tunnelled or scattered, `knows_about_key` and `straw_scattered` were never set, no
+	# route reached the tally, and CP2 and CP3 were never written. Three routes each at two
+	# nodes, and in play the level had one.
+	if String(_committed.get(id, "")).is_empty():
+		var chosen := _route_carrying(id, entity_id)
+		if not chosen.is_empty():
+			commit_route(id, chosen)
+			verdict["route"] = chosen
+
 	# Solved this stage. A route with a `then`, or a beat with more sub-beats, advances
 	# instead of completing -- Node 1's Artist route spans the gorge and then still has
 	# to climb the far abutment.
@@ -377,6 +393,59 @@ func note_submission(entity_id: String) -> Dictionary:
 		obstacle_solved.emit(id, verdict["route"], entity_id, attempts(id), hint_tier(id))
 	_record_attempt(entity_id, verdict)
 	return verdict
+
+
+## Which route this drawing answers, for a node the player was never asked to choose at.
+##
+## Declared order wins where a class carries more than one route's tag -- a bucket is both
+## Carry and Weather at Node 2, and "tunnel it out" and "scatter it to the wind" are not the
+## same act with the same consequence. The order in level_01.json is artist, pragmatist,
+## protector, and it is the level's own ordering rather than an accident of a Dictionary:
+## a rule that reads the same every run is what makes a route reproducible, which the
+## telemetry needs before it can mean anything.
+##
+## Empty for a beat with no routes -- Beat 0 is sub-beats in sequence, not a choice -- and
+## empty for a drawing that carries none of them, which is what a T3-assisted solve can be.
+## The caller leaves the route uncommitted in both cases rather than inventing one.
+func _route_carrying(id: String, entity_id: String) -> String:
+	if _tags == null or not _obstacles.has(id):
+		return ""
+	var routes: Dictionary = (_obstacles[id] as Dictionary).get("routes", {})
+	for route_value: Variant in routes.keys():
+		var route := String(route_value)
+		var spec: Dictionary = routes[route_value]
+		var members: PackedStringArray = _tags.call("resolve",
+			spec.get("required_tags", []),
+			String(spec.get("match", "all")),
+			spec.get("exclude", [])) as PackedStringArray
+		if members.has(entity_id):
+			return route
+	return ""
+
+
+## Solve an obstacle with something already in the bag rather than with a drawing.
+##
+## Ang Bale's Pragmatist route asks for Unlock, and there are two honest answers to that:
+## draw a key that fits the ward, or use the brass one hanging on a nail in the straw heap.
+## Only the first is a submission -- `note_submission` takes a recognised class, judges it
+## against the accept set, and counts a miss -- and pushing a found item through that door
+## would make the level's per-class statistics count a thing nobody drew.
+##
+## So this is its own verb. It records NO attempt and NO tag match, because neither
+## happened, and it does not touch the hint tier: a player who walks up with the key was
+## never stuck. What it does record is that the obstacle is complete and by which route, so
+## the tally, the checkpoint and the ending resolver see exactly what they would have seen
+## had the key been drawn.
+func solve_with_item(id: String, item_id: String) -> void:
+	if not _obstacles.has(id) or _solved.has(id):
+		return
+	_solved[id] = true
+	if _telemetry != null:
+		_telemetry.call("record_event", "solved_with_item", {
+			"level_id": level_id(), "obstacle_id": id, "item": item_id,
+			"route": String(_committed.get(id, "")),
+		})
+	obstacle_solved.emit(id, String(_committed.get(id, "")), item_id, attempts(id), hint_tier(id))
 
 
 ## What the obstacle would accept with no help at all. Kept separate from accept_set()

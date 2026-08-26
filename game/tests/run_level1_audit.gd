@@ -80,6 +80,7 @@ func _run() -> void:
 	await _audit_node_three()
 	await _audit_arrival_speaks_once()
 	await _audit_a_miss_says_why()
+	await _audit_the_key_chain()
 	# LAST. It opens the completion overlay, which pauses the tree, and a paused tree
 	# makes every physics check after it read zero.
 	await _audit_completion_gate()
@@ -1253,6 +1254,128 @@ func _audit_a_miss_says_why() -> void:
 
 	level.queue_free()
 	await process_frame
+
+
+## --- 14. Heap -> key -> house -> painting -------------------------------------------
+##
+## The chain the level actually runs on, end to end and by both ways into the key. What you
+## find in the heap is the way into the house; what you find in the house is the painting of
+## the next place. Before this the heap held the painting and the key opened nothing, which
+## made the harder of the two beats the one that paid out less.
+##
+## THE REACH IS CHECKED FIRST because it is the only part that can silently stop being a
+## puzzle. The nail is 250 above the floor and the apo's jump apex is 94.3 (wanderer.gd), so
+## it is out of reach by about forty pixels -- and forty pixels is close enough that a change
+## to the jump, her height, or the room's floor could hand it over for free without anyone
+## noticing. It also checks the other direction: that something put underneath still gets
+## her there, or the room is a dead end rather than a puzzle.
+func _audit_the_key_chain() -> void:
+	var profile := root.get_node_or_null("PlayerProfile")
+	var carried: Array = profile.get("_data")["collectibles"]
+
+	for how in ["off the nail", "wrecking the heap"]:
+		# The profile is a live autoload carrying whatever this machine has played. Clear
+		# only the facts under test, so the run says something about the build rather than
+		# about the tester's save file.
+		carried.clear()
+		(profile.get("_data")["acquired_objects"] as Array).erase("canvas_2_pista")
+		(profile.get("_data")["levels_unlocked"] as Array).erase("level_2")
+
+		var level := (load("res://game_level.tscn") as PackedScene).instantiate()
+		(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+		root.add_child(level)
+		call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+		await create_timer(1.2, true).timeout
+
+		var d = level.get("director")
+		var player := level.get("player") as Node2D
+		var room := level.get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+		var nail: Vector2 = room.global_position + Vector2(room.get("key_at"))
+
+		if how == "off the nail":
+			await _audit_the_nail_is_out_of_reach(level, room, player, nail, profile)
+		else:
+			# Weather is the Protector route: scatter the heap, and the key comes out of
+			# the wreck of it. No route is committed first -- the drawing IS the choice.
+			player.global_position = Vector2(3100.0, 180.0)
+			for _frame in range(24):
+				await physics_frame
+			level.call("_judge_submission", "fan")
+			await create_timer(0.6, true).timeout
+			_check(d.committed_route("L1_N2") == "protector",
+				"a weather drawing commits the Protector route",
+				"route '%s' -- the drawing is the choice at a node that never asks"
+					% d.committed_route("L1_N2"))
+
+		_check(bool(profile.call("is_collectible_found", "L1_bale_key")),
+			"the key is in the bag (%s)" % how, "L1_bale_key")
+
+		player.global_position = Vector2(3500.0, 40.0)
+		for _frame in range(24):
+			await physics_frame
+		_check(bool(level.call("_found_key_would_open")), "the door offers it (%s)" % how,
+			"at '%s', carrying the key" % d.current_obstacle())
+		_check(bool(level.call("_use_the_found_key")), "and it opens (%s)" % how, "pragmatist")
+		await create_timer(0.8, true).timeout
+		_check(d.is_solved("L1_N3") and d.committed_route("L1_N3") == "pragmatist",
+			"by the Unlock route (%s)" % how, "solved, route '%s'" % d.committed_route("L1_N3"))
+		_check(bool(profile.call("has_object", "canvas_2_pista"))
+			and bool(profile.call("is_level_unlocked", "level_2")),
+			"and the house yields the painting (%s)" % how, "canvas_2_pista, Pista unlocked")
+		_check(not bool(level.call("_use_the_found_key")), "the key is not a second solve",
+			"already open")
+
+		level.queue_free()
+		await process_frame
+
+
+## The nail is above her, and stays above her.
+func _audit_the_nail_is_out_of_reach(level: Node, room: Node2D, player: Node2D,
+		nail: Vector2, profile: Node) -> void:
+	player.global_position = Vector2(nail.x, room.global_position.y - 40.0)
+	for _frame in range(40):
+		await physics_frame
+	for _burst in range(6):
+		Input.action_press("jump")
+		for _frame in range(4):
+			await physics_frame
+		Input.action_release("jump")
+		for _frame in range(22):
+			await physics_frame
+	_check(not bool(profile.call("is_collectible_found", "L1_bale_key")),
+		"the nail is out of jump reach", "six jumps from the room's floor, no key")
+
+	# And something to stand on gets her there. WITH THE LEVEL'S OWN BOUNDS: a placed
+	# object clamps itself to PhysicsShapeObject's default Rect2(0, -520, 3760, 1200), and
+	# the room is a thousand units above that -- so without this the step is snapped back
+	# down to the valley and the room reads as a dead end.
+	var registry := level.get_node("EntityRegistry") as EntityRegistry
+	var step := registry.instantiate_entity("square") as PhysicsShapeObject
+	level.get_node("EnvironmentBaseplate/GameplayPlane/WorldItemRoot").add_child(step)
+	step.apply_item_data(DrawnItemData.from_prediction(
+		"square", "Square", _blank_image(), [], 0.4, registry.get_entity("square")))
+	step.global_position = Vector2(nail.x, room.global_position.y - 90.0)
+	step.set_world_bounds(Rect2(level.get_node("EnvironmentBaseplate").get("world_bounds")))
+	step.confirm_placement()
+	for _frame in range(60):
+		await physics_frame
+	_check(step.global_position.y < room.global_position.y,
+		"a step put down in the room stays in the room",
+		"settled at y %.0f, the floor is at %.0f" % [step.global_position.y,
+			room.global_position.y])
+
+	player.global_position = Vector2(nail.x, step.global_position.y - 90.0)
+	for _frame in range(40):
+		await physics_frame
+	for _burst in range(4):
+		Input.action_press("jump")
+		for _frame in range(4):
+			await physics_frame
+		Input.action_release("jump")
+		for _frame in range(22):
+			await physics_frame
+	_check(bool(profile.call("is_collectible_found", "L1_bale_key")),
+		"and from the step she reaches it", "the room is a puzzle, not a dead end")
 
 
 func _audit_ward_lock() -> void:
