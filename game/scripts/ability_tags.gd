@@ -38,6 +38,7 @@ const MATCH_ANY := "any"
 var _tag_classes: Dictionary = {}   # tag -> PackedStringArray
 var _class_tags: Dictionary = {}    # class id -> Array[String]
 var _display: Dictionary = {}       # tag -> display name
+var _gloss: Dictionary = {}         # tag -> what the tag means, in the player's words
 var _unlock_level: Dictionary = {}  # tag -> level number that first teaches it
 var _loaded := false
 
@@ -50,6 +51,7 @@ func load_tags() -> bool:
 	_tag_classes.clear()
 	_class_tags.clear()
 	_display.clear()
+	_gloss.clear()
 	_unlock_level.clear()
 	_loaded = false
 
@@ -68,6 +70,7 @@ func load_tags() -> bool:
 		var tag := String(tag_value)
 		var entry: Dictionary = tags[tag_value]
 		_display[tag] = String(entry.get("display_name", tag.capitalize()))
+		_gloss[tag] = String(entry.get("gloss", ""))
 		_unlock_level[tag] = int(entry.get("unlocked_in_level", 0))
 		var members := PackedStringArray()
 		for class_value: Variant in (entry.get("classes", {}) as Dictionary).keys():
@@ -116,6 +119,13 @@ func all_tags() -> Array:
 
 func display_name(tag: String) -> String:
 	return String(_display.get(tag, tag.capitalize()))
+
+
+## What the tag asks the drawing to DO, in a sentence, naming no class -- see GLOSS in
+## tools/build_tags.py. Empty for a tag whose data predates the field, and the strip prints
+## the name alone in that case rather than an empty line.
+func gloss(tag: String) -> String:
+	return String(_gloss.get(tag, ""))
 
 
 func unlock_level(tag: String) -> int:

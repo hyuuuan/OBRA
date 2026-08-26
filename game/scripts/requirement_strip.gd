@@ -16,7 +16,7 @@ extends Control
 ##
 ## Tiers, matching level_director.gd:
 ##   T0  hidden. The player has not asked and has not struggled
-##   T1  the tags, named
+##   T1  the tags, named, and what each of them asks the drawing to do
 ##   T2  the tags, plus which of the player's own drawings would qualify
 ##   T3  the same, plus a note that anything from the other paths will now be taken
 
@@ -27,6 +27,7 @@ const TIER_WIDENED := 3
 
 var _root: VBoxContainer
 var _tag_line: Label
+var _gloss_line: Label
 var _own_line: Label
 var _tags: Node
 
@@ -51,6 +52,18 @@ func _build() -> void:
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_theme_stylebox_override("panel", _panel_style())
+	# IT GROWS UPWARD, off a fixed bottom edge. As a plain child at the origin the panel
+	# grew DOWN by whatever its content needed, so the strip's height was decided by how
+	# many lines it happened to be printing -- and the keybind row underneath is at a fixed
+	# place. Three lines cleared it, four did not: adding the gloss line put the panel's
+	# bottom border straight through "R DRAW · E PICK UP".
+	#
+	# That is the same collision the level's offset_top was hand-tuned to avoid once
+	# already. Tuning it again would just move the next line's collision somewhere else, so
+	# the bottom is anchored instead and every line the strip gains from here goes up into
+	# empty sky.
+	panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	add_child(panel)
 
 	_root = VBoxContainer.new()
@@ -66,6 +79,20 @@ func _build() -> void:
 	_tag_line.add_theme_color_override("font_outline_color", Color(0.04, 0.06, 0.04))
 	_tag_line.add_theme_constant_override("outline_size", 5)
 	_root.add_child(_tag_line)
+
+	# WHAT THE TAG MEANS. "NEEDS SPAN" names the problem without describing it, and the
+	# tags are this game's own invention -- nobody arrives knowing them. The gloss is the
+	# same instruction in the player's words, and it still names no class, so the puzzle
+	# keeps all four of its answers. Quieter than the tag line on purpose: the tag is the
+	# thing to remember, this is the thing to read once.
+	_gloss_line = Label.new()
+	_gloss_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_gloss_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_gloss_line.custom_minimum_size = Vector2(430.0, 0.0)
+	_gloss_line.add_theme_color_override("font_color", Color(0.93, 0.95, 0.88))
+	_gloss_line.add_theme_color_override("font_outline_color", Color(0.04, 0.06, 0.04))
+	_gloss_line.add_theme_constant_override("outline_size", 4)
+	_root.add_child(_gloss_line)
 
 	_own_line = Label.new()
 	_own_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -91,13 +118,19 @@ func _panel_style() -> StyleBoxFlat:
 
 
 ## Called by the level whenever the obstacle, its requirements, or the tier changes.
-## `required` is a list of tag ids; `owned` is the player's qualifying classes.
-func show_requirements(required: Array, tier: int, owned: PackedStringArray = PackedStringArray()) -> void:
+## `required` is a list of tag ids; `owned` is the player's qualifying classes; `match` is
+## the spec's own combining rule, which the gloss line reads so it can join with the right
+## word. Defaulted to "all" to match LevelDirector, so a caller that does not pass it gets
+## the strict reading rather than the generous one.
+func show_requirements(required: Array, tier: int, owned: PackedStringArray = PackedStringArray(),
+		match: String = "all") -> void:
 	if required.is_empty() or tier < TIER_TAGS:
 		clear()
 		return
 	visible = true
 	_tag_line.text = "NEEDS  %s" % _join_tags(required)
+	_gloss_line.text = _join_glosses(required, match)
+	_gloss_line.visible = not _gloss_line.text.is_empty()
 
 	if tier >= TIER_OWN_CLASSES and not owned.is_empty():
 		# Their own drawings, not a hint list. A player who has never drawn a spider is
@@ -106,7 +139,12 @@ func show_requirements(required: Array, tier: int, owned: PackedStringArray = Pa
 		_own_line.text = "you have drawn:  %s" % _join_names(owned)
 		_own_line.visible = true
 	elif tier >= TIER_OWN_CLASSES:
-		_own_line.text = "nothing you have drawn yet fits this"
+		# A DEAD END IS NOT A HINT. "nothing you have drawn yet fits this" is true and
+		# useless: it tells a player who is already stuck that they are stuck. The tier
+		# exists to open something, so it says what to do with the canvas instead -- still
+		# without naming a class, which is the T3 job and even then only by widening what
+		# is accepted.
+		_own_line.text = "nothing you have drawn yet fits this  —  draw something new"
 		_own_line.visible = true
 	else:
 		_own_line.visible = false
@@ -118,6 +156,7 @@ func show_requirements(required: Array, tier: int, owned: PackedStringArray = Pa
 func clear() -> void:
 	visible = false
 	_tag_line.text = ""
+	_gloss_line.text = ""
 	_own_line.text = ""
 
 
@@ -128,6 +167,24 @@ func _join_tags(required: Array) -> String:
 		parts.append(String(_tags.call("display_name", tag)).to_upper()
 			if _tags != null else tag.to_upper())
 	return "  /  ".join(parts)
+
+
+## One gloss per required tag, in the order they are asked for. Tags that carry no gloss
+## are skipped rather than printed blank, and a requirement whose tags all lack one leaves
+## the line hidden -- the strip is then exactly what it was before this existed.
+func _join_glosses(required: Array, match: String) -> String:
+	if _tags == null:
+		return ""
+	var parts := PackedStringArray()
+	for tag_value: Variant in required:
+		var text := String(_tags.call("gloss", String(tag_value)))
+		if not text.is_empty():
+			parts.append(text)
+	# The joining word is the spec's match rule and not a house style. Node 1's Pragmatist
+	# route asks for leap OR climb and the pre-choice union asks for any of all three
+	# routes' tags; printing those as a list of demands would make the two most generous
+	# requirements in the level read as the strictest.
+	return ("  or  " if match == "any" else "  and  ").join(parts)
 
 
 func _join_names(ids: PackedStringArray) -> String:

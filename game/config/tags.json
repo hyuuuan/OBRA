@@ -43,6 +43,7 @@
   "tags": {
     "span": {
       "display_name": "Span",
+      "gloss": "long and stiff enough to lie across a gap and take your weight",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -70,6 +71,7 @@
     },
     "roll": {
       "display_name": "Roll",
+      "gloss": "round, and heavy enough to sink what it lands on",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -85,6 +87,7 @@
     },
     "climb": {
       "display_name": "Climb",
+      "gloss": "able to grip a wall and go up it",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -128,6 +131,7 @@
     },
     "leap": {
       "display_name": "Leap",
+      "gloss": "able to jump higher than you can",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -155,6 +159,7 @@
     },
     "cut": {
       "display_name": "Cut",
+      "gloss": "an edge sharp enough to go through old wood",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -180,6 +185,7 @@
     },
     "forage": {
       "display_name": "Forage",
+      "gloss": "able to sift and comb through a loose heap",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -197,6 +203,7 @@
     },
     "carry": {
       "display_name": "Carry",
+      "gloss": "strong enough to drag a load out from underneath",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -232,6 +239,7 @@
     },
     "weather": {
       "display_name": "Weather",
+      "gloss": "able to move air -- wind enough to scatter what is loose",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -264,6 +272,7 @@
     },
     "unlock": {
       "display_name": "Unlock",
+      "gloss": "shaped to the ward inside the lock",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -280,36 +289,42 @@
     },
     "fly": {
       "display_name": "Fly",
+      "gloss": "able to stay up without holding on to anything",
       "unlocked_in_level": 2,
       "declared_only": true,
       "classes": {}
     },
     "swim": {
       "display_name": "Swim",
+      "gloss": "able to move through deep water",
       "unlocked_in_level": 3,
       "declared_only": true,
       "classes": {}
     },
     "crush": {
       "display_name": "Crush",
+      "gloss": "heavy enough to break what is under it",
       "unlocked_in_level": 4,
       "declared_only": true,
       "classes": {}
     },
     "strike": {
       "display_name": "Strike",
+      "gloss": "able to hit hard in one place",
       "unlocked_in_level": 3,
       "declared_only": true,
       "classes": {}
     },
     "light": {
       "display_name": "Light",
+      "gloss": "able to throw light into the dark",
       "unlocked_in_level": 4,
       "declared_only": true,
       "classes": {}
     },
     "shield": {
       "display_name": "Shield",
+      "gloss": "able to stand between you and what is coming",
       "unlocked_in_level": 5,
       "declared_only": true,
       "classes": {}
