@@ -486,6 +486,33 @@ func _record_attempt(entity_id: String, verdict: Dictionary) -> void:
 	})
 
 
+## An attempt that failed for a reason the tag layer knows nothing about.
+##
+## Ang Bale's ward is the only one: the class was right -- the recogniser accepted `key` --
+## and the SHAPE was wrong, which no accept-set can express. The attempt is real, the player
+## tried and it did not work, and the hint tier has to move for it or a player failing the
+## ward gets no help for failing.
+##
+## IT RECORDS NO CLASS. The first cut of this pushed a made-up entity id through
+## note_submission to get the counter to move, which would have put a class nobody drew into
+## the per-class precision and recall the whole evaluation rests on. `accepted_label` is
+## deliberately absent here and `why` names the mechanism instead.
+func note_failed_attempt(id: String, why: String) -> int:
+	if not _obstacles.has(id) or _solved.has(id):
+		return attempts(id)
+	_attempts[id] = attempts(id) + 1
+	_reconsider_tier(id)
+	if _telemetry != null:
+		_telemetry.call("record_event", "obstacle_attempt", {
+			"level_id": level_id(), "obstacle_id": id,
+			"route": String(_committed.get(id, "")),
+			"required_tags": required_tags(id),
+			"failed_on": why, "solves": false, "tag_match": false, "assisted": false,
+			"attempts": _attempts[id], "hint_tier": hint_tier(id),
+		})
+	return _attempts[id]
+
+
 ## A declined recognition is not an attempt at the obstacle -- the recogniser never got
 ## far enough to have an opinion about the tag -- but the level still wants to know, and
 ## the refusal beat fires on the first one anywhere.

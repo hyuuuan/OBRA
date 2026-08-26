@@ -59,6 +59,8 @@ var _at_straw_mouth := false
 ## it changes rather than on every frame the player stands still -- and so it can be taken
 ## down again only while it is still the thing on the bar.
 var _sign_prompt := ""
+## Ang Bale's padlock, which judges the STROKES of a drawn key rather than its class.
+var ward_lock: WardLock2D
 ## The same, for the offer to open Ang Bale with the key found in the heap.
 var _key_prompt := ""
 @onready var complete_overlay: ModalOverlay = $LevelCompleteOverlay
@@ -245,6 +247,15 @@ func _build_obstacle_layer() -> void:
 
 	script_lines_l1 = DialogueScript.new()
 	script_lines_l1.load_from("res://config/dialogue_l1.json")
+
+	# Ang Bale's padlock. It draws nothing and sits nowhere -- it is a measurement, not a
+	# prop -- so it is built here beside the director rather than authored into the scene.
+	# level_01.json has declared L1_N3's Pragmatist route as `ward_matching_sequence` since
+	# the route existed; until now nothing read that, the route was a plain Unlock tag
+	# check, and WardLock2D was a class with a unit test and no caller.
+	ward_lock = WardLock2D.new()
+	ward_lock.name = "WardLock"
+	add_child(ward_lock)
 
 	requirement_strip = RequirementStrip.new()
 	requirement_strip.name = "RequirementStrip"
@@ -531,8 +542,10 @@ func _on_obstacle_solved(obstacle_id: String, route: String, label: String, atte
 ## Silent when there is no obstacle, which is most of the level: drawing a frog in an
 ## empty paddy is a thing the player is allowed to do for its own sake, and answering it
 ## with "that is not what this needs" would turn the whole level into a quiz.
-func _judge_submission(entity_id: String) -> void:
+func _judge_submission(entity_id: String, strokes: Array = []) -> void:
 	if director == null or director.current_obstacle().is_empty():
+		return
+	if _ward_refuses(entity_id, strokes):
 		return
 	var verdict := director.note_submission(entity_id)
 	# The strip re-reads the director either way: a solve moves it to the next stage, and
@@ -550,6 +563,78 @@ func _judge_submission(entity_id: String) -> void:
 		# The next sub-beat has to ask for itself, or the second half of the tutorial is
 		# silent and the player is left guessing what changed.
 		_speak_current_stage(String(verdict["obstacle_id"]))
+
+
+## RECOGNITION IS NOT THE PUZZLE AT ANG BALE'S DOOR.
+##
+## Everywhere else in the level a class is the answer: the obstacle asks for Span and a
+## ladder is a ladder. Here the recogniser only gets the player through the door -- once it
+## accepts `key`, the lock measures THEIR OWN STROKES against the slot: how many bits they
+## drew, how deep, and how long the blade is against its width. A key that is recognisably a
+## key and the wrong shape turns partway and stops.
+##
+## This is the level's clearest demonstration of the thesis's own claim that the drawing IS
+## the entity rather than a token standing in for one, and it is a geometric test on vector
+## data, NOT a CNN function. The model recognises a class and has no opinion about whether a
+## particular key fits a particular lock.
+##
+## Returns true when the lock refused, which means the caller must NOT go on to judge the
+## submission: a key that did not turn has not solved anything.
+##
+## NOBODY FAILS PERMANENTLY -- the third turn opens it whatever was drawn. Being locked out
+## of a tutorial level by a padlock is not a lesson.
+func _ward_refuses(entity_id: String, strokes: Array) -> bool:
+	if ward_lock == null or entity_id != "key":
+		return false
+	if director.current_obstacle() != "L1_N3" or director.is_solved("L1_N3"):
+		return false
+	# A key with no strokes behind it is not a drawn key -- a fixture, or one restored from
+	# a checkpoint. The lock has nothing to measure, so it stands aside and the ordinary
+	# Unlock tag check answers.
+	if strokes.is_empty():
+		return false
+	var turn := ward_lock.try_key(strokes)
+	if bool(turn["opens"]):
+		return false
+	# It turned and stopped. The attempt is real and is counted as one, which is what moves
+	# the hint tier -- the player tried and it did not work -- and it is counted WITHOUT a
+	# class, because the class was right and the shape was wrong. Pushing it through
+	# note_submission would need an entity id, and any id put there is a class nobody drew
+	# landing in the per-class figures the evaluation rests on.
+	director.note_failed_attempt("L1_N3", "ward_%s" % String(turn["reason"]))
+	_refresh_requirements()
+	_speak(script_lines_l1.fire("L1_N3.ward.fail%d" % int(turn["attempt"])))
+	if hint_bar != null:
+		hint_bar.show_hint(_ward_note(String(turn["reason"]), turn["measured"]),
+			Lolo.SPEAKER)
+	Telemetry.record_event("ward_attempt", {
+		"level_id": LevelManager.current_level_id, "obstacle_id": "L1_N3",
+		"attempt": turn["attempt"], "reason": turn["reason"], "measured": turn["measured"],
+	})
+	return true
+
+
+## WHICH PROPERTY WAS WRONG, said out loud.
+##
+## The authored fail lines carry the drama and say nothing actionable -- "It turned, then
+## stopped. The teeth are too thick." A player who cannot see what the lock measured has
+## three tries at a shape nobody described, and the third opens it regardless, which turns
+## the whole sequence into a wait rather than a puzzle.
+##
+## So the hint channel names the one measurement that failed, and the number it read, and
+## never the number it wants. Knowing you drew four teeth when the lock counted them is
+## enough to draw three; being told "draw three" is the spelling test this level is built
+## to avoid.
+func _ward_note(reason: String, measured: Dictionary) -> String:
+	match reason:
+		"bits":
+			return "It counted %d teeth on that one." % int(measured.get("bits", 0))
+		"depth":
+			return "The teeth are the wrong depth for this ward."
+		"aspect":
+			return "Too stubby for that slot — a longer blade."
+		_:
+			return "It turned, and stopped."
 
 
 ## The key off the nail in the heap opens Ang Bale, and that is the whole chain: what you
@@ -1340,7 +1425,7 @@ func _on_placement_confirmed(
 	# Judged HERE and not at recognition. A square that was drawn but never put down has
 	# not bridged anything, and letting the gap solve on recognition would mean the
 	# tutorial's one lesson -- that you place what you draw -- could be skipped.
-	_judge_submission(item.entity_id)
+	_judge_submission(item.entity_id, item.strokes)
 
 
 func _on_placement_canceled(item: DrawnItemData, source_slot: int) -> void:
