@@ -21,17 +21,28 @@ const PANEL := Color(0.051, 0.063, 0.035, 1.0)        # 0D1009
 ## A surface raised off the panel: a slot, a sheet, the strip behind a row of buttons.
 const PANEL_LIT := Color(0.086, 0.094, 0.063, 1.0)    # 161810
 ## The dark ring that separates a frame from bright level art behind it.
-const RING_OUTER := Color(0.118, 0.133, 0.063, 1.0)   # 1E2210
-## The olive between the outer ring and the bright one. See HUD_SKIN.md -- Godot's
+const RING_OUTER := Color(0.133, 0.102, 0.047, 1.0)   # 221A0C
+## The dark gold between the outer ring and the bright one. See HUD_SKIN.md -- Godot's
 ## StyleBoxFlat affords three tones, so this is the ring that gets dropped on small chips.
-const RING_MID := Color(0.290, 0.329, 0.094, 1.0)     # 4A5418
+const RING_MID := Color(0.420, 0.306, 0.090, 1.0)     # 6B4E17
 
 # --- Accent -----------------------------------------------------------------------------
 ## THE colour of this interface. Every frame's bright ring, every meter's fill, every
 ## caption. If one value defines the look, it is this one.
-const LIME := Color(0.788, 0.851, 0.290, 1.0)         # C9D94A
-## Headline text on a dark fill -- a banner, a title. Lime is too saturated to read as type.
-const LIME_PALE := Color(0.875, 0.914, 0.549, 1.0)    # DFE98C
+##
+## GOLD, TAKEN OFF THE LOGO. It was a lime -- C9D94A -- which is a fine arcade green and had
+## nothing to do with this game: the title card is gold letters in a gold frame on a dark
+## green ground, so an interface built round lime was arguing with the first thing anybody
+## sees. This value is measured out of `HUD-assets-ideas/Logo.jpg`, where the lettering is
+## DBA835 over a field of 14351A. The dark grounds below were already that field, near
+## enough; only the accent was wrong.
+##
+## It is also, to within a value, the GILT below -- the gold on Lola's picture frames and on
+## the brush the game is about. That is the point rather than a coincidence.
+const GOLD := Color(0.859, 0.659, 0.208, 1.0)         # DBA835  the logo's own gold
+## Headline text on a dark fill -- a banner, a title. Full gold is too saturated to read as
+## type at length, the same way the lime it replaces was.
+const GOLD_PALE := Color(0.945, 0.855, 0.616, 1.0)    # F1DA9D
 ## Body text on a dark fill.
 const CREAM_TEXT := Color(0.910, 0.890, 0.769, 1.0)   # E8E3C4
 ## Secondary text: a status line, a caption, an empty slot's number.
@@ -40,17 +51,32 @@ const CREAM_TEXT := Color(0.910, 0.890, 0.769, 1.0)   # E8E3C4
 ## against PANEL it has barely two stops of contrast, and at HUD sizes the status line --
 ## the one that tells you why the game just refused something -- was the hardest text on
 ## screen to read. Quiet is a job for size and placement. Not for hiding it.
-const MUTED := Color(0.663, 0.706, 0.529, 1.0)        # A9B487
-## Ink the current sketch has claimed but not yet spent. Warm, because clearing the
-## canvas hands it straight back.
-const PENDING := Color(0.980, 0.900, 0.310, 1.0)      # FAE64F
+##
+## RAISED AGAIN, AND WARMED, when the ink corner lost its panel. A9B487 was a pale olive
+## picked to sit on a dark fill; the status line now sits on Payyo's SKY, and a pale olive
+## on pale blue is two light colours with nothing between them. This is warm sand -- it
+## still reads as the quietest line in the corner, and it is no longer competing with the
+## background for the same tonal slot.
+const MUTED := Color(0.808, 0.757, 0.612, 1.0)        # CEC19C
+## Provisional: ink a sketch has claimed but not spent, a guess the recogniser is not sure
+## of. Warm, because none of it is settled and clearing the canvas hands it straight back.
+##
+## Pushed toward orange when the accent became gold. At FAE64F it was a yellow a shade off
+## the new GOLD, so "not sure yet" and "this is the interface" read as the same colour.
+const PENDING := Color(1.0, 0.741, 0.239, 1.0)        # FFBD3D
 
 # --- The frame -------------------------------------------------------------------------
 ## Dark wood and a gold liner, and the only warm colours in the interface.
 ##
-## Deliberately not lime. The frame is a PAINTING'S frame, not a piece of UI chrome, and
-## the whole point of framing the story is that it is a different kind of thing from the
-## menu it opens over. Sharing the HUD's palette would have undone that.
+## The frame is a PAINTING'S frame, not a piece of UI chrome, and the whole point of framing
+## the story is that it is a different kind of thing from the menu it opens over.
+##
+## That distinction used to be carried by HUE -- the interface was lime and only the frames
+## were gold. It cannot be any more, because the interface is the logo's gold now and this
+## is within a value of it. It is carried by SUBSTANCE instead, which is the better place
+## for it: a frame is wood with a gold liner, stepped and grained and lit from one side,
+## and nothing in the HUD is any of those things. The two are the same metal, worked
+## differently.
 ##
 ## Restrained on purpose too. The first cut was a bright vermillion-and-gold thing with a
 ## crest and stepped corners, which is a fairground frame -- it drew more attention than
@@ -95,12 +121,17 @@ const BEVEL := Color(0.302, 0.306, 0.282, 1.0)        # 4D4E48
 ## it exists to hold the shape against a lighter background.
 const KEYLINE := Color(0.094, 0.078, 0.039, 1.0)      # 18140A
 
-## Green: the thing you came here to do. START, RESUME, CONFIRM, TRANSFORM.
-const GREEN_FILL := Color(0.588, 0.741, 0.345, 1.0)   # 96BD58
-const GREEN_LIT := Color(0.659, 0.804, 0.424, 1.0)    # A8CD6C
-const GREEN_DARK := Color(0.471, 0.588, 0.267, 1.0)   # 789644
-const GREEN_EDGE := Color(0.345, 0.439, 0.188, 1.0)   # 587030
-const GREEN_LABEL := Color(0.071, 0.094, 0.031, 1.0)  # 121808
+## Gold: the thing you came here to do. START, RESUME, CONFIRM, TRANSFORM.
+##
+## This family was green, which made the button you are meant to press the one thing on
+## screen that did not belong to the game's own colour. It is the logo's gold now, ramped
+## the same way the green was -- lit for hover, dark for pressed, a deep edge under it --
+## and the label on it is near-black so a bright fill still carries dark type.
+const GOLD_FILL := Color(0.855, 0.659, 0.239, 1.0)   # DAA83D
+const GOLD_LIT := Color(0.925, 0.769, 0.361, 1.0)    # ECC45C
+const GOLD_DARK := Color(0.690, 0.510, 0.161, 1.0)   # B08229
+const GOLD_EDGE := Color(0.478, 0.333, 0.098, 1.0)   # 7A5519
+const GOLD_LABEL := Color(0.106, 0.075, 0.020, 1.0)  # 1B1305
 
 ## Cream: everything else. BACK, SETTINGS, CONTROLS, the level cards.
 const CREAM_FILL := Color(0.910, 0.890, 0.769, 1.0)   # E8E3C4
@@ -118,9 +149,14 @@ const RED_LABEL := Color(0.118, 0.047, 0.031, 1.0)    # 1E0C08
 
 ## A button nobody can press. Not a fourth family -- the same shape drained of its colour,
 ## because a disabled control should read as the same object, switched off.
-const OFF_FILL := Color(0.157, 0.173, 0.118, 1.0)
-const OFF_EDGE := Color(0.204, 0.216, 0.157, 1.0)
-const OFF_LABEL := Color(0.400, 0.424, 0.353, 1.0)
+##
+## Drained toward BROWN rather than toward olive, which is what it was. A greyed-out control
+## has to look like the live one with the life taken out of it; against gold buttons an
+## olive-grey reads as a fourth colour and, worse, as the old green family still hanging
+## about on the one control that never got repainted.
+const OFF_FILL := Color(0.176, 0.157, 0.118, 1.0)     # 2D281E
+const OFF_EDGE := Color(0.227, 0.204, 0.157, 1.0)     # 3A3428
+const OFF_LABEL := Color(0.435, 0.404, 0.341, 1.0)    # 6F6757
 
 # --- Metrics ----------------------------------------------------------------------------
 ## Ring widths, in the mockup's own pixels. Every frame in the sheet is 4 px per ring; a
@@ -153,16 +189,16 @@ const FONT_BODY := FONT_UNIT * 3      # 30
 const FONT_CAPTION := FONT_UNIT * 2   # 20
 const FONT_TINY := FONT_UNIT * 2      # 20
 
-enum Family { GREEN, CREAM, RED }
+enum Family { GOLD, CREAM, RED }
 enum State { NORMAL, HOVER, PRESSED, DISABLED }
 
 
 # --- Frames -----------------------------------------------------------------------------
 
-## The panel frame: bright lime ring, dark fill, dark halo. Everything that holds content
+## The panel frame: bright gold ring, dark fill, dark halo. Everything that holds content
 ## wears this -- the ink meter, the pause panel, the dialogue box, the draw panel.
 static func frame(pad_x: float = 14.0, pad_y: float = 11.0) -> StyleBoxFlat:
-	var box := _ringed(PANEL, LIME, RING, RING_OUTER, RING)
+	var box := _ringed(PANEL, GOLD, RING, RING_OUTER, RING)
 	box.content_margin_left = pad_x
 	box.content_margin_right = pad_x
 	box.content_margin_top = pad_y
@@ -173,7 +209,7 @@ static func frame(pad_x: float = 14.0, pad_y: float = 11.0) -> StyleBoxFlat:
 ## The same frame at chip scale, for the readouts pinned to the corners. Two-pixel rings,
 ## because a 4 px ring around a one-line label is mostly ring.
 static func chip(pad_x: float = 10.0, pad_y: float = 5.0) -> StyleBoxFlat:
-	var box := _ringed(PANEL, LIME, THIN, RING_OUTER, THIN)
+	var box := _ringed(PANEL, GOLD, THIN, RING_OUTER, THIN)
 	box.content_margin_left = pad_x
 	box.content_margin_right = pad_x
 	box.content_margin_top = pad_y
@@ -229,13 +265,13 @@ static func button(family: Family, state: State) -> StyleBoxFlat:
 	return box
 
 
-## The focus ring. Bright lime, no fill, so it reads over any of the three families and
+## The focus ring. Pale gold, no fill, so it reads over any of the three families and
 ## never covers the label -- an opaque focus stylebox has hidden buttons in this project
 ## before.
 static func focus_ring() -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
 	box.bg_color = Color(0, 0, 0, 0)
-	box.border_color = LIME_PALE
+	box.border_color = GOLD_PALE
 	box.set_border_width_all(THIN)
 	box.set_corner_radius_all(RADIUS)
 	_pad_button(box)
@@ -244,8 +280,8 @@ static func focus_ring() -> StyleBoxFlat:
 
 static func label_color(family: Family) -> Color:
 	match family:
-		Family.GREEN:
-			return GREEN_LABEL
+		Family.GOLD:
+			return GOLD_LABEL
 		Family.RED:
 			return RED_LABEL
 		_:
@@ -256,14 +292,14 @@ static func label_color(family: Family) -> Color:
 
 ## An inventory slot.
 ##
-## The ring stays lime whatever the slot holds, because the ring is the SLOT -- six of
+## The ring stays gold whatever the slot holds, because the ring is the SLOT -- six of
 ## them in a row are the bag, and a bag that dims to invisible when it is empty stops
 ## telling the player they have one. What changes is the fill (raised once something is
 ## in it) and, for the one in hand, the ring going warm to match the ink it was drawn
 ## with. Two cues, so held and merely-full are never one step apart.
 static func slot(occupied: bool, selected: bool) -> StyleBoxFlat:
 	var box := _ringed(PANEL_LIT if occupied else PANEL,
-		PENDING if selected else LIME, THIN, RING_OUTER, THIN)
+		PENDING if selected else GOLD, THIN, RING_OUTER, THIN)
 	box.set_corner_radius_all(RADIUS)
 	return box
 
@@ -291,7 +327,7 @@ static func disc_texture(diameter: int, fill: Color, ring: Color) -> ImageTextur
 	return ImageTexture.create_from_image(image)
 
 
-## The fullscreen switch: a track with the knob at whichever end it is pointing to, lime
+## The fullscreen switch: a track with the knob at whichever end it is pointing to, gold
 ## when on and dark when off. Same reason as the disc -- CheckButton's two states are
 ## icons, not styleboxes.
 static func switch_texture(on: bool) -> ImageTexture:
@@ -299,8 +335,8 @@ static func switch_texture(on: bool) -> ImageTexture:
 	var height := 24
 	var image := Image.create(width, height, false, Image.FORMAT_RGBA8)
 	image.fill(Color(0, 0, 0, 0))
-	var track := LIME if on else PANEL
-	var edge := LIME if on else RING_MID
+	var track := GOLD if on else PANEL
+	var edge := GOLD if on else RING_MID
 	for y in range(height):
 		for x in range(width):
 			if x < 1 or x >= width - 1 or y < 1 or y >= height - 1:
@@ -308,7 +344,7 @@ static func switch_texture(on: bool) -> ImageTexture:
 			var border: bool = x < 4 or x >= width - 4 or y < 3 or y >= height - 3
 			image.set_pixel(x, y, edge if border else track)
 	# The knob's END is the only cue that survives being looked at for a quarter second.
-	var knob := GREEN_LABEL if on else MUTED
+	var knob := GOLD_LABEL if on else MUTED
 	var knob_radius := float(height - 8) * 0.5
 	var knob_centre := Vector2(
 		float(width) - 5.0 - knob_radius if on else 5.0 + knob_radius,
@@ -346,9 +382,9 @@ static func _pad_button(box: StyleBoxFlat) -> void:
 
 static func _fill_for(family: Family, state: State) -> Color:
 	match family:
-		Family.GREEN:
-			return GREEN_LIT if state == State.HOVER else (
-				GREEN_DARK if state == State.PRESSED else GREEN_FILL)
+		Family.GOLD:
+			return GOLD_LIT if state == State.HOVER else (
+				GOLD_DARK if state == State.PRESSED else GOLD_FILL)
 		Family.RED:
 			return RED_LIT if state == State.HOVER else (
 				RED_DARK if state == State.PRESSED else RED_FILL)
@@ -359,8 +395,8 @@ static func _fill_for(family: Family, state: State) -> Color:
 
 static func _edge_for(family: Family) -> Color:
 	match family:
-		Family.GREEN:
-			return GREEN_EDGE
+		Family.GOLD:
+			return GOLD_EDGE
 		Family.RED:
 			return RED_EDGE
 		_:

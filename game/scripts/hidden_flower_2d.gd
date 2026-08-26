@@ -7,8 +7,22 @@ extends Area2D
 ##
 ## Collection is recorded in the profile, not in the level, so a flower found on a
 ## backtrack counts toward the ending from any session.
+##
+## IT IS THE REAL FLOWER NOW. This was five circles and a line -- a placeholder that read as
+## a cartoon daisy -- and `assets/Level1/hidden_flower.png` is the sampaguita it was standing
+## in for. The two states it has to carry are the same two as before and neither needs a
+## second drawing: UNREVEALED it is the same sprite drained to a cold silhouette, because a
+## flower in an unlit cave is a shape you can make out and not a thing you can pick; revealed
+## it is the picture, lit, with a warm halo under it.
 
 signal collected(collectible_id: String)
+
+const ART: Texture2D = preload("res://assets/Level1/hidden_flower.png")
+## Its own size, and the point in it the bob and the glow are measured from.
+const ART_SIZE := Vector2(59.0, 56.0)
+## Unrevealed: the sprite multiplied down to a cold blue-grey. Kept as a MODULATE rather
+## than a second sprite so the two states cannot drift apart when the art is re-exported.
+const UNLIT := Color(0.30, 0.32, 0.40, 0.62)
 
 @export var collectible_id: String = "flower_1"
 ## Set when the flower is inside a dark place: it stays unlit and untakeable until the
@@ -24,6 +38,7 @@ func _ready() -> void:
 	add_to_group(&"hidden_flowers")
 	collision_layer = 0
 	collision_mask = 1
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var collision := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
 	circle.radius = 26.0
@@ -61,19 +76,18 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	if _taken:
 		return
-	var lift := sin(TAU * _phase) * 3.0
-	var centre := Vector2(0.0, lift)
-	# Unrevealed it is a bud in the dark: present, but plainly not ready.
-	var petal_colour := Color(0.98, 0.72, 0.82) if _revealed else Color(0.3, 0.3, 0.36, 0.55)
-	var heart_colour := Color(1.0, 0.86, 0.35) if _revealed else Color(0.36, 0.36, 0.42, 0.6)
+	# WHOLE PIXELS OF BOB. The lift used to be a raw sine read straight into a position,
+	# which slid a 59px sprite across the pixel grid and shimmered every edge on it. Rounded,
+	# it reads as a thing floating and drawn by hand.
+	var lift := roundf(sin(TAU * _phase) * 3.0)
+	var at := Vector2(-ART_SIZE.x * 0.5, -ART_SIZE.y * 0.5 + lift)
 	if _revealed:
-		draw_circle(centre, 24.0, Color(1.0, 0.86, 0.5, 0.16))
-	for index in range(5):
-		var angle := TAU * float(index) / 5.0 + _phase * 0.4
-		draw_circle(centre + Vector2(cos(angle), sin(angle)) * 9.0, 7.0, petal_colour)
-	draw_circle(centre, 5.5, heart_colour)
-	draw_line(centre + Vector2(0.0, 6.0), centre + Vector2(0.0, 24.0),
-		Color(0.36, 0.6, 0.32) if _revealed else Color(0.3, 0.32, 0.34, 0.6), 3.0)
+		# The halo, under the flower rather than over it, so it lights the sprite instead of
+		# washing it out. Two rings, because one hard circle reads as a coin.
+		draw_circle(Vector2(0.0, lift), 34.0, Color(1.0, 0.86, 0.5, 0.10))
+		draw_circle(Vector2(0.0, lift), 22.0, Color(1.0, 0.90, 0.6, 0.13))
+	draw_texture_rect(ART, Rect2(at, ART_SIZE), false,
+		Color.WHITE if _revealed else UNLIT)
 
 
 func _on_body_entered(body: Node) -> void:

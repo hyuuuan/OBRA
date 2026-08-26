@@ -234,6 +234,32 @@ own verb, recording no attempt, no tag match and no tier change, so per-class st
 never count a thing nobody drew and Chapter 5 can tell "opened it with the key they found"
 from "drew a key that fitted".
 
+#### Inside the house
+
+All three routes arrive in the same room — they are three ways through the same wall — and
+the room is `bale_interior_2d.gd`: the artist's own 557×314 picture, parked in the empty sky
+above the level like the heap's inside, with its own floor and end walls.
+
+**It fills the screen.** At the heap's zoom of 2 a screenful is 800×450 and the picture is
+557×314, so the house sat in the middle of the frame at two-thirds size with a black border
+painted round it. `room_zoom` is **3**: a screenful is then 533×300, which the picture covers
+with a dozen pixels to spare on each side, and 3 is an integer so every art pixel is exactly
+three screen pixels. `camera_rect()` holds the camera inside the picture, because at 3 it can
+still see all but 24 units of it and following the player slid the void back on screen.
+
+**It has things in it besides the canvas.** `NOTICES` are three bands on the floor — the
+hearth, her stacked jars, the sleeping platform — read off the artist's own picture and
+raised on the **hint** channel: no key press, no pause, cleared when the player walks away.
+Getting in is the hard part of this node, and what was on the other side of it was a
+corridor with one pickup in it.
+
+**The canvas is picked up and it says so.** `PickupFlourish2D` — a ring, sparks and a glint,
+in the interface's gold — plays for this and for the brass on the nail in the heap, which
+both used to be sprites that simply stopped being drawn. Taking it fires `L1_N3.canvas.taken`
+and **not** `L1_N3.attic.found`: that line is "On the nail. Just as she said." and belongs to
+the Artist route's search of the roof space, so firing it here answered picking up a painting
+with a sentence about a key.
+
 **CP3** on commit; the level is marked complete there, not at the marker stone, so a player
 who stops after Node 3 keeps the progress. CP3 is also what opens the exit: the GoalMarker
 sits inside the bale, and until the data's `unlocks_at_checkpoint` has been reached, arriving
@@ -395,7 +421,13 @@ godot --headless --path game --script res://tests/run_tests.gd
 godot --headless --path game --script res://tests/run_level_ready.gd
 ```
 ```bash
+godot --headless --path game --script res://tests/run_room_probe.gd
+```
+```bash
 godot --path game --script res://tests/run_visual_level1.gd
+```
+```bash
+godot --path game --script res://tests/run_visual_rooms.gd
 ```
 ```bash
 godot --path game --script res://tests/run_visual_level1_nodes.gd

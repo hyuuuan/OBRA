@@ -13,17 +13,24 @@ extends Control
 ## it clears itself. It wears HUD colours rather than the picture frame, because a hint is
 ## the interface talking and the frame is reserved for the fiction.
 
-## Where it sits: centred, above the hotbar, out of the middle of the screen where the
-## thing the hint is about usually is.
-## How far the bar's BOTTOM sits above the bottom of the screen.
+## WHERE IT SITS: TOP CENTRE, IN THE SKY, tucked under the level badge.
 ##
-## Clear of the dialogue box, which is the whole reason for the number. The box is 300 tall
-## and lifted 44, so it owns everything from 556 down; at 210 the hint sat at 620 and the
-## two drew straight through each other -- a hint about what to draw printed across a line
-## of Lola's story. This clears the box's top rail with a margin, and it is horizontally
-## clear of the speaker's portrait too, which stands on that rail over at the right.
-const LIFT := 396.0
-const MAX_WIDTH := 720.0
+## It used to be lifted 396 off the BOTTOM of the screen, which on a 900-tall canvas puts
+## its top at y 454 -- dead centre, straight across the path the player is trying to read.
+## That number was chosen to clear the dialogue box's top rail, and it was solving a problem
+## this bar does not have: a hint and a line of story are never on screen together, because
+## _process fades the panel out while anybody is speaking. There was nothing down there to
+## clear. The top of the frame is the one band of a side-scroller that is reliably empty,
+## and it is the band the player is NOT looking at while they are judging a jump.
+##
+## Under the badge (which owns y 20..52) and between the two top corners: the HUD frame ends
+## at x 418 and the morph card begins at x 1202, so a bar of this width centred on 800 sits
+## in the gap rather than over either of them.
+const TOP := 66.0
+## And NARROWER than it was. A hint is one instruction, read once. At 720 wide with the
+## story box's padding it was a slab half the width of the screen -- which is what a beat of
+## story is supposed to look like, and the whole point of this channel is that it is not one.
+const MAX_WIDTH := 560.0
 
 var _panel: PanelContainer
 var _speaker: Label
@@ -39,12 +46,12 @@ func _init() -> void:
 
 	_panel = PanelContainer.new()
 	_panel.name = "Panel"
-	_panel.add_theme_stylebox_override(&"panel", UISkin.chip(16.0, 9.0))
+	_panel.add_theme_stylebox_override(&"panel", UISkin.chip(11.0, 6.0))
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_panel)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 12)
+	row.add_theme_constant_override(&"separation", 10)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.add_child(row)
 
@@ -170,5 +177,4 @@ func _relayout() -> void:
 	_text.custom_minimum_size = Vector2(ceilf(minf(single, MAX_WIDTH)), 0.0)
 	var wanted := _panel.get_combined_minimum_size()
 	_panel.size = wanted
-	_panel.position = Vector2(
-		floorf((view.x - wanted.x) * 0.5), floorf(view.y - LIFT - wanted.y))
+	_panel.position = Vector2(floorf((view.x - wanted.x) * 0.5), TOP)

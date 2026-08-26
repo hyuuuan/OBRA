@@ -26,6 +26,7 @@
 [ext_resource type="Script" path="res://scripts/straw_pile_2d.gd" id="23_3uax6"]
 [ext_resource type="Script" path="res://scripts/baul_2d.gd" id="24_vekj0"]
 [ext_resource type="Script" path="res://scripts/straw_room_2d.gd" id="24_strawroom"]
+[ext_resource type="Script" path="res://scripts/bale_interior_2d.gd" id="24_baleroom"]
 [ext_resource type="Script" path="res://scripts/bale_2d.gd" id="25_owbyo"]
 [ext_resource type="Script" path="res://scripts/bulul_2d.gd" id="26_jto6m"]
 
@@ -618,7 +619,7 @@ script = ExtResource("24_strawroom")
 [node name="Bale" type="Node2D" parent="GameplayPlane" unique_id=913205178]
 
 [node name="House" type="Node2D" parent="GameplayPlane/Bale" unique_id=1120996384]
-position = Vector2(3620, 80)
+position = Vector2(3630, 80)
 script = ExtResource("25_owbyo")
 
 [node name="Bulul1" type="Node2D" parent="GameplayPlane/Bale" unique_id=525187676]
@@ -651,3 +652,8 @@ texture = SubResource("Atlas_bush")
 position = Vector2(3650, 610)
 scale = Vector2(1.45, 1.45)
 texture = SubResource("Atlas_plant")
+
+[node name="BaleInterior" type="Node2D" parent="GameplayPlane" unique_id=913205179]
+z_index = 0
+position = Vector2(3620, -1180)
+script = ExtResource("24_baleroom")

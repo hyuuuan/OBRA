@@ -42,7 +42,7 @@ var ink_manager: InkManager
 
 ## The header's own ink readout. The scrim covers the HUD, so while the panel is open the
 ## gauge in the corner of the screen is hidden -- at exactly the moment ink matters most.
-var _ink_gauge: HudPanel.Gauge
+var _ink_gauge: InkBrush
 var _ink_value: Label
 
 
@@ -227,7 +227,7 @@ func _on_live_prediction(
 	var sure: bool = confidence >= 0.6 and margin >= 0.15
 	guess_label.modulate = Color.WHITE
 	guess_label.add_theme_color_override(&"font_color",
-		UISkin.LIME_PALE if sure else UISkin.PENDING)
+		UISkin.GOLD_PALE if sure else UISkin.PENDING)
 	transform_button.text = "Transform into %s" % display_name if sure else "Transform"
 
 
@@ -304,10 +304,14 @@ func _build_header() -> void:
 	_ink_value.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel_root.add_child(_ink_value)
 
-	_ink_gauge = HudPanel.Gauge.new()
+	# The same brush the level HUD shows, two art pixels to the screen pixel instead of
+	# three -- this strip is 158 wide between the caption and the number, and the brush is
+	# 61 of its own pixels long. It is the SAME OBJECT in both places on purpose: the thing
+	# draining while you draw is the thing you took off the stand in the house.
+	_ink_gauge = InkBrush.new()
 	_ink_gauge.name = "InkGauge"
-	_ink_gauge.position = Vector2(248.0, 32.0)
-	_ink_gauge.size = Vector2(164.0, 14.0)
+	_ink_gauge.position = Vector2(248.0, 28.0)
+	_ink_gauge.size = Vector2(158.0, 22.0)
 	panel_root.add_child(_ink_gauge)
 
 

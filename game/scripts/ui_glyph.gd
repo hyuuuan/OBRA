@@ -39,7 +39,7 @@ const SHAPES := {
 		kind = value
 		queue_redraw()
 
-@export var color: Color = UISkin.LIME:
+@export var color: Color = UISkin.GOLD:
 	set(value):
 		color = value
 		queue_redraw()
