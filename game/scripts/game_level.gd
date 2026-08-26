@@ -10,6 +10,10 @@ const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 
 ## A morph whose anchor comes within this radius of the level's GoalMarker completes it.
 const GOAL_RADIUS := 120.0
+## The key on the nail in the heap. One name, read by the room that grants it and the door
+## it opens -- see straw_room_2d.gd's collectible_id.
+const FOUND_KEY := "L1_bale_key"
+
 ## What the box's plaque says when the line is the player's own thought rather than Lolo's
 ## voice. "Apo" is what Lolo calls them, so it is the name the player already knows.
 const APO_SPEAKER := "Apo"
@@ -55,6 +59,8 @@ var _at_straw_mouth := false
 ## it changes rather than on every frame the player stands still -- and so it can be taken
 ## down again only while it is still the thing on the bar.
 var _sign_prompt := ""
+## The same, for the offer to open Ang Bale with the key found in the heap.
+var _key_prompt := ""
 @onready var complete_overlay: ModalOverlay = $LevelCompleteOverlay
 @onready var out_of_ink_overlay: ModalOverlay = $OutOfInkOverlay
 @onready var dialogue_overlay: ModalOverlay = $DialogueChoiceOverlay
@@ -188,7 +194,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		# both are on one key, but only one of them is something the player put there --
 		# reading a board instead of picking up the ladder you just placed would be the
 		# game ignoring you, while the reverse is a key press that says nothing this time.
-		if not _interact_with_nearest_utility():
+		if not _interact_with_nearest_utility() and not _use_the_found_key():
 			_read_nearest_sign()
 	elif event.is_action_pressed("use_utility"):
 		get_viewport().set_input_as_handled()
@@ -426,6 +432,29 @@ func _offer_the_nearest_sign() -> void:
 	hint_bar.show_hint(_sign_prompt)
 
 
+## THE KEY IN THE BAG HAS TO ANNOUNCE ITSELF. A player can pick it off the nail at Node 2
+## and reach the house twenty minutes later; expecting them to remember that a brass key
+## they found in a straw heap is the answer to this particular door, and to guess that the
+## interact key is how you offer it, is expecting them to read the code. So the door says
+## so, on the same bar and under the same rule as the sign prompt: an empty bar only, and it
+## clears only its own words.
+func _offer_the_found_key() -> void:
+	if hint_bar == null:
+		return
+	if not _key_prompt.is_empty() and hint_bar.current_text() != _key_prompt:
+		_key_prompt = ""
+	if not _found_key_would_open():
+		if not _key_prompt.is_empty():
+			hint_bar.clear()
+			_key_prompt = ""
+		return
+	if not _key_prompt.is_empty() or hint_bar.is_showing():
+		return
+	_key_prompt = "You are carrying her key  —  press %s to try it" \
+		% ControlsKeys.keys_for("interact")
+	hint_bar.show_hint(_key_prompt, Lolo.SPEAKER)
+
+
 ## Lolo asking for the thing this sub-beat needs -- "gumuhit ka ng kayang span".
 ##
 ## These lines existed in the script from the start and nothing fired them, so Beat 0's
@@ -521,6 +550,47 @@ func _judge_submission(entity_id: String) -> void:
 		# The next sub-beat has to ask for itself, or the second half of the tutorial is
 		# silent and the player is left guessing what changed.
 		_speak_current_stage(String(verdict["obstacle_id"]))
+
+
+## The key off the nail in the heap opens Ang Bale, and that is the whole chain: what you
+## find in the heap is the way into the house, and what you find in the house is the
+## painting of the next place.
+##
+## It answers the Pragmatist route, the one that asks for Unlock -- so a player who took the
+## trouble to get up to the nail does not also have to draw a key, and one who never went
+## inside still can. The route is committed the ordinary way rather than the obstacle being
+## marked solved behind the director's back, so the tally, CP3 and the telemetry all record
+## it exactly as they would a drawn key.
+##
+## NOT A TAG MATCH AND NOT ASSISTED EITHER. `note_submission` is the wrong door for this: it
+## takes a recognised CLASS, and this is a thing already in the bag. It is recorded as its
+## own kind of solve so Chapter 5 can count "opened it with the key they found" separately
+## from "drew a key that fitted", which are different claims about the same lock.
+func _use_the_found_key() -> bool:
+	if director == null or director.current_obstacle() != "L1_N3":
+		return false
+	if director.is_solved("L1_N3"):
+		return false
+	if not PlayerProfile.is_collectible_found(FOUND_KEY):
+		return false
+	director.commit_route("L1_N3", "pragmatist")
+	director.solve_with_item("L1_N3", FOUND_KEY)
+	Telemetry.record_event("obstacle_solved", {
+		"level_id": LevelManager.current_level_id,
+		"obstacle_id": "L1_N3", "route": "pragmatist", "accepted_label": FOUND_KEY,
+		"solved_with": "found_item", "attempts": director.attempts("L1_N3"),
+		"hint_tier": director.hint_tier("L1_N3"), "assisted": false,
+	})
+	return true
+
+
+## Whether the house can be opened with what is already in the bag, so the level can offer
+## it rather than leaving the player to guess that a key they picked up an hour ago is the
+## answer to the door in front of them.
+func _found_key_would_open() -> bool:
+	return director != null and director.current_obstacle() == "L1_N3" \
+		and not director.is_solved("L1_N3") \
+		and PlayerProfile.is_collectible_found(FOUND_KEY)
 
 
 ## A DRAWING THAT DOES NOT WORK USED TO SAY NOTHING AT ALL.
@@ -690,9 +760,20 @@ func _in_the_straw_room() -> bool:
 ## same reason canvas damage is -- a death two beats later must not take it back.
 func _on_straw_key_taken() -> void:
 	_speak(script_lines_l1.fire("L1_N2.key"))
+	_take_the_bale_key("off_the_nail")
+
+
+## The brass key, however it was come by: off the nail inside the heap, or out of the wreck
+## of one. StrawRoom2D writes the profile itself when the nail is reached, so this is
+## idempotent on purpose -- it is the telemetry and the hint that must not fire twice, and
+## the profile that must not care how many times it is told.
+func _take_the_bale_key(how: String) -> void:
+	if PlayerProfile.is_collectible_found(FOUND_KEY):
+		return
+	PlayerProfile.record_collectible(FOUND_KEY)
 	Telemetry.record_event("collectible", {
 		"level_id": LevelManager.current_level_id,
-		"obstacle_id": "L1_N2", "collectible": "L1_straw_key",
+		"obstacle_id": "L1_N2", "collectible": FOUND_KEY, "found_by": how,
 	})
 
 
@@ -721,6 +802,12 @@ func _search_the_straw(route: String) -> void:
 		"protector":
 			for pile in piles:
 				pile.scatter()
+			# WRECKING THE HEAP TURNS THE KEY OUT OF IT. The nail is inside, out of reach,
+			# and a player who blew the whole heap across the terrace has plainly got at
+			# whatever was hanging in it -- refusing them the key would mean the fast route
+			# locks the door the slow one opens. It is the same key by the same name, so
+			# taking both routes cannot yield two.
+			_take_the_bale_key("straw_scattered")
 			# The cost, recorded rather than described: Lolo says nothing about it here and
 			# mentions it at the marker stone, and the exit line is gated on this flag.
 			script_lines_l1.set_flag("straw_scattered")
@@ -1688,6 +1775,7 @@ func _physics_process(_delta: float) -> void:
 	if player == null or not is_instance_valid(player):
 		return
 	_offer_the_nearest_sign()
+	_offer_the_found_key()
 	var anchor_position := player.global_position
 	if player.has_method("get_physics_anchor"):
 		var anchor := player.call("get_physics_anchor") as Node2D

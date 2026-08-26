@@ -20,11 +20,16 @@ extends Node2D
 ## 1 because it is a valley; a room is somewhere you are standing in, so the camera comes in
 ## until the room fills the frame and the apo is a fifth of the height of it.
 ##
-## WHAT IS IN IT. One of Lola's canvases -- the hub's own painting of the next place, framed
-## in the same gilt the pictures in the house wear. Her baul, still locked; that lock is
-## Node 3's problem and the line closing Node 2 is "Locked. Of course." A brass key on the
-## floor, which does NOT open the chest beside it and is not meant to. And the ants that were
-## living in here before anybody came looking.
+## WHAT IS IN IT. Her baul, still locked; that lock is Node 3's problem and the line closing
+## Node 2 is "Locked. Of course." The brass key to the HOUSE, hung on a nail out of reach.
+## And the ants that were living in here before anybody came looking.
+##
+## THE CANVAS USED TO HANG IN HERE AND DOES NOT ANY MORE. The room held the hub's own
+## painting of Pista, and the key on the floor opened nothing -- "finding a key that does
+## not fit is the point". That made the heap the place you collect the next level and the
+## house the place you collect nothing, which is backwards: the house is the harder of the
+## two and the one the level ends at. So the chain is now heap -> key -> house -> painting,
+## and each thing you find is the way into the next thing rather than a promise about it.
 
 signal key_taken()
 ## The apo has walked into the opening that leads back out to the terrace.
@@ -40,17 +45,19 @@ signal exit_reached()
 @export var roof_height := 90.0
 ## How far the floor runs toward the viewer before the frame ends. One metre thirty.
 @export var floor_depth := 100.0
-## What the canvas is a painting of. A level id, so the picture and the place cannot drift
-## apart: it is read out of the hub's paintings, which is where the same image already lives.
-@export var canvas_level_id: String = "level_2"
-## Where the canvas hangs and where the key lies, measured off the floor the apo stands on.
+## WHERE THE KEY HANGS, measured off the floor the apo stands on -- and it is OUT OF REACH
+## on purpose. The apo's jump apex is 94.3px (wanderer.gd) and she is 96 tall, so standing on
+## the floor she can reach a little under 190. At 250 the nail is comfortably above that and
+## below the eaves at 270, so the answer is anything at all to stand on: the room is the one
+## place in the level where the puzzle is height and nothing else.
 ##
-## The canvas is at two metres to its middle -- higher than a gallery hangs and right for a
-## barn, the same argument as the pictures in the house, which are at two and a half.
-@export var canvas_at := Vector2(-40.0, -200.0)
-@export var key_at := Vector2(196.0, -6.0)
-## What the profile records when the key is taken.
-@export var collectible_id: String = "L1_straw_key"
+## It used to lie on the floor and you took it by walking over it. A key that is the way into
+## the house should cost something, and the cheapest honest cost in a game about drawing is
+## "you cannot reach that".
+@export var key_at := Vector2(-40.0, -250.0)
+## What the profile records when the key is taken. It opens Ang Bale -- see game_level's
+## _use_the_found_key.
+@export var collectible_id: String = "L1_bale_key"
 ## How far in the camera sits while she is in here. Two, like the house.
 @export var room_zoom := 2.0
 
@@ -88,11 +95,6 @@ const DAYLIGHT_DIM := Color(0.847, 0.784, 0.588, 1.0) # D8C896
 const OUTSIDE_SKY := Color(0.643, 0.831, 0.933, 1.0)   # A4D4EE
 const OUTSIDE_GREEN := Color(0.478, 0.667, 0.353, 1.0) # 7AAA5A
 const OUTSIDE_EARTH := Color(0.749, 0.647, 0.443, 1.0) # BFA571
-## The gilt of the hub's picture frames, because this canvas is one of the same set.
-const GILT_EDGE := Color(0.549, 0.341, 0.114, 1.0)  # 8C571D
-const GILT_DARK := Color(0.647, 0.447, 0.137, 1.0)  # A57223
-const GILT := Color(0.859, 0.655, 0.212, 1.0)       # DBA736
-const GILT_LIT := Color(0.929, 0.792, 0.322, 1.0)   # EDCA52
 ## Brass, dulled. A key that has been in a straw heap is not a bright one.
 const BRASS := Color(0.831, 0.667, 0.216, 1.0)      # D4AA37
 const BRASS_LIT := Color(0.949, 0.851, 0.427, 1.0)  # F2D96D
@@ -102,7 +104,6 @@ const BRASS_DARK := Color(0.502, 0.376, 0.098, 1.0) # 806019
 const DOOR := Vector2(72.0, 144.0)
 
 var _taken := false
-var _art: Texture2D
 var _key_area: Area2D
 var _exit_area: Area2D
 var _ants: StrawAnts2D
@@ -111,9 +112,6 @@ var _ants: StrawAnts2D
 func _ready() -> void:
 	add_to_group(&"straw_rooms")
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	var path := "res://assets/hub/paintings/%s.png" % canvas_level_id
-	if ResourceLoader.exists(path):
-		_art = load(path)
 	_build_floor()
 	_build_key_area()
 	_build_exit_area()
@@ -312,8 +310,8 @@ func _draw() -> void:
 	_draw_roof()
 	_draw_way_out()
 	_draw_floor()
-	_draw_canvas()
 	if not _taken:
+		_draw_nail(key_at)
 		_draw_key(key_at)
 
 
@@ -538,31 +536,12 @@ func _draw_floor() -> void:
 ## One of Lola's, hung on the bales. Framed like the ones in the house, because it is one of
 ## the ones in the house -- and hung on a nail with a shadow under it, because a picture that
 ## is simply printed on the wall is a poster.
-func _draw_canvas() -> void:
-	if _art == null:
-		return
-	var size := Vector2(_art.get_size())
-	var picture := Rect2(canvas_at - size * 0.5, size)
-	# The shadow it throws on the straw, offset down and right of the light.
-	draw_rect(Rect2(picture.position + Vector2(5.0, 6.0), picture.size + Vector2(12.0, 12.0)),
-		Color(0.0, 0.0, 0.0, 0.45))
-	draw_texture_rect(_art, picture, false)
-	# A stepped gilt moulding: four bands, lit on the top and left, in shadow on the bottom
-	# and right, with a keyline round both edges. The same frame the house hangs.
-	var moulding := 8.0
-	var bands := 4
-	var step := moulding / float(bands)
-	for band in range(bands):
-		var rect := picture.grow(step * float(band) + step)
-		var crown := 1.0 - absf(float(band) / float(bands - 1) * 2.0 - 1.0)
-		var lit: Array[Color] = [GILT_DARK, GILT, GILT_LIT]
-		var top := lit[int(round(crown * 2.0))]
-		draw_rect(Rect2(rect.position, Vector2(rect.size.x, step)), top)
-		draw_rect(Rect2(rect.position, Vector2(step, rect.size.y)), GILT)
-		draw_rect(Rect2(rect.position.x, rect.end.y - step, rect.size.x, step), GILT_EDGE)
-		draw_rect(Rect2(rect.end.x - step, rect.position.y, step, rect.size.y), GILT_DARK)
-	draw_rect(picture.grow(1.0), GILT_EDGE, false, 1.0)
-	draw_rect(picture.grow(moulding), GILT_EDGE, false, 1.0)
+## The nail, and the shadow the key throws on the straw beside it. Small on purpose: the
+## thing the eye should find in here is the brass, and a nail drawn large enough to notice
+## is a nail the player tries to interact with.
+func _draw_nail(at: Vector2) -> void:
+	draw_rect(Rect2(at + Vector2(-2.0, -26.0), Vector2(9.0, 3.0)), Color(0.42, 0.40, 0.38))
+	draw_rect(Rect2(at + Vector2(-3.0, -27.0), Vector2(4.0, 4.0)), Color(0.60, 0.58, 0.55))
 
 
 ## A key, lying flat: a bow, a shank and two teeth. Twenty centimetres of brass, which is a
