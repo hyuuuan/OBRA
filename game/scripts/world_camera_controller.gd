@@ -31,6 +31,20 @@ signal camera_moved(camera_position: Vector2)
 ## for the camera, and in ordinary play it stops here. Somewhere that brings its own
 ## backdrop turns `vertical_free` on and is allowed the rest.
 @export var sky_top_y: float = -520.0
+## HOW FAR IN THE CAMERA SITS WHEN IT IS NOT PUSHED IN ON ANYBODY.
+##
+## release_focus used to tween back to 1.0 flat, which was right only for as long as one was
+## the only answer. The room inside the straw heap is built to the same ruler as the house
+## in the hub -- seventy-two pixels to the metre, seen at 2 -- so going in changes this, and
+## a line of dialogue in there has to give the camera back at 2 and not at 1.
+@export var base_zoom: float = 1.0
+## WHERE TO LOOK WHILE `vertical_free` IS ON, if anywhere in particular.
+##
+## A room is a fixed thing and the camera should sit at its eye level and stay there, the way
+## the house in the hub pins itself: following the player's height instead means the framing
+## slides as she walks and the top of the wall leaves the screen. NAN means "no opinion",
+## which is centring on her.
+@export var vertical_pin_y: float = NAN
 
 var target: Node2D = null
 ## What the camera is pushed in on for a beat, and how far. Null means it is doing its
@@ -92,7 +106,10 @@ func focus_on(node: Node2D, zoom_scale: float = 1.15, seconds: float = 0.45,
 	if _focus == null:
 		_rest_process_mode = process_mode
 	_focus = node
-	_focus_zoom = maxf(0.1, zoom_scale)
+	# A MULTIPLE OF WHERE THE CAMERA ALREADY IS, not an absolute. Pushing in on a speaker
+	# means a little closer than we were, and in a room already seen at 2 that is 2.3 rather
+	# than a jump back out to 1.15.
+	_focus_zoom = maxf(0.1, zoom_scale * base_zoom)
 	_focus_lift = lift
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_tween_zoom(Vector2(_focus_zoom, _focus_zoom), seconds)
@@ -104,7 +121,7 @@ func release_focus(seconds: float = 0.35) -> void:
 	_focus = null
 	_focus_zoom = 1.0
 	var restore := _rest_process_mode
-	_tween_zoom(Vector2.ONE, seconds).finished.connect(
+	_tween_zoom(Vector2(base_zoom, base_zoom), seconds).finished.connect(
 		func() -> void: process_mode = restore)
 
 
@@ -135,11 +152,20 @@ func set_bounds(bounds: Rect2) -> void:
 
 ## Going back to anchoring on the ground forgets where the ground was, or the camera keeps
 ## measuring the player's height above a rest line taken somewhere they are no longer.
-func set_vertical_free(free: bool) -> void:
+func set_vertical_free(free: bool, pin_y: float = NAN) -> void:
+	vertical_pin_y = pin_y
 	if vertical_free == free:
 		return
 	vertical_free = free
 	_has_vertical_rest = false
+
+
+## How far in the camera sits from now on. Applied at once unless a beat of dialogue has it,
+## in which case that beat gives it back at the new number when it is done.
+func set_base_zoom(scale: float) -> void:
+	base_zoom = maxf(0.1, scale)
+	if _focus == null:
+		_tween_zoom(Vector2(base_zoom, base_zoom), 0.0)
 
 
 func snap_to_target() -> void:
@@ -161,8 +187,12 @@ func _clamped_target_position() -> Vector2:
 		var target_position := target.global_position
 		if _vector_is_finite(target_position):
 			desired.x = target_position.x + target_offset.x
-			desired.y = _clamp_camera_y(target_position.y + target_offset.y) \
-				if vertical_free else _vertical_follow_y(target_position.y)
+			if not vertical_free:
+				desired.y = _vertical_follow_y(target_position.y)
+			elif is_finite(vertical_pin_y):
+				desired.y = _clamp_camera_y(vertical_pin_y)
+			else:
+				desired.y = _clamp_camera_y(target_position.y + target_offset.y)
 
 	return _clamp_to_bounds(desired)
 

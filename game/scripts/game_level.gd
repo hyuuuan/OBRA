@@ -491,8 +491,21 @@ func _walk_through(to: Vector2) -> void:
 	# The room is a thousand units above the terrain, and the camera's ordinary job is to
 	# keep the ground in shot -- so in here it centres on her instead. And it has to arrive
 	# already there: easing across four thousand units is a whip pan through the level.
-	world_camera.set_vertical_free(_in_the_straw_room())
+	# INSIDE, THE CAMERA BEHAVES LIKE THE HUB'S. The room is built to the same ruler as the
+	# house -- 72px to the metre -- so it is seen at the same 2, and its ordinary job of
+	# pinning itself near the ground is wrong a thousand units above one.
+	var inside := _in_the_straw_room()
+	var room := get_tree().get_first_node_in_group(&"straw_rooms")
+	world_camera.set_vertical_free(inside,
+		float(room.call("eye_level")) if inside and room != null else NAN)
+	world_camera.set_base_zoom(_straw_room_zoom() if inside else 1.0)
 	world_camera.snap_to_target()
+
+
+## How far in the straw room asks the camera to sit, or 1 if there is no room to ask.
+func _straw_room_zoom() -> float:
+	var room := get_tree().get_first_node_in_group(&"straw_rooms")
+	return float(room.call("how_far_in")) if room != null else 1.0
 
 
 ## Whether the apo is standing in the straw room rather than on the terrace. Asked of the
@@ -504,9 +517,7 @@ func _in_the_straw_room() -> bool:
 	var room := get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
 	if room == null:
 		return false
-	var size := Vector2(room.get("room_size"))
-	return Rect2(room.global_position - Vector2(size.x * 0.5, size.y),
-		size).grow(120.0).has_point(player.global_position)
+	return Rect2(room.call("bounds")).grow(90.0).has_point(player.global_position)
 
 
 ## The key off the floor of the straw room. It does not open the chest beside it and it is
@@ -814,7 +825,14 @@ func _focus_camera_for(speaker: String) -> void:
 	var subject: Node2D = lolo if speaker == "lolo" and lolo != null else player
 	if subject == null or not is_instance_valid(subject):
 		return
-	world_camera.focus_on(subject)
+	# A BEAT IN A ROOM DOES NOT PUSH IN THE WAY A BEAT IN A VALLEY DOES. The default lift
+	# drops the camera 240 units below the speaker, which frames a figure against a hillside
+	# and, in a room already seen at 2, puts the floor across half the screen and the roof
+	# off the top of it. In here the camera stays at eye level and barely moves.
+	if _in_the_straw_room():
+		world_camera.focus_on(subject, 1.04, 0.45, -18.0)
+	else:
+		world_camera.focus_on(subject)
 	if not dialogue_box.conversation_finished.is_connected(_release_camera_focus):
 		dialogue_box.conversation_finished.connect(_release_camera_focus)
 

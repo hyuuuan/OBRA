@@ -2,89 +2,110 @@ class_name StrawRoom2D
 extends Node2D
 ## Inside the heap, and it is a great deal bigger in here than the hole suggested.
 ##
-## IT IS A PLACE, NOT A CUTAWAY. The first version drew the inside of the heap where the
-## heap stands, at the heap's own size, with the terrace still visible round the edges --
-## which is honest, and reads as a close-up of a haystack rather than as going somewhere.
-## This one is a room fifteen hundred units across, sitting in the empty sky above the
-## level, reachable only by ducking into an opening you could not stand up in. A little hole
-## and a big room is the whole feeling being bought here, and it does not survive the two
-## being the same size.
+## BUILT THE WAY THE HOUSE IN THE HUB IS BUILT, and that is the whole of what changed on the
+## third attempt. The first two were a cutaway of the heap and then a wall of tiled painting,
+## and both read as a picture of straw rather than as a room -- there was nothing in either
+## of them that was made, only texture. A room is made: it has courses, and joints, and a
+## lintel over the door, and a floor laid in boards. hub_room.gd is that argument already
+## won once, so this is the same argument in straw.
 ##
-## It costs a teleport and a fade and nothing else. The apo is the same body in the same
-## level, so checkpoints, ink, the bag and the drawing panel all carry in with her, and the
-## way back out is an opening in the wall with daylight behind it.
+## THE RULER IS THE APO, exactly as it is in the house. He is 96 pixels tall and a child of
+## about a metre thirty, which puts a METRE AT SEVENTY-TWO PIXELS, and every number below is
+## a real measurement divided by that -- a four-metre wall because that is a barn, a bale
+## forty-five centimetres deep because that is a bale, a chest at knee height because that is
+## a chest. Every one carries the metres it came from in the comment beside it, so if
+## something looks wrong the argument is about the measurement and not about the number.
 ##
-## WHAT IS IN IT. One of Lola's canvases -- the hub's own painting of the next place, at 2x,
-## which is why it is loaded from the hub's folder rather than copied. Her baul, still
-## locked; that lock is Node 3's problem and the line closing Node 2 is "Locked. Of course."
-## A brass key on the floor, which does NOT open the chest beside it and is not meant to.
-## And the ants that were living in here before anybody came looking.
+## And it is SEEN AT 2, like the house, which is the other half of it. The level is drawn at
+## 1 because it is a valley; a room is somewhere you are standing in, so the camera comes in
+## until the room fills the frame and the apo is a fifth of the height of it.
+##
+## WHAT IS IN IT. One of Lola's canvases -- the hub's own painting of the next place, framed
+## in the same gilt the pictures in the house wear. Her baul, still locked; that lock is
+## Node 3's problem and the line closing Node 2 is "Locked. Of course." A brass key on the
+## floor, which does NOT open the chest beside it and is not meant to. And the ants that were
+## living in here before anybody came looking.
 
 signal key_taken()
 ## The apo has walked into the opening that leads back out to the terrace.
 signal exit_reached()
 
-## How big the room is: floor centre at this node's origin, walls going up and out. Wider
-## and taller than a screenful at the level's zoom (1280 x 720), so the edges of it are
-## never in shot and the sky it is standing in is never visible behind it.
-@export var room_size := Vector2(1700.0, 900.0)
+## How long the room is. Fifteen metres of barn, against a screenful of eleven at this zoom
+## -- so the way out and the chest are never quite on screen together and there is somewhere
+## to walk to. At eight hundred the whole room fitted in one view and the walking went.
+@export var room_length := 1100.0
+## Floor to eaves. Four metres, which is a storey in a building with a roof this shape.
+@export var wall_height := 270.0
+## Eaves to ridge. A metre and a quarter of thatch closing over the top.
+@export var roof_height := 90.0
+## How far the floor runs toward the viewer before the frame ends. One metre thirty.
+@export var floor_depth := 100.0
 ## What the canvas is a painting of. A level id, so the picture and the place cannot drift
 ## apart: it is read out of the hub's paintings, which is where the same image already lives.
 @export var canvas_level_id: String = "level_2"
-## Drawn at a whole multiple of its own pixels, or a pixel picture stops having pixels. The
-## hub covers are 128 x 72, so this is exactly 2x.
-@export var canvas_scale: int = 2
-@export var canvas_at := Vector2(110.0, -430.0)
-@export var key_at := Vector2(150.0, -14.0)
+## Where the canvas hangs and where the key lies, measured off the floor the apo stands on.
+##
+## The canvas is at two metres to its middle -- higher than a gallery hangs and right for a
+## barn, the same argument as the pictures in the house, which are at two and a half.
+@export var canvas_at := Vector2(-40.0, -200.0)
+@export var key_at := Vector2(196.0, -6.0)
 ## What the profile records when the key is taken.
 @export var collectible_id: String = "L1_straw_key"
+## How far in the camera sits while she is in here. Two, like the house.
+@export var room_zoom := 2.0
 
-## The straw, matching StrawPile2D's palette exactly -- it is the same straw seen from the
-## inside, and two sets of golds for one material is two materials.
-const EDGE := StrawPile2D.EDGE
-const DARK := StrawPile2D.DARK
-const MID := StrawPile2D.MID
-const BODY := StrawPile2D.BODY
-const LIT := StrawPile2D.LIT
-const HI := StrawPile2D.HI
-## The dark of the far side of the room, and what the walls are seen against.
-const DEEP := Color(0.110, 0.063, 0.024, 1.0)         # 1C1006
-const DEEPER := Color(0.063, 0.035, 0.016, 1.0)       # 100904
-## The floor: trodden earth, because a heap that has been crawled into has a worn floor.
-const EARTH := Color(0.235, 0.157, 0.098, 1.0)        # 3C2819
-const EARTH_LIT := Color(0.337, 0.239, 0.153, 1.0)    # 563D27
-const EARTH_DARK := Color(0.149, 0.098, 0.063, 1.0)   # 261910
-const PEBBLE := Color(0.443, 0.404, 0.353, 1.0)       # 71675A
+## STRAW IN FOUR VALUES AND ONE HUE. Taken off Kent's heap, so the wall in here and the heap
+## on the terrace are the same material -- a room in contrasting golds reads as a bonfire.
+const STRAW_DARK := StrawPile2D.EDGE      # 5E3A12  the shadow under a course
+const STRAW_SHADE := StrawPile2D.DARK     # 96601E
+const STRAW := StrawPile2D.MID            # C98A2B  the field of a bale
+const STRAW_LIT := StrawPile2D.BODY       # EDB53A  the cut end of it, facing the light
+const STRAW_HI := StrawPile2D.LIT         # FFD75E
+const STRAW_PALE := StrawPile2D.HI        # FFF0A8
+## Split bamboo: the poles the thatch is bound to, and the only hard thing in the room. Its
+## being a different material from the straw is what gives the wall its structure.
+const POLE := Color(0.639, 0.545, 0.294, 1.0)       # A38B4B
+const POLE_LIT := Color(0.792, 0.706, 0.443, 1.0)   # CAB471
+const POLE_DARK := Color(0.400, 0.325, 0.161, 1.0)  # 665329
+## The twine the poles are lashed on with, and what makes a lashing read as one.
+const TWINE := Color(0.478, 0.404, 0.267, 1.0)      # 7A6744
+const TWINE_LIT := Color(0.616, 0.541, 0.376, 1.0)  # 9D8A60
+## The dark between the courses and behind everything.
+const DEEP := Color(0.118, 0.071, 0.031, 1.0)       # 1E1208
+const DEEPER := Color(0.063, 0.035, 0.016, 1.0)     # 100904
+## The floor: trodden earth, in courses like the boards in the house, because a floor that
+## somebody has walked on for a season is not one flat colour.
+const EARTH := Color(0.267, 0.180, 0.110, 1.0)      # 442E1C
+const EARTH_LIT := Color(0.353, 0.251, 0.161, 1.0)  # 5A4029
+const EARTH_DARK := Color(0.157, 0.102, 0.063, 1.0) # 281A10
+const PEBBLE := Color(0.463, 0.424, 0.369, 1.0)     # 766C5E
 ## Daylight in the opening back out. Warm and washed out, because it is the terrace out
 ## there and the eye in here is used to the dark.
 const DAYLIGHT := Color(0.980, 0.941, 0.792, 1.0)     # FAF0CA
 const DAYLIGHT_DIM := Color(0.847, 0.784, 0.588, 1.0) # D8C896
+## The valley through the doorway, in the three bands anybody can see through a hole the
+## width of a person: sky, the terrace behind, and the one she is standing on.
+const OUTSIDE_SKY := Color(0.643, 0.831, 0.933, 1.0)   # A4D4EE
+const OUTSIDE_GREEN := Color(0.478, 0.667, 0.353, 1.0) # 7AAA5A
+const OUTSIDE_EARTH := Color(0.749, 0.647, 0.443, 1.0) # BFA571
 ## The gilt of the hub's picture frames, because this canvas is one of the same set.
-const FRAME := Color(0.647, 0.447, 0.137, 1.0)        # A57223
-const FRAME_LIT := Color(0.859, 0.655, 0.212, 1.0)    # DBA736
-const FRAME_EDGE := Color(0.361, 0.212, 0.055, 1.0)   # 5C360E
+const GILT_EDGE := Color(0.549, 0.341, 0.114, 1.0)  # 8C571D
+const GILT_DARK := Color(0.647, 0.447, 0.137, 1.0)  # A57223
+const GILT := Color(0.859, 0.655, 0.212, 1.0)       # DBA736
+const GILT_LIT := Color(0.929, 0.792, 0.322, 1.0)   # EDCA52
 ## Brass, dulled. A key that has been in a straw heap is not a bright one.
-const BRASS := Color(0.831, 0.667, 0.216, 1.0)        # D4AA37
-const BRASS_LIT := Color(0.949, 0.851, 0.427, 1.0)    # F2D96D
-const BRASS_DARK := Color(0.502, 0.376, 0.098, 1.0)   # 806019
-## Kent's interior, cut to a tileable strip by tools/build_art.py, and where the dirt
-## starts in it. The level lines that line up with its own floor.
-const INTERIOR := preload("res://assets/Level1/props/haybale_interior.png")
-const INTERIOR_FLOOR := 1096.0
+const BRASS := Color(0.831, 0.667, 0.216, 1.0)      # D4AA37
+const BRASS_LIT := Color(0.949, 0.851, 0.427, 1.0)  # F2D96D
+const BRASS_DARK := Color(0.502, 0.376, 0.098, 1.0) # 806019
 
-## The wall, mirrored, built once.
-##
-## NEITHER OF THE TWO OBVIOUS WAYS WORKS. draw_texture_rect's fifth argument is `transpose`,
-## which swaps the axes rather than mirroring -- pass `true` and a 400x1660 wall is drawn
-## sideways into a 400-wide box and disappears. A Rect2 with a negative width, which is how
-## the docs say to flip, draws nothing at all in 4.7. So the flip is baked into a second
-## texture at load and the tiling just picks one of the two.
-var _flipped: Texture2D
+## How wide the way out is, and how tall. A doorway in a barn: one metre by two.
+const DOOR := Vector2(72.0, 144.0)
 
 var _taken := false
 var _art: Texture2D
 var _key_area: Area2D
 var _exit_area: Area2D
+var _ants: StrawAnts2D
 
 
 func _ready() -> void:
@@ -93,42 +114,85 @@ func _ready() -> void:
 	var path := "res://assets/hub/paintings/%s.png" % canvas_level_id
 	if ResourceLoader.exists(path):
 		_art = load(path)
-	var mirror := INTERIOR.get_image()
-	mirror.flip_x()
-	_flipped = ImageTexture.create_from_image(mirror)
 	_build_floor()
 	_build_key_area()
 	_build_exit_area()
 	_build_ants()
-	queue_redraw()
+	# NOT DRAWN WHILE NOBODY IS IN IT, and that is not an optimisation.
+	#
+	# The room paints a dark ground behind itself so the sky it is standing in never shows
+	# through the straw, and that ground has to reach past the walls because the camera leads
+	# the player. Left switched on it painted the whole valley: the level came up with black
+	# where the sky should be and the heap's wall across the top of it, which is what "the
+	# map in the overworld is still black at some parts" was.
+	visible = false
+	set_process(true)
 
 
-## They walk about on their own, so they get their own node: the walls of this room are a
-## couple of thousand units of tiled art and repainting all of it every frame to move six
-## legs would be the smallest thing on screen costing the most.
-func _build_ants() -> void:
-	var ants := StrawAnts2D.new()
-	ants.name = "Ants"
-	ants.patrol = Vector2(-room_size.x * 0.34, room_size.x * 0.34)
-	ants.position = Vector2(0.0, 26.0)
-	ants.z_index = 1
-	add_child(ants)
+## Whether the apo is standing in here. Asked of her position every frame rather than set by
+## the doorway, because a checkpoint restore, a fall or a morph can move her out of this room
+## without going through it -- and a room that is still drawn once she has left is a room
+## painted over the level.
+func _process(_delta: float) -> void:
+	var here := false
+	for node in get_tree().get_nodes_in_group(&"player_character"):
+		var body := node as Node2D
+		if body != null and bounds().grow(90.0).has_point(body.global_position):
+			here = true
+			break
+	if here == visible:
+		return
+	visible = here
+	if _ants != null:
+		_ants.set_process(here)
+
+
+## HOW FAR EVERYTHING IN HERE IS DRAWN PAST THE WALLS SHE CAN REACH.
+##
+## The camera sees four hundred units either side of her at this zoom and she can walk right
+## up to the end wall, so a room drawn only as far as it is walkable puts its own end on
+## screen with the level's sky behind it -- which is what the first cut of this did. It is
+## safe to be generous because the room is not drawn at all while she is somewhere else.
+func _span() -> float:
+	return room_length * 0.5 + 480.0
+
+
+## The box the room occupies, floor centre at this node's origin.
+func bounds() -> Rect2:
+	return Rect2(global_position - Vector2(room_length * 0.5, wall_height + roof_height),
+		Vector2(room_length, wall_height + roof_height + floor_depth))
+
+
+## Kept for the level and the suites, which ask how big the room is rather than where it is.
+var room_size: Vector2:
+	get:
+		return Vector2(room_length, wall_height + roof_height)
 
 
 func key_is_taken() -> bool:
 	return _taken
 
 
+func how_far_in() -> float:
+	return room_zoom
+
+
+## Where the camera sits to look at this room: halfway between the ridge and the front edge
+## of the floor, so a screenful shows the whole height of it and neither the roof nor the
+## floor slides off as she walks.
+func eye_level() -> float:
+	return global_position.y - (wall_height + roof_height - floor_depth) * 0.5
+
+
 ## Where the apo appears when she ducks in: just inside the way out, so the first thing she
 ## can see is how to leave, and the room is in front of her rather than behind.
 func entry_point() -> Vector2:
-	return global_position + Vector2(-room_size.x * 0.5 + 230.0, 0.0)
+	return global_position + Vector2(-room_length * 0.5 + DOOR.x * 1.6, 0.0)
 
 
 ## The opening back out to the terrace, in the room's own space.
 func exit_rect() -> Rect2:
-	var size := Vector2(150.0, 230.0)
-	return Rect2(Vector2(-room_size.x * 0.5 + 46.0, -size.y), size)
+	return Rect2(Vector2(-room_length * 0.5 + 26.0, -DOOR.y), DOOR)
 
 
 ## SOMETHING TO STAND ON. The room is in the sky above the level, so it brings its own floor;
@@ -140,21 +204,21 @@ func _build_floor() -> void:
 	add_child(body)
 	var shape := CollisionShape2D.new()
 	var box := RectangleShape2D.new()
-	box.size = Vector2(room_size.x, 120.0)
+	box.size = Vector2(room_length, 120.0)
 	shape.shape = box
 	shape.position = Vector2(0.0, 60.0)
 	body.add_child(shape)
-	# And a wall at each end, so she cannot walk out of the sides of the room into the sky
-	# it is standing in.
+	# And a wall at each end, so she cannot walk out of the ends of the room into the sky it
+	# is standing in.
 	for side: float in [-1.0, 1.0]:
 		var wall := StaticBody2D.new()
 		wall.name = "Wall%s" % ("L" if side < 0.0 else "R")
 		add_child(wall)
 		var wall_shape := CollisionShape2D.new()
 		var wall_box := RectangleShape2D.new()
-		wall_box.size = Vector2(60.0, room_size.y)
+		wall_box.size = Vector2(48.0, wall_height)
 		wall_shape.shape = wall_box
-		wall_shape.position = Vector2(side * (room_size.x * 0.5 + 10.0), -room_size.y * 0.5)
+		wall_shape.position = Vector2(side * (room_length * 0.5 + 8.0), -wall_height * 0.5)
 		wall.add_child(wall_shape)
 
 
@@ -171,7 +235,7 @@ func _build_key_area() -> void:
 	add_child(_key_area)
 	var shape := CollisionShape2D.new()
 	var box := RectangleShape2D.new()
-	box.size = Vector2(90.0, 96.0)
+	box.size = Vector2(70.0, 96.0)
 	shape.shape = box
 	shape.position = Vector2(0.0, -34.0)
 	_key_area.add_child(shape)
@@ -187,11 +251,23 @@ func _build_exit_area() -> void:
 	var shape := CollisionShape2D.new()
 	var box := RectangleShape2D.new()
 	var opening := exit_rect()
-	box.size = Vector2(70.0, opening.size.y)
+	box.size = Vector2(46.0, opening.size.y)
 	shape.shape = box
 	shape.position = opening.get_center()
 	_exit_area.add_child(shape)
 	_exit_area.body_entered.connect(_on_exit_body)
+
+
+## They walk about on their own, so they get their own node: the room is a wall of courses
+## and a floor of boards, and repainting all of that every frame to move six legs would be
+## the smallest thing on screen costing the most.
+func _build_ants() -> void:
+	_ants = StrawAnts2D.new()
+	_ants.name = "Ants"
+	_ants.patrol = Vector2(-room_length * 0.4, room_length * 0.4)
+	_ants.position = Vector2(0.0, 12.0)
+	_ants.z_index = 1
+	add_child(_ants)
 
 
 func _is_the_player(body: Node) -> bool:
@@ -222,124 +298,286 @@ func _on_exit_body(body: Node) -> void:
 		exit_reached.emit()
 
 
+## A deterministic scatter, so the straw does not crawl from one redraw to the next. Same
+## hash the house uses, for the same reason.
+func _hash(value: int) -> int:
+	var x := (value * 374761393 + 668265263) & 0x7FFFFFFF
+	x = (x ^ (x >> 13)) * 1274126177
+	return x & 0x7FFFFFFF
+
+
 func _draw() -> void:
 	_draw_dark()
-	_draw_walls()
+	_draw_wall()
+	_draw_roof()
 	_draw_way_out()
+	_draw_floor()
 	_draw_canvas()
 	if not _taken:
 		_draw_key(key_at)
 
 
-## Behind everything, for the sliver the tiles do not reach.
+## What the room is seen against, and only just bigger than the room: a ground that reaches
+## a screen past the walls is a ground painted over the level, which is exactly what it was.
 func _draw_dark() -> void:
-	var half := room_size * 0.5
-	draw_rect(Rect2(-half.x - 1200.0, -room_size.y - 1200.0,
-		room_size.x + 2400.0, room_size.y + 2400.0), DEEPER)
+	var span := _span()
+	draw_rect(Rect2(-span, -wall_height - roof_height - 200.0,
+		span * 2.0, wall_height + roof_height + floor_depth + 400.0), DEEPER)
 
 
-## KENT'S INTERIOR, TILED. Two goes at drawing the inside of a heap in code came and went;
-## this is the picture he drew, cut by tools/build_art.py into a strip that is wall and
-## floor and nothing else -- the chest and the canvas painted into the middle of his version
-## are real nodes in this level, and the baul outlives this room.
+## THE WALL IS THATCH ON A FRAME, and getting there took two wrong answers.
 ##
-## The strip carries its own floor line, so the level lines the two up rather than either
-## end guessing: everything above INTERIOR_FLOOR is wall, everything below is dirt, and y=0
-## in this node is the ground the apo stands on.
-func _draw_walls() -> void:
-	# MIRRORED EVERY OTHER TILE. The strip's left and right edges are different straw, so
-	# butting copies of it put a hard vertical seam every four hundred units across the
-	# room -- the one thing a wall of hanging stalks must not have. Flipping alternate
-	# copies makes each join a reflection of itself, which cannot show.
-	var span := room_size.x * 0.5 + 900.0
-	var width := float(INTERIOR.get_width())
-	var first := floorf(-span / width)
-	var index := first
-	while index * width < span:
-		var mirrored := int(absf(index)) % 2 == 1
-		draw_texture_rect(_flipped if mirrored else INTERIOR,
-			Rect2(Vector2(index * width, -INTERIOR_FLOOR),
-				Vector2(width, float(INTERIOR.get_height()))), false)
-		index += 1.0
+## The house in the hub is timber, capiz and pressed tin, and crisp rectangles with a lit
+## edge and a shadow edge are exactly right for those. Applying the same method to straw
+## gives you a wall of crates: the first cut of this stacked bound BALES in a running bond,
+## and however much the tone and the grain were varied, the eye found the boxes before it
+## found the material.
+##
+## So the structure comes from the frame and the material stays soft. Vertical straw the full
+## height of the wall, in clumps rather than one stalk at a time, held by horizontal binding
+## poles at four heights -- which is how a thatched wall is actually built, and which gives
+## the courses, the joints and the rhythm the house gets out of its stiles and rails without
+## pretending straw is a plank.
+func _draw_wall() -> void:
+	var span := _span()
+	draw_rect(Rect2(-span, -wall_height, span * 2.0, wall_height), DEEP)
+	_draw_thatch(-span, span, -wall_height, 0.0)
+	# The poles that hold it on. Four, evenly up the wall, plus the sill at the foot -- the
+	# same job the chair rail does on a pier in the house.
+	for index in range(4):
+		_draw_binding(-span, span, -wall_height * (0.22 + 0.20 * float(index)))
+	_draw_binding(-span, span, -14.0)
+	# A corner post at each end she can walk to, so the room has a length the eye can read
+	# rather than running on forever.
+	for side: float in [-1.0, 1.0]:
+		_draw_post(side * room_length * 0.5)
 
 
-## The way back out: the terrace's daylight through a hole worn in the wall. It is the only
-## bright thing in the room, which is what makes it read as the way out without a label --
-## and the delivered interior has no doorway in it, so this is drawn over the top.
+## A field of hanging straw. Clumped, because straw falls in handfuls: a run of neighbouring
+## strands shares a tone and a length, and the clump is what the eye reads rather than the
+## strand.
+func _draw_thatch(left: float, right: float, top: float, foot: float) -> void:
+	var tones: Array[Color] = [STRAW_DARK, STRAW_SHADE, STRAW, STRAW_LIT, STRAW_HI]
+	var x := left
+	var clump_end := left
+	var clump_tone := 2
+	var clump_drop := 0.0
+	while x < right:
+		if x >= clump_end:
+			var roll := _hash(int(x) * 761)
+			clump_end = x + 5.0 + float(roll % 14)
+			# Weighted toward the middle of the ramp, so the wall has a colour rather than
+			# being a stripe of every value it owns.
+			var picks: Array[int] = [2, 3, 3, 4, 1, 3]
+			clump_tone = picks[roll % picks.size()]
+			clump_drop = float((roll >> 7) % 9)
+		var noise := _hash(int(x) * 37 + 11)
+		var strand_top := top + float(noise % 5)
+		var strand_foot := foot - clump_drop + float((noise >> 4) % 6)
+		var step := int(noise % 3) - 1
+		# THE LIGHT COMES IN THE DOOR, and there is nowhere else for it to come from: this
+		# is the inside of a heap. So the wall is brightest at the end the daylight is at and
+		# falls away down the length of the room, which is the only thing in here saying the
+		# far end is further away.
+		var reach := clampf((x - left) / maxf(1.0, right - left), 0.0, 1.0)
+		var fall := -1 if reach > 0.62 else 0
+		var tone: Color = tones[clampi(clump_tone + step + fall, 0, tones.size() - 1)]
+		draw_rect(Rect2(x, strand_top, 1.0, strand_foot - strand_top), tone)
+		# The shadow between one strand and the next, so the wall has depth rather than
+		# being a comb of lines on a flat ground.
+		if noise % 6 == 0:
+			draw_rect(Rect2(x + 1.0, strand_top + float((noise >> 8) % 11), 1.0,
+				(strand_foot - strand_top) * 0.7), DEEP)
+		x += 2.0
+
+
+## A corner post: one upright of bamboo, floor to eaves, with its nodes.
+func _draw_post(x: float) -> void:
+	var wide := 13.0
+	draw_rect(Rect2(x - wide * 0.5 - 2.0, -wall_height, wide + 4.0, wall_height),
+		Color(0.0, 0.0, 0.0, 0.35))
+	draw_rect(Rect2(x - wide * 0.5, -wall_height, wide, wall_height), POLE)
+	draw_rect(Rect2(x - wide * 0.5, -wall_height, 3.0, wall_height), POLE_LIT)
+	draw_rect(Rect2(x + wide * 0.5 - 3.0, -wall_height, 3.0, wall_height), POLE_DARK)
+	var y := -wall_height + 26.0
+	while y < 0.0:
+		draw_rect(Rect2(x - wide * 0.5 - 1.0, y, wide + 2.0, 3.0), POLE_DARK)
+		draw_rect(Rect2(x - wide * 0.5 - 1.0, y + 3.0, wide + 2.0, 1.0), POLE_LIT)
+		y += 44.0 + float(_hash(int(y)) % 22)
+
+
+## One binding pole across the wall: split bamboo, lashed on. Lit along the top, dark
+## underneath, with a hairline of shadow thrown onto the straw below it -- and a lashing
+## every so often, which is the detail that says it is tied on rather than painted across.
+func _draw_binding(left: float, right: float, y: float) -> void:
+	var deep := 7.0
+	draw_rect(Rect2(left, y, right - left, deep), POLE)
+	draw_rect(Rect2(left, y, right - left, 2.0), POLE_LIT)
+	draw_rect(Rect2(left, y + deep - 2.0, right - left, 2.0), POLE_DARK)
+	draw_rect(Rect2(left, y + deep, right - left, 3.0), Color(0.0, 0.0, 0.0, 0.34))
+	# The nodes, and the lashings between them.
+	var x := left + float(_hash(int(y) * 13) % 40)
+	while x < right:
+		var noise := _hash(int(x) * 53 + int(y))
+		draw_rect(Rect2(x, y - 1.0, 2.0, deep + 2.0), POLE_DARK)
+		draw_rect(Rect2(x + 2.0, y, 1.0, deep), POLE_LIT)
+		if noise % 3 == 0:
+			var lash := x + 14.0 + float(noise % 20)
+			draw_rect(Rect2(lash, y - 2.0, 3.0, deep + 4.0), TWINE)
+			draw_rect(Rect2(lash, y - 2.0, 1.0, deep + 4.0), TWINE_LIT)
+		x += 46.0 + float(noise % 34)
+
+
+## The roof: loose thatch over the bales, hanging in courses like a thatched ridge, because
+## the top of a barn full of straw is not another course of bales.
+func _draw_roof() -> void:
+	var half := room_length * 0.5
+	var eaves := -wall_height
+	draw_rect(Rect2(-half, eaves - roof_height, room_length, roof_height), STRAW_SHADE)
+	# Three courses of thatch, each overhanging the one below, darkest at the top where the
+	# ridge shades it.
+	var courses := 3
+	for index in range(courses):
+		var band := roof_height / float(courses)
+		var y := eaves - band * float(index + 1)
+		var tones: Array[Color] = [STRAW, STRAW_SHADE, STRAW_DARK]
+		draw_rect(Rect2(-half, y, room_length, band), tones[index])
+		# The fringe of the course above hanging over this one.
+		var x := -half
+		while x < half:
+			var noise := _hash(int(x) * 13 + index * 977)
+			draw_rect(Rect2(x, y + band - 1.0, 1.0, 2.0 + float(noise % 5)),
+				STRAW_DARK if noise % 3 == 0 else STRAW_LIT)
+			x += 2.0 + float(noise % 3)
+		draw_rect(Rect2(-half, y, room_length, 1.0), DEEP)
+	# The ridge itself, and the beam under the eaves that the roof sits on.
+	draw_rect(Rect2(-half, eaves - roof_height, room_length, 3.0), DEEP)
+	draw_rect(Rect2(-half, eaves - 5.0, room_length, 5.0), STRAW_DARK)
+	draw_rect(Rect2(-half, eaves - 5.0, room_length, 1.0), STRAW_LIT)
+
+
+## The way back out: a doorway cut through the bales, with a straw lintel over it and the
+## terrace's daylight behind. It is the only bright thing in the room, which is what makes it
+## read as the way out without a label -- and it is built like the doorways in the house,
+## with something holding the wall up over it, because a hole with nothing over it reads as
+## damage rather than as a door.
 func _draw_way_out() -> void:
-	var rng := _rng(41)
 	var opening := exit_rect()
-	var centre := Vector2(opening.get_center().x, 0.0)
-	var wide := opening.size.x * 0.5
-	var tall := opening.size.y
-	var steps := 26
-	var arch := PackedVector2Array()
-	for index in range(steps + 1):
-		var phi := PI * float(index) / float(steps)
-		arch.append(centre + Vector2(-wide * cos(phi) * rng.randf_range(0.9, 1.1),
-			-tall * sin(phi) * rng.randf_range(0.92, 1.06)))
-	draw_colored_polygon(arch, DAYLIGHT_DIM)
-	var inner := PackedVector2Array()
-	for index in range(steps + 1):
-		var phi := PI * float(index) / float(steps)
-		inner.append(centre + Vector2(-wide * 0.74 * cos(phi), -tall * 0.78 * sin(phi)))
-	draw_colored_polygon(inner, DAYLIGHT)
-	# Straw hanging across it, so it is a hole worn in a heap and not a doorway.
-	for index in range(int(wide * 0.9)):
-		var x := roundf(centre.x + rng.randf_range(-wide, wide))
-		var top := -tall * rng.randf_range(0.1, 0.96)
-		draw_rect(Rect2(x, top, 1.0, rng.randf_range(12.0, 70.0)),
-			_ramp(rng.randf_range(0.04, 0.4)))
-	# And the light it throws on the floor in front of it.
+	var jamb := 8.0
+	draw_rect(opening.grow(jamb), STRAW_DARK)
+	draw_rect(opening.grow(jamb), DEEP, false, 2.0)
+	# The lintel: a pole across the head of it, carrying the wall over the opening. A hole
+	# with nothing over it reads as damage rather than as a door.
+	_draw_binding(opening.position.x - jamb - 10.0, opening.end.x + jamb + 10.0,
+		opening.position.y - jamb - 9.0)
+	# WHAT IS OUT THERE, as three bands rather than a picture: sky, the green of the terrace
+	# behind it and the earth of the one she is standing on. A flat slab of cream reads as a
+	# hole cut in the drawing; three bands read as outside, and at the width of a person
+	# that is as much of the valley as anybody can see through it anyway.
+	draw_rect(opening, DAYLIGHT_DIM)
+	var inner := opening.grow(-5.0)
+	draw_rect(inner, OUTSIDE_SKY)
+	draw_rect(Rect2(inner.position.x, inner.position.y + inner.size.y * 0.52,
+		inner.size.x, inner.size.y * 0.30), OUTSIDE_GREEN)
+	draw_rect(Rect2(inner.position.x, inner.position.y + inner.size.y * 0.82,
+		inner.size.x, inner.size.y * 0.18), OUTSIDE_EARTH)
+	# The glare round the edge of it, because the eye in here is used to the dark.
+	draw_rect(Rect2(inner.position, Vector2(inner.size.x, 4.0)), DAYLIGHT)
+	draw_rect(Rect2(inner.position, Vector2(4.0, inner.size.y)), DAYLIGHT)
+	# Straw hanging across it, so it is a hole worn in a heap and not a fitted door.
+	var x := opening.position.x
+	while x < opening.end.x:
+		var noise := _hash(int(x) * 29 + 4409)
+		draw_rect(Rect2(x, opening.position.y, 1.0, 4.0 + float(noise % 26)),
+			STRAW_DARK if noise % 3 == 0 else STRAW_SHADE)
+		x += 2.0 + float(noise % 3)
+	# And the light it throws on the floor in front of it, the same spill the doorways in
+	# the house cast on the boards.
 	var spill := 0
-	while spill < 130:
-		var fade := float(spill) / 130.0
-		draw_rect(Rect2(centre.x - wide - float(spill) * 0.7, float(spill) * 0.14,
-			wide * 2.0 + float(spill) * 2.0, 4.0),
-			Color(0.98, 0.94, 0.79, 0.12 * (1.0 - fade)))
+	while spill < int(floor_depth):
+		var reach := float(spill) / floor_depth
+		var wide := opening.size.x * (0.5 + reach * 0.55)
+		draw_rect(Rect2(opening.get_center().x - wide, float(spill), wide * 2.0, 4.0),
+			Color(0.980, 0.941, 0.792, 0.13 * (1.0 - reach)))
 		spill += 4
 
 
-## One of Lola's, propped against the straw. Framed like the ones in the house, because it
-## is one of the ones in the house.
+## Trodden earth, laid in courses the way the boards in the house are, because a floor that
+## is one flat colour is a floor nobody has walked on.
+func _draw_floor() -> void:
+	var half := _span()
+	var room_length := half * 2.0
+	draw_rect(Rect2(-half, 0.0, room_length, floor_depth + 60.0), EARTH_DARK)
+	draw_rect(Rect2(-half, 0.0, room_length, floor_depth), EARTH)
+	var y := 0.0
+	var course := 0
+	while y < floor_depth:
+		var band := 18.0
+		var shade := EARTH.lerp(EARTH_LIT, float(_hash(course) % 100) / 260.0)
+		draw_rect(Rect2(-half, y, room_length, band), shade)
+		draw_rect(Rect2(-half, y, room_length, 1.0), EARTH_DARK)
+		# What has been walked into it: grit, and wisps of straw off the wall.
+		var x := float(_hash(course * 3 + 1) % 90)
+		while x < room_length:
+			var noise := _hash(course * 7 + int(x))
+			var at := Vector2(-half + x, y + 3.0 + float(noise % 9))
+			if noise % 5 == 0:
+				draw_rect(Rect2(at, Vector2(2.0 + float(noise % 3), 2.0)), PEBBLE)
+			else:
+				draw_rect(Rect2(at, Vector2(4.0 + float(noise % 11), 1.0)),
+					STRAW_SHADE if noise % 3 == 0 else STRAW_DARK)
+			x += 14.0 + float(noise % 30)
+		y += band
+		course += 1
+	# The line where the floor meets the wall, and the shadow the wall drops onto it.
+	draw_rect(Rect2(-half, 0.0, room_length, 3.0), Color(0.0, 0.0, 0.0, 0.36))
+	draw_rect(Rect2(-half, 3.0, room_length, 3.0), Color(0.0, 0.0, 0.0, 0.20))
+	draw_rect(Rect2(-half, 6.0, room_length, 3.0), Color(0.0, 0.0, 0.0, 0.10))
+
+
+## One of Lola's, hung on the bales. Framed like the ones in the house, because it is one of
+## the ones in the house -- and hung on a nail with a shadow under it, because a picture that
+## is simply printed on the wall is a poster.
 func _draw_canvas() -> void:
 	if _art == null:
 		return
-	var size := _art.get_size() * float(canvas_scale)
+	var size := Vector2(_art.get_size())
 	var picture := Rect2(canvas_at - size * 0.5, size)
-	draw_rect(picture.grow(24.0), Color(0.0, 0.0, 0.0, 0.55))
+	# The shadow it throws on the straw, offset down and right of the light.
+	draw_rect(Rect2(picture.position + Vector2(5.0, 6.0), picture.size + Vector2(12.0, 12.0)),
+		Color(0.0, 0.0, 0.0, 0.45))
 	draw_texture_rect(_art, picture, false)
-	# A stepped moulding: light on the top and left, shadow on the bottom and right, the same
-	# way round as every other frame in this game.
-	for band in range(6):
-		var rect := picture.grow(float(band) + 1.0)
-		draw_rect(Rect2(rect.position, Vector2(rect.size.x, 1.0)), FRAME_LIT)
-		draw_rect(Rect2(rect.position, Vector2(1.0, rect.size.y)), FRAME)
-		draw_rect(Rect2(rect.position.x, rect.end.y - 1.0, rect.size.x, 1.0), FRAME_EDGE)
-		draw_rect(Rect2(rect.end.x - 1.0, rect.position.y, 1.0, rect.size.y), FRAME_EDGE)
-	draw_rect(picture.grow(7.0), FRAME_EDGE, false, 2.0)
+	# A stepped gilt moulding: four bands, lit on the top and left, in shadow on the bottom
+	# and right, with a keyline round both edges. The same frame the house hangs.
+	var moulding := 8.0
+	var bands := 4
+	var step := moulding / float(bands)
+	for band in range(bands):
+		var rect := picture.grow(step * float(band) + step)
+		var crown := 1.0 - absf(float(band) / float(bands - 1) * 2.0 - 1.0)
+		var lit: Array[Color] = [GILT_DARK, GILT, GILT_LIT]
+		var top := lit[int(round(crown * 2.0))]
+		draw_rect(Rect2(rect.position, Vector2(rect.size.x, step)), top)
+		draw_rect(Rect2(rect.position, Vector2(step, rect.size.y)), GILT)
+		draw_rect(Rect2(rect.position.x, rect.end.y - step, rect.size.x, step), GILT_EDGE)
+		draw_rect(Rect2(rect.end.x - step, rect.position.y, step, rect.size.y), GILT_DARK)
+	draw_rect(picture.grow(1.0), GILT_EDGE, false, 1.0)
+	draw_rect(picture.grow(moulding), GILT_EDGE, false, 1.0)
 
 
-## A key, lying flat: a bow, a shank and two teeth. Bigger than it would be on the terrace,
-## because everything in here is.
+## A key, lying flat: a bow, a shank and two teeth. Twenty centimetres of brass, which is a
+## door key of the age the chest beside it is -- and the reason it is worth drawing at all
+## rather than being a glint on the floor.
 func _draw_key(at: Vector2) -> void:
-	draw_rect(Rect2(at + Vector2(-30.0, -5.0), Vector2(64.0, 7.0)), Color(0, 0, 0, 0.45))
-	draw_rect(Rect2(at + Vector2(-28.0, -22.0), Vector2(22.0, 22.0)), BRASS)
-	draw_rect(Rect2(at + Vector2(-22.0, -16.0), Vector2(10.0, 10.0)), DEEPER)
-	draw_rect(Rect2(at + Vector2(-28.0, -22.0), Vector2(22.0, 3.0)), BRASS_LIT)
-	draw_rect(Rect2(at + Vector2(-6.0, -16.0), Vector2(38.0, 8.0)), BRASS)
-	draw_rect(Rect2(at + Vector2(-6.0, -16.0), Vector2(38.0, 2.0)), BRASS_LIT)
-	draw_rect(Rect2(at + Vector2(20.0, -8.0), Vector2(6.0, 8.0)), BRASS_DARK)
-	draw_rect(Rect2(at + Vector2(28.0, -8.0), Vector2(4.0, 6.0)), BRASS_DARK)
-
-
-## Seeded, so the room is the same room every time it is walked into.
-func _rng(salt: int) -> RandomNumberGenerator:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = int(absf(position.x) * 7919.0 + absf(position.y) * 104729.0) + salt
-	return rng
-
-
-func _ramp(lit: float) -> Color:
-	var ramp: Array[Color] = [EDGE, DARK, MID, BODY, LIT, HI]
-	return ramp[int(round(clampf(lit, 0.0, 1.0) * float(ramp.size() - 1)))]
+	draw_rect(Rect2(at + Vector2(-20.0, -3.0), Vector2(44.0, 5.0)), Color(0, 0, 0, 0.45))
+	# The bow.
+	draw_rect(Rect2(at + Vector2(-19.0, -15.0), Vector2(15.0, 15.0)), BRASS_DARK)
+	draw_rect(Rect2(at + Vector2(-18.0, -14.0), Vector2(13.0, 13.0)), BRASS)
+	draw_rect(Rect2(at + Vector2(-18.0, -14.0), Vector2(13.0, 2.0)), BRASS_LIT)
+	draw_rect(Rect2(at + Vector2(-14.0, -11.0), Vector2(6.0, 7.0)), DEEPER)
+	# The shank, and the two teeth on the end of it.
+	draw_rect(Rect2(at + Vector2(-4.0, -11.0), Vector2(26.0, 6.0)), BRASS_DARK)
+	draw_rect(Rect2(at + Vector2(-4.0, -11.0), Vector2(26.0, 4.0)), BRASS)
+	draw_rect(Rect2(at + Vector2(-4.0, -11.0), Vector2(26.0, 1.0)), BRASS_LIT)
+	draw_rect(Rect2(at + Vector2(14.0, -5.0), Vector2(4.0, 5.0)), BRASS_DARK)
+	draw_rect(Rect2(at + Vector2(20.0, -5.0), Vector2(3.0, 4.0)), BRASS_DARK)

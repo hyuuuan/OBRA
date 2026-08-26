@@ -138,7 +138,15 @@ mouth is on it, so a heap that swallows whoever passes is a hole in the floor of
 `run_nodraw_level1` found exactly that — its walk east stopped dead at the doorway at x 3154
 and never reached the bale.
 
-**The room.** Ducking into the mouth fades to somewhere else: a cavern of straw **1700 ×
+**The room is built like the hub's house.** Same ruler (the apo, 72px to the metre), same
+zoom (2), same idiom — courses, joints, a lintel over the door, a floor laid in bands. The
+wall is **thatch on a bamboo frame**: vertical straw in clumps held by binding poles, because
+the crisp rectangles that are right for timber gave a wall of crates when they were tried on
+straw. ⚠ The room is **not drawn at all while she is somewhere else** — its dark ground
+reaches past its walls so the camera never sees an edge, and left switched on that painted
+the whole valley black.
+
+**Ducking into the mouth takes her somewhere else:** a cavern of straw **1700 ×
 900**, sitting in the empty sky above the level at **(1900, −900)**, reachable only through
 the heap. A little hole and a big room — the two must not be the same size, which is why the
 first version, a cutaway drawn where the heap stands, was thrown away.
