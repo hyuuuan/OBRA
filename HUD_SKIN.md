@@ -192,9 +192,8 @@ stuck in front of something — and everything else as story. A line may carry a
 Both channels are triggered by walking into an `Area2D` that nothing draws. A player who
 does not know one is there has no way to tell a stretch of terrace where something happens
 from a stretch where nothing does — so a beat they walked past reads as a beat that is not
-in the game. The trigger itself cannot be shown: it is a box up to seven hundred pixels
-wide and three hundred tall, and drawing one is drawing the machinery rather than the
-promise.
+in the game. The trigger itself cannot be shown: it is a box several hundred pixels wide
+and three hundred tall, and drawing one is drawing the machinery rather than the promise.
 
 `signpost_2d.gd` draws the promise. A small pale board on a post, standing on the ground
 where the beat fires, carrying one of five marks:
@@ -223,6 +222,19 @@ come and gone.
 because every one of the others speaks as well and the more specific thing is worth the
 board. That is why the gorge shows a fork rather than a question mark, and the sketchbook
 chest a page.
+
+**A `STORY` board can be read again, on the interact key.** Arrival lore plays itself the
+first time and never again — see *Arrival speaks once* in **LEVEL_1.md** — so it needs somewhere to
+live afterwards. `level_obstacle_2d.gd` hands its board the beat's `.enter` hook in
+`Signpost2D.reads`; stand within 96px of it (the same reach the key already has for a
+placed drawing) and the board lights up with a yellow ring while the hint bar names the
+binding. The key tries a reachable drawing first and falls through to the board only when
+there is nothing to pick up.
+
+A board that stands down under the rank rule **hands its hook to the survivor**, so
+crowding removes a post and never a beat. Without that, the sign carrying an arrival could
+be the one deleted, silently, at load, and the player would be left pressing a key at the
+only board there is and getting nothing.
 
 **Two things deliberately have no sign, and both would be actively wrong.** The bulul,
 because `bulul_2d.gd` exists to make a granary guardian un-interactable and a signpost
