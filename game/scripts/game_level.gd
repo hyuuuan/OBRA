@@ -342,6 +342,12 @@ func _build_obstacle_layer() -> void:
 			node.connect(&"key_taken", _on_straw_key_taken)
 		if node.has_signal(&"exit_reached"):
 			node.connect(&"exit_reached", _on_straw_exit)
+		# The heap's inside says things now too. It is the one room in the level with a
+		# PUZZLE in it, and it was saying nothing at all -- see StrawRoom2D's nail notice.
+		if node.has_signal(&"noticed"):
+			node.connect(&"noticed", _on_room_notice)
+		if node.has_signal(&"notice_left"):
+			node.connect(&"notice_left", _on_room_notice_left)
 
 	# Checkpoints you walk into, for the beats with no dialogue to hang one on.
 	for node in get_tree().get_nodes_in_group(&"checkpoint_areas"):
@@ -368,6 +374,31 @@ func _build_obstacle_layer() -> void:
 			continue
 		area.player_entered.connect(director.enter_obstacle)
 		area.player_exited.connect(director.exit_obstacle)
+		_plant_commit_mark(area)
+
+
+## A MARK FOR THE CHECKPOINTS NOBODY COULD SEE.
+##
+## Payyo declares six checkpoints and exactly ONE of them had anything on screen: CP0, the
+## walk-in at the top of the stair. CP1, CP2 and CP3 are written the instant a route is
+## committed, which is every node in the level, and they were a dictionary entry and a
+## telemetry event and nothing else. So the three moments the game is most generous to the
+## player -- the ones it puts in front of every morph on a route -- said nothing at all, and
+## the player found out a checkpoint existed only by dying.
+##
+## The flag stands at the OUTGOING edge of the obstacle, which is where the player is headed
+## when the route is committed, and it is furled and grey until the commit raises it. Which
+## obstacles get one is read out of `checkpoint_on_commit` in level_01.json rather than
+## authored in the scene, so a checkpoint moved in the data takes its mark with it.
+func _plant_commit_mark(volume: LevelObstacle2D) -> void:
+	var checkpoint_id := String(
+		director.obstacle(volume.obstacle_id).get("checkpoint_on_commit", ""))
+	if checkpoint_id.is_empty():
+		return
+	var at := Vector2(volume.trigger_size.x * 0.5 - 40.0, 0.0)
+	var mark := CheckpointLantern2D.plant(volume, at)
+	if mark != null:
+		_commit_marks[volume.obstacle_id] = mark
 
 
 func _checkpoint_is_declared(checkpoint_id: String) -> bool:
@@ -381,7 +412,61 @@ func _checkpoint_is_declared(checkpoint_id: String) -> bool:
 
 func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
 	_write_checkpoint(checkpoint_id)
+	_say_checkpoint()
+	var area := _checkpoint_area_for(checkpoint_id)
+	if area != null:
+		_stage_the_checkpoint(area.get_node_or_null(^"Checkpoint") as Node2D)
+
+
+func _checkpoint_area_for(checkpoint_id: String) -> Node:
+	for node in get_tree().get_nodes_in_group(&"checkpoint_areas"):
+		if String(node.get("checkpoint_id")) == checkpoint_id:
+			return node
+	return null
+
+
+## THE MOMENT A CHECKPOINT IS EARNED, FRAMED.
+##
+## The lantern lights whether or not anybody is looking at it, and a player crossing a
+## checkpoint is by definition moving -- so the one generous thing the level does was
+## happening somewhere off to the side of a screen they were reading for platforms. Bars in,
+## the camera takes the lantern, it catches, the camera lets go, bars out. Under three
+## seconds, and it never takes the controls away: see CinematicBars on why it does not pause.
+func _stage_the_checkpoint(mark: Node2D) -> void:
+	if mark == null or cinematic == null or cinematic.is_playing():
+		return
+	var world_camera := _world_camera()
+	cinematic.close("CHECKPOINT")
+	if world_camera != null:
+		# Pushed in a little and level with the flame rather than lifted off it -- the default
+		# dialogue framing drops the camera to look up at a speaker, and there is nobody here.
+		world_camera.focus_on(mark, 1.22, 0.45, -46.0)
+	await get_tree().create_timer(0.42, true, false, true).timeout
+	if is_instance_valid(mark) and mark.has_method("light"):
+		mark.call("light", Vector2(0.0, -60.0))
+	await get_tree().create_timer(1.35, true, false, true).timeout
+	if world_camera != null:
+		world_camera.release_focus()
+	if cinematic != null:
+		cinematic.open()
+
+
+## WHAT A CHECKPOINT SAYS. It used to say "Checkpoint" on the status label, which is the same
+## label that says "Placing circle -- click to set it down" and is overwritten by the next
+## thing that happens; in practice the only time most checkpoints were ever announced was
+## after the player had already died and been put back at one.
+##
+## The hint channel, because this is the interface talking and it must not stop play -- a
+## checkpoint is frequently crossed mid-jump. The sound id has no file behind it yet and
+## AudioDirector treats that as silence rather than as an error, which is what lets the call
+## exist before the recording does.
+func _say_checkpoint() -> void:
 	status_label.text = "Checkpoint"
+	if hint_bar != null:
+		hint_bar.show_hint("The level will remember you from here.", "", 3.0)
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"checkpoint")
 
 
 func _on_obstacle_entered(obstacle_id: String) -> void:
@@ -570,6 +655,20 @@ func _on_obstacle_route_committed(obstacle_id: String, route: String) -> void:
 	var checkpoint_id := String(director.obstacle(obstacle_id).get("checkpoint_on_commit", ""))
 	if not checkpoint_id.is_empty():
 		_write_checkpoint(checkpoint_id)
+		_light_commit_mark(obstacle_id)
+		_say_checkpoint()
+
+
+## Light the mark standing at this beat. The apo is somewhere in the volume when a route is
+## committed, so the spark leaves from wherever they actually are -- the flame is carried to
+## the lantern, and that needs to know whose hands.
+func _light_commit_mark(obstacle_id: String) -> void:
+	var mark := _commit_marks.get(obstacle_id) as CheckpointLantern2D
+	if mark == null or not is_instance_valid(mark):
+		return
+	# Staged like the walk-in ones. A route commit is the biggest thing that happens at a
+	# node and it used to light a lantern the player was standing with their back to.
+	_stage_the_checkpoint(mark)
 
 
 func _on_obstacle_solved(obstacle_id: String, route: String, label: String, attempt_count: int, tier: int) -> void:
