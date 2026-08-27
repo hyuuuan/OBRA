@@ -889,15 +889,42 @@ func _tag_phrase(tags: Array, match: String) -> String:
 ## bale. Down is the platformer's key for a door, it is bound and unused outside a ladder,
 ## and the prompt reads the live InputMap rather than naming a letter that a rebinding could
 ## make a lie.
+## THE HOLE IS A HOLE AND THE APO DOES NOT FIT THROUGH IT.
+##
+## The design is that the DRAWING is what goes into the heap: the way in is a gap under a
+## haystack, so you have to be something small enough to use it. Going in used to be a
+## keypress anybody could make, which made the one place in Level 1 with an inside a room the
+## player walked into as themselves -- and made the brass key inside it free.
+##
+## The tag is `burrow` and it is asked of `AbilityTags` like every other requirement in this
+## level, so the mouth names a PROPERTY and never a class. It is a real obstacle now, which
+## means it obeys the level's rule about them: six answers, none of them written here.
+const BURROW_TAG := "burrow"
+
+
+## Whether whatever the player currently IS can get in under the straw. The apo cannot; a
+## drawing can, if it is one of the things `burrow` resolves to.
+func _fits_through_the_straw() -> bool:
+	if _current_form_id.is_empty():
+		return false
+	return AbilityTags.class_has_tag(_current_form_id, BURROW_TAG)
+
+
 func _on_straw_mouth(standing: bool) -> void:
 	_at_straw_mouth = standing
 	if hint_bar == null:
 		return
-	if standing:
-		hint_bar.show_hint("There is a way in under the straw  —  press %s"
-			% ControlsKeys.keys_for("move_down"))
-	else:
+	if not standing:
 		hint_bar.clear()
+		return
+	if _fits_through_the_straw():
+		hint_bar.show_hint("You will fit under there  —  press %s"
+			% ControlsKeys.keys_for("move_down"))
+		return
+	# The requirement, in the same words the strip and the route buttons use, so the heap
+	# cannot describe itself differently from everything else that asks for something.
+	hint_bar.show_hint("There is a way in under the straw, and you are too big for it.  %s"
+		% RequirementStrip.phrase([BURROW_TAG]).replace("\n", "  —  "))
 
 
 ## Ducking into the heap, which is the only place in Level 1 with an inside -- and the
@@ -909,6 +936,11 @@ func _on_straw_mouth(standing: bool) -> void:
 ## checkpoint carry in with her. Lolo comes too without being asked: he teleports to his
 ## target past 900px and the room is thousands away.
 func _on_straw_entered() -> void:
+	# REFUSED, AND SAID SO. A press that does nothing and explains nothing is a press the
+	# player concludes is broken -- and this one is the level's own design rule, not a bug.
+	if not _fits_through_the_straw():
+		_on_straw_mouth(true)
+		return
 	var room := get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
 	if room == null or player == null or not is_instance_valid(player):
 		_uncover_the_baul()
