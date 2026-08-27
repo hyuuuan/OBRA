@@ -32,6 +32,7 @@
     {"group": "PLACING", "keys": "Right click", "label": "Put it back, or take back one already down"},
     {"group": "PLACING", "keys": "Scroll", "label": "Turn it before you set it down"},
     {"group": "UTILITIES", "action": "inventory_slot_1", "through": "inventory_slot_6", "label": "Inventory slots"},
+    {"group": "UTILITIES", "action": "inventory_open", "label": "Open your bag and everything you have found"},
 
     {"group": "SYSTEM", "action": "pause", "label": "Pause, or back out"}
   ]

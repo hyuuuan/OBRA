@@ -35,7 +35,9 @@ at every obstacle needing that tag, at once.
 | Tag resolution | `game/scripts/ability_tags.gd` (autoload `AbilityTags`) |
 | Obstacle state, hint tiers, telemetry | `game/scripts/level_director.gd` |
 | Scene-side obstacle volume | `game/scripts/level_obstacle_2d.gd` |
-| Checkpoints | `checkpoint_manager.gd` (in memory) + `checkpoint_area_2d.gd` (walk-in) |
+| Checkpoints | `checkpoint_manager.gd` (in memory) + `checkpoint_area_2d.gd` (walk-in) + `checkpoint_flag_2d.gd` (the mark) |
+| The bag screen | `game/scripts/inventory_screen.gd` (Tab / I) |
+| "You acquired this" | `game/scripts/acquired_overlay.gd`, one door: `GameLevel.announce_acquisition` |
 | Dialogue loader | `game/scripts/dialogue_script.gd` |
 | The signs marking where a beat fires | `game/scripts/signpost_2d.gd` — five marks, meanings in **HUD_SKIN.md** |
 | HUD requirement strip | `game/scripts/requirement_strip.gd` |
@@ -60,7 +62,7 @@ against the wanderer's 94.3px jump.** Two solid treads survive above the gap; th
 `is_broken` stubs are drawn where the missing ones were, because two stones on their own
 read as two rocks rather than as a stair someone has to repair.
 
-The bank you answer it from runs x 640–920, and 216px of that is under open sky — the
+The bank you answer it from runs x 900–1180, and 216px of that is under open sky — the
 lowest surviving stone overhangs its right end, and the pocket beneath is 102px, enough to
 stand in and not enough to stand a drawing up in. That distinction is rule **R7** in
 `GATES.md`: it was 56px until 2026-08-24 and the level was effectively unplayable there.
@@ -118,7 +120,7 @@ Pre-existing geometry: `RouteLayout2D` frees the two unchosen branches outright.
 comes from `dialogue_l1.json`'s commit lines, so the button and the line the apo says when
 it is pressed are literally the same string. **CP1** on commit.
 
-### Node 2 — Ang Dayami (Terrace5, x 2960–3320)
+### Node 2 — Ang Dayami (Terrace5, x 3640–4340)
 
 Three heaps of cut straw, Lola's stool and brush jar, and **the one place in Level 1 with an
 inside**: the middle heap is 220 × 200 and you can walk into it.
@@ -131,8 +133,19 @@ tunnelled draws the one with the hole. The ants are drawn and animated in code f
 reference — ⚠ `ant pixel art.webp` is a **watermarked stock image**, a thing to work from
 and not a thing to ship.
 
-**Going in is a press.** Standing in the mouth only makes the offer — the hint bar says so
-and names the key out of the live InputMap. Down is the platformer's key for a door and is
+**Going in is a press, AND THE APO DOES NOT FIT.** The way in is a gap under a haystack, so
+what goes through it is a **drawing** — the heap asks for `burrow` ("small enough to get in
+where there is no door"), which resolves to six things that live in straw already. This is
+the design's own rule that the drawing is what enters the world, and it was not built: the
+press was one anybody could make, so the one place in Level 1 with an inside was a room the
+player walked into as themselves and the brass key in it was free. Standing at the mouth as
+the apo now names the requirement in the same words the strip and the route buttons use, and
+the press is refused out loud rather than doing nothing. ⚠ `run_walk_level1` morphs into
+something that fits before it presses — a fixture that walks in as the apo is testing a door
+that is not there.
+
+Standing anywhere in front of the heap makes the offer — the hint
+bar says so and names the key out of the live InputMap. Down is the platformer's key for a door and is
 unused outside a ladder. ⚠ It cannot be a walk-in: Terrace5 is the way to Node 3 and the
 mouth is on it, so a heap that swallows whoever passes is a hole in the floor of the level.
 `run_nodraw_level1` found exactly that — its walk east stopped dead at the doorway at x 3154
@@ -189,6 +202,9 @@ without being asked (he teleports past 900px and the room is thousands away).
   hundred either way, so standing near an end otherwise puts the end of the floor on screen
   with the sky behind it.
 
+**Tags at this node.** `burrow` gets you INSIDE the heap; the three route tags below are how
+you deal with the heap from outside. They are different questions and the level asks both.
+
 | Route | Tag | Straw ends up | Reward |
 |---|---|---|---|
 | Artist | Forage | combed, left standing | **sets `knows_about_key`** |
@@ -199,6 +215,31 @@ without being asked (he teleports past 900px and the room is thousands away).
 who blew the whole heap across the terrace has plainly got at whatever was hanging in it, and
 refusing them the key would mean the fast route locks the door the slow one opens. Same key,
 same name, so taking both ways in cannot yield two.
+
+⚠ **THREE THINGS AT THIS BEAT WERE INVISIBLE, and together they are the whole of "I walked
+up to the haystack and could not see a puzzle".**
+- The beat's own explanation is `L1_N2.teach`, **three lines, one per route** — and
+  `HintBar` had no queue, so all three were written into one label in one frame and only the
+  third was ever drawn. See `show_beat`.
+- The **hint board was painted over by the haystack**. `Signpost2D` drew at z 2 and
+  `StrawPileB` is authored at z 2; equal z falls back to tree order and `Dayami` is declared
+  after `Obstacles`. The board settled at (3160, 240), dead inside the heap's 3076–3284
+  footprint, on art that is 98.7% opaque there. Signs are z **7** now (over props at 0–6,
+  under the checkpoint flag at 8), and `LevelObstacle2D.hint_sign_offset` stands Node 2's
+  board clear of the doorway instead of in it.
+- The **notice zone was 59 × 71 world pixels** — the doorway in the art and nothing more.
+  Outside it nothing on screen said the heap had an inside, so a player walking east to
+  Node 3 passed within a stride of the only door in Level 1 and was told about it for about
+  a fifth of a second. The Area2D is the width of the heap and its lower two thirds now;
+  `mouth_rect()` is unchanged, because the audit measures it and the entry offer is drawn
+  from it. Going in is still a press, which is what makes a generous notice zone safe.
+
+**Combed is a different silhouette, not a smaller one.** `_settle()` returns 1.14 × 0.70 for
+COMBED against 0.99 × 0.97 for TUNNELLED, and `_draw_combing` rakes furrows across it and
+pulls a fringe of loose straw out at the foot. It was an 8% scale change on the same picture,
+so the route that costs the most patience left the least visible mark. ⚠ The furrows skip the
+mouth on the entrance heap: combing already squashes the doorway to seven tenths, and raking
+over it as well would close the last thing saying the room is there.
 
 ⚠ **THE DRAWING IS THE CHOICE at Nodes 2 and 3.** Node 1 stops the world and puts three
 buttons up, so a route is committed before anything is drawn. Nodes 2 and 3 never ask — how
@@ -356,16 +397,86 @@ the thing it was about, and `B0_HAGDAN` began 80px from the spawn point. `trigge
 now the single source of truth — `level_obstacle_2d.gd` fits the authored `RectangleShape2D`
 to it at `_ready`, so the exported number and the scene's shape can no longer disagree.
 
+⚠ **`B0_HAGDAN` CANNOT BE NARROWED, and this table said 430–950 for a while when the scene
+said 300–1000.** The near bank is the only ground the first sub-beat can be answered from —
+the plank is in the water and the apo cannot swim — so the volume has to reach the water's
+edge or every drawing set down from the bank is judged against no obstacle at all: no
+attempt counted, no tier moved, no solve. `run_level1_audit` stands the player on the bank
+and asserts the director is at `B0_HAGDAN`, which is what caught the narrowing.
+
+**THE LEVEL IS 5120 WIDE, NOT 3920, AND THE GAPS ARE THE POINT.** Every beat used to open
+within a stride of the last one finishing. The level grew by 1200 in four steps — the near
+bank +260, Terrace2 +420, Terrace5 +340, the Overlook +180 — and every one of them lengthens
+a WALK. No gate moved: the paddy is still 300 across, the bank still 280 from water to stair,
+the gorge still 560 lip to lip, and the stair still a 136px rise. ⚠ The shift is piecewise,
+so a coordinate written down before 2026-08-28 needs `x + 260/680/1020` depending on which
+side of 340 / 1480 / 3320 it was on. That is what `run_level1_audit`, `run_walk_level1`,
+`run_nodraw_level1` and the visual fixtures were all re-pointed through.
+
+**The opening was three stop-the-world events inside the first forty pixels**, and two of
+them were the game explaining itself twice before it had said anything once: `dialogue.json`'s
+`greeting`, then `B0_HAGDAN.enter`, then the story board lighting up at the player's feet.
+Since the volume cannot move, three other things did. The greeting is a **hint** now
+(`_greet` → `Lolo.say`) rather than a framed story beat — it says "press R and draw", which is
+instruction, and instruction is the hint channel's job; `B0_HAGDAN.enter` is the level's one
+opening conversation. The **spawn moved west to x 150**, which is 135px of walking before the
+volume. And `LevelObstacle2D.story_sign_offset` puts the board at the water's edge instead of
+on the leading edge of a volume that starts at the spawn. `hint_sign_offset` is the same
+lever for the hint board, and Node 2 uses it — see below.
+
 | Obstacle | Spans | What is in it |
 |---|---|---|
-| `B0_HAGDAN` | 430 – 950 | the floating plank (490), the three broken treads (800–884) |
-| `L1_N1` | 2170 – 2550 | the dialogue node (2330), the dead tree (2360), the ruined bridge (2400) |
-| `L1_N2` | 2960 – 3360 | the three straw piles (2974–3348), on Terrace5 |
-| `L1_N3` | 3410 – 3790 | the bale's floor (3500–3740) and both bululs |
+| `B0_HAGDAN` | 440 – 1260 | the floating plank (750), the three broken treads (1060–1144) |
+| `L1_N1` | 2850 – 3230 | the dialogue node (3010), the dead tree (3040), the ruined bridge (3080) |
+| `L1_N2` | 3640 – 4380 | the three straw piles (3654–4368), on Terrace5 |
+| `L1_N3` | 4430 – 4810 | the bale's floor (4520–4760) and both bululs |
 
 No two overlap now; `L1_N2` and `L1_N3` used to share 20px.
 
 ---
+
+**The checkpoint is a STONE LANTERN, and the fences are gone.** `CheckpointLantern2D` --
+cold grey stone with a black window until you reach it, and a fire that never stops
+afterwards, with the light lying on the ground under it. It replaced a bamboo pole with a
+cloth pennant, which read as one more signboard in a level that is already full of actual
+signboards ("you placed a sign in the checkpoint spots"). The state is LIGHT rather than
+colour, because a change from grey cloth to gold cloth is a change you have to be looking at
+it to notice. The two decorative fence sprites are deleted outright: one of them was standing
+on CP0.
+
+**The gorge and both paddies have an INSIDE now** (`GorgeWall2D`). They were holes in the
+terrain with nothing drawn behind them, so what showed through was the parallax -- sky,
+mountains and a painted terrace at nearly the brightness of the ground the player is standing
+on. A gorge you can see blue sky through is not a gorge; it reads as the level running out,
+and the ruined bridge standing over it reads as broken art. `face_width = 0` draws the back
+and no side faces, which is what a paddy wants.
+
+**The parallax is pushed back.** Four `modulate` values, cooler and darker the further away,
+so the only thing on screen at full contrast is the playfield. The near scenery layer was the
+offender: it scrolls at 0.72 and was drawn at almost foreground brightness, so a painted hut
+and a painted stone staircase read as things you could walk on.
+
+**The level ENDS AT THE HUT'S DOOR.** `_on_bale_exit` completes it, if the painting is in
+hand and CP3 is written. It used to end at the GoalMarker out on the Overlook, so finishing
+Payyo meant solving the hardest node in the level, climbing in, taking the canvas, climbing
+back out — and then walking to a spot that looks like every other spot on the terrace. Players
+did the first four and stood there. Getting in was the puzzle; getting out with it is the
+answer, and the door is where that happens.
+
+**Set pieces are letterboxed** (`CinematicBars`, `game/scripts/cinematic_bars.gd`). Bars in,
+the camera takes the moment, the moment plays, bars out. It frames the checkpoint lighting,
+the step into and out of a room, and the ending. ⚠ It does **not** pause and it is **not** a
+ModalOverlay: a checkpoint is crossed at a run and often in mid-air, and taking the controls
+away to hand somebody a reward is not a reward. It is also not a fade — LEVEL_1's rule that
+the heap's doorway must not get a beat of black still holds, and bars never hide the room.
+
+**The world moves now.** `WorldAmbience2D` hangs off the camera and drifts motes and leaves
+through the view wherever the player is, recycling anything that leaves the frame, so the
+density is constant across 5120 pixels for a fixed sixty-odd rectangles. `SceneryPuff2D` is
+the other half: dust off the heel every stride, a cloud scaled to the fall on every landing,
+and rings on the paddy where something breaks the surface. Payyo was a photograph — nothing
+on screen moved unless the player was touching it, and the apo has a twenty-three-pose sheet
+that was animating against scenery which never admitted she was there.
 
 ## Hint ladder
 

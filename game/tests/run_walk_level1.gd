@@ -1,4 +1,6 @@
 extends SceneTree
+
+const RosterFixtures = preload("res://tests/roster_fixtures.gd")
 ## Beat 0, walked rather than solved on paper.
 ##
 ##	 godot --headless --path game --script res://tests/run_walk_level1.gd
@@ -113,7 +115,7 @@ func _the_player_cannot_shove_the_plank() -> void:
 	# body, and it keeps counting through whatever the next test is doing -- so a case that
 	# leaves the player in the water hands the one after it a teleport it never asked for.
 	player.set("velocity", Vector2.ZERO)
-	player.global_position = Vector2(200.0, 520.0)
+	player.global_position = Vector2(200, 520.0)
 	for _frame in range(30):
 		await physics_frame
 
@@ -139,7 +141,7 @@ func _the_paddy_needs_a_crossing() -> void:
 		_fail("crossing the paddy", "the level has no floating tread")
 		return
 	player.set("velocity", Vector2.ZERO)
-	player.global_position = Vector2(300.0, 500.0)
+	player.global_position = Vector2(300, 500.0)
 	# ON THE BANK, not still falling onto it. The crossing below jumps when the player is
 	# grounded and near a lip, and a body still dropping the last few pixels walks straight
 	# past the lip without ever being grounded in the window.
@@ -199,7 +201,11 @@ func _the_paddy_needs_a_crossing() -> void:
 			plank_half = Rect2(collision.shape.call("get_rect")).size.x * 0.5
 			break
 	var plank_east: float = tread.global_position.x + plank_half
-	var lips: Array[float] = [340.0, plank_east]
+	# 600 is the near bank's lip since the level was stretched -- the bank grew from 340 wide
+	# to 600 so the opening beat has somewhere to happen. It was 340, which is now the middle
+	# of the bank: the walker jumped early, landed short of the deck, and the paddy read as a
+	# wall it could not cross.
+	var lips: Array[float] = [600.0, plank_east]
 	# HELD, THEN LET GO, THEN PRESSED AGAIN. The wanderer jumps on
 	# is_action_just_pressed, so a key held down from the first gap never fires the second
 	# one -- the player walked the deck, stepped off the far end and drowned, and the trace
@@ -223,7 +229,7 @@ func _the_paddy_needs_a_crossing() -> void:
 			Input.action_press(&"jump")
 			hold = 10
 		await physics_frame
-		if player.global_position.x > 660.0:
+		if player.global_position.x > 920.0:
 			crossed = true
 			break
 	Input.action_release(&"move_right")
@@ -252,6 +258,20 @@ func _the_heap_has_an_inside() -> void:
 	player.set("velocity", Vector2.ZERO)
 	player.global_position = outside + Vector2(mouth.get_center().x, 0.0)
 	for _frame in range(10):
+		await physics_frame
+	# AND THE APO DOES NOT FIT. The way in is a gap under a haystack, so what goes through it
+	# is a DRAWING small enough to use it -- the `burrow` tag. Standing here as herself, the
+	# press is refused and the heap says why. So the walker becomes something that fits
+	# first, which is what a player has to do.
+	var drawing := Image.create_empty(400, 400, false, Image.FORMAT_RGBA8)
+	drawing.fill(Color.WHITE)
+	level.call("_spawn_or_replace", "ant", "Ant", drawing,
+		RosterFixtures.for_rig("walker", "ant"))
+	for _frame in range(30):
+		await physics_frame
+	player = level.get("player") as Node2D
+	player.global_position = outside + Vector2(mouth.get_center().x, 0.0)
+	for _frame in range(20):
 		await physics_frame
 	# GOING IN IS A PRESS. Standing in the doorway only makes the offer -- the mouth is on
 	# the path east and a heap that swallows passers-by is a hole in the floor of the level.
@@ -323,7 +343,7 @@ func _can_be_climbed_with_a_step() -> void:
 	# headless run has no cursor -- the preview was being dragged to (0,0) and
 	# clamped to the reach radius, which put the step in the paddy. Hold the aim.
 	placement.set_process(false)
-	placement.call("update_target", Vector2(810.0, 505.0))
+	placement.call("update_target", Vector2(1070, 505.0))
 	for _frame in range(4):
 		await physics_frame
 	var placed: bool = placement.call("confirm_placement")
@@ -352,7 +372,7 @@ func _can_be_climbed_with_a_step() -> void:
 ## Run on an empty terrace on purpose. The bank at Beat 0 is littered with the step from the
 ## case above by the time this runs, and a square set down on top of another square is a
 ## test of stacking, not of taking things back.
-const CLEAR_GROUND := Vector2(1600.0, 236.0)
+const CLEAR_GROUND := Vector2(2280, 236.0)
 
 
 func _a_placement_can_be_taken_back() -> void:
@@ -557,7 +577,7 @@ func _the_overlook_needs_a_climb() -> void:
 	var inventory := level.get("inventory_manager") as Node
 	var placement := level.get("placement_controller") as Node2D
 	player.set("velocity", Vector2.ZERO)
-	player.global_position = Vector2(3230.0, 200.0)
+	player.global_position = Vector2(3910, 200.0)
 	for _frame in range(20):
 		await physics_frame
 
@@ -574,7 +594,7 @@ func _the_overlook_needs_a_climb() -> void:
 	# Standing ON Terrace5 against the cliff face, not overlapping the Overlook -- a
 	# ladder that clips the cliff gets lifted clear of it and ends up on top, which is no
 	# use to somebody standing at the bottom.
-	placement.call("update_target", Vector2(3280.0, 40.0))
+	placement.call("update_target", Vector2(3960, 40.0))
 	for _frame in range(4):
 		await physics_frame
 	var placed: bool = placement.call("confirm_placement")
@@ -654,7 +674,7 @@ func _key(action: StringName, pressed: bool) -> InputEventKey:
 ## On the bank below the gap, standing still.
 func _stand_on_the_bank() -> void:
 	player.set("velocity", Vector2.ZERO)
-	player.global_position = Vector2(740.0, bank_top - 40.0)
+	player.global_position = Vector2(1000, bank_top - 40.0)
 	for _frame in range(20):
 		await physics_frame
 

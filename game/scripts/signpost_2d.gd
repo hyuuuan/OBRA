@@ -122,8 +122,15 @@ static func plant(host: Node2D, what: Mark, offset: Vector2 = Vector2.ZERO,
 func _ready() -> void:
 	add_to_group(&"signposts")
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	# In front of the terrain and behind the player, who is at 10.
-	z_index = 2
+	# IN FRONT OF THE PROPS, and still behind the player at 10.
+	#
+	# It was 2, which is the same z the straw heap is authored at -- and equal z falls back
+	# to tree order, where Dayami is a later sibling than Obstacles. So Node 2's hint board
+	# was painted over by the haystack it stands at: the one marker saying "there is a puzzle
+	# here" was drawn underneath the puzzle, on art that is 98.7% opaque at that spot. The
+	# terraces and their props run 0..6 and the checkpoint flag is at 8, so 7 is the band
+	# between a prop and a flag, which is exactly what a sign is.
+	z_index = 7
 	set_process(true)
 	_settle()
 

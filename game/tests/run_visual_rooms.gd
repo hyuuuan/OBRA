@@ -6,7 +6,7 @@ extends SceneTree
 ## Every one of these was reported by a player looking at the screen, and not one of them
 ## would have been caught by a green headless suite: a room that does not fill the frame, a
 ## hint bar sitting across the middle of the path, a decision framed on empty terrace, and a
-## checkpoint flag planted underneath the terrace it belongs to.
+## checkpoint mark planted underneath the terrace it belongs to.
 
 const OUTPUT_DIR := "/tmp"
 
@@ -37,17 +37,21 @@ func _run() -> void:
 				room.call("refresh_from_profile")
 
 	# --- The checkpoint on the way up Ang Hagdan ----------------------------
-	_put(Vector2(940.0, 380.0))
+	# OUTSIDE the trigger, which runs 915..1065. At 940 the "before" frame was taken from
+	# inside it, so the picture of a cold checkpoint was a picture of a lit one.
+	_put(Vector2(1110, 380.0))
 	await _wait(0.6)
 	await _capture("00_checkpoint_before")
-	_put(Vector2(990.0, 400.0))
-	await _wait(0.35)
-	await _capture("01_checkpoint_hoisting")
+	_put(Vector2(1250, 400.0))
+	await _wait(0.6)
+	await _capture("01_checkpoint_lighting")
+	await _wait(1.4)
+	await _capture("02_checkpoint_lit")
 	await _wait(1.2)
-	await _capture("02_checkpoint_raised")
+	await _capture("02a_checkpoint_after_bars")
 	# And again from a step away, because the apo stands on top of the thing they just
 	# raised and a flag behind a player is not a flag anybody has looked at.
-	_put(Vector2(1120.0, 400.0))
+	_put(Vector2(1380, 400.0))
 	await _wait(0.8)
 	await _capture("02b_checkpoint_from_a_step_away")
 
@@ -59,7 +63,7 @@ func _run() -> void:
 	hint_bar.call("clear")
 
 	# --- The route decision, framed on the player rather than on the terrace -
-	_put(Vector2(2330.0, 200.0))
+	_put(Vector2(3010, 200.0))
 	await _wait(0.8)
 	level.call("_on_dialogue_node_approached")
 	await _wait(1.0)

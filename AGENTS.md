@@ -234,6 +234,16 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
 - **Story is framed; menus are not.** `UIFrame` (`game/scripts/ui_frame.gd`) draws a pixel
   picture frame, and everything the world says wears it -- Lolo's dialogue, the route
   decision, the Lola memory. Pause/settings/controls/confirm keep the plain panel.
+- **A drawn creature IS the player, and its root follows its rig.** `ActiveRagdollMorph`
+  joins `player_character` — for a long time `wanderer.gd` was the only thing that did, so
+  while morphed the player triggered no checkpoint, armed no obstacle and opened no door.
+  And the scene root is kept on `get_physics_anchor()` every frame (`_follow_anchor`): the
+  rig bodies are `top_level`, so `apply_morph_state` moving them used to leave the root at
+  the level's spawn point for the creature's whole life. Nine callers ask
+  `player.global_position`, and the expensive one is `_room_holding_player` — which is why
+  drawing anything inside an interior threw the camera back to valley framing, blanked the
+  room and cleared the box a placement may not leave. `run_room_probe` now runs its room
+  checks as a morph as well as as the apo; testing only the wanderer is what let that ship.
 - **Story and hints are two channels.** A beat of story goes to `DialogueBox` -- queued,
   advanced by the player with `ui_accept` or a click, world paused, camera pushed in on the
   speaker. A hint goes to `HintBar` -- no key, no pause, clears itself. `dialogue_script.kind_of`
@@ -241,6 +251,48 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
   wins. **Any fixture that plays the level unattended must call
   `call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)`**, or the first beat stops the
   tree and nothing moves again.
+  `HintBar` QUEUES a beat (`show_beat`): several hint lines arrive in one synchronous loop
+  and the bar has one label, so before the queue only the last line of a beat was ever
+  drawn — `L1_N2.teach` is three lines and is the only statement of the straw heap's puzzle
+  in the game. The last line of a beat stands; the ones before it are held for a dwell
+  measured off their own length. `show_hint` still replaces, because a standing prompt about
+  where the player is beats advice they are part-way through.
+- **A CHOICE AT A DIALOGUE NODE CARRIES ITS OWN REQUIREMENT.** The three buttons are Lolo's
+  own sentences and name nothing drawable, which is right — but they named no ability either,
+  and the beat that teaches the three requirements fires from the obstacle volume 160px
+  before the choice interrupts it. So the player heard one of three hint lines, picked a
+  sentence, and was then instructed in something they had never been told. Each button now
+  carries its route's requirement, worded by `RequirementStrip.phrase` — the same function
+  the strip itself uses on the same data, so the two cannot drift. `HintBar` also stands down
+  while any pausing modal is open, which is asked of the pause state rather than of any
+  particular overlay.
+- **A set piece is letterboxed, never paused.** `CinematicBars` frames the checkpoint
+  lighting, a step into or out of a room, and the ending. It decides nothing, answers no key
+  and must never enter `UIRouter.cancel_chain` — Escape would then "close" a camera move. It
+  is bars rather than a fade because a doorway the player already chose to walk through must
+  not get a beat of black (LEVEL_1.md), and because a checkpoint is crossed at a run.
+- **The world moves on its own.** `WorldAmbience2D` (a child of the Camera2D, so its space IS
+  view space — it divides the viewport by the camera zoom, which changes to 2 and 3 inside
+  the rooms) drifts motes and leaves and recycles them off-screen. `SceneryPuff2D` answers
+  the player: heel dust per stride, a landing cloud scaled to the fall, splash rings from
+  `WaterArea2D` on first overlap only.
+- **Taking something plays `AcquiredOverlay`, and there is one door to it.** Every pickup in
+  the game goes through `GameLevel.announce_acquisition(title, note, art)` — a dimmed card
+  that holds for a second and a half, does not pause and needs no key. It queues, so two
+  things taken at once are two cards rather than a cross-fade. Before it, two of ten
+  acquisitions had a world sparkle, most had one line on the status label (the same label
+  that says "Placing circle"), and the hidden flower emitted `collected` into a level that
+  had never connected it.
+- **The bag has a screen.** `InventoryScreen` (Tab or I, `inventory_open`) shows the six live
+  slots, the permanent things off `PlayerProfile`, and the 50-class roster as a count and a
+  grid. ⚠ It names a class only when the player has already drawn and had it accepted — the
+  rest are unnamed empty frames. Naming the roster would turn every obstacle in the game
+  into a lookup, which is the rule `RequirementStrip` exists to hold.
+- **Presence in a level is a question about THIS RUN; ownership is a question for the
+  profile.** `PlayerProfile.has_object` is permanent by design, and Ang Bale's interior was
+  asking it whether the painting was still there — so every run after the first opened the
+  house empty. Rooms ask `GameLevel.pickup_taken_this_run` instead. The profile write is
+  unchanged and still drives progression.
 - **`DialogueBox` is the only place a story line is drawn.** Lolo no longer carries a
   bubble; `say`/`hush`/`is_speaking` are unchanged and forward to the box, which the level
   builds and hands him at spawn. Lolo's own `say()` is the HINT channel now. The apo's

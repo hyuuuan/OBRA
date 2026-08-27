@@ -100,7 +100,7 @@ func _look_at_node_three() -> void:
 
 	# Beside the house, not inside it: the posts, deck and thatch are all solid and
 	# dropping the player into the middle of them wedges them in the geometry.
-	await _stand_at(level, Vector2(3360.0, 50.0))
+	await _stand_at(level, Vector2(4380, 50.0))
 	print("[n3_00_arrival] at obstacle '%s' -- four posts, four halipan, a deck and a roof"
 		% director.current_obstacle())
 	await _capture("n3_00_arrival")
@@ -115,7 +115,7 @@ func _look_at_node_three() -> void:
 		await _capture("n3_01_bulul")
 
 	# Back beside the house to answer the obstacle.
-	await _stand_at(level, Vector2(3360.0, 50.0))
+	await _stand_at(level, Vector2(4380, 50.0))
 	director.commit_route("L1_N3", "artist")
 	await _wait(0.6)
 	print("[n3_02_committed] over the thatch and in under the eaves")
