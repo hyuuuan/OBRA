@@ -160,6 +160,37 @@ func clear() -> void:
 	_own_line.text = ""
 
 
+## WHAT A REQUIREMENT SAYS, IN ONE PLACE, so nothing can say it differently.
+##
+## The strip is no longer the only thing that has to put a requirement into words: the
+## route buttons at a dialogue node now carry the requirement of the route they commit to.
+## Those two MUST agree -- the whole complaint this was written for is a player choosing
+## "Let us put it back" and then being told, by the strip, that the level wants something
+## else. Both read this, so there is one wording and it comes from the level's own data.
+static func phrase(required: Array, match: String = "all") -> String:
+	if required.is_empty():
+		return ""
+	var tree := Engine.get_main_loop() as SceneTree
+	var tags: Node = tree.root.get_node_or_null(^"/root/AbilityTags") if tree != null else null
+	var names := PackedStringArray()
+	var glosses := PackedStringArray()
+	for tag_value: Variant in required:
+		var tag := String(tag_value)
+		names.append(String(tags.call("display_name", tag)).to_upper()
+			if tags != null else tag.to_upper())
+		if tags == null:
+			continue
+		var text := String(tags.call("gloss", tag))
+		if not text.is_empty():
+			glosses.append(text)
+	# The joining word is the spec's own match rule and not a house style: Node 1's
+	# Pragmatist route asks for leap OR climb, and printing that as a list of demands makes
+	# the most generous requirement in the level read as the strictest.
+	var joiner := "  or  " if match == "any" else "  and  "
+	var head := "NEEDS  %s" % joiner.join(names)
+	return head if glosses.is_empty() else "%s\n%s" % [head, joiner.join(glosses)]
+
+
 func _join_tags(required: Array) -> String:
 	var parts := PackedStringArray()
 	for tag_value: Variant in required:

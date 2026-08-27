@@ -44,6 +44,12 @@ const WANDERER_SCENE := "res://creatures/wanderer.tscn"
 ## Built in code rather than authored into the scene, like the requirement strip: it owns
 ## its own frame and gauge and there is nothing to lay out by hand.
 var hud_panel: HudPanel
+## The card that says a thing is yours now. See AcquiredOverlay and announce_acquisition.
+var acquired_overlay: AcquiredOverlay
+## The bag, and everything found, on one screen. See InventoryScreen.
+var inventory_screen: InventoryScreen
+## The letterbox the level's set pieces are framed in. See CinematicBars.
+var cinematic: CinematicBars
 ## Top right: the drawing the player is currently wearing, and how long it has left.
 var morph_card: MorphCard
 ## What the recogniser scored the sketch that is currently being adopted.
@@ -117,6 +123,9 @@ var _classes_this_run: Dictionary = {}
 
 
 func _ready() -> void:
+	# Findable by the rooms, which have to ask what this RUN has already handed over rather
+	# than what the profile remembers forever. See pickup_taken_this_run.
+	add_to_group(RUN_STATE_GROUP)
 	registry.load_manifest()
 	# Running this scene directly -- from the editor, or from a test -- never goes
 	# through LevelManager.open_level, so nothing has said which level this is. The
@@ -135,6 +144,13 @@ func _ready() -> void:
 	draw_panel.set("debug_timing_logs", debug_timing_logs)
 	inventory_hud.set_manager(inventory_manager)
 	_build_hud_frame()
+	acquired_overlay = AcquiredOverlay.new()
+	acquired_overlay.name = "AcquiredOverlay"
+	add_child(acquired_overlay)
+	_build_inventory_screen()
+	cinematic = CinematicBars.new()
+	cinematic.name = "CinematicBars"
+	add_child(cinematic)
 
 	draw_button.pressed.connect(_on_draw_button_pressed)
 	draw_panel.drawing_ready.connect(_on_drawing_ready)
@@ -188,6 +204,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if director != null:
 			director.note_canvas_opened()
 		draw_panel.open_panel()
+		return
+	if event.is_action_pressed("inventory_open"):
+		get_viewport().set_input_as_handled()
+		_toggle_inventory_screen()
 		return
 	for slot in range(6):
 		if event.is_action_pressed("inventory_slot_%d" % (slot + 1)):
@@ -322,6 +342,12 @@ func _build_obstacle_layer() -> void:
 			node.connect(&"key_taken", _on_straw_key_taken)
 		if node.has_signal(&"exit_reached"):
 			node.connect(&"exit_reached", _on_straw_exit)
+		# The heap's inside says things now too. It is the one room in the level with a
+		# PUZZLE in it, and it was saying nothing at all -- see StrawRoom2D's nail notice.
+		if node.has_signal(&"noticed"):
+			node.connect(&"noticed", _on_room_notice)
+		if node.has_signal(&"notice_left"):
+			node.connect(&"notice_left", _on_room_notice_left)
 
 	# Checkpoints you walk into, for the beats with no dialogue to hang one on.
 	for node in get_tree().get_nodes_in_group(&"checkpoint_areas"):
@@ -348,6 +374,31 @@ func _build_obstacle_layer() -> void:
 			continue
 		area.player_entered.connect(director.enter_obstacle)
 		area.player_exited.connect(director.exit_obstacle)
+		_plant_commit_mark(area)
+
+
+## A MARK FOR THE CHECKPOINTS NOBODY COULD SEE.
+##
+## Payyo declares six checkpoints and exactly ONE of them had anything on screen: CP0, the
+## walk-in at the top of the stair. CP1, CP2 and CP3 are written the instant a route is
+## committed, which is every node in the level, and they were a dictionary entry and a
+## telemetry event and nothing else. So the three moments the game is most generous to the
+## player -- the ones it puts in front of every morph on a route -- said nothing at all, and
+## the player found out a checkpoint existed only by dying.
+##
+## The flag stands at the OUTGOING edge of the obstacle, which is where the player is headed
+## when the route is committed, and it is furled and grey until the commit raises it. Which
+## obstacles get one is read out of `checkpoint_on_commit` in level_01.json rather than
+## authored in the scene, so a checkpoint moved in the data takes its mark with it.
+func _plant_commit_mark(volume: LevelObstacle2D) -> void:
+	var checkpoint_id := String(
+		director.obstacle(volume.obstacle_id).get("checkpoint_on_commit", ""))
+	if checkpoint_id.is_empty():
+		return
+	var at := Vector2(volume.trigger_size.x * 0.5 - 40.0, 0.0)
+	var mark := CheckpointLantern2D.plant(volume, at)
+	if mark != null:
+		_commit_marks[volume.obstacle_id] = mark
 
 
 func _checkpoint_is_declared(checkpoint_id: String) -> bool:
@@ -361,7 +412,61 @@ func _checkpoint_is_declared(checkpoint_id: String) -> bool:
 
 func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
 	_write_checkpoint(checkpoint_id)
+	_say_checkpoint()
+	var area := _checkpoint_area_for(checkpoint_id)
+	if area != null:
+		_stage_the_checkpoint(area.get_node_or_null(^"Checkpoint") as Node2D)
+
+
+func _checkpoint_area_for(checkpoint_id: String) -> Node:
+	for node in get_tree().get_nodes_in_group(&"checkpoint_areas"):
+		if String(node.get("checkpoint_id")) == checkpoint_id:
+			return node
+	return null
+
+
+## THE MOMENT A CHECKPOINT IS EARNED, FRAMED.
+##
+## The lantern lights whether or not anybody is looking at it, and a player crossing a
+## checkpoint is by definition moving -- so the one generous thing the level does was
+## happening somewhere off to the side of a screen they were reading for platforms. Bars in,
+## the camera takes the lantern, it catches, the camera lets go, bars out. Under three
+## seconds, and it never takes the controls away: see CinematicBars on why it does not pause.
+func _stage_the_checkpoint(mark: Node2D) -> void:
+	if mark == null or cinematic == null or cinematic.is_playing():
+		return
+	var world_camera := _world_camera()
+	cinematic.close("CHECKPOINT")
+	if world_camera != null:
+		# Pushed in a little and level with the flame rather than lifted off it -- the default
+		# dialogue framing drops the camera to look up at a speaker, and there is nobody here.
+		world_camera.focus_on(mark, 1.22, 0.45, -46.0)
+	await get_tree().create_timer(0.42, true, false, true).timeout
+	if is_instance_valid(mark) and mark.has_method("light"):
+		mark.call("light", Vector2(0.0, -60.0))
+	await get_tree().create_timer(1.35, true, false, true).timeout
+	if world_camera != null:
+		world_camera.release_focus()
+	if cinematic != null:
+		cinematic.open()
+
+
+## WHAT A CHECKPOINT SAYS. It used to say "Checkpoint" on the status label, which is the same
+## label that says "Placing circle -- click to set it down" and is overwritten by the next
+## thing that happens; in practice the only time most checkpoints were ever announced was
+## after the player had already died and been put back at one.
+##
+## The hint channel, because this is the interface talking and it must not stop play -- a
+## checkpoint is frequently crossed mid-jump. The sound id has no file behind it yet and
+## AudioDirector treats that as silence rather than as an error, which is what lets the call
+## exist before the recording does.
+func _say_checkpoint() -> void:
 	status_label.text = "Checkpoint"
+	if hint_bar != null:
+		hint_bar.show_hint("The level will remember you from here.", "", 3.0)
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"checkpoint")
 
 
 func _on_obstacle_entered(obstacle_id: String) -> void:
@@ -550,6 +655,20 @@ func _on_obstacle_route_committed(obstacle_id: String, route: String) -> void:
 	var checkpoint_id := String(director.obstacle(obstacle_id).get("checkpoint_on_commit", ""))
 	if not checkpoint_id.is_empty():
 		_write_checkpoint(checkpoint_id)
+		_light_commit_mark(obstacle_id)
+		_say_checkpoint()
+
+
+## Light the mark standing at this beat. The apo is somewhere in the volume when a route is
+## committed, so the spark leaves from wherever they actually are -- the flame is carried to
+## the lantern, and that needs to know whose hands.
+func _light_commit_mark(obstacle_id: String) -> void:
+	var mark := _commit_marks.get(obstacle_id) as CheckpointLantern2D
+	if mark == null or not is_instance_valid(mark):
+		return
+	# Staged like the walk-in ones. A route commit is the biggest thing that happens at a
+	# node and it used to light a lantern the player was standing with their back to.
+	_stage_the_checkpoint(mark)
 
 
 func _on_obstacle_solved(obstacle_id: String, route: String, label: String, attempt_count: int, tier: int) -> void:
@@ -770,15 +889,42 @@ func _tag_phrase(tags: Array, match: String) -> String:
 ## bale. Down is the platformer's key for a door, it is bound and unused outside a ladder,
 ## and the prompt reads the live InputMap rather than naming a letter that a rebinding could
 ## make a lie.
+## THE HOLE IS A HOLE AND THE APO DOES NOT FIT THROUGH IT.
+##
+## The design is that the DRAWING is what goes into the heap: the way in is a gap under a
+## haystack, so you have to be something small enough to use it. Going in used to be a
+## keypress anybody could make, which made the one place in Level 1 with an inside a room the
+## player walked into as themselves -- and made the brass key inside it free.
+##
+## The tag is `burrow` and it is asked of `AbilityTags` like every other requirement in this
+## level, so the mouth names a PROPERTY and never a class. It is a real obstacle now, which
+## means it obeys the level's rule about them: six answers, none of them written here.
+const BURROW_TAG := "burrow"
+
+
+## Whether whatever the player currently IS can get in under the straw. The apo cannot; a
+## drawing can, if it is one of the things `burrow` resolves to.
+func _fits_through_the_straw() -> bool:
+	if _current_form_id.is_empty():
+		return false
+	return AbilityTags.class_has_tag(_current_form_id, BURROW_TAG)
+
+
 func _on_straw_mouth(standing: bool) -> void:
 	_at_straw_mouth = standing
 	if hint_bar == null:
 		return
-	if standing:
-		hint_bar.show_hint("There is a way in under the straw  —  press %s"
-			% ControlsKeys.keys_for("move_down"))
-	else:
+	if not standing:
 		hint_bar.clear()
+		return
+	if _fits_through_the_straw():
+		hint_bar.show_hint("You will fit under there  —  press %s"
+			% ControlsKeys.keys_for("move_down"))
+		return
+	# The requirement, in the same words the strip and the route buttons use, so the heap
+	# cannot describe itself differently from everything else that asks for something.
+	hint_bar.show_hint("There is a way in under the straw, and you are too big for it.  %s"
+		% RequirementStrip.phrase([BURROW_TAG]).replace("\n", "  —  "))
 
 
 ## Ducking into the heap, which is the only place in Level 1 with an inside -- and the
@@ -790,6 +936,11 @@ func _on_straw_mouth(standing: bool) -> void:
 ## checkpoint carry in with her. Lolo comes too without being asked: he teleports to his
 ## target past 900px and the room is thousands away.
 func _on_straw_entered() -> void:
+	# REFUSED, AND SAID SO. A press that does nothing and explains nothing is a press the
+	# player concludes is broken -- and this one is the level's own design rule, not a bug.
+	if not _fits_through_the_straw():
+		_on_straw_mouth(true)
+		return
 	var room := get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
 	if room == null or player == null or not is_instance_valid(player):
 		_uncover_the_baul()
@@ -837,9 +988,24 @@ func _step_through(to: Vector2) -> void:
 	_walk_through.call_deferred(to)
 
 
+## THE LETTERBOX, NOT A FADE. LEVEL_1.md is explicit that stepping into the heap must not
+## get a beat of black -- at a fifth of a second twice it read as the game stopping to load,
+## and a doorway you have already chosen to walk through does not want one. Bars are a
+## different thing: they never hide the room, they take a quarter of a second at each end,
+## and they say "this is a place now" rather than "please wait".
+func _frame_the_step() -> void:
+	if cinematic == null or cinematic.is_playing():
+		return
+	cinematic.close()
+	await get_tree().create_timer(0.55, true, false, true).timeout
+	if cinematic != null:
+		cinematic.open()
+
+
 func _walk_through(to: Vector2) -> void:
 	if player == null or not is_instance_valid(player):
 		return
+	_frame_the_step()
 	player.call("apply_morph_state", {"position": to, "linear_velocity": Vector2.ZERO})
 	# And it has to arrive already framed: easing across four thousand units is a whip pan
 	# through the whole level.
@@ -931,7 +1097,18 @@ func _on_straw_key_taken() -> void:
 ## of one. StrawRoom2D writes the profile itself when the nail is reached, so this is
 ## idempotent on purpose -- it is the telemetry and the hint that must not fire twice, and
 ## the profile that must not care how many times it is told.
+## GUARDED ON THIS RUN, NOT ON THE PROFILE. It is reached twice -- off the nail inside the
+## heap, and out of the wreck of one scattered by the Protector route -- so it has to be
+## idempotent. It was idempotent against `is_collectible_found`, which is permanent: on a
+## second playthrough the key was still there on the nail, still walked into, and the game
+## said nothing at all about it because a previous run had already been told.
 func _take_the_bale_key(how: String) -> void:
+	if pickup_taken_this_run(FOUND_KEY):
+		return
+	note_pickup_taken(FOUND_KEY)
+	announce_acquisition("The Brass Key",
+		"Too small for the chest. It belongs to a door you have only seen painted.",
+		UIIcons.key())
 	if PlayerProfile.is_collectible_found(FOUND_KEY):
 		return
 	PlayerProfile.record_collectible(FOUND_KEY)
@@ -1125,10 +1302,28 @@ func _on_room_notice(text: String) -> void:
 func _on_room_notice_left() -> void:
 	if hint_bar == null:
 		return
+	if hint_bar.current_text() == StrawRoom2D.NAIL_NOTICE:
+		hint_bar.clear()
+		return
 	for entry: Variant in BaleInterior2D.NOTICES:
 		if hint_bar.current_text() == String((entry as Dictionary)["text"]):
 			hint_bar.clear()
 			return
+
+
+## THE ONE PLACE THE GAME SAYS "THIS IS YOURS NOW".
+##
+## Every acquisition in the level goes through here rather than each one inventing its own
+## feedback, which is how the level ended up with two sparkles, four lines of grey status
+## text and one pickup -- the hidden flower -- that said nothing whatsoever. A reward should
+## not look different according to which room it was found in.
+##
+## Safe to call with no overlay: fixtures that build the level headless still run every one
+## of these call sites, and none of them should have to check first.
+func announce_acquisition(title: String, note: String, art: Texture2D = null) -> void:
+	if acquired_overlay == null or not is_instance_valid(acquired_overlay):
+		return
+	acquired_overlay.present(title, note, art)
 
 
 ## Lola's canvas, off the floor of her own house.
@@ -1140,6 +1335,9 @@ func _on_room_notice_left() -> void:
 ## had already searched, which is exactly what "dialogue pops up randomly" looks like from the
 ## outside. The canvas has its own beat now.
 func _on_painting_taken() -> void:
+	announce_acquisition("Pista",
+		"Lola's second canvas. The way into the next place.",
+		BaleInterior2D.PISTA_ART)
 	_speak(script_lines_l1.fire("L1_N3.canvas.taken"))
 	_grant_the_canvas()
 
@@ -1151,16 +1349,35 @@ func _on_painting_taken() -> void:
 ## Node 3, satisfied the goal marker, and finished Level 1 with nothing to show for it and
 ## no way back in. So the ladder takes it for them -- you would not leave it -- which costs
 ## the deliberate player nothing and cannot strand the distracted one.
+## Back down the ladder, onto the terrace they climbed from -- AND THAT IS THE END OF THE
+## LEVEL, if they have what they came for.
+##
+## IT USED TO BE A MARKER STONE THEY HAD TO GO AND FIND. The GoalMarker sits out on the
+## Overlook, so finishing Payyo meant: solve the hardest node in the level, climb in, take the
+## painting, climb back out, and then walk to a spot that looks like every other spot on the
+## terrace. Players did the first four and stood there. "I don't understand why I have to exit
+## the hut and then enter again to finish the game" is what that reads like from outside -- the
+## level is over and the game has not said so.
+##
+## The door IS the ending now. You take her canvas and you walk out, which is the shape the
+## whole node has: getting in was the puzzle, and getting out with it is the answer.
 func _on_bale_exit() -> void:
 	if not PlayerProfile.has_object("canvas_2_pista"):
 		_grant_the_canvas()
 	if _bale_return != Vector2.ZERO:
 		_step_through(_bale_return)
+	if not _completion_unlocked():
+		return
+	# After the step, so the level ends with the apo standing on the terrace she came from
+	# rather than inside a room the completion screen is drawn over.
+	await get_tree().process_frame
+	_complete_level()
 
 
 ## What the chest held, and the reason Pista opens. The unlock happens at CP3 rather than
 ## at the marker stone, so a player who stops after this keeps the progress.
 func _grant_the_canvas() -> void:
+	note_pickup_taken("canvas_2_pista")
 	PlayerProfile.record_object_acquired("canvas_2_pista")
 	PlayerProfile.mark_level_completed(LevelManager.current_level_id)
 	Telemetry.record_event("item_granted", {
@@ -1180,6 +1397,34 @@ func _wire_the_bulul() -> void:
 			# the memory; see _speak_on_arrival.
 			figure.approached.connect(func() -> void:
 				_speak_on_arrival("L1_N3.bulul_approach"))
+
+
+## WHAT THIS RUN OF THE LEVEL HAS ALREADY HANDED OVER, and why it is not the profile.
+##
+## `PlayerProfile.has_object` is GLOBAL AND PERMANENT -- that is its job, and it is what the
+## progression and the concept gates are built on. Ang Bale's interior was asking it whether
+## the painting was still there, which is a different question with a different lifetime: the
+## answer is yes forever after the first time anybody takes it. So the second time a player
+## opened Level 1 they solved the hardest node in the level, climbed into the house, and
+## found an empty room -- the reward for the whole level silently absent, with the profile
+## quietly insisting they already had it.
+##
+## Presence in the world is a question about THIS RUN. Ownership stays on the profile.
+const RUN_STATE_GROUP := &"level_run_state"
+
+var _taken_this_run: Dictionary = {}
+## The mark standing at each beat that writes a checkpoint on commit, by obstacle id.
+var _commit_marks: Dictionary = {}
+
+
+## Whether this run of the level has already given `pickup_id` away. Rooms ask this instead
+## of the profile before deciding whether to draw what they are holding.
+func pickup_taken_this_run(pickup_id: String) -> bool:
+	return bool(_taken_this_run.get(pickup_id, false))
+
+
+func note_pickup_taken(pickup_id: String) -> void:
+	_taken_this_run[pickup_id] = true
 
 
 func _write_checkpoint(checkpoint_id: String) -> void:
@@ -1305,6 +1550,12 @@ func _restore_placed_entities(records: Array) -> void:
 ## loop, writing five lines into the same label in the same frame. Only the last survived.
 func _speak(lines: Array) -> void:
 	var beat: Array[Dictionary] = []
+	# GATHERED, NOT WRITTEN STRAIGHT THROUGH. Handing each hint to the bar as it came out of
+	# the loop meant a beat of several hints was several writes to one label inside one frame,
+	# and only the last of them was ever drawn -- the same defect this function's own comment
+	# records fixing for the story box. `L1_N2.teach` is three lines and is the only statement
+	# of the straw heap's puzzle in the game; the player was shown one of them.
+	var advice: Array[Dictionary] = []
 	for line_value: Variant in lines:
 		var line: Dictionary = line_value
 		var text := script_lines_l1.display_text(line)
@@ -1312,11 +1563,10 @@ func _speak(lines: Array) -> void:
 			continue
 		var speaker := String(line.get("speaker", "lolo"))
 		if script_lines_l1.kind_of(line) == "hint":
-			if hint_bar != null:
-				hint_bar.show_hint(text,
-					Lolo.SPEAKER if speaker == "lolo" else APO_SPEAKER)
-			else:
-				status_label.text = text
+			advice.append({
+				"text": text,
+				"speaker": Lolo.SPEAKER if speaker == "lolo" else APO_SPEAKER,
+			})
 			continue
 		beat.append({
 			"text": text,
@@ -1326,12 +1576,27 @@ func _speak(lines: Array) -> void:
 	if beat.is_empty() or dialogue_box == null:
 		if not beat.is_empty():
 			status_label.text = String(beat[-1]["text"])
+		_post_advice(advice)
 		return
-	# A hint left on screen under a conversation is the two channels talking at once.
+	# A hint left on screen under a conversation is the two channels talking at once. Taken
+	# down BEFORE the advice of this same beat goes up, not after -- clearing afterwards is
+	# what used to throw the hints away in a beat that carried both kinds.
 	if hint_bar != null:
 		hint_bar.clear()
 	_focus_camera_for(String(beat[0]["at"]))
 	dialogue_box.speak(beat)
+	# The bar fades itself out and freezes its dwell while anybody is speaking, so advice
+	# posted now waits under the conversation and plays out when the player has read it.
+	_post_advice(advice)
+
+
+func _post_advice(advice: Array[Dictionary]) -> void:
+	if advice.is_empty():
+		return
+	if hint_bar == null:
+		status_label.text = String(advice[-1]["text"])
+		return
+	hint_bar.show_beat(advice)
 
 
 ## Push the camera in on whoever is talking, and give it back when the beat is over.
@@ -1366,6 +1631,14 @@ func _focus_camera_for(speaker: String) -> void:
 		world_camera.focus_on(subject)
 	if not dialogue_box.conversation_finished.is_connected(_release_camera_focus):
 		dialogue_box.conversation_finished.connect(_release_camera_focus)
+
+
+## The hidden flower in the gorge cave, which is the one thing in Payyo a player can miss
+## entirely and the one thing that had no acknowledgement at all.
+func _on_flower_found(_collectible_id: String) -> void:
+	announce_acquisition("Hidden Flower",
+		"One of five. Lola pressed them between the pages.",
+		HiddenFlower2D.ART)
 
 
 func _release_camera_focus() -> void:
@@ -1427,14 +1700,15 @@ func _on_drawing_ready(
 	# as a utility now, so a ramp or a step lands where it was wanted.
 	if role == "utility" or role == "physics_morph":
 		var item := DrawnItemData.from_prediction(entity_id, display_name, drawing, strokes, ink_cost, entry)
-		if PlayerProfile.has_object(entity_id):
+		var first_time := not PlayerProfile.has_object(entity_id)
+		if not first_time:
 			# Re-summoning an object the player already owns is free: refund the
 			# reservation and mark the item settled so no later path charges it.
 			ink_manager.release_attempt()
 			item.ink_committed = true
 		else:
 			PlayerProfile.record_object_acquired(entity_id)
-		_begin_new_utility(item)
+		_begin_new_utility(item, first_time)
 		return
 	if _spawn_or_replace(entity_id, display_name, drawing, strokes):
 		ink_manager.commit_attempt()
@@ -1502,7 +1776,10 @@ func _spawn_or_replace(
 ## the cursor that they had not asked for and could not put down without either
 ## placing it or right-clicking. Deciding WHAT to draw and deciding WHERE it goes are
 ## two separate thoughts, and the game was making the second one for them.
-func _begin_new_utility(item: DrawnItemData) -> void:
+## `first_time` is whether this CLASS is new to the player, not whether the bag was empty.
+## The card is for acquiring something; the fifth axe of the run is a tool coming out of the
+## bag, and dimming the screen for it would make the reward beat into a loading screen.
+func _begin_new_utility(item: DrawnItemData, first_time: bool = true) -> void:
 	var slot := inventory_manager.add_item(item)
 	if slot == -1:
 		ink_manager.release_attempt()
@@ -1513,6 +1790,13 @@ func _begin_new_utility(item: DrawnItemData) -> void:
 		ink_manager.commit_attempt()
 	inventory_hud.set_selected(slot)
 	status_label.text = "%s drawn — press %d to place it" % [item.display_name, slot + 1]
+	if not first_time:
+		return
+	# The player's OWN drawing, paper knocked out, held up for a second. This is the moment
+	# the recogniser agreed with them, and it was a line of grey text in the corner.
+	announce_acquisition(item.display_name,
+		"In your bag — press %d to use it" % (slot + 1),
+		DrawingSkin2D.thumbnail(item.image))
 
 
 ## What a slot does depends on what is in it, because the two kinds of drawn object are
@@ -1838,6 +2122,13 @@ func _drop_equipped_before_morph(previous_state: Dictionary) -> void:
 		return
 	var drop_position := Vector2(previous_state.get("position", spawn_point.global_position))
 	_equipped_utility.drop_to_world(world_item_root, drop_position)
+	# AND TELL IT HOW BIG THE WORLD IS, which only _on_placement_confirmed was doing.
+	# PhysicsShapeObject clamps itself back into Rect2(0, -520, 3760, 1200) when it is not
+	# told otherwise, and both interiors sit a thousand units above the top of that -- so a
+	# tool dropped by a morph inside a room was teleported out of the room and down into the
+	# valley on its first physics tick.
+	if _equipped_utility.has_method("set_world_bounds"):
+		_equipped_utility.call("set_world_bounds", Rect2(environment.get("world_bounds")))
 	_equipped_utility = null
 
 
@@ -2162,7 +2453,11 @@ func _physics_process(_delta: float) -> void:
 		_submerged_seconds = 0.0
 	# Crossing the far lip is what earns the memory, not choosing the route that would
 	# have earned it: the reward is for having rebuilt her bridge and walked over it.
-	if anchor_position.x > 2980.0:
+	#
+	# 3660 since the level was stretched: the gorge's far lip moved with Terrace5. It was
+	# 2980, which after the stretch is the middle of the gorge -- so the memory fired while
+	# the player was still falling into it.
+	if anchor_position.x > 3660.0:
 		_show_memory_if_earned()
 	var distance := anchor_position.distance_to(goal_marker.global_position)
 	# The distance is already being computed to decide completion, so showing it costs
@@ -2431,11 +2726,77 @@ func _lolo_says(key: String, seconds: float = 0.0) -> void:
 	dialogue_box.speak([{"text": line, "speaker": Lolo.SPEAKER}])
 
 
+## THE OPENING IS ONE BEAT NOW, AND THIS IS NOT IT.
+##
+## The level used to open with three stop-the-world events inside the first forty pixels:
+## this greeting, then `B0_HAGDAN.enter` (two lines) the moment the player took a step, then
+## a readable signpost lighting up at their feet. Two of those were the game explaining
+## itself twice before it had said anything once.
+##
+## The trigger moved east -- B0_HAGDAN spans 430-950 now, as LEVEL_1.md always said it did --
+## so `.enter` fires after a walk instead of after a footstep, and it is the level's one
+## opening CONVERSATION. This line stays, because "press R and draw" is the only place the
+## player is told what the game is, but it goes on the HINT channel where an instruction
+## belongs: no pause, no key, and it clears itself when the stair beat arrives. It is also
+## the out-of-voice line the old dialogue.json still carries, which is a second reason not
+## to give it the framed box that Payyo's own script is written for.
+## The full bag screen, and its place in the queue of things Escape backs out of.
+##
+## THE CHAIN IS DATA, NOT NODE ORDER (see UIRouter), and it is authored in game_level.tscn --
+## but this screen is built here rather than instanced, so it inserts itself. It goes in
+## AHEAD of the pause menu and behind everything else: Escape should close the bag rather
+## than open the pause menu over the top of it, and it should not outrank a confirmation.
+func _build_inventory_screen() -> void:
+	inventory_screen = InventoryScreen.new()
+	inventory_screen.name = "InventoryScreen"
+	add_child(inventory_screen)
+	inventory_screen.wire(inventory_manager, registry)
+	inventory_screen.slot_activated.connect(_on_inventory_slot_pressed)
+	var router := get_node_or_null(^"UIRouter")
+	if router == null:
+		return
+	var chain: Array[NodePath] = router.get(&"cancel_chain")
+	var at := chain.size()
+	for index in range(chain.size()):
+		if String(chain[index]).get_file() == "PauseMenu":
+			at = index
+			break
+	chain.insert(at, router.get_path_to(inventory_screen))
+	router.set(&"cancel_chain", chain)
+
+
+## The bag, opened deliberately. Refused while the drawing panel is up or something is being
+## placed: both of those are already a mode the player is in the middle of, and a second
+## full-screen thing over the top of either is a way to lose a drawing.
+func _toggle_inventory_screen() -> void:
+	if inventory_screen == null or not is_instance_valid(inventory_screen):
+		return
+	if inventory_screen.is_open():
+		inventory_screen.close()
+		return
+	if draw_panel != null and draw_panel.has_method("is_open") and bool(draw_panel.is_open()):
+		return
+	if placement_controller != null and placement_controller.is_placing():
+		return
+	inventory_screen.open()
+
+
 func _greet() -> void:
-	_lolo_says("greeting")
+	if lolo == null or not is_instance_valid(lolo):
+		return
+	var line := String(_script_lines.get("greeting", ""))
+	if line.is_empty():
+		return
+	lolo.say(line)
 
 
 func _wire_dialogue_node() -> void:
+	# THE FLOWER SAID NOTHING. `collected` has been emitted since the flower existed and
+	# nothing in the level had ever connected it: the one optional collectible in Payyo was
+	# picked up in silence, with a rise-and-fade on the sprite and no other acknowledgement
+	# anywhere. It is the hardest thing in the level to find.
+	if hidden_flower != null and not hidden_flower.collected.is_connected(_on_flower_found):
+		hidden_flower.collected.connect(_on_flower_found)
 	if cave_gate != null and hidden_flower != null:
 		# The gate is the only thing that may reveal the flower, so a player who has
 		# not learned Illumination sees a dark cave rather than a prize behind glass.
@@ -2452,6 +2813,27 @@ func _wire_dialogue_node() -> void:
 	memory_overlay.connect(&"dismissed", func() -> void: _lolo_says("arrival"))
 
 
+## WHAT EACH ANSWER WILL ASK FOR, read off the level's own route data.
+##
+## The three buttons are sentences Lolo says and name nothing drawable, which is right --
+## the level never names a class. But they named no ABILITY either, and the requirement was
+## taught seconds before as three hint lines that the choice itself interrupts. So a player
+## picked a sentence and was then instructed in something they had not heard. This puts the
+## route's own requirement on its own button, phrased by the same function the requirement
+## strip uses, so the two cannot drift.
+func _requirements_per_route(obstacle_id: String) -> Dictionary:
+	var notes: Dictionary = {}
+	if director == null:
+		return notes
+	var routes: Dictionary = director.obstacle(obstacle_id).get("routes", {})
+	for route_value: Variant in routes.keys():
+		var route := String(route_value)
+		var spec: Dictionary = routes[route]
+		notes[route] = RequirementStrip.phrase(
+			spec.get("required_tags", []), String(spec.get("match", "all")))
+	return notes
+
+
 ## Lolo pauses time to talk (Game Design section 3). The overlay is what does the
 ## pausing -- it is a ModalOverlay, and UIRouter derives the tree's pause state from
 ## whoever is open -- so this only has to decide what he asks.
@@ -2466,7 +2848,8 @@ func _on_dialogue_node_approached() -> void:
 		var context := ""
 		for line_value: Variant in script_lines_l1.peek("L1_N1.choice"):
 			context = String((line_value as Dictionary).get("text", ""))
-		dialogue_overlay.call("present", "Lolo", context, choices)
+		dialogue_overlay.call("present", "Lolo", context, choices,
+			_requirements_per_route("L1_N1"))
 		_frame_the_decision()
 		return
 	var node_lines: Dictionary = _script_lines.get("node", {})
@@ -2584,9 +2967,18 @@ func _complete_level() -> void:
 	Telemetry.end_level(level_id, "completed")
 	PlayerProfile.mark_level_completed(level_id)
 	status_label.text = "Level complete!"
+	# STAGED BEFORE THE PANEL. The level used to end by putting a screen over an unchanged
+	# view -- the last thing the player did and the acknowledgement of it happened at the same
+	# size as walking around. The bars come in on the terrace she is standing on, hold for a
+	# beat with her name for the level in them, and the panel arrives into that.
+	if cinematic != null:
+		cinematic.close("PAYYO")
+		await get_tree().create_timer(1.1, true, false, true).timeout
 	# The transition used to fire HERE, on the same frame, so the one moment the game
 	# acknowledges the player lasted a frame and was never read. It now waits for them.
 	complete_overlay.call("present", run_stats())
+	if cinematic != null:
+		cinematic.open()
 
 
 ## Whether the run ends with this level, or the level select comes next. The branch

@@ -15,6 +15,21 @@ signal player_exited(obstacle_id: String)
 ## checked at load rather than trusted.
 @export var obstacle_id: String = ""
 @export var trigger_size := Vector2(320.0, 400.0)
+## HOW FAR IN FROM THE LEADING EDGE THE STORY BOARD STANDS. Zero for every beat but one.
+##
+## The board goes where the beat fires, which is the trigger's leading edge -- and for Beat 0
+## the leading edge is not a place, it is the spawn. B0_HAGDAN's volume has to reach x 300
+## because the near bank runs 0..340 and that bank is the only ground the first sub-beat can
+## be answered from (the plank is in the water and the apo cannot swim), so the volume cannot
+## be narrowed to move the board. This moves the BOARD without moving the trigger: it stands
+## at the water's edge, which is where the beat actually is, instead of on top of the player
+## the moment the level opens.
+@export var story_sign_offset := 0.0
+## AND WHERE THE HINT BOARD STANDS, measured from the middle of the volume. Zero puts it at
+## the obstacle's own centre, which is right when the centre is clear ground and wrong at
+## Ang Dayami, where the centre is the middle of a two-hundred-pixel haystack and the board
+## ends up planted in the doorway the player is meant to walk through.
+@export var hint_sign_offset := 0.0
 
 var _inside := false
 
@@ -35,9 +50,11 @@ func _ready() -> void:
 	# of them, which is the right answer there too.
 	# The story board carries this beat's arrival hook, so the lines it announces can be
 	# read again at the board after they have played themselves once. See Signpost2D.reads.
-	Signpost2D.plant(self, Signpost2D.Mark.STORY, Vector2(-trigger_size.x * 0.5, 0.0),
+	Signpost2D.plant(self,
+		Signpost2D.Mark.STORY,
+		Vector2(-trigger_size.x * 0.5 + story_sign_offset, 0.0),
 		"%s.enter" % obstacle_id)
-	Signpost2D.plant(self, Signpost2D.Mark.HINT)
+	Signpost2D.plant(self, Signpost2D.Mark.HINT, Vector2(hint_sign_offset, 0.0))
 	monitoring = true
 	# Layer 0 / mask 1: it detects the player without being something the player, or a
 	# placed object, can collide with. An obstacle volume that pushed things around would

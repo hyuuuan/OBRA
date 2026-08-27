@@ -62,6 +62,14 @@ LEVEL_1_TAGS: dict[str, list[str]] = {
     "carry":   ["ant", "horse", "elephant", "octopus", "bucket", "monkey"],
     "weather": ["fan", "butterfly", "cloud", "sun", "bucket"],
     "unlock":  ["key", "door"],
+    # THE HEAP'S DOORWAY IS A HOLE, NOT A DOOR, and the apo does not fit through it.
+    #
+    # Going into the straw used to be a keypress anybody could make, which made the one
+    # place in Level 1 with an inside a room the player walked into as themselves. The
+    # design is that the DRAWING is what goes in: you become something small enough to get
+    # under a haystack, and that is the price of the brass key. Six answers, all of them
+    # things that live in straw already.
+    "burrow":  ["ant", "bee", "snail", "spider", "scorpion", "crab"],
 }
 
 # Held for later levels (spec 3.1). Declared, deliberately empty -- see the note above.
@@ -70,6 +78,7 @@ HELD_TAGS: list[str] = ["fly", "swim", "crush", "strike", "light", "shield"]
 DISPLAY = {
     "span": "Span", "roll": "Roll", "climb": "Climb", "leap": "Leap", "cut": "Cut",
     "forage": "Forage", "carry": "Carry", "weather": "Weather", "unlock": "Unlock",
+    "burrow": "Burrow",
     "fly": "Fly", "swim": "Swim", "crush": "Crush", "strike": "Strike",
     "light": "Light", "shield": "Shield",
 }
@@ -98,6 +107,7 @@ GLOSS = {
     "carry": "strong enough to drag a load out from underneath",
     "weather": "able to move air -- wind enough to scatter what is loose",
     "unlock": "shaped to the ward inside the lock",
+    "burrow": "small enough to get in where there is no door",
     "fly": "able to stay up without holding on to anything",
     "swim": "able to move through deep water",
     "crush": "heavy enough to break what is under it",

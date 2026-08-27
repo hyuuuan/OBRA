@@ -32,10 +32,30 @@ const TOP := 66.0
 ## story is supposed to look like, and the whole point of this channel is that it is not one.
 const MAX_WIDTH := 560.0
 
+## The shortest a line of a multi-line beat is held, and the longest. Between them the dwell
+## is measured off the line itself -- roughly the speed of reading -- because the three route
+## hints at Ang Dayami are not the same length and giving them the same beat means either the
+## long one is cut off or the short one sits there.
+const BEAT_MIN := 2.6
+const BEAT_MAX := 7.0
+const BEAT_PER_CHAR := 0.045
+
 var _panel: PanelContainer
 var _speaker: Label
 var _text: Label
 var _life := 0.0
+## The rest of a beat, waiting its turn: [{text, speaker}]. Empty for every ordinary hint,
+## which is one line that stands until something replaces it.
+var _queue: Array[Dictionary] = []
+## The fade this node's own alpha is currently under, so the next one can cancel it.
+##
+## A CLEAR AND A SHOW IN THE SAME FRAME USED TO CANCEL EACH OTHER THE WRONG WAY ROUND.
+## `clear()` starts a 0.14s fade to zero and only flips `visible` at the end of it, so a
+## `show_hint` arriving in between saw a bar that was still visible, skipped its appear
+## tween, wrote the new text -- and was then faded out and hidden by the tween the clear had
+## already started. The bar went blank holding a live hint. That pair happens on any beat
+## that carries story and advice together, which at Ang Dayami is every beat.
+var _fade: Tween
 
 
 func _init() -> void:
@@ -86,6 +106,18 @@ func _someone_is_speaking() -> bool:
 		var box := node as CanvasItem
 		if box != null and box.visible:
 			return true
+	# AND A MODAL COUNTS. The route decision at the gorge is a full-screen framed panel that
+	# stops the world, and the beat that teaches the three requirements fires from the
+	# obstacle volume a hundred and sixty pixels before it -- so the advice was still playing
+	# on the bar behind the panel asking the player to choose. Two channels talking at once,
+	# and one of them was the one the player could not act on. This is asked of the pause
+	# state rather than of any particular overlay, so it covers the ones not written yet.
+	for node in get_tree().get_nodes_in_group(ModalOverlay.GROUP):
+		if not node.has_method(&"is_open") or not bool(node.call(&"is_open")):
+			continue
+		var declares: Variant = node.get(&"pauses_game")
+		if declares == null or bool(declares):
+			return true
 	return false
 
 
@@ -93,29 +125,87 @@ func show_hint(text: String, speaker: String = "", seconds: float = 0.0) -> void
 	if text.is_empty():
 		clear()
 		return
+	# A standing prompt REPLACES a beat that is still playing. One channel carries several
+	# voices and this one -- "there is a way in under the straw", "press E to read the sign"
+	# -- is about where the player is right now, which beats advice they are part-way through
+	# reading. show_beat is the entry point for something that must be read in full.
+	_queue.clear()
 	_speaker.text = "%s:" % speaker.to_upper() if not speaker.is_empty() else ""
 	_speaker.visible = not speaker.is_empty()
 	_text.text = text
 	_life = seconds
 	set_process(true)
-	if not visible:
+	if _fade != null and _fade.is_valid():
+		_fade.kill()
+		_fade = null
+	if not visible or modulate.a < 1.0:
 		visible = true
 		var appear := create_tween()
 		appear.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 		appear.tween_property(self, "modulate:a", 1.0, 0.14)
+		_fade = appear
 	_relayout()
 	_relayout.call_deferred()
 
 
+## SEVERAL LINES, IN TURN. This is the fix for a whole beat of advice arriving as one line.
+##
+## GameLevel._speak hands a beat's hint lines over in a single synchronous loop, and this bar
+## had no queue -- every line overwrote the label before a frame was drawn, so only the LAST
+## of them was ever seen. That is not a cosmetic loss: `L1_N2.teach` is three lines, one per
+## route, and it is the ONLY place the game states the straw heap's puzzle. Two thirds of it
+## went into a label that was immediately painted over, which is most of the answer to "I
+## walked up to the haystack and could not see a puzzle".
+##
+## The identical bug was found and fixed for DialogueBox -- "This used to hand a whole beat
+## over in one synchronous loop, writing five lines into the same label in the same frame.
+## Only the last survived." -- and the hint channel was left with it.
+##
+## The LAST line stands indefinitely, like any ordinary hint: the beat ends with the advice
+## still on screen rather than with the bar going blank.
+func show_beat(entries: Array, speaker: String = "") -> void:
+	var lines: Array[Dictionary] = []
+	for value: Variant in entries:
+		if value is Dictionary:
+			var entry: Dictionary = value
+			if not String(entry.get("text", "")).is_empty():
+				lines.append({
+					"text": String(entry["text"]),
+					"speaker": String(entry.get("speaker", speaker)),
+				})
+		elif value is String and not (value as String).is_empty():
+			lines.append({"text": value as String, "speaker": speaker})
+	if lines.is_empty():
+		return
+	if lines.size() == 1:
+		show_hint(String(lines[0]["text"]), String(lines[0]["speaker"]))
+		return
+	var head: Dictionary = lines[0]
+	_queue = lines.slice(1)
+	show_hint(String(head["text"]), String(head["speaker"]), _dwell_for(String(head["text"])))
+	# show_hint drops the queue, because a standing prompt has to be able to. Put it back.
+	_queue = lines.slice(1)
+
+
+## How long one line of a beat is held. Long enough to read, capped so a wordy line cannot
+## park the bar over the level for ten seconds.
+func _dwell_for(text: String) -> float:
+	return clampf(float(text.length()) * BEAT_PER_CHAR, BEAT_MIN, BEAT_MAX)
+
+
 func clear() -> void:
+	_queue.clear()
 	_life = 0.0
 	set_process(false)
 	if not visible:
 		return
+	if _fade != null and _fade.is_valid():
+		_fade.kill()
 	var fade := create_tween()
 	fade.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	fade.tween_property(self, "modulate:a", 0.0, 0.14)
 	fade.tween_callback(func() -> void: visible = false)
+	_fade = fade
 
 
 func is_showing() -> bool:
@@ -154,8 +244,19 @@ func _process(delta: float) -> void:
 	if _life <= 0.0:
 		return
 	_life -= delta
-	if _life <= 0.0:
+	if _life > 0.0:
+		return
+	if _queue.is_empty():
 		clear()
+		return
+	# NOT clear() -- that drops the queue, which is the whole thing being advanced.
+	var next: Dictionary = _queue.pop_front()
+	var text := String(next["text"])
+	# The last line of a beat stands, like any ordinary hint; the ones before it are timed.
+	var dwell := 0.0 if _queue.is_empty() else _dwell_for(text)
+	var rest := _queue.duplicate()
+	show_hint(text, String(next.get("speaker", "")), dwell)
+	_queue = rest
 
 
 ## Sized to its own text up to a limit, then centred. It has no fixed width because unlike

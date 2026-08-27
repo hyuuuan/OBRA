@@ -75,7 +75,12 @@ const DOOR_SIZE := Vector2(64.0, 84.0)
 const PAINTING_AT := Vector2(-76.0, -34.0)
 ## How big it is: about a third of the apo's height. It was two thirds, which at this zoom
 ## made a two-hundred-pixel slab of flat colour the biggest thing in a room full of detail.
-const CANVAS_SIZE := Vector2(36.0, 46.0)
+## LANDSCAPE, AND THE SAME SHAPE AS THE HUB'S FRAMES. It was 36 x 46, an upright canvas
+## carrying a hand-placed sketch of a plaza; the picture it is supposed to BE is
+## `assets/hub/paintings/level_2.png`, which is 128 x 72. Sixty-four by thirty-six is that
+## ratio exactly, and with the moulding it comes to 74 wide -- the width of the trigger that
+## was already authored around it.
+const CANVAS_SIZE := Vector2(64.0, 36.0)
 
 ## THE THINGS IN HERE THAT ARE WORTH A SENTENCE, read off the artist's own picture: the
 ## hearth on the floor with its drying rack overhead, her stacked jars, and the sleeping
@@ -127,13 +132,14 @@ const FRAME_EDGE := UISkin.GILT_EDGE
 const FRAME_DARK := UISkin.GILT_DARK
 const FRAME := UISkin.GILT
 const FRAME_LIT := UISkin.GILT_HI
-## What is painted on it: Pista, roughed in. Enough to be recognisably the picture that hangs
-## second on the wall in the hub, and no more -- see CANVAS_SIZE for how small that is.
-const PISTA_SKY := Color(0.286, 0.353, 0.545, 1.0)
-const PISTA_WALL := Color(0.788, 0.706, 0.545, 1.0)
-const PISTA_ROOF := Color(0.545, 0.278, 0.220, 1.0)
-const PISTA_GROUND := Color(0.361, 0.290, 0.196, 1.0)
-const PISTA_BUNTING := Color(0.878, 0.702, 0.267, 1.0)
+## WHAT IS PAINTED ON IT, AND IT IS THE ACTUAL PAINTING.
+##
+## This was a plaza roughed in out of thirty draw_rect calls -- a sky band, a church, some
+## bunting -- standing in for a picture that already exists in the project and is already
+## loaded by the hub: the player is going to walk up to this exact image on Lola's wall five
+## minutes later. Two drawings of one painting is one drawing too many, and the one the
+## player is told to remember should be the one they are shown.
+const PISTA_ART: Texture2D = preload("res://assets/hub/paintings/level_2.png")
 
 const SHADOW := Color(0.0, 0.0, 0.0, 0.35)
 ## Outside the room entirely, and a BACKSTOP rather than the normal case now. The picture
@@ -186,9 +192,23 @@ func _ready() -> void:
 ## silently and in the worst possible direction: the room decides the painting is already
 ## gone, switches its trigger off for good, and the player walks through an empty house that
 ## will never hand them anything.
+## AND IT ASKS THE RUN, NOT THE PROFILE. `has_object` is permanent by design -- it is what
+## opens Pista and what a concept gate two levels away reads -- so once anybody had taken
+## this painting, every later run of Level 1 opened the house empty. A player who finished
+## the level and started it again solved Node 3, climbed the ladder, and found the room the
+## whole level is for with nothing in it. Whether the world still HAS one is a question about
+## this run; whether the player OWNS one is a question for the profile, and they were the
+## same line of code. See GameLevel.pickup_taken_this_run.
+##
+## The profile is still the fallback for a room instantiated on its own, with no level around
+## it, which is how several fixtures build one.
 func refresh_from_profile() -> void:
-	var profile := get_node_or_null(^"/root/PlayerProfile")
-	_taken = profile != null and bool(profile.call("has_object", painting_id))
+	var run := get_tree().get_first_node_in_group(&"level_run_state")
+	if run != null and run.has_method("pickup_taken_this_run"):
+		_taken = bool(run.call("pickup_taken_this_run", painting_id))
+	else:
+		var profile := get_node_or_null(^"/root/PlayerProfile")
+		_taken = profile != null and bool(profile.call("has_object", painting_id))
 	_fade = 0.0 if _taken else 1.0
 	_lift = 0.0
 	if _painting_area != null:
@@ -292,6 +312,23 @@ func _build_floor() -> void:
 		wall_shape.shape = wall_box
 		wall_shape.position = Vector2(side * (WALK_HALF + 24.0), -170.0)
 		wall.add_child(wall_shape)
+
+	# AND A CEILING, for the same reason the ends are floor-to-ridge. The walls close the
+	# sides and closed nothing overhead, so anything that could climb or fly -- which is a
+	# thing the player can now draw, in here, at will -- left through the roof of the picture
+	# into the empty sky this room is parked in. A house you can walk out of the top of is
+	# not a room.
+	var roof := StaticBody2D.new()
+	roof.name = "Roof"
+	add_child(roof)
+	var roof_shape := CollisionShape2D.new()
+	var roof_box := RectangleShape2D.new()
+	roof_box.size = Vector2(ART_SIZE.x + 96.0, 48.0)
+	roof_shape.shape = roof_box
+	# At the top of the PICTURE, which is ART_ORIGIN.y up from here -- not ART_SIZE.y, which
+	# would put it above the room's own bounds and let a flier out of them before it hit.
+	roof_shape.position = Vector2(0.0, -ART_ORIGIN.y + 24.0)
+	roof.add_child(roof_shape)
 
 
 ## WALKED INTO, not pressed at -- the same rule the straw room's way out follows. E reaches
@@ -427,10 +464,10 @@ func _draw() -> void:
 ## put down -- which is what this is, and it is the only object in here that does not belong
 ## to the house.
 ##
-## It is PISTA, roughed in: the plaza wall, the church, the bunting strung across it. Enough
-## to be recognisably the picture that hangs second on Lola's wall in the hub, and no more.
-## The detail is worth having because the room is seen at 3 and the canvas is a hundred
-## screen pixels tall -- at the old two flat bands it read as a placeholder somebody forgot.
+## It is PISTA -- the artist's own picture, the one that hangs second on Lola's wall, drawn
+## here at one world pixel to one art pixel inside a moulding built the same way the hub's
+## frames are. The player is going to stand in front of this exact image in the house five
+## minutes from now, and the whole point of the beat is that they recognise it when they do.
 func _draw_painting() -> void:
 	var w := CANVAS_SIZE.x
 	var h := CANVAS_SIZE.y
@@ -451,56 +488,10 @@ func _draw_painting() -> void:
 	draw_rect(Rect2(canvas.position.x - 3.0, canvas.position.y - 3.0, 2.0, h + 6.0),
 		Color(FRAME_LIT, _fade))
 
-	_draw_pista(canvas)
+	draw_texture_rect(PISTA_ART, canvas, false, Color(1.0, 1.0, 1.0, _fade))
 
 	# A catch of light down the left of the canvas, because it is leaning toward the door.
 	draw_rect(Rect2(canvas.position, Vector2(2.0, h)),
 		Color(1.0, 1.0, 1.0, 0.13 * _fade))
 
 
-## What is painted on it. Measured off the canvas rect so the whole picture scales with it.
-func _draw_pista(canvas: Rect2) -> void:
-	var w := canvas.size.x
-	var h := canvas.size.y
-	var left := canvas.position.x
-	var top := canvas.position.y
-
-	draw_rect(canvas, Color(PISTA_SKY, _fade))
-	# The hills behind the town, a shade of the sky rather than of the ground: they are far
-	# enough away to be mostly air.
-	var hill := PISTA_SKY.lerp(PISTA_GROUND, 0.45)
-	for step in range(4):
-		var band := Rect2(left + w * (0.06 + 0.24 * float(step)), top + h * (0.30 + 0.03
-			* absf(float(step) - 1.5)), w * 0.30, h * 0.10)
-		draw_rect(band, Color(hill, _fade))
-	# The plaza wall: the row of low houses that closes the square.
-	draw_rect(Rect2(left, top + h * 0.40, w, h * 0.60), Color(PISTA_WALL, _fade))
-	draw_rect(Rect2(left, top + h * 0.40, w, 1.0),
-		Color(PISTA_WALL.lightened(0.25), _fade))
-	# The church, the tallest thing in any Philippine plaza: a body, a bell tower over the
-	# door, and the door itself, which is the detail that makes it a church and not a block.
-	var church := Rect2(left + w * 0.13, top + h * 0.22, w * 0.34, h * 0.58)
-	draw_rect(church, Color(PISTA_ROOF, _fade))
-	draw_rect(Rect2(church.position.x, church.position.y, church.size.x, 1.5),
-		Color(PISTA_ROOF.lightened(0.28), _fade))
-	var tower := Rect2(church.position.x + church.size.x * 0.28, top + h * 0.10,
-		church.size.x * 0.44, h * 0.14)
-	draw_rect(tower, Color(PISTA_ROOF.lightened(0.14), _fade))
-	draw_rect(Rect2(church.position.x + church.size.x * 0.34, church.end.y - h * 0.20,
-		church.size.x * 0.32, h * 0.20), Color(PISTA_GROUND.darkened(0.35), _fade))
-	# The ground of the square, and two people standing on it -- a plaza with nobody in it
-	# is a photograph of a building.
-	draw_rect(Rect2(left, canvas.end.y - h * 0.18, w, h * 0.18),
-		Color(PISTA_GROUND, _fade))
-	for who in range(2):
-		draw_rect(Rect2(left + w * (0.62 + 0.11 * float(who)),
-			canvas.end.y - h * (0.19 + 0.05 * float(1 - who)), 1.5, h * 0.07),
-			Color(PISTA_GROUND.darkened(0.45), _fade))
-	# Bunting across the square, sagging the way a strung line does. This is the thing that
-	# makes it a fiesta rather than a street.
-	for flag in range(6):
-		var along := float(flag) / 5.0
-		var fx := left + 2.0 + along * (w - 5.0)
-		var sag := sin(along * PI) * h * 0.05
-		draw_rect(Rect2(fx, top + h * 0.14 + sag, 2.0, h * 0.06),
-			Color(PISTA_BUNTING, _fade))

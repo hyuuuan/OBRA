@@ -43,13 +43,13 @@ West to east, in the order a player meets them. "Reaches" is where T1's bot stop
 | id | where | x | what stops you | what opens it | reaches |
 |---|---|---|---|---|---|
 | **G1** | The paddy | 340–640 | **300 px of water, 100 px deep.** Wider than a running jump (228 px) and deeper than the apo can climb out of. Going under for a second puts you back on the bank. | **Roll** — set something that rolls on the two treads floating mid-paddy and they steady, lock and become a deck, leaving a 62 px hop at each end | 537 |
-| **G2** | Ang Hagdan | 640–920 | **136 px of rise** from the bank to the lowest surviving stone, against a 94.3 px jump. Three treads are missing. | **Span** — a drawn primitive at the foot of it, to stand on | — (G1 stops the bot first) |
+| **G2** | Ang Hagdan | 900–1180 | **136 px of rise** from the bank to the lowest surviving stone, against a 94.3 px jump. Three treads are missing. | **Span** — a drawn primitive at the foot of it, to stand on | — (G1 stops the bot first) |
 | **G3** | Terrace 1 → 2 | ~1160 | A **140 px terrace face**. No dialogue, no strip — just a wall that is too tall. | **Span** or **Climb** | 1145 |
 | **G4** | The gorge — Artist | 2400–2960 | A post mid-gorge splits it into **two 250 px spans** | **Span**, twice | 2635 |
 | **G5** | The gorge — Pragmatist | 2400–2960 | Ledges take you down; the way out is a **bare 320 px wall** | **Span** or **Climb** | 2945 |
 | **G6** | The gorge — Protector | 2400–2960 | A **standing dead tree** blocks the lip until it is felled across | **Cut** | 2320 |
 | **G7** | The Overlook | 3320 | A **160 px cliff** between Terrace5 and the house | **Climb** | 3305 |
-| **G8** | Ang Bale | 3500–3740 | **The level will not end until the bale is answered.** Choosing one of Lolo's three lines is free and is not an answer. | **Climb**, **Unlock** or **Cut** | 3485 |
+| **G8** | Ang Bale | 4520–4760 | **The level will not end until the bale is answered.** Choosing one of Lolo's three lines is free and is not an answer. | **Climb**, **Unlock** or **Cut** | 4505 |
 
 G4, G5 and G6 are the same chasm seen three ways: the route chosen at the dialogue node
 physically rebuilds it, so they are separate gates and T1 tests each on its own level.
@@ -104,12 +104,16 @@ Honest list. None of these lets you finish the level without drawing.
 
 - **G3 has no requirement strip.** It is a bare terrace face with no obstacle volume, so
   the player gets no hint about what to draw. It is the one gate the level never explains.
-- **The stretch between G2 and G3** (x 920–1160) and **between G6 and G7** (x 2960–3320)
+- **The stretch between G2 and G3** (x 1180–1420) and **between G6 and G7** (x 3640–4340)
   are walks. That is deliberate breathing room, but they are the longest stretches left.
 - **Node 2, the straw, does not gate passage.** Searching it is a reward — the sketchbook
   page and the chest — not a wall. If the level ever needs another beat, that is where it
   would go.
-- **Combed and tunnelled straw look the same.** A tunnel should read as a hole.
+- ~~**Combed and tunnelled straw look the same.**~~ Closed 2026-08-27. Tunnelled draws the
+  holed picture; combed is now a different SILHOUETTE — spread wide and pulled low
+  (`_settle` returns 1.14 x 0.70 against tunnelled's 0.99 x 0.97) with rake furrows and a
+  fringe of pulled straw drawn over it (`StrawPile2D._draw_combing`). It was an 8% scale
+  change on the same picture, which meant the Artist route left no mark anyone could see.
 - The **ink budget is 12** and the level now asks for four drawings on the critical path.
   Nobody has measured a whole run against that. Worth doing before the next playtest.
 

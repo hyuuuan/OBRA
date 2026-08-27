@@ -56,7 +56,7 @@ func _run() -> void:
 	await _capture("00_spawn")
 
 	# --- Beat 0, tier by tier ------------------------------------------------
-	player.global_position = Vector2(700.0, 440.0)
+	player.global_position = Vector2(960, 440.0)
 	await _wait(0.8)
 	print("at obstacle: '%s'" % director.current_obstacle())
 	await _capture("01_t0_approach")
@@ -91,7 +91,7 @@ func _run() -> void:
 	await _capture("06_beat0_solved")
 
 	# --- the gorge: the node, its three buttons, and the committed requirement -
-	player.global_position = Vector2(2360.0, 200.0)
+	player.global_position = Vector2(3040, 200.0)
 	await _wait(1.0)
 	print("at obstacle: '%s'" % director.current_obstacle())
 	await _capture("07_node1_arrival")

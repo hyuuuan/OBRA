@@ -254,13 +254,13 @@ func _build_bitmap_skin(drawing: Image) -> void:
 
 	var image := drawing.duplicate()
 	image.convert(Image.FORMAT_RGBA8)
-	_make_paper_transparent(image)
+	knock_out_paper(image, paper_threshold)
 
-	var visible_rect := _find_visible_rect(image)
+	var visible_rect := ink_bounds(image)
 	if visible_rect.size.x <= 0 or visible_rect.size.y <= 0:
 		visible_rect = Rect2i(Vector2i.ZERO, image.get_size())
 
-	var padded_rect := _rect_with_padding(visible_rect, image.get_size())
+	var padded_rect := padded(visible_rect, image.get_size(), visible_padding)
 	var cropped: Image = image.get_region(padded_rect)
 
 	analysis = {
@@ -280,18 +280,43 @@ func _build_bitmap_skin(drawing: Image) -> void:
 	_mode = "bitmap"
 
 
-func _make_paper_transparent(image: Image) -> void:
+## THE PAPER KNOCKOUT AND THE CROP ARE STATIC, because the drawing is not only ever a skin.
+##
+## `DrawnItemData.image` is the raw 400x400 grab off the drawing panel's SubViewport, white
+## `Paper` ColorRect and all -- which is why an inventory slot showing a player's own sketch
+## is an opaque white square with something small in the middle of it. The three functions
+## that fix that (drop the paper, find the ink, crop to it with a margin) already existed
+## here for the bitmap fallback and were private methods on a Node2D, so nothing outside a
+## live rig could reach them. They touch no instance state but their two tunables, so they
+## take those as arguments and every caller that wants to LOOK at a drawing shares the one
+## implementation. See `thumbnail`.
+static func knock_out_paper(image: Image, threshold: float) -> void:
 	for y in range(image.get_height()):
 		for x in range(image.get_width()):
 			var color := image.get_pixel(x, y)
-			if color.r >= paper_threshold and color.g >= paper_threshold and color.b >= paper_threshold:
+			if color.r >= threshold and color.g >= threshold and color.b >= threshold:
 				color.a = 0.0
 			else:
 				color.a = 1.0
 			image.set_pixel(x, y, color)
 
 
-func _find_visible_rect(image: Image) -> Rect2i:
+## A drawing as a picture of itself: paper dropped, cropped to the ink, ready to hang in a
+## slot or on a card. Null for a drawing with nothing in it, so a caller can fall back.
+static func thumbnail(drawing: Image, threshold: float = 0.92, padding: int = 10) -> Texture2D:
+	if drawing == null:
+		return null
+	var image := drawing.duplicate()
+	image.convert(Image.FORMAT_RGBA8)
+	knock_out_paper(image, threshold)
+	var bounds := ink_bounds(image)
+	if bounds.size.x <= 0 or bounds.size.y <= 0:
+		return null
+	return ImageTexture.create_from_image(
+		image.get_region(padded(bounds, image.get_size(), padding)))
+
+
+static func ink_bounds(image: Image) -> Rect2i:
 	var min_x := image.get_width()
 	var min_y := image.get_height()
 	var max_x := -1
@@ -311,11 +336,11 @@ func _find_visible_rect(image: Image) -> Rect2i:
 	return Rect2i(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1)
 
 
-func _rect_with_padding(rect: Rect2i, image_size: Vector2i) -> Rect2i:
-	var left := maxi(rect.position.x - visible_padding, 0)
-	var top := maxi(rect.position.y - visible_padding, 0)
-	var right := mini(rect.position.x + rect.size.x + visible_padding, image_size.x)
-	var bottom := mini(rect.position.y + rect.size.y + visible_padding, image_size.y)
+static func padded(rect: Rect2i, image_size: Vector2i, margin: int) -> Rect2i:
+	var left := maxi(rect.position.x - margin, 0)
+	var top := maxi(rect.position.y - margin, 0)
+	var right := mini(rect.position.x + rect.size.x + margin, image_size.x)
+	var bottom := mini(rect.position.y + rect.size.y + margin, image_size.y)
 	return Rect2i(left, top, maxi(1, right - left), maxi(1, bottom - top))
 
 

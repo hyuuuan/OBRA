@@ -170,7 +170,14 @@ func _thumbnail(item: DrawnItemData) -> Texture2D:
 	var cached: Texture2D = _thumbnails.get(key)
 	if cached != null:
 		return cached
-	var texture := ImageTexture.create_from_image(item.image)
+	# THE PAPER COMES OFF. `item.image` is the raw grab off the drawing panel's SubViewport,
+	# white `Paper` ColorRect and all, so a slot holding the player's own drawing was an
+	# opaque white square with something small in the middle of it -- six of them in a row
+	# across the bottom of the level. Knocked out and cropped to the ink, the slot holds the
+	# DRAWING. Falls back to the raw grab for an image with no ink found in it.
+	var texture := DrawingSkin2D.thumbnail(item.image)
+	if texture == null:
+		texture = ImageTexture.create_from_image(item.image)
 	_thumbnails[key] = texture
 	return texture
 

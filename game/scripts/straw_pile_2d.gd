@@ -167,32 +167,70 @@ func _build_mouth_area() -> void:
 	var shape := CollisionShape2D.new()
 	var box := RectangleShape2D.new()
 	var mouth := mouth_rect()
-	box.size = mouth.size
+	# THE PROMPT IS WIDER THAN THE DOORWAY, AND ON PURPOSE.
+	#
+	# `mouth_rect` is where the hole is in the ART and must stay that -- the audit measures
+	# it and the entry offer is drawn from it. But it is 59 x 71 world pixels, and outside
+	# that box nothing anywhere on screen said the heap had an inside. A player walking the
+	# terrace east to Node 3 passed within a stride of the only door in Level 1 and was told
+	# about it for about a fifth of a second, if they happened to walk through the exact
+	# pixels of the opening.
+	#
+	# Going in is still a PRESS, so a generous notice zone cannot swallow anyone -- that was
+	# the constraint that made this a keypress in the first place. It reaches the whole width
+	# of the heap and up to the eaves: stand anywhere in front of the haystack and the game
+	# tells you there is a way under it.
+	var settle := _settle()
+	# The lower two thirds only. Full height would put the notice zone across the ROOF of the
+	# heap, and "there is a way in under the straw" is not a thing to be told while standing
+	# on top of it.
+	var reach := Vector2(pile_size.x * settle.x + 48.0, pile_size.y * settle.y * 0.66)
+	box.size = reach
 	shape.shape = box
-	shape.position = mouth.get_center()
+	shape.position = Vector2(mouth.get_center().x * 0.35, -reach.y * 0.5)
 	area.add_child(shape)
-	area.body_entered.connect(_on_mouth_body.bind(true))
-	area.body_exited.connect(_on_mouth_body.bind(false))
+	area.body_entered.connect(_on_mouth_body.bind(true, area))
+	area.body_exited.connect(_on_mouth_body.bind(false, area))
 
 
-func _on_mouth_body(body: Node, coming_in: bool) -> void:
+func _on_mouth_body(body: Node, coming_in: bool, area: Area2D) -> void:
+	if not _is_the_player(body):
+		return
+	if _inside == coming_in:
+		return
+	# A DRAWN CREATURE IS MANY BODIES AND THEY LEAVE ONE AT A TIME. The apo is one capsule,
+	# so a bare transition was right for as long as she was the only thing that could stand
+	# here; a rig's first foot out of the mouth would otherwise take the prompt down while
+	# the rest of it is still standing in the doorway. Same rule LevelObstacle2D follows.
+	if not coming_in and area != null:
+		for other in area.get_overlapping_bodies():
+			if other != body and _is_the_player(other):
+				return
+	_inside = coming_in
+	at_mouth.emit(coming_in)
+
+
+func _is_the_player(body: Node) -> bool:
 	var node := body as Node
 	while node != null:
 		if node.is_in_group(&"player_character") or node is ActiveRagdollMorph:
-			if _inside == coming_in:
-				return
-			_inside = coming_in
-			at_mouth.emit(coming_in)
-			return
+			return true
 		node = node.get_parent()
+	return false
 
 
-## How wide and how tall the heap stands in each state. Combed settles and tidies; tunnelled
-## keeps its height, because the hole is underneath it.
+## How wide and how tall the heap stands in each state. Combed is spread and pulled DOWN;
+## tunnelled keeps its height, because the hole is underneath it.
+##
+## COMBED USED TO BE AN 8% SIZE CHANGE ON THE SAME PICTURE, which is the whole of what the
+## Artist route left behind: a player who went through the heap by hand and a player who
+## never touched it were looking at the same haystack. A route that costs patience has to
+## leave a mark you can see from where you are standing, so it is spread wide and low now --
+## a different silhouette, not a different scale -- and _draw_combing rakes it.
 func _settle() -> Vector2:
 	match _state:
 		State.COMBED:
-			return Vector2(0.92, 0.88)
+			return Vector2(1.14, 0.70)
 		State.TUNNELLED:
 			return Vector2(0.99, 0.97)
 		_:
@@ -212,6 +250,33 @@ func _draw() -> void:
 	var art := HEAP if entrance or _state == State.TUNNELLED else HEAP_SOLID
 	var box := Rect2(Vector2(-wide * 0.5, -high), Vector2(wide, high))
 	draw_texture_rect(_mirror(art) if flipped else art, box, false, tint)
+	if _state == State.COMBED:
+		_draw_combing(wide, high)
+
+
+## The marks a rake leaves. Furrows across the face of the heap and a fringe of loose stalks
+## pulled out at the foot -- enough to say somebody went through this by hand, drawn rather
+## than cut because there is no picture of a combed heap and the delivered silhouette is
+## still doing the work underneath.
+func _draw_combing(wide: float, high: float) -> void:
+	var rng := _rng()
+	# THE DOORWAY IS NOT RAKED OVER. On the entrance heap the mouth is the only way into the
+	# one room in Level 1, and combing already squashes it to seven tenths of its height --
+	# furrows drawn across it as well would close the last thing saying it is there.
+	var mouth := mouth_rect() if entrance else Rect2()
+	for index in range(11):
+		var t := (float(index) + 0.5) / 11.0
+		var x := lerpf(-wide * 0.42, wide * 0.42, t)
+		if entrance and x > mouth.position.x - 6.0 and x < mouth.end.x + 6.0:
+			continue
+		var top := -high * rng.randf_range(0.58, 0.86)
+		var run := Vector2(rng.randf_range(-5.0, 5.0), high * rng.randf_range(0.34, 0.52))
+		draw_line(Vector2(x, top), Vector2(x, top) + run, EDGE * tint, 2.0, false)
+		draw_line(Vector2(x + 2.0, top), Vector2(x + 2.0, top) + run, LIT * tint, 1.0, false)
+	for index in range(26):
+		var at := Vector2(rng.randf_range(-wide * 0.62, wide * 0.62), rng.randf_range(-7.0, 0.0))
+		var run := Vector2(rng.randf_range(-15.0, 15.0), rng.randf_range(-5.0, 1.0))
+		draw_line(at, at + run, _ramp(rng.randf_range(0.4, 1.0)) * tint, 2.0, false)
 
 
 ## What stops it floating. Everything in the house that stands on the floor has one of

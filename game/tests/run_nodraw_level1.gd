@@ -20,17 +20,17 @@ const SEGMENT_SECONDS := 22.0
 ## there. Testing only from the spawn tells you about the FIRST gate and nothing else: the
 ## bot stops at Beat 0 and the whole level behind it goes unexamined.
 const SEGMENTS: Array = [
-	{"name": "the paddy and Ang Hagdan", "at": Vector2(260.0, 460.0)},
-	{"name": "above the stair, to the gorge", "at": Vector2(960.0, 360.0)},
+	{"name": "the paddy and Ang Hagdan", "at": Vector2(260, 460.0)},
+	{"name": "above the stair, to the gorge", "at": Vector2(1220, 360.0)},
 	# All three, because they are physically different crossings: the Artist route puts a
 	# post mid-gorge, the Pragmatist route drops ledges down and leaves a bare wall out, and
 	# the Protector route stands a tree up to be felled. Testing whichever answer happens to
 	# be first tests one of them.
-	{"name": "the gorge, Artist route", "at": Vector2(2320.0, 200.0), "route": 0},
-	{"name": "the gorge, Pragmatist route", "at": Vector2(2320.0, 200.0), "route": 1},
-	{"name": "the gorge, Protector route", "at": Vector2(2320.0, 200.0), "route": 2},
-	{"name": "past the gorge, along Terrace5", "at": Vector2(2980.0, 200.0)},
-	{"name": "the Overlook and the bale", "at": Vector2(3360.0, 40.0)},
+	{"name": "the gorge, Artist route", "at": Vector2(3000, 200.0), "route": 0},
+	{"name": "the gorge, Pragmatist route", "at": Vector2(3000, 200.0), "route": 1},
+	{"name": "the gorge, Protector route", "at": Vector2(3000, 200.0), "route": 2},
+	{"name": "past the gorge, along Terrace5", "at": Vector2(3660, 200.0)},
+	{"name": "the Overlook and the bale", "at": Vector2(4380, 40.0)},
 ]
 
 var level: Node
