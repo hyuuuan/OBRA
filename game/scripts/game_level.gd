@@ -205,6 +205,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			director.note_canvas_opened()
 		draw_panel.open_panel()
 		return
+	if event.is_action_pressed("inventory_open"):
+		get_viewport().set_input_as_handled()
+		_toggle_inventory_screen()
+		return
 	for slot in range(6):
 		if event.is_action_pressed("inventory_slot_%d" % (slot + 1)):
 			get_viewport().set_input_as_handled()
