@@ -75,6 +75,26 @@ func _on_body_entered(body: Node2D) -> void:
 	var count := int(body.get_meta("water_overlap_count", 0))
 	body.set_meta("water_overlap_count", count + 1)
 	body.set_meta("water_area", self)
+	# AND THE WATER SAYS SO. The paddy is the first gate in the game and the thing the player
+	# spends the most time standing in, and going into it did nothing visible whatsoever --
+	# the apo simply became a character in a blue rectangle. Rings on the surface, scaled by
+	# how hard the thing arrived. Only on the FIRST overlap: a body straddling two of this
+	# area's shapes would otherwise splash twice.
+	if count == 0:
+		_splash_for(body)
+
+
+## Rings where something broke the surface. Drawn at the WATERLINE rather than at the body,
+## because the ripple belongs to the water and not to the thing that fell in it.
+func _splash_for(body: Node2D) -> void:
+	var speed := 0.0
+	if body is CharacterBody2D:
+		speed = absf((body as CharacterBody2D).velocity.y)
+	elif body is RigidBody2D:
+		speed = absf((body as RigidBody2D).linear_velocity.y)
+	var surface_y := global_position.y - surface_size.y * 0.5
+	SceneryPuff2D.burst(self, to_local(Vector2(body.global_position.x, surface_y)),
+		SceneryPuff2D.Kind.SPLASH, clampf(0.3 + speed / 700.0, 0.3, 1.0))
 
 
 func _on_body_exited(body: Node2D) -> void:
