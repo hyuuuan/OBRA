@@ -2314,7 +2314,6 @@ func _test_skinned_rig_renders_the_drawing() -> void:
 			# no matter where that space had been put, which is most of what this is
 			# here to check.
 			var to_world := skin.debug_skin_transform()
-			var drawn_to_world := instance.global_transform
 			var worst := 0.0
 			for index in range(mini(rendered.size(), drawn.size())):
 				var source: PackedVector2Array = (drawn[index] as Dictionary)["points"]
@@ -2356,6 +2355,13 @@ func _test_gait_reaches_the_ink() -> void:
 			continue
 		world.add_child(instance)
 		instance.global_position = Vector2(420.0, 240.0)
+		# THE RULER IS THE FRAME THE DRAWING WAS BUILT IN, taken before the rig exists.
+		# This used to read `instance.global_transform` after the fact, which was the same
+		# thing only for as long as nothing ever moved the root -- and the root is what tells
+		# the rest of the game where the creature IS, so it moves the moment physics runs.
+		# Captured here, the check measures what it is actually about: the ink the rig renders
+		# lands exactly on the strokes the player drew.
+		var drawn_to_world := instance.global_transform
 		instance.call("apply_drawing", _blank_image(), _fixture_for(entity_id))
 		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
 		if skin.debug_skin_active():
