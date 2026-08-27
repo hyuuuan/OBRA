@@ -34,6 +34,20 @@ extends Node2D
 signal key_taken()
 ## The apo has walked into the opening that leads back out to the terrace.
 signal exit_reached()
+## Something in here worth a sentence, and the sentence going away again. Hint channel:
+## no key press, no pause, cleared when they walk off. Same contract the bale's interior has.
+signal noticed(text: String)
+signal notice_left()
+
+## THE ROOM'S PUZZLE, SAID OUT LOUD, because it was not said anywhere at all.
+##
+## The nail is forty pixels above the apo's jump and that IS the puzzle -- the one place in
+## Level 1 where the answer is height and nothing else. Nothing in the room told the player
+## that: the key is a small brass thing at the far end of a fifteen-metre barn, the arrival
+## line is about Lola keeping things in here, and the requirement strip does not apply
+## because this is not an obstacle volume. A player who walked in, looked around a dark room
+## and walked out again had seen the whole of it.
+const NAIL_NOTICE := "The nail is higher than you can jump. Stand on something."
 
 ## How long the room is. Fifteen metres of barn, against a screenful of eleven at this zoom
 ## -- so the way out and the chest are never quite on screen together and there is somewhere
@@ -104,6 +118,12 @@ const BRASS_DARK := Color(0.502, 0.376, 0.098, 1.0) # 806019
 const DOOR := Vector2(72.0, 144.0)
 
 var _taken := false
+## How many of the player's bodies are standing under the nail. A COUNT, because a drawn
+## creature is many bodies and they cross a threshold one at a time.
+var _in_notice := 0
+## How long the brass has been catching the light, in seconds. Only advances while somebody
+## is in here to see it.
+var _shine := 0.0
 var _key_area: Area2D
 var _exit_area: Area2D
 var _ants: StrawAnts2D
@@ -130,6 +150,7 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_build_floor()
 	_build_key_area()
+	_build_nail_notice()
 	_build_exit_area()
 	_build_ants()
 	# NOT DRAWN WHILE NOBODY IS IN IT, and that is not an optimisation.
@@ -147,13 +168,23 @@ func _ready() -> void:
 ## the doorway, because a checkpoint restore, a fall or a morph can move her out of this room
 ## without going through it -- and a room that is still drawn once she has left is a room
 ## painted over the level.
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var here := false
 	for node in get_tree().get_nodes_in_group(&"player_character"):
 		var body := node as Node2D
 		if body != null and bounds().grow(90.0).has_point(body.global_position):
 			here = true
 			break
+	# THE BRASS CATCHES THE LIGHT, and that is the only moving thing in a dark room.
+	#
+	# The key is a 45-pixel object at the far end of a fifteen-metre barn made entirely of
+	# one colour of straw, and the room is the length of two screenfuls. Standing at the
+	# doorway it was a speck at the edge of the frame -- there was nothing to walk toward.
+	# A slow pulse on the metal and a warm halo behind it is the whole difference between a
+	# reward you find and a reward you happen to bump into.
+	if here and not _taken:
+		_shine += delta
+		queue_redraw()
 	if here == visible:
 		return
 	visible = here
@@ -289,6 +320,34 @@ func _build_key_area() -> void:
 	shape.position = Vector2(0.0, -34.0)
 	_key_area.add_child(shape)
 	_key_area.body_entered.connect(_on_key_body)
+
+
+## The floor under the nail. Standing there says what the room wants, and walking away takes
+## it back -- a hint about a thing you are looking at, which is what this channel is for.
+func _build_nail_notice() -> void:
+	var area := Area2D.new()
+	area.name = "NailNotice"
+	area.collision_layer = 0
+	area.collision_mask = 1
+	area.position = Vector2(key_at.x, 0.0)
+	add_child(area)
+	var shape := CollisionShape2D.new()
+	var box := RectangleShape2D.new()
+	box.size = Vector2(260.0, 150.0)
+	shape.shape = box
+	shape.position = Vector2(0.0, -75.0)
+	area.add_child(shape)
+	area.body_entered.connect(func(body: Node) -> void:
+		if _taken or not _is_the_player(body):
+			return
+		_in_notice += 1
+		noticed.emit(NAIL_NOTICE))
+	area.body_exited.connect(func(body: Node) -> void:
+		if not _is_the_player(body):
+			return
+		_in_notice = maxi(0, _in_notice - 1)
+		if _in_notice == 0:
+			notice_left.emit())
 
 
 func _build_exit_area() -> void:
@@ -610,7 +669,25 @@ func _draw_nail(at: Vector2) -> void:
 ## A key, lying flat: a bow, a shank and two teeth. Twenty centimetres of brass, which is a
 ## door key of the age the chest beside it is -- and the reason it is worth drawing at all
 ## rather than being a glint on the floor.
+## The halo behind the brass. Whole-pixel rings, breathing, so a small metal thing at the
+## dark end of the room is somewhere the eye is drawn to rather than something it slides off.
+func _draw_key_halo(at: Vector2, alpha: float) -> void:
+	if alpha <= 0.0:
+		return
+	var beat := 0.72 + sin(_shine * 2.1) * 0.28
+	for ring in range(3):
+		var reach := (16.0 + float(ring) * 11.0) * (0.85 + beat * 0.3)
+		var box := Rect2(at + Vector2(2.0, -8.0) - Vector2(reach, reach * 0.66),
+			Vector2(reach * 2.0, reach * 1.32))
+		var tone := Color(BRASS_LIT, (0.15 - 0.04 * float(ring)) * beat * alpha)
+		draw_rect(Rect2(box.position.x, box.position.y, box.size.x, 1.0), tone)
+		draw_rect(Rect2(box.position.x, box.end.y - 1.0, box.size.x, 1.0), tone)
+		draw_rect(Rect2(box.position.x, box.position.y, 1.0, box.size.y), tone)
+		draw_rect(Rect2(box.end.x - 1.0, box.position.y, 1.0, box.size.y), tone)
+
+
 func _draw_key(at: Vector2, alpha: float = 1.0) -> void:
+	_draw_key_halo(at, alpha)
 	# The shadow it casts on the wall goes as it leaves, so the brass does not fade out over
 	# a dark smear that stays behind.
 	draw_rect(Rect2(at + Vector2(-20.0, -3.0), Vector2(44.0, 5.0)), Color(0, 0, 0, 0.45 * alpha))
