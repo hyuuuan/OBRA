@@ -32,7 +32,15 @@ func _ready() -> void:
 	_build()
 	visible = not start_hidden
 	# What is inside is Lola's, so the sign says memory rather than talk.
-	Signpost2D.plant(self, Signpost2D.Mark.MEMORY)
+	#
+	# AND IT CAN BE READ. It was planted with no hook, and `GameLevel._readable_sign` skips
+	# any board whose hook has not already played -- so this one could never be offered, ever.
+	# The one object in the straw room the player is meant to walk up to and think about was
+	# a picture of a chest with a picture of a sign next to it, and pressing the interact key
+	# at either did nothing. `L1_N2.solved` is the line that closes the beat ("Locked. Of
+	# course.") and is fired by `_uncover_the_baul` at the moment this chest appears, so the
+	# board is readable from the instant there is a chest to read it about.
+	Signpost2D.plant(self, Signpost2D.Mark.MEMORY, Vector2(-34.0, 0.0), "L1_N2.solved")
 
 
 func is_found() -> bool:
