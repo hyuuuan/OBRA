@@ -117,6 +117,9 @@ var _classes_this_run: Dictionary = {}
 
 
 func _ready() -> void:
+	# Findable by the rooms, which have to ask what this RUN has already handed over rather
+	# than what the profile remembers forever. See pickup_taken_this_run.
+	add_to_group(RUN_STATE_GROUP)
 	registry.load_manifest()
 	# Running this scene directly -- from the editor, or from a test -- never goes
 	# through LevelManager.open_level, so nothing has said which level this is. The
@@ -931,7 +934,18 @@ func _on_straw_key_taken() -> void:
 ## of one. StrawRoom2D writes the profile itself when the nail is reached, so this is
 ## idempotent on purpose -- it is the telemetry and the hint that must not fire twice, and
 ## the profile that must not care how many times it is told.
+## GUARDED ON THIS RUN, NOT ON THE PROFILE. It is reached twice -- off the nail inside the
+## heap, and out of the wreck of one scattered by the Protector route -- so it has to be
+## idempotent. It was idempotent against `is_collectible_found`, which is permanent: on a
+## second playthrough the key was still there on the nail, still walked into, and the game
+## said nothing at all about it because a previous run had already been told.
 func _take_the_bale_key(how: String) -> void:
+	if pickup_taken_this_run(FOUND_KEY):
+		return
+	note_pickup_taken(FOUND_KEY)
+	announce_acquisition("The Brass Key",
+		"Too small for the chest. It belongs to a door you have only seen painted.",
+		UIIcons.key())
 	if PlayerProfile.is_collectible_found(FOUND_KEY):
 		return
 	PlayerProfile.record_collectible(FOUND_KEY)
@@ -1151,16 +1165,35 @@ func _on_painting_taken() -> void:
 ## Node 3, satisfied the goal marker, and finished Level 1 with nothing to show for it and
 ## no way back in. So the ladder takes it for them -- you would not leave it -- which costs
 ## the deliberate player nothing and cannot strand the distracted one.
+## Back down the ladder, onto the terrace they climbed from -- AND THAT IS THE END OF THE
+## LEVEL, if they have what they came for.
+##
+## IT USED TO BE A MARKER STONE THEY HAD TO GO AND FIND. The GoalMarker sits out on the
+## Overlook, so finishing Payyo meant: solve the hardest node in the level, climb in, take the
+## painting, climb back out, and then walk to a spot that looks like every other spot on the
+## terrace. Players did the first four and stood there. "I don't understand why I have to exit
+## the hut and then enter again to finish the game" is what that reads like from outside -- the
+## level is over and the game has not said so.
+##
+## The door IS the ending now. You take her canvas and you walk out, which is the shape the
+## whole node has: getting in was the puzzle, and getting out with it is the answer.
 func _on_bale_exit() -> void:
 	if not PlayerProfile.has_object("canvas_2_pista"):
 		_grant_the_canvas()
 	if _bale_return != Vector2.ZERO:
 		_step_through(_bale_return)
+	if not _completion_unlocked():
+		return
+	# After the step, so the level ends with the apo standing on the terrace she came from
+	# rather than inside a room the completion screen is drawn over.
+	await get_tree().process_frame
+	_complete_level()
 
 
 ## What the chest held, and the reason Pista opens. The unlock happens at CP3 rather than
 ## at the marker stone, so a player who stops after this keeps the progress.
 func _grant_the_canvas() -> void:
+	note_pickup_taken("canvas_2_pista")
 	PlayerProfile.record_object_acquired("canvas_2_pista")
 	PlayerProfile.mark_level_completed(LevelManager.current_level_id)
 	Telemetry.record_event("item_granted", {
@@ -1180,6 +1213,34 @@ func _wire_the_bulul() -> void:
 			# the memory; see _speak_on_arrival.
 			figure.approached.connect(func() -> void:
 				_speak_on_arrival("L1_N3.bulul_approach"))
+
+
+## WHAT THIS RUN OF THE LEVEL HAS ALREADY HANDED OVER, and why it is not the profile.
+##
+## `PlayerProfile.has_object` is GLOBAL AND PERMANENT -- that is its job, and it is what the
+## progression and the concept gates are built on. Ang Bale's interior was asking it whether
+## the painting was still there, which is a different question with a different lifetime: the
+## answer is yes forever after the first time anybody takes it. So the second time a player
+## opened Level 1 they solved the hardest node in the level, climbed into the house, and
+## found an empty room -- the reward for the whole level silently absent, with the profile
+## quietly insisting they already had it.
+##
+## Presence in the world is a question about THIS RUN. Ownership stays on the profile.
+const RUN_STATE_GROUP := &"level_run_state"
+
+var _taken_this_run: Dictionary = {}
+## The mark standing at each beat that writes a checkpoint on commit, by obstacle id.
+var _commit_marks: Dictionary = {}
+
+
+## Whether this run of the level has already given `pickup_id` away. Rooms ask this instead
+## of the profile before deciding whether to draw what they are holding.
+func pickup_taken_this_run(pickup_id: String) -> bool:
+	return bool(_taken_this_run.get(pickup_id, false))
+
+
+func note_pickup_taken(pickup_id: String) -> void:
+	_taken_this_run[pickup_id] = true
 
 
 func _write_checkpoint(checkpoint_id: String) -> void:
