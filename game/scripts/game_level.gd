@@ -2762,6 +2762,27 @@ func _wire_dialogue_node() -> void:
 	memory_overlay.connect(&"dismissed", func() -> void: _lolo_says("arrival"))
 
 
+## WHAT EACH ANSWER WILL ASK FOR, read off the level's own route data.
+##
+## The three buttons are sentences Lolo says and name nothing drawable, which is right --
+## the level never names a class. But they named no ABILITY either, and the requirement was
+## taught seconds before as three hint lines that the choice itself interrupts. So a player
+## picked a sentence and was then instructed in something they had not heard. This puts the
+## route's own requirement on its own button, phrased by the same function the requirement
+## strip uses, so the two cannot drift.
+func _requirements_per_route(obstacle_id: String) -> Dictionary:
+	var notes: Dictionary = {}
+	if director == null:
+		return notes
+	var routes: Dictionary = director.obstacle(obstacle_id).get("routes", {})
+	for route_value: Variant in routes.keys():
+		var route := String(route_value)
+		var spec: Dictionary = routes[route]
+		notes[route] = RequirementStrip.phrase(
+			spec.get("required_tags", []), String(spec.get("match", "all")))
+	return notes
+
+
 ## Lolo pauses time to talk (Game Design section 3). The overlay is what does the
 ## pausing -- it is a ModalOverlay, and UIRouter derives the tree's pause state from
 ## whoever is open -- so this only has to decide what he asks.
@@ -2776,7 +2797,8 @@ func _on_dialogue_node_approached() -> void:
 		var context := ""
 		for line_value: Variant in script_lines_l1.peek("L1_N1.choice"):
 			context = String((line_value as Dictionary).get("text", ""))
-		dialogue_overlay.call("present", "Lolo", context, choices)
+		dialogue_overlay.call("present", "Lolo", context, choices,
+			_requirements_per_route("L1_N1"))
 		_frame_the_decision()
 		return
 	var node_lines: Dictionary = _script_lines.get("node", {})
