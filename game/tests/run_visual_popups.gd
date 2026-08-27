@@ -7,6 +7,8 @@ extends SceneTree
 ## sat marooned in an empty slab. That is not visible from any headless assertion -- the
 ## labels say the right words at the right size either way.
 
+const PROFILE_PATH := "user://profile.json"
+
 var level: Node2D
 
 func _initialize() -> void:
@@ -77,8 +79,90 @@ func _run() -> void:
 	await _wait(1.0)
 	await _capture("08_controls")
 
+	var controls := level.get_node_or_null("ControlsOverlay")
+	if controls != null:
+		controls.call("close")
+	pause.call("close")
+	await _wait(0.6)
+
+	# THE BAG. Filled first, because an empty inventory screen is a picture of six frames
+	# and says nothing about whether the thing works.
+	var bag := level.get("inventory_manager") as InventoryManager
+	var registry := level.get_node("EntityRegistry") as EntityRegistry
+	for id in ["axe", "ladder", "key"]:
+		var entry := registry.get_entity(id)
+		var item := DrawnItemData.from_prediction(id, String(entry.get("display_name", id)),
+			_scribble(), [], 1.0, entry)
+		bag.add_item(item)
+	# ⚠ AND PUT THE PROFILE BACK. The bag screen reads PlayerProfile, so a picture of it worth
+	# looking at needs one with things in it -- and PlayerProfile is a real file at
+	# user://profile.json that survives between runs. A screenshot fixture that grants the
+	# brush and marks seven classes drawn would quietly hand the player progress they had not
+	# earned, in a save nothing tells them was touched. Same trap LEVEL_1.md logs as #4:
+	# measure deltas, never write, against anything persistent.
+	var saved := FileAccess.get_file_as_string(PROFILE_PATH)
+	var profile = level.get_node_or_null(^"/root/PlayerProfile")
+	if profile != null:
+		profile.call("record_brush_acquired")
+		profile.call("record_collectible", "L1_bale_key")
+		for id in ["axe", "ladder", "key", "circle", "square", "frog", "spider"]:
+			profile.call("record_class_drawn", id)
+	level.call("_toggle_inventory_screen")
+	await _wait(1.0)
+	await _capture("09_inventory")
+	# And with something chosen, because the detail pane and the USE button are half of what
+	# this screen is for and an empty one is a picture of frames.
+	level.get_node("InventoryScreen").call("_choose_bag", 0)
+	await _wait(0.4)
+	await _capture("09b_inventory_chosen")
+	level.get_node("InventoryScreen").call("close")
+	await _wait(0.5)
+
+	# THE ACQUISITION CARD, caught at full size rather than mid-fade.
+	level.call("announce_acquisition", "The Brass Key",
+		"Too small for the chest. It belongs to a door you have only seen painted.",
+		UIIcons.key())
+	await _wait(0.6)
+	await _capture("10_acquired")
+	await _wait(2.0)
+
+	_restore_profile(saved)
 	print("OBRA_VISUAL_POPUPS_DONE")
 	quit(0)
+
+
+## The save exactly as it was before this fixture ran. An empty string means there was no
+## profile to begin with, in which case the one this made is deleted rather than left behind.
+func _restore_profile(saved: String) -> void:
+	if saved.is_empty():
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE_PATH))
+		return
+	var file := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
+	if file == null:
+		push_warning("could not put the profile back; it now carries this fixture's writes")
+		return
+	file.store_string(saved)
+	file.close()
+	var profile := root.get_node_or_null(^"/root/PlayerProfile")
+	if profile != null:
+		profile.call("load_profile")
+
+
+## A drawing to put in a slot: a few strokes on white paper, which is what the drawing panel
+## actually hands the bag.
+func _scribble() -> Image:
+	var image := Image.create_empty(400, 400, false, Image.FORMAT_RGBA8)
+	image.fill(Color.WHITE)
+	for step in range(200):
+		var t := float(step) / 199.0
+		var x := int(90.0 + t * 220.0)
+		var y := int(300.0 - sin(t * PI) * 190.0)
+		for dx in range(-5, 6):
+			for dy in range(-5, 6):
+				var px := clampi(x + dx, 0, 399)
+				var py := clampi(y + dy, 0, 399)
+				image.set_pixel(px, py, Color.BLACK)
+	return image
 
 func _capture(label: String) -> void:
 	await process_frame
