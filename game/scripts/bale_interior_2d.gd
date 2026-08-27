@@ -293,6 +293,23 @@ func _build_floor() -> void:
 		wall_shape.position = Vector2(side * (WALK_HALF + 24.0), -170.0)
 		wall.add_child(wall_shape)
 
+	# AND A CEILING, for the same reason the ends are floor-to-ridge. The walls close the
+	# sides and closed nothing overhead, so anything that could climb or fly -- which is a
+	# thing the player can now draw, in here, at will -- left through the roof of the picture
+	# into the empty sky this room is parked in. A house you can walk out of the top of is
+	# not a room.
+	var roof := StaticBody2D.new()
+	roof.name = "Roof"
+	add_child(roof)
+	var roof_shape := CollisionShape2D.new()
+	var roof_box := RectangleShape2D.new()
+	roof_box.size = Vector2(ART_SIZE.x + 96.0, 48.0)
+	roof_shape.shape = roof_box
+	# At the top of the PICTURE, which is ART_ORIGIN.y up from here -- not ART_SIZE.y, which
+	# would put it above the room's own bounds and let a flier out of them before it hit.
+	roof_shape.position = Vector2(0.0, -ART_ORIGIN.y + 24.0)
+	roof.add_child(roof_shape)
+
 
 ## WALKED INTO, not pressed at -- the same rule the straw room's way out follows. E reaches
 ## placed drawings and nothing else, and a second meaning for it inside a room would be one
