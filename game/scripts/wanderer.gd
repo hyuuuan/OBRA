@@ -110,9 +110,57 @@ func _jump() -> void:
 	_coyote_left = 0.0
 
 
+## How fast you have to be coming down before a landing throws real dust, and the speed at
+## which it throws all of it. Below the floor a hop off a kerb would kick up a cloud.
+const LAND_DUST_FLOOR := 240.0
+const LAND_DUST_FULL := 900.0
+## How far she walks between footfalls. MEASURED IN DISTANCE, not in time: dust that arrives
+## on a timer keeps coming while she is standing against a wall pushing into it.
+const STEP_DUST_STRIDE := 46.0
+
+var _stride_dust := 0.0
+
+
 func _ready() -> void:
 	_gravity = float(ProjectSettings.get_setting("physics/2d/default_gravity", 980.0))
 	add_to_group(&"player_character")
+
+
+## WHAT THE GROUND SAYS BACK. Dust off the heel every stride, and a cloud when a fall lands.
+##
+## The apo moved across Payyo without the world acknowledging any of it -- and she has a
+## six-frame run and a jump pose, so the character was animating against scenery that never
+## admitted she was touching it. This is the cheapest half of that fixed: it costs one
+## self-freeing node per footfall and it is the difference between walking on the terrace and
+## sliding over a picture of one.
+##
+## Nothing here happens in water: a splash is the paddy's business, and it already knows.
+func _leave_a_mark(delta: float, was_airborne: bool, fall_speed: float) -> void:
+	if is_in_water() or _riding():
+		_stride_dust = 0.0
+		return
+	var host := get_parent() as Node2D
+	if host == null:
+		return
+	var feet := global_position
+	if was_airborne and is_on_floor() and fall_speed > LAND_DUST_FLOOR:
+		var force := clampf((fall_speed - LAND_DUST_FLOOR)
+			/ (LAND_DUST_FULL - LAND_DUST_FLOOR), 0.2, 1.0)
+		SceneryPuff2D.burst(host, feet, SceneryPuff2D.Kind.LAND, force)
+		_stride_dust = 0.0
+		return
+	if not is_on_floor():
+		_stride_dust = 0.0
+		return
+	_stride_dust += absf(velocity.x) * delta
+	if _stride_dust < STEP_DUST_STRIDE:
+		return
+	_stride_dust = 0.0
+	# Behind the heel rather than under the middle of her, and scaled by how fast she is
+	# going, so a walk scuffs and a run kicks.
+	var force := clampf(absf(velocity.x) / SPEED, 0.2, 1.0)
+	SceneryPuff2D.burst(host, feet - Vector2(_facing * 9.0, 0.0),
+		SceneryPuff2D.Kind.STEP, force * 0.55)
 
 
 func _physics_process(delta: float) -> void:
@@ -185,7 +233,10 @@ func _physics_process(delta: float) -> void:
 	_assist = Vector2.ZERO
 	_fall_limit = MAX_FALL
 
+	var falling := velocity.y
+	var airborne := not is_on_floor()
 	move_and_slide()
+	_leave_a_mark(delta, airborne, falling)
 	# Keep it inside the level rather than letting it walk off the end of the world.
 	global_position.x = clampf(global_position.x, world_bounds.position.x, world_bounds.end.x)
 	if global_position.y > world_bounds.end.y:
