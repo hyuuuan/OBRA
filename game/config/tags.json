@@ -3,15 +3,14 @@
   "generated_by": "tools/build_tags.py",
   "note": "Ability tags. Obstacles declare a TAG and the loader resolves satisfying CLASSES at load time; no obstacle names a class. This grouping is a DESIGN artifact and is not ConceptNet output -- abilities.json gives each class one verb, and the tags deliberately cut across those verbs. Per-membership provenance below says which is which. Regenerate with tools/build_tags.py.",
   "provenance_summary": {
-    "memberships_total": 37,
+    "memberships_total": 43,
     "conceptnet_aligned": 11,
-    "design_authored": 26,
-    "statement": "11 of 37 tag memberships reuse the class's own ConceptNet verb; the remaining 26 are design groupings. Do not describe the tag layer as ConceptNet-derived."
+    "design_authored": 32,
+    "statement": "11 of 43 tag memberships reuse the class's own ConceptNet verb; the remaining 32 are design groupings. Do not describe the tag layer as ConceptNet-derived."
   },
   "unhintable_classes": {
     "classes": [
       "anvil",
-      "bee",
       "bird",
       "boomerang",
       "campfire",
@@ -22,10 +21,8 @@
       "hot_air_balloon",
       "parachute",
       "sailboat",
-      "scorpion",
       "sea_turtle",
       "shark",
-      "snail",
       "submarine",
       "umbrella"
     ],
@@ -284,6 +281,44 @@
           "provenance": "design_authored",
           "source_ability": "enter",
           "note": "ConceptNet grounds door as 'enter'; membership in 'unlock' is a design grouping, not a ConceptNet assertion."
+        }
+      }
+    },
+    "burrow": {
+      "display_name": "Burrow",
+      "gloss": "small enough to get in where there is no door",
+      "unlocked_in_level": 1,
+      "declared_only": false,
+      "classes": {
+        "ant": {
+          "provenance": "design_authored",
+          "source_ability": "carry",
+          "note": "ConceptNet grounds ant as 'carry'; membership in 'burrow' is a design grouping, not a ConceptNet assertion."
+        },
+        "bee": {
+          "provenance": "design_authored",
+          "source_ability": "pollinate",
+          "note": "ConceptNet grounds bee as 'pollinate'; membership in 'burrow' is a design grouping, not a ConceptNet assertion."
+        },
+        "snail": {
+          "provenance": "design_authored",
+          "source_ability": "crawl",
+          "note": "ConceptNet grounds snail as 'crawl'; membership in 'burrow' is a design grouping, not a ConceptNet assertion."
+        },
+        "spider": {
+          "provenance": "design_authored",
+          "source_ability": "climb",
+          "note": "ConceptNet grounds spider as 'climb'; membership in 'burrow' is a design grouping, not a ConceptNet assertion."
+        },
+        "scorpion": {
+          "provenance": "design_authored",
+          "source_ability": "sting",
+          "note": "ConceptNet grounds scorpion as 'sting'; membership in 'burrow' is a design grouping, not a ConceptNet assertion."
+        },
+        "crab": {
+          "provenance": "design_authored",
+          "source_ability": "pinch",
+          "note": "ConceptNet grounds crab as 'pinch'; membership in 'burrow' is a design grouping, not a ConceptNet assertion."
         }
       }
     },

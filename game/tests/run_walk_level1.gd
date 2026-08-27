@@ -1,4 +1,6 @@
 extends SceneTree
+
+const RosterFixtures = preload("res://tests/roster_fixtures.gd")
 ## Beat 0, walked rather than solved on paper.
 ##
 ##	 godot --headless --path game --script res://tests/run_walk_level1.gd
