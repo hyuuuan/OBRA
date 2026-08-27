@@ -956,9 +956,24 @@ func _step_through(to: Vector2) -> void:
 	_walk_through.call_deferred(to)
 
 
+## THE LETTERBOX, NOT A FADE. LEVEL_1.md is explicit that stepping into the heap must not
+## get a beat of black -- at a fifth of a second twice it read as the game stopping to load,
+## and a doorway you have already chosen to walk through does not want one. Bars are a
+## different thing: they never hide the room, they take a quarter of a second at each end,
+## and they say "this is a place now" rather than "please wait".
+func _frame_the_step() -> void:
+	if cinematic == null or cinematic.is_playing():
+		return
+	cinematic.close()
+	await get_tree().create_timer(0.55, true, false, true).timeout
+	if cinematic != null:
+		cinematic.open()
+
+
 func _walk_through(to: Vector2) -> void:
 	if player == null or not is_instance_valid(player):
 		return
+	_frame_the_step()
 	player.call("apply_morph_state", {"position": to, "linear_velocity": Vector2.ZERO})
 	# And it has to arrive already framed: easing across four thousand units is a whip pan
 	# through the whole level.
@@ -2920,9 +2935,18 @@ func _complete_level() -> void:
 	Telemetry.end_level(level_id, "completed")
 	PlayerProfile.mark_level_completed(level_id)
 	status_label.text = "Level complete!"
+	# STAGED BEFORE THE PANEL. The level used to end by putting a screen over an unchanged
+	# view -- the last thing the player did and the acknowledgement of it happened at the same
+	# size as walking around. The bars come in on the terrace she is standing on, hold for a
+	# beat with her name for the level in them, and the panel arrives into that.
+	if cinematic != null:
+		cinematic.close("PAYYO")
+		await get_tree().create_timer(1.1, true, false, true).timeout
 	# The transition used to fire HERE, on the same frame, so the one moment the game
 	# acknowledges the player lasted a frame and was never read. It now waits for them.
 	complete_overlay.call("present", run_stats())
+	if cinematic != null:
+		cinematic.open()
 
 
 ## Whether the run ends with this level, or the level select comes next. The branch
