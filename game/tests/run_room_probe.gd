@@ -16,8 +16,19 @@ extends SceneTree
 ## 3. A CHECKPOINT'S FLAG STANDS ON THE GROUND. It used to be planted at the foot of its
 ##    trigger box, which at CP0 is sixty units under the terrace -- so the one thing a
 ##    checkpoint does to say it happened was buried.
+## 4. EVERY CHECKPOINT THE PLAYER CAN REACH HAS A MARK, and nothing decorative is standing
+##    on one. CP0 was the only one of Payyo's six that had anything on screen at all, and
+##    the level had planted a 94x58 fence sprite ten pixels from it -- which is what "the
+##    checkpoints are just random fences" was.
+## 5. A ROOM STILL FRAMES A PLAYER WHO IS A DRAWING. Every check here used to be run as the
+##    apo, and a morph is a different shape of object: its rig bodies are top_level and its
+##    scene root does not move with them, so `_room_holding_player` -- which reads that root
+##    -- answered "nowhere" for every drawn creature. The camera snapped back to valley
+##    framing a thousand units below the room and the room stopped drawing itself. Testing
+##    only the wanderer is what let that ship.
 
 const VIEW := Vector2(1600.0, 900.0)
+const RosterFixtures = preload("res://tests/roster_fixtures.gd")
 
 var results: Array[String] = []
 var failures := 0
@@ -144,8 +155,145 @@ func _audit_checkpoint_flags() -> void:
 		if absf(surface - flag.global_position.y) > 2.0:
 			buried.append("%s is %.0f off the ground"
 				% [String(area.get("checkpoint_id")), flag.global_position.y - surface])
-	_check(planted > 0 and buried.is_empty(), "flags stand on the ground",
+	_check(planted > 0 and buried.is_empty(), "marks stand on the ground",
 		"%d planted" % planted if buried.is_empty() else ", ".join(buried))
+
+
+## Nothing decorative may stand where a checkpoint stands.
+##
+## CP0's flag is at x 990 and the level had `FenceA`, a 94x58 atlas sprite, at x 980 -- so
+## the only visible checkpoint in Payyo was drawn inside a picture of a fence. The flag is
+## the smaller of the two by a wide margin, so what the player saw was the fence, and what
+## they concluded was that the fences are the checkpoints.
+func _audit_nothing_stands_on_a_checkpoint() -> void:
+	var decor := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/Decor") as Node2D
+	if decor == null:
+		return
+	var clashes: Array[String] = []
+	for flag in level.get_tree().get_nodes_in_group(&"checkpoint_areas"):
+		var mark := (flag as Node).get_node_or_null(^"Checkpoint") as Node2D
+		if mark == null:
+			continue
+		for child in decor.get_children():
+			var sprite := child as Sprite2D
+			if sprite == null or sprite.texture == null:
+				continue
+			var half := sprite.texture.get_size() * sprite.scale * 0.5
+			var box := Rect2(sprite.global_position - half, half * 2.0)
+			# The flag is about 48 wide and a pole tall; a box round its foot is enough to
+			# catch anything drawn over it.
+			if box.intersects(Rect2(mark.global_position - Vector2(30.0, 100.0),
+					Vector2(60.0, 104.0))):
+				clashes.append("%s stands on %s" % [sprite.name, mark.get_parent().name])
+	_check(clashes.is_empty(), "no decor stands on a checkpoint",
+		"clear" if clashes.is_empty() else ", ".join(clashes))
+
+
+## Every checkpoint that can actually be reached carries a mark.
+##
+## Payyo declares six. Only CP0 was a node in the scene; CP1, CP2 and CP3 are written the
+## instant a route is committed and had no visual of any kind, so three of the four
+## checkpoints a player actually reaches happened in total silence.
+func _audit_every_checkpoint_is_marked() -> void:
+	var director = level.get("director")
+	if director == null:
+		return
+	var marked: Array[String] = []
+	var missing: Array[String] = []
+	for node in level.get_tree().get_nodes_in_group(&"checkpoint_areas"):
+		if (node as Node).get_node_or_null(^"Checkpoint") != null:
+			marked.append(String((node as Node).get("checkpoint_id")))
+	for node in level.get_tree().get_nodes_in_group(&"level_obstacles"):
+		var id := String((node as Node).get("obstacle_id"))
+		var declares := String(director.obstacle(id).get("checkpoint_on_commit", ""))
+		if declares.is_empty():
+			continue
+		if (node as Node).get_node_or_null(^"Checkpoint") != null:
+			marked.append(declares)
+		else:
+			missing.append(declares)
+	_check(missing.is_empty() and marked.size() >= 4, "every checkpoint has a mark",
+		"marked: %s" % ", ".join(marked) if missing.is_empty()
+			else "unmarked: %s" % ", ".join(missing))
+
+
+## THE CHEST IN THE STRAW ROOM ANSWERS THE INTERACT KEY.
+##
+## It did not, and neither did the board beside it: `Baul2D` planted its signpost with no
+## hook, and `GameLevel._readable_sign` skips any board whose hook has not already played --
+## so the board could never be offered, in any run, ever. The one object in the heap's inside
+## that the player is meant to walk up to and think about was a picture of a chest with a
+## picture of a sign next to it, and pressing E at either did nothing at all. That is most of
+## "I can't interact with the sign, as well as the chest".
+func _audit_the_chest_can_be_read() -> void:
+	level.call("_uncover_the_baul")
+	for _frame in range(8):
+		await physics_frame
+	var chest := level.get_tree().get_first_node_in_group(&"baul") as Node2D
+	if chest == null:
+		_check(false, "the chest can be read", "no baul in the level")
+		return
+	var board: Node2D = null
+	for node in level.get_tree().get_nodes_in_group(&"signposts"):
+		if (node as Node).get_parent() == chest:
+			board = node as Node2D
+			break
+	if board == null:
+		_check(false, "the chest can be read", "the chest carries no board")
+		return
+	# Standing at it, the level must offer the board -- which is the whole of the fix: a
+	# hook it can have heard, and a player inside its reading range.
+	var player := level.get("player") as Node2D
+	player.global_position = board.global_position
+	for _frame in range(6):
+		await physics_frame
+	var readable = level.call("_readable_sign")
+	_check(readable == board, "the chest can be read",
+		"offered %s" % ("the chest's board" if readable == board else str(readable)))
+
+
+## A DRAWN CREATURE IS STILL IN THE ROOM IT WAS DRAWN IN.
+##
+## This is the check that would have caught the whole class of "drawing something inside a
+## small world breaks the game". A morph's rig bodies are `top_level`, so `apply_morph_state`
+## moving them left the scene root behind at the level spawn point forever -- and three
+## room-critical predicates read that root. The room decided the player had left, hid itself,
+## released the camera back to valley framing (which clamps a thousand units below the room)
+## and cleared the box a placement may not leave.
+func _audit_a_morph_stays_in_the_room(group: StringName) -> void:
+	var room := level.get_tree().get_first_node_in_group(group) as Node2D
+	var player := level.get("player") as Node2D
+	if room == null or player == null:
+		_check(false, "%s frames a morph" % group, "no player or no room")
+		return
+	player.global_position = Vector2(room.call("entry_point"))
+	for _frame in range(20):
+		await physics_frame
+
+	var drawing := Image.create_empty(400, 400, false, Image.FORMAT_RGBA8)
+	drawing.fill(Color.WHITE)
+	var made: bool = level.call("_spawn_or_replace", "frog", "Frog", drawing,
+		RosterFixtures.for_rig("hopper"))
+	if not made:
+		_check(false, "%s frames a morph" % group, "the rig would not build")
+		return
+	for _frame in range(40):
+		await physics_frame
+
+	var morph := level.get("player") as Node2D
+	var holding = level.call("_room_holding_player")
+	var bounds := Rect2(room.call("bounds")).grow(90.0)
+	_check(holding == room and bool(room.visible)
+			and bounds.has_point(morph.global_position),
+		"%s frames a morph" % group,
+		"room=%s visible=%s at %s" % [
+			"held" if holding == room else "lost", room.visible, morph.global_position])
+
+	# And back to the apo, so the next case starts from the same place this one did.
+	level.call("_revert_to_base_form")
+	for _frame in range(20):
+		await physics_frame
 
 
 ## Put the player in a room, aim a drawing well outside it, and confirm. The object has to
