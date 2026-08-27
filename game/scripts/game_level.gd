@@ -1305,6 +1305,12 @@ func _restore_placed_entities(records: Array) -> void:
 ## loop, writing five lines into the same label in the same frame. Only the last survived.
 func _speak(lines: Array) -> void:
 	var beat: Array[Dictionary] = []
+	# GATHERED, NOT WRITTEN STRAIGHT THROUGH. Handing each hint to the bar as it came out of
+	# the loop meant a beat of several hints was several writes to one label inside one frame,
+	# and only the last of them was ever drawn -- the same defect this function's own comment
+	# records fixing for the story box. `L1_N2.teach` is three lines and is the only statement
+	# of the straw heap's puzzle in the game; the player was shown one of them.
+	var advice: Array[Dictionary] = []
 	for line_value: Variant in lines:
 		var line: Dictionary = line_value
 		var text := script_lines_l1.display_text(line)
@@ -1312,11 +1318,10 @@ func _speak(lines: Array) -> void:
 			continue
 		var speaker := String(line.get("speaker", "lolo"))
 		if script_lines_l1.kind_of(line) == "hint":
-			if hint_bar != null:
-				hint_bar.show_hint(text,
-					Lolo.SPEAKER if speaker == "lolo" else APO_SPEAKER)
-			else:
-				status_label.text = text
+			advice.append({
+				"text": text,
+				"speaker": Lolo.SPEAKER if speaker == "lolo" else APO_SPEAKER,
+			})
 			continue
 		beat.append({
 			"text": text,
@@ -1326,12 +1331,27 @@ func _speak(lines: Array) -> void:
 	if beat.is_empty() or dialogue_box == null:
 		if not beat.is_empty():
 			status_label.text = String(beat[-1]["text"])
+		_post_advice(advice)
 		return
-	# A hint left on screen under a conversation is the two channels talking at once.
+	# A hint left on screen under a conversation is the two channels talking at once. Taken
+	# down BEFORE the advice of this same beat goes up, not after -- clearing afterwards is
+	# what used to throw the hints away in a beat that carried both kinds.
 	if hint_bar != null:
 		hint_bar.clear()
 	_focus_camera_for(String(beat[0]["at"]))
 	dialogue_box.speak(beat)
+	# The bar fades itself out and freezes its dwell while anybody is speaking, so advice
+	# posted now waits under the conversation and plays out when the player has read it.
+	_post_advice(advice)
+
+
+func _post_advice(advice: Array[Dictionary]) -> void:
+	if advice.is_empty():
+		return
+	if hint_bar == null:
+		status_label.text = String(advice[-1]["text"])
+		return
+	hint_bar.show_beat(advice)
 
 
 ## Push the camera in on whoever is talking, and give it back when the beat is over.

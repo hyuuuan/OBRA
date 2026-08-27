@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_audio_buses()
 	_test_ink_accounting()
 	_test_inventory()
+	await _test_hint_bar_plays_a_whole_beat()
 	_test_canvas_clipping()
 	_test_game_level_contract()
 	await _test_level_framework()
@@ -548,6 +549,46 @@ func _test_inventory() -> void:
 	var recovered := inventory.take_item(2)
 	_expect(recovered != null and recovered.instance_id == ids[2], "inventory lost item identity")
 	inventory.queue_free()
+
+
+## A BEAT OF ADVICE IS SEVERAL LINES AND ALL OF THEM HAVE TO BE SEEN.
+##
+## GameLevel._speak hands a beat's hint lines over in one synchronous loop, and HintBar had no
+## queue -- so every line overwrote the label before a frame was drawn and only the LAST of
+## them survived. `L1_N2.teach` is three lines, one per route, and it is the only statement of
+## the straw heap's puzzle anywhere in the game: the player was shown a third of it. The same
+## defect had already been found and fixed for DialogueBox, and the hint channel kept it.
+func _test_hint_bar_plays_a_whole_beat() -> void:
+	var bar := HintBar.new()
+	world.add_child(bar)
+	await process_frame
+	bar.show_beat([
+		{"text": "Something that can forage."},
+		{"text": "Or something that can carry."},
+		{"text": "Or something that brings weather."},
+	])
+	await process_frame
+	var seen: Array[String] = [bar.current_text()]
+	# Each line is held for a readable dwell and then the next takes over. Stepped rather
+	# than waited out, so the test does not spend ten seconds proving it.
+	for _line in range(2):
+		for _tick in range(400):
+			bar._process(0.05)
+			if bar.current_text() != seen[seen.size() - 1]:
+				break
+		seen.append(bar.current_text())
+	_expect(seen.size() == 3 and seen[0] != seen[1] and seen[1] != seen[2],
+		"hint bar dropped lines from a beat: %s" % str(seen))
+	_expect(String(seen[0]).contains("forage") and String(seen[1]).contains("carry")
+			and String(seen[2]).contains("weather"),
+		"hint bar played a beat out of order: %s" % str(seen))
+	# The LAST line stands, like any ordinary hint -- the beat ends with the advice on screen
+	# rather than with the bar going blank.
+	for _tick in range(400):
+		bar._process(0.05)
+	_expect(bar.is_showing() and String(bar.current_text()).contains("weather"),
+		"the last line of a beat did not stand")
+	bar.queue_free()
 
 
 func _test_canvas_clipping() -> void:
