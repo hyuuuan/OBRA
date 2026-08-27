@@ -44,6 +44,12 @@ const WANDERER_SCENE := "res://creatures/wanderer.tscn"
 ## Built in code rather than authored into the scene, like the requirement strip: it owns
 ## its own frame and gauge and there is nothing to lay out by hand.
 var hud_panel: HudPanel
+## The card that says a thing is yours now. See AcquiredOverlay and announce_acquisition.
+var acquired_overlay: AcquiredOverlay
+## The bag, and everything found, on one screen. See InventoryScreen.
+var inventory_screen: InventoryScreen
+## The letterbox the level's set pieces are framed in. See CinematicBars.
+var cinematic: CinematicBars
 ## Top right: the drawing the player is currently wearing, and how long it has left.
 var morph_card: MorphCard
 ## What the recogniser scored the sketch that is currently being adopted.
@@ -138,6 +144,13 @@ func _ready() -> void:
 	draw_panel.set("debug_timing_logs", debug_timing_logs)
 	inventory_hud.set_manager(inventory_manager)
 	_build_hud_frame()
+	acquired_overlay = AcquiredOverlay.new()
+	acquired_overlay.name = "AcquiredOverlay"
+	add_child(acquired_overlay)
+	_build_inventory_screen()
+	cinematic = CinematicBars.new()
+	cinematic.name = "CinematicBars"
+	add_child(cinematic)
 
 	draw_button.pressed.connect(_on_draw_button_pressed)
 	draw_panel.drawing_ready.connect(_on_drawing_ready)
@@ -1139,10 +1152,28 @@ func _on_room_notice(text: String) -> void:
 func _on_room_notice_left() -> void:
 	if hint_bar == null:
 		return
+	if hint_bar.current_text() == StrawRoom2D.NAIL_NOTICE:
+		hint_bar.clear()
+		return
 	for entry: Variant in BaleInterior2D.NOTICES:
 		if hint_bar.current_text() == String((entry as Dictionary)["text"]):
 			hint_bar.clear()
 			return
+
+
+## THE ONE PLACE THE GAME SAYS "THIS IS YOURS NOW".
+##
+## Every acquisition in the level goes through here rather than each one inventing its own
+## feedback, which is how the level ended up with two sparkles, four lines of grey status
+## text and one pickup -- the hidden flower -- that said nothing whatsoever. A reward should
+## not look different according to which room it was found in.
+##
+## Safe to call with no overlay: fixtures that build the level headless still run every one
+## of these call sites, and none of them should have to check first.
+func announce_acquisition(title: String, note: String, art: Texture2D = null) -> void:
+	if acquired_overlay == null or not is_instance_valid(acquired_overlay):
+		return
+	acquired_overlay.present(title, note, art)
 
 
 ## Lola's canvas, off the floor of her own house.
@@ -1154,6 +1185,9 @@ func _on_room_notice_left() -> void:
 ## had already searched, which is exactly what "dialogue pops up randomly" looks like from the
 ## outside. The canvas has its own beat now.
 func _on_painting_taken() -> void:
+	announce_acquisition("Pista",
+		"Lola's second canvas. The way into the next place.",
+		BaleInterior2D.PISTA_ART)
 	_speak(script_lines_l1.fire("L1_N3.canvas.taken"))
 	_grant_the_canvas()
 
@@ -1449,6 +1483,14 @@ func _focus_camera_for(speaker: String) -> void:
 		dialogue_box.conversation_finished.connect(_release_camera_focus)
 
 
+## The hidden flower in the gorge cave, which is the one thing in Payyo a player can miss
+## entirely and the one thing that had no acknowledgement at all.
+func _on_flower_found(_collectible_id: String) -> void:
+	announce_acquisition("Hidden Flower",
+		"One of five. Lola pressed them between the pages.",
+		HiddenFlower2D.ART)
+
+
 func _release_camera_focus() -> void:
 	var world_camera := _world_camera()
 	if world_camera != null:
@@ -1508,14 +1550,15 @@ func _on_drawing_ready(
 	# as a utility now, so a ramp or a step lands where it was wanted.
 	if role == "utility" or role == "physics_morph":
 		var item := DrawnItemData.from_prediction(entity_id, display_name, drawing, strokes, ink_cost, entry)
-		if PlayerProfile.has_object(entity_id):
+		var first_time := not PlayerProfile.has_object(entity_id)
+		if not first_time:
 			# Re-summoning an object the player already owns is free: refund the
 			# reservation and mark the item settled so no later path charges it.
 			ink_manager.release_attempt()
 			item.ink_committed = true
 		else:
 			PlayerProfile.record_object_acquired(entity_id)
-		_begin_new_utility(item)
+		_begin_new_utility(item, first_time)
 		return
 	if _spawn_or_replace(entity_id, display_name, drawing, strokes):
 		ink_manager.commit_attempt()
@@ -1583,7 +1626,10 @@ func _spawn_or_replace(
 ## the cursor that they had not asked for and could not put down without either
 ## placing it or right-clicking. Deciding WHAT to draw and deciding WHERE it goes are
 ## two separate thoughts, and the game was making the second one for them.
-func _begin_new_utility(item: DrawnItemData) -> void:
+## `first_time` is whether this CLASS is new to the player, not whether the bag was empty.
+## The card is for acquiring something; the fifth axe of the run is a tool coming out of the
+## bag, and dimming the screen for it would make the reward beat into a loading screen.
+func _begin_new_utility(item: DrawnItemData, first_time: bool = true) -> void:
 	var slot := inventory_manager.add_item(item)
 	if slot == -1:
 		ink_manager.release_attempt()
@@ -1594,6 +1640,13 @@ func _begin_new_utility(item: DrawnItemData) -> void:
 		ink_manager.commit_attempt()
 	inventory_hud.set_selected(slot)
 	status_label.text = "%s drawn — press %d to place it" % [item.display_name, slot + 1]
+	if not first_time:
+		return
+	# The player's OWN drawing, paper knocked out, held up for a second. This is the moment
+	# the recogniser agreed with them, and it was a line of grey text in the corner.
+	announce_acquisition(item.display_name,
+		"In your bag — press %d to use it" % (slot + 1),
+		DrawingSkin2D.thumbnail(item.image))
 
 
 ## What a slot does depends on what is in it, because the two kinds of drawn object are
@@ -2519,11 +2572,77 @@ func _lolo_says(key: String, seconds: float = 0.0) -> void:
 	dialogue_box.speak([{"text": line, "speaker": Lolo.SPEAKER}])
 
 
+## THE OPENING IS ONE BEAT NOW, AND THIS IS NOT IT.
+##
+## The level used to open with three stop-the-world events inside the first forty pixels:
+## this greeting, then `B0_HAGDAN.enter` (two lines) the moment the player took a step, then
+## a readable signpost lighting up at their feet. Two of those were the game explaining
+## itself twice before it had said anything once.
+##
+## The trigger moved east -- B0_HAGDAN spans 430-950 now, as LEVEL_1.md always said it did --
+## so `.enter` fires after a walk instead of after a footstep, and it is the level's one
+## opening CONVERSATION. This line stays, because "press R and draw" is the only place the
+## player is told what the game is, but it goes on the HINT channel where an instruction
+## belongs: no pause, no key, and it clears itself when the stair beat arrives. It is also
+## the out-of-voice line the old dialogue.json still carries, which is a second reason not
+## to give it the framed box that Payyo's own script is written for.
+## The full bag screen, and its place in the queue of things Escape backs out of.
+##
+## THE CHAIN IS DATA, NOT NODE ORDER (see UIRouter), and it is authored in game_level.tscn --
+## but this screen is built here rather than instanced, so it inserts itself. It goes in
+## AHEAD of the pause menu and behind everything else: Escape should close the bag rather
+## than open the pause menu over the top of it, and it should not outrank a confirmation.
+func _build_inventory_screen() -> void:
+	inventory_screen = InventoryScreen.new()
+	inventory_screen.name = "InventoryScreen"
+	add_child(inventory_screen)
+	inventory_screen.wire(inventory_manager, registry)
+	inventory_screen.slot_activated.connect(_on_inventory_slot_pressed)
+	var router := get_node_or_null(^"UIRouter")
+	if router == null:
+		return
+	var chain: Array[NodePath] = router.get(&"cancel_chain")
+	var at := chain.size()
+	for index in range(chain.size()):
+		if String(chain[index]).get_file() == "PauseMenu":
+			at = index
+			break
+	chain.insert(at, router.get_path_to(inventory_screen))
+	router.set(&"cancel_chain", chain)
+
+
+## The bag, opened deliberately. Refused while the drawing panel is up or something is being
+## placed: both of those are already a mode the player is in the middle of, and a second
+## full-screen thing over the top of either is a way to lose a drawing.
+func _toggle_inventory_screen() -> void:
+	if inventory_screen == null or not is_instance_valid(inventory_screen):
+		return
+	if inventory_screen.is_open():
+		inventory_screen.close()
+		return
+	if draw_panel != null and draw_panel.has_method("is_open") and bool(draw_panel.is_open()):
+		return
+	if placement_controller != null and placement_controller.is_placing():
+		return
+	inventory_screen.open()
+
+
 func _greet() -> void:
-	_lolo_says("greeting")
+	if lolo == null or not is_instance_valid(lolo):
+		return
+	var line := String(_script_lines.get("greeting", ""))
+	if line.is_empty():
+		return
+	lolo.say(line)
 
 
 func _wire_dialogue_node() -> void:
+	# THE FLOWER SAID NOTHING. `collected` has been emitted since the flower existed and
+	# nothing in the level had ever connected it: the one optional collectible in Payyo was
+	# picked up in silence, with a rise-and-fade on the sprite and no other acknowledgement
+	# anywhere. It is the hardest thing in the level to find.
+	if hidden_flower != null and not hidden_flower.collected.is_connected(_on_flower_found):
+		hidden_flower.collected.connect(_on_flower_found)
 	if cave_gate != null and hidden_flower != null:
 		# The gate is the only thing that may reveal the flower, so a player who has
 		# not learned Illumination sees a dark cave rather than a prize behind glass.

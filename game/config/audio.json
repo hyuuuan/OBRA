@@ -12,7 +12,9 @@
     "ui_click": "",
     "ui_open": "",
     "ui_close": "",
-    "level_complete": ""
+    "level_complete": "",
+    "checkpoint": "",
+    "item_acquired": ""
   },
   "music": {
     "menu": "",
