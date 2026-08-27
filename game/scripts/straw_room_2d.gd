@@ -237,16 +237,38 @@ func _build_floor() -> void:
 	body.add_child(shape)
 	# And a wall at each end, so she cannot walk out of the ends of the room into the sky it
 	# is standing in.
+	#
+	# FLOOR TO RIDGE, NOT FLOOR TO EAVES. At `wall_height` the ends stopped level with the
+	# eaves and everything above that was open sky. That was survivable while the apo was the
+	# only thing in here -- she jumps 94px -- and it stopped being survivable the moment a
+	# drawing could be one: this room's entire puzzle is "the nail is forty pixels out of
+	# reach", so the player is being ASKED to bring something that climbs or flies, and the
+	# obvious answers went straight over the top of the room and out into two thousand units
+	# of nothing.
+	var enclosure := wall_height + roof_height
 	for side: float in [-1.0, 1.0]:
 		var wall := StaticBody2D.new()
 		wall.name = "Wall%s" % ("L" if side < 0.0 else "R")
 		add_child(wall)
 		var wall_shape := CollisionShape2D.new()
 		var wall_box := RectangleShape2D.new()
-		wall_box.size = Vector2(48.0, wall_height)
+		wall_box.size = Vector2(48.0, enclosure)
 		wall_shape.shape = wall_box
-		wall_shape.position = Vector2(side * (room_length * 0.5 + 8.0), -wall_height * 0.5)
+		wall_shape.position = Vector2(side * (room_length * 0.5 + 8.0), -enclosure * 0.5)
 		wall.add_child(wall_shape)
+
+	# THE THATCH IS SOLID. Same reason: a room with no lid is a room a bird leaves.
+	var roof := StaticBody2D.new()
+	roof.name = "Roof"
+	add_child(roof)
+	var roof_shape := CollisionShape2D.new()
+	var roof_box := RectangleShape2D.new()
+	roof_box.size = Vector2(room_length + 96.0, 48.0)
+	roof_shape.shape = roof_box
+	# Just INSIDE the room's own bounds rather than level with them: a body resting exactly
+	# on the top edge of bounds() is a body `_room_holding_player` has to be generous about.
+	roof_shape.position = Vector2(0.0, -enclosure + 24.0)
+	roof.add_child(roof_shape)
 
 
 ## WALKED ONTO, not pressed at. E reaches only placed drawings -- that is what the group is
