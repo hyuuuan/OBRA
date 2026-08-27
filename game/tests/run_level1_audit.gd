@@ -588,7 +588,7 @@ func _audit_live_level() -> void:
 		level.queue_free()
 		await process_frame
 		return
-	player.global_position = Vector2(700.0, 440.0)
+	player.global_position = Vector2(960, 440.0)
 	for _frame in range(12):
 		await physics_frame
 	_check(d.current_obstacle() == "B0_HAGDAN", "walking in registers",
@@ -978,7 +978,7 @@ func _fake_prop(level: Node) -> PhysicsShapeObject:
 	level.get_node("EnvironmentBaseplate/GameplayPlane/WorldItemRoot").add_child(prop)
 	prop.apply_item_data(DrawnItemData.from_prediction(
 		"square", "Square", _blank_image(), [], 0.4, registry.get_entity("square")))
-	prop.global_position = Vector2(900.0, 300.0)
+	prop.global_position = Vector2(1160, 300.0)
 	return prop
 
 
@@ -1228,14 +1228,15 @@ func _audit_a_miss_says_why() -> void:
 	var hint = level.get("hint_bar")
 	var player := level.get("player") as Node2D
 
-	# The left bank: LowerLeft runs x 0..340 with its surface at y 560, and the plank the
-	# first sub-beat is about floats at x 490. There is nowhere else to stand.
-	player.global_position = Vector2(320.0, 500.0)
+	# The left bank: LowerLeft runs x 0..600 with its surface at y 560, and the plank the
+	# first sub-beat is about floats at x 750. There is nowhere else to stand, so the volume
+	# has to reach here -- which is why B0_HAGDAN cannot be narrowed. See LEVEL_1.md.
+	player.global_position = Vector2(520.0, 500.0)
 	for _frame in range(20):
 		await physics_frame
 	_check(String(director_node.current_obstacle()) == "B0_HAGDAN",
 		"the bank counts as being at the beat",
-		"standing at x 320, director is at '%s'" % director_node.current_obstacle())
+		"standing at x 520, director is at '%s'" % director_node.current_obstacle())
 
 	# Sub-beat 1 wants Roll. A frog leaps.
 	level.call("_judge_submission", "frog")
@@ -1298,7 +1299,7 @@ func _audit_the_key_chain() -> void:
 		else:
 			# Weather is the Protector route: scatter the heap, and the key comes out of
 			# the wreck of it. No route is committed first -- the drawing IS the choice.
-			player.global_position = Vector2(3100.0, 180.0)
+			player.global_position = Vector2(3780, 180.0)
 			for _frame in range(24):
 				await physics_frame
 			level.call("_judge_submission", "fan")
@@ -1311,7 +1312,7 @@ func _audit_the_key_chain() -> void:
 		_check(bool(profile.call("is_collectible_found", "L1_bale_key")),
 			"the key is in the bag (%s)" % how, "L1_bale_key")
 
-		player.global_position = Vector2(3500.0, 40.0)
+		player.global_position = Vector2(4520, 40.0)
 		for _frame in range(24):
 			await physics_frame
 		_check(bool(level.call("_found_key_would_open")), "the door offers it (%s)" % how,
@@ -1488,7 +1489,7 @@ func _audit_the_ward_is_wired() -> void:
 	var player := level.get("player") as Node2D
 	_check(lock != null, "the level owns a ward lock", "built beside the director")
 
-	player.global_position = Vector2(3500.0, 40.0)
+	player.global_position = Vector2(4520, 40.0)
 	for _frame in range(24):
 		await physics_frame
 
@@ -1667,7 +1668,7 @@ func _walk_node_three(route: String) -> void:
 	# which registered only because L1_N3's volume used to reach 140px past the left edge
 	# of the house and 90px back down the terrace the straw is on. The Overlook runs from
 	# 3320 and the bale's floor from 3500, so this is on the walkable strip between them.
-	player.global_position = Vector2(3450.0, 50.0)
+	player.global_position = Vector2(4470, 50.0)
 	for _frame in range(20):
 		await physics_frame
 	if route == "artist":

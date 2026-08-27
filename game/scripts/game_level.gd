@@ -2406,7 +2406,11 @@ func _physics_process(_delta: float) -> void:
 		_submerged_seconds = 0.0
 	# Crossing the far lip is what earns the memory, not choosing the route that would
 	# have earned it: the reward is for having rebuilt her bridge and walked over it.
-	if anchor_position.x > 2980.0:
+	#
+	# 3660 since the level was stretched: the gorge's far lip moved with Terrace5. It was
+	# 2980, which after the stretch is the middle of the gorge -- so the memory fired while
+	# the player was still falling into it.
+	if anchor_position.x > 3660.0:
 		_show_memory_if_earned()
 	var distance := anchor_position.distance_to(goal_marker.global_position)
 	# The distance is already being computed to decide completion, so showing it costs
