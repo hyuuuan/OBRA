@@ -49,9 +49,14 @@ func _run() -> void:
 	await _open()
 	_audit_room_fills_the_screen()
 	_audit_the_canvas_is_a_walk_in()
-	_audit_checkpoint_flags()
+	_audit_checkpoint_marks()
+	_audit_nothing_stands_on_a_checkpoint()
+	_audit_every_checkpoint_is_marked()
+	await _audit_the_chest_can_be_read()
 	await _audit_placement(&"straw_rooms", Vector2(-120.0, 220.0))
 	await _audit_placement(&"bale_interiors", Vector2(330.0, 210.0))
+	await _audit_a_morph_stays_in_the_room(&"straw_rooms")
+	await _audit_a_morph_stays_in_the_room(&"bale_interiors")
 	_close()
 
 	print("\n===== ROOMS =====")
@@ -128,14 +133,14 @@ func _audit_the_canvas_is_a_walk_in() -> void:
 			% [entry.x, rect.position.x, rect.end.x])
 
 
-## Every planted flag is standing on something, rather than inside it or over it.
-func _audit_checkpoint_flags() -> void:
+## Every planted mark is standing on something, rather than inside it or over it.
+func _audit_checkpoint_marks() -> void:
 	var space := (level as Node2D).get_world_2d().direct_space_state
 	var planted := 0
 	var buried: Array[String] = []
 	for node in level.get_tree().get_nodes_in_group(&"checkpoint_areas"):
 		var area := node as Area2D
-		var flag := area.get_node_or_null(^"Flag") as Node2D
+		var flag := area.get_node_or_null(^"Checkpoint") as Node2D
 		if flag == null:
 			continue
 		planted += 1

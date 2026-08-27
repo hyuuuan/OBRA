@@ -62,10 +62,6 @@ points = PackedVector2Array(-30, 48, 0, 0, 0, 48)
 [sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_down_b"]
 points = PackedVector2Array(0, 0, 30, 36, 0, 36)
 
-[sub_resource type="AtlasTexture" id="Atlas_fence"]
-atlas = ExtResource("11_map")
-region = Rect2(738, 905, 94, 58)
-
 [sub_resource type="AtlasTexture" id="Atlas_rock"]
 atlas = ExtResource("11_map")
 region = Rect2(739, 742, 77, 61)
@@ -404,50 +400,42 @@ surface_style = 2
 [node name="Protector" type="Node2D" parent="GameplayPlane/Routes" unique_id=301092398]
 
 [node name="DeadTree" type="Node2D" parent="GameplayPlane/Routes/Protector" unique_id=102827750]
-position = Vector2(2360, 240)
+position = Vector2(3040, 240)
 script = ExtResource("15_tree")
 span_length = 250.0
 
 [node name="CrumbleA" type="StaticBody2D" parent="GameplayPlane/Routes/Protector" unique_id=526046282]
-position = Vector2(2700, 232)
+position = Vector2(3380, 232)
 script = ExtResource("16_collapse")
 platform_size = Vector2(220, 34)
 
 [node name="CrumbleB" type="StaticBody2D" parent="GameplayPlane/Routes/Protector" unique_id=1574591224]
-position = Vector2(2890, 232)
+position = Vector2(3570, 232)
 script = ExtResource("16_collapse")
 platform_size = Vector2(220, 34)
 
 [node name="Decor" type="Node2D" parent="GameplayPlane" unique_id=1401248588]
 z_index = 5
 
-[node name="FenceA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1125018844]
-position = Vector2(980, 406)
-texture = SubResource("Atlas_fence")
-
 [node name="RockA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1234385817]
-position = Vector2(1370, 250)
+position = Vector2(1630, 250)
 texture = SubResource("Atlas_rock")
 
 [node name="PlantA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1363963344]
-position = Vector2(1660, 208)
+position = Vector2(2340, 208)
 texture = SubResource("Atlas_plant")
 
-[node name="FenceB" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=2061273148]
-position = Vector2(2180, 208)
-texture = SubResource("Atlas_fence")
-
 [node name="BushA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1430528708]
-position = Vector2(3060, 208)
+position = Vector2(3740, 208)
 texture = SubResource("Atlas_bush")
 
 [node name="HutOverlook" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=962046339]
-position = Vector2(3856, 14)
+position = Vector2(4876, 14)
 scale = Vector2(1.22, 1.22)
 texture = SubResource("Atlas_hut")
 
 [node name="Floor" type="StaticBody2D" parent="GameplayPlane" unique_id=1952527368]
-position = Vector2(1880, 656)
+position = Vector2(2560, 656)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Floor" unique_id=1785748573]
 shape = SubResource("Rectangle_floor")
