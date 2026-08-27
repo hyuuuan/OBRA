@@ -115,12 +115,15 @@ size = Vector2(150, 200)
 [node name="EnvironmentBaseplate" type="Node2D" unique_id=1910596875]
 texture_filter = 1
 script = ExtResource("1_environment")
-world_bounds = Rect2(0, -1800, 3920, 2480)
+world_bounds = Rect2(0, -1800, 5120, 2480)
 
 [node name="WorldCamera" type="Camera2D" parent="." unique_id=449082578]
 position = Vector2(800, 230)
 script = ExtResource("2_camera")
 target_offset = Vector2(0, -130)
+
+[node name="Ambience" type="Node2D" parent="WorldCamera" unique_id=449082579]
+script = ExtResource("12_air")
 
 [node name="SkyLayer" type="Node2D" parent="." unique_id=880744867]
 z_index = -120
@@ -358,7 +361,7 @@ surface_size = Vector2(300, 100)
 
 [node name="CentralPaddy" type="Area2D" parent="GameplayPlane/WaterAreas" unique_id=1991169185]
 z_index = 3
-position = Vector2(2050, 320)
+position = Vector2(2730, 320)
 script = ExtResource("4_water")
 buoyancy = 2.6
 linear_drag = 3.1
@@ -397,7 +400,7 @@ script = ExtResource("14_routes")
 [node name="Artist" type="Node2D" parent="GameplayPlane/Routes" unique_id=1122981442]
 
 [node name="MidPost" type="StaticBody2D" parent="GameplayPlane/Routes/Artist" unique_id=342179837]
-position = Vector2(2650, 240)
+position = Vector2(3330, 240)
 script = ExtResource("5_terrace")
 segment_size = Vector2(60, 332)
 surface_style = 2
@@ -405,25 +408,25 @@ surface_style = 2
 [node name="Pragmatist" type="Node2D" parent="GameplayPlane/Routes" unique_id=818647650]
 
 [node name="LedgeA" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist" unique_id=253390672]
-position = Vector2(2400, 336)
+position = Vector2(3080, 336)
 script = ExtResource("5_terrace")
 segment_size = Vector2(104, 28)
 surface_style = 2
 
 [node name="LedgeB" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist" unique_id=387456915]
-position = Vector2(2464, 432)
+position = Vector2(3144, 432)
 script = ExtResource("5_terrace")
 segment_size = Vector2(104, 28)
 surface_style = 2
 
 [node name="LedgeC" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist" unique_id=204425953]
-position = Vector2(2400, 560)
+position = Vector2(3080, 560)
 script = ExtResource("5_terrace")
 segment_size = Vector2(120, 28)
 surface_style = 2
 
 [node name="ExitShelf" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist" unique_id=1137262035]
-position = Vector2(2860, 560)
+position = Vector2(3540, 560)
 script = ExtResource("5_terrace")
 segment_size = Vector2(100, 28)
 surface_style = 2
@@ -478,7 +481,7 @@ position = Vector2(0, 80)
 shape = SubResource("Rectangle_wall")
 
 [node name="RightWall" type="StaticBody2D" parent="GameplayPlane" unique_id=1871620131]
-position = Vector2(3760, 80)
+position = Vector2(4780, 80)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/RightWall" unique_id=1719693980]
 shape = SubResource("Rectangle_wall")
@@ -486,16 +489,18 @@ shape = SubResource("Rectangle_wall")
 [node name="Obstacles" type="Node2D" parent="GameplayPlane" unique_id=89777346]
 
 [node name="B0_HAGDAN" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=153923965]
-position = Vector2(650, 470)
+position = Vector2(850, 470)
 script = ExtResource("19_j5wv8")
 obstacle_id = "B0_HAGDAN"
-trigger_size = Vector2(700, 300)
+trigger_size = Vector2(820, 300)
+story_sign_offset = 24.0
+hint_sign_offset = 160.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/B0_HAGDAN" unique_id=732542801]
 shape = SubResource("RectangleShape2D_y6bxt")
 
 [node name="L1_N1" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=508987752]
-position = Vector2(2360, 300)
+position = Vector2(3040, 300)
 script = ExtResource("19_j5wv8")
 obstacle_id = "L1_N1"
 trigger_size = Vector2(380, 420)
@@ -504,19 +509,22 @@ trigger_size = Vector2(380, 420)
 shape = SubResource("RectangleShape2D_ryned")
 
 [node name="L1_N2" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=1349389394]
-position = Vector2(3160, 160)
+position = Vector2(3840, 160)
 script = ExtResource("19_j5wv8")
 obstacle_id = "L1_N2"
 trigger_size = Vector2(400, 300)
+story_sign_offset = 26.0
+hint_sign_offset = -110.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N2" unique_id=1992905006]
 shape = SubResource("RectangleShape2D_owbyo")
 
 [node name="L1_N3" type="Area2D" parent="GameplayPlane/Obstacles" unique_id=1170798170]
-position = Vector2(3600, -10)
+position = Vector2(4620, -10)
 script = ExtResource("19_j5wv8")
 obstacle_id = "L1_N3"
 trigger_size = Vector2(380, 320)
+hint_sign_offset = -150.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N3" unique_id=1566155730]
 shape = SubResource("RectangleShape2D_aty4c")
@@ -524,44 +532,44 @@ shape = SubResource("RectangleShape2D_aty4c")
 [node name="Hagdan" type="Node2D" parent="GameplayPlane" unique_id=1689954354]
 
 [node name="TreadUpper" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=950612297]
-position = Vector2(856, 424)
+position = Vector2(1116, 424)
 script = ExtResource("20_ryned")
 tread_size = Vector2(64, 34)
 
 [node name="TreadTop" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=480847419]
-position = Vector2(884, 402)
+position = Vector2(1144, 402)
 script = ExtResource("20_ryned")
 tread_size = Vector2(36, 26)
 
 [node name="BrokenA" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=47185594]
-position = Vector2(828, 486)
+position = Vector2(1088, 486)
 script = ExtResource("20_ryned")
 tread_size = Vector2(60, 30)
 is_broken = true
 
 [node name="GapSlotA" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=648570639]
-position = Vector2(828, 486)
+position = Vector2(1088, 486)
 
 [node name="BrokenB" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=2607205]
-position = Vector2(812, 518)
+position = Vector2(1072, 518)
 script = ExtResource("20_ryned")
 tread_size = Vector2(56, 30)
 is_broken = true
 
 [node name="GapSlotB" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=1576016004]
-position = Vector2(812, 518)
+position = Vector2(1072, 518)
 
 [node name="BrokenC" type="StaticBody2D" parent="GameplayPlane/Hagdan" unique_id=700847353]
-position = Vector2(800, 548)
+position = Vector2(1060, 548)
 script = ExtResource("20_ryned")
 tread_size = Vector2(52, 30)
 is_broken = true
 
 [node name="GapSlotC" type="Marker2D" parent="GameplayPlane/Hagdan" unique_id=562414549]
-position = Vector2(800, 548)
+position = Vector2(1060, 548)
 
 [node name="FloatingTread" type="RigidBody2D" parent="GameplayPlane/Hagdan" unique_id=1182508414]
-position = Vector2(490, 578)
+position = Vector2(750, 578)
 collision_layer = 4
 mass = 2.4
 angular_damp = 4.0
@@ -586,7 +594,7 @@ scale = Vector2(2, 2)
 texture = ExtResource("22_tread")
 
 [node name="CP0" type="Area2D" parent="GameplayPlane/Hagdan" unique_id=2079276445]
-position = Vector2(990, 380)
+position = Vector2(1250, 380)
 script = ExtResource("20_y6bxt")
 checkpoint_id = "CP0"
 trigger_size = Vector2(150, 200)
@@ -597,56 +605,56 @@ shape = SubResource("RectangleShape2D_3uax6")
 [node name="Dayami" type="Node2D" parent="GameplayPlane" unique_id=291343289]
 
 [node name="StrawPileA" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1230508619]
-position = Vector2(3026, 240)
+position = Vector2(3706, 240)
 script = ExtResource("23_3uax6")
 pile_size = Vector2(104, 72)
 
 [node name="StrawPileB" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1226213335]
 z_index = 2
-position = Vector2(3180, 240)
+position = Vector2(3860, 240)
 script = ExtResource("23_3uax6")
 pile_size = Vector2(208, 144)
 entrance = true
 
 [node name="StrawPileC" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1006328619]
-position = Vector2(3296, 240)
+position = Vector2(3976, 240)
 script = ExtResource("23_3uax6")
 pile_size = Vector2(104, 72)
 flipped = true
 
 [node name="FoldingStool" type="Sprite2D" parent="GameplayPlane/Dayami" unique_id=1479238481]
-position = Vector2(2990, 240)
+position = Vector2(3670, 240)
 scale = Vector2(0.7, 0.7)
 offset = Vector2(0, -17)
 texture = SubResource("Atlas_stool")
 
 [node name="BrushJar" type="Sprite2D" parent="GameplayPlane/Dayami" unique_id=796148671]
-position = Vector2(3014, 240)
+position = Vector2(3694, 240)
 offset = Vector2(0, -19)
 texture = SubResource("Atlas_jar")
 
 [node name="Baul" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319160]
 z_index = 2
-position = Vector2(2076, -900)
+position = Vector2(2756, -900)
 script = ExtResource("24_vekj0")
 
 [node name="StrawRoom" type="Node2D" parent="GameplayPlane/Dayami" unique_id=1728319161]
 z_index = 0
-position = Vector2(1900, -900)
+position = Vector2(2580, -900)
 script = ExtResource("24_strawroom")
 
 [node name="Bale" type="Node2D" parent="GameplayPlane" unique_id=913205178]
 
 [node name="House" type="Node2D" parent="GameplayPlane/Bale" unique_id=1120996384]
-position = Vector2(3630, 80)
+position = Vector2(4650, 80)
 script = ExtResource("25_owbyo")
 
 [node name="Bulul1" type="Node2D" parent="GameplayPlane/Bale" unique_id=525187676]
-position = Vector2(3572, 80)
+position = Vector2(4592, 80)
 script = ExtResource("26_jto6m")
 
 [node name="Bulul2" type="Node2D" parent="GameplayPlane/Bale" unique_id=1716894567]
-position = Vector2(3616, 80)
+position = Vector2(4636, 80)
 script = ExtResource("26_jto6m")
 
 [node name="ForegroundLayer" type="Node2D" parent="." unique_id=3763005]
@@ -674,5 +682,5 @@ texture = SubResource("Atlas_plant")
 
 [node name="BaleInterior" type="Node2D" parent="GameplayPlane" unique_id=913205179]
 z_index = 0
-position = Vector2(3620, -1180)
+position = Vector2(4640, -1180)
 script = ExtResource("24_baleroom")

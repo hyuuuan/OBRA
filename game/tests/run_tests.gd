@@ -756,16 +756,21 @@ func _test_banaue_environment() -> void:
 	world.add_child(environment)
 	await process_frame
 	var bounds: Rect2 = environment.get("world_bounds")
-	# 3920 wide since the bale stepped back off the cliff: the Overlook grew 160px east to
-	# carry it, so there is a shelf in front of the house to stand a ladder in and room
-	# behind it for the route that goes over the thatch. See R7 in GATES.md.
+	# 5120 wide since the beats were given room to breathe. It was 3920, and every beat in
+	# the level opened within a stride of the last one finishing -- the opening dialogue, its
+	# signboard and the first gate were inside forty pixels of each other. The level grew by
+	# 1200 in four steps and every one of them lengthens a WALK: the near bank +260, Terrace2
+	# +420, Terrace5 +340, the Overlook +180. No GATE moved. The paddy is still 300 across,
+	# the bank still 280 from water to stair, the gorge still 560 lip to lip and the stair
+	# still a 136px rise -- see R7 and the gate table in GATES.md, which are what this number
+	# is really standing in for.
 	#
 	# MEASURED FROM THE BOTTOM, not as a raw size. Everything that matters here hangs off
 	# the floor of the world: the baseplate builds its floor body at the bottom edge, the
 	# fall limit is that edge plus a margin, and the camera anchors itself there. The TOP
 	# moved to -1800 to make sky for the room inside the straw heap to sit in, which changes
 	# the size and none of the things the size was standing in for.
-	_expect(bounds.size.x == 3920.0, "Banaue world width changed unexpectedly")
+	_expect(bounds.size.x == 5120.0, "Banaue world width changed unexpectedly")
 	_expect(is_equal_approx(bounds.end.y, 680.0),
 		"the floor of the Banaue world moved -- the fall limit and the camera hang off it")
 	_expect(bounds.position.y <= -520.0, "the Banaue world lost its headroom")
