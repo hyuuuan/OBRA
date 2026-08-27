@@ -20,6 +20,21 @@ var _world_bounds: Rect2 = Rect2(0.0, -520.0, 3760.0, 1200.0)
 var _drive_bodies: Array = []
 
 
+## A DRAWN CREATURE IS THE PLAYER, AND NOTHING IN THE WORLD KNEW IT.
+##
+## `player_character` is the group every trigger in the game asks -- checkpoints, obstacle
+## volumes, the door of Ang Bale, the bulul, the room that decides whether to draw itself --
+## and the wanderer was the only thing that had ever joined it. So the moment the apo became
+## something she had drawn, the level stopped recognising her: she could walk through a
+## checkpoint and it would not fire, stand in an obstacle and it would not arm, and the
+## inside of the heap would go dark around her.
+##
+## The rig's bodies are children of this node, and every one of those triggers walks up the
+## parent chain looking for a member -- so one membership here covers the whole creature.
+func _ready() -> void:
+	add_to_group(&"player_character")
+
+
 func configure_entity(entry: Dictionary) -> void:
 	entity_metadata = entry.duplicate(true)
 	rig_profile = _load_rig_profile(String(entry.get("rig_profile", "")))
@@ -40,6 +55,12 @@ func apply_drawing(drawing: Image, strokes: Array = []) -> void:
 	if _anchor != null and not _pending_morph_state.is_empty():
 		_apply_morph_state_now(_pending_morph_state)
 		_pending_morph_state.clear()
+	# NOT _follow_anchor here. Until the first physics step this node's transform is still
+	# the frame the DRAWING was authored in, and that is the reference the ink-fidelity check
+	# measures the rendered strokes against (run_tests, "renders its first frame N px off the
+	# drawing"). Moving it on the way out of apply_drawing would move the ruler. From the
+	# first physics frame the root means "where the creature is", which is what every caller
+	# outside the rig actually asks it for.
 	_update_camera_anchor(true)
 
 
@@ -109,6 +130,9 @@ func _apply_morph_state_now(state: Dictionary) -> void:
 	if not _vector_is_finite(target):
 		target = body.global_position
 	var offset := target - body.global_position
+	# AND THE ROOT GOES WITH THEM. See _follow_anchor: the rig bodies are top_level, so
+	# moving them leaves this node behind at whatever position it was created at.
+	global_position = target
 	var inherited_velocity := Vector2(state.get("linear_velocity", Vector2.ZERO))
 	if not _vector_is_finite(inherited_velocity):
 		inherited_velocity = Vector2.ZERO
@@ -221,6 +245,10 @@ func _physics_process(delta: float) -> void:
 		"charge_ratio": clampf(_charge / maxf(0.01, _profile_float("charge_time", 0.8)), 0.0, 1.0),
 		"vertical_speed": body.linear_velocity.y
 	})
+	# BEFORE the camera anchor, which is a plain child and would otherwise be dragged by
+	# the move this line makes -- _update_camera_anchor writes its global position outright,
+	# so it has to run second.
+	_follow_anchor()
 	_update_camera_anchor(false)
 
 
@@ -492,6 +520,35 @@ func _ensure_camera_anchor() -> void:
 	_camera_anchor = Marker2D.new()
 	_camera_anchor.name = "StableCameraAnchor"
 	add_child(_camera_anchor)
+
+
+## KEEP THE SCENE ROOT WHERE THE CREATURE ACTUALLY IS.
+##
+## This node is "only a lifetime container" (see the class doc) and for a long time it was
+## treated as one: the level created it at the SPAWN POINT, the rig was built there, and
+## `_apply_morph_state_now` then carried the creature to where the player was standing by
+## offsetting the rig bodies -- which are `top_level`, so the root never moved. Every drawn
+## creature in the game therefore reported `global_position` of (spawn point), for its whole
+## life, no matter where on the map it was.
+##
+## Nine callers ask that question, and the expensive ones are the rooms: `_room_holding_player`
+## tests this position against each interior's bounds, so a morph inside the straw heap or
+## inside Ang Bale read as standing down in the valley. The camera dropped back to level
+## framing and clamped itself a thousand units below the room, the room stopped drawing
+## itself, and the box a placement may not leave was cleared -- which is the whole of
+## "drawing something inside a small world breaks the game".
+##
+## Writing the root's position is safe precisely BECAUSE the bodies are top_level: nothing
+## in the rig rides this transform. The ink lines hang off the primary body (RuntimeRig2D),
+## and the camera anchor's global position is assigned outright every frame.
+func _follow_anchor() -> void:
+	var body := get_physics_anchor()
+	if body == null:
+		return
+	var at := body.global_position
+	if not _vector_is_finite(at):
+		return
+	global_position = at
 
 
 func _update_camera_anchor(snap: bool) -> void:

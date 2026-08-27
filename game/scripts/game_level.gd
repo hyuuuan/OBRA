@@ -1838,6 +1838,13 @@ func _drop_equipped_before_morph(previous_state: Dictionary) -> void:
 		return
 	var drop_position := Vector2(previous_state.get("position", spawn_point.global_position))
 	_equipped_utility.drop_to_world(world_item_root, drop_position)
+	# AND TELL IT HOW BIG THE WORLD IS, which only _on_placement_confirmed was doing.
+	# PhysicsShapeObject clamps itself back into Rect2(0, -520, 3760, 1200) when it is not
+	# told otherwise, and both interiors sit a thousand units above the top of that -- so a
+	# tool dropped by a morph inside a room was teleported out of the room and down into the
+	# valley on its first physics tick.
+	if _equipped_utility.has_method("set_world_bounds"):
+		_equipped_utility.call("set_world_bounds", Rect2(environment.get("world_bounds")))
 	_equipped_utility = null
 
 
