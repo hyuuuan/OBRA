@@ -162,7 +162,7 @@ the same argument in straw.
 | **The floor** | Trodden earth in courses, the way the boards in the house are: bands a shade apart, a hairline joint, grit and wisps of straw walked into it, and the doorway's light spilling across it. |
 | **The way out** | An opening with a **pole lintel** over it — a hole with nothing over it reads as damage, not a door — and the valley beyond as three bands: sky, the terrace behind, the earth she is standing on. |
 | **Drawn 480 units past the walls she can reach** | The camera sees 400 either side at this zoom and she can walk to the end wall, so a room drawn only as far as it is walkable puts its own edge on screen with the level's sky behind it. Safe to be generous **because the room is not drawn at all while she is somewhere else** — left switched on it painted the whole valley, which is what "the map in the overworld is still black at some parts" was. |
-| **In it** | Lola's canvas (the hub's own `level_2.png`, in the stepped gilt the pictures in the house wear, hung with a shadow under it), the **baul**, a **brass key** on the floor, and the **ants**. |
+| **In it** | The **baul** at (2076, −900), a **brass key on a nail** at local (−40, −250) — out of reach on purpose, which is the room's whole puzzle — and the **ants**. ⚠ Lola's canvas is NOT in here and has not been since the chain became heap → key → house → painting; it hangs in Ang Bale's interior. |
 
 ### The ants · `game/scripts/straw_ants_2d.gd` · 5 on the floor of the room
 
@@ -173,7 +173,7 @@ the same argument in straw.
 | **Their own node** | So the room does not repaint to animate them: the walls are a couple of thousand units of tiled art, and redrawing all of it sixty times a second to move six legs would be the smallest thing on screen costing the most. |
 | **Scenery, and nothing else** | No collision, nothing reads their position, and drawing an ant on the canvas does not make one appear here. |
 
-### The baul · `game/scripts/baul_2d.gd` · 1 at (3238, 240), inside the heap, hidden until found
+### The baul · `game/scripts/baul_2d.gd` · 1 at (2076, −900), inside the straw room, inside the heap, hidden until found
 
 | | |
 |---|---|
@@ -195,7 +195,7 @@ somebody worked this terrace — which is worth more than their size suggests.
 **The architecture is the puzzle.** Every route answers a real feature of the building, so
 each feature below has to be legible or its route stops making sense.
 
-### The bale · `game/scripts/bale_2d.gd` · 1 at (3500, 200)
+### The bale · `game/scripts/bale_2d.gd` · 1 at (3630, 80)
 
 | Part | Now | Must read as |
 |---|---|---|
