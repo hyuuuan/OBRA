@@ -373,6 +373,10 @@ func _can_be_climbed_with_a_step() -> void:
 ## case above by the time this runs, and a square set down on top of another square is a
 ## test of stacking, not of taking things back.
 const CLEAR_GROUND := Vector2(2280, 236.0)
+## Where the Overlook's west face is. Node 3's climb is measured against this rather than
+## typed as an absolute, so the next time the level is stretched the ladder still leans on
+## the cliff instead of standing in the middle of a terrace.
+const OVERLOOK_EDGE := 4340.0
 
 
 func _a_placement_can_be_taken_back() -> void:
@@ -577,7 +581,21 @@ func _the_overlook_needs_a_climb() -> void:
 	var inventory := level.get("inventory_manager") as Node
 	var placement := level.get("placement_controller") as Node2D
 	player.set("velocity", Vector2.ZERO)
-	player.global_position = Vector2(3910, 200.0)
+	# MEASURED OFF THE CLIFF, not carried along by the level stretch. These two were authored
+	# 90 and 40 units west of the Overlook's edge; the piecewise shift moved them +680 while
+	# the edge itself moved +1020, so the ladder ended up standing in the middle of Terrace5
+	# with nothing to lean against and the climb had nowhere to go.
+	# BACK TO HERSELF FIRST. The heap round-trip above becomes an ant to get in -- see the
+	# `burrow` tag -- and never changes back, and writing `global_position` on a morph moves
+	# the scene root only: the rig re-syncs it to its own anchor on the next frame, so the
+	# creature stays exactly where it was. Every beat after the heap was quietly being run on
+	# a player still standing at the haystack.
+	if not (level.get("player") is Wanderer):
+		level.call("_revert_to_base_form")
+		for _frame in range(20):
+			await physics_frame
+	player = level.get("player") as Node2D
+	player.global_position = Vector2(OVERLOOK_EDGE - 90.0, 200.0)
 	for _frame in range(20):
 		await physics_frame
 
@@ -594,7 +612,9 @@ func _the_overlook_needs_a_climb() -> void:
 	# Standing ON Terrace5 against the cliff face, not overlapping the Overlook -- a
 	# ladder that clips the cliff gets lifted clear of it and ends up on top, which is no
 	# use to somebody standing at the bottom.
-	placement.call("update_target", Vector2(3960, 40.0))
+	# Set down ON the terrace against the cliff, not dropped from two hundred pixels up: a
+	# ladder falling that far lands hard, slides, and shoves whoever put it there.
+	placement.call("update_target", Vector2(OVERLOOK_EDGE - 44.0, 196.0))
 	for _frame in range(4):
 		await physics_frame
 	var placed: bool = placement.call("confirm_placement")
@@ -611,6 +631,30 @@ func _the_overlook_needs_a_climb() -> void:
 	# still for three quarters of a second, and an unfrozen ladder cannot be climbed.
 	for _frame in range(110):
 		await physics_frame
+	# WALK BACK TO IT. A ladder is 72 wide and falls two hundred pixels onto the terrace; it
+	# lands on top of whoever set it down and shoves them clear, which is what a heavy thing
+	# dropping next to you does. Standing where it was aimed and pressing interact was only
+	# ever going to work while nothing moved, so the walker closes the distance the way a
+	# player would rather than assuming it is still in arm's reach.
+	# THE LADDER, by what it is. Earlier beats leave squares in WorldItemRoot, so "the last
+	# PhysicsShapeObject" is whichever one happened to be added most recently.
+	var ladder: Node2D = null
+	var world_items := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/WorldItemRoot") as Node2D
+	for child in (world_items.get_children() if world_items != null else []):
+		var prop := child as PhysicsShapeObject
+		if prop != null and prop.item_data != null and prop.item_data.entity_id == "ladder":
+			ladder = prop
+	if ladder != null:
+		Input.action_press(&"move_right")
+		for _frame in range(90):
+			await physics_frame
+			player = level.get("player") as Node2D
+			if player != null and absf(player.global_position.x - ladder.global_position.x) < 40.0:
+				break
+		Input.action_release(&"move_right")
+		for _frame in range(10):
+			await physics_frame
 	for event in [_key(&"interact", true), _key(&"interact", false)]:
 		Input.parse_input_event(event)
 		await physics_frame
@@ -618,24 +662,37 @@ func _the_overlook_needs_a_climb() -> void:
 		await physics_frame
 	# Up, and leaning toward the cliff: a ladder allows slow sideways movement, and the
 	# point of this one is the terrace beside it.
+	# ⚠ RE-READ EACH FRAME. The level frees the old body whenever it swaps the player -- a
+	# morph, a revert, or a checkpoint restore after a fall -- so a reference taken before a
+	# climb goes stale. This loop was holding one, and reading `global_position` on a freed
+	# node threw, which ABORTED THE COROUTINE: the suite finished, reported green, and
+	# silently never ran its last assertion. A stale reference in a test can look like a
+	# passing test, which is worse than looking like engine failure.
 	Input.action_press(&"move_up")
 	Input.action_press(&"move_right")
 	for _frame in range(150):
 		await physics_frame
-		if player.global_position.y < 40.0:
+		player = level.get("player") as Node2D
+		if player == null or player.global_position.y < 40.0:
 			break
 	Input.action_release(&"move_up")
-	# Off the top and onto the terrace it leans against.
+	# Off the top and onto the terrace it leans against. 4360 since the stretch -- it was
+	# 3340, which is now most of a screen short of the Overlook.
 	var arrived := false
+	var last := Vector2.ZERO
 	for _frame in range(120):
 		await physics_frame
-		if player.global_position.x > 3340.0 and player.global_position.y < 120.0:
+		player = level.get("player") as Node2D
+		if player == null:
+			continue
+		last = player.global_position
+		if last.x > 4360.0 and last.y < 120.0:
 			arrived = true
 			break
 	Input.action_release(&"move_right")
 	_check(arrived, "and the player climbs to the bale",
 		"reached the Overlook" if arrived
-		else "STILL BELOW at %s -- the last stretch is a wall" % player.global_position.round())
+		else "STILL BELOW at %s -- the last stretch is a wall" % last.round())
 
 
 ## Hold right, tap jump, the way a person does it. Polled input, so the actions are held
