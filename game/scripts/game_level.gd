@@ -2482,6 +2482,14 @@ func _physics_process(_delta: float) -> void:
 	# the player was still falling into it.
 	if anchor_position.x > 3660.0:
 		_show_memory_if_earned()
+	# ⚠ A DISTANCE TO THE MARKER MEANS NOTHING FROM INSIDE A ROOM. Both insides are parked in
+	# the empty sky a couple of thousand units above the terraces, so the readout counted down
+	# to a number that had no relation to anything the player could walk toward -- and the way
+	# out of the room is what they actually have to reach. The room's own notices carry that,
+	# so the strip stands down rather than lying.
+	if _room_holding_player() != null:
+		goal_label.text = ""
+		return
 	var distance := anchor_position.distance_to(goal_marker.global_position)
 	# The distance is already being computed to decide completion, so showing it costs
 	# nothing and gives the level a legible objective -- until now the only thing
