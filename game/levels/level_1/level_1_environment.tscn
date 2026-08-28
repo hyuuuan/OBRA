@@ -374,6 +374,9 @@ position = Vector2(3080, 240)
 script = ExtResource("12_gorge")
 opening = Rect2(0, 0, 560, 440)
 face_width = 96.0
+has_a_floor = true
+cave_at = Vector2(250, 406)
+cave_size = Vector2(190, 104)
 
 [node name="RuinedBridge" type="Node2D" parent="GameplayPlane/Gorge" unique_id=1288469916]
 z_index = 6
@@ -462,11 +465,6 @@ texture = SubResource("Atlas_plant")
 [node name="BushA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1430528708]
 position = Vector2(3740, 208)
 texture = SubResource("Atlas_bush")
-
-[node name="HutOverlook" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=962046339]
-position = Vector2(4876, 14)
-scale = Vector2(1.22, 1.22)
-texture = SubResource("Atlas_hut")
 
 [node name="Floor" type="StaticBody2D" parent="GameplayPlane" unique_id=1952527368]
 position = Vector2(2560, 656)
