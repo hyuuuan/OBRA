@@ -20,8 +20,8 @@ extends Control
 ##                   because a drawing you are WEARING and one you are CARRYING should be
 ##                   kept in the same kind of box.
 ##
-## IT REPLACED THE R-DRAW CHIP, which said one word the player needs once. The controls strip
-## along the bottom still reads R DRAW, so nothing was lost.
+## IT REPLACED THE OLD TOP-RIGHT R-DRAW CHIP. Draw now has its own live prompt at the lower
+## left, so nothing was lost and this corner can answer the changing question: what am I?
 ##
 ## IT IS NOT THERE WHEN THERE IS NOTHING TO SAY. The apo is not a drawing and has no life, so
 ## being yourself hides the card rather than leaving an empty frame and a dead bar.
