@@ -463,11 +463,6 @@ texture = SubResource("Atlas_plant")
 position = Vector2(3740, 208)
 texture = SubResource("Atlas_bush")
 
-[node name="HutOverlook" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=962046339]
-position = Vector2(4876, 14)
-scale = Vector2(1.22, 1.22)
-texture = SubResource("Atlas_hut")
-
 [node name="Floor" type="StaticBody2D" parent="GameplayPlane" unique_id=1952527368]
 position = Vector2(2560, 656)
 
