@@ -478,6 +478,38 @@ and rings on the paddy where something breaks the surface. Payyo was a photograp
 on screen moved unless the player was touching it, and the apo has a twenty-three-pose sheet
 that was animating against scenery which never admitted she was there.
 
+⚠ **A ROOM'S DOORWAY IS A DISTANCE, NOT AN AREA2D, and it cannot ask you to walk further in
+first.** Both insides are entered by TELEPORT, and `entry_point()` lands the player tens of
+pixels from the way out — clear for the apo's fifteen-pixel capsule and not clear at all for a
+drawn creature, which is a graph of bodies spread over whatever was drawn. So the only thing
+that can now get into the heap arrived already touching the doorway and was posted straight
+back to the terrace. Measured off ONE position, a rig and a capsule behave the same. The first
+fix for it armed the door once the player got far enough in, and that made the room a **trap**:
+somebody who stepped in, looked around and turned straight back was never far enough away to
+arm it. A short grace after arrival is all it needs.
+
+⚠ **A LIVE RIG CANNOT BE TELEPORTED BY WRITING `global_position`** — trap 7, which this
+project has now been bitten by twice. `PlayableEntity._apply_morph_state_now` was doing
+exactly that, so *every* teleport of a drawn creature silently did nothing: the heap, the door
+into Ang Bale, and both ways back out. Over the few pixels between one morph and the next the
+write survives long enough to look like it worked. `RuntimeRig2D.translate_rig` freezes the
+complete graph first, which is the only thing that works and is the same shape `_recover_rig`
+already used.
+
+⚠ **`ConceptGate2D` had no caller.** `try_pass()` was never invoked by anything: the gate was
+a Node2D with a concept id and no trigger, so `passage_blocked` and `passage_allowed` had
+never fired in the built game. The level asked `can_pass()` once at load, which meant the
+hidden flower could only ever appear for a player who already owned Illumination when the
+level opened — drawing a flashlight afterwards did nothing at all. It has a reach volume now,
+it re-asks every time, and the refusal goes to the hint bar and fires the beat's own hook so
+the board beside it can be read.
+
+**A checkpoint mark takes `checkpoint_mark_offset`.** The mark stands near the outgoing edge
+of its beat, which at the gorge is the far lip with no ground under it — so the ground sweep
+walked CP1's lantern back onto the near lip and into the dead tree the Protector route exists
+to cut. CP2's landed inside the third straw heap. `run_room_probe` asserts no prop stands on
+a mark, which is what caught the second one.
+
 ## Hint ladder
 
 T0 says nothing · T1 names the tags **and glosses them** · T2 adds the player's **own**

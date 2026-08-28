@@ -151,13 +151,14 @@ const SHADOW := Color(0.0, 0.0, 0.0, 0.35)
 ## look like. Generous, because it costs one rect and it is only drawn while she is in here.
 const BEYOND := Color(0.031, 0.024, 0.016, 1.0)
 
-var _exit_area: Area2D
 var _painting_area: Area2D
 ## How many of the room's notice bands the player is standing in. A COUNT rather than a bool,
 ## because leaving one band as you enter the next arrives as exit-then-enter or the reverse
 ## depending on the step, and a bool would blink the bar off in the middle of a walk.
 var _in_notices := 0
 var _taken := false
+## Seconds left before the hatch means "leave" again.
+var _way_down_grace := 0.0
 ## The lift and fade when it is picked up, driven by a tween through the setters so the node
 ## has no idle work when nothing is happening.
 var _lift := 0.0:
@@ -178,7 +179,6 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	z_index = -10
 	_build_floor()
-	_build_exit_area()
 	_build_painting_area()
 	_build_notices()
 	refresh_from_profile()
@@ -334,20 +334,47 @@ func _build_floor() -> void:
 ## WALKED INTO, not pressed at -- the same rule the straw room's way out follows. E reaches
 ## placed drawings and nothing else, and a second meaning for it inside a room would be one
 ## meaning too many.
-func _build_exit_area() -> void:
-	_exit_area = Area2D.new()
-	_exit_area.name = "WayDown"
-	_exit_area.collision_layer = 0
-	_exit_area.collision_mask = 1
-	add_child(_exit_area)
-	var shape := CollisionShape2D.new()
-	var box := RectangleShape2D.new()
-	var opening := exit_rect()
-	box.size = Vector2(40.0, opening.size.y)
-	shape.shape = box
-	shape.position = opening.get_center()
-	_exit_area.add_child(shape)
-	_exit_area.body_entered.connect(_on_exit_body)
+## THE WAY DOWN IS A DISTANCE, NOT A TRIGGER -- the same fix, and the same reason, as
+## StrawRoom2D's doorway.
+##
+## `entry_point()` puts the player 34 pixels from this opening, which is clear for the apo's
+## capsule and not clear for a DRAWN CREATURE: a rig is a graph of bodies spread over whatever
+## was drawn, so a morph arriving in the house is already touching the hatch and drops straight
+## back onto the terrace. Node 3's Artist route is Climb, so arriving here as a spider is the
+## intended way in -- this was reachable in normal play.
+##
+## Arming on `body_exited` does not work either: a rig's bodies cross a threshold dozens of
+## times a second while it settles. One position, measured, so a capsule and a twelve-body
+## spider behave the same.
+## Measured against where they land, and on ONE position rather than on overlaps.
+## `entry_point()` is about seventy units from the middle of the hatch. ⚠ No "walk further in
+## first" rule: the straw room had one and it made that room a trap for anybody who turned
+## straight back. A short grace after arrival is all this needs.
+const WAY_DOWN_FIRES_AT := 44.0
+const WAY_DOWN_GRACE := 0.5
+
+
+## Called by the level on the way in: every visit starts inert.
+func disarm_the_way_out() -> void:
+	_way_down_grace = WAY_DOWN_GRACE
+
+
+## The room already has to know whether the player is in it; this rides the same answer.
+func _process(delta: float) -> void:
+	if _way_down_grace > 0.0:
+		_way_down_grace -= delta
+		return
+	var at := Vector2.INF
+	for node in get_tree().get_nodes_in_group(&"player_character"):
+		var body := node as Node2D
+		if body != null and bounds().grow(90.0).has_point(body.global_position):
+			at = body.global_position
+			break
+	if at == Vector2.INF:
+		return
+	if at.distance_to(global_position + exit_rect().get_center()) < WAY_DOWN_FIRES_AT:
+		_way_down_grace = WAY_DOWN_GRACE
+		exit_reached.emit()
 
 
 ## And the painting is taken the same way, for the same reason.
@@ -403,11 +430,6 @@ func _on_notice_exited(body: Node) -> void:
 	_in_notices = maxi(0, _in_notices - 1)
 	if _in_notices == 0:
 		notice_left.emit()
-
-
-func _on_exit_body(body: Node) -> void:
-	if _is_player(body):
-		exit_reached.emit()
 
 
 func _on_painting_body(body: Node) -> void:

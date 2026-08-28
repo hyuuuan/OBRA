@@ -395,7 +395,7 @@ func _plant_commit_mark(volume: LevelObstacle2D) -> void:
 		director.obstacle(volume.obstacle_id).get("checkpoint_on_commit", ""))
 	if checkpoint_id.is_empty():
 		return
-	var at := Vector2(volume.trigger_size.x * 0.5 - 40.0, 0.0)
+	var at := Vector2(volume.trigger_size.x * 0.5 - 40.0 + volume.checkpoint_mark_offset, 0.0)
 	var mark := CheckpointLantern2D.plant(volume, at)
 	if mark != null:
 		_commit_marks[volume.obstacle_id] = mark
@@ -949,6 +949,8 @@ func _on_straw_entered() -> void:
 	# trap. Remembered on the way in rather than computed on the way out, so it is the heap
 	# she actually used.
 	_straw_return = _beside_the_mouth()
+	if room.has_method("disarm_the_way_out"):
+		room.call("disarm_the_way_out")
 	_step_through(Vector2(room.call("entry_point")))
 	# ARRIVING FIRST, THEN THE CHEST. `speak` appends to the queue, so the order these are
 	# called in is the order the player reads them -- and uncovering first put "Locked. Of
@@ -1281,6 +1283,8 @@ func _into_the_bale() -> void:
 	# have moved in between. See BaleInterior2D.refresh_from_profile.
 	if room.has_method("refresh_from_profile"):
 		room.call("refresh_from_profile")
+	if room.has_method("disarm_the_way_out"):
+		room.call("disarm_the_way_out")
 	_bale_return = player.global_position
 	_step_through(Vector2(room.call("entry_point")))
 	# The step is deferred, so anything that frames a camera on the player has to wait a
@@ -1631,6 +1635,25 @@ func _focus_camera_for(speaker: String) -> void:
 		world_camera.focus_on(subject)
 	if not dialogue_box.conversation_finished.is_connected(_release_camera_focus):
 		dialogue_box.conversation_finished.connect(_release_camera_focus)
+
+
+## THE CAVE, WHICH HAD NEVER SPOKEN TO ANYBODY. `passage_blocked` and `passage_allowed` had
+## no way to fire until ConceptGate2D grew a trigger, and the level answered the first of them
+## with `status_label.text` -- the small grey line in the corner that the next status message
+## overwrites. It is the hint channel now, and it fires the beat's own hook, which is also
+## what makes the board beside the cave readable at all.
+func _on_cave_refused(_concept: String, hint: String) -> void:
+	_speak_on_arrival("L1_N1.cave")
+	if hint_bar != null:
+		hint_bar.show_hint(hint, Lolo.SPEAKER, 4.0)
+	else:
+		status_label.text = hint
+
+
+func _on_cave_opened(_concept: String) -> void:
+	if hidden_flower != null and is_instance_valid(hidden_flower):
+		hidden_flower.reveal()
+	_speak_on_arrival("L1_N1.cave.open")
 
 
 ## The hidden flower in the gorge cave, which is the one thing in Payyo a player can miss
@@ -2802,9 +2825,8 @@ func _wire_dialogue_node() -> void:
 		# not learned Illumination sees a dark cave rather than a prize behind glass.
 		if cave_gate.can_pass():
 			hidden_flower.reveal()
-		cave_gate.connect(&"passage_allowed", func(_concept: String) -> void: hidden_flower.reveal())
-		cave_gate.connect(&"passage_blocked", func(_concept: String, hint: String) -> void:
-			status_label.text = hint)
+		cave_gate.connect(&"passage_allowed", _on_cave_opened)
+		cave_gate.connect(&"passage_blocked", _on_cave_refused)
 	if dialogue_node == null:
 		return
 	dialogue_node.approached.connect(_on_dialogue_node_approached)
