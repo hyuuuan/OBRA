@@ -526,7 +526,9 @@ position = Vector2(4620, -10)
 script = ExtResource("19_j5wv8")
 obstacle_id = "L1_N3"
 trigger_size = Vector2(380, 320)
+story_sign_offset = -60.0
 hint_sign_offset = -150.0
+checkpoint_mark_offset = 100.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N3" unique_id=1566155730]
 shape = SubResource("RectangleShape2D_aty4c")
