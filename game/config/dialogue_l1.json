@@ -178,6 +178,11 @@
       "text": "It is in there, inside the straw. She hid her things there when the rain came and she could not get back to the house."
     },
     {
+      "id": "L1_N2_020",
+      "at": "L1_N2.enter",
+      "text": "Two ways at a haystack, apo. You get under it — and you would have to be very small for that — or you take the whole thing apart and let it give up what is in it."
+    },
+    {
       "id": "L1_N2_003",
       "at": "L1_N2.teach",
       "text": "We can do it slowly — something that can **forage**, that sifts through."
@@ -190,7 +195,7 @@
     {
       "id": "L1_N2_005",
       "at": "L1_N2.teach",
-      "text": "Or we can scatter it — something that can bring **weather**, that carries wind."
+      "text": "Or we can scatter it — something that can bring **weather**, that carries wind. Whatever is hidden in it comes out with the straw."
     },
     {
       "id": "L1_N2_006",
