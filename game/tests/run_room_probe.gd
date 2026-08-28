@@ -326,6 +326,14 @@ func _audit_the_cave_opens() -> void:
 	_check(gate.get_node_or_null(^"Reach") != null, "the cave gate can be walked up to",
 		"it has a trigger" if gate.get_node_or_null(^"Reach") != null
 			else "NO TRIGGER -- try_pass has no caller")
+	# ASSERTED ON THE GATE, NOT ON THE FLOWER. What was broken is that `try_pass()` had no
+	# caller, so `passage_allowed` could never fire -- that is the thing to prove. Whether the
+	# flower then RENDERS depends on whether this run has already given it away, which is
+	# correct behaviour and made this check inherit whatever the last suite left in
+	# `user://profile.json`. Measure the thing under test, not a consequence of it that
+	# something persistent also has an opinion about.
+	var opened := [false]
+	gate.connect(&"passage_allowed", func(_c: String) -> void: opened[0] = true)
 	var profile := level.get_node_or_null(^"/root/PlayerProfile")
 	profile.call("record_object_acquired", "flashlight")
 	var player := level.get("player") as Node2D
@@ -335,8 +343,9 @@ func _audit_the_cave_opens() -> void:
 	player.global_position = gate.global_position + Vector2(0.0, -30.0)
 	for _frame in range(40):
 		await physics_frame
-	_check(bool(flower.get("_revealed")), "the cave opens once you have a light",
-		"revealed" if bool(flower.get("_revealed")) else "STILL DARK -- the flower is unreachable")
+	_check(bool(opened[0]), "the cave opens once you have a light",
+		"the gate let the player through" if bool(opened[0])
+		else "STILL SHUT -- try_pass never fired, the flower is unreachable")
 
 
 ## Nothing the level draws may stand on a checkpoint mark. The gorge's outgoing edge is the
