@@ -949,6 +949,8 @@ func _on_straw_entered() -> void:
 	# trap. Remembered on the way in rather than computed on the way out, so it is the heap
 	# she actually used.
 	_straw_return = _beside_the_mouth()
+	if room.has_method("disarm_the_way_out"):
+		room.call("disarm_the_way_out")
 	_step_through(Vector2(room.call("entry_point")))
 	# ARRIVING FIRST, THEN THE CHEST. `speak` appends to the queue, so the order these are
 	# called in is the order the player reads them -- and uncovering first put "Locked. Of
@@ -1281,6 +1283,8 @@ func _into_the_bale() -> void:
 	# have moved in between. See BaleInterior2D.refresh_from_profile.
 	if room.has_method("refresh_from_profile"):
 		room.call("refresh_from_profile")
+	if room.has_method("disarm_the_way_out"):
+		room.call("disarm_the_way_out")
 	_bale_return = player.global_position
 	_step_through(Vector2(room.call("entry_point")))
 	# The step is deferred, so anything that frames a camera on the player has to wait a

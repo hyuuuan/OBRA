@@ -124,8 +124,9 @@ var _in_notice := 0
 ## How long the brass has been catching the light, in seconds. Only advances while somebody
 ## is in here to see it.
 var _shine := 0.0
+## Seconds left before the doorway means "leave" again.
+var _way_out_grace := 0.0
 var _key_area: Area2D
-var _exit_area: Area2D
 var _ants: StrawAnts2D
 ## The brass leaving the nail: how far it has risen and how much of it is left. Driven by a
 ## tween through the setters, so the node has no idle work while nothing is being taken.
@@ -151,7 +152,6 @@ func _ready() -> void:
 	_build_floor()
 	_build_key_area()
 	_build_nail_notice()
-	_build_exit_area()
 	_build_ants()
 	# NOT DRAWN WHILE NOBODY IS IN IT, and that is not an optimisation.
 	#
@@ -170,10 +170,12 @@ func _ready() -> void:
 ## painted over the level.
 func _process(delta: float) -> void:
 	var here := false
+	var at := Vector2.INF
 	for node in get_tree().get_nodes_in_group(&"player_character"):
 		var body := node as Node2D
 		if body != null and bounds().grow(90.0).has_point(body.global_position):
 			here = true
+			at = body.global_position
 			break
 	# THE BRASS CATCHES THE LIGHT, and that is the only moving thing in a dark room.
 	#
@@ -185,6 +187,8 @@ func _process(delta: float) -> void:
 	if here and not _taken:
 		_shine += delta
 		queue_redraw()
+	if here and at != Vector2.INF:
+		_drive_the_way_out(delta, at)
 	if here == visible:
 		return
 	visible = here
@@ -350,20 +354,49 @@ func _build_nail_notice() -> void:
 			notice_left.emit())
 
 
-func _build_exit_area() -> void:
-	_exit_area = Area2D.new()
-	_exit_area.name = "WayOut"
-	_exit_area.collision_layer = 0
-	_exit_area.collision_mask = 1
-	add_child(_exit_area)
-	var shape := CollisionShape2D.new()
-	var box := RectangleShape2D.new()
-	var opening := exit_rect()
-	box.size = Vector2(46.0, opening.size.y)
-	shape.shape = box
-	shape.position = opening.get_center()
-	_exit_area.add_child(shape)
-	_exit_area.body_entered.connect(_on_exit_body)
+## THE WAY OUT IS A DISTANCE, NOT A TRIGGER.
+##
+## It was an Area2D, and an Area2D cannot answer this question for a DRAWN CREATURE. The
+## player is teleported in, `entry_point()` lands them thirty pixels from the doorway -- clear
+## for the apo's fifteen-pixel capsule and not clear at all for a rig, which is a graph of
+## bodies spread over whatever the player happened to draw. So the only thing that can now get
+## in here (see the `burrow` tag) arrived already touching the way out and went straight back
+## to the terrace: the heap read as a door that does nothing.
+##
+## Arming on `body_exited` does not fix it either, because a rig's bodies cross a threshold
+## dozens of times a second while it settles. Measured off ONE position instead -- the same
+## one this room already asks for to decide whether to draw itself -- so it works the same for
+## a capsule and for a twelve-body ant.
+##
+## How far in they have to get before the doorway means "leave", and how close they have to
+## come back for it to fire.
+## MEASURED AGAINST WHERE THEY LAND, and on ONE position rather than on overlaps -- which is
+## the whole reason this is a distance and not an Area2D: a rig's bodies are spread over
+## whatever the player drew, and an Area2D at the doorway catches them on arrival.
+##
+## `entry_point()` is 89 units from the middle of the doorway, so 52 is comfortably clear of
+## it: arriving is not leaving. ⚠ There is deliberately NO "walk further in first" rule. The
+## first cut had one and it made the room a TRAP -- a player who stepped in, looked around and
+## turned straight back was never far enough from the door to arm it, and the door then never
+## worked at all. Turning around immediately has to be allowed.
+const WAY_OUT_FIRES_AT := 52.0
+## How long the doorway is inert after they are put down in here. Covers the frame or two a
+## rig spends settling, and nothing else.
+const WAY_OUT_GRACE := 0.5
+
+
+## Called by the level on the way in: every visit starts with the doorway inert for a beat.
+func disarm_the_way_out() -> void:
+	_way_out_grace = WAY_OUT_GRACE
+
+
+func _drive_the_way_out(delta: float, at: Vector2) -> void:
+	if _way_out_grace > 0.0:
+		_way_out_grace -= delta
+		return
+	if at.distance_to(global_position + exit_rect().get_center()) < WAY_OUT_FIRES_AT:
+		_way_out_grace = WAY_OUT_GRACE
+		exit_reached.emit()
 
 
 ## They walk about on their own, so they get their own node: the room is a wall of courses
@@ -408,11 +441,6 @@ func _on_key_body(body: Node) -> void:
 	take.tween_property(self, "_key_fade", 0.0, 0.4).set_delay(0.1)
 	queue_redraw()
 	key_taken.emit()
-
-
-func _on_exit_body(body: Node) -> void:
-	if _is_the_player(body):
-		exit_reached.emit()
 
 
 ## A deterministic scatter, so the straw does not crawl from one redraw to the next. Same
