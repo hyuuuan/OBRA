@@ -211,6 +211,12 @@ you deal with the heap from outside. They are different questions and the level 
 | Pragmatist | Carry | tunnelled | — |
 | Protector | Weather | scattered, permanent | sets `straw_scattered`, **and turns out the key** |
 
+**And the arrival SAYS there are two ways at it.** `L1_N2.enter` used to say only "it is in
+there, inside the straw", so a player who could not fit through the mouth concluded the key
+was behind a door they had no answer for -- the Protector route turns the key out of the
+wreck and nothing anywhere told them so. The third arrival line names both without naming a
+class: get under it (small enough), or take the whole thing apart.
+
 **Wrecking the heap turns the key out of it.** The nail is inside and out of reach; a player
 who blew the whole heap across the terrace has plainly got at whatever was hanging in it, and
 refusing them the key would mean the fast route locks the door the slow one opens. Same key,
