@@ -69,6 +69,8 @@ var _stand: Node2D
 var _carried: Control
 ## What the prompt is currently saying. NONE until the first target comes into reach.
 enum Wear { NONE, TAKE, VIEW, REFUSE }
+## The card that says a thing is yours now. See AcquiredOverlay.
+var _acquired: AcquiredOverlay
 var _wearing: Wear = Wear.NONE
 
 
@@ -76,6 +78,12 @@ func _ready() -> void:
 	_room = HubRoomScript.new()
 	_room.name = "Room"
 	add_child(_room)
+
+	# The house says "this is yours now" the same way a level does. One overlay, built here
+	# because the hub is its own scene and does not go through GameLevel.
+	_acquired = AcquiredOverlay.new()
+	_acquired.name = "AcquiredOverlay"
+	add_child(_acquired)
 
 	# THE DRAWN FLOOR IS A PICTURE OF A FLOOR. HubRoom paints the boards; nothing in it
 	# collides, so without this the apo walks in and falls straight through the house.
@@ -358,6 +366,15 @@ func _has_brush() -> bool:
 func _on_brush_taken() -> void:
 	_status.text = "Her brush is yours. Now choose a painting."
 	_show_carried()
+	# THE FIRST THING THE PLAYER EVER ACQUIRES, and it was the one acquisition with no card.
+	# Every pickup in a level plays AcquiredOverlay; the brush is taken in the HUB, which is a
+	# different scene with its own tree, so it had quietly been left out -- and this is the
+	# object the whole game runs through. Without it, taking the brush is a sprite dissolving
+	# and a line of small text under the title.
+	if _acquired != null and is_instance_valid(_acquired):
+		_acquired.present("Lola's Brush",
+			"Everything you can do in a level runs through it.",
+			load("res://assets/hud/brush_full.png") as Texture2D)
 	# The prompt says something different now. Nothing in this room lets the apo stand at a
 	# painting and the case at once, but the cached wear would outlive the change if one
 	# ever did, and a stale refusal on an open painting is the worst of the three states.
