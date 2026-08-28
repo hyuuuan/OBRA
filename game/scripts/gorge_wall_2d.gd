@@ -39,6 +39,13 @@ extends Node2D
 ## of grass on it, which is what "it seems like I'm walking to something" is describing:
 ## there was no floor, so there was no room, so there was nothing to have arrived at.
 @export var has_a_floor := false
+## HOW DEEP THE FLOOR IS, and it is not a look -- it is EnvironmentBaseplate's
+## `floor_thickness`, which is the only number that says where the player's feet actually
+## stop. The world's floor body is centred half a thickness above the bottom of the bounds,
+## so the surface you stand on is `bottom - thickness`. Drawing the rubble any shallower than
+## that paints it below the ground and the apo walks on air over the top of it, which is what
+## the first cut of this did by 14 pixels.
+@export var floor_depth := 48.0
 ## Where the cave mouth is cut into the far wall, in this node's space, and how big. Zero
 ## width draws none. The gate and the flower stand in front of it -- before this the "cave"
 ## the gate talks about did not exist as anything you could see.
@@ -123,16 +130,16 @@ func _draw_cave() -> void:
 
 ## The bottom of the gorge, and the reason it is worth walking down to.
 func _draw_floor() -> void:
-	var floor_top := opening.end.y - 34.0
+	var floor_top := opening.end.y - floor_depth
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20260829
 	# Silt first -- the flat the water leaves -- then rubble on top of it.
-	draw_rect(Rect2(opening.position.x, floor_top, opening.size.x, 34.0), SILT)
+	draw_rect(Rect2(opening.position.x, floor_top, opening.size.x, floor_depth), SILT)
 	draw_rect(Rect2(opening.position.x, floor_top, opening.size.x, 2.0), RUBBLE_LIT)
 	for index in range(74):
 		var at := Vector2(
 			opening.position.x + rng.randf_range(4.0, opening.size.x - 4.0),
-			floor_top + rng.randf_range(2.0, 28.0))
+			floor_top + rng.randf_range(2.0, floor_depth - 8.0))
 		var size := rng.randf_range(3.0, 9.0)
 		var tone := RUBBLE if rng.randf() < 0.7 else RUBBLE_DARK
 		draw_rect(Rect2(at.floor(), Vector2(size, size * 0.7).floor()), tone)

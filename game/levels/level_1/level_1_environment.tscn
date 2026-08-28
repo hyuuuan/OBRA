@@ -375,7 +375,7 @@ script = ExtResource("12_gorge")
 opening = Rect2(0, 0, 560, 440)
 face_width = 96.0
 has_a_floor = true
-cave_at = Vector2(250, 406)
+cave_at = Vector2(250, 392)
 cave_size = Vector2(190, 104)
 
 [node name="RuinedBridge" type="Node2D" parent="GameplayPlane/Gorge" unique_id=1288469916]
