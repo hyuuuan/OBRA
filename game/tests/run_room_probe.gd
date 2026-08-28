@@ -393,6 +393,13 @@ func _audit_nothing_is_planted_on_a_roof() -> void:
 				planted.append(mark)
 	for node in level.get_tree().get_nodes_in_group(&"signposts"):
 		planted.append(node as Node2D)
+	# The goal marker too. It was authored at (4620, 30) -- fifty units up, inside the bale's
+	# own footprint -- so the objective the HUD counts down to was a point in the air inside a
+	# building the player reaches by teleport.
+	var goal := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/GoalMarker") as Node2D
+	if goal != null:
+		planted.append(goal)
 	for thing in planted:
 		var surface := INF
 		for child in terrain.get_children():
@@ -409,8 +416,11 @@ func _audit_nothing_is_planted_on_a_roof() -> void:
 		if surface == INF or thing.global_position.y < -400.0:
 			continue
 		if absf(thing.global_position.y - surface) > 6.0:
-			floating.append("%s at %.0f is %.0f off the terrace"
-				% [thing.get_parent().name, thing.global_position.x,
+			# Named by its PARENT and itself: a signpost is always called "Signpost" and a
+			# mark "Checkpoint", so the parent is what says which one, and the goal marker
+			# hangs off GameplayPlane where the parent says nothing.
+			floating.append("%s/%s at %.0f is %.0f off the terrace"
+				% [thing.get_parent().name, thing.name, thing.global_position.x,
 					thing.global_position.y - surface])
 	_check(floating.is_empty(), "nothing is planted on a roof",
 		"all on the ground" if floating.is_empty() else ", ".join(floating))
