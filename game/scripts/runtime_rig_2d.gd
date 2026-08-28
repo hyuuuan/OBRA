@@ -2932,6 +2932,46 @@ func _rig_needs_recovery() -> bool:
 	return false
 
 
+## MOVE THE WHOLE RIG, KEEPING ITS POSE. The only correct way to teleport one.
+##
+## ⚠ Writing `global_position` on a live RigidBody2D does nothing -- the physics server
+## overwrites it the same frame, which is trap 7 in LEVEL_1.md and has now bitten this
+## project twice. `PlayableEntity._apply_morph_state_now` was doing exactly that, so every
+## teleport of a drawn creature silently failed: pressing down at the straw heap as an ant
+## refused nothing and moved nobody, and the same was true of the door into Ang Bale and of
+## both ways back out. Over a few pixels the write survives long enough to look like it
+## worked, which is why it was only visible on the two thousand-unit hops.
+##
+## Frozen as a COMPLETE GRAPH before anything moves, for the reason _recover_rig gives:
+## releasing bodies one at a time lets the solver observe a half-moved chain through a joint
+## whose partner is still where it was, and pull the repaired half back.
+func translate_rig(offset: Vector2, velocity: Vector2 = Vector2.ZERO) -> void:
+	if _bodies.is_empty() or not _vector_is_sane(offset):
+		return
+	for body in _bodies:
+		if is_instance_valid(body):
+			body.freeze = true
+	for body in _bodies:
+		if not is_instance_valid(body):
+			continue
+		# Its own transform plus the offset, not a rest pose: a teleport moves the creature
+		# the player is looking at, and snapping it back to rest would be a different animal
+		# arriving at the far end.
+		body.global_position += offset
+		body.linear_velocity = velocity
+		body.angular_velocity = 0.0
+	for body in _bodies:
+		if not is_instance_valid(body):
+			continue
+		body.freeze = false
+		body.sleeping = false
+	_physics_frames_since_build = 0
+
+
+func _vector_is_sane(value: Vector2) -> bool:
+	return is_finite(value.x) and is_finite(value.y)
+
+
 func _recover_rig() -> void:
 	if _primary_body == null:
 		return
