@@ -100,6 +100,9 @@ var _vehicle: Node2D = null
 var _equipped_utility: Node2D = null
 var _umbrella_open := false
 var _grip: Marker2D = null
+## Keyed by WaterArea2D instance id. Usually there is one, but keeping the sources
+## separate prevents leaving one of two touching pools from turning the effect off.
+var _underwater_sources: Dictionary = {}
 
 
 ## One jump, from wherever it was allowed. Spends both the buffer and the grace so a
@@ -382,6 +385,42 @@ func set_umbrella_open(is_open: bool) -> void:
 ## gives -- a boat asking "is my passenger in the water" gets a real reply either way.
 func is_in_water() -> bool:
 	return int(get_meta("water_overlap_count", 0)) > 0
+
+
+## Water changes the character, not merely the rectangle behind it. WaterArea2D owns the
+## world-space surface and colours; the figure owns how those values light its pixels.
+func set_underwater_appearance(
+	source_id: int,
+	active: bool,
+	surface_y: float,
+	bottom_y: float,
+	shallow: Color,
+	deep: Color,
+	highlight: Color
+) -> void:
+	if active:
+		_underwater_sources[source_id] = {
+			"surface_y": surface_y,
+			"bottom_y": bottom_y,
+			"shallow": shallow,
+			"deep": deep,
+			"highlight": highlight,
+		}
+	else:
+		_underwater_sources.erase(source_id)
+	_apply_underwater_appearance()
+
+
+func _apply_underwater_appearance() -> void:
+	if _underwater_sources.is_empty():
+		_figure.call(&"set_underwater_appearance", false, 0.0, 1.0,
+			Color.TRANSPARENT, Color.TRANSPARENT, Color.TRANSPARENT)
+		return
+	var environment: Dictionary = _underwater_sources.values()[0]
+	_figure.call(&"set_underwater_appearance", true,
+		float(environment["surface_y"]), float(environment["bottom_y"]),
+		environment["shallow"] as Color, environment["deep"] as Color,
+		environment["highlight"] as Color)
 
 
 ## Letting go of a ladder by walking away from it, rather than only by pressing E again.

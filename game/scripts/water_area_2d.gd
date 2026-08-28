@@ -17,6 +17,9 @@ extends Area2D
 @export var highlight_color: Color = Color(0.62, 0.9, 0.91, 0.9)
 
 var _ripple_phase := 0.0
+## A morph is several physics bodies but one visible player. Count those bodies here so
+## one leg leaving the pool does not clear the effect from the torso still underwater.
+var _player_body_counts: Dictionary = {}
 
 
 func _ready() -> void:
@@ -32,6 +35,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_ripple_phase = fmod(_ripple_phase + delta * 18.0, 32.0)
+	_refresh_player_appearances()
 	queue_redraw()
 
 
@@ -82,6 +86,7 @@ func _on_body_entered(body: Node2D) -> void:
 	# area's shapes would otherwise splash twice.
 	if count == 0:
 		_splash_for(body)
+	_track_player_body(body, 1)
 
 
 ## Rings where something broke the surface. Drawn at the WATERLINE rather than at the body,
@@ -102,6 +107,60 @@ func _on_body_exited(body: Node2D) -> void:
 	body.set_meta("water_overlap_count", count)
 	if count == 0:
 		body.remove_meta("water_area")
+	_track_player_body(body, -1)
+
+
+func _exit_tree() -> void:
+	for entry_value in _player_body_counts.values():
+		var entry: Dictionary = entry_value
+		var player := entry.get("player") as Node2D
+		if player != null and is_instance_valid(player):
+			_set_player_appearance(player, false)
+	_player_body_counts.clear()
+
+
+func _track_player_body(body: Node2D, amount: int) -> void:
+	var player := _player_for(body)
+	if player == null or not player.has_method("set_underwater_appearance"):
+		return
+	var player_id := player.get_instance_id()
+	var entry: Dictionary = _player_body_counts.get(player_id, {"player": player, "count": 0})
+	entry["count"] = maxi(0, int(entry["count"]) + amount)
+	if int(entry["count"]) == 0:
+		_player_body_counts.erase(player_id)
+		_set_player_appearance(player, false)
+		return
+	_player_body_counts[player_id] = entry
+	_set_player_appearance(player, true)
+
+
+func _player_for(body: Node) -> Node2D:
+	var cursor := body
+	while cursor != null:
+		if cursor.is_in_group(&"player_character"):
+			return cursor as Node2D
+		cursor = cursor.get_parent()
+	return null
+
+
+func _refresh_player_appearances() -> void:
+	var stale: Array[int] = []
+	for player_id in _player_body_counts:
+		var entry: Dictionary = _player_body_counts[player_id]
+		var player := entry.get("player") as Node2D
+		if player == null or not is_instance_valid(player):
+			stale.append(int(player_id))
+			continue
+		_set_player_appearance(player, true)
+	for player_id in stale:
+		_player_body_counts.erase(player_id)
+
+
+func _set_player_appearance(player: Node2D, active: bool) -> void:
+	player.call(&"set_underwater_appearance", get_instance_id(), active,
+		global_position.y - surface_size.y * 0.5,
+		global_position.y + surface_size.y * 0.5,
+		water_color, deep_color, highlight_color)
 
 
 func _ensure_collision() -> void:
