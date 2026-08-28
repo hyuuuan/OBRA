@@ -53,6 +53,7 @@ func _run() -> void:
 	_audit_nothing_stands_on_a_checkpoint()
 	_audit_every_checkpoint_is_marked()
 	_audit_marks_stand_clear()
+	_audit_nothing_is_planted_on_a_roof()
 	await _audit_the_cave_opens()
 	await _audit_the_chest_can_be_read()
 	await _audit_placement(&"straw_rooms", Vector2(-120.0, 220.0))
@@ -325,6 +326,14 @@ func _audit_the_cave_opens() -> void:
 	_check(gate.get_node_or_null(^"Reach") != null, "the cave gate can be walked up to",
 		"it has a trigger" if gate.get_node_or_null(^"Reach") != null
 			else "NO TRIGGER -- try_pass has no caller")
+	# ASSERTED ON THE GATE, NOT ON THE FLOWER. What was broken is that `try_pass()` had no
+	# caller, so `passage_allowed` could never fire -- that is the thing to prove. Whether the
+	# flower then RENDERS depends on whether this run has already given it away, which is
+	# correct behaviour and made this check inherit whatever the last suite left in
+	# `user://profile.json`. Measure the thing under test, not a consequence of it that
+	# something persistent also has an opinion about.
+	var opened := [false]
+	gate.connect(&"passage_allowed", func(_c: String) -> void: opened[0] = true)
 	var profile := level.get_node_or_null(^"/root/PlayerProfile")
 	profile.call("record_object_acquired", "flashlight")
 	var player := level.get("player") as Node2D
@@ -334,8 +343,9 @@ func _audit_the_cave_opens() -> void:
 	player.global_position = gate.global_position + Vector2(0.0, -30.0)
 	for _frame in range(40):
 		await physics_frame
-	_check(bool(flower.get("_revealed")), "the cave opens once you have a light",
-		"revealed" if bool(flower.get("_revealed")) else "STILL DARK -- the flower is unreachable")
+	_check(bool(opened[0]), "the cave opens once you have a light",
+		"the gate let the player through" if bool(opened[0])
+		else "STILL SHUT -- try_pass never fired, the flower is unreachable")
 
 
 ## Nothing the level draws may stand on a checkpoint mark. The gorge's outgoing edge is the
@@ -357,6 +367,53 @@ func _audit_marks_stand_clear() -> void:
 						% [prop.name, prop.global_position.x, mark.global_position.x])
 	_check(clashes.is_empty(), "no prop stands on a checkpoint mark",
 		"clear" if clashes.is_empty() else ", ".join(clashes))
+
+
+## AND NOTHING PLANTED IN THE LEVEL IS STANDING ON A ROOF.
+##
+## Marks and boards are dropped onto whatever the ground ray finds, and the ray cannot tell a
+## terrace from a house -- they are both collision layer 1. So Node 3's mark landed on the
+## BALE, 152 units above the Overlook, because the bale's floor runs 4520..4760 and the mark
+## was planted at 4770 and swept back onto the roof of it. A checkpoint on top of the hut is
+## the report this check exists to make impossible.
+##
+## Measured against the terrace the thing is standing over, which is the only definition of
+## "the ground" that does not also accept the roof of a building.
+func _audit_nothing_is_planted_on_a_roof() -> void:
+	var terrain := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/Terrain") as Node2D
+	if terrain == null:
+		return
+	var floating: Array[String] = []
+	var planted: Array[Node2D] = []
+	for group in [&"level_obstacles", &"checkpoint_areas"]:
+		for node in level.get_tree().get_nodes_in_group(group):
+			var mark := (node as Node).get_node_or_null(^"Checkpoint") as Node2D
+			if mark != null:
+				planted.append(mark)
+	for node in level.get_tree().get_nodes_in_group(&"signposts"):
+		planted.append(node as Node2D)
+	for thing in planted:
+		var surface := INF
+		for child in terrain.get_children():
+			var segment := child as Node2D
+			var size: Variant = segment.get("segment_size")
+			if size == null:
+				continue
+			var span := Vector2(size)
+			if thing.global_position.x >= segment.global_position.x \
+					and thing.global_position.x <= segment.global_position.x + span.x:
+				surface = segment.global_position.y
+		# Nothing to stand on at that x is a different problem and the rooms are not on the
+		# terraces at all, so an unknown surface is skipped rather than failed.
+		if surface == INF or thing.global_position.y < -400.0:
+			continue
+		if absf(thing.global_position.y - surface) > 6.0:
+			floating.append("%s at %.0f is %.0f off the terrace"
+				% [thing.get_parent().name, thing.global_position.x,
+					thing.global_position.y - surface])
+	_check(floating.is_empty(), "nothing is planted on a roof",
+		"all on the ground" if floating.is_empty() else ", ".join(floating))
 
 
 ## A DRAWN CREATURE IS STILL IN THE ROOM IT WAS DRAWN IN.
