@@ -1637,6 +1637,25 @@ func _focus_camera_for(speaker: String) -> void:
 		dialogue_box.conversation_finished.connect(_release_camera_focus)
 
 
+## THE CAVE, WHICH HAD NEVER SPOKEN TO ANYBODY. `passage_blocked` and `passage_allowed` had
+## no way to fire until ConceptGate2D grew a trigger, and the level answered the first of them
+## with `status_label.text` -- the small grey line in the corner that the next status message
+## overwrites. It is the hint channel now, and it fires the beat's own hook, which is also
+## what makes the board beside the cave readable at all.
+func _on_cave_refused(_concept: String, hint: String) -> void:
+	_speak_on_arrival("L1_N1.cave")
+	if hint_bar != null:
+		hint_bar.show_hint(hint, Lolo.SPEAKER, 4.0)
+	else:
+		status_label.text = hint
+
+
+func _on_cave_opened(_concept: String) -> void:
+	if hidden_flower != null and is_instance_valid(hidden_flower):
+		hidden_flower.reveal()
+	_speak_on_arrival("L1_N1.cave.open")
+
+
 ## The hidden flower in the gorge cave, which is the one thing in Payyo a player can miss
 ## entirely and the one thing that had no acknowledgement at all.
 func _on_flower_found(_collectible_id: String) -> void:
@@ -2806,9 +2825,8 @@ func _wire_dialogue_node() -> void:
 		# not learned Illumination sees a dark cave rather than a prize behind glass.
 		if cave_gate.can_pass():
 			hidden_flower.reveal()
-		cave_gate.connect(&"passage_allowed", func(_concept: String) -> void: hidden_flower.reveal())
-		cave_gate.connect(&"passage_blocked", func(_concept: String, hint: String) -> void:
-			status_label.text = hint)
+		cave_gate.connect(&"passage_allowed", _on_cave_opened)
+		cave_gate.connect(&"passage_blocked", _on_cave_refused)
 	if dialogue_node == null:
 		return
 	dialogue_node.approached.connect(_on_dialogue_node_approached)
