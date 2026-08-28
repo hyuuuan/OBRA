@@ -30,6 +30,11 @@ signal player_exited(obstacle_id: String)
 ## Ang Dayami, where the centre is the middle of a two-hundred-pixel haystack and the board
 ## ends up planted in the doorway the player is meant to walk through.
 @export var hint_sign_offset := 0.0
+## AND WHERE THE CHECKPOINT MARK STANDS. Zero puts it near the outgoing edge of the volume,
+## which is right for a beat you walk out of and wrong at the gorge: the outgoing edge is the
+## far lip, there is no ground under it, and the mark's own ground sweep walks it back onto
+## the near lip -- straight into the dead tree the Protector route is there to cut.
+@export var checkpoint_mark_offset := 0.0
 
 var _inside := false
 
