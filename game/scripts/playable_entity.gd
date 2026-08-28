@@ -137,7 +137,15 @@ func _apply_morph_state_now(state: Dictionary) -> void:
 	if not _vector_is_finite(inherited_velocity):
 		inherited_velocity = Vector2.ZERO
 	var skin := _get_skin()
-	if skin != null and skin.has_method("get_rigid_bodies"):
+	# ⚠ THROUGH THE RIG, NOT BY WRITING POSITIONS. This used to set `global_position` on each
+	# live RigidBody2D, which the physics server overwrites the same frame -- trap 7. Over the
+	# handful of pixels between one morph and the next it survived long enough to look like it
+	# worked; over the two thousand units into a room it did nothing at all, so pressing down
+	# at the straw heap as an ant moved nobody and the door into Ang Bale was the same.
+	# `translate_rig` freezes the whole graph first, which is the only thing that works.
+	if skin != null and skin.has_method("translate_rig"):
+		skin.call("translate_rig", offset, inherited_velocity.limit_length(520.0))
+	elif skin != null and skin.has_method("get_rigid_bodies"):
 		for rig_body in skin.call("get_rigid_bodies"):
 			if rig_body is RigidBody2D:
 				rig_body.global_position += offset

@@ -153,6 +153,21 @@
       "text": "That was not only wood. That is the water for every terrace below."
     },
     {
+      "id": "L1_CAVE_001",
+      "at": "L1_N1.cave",
+      "text": "There is a hollow under the far wall. Something is in it — she used to press flowers, apo, and she used to hide them."
+    },
+    {
+      "id": "L1_CAVE_002",
+      "at": "L1_N1.cave",
+      "text": "You cannot see into it. Not without bringing your own light."
+    },
+    {
+      "id": "L1_CAVE_003",
+      "at": "L1_N1.cave.open",
+      "text": "There. One of hers, still where she left it."
+    },
+    {
       "id": "L1_N2_001",
       "at": "L1_N2.enter",
       "text": "She stopped here. Look — her stool, her jar of brushes."
@@ -378,7 +393,7 @@
     {
       "id": "L1_N3_024",
       "at": "L1_N3.canvas.taken",
-      "text": "That is the one. Pista \u2014 the plaza, the bunting, the whole town out in the street."
+      "text": "That is the one. Pista — the plaza, the bunting, the whole town out in the street."
     },
     {
       "id": "L1_N3_025",

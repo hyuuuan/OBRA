@@ -271,6 +271,14 @@ The short version: **obstacles declare a TAG, never a class**, and `AbilityTags`
   and must never enter `UIRouter.cancel_chain` — Escape would then "close" a camera move. It
   is bars rather than a fade because a doorway the player already chose to walk through must
   not get a beat of black (LEVEL_1.md), and because a checkpoint is crossed at a run.
+- **Teleporting a drawn creature goes through `RuntimeRig2D.translate_rig`.** Writing
+  `global_position` on a live RigidBody2D does nothing — the server overwrites it the same
+  frame — so every teleport of a morph silently failed until this existed. Freeze the whole
+  graph, move, unfreeze; releasing bodies one at a time lets the solver pull the moved half
+  back through a joint whose partner has not moved yet.
+- **A room's doorway is a distance measured on one position, never an Area2D**, because a rig
+  is many bodies and an Area2D at the door catches them on arrival. And it must not require
+  walking further in first: that makes the room a trap for anyone who turns straight back.
 - **The world moves on its own.** `WorldAmbience2D` (a child of the Camera2D, so its space IS
   view space — it divides the viewport by the camera zoom, which changes to 2 and 3 inside
   the rooms) drifts motes and leaves and recycles them off-screen. `SceneryPuff2D` answers
