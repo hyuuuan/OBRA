@@ -46,8 +46,26 @@ func _ready() -> void:
 	add_child(collision)
 	body_entered.connect(_on_body_entered)
 	z_index = 8
-	var profile := get_node_or_null(^"/root/PlayerProfile")
-	_taken = profile != null and bool(profile.call("is_collectible_found", collectible_id))
+	refresh_for_run()
+
+
+## WHETHER THE LEVEL STILL HAS ONE, asked of the RUN and not of the profile -- the same fix
+## Ang Bale's canvas needed, and for the same reason. `is_collectible_found` is permanent by
+## design, so once anybody had picked this flower it was gone from EVERY later run: the one
+## optional thing in Payyo simply was not in the world any more, and the gate in front of it
+## opened onto nothing.
+##
+## ⚠ CALLED AGAIN BY THE LEVEL, not only from _ready. A child's _ready runs BEFORE its
+## parent's, and GameLevel joins the run-state group in its own -- so at the moment this node
+## is built there is nothing to ask yet, and the profile fallback answers "already taken".
+## GameLevel calls this once it is findable.
+func refresh_for_run() -> void:
+	var run := get_tree().get_first_node_in_group(&"level_run_state")
+	if run != null and run.has_method("pickup_taken_this_run"):
+		_taken = bool(run.call("pickup_taken_this_run", collectible_id))
+	else:
+		var profile := get_node_or_null(^"/root/PlayerProfile")
+		_taken = profile != null and bool(profile.call("is_collectible_found", collectible_id))
 	_revealed = not starts_hidden
 	visible = not _taken
 	set_process(not _taken)
@@ -97,6 +115,9 @@ func _on_body_entered(body: Node) -> void:
 	var profile := get_node_or_null(^"/root/PlayerProfile")
 	if profile != null:
 		profile.call("record_collectible", collectible_id)
+	var run := get_tree().get_first_node_in_group(&"level_run_state")
+	if run != null and run.has_method("note_pickup_taken"):
+		run.call("note_pickup_taken", collectible_id)
 	var telemetry := get_node_or_null(^"/root/Telemetry")
 	if telemetry != null:
 		telemetry.call("record_event", "collectible_found", {"collectible_id": collectible_id})

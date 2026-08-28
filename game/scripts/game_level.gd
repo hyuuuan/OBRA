@@ -2821,6 +2821,11 @@ func _wire_dialogue_node() -> void:
 	if hidden_flower != null and not hidden_flower.collected.is_connected(_on_flower_found):
 		hidden_flower.collected.connect(_on_flower_found)
 	if cave_gate != null and hidden_flower != null:
+		# Re-asked now that the level is in the run-state group: at the flower's own _ready
+		# there was nothing to ask, so it fell back to the permanent profile and concluded it
+		# had already been picked. See HiddenFlower2D.refresh_for_run.
+		if hidden_flower.has_method("refresh_for_run"):
+			hidden_flower.refresh_for_run()
 		# The gate is the only thing that may reveal the flower, so a player who has
 		# not learned Illumination sees a dark cave rather than a prize behind glass.
 		if cave_gate.can_pass():
