@@ -30,6 +30,20 @@ extends Node2D
 ## paddy is wet earth a metre and a half behind the water. Both were see-through.
 @export var shaft_top := Color(0.212, 0.196, 0.169, 1.0)
 @export var shaft_bottom := Color(0.106, 0.098, 0.090, 1.0)
+## WHETHER THIS HOLE HAS A BOTTOM YOU STAND ON. The gorge does -- the cave, the flower and
+## the sign are all down there and the player walks to them -- and a paddy does not: what is
+## under a paddy is water, and drawing a rubble floor behind it would put a beach in it.
+##
+## Without this the gorge floor was the shaft colour running off the bottom of the screen.
+## The player and Lolo stood on an undifferentiated dark slab with a signboard and two tufts
+## of grass on it, which is what "it seems like I'm walking to something" is describing:
+## there was no floor, so there was no room, so there was nothing to have arrived at.
+@export var has_a_floor := false
+## Where the cave mouth is cut into the far wall, in this node's space, and how big. Zero
+## width draws none. The gate and the flower stand in front of it -- before this the "cave"
+## the gate talks about did not exist as anything you could see.
+@export var cave_at := Vector2.ZERO
+@export var cave_size := Vector2.ZERO
 
 const EDGE := Color(0.106, 0.086, 0.067, 1.0)       # 1B1611
 const ROCK_DARK := Color(0.208, 0.180, 0.145, 1.0)  # 352E25
@@ -41,6 +55,18 @@ const MOSS := Color(0.243, 0.318, 0.180, 1.0)       # 3E512E
 ## The far wall's own courses, drawn across the shaft. Without them the drop is a flat dark
 ## rectangle -- which reads as a hole cut in the picture rather than as rock a long way back.
 const STRATA := Color(0.267, 0.243, 0.208, 1.0)
+## The floor of the gorge: rubble that has come off the walls, packed by the water that runs
+## through here after rain.
+const RUBBLE := Color(0.286, 0.259, 0.216, 1.0)
+const RUBBLE_LIT := Color(0.376, 0.341, 0.282, 1.0)
+const RUBBLE_DARK := Color(0.180, 0.161, 0.133, 1.0)
+const SILT := Color(0.227, 0.208, 0.169, 1.0)
+## Inside the cave, which is darker than the shaft because nothing reaches into it.
+const CAVE_DARK := Color(0.043, 0.039, 0.035, 1.0)
+const CAVE_LIP := Color(0.153, 0.137, 0.114, 1.0)
+## Daylight coming down the gorge's own mouth. One soft column, so the bottom is not lit
+## evenly and the eye knows which way is out.
+const DAYLIGHT := Color(0.788, 0.827, 0.729, 1.0)
 
 
 func _ready() -> void:
@@ -53,10 +79,78 @@ func _ready() -> void:
 
 func _draw() -> void:
 	_draw_shaft()
+	if cave_size.x > 0.0:
+		_draw_cave()
+	if has_a_floor:
+		_draw_floor()
 	if face_width <= 0.0:
 		return
 	_draw_face(true)
 	_draw_face(false)
+
+
+## The hollow the gate is standing in front of. Cut into the far wall rather than drawn on
+## top of it: a lip of rock over the opening, the dark inside, and a scatter of the same
+## rubble spilling out of it onto the floor.
+func _draw_cave() -> void:
+	# ⚠ ROW BY ROW, NOT AN ARCH DRAWN OVER A RECTANGLE. The first cut stepped the top corners
+	# in and then filled the inside with one rect, which painted straight back over the steps
+	# -- so the "cave" came out as a plain black box cut into the wall, which reads as a
+	# missing texture rather than as a hole in a cliff. The arch has to BE the shape.
+	var mouth := Rect2(cave_at - Vector2(cave_size.x * 0.5, cave_size.y), cave_size)
+	var middle := cave_at.x
+	var rows := int(cave_size.y)
+	for row in range(rows):
+		var t := float(row) / float(maxi(1, rows - 1))
+		# Round for the top third, straight sides below it, which is what a hollow worn into
+		# rock by water actually looks like.
+		var arch := 1.0
+		if t < 0.42:
+			var a := t / 0.42
+			arch = sqrt(maxf(0.0, 1.0 - (1.0 - a) * (1.0 - a)))
+		var half := floorf(cave_size.x * 0.5 * arch)
+		if half < 1.0:
+			continue
+		var y := floorf(mouth.position.y + float(row))
+		draw_rect(Rect2(middle - half, y, half * 2.0, 1.0), CAVE_DARK)
+		# The cut edge, so the hole has a thickness and is not a sticker.
+		draw_rect(Rect2(middle - half - 2.0, y, 2.0, 1.0), CAVE_LIP)
+		draw_rect(Rect2(middle + half, y, 2.0, 1.0), CAVE_LIP)
+	# The threshold: a cave has a lip you step over, and it is what tells the eye the floor
+	# carries on INTO it rather than stopping at a painted line.
+	draw_rect(Rect2(middle - cave_size.x * 0.5, mouth.end.y - 3.0, cave_size.x, 3.0), CAVE_LIP)
+
+
+## The bottom of the gorge, and the reason it is worth walking down to.
+func _draw_floor() -> void:
+	var floor_top := opening.end.y - 34.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20260829
+	# Silt first -- the flat the water leaves -- then rubble on top of it.
+	draw_rect(Rect2(opening.position.x, floor_top, opening.size.x, 34.0), SILT)
+	draw_rect(Rect2(opening.position.x, floor_top, opening.size.x, 2.0), RUBBLE_LIT)
+	for index in range(74):
+		var at := Vector2(
+			opening.position.x + rng.randf_range(4.0, opening.size.x - 4.0),
+			floor_top + rng.randf_range(2.0, 28.0))
+		var size := rng.randf_range(3.0, 9.0)
+		var tone := RUBBLE if rng.randf() < 0.7 else RUBBLE_DARK
+		draw_rect(Rect2(at.floor(), Vector2(size, size * 0.7).floor()), tone)
+		# A catch of light on the up-facing edge of the bigger stones, so the floor has a
+		# direction the light comes from like everything else in this level.
+		if size > 6.0:
+			draw_rect(Rect2(at.floor(), Vector2(size * 0.6, 1.0).floor()), RUBBLE_LIT)
+
+	# THE WAY OUT, SAID IN LIGHT. Daylight down the gorge's own mouth, widening as it falls,
+	# so the bottom of the hole is not lit evenly and the eye knows where the sky is.
+	var mouth_x := opening.position.x + opening.size.x * 0.5
+	var bands := 16
+	for index in range(bands):
+		var t := float(index) / float(bands - 1)
+		var half := lerpf(28.0, 96.0, t * t)
+		var y := opening.position.y + opening.size.y * (0.28 + 0.72 * t)
+		draw_rect(Rect2(mouth_x - half, y, half * 2.0, opening.size.y * 0.72 / float(bands) + 1.0),
+			Color(DAYLIGHT, 0.05 * (1.0 - t)))
 
 
 ## The drop, in bands that darken toward the bottom. Whole-pixel steps rather than a

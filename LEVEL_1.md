@@ -444,6 +444,16 @@ colour, because a change from grey cloth to gold cloth is a change you have to b
 it to notice. The two decorative fence sprites are deleted outright: one of them was standing
 on CP0.
 
+**The gorge has a BOTTOM, and the cave is a hole you can see.** `has_a_floor` lays rubble and
+silt across the foot of the shaft with a column of daylight down the middle, and `cave_at` /
+`cave_size` cut an arched hollow into the far wall where the gate stands. Before that the
+floor of the gorge was the shaft colour running off the bottom of the screen: the apo and
+Lolo stood on an undifferentiated dark slab with a signboard and two tufts of grass on it,
+and the "cave" the gate talks about did not exist as anything you could look at. There is a
+collectible down there, so it has to read as somewhere you have arrived rather than somewhere
+the level ran out. ⚠ The arch is drawn ROW BY ROW; stepping the corners in and then filling
+the middle with one rect paints back over the steps and gives you a black box.
+
 **The gorge and both paddies have an INSIDE now** (`GorgeWall2D`). They were holes in the
 terrain with nothing drawn behind them, so what showed through was the parallax -- sky,
 mountains and a painted terrace at nearly the brightness of the ground the player is standing
