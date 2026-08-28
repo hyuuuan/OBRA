@@ -33,6 +33,32 @@ func _run() -> void:
 	await _wait(0.6)
 	await _capture("00_hud_full")
 
+	# THE ACTIONS ARE STATES, not one legend. Hold the level's state refresh for these
+	# three photographs so each presentation can be inspected without fabricating a whole
+	# placed drawing, held tool and morph merely to reach the same UI state.
+	var prompts = level.get("action_prompts")
+	# The opening story pauses the tree. End it before photographing controls whose pop and
+	# follow motion intentionally belongs to gameplay time.
+	level.get("dialogue_box").call("hide_line")
+	await _wait(0.25)
+	level.set_physics_process(false)
+	prompts.call("set_pickup_available", true, "Ladder")
+	await _wait(0.45)
+	await _capture("00e_action_pickup")
+	prompts.call("set_pickup_available", false)
+	prompts.call("set_use_available", true, "Axe")
+	await _wait(0.45)
+	await _capture("00f_action_use")
+	prompts.call("set_pickup_available", true, "Ladder")
+	prompts.call("set_revert_available", true)
+	await _wait(0.45)
+	await _capture("00g_actions_all_contexts")
+	prompts.call("set_pickup_available", false)
+	prompts.call("set_use_available", false)
+	prompts.call("set_revert_available", false)
+	await _wait(0.25)
+	level.set_physics_process(true)
+
 	# Mid-stroke: some of the budget gone, some claimed by ink on the canvas that has not
 	# been spent yet. The two-tone block is the whole reason the gauge is drawn by hand.
 	var hud = level.get("hud_panel")

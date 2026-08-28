@@ -56,7 +56,7 @@ func _build() -> void:
 	# grew DOWN by whatever its content needed, so the strip's height was decided by how
 	# many lines it happened to be printing -- and the keybind row underneath is at a fixed
 	# place. Three lines cleared it, four did not: adding the gloss line put the panel's
-	# bottom border straight through "R DRAW · E PICK UP".
+	# bottom border straight through the action prompts.
 	#
 	# That is the same collision the level's offset_top was hand-tuned to avoid once
 	# already. Tuning it again would just move the next line's collision somewhere else, so
