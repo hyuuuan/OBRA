@@ -395,7 +395,7 @@ func _plant_commit_mark(volume: LevelObstacle2D) -> void:
 		director.obstacle(volume.obstacle_id).get("checkpoint_on_commit", ""))
 	if checkpoint_id.is_empty():
 		return
-	var at := Vector2(volume.trigger_size.x * 0.5 - 40.0, 0.0)
+	var at := Vector2(volume.trigger_size.x * 0.5 - 40.0 + volume.checkpoint_mark_offset, 0.0)
 	var mark := CheckpointLantern2D.plant(volume, at)
 	if mark != null:
 		_commit_marks[volume.obstacle_id] = mark

@@ -52,9 +52,12 @@ func _run() -> void:
 	_audit_checkpoint_marks()
 	_audit_nothing_stands_on_a_checkpoint()
 	_audit_every_checkpoint_is_marked()
+	_audit_marks_stand_clear()
+	await _audit_the_cave_opens()
 	await _audit_the_chest_can_be_read()
 	await _audit_placement(&"straw_rooms", Vector2(-120.0, 220.0))
 	await _audit_placement(&"bale_interiors", Vector2(330.0, 210.0))
+	await _audit_a_morph_gets_into_the_heap()
 	await _audit_a_morph_stays_in_the_room(&"straw_rooms")
 	await _audit_a_morph_stays_in_the_room(&"bale_interiors")
 	_close()
@@ -256,6 +259,104 @@ func _audit_the_chest_can_be_read() -> void:
 	var readable = level.call("_readable_sign")
 	_check(readable == board, "the chest can be read",
 		"offered %s" % ("the chest's board" if readable == board else str(readable)))
+
+
+## A DRAWN CREATURE CAN ACTUALLY GET INTO THE HEAP, AND STAYS IN IT.
+##
+## The heap asks for `burrow`, so a drawing is the ONLY thing that can go in -- which meant
+## the one path into that room was the one path nothing had tested. Two separate defects were
+## sitting on it, and both were invisible to every existing check.
+##
+## 1. `_apply_morph_state_now` teleported a rig by writing `global_position` on live
+##    RigidBody2Ds, which the physics server overwrites the same frame (trap 7). Over the few
+##    pixels between one morph and the next it survived; over the two thousand units into a
+##    room it did nothing at all.
+## 2. `entry_point()` lands the player thirty pixels from the way out, which is clear for the
+##    apo's capsule and not clear for a graph of bodies -- so a rig arrived already touching
+##    the doorway and was posted straight back to the terrace.
+func _audit_a_morph_gets_into_the_heap() -> void:
+	var room := level.get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	var pile: Node2D = null
+	for node in level.get_tree().get_nodes_in_group(&"straw_piles"):
+		if bool((node as Node2D).get("entrance")):
+			pile = node as Node2D
+	if room == null or pile == null:
+		_check(false, "a drawing gets into the heap", "no heap, or no room behind it")
+		return
+	var drawing := Image.create_empty(400, 400, false, Image.FORMAT_RGBA8)
+	drawing.fill(Color.WHITE)
+	if not bool(level.call("_spawn_or_replace", "ant", "Ant", drawing,
+			RosterFixtures.for_rig("walker", "ant"))):
+		_check(false, "a drawing gets into the heap", "the rig would not build")
+		return
+	var mouth := Rect2(pile.call("mouth_rect"))
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position":
+		pile.global_position + Vector2(mouth.get_center().x, -20.0),
+		"linear_velocity": Vector2.ZERO})
+	for _frame in range(40):
+		await physics_frame
+	_check(bool(level.get("_at_straw_mouth")) and bool(level.call("_fits_through_the_straw")),
+		"an ant is offered the way in",
+		"at the mouth=%s fits=%s" % [level.get("_at_straw_mouth"),
+			level.call("_fits_through_the_straw")])
+	level.call("_on_straw_entered")
+	# Long enough for the way out to have thrown them back if it were going to.
+	for _frame in range(90):
+		await physics_frame
+	_check(level.call("_room_holding_player") == room, "and it stays inside the heap",
+		"ended at %s, the room is %s" % [(level.get("player") as Node2D).global_position,
+			Rect2(room.call("bounds"))])
+	level.call("_revert_to_base_form")
+	for _frame in range(20):
+		await physics_frame
+
+
+## THE THING BEHIND THE CAVE GATE CAN BE REACHED. `try_pass()` had no caller: the gate was a
+## Node2D with a concept id and no trigger, so `passage_allowed` had never fired in the built
+## game and the flower could only ever appear for a player who already owned the concept when
+## the level opened. Drawing one afterwards did nothing.
+func _audit_the_cave_opens() -> void:
+	var gate := level.get("cave_gate") as Node2D
+	var flower := level.get("hidden_flower") as Node2D
+	if gate == null or flower == null:
+		_check(false, "the cave opens once you have a light", "no gate or no flower")
+		return
+	_check(gate.get_node_or_null(^"Reach") != null, "the cave gate can be walked up to",
+		"it has a trigger" if gate.get_node_or_null(^"Reach") != null
+			else "NO TRIGGER -- try_pass has no caller")
+	var profile := level.get_node_or_null(^"/root/PlayerProfile")
+	profile.call("record_object_acquired", "flashlight")
+	var player := level.get("player") as Node2D
+	player.global_position = gate.global_position + Vector2(500.0, -30.0)
+	for _frame in range(20):
+		await physics_frame
+	player.global_position = gate.global_position + Vector2(0.0, -30.0)
+	for _frame in range(40):
+		await physics_frame
+	_check(bool(flower.get("_revealed")), "the cave opens once you have a light",
+		"revealed" if bool(flower.get("_revealed")) else "STILL DARK -- the flower is unreachable")
+
+
+## Nothing the level draws may stand on a checkpoint mark. The gorge's outgoing edge is the
+## far lip with no ground under it, so CP1's mark swept back onto the near lip and landed in
+## the dead tree the Protector route exists to cut.
+func _audit_marks_stand_clear() -> void:
+	var clashes: Array[String] = []
+	for node in level.get_tree().get_nodes_in_group(&"level_obstacles"):
+		var mark := (node as Node).get_node_or_null(^"Checkpoint") as Node2D
+		if mark == null:
+			continue
+		for group in [&"destructible", &"dead_trees", &"bulul", &"straw_piles"]:
+			for other in level.get_tree().get_nodes_in_group(group):
+				var prop := other as Node2D
+				if prop == null:
+					continue
+				if absf(prop.global_position.x - mark.global_position.x) < 70.0:
+					clashes.append("%s at %.0f vs mark at %.0f"
+						% [prop.name, prop.global_position.x, mark.global_position.x])
+	_check(clashes.is_empty(), "no prop stands on a checkpoint mark",
+		"clear" if clashes.is_empty() else ", ".join(clashes))
 
 
 ## A DRAWN CREATURE IS STILL IN THE ROOM IT WAS DRAWN IN.
