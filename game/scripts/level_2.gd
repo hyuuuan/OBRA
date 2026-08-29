@@ -87,6 +87,7 @@ var _lines: Dictionary = {}
 ## rather than every frame. Same shape as `_refresh_room_framing`.
 var _ceiling_for := "?"
 var _birds: Array[ScrapBird2D] = []
+var dancers: DancerGroup2D
 ## WHICH pieces went on ahead, not how many.
 ##
 ## `ScrapLedger.defer` takes a COUNT and sets it, because the design's BIRDS_IN_ALLEY2 is an
@@ -171,6 +172,7 @@ func _build_level_furniture() -> void:
 	_wire_the_rooms()
 	_put_the_kandila_in_the_house()
 	_furnish_the_church()
+	_bring_out_the_dancers()
 	_string_the_bunting()
 	_release_the_flock()
 
@@ -266,6 +268,35 @@ func _furnish_the_church() -> void:
 	chancel.at_rack.connect(_on_at_rack)
 	chancel.kandila_placed.connect(_on_kandila_placed)
 	chancel.priest_arrived.connect(_on_priest_arrived)
+
+
+## The dancers, on their mark. They are the plaza's whole reason for being full, and the one
+## thing in this level the player can take away from it permanently.
+func _bring_out_the_dancers() -> void:
+	var mark := _mark("DancersMark")
+	if mark == null:
+		push_error("Level2: no DancersMark to stand the dancers on")
+		return
+	dancers = DancerGroup2D.new()
+	dancers.name = "Dancers"
+	mark.add_child(dancers)
+	dancers.noticed.connect(_on_dancers_noticed)
+	dancers.scattered.connect(_on_dancers_scattered)
+
+
+## The irreversibility, said while the player can still walk away. The design asks for the
+## signal to arrive BEFORE the commit, and this fires off the dancers' own approach volume
+## rather than off the choice screen -- so it is said about the people it is about, while the
+## player is looking at them.
+func _on_dancers_noticed(_text: String) -> void:
+	_speak(script_lines.fire("L2_N1.protector.warn"))
+
+
+## They are gone. Nothing in the level is harder for it -- the cost is entirely that Lolo
+## brought the player here to see this and it is not here any more.
+func _on_dancers_scattered() -> void:
+	script_lines.set_flag("dancers_gone")
+	_speak(script_lines.fire("L2_N1.protector.solved"))
 
 
 ## THE BUNTING, IN EVERY SCENE THAT HAS ANY. Each line owns its own Y and the flight rule
@@ -581,10 +612,21 @@ func _refresh_the_ceiling() -> void:
 
 func _on_route_solved(obstacle_id: String, route: String) -> bool:
 	match [obstacle_id, route]:
-		["L2_N1", "artist"], ["L2_N1", "protector"]:
-			# The dancers hand it over -- either for the performance or on their way out of
-			# the plaza. Both routes end with the candle in hand and the church open.
+		["L2_N1", "artist"]:
+			# ⚠ THE DANCE IS NOT PLAYABLE YET. `dance_minigame.gd` is the scoring model and
+			# nothing puts a cue on screen or times a stroke against it, so this route hands
+			# the kandila over without a performance and THE FLOWER CANNOT BE EARNED --
+			# `_on_dance_finished` has no caller. Recorded in LEVEL_2.md as the largest thing
+			# still owed. Handing the candle over is right either way: the design says the
+			# level is unloseable and only the flower is ever at stake.
 			_hold_the_kandila()
+		["L2_N1", "protector"]:
+			# One way, and they do not come back. The quiet line waits until they have
+			# actually gone rather than firing over the top of them leaving.
+			_hold_the_kandila()
+			if dancers != null:
+				dancers.scatter()
+			return true
 		["L2_N1", "pragmatist"]:
 			# ⚠ THIS ONE DOES NOT GRANT THE KANDILA, and that is the difference between it
 			# and the other two. Committing this route means the drawn key imitated the lock;
@@ -663,6 +705,7 @@ func _on_dance_finished(cleared: bool, flower_earned: bool) -> void:
 func _level_run_state() -> Dictionary:
 	var out: Dictionary = {
 		"kandila": _has_kandila,
+		"dancers_gone": dancers != null and dancers.are_gone(),
 		"kandila_on_rack": chancel != null and chancel.kandila_on_rack,
 		# Where the chain has got to. Without it a restore behind a room the player had
 		# already opened would board the door up again and strand them in an alley.
@@ -684,6 +727,10 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	for value: Variant in state.get("deferred_ids", []):
 		_deferred_ids.append(String(value))
 	_tangle_the_deferred()
+	if dancers != null and bool(state.get("dancers_gone", false)):
+		# Set, not replayed: a restore after they left must not run them off the plaza a
+		# second time, which would look like the level happening again.
+		dancers.set_already_gone()
 	if bool(state.get("kandila", false)):
 		_hold_the_kandila()
 	if chancel != null and bool(state.get("kandila_on_rack", false)):
