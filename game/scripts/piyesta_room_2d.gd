@@ -133,10 +133,21 @@ const BOARD := Color(0.310, 0.239, 0.157, 1.0)        # 4F3D28
 var _shell_built := false
 var _exit_area: Area2D
 var _onward_area: Area2D
-## Seconds before an opening counts as "leave" again, so arriving inside one does not step
-## the player straight back out of the room they have just walked into.
-var _exit_grace := 0.0
-var _onward_grace := 0.0
+## AN OPENING IS ARMED BY BEING LEFT, NOT BY A TIMER.
+##
+## The player arrives in a room by teleport, and `entry_point()` lands them a body's width
+## from the way back -- so on the frame they appear they are already standing in it, and an
+## opening that answered would step them straight back out of the room they just walked
+## into. The first cut of this was a half-second grace, which is wrong in both directions:
+## too short and the way back fires anyway, and too long is worse -- a player put down IN an
+## opening generates no `body_entered` when the grace expires, because `body_entered` is a
+## TRANSITION and there is no transition for a body that was already inside. That is how the
+## first alley could be walked into and never walked out of.
+##
+## Waiting to be left has neither failure. It cannot fire on arrival, and it cannot be
+## outrun by a fast machine or missed on a slow one.
+var _exit_armed := true
+var _onward_armed := true
 
 
 func _ready() -> void:
@@ -158,9 +169,11 @@ func _ready() -> void:
 ## doorway -- a checkpoint restore, a fall, a morph or an expiry can all move them in or out
 ## without going through one, and every one of those left Payyo's rooms drawn over the
 ## valley until `_room_holding_player` was written the same way.
-func _process(delta: float) -> void:
-	_exit_grace = maxf(0.0, _exit_grace - delta)
-	_onward_grace = maxf(0.0, _onward_grace - delta)
+func _process(_delta: float) -> void:
+	if not _exit_armed and not _somebody_in(_exit_area):
+		_exit_armed = true
+	if not _onward_armed and not _somebody_in(_onward_area):
+		_onward_armed = true
 	var here := false
 	for node in get_tree().get_nodes_in_group(&"player_character"):
 		var body := node as Node2D
@@ -241,12 +254,12 @@ func open_onward() -> void:
 	queue_redraw()
 
 
-## Stop the openings answering for a moment. Called on the way in, for the reason
-## `BaleInterior2D.disarm_the_way_out` exists: the entry point is INSIDE the room but within
-## a body's width of the doorway, and an `Area2D` sweeps on the frame it arms.
+## Stop the openings answering until the player has stepped clear of them. Called on the way
+## in, for the reason `BaleInterior2D.disarm_the_way_out` exists: the entry point is INSIDE
+## the room but within a body's width of the doorway.
 func disarm_the_way_out() -> void:
-	_exit_grace = 0.5
-	_onward_grace = 0.5
+	_exit_armed = false
+	_onward_armed = false
 
 
 # --- The shell ------------------------------------------------------------------------
@@ -307,14 +320,23 @@ func _add_opening(opening_name: String, rect: Rect2, handler: Callable) -> Area2
 	return area
 
 
+func _somebody_in(area: Area2D) -> bool:
+	if area == null or not is_instance_valid(area):
+		return false
+	for body in area.get_overlapping_bodies():
+		if body.is_in_group(&"player_character"):
+			return true
+	return false
+
+
 func _on_exit_body(body: Node) -> void:
-	if _exit_grace > 0.0 or not body.is_in_group(&"player_character"):
+	if not _exit_armed or not body.is_in_group(&"player_character"):
 		return
 	exit_reached.emit()
 
 
 func _on_onward_body(body: Node) -> void:
-	if _onward_grace > 0.0 or not body.is_in_group(&"player_character"):
+	if not _onward_armed or not body.is_in_group(&"player_character"):
 		return
 	if not onward_open:
 		# REFUSED, AND SAID SO. A press -- or in this case a walk -- that does nothing and
