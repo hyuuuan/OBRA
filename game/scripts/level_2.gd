@@ -56,6 +56,9 @@ var _door_rooms: Dictionary = {}
 ## straw room put people back inside the mouth they had just walked out of.
 var _step_back: Dictionary = {}
 var _at_door: PiyestaDoor2D = null
+## Scene 2's furniture, built inside the church room.
+var chancel: ChurchInterior2D
+var _at_rack := false
 ## Whether the kandila is in hand. LEVEL RUN STATE, not the profile: `has_object` is
 ## permanent by design, so recording it there would open every later run of Piyesta with the
 ## candle already found and the whole of Problem 1 already answered. Level 1 made exactly
@@ -130,6 +133,7 @@ func _build_level_furniture() -> void:
 	_build_the_doors()
 	_wire_the_rooms()
 	_put_the_kandila_in_the_house()
+	_furnish_the_church()
 
 
 func _roster_ids() -> PackedStringArray:
@@ -210,6 +214,71 @@ func _put_the_kandila_in_the_house() -> void:
 	candle.taken.connect(_on_kandila_taken)
 
 
+## Scene 2. The nave gets its furniture from the room it is in, so the pews cannot outgrow
+## the church and the rack cannot end up outside it.
+func _furnish_the_church() -> void:
+	if church == null:
+		return
+	chancel = ChurchInterior2D.new()
+	chancel.name = "Chancel"
+	chancel.nave_length = church.room_length
+	chancel.nave_height = church.wall_height
+	church.add_child(chancel)
+	chancel.at_rack.connect(_on_at_rack)
+	chancel.kandila_placed.connect(_on_kandila_placed)
+	chancel.priest_arrived.connect(_on_priest_arrived)
+
+
+func _on_at_rack(standing: bool) -> void:
+	_at_rack = standing
+	if hint_bar == null:
+		return
+	if not standing or chancel == null or chancel.kandila_on_rack:
+		hint_bar.clear()
+		return
+	if not _has_kandila:
+		hint_bar.show_hint("The rack. You have nothing to put on it.", Lolo.SPEAKER)
+		return
+	hint_bar.show_hint("Put the kandila on the rack  —  press %s"
+		% ControlsKeys.keys_for("interact"), Lolo.SPEAKER)
+
+
+## THE ONE ACTION IN SCENE 2, and the pace drops from here. The design is explicit that
+## nothing in this room is a puzzle: the candle goes on the rack, Lolo prays, the priest
+## says where Lola went, and the far door opens.
+func _on_kandila_placed() -> void:
+	_has_kandila = false
+	script_lines.set_flag("kandila_placed")
+	if hint_bar != null:
+		hint_bar.clear()
+	_speak(script_lines.fire("SCENE_2.pray"))
+	# HE STOPS FOLLOWING. There is no praying pose in the delivered sheet -- the design names
+	# it as the thing this scene is built on and lists it as missing -- so he holds still at
+	# the rack and the dialogue carries the beat. `cheer` is arms-up celebration and would
+	# read as encouragement, which is worse than nothing here.
+	if lolo != null and is_instance_valid(lolo) and chancel != null:
+		lolo.global_position = chancel.rack_point() + Vector2(-70.0, -20.0)
+	await get_tree().create_timer(2.4, true, false, true).timeout
+	if chancel != null and is_instance_valid(chancel):
+		chancel.send_the_priest()
+
+
+## He has walked over. He names the alleys -- the design calls his line "the only signpost
+## for the second half of the level" -- and that is what opens the way out.
+func _on_priest_arrived() -> void:
+	_speak(script_lines.fire("SCENE_2.priest"))
+	_speak(script_lines.fire("SCENE_2.exit"))
+	# CP2 is declared at SCENE_2.exit and this is that moment. Written here rather than by a
+	# volume at the far door, because the scene is finished by being watched rather than by
+	# being walked through -- a player who heard the priest and then died in the first alley
+	# must not have to sit through him again.
+	_write_checkpoint("CP2")
+	if lolo != null and is_instance_valid(lolo):
+		lolo.follow(player)
+	if church != null:
+		church.open_onward()
+
+
 func _on_at_door(standing: bool, door: PiyestaDoor2D) -> void:
 	_at_door = door if standing else null
 	if hint_bar == null:
@@ -226,6 +295,8 @@ func _on_at_door(standing: bool, door: PiyestaDoor2D) -> void:
 ## E at an open door. Tried between a placed drawing and a signpost, which is where the base
 ## offers this hook.
 func _interact_with_level() -> bool:
+	if _at_rack and _has_kandila and chancel != null and not chancel.kandila_on_rack:
+		return chancel.place_the_kandila()
 	if _at_door == null or not _at_door.open:
 		return false
 	var room := _door_rooms.get(_at_door.door_id) as PiyestaRoom2D
@@ -250,6 +321,8 @@ func _enter_room(room: PiyestaRoom2D, came_from: Vector2) -> void:
 	_step_back[room.name] = came_from
 	room.disarm_the_way_out()
 	_step_through(room.entry_point())
+	if room == church and chancel != null and not chancel.kandila_on_rack:
+		_speak(script_lines.fire("SCENE_2.enter"))
 
 
 ## Back out the way they came in.
@@ -401,9 +474,31 @@ func _on_dance_finished(cleared: bool, flower_earned: bool) -> void:
 # --- What a checkpoint carries that the machine does not know about -------------------
 
 func _level_run_state() -> Dictionary:
-	return {"scraps": ledger.serialize()} if ledger != null else {}
+	var out: Dictionary = {
+		"kandila": _has_kandila,
+		"kandila_on_rack": chancel != null and chancel.kandila_on_rack,
+		# Where the chain has got to. Without it a restore behind a room the player had
+		# already opened would board the door up again and strand them in an alley.
+		"onward": {
+			"church": church != null and church.onward_open,
+			"alley_1": alley_1 != null and alley_1.onward_open,
+		},
+	}
+	if ledger != null:
+		out["scraps"] = ledger.serialize()
+	return out
 
 
 func _restore_level_run_state(state: Dictionary) -> void:
 	if ledger != null and state.has("scraps"):
 		ledger.restore(state["scraps"])
+	if bool(state.get("kandila", false)):
+		_hold_the_kandila()
+	if chancel != null and bool(state.get("kandila_on_rack", false)):
+		chancel.kandila_on_rack = true
+		chancel.queue_redraw()
+	var onward: Dictionary = state.get("onward", {})
+	if church != null and bool(onward.get("church", false)):
+		church.open_onward()
+	if alley_1 != null and bool(onward.get("alley_1", false)):
+		alley_1.open_onward()
