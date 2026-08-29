@@ -12,19 +12,7 @@
 [ext_resource type="Texture2D" path="res://assets/Level2/plaza_front.png" id="17_plazafront"]
 
 [sub_resource type="RectangleShape2D" id="Rect_PlazaFloor"]
-size = Vector2(1450.0, 200.0)
-
-[sub_resource type="RectangleShape2D" id="Rect_LeftTerrace"]
-size = Vector2(220.0, 240.0)
-
-[sub_resource type="RectangleShape2D" id="Rect_StairA"]
-size = Vector2(70.0, 240.0)
-
-[sub_resource type="RectangleShape2D" id="Rect_StairB"]
-size = Vector2(70.0, 200.0)
-
-[sub_resource type="RectangleShape2D" id="Rect_EastStep"]
-size = Vector2(200.0, 60.0)
+size = Vector2(1700.0, 200.0)
 
 [sub_resource type="RectangleShape2D" id="Rect_WestWall"]
 size = Vector2(40.0, 1400.0)
@@ -68,39 +56,15 @@ script = ExtResource("3_depth")
 [node name="EntityRoot" type="Node2D" parent="GameplayPlane"]
 
 [node name="SpawnPoint" type="Marker2D" parent="GameplayPlane"]
-position = Vector2(660.0, 460.0)
+position = Vector2(760.0, 460.0)
 
 [node name="Terrain" type="Node2D" parent="GameplayPlane"]
 
 [node name="PlazaFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(1025.0, 637.0)
+position = Vector2(940.0, 637.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/PlazaFloor"]
 shape = SubResource("Rect_PlazaFloor")
-
-[node name="LeftTerrace" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(220.0, 496.0)
-
-[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/LeftTerrace"]
-shape = SubResource("Rect_LeftTerrace")
-
-[node name="StairA" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(275.0, 552.0)
-
-[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/StairA"]
-shape = SubResource("Rect_StairA")
-
-[node name="StairB" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(330.0, 590.0)
-
-[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/StairB"]
-shape = SubResource("Rect_StairB")
-
-[node name="EastStep" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(1650.0, 507.0)
-
-[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/EastStep"]
-shape = SubResource("Rect_EastStep")
 
 [node name="WestWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(90.0, 250.0)
@@ -117,22 +81,22 @@ shape = SubResource("Rect_EastWall")
 [node name="Marks" type="Node2D" parent="GameplayPlane"]
 
 [node name="StartMark" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(660.0, 537.0)
+position = Vector2(760.0, 537.0)
 
 [node name="DancersMark" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(995.0, 537.0)
 
 [node name="DarkHouseA" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(370.0, 537.0)
+position = Vector2(380.0, 537.0)
 
 [node name="DarkHouseB" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(520.0, 537.0)
 
 [node name="LitHouse" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(1330.0, 537.0)
+position = Vector2(660.0, 537.0)
 
 [node name="ChurchDoor" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(1650.0, 477.0)
+position = Vector2(1350.0, 537.0)
 
 [node name="BuntingLine" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(995.0, 200.0)
@@ -195,7 +159,7 @@ obstacle_id = "L2_N3"
 trigger_size = Vector2(700.0, 400)
 
 [node name="CP0" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(660.0, 470.0)
+position = Vector2(760.0, 470.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP0"
 

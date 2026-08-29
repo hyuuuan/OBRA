@@ -20,6 +20,9 @@ const JUMP_RISE := 94.3
 const SLOWEST_STARTLE_REACH := 428.0
 ## R7: a gate must have floor to build on.
 const MIN_BUILD_FLOOR := 180.0
+## Where the painted dancers' feet are, in world units: plate row 816 with the plate drawn
+## centred at y 261, so 816 - 279. `tools/build_plaza.py` prints the plate row it measured.
+const WALK_LINE := 537.0
 ## The apo is 96 tall (`wanderer.gd`), so what they can touch at the top of a jump from a
 ## surface is that surface plus their height plus R1's rise.
 const APO_HEIGHT := 96.0
@@ -64,7 +67,7 @@ func _run() -> void:
 	_audit_it_is_level_2()
 	_audit_the_machine_found_its_parts()
 	_audit_restrictions_are_live()
-	_audit_the_stair_is_walkable()
+	_audit_the_plaza_is_flat()
 	_audit_the_plaza_is_buildable()
 	_audit_the_ceiling_bites()
 	_audit_every_mark_stands_on_ground()
@@ -125,37 +128,47 @@ func _audit_restrictions_are_live() -> void:
 		"%d of %d" % [ledger.held(), ledger.total()] if ledger != null else "no ledger")
 
 
-## A 240px face with no stair is a Climb gate nobody wrote down. The way down to the plaza
-## and back up must cost no ink, so every riser has to be inside the jump.
-func _audit_the_stair_is_walkable() -> void:
+## ⚠ THE PLAZA IN THE PAINTING IS FLAT, AND THE COLLISION HAS TO BE TOO.
+##
+## It was not. The level carried a LeftTerrace, two stair boxes and an EastStep, and every
+## one of them was floating somewhere the picture has no ledge -- the stair boxes sat out in
+## the front grass verge and the EastStep was an invisible sixty-pixel riser in front of the
+## market stall. On screen that is three platforms in a plaza that has none, which is exactly
+## what it looked like.
+##
+## This check used to walk that stair and assert its risers were inside the jump. With the
+## boxes gone it had nothing to walk and passed on an empty list, which is the vacuous pass
+## this project keeps having to learn about. It asserts the opposite now, and the opposite is
+## the thing that is true: ONE walkable surface, wall to wall.
+func _audit_the_plaza_is_flat() -> void:
 	var terrain := level.get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/Terrain") as Node2D
 	if terrain == null:
 		_check(false, "the plaza has terrain", "no Terrain node")
 		return
-	var tops: Dictionary = {}
+	var floors: Array[String] = []
+	var walls := 0
+	var tops: Array[float] = []
 	for child in terrain.get_children():
 		var body := child as StaticBody2D
-		if body == null:
-			continue
 		var shape := body.get_node_or_null(^"Shape") as CollisionShape2D
 		var rect := shape.shape as RectangleShape2D if shape != null else null
 		if rect == null:
 			continue
-		tops[body.name] = body.global_position.y - rect.size.y * 0.5
-	var steps := ["LeftTerrace", "StairA", "StairB", "PlazaFloor"]
-	var risers: Array[String] = []
-	var worst := 0.0
-	for index in range(steps.size() - 1):
-		if not (tops.has(steps[index]) and tops.has(steps[index + 1])):
+		# Taller than it is wide is a wall; anything else is something to stand on.
+		if rect.size.y > rect.size.x:
+			walls += 1
 			continue
-		var rise: float = float(tops[steps[index + 1]]) - float(tops[steps[index]])
-		worst = maxf(worst, rise)
-		if rise > JUMP_RISE:
-			risers.append("%s -> %s is %.0fpx" % [steps[index], steps[index + 1], rise])
-	_check(risers.is_empty(), "every riser is inside the jump",
-		"worst is %.0fpx against %.1fpx" % [worst, JUMP_RISE]
-		if risers.is_empty() else "; ".join(risers))
+		floors.append(body.name)
+		tops.append(body.global_position.y - rect.size.y * 0.5)
+	_check(floors.size() == 1, "one surface to walk on, wall to wall",
+		"%s" % ", ".join(floors) if floors.size() != 1 else "just the plaza")
+	_check(walls == 2, "and a wall at each end", "%d walls" % walls)
+	# It has to be the line the artist stood four dancers on, or the apo walks at a height
+	# the painting does not have.
+	if not tops.is_empty():
+		_check(absf(tops[0] - WALK_LINE) < 2.0, "and it is the line the painted dancers use",
+			"y %.0f against the plate's own %.0f" % [tops[0], WALK_LINE])
 
 
 ## R7. The dancers are a scare gate and the player has to be able to stand in front of them
