@@ -31,7 +31,16 @@ extends ModalOverlay
 ## goes past before you have finished registering what it is. Two and a half seconds at
 ## full size, with the world properly dark behind it, is a beat you get to look at.
 const HOLD := 2.6
-const RISE := 0.26
+## MATCHED TO THE DRAWING CANVAS. The panel that opens when you press R takes
+## DrawPanel.OPEN_DURATION to arrive and settles with an overshoot; this card used to snap
+## in over 0.26s with a soft ease, so the two most important "something is happening"
+## moments in the game announced themselves in completely different handwriting. Acquiring
+## something of Lola's deserves the same weight as picking up her brush.
+const RISE := 0.54
+## The overshoot constant every back-out easing uses. Godot's TRANS_BACK is a tween easing
+## and this card is driven by ONE property rather than by a tween per part (see _reveal), so
+## the curve is applied by hand to keep that.
+const BACK := 1.70158
 const FALL := 0.40
 ## How dark the world goes behind it. Dark enough that the card is the only thing on screen
 ## -- this is the reward, and the terraces behind it were competing with it at 0.62. Still
@@ -54,13 +63,27 @@ var _reveal := 0.0:
 	set(value):
 		_reveal = value
 		if _scrim != null:
-			_scrim.modulate.a = value
+			# The dark arrives AHEAD of the card, the way the drawing canvas's scrim does --
+			# it is what separates the moment from the level, so it cannot still be arriving
+			# when the thing it is separating is already up.
+			_scrim.modulate.a = ease(minf(value * 1.6, 1.0), 0.4)
 		if _panel != null:
-			_panel.modulate.a = value
+			# GOLD FIRST, THEN WHITE. The canvas opens by settling out of the pale gold the
+			# whole interface is trimmed in; a card that fades straight to white reads as a
+			# screenshot appearing rather than as something being handed over.
+			var lit := clampf(value * 1.5, 0.0, 1.0)
+			var tint := UISkin.GOLD_PALE.lerp(Color.WHITE, ease(lit, 0.35))
+			_panel.modulate = Color(tint.r, tint.g, tint.b, minf(value * 1.35, 1.0))
 			# The pop is shaped differently from the fade -- it overshoots and settles -- but
 			# it is the same clock, so it cannot outlive the dark it is standing on.
-			var pop := 0.78 + 0.22 * ease(minf(value * 1.35, 1.0), 0.35)
+			var pop := 0.84 + 0.16 * _back_out(value)
 			_panel.scale = Vector2(pop, pop)
+
+## 0 -> 1 with an overshoot past 1 near the end, which is what TRANS_BACK/EASE_OUT draws.
+static func _back_out(t: float) -> float:
+	var x := clampf(t, 0.0, 1.0) - 1.0
+	return 1.0 + (BACK + 1.0) * x * x * x + BACK * x * x
+
 
 var _scrim: ColorRect
 var _panel: PanelContainer
