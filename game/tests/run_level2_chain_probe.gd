@@ -62,6 +62,7 @@ func _run() -> void:
 	await _audit_scene_2_happens()
 	await _audit_the_chain_runs_to_alley_2()
 	await _audit_no_path_loses_a_scrap()
+	await _audit_the_dancers_do_not_come_back()
 
 	for line in results:
 		print(line)
@@ -394,3 +395,42 @@ func _walk_the_scraps(alley_1_route: String, alley_2_route: String) -> int:
 	fresh.queue_free()
 	await physics_frame
 	return held
+
+
+## THE ONE DESTRUCTIVE ACT IN PIYESTA, and the only thing the player can take from it that
+## the level will not give back. Nothing is blocked by their going, which is exactly why it
+## has to actually be permanent -- a cost that quietly undoes itself is not a cost.
+func _audit_the_dancers_do_not_come_back() -> void:
+	var fresh := (load("res://level_2.tscn") as PackedScene).instantiate()
+	(fresh.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(fresh)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	for _frame in range(20):
+		await physics_frame
+	var group := fresh.get("dancers") as DancerGroup2D
+	if group == null:
+		_check(false, "the plaza has dancers to scare", "no group")
+		fresh.queue_free()
+		return
+	_check(group.state() == DancerGroup2D.State.DANCING, "the dancers start dancing",
+		"%d of them" % group.dancers)
+	fresh.call("_on_route_solved", "L2_N1", "protector")
+	_check(group.state() == DancerGroup2D.State.FLEEING, "and the scare sends them off",
+		"they run rather than vanish")
+	# ⚠ AND THE CANDLE COMES WITH IT. The level is unloseable: whichever way Problem 1 is
+	# answered, the kandila is in hand and the church opens.
+	_check(bool(fresh.get("_has_kandila")), "and the kandila is still handed over",
+		"the level cannot dead-end on this route")
+	for _frame in range(240):
+		if group.are_gone():
+			break
+		await physics_frame
+	_check(group.are_gone(), "and they finish leaving", "the plaza is empty")
+	# There is no unscatter, deliberately, and this is the assertion that keeps it that way.
+	_check(not group.scatter(), "and nothing can bring them back",
+		"scatter() refuses a second time -- there is no other door")
+	var script_lines = fresh.get("script_lines")
+	_check(script_lines != null and bool(script_lines.call("is_flag_set", "dancers_gone")),
+		"and the level records it", "DANCERS_GONE, for every scene after this")
+	fresh.queue_free()
+	await physics_frame

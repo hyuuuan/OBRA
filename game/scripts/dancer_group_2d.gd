@@ -1,0 +1,200 @@
+class_name DancerGroup2D
+extends Node2D
+## The dancers in the plaza, and the one thing in Piyesta the player can destroy.
+##
+## THE PLAZA IS LOLO'S MEMORY. The design says it plainly, and it is the reason Problem 1's
+## Protector route costs anything at all: *"the dancers are gone from the plaza permanently
+## once scared. They do not return... the plaza is lolo's memory, and the player has just
+## emptied it."* Nothing is blocked by their going. The level does not get harder. What
+## happens is that a man who has been dead for the whole game watches the thing he brought
+## you here to see walk off, and says so.
+##
+## SO SCATTERING IS ONE-WAY AND IS SAID OUT LOUD BEFORE IT HAPPENS. The design asks for the
+## irreversibility to be signalled before the player commits, and `L2_N1.protector.warn` is
+## the line: *"Apo. If you do this they will not come back. Not today, not for us."* It fires
+## from this group's own approach volume rather than from the choice screen, so it arrives
+## while the player is looking at the dancers and can still walk away.
+##
+## ⚠ THE DANCE ITSELF IS NOT PLAYABLE YET. `dance_minigame.gd` is the scoring model -- cues,
+## windows, two attempts, what clears -- and there is no screen that puts a cue on the player
+## and times their stroke. Until there is, the Artist route hands over the kandila without a
+## performance and the flower cannot be earned. That is a gap, not a design, and it is
+## recorded in LEVEL_2.md and CONTENT_NEEDED.md rather than papered over with a dance that
+## always succeeds.
+##
+## PLACEHOLDER ART. The design asks for a fiesta-costume sheet with a dance loop, a flee, and
+## a hand-over-candle -- and notes that the dancers have to come out of the `MG_People`
+## composite regardless, because that plate has them painted into it and they must be able to
+## leave. Drawn to `ART_PLACEHOLDERS.md` rules.
+
+## The player has come close enough to be told what scaring them would cost.
+signal noticed(text: String)
+signal notice_left()
+## They have finished leaving. Nothing waits on this; it is what the quiet line hangs off.
+signal scattered()
+
+enum State { DANCING, FLEEING, GONE }
+
+## How many are dancing. Four reads as a set rather than as a crowd or a couple.
+@export var dancers := 4
+## How far apart they stand. A little over a metre, which is dancing distance.
+@export var spacing := 84.0
+## How far out the warning carries. Wide, because it has to arrive while the player can
+## still turn round -- the dialogue node that offers the choice is only a little nearer.
+@export var notice_range := 300.0
+
+## The apo is 96 tall, so an adult is about 118 at seventy-two pixels to the metre.
+const HEIGHT := 118.0
+const WIDTH := 34.0
+
+## Fiesta dress: saya and barong in festival colours, one per dancer so the group reads as
+## several people rather than as a repeated sprite.
+const COSTUMES: Array[Color] = [
+	Color(0.902, 0.376, 0.353, 1.0),   # E6605A
+	Color(0.361, 0.596, 0.780, 1.0),   # 5C98C7
+	Color(0.937, 0.729, 0.294, 1.0),   # EFBA4B
+	Color(0.478, 0.694, 0.435, 1.0),   # 7AB16F
+	Color(0.741, 0.478, 0.769, 1.0),   # BD7AC4
+]
+const COSTUME_DARK := Color(0.0, 0.0, 0.0, 0.22)
+const SKIN := Color(0.769, 0.612, 0.478, 1.0)         # C49C7A
+const HAIR := Color(0.161, 0.129, 0.114, 1.0)         # 29211D
+## What they are dancing over. A shadow is what stands a figure on the ground.
+const SHADOW := Color(0.0, 0.0, 0.0, 0.16)
+
+var _state: int = State.DANCING
+var _phase := 0.0
+## How far through leaving they are, 0 to 1. They run off the way the player did not come.
+var _flee := 0.0
+var _area: Area2D
+var _told := false
+
+
+func _ready() -> void:
+	add_to_group(&"dancer_groups")
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_build_notice()
+	set_process(true)
+
+
+func _process(delta: float) -> void:
+	if _state == State.GONE:
+		return
+	_phase += delta
+	if _state == State.FLEEING:
+		_flee = minf(1.0, _flee + delta * 0.55)
+		if _flee >= 1.0:
+			_state = State.GONE
+			set_process(false)
+			scattered.emit()
+	queue_redraw()
+
+
+func _build_notice() -> void:
+	_area = Area2D.new()
+	_area.name = "Notice"
+	_area.position = Vector2(0.0, -HEIGHT * 0.5)
+	add_child(_area)
+	var shape := CollisionShape2D.new()
+	var box := RectangleShape2D.new()
+	box.size = Vector2(notice_range * 2.0, HEIGHT * 2.0)
+	shape.shape = box
+	_area.add_child(shape)
+	_area.body_entered.connect(_on_body.bind(true))
+	_area.body_exited.connect(_on_body.bind(false))
+
+
+func _on_body(body: Node, coming_in: bool) -> void:
+	if _state != State.DANCING or not body.is_in_group(&"player_character"):
+		return
+	if coming_in:
+		# ONCE. A warning that repeats every time the player walks past becomes something
+		# they read around rather than something they weigh.
+		if _told:
+			return
+		_told = true
+		noticed.emit("")
+		return
+	notice_left.emit()
+
+
+func state() -> int:
+	return _state
+
+
+func are_gone() -> bool:
+	return _state == State.GONE
+
+
+## Problem 1's Protector route. ONE WAY: there is no unscatter, deliberately, because the
+## whole weight of the choice is that it cannot be taken back.
+func scatter() -> bool:
+	if _state != State.DANCING:
+		return false
+	_state = State.FLEEING
+	return true
+
+
+## Restored from a checkpoint written after they had already gone. Skips the running-away,
+## because replaying it would make the level look like it was happening again.
+func set_already_gone() -> void:
+	_state = State.GONE
+	_flee = 1.0
+	set_process(false)
+	if _area != null:
+		_area.set_deferred("monitoring", false)
+	queue_redraw()
+
+
+func _draw() -> void:
+	if _state == State.GONE:
+		return
+	for index in range(dancers):
+		var home := (float(index) - float(dancers - 1) * 0.5) * spacing
+		# They run off west, away from the church, spreading as they go -- a group that
+		# leaves in a line is a group marching.
+		var away := _flee * (520.0 + float(index) * 90.0)
+		var at := Vector2(home - away, 0.0)
+		var fade := 1.0 - _flee * 0.85
+		_draw_dancer(at, index, fade)
+
+
+func _draw_dancer(at: Vector2, index: int, fade: float) -> void:
+	var colour := COSTUMES[index % COSTUMES.size()]
+	colour.a = fade
+	var skin := SKIN
+	skin.a = fade
+	var shade := SHADOW
+	shade.a = SHADOW.a * fade
+	# The step. Dancing is a sway with the weight going side to side; fleeing is a stride,
+	# so the same phase drives both and only the rate and the lean change.
+	var beat := _phase * (2.2 if _state == State.DANCING else 7.0) + float(index) * 0.8
+	var sway := sin(beat) * (7.0 if _state == State.DANCING else 3.0)
+	var lift := absf(sin(beat)) * (5.0 if _state == State.DANCING else 11.0)
+	var lean := (0.0 if _state == State.DANCING else -9.0)
+	draw_ellipse(at + Vector2(0.0, -3.0), 26.0, 7.0, shade)
+	var foot := at + Vector2(sway * 0.4 + lean * 0.5, -lift)
+	# The saya: a skirt is a trapezium, and that is the whole of the read at this size.
+	draw_colored_polygon(PackedVector2Array([
+		foot + Vector2(-WIDTH * 0.5 - 6.0, 0.0), foot + Vector2(WIDTH * 0.5 + 6.0, 0.0),
+		foot + Vector2(WIDTH * 0.34, -HEIGHT * 0.52),
+		foot + Vector2(-WIDTH * 0.34, -HEIGHT * 0.52)]), colour)
+	draw_colored_polygon(PackedVector2Array([
+		foot + Vector2(-WIDTH * 0.5 - 6.0, 0.0), foot + Vector2(-WIDTH * 0.16, 0.0),
+		foot + Vector2(-WIDTH * 0.12, -HEIGHT * 0.52),
+		foot + Vector2(-WIDTH * 0.34, -HEIGHT * 0.52)]), COSTUME_DARK)
+	# Bodice and head.
+	draw_rect(Rect2(foot.x - WIDTH * 0.3, foot.y - HEIGHT * 0.86,
+		WIDTH * 0.6, HEIGHT * 0.34), colour)
+	draw_circle(foot + Vector2(0.0, -HEIGHT * 0.92), 13.0, skin)
+	draw_circle(foot + Vector2(0.0, -HEIGHT * 0.97), 13.0, Color(HAIR, fade))
+	# THE ARMS ARE THE DANCE. Held out and up, one higher than the other, swapping on the
+	# beat -- which is what makes four figures read as dancing rather than as standing.
+	var high := sin(beat)
+	for side: float in [-1.0, 1.0]:
+		var raise := HEIGHT * (0.30 if high * side > 0.0 else 0.10)
+		if _state != State.DANCING:
+			raise = HEIGHT * 0.06
+		draw_line(foot + Vector2(side * WIDTH * 0.28, -HEIGHT * 0.78),
+			foot + Vector2(side * (WIDTH * 0.28 + 26.0), -HEIGHT * 0.72 - raise),
+			skin, 6.0)

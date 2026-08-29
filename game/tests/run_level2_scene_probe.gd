@@ -72,6 +72,7 @@ func _run() -> void:
 	_audit_the_rooms_do_not_overlap()
 	_audit_the_bunting_is_where_it_can_be_reached()
 	_audit_the_flock_is_within_reach()
+	_audit_the_plaza_is_not_empty()
 	await _audit_the_apo_stands_on_something()
 
 	for line in results:
@@ -440,3 +441,38 @@ func _audit_the_flock_is_within_reach() -> void:
 	_check(far.is_empty(), "and the flock rides inside the reach that route claims",
 		"under %.0fpx, which is what level_02.json promises" % reach
 		if far.is_empty() else "; ".join(far))
+
+
+## THE DANCERS ARE THE PLAZA. Everything Problem 1 offers is about them -- dance for them,
+## scare them off, or walk past them to the houses -- and the level said nothing at all when
+## the group failed to build. It failed on its first run, because the script overrode
+## `CanvasItem.draw_ellipse` and Godot detached the whole class, and every check in this
+## suite stayed green while the plaza stood empty. That is trap 1 again, one class over.
+func _audit_the_plaza_is_not_empty() -> void:
+	var groups := level.get_tree().get_nodes_in_group(&"dancer_groups")
+	_check(groups.size() == 1, "the dancers are in the plaza",
+		"%d group(s)" % groups.size())
+	if groups.is_empty():
+		return
+	var group := groups[0] as DancerGroup2D
+	_check(group.dancers >= 3, "and there are enough of them to be a set",
+		"%d dancing" % group.dancers)
+	# They have to stand ON the mark the scene authored, because that mark is what the
+	# scare-reach check above is measured against.
+	var mark := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/Marks/DancersMark") as Node2D
+	_check(mark != null and group.global_position.distance_to(mark.global_position) < 1.0,
+		"and they stand on the mark the level measures from",
+		"the same spot `and the slowest scare can still reach them` uses")
+	# ⚠ AND THE WARNING HAS TO CARRY FURTHER THAN THE CHOICE. The design asks for the
+	# irreversibility to be signalled BEFORE the player commits; if the dialogue node caught
+	# them first, the line would arrive behind a modal that has already taken the decision.
+	var node := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/DialogueNode") as Node2D
+	if node == null:
+		_check(false, "the plaza has its dialogue node", "-")
+		return
+	var to_node: float = absf(group.global_position.x - node.global_position.x)
+	_check(group.notice_range > to_node,
+		"and the warning reaches further than the choice does",
+		"%.0fpx of notice against %.0fpx to the node" % [group.notice_range, to_node])
