@@ -82,6 +82,25 @@ func _dialogue_node_obstacle_id() -> String:
 	return ""
 
 
+## WHICH LEVEL THIS IS, asked of the level's own config rather than of the hub catalog.
+##
+## Running a scene directly -- from the editor, or from a runner -- never goes through
+## LevelManager.open_level, so nothing has said which level it is. The fallback used to be
+## the FIRST card in levels.json, which is Payyo no matter what is running: Level 2 came up
+## badged "LEVEL 1 - PAYYO", took Level 1's opening line out of the legacy dialogue.json,
+## and -- the part that is not cosmetic -- handed level_1 to Telemetry.begin_level and to
+## every profile write it made.
+func _own_level_id() -> String:
+	var parsed: Variant = JSON.parse_string(
+		FileAccess.get_file_as_string(level_config_path()))
+	if parsed is Dictionary:
+		var id := String((parsed as Dictionary).get("level_id", ""))
+		if not id.is_empty():
+			return id
+	var catalog := LevelManager.get_levels()
+	return String(catalog[0].get("id", "")) if not catalog.is_empty() else ""
+
+
 ## Anything a checkpoint must carry that is the LEVEL's rather than the machine's. Payyo
 ## needs none of this -- its state is all pickups and obstacles, which the generic snapshot
 ## already holds. Piyesta rides its scrap ledger here: five of seven pieces are recovered
@@ -210,9 +229,7 @@ func _ready() -> void:
 	# level badge, the dialogue and the telemetry all read it, so resolving it once
 	# here is what stops a direct run being an anonymous, silent, unlabelled level.
 	if LevelManager.current_level_id.is_empty():
-		var catalog := LevelManager.get_levels()
-		if not catalog.is_empty():
-			LevelManager.current_level_id = String(catalog[0].get("id", ""))
+		LevelManager.current_level_id = _own_level_id()
 	Telemetry.begin_level(LevelManager.current_level_id)
 	ink_manager.begin_level(12.0)
 	inventory_manager.begin_level()
