@@ -269,6 +269,7 @@ proposed by `LEVEL_2.md` and is listed here because it generalises.
 | **R7** | **A gate must have floor to build on** — ≥180 px of clear ground on the approach side, and never less than twice the width of the widest thing that opens it. A rise and a gap can both be right while the level is unplayable. |
 | **R8** | **What is placed can be taken back** — E within reach, right-click at any range. A placement spends ink, empties a slot and leaves a solid body behind. |
 | **R9** *(proposed)* | **A Fly gate is a gate with nothing under it to build on** — >362 px above the nearest buildable surface, or <180 px of floor beneath. Otherwise Climb or Span answers it. |
+| **R10** | **A gate that must be REACHED is measured against its slowest answer, not its fastest.** Within `MorphLife`'s usable window a morph covers between 428 px and 1610 px depending only on which class the player drew — a 3.8× spread. Measure the tag's members and place the gate inside the slowest one. |
 
 **Every gate number in your level is derived from `object_sizes.json`, not chosen.** The
 reaches that matter:
@@ -283,6 +284,30 @@ reaches that matter:
 
 A vertical gate under 362 px has a placement answer whether you asked for one or not. A gap
 under 340 px is a Span gate no matter which tag you wrote down.
+
+### How far a morph actually gets — measured, not chosen
+
+`run_morph_reach_probe.gd`, flat ground, holding forward with a periodic jump, against
+`MorphLife`'s exported budget (10 s, of which 7.5 s is before the low-life warning). Byte
+identical across runs, so these are budgets rather than observations.
+
+| class | rig | x @ 7.5 s | x @ 10 s | climb |
+|---|---|---|---|---|
+| `snake` | swimmer | **428** | 574 | 22 |
+| `shark` | swimmer | 529 | 702 | 10 |
+| `crab` | walker | 894 | 1190 | 32 |
+| `monkey` | biped | 1256 | 1680 | 83 |
+| `bat` | flier | 1333 | 1778 | **802** |
+| `frog` | hopper | **1610** | 2164 | 48 |
+
+⚠ **The spread is the finding.** `startle` resolves to snake / monkey / shark / frog, and a
+frog covers 3.8× what a snake does in the same ten seconds. A scare gate placed at 800 px is
+answerable by two of its four classes and a wall for the other two — and the tag layer's
+whole promise is that the player is never told which class to draw. **Place a reach gate
+inside its slowest member**, which for `startle` means ~350 px with margin.
+
+⚠ These are FLAT-GROUND numbers. `crab`'s 32 px of climb is not a defect: it needs a wall,
+and there is none in the probe. Wall-climbing has to be measured against real geometry.
 
 ### Invariants — assert these, do not merely document them
 
