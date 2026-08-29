@@ -180,6 +180,15 @@ as a character rather than as a difficulty setting:
 `persistent_effect`, and one of them reaches into a later level. If your Protector route
 costs nothing, you have written a second Pragmatist.
 
+> ⚠ **KNOWN DEBT (2026-08-29): Level 1's Node 3 Protector now costs nothing mechanical.**
+> It creased the canvas, and the crease was going to make Level 2's hidden flower
+> unreachable. Level 2's refined design has no hidden flower and states that the crease
+> changes no scrap count, no path and no ending — so the cost was downgraded to a visual
+> mark rather than being re-pointed, because every re-pointing target the design leaves open
+> it also forbids. **This is the rule above being broken knowingly**, recorded here rather
+> than quietly, and it should be paid back when Level 3 is designed and `L1_N3`'s Protector
+> can reach into something real again.
+
 **The tally records the choice, not the solution.** What the player picked at the dialogue
 is the data; how they got past it is not. Keep `tag_match` separate from `solves` so an
 assisted pass counts as a solve and *not* as a first-intent match — collapsing those lets
@@ -366,8 +375,10 @@ padding one.
   is on `PlayerProfile`, because a mid-level death must not undo a decision made two levels
   ago.
 - **`cross_level_effect` is a string with a target that does not exist yet.** Level 1 writes
-  `L2_PISTA.hidden_flower_2.unreachable` and nothing reads it. When you build the level it
-  names, you owe that string a behaviour.
+  `L2_PISTA.painting.creased` and nothing reads it. When you build the level it names, you
+  owe that string a behaviour — **or you owe it an honest downgrade.** That string was
+  `L2_PISTA.hidden_flower_2.unreachable` until Level 2 was designed and turned out to have
+  no hidden flower in it. See the Protector debt below.
 - **Profile schema bumps migrate forward** through `_merge_defaults`, and
   `test_player_profile.gd` holds `EXPECTED_SCHEMA` as its own literal so a bump fails loudly
   until the migration is confirmed. Currently **v5**.

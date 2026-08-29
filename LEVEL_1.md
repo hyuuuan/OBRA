@@ -374,10 +374,24 @@ primitives could be picked up at all. Not chased.
 |---|---|---|
 | `knows_about_key` | Node 2 Artist | Node 3 Artist — halves the attic search |
 | `straw_scattered` | Node 2 Protector | the marker-stone line at the exit |
-| `canvas_2_creased` | Node 3 Protector | Pista (Hidden Flower 2 unreachable) |
+| `canvas_2_creased` | Node 3 Protector | Pista (the painting is shown creased — **visual only**, see below) |
 
 Canvas damage is on the **profile**, not a checkpoint — a mid-level death must not undo a
 decision made two levels ago. `PlayerProfile.record_canvas_damage` / `is_canvas_damaged`.
+
+⚠ **What the crease actually costs, as of 2026-08-29: nothing mechanical.** The
+`cross_level_effect` read `L2_PISTA.hidden_flower_2.unreachable` for as long as nobody had
+designed Level 2. Level 2's refined design has **no hidden flower in it**, and states that
+the crease changes no scrap count, no path and no ending — so the string is now
+`L2_PISTA.painting.creased` and the mark is visual: a crease overlay on the assembled
+painting in Pista's closing scene, and on every later showing of it.
+
+That makes Node 3's Protector the one route in this level that costs the player nothing,
+which is exactly the failure `LEVEL_TEMPLATE.md` warns about ("if your Protector route costs
+nothing, you have written a second Pragmatist"). It was downgraded rather than re-pointed
+because every target Level 2 leaves open, Level 2 also forbids. **It is recorded as a debt,
+not as a design** — pay it back when Level 3 exists and this route can reach into something
+real again.
 
 **Profile schema is v5.** v4 added `unlocked_tags`, v5 added `canvas_damage`. Both migrate
 forward through `_merge_defaults`, so an older profile keeps everything and simply starts

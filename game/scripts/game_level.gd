@@ -390,7 +390,7 @@ func _open_the_baul(route: String) -> void:
 			Telemetry.record_event("persistent_effect", {
 				"level_id": LevelManager.current_level_id,
 				"obstacle_id": "L1_N3", "effect": "canvas_2_creased",
-				"cross_level_effect": "L2_PISTA.hidden_flower_2.unreachable",
+				"cross_level_effect": "L2_PISTA.painting.creased",
 			})
 			_speak(script_lines.fire("L1_N3.protector.solved"))
 
