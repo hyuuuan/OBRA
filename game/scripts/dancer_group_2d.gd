@@ -22,10 +22,9 @@ extends Node2D
 ## recorded in LEVEL_2.md and CONTENT_NEEDED.md rather than papered over with a dance that
 ## always succeeds.
 ##
-## PLACEHOLDER ART. The design asks for a fiesta-costume sheet with a dance loop, a flee, and
-## a hand-over-candle -- and notes that the dancers have to come out of the `MG_People`
-## composite regardless, because that plate has them painted into it and they must be able to
-## leave. Drawn to `ART_PLACEHOLDERS.md` rules.
+## THE ART ALREADY HAS THEM. `mg_people.png` paints all four into the plaza, so this class
+## draws nothing -- see `_draw`. What the design still owes it is a costume sheet with a flee
+## and a hand-over-candle, and the no-dancers variant of the plate.
 
 ## The player has come close enough to be told what scaring them would cost.
 signal noticed(text: String)
@@ -82,6 +81,9 @@ func _process(delta: float) -> void:
 		return
 	_phase += delta
 	if _state == State.FLEEING:
+		# Still on a clock, even with nothing drawn: `scattered` is what Lolo's quiet line
+		# waits for, and firing it on the same frame as the choice would put it over the top
+		# of the commit line.
 		_flee = minf(1.0, _flee + delta * 0.55)
 		if _flee >= 1.0:
 			_state = State.GONE
@@ -146,55 +148,24 @@ func set_already_gone() -> void:
 	queue_redraw()
 
 
+## ⚠ THIS DRAWS NOTHING, AND THAT IS THE POINT.
+##
+## The dancers are IN THE ART. `mg_people.png` has all four of them painted into the plaza in
+## fiesta dress, mid-step, exactly where this group stands -- so the first version of this
+## class, which drew its own figures, put four flat placeholder cones next to four finished
+## dancers. This node is the LOGIC: where they are, who is near them, what scaring them costs,
+## and the flag that outlives the level.
+##
+## ⚠ SO SCARING THEM DOES NOT YET LOOK LIKE ANYTHING, and that is a recorded art dependency
+## rather than an oversight. The design lists a **`MG_People` no-dancers variant** as required
+## precisely because they have to be able to leave, and the composite cannot be made to give
+## them up:
+##   * a bounding-box cut takes the palm trunks standing behind two of them, and smearing the
+##     hole closed leaves vertical streaks, loose feet and a floating flower;
+##   * a colour mask keyed on the white saya and its red trim lifts the dress and leaves the
+##     hats, faces, arms, hands, fans and shoes behind.
+## Both were tried and both look worse than doing nothing. Everything mechanical about the
+## scare is live -- the route closes, `DANCERS_GONE` is set, Lolo says his line, and it cannot
+## be undone -- and the departure is drawn the day that plate arrives. See CONTENT_NEEDED.md.
 func _draw() -> void:
-	if _state == State.GONE:
-		return
-	for index in range(dancers):
-		var home := (float(index) - float(dancers - 1) * 0.5) * spacing
-		# They run off west, away from the church, spreading as they go -- a group that
-		# leaves in a line is a group marching.
-		var away := _flee * (520.0 + float(index) * 90.0)
-		var at := Vector2(home - away, 0.0)
-		var fade := 1.0 - _flee * 0.85
-		_draw_dancer(at, index, fade)
-
-
-func _draw_dancer(at: Vector2, index: int, fade: float) -> void:
-	var colour := COSTUMES[index % COSTUMES.size()]
-	colour.a = fade
-	var skin := SKIN
-	skin.a = fade
-	var shade := SHADOW
-	shade.a = SHADOW.a * fade
-	# The step. Dancing is a sway with the weight going side to side; fleeing is a stride,
-	# so the same phase drives both and only the rate and the lean change.
-	var beat := _phase * (2.2 if _state == State.DANCING else 7.0) + float(index) * 0.8
-	var sway := sin(beat) * (7.0 if _state == State.DANCING else 3.0)
-	var lift := absf(sin(beat)) * (5.0 if _state == State.DANCING else 11.0)
-	var lean := (0.0 if _state == State.DANCING else -9.0)
-	draw_ellipse(at + Vector2(0.0, -3.0), 26.0, 7.0, shade)
-	var foot := at + Vector2(sway * 0.4 + lean * 0.5, -lift)
-	# The saya: a skirt is a trapezium, and that is the whole of the read at this size.
-	draw_colored_polygon(PackedVector2Array([
-		foot + Vector2(-WIDTH * 0.5 - 6.0, 0.0), foot + Vector2(WIDTH * 0.5 + 6.0, 0.0),
-		foot + Vector2(WIDTH * 0.34, -HEIGHT * 0.52),
-		foot + Vector2(-WIDTH * 0.34, -HEIGHT * 0.52)]), colour)
-	draw_colored_polygon(PackedVector2Array([
-		foot + Vector2(-WIDTH * 0.5 - 6.0, 0.0), foot + Vector2(-WIDTH * 0.16, 0.0),
-		foot + Vector2(-WIDTH * 0.12, -HEIGHT * 0.52),
-		foot + Vector2(-WIDTH * 0.34, -HEIGHT * 0.52)]), COSTUME_DARK)
-	# Bodice and head.
-	draw_rect(Rect2(foot.x - WIDTH * 0.3, foot.y - HEIGHT * 0.86,
-		WIDTH * 0.6, HEIGHT * 0.34), colour)
-	draw_circle(foot + Vector2(0.0, -HEIGHT * 0.92), 13.0, skin)
-	draw_circle(foot + Vector2(0.0, -HEIGHT * 0.97), 13.0, Color(HAIR, fade))
-	# THE ARMS ARE THE DANCE. Held out and up, one higher than the other, swapping on the
-	# beat -- which is what makes four figures read as dancing rather than as standing.
-	var high := sin(beat)
-	for side: float in [-1.0, 1.0]:
-		var raise := HEIGHT * (0.30 if high * side > 0.0 else 0.10)
-		if _state != State.DANCING:
-			raise = HEIGHT * 0.06
-		draw_line(foot + Vector2(side * WIDTH * 0.28, -HEIGHT * 0.78),
-			foot + Vector2(side * (WIDTH * 0.28 + 26.0), -HEIGHT * 0.72 - raise),
-			skin, 6.0)
+	pass
