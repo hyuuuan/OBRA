@@ -8,33 +8,29 @@
 [ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="6_checkpoint"]
 [ext_resource type="Script" path="res://scripts/dialogue_node_2d.gd" id="7_dialoguenode"]
 [ext_resource type="Script" path="res://scripts/piyesta_room_2d.gd" id="8_room"]
-[ext_resource type="Texture2D" path="res://assets/Level2/bg_sky.png" id="10_skylayer"]
-[ext_resource type="Texture2D" path="res://assets/Level2/bg_clouds.png" id="11_cloudlayer"]
-[ext_resource type="Texture2D" path="res://assets/Level2/mg_church.png" id="12_churchlayer"]
-[ext_resource type="Texture2D" path="res://assets/Level2/mg_people.png" id="13_peoplelayer"]
-[ext_resource type="Texture2D" path="res://assets/Level2/fg_huts.png" id="14_hutslayer"]
-[ext_resource type="Texture2D" path="res://assets/Level2/ground.png" id="15_ledgelayer"]
+[ext_resource type="Texture2D" path="res://assets/Level2/plaza.png" id="16_plaza"]
+[ext_resource type="Texture2D" path="res://assets/Level2/plaza_front.png" id="17_plazafront"]
 
 [sub_resource type="RectangleShape2D" id="Rect_PlazaFloor"]
-size = Vector2(2600.0, 200.0)
+size = Vector2(1450.0, 200.0)
 
 [sub_resource type="RectangleShape2D" id="Rect_LeftTerrace"]
-size = Vector2(620.0, 240.0)
+size = Vector2(220.0, 240.0)
 
 [sub_resource type="RectangleShape2D" id="Rect_StairA"]
-size = Vector2(80.0, 160.0)
+size = Vector2(70.0, 240.0)
 
 [sub_resource type="RectangleShape2D" id="Rect_StairB"]
-size = Vector2(80.0, 80.0)
+size = Vector2(70.0, 200.0)
 
 [sub_resource type="RectangleShape2D" id="Rect_EastStep"]
-size = Vector2(300.0, 60.0)
+size = Vector2(200.0, 60.0)
 
 [sub_resource type="RectangleShape2D" id="Rect_WestWall"]
-size = Vector2(80.0, 1200.0)
+size = Vector2(40.0, 1400.0)
 
 [sub_resource type="RectangleShape2D" id="Rect_EastWall"]
-size = Vector2(80.0, 1400.0)
+size = Vector2(40.0, 1400.0)
 
 [node name="EnvironmentBaseplate" type="Node2D"]
 script = ExtResource("1_environment")
@@ -48,146 +44,23 @@ script = ExtResource("4_ambience")
 
 [node name="SkyFill" type="Polygon2D" parent="."]
 z_index = -200
-color = Color(0.29, 0.71, 0.93, 1)
+color = Color(0.11, 0.569, 0.91, 1)
 polygon = PackedVector2Array(-3000, -3000, 13000, -3000, 13000, 2400, -3000, 2400)
 
-[node name="SkyLayer" type="Node2D" parent="."]
-z_index = -120
-script = ExtResource("3_depth")
-depth = 11.76
-scroll_scale = 0.02
-z_index_base = -120
+[node name="GroundFill" type="Polygon2D" parent="."]
+z_index = -190
+color = Color(0.125, 0.094, 0.043, 1)
+polygon = PackedVector2Array(-3000, 652, 13000, 652, 13000, 2400, -3000, 2400)
 
-[node name="TileL" type="Sprite2D" parent="SkyLayer"]
-position = Vector2(-960, 261)
-texture = ExtResource("10_skylayer")
-
-[node name="Tile0" type="Sprite2D" parent="SkyLayer"]
-position = Vector2(960, 261)
-texture = ExtResource("10_skylayer")
-
-[node name="Tile1" type="Sprite2D" parent="SkyLayer"]
-position = Vector2(2880, 261)
-texture = ExtResource("10_skylayer")
-
-[node name="Tile2" type="Sprite2D" parent="SkyLayer"]
-position = Vector2(4800, 261)
-texture = ExtResource("10_skylayer")
-
-[node name="CloudLayer" type="Node2D" parent="."]
-z_index = -110
-script = ExtResource("3_depth")
-depth = 11.04
-scroll_scale = 0.08
-z_index_base = -110
-
-[node name="TileL" type="Sprite2D" parent="CloudLayer"]
-position = Vector2(-960, 261)
-texture = ExtResource("11_cloudlayer")
-
-[node name="Tile0" type="Sprite2D" parent="CloudLayer"]
-position = Vector2(960, 261)
-texture = ExtResource("11_cloudlayer")
-
-[node name="Tile1" type="Sprite2D" parent="CloudLayer"]
-position = Vector2(2880, 261)
-texture = ExtResource("11_cloudlayer")
-
-[node name="Tile2" type="Sprite2D" parent="CloudLayer"]
-position = Vector2(4800, 261)
-texture = ExtResource("11_cloudlayer")
-
-[node name="ChurchLayer" type="Node2D" parent="."]
+[node name="Plaza" type="Sprite2D" parent="."]
 z_index = -100
-script = ExtResource("3_depth")
-depth = 9.84
-scroll_scale = 0.18
-z_index_base = -100
-
-[node name="TileL" type="Sprite2D" parent="ChurchLayer"]
-position = Vector2(-960, 261)
-texture = ExtResource("12_churchlayer")
-
-[node name="Tile0" type="Sprite2D" parent="ChurchLayer"]
 position = Vector2(960, 261)
-texture = ExtResource("12_churchlayer")
+texture = ExtResource("16_plaza")
 
-[node name="Tile1" type="Sprite2D" parent="ChurchLayer"]
-position = Vector2(2880, 261)
-texture = ExtResource("12_churchlayer")
-
-[node name="Tile2" type="Sprite2D" parent="ChurchLayer"]
-position = Vector2(4800, 261)
-texture = ExtResource("12_churchlayer")
-
-[node name="PeopleLayer" type="Node2D" parent="."]
-z_index = -90
-script = ExtResource("3_depth")
-depth = 7.44
-scroll_scale = 0.38
-z_index_base = -90
-
-[node name="TileL" type="Sprite2D" parent="PeopleLayer"]
-position = Vector2(-960, 261)
-texture = ExtResource("13_peoplelayer")
-
-[node name="Tile0" type="Sprite2D" parent="PeopleLayer"]
+[node name="PlazaFront" type="Sprite2D" parent="."]
+z_index = 20
 position = Vector2(960, 261)
-texture = ExtResource("13_peoplelayer")
-
-[node name="Tile1" type="Sprite2D" parent="PeopleLayer"]
-position = Vector2(2880, 261)
-texture = ExtResource("13_peoplelayer")
-
-[node name="Tile2" type="Sprite2D" parent="PeopleLayer"]
-position = Vector2(4800, 261)
-texture = ExtResource("13_peoplelayer")
-
-[node name="HutsLayer" type="Node2D" parent="."]
-z_index = -80
-script = ExtResource("3_depth")
-depth = 0.0
-scroll_scale = 1.0
-z_index_base = -80
-
-[node name="TileL" type="Sprite2D" parent="HutsLayer"]
-position = Vector2(-960, 261)
-texture = ExtResource("14_hutslayer")
-
-[node name="Tile0" type="Sprite2D" parent="HutsLayer"]
-position = Vector2(960, 261)
-texture = ExtResource("14_hutslayer")
-
-[node name="Tile1" type="Sprite2D" parent="HutsLayer"]
-position = Vector2(2880, 261)
-texture = ExtResource("14_hutslayer")
-
-[node name="Tile2" type="Sprite2D" parent="HutsLayer"]
-position = Vector2(4800, 261)
-texture = ExtResource("14_hutslayer")
-
-[node name="LedgeLayer" type="Node2D" parent="."]
-z_index = -70
-script = ExtResource("3_depth")
-depth = 1.2
-scroll_scale = 0.9
-z_index_base = -70
-
-[node name="TileL" type="Sprite2D" parent="LedgeLayer"]
-position = Vector2(-960, 261)
-texture = ExtResource("15_ledgelayer")
-
-[node name="Tile0" type="Sprite2D" parent="LedgeLayer"]
-position = Vector2(960, 261)
-texture = ExtResource("15_ledgelayer")
-
-[node name="Tile1" type="Sprite2D" parent="LedgeLayer"]
-position = Vector2(2880, 261)
-texture = ExtResource("15_ledgelayer")
-
-[node name="Tile2" type="Sprite2D" parent="LedgeLayer"]
-position = Vector2(4800, 261)
-texture = ExtResource("15_ledgelayer")
+texture = ExtResource("17_plazafront")
 
 [node name="GameplayPlane" type="Node2D" parent="."]
 script = ExtResource("3_depth")
@@ -195,48 +68,48 @@ script = ExtResource("3_depth")
 [node name="EntityRoot" type="Node2D" parent="GameplayPlane"]
 
 [node name="SpawnPoint" type="Marker2D" parent="GameplayPlane"]
-position = Vector2(200, 280.0)
+position = Vector2(660.0, 460.0)
 
 [node name="Terrain" type="Node2D" parent="GameplayPlane"]
 
 [node name="PlazaFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(1300.0, 660.0)
+position = Vector2(1025.0, 637.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/PlazaFloor"]
 shape = SubResource("Rect_PlazaFloor")
 
 [node name="LeftTerrace" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(310.0, 440.0)
+position = Vector2(220.0, 496.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/LeftTerrace"]
 shape = SubResource("Rect_LeftTerrace")
 
 [node name="StairA" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(660.0, 480.0)
+position = Vector2(275.0, 552.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/StairA"]
 shape = SubResource("Rect_StairA")
 
 [node name="StairB" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(740.0, 520.0)
+position = Vector2(330.0, 590.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/StairB"]
 shape = SubResource("Rect_StairB")
 
 [node name="EastStep" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(2450.0, 530.0)
+position = Vector2(1650.0, 507.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/EastStep"]
 shape = SubResource("Rect_EastStep")
 
 [node name="WestWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(-40.0, 520.0)
+position = Vector2(90.0, 250.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/WestWall"]
 shape = SubResource("Rect_WestWall")
 
 [node name="EastWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(2640.0, 560.0)
+position = Vector2(1790.0, 250.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/EastWall"]
 shape = SubResource("Rect_EastWall")
@@ -244,25 +117,25 @@ shape = SubResource("Rect_EastWall")
 [node name="Marks" type="Node2D" parent="GameplayPlane"]
 
 [node name="StartMark" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(300.0, 560.0)
+position = Vector2(660.0, 537.0)
 
 [node name="DancersMark" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(600.0, 560.0)
+position = Vector2(995.0, 537.0)
 
 [node name="DarkHouseA" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(1560.0, 560.0)
+position = Vector2(370.0, 537.0)
 
 [node name="DarkHouseB" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(1760.0, 560.0)
+position = Vector2(520.0, 537.0)
 
 [node name="LitHouse" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(1990.0, 560.0)
+position = Vector2(1330.0, 537.0)
 
 [node name="ChurchDoor" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(2450.0, 500.0)
+position = Vector2(1650.0, 477.0)
 
 [node name="BuntingLine" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(1300.0, 220.0)
+position = Vector2(995.0, 200.0)
 
 [node name="Rooms" type="Node2D" parent="GameplayPlane"]
 
@@ -304,7 +177,7 @@ onward_note = "Nothing that way until the bandaritas give up what they are holdi
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 
 [node name="L2_N1" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(600.0, 360.0)
+position = Vector2(995.0, 380.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L2_N1"
 trigger_size = Vector2(520.0, 400)
@@ -322,12 +195,12 @@ obstacle_id = "L2_N3"
 trigger_size = Vector2(700.0, 400)
 
 [node name="CP0" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(300, 450.0)
+position = Vector2(660.0, 470.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP0"
 
 [node name="DialogueNode" type="Area2D" parent="GameplayPlane"]
-position = Vector2(560, 400.0)
+position = Vector2(940.0, 420.0)
 script = ExtResource("7_dialoguenode")
 level_id = "level_2"
 

@@ -50,8 +50,12 @@ func _run() -> void:
 	# A TOUR, not a walk. Walking east reaches the dialogue node, which opens the route
 	# choice and stops the tree -- correct behaviour, and it froze five of the six frames
 	# on the first run of this file. Teleporting past it is what a camera does.
-	for step in [[560.0, "02_dancers"], [1000.0, "03_plaza"], [1600.0, "04_houses"],
-			[2400.0, "05_church"]]:
+	# The marks moved when the plaza was re-authored off the painting, and these are read
+	# off them: 660 start, 995 dancers, 1330 the lit house, 1650 the church. The old
+	# waypoints ran to 2400, which is now past the east wall -- the tour photographed the
+	# apo falling through the sky and called it "the church".
+	for step in [[660.0, "02_start"], [995.0, "03_dancers"], [1330.0, "04_lit_house"],
+			[1650.0, "05_church"]]:
 		var at := Vector2(float(step[0]), 480.0)
 		if player.has_method("apply_morph_state"):
 			player.call("apply_morph_state", {"position": at, "linear_velocity": Vector2.ZERO})
