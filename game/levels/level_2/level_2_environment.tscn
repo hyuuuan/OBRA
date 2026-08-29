@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/level_obstacle_2d.gd" id="5_obstacle"]
 [ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="6_checkpoint"]
 [ext_resource type="Script" path="res://scripts/dialogue_node_2d.gd" id="7_dialoguenode"]
+[ext_resource type="Script" path="res://scripts/piyesta_room_2d.gd" id="8_room"]
 [ext_resource type="Texture2D" path="res://assets/Level2/bg_sky.png" id="10_skylayer"]
 [ext_resource type="Texture2D" path="res://assets/Level2/bg_clouds.png" id="11_cloudlayer"]
 [ext_resource type="Texture2D" path="res://assets/Level2/mg_church.png" id="12_churchlayer"]
@@ -34,18 +35,6 @@ size = Vector2(80.0, 1200.0)
 
 [sub_resource type="RectangleShape2D" id="Rect_EastWall"]
 size = Vector2(80.0, 1400.0)
-
-[sub_resource type="RectangleShape2D" id="Rect_ChurchInteriorFloor"]
-size = Vector2(900.0, 80)
-
-[sub_resource type="RectangleShape2D" id="Rect_HouseInteriorFloor"]
-size = Vector2(520.0, 80)
-
-[sub_resource type="RectangleShape2D" id="Rect_Alley1Floor"]
-size = Vector2(900.0, 80)
-
-[sub_resource type="RectangleShape2D" id="Rect_Alley2Floor"]
-size = Vector2(900.0, 80)
 
 [node name="EnvironmentBaseplate" type="Node2D"]
 script = ExtResource("1_environment")
@@ -278,52 +267,39 @@ position = Vector2(1300.0, 220.0)
 [node name="Rooms" type="Node2D" parent="GameplayPlane"]
 
 [node name="ChurchInterior" type="Node2D" parent="GameplayPlane/Rooms"]
-position = Vector2(6000.0, -1400.0)
-
-[node name="Floor" type="StaticBody2D" parent="GameplayPlane/Rooms/ChurchInterior"]
-position = Vector2(450.0, 500.0)
-
-[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Rooms/ChurchInterior/Floor"]
-shape = SubResource("Rect_ChurchInteriorFloor")
-
-[node name="Entry" type="Marker2D" parent="GameplayPlane/Rooms/ChurchInterior"]
-position = Vector2(120, 460.0)
+position = Vector2(6450.0, -940.0)
+script = ExtResource("8_room")
+kind = 0
+room_length = 1400.0
+wall_height = 470.0
+room_zoom = 1.4
+onward_note = "The way to the alleys. Not yet -- the kandila first."
 
 [node name="HouseInterior" type="Node2D" parent="GameplayPlane/Rooms"]
-position = Vector2(6000.0, -600.0)
-
-[node name="Floor" type="StaticBody2D" parent="GameplayPlane/Rooms/HouseInterior"]
-position = Vector2(260.0, 320.0)
-
-[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Rooms/HouseInterior/Floor"]
-shape = SubResource("Rect_HouseInteriorFloor")
-
-[node name="Entry" type="Marker2D" parent="GameplayPlane/Rooms/HouseInterior"]
-position = Vector2(120, 280.0)
+position = Vector2(4200.0, -320.0)
+script = ExtResource("8_room")
+kind = 1
+room_length = 520.0
+wall_height = 260.0
+room_zoom = 2.0
 
 [node name="Alley1" type="Node2D" parent="GameplayPlane/Rooms"]
-position = Vector2(9000.0, -1600.0)
-
-[node name="Floor" type="StaticBody2D" parent="GameplayPlane/Rooms/Alley1"]
-position = Vector2(450.0, 900.0)
-
-[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Rooms/Alley1/Floor"]
-shape = SubResource("Rect_Alley1Floor")
-
-[node name="Entry" type="Marker2D" parent="GameplayPlane/Rooms/Alley1"]
-position = Vector2(120, 860.0)
+position = Vector2(9450.0, -740.0)
+script = ExtResource("8_room")
+kind = 2
+room_length = 900.0
+wall_height = 700.0
+room_zoom = 1.6
+onward_note = "The alley runs on. The birds are still holding what you came for."
 
 [node name="Alley2" type="Node2D" parent="GameplayPlane/Rooms"]
-position = Vector2(9000.0, -300.0)
-
-[node name="Floor" type="StaticBody2D" parent="GameplayPlane/Rooms/Alley2"]
-position = Vector2(450.0, 620.0)
-
-[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Rooms/Alley2/Floor"]
-shape = SubResource("Rect_Alley2Floor")
-
-[node name="Entry" type="Marker2D" parent="GameplayPlane/Rooms/Alley2"]
-position = Vector2(120, 580.0)
+position = Vector2(9450.0, 280.0)
+script = ExtResource("8_room")
+kind = 2
+room_length = 900.0
+wall_height = 560.0
+room_zoom = 1.6
+onward_note = "Nothing that way until the bandaritas give up what they are holding."
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 
