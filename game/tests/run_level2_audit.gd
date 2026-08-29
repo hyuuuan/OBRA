@@ -26,6 +26,7 @@ const DIALOGUE_PATH := "res://config/dialogue_l2.json"
 const ENTITIES_PATH := "res://config/entities.json"
 const LABELS_PATH := "res://../model/labels.json"
 const LEVELS_PATH := "res://config/levels.json"
+const METRICS_PATH := "res://../model/metrics.json"
 
 var results: Array[String] = []
 var failures := 0
@@ -68,6 +69,7 @@ func _run() -> void:
 	_audit_restriction_classes_exist(level)
 	_audit_no_route_fights_the_ceiling(level)
 	_audit_ranged_routes_can_reach(level)
+	_audit_answers_are_recognisable(level)
 	_audit_tags_taught_before_use(level)
 	_audit_checkpoints_precede_morphs(level)
 	_audit_no_line_names_a_class(dialogue)
@@ -266,6 +268,45 @@ func _audit_ranged_routes_can_reach(level: Dictionary) -> void:
 	_check(problems.is_empty(), "a ranged route's answers can reach",
 		"%d answer(s) checked against their real reach" % checked
 		if problems.is_empty() else "; ".join(problems))
+
+
+## HOW MANY ANSWERS A ROUTE REALLY HAS depends on whether the model can read them.
+##
+## GATES.md says the count of classes at the two-answer floor is "the best proxy there is"
+## for this, and says so because no per-class recall data existed. It does now. A route
+## resolving to two classes the recogniser reads reliably is safer than one resolving to
+## four it does not, and the floor list alone cannot tell those apart.
+##
+## Fails only on a genuinely unusable answer -- a class the model gets wrong more often
+## than right is not an answer, whatever the tag says. Everything else is REPORTED, because
+## the number is the point and a threshold would hide it.
+func _audit_answers_are_recognisable(level: Dictionary) -> void:
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(METRICS_PATH))
+	var report: Dictionary = (parsed as Dictionary).get("classification_report", {}) \
+		if parsed is Dictionary else {}
+	if report.is_empty():
+		_pass("answers are recognisable", "no metrics.json -- the model has not been evaluated")
+		return
+	var unusable: Array[String] = []
+	var weakest: Array[String] = []
+	for entry in _routes_of(level):
+		var route: Dictionary = entry[2]
+		if route.has("answered_by"):
+			continue
+		var lowest := 1.0
+		var lowest_id := ""
+		for candidate in _solutions(route):
+			var recall := float((report.get(candidate, {}) as Dictionary).get("recall", 1.0))
+			if recall < lowest:
+				lowest = recall
+				lowest_id = candidate
+		if lowest < 0.5:
+			unusable.append("%s.%s leans on '%s' at %.0f%% recall"
+				% [entry[0], entry[1], lowest_id, lowest * 100.0])
+		weakest.append("%s.%s %s %.0f%%" % [entry[0], entry[1], lowest_id, lowest * 100.0])
+	_check(unusable.is_empty(), "every answer is recognisable",
+		"weakest per route -- %s" % "; ".join(weakest) if unusable.is_empty()
+		else "; ".join(unusable))
 
 
 func _audit_tags_taught_before_use(level: Dictionary) -> void:
