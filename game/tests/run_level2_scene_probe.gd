@@ -20,6 +20,16 @@ const JUMP_RISE := 94.3
 const SLOWEST_STARTLE_REACH := 428.0
 ## R7: a gate must have floor to build on.
 const MIN_BUILD_FLOOR := 180.0
+## The apo is 96 tall (`wanderer.gd`), so what they can touch at the top of a jump from a
+## surface is that surface plus their height plus R1's rise.
+const APO_HEIGHT := 96.0
+## R4: a drawn primitive is 80px and must be climbable. It is also the CHEAPEST thing the
+## player can stand on, so it sets the floor under any Climb gate.
+const PRIMITIVE := 80.0
+## The shortest thing `climb` resolves to that the player stands on top of. `stairs` is
+## 176 in object_sizes.json and the design names it as an accepted answer outright, so a
+## gate above what stairs reach is a gate half of its own answers cannot open.
+const STAIRS := 176.0
 
 var results: Array[String] = []
 var failures := 0
@@ -60,6 +70,8 @@ func _run() -> void:
 	_audit_every_mark_stands_on_ground()
 	_audit_the_rooms_are_rooms()
 	_audit_the_rooms_do_not_overlap()
+	_audit_the_bunting_is_where_it_can_be_reached()
+	_audit_the_flock_is_within_reach()
 	await _audit_the_apo_stands_on_something()
 
 	for line in results:
@@ -338,3 +350,93 @@ func _audit_the_rooms_do_not_overlap() -> void:
 		"%d pairs, all clear at the 90px the base grows by" % (
 			rooms.size() * (rooms.size() - 1) / 2)
 		if clashes.is_empty() else "; ".join(clashes))
+
+
+## ALLEY 2's BUNTING HAS TO SIT IN A WINDOW WITH TWO REAL WALLS, and both of them are ways
+## to break Problem 3 without anything else in the project noticing.
+##
+## Too low and it is not a Climb gate: a drawn primitive is 80 and the apo is 96 and the
+## jump lifts 94.3, so anybody can touch 270 for the price of one square. Too high and half
+## of `climb`'s own answers cannot reach it -- which is scar 3 of this level, where `strike`
+## resolved to a blade that swings inside 96px against a bird in the air, and the tag layer
+## agreed with the player and then did nothing.
+func _audit_the_bunting_is_where_it_can_be_reached() -> void:
+	var lines := level.get_tree().get_nodes_in_group(&"bandarita_lines")
+	_check(lines.size() == 2, "both alleys have a line strung in them",
+		"%d found -- Alley 1 needs one for its ceiling to be diegetic" % lines.size())
+	var alley_2 := level.get("alley_2") as Node2D
+	var alley_1 := level.get("alley_1") as Node2D
+	if alley_2 == null or alley_1 == null:
+		_check(false, "the level has both alleys", "one is missing")
+		return
+	var line := alley_2.get_node_or_null(^"Bandaritas") as BandaritaLine2D
+	if line == null:
+		_check(false, "Alley 2's bunting is strung", "no line in the room")
+		return
+	var above_floor := alley_2.global_position.y - line.global_position.y
+	var hop := PRIMITIVE + APO_HEIGHT + JUMP_RISE
+	var climbed := STAIRS + APO_HEIGHT + JUMP_RISE
+	_check(above_floor > hop, "and Alley 2's is out of reach without climbing something",
+		"%.0fpx up against %.0f for a primitive and a jump" % [above_floor, hop])
+	_check(above_floor < climbed, "and inside reach once you have",
+		"%.0fpx against %.0f off the shortest thing `climb` resolves to" % [
+			above_floor, climbed])
+	_check(line.scraps_held == ScrapLedger.IN_ALLEY_2, "with the last two pieces on it",
+		"%d of the seven" % line.scraps_held)
+
+	# The design records Alley 1's missing line as an open question in level_02.json: it
+	# needs a flight cap and had nothing visible to hang one on, "or the cap is an invisible
+	# wall exactly where the design says it must not be".
+	var first := alley_1.get_node_or_null(^"Bandaritas") as BandaritaLine2D
+	_check(first != null and first.scraps_held == 0,
+		"Alley 1's line is a ceiling and nothing else",
+		"nothing strung on it -- it exists so the cap is visible")
+	# ⚠ AND IT MUST BE ABOVE THE ALLEY, not across it. A cap the player walks into on the
+	# ground is a wall.
+	if first != null:
+		var head := alley_1.global_position.y - first.global_position.y
+		_check(head > APO_HEIGHT + JUMP_RISE,
+			"and it is over the player's head, not across the alley",
+			"%.0fpx up against a %.0f reach on foot" % [head, APO_HEIGHT + JUMP_RISE])
+
+
+## Five birds, and the Protector route says it can hit them from 260px. If they ride higher
+## than that, the route is a wall for the one answer that is supposed to open it.
+func _audit_the_flock_is_within_reach() -> void:
+	var alley_1 := level.get("alley_1") as Node2D
+	if alley_1 == null:
+		_check(false, "the first alley exists", "-")
+		return
+	var birds: Array[ScrapBird2D] = []
+	for child in alley_1.get_children():
+		var bird := child as ScrapBird2D
+		if bird != null:
+			birds.append(bird)
+	_check(birds.size() == ScrapLedger.IN_ALLEY_1, "five birds in the first alley",
+		"%d, one scrap each" % birds.size())
+	var ids: Dictionary = {}
+	for bird in birds:
+		ids[bird.scrap_id] = true
+	_check(ids.size() == birds.size(), "and every one carries a different piece",
+		"%d distinct scrap ids" % ids.size())
+
+	# Read off the level data rather than restated here: the reach the Protector route
+	# claims is `requires_reach_px`, and a test carrying its own copy stops testing it.
+	var director = level.get("director")
+	var reach := 260.0
+	for entry: Variant in (director.level_data().get("obstacles", []) if director != null else []):
+		var obstacle: Dictionary = entry
+		if String(obstacle.get("id", "")) != "L2_N2":
+			continue
+		var routes: Dictionary = obstacle.get("routes", {})
+		var protector: Dictionary = routes.get("protector", {})
+		reach = float(protector.get("requires_reach_px", reach))
+	var far: Array[String] = []
+	for bird in birds:
+		# From a player standing directly under it, which is the best case the route gets.
+		var up := alley_1.global_position.y - bird.global_position.y
+		if up > reach:
+			far.append("%s rides %.0fpx up" % [bird.scrap_id, up])
+	_check(far.is_empty(), "and the flock rides inside the reach that route claims",
+		"under %.0fpx, which is what level_02.json promises" % reach
+		if far.is_empty() else "; ".join(far))
