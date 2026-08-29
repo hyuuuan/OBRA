@@ -73,6 +73,7 @@ func _run() -> void:
 	_audit_the_bunting_is_where_it_can_be_reached()
 	_audit_the_flock_is_within_reach()
 	_audit_the_plaza_is_not_empty()
+	_audit_nothing_this_level_places_is_invisible()
 	await _audit_the_apo_stands_on_something()
 
 	for line in results:
@@ -476,3 +477,37 @@ func _audit_the_plaza_is_not_empty() -> void:
 	_check(group.notice_range > to_node,
 		"and the warning reaches further than the choice does",
 		"%.0fpx of notice against %.0fpx to the node" % [group.notice_range, to_node])
+
+
+## ⚠ EVERY PROP THIS LEVEL PUTS IN THE WORLD HAS TO DRAW SOMETHING.
+##
+## `ScrapBird2D` had no `_draw` at all. Five birds carrying five of the seven pieces of the
+## painting, orbiting on a real physics process, invisible -- and every headless check in the
+## project passed, because the ledger, the scrap ids, the three verbs and the reach are all
+## perfectly true of an object nobody can see. It was caught by looking at a frame, which is
+## now the fifth time in this project that has been the only way.
+##
+## This is the cheap half of that lesson: a script that never defines `_draw` cannot possibly
+## be visible, and asking is one line. It does not prove a prop looks right -- only
+## `run_visual_level2.gd` and a pair of eyes do that -- but it does catch the whole class of
+## "the logic shipped and the picture never did".
+func _audit_nothing_this_level_places_is_invisible() -> void:
+	var mute: Array[String] = []
+	var checked := 0
+	for group in [&"scrap_birds", &"bandarita_lines", &"dancer_groups", &"piyesta_doors",
+			&"kandila", &"church_interiors", &"piyesta_rooms"]:
+		for node in level.get_tree().get_nodes_in_group(group):
+			checked += 1
+			var script := (node as Node).get_script() as Script
+			if script == null:
+				mute.append("%s has no script" % node.name)
+				continue
+			var draws := false
+			for entry: Variant in script.get_script_method_list():
+				if String((entry as Dictionary).get("name", "")) == "_draw":
+					draws = true
+					break
+			if not draws:
+				mute.append("%s never draws" % (node as Node).name)
+	_check(mute.is_empty(), "everything the level places draws something",
+		"%d props across 7 kinds" % checked if mute.is_empty() else "; ".join(mute))
