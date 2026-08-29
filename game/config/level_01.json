@@ -242,7 +242,8 @@
             "elephant"
           ],
           "persistent_effect": "canvas_2_creased",
-          "cross_level_effect": "L2_PISTA.hidden_flower_2.unreachable"
+          "cross_level_effect": "L2_PISTA.painting.creased",
+          "$comment": "This used to read L2_PISTA.hidden_flower_2.unreachable. Level 2's refined design (2026-08) has no hidden flower and says in so many words that the crease changes no scrap count, no path and no ending -- so the mark is VISUAL: a crease overlay on the assembled painting in Scene 3 and on every later showing of it. KNOWN DEBT: this route therefore costs nothing mechanical, against LEVEL_TEMPLATE.md's rule that a Protector route that costs nothing is a second Pragmatist. Revisit when Level 3 is designed."
         }
       },
       "grants_item": "canvas_2_pista"
