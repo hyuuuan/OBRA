@@ -84,13 +84,6 @@ var _blocking := false
 var pauses_game := true
 ## See set_auto_dismiss().
 var auto_dismiss := false
-## THIS CONVERSATION DOES NOT STOP THE WORLD. See speak_walking().
-var _walking := false
-## Pacing for a walk-and-talk line, matched to HintBar's so the two channels read at the
-## same speed -- they are the same voice and the player should not have to change gear.
-const WALK_MIN := 2.6
-const WALK_MAX := 7.0
-const WALK_PER_CHAR := 0.045
 
 
 func _init() -> void:
@@ -174,10 +167,6 @@ func _ready() -> void:
 ## deliberate: two hooks can fire in the same frame and the player should get both, in
 ## order, rather than the second silently replacing the first.
 func speak(lines: Array) -> void:
-	# A blocking beat takes over from a walking one. Something that stops the world is
-	# always the more important of the two, and leaving _walking set would let a choice at
-	# a dialogue node time itself out while the player was still reading it.
-	_walking = false
 	for entry: Variant in lines:
 		var line: Dictionary = entry
 		if not String(line.get("text", "")).is_empty():
@@ -190,37 +179,6 @@ func speak(lines: Array) -> void:
 	if not visible:
 		_advance()
 	UIRouter.refresh_pause(get_tree())
-
-
-## SAY A BEAT WITHOUT STOPPING THE WORLD.
-##
-## Arrival lore is the whole reason this exists. Walking into somewhere is not a decision
-## and asks nothing of the player, but it was routed through the same blocking conversation
-## as a choice at a dialogue node -- so the game froze, seven times at the gorge, while
-## Lolo described a place the player was already looking at. Worse, the volume that fired
-## it is up to 820px across, so the freeze usually began before there was anything on
-## screen to look at.
-##
-## It stays in the FRAMED BOX rather than moving to the HintBar, because story and hint are
-## two channels on purpose (see Signpost2D) and flattening them tells the player that a
-## place where Lola is remembered and a place where a stair is broken are the same kind of
-## place. What changes is only the freeze: the lines advance on their own dwell, `_blocking`
-## is never set, so UIRouter never derives a pause and the player keeps walking through it.
-func speak_walking(lines: Array) -> void:
-	for entry: Variant in lines:
-		var line: Dictionary = entry
-		if not String(line.get("text", "")).is_empty():
-			_queue.append(line)
-	if _queue.is_empty() or auto_dismiss:
-		_queue.clear()
-		return
-	_walking = true
-	if not visible:
-		_advance()
-
-
-func _walk_dwell(text: String) -> float:
-	return clampf(WALK_MIN + text.length() * WALK_PER_CHAR, WALK_MIN, WALK_MAX)
 
 
 ## Part of the modal_overlays contract. A CONVERSATION stops the world; a single line put
@@ -337,20 +295,13 @@ func hide_line() -> void:
 	_portrait.hide_portrait()
 	_hold = 0.0
 	set_process(false)
-	# A WALKING CONVERSATION IS STILL A CONVERSATION. Dismissed early it has to end the same
-	# way a blocking one does -- flag cleared, listeners told -- or the flag outlives the
-	# beat and the next blocking line inherits a box that thinks it is self-advancing.
-	# Only the pause refresh is conditional, because a walking beat never took one.
 	var was_blocking := _blocking
-	var was_talking := _blocking or _walking
 	_blocking = false
-	_walking = false
 	_queue.clear()
 	if visible:
 		_fade_to(0.0).tween_callback(func() -> void: visible = false)
 	if was_blocking:
 		UIRouter.refresh_pause(get_tree())
-	if was_talking:
 		conversation_finished.emit()
 
 
@@ -388,18 +339,13 @@ func _unhandled_input(event: InputEvent) -> void:
 func _advance() -> void:
 	if _queue.is_empty():
 		_blocking = false
-		_walking = false
 		hide_line()
 		UIRouter.refresh_pause(get_tree())
 		conversation_finished.emit()
 		return
+	_blocking = true
 	var line: Dictionary = _queue.pop_front()
-	var text := String(line.get("text", ""))
-	# A walking line is held by its own clock rather than by the player. `_blocking` stays
-	# false, which is the single fact UIRouter reads to decide whether the tree is paused.
-	_blocking = not _walking
-	show_line(text, String(line.get("speaker", "")),
-		_walk_dwell(text) if _walking else 0.0)
+	show_line(String(line.get("text", "")), String(line.get("speaker", "")))
 
 
 func _process(delta: float) -> void:
@@ -420,13 +366,7 @@ func _process(delta: float) -> void:
 	if _hold > 0.0 and not _blocking:
 		_hold -= delta
 		if _hold <= 0.0:
-			# A walking beat runs itself to the end. Straight to _advance rather than
-			# hide-then-speak, so a multi-line arrival does not blink the frame out and
-			# back in between every line.
-			if _walking:
-				_advance()
-			else:
-				hide_line()
+			hide_line()
 
 
 func _relayout() -> void:

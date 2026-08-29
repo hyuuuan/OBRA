@@ -30,7 +30,11 @@ const TOP := 66.0
 ## And NARROWER than it was. A hint is one instruction, read once. At 720 wide with the
 ## story box's padding it was a slab half the width of the screen -- which is what a beat of
 ## story is supposed to look like, and the whole point of this channel is that it is not one.
-const MAX_WIDTH := 560.0
+## AND NARROWER AGAIN. 560 was already a deliberate reduction from 720, and it is still a
+## slab: a hint is one instruction read once, and at this width the longest of them wraps to
+## three lines rather than sprawling across half the frame. The padding comes in with it --
+## the chip was carrying a story box's breathing room around a single sentence.
+const MAX_WIDTH := 424.0
 
 ## The shortest a line of a multi-line beat is held, and the longest. Between them the dwell
 ## is measured off the line itself -- roughly the speed of reading -- because the three route
@@ -49,6 +53,15 @@ var _lesson: HFlowContainer
 ## The plain string a lesson would have been, kept only so _relayout can measure a row it
 ## cannot ask a single Label for.
 var _lesson_plain := ""
+## Frames left to re-fit the panel after a lesson goes up.
+##
+## A FLOW CONTAINER'S HEIGHT IS A FUNCTION OF ITS WIDTH, and the width is being handed to it
+## in the same call that reads the height back -- so the first measurement describes the
+## previous, narrower layout, which wrapped to more rows. reset_size() does not help: it
+## re-fits the panel, not the child's wrap. The box therefore stood with two blank lines of
+## reserved height under every lesson, which passed every assertion and is obvious in a
+## screenshot. Re-measuring for a few frames lets the wrap settle and then fits to it.
+var _refit := 0
 var _life := 0.0
 ## The rest of a beat, waiting its turn: [{text, speaker}]. Empty for every ordinary hint,
 ## which is one line that stands until something replaces it.
@@ -72,7 +85,7 @@ func _init() -> void:
 
 	_panel = PanelContainer.new()
 	_panel.name = "Panel"
-	_panel.add_theme_stylebox_override(&"panel", UISkin.chip(11.0, 6.0))
+	_panel.add_theme_stylebox_override(&"panel", UISkin.chip(9.0, 4.0))
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_panel)
 
@@ -257,6 +270,7 @@ func _show(speaker: String, seconds: float) -> void:
 	_speaker.text = "%s:" % speaker.to_upper() if not speaker.is_empty() else ""
 	_speaker.visible = not speaker.is_empty()
 	_life = seconds
+	_refit = 3
 	set_process(true)
 	if _fade != null and _fade.is_valid():
 		_fade.kill()
@@ -367,6 +381,12 @@ func _process(delta: float) -> void:
 	#
 	# It is the PANEL's alpha and not this node's, because show_hint and clear both tween
 	# this node's, and two things writing one property is how a bar ends up half-faded.
+	# BEFORE the speaking guard and before the dwell: a lesson that goes up under a line of
+	# story still has to be the right SIZE when the story clears, and both paths below
+	# return early.
+	if _refit > 0:
+		_refit -= 1
+		_relayout()
 	var speaking := _someone_is_speaking()
 	if _panel != null:
 		_panel.modulate.a = 0.0 if speaking else 1.0
@@ -420,6 +440,12 @@ func _relayout() -> void:
 	# what that should be -- left to itself it takes the width of its widest child, which is
 	# one word.
 	_lesson.custom_minimum_size = Vector2(width, 0.0)
+	# RE-FIT BEFORE MEASURING. A flow container's minimum height is a function of the width
+	# it is given, and the width is being set on the line above -- so the panel's cached
+	# minimum still describes the PREVIOUS, narrower layout, which wrapped to more rows.
+	# Read without this, the box reserved two spare lines of empty height under every
+	# lesson. Only visible in a screenshot; every assertion passed either way.
+	_panel.reset_size()
 	var wanted := _panel.get_combined_minimum_size()
 	_panel.size = wanted
 	# X only. The drop-in tween owns y while it is running, and writing both here would

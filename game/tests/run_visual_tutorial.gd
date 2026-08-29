@@ -44,6 +44,25 @@ func _run() -> void:
 	await _wait(0.4)
 	await _capture("00_plain_hint")
 
+	# THE ACQUISITION CARD, ACROSS ITS RISE. It is driven by one property (see
+	# AcquiredOverlay._reveal), so the whole animation can be stepped by writing that -- the
+	# overshoot past 1.0 and the gold settling to white are the two things to look at, and
+	# both are invisible in any headless run.
+	var acquired = level.get("acquired_overlay")
+	acquired.call("present", "Lola's canvas", "The second painting. Pista is open.")
+	await _wait(0.05)
+	# KILL ITS OWN TWEEN FIRST. present() starts the rise immediately, and a probe that
+	# writes _reveal while that is running is photographing the tween rather than the curve:
+	# the first cut of this produced five identical frames of a fully-arrived card.
+	var run = acquired.get("_run")
+	if run != null and run.is_valid():
+		run.kill()
+	for step in [0.0, 0.25, 0.5, 0.75, 1.0]:
+		acquired.set("_reveal", step)
+		await _wait(0.1)
+		await _capture("acquire_%02d" % int(step * 100.0))
+	await _wait(0.2)
+
 	# THE TURNAROUND, CELL BY CELL. Five frames that had never been drawn on screen. Driven
 	# by hand rather than by waiting on him to speak, so each cell can actually be seen.
 	var lolo := level.get("lolo") as Node2D

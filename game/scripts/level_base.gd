@@ -579,7 +579,7 @@ func _on_obstacle_arrived(obstacle_id: String) -> void:
 func _speak_on_arrival(hook: String) -> void:
 	if script_lines.has_heard(hook):
 		return
-	_speak_walking(script_lines.fire(hook))
+	_speak(script_lines.fire(hook))
 
 
 ## The board the player is standing at, if it has something to say again. Nearest wins, so
@@ -1146,13 +1146,7 @@ func _restore_placed_entities(records: Array) -> void:
 ##
 ## Unread is not an exaggeration. This used to hand a whole beat over in one synchronous
 ## loop, writing five lines into the same label in the same frame. Only the last survived.
-## Arrival lore, said WITHOUT stopping the world. Everything else Lolo says is a decision
-## point or the answer to one and keeps the blocking box; walking into somewhere is neither.
-func _speak_walking(lines: Array) -> void:
-	_speak(lines, true)
-
-
-func _speak(lines: Array, walking: bool = false) -> void:
+func _speak(lines: Array) -> void:
 	var beat: Array[Dictionary] = []
 	# GATHERED, NOT WRITTEN STRAIGHT THROUGH. Handing each hint to the bar as it came out of
 	# the loop meant a beat of several hints was several writes to one label inside one frame,
@@ -1187,14 +1181,8 @@ func _speak(lines: Array, walking: bool = false) -> void:
 	# what used to throw the hints away in a beat that carried both kinds.
 	if hint_bar != null:
 		hint_bar.clear()
-	if walking:
-		# NO CAMERA FOCUS. Pulling the camera onto the speaker is right when the world is
-		# stopped and the player is reading; here they are still walking, and a camera that
-		# slides away from the character being steered is a camera fighting the player.
-		dialogue_box.speak_walking(beat)
-	else:
-		_focus_camera_for(String(beat[0]["at"]))
-		dialogue_box.speak(beat)
+	_focus_camera_for(String(beat[0]["at"]))
+	dialogue_box.speak(beat)
 	# The bar fades itself out and freezes its dwell while anybody is speaking, so advice
 	# posted now waits under the conversation and plays out when the player has read it.
 	_post_advice(advice)
