@@ -10,11 +10,34 @@ extends Area2D
 
 signal player_entered(obstacle_id: String)
 signal player_exited(obstacle_id: String)
+## The player has reached the thing this beat is ABOUT, which is not the same as being
+## inside the beat. See announce_size.
+signal player_arrived(obstacle_id: String)
 
 ## Must match an `id` in level_01.json. A mismatch is a silent dead obstacle, so it is
 ## checked at load rather than trusted.
 @export var obstacle_id: String = ""
 @export var trigger_size := Vector2(320.0, 400.0)
+## THE VOLUME THAT SPEAKS, as opposed to the volume that scopes. Vector2.ZERO keeps the
+## old behaviour, where they are the same box.
+##
+## ONE AREA WAS DOING TWO JOBS AND THEY WANT OPPOSITE SIZES. The trigger has to be WIDE:
+## it is what tells the director which obstacle the player is working on, so it has to
+## cover every piece of ground the beat can be answered from -- B0_HAGDAN is 820px across
+## because the bank, the water and the stair are all part of one problem, and a player
+## standing anywhere in it needs the requirement strip and the hint ladder to be about
+## this beat. The arrival LINE wants the opposite: it should fire where the beat is, and
+## a conversation stops the tree until the player turns the page.
+##
+## So at 820 wide the level opened its mouth 410px before there was anything to look at,
+## and the game froze around a player who had walked near a signpost rather than up to
+## one. Narrowing the trigger to fix that is the trade nobody wants -- it takes the strip
+## and the hints away from the ground the puzzle is solved from.
+##
+## Two boxes, then. This one is a child Area2D centred on the STORY BOARD, because the
+## board is already planted where the story fires (see story_sign_offset) and a second
+## number for the same place is a second number to keep in sync.
+@export var announce_size := Vector2.ZERO
 ## HOW FAR IN FROM THE LEADING EDGE THE STORY BOARD STANDS. Zero for every beat but one.
 ##
 ## The board goes where the beat fires, which is the trigger's leading edge -- and for Beat 0
@@ -76,6 +99,57 @@ func _ready() -> void:
 		_fit_authored_shape()
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
+	_build_announce_volume()
+
+
+## The inner box that fires the arrival, standing where the story board stands.
+##
+## Its own Area2D rather than a distance check in _process: the entered/exited pair is
+## already written, already handles a ragdoll morph arriving as many bodies, and costs
+## nothing per frame. A polled radius would be a third implementation of the same idea.
+func _build_announce_volume() -> void:
+	if announce_size == Vector2.ZERO:
+		return
+	var inner := Area2D.new()
+	inner.name = "AnnounceVolume"
+	inner.collision_layer = 0
+	inner.collision_mask = 1
+	inner.monitoring = true
+	# Centred on the story board. Clamped inside the trigger, because an announce volume
+	# reaching past the scope volume would say the beat's opening line to a player the
+	# director does not yet consider to be in the beat -- the requirement strip would still
+	# be showing the previous obstacle while Lolo introduced this one.
+	var size := Vector2(minf(announce_size.x, trigger_size.x),
+		minf(announce_size.y, trigger_size.y))
+	# CLAMPED BY THE BOX, NOT BY ITS CENTRE. story_sign_offset is measured from the LEADING
+	# EDGE, so a board standing at the edge of the beat -- which is most of them -- puts the
+	# centre on the boundary and hangs half the announce volume out the west side. Measured:
+	# three of Level 1's four reached 64-90px past their own trigger, which is the failure
+	# this comment was written to forbid and was invisible until the volumes were printed.
+	var half := trigger_size.x * 0.5
+	var reach := maxf(0.0, half - size.x * 0.5)
+	var where := clampf(-half + story_sign_offset, -reach, reach)
+	inner.position = Vector2(where, 0.0)
+	var collision := CollisionShape2D.new()
+	var box := RectangleShape2D.new()
+	box.size = size
+	collision.shape = box
+	inner.add_child(collision)
+	add_child(inner)
+	inner.body_entered.connect(_on_announce_entered)
+
+
+var _announced := false
+
+
+func _on_announce_entered(body: Node) -> void:
+	# ONE SHOT PER RUN. The arrival line is already once-guarded downstream by
+	# DialogueScript.has_heard, but a beat whose announce volume the player crosses four
+	# times should not be asking four times whether it has anything left to say.
+	if _announced or not _is_player(body):
+		return
+	_announced = true
+	player_arrived.emit(obstacle_id)
 
 
 ## `trigger_size` IS THE VOLUME, even when the shape was authored in the scene.
@@ -121,6 +195,13 @@ func _on_body_entered(body: Node) -> void:
 		return
 	_inside = true
 	player_entered.emit(obstacle_id)
+	# WITHOUT AN ANNOUNCE VOLUME THE TWO ARE THE SAME MOMENT, which is what every level did
+	# before this export existed. Emitting both here rather than leaving `player_arrived`
+	# silent means the listener is unconditional: a level that has not opted in behaves
+	# exactly as it used to, and nothing downstream has to ask which kind of obstacle it is.
+	if announce_size == Vector2.ZERO and not _announced:
+		_announced = true
+		player_arrived.emit(obstacle_id)
 
 
 func _on_body_exited(body: Node) -> void:

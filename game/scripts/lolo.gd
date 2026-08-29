@@ -46,6 +46,11 @@ const SPEAKER := "Lolo"
 ## the drift. Well under hurry_speed: the three poses are stopped, drifting and chasing.
 @export var drift_threshold: float = 26.0
 
+## PRELOADED FOR THE STATIC, duck-typed for everything else. lolo_figure.gd declares no
+## class_name -- this file reaches the body through set/get/call on purpose -- so the one
+## thing that has to be asked of the SCRIPT rather than of the node needs the script.
+const Figure = preload("res://scripts/lolo_figure.gd")
+
 @onready var _figure: Node2D = $Figure
 
 ## Where his HINTS are shown. Screen space, owned by the level, handed to him at spawn.
@@ -58,6 +63,10 @@ var _target: Node2D
 var _phase: float = 0.0
 var _stride: float = 0.0
 var _speech_time: float = 0.0
+var _pose_time: float = 0.0
+var _current_pose: StringName = &""
+var _cheer_time: float = 0.0
+var _turn_back_time: float = 0.0
 var _facing: float = 1.0
 
 
@@ -94,8 +103,11 @@ func set_hint_bar(bar: HintBar) -> void:
 
 
 func hush() -> void:
+	var was_talking := _speech_time != 0.0 or bool(_figure.get("talking"))
 	_speech_time = 0.0
 	_figure.set("talking", false)
+	if was_talking:
+		_begin_turn_back()
 	if _hints != null:
 		_hints.clear()
 
@@ -106,6 +118,11 @@ func is_speaking() -> bool:
 
 func _process(delta: float) -> void:
 	_phase = fmod(_phase + delta * bob_hz, 1.0)
+	_pose_time += delta
+	if _cheer_time > 0.0:
+		_cheer_time = maxf(0.0, _cheer_time - delta)
+	if _turn_back_time > 0.0:
+		_turn_back_time = maxf(0.0, _turn_back_time - delta)
 
 	# The box counts its own line down -- it is the thing that knows whether the text has
 	# even finished arriving yet. What is kept here is the mouth: he stops talking when
@@ -115,6 +132,7 @@ func _process(delta: float) -> void:
 		if _speech_time <= 0.0:
 			_speech_time = 0.0
 			_figure.set("talking", false)
+			_begin_turn_back()
 
 	var was := global_position
 	if _target != null and is_instance_valid(_target):
@@ -142,7 +160,15 @@ func _process(delta: float) -> void:
 	# Whole cycles either way. Holding station he drifts at his own rate; chasing, the
 	# cycle is driven by the ground he is covering, so the pose and the motion agree.
 	_stride = fmod(_stride + delta * (speed / 90.0 if hurrying else drift_hz), 1.0)
-	_figure.set("pose", _pose_for(speed, hurrying))
+	var wanted := _pose_for(speed, hurrying)
+	# RESET ON CHANGE, not every frame: a one-shot reads pose_time from zero, so leaving it
+	# running would have him arrive mid-turn, and restarting it every frame would freeze him
+	# on the first cell -- which is exactly what the old held `face` looked like.
+	if wanted != _current_pose:
+		_current_pose = wanted
+		_pose_time = 0.0
+	_figure.set("pose", wanted)
+	_figure.set("pose_time", _pose_time)
 	_figure.set("stride", _stride)
 	_figure.set("bob", _phase)
 	_figure.set("facing", _facing)
@@ -162,13 +188,38 @@ func _process(delta: float) -> void:
 ## Lolo is the thing you are meant to be looking at, and a gesture is what says it is him
 ## saying it rather than the box.
 func _pose_for(speed: float, hurrying: bool) -> StringName:
+	# A SOLVE OUTRANKS EVERYTHING, briefly. It is the only moment he reacts to the player
+	# rather than to the level, and it is over in well under a second.
+	if _cheer_time > 0.0:
+		return &"cheer"
+	# HE TURNS TO YOU TO SPEAK, and the turn is the animation -- five frames that had never
+	# been drawn before. `face` plays through and holds him head-on for the rest of the
+	# line, which is what makes a line of Lola's story feel addressed to the apo instead of
+	# narrated past them.
 	if _speech_time != 0.0 or bool(_figure.get("talking")):
-		return &"wave"
+		return &"face"
+	# And back again when he is done, rather than snapping to the drift on the frame the
+	# line clears.
+	if _turn_back_time > 0.0:
+		return &"turn_back"
 	if hurrying:
 		return &"hurry"
 	# The drift is for actually covering ground. Parked at the player's shoulder he is
 	# STILL -- which is not motionless, because the idle frame still rides the bob.
 	return &"float" if speed > drift_threshold else &"still"
+
+
+## Turn back to the drift over the length of the turnaround itself, so the two halves of
+## the gesture are the same length and it reads as one movement rather than a turn out and
+## a cut back.
+func _begin_turn_back() -> void:
+	_turn_back_time = Figure.pose_duration(&"turn_back")
+
+
+## He is pleased with you. Called when a beat is answered -- the one time in the level the
+## companion has something to say about the player rather than about the place.
+func cheer(seconds: float = 0.9) -> void:
+	_cheer_time = maxf(_cheer_time, seconds)
 
 
 func _desired_position() -> Vector2:
