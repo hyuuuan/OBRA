@@ -65,6 +65,16 @@ const MUTED := Color(0.808, 0.757, 0.612, 1.0)        # CEC19C
 ## the new GOLD, so "not sure yet" and "this is the interface" read as the same colour.
 const PENDING := Color(1.0, 0.741, 0.239, 1.0)        # FFBD3D
 
+## Context actions borrow their colour from the world rather than from the three menu
+## button families. They are small, transient prompts over moving level art, so hue does
+## useful semantic work here: terrace-water blue means TAKE, and young-rice green means
+## WORK WITH WHAT IS IN YOUR HAND. Neither colour is allowed to become a fourth menu
+## family; these are exclusively for ActionPromptHUD.
+const PICKUP := Color(0.337, 0.663, 0.714, 1.0)       # 56A9B6
+const PICKUP_LIT := Color(0.529, 0.804, 0.831, 1.0)   # 87CDD4
+const USE := Color(0.545, 0.690, 0.318, 1.0)          # 8BAF51
+const USE_LIT := Color(0.718, 0.820, 0.471, 1.0)      # B7D178
+
 # --- The frame -------------------------------------------------------------------------
 ## Dark wood and a gold liner, and the only warm colours in the interface.
 ##
@@ -241,6 +251,41 @@ static func strip(pad_x: float = 12.0, pad_y: float = 4.0) -> StyleBoxFlat:
 	box.content_margin_right = pad_x
 	box.content_margin_top = pad_y
 	box.content_margin_bottom = pad_y
+	return box
+
+
+## A single key prompt. Unlike a menu button it keeps the dark HUD ground and carries its
+## verb in the ring colour; this lets R, E, F and Q be visibly different without making
+## four bright blocks compete with the level. The larger left margin holds the key cap.
+static func action_prompt(accent: Color, state: State = State.NORMAL) -> StyleBoxFlat:
+	var mix := 0.07
+	if state == State.HOVER:
+		mix = 0.16
+	elif state == State.PRESSED:
+		mix = 0.24
+	var fill := PANEL_LIT.lerp(accent, mix)
+	var edge := Color(accent.r, accent.g, accent.b, 0.48)
+	var box := _ringed(fill, accent, THIN, edge, 3)
+	box.shadow_offset = Vector2(0.0, 2.0 if state != State.PRESSED else 1.0)
+	box.content_margin_left = 44.0
+	box.content_margin_right = 11.0
+	box.content_margin_top = 7.0
+	box.content_margin_bottom = 7.0
+	return box
+
+
+## The physical key inside an action prompt. It is deliberately brighter than the ring:
+## peripheral vision finds the input first, then reads the verb beside it.
+static func action_key(accent: Color) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = accent
+	box.border_color = accent.lightened(0.22)
+	box.set_border_width_all(1)
+	box.set_corner_radius_all(RADIUS)
+	box.content_margin_left = 6.0
+	box.content_margin_right = 6.0
+	box.content_margin_top = 1.0
+	box.content_margin_bottom = 1.0
 	return box
 
 

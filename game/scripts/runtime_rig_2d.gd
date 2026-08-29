@@ -7,6 +7,7 @@ extends "res://scripts/drawing_skin_2d.gd"
 signal rig_built(success: bool)
 
 const SpiderRigAnalyzer = preload("res://scripts/spider_rig_analyzer.gd")
+const UNDERWATER_SHADER := preload("res://shaders/underwater_character.gdshader")
 const MAX_BODIES := 24
 const MAX_JOINTS := 23
 const MAX_SHAPES := 64
@@ -93,6 +94,10 @@ var _skin_driver: GaitDriver = null
 var _skin_root: Node2D = null
 var _skin_lines: Array[Line2D] = []
 var _skin_halos: Array[Line2D] = []
+## Shared by every stroke so the complete drawing sees one continuous world-space
+## waterline and one moving light field, even though its ink is several CanvasItems.
+var _underwater_material: ShaderMaterial
+var _underwater_strength := 0.0
 ## The torso's origin in rig space, for cancelling its spin out of a flier's drawing.
 var _skin_anchor_local: Vector2 = Vector2.ZERO
 ## True once the rig has been locked into its drawn pose because it strayed too far.
@@ -456,6 +461,49 @@ func debug_max_tracked_angle() -> float:
 
 func is_in_water() -> bool:
 	return _primary_body != null and int(_primary_body.get_meta("water_overlap_count", 0)) > 0
+
+
+func set_underwater_appearance(
+	active: bool,
+	surface_y: float,
+	bottom_y: float,
+	shallow: Color,
+	deep: Color,
+	highlight: Color
+) -> void:
+	_ensure_underwater_material()
+	_underwater_strength = 1.0 if active else 0.0
+	_underwater_material.set_shader_parameter(&"effect_strength", _underwater_strength)
+	_underwater_material.set_shader_parameter(&"surface_y", surface_y)
+	_underwater_material.set_shader_parameter(&"bottom_y", bottom_y)
+	_underwater_material.set_shader_parameter(&"shallow_water", shallow)
+	_underwater_material.set_shader_parameter(&"deep_water", deep)
+	_underwater_material.set_shader_parameter(&"caustic_light", highlight)
+	_apply_underwater_material()
+
+
+func _ensure_underwater_material() -> void:
+	if _underwater_material != null:
+		return
+	_underwater_material = ShaderMaterial.new()
+	_underwater_material.shader = UNDERWATER_SHADER
+
+
+func _apply_underwater_material() -> void:
+	if _underwater_material == null:
+		return
+	if _body != null:
+		_body.material = _underwater_material
+	for line in _skin_halos:
+		if is_instance_valid(line):
+			line.material = _underwater_material
+	for line in _skin_lines:
+		if is_instance_valid(line):
+			line.material = _underwater_material
+
+
+func debug_underwater_strength() -> float:
+	return _underwater_strength
 
 
 func rig_summary() -> String:
@@ -1476,6 +1524,8 @@ func _bind_skinned_ink() -> bool:
 
 func _new_ink_line(width: float, layer: int) -> Line2D:
 	var line := Line2D.new()
+	if _underwater_material != null:
+		line.material = _underwater_material
 	line.width = width
 	line.joint_mode = Line2D.LINE_JOINT_ROUND
 	line.begin_cap_mode = Line2D.LINE_CAP_ROUND
@@ -2146,6 +2196,8 @@ func _build_bitmap_fallback() -> void:
 		sprite.texture = _body.texture
 		sprite.position = _body.position
 		sprite.scale = _body.scale
+		if _underwater_material != null:
+			sprite.material = _underwater_material
 		_primary_body.add_child(sprite)
 		_body.visible = false
 

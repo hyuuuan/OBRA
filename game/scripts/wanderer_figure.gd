@@ -31,6 +31,7 @@ const LOOK_DOWN := preload("res://assets/characters/apo/apo_look_down.png")
 const WAVE := preload("res://assets/characters/apo/apo_wave.png")
 const CHEER := preload("res://assets/characters/apo/apo_cheer.png")
 const TURNAROUND := preload("res://assets/characters/apo/apo_turnaround.png")
+const UNDERWATER_SHADER := preload("res://shaders/underwater_character.gdshader")
 
 ## What each pose draws. `cycle` means the stride phase picks the frame; anything else
 ## holds the one frame named by `frame`.
@@ -75,6 +76,8 @@ const POSES := {
 @export var carrying: String = ""
 
 var _sprite: Sprite2D
+var _underwater_material: ShaderMaterial
+var _underwater_strength := 0.0
 
 
 func _ready() -> void:
@@ -90,7 +93,36 @@ func _ready() -> void:
 	_sprite.centered = false
 	_sprite.offset = Vector2(-CELL.x * 0.5, -FOOT_ROW)
 	add_child(_sprite)
+	_underwater_material = ShaderMaterial.new()
+	_underwater_material.shader = UNDERWATER_SHADER
+	_sprite.material = _underwater_material
 	refresh()
+
+
+## Change the light on the art below the real world waterline. The sprite keeps the
+## material while dry with a zero strength so entering water never swaps rendering state
+## halfway through a frame.
+func set_underwater_appearance(
+	active: bool,
+	surface_y: float,
+	bottom_y: float,
+	shallow: Color,
+	deep: Color,
+	highlight: Color
+) -> void:
+	if _underwater_material == null:
+		return
+	_underwater_strength = 1.0 if active else 0.0
+	_underwater_material.set_shader_parameter(&"effect_strength", _underwater_strength)
+	_underwater_material.set_shader_parameter(&"surface_y", surface_y)
+	_underwater_material.set_shader_parameter(&"bottom_y", bottom_y)
+	_underwater_material.set_shader_parameter(&"shallow_water", shallow)
+	_underwater_material.set_shader_parameter(&"deep_water", deep)
+	_underwater_material.set_shader_parameter(&"caustic_light", highlight)
+
+
+func debug_underwater_strength() -> float:
+	return _underwater_strength
 
 
 ## Draw whatever `pose` and `stride` currently say. Called by Wanderer rather than run off

@@ -18,6 +18,9 @@ var _equipped_utility: Node2D
 var _camera_anchor: Marker2D
 var _world_bounds: Rect2 = Rect2(0.0, -520.0, 3760.0, 1200.0)
 var _drive_bodies: Array = []
+## One visual environment per water source, for the same reason body overlap counts are
+## additive: a long vector creature can straddle more than one Area2D at once.
+var _underwater_sources: Dictionary = {}
 
 
 ## A DRAWN CREATURE IS THE PLAYER, AND NOTHING IN THE WORLD KNEW IT.
@@ -203,6 +206,43 @@ func limit_fall_speed(limit: float) -> void:
 func is_in_water() -> bool:
 	var skin := _get_skin()
 	return skin != null and skin.has_method("is_in_water") and bool(skin.call("is_in_water"))
+
+
+func set_underwater_appearance(
+	source_id: int,
+	active: bool,
+	surface_y: float,
+	bottom_y: float,
+	shallow: Color,
+	deep: Color,
+	highlight: Color
+) -> void:
+	if active:
+		_underwater_sources[source_id] = {
+			"surface_y": surface_y,
+			"bottom_y": bottom_y,
+			"shallow": shallow,
+			"deep": deep,
+			"highlight": highlight,
+		}
+	else:
+		_underwater_sources.erase(source_id)
+	_apply_underwater_appearance()
+
+
+func _apply_underwater_appearance() -> void:
+	var skin := _get_skin()
+	if skin == null or not skin.has_method("set_underwater_appearance"):
+		return
+	if _underwater_sources.is_empty():
+		skin.call(&"set_underwater_appearance", false, 0.0, 1.0,
+			Color.TRANSPARENT, Color.TRANSPARENT, Color.TRANSPARENT)
+		return
+	var environment: Dictionary = _underwater_sources.values()[0]
+	skin.call(&"set_underwater_appearance", true,
+		float(environment["surface_y"]), float(environment["bottom_y"]),
+		environment["shallow"] as Color, environment["deep"] as Color,
+		environment["highlight"] as Color)
 
 
 func _physics_process(delta: float) -> void:
