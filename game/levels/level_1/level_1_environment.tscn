@@ -492,6 +492,7 @@ script = ExtResource("19_j5wv8")
 obstacle_id = "B0_HAGDAN"
 trigger_size = Vector2(820, 300)
 announce_size = Vector2(200, 300)
+announce_offset = -386.0
 story_sign_offset = 24.0
 hint_sign_offset = 160.0
 
@@ -504,6 +505,7 @@ script = ExtResource("19_j5wv8")
 obstacle_id = "L1_N1"
 trigger_size = Vector2(380, 420)
 announce_size = Vector2(180, 420)
+announce_offset = 0.0
 checkpoint_mark_offset = -270.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N1" unique_id=1714758991]
@@ -515,6 +517,7 @@ script = ExtResource("19_j5wv8")
 obstacle_id = "L1_N2"
 trigger_size = Vector2(400, 300)
 announce_size = Vector2(180, 300)
+announce_offset = 0.0
 checkpoint_mark_offset = 90.0
 story_sign_offset = 26.0
 hint_sign_offset = -110.0
@@ -528,6 +531,7 @@ script = ExtResource("19_j5wv8")
 obstacle_id = "L1_N3"
 trigger_size = Vector2(380, 320)
 announce_size = Vector2(180, 320)
+announce_offset = 0.0
 story_sign_offset = -60.0
 hint_sign_offset = -150.0
 checkpoint_mark_offset = 100.0

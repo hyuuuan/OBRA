@@ -38,6 +38,15 @@ signal player_arrived(obstacle_id: String)
 ## board is already planted where the story fires (see story_sign_offset) and a second
 ## number for the same place is a second number to keep in sync.
 @export var announce_size := Vector2.ZERO
+## WHERE IT STANDS, measured from the middle of the trigger -- the same frame of reference
+## hint_sign_offset uses, and deliberately NOT the leading-edge one story_sign_offset uses.
+##
+## Zero is the centre of the beat, which is where the thing the beat is ABOUT usually is,
+## and that is the right place for a conversation that stops the world: the player is
+## looking at the subject when it starts. The exception is a beat whose opening line is a
+## WARNING -- Beat 0's is about the water -- which has to be said before the hazard rather
+## than on top of it, and gets a negative offset to put it back at the approach.
+@export var announce_offset := 0.0
 ## HOW FAR IN FROM THE LEADING EDGE THE STORY BOARD STANDS. Zero for every beat but one.
 ##
 ## The board goes where the beat fires, which is the trigger's leading edge -- and for Beat 0
@@ -115,21 +124,16 @@ func _build_announce_volume() -> void:
 	inner.collision_layer = 0
 	inner.collision_mask = 1
 	inner.monitoring = true
-	# Centred on the story board. Clamped inside the trigger, because an announce volume
-	# reaching past the scope volume would say the beat's opening line to a player the
-	# director does not yet consider to be in the beat -- the requirement strip would still
-	# be showing the previous obstacle while Lolo introduced this one.
 	var size := Vector2(minf(announce_size.x, trigger_size.x),
 		minf(announce_size.y, trigger_size.y))
-	# CLAMPED BY THE BOX, NOT BY ITS CENTRE. story_sign_offset is measured from the LEADING
-	# EDGE, so a board standing at the edge of the beat -- which is most of them -- puts the
-	# centre on the boundary and hangs half the announce volume out the west side. Measured:
-	# three of Level 1's four reached 64-90px past their own trigger, which is the failure
-	# this comment was written to forbid and was invisible until the volumes were printed.
+	# CLAMPED BY THE BOX, NOT BY ITS CENTRE. An announce volume reaching past the scope
+	# volume would say the beat's opening line to a player the director does not yet
+	# consider to be in the beat, so the requirement strip would still be describing the
+	# previous obstacle while Lolo introduced this one. Measured: clamping the centre
+	# instead let three of Level 1's four hang 64-90px outside their own trigger.
 	var half := trigger_size.x * 0.5
 	var reach := maxf(0.0, half - size.x * 0.5)
-	var where := clampf(-half + story_sign_offset, -reach, reach)
-	inner.position = Vector2(where, 0.0)
+	inner.position = Vector2(clampf(announce_offset, -reach, reach), 0.0)
 	var collision := CollisionShape2D.new()
 	var box := RectangleShape2D.new()
 	box.size = size

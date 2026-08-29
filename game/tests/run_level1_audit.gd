@@ -1216,14 +1216,14 @@ func _audit_arrival_speaks_once() -> void:
 	_check(bool(script_lines.call("has_heard", "L1_N2.enter")),
 		"arriving marks the beat heard", "L1_N2.enter")
 
-	# AND IT DOES NOT STOP THE WORLD. Walking into somewhere is not a decision and asks
-	# nothing of the player, but it used to freeze the tree behind a box that had to be
-	# clicked through -- seven lines of it at the gorge, usually beginning before there was
-	# anything on screen to look at. Both halves matter: the line still SHOWS (it is story,
-	# it keeps the framed box and the portrait) and the game keeps running underneath it.
-	_check(box.visible, "the arrival still shows", "in the framed box, with a portrait")
-	_check(not root.get_tree().paused, "and it does not stop the world",
-		"the player can walk through their own arrival")
+	# AND IT STOPS THE WORLD, on purpose. Arrival is story: the framed box, the portrait,
+	# and the tree held until the player turns the page. That is what makes the announce
+	# volume load-bearing rather than cosmetic -- a beat that freezes the game has to do it
+	# where the player is looking at the thing being described, not 410px earlier at the far
+	# edge of a scope volume. See LevelObstacle2D.announce_offset.
+	_check(box.visible, "the arrival shows", "in the framed box, with a portrait")
+	_check(root.get_tree().paused, "and it stops the world",
+		"arrival is story, and story is read rather than walked through")
 
 	# hide_line fades over 0.16s before it clears `visible`, so the box has to be given the
 	# fade before anything can ask whether it is gone. Asking after one frame reports the
