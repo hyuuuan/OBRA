@@ -1,0 +1,328 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/environment_baseplate.gd" id="1_environment"]
+[ext_resource type="Script" path="res://scripts/world_camera_controller.gd" id="2_camera"]
+[ext_resource type="Script" path="res://scripts/depth_layer_2d.gd" id="3_depth"]
+[ext_resource type="Script" path="res://scripts/world_ambience_2d.gd" id="4_ambience"]
+[ext_resource type="Script" path="res://scripts/level_obstacle_2d.gd" id="5_obstacle"]
+[ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="6_checkpoint"]
+[ext_resource type="Script" path="res://scripts/dialogue_node_2d.gd" id="7_dialoguenode"]
+[ext_resource type="Texture2D" path="res://assets/Level2/bg_sky.png" id="10_skylayer"]
+[ext_resource type="Texture2D" path="res://assets/Level2/bg_clouds.png" id="11_cloudlayer"]
+[ext_resource type="Texture2D" path="res://assets/Level2/mg_church.png" id="12_churchlayer"]
+[ext_resource type="Texture2D" path="res://assets/Level2/mg_people.png" id="13_peoplelayer"]
+[ext_resource type="Texture2D" path="res://assets/Level2/fg_huts.png" id="14_hutslayer"]
+[ext_resource type="Texture2D" path="res://assets/Level2/ground.png" id="15_ledgelayer"]
+
+[sub_resource type="RectangleShape2D" id="Rect_PlazaFloor"]
+size = Vector2(2600.0, 200.0)
+
+[sub_resource type="RectangleShape2D" id="Rect_LeftTerrace"]
+size = Vector2(620.0, 240.0)
+
+[sub_resource type="RectangleShape2D" id="Rect_StairA"]
+size = Vector2(80.0, 160.0)
+
+[sub_resource type="RectangleShape2D" id="Rect_StairB"]
+size = Vector2(80.0, 80.0)
+
+[sub_resource type="RectangleShape2D" id="Rect_EastStep"]
+size = Vector2(300.0, 60.0)
+
+[sub_resource type="RectangleShape2D" id="Rect_WestWall"]
+size = Vector2(80.0, 1200.0)
+
+[sub_resource type="RectangleShape2D" id="Rect_EastWall"]
+size = Vector2(80.0, 1400.0)
+
+[sub_resource type="RectangleShape2D" id="Rect_ChurchInteriorFloor"]
+size = Vector2(900.0, 80)
+
+[sub_resource type="RectangleShape2D" id="Rect_HouseInteriorFloor"]
+size = Vector2(520.0, 80)
+
+[sub_resource type="RectangleShape2D" id="Rect_Alley1Floor"]
+size = Vector2(900.0, 80)
+
+[sub_resource type="RectangleShape2D" id="Rect_Alley2Floor"]
+size = Vector2(900.0, 80)
+
+[node name="EnvironmentBaseplate" type="Node2D"]
+script = ExtResource("1_environment")
+world_bounds = Rect2(-200, -2200, 10400, 3100)
+
+[node name="WorldCamera" type="Camera2D" parent="."]
+script = ExtResource("2_camera")
+
+[node name="Ambience" type="Node2D" parent="WorldCamera"]
+script = ExtResource("4_ambience")
+
+[node name="SkyLayer" type="Node2D" parent="."]
+z_index = -120
+script = ExtResource("3_depth")
+depth = 11.76
+scroll_scale = 0.02
+z_index_base = -120
+
+[node name="Tile0" type="Sprite2D" parent="SkyLayer"]
+position = Vector2(960, 540)
+texture = ExtResource("10_skylayer")
+
+[node name="Tile1" type="Sprite2D" parent="SkyLayer"]
+position = Vector2(2880, 540)
+texture = ExtResource("10_skylayer")
+
+[node name="Tile2" type="Sprite2D" parent="SkyLayer"]
+position = Vector2(4800, 540)
+texture = ExtResource("10_skylayer")
+
+[node name="CloudLayer" type="Node2D" parent="."]
+z_index = -110
+script = ExtResource("3_depth")
+depth = 11.04
+scroll_scale = 0.08
+z_index_base = -110
+
+[node name="Tile0" type="Sprite2D" parent="CloudLayer"]
+position = Vector2(960, 540)
+texture = ExtResource("11_cloudlayer")
+
+[node name="Tile1" type="Sprite2D" parent="CloudLayer"]
+position = Vector2(2880, 540)
+texture = ExtResource("11_cloudlayer")
+
+[node name="Tile2" type="Sprite2D" parent="CloudLayer"]
+position = Vector2(4800, 540)
+texture = ExtResource("11_cloudlayer")
+
+[node name="ChurchLayer" type="Node2D" parent="."]
+z_index = -100
+script = ExtResource("3_depth")
+depth = 9.84
+scroll_scale = 0.18
+z_index_base = -100
+
+[node name="Tile0" type="Sprite2D" parent="ChurchLayer"]
+position = Vector2(960, 540)
+texture = ExtResource("12_churchlayer")
+
+[node name="Tile1" type="Sprite2D" parent="ChurchLayer"]
+position = Vector2(2880, 540)
+texture = ExtResource("12_churchlayer")
+
+[node name="Tile2" type="Sprite2D" parent="ChurchLayer"]
+position = Vector2(4800, 540)
+texture = ExtResource("12_churchlayer")
+
+[node name="PeopleLayer" type="Node2D" parent="."]
+z_index = -90
+script = ExtResource("3_depth")
+depth = 7.44
+scroll_scale = 0.38
+z_index_base = -90
+
+[node name="Tile0" type="Sprite2D" parent="PeopleLayer"]
+position = Vector2(960, 540)
+texture = ExtResource("13_peoplelayer")
+
+[node name="Tile1" type="Sprite2D" parent="PeopleLayer"]
+position = Vector2(2880, 540)
+texture = ExtResource("13_peoplelayer")
+
+[node name="Tile2" type="Sprite2D" parent="PeopleLayer"]
+position = Vector2(4800, 540)
+texture = ExtResource("13_peoplelayer")
+
+[node name="HutsLayer" type="Node2D" parent="."]
+z_index = -80
+script = ExtResource("3_depth")
+depth = 3.36
+scroll_scale = 0.72
+z_index_base = -80
+
+[node name="Tile0" type="Sprite2D" parent="HutsLayer"]
+position = Vector2(960, 540)
+texture = ExtResource("14_hutslayer")
+
+[node name="Tile1" type="Sprite2D" parent="HutsLayer"]
+position = Vector2(2880, 540)
+texture = ExtResource("14_hutslayer")
+
+[node name="Tile2" type="Sprite2D" parent="HutsLayer"]
+position = Vector2(4800, 540)
+texture = ExtResource("14_hutslayer")
+
+[node name="LedgeLayer" type="Node2D" parent="."]
+z_index = -70
+script = ExtResource("3_depth")
+depth = 1.2
+scroll_scale = 0.9
+z_index_base = -70
+
+[node name="Tile0" type="Sprite2D" parent="LedgeLayer"]
+position = Vector2(960, 540)
+texture = ExtResource("15_ledgelayer")
+
+[node name="Tile1" type="Sprite2D" parent="LedgeLayer"]
+position = Vector2(2880, 540)
+texture = ExtResource("15_ledgelayer")
+
+[node name="Tile2" type="Sprite2D" parent="LedgeLayer"]
+position = Vector2(4800, 540)
+texture = ExtResource("15_ledgelayer")
+
+[node name="GameplayPlane" type="Node2D" parent="."]
+script = ExtResource("3_depth")
+
+[node name="EntityRoot" type="Node2D" parent="GameplayPlane"]
+
+[node name="SpawnPoint" type="Marker2D" parent="GameplayPlane"]
+position = Vector2(200, 280.0)
+
+[node name="Terrain" type="Node2D" parent="GameplayPlane"]
+
+[node name="PlazaFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(1300.0, 660.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/PlazaFloor"]
+shape = SubResource("Rect_PlazaFloor")
+
+[node name="LeftTerrace" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(310.0, 440.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/LeftTerrace"]
+shape = SubResource("Rect_LeftTerrace")
+
+[node name="StairA" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(660.0, 480.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/StairA"]
+shape = SubResource("Rect_StairA")
+
+[node name="StairB" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(740.0, 520.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/StairB"]
+shape = SubResource("Rect_StairB")
+
+[node name="EastStep" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(2450.0, 530.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/EastStep"]
+shape = SubResource("Rect_EastStep")
+
+[node name="WestWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(-40.0, 520.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/WestWall"]
+shape = SubResource("Rect_WestWall")
+
+[node name="EastWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(2640.0, 560.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/EastWall"]
+shape = SubResource("Rect_EastWall")
+
+[node name="Marks" type="Node2D" parent="GameplayPlane"]
+
+[node name="StartMark" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(300.0, 560.0)
+
+[node name="DancersMark" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(600.0, 560.0)
+
+[node name="DarkHouseA" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(1560.0, 560.0)
+
+[node name="DarkHouseB" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(1760.0, 560.0)
+
+[node name="LitHouse" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(1990.0, 560.0)
+
+[node name="ChurchDoor" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(2450.0, 500.0)
+
+[node name="BuntingLine" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(1300.0, 220.0)
+
+[node name="Rooms" type="Node2D" parent="GameplayPlane"]
+
+[node name="ChurchInterior" type="Node2D" parent="GameplayPlane/Rooms"]
+position = Vector2(6000.0, -1400.0)
+
+[node name="Floor" type="StaticBody2D" parent="GameplayPlane/Rooms/ChurchInterior"]
+position = Vector2(450.0, 500.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Rooms/ChurchInterior/Floor"]
+shape = SubResource("Rect_ChurchInteriorFloor")
+
+[node name="Entry" type="Marker2D" parent="GameplayPlane/Rooms/ChurchInterior"]
+position = Vector2(120, 460.0)
+
+[node name="HouseInterior" type="Node2D" parent="GameplayPlane/Rooms"]
+position = Vector2(6000.0, -600.0)
+
+[node name="Floor" type="StaticBody2D" parent="GameplayPlane/Rooms/HouseInterior"]
+position = Vector2(260.0, 320.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Rooms/HouseInterior/Floor"]
+shape = SubResource("Rect_HouseInteriorFloor")
+
+[node name="Entry" type="Marker2D" parent="GameplayPlane/Rooms/HouseInterior"]
+position = Vector2(120, 280.0)
+
+[node name="Alley1" type="Node2D" parent="GameplayPlane/Rooms"]
+position = Vector2(9000.0, -1600.0)
+
+[node name="Floor" type="StaticBody2D" parent="GameplayPlane/Rooms/Alley1"]
+position = Vector2(450.0, 900.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Rooms/Alley1/Floor"]
+shape = SubResource("Rect_Alley1Floor")
+
+[node name="Entry" type="Marker2D" parent="GameplayPlane/Rooms/Alley1"]
+position = Vector2(120, 860.0)
+
+[node name="Alley2" type="Node2D" parent="GameplayPlane/Rooms"]
+position = Vector2(9000.0, -300.0)
+
+[node name="Floor" type="StaticBody2D" parent="GameplayPlane/Rooms/Alley2"]
+position = Vector2(450.0, 620.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Rooms/Alley2/Floor"]
+shape = SubResource("Rect_Alley2Floor")
+
+[node name="Entry" type="Marker2D" parent="GameplayPlane/Rooms/Alley2"]
+position = Vector2(120, 580.0)
+
+[node name="Obstacles" type="Node2D" parent="GameplayPlane"]
+
+[node name="L2_N1" type="Area2D" parent="GameplayPlane/Obstacles"]
+position = Vector2(600.0, 360.0)
+script = ExtResource("5_obstacle")
+obstacle_id = "L2_N1"
+trigger_size = Vector2(520.0, 400)
+
+[node name="L2_N2" type="Area2D" parent="GameplayPlane/Obstacles"]
+position = Vector2(9450.0, -900.0)
+script = ExtResource("5_obstacle")
+obstacle_id = "L2_N2"
+trigger_size = Vector2(700.0, 400)
+
+[node name="L2_N3" type="Area2D" parent="GameplayPlane/Obstacles"]
+position = Vector2(9450.0, 120.0)
+script = ExtResource("5_obstacle")
+obstacle_id = "L2_N3"
+trigger_size = Vector2(700.0, 400)
+
+[node name="CP0" type="Area2D" parent="GameplayPlane/Obstacles"]
+position = Vector2(300, 450.0)
+script = ExtResource("6_checkpoint")
+checkpoint_id = "CP0"
+
+[node name="DialogueNode" type="Area2D" parent="GameplayPlane"]
+position = Vector2(560, 400.0)
+script = ExtResource("7_dialoguenode")
+level_id = "level_2"
+
