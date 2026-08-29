@@ -113,9 +113,27 @@ the existing door for a solve that is not a submission. A dance pushed through
 `note_submission` would put a class nobody drew into the level's per-class statistics.
 `run_dance_probe.gd` drives it.
 
-⚠ **One screen still does not exist and it is what stops the level being finishable.**
-Scene 3's assembly has a model (`scrap_assembly.gd`) and no UI or trigger -- the same shape
-the dance was in. The GoalMarker is also still at Level 1's
+**Scene 3 exists and the level can be finished (2026-08-30).** `assembly_overlay.gd` is the
+table; `tools/build_scraps.py` tears `completed_look.png` into the seven pieces along
+noise-perturbed Voronoi boundaries, and a piece's offset in `scraps.json` IS its slot, so
+there is no separate slot table to drift. Alley 2's far door opens it and finishing it calls
+`_complete_level`. The GoalMarker is parked behind Alley 2's wall where nobody can reach it,
+so Scene 3 is the only thing that ends Piyesta.
+
+⚠ **THE PLAZA IS ONE PAINTING, NOT A PARALLAX RIG.** The six delivered plates are a
+registered 1920x1080 set that composites into `Level2_CompletedLook`. `DepthLayer2D` offsets
+by `camera_delta * (1 - scroll_scale)` on BOTH axes, so any difference in scroll slid them to
+different heights the moment the camera moved -- the terrace appeared twice with sky between.
+`tools/build_plaza.py` flattens them offline into `plaza.png` plus `plaza_front.png` (the
+grass verge and wall, which are nearer than the player and must draw over his feet). It also
+cuts the composite at the wall's foot, because `bg_sky` runs a hundred rows below the ground
+and the level was showing sky under the plaza. Terrain and marks are measured off the
+painting -- the walk line is where the painted dancers' feet are.
+
+⚠ **The dancers are IN the art.** `DancerGroup2D` draws nothing; it is the logic only. The
+composite will not give them up (a bbox cut takes the palm trunks behind two of them; a
+colour mask leaves the hats, hands, fans and shoes), so the scare is mechanically complete
+and visually invisible until the `MG_People` no-dancers variant exists. The GoalMarker is also still at Level 1's
 position (the church door), because `level_2.tscn` is a text copy. `levels.json` `scene_path`
 stays EMPTY until those are done, and `run_level2_audit` asserts it.
 

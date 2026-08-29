@@ -1,7 +1,7 @@
 # Level 2 — Piyesta
 
-**Status: the level is connected and walkable end to end, and every beat but the last one
-resolves. Not playable from the hub yet, on purpose.**
+**Status: playable end to end. Every beat resolves and the level can be finished.**
+Not offered from the hub yet — see What remains.
 `levels.json` keeps an empty `scene_path` for `level_2` and three tests assert it stays
 that way until the level can be finished. `run_level2_audit` is one of them.
 
@@ -74,6 +74,9 @@ nodes; the last has **two routes, not three**, deliberately.
 | `game/scripts/dancer_group_2d.gd` | the dancers, and the one thing here the player can destroy |
 | `game/scripts/bandarita_line_2d.gd` | the bunting: the ceiling, two scraps, and the trade |
 | `game/scripts/dance_overlay.gd` | the screen the dance is played on -- lane, cues, verdicts, two goes |
+| `game/scripts/assembly_overlay.gd` | Scene 3's table: seven torn pieces, drag and snap, and the end of the level |
+| `tools/build_scraps.py` | tears the painting into the seven pieces, along noise-perturbed Voronoi |
+| `tools/build_plaza.py` | flattens the six registered plates into the painting and its front verge |
 | `game/assets/Level2/`, `level-2-assets/` | the art, imported and tracked |
 
 ```bash
@@ -93,6 +96,9 @@ godot --headless --path game --script res://tests/run_nodraw_level2.gd
 ```
 ```bash
 godot --headless --path game --script res://tests/run_dance_probe.gd
+```
+```bash
+godot --headless --path game --script res://tests/run_assembly_probe.gd
 ```
 ```bash
 godot --path game --script res://tests/run_visual_level2.gd
@@ -181,34 +187,28 @@ now guarded.
 
 ## What remains
 
-Ordered by what blocks the most. The first is a screen that does not exist; everything else
-is smaller.
+Nothing here stops the level being played. It is all art, plus one decision.
 
-1. **Scene 3 has no screen and no trigger.** `scrap_assembly.gd` is a model with seven
-   slots, drag and snap; nothing opens it. So the level cannot be finished even with all
-   seven scraps recovered. **This is now the same shape the dance was in** -- a complete
-   model with nothing calling it -- and it is the last one.
-2. **The GoalMarker is still where Level 1 left it** -- `level_2.tscn` puts it at
-   (2450, 460), the church door on the plaza, because the scene is a text copy. Completion
-   is gated on L2_N3 so it cannot fire early, but a player who solves Problem 3 would have
-   to walk back through both alleys and the church to end the level. It belongs after
-   Scene 3, on the boat: the design says `bangka.png` is already waiting and *"ending the
-   level on the boat is the cleanest hook"*.
-3. **The walkable ground is still the plaza painting, tiled.** The design says it should be
-   composed from `TextureMap_Piyesta.png`, which is labelled and gridded and has a stone
-   plaza floor, a mossy-stone wall and a full ledge-cap set ready for it. The slab has
-   collision and no material of its own.
-4. **The rooms are placeholder art.** Church interior, both alleys, the dark-palette
+1. **The four insides are placeholder art.** Church interior, both alleys, the dark-palette
    tileset, the house door set and the kandila's three states are all listed in the design
    under what does not exist. Drawn in code to `ART_PLACEHOLDERS.md` rules; see
    CONTENT_NEEDED.md.
-5. **`LOLOGHOST` has no praying pose and no laughing pose.** Scene 2 is built on the first
+2. **`MG_People` has no no-dancers variant, so scaring them changes nothing on screen.**
+   Everything mechanical about it is live. The composite cannot be made to give the four of
+   them up -- see the commit and CONTENT_NEEDED.md for the two attempts and why both look
+   worse than nothing. The dancers also want their own sprites, a flee cycle and a
+   hand-over-candle pose.
+3. **`LOLOGHOST` has no praying pose and no laughing pose.** Scene 2 is built on the first
    and every restriction violation fires the second. Nothing fakes them.
-6. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
+4. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
    boomerang and cannon, both of which have a real reach, but there is no aim or trajectory
    preview -- the design asks for "angry birds style".
-7. **`levels.json` `scene_path` stays empty** until 1-3 are done, and `run_level2_audit`
-   asserts it.
+5. **The house door set is placeholder**, so four grey slabs stand in a finished painting.
+   The design lists closed / lit from inside / keyhole / open.
+6. **`levels.json` `scene_path` is still empty.** Nothing mechanical blocks it now -- the
+   level can be started, played and finished. What it is waiting on is the art above, and
+   `run_level2_audit` asserts the empty path until somebody decides Piyesta looks finished
+   enough to offer from the hub. **That is a judgement call, not a task.**
 
 ---
 
