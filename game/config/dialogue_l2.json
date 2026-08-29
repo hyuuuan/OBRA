@@ -23,6 +23,7 @@
 
     { "id": "L2_N1_010", "at": "L2_N1.artist.commit", "speaker": "apo", "choice_label": "I will dance for them.", "text": "I will dance for them." },
     { "id": "L2_N1_011", "at": "L2_N1.artist.solved", "text": "Ha! Your lola danced that badly the first time too. They still gave her the flower." },
+    { "id": "L2_N1_013", "at": "L2_N1.artist.retry", "text": "Naku. You have your lola's feet. Go on — they are still waiting." },
     { "id": "L2_N1_012", "at": "L2_N1.artist.failed", "text": "Never mind, apo. You have what we came for. Keep your feet — that is the important part." },
 
     { "id": "L2_N1_015", "at": "L2_N1.pragmatist.commit", "speaker": "apo", "choice_label": "Someone is home. I will let myself in.", "text": "Someone is home. I will let myself in." },

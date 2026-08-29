@@ -1,7 +1,7 @@
 # Level 2 — Piyesta
 
-**Status: the level is connected and walkable end to end, except for two screens that do
-not exist. Not playable from the hub yet, on purpose.**
+**Status: the level is connected and walkable end to end, and every beat but the last one
+resolves. Not playable from the hub yet, on purpose.**
 `levels.json` keeps an empty `scene_path` for `level_2` and three tests assert it stays
 that way until the level can be finished. `run_level2_audit` is one of them.
 
@@ -73,6 +73,7 @@ nodes; the last has **two routes, not three**, deliberately.
 | `game/scripts/kandila_2d.gd` | the candle on the table, which is what Path C is FOR |
 | `game/scripts/dancer_group_2d.gd` | the dancers, and the one thing here the player can destroy |
 | `game/scripts/bandarita_line_2d.gd` | the bunting: the ceiling, two scraps, and the trade |
+| `game/scripts/dance_overlay.gd` | the screen the dance is played on -- lane, cues, verdicts, two goes |
 | `game/assets/Level2/`, `level-2-assets/` | the art, imported and tracked |
 
 ```bash
@@ -89,6 +90,9 @@ godot --headless --path game --script res://tests/run_level2_chain_probe.gd
 ```
 ```bash
 godot --headless --path game --script res://tests/run_nodraw_level2.gd
+```
+```bash
+godot --headless --path game --script res://tests/run_dance_probe.gd
 ```
 ```bash
 godot --path game --script res://tests/run_visual_level2.gd
@@ -153,6 +157,20 @@ now guarded.
     stood still for twenty seconds and reported three green results. Every segment asserts
     how far the body actually travelled now.
 
+16. **A model with no screen is a route that dead-ends, and every suite stayed green.**
+    `DanceMinigame` had cues, windows, two attempts and a clear condition, all tested --
+    and nothing called any of it, so committing "I will dance for them" closed the other
+    two routes and then nothing happened. The same shape as `run_level1_audit` proving Beat
+    0 accepted a square while the level was unplayable. `run_dance_probe` drives the screen
+    rather than the model.
+17. **The verdict was going to be a coloured bar.** Early and late are named separately in
+    the model for one reason -- it is the whole teaching -- and a bar cannot say which way.
+    The word is drawn, and it is drawn on the side of the line the stroke fell on, so a
+    player who reads nothing still learns from where it appeared.
+18. **The draw pad was filled with the panel's own colour**, so the surface the player is
+    told to draw on was invisible and the bottom half of the screen read as empty. Found by
+    looking at a frame. Sixth time.
+
 **Three things `LEVEL_2.md` claimed about the art were wrong**, found by looking: the
 `TRANSPARENT/` set is a registered 1920 × 1080 layer set and **not** a letterboxed copy
 (nothing is cropped); the bandaritas are painted into **three** layers, not two; and
@@ -163,38 +181,33 @@ now guarded.
 
 ## What remains
 
-Ordered by what blocks the most. The first two are screens that do not exist; everything
-else is smaller.
+Ordered by what blocks the most. The first is a screen that does not exist; everything else
+is smaller.
 
-1. **The dance minigame has no screen, and Problem 1's Artist route dead-ends because of
-   it.** `dance_minigame.gd` is the scoring model -- cues, windows, two attempts, what
-   clears -- and nothing calls it. Committing "I will dance for them" closes the other two
-   routes and then nothing happens: no kandila, no church, no way back to the choice. This
-   contradicts the design's own promise that the level is unloseable, it is the largest
-   thing owed, and `run_nodraw_level2` prints it as **PEND** on every run.
-2. **Scene 3 has no screen and no trigger.** `scrap_assembly.gd` is a model with seven
+1. **Scene 3 has no screen and no trigger.** `scrap_assembly.gd` is a model with seven
    slots, drag and snap; nothing opens it. So the level cannot be finished even with all
-   seven scraps recovered.
-3. **The GoalMarker is still where Level 1 left it** -- `level_2.tscn` puts it at
+   seven scraps recovered. **This is now the same shape the dance was in** -- a complete
+   model with nothing calling it -- and it is the last one.
+2. **The GoalMarker is still where Level 1 left it** -- `level_2.tscn` puts it at
    (2450, 460), the church door on the plaza, because the scene is a text copy. Completion
    is gated on L2_N3 so it cannot fire early, but a player who solves Problem 3 would have
    to walk back through both alleys and the church to end the level. It belongs after
    Scene 3, on the boat: the design says `bangka.png` is already waiting and *"ending the
    level on the boat is the cleanest hook"*.
-4. **The walkable ground is still the plaza painting, tiled.** The design says it should be
+3. **The walkable ground is still the plaza painting, tiled.** The design says it should be
    composed from `TextureMap_Piyesta.png`, which is labelled and gridded and has a stone
    plaza floor, a mossy-stone wall and a full ledge-cap set ready for it. The slab has
    collision and no material of its own.
-5. **The rooms are placeholder art.** Church interior, both alleys, the dark-palette
+4. **The rooms are placeholder art.** Church interior, both alleys, the dark-palette
    tileset, the house door set and the kandila's three states are all listed in the design
    under what does not exist. Drawn in code to `ART_PLACEHOLDERS.md` rules; see
    CONTENT_NEEDED.md.
-6. **`LOLOGHOST` has no praying pose and no laughing pose.** Scene 2 is built on the first
+5. **`LOLOGHOST` has no praying pose and no laughing pose.** Scene 2 is built on the first
    and every restriction violation fires the second. Nothing fakes them.
-7. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
+6. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
    boomerang and cannon, both of which have a real reach, but there is no aim or trajectory
    preview -- the design asks for "angry birds style".
-8. **`levels.json` `scene_path` stays empty** until 1-3 are done, and `run_level2_audit`
+7. **`levels.json` `scene_path` stays empty** until 1-3 are done, and `run_level2_audit`
    asserts it.
 
 ---

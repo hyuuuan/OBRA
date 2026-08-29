@@ -65,6 +65,7 @@ func _run() -> void:
 		await _capture(String(step[1]))
 
 	await _tour_the_insides()
+	await _look_at_the_dance()
 
 	print("OBRA_VISUAL_L2_OK")
 	quit(0)
@@ -92,6 +93,40 @@ func _tour_the_insides() -> void:
 		await _wait(1.1)
 		print("  %s: player at %s" % [room_name, player.global_position])
 		await _capture("06_%s" % room_name.to_lower())
+
+
+## THE DANCE, WHICH IS THE ONLY SCREEN IN THIS LEVEL THAT IS NOT THE WORLD. It pauses the
+## tree, so it goes last: everything after it would be photographed frozen.
+##
+## Three frames, because the three things worth looking at happen at different moments -- the
+## lane before anything has been struck, a verdict at the line, and the pips part-way through
+## with some landed and some missed.
+func _look_at_the_dance() -> void:
+	var director = level.get("director")
+	if director == null:
+		return
+	director.call("commit_route", "L2_N1", "artist")
+	var screen := level.get("dance_screen") as DanceOverlay
+	for _frame in range(240):
+		if screen != null and screen.is_open():
+			break
+		await process_frame
+	if screen == null or not screen.is_open():
+		print("  dance: never opened")
+		return
+	await _wait(0.8)
+	await _capture("07_dance_lane")
+	# On the beat, so the frame catches a PERFECT at the line.
+	var track: PackedFloat32Array = (level.get("dance") as DanceMinigame).track()
+	for index in range(3):
+		while screen.clock() < track[index] and screen.is_open():
+			await process_frame
+		var verdict := screen.perform_stroke()
+		if index == 0:
+			await _capture("08_dance_verdict")
+		print("  dance: cue %d -> %s at t=%.2f" % [index, verdict, screen.clock()])
+	await _wait(0.6)
+	await _capture("09_dance_pips")
 
 
 func _capture(label: String) -> void:

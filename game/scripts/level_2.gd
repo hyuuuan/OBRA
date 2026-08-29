@@ -42,6 +42,7 @@ const RestrictionsClass = preload("res://scripts/level_restrictions.gd")
 const LedgerClass = preload("res://scripts/scrap_ledger.gd")
 const AssemblyClass = preload("res://scripts/scrap_assembly.gd")
 const DanceClass = preload("res://scripts/dance_minigame.gd")
+const DanceOverlayClass = preload("res://scripts/dance_overlay.gd")
 
 ## The canvas Level 1's Protector route creases. Read from the profile, drawn on the
 ## assembled picture, and changing nothing else -- see LEVEL_1.md, where the fact that this
@@ -64,6 +65,8 @@ var restrictions: LevelRestrictions
 var ledger: ScrapLedger
 var assembly: ScrapAssembly
 var dance: DanceMinigame
+## The screen the dance is played on. The model scores; this is what the player touches.
+var dance_screen: DanceOverlay
 
 ## Where the bandaritas hang in the plaza, read off the scene rather than typed twice.
 var _bunting_y := -INF
@@ -171,6 +174,7 @@ func _build_level_furniture() -> void:
 	add_child(dance)
 	dance.set_track(dance_track)
 	dance.finished.connect(_on_dance_finished)
+	_build_the_dance_screen()
 
 	_build_the_doors()
 	_wire_the_rooms()
@@ -272,6 +276,56 @@ func _furnish_the_church() -> void:
 	chancel.at_rack.connect(_on_at_rack)
 	chancel.kandila_placed.connect(_on_kandila_placed)
 	chancel.priest_arrived.connect(_on_priest_arrived)
+
+
+## THE SCREEN, AND THE ONE THING THAT OPENS IT.
+##
+## The dance is answered on COMMIT rather than on solve, and that is the whole reason this
+## needed its own wiring. Every other route in the game is solved by a drawing the recogniser
+## accepted, so `_on_route_solved` is where a level acts. This route has no `required_tags`
+## at all -- it declares `answered_by: dance_minigame` -- so nothing was ever going to solve
+## it, and committing it closed the other two and left the player standing there.
+func _build_the_dance_screen() -> void:
+	dance_screen = DanceOverlayClass.new()
+	dance_screen.name = "DanceOverlay"
+	add_child(dance_screen)
+	dance_screen.bind(dance)
+	dance_screen.run_finished.connect(_on_dance_screen_finished)
+	dance_screen.attempt_lost.connect(_on_dance_attempt_lost)
+	if director != null:
+		director.route_committed.connect(_on_route_committed_here)
+
+
+func _on_route_committed_here(obstacle_id: String, route: String) -> void:
+	if obstacle_id != "L2_N1" or route != "artist" or dance_screen == null:
+		return
+	# AFTER the commit line, not over the top of it. "I will dance for them" is spoken by
+	# the base off `route_committed`, and opening a modal in the same frame would put a
+	# rhythm lane over a sentence the player has not read yet.
+	await get_tree().create_timer(1.1, true, false, true).timeout
+	if dance_screen != null and is_instance_valid(dance_screen):
+		dance_screen.present()
+
+
+## THE PERFORMANCE IS OVER, whichever way it went.
+##
+## `solve_with_item` rather than a submission, and the director already has that door: it
+## records no attempt, no tag match and no hint tier, "because neither happened". A dance is
+## not a drawing, and pushing it through `note_submission` would put a class nobody drew into
+## this level's per-class statistics -- which is exactly the reporting rule the thesis is
+## built on. The item is the dance itself.
+func _on_dance_screen_finished(_cleared: bool, _flower: bool) -> void:
+	# The flower and the telemetry were already recorded by `_on_dance_finished`, off the
+	# model's own signal, so nothing about the outcome is decided twice.
+	if director != null and not director.is_solved("L2_N1"):
+		director.solve_with_item("L2_N1", "dance")
+
+
+## Between the two goes. The design asks for Lolo to TEASE rather than instruct -- same
+## register as the restriction dialogue, he is enjoying this -- so the line is authored in
+## dialogue_l2.json and not written on the screen.
+func _on_dance_attempt_lost(_attempts_used: int) -> void:
+	_speak(script_lines.fire("L2_N1.artist.retry"))
 
 
 ## The dancers, on their mark. They are the plaza's whole reason for being full, and the one
@@ -617,13 +671,19 @@ func _refresh_the_ceiling() -> void:
 func _on_route_solved(obstacle_id: String, route: String) -> bool:
 	match [obstacle_id, route]:
 		["L2_N1", "artist"]:
-			# ⚠ THE DANCE IS NOT PLAYABLE YET. `dance_minigame.gd` is the scoring model and
-			# nothing puts a cue on screen or times a stroke against it, so this route hands
-			# the kandila over without a performance and THE FLOWER CANNOT BE EARNED --
-			# `_on_dance_finished` has no caller. Recorded in LEVEL_2.md as the largest thing
-			# still owed. Handing the candle over is right either way: the design says the
-			# level is unloseable and only the flower is ever at stake.
+			# Reached from `_on_dance_screen_finished` whichever way the dance went. THE
+			# KANDILA IS NEVER WITHHELD -- that is what makes this level unloseable, and only
+			# the flower was ever at stake. The flower is recorded separately, off the model's
+			# own `finished`, so a player who failed both goes still walks away with a candle
+			# and is never told what they missed.
 			_hold_the_kandila()
+			# ⚠ AND THE RIGHT LINE FOR WHAT ACTUALLY HAPPENED. The generic `.solved` line is
+			# "they still gave her the flower", which is a lie to a player who failed twice --
+			# and `.failed` was authored for exactly that case and had never fired. Returning
+			# true is what stops the base speaking the other one over the top of it.
+			if dance != null and not dance.cleared():
+				_speak(script_lines.fire("L2_N1.artist.failed"))
+				return true
 		["L2_N1", "protector"]:
 			# One way, and they do not come back. The quiet line waits until they have
 			# actually gone rather than firing over the top of them leaving.
