@@ -9,6 +9,7 @@ extends SceneTree
 
 const RestrictionsClass = preload("res://scripts/level_restrictions.gd")
 const LedgerClass = preload("res://scripts/scrap_ledger.gd")
+const DanceClass = preload("res://scripts/dance_minigame.gd")
 
 const LEVEL_PATH := "res://config/level_02.json"
 const ENTITIES_PATH := "res://config/entities.json"
@@ -45,6 +46,7 @@ func _run() -> void:
 	_probe_ceiling()
 	_probe_ledger()
 	_probe_scrap_conservation()
+	_probe_dance()
 	for line in results:
 		print(line)
 	# `quit()` schedules the exit; it does not return, so without the else this printed
@@ -55,6 +57,59 @@ func _run() -> void:
 	else:
 		print("OBRA_LEVEL2_SYSTEMS_FAILED=%d" % failures)
 		quit(1)
+
+
+## The one route in this project answered by something other than a drawing. What has to be
+## true of it is not that it is fun -- it is that it CANNOT DEAD-END THE RUN.
+func _probe_dance() -> void:
+	var beats := PackedFloat32Array([1.0, 2.0, 3.0, 4.0, 5.0])
+
+	# Cleared first go.
+	var d = DanceClass.new(); root.add_child(d)
+	d.set_track(beats); d.begin_attempt()
+	for i in range(5):
+		d.judge(i, beats[i] + 0.05)
+	_check(d.perfect_count() == 5, "a stroke on the beat is perfect", "5 of 5")
+	_check(d.end_attempt(), "clearing it ends the run", "one attempt")
+	_check(d.cleared() and d.flower_earned() and d.kandila_earned(),
+		"cleared in one gives both", "kandila and flower")
+	d.queue_free()
+
+	# Early and late still count -- the bar names them so the player learns which way.
+	d = DanceClass.new(); root.add_child(d)
+	d.set_track(beats); d.begin_attempt()
+	_check(d.judge(0, beats[0] - 0.25) == "early", "a stroke before the beat reads early", "-0.25s")
+	_check(d.judge(1, beats[1] + 0.25) == "late", "and after it reads late", "+0.25s")
+	_check(d.judge(2, beats[2] + 1.20) == "miss", "far enough out is a miss", "+1.20s")
+	_check(d.landed() == 2, "early and late still land", "2 landed, 1 missed")
+	d.queue_free()
+
+	# Failed twice: the flower is withheld and NOTHING ELSE IS.
+	d = DanceClass.new(); root.add_child(d)
+	d.set_track(beats)
+	d.begin_attempt()
+	for i in range(5):
+		d.judge(i, beats[i] + 4.0)
+	_check(not d.end_attempt(), "failing the first go does not end it", "one left")
+	_check(d.attempts_left() == 1, "and says so", "%d left" % d.attempts_left())
+	d.begin_attempt()
+	for i in range(5):
+		d.judge(i, beats[i] + 4.0)
+	_check(d.end_attempt(), "failing the second ends it", "both used")
+	_check(not d.flower_earned(), "the flower is withheld", "three routes lose it, all silently")
+	_check(d.kandila_earned(),
+		"BUT THE KANDILA IS NOT", "the level cannot dead-end -- only the flower is at stake")
+	d.queue_free()
+
+	# A third go is not on offer.
+	d = DanceClass.new(); root.add_child(d)
+	d.set_track(beats)
+	d.begin_attempt(); d.end_attempt(); d.begin_attempt(); d.end_attempt()
+	var before: int = d.attempts_used()
+	d.begin_attempt()
+	_check(d.attempts_used() == before and d.is_finished(),
+		"a third attempt is refused", "%d used, finished" % d.attempts_used())
+	d.queue_free()
 
 
 func _fresh() -> Node:

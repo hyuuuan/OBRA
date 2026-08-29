@@ -18,6 +18,7 @@ extends SceneTree
 
 const AbilityTagsScript = preload("res://scripts/ability_tags.gd")
 const DialogueScriptClass = preload("res://scripts/dialogue_script.gd")
+const UtilityObjectClass = preload("res://scripts/utility_object.gd")
 
 const TAGS_PATH := "res://config/tags.json"
 const LEVEL_PATH := "res://config/level_02.json"
@@ -66,6 +67,7 @@ func _run() -> void:
 	_audit_ban_list_subtracted(level)
 	_audit_restriction_classes_exist(level)
 	_audit_no_route_fights_the_ceiling(level)
+	_audit_ranged_routes_can_reach(level)
 	_audit_tags_taught_before_use(level)
 	_audit_checkpoints_precede_morphs(level)
 	_audit_no_line_names_a_class(dialogue)
@@ -219,6 +221,50 @@ func _audit_no_route_fights_the_ceiling(level: Dictionary) -> void:
 					% [entry[0], entry[1], candidate])
 	_check(problems.is_empty(), "no route fights the ceiling",
 		"%d capped class(es), none reachable as an answer" % ceiling.size()
+		if problems.is_empty() else "; ".join(problems))
+
+
+## AN ANSWER THAT CANNOT REACH IS NOT AN ANSWER, and the tag layer cannot see it.
+##
+## `strike` means "able to hit hard in one place", which is true of a boomerang, an axe and
+## a sword. Level 2 asks it to knock a bird out of the air, and only one of those three
+## leaves the hand -- a blade swings inside TOOL_REACH. So the route resolved to three
+## classes, the player drew any of them, the game accepted the drawing, and two of the
+## three then did nothing at all. That is the same defect as a route accepting a class the
+## ceiling punishes, one layer down, and it is invisible to every check that reads data.
+##
+## A route that needs distance declares `requires_reach_px`; every class it accepts must
+## have a behaviour that reaches at least that far. The reaches are READ OFF the constants
+## in utility_object.gd rather than copied here, so tuning a throw cannot silently
+## invalidate a level.
+func _audit_ranged_routes_can_reach(level: Dictionary) -> void:
+	var roster: Dictionary = {}
+	for entity_value: Variant in _load(ENTITIES_PATH).get("entities", []):
+		var entity: Dictionary = entity_value
+		roster[String(entity.get("id", ""))] = entity
+	var problems: Array[String] = []
+	var checked := 0
+	for entry in _routes_of(level):
+		var route: Dictionary = entry[2]
+		if not route.has("requires_reach_px"):
+			continue
+		var needed := float(route["requires_reach_px"])
+		for candidate in _solutions(route):
+			var entity: Dictionary = roster.get(candidate, {})
+			# A creature has no utility_behavior; it reaches by BEING somewhere, and a
+			# route that needs a thrown answer should not have resolved to one.
+			var behaviour := String(entity.get("utility_behavior", ""))
+			if behaviour.is_empty():
+				problems.append("%s.%s accepts '%s', which is not a thing you throw"
+					% [entry[0], entry[1], candidate])
+				continue
+			var reach: float = UtilityObjectClass.reach_of(behaviour)
+			checked += 1
+			if reach < needed:
+				problems.append("%s.%s accepts '%s', which reaches %.0fpx of the %.0fpx it needs"
+					% [entry[0], entry[1], candidate, reach, needed])
+	_check(problems.is_empty(), "a ranged route's answers can reach",
+		"%d answer(s) checked against their real reach" % checked
 		if problems.is_empty() else "; ".join(problems))
 
 
