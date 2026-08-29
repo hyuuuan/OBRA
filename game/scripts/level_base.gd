@@ -132,6 +132,8 @@ var inventory_screen: InventoryScreen
 var cinematic: CinematicBars
 ## Top right: the drawing the player is currently wearing, and how long it has left.
 var morph_card: MorphCard
+## R and Q at the lower left; E and F beside the current body only while they can act.
+var action_prompts: ActionPromptHUD
 ## What the recogniser scored the sketch that is currently being adopted.
 ##
 ## Carried on the level rather than threaded through _spawn_or_replace, which is called from
@@ -1506,8 +1508,8 @@ func _on_utility_pickup_requested(utility: PhysicsShapeObject) -> void:
 	if utility == null or not is_instance_valid(utility):
 		return
 	# A tool taken out of a slot never left the bag, so putting it away must not put a
-	# second copy in. Without this, E on a held axe handed the inventory an axe it was
-	# already holding and the player duplicated it every time they stowed it.
+	# second copy in. Without this, a pickup request on a held axe handed the inventory an
+	# axe it was already holding and duplicated it every time it was stowed.
 	if utility.item_data != null and _slot_holding(utility.item_data.entity_id) >= 0:
 		if utility == _equipped_utility:
 			_stow_equipped()
@@ -1562,14 +1564,22 @@ func _on_utility_consumed(utility: UtilityObject) -> void:
 ## True when it actually reached something, so the interact key can fall through to
 ## whatever else is standing here.
 func _interact_with_nearest_utility() -> bool:
-	if player == null or not is_instance_valid(player):
+	var nearest := _nearest_interactable_utility()
+	if nearest == null:
 		return false
-	var origin := player.global_position
-	if player.has_method("get_physics_anchor"):
-		var anchor := player.call("get_physics_anchor") as Node2D
-		if anchor != null:
-			origin = anchor.global_position
-	var nearest: PhysicsShapeObject
+	_connect_utility(nearest)
+	nearest.interact(player)
+	return true
+
+
+## One range query shared by the key and its prompt. If these were two loops, the most
+## damaging possible UI bug would be easy to write: an E chip hovering over the apo while
+## E itself reaches nothing, or a silent pickup that the HUD claims is out of range.
+func _nearest_interactable_utility() -> PhysicsShapeObject:
+	if player == null or not is_instance_valid(player):
+		return null
+	var origin := _player_anchor_position()
+	var nearest: PhysicsShapeObject = null
 	var nearest_distance := 96.0
 	# `placed_drawings`, not `drawn_utilities`: the second group is joined by UtilityObject
 	# alone, so a placed square or triangle was not in it and E walked straight past the one
@@ -1578,6 +1588,12 @@ func _interact_with_nearest_utility() -> bool:
 		var utility := candidate as PhysicsShapeObject
 		if utility == null or utility.is_preview:
 			continue
+		# A held tool keeps its placed_drawings group when it is reparented to the grip, but
+		# it is not in the world and E is not how it is put away (its inventory slot is).
+		# Skipping everything outside WorldItemRoot lets a nearby placed drawing still offer
+		# E while the tool in hand independently offers F.
+		if utility == _equipped_utility or utility.get_parent() != world_item_root:
+			continue
 		# Measured to the object's SURFACE. Against its centre, a standing ladder was
 		# 122px away from someone with their hand on it and E could never reach it --
 		# and it got worse the moment ladders were given their proper height.
@@ -1585,11 +1601,7 @@ func _interact_with_nearest_utility() -> bool:
 		if distance <= nearest_distance:
 			nearest = utility
 			nearest_distance = distance
-	if nearest == null:
-		return false
-	_connect_utility(nearest)
-	nearest.interact(player)
-	return true
+	return nearest
 
 
 ## POINT AT IT AND TAKE IT BACK. E reaches 96px, which is no help once a drawing has rolled
@@ -1643,6 +1655,39 @@ func _use_equipped_utility() -> void:
 		else "%s can't do that here" % _equipped_utility.item_data.display_name
 
 
+## Availability is refreshed from the same objects the actions use. R is intentionally
+## absent here because it is always available; the prompt controller keeps it standing.
+func _refresh_action_prompts() -> void:
+	if action_prompts == null:
+		return
+	action_prompts.follow(player)
+	var can_act := not _level_completed \
+		and player != null and is_instance_valid(player) \
+		and not placement_controller.is_placing()
+	action_prompts.set_revert_available(can_act and not (player is Wanderer))
+
+	var pickup: PhysicsShapeObject = _nearest_interactable_utility() if can_act else null
+	var can_pick_up := pickup != null
+	action_prompts.set_pickup_available(
+		can_pick_up,
+		_drawing_display_name(pickup) if can_pick_up else "")
+
+	var can_use := can_act and _equipped_utility != null \
+		and is_instance_valid(_equipped_utility) \
+		and _equipped_utility.is_held_tool()
+	action_prompts.set_use_available(
+		can_use,
+		_drawing_display_name(_equipped_utility) if can_use else "")
+
+
+func _drawing_display_name(drawing: PhysicsShapeObject) -> String:
+	if drawing == null or not is_instance_valid(drawing):
+		return ""
+	if drawing.item_data != null and not drawing.item_data.display_name.is_empty():
+		return drawing.item_data.display_name
+	return drawing.name.replace("_", " ").capitalize()
+
+
 func _drop_equipped_before_morph(previous_state: Dictionary) -> void:
 	if _equipped_utility == null or not is_instance_valid(_equipped_utility):
 		_equipped_utility = null
@@ -1688,7 +1733,7 @@ func _build_hud_frame() -> void:
 	_wrap_in_chip(goal_label, "bottom_right", Vector2(-24.0, -80.0), 150.0,
 		UIGlyph.Kind.FLAG)
 	_build_morph_card()
-	_frame_controls_legend()
+	_build_action_prompts()
 	_build_dialogue_box()
 
 
@@ -1711,9 +1756,8 @@ func _build_dialogue_box() -> void:
 
 ## The top-right corner: what the player currently IS.
 ##
-## THIS REPLACED THE R-DRAW CHIP. That chip said one word the player needs to read once, in
-## the corner most likely to be looked at -- and the controls strip along the bottom already
-## says R DRAW, so retiring it loses nothing and frees the corner for something that changes.
+## THIS REPLACED THE OLD TOP-RIGHT R-DRAW CHIP. Drawing now has one dedicated prompt at the
+## lower left, so the corner is free for something that changes.
 func _build_morph_card() -> void:
 	draw_button.visible = false
 	morph_card = MorphCard.new()
@@ -1728,97 +1772,20 @@ func _build_morph_card() -> void:
 	$CanvasLayer.add_child(morph_card)
 
 
-## The Draw button, as a key prompt rather than a button. Kept because the scene still owns
-## the node and `_on_draw_pressed` is still wired to it; it is simply not shown any more --
-## see _build_morph_card for what stands in that corner now.
-##
-## It was the only control on the HUD shaped like a button, which made it the loudest
-## thing on screen and said the wrong thing twice: that drawing is done by clicking here
-## (it is done by pressing R, from anywhere) and that this is a place to look (it is a
-## reminder). Now it wears the chip frame the other readouts wear, with the key itself set
-## into it, so it reads as "R does this" -- which is what the player needs to learn once
-## and then never read again.
-##
-## It stays a Button. Clicking it still opens the panel, which is worth keeping for anyone
-## who reaches for the mouse first, and the hit area is unchanged.
-func _style_action_tag() -> void:
-	if draw_button == null:
-		return
-	for state in [&"normal", &"hover", &"pressed", &"disabled"]:
-		draw_button.add_theme_stylebox_override(state, UISkin.chip(8.0, 4.0))
-	draw_button.add_theme_color_override(&"font_color", UISkin.GOLD_PALE)
-	draw_button.add_theme_color_override(&"font_hover_color", UISkin.GOLD)
-	draw_button.add_theme_color_override(&"font_disabled_color", UISkin.MUTED)
-	draw_button.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
-	draw_button.add_theme_constant_override(&"h_separation", 8)
-	# Room made on the left for the key badge, which is drawn over the button rather than
-	# laid out inside it: a Button is not a container, so a child Control added to it is
-	# positioned, not packed, and the label centres itself in the whole rect regardless.
-	draw_button.alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	draw_button.add_theme_constant_override(&"align_to_largest_stylebox", 0)
-	draw_button.add_child(_key_badge("R"))
-
-
-## One key, drawn as a key: a lime tile with the letter cut out of it dark. The same shape
-## the controls legend uses, at the size a chip can hold.
-func _key_badge(key: String) -> Control:
-	var badge := PanelContainer.new()
-	badge.name = "KeyBadge"
-	var cap := StyleBoxFlat.new()
-	cap.bg_color = UISkin.GOLD
-	cap.set_corner_radius_all(UISkin.RADIUS)
-	cap.content_margin_left = 5.0
-	cap.content_margin_right = 5.0
-	cap.content_margin_top = 1.0
-	cap.content_margin_bottom = 1.0
-	badge.add_theme_stylebox_override(&"panel", cap)
-	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	badge.position = Vector2(8.0, 7.0)
-	var letter := Label.new()
-	letter.text = key
-	letter.add_theme_color_override(&"font_color", UISkin.GOLD_LABEL)
-	letter.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
-	letter.add_theme_constant_override(&"shadow_offset_x", 0)
-	letter.add_theme_constant_override(&"shadow_offset_y", 0)
-	badge.add_child(letter)
-	return badge
-
-
-## The keybind row, on a ground it can be read against.
-##
-## It was bare outlined text lying directly on the level, along the bottom edge -- which
-## in Level 1 is grass, stone and water, all of it the same value as the text. The row was
-## unreadable in exactly the first thirty seconds it exists to serve.
-##
-## It still fades. That is a deliberate decision and not a look: the row is worth having
-## while the player is learning where the keys are, and the Controls screen has the same
-## five lines for the rest of the time.
-func _frame_controls_legend() -> void:
-	var keys := $CanvasLayer/HintLabel as Label
-	if keys == null:
-		return
-	var strip := PanelContainer.new()
-	strip.name = "ControlsStrip"
-	strip.add_theme_stylebox_override(&"panel", UISkin.strip())
-	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var parent := keys.get_parent()
-	parent.remove_child(keys)
-	strip.add_child(keys)
-	parent.add_child(strip)
-	keys.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	# Outlined type on a solid strip is a belt over a belt, and the outline is what makes
-	# a small font look furry.
-	keys.add_theme_constant_override(&"outline_size", 0)
-	strip.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	_place_chip(strip, "bottom_left", Vector2(24.0, -18.0))
-	_place_chip.call_deferred(strip, "bottom_left", Vector2(24.0, -18.0))
-	_chips.append({"chip": strip, "corner": "bottom_left", "offset": Vector2(24.0, -18.0)})
-	if not get_viewport().size_changed.is_connected(_place_all_chips):
-		get_viewport().size_changed.connect(_place_all_chips)
-
-	var fade := create_tween()
-	fade.tween_interval(14.0)
-	fade.tween_property(strip, "modulate:a", 0.0, 1.2)
+## The old controls legend advertised six actions from the first frame, including four
+## that could do nothing. Each verb now owns its availability and presentation. The old
+## HintLabel remains authored in the scene only as a compatibility node; it never draws.
+func _build_action_prompts() -> void:
+	var old_legend := $CanvasLayer/HintLabel as Label
+	if old_legend != null:
+		old_legend.visible = false
+	action_prompts = ActionPromptHUD.new()
+	action_prompts.name = "ActionPrompts"
+	$CanvasLayer.add_child(action_prompts)
+	action_prompts.bind_draw_button(draw_button)
+	action_prompts.interact_requested.connect(func() -> void: _interact_with_nearest_utility())
+	action_prompts.use_requested.connect(_use_equipped_utility)
+	action_prompts.revert_requested.connect(_revert_to_base_form)
 
 
 ## A label sized to its own text, parked in a corner.
@@ -1942,6 +1909,7 @@ func _on_ink_changed(remaining: float, capacity: float, reserved: float) -> void
 
 
 func _physics_process(_delta: float) -> void:
+	_refresh_action_prompts()
 	if _level_completed or goal_marker == null:
 		return
 	if player == null or not is_instance_valid(player):
@@ -2193,6 +2161,8 @@ func _adopt_player(new_player: Node2D, previous_state: Dictionary, flash: bool) 
 
 	var old_player := player
 	player = new_player
+	if action_prompts != null:
+		action_prompts.follow(new_player)
 	if lolo != null and is_instance_valid(lolo):
 		lolo.follow(new_player)
 	# Whoever the player is now, a loose floating tread has to ignore them -- see

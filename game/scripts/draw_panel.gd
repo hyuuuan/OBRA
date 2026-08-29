@@ -40,6 +40,8 @@ var ink_manager: InkManager
 @onready var guess_label: Label = $PanelRoot/GuessLabel
 @onready var client: Node = $PanelRoot/SketchClient
 
+const OPEN_DURATION := 0.54
+
 ## The header's own ink readout. The scrim covers the HUD, so while the panel is open the
 ## gauge in the corner of the screen is hidden -- at exactly the moment ink matters most.
 var _ink_gauge: InkBrush
@@ -52,6 +54,7 @@ var _is_open := false
 var pauses_game := true
 var _submitting := false
 var _open_tween: Tween = null
+var _scrim_material: ShaderMaterial
 var _submit_started_usec: int = 0
 ## --- live guessing ---------------------------------------------------------
 ## The canvas revision the last live guess was taken from. While it trails the
@@ -78,6 +81,7 @@ func _ready() -> void:
 	add_to_group(ModalOverlay.GROUP)
 	_telemetry = get_node_or_null("/root/Telemetry")
 	_profile = get_node_or_null("/root/PlayerProfile")
+	_scrim_material = scrim.material as ShaderMaterial
 	visible = false
 	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_style_panel()
@@ -256,7 +260,11 @@ func _style_panel() -> void:
 	# Darker than it was, because the panel behind the controls is gone. With a slab under
 	# them the buttons and the status line had their own ground; floating over the level they
 	# only have the scrim, and at 0.62 the terraces still read straight through the words.
-	scrim.color = Color(UISkin.INK.r, UISkin.INK.g, UISkin.INK.b, 0.88)
+	# The scrim's shader owns the tint now; white keeps ColorRect from multiplying the
+	# sampled level, while modulate.a remains available to fade the whole lens in.
+	scrim.color = Color.WHITE
+	if _scrim_material != null:
+		_scrim_material.set_shader_parameter(&"veil_color", UISkin.INK)
 	# NOTHING BEHIND THE FRAME. The panel used to be a lime-bordered slab with the gilt oval
 	# drawn on top of it, which read as two objects -- a mirror sitting in a box -- and the
 	# box was the one the eye found first. The oval IS the panel now: what opens is the
@@ -493,13 +501,21 @@ func _play_open_animation() -> void:
 		_open_tween.kill()
 	panel_root.pivot_offset = panel_root.size * 0.5
 	scrim.modulate.a = 0.0
-	panel_root.modulate.a = 0.0
-	panel_root.scale = Vector2(0.92, 0.92)
+	panel_root.modulate = Color(UISkin.GOLD_PALE.r, UISkin.GOLD_PALE.g, UISkin.GOLD_PALE.b, 0.0)
+	panel_root.scale = Vector2(0.84, 0.84)
+	if _scrim_material != null:
+		_scrim_material.set_shader_parameter(&"opening_burst", 1.0)
 
 	_open_tween = create_tween()
 	_open_tween.set_parallel(true)
-	_open_tween.tween_property(scrim, "modulate:a", 1.0, 0.14)
-	_open_tween.tween_property(panel_root, "modulate:a", 1.0, 0.16)
-	_open_tween.tween_property(panel_root, "scale", Vector2.ONE, 0.18) \
+	_open_tween.tween_property(scrim, "modulate:a", 1.0, 0.34) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_open_tween.tween_property(panel_root, "modulate", Color.WHITE, 0.28) \
+		.set_delay(0.06).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_open_tween.tween_property(panel_root, "scale", Vector2.ONE, OPEN_DURATION) \
+		.set_delay(0.03) \
 		.set_trans(Tween.TRANS_BACK) \
 		.set_ease(Tween.EASE_OUT)
+	if _scrim_material != null:
+		_open_tween.tween_property(_scrim_material, "shader_parameter/opening_burst", 0.0, 0.92) \
+			.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
