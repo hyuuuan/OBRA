@@ -38,7 +38,7 @@
       "resets": ["position"],
       "lifted_by_flag": "bandaritas_cut",
       "drawn_at": "the bandarita line in each scene",
-      "$comment": "Per scene, not one global number: whatever Y the bandaritas are strung at, the ceiling sits just under it, and the warning band is DRAWN AT THE LINE so the boundary is the art rather than a HUD element. Lifting it on bandaritas_cut is what makes cutting a trade rather than a free choice. ⚠ OPEN: Alley 1 (L2_N2) has no bandaritas in the art list, so its ceiling has no diegetic line yet -- it needs one, or the cap is an invisible wall exactly where the design says it must not be."
+      "$comment": "Per scene, not one global number: whatever Y the bandaritas are strung at, the ceiling sits just under it, and the warning band is DRAWN AT THE LINE so the boundary is the art rather than a HUD element. Lifting it on bandaritas_cut is what makes cutting a trade rather than a free choice. CLOSED 2026-08-30: Alley 1 had no bandaritas in the art list and so no diegetic line to hang its cap on. It has one now -- a run of bunting strung across the alley at 460px above its floor, holding nothing. A town dressed for a fiesta has bunting in its side streets too, and the alternative was an invisible wall exactly where the design says there must not be one. run_level2_scene_probe measures both lines."
     }
   },
   "scrap_economy": {

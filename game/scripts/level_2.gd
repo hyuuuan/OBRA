@@ -12,6 +12,28 @@ extends "res://scripts/level_base.gd"
 ##   * A CEILING THAT IS A PLACE. It is set per scene from the bandaritas' own Y, so the
 ##     boundary is the art rather than a HUD element, and it lifts when the line is cut.
 
+## WHERE ALLEY 2'S BUNTING HANGS, above that alley's floor, and it is a measured number.
+##
+## The window is narrow and both walls of it are real. A player standing on a drawn primitive
+## reaches 80 + 96 + 94.3 = 270 at the top of a jump (R4 and R1), so a line at or under that
+## is not a Climb gate at all -- it is a hop. Standing on drawn stairs, which `climb`
+## resolves to and which the design names outright, reaches 176 + 96 + 94.3 = 366; a ladder
+## climbed reaches 340. So the line has to sit above 270 and below 340, and 320 is the
+## middle of that with about fifty pixels of margin each way.
+##
+## ⚠ MOVING THIS BREAKS THE LEVEL IN ONE DIRECTION OR THE OTHER, silently. Lower and Problem
+## 3 can be jumped; higher and half of `climb`'s own answers cannot reach it, which is scar
+## 3 of this level repeating. `run_level2_scene_probe` measures both walls.
+const ALLEY_2_LINE := 320.0
+## Alley 1's line is a CEILING AND NOTHING ELSE -- nothing is strung on it. It exists because
+## `level_02.json` records the gap in so many words: that alley needs a flight cap and had no
+## diegetic line to hang it on, "or the cap is an invisible wall exactly where the design says
+## it must not be". A town dressed for a fiesta has bunting in its side streets too.
+const ALLEY_1_LINE := 460.0
+## How high the flock rides above the alley floor. Inside the 260px the level data gives the
+## Protector route as its reach, so a player standing under a bird can hit it.
+const BIRDS_RIDE := 200.0
+
 const RestrictionsClass = preload("res://scripts/level_restrictions.gd")
 const LedgerClass = preload("res://scripts/scrap_ledger.gd")
 const AssemblyClass = preload("res://scripts/scrap_assembly.gd")
@@ -59,6 +81,21 @@ var _at_door: PiyestaDoor2D = null
 ## Scene 2's furniture, built inside the church room.
 var chancel: ChurchInterior2D
 var _at_rack := false
+## The bunting in each scene that has any, by room name. The ceiling is read off these.
+var _lines: Dictionary = {}
+## Which room the ceiling is currently set for, so it is changed when the answer changes
+## rather than every frame. Same shape as `_refresh_room_framing`.
+var _ceiling_for := "?"
+var _birds: Array[ScrapBird2D] = []
+## WHICH pieces went on ahead, not how many.
+##
+## `ScrapLedger.defer` takes a COUNT and sets it, because the design's BIRDS_IN_ALLEY2 is an
+## integer -- and that is right for the ledger, which only has to know how many birds Alley 2
+## spawns. But `recover` takes an ID, so recovering the deferred ones needs to know which
+## five, and the level is the only thing that does. Guessing by index recovered `alley1_0`
+## for a bird that was actually `alley1_3`, hit nothing (recover is idempotent), and finished
+## the run at four of seven with no error anywhere.
+var _deferred_ids: Array[String] = []
 ## Whether the kandila is in hand. LEVEL RUN STATE, not the profile: `has_object` is
 ## permanent by design, so recording it there would open every later run of Piyesta with the
 ## candle already found and the whole of Problem 1 already answered. Level 1 made exactly
@@ -134,6 +171,8 @@ func _build_level_furniture() -> void:
 	_wire_the_rooms()
 	_put_the_kandila_in_the_house()
 	_furnish_the_church()
+	_string_the_bunting()
+	_release_the_flock()
 
 
 func _roster_ids() -> PackedStringArray:
@@ -227,6 +266,96 @@ func _furnish_the_church() -> void:
 	chancel.at_rack.connect(_on_at_rack)
 	chancel.kandila_placed.connect(_on_kandila_placed)
 	chancel.priest_arrived.connect(_on_priest_arrived)
+
+
+## THE BUNTING, IN EVERY SCENE THAT HAS ANY. Each line owns its own Y and the flight rule
+## reads the ceiling off it, which is what makes the boundary the art rather than a number.
+func _string_the_bunting() -> void:
+	for entry: Array in [[alley_1, ALLEY_1_LINE, 0], [alley_2, ALLEY_2_LINE,
+			ScrapLedger.IN_ALLEY_2]]:
+		var room := entry[0] as PiyestaRoom2D
+		if room == null:
+			continue
+		var line := BandaritaLine2D.new()
+		line.name = "Bandaritas"
+		line.span = room.room_length - 120.0
+		line.scraps_held = int(entry[2])
+		line.position = Vector2(0.0, -float(entry[1]))
+		room.add_child(line)
+		line.cut.connect(_on_bandaritas_cut)
+		line.reached.connect(_on_bandaritas_reached)
+		_lines[room.name] = line
+
+
+## Five birds, five pieces, individually addressable. The design is explicit that the
+## outcome is per-bird rather than pass or fail, which is only true if there are five things
+## rather than a number.
+func _release_the_flock() -> void:
+	if alley_1 == null:
+		return
+	var run := alley_1.room_length - 260.0
+	for index in range(ScrapLedger.IN_ALLEY_1):
+		var bird := ScrapBird2D.new()
+		bird.name = "Bird%d" % index
+		bird.scrap_id = "alley1_%d" % index
+		bird.position = Vector2(
+			-run * 0.5 + run * (float(index) + 0.5) / float(ScrapLedger.IN_ALLEY_1),
+			-BIRDS_RIDE)
+		alley_1.add_child(bird)
+		bird.scrap_dropped.connect(_on_scrap_dropped)
+		bird.flew_off.connect(_on_bird_flew_off)
+		_birds.append(bird)
+
+
+func _on_scrap_dropped(scrap_id: String, _at: Vector2) -> void:
+	if ledger != null:
+		ledger.recover(scrap_id)
+
+
+## Deferred, never lost. Alley 2's line spawns exactly this many tangled birds, which is the
+## promise the whole scrap economy rests on.
+func _on_bird_flew_off(scrap_id: String) -> void:
+	if scrap_id.is_empty() or _deferred_ids.has(scrap_id):
+		return
+	_deferred_ids.append(scrap_id)
+	if ledger != null:
+		# SET, not incremented: `defer` assigns, and calling it with 1 five times leaves the
+		# count at one. That is what put the pragmatist route at three of seven.
+		ledger.defer(_deferred_ids.size())
+	_tangle_the_deferred()
+
+
+func _tangle_the_deferred() -> void:
+	var line: BandaritaLine2D = _lines.get(alley_2.name) if alley_2 != null else null
+	if line != null and ledger != null:
+		line.birds_tangled = ledger.deferred()
+		line.queue_redraw()
+
+
+## Problem 3, the Artist route: everything strung up here comes down into the player's hands
+## and the town keeps its bunting.
+func _on_bandaritas_reached(taken: int, _birds_freed: int) -> void:
+	_collect_from_the_line(taken)
+
+
+## And the Protector route: the same scraps, and the strings with them.
+func _on_bandaritas_cut(scraps: int, birds_freed: int) -> void:
+	_collect_from_the_line(scraps + birds_freed)
+
+
+## NEITHER ROUTE CAN LOSE A SCRAP -- the design says so outright -- so both arrive here.
+## Whatever was on the line is recovered, including every bird that was deferred out of
+## Alley 1, which is where the "nothing is ever lost, only deferred" promise is finally paid.
+func _collect_from_the_line(taken: int) -> void:
+	if ledger == null or taken <= 0:
+		return
+	if not _deferred_ids.is_empty():
+		ledger.claim_deferred()
+		for scrap_id in _deferred_ids:
+			ledger.recover(scrap_id)
+		_deferred_ids.clear()
+	for index in range(ScrapLedger.IN_ALLEY_2):
+		ledger.recover("alley2_%d" % index)
 
 
 func _on_at_rack(standing: bool) -> void:
@@ -390,6 +519,7 @@ func _on_submission_refused(_entity_id: String, note: String) -> void:
 # --- The ceiling: a violation, and POSITION ONLY -------------------------------------
 
 func _level_physics(anchor_position: Vector2) -> void:
+	_refresh_the_ceiling()
 	if restrictions == null or player == null or not is_instance_valid(player):
 		return
 	if _current_form_id.is_empty():
@@ -419,6 +549,34 @@ func _on_ceiling_crossed(entity_id: String, height_over: float) -> void:
 	})
 
 
+## THE CEILING IS PER SCENE, NOT ONE NUMBER. Whatever Y the bandaritas are strung at in the
+## room the player is standing in, the cap sits just under it -- so the boundary is always
+## something visible and always in the same place as the thing that draws it.
+##
+## Asked every frame and acted on only when the answer changes, which is the shape
+## `_refresh_room_framing` already uses: a checkpoint restore, a fall or an expiry can move
+## the player between scenes without going through a doorway, and every one of those would
+## otherwise leave the cap set for the room they used to be in.
+func _refresh_the_ceiling() -> void:
+	if restrictions == null:
+		return
+	var room := _room_holding_player()
+	var where: String = String(room.name) if room != null else "plaza"
+	if where == _ceiling_for:
+		return
+	_ceiling_for = where
+	var line: BandaritaLine2D = _lines.get(where)
+	if line != null and line.still_a_ceiling():
+		restrictions.set_ceiling(line.ceiling_y())
+		return
+	# The plaza keeps the line painted into its own backdrop; anywhere else with no bunting
+	# has NO ceiling, which is the correct answer rather than an oversight.
+	if where == "plaza" and _bunting_y != -INF:
+		restrictions.set_ceiling(_bunting_y + 20.0)
+		return
+	restrictions.set_ceiling(-INF)
+
+
 # --- What the level does when a beat is answered -------------------------------------
 
 func _on_route_solved(obstacle_id: String, route: String) -> bool:
@@ -442,20 +600,49 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 			return true
 		["L2_N2", "artist"]:
 			# One offering brings all five down. Splitting it per bird would turn a lore
-			# beat into a chore.
-			for index in range(ScrapLedger.IN_ALLEY_1):
-				ledger.recover("alley1_%d" % index)
-			ledger.defer(0)
+			# beat into a chore. Driven through the BIRDS rather than straight into the
+			# ledger, so what the player sees and what the count says cannot disagree.
+			for bird in _birds:
+				bird.calm()
+			_open_the_first_alley()
 		["L2_N2", "pragmatist"]:
-			# All five go on ahead. Deferred, not lost -- Alley 2 spawns exactly this many.
-			ledger.defer(ScrapLedger.IN_ALLEY_1)
+			# All five go on ahead. Deferred, not lost -- Alley 2's line spawns exactly this
+			# many tangled birds, which `_on_bird_flew_off` keeps in step.
+			for bird in _birds:
+				bird.startle()
+			_open_the_first_alley()
+		["L2_N2", "protector"]:
+			# Per-bird and on a timer, so this route does NOT resolve here: the birds are
+			# knocked down one at a time and whatever is still airborne when the timer runs
+			# out flies on to Alley 2. The way onward opens now because the beat is answered;
+			# what the player collects before walking through it is up to them.
+			_open_the_first_alley()
+		["L2_N3", "artist"]:
+			# Climbed to. The town keeps its bunting and the ceiling stays where it is --
+			# that is the half of the trade the player is choosing.
+			var climbed: BandaritaLine2D = _lines.get(alley_2.name) if alley_2 != null else null
+			if climbed != null:
+				climbed.take_what_is_up_here()
 		["L2_N3", "protector"]:
 			# The one action in this level that permanently changes the town, and the
 			# reason the cut is a trade: it buys the sky for the rest of the level.
 			script_lines.set_flag("bandaritas_cut")
+			var line: BandaritaLine2D = _lines.get(alley_2.name) if alley_2 != null else null
+			if line != null:
+				line.cut_it_down()
 			if restrictions != null:
 				restrictions.lift()
+			# And the cap has to be recomputed rather than waited for: the player is standing
+			# in the room whose line has just come down.
+			_ceiling_for = "?"
 	return false
+
+
+## Problem 2 is answered, so the way to Alley 2 opens. All three routes reach it -- the
+## design has every one of them end "move to alley 2" -- and none of them can be failed.
+func _open_the_first_alley() -> void:
+	if alley_1 != null:
+		alley_1.open_onward()
 
 
 func _on_dance_finished(cleared: bool, flower_earned: bool) -> void:
@@ -486,12 +673,17 @@ func _level_run_state() -> Dictionary:
 	}
 	if ledger != null:
 		out["scraps"] = ledger.serialize()
+	out["deferred_ids"] = _deferred_ids.duplicate()
 	return out
 
 
 func _restore_level_run_state(state: Dictionary) -> void:
 	if ledger != null and state.has("scraps"):
 		ledger.restore(state["scraps"])
+	_deferred_ids.clear()
+	for value: Variant in state.get("deferred_ids", []):
+		_deferred_ids.append(String(value))
+	_tangle_the_deferred()
 	if bool(state.get("kandila", false)):
 		_hold_the_kandila()
 	if chancel != null and bool(state.get("kandila_on_rack", false)):

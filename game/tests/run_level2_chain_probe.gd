@@ -61,6 +61,7 @@ func _run() -> void:
 	await _audit_the_way_back_works()
 	await _audit_scene_2_happens()
 	await _audit_the_chain_runs_to_alley_2()
+	await _audit_no_path_loses_a_scrap()
 
 	for line in results:
 		print(line)
@@ -341,3 +342,55 @@ func _audit_scene_2_happens() -> void:
 	var checkpoints = level.get("checkpoints")
 	_check(checkpoints != null and bool(checkpoints.call("has_checkpoint")),
 		"and CP2 is written before the alleys", "a player who dies down there keeps this")
+
+
+## THE ONE PROMISE THE WHOLE SCRAP ECONOMY RESTS ON: none of the seven can be permanently
+## lost. `run_level2_systems_probe` proves the ledger and the birds keep it between
+## themselves. This asks the harder question -- whether the LEVEL, which is what actually
+## connects them, keeps it too.
+##
+## Six paths reach Scene 3: three ways through Alley 1 and two through Alley 2, freely
+## combined. Every one of them has to arrive at seven, and the interesting ones are the
+## routes where birds escape, because those scraps travel by a different road than the rest.
+func _audit_no_path_loses_a_scrap() -> void:
+	for first in ["artist", "pragmatist", "protector"]:
+		for last in ["artist", "protector"]:
+			var held := await _walk_the_scraps(first, last)
+			_check(held == ScrapLedger.TOTAL, "%s then %s recovers all seven" % [first, last],
+				"%d of %d" % [held, ScrapLedger.TOTAL])
+
+
+## One run of the level, answered by the two routes given, counted at the end.
+func _walk_the_scraps(alley_1_route: String, alley_2_route: String) -> int:
+	var fresh := (load("res://level_2.tscn") as PackedScene).instantiate()
+	(fresh.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(fresh)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	for _frame in range(20):
+		await physics_frame
+	fresh.call("_on_route_solved", "L2_N2", alley_1_route)
+	# ⚠ THE PROTECTOR ROUTE IS PER-BIRD AND ON A TIMER, so answering it downs nothing by
+	# itself. This is the case that actually exercises deferral: two knocked down, three
+	# flying on to the bandaritas, and the level has to find all five again in Alley 2.
+	if alley_1_route == "protector":
+		var birds: Array[ScrapBird2D] = []
+		var alley := fresh.get("alley_1") as Node2D
+		for child in alley.get_children():
+			var bird := child as ScrapBird2D
+			if bird != null:
+				birds.append(bird)
+		for index in range(birds.size()):
+			if index < 2:
+				birds[index].strike_down()
+			else:
+				birds[index].timer_expired()
+	for _frame in range(6):
+		await physics_frame
+	fresh.call("_on_route_solved", "L2_N3", alley_2_route)
+	for _frame in range(6):
+		await physics_frame
+	var ledger = fresh.get("ledger")
+	var held: int = int(ledger.call("held")) if ledger != null else -1
+	fresh.queue_free()
+	await physics_frame
+	return held
