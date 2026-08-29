@@ -1,6 +1,7 @@
 # Level 2 — Piyesta
 
-**Status: built through Phase 5. Not playable from the hub yet, on purpose.**
+**Status: the level is connected and walkable end to end, except for two screens that do
+not exist. Not playable from the hub yet, on purpose.**
 `levels.json` keeps an empty `scene_path` for `level_2` and three tests assert it stays
 that way until the level can be finished. `run_level2_audit` is one of them.
 
@@ -66,6 +67,12 @@ nodes; the last has **two routes, not three**, deliberately.
 | `game/scripts/scrap_bird_2d.gd` | five addressable birds, three verbs, one answer each |
 | `game/scripts/dance_minigame.gd` | two attempts; **cannot dead-end the run** |
 | `game/scripts/scrap_assembly.gd` | seven slots, drag and snap, no fail state |
+| `game/scripts/piyesta_room_2d.gd` | all four insides -- one script, one contract, three dressings |
+| `game/scripts/piyesta_door_2d.gd` | the plaza's four doors; two open onto a room, two are the search |
+| `game/scripts/church_interior_2d.gd` | Scene 2's furniture, and the cultural guardrail in code |
+| `game/scripts/kandila_2d.gd` | the candle on the table, which is what Path C is FOR |
+| `game/scripts/dancer_group_2d.gd` | the dancers, and the one thing here the player can destroy |
+| `game/scripts/bandarita_line_2d.gd` | the bunting: the ceiling, two scraps, and the trade |
 | `game/assets/Level2/`, `level-2-assets/` | the art, imported and tracked |
 
 ```bash
@@ -76,6 +83,12 @@ godot --headless --path game --script res://tests/run_level2_systems_probe.gd
 ```
 ```bash
 godot --headless --path game --script res://tests/run_level2_scene_probe.gd
+```
+```bash
+godot --headless --path game --script res://tests/run_level2_chain_probe.gd
+```
+```bash
+godot --headless --path game --script res://tests/run_nodraw_level2.gd
 ```
 ```bash
 godot --path game --script res://tests/run_visual_level2.gd
@@ -114,6 +127,32 @@ now guarded.
 9. **The picture and the collision were 279px apart** — the apo drawn in the sky above the
    kiosko roof, in the first frame ever rendered of this level.
 
+10. **A room that answers nothing cannot be entered.** The four insides were bare Node2Ds
+    with a collision box; none joined `interiors`, so `_refresh_room_framing` never saw
+    them and three of the level's four beats were unreachable. They are one script now --
+    four copies of `bounds()` is four chances for one to drift off its own collision.
+11. **An opening armed by a timer can never fire for a body put down inside it.**
+    `body_entered` is a transition and there is no transition for a body that was already
+    there, so the first alley could be walked into and not out of. Openings arm by being
+    LEFT, which cannot be outrun by a fast machine or missed on a slow one.
+12. **`ScrapLedger.defer` assigns; it does not add.** Correct for the ledger, whose
+    `BIRDS_IN_ALLEY2` is an integer -- and calling it once per escaping bird left the count
+    at one. Worse, the level recovered deferred scraps by index from `alley1_0`, when the
+    birds that actually got away might be 2, 3 and 4; `recover` is idempotent, so those
+    calls hit nothing. Together they finished the pragmatist route at **three of seven** in
+    silence. The ledger stays a count; the level remembers which pieces went on ahead.
+13. **`ScrapBird2D` had no `_draw` at all.** Five birds carrying five of the seven pieces,
+    orbiting on a real physics process, invisible -- and every headless suite was green,
+    because the ledger, the ids, the three verbs and the reach are all true of an object
+    nobody can see. Found by looking at a frame. There is now a check that every prop the
+    level places defines `_draw`.
+14. **Overriding `CanvasItem.draw_ellipse` detached the whole `DancerGroup2D` class**, the
+    plaza came up empty, and the scene probe stayed green. Trap 1 for the fourth time.
+15. **A no-draw bot placed inside solid rock passes every "cannot" you write.** The first
+    cut of `run_nodraw_level2` started at (300, 480), which is inside the left terrace; it
+    stood still for twenty seconds and reported three green results. Every segment asserts
+    how far the body actually travelled now.
+
 **Three things `LEVEL_2.md` claimed about the art were wrong**, found by looking: the
 `TRANSPARENT/` set is a registered 1920 × 1080 layer set and **not** a letterboxed copy
 (nothing is cropped); the bandaritas are painted into **three** layers, not two; and
@@ -124,20 +163,39 @@ now guarded.
 
 ## What remains
 
-- **The walkable ground is the plaza *painting*, tiled.** The design says it should be
-  composed from `TextureMap_Piyesta.png`. Today the slab floats: sky under it, and the
-  ground ends where the 1920px composite ends.
-- **The four rooms are bare floors.** None implements the `interiors` contract
-  (`bounds()`, `entry_point()`, `camera_rect()`…), so none can be entered, and nothing
-  connects the plaza to them.
-- **Nothing instantiates the content.** The dancers, the five birds, the kandila, the lit
-  house and the bandaritas exist as systems with tests and as art, but no scene node
-  places them.
-- **`run_nodraw_level2.gd` does not exist**, and it is the one that matters: a plaza is
-  flat, and a flat level is the easiest kind to finish by walking.
-- **Alley 1 has no bandaritas in the art list** but needs a flight ceiling, or the cap is
-  an invisible wall exactly where the design says it must not be.
-- **`levels.json` `scene_path` stays empty** until the above is done.
+Ordered by what blocks the most. The first two are screens that do not exist; everything
+else is smaller.
+
+1. **The dance minigame has no screen, and Problem 1's Artist route dead-ends because of
+   it.** `dance_minigame.gd` is the scoring model -- cues, windows, two attempts, what
+   clears -- and nothing calls it. Committing "I will dance for them" closes the other two
+   routes and then nothing happens: no kandila, no church, no way back to the choice. This
+   contradicts the design's own promise that the level is unloseable, it is the largest
+   thing owed, and `run_nodraw_level2` prints it as **PEND** on every run.
+2. **Scene 3 has no screen and no trigger.** `scrap_assembly.gd` is a model with seven
+   slots, drag and snap; nothing opens it. So the level cannot be finished even with all
+   seven scraps recovered.
+3. **The GoalMarker is still where Level 1 left it** -- `level_2.tscn` puts it at
+   (2450, 460), the church door on the plaza, because the scene is a text copy. Completion
+   is gated on L2_N3 so it cannot fire early, but a player who solves Problem 3 would have
+   to walk back through both alleys and the church to end the level. It belongs after
+   Scene 3, on the boat: the design says `bangka.png` is already waiting and *"ending the
+   level on the boat is the cleanest hook"*.
+4. **The walkable ground is still the plaza painting, tiled.** The design says it should be
+   composed from `TextureMap_Piyesta.png`, which is labelled and gridded and has a stone
+   plaza floor, a mossy-stone wall and a full ledge-cap set ready for it. The slab has
+   collision and no material of its own.
+5. **The rooms are placeholder art.** Church interior, both alleys, the dark-palette
+   tileset, the house door set and the kandila's three states are all listed in the design
+   under what does not exist. Drawn in code to `ART_PLACEHOLDERS.md` rules; see
+   CONTENT_NEEDED.md.
+6. **`LOLOGHOST` has no praying pose and no laughing pose.** Scene 2 is built on the first
+   and every restriction violation fires the second. Nothing fakes them.
+7. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
+   boomerang and cannon, both of which have a real reach, but there is no aim or trajectory
+   preview -- the design asks for "angry birds style".
+8. **`levels.json` `scene_path` stays empty** until 1-3 are done, and `run_level2_audit`
+   asserts it.
 
 ---
 

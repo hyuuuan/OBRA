@@ -96,9 +96,35 @@ hold two) -> assembly. Three dialogue nodes; **L2_N3 has two routes, not three**
 Read **LEVEL_2.md** for the build record -- the decisions, what is built, the nine scars,
 and what remains.
 
-Built so far: `config/level_02.json`, `config/dialogue_l2.json`, `assets/Level2/`,
-`level-2-assets/`, and `tests/run_level2_audit.gd` (data only -- there is no scene yet, and
-`levels.json` `scene_path` stays EMPTY until there is).
+**The level is connected (2026-08-30).** Plaza -> church -> Alley 1 -> Alley 2 can be
+walked, Scene 2 plays, and all six route combinations recover all seven scraps. Four rooms
+(`piyesta_room_2d.gd`, one script), four plaza doors (`piyesta_door_2d.gd`, two of which
+open onto nothing and are the search), Scene 2's furniture (`church_interior_2d.gd`), the
+candle (`kandila_2d.gd`), the dancers (`dancer_group_2d.gd`) and the bunting
+(`bandarita_line_2d.gd`). Suites: `run_level2_audit`, `run_level2_scene_probe`,
+`run_level2_systems_probe`, `run_level2_chain_probe`, `run_nodraw_level2`,
+`run_visual_level2`.
+
+⚠ **Two screens do not exist and they are what stops the level being finishable.** The
+dance minigame has no UI, so Problem 1's Artist route commits and then DEAD-ENDS -- no
+kandila, no church, no way back -- which contradicts the design's promise that the level is
+unloseable. Scene 3's assembly has no UI or trigger. The GoalMarker is also still at Level 1's
+position (the church door), because `level_2.tscn` is a text copy. `levels.json` `scene_path`
+stays EMPTY until those are done, and `run_level2_audit` asserts it.
+
+⚠ **A room, a door or a prop that ships with no `_draw` is invisible and every headless
+suite stays green.** `ScrapBird2D` had five birds carrying five of the seven scraps and no
+`_draw`; `DancerGroup2D` overrode `CanvasItem.draw_ellipse` and Godot detached the class.
+`run_level2_scene_probe` now asserts every placed prop defines `_draw`, and the visual tour
+visits all four rooms. Look at a frame.
+
+⚠ **`ScrapLedger.defer` ASSIGNS rather than adds**, because the design's `BIRDS_IN_ALLEY2`
+is an integer. The ledger is a count; WHICH scraps were deferred lives in `level_2.gd`.
+Recovering them by index silently finished the pragmatist route at three of seven.
+
+⚠ **An interior opening must arm by being LEFT, not by a timer.** The player is put into a
+room by teleport and lands within a body's width of the doorway; `body_entered` is a
+transition, so a body put down inside an opening generates no event when a grace expires.
 
 **Flight is a restriction, not an ability.** `fly` stays declared-and-empty and its unlock
 moved off Level 2. Two rules, as explicit class lists in `level_02.json` checked against
