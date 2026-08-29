@@ -34,6 +34,22 @@ enum State { CIRCLING, CALMED, DOWNED, GONE }
 ## shown as a bare countdown, so climbing is the clock.
 @export var climb_when_pressed := 90.0
 
+## What a bird looks like at this scale, which is not much: a body, two wings and the piece
+## of painting in its beak. The scrap is the important half -- five identical birds are five
+## birds, but five birds each carrying something the player wants is Problem 2.
+const BODY := Color(0.196, 0.192, 0.204, 1.0)      # 323134
+const BODY_LIT := Color(0.318, 0.310, 0.333, 1.0)  # 514F55
+const WING := Color(0.259, 0.251, 0.271, 1.0)      # 424045
+const BEAK := Color(0.898, 0.667, 0.263, 1.0)      # E5AA43
+const EYE := Color(0.937, 0.925, 0.882, 1.0)       # EFECE1
+## The scrap in the beak. Canvas, with a little of the picture on it, so it reads as a piece
+## of a painting rather than as a white card.
+const SCRAP := Color(0.878, 0.827, 0.729, 1.0)     # E0D3BA
+const SCRAP_EDGE := Color(0.678, 0.616, 0.502, 1.0)# AD9D80
+const SCRAP_INK := Color(0.404, 0.475, 0.522, 1.0) # 677985
+## Where a downed one is left, and what tells the player it is worth walking to.
+const DOWNED := Color(0.298, 0.290, 0.310, 1.0)    # 4C4A4F
+
 var _state: int = State.CIRCLING
 var _home := Vector2.ZERO
 var _phase := 0.0
@@ -41,9 +57,12 @@ var _pressure := 0.0
 
 
 func _ready() -> void:
+	add_to_group(&"scrap_birds")
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_home = position
 	# Spread them out so five birds are a flock rather than a stack.
 	_phase = randf() * TAU
+	queue_redraw()
 
 
 func state() -> int:
@@ -61,6 +80,7 @@ func _physics_process(delta: float) -> void:
 	position = _home \
 		+ Vector2(cos(_phase) * orbit.x, sin(_phase) * orbit.y) \
 		- Vector2(0.0, _pressure * climb_when_pressed)
+	queue_redraw()
 
 
 ## 0 at the start of the timed route, 1 as it runs out. Nothing else reads the clock: the
@@ -77,6 +97,7 @@ func calm() -> bool:
 		return false
 	_state = State.CALMED
 	set_physics_process(false)
+	queue_redraw()
 	scrap_dropped.emit(scrap_id, global_position)
 	settled.emit(scrap_id)
 	return true
@@ -101,6 +122,7 @@ func strike_down() -> bool:
 		return false
 	_state = State.DOWNED
 	set_physics_process(false)
+	queue_redraw()
 	scrap_dropped.emit(scrap_id, global_position)
 	return true
 
@@ -118,3 +140,51 @@ func timer_expired() -> bool:
 	if _state != State.CIRCLING:
 		return false
 	return startle()
+
+
+## ⚠ THESE HAD NO `_draw` AT ALL, and nothing anywhere said so. Five birds carrying five of
+## the seven pieces of the painting, orbiting on a real physics process, invisible -- and
+## every headless check passed, because the ledger, the ids, the three verbs and the reach
+## are all true of an object nobody can see. Caught by looking at a frame, which is the
+## fourth time in this project that has been the only way.
+func _draw() -> void:
+	if _state == State.GONE:
+		return
+	if _state == State.CALMED or _state == State.DOWNED:
+		_draw_settled()
+		return
+	# The wingbeat is driven by the orbit rather than by its own clock, so a bird at the top
+	# of its circle is on the same beat it was the last time round.
+	var flap := sin(_phase * 3.0) * 9.0
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(-8.0, -2.0), Vector2(-26.0, -2.0 - flap), Vector2(-9.0, 6.0)]), WING)
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(8.0, -2.0), Vector2(26.0, -2.0 + flap), Vector2(9.0, 6.0)]), WING)
+	# Body, and a tail so it has a direction.
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(-11.0, -6.0), Vector2(9.0, -7.0), Vector2(13.0, 0.0),
+		Vector2(7.0, 7.0), Vector2(-11.0, 6.0), Vector2(-19.0, 2.0)]), BODY)
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(-4.0, -6.0), Vector2(9.0, -7.0), Vector2(11.0, -2.0),
+		Vector2(-4.0, -1.0)]), BODY_LIT)
+	draw_circle(Vector2(8.0, -3.0), 2.0, EYE)
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(12.0, -2.0), Vector2(21.0, 1.0), Vector2(12.0, 3.0)]), BEAK)
+	_draw_scrap(Vector2(20.0, 6.0))
+
+
+## Set down where it landed, with the scrap beside it rather than in its beak -- the piece
+## is what the player walks over, so it has to be the thing on the ground.
+func _draw_settled() -> void:
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(-14.0, 0.0), Vector2(10.0, -4.0), Vector2(14.0, 2.0),
+		Vector2(-12.0, 4.0)]), DOWNED)
+	_draw_scrap(Vector2(22.0, -2.0))
+
+
+func _draw_scrap(at: Vector2) -> void:
+	var rect := Rect2(at + Vector2(-13.0, -8.0), Vector2(26.0, 30.0))
+	draw_rect(rect.grow(1.5), SCRAP_EDGE)
+	draw_rect(rect, SCRAP)
+	draw_rect(Rect2(rect.position + Vector2(3.0, 15.0), Vector2(20.0, 7.0)), SCRAP_INK)
+	draw_rect(Rect2(rect.position + Vector2(3.0, 5.0), Vector2(9.0, 6.0)), SCRAP_INK)

@@ -29,7 +29,11 @@ const ALLEY_2_LINE := 320.0
 ## `level_02.json` records the gap in so many words: that alley needs a flight cap and had no
 ## diegetic line to hang it on, "or the cap is an invisible wall exactly where the design says
 ## it must not be". A town dressed for a fiesta has bunting in its side streets too.
-const ALLEY_1_LINE := 460.0
+##
+## 380 rather than 460, which is where it was first strung: at the alley's zoom the camera
+## sees about 340 units above the player, and a boundary drawn off the top of the frame is an
+## invisible wall wearing a picture of a rope. Checked by looking at a frame.
+const ALLEY_1_LINE := 380.0
 ## How high the flock rides above the alley floor. Inside the 260px the level data gives the
 ## Protector route as its reach, so a player standing under a bird can hit it.
 const BIRDS_RIDE := 200.0

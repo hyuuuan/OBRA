@@ -64,8 +64,34 @@ func _run() -> void:
 			   cam.global_position if cam != null else Vector2.ZERO])
 		await _capture(String(step[1]))
 
+	await _tour_the_insides()
+
 	print("OBRA_VISUAL_L2_OK")
 	quit(0)
+
+
+## THE FOUR ROOMS, which is where three of this level's four beats happen and which nothing
+## had ever looked at. They are parked thousands of units above the plaza and they draw
+## themselves only while somebody is standing in them, so a room that comes up black or a
+## room painted over the plaza is invisible to every headless check in the project.
+func _tour_the_insides() -> void:
+	for room_name in ["ChurchInterior", "HouseInterior", "Alley1", "Alley2"]:
+		var room := level.get_node_or_null(NodePath(
+			"EnvironmentBaseplate/GameplayPlane/Rooms/%s" % room_name)) as Node2D
+		if room == null:
+			print("  %s: not in the scene" % room_name)
+			continue
+		# Half way in rather than at the entry, so the frame has the room in it rather than
+		# the doorway. The camera follows on its own once the body is inside.
+		var at: Vector2 = Vector2(room.call("entry_point")) + Vector2(
+			float(room.get("room_length")) * 0.34, -20.0)
+		if player.has_method("apply_morph_state"):
+			player.call("apply_morph_state", {"position": at, "linear_velocity": Vector2.ZERO})
+		else:
+			player.global_position = at
+		await _wait(1.1)
+		print("  %s: player at %s" % [room_name, player.global_position])
+		await _capture("06_%s" % room_name.to_lower())
 
 
 func _capture(label: String) -> void:
