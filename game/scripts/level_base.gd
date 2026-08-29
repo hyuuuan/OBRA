@@ -82,6 +82,19 @@ func _dialogue_node_obstacle_id() -> String:
 	return ""
 
 
+## Anything a checkpoint must carry that is the LEVEL's rather than the machine's. Payyo
+## needs none of this -- its state is all pickups and obstacles, which the generic snapshot
+## already holds. Piyesta rides its scrap ledger here: five of seven pieces are recovered
+## in one alley and claimed in the next, so a death between the two must not un-recover
+## them, and must not spawn them a second time either.
+func _level_run_state() -> Dictionary:
+	return {}
+
+
+func _restore_level_run_state(_state: Dictionary) -> void:
+	pass
+
+
 # --- The machine --------------------------------------------------------------------
 
 @export var debug_timing_logs: bool = false
@@ -964,6 +977,7 @@ func _write_checkpoint(checkpoint_id: String) -> void:
 		"toolbelt": PlayerProfile.acquired_objects(),
 		"obstacles": director.obstacle_state(),
 		"placed": _placed_entity_records(),
+		"level": _level_run_state(),
 	})
 	Telemetry.record_event("checkpoint_written", {
 		"level_id": LevelManager.current_level_id, "checkpoint_id": checkpoint_id,
@@ -1019,6 +1033,7 @@ func _restore_checkpoint() -> String:
 		_on_ink_changed(ink_manager.remaining(), ink_manager.capacity, ink_manager.reserved)
 
 	_restore_placed_entities(state.get("placed", []))
+	_restore_level_run_state(state.get("level", {}))
 
 	var landing := Vector2(state.get("position", spawn_point.global_position))
 	if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
