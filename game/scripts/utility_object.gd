@@ -21,6 +21,27 @@ const TOGGLE_TOOLS := ["flashlight", "umbrella", "fan", "parachute", "hot_air_ba
 
 ## How far a tool reaches for things to act on.
 const TOOL_REACH := 96.0
+## HOW FAR EACH WAY OF HITTING SOMETHING ACTUALLY REACHES, named so a level audit can read
+## the constant instead of keeping a copy of it -- the same discipline R1 uses for the jump.
+##
+## This exists because Level 2 asked `strike` to knock a bird out of the air and the tag
+## resolved to boomerang, axe and sword. Only one of those leaves the hand: a blade swings
+## inside TOOL_REACH, so two of that route's three answers were accepted by the tag layer
+## and then did nothing. A reach that lives only inside a function body cannot be checked.
+const BOOMERANG_THROW := 320.0
+## The shot is a body under gravity rather than a fixed arc, so this is where it lands on
+## the flat, measured from the muzzle velocity below. Conservative on purpose.
+const CANNON_RANGE := 640.0
+## What each behaviour can touch. A behaviour absent from this table reaches TOOL_REACH.
+const BEHAVIOUR_REACH := {
+	"boomerang": BOOMERANG_THROW,
+	"cannon": CANNON_RANGE,
+}
+
+
+## How far this behaviour can hit, for an obstacle that needs to know before it accepts it.
+static func reach_of(behaviour: String) -> float:
+	return float(BEHAVIOUR_REACH.get(behaviour, TOOL_REACH))
 ## Continuous per-frame accelerations (px/s^2) the tools push the player with.
 const FAN_PUSH := 620.0
 const BALLOON_LIFT := -1180.0
@@ -549,7 +570,7 @@ func _fly_boomerang(actor: Node2D, origin: Vector2, facing: float, t: float) -> 
 	# Out and back along an arc, so the far end of the throw is the only place it can
 	# reach and the player can see it get there.
 	var out := sin(t * PI)
-	global_position = origin + Vector2(facing * 320.0 * out, -120.0 * out * out - 40.0 * out)
+	global_position = origin + Vector2(facing * BOOMERANG_THROW * out, -120.0 * out * out - 40.0 * out)
 	rotation += 0.55
 	for target in _reachable_targets():
 		if target.has_method("apply_tool_hit"):

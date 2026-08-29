@@ -101,10 +101,11 @@
         },
         "protector": {
           "required_tags": ["strike"],
-          "exclude": ["anvil", "cannon"],
+          "exclude": ["anvil", "axe", "sword"],
+          "requires_reach_px": 260,
           "timer_seconds": [45, 60],
           "sets_counter": { "birds_in_alley_2": "however many escaped" },
-          "$comment": "Per-bird rather than pass/fail: down three of five and walk into Alley 2 with two waiting. The timer is shown IN THE FICTION -- the birds circling higher, the light changing -- not as a bare countdown. `anvil` and `cannon` are excluded because neither is a thing you aim at a moving bird; that leaves three."
+          "$comment": "Per-bird rather than pass/fail: down three of five and walk into Alley 2 with two waiting. The timer is shown IN THE FICTION -- the birds circling higher, the light changing -- not as a bare countdown. THE EXCLUSIONS ARE ABOUT REACH, not taste: this route asks the player to hit something in the air, and a blade swings inside UtilityObject.TOOL_REACH (96px) -- so axe and sword were accepted by the tag layer and then did nothing, which is the tag layer agreeing with the player and lying. `anvil` drops straight down. What is left is what actually leaves the hand: the boomerang at 320px and the cannon, whose shot is a body under gravity. A cannon in a plaza is excessive, and this is the Protector route -- excess is its character."
         }
       }
     },
