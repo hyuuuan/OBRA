@@ -8,8 +8,8 @@ signal utility_used(behavior: String, item: DrawnItemData)
 signal utility_consumed(utility: UtilityObject)
 
 ## Carried and worked with (F). Everything else is a prop: it is stood up in the world
-## and does its job by being there (stairs, bridge, tree) or by being stepped on
-## (mushroom, door). The split comes from the In-Game Function column of the 50-class
+## and does its job by being there (stairs, bridge, tree, bread) or by being stepped
+## on (door). The split comes from the In-Game Function column of the 50-class
 ## table, not from what happened to be implemented.
 const HELD_TOOLS := [
 	"axe", "sword", "cannon", "boomerang", "flashlight", "cloud", "sun", "fan",
@@ -29,7 +29,6 @@ const PARACHUTE_FALL_LIMIT := 120.0
 ## How long the clock holds nearby movement still.
 const CLOCK_FREEZE_SECONDS := 4.0
 ## Long enough that one landing is one bounce, short enough to feel like a trampoline.
-const MUSHROOM_RECHARGE := 0.45
 ## Radius the weather tools work over.
 const WEATHER_RADIUS := 220.0
 ## How fast a drawn hull will go, however long the player holds the stick.
@@ -130,7 +129,7 @@ func interact(actor: Node2D) -> void:
 
 
 ## A tool the player carries and works with (F), as opposed to a prop they stand a
-## thing up in the world and leave (ladder, bridge, tree, mushroom, door...). Only the
+## thing up in the world and leave (ladder, bridge, tree, bread, door...). Only the
 ## first four were listed here, so drawing any of the other fifteen tools produced
 ## something that could be put in a pocket and never used -- which is most of what
 ## "21 of 27 utilities do nothing on F" actually was.
@@ -254,7 +253,7 @@ func _perform_use(actor: Node2D) -> String:
 			return "Sailing — move to steer" if _boarded_actor == actor else ""
 		"submarine":
 			return "Diving — move to steer" if _boarded_actor == actor else ""
-		"ladder", "stairs", "bridge", "tree", "campfire", "mushroom", "door":
+		"ladder", "stairs", "bridge", "tree", "campfire", "bread", "door":
 			# Props: they work by standing where they were put. Saying so is the honest
 			# answer to F, and better than the silence that read as a broken button.
 			return "%s works where it stands — place it, then use it" % _display_name()
@@ -348,25 +347,9 @@ func _apply_prop_effects(_delta: float) -> void:
 	if _equipped_actor != null or is_preview:
 		return
 	match utility_behavior:
-		"mushroom":
-			# Bounce: anything that LANDS on the cap is thrown back up -- once per landing.
-			# Applied every frame it was in reach, the impulse compounded and fired the
-			# player clean out of the level; the audit found them 837px above the sky.
-			# The reach is the cap's half-height plus room for a body standing on it,
-			# because tied to the cap alone a tall mushroom cannot reach what it is
-			# holding up.
-			if _effect_time > 0.0:
-				return
-			for target in _reachable_targets(_target_size().y * 0.5 + 72.0):
-				var body := target as Node2D
-				if body == null or body == self or body.global_position.y > global_position.y:
-					continue
-				if _is_player_body(body):
-					_push_actor_impulse(_player_of(body), Vector2(0.0, -560.0))
-					_effect_time = MUSHROOM_RECHARGE
-				elif body is RigidBody2D and not (body as RigidBody2D).freeze:
-					(body as RigidBody2D).apply_central_impulse(Vector2(0.0, -430.0) * (body as RigidBody2D).mass)
-					_effect_time = MUSHROOM_RECHARGE
+		# `bread` has no case here on purpose. It is the one prop whose effect is not
+		# something it does -- the birds in Level 2 come to it, so the reaching is on
+		# their side. Nothing to apply per frame.
 		"wheel":
 			# Roll/Fix: a driven roller. What rests on it is carried along.
 			if not _active:

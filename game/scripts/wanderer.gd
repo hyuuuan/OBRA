@@ -302,7 +302,7 @@ func apply_external_force(acceleration: Vector2) -> void:
 	_assist += acceleration
 
 
-## An instant velocity change: a mushroom's bounce, a cannon's recoil.
+## An instant velocity change: a cannon's recoil.
 func apply_external_impulse(velocity_change: Vector2) -> void:
 	_impulse += velocity_change
 

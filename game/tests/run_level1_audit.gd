@@ -1021,7 +1021,7 @@ func _walk_node_two(route: String) -> void:
 	await process_frame
 
 	var d = level.get("director")
-	var script_lines = level.get("script_lines_l1")
+	var script_lines = level.get("script_lines")
 	var dayami := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane/Dayami")
 	if d == null or dayami == null:
 		_fail("node 2 (%s)" % route, "the level has no Dayami or no director")
@@ -1148,7 +1148,7 @@ func _audit_arrival_speaks_once() -> void:
 	for _frame in range(60):
 		await physics_frame
 
-	var script_lines: RefCounted = level.get("script_lines_l1")
+	var script_lines: RefCounted = level.get("script_lines")
 	var box: CanvasItem = level.get("dialogue_box")
 	var player := level.get("player") as Node2D
 
@@ -1249,6 +1249,11 @@ func _audit_a_miss_says_why() -> void:
 	var said := String(hint.call("current_text"))
 	_check(said.contains("LEAP") and said.contains("ROLL"),
 		"the miss says what it can do and what is needed", said)
+	# A frog is also STARTLE, which Level 2 unlocks. Tag membership is global, so without
+	# a level scope this line advertises an ability the player cannot reach for another
+	# level. Any later tag that takes a Level 1 class fails here first.
+	_check(not said.contains("STARTLE"),
+		"and no tag from a later level", said)
 	# The requirement's own tag, not a class that would satisfy it: naming the player's own
 	# drawing is fine, naming the answer is the thing the tag layer exists to prevent.
 	_check(not said.to_lower().contains("circle") and not said.to_lower().contains("wheel"),
@@ -1606,7 +1611,7 @@ func _walk_node_three(route: String) -> void:
 	await process_frame
 
 	var d = level.get("director")
-	var script_lines = level.get("script_lines_l1")
+	var script_lines = level.get("script_lines")
 	var bale_root := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane/Bale")
 	if d == null or bale_root == null:
 		_fail("node 3 (%s)" % route, "the level has no Bale or no director")
