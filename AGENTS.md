@@ -105,10 +105,17 @@ candle (`kandila_2d.gd`), the dancers (`dancer_group_2d.gd`) and the bunting
 `run_level2_systems_probe`, `run_level2_chain_probe`, `run_nodraw_level2`,
 `run_visual_level2`.
 
-⚠ **Two screens do not exist and they are what stops the level being finishable.** The
-dance minigame has no UI, so Problem 1's Artist route commits and then DEAD-ENDS -- no
-kandila, no church, no way back -- which contradicts the design's promise that the level is
-unloseable. Scene 3's assembly has no UI or trigger. The GoalMarker is also still at Level 1's
+**The dance is playable (2026-08-30).** `dance_overlay.gd` is the screen: a lane, six cues
+with sayaw glyphs, the hit and perfect windows drawn to scale, two goes. It opens off
+`route_committed` -- NOT off `_on_route_solved`, because that route has no `required_tags`
+and nothing was ever going to solve it -- and finishes through `director.solve_with_item`,
+the existing door for a solve that is not a submission. A dance pushed through
+`note_submission` would put a class nobody drew into the level's per-class statistics.
+`run_dance_probe.gd` drives it.
+
+⚠ **One screen still does not exist and it is what stops the level being finishable.**
+Scene 3's assembly has a model (`scrap_assembly.gd`) and no UI or trigger -- the same shape
+the dance was in. The GoalMarker is also still at Level 1's
 position (the church door), because `level_2.tscn` is a text copy. `levels.json` `scene_path`
 stays EMPTY until those are done, and `run_level2_audit` asserts it.
 

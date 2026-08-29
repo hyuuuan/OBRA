@@ -20,13 +20,19 @@ extends SceneTree
 ## keep Piyesta a drawing game.
 ##
 ## So the claim is narrower than Level 1's and it is checked exactly as written:
-##   * the plaza and the church are passable in the player's own body -- deliberately;
+##   * the plaza and the church are passable in the player's own body -- deliberately, and
+##     even by a bot that stands still through both goes of the dance;
 ##   * neither alley is;
 ##   * and the level never finishes.
 
-## Long enough to cross a room and try everything in it, short enough that four of them are
-## a test and not an afternoon.
-const SEGMENT_SECONDS := 20.0
+## Long enough to cross a room and try everything in it, short enough that six of them are a
+## test and not an afternoon.
+##
+## 26 rather than 20, because the Artist route now opens the dance and the dance takes its
+## own time: a lead-in, six cues, a tail, and a second go if the first is not cleared, which
+## is a little over twenty-one seconds of doing nothing. At 20 the segment ended mid-dance
+## and the run reported Problem 1 as ungated when it was merely unfinished.
+const SEGMENT_SECONDS := 26.0
 ## Typed, because an untyped literal indexed inline gives GDScript nothing to infer from.
 const ROUTE_NAMES: Array[String] = ["artist (the dance)", "pragmatist (the key)",
 	"protector (the scare)"]
@@ -45,7 +51,6 @@ var _travelled := 0.0
 
 var results: Array[String] = []
 var failures := 0
-var pending := 0
 
 
 func _initialize() -> void:
@@ -60,19 +65,6 @@ func _check(ok: bool, what: String, detail: String) -> void:
 
 ## A KNOWN GAP, PRINTED EVERY RUN AND NOT COUNTED AS A FAILURE.
 ##
-## Used for exactly one thing here, and it is a real defect rather than a nicety: Problem 1's
-## Artist route can be committed and then nothing answers it, because the dance has no screen.
-## Recording it green would be a lie; recording it red would make this suite something people
-## stop running, and it is the suite that guards the level's whole premise. So it is neither:
-## it is printed, named, and counted separately.
-##
-## ⚠ When the dance lands, this must become a `_check`. The line says so.
-func _pending(holds: bool, what: String, why: String) -> void:
-	results.append("  %s  %-44s %s" % ["PEND" if not holds else "OK  ", what, why])
-	if not holds:
-		pending += 1
-
-
 func _run() -> void:
 	print("\n===== NO-DRAW RUN, PIYESTA =====")
 	# The plaza, answered every way Lolo offers. The dance is meant to work; the other two
@@ -87,21 +79,20 @@ func _run() -> void:
 		var state := await _try_segment("the plaza", Vector2.ZERO)
 		var route: String = ROUTE_NAMES[choice]
 		if choice == 0:
-			# ⚠ THE ONE KNOWN GAP IN THIS LEVEL, and this suite is what found it.
+			# ⚠ EXPECTED TO PASS, AND IT IS THE ONE PLACE IN THIS PROJECT WHERE THAT IS TRUE.
 			#
-			# The design says Problem 1 is unloseable and the kandila is never withheld. But
-			# the Artist route is answered by the dance minigame, `dance_minigame.gd` is a
-			# scoring model with no screen, and nothing anywhere calls it -- so committing
-			# "I will dance for them" closes the other two routes and then NOTHING HAPPENS.
-			# A player who picks it is stuck at the first beat of the level with no kandila,
-			# no church and no way back to the choice.
+			# The Artist route is a dance: a performance, not a summoning. It costs no ink and
+			# needs no classified drawing, so a player who never touches the canvas legitimately
+			# gets the kandila and opens the church. The bot here does not even play it -- it
+			# stands still while both goes run out -- and the dancers hand the candle over
+			# anyway, because the design says this node can never dead-end the run.
 			#
-			# It costs no ink and needs no drawing, which is why it belongs in this suite:
-			# when the dance exists, a no-draw player will legitimately get past Problem 1,
-			# and this line becomes a `_check` asserting exactly that.
-			_pending(bool(state["church_open"]),
-				"the dance route answers Problem 1",
-				"NOT YET: the dance has no screen, so this route dead-ends. See LEVEL_2.md")
+			# This was PEND for one commit, when the model existed and the screen did not and
+			# committing the route stranded the player. If it ever goes red again, either the
+			# dance has been given a drawing requirement or Problem 1 has lost its no-ink route.
+			_check(bool(state["church_open"]),
+				"the dance answers Problem 1 with no drawing",
+				"failed twice, standing still, and still given the candle")
 		else:
 			_check(not bool(state["church_open"]),
 				"but %s cannot be talked through" % route,
@@ -137,8 +128,6 @@ func _run() -> void:
 	for line in results:
 		print(line)
 	print("	 questions answered: %d (answering Lolo costs no ink)" % answered)
-	if pending > 0:
-		print("	 PEND  %d known gap(s) above, printed rather than hidden" % pending)
 	if failures == 0:
 		print("	 OK	   Problems 2 and 3 cannot be walked past")
 		print("OBRA_NODRAW_L2_OK")
