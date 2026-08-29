@@ -2,6 +2,10 @@
 
 Everything needed to pick this up cold. Built on branch `level-1-design`.
 
+**Building a different level?** Read **`LEVEL_TEMPLATE.md`** — this level generalised into
+the shape, schemas, rules and build order every level inherits. This document stays the
+worked example, and the traps at the bottom are why the template says what it says.
+
 **Authority for content:** `level-1-design/files/OBRA_Level1_Payyo_BuildSpec.md`. It
 supersedes `Game Design.pdf` for this level. Where this document and the spec disagree,
 this one describes what is actually built and the spec describes what was intended.
