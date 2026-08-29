@@ -71,6 +71,45 @@ def _wall_foot() -> int:
     return int(np.where(huts.any(axis=1))[0].max())
 
 
+## A stretch of plain verge and wall, taken from behind the dancers where nothing is built
+## on it, to be repeated along the rest of the level.
+BAND_FROM = (940, 1300)
+
+
+def _band(plate: Image.Image, size: tuple[int, int], top: int) -> Image.Image:
+    """⚠ THE GROUND ONLY, from `top` down. Taking the full height of the slice repeats
+    everything standing on it -- the first cut tiled the dancers and the palms across the
+    whole level, twenty-eight dancers instead of four."""
+    return plate.crop((BAND_FROM[0], top, BAND_FROM[1], size[1]))
+
+
+## The painting's own sky, as one column, stretched across the widened canvas. A flat colour
+## behind the plate cannot match it -- the sky runs from #0085FD at the top to #2BA2EA at the
+## horizon -- so the join showed as a hard vertical edge with a lighter rectangle beyond it.
+## ⚠ TAKEN FROM `bg_sky` AND NOT FROM THE COMPOSITE. The flattened painting has the kiosko
+## and the palms drawn over its sky, so a column sampled from it carries whatever happens to
+## be at that x -- the first cut pulled a roof beam and a hedge out of the plaza and stretched
+## them as horizontal bars across the whole width of the level. The sky plate is sky.
+def _sky(size: tuple[int, int]) -> Image.Image:
+    plate = np.array(Image.open(SRC / "bg_sky.png").convert("RGBA"))
+    column = plate[:, 300:301, :]
+    return Image.fromarray(np.repeat(column, size[0] * 3, axis=1), "RGBA")
+
+
+def _widen(plate: Image.Image, size: tuple[int, int], band: Image.Image,
+           top: int, sky: Image.Image = None) -> Image.Image:
+    wide = Image.new("RGBA", (size[0] * 3, size[1]), (0, 0, 0, 0))
+    if sky is not None:
+        wide.alpha_composite(sky)
+    x = 0
+    while x < wide.width:
+        wide.alpha_composite(band, (x, top))
+        x += band.width
+    # The painting goes on last and in the middle, so nothing repeats over it.
+    wide.alpha_composite(plate, (size[0], 0))
+    return wide
+
+
 def build(check: bool) -> int:
     size = None
     plaza = None
@@ -109,12 +148,30 @@ def build(check: bool) -> int:
     # backdrop and simply has nothing above the cut, so the two cannot slide apart.
     front.paste(front_src.crop((0, FRONT_ROW, size[0], size[1])), (0, FRONT_ROW))
 
+    # ⚠ AND THE WALL RUNS ON PAST THE PLAZA. The player is stopped by walls at the edges of
+    # the painting, but the CAMERA is not -- it is clamped to the level's world bounds, which
+    # have to be wide enough to hold the four rooms parked thousands of units away. So at
+    # either end of the plaza the view ran off the picture into empty sky.
+    #
+    # The painting cannot be tiled -- one church becomes four -- but its verge and retaining
+    # wall are a repeating band, so THAT is tiled onto a canvas three plates wide with the
+    # painting in the middle. The plaza ends at a wall the player can see continue.
     line = walk_row()
+    plaza = _widen(plaza, size, _band(plaza, size, line), line, _sky(size))
+    front = _widen(front, size, _band(front, size, FRONT_ROW), FRONT_ROW)
+    # AND CUT BELOW THE WALL AGAIN. The sky column is composited full height, so widening
+    # puts sky back under the ground that was just cleared out of it -- a pale blue strip
+    # between the retaining wall and the level's dark ground fill.
+    wide = np.array(plaza)
+    wide[_wall_foot() - 2:, :, 3] = 0
+    plaza = Image.fromarray(wide, "RGBA")
+    size = plaza.size
+
     if not check:
         plaza.save(SRC / "plaza.png")
         front.save(SRC / "plaza_front.png")
-    print("%s plaza.png and plaza_front.png at %dx%d" % (
-        "checked" if check else "wrote", size[0], size[1]))
+    print("%s plaza.png and plaza_front.png at %dx%d (painting centred, wall tiled either side)"
+        % ("checked" if check else "wrote", size[0], size[1]))
     print("   walk line (painted dancers' feet)  plate row %d" % line)
     print("   front plate starts at              plate row %d" % FRONT_ROW)
     print("   painting cut off below             plate row %d (the wall's foot)" % _wall_foot())

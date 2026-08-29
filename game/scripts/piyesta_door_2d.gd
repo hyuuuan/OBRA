@@ -48,18 +48,27 @@ const SIZE := Vector2(78.0, 156.0)
 ## the plaza's dark pair are 200 apart.
 const REACH := Vector2(120.0, 170.0)
 
-const FRAME_DEEP := Color(0.114, 0.086, 0.063, 1.0)   # 1D1610
-const FRAME := Color(0.310, 0.239, 0.176, 1.0)        # 4F3D2D
-const FRAME_LIT := Color(0.443, 0.353, 0.259, 1.0)    # 715A42
-## The leaf itself: painted board, sun-bleached, the way a door on a plaza is.
-const LEAF_DARK := Color(0.239, 0.212, 0.196, 1.0)    # 3D3632
-const LEAF := Color(0.373, 0.325, 0.286, 1.0)         # 5F5349
-const LEAF_LIT := Color(0.478, 0.427, 0.373, 1.0)     # 7A6D5F
+## SAMPLED OFF `TextureMap_Piyesta.png`, not invented. The plaza's back wall is the church's
+## pale limestone, and a door set into it has to be cut from the same rock -- the first
+## version was a grey plank slab with iron straps, which read as four filing cabinets
+## standing in a finished painting.
+const STONE_DEEP := Color(0.247, 0.176, 0.106, 1.0)   # 3F2D1B  the shadow in a reveal
+const STONE_DARK := Color(0.490, 0.384, 0.281, 1.0)   # 7C6147  balustrade stone
+const STONE := Color(0.773, 0.590, 0.392, 1.0)        # C59663  church stone, fill
+const STONE_LIT := Color(0.875, 0.726, 0.525, 1.0)    # DFB985  stucco, in the light
+const STONE_PALE := Color(0.918, 0.788, 0.600, 1.0)   # EAC999  its highlight
+## The leaf: the stall's dark timber, which is the only wood in this picture.
+const LEAF_DARK := Color(0.129, 0.106, 0.055, 1.0)    # 211B0D
+const LEAF := Color(0.270, 0.212, 0.112, 1.0)         # 44351C
+const LEAF_LIT := Color(0.408, 0.302, 0.173, 1.0)     # 684D2C
 ## What is behind an open one. Not black -- a doorway that is black reads as a hole.
 const INSIDE := Color(0.075, 0.067, 0.063, 1.0)       # 131110
 ## Lamplight from inside, in the seam and the keyhole. The tell.
 const LAMP := Color(0.988, 0.812, 0.451, 1.0)         # FCCF73
 const LAMP_SOFT := Color(0.988, 0.812, 0.451, 0.30)
+## Light coming through the joints between the boards -- dimmer than the seam under the door,
+## because it is squeezing through a crack rather than pouring under a gap.
+const LAMP_WARM := Color(0.976, 0.729, 0.322, 0.72)
 const IRON := Color(0.184, 0.176, 0.169, 1.0)         # 2F2D2B
 
 var _standing := false
@@ -144,24 +153,53 @@ func prompt() -> String:
 	return shut_note
 
 
+## A DOORWAY IN THE PLAZA'S BACK WALL, which is what the picture has room for.
+##
+## The painting has no house doors at ground level -- its buildings are behind and above the
+## plaza -- so a door prop has to read as an opening cut into the low stone wall the dancers
+## have their backs to. That means it is drawn as masonry first and joinery second: a reveal
+## a few inches deep, a segmental arch over it, worn jambs, and the leaf set back inside.
+## Drawn the other way round, as a leaf with a frame around it, it reads as furniture.
 func _draw() -> void:
 	var leaf := Rect2(-SIZE.x * 0.5, -SIZE.y, SIZE.x, SIZE.y)
-	# The surround, and the step under it. A door drawn straight onto a wall has no depth
-	# and reads as a poster.
-	draw_rect(leaf.grow(12.0), FRAME_DEEP)
-	draw_rect(Rect2(leaf.position - Vector2(8.0, 8.0), Vector2(leaf.size.x + 16.0, 10.0)),
-		FRAME_LIT)
-	draw_rect(Rect2(-SIZE.x * 0.5 - 16.0, -10.0, SIZE.x + 32.0, 12.0), FRAME)
+	var jamb := 13.0
+	var rise := 26.0
+	# The opening, cut back into the wall. The dark reveal is the whole reason it reads as a
+	# hole rather than a panel hung on the front.
+	_draw_arched(leaf.grow(jamb), rise + 8.0, STONE_DARK)
+	_draw_arched(leaf.grow(jamb - 5.0), rise + 5.0, STONE)
+	_draw_arched(leaf.grow(2.0), rise, STONE_DEEP)
+	# Voussoirs over the head, so the arch is built rather than drawn.
+	var span := leaf.size.x + jamb * 2.0
+	for index in range(7):
+		var t := (float(index) + 0.5) / 7.0
+		var x := leaf.position.x - jamb + t * span
+		var lift := sin(t * PI) * rise
+		draw_rect(Rect2(x - span / 15.0, leaf.position.y - lift - 16.0,
+			span / 15.0 - 2.0, 16.0), STONE_LIT if index % 2 == 0 else STONE)
+	# The lit edge down the left jamb and along the head: one light source, from the left,
+	# same as everything else in this picture.
+	draw_rect(Rect2(leaf.position.x - jamb, leaf.position.y - 4.0, 5.0, leaf.size.y + 4.0),
+		STONE_PALE)
+	# The sill it opens onto.
+	draw_rect(Rect2(leaf.position.x - jamb - 6.0, -7.0, leaf.size.x + jamb * 2.0 + 12.0, 9.0),
+		STONE_LIT)
+	draw_rect(Rect2(leaf.position.x - jamb - 6.0, 2.0, leaf.size.x + jamb * 2.0 + 12.0, 4.0),
+		STONE_DARK)
+
 	if open:
-		draw_rect(leaf, INSIDE)
-		# The leaf swung back against the inside of the jamb, so an open door is a door and
-		# not an absence.
-		draw_rect(Rect2(leaf.position, Vector2(14.0, leaf.size.y)), LEAF_DARK)
+		# Swung inward: the leaf against the reveal on one side, and dark beyond it.
+		draw_rect(leaf, LEAF_DARK)
+		draw_rect(Rect2(leaf.position, Vector2(15.0, leaf.size.y)), LEAF)
 		if lit:
-			draw_rect(leaf, LAMP_SOFT)
+			draw_rect(Rect2(leaf.position.x + 15.0, leaf.position.y,
+				leaf.size.x - 15.0, leaf.size.y), LAMP_SOFT)
+			draw_rect(Rect2(leaf.position.x - 10.0, 0.0, leaf.size.x + 20.0, 16.0), LAMP_SOFT)
 		return
+
+	# Shut: vertical boards, a plank ledge across them, and a ring handle. Small and dark,
+	# because the masonry is what the eye should read first.
 	draw_rect(leaf, LEAF)
-	# Vertical boards with a shadowed joint, which is what makes a rectangle a door.
 	var boards := 4
 	for index in range(boards):
 		var width := leaf.size.x / float(boards)
@@ -169,19 +207,41 @@ func _draw() -> void:
 		draw_rect(Rect2(x, leaf.position.y, width - 2.0, leaf.size.y),
 			LEAF_LIT if index % 2 == 0 else LEAF)
 		draw_rect(Rect2(x + width - 2.0, leaf.position.y, 2.0, leaf.size.y), LEAF_DARK)
-	# Two straps and a handle: the ironwork is what gives it a scale.
-	for height: float in [0.24, 0.76]:
+	for height: float in [0.26, 0.74]:
 		draw_rect(Rect2(leaf.position.x, leaf.position.y + leaf.size.y * height,
-			leaf.size.x, 8.0), IRON)
-	draw_rect(Rect2(leaf.position.x + leaf.size.x - 20.0,
-		leaf.position.y + leaf.size.y * 0.52, 10.0, 16.0), IRON)
+			leaf.size.x, 6.0), LEAF_DARK)
+	draw_arc(Vector2(leaf.position.x + leaf.size.x - 17.0,
+		leaf.position.y + leaf.size.y * 0.54), 7.0, 0.0, TAU, 12, IRON, 3.0)
 	if not lit:
 		return
-	# THE TELL, and it is only these two marks. Light under the door and light in the
-	# keyhole -- the same door otherwise, so what the player is looking for is a light and
-	# not a different house.
-	draw_rect(Rect2(leaf.position.x + 3.0, -6.0, leaf.size.x - 6.0, 6.0), LAMP)
-	draw_rect(Rect2(leaf.position.x + leaf.size.x - 19.0,
-		leaf.position.y + leaf.size.y * 0.52 + 2.0, 8.0, 12.0), LAMP)
-	# And a little of it spilling onto the step, so it reads from across the plaza.
-	draw_rect(Rect2(leaf.position.x - 10.0, 0.0, leaf.size.x + 20.0, 14.0), LAMP_SOFT)
+	# THE TELL, AND IT HAS TO CARRY ACROSS THE PLAZA. The player is told to look for a house
+	# with its lights on; a seam of warm pixels among four identical doorways is not something
+	# anybody finds. So: the seam under the leaf, the keyhole, light through the joints between
+	# the boards, and a wash of it thrown out onto the sill and up the reveal.
+	for index in range(1, 4):
+		var joint := leaf.position.x + leaf.size.x / 4.0 * float(index)
+		draw_rect(Rect2(joint - 2.0, leaf.position.y + 6.0, 3.0, leaf.size.y - 12.0), LAMP_WARM)
+	draw_rect(Rect2(leaf.position.x + 2.0, -10.0, leaf.size.x - 4.0, 10.0), LAMP)
+	draw_rect(Rect2(leaf.position.x + leaf.size.x - 21.0,
+		leaf.position.y + leaf.size.y * 0.54 - 5.0, 8.0, 14.0), LAMP)
+	# On the sill and washing up the stone either side, which is what a lit window does to
+	# the wall around it and is the part that reads from a distance.
+	draw_rect(Rect2(leaf.position.x - 26.0, -6.0, leaf.size.x + 52.0, 22.0), LAMP_SOFT)
+	draw_rect(Rect2(leaf.position.x - 34.0, 2.0, leaf.size.x + 68.0, 12.0), LAMP_SOFT)
+	for side: float in [-1.0, 1.0]:
+		draw_rect(Rect2(leaf.position.x + (0.0 if side < 0.0 else leaf.size.x) - 9.0,
+			leaf.position.y, 9.0, leaf.size.y), LAMP_SOFT)
+
+
+## An arched-headed rectangle: the rectangle, plus the segment over its top.
+func _draw_arched(rect: Rect2, rise: float, colour: Color) -> void:
+	draw_rect(rect, colour)
+	var points := PackedVector2Array()
+	var steps := 16
+	for index in range(steps + 1):
+		var t := float(index) / float(steps)
+		points.append(Vector2(rect.position.x + t * rect.size.x,
+			rect.position.y - sin(t * PI) * rise))
+	points.append(Vector2(rect.position.x + rect.size.x, rect.position.y))
+	points.append(rect.position)
+	draw_colored_polygon(points, colour)
