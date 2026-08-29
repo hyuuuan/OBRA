@@ -41,6 +41,7 @@ const BIRDS_RIDE := 200.0
 const RestrictionsClass = preload("res://scripts/level_restrictions.gd")
 const LedgerClass = preload("res://scripts/scrap_ledger.gd")
 const AssemblyClass = preload("res://scripts/scrap_assembly.gd")
+const AssemblyOverlayClass = preload("res://scripts/assembly_overlay.gd")
 const DanceClass = preload("res://scripts/dance_minigame.gd")
 const DanceOverlayClass = preload("res://scripts/dance_overlay.gd")
 
@@ -64,6 +65,8 @@ const DOOR_DARK_B := "dark_b"
 var restrictions: LevelRestrictions
 var ledger: ScrapLedger
 var assembly: ScrapAssembly
+## Scene 3's table. The model is the rule; this is where the pieces are put back.
+var assembly_screen: AssemblyOverlay
 var dance: DanceMinigame
 ## The screen the dance is played on. The model scores; this is what the player touches.
 var dance_screen: DanceOverlay
@@ -168,6 +171,11 @@ func _build_level_furniture() -> void:
 	assembly.name = "ScrapAssembly"
 	add_child(assembly)
 	assembly.set_creased(PlayerProfile.is_canvas_damaged(CREASED_CANVAS))
+	assembly_screen = AssemblyOverlayClass.new()
+	assembly_screen.name = "AssemblyOverlay"
+	add_child(assembly_screen)
+	assembly_screen.bind(assembly)
+	assembly_screen.assembly_done.connect(_on_assembly_done)
 
 	dance = DanceClass.new()
 	dance.name = "DanceMinigame"
@@ -555,6 +563,12 @@ func _leave_room(room: PiyestaRoom2D) -> void:
 ## next, so the player is put down at the room ahead's entry and their way back out of it
 ## is the room they just left.
 func _go_onward(room: PiyestaRoom2D) -> void:
+	# THE END OF THE SECOND ALLEY IS THE END OF THE LEVEL. Scene 3 is a modal overlay rather
+	# than a room -- there is nothing to walk around in it -- so the chain stops being a
+	# chain of places here and becomes a table with seven pieces on it.
+	if room == alley_2:
+		_open_scene_3()
+		return
 	var next := _next_after(room)
 	if next == null:
 		return
@@ -569,6 +583,29 @@ func _next_after(room: PiyestaRoom2D) -> PiyestaRoom2D:
 	if room == alley_1:
 		return alley_2
 	return null
+
+
+## Scene 3. Everything the player recovered goes on the table, and the design is explicit
+## that this cannot be failed -- so a player who somehow arrives holding fewer than seven is
+## given the rest rather than being sent back for them. The level owes them an ending, and
+## `ScrapAssembly.place_now` exists precisely so the completion rule is not written twice.
+func _open_scene_3() -> void:
+	if assembly_screen == null or assembly_screen.is_open():
+		return
+	if ledger != null and not ledger.is_complete():
+		push_warning("Level2: Scene 3 opened holding %d of %d scraps" % [
+			ledger.held(), ledger.total()])
+	assembly_screen.present()
+
+
+## The painting is whole. THIS is what ends Piyesta -- not a marker somebody has to walk to.
+##
+## Level 1 learned that the hard way: its goal marker sat out on the Overlook, so finishing
+## Payyo meant solving the hardest node in the level, taking the painting, and then walking
+## to a spot that looked like every other spot on the terrace. Players did the first part and
+## stood there. The last thing you do should be the thing that ends it.
+func _on_assembly_done(_creased: bool) -> void:
+	_complete_level()
 
 
 ## The candle, off the table in the lit house. Path C's reward, and the last thing that has
@@ -729,6 +766,7 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 			var climbed: BandaritaLine2D = _lines.get(alley_2.name) if alley_2 != null else null
 			if climbed != null:
 				climbed.take_what_is_up_here()
+			_open_the_way_to_scene_3()
 		["L2_N3", "protector"]:
 			# The one action in this level that permanently changes the town, and the
 			# reason the cut is a trade: it buys the sky for the rest of the level.
@@ -741,6 +779,7 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 			# And the cap has to be recomputed rather than waited for: the player is standing
 			# in the room whose line has just come down.
 			_ceiling_for = "?"
+			_open_the_way_to_scene_3()
 	return false
 
 
@@ -749,6 +788,13 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 func _open_the_first_alley() -> void:
 	if alley_1 != null:
 		alley_1.open_onward()
+
+
+## Problem 3 is answered by either route, and both recover every remaining scrap -- the
+## design says neither can lose one -- so both open the way to the table.
+func _open_the_way_to_scene_3() -> void:
+	if alley_2 != null:
+		alley_2.open_onward()
 
 
 func _on_dance_finished(cleared: bool, flower_earned: bool) -> void:

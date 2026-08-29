@@ -65,6 +65,7 @@ func _run() -> void:
 		await _capture(String(step[1]))
 
 	await _tour_the_insides()
+	await _look_at_scene_3()
 	await _look_at_the_dance()
 
 	print("OBRA_VISUAL_L2_OK")
@@ -93,6 +94,32 @@ func _tour_the_insides() -> void:
 		await _wait(1.1)
 		print("  %s: player at %s" % [room_name, player.global_position])
 		await _capture("06_%s" % room_name.to_lower())
+
+
+## SCENE 3, half mended and then whole. Both states are worth looking at: the scatter has to
+## read as a picture knocked sideways rather than as clutter, and the assembled one has to be
+## the painting the player was shown in Level 1.
+func _look_at_scene_3() -> void:
+	var table := level.get("assembly_screen") as AssemblyOverlay
+	if table == null:
+		print("  scene 3: no table")
+		return
+	table.present()
+	await _wait(0.6)
+	await _capture("10_scene3_scattered")
+	var ids := table.piece_ids()
+	for index in range(ids.size()):
+		# All but the last, so the frame has one piece still out and the ghost of where it
+		# goes -- which is the assist, and the thing most likely to be drawn wrong.
+		if index < ids.size() - 1:
+			table.drag_to(ids[index], table.slot_of(ids[index]))
+	await _wait(0.3)
+	await _capture("11_scene3_nearly")
+	table.drag_to(ids[ids.size() - 1], table.slot_of(ids[ids.size() - 1]))
+	await _wait(0.5)
+	await _capture("12_scene3_whole")
+	table.close()
+	await _wait(0.3)
 
 
 ## THE DANCE, WHICH IS THE ONLY SCREEN IN THIS LEVEL THAT IS NOT THE WORLD. It pauses the

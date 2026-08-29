@@ -269,15 +269,27 @@ func _audit_the_chain_runs_to_alley_2() -> void:
 	_check(_room_name() == "Alley2", "and the first alley reaches the second",
 		"the apo is in the %s" % _room_name())
 
-	# ⚠ AND ALLEY 2 IS THE END OF IT. A fourth link would step the player into whatever
-	# `_next_after` returns, and a null there used to be a silent no-op rather than a
-	# deliberate end.
+	# ⚠ AND THE FAR DOOR OF ALLEY 2 IS SCENE 3, NOT A FOURTH ROOM. The chain of places ends
+	# here and becomes a table with seven pieces on it.
 	alley_2.open_onward()
 	await _stand_at(alley_2.global_position + Rect2(alley_2.onward_rect()).get_center())
 	for _frame in range(16):
 		await physics_frame
-	_check(_room_name() == "Alley2", "and the chain stops there",
-		"nothing past the second alley yet -- Scene 3 is an overlay, not a room")
+	var table := level.get("assembly_screen") as AssemblyOverlay
+	_check(table != null and table.is_open(), "and the second alley opens Scene 3",
+		"the chain of rooms ends and the assembly begins")
+	_check(_room_name() == "Alley2", "without moving the player anywhere",
+		"Scene 3 is an overlay, not a room")
+	# ⚠ CLOSED AGAIN BEFORE ANYTHING ELSE RUNS. It is a modal, so leaving it up leaves the
+	# TREE PAUSED -- and every audit after this one then measures a world where `_process`
+	# never ticks. That is the failure mode the notes describe as "a stale path in a test can
+	# look like twenty-seven engine failures", and it cost two green checks the first time.
+	if table != null and table.is_open():
+		table.close()
+	for _frame in range(6):
+		await physics_frame
+	_check(not paused, "and closing it gives the world back",
+		"nothing after this runs frozen")
 
 
 ## SCENE 2, PLAYED RATHER THAN ASSERTED. The design calls the priest's line "the only
