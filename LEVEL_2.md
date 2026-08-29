@@ -1,25 +1,145 @@
-# Level 2 — Piyesta *(SUPERSEDED — do not build from this)*
+# Level 2 — Piyesta
 
-> # ⛔ SUPERSEDED, 2026-08-29
->
-> **`Level 2 Pista Design Refined.pdf` (revision 3) is the design now.** This document
-> guessed, and guessed wrong in the load-bearing place: it made **Fly the level's new
-> ability** and built four beats of flight gates on it. The refined design **restricts**
-> flight — the bandarita line is a ceiling, and it lifts only when the line is cut. There
-> are no Fly gates. The goal is seven painting scraps, and the level is scene-based.
->
-> What was built instead is in `config/level_02.json`, `config/dialogue_l2.json` and
-> `tests/run_level2_audit.gd`. Read **`AGENTS.md`** for the current shape.
->
-> **Three things in here are also factually wrong about the art**, found by looking at it:
-> the `TRANSPARENT/` set is a registered 1920 × 1080 layer set and **not** a uniformly
-> letterboxed copy (nothing is cropped); the bandaritas are painted into **three** layers,
-> not two (`BG_Clouds`, `MG_People`, `FG_Huts`); and **`Ground.png` is not the playable
-> ground** — the terrace, stone stair and kiosko the player stands on are all on `FG_Huts`.
->
-> Kept only as the record of what was assumed before anyone designed the level. It should
-> be rewritten from the refined PDF, at which point this file becomes Level 2's real
-> `LEVEL_<N>.md`.
+**Status: built through Phase 5. Not playable from the hub yet, on purpose.**
+`levels.json` keeps an empty `scene_path` for `level_2` and three tests assert it stays
+that way until the level can be finished. `run_level2_audit` is one of them.
+
+**The design is `Level 2 Pista Design Refined.pdf` (revision 3), at the repo root.** This
+document is the build record: what was decided, what is built, what broke on the way, and
+what is left. The superseded provisional design is folded away at the bottom.
+
+**Read with:** `LEVEL_TEMPLATE.md` (the shape every level inherits, R1–R10),
+`AGENTS.md` (the eleven hooks a level owes), `LEVEL_1.md` (the worked example).
+
+---
+
+## The level in one paragraph
+
+Recover **seven scraps** of the Pista painting and assemble them. Scene-based rather than
+one continuous walk: plaza → church interior → Alley 1 (five birds carry five scraps) →
+Alley 2 (the bandaritas hold two) → assembly. **Flight is a restriction, not an ability** —
+the bandarita line is a ceiling, and it lifts only when the line is cut. Three dialogue
+nodes; the last has **two routes, not three**, deliberately.
+
+| Beat | `artist` | `pragmatist` | `protector` |
+|---|---|---|---|
+| **L2_N1** Ang Kandila | dance for the dancers *(no drawing)* | find the lit house, make a way in | scare them off — they never come back |
+| **L2_N2** Alley 1, five birds | feed them | chase them — deferred, not lost | knock them down, on a 45–60 s timer |
+| **L2_N3** Alley 2, the bandaritas | climb to them | *(none, by design)* | cut them down — and the sky opens |
+
+---
+
+## The decisions, and why
+
+1. **Answer sets stayed on the tag layer.** The PDF names single classes (`bread`,
+   `boomerang`) and an explicit scare list. Those became three tag memberships — `feed`,
+   `startle`, `strike` — so every route still resolves ≥2 classes and no obstacle names a
+   class. `strike` was declared for Level 3 and is populated here instead; Level 3 keeps
+   `swim`.
+2. **The host was extracted, not forked.** `game_level.gd` (3046 lines) split into
+   `level_base.gd` + `game_level.gd`, eleven hooks. See `LEVEL_TEMPLATE.md` for the method.
+3. **`mushroom` → `bread`**, retrained and shipped as one versioned set. Still 50 classes.
+4. **`fly` stays empty and its unlock moved off this level.** The refined design never asks
+   the player to fly; it stops them. Populating a tag no obstacle asks for buys nothing.
+5. **The two restrictions fire through different doors.** A banned small animal is
+   **refused at submission** — no ink, a reason, nothing moves. The flight ceiling is a
+   **violation** — that drawing was legal and the player went where they were told not to,
+   so position resets and *nothing else does*. The PDF's flowchart routes both to the
+   checkpoint handler; its own UI list and its own note about message specificity argue for
+   this split.
+6. **The crease is visual only.** Level 1's `cross_level_effect` now reads
+   `L2_PISTA.painting.creased`. **This is a recorded debt, not a design** — see `LEVEL_1.md`.
+
+---
+
+## What is built
+
+| | |
+|---|---|
+| `game/config/level_02.json` | the level. Adds `restrictions`, `scrap_economy`, and `answered_by` to the schema |
+| `game/config/dialogue_l2.json` | 59 lines, none naming a class |
+| `game/level_2.tscn` | a **text** copy of `game_level.tscn`, three lines changed |
+| `game/levels/level_2/level_2_environment.tscn` | the plaza, six parallax layers, four room shells |
+| `game/scripts/level_2.gd` | the eleven hooks |
+| `game/scripts/level_restrictions.gd` | the two rules, validated against `labels.json` at load |
+| `game/scripts/scrap_ledger.gd` | seven pieces; none can be permanently lost |
+| `game/scripts/scrap_bird_2d.gd` | five addressable birds, three verbs, one answer each |
+| `game/scripts/dance_minigame.gd` | two attempts; **cannot dead-end the run** |
+| `game/scripts/scrap_assembly.gd` | seven slots, drag and snap, no fail state |
+| `game/assets/Level2/`, `level-2-assets/` | the art, imported and tracked |
+
+```bash
+godot --headless --path game --script res://tests/run_level2_audit.gd
+```
+```bash
+godot --headless --path game --script res://tests/run_level2_systems_probe.gd
+```
+```bash
+godot --headless --path game --script res://tests/run_level2_scene_probe.gd
+```
+```bash
+godot --path game --script res://tests/run_visual_level2.gd
+```
+
+---
+
+## The scars
+
+Every one of these was found by a check or a frame, not by reasoning, and every one is
+now guarded.
+
+1. **A tag membership leaked backwards into Level 1.** Adding `frog` to `startle` changed a
+   Payyo hint to "A frog can LEAP or STARTLE" — naming an ability two levels early.
+   `AbilityTags.tags_for_class_by_level` filters on the tag's own `unlocked_in_level`, not
+   on the profile, because a hint that changes with what a previous run unlocked is a hint
+   no test can pin down.
+2. **`bat` was an answer the ceiling punished.** It carries `climb`, and L2_N3's Artist
+   route asks the player to climb *to* the bandaritas, which **are** the ceiling. Excluded,
+   and `_audit_no_route_fights_the_ceiling` guards it.
+3. **An answer that cannot reach is not an answer.** `strike` resolved L2_N2's Protector
+   route to boomerang, axe and sword; only the boomerang leaves the hand (`_swing_blade`
+   works inside `TOOL_REACH`, 96px). The reaches are named constants now
+   (`BOOMERANG_THROW`, `CANNON_RANGE`) and the audit **reads them** rather than copying.
+4. **The two-answer floor has to be measured after the ban list**, because a banned class
+   still carries its tag and `AbilityTags` counts it. Level 1 never needed this.
+5. **The scare gate was a wall for half its own answers.** The dancers stood 900px out;
+   `startle` is answered by a snake, which covers 428px in `MorphLife`'s usable window
+   (R10). Moved to 300px.
+6. **The scene had no obstacle volumes at all**, so no beat could ever have fired.
+7. **Commit marks floated with no floor**, and the scene probe was *green while the scene
+   warned twice*. The warning is a failure now — and that check was itself vacuous on its
+   first run, asking a group the lanterns do not join.
+8. **The level thought it was Level 1.** Running a scene directly falls back to the first
+   card in `levels.json`, so `Telemetry.begin_level` and every profile write took `level_1`.
+9. **The picture and the collision were 279px apart** — the apo drawn in the sky above the
+   kiosko roof, in the first frame ever rendered of this level.
+
+**Three things `LEVEL_2.md` claimed about the art were wrong**, found by looking: the
+`TRANSPARENT/` set is a registered 1920 × 1080 layer set and **not** a letterboxed copy
+(nothing is cropped); the bandaritas are painted into **three** layers, not two; and
+**`Ground.png` is not the playable ground** — the terrace, stair and kiosko are on
+`FG_Huts`.
+
+---
+
+## What remains
+
+- **The walkable ground is the plaza *painting*, tiled.** The design says it should be
+  composed from `TextureMap_Piyesta.png`. Today the slab floats: sky under it, and the
+  ground ends where the 1920px composite ends.
+- **The four rooms are bare floors.** None implements the `interiors` contract
+  (`bounds()`, `entry_point()`, `camera_rect()`…), so none can be entered, and nothing
+  connects the plaza to them.
+- **Nothing instantiates the content.** The dancers, the five birds, the kandila, the lit
+  house and the bandaritas exist as systems with tests and as art, but no scene node
+  places them.
+- **`run_nodraw_level2.gd` does not exist**, and it is the one that matters: a plaza is
+  flat, and a flat level is the easiest kind to finish by walking.
+- **Alley 1 has no bandaritas in the art list** but needs a flight ceiling, or the cap is
+  an invisible wall exactly where the design says it must not be.
+- **`levels.json` `scene_path` stays empty** until the above is done.
+
+---
 
 <details>
 <summary>The superseded provisional design, kept for the record</summary>

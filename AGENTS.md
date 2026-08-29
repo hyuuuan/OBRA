@@ -93,6 +93,9 @@ plaza -> church interior -> Alley 1 (five birds carry five scraps) -> Alley 2 (b
 hold two) -> assembly. Three dialogue nodes; **L2_N3 has two routes, not three**, and
 `DialogueChoiceOverlay` already skips a missing one.
 
+Read **LEVEL_2.md** for the build record -- the decisions, what is built, the nine scars,
+and what remains.
+
 Built so far: `config/level_02.json`, `config/dialogue_l2.json`, `assets/Level2/`,
 `level-2-assets/`, and `tests/run_level2_audit.gd` (data only -- there is no scene yet, and
 `levels.json` `scene_path` stays EMPTY until there is).
