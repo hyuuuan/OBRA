@@ -59,6 +59,7 @@ func _run() -> void:
 	await _audit_the_church_is_shut_until_the_candle()
 	await _audit_the_lit_house_hands_over_the_candle()
 	await _audit_the_way_back_works()
+	await _audit_scene_2_happens()
 	await _audit_the_chain_runs_to_alley_2()
 
 	for line in results:
@@ -246,12 +247,13 @@ func _audit_the_chain_runs_to_alley_2() -> void:
 	if church == null or alley_1 == null or alley_2 == null:
 		_check(false, "the level has both alleys", "one of the rooms is missing")
 		return
-	_check(not church.onward_open and not alley_1.onward_open,
-		"every way onward starts shut", "nothing is skippable")
+	_check(church.onward_open and not alley_1.onward_open,
+		"the church is open and the first alley is not",
+		"Scene 2 opened one door and no more")
 
-	# Back into the church, and out the far end.
+	# Back into the church, and out the far end. NOT re-opened here: it was opened by the
+	# priest in the audit above, which is the only thing that may open it.
 	await _stand_at(church.entry_point())
-	church.open_onward()
 	await _stand_at(church.global_position + Rect2(church.onward_rect()).get_center())
 	for _frame in range(16):
 		await physics_frame
@@ -274,3 +276,68 @@ func _audit_the_chain_runs_to_alley_2() -> void:
 		await physics_frame
 	_check(_room_name() == "Alley2", "and the chain stops there",
 		"nothing past the second alley yet -- Scene 3 is an overlay, not a room")
+
+
+## SCENE 2, PLAYED RATHER THAN ASSERTED. The design calls the priest's line "the only
+## signpost for the second half of the level", and the way to both alleys is behind it. So
+## the question is not whether `open_onward()` works -- it is whether anything ever calls it.
+##
+## It also carries the cultural guardrail, because that is a claim the level config makes
+## about running code: sacred images have no collision, no interaction and no puzzle
+## function, and the altar is reachable to place the kandila AND FOR NOTHING ELSE.
+func _audit_scene_2_happens() -> void:
+	var church := level.get("church") as PiyestaRoom2D
+	var chancel := level.get("chancel") as ChurchInterior2D
+	if church == null or chancel == null:
+		_check(false, "the church is furnished", "no chancel")
+		return
+
+	# ⚠ THE GUARDRAIL. Asserted against the running tree, not against the source.
+	var sacred := level.get_tree().get_nodes_in_group(&"sacred_images")
+	var armed: Array[String] = []
+	for node in sacred:
+		for child in (node as Node).get_children():
+			if child is CollisionObject2D or child is CollisionShape2D:
+				armed.append("%s has %s" % [node.name, child.get_class()])
+	_check(armed.is_empty(), "nothing sacred in here can be touched",
+		"the retablo and the santo are drawn, not built" if armed.is_empty()
+		else "; ".join(armed))
+	var volumes := 0
+	for child in chancel.get_children():
+		if child is Area2D:
+			volumes += 1
+	_check(volumes == 1, "and the rack is the room\'s only approach volume",
+		"%d volume(s) -- one on the altar would make the altar interactive" % volumes)
+	_check(chancel.guardrail_holds(), "which is what the room says of itself",
+		"level_02.json cultural_constraints.church, enforced in code")
+
+	# The nave is furnished from the room, so the pews cannot outgrow the church.
+	_check(is_equal_approx(chancel.nave_length, church.room_length),
+		"the furniture is measured off the room", "%.0fpx of nave" % chancel.nave_length)
+	var rack_in := Rect2(church.call("bounds")).grow(40.0).has_point(chancel.rack_point())
+	_check(rack_in, "and the rack stands inside it", "left of the altar, against the wall")
+
+	await _stand_at(church.entry_point())
+	_check(not church.onward_open, "the way to the alleys starts shut",
+		"the priest has not spoken")
+	await _stand_at(chancel.rack_point())
+	_check(chancel.standing_at_rack(), "the rack notices somebody at it", "reach armed")
+	var placed: bool = bool(level.call("_interact_with_level"))
+	_check(placed and chancel.kandila_on_rack, "and E puts the candle on it",
+		"Scene 2\'s one action")
+	# ⚠ AND IT IS NO LONGER IN HAND. A candle placed and still carried would let the player
+	# put it on the rack again, and would leave Problem 1 permanently solved for a rerun.
+	_check(not bool(level.get("_has_kandila")), "which is no longer in hand",
+		"placed, not copied")
+
+	# Lolo prays, then the priest crosses the nave. Both are on real clocks -- the design
+	# asks for this scene to breathe -- so this waits them out rather than poking past them.
+	for _frame in range(600):
+		if church.onward_open:
+			break
+		await physics_frame
+	_check(church.onward_open, "the priest walks over and names the alleys",
+		"and that is what opens the way on")
+	var checkpoints = level.get("checkpoints")
+	_check(checkpoints != null and bool(checkpoints.call("has_checkpoint")),
+		"and CP2 is written before the alleys", "a player who dies down there keeps this")
