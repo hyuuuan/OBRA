@@ -1,6 +1,30 @@
-# Level 2 — Piyesta *(provisional)*
+# Level 2 — Piyesta *(SUPERSEDED — do not build from this)*
 
-> ## ⚠ THIS IS A TEMPORARY DESIGN
+> # ⛔ SUPERSEDED, 2026-08-29
+>
+> **`Level 2 Pista Design Refined.pdf` (revision 3) is the design now.** This document
+> guessed, and guessed wrong in the load-bearing place: it made **Fly the level's new
+> ability** and built four beats of flight gates on it. The refined design **restricts**
+> flight — the bandarita line is a ceiling, and it lifts only when the line is cut. There
+> are no Fly gates. The goal is seven painting scraps, and the level is scene-based.
+>
+> What was built instead is in `config/level_02.json`, `config/dialogue_l2.json` and
+> `tests/run_level2_audit.gd`. Read **`AGENTS.md`** for the current shape.
+>
+> **Three things in here are also factually wrong about the art**, found by looking at it:
+> the `TRANSPARENT/` set is a registered 1920 × 1080 layer set and **not** a uniformly
+> letterboxed copy (nothing is cropped); the bandaritas are painted into **three** layers,
+> not two (`BG_Clouds`, `MG_People`, `FG_Huts`); and **`Ground.png` is not the playable
+> ground** — the terrace, stone stair and kiosko the player stands on are all on `FG_Huts`.
+>
+> Kept only as the record of what was assumed before anyone designed the level. It should
+> be rewritten from the refined PDF, at which point this file becomes Level 2's real
+> `LEVEL_<N>.md`.
+
+<details>
+<summary>The superseded provisional design, kept for the record</summary>
+
+> ## ⚠ THIS WAS A TEMPORARY DESIGN
 >
 > There was no design for Level 2 at all — the art arrived first. This document exists so
 > the level has *a* shape to argue with, and every number in it is a **target derived from
@@ -389,3 +413,5 @@ Everything below is a real question this document answered by picking something.
 7. **Look at the frames.** `run_visual_*` needs a real viewport. Four defects in this project
    passed green suites and were caught only by screenshotting, and this level's whole idea
    lives in the vertical axis, which is the axis a headless test reports as a number.
+
+</details>
