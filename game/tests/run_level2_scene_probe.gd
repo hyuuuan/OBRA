@@ -58,6 +58,8 @@ func _run() -> void:
 	_audit_the_plaza_is_buildable()
 	_audit_the_ceiling_bites()
 	_audit_every_mark_stands_on_ground()
+	_audit_the_rooms_are_rooms()
+	_audit_the_rooms_do_not_overlap()
 	await _audit_the_apo_stands_on_something()
 
 	for line in results:
@@ -237,3 +239,102 @@ func _audit_the_apo_stands_on_something() -> void:
 	_check(fell < 300.0, "the apo lands on the terrace rather than falling",
 		"settled %.0fpx below the spawn" % fell)
 	_check(now.y < 900.0, "and is not under the world", "y %.0f" % now.y)
+
+
+## THE FOUR INSIDES, AND WHETHER THEY ARE ROOMS OR JUST FLOORS.
+##
+## They were floors: four bare Node2Ds with a collision box under them, joining no group and
+## answering none of the six questions `_refresh_room_framing` asks. A room that does not
+## answer them is not entered -- the camera never switches, the placement box never narrows,
+## and `_room_holding_player` returns null for a player who is plainly standing in one.
+func _audit_the_rooms_are_rooms() -> void:
+	var rooms := level.get_tree().get_nodes_in_group(&"interiors")
+	_check(rooms.size() == 4, "four insides, and they joined the group",
+		"%d in `interiors`" % rooms.size())
+	var contract := ["bounds", "camera_rect", "entry_point", "eye_level", "how_far_in",
+		"exit_rect"]
+	var mute: Array[String] = []
+	for node in rooms:
+		for method in contract:
+			if not node.has_method(method):
+				mute.append("%s cannot answer %s" % [node.name, method])
+	_check(mute.is_empty(), "every one answers the whole contract",
+		"6 questions x %d rooms" % rooms.size() if mute.is_empty() else "; ".join(mute))
+
+	# A room is parked in the sky. Its entry point is where the player is PUT DOWN, and if
+	# there is nothing under it they fall out of the level and the fall limit fishes them
+	# back to the plaza -- which reads as the door being broken.
+	var space := (level as Node2D).get_world_2d().direct_space_state
+	var floating: Array[String] = []
+	var outside: Array[String] = []
+	for node in rooms:
+		var room := node as Node2D
+		var box := Rect2(room.call("bounds"))
+		for what: Array in [["entry", room.call("entry_point")],
+				["return", room.call("return_point")]]:
+			var at := Vector2(what[1])
+			# FROM ABOVE, the way the lantern probes. A ray that starts exactly on the
+			# surface it is asking about is a ray Godot may or may not report, depending on
+			# which side of the edge the float lands -- and the landing point IS the floor
+			# line, because that is where a body's feet go.
+			var query := PhysicsRayQueryParameters2D.create(
+				at - Vector2(0.0, 40.0), at + Vector2(0.0, 300.0))
+			query.collision_mask = 1
+			if space.intersect_ray(query).is_empty():
+				floating.append("%s.%s over nothing" % [room.name, what[0]])
+			# Grown, because both land a body's width inside the wall and the box is the
+			# walkable extent rather than the drawn one.
+			if not box.grow(40.0).has_point(at):
+				outside.append("%s.%s is outside its own room" % [room.name, what[0]])
+	_check(floating.is_empty(), "and something under every place it puts you",
+		"%d landing points" % (rooms.size() * 2) if floating.is_empty()
+		else "; ".join(floating))
+	_check(outside.is_empty(), "and every one of them is inside the room",
+		"checked against each room's own bounds" if outside.is_empty()
+		else "; ".join(outside))
+
+	# ⚠ THE ONE THAT MATTERS. A doorway is walked into, so its box has to sit ON the floor.
+	# Authored a hundred units up it becomes a thing the player can see and never reach, and
+	# nothing in the level would ever say so -- the room simply has no way out.
+	var high: Array[String] = []
+	for node in rooms:
+		var room := node as Node2D
+		for what: Array in [["way back", room.call("exit_rect")],
+				["way onward", room.call("onward_rect")]]:
+			var rect := Rect2(what[1])
+			var foot: float = rect.position.y + rect.size.y
+			if absf(foot) > 8.0:
+				high.append("%s %s stands %.0fpx off the floor" % [room.name, what[0], foot])
+	_check(high.is_empty(), "both openings stand on the floor",
+		"8 openings, all at floor level" if high.is_empty() else "; ".join(high))
+
+	# An alley is open to the sky by design: that is where the birds circle and where the
+	# bandaritas hang, and a lid over it would make the flight rule a roof instead of a line.
+	var lidded: Array[String] = []
+	for node in rooms:
+		var room := node as Node2D
+		var alley := int(room.get("kind")) == 2
+		var has_lid := room.get_node_or_null(^"Ceiling") != null
+		if alley == has_lid:
+			lidded.append("%s %s a ceiling" % [room.name, "has" if has_lid else "lacks"])
+	_check(lidded.is_empty(), "the alleys are open and the rest are not",
+		"2 open to the sky, 2 roofed" if lidded.is_empty() else "; ".join(lidded))
+
+
+## `_room_holding_player` walks the group and returns the FIRST room whose bounds contain the
+## player, so two rooms sharing a point is a coin toss decided by tree order -- and the
+## camera, the zoom and the placement box all follow whichever won. The church and the lit
+## house were within a hundred units of overlapping when they were first parked.
+func _audit_the_rooms_do_not_overlap() -> void:
+	var rooms := level.get_tree().get_nodes_in_group(&"interiors")
+	var clashes: Array[String] = []
+	for i in range(rooms.size()):
+		for j in range(i + 1, rooms.size()):
+			var a := Rect2((rooms[i] as Node2D).call("bounds")).grow(90.0)
+			var b := Rect2((rooms[j] as Node2D).call("bounds")).grow(90.0)
+			if a.intersects(b):
+				clashes.append("%s and %s" % [rooms[i].name, rooms[j].name])
+	_check(clashes.is_empty(), "and no two of them share a point",
+		"%d pairs, all clear at the 90px the base grows by" % (
+			rooms.size() * (rooms.size() - 1) / 2)
+		if clashes.is_empty() else "; ".join(clashes))
