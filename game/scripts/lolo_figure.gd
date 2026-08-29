@@ -48,15 +48,33 @@ const TURNAROUND := preload("res://assets/characters/lolo/lolo_turnaround.png")
 ## `float` and `hurry` are the sheet's walk and run under the names that describe what they
 ## actually show, because a companion who never touches the ground has no walk and calling
 ## it one is how someone ends up trying to sync it to a footfall.
+## A pose is either a CYCLE driven by the drift phase, a ONE-SHOT driven by its own clock,
+## or a single held frame.
+##
+## `once` plays through at `fps` and holds the last frame; `reverse` plays the same sheet
+## backwards, which is what turning back to the drift is. Both read `pose_time`, which Lolo
+## advances and resets -- the figure still owns no clock of its own, for the reason on
+## refresh(): it must not animate on while the tree is paused behind an overlay.
 const POSES := {
 	&"float": {"texture": WALK, "count": 6, "cycle": true, "frame": 0},
 	&"hurry": {"texture": RUN, "count": 6, "cycle": true, "frame": 0},
 	&"still": {"texture": IDLE, "count": 1, "cycle": false, "frame": 0},
 	&"wave": {"texture": WAVE, "count": 1, "cycle": false, "frame": 0},
 	&"cheer": {"texture": CHEER, "count": 1, "cycle": false, "frame": 0},
-	# Head-on, out of the turnaround. What a companion does when he stops trailing you and
-	# turns to say something to your face.
-	&"face": {"texture": TURNAROUND, "count": 5, "cycle": false, "frame": 0},
+	# THE TURNAROUND IS FIVE FRAMES AND FOUR OF THEM HAD NEVER BEEN DRAWN. The sheet is
+	# 400x104 -- five cells -- and `face` held frame 0 forever, so the one piece of
+	# character animation the artist delivered for this companion showed as a still. He
+	# turns now: to the player when he starts speaking, and back to the drift when he is
+	# done.
+	# THE SHEET RUNS FRONT TO BACK: cell 0 is head-on with a face, cell 4 is the back of his
+	# head. Verified by photographing all five, which is also how it was caught that the two
+	# poses below had their directions swapped -- `face` was turning him AWAY to speak.
+	# Turning TO the player is therefore the sheet played BACKWARDS, ending on cell 0 and
+	# holding it for the rest of the line.
+	&"face": {"texture": TURNAROUND, "count": 5, "cycle": false, "frame": 0,
+		"once": true, "fps": 14.0, "reverse": true},
+	&"turn_back": {"texture": TURNAROUND, "count": 5, "cycle": false, "frame": 0,
+		"once": true, "fps": 16.0},
 }
 
 ## Which pose to draw. Set by Lolo; an unknown name falls back to the drift rather than
@@ -74,6 +92,10 @@ const POSES := {
 ## only ever the six frames repeating reads as a loop; a slow rise and fall under it is what
 ## stops the eye finding the seam.
 @export var bob: float = 0.0
+## Seconds spent in the current pose, advanced and reset by lolo.gd. Only the one-shot
+## poses read it; a cycle is still driven by `stride` so it stays locked to the ground he
+## is covering rather than to a second, unrelated clock.
+@export var pose_time: float = 0.0
 ## Set while he is talking. Kept because lolo.gd sets it and because a companion who is
 ## saying something should not look identical to one who is not -- he lifts and breathes
 ## wider while a line of his is up.
@@ -98,6 +120,15 @@ func _ready() -> void:
 	refresh()
 
 
+## How long a one-shot pose takes to play out, so a caller can hold a state for exactly as
+## long as the animation it started. Zero for a cycle or a single frame.
+static func pose_duration(which: StringName) -> float:
+	var entry: Dictionary = POSES.get(which, {})
+	if not bool(entry.get("once", false)):
+		return 0.0
+	return float(int(entry["count"])) / maxf(1.0, float(entry.get("fps", 12.0)))
+
+
 ## Draw whatever `pose`, `stride` and `bob` currently say. Called from lolo.gd's `_process`
 ## rather than run off one here, so the figure cannot drift on while the tree is paused
 ## behind an overlay.
@@ -111,7 +142,13 @@ func refresh() -> void:
 		_sprite.texture = texture
 		_sprite.hframes = count
 	var frame := int(entry["frame"])
-	if bool(entry["cycle"]):
+	if bool(entry.get("once", false)):
+		var fps := float(entry.get("fps", 12.0))
+		# Clamped rather than wrapped: a one-shot that looped would have him turning to the
+		# player over and over for as long as the line is up.
+		var step := clampi(int(floor(pose_time * fps)), 0, count - 1)
+		frame = (count - 1 - step) if bool(entry.get("reverse", false)) else step
+	elif bool(entry["cycle"]):
 		# posmod, not %, because the phase is a float that can go negative on a rewind and
 		# a negative frame index leaves the sprite showing nothing at all.
 		frame = posmod(int(floor(stride * float(count))), count)

@@ -43,6 +43,12 @@ const BEAT_PER_CHAR := 0.045
 var _panel: PanelContainer
 var _speaker: Label
 var _text: Label
+## Built fresh per lesson: the sentence with a real key cap set into it. Hidden, and _text
+## shown, for every ordinary hint. See show_lesson.
+var _lesson: HFlowContainer
+## The plain string a lesson would have been, kept only so _relayout can measure a row it
+## cannot ask a single Label for.
+var _lesson_plain := ""
 var _life := 0.0
 ## The rest of a beat, waiting its turn: [{text, speaker}]. Empty for every ordinary hint,
 ## which is one line that stands until something replaces it.
@@ -78,7 +84,11 @@ func _init() -> void:
 	_speaker = Label.new()
 	_speaker.name = "Speaker"
 	_speaker.theme_type_variation = &"HudCaption"
-	_speaker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# TOP, NOT CENTRE. A one-line hint looks identical either way, but a lesson wraps to two
+	# or three lines and a centred plaque then sits beside the MIDDLE of what is being said
+	# -- reading as though the speaker's name belonged to line two.
+	_speaker.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	_speaker.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	row.add_child(_speaker)
 
 	_text = Label.new()
@@ -87,6 +97,15 @@ func _init() -> void:
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.custom_minimum_size = Vector2(0.0, 0.0)
 	row.add_child(_text)
+
+	_lesson = HFlowContainer.new()
+	_lesson.name = "Lesson"
+	_lesson.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Separation IS the space between words here, since the words are separate controls.
+	_lesson.add_theme_constant_override(&"h_separation", 5)
+	_lesson.add_theme_constant_override(&"v_separation", 2)
+	_lesson.visible = false
+	row.add_child(_lesson)
 
 	set_process(false)
 
@@ -121,18 +140,122 @@ func _someone_is_speaking() -> bool:
 	return false
 
 
+## A LESSON, WITH THE KEY DRAWN AS A KEY.
+##
+## Every lesson used to be a flat sentence with the key spelled into it -- "R opens it" --
+## which is the game describing its own controls in prose. The prompts at the bottom of the
+## screen have drawn proper caps this whole time (UISkin.action_key), so the tutorial was
+## the one part of the interface that talked about keys instead of showing them.
+##
+## `text` keeps its `{keys}` marker and `caps` is what goes in the cap, so the sentence and
+## its presentation stay separate: tutorial.json still authors words, and this decides they
+## are worth drawing as hardware.
+func show_lesson(text: String, speaker: String, seconds: float, caps: String) -> void:
+	if text.is_empty():
+		clear()
+		return
+	for child in _lesson.get_children():
+		child.queue_free()
+	var parts := text.split("{keys}", true)
+	_lesson_plain = text.replace("{keys}", caps)
+	# ONE CHILD PER WORD, IN A FLOW CONTAINER.
+	#
+	# The first cut put each half of the sentence in an autowrapping Label inside an
+	# HBoxContainer, which cannot wrap: the box gave every label its minimum width, the
+	# labels wrapped inside that, and the whole lesson came out as a column of single
+	# letters running off the top and bottom of the screen. It loaded clean and passed every
+	# assertion in the suite. A flow container wraps its CHILDREN, so the line breaks have to
+	# happen between children -- which means the children have to be words.
+	for index in range(parts.size()):
+		var piece := String(parts[index])
+		# PUNCTUATION FOLLOWING A CAP TRAVELS WITH IT. Words are separate controls here and
+		# the container puts a gap between every one of them, so a sentence ending
+		# "{keys}." came out as a cap, a space, and a full stop stranded on its own.
+		if index > 0:
+			piece = _strip_leading_punctuation(piece)
+		for word in piece.split(" ", false):
+			var label := Label.new()
+			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			label.theme_type_variation = &"HudValue"
+			label.text = word
+			_lesson.add_child(label)
+		# A cap sits BETWEEN two pieces, so the last piece never gets one after it.
+		if index < parts.size() - 1:
+			var tail := ""
+			if index + 1 < parts.size():
+				tail = _leading_punctuation(String(parts[index + 1]))
+			_lesson.add_child(_key_cap(caps, tail))
+	_text.visible = false
+	_lesson.visible = true
+	_show(speaker, seconds)
+
+
+const PUNCTUATION := ".,;:!?)"
+
+
+func _leading_punctuation(piece: String) -> String:
+	var out := ""
+	for index in range(piece.length()):
+		if not PUNCTUATION.contains(piece[index]):
+			break
+		out += piece[index]
+	return out
+
+
+func _strip_leading_punctuation(piece: String) -> String:
+	return piece.substr(_leading_punctuation(piece).length())
+
+
+## The cap, plus whatever punctuation was sitting immediately after it, in one tight group
+## so the container's word gap cannot open up between them.
+func _key_cap(caps: String, tail: String = "") -> Control:
+	if not tail.is_empty():
+		var group := HBoxContainer.new()
+		group.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		group.add_theme_constant_override(&"separation", 0)
+		group.add_child(_key_cap(caps))
+		var mark := Label.new()
+		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		mark.theme_type_variation = &"HudValue"
+		mark.text = tail
+		group.add_child(mark)
+		return group
+	var badge := PanelContainer.new()
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	badge.add_theme_stylebox_override(&"panel", UISkin.action_key(UISkin.GOLD))
+	var letter := Label.new()
+	letter.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	letter.text = caps
+	letter.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
+	letter.add_theme_color_override(&"font_color", UISkin.INK)
+	letter.add_theme_constant_override(&"shadow_offset_x", 0)
+	letter.add_theme_constant_override(&"shadow_offset_y", 0)
+	badge.add_child(letter)
+	return badge
+
+
 func show_hint(text: String, speaker: String = "", seconds: float = 0.0) -> void:
 	if text.is_empty():
 		clear()
 		return
+	_lesson.visible = false
+	_text.visible = true
 	# A standing prompt REPLACES a beat that is still playing. One channel carries several
 	# voices and this one -- "there is a way in under the straw", "press E to read the sign"
 	# -- is about where the player is right now, which beats advice they are part-way through
 	# reading. show_beat is the entry point for something that must be read in full.
 	_queue.clear()
+	_text.text = text
+	_lesson_plain = ""
+	_show(speaker, seconds)
+
+
+## The half both entry points share: who is speaking, how long it stands, and the arrival.
+func _show(speaker: String, seconds: float) -> void:
+	_queue.clear()
 	_speaker.text = "%s:" % speaker.to_upper() if not speaker.is_empty() else ""
 	_speaker.visible = not speaker.is_empty()
-	_text.text = text
 	_life = seconds
 	set_process(true)
 	if _fade != null and _fade.is_valid():
@@ -142,7 +265,15 @@ func show_hint(text: String, speaker: String = "", seconds: float = 0.0) -> void
 		visible = true
 		var appear := create_tween()
 		appear.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		appear.set_parallel(true)
 		appear.tween_property(self, "modulate:a", 1.0, 0.14)
+		# AND IT DROPS IN. A bar that only fades arrives without a direction, and at the top
+		# of the frame -- the band the player is deliberately not looking at while judging a
+		# jump -- a fade is easy to miss entirely. Eight pixels of travel out of the top edge
+		# is what makes it register as something that just appeared.
+		_panel.position.y = TOP - 8.0
+		appear.tween_property(_panel, "position:y", TOP, 0.18) \
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		_fade = appear
 	_relayout()
 	_relayout.call_deferred()
@@ -273,9 +404,26 @@ func _relayout() -> void:
 	var font_size := _text.get_theme_font_size(&"font_size")
 	if font == null:
 		return
+	# A lesson is several controls in a row, so there is no single label to ask. Measured off
+	# the plain sentence it would have been, which is the same width to within a cap's
+	# padding and is the only string that exists for it.
+	var measured := _lesson_plain if _lesson.visible else _text.text
 	var single := font.get_string_size(
-		_text.text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
-	_text.custom_minimum_size = Vector2(ceilf(minf(single, MAX_WIDTH)), 0.0)
+		measured, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+	# A cap is wider than the word it replaces, so a lesson measured off its plain string
+	# needs room to grow into or the last word wraps alone onto a second line.
+	if _lesson.visible:
+		single += 26.0
+	var width := ceilf(minf(single, MAX_WIDTH))
+	_text.custom_minimum_size = Vector2(width, 0.0)
+	# THE FLOW CONTAINER WRAPS AGAINST ITS OWN WIDTH and has no opinion of its own about
+	# what that should be -- left to itself it takes the width of its widest child, which is
+	# one word.
+	_lesson.custom_minimum_size = Vector2(width, 0.0)
 	var wanted := _panel.get_combined_minimum_size()
 	_panel.size = wanted
-	_panel.position = Vector2(floorf((view.x - wanted.x) * 0.5), TOP)
+	# X only. The drop-in tween owns y while it is running, and writing both here would
+	# snap the panel to its resting place on the first frame of every appearance.
+	_panel.position.x = floorf((view.x - wanted.x) * 0.5)
+	if _fade == null or not _fade.is_valid():
+		_panel.position.y = TOP

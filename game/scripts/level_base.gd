@@ -166,6 +166,13 @@ var cinematic: CinematicBars
 var morph_card: MorphCard
 ## R and Q at the lower left; E and F beside the current body only while they can act.
 var action_prompts: ActionPromptHUD
+## The part of the game that teaches the game. Level-scoped and spent once per run; a
+## level with no block in tutorial.json simply never teaches anything. See
+## TutorialDirector -- every lesson goes to the HintBar, so teaching never stops the tree.
+var tutorial: TutorialDirector
+## First horizontal input of the run, polled rather than signalled: there is nothing to
+## signal on, because walking is not an event the level owns.
+var _has_moved := false
 ## What the recogniser scored the sketch that is currently being adopted.
 ##
 ## Carried on the level rather than threaded through _spawn_or_replace, which is called from
@@ -265,6 +272,11 @@ func _ready() -> void:
 	morph_life.life_changed.connect(_on_life_changed)
 	morph_life.life_expired.connect(_on_life_expired)
 	morph_life.form_changed.connect(_on_form_changed)
+	tutorial = TutorialDirector.new()
+	tutorial.name = "TutorialDirector"
+	add_child(tutorial)
+	tutorial.load_for(LevelManager.current_level_id)
+	tutorial.bind_hint_bar(hint_bar)
 	_run_started_msec = Time.get_ticks_msec()
 	_apply_level_identity()
 	_resolve_level_nodes()
@@ -429,6 +441,10 @@ func _build_obstacle_layer() -> void:
 				% [name, area.obstacle_id, level_config_path()])
 			continue
 		area.player_entered.connect(director.enter_obstacle)
+		# SCOPE AND ARRIVAL ARE TWO SIGNALS NOW. The wide box says which beat the player is
+		# working on; the narrow one says they have reached the thing it is about. See
+		# LevelObstacle2D.announce_size for why one box could not do both.
+		area.player_arrived.connect(_on_obstacle_arrived)
 		area.player_exited.connect(director.exit_obstacle)
 		_plant_commit_mark(area)
 
@@ -518,6 +534,8 @@ func _stage_the_checkpoint(mark: Node2D) -> void:
 ## exist before the recording does.
 func _say_checkpoint() -> void:
 	status_label.text = "Checkpoint"
+	if tutorial != null:
+		tutorial.note("checkpoint")
 	if hint_bar != null:
 		hint_bar.show_hint("The level will remember you from here.", "", 3.0)
 	var audio := get_node_or_null(^"/root/AudioDirector")
@@ -526,7 +544,8 @@ func _say_checkpoint() -> void:
 
 
 func _on_obstacle_entered(obstacle_id: String) -> void:
-	_speak_on_arrival("%s.enter" % obstacle_id)
+	if tutorial != null:
+		tutorial.note("first_obstacle")
 	# A node teaches all three of its routes' verbs BEFORE the choice, because a player
 	# cannot choose a path whose verb they have never been told.
 	var teaches: Array = director.obstacle(obstacle_id).get("teaches_before_choice", [])
@@ -535,6 +554,13 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 		director.teach_before_choice(obstacle_id)
 	_speak_current_stage(obstacle_id)
 	_refresh_requirements()
+
+
+## The player has reached what the beat is about, which is where its opening line belongs.
+## Separate from _on_obstacle_entered because entering is a much wider event -- see
+## LevelObstacle2D.announce_size.
+func _on_obstacle_arrived(obstacle_id: String) -> void:
+	_speak_on_arrival("%s.enter" % obstacle_id)
 
 
 ## ARRIVAL SPEAKS ONCE. Walking in somewhere is news the first time and an interruption
@@ -553,7 +579,7 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 func _speak_on_arrival(hook: String) -> void:
 	if script_lines.has_heard(hook):
 		return
-	_speak(script_lines.fire(hook))
+	_speak_walking(script_lines.fire(hook))
 
 
 ## The board the player is standing at, if it has something to say again. Nearest wins, so
@@ -609,6 +635,8 @@ func _read_nearest_sign() -> bool:
 ## whatever had replaced it on the way out.
 func _offer_the_nearest_sign() -> void:
 	var board := _readable_sign()
+	if tutorial != null and board != null:
+		tutorial.note("sign_readable")
 	for node in get_tree().get_nodes_in_group(&"signposts"):
 		var other := node as Signpost2D
 		if other != null:
@@ -679,6 +707,14 @@ func _refresh_requirements() -> void:
 		spec.get("exclude", []))
 	requirement_strip.show_requirements(director.required_tags(), director.hint_tier(), owned,
 		String(spec.get("match", "all")))
+	# The strip is the game's own vocabulary and nobody arrives knowing it. The tags are
+	# this project's invention, so the first time one is printed at the player is the moment
+	# to say what the row IS.
+	# TIER 1, NOT TIER 0. At T0 the strip deliberately names no tag -- it is flavour -- so a
+	# lesson about "that word at the top" would be pointing at a row with no word in it.
+	if tutorial != null and director.hint_tier() >= 1 \
+			and not director.required_tags().is_empty():
+		tutorial.note("requirement_shown")
 
 
 ## The checkpoint is written HERE, on the commit, not on the solve -- so that every morph
@@ -705,6 +741,10 @@ func _light_commit_mark(obstacle_id: String) -> void:
 
 
 func _on_obstacle_solved(obstacle_id: String, route: String, label: String, attempt_count: int, tier: int) -> void:
+	# THE ONE MOMENT HE REACTS TO THE PLAYER rather than to the place. The cheer frame was
+	# delivered with the rest of his sheet and had never been drawn on screen.
+	if lolo != null and is_instance_valid(lolo) and lolo.has_method("cheer"):
+		lolo.cheer()
 	# A level with something to DO at this beat does it and owns the words; otherwise the
 	# generic acknowledgement fires.
 	if not _on_route_solved(obstacle_id, route):
@@ -1106,7 +1146,13 @@ func _restore_placed_entities(records: Array) -> void:
 ##
 ## Unread is not an exaggeration. This used to hand a whole beat over in one synchronous
 ## loop, writing five lines into the same label in the same frame. Only the last survived.
-func _speak(lines: Array) -> void:
+## Arrival lore, said WITHOUT stopping the world. Everything else Lolo says is a decision
+## point or the answer to one and keeps the blocking box; walking into somewhere is neither.
+func _speak_walking(lines: Array) -> void:
+	_speak(lines, true)
+
+
+func _speak(lines: Array, walking: bool = false) -> void:
 	var beat: Array[Dictionary] = []
 	# GATHERED, NOT WRITTEN STRAIGHT THROUGH. Handing each hint to the bar as it came out of
 	# the loop meant a beat of several hints was several writes to one label inside one frame,
@@ -1141,8 +1187,14 @@ func _speak(lines: Array) -> void:
 	# what used to throw the hints away in a beat that carried both kinds.
 	if hint_bar != null:
 		hint_bar.clear()
-	_focus_camera_for(String(beat[0]["at"]))
-	dialogue_box.speak(beat)
+	if walking:
+		# NO CAMERA FOCUS. Pulling the camera onto the speaker is right when the world is
+		# stopped and the player is reading; here they are still walking, and a camera that
+		# slides away from the character being steered is a camera fighting the player.
+		dialogue_box.speak_walking(beat)
+	else:
+		_focus_camera_for(String(beat[0]["at"]))
+		dialogue_box.speak(beat)
 	# The bar fades itself out and freezes its dwell while anybody is speaking, so advice
 	# posted now waits under the conversation and plays out when the player has read it.
 	_post_advice(advice)
@@ -1469,6 +1521,10 @@ func _on_placement_confirmed(
 	if placed.has_method("set_world_bounds"):
 		placed.call("set_world_bounds", Rect2(environment.get("world_bounds")))
 	status_label.text = "%s placed — E or right-click to take it back" % item.display_name
+	# R8 in GATES.md is only true if the player KNOWS it is true. A player who believes a
+	# placement is permanent plays the rest of the level as though it were.
+	if tutorial != null:
+		tutorial.note("placement_confirmed")
 	# Judged HERE and not at recognition. A square that was drawn but never put down has
 	# not bridged anything, and letting the gap solve on recognition would mean the
 	# tutorial's one lesson -- that you place what you draw -- could be skipped.
@@ -1482,6 +1538,8 @@ func _on_placement_canceled(item: DrawnItemData, source_slot: int) -> void:
 			ink_manager.commit_attempt()
 			item.ink_committed = true
 		status_label.text = "%s stored in slot %d" % [item.display_name, slot + 1]
+		if tutorial != null:
+			tutorial.note("item_stored")
 		return
 	if not item.ink_committed:
 		ink_manager.release_attempt()
@@ -1497,6 +1555,9 @@ func _on_placement_changed(active: bool, valid: bool) -> void:
 	inventory_hud.set_click_through(active)
 	if not active:
 		return
+	# The mouse is all three halves of placement and the game never said so anywhere.
+	if tutorial != null:
+		tutorial.note("placement_started")
 	if not valid:
 		status_label.text = "No room there — aim at a clearer spot"
 	elif placement_controller.is_held_by_room():
@@ -1561,6 +1622,8 @@ func _on_utility_pickup_requested(utility: PhysicsShapeObject) -> void:
 		_equipped_utility = null
 	utility.queue_free()
 	status_label.text = "%s stored in slot %d" % [item.display_name, slot + 1]
+	if tutorial != null:
+		tutorial.note("item_stored")
 
 
 func _on_utility_equipped(utility: UtilityObject, _actor: Node2D) -> void:
@@ -1693,6 +1756,7 @@ func _refresh_action_prompts() -> void:
 	if action_prompts == null:
 		return
 	action_prompts.follow(player)
+	_tick_tutorial()
 	var can_act := not _level_completed \
 		and player != null and is_instance_valid(player) \
 		and not placement_controller.is_placing()
@@ -1710,6 +1774,31 @@ func _refresh_action_prompts() -> void:
 	action_prompts.set_use_available(
 		can_use,
 		_drawing_display_name(_equipped_utility) if can_use else "")
+	# Both read off state this function already computed rather than re-deriving it: the
+	# prompt appearing IS the moment the verb became available, which is the moment to say
+	# what it does.
+	if tutorial != null and can_use:
+		tutorial.note("tool_held")
+
+
+## The lessons that have no event to hang off, polled once a frame beside the prompts that
+## already are.
+##
+## WALKING IS NOT AN EVENT THE LEVEL OWNS. There is no signal for "the player moved"; the
+## wanderer reads the input axis itself. So the first press is polled here, which is the
+## same physics step _refresh_action_prompts already runs in -- and once `move` is spent
+## the poll is a dictionary miss in TutorialDirector.note.
+##
+## `level_start` waits for a player to exist. _ready runs before the first body is adopted,
+## and a lesson taught to an empty screen is a lesson nobody reads.
+func _tick_tutorial() -> void:
+	if tutorial == null or player == null or not is_instance_valid(player):
+		return
+	tutorial.note("level_start")
+	if not _has_moved and absf(Input.get_axis("move_left", "move_right")) > 0.05:
+		_has_moved = true
+	if _has_moved:
+		tutorial.note("moved")
 
 
 func _drawing_display_name(drawing: PhysicsShapeObject) -> String:
@@ -1905,6 +1994,10 @@ func _on_life_changed(remaining: float, capacity: float) -> void:
 		# player turns the page, and running low is exactly the moment they are mid-jump
 		# over something -- see AGENTS.md on the two channels.
 		hint_bar.show_hint("The %s is fading" % _current_form_name.to_lower())
+		# AFTER the warning, not instead of it: the warning says WHAT is happening and the
+		# lesson says what it means. The bar queues them; it does not stack them.
+		if tutorial != null:
+			tutorial.note("morph_low")
 
 
 ## The drawing died of its own accord.
@@ -1933,11 +2026,17 @@ func _on_life_expired() -> void:
 func _on_form_changed(form_name: String, _form_id: String) -> void:
 	if morph_card != null and form_name.is_empty():
 		morph_card.hide_form()
+	if tutorial != null and not form_name.is_empty():
+		tutorial.note("became_creature")
 
 
 func _on_ink_changed(remaining: float, capacity: float, reserved: float) -> void:
 	if hud_panel != null:
 		hud_panel.set_ink(remaining, capacity, reserved)
+	# Only once something has actually been spent. Ink explained against a full bar is a
+	# rule about a resource the player has not yet had a reason to care about.
+	if tutorial != null and remaining < capacity - 0.01:
+		tutorial.note("ink_spent")
 
 
 func _physics_process(_delta: float) -> void:

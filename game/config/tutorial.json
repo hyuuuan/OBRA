@@ -1,0 +1,161 @@
+{
+  "_comment": [
+    "WHAT THE GAME TEACHES ABOUT ITSELF, and when.",
+    "",
+    "Level 1 is the tutorial and it was never teaching anything. The controls screen",
+    "under the pause menu is a REFERENCE — a player has to already suspect a verb",
+    "exists before they will go looking for it there — and ActionPromptHUD shows four",
+    "key caps (R, Q, E, F) with no words around them. Movement, jumping, the mouse that",
+    "does all of placement, the bag, and the fact that a drawing is on a clock were",
+    "never said anywhere. Lolo is standing right there and is the reason the game has a",
+    "guide at all, so he says them.",
+    "",
+    "EVERY LESSON GOES TO THE HINT BAR, NEVER THE DIALOGUE BOX. The bar does not stop",
+    "the world, needs no key press and clears itself. A tutorial that pauses the game to",
+    "tell you how to walk is the thing this file exists to stop.",
+    "",
+    "KEYS ARE NOT WRITTEN HERE. `{keys}` is filled at runtime from the live InputMap via",
+    "ControlsOverlay.keys_for, so a rebinding cannot leave a lesson naming a key that no",
+    "longer does anything — the same split controls.json already makes, for the same",
+    "reason. Use `action` for one key, plus `through` for a contiguous block (the six",
+    "inventory slots are one idea to the player, not six), or `keys` to name something",
+    "the InputMap does not hold, which is the whole mouse.",
+    "",
+    "`at` is the moment the lesson is offered; the director spends each one once per run.",
+    "`after` holds a lesson back until another has been seen, so the order survives a",
+    "player who does things out of sequence.",
+    "",
+    "NO LESSON MAY NAME A DRAWABLE CLASS. Same rule as the dialogue, and it bites harder",
+    "here than anywhere: `key` and `door` are both classes in the roster and both are the",
+    "answer to a Level 1 route, so a lesson saying 'press this key' would be naming a",
+    "solution in the one place the player is guaranteed to read. Say `{keys}` and let the",
+    "cap speak."
+  ],
+  "version": 1,
+  "levels": {
+    "level_1": {
+      "speaker_default": "lolo",
+      "lessons": [
+        {
+          "id": "move",
+          "at": "level_start",
+          "action": "move_left",
+          "through": "move_right",
+          "join": " and ",
+          "text": "Walk with me, apo. {keys}.",
+          "seconds": 5.0
+        },
+        {
+          "id": "jump",
+          "at": "moved",
+          "after": "move",
+          "action": "jump",
+          "text": "{keys} to jump. You will need it before the water.",
+          "seconds": 5.0
+        },
+        {
+          "id": "draw",
+          "at": "first_obstacle",
+          "action": "redraw",
+          "text": "This is where her brush is for. {keys} opens it — draw, and this place believes you.",
+          "seconds": 7.0
+        },
+        {
+          "id": "place",
+          "at": "placement_started",
+          "keys": "Left click",
+          "text": "Aim with the mouse. {keys} sets it down.",
+          "seconds": 6.0
+        },
+        {
+          "id": "rotate",
+          "at": "placement_started",
+          "after": "place",
+          "action": "rotate_left",
+          "through": "rotate_right",
+          "text": "{keys} turns it before you commit. So does scrolling.",
+          "seconds": 5.0
+        },
+        {
+          "id": "undo",
+          "at": "placement_confirmed",
+          "keys": "Right click",
+          "text": "If it landed wrong: {keys} takes it back, and the ink with it. Nothing you set down is permanent.",
+          "seconds": 7.0
+        },
+        {
+          "id": "revert",
+          "at": "became_creature",
+          "action": "revert_form",
+          "text": "You are it now. {keys} puts you back as yourself, wherever you are standing.",
+          "seconds": 6.0
+        },
+        {
+          "id": "life",
+          "at": "morph_low",
+          "after": "revert",
+          "text": "It is going, apo. A drawing does not last — think about where you want to be standing when it does.",
+          "seconds": 6.0
+        },
+        {
+          "id": "bag",
+          "at": "item_stored",
+          "action": "inventory_slot_1",
+          "through": "inventory_slot_6",
+          "text": "That went into your bag. {keys} to bring one out again.",
+          "seconds": 6.0
+        },
+        {
+          "id": "bag_open",
+          "at": "item_stored",
+          "after": "bag",
+          "action": "inventory_open",
+          "text": "{keys} opens the whole bag, and everything you have found.",
+          "seconds": 5.0
+        },
+        {
+          "id": "sign",
+          "at": "sign_readable",
+          "action": "interact",
+          "text": "A board like this marks where something happens. {keys} and I will say it again.",
+          "seconds": 6.0
+        },
+        {
+          "id": "hold",
+          "at": "tool_held",
+          "action": "use_utility",
+          "text": "You are carrying it. {keys} uses it.",
+          "seconds": 5.0
+        },
+        {
+          "id": "pause",
+          "at": "moved",
+          "after": "jump",
+          "action": "pause",
+          "text": "{keys} stops everything, if you need it. The controls are in there too.",
+          "seconds": 5.0
+        },
+        {
+          "id": "requirement",
+          "at": "requirement_shown",
+          "after": "draw",
+          "text": "That word at the top is what the place is asking for — not a thing to draw, a thing it has to DO. Anything that does it will work.",
+          "seconds": 8.0
+        },
+        {
+          "id": "ink",
+          "at": "ink_spent",
+          "after": "draw",
+          "text": "That cost you ink, apo, and there is only so much of it here. Spend it on what stops you.",
+          "seconds": 6.0
+        },
+        {
+          "id": "checkpoint",
+          "at": "checkpoint",
+          "text": "The place remembers you from here. If it goes badly you begin again at this mark, not at the start.",
+          "seconds": 7.0
+        }
+      ]
+    }
+  }
+}

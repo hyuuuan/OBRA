@@ -79,6 +79,7 @@ func _run() -> void:
 	_audit_ward_lock()
 	await _audit_node_three()
 	await _audit_arrival_speaks_once()
+	await _audit_announce_volumes()
 	await _audit_a_miss_says_why()
 	await _audit_the_key_chain()
 	await _audit_the_ward_is_wired()
@@ -1141,6 +1142,50 @@ func _walk_node_two(route: String) -> void:
 ## Both halves are checked, because either alone is a different bug. Arrival that never
 ## repeats but cannot be recovered LOSES the line for anyone who walked in mid-jump;
 ## arrival that can be recovered but still repeats is the original complaint.
+## EVERY ANNOUNCE VOLUME IS INSIDE ITS TRIGGER AND HAS GROUND IN IT.
+##
+## Both halves of a narrowed box, and both were wrong when this was written. A volume that
+## reaches PAST its trigger says the beat's opening line to a player the director does not
+## yet consider to be in the beat, so the requirement strip is still describing the previous
+## obstacle while Lolo introduces this one -- three of Level 1's four did exactly that,
+## by 64-90px, because story_sign_offset is measured from the leading edge and the box is
+## centred on it. A volume with nothing to stand on in it is worse: it is a beat whose
+## opening line no walking player ever hears, and every other test in this file passes.
+func _audit_announce_volumes() -> void:
+	var packed := load("res://game_level.tscn") as PackedScene
+	var level := packed.instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	for _frame in range(60):
+		await physics_frame
+	var space := level.get_viewport().world_2d.direct_space_state
+	for node in level.get_tree().get_nodes_in_group(&"level_obstacles"):
+		var area := node as Area2D
+		var inner := area.get_node_or_null("AnnounceVolume") as Area2D
+		if inner == null:
+			continue
+		var oid: String = area.get("obstacle_id")
+		var trigger: Vector2 = area.get("trigger_size")
+		var announce: Vector2 = area.get("announce_size")
+		var half := trigger.x * 0.5
+		var left := inner.position.x - announce.x * 0.5
+		var right := inner.position.x + announce.x * 0.5
+		_check(left >= -half - 0.5 and right <= half + 0.5,
+			"%s announces inside its own trigger" % oid,
+			"x %.0f..%.0f within +/-%.0f" % [left, right, half])
+		var top := inner.global_position.y - announce.y * 0.5
+		var standing := 0
+		for t in [-0.4, 0.0, 0.4]:
+			var from := Vector2(inner.global_position.x + announce.x * t, top)
+			var query := PhysicsRayQueryParameters2D.create(from, from + Vector2(0.0, announce.y))
+			query.collision_mask = 1
+			if not space.intersect_ray(query).is_empty():
+				standing += 1
+		_check(standing > 0, "%s announces where there is ground" % oid,
+			"%d of 3 samples found something to stand on" % standing)
+	level.queue_free()
+
+
 func _audit_arrival_speaks_once() -> void:
 	var packed := load("res://game_level.tscn") as PackedScene
 	var level := packed.instantiate()
@@ -1154,10 +1199,31 @@ func _audit_arrival_speaks_once() -> void:
 
 	_check(not script_lines.call("has_heard", "L1_N2.enter"),
 		"arrival is unheard at the start", "nothing has played yet")
+
+	# SCOPE IS NOT ARRIVAL. Entering the beat's wide volume tells the director which
+	# obstacle the player is working on and must NOT open Lolo's mouth: at 400px across,
+	# L1_N2's trigger reaches most of the way to the previous beat, and the level used to
+	# stop the tree the moment a player clipped its far edge. See
+	# LevelObstacle2D.announce_size.
 	level.call("_on_obstacle_entered", "L1_N2")
+	for _frame in range(4):
+		await physics_frame
+	_check(not script_lines.call("has_heard", "L1_N2.enter"),
+		"entering the beat does not speak", "the wide volume scopes, it does not announce")
+
+	level.call("_on_obstacle_arrived", "L1_N2")
 	await process_frame
 	_check(bool(script_lines.call("has_heard", "L1_N2.enter")),
 		"arriving marks the beat heard", "L1_N2.enter")
+
+	# AND IT DOES NOT STOP THE WORLD. Walking into somewhere is not a decision and asks
+	# nothing of the player, but it used to freeze the tree behind a box that had to be
+	# clicked through -- seven lines of it at the gorge, usually beginning before there was
+	# anything on screen to look at. Both halves matter: the line still SHOWS (it is story,
+	# it keeps the framed box and the portrait) and the game keeps running underneath it.
+	_check(box.visible, "the arrival still shows", "in the framed box, with a portrait")
+	_check(not root.get_tree().paused, "and it does not stop the world",
+		"the player can walk through their own arrival")
 
 	# hide_line fades over 0.16s before it clears `visible`, so the box has to be given the
 	# fade before anything can ask whether it is gone. Asking after one frame reports the
@@ -1167,7 +1233,7 @@ func _audit_arrival_speaks_once() -> void:
 		await process_frame
 	_check(not box.visible, "the beat can be dismissed", "box closed")
 
-	level.call("_on_obstacle_entered", "L1_N2")
+	level.call("_on_obstacle_arrived", "L1_N2")
 	for _frame in range(4):
 		await physics_frame
 	_check(not box.visible, "walking back in says nothing",
