@@ -37,41 +37,48 @@ enum Layer { BACKDROP, FRONT }
 @export var to_x := 2600.0
 
 ## The sky, as a short ramp dithered down to the horizon.
-const SKY_HIGH := Color(0.180, 0.494, 0.800, 1.0)   # 2E7ECC
-const SKY_LOW := Color(0.588, 0.867, 0.976, 1.0)    # 96DDF9
+## Off the painting: a vivid saturated blue, not the pale one I had guessed.
+const SKY_HIGH := Color(0.059, 0.475, 0.831, 1.0)   # 0F79D4
+const SKY_LOW := Color(0.604, 0.839, 0.992, 1.0)    # 9AD6FD
 const HAZE := Color(0.745, 0.867, 0.961, 1.0)       # BEDDF5
 
-## What stands along the street, west to east, as {tile, at, base_offset}. `at` is the x its
-## CENTRE sits on; the base always lands on the ground line.
+## ⚠ THE COMPOSITION IS THE DELIVERED PAINTING'S, not a street of house fronts.
 ##
-## The order is deliberate: houses, then the Basilica with its belfry, then the arcade that
-## runs along the pilgrim courtyard, then more houses. A town has a middle.
+## The first authored pass laid out ten facades in a row, which is a corridor. The painting
+## has a SHAPE: a raised bandstand at one end, the town along the middle with a garlanded arch
+## over the dancers, the church and its belfry at the other end, and a market stall past it.
+## That is what a plaza is, and it is what this follows -- in Sinulog's terms rather than
+## Pahiyas's, so the arch is garlanded with red and gold and crowned with a starburst instead
+## of woven palm and kiping.
+##
+## `at` is the x a piece's CENTRE sits on; its base always lands on the ground line.
 const SKYLINE: Array[Dictionary] = [
-	{"tile": "townhouse_a", "at": 260.0},
-	{"tile": "townhouse_b", "at": 520.0},
-	{"tile": "townhouse_a", "at": 800.0},
-	{"tile": "basilica", "at": 1180.0},
-	{"tile": "belfry", "at": 1500.0},
-	{"tile": "arcade", "at": 1700.0},
-	{"tile": "arcade", "at": 1844.0},
-	{"tile": "arcade", "at": 1988.0},
-	{"tile": "townhouse_b", "at": 2200.0},
-	{"tile": "townhouse_a", "at": 2440.0},
+	{"tile": "kiosko", "at": 200.0},
+	{"tile": "townhouse_a", "at": 420.0},
+	{"tile": "townhouse_b", "at": 660.0},
+	{"tile": "townhouse_a", "at": 900.0},
+	{"tile": "arch", "at": 1450.0},
+	{"tile": "basilica", "at": 1900.0},
+	{"tile": "belfry", "at": 2250.0},
+	{"tile": "stall", "at": 2650.0},
 ]
 
-## Palms and lamps, which are what stops a street of facades reading as a wall of facades.
+## Palms, lamps and banner poles: what stops a plaza reading as a wall of buildings, and what
+## the painting fills its middle distance with.
 const DRESSING: Array[Dictionary] = [
-	{"tile": "palm", "at": 400.0},
-	{"tile": "lamp_post", "at": 640.0},
-	{"tile": "palm", "at": 960.0},
-	{"tile": "lamp_post", "at": 1340.0},
-	{"tile": "palm", "at": 1620.0},
-	{"tile": "lamp_post", "at": 2080.0},
-	{"tile": "palm", "at": 2320.0},
+	{"tile": "banner_pole", "at": 310.0},
+	{"tile": "palm", "at": 1120.0},
+	{"tile": "banner_pole", "at": 1250.0},
+	{"tile": "palm", "at": 1330.0},
+	{"tile": "palm", "at": 1580.0},
+	{"tile": "lamp_post", "at": 1700.0},
+	{"tile": "lamp_post", "at": 2100.0},
+	{"tile": "banner_pole", "at": 2440.0},
+	{"tile": "palm", "at": 2520.0},
 ]
 
-## Banners hung from the lamp posts, in the Santo Nino's colours.
-const BANNERS: Array[float] = [640.0, 1340.0, 2080.0]
+## Hung from the lamp posts, in the Santo Nino's colours. The poles carry their own.
+const BANNERS: Array[float] = [1700.0, 2100.0]
 
 
 func _ready() -> void:
@@ -85,7 +92,9 @@ func _draw() -> void:
 		_draw_kerb()
 		return
 	_draw_sky()
+	_draw_clouds()
 	_draw_hills()
+	_draw_hedge()
 	_draw_skyline()
 	_draw_dressing()
 	_draw_paving()
@@ -107,13 +116,33 @@ func _draw_sky() -> void:
 			(to_x - from_x) + 6000.0, height / float(bands) + 2.0), band)
 
 
+## ⚠ THE PAINTING'S SKY IS HALF CLOUD. A flat blue gradient behind a warm town reads as a
+## menu screen, which is most of why the first authored pass looked nothing like the plate.
+## Two runs at different heights and sizes, the higher one paler, so the sky has depth.
+func _draw_clouds() -> void:
+	var band := PiyestaTiles.size_of("clouds_a")
+	if band.y <= 0.0:
+		return
+	var left := from_x - 3000.0
+	var wide := (to_x - from_x) + 6000.0
+	# ⚠ INSIDE WHAT THE CAMERA ACTUALLY SEES. The first placement was a thousand units above
+	# the ground line and the camera tops out around five hundred, so the sky had clouds in it
+	# that nobody could ever look at.
+	PiyestaTiles.fill_varied(self, Rect2(left, ground - 540.0, wide, band.y),
+		["clouds_a", "clouds_b"], Color(1.0, 1.0, 1.0, 0.62))
+	PiyestaTiles.fill_varied(self, Rect2(left + 300.0, ground - 400.0, wide, band.y),
+		["clouds_b", "clouds_a"], Color(1.0, 1.0, 1.0, 0.95))
+
+
 ## Cebu's ridge behind the town, hazed by distance.
 func _draw_hills() -> void:
 	var hills := PiyestaTiles.size_of("hills")
 	if hills.y <= 0.0:
 		return
-	PiyestaTiles.fill(self, Rect2(from_x - 3000.0, ground - hills.y - 118.0,
-		(to_x - from_x) + 6000.0, hills.y), "hills", Color(1.0, 1.0, 1.0, 0.92))
+	# Hazed toward the sky and sat lower, so the ridge reads as distance rather than as a
+	# green stripe pinned across the middle of the picture.
+	PiyestaTiles.fill(self, Rect2(from_x - 3000.0, ground - hills.y - 46.0,
+		(to_x - from_x) + 6000.0, hills.y), "hills", Color(0.80, 0.88, 0.92, 0.85))
 
 
 ## ⚠ EVERY BUILDING'S FEET ARE ON THE GROUND LINE. That is the whole fix: nothing stands on a
@@ -131,12 +160,35 @@ func _draw_skyline() -> void:
 			Color(0.0, 0.0, 0.0, 0.28))
 
 
+## Greenery along the plaza's back edge, behind everything built. The painting has it running
+## the whole width and it is most of why that plaza looks planted rather than paved over.
+func _draw_hedge() -> void:
+	var hedge := PiyestaTiles.size_of("hedge")
+	if hedge.y <= 0.0:
+		return
+	PiyestaTiles.run(self, Vector2(from_x - 600.0, ground - hedge.y + 8.0),
+		(to_x - from_x) + 1200.0, "hedge")
+
+
 func _draw_dressing() -> void:
 	for entry in DRESSING:
 		PiyestaTiles.stand(self, String(entry["tile"]),
 			Vector2(float(entry["at"]), ground + 2.0))
 	for at in BANNERS:
 		PiyestaTiles.hang(self, "banner", Vector2(at + 26.0, ground - 268.0))
+	# ⚠ PLANTING, AND A LOT OF IT. The painting has bushes and potted plants at the foot of
+	# everything, and their absence was a large part of why the authored plaza read as bare.
+	var at_x := from_x + 70.0
+	var index := 0
+	while at_x < to_x:
+		var kind := "bush_b" if index % 4 == 1 else "bush_a"
+		# Varied in size and settled a little into the paving, or a row of identical shrubs
+		# at identical heights reads as a hedge somebody has stood on end.
+		var scale := 0.78 + float((index * 29) % 7) * 0.07
+		PiyestaTiles.stand(self, kind, Vector2(at_x, ground + 6.0), scale,
+			Color(0.92, 0.96, 0.88, 1.0))
+		at_x += 168.0 + float((index * 37) % 5) * 34.0
+		index += 1
 
 
 ## The floor the player walks on. Its TOP FACE is the ground line, so what the collision says
@@ -173,15 +225,19 @@ func _draw_kerb() -> void:
 	# screen -- and four hundred units of retaining wall is a blank band across the bottom
 	# third of every shot. The Basilica stands on high ground in a city; what is under the
 	# plaza is the rest of the city.
-	var roofs := PiyestaTiles.size_of("rooftops")
+	var roofs := PiyestaTiles.size_of("rooftops_a")
 	var below := top + kerb.y + wall
 	if roofs.y > 0.0:
+		# Three cuts of roof, and each run further down is dimmer and bluer -- the town
+		# receding. One cut repeated put the same roofline every 128 units, which at this
+		# width is the same house nine times.
+		var cuts: Array = ["rooftops_a", "rooftops_b", "rooftops_c"]
 		for row in range(3):
-			# Each run further down is smaller, dimmer and bluer: the town receding.
 			var t := float(row) / 2.0
 			var haze := Color(0.62 + 0.20 * (1.0 - t), 0.70 + 0.16 * (1.0 - t),
 				0.82 + 0.10 * (1.0 - t), 1.0)
-			PiyestaTiles.fill(self, Rect2(left, below + float(row) * roofs.y * 0.82,
-				width, roofs.y), "rooftops", haze)
-	draw_rect(Rect2(left, below + roofs.y * 2.5, width, 900.0),
+			PiyestaTiles.fill_varied(self, Rect2(left + float(row) * 47.0,
+				below + float(row) * roofs.y * 0.78, width, roofs.y),
+				[cuts[row % 3], cuts[(row + 1) % 3], cuts[(row + 2) % 3]], haze)
+	draw_rect(Rect2(left, below + roofs.y * 2.4, width, 900.0),
 		Color(0.612, 0.741, 0.851, 1.0))

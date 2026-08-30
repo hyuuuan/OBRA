@@ -58,22 +58,37 @@ MANIFEST = OUT_DIR / "plaza.json"
 SEED = 20260901
 
 # --- Palettes ----------------------------------------------------------------------------
-# Coral stone -- the Basilica's own material, quarried from the reef: pale, warm, and porous,
-# so it weathers grey in the shadows and gold where the sun is on it.
-CORAL = ["#4A4034", "#6E6152", "#948674", "#B7A895", "#D6C8B4", "#EFE4D2"]
-## The plaza underfoot: cut stone, walked smooth, warmer than the walls.
-PAVING = ["#3A3026", "#57493A", "#786752", "#96836B", "#B09C82", "#C7B499"]
-## Roof tile. Every roof in Cebu is this colour.
-TILE = ["#4A1F12", "#6E2F18", "#93441F", "#B85C2A", "#D4763C", "#E8955A"]
-TIMBER = ["#2A1A0C", "#452C15", "#653F1E", "#87582C", "#A8763F", "#C79A5E"]
-## Sinulog red and gold -- the Santo Nino's own colours, and what the fiesta is dressed in.
-FIESTA_RED = ["#5A1010", "#8A1A18", "#B82824", "#D94438", "#EE6A56"]
-FIESTA_GOLD = ["#6E4A08", "#9E7010", "#C89A1E", "#E6BE3C", "#F7DC78"]
-GREEN = ["#1C3418", "#2E4E22", "#436B2E", "#5D8A3E", "#7BA855", "#9CC474"]
-SKY = ["#2E7ECC", "#4C97DA", "#6FAFE4", "#96C7EE", "#BEDDF5", "#DCEDF9"]
+# ⚠ SAMPLED OFF `Level2_CompletedLook.png`, NOT INVENTED, and that is the single change that
+# closed most of the gap. The first pass used ramps chosen by eye and every one of them was
+# too grey and too dark: coral stone at #948674 against the painting's #DFAB67, cobbles in
+# slate where the painting is warm tan. The picture is SUNNY -- warm, saturated, high-key --
+# and no amount of extra detail reads right in the wrong palette.
+
+## The Basilica's coral stone, lit. Warm cream, not grey.
+CORAL = ["#3A2A18", "#6B4E2E", "#9A7245", "#C79A5E", "#E5BC80", "#F8DCAB"]
+## The plaza underfoot: warm cut stone, walked smooth.
+PAVING = ["#4A3218", "#6B4A22", "#8F6633", "#B48A52", "#CFAA75", "#E4C89C"]
+## Roof tile, off the painting's own houses.
+TILE = ["#241412", "#3E2420", "#7A3624", "#A8492D", "#C8613A", "#E4855A"]
+TIMBER = ["#2A1A0C", "#452C15", "#6B4526", "#8E5F32", "#B07C42", "#CFA164"]
+## Nipa thatch: the kiosko and the stall are roofed in it, and it is the warmest thing here.
+THATCH = ["#1A0E04", "#4A2C12", "#7A4E24", "#A87A38", "#D3A44A", "#F6CC63"]
+## Sinulog red and gold -- the Santo Nino's own colours.
+FIESTA_RED = ["#5A0C10", "#830A14", "#AE0F1C", "#CE2A24", "#E8533C", "#F5836A"]
+FIESTA_GOLD = ["#7A5206", "#A87708", "#D4A014", "#EFC12C", "#F8DC63", "#FDEFA6"]
+## Sunlit grass on the verge, and the deeper green of planting.
+GRASS = ["#4A3A10", "#7E601B", "#A88A2C", "#BFB310", "#D6CE2A", "#EDE45A"]
+GREEN = ["#1B2E08", "#293D09", "#31521E", "#466119", "#5F7817", "#7E9A2C"]
+## The mossy stone the plaza is retained by, which is what the painting's front edge is.
+MOSS = ["#141310", "#241C14", "#2F2619", "#41341E", "#5A3A1E", "#6E5A2A"]
+## Sky and cloud, straight off the plate.
+SKY = ["#0F79D4", "#1697F9", "#1D9DFA", "#24A3FB", "#5CBCFC", "#9AD6FD"]
+CLOUD = ["#7FA8C4", "#A8CBE0", "#CDE4F0", "#E3F0F6", "#F2F8FA"]
 IRON = ["#14161A", "#23262B", "#363A40", "#4C5058"]
-GLASS = ["#3A4A52", "#5A7480", "#86A6B2", "#B8D2DA"]
+GLASS = ["#2E4450", "#4A6A7C", "#7A9EAE", "#B0CEDA"]
 SHELL = ["#8A7A54", "#C4B48A", "#E8DCB8", "#F6EFD6"]
+## Distant ridge, hazed toward the sky.
+HILL = ["#3E5A3A", "#4E6E48", "#5F8257", "#75986A", "#8FAE84"]
 
 
 def _emit(c: Canvas, name: str, tiles: dict) -> None:
@@ -106,22 +121,97 @@ def _paving(tiles: dict) -> None:
 
 
 def _kerb(tiles: dict) -> None:
-    """⚠ THE FIX FOR THE DOUBLED LEDGE, and it is deliberately SMALL.
+    """The plaza's front edge: a sunlit grass verge over the mossy stone that retains it.
 
-    What used to stand in front of the player was a full grass-topped retaining wall, the
-    twin of the one behind them, so the plaza read as two platforms with a strip between. A
-    kerb is ankle height. It says "the ground stops here" and nothing else.
+    ⚠ THIS IS WHAT THE PAINTING HAS, and the earlier plain stone kerb was an over-correction.
+    The doubled-ledge problem was never that the plaza has a front edge -- it is that the
+    pasted painting had a second one BEHIND the dancers that looked identical. There is no
+    back wall now, so the front edge can be what it should be: grass with tufts over a wall
+    of mossy blocks, which is most of why that plaza looks planted rather than paved over.
     """
-    c = Canvas(64, 10, SEED + 77)
-    pal = ramp(PAVING)
-    c.fill(0, 0, c.w, c.h, pal[2])
-    c.hline(0, 0, c.w, pal[5])
-    c.hline(0, 1, c.w, pal[4])
-    for x in range(0, c.w, 21):
-        c.vline(x, 0, c.h, pal[1])
-    c.hline(0, c.h - 2, c.w, pal[1])
-    c.hline(0, c.h - 1, c.w, pal[0])
+    c = Canvas(64, 30, SEED + 77)
+    grass = ramp(GRASS)
+    moss = ramp(MOSS)
+    green = ramp(GREEN)
+    c.fill(0, 0, c.w, 13, grass[2])
+    c.dither(0, 0, c.w, 13, grass[2], grass[3], 0.45)
+    c.hline(0, 0, c.w, grass[4])
+    # Tufts breaking the line, so the verge is planting and not a painted stripe.
+    for _ in range(26):
+        x = int(c.rng.integers(0, c.w))
+        h = int(c.rng.integers(2, 7))
+        c.fill(x, -h + 1, 2, h + 3, grass[3 + int(c.rng.integers(0, 2))])
+    c.hline(0, 12, c.w, moss[4])
+    # The mossy blocks under it.
+    c.fill(0, 13, c.w, 17, moss[1])
+    x = -3
+    while x < c.w:
+        w = int(c.rng.integers(11, 17))
+        c.fill(x + 1, 14, w - 1, 7, moss[2 + int(c.rng.integers(0, 2))])
+        c.hline(x + 1, 14, w - 1, moss[4])
+        c.fill(x + 6, 22, w - 1, 7, moss[2 + int(c.rng.integers(0, 2))])
+        c.hline(x + 6, 22, w - 1, moss[4])
+        if c.rng.random() < 0.35:
+            c.fill(x + 3, 13, 4, 3, green[3])
+        x += w
     _emit(c, "kerb", tiles)
+
+
+def _clouds(tiles: dict) -> None:
+    """Big cumulus, tileable. The painting's sky is half cloud and mine had none at all --
+    a flat blue gradient behind a warm town reads as a menu screen."""
+    for variant in range(2):
+        c = Canvas(160, 90, SEED + 601 + variant * 271)
+        cloud = ramp(CLOUD)
+        for _ in range(5):
+            cx = int(c.rng.integers(10, c.w - 10))
+            cy = int(c.rng.integers(30, 70))
+            scale = c.rng.random() * 0.6 + 0.7
+            # A cumulus is a stack of lobes with a flat base and a lit top.
+            for lobe in range(6):
+                r = int((13 - lobe) * scale) + int(c.rng.integers(0, 5))
+                lx = cx + int((lobe - 2.5) * 11 * scale)
+                ly = cy - int(abs(2.5 - lobe) * -4 * scale) - int(c.rng.integers(0, 7))
+                for row in range(-r, r + 1):
+                    half = int((r * r - row * row) ** 0.5)
+                    if half <= 0:
+                        continue
+                    tone = cloud[3] if row < -r // 3 else cloud[2]
+                    c.fill(lx - half, ly + row, half * 2, 1, tone)
+            c.fill(cx - int(34 * scale), cy + int(9 * scale), int(68 * scale), 4, cloud[1])
+            # The lit crown.
+            for lobe in range(5):
+                lx = cx + int((lobe - 2) * 12 * scale)
+                c.fill(lx - 6, cy - int(16 * scale), 12, 3, cloud[4])
+        _emit(c, "clouds_%s" % "ab"[variant], tiles)
+
+
+def _bush(tiles: dict) -> None:
+    """Planting at the foot of things. The painting is full of it and mine had none."""
+    for variant in range(2):
+        c = Canvas(54, 42, SEED + 631 + variant * 97)
+        green = ramp(GREEN)
+        pot = ramp(TILE)
+        if variant == 0:
+            for _ in range(120):
+                x = int(c.rng.integers(2, c.w - 2))
+                y = int(c.rng.integers(6, c.h))
+                h = int(c.rng.integers(4, 14))
+                tone = green[2 + int(c.rng.integers(0, 4))]
+                c.fill(x, max(0, y - h), 2, h, tone)
+                if c.rng.random() < 0.25:
+                    c.px(x, max(0, y - h), green[5])
+        else:
+            # A potted plant, like the ones down the painting's balustrade.
+            c.fill(16, 26, 22, 16, pot[3])
+            c.hline(16, 26, 22, pot[5])
+            c.fill(14, 23, 26, 4, pot[4])
+            for _ in range(70):
+                x = int(c.rng.integers(8, c.w - 8))
+                y = int(c.rng.integers(4, 26))
+                h = int(c.rng.integers(4, 12))
+                c.fill(x, max(0, y - h), 2, h, green[2 + int(c.rng.integers(0, 4))])
+        _emit(c, "bush_%s" % "ab"[variant], tiles)
 
 
 def _retaining(tiles: dict) -> None:
@@ -169,15 +259,22 @@ def _basilica(tiles: dict) -> None:
     c.speckle(body[0], body[1], body[2], body[3], stone[1], 0.03)
 
     def cornice(y: int, height: int = 6, out: int = 5) -> None:
-        """A course that steps out of the wall, catching light on its top and casting below."""
+        """A course that steps out of the wall, catching light on its top and casting below.
+
+        ⚠ THE CAST SHADOW IS THE POINT. Without a dark band under it a cornice is a stripe,
+        and the whole facade goes flat -- which is exactly what the first warm palette did.
+        """
         c.fill(body[0] - out, y, body[2] + out * 2, height, stone[4])
         c.hline(body[0] - out, y, body[2] + out * 2, stone[5])
-        c.fill(body[0] - out, y + height, body[2] + out * 2, 3, stone[1])
+        c.fill(body[0] - out, y + height, body[2] + out * 2, 5, stone[0])
+        c.fill(body[0] - out, y + height + 5, body[2] + out * 2, 4, stone[1])
 
     def pilaster(x: int, y: int, height: int, width: int = 13) -> None:
         c.fill(x, y, width, height, stone[3])
         c.vline(x, y, height, stone[5])
-        c.vline(x + width - 1, y, height, stone[1])
+        c.vline(x + 1, y, height, stone[4])
+        c.vline(x + width - 1, y, height, stone[0])
+        c.vline(x + width - 2, y, height, stone[1])
         # A plinth and a capital, so it is a column and not a stripe.
         c.fill(x - 2, y + height - 7, width + 4, 7, stone[4])
         c.fill(x - 2, y, width + 4, 6, stone[4])
@@ -221,7 +318,7 @@ def _basilica(tiles: dict) -> None:
     # --- second tier: a central niche flanked by paired pilasters
     for x in [26, 44, 178, 196]:
         pilaster(x, 82, 78)
-    arch(96, 84, 48, 72, stone[0])
+    arch(96, 84, 48, 72, ramp(["#140C06"]*6)[0])
     c.fill(100, 100, 40, 52, stone[1])
     # The image in the niche, in the Santo Nino's red and gold. Small, high, and out of reach
     # -- which is what it is, and what it should look like.
@@ -235,7 +332,7 @@ def _basilica(tiles: dict) -> None:
     # --- first tier: the main door, two side doors, and the pilasters between them
     for x in [26, 44, 178, 196]:
         pilaster(x, 172, 100)
-    arch(92, 186, 56, 86, wood[1])
+    arch(92, 186, 56, 86, ramp(["#140C06"]*6)[0])
     # The door leaves, panelled, with a hinge band across each.
     for leaf in range(2):
         lx = 94 + leaf * 26
@@ -245,7 +342,7 @@ def _basilica(tiles: dict) -> None:
         for band in [222, 250]:
             c.fill(lx, band, 24, 3, wood[1])
     for side in [58, 158]:
-        arch(side, 208, 28, 64, wood[1])
+        arch(side, 208, 28, 64, ramp(["#140C06"]*6)[0])
         c.fill(side + 3, 226, 22, 46, wood[2])
     # The steps up to it, in the plaza's own paving.
     paving = ramp(PAVING)
@@ -268,7 +365,8 @@ def _belfry(tiles: dict) -> None:
     for y in [140, 230]:
         c.fill(4, y, 88, 7, stone[4])
         c.hline(4, y, 88, stone[5])
-        c.fill(4, y + 7, 88, 3, stone[1])
+        c.fill(4, y + 7, 88, 5, stone[0])
+        c.fill(4, y + 12, 88, 3, stone[1])
     # The belfry openings: an arch on each stage, with the bell in the top one.
     for y, h in [(78, 46), (162, 40), (252, 36)]:
         rad = 16
@@ -312,7 +410,9 @@ def _townhouse(tiles: dict) -> None:
             c.fill(2 + inset, 8 + row, 116 - inset * 2, 1, tile[2 + (row // 10)])
         c.fill(0, 32, 120, 6, tile[1])
         c.hline(0, 32, 120, tile[4])
-        c.fill(4, 38, 112, 4, wood[0])
+        # The eave's shadow on the wall under it.
+        c.fill(4, 38, 112, 6, wood[0])
+        c.dither(4, 44, 112, 6, wood[0], wood[1], 0.5)
         # The upper storey: timber frame with capiz shutters between the posts.
         c.fill(6, 42, 108, 62, wood[2])
         c.dither(6, 42, 108, 62, wood[2], wood[1], 0.4)
@@ -331,7 +431,8 @@ def _townhouse(tiles: dict) -> None:
         c.dither(8, 109, 104, 81, stone[2], stone[3], 0.45)
         c.speckle(8, 109, 104, 81, stone[1], 0.035)
         door_x = 22 if variant == 0 else 66
-        c.fill(door_x, 132, 30, 58, stone[0])
+        c.fill(door_x - 2, 130, 34, 60, stone[1])
+        c.fill(door_x, 132, 30, 58, ramp(["#140C06"]*6)[0])
         c.fill(door_x + 2, 136, 26, 54, wood[2])
         c.vline(door_x + 2, 136, 54, wood[4])
         c.vline(door_x + 27, 136, 54, wood[0])
@@ -371,6 +472,193 @@ def _arcade(tiles: dict) -> None:
 
 # --- Dressing ------------------------------------------------------------------------------
 
+def _kiosko(tiles: dict) -> None:
+    """The bandstand at the west end, raised on a stone plinth with steps down to the plaza.
+
+    The delivered painting opens on this and the level should too: a plaza with a pavilion at
+    one end and a church at the other has a shape, where a row of house fronts is a corridor.
+    Nipa over timber posts, a stone plinth under it, and the flight of steps the painting has.
+    """
+    c = Canvas(190, 210, SEED + 271)
+    stone = ramp(CORAL)
+    wood = ramp(TIMBER)
+    straw = ramp(FIESTA_GOLD)
+    red = ramp(FIESTA_RED)
+    # The plinth: coursed coral, with the deck on top.
+    c.fill(6, 120, 132, 90, stone[2])
+    c.dither(6, 120, 132, 90, stone[2], stone[1], 0.45)
+    for y in range(126, 210, 13):
+        c.hline(6, y, 132, stone[1])
+        c.hline(6, y + 1, 132, stone[3])
+    c.fill(2, 112, 140, 9, stone[4])
+    c.hline(2, 112, 140, stone[5])
+    # The steps, descending east onto the plaza -- the painting's own arrangement.
+    for step in range(5):
+        x = 136 + step * 11
+        y = 121 + step * 18
+        width = 54 - step * 11
+        if width <= 0:
+            continue
+        c.fill(x, y, width, 210 - y, stone[2])
+        # A tread and a riser per step, or five rectangles stacked read as a ramp.
+        c.fill(x, y, width, 5, stone[4])
+        c.hline(x, y, width, stone[5])
+        c.hline(x, y + 5, width, stone[1])
+        c.vline(x, y, 210 - y, stone[3])
+    # Six posts and the nipa roof over them.
+    for x in [16, 66, 116]:
+        c.fill(x, 44, 9, 70, wood[2])
+        c.vline(x, 44, 70, wood[4])
+        c.vline(x + 8, 44, 70, wood[0])
+    for row in range(40):
+        half = int(78 * (row / 40.0)) + 6
+        c.fill(72 - half, 8 + row, half * 2, 1, straw[1 + (row // 15)])
+        if row % 5 == 0:
+            c.hline(72 - half, 8 + row, half * 2, straw[0])
+    c.fill(-4, 46, 152, 7, wood[1])
+    c.hline(-4, 46, 152, wood[3])
+    # The swag of red cloth every bandstand at a fiesta has along its eave.
+    for index in range(6):
+        x = 2 + index * 25
+        for row in range(9):
+            half = int(11 * (1.0 - (row / 9.0) ** 2) ** 0.5)
+            c.fill(x + 12 - half, 53 + row, half * 2, 1, red[2])
+        c.px(x + 12, 62, gold_pip())
+    _emit(c, "kiosko", tiles)
+
+
+def gold_pip() -> np.ndarray:
+    return ramp(FIESTA_GOLD)[3]
+
+
+def _arch(tiles: dict) -> None:
+    """The festive arch over the middle of the plaza.
+
+    The delivered painting has a woven-palm arch crowned with a kiping aranya, which is
+    Pahiyas. This is the same silhouette in Sinulog's terms: a garlanded arch with a starburst
+    of red and gold at its crown, which is what a Santo Nino procession passes under.
+    """
+    c = Canvas(230, 150, SEED + 283)
+    green = ramp(GREEN)
+    red = ramp(FIESTA_RED)
+    gold = ramp(FIESTA_GOLD)
+    wood = ramp(TIMBER)
+    # The two legs and the sprung arch between them, bound in greenery.
+    for side in [0, 1]:
+        x = 10 if side == 0 else 206
+        c.fill(x, 46, 14, 104, wood[2])
+        c.vline(x, 46, 104, wood[4])
+        c.vline(x + 13, 46, 104, wood[0])
+    for step in range(190):
+        t = step / 189.0
+        ax = 17 + t * 196
+        ay = 50 - int(38 * np.sin(t * np.pi))
+        c.fill(int(ax) - 6, ay, 12, 13, green[2 + (step % 2)])
+        c.px(int(ax) - 6, ay, green[4])
+        if step % 11 == 0:
+            # Rosettes along the arch, alternating the two colours of the fiesta.
+            pal = red if (step // 11) % 2 == 0 else gold
+            c.fill(int(ax) - 5, ay - 5, 10, 10, pal[2])
+            c.fill(int(ax) - 2, ay - 8, 4, 16, pal[3])
+            c.fill(int(ax) - 8, ay - 2, 16, 4, pal[3])
+    # The starburst at the crown.
+    for spoke in range(14):
+        angle = spoke * (np.pi * 2.0 / 14.0)
+        for step in range(18):
+            px_ = 115 + int(np.cos(angle) * step * 1.5)
+            py = 14 + int(np.sin(angle) * step * 1.2)
+            pal = red if spoke % 2 == 0 else gold
+            c.fill(px_, py, 3, 3, pal[2 + (step // 12)])
+    c.fill(108, 7, 14, 14, gold[3])
+    c.fill(111, 10, 8, 8, gold[4])
+    _emit(c, "arch", tiles)
+
+
+def _stall(tiles: dict) -> None:
+    """The market stall at the east end: nipa over a timber counter, piled with fruit."""
+    c = Canvas(150, 150, SEED + 293)
+    wood = ramp(TIMBER)
+    straw = ramp(FIESTA_GOLD)
+    red = ramp(FIESTA_RED)
+    green = ramp(GREEN)
+    for row in range(34):
+        half = int(70 * (row / 34.0)) + 8
+        c.fill(75 - half, 4 + row, half * 2, 1, straw[1 + (row // 13)])
+        if row % 5 == 0:
+            c.hline(75 - half, 4 + row, half * 2, straw[0])
+    c.fill(2, 38, 146, 6, wood[1])
+    for x in [8, 134]:
+        c.fill(x, 44, 8, 106, wood[2])
+        c.vline(x, 44, 106, wood[4])
+    # The counter, and what is piled on it.
+    c.fill(6, 96, 138, 12, wood[3])
+    c.hline(6, 96, 138, wood[5])
+    c.fill(10, 108, 130, 42, wood[1])
+    for index in range(9):
+        x = 14 + index * 15
+        pal = [red, straw, green][index % 3]
+        c.fill(x, 84, 12, 12, pal[2])
+        c.fill(x + 2, 82, 8, 4, pal[3])
+    # A red swag along the eave, like the bandstand's.
+    for index in range(5):
+        x = 6 + index * 28
+        for row in range(8):
+            half = int(12 * (1.0 - (row / 8.0) ** 2) ** 0.5)
+            c.fill(x + 13 - half, 44 + row, half * 2, 1, red[2])
+    _emit(c, "stall", tiles)
+
+
+def _hedge(tiles: dict) -> None:
+    """Greenery along the plaza's back edge, tileable. What the painting has behind everybody."""
+    c = Canvas(64, 26, SEED + 307)
+    green = ramp(GREEN)
+    stone = ramp(CORAL)
+    # A low kerbed bed, not a lawn: the first version was 44 deep in the brightest greens and
+    # ran the full width of the level, which read as a strip of turf laid across the town.
+    c.fill(0, 16, c.w, 10, stone[1])
+    for x in range(0, c.w, 13):
+        c.fill(x, 17, 12, 8, stone[2])
+        c.hline(x, 17, 12, stone[3])
+    for _ in range(70):
+        x = int(c.rng.integers(0, c.w))
+        h = int(c.rng.integers(4, 13))
+        y = 17 - h + int(c.rng.integers(0, 3))
+        tone = green[1 + int(c.rng.integers(0, 3))]
+        c.fill(x, max(0, y), 2, h, tone)
+        if c.rng.random() < 0.3:
+            c.px(x, max(0, y), green[4])
+    _emit(c, "hedge", tiles)
+
+
+def _banner_pole(tiles: dict) -> None:
+    """A tall pole with a banner, two lanterns and a cross -- the painting has three of these."""
+    c = Canvas(60, 260, SEED + 311)
+    wood = ramp(TIMBER)
+    gold = ramp(FIESTA_GOLD)
+    red = ramp(FIESTA_RED)
+    c.fill(26, 26, 8, 234, wood[2])
+    c.vline(26, 26, 234, wood[4])
+    c.vline(33, 26, 234, wood[0])
+    c.fill(14, 20, 32, 6, wood[3])          # the crossbar
+    c.fill(28, 4, 4, 22, gold[2])           # the cross
+    c.fill(22, 10, 16, 4, gold[2])
+    for side in [8, 44]:                    # a lantern at each end
+        c.fill(side, 26, 10, 6, gold[1])
+        c.fill(side + 1, 32, 8, 14, red[2])
+        c.dither(side + 1, 32, 8, 14, red[2], red[3], 0.5)
+        c.fill(side + 3, 46, 4, 5, gold[3])
+    # The banner itself, hung from the crossbar.
+    c.fill(20, 30, 20, 86, red[2])
+    c.vline(20, 30, 86, red[3])
+    for row in range(-8, 9):
+        half = 8 - abs(row)
+        if half > 0:
+            c.fill(30 - half, 70 + row, half * 2, 1, gold[3])
+    for x in range(21, 40, 4):
+        c.fill(x, 116, 2, 8, gold[2])
+    _emit(c, "banner_pole", tiles)
+
+
 def _rooftops(tiles: dict) -> None:
     """The town below the plaza terrace, seen from above: a run of tiled roofs.
 
@@ -381,7 +669,12 @@ def _rooftops(tiles: dict) -> None:
     what is under the plaza is the rest of the city, and drawing it turns dead screen into
     depth.
     """
-    c = Canvas(128, 64, SEED + 251)
+    for variant in range(3):
+        _rooftop_run(tiles, variant)
+
+
+def _rooftop_run(tiles: dict, variant: int) -> None:
+    c = Canvas(128, 64, SEED + 251 + variant * 419)
     tile = ramp(TILE)
     stone = ramp(CORAL)
     sky = ramp(SKY)
@@ -403,7 +696,7 @@ def _rooftops(tiles: dict) -> None:
             wx = x + 6 + int(c.rng.integers(0, max(1, w - 16)))
             c.fill(wx, top + 24, 5, 6, ramp(FIESTA_GOLD)[3])
         x += w + int(c.rng.integers(2, 7))
-    _emit(c, "rooftops", tiles)
+    _emit(c, "rooftops_%s" % "abc"[variant], tiles)
 
 
 def _hills(tiles: dict) -> None:
@@ -559,11 +852,18 @@ def build(check: bool) -> int:
     tiles: dict = {}
     _paving(tiles)
     _kerb(tiles)
+    _clouds(tiles)
+    _bush(tiles)
     _retaining(tiles)
     _basilica(tiles)
     _belfry(tiles)
     _townhouse(tiles)
     _arcade(tiles)
+    _kiosko(tiles)
+    _arch(tiles)
+    _stall(tiles)
+    _hedge(tiles)
+    _banner_pole(tiles)
     _rooftops(tiles)
     _hills(tiles)
     _palm(tiles)

@@ -27,7 +27,35 @@
       "file": "kerb.png",
       "size": [
         128,
-        20
+        60
+      ]
+    },
+    "clouds_a": {
+      "file": "clouds_a.png",
+      "size": [
+        320,
+        180
+      ]
+    },
+    "clouds_b": {
+      "file": "clouds_b.png",
+      "size": [
+        320,
+        180
+      ]
+    },
+    "bush_a": {
+      "file": "bush_a.png",
+      "size": [
+        108,
+        84
+      ]
+    },
+    "bush_b": {
+      "file": "bush_b.png",
+      "size": [
+        108,
+        84
       ]
     },
     "retaining": {
@@ -72,8 +100,57 @@
         300
       ]
     },
-    "rooftops": {
-      "file": "rooftops.png",
+    "kiosko": {
+      "file": "kiosko.png",
+      "size": [
+        380,
+        420
+      ]
+    },
+    "arch": {
+      "file": "arch.png",
+      "size": [
+        460,
+        300
+      ]
+    },
+    "stall": {
+      "file": "stall.png",
+      "size": [
+        300,
+        300
+      ]
+    },
+    "hedge": {
+      "file": "hedge.png",
+      "size": [
+        128,
+        52
+      ]
+    },
+    "banner_pole": {
+      "file": "banner_pole.png",
+      "size": [
+        120,
+        520
+      ]
+    },
+    "rooftops_a": {
+      "file": "rooftops_a.png",
+      "size": [
+        256,
+        128
+      ]
+    },
+    "rooftops_b": {
+      "file": "rooftops_b.png",
+      "size": [
+        256,
+        128
+      ]
+    },
+    "rooftops_c": {
+      "file": "rooftops_c.png",
       "size": [
         256,
         128

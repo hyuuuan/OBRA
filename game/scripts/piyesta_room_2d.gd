@@ -374,7 +374,10 @@ func _draw() -> void:
 
 ## The three interchangeable cuts of a wall material. See `PiyestaTiles.fill_varied`.
 func _wall_variants(material: String) -> Array:
-	return ["%s_a" % material, "%s_b" % material, "%s_c" % material]
+	# FIVE, not three. Three cuts picked on a regular index still land in a visible pattern --
+	# the alley's fallen patches lined up in columns down the wall.
+	return ["%s_a" % material, "%s_b" % material, "%s_c" % material,
+		"%s_d" % material, "%s_e" % material]
 
 
 ## Which material this room is made of.
@@ -491,19 +494,46 @@ func _draw_props() -> void:
 	var shade := _shade()
 	match kind:
 		Kind.CHURCH:
-			# The pews are the chancel's business (see church_interior_2d.gd); what belongs
-			# to the room itself is the light hanging over it.
+			# The nave is dressed for the fiesta: a banner between each pair of pilasters, in
+			# the Santo Nino's own red and gold. Sinulog is what the town is doing outside.
+			for index in range(4):
+				PiyestaTiles.hang(self, "banner",
+					Vector2(-half + room_length * (0.18 + 0.21 * float(index)),
+						-wall_height * 0.86), 0.62, shade)
 			for index in range(3):
 				PiyestaTiles.hang(self, "lantern_hanging",
 					Vector2(-half + room_length * (0.30 + 0.22 * float(index)),
 						-wall_height + 30.0), 0.58, shade)
+			# The font by the door -- the first thing anybody touches on the way in -- and a
+			# stand of votives, which is what a shrine at a fiesta actually looks like.
+			PiyestaTiles.stand(self, "font", Vector2(-half + 150.0, 0.0), 1.0, shade)
+			PiyestaTiles.stand(self, "votive_stand", Vector2(-half + 300.0, 0.0), 1.0, shade)
 		Kind.HOUSE:
+			# There is a framed Santo Nino in every house in this town. DRAWN, never built:
+			# no node, no area, nothing to interact with.
+			PiyestaTiles.hang(self, "santo_nino_print",
+				Vector2(-half + 190.0, -wall_height * 0.68), 1.0, shade)
+			PiyestaTiles.hang(self, "shelf", Vector2(half - 190.0, -wall_height * 0.46),
+				1.0, shade)
 			PiyestaTiles.stand(self, "crate", Vector2(half - 96.0, 0.0), 1.0, shade)
 			PiyestaTiles.stand(self, "barrel", Vector2(half - 168.0, 0.0), 1.0, shade)
 			PiyestaTiles.hang(self, "lantern_hanging",
 				Vector2(-half + 120.0, -wall_height + 26.0), 0.5, shade)
 		_:
-			# An alley is where a town keeps what it does not want seen.
+			# An alley is where a town keeps what it does not want seen: somebody's washing
+			# over your head, a downpipe with its stain, fiesta bills pasted up and half torn
+			# off, and whatever will not fit indoors.
+			# ⚠ BELOW THE BUNTING. Hung at seven tenths of the wall these crossed the
+			# bandaritas and read as more of them -- and that line is the flight ceiling, so
+			# anything competing with it is worse than clutter.
+			PiyestaTiles.hang(self, "washing_line",
+				Vector2(-half + room_length * 0.32, -wall_height * 0.40), 1.0, shade)
+			PiyestaTiles.hang(self, "washing_line",
+				Vector2(-half + room_length * 0.72, -wall_height * 0.27), 0.9, shade)
+			PiyestaTiles.hang(self, "drainpipe",
+				Vector2(-half + room_length * 0.13, -wall_height + 20.0), 1.0, shade)
+			PiyestaTiles.hang(self, "handbills",
+				Vector2(half - room_length * 0.26, -wall_height * 0.22), 1.0, shade)
 			PiyestaTiles.stand(self, "crate", Vector2(-half + 140.0, 0.0), 1.0, shade)
 			PiyestaTiles.stand(self, "barrel", Vector2(-half + 210.0, 0.0), 1.0, shade)
 			PiyestaTiles.stand(self, "crate", Vector2(half - 168.0, 0.0), 0.86, shade)
