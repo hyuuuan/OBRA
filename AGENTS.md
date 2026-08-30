@@ -120,7 +120,22 @@ there is no separate slot table to drift. Alley 2's far door opens it and finish
 `_complete_level`. The GoalMarker is parked behind Alley 2's wall where nobody can reach it,
 so Scene 3 is the only thing that ends Piyesta.
 
-⚠ **THE PLAZA IS ONE PAINTING, NOT A PARALLAX RIG.** The six delivered plates are a
+⚠ **PIYESTA'S ART IS AUTHORED, NOT THE DELIVERED SET (2026-09-01).** `tools/pixelart.py` is
+the shared 8-bit library (logical pixel grid, six-step ramps, Bayer dither, one light from the
+upper left); `build_interiors.py` draws the four insides and `build_plaza_art.py` the plaza.
+**Do not tile `TextureMap_Piyesta` indoors** -- it is the OUTSIDE of a town, and mossy rubble
+and packed earth inside a nave is what this replaced. **The plaza obeys one rule: exactly one
+ground line**, everything built stands on it, and the only thing in front of the player is an
+ankle-high kerb; `run_level2_scene_probe` asserts there is exactly one walkable surface.
+**Theme is the Basilica del Santo Nino, Cebu** (changed from Pahiyas deliberately;
+`level_02.json` records it). The Santo Nino is drawn into textures and owns no node.
+
+⚠ **The delivered plaza painting is no longer the backdrop.** It is still in the repo and
+still backs the hub card. The old note about it being one painting rather than a parallax rig
+is kept below because `tools/build_plaza.py` still produces `plaza.png` and the reasoning is
+why the level stopped using it.
+
+⚠ **THE DELIVERED PLAZA IS ONE PAINTING, NOT A PARALLAX RIG.** The six delivered plates are a
 registered 1920x1080 set that composites into `Level2_CompletedLook`. `DepthLayer2D` offsets
 by `camera_delta * (1 - scroll_scale)` on BOTH axes, so any difference in scroll slid them to
 different heights the moment the camera moved -- the terrace appeared twice with sky between.

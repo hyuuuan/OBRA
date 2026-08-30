@@ -77,7 +77,11 @@ nodes; the last has **two routes, not three**, deliberately.
 | `game/scripts/assembly_overlay.gd` | Scene 3's table: seven torn pieces, drag and snap, and the end of the level |
 | `tools/build_scraps.py` | tears the painting into the seven pieces, along noise-perturbed Voronoi |
 | `tools/build_plaza.py` | flattens the six registered plates into the painting and its front verge |
-| `game/assets/Level2/`, `level-2-assets/` | the art, imported and tracked |
+| `tools/pixelart.py` | the shared 8-bit library: logical pixel grid, short ramps, Bayer dither |
+| `tools/build_interiors.py` | original art for the four insides -- ashlar, sawali, plaster over rubble |
+| `tools/build_plaza_art.py` | original art for the plaza -- the Basilica del Santo Nino, Cebu |
+| `game/scripts/piyesta_plaza_2d.gd` | places it, and enforces ONE ground line |
+| `game/assets/Level2/`, `level-2-assets/` | the delivered art, imported and tracked |
 
 ```bash
 godot --headless --path game --script res://tests/run_level2_audit.gd
@@ -105,6 +109,34 @@ godot --path game --script res://tests/run_visual_level2.gd
 ```
 
 ---
+
+## The art, and why almost none of it is the delivered set
+
+The plaza arrived as a painting and a tileset. Both were used and both were wrong for the
+job, in the same way twice:
+
+* **`TextureMap_Piyesta` is the OUTSIDE of a town** -- mossy rubble with grass on top, packed
+  earth underfoot. Tiled into the church it put moss and dirt inside a building that has
+  neither. The interiors are authored now: dressed limestone ashlar under lime plaster for
+  the nave, sawali over plank boards for the house, lime plaster over rubble with granite
+  setts for the alleys.
+* **`Level2_CompletedLook` is a VISTA, not a set.** It has a retaining wall behind the
+  dancers and another in front, so a character standing between them reads as two platforms
+  -- which no amount of moving the collision fixes, because it is what a vista does when you
+  stand in it. The plaza is authored now, and the layout obeys one rule: **exactly one ground
+  line**, with an ankle-high kerb as the only thing in front of the player.
+
+**The theme is the Basilica del Santo Nino, Cebu** (changed from Pahiyas 2026-09-01, on
+purpose -- `level_02.json` records the change and the reasoning). Coral stone in three tiers,
+the belfry beside it, bahay na bato, an arcade, Sinulog's red and gold.
+
+**8-bit here is a method, not a look**: everything is drawn on a logical pixel grid and scaled
+by nearest-neighbour, colour comes from six-step ramps, and gradients are ordered Bayer
+dithers between two adjacent steps. One light, from the upper left, everywhere.
+
+⚠ **The Santo Nino is drawn and never built.** It appears in the facade's niche and in the
+retablo indoors, and in both places it is part of a texture: no node, no area, no collision.
+`ChurchInterior2D._check_the_guardrail` still fails loudly if anybody gives it one.
 
 ## The scars
 
@@ -189,23 +221,18 @@ now guarded.
 
 Nothing here stops the level being played. It is all art, plus one decision.
 
-1. **The four insides are placeholder art.** Church interior, both alleys, the dark-palette
-   tileset, the house door set and the kandila's three states are all listed in the design
-   under what does not exist. Drawn in code to `ART_PLACEHOLDERS.md` rules; see
-   CONTENT_NEEDED.md.
-2. **`MG_People` has no no-dancers variant, so scaring them changes nothing on screen.**
-   Everything mechanical about it is live. The composite cannot be made to give the four of
-   them up -- see the commit and CONTENT_NEEDED.md for the two attempts and why both look
-   worse than nothing. The dancers also want their own sprites, a flee cycle and a
-   hand-over-candle pose.
-3. **`LOLOGHOST` has no praying pose and no laughing pose.** Scene 2 is built on the first
+1. **All of Piyesta's art is authored placeholder, not delivered art.** It is coherent and
+   it is the right material, but a real artist would still improve on it: the dancers are
+   four frames, the arcade is one bay repeated, there is no crowd, and the alleys use a cool
+   ramp rather than a dark-palette set made for shade.
+2. **`LOLOGHOST` has no praying pose and no laughing pose.** Scene 2 is built on the first
    and every restriction violation fires the second. Nothing fakes them.
-4. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
+3. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
    boomerang and cannon, both of which have a real reach, but there is no aim or trajectory
    preview -- the design asks for "angry birds style".
-5. **The house door set is placeholder**, so four grey slabs stand in a finished painting.
+4. **The house doors** are the buildings' own doors now, which is better than the grey slabs that stood in front of them -- but the design still lists a door set with a keyhole and an open state, so four grey slabs stand in a finished painting.
    The design lists closed / lit from inside / keyhole / open.
-6. **`levels.json` `scene_path` is still empty.** Nothing mechanical blocks it now -- the
+5. **`levels.json` `scene_path` is still empty.** Nothing mechanical blocks it now -- the
    level can be started, played and finished. What it is waiting on is the art above, and
    `run_level2_audit` asserts the empty path until somebody decides Piyesta looks finished
    enough to offer from the hub. **That is a judgement call, not a task.**
