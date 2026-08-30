@@ -368,6 +368,7 @@ func _on_dancers_scattered() -> void:
 ## THE BUNTING, IN EVERY SCENE THAT HAS ANY. Each line owns its own Y and the flight rule
 ## reads the ceiling off it, which is what makes the boundary the art rather than a number.
 func _string_the_bunting() -> void:
+	_string_the_plaza()
 	for entry: Array in [[alley_1, ALLEY_1_LINE, 0], [alley_2, ALLEY_2_LINE,
 			ScrapLedger.IN_ALLEY_2]]:
 		var room := entry[0] as PiyestaRoom2D
@@ -382,6 +383,28 @@ func _string_the_bunting() -> void:
 		line.cut.connect(_on_bandaritas_cut)
 		line.reached.connect(_on_bandaritas_reached)
 		_lines[room.name] = line
+
+
+## ⚠ THE PLAZA'S OWN LINE, AND IT HAS TO EXIST OR THE CEILING IS AN INVISIBLE WALL.
+##
+## The bunting used to be painted into the delivered backdrop, so the flight cap had
+## something visible to sit under without anybody building it. Authoring the plaza took the
+## painting away and took the bunting with it -- and the design is explicit that the boundary
+## must be the strings the player can see, never a HUD element or a number. So the plaza gets
+## a real line, strung the width of it at the height the mark records.
+func _string_the_plaza() -> void:
+	var mark := _mark("BuntingLine")
+	var plaza := get_node_or_null(^"EnvironmentBaseplate/Plaza") as Node2D
+	if mark == null or plaza == null:
+		return
+	var line := BandaritaLine2D.new()
+	line.name = "PlazaBandaritas"
+	line.span = 2600.0
+	line.scraps_held = 0
+	line.global_position = mark.global_position
+	plaza.add_child(line)
+	line.global_position = mark.global_position
+	_lines["plaza"] = line
 
 
 ## Five birds, five pieces, individually addressable. The design is explicit that the
@@ -695,10 +718,10 @@ func _refresh_the_ceiling() -> void:
 	if line != null and line.still_a_ceiling():
 		restrictions.set_ceiling(line.ceiling_y())
 		return
-	# The plaza keeps the line painted into its own backdrop; anywhere else with no bunting
-	# has NO ceiling, which is the correct answer rather than an oversight.
-	if where == "plaza" and _bunting_y != -INF:
-		restrictions.set_ceiling(_bunting_y + 20.0)
+	# The plaza has a real line now too, so it is looked up the same way as the alleys.
+	var plaza_line: BandaritaLine2D = _lines.get("plaza")
+	if where == "plaza" and plaza_line != null and plaza_line.still_a_ceiling():
+		restrictions.set_ceiling(plaza_line.ceiling_y())
 		return
 	restrictions.set_ceiling(-INF)
 
