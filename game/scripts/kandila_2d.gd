@@ -114,34 +114,19 @@ func _take() -> void:
 	taken.emit()
 
 
+## DRAWN FROM AUTHORED ART. This was flat polygons -- a brown trapezium for a table and a
+## white bar for a candle -- standing in a room that is now pixel art, and it showed.
 func _draw() -> void:
 	# The table stays whether the candle is on it or not: an empty table is the room telling
 	# a player who comes back that they already took what was standing on it.
-	var top := Rect2(-TABLE.x * 0.5, -TABLE.y, TABLE.x, 12.0)
-	draw_rect(top, WOOD_LIT)
-	draw_rect(Rect2(top.position + Vector2(0.0, 12.0), Vector2(TABLE.x, 6.0)), WOOD_DARK)
-	for side: float in [-1.0, 1.0]:
-		draw_rect(Rect2(side * (TABLE.x * 0.5 - 18.0) - 6.0, -TABLE.y + 18.0,
-			12.0, TABLE.y - 18.0), WOOD)
+	PiyestaTiles.stand(self, "table", Vector2.ZERO, 1.0)
 	if not present:
 		return
-	var foot := -TABLE.y
-	# A brass stand, because a candle standing on its own end is a candle lying on the floor.
-	draw_rect(Rect2(-18.0, foot - 10.0, 36.0, 10.0), BRASS_DARK)
-	draw_rect(Rect2(-14.0, foot - 14.0, 28.0, 6.0), BRASS)
-	# The candle itself, with the drip down one side that says wax rather than paint.
-	var body := Rect2(-SIZE.x * 0.5, foot - 14.0 - SIZE.y, SIZE.x, SIZE.y)
-	draw_rect(body, WAX)
-	draw_rect(Rect2(body.position.x + SIZE.x - 7.0, body.position.y + 8.0, 7.0,
-		SIZE.y - 8.0), WAX_DARK)
-	# The flame, and the light it throws. Two frames of drift, which at this size is all a
-	# flame needs to be alive.
-	var lean := 2.0 * sin(_flicker * 7.0)
-	var height := 15.0 + 3.0 * sin(_flicker * 11.0)
-	var tip := Vector2(lean, body.position.y - height)
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(-5.0, body.position.y), Vector2(5.0, body.position.y), tip]), FLAME)
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(-2.0, body.position.y), Vector2(2.0, body.position.y),
-		tip + Vector2(0.0, height * 0.42)]), FLAME_CORE)
-	draw_circle(Vector2(0.0, body.position.y - 6.0), 62.0, GLOW)
+	var table := PiyestaTiles.size_of("table")
+	var at := Vector2(0.0, -table.y + 6.0)
+	PiyestaTiles.stand(self, "kandila_lit", at, 1.0)
+	# The light it throws. It is the only lit thing in a dark room and the reason the room is
+	# worth walking into, so the halo does the work of finding it.
+	var flame := at - Vector2(0.0, PiyestaTiles.size_of("kandila_lit").y)
+	draw_circle(flame + Vector2(0.0, 10.0), 76.0, GLOW)
+	draw_circle(flame + Vector2(0.0, 10.0), 40.0, GLOW)

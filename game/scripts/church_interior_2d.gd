@@ -72,6 +72,9 @@ const SKIN := Color(0.769, 0.612, 0.478, 1.0)         # C49C7A
 const WAX := Color(0.949, 0.925, 0.831, 1.0)          # F2ECD4
 const FLAME := Color(0.996, 0.847, 0.451, 1.0)        # FED873
 const FLAME_SOFT := Color(0.988, 0.812, 0.451, 0.22)
+## Candle warmth thrown up the wall behind the altar, so the far end of the nave is
+## somewhere to walk toward rather than just where the room stops.
+const CANDLE_GLOW := Color(0.980, 0.788, 0.400, 0.16)
 const IRON := Color(0.184, 0.176, 0.169, 1.0)         # 2F2D2B
 ## The priest. A cassock, and that is the whole of the read at this size.
 const CASSOCK := Color(0.129, 0.125, 0.137, 1.0)      # 212023
@@ -234,6 +237,18 @@ func guardrail_holds() -> bool:
 
 # --- What it looks like -------------------------------------------------------------------
 
+## DRAWN FROM MATERIAL AUTHORED FOR A CHURCH, not with `draw_rect`.
+##
+## The altar, the retablo, the pews and the candle rack were flat polygons in a room that is
+## now 8-bit pixel art, which made the one part of this level the cultural guardrail is
+## ABOUT the least convincing thing in it. They come from `tools/build_interiors.py` now --
+## gilded timber over a stone table with the santo in its niche, benches with real backs,
+## and an iron rack with candles already burning on it.
+##
+## ⚠ THE GUARDRAIL IS UNCHANGED BY THIS. The altar and the santo are still DRAWN and are
+## still not nodes: there is nothing to give a collision shape to, and `_check_the_guardrail`
+## still fails loudly if anybody adds one. Swapping how they are painted must not quietly
+## turn them into objects.
 func _draw() -> void:
 	_draw_pews()
 	_draw_altar()
@@ -244,102 +259,47 @@ func _draw() -> void:
 ## Down the middle of the nave, in two ranks, thinning toward the door -- so the room reads
 ## as long and the walk to the altar has something to walk past.
 func _draw_pews() -> void:
-	var x := -nave_length * 0.5 + 200.0
-	var index := 0
+	var x := -nave_length * 0.5 + 210.0
 	while x < _altar_x() - 420.0:
-		var top := Rect2(x, -PEW.y, PEW.x, 10.0)
-		draw_rect(top, TIMBER_LIT if index % 2 == 0 else TIMBER)
-		draw_rect(Rect2(top.position + Vector2(0.0, 10.0), Vector2(PEW.x, 5.0)), TIMBER_DEEP)
-		# The back, and the two ends. A bench with no back is a bench, not a pew.
-		draw_rect(Rect2(x + PEW.x - 12.0, -PEW.y - 42.0, 12.0, 42.0), TIMBER_DARK)
-		for side: float in [0.0, PEW.x - 10.0]:
-			draw_rect(Rect2(x + side, -PEW.y + 10.0, 10.0, PEW.y - 10.0), TIMBER_DARK)
-		x += PEW.x + 66.0
-		index += 1
+		PiyestaTiles.stand(self, "pew", Vector2(x, 0.0), 1.0)
+		x += PiyestaTiles.size_of("pew").x + 58.0
 
 
 ## The platform, the table, and the retablo standing on it. All of it drawn, none of it
 ## built -- see `_check_the_guardrail`.
 func _draw_altar() -> void:
 	var base := _altar_x()
-	draw_rect(Rect2(base - ALTAR.x * 0.5, -ALTAR.y, ALTAR.x, ALTAR.y), STONE_DARK)
-	draw_rect(Rect2(base - ALTAR.x * 0.5, -ALTAR.y, ALTAR.x, 8.0), STONE_PALE)
-	# The table, with its cloth over it.
-	var table := Rect2(base - 110.0, -ALTAR.y - 96.0, 220.0, 96.0)
-	draw_rect(table, STONE)
-	draw_rect(Rect2(table.position - Vector2(14.0, 14.0), Vector2(table.size.x + 28.0, 20.0)),
-		CLOTH)
-	# The retablo: three bays, gilded, with the santo in the middle one.
-	var foot := table.position.y
-	var frame := Rect2(base - RETABLO.x * 0.5, foot - RETABLO.y, RETABLO.x, RETABLO.y)
-	draw_rect(frame, TIMBER_DARK)
-	draw_rect(frame.grow(-8.0), TIMBER)
-	for bay in range(3):
-		var width := frame.size.x / 3.0
-		draw_rect(Rect2(frame.position.x + float(bay) * width + 4.0, frame.position.y + 12.0,
-			width - 8.0, frame.size.y - 24.0), TIMBER_DEEP)
-	# Gilt on the columns and the crown, which is all a retablo needs to read as one.
-	for column in range(4):
-		draw_rect(Rect2(frame.position.x + float(column) * (frame.size.x / 3.0) - 4.0,
-			frame.position.y, 9.0, frame.size.y), GILT)
-	draw_rect(Rect2(frame.position.x - 12.0, frame.position.y - 18.0,
-		frame.size.x + 24.0, 20.0), GILT_LIT)
-	_draw_santo(Vector2(base, foot - RETABLO.y * 0.42))
-
-
-## A painted figure in the middle bay. Small, high up, and out of reach -- which is what it
-## should look like as well as what it is.
-func _draw_santo(at: Vector2) -> void:
-	draw_rect(Rect2(at.x - 26.0, at.y - 8.0, 52.0, 76.0), ROBE)
-	draw_rect(Rect2(at.x - 26.0, at.y - 8.0, 18.0, 76.0), ROBE_LIT)
-	draw_circle(Vector2(at.x, at.y - 22.0), 15.0, SKIN)
-	# The halo. Gilt, because that is what carries the eye up to it.
-	draw_arc(Vector2(at.x, at.y - 26.0), 22.0, PI, TAU, 18, GILT_LIT, 3.0)
+	var altar := PiyestaTiles.size_of("altar")
+	# The dais it stands on, in the nave's own flagstone.
+	PiyestaTiles.fill(self, Rect2(base - altar.x * 0.62, -34.0, altar.x * 1.24, 34.0),
+		"church_floor", Color(1.08, 1.05, 1.0, 1.0))
+	draw_rect(Rect2(base - altar.x * 0.62, -36.0, altar.x * 1.24, 4.0),
+		Color(0.847, 0.741, 0.573, 1.0))
+	PiyestaTiles.stand(self, "altar", Vector2(base, -34.0), 1.0)
+	# Candle warmth on the wall behind it, so the far end of the nave is somewhere to walk to.
+	draw_rect(Rect2(base - 190.0, -nave_height, 380.0, nave_height), CANDLE_GLOW)
 
 
 ## The one thing in the room the player may touch, and it is not the altar.
 func _draw_rack() -> void:
 	var at := rack_point().x - global_position.x
-	draw_rect(Rect2(at - RACK.x * 0.5, -RACK.y, RACK.x, 10.0), IRON)
-	for leg: float in [-RACK.x * 0.5 + 8.0, RACK.x * 0.5 - 16.0]:
-		draw_rect(Rect2(at + leg, -RACK.y + 10.0, 8.0, RACK.y - 10.0), IRON)
-	# The candles already burning on it. Somebody else's, and the reason the rack reads as a
-	# rack rather than as a shelf.
-	for index in range(5):
-		var x := at - RACK.x * 0.5 + 22.0 + float(index) * 26.0
-		var height := 20.0 + float((index * 7) % 3) * 9.0
-		draw_rect(Rect2(x - 4.0, -RACK.y - height, 8.0, height), WAX)
-		if index % 2 == 0:
-			_draw_flame(Vector2(x, -RACK.y - height), 0.7)
+	PiyestaTiles.stand(self, "candle_rack", Vector2(at, 0.0), 1.0)
 	if not kandila_on_rack:
 		return
-	# And the player's, taller than the rest because it has not burned down yet. This is the
+	# The player's own, taller than the rest because it has not burned down yet. This is the
 	# whole visible result of Scene 2's one action, so it has to be legible at a glance.
-	var mine := at + RACK.x * 0.5 - 14.0
-	draw_rect(Rect2(mine - 5.0, -RACK.y - 62.0, 10.0, 62.0), WAX)
-	_draw_flame(Vector2(mine, -RACK.y - 62.0), 1.0)
-	draw_circle(Vector2(mine, -RACK.y - 62.0), 90.0, FLAME_SOFT)
-
-
-func _draw_flame(at: Vector2, scale: float) -> void:
-	var lean := 1.6 * scale * sin(_flicker * 7.0 + at.x)
-	var height := (12.0 + 3.0 * sin(_flicker * 11.0 + at.x)) * scale
-	draw_colored_polygon(PackedVector2Array([
-		at + Vector2(-4.0 * scale, 0.0), at + Vector2(4.0 * scale, 0.0),
-		at + Vector2(lean, -height)]), FLAME)
+	var rack := PiyestaTiles.size_of("candle_rack")
+	PiyestaTiles.stand(self, "kandila_lit", Vector2(at + rack.x * 0.30, -rack.y + 16.0), 1.0)
+	draw_circle(Vector2(at + rack.x * 0.30, -rack.y - 20.0), 96.0, FLAME_SOFT)
 
 
 ## He waits by the altar and walks over once. Standing still and facing the player is the
 ## whole of what the design asks of him -- *"idle and talking only"*.
 ##
 ## ⚠ AND LOLO'S PRAYING POSE DOES NOT EXIST. The design names it as the one thing Scene 2 is
-## built on and lists it under what is missing; the delivered sheet has float, hurry, still,
-## wave, cheer and a turnaround. Nothing here fakes it: the level holds him still at the rack
-## and lets the dialogue carry the beat. `cheer` is arms-up celebration and would be worse
-## than nothing. See CONTENT_NEEDED.md.
+## built on and lists it under what is missing; nothing here fakes it. See CONTENT_NEEDED.md.
 func _draw_priest() -> void:
 	var x := _priest_x
-	# A cassock is a column, which is exactly why it is cheap to draw and reads at any size.
 	draw_rect(Rect2(x - 17.0, -104.0, 34.0, 104.0), CASSOCK)
 	draw_rect(Rect2(x - 17.0, -104.0, 11.0, 104.0), CASSOCK_LIT)
 	draw_rect(Rect2(x - 12.0, -104.0, 24.0, 7.0), COLLAR)
