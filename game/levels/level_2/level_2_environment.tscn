@@ -12,7 +12,19 @@
 [ext_resource type="Texture2D" path="res://assets/Level2/plaza_front.png" id="17_plazafront"]
 
 [sub_resource type="RectangleShape2D" id="Rect_PlazaFloor"]
-size = Vector2(1700.0, 200.0)
+size = Vector2(1245.0, 200.0)
+
+[sub_resource type="RectangleShape2D" id="Rect_KioskoDeck"]
+size = Vector2(220.0, 240.0)
+
+[sub_resource type="RectangleShape2D" id="Rect_Step1"]
+size = Vector2(65.0, 200.0)
+
+[sub_resource type="RectangleShape2D" id="Rect_Step2"]
+size = Vector2(65.0, 200.0)
+
+[sub_resource type="RectangleShape2D" id="Rect_Step3"]
+size = Vector2(65.0, 200.0)
 
 [sub_resource type="RectangleShape2D" id="Rect_WestWall"]
 size = Vector2(40.0, 1400.0)
@@ -56,15 +68,39 @@ script = ExtResource("3_depth")
 [node name="EntityRoot" type="Node2D" parent="GameplayPlane"]
 
 [node name="SpawnPoint" type="Marker2D" parent="GameplayPlane"]
-position = Vector2(760.0, 460.0)
+position = Vector2(660.0, 460.0)
 
 [node name="Terrain" type="Node2D" parent="GameplayPlane"]
 
 [node name="PlazaFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(940.0, 637.0)
+position = Vector2(1127.5, 637.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/PlazaFloor"]
 shape = SubResource("Rect_PlazaFloor")
+
+[node name="KioskoDeck" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(200.0, 489.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/KioskoDeck"]
+shape = SubResource("Rect_KioskoDeck")
+
+[node name="Step1" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(342.5, 511.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/Step1"]
+shape = SubResource("Rect_Step1")
+
+[node name="Step2" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(407.5, 553.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/Step2"]
+shape = SubResource("Rect_Step2")
+
+[node name="Step3" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(472.5, 595.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/Step3"]
+shape = SubResource("Rect_Step3")
 
 [node name="WestWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(90.0, 250.0)
@@ -81,22 +117,22 @@ shape = SubResource("Rect_EastWall")
 [node name="Marks" type="Node2D" parent="GameplayPlane"]
 
 [node name="StartMark" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(760.0, 537.0)
+position = Vector2(660.0, 537.0)
 
 [node name="DancersMark" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(995.0, 537.0)
 
 [node name="DarkHouseA" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(380.0, 537.0)
+position = Vector2(560.0, 537.0)
 
 [node name="DarkHouseB" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(520.0, 537.0)
+position = Vector2(820.0, 537.0)
 
 [node name="LitHouse" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(660.0, 537.0)
+position = Vector2(1180.0, 537.0)
 
 [node name="ChurchDoor" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(1350.0, 537.0)
+position = Vector2(1420.0, 537.0)
 
 [node name="BuntingLine" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(995.0, 200.0)
@@ -159,7 +195,7 @@ obstacle_id = "L2_N3"
 trigger_size = Vector2(700.0, 400)
 
 [node name="CP0" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(760.0, 470.0)
+position = Vector2(660.0, 470.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP0"
 

@@ -347,18 +347,57 @@ func _on_onward_body(body: Node) -> void:
 	onward_reached.emit()
 
 
-# --- What it looks like -----------------------------------------------------------------
+# --- What it looks like -------------------------------------------------------------------
 
+## BUILT FROM THE ARTIST'S OWN TILESET, not drawn by hand.
+##
+## The first version of this was `draw_rect` -- flat bands of one colour with a few lines on
+## them -- and beside the delivered plaza it read as a grey box. `TextureMap_Piyesta.png`
+## ships three nine-slice wall sets, a stone plaza floor, stucco, roof, plank, thatch and a
+## shelf of props, and every one of these rooms is made of them. They are the same material
+## as the plaza because they are the same pixels.
+##
+## WHICH SET EACH ROOM IS MADE OF:
+##   church -- the pale `church` stone, because it is the same building the plaza faces
+##   house  -- `plank` walls over a `moss` stone base, which is how a town house is built
+##   alley  -- `moss`, the mossy stone of the plaza's own retaining wall, in shade
 func _draw() -> void:
 	_draw_void()
 	_draw_wall()
 	_draw_floor()
+	_draw_props()
 	_draw_opening(exit_rect(), true)
 	_draw_opening(onward_rect(), onward_open)
 
 
-## What the room is seen against, and only just bigger than the room: a ground that reaches
-## a screen past the walls is a ground painted over the level.
+## The material this room is made of, and the tint the shade puts on it.
+func _wall_set() -> String:
+	match kind:
+		Kind.CHURCH:
+			return "church"
+		Kind.HOUSE:
+			return "moss"
+		_:
+			return "moss"
+
+
+## ⚠ AN ALLEY IS IN SHADE AND A CHURCH IS NOT. The design asks the alleys for "dark, narrow,
+## behind the plaza" and asks the church for window light, and the tileset is one daylight
+## set -- the dark-palette variant it also asks for does not exist. Tinting is not a
+## substitute for that variant, but it is honest about which way the light goes and it is
+## what stops four rooms made of the same tiles reading as one room.
+func _shade() -> Color:
+	match kind:
+		Kind.CHURCH:
+			return Color(0.86, 0.82, 0.78, 1.0)
+		Kind.HOUSE:
+			return Color(0.78, 0.70, 0.60, 1.0)
+		_:
+			return Color(0.46, 0.52, 0.60, 1.0)
+
+
+## What the room is seen against, and only just bigger than the room: a ground that reaches a
+## screen past the walls is a ground painted over the level.
 func _draw_void() -> void:
 	var span := _span()
 	draw_rect(Rect2(-span, -wall_height - 260.0,
@@ -366,151 +405,197 @@ func _draw_void() -> void:
 
 
 func _draw_wall() -> void:
-	match kind:
-		Kind.CHURCH:
-			_draw_masonry()
-		Kind.HOUSE:
-			_draw_planks()
-		_:
-			_draw_plaster()
-
-
-## Coursed lime-washed stone, and a tall window at the altar end throwing warm light down
-## the nave. The courses are what make a wall read as built rather than as a colour.
-func _draw_masonry() -> void:
 	var span := _span()
-	draw_rect(Rect2(-span, -wall_height, span * 2.0, wall_height), STONE_DARK)
-	var course := 46.0                      # 64cm, a worked block
-	var row := 0
-	var y := -wall_height
-	while y < 0.0:
-		# Offset every other course so the joints break, which is the whole of why a wall
-		# looks like masonry and not like tiles.
-		var offset := 0.0 if row % 2 == 0 else 62.0
-		var x := -span + offset
-		while x < span:
-			var tone: Color = STONE_TONES[(row * 7 + int(x / 124.0)) % STONE_TONES.size()]
-			draw_rect(Rect2(x + 2.0, y + 2.0, 120.0, course - 4.0), tone)
-			x += 124.0
-		draw_rect(Rect2(-span, y, span * 2.0, 2.0), STONE_DEEP)
-		y += course
-		row += 1
-	# The high window, and the light off it. Sill at 2.6m so it is plainly out of reach --
-	# nothing in this room is climbed and the shape should say so.
-	var window := Rect2(room_length * 0.22, -wall_height + 40.0, 96.0, 190.0)
-	draw_rect(window.grow(8.0), STONE_DEEP)
-	draw_rect(window, DAYLIGHT_DIM)
-	draw_rect(Rect2(window.position + Vector2(0.0, 6.0), Vector2(window.size.x, 60.0)),
-		DAYLIGHT)
-	# The pool it throws on the floor, cast toward the middle of the nave.
-	draw_colored_polygon(PackedVector2Array([
-		window.position + Vector2(0.0, window.size.y),
-		window.position + Vector2(window.size.x, window.size.y),
-		Vector2(window.position.x - 40.0, 0.0),
-		Vector2(window.position.x - 250.0, 0.0)]), WINDOW_LIGHT)
-	# Warmth at the altar end, so the far end of the nave is somewhere to walk toward.
-	draw_rect(Rect2(room_length * 0.5 - 300.0, -wall_height, 300.0, wall_height),
-		CANDLE_GLOW)
+	var set_name := _wall_set()
+	var shade := _shade()
+	# An alley is open to the sky, so the strip above its wall is daylight rather than more
+	# room. It is the only bright thing in there and it is where the birds circle.
+	if kind == Kind.ALLEY:
+		draw_rect(Rect2(-span, -wall_height - 260.0, span * 2.0, 260.0), ALLEY_SKY)
+		draw_rect(Rect2(-span, -wall_height - 70.0, span * 2.0, 70.0), ALLEY_SKY_LOW)
+	_draw_courses(Rect2(-span, -wall_height, span * 2.0, wall_height), set_name, shade)
+	# A HOUSE IS PLANK OVER A STONE BASE. One material floor to ceiling is a wall; two with
+	# the join at waist height is a building somebody made.
+	if kind == Kind.HOUSE:
+		var base := wall_height * 0.34
+		PiyestaTiles.fill(self, Rect2(-span, -wall_height, span * 2.0, wall_height - base),
+			"plank", shade)
+		PiyestaTiles.run(self, Vector2(-span, -base - 10.0), span * 2.0, "moss_top", shade)
+	# The capped top edge -- the whole reason the set has nine tiles and not one.
+	var cap := PiyestaTiles.size_of("%s_top" % set_name)
+	PiyestaTiles.run(self, Vector2(-span, -wall_height - cap.y * 0.5),
+		span * 2.0, "%s_top" % set_name, shade)
+	# A pilaster at each end the player can walk to, so the room has a length the eye reads
+	# rather than running on forever.
 	for side: float in [-1.0, 1.0]:
-		_draw_pilaster(side * room_length * 0.5, STONE_PALE, STONE_DEEP)
+		var at := side * room_length * 0.5
+		PiyestaTiles.fill(self, Rect2(at - 22.0, -wall_height, 44.0, wall_height),
+			"%s_left" % set_name, shade)
+	if kind != Kind.ALLEY:
+		# ⚠ A ROOFED ROOM HAS TO SHOW ITS ROOF. The wall simply stopped at a capping course
+		# with the void above it, so both insides read as open-topped pits. The church gets
+		# beams under terracotta, the house thatch, which is how each is built outside.
+		var eaves := -wall_height - 6.0
+		PiyestaTiles.run(self, Vector2(-span, eaves - 52.0), span * 2.0,
+			"roof" if kind == Kind.CHURCH else "thatch", shade)
+		for index in range(int(span * 2.0 / 190.0) + 1):
+			PiyestaTiles.fill(self, Rect2(-span + float(index) * 190.0, eaves - 8.0,
+				22.0, 26.0), "post", Color(shade.r * 0.7, shade.g * 0.66, shade.b * 0.6, 1.0))
+	if kind == Kind.CHURCH:
+		# The high window the nave is lit by, and the light it throws down. Out of reach on
+		# purpose: nothing in this room is climbed and the shape should say so.
+		var window := Rect2(room_length * 0.22, -wall_height + 54.0, 96.0, 116.0)
+		PiyestaTiles.fill(self, window, "stucco_window", Color(1.0, 0.98, 0.92, 1.0))
+		draw_colored_polygon(PackedVector2Array([
+			window.position + Vector2(0.0, window.size.y),
+			window.position + Vector2(window.size.x, window.size.y),
+			Vector2(window.position.x - 40.0, 0.0),
+			Vector2(window.position.x - 250.0, 0.0)]), WINDOW_LIGHT)
 
 
-## Sawn plank over a bamboo frame, in one small room. The house is somebody's, so it is warm
-## and close and the boards run vertically like a wall that was built by hand.
-func _draw_planks() -> void:
-	var span := _span()
-	draw_rect(Rect2(-span, -wall_height, span * 2.0, wall_height), PLANK_DARK)
-	var x := -span
-	var index := 0
-	while x < span:
-		var width := 26.0 + float((index * 13) % 3) * 6.0
-		var tone: Color = PLANK_TONES[index % PLANK_TONES.size()]
-		draw_rect(Rect2(x, -wall_height, width - 3.0, wall_height), tone)
-		draw_rect(Rect2(x + width - 3.0, -wall_height, 3.0, wall_height), PLANK_DEEP)
-		x += width
-		index += 1
-	# Two rails, which is what stops a run of vertical boards reading as a fence.
-	for height: float in [0.30, 0.72]:
-		draw_rect(Rect2(-span, -wall_height * height - 9.0, span * 2.0, 18.0), PLANK_LIT)
-		draw_rect(Rect2(-span, -wall_height * height + 9.0, span * 2.0, 4.0), PLANK_DEEP)
-	for side: float in [-1.0, 1.0]:
-		_draw_pilaster(side * room_length * 0.5, PLANK_PALE, PLANK_DEEP)
+## ⚠ ONE TILE REPEATED IS A GRID, and a grid is what the eye finds first. The set has no
+## second fill, so the variation comes from the tint: each course is nudged a few percent
+## either side of the shade, and every third block a little further. It is the difference
+## between a wall and graph paper, and it costs nothing.
+func _draw_courses(rect: Rect2, set_name: String, shade: Color) -> void:
+	var tile := PiyestaTiles.size_of("%s_fill" % set_name)
+	if tile.y <= 0.0:
+		draw_rect(rect, VOID)
+		return
+	var course := 0
+	var y := rect.position.y
+	while y < rect.position.y + rect.size.y:
+		var height := minf(tile.y, rect.position.y + rect.size.y - y)
+		var x := rect.position.x
+		var block := 0
+		while x < rect.position.x + rect.size.x:
+			var width := minf(tile.x, rect.position.x + rect.size.x - x)
+			var lift := 1.0 + 0.05 * float((course * 3 + block * 5) % 5 - 2)
+			PiyestaTiles.fill(self, Rect2(x, y, width, height), "%s_fill" % set_name,
+				Color(shade.r * lift, shade.g * lift, shade.b * lift, 1.0))
+			x += tile.x
+			block += 1
+		y += tile.y
+		course += 1
 
 
-## Plaster over rubble, in shade, open to a strip of sky. The alley is the only room in the
-## level with weather in it, and the sky is where everything the player wants has gone.
-func _draw_plaster() -> void:
-	var span := _span()
-	# The sky above the wall. Drawn first and tall, because the birds circle up into it and
-	# the bandaritas are strung across it.
-	draw_rect(Rect2(-span, -wall_height - 260.0, span * 2.0, 260.0), ALLEY_SKY)
-	draw_rect(Rect2(-span, -wall_height - 60.0, span * 2.0, 60.0), ALLEY_SKY_LOW)
-	draw_rect(Rect2(-span, -wall_height, span * 2.0, wall_height), PLASTER_DARK)
-	# Patchy render: plaster that has been repaired more than once, in slabs rather than
-	# strokes, so the wall has areas rather than noise.
-	var index := 0
-	var y := -wall_height
-	while y < 0.0:
-		var x := -span + float((index * 53) % 90)
-		while x < span:
-			var width := 90.0 + float((index * 37) % 5) * 26.0
-			var tone: Color = PLASTER_TONES[
-				(index * 3 + int(x / 90.0)) % PLASTER_TONES.size()]
-			draw_rect(Rect2(x, y, width - 5.0, 68.0), tone)
-			x += width
-			index += 1
-		y += 72.0
-		index += 1
-	# Damp running down from the top of the wall, which is what makes a shaded alley read as
-	# a shaded alley rather than as a grey room.
-	for streak in range(int(room_length / 130.0) + 4):
-		var sx := -span + float(streak) * 130.0 + float((streak * 29) % 40)
-		draw_rect(Rect2(sx, -wall_height, 16.0, wall_height * (0.35 + 0.1 * float(streak % 4))),
-			PLASTER_DEEP)
-	# A capping course at the top, so the wall ends against the sky rather than stopping.
-	draw_rect(Rect2(-span, -wall_height - 12.0, span * 2.0, 16.0), PLASTER_PALE)
-	for side: float in [-1.0, 1.0]:
-		_draw_pilaster(side * room_length * 0.5, PLASTER_PALE, PLASTER_DEEP)
-
-
-## A corner at each end the player can walk to, so the room has a length the eye can read
-## rather than running on forever.
-func _draw_pilaster(at_x: float, lit: Color, dark: Color) -> void:
-	draw_rect(Rect2(at_x - 16.0, -wall_height, 32.0, wall_height), dark)
-	draw_rect(Rect2(at_x - 12.0, -wall_height, 8.0, wall_height), lit)
-
-
-## Laid in courses, like the boards in the hub's house: a floor somebody has walked on for a
-## season is not one flat colour.
+## The stone plaza floor, which is what these rooms are floored with too -- one town, one
+## paving. Four blocks in the set, alternated so it does not read as a grid.
 func _draw_floor() -> void:
 	var span := _span()
-	draw_rect(Rect2(-span, 0.0, span * 2.0, floor_depth), FLOOR_DARK)
-	var x := -span
-	var index := 0
-	while x < span:
-		var width := 54.0 + float((index * 17) % 4) * 12.0
-		var tone: Color = FLOOR_TONES[index % FLOOR_TONES.size()]
-		draw_rect(Rect2(x, 2.0, width - 4.0, floor_depth - 4.0), tone)
-		x += width
-		index += 1
-	# The shadow where the wall meets the floor. Without it the two planes are one plane.
-	draw_rect(Rect2(-span, 0.0, span * 2.0, 8.0), FLOOR_DEEP)
-
-
-## An opening, and what is on the other side of it. An open one shows daylight; a shut one
-## shows boards, because a way onward the player has not earned should look shut rather than
-## look like wall.
-func _draw_opening(rect: Rect2, open: bool) -> void:
-	draw_rect(rect.grow(10.0), VOID)
-	if open:
-		draw_rect(rect, DAYLIGHT_DIM)
-		draw_rect(Rect2(rect.position, Vector2(rect.size.x, rect.size.y * 0.42)), DAYLIGHT)
-		# The light it spills onto the floor just inside.
-		draw_rect(Rect2(rect.position.x - 14.0, -6.0, rect.size.x + 28.0, 10.0),
-			DAYLIGHT_DIM)
+	var shade := _shade()
+	var names := ["floor_a", "floor_b", "floor_c", "floor_d"]
+	var tile := PiyestaTiles.size_of("floor_a")
+	if tile.x <= 0.0:
+		draw_rect(Rect2(-span, 0.0, span * 2.0, floor_depth), FLOOR_DARK)
 		return
-	draw_rect(rect, VOID)
-	# Boarded across, on the diagonal, which is how a shut thing is shut.
-	for board in range(4):
-		var y := rect.position.y + 18.0 + float(board) * 34.0
-		draw_rect(Rect2(rect.position.x - 6.0, y, rect.size.x + 12.0, 16.0), BOARD)
+	var index := 0
+	var x := -span
+	while x < span:
+		var width := minf(tile.x, span - x)
+		# DARKER THAN THE WALL, always. The church's walls and its paving are cut from the
+		# same rock, so at the same value the room had no floor line at all -- the apo
+		# appeared to be standing in front of a quarry face.
+		PiyestaTiles.fill(self, Rect2(x, 0.0, width, floor_depth),
+			names[index % names.size()],
+			Color(shade.r * 0.72, shade.g * 0.70, shade.b * 0.68, 1.0))
+		x += tile.x
+		index += 1
+	# The wall's own bottom course where it meets the floor, and the shadow it casts. Without
+	# them the two planes are one plane.
+	PiyestaTiles.run(self, Vector2(-span, -PiyestaTiles.size_of("%s_bottom" % _wall_set()).y
+		+ 6.0), span * 2.0, "%s_bottom" % _wall_set(), shade)
+	draw_rect(Rect2(-span, 0.0, span * 2.0, 9.0), Color(0.0, 0.0, 0.0, 0.45))
+
+
+## What is standing in the room. Not decoration -- an empty box of the right material still
+## reads as a box, and these are what give it a scale and somewhere for the eye to rest.
+func _draw_props() -> void:
+	var half := room_length * 0.5
+	var shade := _shade()
+	match kind:
+		Kind.CHURCH:
+			# Lanterns down the nave, and the balustrade that separates it from the chancel.
+			for index in range(3):
+				var x := -half + room_length * (0.30 + 0.22 * float(index))
+				PiyestaTiles.hang(self, "lantern_hanging",
+					Vector2(x, -wall_height + 24.0), 0.62, shade)
+			PiyestaTiles.run(self, Vector2(-half + 90.0, -66.0),
+				room_length * 0.22, "balustrade", shade)
+			PiyestaTiles.stand(self, "plants", Vector2(-half + 70.0, 0.0), 0.42, shade)
+		Kind.HOUSE:
+			PiyestaTiles.hang(self, "lantern_hanging",
+				Vector2(-half + 120.0, -wall_height + 20.0), 0.52, shade)
+			PiyestaTiles.stand(self, "jar_a", Vector2(half - 90.0, 0.0), 0.72, shade)
+			PiyestaTiles.stand(self, "plants", Vector2(half - 160.0, 0.0), 0.38, shade)
+		_:
+			# An alley is where a town keeps what it does not want seen: jars against the
+			# wall, weeds at the foot of it, and one lamp somebody hung and left.
+			PiyestaTiles.stand(self, "jar_a", Vector2(-half + 130.0, 0.0), 0.78, shade)
+			PiyestaTiles.stand(self, "jar_b", Vector2(-half + 186.0, 0.0), 0.70, shade)
+			PiyestaTiles.stand(self, "jar_b", Vector2(half - 150.0, 0.0), 0.66, shade)
+			PiyestaTiles.stand(self, "plants", Vector2(-half + 300.0, 0.0), 0.34, shade)
+			PiyestaTiles.stand(self, "plants", Vector2(half - 260.0, 0.0), 0.30, shade)
+			PiyestaTiles.hang(self, "lantern_hanging",
+				Vector2(0.0, -wall_height * 0.62), 0.54, shade)
+
+
+## AN OPENING, AND IT HAS TO READ AS A HOLE THROUGH A WALL.
+##
+## The first version filled the rect with a flat cream and called it daylight, which put a
+## blank slab of card in the middle of every room -- the single most obviously wrong thing
+## left in these interiors. What makes a rectangle read as an opening is not its colour, it
+## is the DEPTH around it: a jamb standing proud of the wall, an arch built over the head, a
+## reveal in shadow down one side, and light that falls off as it goes back.
+func _draw_opening(rect: Rect2, open: bool) -> void:
+	var set_name := _wall_set()
+	var shade := _shade()
+	var jamb := 15.0
+	var rise := 22.0
+	# The surround, and the arch over it. Drawn from the wall's own left-edge tile so the
+	# jamb is the same rock as everything around it.
+	PiyestaTiles.fill(self, Rect2(rect.position.x - jamb, rect.position.y - rise,
+		jamb, rect.size.y + rise), "%s_left" % set_name, shade)
+	PiyestaTiles.fill(self, Rect2(rect.position.x + rect.size.x, rect.position.y - rise,
+		jamb, rect.size.y + rise), "%s_right" % set_name, shade)
+	PiyestaTiles.run(self, Vector2(rect.position.x - jamb, rect.position.y - rise - 10.0),
+		rect.size.x + jamb * 2.0, "%s_top" % set_name, shade)
+	# The reveal: dark, and darker at the top where the head is.
+	draw_rect(rect, Color(0.055, 0.047, 0.043, 1.0))
+	draw_rect(Rect2(rect.position, Vector2(rect.size.x, 16.0)), Color(0.02, 0.02, 0.02, 1.0))
+	if not open:
+		# Boarded across, and visibly boarded rather than merely dark -- a way onward the
+		# player has not earned should look shut.
+		for board in range(4):
+			var y := rect.position.y + 16.0 + float(board) * 34.0
+			PiyestaTiles.fill(self, Rect2(rect.position.x - 5.0, y,
+				rect.size.x + 10.0, 18.0), "plank_h", shade)
+		draw_rect(Rect2(rect.position.x - 5.0, rect.position.y + 16.0,
+			rect.size.x + 10.0, 4.0), Color(0.0, 0.0, 0.0, 0.35))
+		return
+	# WHAT IS THROUGH IT IS OUTSIDE, not a colour. A doorway seen from a dark room shows a
+	# small bright picture -- sky over ground, with a horizon -- inset behind the reveal so
+	# the wall has a thickness. The first version drew seven stacked full-height rects with
+	# rising alpha, which is a solid cream card with extra steps.
+	var inner := rect.grow(-9.0)
+	inner.position.y += 6.0
+	inner.size.y -= 6.0
+	var horizon := inner.position.y + inner.size.y * 0.62
+	# Sky, brightest just above the horizon the way a hot afternoon is.
+	draw_rect(Rect2(inner.position, Vector2(inner.size.x, horizon - inner.position.y)),
+		Color(0.60, 0.80, 0.94, 1.0))
+	draw_rect(Rect2(inner.position.x, horizon - 26.0, inner.size.x, 26.0),
+		Color(0.82, 0.90, 0.95, 1.0))
+	# And the ground out there, in the plaza's own paving.
+	PiyestaTiles.fill(self, Rect2(inner.position.x, horizon, inner.size.x,
+		inner.position.y + inner.size.y - horizon), "floor_b",
+		Color(1.05, 1.02, 0.96, 1.0))
+	# The reveal's own shadow down the head and the left jamb: the wall has depth, and this
+	# is the only thing that says so.
+	draw_rect(Rect2(inner.position, Vector2(inner.size.x, 9.0)), Color(0.0, 0.0, 0.0, 0.5))
+	draw_rect(Rect2(inner.position, Vector2(8.0, inner.size.y)), Color(0.0, 0.0, 0.0, 0.32))
+	# The threshold, and the light it throws onto the floor just inside.
+	PiyestaTiles.run(self, Vector2(rect.position.x - jamb, -12.0),
+		rect.size.x + jamb * 2.0, "step_block", shade)
+	draw_rect(Rect2(rect.position.x - 18.0, -8.0, rect.size.x + 36.0, 12.0),
+		Color(DAYLIGHT.r, DAYLIGHT.g, DAYLIGHT.b, 0.42))
