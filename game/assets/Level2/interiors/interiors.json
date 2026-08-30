@@ -23,6 +23,20 @@
         128
       ]
     },
+    "church_wall_d": {
+      "file": "church_wall_d.png",
+      "size": [
+        128,
+        128
+      ]
+    },
+    "church_wall_e": {
+      "file": "church_wall_e.png",
+      "size": [
+        128,
+        128
+      ]
+    },
     "church_upper_a": {
       "file": "church_upper_a.png",
       "size": [
@@ -39,6 +53,20 @@
     },
     "church_upper_c": {
       "file": "church_upper_c.png",
+      "size": [
+        128,
+        128
+      ]
+    },
+    "church_upper_d": {
+      "file": "church_upper_d.png",
+      "size": [
+        128,
+        128
+      ]
+    },
+    "church_upper_e": {
+      "file": "church_upper_e.png",
       "size": [
         128,
         128
@@ -65,6 +93,20 @@
         128
       ]
     },
+    "house_wall_d": {
+      "file": "house_wall_d.png",
+      "size": [
+        128,
+        128
+      ]
+    },
+    "house_wall_e": {
+      "file": "house_wall_e.png",
+      "size": [
+        128,
+        128
+      ]
+    },
     "alley_wall_a": {
       "file": "alley_wall_a.png",
       "size": [
@@ -81,6 +123,20 @@
     },
     "alley_wall_c": {
       "file": "alley_wall_c.png",
+      "size": [
+        128,
+        128
+      ]
+    },
+    "alley_wall_d": {
+      "file": "alley_wall_d.png",
+      "size": [
+        128,
+        128
+      ]
+    },
+    "alley_wall_e": {
+      "file": "alley_wall_e.png",
       "size": [
         128,
         128
@@ -154,6 +210,55 @@
       "size": [
         192,
         240
+      ]
+    },
+    "santo_nino_print": {
+      "file": "santo_nino_print.png",
+      "size": [
+        60,
+        76
+      ]
+    },
+    "votive_stand": {
+      "file": "votive_stand.png",
+      "size": [
+        104,
+        92
+      ]
+    },
+    "font": {
+      "file": "font.png",
+      "size": [
+        60,
+        80
+      ]
+    },
+    "washing_line": {
+      "file": "washing_line.png",
+      "size": [
+        240,
+        88
+      ]
+    },
+    "drainpipe": {
+      "file": "drainpipe.png",
+      "size": [
+        32,
+        240
+      ]
+    },
+    "handbills": {
+      "file": "handbills.png",
+      "size": [
+        128,
+        92
+      ]
+    },
+    "shelf": {
+      "file": "shelf.png",
+      "size": [
+        116,
+        68
       ]
     },
     "table": {

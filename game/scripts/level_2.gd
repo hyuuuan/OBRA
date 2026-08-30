@@ -399,7 +399,7 @@ func _string_the_plaza() -> void:
 		return
 	var line := BandaritaLine2D.new()
 	line.name = "PlazaBandaritas"
-	line.span = 2600.0
+	line.span = 2900.0
 	line.scraps_held = 0
 	line.global_position = mark.global_position
 	plaza.add_child(line)

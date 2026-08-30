@@ -266,7 +266,7 @@ def setts(c: Canvas, pal: np.ndarray) -> None:
 ## rhythm before it finds the material. Three variants, each drawn from a different point in
 ## the same seeded stream, and the room picks between them per tile -- so the wall repeats
 ## every twelve metres instead of every one and a half, which at this camera is never.
-WALL_VARIANTS = 3
+WALL_VARIANTS = 5
 
 
 def _wall(name: str, kind: str, tiles: dict) -> None:
@@ -283,7 +283,7 @@ def _wall(name: str, kind: str, tiles: dict) -> None:
             sawali(c, ramp(SAWALI), ramp(TIMBER))
         else:
             plaster_over_rubble(c, ramp(PLASTER_COLD), ramp(RUBBLE))
-        key = "%s_%s" % (name, "abc"[variant])
+        key = "%s_%s" % (name, "abcde"[variant])
         tiles[key] = _emit(c, key)
 
 
@@ -520,6 +520,152 @@ def _kandila(tiles: dict) -> None:
         tiles[name] = _emit(c, name)
 
 
+def _santo_nino_print(tiles: dict) -> None:
+    """A framed print of the Santo Nino. There is one in every Cebuano house.
+
+    ⚠ DRAWN, NEVER BUILT. Like the retablo's image and the one in the Basilica's facade
+    niche, this is part of a texture: no node, no area, no collision, nothing to interact
+    with. It is there because a house in this town would have one, not as a thing to use.
+    """
+    c = Canvas(30, 38, SEED + 401)
+    wood = ramp(TIMBER)
+    gilt = ramp(GILT)
+    red = ramp(FLAME)
+    skin = ramp(CANDLE)
+    c.fill(0, 0, c.w, c.h, wood[1])
+    c.hline(0, 0, c.w, wood[3])
+    c.fill(3, 3, c.w - 6, c.h - 6, gilt[0])
+    c.fill(4, 4, c.w - 8, c.h - 8, ramp(LIME_PLASTER)[4])
+    # The image: a small figure in red with a gold crown, holding a globe.
+    c.fill(11, 16, 9, 16, red[1])
+    c.vline(11, 16, 16, red[2])
+    c.fill(13, 10, 5, 6, skin[2])
+    c.fill(12, 6, 7, 4, gilt[3])
+    c.px(15, 4, gilt[4])
+    c.fill(19, 20, 3, 3, gilt[2])
+    tiles["santo_nino_print"] = _emit(c, "santo_nino_print")
+
+
+def _votive_stand(tiles: dict) -> None:
+    """A tiered stand of votive candles -- what a shrine actually looks like at a fiesta."""
+    c = Canvas(52, 46, SEED + 409)
+    iron = ramp(IRON)
+    wax = ramp(CANDLE)
+    flame = ramp(FLAME)
+    for tier in range(3):
+        y = 16 + tier * 10
+        c.fill(4 + tier * 3, y, 44 - tier * 6, 3, iron[2])
+        c.hline(4 + tier * 3, y, 44 - tier * 6, iron[3])
+        for index in range((7 - tier * 1)):
+            x = 7 + tier * 3 + index * 6
+            h = 5 + (index * 3) % 4
+            c.fill(x, y - h, 3, h, wax[1])
+            c.vline(x, y - h, h, wax[2])
+            if (index + tier) % 2 == 0:
+                c.px(x + 1, y - h - 2, flame[2])
+                c.px(x + 1, y - h - 1, flame[1])
+    c.fill(6, 43, 40, 3, iron[1])
+    tiles["votive_stand"] = _emit(c, "votive_stand")
+
+
+def _font(tiles: dict) -> None:
+    """The holy-water font by the door. Stone, and the first thing anybody touches."""
+    c = Canvas(30, 40, SEED + 419)
+    stone = ramp(LIMESTONE)
+    water = ramp(GLASS)
+    c.fill(11, 14, 8, 26, stone[2])
+    c.vline(11, 14, 26, stone[4])
+    c.fill(6, 36, 18, 4, stone[3])
+    for row in range(10):
+        half = int(13 * (0.6 + 0.4 * (row / 10.0)))
+        c.fill(15 - half, 6 + row, half * 2, 1, stone[3])
+        c.px(15 - half, 6 + row, stone[5])
+        c.px(15 + half - 1, 6 + row, stone[1])
+    c.fill(5, 6, 20, 3, water[1])
+    c.hline(5, 6, 20, water[3])
+    tiles["font"] = _emit(c, "font")
+
+
+def _washing_line(tiles: dict) -> None:
+    """A line of washing across an alley. Nothing says back street faster."""
+    c = Canvas(120, 44, SEED + 431)
+    rope = ramp(SAWALI)
+    cloths = [ramp(FLAME), ramp(GLASS), ramp(CANDLE), ramp(SAWALI)]
+    for x in range(c.w):
+        c.px(x, 3 + int(2 * np.sin(x / 26.0)), rope[1])
+    x = 4
+    index = 0
+    while x < c.w - 14:
+        pal = cloths[index % len(cloths)]
+        w = int(c.rng.integers(11, 19))
+        h = int(c.rng.integers(16, 32))
+        y = 4 + int(2 * np.sin(x / 26.0))
+        c.fill(x, y, w, h, pal[1])
+        c.dither(x, y, w, h, pal[1], pal[2], 0.45)
+        c.hline(x, y, w, pal[3])
+        # It hangs, so the hem is not straight.
+        for step in range(w):
+            c.px(x + step, y + h + (1 if step % 4 else 0), pal[0])
+        x += w + int(c.rng.integers(5, 13))
+        index += 1
+    tiles["washing_line"] = _emit(c, "washing_line")
+
+
+def _drainpipe(tiles: dict) -> None:
+    """Cast iron down the wall, with the stain it has left."""
+    c = Canvas(16, 120, SEED + 433)
+    iron = ramp(IRON)
+    damp = ramp(PLASTER_COLD)
+    c.dither(1, 0, 14, c.h, damp[3], damp[1], 0.4)
+    c.fill(5, 0, 7, c.h, iron[2])
+    c.vline(5, 0, c.h, iron[3])
+    c.vline(11, 0, c.h, iron[0])
+    for y in range(0, c.h, 26):
+        c.fill(3, y, 11, 4, iron[1])
+        c.hline(3, y, 11, iron[3])
+    tiles["drainpipe"] = _emit(c, "drainpipe")
+
+
+def _handbills(tiles: dict) -> None:
+    """Fiesta bills pasted on an alley wall, sun-bleached and half torn off."""
+    c = Canvas(64, 46, SEED + 439)
+    paper = ramp(CANDLE)
+    ink = ramp(FLAME)
+    for index in range(3):
+        x = 2 + index * 21
+        y = 3 + (index % 2) * 9
+        w = int(c.rng.integers(14, 19))
+        h = int(c.rng.integers(20, 30))
+        c.fill(x, y, w, h, paper[1])
+        c.dither(x, y, w, h, paper[1], paper[0], 0.35)
+        for line in range(3, h - 4, 5):
+            c.fill(x + 2, y + line, w - 5, 2, ink[0] if line < 8 else paper[0])
+        # A corner peeled back.
+        if index % 2 == 0:
+            for step in range(6):
+                c.fill(x + w - 6 + step, y + h - 6 + step, 6 - step, 1, paper[2])
+    tiles["handbills"] = _emit(c, "handbills")
+
+
+def _shelf(tiles: dict) -> None:
+    """A plank shelf with jars on it. What a house keeps its salt and vinegar on."""
+    c = Canvas(58, 34, SEED + 443)
+    wood = ramp(TIMBER)
+    clay = ramp(FLAME)
+    c.fill(0, 22, c.w, 5, wood[3])
+    c.hline(0, 22, c.w, wood[5])
+    c.hline(0, 26, c.w, wood[0])
+    for x in [3, c.w - 8]:
+        c.fill(x, 27, 5, 7, wood[1])
+    for index in range(4):
+        x = 5 + index * 13
+        h = 12 + (index * 5) % 6
+        c.fill(x, 22 - h, 9, h, clay[1 + (index % 2)])
+        c.vline(x, 22 - h, h, clay[2])
+        c.fill(x + 1, 22 - h - 2, 7, 3, clay[0])
+    tiles["shelf"] = _emit(c, "shelf")
+
+
 def _crate(tiles: dict) -> None:
     c = Canvas(30, 26)
     wood = ramp(TIMBER)
@@ -587,6 +733,13 @@ def build(check: bool) -> int:
     _pew(tiles)
     _candle_rack(tiles)
     _altar(tiles)
+    _santo_nino_print(tiles)
+    _votive_stand(tiles)
+    _font(tiles)
+    _washing_line(tiles)
+    _drainpipe(tiles)
+    _handbills(tiles)
+    _shelf(tiles)
     _table(tiles)
     _kandila(tiles)
     _crate(tiles)

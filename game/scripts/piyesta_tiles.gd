@@ -131,7 +131,10 @@ static func fill_varied(canvas: CanvasItem, rect: Rect2, names: Array,
 		var x := rect.position.x
 		while x < rect.position.x + rect.size.x:
 			var width := minf(tile.x, rect.position.x + rect.size.x - x)
-			var pick := String(names[posmod(row * 7 + column * 3, names.size())])
+			# Hashed rather than a plain sum: `row * 7 + column * 3` walks the list in step
+			# with the grid, which puts the same cut down a diagonal every time.
+			var mix := (column * 73856093) ^ (row * 19349663)
+			var pick := String(names[posmod(mix / 8, names.size())])
 			var chosen := get_tile(pick)
 			if chosen != null:
 				canvas.draw_texture_rect_region(chosen, Rect2(x, y, width, height),
