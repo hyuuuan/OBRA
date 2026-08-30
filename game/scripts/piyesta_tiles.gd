@@ -15,8 +15,20 @@ extends RefCounted
 ## so nothing carries a transparent margin that would show as a seam. Ask for `size_of` rather
 ## than assuming.
 
-const MANIFEST := "res://assets/Level2/tiles/tiles.json"
-const DIR := "res://assets/Level2/tiles/"
+## TWO SHEETS, ONE NAME SPACE. `tiles/` is the artist's own plaza tileset, cut by
+## `tools/build_tiles.py`; `interiors/` is the 8-bit material authored for the insides by
+## `tools/build_interiors.py`. They are kept apart on disk and together here because a room
+## legitimately uses both -- a clay jar from the plaza standing on a floor that is not the
+## plaza's -- and the names do not collide.
+##
+## ⚠ AND THE INTERIORS ARE NOT THE PLAZA'S TILES. That sheet is the OUTSIDE of a town: mossy
+## rubble with grass on top, packed earth underfoot. Tiling it into a nave puts moss and dirt
+## inside a building that has neither, which is exactly what this replaced.
+const SHEETS := [
+	{"manifest": "res://assets/Level2/tiles/tiles.json", "dir": "res://assets/Level2/tiles/"},
+	{"manifest": "res://assets/Level2/interiors/interiors.json",
+		"dir": "res://assets/Level2/interiors/"},
+]
 
 ## The nine cells of a wall set, in the sheet's own order.
 const FILL := "fill"
@@ -30,18 +42,21 @@ static func _load() -> void:
 	if _loaded:
 		return
 	_loaded = true
-	var file := FileAccess.open(MANIFEST, FileAccess.READ)
-	if file == null:
-		push_error("PiyestaTiles: %s is missing -- run tools/build_tiles.py" % MANIFEST)
-		return
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	if typeof(parsed) != TYPE_DICTIONARY:
-		push_error("PiyestaTiles: %s does not parse" % MANIFEST)
-		return
-	for name: Variant in (parsed as Dictionary).get("tiles", {}).keys():
-		var texture := load(DIR + String(name) + ".png") as Texture2D
-		if texture != null:
-			_textures[String(name)] = texture
+	for entry: Variant in SHEETS:
+		var sheet: Dictionary = entry
+		var file := FileAccess.open(String(sheet["manifest"]), FileAccess.READ)
+		if file == null:
+			push_error("PiyestaTiles: %s is missing -- run the tool that writes it"
+				% sheet["manifest"])
+			continue
+		var parsed: Variant = JSON.parse_string(file.get_as_text())
+		if typeof(parsed) != TYPE_DICTIONARY:
+			push_error("PiyestaTiles: %s does not parse" % sheet["manifest"])
+			continue
+		for name: Variant in (parsed as Dictionary).get("tiles", {}).keys():
+			var texture := load(String(sheet["dir"]) + String(name) + ".png") as Texture2D
+			if texture != null:
+				_textures[String(name)] = texture
 
 
 ## A tile by name, or null. Null rather than a fallback on purpose: a room quietly drawing
@@ -90,6 +105,40 @@ static func fill(canvas: CanvasItem, rect: Rect2, name: String,
 				modulate)
 			x += tile.x
 		y += tile.y
+
+
+## Fill a rect from a SET of interchangeable tiles, chosen per cell.
+##
+## One tile repeated is a grid, and the grid is what the eye finds before the material. The
+## choice is deterministic on the cell's own coordinates rather than random, so a wall does
+## not shimmer when the camera moves and a screenshot taken twice is the same screenshot.
+static func fill_varied(canvas: CanvasItem, rect: Rect2, names: Array,
+		modulate: Color = Color.WHITE) -> void:
+	if names.is_empty():
+		return
+	var texture := get_tile(String(names[0]))
+	if texture == null or rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return
+	var tile := Vector2(texture.get_size())
+	if tile.x <= 0.0 or tile.y <= 0.0:
+		return
+	var row := 0
+	var y := rect.position.y
+	while y < rect.position.y + rect.size.y:
+		var height := minf(tile.y, rect.position.y + rect.size.y - y)
+		var column := 0
+		var x := rect.position.x
+		while x < rect.position.x + rect.size.x:
+			var width := minf(tile.x, rect.position.x + rect.size.x - x)
+			var pick := String(names[posmod(row * 7 + column * 3, names.size())])
+			var chosen := get_tile(pick)
+			if chosen != null:
+				canvas.draw_texture_rect_region(chosen, Rect2(x, y, width, height),
+					Rect2(Vector2.ZERO, Vector2(width, height)), modulate)
+			x += tile.x
+			column += 1
+		y += tile.y
+		row += 1
 
 
 ## A run of one tile along a line, used for the capped top edge of a wall.
