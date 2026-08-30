@@ -148,24 +148,39 @@ func set_already_gone() -> void:
 	queue_redraw()
 
 
-## ⚠ THIS DRAWS NOTHING, AND THAT IS THE POINT.
+## ⚠ THEY DRAW AGAIN, AND THE SCARE FINALLY SHOWS.
 ##
-## The dancers are IN THE ART. `mg_people.png` has all four of them painted into the plaza in
-## fiesta dress, mid-step, exactly where this group stands -- so the first version of this
-## class, which drew its own figures, put four flat placeholder cones next to four finished
-## dancers. This node is the LOGIC: where they are, who is near them, what scaring them costs,
-## and the flag that outlives the level.
+## For two passes this drew nothing, because the dancers were painted into `mg_people` and the
+## composite would not give them up -- a bounding-box cut took the palm trunks standing behind
+## two of them, and a colour mask keyed on the white saya left the hats, hands, fans and shoes
+## behind. So Problem 1's Protector route was mechanically complete and visually invisible:
+## the flag was set, the route closed, and nothing on screen changed.
 ##
-## ⚠ SO SCARING THEM DOES NOT YET LOOK LIKE ANYTHING, and that is a recorded art dependency
-## rather than an oversight. The design lists a **`MG_People` no-dancers variant** as required
-## precisely because they have to be able to leave, and the composite cannot be made to give
-## them up:
-##   * a bounding-box cut takes the palm trunks standing behind two of them, and smearing the
-##     hole closed leaves vertical streaks, loose feet and a floating flower;
-##   * a colour mask keyed on the white saya and its red trim lifts the dress and leaves the
-##     hats, faces, arms, hands, fans and shoes behind.
-## Both were tried and both look worse than doing nothing. Everything mechanical about the
-## scare is live -- the route closes, `DANCERS_GONE` is set, Lolo says his line, and it cannot
-## be undone -- and the departure is drawn the day that plate arrives. See CONTENT_NEEDED.md.
+## Authoring the plaza dissolved that. The dancers are sprites now
+## (`tools/build_plaza_art.py`), so they can simply leave -- which is what the design asked for
+## all along and what the "MG_People no-dancers variant" was only ever a way to fake.
+##
+## Sinulog, not Pahiyas: red and gold, and a candle in the raised hand. It is a candle dance
+## before it is anything else.
 func _draw() -> void:
-	pass
+	if _state == State.GONE:
+		return
+	for index in range(dancers):
+		var home := (float(index) - float(dancers - 1) * 0.5) * spacing
+		# They run west, away from the church, spreading as they go -- a group that leaves in
+		# a line is a group marching.
+		var away := _flee * (560.0 + float(index) * 90.0)
+		var fade := 1.0 - _flee * 0.85
+		var tint := Color(1.0, 1.0, 1.0, fade)
+		if _state == State.FLEEING:
+			# The stride, so they are running rather than sliding.
+			var bob := absf(sin(_phase * 9.0 + float(index) * 1.3)) * 5.0
+			PiyestaTiles.stand(self, "dancer_flee",
+				Vector2(home - away, -bob), 1.0, tint)
+			continue
+		# On the beat: the two frames alternate, and neighbours are out of phase so four of
+		# them read as a group dancing rather than as one dancer copied four times.
+		var beat := sin(_phase * 2.2 + float(index) * 1.05)
+		var lift := absf(beat) * 5.0
+		PiyestaTiles.stand(self, "dancer_a" if beat > 0.0 else "dancer_b",
+			Vector2(home, -lift), 1.0, tint)

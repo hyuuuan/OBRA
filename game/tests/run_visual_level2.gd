@@ -54,8 +54,8 @@ func _run() -> void:
 	# off them: 660 start, 995 dancers, 1330 the lit house, 1650 the church. The old
 	# waypoints ran to 2400, which is now past the east wall -- the tour photographed the
 	# apo falling through the sky and called it "the church".
-	for step in [[660.0, "02_start"], [995.0, "03_dancers"], [1330.0, "04_lit_house"],
-			[1650.0, "05_church"]]:
+	for step in [[660.0, "02_start"], [1000.0, "03_dancers"], [754.0, "04_lit_house"],
+			[1180.0, "05_church"], [1900.0, "06_arcade"]]:
 		var at := Vector2(float(step[0]), 480.0)
 		if player.has_method("apply_morph_state"):
 			player.call("apply_morph_state", {"position": at, "linear_velocity": Vector2.ZERO})
@@ -97,7 +97,7 @@ func _tour_the_insides() -> void:
 			player.global_position = at
 		await _wait(1.1)
 		print("  %s: player at %s" % [room_name, player.global_position])
-		await _capture("06_%s" % room_name.to_lower())
+		await _capture("07_%s" % room_name.to_lower())
 
 
 ## SCENE 3, half mended and then whole. Both states are worth looking at: the scatter has to

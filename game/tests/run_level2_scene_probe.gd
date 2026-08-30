@@ -22,9 +22,7 @@ const SLOWEST_STARTLE_REACH := 428.0
 const MIN_BUILD_FLOOR := 180.0
 ## Where the painted dancers' feet are, in world units: plate row 816 with the plate drawn
 ## centred at y 261, so 816 - 279. `tools/build_plaza.py` prints the plate row it measured.
-const WALK_LINE := 537.0
-## And the kiosko's deck: plate row 648, the course its posts stand on.
-const KIOSKO_DECK := 369.0
+const WALK_LINE := 560.0
 ## The apo is 96 tall (`wanderer.gd`), so what they can touch at the top of a jump from a
 ## surface is that surface plus their height plus R1's rise.
 const APO_HEIGHT := 96.0
@@ -167,26 +165,13 @@ func _audit_the_ground_follows_the_painting() -> void:
 	_check(tops.has("PlazaFloor") and absf(float(tops["PlazaFloor"]) - WALK_LINE) < 2.0,
 		"the plaza is the line the painted dancers stand on",
 		"y %.0f against the plate's own %.0f" % [float(tops.get("PlazaFloor", 0.0)), WALK_LINE])
-	# The kiosko's deck, at the row its posts stand on in the picture.
-	_check(tops.has("KioskoDeck") and absf(float(tops["KioskoDeck"]) - KIOSKO_DECK) < 3.0,
-		"and the kiosko's deck is where its posts stand",
-		"y %.0f against the painted %.0f" % [float(tops.get("KioskoDeck", 0.0)), KIOSKO_DECK])
-	# ⚠ AND THE PAINTED STAIRCASE IS CLIMBABLE. A flight of steps drawn in the art that the
-	# player walks straight past is the same lie as a ledge that is not drawn at all.
-	var flight := ["KioskoDeck", "Step1", "Step2", "Step3", "PlazaFloor"]
-	var risers: Array[String] = []
-	var worst := 0.0
-	for index in range(flight.size() - 1):
-		if not (tops.has(flight[index]) and tops.has(flight[index + 1])):
-			risers.append("%s is missing" % flight[index + 1])
-			continue
-		var rise: float = float(tops[flight[index + 1]]) - float(tops[flight[index]])
-		worst = maxf(worst, absf(rise))
-		if absf(rise) > JUMP_RISE:
-			risers.append("%s -> %s is %.0fpx" % [flight[index], flight[index + 1], rise])
-	_check(risers.is_empty(), "and every step of it is inside the jump",
-		"worst riser %.0fpx against %.1f" % [worst, JUMP_RISE]
-		if risers.is_empty() else "; ".join(risers))
+	# ⚠ AND THERE IS ONLY ONE OF THEM. The plaza is authored now rather than pasted, and the
+	# whole point of authoring it was that a painted vista has a ledge behind the player and
+	# another in front, which is two platforms in a plaza that has one. Everything built
+	# stands ON this line; the only thing in front of the player is an ankle-high kerb.
+	_check(tops.size() == 1, "and it is the only surface in the plaza",
+		"%s" % ", ".join(tops.keys()) if tops.size() != 1 else "one ground line, wall to wall")
+
 
 
 ## R7. The dancers are a scare gate and the player has to be able to stand in front of them
@@ -395,8 +380,12 @@ func _audit_the_rooms_do_not_overlap() -> void:
 ## agreed with the player and then did nothing.
 func _audit_the_bunting_is_where_it_can_be_reached() -> void:
 	var lines := level.get_tree().get_nodes_in_group(&"bandarita_lines")
-	_check(lines.size() == 2, "both alleys have a line strung in them",
-		"%d found -- Alley 1 needs one for its ceiling to be diegetic" % lines.size())
+	# THREE, not two: the plaza has its own line now. It used to be painted into the delivered
+	# backdrop, so the flight cap had something visible to sit under without anybody building
+	# it -- and authoring the plaza took the painting away and the bunting with it. The design
+	# is explicit that the boundary must be strings the player can see.
+	_check(lines.size() == 3, "the plaza and both alleys have a line strung",
+		"%d found -- every scene with a flight cap needs a visible one" % lines.size())
 	var alley_2 := level.get("alley_2") as Node2D
 	var alley_1 := level.get("alley_1") as Node2D
 	if alley_2 == null or alley_1 == null:

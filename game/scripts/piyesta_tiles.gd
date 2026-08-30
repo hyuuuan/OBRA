@@ -28,6 +28,7 @@ const SHEETS := [
 	{"manifest": "res://assets/Level2/tiles/tiles.json", "dir": "res://assets/Level2/tiles/"},
 	{"manifest": "res://assets/Level2/interiors/interiors.json",
 		"dir": "res://assets/Level2/interiors/"},
+	{"manifest": "res://assets/Level2/plaza/plaza.json", "dir": "res://assets/Level2/plaza/"},
 ]
 
 ## The nine cells of a wall set, in the sheet's own order.
