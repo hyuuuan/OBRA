@@ -87,6 +87,12 @@ CLOUD = ["#7FA8C4", "#A8CBE0", "#CDE4F0", "#E3F0F6", "#F2F8FA"]
 IRON = ["#14161A", "#23262B", "#363A40", "#4C5058"]
 GLASS = ["#2E4450", "#4A6A7C", "#7A9EAE", "#B0CEDA"]
 SHELL = ["#8A7A54", "#C4B48A", "#E8DCB8", "#F6EFD6"]
+## The dancers, read off the plate: a white saya panelled in red and gold, a straw hat, a
+## flower fan in the raised hand.
+CLOTH = ["#9A8C78", "#C6B9A2", "#E0D5C2", "#F0E8DA", "#FBF6EC"]
+STRAW = ["#7A5C24", "#A07C34", "#C9A455", "#E8C87A", "#F6E2A8"]
+SKIN = ["#6E4A30", "#8A5F3E", "#B0805A", "#C99A6E", "#DDB58A"]
+HAIR = ["#120A06", "#22140C", "#382214", "#4E3220"]
 ## Distant ridge, hazed toward the sky.
 HILL = ["#3E5A3A", "#4E6E48", "#5F8257", "#75986A", "#8FAE84"]
 
@@ -315,9 +321,29 @@ def _basilica(tiles: dict) -> None:
     c.hline(110, 16, 20, stone[5])
 
     cornice(72)
+    # QUOINS down both corners: alternating long and short blocks, which is how a stone
+    # building finishes its edges and one of the few details that reads at any distance.
+    for corner, inward in [(body[0], 1), (body[0] + body[2] - 1, -1)]:
+        for course in range(0, body[3], 11):
+            wide = 11 if (course // 11) % 2 == 0 else 7
+            c.fill(corner if inward > 0 else corner - wide, body[1] + course, wide, 10,
+                   stone[3])
+            c.hline(corner if inward > 0 else corner - wide, body[1] + course, wide, stone[5])
+            c.fill(corner if inward > 0 else corner - wide, body[1] + course + 9, wide, 2,
+                   stone[0])
     # --- second tier: a central niche flanked by paired pilasters
     for x in [26, 44, 178, 196]:
         pilaster(x, 82, 78)
+    # Two arched windows either side of the niche, each in a moulded surround.
+    for wx in [62, 152]:
+        c.fill(wx - 5, 92, 30, 56, stone[4])
+        c.hline(wx - 5, 92, 30, stone[5])
+        c.fill(wx - 5, 146, 30, 4, stone[0])
+        arch(wx, 96, 20, 48, ramp(["#241608"] * 6)[0])
+        # A mullion and a sill, so a window is joinery and not a hole.
+        c.fill(wx + 9, 104, 2, 38, stone[3])
+        c.fill(wx + 3, 118, 14, 2, stone[3])
+        c.fill(wx - 3, 142, 26, 3, stone[5])
     arch(96, 84, 48, 72, ramp(["#140C06"]*6)[0])
     c.fill(100, 100, 40, 52, stone[1])
     # The image in the niche, in the Santo Nino's red and gold. Small, high, and out of reach
@@ -332,6 +358,23 @@ def _basilica(tiles: dict) -> None:
     # --- first tier: the main door, two side doors, and the pilasters between them
     for x in [26, 44, 178, 196]:
         pilaster(x, 172, 100)
+    # THE DOORWAY'S ARCHIVOLT: a moulded ring of voussoirs around the head, which is the
+    # single most ornamented thing on a church front and was missing entirely.
+    for ring, tone in [(9, stone[4]), (5, stone[5])]:
+        rad = 28 + ring
+        for row in range(rad):
+            half = int((1.0 - ((rad - row) / rad) ** 2) ** 0.5 * rad)
+            if half <= 0:
+                continue
+            c.fill(120 - half, 186 + 28 - rad + row, half * 2, 1, tone)
+    for step in range(11):
+        t = (step + 0.5) / 11.0
+        angle = np.pi * (1.0 - t)
+        vx = 120 + int(np.cos(angle) * 33)
+        vy = 214 - int(np.sin(angle) * 33)
+        c.fill(vx - 3, vy - 3, 7, 7, stone[3] if step % 2 else stone[5])
+    c.fill(84, 210, 72, 5, stone[5])
+    c.fill(84, 215, 72, 3, stone[0])
     arch(92, 186, 56, 86, ramp(["#140C06"]*6)[0])
     # The door leaves, panelled, with a hinge band across each.
     for leaf in range(2):
@@ -380,12 +423,31 @@ def _belfry(tiles: dict) -> None:
             c.fill(40, 90, 16, 18, iron[2])
             c.hline(40, 90, 16, iron[3])
             c.fill(46, 108, 4, 5, iron[1])
-    # The cupola and its cross.
-    for row in range(26):
-        half = int(40 * (1.0 - (row / 26.0) ** 2) ** 0.5)
-        c.fill(48 - half, 60 - row, half * 2, 1, tile[2 + (row // 9)])
-    c.fill(46, 20, 4, 16, stone[4])
-    c.fill(40, 26, 16, 4, stone[4])
+    # A moulded cornice under the dome, the dome itself in tile with ribs, and the little
+    # lantern the cross stands on. The first version was a bare half-ellipse.
+    c.fill(0, 56, 96, 7, stone[4])
+    c.hline(0, 56, 96, stone[5])
+    c.fill(0, 63, 96, 4, stone[0])
+    for row in range(30):
+        half = int(42 * (1.0 - (row / 30.0) ** 2) ** 0.5)
+        if half <= 0:
+            continue
+        c.fill(48 - half, 56 - row, half * 2, 1, tile[2 + (row // 11)])
+        # Ribs, which is what makes a dome a dome and not a hill.
+        for rib in [-0.72, -0.34, 0.0, 0.34, 0.72]:
+            c.px(48 + int(half * rib), 56 - row, tile[1])
+        c.px(48 - half, 56 - row, tile[4])
+    # The lantern: a little drum with its own tiny dome.
+    c.fill(40, 16, 16, 12, stone[3])
+    c.hline(40, 16, 16, stone[5])
+    c.fill(43, 19, 4, 8, ramp(["#241608"] * 6)[0])
+    c.fill(49, 19, 4, 8, ramp(["#241608"] * 6)[0])
+    for row in range(6):
+        half = int(9 * (1.0 - (row / 6.0) ** 2) ** 0.5)
+        c.fill(48 - half, 16 - row, half * 2, 1, tile[3])
+    c.fill(46, 2, 4, 10, stone[4])
+    c.fill(41, 5, 14, 4, stone[4])
+    c.hline(41, 5, 14, stone[5])
     for x in [10, 82]:
         c.vline(x, 60, 300, stone[4] if x == 10 else stone[1])
     _emit(c, "belfry", tiles)
@@ -424,6 +486,10 @@ def _townhouse(tiles: dict) -> None:
                     c.fill(x + 3 + col * 8, 53 + row * 11, 6, 8, shell[1])
                     c.dither(x + 3 + col * 8, 53 + row * 11, 6, 8, shell[1], shell[2], 0.45)
             c.hline(x, 50, 26, wood[4])
+            # A moulded head and a sill on every shutter.
+            c.fill(x - 2, 47, 30, 3, wood[4])
+            c.fill(x - 2, 96, 30, 3, wood[3])
+            c.fill(x - 2, 99, 30, 2, wood[0])
         c.fill(4, 104, 112, 5, wood[3])
         c.hline(4, 104, 112, wood[5])
         # The ground storey: coral stone, with a door and a barred window.
@@ -442,6 +508,13 @@ def _townhouse(tiles: dict) -> None:
         for bar in range(4):
             c.vline(win_x + 4 + bar * 7, 140, 26, ramp(IRON)[2])
         c.hline(8, 109, 104, stone[5])
+        # A plinth along the foot, and a surround on the barred window.
+        c.fill(4, 180, 112, 10, stone[3])
+        c.hline(4, 180, 112, stone[5])
+        c.fill(win_x - 3, 135, 36, 4, stone[4])
+        c.hline(win_x - 3, 135, 36, stone[5])
+        c.fill(win_x - 3, 166, 36, 4, stone[4])
+        c.fill(win_x - 3, 170, 36, 2, stone[0])
         _emit(c, "townhouse_%s" % "ab"[variant], tiles)
 
 
@@ -757,59 +830,194 @@ def _palm(tiles: dict) -> None:
 
 
 def _dancer(tiles: dict) -> None:
-    """A Sinulog dancer, in the Santo Nino's red and gold, with a candle.
+    """A Sinulog dancer, drawn off the plate rather than sketched.
 
-    ⚠ AUTHORING THESE IS WHAT UNBLOCKS THE SCARE. They used to be painted into `MG_People`,
-    which is why Problem 1's Protector route was mechanically complete and visually invisible:
-    the composite would not give them up (a bbox cut takes the palm trunks behind two of them;
-    a colour mask leaves the hats, hands and shoes). As sprites they can simply leave.
+    ⚠ THE FIRST VERSION WAS A RED CONE with a head and two stick arms, and next to everything
+    else it was the weakest thing on screen. The plate is specific and every part of it reads
+    at this size: a WHITE saya panelled in red and gold with a scalloped hem, a red bodice
+    with short white puffed sleeves, a wide straw hat over dark hair, and a flower fan of red
+    and yellow held up in one hand. That fan is the silhouette -- it is what says "dancer"
+    from across a plaza.
 
-    Three frames: two of the step, and one fleeing.
+    Three frames: two of the step with the arms and the sway swapped, and one fleeing.
     """
+    cloth = ramp(CLOTH)
+    red = ramp(FIESTA_RED)
+    gold = ramp(FIESTA_GOLD)
+    straw = ramp(STRAW)
+    skin = ramp(SKIN)
+    hair = ramp(HAIR)
+    wood = ramp(TIMBER)
+
+    for frame, name in enumerate(["dancer_a", "dancer_b", "dancer_flee"]):
+        c = Canvas(58, 66, SEED + 223 + frame)
+        fleeing = name == "dancer_flee"
+        # ⚠ THE FLEEING FRAME LEANS. Without it, "running" is the standing pose with the
+        # arms somewhere else, which reads as a shrug.
+        mid = 29 - (4 if fleeing else 0)
+        sway = 0 if fleeing else (-1 if frame == 0 else 1)
+        # --- the saya: white, flared, panelled, with a scalloped hem
+        top_half = 9
+        hem_half = 22 if not fleeing else 17
+        for row in range(26):
+            t = row / 25.0
+            half = int(top_half + (hem_half - top_half) * (t ** 0.82))
+            x = mid + int(sway * t * 2)
+            c.fill(x - half, 34 + row, half * 2, 1, cloth[3])
+            c.px(x - half, 34 + row, cloth[4])
+            c.px(x + half - 1, 34 + row, cloth[1])
+        # Red and gold panels running down it, and two bands across.
+        for panel in range(-1, 2):
+            for row in range(26):
+                t = row / 25.0
+                half = int(top_half + (hem_half - top_half) * (t ** 0.82))
+                x = mid + int(sway * t * 2) + int(panel * half * 0.62)
+                c.fill(x, 34 + row, 2, 1, red[2] if panel == 0 else gold[2])
+        for band, tone in [(0.42, gold[3]), (0.72, red[2])]:
+            row = int(26 * band)
+            t = row / 25.0
+            half = int(top_half + (hem_half - top_half) * (t ** 0.82))
+            x = mid + int(sway * t * 2)
+            c.fill(x - half, 34 + row, half * 2, 2, tone)
+        # The scalloped hem, with the little dark tassels the plate has.
+        hem_row = 34 + 25
+        for step in range(-hem_half, hem_half, 4):
+            x = mid + int(sway * 2) + step
+            c.fill(x, hem_row, 4, 2, cloth[4])
+            c.px(x + 1, hem_row + 2, red[1])
+        # --- legs and shoes under it
+        for side in (-1, 1):
+            # Mid-stride when running: one leg forward, one back.
+            stride = (side * 4 if fleeing else 0)
+            c.fill(mid + side * 5 - 1 + stride, 59, 3, 4, skin[2])
+            c.fill(mid + side * 5 - 2 + stride, 63, 5, 3, wood[2])
+        # --- bodice, sash, sleeves
+        if fleeing:
+            # The whole upper body pitched forward over the leading foot.
+            mid += 3
+        c.fill(mid - 8, 21, 16, 13, red[2])
+        c.dither(mid - 8, 21, 16, 13, red[2], red[3], 0.4)
+        c.vline(mid - 8, 21, 13, red[3])
+        c.vline(mid + 7, 21, 13, red[1])
+        for mark in range(3):
+            c.fill(mid - 4, 24 + mark * 3, 8, 1, gold[3])
+        c.fill(mid - 9, 32, 18, 3, red[1])          # the sash
+        c.hline(mid - 9, 32, 18, gold[2])
+        for side in (-1, 1):                         # puffed white sleeves
+            sx = mid + side * 11
+            c.fill(sx - 3, 21, 6, 7, cloth[3])
+            c.hline(sx - 3, 21, 6, cloth[4])
+            c.px(sx + side * 2, 27, cloth[1])
+        # --- arms. One up with the fan on the step, both forward when running.
+        raised = (1 if frame == 0 else -1)
+        for side in (-1, 1):
+            up = (not fleeing) and side == raised
+            for step in range(8):
+                if fleeing:
+                    ax = mid + side * (13 + step)
+                    ay = 26 + step // 3
+                elif up:
+                    ax = mid + side * (13 + int(step * 0.8))
+                    ay = 26 - step * 2
+                else:
+                    ax = mid + side * (13 + step)
+                    ay = 27 + step // 2
+                c.fill(ax - 1, ay, 3, 3, skin[2 if step < 5 else 3])
+            if up:
+                _fan(c, mid + side * 20, 6, red, gold)
+        # --- head: hair, face, and the wide straw hat over it
+        c.fill(mid - 7, 8, 14, 13, hair[1])
+        c.fill(mid - 6, 10, 12, 9, skin[3])
+        c.dither(mid - 6, 10, 12, 9, skin[3], skin[2], 0.35)
+        c.px(mid - 3, 13, hair[0])
+        c.px(mid + 2, 13, hair[0])
+        c.fill(mid - 2, 16, 4, 1, red[3])
+        c.fill(mid - 8, 17, 3, 5, hair[1])           # hair falling either side
+        c.fill(mid + 5, 17, 3, 5, hair[1])
+        for row in range(4):                          # the brim
+            half = 15 - row
+            c.fill(mid - half, 6 + row, half * 2, 1, straw[3 if row < 2 else 2])
+        c.hline(mid - 15, 6, 30, straw[4])
+        for row in range(5):                          # the crown
+            half = 7 - row // 3
+            c.fill(mid - half, 1 + row, half * 2, 1, straw[2 + (row // 3)])
+        c.hline(mid - 6, 1, 12, straw[4])
+        _emit(c, name, tiles)
+
+
+def _fan(c: Canvas, cx: int, cy: int, red, gold) -> None:
+    """The flower fan: eight petals of red and yellow around a gold centre.
+
+    This is the dancer's silhouette. Without it the figure is a person in a dress; with it,
+    from any distance, it is somebody dancing.
+    """
+    for petal in range(8):
+        angle = petal * (np.pi * 2.0 / 8.0)
+        pal = red if petal % 2 == 0 else gold
+        for step in range(4, 9):
+            px_ = cx + int(np.cos(angle) * step)
+            py = cy + int(np.sin(angle) * step)
+            c.fill(px_ - 1, py - 1, 3, 3, pal[2 + (step > 6)])
+    c.fill(cx - 2, cy - 2, 5, 5, gold[3])
+    c.fill(cx - 1, cy - 1, 3, 3, gold[4])
+
+
+def _fan_sprites(tiles: dict) -> None:
+    """The dancer's flower fan, on its own, for the dance screen to use as a cue.
+
+    The cues were rings with a scratch inside them. The fan is the thing the dance is
+    actually done with, it is already the dancers' silhouette, and it gives the screen
+    something to be about.
+    """
+    for variant in range(3):
+        c = Canvas(30, 30, SEED + 701 + variant * 53)
+        red = ramp(FIESTA_RED)
+        gold = ramp(FIESTA_GOLD)
+        green = ramp(GREEN)
+        petals = 8 + variant
+        for petal in range(petals):
+            angle = petal * (np.pi * 2.0 / petals) + variant * 0.3
+            pal = red if petal % 2 == 0 else gold
+            for step in range(4, 14):
+                px_ = 15 + int(np.cos(angle) * step * 0.92)
+                py = 15 + int(np.sin(angle) * step * 0.92)
+                width = 3 if step < 10 else 2
+                c.fill(px_ - width // 2, py - width // 2, width, width,
+                       pal[2 + (step > 10)])
+        # A few green leaves showing between the petals, like the plate's.
+        for leaf in range(4):
+            angle = leaf * (np.pi / 2.0) + 0.4
+            for step in range(9, 14):
+                c.px(15 + int(np.cos(angle) * step), 15 + int(np.sin(angle) * step),
+                     green[3])
+        c.fill(12, 12, 7, 7, gold[3])
+        c.fill(13, 13, 5, 5, gold[4])
+        c.px(14, 14, gold[5] if len(gold) > 5 else gold[4])
+        _emit(c, "fan_%s" % "abc"[variant], tiles)
+
+
+def _drum(tiles: dict) -> None:
+    """A Sinulog drum. The dance is driven by them, and the judgement post is one."""
+    c = Canvas(46, 54, SEED + 719)
+    wood = ramp(TIMBER)
     red = ramp(FIESTA_RED)
     gold = ramp(FIESTA_GOLD)
     skin = ramp(SHELL)
-    hair = ramp(TIMBER)
-    flame = ramp(FIESTA_GOLD)
-    for frame, name in enumerate(["dancer_a", "dancer_b", "dancer_flee"]):
-        c = Canvas(44, 62, SEED + 223 + frame)
-        fleeing = name == "dancer_flee"
-        lean = 3 if fleeing else 0
-        sway = 0 if frame == 0 else (2 if frame == 1 else 0)
-        # The skirt: a trapezium, wider on the beat, with the gold band every one carries.
-        hem = 20 if not fleeing else 15
-        for row in range(24):
-            t = row / 24.0
-            half = int(6 + hem * t)
-            x = 22 + sway - lean
-            c.fill(x - half, 36 + row, half * 2, 1, red[2])
-            c.px(x - half, 36 + row, red[3])
-            c.px(x + half - 1, 36 + row, red[1])
-        c.fill(22 + sway - lean - 16, 54, 32, 3, gold[3])
-        c.fill(22 + sway - lean - 12, 44, 24, 2, gold[2])
-        # Bodice, arms and head.
-        c.fill(16 + sway - lean, 22, 12, 15, red[2])
-        c.vline(16 + sway - lean, 22, 15, red[3])
-        c.fill(18 + sway - lean, 12, 8, 9, skin[1])
-        c.fill(17 + sway - lean, 8, 10, 6, hair[0])
-        c.px(20 + sway - lean, 16, hair[0])
-        c.px(24 + sway - lean, 16, hair[0])
-        # The arms: raised on the beat, forward when running.
-        for side in (-1, 1):
-            if fleeing:
-                for step in range(9):
-                    c.fill(22 - lean + side * (6 + step), 26 + step // 2, 2, 2, skin[1])
-            else:
-                lift = 9 if (side > 0) == (frame == 0) else 4
-                for step in range(9):
-                    c.fill(22 + sway + side * (6 + step), 26 - step * lift // 9, 2, 2, skin[1])
-        if not fleeing:
-            # The candle. Sinulog is a candle dance before it is anything else.
-            cx = 22 + sway + 15
-            c.fill(cx, 12, 3, 9, ramp(SHELL)[2])
-            c.px(cx + 1, 9, flame[4])
-            c.fill(cx, 10, 3, 2, flame[3])
-        _emit(c, name, tiles)
+    c.fill(4, 10, 38, 36, red[2])
+    c.dither(4, 10, 38, 36, red[2], red[3], 0.4)
+    c.vline(4, 10, 36, red[3])
+    c.vline(41, 10, 36, red[1])
+    # The heads, and the cords lacing them together.
+    for y in [8, 44]:
+        for row in range(6):
+            half = int(21 * (1.0 - abs(row - 2.5) / 5.0) ** 0.4)
+            c.fill(23 - half, y + row, half * 2, 1, skin[2])
+        c.hline(2, y, 42, skin[3])
+    for index in range(6):
+        x = 6 + index * 7
+        for step in range(28):
+            c.px(x + (step % 3), 14 + step, gold[2])
+    _emit(c, "drum", tiles)
 
 
 def _lamp_post(tiles: dict) -> None:
@@ -854,6 +1062,8 @@ def build(check: bool) -> int:
     _kerb(tiles)
     _clouds(tiles)
     _bush(tiles)
+    _fan_sprites(tiles)
+    _drum(tiles)
     _retaining(tiles)
     _basilica(tiles)
     _belfry(tiles)

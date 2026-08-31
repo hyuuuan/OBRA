@@ -115,7 +115,7 @@ func _build() -> void:
 
 	var panel := PanelContainer.new()
 	panel.name = "Panel"
-	panel.custom_minimum_size = Vector2(1180.0, 660.0)
+	panel.custom_minimum_size = Vector2(1280.0, 840.0)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	centre.add_child(panel)
 	# Framed like every other panel in the game. `wrap` is what puts the gold ring and the
@@ -148,7 +148,7 @@ func _build() -> void:
 
 	_stage = Control.new()
 	_stage.name = "Stage"
-	_stage.custom_minimum_size = Vector2(1100.0, 470.0)
+	_stage.custom_minimum_size = Vector2(1200.0, 660.0)
 	_stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	# THE ONE THING ON THIS SCREEN THAT TAKES INPUT. Everything else ignores the mouse, so a
 	# stroke started anywhere in the panel reaches here and nothing eats it on the way.
@@ -320,148 +320,220 @@ func _nearest_open_cue() -> int:
 	return best
 
 
-# --- The lane ----------------------------------------------------------------------------
+# --- The stage ----------------------------------------------------------------------------
 
 ## Where the cues are judged, as a fraction across the stage. Left of centre, so a cue is
 ## approached from the right the way it is read.
 const LINE_AT := 0.30
 
+## Stage timber, and the runner down it.
+const BOARD := Color(0.420, 0.271, 0.149, 1.0)      # 6B4526
+const BOARD_LIT := Color(0.557, 0.373, 0.196, 1.0)  # 8E5F32
+const BOARD_DARK := Color(0.271, 0.173, 0.082, 1.0) # 452C15
+const RUNNER := Color(0.682, 0.059, 0.078, 1.0)     # AE0F14
+const RUNNER_DARK := Color(0.514, 0.047, 0.063, 1.0)
 
+
+## ⚠ THIS WAS A GREY BOX WITH RINGS TRAVELLING ACROSS IT, and it was the plainest screen in
+## the game -- which is a strange thing for the one screen that is a PERFORMANCE.
+##
+## It is a stage now. Bunting across the head of the panel, boards with a red runner down
+## them, the four dancers standing along the back dancing to the same beat the player is
+## being asked for, a drum for the judgement post, and the cues are the dancers' own flower
+## fans coming toward it. Everything on it is a thing the fiesta actually has.
 func _draw_stage() -> void:
 	var size := _stage.size
-	var lane := Rect2(0.0, 30.0, size.x, 150.0)
+	_draw_bunting(size)
+	var lane := Rect2(0.0, 62.0, size.x, 170.0)
 	var line_x := size.x * LINE_AT
-	_stage.draw_rect(lane, PANEL)
-	_stage.draw_rect(Rect2(lane.position, Vector2(lane.size.x, 3.0)), RING_MID)
-	_stage.draw_rect(Rect2(lane.position + Vector2(0.0, lane.size.y - 3.0),
-		Vector2(lane.size.x, 3.0)), RING_MID)
-	# The judgement line, and the window either side of it drawn to scale. The player can
-	# SEE how generous the timing is, which is most of what stops a rhythm screen feeling
-	# arbitrary on a first play.
 	var per_second := lane.size.x * (1.0 - LINE_AT) / APPROACH
-	_stage.draw_rect(Rect2(line_x - DanceMinigame.HIT_WINDOW * per_second, lane.position.y,
-		DanceMinigame.HIT_WINDOW * per_second * 2.0, lane.size.y), PANEL_LIT)
-	_stage.draw_rect(Rect2(line_x - DanceMinigame.PERFECT_WINDOW * per_second, lane.position.y,
-		DanceMinigame.PERFECT_WINDOW * per_second * 2.0, lane.size.y),
-		Color(GOLD.r, GOLD.g, GOLD.b, 0.16))
-	_stage.draw_rect(Rect2(line_x - 2.0, lane.position.y - 8.0, 4.0, lane.size.y + 16.0), GOLD)
-
+	_draw_boards(lane)
+	_draw_windows(lane, line_x, per_second)
+	_draw_troupe(Rect2(0.0, lane.position.y + lane.size.y + 6.0, size.x, 138.0))
 	_draw_cues(lane, line_x, per_second)
-	_draw_pips(Vector2(size.x * 0.5, lane.position.y + lane.size.y + 40.0))
-	_draw_pad(Rect2(0.0, lane.position.y + lane.size.y + 76.0, size.x,
-		size.y - lane.position.y - lane.size.y - 80.0))
-	_draw_flash(Vector2(line_x, lane.position.y - 22.0))
+	_draw_post(lane, line_x)
+	# The pips sit clear BELOW the troupe. Sharing a row with them put six markers among
+	# eight dancing feet, and neither could be read.
+	var pips_y := lane.position.y + lane.size.y + 176.0
+	_draw_pips(Vector2(size.x * 0.5, pips_y))
+	_draw_pad(Rect2(0.0, pips_y + 34.0, size.x, size.y - pips_y - 38.0))
+	# Below the bunting rather than behind it.
+	_draw_flash(Vector2(line_x, lane.position.y + 26.0))
 
 
+## Banderitas across the top of the panel. The screen is inside the fiesta, not beside it.
+func _draw_bunting(size: Vector2) -> void:
+	var colours: Array[Color] = [
+		Color(0.808, 0.165, 0.141, 1.0), Color(0.937, 0.757, 0.173, 1.0),
+		Color(0.318, 0.643, 0.804, 1.0), Color(0.482, 0.741, 0.376, 1.0)]
+	var points := PackedVector2Array()
+	var steps := int(size.x / 34.0)
+	for index in range(steps + 1):
+		var t := float(index) / float(steps)
+		points.append(Vector2(t * size.x, 8.0 + sin(t * PI) * 20.0))
+	_stage.draw_polyline(points, Color(0.30, 0.27, 0.22, 1.0), 2.0)
+	for index in range(steps):
+		var at := points[index]
+		var flag := colours[index % colours.size()]
+		_stage.draw_colored_polygon(PackedVector2Array([
+			at, at + Vector2(26.0, 0.0), at + Vector2(13.0, 24.0)]), flag)
+
+
+## The boards, and the runner the dancers work on.
+func _draw_boards(lane: Rect2) -> void:
+	_stage.draw_rect(lane, BOARD)
+	var y := lane.position.y
+	var row := 0
+	while y < lane.position.y + lane.size.y:
+		_stage.draw_rect(Rect2(lane.position.x, y, lane.size.x, 13.0),
+			BOARD_LIT if row % 2 == 0 else BOARD)
+		_stage.draw_rect(Rect2(lane.position.x, y + 13.0, lane.size.x, 2.0), BOARD_DARK)
+		y += 15.0
+		row += 1
+	# The runner: a red carpet down the middle of the lane, edged in gold.
+	var runner := Rect2(lane.position.x, lane.position.y + lane.size.y * 0.30,
+		lane.size.x, lane.size.y * 0.44)
+	_stage.draw_rect(runner, RUNNER)
+	_stage.draw_rect(Rect2(runner.position, Vector2(runner.size.x, 4.0)), RUNNER_DARK)
+	for edge: float in [runner.position.y + 6.0,
+			runner.position.y + runner.size.y - 9.0]:
+		_stage.draw_rect(Rect2(runner.position.x, edge, runner.size.x, 3.0), GOLD)
+	_stage.draw_rect(Rect2(lane.position.x, lane.position.y, lane.size.x, 3.0), RING_MID)
+	_stage.draw_rect(Rect2(lane.position.x, lane.position.y + lane.size.y - 3.0,
+		lane.size.x, 3.0), RING_MID)
+
+
+## The timing windows, drawn to scale on the boards. The player can SEE how generous it is,
+## which is most of what stops a rhythm screen feeling arbitrary on a first play.
+func _draw_windows(lane: Rect2, line_x: float, per_second: float) -> void:
+	_stage.draw_rect(Rect2(line_x - DanceMinigame.HIT_WINDOW * per_second, lane.position.y,
+		DanceMinigame.HIT_WINDOW * per_second * 2.0, lane.size.y),
+		Color(GOLD.r, GOLD.g, GOLD.b, 0.10))
+	_stage.draw_rect(Rect2(line_x - DanceMinigame.PERFECT_WINDOW * per_second,
+		lane.position.y, DanceMinigame.PERFECT_WINDOW * per_second * 2.0, lane.size.y),
+		Color(GOLD_PALE.r, GOLD_PALE.g, GOLD_PALE.b, 0.20))
+
+
+## THE JUDGEMENT POST IS A DRUM, because Sinulog is a drum before it is anything else -- and
+## a drum gives the beat somewhere to land that a white line does not.
+func _draw_post(lane: Rect2, line_x: float) -> void:
+	var drum := PiyestaTiles.size_of("drum")
+	_stage.draw_rect(Rect2(line_x - 2.0, lane.position.y - 10.0, 4.0, lane.size.y + 20.0),
+		GOLD)
+	if drum.y <= 0.0:
+		return
+	# It swells on the beat, which is the only clock the screen shows.
+	var beat := 0.0
+	for due in _dance.track():
+		beat = maxf(beat, 1.0 - clampf(absf(_clock - due) / 0.22, 0.0, 1.0))
+	var lift := 1.0 + beat * 0.16
+	PiyestaTiles.stand(_stage, "drum",
+		Vector2(line_x, lane.position.y + lane.size.y + 6.0), lift)
+
+
+## The four of them along the back of the stage, dancing to the beat the player is being
+## asked for. They are who the performance is FOR, and the screen never showed them.
+func _draw_troupe(area: Rect2) -> void:
+	var size := PiyestaTiles.size_of("dancer_a")
+	if size.y <= 0.0:
+		return
+	var scale := minf(1.0, area.size.y / size.y)
+	for index in range(4):
+		var at := Vector2(area.position.x + area.size.x * (0.17 + 0.22 * float(index)),
+			area.position.y + area.size.y)
+		var beat := sin(_clock * TAU / 1.0 + float(index) * 1.05)
+		var lift := absf(beat) * 6.0
+		PiyestaTiles.stand(_stage, "dancer_a" if beat > 0.0 else "dancer_b",
+			at - Vector2(0.0, lift), scale)
+
+
+## THE CUES ARE THE DANCERS' OWN FANS. They were rings with a scratch inside them; a fan is
+## what the dance is done with, it is already the troupe's silhouette, and it turns the lane
+## into something happening rather than a meter.
 func _draw_cues(lane: Rect2, line_x: float, per_second: float) -> void:
 	var track := _dance.track()
+	var names: Array[String] = ["fan_a", "fan_b", "fan_c"]
 	for index in range(track.size()):
 		var due: float = track[index]
 		var x := line_x + (due - _clock) * per_second
-		if x < -80.0 or x > lane.position.x + lane.size.x + 80.0:
+		if x < -90.0 or x > lane.position.x + lane.size.x + 90.0:
 			continue
 		var judged: String = _verdicts[index] if index < _verdicts.size() else ""
-		var centre := Vector2(x, lane.position.y + lane.size.y * 0.5)
-		var colour := GOLD
-		if judged == "perfect":
-			colour = GOLD_PALE
-		elif judged == "early" or judged == "late":
-			colour = PENDING
-		elif judged == "miss":
-			colour = MISSED
-		# A cue is a ring with the shape inside it. The shape is flavour and is never
-		# checked -- see the class comment -- but it has to differ from cue to cue or the
-		# hand stops moving and the screen becomes a button-press on a timer.
-		_stage.draw_arc(centre, 34.0, 0.0, TAU, 24, colour, 3.0)
-		_draw_step_glyph(centre, index, colour)
+		var centre := Vector2(x, lane.position.y + lane.size.y * 0.52)
+		var tint := Color.WHITE
+		var scale := 1.5
+		match judged:
+			"perfect":
+				# Struck: it opens and fades where it was hit.
+				scale = 2.4 + (1.0 - clampf((_clock - due) / 0.5, 0.0, 1.0)) * 1.4
+				tint = Color(1.0, 1.0, 1.0, maxf(0.0, 1.0 - (_clock - due) / 0.6))
+			"early", "late":
+				scale = 2.4
+				tint = Color(1.0, 0.94, 0.82, maxf(0.0, 1.0 - (_clock - due) / 0.6))
+			"miss":
+				tint = Color(0.45, 0.44, 0.42, 0.55)
+			_:
+				# Turning as it comes, so a fan on the way in is alive.
+				scale = 2.3 + 0.22 * sin(_clock * 4.0 + float(index))
+		PiyestaTiles.stand(_stage, names[index % names.size()],
+			centre + Vector2(0.0, PiyestaTiles.size_of("fan_a").y * scale * 0.5),
+			scale, tint)
 
 
-## Five sayaw figures, cycled. Simple enough to trace in a third of a second, different
-## enough that the hand has to change what it is doing.
-func _draw_step_glyph(at: Vector2, index: int, colour: Color) -> void:
-	var r := 17.0
-	match index % 5:
-		0:  # a slow arc overhead
-			_stage.draw_arc(at + Vector2(0.0, r * 0.5), r, PI, TAU, 14, colour, 3.0)
-		1:  # a zigzag, the quick step
-			_stage.draw_polyline(PackedVector2Array([
-				at + Vector2(-r, r * 0.6), at + Vector2(-r * 0.3, -r * 0.6),
-				at + Vector2(r * 0.3, r * 0.6), at + Vector2(r, -r * 0.6)]), colour, 3.0)
-		2:  # a circle, the turn
-			_stage.draw_arc(at, r * 0.8, 0.0, TAU, 18, colour, 3.0)
-		3:  # a cross-step
-			_stage.draw_line(at + Vector2(-r, -r), at + Vector2(r, r), colour, 3.0)
-			_stage.draw_line(at + Vector2(r, -r), at + Vector2(-r, r), colour, 3.0)
-		_:  # a wave of the fan
-			_stage.draw_polyline(PackedVector2Array([
-				at + Vector2(-r, 0.0), at + Vector2(-r * 0.4, -r * 0.7),
-				at + Vector2(r * 0.3, r * 0.5), at + Vector2(r, -r * 0.3)]), colour, 3.0)
-
-
-## One pip per cue, so the player can see at a glance how close they are to the four that
-## clear it. The threshold is DRAWN -- a mark under the fourth pip -- rather than written in
-## a sentence nobody reads mid-performance.
+## One pip per cue. The threshold is DRAWN -- a mark under the fourth -- rather than written
+## in a sentence nobody reads mid-performance.
 func _draw_pips(centre: Vector2) -> void:
 	var track := _dance.track()
-	var step := 40.0
+	var step := 46.0
 	var start := centre.x - (float(track.size()) - 1.0) * step * 0.5
 	for index in range(track.size()):
 		var at := Vector2(start + float(index) * step, centre.y)
 		var judged: String = _verdicts[index] if index < _verdicts.size() else ""
 		match judged:
-			"perfect":
-				_stage.draw_circle(at, 11.0, GOLD_PALE)
-			"early", "late":
-				_stage.draw_circle(at, 11.0, PENDING)
+			"perfect", "early", "late":
+				PiyestaTiles.stand(_stage, "fan_a", at + Vector2(0.0, 17.0), 1.15,
+					GOLD_PALE if judged == "perfect" else PENDING)
 			"miss":
-				_stage.draw_arc(at, 11.0, 0.0, TAU, 16, MISSED, 2.0)
+				_stage.draw_arc(at, 15.0, 0.0, TAU, 18, MISSED, 3.0)
 			_:
-				_stage.draw_arc(at, 11.0, 0.0, TAU, 16, RING_MID, 2.0)
+				_stage.draw_arc(at, 15.0, 0.0, TAU, 18, RING_MID, 3.0)
 		if index == DanceMinigame.CUES_TO_CLEAR - 1:
-			_stage.draw_rect(Rect2(at.x - 12.0, at.y + 17.0, 24.0, 3.0), GOLD)
+			_stage.draw_rect(Rect2(at.x - 17.0, at.y + 24.0, 34.0, 4.0), GOLD)
 
 
-## Where the hand goes. Marked as a surface rather than left as empty panel, because a
-## screen that asks you to draw and shows you nowhere to do it gets drawn on the cue lane.
-##
-## ⚠ AND IT HAS TO BE A DIFFERENT VALUE FROM THE PANEL BEHIND IT. The first cut filled this
-## with `PANEL`, which is the panel's own fill -- so the pad was invisible, the bottom half of
-## the screen read as empty, and the one instruction on it ("draw on the beat") pointed at
-## nothing. Caught by looking at a frame, which is where every UI defect in this project has
-## been caught.
+## Where the hand goes: a marked-out square of the plaza's own paving, framed in gold.
 func _draw_pad(rect: Rect2) -> void:
-	_stage.draw_rect(rect, PANEL_LIT)
-	# A full border, not just a top rule: three sides open reads as a gap between things
-	# rather than as a box you are meant to use.
+	if rect.size.y <= 10.0:
+		return
+	PiyestaTiles.fill(_stage, rect, "paving_b", Color(0.62, 0.58, 0.52, 1.0))
 	for edge: Rect2 in [
-			Rect2(rect.position, Vector2(rect.size.x, 2.0)),
-			Rect2(rect.position + Vector2(0.0, rect.size.y - 2.0), Vector2(rect.size.x, 2.0)),
-			Rect2(rect.position, Vector2(2.0, rect.size.y)),
-			Rect2(rect.position + Vector2(rect.size.x - 2.0, 0.0), Vector2(2.0, rect.size.y))]:
-		_stage.draw_rect(edge, RING_MID)
-	# A mark in the middle, faint, so an empty pad still says "here". It goes the moment
-	# there is a stroke on it.
-	if _stroke.size() <= 1 and not _drawing:
-		var mid := rect.get_center()
-		var faint := Color(RING_MID.r, RING_MID.g, RING_MID.b, 0.55)
-		_stage.draw_line(mid - Vector2(26.0, 0.0), mid + Vector2(26.0, 0.0), faint, 2.0)
-		_stage.draw_line(mid - Vector2(0.0, 26.0), mid + Vector2(0.0, 26.0), faint, 2.0)
+			Rect2(rect.position, Vector2(rect.size.x, 3.0)),
+			Rect2(rect.position + Vector2(0.0, rect.size.y - 3.0), Vector2(rect.size.x, 3.0)),
+			Rect2(rect.position, Vector2(3.0, rect.size.y)),
+			Rect2(rect.position + Vector2(rect.size.x - 3.0, 0.0), Vector2(3.0, rect.size.y))]:
+		_stage.draw_rect(edge, GOLD)
 	if _stroke.size() > 1:
+		# The stroke is drawn twice: a dark backing under a bright core, so it reads on
+		# stone the way a brush loaded with ink would.
+		_stage.draw_polyline(_stroke, Color(0.15, 0.09, 0.04, 0.85), 7.0)
 		_stage.draw_polyline(_stroke, CREAM, 4.0)
-	elif not _drawing:
-		# The stray note, and it fades. It is the only thing on this screen that tells the
-		# player their stroke was seen and counted against nothing.
-		if _clock - _stray_at < 0.9:
-			var fade := 1.0 - (_clock - _stray_at) / 0.9
-			_stage.draw_rect(Rect2(rect.position + Vector2(rect.size.x * 0.5 - 60.0,
-				rect.size.y * 0.5), Vector2(120.0, 3.0)),
-				Color(MISSED.r, MISSED.g, MISSED.b, fade))
+		return
+	if not _drawing and _clock - _stray_at < 0.9:
+		var fade := 1.0 - (_clock - _stray_at) / 0.9
+		var mid := rect.get_center()
+		_stage.draw_rect(Rect2(mid.x - 60.0, mid.y, 120.0, 3.0),
+			Color(MISSED.r, MISSED.g, MISSED.b, fade))
+		return
+	if not _drawing:
+		var mid := rect.get_center()
+		var faint := Color(GOLD.r, GOLD.g, GOLD.b, 0.30)
+		_stage.draw_line(mid - Vector2(30.0, 0.0), mid + Vector2(30.0, 0.0), faint, 2.0)
+		_stage.draw_line(mid - Vector2(0.0, 30.0), mid + Vector2(0.0, 30.0), faint, 2.0)
 
 
 ## THE VERDICT, AND WHICH WAY THEY WERE OFF. The model names early and late separately for
 ## exactly one reason -- it is the whole teaching -- so this both writes the word and puts it
-## on the side of the line the stroke actually fell: EARLY sits before the line, LATE after
-## it. A player who reads nothing still learns from where it appeared.
+## on the side of the line the stroke actually fell: EARLY sits before the line, LATE after.
 func _draw_flash(at: Vector2) -> void:
 	if _flash.is_empty() or _clock - _flash_at > 0.7:
 		return
@@ -475,14 +547,18 @@ func _draw_flash(at: Vector2) -> void:
 	elif _flash == "MISS":
 		colour = MISSED
 	colour.a = fade
-	var size := 22
+	var size := 24
 	var width := font.get_string_size(_flash, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x
-	var lean := 0.0
+	var lean := -width * 0.5
 	if _flash == "EARLY":
-		lean = -width - 26.0
+		lean = -width - 30.0
 	elif _flash == "LATE":
-		lean = 26.0
-	else:
-		lean = -width * 0.5
+		lean = 30.0
+	# A burst behind the word on a perfect, which is the only celebration the screen gets.
+	if _flash == "PERFECT":
+		for spoke in range(10):
+			var angle := spoke * (TAU / 10.0) + _clock
+			_stage.draw_line(at, at + Vector2(cos(angle), sin(angle)) * (26.0 * fade),
+				Color(GOLD.r, GOLD.g, GOLD.b, fade * 0.7), 3.0)
 	_stage.draw_string(font, at + Vector2(lean, 0.0), _flash,
 		HORIZONTAL_ALIGNMENT_LEFT, -1.0, size, colour)

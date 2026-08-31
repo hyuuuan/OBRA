@@ -58,6 +58,34 @@
         84
       ]
     },
+    "fan_a": {
+      "file": "fan_a.png",
+      "size": [
+        60,
+        60
+      ]
+    },
+    "fan_b": {
+      "file": "fan_b.png",
+      "size": [
+        60,
+        60
+      ]
+    },
+    "fan_c": {
+      "file": "fan_c.png",
+      "size": [
+        60,
+        60
+      ]
+    },
+    "drum": {
+      "file": "drum.png",
+      "size": [
+        92,
+        108
+      ]
+    },
     "retaining": {
       "file": "retaining.png",
       "size": [
@@ -173,22 +201,22 @@
     "dancer_a": {
       "file": "dancer_a.png",
       "size": [
-        88,
-        124
+        116,
+        132
       ]
     },
     "dancer_b": {
       "file": "dancer_b.png",
       "size": [
-        88,
-        124
+        116,
+        132
       ]
     },
     "dancer_flee": {
       "file": "dancer_flee.png",
       "size": [
-        88,
-        124
+        116,
+        132
       ]
     },
     "lamp_post": {
