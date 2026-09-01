@@ -157,6 +157,24 @@ roof beam and a hedge out of the plaza and stretched them as bars across the lev
 because the thing that used to is the half that had to go, and authoring a replacement kerb is
 how the doubling comes back.
 
+⚠ **THE CAMERA HAS A FLOOR OF ITS OWN, and props take the painting's colour.** Three things
+follow from standing a level in front of a painting rather than on top of a tileset:
+
+* `WorldCameraController.world_bottom_y` is `sky_top_y`'s twin -- a camera-only floor. The
+  physics bounds have to sit well under the plaza to catch a fall, and the resting camera
+  sits at the bottom of them, which put three hundred units of retaining wall across the
+  bottom third of every shot. Piyesta clamps at 722; INF is "no opinion" and every other
+  level still frames itself the way it always did. A room's own `room_bounds` overrides it.
+* `build_plaza.py` trims the plates' 55-row letterbox, so `SkyFill` has to be the painting's
+  own top sky (`Color(0, 0.533, 0.992, 1)`) or a jump shows a band of the wrong blue.
+* **A prop drawn in one fixed palette will be wrong somewhere in a painting.** `PiyestaDoor2D`
+  takes a `wall_tone` sampled off the plate at its own x (the backdrop is placed so world x IS
+  plate x) and models everything from it -- the two dark doors stand in deep shade under the
+  kiosko stair, the other two in full sun, and one limestone ramp for all four read as four
+  doors pasted on. `CheckpointLantern2D` is re-skinned the same way, by `checkpoint_stone` /
+  `checkpoint_moss` meta on an ancestor: **set it in the .tscn, never as a static**, or the
+  warm plaza stone follows the player back to Level 1's terrace.
+
 ⚠ **The dancers are IN the art again.** `DancerGroup2D._draw()` is `pass`; it is the logic
 only. The composite will not give them up (a bbox cut takes the palm trunks behind two of
 them; a colour mask leaves the hats, hands, fans and shoes), so Problem 1's scare is

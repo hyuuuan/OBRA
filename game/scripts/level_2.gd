@@ -213,15 +213,25 @@ func _roster_ids() -> PackedStringArray:
 ## marks are what the scene probe measures against the plaza floor. Two sources for one
 ## position is one of them going stale.
 func _build_the_doors() -> void:
+	# ⚠ `tone` IS SAMPLED OFF THE PAINTING, at each door's own x. The plaza backdrop is placed
+	# so that world x is plate x, so these are medians of the plate under each mark, taken over
+	# the door's own height. They are not four shades of one stone: the dark pair stand in the
+	# shade under the kiosko stair and the other two are in full sun, and a door drawn in the
+	# same limestone as its neighbour two hundred units away reads as pasted on. See
+	# `PiyestaDoor2D.wall_tone`.
 	var plan: Array[Dictionary] = [
 		{"id": DOOR_DARK_A, "mark": "DarkHouseA", "lit": false, "room": null,
+			"tone": Color(0.306, 0.227, 0.035), # 4E3A09, deep shade under the stair
 			"shut": "Shuttered. Nobody is home -- they are all out at the fiesta."},
 		{"id": DOOR_DARK_B, "mark": "DarkHouseB", "lit": false, "room": null,
+			"tone": Color(0.341, 0.255, 0.161), # 574129
 			"shut": "Dark inside. Not this one."},
 		{"id": DOOR_LIT_HOUSE, "mark": "LitHouse", "lit": true, "room": house,
+			"tone": Color(0.737, 0.525, 0.349), # BC8659, the sunlit house front
 			"shut": "There is a light on in there, and the door does not give.",
 			"open": "The door is open."},
 		{"id": DOOR_CHURCH, "mark": "ChurchDoor", "lit": false, "room": church,
+			"tone": Color(0.588, 0.400, 0.122), # 96661F
 			"shut": "The church. Lolo will not go in without a candle.",
 			"open": "The church."},
 	]
@@ -234,6 +244,7 @@ func _build_the_doors() -> void:
 		door.name = "Door_%s" % entry["id"]
 		door.door_id = String(entry["id"])
 		door.lit = bool(entry["lit"])
+		door.wall_tone = Color(entry["tone"])
 		door.shut_note = String(entry["shut"])
 		door.open_note = "%s  —  press %s" % [
 			entry.get("open", ""), ControlsKeys.keys_for("interact")]
