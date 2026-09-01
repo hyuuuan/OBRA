@@ -31,6 +31,18 @@ signal camera_moved(camera_position: Vector2)
 ## for the camera, and in ordinary play it stops here. Somewhere that brings its own
 ## backdrop turns `vertical_free` on and is allowed the rest.
 @export var sky_top_y: float = -520.0
+## THE BOTTOM OF THE PAINTED WORLD, and `sky_top_y`'s exact twin.
+##
+## Piyesta's plaza is the delivered painting cut off at the walk line, and everything under
+## the cut is ground the level DRAWS rather than ground anybody stands on. The resting camera
+## sits at the bottom of `world_bounds` -- which has to be well under the plaza so a fall has
+## somewhere to be caught -- and that put three hundred units of retaining wall across the
+## bottom third of every shot, with the eye going to the wall instead of to the fiesta. The
+## bounds are for physics; this is for the camera, and in ordinary play it stops here.
+##
+## INF means "no opinion", which is the level clamping itself as it always did. A room hands
+## in its own `room_bounds` and this stands aside, because a room's floor is its own.
+@export var world_bottom_y: float = INF
 ## HOW FAR IN THE CAMERA SITS WHEN IT IS NOT PUSHED IN ON ANYBODY.
 ##
 ## release_focus used to tween back to 1.0 flat, which was right only for as long as one was
@@ -278,7 +290,11 @@ func _min_camera_y() -> float:
 
 func _max_camera_y() -> float:
 	var frame := _framing_bounds()
-	return frame.position.y + frame.size.y - _viewport_size().y * 0.5
+	var bottom := frame.position.y + frame.size.y
+	# Only the LEVEL's floor is negotiable. A room framing itself is already the right size.
+	if frame == world_bounds and is_finite(world_bottom_y):
+		bottom = minf(bottom, world_bottom_y)
+	return bottom - _viewport_size().y * 0.5
 
 
 ## How much WORLD the camera can see, which is the viewport divided by the zoom. It used

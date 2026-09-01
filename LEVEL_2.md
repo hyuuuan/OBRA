@@ -81,6 +81,7 @@ nodes; the last has **two routes, not three**, deliberately.
 | `tools/build_interiors.py` | original art for the four insides -- ashlar, sawali, plaster over rubble |
 | `tools/build_plaza_art.py` | the plaza's ground and props -- paving, retaining wall, rooftops |
 | `game/scripts/piyesta_plaza_2d.gd` | the ground under the cut painting. Nothing draws in front of the player |
+| `game/scripts/piyesta_door_2d.gd` | takes `wall_tone` off the plate at its own x -- four doors, four stones |
 | `game/assets/Level2/`, `level-2-assets/` | the delivered art, imported and tracked |
 
 ```bash
@@ -129,6 +130,22 @@ job, in the same way twice:
   left stands on the cut, and there is one ground line -- the line the artist stood four
   dancers on. **Nothing draws in front of the player**; an authored kerb is how the doubling
   comes back.
+
+Three things had to change once the plaza was a painting again, and all three are the same
+lesson: **a level standing in front of a picture cannot bring its own palette.**
+
+* **The camera needed a floor of its own.** It rests at the bottom of `world_bounds`, which
+  has to be well under the plaza so a fall is caught -- so it showed three hundred units of
+  retaining wall. `WorldCameraController.world_bottom_y` (Piyesta: 722) stops it, and the
+  walk line sits about four fifths of the way down the frame.
+* **The plates are letterboxed.** Fifty-five transparent rows at the top, which showed as a
+  band of the level's flat `SkyFill` in the wrong blue. Trimmed in the tool; `SkyFill` is now
+  the painting's own top sky.
+* **The doors and the checkpoint lanterns were the wrong colour, twice.** First grey slabs,
+  then one pale limestone ramp for all four doors -- which looked right on the sunlit church
+  front and chalky in the shade under the kiosko stair. Each door now takes a `wall_tone`
+  sampled off the plate at its own x, and the lantern reads `checkpoint_stone` /
+  `checkpoint_moss` meta off an ancestor so Level 1 keeps its Cordillera grey.
 
 The plaza was authored from scratch for one pass in between, themed on the **Basilica del
 Santo Nino, Cebu** (`level_02.json` still records that change from Pahiyas, and the church

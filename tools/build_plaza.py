@@ -57,7 +57,21 @@ def walk_row() -> int:
     return int(np.where(people.any(axis=1))[0].max())
 
 
-def _sky_column(size: tuple[int, int], height: int) -> Image.Image:
+def sky_row() -> int:
+    """The first row the painting actually covers.
+
+    The delivered plates are 1920x1080 with the 1672x941 art registered inside them, so the
+    top fifty-five rows are transparent. Left on, that margin is fifty-five units of whatever
+    the level paints behind -- and the level's flat `SkyFill` is not the painting's sky, so it
+    showed as a band of the wrong blue along the top of every shot the moment the camera rose.
+    Trimmed here rather than in the scene, because the sprite is placed by its BOTTOM edge
+    (the walk line) and a margin at the top just moves the problem.
+    """
+    return int(np.where(np.array(
+        Image.open(SRC / "bg_sky.png").convert("RGBA"))[..., 3] > 8)[0].min())
+
+
+def _sky_column(size: tuple[int, int], top: int, line: int) -> Image.Image:
     """The painting's own sky, one column stretched across the widened canvas.
 
     ⚠ TAKEN FROM `bg_sky` AND NOT FROM THE COMPOSITE. The flattened painting has the kiosko
@@ -66,7 +80,7 @@ def _sky_column(size: tuple[int, int], height: int) -> Image.Image:
     stretched them as horizontal bars across the whole width of the level.
     """
     plate = np.array(Image.open(SRC / "bg_sky.png").convert("RGBA"))
-    column = plate[:height, 300:301, :]
+    column = plate[top:line, 300:301, :]
     return Image.fromarray(np.repeat(column, size[0] * WIDE, axis=1), "RGBA")
 
 
@@ -90,13 +104,15 @@ def build(check: bool) -> int:
         plaza.alpha_composite(layer)
 
     line = walk_row()
+    top = sky_row()
     # ⚠ EVERYTHING BELOW THE PAINTED DANCERS' FEET GOES. See the module docstring: the near
     # verge and its retaining wall are why the plaza read as two platforms, and they are in
     # the picture, so the picture is where they have to be removed.
-    cropped = plaza.crop((0, 0, size[0], line))
+    cropped = plaza.crop((0, top, size[0], line))
+    height = line - top
 
-    wide = Image.new("RGBA", (size[0] * WIDE, line), (0, 0, 0, 0))
-    wide.alpha_composite(_sky_column(size, line))
+    wide = Image.new("RGBA", (size[0] * WIDE, height), (0, 0, 0, 0))
+    wide.alpha_composite(_sky_column(size, top, line))
     wide.alpha_composite(cropped, (size[0], 0))
 
     if not check:
@@ -111,10 +127,17 @@ def build(check: bool) -> int:
             if imported.exists():
                 imported.unlink()
 
+    # The scene stands this sprite on the walk line, so what it needs is the height; and it
+    # paints `SkyFill` behind everything, so what that needs is the painting's own top sky.
+    sky = wide.getpixel((0, 0))
     print("%s plaza_backdrop.png at %dx%d" % (
         "checked" if check else "wrote", wide.width, wide.height))
     print("   walk line (painted dancers' feet)  plate row %d" % line)
+    print("   letterbox trimmed off the top      plate rows 0..%d" % top)
     print("   painting sits at canvas x %d..%d of %d" % (size[0], size[0] * 2, wide.width))
+    print("   stand it by its BOTTOM edge        sprite y = ground - %.1f" % (height / 2.0))
+    print("   SkyFill should be                  Color(%.3f, %.3f, %.3f, 1)"
+          % (sky[0] / 255.0, sky[1] / 255.0, sky[2] / 255.0))
     return 0
 
 

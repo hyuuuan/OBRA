@@ -33,7 +33,12 @@ extends Node2D
 ## because it is a surface the player stands ON, not a slab they stand in front of.
 const PAVING_DEPTH := 34.0
 ## And how far the retaining wall runs before the town below it takes over.
-const WALL_DEPTH := 210.0
+##
+## ⚠ TUNED AGAINST THE CAMERA, not against how a wall looks on its own. The camera's
+## `world_bottom_y` stops it at 722, which leaves about a hundred and sixty units under the
+## walk line at rest and roughly twice that at the top of a jump. Deeper than that is a band
+## nobody ever sees; shallower and a jump shows the join.
+const WALL_DEPTH := 170.0
 
 
 func _ready() -> void:
@@ -80,4 +85,4 @@ func _draw() -> void:
 				below + float(row) * roofs.y * 0.72, width, roofs.y),
 				[cuts[row % 3], cuts[(row + 1) % 3], cuts[(row + 2) % 3]], haze)
 		draw_rect(Rect2(left, below + roofs.y * 2.2, width, 900.0),
-			Color(0.686, 0.796, 0.878, 1.0))
+			Color(0.757, 0.816, 0.851, 1.0))

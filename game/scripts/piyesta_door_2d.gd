@@ -48,17 +48,25 @@ const SIZE := Vector2(78.0, 156.0)
 ## the plaza's dark pair are 200 apart.
 const REACH := Vector2(120.0, 170.0)
 
-## SAMPLED OFF `TextureMap_Piyesta.png`, not invented. The plaza's back wall is the church's
-## pale limestone, and a door set into it has to be cut from the same rock -- the first
-## version was a grey plank slab with iron straps, which read as four filing cabinets
-## standing in a finished painting.
-const STONE_DEEP := Color(0.247, 0.176, 0.106, 1.0)   # 3F2D1B  the shadow in a reveal
-const STONE_DARK := Color(0.490, 0.384, 0.281, 1.0)   # 7C6147  balustrade stone
-const STONE := Color(0.773, 0.590, 0.392, 1.0)        # C59663  church stone, fill
-const STONE_LIT := Color(0.875, 0.726, 0.525, 1.0)    # DFB985  stucco, in the light
-const STONE_PALE := Color(0.918, 0.788, 0.600, 1.0)   # EAC999  its highlight
+## ⚠ THE STONE IS NOT A CONSTANT ANY MORE. It is sampled off the painting AT THIS DOOR'S
+## OWN X, and handed in by the scene.
+##
+## Three versions of this failed the same way. First a grey plank slab with iron straps: four
+## filing cabinets standing in a finished painting. Then one fixed limestone ramp taken off
+## `TextureMap_Piyesta` -- better, but the plaza is a PAINTING, and it is not one colour: the
+## two dark doors stand in deep shade under the kiosko stair (#4E3A09, #574129) while the lit
+## house and the church front are in full sun (#BC8659, #96661F). One pale ramp for all four
+## put two chalky arches in a shadow, which is exactly as wrong as the filing cabinets and
+## harder to see because each door looked fine on its own.
+##
+## The mapping is 1:1 -- the painting is placed so that world x IS plate x -- so any door's
+## tone is a median of the plate under it. `tools/build_plaza.py` prints nothing for this on
+## purpose; it is four numbers in the scene, beside the four marks they belong to.
+@export var wall_tone: Color = Color(0.612, 0.482, 0.302, 1.0)   # 9C7B4D, behind the dancers
+## The leaf is timber, and timber is timber wherever it is standing -- it does not take the
+## wall's colour, it takes the wall's LIGHT, which is what `_tone` is for.
 ## The leaf: the stall's dark timber, which is the only wood in this picture.
-const LEAF_DARK := Color(0.129, 0.106, 0.055, 1.0)    # 211B0D
+const LEAF_DARK := Color(0.098, 0.078, 0.039, 1.0)    # 19140A
 const LEAF := Color(0.270, 0.212, 0.112, 1.0)         # 44351C
 const LEAF_LIT := Color(0.408, 0.302, 0.173, 1.0)     # 684D2C
 ## What is behind an open one. Not black -- a doorway that is black reads as a hole.
@@ -153,39 +161,37 @@ func prompt() -> String:
 	return shut_note
 
 
-## A DOORWAY IN THE PLAZA'S BACK WALL, which is what the picture has room for.
+## THE WALL BUILDS THE DOORWAY; THIS DRAWS THE HOLE.
 ##
-## The painting has no house doors at ground level -- its buildings are behind and above the
-## plaza -- so a door prop has to read as an opening cut into the low stone wall the dancers
-## have their backs to. That means it is drawn as masonry first and joinery second: a reveal
-## a few inches deep, a segmental arch over it, worn jambs, and the leaf set back inside.
-## Drawn the other way round, as a leaf with a frame around it, it reads as furniture.
+## ⚠ DO NOT PUT THE MASONRY BACK. An earlier version drew the full architecture -- a
+## five-inch reveal, seven voussoirs over the head, a lit jamb and a sill -- in pale church
+## limestone. Each door looked like a door and the four together looked like four doors
+## PASTED ON, because the painting already has the wall and does not need a second one drawn
+## over it in a different colour. The eye read the surround first and the opening second,
+## which is backwards for a level whose one piece of misdirection is "which of these has a
+## light on".
+##
+## So the surround is the wall's own tone, barely modelled: a jamb face a shade under it, a
+## reveal well under it, three pixels of light down the left edge because the light in this
+## picture comes from the left, and a sill. Nothing here is lighter than the wall it is cut
+## into. What the eye finds is the dark hole, and then -- on exactly one of them -- the lamp.
 func _draw() -> void:
 	var leaf := Rect2(-SIZE.x * 0.5, -SIZE.y, SIZE.x, SIZE.y)
-	var jamb := 13.0
-	var rise := 26.0
-	# The opening, cut back into the wall. The dark reveal is the whole reason it reads as a
-	# hole rather than a panel hung on the front.
-	_draw_arched(leaf.grow(jamb), rise + 8.0, STONE_DARK)
-	_draw_arched(leaf.grow(jamb - 5.0), rise + 5.0, STONE)
-	_draw_arched(leaf.grow(2.0), rise, STONE_DEEP)
-	# Voussoirs over the head, so the arch is built rather than drawn.
-	var span := leaf.size.x + jamb * 2.0
-	for index in range(7):
-		var t := (float(index) + 0.5) / 7.0
-		var x := leaf.position.x - jamb + t * span
-		var lift := sin(t * PI) * rise
-		draw_rect(Rect2(x - span / 15.0, leaf.position.y - lift - 16.0,
-			span / 15.0 - 2.0, 16.0), STONE_LIT if index % 2 == 0 else STONE)
-	# The lit edge down the left jamb and along the head: one light source, from the left,
-	# same as everything else in this picture.
-	draw_rect(Rect2(leaf.position.x - jamb, leaf.position.y - 4.0, 5.0, leaf.size.y + 4.0),
-		STONE_PALE)
-	# The sill it opens onto.
-	draw_rect(Rect2(leaf.position.x - jamb - 6.0, -7.0, leaf.size.x + jamb * 2.0 + 12.0, 9.0),
-		STONE_LIT)
-	draw_rect(Rect2(leaf.position.x - jamb - 6.0, 2.0, leaf.size.x + jamb * 2.0 + 12.0, 4.0),
-		STONE_DARK)
+	var jamb := 9.0
+	var rise := 22.0
+	# The jamb face, then the reveal. Both out of the wall's own colour, so the doorway is a
+	# hole in this wall rather than a frame standing in front of it.
+	_draw_arched(leaf.grow(jamb), rise + 5.0, _tone(0.78))
+	_draw_arched(leaf.grow(jamb - 4.0), rise + 3.0, _tone(0.52))
+	_draw_arched(leaf.grow(2.0), rise, _tone(0.24))
+	# One light, from the left, everywhere in this picture.
+	draw_rect(Rect2(leaf.position.x - jamb, leaf.position.y - 2.0, 3.0, leaf.size.y + 2.0),
+		_tone(1.18))
+	# The sill it opens onto: a lit top face and the shadow it casts, and nothing else.
+	draw_rect(Rect2(leaf.position.x - jamb - 4.0, -6.0, leaf.size.x + jamb * 2.0 + 8.0, 7.0),
+		_tone(1.10))
+	draw_rect(Rect2(leaf.position.x - jamb - 4.0, 1.0, leaf.size.x + jamb * 2.0 + 8.0, 4.0),
+		_tone(0.46))
 
 	if open:
 		# Swung inward: the leaf against the reveal on one side, and dark beyond it.
@@ -231,6 +237,18 @@ func _draw() -> void:
 	for side: float in [-1.0, 1.0]:
 		draw_rect(Rect2(leaf.position.x + (0.0 if side < 0.0 else leaf.size.x) - 9.0,
 			leaf.position.y, 9.0, leaf.size.y), LAMP_SOFT)
+
+
+## THE WALL'S OWN COLOUR, taken up into the light or down into the shade.
+##
+## Below one it multiplies, which is what shadow does to a surface -- a shaded ochre stays
+## ochre. Above one it goes toward white and NOT toward a fixed highlight colour, because a
+## fixed highlight is how the pale-limestone version ended up chalky in the shadow under the
+## kiosko stair.
+func _tone(scale: float) -> Color:
+	if scale <= 1.0:
+		return Color(wall_tone.r * scale, wall_tone.g * scale, wall_tone.b * scale, 1.0)
+	return wall_tone.lerp(Color(1.0, 1.0, 1.0, 1.0), minf(scale - 1.0, 1.0) * 0.55)
 
 
 ## An arched-headed rectangle: the rectangle, plus the segment over its top.
