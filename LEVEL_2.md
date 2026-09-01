@@ -82,6 +82,7 @@ nodes; the last has **two routes, not three**, deliberately.
 | `tools/build_plaza_art.py` | the plaza's ground and props -- paving, retaining wall, rooftops |
 | `game/scripts/piyesta_plaza_2d.gd` | the ground under the cut painting. Nothing draws in front of the player |
 | `game/scripts/piyesta_door_2d.gd` | takes `wall_tone` off the plate at its own x -- four doors, four stones |
+| `tools/build_dancers.py` | lifts the four painted dancers out of the plate and hands them back as sprites |
 | `game/assets/Level2/`, `level-2-assets/` | the delivered art, imported and tracked |
 
 ```bash
@@ -141,6 +142,11 @@ lesson: **a level standing in front of a picture cannot bring its own palette.**
   its bottom edge is below the walk line, so nothing is missing.
 * **Reimport after regenerating an asset.** A `--script` run uses `.godot/imported` as it
   stands, and three renders were read as evidence about a backdrop that had already changed.
+* **The dancers came out of the painting.** They were painted into `mg_people`, so
+  `DancerGroup2D` drew nothing and the Protector scare changed the picture not at all. The
+  middle two lift out as clean components; the outer two stand in front of the palm legs and
+  are fused, so those boxes are cleared and the poles regrown by tiling the clean stretch
+  above each hat. They are sprites now, and the plaza still looks like the plate.
 * **The camera needed a floor of its own.** It rests at the bottom of `world_bounds`, which
   has to be well under the plaza so a fall is caught -- so it showed three hundred units of
   retaining wall. `WorldCameraController.world_bottom_y` (Piyesta: 722) stops it, and the
@@ -251,12 +257,7 @@ now guarded.
 
 Nothing here stops the level being played. It is all art, plus one decision.
 
-1. **The `MG_People` no-dancers variant is a blocking art need again.** The plaza is the
-   delivered painting, so the dancers are back in the pixels: `DancerGroup2D._draw()` is
-   `pass`, and Problem 1's Protector scare is mechanically complete and visually invisible.
-   The composite will not give them up -- a bbox cut takes the palm trunks behind two of
-   them, a colour mask leaves the hats, hands, fans and shoes.
-2. **Piyesta's INSIDES are authored placeholder, not delivered art.** They are coherent and
+1. **Piyesta's INSIDES are authored placeholder, not delivered art.** They are coherent and
    the right material, but a real artist would still improve on them: the alleys use a cool
    ramp rather than a dark-palette set made for shade, and the church interior and both alley
    layer sets are still owed as painted plates.

@@ -68,12 +68,38 @@ func _run() -> void:
 			   cam.global_position if cam != null else Vector2.ZERO])
 		await _capture(String(step[1]))
 
+	await _watch_them_leave()
 	await _tour_the_insides()
 	await _look_at_scene_3()
 	await _look_at_the_dance()
 
 	print("OBRA_VISUAL_L2_OK")
 	quit(0)
+
+
+## PROBLEM 1's PROTECTOR ROUTE, WHICH NOBODY HAS EVER SEEN. The dancers were painted into the
+## plate for most of this level's life, so `DancerGroup2D` drew nothing and scaring them off
+## changed the picture not at all. They are cut-out sprites now, so there is finally something
+## to photograph -- and a flee animation is exactly the kind of thing that can be wired up,
+## pass every headless probe, and draw nothing at all.
+func _watch_them_leave() -> void:
+	var groups := level.get_tree().get_nodes_in_group(&"dancer_groups")
+	if groups.is_empty():
+		print("  scare: no dancer group")
+		return
+	var group := groups[0] as DancerGroup2D
+	var player := level.get("player") as Node2D
+	if player != null:
+		player.global_position = Vector2(1000.0, 480.0)
+	await _wait(0.6)
+	if not group.scatter():
+		print("  scare: they were not dancing")
+		return
+	await _wait(0.45)
+	await _capture("06b_scare_running")
+	await _wait(1.4)
+	await _capture("06c_plaza_empty")
+	print("  scare: state %d after the run" % group.state())
 
 
 ## THE FOUR ROOMS, which is where three of this level's four beats happen and which nothing

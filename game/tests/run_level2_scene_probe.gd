@@ -480,6 +480,24 @@ func _audit_the_plaza_is_not_empty() -> void:
 	var group := groups[0] as DancerGroup2D
 	_check(group.dancers >= 3, "and there are enough of them to be a set",
 		"%d dancing" % group.dancers)
+	# ⚠ AND THE CUTS THEY ARE DRAWN FROM HAVE TO EXIST. The dancers are the painting's own,
+	# lifted out by `tools/build_dancers.py` -- which means the plaza now has four holes in it
+	# that only these sprites fill. A missing tile is not an error at runtime: `_draw` skips
+	# it, the plaza comes up with a gap, and every headless suite here stays green. That has
+	# happened three times in this level already (five birds with no `_draw`, a whole dancer
+	# class detached by an override, two sprites lost to a negative rect), so it is asserted.
+	var missing: Array[String] = []
+	for cut: String in DancerGroup2D.CUTS:
+		if not PiyestaTiles.has_tile(cut) and not missing.has(cut):
+			missing.append(cut)
+	_check(missing.is_empty(), "and the painted cuts they are drawn from are on disk",
+		"run tools/build_dancers.py -- missing %s" % ", ".join(missing) if not missing.is_empty()
+			else "%d cuts" % DancerGroup2D.CUTS.size())
+	# And they stand where the painting had them: the plate's own columns, which is the only
+	# reason the plaza still looks like the plate.
+	_check(DancerGroup2D.STANDS.size() >= group.dancers,
+		"and there is a mark for each of them",
+		"%d stands for %d dancers" % [DancerGroup2D.STANDS.size(), group.dancers])
 	# They have to stand ON the mark the scene authored, because that mark is what the
 	# scare-reach check above is measured against.
 	var mark := level.get_node_or_null(

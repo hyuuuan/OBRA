@@ -58,7 +58,11 @@ SRC = ROOT / "game" / "assets" / "Level2"
 # and the trees, whose own bottom edge is row 839 -- BELOW the walk line. So there is no hole
 # to fill. Ninety-two per cent of every row in the band is covered by the town, the people and
 # the huts; what little sky shows between them is sky that ought to show between buildings.
-LAYERS = ["bg_sky", "bg_clouds", "mg_church", "mg_people", "fg_huts"]
+# ⚠ `mg_people_nodancers`, NOT `mg_people`. `tools/build_dancers.py` writes it: the same
+# plate with the four dancers lifted out and the two palm legs they stood in front of grown
+# back down through the holes. They are sprites now (`DancerGroup2D`), which is what lets the
+# Protector route actually empty the plaza. Run that tool first; this one does not.
+LAYERS = ["bg_sky", "bg_clouds", "mg_church", "mg_people_nodancers", "fg_huts"]
 
 ## How many plate-widths wide the output is. The painting sits in the middle and its own sky
 ## runs out either side, so the camera can lead the player to the walls without running off
@@ -67,7 +71,13 @@ WIDE = 3
 
 
 def walk_row() -> int:
-    """Where the painted dancers' feet are -- the ground line, by the artist's own hand."""
+    """Where the painted dancers' feet are -- the ground line, by the artist's own hand.
+
+    ⚠ READ OFF THE ORIGINAL PLATE, not the one the dancers were lifted out of. The line is
+    where the ARTIST stood them; taking it off the cut-out version would measure whatever
+    happens to reach lowest once they are gone, and the plaza's ground would follow the art
+    pipeline around instead of staying put.
+    """
     people = np.array(Image.open(SRC / "mg_people.png").convert("RGBA"))[..., 3] > 24
     return int(np.where(people.any(axis=1))[0].max())
 
