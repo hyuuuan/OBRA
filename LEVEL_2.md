@@ -79,7 +79,7 @@ nodes; the last has **two routes, not three**, deliberately.
 | `tools/build_plaza.py` | flattens the six plates, and **cuts the painting at the walk line** |
 | `tools/pixelart.py` | the shared 8-bit library: logical pixel grid, short ramps, Bayer dither |
 | `tools/build_interiors.py` | original art for the four insides -- ashlar, sawali, plaster over rubble |
-| `tools/build_plaza_art.py` | the plaza's ground and props -- paving, retaining wall, rooftops |
+| `tools/build_plaza_art.py` | the ground under the painting, and the dance screen's props. **Not** the plaza |
 | `game/scripts/piyesta_plaza_2d.gd` | the ground under the cut painting. Nothing draws in front of the player |
 | `game/scripts/piyesta_door_2d.gd` | takes `wall_tone` off the plate at its own x -- four doors, four stones |
 | `tools/build_dancers.py` | lifts the four painted dancers out of the plate and hands them back as sprites |

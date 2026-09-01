@@ -508,6 +508,18 @@ func _audit_the_plaza_is_not_empty() -> void:
 	_check(clashes.is_empty(), "the three tile sheets share no names",
 		"%d tiles in one namespace" % seen.size() if clashes.is_empty()
 			else "collides: %s" % ", ".join(clashes))
+	# ⚠ AND EVERY DECLARED TILE HAS TO ACTUALLY LOAD. `PiyestaTiles._load` skips a texture it
+	# cannot find -- deliberately, because null is better than a silent wrong material -- but
+	# that means a manifest entry whose PNG was deleted costs nothing at load and everything at
+	# draw time, where the caller quietly draws nothing. Nineteen tiles were removed from this
+	# sheet in one go; this is what says the manifest came with them.
+	var dangling: Array[String] = []
+	for name: Variant in seen.keys():
+		if not PiyestaTiles.has_tile(String(name)):
+			dangling.append(String(name))
+	_check(dangling.is_empty(), "and every tile they declare loads",
+		"%d textures" % PiyestaTiles.count() if dangling.is_empty()
+			else "declared but absent: %s" % ", ".join(dangling))
 
 	var missing: Array[String] = []
 	for cut: String in DancerGroup2D.CUTS:

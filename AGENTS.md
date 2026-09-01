@@ -123,7 +123,10 @@ so Scene 3 is the only thing that ends Piyesta.
 ⚠ **PIYESTA'S INSIDES ARE AUTHORED; THE PLAZA IS THE DELIVERED PAINTING (2026-09-01).**
 `tools/pixelart.py` is the shared 8-bit library (logical pixel grid, six-step ramps, Bayer
 dither, one light from the upper left); `build_interiors.py` draws the four insides and
-`build_plaza_art.py` the plaza's own material. **Do not tile `TextureMap_Piyesta` indoors** --
+`build_plaza_art.py` the ground under the cut painting and the dance screen's props -- it used
+to author the whole plaza and **nineteen of its thirty-five pieces have been deleted**, along
+with the seven hundred lines that drew them, because the plate is the plaza. **Do not tile
+`TextureMap_Piyesta` indoors** --
 it is the OUTSIDE of a town, and mossy rubble and packed earth inside a nave is what this
 replaced. The plaza was authored from scratch too, for a while, and it was never as good as
 the plate; what survives of that pass is the ground the painting stands on -- paving,
