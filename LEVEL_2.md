@@ -134,6 +134,13 @@ job, in the same way twice:
 Three things had to change once the plaza was a painting again, and all three are the same
 lesson: **a level standing in front of a picture cannot bring its own palette.**
 
+* **`ground.png` is not the ground.** It is a mossy rubble terrace with a grass top, plate
+  rows 474..680, which in the composite runs across the picture at head height -- the artist's
+  own platform, for a game where you walk along the top of it. Cut at the dancers' feet it was
+  a slab of dirt hanging behind everybody. It is not composited; `mg_church` shows through and
+  its bottom edge is below the walk line, so nothing is missing.
+* **Reimport after regenerating an asset.** A `--script` run uses `.godot/imported` as it
+  stands, and three renders were read as evidence about a backdrop that had already changed.
 * **The camera needed a floor of its own.** It rests at the bottom of `world_bounds`, which
   has to be well under the plaza so a fall is caught -- so it showed three hundred units of
   retaining wall. `WorldCameraController.world_bottom_y` (Piyesta: 722) stops it, and the
