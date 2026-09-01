@@ -221,17 +221,17 @@ func _build_the_doors() -> void:
 	# `PiyestaDoor2D.wall_tone`.
 	var plan: Array[Dictionary] = [
 		{"id": DOOR_DARK_A, "mark": "DarkHouseA", "lit": false, "room": null,
-			"tone": Color(0.306, 0.227, 0.035), # 4E3A09, deep shade under the stair
+			"tone": Color(0.310, 0.231, 0.039), # 4F3B0A, deep shade under the kiosko stair
 			"shut": "Shuttered. Nobody is home -- they are all out at the fiesta."},
 		{"id": DOOR_DARK_B, "mark": "DarkHouseB", "lit": false, "room": null,
-			"tone": Color(0.341, 0.255, 0.161), # 574129
+			"tone": Color(0.333, 0.251, 0.161), # 554029
 			"shut": "Dark inside. Not this one."},
 		{"id": DOOR_LIT_HOUSE, "mark": "LitHouse", "lit": true, "room": house,
-			"tone": Color(0.737, 0.525, 0.349), # BC8659, the sunlit house front
+			"tone": Color(0.749, 0.557, 0.380), # BF8E61, the sunlit house front
 			"shut": "There is a light on in there, and the door does not give.",
 			"open": "The door is open."},
 		{"id": DOOR_CHURCH, "mark": "ChurchDoor", "lit": false, "room": church,
-			"tone": Color(0.588, 0.400, 0.122), # 96661F
+			"tone": Color(0.624, 0.427, 0.188), # 9F6D30
 			"shut": "The church. Lolo will not go in without a candle.",
 			"open": "The church."},
 	]

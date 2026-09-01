@@ -175,6 +175,20 @@ follow from standing a level in front of a painting rather than on top of a tile
   `checkpoint_moss` meta on an ancestor: **set it in the .tscn, never as a static**, or the
   warm plaza stone follows the player back to Level 1's terrace.
 
+⚠ **`ground.png` IS NOT THE GROUND, and it is deliberately not composited.** Open it on its
+own: it is a mossy rubble terrace with a grass top and a flight of steps, plate rows 474..680
+-- ABOVE the walk line, so in the composite it runs across the picture at the apo's head
+height. It is the artist's own side-scrolling platform, for a game where the player walks
+along the TOP of it, and cut at the dancers' feet it is a slab of dirt hanging in mid-air
+behind everybody. Dropped, `mg_church` shows through -- church, belfry, colonial houses,
+hills, trees -- and its own bottom edge is row 839, BELOW the walk line, so there is no hole.
+
+⚠ **REIMPORT AFTER REGENERATING AN ASSET, or you are looking at the last one.** `godot --path
+game --script res://tests/run_visual_*.gd` does NOT refresh a texture whose source changed;
+`.godot/imported/*.ctex` is used as it stands. Three renders in a row were read as evidence
+about a backdrop that had already been rebuilt twice. Run `godot --headless --path game
+--import` first, or check the .ctex mtime against the .png.
+
 ⚠ **The dancers are IN the art again.** `DancerGroup2D._draw()` is `pass`; it is the logic
 only. The composite will not give them up (a bbox cut takes the palm trunks behind two of
 them; a colour mask leaves the hats, hands, fans and shoes), so Problem 1's scare is

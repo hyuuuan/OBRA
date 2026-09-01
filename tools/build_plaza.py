@@ -43,7 +43,22 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "game" / "assets" / "Level2"
 
 # Back to front. The order they compose in.
-LAYERS = ["bg_sky", "bg_clouds", "mg_church", "ground", "mg_people", "fg_huts"]
+#
+# ⚠ `ground` IS DELIBERATELY NOT IN THIS LIST, and it is not an oversight.
+#
+# Open `ground.png` on its own and it is not ground at all: it is a mossy rubble terrace with
+# a grass top and a flight of steps, rows 474..680 of the plate -- ABOVE the walk line, which
+# means that in the composite it runs across the picture at roughly the apo's head height.
+# It is the artist's own side-scrolling platform, drawn for a game where the player walks
+# along the TOP of it. Cut at the dancers' feet, as this level is, it is a band of stone with
+# grass on it hanging in mid-air behind everybody -- "why is there a dirt platform at the
+# back", and the answer is that it is a platform, just not this level's.
+#
+# Dropped, `mg_church` shows through: the church, the belfry, the colonial houses, the hills
+# and the trees, whose own bottom edge is row 839 -- BELOW the walk line. So there is no hole
+# to fill. Ninety-two per cent of every row in the band is covered by the town, the people and
+# the huts; what little sky shows between them is sky that ought to show between buildings.
+LAYERS = ["bg_sky", "bg_clouds", "mg_church", "mg_people", "fg_huts"]
 
 ## How many plate-widths wide the output is. The painting sits in the middle and its own sky
 ## runs out either side, so the camera can lead the player to the walls without running off
