@@ -232,6 +232,20 @@
         68,
         192
       ]
+    },
+    "painted_dancer_a": {
+      "file": "painted_dancer_a.png",
+      "size": [
+        152,
+        179
+      ]
+    },
+    "painted_dancer_b": {
+      "file": "painted_dancer_b.png",
+      "size": [
+        146,
+        178
+      ]
     }
   }
 }

@@ -22,9 +22,16 @@ extends Node2D
 ## recorded in LEVEL_2.md and CONTENT_NEEDED.md rather than papered over with a dance that
 ## always succeeds.
 ##
-## THE ART ALREADY HAS THEM. `mg_people.png` paints all four into the plaza, so this class
-## draws nothing -- see `_draw`. What the design still owes it is a costume sheet with a flee
-## and a hand-over-candle, and the no-dancers variant of the plate.
+## THE DANCERS ARE THE PAINTING'S OWN, CUT OUT. For a long time this class drew nothing:
+## `mg_people.png` painted all four into the plaza, so a sprite on top would have put eight
+## dancers where the picture has four, and the scare was mechanically complete and visually
+## invisible. The authored 8-bit dancers existed and were nowhere near the painted ones, so
+## using them meant trading four beautiful figures for an animation.
+##
+## `tools/build_dancers.py` settles it by lifting the dancers OUT of the plate -- two come
+## away as whole connected components, the two in front of the palm legs are cleared and the
+## poles grown back down through the holes -- and handing them back as `painted_dancer_a` and
+## `painted_dancer_b`. So the plaza looks exactly as it did, and they can leave.
 
 ## The player has come close enough to be told what scaring them would cost.
 signal noticed(text: String)
@@ -42,9 +49,34 @@ enum State { DANCING, FLEEING, GONE }
 ## still turn round -- the dialogue node that offers the choice is only a little nearer.
 @export var notice_range := 300.0
 
-## The apo is 96 tall, so an adult is about 118 at seventy-two pixels to the metre.
+## The apo is 96 tall, so an adult is about 118 at seventy-two pixels to the metre. Used for
+## the notice volume only: the SPRITES are the painting's own scale, which is taller again,
+## and matching them to this ruler would shrink four figures the whole plaza is composed
+## around.
 const HEIGHT := 118.0
 const WIDTH := 34.0
+
+## WHERE THE PAINTING HAD THEM, as offsets from `DancersMark` (world x 720). The backdrop is
+## placed so that world x IS plate x, so these come straight off the artist's own columns --
+## 697, 857, 1022 and 1174 -- as CENTRES, since that is what a sprite is drawn about. The
+## first version used the left edges and stood all four half a dancer to the west.
+##
+## Slots 1 and 2 are EXACT: their sprites were cut from plate columns 857 and 1022 and these
+## offsets put them straight back. Slots 0 and 3 are the two that had to be cleared, measured
+## off the fused component before it went.
+const STANDS: Array[float] = [50.0, 213.0, 375.0, 530.0]
+## Which cut goes where. Two poses alternating, and NOT MIRRORED: all four painted dancers
+## hold the fan in the same hand and face the same way, so flipping the outer pair was both
+## unfaithful to the picture and, as it turned out, broken -- see `_draw`.
+const CUTS: Array[String] = [
+	"painted_dancer_b", "painted_dancer_a", "painted_dancer_b", "painted_dancer_a"]
+## How far each bobs, and how out of step with the next. A painted figure that is perfectly
+## still reads as scenery; four moving in lockstep read as one sprite drawn four times.
+const BOB := 3.0
+const OFF_BEAT := 0.7
+## Where they go. East, which is the way the player has not been yet -- running back past the
+## apo would read as being chased rather than as leaving.
+const FLEE_RUN := 520.0
 
 ## Fiesta dress: saya and barong in festival colours, one per dancer so the group reads as
 ## several people rather than as a repeated sprite.
@@ -148,17 +180,43 @@ func set_already_gone() -> void:
 	queue_redraw()
 
 
-## ⚠ THIS DRAWS NOTHING AGAIN, AND THAT IS THE COST OF USING THE PLATE.
+## Four figures on the artist's own marks, breathing while they dance and gone when they go.
 ##
-## The dancers are painted into `Level2_CompletedLook`, which is the plaza's backdrop once
-## more. Drawing the authored sprites on top would put eight dancers where the picture has
-## four -- the same doubling in miniature. So this is the LOGIC only: where they are, who is
-## near them, what scaring them costs, and the flag that outlives the level.
-##
-## The sprites still exist (`tools/build_plaza_art.py` draws `dancer_a`, `dancer_b`,
-## `dancer_flee`) and the dance screen uses them, so this is one line away from working the
-## day `MG_People` has a no-dancers variant. Until then the scare is mechanically complete and
-## visually invisible: the route closes, DANCERS_GONE is set, Lolo says his line, and the
-## plaza does not change. Recorded in CONTENT_NEEDED.md.
+## ⚠ THE PAINTED CUTS, NOT THE AUTHORED 8-BIT ONES. `dancer_a` / `dancer_b` in the plaza sheet
+## are the hand-authored pair and belong to the dance screen; `painted_dancer_a` / `_b` are
+## the plate's own, and they are what the plaza is missing exactly where these stand. Swapping
+## them would leave four blocky figures in a painting composed around four painted ones.
 func _draw() -> void:
-	pass
+	if _state == State.GONE:
+		return
+	for index in range(mini(dancers, STANDS.size())):
+		var cut := CUTS[index]
+		var size := PiyestaTiles.size_of(cut)
+		if size == Vector2.ZERO:
+			continue
+		var at := Vector2(STANDS[index], 0.0)
+		var fade := 1.0
+		if _state == State.FLEEING:
+			# Away east, gathering pace, and lifting very slightly -- a run, not a slide.
+			# Eased rather than linear so the first frames read as deciding to go.
+			var t: float = ease(_flee, 2.4)
+			at.x += t * FLEE_RUN * (1.0 + float(index) * 0.14)
+			at.y -= sin(_flee * PI) * 6.0
+			fade = 1.0 - clampf((_flee - 0.55) / 0.45, 0.0, 1.0)
+		else:
+			at.y -= absf(sin(_phase * 2.1 + float(index) * OFF_BEAT)) * BOB
+		# Drawn from the FEET, because the ground line is the one thing in this plaza that
+		# every other measurement is taken from.
+		var box := Rect2(at.x - size.x * 0.5, at.y - size.y, size.x, size.y)
+		var texture := PiyestaTiles.get_tile(cut)
+		if texture == null:
+			continue
+		# ⚠ NO NEGATIVE RECTS, IN EITHER ARGUMENT. Two dancers were mirrored here for a while.
+		# A region rect of negative width draws NOTHING AT ALL, and every headless suite stayed
+		# green, because a sprite that fails to draw is not an error -- the same fault that hid
+		# five birds and a whole dancer class before. Flipping the destination instead does not
+		# fail loudly either: Godot normalises the rect, so the sprite came back unmirrored and
+		# shifted its own width to the east. If a flip is ever wanted here, write the flipped
+		# PNG in `build_dancers.py` and load it by name.
+		draw_texture_rect_region(texture, box, Rect2(Vector2.ZERO, size),
+			Color(1.0, 1.0, 1.0, fade))

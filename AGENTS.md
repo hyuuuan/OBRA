@@ -189,13 +189,31 @@ game --script res://tests/run_visual_*.gd` does NOT refresh a texture whose sour
 about a backdrop that had already been rebuilt twice. Run `godot --headless --path game
 --import` first, or check the .ctex mtime against the .png.
 
-⚠ **The dancers are IN the art again.** `DancerGroup2D._draw()` is `pass`; it is the logic
-only. The composite will not give them up (a bbox cut takes the palm trunks behind two of
-them; a colour mask leaves the hats, hands, fans and shoes), so Problem 1's scare is
-mechanically complete and visually invisible until the `MG_People` no-dancers variant exists.
-The GoalMarker is also still at Level 1's position (the church door), because `level_2.tscn`
-is a text copy. `levels.json` `scene_path` stays EMPTY until those are done, and
-`run_level2_audit` asserts it.
+⚠ **THE DANCERS ARE THE PAINTING'S OWN, CUT OUT (2026-09-01).** `tools/build_dancers.py`
+lifts all four out of `mg_people.png` and writes `mg_people_nodancers.png` (which
+`build_plaza.py` composites) plus `painted_dancer_a` / `_b` into the plaza sheet. So the plaza
+looks exactly like the plate AND Problem 1's Protector scare finally does something on screen
+-- the long-standing `MG_People` no-dancers blocker is closed, by us rather than by an artist.
+
+The cut is not symmetrical and cannot be. Label the plate's alpha and the middle two fall out
+as their own components; the outer two stand in front of the palm arch's legs and are fused
+into the same component as the whole arch. So the outer two are not cut at all: their boxes
+are cleared and the pole is regrown by tiling the clean stretch just above each hat, one
+garland period up, cross-faded at the joins. **Three things about that tiling are load-bearing
+and were each found the hard way** -- take the columns of the POLE only (a wider band repeats
+the garland's overhang as a stack of ledges); threshold the source alpha at 24, not 0 (the
+painting's soft edges laid a translucent rectangle across the cleared box); and never fade
+toward a cleared pixel, which is (0,0,0,0) and drags the join to grey.
+
+Slots 1 and 2 put their own cuts straight back, so those are exact. **The four are NOT
+mirrored** -- all four painted dancers hold the fan in the same hand. An attempt to flip the
+outer pair failed twice and silently: a region rect of negative width draws NOTHING, and a
+destination rect of negative width is normalised, so the sprite comes back unflipped and
+shifted its own width east. If a flip is ever wanted, write the flipped PNG in the tool.
+
+The GoalMarker is still at Level 1's position (the church door), because `level_2.tscn` is a
+text copy. `levels.json` `scene_path` stays EMPTY until that is done, and `run_level2_audit`
+asserts it.
 
 ⚠ **A room, a door or a prop that ships with no `_draw` is invisible and every headless
 suite stays green.** `ScrapBird2D` had five birds carrying five of the seven scraps and no
