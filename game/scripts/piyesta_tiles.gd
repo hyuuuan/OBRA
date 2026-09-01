@@ -24,6 +24,15 @@ extends RefCounted
 ## ⚠ AND THE INTERIORS ARE NOT THE PLAZA'S TILES. That sheet is the OUTSIDE of a town: mossy
 ## rubble with grass on top, packed earth underfoot. Tiling it into a nave puts moss and dirt
 ## inside a building that has neither, which is exactly what this replaced.
+##
+## ⚠ ONE NAMESPACE MEANS THE NAMES MUST NOT COLLIDE, AND FOR A WHILE THEY DID. `banner` was
+## declared in both the delivered tileset and the authored plaza sheet, and because `SHEETS`
+## is walked in order the plaza's silently overwrote the other. Nothing said so -- not a
+## warning, not a probe, not a frame -- because the tile that won happened to be the one the
+## church wanted. That is the worst kind of correct: the room was drawing the right banner by
+## LOAD ORDER rather than by name, and reordering `SHEETS` would have changed what a nave is
+## dressed with. `_load` refuses to overwrite now and names both sheets in the error, and
+## `run_level2_scene_probe` asserts the three manifests are disjoint.
 const SHEETS := [
 	{"manifest": "res://assets/Level2/tiles/tiles.json", "dir": "res://assets/Level2/tiles/"},
 	{"manifest": "res://assets/Level2/interiors/interiors.json",
@@ -55,9 +64,18 @@ static func _load() -> void:
 			push_error("PiyestaTiles: %s does not parse" % sheet["manifest"])
 			continue
 		for name: Variant in (parsed as Dictionary).get("tiles", {}).keys():
-			var texture := load(String(sheet["dir"]) + String(name) + ".png") as Texture2D
+			var key := String(name)
+			if _textures.has(key):
+				# FIRST WINS AND THE SECOND IS AN ERROR, rather than last-wins in silence. A room
+				# drawing the wrong material is the one fault in this level no headless suite can
+				# see, so making it loud is the whole point.
+				push_error(("PiyestaTiles: '%s' is declared twice -- %s would overwrite whatever "
+					+ "loaded it first. Rename one; the sheets share a namespace.")
+					% [key, sheet["manifest"]])
+				continue
+			var texture := load(String(sheet["dir"]) + key + ".png") as Texture2D
 			if texture != null:
-				_textures[String(name)] = texture
+				_textures[key] = texture
 
 
 ## A tile by name, or null. Null rather than a fallback on purpose: a room quietly drawing

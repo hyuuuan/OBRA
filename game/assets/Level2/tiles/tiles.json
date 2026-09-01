@@ -318,8 +318,8 @@
         42
       ]
     },
-    "banner": {
-      "file": "banner.png",
+    "banner_cloth": {
+      "file": "banner_cloth.png",
       "size": [
         200,
         179

@@ -80,7 +80,12 @@ REGIONS: list[tuple[str, int, int, int, int]] = [
     ("step_block", 950, 712, 38, 68),
     # Props, cut to their own bounds.
     # Cropped BELOW each shelf heading -- see the note above the REGIONS table.
-    ("banner", 1109, 332, 200, 182),
+    # ⚠ `banner_cloth`, NOT `banner`. The plaza sheet has a `banner` too -- the Santo Nino's
+    # red and gold, authored -- and all three sheets land in one namespace in `PiyestaTiles`,
+    # so whichever loads last silently won. It happened to be the one the church wanted, which
+    # is the worst kind of correct. Renamed here because this cut is used nowhere and the
+    # other is used by name.
+    ("banner_cloth", 1109, 332, 200, 182),
     ("lantern_hanging", 1352, 332, 99, 182),
     ("lantern_post", 1528, 332, 124, 182),
     ("plants", 1115, 566, 241, 114),
