@@ -54,8 +54,8 @@ func _run() -> void:
 	# off them: 660 start, 995 dancers, 1330 the lit house, 1650 the church. The old
 	# waypoints ran to 2400, which is now past the east wall -- the tour photographed the
 	# apo falling through the sky and called it "the church".
-	for step in [[300.0, "02_kiosko"], [800.0, "03_houses"], [1450.0, "04_dancers"],
-			[1900.0, "05_church"], [2600.0, "06_stall"]]:
+	for step in [[220.0, "02_kiosko"], [450.0, "03_start"], [720.0, "04_dancers"],
+			[1060.0, "05_lit_house"], [1400.0, "06_church"]]:
 		var at := Vector2(float(step[0]), 480.0)
 		if player.has_method("apply_morph_state"):
 			player.call("apply_morph_state", {"position": at, "linear_velocity": Vector2.ZERO})

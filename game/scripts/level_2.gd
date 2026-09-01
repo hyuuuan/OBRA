@@ -368,7 +368,6 @@ func _on_dancers_scattered() -> void:
 ## THE BUNTING, IN EVERY SCENE THAT HAS ANY. Each line owns its own Y and the flight rule
 ## reads the ceiling off it, which is what makes the boundary the art rather than a number.
 func _string_the_bunting() -> void:
-	_string_the_plaza()
 	for entry: Array in [[alley_1, ALLEY_1_LINE, 0], [alley_2, ALLEY_2_LINE,
 			ScrapLedger.IN_ALLEY_2]]:
 		var room := entry[0] as PiyestaRoom2D
@@ -718,10 +717,12 @@ func _refresh_the_ceiling() -> void:
 	if line != null and line.still_a_ceiling():
 		restrictions.set_ceiling(line.ceiling_y())
 		return
-	# The plaza has a real line now too, so it is looked up the same way as the alleys.
-	var plaza_line: BandaritaLine2D = _lines.get("plaza")
-	if where == "plaza" and plaza_line != null and plaza_line.still_a_ceiling():
-		restrictions.set_ceiling(plaza_line.ceiling_y())
+	# ⚠ THE PLAZA'S BUNTING IS PAINTED INTO THE PLATE, so its cap is read off the mark that
+	# records where the painted line hangs rather than off a node. Stringing an authored line
+	# over it would put two runs of bandaritas across one plaza -- the same doubling this
+	# level keeps having to be talked out of.
+	if where == "plaza" and _bunting_y != -INF:
+		restrictions.set_ceiling(_bunting_y + 20.0)
 		return
 	restrictions.set_ceiling(-INF)
 
