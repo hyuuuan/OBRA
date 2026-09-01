@@ -76,11 +76,11 @@ nodes; the last has **two routes, not three**, deliberately.
 | `game/scripts/dance_overlay.gd` | the screen the dance is played on -- lane, cues, verdicts, two goes |
 | `game/scripts/assembly_overlay.gd` | Scene 3's table: seven torn pieces, drag and snap, and the end of the level |
 | `tools/build_scraps.py` | tears the painting into the seven pieces, along noise-perturbed Voronoi |
-| `tools/build_plaza.py` | flattens the six registered plates into the painting and its front verge |
+| `tools/build_plaza.py` | flattens the six plates, and **cuts the painting at the walk line** |
 | `tools/pixelart.py` | the shared 8-bit library: logical pixel grid, short ramps, Bayer dither |
 | `tools/build_interiors.py` | original art for the four insides -- ashlar, sawali, plaster over rubble |
-| `tools/build_plaza_art.py` | original art for the plaza -- the Basilica del Santo Nino, Cebu |
-| `game/scripts/piyesta_plaza_2d.gd` | places it, and enforces ONE ground line |
+| `tools/build_plaza_art.py` | the plaza's ground and props -- paving, retaining wall, rooftops |
+| `game/scripts/piyesta_plaza_2d.gd` | the ground under the cut painting. Nothing draws in front of the player |
 | `game/assets/Level2/`, `level-2-assets/` | the delivered art, imported and tracked |
 
 ```bash
@@ -120,15 +120,21 @@ job, in the same way twice:
   neither. The interiors are authored now: dressed limestone ashlar under lime plaster for
   the nave, sawali over plank boards for the house, lime plaster over rubble with granite
   setts for the alleys.
-* **`Level2_CompletedLook` is a VISTA, not a set.** It has a retaining wall behind the
-  dancers and another in front, so a character standing between them reads as two platforms
-  -- which no amount of moving the collision fixes, because it is what a vista does when you
-  stand in it. The plaza is authored now, and the layout obeys one rule: **exactly one ground
-  line**, with an ankle-high kerb as the only thing in front of the player.
+* **`Level2_CompletedLook` is a VISTA, not a set** -- and that is a crop, not a rewrite.
+  It has a low wall with planting BEHIND the dancers and a grass verge over a retaining wall
+  IN FRONT of them, about sixty pixels of cobble between, and the apo is ninety-six tall. He
+  spans the strip with a wall above his knees and another below. Both walls are in the
+  picture, so moving the collision was never going to help. **The fix is to cut the plate at
+  the painted dancers' feet** and build the ground below it: the near half goes, everything
+  left stands on the cut, and there is one ground line -- the line the artist stood four
+  dancers on. **Nothing draws in front of the player**; an authored kerb is how the doubling
+  comes back.
 
-**The theme is the Basilica del Santo Nino, Cebu** (changed from Pahiyas 2026-09-01, on
-purpose -- `level_02.json` records the change and the reasoning). Coral stone in three tiers,
-the belfry beside it, bahay na bato, an arcade, Sinulog's red and gold.
+The plaza was authored from scratch for one pass in between, themed on the **Basilica del
+Santo Nino, Cebu** (`level_02.json` still records that change from Pahiyas, and the church
+inside is still built to it). It was never as good as the plate. What survives of that pass
+is the material under the cut -- paving, retaining wall, receding rooftops -- and the props
+the rest of the level draws with.
 
 **8-bit here is a method, not a look**: everything is drawn on a logical pixel grid and scaled
 by nearest-neighbour, colour comes from six-step ramps, and gradients are ordered Bayer
@@ -221,18 +227,24 @@ now guarded.
 
 Nothing here stops the level being played. It is all art, plus one decision.
 
-1. **All of Piyesta's art is authored placeholder, not delivered art.** It is coherent and
-   it is the right material, but a real artist would still improve on it: the dancers are
-   four frames, the arcade is one bay repeated, there is no crowd, and the alleys use a cool
-   ramp rather than a dark-palette set made for shade.
-2. **`LOLOGHOST` has no praying pose and no laughing pose.** Scene 2 is built on the first
+1. **The `MG_People` no-dancers variant is a blocking art need again.** The plaza is the
+   delivered painting, so the dancers are back in the pixels: `DancerGroup2D._draw()` is
+   `pass`, and Problem 1's Protector scare is mechanically complete and visually invisible.
+   The composite will not give them up -- a bbox cut takes the palm trunks behind two of
+   them, a colour mask leaves the hats, hands, fans and shoes.
+2. **Piyesta's INSIDES are authored placeholder, not delivered art.** They are coherent and
+   the right material, but a real artist would still improve on them: the alleys use a cool
+   ramp rather than a dark-palette set made for shade, and the church interior and both alley
+   layer sets are still owed as painted plates.
+3. **`LOLOGHOST` has no praying pose and no laughing pose.** Scene 2 is built on the first
    and every restriction violation fires the second. Nothing fakes them.
-3. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
+4. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
    boomerang and cannon, both of which have a real reach, but there is no aim or trajectory
    preview -- the design asks for "angry birds style".
-4. **The house doors** are the buildings' own doors now, which is better than the grey slabs that stood in front of them -- but the design still lists a door set with a keyhole and an open state, so four grey slabs stand in a finished painting.
-   The design lists closed / lit from inside / keyhole / open.
-5. **`levels.json` `scene_path` is still empty.** Nothing mechanical blocks it now -- the
+5. **The house doors are authored, not the delivered set.** They are arched stone openings
+   cut into the painted wall and lit from inside, which is what the puzzle needs -- but the
+   design still asks for a four-state door set: closed / lit from inside / keyhole / open.
+6. **`levels.json` `scene_path` is still empty.** Nothing mechanical blocks it now -- the
    level can be started, played and finished. What it is waiting on is the art above, and
    `run_level2_audit` asserts the empty path until somebody decides Piyesta looks finished
    enough to offer from the hub. **That is a judgement call, not a task.**

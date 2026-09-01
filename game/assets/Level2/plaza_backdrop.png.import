@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c0c7jghf0xeng"
-path="res://.godot/imported/plaza.png-c5827f8d3fb2b8c5334d71fa9672ff8c.ctex"
+uid="uid://nrqjl6wcrktr"
+path="res://.godot/imported/plaza_backdrop.png-baf215b69e0e51297f97aa5fc695aa83.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/Level2/plaza.png"
-dest_files=["res://.godot/imported/plaza.png-c5827f8d3fb2b8c5334d71fa9672ff8c.ctex"]
+source_file="res://assets/Level2/plaza_backdrop.png"
+dest_files=["res://.godot/imported/plaza_backdrop.png-baf215b69e0e51297f97aa5fc695aa83.ctex"]
 
 [params]
 

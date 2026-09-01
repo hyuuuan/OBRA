@@ -120,37 +120,50 @@ there is no separate slot table to drift. Alley 2's far door opens it and finish
 `_complete_level`. The GoalMarker is parked behind Alley 2's wall where nobody can reach it,
 so Scene 3 is the only thing that ends Piyesta.
 
-⚠ **PIYESTA'S ART IS AUTHORED, NOT THE DELIVERED SET (2026-09-01).** `tools/pixelart.py` is
-the shared 8-bit library (logical pixel grid, six-step ramps, Bayer dither, one light from the
-upper left); `build_interiors.py` draws the four insides and `build_plaza_art.py` the plaza.
-**Do not tile `TextureMap_Piyesta` indoors** -- it is the OUTSIDE of a town, and mossy rubble
-and packed earth inside a nave is what this replaced. **The plaza obeys one rule: exactly one
-ground line**, everything built stands on it, and the only thing in front of the player is an
-ankle-high kerb; `run_level2_scene_probe` asserts there is exactly one walkable surface.
-**Theme is the Basilica del Santo Nino, Cebu** (changed from Pahiyas deliberately;
-`level_02.json` records it). The Santo Nino is drawn into textures and owns no node.
+⚠ **PIYESTA'S INSIDES ARE AUTHORED; THE PLAZA IS THE DELIVERED PAINTING (2026-09-01).**
+`tools/pixelart.py` is the shared 8-bit library (logical pixel grid, six-step ramps, Bayer
+dither, one light from the upper left); `build_interiors.py` draws the four insides and
+`build_plaza_art.py` the plaza's own material. **Do not tile `TextureMap_Piyesta` indoors** --
+it is the OUTSIDE of a town, and mossy rubble and packed earth inside a nave is what this
+replaced. The plaza was authored from scratch too, for a while, and it was never as good as
+the plate; what survives of that pass is the ground the painting stands on -- paving,
+retaining wall, receding rooftops -- plus the props the rest of the level uses. **Theme is the
+Basilica del Santo Nino, Cebu** (changed from Pahiyas deliberately; `level_02.json` records
+it). The Santo Nino is drawn into textures and owns no node.
 
-⚠ **The delivered plaza painting is no longer the backdrop.** It is still in the repo and
-still backs the hub card. The old note about it being one painting rather than a parallax rig
-is kept below because `tools/build_plaza.py` still produces `plaza.png` and the reasoning is
-why the level stopped using it.
+⚠ **THE DELIVERED PLAZA IS ONE PAINTING, NOT A PARALLAX RIG, AND IT IS CUT AT THE WALK
+LINE.** The six delivered plates are a registered 1920x1080 set that composites into
+`Level2_CompletedLook`. `DepthLayer2D` offsets by `camera_delta * (1 - scroll_scale)` on BOTH
+axes, so any difference in scroll slid them to different heights the moment the camera moved
+-- the terrace appeared twice with sky between. `tools/build_plaza.py` flattens them offline,
+once, where they cannot drift.
 
-⚠ **THE DELIVERED PLAZA IS ONE PAINTING, NOT A PARALLAX RIG.** The six delivered plates are a
-registered 1920x1080 set that composites into `Level2_CompletedLook`. `DepthLayer2D` offsets
-by `camera_delta * (1 - scroll_scale)` on BOTH axes, so any difference in scroll slid them to
-different heights the moment the camera moved -- the terrace appeared twice with sky between.
-`tools/build_plaza.py` flattens them offline into `plaza.png` plus `plaza_front.png` (the
-grass verge and wall, which are nearer than the player and must draw over his feet). It also
-cuts the composite at the wall's foot, because `bg_sky` runs a hundred rows below the ground
-and the level was showing sky under the plaza. Terrain and marks are measured off the
-painting -- the walk line is where the painted dancers' feet are.
+**And then it cuts the painting off at the painted dancers' feet, and that is the whole of the
+fix for the doubled platform.** It took three attempts to find. The painting is a VISTA: a low
+wall with planting BEHIND the dancers and a grass verge over a retaining wall IN FRONT of
+them, about sixty pixels of cobble between -- and the apo is ninety-six tall. He spans the
+strip, with a grass-topped wall above his knees and another below them. Both walls are IN THE
+PICTURE, so no collision change could ever fix it. The crop removes the near half entirely;
+what is left (sky, clouds, hills, church, houses, kiosko, arch, palms, dancers) stands ON the
+cut, and `piyesta_plaza_2d.gd` builds the ground below it. One ground line, and it is the line
+the artist stood four dancers on. The walk line is measured off `mg_people`'s own alpha -- the
+lowest row it covers -- not hard-coded.
 
-⚠ **The dancers are IN the art.** `DancerGroup2D` draws nothing; it is the logic only. The
-composite will not give them up (a bbox cut takes the palm trunks behind two of them; a
-colour mask leaves the hats, hands, fans and shoes), so the scare is mechanically complete
-and visually invisible until the `MG_People` no-dancers variant exists. The GoalMarker is also still at Level 1's
-position (the church door), because `level_2.tscn` is a text copy. `levels.json` `scene_path`
-stays EMPTY until those are done, and `run_level2_audit` asserts it.
+Output is `plaza_backdrop.png`, 5760x816: the painting in the middle with a column of its own
+`bg_sky` run out either side so the camera can reach the walls without leaving the picture.
+**Sample that column from `bg_sky`, never from the composite** -- an early attempt pulled a
+roof beam and a hedge out of the plaza and stretched them as bars across the level.
+`plaza.png` and `plaza_front.png` are gone: **nothing draws in front of the player any more**,
+because the thing that used to is the half that had to go, and authoring a replacement kerb is
+how the doubling comes back.
+
+⚠ **The dancers are IN the art again.** `DancerGroup2D._draw()` is `pass`; it is the logic
+only. The composite will not give them up (a bbox cut takes the palm trunks behind two of
+them; a colour mask leaves the hats, hands, fans and shoes), so Problem 1's scare is
+mechanically complete and visually invisible until the `MG_People` no-dancers variant exists.
+The GoalMarker is also still at Level 1's position (the church door), because `level_2.tscn`
+is a text copy. `levels.json` `scene_path` stays EMPTY until those are done, and
+`run_level2_audit` asserts it.
 
 ⚠ **A room, a door or a prop that ships with no `_draw` is invisible and every headless
 suite stays green.** `ScrapBird2D` had five birds carrying five of the seven scraps and no

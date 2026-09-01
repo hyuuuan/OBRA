@@ -384,8 +384,10 @@ func _audit_the_bunting_is_where_it_can_be_reached() -> void:
 	# backdrop, so the flight cap had something visible to sit under without anybody building
 	# it -- and authoring the plaza took the painting away and the bunting with it. The design
 	# is explicit that the boundary must be strings the player can see.
-	_check(lines.size() == 3, "the plaza and both alleys have a line strung",
-		"%d found -- every scene with a flight cap needs a visible one" % lines.size())
+	# TWO: the alleys have authored lines, and the plaza's bunting is painted into the plate
+	# it uses as a backdrop. Stringing a third over the picture is the doubling again.
+	_check(lines.size() == 2, "both alleys have a line strung in them",
+		"%d found -- the plaza's is painted into the backdrop" % lines.size())
 	var alley_2 := level.get("alley_2") as Node2D
 	var alley_1 := level.get("alley_1") as Node2D
 	if alley_2 == null or alley_1 == null:
