@@ -486,6 +486,29 @@ func _audit_the_plaza_is_not_empty() -> void:
 	# it, the plaza comes up with a gap, and every headless suite here stays green. That has
 	# happened three times in this level already (five birds with no `_draw`, a whole dancer
 	# class detached by an override, two sprites lost to a negative rect), so it is asserted.
+	# ⚠ THE THREE SHEETS SHARE ONE NAMESPACE. `banner` was declared in both the delivered
+	# tileset and the authored plaza sheet, and the plaza's silently overwrote the other
+	# because `SHEETS` is walked in order -- so the church was drawing the right banner by load
+	# order rather than by name. Nothing could see it: not a warning, not a frame.
+	var seen: Dictionary = {}
+	var clashes: Array[String] = []
+	for entry: Variant in PiyestaTiles.SHEETS:
+		var sheet: Dictionary = entry
+		var handle := FileAccess.open(String(sheet["manifest"]), FileAccess.READ)
+		if handle == null:
+			continue
+		var parsed: Variant = JSON.parse_string(handle.get_as_text())
+		if typeof(parsed) != TYPE_DICTIONARY:
+			continue
+		for name: Variant in (parsed as Dictionary).get("tiles", {}).keys():
+			var key := String(name)
+			if seen.has(key):
+				clashes.append("%s (%s / %s)" % [key, seen[key], sheet["manifest"]])
+			seen[key] = sheet["manifest"]
+	_check(clashes.is_empty(), "the three tile sheets share no names",
+		"%d tiles in one namespace" % seen.size() if clashes.is_empty()
+			else "collides: %s" % ", ".join(clashes))
+
 	var missing: Array[String] = []
 	for cut: String in DancerGroup2D.CUTS:
 		if not PiyestaTiles.has_tile(cut) and not missing.has(cut):
