@@ -434,13 +434,13 @@
       "concept": "/c/en/tree",
       "provenance": "conceptnet_curated"
     },
-    "mushroom": {
-      "ability": "eat",
+    "bread": {
+      "ability": "feed",
       "ability_relation": "UsedFor",
-      "ability_assertion": "A mushroom is used for eating.",
+      "ability_assertion": "Bread is used for feeding the birds.",
       "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/mushroom/,/c/en/eat/]",
-      "concept": "/c/en/mushroom",
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/bread/,/c/en/feed/]",
+      "concept": "/c/en/bread",
       "provenance": "conceptnet_curated"
     },
     "wheel": {

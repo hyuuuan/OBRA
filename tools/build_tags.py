@@ -56,7 +56,7 @@ LEVEL_1_TAGS: dict[str, list[str]] = {
     "span":    ["bridge", "ladder", "square", "triangle"],
     "roll":    ["circle", "wheel"],
     "climb":   ["spider", "bat", "monkey", "crab", "ladder", "stairs", "tree", "snake"],
-    "leap":    ["frog", "horse", "penguin", "mushroom"],
+    "leap":    ["frog", "horse", "penguin"],
     "cut":     ["axe", "sword", "scissors", "elephant"],
     "forage":  ["rake", "pig"],
     "carry":   ["ant", "horse", "elephant", "octopus", "bucket", "monkey"],
@@ -72,13 +72,35 @@ LEVEL_1_TAGS: dict[str, list[str]] = {
     "burrow":  ["ant", "bee", "snail", "spider", "scorpion", "crab"],
 }
 
+# LEVEL 2 (Pista). Three memberships, and each exists to keep a route off a single
+# class -- the refined design named `bread` alone for feeding, `boomerang` alone for
+# hitting, and an explicit four-class list for scaring. A tag is what that list wants
+# to be: closed where the design needs it closed, and still never named by an obstacle.
+#
+# `strike` was declared for Level 3 and is populated here instead. Reusing it beats
+# inventing `throw` alongside it -- the gloss already says what the obstacle needs
+# ("able to hit hard in one place"), and two tags for one idea is how a vocabulary rots.
+# Level 3 keeps `swim`.
+LEVEL_2_TAGS: dict[str, list[str]] = {
+    "feed":    ["bread", "bucket", "tree"],
+    "startle": ["snake", "monkey", "shark", "frog"],
+    "strike":  ["boomerang", "axe", "sword", "anvil", "cannon"],
+}
+
 # Held for later levels (spec 3.1). Declared, deliberately empty -- see the note above.
-HELD_TAGS: list[str] = ["fly", "swim", "crush", "strike", "light", "shield"]
+#
+# `fly` LEFT THIS LIST'S LEVEL-2 SLOT WITHOUT BEING POPULATED. The refined Level 2
+# design does not ask the player to fly; it stops them -- flight is capped at the
+# bandarita line and the cap lifts only when the line comes down. Populating a tag no
+# obstacle asks for buys nothing, so fly stays empty and its unlock moves to 4. That
+# number is a placeholder until Levels 3-5 are designed.
+HELD_TAGS: list[str] = ["fly", "swim", "crush", "light", "shield"]
 
 DISPLAY = {
     "span": "Span", "roll": "Roll", "climb": "Climb", "leap": "Leap", "cut": "Cut",
     "forage": "Forage", "carry": "Carry", "weather": "Weather", "unlock": "Unlock",
     "burrow": "Burrow",
+    "feed": "Feed", "startle": "Startle",
     "fly": "Fly", "swim": "Swim", "crush": "Crush", "strike": "Strike",
     "light": "Light", "shield": "Shield",
 }
@@ -108,6 +130,8 @@ GLOSS = {
     "weather": "able to move air -- wind enough to scatter what is loose",
     "unlock": "shaped to the ward inside the lock",
     "burrow": "small enough to get in where there is no door",
+    "feed": "a reason for something wary to come down within reach",
+    "startle": "alarming enough that a crowd scatters rather than stays",
     "fly": "able to stay up without holding on to anything",
     "swim": "able to move through deep water",
     "crush": "heavy enough to break what is under it",
@@ -118,8 +142,8 @@ GLOSS = {
 
 # Which level first unlocks each tag. Level 1 unlocks 9 of 15 because a tutorial has to
 # show the breadth of the system; later levels add classes under tags already known.
-UNLOCK_LEVEL = {t: 1 for t in LEVEL_1_TAGS} | {
-    "fly": 2, "swim": 3, "strike": 3, "crush": 4, "light": 4, "shield": 5,
+UNLOCK_LEVEL = {t: 1 for t in LEVEL_1_TAGS} | {t: 2 for t in LEVEL_2_TAGS} | {
+    "fly": 4, "swim": 3, "crush": 4, "light": 4, "shield": 5,
 }
 
 # The floor from the spec: an obstacle must never resolve to a single drawing, or a
@@ -138,7 +162,8 @@ def build() -> dict:
     errors: list[str] = []
     tags: dict[str, dict] = {}
 
-    for tag, members in list(LEVEL_1_TAGS.items()) + [(t, []) for t in HELD_TAGS]:
+    for tag, members in (list(LEVEL_1_TAGS.items()) + list(LEVEL_2_TAGS.items())
+                         + [(t, []) for t in HELD_TAGS]):
         classes: dict[str, dict] = {}
         for class_id in members:
             if class_id not in roster:
@@ -207,12 +232,14 @@ def build() -> dict:
             "classes": untagged,
             "note": (
                 "In the roster and drawable, but carrying no tag yet, so no obstacle can "
-                "ask for them. Most of these are waiting on the six tags declared here "
-                "with no members (fly, swim, crush, strike, light, shield), which later "
-                "levels populate -- a bird or a shark is unhintable today and will not be "
-                "once Fly and Swim exist. Build spec 12.2 names clock and snail as the "
-                "residue that no planned tag covers; that claim is about the END state, "
-                "so re-read this list once the held tags are filled in."
+                "ask for them. Most are waiting on the tags listed in "
+                "held_tags_still_empty, which later levels populate -- a shark is "
+                "unhintable today and will not be once Swim exists. NOTE that Fly is NOT "
+                "one of those: Level 2 restricts flight rather than granting it, so bird, "
+                "parachute, umbrella and hot_air_balloon stay unhintable until a level "
+                "asks to fly. Build spec 12.2 names clock and snail as the residue that "
+                "no planned tag covers; that claim is about the END state, so re-read "
+                "this list once the held tags are filled in."
             ),
             "held_tags_still_empty": sorted(
                 t for t, v in tags.items() if v["declared_only"]),

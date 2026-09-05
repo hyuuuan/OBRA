@@ -1,0 +1,81 @@
+{
+  "$comment": "OBRA Level 2 dialogue. RULE: no line may name a drawable class -- checked word-boundary against all 50 ids AND display names. This level's vocabulary is unusually dangerous: the plaza is a SQUARE, the palms are TREES, the lit house has a DOOR, the offering is BREAD, the sky has a SUN and CLOUDS, and the birds are BIRDS. Every one of those is a class. They are phrased around: 'the plaza', 'the palms', 'the light in the window', 'something to eat', 'the light', 'the flock'. Tags appear in exactly one surface form, marked with **.",
+  "level_id": "level_2",
+  "design_level_id": "L2_PISTA",
+  "speaker_default": "lolo",
+  "language": "en",
+  "lines": [
+    { "id": "L2_ST_001", "at": "L2_START.enter", "text": "Ay. She painted this one from the steps of the church, apo. Same hour, same heat. You can smell it." },
+    { "id": "L2_ST_002", "at": "L2_START.enter", "text": "The whole town is out. Do not let that fool you — the painting is in pieces, and the pieces did not walk off by themselves." },
+
+    { "id": "L2_ST_010", "at": "L2_START.teach", "kind": "hint", "text": "Two things before you start drawing. One: whatever you become, keep it under the strings. They are strung across the whole plaza and they will not move for you." },
+    { "id": "L2_ST_011", "at": "L2_START.teach", "kind": "hint", "text": "Two: nothing small. There are a hundred feet on this ground today and a float coming through later. They will not be looking down." },
+    { "id": "L2_ST_012", "at": "L2_START.ward.fail1", "kind": "hint", "text": "Hoy! I told you. Under the strings." },
+    { "id": "L2_ST_013", "at": "L2_START.ward.fail2", "kind": "hint", "text": "Naku. Come here. You are going to get yourself stepped on." },
+    { "id": "L2_ST_014", "at": "L2_START.ward.refused", "kind": "hint", "text": "Not that one, apo. Too small for today. Pick something the crowd will see." },
+
+    { "id": "L2_N1_001", "at": "L2_N1.enter", "text": "The church first. She never came to this one empty-handed — there was always a light to leave burning inside." },
+    { "id": "L2_N1_002", "at": "L2_N1.enter", "text": "We have nothing to leave. So we get one. Look around, apo, the plaza is full of people who have what we need." },
+    { "id": "L2_N1_003", "at": "L2_N1.teach", "kind": "hint", "text": "Three ways, and one of them is not drawing at all. Ask the dancers. They will want something back — they always do." },
+    { "id": "L2_N1_004", "at": "L2_N1.teach", "kind": "hint", "text": "Or go round the houses. One of them has a light in the window, and something that can **unlock** will get you in." },
+    { "id": "L2_N1_005", "at": "L2_N1.teach", "kind": "hint", "text": "Or clear them out of the way. Something that can **startle** — big enough that a crowd does not stay to argue." },
+    { "id": "L2_N1_006", "at": "L2_N1.choice", "text": "So. How are we getting it?" },
+
+    { "id": "L2_N1_010", "at": "L2_N1.artist.commit", "speaker": "apo", "choice_label": "I will dance for them.", "text": "I will dance for them." },
+    { "id": "L2_N1_011", "at": "L2_N1.artist.solved", "text": "Ha! Your lola danced that badly the first time too. They still gave her the flower." },
+    { "id": "L2_N1_013", "at": "L2_N1.artist.retry", "text": "Naku. You have your lola's feet. Go on — they are still waiting." },
+    { "id": "L2_N1_012", "at": "L2_N1.artist.failed", "text": "Never mind, apo. You have what we came for. Keep your feet — that is the important part." },
+
+    { "id": "L2_N1_015", "at": "L2_N1.pragmatist.commit", "speaker": "apo", "choice_label": "Someone is home. I will let myself in.", "text": "Someone is home. I will let myself in." },
+    { "id": "L2_N1_016", "at": "L2_N1.pragmatist.solved", "text": "We have done this before, you and I. You are faster now.", "condition": "made_a_key_in_level_1" },
+    { "id": "L2_N1_017", "at": "L2_N1.pragmatist.solved", "text": "Take it and leave something on the sill. We are borrowing, not taking." },
+
+    { "id": "L2_N1_020", "at": "L2_N1.protector.commit", "speaker": "apo", "choice_label": "I will clear the plaza.", "text": "I will clear the plaza." },
+    { "id": "L2_N1_021", "at": "L2_N1.protector.warn", "kind": "hint", "text": "Apo. If you do this they will not come back. Not today, not for us." },
+    { "id": "L2_N1_022", "at": "L2_N1.protector.solved", "text": "..." },
+    { "id": "L2_N1_023", "at": "L2_N1.protector.solved", "text": "It is very quiet now. She painted this plaza full, apo. That is the only thing I wanted you to see." },
+    { "id": "L2_N1_030", "at": "L2_N1.solved", "text": "Good. Inside, then. Wipe your feet." },
+
+    { "id": "L2_SC2_001", "at": "SCENE_2.enter", "text": "Put it on the rack there. Not the middle — she always went to the left side, nearer the wall." },
+    { "id": "L2_SC2_002", "at": "SCENE_2.pray", "text": "..." },
+    { "id": "L2_SC2_003", "at": "SCENE_2.pray", "text": "Do not look at me like that. A man can still have somewhere to put it." },
+    { "id": "L2_SC2_010", "at": "SCENE_2.priest", "speaker": "priest", "text": "You are looking for her. She was here — this morning, in that pew, for a long while." },
+    { "id": "L2_SC2_011", "at": "SCENE_2.priest", "speaker": "priest", "text": "When she left she went behind the plaza. There are two narrow ways back there, one after the other. It is dark in them even at this hour." },
+    { "id": "L2_SC2_012", "at": "SCENE_2.exit", "text": "Two narrow ways. Of course. Come on, apo — before the light goes." },
+
+    { "id": "L2_N2_001", "at": "L2_N2.enter", "text": "There. Look up. Five of them, and every one has a piece of her in its beak." },
+    { "id": "L2_N2_002", "at": "L2_N2.enter", "text": "They are not stealing, apo. They are nesting. It is the same thing to us and not to them." },
+    { "id": "L2_N2_003", "at": "L2_N2.teach", "kind": "hint", "text": "Three ways again. Bring them down gently — something that can **feed**. She did it every morning of her life." },
+    { "id": "L2_N2_004", "at": "L2_N2.teach", "kind": "hint", "text": "Or put them up — something that can **startle**. They scatter, and they take her with them into the next one along." },
+    { "id": "L2_N2_005", "at": "L2_N2.teach", "kind": "hint", "text": "Or knock them down. Something that can **strike** from where you stand. You will not get all five." },
+    { "id": "L2_N2_006", "at": "L2_N2.choice", "text": "Quickly, apo. They are going higher." },
+
+    { "id": "L2_N2_010", "at": "L2_N2.artist.commit", "speaker": "apo", "choice_label": "I will call them down.", "text": "I will call them down." },
+    { "id": "L2_N2_011", "at": "L2_N2.artist.solved", "text": "Every morning, apo. Rain or no rain. She said they were the only ones who ever waited for her." },
+    { "id": "L2_N2_015", "at": "L2_N2.pragmatist.commit", "speaker": "apo", "choice_label": "Up you go, then.", "text": "Up you go, then." },
+    { "id": "L2_N2_016", "at": "L2_N2.pragmatist.solved", "text": "Maybe they flew nearby. Come on — nothing is lost in a place this small." },
+    { "id": "L2_N2_020", "at": "L2_N2.protector.commit", "speaker": "apo", "choice_label": "I will bring them down.", "text": "I will bring them down." },
+    { "id": "L2_N2_021", "at": "L2_N2.protector.solved", "text": "The rest got away. They will not have gone far — they never do." },
+
+    { "id": "L2_N3_001", "at": "L2_N3.enter", "text": "Ah — here they are. Tangled in the strings, the whole line of them, flapping like the wash." },
+    { "id": "L2_N3_002", "at": "L2_N3.enter", "text": "And two more pieces up there that were never in anybody's beak. The wind put those there." },
+    { "id": "L2_N3_003", "at": "L2_N3.teach", "kind": "hint", "text": "Two ways only, apo, and I will not pretend otherwise. Go up to them — something that can **climb**, something you can set against the wall and stand on." },
+    { "id": "L2_N3_004", "at": "L2_N3.teach", "kind": "hint", "text": "Do not try to go over. The strings are what you are reaching for, not something to get past." },
+    { "id": "L2_N3_005", "at": "L2_N3.teach", "kind": "hint", "text": "Or bring the whole line down. Something that can **cut**. Faster. And the town wakes up tomorrow to bare poles." },
+    { "id": "L2_N3_006", "at": "L2_N3.choice", "text": "Your hands, apo. Not mine." },
+
+    { "id": "L2_N3_010", "at": "L2_N3.artist.commit", "speaker": "apo", "choice_label": "I will go up to them.", "text": "I will go up to them." },
+    { "id": "L2_N3_011", "at": "L2_N3.artist.solved", "text": "Slow, and everything still standing. She would have done it exactly that way and complained the whole time." },
+    { "id": "L2_N3_020", "at": "L2_N3.protector.commit", "speaker": "apo", "choice_label": "I will bring the line down.", "text": "I will bring the line down." },
+    { "id": "L2_N3_021", "at": "L2_N3.protector.solved", "text": "They put those up at first light, apo. All of them, together. It took the morning." },
+    { "id": "L2_N3_022", "at": "L2_N3.protector.solved", "text": "Well. The way up is open now, at least. Nothing left to be in anyone's way." },
+
+    { "id": "L2_SC3_001", "at": "EXIT_MARKER.enter", "text": "Lay them out. Corners first — she taught me that and I never once did it." },
+    { "id": "L2_SC3_002", "at": "EXIT_MARKER.assembled", "text": "There she is. Piyesta. Look how much of it is people, apo — she could not paint a plaza empty if she tried." },
+    { "id": "L2_SC3_003", "at": "EXIT_MARKER.assembled", "text": "The fold runs right through it. That was us. That was a thing we did.", "condition": "canvas_2_creased" },
+    { "id": "L2_SC3_004", "at": "EXIT_MARKER", "text": "The next one is water, apo. She painted that one from a boat and she could not swim either. Come." },
+
+    { "id": "L2_MISC_001", "at": "on_first_decline", "once": true, "text": "I cannot read it, apo. That is my eyes, not your hand — draw it bigger and slower." },
+    { "id": "L2_MISC_002", "at": "after_first_decline_solved", "once": true, "text": "There. Now I see it." }
+  ]
+}

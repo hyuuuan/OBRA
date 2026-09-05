@@ -28,7 +28,7 @@ func _run() -> void:
 	_ground(Vector2(1200.0, 700.0), Vector2(4000.0, 120.0))
 
 	await _check_ladder()
-	await _check_mushroom()
+	await _check_bread()
 	await _check_door()
 	await _check_umbrella()
 	await _check_axe_on_wood()
@@ -154,22 +154,29 @@ func _check_ladder() -> void:
 	await process_frame
 
 
-func _check_mushroom() -> void:
+## Bread took mushroom's slot in the roster, and this check is the inverse of the one
+## it replaced: mushroom was a bounce pad, and the danger in reusing a slot is that the
+## new class quietly inherits the old class's behaviour. Bread is inert -- the birds in
+## Level 2 come to IT -- so landing on it must do nothing but stop the fall.
+func _check_bread() -> void:
 	var hero := _wanderer(Vector2(800.0, 480.0))
-	var shroom := _utility("mushroom", Vector2(800.0, 640.0))
-	var lowest := hero.global_position.y
-	var highest := hero.global_position.y
+	var loaf := _utility("bread", Vector2(800.0, 640.0))
+	var started_at := hero.global_position.y
+	# y grows DOWNWARD, so the peak of a bounce is the SMALLEST y seen. Measuring the
+	# span between the highest and lowest points instead would read the drop onto the
+	# loaf as a bounce of the same size, and this check would fail on a prop doing
+	# nothing at all -- which is exactly what it is here to allow.
+	var peak := started_at
 	for i in range(150):
 		await physics_frame
-		lowest = maxf(lowest, hero.global_position.y)
-		highest = minf(highest, hero.global_position.y)
-	var rebound := lowest - highest
-	if rebound > 20.0 and highest > -400.0:
-		_pass("mushroom", "bounced the player %.0fpx back up (peak y=%.0f)" % [rebound, highest])
+		peak = minf(peak, hero.global_position.y)
+	var rose := started_at - peak
+	if rose <= 8.0:
+		_pass("bread", "inert -- the player fell onto it and stayed (rose %.0fpx)" % rose)
 	else:
-		_fail("mushroom", "rebound %.0fpx, peak y=%.0f%s" % [rebound, highest, " -- launched out of the level" if highest <= -400.0 else " -- no bounce"])
+		_fail("bread", "rose %.0fpx above the drop point%s" % [rose, " -- launched out of the level" if peak <= -400.0 else " -- it bounced; the mushroom effect was inherited"])
 	hero.queue_free()
-	shroom.queue_free()
+	loaf.queue_free()
 	await process_frame
 
 

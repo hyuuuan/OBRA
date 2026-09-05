@@ -1,0 +1,914 @@
+extends "res://scripts/level_base.gd"
+## LEVEL 2 -- PIYESTA. The plaza, and the rules it arms over the whole of itself.
+##
+## Extended BY PATH rather than by `class_name LevelBase`, for the reason game_level.gd is:
+## a `--script` run does not register class names and a dozen runners are exactly that.
+##
+## What this level adds to the machine that Payyo did not need:
+##   * TWO RESTRICTIONS, armed for the level's whole length. See level_restrictions.gd for
+##     why one refuses and the other punishes.
+##   * A LEDGER, because the seven pieces of the painting are recovered across two screens
+##     and the count that survives the first is a NUMBER, not a flag.
+##   * A CEILING THAT IS A PLACE. It is set per scene from the bandaritas' own Y, so the
+##     boundary is the art rather than a HUD element, and it lifts when the line is cut.
+
+## WHERE ALLEY 2'S BUNTING HANGS, above that alley's floor, and it is a measured number.
+##
+## The window is narrow and both walls of it are real. A player standing on a drawn primitive
+## reaches 80 + 96 + 94.3 = 270 at the top of a jump (R4 and R1), so a line at or under that
+## is not a Climb gate at all -- it is a hop. Standing on drawn stairs, which `climb`
+## resolves to and which the design names outright, reaches 176 + 96 + 94.3 = 366; a ladder
+## climbed reaches 340. So the line has to sit above 270 and below 340, and 320 is the
+## middle of that with about fifty pixels of margin each way.
+##
+## ⚠ MOVING THIS BREAKS THE LEVEL IN ONE DIRECTION OR THE OTHER, silently. Lower and Problem
+## 3 can be jumped; higher and half of `climb`'s own answers cannot reach it, which is scar
+## 3 of this level repeating. `run_level2_scene_probe` measures both walls.
+const ALLEY_2_LINE := 320.0
+## Alley 1's line is a CEILING AND NOTHING ELSE -- nothing is strung on it. It exists because
+## `level_02.json` records the gap in so many words: that alley needs a flight cap and had no
+## diegetic line to hang it on, "or the cap is an invisible wall exactly where the design says
+## it must not be". A town dressed for a fiesta has bunting in its side streets too.
+##
+## 380 rather than 460, which is where it was first strung: at the alley's zoom the camera
+## sees about 340 units above the player, and a boundary drawn off the top of the frame is an
+## invisible wall wearing a picture of a rope. Checked by looking at a frame.
+const ALLEY_1_LINE := 380.0
+## How high the flock rides above the alley floor. Inside the 260px the level data gives the
+## Protector route as its reach, so a player standing under a bird can hit it.
+const BIRDS_RIDE := 200.0
+
+const RestrictionsClass = preload("res://scripts/level_restrictions.gd")
+const LedgerClass = preload("res://scripts/scrap_ledger.gd")
+const AssemblyClass = preload("res://scripts/scrap_assembly.gd")
+const AssemblyOverlayClass = preload("res://scripts/assembly_overlay.gd")
+const DanceClass = preload("res://scripts/dance_minigame.gd")
+const DanceOverlayClass = preload("res://scripts/dance_overlay.gd")
+
+## The canvas Level 1's Protector route creases. Read from the profile, drawn on the
+## assembled picture, and changing nothing else -- see LEVEL_1.md, where the fact that this
+## now costs nothing mechanical is recorded as a debt rather than as a design.
+const CREASED_CANVAS := "canvas_2_pista"
+## The dance is scored on timing, not on shape, so it never reaches the recogniser. A var
+## rather than a const because GDScript will not fold a PackedFloat32Array into one -- and
+## the track wants to be authored against the music anyway.
+var dance_track := PackedFloat32Array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+
+## THE DOORS THAT GO SOMEWHERE, and the two that do not. The design asks for the lit house
+## to sit "past two or three dark doors so the search reads as a search", so the dark pair
+## are content rather than decoration -- they are what makes finding the lit one a find.
+const DOOR_CHURCH := "church"
+const DOOR_LIT_HOUSE := "lit_house"
+const DOOR_DARK_A := "dark_a"
+const DOOR_DARK_B := "dark_b"
+
+var restrictions: LevelRestrictions
+var ledger: ScrapLedger
+var assembly: ScrapAssembly
+## Scene 3's table. The model is the rule; this is where the pieces are put back.
+var assembly_screen: AssemblyOverlay
+var dance: DanceMinigame
+## The screen the dance is played on. The model scores; this is what the player touches.
+var dance_screen: DanceOverlay
+
+## Where the bandaritas hang in the plaza, read off the scene rather than typed twice.
+var _bunting_y := -INF
+
+var church: PiyestaRoom2D
+var house: PiyestaRoom2D
+var alley_1: PiyestaRoom2D
+var alley_2: PiyestaRoom2D
+var _marks: Node2D
+## door_id -> the door, and door_id -> the inside it opens onto. Two dictionaries rather
+## than one because the dark pair have a door and no room, which is the point of them.
+var _doors: Dictionary = {}
+var _door_rooms: Dictionary = {}
+## Where the player was standing when they went in, by room name. REMEMBERED ON THE WAY IN
+## rather than worked out on the way out, which is the shape Level 1 arrived at after the
+## straw room put people back inside the mouth they had just walked out of.
+var _step_back: Dictionary = {}
+var _at_door: PiyestaDoor2D = null
+## The scare warning currently on the hint bar, so walking away can take that and only that.
+var _warning := ""
+## Scene 2's furniture, built inside the church room.
+var chancel: ChurchInterior2D
+var _at_rack := false
+## The bunting in each scene that has any, by room name. The ceiling is read off these.
+var _lines: Dictionary = {}
+## Which room the ceiling is currently set for, so it is changed when the answer changes
+## rather than every frame. Same shape as `_refresh_room_framing`.
+var _ceiling_for := "?"
+var _birds: Array[ScrapBird2D] = []
+var dancers: DancerGroup2D
+## WHICH pieces went on ahead, not how many.
+##
+## `ScrapLedger.defer` takes a COUNT and sets it, because the design's BIRDS_IN_ALLEY2 is an
+## integer -- and that is right for the ledger, which only has to know how many birds Alley 2
+## spawns. But `recover` takes an ID, so recovering the deferred ones needs to know which
+## five, and the level is the only thing that does. Guessing by index recovered `alley1_0`
+## for a bird that was actually `alley1_3`, hit nothing (recover is idempotent), and finished
+## the run at four of seven with no error anywhere.
+var _deferred_ids: Array[String] = []
+## Whether the kandila is in hand. LEVEL RUN STATE, not the profile: `has_object` is
+## permanent by design, so recording it there would open every later run of Piyesta with the
+## candle already found and the whole of Problem 1 already answered. Level 1 made exactly
+## this mistake with the canvas in the bale.
+var _has_kandila := false
+
+
+# --- What this level answers ---------------------------------------------------------
+
+func level_config_path() -> String:
+	return "res://config/level_02.json"
+
+
+func dialogue_path() -> String:
+	return "res://config/dialogue_l2.json"
+
+
+func _dialogue_node_obstacle_id() -> String:
+	return "L2_N1"
+
+
+func _resolve_level_nodes() -> void:
+	dialogue_node = get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/DialogueNode") as DialogueNode2D
+	_marks = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Marks") as Node2D
+	var line := _mark("BuntingLine")
+	if line != null:
+		_bunting_y = line.global_position.y
+	var rooms := ^"EnvironmentBaseplate/GameplayPlane/Rooms"
+	church = get_node_or_null(rooms.get_concatenated_names() + "/ChurchInterior") as PiyestaRoom2D
+	house = get_node_or_null(rooms.get_concatenated_names() + "/HouseInterior") as PiyestaRoom2D
+	alley_1 = get_node_or_null(rooms.get_concatenated_names() + "/Alley1") as PiyestaRoom2D
+	alley_2 = get_node_or_null(rooms.get_concatenated_names() + "/Alley2") as PiyestaRoom2D
+
+
+func _mark(mark_name: String) -> Node2D:
+	return _marks.get_node_or_null(NodePath(mark_name)) as Node2D if _marks != null else null
+
+
+func _build_level_furniture() -> void:
+	restrictions = RestrictionsClass.new()
+	restrictions.name = "LevelRestrictions"
+	add_child(restrictions)
+	var problems: Array = restrictions.load_from(
+		director.level_data(), _roster_ids())
+	for problem: Variant in problems:
+		# LOUD AT STARTUP, never quiet at runtime: a rule that bans nothing is worse than
+		# no rule, because the level goes on claiming to have one.
+		push_error("Level2: %s" % problem)
+	restrictions.submission_refused.connect(_on_submission_refused)
+	restrictions.ceiling_crossed.connect(_on_ceiling_crossed)
+	# The plaza's own line. Each later scene sets its own; a scene with no bandaritas
+	# leaves it at -INF and the rule stands down there.
+	restrictions.set_ceiling(_bunting_y + 20.0 if _bunting_y != -INF else -INF)
+
+	ledger = LedgerClass.new()
+	ledger.name = "ScrapLedger"
+	add_child(ledger)
+	ledger.reset()
+
+	assembly = AssemblyClass.new()
+	assembly.name = "ScrapAssembly"
+	add_child(assembly)
+	assembly.set_creased(PlayerProfile.is_canvas_damaged(CREASED_CANVAS))
+	assembly_screen = AssemblyOverlayClass.new()
+	assembly_screen.name = "AssemblyOverlay"
+	add_child(assembly_screen)
+	assembly_screen.bind(assembly)
+	assembly_screen.assembly_done.connect(_on_assembly_done)
+
+	dance = DanceClass.new()
+	dance.name = "DanceMinigame"
+	add_child(dance)
+	dance.set_track(dance_track)
+	dance.finished.connect(_on_dance_finished)
+	_build_the_dance_screen()
+
+	_build_the_doors()
+	_wire_the_rooms()
+	_put_the_kandila_in_the_house()
+	_furnish_the_church()
+	_bring_out_the_dancers()
+	_string_the_bunting()
+	_release_the_flock()
+
+
+func _roster_ids() -> PackedStringArray:
+	var out := PackedStringArray()
+	if registry == null:
+		return out
+	for id: Variant in registry.get_entity_ids():
+		out.append(String(id))
+	return out
+
+
+# --- The plaza's doors, and the insides behind two of them ---------------------------
+
+## FOUR DOORS ON THE PLAZA. Two open onto rooms and two open onto nothing, and they are
+## drawn identically apart from the light under the lit one -- which is the design's own
+## instruction and the reason Path C reads as a search rather than as a walk to the only
+## interactive thing on screen.
+##
+## Built here rather than authored into the scene because they stand ON the marks, and the
+## marks are what the scene probe measures against the plaza floor. Two sources for one
+## position is one of them going stale.
+func _build_the_doors() -> void:
+	# ⚠ `tone` IS SAMPLED OFF THE PAINTING, at each door's own x. The plaza backdrop is placed
+	# so that world x is plate x, so these are medians of the plate under each mark, taken over
+	# the door's own height. They are not four shades of one stone: the dark pair stand in the
+	# shade under the kiosko stair and the other two are in full sun, and a door drawn in the
+	# same limestone as its neighbour two hundred units away reads as pasted on. See
+	# `PiyestaDoor2D.wall_tone`.
+	var plan: Array[Dictionary] = [
+		{"id": DOOR_DARK_A, "mark": "DarkHouseA", "lit": false, "room": null,
+			"tone": Color(0.310, 0.231, 0.039), # 4F3B0A, deep shade under the kiosko stair
+			"shut": "Shuttered. Nobody is home -- they are all out at the fiesta."},
+		{"id": DOOR_DARK_B, "mark": "DarkHouseB", "lit": false, "room": null,
+			"tone": Color(0.333, 0.251, 0.161), # 554029
+			"shut": "Dark inside. Not this one."},
+		{"id": DOOR_LIT_HOUSE, "mark": "LitHouse", "lit": true, "room": house,
+			"tone": Color(0.749, 0.557, 0.380), # BF8E61, the sunlit house front
+			"shut": "There is a light on in there, and the door does not give.",
+			"open": "The door is open."},
+		{"id": DOOR_CHURCH, "mark": "ChurchDoor", "lit": false, "room": church,
+			"tone": Color(0.624, 0.427, 0.188), # 9F6D30
+			"shut": "The church. Lolo will not go in without a candle.",
+			"open": "The church."},
+	]
+	for entry in plan:
+		var mark := _mark(String(entry["mark"]))
+		if mark == null:
+			push_error("Level2: no mark for door %s" % entry["id"])
+			continue
+		var door := PiyestaDoor2D.new()
+		door.name = "Door_%s" % entry["id"]
+		door.door_id = String(entry["id"])
+		door.lit = bool(entry["lit"])
+		door.wall_tone = Color(entry["tone"])
+		door.shut_note = String(entry["shut"])
+		door.open_note = "%s  —  press %s" % [
+			entry.get("open", ""), ControlsKeys.keys_for("interact")]
+		door.global_position = mark.global_position
+		mark.add_child(door)
+		door.global_position = mark.global_position
+		door.at_door.connect(_on_at_door.bind(door))
+		_doors[door.door_id] = door
+		if entry["room"] != null:
+			_door_rooms[door.door_id] = entry["room"]
+
+
+## Both signals off every room, in one place. A room that is entered and never wired is a
+## room with no way out, and the failure only shows up once somebody is standing in it.
+func _wire_the_rooms() -> void:
+	for room: PiyestaRoom2D in [church, house, alley_1, alley_2]:
+		if room == null:
+			continue
+		room.exit_reached.connect(_leave_room.bind(room))
+		room.onward_reached.connect(_go_onward.bind(room))
+		room.noticed.connect(_on_room_notice)
+		room.notice_left.connect(_on_room_notice_left)
+
+
+## The candle Path C is for. It is IN THE ROOM rather than granted on the route commit,
+## because committing that route means the key worked and nothing more -- see kandila_2d.gd.
+func _put_the_kandila_in_the_house() -> void:
+	if house == null:
+		return
+	var candle := Kandila2D.new()
+	candle.name = "Kandila"
+	house.add_child(candle)
+	# At the far end, so the room is walked rather than glanced into. The apo lands beside
+	# the door and the table is the other thing in the room.
+	candle.position = Vector2(house.room_length * 0.3, 0.0)
+	candle.taken.connect(_on_kandila_taken)
+
+
+## Scene 2. The nave gets its furniture from the room it is in, so the pews cannot outgrow
+## the church and the rack cannot end up outside it.
+func _furnish_the_church() -> void:
+	if church == null:
+		return
+	chancel = ChurchInterior2D.new()
+	chancel.name = "Chancel"
+	chancel.nave_length = church.room_length
+	chancel.nave_height = church.wall_height
+	church.add_child(chancel)
+	chancel.at_rack.connect(_on_at_rack)
+	chancel.kandila_placed.connect(_on_kandila_placed)
+	chancel.priest_arrived.connect(_on_priest_arrived)
+
+
+## THE SCREEN, AND THE ONE THING THAT OPENS IT.
+##
+## The dance is answered on COMMIT rather than on solve, and that is the whole reason this
+## needed its own wiring. Every other route in the game is solved by a drawing the recogniser
+## accepted, so `_on_route_solved` is where a level acts. This route has no `required_tags`
+## at all -- it declares `answered_by: dance_minigame` -- so nothing was ever going to solve
+## it, and committing it closed the other two and left the player standing there.
+func _build_the_dance_screen() -> void:
+	dance_screen = DanceOverlayClass.new()
+	dance_screen.name = "DanceOverlay"
+	add_child(dance_screen)
+	dance_screen.bind(dance)
+	dance_screen.run_finished.connect(_on_dance_screen_finished)
+	dance_screen.attempt_lost.connect(_on_dance_attempt_lost)
+	if director != null:
+		director.route_committed.connect(_on_route_committed_here)
+
+
+func _on_route_committed_here(obstacle_id: String, route: String) -> void:
+	if obstacle_id != "L2_N1" or route != "artist" or dance_screen == null:
+		return
+	# AFTER the commit line, not over the top of it. "I will dance for them" is spoken by
+	# the base off `route_committed`, and opening a modal in the same frame would put a
+	# rhythm lane over a sentence the player has not read yet.
+	await get_tree().create_timer(1.1, true, false, true).timeout
+	if dance_screen != null and is_instance_valid(dance_screen):
+		dance_screen.present()
+
+
+## THE PERFORMANCE IS OVER, whichever way it went.
+##
+## `solve_with_item` rather than a submission, and the director already has that door: it
+## records no attempt, no tag match and no hint tier, "because neither happened". A dance is
+## not a drawing, and pushing it through `note_submission` would put a class nobody drew into
+## this level's per-class statistics -- which is exactly the reporting rule the thesis is
+## built on. The item is the dance itself.
+func _on_dance_screen_finished(_cleared: bool, _flower: bool) -> void:
+	# The flower and the telemetry were already recorded by `_on_dance_finished`, off the
+	# model's own signal, so nothing about the outcome is decided twice.
+	if director != null and not director.is_solved("L2_N1"):
+		director.solve_with_item("L2_N1", "dance")
+
+
+## Between the two goes. The design asks for Lolo to TEASE rather than instruct -- same
+## register as the restriction dialogue, he is enjoying this -- so the line is authored in
+## dialogue_l2.json and not written on the screen.
+func _on_dance_attempt_lost(_attempts_used: int) -> void:
+	_speak(script_lines.fire("L2_N1.artist.retry"))
+
+
+## The dancers, on their mark. They are the plaza's whole reason for being full, and the one
+## thing in this level the player can take away from it permanently.
+func _bring_out_the_dancers() -> void:
+	var mark := _mark("DancersMark")
+	if mark == null:
+		push_error("Level2: no DancersMark to stand the dancers on")
+		return
+	dancers = DancerGroup2D.new()
+	dancers.name = "Dancers"
+	mark.add_child(dancers)
+	dancers.noticed.connect(_on_dancers_noticed)
+	dancers.notice_left.connect(_on_dancers_notice_left)
+	dancers.scattered.connect(_on_dancers_scattered)
+
+
+## The irreversibility, said while the player can still walk away. The design asks for the
+## signal to arrive BEFORE the commit, and this fires off the dancers' own approach volume
+## rather than off the choice screen -- so it is said about the people it is about, while the
+## player is looking at them.
+func _on_dancers_noticed(_text: String) -> void:
+	var lines := script_lines.fire("L2_N1.protector.warn")
+	# Remember which of them is the HINT, because that is the one that lands on the bar and
+	# the one walking away should take back down. The rest is a story beat and dismisses
+	# itself.
+	_warning = ""
+	for line_value: Variant in lines:
+		var line: Dictionary = line_value
+		if script_lines.kind_of(line) == "hint":
+			_warning = script_lines.display_text(line)
+	_speak(lines)
+
+
+## ⚠ THE GROUP HAS ALWAYS EMITTED THIS AND NOTHING HAS EVER LISTENED. The warning is about
+## standing near them -- "if you do this they will not come back" -- so a player who thought
+## better of it and walked away was still being told the price of a thing they were no longer
+## about to do. Cleared only if the bar is still saying it, because one channel carries
+## several voices and taking down somebody else's message is worse than leaving this one up.
+func _on_dancers_notice_left() -> void:
+	if hint_bar == null or _warning.is_empty():
+		return
+	if hint_bar.current_text() == _warning:
+		hint_bar.clear()
+	_warning = ""
+
+
+## They are gone. Nothing in the level is harder for it -- the cost is entirely that Lolo
+## brought the player here to see this and it is not here any more.
+func _on_dancers_scattered() -> void:
+	script_lines.set_flag("dancers_gone")
+	_speak(script_lines.fire("L2_N1.protector.solved"))
+
+
+## THE BUNTING, IN EVERY SCENE THAT HAS ANY. Each line owns its own Y and the flight rule
+## reads the ceiling off it, which is what makes the boundary the art rather than a number.
+func _string_the_bunting() -> void:
+	for entry: Array in [[alley_1, ALLEY_1_LINE, 0], [alley_2, ALLEY_2_LINE,
+			ScrapLedger.IN_ALLEY_2]]:
+		var room := entry[0] as PiyestaRoom2D
+		if room == null:
+			continue
+		var line := BandaritaLine2D.new()
+		line.name = "Bandaritas"
+		line.span = room.room_length - 120.0
+		line.scraps_held = int(entry[2])
+		line.position = Vector2(0.0, -float(entry[1]))
+		room.add_child(line)
+		line.cut.connect(_on_bandaritas_cut)
+		line.reached.connect(_on_bandaritas_reached)
+		_lines[room.name] = line
+
+
+## ⚠ THE PLAZA'S OWN LINE, AND IT HAS TO EXIST OR THE CEILING IS AN INVISIBLE WALL.
+##
+## The bunting used to be painted into the delivered backdrop, so the flight cap had
+## something visible to sit under without anybody building it. Authoring the plaza took the
+## painting away and took the bunting with it -- and the design is explicit that the boundary
+## must be the strings the player can see, never a HUD element or a number. So the plaza gets
+## a real line, strung the width of it at the height the mark records.
+func _string_the_plaza() -> void:
+	var mark := _mark("BuntingLine")
+	var plaza := get_node_or_null(^"EnvironmentBaseplate/Plaza") as Node2D
+	if mark == null or plaza == null:
+		return
+	var line := BandaritaLine2D.new()
+	line.name = "PlazaBandaritas"
+	line.span = 2900.0
+	line.scraps_held = 0
+	line.global_position = mark.global_position
+	plaza.add_child(line)
+	line.global_position = mark.global_position
+	_lines["plaza"] = line
+
+
+## Five birds, five pieces, individually addressable. The design is explicit that the
+## outcome is per-bird rather than pass or fail, which is only true if there are five things
+## rather than a number.
+func _release_the_flock() -> void:
+	if alley_1 == null:
+		return
+	var run := alley_1.room_length - 260.0
+	for index in range(ScrapLedger.IN_ALLEY_1):
+		var bird := ScrapBird2D.new()
+		bird.name = "Bird%d" % index
+		bird.scrap_id = "alley1_%d" % index
+		bird.position = Vector2(
+			-run * 0.5 + run * (float(index) + 0.5) / float(ScrapLedger.IN_ALLEY_1),
+			-BIRDS_RIDE)
+		alley_1.add_child(bird)
+		bird.scrap_dropped.connect(_on_scrap_dropped)
+		bird.flew_off.connect(_on_bird_flew_off)
+		_birds.append(bird)
+
+
+func _on_scrap_dropped(scrap_id: String, _at: Vector2) -> void:
+	if ledger != null:
+		ledger.recover(scrap_id)
+
+
+## Deferred, never lost. Alley 2's line spawns exactly this many tangled birds, which is the
+## promise the whole scrap economy rests on.
+func _on_bird_flew_off(scrap_id: String) -> void:
+	if scrap_id.is_empty() or _deferred_ids.has(scrap_id):
+		return
+	_deferred_ids.append(scrap_id)
+	if ledger != null:
+		# SET, not incremented: `defer` assigns, and calling it with 1 five times leaves the
+		# count at one. That is what put the pragmatist route at three of seven.
+		ledger.defer(_deferred_ids.size())
+	_tangle_the_deferred()
+
+
+func _tangle_the_deferred() -> void:
+	var line: BandaritaLine2D = _lines.get(alley_2.name) if alley_2 != null else null
+	if line != null and ledger != null:
+		line.birds_tangled = ledger.deferred()
+		line.queue_redraw()
+
+
+## Problem 3, the Artist route: everything strung up here comes down into the player's hands
+## and the town keeps its bunting.
+func _on_bandaritas_reached(taken: int, _birds_freed: int) -> void:
+	_collect_from_the_line(taken)
+
+
+## And the Protector route: the same scraps, and the strings with them.
+func _on_bandaritas_cut(scraps: int, birds_freed: int) -> void:
+	_collect_from_the_line(scraps + birds_freed)
+
+
+## NEITHER ROUTE CAN LOSE A SCRAP -- the design says so outright -- so both arrive here.
+## Whatever was on the line is recovered, including every bird that was deferred out of
+## Alley 1, which is where the "nothing is ever lost, only deferred" promise is finally paid.
+func _collect_from_the_line(taken: int) -> void:
+	if ledger == null or taken <= 0:
+		return
+	if not _deferred_ids.is_empty():
+		ledger.claim_deferred()
+		for scrap_id in _deferred_ids:
+			ledger.recover(scrap_id)
+		_deferred_ids.clear()
+	for index in range(ScrapLedger.IN_ALLEY_2):
+		ledger.recover("alley2_%d" % index)
+
+
+func _on_at_rack(standing: bool) -> void:
+	_at_rack = standing
+	if hint_bar == null:
+		return
+	if not standing or chancel == null or chancel.kandila_on_rack:
+		hint_bar.clear()
+		return
+	if not _has_kandila:
+		hint_bar.show_hint("The rack. You have nothing to put on it.", Lolo.SPEAKER)
+		return
+	hint_bar.show_hint("Put the kandila on the rack  —  press %s"
+		% ControlsKeys.keys_for("interact"), Lolo.SPEAKER)
+
+
+## THE ONE ACTION IN SCENE 2, and the pace drops from here. The design is explicit that
+## nothing in this room is a puzzle: the candle goes on the rack, Lolo prays, the priest
+## says where Lola went, and the far door opens.
+func _on_kandila_placed() -> void:
+	_has_kandila = false
+	script_lines.set_flag("kandila_placed")
+	if hint_bar != null:
+		hint_bar.clear()
+	_speak(script_lines.fire("SCENE_2.pray"))
+	# HE STOPS FOLLOWING. There is no praying pose in the delivered sheet -- the design names
+	# it as the thing this scene is built on and lists it as missing -- so he holds still at
+	# the rack and the dialogue carries the beat. `cheer` is arms-up celebration and would
+	# read as encouragement, which is worse than nothing here.
+	if lolo != null and is_instance_valid(lolo) and chancel != null:
+		lolo.global_position = chancel.rack_point() + Vector2(-70.0, -20.0)
+	await get_tree().create_timer(2.4, true, false, true).timeout
+	if chancel != null and is_instance_valid(chancel):
+		chancel.send_the_priest()
+
+
+## He has walked over. He names the alleys -- the design calls his line "the only signpost
+## for the second half of the level" -- and that is what opens the way out.
+func _on_priest_arrived() -> void:
+	_speak(script_lines.fire("SCENE_2.priest"))
+	_speak(script_lines.fire("SCENE_2.exit"))
+	# CP2 is declared at SCENE_2.exit and this is that moment. Written here rather than by a
+	# volume at the far door, because the scene is finished by being watched rather than by
+	# being walked through -- a player who heard the priest and then died in the first alley
+	# must not have to sit through him again.
+	_write_checkpoint("CP2")
+	if lolo != null and is_instance_valid(lolo):
+		lolo.follow(player)
+	if church != null:
+		church.open_onward()
+
+
+func _on_at_door(standing: bool, door: PiyestaDoor2D) -> void:
+	_at_door = door if standing else null
+	if hint_bar == null:
+		return
+	if not standing:
+		# Only if the bar is still saying what this door put there -- one channel carries
+		# several voices, and clearing unconditionally takes somebody else's message with it.
+		if hint_bar.current_text() == door.prompt():
+			hint_bar.clear()
+		return
+	hint_bar.show_hint(door.prompt(), Lolo.SPEAKER)
+
+
+## E at an open door. Tried between a placed drawing and a signpost, which is where the base
+## offers this hook.
+func _interact_with_level() -> bool:
+	if _at_rack and _has_kandila and chancel != null and not chancel.kandila_on_rack:
+		return chancel.place_the_kandila()
+	if _at_door == null or not _at_door.open:
+		return false
+	var room := _door_rooms.get(_at_door.door_id) as PiyestaRoom2D
+	if room == null:
+		return false
+	_enter_room(room, _at_door.step_out_point())
+	return true
+
+
+## Into an inside, by the same teleport Level 1 uses for the heap and the house: it is the
+## same body in the same level, so ink, the bag, the drawing panel and every checkpoint come
+## with it.
+func _enter_room(room: PiyestaRoom2D, came_from: Vector2) -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	# IDEMPOTENT. More than one thing can ask for a room -- a door, a beat, a restore -- and
+	# a second call while the player is already inside would overwrite the outside spot with
+	# a spot IN THE ROOM. The way out would then put them back into the room they had just
+	# left, which is a trap that only shows up on the way out.
+	if _room_holding_player() == room:
+		return
+	_step_back[room.name] = came_from
+	room.disarm_the_way_out()
+	_step_through(room.entry_point())
+	if room == church and chancel != null and not chancel.kandila_on_rack:
+		_speak(script_lines.fire("SCENE_2.enter"))
+
+
+## Back out the way they came in.
+func _leave_room(room: PiyestaRoom2D) -> void:
+	var back: Vector2 = _step_back.get(room.name, Vector2.ZERO)
+	if back == Vector2.ZERO:
+		return
+	_step_through(back)
+
+
+## On to the next room in the chain. The far door of one inside is the near door of the
+## next, so the player is put down at the room ahead's entry and their way back out of it
+## is the room they just left.
+func _go_onward(room: PiyestaRoom2D) -> void:
+	# THE END OF THE SECOND ALLEY IS THE END OF THE LEVEL. Scene 3 is a modal overlay rather
+	# than a room -- there is nothing to walk around in it -- so the chain stops being a
+	# chain of places here and becomes a table with seven pieces on it.
+	if room == alley_2:
+		_open_scene_3()
+		return
+	var next := _next_after(room)
+	if next == null:
+		return
+	next.disarm_the_way_out()
+	_step_back[next.name] = room.return_point()
+	_step_through(next.entry_point())
+
+
+func _next_after(room: PiyestaRoom2D) -> PiyestaRoom2D:
+	if room == church:
+		return alley_1
+	if room == alley_1:
+		return alley_2
+	return null
+
+
+## Scene 3. Everything the player recovered goes on the table, and the design is explicit
+## that this cannot be failed -- so a player who somehow arrives holding fewer than seven is
+## given the rest rather than being sent back for them. The level owes them an ending, and
+## `ScrapAssembly.place_now` exists precisely so the completion rule is not written twice.
+func _open_scene_3() -> void:
+	if assembly_screen == null or assembly_screen.is_open():
+		return
+	if ledger != null and not ledger.is_complete():
+		push_warning("Level2: Scene 3 opened holding %d of %d scraps" % [
+			ledger.held(), ledger.total()])
+	assembly_screen.present()
+
+
+## The painting is whole. THIS is what ends Piyesta -- not a marker somebody has to walk to.
+##
+## Level 1 learned that the hard way: its goal marker sat out on the Overlook, so finishing
+## Payyo meant solving the hardest node in the level, taking the painting, and then walking
+## to a spot that looked like every other spot on the terrace. Players did the first part and
+## stood there. The last thing you do should be the thing that ends it.
+func _on_assembly_done(_creased: bool) -> void:
+	_complete_level()
+
+
+## The candle, off the table in the lit house. Path C's reward, and the last thing that has
+## to happen before the church will let anybody in.
+func _on_kandila_taken() -> void:
+	_hold_the_kandila()
+	announce_acquisition("Kandila",
+		"A candle off a stranger's table. Lolo will want it lit somewhere.")
+	_speak(script_lines.fire("L2_N1.pragmatist.solved"))
+
+
+## One door for the candle arriving, whichever route brought it. The church opens off this
+## and nothing else, so the three routes cannot disagree about when it opens.
+func _hold_the_kandila() -> void:
+	if _has_kandila:
+		return
+	_has_kandila = true
+	script_lines.set_flag("has_kandila")
+	var door := _doors.get(DOOR_CHURCH) as PiyestaDoor2D
+	if door != null:
+		door.set_open(true)
+
+
+# --- The size rule: a refusal, which costs nothing -----------------------------------
+
+func _extra_refusals(entity_id: String, _strokes: Array) -> bool:
+	return restrictions != null and restrictions.refuses(entity_id)
+
+
+func _on_submission_refused(_entity_id: String, note: String) -> void:
+	# The hint bar, not the story box: this is the game talking about its own rule while
+	# the player is standing at a canvas, and it must not stop the world to do it.
+	if hint_bar != null:
+		hint_bar.show_hint(note, Lolo.SPEAKER)
+
+
+# --- The ceiling: a violation, and POSITION ONLY -------------------------------------
+
+func _level_physics(anchor_position: Vector2) -> void:
+	_refresh_the_ceiling()
+	if restrictions == null or player == null or not is_instance_valid(player):
+		return
+	if _current_form_id.is_empty():
+		return
+	restrictions.check_height(_current_form_id, anchor_position.y)
+
+
+## ⚠ NOT `_return_to_safety`, and the difference is the whole rule. That door runs a full
+## `_restore_checkpoint`, which rolls ink back to the snapshot and re-stages every placed
+## drawing -- so a player who solved something and then drifted too high would lose the
+## solve. The design says inventory, ink, scraps and flags are KEPT and only position
+## resets, so this reads the checkpoint WITHOUT consuming it (peek does not count a
+## restore) and moves the body, and nothing else.
+func _on_ceiling_crossed(entity_id: String, height_over: float) -> void:
+	var landing := spawn_point.global_position
+	if checkpoints != null and checkpoints.has_checkpoint():
+		var state: Dictionary = checkpoints.peek()
+		landing = Vector2(state.get("position", landing))
+	if player.has_method("apply_morph_state"):
+		player.call("apply_morph_state", {"position": landing, "linear_velocity": Vector2.ZERO})
+	else:
+		player.global_position = landing
+	_speak(script_lines.fire("L2_START.ward.fail1"))
+	Telemetry.record_event("restriction_violation", {
+		"level_id": LevelManager.current_level_id,
+		"rule": "flight_ceiling", "class": entity_id, "over_by": height_over,
+	})
+
+
+## THE CEILING IS PER SCENE, NOT ONE NUMBER. Whatever Y the bandaritas are strung at in the
+## room the player is standing in, the cap sits just under it -- so the boundary is always
+## something visible and always in the same place as the thing that draws it.
+##
+## Asked every frame and acted on only when the answer changes, which is the shape
+## `_refresh_room_framing` already uses: a checkpoint restore, a fall or an expiry can move
+## the player between scenes without going through a doorway, and every one of those would
+## otherwise leave the cap set for the room they used to be in.
+func _refresh_the_ceiling() -> void:
+	if restrictions == null:
+		return
+	var room := _room_holding_player()
+	var where: String = String(room.name) if room != null else "plaza"
+	if where == _ceiling_for:
+		return
+	_ceiling_for = where
+	var line: BandaritaLine2D = _lines.get(where)
+	if line != null and line.still_a_ceiling():
+		restrictions.set_ceiling(line.ceiling_y())
+		return
+	# ⚠ THE PLAZA'S BUNTING IS PAINTED INTO THE PLATE, so its cap is read off the mark that
+	# records where the painted line hangs rather than off a node. Stringing an authored line
+	# over it would put two runs of bandaritas across one plaza -- the same doubling this
+	# level keeps having to be talked out of.
+	if where == "plaza" and _bunting_y != -INF:
+		restrictions.set_ceiling(_bunting_y + 20.0)
+		return
+	restrictions.set_ceiling(-INF)
+
+
+# --- What the level does when a beat is answered -------------------------------------
+
+func _on_route_solved(obstacle_id: String, route: String) -> bool:
+	match [obstacle_id, route]:
+		["L2_N1", "artist"]:
+			# Reached from `_on_dance_screen_finished` whichever way the dance went. THE
+			# KANDILA IS NEVER WITHHELD -- that is what makes this level unloseable, and only
+			# the flower was ever at stake. The flower is recorded separately, off the model's
+			# own `finished`, so a player who failed both goes still walks away with a candle
+			# and is never told what they missed.
+			_hold_the_kandila()
+			# ⚠ AND THE RIGHT LINE FOR WHAT ACTUALLY HAPPENED. The generic `.solved` line is
+			# "they still gave her the flower", which is a lie to a player who failed twice --
+			# and `.failed` was authored for exactly that case and had never fired. Returning
+			# true is what stops the base speaking the other one over the top of it.
+			if dance != null and not dance.cleared():
+				_speak(script_lines.fire("L2_N1.artist.failed"))
+				return true
+		["L2_N1", "protector"]:
+			# One way, and they do not come back. The quiet line waits until they have
+			# actually gone rather than firing over the top of them leaving.
+			_hold_the_kandila()
+			if dancers != null:
+				dancers.scatter()
+			return true
+		["L2_N1", "pragmatist"]:
+			# ⚠ THIS ONE DOES NOT GRANT THE KANDILA, and that is the difference between it
+			# and the other two. Committing this route means the drawn key imitated the lock;
+			# the candle is still on a table inside. `Kandila2D.taken` is what closes the
+			# beat, and the spoken line goes with it rather than firing here.
+			var door := _doors.get(DOOR_LIT_HOUSE) as PiyestaDoor2D
+			if door != null:
+				door.set_open(true)
+			# TRUE, so the generic "L2_N1.pragmatist.solved" does NOT fire here. That line
+			# is "take it and leave something on the sill", which is about the candle -- and
+			# the candle is inside. It fires when the candle is taken. The commit already had
+			# its own line ("someone is home, I will let myself in"), which is the door.
+			return true
+		["L2_N2", "artist"]:
+			# One offering brings all five down. Splitting it per bird would turn a lore
+			# beat into a chore. Driven through the BIRDS rather than straight into the
+			# ledger, so what the player sees and what the count says cannot disagree.
+			for bird in _birds:
+				bird.calm()
+			_open_the_first_alley()
+		["L2_N2", "pragmatist"]:
+			# All five go on ahead. Deferred, not lost -- Alley 2's line spawns exactly this
+			# many tangled birds, which `_on_bird_flew_off` keeps in step.
+			for bird in _birds:
+				bird.startle()
+			_open_the_first_alley()
+		["L2_N2", "protector"]:
+			# Per-bird and on a timer, so this route does NOT resolve here: the birds are
+			# knocked down one at a time and whatever is still airborne when the timer runs
+			# out flies on to Alley 2. The way onward opens now because the beat is answered;
+			# what the player collects before walking through it is up to them.
+			_open_the_first_alley()
+		["L2_N3", "artist"]:
+			# Climbed to. The town keeps its bunting and the ceiling stays where it is --
+			# that is the half of the trade the player is choosing.
+			var climbed: BandaritaLine2D = _lines.get(alley_2.name) if alley_2 != null else null
+			if climbed != null:
+				climbed.take_what_is_up_here()
+			_open_the_way_to_scene_3()
+		["L2_N3", "protector"]:
+			# The one action in this level that permanently changes the town, and the
+			# reason the cut is a trade: it buys the sky for the rest of the level.
+			script_lines.set_flag("bandaritas_cut")
+			var line: BandaritaLine2D = _lines.get(alley_2.name) if alley_2 != null else null
+			if line != null:
+				line.cut_it_down()
+			if restrictions != null:
+				restrictions.lift()
+			# And the cap has to be recomputed rather than waited for: the player is standing
+			# in the room whose line has just come down.
+			_ceiling_for = "?"
+			_open_the_way_to_scene_3()
+	return false
+
+
+## Problem 2 is answered, so the way to Alley 2 opens. All three routes reach it -- the
+## design has every one of them end "move to alley 2" -- and none of them can be failed.
+func _open_the_first_alley() -> void:
+	if alley_1 != null:
+		alley_1.open_onward()
+
+
+## Problem 3 is answered by either route, and both recover every remaining scrap -- the
+## design says neither can lose one -- so both open the way to the table.
+func _open_the_way_to_scene_3() -> void:
+	if alley_2 != null:
+		alley_2.open_onward()
+
+
+func _on_dance_finished(cleared: bool, flower_earned: bool) -> void:
+	# THE KANDILA IS NEVER WITHHELD, so this node can never dead-end the run. Only the
+	# flower is at stake, and losing it is SILENT -- a secret ending that announces its
+	# requirements is not secret.
+	if flower_earned:
+		PlayerProfile.record_collectible("L2_HF")
+		script_lines.set_flag("has_flower")
+	Telemetry.record_event("dance_minigame", {
+		"level_id": LevelManager.current_level_id,
+		"cleared": cleared, "attempts": dance.attempts_used(),
+	})
+
+
+# --- What a checkpoint carries that the machine does not know about -------------------
+
+func _level_run_state() -> Dictionary:
+	var out: Dictionary = {
+		"kandila": _has_kandila,
+		"dancers_gone": dancers != null and dancers.are_gone(),
+		"kandila_on_rack": chancel != null and chancel.kandila_on_rack,
+		# Where the chain has got to. Without it a restore behind a room the player had
+		# already opened would board the door up again and strand them in an alley.
+		"onward": {
+			"church": church != null and church.onward_open,
+			"alley_1": alley_1 != null and alley_1.onward_open,
+		},
+	}
+	if ledger != null:
+		out["scraps"] = ledger.serialize()
+	out["deferred_ids"] = _deferred_ids.duplicate()
+	return out
+
+
+func _restore_level_run_state(state: Dictionary) -> void:
+	if ledger != null and state.has("scraps"):
+		ledger.restore(state["scraps"])
+	_deferred_ids.clear()
+	for value: Variant in state.get("deferred_ids", []):
+		_deferred_ids.append(String(value))
+	_tangle_the_deferred()
+	if dancers != null and bool(state.get("dancers_gone", false)):
+		# Set, not replayed: a restore after they left must not run them off the plaza a
+		# second time, which would look like the level happening again.
+		dancers.set_already_gone()
+	if bool(state.get("kandila", false)):
+		_hold_the_kandila()
+	if chancel != null and bool(state.get("kandila_on_rack", false)):
+		chancel.kandila_on_rack = true
+		chancel.queue_redraw()
+	var onward: Dictionary = state.get("onward", {})
+	if church != null and bool(onward.get("church", false)):
+		church.open_onward()
+	if alley_1 != null and bool(onward.get("alley_1", false)):
+		alley_1.open_onward()

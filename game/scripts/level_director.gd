@@ -106,6 +106,12 @@ func level_id() -> String:
 	return String(_level.get("level_id", ""))
 
 
+## Which level this is, 1-5. Read off the level file rather than the hub entry so it is
+## available in a --script run where LevelManager is not an autoload.
+func level_order() -> int:
+	return int(_level.get("order", 0))
+
+
 func display_name() -> String:
 	return String(_level.get("display_name", ""))
 

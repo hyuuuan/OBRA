@@ -107,7 +107,7 @@ CURATED: dict[str, tuple[str, str, str, float | None]] = {
     "bucket": ("carry", "UsedFor", "A bucket is used to carry water.", 3.0),
     "umbrella": ("shelter", "UsedFor", "An umbrella is used to shelter from rain.", 3.46),
     "tree": ("shade", "UsedFor", "A tree is used to provide shade.", 2.0),
-    "mushroom": ("eat", "UsedFor", "A mushroom is used for eating.", 2.0),
+    "bread": ("feed", "UsedFor", "Bread is used for feeding the birds.", 2.0),
     "wheel": ("roll", "UsedFor", "A wheel is used to roll and move vehicles.", 2.83),
 }
 

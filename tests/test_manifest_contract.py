@@ -20,7 +20,7 @@ EXPECTED_UTILITY_BEHAVIORS = {
     "axe", "sword", "cannon", "boomerang", "flashlight", "campfire", "cloud", "sun",
     "fan", "ladder", "stairs", "parachute", "hot_air_balloon", "bridge", "sailboat",
     "submarine", "key", "door", "rake", "scissors", "clock", "anvil", "bucket",
-    "umbrella", "tree", "mushroom", "wheel",
+    "umbrella", "tree", "bread", "wheel",
 }
 CLASS_COUNT = sum(EXPECTED_ROLE_COUNTS.values())  # 50
 
