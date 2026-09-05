@@ -284,6 +284,13 @@ func _physics_process(delta: float) -> void:
 			state = _drive_snake(body, Vector2(horizontal, vertical))
 		else:
 			state = _drive_fish(body, Vector2(horizontal, vertical))
+	elif bool(rig_profile.get("can_swim", false)) and is_in_water():
+		# ⚠ AMPHIBIOUS, WHICH IS NOT THE SAME AS SWIMMER. A sea turtle's ConceptNet verb is
+		# `swim` and its rig is a walker, so it walked along the bottom of the sea. Giving it
+		# `rig_type: swimmer` instead would have fixed the water and broken the beach --
+		# `_drive_fish` on land has no horizontal drive at all, only a flop. So the water
+		# decides which drive runs, and the class keeps its legs for the land.
+		state = _drive_fish(body, Vector2(horizontal, vertical))
 	elif rig_type == "hopper":
 		state = _drive_hopper(body, horizontal, delta, String(rig_profile.get("hop_style", "")) == "bound")
 	else:
