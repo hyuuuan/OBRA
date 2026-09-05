@@ -7,7 +7,10 @@
   "joint_spring": 1200,
   "joint_damping": 80,
   "joint_torque_limit": 3000,
-  "target_size": [134, 88],
+  "target_size": [
+    134,
+    88
+  ],
   "align": "bottom",
   "ground_offset": 40,
   "stride_length": 34,
@@ -16,5 +19,6 @@
   "walk_bob": 1.4,
   "air_splay_degrees": 5,
   "tilt_degrees": 2.0,
-  "landing_squash": 0.10
+  "landing_squash": 0.1,
+  "can_swim": true
 }
