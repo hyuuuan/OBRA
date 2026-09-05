@@ -75,6 +75,7 @@ func _run() -> void:
 	_audit_the_rooms_do_not_overlap()
 	_audit_the_bunting_is_where_it_can_be_reached()
 	_audit_the_flock_is_within_reach()
+	_audit_the_goal_marker_is_out_of_reach()
 	_audit_the_plaza_is_not_empty()
 	_audit_nothing_this_level_places_is_invisible()
 	await _audit_the_apo_stands_on_something()
@@ -368,6 +369,71 @@ func _audit_the_rooms_do_not_overlap() -> void:
 		"%d pairs, all clear at the 90px the base grows by" % (
 			rooms.size() * (rooms.size() - 1) / 2)
 		if clashes.is_empty() else "; ".join(clashes))
+
+
+## ⚠ THE GOAL MARKER IS A LEVEL 1 ORGAN AND PIYESTA DOES NOT USE IT.
+##
+## `level_2.tscn` is a text copy of `game_level.tscn`, so it inherited a `GoalMarker` -- and
+## `LevelBase` ends a level when the player's anchor comes within `GOAL_RADIUS` of one. That
+## is not how Piyesta ends: Scene 3 does, by calling `_complete_level` when the seventh scrap
+## goes home. The marker is parked at (10050, 240), which is past the east wall of Alley 2.
+##
+## It clears by THIRTY-FIVE UNITS. Alley 2 stands at x 9450 and is 900 long, so its floor
+## stops at 9900; the marker is 150 east of that and the radius is 120. Nudge the room's
+## length, move the room, or widen the radius and Piyesta gains a second ending that fires
+## when somebody walks to the far end of an alley -- with the scraps unrecovered, over a
+## beat the player has not played. That is exactly how Level 1 used to end by walking up to
+## a house. Thirty-five units of margin is not something to leave to a comment.
+func _audit_the_goal_marker_is_out_of_reach() -> void:
+	var marker := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/GoalMarker") as Node2D
+	if marker == null:
+		_check(true, "the goal marker is out of reach", "this level has none")
+		return
+	var nearest := INF
+	var closest := ""
+	for room_node: Variant in level.get_tree().get_nodes_in_group(&"interiors"):
+		var room := room_node as Node2D
+		var walkable := Rect2(room.call("bounds"))
+		var gap := _distance_to(walkable, marker.global_position)
+		if gap < nearest:
+			nearest = gap
+			closest = room.name
+	var floor_body := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/Terrain/PlazaFloor") as Node2D
+	if floor_body != null:
+		var gap := absf(floor_body.global_position.x - marker.global_position.x)
+		if gap < nearest:
+			nearest = gap
+			closest = "the plaza"
+	var radius := _goal_radius()
+	_check(nearest > radius, "the goal marker is out of every reachable place",
+		"%.0fpx clear of %s, radius is %.0f" % [nearest, closest, radius])
+
+
+## ⚠ READ OFF THE RUNNING LEVEL, NOT AS `LevelBase.GOAL_RADIUS`. Naming the class here makes
+## this file depend on it at COMPILE time, and a `--script` run has no autoloads -- the whole
+## suite failed to load on `LevelManager` and reported eleven false failures, one of which was
+## "the dancers are in the plaza". Walking the script chain gets the real number with no
+## dependency, and still fails loudly rather than drifting if the constant is renamed.
+func _goal_radius() -> float:
+	var script := level.get_script() as Script
+	while script != null:
+		var constants: Dictionary = script.get_script_constant_map()
+		if constants.has("GOAL_RADIUS"):
+			return float(constants["GOAL_RADIUS"])
+		script = script.get_base_script()
+	_check(false, "the level declares a GOAL_RADIUS", "none found up the script chain")
+	return 0.0
+
+
+## The gap from a rectangle to a point, zero if the point is inside it.
+func _distance_to(box: Rect2, at: Vector2) -> float:
+	if box.has_point(at):
+		return 0.0
+	var dx := maxf(maxf(box.position.x - at.x, 0.0), at.x - box.end.x)
+	var dy := maxf(maxf(box.position.y - at.y, 0.0), at.y - box.end.y)
+	return Vector2(dx, dy).length()
 
 
 ## ALLEY 2's BUNTING HAS TO SIT IN A WINDOW WITH TWO REAL WALLS, and both of them are ways
