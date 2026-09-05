@@ -193,7 +193,7 @@ def main(check: bool) -> int:
             profile = profiles[cid]
             rig = profile.get("rig_type", "")
             drive = "bespoke" if cid in hard_coded else drives.get(rig, "_drive_grounded")
-            swims = rig == "swimmer"
+            swims = rig == "swimmer" or bool(profile.get("can_swim", False))
             flies = rig == "flier"
             wrong = ((verb == "swim" and not swims) or (verb == "fly" and not flies)
                      or (verb == "climb" and not climb_capable(cid, entity, profile,

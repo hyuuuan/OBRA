@@ -30,6 +30,7 @@ func _run() -> void:
 	await _check_ladder()
 	await _check_climbable_props()
 	await _check_wall_climbers()
+	await _check_swimmers()
 	await _check_bread()
 	await _check_door()
 	await _check_umbrella()
@@ -331,6 +332,66 @@ func _check_axe_on_wood() -> void:
 	axe.queue_free()
 	tree.queue_free()
 	await process_frame
+
+
+## ⚠ THE ONE CLASS WHOSE CONCEPTNET VERB THE WORLD FLATLY CONTRADICTED. `sea_turtle` is
+## grounded in ConceptNet as `swim` -- the same relation as fish, octopus and shark -- and it
+## shipped with `rig_type: walker`, so it walked along the bottom of the sea. It is also the
+## reason the class is unhintable: the Swim tag is empty until a later level, and when that
+## level arrives a turtle that walks is the first thing it will reach for.
+##
+## The turtle is checked beside a real swimmer, because a row that only tests the fixed class
+## cannot tell "the fix works" from "the harness moves everything".
+func _check_swimmers() -> void:
+	var pool := WaterArea2D.new()
+	pool.surface_size = Vector2(2600.0, 400.0)
+	pool.position = Vector2(1500.0, 300.0)
+	world.add_child(pool)
+	for entity_id: String in ["fish", "sea_turtle"]:
+		var swimmer := _creature(entity_id, Vector2(1200.0, 300.0))
+		if swimmer == null:
+			_fail("%s swim" % entity_id, "could not be instantiated")
+			continue
+		await _settle(40)
+		if not bool(swimmer.call("is_in_water")):
+			_fail("%s swim" % entity_id, "never registered as in water -- harness fault")
+			swimmer.queue_free()
+			await process_frame
+			continue
+		var start := swimmer.global_position
+		Input.action_press("move_right")
+		await _settle(90)
+		Input.action_release("move_right")
+		var travelled := swimmer.global_position.x - start.x
+		var sank := swimmer.global_position.y - start.y
+		if travelled > 60.0:
+			_pass("%s swim" % entity_id,
+				"swam %.0fpx, %.0fpx of sink" % [travelled, sank])
+		else:
+			_fail("%s swim" % entity_id,
+				"ConceptNet grounds it as swim; it moved %.0fpx" % travelled)
+		swimmer.queue_free()
+		await process_frame
+	pool.queue_free()
+	await process_frame
+	# AND IT STILL HAS ITS LEGS. `can_swim` routes to the fish drive only while in water --
+	# the point of an amphibious flag rather than `rig_type: swimmer`, which would have fixed
+	# the sea and broken the beach, because the fish drive on land is a flop with no
+	# horizontal drive at all.
+	var turtle := _creature("sea_turtle", Vector2(600.0, 560.0))
+	if turtle != null:
+		await _settle(40)
+		var beach := turtle.global_position.x
+		Input.action_press("move_right")
+		await _settle(90)
+		Input.action_release("move_right")
+		var walked := turtle.global_position.x - beach
+		if walked > 40.0:
+			_pass("sea_turtle on land", "still walks, %.0fpx" % walked)
+		else:
+			_fail("sea_turtle on land", "amphibious cost it the beach: %.0fpx" % walked)
+		turtle.queue_free()
+		await process_frame
 
 
 func _check_vehicle(entity_id: String) -> void:
