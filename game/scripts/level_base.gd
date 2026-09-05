@@ -277,6 +277,12 @@ func _ready() -> void:
 	add_child(tutorial)
 	tutorial.load_for(LevelManager.current_level_id)
 	tutorial.bind_hint_bar(hint_bar)
+	tutorial.bind_callout_layer(get_node_or_null(^"CanvasLayer"), _tutorial_target)
+	# The panel does not read `tutorial.json` itself: it is a screen, not a level, and it is
+	# reused by every level that has one. The lines come from whoever knows which level this
+	# is, which is here.
+	if draw_panel != null:
+		draw_panel.set("briefing_lines", tutorial.canvas_briefing())
 	_run_started_msec = Time.get_ticks_msec()
 	_apply_level_identity()
 	_resolve_level_nodes()
@@ -726,6 +732,65 @@ func _refresh_requirements() -> void:
 	if tutorial != null and director.hint_tier() >= 1 \
 			and not director.required_tags().is_empty():
 		tutorial.note("requirement_shown")
+
+
+## Every anchor name a lesson may use. A probe reads it to check `tutorial.json` against the
+## level, which is the only way to catch a name that resolves to an empty rect forever.
+const TUTORIAL_ANCHORS := ["draw_button", "pickup_prompt", "use_prompt", "revert_prompt",
+	"inventory_bar", "ink_gauge", "requirement_strip"]
+
+
+## WHAT A LESSON'S `anchor` MEANS, in one place.
+##
+## The names are the tutorial's own vocabulary, not node paths, and that is deliberate: a
+## lesson in `tutorial.json` should not have to know that the draw button lives at
+## `CanvasLayer/DrawButton` while the pickup prompt is built at runtime inside a HBoxContainer
+## the HUD owns. Rename a node and this function changes; sixteen lessons do not.
+##
+## Returns an empty Rect2 for anything it cannot find, which is the signal the director uses
+## to fall back to the hint bar -- a level without a bag, or a HUD that has not laid itself
+## out yet, must still teach the lesson somewhere.
+func _tutorial_target(anchor: String) -> Rect2:
+	var node: Control = null
+	if not TUTORIAL_ANCHORS.has(anchor):
+		# ⚠ LOUD, because the alternative is silent. An anchor naming nothing resolves to an
+		# empty rect exactly like one naming something the player cannot see right now -- the
+		# bag while it is empty, say -- so the two are indistinguishable to the caller and a
+		# typo in `tutorial.json` costs the pointing and says nothing at all. The list is what
+		# lets a probe tell them apart, and this is what tells a person.
+		push_error("LevelBase: tutorial anchor '%s' is not one of %s"
+			% [anchor, ", ".join(TUTORIAL_ANCHORS)])
+		return Rect2()
+	match anchor:
+		"draw_button":
+			node = draw_button
+		"pickup_prompt":
+			node = _prompt_named(&"PickupPrompt")
+		"use_prompt":
+			node = _prompt_named(&"UsePrompt")
+		"revert_prompt":
+			node = _prompt_named(&"ChangeBackPrompt")
+		"inventory_bar":
+			node = inventory_hud as Control
+		"ink_gauge":
+			# ⚠ `hud_panel`, NOT `ink_bar`. `$CanvasLayer/InkBar` is the authored ProgressBar
+			# the gauge REPLACED; it is still in the scene and still invisible, so an anchor
+			# on it resolved to an empty rect every time and the lesson fell quietly back to
+			# the hint bar. What the player sees is the pencil plate `HudPanel` draws.
+			node = hud_panel as Control
+		"requirement_strip":
+			node = requirement_strip as Control
+	if node == null or not node.is_inside_tree() or not node.is_visible_in_tree():
+		return Rect2()
+	return node.get_global_rect()
+
+
+## The action prompts are built in code and re-parented between a fixed corner and a row
+## that follows the player, so they are found by NAME rather than by path.
+func _prompt_named(prompt_name: StringName) -> Control:
+	if action_prompts == null or not is_instance_valid(action_prompts):
+		return null
+	return action_prompts.find_child(String(prompt_name), true, false) as Control
 
 
 ## The checkpoint is written HERE, on the commit, not on the solve -- so that every morph

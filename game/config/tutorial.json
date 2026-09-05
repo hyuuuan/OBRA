@@ -3,8 +3,8 @@
     "WHAT THE GAME TEACHES ABOUT ITSELF, and when.",
     "",
     "Level 1 is the tutorial and it was never teaching anything. The controls screen",
-    "under the pause menu is a REFERENCE — a player has to already suspect a verb",
-    "exists before they will go looking for it there — and ActionPromptHUD shows four",
+    "under the pause menu is a REFERENCE \u2014 a player has to already suspect a verb",
+    "exists before they will go looking for it there \u2014 and ActionPromptHUD shows four",
     "key caps (R, Q, E, F) with no words around them. Movement, jumping, the mouse that",
     "does all of placement, the bag, and the fact that a drawing is on a clock were",
     "never said anywhere. Lolo is standing right there and is the reason the game has a",
@@ -16,7 +16,7 @@
     "",
     "KEYS ARE NOT WRITTEN HERE. `{keys}` is filled at runtime from the live InputMap via",
     "ControlsOverlay.keys_for, so a rebinding cannot leave a lesson naming a key that no",
-    "longer does anything — the same split controls.json already makes, for the same",
+    "longer does anything \u2014 the same split controls.json already makes, for the same",
     "reason. Use `action` for one key, plus `through` for a contiguous block (the six",
     "inventory slots are one idea to the player, not six), or `keys` to name something",
     "the InputMap does not hold, which is the whole mouse.",
@@ -29,7 +29,10 @@
     "here than anywhere: `key` and `door` are both classes in the roster and both are the",
     "answer to a Level 1 route, so a lesson saying 'press this key' would be naming a",
     "solution in the one place the player is guaranteed to read. Say `{keys}` and let the",
-    "cap speak."
+    "cap speak.",
+    "A lesson with an `anchor` is taught in a TutorialCallout beside that control instead of in the hint bar. `side` is a preference; auto picks whichever side has room. An anchor the level cannot resolve falls back to the bar rather than being dropped -- an unteachable lesson is worse than an unpointed one.",
+    "Anchor names are the tutorial's own vocabulary, resolved by LevelBase._tutorial_target. They are deliberately NOT node paths: rename a HUD node and that one function changes.",
+    "canvas_briefing is Lolo's explanation of the drawing screen, said in a dialogue box INSIDE the panel the first time it is opened. It is the one place the tutorial stops the world, and it costs nothing because the panel is a modal and the world is already stopped. Omit it and the canvas opens straight to the paper."
   ],
   "version": 1,
   "levels": {
@@ -57,8 +60,10 @@
           "id": "draw",
           "at": "first_obstacle",
           "action": "redraw",
-          "text": "This is where her brush is for. {keys} opens it — draw, and this place believes you.",
-          "seconds": 7.0
+          "text": "This is where her brush is for. {keys} opens it \u2014 draw, and this place believes you.",
+          "seconds": 7.0,
+          "anchor": "draw_button",
+          "side": "above"
         },
         {
           "id": "place",
@@ -88,13 +93,15 @@
           "at": "became_creature",
           "action": "revert_form",
           "text": "You are it now. {keys} puts you back as yourself, wherever you are standing.",
-          "seconds": 6.0
+          "seconds": 6.0,
+          "anchor": "revert_prompt",
+          "side": "auto"
         },
         {
           "id": "life",
           "at": "morph_low",
           "after": "revert",
-          "text": "It is going, apo. A drawing does not last — think about where you want to be standing when it does.",
+          "text": "It is going, apo. A drawing does not last \u2014 think about where you want to be standing when it does.",
           "seconds": 6.0
         },
         {
@@ -103,7 +110,9 @@
           "action": "inventory_slot_1",
           "through": "inventory_slot_6",
           "text": "That went into your bag. {keys} to bring one out again.",
-          "seconds": 6.0
+          "seconds": 6.0,
+          "anchor": "inventory_bar",
+          "side": "above"
         },
         {
           "id": "bag_open",
@@ -111,7 +120,9 @@
           "after": "bag",
           "action": "inventory_open",
           "text": "{keys} opens the whole bag, and everything you have found.",
-          "seconds": 5.0
+          "seconds": 5.0,
+          "anchor": "inventory_bar",
+          "side": "above"
         },
         {
           "id": "sign",
@@ -125,7 +136,9 @@
           "at": "tool_held",
           "action": "use_utility",
           "text": "You are carrying it. {keys} uses it.",
-          "seconds": 5.0
+          "seconds": 5.0,
+          "anchor": "use_prompt",
+          "side": "above"
         },
         {
           "id": "pause",
@@ -139,15 +152,19 @@
           "id": "requirement",
           "at": "requirement_shown",
           "after": "draw",
-          "text": "That word at the top is what the place is asking for — not a thing to draw, a thing it has to DO. Anything that does it will work.",
-          "seconds": 8.0
+          "text": "That word at the top is what the place is asking for \u2014 not a thing to draw, a thing it has to DO. Anything that does it will work.",
+          "seconds": 8.0,
+          "anchor": "requirement_strip",
+          "side": "auto"
         },
         {
           "id": "ink",
           "at": "ink_spent",
           "after": "draw",
           "text": "That cost you ink, apo, and there is only so much of it here. Spend it on what stops you.",
-          "seconds": 6.0
+          "seconds": 6.0,
+          "anchor": "ink_gauge",
+          "side": "below"
         },
         {
           "id": "checkpoint",
@@ -155,6 +172,11 @@
           "text": "The place remembers you from here. If it goes badly you begin again at this mark, not at the start.",
           "seconds": 7.0
         }
+      ],
+      "canvas_briefing": [
+        "This is her canvas, apo. Whatever you draw on it, this place will believe.",
+        "Draw with the mouse. Hold it down and move \u2014 the ink is measured, so do not waste it on a mess.",
+        "When it looks like the thing you mean, press Transform. I will tell you what it thinks you drew."
       ]
     }
   }
