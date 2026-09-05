@@ -128,6 +128,14 @@ it — the outline trick the strip and hint bar already use for text; and a pivo
 on every press, because a control in a container is re-laid out and a scale about a stale
 pivot slides it sideways instead of pressing it.
 
+⚠ **CHECK A TEST'S PREMISE BEFORE ASSERTING ON ITS SUBJECT.** `run_click_ui` failed for a
+long time on "a left click sets the drawing down — STILL PLACING, THE CLICK NEVER
+CONFIRMED". The click was fine; the test was aiming six pixels inside `LeftWall`, on a
+comment about water that had not been true since the paddy moved. The failure named the
+mouse and the fault was the geometry. Where a test aims at the world, verify the spot first
+and report a **harness fault** — `run_behaviour_audit` says so in four places, and this is
+why that habit exists.
+
 ⚠ **AUTOLOADS DO NOT EXIST IN A `--script` RUN.** `/root/UIFeedback`, `/root/AudioDirector`
 and the rest are all null there. A test that assumes the project setting is enough exercises
 nothing and reports green; build the node yourself. For the same reason a `_draw` must not
