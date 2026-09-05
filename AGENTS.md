@@ -113,6 +113,31 @@ under the comment "Four failures opens T3". Shortening the ladder made the setup
 miss the one T3 accepted, so two unrelated checks went red against an already-solved
 obstacle and read like the feature had broken. Read `TIER_ATTEMPTS`; do not restate it.
 
+⚠ **UI MOTION IS ONE FAMILY, AND IT IS THE CANVAS'S.** The drawing panel scales up from
+0.84 through `TRANS_BACK` while a radial burst burns away on its scrim; `UIFeedback` gives
+every button the same shape at button scale — a dip, the same overshoot back, and a ring
+that leaves the click point and burns away. Add motion in that idiom or the interface reads
+as assembled from parts. `UIFeedback` and `AudioDirector` both hook `node_added`, because
+the inventory slots and every dialogue choice are built at runtime and connecting per call
+site is how the click sound came to be missing.
+
+⚠ **THREE THINGS ABOUT DRAWING AN ANIMATION ON A CONTROL**, all found by screenshot:
+`draw_arc` does not stop at the control's rect (an unclipped ring drew across the whole
+screen); two of the three button families are cream, so a gold line needs a dark halo under
+it — the outline trick the strip and hint bar already use for text; and a pivot must be set
+on every press, because a control in a container is re-laid out and a scale about a stale
+pivot slides it sideways instead of pressing it.
+
+⚠ **AUTOLOADS DO NOT EXIST IN A `--script` RUN.** `/root/UIFeedback`, `/root/AudioDirector`
+and the rest are all null there. A test that assumes the project setting is enough exercises
+nothing and reports green; build the node yourself. For the same reason a `_draw` must not
+reach for an autoload — it works in the game and throws in the only place it can be checked.
+
+⚠ **WAIT ON THE CLOCK, NOT ON FRAMES.** A headless run is uncapped, so seventy
+`await process_frame`s can be a fraction of the half-second a tween takes. A probe counting
+frames reported a ripple leak that did not exist — and would have reported a real one
+identically.
+
 ⚠ **A TAG CAN AGREE WITH THE PLAYER WHILE THE WORLD REFUSES, AND THAT IS THE WORST THING
 THIS PROJECT SHIPS.** It has happened twice. Strike resolved to a blade that swings inside
 96px against a bird in the air. Climb -- the most required tag in the game, four obstacles
