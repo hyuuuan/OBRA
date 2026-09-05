@@ -1599,6 +1599,8 @@ func _connect_utility(placed: PhysicsShapeObject) -> void:
 		utility.utility_used.connect(_on_utility_used)
 	if not utility.utility_consumed.is_connected(_on_utility_consumed):
 		utility.utility_consumed.connect(_on_utility_consumed)
+	if not utility.interaction_note.is_connected(_on_utility_note):
+		utility.interaction_note.connect(_on_utility_note)
 
 
 func _on_utility_pickup_requested(utility: PhysicsShapeObject) -> void:
@@ -1645,6 +1647,15 @@ func _on_utility_equipped(utility: UtilityObject, _actor: Node2D) -> void:
 	_equipped_utility = utility
 	status_label.text = "%s equipped — press F to use" % utility.item_data.display_name
 	_show_carried(utility.item_data.entity_id)
+
+
+## Why E did not do the thing it was pressed for. The hint bar rather than the story box:
+## this is the game talking about its own state while the player is standing at the object.
+func _on_utility_note(text: String) -> void:
+	if hint_bar != null:
+		hint_bar.show_hint(text, Lolo.SPEAKER, 2.6)
+	else:
+		status_label.text = text
 
 
 func _on_utility_used(behavior: String, item: DrawnItemData) -> void:

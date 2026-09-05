@@ -3,10 +3,10 @@
   "generated_by": "tools/build_tags.py",
   "note": "Ability tags. Obstacles declare a TAG and the loader resolves satisfying CLASSES at load time; no obstacle names a class. This grouping is a DESIGN artifact and is not ConceptNet output -- abilities.json gives each class one verb, and the tags deliberately cut across those verbs. Per-membership provenance below says which is which. Regenerate with tools/build_tags.py.",
   "provenance_summary": {
-    "memberships_total": 54,
+    "memberships_total": 53,
     "conceptnet_aligned": 12,
-    "design_authored": 42,
-    "statement": "12 of 54 tag memberships reuse the class's own ConceptNet verb; the remaining 42 are design groupings. Do not describe the tag layer as ConceptNet-derived."
+    "design_authored": 41,
+    "statement": "12 of 53 tag memberships reuse the class's own ConceptNet verb; the remaining 41 are design groupings. Do not describe the tag layer as ConceptNet-derived."
   },
   "unhintable_classes": {
     "classes": [
@@ -113,11 +113,6 @@
           "provenance": "design_authored",
           "source_ability": "shade",
           "note": "ConceptNet grounds tree as 'shade'; membership in 'climb' is a design grouping, not a ConceptNet assertion."
-        },
-        "snake": {
-          "provenance": "design_authored",
-          "source_ability": "slither",
-          "note": "ConceptNet grounds snake as 'slither'; membership in 'climb' is a design grouping, not a ConceptNet assertion."
         }
       }
     },
