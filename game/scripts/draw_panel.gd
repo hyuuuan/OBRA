@@ -50,6 +50,11 @@ var _ink_value: Label
 
 var _pending_strokes: Array = []
 var _is_open := false
+## Lolo's explanation of this screen, handed in by the level from `tutorial.json`. Empty
+## means no briefing, which is how every level but the tutorial opens its canvas.
+var briefing_lines: Array = []
+var _briefing: CanvasBriefing
+var _briefed := false
 ## Read by UIRouter.refresh_pause through the modal_overlays group.
 var pauses_game := true
 var _submitting := false
@@ -146,6 +151,22 @@ func open_panel() -> void:
 	_refresh_ink_row(0.0)
 	UIRouter.refresh_pause(get_tree())
 	_play_open_animation()
+	_brief_if_this_is_the_first_time()
+
+
+## ⚠ THE FIRST TIME ONLY, AND ONLY WITH LINES AUTHORED FOR IT. The panel is a modal, so the
+## world is already stopped and an explanation costs nothing -- but it costs the SECOND
+## opening a keypress, and a tutorial that charges for a screen the player has already been
+## shown is the thing everyone skips.
+func _brief_if_this_is_the_first_time() -> void:
+	if _briefed or briefing_lines.is_empty():
+		return
+	_briefed = true
+	if _briefing == null:
+		_briefing = CanvasBriefing.new()
+		_briefing.name = "CanvasBriefing"
+		add_child(_briefing)
+	_briefing.begin(briefing_lines)
 
 
 ## The in-world HUD steps aside while the canvas is up.
