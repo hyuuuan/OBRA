@@ -669,7 +669,18 @@ func _offer_the_nearest_sign() -> void:
 ## interact key is how you offer it, is expecting them to read the code. So the door says
 ## so, on the same bar and under the same rule as the sign prompt: an empty bar only, and it
 ## clears only its own words.
+## ⚠ A BEAT THAT IS OVER DOES NOT ASK AGAIN. `LevelDirector.enter_obstacle` re-emits
+## `obstacle_entered` every time the player crosses back into a trigger, and this answered
+## it by speaking the beat's current stage line with no check that the beat was finished.
+## Level 1's triggers are deliberately wide -- the straw heap sits inside L1_N2's, and the
+## ledge the player is put back on when they climb out sits inside it too -- so walking on
+## after solving Beat 0 re-fired its tutorial instruction at somebody who had just done it.
+##
+## The line is not lost: `_read_nearest_sign` re-reads a beat's lines on the interact key,
+## which is where a player who wants to hear it again should have to go.
 func _speak_current_stage(obstacle_id: String) -> void:
+	if director.is_solved(obstacle_id):
+		return
 	var stage := director.stage_id(obstacle_id)
 	if stage.is_empty():
 		return
@@ -706,7 +717,7 @@ func _refresh_requirements() -> void:
 		String(spec.get("match", "all")),
 		spec.get("exclude", []))
 	requirement_strip.show_requirements(director.required_tags(), director.hint_tier(), owned,
-		String(spec.get("match", "all")))
+		String(spec.get("match", "all")), director.clue_class(obstacle_id))
 	# The strip is the game's own vocabulary and nobody arrives knowing it. The tags are
 	# this project's invention, so the first time one is printed at the player is the moment
 	# to say what the row IS.

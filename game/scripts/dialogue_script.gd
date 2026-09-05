@@ -28,6 +28,7 @@ var _by_hook: Dictionary = {}      # hook -> Array[Dictionary]
 var _by_id: Dictionary = {}        # line id -> Dictionary
 var _fired_once: Dictionary = {}   # line id -> true, for `once`
 var _heard: Dictionary = {}        # hook -> true, for beats that play themselves once
+var _spoken := 0                   # lines handed out, ever. See lines_spoken().
 var _flags: Dictionary = {}        # narrative flags, e.g. knows_about_key
 var _level_id := ""
 
@@ -37,6 +38,7 @@ func load_from(path: String) -> bool:
 	_by_id.clear()
 	_fired_once.clear()
 	_heard.clear()
+	_spoken = 0
 	var text := FileAccess.get_file_as_string(path)
 	if text.is_empty():
 		push_error("DialogueScript: %s is missing or empty" % path)
@@ -80,6 +82,7 @@ func fire(hook: String) -> Array:
 	var out := peek(hook)
 	if not out.is_empty():
 		_heard[hook] = true
+		_spoken += out.size()
 	for line_value: Variant in out:
 		var line: Dictionary = line_value
 		if bool(line.get("once", false)):
@@ -99,6 +102,19 @@ func fire(hook: String) -> Array:
 ## for two lines of Lolo -- every single time. L1_N1 is worse: seven lines. The volume was
 ## not the fault, and neither was the sign standing next to it; the fault was that arrival
 ## had no memory.
+## ⚠ HOW MANY LINES HAVE BEEN SPOKEN, NOT HOW MANY HOOKS HAVE FIRED.
+##
+## The first version of this returned `_heard.size()` and the hint probe asserted on it
+## across a re-entry, which was VACUOUS: `_heard` is a set of hook names, so firing the same
+## hook a second time cannot change it. The probe passed with the fix reverted, which is the
+## worst outcome a test can have -- it certified the bug.
+##
+## `fire` returns its lines EVERY time unless a line is authored `once`; that is the whole
+## reason a re-entered beat could speak again. So the thing to count is lines handed out.
+func lines_spoken() -> int:
+	return _spoken
+
+
 func has_heard(hook: String) -> bool:
 	return _heard.has(hook)
 
