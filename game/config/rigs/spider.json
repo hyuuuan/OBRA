@@ -36,7 +36,10 @@
   "stride_length": 42,
   "swing_clearance": 18,
   "plant_distance": 14,
-  "target_size": [116, 72],
+  "target_size": [
+    116,
+    72
+  ],
   "align": "bottom",
   "ground_offset": 35
 }

@@ -28,6 +28,8 @@ func _run() -> void:
 	_ground(Vector2(1200.0, 700.0), Vector2(4000.0, 120.0))
 
 	await _check_ladder()
+	await _check_climbable_props()
+	await _check_wall_climbers()
 	await _check_bread()
 	await _check_door()
 	await _check_umbrella()
@@ -152,6 +154,102 @@ func _check_ladder() -> void:
 	hero.queue_free()
 	ladder.queue_free()
 	await process_frame
+
+
+## ⚠ THE OTHER TWO THINGS THE CLIMB TAG SAYS YOU CAN GO UP. `stairs` and `tree` sat in that
+## tag for the whole of Level 1 and 2 with no interaction of any kind: an obstacle asking for
+## Climb accepted a drawn tree, took the ink, and left a shape on the ground. The ladder had
+## the only implementation, so this is the ladder row run twice more against the classes that
+## claimed the same ability.
+func _check_climbable_props() -> void:
+	for entity_id: String in ["stairs", "tree"]:
+		var hero := _wanderer(Vector2(400.0, 600.0))
+		var prop := _utility_shaped(entity_id, Vector2(430.0, 600.0), _ladder_strokes())
+		await _settle(140)
+		hero.global_position = Vector2(prop.global_position.x, hero.global_position.y)
+		await _settle(4)
+		prop.interact(hero)
+		await physics_frame
+		if not bool(hero.call("is_using_ladder", prop)):
+			_fail("%s climb" % entity_id, "the Climb tag claims it, but E did not attach")
+		else:
+			var start := hero.global_position.y
+			Input.action_press("move_up")
+			await _settle(60)
+			Input.action_release("move_up")
+			var climbed := start - hero.global_position.y
+			if climbed > 40.0:
+				_pass("%s climb" % entity_id, "climbed %.0fpx up" % climbed)
+			else:
+				_fail("%s climb" % entity_id, "attached but only rose %.0fpx" % climbed)
+		hero.queue_free()
+		prop.queue_free()
+		await process_frame
+
+
+## ⚠ THE CLIMB TAG IS THE MOST REQUIRED TAG IN THE GAME -- four obstacles across two levels
+## -- and for a long time five of its eight members could not climb. The wall drive lived
+## inside `_drive_spider` behind `entity_id == "spider"`, so a player who drew a monkey at a
+## Climb gate was told by the director that the monkey qualified, morphed into it, and then
+## walked into the wall. The director agreeing and the world refusing is worse than a plain
+## refusal, and this project has shipped it twice.
+##
+## So every creature the Climb tag claims is put against a wall here and asked to go up it.
+## `tools/audit_abilities.py` checks that the profile flag is SET; this checks that setting
+## it does something, which is a different question and the one that matters.
+func _check_wall_climbers() -> void:
+	var wall := _ground(Vector2(1900.0, 400.0), Vector2(60.0, 520.0))
+	for entity_id: String in ["spider", "monkey", "crab"]:
+		var climber := _creature(entity_id, Vector2(1852.0, 560.0))
+		if climber == null:
+			_fail("%s climb" % entity_id, "could not be instantiated")
+			continue
+		await _settle(30)
+		# ⚠ PUT IT BACK ON THE WALL AFTER IT SETTLES. A rig walks itself about while it finds
+		# its stance -- the spider ended up 145px away and this row read "rose 0px" for a
+		# creature that climbs perfectly well. Same lesson as the ladder row above: measure
+		# the feature, not where the scaffolding left the subject.
+		climber.global_position = Vector2(1852.0, climber.global_position.y)
+		await _settle(6)
+		var start := climber.global_position.y
+		Input.action_press("move_right")
+		Input.action_press("move_up")
+		await _settle(180)
+		Input.action_release("move_up")
+		Input.action_release("move_right")
+		var risen := start - climber.global_position.y
+		if risen > 40.0:
+			_pass("%s climb" % entity_id, "went up the wall %.0fpx" % risen)
+		else:
+			_fail("%s climb" % entity_id,
+				"the Climb tag claims it, but it rose %.0fpx" % risen)
+		climber.queue_free()
+		await process_frame
+	wall.queue_free()
+	await process_frame
+
+
+## A drawn creature, built the way `run_morph_reach_probe` builds one.
+##
+## ⚠ IT MUST BE `apply_drawing` WITH A ROSTER FIXTURE, not a box stroke through
+## `apply_item_data`. The first version of this used the object path and all four climbers
+## reported "rose 0px" -- INCLUDING the spider, which climbs perfectly well in the game. A
+## creature given a rectangle has no limbs to segment, so the rig comes up as one blob with
+## no wall contact, and every row measured the fixture rather than the feature. The file's
+## own preamble warns about exactly this; it caught me anyway.
+func _creature(entity_id: String, at: Vector2) -> Node2D:
+	var node := registry.instantiate_entity(entity_id) as Node2D
+	if node == null:
+		return null
+	world.add_child(node)
+	node.global_position = at
+	if node.has_method("set_world_bounds"):
+		node.call("set_world_bounds", Rect2(0.0, -520.0, 3760.0, 1600.0))
+	if node.has_method("apply_drawing"):
+		var rig_type := String(registry.get_entity(entity_id).get("rig_type", "none"))
+		node.call("apply_drawing", _blank(), RosterFixtures.for_rig(rig_type, entity_id))
+	node.global_position = at
+	return node
 
 
 ## Bread took mushroom's slot in the roster, and this check is the inverse of the one

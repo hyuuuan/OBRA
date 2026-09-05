@@ -6,6 +6,9 @@ extends "res://scripts/physics_shape_object.gd"
 signal equipped(utility: UtilityObject, actor: Node2D)
 signal utility_used(behavior: String, item: DrawnItemData)
 signal utility_consumed(utility: UtilityObject)
+## E reached this and it declined, with a reason. A refusal the player cannot hear is
+## indistinguishable from a broken key -- which is exactly how an unsettled ladder read.
+signal interaction_note(text: String)
 
 ## Carried and worked with (F). Everything else is a prop: it is stood up in the world
 ## and does its job by being there (stairs, bridge, tree, bread) or by being stepped
@@ -18,6 +21,12 @@ const HELD_TOOLS := [
 ]
 ## Tools whose F is a state that stays on until pressed again, rather than one action.
 const TOGGLE_TOOLS := ["flashlight", "umbrella", "fan", "parachute", "hot_air_balloon", "wheel"]
+## ⚠ THE PROPS YOU GO UP, AND ALL THREE ARE IN THE CLIMB TAG. It was only the ladder for a
+## long time, while `stairs` and `tree` sat in the same tag with no interaction at all -- so
+## an obstacle asking for Climb accepted a drawn tree, and the tree was then a shape on the
+## ground. Climb is the most required tag in the game; two of its eight members answering it
+## with nothing is the tag layer lying to the player, which is worse than refusing them.
+const CLIMBABLE_PROPS := ["ladder", "stairs", "tree"]
 
 ## How far a tool reaches for things to act on.
 const TOOL_REACH := 96.0
@@ -125,10 +134,18 @@ func set_preview(enabled: bool) -> void:
 func interact(actor: Node2D) -> void:
 	if actor == null:
 		return
-	if utility_behavior == "ladder" and freeze:
+	if utility_behavior in CLIMBABLE_PROPS:
 		if actor.has_method("is_using_ladder") and bool(actor.call("is_using_ladder", self)):
 			actor.call("end_ladder")
 			super.interact(actor)
+			return
+		# ⚠ SETTLED, OR SAY SO. This used to read `and freeze`, and an unsettled ladder fell
+		# straight through to the pickup below -- so the answer to "I drew a ladder and E just
+		# put it back in my bag" is that E did exactly what it was told. A ladder still rolling
+		# is not climbable, but the player pressed E to climb it, and silently doing the
+		# opposite of what they asked is the worst reading of an ambiguous key.
+		if not _standing_still():
+			interaction_note.emit("%s is still settling — give it a moment" % _display_name())
 			return
 		if actor.has_method("begin_ladder"):
 			actor.call("begin_ladder", self)
@@ -274,11 +291,19 @@ func _perform_use(actor: Node2D) -> String:
 			return "Sailing — move to steer" if _boarded_actor == actor else ""
 		"submarine":
 			return "Diving — move to steer" if _boarded_actor == actor else ""
-		"ladder", "stairs", "bridge", "tree", "campfire", "bread", "door":
+		"bridge", "campfire", "bread", "door":
 			# Props: they work by standing where they were put. Saying so is the honest
 			# answer to F, and better than the silence that read as a broken button.
 			return "%s works where it stands — place it, then use it" % _display_name()
 	return ""
+
+
+## Resting where it was put, whether or not the settle timer has got round to freezing it.
+## `freeze` alone was too strict: it needs three quarters of a second of stillness, and a
+## player who walks up to a ladder the instant it lands is inside that window.
+func _standing_still() -> bool:
+	return freeze or (_grounded and linear_velocity.length() < 24.0
+		and absf(angular_velocity) < 0.4)
 
 
 func _display_name() -> String:

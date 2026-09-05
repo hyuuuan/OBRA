@@ -273,8 +273,20 @@ func release_stance() -> void:
 		_primary_body.standing_hint = false
 
 
+## ⚠ THIS RETURNS FALSE FOR EVERY RIG BUT THE SPIDER'S, AND CALLERS MUST ASK.
+##
+## `apply_spider_torso_acceleration` bails silently for anything else -- `_spider_total_mass`
+## is only summed on the spider build path, so the trick it depends on does not exist
+## elsewhere. `has_method` is true for every rig, because they all run this script, so a
+## caller that checks only for the method gets a no-op and no complaint. That is exactly how
+## the monkey, the crab and the snake were given the climb and then stood still against a
+## wall with the climb code running every frame: force applied, nothing moved, nothing said.
+func applies_torso_acceleration() -> bool:
+	return _entity_id == "spider" and is_instance_valid(_primary_body)
+
+
 func apply_spider_torso_acceleration(acceleration: Vector2) -> void:
-	if _entity_id != "spider" or not is_instance_valid(_primary_body):
+	if not applies_torso_acceleration():
 		return
 	var total_mass := maxf(_spider_total_mass, _primary_body.mass)
 	_primary_body.apply_central_force(acceleration * total_mass)
