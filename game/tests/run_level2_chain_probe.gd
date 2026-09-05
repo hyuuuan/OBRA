@@ -58,6 +58,7 @@ func _run() -> void:
 	_audit_the_doors_are_on_the_plaza()
 	await _audit_the_church_is_shut_until_the_candle()
 	await _audit_the_lit_house_hands_over_the_candle()
+	await _audit_a_shut_door_stops_talking()
 	await _audit_the_way_back_works()
 	await _audit_scene_2_happens()
 	await _audit_the_chain_runs_to_alley_2()
@@ -238,6 +239,44 @@ func _audit_the_way_back_works() -> void:
 		"and beside the door they went in by",
 		"%.0fpx from it" % absf(player.global_position.x - door.global_position.x)
 		if door != null else "-")
+
+
+## ⚠ A SENTENCE THAT NEVER COMES DOWN, which is the one kind of defect no other check here
+## can see. Every room carries an `onward_note` for its shut far door, and it goes on the hint
+## bar as a STANDING prompt -- no dwell, no fade. `PiyestaRoom2D` declared `notice_left` from
+## the first day and never emitted it, and the base class's clearer only recognised Level 1's
+## two interiors by name, so "Not yet -- the kandila first" followed the player out of the
+## church, across the plaza, through both alleys and into the dance. Nothing failed. Nothing
+## looked wrong in a frame taken anywhere but the hint bar.
+func _audit_a_shut_door_stops_talking() -> void:
+	var church := level.get("church") as PiyestaRoom2D
+	var bar: Node = level.get("hint_bar") as Node
+	if church == null or bar == null or _room_name() != "ChurchInterior":
+		_check(false, "the apo is in the church to try its far door", _room_name())
+		return
+	_check(not church.onward_note.is_empty(), "the church's far door has something to say",
+		church.onward_note)
+	var onward := Rect2(church.call("onward_rect"))
+	await _stand_at(church.global_position + onward.get_center())
+	for _frame in range(10):
+		await physics_frame
+	_check(String(bar.call("current_text")) == church.onward_note,
+		"walking into it says why it is shut", "'%s'" % bar.call("current_text"))
+	# AND THEN AWAY AGAIN. The note is a standing prompt: if leaving does not take it down,
+	# nothing else will until some other beat happens to write over it.
+	await _stand_at(church.global_position + Vector2(0.0, -40.0))
+	for _frame in range(10):
+		await physics_frame
+	# ⚠ ASSERTED ON `is_showing`, NOT ONLY ON THE TEXT. `clear()` fades the panel and leaves
+	# the label alone, so a check that only read `current_text` would have gone on failing
+	# after the fix landed -- and a check that only read it before the fix would have passed
+	# on the first frame of a fade that never came.
+	_check(not bool(bar.call("is_showing")), "and walking away takes it off the bar again",
+		"the bar is down" if not bool(bar.call("is_showing"))
+			else "still showing '%s'" % bar.call("current_text"))
+	_check(String(bar.call("current_text")).is_empty(),
+		"and it stops reporting what it used to say",
+		"'%s'" % bar.call("current_text"))
 
 
 ## The second half of the level, end to end. Both alleys are shut until the beat before

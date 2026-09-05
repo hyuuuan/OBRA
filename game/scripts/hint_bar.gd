@@ -365,8 +365,15 @@ func current_speaker() -> String:
 ## about the obstacle, the way into the straw heap, the key that re-reads a board -- and a
 ## writer that wants to take its own message down has to be able to tell whether the
 ## message still IS its own. Clearing unconditionally takes somebody else's with it.
+## ⚠ A CLEARED BAR IS SHOWING NOTHING, and this used to say otherwise. `clear()` kills the
+## queue and fades the panel out but never touches the label, so the last sentence stayed in
+## `_text.text` for the rest of the session. Every caller that guards with "only if the bar is
+## still saying what I put there" -- the plaza doors, the rooms, the level's own beats -- was
+## therefore comparing against a sentence that had already been taken down, and would decline
+## to clear a bar that had since been legitimately rewritten by somebody else. Returning ""
+## while hidden costs nothing and makes all of those guards mean what they say.
 func current_text() -> String:
-	return _text.text
+	return _text.text if visible else ""
 
 
 func _process(delta: float) -> void:

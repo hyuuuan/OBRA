@@ -88,6 +88,8 @@ var _door_rooms: Dictionary = {}
 ## straw room put people back inside the mouth they had just walked out of.
 var _step_back: Dictionary = {}
 var _at_door: PiyestaDoor2D = null
+## The scare warning currently on the hint bar, so walking away can take that and only that.
+var _warning := ""
 ## Scene 2's furniture, built inside the church room.
 var chancel: ChurchInterior2D
 var _at_rack := false
@@ -266,6 +268,7 @@ func _wire_the_rooms() -> void:
 		room.exit_reached.connect(_leave_room.bind(room))
 		room.onward_reached.connect(_go_onward.bind(room))
 		room.noticed.connect(_on_room_notice)
+		room.notice_left.connect(_on_room_notice_left)
 
 
 ## The candle Path C is for. It is IN THE ROOM rather than granted on the route commit,
@@ -358,6 +361,7 @@ func _bring_out_the_dancers() -> void:
 	dancers.name = "Dancers"
 	mark.add_child(dancers)
 	dancers.noticed.connect(_on_dancers_noticed)
+	dancers.notice_left.connect(_on_dancers_notice_left)
 	dancers.scattered.connect(_on_dancers_scattered)
 
 
@@ -366,7 +370,29 @@ func _bring_out_the_dancers() -> void:
 ## rather than off the choice screen -- so it is said about the people it is about, while the
 ## player is looking at them.
 func _on_dancers_noticed(_text: String) -> void:
-	_speak(script_lines.fire("L2_N1.protector.warn"))
+	var lines := script_lines.fire("L2_N1.protector.warn")
+	# Remember which of them is the HINT, because that is the one that lands on the bar and
+	# the one walking away should take back down. The rest is a story beat and dismisses
+	# itself.
+	_warning = ""
+	for line_value: Variant in lines:
+		var line: Dictionary = line_value
+		if script_lines.kind_of(line) == "hint":
+			_warning = script_lines.display_text(line)
+	_speak(lines)
+
+
+## ⚠ THE GROUP HAS ALWAYS EMITTED THIS AND NOTHING HAS EVER LISTENED. The warning is about
+## standing near them -- "if you do this they will not come back" -- so a player who thought
+## better of it and walked away was still being told the price of a thing they were no longer
+## about to do. Cleared only if the bar is still saying it, because one channel carries
+## several voices and taking down somebody else's message is worse than leaving this one up.
+func _on_dancers_notice_left() -> void:
+	if hint_bar == null or _warning.is_empty():
+		return
+	if hint_bar.current_text() == _warning:
+		hint_bar.clear()
+	_warning = ""
 
 
 ## They are gone. Nothing in the level is harder for it -- the cost is entirely that Lolo
