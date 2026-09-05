@@ -43,7 +43,13 @@ const TIER_IDLE_SECONDS := [0.0, 30.0, 90.0, 180.0]
 ## for thirty seconds did that, and someone trying things is not standing still. They got
 ## nothing until the second failure took them to T2. A wrong answer is the clearest request
 ## for help there is, and T1 only names the tags.
-const TIER_ATTEMPTS := [0, 1, 2, 4]
+## T3 WAS FOUR AND IS NOW THREE. "A couple of retries should give the actual class" is the
+## instruction, and four wrong answers before the game names one is not a couple -- it is
+## most of an ink budget. The ladder is now one miss to T1 (the tags), two to T2 (what you
+## have that fits), three to T3 (one class that works). The idle ladder is unchanged: a
+## player who is standing still rather than failing is on a slower clock, because standing
+## still is also what reading looks like.
+const TIER_ATTEMPTS := [0, 1, 2, 3]
 const MAX_TIER := 3
 
 var _level: Dictionary = {}
@@ -283,6 +289,41 @@ func accept_set(id: String = "") -> PackedStringArray:
 		spec.get("required_tags", []),
 		String(spec.get("match", "all")),
 		spec.get("exclude", [])) as PackedStringArray
+
+
+## ⚠ THE THIRD CLUE NAMES A CLASS, BECAUSE THE MANUSCRIPT SAYS IT DOES.
+##
+## Thesis 4.5.4: the clue system "escalates in three stages: the first restates the
+## affordance in plainer language, the second names the category of thing that would satisfy
+## it, and the third NAMES ONE CLASS THAT DOES." The build widened what it ACCEPTED at T3
+## and never named anything -- a defensible design, and not the one that was written down.
+## It also quietly broke the telemetry it exists for: the stage reached is recorded so that
+## a completion after a third-stage clue can be told apart from an unaided one, and a T3
+## that names nothing marks assistance that never happened.
+##
+## ONE CLASS, NOT A CATALOGUE. Naming everything that fits is a spelling test with several
+## answers; naming one is a worked example, and the obstacle still takes any of the others.
+## Preference order is deliberate:
+##
+##   1. something the player has ALREADY DRAWN and had accepted. It is the kindest clue --
+##      "you have one of these" -- and it costs them nothing to try.
+##   2. failing that, the first class the obstacle accepts, in the tag's own order, which is
+##      the design's order and not an alphabetical accident.
+##
+## Returns "" when the obstacle is solved or accepts nothing, and the strip prints nothing
+## rather than an empty suggestion.
+func clue_class(id: String = "") -> String:
+	var key := _current if id.is_empty() else id
+	if key.is_empty() or _solved.has(key):
+		return ""
+	var accepted := accept_set(key)
+	if accepted.is_empty():
+		return ""
+	if _profile != null and _profile.has_method("get_drawn_classes"):
+		for drawn: Variant in _profile.call("get_drawn_classes"):
+			if accepted.has(String(drawn)):
+				return String(drawn)
+	return accepted[0]
 
 
 func _emit_requirements() -> void:
