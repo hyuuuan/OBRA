@@ -1,0 +1,175 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/environment_baseplate.gd" id="1_environment"]
+[ext_resource type="Script" path="res://scripts/world_camera_controller.gd" id="2_camera"]
+[ext_resource type="Script" path="res://scripts/depth_layer_2d.gd" id="3_depth"]
+[ext_resource type="Script" path="res://scripts/world_ambience_2d.gd" id="4_ambience"]
+[ext_resource type="Script" path="res://scripts/level_obstacle_2d.gd" id="5_obstacle"]
+[ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="6_checkpoint"]
+[ext_resource type="Script" path="res://scripts/dialogue_node_2d.gd" id="7_dialoguenode"]
+[ext_resource type="Script" path="res://scripts/piyesta_room_2d.gd" id="8_room"]
+[ext_resource type="Script" path="res://scripts/piyesta_plaza_2d.gd" id="18_plazabuild"]
+[ext_resource type="Texture2D" path="res://assets/Level2/plaza_backdrop.png" id="19_backdrop"]
+
+[sub_resource type="RectangleShape2D" id="Rect_PlazaFloor"]
+size = Vector2(1740.0, 200.0)
+
+[sub_resource type="RectangleShape2D" id="Rect_WestWall"]
+size = Vector2(40.0, 1400.0)
+
+[sub_resource type="RectangleShape2D" id="Rect_EastWall"]
+size = Vector2(40.0, 1400.0)
+
+[node name="EnvironmentBaseplate" type="Node2D"]
+script = ExtResource("1_environment")
+world_bounds = Rect2(-200, -2200, 10400, 3100)
+metadata/checkpoint_stone = Color(0.659, 0.549, 0.388, 1)
+metadata/checkpoint_moss = Color(0.318, 0.376, 0.239, 0)
+
+[node name="WorldCamera" type="Camera2D" parent="."]
+script = ExtResource("2_camera")
+target_offset = Vector2(0, -250)
+world_bottom_y = 722.0
+
+[node name="Ambience" type="Node2D" parent="WorldCamera"]
+script = ExtResource("4_ambience")
+
+[node name="SkyFill" type="Polygon2D" parent="."]
+z_index = -200
+color = Color(0, 0.533, 0.992, 1)
+polygon = PackedVector2Array(-3000, -3000, 13000, -3000, 13000, 2400, -3000, 2400)
+
+[node name="GroundFill" type="Polygon2D" parent="."]
+z_index = -190
+color = Color(0.125, 0.094, 0.043, 1)
+polygon = PackedVector2Array(-3000, 652, 13000, 652, 13000, 2400, -3000, 2400)
+
+[node name="PlazaBackdrop" type="Sprite2D" parent="."]
+z_index = -110
+position = Vector2(960, 179.5)
+texture = ExtResource("19_backdrop")
+
+[node name="Plaza" type="Node2D" parent="."]
+script = ExtResource("18_plazabuild")
+ground = 560.0
+from_x = 80.0
+to_x = 1790.0
+
+[node name="GameplayPlane" type="Node2D" parent="."]
+script = ExtResource("3_depth")
+
+[node name="EntityRoot" type="Node2D" parent="GameplayPlane"]
+
+[node name="SpawnPoint" type="Marker2D" parent="GameplayPlane"]
+position = Vector2(450.0, 470.0)
+
+[node name="Terrain" type="Node2D" parent="GameplayPlane"]
+
+[node name="PlazaFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(935.0, 660.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/PlazaFloor"]
+shape = SubResource("Rect_PlazaFloor")
+
+[node name="WestWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(60.0, 250.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/WestWall"]
+shape = SubResource("Rect_WestWall")
+
+[node name="EastWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(1810.0, 250.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/EastWall"]
+shape = SubResource("Rect_EastWall")
+
+[node name="Marks" type="Node2D" parent="GameplayPlane"]
+
+[node name="StartMark" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(450.0, 560.0)
+
+[node name="DancersMark" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(720.0, 560.0)
+
+[node name="DarkHouseA" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(200.0, 560.0)
+
+[node name="DarkHouseB" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(330.0, 560.0)
+
+[node name="LitHouse" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(1060.0, 560.0)
+
+[node name="ChurchDoor" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(1360.0, 560.0)
+
+[node name="BuntingLine" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(720.0, 205.0)
+
+[node name="Rooms" type="Node2D" parent="GameplayPlane"]
+
+[node name="ChurchInterior" type="Node2D" parent="GameplayPlane/Rooms"]
+position = Vector2(6450.0, -940.0)
+script = ExtResource("8_room")
+kind = 0
+room_length = 1400.0
+wall_height = 470.0
+room_zoom = 1.4
+onward_note = "The way to the alleys. Not yet -- the kandila first."
+
+[node name="HouseInterior" type="Node2D" parent="GameplayPlane/Rooms"]
+position = Vector2(4200.0, -320.0)
+script = ExtResource("8_room")
+kind = 1
+room_length = 520.0
+wall_height = 260.0
+room_zoom = 2.0
+
+[node name="Alley1" type="Node2D" parent="GameplayPlane/Rooms"]
+position = Vector2(9450.0, -740.0)
+script = ExtResource("8_room")
+kind = 2
+room_length = 900.0
+wall_height = 700.0
+room_zoom = 1.6
+onward_note = "The alley runs on. The birds are still holding what you came for."
+
+[node name="Alley2" type="Node2D" parent="GameplayPlane/Rooms"]
+position = Vector2(9450.0, 280.0)
+script = ExtResource("8_room")
+kind = 2
+room_length = 900.0
+wall_height = 560.0
+room_zoom = 1.6
+onward_note = "Nothing that way until the bandaritas give up what they are holding."
+
+[node name="Obstacles" type="Node2D" parent="GameplayPlane"]
+
+[node name="L2_N1" type="Area2D" parent="GameplayPlane/Obstacles"]
+position = Vector2(720.0, 400.0)
+script = ExtResource("5_obstacle")
+obstacle_id = "L2_N1"
+trigger_size = Vector2(520.0, 400)
+
+[node name="L2_N2" type="Area2D" parent="GameplayPlane/Obstacles"]
+position = Vector2(9450.0, -900.0)
+script = ExtResource("5_obstacle")
+obstacle_id = "L2_N2"
+trigger_size = Vector2(700.0, 400)
+
+[node name="L2_N3" type="Area2D" parent="GameplayPlane/Obstacles"]
+position = Vector2(9450.0, 120.0)
+script = ExtResource("5_obstacle")
+obstacle_id = "L2_N3"
+trigger_size = Vector2(700.0, 400)
+
+[node name="CP0" type="Area2D" parent="GameplayPlane/Obstacles"]
+position = Vector2(450.0, 490.0)
+script = ExtResource("6_checkpoint")
+checkpoint_id = "CP0"
+
+[node name="DialogueNode" type="Area2D" parent="GameplayPlane"]
+position = Vector2(680.0, 440.0)
+script = ExtResource("7_dialoguenode")
+level_id = "level_2"
+

@@ -3,18 +3,15 @@
   "generated_by": "tools/build_tags.py",
   "note": "Ability tags. Obstacles declare a TAG and the loader resolves satisfying CLASSES at load time; no obstacle names a class. This grouping is a DESIGN artifact and is not ConceptNet output -- abilities.json gives each class one verb, and the tags deliberately cut across those verbs. Per-membership provenance below says which is which. Regenerate with tools/build_tags.py.",
   "provenance_summary": {
-    "memberships_total": 43,
-    "conceptnet_aligned": 11,
-    "design_authored": 32,
-    "statement": "11 of 43 tag memberships reuse the class's own ConceptNet verb; the remaining 32 are design groupings. Do not describe the tag layer as ConceptNet-derived."
+    "memberships_total": 54,
+    "conceptnet_aligned": 12,
+    "design_authored": 42,
+    "statement": "12 of 54 tag memberships reuse the class's own ConceptNet verb; the remaining 42 are design groupings. Do not describe the tag layer as ConceptNet-derived."
   },
   "unhintable_classes": {
     "classes": [
-      "anvil",
       "bird",
-      "boomerang",
       "campfire",
-      "cannon",
       "clock",
       "fish",
       "flashlight",
@@ -22,17 +19,15 @@
       "parachute",
       "sailboat",
       "sea_turtle",
-      "shark",
       "submarine",
       "umbrella"
     ],
-    "note": "In the roster and drawable, but carrying no tag yet, so no obstacle can ask for them. Most of these are waiting on the six tags declared here with no members (fly, swim, crush, strike, light, shield), which later levels populate -- a bird or a shark is unhintable today and will not be once Fly and Swim exist. Build spec 12.2 names clock and snail as the residue that no planned tag covers; that claim is about the END state, so re-read this list once the held tags are filled in.",
+    "note": "In the roster and drawable, but carrying no tag yet, so no obstacle can ask for them. Most are waiting on the tags listed in held_tags_still_empty, which later levels populate -- a shark is unhintable today and will not be once Swim exists. NOTE that Fly is NOT one of those: Level 2 restricts flight rather than granting it, so bird, parachute, umbrella and hot_air_balloon stay unhintable until a level asks to fly. Build spec 12.2 names clock and snail as the residue that no planned tag covers; that claim is about the END state, so re-read this list once the held tags are filled in.",
     "held_tags_still_empty": [
       "crush",
       "fly",
       "light",
       "shield",
-      "strike",
       "swim"
     ]
   },
@@ -146,11 +141,6 @@
           "provenance": "design_authored",
           "source_ability": "slide",
           "note": "ConceptNet grounds penguin as 'slide'; membership in 'leap' is a design grouping, not a ConceptNet assertion."
-        },
-        "mushroom": {
-          "provenance": "design_authored",
-          "source_ability": "eat",
-          "note": "ConceptNet grounds mushroom as 'eat'; membership in 'leap' is a design grouping, not a ConceptNet assertion."
         }
       }
     },
@@ -322,10 +312,93 @@
         }
       }
     },
+    "feed": {
+      "display_name": "Feed",
+      "gloss": "a reason for something wary to come down within reach",
+      "unlocked_in_level": 2,
+      "declared_only": false,
+      "classes": {
+        "bread": {
+          "provenance": "conceptnet_aligned",
+          "source_ability": "feed"
+        },
+        "bucket": {
+          "provenance": "design_authored",
+          "source_ability": "carry",
+          "note": "ConceptNet grounds bucket as 'carry'; membership in 'feed' is a design grouping, not a ConceptNet assertion."
+        },
+        "tree": {
+          "provenance": "design_authored",
+          "source_ability": "shade",
+          "note": "ConceptNet grounds tree as 'shade'; membership in 'feed' is a design grouping, not a ConceptNet assertion."
+        }
+      }
+    },
+    "startle": {
+      "display_name": "Startle",
+      "gloss": "alarming enough that a crowd scatters rather than stays",
+      "unlocked_in_level": 2,
+      "declared_only": false,
+      "classes": {
+        "snake": {
+          "provenance": "design_authored",
+          "source_ability": "slither",
+          "note": "ConceptNet grounds snake as 'slither'; membership in 'startle' is a design grouping, not a ConceptNet assertion."
+        },
+        "monkey": {
+          "provenance": "design_authored",
+          "source_ability": "climb",
+          "note": "ConceptNet grounds monkey as 'climb'; membership in 'startle' is a design grouping, not a ConceptNet assertion."
+        },
+        "shark": {
+          "provenance": "design_authored",
+          "source_ability": "swim",
+          "note": "ConceptNet grounds shark as 'swim'; membership in 'startle' is a design grouping, not a ConceptNet assertion."
+        },
+        "frog": {
+          "provenance": "design_authored",
+          "source_ability": "jump",
+          "note": "ConceptNet grounds frog as 'jump'; membership in 'startle' is a design grouping, not a ConceptNet assertion."
+        }
+      }
+    },
+    "strike": {
+      "display_name": "Strike",
+      "gloss": "able to hit hard in one place",
+      "unlocked_in_level": 2,
+      "declared_only": false,
+      "classes": {
+        "boomerang": {
+          "provenance": "design_authored",
+          "source_ability": "throw",
+          "note": "ConceptNet grounds boomerang as 'throw'; membership in 'strike' is a design grouping, not a ConceptNet assertion."
+        },
+        "axe": {
+          "provenance": "design_authored",
+          "source_ability": "chop",
+          "note": "ConceptNet grounds axe as 'chop'; membership in 'strike' is a design grouping, not a ConceptNet assertion."
+        },
+        "sword": {
+          "provenance": "design_authored",
+          "source_ability": "cut",
+          "note": "ConceptNet grounds sword as 'cut'; membership in 'strike' is a design grouping, not a ConceptNet assertion."
+        },
+        "anvil": {
+          "provenance": "design_authored",
+          "source_ability": "forge",
+          "note": "ConceptNet grounds anvil as 'forge'; membership in 'strike' is a design grouping, not a ConceptNet assertion."
+        },
+        "cannon": {
+          "provenance": "design_authored",
+          "source_ability": "shoot",
+          "note": "ConceptNet grounds cannon as 'shoot'; membership in 'strike' is a design grouping, not a ConceptNet assertion."
+        }
+      }
+    },
     "fly": {
       "display_name": "Fly",
       "gloss": "able to stay up without holding on to anything",
-      "unlocked_in_level": 2,
+      "unlocked_in_level": 4,
       "declared_only": true,
       "classes": {}
     },
@@ -340,13 +413,6 @@
       "display_name": "Crush",
       "gloss": "heavy enough to break what is under it",
       "unlocked_in_level": 4,
-      "declared_only": true,
-      "classes": {}
-    },
-    "strike": {
-      "display_name": "Strike",
-      "gloss": "able to hit hard in one place",
-      "unlocked_in_level": 3,
       "declared_only": true,
       "classes": {}
     },

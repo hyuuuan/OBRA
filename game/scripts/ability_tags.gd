@@ -140,6 +140,26 @@ func tags_for_class(class_id: String) -> Array:
 	return (_class_tags.get(class_id, []) as Array).duplicate()
 
 
+## The tags this class carries that a player IN THIS LEVEL could have met.
+##
+## TAG MEMBERSHIP IS GLOBAL AND RETROACTIVE, AND THAT LEAKS BACKWARDS. Adding `frog` to
+## `startle` for Level 2 immediately changed a Level 1 hint from "A frog can LEAP" to
+## "A frog can LEAP or STARTLE" -- naming an ability the game does not hand over for
+## another level, at an obstacle that cannot use it. Every future level's memberships
+## would do the same to every level before it.
+##
+## The filter is the tag's own `unlocked_in_level` against the level being played, and
+## deliberately NOT the profile: a hint that changes with what some previous run happened
+## to unlock is a hint no test can pin down, and `user://profile.json` survives between
+## runs. This is a property of where the player IS, not of what they have done.
+func tags_for_class_by_level(class_id: String, level_number: int) -> Array:
+	var out: Array = []
+	for tag_value: Variant in tags_for_class(class_id):
+		if unlock_level(String(tag_value)) <= level_number:
+			out.append(tag_value)
+	return out
+
+
 ## Does this class carry this tag? The question an obstacle asks of a submitted drawing.
 func class_has_tag(class_id: String, tag: String) -> bool:
 	return (_tag_classes.get(tag, PackedStringArray()) as PackedStringArray).has(class_id)

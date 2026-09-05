@@ -39,11 +39,22 @@ const UNIT := 2.0
 ## which is the size a thing has to be before the eye picks it out of a terrace.
 const HEIGHT := 55.0
 
-const STONE := Color(0.443, 0.435, 0.412, 1.0)      # 716F69
-const STONE_LIT := Color(0.596, 0.588, 0.557, 1.0)  # 98968E
-const STONE_DARK := Color(0.271, 0.263, 0.243, 1.0) # 45433E
-const EDGE := Color(0.110, 0.106, 0.098, 1.0)       # 1C1B19
-const MOSS := Color(0.318, 0.376, 0.239, 1.0)       # 51603D
+## ⚠ THE ROCK IS NOT THE SAME ROCK IN EVERY LEVEL, and it used to be.
+##
+## This was carved out of the Cordillera terrace walls, which is right where it was born and
+## wrong the moment it was planted anywhere else: two cold grey bollards standing in a Cebu
+## church plaza in full sun, next to a painting made of ochre, coral and Sinulog red. Nothing
+## about the lantern was wrong except its colour, and a colour is not worth a second class.
+##
+## A LEVEL SETS THIS BY META, NOT BY CODE. `plant()` walks up from wherever it is standing
+## looking for `checkpoint_stone` / `checkpoint_moss` on an ancestor -- normally the
+## environment scene's root -- so a level re-skins its checkpoints in the .tscn, next to the
+## marks they stand on. No static, because a static would follow the player back to Level 1;
+## no argument, because `plant` is called from three places and two of them are generic.
+@export var stone_tone := Color(0.443, 0.435, 0.412, 1.0)   # 716F69, Cordillera grey
+## The moss. ALPHA ZERO MEANS NONE -- a stone that has stood on a terrace for a lifetime is
+## not a clean stone, but a lamp on a swept plaza on the morning of the fiesta is.
+@export var moss_tone := Color(0.318, 0.376, 0.239, 1.0)    # 51603D
 
 ## The fire. Gold, because gold is what this interface has always meant by "yours now".
 const FLAME_CORE := UISkin.GOLD_PALE
@@ -87,6 +98,29 @@ const GROUND_PROBE := 420.0
 const SWEEP: Array[float] = [0.0, -36.0, 36.0, -84.0, 84.0, -150.0, 150.0, -240.0, 240.0]
 
 
+## The stone, taken down into shade or up into the light. Multiplying below one and going
+## toward white above it, so a warm stone stays warm in both directions.
+func _stone(scale: float) -> Color:
+	if scale <= 1.0:
+		return Color(stone_tone.r * scale, stone_tone.g * scale, stone_tone.b * scale, 1.0)
+	return stone_tone.lerp(Color(1.0, 1.0, 1.0, 1.0), minf(scale - 1.0, 1.0))
+
+
+## The level's own rock, if it has an opinion. Walked up the tree rather than read off a
+## fixed node, because a lantern is planted under a checkpoint area in one level and under an
+## obstacle volume in another, and neither of them is a place to put a level's palette.
+static func _skin_from(node: Node) -> Dictionary:
+	var walk := node
+	while walk != null:
+		if walk.has_meta(&"checkpoint_stone") or walk.has_meta(&"checkpoint_moss"):
+			return {
+				"stone": walk.get_meta(&"checkpoint_stone", null),
+				"moss": walk.get_meta(&"checkpoint_moss", null),
+			}
+		walk = walk.get_parent()
+	return {}
+
+
 ## Stand one at `at` in `parent`'s space, on whatever turns out to be underneath it.
 static func plant(parent: Node2D, at: Vector2, lit_already: bool = false) -> CheckpointLantern2D:
 	if parent == null or not is_instance_valid(parent):
@@ -96,6 +130,11 @@ static func plant(parent: Node2D, at: Vector2, lit_already: bool = false) -> Che
 	lantern.position = at
 	lantern.z_index = LANTERN_Z
 	lantern.lit = lit_already
+	var skin := _skin_from(parent)
+	if skin.get("stone") != null:
+		lantern.stone_tone = Color(skin["stone"])
+	if skin.get("moss") != null:
+		lantern.moss_tone = Color(skin["moss"])
 	parent.add_child(lantern)
 	lantern.stand_on_the_ground()
 	return lantern
@@ -260,8 +299,8 @@ func _draw_stone() -> void:
 	var warm := clampf(_fire, 0.0, 1.0)
 	# Facing edges catch the fire when it is burning. The stone itself never changes colour;
 	# what changes is that there is now something lighting it.
-	var lit_face := STONE_LIT.lerp(FLAME_CORE, 0.34 * warm)
-	var body := STONE.lerp(FLAME_DEEP, 0.10 * warm)
+	var lit_face := _stone(1.28).lerp(FLAME_CORE, 0.34 * warm)
+	var body := stone_tone.lerp(FLAME_DEEP, 0.10 * warm)
 
 	_block(Rect2(-15.0, -9.0, 30.0, 9.0), body, lit_face)      # plinth
 	_block(Rect2(-11.0, -13.0, 22.0, 4.0), body, lit_face)     # plinth cap
@@ -274,30 +313,31 @@ func _draw_stone() -> void:
 
 	# Moss on the north side, because a stone that has stood on a terrace for a lifetime is
 	# not a clean stone. Only on the plinth, where rain collects.
-	draw_rect(Rect2(-15.0, -9.0, 5.0, 3.0), Color(MOSS, 0.7))
-	draw_rect(Rect2(9.0, -7.0, 4.0, 2.0), Color(MOSS, 0.5))
+	if moss_tone.a > 0.0:
+		draw_rect(Rect2(-15.0, -9.0, 5.0, 3.0), Color(moss_tone, moss_tone.a * 0.7))
+		draw_rect(Rect2(9.0, -7.0, 4.0, 2.0), Color(moss_tone, moss_tone.a * 0.5))
 
 
 ## One carved block: an edge all the way round, a face, and a catch of light along the top
 ## and down the left, which is where the light in this game comes from.
 func _block(box: Rect2, face: Color, lit_face: Color) -> void:
-	draw_rect(box.grow(1.0), EDGE)
+	draw_rect(box.grow(1.0), _stone(0.25))
 	draw_rect(box, face)
 	draw_rect(Rect2(box.position, Vector2(box.size.x, 1.0)), lit_face)
 	draw_rect(Rect2(box.position, Vector2(1.0, box.size.y)), lit_face)
-	draw_rect(Rect2(box.position.x, box.end.y - 1.0, box.size.x, 1.0), STONE_DARK)
+	draw_rect(Rect2(box.position.x, box.end.y - 1.0, box.size.x, 1.0), _stone(0.61))
 
 
 ## The window, and what is in it. Cold it is a black slot with a stone mullion; lit it is a
 ## fire that moves, drawn as stacked whole-pixel rows so the flame steps rather than blurs.
 func _draw_fire() -> void:
 	var window := Rect2(-7.0, -42.0, 14.0, 11.0)
-	draw_rect(window.grow(1.0), EDGE)
+	draw_rect(window.grow(1.0), _stone(0.25))
 	if _fire <= 0.0:
 		draw_rect(window, COLD)
 		# The mullion, which is the detail that makes the dark slot read as an opening in a
 		# stone rather than as a hole in the drawing.
-		draw_rect(Rect2(-0.5, window.position.y, 1.0, window.size.y), STONE_DARK)
+		draw_rect(Rect2(-0.5, window.position.y, 1.0, window.size.y), _stone(0.61))
 		return
 
 	draw_rect(window, COLD)

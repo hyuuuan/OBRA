@@ -849,21 +849,21 @@
       "required_medium": "any"
     },
     {
-      "id": "mushroom",
-      "display_name": "Mushroom",
+      "id": "bread",
+      "display_name": "Bread",
       "kind": "object",
-      "quickdraw_label": "mushroom",
+      "quickdraw_label": "bread",
       "spawn_mode": "obstacle",
       "movement_type": "physics",
       "scene_path": "res://objects/utility_object.tscn",
       "evaluation_labels": [
-        "mushroom"
+        "bread"
       ],
       "enabled": true,
       "rig_type": "none",
-      "shape_type": "mushroom",
+      "shape_type": "bread",
       "runtime_role": "utility",
-      "utility_behavior": "mushroom",
+      "utility_behavior": "bread",
       "required_medium": "any"
     },
     {

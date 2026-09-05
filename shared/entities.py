@@ -53,7 +53,7 @@ ALLOWED_UTILITY_BEHAVIORS = {
     "bucket",
     "umbrella",
     "tree",
-    "mushroom",
+    "bread",
     "wheel",
 }
 # Older manifests used deform_strategy; map those onto the rig types.

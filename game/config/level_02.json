@@ -1,0 +1,345 @@
+{
+  "$comment": "OBRA Level 2 data, written against Level 2 Pista Design Refined.pdf (revision 3). Obstacles declare ability TAGS; satisfying classes resolve from tags.json at load time; no obstacle names a class. The design calls this level L2_PISTA; the runtime id stays 'level_2' because PlayerProfile keys on it. NOTE that LEVEL_2.md is the SUPERSEDED provisional design -- it made Fly the level's new ability, and the refined design restricts flight instead. Do not read it as current.",
+  "schema_version": 1,
+  "level_id": "level_2",
+  "design_level_id": "L2_PISTA",
+  "display_name": "Piyesta",
+  "display_name_note": "The artist's spelling, and the folder's. The hub plate says PISTA; the design id keeps L2_PISTA because that exact string is compared in game_level.gd.",
+  "order": 2,
+  "unlocks_on_complete": "L3_DAGAT",
+  "unlocks_at_checkpoint": "CP4",
+  "goal": "recover seven scraps of the Pista painting, assemble them, and open the way to Dagat",
+  "tags_unlocked": [
+    {
+      "tag": "startle",
+      "at": "L2_N1.dialogue"
+    },
+    {
+      "tag": "feed",
+      "at": "L2_N2.dialogue"
+    },
+    {
+      "tag": "strike",
+      "at": "L2_N2.dialogue"
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "CP0",
+      "at": "L2_START",
+      "trigger": "area"
+    },
+    {
+      "id": "CP1",
+      "at": "L2_N1",
+      "trigger": "route_commit"
+    },
+    {
+      "id": "CP2",
+      "at": "SCENE_2.exit",
+      "trigger": "area"
+    },
+    {
+      "id": "CP3",
+      "at": "L2_N2",
+      "trigger": "route_commit"
+    },
+    {
+      "id": "CP4",
+      "at": "L2_N3",
+      "trigger": "route_commit"
+    },
+    {
+      "id": "CP5",
+      "at": "EXIT_MARKER",
+      "trigger": "area"
+    }
+  ],
+  "restrictions": {
+    "$comment": "The design's two rules, as EXPLICIT CLASS LISTS checked against model/labels.json at load. Never infer size or flight from a label at runtime. The size rule is checked FIRST so a butterfly -- which both rules catch -- gets the more specific message.",
+    "banned_playable_classes": {
+      "classes": [
+        "ant",
+        "bee",
+        "butterfly",
+        "spider",
+        "scorpion",
+        "snail"
+      ],
+      "fiction": "small enough to be trampled by the crowd or the parade float",
+      "enforcement": "refused_at_submission",
+      "costs_ink": false,
+      "$comment": "A REFUSAL, not a violation. The design's flowchart routes both rules to the checkpoint handler, but its own UI list asks for feedback saying WHY a drawing was refused, and its own note says to check the size rule first for the more specific message. Sending the player back to a checkpoint for a drawing they were never allowed to make is a punishment; refusing it at submission is a boundary."
+    },
+    "flight_ceiling": {
+      "classes": [
+        "bird",
+        "bat",
+        "butterfly",
+        "bee"
+      ],
+      "enforcement": "return_to_nearest_checkpoint",
+      "keeps": [
+        "inventory",
+        "ink",
+        "scraps",
+        "flags"
+      ],
+      "resets": [
+        "position"
+      ],
+      "lifted_by_flag": "bandaritas_cut",
+      "drawn_at": "the bandarita line in each scene",
+      "$comment": "Per scene, not one global number: whatever Y the bandaritas are strung at, the ceiling sits just under it, and the warning band is DRAWN AT THE LINE so the boundary is the art rather than a HUD element. Lifting it on bandaritas_cut is what makes cutting a trade rather than a free choice. CLOSED 2026-08-30: Alley 1 had no bandaritas in the art list and so no diegetic line to hang its cap on. It has one now -- a run of bunting strung across the alley at 460px above its floor, holding nothing. A town dressed for a fiesta has bunting in its side streets too, and the alternative was an invisible wall exactly where the design says there must not be one. run_level2_scene_probe measures both lines."
+    }
+  },
+  "scrap_economy": {
+    "total": 7,
+    "in_alley_1": 5,
+    "in_alley_2": 2,
+    "none_can_be_permanently_lost": true,
+    "$comment": "A missed bird defers its scrap to the next screen rather than losing it: BIRDS_IN_ALLEY2 carries the count forward and Alley 2 spawns that many tangled birds. Rides the checkpoint."
+  },
+  "obstacles": [
+    {
+      "id": "L2_N1",
+      "type": "dialogue_node",
+      "display_name": "Ang Kandila",
+      "teaches_before_choice": [
+        "startle",
+        "unlock"
+      ],
+      "checkpoint_on_commit": "CP1",
+      "routes": {
+        "artist": {
+          "answered_by": "dance_minigame",
+          "attempts": 2,
+          "reward": "item_kandila",
+          "reward_on_clear": "collectible_L2_flower",
+          "sets_flag": "has_flower",
+          "$comment": "NOT ANSWERED BY DRAWING, which is a first for this project -- so it declares `answered_by` and the audit skips the two-answer floor for it rather than failing a route that was never a tag question. The level stays unloseable: clear it in one or two attempts for the flower, fail both and the kandila is handed over anyway. Only the flower is at stake, and the loss is SILENT by design -- a secret ending that announces its requirements is not secret."
+        },
+        "pragmatist": {
+          "required_tags": [
+            "unlock"
+          ],
+          "exclude": [],
+          "$comment": "The lit house past two or three dark doors, so the search reads as a search. Reuses Level 1's lock-imitation mechanic -- shared code, shared lock art. TWO answers, which is the floor; the audit prints it."
+        },
+        "protector": {
+          "required_tags": [
+            "startle"
+          ],
+          "exclude": [],
+          "persistent_effect": "dancers_gone",
+          "$comment": "The dancers scatter and NEVER RETURN -- MG_People needs a no-dancers variant for every scene after this. That is the Protector cost here: the plaza is Lolo's memory and the player has just emptied it. Closing the Artist route the moment they scatter must be signalled BEFORE the player commits."
+        }
+      },
+      "grants_item": "kandila"
+    },
+    {
+      "id": "L2_N2",
+      "type": "dialogue_node",
+      "display_name": "Ang Unang Eskinita",
+      "teaches_before_choice": [
+        "feed",
+        "startle",
+        "strike"
+      ],
+      "checkpoint_on_commit": "CP3",
+      "routes": {
+        "artist": {
+          "required_tags": [
+            "feed"
+          ],
+          "exclude": [],
+          "reward": "lore_they_used_to_feed_them",
+          "recovers_scraps": 5,
+          "sets_counter": {
+            "birds_in_alley_2": 0
+          },
+          "$comment": "One offering calms all five. Splitting it into one per bird would turn a lore beat into a chore."
+        },
+        "pragmatist": {
+          "required_tags": [
+            "startle"
+          ],
+          "exclude": [
+            "shark"
+          ],
+          "sets_counter": {
+            "birds_in_alley_2": 5
+          },
+          "$comment": "All five scatter into the bandaritas at once and are recovered in Alley 2. Nothing is lost, only deferred. `shark` is excluded because a narrow alley is not a plaza -- and it leaves three answers."
+        },
+        "protector": {
+          "required_tags": [
+            "strike"
+          ],
+          "exclude": [
+            "anvil",
+            "axe",
+            "sword"
+          ],
+          "requires_reach_px": 260,
+          "timer_seconds": [
+            45,
+            60
+          ],
+          "sets_counter": {
+            "birds_in_alley_2": "however many escaped"
+          },
+          "$comment": "Per-bird rather than pass/fail: down three of five and walk into Alley 2 with two waiting. The timer is shown IN THE FICTION -- the birds circling higher, the light changing -- not as a bare countdown. THE EXCLUSIONS ARE ABOUT REACH, not taste: this route asks the player to hit something in the air, and a blade swings inside UtilityObject.TOOL_REACH (96px) -- so axe and sword were accepted by the tag layer and then did nothing, which is the tag layer agreeing with the player and lying. `anvil` drops straight down. What is left is what actually leaves the hand: the boomerang at 320px and the cannon, whose shot is a body under gravity. A cannon in a plaza is excessive, and this is the Protector route -- excess is its character."
+        }
+      }
+    },
+    {
+      "id": "L2_N3",
+      "type": "dialogue_node",
+      "display_name": "Ang Ikalawang Eskinita",
+      "teaches_before_choice": [
+        "climb",
+        "cut"
+      ],
+      "checkpoint_on_commit": "CP4",
+      "routes": {
+        "artist": {
+          "required_tags": [
+            "climb"
+          ],
+          "exclude": [
+            "crab",
+            "snake",
+            "bat"
+          ],
+          "recovers_scraps": 2,
+          "$comment": "TWO ROUTES AT THIS NODE, deliberately -- the design says so. Climbing preserves the town and cutting marks it, so climb is the Artist stance here and there is no Pragmatist. \u26a0 `bat` is excluded for a reason the tag layer cannot see: it is a flight-ceiling class, and this route asks the player to reach the bandaritas, which IS the ceiling. Without the exclusion the tag layer offers an answer the restriction handler then punishes -- the game agreeing with the player and then taking it back."
+        },
+        "protector": {
+          "required_tags": [
+            "cut"
+          ],
+          "exclude": [
+            "elephant"
+          ],
+          "recovers_scraps": 2,
+          "persistent_effect": "bandaritas_cut",
+          "$comment": "The one player action in this level that permanently changes the town, and worth a beat of reaction. It also LIFTS THE FLIGHT CEILING, which is the trade: climbing keeps the town, cutting buys the sky. The level owes the player one stretch of open air afterwards or the reward never registers."
+        }
+      }
+    }
+  ],
+  "hidden_flowers": [],
+  "hidden_flowers_note": "Level 2 has NO hidden flower. Its one collectible is the dance minigame's, awarded at L2_N1's Artist route and recorded through PlayerProfile.record_collectible so EndingResolver counts it like every other. Level 1's cross_level_effect used to name a hidden_flower_2 here; see the crease note below.",
+  "inherited_effects": {
+    "canvas_2_creased": {
+      "from": "L1_PAYYO.L1_N3.protector",
+      "read_as": "PlayerProfile.is_canvas_damaged('canvas_2_pista')",
+      "does": "shows a crease overlay on the assembled painting in Scene 3 and on every later showing of it",
+      "does_not": "change the scrap count, the paths available, or the ending",
+      "$comment": "VISUAL ONLY. See LEVEL_1.md and LEVEL_TEMPLATE.md: this is a recorded debt, not a design -- Level 1's Node 3 Protector now costs nothing mechanical."
+    },
+    "made_a_key_in_level_1": {
+      "read_as": "PlayerProfile.has_object('key')",
+      "does": "varies L2_N1's Pragmatist dialogue -- Lolo says they have done this before"
+    }
+  },
+  "hint_escalation": {
+    "t0": {
+      "trigger": "on_approach",
+      "reveals": "flavor"
+    },
+    "t1": {
+      "trigger": "canvas_open_or_idle_s",
+      "value": 30,
+      "reveals": "required_tags"
+    },
+    "t2": {
+      "trigger": "failed_attempts_or_idle_s",
+      "attempts": 2,
+      "value": 90,
+      "reveals": "ability_book_with_owned_classes"
+    },
+    "t3": {
+      "trigger": "failed_attempts_or_idle_s",
+      "attempts": 4,
+      "value": 180,
+      "reveals": "accept_set_expands_to_union_of_all_routes",
+      "logs": "assisted",
+      "affects_tally": false
+    }
+  },
+  "recognition": {
+    "confidence_threshold": 0.6,
+    "margin_threshold": 0.15,
+    "decline_costs_ink": false,
+    "decline_message_source": "dialogue"
+  },
+  "cultural_constraints": {
+    "$comment": "The plaza is a church plaza and the fiesta is a religious feast. Level 1 asserted its guardrails in code rather than only documenting them; this level owes the same.",
+    "church": {
+      "sacred_images_collision": false,
+      "sacred_images_interactable": false,
+      "sacred_images_puzzle_function": false,
+      "altar_reachable_for": "placing the kandila, and nothing else",
+      "belfry_may_be_climbed": true,
+      "note": "The bulul rule ported. No cutting, burning, breaking or standing on any sacred image -- the cross on the pediment, the retablo, a carroza if one is ever drawn. \u26a0 AND THE SANTO NINO ESPECIALLY: it is the most venerated image in the country, it appears in the Basilica's facade niche and in the retablo indoors, and in both places it is DRAWN INTO A TEXTURE and owns no node, no area and no collision. ChurchInterior2D._check_the_guardrail fails loudly if anybody gives it one."
+    },
+    "audio": {
+      "forbid": [
+        "liturgy_recording",
+        "real_mass",
+        "looped_prayer"
+      ],
+      "use": [
+        "rondalla",
+        "bandurria",
+        "brass_band",
+        "church_bells",
+        "sinulog_drums"
+      ],
+      "note": "Inverts Level 1's list: Payyo forbids bandurria because it is not Cordilleran; in a Cebu plaza the rondalla, the town brass band and the Sinulog drum-and-bugle are exactly right. A real Mass looped as ambience is not ambience, and neither is a recording of the novena."
+    },
+    "fiesta_is_named": "Santo Nino -- the Basilica Minore del Santo Nino, Cebu, and Sinulog (third Sunday of January)",
+    "fiesta_naming_note": "CHANGED 2026-09-01, deliberately, and this is the record of it. This level was Pahiyas: Lucban, Quezon, San Isidro Labrador, 15 May -- because the delivered plaza painting is unmistakably that fiesta, a woven-palm arch crowned with a kiping aranya. The plaza is now authored art themed on the Basilica del Santo Nino instead (coral stone in three tiers, the belfry beside it, bahay na bato along the street, Sinulog's red and gold), so the config follows the level rather than the other way round. The delivered painting is still in the repo and still backs the hub card. Half-committing is the failure mode: this is Cebu now, not Lucban.",
+    "arch_is_food": {
+      "interactable": false,
+      "puzzle_function": false,
+      "note": "KEPT AS A RULE EVEN THOUGH THE ARCH IS GONE. The kiping arch belonged to Pahiyas and went with the re-theme, so nothing in the level touches it because nothing in the level has one. The rule stays because the reasoning does: kiping IS the harvest, the way Level 1's straw pile is grain, and if a palm arch is ever drawn again it is food and not scenery to be cut up."
+    }
+  },
+  "lighting_states": [
+    {
+      "id": "midday",
+      "from": "L2_START",
+      "to": "L2_N1"
+    },
+    {
+      "id": "church_interior",
+      "from": "SCENE_2",
+      "to": "SCENE_2"
+    },
+    {
+      "id": "alley_shade",
+      "from": "L2_N2",
+      "to": "L2_N3"
+    },
+    {
+      "id": "late_afternoon",
+      "from": "EXIT_MARKER",
+      "to": "EXIT_MARKER"
+    }
+  ],
+  "load_time_assertions": [
+    "every obstacle route resolves >= 2 classes AFTER exclusions",
+    "every obstacle route resolves >= 2 classes AFTER exclusions AND after the banned-class list is subtracted",
+    "every class named in restrictions.banned_playable_classes and restrictions.flight_ceiling exists in model/labels.json",
+    "no route both requires a flight-ceiling class and asks the player to cross the ceiling",
+    "every tag in tags_unlocked exists in entities.json",
+    "every morph-capable route is preceded by a checkpoint",
+    "every teaches_before_choice tag is unlocked before its choice is presented",
+    "a route answered by something other than drawing declares answered_by",
+    "no dialogue line in this level names a class",
+    "all seven scraps are recoverable on every path combination"
+  ]
+}
