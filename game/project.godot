@@ -29,6 +29,7 @@ PlayerProfile="*res://scripts/player_profile.gd"
 AbilityTags="*res://scripts/ability_tags.gd"
 Telemetry="*res://scripts/telemetry.gd"
 AudioDirector="*res://scripts/audio_director.gd"
+UIFeedback="*res://scripts/ui_feedback.gd"
 
 [display]
 
