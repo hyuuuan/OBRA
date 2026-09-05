@@ -55,7 +55,13 @@ OUT = REPO_ROOT / "game" / "config" / "tags.json"
 LEVEL_1_TAGS: dict[str, list[str]] = {
     "span":    ["bridge", "ladder", "square", "triangle"],
     "roll":    ["circle", "wheel"],
-    "climb":   ["spider", "bat", "monkey", "crab", "ladder", "stairs", "tree", "snake"],
+    # ⚠ `snake` WAS HERE AND HAS BEEN REMOVED, on the tag's own gloss: "able to grip a wall
+    # and go up it". Our snake is a chain of segments driven by a travelling wave and has no
+    # grip model at all -- pressed flat against a wall it never even registers wall contact,
+    # so the climb code never runs and it slides back down. Its ConceptNet verb is `slither`,
+    # which works; Climb was a design grouping, and it was the one grouping the world could
+    # not honour. `run_behaviour_audit` puts every remaining member against a wall.
+    "climb":   ["spider", "bat", "monkey", "crab", "ladder", "stairs", "tree"],
     "leap":    ["frog", "horse", "penguin"],
     "cut":     ["axe", "sword", "scissors", "elephant"],
     "forage":  ["rake", "pig"],

@@ -263,7 +263,20 @@ func _physics_process(delta: float) -> void:
 	if _ladder != null and is_instance_valid(_ladder):
 		state = _drive_ladder(body, vertical)
 	elif entity_id == "spider":
+		# ⚠ AHEAD OF THE GENERIC CLIMB, AND THAT ORDER IS THE GUARD. The spider owns a stance
+		# controller that reaches the same `_climb_wall` from inside itself; letting the
+		# generic path take it as well would run two controllers against one torso, which is
+		# where the old rolling/locked-body behaviour came from. Its profile therefore does
+		# NOT carry `can_climb_walls` -- but if somebody adds it, this ordering still holds.
 		state = _drive_spider(body, horizontal, vertical)
+	elif _wall_climbing(body, vertical):
+		# BEFORE the rig drives, so a walker, a biped and a slitherer all climb the same way.
+		# After them, each drive would have to know not to fight the climb.
+		var surface: Variant = _contact_summary().get("dominant_surface_normal",
+			body.dominant_surface_normal)
+		_climb_wall(body, vertical, _get_skin(),
+			surface if surface is Vector2 else body.dominant_surface_normal)
+		state = "climb"
 	elif rig_type == "flier":
 		state = _drive_flier(body, horizontal, delta, String(rig_profile.get("flight_style", "")) == "flutter")
 	elif rig_type == "swimmer":
@@ -271,6 +284,13 @@ func _physics_process(delta: float) -> void:
 			state = _drive_snake(body, Vector2(horizontal, vertical))
 		else:
 			state = _drive_fish(body, Vector2(horizontal, vertical))
+	elif bool(rig_profile.get("can_swim", false)) and is_in_water():
+		# ⚠ AMPHIBIOUS, WHICH IS NOT THE SAME AS SWIMMER. A sea turtle's ConceptNet verb is
+		# `swim` and its rig is a walker, so it walked along the bottom of the sea. Giving it
+		# `rig_type: swimmer` instead would have fixed the water and broken the beach --
+		# `_drive_fish` on land has no horizontal drive at all, only a flop. So the water
+		# decides which drive runs, and the class keeps its legs for the land.
+		state = _drive_fish(body, Vector2(horizontal, vertical))
 	elif rig_type == "hopper":
 		state = _drive_hopper(body, horizontal, delta, String(rig_profile.get("hop_style", "")) == "bound")
 	else:
@@ -347,22 +367,7 @@ func _drive_spider(body: ActiveRigBody2D, horizontal: float, vertical: float) ->
 		return "jump"
 
 	if (wall_contact or ceiling_contact) and absf(vertical) > 0.05:
-		if skin != null and skin.has_method("release_stance"):
-			skin.call("release_stance")
-		var climb_speed := _profile_float("climb_speed", 155.0)
-		var climb_gain := _profile_float("climb_velocity_gain", 12.0)
-		var climb_force := _profile_float("climb_force", 1850.0)
-		var climb_error := vertical * climb_speed - body.linear_velocity.y
-		_apply_spider_torso_acceleration(
-			skin,
-			body,
-			Vector2(0.0, clampf(climb_error * climb_gain, -climb_force, climb_force))
-		)
-		if surface_normal.length_squared() > 0.01:
-			var adhesion := _profile_float("climb_adhesion_force", 520.0)
-			_apply_spider_torso_acceleration(skin, body, -surface_normal.normalized() * adhesion)
-			if skin != null and skin.has_method("apply_spider_surface_attitude"):
-				skin.call("apply_spider_surface_attitude", surface_normal)
+		_climb_wall(body, vertical, skin, surface_normal)
 		return "climb"
 
 	var move_speed := _profile_float("move_speed", _default_speed("spider"))
@@ -384,6 +389,82 @@ func _drive_spider(body: ActiveRigBody2D, horizontal: float, vertical: float) ->
 		var torso_accel := clampf((target_speed - body.linear_velocity.x) * 6.0, -move_accel, move_accel)
 		body.apply_central_force(Vector2(torso_accel * body.mass, 0.0))
 	return "walk" if absf(horizontal) > 0.05 else "idle"
+
+
+## GRIP A WALL AND GO UP IT. Lifted out of `_drive_spider` unchanged, because it was never
+## about spiders -- `wall_contact` is on every `ActiveRigBody2D` and the torso helper below
+## already falls back to a plain central force when the skin is not a spider's.
+##
+## ⚠ THIS USED TO BELONG TO ONE ANIMAL, AND THE TAG LAYER SAID OTHERWISE. `climb` is the most
+## required tag in the game -- four obstacles across two levels -- and five of its eight
+## members could not climb: monkey, crab and snake had no wall drive at all, and the stairs
+## and the tree had no interaction. A player drawing a monkey at a Climb gate was told by the
+## director that the monkey qualified, morphed into it, and then walked into the wall. That
+## failure is worse than a refusal, and it is the second time this project has shipped it --
+## the first was Strike resolving to a blade that swings inside 96px against a bird in the air.
+func _climb_wall(body: ActiveRigBody2D, vertical: float, skin: Node,
+		surface_normal: Vector2) -> void:
+	if skin != null and skin.has_method("release_stance"):
+		skin.call("release_stance")
+	_set_rig_gravity(1.0)
+	var climb_speed := _profile_float("climb_speed", 155.0)
+	var climb_gain := _profile_float("climb_velocity_gain", 12.0)
+	var climb_force := _profile_float("climb_force", 1850.0)
+	var climb_error := vertical * climb_speed - body.linear_velocity.y
+	_climb_push(skin, body,
+		Vector2(0.0, clampf(climb_error * climb_gain, -climb_force, climb_force)))
+	if surface_normal.length_squared() > 0.01:
+		var adhesion := _profile_float("climb_adhesion_force", 520.0)
+		_climb_push(skin, body, -surface_normal.normalized() * adhesion)
+		if skin != null and skin.has_method("apply_spider_surface_attitude"):
+			skin.call("apply_spider_surface_attitude", surface_normal)
+
+
+## ⚠ THE WHOLE RIG, NOT THE TORSO. The spider's skin distributes a torso acceleration across
+## its legs, which is why the climb worked for it while it was still spider-only. Everyone
+## else falls through to a plain central force, and a central force on the TORSO of a jointed
+## rig lifts one body against four that are still standing on the floor: the monkey pressed
+## flat against a wall with the climb running every frame moved one pixel in ninety. Pushing
+## every body is what "climbing" means for a creature made of several.
+func _climb_push(skin: Node, body: ActiveRigBody2D, acceleration: Vector2) -> void:
+	# ⚠ `has_method` IS NOT ENOUGH. Every rig runs `runtime_rig_2d.gd`, so the method is
+	# always there; it acts only for the spider, whose build path sums the total mass the
+	# trick needs. Ask whether it will act, not whether it exists.
+	if skin != null and skin.has_method("applies_torso_acceleration") \
+		and bool(skin.call("applies_torso_acceleration")):
+		skin.call("apply_spider_torso_acceleration", acceleration)
+		return
+	if is_instance_valid(body):
+		_rig_force(acceleration)
+
+
+## Whether this creature grips walls, read off its rig profile rather than its name. The
+## spider keeps its bespoke stance controller and reaches the same helper through it; every
+## other climber comes through here, so adding one is a profile flag and not a branch.
+##
+## ⚠ ASK THE SKIN, NOT THE TORSO. A rig is several bodies and the anchor is the torso, which
+## on a climbing animal is the one part NOT touching the wall -- its limbs are. The first
+## version of this read `body.wall_contact` and every climber, spider included, reported
+## rising zero pixels against a wall it was pressed flat against. `_drive_spider` already
+## knew to read the contact summary; this is the same lesson, learned again one function over.
+func _wall_climbing(body: ActiveRigBody2D, vertical: float) -> bool:
+	if not bool(rig_profile.get("can_climb_walls", false)):
+		return false
+	if absf(vertical) <= 0.05:
+		return false
+	var contacts := _contact_summary()
+	return bool(contacts.get("wall_contact", body.wall_contact)) \
+		or bool(contacts.get("ceiling_contact", body.ceiling_contact))
+
+
+## What the whole rig is touching, gathered by the skin. An empty dictionary means the skin
+## has no opinion and the caller should fall back to the anchor body's own flags.
+func _contact_summary() -> Dictionary:
+	var skin := _get_skin()
+	if skin == null or not skin.has_method("get_contact_summary"):
+		return {}
+	var summary: Variant = skin.call("get_contact_summary")
+	return summary if summary is Dictionary else {}
 
 
 func _apply_spider_torso_acceleration(skin: Node, body: ActiveRigBody2D, acceleration: Vector2) -> void:
