@@ -43,7 +43,13 @@ const TIER_IDLE_SECONDS := [0.0, 30.0, 90.0, 180.0]
 ## for thirty seconds did that, and someone trying things is not standing still. They got
 ## nothing until the second failure took them to T2. A wrong answer is the clearest request
 ## for help there is, and T1 only names the tags.
-const TIER_ATTEMPTS := [0, 1, 2, 4]
+## T3 WAS FOUR AND IS NOW THREE. "A couple of retries should give the actual class" is the
+## instruction, and four wrong answers before the game names one is not a couple -- it is
+## most of an ink budget. The ladder is now one miss to T1 (the tags), two to T2 (what you
+## have that fits), three to T3 (one class that works). The idle ladder is unchanged: a
+## player who is standing still rather than failing is on a slower clock, because standing
+## still is also what reading looks like.
+const TIER_ATTEMPTS := [0, 1, 2, 3]
 const MAX_TIER := 3
 
 var _level: Dictionary = {}

@@ -129,6 +129,11 @@ func _audit_the_third_clue_names_a_class() -> void:
 	_check(not suggestion.is_empty(), "the director can name a class that would work",
 		suggestion if not suggestion.is_empty() else "clue_class returned nothing")
 	var accepted: PackedStringArray = director.accept_set(id)
+	# ⚠ AND IT HAS TO ARRIVE AFTER A COUPLE OF TRIES, not most of an ink budget. The ladder
+	# is one miss to the tags, two to what you already have, three to a named class.
+	var ladder: Array = LevelDirector.TIER_ATTEMPTS
+	_check(int(ladder[3]) <= 3, "the named class arrives within three misses",
+		"T1 at %d, T2 at %d, T3 at %d" % [ladder[1], ladder[2], ladder[3]])
 	_check(suggestion.is_empty() or accepted.has(suggestion),
 		"and it is one the obstacle would actually take",
 		"%s in %d accepted" % [suggestion, accepted.size()])
