@@ -517,11 +517,19 @@ func _audit_hint_ladder() -> void:
 	var early: Dictionary = d.note_submission("rake")
 	_check(not early["solves"], "T0 refuses another route's answer", "rake vs weather")
 
-	# Four failures opens T3.
-	for attempt in ["rake", "rake", "rake"]:
-		d.note_submission(attempt)
-	_check(d.hint_tier() == LevelDirectorClass.MAX_TIER, "four failures reach T3",
-		"tier %d after %d attempts" % [d.hint_tier(), d.attempts("L1_N2")])
+	# ⚠ MISS UNTIL T3, READING THE LADDER RATHER THAN ASSUMING IT. This used to fire three
+	# more rakes on the comment "four failures opens T3", hard-coding a threshold that lives
+	# in `TIER_ATTEMPTS`. When the ladder was shortened to three the loop's LAST rake was the
+	# one T3 accepted, so the solve happened inside the setup and the check below tested an
+	# already-solved obstacle. A test that hard-codes the constant it is testing fails the
+	# moment the constant is tuned, and fails in a way that reads like the feature broke.
+	var guard := 0
+	while d.hint_tier() < LevelDirectorClass.MAX_TIER and guard < 10:
+		d.note_submission("rake")
+		guard += 1
+	_check(d.hint_tier() == LevelDirectorClass.MAX_TIER, "misses reach T3",
+		"tier %d after %d attempts, ladder wants %d"
+		% [d.hint_tier(), d.attempts("L1_N2"), LevelDirectorClass.TIER_ATTEMPTS[3]])
 
 	var helped: Dictionary = d.note_submission("rake")
 	_check(bool(helped["solves"]), "T3 widens the accept-set", "rake now solves L1_N2")
