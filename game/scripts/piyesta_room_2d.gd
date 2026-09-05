@@ -317,7 +317,25 @@ func _add_opening(opening_name: String, rect: Rect2, handler: Callable) -> Area2
 	shape.shape = box
 	area.add_child(shape)
 	area.body_entered.connect(handler)
+	# ⚠ AND THE WAY OUT OF IT. `noticed` puts a STANDING prompt on the hint bar -- no dwell,
+	# no fade -- and for three rooms it was written and never taken down: walk into the
+	# church's shut onward door and "Not yet -- the kandila first" followed the player back
+	# out to the plaza, through the alleys and into the dance. The signal to clear it was
+	# declared here from the first day and never once emitted, so nothing anywhere was wrong
+	# except that a sentence stayed on screen, which no headless suite can see.
+	area.body_exited.connect(_on_opening_left.bind(area))
 	return area
+
+
+## One body leaving is not the player leaving: a rig crosses the edge a limb at a time, which
+## is the same guard the straw mouth and the plaza doors carry.
+func _on_opening_left(body: Node, area: Area2D) -> void:
+	if not body.is_in_group(&"player_character"):
+		return
+	if _somebody_in(area):
+		return
+	if area == _onward_area:
+		notice_left.emit()
 
 
 func _somebody_in(area: Area2D) -> bool:

@@ -966,21 +966,37 @@ func _room_holding_player() -> Node2D:
 ## not meant to: that lock is Node 3's, and this one belongs to somewhere the player has
 ## only seen as a painting. Recorded on the PROFILE rather than on a checkpoint, for the
 ## same reason canvas damage is -- a death two beats later must not take it back.
+## What a room last put on the hint bar, so that leaving the room can take down THAT and
+## nothing else. One channel carries several voices.
+var _room_notice := ""
+
+
 func _on_room_notice(text: String) -> void:
 	if hint_bar != null:
+		_room_notice = text
 		hint_bar.show_hint(text)
 
 
+## ⚠ CLEAR WHAT WE WROTE, not a list of texts we happen to know about.
+##
+## This used to compare the bar against `StrawRoom2D.NAIL_NOTICE` and every entry in
+## `BaleInterior2D.NOTICES` -- Level 1's two interiors, named here by class. It worked for
+## them and silently did nothing for anybody else: Piyesta's rooms carry an `onward_note`
+## apiece, and those three sentences could be written to the bar and never taken off it,
+## because they were not on the list. A room's notice is a STANDING prompt with no dwell, so
+## "Not yet -- the kandila first" followed the player out of the church and through the rest
+## of the level.
+##
+## Remembering the last write is both narrower and more general: it clears exactly the
+## sentence this handler put up, leaves anything written since alone, and needs no room class
+## to know it exists. The guard the old version was reaching for is kept -- it is the
+## comparison against `current_text`, not the list.
 func _on_room_notice_left() -> void:
-	if hint_bar == null:
+	if hint_bar == null or _room_notice.is_empty():
 		return
-	if hint_bar.current_text() == StrawRoom2D.NAIL_NOTICE:
+	if hint_bar.current_text() == _room_notice:
 		hint_bar.clear()
-		return
-	for entry: Variant in BaleInterior2D.NOTICES:
-		if hint_bar.current_text() == String((entry as Dictionary)["text"]):
-			hint_bar.clear()
-			return
+	_room_notice = ""
 
 
 ## THE ONE PLACE THE GAME SAYS "THIS IS YOURS NOW".
