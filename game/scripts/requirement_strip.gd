@@ -18,17 +18,36 @@ extends Control
 ##   T0  hidden. The player has not asked and has not struggled
 ##   T1  the tags, named, and what each of them asks the drawing to do
 ##   T2  the tags, plus which of the player's own drawings would qualify
-##   T3  the same, plus a note that anything from the other paths will now be taken
+##   T3  the same, plus ONE CLASS THAT WOULD WORK, and a note that anything from the other
+##       paths will now be taken
+##
+## ⚠ THE T3 CLASS IS THE MANUSCRIPT'S, NOT A CHANGE OF HEART. Thesis 4.5.4 specifies three
+## stages ending in one that "names one class that does", and the stage reached is recorded
+## in telemetry precisely so a completion after a third-stage clue can be told apart from an
+## unaided one. Widening what is accepted without naming anything marked assistance that
+## never happened. The rule at the top still holds for T1 and T2, which is where it earns
+## its keep: the strip names a class only at the last stage, only one, and only after the
+## player has failed or stalled their way to it.
 
 const TIER_HIDDEN := 0
 const TIER_TAGS := 1
 const TIER_OWN_CLASSES := 2
 const TIER_WIDENED := 3
 
+## ⚠ SIZED AS A PANEL, NOT AS A BEAT. This inherited the theme's body size -- the same size
+## the dialogue box speaks at -- and wrapped at 430px, so a three-line requirement was a
+## slab a third of the frame wide sitting over the terrain the player was trying to read.
+## A dialogue box is allowed to be loud because it stops the world and goes away; this is
+## persistent furniture and has to be glanceable instead.
+const TAG_SIZE := UISkin.FONT_CAPTION          # 20
+const BODY_SIZE := UISkin.FONT_CAPTION - 3     # 17, a step under the tag it explains
+const WRAP_WIDTH := 320.0
+
 var _root: VBoxContainer
 var _tag_line: Label
 var _gloss_line: Label
 var _own_line: Label
+var _clue_line: Label
 var _tags: Node
 
 
@@ -75,6 +94,7 @@ func _build() -> void:
 	# yellow the rest of the UI already uses for "this is the thing to look at".
 	_tag_line = Label.new()
 	_tag_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tag_line.add_theme_font_size_override("font_size", TAG_SIZE)
 	_tag_line.add_theme_color_override("font_color", Color(1.0, 0.94, 0.42))
 	_tag_line.add_theme_color_override("font_outline_color", Color(0.04, 0.06, 0.04))
 	_tag_line.add_theme_constant_override("outline_size", 5)
@@ -88,7 +108,8 @@ func _build() -> void:
 	_gloss_line = Label.new()
 	_gloss_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_gloss_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_gloss_line.custom_minimum_size = Vector2(430.0, 0.0)
+	_gloss_line.custom_minimum_size = Vector2(WRAP_WIDTH, 0.0)
+	_gloss_line.add_theme_font_size_override("font_size", BODY_SIZE)
 	_gloss_line.add_theme_color_override("font_color", Color(0.93, 0.95, 0.88))
 	_gloss_line.add_theme_color_override("font_outline_color", Color(0.04, 0.06, 0.04))
 	_gloss_line.add_theme_constant_override("outline_size", 4)
@@ -96,10 +117,24 @@ func _build() -> void:
 
 	_own_line = Label.new()
 	_own_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_own_line.add_theme_font_size_override("font_size", BODY_SIZE)
 	_own_line.add_theme_color_override("font_color", Color(0.84, 0.89, 0.78))
 	_own_line.add_theme_color_override("font_outline_color", Color(0.04, 0.06, 0.04))
 	_own_line.add_theme_constant_override("outline_size", 4)
 	_root.add_child(_own_line)
+
+	# THE THIRD CLUE. Its own line, in the accent the rest of the UI uses for "this is the
+	# thing to look at", because it is the only line here that answers the question rather
+	# than restating it.
+	_clue_line = Label.new()
+	_clue_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_clue_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_clue_line.custom_minimum_size = Vector2(WRAP_WIDTH, 0.0)
+	_clue_line.add_theme_font_size_override("font_size", BODY_SIZE)
+	_clue_line.add_theme_color_override("font_color", Color(1.0, 0.86, 0.36))
+	_clue_line.add_theme_color_override("font_outline_color", Color(0.04, 0.06, 0.04))
+	_clue_line.add_theme_constant_override("outline_size", 4)
+	_root.add_child(_clue_line)
 
 
 ## Matches the dialogue overlay's panel so the strip reads as the same UI family rather
@@ -123,7 +158,7 @@ func _panel_style() -> StyleBoxFlat:
 ## word. Defaulted to "all" to match LevelDirector, so a caller that does not pass it gets
 ## the strict reading rather than the generous one.
 func show_requirements(required: Array, tier: int, owned: PackedStringArray = PackedStringArray(),
-		match: String = "all") -> void:
+		match: String = "all", clue: String = "") -> void:
 	if required.is_empty() or tier < TIER_TAGS:
 		clear()
 		return
@@ -149,8 +184,20 @@ func show_requirements(required: Array, tier: int, owned: PackedStringArray = Pa
 	else:
 		_own_line.visible = false
 
-	if tier >= TIER_WIDENED:
-		_tag_line.text += "   ·   any path will do now"
+	# ⚠ ONE CLASS, AND ONLY AT T3. Naming everything that fits is a spelling test with
+	# several answers; naming one is a worked example, and the obstacle still takes any of
+	# the others -- which the line says, so the player does not read it as the only answer.
+	#
+	# THE WIDENING NOTE RIDES HERE, not on the tag line. As a suffix to "NEEDS ROLL" it made
+	# the longest unwrappable string in the panel, and the panel is exactly as wide as its
+	# longest unwrappable string -- so the one line that cannot wrap was setting the size of
+	# the whole thing.
+	_clue_line.visible = tier >= TIER_WIDENED and not clue.is_empty()
+	if _clue_line.visible:
+		_clue_line.text = "try a %s  ·  any path will do now" % _pretty(clue)
+	elif tier >= TIER_WIDENED:
+		_clue_line.visible = true
+		_clue_line.text = "any path will do now"
 
 
 func clear() -> void:
@@ -158,6 +205,27 @@ func clear() -> void:
 	_tag_line.text = ""
 	_gloss_line.text = ""
 	_own_line.text = ""
+	_clue_line.text = ""
+	_clue_line.visible = false
+
+
+## Seams the hint probe measures. A strip that grows back to dialogue-box size is a
+## regression nothing else in the suite can see.
+func tag_font_size() -> int:
+	return TAG_SIZE
+
+
+func gloss_font_size() -> int:
+	return BODY_SIZE
+
+
+func wrap_width() -> float:
+	return WRAP_WIDTH
+
+
+## `sea_turtle` is not a word. The same prettifier the rest of the UI uses for a class id.
+func _pretty(entity_id: String) -> String:
+	return entity_id.replace("_", " ")
 
 
 ## WHAT A REQUIREMENT SAYS, IN ONE PLACE, so nothing can say it differently.

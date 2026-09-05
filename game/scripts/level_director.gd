@@ -285,6 +285,41 @@ func accept_set(id: String = "") -> PackedStringArray:
 		spec.get("exclude", [])) as PackedStringArray
 
 
+## ⚠ THE THIRD CLUE NAMES A CLASS, BECAUSE THE MANUSCRIPT SAYS IT DOES.
+##
+## Thesis 4.5.4: the clue system "escalates in three stages: the first restates the
+## affordance in plainer language, the second names the category of thing that would satisfy
+## it, and the third NAMES ONE CLASS THAT DOES." The build widened what it ACCEPTED at T3
+## and never named anything -- a defensible design, and not the one that was written down.
+## It also quietly broke the telemetry it exists for: the stage reached is recorded so that
+## a completion after a third-stage clue can be told apart from an unaided one, and a T3
+## that names nothing marks assistance that never happened.
+##
+## ONE CLASS, NOT A CATALOGUE. Naming everything that fits is a spelling test with several
+## answers; naming one is a worked example, and the obstacle still takes any of the others.
+## Preference order is deliberate:
+##
+##   1. something the player has ALREADY DRAWN and had accepted. It is the kindest clue --
+##      "you have one of these" -- and it costs them nothing to try.
+##   2. failing that, the first class the obstacle accepts, in the tag's own order, which is
+##      the design's order and not an alphabetical accident.
+##
+## Returns "" when the obstacle is solved or accepts nothing, and the strip prints nothing
+## rather than an empty suggestion.
+func clue_class(id: String = "") -> String:
+	var key := _current if id.is_empty() else id
+	if key.is_empty() or _solved.has(key):
+		return ""
+	var accepted := accept_set(key)
+	if accepted.is_empty():
+		return ""
+	if _profile != null and _profile.has_method("get_drawn_classes"):
+		for drawn: Variant in _profile.call("get_drawn_classes"):
+			if accepted.has(String(drawn)):
+				return String(drawn)
+	return accepted[0]
+
+
 func _emit_requirements() -> void:
 	if not _current.is_empty():
 		requirements_changed.emit(_current, required_tags(_current))
