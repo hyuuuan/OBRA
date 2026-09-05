@@ -214,9 +214,20 @@ outer pair failed twice and silently: a region rect of negative width draws NOTH
 destination rect of negative width is normalised, so the sprite comes back unflipped and
 shifted its own width east. If a flip is ever wanted, write the flipped PNG in the tool.
 
-The GoalMarker is still at Level 1's position (the church door), because `level_2.tscn` is a
-text copy. `levels.json` `scene_path` stays EMPTY until that is done, and `run_level2_audit`
-asserts it.
+`levels.json` `scene_path` stays EMPTY until Piyesta looks finished enough to offer from the
+hub, and `run_level2_audit` asserts it. **That is a judgement call about the art, not a
+mechanical blocker** -- the level starts, plays and finishes.
+
+⚠ **THE GOAL MARKER CLEARS ALLEY 2 BY THIRTY-FIVE UNITS.** `level_2.tscn` is a text copy of
+`game_level.tscn` so it inherited one, and `LevelBase` ends a level when the player's anchor
+comes within `GOAL_RADIUS` of it. Piyesta does not end that way -- Scene 3 does. The marker
+sits at (10050, 240); Alley 2's floor stops at 9900 and the radius is 120, so the margin is
+150 against 120. Lengthen that room, move it, or widen the radius and Piyesta gains a second
+ending that fires when somebody walks to the far end of an alley with the scraps unrecovered.
+`run_level2_scene_probe` measures it now instead of a comment claiming it. **Do not write
+`LevelBase.GOAL_RADIUS` in a test file** -- naming the class makes it a compile-time
+dependency and a `--script` run has no autoloads, so the whole suite fails to load on
+`LevelManager` and reports every check as broken.
 
 ⚠ **A room, a door or a prop that ships with no `_draw` is invisible and every headless
 suite stays green.** `ScrapBird2D` had five birds carrying five of the seven scraps and no
