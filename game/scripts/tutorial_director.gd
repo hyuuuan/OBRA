@@ -47,7 +47,15 @@ var _seen: Dictionary = {}
 ## scan of the ledger on every physics frame. `moved` is polled, so this runs hot.
 var _by_event: Dictionary = {}
 var _hint_bar: Node
+## Where callouts are parented, and how an `anchor` string becomes something on screen.
+var _callout_layer: Node
+var _find_target: Callable = Callable()
+## The one callout that is up, if any. One at a time, for the same reason the bar carries
+## one line at a time: two fingers pointing at two things is not instruction.
+var _callout: TutorialCallout
 var _enabled := true
+## Lolo's explanation of the drawing screen, said inside the panel the first time it opens.
+var _canvas_briefing: Array = []
 
 
 func load_for(level_id: String) -> bool:
@@ -68,6 +76,7 @@ func load_for(level_id: String) -> bool:
 		# will want two lessons; Level 5 may want none.
 		return false
 	var block: Dictionary = levels[level_id]
+	_canvas_briefing = block.get("canvas_briefing", [])
 	for value: Variant in block.get("lessons", []):
 		var lesson: Dictionary = value
 		var id := String(lesson.get("id", ""))
@@ -83,6 +92,15 @@ func load_for(level_id: String) -> bool:
 
 func bind_hint_bar(bar: Node) -> void:
 	_hint_bar = bar
+
+
+## Where a callout may be added, and how it finds what a lesson points at.
+##
+## The layer is handed in rather than looked up so this class stays testable without a HUD:
+## a probe binds a bare CanvasLayer and gets real callouts it can measure.
+func bind_callout_layer(layer: Node, finder: Callable) -> void:
+	_callout_layer = layer
+	_find_target = finder
 
 
 func set_enabled(on: bool) -> void:
@@ -143,6 +161,18 @@ func _teach(lesson: Dictionary) -> void:
 	var text := resolve(lesson)
 	if text.is_empty():
 		return
+	var id := String(lesson["id"])
+	var caps := caps_for(lesson)
+	# ⚠ POINTED IF IT CAN BE, SPOKEN IF IT CANNOT, AND THE POINTED ONE DOES NOT WAIT FOR THE
+	# BAR. A callout stands beside the control it is about and never touches the HintBar, so
+	# the busy-bar rule below has nothing to say about it -- gating it on the bar meant every
+	# lesson about a button was silently deferred for as long as Lolo was mid-sentence, which
+	# at the start of Level 1 is most of the time the player is first looking at the HUD.
+	if _teach_beside(lesson, text, caps):
+		_seen[id] = true
+		lesson_taught.emit(id)
+		return
+
 	# NEVER OVER A BUSY BAR, and the lesson is NOT spent when it yields.
 	#
 	# The HintBar is a shared channel and this is the least important thing on it: Lolo
@@ -154,19 +184,74 @@ func _teach(lesson: Dictionary) -> void:
 	if _hint_bar != null and _hint_bar.has_method("is_showing") \
 			and bool(_hint_bar.call("is_showing")):
 		return
-	var id := String(lesson["id"])
 	_seen[id] = true
 	var speaker := String(lesson.get("speaker", "Lolo"))
 	var seconds := float(lesson.get("seconds", 0.0))
 	# THE KEY IS DRAWN, NOT SPELLED, where the bar can do it. `resolve()` is still the
 	# fallback and is still what the tests read, so a bar without the richer entry point --
 	# a fixture, an older scene -- degrades to the sentence rather than to nothing.
-	var caps := caps_for(lesson)
 	if _hint_bar != null and _hint_bar.has_method("show_lesson") and not caps.is_empty():
 		_hint_bar.call("show_lesson", String(lesson.get("text", "")), speaker, seconds, caps)
 	elif _hint_bar != null and _hint_bar.has_method("show_hint"):
 		_hint_bar.call("show_hint", text, speaker, seconds)
 	lesson_taught.emit(id)
+
+
+## Put the lesson next to the thing it is about. False means it could not be, and the
+## caller falls through to the hint bar.
+func _teach_beside(lesson: Dictionary, text: String, caps: String) -> bool:
+	var anchor := String(lesson.get("anchor", ""))
+	if anchor.is_empty() or _callout_layer == null or not _find_target.is_valid():
+		return false
+	var target: Variant = _find_target.call(anchor)
+	if not (target is Rect2) or (target as Rect2).size.length_squared() < 1.0:
+		return false
+	if _callout != null and is_instance_valid(_callout):
+		_callout.dismiss()
+	_callout = TutorialCallout.new()
+	_callout.name = "TutorialCallout"
+	_callout_layer.add_child(_callout)
+	# ⚠ THE RESOLVED SENTENCE, WITH ITS KEY IN IT. The first version handed over the raw
+	# template and stripped `{keys}`, on the reasoning that the cap is drawn beside it -- and
+	# "This is where her brush is for. opens it" is what came out. The hint bar can split a
+	# sentence around its cap because it lays the row out itself; a wrapping bubble cannot,
+	# and a sentence with a hole in it is worse than one that names the key twice.
+	#
+	# So the cap is dropped here rather than the words. The callout is already pointing at
+	# the button -- it does not also need to hold up a picture of the key.
+	_callout.point_at(target as Rect2, text, "", _side_of(lesson))
+	return true
+
+
+func _side_of(lesson: Dictionary) -> int:
+	match String(lesson.get("side", "auto")):
+		"above":
+			return TutorialCallout.Side.ABOVE
+		"below":
+			return TutorialCallout.Side.BELOW
+		"left":
+			return TutorialCallout.Side.LEFT
+		"right":
+			return TutorialCallout.Side.RIGHT
+	return TutorialCallout.Side.AUTO
+
+
+## Take down whatever is being pointed at, because the player has done it. Called by the
+## level on the events that mean a lesson has landed.
+func dismiss_callout() -> void:
+	if _callout != null and is_instance_valid(_callout):
+		_callout.dismiss()
+		_callout = null
+
+
+## What Lolo says the first time the canvas is opened. Empty for a level that authored
+## none, which is every level but the tutorial.
+func canvas_briefing() -> Array:
+	return _canvas_briefing if _enabled else []
+
+
+func callout() -> TutorialCallout:
+	return _callout if _callout != null and is_instance_valid(_callout) else null
 
 
 ## The lesson's sentence with `{keys}` filled from the LIVE InputMap.
