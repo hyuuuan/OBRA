@@ -295,12 +295,48 @@ func _a_click_places_it_and_right_click_takes_it_back() -> void:
 		_fail("placing with the mouse", "the placement never started")
 		return
 
-	# West of the body: at the spawn the water is to the east, and a square dropped in it
-	# drifts, which makes a click aimed at where it used to be a flake rather than a test.
+	# ⚠ EAST OF THE BODY, AND THE OLD REASON FOR GOING WEST WAS STALE. The comment here said
+	# the water is to the east and a square dropped in it drifts -- but LowerPaddy sits at
+	# x 600..900 and the spawn is at 150, so east is four hundred pixels of dry terrace.
+	# West is the level's own boundary: LeftWall spans x -24..24, and a 72-wide square
+	# centred at 54 overlaps it by six pixels. The game was refusing correctly -- red
+	# preview, "Can't build that into solid ground" on the status line -- and this test
+	# called that a broken click for as long as it has been failing.
+	var spot := player.global_position + Vector2(96.0, -40.0)
 	placement.set_process(false)
-	placement.call("update_target", player.global_position + Vector2(-96.0, -40.0))
+	placement.call("update_target", spot)
 	await _wait(0.2)
-	await _click_at(_screen_of(player.global_position + Vector2(-96.0, -40.0)), MOUSE_BUTTON_LEFT)
+	# THE PREMISE, CHECKED BEFORE THE CLICK. A spot that is already invalid makes the
+	# assertion below test the level's geometry rather than the mouse, and reports it as a
+	# failure of the click -- which is exactly how six pixels of wall read as "the click
+	# never confirmed".
+	if not bool(placement.get("_valid")):
+		_fail("placing with the mouse",
+			"harness fault: %s is not a placeable spot, so the click has nothing to prove"
+			% spot.round())
+		placement.call("cancel_placement")
+		placement.set_process(true)
+		return
+	# ⚠ AND A REFUSAL HAS TO SAY SO, which nothing tested until this went looking. The whole
+	# reason the stale aim above read as a broken click is that a click into solid ground is
+	# SUPPOSED to do nothing -- so the thing that makes it acceptable is the game saying why.
+	# Checked first, on the spot that is genuinely blocked, before the good one is used.
+	var status := level.get("status_label") as Label
+	var wall := player.global_position + Vector2(-96.0, -40.0)
+	placement.call("update_target", wall)
+	await _wait(0.2)
+	if status != null and not bool(placement.get("_valid")):
+		status.text = ""
+		await _click_at(_screen_of(wall), MOUSE_BUTTON_LEFT)
+		await _wait(0.3)
+		_check(not status.text.is_empty(),
+			"a click into solid ground says why it did nothing",
+			"'%s'" % status.text if not status.text.is_empty()
+			else "SILENT -- indistinguishable from a broken button")
+	placement.call("update_target", spot)
+	await _wait(0.2)
+
+	await _click_at(_screen_of(spot), MOUSE_BUTTON_LEFT)
 	await _wait(0.4)
 	_check(not bool(placement.call("is_placing")), "a left click sets the drawing down",
 		"the placement closed" if not bool(placement.call("is_placing"))
