@@ -113,6 +113,23 @@ under the comment "Four failures opens T3". Shortening the ladder made the setup
 miss the one T3 accepted, so two unrelated checks went red against an already-solved
 obstacle and read like the feature had broken. Read `TIER_ATTEMPTS`; do not restate it.
 
+⚠ **THE TUTORIAL POINTS AS WELL AS SPEAKS.** A lesson with an `anchor` in `tutorial.json`
+is taught in a `TutorialCallout` beside the control it names; everything else still goes to
+the `HintBar`. **A callout must not wait for the bar** — it never touches it, and gating it
+the same way deferred every lesson about a button for as long as Lolo was mid-sentence.
+Anchor names are the tutorial's own vocabulary, listed in `LevelBase.TUTORIAL_ANCHORS` and
+resolved by `_tutorial_target`; an unknown one push_errors, because **an anchor naming
+nothing resolves to an empty rect exactly like a hidden one** and a typo would otherwise
+cost the pointing in silence. An unbuildable callout does **not** spend its lesson.
+
+⚠ **`CanvasBriefing` IS THE ONE PLACE THE TUTORIAL MAY STOP THE WORLD**, and it does not
+contradict `TutorialDirector`'s rule against dialogue boxes. That rule is about cost, and
+the panel is already a modal — the world is stopped and the player asked to be shown this
+screen. It lives **inside the panel**, because `DialogueLayer` is layer 8 and the panel is
+10, so the real `DialogueBox` renders underneath the canvas. It uses `DialogueBox.BOX` and
+`LIFT` for its geometry because **`DialoguePortrait` lays itself out against those**, and a
+box anywhere else strands Lolo off the edge of the screen.
+
 ⚠ **UI MOTION IS ONE FAMILY, AND IT IS THE CANVAS'S.** The drawing panel scales up from
 0.84 through `TRANS_BACK` while a radial burst burns away on its scrim; `UIFeedback` gives
 every button the same shape at button scale — a dip, the same overshoot back, and a ring

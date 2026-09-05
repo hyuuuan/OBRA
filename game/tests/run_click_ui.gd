@@ -159,6 +159,23 @@ func _draw_button_opens_the_panel() -> void:
 	await _wait(0.4)
 
 
+## Press past Lolo's explanation of the canvas, the way a player does. Safe to call when
+## there is no briefing -- a level that authored none opens straight to the paper.
+func _dismiss_canvas_briefing(panel: Node) -> void:
+	var briefing := panel.get_node_or_null("CanvasBriefing")
+	if briefing == null:
+		return
+	var guard := 0
+	while bool(briefing.call("is_speaking")) and guard < 10:
+		var event := InputEventAction.new()
+		event.action = &"ui_accept"
+		event.pressed = true
+		briefing.call("_input", event)
+		guard += 1
+		await _wait(0.1)
+	await _wait(0.4)
+
+
 ## Transform and Clear, which is what a player presses after drawing.
 func _panel_buttons_answer_a_click() -> void:
 	var panel := level.get_node_or_null("DrawPanel")
@@ -167,6 +184,10 @@ func _panel_buttons_answer_a_click() -> void:
 	if not bool(panel.call("is_open")):
 		panel.call("open_panel")
 		await _wait(0.4)
+	# ⚠ LOLO EXPLAINS THE CANVAS THE FIRST TIME IT OPENS, and he stands in front of the
+	# buttons while he does -- deliberately, so a player does not start drawing through the
+	# briefing and lose the strokes when it closes. A player presses past him; so does this.
+	await _dismiss_canvas_briefing(panel)
 
 	var clear := panel.get_node_or_null("PanelRoot/ClearButton") as Button
 	var transform := panel.get_node_or_null("PanelRoot/TransformButton") as Button
