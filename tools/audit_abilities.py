@@ -105,10 +105,18 @@ def parsed_utility_behaviours() -> dict[str, set[str]]:
         for name in names:
             note(name, "prop_sentence" if is_prop_sentence else "use_f")
 
+    # ⚠ `_ready` COUNTS. The campfire's whole behaviour is that it comes up already lit, set
+    # there and nowhere else, and an audit that only reads the F switch called it inert.
     for func, mechanism in [("_apply_prop_effects", "prop_effect"),
-                            ("_apply_held_effects", "held_effect")]:
+                            ("_apply_held_effects", "held_effect"),
+                            ("_ready", "on_spawn")]:
         chunk = text.split("func %s" % func)[1].split("\nfunc ")[0]
+        # Match arms AND `utility_behavior == "x"` comparisons. `_ready` is written as an
+        # if/elif chain, so an arms-only reader called the campfire inert while it was
+        # lighting itself two lines above.
         for name in re.findall(r'\n\t\t"([a-z_]+)":', chunk):
+            note(name, mechanism)
+        for name in re.findall(r'utility_behavior == "([a-z_]+)"', chunk):
             note(name, mechanism)
 
     # interact()'s hand-written special cases -- the ladder's climb and the two hulls.
@@ -185,6 +193,13 @@ def main(check: bool) -> int:
     print("=" * 78)
     print("CLASSES WHOSE OWN ABILITY HAS NO MECHANISM")
     print("=" * 78)
+    print("  A prop with a TAG is not inert: an obstacle declares the tag, the director")
+    print("  resolves it, and putting the drawing down IS the ability. Level 2's Feed route")
+    print("  is answered by a loaf that does nothing per frame. Only a class with neither a")
+    print("  mechanism nor a tag is unreachable -- nothing can ask for it and it does")
+    print("  nothing, which means the player can draw it and never find out why.")
+    print()
+    tagged = {cid for entry in tags.values() for cid in entry.get("classes", {})}
     inert: list[str] = []
     for cid in sorted(entities):
         entity = entities[cid]
@@ -208,10 +223,15 @@ def main(check: bool) -> int:
             continue                       # the three primitives are pure physics
         how = utility.get(behaviour, set())
         real = how - {"prop_sentence"}
-        if not real:
-            print("  INERT          %-12s ability %-9s utility_behavior %-10s has no "
-                  "case anywhere" % (cid, verb, behaviour))
-            inert.append(cid)
+        if real:
+            continue
+        if cid in tagged:
+            print("  PLACEMENT      %-12s ability %-9s answered by its tag, not by code"
+                  % (cid, verb))
+            continue
+        print("  UNREACHABLE    %-12s ability %-9s no mechanism AND no tag -- nothing in "
+              "the game can ask for it" % (cid, verb))
+        inert.append(cid)
     if not inert:
         print("  (none)")
 
