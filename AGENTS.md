@@ -113,6 +113,18 @@ under the comment "Four failures opens T3". Shortening the ladder made the setup
 miss the one T3 accepted, so two unrelated checks went red against an already-solved
 obstacle and read like the feature had broken. Read `TIER_ATTEMPTS`; do not restate it.
 
+⚠ **WHEN ART LOOKS LOW-QUALITY, CHECK WHICH FILE IS ACTUALLY BEING LOADED.** The dialogue
+portraits were `lolo_wave.png` and `apo_wave.png` — 80×104 **sprite cells**, the frames a
+character is drawn at while standing in a paddy — scaled ×5 with nearest filtering into a
+400px bust. `lolo_portrait.png` (205×303) and `apo_portrait.png` (177×312) were in the same
+folders the whole time. No filtering setting rescues a picture six times too small; the
+pixels are not there. The in-world sprites are fine — they render 1:1 and `scale.x` is only
+used for facing.
+
+**A `bust` fraction belongs to the art it was measured on.** Swapping the source means
+re-measuring: both cuts now land at the HANDS (the widest thing in frame) and on a 215px
+source, which is what keeps the two speakers' pixels the same size as each other's.
+
 ⚠ **A THING THAT WORKS AND NEVER SAYS SO IS A THING THAT DOES NOT WORK.** Three separate
 player reports this session were all this shape, and none of them was a broken mechanism:
 the key found in the hay opened Ang Bale and the sentence saying so was starved off the hint
