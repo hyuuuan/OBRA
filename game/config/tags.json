@@ -35,7 +35,7 @@
   "tags": {
     "span": {
       "display_name": "Span",
-      "gloss": "long and stiff enough to lie across a gap and take your weight",
+      "gloss": "long and stiff enough to lie across a gap",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -63,7 +63,7 @@
     },
     "roll": {
       "display_name": "Roll",
-      "gloss": "round, and heavy enough to sink what it lands on",
+      "gloss": "round, and heavy",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -167,7 +167,7 @@
     },
     "forage": {
       "display_name": "Forage",
-      "gloss": "able to sift and comb through a loose heap",
+      "gloss": "able to comb through a loose heap",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -185,7 +185,7 @@
     },
     "carry": {
       "display_name": "Carry",
-      "gloss": "strong enough to drag a load out from underneath",
+      "gloss": "strong enough to drag a load out",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -221,7 +221,7 @@
     },
     "weather": {
       "display_name": "Weather",
-      "gloss": "able to move air -- wind enough to scatter what is loose",
+      "gloss": "able to move air",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -271,7 +271,7 @@
     },
     "burrow": {
       "display_name": "Burrow",
-      "gloss": "small enough to get in where there is no door",
+      "gloss": "small enough to get in with no door",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {
@@ -309,7 +309,7 @@
     },
     "feed": {
       "display_name": "Feed",
-      "gloss": "a reason for something wary to come down within reach",
+      "gloss": "worth coming down for",
       "unlocked_in_level": 2,
       "declared_only": false,
       "classes": {
@@ -331,7 +331,7 @@
     },
     "startle": {
       "display_name": "Startle",
-      "gloss": "alarming enough that a crowd scatters rather than stays",
+      "gloss": "alarming enough to scatter a crowd",
       "unlocked_in_level": 2,
       "declared_only": false,
       "classes": {
@@ -392,7 +392,7 @@
     },
     "fly": {
       "display_name": "Fly",
-      "gloss": "able to stay up without holding on to anything",
+      "gloss": "able to stay up with nothing to hold",
       "unlocked_in_level": 4,
       "declared_only": true,
       "classes": {}
@@ -420,7 +420,7 @@
     },
     "shield": {
       "display_name": "Shield",
-      "gloss": "able to stand between you and what is coming",
+      "gloss": "able to stand between you and it",
       "unlocked_in_level": 5,
       "declared_only": true,
       "classes": {}
