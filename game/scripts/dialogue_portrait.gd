@@ -43,20 +43,36 @@ extends Control
 
 ## `bust` is how much of the drawing is head, shoulders and the raised hand, before the cut.
 ##
+## ⚠ THE PORTRAIT ART, NOT A WALK-CYCLE FRAME. This used to load `lolo_wave.png` and
+## `apo_wave.png` -- 80x104 and 80x106 SPRITE cells, sized for a character standing in a
+## paddy sixty metres away -- and blow them up FIVE TIMES with nearest filtering to fill a
+## four-hundred-pixel bust. That is why the speakers were blocky: a face drawn to be twelve
+## pixels wide was being shown at sixty.
+##
+## `lolo_portrait.png` (205x303) and `apo_portrait.png` (177x312) were in the repo the whole
+## time, next to the frames that were being used instead. They carry what the cells cannot at
+## that size: the apo's hair, the strap of his satchel and the coloured pencils in his
+## pocket; the shading down Lolo's tail. Two and a half times the linear resolution, so the
+## same bust on screen is drawn from six times the pixels.
+##
+## The cost, stated: the portraits are front-facing with their hands at their sides, so the
+## RAISED HAND is gone. The old comment here said the wave pose was chosen so the hand would
+## survive the cut -- true of those frames, and not a reason to keep showing a picture six
+## times too small.
+##
 ## IT IS PER SPEAKER BECAUSE THEY ARE NOT BUILT THE SAME. The apo is a child at roughly four
-## heads tall and cuts at the hip. Lolo is a chibi ghost whose head is two fifths of him and
-## whose legs are a tail, so the same fraction lands under his chin and puts a head on a
-## plate behind the box; his cut is where the tail starts. Both are measured so the raised
-## hand survives -- it is the whole reason this pose was chosen, and a cut through it would
-## leave a speaker gesturing with a stump.
+## heads tall; Lolo is a chibi ghost whose head is two fifths of him and whose legs are a
+## tail. Both fractions are measured to cut at the HANDS -- the widest thing in the frame --
+## so neither speaker is holding a stump, and both land on a 215px source, which is what
+## keeps their pixels the same size as each other's.
 const PORTRAITS := {
-	"Lolo": {"art": preload("res://assets/characters/lolo/lolo_wave.png"),
-		"bust": 0.83},
+	"Lolo": {"art": preload("res://assets/characters/lolo/lolo_portrait.png"),
+		"bust": 0.71},
 }
 ## Anyone without an entry above. The apo's own lines share the box with a different
 ## plaque, and they are the only other speaker there is.
 const DEFAULT_PORTRAIT := {
-	"art": preload("res://assets/characters/apo/apo_wave.png"), "bust": 0.74,
+	"art": preload("res://assets/characters/apo/apo_portrait.png"), "bust": 0.69,
 }
 ## How tall the bust wants to stand on screen. A TARGET, not a ceiling: what it is rounded
 ## to is a whole multiple of the source, so the drawing is never resampled onto a half
