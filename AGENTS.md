@@ -113,6 +113,20 @@ under the comment "Four failures opens T3". Shortening the ladder made the setup
 miss the one T3 accepted, so two unrelated checks went red against an already-solved
 obstacle and read like the feature had broken. Read `TIER_ATTEMPTS`; do not restate it.
 
+⚠ **A THING THAT WORKS AND NEVER SAYS SO IS A THING THAT DOES NOT WORK.** Three separate
+player reports this session were all this shape, and none of them was a broken mechanism:
+the key found in the hay opened Ang Bale and the sentence saying so was starved off the hint
+bar by a standing hint; the ladder climbed but only after E, which is the pick-up key, so
+pressing it pocketed the ladder; the Protector scare emptied the plaza in data while the
+dancers were painted into the backdrop. **Check what the player is told, not only what the
+code does** — and prefer a channel that cannot be starved (`hint_bar.is_showing()` is a
+yield, and a standing hint never clears).
+
+⚠ **PRESS WHAT A PLAYER PRESSES.** `run_behaviour_audit`'s ladder rows called `interact()`
+directly, so they proved the ladder attaches when told to attach — which is not the thing
+that was broken. A test that drives the API past the input layer cannot see a two-step
+interaction, a wrong key binding, or a prompt that never appears.
+
 ⚠ **THE TUTORIAL POINTS AS WELL AS SPEAKS.** A lesson with an `anchor` in `tutorial.json`
 is taught in a `TutorialCallout` beside the control it names; everything else still goes to
 the `HintBar`. **A callout must not wait for the bar** — it never touches it, and gating it
@@ -153,10 +167,18 @@ mouse and the fault was the geometry. Where a test aims at the world, verify the
 and report a **harness fault** — `run_behaviour_audit` says so in four places, and this is
 why that habit exists.
 
-⚠ **AUTOLOADS DO NOT EXIST IN A `--script` RUN.** `/root/UIFeedback`, `/root/AudioDirector`
-and the rest are all null there. A test that assumes the project setting is enough exercises
-nothing and reports green; build the node yourself. For the same reason a `_draw` must not
-reach for an autoload — it works in the game and throws in the only place it can be checked.
+⚠ **AN AUTOLOAD'S NAME IS NOT AVAILABLE IN A `--script` FILE, THOUGH THE NODE IS.** Corrected
+— an earlier version of this note said they do not exist at all, and that is wrong. The nodes
+ARE created under `/root` and are there by the time a level has loaded. What is missing is
+the compile-time IDENTIFIER: a `--script` file is compiled before the autoload globals are
+registered, so writing `PlayerProfile` fails to compile the **whole probe** while
+`root.get_node_or_null(^"/root/PlayerProfile")` works. Two consequences: reach them by path
+in a test, and **do not name one in a `_draw`** you intend to screenshot — that path is
+resolved at compile time too.
+
+They are also not present during `_initialize()`, only after the first frames, which is why
+a bare probe that checks immediately sees null and concludes they are absent. That is exactly
+how the wrong note got written.
 
 ⚠ **WAIT ON THE CLOCK, NOT ON FRAMES.** A headless run is uncapped, so seventy
 `await process_frame`s can be a fraction of the half-second a tween takes. A probe counting

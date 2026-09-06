@@ -167,19 +167,26 @@ func show_requirements(required: Array, tier: int, owned: PackedStringArray = Pa
 	_gloss_line.text = _join_glosses(required, match)
 	_gloss_line.visible = not _gloss_line.text.is_empty()
 
-	if tier >= TIER_OWN_CLASSES and not owned.is_empty():
+	# ⚠ AT MOST THREE LINES, AND AT T3 THE CLUE REPLACES THE INVENTORY. A strip reading
+	# "NEEDS ROLL / round, and heavy / you have drawn: circle / try a circle" says the same
+	# thing four times in four registers, which is how a hint becomes something the player
+	# reads around instead of reading. Once one class is named, listing which of their own
+	# drawings might also fit is noise.
+	if tier >= TIER_WIDENED and not clue.is_empty():
+		_own_line.visible = false
+	elif tier >= TIER_OWN_CLASSES and not owned.is_empty():
 		# Their own drawings, not a hint list. A player who has never drawn a spider is
 		# not told a spider would work -- that is the T3 job, and even then the game
 		# widens what it ACCEPTS rather than telling them what to draw.
 		_own_line.text = "you have drawn:  %s" % _join_names(owned)
 		_own_line.visible = true
-	elif tier >= TIER_OWN_CLASSES:
+	elif tier >= TIER_OWN_CLASSES and owned.is_empty():
 		# A DEAD END IS NOT A HINT. "nothing you have drawn yet fits this" is true and
 		# useless: it tells a player who is already stuck that they are stuck. The tier
 		# exists to open something, so it says what to do with the canvas instead -- still
 		# without naming a class, which is the T3 job and even then only by widening what
 		# is accepted.
-		_own_line.text = "nothing you have drawn yet fits this  —  draw something new"
+		_own_line.text = "nothing you have fits — draw something new"
 		_own_line.visible = true
 	else:
 		_own_line.visible = false
@@ -194,7 +201,7 @@ func show_requirements(required: Array, tier: int, owned: PackedStringArray = Pa
 	# the whole thing.
 	_clue_line.visible = tier >= TIER_WIDENED and not clue.is_empty()
 	if _clue_line.visible:
-		_clue_line.text = "try a %s  ·  any path will do now" % _pretty(clue)
+		_clue_line.text = "try a %s — anything else works too" % _pretty(clue)
 	elif tier >= TIER_WIDENED:
 		_clue_line.visible = true
 		_clue_line.text = "any path will do now"

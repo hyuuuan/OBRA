@@ -135,21 +135,14 @@ func interact(actor: Node2D) -> void:
 	if actor == null:
 		return
 	if utility_behavior in CLIMBABLE_PROPS:
+		# ⚠ E IS PICK-UP HERE, NOT CLIMB. Climbing is `_offer_the_climb` -- walk into it and
+		# hold up. E used to start the climb, which meant the one key the prompt offers did
+		# two different things depending on state, and the state it did the wrong one in was
+		# "the ladder has not settled yet", where it silently pocketed the ladder instead.
+		# One key, one meaning. Let go of the ladder first if they are on it.
 		if actor.has_method("is_using_ladder") and bool(actor.call("is_using_ladder", self)):
 			actor.call("end_ladder")
-			super.interact(actor)
-			return
-		# ⚠ SETTLED, OR SAY SO. This used to read `and freeze`, and an unsettled ladder fell
-		# straight through to the pickup below -- so the answer to "I drew a ladder and E just
-		# put it back in my bag" is that E did exactly what it was told. A ladder still rolling
-		# is not climbable, but the player pressed E to climb it, and silently doing the
-		# opposite of what they asked is the worst reading of an ambiguous key.
-		if not _standing_still():
-			interaction_note.emit("%s is still settling — give it a moment" % _display_name())
-			return
-		if actor.has_method("begin_ladder"):
-			actor.call("begin_ladder", self)
-			utility_used.emit(utility_behavior, item_data)
+		super.interact(actor)
 		return
 	if utility_behavior in ["sailboat", "submarine"] and _is_in_water():
 		if _boarded_actor == actor:
@@ -392,6 +385,8 @@ func _apply_held_effects(_delta: float) -> void:
 func _apply_prop_effects(_delta: float) -> void:
 	if _equipped_actor != null or is_preview:
 		return
+	if utility_behavior in CLIMBABLE_PROPS:
+		_offer_the_climb()
 	match utility_behavior:
 		# `bread` has no case here on purpose. It is the one prop whose effect is not
 		# something it does -- the birds in Level 2 come to it, so the reaching is on
@@ -407,6 +402,34 @@ func _apply_prop_effects(_delta: float) -> void:
 					body.apply_central_force(Vector2(240.0, 0.0) * body.mass)
 		"door":
 			_run_door()
+
+
+## ⚠ YOU CLIMB A LADDER BY WALKING INTO IT AND PRESSING UP. There is no key for it.
+##
+## It used to take E, which is the key for picking a drawing back up, and that is the whole
+## problem: the player stands at the ladder they have just drawn, presses the only key the
+## prompt offers, and the ladder goes back in their bag. Even when it worked, "press E, then
+## hold up" is two verbs for one intention, and no platformer has ever asked for the first
+## one. Stand on it and hold up. That is the whole interaction.
+##
+## E still works and still means what it always meant -- pick this up -- so a ladder set down
+## in the wrong place is still recoverable. The two no longer collide because they are asking
+## about different keys.
+func _offer_the_climb() -> void:
+	if not _standing_still():
+		return
+	var climbing := Input.get_axis(&"move_up", &"move_down")
+	if absf(climbing) < 0.5:
+		return
+	for target in _reachable_targets(_target_size().length() * 0.5):
+		var actor := _player_of(target)
+		if actor == null or not actor.has_method("begin_ladder"):
+			continue
+		if actor.has_method("is_using_ladder") and bool(actor.call("is_using_ladder", self)):
+			return
+		actor.call("begin_ladder", self)
+		utility_used.emit(utility_behavior, item_data)
+		return
 
 
 ## Teleport: two placed doors are a pair, and stepping into one puts the player at the

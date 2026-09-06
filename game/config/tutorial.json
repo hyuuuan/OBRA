@@ -53,14 +53,14 @@
           "at": "moved",
           "after": "move",
           "action": "jump",
-          "text": "{keys} to jump. You will need it before the water.",
+          "text": "{keys} to jump.",
           "seconds": 5.0
         },
         {
           "id": "draw",
           "at": "first_obstacle",
           "action": "redraw",
-          "text": "This is where her brush is for. {keys} opens it \u2014 draw, and this place believes you.",
+          "text": "Her brush is in here. {keys} opens it.",
           "seconds": 7.0,
           "anchor": "draw_button",
           "side": "above"
@@ -69,7 +69,7 @@
           "id": "place",
           "at": "placement_started",
           "keys": "Left click",
-          "text": "Aim with the mouse. {keys} sets it down.",
+          "text": "Mouse aims. {keys} sets it down.",
           "seconds": 6.0
         },
         {
@@ -78,21 +78,21 @@
           "after": "place",
           "action": "rotate_left",
           "through": "rotate_right",
-          "text": "{keys} turns it before you commit. So does scrolling.",
+          "text": "{keys} turns it. So does scrolling.",
           "seconds": 5.0
         },
         {
           "id": "undo",
           "at": "placement_confirmed",
           "keys": "Right click",
-          "text": "If it landed wrong: {keys} takes it back, and the ink with it. Nothing you set down is permanent.",
+          "text": "{keys} takes it back, and the ink with it.",
           "seconds": 7.0
         },
         {
           "id": "revert",
           "at": "became_creature",
           "action": "revert_form",
-          "text": "You are it now. {keys} puts you back as yourself, wherever you are standing.",
+          "text": "{keys} puts you back as yourself.",
           "seconds": 6.0,
           "anchor": "revert_prompt",
           "side": "auto"
@@ -101,7 +101,7 @@
           "id": "life",
           "at": "morph_low",
           "after": "revert",
-          "text": "It is going, apo. A drawing does not last \u2014 think about where you want to be standing when it does.",
+          "text": "It is going, apo. A drawing does not last.",
           "seconds": 6.0
         },
         {
@@ -109,7 +109,7 @@
           "at": "item_stored",
           "action": "inventory_slot_1",
           "through": "inventory_slot_6",
-          "text": "That went into your bag. {keys} to bring one out again.",
+          "text": "In your bag. {keys} brings it out.",
           "seconds": 6.0,
           "anchor": "inventory_bar",
           "side": "above"
@@ -119,7 +119,7 @@
           "at": "item_stored",
           "after": "bag",
           "action": "inventory_open",
-          "text": "{keys} opens the whole bag, and everything you have found.",
+          "text": "{keys} opens the whole bag.",
           "seconds": 5.0,
           "anchor": "inventory_bar",
           "side": "above"
@@ -128,14 +128,14 @@
           "id": "sign",
           "at": "sign_readable",
           "action": "interact",
-          "text": "A board like this marks where something happens. {keys} and I will say it again.",
+          "text": "{keys} and I will read it again.",
           "seconds": 6.0
         },
         {
           "id": "hold",
           "at": "tool_held",
           "action": "use_utility",
-          "text": "You are carrying it. {keys} uses it.",
+          "text": "{keys} uses it.",
           "seconds": 5.0,
           "anchor": "use_prompt",
           "side": "above"
@@ -145,14 +145,14 @@
           "at": "moved",
           "after": "jump",
           "action": "pause",
-          "text": "{keys} stops everything, if you need it. The controls are in there too.",
+          "text": "{keys} stops everything.",
           "seconds": 5.0
         },
         {
           "id": "requirement",
           "at": "requirement_shown",
           "after": "draw",
-          "text": "That word at the top is what the place is asking for \u2014 not a thing to draw, a thing it has to DO. Anything that does it will work.",
+          "text": "That word is what it needs DONE, not what to draw.",
           "seconds": 8.0,
           "anchor": "requirement_strip",
           "side": "auto"
@@ -161,7 +161,7 @@
           "id": "ink",
           "at": "ink_spent",
           "after": "draw",
-          "text": "That cost you ink, apo, and there is only so much of it here. Spend it on what stops you.",
+          "text": "That cost ink, apo. There is not much of it.",
           "seconds": 6.0,
           "anchor": "ink_gauge",
           "side": "below"
@@ -169,14 +169,14 @@
         {
           "id": "checkpoint",
           "at": "checkpoint",
-          "text": "The place remembers you from here. If it goes badly you begin again at this mark, not at the start.",
+          "text": "You begin here now, not at the start.",
           "seconds": 7.0
         }
       ],
       "canvas_briefing": [
-        "This is her canvas, apo. Whatever you draw on it, this place will believe.",
-        "Draw with the mouse. Hold it down and move \u2014 the ink is measured, so do not waste it on a mess.",
-        "When it looks like the thing you mean, press Transform. I will tell you what it thinks you drew."
+        "Her canvas, apo. What you draw on it, this place believes.",
+        "Draw with the mouse. The ink is measured \u2014 do not waste it.",
+        "Then Transform, and I will tell you what it thinks you drew."
       ]
     }
   }
