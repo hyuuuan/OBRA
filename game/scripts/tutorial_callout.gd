@@ -43,6 +43,9 @@ var _beak_from := Vector2.ZERO
 var _beak_to := Vector2.ZERO
 var _side := Side.ABOVE
 var _life := 0.0
+## Already going. Kept separate from `_life` because the timer running out is one of the two
+## ways a dismiss starts, so the clock cannot also be the guard against a second one.
+var _dismissing := false
 
 
 func _ready() -> void:
@@ -206,7 +209,7 @@ func _draw() -> void:
 
 
 func _process(delta: float) -> void:
-	if _life <= 0.0:
+	if _dismissing or _life <= 0.0:
 		return
 	_life -= delta
 	if _life <= 0.0:
@@ -215,10 +218,17 @@ func _process(delta: float) -> void:
 
 ## Taken down early, which is what should happen the moment the player does the thing. A
 ## callout still up after its lesson is learned is the tutorial talking over the game.
+##
+## ⚠ GUARDED BY A FLAG, NOT BY THE CLOCK. This read `if _life < 0.0: return`, meant to stop a
+## second dismiss -- and the clock is exactly how the FIRST one arrives: `_process` subtracts
+## delta, `_life` lands a fraction below zero, and the dismiss it then calls sees a negative
+## life and returns immediately. So a callout could be taken down by the player doing the
+## thing and could never take itself down, which is a bubble parked permanently over the bag
+## it is pointing at. Reported as "the inventory popup never stops", and it never did.
 func dismiss() -> void:
-	if _life < 0.0:
+	if _dismissing:
 		return
-	_life = -1.0
+	_dismissing = true
 	set_process(false)
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, FADE)
