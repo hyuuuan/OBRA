@@ -126,24 +126,24 @@ DISPLAY = {
 # which is the same information the player needs and none of the information that would
 # close the puzzle.
 GLOSS = {
-    "span": "long and stiff enough to lie across a gap and take your weight",
-    "roll": "round, and heavy enough to sink what it lands on",
+    "span": "long and stiff enough to lie across a gap",
+    "roll": "round, and heavy",
     "climb": "able to grip a wall and go up it",
     "leap": "able to jump higher than you can",
     "cut": "an edge sharp enough to go through old wood",
-    "forage": "able to sift and comb through a loose heap",
-    "carry": "strong enough to drag a load out from underneath",
-    "weather": "able to move air -- wind enough to scatter what is loose",
+    "forage": "able to comb through a loose heap",
+    "carry": "strong enough to drag a load out",
+    "weather": "able to move air",
     "unlock": "shaped to the ward inside the lock",
-    "burrow": "small enough to get in where there is no door",
-    "feed": "a reason for something wary to come down within reach",
-    "startle": "alarming enough that a crowd scatters rather than stays",
-    "fly": "able to stay up without holding on to anything",
+    "burrow": "small enough to get in with no door",
+    "feed": "worth coming down for",
+    "startle": "alarming enough to scatter a crowd",
+    "fly": "able to stay up with nothing to hold",
     "swim": "able to move through deep water",
     "crush": "heavy enough to break what is under it",
     "strike": "able to hit hard in one place",
     "light": "able to throw light into the dark",
-    "shield": "able to stand between you and what is coming",
+    "shield": "able to stand between you and it",
 }
 
 # Which level first unlocks each tag. Level 1 unlocks 9 of 15 because a tutorial has to

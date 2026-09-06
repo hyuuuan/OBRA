@@ -41,8 +41,18 @@ func _offer_the_found_key() -> void:
 			hint_bar.clear()
 			_key_prompt = ""
 		return
-	if not _key_prompt.is_empty() or hint_bar.is_showing():
+	if not _key_prompt.is_empty():
 		return
+	# ⚠ IT TAKES THE BAR. This used to yield to `hint_bar.is_showing()`, and the bar at Ang
+	# Bale is not free: L1_N3 stands a hint there about climbing the posts, with no dwell, so
+	# it never clears and the offer never got a turn. The player was carrying the key that
+	# opens the house, standing at the house, and was told nothing -- which is the whole of
+	# "the key is not working", because E at a house that says nothing looks like a dead key.
+	#
+	# Yielding is right for a LESSON, which is the game explaining itself and can wait. This
+	# is the opposite: it says the beat in front of the player is already solved, and it is
+	# the most useful sentence on the screen at that moment. Written once and guarded by
+	# `_key_prompt`, so it does not fight anything for the frames after.
 	_key_prompt = "You are carrying her key  —  press %s to try it" \
 		% ControlsKeys.keys_for("interact")
 	hint_bar.show_hint(_key_prompt, Lolo.SPEAKER)
