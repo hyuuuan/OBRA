@@ -138,18 +138,20 @@ func _check_ladder() -> void:
 		_fail("ladder reach", "E cannot reach it: %.0fpx away, limit is 96" % reach)
 	else:
 		_pass("ladder reach", "%.0fpx away, within E's 96px" % reach)
-	ladder.interact(hero)
-	await physics_frame
+	# ⚠ HOLD UP. NO KEY. Climbing used to take E first, which is the pick-up key -- so the
+	# player standing at a ladder they had just drawn pressed the only key on offer and the
+	# ladder went back in their bag. Walking into it and holding up is the whole interaction
+	# now, and this row presses what a player presses.
+	var start := hero.global_position.y
+	Input.action_press("move_up")
+	await _settle(70)
+	Input.action_release("move_up")
 	if not bool(hero.call("is_using_ladder", ladder)):
-		_fail("ladder", "E did not attach the wanderer to it")
+		_fail("ladder", "holding up did not take hold of it")
 	else:
-		var start := hero.global_position.y
-		Input.action_press("move_up")
-		await _settle(60)
-		Input.action_release("move_up")
 		var climbed := start - hero.global_position.y
 		if climbed > 40.0:
-			_pass("ladder", "climbed %.0fpx up" % climbed)
+			_pass("ladder", "climbed %.0fpx up, no key pressed" % climbed)
 		else:
 			_fail("ladder", "attached but only rose %.0fpx" % climbed)
 	hero.queue_free()
@@ -169,15 +171,13 @@ func _check_climbable_props() -> void:
 		await _settle(140)
 		hero.global_position = Vector2(prop.global_position.x, hero.global_position.y)
 		await _settle(4)
-		prop.interact(hero)
-		await physics_frame
+		var start := hero.global_position.y
+		Input.action_press("move_up")
+		await _settle(70)
+		Input.action_release("move_up")
 		if not bool(hero.call("is_using_ladder", prop)):
-			_fail("%s climb" % entity_id, "the Climb tag claims it, but E did not attach")
+			_fail("%s climb" % entity_id, "the Climb tag claims it, but holding up did nothing")
 		else:
-			var start := hero.global_position.y
-			Input.action_press("move_up")
-			await _settle(60)
-			Input.action_release("move_up")
 			var climbed := start - hero.global_position.y
 			if climbed > 40.0:
 				_pass("%s climb" % entity_id, "climbed %.0fpx up" % climbed)
