@@ -59,6 +59,7 @@ func _run() -> void:
 	# honest than fighting a widget's own animation to prove something unrelated to it.
 	_audit_an_unknown_anchor_falls_back()
 	await _audit_a_callout_does_not_wait_for_the_bar()
+	await _audit_a_callout_goes_away()
 	_audit_the_canvas_is_explained()
 
 	print("OBRA_TUTORIAL_POPUP_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
@@ -136,6 +137,44 @@ func _audit_an_unknown_anchor_falls_back() -> void:
 	_check(not bool(tutorial.call("has_taught", "_probe_unknown")),
 		"and an unbuildable callout does not spend it",
 		"still unspent, so its event brings it back")
+
+
+## ⚠ A CALLOUT THAT NEVER LEAVES IS WORSE THAN NO CALLOUT. It stands over the HUD it points
+## at, so one that outstays its dwell covers the bag it is explaining -- reported as "the
+## inventory popup never stops". Two things have to hold: it takes itself down on its own,
+## and the same lesson never comes back.
+func _audit_a_callout_goes_away() -> void:
+	tutorial.call("dismiss_callout")
+	var lesson: Dictionary = tutorial.call("_find", "bag")
+	if lesson.is_empty():
+		_check(false, "there is a bag lesson to teach", "-")
+		return
+	# The bag is hidden while empty, so give it something -- the anchor resolves to an empty
+	# rect otherwise and this measures the wrong thing.
+	var bagged := DrawnItemData.new()
+	bagged.entity_id = "square"
+	bagged.display_name = "Square"
+	(level.get("inventory_manager") as Node).call("add_item", bagged)
+	await _wait(0.4)
+	tutorial.call("_teach", lesson)
+	await process_frame
+	_check(tutorial.call("callout") != null, "the bag lesson points at the bag",
+		"a callout is up")
+	await _wait(TutorialCallout.DWELL + 1.2)
+	_check(tutorial.call("callout") == null, "and it takes itself down",
+		"gone after its dwell" if tutorial.call("callout") == null
+		else "STILL UP -- it covers the bag it is pointing at")
+
+	# AND IT DOES NOT COME BACK. `note` is called on every store, and a lesson that is not
+	# spent is re-offered every single time.
+	for again in range(4):
+		tutorial.call("note", "item_stored")
+		await process_frame
+	var repeated := tutorial.call("callout") != null \
+		and String(tutorial.call("callout").name) != ""
+	_check(not repeated or bool(tutorial.call("has_taught", "bag_open")),
+		"and storing again does not re-teach the same lesson",
+		"only an unspent lesson may appear")
 
 
 func _audit_the_canvas_is_explained() -> void:
