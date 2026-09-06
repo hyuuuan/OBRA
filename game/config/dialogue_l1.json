@@ -6,27 +6,27 @@
     {
       "id": "L1_B0_001",
       "at": "B0_HAGDAN.enter",
-      "text": "There. This is not the place she left with me in my memory — this is the place she *painted*. Almost the same."
+      "text": "This is not the place she left me. This is the place she *painted*."
     },
     {
       "id": "L1_B0_002",
       "at": "B0_HAGDAN.enter",
-      "text": "The paddy is deeper than she painted it. Walk in and it takes you — I have seen it take a carabao."
+      "text": "The paddy is deeper than she painted it. It has taken a carabao, apo."
     },
     {
       "id": "L1_B0_003",
       "at": "B0_HAGDAN.sub1",
-      "text": "That plank out there is one of the missing steps. You are the one holding the pencil, apo — draw something that can **roll**, and set it on top. Weight is the only thing water listens to."
+      "text": "That plank is one of the missing steps. Draw something that can **roll**, and set it on top."
     },
     {
       "id": "L1_B0_004",
       "at": "B0_HAGDAN.sub1.solved",
-      "text": "There. Like that. It does not matter that it is ugly — it matters that I could read it. Flat and steady now. Cross while it holds."
+      "text": "There. Ugly does not matter — I could read it. Cross while it holds."
     },
     {
       "id": "L1_B0_005",
       "at": "B0_HAGDAN.sub2",
-      "text": "Now look up. Three of the stone steps are gone and the first one is over your head. Draw something that can **span** the gap — anything you can get on top of."
+      "text": "Now look up. The steps are gone. Draw something that can **span** the gap."
     },
     {
       "id": "L1_B0_008",
@@ -37,7 +37,7 @@
       "id": "L1_B0_006",
       "at": "on_first_decline",
       "once": true,
-      "text": "I could not read it, apo. Not because you drew it wrong — because I could not tell it apart from something else. Try again. Bigger, slower."
+      "text": "I could not read it, apo. Not wrong — too like something else. Bigger, slower."
     },
     {
       "id": "L1_B0_007",
@@ -53,7 +53,7 @@
     {
       "id": "L1_N1_002",
       "at": "L1_N1.enter",
-      "text": "There was a crossing here once. Wood. My grandfather's grandfather made it, then made it again, then again."
+      "text": "There was a crossing here. Wood. My grandfather's grandfather made it, and made it again."
     },
     {
       "id": "L1_N1_003",
@@ -74,12 +74,12 @@
     {
       "id": "L1_N1_006",
       "at": "L1_N1.enter",
-      "text": "Four hundred. Maybe less. They built this while the Spanish were burning the lowlands. This was not left behind, apo. This is an answer."
+      "text": "Four hundred years, apo. This was not left behind. It is an answer."
     },
     {
       "id": "L1_N1_007",
       "at": "L1_N1.enter",
-      "text": "The height you are walking on is not old stone. It is a thing people made because they chose not to give up."
+      "text": "What you are walking on is not old stone. People made it, rather than give up."
     },
     {
       "id": "L1_N1_008",
@@ -89,7 +89,7 @@
     {
       "id": "L1_N1_009",
       "at": "L1_N1.teach",
-      "text": "Two: follow the walls — that needs something that can **leap**, or something that can **climb**."
+      "text": "Two: follow the walls. Something that can **leap**, or something that can **climb**."
     },
     {
       "id": "L1_N1_010",
@@ -116,7 +116,7 @@
     {
       "id": "L1_N1_014",
       "at": "L1_N1.artist.cutscene",
-      "text": "She painted this crossing six times in one day. Different hours. She said the water is different every hour."
+      "text": "She painted this crossing six times in a day. The water is different every hour."
     },
     {
       "id": "L1_N1_015",
@@ -145,7 +145,7 @@
     {
       "id": "L1_N1_019",
       "at": "L1_N1.protector.solved",
-      "text": "That forest — someone owns it. Not a person. A family, since there have been families here."
+      "text": "Someone owns that forest. Not a person. A family."
     },
     {
       "id": "L1_N1_020",
@@ -155,7 +155,7 @@
     {
       "id": "L1_CAVE_001",
       "at": "L1_N1.cave",
-      "text": "There is a hollow under the far wall. Something is in it — she used to press flowers, apo, and she used to hide them."
+      "text": "There is a hollow under the far wall. She pressed flowers, apo. And she hid them."
     },
     {
       "id": "L1_CAVE_002",
@@ -175,12 +175,12 @@
     {
       "id": "L1_N2_002",
       "at": "L1_N2.enter",
-      "text": "It is in there, inside the straw. She hid her things there when the rain came and she could not get back to the house."
+      "text": "It is in the straw. She hid things there when the rain kept her from the house."
     },
     {
       "id": "L1_N2_020",
       "at": "L1_N2.enter",
-      "text": "Two ways at a haystack, apo. You get under it — and you would have to be very small for that — or you take the whole thing apart and let it give up what is in it."
+      "text": "Two ways at a haystack. Get under it — you would have to be small — or take it apart."
     },
     {
       "id": "L1_N2_003",
@@ -195,7 +195,7 @@
     {
       "id": "L1_N2_005",
       "at": "L1_N2.teach",
-      "text": "Or we can scatter it — something that can bring **weather**, that carries wind. Whatever is hidden in it comes out with the straw."
+      "text": "Or scatter it. Something that can bring **weather**. What is hidden comes out with it."
     },
     {
       "id": "L1_N2_006",
@@ -261,7 +261,7 @@
     {
       "id": "L1_N2_018",
       "at": "L1_N2.key",
-      "text": "Brass. Too small for that lock — look at the size of it. This one belongs somewhere else."
+      "text": "Brass. Too small for that lock. This one belongs somewhere else."
     },
     {
       "id": "L1_N2_019",
@@ -296,7 +296,7 @@
     {
       "id": "L1_N3_005",
       "at": "L1_N3.teach",
-      "text": "We can go up. Something that can **climb** — but not the posts. Those carry rat guards. You will find nothing to hold."
+      "text": "We can go up. Something that can **climb** — not the posts, they carry rat guards."
     },
     {
       "id": "L1_N3_006",
