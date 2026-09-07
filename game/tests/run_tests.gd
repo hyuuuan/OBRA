@@ -72,6 +72,7 @@ func _run() -> void:
 	await _test_placement_aiming()
 	await _test_confirmed_utility_can_interact()
 	await _test_every_utility_acts()
+	await _test_a_ladder_is_climbed_by_walking_into_it()
 	await _test_placed_props_keep_their_pose()
 	await _test_level_1_needs_drawing()
 	await _test_revert_to_base_form()
@@ -1320,12 +1321,22 @@ func _test_placed_props_keep_their_pose() -> void:
 ## even be equipped -- interact() only handed over four of them -- so F reached a match
 ## whose `_:` branch returned false in silence. Every behavior in the 50-class table now
 ## has to answer for itself, and the answer has to be something the player can read.
+##
+## ⚠ F IS NOT THE ONLY VERB, and this test said it was. The ladder, the stairs and the tree
+## are climbed by WALKING INTO THEM AND HOLDING UP -- there is no key for it, deliberately,
+## because one key doing two things depending on whether the ladder had settled yet is the
+## bug that change fixed. Their `describe_use` correctly returns nothing, so this swept them
+## up as three utilities that "did nothing and said nothing on F" and the whole suite went
+## red on a mechanic that works. They are checked below, by their own verb.
 func _test_every_utility_acts() -> void:
 	var actor := Node2D.new()
 	actor.add_to_group(&"player_character")
 	actor.global_position = Vector2(500.0, 360.0)
 	world.add_child(actor)
 	var vehicles := ["sailboat", "submarine"]
+	# Read off the class under test rather than spelled out again here, so adding a fourth
+	# climbable prop cannot leave this test asserting F over it.
+	var climbed: Array = UtilityObject.CLIMBABLE_PROPS
 	# Spelled out from the In-Game Function column of the 50-class table rather than
 	# read back from is_held_tool(): asking the code under test what it expects of
 	# itself is how this passed while fifteen tools were unreachable.
@@ -1340,6 +1351,8 @@ func _test_every_utility_acts() -> void:
 		if String(entry.get("runtime_role", "")) != "utility":
 			continue
 		var behavior := String(entry.get("utility_behavior", ""))
+		if behavior in climbed:
+			continue
 		var utility := registry.instantiate_entity(entity_id) as UtilityObject
 		_expect(utility != null, "could not instantiate utility %s" % entity_id)
 		if utility == null:
@@ -1370,8 +1383,51 @@ func _test_every_utility_acts() -> void:
 				spawned.queue_free()
 		utility.queue_free()
 		await process_frame
-	_expect(acted == 27, "expected all 27 utilities to act, got %d" % acted)
+	_expect(acted == 27 - climbed.size(),
+		"expected all %d F-using utilities to act, got %d" % [27 - climbed.size(), acted])
 	actor.queue_free()
+	await process_frame
+
+
+## THE OTHER VERB. A ladder is climbed by walking into it and holding up, and until now
+## nothing tested that at all -- the one test that touched a ladder was the F sweep above,
+## which was testing it for the wrong thing and failing.
+##
+## Driven through `Input` rather than by calling `_offer_the_climb`, because the fault this
+## guards against is precisely that the offer is never reached: it is gated on the prop
+## having settled, on the player being within its own half-length, and on the axis actually
+## being held, and any one of those silently turns a drawn ladder back into a wall.
+func _test_a_ladder_is_climbed_by_walking_into_it() -> void:
+	var apo := (load("res://creatures/wanderer.tscn") as PackedScene).instantiate() as Node2D
+	world.add_child(apo)
+	apo.global_position = Vector2(620.0, 360.0)
+
+	var ladder := registry.instantiate_entity("ladder") as UtilityObject
+	world.add_child(ladder)
+	ladder.apply_item_data(DrawnItemData.from_prediction(
+		"ladder", "Ladder", _blank_image(), _utility_fixture("ladder"), 0.4,
+		registry.get_entity("ladder")
+	))
+	ladder.global_position = apo.global_position
+	ladder.confirm_placement()
+	# A ladder still swinging is not one you can step onto -- `_standing_still` is the
+	# guard, and freezing it is what a placed ladder does once it has settled anyway.
+	ladder.freeze = true
+	await physics_frame
+
+	_expect(not bool(apo.call("is_using_ladder", ladder)),
+		"the apo was on the ladder before anyone asked to climb it")
+	# NO KEY PRESS. Up, while standing in it.
+	Input.action_press(&"move_up")
+	await physics_frame
+	await physics_frame
+	Input.action_release(&"move_up")
+	_expect(bool(apo.call("is_using_ladder", ladder)),
+		"walking into a ladder and holding up did not start the climb")
+
+	apo.call("end_ladder")
+	ladder.queue_free()
+	apo.queue_free()
 	await process_frame
 
 
