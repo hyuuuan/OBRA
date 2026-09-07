@@ -71,6 +71,45 @@ func _interact_with_level() -> bool:
 	return false
 
 
+## Whether the level's own answer to E outranks picking up a drawing within arm's reach.
+##
+## FALSE BY DEFAULT, and that default is right nearly everywhere: a drawing is something the
+## player put there, and reaching past it to read a signboard is the game ignoring them.
+##
+## ⚠ IT IS WRONG AT EXACTLY ONE MOMENT, and it cost the player the level. Standing at Ang
+## Bale carrying the brass key, the hint bar says "you are carrying her key -- press E to
+## try it"; press E with the ladder you just drew still lying beside you and the ladder gets
+## pocketed instead, silently, while the offer stays on the bar. Reported as "the key is not
+## working ... when I make a ladder it complicates everything", and it is one press away
+## from being the whole node. A level that is OFFERING something on this key has to be able
+## to take it.
+func _level_answers_first() -> bool:
+	return false
+
+
+## WHAT E DOES, in one place and reachable by name.
+##
+## Lifted out of `_unhandled_input` so a probe can press this level's E rather than the
+## whole tree's: a test that synthesises a global input event reaches every level alive in
+## the tree, the first one handles it and calls `set_input_as_handled`, and the level the
+## test cares about never sees the press. That is not hypothetical -- it is why the first
+## version of the ladder-and-key test passed with the fix reverted.
+func press_interact() -> void:
+	# A drawing you can reach comes first. Both are "the thing in front of you" and both
+	# are on one key, but only one of them is something the player put there -- reading a
+	# board instead of picking up the ladder you just placed would be the game ignoring
+	# you, while the reverse is a key press that says nothing this time.
+	#
+	# Unless the level is standing there offering something on this very key. See
+	# _level_answers_first: the sign that outranks a pick-up is the game having already
+	# told the player, in writing, what E will do.
+	if _level_answers_first():
+		if not _interact_with_level() and not _interact_with_nearest_utility():
+			_read_nearest_sign()
+	elif not _interact_with_nearest_utility() and not _interact_with_level():
+		_read_nearest_sign()
+
+
 ## The level's own per-frame business, given the player's anchor. Runs only while the
 ## level is live -- there is a player, a goal marker, and the level is unfinished.
 func _level_physics(_anchor_position: Vector2) -> void:
@@ -344,12 +383,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
-		# A drawing you can reach comes first. Both are "the thing in front of you" and
-		# both are on one key, but only one of them is something the player put there --
-		# reading a board instead of picking up the ladder you just placed would be the
-		# game ignoring you, while the reverse is a key press that says nothing this time.
-		if not _interact_with_nearest_utility() and not _interact_with_level():
-			_read_nearest_sign()
+		press_interact()
 	elif event.is_action_pressed("use_utility"):
 		get_viewport().set_input_as_handled()
 		_use_equipped_utility()

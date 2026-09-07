@@ -36,6 +36,7 @@ func _run() -> void:
 	director = level.get("director")
 
 	await _audit_the_found_key_opens_the_house()
+	await _audit_a_drawn_ladder_does_not_eat_the_key()
 	await _audit_the_key_opens_the_lock()
 	for route in ["artist", "pragmatist", "protector"]:
 		await _audit_route(route)
@@ -90,6 +91,71 @@ func _audit_the_found_key_opens_the_house() -> void:
 	_check(bool(d.is_solved("L1_N3")), "and the house opens to it",
 		"solved with the found key" if d.is_solved("L1_N3")
 		else "STILL SHUT -- the key found in the hay does nothing")
+	fresh.queue_free()
+	await process_frame
+
+
+## ⚠ THE ONE ABOVE PASSED WHILE THE GAME WAS BROKEN, and this is why.
+##
+## It calls `_interact_with_level` directly, so it proves the key WOULD work if the press
+## reached it. In play the press did not: `_unhandled_input` tries a drawing within arm's
+## reach first, and the drawing within arm's reach at Ang Bale is the ladder the player just
+## drew to get up to the door. E pocketed the ladder, in silence, while the bar went on
+## saying "press E to try it". "The key is not working ... when I make a ladder it
+## complicates everything" is that, exactly.
+##
+## So this one goes through the real door: a placed ladder at the player's feet, and a
+## synthesised press of the actual action.
+func _audit_a_drawn_ladder_does_not_eat_the_key() -> void:
+	var fresh := (load("res://game_level.tscn") as PackedScene).instantiate() as Node2D
+	(fresh.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(fresh)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _wait(1.2)
+	var d = fresh.get("director")
+	var profile := root.get_node_or_null(^"/root/PlayerProfile")
+	var apo := fresh.get("player") as Node2D
+	if d == null or profile == null or apo == null:
+		_check(false, "a drawn ladder does not eat the key", "the level did not come up")
+		fresh.queue_free()
+		return
+	profile.call("record_collectible", "L1_bale_key")
+	d.enter_obstacle("L1_N3")
+	await _wait(0.3)
+
+	# The ladder, lying exactly where the player would have left it: within reach.
+	var registry := fresh.get_node("EntityRegistry") as EntityRegistry
+	var ladder := registry.instantiate_entity("ladder") as UtilityObject
+	fresh.get_node("EnvironmentBaseplate/GameplayPlane/WorldItemRoot").add_child(ladder)
+	ladder.apply_item_data(DrawnItemData.from_prediction(
+		"ladder", "Ladder", Image.create(512, 512, false, Image.FORMAT_RGBA8), [],
+		0.4, registry.get_entity("ladder")))
+	ladder.confirm_placement()
+	await _wait(0.3)
+	# Stood where a settled ladder stands: beside the player, frozen, which is what a placed
+	# one does once it has stopped moving. Set AFTER the settle, or it falls out of reach
+	# while the level is still coming up.
+	ladder.global_position = apo.global_position + Vector2(30.0, 0.0)
+	ladder.freeze = true
+	await _wait(0.2)
+
+	fresh.call("_offer_the_found_key")
+	await process_frame
+	# ⚠ THIS LEVEL'S E, NOT THE TREE'S. A synthesised `InputEventAction` reaches every level
+	# alive in the tree; the first one to handle it calls `set_input_as_handled` and the one
+	# under test never sees the press. The first version of this test did exactly that and
+	# passed with the fix reverted.
+	_check(bool(fresh.call("_nearest_interactable_utility") != null),
+		"the drawn ladder is within arm's reach", "E has something to pick up")
+	fresh.call("press_interact")
+	await _wait(0.4)
+
+	_check(bool(d.is_solved("L1_N3")),
+		"E at the house opens it with the key, not the ladder",
+		"the house opened" if d.is_solved("L1_N3")
+		else "STILL SHUT -- the press went to the ladder")
+	if is_instance_valid(ladder):
+		ladder.queue_free()
 	fresh.queue_free()
 	await process_frame
 
