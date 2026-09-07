@@ -678,6 +678,13 @@ func _interact_with_level() -> bool:
 	return _use_the_found_key()
 
 
+## THE OFFER ON THE BAR IS A PROMISE, and the same condition makes it. `_offer_the_found_key`
+## writes "you are carrying her key -- press E to try it" whenever this is true, so the two
+## cannot drift: if the sentence is up, this key press belongs to the door.
+func _level_answers_first() -> bool:
+	return _found_key_would_open()
+
+
 func _level_physics(anchor_position: Vector2) -> void:
 	_offer_the_found_key()
 	# Crossing the far lip is what earns the memory, not choosing the route that would
