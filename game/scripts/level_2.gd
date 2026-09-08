@@ -73,6 +73,9 @@ var dance_screen: DanceOverlay
 
 ## Where the bandaritas hang in the plaza, read off the scene rather than typed twice.
 var _bunting_y := -INF
+## How many times the flight ceiling has been crossed this run, so Lolo escalates rather
+## than repeating himself. See _on_ceiling_crossed.
+var _ceiling_crossings := 0
 
 var church: PiyestaRoom2D
 var house: PiyestaRoom2D
@@ -769,7 +772,12 @@ func _on_ceiling_crossed(entity_id: String, height_over: float) -> void:
 		player.call("apply_morph_state", {"position": landing, "linear_velocity": Vector2.ZERO})
 	else:
 		player.global_position = landing
-	_speak(script_lines.fire("L2_START.ward.fail1"))
+	# ⚠ IT ESCALATES, AND THE SECOND LINE HAD NO CALL SITE. `fail1` is "Hoy! I told you.
+	# Under the strings"; `fail2` is "Naku. Come here. You are going to get yourself stepped
+	# on." Firing the first every time means a player who keeps crossing hears the same
+	# sentence forever, which reads as the game not noticing rather than as a warning.
+	_ceiling_crossings += 1
+	_speak(script_lines.fire("L2_START.ward.fail%d" % mini(_ceiling_crossings, 2)))
 	Telemetry.record_event("restriction_violation", {
 		"level_id": LevelManager.current_level_id,
 		"rule": "flight_ceiling", "class": entity_id, "over_by": height_over,
