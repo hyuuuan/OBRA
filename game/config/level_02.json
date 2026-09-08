@@ -48,11 +48,6 @@
       "id": "CP4",
       "at": "L2_N3",
       "trigger": "route_commit"
-    },
-    {
-      "id": "CP5",
-      "at": "EXIT_MARKER",
-      "trigger": "area"
     }
   ],
   "restrictions": {
@@ -213,7 +208,7 @@
             "bat"
           ],
           "recovers_scraps": 2,
-          "$comment": "TWO ROUTES AT THIS NODE, deliberately -- the design says so. Climbing preserves the town and cutting marks it, so climb is the Artist stance here and there is no Pragmatist. \u26a0 `bat` is excluded for a reason the tag layer cannot see: it is a flight-ceiling class, and this route asks the player to reach the bandaritas, which IS the ceiling. Without the exclusion the tag layer offers an answer the restriction handler then punishes -- the game agreeing with the player and then taking it back."
+          "$comment": "TWO ROUTES AT THIS NODE, deliberately -- the design says so. Climbing preserves the town and cutting marks it, so climb is the Artist stance here and there is no Pragmatist. ⚠ `bat` is excluded for a reason the tag layer cannot see: it is a flight-ceiling class, and this route asks the player to reach the bandaritas, which IS the ceiling. Without the exclusion the tag layer offers an answer the restriction handler then punishes -- the game agreeing with the player and then taking it back."
         },
         "protector": {
           "required_tags": [
@@ -283,7 +278,7 @@
       "sacred_images_puzzle_function": false,
       "altar_reachable_for": "placing the kandila, and nothing else",
       "belfry_may_be_climbed": true,
-      "note": "The bulul rule ported. No cutting, burning, breaking or standing on any sacred image -- the cross on the pediment, the retablo, a carroza if one is ever drawn. \u26a0 AND THE SANTO NINO ESPECIALLY: it is the most venerated image in the country, it appears in the Basilica's facade niche and in the retablo indoors, and in both places it is DRAWN INTO A TEXTURE and owns no node, no area and no collision. ChurchInterior2D._check_the_guardrail fails loudly if anybody gives it one."
+      "note": "The bulul rule ported. No cutting, burning, breaking or standing on any sacred image -- the cross on the pediment, the retablo, a carroza if one is ever drawn. ⚠ AND THE SANTO NINO ESPECIALLY: it is the most venerated image in the country, it appears in the Basilica's facade niche and in the retablo indoors, and in both places it is DRAWN INTO A TEXTURE and owns no node, no area and no collision. ChurchInterior2D._check_the_guardrail fails loudly if anybody gives it one."
     },
     "audio": {
       "forbid": [
@@ -326,8 +321,8 @@
     },
     {
       "id": "late_afternoon",
-      "from": "EXIT_MARKER",
-      "to": "EXIT_MARKER"
+      "from": "L2_N3",
+      "to": "L2_N3"
     }
   ],
   "load_time_assertions": [
