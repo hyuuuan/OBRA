@@ -519,6 +519,21 @@ func _on_bale_exit() -> void:
 	_complete_level()
 
 
+## PAYYO ENDS AT A DOOR, NOT AT A SPOT ON THE TERRACE.
+##
+## Two of them, both inside Ang Bale -- back down the ladder, or through the gap the painting
+## leaves in the wall. The GoalMarker still stands at the house and the readout still counts
+## down to it, because while the house is shut that is exactly what the player should be
+## walking toward; it just does not END anything any more.
+##
+## THE LAST CHECKPOINT WENT WITH IT. `level_01.json` declared CP4 at an `EXIT_MARKER` that
+## does not exist in the scene and that nothing has ever written or read -- the checkpoint
+## for an ending that is now a door. It is gone, and `golden_hour` (the lighting state that
+## spanned it) names L1_N3 instead, which is where the ending actually happens.
+func _marker_ends_the_level() -> bool:
+	return false
+
+
 ## Through the gap the painting left in the wall, and out the other side into Piyesta.
 ##
 ## THIS IS WHAT THE LEVEL ENDS ON NOW. Payyo used to finish by walking back OUT of the house

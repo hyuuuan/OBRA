@@ -2228,7 +2228,15 @@ func _physics_process(_delta: float) -> void:
 	# The distance is already being computed to decide completion, so showing it costs
 	# nothing and gives the level a legible objective -- until now the only thing
 	# telling the player where to go was the level ending when they arrived.
-	var may_finish := _completion_unlocked()
+	var may_finish := _completion_unlocked() and _marker_ends_the_level()
+	# ⚠ A LEVEL THAT ENDS AT A DOOR HAS NOTHING LEFT TO POINT AT. Payyo's marker stands at
+	# Ang Bale, which is exactly the right thing to walk toward while the house is shut --
+	# and the moment it opens, the way on is a doorway inside a room the readout is already
+	# blanked in. Leaving it up would park "GOAL 0 m" on the screen for the rest of the
+	# level, over a spot arriving at does nothing.
+	if _completion_unlocked() and not _marker_ends_the_level():
+		goal_label.text = ""
+		return
 	goal_label.text = "GOAL  %d m" % int(distance / 32.0) \
 		if distance > GOAL_RADIUS or not may_finish else "GOAL REACHED"
 	if distance <= GOAL_RADIUS and may_finish:
@@ -2285,6 +2293,21 @@ func _say_why(text: String) -> void:
 ## the checkpoint exists would let a player finish by pressing a dialogue button and walking
 ## four metres, without drawing anything. A level that names no such checkpoint ends on
 ## arrival exactly as before, which is what the levels with no obstacle layer want.
+## Whether arriving at the GoalMarker is one of the ways this level ends.
+##
+## TRUE FOR A LEVEL WHOSE ENDING IS A PLACE, which is every level built against this host
+## until Payyo grew a door. Payyo says no: it now ends by walking through one of two
+## doorways inside Ang Bale, and the marker outside is a POINTER -- the thing to walk toward
+## while the house is still shut. Leaving the distance check armed left a third ending that
+## fired just by standing under the house with the beat solved, which is the same defect
+## `unlocks_at_checkpoint` was added to paper over.
+##
+## The marker itself stays. `_physics_process` returns early without one, and what it would
+## take with it is the fall limit, the paddy rescue and the room framing.
+func _marker_ends_the_level() -> bool:
+	return true
+
+
 func _completion_unlocked() -> bool:
 	if director == null:
 		return true

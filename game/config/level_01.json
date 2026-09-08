@@ -73,11 +73,6 @@
       "id": "CP3",
       "at": "L1_N3",
       "trigger": "route_commit"
-    },
-    {
-      "id": "CP4",
-      "at": "EXIT_MARKER",
-      "trigger": "area"
     }
   ],
   "obstacles": [
@@ -336,8 +331,8 @@
     },
     {
       "id": "golden_hour",
-      "from": "EXIT_MARKER",
-      "to": "EXIT_MARKER"
+      "from": "L1_N3",
+      "to": "L1_N3"
     }
   ],
   "load_time_assertions": [
