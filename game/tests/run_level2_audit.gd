@@ -74,6 +74,7 @@ func _run() -> void:
 	_audit_checkpoints_precede_morphs(level)
 	_audit_no_line_names_a_class(dialogue)
 	_audit_dialogue_hooks_exist(level, dialogue)
+	_audit_no_line_is_unreachable(level, dialogue)
 	_audit_every_route_has_a_button(level, dialogue)
 	_audit_conditions_match_effects(level, dialogue)
 	_audit_is_playable()
@@ -474,3 +475,83 @@ func _audit_is_playable() -> void:
 	# wall of paintings with no ending at all.
 	_check(ends_run and not payyo_ends_run, "and it is the one that ends the run",
 		"piyesta ends_run=%s, payyo ends_run=%s" % [ends_run, payyo_ends_run])
+
+
+## ⚠ THE OTHER DIRECTION, AND IT IS THE ONE THAT KEEPS BEING WRONG.
+##
+## `_audit_dialogue_hooks_exist` asks whether every hook the level NEEDS has a line. Nothing
+## asked the reverse: whether every line somebody WROTE is ever said. Five were not, and they
+## were not minor ones --
+##
+##   L2_START.enter      the level's opening, so Piyesta began in silence
+##   L2_START.teach      the ONLY statement of this level's two rules, so the first
+##                       violation arrived with Lolo saying "Hoy! I told you" to somebody
+##                       he had never told
+##   L2_START.ward.fail2 the escalation, so a repeat offender heard the same sentence
+##   EXIT_MARKER.*       the whole ending, including the line that pays off Payyo's
+##                       Protector route
+##
+## Every one of them passed every suite in the project, because a line nobody fires is
+## indistinguishable from a line nobody has reached yet.
+##
+## The reachable set is the generic hooks the host generates from the level data, plus every
+## string literal in the two scripts that can fire one. Static, and deliberately generous --
+## a false PASS here is a hook this audit could not see, and a false FAIL would train people
+## to add exceptions.
+const HOST_SOURCES := ["res://scripts/level_2.gd", "res://scripts/level_base.gd"]
+## Hooks that are authored on purpose and answered somewhere other than the script.
+## ⚠ ONE ENTRY, AND IT NEEDS A REASON. `LevelRestrictions.refusal_note` builds the refusal
+## from the ban's own `fiction` field, so it names WHY -- "small enough to be trampled by the
+## crowd or the parade float" -- where the authored line only says "too small for today".
+## The generated one is better and is what the player gets; the line is kept as the voice it
+## was written in.
+const ANSWERED_ELSEWHERE := ["L2_START.ward.refused"]
+
+
+func _audit_no_line_is_unreachable(level: Dictionary, dialogue: Dictionary) -> void:
+	var reachable: Dictionary = {}
+	for obstacle_value: Variant in level.get("obstacles", []):
+		var obstacle: Dictionary = obstacle_value
+		var id := String(obstacle.get("id", "?"))
+		for suffix in ["enter", "teach", "choice", "solved", "warn"]:
+			reachable["%s.%s" % [id, suffix]] = true
+		for route_value: Variant in (obstacle.get("routes", {}) as Dictionary).keys():
+			for suffix in ["commit", "solved", "warn", "failed", "retry"]:
+				reachable["%s.%s.%s" % [id, route_value, suffix]] = true
+	# `%` is in the class on purpose: a call site may name a family rather than a line, and
+	# "L2_START.ward.fail%d" has to survive the scan to become a prefix below.
+	var literal := RegEx.create_from_string("\"([A-Za-z0-9_%]+(?:\\.[A-Za-z0-9_%]+)*)\"")
+	for path in HOST_SOURCES:
+		var source := FileAccess.get_file_as_string(path)
+		for found in literal.search_all(source):
+			reachable[found.get_string(1)] = true
+	for hook in ANSWERED_ELSEWHERE:
+		reachable[hook] = true
+
+	# ⚠ AND HOOKS THAT ARE BUILT, NOT TYPED. A call site may name a family rather than a
+	# line -- `fire("L2_START.ward.fail%d" % n)` fires fail1 or fail2 -- and a scan that only
+	# matches whole literals reports both as dead. Anything before a format spec counts as a
+	# prefix, which is generous in the direction this audit should be generous in: it would
+	# rather miss a dead hook than teach somebody to add an exception for a live one.
+	var prefixes: Array[String] = []
+	for key: Variant in reachable.keys():
+		var text := String(key)
+		var cut := text.find("%")
+		if cut > 0:
+			prefixes.append(text.substr(0, cut))
+
+	var dead: Array[String] = []
+	for line_value: Variant in dialogue.get("lines", []):
+		var hook := String((line_value as Dictionary).get("at", ""))
+		if hook.is_empty() or reachable.has(hook):
+			continue
+		var built := false
+		for prefix in prefixes:
+			if hook.begins_with(prefix):
+				built = true
+				break
+		if not built:
+			dead.append("%s (%s)" % [hook, (line_value as Dictionary).get("id", "?")])
+	_check(dead.is_empty(), "every authored line has a caller",
+		"nothing in dialogue_l2.json is written and never said" if dead.is_empty()
+		else "never fired: %s" % ", ".join(dead))
