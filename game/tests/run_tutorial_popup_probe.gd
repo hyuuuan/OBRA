@@ -9,6 +9,7 @@ extends SceneTree
 ##   a callout does NOT wait for the hint bar, because it does not use the hint bar
 ##   an anchor that cannot be resolved falls back to the bar instead of vanishing
 ##   the canvas briefing is authored, and is said once
+##   the morph card's two readings are taught, pointed at the card that shows them
 
 var level: Node2D
 var tutorial
@@ -61,6 +62,7 @@ func _run() -> void:
 	await _audit_a_callout_does_not_wait_for_the_bar()
 	await _audit_a_callout_goes_away()
 	_audit_the_canvas_is_explained()
+	await _audit_the_two_readings_are_explained()
 
 	print("OBRA_TUTORIAL_POPUP_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
@@ -185,3 +187,59 @@ func _audit_the_canvas_is_explained() -> void:
 	_check(panel != null and (panel.get("briefing_lines") as Array).size() == lines.size(),
 		"and the panel was handed them",
 		"the panel does not read tutorial.json itself")
+
+
+## THE TWO NUMBERS ON THE MORPH CARD, which the game showed from the day the card existed
+## and never once explained: the bar is how long this drawing has left, and the percentage
+## beside the name is how sure the recogniser was of it.
+##
+## ⚠ THEY MUST NOT ARRIVE TOGETHER. One callout is up at a time -- a second in the same
+## frame dismisses the first before it has been read -- so `clock` waits for `morph_running`
+## (two seconds into a ten-second life, by which point the bar it points at has visibly
+## moved) and `sure` waits for the morph after that. Asserting only that both are eventually
+## taught would pass with both firing on one frame, so the ORDER is what is checked.
+func _audit_the_two_readings_are_explained() -> void:
+	var life: Node = level.get("morph_life")
+	var card: Control = level.get("morph_card")
+	if life == null or card == null:
+		_check(false, "the level has a morph card and a clock", "-")
+		return
+	var order: Array[String] = []
+	tutorial.lesson_taught.connect(func(id: String) -> void:
+		if id == "clock" or id == "sure":
+			order.append(id))
+
+	# ⚠ THE CARD IS SHOWN AT THE MORPH SITE, NOT BY THE CLOCK. `begin` starts the life and
+	# emits, and that is all it does -- the plate is filled in where the submitted drawing is
+	# in hand, because MorphLife only knows names. A probe that starts the clock and expects
+	# a visible card is anchoring a lesson to a control nobody made visible, which resolves
+	# empty and quietly falls back to the hint bar.
+	var sketch := Image.create(28, 28, false, Image.FORMAT_RGBA8)
+	sketch.fill(Color.WHITE)
+
+	# First drawing: `revert` takes the frame it starts on, and `clock` arrives once the
+	# life has visibly gone down.
+	card.call("show_form", "Spider", sketch, 0.87)
+	life.call("begin", "Spider", "spider")
+	await _wait(0.2)
+	_check(card.visible, "the card is up while she is a drawing",
+		"visible" if card.visible else "the plate is hidden, so the lesson has nothing to point at")
+	_check(not tutorial.has_taught("clock"), "the clock is not explained on the first frame",
+		"revert has that frame")
+	await _wait(3.0)
+	_check(tutorial.has_taught("clock"), "the clock is explained once the bar has moved",
+		"taught" if tutorial.has_taught("clock") else "morph_running never reached a lesson")
+	_check(not tutorial.has_taught("sure"),
+		"and the second reading does not land on top of it", "still waiting for a morph")
+
+	# Back to the apo, then a second drawing: now `sure` has its own frame.
+	life.call("clear")
+	card.call("hide_form")
+	await _wait(0.4)
+	card.call("show_form", "Frog", sketch, 0.62)
+	life.call("begin", "Frog", "frog")
+	await _wait(0.5)
+	_check(tutorial.has_taught("sure"), "the confidence reading is explained on the next one",
+		"taught" if tutorial.has_taught("sure") else "sure never fired")
+	_check(order == ["clock", "sure"], "and they arrive in that order",
+		", ".join(order) if not order.is_empty() else "neither fired")

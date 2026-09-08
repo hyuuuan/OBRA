@@ -146,8 +146,16 @@ func note(event: String) -> void:
 		# depends on has been spent.
 		if not after.is_empty() and not _seen.has(after):
 			continue
-		_teach(lesson)
-		return
+		# ⚠ ONE TAUGHT LESSON PER CALL, NOT ONE ATTEMPT. This used to `return` whatever
+		# `_teach` did with it -- and `_teach` can decline: a lesson bound for the hint bar
+		# yields while the bar is busy, and is deliberately left unspent so it can arrive
+		# later. An unspent lesson is tried FIRST every time its event comes round, so one
+		# that can never be spent -- an anchor on a control this level never builds, a bar
+		# that is never free -- silently starves every lesson behind it at that event,
+		# forever. The rule the return is there for is that two lessons must not land in one
+		# frame; a lesson that declined has not landed.
+		if _teach(lesson):
+			return
 
 
 func _find(id: String) -> Dictionary:
@@ -157,10 +165,12 @@ func _find(id: String) -> Dictionary:
 	return {}
 
 
-func _teach(lesson: Dictionary) -> void:
+## Whether the lesson was actually taught. False means it declined and is still unspent --
+## see the note in `note()` on why that is not the same as "done with this event".
+func _teach(lesson: Dictionary) -> bool:
 	var text := resolve(lesson)
 	if text.is_empty():
-		return
+		return false
 	var id := String(lesson["id"])
 	var caps := caps_for(lesson)
 	# ⚠ POINTED IF IT CAN BE, SPOKEN IF IT CANNOT, AND THE POINTED ONE DOES NOT WAIT FOR THE
@@ -171,7 +181,7 @@ func _teach(lesson: Dictionary) -> void:
 	if _teach_beside(lesson, text, caps):
 		_seen[id] = true
 		lesson_taught.emit(id)
-		return
+		return true
 
 	# NEVER OVER A BUSY BAR, and the lesson is NOT spent when it yields.
 	#
@@ -183,7 +193,7 @@ func _teach(lesson: Dictionary) -> void:
 	# next time its event comes round, by which point the bar has cleared itself.
 	if _hint_bar != null and _hint_bar.has_method("is_showing") \
 			and bool(_hint_bar.call("is_showing")):
-		return
+		return false
 	_seen[id] = true
 	var speaker := String(lesson.get("speaker", "Lolo"))
 	var seconds := float(lesson.get("seconds", 0.0))
@@ -195,6 +205,7 @@ func _teach(lesson: Dictionary) -> void:
 	elif _hint_bar != null and _hint_bar.has_method("show_hint"):
 		_hint_bar.call("show_hint", text, speaker, seconds)
 	lesson_taught.emit(id)
+	return true
 
 
 ## Put the lesson next to the thing it is about. False means it could not be, and the
