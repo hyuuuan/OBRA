@@ -2180,7 +2180,14 @@ func _on_ink_changed(remaining: float, capacity: float, reserved: float) -> void
 
 func _physics_process(_delta: float) -> void:
 	_refresh_action_prompts()
-	if _level_completed or goal_marker == null:
+	# ⚠ THE GOAL MARKER USED TO GATE THIS WHOLE FUNCTION, and everything below it is not
+	# about the goal. A level with no marker silently lost its FALL LIMIT, its paddy rescue
+	# and its room framing -- so the first level built without one would drop a player
+	# through the floor of the world forever and nothing would say why. Piyesta is that
+	# level: it ends at the assembly table and only had a marker because `level_2.tscn` is a
+	# text copy of `game_level.tscn`. The readout is the only part that needs one, and it
+	# checks for itself at the bottom.
+	if _level_completed:
 		return
 	if player == null or not is_instance_valid(player):
 		return
@@ -2223,6 +2230,11 @@ func _physics_process(_delta: float) -> void:
 	# so the strip stands down rather than lying.
 	if _room_holding_player() != null:
 		goal_label.text = ""
+		return
+	# Everything above is the world; from here down is the readout, and a level without a
+	# marker simply has nothing to count down to. What it puts on the label instead is its
+	# own business -- see Level 2, which counts scraps there.
+	if goal_marker == null:
 		return
 	var distance := anchor_position.distance_to(goal_marker.global_position)
 	# The distance is already being computed to decide completion, so showing it costs

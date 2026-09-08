@@ -168,6 +168,13 @@ func _build_level_furniture() -> void:
 	ledger.name = "ScrapLedger"
 	add_child(ledger)
 	ledger.reset()
+	# THE OBJECTIVE READOUT, and Piyesta had none. The corner said "GOAL 300 m" and counted
+	# down to a marker parked past the east wall of Alley 2 -- inherited, because level_2.tscn
+	# is a text copy of game_level.tscn -- which is not how this level ends and not anywhere
+	# the player is meant to walk. The marker is gone; what the corner counts now is the only
+	# number that means anything here, which is how much of her painting is in hand.
+	ledger.scrap_recovered.connect(_show_the_count.unbind(1))
+	_show_the_count()
 
 	assembly = AssemblyClass.new()
 	assembly.name = "ScrapAssembly"
@@ -912,3 +919,12 @@ func _restore_level_run_state(state: Dictionary) -> void:
 		church.open_onward()
 	if alley_1 != null and bool(onward.get("alley_1", false)):
 		alley_1.open_onward()
+
+## How much of the Pista painting is recovered, in the corner where Payyo counts metres.
+##
+## Written on every change rather than every frame: `_physics_process` owns that label for a
+## level that has a marker, and this level has none, so nothing overwrites it in between.
+func _show_the_count() -> void:
+	if goal_label == null or ledger == null:
+		return
+	goal_label.text = "SCRAPS  %d / %d" % [ledger.held(), ledger.total()]
