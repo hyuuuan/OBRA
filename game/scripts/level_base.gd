@@ -771,7 +771,7 @@ func _refresh_requirements() -> void:
 ## Every anchor name a lesson may use. A probe reads it to check `tutorial.json` against the
 ## level, which is the only way to catch a name that resolves to an empty rect forever.
 const TUTORIAL_ANCHORS := ["draw_button", "pickup_prompt", "use_prompt", "revert_prompt",
-	"inventory_bar", "ink_gauge", "requirement_strip"]
+	"inventory_bar", "ink_gauge", "requirement_strip", "morph_card"]
 
 
 ## WHAT A LESSON'S `anchor` MEANS, in one place.
@@ -814,6 +814,13 @@ func _tutorial_target(anchor: String) -> Rect2:
 			node = hud_panel as Control
 		"requirement_strip":
 			node = requirement_strip as Control
+		"morph_card":
+			# The plate top right that says what the player currently IS. It carries the two
+			# readings the game never explained: how long this drawing has left, and how sure
+			# the recogniser was of it. It only exists while they are a drawing, which is the
+			# only time either number means anything -- being the apo hides it, and an anchor
+			# on a hidden control resolves empty and falls back to the bar, which is right.
+			node = morph_card as Control
 	if node == null or not node.is_inside_tree() or not node.is_visible_in_tree():
 		return Rect2()
 	return node.get_global_rect()
@@ -2114,6 +2121,13 @@ func _place_chip(chip: PanelContainer, corner: String, offset: Vector2) -> void:
 func _on_life_changed(remaining: float, capacity: float) -> void:
 	if morph_card != null:
 		morph_card.set_life(remaining, capacity)
+	# ⚠ A COUPLE OF SECONDS IN, NOT ON THE FRAME IT STARTS. `became_creature` already carries
+	# the lesson about changing back, and a second callout in the same frame replaces the
+	# first before it has been read -- one at a time is the whole rule the callout layer is
+	# built on. By the time two seconds of a ten-second life have gone, the bar the lesson
+	# points at has visibly moved, which is the thing being explained.
+	if tutorial != null and capacity > 0.0 and remaining < capacity - 2.0:
+		tutorial.note("morph_running")
 	if morph_life.consume_warning():
 		# THE HINT CHANNEL, not the dialogue box. A story beat stops the tree until the
 		# player turns the page, and running low is exactly the moment they are mid-jump
