@@ -260,6 +260,8 @@ var script_lines: DialogueScript
 var requirement_strip: RequirementStrip
 ## The refusal beat fires on the FIRST decline anywhere in the level, then never again.
 var _refusal_spoken := false
+## And whether the accept that answered it has been acknowledged. See the note at the solve.
+var _refusal_answered := false
 var _run_started_msec := 0
 ## entity_id -> true, for the "things drawn" stat. Distinct classes, not attempts.
 var _classes_this_run: Dictionary = {}
@@ -892,6 +894,15 @@ func _judge_submission(entity_id: String, strokes: Array = []) -> void:
 	if not bool(verdict["solves"]):
 		_say_it_did_not_fit(entity_id, verdict)
 		return
+	# ⚠ THE OTHER HALF OF THE REFUSAL BEAT, and it had no call site in either level.
+	# `on_first_decline` is Lolo saying "I could not read it, apo. Not wrong -- too like
+	# something else"; `after_first_decline_solved` is "There. Now I see it." Both are
+	# authored, both are marked `once`, and only the first was ever said -- so the beat
+	# opened and never closed, and a player whose redraw finally landed got nothing back
+	# from the one person in the game who had commented on the miss.
+	if _refusal_spoken and not _refusal_answered:
+		_refusal_answered = true
+		_speak(script_lines.fire("after_first_decline_solved"))
 	if bool(verdict["solves"]) and not String(verdict["stage_id"]).is_empty():
 		# Beat 0's sub-beats have their own lines ("B0_HAGDAN.sub1.solved"); a route's
 		# second stage does not, and reports an empty stage id rather than a missing hook.
@@ -2180,7 +2191,14 @@ func _on_ink_changed(remaining: float, capacity: float, reserved: float) -> void
 
 func _physics_process(_delta: float) -> void:
 	_refresh_action_prompts()
-	if _level_completed or goal_marker == null:
+	# ⚠ THE GOAL MARKER USED TO GATE THIS WHOLE FUNCTION, and everything below it is not
+	# about the goal. A level with no marker silently lost its FALL LIMIT, its paddy rescue
+	# and its room framing -- so the first level built without one would drop a player
+	# through the floor of the world forever and nothing would say why. Piyesta is that
+	# level: it ends at the assembly table and only had a marker because `level_2.tscn` is a
+	# text copy of `game_level.tscn`. The readout is the only part that needs one, and it
+	# checks for itself at the bottom.
+	if _level_completed:
 		return
 	if player == null or not is_instance_valid(player):
 		return
@@ -2224,11 +2242,24 @@ func _physics_process(_delta: float) -> void:
 	if _room_holding_player() != null:
 		goal_label.text = ""
 		return
+	# Everything above is the world; from here down is the readout, and a level without a
+	# marker simply has nothing to count down to. What it puts on the label instead is its
+	# own business -- see Level 2, which counts scraps there.
+	if goal_marker == null:
+		return
 	var distance := anchor_position.distance_to(goal_marker.global_position)
 	# The distance is already being computed to decide completion, so showing it costs
 	# nothing and gives the level a legible objective -- until now the only thing
 	# telling the player where to go was the level ending when they arrived.
-	var may_finish := _completion_unlocked()
+	var may_finish := _completion_unlocked() and _marker_ends_the_level()
+	# ⚠ A LEVEL THAT ENDS AT A DOOR HAS NOTHING LEFT TO POINT AT. Payyo's marker stands at
+	# Ang Bale, which is exactly the right thing to walk toward while the house is shut --
+	# and the moment it opens, the way on is a doorway inside a room the readout is already
+	# blanked in. Leaving it up would park "GOAL 0 m" on the screen for the rest of the
+	# level, over a spot arriving at does nothing.
+	if _completion_unlocked() and not _marker_ends_the_level():
+		goal_label.text = ""
+		return
 	goal_label.text = "GOAL  %d m" % int(distance / 32.0) \
 		if distance > GOAL_RADIUS or not may_finish else "GOAL REACHED"
 	if distance <= GOAL_RADIUS and may_finish:
@@ -2285,6 +2316,21 @@ func _say_why(text: String) -> void:
 ## the checkpoint exists would let a player finish by pressing a dialogue button and walking
 ## four metres, without drawing anything. A level that names no such checkpoint ends on
 ## arrival exactly as before, which is what the levels with no obstacle layer want.
+## Whether arriving at the GoalMarker is one of the ways this level ends.
+##
+## TRUE FOR A LEVEL WHOSE ENDING IS A PLACE, which is every level built against this host
+## until Payyo grew a door. Payyo says no: it now ends by walking through one of two
+## doorways inside Ang Bale, and the marker outside is a POINTER -- the thing to walk toward
+## while the house is still shut. Leaving the distance check armed left a third ending that
+## fired just by standing under the house with the beat solved, which is the same defect
+## `unlocks_at_checkpoint` was added to paper over.
+##
+## The marker itself stays. `_physics_process` returns early without one, and what it would
+## take with it is the fall limit, the paddy rescue and the room framing.
+func _marker_ends_the_level() -> bool:
+	return true
+
+
 func _completion_unlocked() -> bool:
 	if director == null:
 		return true

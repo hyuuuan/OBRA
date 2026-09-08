@@ -477,6 +477,13 @@ func _on_painting_taken() -> void:
 		"Lola's second canvas. The way into the next place.",
 		BaleInterior2D.PISTA_ART)
 	_speak(script_lines.fire("L1_N3.canvas.taken"))
+	# ⚠ AND THE TWO LINES WRITTEN FOR LOOKING AT IT, which had no call site. "Pista. She said
+	# the noise helped her think." and "Apo -- look at the edge. The shawl. I know that
+	# shawl." are the beat where Lolo recognises something of his own in her painting, and
+	# they are the reason the next level is about people. They were authored under
+	# EXIT_MARKER.canvas, back when the level ended at a marker stone somebody walked to.
+	# The marker is gone; the moment is here, with the canvas in her hands.
+	_speak(script_lines.fire("EXIT_MARKER.canvas"))
 	_grant_the_canvas()
 	# ⚠ AND SAY THAT THE WALL IS OPEN. The gap appears behind the canvas on the frame it is
 	# lifted, at the far end of a room the player is looking at the near end of, while a
@@ -517,6 +524,21 @@ func _on_bale_exit() -> void:
 	# rather than inside a room the completion screen is drawn over.
 	await get_tree().process_frame
 	_complete_level()
+
+
+## PAYYO ENDS AT A DOOR, NOT AT A SPOT ON THE TERRACE.
+##
+## Two of them, both inside Ang Bale -- back down the ladder, or through the gap the painting
+## leaves in the wall. The GoalMarker still stands at the house and the readout still counts
+## down to it, because while the house is shut that is exactly what the player should be
+## walking toward; it just does not END anything any more.
+##
+## THE LAST CHECKPOINT WENT WITH IT. `level_01.json` declared CP4 at an `EXIT_MARKER` that
+## does not exist in the scene and that nothing has ever written or read -- the checkpoint
+## for an ending that is now a door. It is gone, and `golden_hour` (the lighting state that
+## spanned it) names L1_N3 instead, which is where the ending actually happens.
+func _marker_ends_the_level() -> bool:
+	return false
 
 
 ## Through the gap the painting left in the wall, and out the other side into Piyesta.

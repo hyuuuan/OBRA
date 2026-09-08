@@ -694,6 +694,16 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
 
 ## Traps this project keeps re-learning
 
+- ⚠ **Ask both directions of every contract.** "Does every hook the level needs have a
+  line?" had an audit; "is every line anybody wrote ever said?" did not, and that is where
+  two levels were broken — nine dead hooks between them, including both levels' endings and
+  the only statement of Piyesta's rules. A line nobody fires is indistinguishable from a
+  line nobody has reached yet, so only reading the file against the call sites finds it.
+- ⚠ **The accept set is not only what a level TAKES, it is what a level SHOWS.** Piyesta
+  refuses spiders and `climb` resolves spider, so nothing wrong was ever accepted — and
+  `clue_class` would still have named it at tier 3. A rule that fires at submission does not
+  reach the sentence that advertises the answer.
+
 - ⚠ **GDScript lambdas capture locals BY VALUE.** `var fired := false` with a
   `func(): fired = true` connected to a signal writes to the lambda's own copy; the outer
   one stays false forever. A probe written that way reported "the door never fired" while

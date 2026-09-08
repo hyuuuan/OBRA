@@ -67,6 +67,8 @@ var _assisted: Dictionary = {}       # obstacle id -> true when solved at T3
 var _declines := 0
 
 var _tags: Node
+## What this LEVEL refuses, whatever the tag layer resolves. See set_refusal_filter.
+var _refuses := Callable()
 var _profile: Node
 var _telemetry: Node
 
@@ -285,10 +287,46 @@ func accept_set(id: String = "") -> PackedStringArray:
 		# generous tier the harshest.
 		if (spec.get("required_tags", []) as Array).is_empty():
 			spec = requirement_spec(key)
-	return _tags.call("resolve",
+	return _allowed(_tags.call("resolve",
 		spec.get("required_tags", []),
 		String(spec.get("match", "all")),
-		spec.get("exclude", [])) as PackedStringArray
+		spec.get("exclude", [])) as PackedStringArray)
+
+
+## ⚠ WHAT THE LEVEL ITSELF REFUSES COMES OUT OF THE ANSWER, and this is not the same list as
+## a route's `exclude`.
+##
+## `exclude` is about the OBSTACLE -- an elephant cannot cut a hasp -- and it is authored per
+## route. A restriction is about the LEVEL, and it is armed over the whole of it: Piyesta
+## bans six small animals because the crowd would trample them, and refuses them at
+## submission before the director is ever asked.
+##
+## The tag layer knows nothing about either, so `climb` resolved `spider` at Ang Bandarita
+## and the accept set carried it. Nothing was accepted that should not have been -- the
+## refusal fires first -- but the SET IS WHAT THE GAME SHOWS THE PLAYER. `clue_class` prefers
+## a class they have already drawn, and a player arriving from Payyo has almost certainly
+## drawn a spider to climb something, so the third clue would name it, and Piyesta would then
+## refuse it. Telling somebody to draw the one thing you will not take is worse than telling
+## them nothing.
+##
+## Installed by the level, because only a level knows its own rules. A level with none is
+## unchanged: the filter is a Callable nobody set.
+func set_refusal_filter(refuses: Callable) -> void:
+	_refuses = refuses
+
+
+func _allowed(classes: PackedStringArray) -> PackedStringArray:
+	if not _refuses.is_valid():
+		return classes
+	var out := PackedStringArray()
+	for entity_id in classes:
+		if not bool(_refuses.call(entity_id)):
+			out.append(entity_id)
+	# ⚠ NEVER DOWN TO NOTHING. A route whose every answer is banned is an unanswerable beat,
+	# and an empty set makes the strip print nothing and the clue name nothing -- the level
+	# would look broken rather than say so. Returning the unfiltered set keeps the beat
+	# describable; `run_level2_audit` is what fails, loudly, on the data that caused it.
+	return classes if out.is_empty() else out
 
 
 ## ⚠ THE THIRD CLUE NAMES A CLASS, BECAUSE THE MANUSCRIPT SAYS IT DOES.
@@ -499,10 +537,10 @@ func solve_with_item(id: String, item_id: String) -> void:
 ## precisely so T3 cannot reach it.
 func _strict_accept_set(id: String) -> PackedStringArray:
 	var spec := requirement_spec(id)
-	return _tags.call("resolve",
+	return _allowed(_tags.call("resolve",
 		spec.get("required_tags", []),
 		String(spec.get("match", "all")),
-		spec.get("exclude", [])) as PackedStringArray
+		spec.get("exclude", [])) as PackedStringArray)
 
 
 func _has_next_stage(id: String) -> bool:

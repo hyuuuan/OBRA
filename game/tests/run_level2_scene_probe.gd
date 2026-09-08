@@ -76,6 +76,8 @@ func _run() -> void:
 	_audit_the_bunting_is_where_it_can_be_reached()
 	_audit_the_flock_is_within_reach()
 	_audit_the_goal_marker_is_out_of_reach()
+	await _audit_falling_out_of_the_world_is_survivable()
+	await _audit_nothing_offered_is_refused()
 	_audit_the_plaza_is_not_empty()
 	_audit_nothing_this_level_places_is_invisible()
 	await _audit_the_apo_stands_on_something()
@@ -110,13 +112,15 @@ func _audit_the_machine_found_its_parts() -> void:
 	for path in ["EnvironmentBaseplate/GameplayPlane/SpawnPoint",
 			"EnvironmentBaseplate/GameplayPlane/EntityRoot",
 			"EnvironmentBaseplate/GameplayPlane/WorldItemRoot",
-			"EnvironmentBaseplate/GameplayPlane/GoalMarker",
 			"CanvasLayer/InventoryHUD", "DrawPanel", "InkManager", "MorphLife",
 			"PlacementController", "LevelCompleteOverlay", "DialogueChoiceOverlay"]:
 		if level.get_node_or_null(NodePath(path)) == null:
 			missing.append(path)
 	_check(missing.is_empty(), "every generic node the base expects",
-		"11 checked" if missing.is_empty() else "missing: %s" % ", ".join(missing))
+		"10 checked" if missing.is_empty() else "missing: %s" % ", ".join(missing))
+	# ⚠ GoalMarker IS DELIBERATELY NOT ON THAT LIST. It is a Level 1 organ and Piyesta only
+	# ever had one because this scene is a text copy of `game_level.tscn`. It is gone, and
+	# the audit below is what says the absence is on purpose rather than a rename.
 
 
 func _audit_restrictions_are_live() -> void:
@@ -371,19 +375,21 @@ func _audit_the_rooms_do_not_overlap() -> void:
 		if clashes.is_empty() else "; ".join(clashes))
 
 
-## ⚠ THE GOAL MARKER IS A LEVEL 1 ORGAN AND PIYESTA DOES NOT USE IT.
+## ⚠ THE GOAL MARKER IS A LEVEL 1 ORGAN AND PIYESTA HAS NONE.
 ##
-## `level_2.tscn` is a text copy of `game_level.tscn`, so it inherited a `GoalMarker` -- and
-## `LevelBase` ends a level when the player's anchor comes within `GOAL_RADIUS` of one. That
-## is not how Piyesta ends: Scene 3 does, by calling `_complete_level` when the seventh scrap
-## goes home. The marker is parked at (10050, 240), which is past the east wall of Alley 2.
+## `level_2.tscn` is a text copy of `game_level.tscn`, so it inherited one -- and `LevelBase`
+## ends a level when the player's anchor comes within `GOAL_RADIUS` of a marker. That is not
+## how Piyesta ends: Scene 3 does, by calling `_complete_level` when the seventh scrap goes
+## home. The inherited marker sat at (10050, 240), past the east wall of Alley 2, and cleared
+## the alley floor by THIRTY-FIVE UNITS -- so nudging the room's length, moving the room or
+## widening the radius handed Piyesta a second ending that fired by walking to the end of an
+## alley, with the scraps unrecovered, over a beat nobody had played. That is exactly how
+## Level 1 used to end by walking up to a house, and thirty-five units of margin is not
+## something to leave to a comment.
 ##
-## It clears by THIRTY-FIVE UNITS. Alley 2 stands at x 9450 and is 900 long, so its floor
-## stops at 9900; the marker is 150 east of that and the radius is 120. Nudge the room's
-## length, move the room, or widen the radius and Piyesta gains a second ending that fires
-## when somebody walks to the far end of an alley -- with the scraps unrecovered, over a
-## beat the player has not played. That is exactly how Level 1 used to end by walking up to
-## a house. Thirty-five units of margin is not something to leave to a comment.
+## It is deleted. The corner it used to count down in now counts SCRAPS, which is the only
+## number that means anything in this level. This audit stays because the failure it guards
+## against is somebody pasting a marker back in from the Level 1 scene.
 func _audit_the_goal_marker_is_out_of_reach() -> void:
 	var marker := level.get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/GoalMarker") as Node2D
@@ -652,3 +658,97 @@ func _audit_nothing_this_level_places_is_invisible() -> void:
 				mute.append("%s never draws" % (node as Node).name)
 	_check(mute.is_empty(), "everything the level places draws something",
 		"%d props across 7 kinds" % checked if mute.is_empty() else "; ".join(mute))
+
+
+## ⚠ THE WORLD CHECKS USED TO HANG OFF THE GOAL MARKER, and Piyesta has none.
+##
+## `_physics_process` opened with `if _level_completed or goal_marker == null: return`, and
+## everything under that line -- the fall limit, the paddy rescue, the room framing -- is not
+## about the goal at all. So the first level built without a marker would drop a player
+## through the floor of the world and fall forever with nothing to say why. This level is
+## that level, and deleting the inherited marker is what would have armed it.
+##
+## Dropped a long way under the plaza and given time to be noticed. Coming back at all is
+## the assertion; where exactly is the checkpoint machinery's business.
+func _audit_falling_out_of_the_world_is_survivable() -> void:
+	var apo := level.get("player") as Node2D
+	var environment := level.get_node_or_null(^"EnvironmentBaseplate")
+	if apo == null or environment == null:
+		_check(false, "falling out of the world is survivable", "no player or no baseplate")
+		return
+	# ⚠ MEASURED AGAINST WHERE THEY ARE PUT BACK, NOT AGAINST THE FLOOR OF THE WORLD. "Above
+	# the floor limit" is true of a body that is still on its way down, and true of one that
+	# an earlier audit left standing somewhere else entirely -- the first version of this
+	# check passed under the mutation it was written to catch, for both reasons.
+	var spawn := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/SpawnPoint") as Node2D
+	if spawn == null:
+		_check(false, "falling out of the world is survivable", "no spawn point")
+		return
+	var floor_limit: float = Rect2(environment.get("world_bounds")).end.y
+	var dropped := Vector2(spawn.global_position.x, floor_limit + 900.0)
+	level.get_tree().paused = false
+	if apo.has_method("apply_morph_state"):
+		apo.call("apply_morph_state", {"position": dropped, "linear_velocity": Vector2.ZERO})
+	else:
+		apo.global_position = dropped
+	for _frame in range(40):
+		await physics_frame
+	var home := apo.global_position.distance_to(spawn.global_position)
+	_check(home < 260.0, "falling out of the world is survivable",
+		"put back %.0fpx from the spawn, having been dropped %.0fpx below the world"
+			% [home, dropped.y - floor_limit])
+
+
+## ⚠ THE LEVEL MUST NOT OFFER WHAT IT WILL REFUSE.
+##
+## Two lists that knew nothing about each other. A route's `exclude` is about the OBSTACLE --
+## an elephant cannot cut a hasp -- and the restrictions are about the LEVEL, armed over all
+## of it: Piyesta bans six small animals because the crowd would trample them. The tag layer
+## resolves `climb` to spider, so L2_N3's Climb route carried spider in its accept set.
+##
+## Nothing wrong was ever ACCEPTED -- the refusal fires before the director is asked -- and
+## that is exactly why it survived. The set is what the game SHOWS: `clue_class` prefers a
+## class the player has already drawn, and a player arriving from Payyo has almost certainly
+## drawn a spider to climb something, so the third clue would name the one animal this plaza
+## will not take. Telling somebody to draw the thing you will refuse is worse than silence.
+##
+## Checked over every route and over the clue each one would give, because the two can differ:
+## a filtered set with a stale clue is a sentence naming something no longer in it.
+func _audit_nothing_offered_is_refused() -> void:
+	var rules = level.get("restrictions")
+	var director = level.get("director")
+	if rules == null or director == null:
+		_check(false, "nothing offered is refused", "no restrictions or no director")
+		return
+	var offences: Array[String] = []
+	var thin: Array[String] = []
+	for id_value: Variant in director.obstacle_ids():
+		var id := String(id_value)
+		var routes: Dictionary = director.obstacle(id).get("routes", {})
+		for route_value: Variant in routes.keys():
+			var route := String(route_value)
+			director.enter_obstacle(id)
+			director.commit_route(id, route)
+			await process_frame
+			var accepted: PackedStringArray = director.accept_set(id)
+			for entity_id in accepted:
+				if bool(rules.call("refuses", String(entity_id))):
+					offences.append("%s/%s offers %s" % [id, route, entity_id])
+			var clue := String(director.clue_class(id))
+			if not clue.is_empty() and bool(rules.call("refuses", clue)):
+				offences.append("%s/%s would clue %s" % [id, route, clue])
+			# A route the ban has emptied is a beat with no answer. The filter deliberately
+			# falls back to the unfiltered set rather than to nothing, so this is what says
+			# the DATA is wrong rather than letting the fallback hide it.
+			var survivors := 0
+			for entity_id in accepted:
+				if not bool(rules.call("refuses", String(entity_id))):
+					survivors += 1
+			if not accepted.is_empty() and survivors == 0:
+				thin.append("%s/%s has nothing left after the ban" % [id, route])
+	_check(offences.is_empty(), "nothing offered is refused",
+		"every route's answers are drawable here" if offences.is_empty()
+		else "; ".join(offences))
+	_check(thin.is_empty(), "and no route is emptied by the ban",
+		"every beat keeps an answer" if thin.is_empty() else "; ".join(thin))
