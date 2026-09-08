@@ -260,6 +260,8 @@ var script_lines: DialogueScript
 var requirement_strip: RequirementStrip
 ## The refusal beat fires on the FIRST decline anywhere in the level, then never again.
 var _refusal_spoken := false
+## And whether the accept that answered it has been acknowledged. See the note at the solve.
+var _refusal_answered := false
 var _run_started_msec := 0
 ## entity_id -> true, for the "things drawn" stat. Distinct classes, not attempts.
 var _classes_this_run: Dictionary = {}
@@ -892,6 +894,15 @@ func _judge_submission(entity_id: String, strokes: Array = []) -> void:
 	if not bool(verdict["solves"]):
 		_say_it_did_not_fit(entity_id, verdict)
 		return
+	# ⚠ THE OTHER HALF OF THE REFUSAL BEAT, and it had no call site in either level.
+	# `on_first_decline` is Lolo saying "I could not read it, apo. Not wrong -- too like
+	# something else"; `after_first_decline_solved` is "There. Now I see it." Both are
+	# authored, both are marked `once`, and only the first was ever said -- so the beat
+	# opened and never closed, and a player whose redraw finally landed got nothing back
+	# from the one person in the game who had commented on the miss.
+	if _refusal_spoken and not _refusal_answered:
+		_refusal_answered = true
+		_speak(script_lines.fire("after_first_decline_solved"))
 	if bool(verdict["solves"]) and not String(verdict["stage_id"]).is_empty():
 		# Beat 0's sub-beats have their own lines ("B0_HAGDAN.sub1.solved"); a route's
 		# second stage does not, and reports an empty stage id rather than a missing hook.
