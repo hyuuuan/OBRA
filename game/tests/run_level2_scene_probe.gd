@@ -77,6 +77,7 @@ func _run() -> void:
 	_audit_the_flock_is_within_reach()
 	_audit_the_goal_marker_is_out_of_reach()
 	await _audit_falling_out_of_the_world_is_survivable()
+	await _audit_nothing_offered_is_refused()
 	_audit_the_plaza_is_not_empty()
 	_audit_nothing_this_level_places_is_invisible()
 	await _audit_the_apo_stands_on_something()
@@ -697,3 +698,57 @@ func _audit_falling_out_of_the_world_is_survivable() -> void:
 	_check(home < 260.0, "falling out of the world is survivable",
 		"put back %.0fpx from the spawn, having been dropped %.0fpx below the world"
 			% [home, dropped.y - floor_limit])
+
+
+## ⚠ THE LEVEL MUST NOT OFFER WHAT IT WILL REFUSE.
+##
+## Two lists that knew nothing about each other. A route's `exclude` is about the OBSTACLE --
+## an elephant cannot cut a hasp -- and the restrictions are about the LEVEL, armed over all
+## of it: Piyesta bans six small animals because the crowd would trample them. The tag layer
+## resolves `climb` to spider, so L2_N3's Climb route carried spider in its accept set.
+##
+## Nothing wrong was ever ACCEPTED -- the refusal fires before the director is asked -- and
+## that is exactly why it survived. The set is what the game SHOWS: `clue_class` prefers a
+## class the player has already drawn, and a player arriving from Payyo has almost certainly
+## drawn a spider to climb something, so the third clue would name the one animal this plaza
+## will not take. Telling somebody to draw the thing you will refuse is worse than silence.
+##
+## Checked over every route and over the clue each one would give, because the two can differ:
+## a filtered set with a stale clue is a sentence naming something no longer in it.
+func _audit_nothing_offered_is_refused() -> void:
+	var rules = level.get("restrictions")
+	var director = level.get("director")
+	if rules == null or director == null:
+		_check(false, "nothing offered is refused", "no restrictions or no director")
+		return
+	var offences: Array[String] = []
+	var thin: Array[String] = []
+	for id_value: Variant in director.obstacle_ids():
+		var id := String(id_value)
+		var routes: Dictionary = director.obstacle(id).get("routes", {})
+		for route_value: Variant in routes.keys():
+			var route := String(route_value)
+			director.enter_obstacle(id)
+			director.commit_route(id, route)
+			await process_frame
+			var accepted: PackedStringArray = director.accept_set(id)
+			for entity_id in accepted:
+				if bool(rules.call("refuses", String(entity_id))):
+					offences.append("%s/%s offers %s" % [id, route, entity_id])
+			var clue := String(director.clue_class(id))
+			if not clue.is_empty() and bool(rules.call("refuses", clue)):
+				offences.append("%s/%s would clue %s" % [id, route, clue])
+			# A route the ban has emptied is a beat with no answer. The filter deliberately
+			# falls back to the unfiltered set rather than to nothing, so this is what says
+			# the DATA is wrong rather than letting the fallback hide it.
+			var survivors := 0
+			for entity_id in accepted:
+				if not bool(rules.call("refuses", String(entity_id))):
+					survivors += 1
+			if not accepted.is_empty() and survivors == 0:
+				thin.append("%s/%s has nothing left after the ban" % [id, route])
+	_check(offences.is_empty(), "nothing offered is refused",
+		"every route's answers are drawable here" if offences.is_empty()
+		else "; ".join(offences))
+	_check(thin.is_empty(), "and no route is emptied by the ban",
+		"every beat keeps an answer" if thin.is_empty() else "; ".join(thin))

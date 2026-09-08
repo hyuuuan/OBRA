@@ -159,6 +159,12 @@ func _build_level_furniture() -> void:
 		# no rule, because the level goes on claiming to have one.
 		push_error("Level2: %s" % problem)
 	restrictions.submission_refused.connect(_on_submission_refused)
+	# ⚠ AND THE DIRECTOR IS TOLD, so the level stops OFFERING what it will refuse. `climb`
+	# resolves spider, spider is banned here, and `clue_class` prefers a class the player has
+	# already drawn -- so a player arriving from Payyo, where a spider is how you climb, gets
+	# a third clue naming the one animal this plaza will not take.
+	if director != null:
+		director.set_refusal_filter(restrictions.refuses)
 	restrictions.ceiling_crossed.connect(_on_ceiling_crossed)
 	# The plaza's own line. Each later scene sets its own; a scene with no bandaritas
 	# leaves it at -INF and the rule stands down there.
@@ -651,10 +657,15 @@ func _next_after(room: PiyestaRoom2D) -> PiyestaRoom2D:
 	return null
 
 
-## Scene 3. Everything the player recovered goes on the table, and the design is explicit
-## that this cannot be failed -- so a player who somehow arrives holding fewer than seven is
-## given the rest rather than being sent back for them. The level owes them an ending, and
-## `ScrapAssembly.place_now` exists precisely so the completion rule is not written twice.
+## Scene 3. The design is explicit that this cannot be failed, and the way that is honoured
+## is simpler than it reads: THE TABLE ALWAYS LAYS OUT ALL SEVEN. `AssemblyOverlay.present`
+## sets the slots from its own pieces, not from the ledger, so a player who arrives holding
+## fewer than seven still has a whole painting to put back and still gets an ending.
+##
+## ⚠ THE LEDGER IS THEREFORE A COUNT, NOT A GATE, and the warning below is the only place
+## the difference shows. This note used to say the missing pieces were handed over through
+## `ScrapAssembly.place_now` "so the completion rule is not written twice" -- nothing has
+## ever called it outside the tests, because nothing needs to.
 func _open_scene_3() -> void:
 	if assembly_screen == null or assembly_screen.is_open():
 		return
