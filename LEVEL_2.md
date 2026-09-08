@@ -1,6 +1,6 @@
 # Level 2 — Piyesta
 
-**Status: playable end to end, and offered from the hub.** Every beat resolves, the level
+**Status: playable end to end, offered from the hub, and playtested.** Every beat resolves, the level
 can be finished, and `levels.json` carries its scene path and the `ends_run` flag — which
 moved off Payyo, because the last built level is the one that reaches the ending screen.
 The four tests that asserted an empty `scene_path` have turned over rather than been
@@ -13,6 +13,34 @@ what is left. The superseded provisional design is folded away at the bottom.
 
 **Read with:** `LEVEL_TEMPLATE.md` (the shape every level inherits, R1–R10),
 `AGENTS.md` (the eleven hooks a level owes), `LEVEL_1.md` (the worked example).
+
+---
+
+## What the first playthrough found
+
+The suites were green and the level was not finished. Every one of these passed
+everything in the project, because each is a thing that WORKS and never says so — the
+same shape as Payyo's key in the hay.
+
+| Fault | What the player got |
+|---|---|
+| **Five authored hooks never fired** | Piyesta opened in silence, its two rules were never stated, and the whole ending — including the line that pays off Payyo's Protector route — was never spoken |
+| **`L2_START.teach` dead** | The only statement of the ceiling and the ban. So the first violation arrived with Lolo saying *"Hoy! I told you"* to somebody he had never told |
+| **`canvas_2_creased` never set** | The crease line waits on a flag Level 2 read off the profile and never put in the script, so Payyo's Protector route could not pay off for anybody |
+| **`spider` in the Climb accept set** | `climb` resolves spider and this level bans spiders. Nothing wrong was ever *accepted* — the refusal fires first — but `clue_class` prefers a class the player has already drawn, and Payyo teaches spider-as-climber. The third clue would have named the one animal the plaza refuses |
+| **An inherited GoalMarker** | Parked past Alley 2's east wall, clearing its floor by 35 units, ready to hand the level a second ending that fires by walking to the end of an alley |
+| **The world checks hung off that marker** | Deleting it would have removed the fall limit, the paddy rescue and the room framing — a player would fall through the floor of the world forever |
+| **`GOAL 300 m`** | A distance to nowhere, in the one corner that had to say how the level is going. It counts **scraps** now |
+| **`ward.fail2` dead** | A repeat ceiling-crosser heard the same sentence forever |
+
+Two audits close the class rather than the instances: **`_audit_no_line_is_unreachable`**
+asks whether every line anybody wrote is ever said, and **`_audit_nothing_offered_is_refused`**
+asks whether the level ever advertises what it will refuse. Both are in `run_level2_audit`
+and `run_level2_scene_probe`; the first is in `run_level1_audit` too, where it found the
+canvas beat.
+
+**`run_level2_finish_probe` is new** and is the one that plays the level: three beats
+answered by drawing, the table, seven pieces dragged home, CONTINUE, and the ending screen.
 
 ---
 

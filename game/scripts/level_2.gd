@@ -73,6 +73,9 @@ var dance_screen: DanceOverlay
 
 ## Where the bandaritas hang in the plaza, read off the scene rather than typed twice.
 var _bunting_y := -INF
+## How many times the flight ceiling has been crossed this run, so Lolo escalates rather
+## than repeating himself. See _on_ceiling_crossed.
+var _ceiling_crossings := 0
 
 var church: PiyestaRoom2D
 var house: PiyestaRoom2D
@@ -159,6 +162,12 @@ func _build_level_furniture() -> void:
 		# no rule, because the level goes on claiming to have one.
 		push_error("Level2: %s" % problem)
 	restrictions.submission_refused.connect(_on_submission_refused)
+	# ⚠ AND THE DIRECTOR IS TOLD, so the level stops OFFERING what it will refuse. `climb`
+	# resolves spider, spider is banned here, and `clue_class` prefers a class the player has
+	# already drawn -- so a player arriving from Payyo, where a spider is how you climb, gets
+	# a third clue naming the one animal this plaza will not take.
+	if director != null:
+		director.set_refusal_filter(restrictions.refuses)
 	restrictions.ceiling_crossed.connect(_on_ceiling_crossed)
 	# The plaza's own line. Each later scene sets its own; a scene with no bandaritas
 	# leaves it at -INF and the rule stands down there.
@@ -168,11 +177,26 @@ func _build_level_furniture() -> void:
 	ledger.name = "ScrapLedger"
 	add_child(ledger)
 	ledger.reset()
+	# THE OBJECTIVE READOUT, and Piyesta had none. The corner said "GOAL 300 m" and counted
+	# down to a marker parked past the east wall of Alley 2 -- inherited, because level_2.tscn
+	# is a text copy of game_level.tscn -- which is not how this level ends and not anywhere
+	# the player is meant to walk. The marker is gone; what the corner counts now is the only
+	# number that means anything here, which is how much of her painting is in hand.
+	ledger.scrap_recovered.connect(_show_the_count.unbind(1))
+	_show_the_count()
 
 	assembly = AssemblyClass.new()
 	assembly.name = "ScrapAssembly"
 	add_child(assembly)
-	assembly.set_creased(PlayerProfile.is_canvas_damaged(CREASED_CANVAS))
+	var creased := PlayerProfile.is_canvas_damaged(CREASED_CANVAS)
+	assembly.set_creased(creased)
+	# ⚠ AND THE SCRIPT HAS TO KNOW TOO. The crease was on the PROFILE and only the assembly
+	# model read it, so `EXIT_MARKER.assembled`'s second line -- "The fold runs right through
+	# it. That was us." -- waited on a flag nothing in this level ever set, and could not
+	# fire for anybody. That line is the entire payoff of Payyo's Protector route, the one
+	# LEVEL_1.md carries as a debt because it "costs nothing mechanical". It costs this.
+	if creased and script_lines != null:
+		script_lines.set_flag("canvas_2_creased")
 	assembly_screen = AssemblyOverlayClass.new()
 	assembly_screen.name = "AssemblyOverlay"
 	add_child(assembly_screen)
@@ -644,16 +668,25 @@ func _next_after(room: PiyestaRoom2D) -> PiyestaRoom2D:
 	return null
 
 
-## Scene 3. Everything the player recovered goes on the table, and the design is explicit
-## that this cannot be failed -- so a player who somehow arrives holding fewer than seven is
-## given the rest rather than being sent back for them. The level owes them an ending, and
-## `ScrapAssembly.place_now` exists precisely so the completion rule is not written twice.
+## Scene 3. The design is explicit that this cannot be failed, and the way that is honoured
+## is simpler than it reads: THE TABLE ALWAYS LAYS OUT ALL SEVEN. `AssemblyOverlay.present`
+## sets the slots from its own pieces, not from the ledger, so a player who arrives holding
+## fewer than seven still has a whole painting to put back and still gets an ending.
+##
+## ⚠ THE LEDGER IS THEREFORE A COUNT, NOT A GATE, and the warning below is the only place
+## the difference shows. This note used to say the missing pieces were handed over through
+## `ScrapAssembly.place_now` "so the completion rule is not written twice" -- nothing has
+## ever called it outside the tests, because nothing needs to.
 func _open_scene_3() -> void:
 	if assembly_screen == null or assembly_screen.is_open():
 		return
 	if ledger != null and not ledger.is_complete():
 		push_warning("Level2: Scene 3 opened holding %d of %d scraps" % [
 			ledger.held(), ledger.total()])
+	# ⚠ HIM FIRST, THEN THE TABLE. `speak` appends to a queue and the table is a MODAL, so
+	# presenting first puts the box behind a screen the player has to finish before they can
+	# read what it said. Same ordering rule the straw heap already carries.
+	_speak(script_lines.fire("EXIT_MARKER.enter"))
 	assembly_screen.present()
 
 
@@ -664,6 +697,18 @@ func _open_scene_3() -> void:
 ## to a spot that looked like every other spot on the terrace. Players did the first part and
 ## stood there. The last thing you do should be the thing that ends it.
 func _on_assembly_done(_creased: bool) -> void:
+	# ⚠ FOUR AUTHORED LINES FOR THIS MOMENT AND NOTHING FIRED ANY OF THEM. `dialogue_l2.json`
+	# has carried EXIT_MARKER.enter, two EXIT_MARKER.assembled lines and the closing
+	# EXIT_MARKER since the file was written -- the level's whole ending, in Lolo's voice,
+	# including the one line that pays off Payyo's Protector route ("The fold runs right
+	# through it. That was us."). The level went straight from the table to a completion
+	# screen and said none of it.
+	#
+	# The crease line carries its own `condition`, so a player who never cut the hasp gets
+	# two lines and one who did gets three; `fire` is what applies that, which is why these
+	# go through the script rather than being written here.
+	_speak(script_lines.fire("EXIT_MARKER.assembled"))
+	_speak(script_lines.fire("EXIT_MARKER"))
 	_complete_level()
 
 
@@ -727,7 +772,12 @@ func _on_ceiling_crossed(entity_id: String, height_over: float) -> void:
 		player.call("apply_morph_state", {"position": landing, "linear_velocity": Vector2.ZERO})
 	else:
 		player.global_position = landing
-	_speak(script_lines.fire("L2_START.ward.fail1"))
+	# ⚠ IT ESCALATES, AND THE SECOND LINE HAD NO CALL SITE. `fail1` is "Hoy! I told you.
+	# Under the strings"; `fail2` is "Naku. Come here. You are going to get yourself stepped
+	# on." Firing the first every time means a player who keeps crossing hears the same
+	# sentence forever, which reads as the game not noticing rather than as a warning.
+	_ceiling_crossings += 1
+	_speak(script_lines.fire("L2_START.ward.fail%d" % mini(_ceiling_crossings, 2)))
 	Telemetry.record_event("restriction_violation", {
 		"level_id": LevelManager.current_level_id,
 		"rule": "flight_ceiling", "class": entity_id, "over_by": height_over,
@@ -912,3 +962,35 @@ func _restore_level_run_state(state: Dictionary) -> void:
 		church.open_onward()
 	if alley_1 != null and bool(onward.get("alley_1", false)):
 		alley_1.open_onward()
+
+## How much of the Pista painting is recovered, in the corner where Payyo counts metres.
+##
+## Written on every change rather than every frame: `_physics_process` owns that label for a
+## level that has a marker, and this level has none, so nothing overwrites it in between.
+func _show_the_count() -> void:
+	if goal_label == null or ledger == null:
+		return
+	goal_label.text = "SCRAPS  %d / %d" % [ledger.held(), ledger.total()]
+
+
+## THE LEVEL OPENS ITS MOUTH. `_greet` in the base reads `_script_lines`, which is the legacy
+## dialogue.json Payyo still carries and this level has none of -- so Piyesta spawned the
+## player into a plaza and said nothing at all.
+##
+## ⚠ AND `L2_START.teach` IS THE TWO RULES. It is the only place the player is told that
+## the bandaritas are a ceiling and that small animals are refused, and nothing fired it. So
+## the first time either rule bit, it bit unannounced: a drawing refused for a reason nobody
+## had given, or a flier snapped back to a checkpoint while Lolo says "Hoy! I told you.
+## Under the strings." He had not told them. That line has been in the file the whole time.
+##
+## ONE CALL, BOTH HOOKS, and the split between them is already authored: `.enter` is lore and
+## takes the framed box, `.teach` is marked `kind: hint` and takes the bar. `_speak` routes
+## by kind and posts the advice UNDER the conversation, where it waits out the box and then
+## plays -- so the rules are the thing standing on screen when the player takes their first
+## step, which is exactly when they need them.
+func _greet() -> void:
+	if script_lines == null:
+		return
+	var opening: Array = script_lines.fire("L2_START.enter")
+	opening.append_array(script_lines.fire("L2_START.teach"))
+	_speak(opening)

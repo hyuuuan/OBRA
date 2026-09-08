@@ -515,6 +515,17 @@ spot on the terrace. Players did the first four and stood there.
 | the ladder doorway, left | *I am done here* | `_on_bale_exit` → completion screen → the wall of paintings |
 | the gap the painting leaves | *on to the next place* | `_on_onward_reached` → straight into Piyesta |
 
+**There is no checkpoint at the exit and the marker ends nothing.** `CP4` was declared at an
+`EXIT_MARKER` no scene has, that nothing wrote and nothing read — the checkpoint for an
+ending that is a door now. It is gone. The GoalMarker still stands at Ang Bale and the
+readout still counts down to it, because while the house is shut that is exactly what the
+player should walk toward; `_marker_ends_the_level()` returns false here, so arriving no
+longer finishes anything, and the readout stands down once the house is open rather than
+parking `GOAL 0 m` over a spot that does nothing.
+
+⚠ **The marker NODE stays.** `_physics_process` used to return early without one, and what
+that would take with it is the fall limit, the paddy rescue and the room framing.
+
 **Lifting Lola's canvas off the boards opens the wall behind it.** That is the second door,
 and it is not a new hole cut in the artist's picture: `hut_interior.png` is a delivered
 painting with a hearth, a drying rack, jars, a sleeping platform and one doorway already in
