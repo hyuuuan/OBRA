@@ -766,6 +766,88 @@ func _audit_live_level() -> void:
 			_check(behind >= 120.0, "and the house is not pressed against the world's edge",
 				"%.0fpx behind it" % behind)
 
+	# --- the steps up to the bale --------------------------------------------
+	# ⚠ THE ONLY WAY UP USED TO BE A DRAWING, and that is what made the key unusable: the
+	# player drew a ladder to reach a door that is only a metre and a bit off the ground,
+	# and the ladder then ate the E they pressed to try the key. Two stones now climb from
+	# the terrace to the house's own floor line, so getting to the front of Ang Bale costs
+	# nothing and the drawing is spent on the beat instead of on the approach.
+	#
+	# Both risers are measured against the wanderer's own jump, and the top one against the
+	# house's own deck, so retuning either of those fails here rather than on the terrace.
+	if overlook != null and house != null:
+		var jump_reach: float = pow(WandererClass.JUMP_VELOCITY, 2.0) / (2.0 * float(
+			ProjectSettings.get_setting("physics/2d/default_gravity", 980.0)))
+		var steps := level.get_node_or_null(
+			"EnvironmentBaseplate/GameplayPlane/Bale/Steps")
+		_check(steps != null, "there are steps up to the bale", "Bale/Steps")
+		if steps != null:
+			var stones: Array[Node2D] = []
+			for child in steps.get_children():
+				if child.get_script() == StairTreadClass:
+					stones.append(child as Node2D)
+			# Lowest first: y grows downward.
+			stones.sort_custom(func(a, b): return float(a.call("surface_y")) > float(b.call("surface_y")))
+			_check(stones.size() >= 2, "and they are a flight, not a block",
+				"%d stone(s)" % stones.size())
+			if stones.size() >= 2:
+				var first: float = overlook.global_position.y - float(stones[0].call("surface_y"))
+				_check(first > 0.0 and first <= jump_reach,
+					"the first is one hop off the terrace",
+					"%.0fpx against a %.0fpx jump" % [first, jump_reach])
+				var risers: Array[String] = []
+				for index in range(stones.size() - 1):
+					var rise: float = float(stones[index].call("surface_y")) \
+						- float(stones[index + 1].call("surface_y"))
+					if rise <= 0.0 or rise > jump_reach:
+						risers.append("%s -> %s is %.0fpx" % [
+							stones[index].name, stones[index + 1].name, rise])
+				_check(risers.is_empty(), "and every riser after it is one hop too",
+					"all inside %.0fpx" % jump_reach if risers.is_empty()
+					else "; ".join(risers))
+				# A flight you can climb that ends below the floor it is for is a flight to
+				# nowhere. The top stone stands level with the deck the house sits on.
+				var deck_top: float = house.global_position.y \
+					- float(house.get("post_height")) - Vector2(house.get("floor_size")).y
+				var landing: float = float(stones[stones.size() - 1].call("surface_y"))
+				_check(absf(landing - deck_top) <= 4.0,
+					"and the top one stands level with the house's floor",
+					"landing at %.0f, deck at %.0f" % [landing, deck_top])
+				# ⚠ AND CLEAR OF THE THATCH. The roof is a solid triangle from the eave up,
+				# so a landing that reaches under it is a landing the apo cannot stand on --
+				# their body meets the slope and they are stopped, or worse, wedged.
+				var eave: float = house.global_position.x \
+					+ float(_house_constant(house, "EAVE_LEFT", -160.0))
+				var landing_right: float = stones[stones.size() - 1].global_position.x \
+					+ Vector2(stones[stones.size() - 1].get("tread_size")).x
+				_check(landing_right <= eave, "and stops short of the eaves",
+					"landing ends at %.0f, the eave starts at %.0f" % [landing_right, eave])
+				# ⚠ AND NOTHING IS PLANTED INSIDE THEM. L1_N3's hint board stood at the
+				# obstacle's centre less 150 -- which is x 4470, the middle of the landing --
+				# so the board grew out of the top step. It moved west onto the terrace, and
+				# `hint_sign_offset` is only a number: this is what says why it is that one.
+				#
+				# FOOTPRINT, NOT CLEARANCE. A board whose corner touches a stone beside it is
+				# a board standing next to a step, which is what it should look like; the
+				# defect is a post rooted in ground that is not there.
+				var boards: Array[String] = []
+				for node in level.get_tree().get_nodes_in_group(&"signposts"):
+					var post := node as Node2D
+					for stone in stones:
+						var left: float = stone.global_position.x
+						var right: float = left + Vector2(stone.get("tread_size")).x
+						if post.global_position.x > left and post.global_position.x < right:
+							boards.append("%s is rooted in %s" % [post.name, stone.name])
+				_check(boards.is_empty(), "and nothing is planted inside them",
+					"the terrace either side is clear" if boards.is_empty()
+					else "; ".join(boards))
+				# ⚠ AND THEN ACTUALLY WALKED UP, because every number above can be right
+				# while the flight is still unclimbable: the two stones also have to OVERLAP
+				# in x, or the second riser is a hop the apo has no run-up to. Geometry that
+				# is individually correct and collectively impossible is exactly the failure
+				# this level has had twice.
+				await _audit_the_steps_can_be_walked_up(level, stones, overlook)
+
 	# --- the tread that floated off, and what Roll does to it ----------------
 	# Sub-beat 0.2's whole lesson. It was drawn and it floated, but nothing made weighing it
 	# down mean anything, so the mechanic was fiction: the strip asked for ROLL and any
@@ -1950,3 +2032,52 @@ func _membership_count() -> int:
 	for tag in tags.call("all_tags"):
 		total += (tags.call("classes_for_tag", tag) as PackedStringArray).size()
 	return total
+
+
+## A constant off the house's own script, with no compile-time reference to its class --
+## the trap this file has already been caught by twice.
+func _house_constant(house: Node, name: String, fallback: Variant) -> Variant:
+	var script := house.get_script() as Script
+	while script != null:
+		var constants: Dictionary = script.get_script_constant_map()
+		if constants.has(name):
+			return constants[name]
+		script = script.get_base_script()
+	return fallback
+
+
+## Climb it. Right and jump, from the terrace beside the bottom stone, and the apo has to
+## end up standing on the top one.
+func _audit_the_steps_can_be_walked_up(level: Node2D, stones: Array[Node2D],
+		overlook: Node2D) -> void:
+	var apo := level.get("player") as Node2D
+	if apo == null:
+		_check(false, "and the apo can walk up them", "no player")
+		return
+	paused = false
+	var landing: float = float(stones[stones.size() - 1].call("surface_y"))
+	# On the terrace, just short of the bottom stone -- which is where a player coming up
+	# the cliff arrives. Dropped in a few pixels above the surface rather than placed on it,
+	# because a body spawned exactly level with a floor can start the frame inside it.
+	var start := Vector2(stones[0].global_position.x - 34.0,
+		overlook.global_position.y - 20.0)
+	apo.call("apply_morph_state", {"position": start, "linear_velocity": Vector2.ZERO})
+	for _settle in range(20):
+		await physics_frame
+	var highest := apo.global_position.y
+	Input.action_press(&"move_right")
+	# ⚠ HELD, NOT TAPPED. `JUMP_CUT` halves the rise the moment the key is let go, so a
+	# four-frame tap clears about 40px of a 94px jump -- which is enough to fail a riser
+	# the player would clear easily and blame the geometry for it. Forty frames a cycle,
+	# held for thirty of them, is longer than the 0.44s rise.
+	for step in range(240):
+		if step % 40 == 0:
+			Input.action_press(&"jump")
+		elif step % 40 == 30:
+			Input.action_release(&"jump")
+		await physics_frame
+		highest = minf(highest, apo.global_position.y)
+	Input.action_release(&"move_right")
+	Input.action_release(&"jump")
+	_check(highest <= landing + 6.0, "and the apo can walk up them",
+		"reached %.0f, the landing is at %.0f" % [highest, landing])

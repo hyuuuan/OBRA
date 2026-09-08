@@ -7,17 +7,17 @@
     "scene_path": "res://game_level.tscn",
     "thumbnail": "res://assets/Level1/terraces_2.png",
     "unlocked": true,
-    "ends_run": true
+    "ends_run": false
   },
   {
     "id": "level_2",
     "number": 2,
-    "title": "Coming Soon",
-    "theme": "",
-    "scene_path": "",
-    "thumbnail": "",
+    "title": "Piyesta",
+    "theme": "The town plaza on the night of the fiesta",
+    "scene_path": "res://level_2.tscn",
+    "thumbnail": "res://assets/Level2/completed_look.png",
     "unlocked": false,
-    "ends_run": false
+    "ends_run": true
   },
   {
     "id": "level_3",

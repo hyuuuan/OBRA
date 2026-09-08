@@ -39,12 +39,28 @@ const SPEAKER := "Lolo"
 ## than a walk on purpose -- it is a hover, and six frames a second on a ghost reads as
 ## paddling.
 @export var drift_hz: float = 0.9
-## How fast he has to be moving before the drift becomes a hurry, in pixels per second.
-## Above this he is visibly chasing the player rather than keeping pace with them.
-@export var hurry_speed: float = 180.0
+## How far behind his station he has to fall before the drift becomes a chase, in pixels.
+##
+## ⚠ THIS WAS A SPEED, AND A SPEED CANNOT ANSWER IT. He lerps toward a point behind the
+## player's shoulder, so once he has settled HIS SPEED IS THEIR SPEED -- 260, the apo's own
+## run -- no matter what he is doing. Measured against the old 180px/s threshold: over 240
+## frames of a full run he was in the chase for 225 of them and in the drift for 13, so the
+## hover the sheet was drawn for never actually played.
+##
+## What separates keeping pace from catching up is not how fast he is going, it is HOW FAR
+## BEHIND HE IS. The lag settles around 76px at a full run, so 130 leaves him drifting while
+## he keeps up and breaks into the run only when something has really opened a gap -- a jump,
+## a morph, an obstacle he has to go round.
+@export var catch_up_distance: float = 130.0
 ## Below this he is holding station rather than travelling, and shows the idle rather than
-## the drift. Well under hurry_speed: the three poses are stopped, drifting and chasing.
+## the drift. The three poses are stopped, drifting and chasing, in that order.
 @export var drift_threshold: float = 26.0
+
+## How long the turn-to-camera is held for a line the caller gave no length. Read the note
+## on `say`: without this he turns on the level's first frame and never turns back.
+const GESTURE_PER_CHAR := 0.05
+const GESTURE_MIN := 2.4
+const GESTURE_MAX := 7.0
 
 ## PRELOADED FOR THE STATIC, duck-typed for everything else. lolo_figure.gd declares no
 ## class_name -- this file reaches the body through set/get/call on purpose -- so the one
@@ -92,8 +108,25 @@ func say(text: String, seconds: float = 0.0) -> void:
 		return
 	if _hints != null:
 		_hints.show_hint(text, SPEAKER, seconds)
-	_speech_time = seconds
+	# ⚠ THE GESTURE HAS A LENGTH EVEN WHEN THE LINE DOES NOT, and this is the whole of why
+	# he never animated. `seconds = 0` means "stand on the bar until something replaces it",
+	# which is a rule about THE BAR -- and the greeting fired the moment he spawns is exactly
+	# that call. `_speech_time` was therefore 0 from the first frame of Level 1, the countdown
+	# below never ran, and `talking` was a latch only `hush()` could unset. He held `face`
+	# -- cell 0 of the turnaround, head-on -- for the entire level: the drift and the chase,
+	# six cells each, never played once in a whole playthrough.
+	#
+	# So the WORDS keep the bar's rule and the TURN keeps its own. He faces you for as long
+	# as the line takes to read, then goes back to floating beside you with it still up.
+	_speech_time = seconds if seconds > 0.0 else _gesture_length(text)
 	_figure.set("talking", true)
+
+
+## How long he holds the turn for a line that carries no length of its own. The same shape
+## the hint bar uses to decide how long one line of a beat dwells, for the same reason: a
+## sentence takes as long to read as it is long.
+func _gesture_length(text: String) -> float:
+	return clampf(float(text.length()) * GESTURE_PER_CHAR, GESTURE_MIN, GESTURE_MAX)
 
 
 ## Handed the hint bar to speak through. Without one he simply says nothing, which keeps
@@ -135,6 +168,9 @@ func _process(delta: float) -> void:
 			_begin_turn_back()
 
 	var was := global_position
+	# How far he is from where he wants to be, AFTER moving. Zero for a level with no
+	# player in it, which is every fixture that spawns him on his own.
+	var behind := 0.0
 	if _target != null and is_instance_valid(_target):
 		var desired := _desired_position()
 		if global_position.distance_to(desired) > teleport_distance:
@@ -142,6 +178,7 @@ func _process(delta: float) -> void:
 		else:
 			global_position = global_position.lerp(
 				desired, clampf(follow_speed * delta, 0.0, 1.0))
+		behind = global_position.distance_to(_desired_position())
 		var to_target := _target_position().x - global_position.x
 		if absf(to_target) > 24.0:
 			_facing = signf(to_target)
@@ -156,10 +193,13 @@ func _process(delta: float) -> void:
 	var speed := 0.0 if delta <= 0.0 else was.distance_to(global_position) / delta
 	if speed > teleport_distance:
 		speed = 0.0
-	var hurrying := speed > hurry_speed
-	# Whole cycles either way. Holding station he drifts at his own rate; chasing, the
-	# cycle is driven by the ground he is covering, so the pose and the motion agree.
-	_stride = fmod(_stride + delta * (speed / 90.0 if hurrying else drift_hz), 1.0)
+	var hurrying := behind > catch_up_distance
+	# Whole cycles either way, and the ground he covers drives both of them -- a drift
+	# played at a fixed rate while he travels at a run is a ghost sliding. `drift_hz` is
+	# the FLOOR rather than the rate now: it is what the cycle falls back to when he is
+	# barely moving, which is the one case where there is no ground to take a rate from.
+	_stride = fmod(_stride + delta
+		* maxf(drift_hz, speed / (90.0 if hurrying else 150.0)), 1.0)
 	var wanted := _pose_for(speed, hurrying)
 	# RESET ON CHANGE, not every frame: a one-shot reads pose_time from zero, so leaving it
 	# running would have him arrive mid-turn, and restarting it every frame would freeze him
@@ -196,7 +236,12 @@ func _pose_for(speed: float, hurrying: bool) -> StringName:
 	# been drawn before. `face` plays through and holds him head-on for the rest of the
 	# line, which is what makes a line of Lola's story feel addressed to the apo instead of
 	# narrated past them.
-	if _speech_time != 0.0 or bool(_figure.get("talking")):
+	# THE CLOCK, NOT THE FLAG. `talking` is the figure's own business -- it breathes wider
+	# while a line of his is up -- and the two are set and cleared together, so asking both
+	# said nothing extra. What it DID do was survive the clock: a `talking` that had been
+	# latched true outranked a `_speech_time` of zero, which is the state the greeting left
+	# him in for the whole level.
+	if _speech_time > 0.0:
 		return &"face"
 	# And back again when he is done, rather than snapping to the drift on the frame the
 	# line clears.

@@ -80,12 +80,14 @@ func _run() -> void:
 		"all five carry art" if blank.is_empty() else "no art: " + ", ".join(blank))
 
 	# Exactly what is built is enterable. This is the assertion that fails the day a level
-	# is added to the catalog with no scene behind it.
+	# is added to the catalog with no scene behind it -- and the day one is built and the
+	# catalog is not told, which is the side it spent longer on: Piyesta was finishable for
+	# weeks with an empty scene_path, so its picture hung there refusing to open.
 	var enterable: Array[String] = []
 	for node in paintings:
 		if bool(node.call("is_playable")):
 			enterable.append(String(node.get("level_id")))
-	_check(enterable == ["level_1"], "only what is built can be walked into",
+	_check(enterable == ["level_1", "level_2"], "only what is built can be walked into",
 		"enterable: " + ", ".join(enterable))
 
 	# THE ROOM HAS TO FILL THE FRAME. The camera is pinned vertically -- one storey, a floor

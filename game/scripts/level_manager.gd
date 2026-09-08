@@ -98,6 +98,24 @@ func has_brush() -> bool:
 	return profile != null and bool(profile.call("has_brush"))
 
 
+## The level after this one, or "" if this is the last card in the catalog.
+##
+## READ OFF `number`, NOT OFF THE ID. PlayerProfile derives the next id by adding one to the
+## digits on the end, which is fine for unlocking -- it only has to name a key -- and wrong
+## for a door: the door has to lead to a level that EXISTS, in the order the catalog is
+## sorted in, and a hub whose fifth painting is called something other than `level_5` would
+## send the player nowhere with no error.
+func next_level_id(level_id: String) -> String:
+	var here := int(get_level(level_id).get("number", 0))
+	if here <= 0:
+		return ""
+	# _levels is sorted by number at load, so the first one past this is the next one.
+	for entry in _levels:
+		if int(entry.get("number", 0)) > here:
+			return String(entry.get("id", ""))
+	return ""
+
+
 ## Whether a level has content behind it. Deliberately separate from is_unlocked,
 ## which means PROGRESSION: finishing level 1 unlocks level 2 in the profile, and the
 ## menu would then enable a card whose scene_path is empty -- an enabled button that
