@@ -72,6 +72,7 @@ func _run() -> void:
 	await _test_placement_aiming()
 	await _test_confirmed_utility_can_interact()
 	await _test_every_utility_acts()
+	await _test_a_ladder_is_climbed_by_walking_into_it()
 	await _test_placed_props_keep_their_pose()
 	await _test_level_1_needs_drawing()
 	await _test_revert_to_base_form()
@@ -298,15 +299,22 @@ func _test_level_completion_screen() -> void:
 	await process_frame
 	paused = false
 
-	# level_1 ends the run, so CONTINUE has an ending to reach and that ending exists.
+	# level_2 ends the run, so CONTINUE has an ending to reach and that ending exists.
+	# THE FLAG MOVES WITH THE LAST BUILT LEVEL, which is what it is for: while Payyo was
+	# the only one there was, finishing it went to the ending screen; now Piyesta is behind
+	# it and Payyo hands on to Piyesta instead.
 	# Resolved through the tree like the rest of this suite: the autoloads are not
 	# registered when a --script run compiles its own script.
 	var manager := root.get_node_or_null("LevelManager")
 	_expect(manager != null, "LevelManager autoload is unavailable")
 	if manager != null:
 		_expect(
-			bool((manager.call("get_level", "level_1") as Dictionary).get("ends_run", false)),
-			"level_1 does not end the run, so nothing reaches the ending screen"
+			bool((manager.call("get_level", "level_2") as Dictionary).get("ends_run", false)),
+			"level_2 does not end the run, so nothing reaches the ending screen"
+		)
+		_expect(
+			not bool((manager.call("get_level", "level_1") as Dictionary).get("ends_run", false)),
+			"level_1 still ends the run, so finishing Payyo skips Piyesta for the ending"
 		)
 	_expect(ResourceLoader.exists("res://ui/ending_screen.tscn"), "the ending scene is missing")
 
@@ -659,16 +667,32 @@ func _test_level_framework() -> void:
 	profile_data["brush_acquired"] = true
 	_expect(bool(level_manager.call("has_brush")), "the profile lost a brush it was just given")
 
+	# ⚠ LOCKED HAS TO BE MADE TRUE, NOT ASSUMED. `is_unlocked` reads the catalog OR the
+	# player profile, and this suite runs against whatever profile is on the machine -- so on
+	# any box where a session (or another runner) has finished Payyo, level 2 is unlocked
+	# here. That was harmless while it had no scene: the call was refused for the wrong
+	# reason and the assertion still read true. Now that Piyesta is built it SUCCEEDS, and
+	# what it does is defer a real scene change into the middle of this suite -- which is
+	# what twenty unrelated rig failures and an "obstacle volume 'L2_N1' has no entry in
+	# level_01.json" turned out to be.
+	#
+	# In memory, like the brush above, and put back the same way.
+	var had_unlocked: Array = (profile_data.get("levels_unlocked", []) as Array).duplicate()
+	profile_data["levels_unlocked"] = []
+	_expect(not bool(level_manager.call("is_unlocked", "level_2")),
+		"level 2 is unlocked with the progression list emptied")
 	_expect(not bool(level_manager.call("open_level", "level_2")), "locked Level 2 initiated a transition")
 	_expect(not bool(level_manager.call("open_level", "missing")), "invalid level initiated a transition")
+	profile_data["levels_unlocked"] = had_unlocked
 
 	# Playable and unlocked are different questions, and conflating them is the dead
-	# card. Level 2 has no scene, so it is never playable however the profile's
-	# progression feels about it -- including on a machine where level 1 was finished
+	# card: 3 to 5 have no scene, so they are never playable however the profile's
+	# progression feels about them -- including on a machine where level 2 was finished
 	# in a real session, which is exactly when the old code enabled a card that then
-	# did nothing.
+	# did nothing. Level 2 has a scene now and is on the other side of that line.
 	_expect(bool(level_manager.call("is_playable", "level_1")), "level_1 is not playable")
-	for missing_id in ["level_2", "level_3", "level_4", "level_5"]:
+	_expect(bool(level_manager.call("is_playable", "level_2")), "level_2 is not playable")
+	for missing_id in ["level_3", "level_4", "level_5"]:
 		_expect(
 			not bool(level_manager.call("is_playable", missing_id)),
 			"%s reports playable with no scene behind it" % missing_id
@@ -686,6 +710,15 @@ func _test_level_framework() -> void:
 	menu.call("_show_selector")
 	await create_timer(0.7).timeout
 	_expect(bool(menu.call("is_selector_open")), "Play did not expand into the level selector")
+	# ⚠ PROGRESSION PINNED FOR THE WHOLE OF THE GRID. Every count below is a statement about
+	# what a player who has finished nothing is offered, and `is_unlocked` reads the profile
+	# on this machine -- so on a box where Payyo has been finished, level 2's card is enabled
+	# and "exactly four locked cards" is a lie about the code rather than a fact about it.
+	# Emptied in memory and put back at the end, the same way the brush is.
+	var had_unlocked_cards: Array = (profile_data.get("levels_unlocked", []) as Array).duplicate()
+	profile_data["levels_unlocked"] = []
+	menu.call("_refresh_cards")
+	await process_frame
 	var cards := menu.get_node("MenuLayer/MenuRoot/MorphPanel/Selector").get_children()
 	var disabled_cards := 0
 	for card in cards:
@@ -715,19 +748,31 @@ func _test_level_framework() -> void:
 	profile_data["brush_acquired"] = true
 	menu.call("_refresh_cards")
 
-	# The dead card, stated directly. Level 2's card must be disabled REGARDLESS of
-	# what progression thinks, because no scene exists behind it -- and the previous
-	# code disabled it only on is_unlocked, so finishing level 1 in a real session
-	# enabled a card that then silently did nothing when clicked. Asserted without
-	# touching the profile: this suite must never write user://profile.json.
+	# THE DEAD CARD, stated directly, and it has MOVED. Progression unlocks the next level
+	# whether or not anybody built it, so there is always exactly one card that is unlocked
+	# in the profile with no scene behind it -- and the menu used to disable a card on
+	# is_unlocked alone, so finishing a level in a real session enabled a card that then
+	# silently did nothing when clicked. That card was level 2's; Piyesta is built now, so
+	# it is level 3's.
+	#
+	# Both halves are asserted, because each on its own passes for the wrong reason: a
+	# built-and-unlocked card must be OFFERED, and an unlocked one with no scene must not be.
+	profile_data["levels_unlocked"] = ["level_2", "level_3"]
+	menu.call("_refresh_cards")
+	await process_frame
 	var level2 := menu.get_node_or_null("MenuLayer/MenuRoot/MorphPanel/Selector/Level2") as Button
-	_expect(level2 != null, "the level 2 card is missing")
-	if level2 != null:
-		_expect(level2.disabled, "level 2's card is offered with no scene behind it")
+	var level3 := menu.get_node_or_null("MenuLayer/MenuRoot/MorphPanel/Selector/Level3") as Button
+	_expect(level2 != null and level3 != null, "the level 2 or level 3 card is missing")
+	if level2 != null and level3 != null:
+		_expect(not level2.disabled,
+			"level 2's card is locked with a scene behind it and progression reaching it")
+		_expect(level3.disabled, "level 3's card is offered with no scene behind it")
 		_expect(
-			not bool(level_manager.call("open_level", "level_2")),
-			"level 2 would start a transition to a scene that does not exist"
+			not bool(level_manager.call("open_level", "level_3")),
+			"level 3 would start a transition to a scene that does not exist"
 		)
+	profile_data["levels_unlocked"] = had_unlocked_cards
+	menu.call("_refresh_cards")
 
 	# Card text comes from the catalog, not from strings typed into the scene.
 	var name_label := menu.get_node_or_null("MenuLayer/MenuRoot/MorphPanel/Selector/Level1/Name") as Label
@@ -1320,12 +1365,22 @@ func _test_placed_props_keep_their_pose() -> void:
 ## even be equipped -- interact() only handed over four of them -- so F reached a match
 ## whose `_:` branch returned false in silence. Every behavior in the 50-class table now
 ## has to answer for itself, and the answer has to be something the player can read.
+##
+## ⚠ F IS NOT THE ONLY VERB, and this test said it was. The ladder, the stairs and the tree
+## are climbed by WALKING INTO THEM AND HOLDING UP -- there is no key for it, deliberately,
+## because one key doing two things depending on whether the ladder had settled yet is the
+## bug that change fixed. Their `describe_use` correctly returns nothing, so this swept them
+## up as three utilities that "did nothing and said nothing on F" and the whole suite went
+## red on a mechanic that works. They are checked below, by their own verb.
 func _test_every_utility_acts() -> void:
 	var actor := Node2D.new()
 	actor.add_to_group(&"player_character")
 	actor.global_position = Vector2(500.0, 360.0)
 	world.add_child(actor)
 	var vehicles := ["sailboat", "submarine"]
+	# Read off the class under test rather than spelled out again here, so adding a fourth
+	# climbable prop cannot leave this test asserting F over it.
+	var climbed: Array = UtilityObject.CLIMBABLE_PROPS
 	# Spelled out from the In-Game Function column of the 50-class table rather than
 	# read back from is_held_tool(): asking the code under test what it expects of
 	# itself is how this passed while fifteen tools were unreachable.
@@ -1340,6 +1395,8 @@ func _test_every_utility_acts() -> void:
 		if String(entry.get("runtime_role", "")) != "utility":
 			continue
 		var behavior := String(entry.get("utility_behavior", ""))
+		if behavior in climbed:
+			continue
 		var utility := registry.instantiate_entity(entity_id) as UtilityObject
 		_expect(utility != null, "could not instantiate utility %s" % entity_id)
 		if utility == null:
@@ -1370,8 +1427,51 @@ func _test_every_utility_acts() -> void:
 				spawned.queue_free()
 		utility.queue_free()
 		await process_frame
-	_expect(acted == 27, "expected all 27 utilities to act, got %d" % acted)
+	_expect(acted == 27 - climbed.size(),
+		"expected all %d F-using utilities to act, got %d" % [27 - climbed.size(), acted])
 	actor.queue_free()
+	await process_frame
+
+
+## THE OTHER VERB. A ladder is climbed by walking into it and holding up, and until now
+## nothing tested that at all -- the one test that touched a ladder was the F sweep above,
+## which was testing it for the wrong thing and failing.
+##
+## Driven through `Input` rather than by calling `_offer_the_climb`, because the fault this
+## guards against is precisely that the offer is never reached: it is gated on the prop
+## having settled, on the player being within its own half-length, and on the axis actually
+## being held, and any one of those silently turns a drawn ladder back into a wall.
+func _test_a_ladder_is_climbed_by_walking_into_it() -> void:
+	var apo := (load("res://creatures/wanderer.tscn") as PackedScene).instantiate() as Node2D
+	world.add_child(apo)
+	apo.global_position = Vector2(620.0, 360.0)
+
+	var ladder := registry.instantiate_entity("ladder") as UtilityObject
+	world.add_child(ladder)
+	ladder.apply_item_data(DrawnItemData.from_prediction(
+		"ladder", "Ladder", _blank_image(), _utility_fixture("ladder"), 0.4,
+		registry.get_entity("ladder")
+	))
+	ladder.global_position = apo.global_position
+	ladder.confirm_placement()
+	# A ladder still swinging is not one you can step onto -- `_standing_still` is the
+	# guard, and freezing it is what a placed ladder does once it has settled anyway.
+	ladder.freeze = true
+	await physics_frame
+
+	_expect(not bool(apo.call("is_using_ladder", ladder)),
+		"the apo was on the ladder before anyone asked to climb it")
+	# NO KEY PRESS. Up, while standing in it.
+	Input.action_press(&"move_up")
+	await physics_frame
+	await physics_frame
+	Input.action_release(&"move_up")
+	_expect(bool(apo.call("is_using_ladder", ladder)),
+		"walking into a ladder and holding up did not start the climb")
+
+	apo.call("end_ladder")
+	ladder.queue_free()
+	apo.queue_free()
 	await process_frame
 
 

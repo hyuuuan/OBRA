@@ -478,6 +478,13 @@ func _on_painting_taken() -> void:
 		BaleInterior2D.PISTA_ART)
 	_speak(script_lines.fire("L1_N3.canvas.taken"))
 	_grant_the_canvas()
+	# ⚠ AND SAY THAT THE WALL IS OPEN. The gap appears behind the canvas on the frame it is
+	# lifted, at the far end of a room the player is looking at the near end of, while a
+	# beat and an acquisition card are both on screen. A door nobody is told about is a door
+	# nobody walks through -- and this one is the way out of the level.
+	if hint_bar != null:
+		hint_bar.show_hint("The wall behind it is open, apo. That is the plaza.",
+			Lolo.SPEAKER, 7.0)
 
 
 ## Back down the ladder, onto the terrace they climbed from.
@@ -510,6 +517,52 @@ func _on_bale_exit() -> void:
 	# rather than inside a room the completion screen is drawn over.
 	await get_tree().process_frame
 	_complete_level()
+
+
+## Through the gap the painting left in the wall, and out the other side into Piyesta.
+##
+## THIS IS WHAT THE LEVEL ENDS ON NOW. Payyo used to finish by walking back OUT of the house
+## and then taking a completion screen, a CONTINUE, the wall of paintings and Pista's frame
+## to reach the next place -- five steps, three of them menus, between finishing a level and
+## starting the one it just handed you the key to.
+##
+## THE LADDER STILL WORKS AND STILL FINISHES THE LEVEL. Two ways out of one room, and they
+## mean different things: down the ladder is "I am done here", which takes the completion
+## screen and the wall of paintings; through the wall is "on to the next place". Neither
+## strands anybody, which is the whole reason the old exit was left alone.
+##
+## ⚠ AND IT FALLS BACK. A door that leads nowhere is worse than no door: if the next level
+## cannot be opened -- unbuilt, still locked, no brush -- the level ends the way it always
+## did rather than leaving the player standing in an opening that does nothing. There is no
+## outcome here where Payyo is not finished.
+func _on_onward_reached() -> void:
+	if _level_completed:
+		return
+	_level_completed = true
+	# ⚠ ASKED OF THE LEVEL WHEN THE MANAGER HAS NOT BEEN TOLD. A scene run directly -- from
+	# the editor, or from a probe -- never went through open_level, so current_level_id is ""
+	# and "the level after nothing" is nothing: the door would open, fire, and do nothing at
+	# all. `_own_level_id` is the same fallback the badge and the telemetry already use.
+	var level_id := LevelManager.current_level_id
+	if level_id.is_empty():
+		level_id = _own_level_id()
+	var onward := LevelManager.next_level_id(level_id)
+	Telemetry.record_event("level_exit", {
+		"level_id": level_id, "through": "canvas_doorway", "onward": onward,
+	})
+	Telemetry.end_level(level_id, "completed")
+	PlayerProfile.mark_level_completed(level_id)
+	status_label.text = "Level complete!"
+	# The bars come in on the room she is standing in, the same beat the completion screen
+	# is staged into -- so going straight on is still an ending rather than a scene cut.
+	if cinematic != null:
+		cinematic.close("PAYYO")
+		await get_tree().create_timer(1.1, true, false, true).timeout
+	if not onward.is_empty() and LevelManager.open_level(onward):
+		return
+	complete_overlay.call("present", run_stats())
+	if cinematic != null:
+		cinematic.open()
 
 
 ## What the chest held, and the reason Pista opens. The unlock happens at CP3 rather than
@@ -625,6 +678,8 @@ func _build_level_furniture() -> void:
 			node.connect(&"exit_reached", _on_bale_exit)
 		if node.has_signal(&"painting_taken"):
 			node.connect(&"painting_taken", _on_painting_taken)
+		if node.has_signal(&"onward_reached"):
+			node.connect(&"onward_reached", _on_onward_reached)
 		# What is in the room besides the canvas. The HINT channel, not the story box: none
 		# of it is a beat, none of it may pause the world, and it clears itself.
 		if node.has_signal(&"noticed"):
@@ -676,6 +731,13 @@ func _handle_level_input(event: InputEvent) -> bool:
 
 func _interact_with_level() -> bool:
 	return _use_the_found_key()
+
+
+## THE OFFER ON THE BAR IS A PROMISE, and the same condition makes it. `_offer_the_found_key`
+## writes "you are carrying her key -- press E to try it" whenever this is true, so the two
+## cannot drift: if the sentence is up, this key press belongs to the door.
+func _level_answers_first() -> bool:
+	return _found_key_would_open()
 
 
 func _level_physics(anchor_position: Vector2) -> void:
