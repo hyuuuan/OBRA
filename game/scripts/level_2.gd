@@ -185,7 +185,15 @@ func _build_level_furniture() -> void:
 	assembly = AssemblyClass.new()
 	assembly.name = "ScrapAssembly"
 	add_child(assembly)
-	assembly.set_creased(PlayerProfile.is_canvas_damaged(CREASED_CANVAS))
+	var creased := PlayerProfile.is_canvas_damaged(CREASED_CANVAS)
+	assembly.set_creased(creased)
+	# ⚠ AND THE SCRIPT HAS TO KNOW TOO. The crease was on the PROFILE and only the assembly
+	# model read it, so `EXIT_MARKER.assembled`'s second line -- "The fold runs right through
+	# it. That was us." -- waited on a flag nothing in this level ever set, and could not
+	# fire for anybody. That line is the entire payoff of Payyo's Protector route, the one
+	# LEVEL_1.md carries as a debt because it "costs nothing mechanical". It costs this.
+	if creased and script_lines != null:
+		script_lines.set_flag("canvas_2_creased")
 	assembly_screen = AssemblyOverlayClass.new()
 	assembly_screen.name = "AssemblyOverlay"
 	add_child(assembly_screen)
@@ -672,6 +680,10 @@ func _open_scene_3() -> void:
 	if ledger != null and not ledger.is_complete():
 		push_warning("Level2: Scene 3 opened holding %d of %d scraps" % [
 			ledger.held(), ledger.total()])
+	# ⚠ HIM FIRST, THEN THE TABLE. `speak` appends to a queue and the table is a MODAL, so
+	# presenting first puts the box behind a screen the player has to finish before they can
+	# read what it said. Same ordering rule the straw heap already carries.
+	_speak(script_lines.fire("EXIT_MARKER.enter"))
 	assembly_screen.present()
 
 
@@ -682,6 +694,18 @@ func _open_scene_3() -> void:
 ## to a spot that looked like every other spot on the terrace. Players did the first part and
 ## stood there. The last thing you do should be the thing that ends it.
 func _on_assembly_done(_creased: bool) -> void:
+	# ⚠ FOUR AUTHORED LINES FOR THIS MOMENT AND NOTHING FIRED ANY OF THEM. `dialogue_l2.json`
+	# has carried EXIT_MARKER.enter, two EXIT_MARKER.assembled lines and the closing
+	# EXIT_MARKER since the file was written -- the level's whole ending, in Lolo's voice,
+	# including the one line that pays off Payyo's Protector route ("The fold runs right
+	# through it. That was us."). The level went straight from the table to a completion
+	# screen and said none of it.
+	#
+	# The crease line carries its own `condition`, so a player who never cut the hasp gets
+	# two lines and one who did gets three; `fire` is what applies that, which is why these
+	# go through the script rather than being written here.
+	_speak(script_lines.fire("EXIT_MARKER.assembled"))
+	_speak(script_lines.fire("EXIT_MARKER"))
 	_complete_level()
 
 

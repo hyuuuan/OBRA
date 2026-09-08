@@ -15,6 +15,7 @@ extends SceneTree
 ##   the three beats can be answered, in order, by drawing at them
 ##   answering the last one is what opens the table -- not walking anywhere
 ##   the seventh piece going home ends the level and shows the player it did
+##   the ending Lolo was written for is actually said
 ##   and Piyesta is the level that reaches the ending screen
 
 var level: Node2D
@@ -64,6 +65,7 @@ func _run() -> void:
 
 	await _audit_the_three_beats_answer()
 	await _audit_the_table_ends_it()
+	_audit_the_ending_is_spoken()
 	_audit_piyesta_is_the_last_level()
 
 	print("OBRA_LEVEL2_FINISH_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
@@ -176,3 +178,23 @@ func _audit_piyesta_is_the_last_level() -> void:
 		"piyesta=%s payyo=%s" % [mine, payyo])
 	_check(ResourceLoader.exists("res://ui/ending_screen.tscn"),
 		"and there is an ending for it to reach", "ending_screen.tscn")
+
+
+## ⚠ THE LEVEL'S WHOLE ENDING WAS AUTHORED AND NEVER FIRED.
+##
+## `dialogue_l2.json` has carried four EXIT_MARKER lines since the file was written -- the
+## table ("Lay them out. Corners first"), the painting whole ("There she is. Piyesta."), the
+## crease, and the line that hands the player on to Level 3 -- and nothing in `level_2.gd`
+## called any of them. The level went from the table to a completion screen in silence.
+##
+## Asked of the SCRIPT rather than of the box, because the box is a queue with a key to
+## advance it and the point is that the hooks were reached at all.
+func _audit_the_ending_is_spoken() -> void:
+	var lines = level.get("script_lines")
+	if lines == null:
+		_check(false, "the ending is spoken", "no dialogue script")
+		return
+	for hook in ["EXIT_MARKER.enter", "EXIT_MARKER.assembled", "EXIT_MARKER"]:
+		_check(bool(lines.call("has_heard", hook)), "%s is said" % hook,
+			"heard" if bool(lines.call("has_heard", hook))
+			else "authored, and nothing fires it")
