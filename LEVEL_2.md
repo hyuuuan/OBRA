@@ -1,9 +1,11 @@
 # Level 2 — Piyesta
 
-**Status: playable end to end. Every beat resolves and the level can be finished.**
-Not offered from the hub yet — see What remains.
-`levels.json` keeps an empty `scene_path` for `level_2` and three tests assert it stays
-that way until the level can be finished. `run_level2_audit` is one of them.
+**Status: playable end to end, and offered from the hub.** Every beat resolves, the level
+can be finished, and `levels.json` carries its scene path and the `ends_run` flag — which
+moved off Payyo, because the last built level is the one that reaches the ending screen.
+The four tests that asserted an empty `scene_path` have turned over rather than been
+deleted: the failure they guard against has changed sides, and an empty path from here on
+means a level that was un-shipped by accident.
 
 **The design is `Level 2 Pista Design Refined.pdf` (revision 3), at the repo root.** This
 document is the build record: what was decided, what is built, what broke on the way, and
@@ -269,10 +271,11 @@ Nothing here stops the level being played. It is all art, plus one decision.
 5. **The house doors are authored, not the delivered set.** They are arched stone openings
    cut into the painted wall and lit from inside, which is what the puzzle needs -- but the
    design still asks for a four-state door set: closed / lit from inside / keyhole / open.
-6. **`levels.json` `scene_path` is still empty.** Nothing mechanical blocks it now -- the
-   level can be started, played and finished. What it is waiting on is the art above, and
-   `run_level2_audit` asserts the empty path until somebody decides Piyesta looks finished
-   enough to offer from the hub. **That is a judgement call, not a task.**
+6. ~~**`levels.json` `scene_path` is still empty.**~~ **Done — Kent made the call (Sept
+   2026) and Piyesta is offered from the hub.** The art items above are still owed; they
+   were never what blocked it, and shipping it with authored insides is the trade that was
+   taken deliberately. Payyo's own house now has a door straight through to it, so the
+   plaza is reached without a round trip through the wall of paintings.
 
 ---
 

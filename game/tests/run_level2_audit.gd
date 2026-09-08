@@ -76,7 +76,7 @@ func _run() -> void:
 	_audit_dialogue_hooks_exist(level, dialogue)
 	_audit_every_route_has_a_button(level, dialogue)
 	_audit_conditions_match_effects(level, dialogue)
-	_audit_not_yet_playable()
+	_audit_is_playable()
 
 	for line in results:
 		print(line)
@@ -446,16 +446,31 @@ func _audit_conditions_match_effects(level: Dictionary, dialogue: Dictionary) ->
 		"%d flags declared" % settable.size() if orphans.is_empty() else "; ".join(orphans))
 
 
-## scene_path LAST. Three tests assert Level 2 is not playable while it is empty, and they
-## are right to: a path to a scene that half-exists is a card the hub will happily offer.
-func _audit_not_yet_playable() -> void:
+## scene_path LAST, and it is filled in now. Four tests asserted Level 2 was not playable
+## while it was empty, and they were right to: a path to a scene that half-exists is a card
+## the hub will happily offer. The level can be started, played and finished, so the
+## assertion turns over rather than being deleted -- the failure it guards against has just
+## changed sides. An empty path from here on is a level that was un-shipped by accident.
+func _audit_is_playable() -> void:
 	var text := FileAccess.get_file_as_string(LEVELS_PATH)
 	var parsed: Variant = JSON.parse_string(text)
 	var listed := ""
+	var ends_run := false
+	var payyo_ends_run := true
 	for entry_value: Variant in (parsed as Array):
 		var entry: Dictionary = entry_value
 		if String(entry.get("id", "")) == "level_2":
 			listed = String(entry.get("scene_path", ""))
-	_check(listed.is_empty(), "level 2 is not yet playable",
-		"levels.json scene_path is still empty, which is correct until a scene exists"
-		if listed.is_empty() else "scene_path is '%s' -- filled in too early" % listed)
+			ends_run = bool(entry.get("ends_run", false))
+		if String(entry.get("id", "")) == "level_1":
+			payyo_ends_run = bool(entry.get("ends_run", false))
+	_check(not listed.is_empty() and ResourceLoader.exists(listed),
+		"level 2 is offered from the hub",
+		"scene_path is '%s'" % listed if not listed.is_empty()
+		else "scene_path is empty -- the hub cannot open it")
+	# ⚠ THE LAST BUILT LEVEL CARRIES `ends_run`, AND ONLY IT. Payyo held it while it was the
+	# only level there was; leaving it there sends a player who finishes Payyo to the ending
+	# screen with Piyesta unplayed, and leaving Piyesta without it drops them back at the
+	# wall of paintings with no ending at all.
+	_check(ends_run and not payyo_ends_run, "and it is the one that ends the run",
+		"piyesta ends_run=%s, payyo ends_run=%s" % [ends_run, payyo_ends_run])
