@@ -194,7 +194,12 @@ func _audit_the_ending_is_spoken() -> void:
 	if lines == null:
 		_check(false, "the ending is spoken", "no dialogue script")
 		return
-	for hook in ["EXIT_MARKER.enter", "EXIT_MARKER.assembled", "EXIT_MARKER"]:
+	# ⚠ THE OPENING IS ON THIS LIST TOO, and `L2_START.teach` is the important one: it is the
+	# only place the player is told that the bandaritas are a ceiling and that small animals
+	# are refused. Without it the first violation arrives with Lolo saying "Hoy! I told you"
+	# to somebody he never told.
+	for hook in ["L2_START.enter", "L2_START.teach",
+			"EXIT_MARKER.enter", "EXIT_MARKER.assembled", "EXIT_MARKER"]:
 		_check(bool(lines.call("has_heard", hook)), "%s is said" % hook,
 			"heard" if bool(lines.call("has_heard", hook))
 			else "authored, and nothing fires it")
