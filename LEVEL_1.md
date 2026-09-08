@@ -271,6 +271,21 @@ The architecture *is* the puzzle. Four posts each carrying a **halipan** — a r
 solid, wider than the post, and the reason "climb the post" is not an answer. No windows,
 one door above head height, ladder taken inside at night, which is the lock.
 
+**But you can now WALK to the front of it.** `Bale/Steps` — two treads, 44 off the terrace
+and 55 off that, landing level with the house's own floor at y −19. Before them the only way
+up was a drawing: the deck is 99 above the terrace and the apo's jump clears 94, so the house
+was five pixels out of reach and the answer was to draw a ladder — which spent the drawing on
+the *approach* rather than on the beat, and then stood in the way of the key press. The
+routes are untouched: the thatch is still a climb, the hasp is still a cut, and the door is
+still shut until one of the three answers it.
+
+⚠ **The landing stops at the eaves and it has to.** The thatch is a solid triangle whose
+underside at the left eave is y −64, and the apo standing at −19 is 96 tall — so a landing
+reaching further east puts their head in the roof. Walking east off it stops at x 4475, which
+is the eave, not the edge. That is also why the porch does not reach the wall at 4524: the art
+overhangs 34px on that side, and collision that disagrees with the picture is exactly what
+`bale_2d.gd` is written not to do.
+
 | Route | Tag | How |
 |---|---|---|
 | Artist | Climb (excl. crab, snake) | over the thatch, in under the eaves, key on a nail. **Search halved if `knows_about_key`** |
@@ -490,12 +505,34 @@ so the only thing on screen at full contrast is the playfield. The near scenery 
 offender: it scrolls at 0.72 and was drawn at almost foreground brightness, so a painted hut
 and a painted stone staircase read as things you could walk on.
 
-**The level ENDS AT THE HUT'S DOOR.** `_on_bale_exit` completes it, if the painting is in
-hand and CP3 is written. It used to end at the GoalMarker out on the Overlook, so finishing
-Payyo meant solving the hardest node in the level, climbing in, taking the canvas, climbing
-back out — and then walking to a spot that looks like every other spot on the terrace. Players
-did the first four and stood there. Getting in was the puzzle; getting out with it is the
-answer, and the door is where that happens.
+**The level ENDS AT A DOOR, and there are two of them.** It used to end at the GoalMarker out
+on the Overlook, so finishing Payyo meant solving the hardest node in the level, climbing in,
+taking the canvas, climbing back out — and then walking to a spot that looks like every other
+spot on the terrace. Players did the first four and stood there.
+
+| Way out | What it means | What happens |
+|---|---|---|
+| the ladder doorway, left | *I am done here* | `_on_bale_exit` → completion screen → the wall of paintings |
+| the gap the painting leaves | *on to the next place* | `_on_onward_reached` → straight into Piyesta |
+
+**Lifting Lola's canvas off the boards opens the wall behind it.** That is the second door,
+and it is not a new hole cut in the artist's picture: `hut_interior.png` is a delivered
+painting with a hearth, a drying rack, jars, a sleeping platform and one doorway already in
+it, and there is no plain bamboo left. What there is is the stack of boards the canvas leans
+on — and the game's own grammar already says what a picture is, because in the house Lola's
+paintings **are** the doors. What is drawn in the opening is `PISTA_ART` itself, a centre
+slice at the opening's own aspect, seen *through* the gap rather than framed on it.
+
+⚠ **It will not fire on the step that opens it.** The canvas is taken by walking into it, so
+the player is inside the doorway's radius on the frame it appears; unguarded it would take
+them to Piyesta before they had seen the room the whole level is for. `ONWARD_ARMS_AT` — they
+have to be clear of it once, and the same rule applies on re-entry so a checkpoint restore
+does not put them down beside a live door.
+
+⚠ **No pale ring around the opening.** The first version outlined it twice in white and what
+that makes is a *moulding*: it read as the canvas still hanging there, which is the one thing
+it must not look like. The dark jamb says "cut through"; the light only catches the near edge
+and the floor under it, warm, because it is daylight in a room lit by a hearth.
 
 **Set pieces are letterboxed** (`CinematicBars`, `game/scripts/cinematic_bars.gd`). Bars in,
 the camera takes the moment, the moment plays, bars out. It frames the checkpoint lighting,
