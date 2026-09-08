@@ -11,6 +11,12 @@ extends SceneTree
 var level: Node2D
 var director
 var failures := 0
+## ⚠ A MEMBER, NOT A LOCAL. GDScript lambdas capture locals BY VALUE, so `var stepped := false`
+## with a `func(): stepped = true` connected to the signal writes to the lambda's own copy and
+## the outer one stays false forever. The door was firing and all three assertions below read
+## a variable nothing could ever change -- which would have passed the "it does not fire under
+## them" check with no door in the game at all.
+var stepped_through := false
 
 
 func _initialize() -> void:
@@ -40,6 +46,10 @@ func _run() -> void:
 	await _audit_the_key_opens_the_lock()
 	for route in ["artist", "pragmatist", "protector"]:
 		await _audit_route(route)
+	# ⚠ LAST, AND IT REALLY TRANSITIONS. The door's whole claim is that it opens Piyesta,
+	# and the only honest way to check that is to let it -- which changes the scene out from
+	# under everything above. Nothing may follow it.
+	await _audit_the_wall_opens()
 
 	print("OBRA_LEVEL1_FINISH_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
@@ -256,3 +266,128 @@ func _find_painting(room: Node) -> Node:
 		if deeper != null:
 			return deeper
 	return null
+
+
+## THE WAY ON, AND THE THREE THINGS THAT MAKE IT A DOOR RATHER THAN A TRAPDOOR.
+##
+## Lifting Lola's canvas off the boards opens the wall behind it, and walking into the gap
+## ends Payyo and starts Piyesta. The player is standing ON that spot at the moment it
+## opens -- the painting is taken by walking into it -- so an unguarded door would take them
+## to the next level on the frame they picked the canvas up, before they had seen the room
+## the whole level is for. Held here:
+##
+##   shut until the painting is taken
+##   does not fire on the step that opened it
+##   fires once they have been clear of it and come back, and lands in Piyesta
+func _audit_the_wall_opens() -> void:
+	# ⚠ EVERY OTHER PAYYO OUT OF THE TREE FIRST. This audit lets the transition happen for
+	# real, and a level built by _build_obstacle_layer finds its volumes through a GROUP --
+	# so Piyesta loading beside three leftover Payyos reads Payyo's obstacle volumes and
+	# pushes an error for every one of them. Only ever true in a probe; only ever noise.
+	if level != null and is_instance_valid(level):
+		level.queue_free()
+		level = null
+		await process_frame
+	var fresh := (load("res://game_level.tscn") as PackedScene).instantiate() as Node2D
+	(fresh.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(fresh)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _wait(1.2)
+	var room := fresh.get_tree().get_first_node_in_group(&"bale_interiors") as Node2D
+	var apo := fresh.get("player") as Node2D
+	if room == null or apo == null:
+		_check(false, "the way on: the room and the apo exist", "-")
+		fresh.queue_free()
+		return
+	var script := room.get_script() as Script
+	var constants: Dictionary = script.get_script_constant_map()
+	var door: Vector2 = room.global_position + Vector2(constants["ONWARD_AT"])
+
+	stepped_through = false
+	room.connect(&"onward_reached", _on_stepped_through)
+	# ⚠ ARRIVE THE WAY A PLAYER DOES. open_level asks three questions -- is it building, is
+	# it unlocked, is she carrying Lola's brush -- and a probe that instantiates the scene
+	# directly has answered none of them. Without the brush the door refuses for a reason
+	# that has nothing to do with the door.
+	var profile := root.get_node_or_null("PlayerProfile")
+	if profile != null:
+		profile.call("record_brush_acquired")
+
+	# --- shut, while the painting is still on the boards ----------------------
+	fresh.call("_into_the_bale")
+	await _wait(0.6)
+	# Beside the opening but NOT on the canvas, which would take it and open the wall --
+	# the trigger reaches down to the walk line and is 74 wide.
+	_place(apo, door + Vector2(0.0, 130.0))
+	await _wait(0.8)
+	_check(not stepped_through, "the wall is shut while the painting hangs on it",
+		"nothing fired" if not stepped_through else "it opened with the canvas still there")
+
+	# --- taken, and it does not fire on that step -----------------------------
+	_place(apo, door)
+	await _wait(1.0)
+	_check(bool(room.call("painting_is_taken")), "walking into the canvas takes it",
+		"taken" if bool(room.call("painting_is_taken")) else "the canvas was not picked up")
+	_check(not stepped_through, "and the wall it uncovers does not fire under them",
+		"still standing in the opening, and Payyo has not ended")
+
+	# --- clear of it, and back --------------------------------------------------
+	_place(apo, room.global_position + Vector2(constants["DOOR_AT"]) + Vector2(54.0, 0.0))
+	await _wait(0.6)
+	_place(apo, door)
+	await _wait(0.8)
+	_check(stepped_through, "stepping away and back walks through it",
+		"onward_reached fired" if stepped_through else "the door never fired -- Payyo cannot be left")
+
+	# --- and it lands in Piyesta -------------------------------------------------
+	var manager := root.get_node_or_null("LevelManager")
+	_check(manager != null and String(manager.call("next_level_id", "level_1")) == "level_2",
+		"and the level after Payyo is Piyesta",
+		String(manager.call("next_level_id", "level_1")) if manager != null else "no manager")
+	# The handler stages the cinematic bars before it opens anything, so this has to wait
+	# them out -- and then stop the moment the manager has been told.
+	#
+	# ⚠ POLLED, AND RETURNED FROM THE INSTANT IT FLIPS. `open_level` writes current_level_id
+	# and DEFERS the scene change, which then spends about a third of a second closing the
+	# pixel transition before it swaps anything. Catching the write inside that window is
+	# what proves the door opened Piyesta without loading Piyesta on top of a tree that
+	# still has this probe's Payyo in it -- which reads Payyo's obstacle volumes out of the
+	# group and pushes an error for every one of them.
+	var landed := false
+	for step in range(60):
+		await _wait(0.05)
+		if manager != null and String(manager.get("current_level_id")) == "level_2":
+			landed = true
+			break
+	_check(landed, "and the door opens it",
+		"LevelManager is on '%s'" % (String(manager.get("current_level_id"))
+			if manager != null else "?"))
+
+
+## Put the apo somewhere, whatever body they are currently in.
+##
+## ⚠ AND CLEAR THE SCREEN FIRST. Taking the canvas speaks a beat AND throws an acquisition
+## card, and both stop the tree -- so the room's own `_process`, which is what watches both
+## doorways, does not run while either is up. In play that is exactly right: the player reads
+## the line, presses on, and then walks. In a probe the timers keep running and the room does
+## not, so every step after the pickup measured a room that had not had a frame since.
+##
+## ⚠ AND WRITING `paused` IS NOT ENOUGH. UIRouter DERIVES the pause from whichever modals are
+## open and re-asserts it, so a probe that unpauses by hand is overruled on the next refresh.
+## The overlays have to be closed, which is what a player pressing on does.
+func _place(apo: Node2D, at: Vector2) -> void:
+	var tree := apo.get_tree()
+	for node in tree.get_nodes_in_group(ModalOverlay.GROUP):
+		if node.has_method(&"is_open") and bool(node.call(&"is_open")) \
+				and node.has_method(&"close"):
+			node.call("close")
+	UIRouter.refresh_pause(tree)
+	tree.paused = false
+	if apo.has_method("apply_morph_state"):
+		apo.call("apply_morph_state", {"position": at, "linear_velocity": Vector2.ZERO})
+	else:
+		apo.global_position = at
+
+
+func _on_stepped_through() -> void:
+	stepped_through = true
