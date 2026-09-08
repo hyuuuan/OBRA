@@ -233,9 +233,15 @@ a jointed rig lifts one body against four still standing on the floor** -- push 
 
 ## Level 2 (Piyesta)
 
-**`Level 2 Pista Design Refined.pdf` (revision 3) is the design. `LEVEL_2.md` is SUPERSEDED**
--- it made Fly the level's new ability, and the refined design *restricts* flight instead.
-Do not read LEVEL_2.md as current; it is kept only until it is rewritten.
+**`Level 2 Pista Design Refined.pdf` (revision 3) is the design.** `LEVEL_2.md` is the build
+record and is current again -- its superseded provisional design is folded away at the bottom
+of it, not at the top.
+
+**Piyesta is offered from the hub** (Sept 2026). `levels.json` carries its scene path, and
+`ends_run` MOVED OFF PAYYO onto it: the last built level is the one that reaches the ending
+screen, and leaving the flag behind sends a player who finishes Payyo to the ending with
+Piyesta unplayed. Four tests that asserted an empty `scene_path` turned over rather than
+being deleted -- an empty path from here on is a level un-shipped by accident.
 
 The level: recover **seven scraps** of the Pista painting and assemble them. Scene-based --
 plaza -> church interior -> Alley 1 (five birds carry five scraps) -> Alley 2 (bandaritas
@@ -686,6 +692,31 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
 - Screens read their content from `config/` (`levels.json`, `controls.json`,
   `audio.json`) rather than from strings typed into a `.tscn`.
 
+## Traps this project keeps re-learning
+
+- ⚠ **GDScript lambdas capture locals BY VALUE.** `var fired := false` with a
+  `func(): fired = true` connected to a signal writes to the lambda's own copy; the outer
+  one stays false forever. A probe written that way reported "the door never fired" while
+  the door was firing, and its other two assertions would have passed with no door in the
+  game at all. Use a member variable or a named method for anything a signal has to set.
+- ⚠ **A suite that READS `user://profile.json` is a suite whose result depends on the
+  machine.** `run_tests` says at the top that it must never write the profile and said
+  nothing about reading it, so "exactly four locked cards" and "locked Level 2 initiated a
+  transition" were checked against whatever save was on the box. Harmless while level 2 had
+  no scene; the day it had one the call SUCCEEDED and deferred a real scene change into the
+  middle of the suite -- surfacing as twenty unrelated rig failures. Pin progression on the
+  in-memory `_data` dictionary and put it back, the way the brush already is.
+- ⚠ **A test that instantiates a level scene directly has answered none of `open_level`'s
+  three questions.** No `current_level_id`, no unlock, no brush. Grant what the audit is not
+  about, or every refusal is the first gate and the test passes with the fix reverted.
+- ⚠ **A beat and an acquisition card both STOP THE TREE, so a room's `_process` does not
+  run** -- and writing `paused = false` by hand is overruled, because UIRouter *derives* the
+  pause from whichever modals are open. Close the overlays, which is what a player pressing
+  on does.
+- ⚠ **Green geometry can still be an unclimbable flight.** Every riser can be inside the
+  jump and the steps still not walkable, because they also have to overlap in x or the
+  second hop has no run-up. Walk it with real input; do not measure it.
+
 ## Common Commands
 
 - Backend setup: `python3 -m venv .venv && . .venv/bin/activate && pip install -r backend/requirements.txt`
@@ -703,6 +734,8 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
 - The two insides: `godot --headless --path game --script res://tests/run_room_probe.gd`
 - The house, photographed: `godot --path game --script res://tests/run_visual_hub.gd`
 - Profile persistence: `godot --headless --path game --script res://tests/test_player_profile.gd`
+- Payyo can be finished: `godot --headless --path game --script res://tests/run_level1_finish_probe.gd`
+- Lolo actually animates: `godot --headless --path game --script res://tests/run_companion_pose_probe.gd`
 - Aggregate telemetry: `python3 tools/aggregate_telemetry.py <telemetry-dir-or-file>`
 
 ## Finding the Actual Godot Game Window on macOS
