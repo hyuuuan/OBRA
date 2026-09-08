@@ -1914,12 +1914,19 @@ func _all_nodes(node: Node) -> Array[Node]:
 	return out
 
 
-## Walking up to the house is not the same as finishing the level.
+## Walking up to the house is not finishing the level, AT ANY POINT.
 ##
-## The GoalMarker sits inside Ang Bale and completion used to be a distance check and
-## nothing else, so arriving at Node 3 ended Level 1 before Lolo had offered a way in and
-## before the chest was opened. This asserts both halves: arriving does not finish it, and
-## answering the bale does.
+## The GoalMarker stands at Ang Bale and completion used to be a distance check and nothing
+## else, so arriving at Node 3 ended Level 1 before Lolo had offered a way in and before the
+## chest was opened. `unlocks_at_checkpoint` papered over that by refusing until the beat was
+## solved -- which left a THIRD ending that fired by standing under the house once it was.
+##
+## Payyo ends at a door now. Two of them, both inside the room: back down the ladder, or
+## through the gap the painting leaves in the wall. So the marker is a POINTER and only that,
+## and this audit turned over with it -- the old third check asserted the marker DID complete
+## the level, which was the behaviour being removed. What ends the level is walked through in
+## `run_level1_finish_probe`, which is where an ending belongs: it can open the door and
+## follow it into Piyesta, and this file cannot.
 func _audit_completion_gate() -> void:
 	# The overlay is the visible effect. Asserting the private flag behind it would pass
 	# against a level that completed silently and showed the player nothing.
@@ -1965,15 +1972,37 @@ func _audit_completion_gate() -> void:
 	_check(not bool(overlay.call("is_open")), "committing to a route does not end it either",
 		"CP3 is written, the bale is still shut")
 
-	# Now answer it.
+	# Now answer it -- and it STILL does not end at the marker. This is the assertion that
+	# turned over: it used to require the opposite, because arriving was the ending.
 	level.call("_judge_submission", "key")
 	for _frame in range(60):
 		await physics_frame
 	player.global_position = marker.global_position
 	for _frame in range(30):
 		await physics_frame
-	_check(bool(overlay.call("is_open")), "answering the bale does end it",
-		"L1_N3 solved, so the goal marker completes the level")
+	_check(not bool(overlay.call("is_open")), "and answering it does not end it either",
+		"L1_N3 is solved and the ending is a door, not a spot on the terrace")
+
+	# AND THE READOUT STANDS DOWN. It counts to the house while the house is shut, which is
+	# the one thing the player should be walking toward; once it is open the way on is a
+	# doorway in a room, and a "GOAL 0 m" parked over a spot that does nothing is worse than
+	# no readout at all.
+	# ⚠ ASKED OF THE LEVEL, NOT OF A PATH. `_wrap_in_chip` REPARENTS the readout into a
+	# panel, so the authored path stops resolving the moment the HUD lays itself out -- and a
+	# null label reads here as "the text is not empty" rather than as "this lookup is wrong".
+	var goal_label := level.get("goal_label") as Label
+	_check(goal_label != null and goal_label.text.is_empty(),
+		"and the goal readout stands down once the house is open",
+		"'%s'" % (goal_label.text if goal_label != null else "no label"))
+
+	# ⚠ AND THE LAST CHECKPOINT IS GONE FROM THE DATA. CP4 was declared at an `EXIT_MARKER`
+	# that exists in no scene, that nothing writes and nothing reads -- the checkpoint for an
+	# ending that is a door now.
+	var ids: Array[String] = []
+	for cp_value: Variant in (d.level_data().get("checkpoints", []) as Array):
+		ids.append(String((cp_value as Dictionary).get("id", "")))
+	_check(not ids.has("CP4"), "and Payyo declares no checkpoint at the exit",
+		", ".join(ids))
 
 	level.queue_free()
 	await process_frame
