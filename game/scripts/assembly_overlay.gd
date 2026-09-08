@@ -369,6 +369,15 @@ func _release() -> void:
 	_status.text = "Not quite there. Closer to where it came from."
 
 
+## Whether the painting is whole AND the table is offering the way out of the level.
+##
+## The two are not the same question. `ScrapAssembly.is_complete()` is the model, and the
+## model can be filled without this screen ever noticing -- `place_now` writes it directly.
+## What ends Piyesta is CONTINUE, and this is whether there is a CONTINUE to press.
+func is_finished() -> bool:
+	return _done and _continue != null and _continue.visible
+
+
 func _finish() -> void:
 	_done = true
 	_dragging = ""
