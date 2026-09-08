@@ -963,3 +963,26 @@ func _show_the_count() -> void:
 	if goal_label == null or ledger == null:
 		return
 	goal_label.text = "SCRAPS  %d / %d" % [ledger.held(), ledger.total()]
+
+
+## THE LEVEL OPENS ITS MOUTH. `_greet` in the base reads `_script_lines`, which is the legacy
+## dialogue.json Payyo still carries and this level has none of -- so Piyesta spawned the
+## player into a plaza and said nothing at all.
+##
+## ⚠ AND `L2_START.teach` IS THE TWO RULES. It is the only place the player is told that
+## the bandaritas are a ceiling and that small animals are refused, and nothing fired it. So
+## the first time either rule bit, it bit unannounced: a drawing refused for a reason nobody
+## had given, or a flier snapped back to a checkpoint while Lolo says "Hoy! I told you.
+## Under the strings." He had not told them. That line has been in the file the whole time.
+##
+## ONE CALL, BOTH HOOKS, and the split between them is already authored: `.enter` is lore and
+## takes the framed box, `.teach` is marked `kind: hint` and takes the bar. `_speak` routes
+## by kind and posts the advice UNDER the conversation, where it waits out the box and then
+## plays -- so the rules are the thing standing on screen when the player takes their first
+## step, which is exactly when they need them.
+func _greet() -> void:
+	if script_lines == null:
+		return
+	var opening: Array = script_lines.fire("L2_START.enter")
+	opening.append_array(script_lines.fire("L2_START.teach"))
+	_speak(opening)
