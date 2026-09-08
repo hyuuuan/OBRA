@@ -56,27 +56,46 @@ func _run() -> void:
 
 	# THE DEAD CARD, in the only suite that can produce the state that causes it.
 	#
-	# Level 2 is now unlocked in the profile, which is correct progression -- and it
-	# still has no scene. The menu used to disable a card on is_unlocked alone, so from
-	# this point on it OFFERED level 2, and clicking it called open_level, which
-	# returned false, and nothing happened. An enabled button reading "COMING SOON"
-	# that silently did nothing.
+	# Progression unlocks the NEXT level whether or not anybody has built it, so there is
+	# always one level that is unlocked in the profile and has no scene behind it. The menu
+	# used to disable a card on is_unlocked alone, so from that point on it OFFERED that
+	# level, and clicking it called open_level, which returned false, and nothing happened:
+	# an enabled button reading "COMING SOON" that silently did nothing.
+	#
+	# The level that state lands on MOVES as levels are built. It was level 2; Piyesta has
+	# a scene now, so completing that is what produces it, and level 3 is where it sits.
 	#
 	# This lives here rather than in run_tests.gd because run_tests must never write
-	# user://profile.json, and with a fresh profile level 2 is locked anyway -- so the
-	# assertion there cannot tell the fixed code from the broken code. This one can.
+	# user://profile.json, and with a fresh profile nothing past level 1 is unlocked -- so
+	# the assertion there cannot tell the fixed code from the broken code. This one can.
+	profile.call("mark_level_completed", "level_2")
+	# ⚠ AND THE BRUSH, or every refusal below is the brush gate rather than the missing
+	# scene, and the test passes with the fix reverted. open_level asks three questions and
+	# this one is only about the third.
+	profile.call("record_brush_acquired")
 	var manager := root.get_node_or_null("LevelManager")
 	if manager != null:
 		_expect(
 			bool(manager.call("is_unlocked", "level_2")),
 			"progression did not reach LevelManager"
 		)
+		# Built AND unlocked: the card is real, and the hub may offer it.
 		_expect(
-			not bool(manager.call("is_playable", "level_2")),
-			"level_2 reports playable with an empty scene_path, so its card would be offered"
+			bool(manager.call("is_playable", "level_2")),
+			"level_2 has a scene and still reports unplayable, so its card stays dead"
+		)
+		# ⚠ NOT open_level ON A BUILT LEVEL. It would succeed, and succeeding means a
+		# deferred scene change out from under a suite that is still running.
+		_expect(
+			bool(manager.call("is_unlocked", "level_3")),
+			"completing level_2 did not unlock level_3"
 		)
 		_expect(
-			not bool(manager.call("open_level", "level_2")),
+			not bool(manager.call("is_playable", "level_3")),
+			"level_3 reports playable with an empty scene_path, so its card would be offered"
+		)
+		_expect(
+			not bool(manager.call("open_level", "level_3")),
 			"an unlocked-but-unbuilt level started a transition"
 		)
 	_expect(int((snapshot["counts"] as Dictionary)["submissions"]) == 2, "submission count did not persist")

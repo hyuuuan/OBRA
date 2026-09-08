@@ -299,15 +299,22 @@ func _test_level_completion_screen() -> void:
 	await process_frame
 	paused = false
 
-	# level_1 ends the run, so CONTINUE has an ending to reach and that ending exists.
+	# level_2 ends the run, so CONTINUE has an ending to reach and that ending exists.
+	# THE FLAG MOVES WITH THE LAST BUILT LEVEL, which is what it is for: while Payyo was
+	# the only one there was, finishing it went to the ending screen; now Piyesta is behind
+	# it and Payyo hands on to Piyesta instead.
 	# Resolved through the tree like the rest of this suite: the autoloads are not
 	# registered when a --script run compiles its own script.
 	var manager := root.get_node_or_null("LevelManager")
 	_expect(manager != null, "LevelManager autoload is unavailable")
 	if manager != null:
 		_expect(
-			bool((manager.call("get_level", "level_1") as Dictionary).get("ends_run", false)),
-			"level_1 does not end the run, so nothing reaches the ending screen"
+			bool((manager.call("get_level", "level_2") as Dictionary).get("ends_run", false)),
+			"level_2 does not end the run, so nothing reaches the ending screen"
+		)
+		_expect(
+			not bool((manager.call("get_level", "level_1") as Dictionary).get("ends_run", false)),
+			"level_1 still ends the run, so finishing Payyo skips Piyesta for the ending"
 		)
 	_expect(ResourceLoader.exists("res://ui/ending_screen.tscn"), "the ending scene is missing")
 
@@ -664,12 +671,13 @@ func _test_level_framework() -> void:
 	_expect(not bool(level_manager.call("open_level", "missing")), "invalid level initiated a transition")
 
 	# Playable and unlocked are different questions, and conflating them is the dead
-	# card. Level 2 has no scene, so it is never playable however the profile's
-	# progression feels about it -- including on a machine where level 1 was finished
+	# card: 3 to 5 have no scene, so they are never playable however the profile's
+	# progression feels about them -- including on a machine where level 2 was finished
 	# in a real session, which is exactly when the old code enabled a card that then
-	# did nothing.
+	# did nothing. Level 2 has a scene now and is on the other side of that line.
 	_expect(bool(level_manager.call("is_playable", "level_1")), "level_1 is not playable")
-	for missing_id in ["level_2", "level_3", "level_4", "level_5"]:
+	_expect(bool(level_manager.call("is_playable", "level_2")), "level_2 is not playable")
+	for missing_id in ["level_3", "level_4", "level_5"]:
 		_expect(
 			not bool(level_manager.call("is_playable", missing_id)),
 			"%s reports playable with no scene behind it" % missing_id
