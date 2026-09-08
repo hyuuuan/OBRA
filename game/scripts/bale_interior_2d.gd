@@ -31,6 +31,9 @@ extends Node2D
 signal exit_reached()
 ## Lola's painting has been taken.
 signal painting_taken()
+## The apo has stepped through the way the painting left in the wall. This is the end of
+## Payyo and the start of Piyesta -- see the note on ONWARD_AT.
+signal onward_reached()
 ## The apo is standing at something in here worth a sentence, or has walked away from it.
 ##
 ## THE ROOM HAD ONE THING IN IT AND THAT WAS THE PROBLEM. Getting in is the hard part of
@@ -81,6 +84,37 @@ const PAINTING_AT := Vector2(-76.0, -34.0)
 ## ratio exactly, and with the moulding it comes to 74 wide -- the width of the trigger that
 ## was already authored around it.
 const CANVAS_SIZE := Vector2(64.0, 36.0)
+
+## THE WAY ON, AND IT IS WHERE THE PAINTING WAS.
+##
+## Level 1 used to end by walking back OUT: down the ladder, onto the terrace, and the
+## completion screen, then CONTINUE, then the wall of paintings, then Pista's frame, then
+## Piyesta. Five steps between finishing a level and starting the next one, three of them
+## menus. "There should be a door inside that goes to the next level" is what that is worth
+## from outside, and it is right.
+##
+## SO THE DOOR IS NOT A NEW HOLE IN THE ARTIST'S WALL. `hut_interior.png` is a delivered
+## painting with a hearth, a drying rack, jars, a sleeping platform and one doorway already
+## in it, and there is no plain bamboo left to cut a second door into without covering
+## something somebody drew. What there IS is the spot the canvas leans in, which is a stack
+## of plain boards -- and the game's own grammar for a picture already says this: in the
+## house, Lola's paintings ARE the doors, and the player learned that walking into Payyo
+## through one five minutes ago.
+##
+## So you lift her painting of the plaza off the wall, and the wall behind it is open. What
+## is drawn in the opening is PISTA_ART itself -- a tall slice of the same picture, seen
+## THROUGH the gap rather than framed on the boards -- so nothing has to be invented and
+## nothing has to be explained.
+const ONWARD_AT := PAINTING_AT
+const ONWARD_SIZE := Vector2(58.0, 92.0)
+## How close counts as stepping through. Same shape as the way down: one measured position,
+## so a capsule and a twelve-body spider behave the same.
+const ONWARD_FIRES_AT := 40.0
+## ⚠ AND IT WILL NOT FIRE ON THE STEP THAT OPENED IT. The painting is taken by walking INTO
+## it, so the player is standing inside this radius at the moment the door appears -- an
+## armed door would take them to Piyesta on the frame they picked the canvas up, before
+## they had seen the room, the hearth or the way down. They have to be clear of it once.
+const ONWARD_ARMS_AT := 64.0
 
 ## THE THINGS IN HERE THAT ARE WORTH A SENTENCE, read off the artist's own picture: the
 ## hearth on the floor with its drying rack overhead, her stacked jars, and the sleeping
@@ -142,6 +176,12 @@ const FRAME_LIT := UISkin.GILT_HI
 const PISTA_ART: Texture2D = preload("res://assets/hub/paintings/level_2.png")
 
 const SHADOW := Color(0.0, 0.0, 0.0, 0.35)
+## The cut edge of the wall, and the light coming back through it. Sampled off the art's own
+## bamboo so the opening looks cut into this room rather than pasted onto it.
+const JAMB_DARK := Color(0.106, 0.071, 0.043, 1.0)   # 1B120B
+const JAMB := Color(0.267, 0.180, 0.106, 1.0)        # 442E1B
+## Daylight off the plaza. Warmer and paler than the hut's own lamp-lit brown.
+const SPILL := Color(1.0, 0.925, 0.780, 1.0)
 ## Outside the room entirely, and a BACKSTOP rather than the normal case now. The picture
 ## covers the frame at this zoom and the camera is clamped inside it, so in ordinary play none
 ## of this is ever seen; it is there for the frame during a zoom tween, and for anything that
@@ -157,6 +197,8 @@ var _painting_area: Area2D
 ## depending on the step, and a bool would blink the bar off in the middle of a walk.
 var _in_notices := 0
 var _taken := false
+## Whether the player has been clear of the opening since it appeared. See ONWARD_ARMS_AT.
+var _onward_armed := false
 ## Seconds left before the hatch means "leave" again.
 var _way_down_grace := 0.0
 ## The lift and fade when it is picked up, driven by a tween through the setters so the node
@@ -211,6 +253,10 @@ func refresh_from_profile() -> void:
 		_taken = profile != null and bool(profile.call("has_object", painting_id))
 	_fade = 0.0 if _taken else 1.0
 	_lift = 0.0
+	# ⚠ NOT ARMED HERE. A room entered with the painting already taken -- a checkpoint
+	# restore, a second visit -- would otherwise have a live door in it at the moment the
+	# player is put down beside it. The same rule as when it first opens: clear of it once.
+	_onward_armed = false
 	if _painting_area != null:
 		_painting_area.monitoring = not _taken
 		if not _taken:
@@ -372,6 +418,17 @@ func _process(delta: float) -> void:
 			break
 	if at == Vector2.INF:
 		return
+	if _taken:
+		var to_onward := at.distance_to(global_position + ONWARD_AT)
+		# Clear of it once, and only then does it mean anything. Arming and firing in one
+		# pass is deliberate: the frame they step away is not the frame they step back.
+		if not _onward_armed:
+			if to_onward > ONWARD_ARMS_AT:
+				_onward_armed = true
+		elif to_onward < ONWARD_FIRES_AT:
+			_onward_armed = false
+			onward_reached.emit()
+			return
 	if at.distance_to(global_position + exit_rect().get_center()) < WAY_DOWN_FIRES_AT:
 		_way_down_grace = WAY_DOWN_GRACE
 		exit_reached.emit()
@@ -475,6 +532,8 @@ func _draw() -> void:
 	draw_rect(Rect2(-ART_ORIGIN - Vector2(700.0, 500.0),
 		ART_SIZE + Vector2(1400.0, 1000.0)), BEYOND)
 	draw_texture_rect(ART, Rect2(-ART_ORIGIN, ART_SIZE), false)
+	if _taken:
+		_draw_the_way_on()
 	if _fade > 0.0:
 		_draw_painting()
 
@@ -517,3 +576,39 @@ func _draw_painting() -> void:
 		Color(1.0, 1.0, 1.0, 0.13 * _fade))
 
 
+
+
+## The gap the painting left, with the plaza on the other side of it.
+##
+## ⚠ THE PICTURE IS CROPPED, NOT SQUASHED. PISTA_ART is 128x72 and this opening is 58x92 --
+## a landscape stretched into a portrait is the one thing that would make it read as a
+## poster rather than as a view. A centre slice at the opening's own aspect is what you
+## would actually see through a doorway that width.
+##
+## Drawn UNDER `_draw_painting`, so on the frames where the canvas is still lifting and
+## fading out it passes in front of the hole it is uncovering.
+func _draw_the_way_on() -> void:
+	var opening := Rect2(ONWARD_AT.x - ONWARD_SIZE.x * 0.5,
+		ONWARD_AT.y - ONWARD_SIZE.y, ONWARD_SIZE.x, ONWARD_SIZE.y)
+
+	# The jamb: the wall's own thickness, cut through. Dark, and a shade warmer than the
+	# BEYOND black, because it is timber in shadow and not a hole in the world.
+	draw_rect(opening.grow(4.0), JAMB_DARK)
+	draw_rect(opening.grow(2.0), JAMB)
+
+	var art_size := PISTA_ART.get_size()
+	var slice := art_size.y * (ONWARD_SIZE.x / ONWARD_SIZE.y)
+	draw_texture_rect_region(PISTA_ART, opening,
+		Rect2((art_size.x - slice) * 0.5, 0.0, slice, art_size.y))
+
+	# ⚠ NO PALE RING AROUND IT. The first version drew two bright outlines on the wall, and
+	# what that makes is a MOULDING: the opening read as the canvas still hanging there,
+	# which is the one thing it must not look like, because the player has just watched that
+	# canvas be lifted off this exact spot.
+	#
+	# The dark jamb above is what says "cut through". All the light does is catch the two
+	# faces the sun off the plaza would actually reach -- the near edge of the cut and the
+	# floor beneath it -- and it is WARM, because it is daylight in a room lit by a hearth.
+	draw_rect(Rect2(opening.position, Vector2(2.0, opening.size.y)), Color(SPILL, 0.34))
+	draw_rect(Rect2(opening.position + Vector2(-4.0, opening.size.y), Vector2(
+		opening.size.x + 8.0, 3.0)), Color(SPILL, 0.20))
