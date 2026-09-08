@@ -533,7 +533,7 @@ trigger_size = Vector2(380, 320)
 announce_size = Vector2(180, 320)
 announce_offset = 0.0
 story_sign_offset = -60.0
-hint_sign_offset = -150.0
+hint_sign_offset = -250.0
 checkpoint_mark_offset = 100.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N3" unique_id=1566155730]
@@ -658,6 +658,18 @@ script = ExtResource("24_strawroom")
 [node name="House" type="Node2D" parent="GameplayPlane/Bale" unique_id=1120996384]
 position = Vector2(4650, 80)
 script = ExtResource("25_owbyo")
+
+[node name="Steps" type="Node2D" parent="GameplayPlane/Bale" unique_id=913205180]
+
+[node name="Lower" type="StaticBody2D" parent="GameplayPlane/Bale/Steps" unique_id=913205181]
+position = Vector2(4384, 36)
+script = ExtResource("20_ryned")
+tread_size = Vector2(56, 44)
+
+[node name="Landing" type="StaticBody2D" parent="GameplayPlane/Bale/Steps" unique_id=913205182]
+position = Vector2(4430, -19)
+script = ExtResource("20_ryned")
+tread_size = Vector2(56, 99)
 
 [node name="Bulul1" type="Node2D" parent="GameplayPlane/Bale" unique_id=525187676]
 position = Vector2(4592, 80)
