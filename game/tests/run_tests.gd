@@ -667,8 +667,23 @@ func _test_level_framework() -> void:
 	profile_data["brush_acquired"] = true
 	_expect(bool(level_manager.call("has_brush")), "the profile lost a brush it was just given")
 
+	# ⚠ LOCKED HAS TO BE MADE TRUE, NOT ASSUMED. `is_unlocked` reads the catalog OR the
+	# player profile, and this suite runs against whatever profile is on the machine -- so on
+	# any box where a session (or another runner) has finished Payyo, level 2 is unlocked
+	# here. That was harmless while it had no scene: the call was refused for the wrong
+	# reason and the assertion still read true. Now that Piyesta is built it SUCCEEDS, and
+	# what it does is defer a real scene change into the middle of this suite -- which is
+	# what twenty unrelated rig failures and an "obstacle volume 'L2_N1' has no entry in
+	# level_01.json" turned out to be.
+	#
+	# In memory, like the brush above, and put back the same way.
+	var had_unlocked: Array = (profile_data.get("levels_unlocked", []) as Array).duplicate()
+	profile_data["levels_unlocked"] = []
+	_expect(not bool(level_manager.call("is_unlocked", "level_2")),
+		"level 2 is unlocked with the progression list emptied")
 	_expect(not bool(level_manager.call("open_level", "level_2")), "locked Level 2 initiated a transition")
 	_expect(not bool(level_manager.call("open_level", "missing")), "invalid level initiated a transition")
+	profile_data["levels_unlocked"] = had_unlocked
 
 	# Playable and unlocked are different questions, and conflating them is the dead
 	# card: 3 to 5 have no scene, so they are never playable however the profile's
@@ -695,6 +710,15 @@ func _test_level_framework() -> void:
 	menu.call("_show_selector")
 	await create_timer(0.7).timeout
 	_expect(bool(menu.call("is_selector_open")), "Play did not expand into the level selector")
+	# ⚠ PROGRESSION PINNED FOR THE WHOLE OF THE GRID. Every count below is a statement about
+	# what a player who has finished nothing is offered, and `is_unlocked` reads the profile
+	# on this machine -- so on a box where Payyo has been finished, level 2's card is enabled
+	# and "exactly four locked cards" is a lie about the code rather than a fact about it.
+	# Emptied in memory and put back at the end, the same way the brush is.
+	var had_unlocked_cards: Array = (profile_data.get("levels_unlocked", []) as Array).duplicate()
+	profile_data["levels_unlocked"] = []
+	menu.call("_refresh_cards")
+	await process_frame
 	var cards := menu.get_node("MenuLayer/MenuRoot/MorphPanel/Selector").get_children()
 	var disabled_cards := 0
 	for card in cards:
@@ -724,19 +748,31 @@ func _test_level_framework() -> void:
 	profile_data["brush_acquired"] = true
 	menu.call("_refresh_cards")
 
-	# The dead card, stated directly. Level 2's card must be disabled REGARDLESS of
-	# what progression thinks, because no scene exists behind it -- and the previous
-	# code disabled it only on is_unlocked, so finishing level 1 in a real session
-	# enabled a card that then silently did nothing when clicked. Asserted without
-	# touching the profile: this suite must never write user://profile.json.
+	# THE DEAD CARD, stated directly, and it has MOVED. Progression unlocks the next level
+	# whether or not anybody built it, so there is always exactly one card that is unlocked
+	# in the profile with no scene behind it -- and the menu used to disable a card on
+	# is_unlocked alone, so finishing a level in a real session enabled a card that then
+	# silently did nothing when clicked. That card was level 2's; Piyesta is built now, so
+	# it is level 3's.
+	#
+	# Both halves are asserted, because each on its own passes for the wrong reason: a
+	# built-and-unlocked card must be OFFERED, and an unlocked one with no scene must not be.
+	profile_data["levels_unlocked"] = ["level_2", "level_3"]
+	menu.call("_refresh_cards")
+	await process_frame
 	var level2 := menu.get_node_or_null("MenuLayer/MenuRoot/MorphPanel/Selector/Level2") as Button
-	_expect(level2 != null, "the level 2 card is missing")
-	if level2 != null:
-		_expect(level2.disabled, "level 2's card is offered with no scene behind it")
+	var level3 := menu.get_node_or_null("MenuLayer/MenuRoot/MorphPanel/Selector/Level3") as Button
+	_expect(level2 != null and level3 != null, "the level 2 or level 3 card is missing")
+	if level2 != null and level3 != null:
+		_expect(not level2.disabled,
+			"level 2's card is locked with a scene behind it and progression reaching it")
+		_expect(level3.disabled, "level 3's card is offered with no scene behind it")
 		_expect(
-			not bool(level_manager.call("open_level", "level_2")),
-			"level 2 would start a transition to a scene that does not exist"
+			not bool(level_manager.call("open_level", "level_3")),
+			"level 3 would start a transition to a scene that does not exist"
 		)
+	profile_data["levels_unlocked"] = had_unlocked_cards
+	menu.call("_refresh_cards")
 
 	# Card text comes from the catalog, not from strings typed into the scene.
 	var name_label := menu.get_node_or_null("MenuLayer/MenuRoot/MorphPanel/Selector/Level1/Name") as Label
