@@ -70,6 +70,7 @@ func _run() -> void:
 	_audit_tags_taught_before_use(level)
 	_audit_checkpoints_precede_morphs(level)
 	_audit_no_line_names_a_class(dialogue)
+	_audit_no_line_is_unreachable(level, dialogue)
 	_audit_dialogue_hooks_exist(level, dialogue)
 	_audit_dialogue_loader(level)
 	_audit_checkpoint_manager()
@@ -2110,3 +2111,77 @@ func _audit_the_steps_can_be_walked_up(level: Node2D, stones: Array[Node2D],
 	Input.action_release(&"jump")
 	_check(highest <= landing + 6.0, "and the apo can walk up them",
 		"reached %.0f, the landing is at %.0f" % [highest, landing])
+
+
+## ⚠ IS EVERY LINE ANYBODY WROTE EVER SAID? The other direction, and the one that keeps being
+## wrong. Payyo carried six hooks with no caller when this was first pointed at it; three
+## were false positives from Beat 0's sub-beats (whose hook is BUILT from `sub_beats[].id`
+## in the level data, not typed), one was the canvas beat -- "Apo, look at the edge. The
+## shawl. I know that shawl." -- which now fires when the painting is taken, and two are on
+## the list below with their reasons.
+##
+## Same audit as `run_level2_audit._audit_no_line_is_unreachable`, and deliberately generous
+## in the same direction: it would rather miss a dead hook than train somebody to add an
+## exception for a live one.
+const HOST_SOURCES := ["res://scripts/game_level.gd", "res://scripts/level_base.gd"]
+## Authored, not fired, and each one needs its reason here rather than a shrug.
+const NOT_FIRED := {
+	# ⚠ OBSOLETE, NOT MISSING. "There is the marker stone. That is where we stopped on the
+	# way home." Payyo ended at a GoalMarker out on the Overlook; it ends at a door inside
+	# Ang Bale now, and the marker no longer ends anything. The lines describe walking up to
+	# a thing that is not the ending any more. Kept in the file rather than deleted, because
+	# deleting somebody's writing on a mechanical change is not this audit's call.
+	"EXIT_MARKER": "the marker stone stopped being the ending",
+	# ⚠ AWAITING A HOME, and that is an authoring decision rather than a bug. "She painted
+	# this crossing six times in a day. The water is different every hour." There is no
+	# cutscene at L1_N1 for it to play in, and guessing a moment for it would be writing.
+	"L1_N1.artist.cutscene": "no cutscene exists at that beat -- needs a place, not a call",
+}
+
+
+func _audit_no_line_is_unreachable(level: Dictionary, dialogue: Dictionary) -> void:
+	var reachable: Dictionary = {}
+	for obstacle_value: Variant in level.get("obstacles", []):
+		var obstacle: Dictionary = obstacle_value
+		var id := String(obstacle.get("id", "?"))
+		for suffix in ["enter", "teach", "choice", "solved", "warn"]:
+			reachable["%s.%s" % [id, suffix]] = true
+		for route_value: Variant in (obstacle.get("routes", {}) as Dictionary).keys():
+			for suffix in ["commit", "solved", "warn", "failed", "retry", "attic", "photo"]:
+				reachable["%s.%s.%s" % [id, route_value, suffix]] = true
+		# ⚠ BEAT 0'S HOOKS ARE BUILT FROM THE DATA, not typed anywhere. `stage_id` returns
+		# `sub_beats[n].id` and the level fires "<obstacle>.<stage>" -- so a scan of string
+		# literals alone reports the whole of the tutorial's instruction as dead.
+		for sub_value: Variant in (obstacle.get("sub_beats", []) as Array):
+			var sub := String((sub_value as Dictionary).get("id", ""))
+			if sub.is_empty():
+				continue
+			reachable["%s.%s" % [id, sub]] = true
+			reachable["%s.%s.solved" % [id, sub]] = true
+	# `%` is in the class on purpose: a call site may name a family rather than a line.
+	var literal := RegEx.create_from_string("\"([A-Za-z0-9_%]+(?:\\.[A-Za-z0-9_%]+)*)\"")
+	for path in HOST_SOURCES:
+		for found in literal.search_all(FileAccess.get_file_as_string(path)):
+			reachable[found.get_string(1)] = true
+	var prefixes: Array[String] = []
+	for key: Variant in reachable.keys():
+		var text := String(key)
+		var cut := text.find("%")
+		if cut > 0:
+			prefixes.append(text.substr(0, cut))
+
+	var dead: Array[String] = []
+	for line_value: Variant in dialogue.get("lines", []):
+		var hook := String((line_value as Dictionary).get("at", ""))
+		if hook.is_empty() or reachable.has(hook) or NOT_FIRED.has(hook):
+			continue
+		var built := false
+		for prefix in prefixes:
+			if hook.begins_with(prefix):
+				built = true
+				break
+		if not built:
+			dead.append("%s (%s)" % [hook, (line_value as Dictionary).get("id", "?")])
+	_check(dead.is_empty(), "every authored line has a caller",
+		"%d hook(s) knowingly unfired, each with a reason" % NOT_FIRED.size()
+		if dead.is_empty() else "never fired: %s" % ", ".join(dead))

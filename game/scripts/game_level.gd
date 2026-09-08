@@ -477,6 +477,13 @@ func _on_painting_taken() -> void:
 		"Lola's second canvas. The way into the next place.",
 		BaleInterior2D.PISTA_ART)
 	_speak(script_lines.fire("L1_N3.canvas.taken"))
+	# ⚠ AND THE TWO LINES WRITTEN FOR LOOKING AT IT, which had no call site. "Pista. She said
+	# the noise helped her think." and "Apo -- look at the edge. The shawl. I know that
+	# shawl." are the beat where Lolo recognises something of his own in her painting, and
+	# they are the reason the next level is about people. They were authored under
+	# EXIT_MARKER.canvas, back when the level ended at a marker stone somebody walked to.
+	# The marker is gone; the moment is here, with the canvas in her hands.
+	_speak(script_lines.fire("EXIT_MARKER.canvas"))
 	_grant_the_canvas()
 	# ⚠ AND SAY THAT THE WALL IS OPEN. The gap appears behind the canvas on the frame it is
 	# lifted, at the far end of a room the player is looking at the near end of, while a
