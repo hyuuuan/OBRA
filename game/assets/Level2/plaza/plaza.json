@@ -5,22 +5,22 @@
     "paving_a": {
       "file": "paving_a.png",
       "size": [
-        128,
-        64
+        192,
+        96
       ]
     },
     "paving_b": {
       "file": "paving_b.png",
       "size": [
-        128,
-        64
+        192,
+        96
       ]
     },
     "paving_c": {
       "file": "paving_c.png",
       "size": [
-        128,
-        64
+        192,
+        96
       ]
     },
     "fan_a": {
@@ -54,8 +54,8 @@
     "retaining": {
       "file": "retaining.png",
       "size": [
-        128,
-        96
+        192,
+        128
       ]
     },
     "rooftops_a": {

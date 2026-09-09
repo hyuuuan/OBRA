@@ -130,7 +130,7 @@ position = Vector2(9450.0, -740.0)
 script = ExtResource("8_room")
 kind = 2
 room_length = 900.0
-wall_height = 700.0
+wall_height = 470.0
 room_zoom = 1.6
 onward_note = "The alley runs on. The birds are still holding what you came for."
 
@@ -139,7 +139,7 @@ position = Vector2(9450.0, 280.0)
 script = ExtResource("8_room")
 kind = 2
 room_length = 900.0
-wall_height = 560.0
+wall_height = 440.0
 room_zoom = 1.6
 onward_note = "Nothing that way until the bandaritas give up what they are holding."
 

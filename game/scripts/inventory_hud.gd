@@ -30,9 +30,39 @@ var _thumbnails: Dictionary = {}
 ## Which slot the player is currently acting on, or -1.
 var _selected: int = -1
 
+## HOW FAR IT DROPS OUT OF THE FRAME WHEN IT IS NOT WANTED, and the whole reason it does.
+##
+## The band is anchored bottom-CENTRE, and bottom-centre is where the camera keeps the
+## player -- so a bag with anything in it sat squarely on top of the apo. Photographed with
+## six drawings in it, the slots covered her from the shins to the eyes: you could see the
+## top of her head over slot 3 and nothing else. `_refresh` already hides the bar when the
+## bag is EMPTY, and the note on it is about this same band burying the paddy at the level's
+## first gate. This is that rule finished: the bag is not only quiet when it holds nothing,
+## it is quiet while you are moving.
+const STOW_DROP := 78.0
+const STOW_TIME := 0.16
+const RAISE_TIME := 0.13
+## How long it stays up after something changes, however hard the player is running. Picking
+## a thing up and having it flash past is worse than not showing it -- the card that says
+## what you got is on screen for about this long.
+const DWELL := 3.2
+
+var _stowed := false
+## Set while a placement is in progress -- see set_click_through. Kept apart from `_stowed`
+## because either one alone must make the band click-through and neither may clear the other.
+var _click_through := false
+var _dwell := 0.0
+var _slide: Tween
+## Where the band sits when it is up. Read once, because the tween writes to these.
+var _home_top := 0.0
+var _home_bottom := 0.0
+
 
 func _ready() -> void:
 	add_theme_constant_override(&"separation", 8)
+	_home_top = offset_top
+	_home_bottom = offset_bottom
+	set_process(true)
 	# Centred in its band, which is anchored bottom-CENTRE and sized to exactly its six
 	# slots -- 424px rather than the 756px it used to span, so it covers a third less of
 	# the ground the player sets objects down on while staying where the eye looks for it.
@@ -120,7 +150,17 @@ func selected_slot() -> int:
 ## parent's, so making the container ignore the mouse would leave six live buttons sitting
 ## in the hole.
 func set_click_through(click_through: bool) -> void:
-	var filter := Control.MOUSE_FILTER_IGNORE if click_through else Control.MOUSE_FILTER_STOP
+	_click_through = click_through
+	_apply_filter()
+
+
+## ⚠ A STOWED BAR IS STILL A CLICK TARGET UNLESS IT IS TOLD NOT TO BE. Stowing drops the
+## band 78px and fades it to nothing, and a Control at `modulate:a = 0` is invisible and
+## fully hittable -- so the bag would have gone on eating clicks from a place the player
+## cannot see it, which is a worse version of the bug `set_click_through` was written for.
+func _apply_filter() -> void:
+	var filter := Control.MOUSE_FILTER_IGNORE \
+		if (_click_through or _stowed) else Control.MOUSE_FILTER_STOP
 	mouse_filter = filter
 	for button in _buttons:
 		button.mouse_filter = filter
@@ -196,3 +236,60 @@ func _forget_stale_thumbnails(items: Array) -> void:
 
 func _on_slot_pressed(slot: int) -> void:
 	slot_pressed.emit(slot)
+
+
+## Out of the way, or back. Driven by the level: the bag stands down while the apo is
+## travelling and comes up when she stops, so the one band that sits where she does is
+## never between the player and what they are walking into.
+##
+## ⚠ THE DWELL OUTRANKS THE MOVEMENT. A drawing picked up mid-run would otherwise arrive in
+## a bar that is already on its way out of the frame, which is the one moment the bag has
+## something to say.
+func set_stowed(stow: bool) -> void:
+	if stow and _dwell > 0.0:
+		return
+	if stow == _stowed:
+		return
+	_stowed = stow
+	_apply_filter()
+	_slide_to(stow)
+
+
+## Something happened worth looking at. Brings the bar up and holds it there for DWELL,
+## whatever the player is doing.
+func announce() -> void:
+	_dwell = DWELL
+	if _stowed:
+		_stowed = false
+		_apply_filter()
+		_slide_to(false)
+
+
+func is_stowed() -> bool:
+	return _stowed
+
+
+func _process(delta: float) -> void:
+	if _dwell > 0.0:
+		_dwell = maxf(0.0, _dwell - delta)
+
+
+## ⚠ THE OFFSETS, NOT `position`. This is an anchored Control inside a CanvasLayer, so its
+## rect is recomputed from the anchors on every layout pass and a written `position` is gone
+## by the next frame -- which is the same class of mistake the old "lift the chosen button
+## six pixels" cue made, and it is recorded two functions down.
+func _slide_to(stow: bool) -> void:
+	if _slide != null and _slide.is_valid():
+		_slide.kill()
+	var drop := STOW_DROP if stow else 0.0
+	_slide = create_tween()
+	# The tree is stopped for every overlay in the game and the bag has to finish moving
+	# anyway -- a bar frozen half out of the frame behind a dialogue box is worse than
+	# either end of the animation.
+	_slide.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_slide.set_parallel(true)
+	_slide.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	var seconds := STOW_TIME if stow else RAISE_TIME
+	_slide.tween_property(self, "offset_top", _home_top + drop, seconds)
+	_slide.tween_property(self, "offset_bottom", _home_bottom + drop, seconds)
+	_slide.tween_property(self, "modulate:a", 0.0 if stow else 1.0, seconds)

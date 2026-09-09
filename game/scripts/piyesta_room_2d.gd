@@ -425,6 +425,11 @@ func _shade() -> Color:
 
 ## What the room is seen against, and only just bigger than the room: a ground that reaches a
 ## screen past the walls is a ground painted over the level.
+## What the foot of an alley wall goes toward: the shade the buildings put on it. Blue rather
+## than black, because a shadow under an open sky takes its colour from that sky.
+const SKY_FALL := Color(0.078, 0.106, 0.153, 1.0)
+
+
 func _draw_void() -> void:
 	var span := _span()
 	draw_rect(Rect2(-span, -wall_height - 260.0,
@@ -442,6 +447,41 @@ func _draw_wall() -> void:
 		draw_rect(Rect2(-span, -wall_height - 70.0, span * 2.0, 70.0), ALLEY_SKY_LOW)
 	PiyestaTiles.fill_varied(self, Rect2(-span, -wall_height, span * 2.0, wall_height),
 		_wall_variants("%s_wall" % material), shade)
+	if kind == Kind.ALLEY:
+		# ⚠ AND IT NEEDS A HORIZON, WHICH IS THE SAME NOTE THE NAVE ALREADY CARRIES.
+		#
+		# The church is ashlar to head height and plastered above it with a string course
+		# between, and the comment on that says why: "that band is what gives the room a
+		# horizon and a scale". An alley had no band at all -- one material from the setts to
+		# the wall head, at one frequency, filling four fifths of the screen. However good
+		# the plaster is, a single uniform field that size reads as static rather than as a
+		# wall, and five variants of it are five variants of static.
+		#
+		# So the foot of it is a rendered plinth, which is what a back street actually has:
+		# the render is taken down to the ground in a harder, darker mix because that is the
+		# part that gets splashed, kicked and washed.
+		var plinth := minf(96.0, wall_height * 0.28)
+		PiyestaTiles.fill(self, Rect2(-span, -plinth, span * 2.0, plinth),
+			"alley_floor", Color(0.62, 0.66, 0.70, 1.0))
+		draw_rect(Rect2(-span, -plinth - 5.0, span * 2.0, 5.0),
+			Color(0.365, 0.396, 0.404, 1.0))
+		draw_rect(Rect2(-span, -plinth - 7.0, span * 2.0, 2.0),
+			Color(0.502, 0.529, 0.522, 1.0))
+		# ⚠ AN ALLEY IS LIT FROM ONE STRIP OF SKY AND THE WALL WAS DRAWN FLAT.
+		#
+		# The material is cold on purpose -- the design asks for "dark, narrow, behind the
+		# plaza" -- but cold is not the same as EVEN, and one tone from the wall head to the
+		# setts is what made this room read as grey wallpaper rather than as a place with a
+		# shape. All the light in here comes from the gap overhead, so the render directly
+		# under it is nearly in sun and the foot of the wall is in deep shade. Six bands,
+		# because the falloff is what the eye reads as depth; a single gradient rect would be
+		# a wash over the material rather than light on it.
+		for step in range(6):
+			var t := float(step) / 5.0
+			var band := wall_height / 6.0
+			draw_rect(Rect2(-span, -wall_height + t * (wall_height - band),
+				span * 2.0, band + 1.0),
+				Color(SKY_FALL.r, SKY_FALL.g, SKY_FALL.b, 0.03 + 0.30 * t))
 	if kind == Kind.CHURCH:
 		# A nave is ashlar to about head height and plastered above it, with a string course
 		# between. That band is what gives the room a horizon and a scale.
