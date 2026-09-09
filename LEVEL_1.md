@@ -265,6 +265,25 @@ that reads the same every run is what makes a route reproducible.
 **`knows_about_key` is the load-bearing one.** The sketchbook page is the only place in the
 level anyone is told to look on a nail, and Node 3's Artist route reads it. **CP2** on commit.
 
+### The gorge is 440 wide, and every number in it is load-bearing
+
+It was **560** — seventy per cent of an 800-wide view at zoom 1, whatever colour it was
+painted. The far bank came 120 west (`Terrace5` at 3520, right edge unmoved at 4340), the
+art's `opening` followed it, `CrumbleA` was shortened from 220 to 140 so it still rests on
+the mid pillar at one end and the new bank at the other, `ExitShelf` moved with the far wall,
+and **`CrumbleB` is gone** — it was the last hop onto the old bank and stood past the new one.
+
+⚠ **The near side did NOT move, and that is the constraint.** The felled tree is 250 long
+from x 3040, so it ends at 3290; the mid pillar stands at 3330. Move the bank west and shift
+the gorge's furniture west with it and the tree passes straight through the pillar. What
+narrows is the far half.
+
+**Two numbers hold it, and `run_level1_audit` walks both.** The gap must stay over a running
+jump — the apo clears about 228px, so 440 is an obstacle and 200 is a step over. And the cut
+route's landings — felled tree → mid pillar → crumbling platform → far bank — must each be
+inside a jump of the one before, or the route the player just paid for ends in mid air.
+Everything about Node 1 had been checked as *bookkeeping* until now.
+
 ### The gorge is the dark thing, and it is meant to be
 
 "The background turns black after entering the hive" is **Ang Tulay's gorge**, x 3080–3640 —
