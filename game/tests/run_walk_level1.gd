@@ -661,6 +661,15 @@ func _the_overlook_needs_a_climb() -> void:
 		Input.action_release(&"move_right")
 		for _frame in range(10):
 			await physics_frame
+	# AND THE INTERFACE HAS TO SAY SO. A verb with no key cap is a verb the player does not
+	# have: standing here, the HUD offered E -- PICK UP -- and nothing else, so the one move
+	# that reaches Ang Bale was advertised only by the prompt that undoes it.
+	var prompts := level.get("action_prompts") as ActionPromptHUD
+	for _frame in range(4):
+		await physics_frame
+	var offered := prompts != null and prompts.climb_is_available()
+	_check(offered, "the interface offers the climb where the climb works",
+		"CLIMB is up" if offered else "only E, which puts the ladder back in the bag")
 	# Up, and leaning toward the cliff: a ladder allows slow sideways movement, and the
 	# point of this one is the terrace beside it.
 	# ⚠ RE-READ EACH FRAME. The level frees the old body whenever it swaps the player -- a
