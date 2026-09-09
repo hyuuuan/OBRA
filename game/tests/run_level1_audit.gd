@@ -848,6 +848,7 @@ func _audit_live_level() -> void:
 				# is individually correct and collectively impossible is exactly the failure
 				# this level has had twice.
 				await _audit_the_steps_can_be_walked_up(level, stones, overlook)
+				await _audit_the_bag_gets_out_of_the_way(level)
 
 	# --- the tread that floated off, and what Roll does to it ----------------
 	# Sub-beat 0.2's whole lesson. It was drawn and it floated, but nothing made weighing it
@@ -2185,3 +2186,64 @@ func _audit_no_line_is_unreachable(level: Dictionary, dialogue: Dictionary) -> v
 	_check(dead.is_empty(), "every authored line has a caller",
 		"%d hook(s) knowingly unfired, each with a reason" % NOT_FIRED.size()
 		if dead.is_empty() else "never fired: %s" % ", ".join(dead))
+
+
+## THE BAG IS ANCHORED WHERE THE PLAYER STANDS.
+##
+## Bottom-centre is where the camera keeps the apo, so a bag with anything in it covered her
+## from the shins to the eyes -- photographed with six drawings in it, the top of her head
+## over slot 3 was all that showed. `InventoryHUD` already hid itself when the bag was EMPTY,
+## and the note on that rule is about this same band burying the paddy at the level's first
+## gate. It stands down while she is travelling now, and comes back when she stops.
+##
+## ⚠ IT LIVES HERE AND NOT IN `run_click_ui`, WHICH IS WHERE IT BELONGS BY SUBJECT. That
+## suite spawns the apo six pixels inside LeftWall -- a known and harmless quirk there,
+## because everything it tests is a click -- and a body embedded in geometry has a velocity
+## of 260 and a position that never changes. The audit read "the bag never stood down" and
+## meant "nobody walked". This runs immediately after the steps audit, which is the one
+## place in the suite where walking is already proven to work.
+func _audit_the_bag_gets_out_of_the_way(level: Node) -> void:
+	var hud := level.get("inventory_hud") as Control
+	var apo := level.get("player") as Node2D
+	var bag := level.get("inventory_manager") as Node
+	if hud == null or apo == null or bag == null:
+		_check(false, "the bag gets out of the way", "no hud, player or inventory")
+		return
+	paused = false
+	# ⚠ SOMETHING IN THE BAG FIRST. An empty bag draws nothing at all -- a different rule
+	# with the same symptom -- so asserting "it is out of the way" against a bar that was
+	# never there is the vacuous version of this.
+	var sketch := Image.create(48, 48, false, Image.FORMAT_RGBA8)
+	sketch.fill(Color(0.1, 0.1, 0.12, 1.0))
+	bag.call("add_item", DrawnItemData.from_prediction(
+		"circle", "Circle", sketch, [], 1.0, {}))
+	await process_frame
+	_check(hud.visible, "the bag is showing before the walk",
+		"stocked" if hud.visible else "empty, so this audit would measure nothing")
+
+	# Long enough to outlast the announcement dwell, which outranks movement on purpose: a
+	# drawing picked up mid-run must not land in a bar already on its way out of the frame.
+	var started := apo.global_position
+	Input.action_press(&"move_left")
+	for _frame in range(280):
+		await physics_frame
+	var walked := apo.global_position.distance_to(started)
+	var stowed := bool(hud.call("is_stowed"))
+	var filter: int = hud.mouse_filter
+	Input.action_release(&"move_left")
+	for _frame in range(100):
+		await physics_frame
+	var back := not bool(hud.call("is_stowed"))
+
+	_check(walked > 200.0, "the apo actually walked", "%.0fpx" % walked)
+	_check(stowed, "the bag stands down while she walks",
+		"stowed" if stowed else "still across the bottom of the screen, over the apo")
+	# ⚠ AND STOPS TAKING CLICKS. A Control at `modulate:a = 0` is invisible and fully
+	# hittable, so a stowed bar would go on eating clicks from a place nobody can see it --
+	# a worse version of the bug `set_click_through` was written for.
+	_check(filter == Control.MOUSE_FILTER_IGNORE,
+		"and stops taking clicks while it is away",
+		"click-through" if filter == Control.MOUSE_FILTER_IGNORE
+		else "an invisible bar is still eating clicks 78px lower")
+	_check(back, "and comes back when she stops",
+		"up" if back else "it never came back -- the bag is unreachable")
