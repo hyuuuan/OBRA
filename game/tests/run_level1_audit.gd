@@ -849,6 +849,7 @@ func _audit_live_level() -> void:
 				# this level has had twice.
 				await _audit_the_steps_can_be_walked_up(level, stones, overlook)
 				await _audit_the_bag_gets_out_of_the_way(level)
+				await _audit_the_gorge(level)
 
 	# --- the tread that floated off, and what Roll does to it ----------------
 	# Sub-beat 0.2's whole lesson. It was drawn and it floated, but nothing made weighing it
@@ -2247,3 +2248,66 @@ func _audit_the_bag_gets_out_of_the_way(level: Node) -> void:
 		else "an invisible bar is still eating clicks 78px lower")
 	_check(back, "and comes back when she stops",
 		"up" if back else "it never came back -- the bag is unreachable")
+
+
+## ⚠ THE GORGE IS THE ONE PIECE OF GEOMETRY IN THIS LEVEL THAT CAN BE MADE TOO EASY AND TOO
+## HARD BY THE SAME EDIT, AND NOTHING WALKED IT.
+##
+## Everything about Node 1 was checked as BOOKKEEPING -- `note_submission` returns
+## stage_advanced, the exclusions bite, the tally moves -- and the level 2 chain probe's own
+## header is the answer to that: "Bookkeeping is not passage." The gorge was narrowed from
+## 560 to 440 so it stops being seventy per cent of the frame, and the two things that edit
+## can break are the two ends of the same number:
+##
+##   too WIDE and the Protector chain no longer reaches -- the felled tree, the mid pillar,
+##   the crumbling platform and the far bank are a run of hops, and shortening the platform
+##   or moving the bank leaves one of them past a jump
+##
+##   too NARROW and the gorge is not an obstacle at all: the apo clears about 228px in a
+##   running jump, and a gap under that is a gap you walk over on the way past
+func _audit_the_gorge(level: Node) -> void:
+	var plane := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane")
+	if plane == null:
+		_check(false, "the gorge is crossable and not free", "no gameplay plane")
+		return
+	var near := plane.get_node_or_null("Terrain/CentralRight") as Node2D
+	var far := plane.get_node_or_null("Terrain/Terrace5") as Node2D
+	if near == null or far == null:
+		_check(false, "the gorge is crossable and not free", "no banks")
+		return
+	var near_edge: float = near.global_position.x + Vector2(near.get("segment_size")).x
+	var far_edge: float = far.global_position.x
+	var gap := far_edge - near_edge
+	# The apo's own running jump, measured by the audit that already walks the bale steps.
+	_check(gap > 260.0, "the gorge is still too wide to jump",
+		"%.0fpx against a running jump of about 228" % gap)
+
+	# AND THE CUT ROUTE STILL REACHES. Felled tree, mid pillar, crumbling platform, far
+	# bank: each landing has to be inside a jump of the one before it, or the route the
+	# player just paid for ends in mid air.
+	var stones: Array[Dictionary] = []
+	var tree := plane.get_node_or_null("Routes/Protector/DeadTree") as Node2D
+	if tree != null:
+		stones.append({"name": "the felled tree",
+			"from": tree.global_position.x,
+			"to": tree.global_position.x + float(tree.get("span_length"))})
+	for path in ["Routes/Artist/MidPost", "Routes/Protector/CrumbleA"]:
+		var stone := plane.get_node_or_null(path) as Node2D
+		if stone == null:
+			continue
+		var span: float = Vector2(stone.get("segment_size")).x \
+			if stone.get("segment_size") != null else Vector2(stone.get("platform_size")).x
+		stones.append({"name": String(stone.name), "from": stone.global_position.x,
+			"to": stone.global_position.x + span})
+	stones.append({"name": "the far bank", "from": far_edge, "to": far_edge + 10.0})
+	var breaks: Array[String] = []
+	for index in range(stones.size() - 1):
+		var here: Dictionary = stones[index]
+		var next: Dictionary = stones[index + 1]
+		var hop: float = float(next["from"]) - float(here["to"])
+		if hop > 200.0:
+			breaks.append("%s to %s is %.0fpx" % [here["name"], next["name"], hop])
+	_check(not stones.is_empty() and breaks.is_empty(),
+		"and the cut route still reaches the far side",
+		"%d landings, every hop inside a jump" % stones.size() if breaks.is_empty()
+		else "; ".join(breaks))
