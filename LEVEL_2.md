@@ -42,6 +42,21 @@ canvas beat.
 **`run_level2_finish_probe` is new** and is the one that plays the level: three beats
 answered by drawing, the table, seven pieces dragged home, CONTINUE, and the ending screen.
 
+### The second playthrough
+
+| Fault | What the player got |
+|---|---|
+| **`SCRAPS n / 7` never moved** | Connected as `unbind(1)` against a three-argument signal, so it errored at emit. The corner printed `0 / 7` on the frame the level opened and never again — while the ledger climbed to seven behind it. **This went in with the readout itself, in the round about things that work and never say so.** |
+| **And it was blank in all four rooms** | The readout is cleared on the way into an inside, which is right for a DISTANCE and backwards here: the rooms are where the scraps are |
+| **A bale of hay in every doorway** | `_draw_opening` filled the ground-through-the-door with `floor_b` — a 74×70 cell of the *delivered* tileset with a black border baked in. The opening is 60 wide, so one enormous outlined stone filled the view |
+| **Every room showed the sky it is parked in** | `camera_rect()` is `wall_height + floor_depth`, and a clamp cannot hold a camera inside a box shorter than the frame. The nave covered 570 of 643 and carried 73 units of void along the bottom of every shot |
+| **The nave floor was outlined** | Third surface with the `pal[0]` fill defect, after the plaza paving and the alley setts |
+
+**Checked and sound:** the restriction refusal and its wording, the flight ceiling (model-level
+in `run_level2_systems_probe`, in-world through the unreachable-line audit), the scrap ledger,
+the dance, the assembly, and the ending. A stderr sweep across every Level 1 and Level 2 suite
+turned up nothing else — the `unbind` was the only runtime error in the project.
+
 ---
 
 ## The level in one paragraph
