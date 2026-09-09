@@ -265,6 +265,29 @@ that reads the same every run is what makes a route reproducible.
 **`knows_about_key` is the load-bearing one.** The sketchbook page is the only place in the
 level anyone is told to look on a nail, and Node 3's Artist route reads it. **CP2** on commit.
 
+### The gorge is the dark thing, and it is meant to be
+
+"The background turns black after entering the hive" is **Ang Tulay's gorge**, x 3080–3640 —
+which is exactly what you are looking at when you come back west out of the straw heap. It is
+not a state: swept at 300-unit steps across the whole level before entering anything, after
+the heap, after Ang Bale and after a checkpoint restore, the dark fraction of the frame was
+0.35 / 0.33 / 0.28 / 0.25 with the worst spot at the same x every time. Nothing turns it on
+and nothing turns it off.
+
+**Its structure existed and none of it reached the screen.** The shaft was fourteen bands
+lerped `t * t` from #363230 to #1B1917 — squaring t crushes the range into the last few, so
+eleven of fourteen sat within a step of the top colour — under one 1px course line every
+*other* band at 0.55 alpha, six steps off its own background. A third of the frame of flat
+brown-grey. It is lerped straight now, strata on every band at twice the weight, and the rock
+in blocks: at that size a gradient with lines on it is still a gradient.
+
+⚠ **And every interior stands down while nobody is in it.** Each one paints an opaque slab
+behind itself so the sky it is parked in does not show through its walls, and left switched on
+that slab is in the level. `StrawRoom2D` guards it ("painted the whole valley"),
+`PiyestaRoom2D` guards it ("put black over half of Payyo's valley"), and `BaleInterior2D` did
+not — harmless only because that room is parked high enough that its slab misses the camera,
+which is luck rather than design. `run_room_probe` holds it for every interior now.
+
 ### Node 3 — Ang Bale (the Overlook, x 3320–3760)
 
 The architecture *is* the puzzle. Four posts each carrying a **halipan** — a rat guard,
