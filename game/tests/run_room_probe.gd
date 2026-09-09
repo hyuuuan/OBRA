@@ -62,6 +62,8 @@ func _run() -> void:
 	await _audit_a_morph_stays_in_the_room(&"straw_rooms")
 	await _audit_a_morph_stays_in_the_room(&"bale_interiors")
 	_close()
+	await process_frame
+	await _audit_no_room_is_drawn_while_empty()
 
 	print("\n===== ROOMS =====")
 	for line in results:
@@ -507,4 +509,52 @@ func _audit_placement(group: StringName, aim: Vector2) -> void:
 		"aimed %s, set down at %s, ended at %s" % [aim, placed_at, landed])
 	if is_instance_valid(preview):
 		preview.queue_free()
+	await process_frame
+
+
+## ⚠ A ROOM PAINTS A SOLID GROUND BEHIND ITSELF, AND LEFT ON IT PAINTS THE LEVEL.
+##
+## Every interior is parked in the empty sky thousands of units above the world, so each one
+## draws a large opaque rect behind its own art -- otherwise the sky it is standing in shows
+## through its walls. That rect has to reach well past the walls, because the camera leads
+## the player. Switched on while nobody is inside, it is a slab of near-black in the level.
+##
+## The project has had this bug twice and written it down twice: StrawRoom2D carries the
+## guard with the note that leaving it on "painted the whole valley", and PiyestaRoom2D
+## carries it with the note that it "put black over half of Payyo's valley". BaleInterior2D
+## had no guard at all. It was harmless only because that room is parked high enough that its
+## slab does not cross anything the camera reaches -- luck rather than design, and one move
+## of the room away from being the same bug a third time.
+## ⚠ AND IT RUNS ON ITS OWN LEVEL, AFTER `_close`. Every room finds the player through the
+## GLOBAL `player_character` group, so a second Payyo left in the tree hands each room the
+## other level's apo -- who is standing in a bale -- and both rooms report themselves
+## occupied. The first version of this read "still painting the level: BaleInterior,
+## BaleInterior" and meant "there are two levels here".
+func _audit_no_room_is_drawn_while_empty() -> void:
+	var level := (load("res://game_level.tscn") as PackedScene).instantiate() as Node2D
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await create_timer(1.4, true).timeout
+	var apo := level.get("player") as Node2D
+	if apo != null:
+		# Out on the terrace, a long way from either inside.
+		apo.call("apply_morph_state", {"position": Vector2(3700.0, 200.0),
+			"linear_velocity": Vector2.ZERO})
+	for _frame in range(40):
+		await physics_frame
+	var showing: Array[String] = []
+	var rooms := 0
+	for node in level.get_tree().get_nodes_in_group(&"interiors"):
+		var room := node as Node2D
+		if room == null:
+			continue
+		rooms += 1
+		if room.visible:
+			showing.append(room.name)
+	_check(rooms >= 2 and showing.is_empty(),
+		"no interior is drawn while the apo is outside it",
+		"%d rooms, all stood down" % rooms if showing.is_empty()
+		else "still painting the level: " + ", ".join(showing))
+	level.queue_free()
 	await process_frame

@@ -28,8 +28,8 @@ extends Node2D
 ## The back, top and bottom. Exported because the two things in this level that are holes in
 ## the ground are holes of different kinds -- the gorge is rock going down a long way, and a
 ## paddy is wet earth a metre and a half behind the water. Both were see-through.
-@export var shaft_top := Color(0.212, 0.196, 0.169, 1.0)
-@export var shaft_bottom := Color(0.106, 0.098, 0.090, 1.0)
+@export var shaft_top := Color(0.267, 0.243, 0.208, 1.0)
+@export var shaft_bottom := Color(0.075, 0.067, 0.059, 1.0)
 ## WHETHER THIS HOLE HAS A BOTTOM YOU STAND ON. The gorge does -- the cave, the flower and
 ## the sign are all down there and the player walks to them -- and a paddy does not: what is
 ## under a paddy is water, and drawing a rubble floor behind it would put a beach in it.
@@ -61,7 +61,7 @@ const MOSS := Color(0.243, 0.318, 0.180, 1.0)       # 3E512E
 ## colour rock is when the only light reaching it has come a long way down.
 ## The far wall's own courses, drawn across the shaft. Without them the drop is a flat dark
 ## rectangle -- which reads as a hole cut in the picture rather than as rock a long way back.
-const STRATA := Color(0.267, 0.243, 0.208, 1.0)
+const STRATA := Color(0.376, 0.341, 0.282, 1.0)
 ## The floor of the gorge: rubble that has come off the walls, packed by the water that runs
 ## through here after rain.
 const RUBBLE := Color(0.286, 0.259, 0.216, 1.0)
@@ -162,21 +162,52 @@ func _draw_floor() -> void:
 
 ## The drop, in bands that darken toward the bottom. Whole-pixel steps rather than a
 ## gradient, which is the rule everything else in this game is drawn by.
+## ⚠ ALL OF THIS EXISTED AND NONE OF IT REACHED THE SCREEN.
+##
+## The shaft is the far wall of the gorge: about 370 units wide and 440 deep, which at this
+## level's zoom is a third of the frame. It was drawn as fourteen bands lerped `t * t` from
+## #363230 to #1B1917 -- and squaring t crushes the whole gradient into the last few bands,
+## so eleven of the fourteen were within a step or two of the top colour. Over that went one
+## course line every OTHER band, 1px, in #444038 at 0.55 alpha, which against #363230 is six
+## steps and invisible at any distance.
+##
+## What the player saw was a flat brown-grey slab a third of the screen wide, which is what
+## "the background turns black" is. It is not a state and nothing turns it on: it is there
+## from the first frame, and it is what you are looking at when you come back west out of
+## the straw heap.
+##
+## Darker at the bottom than it was, LIGHTER at the top than it was, lerped straight so the
+## range is spread over the whole drop; strata on every band at twice the weight; and a
+## scatter of blocky rock, because at this size a gradient with lines on it is still a
+## gradient. A gorge should be dark. It should not be featureless.
 func _draw_shaft() -> void:
 	var bands := 14
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20260830
 	for index in range(bands):
 		var t := float(index) / float(bands - 1)
 		var top := opening.position.y + opening.size.y * (float(index) / float(bands))
 		var height := opening.size.y / float(bands) + 1.0
 		draw_rect(Rect2(opening.position.x, top, opening.size.x, height),
-			shaft_top.lerp(shaft_bottom, t * t))
-		# A course line every other band, inset a little from each side and jittered, so the
-		# far wall has a surface. Fixed offsets rather than randf, like everything else here.
-		if index % 2 == 1:
-			var inset := 26.0 + float((index * 37) % 40)
-			draw_rect(Rect2(opening.position.x + inset, top,
-				opening.size.x - inset * 2.0, 1.0),
-				Color(STRATA, 0.55 - t * 0.35))
+			shaft_top.lerp(shaft_bottom, t))
+		# A course on every band, inset a little from each side, so the far wall has a
+		# surface. Fixed offsets rather than randf, like everything else here.
+		var inset := 18.0 + float((index * 37) % 46)
+		draw_rect(Rect2(opening.position.x + inset, top,
+			opening.size.x - inset * 2.0, 2.0),
+			Color(STRATA, 0.85 - t * 0.40))
+		# And the rock itself, in blocks. Six or seven a band, no wider than a course, so
+		# what reads at a glance is a wall of stone going down rather than a painted ramp.
+		for _stone in range(7):
+			var w := rng.randf_range(14.0, 46.0)
+			var h := rng.randf_range(5.0, height - 2.0)
+			var at := Vector2(
+				opening.position.x + rng.randf_range(6.0, opening.size.x - w - 6.0),
+				top + rng.randf_range(1.0, maxf(1.5, height - h)))
+			var lit := rng.randf() < 0.42
+			var tone := shaft_top.lerp(shaft_bottom, t)
+			tone = tone.lightened(0.14) if lit else tone.darkened(0.20)
+			draw_rect(Rect2(at.floor(), Vector2(w, h).floor()), tone)
 
 
 ## One rock face, going down from a lip. `near` is the left-hand one, whose lit side faces

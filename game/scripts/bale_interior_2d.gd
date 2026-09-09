@@ -407,15 +407,27 @@ func disarm_the_way_out() -> void:
 
 ## The room already has to know whether the player is in it; this rides the same answer.
 func _process(delta: float) -> void:
-	if _way_down_grace > 0.0:
-		_way_down_grace -= delta
-		return
 	var at := Vector2.INF
 	for node in get_tree().get_nodes_in_group(&"player_character"):
 		var body := node as Node2D
 		if body != null and bounds().grow(90.0).has_point(body.global_position):
 			at = body.global_position
 			break
+	# ⚠ NOT DRAWN WHILE NOBODY IS IN IT, which is the one rule the other two interiors
+	# carry and this one did not. `_draw` opens with a 1957x1314 rect of BEYOND so the sky
+	# this room is parked in never shows through its walls, and left switched on that is a
+	# slab of near-black sitting in the level at all times. StrawRoom2D has the guard with
+	# the note that it is "what the map in the overworld is still black at some parts was",
+	# and PiyestaRoom2D has it with the note that it "put black over half of Payyo's valley".
+	# Ang Bale is parked high enough that its slab does not currently cross anything the
+	# camera reaches -- which is luck, not design, and it is one move of the room away from
+	# being the same bug a third time.
+	var here := at != Vector2.INF
+	if here != visible:
+		visible = here
+	if _way_down_grace > 0.0:
+		_way_down_grace -= delta
+		return
 	if at == Vector2.INF:
 		return
 	if _taken:
