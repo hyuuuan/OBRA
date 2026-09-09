@@ -52,6 +52,12 @@ enum Kind { CHURCH, HOUSE, ALLEY }
 ## Floor to ceiling, or floor to the top of the wall where the sky starts.
 @export var wall_height := 420.0
 ## How far the floor runs toward the viewer before the frame ends. A metre thirty.
+## ⚠ IT IS NOT A LOOK, IT IS THE CAMERA CLAMP. `camera_rect()` is `wall_height +
+## floor_depth` tall, and the camera cannot be held inside a box shorter than the screen --
+## so any room where the two together come to less than `900 / room_zoom` shows the VOID it
+## is parked in as a black band under its own floor. The nave was 570 against 643 of screen
+## and had 73 units of nothing along the bottom of every shot. `run_level2_scene_probe`
+## measures all four, so retuning a zoom fails there rather than in a screenshot.
 @export var floor_depth := 100.0
 ## How far in the camera sits. A small room wants 2 and fills the frame at it; a nave wants
 ## less, because coming in that close to a six-metre nave shows a wall and nothing else.
@@ -428,6 +434,12 @@ func _shade() -> Color:
 ## What the foot of an alley wall goes toward: the shade the buildings put on it. Blue rather
 ## than black, because a shadow under an open sky takes its colour from that sky.
 const SKY_FALL := Color(0.078, 0.106, 0.153, 1.0)
+## The plaza seen through a doorway: its own paving in sun, a step darker where it comes
+## nearer, and the line where the ground meets the light. Three flat bands, because that is
+## all a sixty-pixel glimpse can carry -- see _draw_opening.
+const OUTSIDE_FAR := Color(0.929, 0.843, 0.702, 1.0)   # EDD7B3, the plaza's own paving
+const OUTSIDE_NEAR := Color(0.847, 0.741, 0.588, 1.0)  # D8BD96
+const OUTSIDE_LINE := Color(0.647, 0.549, 0.435, 1.0)  # A58C6F
 
 
 func _draw_void() -> void:
@@ -634,8 +646,17 @@ func _draw_opening(rect: Rect2, open: bool) -> void:
 		Color(0.60, 0.80, 0.94, 1.0))
 	draw_rect(Rect2(inner.position.x, horizon - 26.0, inner.size.x, 26.0),
 		Color(0.82, 0.90, 0.95, 1.0))
-	PiyestaTiles.fill(self, Rect2(inner.position.x, horizon, inner.size.x,
-		inner.position.y + inner.size.y - horizon), "floor_b", Color(1.05, 1.02, 0.96, 1.0))
+	# ⚠ THE GROUND OUT THERE IS BANDS, NOT A TILE. This filled with `floor_b`, which is a
+	# 74x70 cell of the DELIVERED tileset -- a foreground stone with a black border baked
+	# into it. The opening is about sixty wide, so what got drawn was one enormous outlined
+	# block filling the whole view, and every doorway in Piyesta had what looked like a bale
+	# of hay wedged in it. A glimpse of somewhere forty units away is not a surface you can
+	# see the stones of.
+	var ground := inner.position.y + inner.size.y - horizon
+	draw_rect(Rect2(inner.position.x, horizon, inner.size.x, ground), OUTSIDE_FAR)
+	draw_rect(Rect2(inner.position.x, horizon + ground * 0.45, inner.size.x,
+		ground * 0.55), OUTSIDE_NEAR)
+	draw_rect(Rect2(inner.position.x, horizon, inner.size.x, 2.0), OUTSIDE_LINE)
 	draw_rect(Rect2(inner.position, Vector2(inner.size.x, 9.0)), Color(0.0, 0.0, 0.0, 0.5))
 	draw_rect(Rect2(inner.position, Vector2(8.0, inner.size.y)), Color(0.0, 0.0, 0.0, 0.32))
 	draw_rect(Rect2(rect.position.x - 18.0, -8.0, rect.size.x + 36.0, 12.0),

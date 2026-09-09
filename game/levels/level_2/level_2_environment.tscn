@@ -115,6 +115,7 @@ kind = 0
 room_length = 1400.0
 wall_height = 470.0
 room_zoom = 1.4
+floor_depth = 190.0
 onward_note = "The way to the alleys. Not yet -- the kandila first."
 
 [node name="HouseInterior" type="Node2D" parent="GameplayPlane/Rooms"]
@@ -122,8 +123,9 @@ position = Vector2(4200.0, -320.0)
 script = ExtResource("8_room")
 kind = 1
 room_length = 520.0
-wall_height = 260.0
+wall_height = 310.0
 room_zoom = 2.0
+floor_depth = 150.0
 
 [node name="Alley1" type="Node2D" parent="GameplayPlane/Rooms"]
 position = Vector2(9450.0, -740.0)
@@ -132,6 +134,7 @@ kind = 2
 room_length = 900.0
 wall_height = 470.0
 room_zoom = 1.6
+floor_depth = 110.0
 onward_note = "The alley runs on. The birds are still holding what you came for."
 
 [node name="Alley2" type="Node2D" parent="GameplayPlane/Rooms"]
@@ -141,6 +144,7 @@ kind = 2
 room_length = 900.0
 wall_height = 440.0
 room_zoom = 1.6
+floor_depth = 140.0
 onward_note = "Nothing that way until the bandaritas give up what they are holding."
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]

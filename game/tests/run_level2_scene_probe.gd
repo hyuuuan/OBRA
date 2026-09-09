@@ -76,6 +76,8 @@ func _run() -> void:
 	_audit_the_bunting_is_where_it_can_be_reached()
 	_audit_the_flock_is_within_reach()
 	_audit_the_goal_marker_is_out_of_reach()
+	_audit_no_room_shows_the_void_it_is_parked_in()
+	await _audit_the_corner_counts_what_is_recovered()
 	await _audit_falling_out_of_the_world_is_survivable()
 	await _audit_nothing_offered_is_refused()
 	_audit_the_plaza_is_not_empty()
@@ -752,3 +754,63 @@ func _audit_nothing_offered_is_refused() -> void:
 		else "; ".join(offences))
 	_check(thin.is_empty(), "and no route is emptied by the ban",
 		"every beat keeps an answer" if thin.is_empty() else "; ".join(thin))
+
+
+## ⚠ A ROOM SHORTER THAN THE SCREEN CANNOT HIDE THE SKY IT IS PARKED IN.
+##
+## Every inside is a box floating thousands of units above the plaza, and what stops the
+## player seeing that is `camera_rect()` -- the camera is clamped inside `wall_height +
+## floor_depth`. A clamp cannot hold a camera inside a box SHORTER than the frame, so a room
+## that does not reach `900 / room_zoom` shows the void as a black band under its own floor.
+## The nave was 570 tall against 643 of screen and carried 73 units of nothing along the
+## bottom of every shot; the lit house was 90 short of it.
+##
+## Measured off the project's own viewport height and each room's own zoom, so retuning
+## either fails here rather than in a screenshot somebody happens to take.
+func _audit_no_room_shows_the_void_it_is_parked_in() -> void:
+	var screen := float(ProjectSettings.get_setting(
+		"display/window/size/viewport_height", 900))
+	var short: Array[String] = []
+	var rooms := 0
+	for node in level.get_tree().get_nodes_in_group(&"interiors"):
+		var room := node as Node2D
+		if room == null:
+			continue
+		rooms += 1
+		var zoom := float(room.get("room_zoom"))
+		if zoom <= 0.0:
+			continue
+		var covered := float(room.get("wall_height")) + float(room.get("floor_depth"))
+		var needed := screen / zoom
+		if covered < needed:
+			short.append("%s covers %.0f of %.0f" % [room.name, covered, needed])
+	_check(rooms > 0 and short.is_empty(), "no room is shorter than the frame",
+		"%d rooms, all taller than the screen at their own zoom" % rooms
+		if short.is_empty() else "; ".join(short))
+
+
+## ⚠ THE ONE READOUT THIS LEVEL HAS, AND IT WAS LYING.
+##
+## Piyesta has no goal marker and no distance to count down, so the corner Payyo puts metres
+## in carries SCRAPS n / 7 -- the only place the level says how it is going. It was connected
+## as `_show_the_count.unbind(1)`, and `scrap_recovered` carries three arguments while the
+## method takes none: one dropped still expects two. A signal-argument mismatch in GDScript
+## is a RUNTIME error at emit, so nothing failed to load, nothing failed a test, a line went
+## to stderr, and the corner printed 0 / 7 for the whole level while the ledger climbed to
+## seven behind it.
+##
+## Asserted against the LABEL rather than the ledger. The ledger was always right; what was
+## broken is the only thing the player can see.
+func _audit_the_corner_counts_what_is_recovered() -> void:
+	var label := level.get("goal_label") as Label
+	var ledger = level.get("ledger")
+	if label == null or ledger == null:
+		_check(false, "the corner counts what is recovered", "no label or no ledger")
+		return
+	var opened := label.text
+	ledger.call("recover", "alley1_0")
+	ledger.call("recover", "alley1_1")
+	await process_frame
+	_check(opened.contains("0") and label.text.contains("2") and label.text != opened,
+		"the corner counts what is recovered",
+		"'%s' -> '%s'" % [opened, label.text])
