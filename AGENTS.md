@@ -694,6 +694,17 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
 
 ## Traps this project keeps re-learning
 
+- ⚠ **A visual runner that prints a diagnostic instead of failing is a runner nobody reads.**
+  `run_visual_level1` looked for a node the choice overlay never had, printed "pressed the
+  real button: false", carried on, and captured a frame called `09_artist_committed` in which
+  nothing was committed — the exact thing its own header calls the finding. If a visual
+  runner cannot reach the state it is photographing, it must `quit(1)`.
+- ⚠ **`lerp(a, b, t * t)` crushes a gradient into its last few steps.** The gorge shaft was
+  fourteen bands squared from #363230 to #1B1917, so eleven of them were within a step of the
+  top colour: a third of the frame of flat brown-grey with invisible 1px strata over it, under
+  a class comment explaining why a featureless gorge reads as the level running out. At level
+  zoom, a gradient with lines on it is still a gradient — the rock has to be in blocks.
+
 - ⚠ **A signal-argument mismatch is a RUNTIME error, not a load error.** `unbind(1)` on a
   three-argument signal still expects two, so `_show_the_count` was never called: nothing
   failed to load, nothing failed a test, a line went to stderr, and Piyesta's only readout
