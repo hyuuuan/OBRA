@@ -145,10 +145,14 @@ def plaster_over_rubble(c: Canvas, pal: np.ndarray, stone: np.ndarray) -> None:
     corridor -- and they are why the alleys must not be the plaza's mossy garden wall.
     """
     plaster(c, pal)
-    # Blown render, showing the rubble behind it.
-    for _ in range(5):
-        w = int(c.rng.integers(10, 26))
-        h = int(c.rng.integers(8, 20))
+    # ⚠ TWO OR THREE, NOT FIVE, AND SMALLER. Five patches of up to 26x20 in a 64x64 tile is
+    # sixty per cent of the wall down to the rubble -- which is not "rendered once and
+    # falling off", it is a ruin, and tiled across nine metres it reads as brick WALLPAPER
+    # rather than as plaster with holes in it. Photographed, the alleys were a grid of small
+    # grey bricks edge to edge and the plaster the material is named for was nowhere.
+    for _ in range(int(c.rng.integers(2, 4))):
+        w = int(c.rng.integers(8, 17))
+        h = int(c.rng.integers(6, 13))
         x = int(c.rng.integers(0, max(1, c.w - w)))
         y = int(c.rng.integers(0, max(1, c.h - h)))
         c.fill(x, y, w, h, stone[1])
@@ -168,7 +172,12 @@ def plaster_over_rubble(c: Canvas, pal: np.ndarray, stone: np.ndarray) -> None:
         c.hline(x, y - 1, w, pal[5])
         c.vline(x - 1, y, h, pal[5])
     # Damp running down from the top: this is the one thing that says "shaded and cold".
-    for _ in range(6):
+    #
+    # ⚠ TWO OR THREE, NOT SIX. Six streaks in a 64-pixel tile is one every ten pixels, and
+    # tiled across nine metres that is a comb -- the eye finds the interval long before it
+    # finds the material, which is the very thing WALL_VARIANTS exists to prevent and which
+    # no number of variants can fix when each one is already saturated.
+    for _ in range(int(c.rng.integers(2, 4))):
         x = int(c.rng.integers(0, c.w))
         h = int(c.rng.integers(c.h // 3, c.h))
         w = int(c.rng.integers(1, 4))
@@ -239,8 +248,14 @@ def boards(c: Canvas, pal: np.ndarray, height: int = 9) -> None:
 
 
 def setts(c: Canvas, pal: np.ndarray) -> None:
-    """Granite setts: small, irregular, and wet enough to catch a highlight."""
-    c.fill(0, 0, c.w, c.h, pal[0])
+    """Granite setts: small, irregular, and wet enough to catch a highlight.
+
+    ⚠ THE GROUND IS THE MORTAR AND MORTAR IS NOT BLACK. This was filled with pal[0] and every
+    sett laid a pixel inside it, so each carried a border of near-black on two sides -- the
+    same defect the plaza's paving had, and it reads the same way: a hard grid where there
+    should be a surface. The joint is one step under the sett now, not five.
+    """
+    c.fill(0, 0, c.w, c.h, pal[1])
     y = 0
     row = 0
     while y < c.h:
@@ -250,8 +265,7 @@ def setts(c: Canvas, pal: np.ndarray) -> None:
             h = 6
             tone = pal[2 + int(c.rng.integers(0, 3))]
             c.fill(x + 1, y + 1, w - 1, h - 1, tone)
-            c.hline(x + 1, y + 1, w - 1, pal[5])
-            c.hline(x + 1, y + h - 1, w - 1, pal[1])
+            c.hline(x + 1, y + 1, w - 1, pal[min(5, 4 + int(c.rng.integers(0, 2)))])
             x += w
         y += h
         row += 1

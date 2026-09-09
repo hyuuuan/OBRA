@@ -694,6 +694,21 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
 
 ## Traps this project keeps re-learning
 
+- ⚠ **A `modulate` MULTIPLIES, so it can never make anything paler.** Piyesta's hazed town
+  was drawn by passing a pale blue-grey as the modulate over a roof ramp starting at
+  #241412, and the bottom eighth of the level came out at #282013 — a black bar under the
+  brightest painting in the game, doing the exact opposite of what the haze was for. Adding
+  light means drawing a lit layer ON TOP.
+- ⚠ **Filling a tile with `pal[0]` and laying the stones a pixel inside it outlines every
+  one of them.** Three surfaces in this project had it — the plaza paving, the alley setts,
+  the alley rubble — and it reads the same way each time: a hard grid where there should be
+  a surface. The joint is one step under the stone, not five.
+- ⚠ **A HUD band anchored bottom-centre sits exactly where the camera keeps the player.**
+  The bag covered the apo from the shins to the eyes. It already hid itself when empty for
+  the same reason (it was burying the paddy at Level 1's first gate); it stows while
+  travelling now. A stowed Control at `modulate:a = 0` is still fully hittable — make it
+  click-through too, or it eats clicks from a place nobody can see it.
+
 - ⚠ **Ask both directions of every contract.** "Does every hook the level needs have a
   line?" had an audit; "is every line anybody wrote ever said?" did not, and that is where
   two levels were broken — nine dead hooks between them, including both levels' endings and
