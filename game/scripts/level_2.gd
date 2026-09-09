@@ -182,7 +182,13 @@ func _build_level_furniture() -> void:
 	# is a text copy of game_level.tscn -- which is not how this level ends and not anywhere
 	# the player is meant to walk. The marker is gone; what the corner counts now is the only
 	# number that means anything here, which is how much of her painting is in hand.
-	ledger.scrap_recovered.connect(_show_the_count.unbind(1))
+	# ⚠ unbind(3), NOT unbind(1). `scrap_recovered` carries (scrap_id, held, total) and
+	# `_show_the_count` takes none, so the callable has to drop all three. With one dropped it
+	# still expected two, and a signal-argument mismatch in GDScript is a RUNTIME error at
+	# emit -- so the readout printed 0 / 7 on the frame the level opened and never moved
+	# again, while the ledger climbed to seven behind it. Nothing failed; a line went to
+	# stderr and the corner lied for the whole level.
+	ledger.scrap_recovered.connect(_show_the_count.unbind(3))
 	_show_the_count()
 
 	assembly = AssemblyClass.new()
