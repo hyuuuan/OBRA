@@ -36,9 +36,19 @@ const PAVING_DEPTH := 34.0
 ##
 ## ⚠ TUNED AGAINST THE CAMERA, not against how a wall looks on its own. The camera's
 ## `world_bottom_y` stops it at 722, which leaves about a hundred and sixty units under the
-## walk line at rest and roughly twice that at the top of a jump. Deeper than that is a band
-## nobody ever sees; shallower and a jump shows the join.
-const WALL_DEPTH := 170.0
+## walk line at rest and roughly twice that at the top of a jump.
+##
+## IT WAS 170 AND THAT IS EXACTLY THE VISIBLE BAND, so the wall filled every pixel under the
+## plaza and the town below it -- three courses of hazed rooftops, generated, imported and
+## drawn -- was never once on screen. What the player actually saw was the wall's own shadow
+## ramp: a flat dark bar across the bottom eighth of every shot, under a painting that is the
+## brightest thing in the game. Ninety-six puts the roofs back inside the frame, so the band
+## is DISTANCE rather than a black edge, and a jump shows more of the town rather than more
+## of the dark.
+const WALL_DEPTH := 96.0
+## The colour distance goes toward here: the plaza's own sky, a little greyer. Everything
+## below the terrace is lifted toward it rather than multiplied by it -- see _draw.
+const HAZE := Color(0.757, 0.816, 0.851, 1.0)
 
 
 func _ready() -> void:
@@ -59,10 +69,15 @@ func _draw() -> void:
 		"retaining")
 	draw_rect(Rect2(left, ground + PAVING_DEPTH, width, 4.0), Color(0.0, 0.0, 0.0, 0.45))
 	# It falls into shadow as it drops, so the eye stays on the plaza rather than on the wall.
-	for step in range(5):
-		var t := float(step) / 4.0
-		draw_rect(Rect2(left, ground + PAVING_DEPTH + 30.0 + t * 44.0, width, WALL_DEPTH),
-			Color(0.055, 0.047, 0.043, 0.13 + 0.09 * t))
+	# ⚠ FIVE STACKED RECTS OF IT WAS TOO MUCH BY HALF. Each one reached WALL_DEPTH below its
+	# own start, so the last four overhung the wall entirely and piled up on the town under
+	# it -- the bottom of the frame ended up at about 0.55 alpha of near-black, which is the
+	# flat bar this band used to be. Three, shallower, and stopping where the wall does.
+	for step in range(2):
+		var t := float(step)
+		var top := ground + PAVING_DEPTH + 34.0 + t * 30.0
+		draw_rect(Rect2(left, top, width, ground + PAVING_DEPTH + WALL_DEPTH - top),
+			Color(0.055, 0.047, 0.043, 0.08 + 0.05 * t))
 	# ⚠ AND THEN THE TOWN, BECAUSE THE CAMERA INSISTS. The vertical follow keeps the player
 	# near the middle of the frame, so about four hundred units below their feet is always on
 	# screen -- and four hundred units of retaining wall is a blank band across the bottom
@@ -72,17 +87,25 @@ func _draw() -> void:
 	var below := ground + PAVING_DEPTH + WALL_DEPTH
 	if roofs.y > 0.0:
 		var cuts: Array = ["rooftops_a", "rooftops_b", "rooftops_c"]
-		# ⚠ HAZED HARD, and much further toward the sky than looks right on paper. Drawn at
-		# anything like full strength this band is a row of red roofs across the bottom third
-		# of every shot, and the eye goes to it instead of to the plaza. It is DISTANCE, and
-		# distance is pale.
+		# ⚠ A MODULATE CANNOT MAKE ANYTHING PALER, AND THAT IS WHY THIS BAND WAS BLACK.
+		#
+		# The intent was right and is worth keeping: this is DISTANCE, and distance is pale --
+		# drawn at full strength a row of red roofs across the bottom of every shot pulls the
+		# eye off the plaza. But it was done by passing a pale blue-grey as the `modulate`,
+		# and a modulate MULTIPLIES: the roof ramp starts at #241412, so multiplying it by
+		# 0.72/0.80/0.88 and blending at 0.85 alpha gave #2B1C19. Sampled down the frame, the
+		# bottom eighth of Piyesta was reading #282013 -- a black bar under the brightest
+		# painting in the game, which is exactly what the haze was supposed to prevent.
+		#
+		# So the roofs are drawn as they are, and the haze is a LAYER OVER them in the sky's
+		# own colour, deepening as it recedes. Adding light is the only way to make something
+		# paler, and a rect on top is how you add light.
 		for row in range(3):
-			var t := float(row) / 2.0
-			var haze := Color(
-				lerpf(0.72, 0.86, t), lerpf(0.80, 0.90, t), lerpf(0.88, 0.96, t),
-				lerpf(0.85, 0.45, t))
 			PiyestaTiles.fill_varied(self, Rect2(left + float(row) * 47.0,
 				below + float(row) * roofs.y * 0.72, width, roofs.y),
-				[cuts[row % 3], cuts[(row + 1) % 3], cuts[(row + 2) % 3]], haze)
-		draw_rect(Rect2(left, below + roofs.y * 2.2, width, 900.0),
-			Color(0.757, 0.816, 0.851, 1.0))
+				[cuts[row % 3], cuts[(row + 1) % 3], cuts[(row + 2) % 3]])
+		for step in range(6):
+			var t := float(step) / 5.0
+			draw_rect(Rect2(left, below + t * roofs.y * 1.8, width, roofs.y * 1.8),
+				Color(HAZE.r, HAZE.g, HAZE.b, 0.30 + 0.10 * t))
+		draw_rect(Rect2(left, below + roofs.y * 2.2, width, 900.0), HAZE)

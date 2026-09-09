@@ -60,7 +60,14 @@ SEED = 20260901
 ## The Basilica's coral stone, lit. Warm cream, not grey.
 CORAL = ["#3A2A18", "#6B4E2E", "#9A7245", "#C79A5E", "#E5BC80", "#F8DCAB"]
 ## The plaza underfoot: warm cut stone, walked smooth.
-PAVING = ["#4A3218", "#6B4A22", "#8F6633", "#B48A52", "#CFAA75", "#E4C89C"]
+## ⚠ SAMPLED OFF THE PLATE'S OWN WALK LINE, not chosen beside it. The painting is cut at
+## row 760 and the pixels along that cut are a warm cream -- #EFD6B4, #EED4B2, #F0D9B9,
+## #F6E2C5, with #372922 in the shadows and #A6651F where the ochre comes through. The old
+## ramp topped out at #E4C89C and laid its slabs in #8F6633..#CFAA75, which is two stops
+## darker and a good deal browner than the ground it butts against: the join read as a
+## painting sitting on a different game's floor. Same trick `PiyestaDoor2D.wall_tone` uses,
+## for the same reason.
+PAVING = ["#7C6448", "#A98A63", "#C9A97F", "#DFC49B", "#EDD7B3", "#F7E7C9"]
 ## Roof tile, off the painting's own houses.
 TILE = ["#241412", "#3E2420", "#7A3624", "#A8492D", "#C8613A", "#E4855A"]
 TIMBER = ["#2A1A0C", "#452C15", "#6B4526", "#8E5F32", "#B07C42", "#CFA164"]
@@ -99,45 +106,89 @@ def _emit(c: Canvas, name: str, tiles: dict) -> None:
 # --- The ground --------------------------------------------------------------------------
 
 def _paving(tiles: dict) -> None:
-    """Cut stone, walked smooth. Three variants so a plaza does not repeat every metre."""
+    """Cut stone, walked smooth. Three variants so a plaza does not repeat every metre.
+
+    ⚠ THE JOINTS USED TO BE THE DARKEST COLOUR IN THE RAMP, AND THAT WAS THE WHOLE DEFECT.
+    Every slab was filled at (x+1, row+1) over a ground of pal[0] -- #4A3218, nearly black --
+    so each one carried a one-pixel border of it on two sides. Sixteen pixels of stone, a
+    hard dark line, sixteen more: what that reads as on screen is a CHECKERBOARD, a grid of
+    separate blocks under a painting that has no grid in it anywhere. Photographed beside
+    the plate it was the first thing the eye went to.
+
+    So the ground is a mid tone, the joint is one step down from the slab rather than five,
+    and the slabs are IRREGULAR: real flagstone is cut to fit, and a run of identical squares
+    is the thing that makes a tile look tiled. Widths vary, every other course is offset by
+    a different amount, and one slab in seven is a long one spanning two.
+    """
     for variant in range(3):
-        c = Canvas(64, 32, SEED + variant * 613)
+        c = Canvas(96, 48, SEED + variant * 613)
         pal = ramp(PAVING)
-        c.fill(0, 0, c.w, c.h, pal[0])
-        slab = 16
-        for row in range(0, c.h, slab):
-            offset = 0 if (row // slab) % 2 == 0 else slab // 2
-            for x in range(-offset, c.w, slab):
-                tone = pal[2 + int(c.rng.integers(0, 3))]
-                c.fill(x + 1, row + 1, slab - 1, slab - 1, tone)
-                # Worn hollow in the middle, dark in the joint: how a walked stone reads.
-                c.dither(x + 3, row + 3, slab - 5, slab - 5, tone, pal[4], 0.4)
-                c.hline(x + 1, row + 1, slab - 1, pal[4])
-                c.vline(x + 1, row + 1, slab - 1, pal[3])
-                c.speckle(x + 2, row + 2, slab - 3, slab - 3, pal[1], 0.02)
+        # THE GROUND IS THE MORTAR, and mortar is not black. One step under the palest slab.
+        c.fill(0, 0, c.w, c.h, pal[2])
+        course = 16
+        for row in range(0, c.h, course):
+            # A different offset per course, not the same half-slab every time -- an
+            # alternating brick bond is a pattern the eye locks onto at this scale.
+            x = -int(c.rng.integers(0, course))
+            while x < c.w:
+                wide = int(c.rng.integers(11, 19))
+                if c.rng.integers(0, 7) == 0:
+                    wide += int(c.rng.integers(10, 18))
+                tone = pal[3 + int(c.rng.integers(0, 3))]
+                c.fill(x + 1, row + 1, wide - 1, course - 1, tone)
+                # Walked smooth in the middle and a shade darker at the edges, which is how
+                # a stone that has been crossed for two hundred years actually reads.
+                c.dither(x + 2, row + 2, max(1, wide - 3), course - 3, tone, pal[5], 0.35)
+                c.hline(x + 1, row + course - 1, wide - 1, pal[2])
+                c.speckle(x + 2, row + 2, max(1, wide - 3), course - 3, pal[1], 0.015)
+                x += wide
+        # FIESTA LITTER. The plaza is dressed for a feast in every other pixel of this
+        # picture and its floor was swept bare -- a few petals and scraps of confetti are
+        # what stop the ground reading as a texture rather than as this town's ground today.
+        litter = [ramp(FIESTA_RED)[4], ramp(FIESTA_GOLD)[4], ramp(FIESTA_GOLD)[3]]
+        for _ in range(int(c.rng.integers(5, 10))):
+            fx = int(c.rng.integers(1, c.w - 2))
+            fy = int(c.rng.integers(1, c.h - 2))
+            c.fill(fx, fy, int(c.rng.integers(1, 3)), 1,
+                   litter[int(c.rng.integers(0, len(litter)))])
         name = "paving_%s" % "abc"[variant]
         _emit(c, name, tiles)
 
 
 def _retaining(tiles: dict) -> None:
-    """Coral rubble below the kerb, going down out of frame. Not a ledge -- a footing."""
-    c = Canvas(64, 48, SEED + 91)
+    """Coral rubble below the kerb, going down out of frame. Not a ledge -- a footing.
+
+    Same correction as the paving above it: the ground was pal[0] and every stone sat a pixel
+    inside it, so the wall was a grid of outlined bricks rather than rubble. Rubble is not
+    coursed and it is not outlined -- it is stones of different sizes packed together, and
+    what separates them is a shade, not a line.
+    """
+    c = Canvas(96, 64, SEED + 91)
     pal = ramp(CORAL)
-    c.fill(0, 0, c.w, c.h, pal[0])
+    c.fill(0, 0, c.w, c.h, pal[2])
     y = 0
     row = 0
     while y < c.h:
-        x = -int(c.rng.integers(0, 6)) - (5 if row % 2 else 0)
+        depth = int(c.rng.integers(9, 15))
+        x = -int(c.rng.integers(0, 9))
         while x < c.w:
-            w = int(c.rng.integers(9, 15))
-            c.fill(x + 1, y + 1, w - 1, 11, pal[1 + int(c.rng.integers(0, 2))])
-            c.hline(x + 1, y + 1, w - 1, pal[3])
-            c.hline(x + 1, y + 11, w - 1, pal[0])
+            w = int(c.rng.integers(8, 17))
+            tone = pal[2 + int(c.rng.integers(0, 3))]
+            c.fill(x + 1, y + 1, w - 1, depth - 1, tone)
+            # Lit on the top edge, in shadow along the bottom: one light, upper left.
+            c.hline(x + 1, y + 1, w - 1, pal[min(5, 3 + int(c.rng.integers(0, 3)))])
+            c.hline(x + 1, y + depth - 1, w - 1, pal[1])
+            c.speckle(x + 2, y + 2, max(1, w - 3), max(1, depth - 3), pal[1], 0.03)
             x += w
-        y += 12
+        y += depth
         row += 1
     # It is in shadow down here, and it gets darker as it goes.
-    c.dither(0, c.h // 2, c.w, c.h // 2, pal[1], pal[0], 0.6)
+    #
+    # ⚠ GENTLY, BECAUSE THE SCENE SHADES THIS BAND AGAIN AT DRAW TIME. PiyestaPlaza2D lays
+    # its own falloff over the wall, so a tile that is already half black gets shaded twice
+    # and the bottom of the wall came out at #2B1F13 -- a black bar between a cream plaza and
+    # a hazed town, which is the one place in this picture that has nothing in it.
+    c.dither(0, (c.h * 3) // 4, c.w, c.h // 4, pal[2], pal[1], 0.45)
     _emit(c, "retaining", tiles)
 
 
