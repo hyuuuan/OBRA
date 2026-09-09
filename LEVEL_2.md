@@ -291,6 +291,14 @@ Nothing here stops the level being played. It is all art, plus one decision.
    the right material, but a real artist would still improve on them: the alleys use a cool
    ramp rather than a dark-palette set made for shade, and the church interior and both alley
    layer sets are still owed as painted plates.
+
+   *Improved Sept 2026, and still owed.* The alley walls had no horizon — one material at one
+   frequency across four fifths of the screen, which reads as static however good the plaster
+   is, and five `WALL_VARIANTS` of static are five variants of static. They have a rendered
+   plinth, a falloff from the sky strip, and render that is falling off rather than gone (two
+   or three blown patches per tile, not five covering sixty per cent of it). The plaza floor
+   takes its palette off the plate's own walk line now instead of sitting under the painting
+   in a browner, darker tan. A painted set would still beat both.
 3. **`LOLOGHOST` has no praying pose and no laughing pose.** Scene 2 is built on the first
    and every restriction violation fires the second. Nothing fakes them.
 4. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
