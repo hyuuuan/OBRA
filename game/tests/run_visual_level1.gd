@@ -118,21 +118,31 @@ func _run() -> void:
 		# Press the real button, the way a player does. The overlay closes itself in
 		# _on_route_pressed, and bypassing that leaves a modal menu on screen that reads
 		# as a stacking bug in a screenshot when it is only the test cheating.
-		var buttons := overlay.get_node("Root/Center/Panel/VBox/Buttons") if overlay.has_node("Root/Center/Panel/VBox/Buttons") else null
-		var pressed := false
-		if buttons != null and buttons.get_child_count() > 0:
-			(buttons.get_child(0) as Button).emit_signal("pressed")
-			pressed = true
-		else:
-			for candidate in _all_buttons(overlay):
-				if String(candidate.text).begins_with("Ibalik"):
-					candidate.emit_signal("pressed")
-					pressed = true
-					break
-		print("pressed the real button: %s" % pressed)
+		# ⚠ `Choices`, NOT `Buttons`, AND THE BUTTONS CARRY NO TEXT OF THEIR OWN.
+		#
+		# This looked for `Root/Center/Panel/VBox/Buttons`, which is not a node this overlay
+		# has ever had, and fell back to a button whose `text` begins with "Ibalik" -- which
+		# could never match either, because a choice button is built with LABELS inside it
+		# and its own `text` is empty. So it printed "pressed the real button: false",
+		# carried on, and captured a frame called `09_artist_committed` in which nothing had
+		# been committed and a modal menu was still on screen. A runner that reports its own
+		# failure as a line of output and then exits DONE is a runner nobody is reading.
+		var buttons: Array[Button] = _all_buttons(overlay)
+		if buttons.is_empty() or not overlay.visible:
+			push_error("run_visual_level1: the route choice has no buttons to press -- "
+				+ "every frame from here on shows a state the level never reached")
+			quit(1)
+			return
+		buttons[0].emit_signal("pressed")
 		await _wait(0.8)
-		print("overlay closed after press: %s" % (not overlay.visible))
-		print("committed=%s text=%s" % [director.committed_route("L1_N1"), _strip_text()])
+		var committed := String(director.committed_route("L1_N1"))
+		if overlay.visible or committed.is_empty():
+			push_error("run_visual_level1: pressing the first route left the overlay %s "
+				% ("open" if overlay.visible else "closed")
+				+ "and committed '%s'" % committed)
+			quit(1)
+			return
+		print("pressed the first route: committed=%s text=%s" % [committed, _strip_text()])
 		await _capture("09_artist_committed")
 
 	# --- the drawing panel over the strip, which is the real overlap risk ------
