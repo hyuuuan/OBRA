@@ -2247,8 +2247,13 @@ func _physics_process(_delta: float) -> void:
 	# to a number that had no relation to anything the player could walk toward -- and the way
 	# out of the room is what they actually have to reach. The room's own notices carry that,
 	# so the strip stands down rather than lying.
+	# ⚠ ONLY WHERE THE READOUT IS A DISTANCE. A level with no marker puts its own thing in
+	# that corner -- Piyesta counts SCRAPS there -- and blanking it on the way into a room
+	# wiped the count in all four of them. Which is precisely backwards: the rooms are where
+	# the scraps are recovered, so inside one is when the number matters most.
 	if _room_holding_player() != null:
-		goal_label.text = ""
+		if goal_marker != null:
+			goal_label.text = ""
 		return
 	# Everything above is the world; from here down is the readout, and a level without a
 	# marker simply has nothing to count down to. What it puts on the label instead is its

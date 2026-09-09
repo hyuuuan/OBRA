@@ -216,7 +216,10 @@ def sawali(c: Canvas, pal: np.ndarray, timber: np.ndarray) -> None:
 def flagstones(c: Canvas, pal: np.ndarray) -> None:
     """A church floor: big square flags, worn hollow in the middle, dark in the joints."""
     flag = 22
-    c.fill(0, 0, c.w, c.h, pal[0])
+    # The joint is one step under the flag, not five. See the note on `setts`: filling with
+    # pal[0] and laying each stone a pixel inside it outlines every one of them, and a nave
+    # floor of outlined squares is a grid rather than a floor.
+    c.fill(0, 0, c.w, c.h, pal[1])
     for y in range(0, c.h, flag):
         for x in range(0, c.w, flag):
             tone = pal[2 + int(c.rng.integers(0, 2))]

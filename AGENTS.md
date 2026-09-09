@@ -694,6 +694,17 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
 
 ## Traps this project keeps re-learning
 
+- ⚠ **A signal-argument mismatch is a RUNTIME error, not a load error.** `unbind(1)` on a
+  three-argument signal still expects two, so `_show_the_count` was never called: nothing
+  failed to load, nothing failed a test, a line went to stderr, and Piyesta's only readout
+  printed `0 / 7` for the whole level. **Grep every suite's stderr for `^ERROR|Error calling`
+  — a green suite is not a silent one.**
+- ⚠ **A camera clamp cannot hold a camera inside a box shorter than the frame.** Every inside
+  is parked thousands of units above the world, and `camera_rect()` is what keeps that off
+  screen; a room whose `wall_height + floor_depth` is under `viewport_height / room_zoom`
+  shows the void under its own floor. Give a room the height in its WALL, not its floor —
+  deepening the floor fixes the void by making the room look like a corridor seen from the knees.
+
 - ⚠ **A `modulate` MULTIPLIES, so it can never make anything paler.** Piyesta's hazed town
   was drawn by passing a pale blue-grey as the modulate over a roof ramp starting at
   #241412, and the bottom eighth of the level came out at #282013 — a black bar under the
