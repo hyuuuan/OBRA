@@ -293,9 +293,9 @@ segment_size = Vector2(200, 440)
 surface_style = 3
 
 [node name="Terrace5" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=431271399]
-position = Vector2(3640, 240)
+position = Vector2(3520, 240)
 script = ExtResource("5_terrace")
-segment_size = Vector2(700, 440)
+segment_size = Vector2(820, 440)
 surface_style = 3
 
 [node name="Overlook" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1246413088]
@@ -372,7 +372,7 @@ surface_size = Vector2(300, 160)
 [node name="GorgeWall" type="Node2D" parent="GameplayPlane/Gorge" unique_id=1288469917]
 position = Vector2(3080, 240)
 script = ExtResource("12_gorge")
-opening = Rect2(0, 0, 560, 440)
+opening = Rect2(0, 0, 440, 440)
 face_width = 96.0
 has_a_floor = true
 cave_at = Vector2(250, 392)
@@ -429,7 +429,7 @@ segment_size = Vector2(120, 28)
 surface_style = 2
 
 [node name="ExitShelf" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist" unique_id=1137262035]
-position = Vector2(3540, 560)
+position = Vector2(3420, 560)
 script = ExtResource("5_terrace")
 segment_size = Vector2(100, 28)
 surface_style = 2
@@ -444,12 +444,7 @@ span_length = 250.0
 [node name="CrumbleA" type="StaticBody2D" parent="GameplayPlane/Routes/Protector" unique_id=526046282]
 position = Vector2(3380, 232)
 script = ExtResource("16_collapse")
-platform_size = Vector2(220, 34)
-
-[node name="CrumbleB" type="StaticBody2D" parent="GameplayPlane/Routes/Protector" unique_id=1574591224]
-position = Vector2(3570, 232)
-script = ExtResource("16_collapse")
-platform_size = Vector2(220, 34)
+platform_size = Vector2(140, 34)
 
 [node name="Decor" type="Node2D" parent="GameplayPlane" unique_id=1401248588]
 z_index = 5
