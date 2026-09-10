@@ -82,6 +82,12 @@ def parsed_utility_behaviours() -> dict[str, set[str]]:
     """What `utility_object.gd` actually implements, per utility_behavior name."""
     text = (SCRIPTS / "utility_object.gd").read_text()
     found: dict[str, set[str]] = {}
+    # ⚠ THE TOOLS COME FROM THE MANIFEST NOW, not from a constant in the script. Thesis FR-7
+    # puts the tool/placeable split in entities.json, so `HELD_TOOLS` is gone and a parser
+    # still looking for it would quietly report every tool as having no held-tool mechanism.
+    for entry in read("entities.json")["entities"]:
+        if entry.get("ink_role") == "tool":
+            found.setdefault(entry.get("utility_behavior", entry["id"]), set()).add("held_tool")
 
     def note(name: str, mechanism: str) -> None:
         found.setdefault(name, set()).add(mechanism)
@@ -92,9 +98,6 @@ def parsed_utility_behaviours() -> dict[str, set[str]]:
     # static audit that goes red on a refactor teaches people to ignore it.
     consts = {name: re.findall(r'"([a-z_]+)"', body)
               for name, body in re.findall(r"const ([A-Z_]+) := \[(.*?)\]", text, re.S)}
-    for name in consts.get("HELD_TOOLS", []):
-        note(name, "held_tool")
-
     # The F switch. Everything before the props catch-all is a real action; the props
     # branch returns a sentence and is explicitly NOT an implementation of anything.
     body = text.split("func _perform_use")[1].split("\nfunc ")[0]

@@ -433,6 +433,36 @@ headless suite could not otherwise see it and a screenshot is how it was found.
 
 ---
 
+## Where each piece SITS — the four zones
+
+Thesis §4.5.3.5 describes the gameplay HUD, and the build had drifted from it. What the
+manuscript asks for: a quest banner along the top, "the status line and ink counter ... at
+the top-left, the checkpoint indicator beside them", "the toolbelt strip ... in the
+lower-left corner", and "the Draw button ... at the lower-right, within reach of the pointer
+that will be used to draw." All of it "peripheral by design, so that nothing competes with
+the drawing surface once it opens."
+
+| Zone | What is there | Why there |
+|---|---|---|
+| Top left | Ink plate and status line, then the checkpoint indicator beside it | State you glance at, never act on |
+| Top centre | Level banner, which gains the current beat's name on arrival | Where you are, at two scales |
+| Bottom left | The six-slot toolbelt | What you HAVE |
+| Bottom right | R DRAW and Q CHANGE BACK | What you DO — and the mouse is already there |
+| Bottom centre | The goal chip | The journey, under the middle of the frame where the eye rests |
+| Beside the player | E, F and the climb cap | Verbs that exist only where they work |
+
+⚠ **The bottom right is the verbs, and a chip parked there gets written over.** The goal
+readout used to sit in that corner. Moving R there put a tutorial callout -- which anchors
+ABOVE the draw button -- straight across it, so the first thing the game ever says about
+drawing was printed over the distance to the goal. If you put anything else in that corner,
+check it against `TutorialCallout` with a lesson anchored on `draw_button`.
+
+⚠ **The keybind strip is gone and the node is not.** `CanvasLayer/HintLabel` still exists in
+`game_level.tscn` and is hidden at build time; the live key caps replaced it. Do not revive
+it -- it advertised six verbs from the first frame, four of which could do nothing.
+
+---
+
 ## Where each piece lives
 
 | On screen | File |

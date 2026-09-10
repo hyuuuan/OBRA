@@ -40,6 +40,10 @@ var ink_manager: InkManager
 @onready var guess_label: Label = $PanelRoot/GuessLabel
 @onready var client: Node = $PanelRoot/SketchClient
 
+## How much line fits on one page, in canvas diagonals. NOT the ink budget -- see the note
+## in open_panel. Generous: the busiest class in the roster is well under this.
+const PAGE_ALLOWANCE := 8.0
+
 const OPEN_DURATION := 0.54
 
 ## The header's own ink readout. The scrim covers the HUD, so while the panel is open the
@@ -132,13 +136,18 @@ func open_panel() -> void:
 	_clear_guess()
 	set_process(true)
 	if ink_manager != null:
-		var available := ink_manager.total_uncommitted_available()
-		canvas.set_ink_budget(available, ink_manager.canvas_size)
-		if available <= 0.0001:
-			# Otherwise the panel opens looking perfectly normal and then refuses every
-			# stroke without a word: the budget is spent, so the canvas silently rejects
-			# each one and Transform posts an empty image to be told it is empty.
-			status.text = "No ink left — nothing more can be drawn in this level"
+		# ⚠ A PAGE ALLOWANCE, NOT THE BUDGET. This used to hand the canvas whatever was left
+		# of the level's ink, because ink WAS length; under FR-7 a thing costs one unit
+		# however neatly it is drawn, so tying the page to the purse would ration strokes
+		# for a cost that no longer depends on them. What is left is a statement about the
+		# page: enough line for any of the fifty classes and not enough to scribble the
+		# sheet solid, which is the one thing that turns the recogniser to noise.
+		canvas.set_ink_budget(PAGE_ALLOWANCE, ink_manager.canvas_size)
+		if ink_manager.total_uncommitted_available() <= 0.0001:
+			# Not "nothing more can be drawn". Becoming something is free and so is a tool
+			# already in the belt, and a player on their last unit most needs to know which
+			# doors are still open rather than that one has shut.
+			status.text = "Out of ink — you can still become something, or use what you hold"
 		else:
 			# The header gauge carries the budget. This said "Ink remaining 12.0 / 12.0"
 			# beneath a gauge already showing it, in decimals, and then went stale the
@@ -384,13 +393,19 @@ func _on_transform_pressed() -> void:
 	# Capture the stroke vectors alongside the rasterized image so the rig can
 	# animate the actual drawn lines.
 	_pending_strokes = canvas.get_strokes()
-	var ink_cost: float = float(canvas.get_current_cost())
-	if ink_manager != null and not ink_manager.reserve_attempt(ink_cost):
-		_submitting = false
-		transform_button.disabled = false
-		clear_button.disabled = false
-		status.text = "Not enough ink"
-		return
+	# ⚠ NOTHING IS RESERVED HERE ANY MORE, and refusing here would be wrong.
+	#
+	# Under the old length-based economy the page itself cost ink, so a submission could be
+	# priced before anybody knew what it was. Under FR-7 the price depends entirely on the
+	# ANSWER: a creature transformation is free, a tool already in the belt is free, a
+	# declined drawing is free, and only a new tool or a placement is a unit. Turning the
+	# player away at the button would refuse them the three free cases as well -- including
+	# the one a player with an empty gauge most needs, which is becoming something.
+	#
+	# So the charge happens where the outcome is known: LevelBase, on acquisition and on
+	# each placement, through InkManager.spend_unit, which refuses on its own when empty.
+	if ink_manager != null:
+		ink_manager.release_attempt()
 	if debug_timing_logs:
 		var stroke_ms := float(Time.get_ticks_usec() - _submit_started_usec) / 1000.0
 		print("DrawPanel collect strokes %.2f ms (%d strokes)" % [stroke_ms, _pending_strokes.size()])
@@ -492,9 +507,9 @@ func _on_stroke_cost_changed(cost: float) -> void:
 		return
 	# There is ink on the canvas now, so there is something to offer the recogniser.
 	transform_button.disabled = cost <= 0.0
-	_refresh_ink_row(cost)
-	if ink_manager != null:
-		ink_manager.reserve_attempt(cost)
+	# The page is free. Drawing claims no ink, so the gauge does not move while a stroke is
+	# down -- it moves when a thing is acquired or set down, which is when a unit is spent.
+	_refresh_ink_row(0.0)
 	# The status line no longer recites the ink. It used to read "Ink remaining 10.7 / 12.0
 	# -- attempt 1.3" on every stroke point, which is the header gauge's job now, said in
 	# decimals, over the top of whatever the panel had last told the player. This line is

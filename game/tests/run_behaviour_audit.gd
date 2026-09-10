@@ -443,7 +443,7 @@ func _check_held_tools_reach_the_hand() -> void:
 	var strays: Array[String] = []
 	for entity_id in registry.get_entity_ids():
 		var entry := registry.get_entity(entity_id)
-		if String(entry.get("utility_behavior", "")) not in UtilityObject.HELD_TOOLS:
+		if String(entry.get("ink_role", "placeable")) != "tool":
 			continue
 		var tool := _utility(entity_id, Vector2(3500.0, 600.0))
 		tool.equip_to(hero)

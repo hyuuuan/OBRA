@@ -1,12 +1,28 @@
 class_name InkManager
 extends Node
-## Level-scoped ink accounting. One unit is one canvas diagonal of geometric
-## polyline length, independent of how densely pointer events sampled it.
+## Level-scoped ink accounting, to thesis FR-7: "a limited ink budget of six units".
+##
+## ⚠ ONE UNIT IS ONE THING, NOT ONE CANVAS DIAGONAL OF LINE. It used to be length --
+## `drawn_length / canvas_diagonal` -- so a drawing cost whatever it happened to cost and
+## the budget was twelve diagonals of stroke. That prices NEATNESS, and it is not the
+## economy the manuscript specifies or the one the levels are balanced against: a tool
+## costs one unit on its first successful recognition and is then free forever, a placeable
+## costs one unit on every placement, a creature transformation is free, and a declined
+## drawing costs nothing. Six of those, per level.
+##
+## The length cap did not disappear, it stopped being the budget: `DrawingCanvas` still
+## limits how much line fits on one page, which is a statement about the page.
 
 signal ink_changed(remaining: float, capacity: float, reserved: float)
 signal ink_exhausted
 
-@export var capacity: float = 12.0
+## Thesis FR-7. Six, everywhere, for every level -- §4.5.4 is explicit that it "is
+## unchanged throughout, so the same resource covers a widening demand".
+const BUDGET := 6.0
+## What any one chargeable thing costs. There is no other price.
+const UNIT := 1.0
+
+@export var capacity: float = BUDGET
 ## The canvas one ink unit is measured against. Follows the viewport: a unit is a canvas
 ## diagonal of stroke, so shrinking the surface without moving this would quietly make every
 ## drawing cost more ink than the budget was tuned for.
@@ -16,7 +32,7 @@ var committed: float = 0.0
 var reserved: float = 0.0
 
 
-func begin_level(new_capacity: float = 12.0) -> void:
+func begin_level(new_capacity: float = BUDGET) -> void:
 	capacity = maxf(0.0, new_capacity)
 	committed = 0.0
 	reserved = 0.0
@@ -48,6 +64,19 @@ func reserve_attempt(cost: float) -> bool:
 	# out-of-ink screen over the player's own drawing, mid-stroke, the moment a sketch
 	# grew to the size of the budget. Exhaustion is something that happens when ink is
 	# SPENT, which is commit_attempt below.
+	return true
+
+
+## Charge one unit outright, for the events that are priced rather than drawn: a placeable
+## being set down again, which the player pays for every time. Returns false when there is
+## nothing left, so the caller can refuse the action instead of quietly running a deficit.
+func spend_unit() -> bool:
+	if total_uncommitted_available() < UNIT - 0.0001:
+		return false
+	committed = minf(capacity, committed + UNIT)
+	_emit_changed()
+	if total_uncommitted_available() <= 0.0001:
+		ink_exhausted.emit()
 	return true
 
 

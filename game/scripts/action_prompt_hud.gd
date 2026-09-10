@@ -249,15 +249,27 @@ func _update_animations(delta: float) -> void:
 		button.modulate.a = reveal
 
 
+## R and Q, bottom RIGHT.
+##
+## Thesis §4.5.3.5, on the gameplay wireframe: "the Draw button sits at the lower-right,
+## within reach of the pointer that will be used to draw." They sat bottom-left, which put
+## the one button in this game that is pressed with a MOUSE at the opposite corner from the
+## hand that is about to draw with it -- and directly under the toolbelt, so the two things
+## the lower-left holds were stacked on each other.
+##
+## Q keeps its place beside R rather than moving to the far side: they are the two standing
+## verbs and they read as a pair. R is the outermost because it is the one always available.
 func _place_bottom_actions() -> void:
 	if _draw == null or not is_instance_valid(_draw):
 		return
 	var view := get_viewport_rect().size
 	_draw.size = _draw.get_combined_minimum_size()
-	_draw.position = Vector2(BOTTOM_MARGIN.x, view.y - BOTTOM_MARGIN.y - _draw.size.y)
+	_draw.position = Vector2(
+		view.x - BOTTOM_MARGIN.x - _draw.size.x,
+		view.y - BOTTOM_MARGIN.y - _draw.size.y)
 	_revert.size = _revert.get_combined_minimum_size()
 	_revert.position = Vector2(
-		_draw.position.x + _draw.size.x + BOTTOM_GAP,
+		_draw.position.x - BOTTOM_GAP - _revert.size.x,
 		view.y - BOTTOM_MARGIN.y - _revert.size.y)
 
 

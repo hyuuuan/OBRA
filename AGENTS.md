@@ -430,15 +430,21 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
   Q to change back to the wanderer, Z/X to rotate a placement, and Escape to
   pause. `interact` and `rotate_right` both sat on E until the rotate pair moved
   to Z/X — check for a clash before adding a binding.
-- **A level has two clocks.** Ink is level-scoped: twelve normalized canvas diagonals,
-  transactionally reserved while drawing and committed only by a successful morph or
-  stored/placed utility. `MorphLife` (`game/scripts/morph_life.gd`, a node on
-  `game_level.tscn`) is the second: a drawing stays alive for `seconds` (10 by default,
-  exported on the node — it is balance, not architecture) and then dies, putting the apo
-  back. Ink buys a transformation; life is what keeping it costs. Ten seconds makes a morph
-  a BURST spent on one obstacle rather than a body you travel in, so twelve units of ink
-  reads as "twelve bursts" rather than as a budget for the run. The wanderer is not a
-  drawing and has no life, so nothing ticks while the player is themselves.
+- **A level has two clocks.** Ink is level-scoped and priced by thesis FR-7: **six units,
+  and one thing costs one unit.** A tool costs a unit on its first successful recognition
+  and is free forever after (it is in the toolbelt, and that persists across levels and
+  sessions); a placeable costs a unit on EVERY placement and is not retained; becoming a
+  creature is free; a declined drawing is free. Which of the two an object is comes off the
+  manifest's `ink_role`, never out of gameplay code. ⚠ It used to be twelve normalized
+  canvas DIAGONALS — length, reserved while you drew — which prices neatness, and which
+  meant a placeable was paid for once and set down free for the rest of the level.
+  `DrawingCanvas` still caps stroke length, and that cap is a `PAGE_ALLOWANCE`, not the
+  purse. `MorphLife` (`game/scripts/morph_life.gd`, a node on `game_level.tscn`) is the
+  second clock: a drawing stays alive for `seconds` (10 by default, exported on the node —
+  it is balance, not architecture) and then dies, putting the apo back. Ink buys a
+  transformation; life is what keeping it costs. Ten seconds makes a morph a BURST spent on
+  one obstacle rather than a body you travel in. The wanderer is not a drawing and has no
+  life, so nothing ticks while the player is themselves.
 - **Expiry reverts through `_revert_to_base_form()`, the same door Q uses.** That function
   already lands the apo where the creature stood, re-homes anything it carried and files
   the telemetry; a second copy of it for the timed case would be a second chance to strand
