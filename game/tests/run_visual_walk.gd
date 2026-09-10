@@ -51,7 +51,18 @@ func _run() -> void:
 			figures[cell].call("refresh")
 		await RenderingServer.frame_post_draw
 		var shot := root.get_texture().get_image()
-		shot = shot.get_region(Rect2i(0, GROUND - 100 * ZOOM, PITCH * CELLS, 110 * ZOOM))
+		# ⚠ THE CROP IS IN WINDOW PIXELS, NOT IN THE UNITS THE FIGURES WERE PLACED IN.
+		# `set_content_scale_size` says what a unit means; it does not resize the window,
+		# and `root.get_texture()` is the window. On this machine that is a 3420x1923
+		# backbuffer against a 1140x290 content size, so a region measured in content units
+		# cut a strip out of the top-left corner -- six figures photographed as three
+		# foreheads. Every frame of both cycles looked identical, which for a runner whose
+		# entire job is "does the planted foot alternate" is the worst possible failure:
+		# it kept answering, and the answer was always yes.
+		var scale := Vector2(shot.get_size()) / Vector2(root.get_content_scale_size())
+		var top := int(float(GROUND - 100 * ZOOM) * scale.y)
+		shot = shot.get_region(Rect2i(0, top, shot.get_width(),
+			mini(int(float(110 * ZOOM) * scale.y), shot.get_height() - top)))
 		shot.save_png("/tmp/obra_walk_%s.png" % pose)
 	print("OBRA_VISUAL_WALK_DONE")
 	quit()

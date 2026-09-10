@@ -12,6 +12,7 @@ extends SceneTree
 ##   he does not stay turned to camera once his line is gone from the bar
 ##   chasing the player puts him in the run cycle
 ##   keeping pace puts him in the drift, and the drift advances through its cells
+##   and the chase beats the talking gesture, so he is never dragged along standing still
 
 var level: Node2D
 var lolo: Node2D
@@ -53,6 +54,7 @@ func _run() -> void:
 	await _audit_he_turns_back_when_the_line_is_gone()
 	await _audit_chasing_runs()
 	await _audit_keeping_pace_drifts()
+	await _audit_he_chases_mid_sentence()
 
 	print("OBRA_COMPANION_POSE_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
@@ -131,3 +133,67 @@ func _audit_keeping_pace_drifts() -> void:
 		"%d distinct frames" % frames.size())
 	_check(not tally.has("face"), "and nothing in that stretch is the held turnaround",
 		"poses seen: %s" % ", ".join(PackedStringArray(tally.keys())))
+
+
+## THE GESTURE OUTLASTS THE LINE, AND HE STILL HAS TO GET THERE.
+##
+## Every audit above waits `face` out first, so none of them could ever see the two states
+## at once -- and at once is the only way a player meets them. `say()` gives the gesture 2.4
+## to 7 seconds of its own, deliberately, so it does not blink out the instant the bar
+## clears; a player who walks off mid-sentence therefore leaves him behind while his clock
+## is still running.
+##
+## While `face` outranked the chase, that was a companion crossing five hundred pixels of
+## terrace in a standing pose, turned head-on to a player who is no longer there. Measured
+## over ten seconds of running east from the spawn: 556px behind against a
+## `catch_up_distance` of 130, `hurry` played 36 frames out of 600.
+func _audit_he_chases_mid_sentence() -> void:
+	var player := level.get("player") as Node2D
+	if player == null:
+		_check(false, "he chases mid-sentence", "no player")
+		return
+	# ⚠ BACK TO THE WEST END FIRST, AND LET HIM CATCH UP. The audits above have already
+	# walked the player most of the way across Payyo, and `Wanderer._physics_process` clamps
+	# to `world_bounds` -- so adding to `global_position` near the east wall moves nobody and
+	# Lolo stays comfortably at their shoulder. The first version of this walked into that
+	# wall and reported the fix missing while the fix was working.
+	player.global_position = Vector2(500.0, 200.0)
+	await _wait(1.5)
+	# A long line, so the gesture clock is certainly still running at the end of the walk
+	# below -- this audit is about the overlap and must not accidentally test its absence.
+	lolo.call("say", "A long line, apo, and one you are about to walk out of the middle of.")
+	# POLLED, not read on the next frame. He is still closing the last of the gap left by
+	# the move above, and the turn is a five-frame animation -- reading one frame after the
+	# line was measuring where he happened to be, not whether he turns.
+	var turned := false
+	for step in range(30):
+		await process_frame
+		if _pose() == "face":
+			turned = true
+			break
+	_check(turned, "a line turns him to the player",
+		"he turns" if turned else "pose stayed '%s' with the line up" % _pose())
+
+	# ⚠ `face` EARLY IS CORRECT, and an assertion that forbids it outright is wrong. While
+	# he is still at the player's shoulder the gesture SHOULD win -- that is the whole of
+	# what it is for. The property is that once he has actually fallen behind, the chase
+	# takes over and the gesture does not take it back.
+	var chasing_started := false
+	var pose_after_chase: Dictionary = {}
+	var seen: Dictionary = {}
+	for step in range(40):
+		player.global_position += Vector2(24.0, 0.0)
+		await process_frame
+		seen[_pose()] = true
+		if _pose() == "hurry":
+			chasing_started = true
+		if chasing_started:
+			pose_after_chase[_pose()] = true
+	var speaking := float(lolo.get("_speech_time"))
+	_check(speaking > 0.0, "and the gesture is still running at the end of it",
+		"%.1fs of it left" % speaking)
+	_check(chasing_started, "he breaks into the chase while the line is still running",
+		"poses seen: %s" % ", ".join(PackedStringArray(seen.keys())))
+	_check(chasing_started and not pose_after_chase.has("face"),
+		"and the gesture does not take it back while he is behind",
+		"once chasing: %s" % ", ".join(PackedStringArray(pose_after_chase.keys())))

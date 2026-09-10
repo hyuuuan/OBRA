@@ -241,14 +241,30 @@ func _pose_for(speed: float, hurrying: bool) -> StringName:
 	# said nothing extra. What it DID do was survive the clock: a `talking` that had been
 	# latched true outranked a `_speech_time` of zero, which is the state the greeting left
 	# him in for the whole level.
+	# ⚠ AND MOVING TAKES IT BACK WHEN HE IS ACTUALLY HAVING TO MOVE.
+	#
+	# `face` is a STANDING pose -- he turns head-on to the player and holds it for the rest
+	# of the line -- and it used to outrank the chase unconditionally. That is right at the
+	# player's shoulder, which is where it was written and looked at. It is wrong the moment
+	# he is half a screen behind, because his gesture clock runs 2.4 to 7 seconds past the
+	# end of a line: a player who walks off mid-sentence watches him cross five hundred
+	# pixels of terrace facing them, perfectly still, like a cutout being dragged.
+	#
+	# MEASURED, over ten seconds of running east out of the spawn: he fell 556px behind
+	# against a `catch_up_distance` of 130, and `hurry` played for 36 frames out of 600.
+	# A third of that run he was drawn standing.
+	#
+	# So the chase wins over the gesture, and the gesture keeps everything else: he still
+	# turns to speak whenever he is drifting or parked, which is every line the player
+	# stands still for and is the case the pose was drawn for.
+	if hurrying:
+		return &"hurry"
 	if _speech_time > 0.0:
 		return &"face"
 	# And back again when he is done, rather than snapping to the drift on the frame the
 	# line clears.
 	if _turn_back_time > 0.0:
 		return &"turn_back"
-	if hurrying:
-		return &"hurry"
 	# The drift is for actually covering ground. Parked at the player's shoulder he is
 	# STILL -- which is not motionless, because the idle frame still rides the bob.
 	return &"float" if speed > drift_threshold else &"still"
