@@ -33,7 +33,8 @@ class ManifestContractTests(unittest.TestCase):
         self.entities = load_entities(validate_scene_paths=True)
 
     def test_version_and_runtime_roles(self) -> None:
-        self.assertEqual(self.manifest["version"], 2)
+        # v3 added `ink_role`. See test_every_object_declares_its_ink_role.
+        self.assertEqual(self.manifest["version"], 3)
         self.assertEqual(len(self.entities), CLASS_COUNT)
         counts: dict[str, int] = {}
         for entity in self.entities:
@@ -41,6 +42,32 @@ class ManifestContractTests(unittest.TestCase):
         # Count by runtime_role, not kind: primitives share kind "object" with the 27
         # objects, so a by-kind split would read 20/30 rather than 20/3/27.
         self.assertEqual(counts, EXPECTED_ROLE_COUNTS)
+
+    def test_every_object_declares_its_ink_role(self) -> None:
+        """Thesis FR-7: the tool/placeable split lives in the manifest, not in code.
+
+        It was an eighteen-name `HELD_TOOLS` constant inside utility_object.gd -- a second
+        roster to keep in step with the first, which is this project's recurring fault.
+        A creature carries no ink_role at all: transformation is free at a checkpoint.
+        """
+        roles: dict[str, int] = {}
+        for entity in self.manifest["entities"]:
+            declared = entity.get("ink_role")
+            if entity["kind"] == "animal":
+                self.assertIsNone(
+                    declared,
+                    f"{entity['id']} is a creature and must not be priced as an object",
+                )
+                continue
+            self.assertIn(
+                declared,
+                ("tool", "placeable"),
+                f"{entity['id']} declares no ink_role",
+            )
+            roles[declared] = roles.get(declared, 0) + 1
+        # 18 tools kept in the toolbelt; 9 utility props plus the 3 primitives placed and
+        # spent. 18 + 12 is the 30 objects.
+        self.assertEqual(roles, {"tool": 18, "placeable": 12})
 
     def test_model_label_order_matches_manifest(self) -> None:
         labels = json.loads((ROOT / "model/labels.json").read_text())

@@ -10,15 +10,6 @@ signal utility_consumed(utility: UtilityObject)
 ## indistinguishable from a broken key -- which is exactly how an unsettled ladder read.
 signal interaction_note(text: String)
 
-## Carried and worked with (F). Everything else is a prop: it is stood up in the world
-## and does its job by being there (stairs, bridge, tree, bread) or by being stepped
-## on (door). The split comes from the In-Game Function column of the 50-class
-## table, not from what happened to be implemented.
-const HELD_TOOLS := [
-	"axe", "sword", "cannon", "boomerang", "flashlight", "cloud", "sun", "fan",
-	"parachute", "hot_air_balloon", "key", "rake", "scissors", "clock", "anvil",
-	"bucket", "umbrella", "wheel",
-]
 ## Tools whose F is a state that stays on until pressed again, rather than one action.
 const TOGGLE_TOOLS := ["flashlight", "umbrella", "fan", "parachute", "hot_air_balloon", "wheel"]
 ## ⚠ THE PROPS YOU GO UP, AND ALL THREE ARE IN THE CLIMB TAG. It was only the ladder for a
@@ -78,6 +69,8 @@ var _carried_water: bool = false
 var _door_recent: Node2D = null
 var _settle_time: float = 0.0
 var _equipped_actor: Node2D
+## "tool" or "placeable", off the manifest. See is_held_tool.
+var ink_role := "placeable"
 var _boarded_actor: Node2D
 var _light_cone: Polygon2D
 var _point_light: PointLight2D
@@ -108,6 +101,7 @@ func configure_entity(entry: Dictionary) -> void:
 	controllable = false
 	utility_behavior = String(entry.get("utility_behavior", entry.get("id", "")))
 	required_medium = String(entry.get("required_medium", "any"))
+	ink_role = String(entry.get("ink_role", "placeable"))
 
 
 func apply_item_data(item: DrawnItemData) -> void:
@@ -164,8 +158,20 @@ func interact(actor: Node2D) -> void:
 ## first four were listed here, so drawing any of the other fifteen tools produced
 ## something that could be put in a pocket and never used -- which is most of what
 ## "21 of 27 utilities do nothing on F" actually was.
+## Is this a thing the player KEEPS, or one they spend on every placement?
+##
+## A tool is carried and worked with (F). Everything else is a prop: it is stood up in the
+## world and does its job by being there (stairs, bridge, tree, bread) or by being stepped
+## on (door). The split comes from the In-Game Function column of the 50-class table, not
+## from what happened to be implemented.
+##
+## ⚠ THE MANIFEST DECIDES, NOT THIS FILE. Thesis FR-7: "Whether a class is a tool or a
+## placeable is declared in the entity manifest rather than in gameplay code." It was an
+## eighteen-name list in here, which is exactly the sentence that forbids -- and it was a
+## second roster to keep in step with the first, in a project whose recurring fault is two
+## copies of one fact drifting apart.
 func is_held_tool() -> bool:
-	return utility_behavior in HELD_TOOLS
+	return ink_role == "tool"
 
 
 func equip_to(actor: Node2D) -> void:
