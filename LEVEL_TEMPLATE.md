@@ -128,7 +128,8 @@ cultural_constraints   free-shape, per level — see the guardrail pattern
 lighting_states        [ {id, from, to} ]
 load_time_assertions   [ strings ]  — the level's own invariants, in prose
 tuning                 INERT. Carried verbatim from the design doc; ink lives on
-                       InkManager's own 12.0 scale. Do not wire it up.
+                       InkManager's own six units, one per thing (thesis FR-7).
+                       Do not wire it up.
 ```
 
 **An obstacle:**
