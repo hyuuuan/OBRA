@@ -64,14 +64,23 @@ func _run() -> void:
 	_check(bank_top - tread_top > jump_height, "the stair is a real gate",
 		"%.0fpx of rise against a %.0fpx jump" % [bank_top - tread_top, jump_height])
 
-	await _the_player_cannot_shove_the_plank()
-	await _the_paddy_needs_a_crossing()
-	await _cannot_be_climbed_bare()
-	await _can_be_climbed_with_a_step()
-	await _a_placement_can_be_taken_back()
-	await _the_ghost_is_where_it_lands()
-	await _the_heap_has_an_inside()
-	await _the_overlook_needs_a_climb()
+	# ⚠ THIS FIXTURE RUNS WITH A FULL PURSE, DELIBERATELY, and the reason is worth writing
+	# down. Thesis FR-7 gives a level six units and prices a placeable at one unit per
+	# placement, and this walkthrough makes about seven placements -- three of which exist
+	# only to test the mechanism (two squares to prove E and right-click take a placement
+	# back, one to prove the ghost lands where it is aimed) and are not moves a player would
+	# make. Left to pay its own way it ran out at the Overlook and reported Payyo's last
+	# stretch as a wall, which is a statement about the fixture and not about the level.
+	#
+	# Whether the level can actually be FINISHED inside six units is a real question and it
+	# has its own answer: `run_level1_finish_probe` plays all three routes to the end and
+	# asserts what it spent. This one is about whether the mechanisms work at all.
+	for beat in [_the_player_cannot_shove_the_plank, _the_paddy_needs_a_crossing,
+			_cannot_be_climbed_bare, _can_be_climbed_with_a_step,
+			_a_placement_can_be_taken_back, _the_ghost_is_where_it_lands,
+			_the_heap_has_an_inside, _the_overlook_needs_a_climb]:
+		_refill_the_purse()
+		await beat.call()
 
 	print("\n===== BEAT 0 WALKTHROUGH =====")
 	for line in results:
@@ -565,6 +574,15 @@ func _the_ghost_is_where_it_lands() -> void:
 	var back := _slot_holding(inventory, "square")
 	if back >= 0:
 		inventory.call("take_item", back)
+
+
+## Hand the level its ink back between beats. See the note in _run.
+func _refill_the_purse() -> void:
+	var ink := level.get("ink_manager") as InkManager
+	if ink == null:
+		return
+	ink.committed = 0.0
+	ink.reserved = 0.0
 
 
 func _preview_in(world_items: Node2D) -> PhysicsShapeObject:
