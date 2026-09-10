@@ -1584,7 +1584,7 @@ func _on_inventory_slot_pressed(slot: int) -> void:
 
 func _is_held_tool(item: DrawnItemData) -> bool:
 	var entry := registry.get_entity(item.entity_id)
-	return String(entry.get("utility_behavior", "")) in UtilityObject.HELD_TOOLS
+	return String(entry.get("ink_role", "placeable")) == "tool"
 
 
 ## Puts a tool in the player's hand without it ever touching the ground, and WITHOUT

@@ -1,6 +1,9 @@
 class_name EntityRegistry
 extends Node
 
+## The entity manifest schema this build reads. See game/config/entities.json.
+const MANIFEST_VERSION := 3
+
 const ALLOWED_RUNTIME_ROLES := ["active_ragdoll_morph", "physics_morph", "utility"]
 const ALLOWED_MEDIA := ["any", "water"]
 const ALLOWED_ABILITY_RELATIONS := ["CapableOf", "UsedFor", "hand_authored"]
@@ -31,8 +34,11 @@ func load_manifest() -> void:
 	if not (parsed is Dictionary) or not parsed.has("entities"):
 		push_error("Entity manifest must contain an entities array")
 		return
-	if int(parsed.get("version", 0)) != 2:
-		push_error("Entity manifest version 2 is required")
+	# v3 added `ink_role`: whether an object is a tool the player keeps or a placeable they
+	# spend on each placement. Thesis FR-7 requires that distinction to live in the MANIFEST
+	# and not in gameplay code, where it was an eighteen-name list inside utility_object.gd.
+	if int(parsed.get("version", 0)) != MANIFEST_VERSION:
+		push_error("Entity manifest version %d is required" % MANIFEST_VERSION)
 		return
 
 	_abilities_by_id = _load_abilities()
