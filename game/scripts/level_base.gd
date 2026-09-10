@@ -203,7 +203,7 @@ var inventory_screen: InventoryScreen
 var cinematic: CinematicBars
 ## Top right: the drawing the player is currently wearing, and how long it has left.
 var morph_card: MorphCard
-## R and Q at the lower left; E and F beside the current body only while they can act.
+## R and Q at the lower left; E, F and the climb beside the current body only while they can act.
 var action_prompts: ActionPromptHUD
 ## The part of the game that teaches the game. Level-scoped and spent once per run; a
 ## level with no block in tutorial.json simply never teaches anything. See
@@ -780,7 +780,7 @@ func _refresh_requirements() -> void:
 ## Every anchor name a lesson may use. A probe reads it to check `tutorial.json` against the
 ## level, which is the only way to catch a name that resolves to an empty rect forever.
 const TUTORIAL_ANCHORS := ["draw_button", "pickup_prompt", "use_prompt", "revert_prompt",
-	"inventory_bar", "ink_gauge", "requirement_strip", "morph_card"]
+	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card"]
 
 
 ## WHAT A LESSON'S `anchor` MEANS, in one place.
@@ -811,6 +811,8 @@ func _tutorial_target(anchor: String) -> Rect2:
 			node = _prompt_named(&"PickupPrompt")
 		"use_prompt":
 			node = _prompt_named(&"UsePrompt")
+		"climb_prompt":
+			node = _prompt_named(&"ClimbPrompt")
 		"revert_prompt":
 			node = _prompt_named(&"ChangeBackPrompt")
 		"inventory_bar":
@@ -1849,6 +1851,24 @@ func _nearest_interactable_utility() -> PhysicsShapeObject:
 	return nearest
 
 
+## The nearest thing the player could climb from where they are standing.
+##
+## `drawn_utilities` rather than `placed_drawings`, and the object is asked rather than
+## measured: only a UtilityObject knows whether it is a ladder, whether it has settled, and
+## how far its own half-diagonal reaches. See UtilityObject.climb_reaches -- the prompt and
+## the climb run the same query, for the same reason E and its chip do.
+func _nearest_climbable() -> UtilityObject:
+	if player == null or not is_instance_valid(player):
+		return null
+	for candidate in get_tree().get_nodes_in_group(&"drawn_utilities"):
+		var utility := candidate as UtilityObject
+		if utility == null or utility.get_parent() != world_item_root:
+			continue
+		if utility.climb_reaches(player):
+			return utility
+	return null
+
+
 ## POINT AT IT AND TAKE IT BACK. E reaches 96px, which is no help once a drawing has rolled
 ## into the paddy or been set on a ledge out of arm's reach -- and a placement that cannot be
 ## undone costs a slot, costs ink, and leaves a solid body standing in the level for good.
@@ -1924,11 +1944,25 @@ func _refresh_action_prompts() -> void:
 	action_prompts.set_use_available(
 		can_use,
 		_drawing_display_name(_equipped_utility) if can_use else "")
+
+	# ⚠ THE ONE VERB PAYYO IS ABOUT, AND THE INTERFACE SAID THE OPPOSITE OF IT.
+	#
+	# You climb a placed ladder by standing at it and holding up. Nothing said so. What a
+	# player saw at the ladder they had just drawn was a single prompt -- E, PICK UP -- and
+	# pressing it put the ladder back in their bag, which is not a near miss but the exact
+	# inverse of what they were trying to do. Ang Bale is reached by drawing something to
+	# climb, so the level's last beat was gated behind a verb the game never named.
+	var climbable := _nearest_climbable() if can_act else null
+	action_prompts.set_climb_available(
+		climbable != null,
+		_drawing_display_name(climbable) if climbable != null else "")
 	# Both read off state this function already computed rather than re-deriving it: the
 	# prompt appearing IS the moment the verb became available, which is the moment to say
 	# what it does.
 	if tutorial != null and can_use:
 		tutorial.note("tool_held")
+	if tutorial != null and climbable != null:
+		tutorial.note("climb_ready")
 
 
 ## The lessons that have no event to hang off, polled once a frame beside the prompts that

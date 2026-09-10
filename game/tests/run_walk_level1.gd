@@ -625,8 +625,14 @@ func _the_overlook_needs_a_climb() -> void:
 	for _frame in range(30):
 		await physics_frame
 
-	# Take hold of it, then climb. A ladder is not scenery you touch: it is grabbed with
-	# the interact key, the same as every other utility.
+	# ⚠ NOT THE INTERACT KEY. This block used to press E here, which is what the climb took
+	# when it was written, and E has meant PICK THIS UP since. So the walker pocketed the
+	# ladder it had just stood against the cliff and then held up at an empty terrace, and
+	# reported the last stretch of Payyo as a wall. The game was fine; the test was pressing
+	# the retired verb, and had been red ever since.
+	#
+	# You climb by standing at it and holding up. That is the whole interaction, and holding
+	# the test to it is the only way the next person to change that key finds out here.
 	# Let it fall, land and settle: a utility freezes only once it has been grounded and
 	# still for three quarters of a second, and an unfrozen ladder cannot be climbed.
 	for _frame in range(110):
@@ -655,11 +661,22 @@ func _the_overlook_needs_a_climb() -> void:
 		Input.action_release(&"move_right")
 		for _frame in range(10):
 			await physics_frame
-	for event in [_key(&"interact", true), _key(&"interact", false)]:
-		Input.parse_input_event(event)
+	# AND THE INTERFACE HAS TO SAY SO. A verb with no key cap is a verb the player does not
+	# have: standing here, the HUD offered E -- PICK UP -- and nothing else, so the one move
+	# that reaches Ang Bale was advertised only by the prompt that undoes it.
+	var prompts := level.get("action_prompts") as ActionPromptHUD
+	for _frame in range(4):
 		await physics_frame
-	for _frame in range(6):
-		await physics_frame
+	var offered := prompts != null and prompts.climb_is_available()
+	_check(offered, "the interface offers the climb where the climb works",
+		"CLIMB is up" if offered else "only E, which puts the ladder back in the bag")
+	# ⚠ AND IT IS ON THE GLASS, not merely decided on. The cap lives inside a row that hides
+	# itself, so "available" and "visible" are two different questions with one obvious way
+	# to come apart. Asking only the first cannot tell a working prompt from an invisible one.
+	var cap := prompts.climb_prompt_rect() if prompts != null else Rect2()
+	_check(cap.get_area() > 0.0, "and the player can see it",
+		"cap at %s" % cap.position.round() if cap.get_area() > 0.0
+		else "the cap is wanted, laid out, and not on screen")
 	# Up, and leaning toward the cliff: a ladder allows slow sideways movement, and the
 	# point of this one is the terrace beside it.
 	# ⚠ RE-READ EACH FRAME. The level frees the old body whenever it swaps the player -- a

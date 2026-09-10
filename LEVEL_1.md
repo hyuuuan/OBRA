@@ -321,6 +321,22 @@ the *approach* rather than on the beat, and then stood in the way of the key pre
 routes are untouched: the thatch is still a climb, the hasp is still a cut, and the door is
 still shut until one of the three answers it.
 
+**And the climb has a key cap.** You go up a placed ladder by standing at it and holding up
+— there is no key for it, deliberately, because E means PICK THIS UP and the two collided
+once already. But nothing on screen said so, so what a player saw at the ladder they had just
+drawn was one prompt, E, and pressing it put the ladder back in their bag: not a near miss,
+the exact inverse. Ang Bale is reached by drawing something to climb, so **Payyo's last beat
+was gated behind a verb the game never named**, in the level whose whole job is to teach the
+game. `ActionPromptHUD` has a fifth prompt now, in dusk violet — the one hue the interface had
+not spoken for — and it is an INDICATOR rather than a button, because you cannot click "hold
+up". `tutorial.json`'s `climb` lesson says it once, anchored on the cap.
+
+⚠ **One reach, two callers.** The distance is `UtilityObject._climb_reach()`, the object's own
+half-diagonal, so a taller ladder reaches further up the cliff. The prompt and the climb run
+the same query — the rule `_nearest_interactable_utility` was already written under — because
+worked out separately the most damaging UI bug here is one line away: a CLIMB cap over a
+ladder that will not take the player, or a ladder that climbs with nothing having said so.
+
 ⚠ **The landing stops at the eaves and it has to.** The thatch is a solid triangle whose
 underside at the left eave is y −64, and the apo standing at −19 is 96 tall — so a landing
 reaching further east puts their head in the roof. Walking east off it stops at x 4475, which
@@ -391,9 +407,20 @@ nobody drew into the per-class precision and recall the evaluation rests on.
 **Not built: the ward drawn on the canvas.** `try_key` returns `revealed` (a third more of
 the shape per attempt) and there is no canvas guide to receive it. Instead the hint bar names
 the one measurement that failed and the number it read — "It counted 4 teeth on that one" —
-never the number it wants, which would be the spelling test this level avoids. The authored
-fail line `L1_N3.ward.fail2` says "you can see it now", which is a promise the build does not
-keep until the guide exists.
+never the number it wants, which would be the spelling test this level avoids.
+
+⚠ **A refused turn speaks twice in the same moment and the two used to disagree.** The lock
+reports its measurement on the hint channel while Lolo says his line in the box, and neither
+knew about the other. `fail1` asserted "the teeth are too thick" over a refusal whose reason
+is very often the tooth COUNT — two diagnoses side by side, one of them wrong — and `fail2`
+said "look at the shape inside, you can see it now", pointing at the guide that does not
+exist. `_audit_ward_lock` blessed the second one, reporting "33% of the shape is now drawn on
+the canvas": a green check standing over a feature that is not in the build, which is the
+exact failure `_audit_the_ward_is_wired` was written to catch, inside the file that catches
+it. **The lock owns the measurement and Lolo owns the encouragement**, and
+`_audit_the_ward_speaks_with_one_voice` holds it — his lines may name no measurement and may
+point at nothing. It matches WHOLE WORDS: written against substrings it failed the very lines
+it was written to bless, because "thin" is inside "someTHINg".
 
 
 **Classification is not the puzzle.** The recogniser only gets the player through the door —
@@ -744,6 +771,19 @@ project passed green suites and were caught only by screenshotting.
 8. **A stale path in a *test* can look like engine failure.** One wrong node path threw
    inside a test that then aborted with an overlay open, leaving the tree paused — twenty
    creatures reported "render frozen". Read the *first* error, not the loudest.
+11. **A test can be red because it presses a verb the game retired.** `run_walk_level1` sat
+   red at HEAD reporting "the last stretch is a wall": climbing took E when that block was
+   written, E has meant PICK THIS UP since, so the walker pocketed the ladder it had just
+   stood against the Overlook and held up at an empty terrace. Nothing in the level was
+   wrong. When a suite says a beat is impossible, drive the beat by hand before believing it.
+12. **A verb with no key cap is a verb the player does not have.** The climb worked
+   perfectly and was advertised by nothing, so the interface's only statement about a placed
+   ladder was the prompt that puts it away. Two channels describing one object must be
+   checked together — see also the ward, where the lock and Lolo disagreed out loud.
+13. **A companion's pose precedence is a thing to measure, not to reason about.** `face`
+   outranking the chase is obviously right at the player's shoulder and obviously wrong half
+   a screen behind, and nothing but a tally says which one the level actually spends its time
+   in. It was 556px behind with `hurry` playing 36 frames out of 600.
 
 ---
 

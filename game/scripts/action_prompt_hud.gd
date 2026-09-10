@@ -1,12 +1,19 @@
 class_name ActionPromptHUD
 extends Control
-## Four verbs, four separate pieces of interface.
+## Five verbs, five separate pieces of interface.
 ##
 ## R is a standing invitation at the bottom left. Q joins it only while the player is a
-## drawing. E and F exist only while their actions exist, and follow the current player in
-## screen space with the same delayed ease Lolo uses in world space. Screen space is
-## intentional: Ang Bale and the straw room change the camera zoom, but a readable key cap
+## drawing. E, F and the climb exist only while their actions exist, and follow the current
+## player in screen space with the same delayed ease Lolo uses in world space. Screen space
+## is intentional: Ang Bale and the straw room change the camera zoom, but a readable key cap
 ## must not double or triple in size when the player walks indoors.
+##
+## ⚠ THE CLIMB IS AN INDICATOR, NOT A BUTTON. The other four each emit a signal a mouse can
+## fire; you cannot click "hold up". It is built the same way so it sits in the same row and
+## reads as the same kind of thing, and then it is made unclickable, because a prompt that
+## depresses under the cursor and does nothing is worse than no prompt at all.
+
+const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 
 signal interact_requested
 signal use_requested
@@ -24,6 +31,7 @@ var _draw: Button
 var _revert: Button
 var _pickup: Button
 var _use: Button
+var _climb: Button
 var _floating_row: HBoxContainer
 var _target: Node2D
 var _follow_position := Vector2.ZERO
@@ -60,6 +68,16 @@ func _ready() -> void:
 	_register(_use, false, 0.032, UISkin.USE_LIT)
 	_use.pressed.connect(func() -> void: use_requested.emit())
 
+	# Named off the live InputMap rather than hardcoded, for the same reason tutorial.json
+	# refuses to spell its keys: a rebinding must not leave the HUD naming a key that no
+	# longer does anything.
+	_climb = _make_prompt(&"ClimbPrompt", ControlsKeys.key_cap_for("move_up"),
+		"CLIMB", UISkin.CLIMB, 148.0)
+	_climb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_climb.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	_floating_row.add_child(_climb)
+	_register(_climb, false, 0.030, UISkin.CLIMB_LIT)
+
 
 ## The authored DrawButton stays at CanvasLayer/DrawButton because mouse and regression
 ## tests address that stable path. This controller restyles and animates it in place.
@@ -89,6 +107,11 @@ func set_use_available(available: bool, object_name: String = "") -> void:
 	_use.tooltip_text = "Use %s" % object_name if not object_name.is_empty() else "Use held object"
 
 
+func set_climb_available(available: bool, object_name: String = "") -> void:
+	_set_wanted(_climb, available)
+	_climb.tooltip_text = "Climb %s" % object_name if not object_name.is_empty() else "Climb"
+
+
 func set_revert_available(available: bool) -> void:
 	_set_wanted(_revert, available)
 
@@ -99,6 +122,22 @@ func pickup_is_available() -> bool:
 
 func use_is_available() -> bool:
 	return _wanted(_use)
+
+
+func climb_is_available() -> bool:
+	return _wanted(_climb)
+
+
+## Where the climb cap actually is on screen; empty if the player cannot see it.
+##
+## `climb_is_available` reports what the LEVEL decided. This reports what is on the glass,
+## and the two come apart the moment anything between them forgets the prompt exists -- a
+## row that hides itself, a layout that puts it off the edge. A test that only ever asks the
+## first question cannot tell a working prompt from an invisible one.
+func climb_prompt_rect() -> Rect2:
+	if _climb == null or not _climb.is_visible_in_tree():
+		return Rect2()
+	return _climb.get_global_rect()
 
 
 func revert_is_available() -> bool:
@@ -230,7 +269,14 @@ func _follow_player(delta: float) -> void:
 		_floating_row.visible = false
 		_follow_ready = false
 		return
-	_floating_row.visible = _pickup.visible or _use.visible
+	# ⚠ EVERY PROMPT IN THE ROW, not the two that were in it when this line was written.
+	# The row is the climb cap's parent, so a row hidden because E and F are both away takes
+	# the climb with it -- the prompt would be wanted, lit, laid out, and inside an invisible
+	# container. LATENT rather than live: E reaches 96px from an object's surface and the
+	# climb reaches its half-diagonal from the centre, and for anything drawn at this game's
+	# sizes the second is inside the first. It stops being true the moment either number
+	# moves, and the failure would be silent.
+	_floating_row.visible = _pickup.visible or _use.visible or _climb.visible
 	var row_size := _floating_row.get_combined_minimum_size()
 	_floating_row.size = row_size
 	var desired := get_viewport().get_canvas_transform() * (anchor as Vector2)
@@ -244,7 +290,7 @@ func _follow_player(delta: float) -> void:
 	else:
 		var weight := 1.0 - exp(-FOLLOW_SPEED * delta)
 		_follow_position = _follow_position.lerp(desired, weight)
-	var context_amount := maxf(_amount(_pickup), _amount(_use))
+	var context_amount := maxf(maxf(_amount(_pickup), _amount(_use)), _amount(_climb))
 	var bob := sin(_time * TAU * 0.72) * 2.0 * context_amount
 	# Whole-pixel placement keeps Geist Pixel sharp even though the underlying ease is
 	# continuous. It reads as smooth motion but never lands the type between pixels.

@@ -124,6 +124,19 @@ static func keys_for(action: String) -> String:
 	return "  /  ".join(names) if names.size() > 0 else "unbound"
 
 
+## ONE key for an action, sized to fit on a key cap.
+##
+## `keys_for` names every binding, which is right for a controls screen and wrong for a
+## badge eight pixels wide: move_up alone comes back as "W  /  Up". The first binding is the
+## one this project lists first on purpose -- the letter, not the arrow -- and it still goes
+## through the layout translation, so a non-QWERTY player is not told to press the wrong one.
+static func key_cap_for(action: String) -> String:
+	var named := keys_for(action)
+	if named == "unbound":
+		return "?"
+	return named.split("/")[0].strip_edges()
+
+
 ## A physical keycode translated through the active keyboard layout, falling back to
 ## the physical code itself where that is not available.
 ##

@@ -150,6 +150,15 @@
           "seconds": 6.0
         },
         {
+          "id": "climb",
+          "at": "climb_ready",
+          "action": "move_up",
+          "text": "Stand at it and hold {keys}, apo. That is how you go up.",
+          "seconds": 7.0,
+          "anchor": "climb_prompt",
+          "side": "auto"
+        },
+        {
           "id": "hold",
           "at": "tool_held",
           "action": "use_utility",

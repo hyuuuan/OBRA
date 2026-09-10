@@ -291,6 +291,18 @@ func _perform_use(actor: Node2D) -> String:
 	return ""
 
 
+## Is this a thing the player could climb right now?
+##
+## PUBLIC BECAUSE THE HUD HAS TO ASK. `_offer_the_climb` below is the only code that knew
+## a settled ladder was climbable, and it is polled from the ladder's own _physics_process
+## -- so the knowledge lived entirely inside the object and never reached the interface.
+## What the player saw at a ladder they had just drawn was one prompt, E, whose meaning is
+## "put this back in your bag": the single most useful object in Payyo advertised only the
+## verb that undoes it.
+func can_be_climbed() -> bool:
+	return not is_preview and utility_behavior in CLIMBABLE_PROPS and _standing_still()
+
+
 ## Resting where it was put, whether or not the settle timer has got round to freezing it.
 ## `freeze` alone was too strict: it needs three quarters of a second of stillness, and a
 ## player who walks up to a ladder the instant it lands is inside that window.
@@ -421,7 +433,7 @@ func _offer_the_climb() -> void:
 	var climbing := Input.get_axis(&"move_up", &"move_down")
 	if absf(climbing) < 0.5:
 		return
-	for target in _reachable_targets(_target_size().length() * 0.5):
+	for target in _reachable_targets(_climb_reach()):
 		var actor := _player_of(target)
 		if actor == null or not actor.has_method("begin_ladder"):
 			continue
@@ -430,6 +442,28 @@ func _offer_the_climb() -> void:
 		actor.call("begin_ladder", self)
 		utility_used.emit(utility_behavior, item_data)
 		return
+
+
+## How near you have to be standing, in the object's own terms: its half-diagonal, so a
+## taller ladder reaches further up the cliff it is leaning on.
+##
+## ⚠ ONE SUM, TWO CALLERS -- the same rule `_nearest_interactable_utility` is written under
+## in level_base. If the prompt worked this out for itself, the most damaging UI bug
+## available here would be one line away: a CLIMB cap standing over a ladder that will not
+## take the player, or a ladder that climbs with nothing on screen having said so.
+func _climb_reach() -> float:
+	return _target_size().length() * 0.5
+
+
+## Is `actor` standing where the climb would take them, right now? The question the HUD
+## asks, answered by the object that owns the answer.
+func climb_reaches(actor: Node2D) -> bool:
+	if actor == null or not can_be_climbed():
+		return false
+	for target in _reachable_targets(_climb_reach()):
+		if _player_of(target) == actor:
+			return true
+	return false
 
 
 ## Teleport: two placed doors are a pair, and stepping into one puts the player at the

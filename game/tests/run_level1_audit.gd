@@ -78,6 +78,7 @@ func _run() -> void:
 	await _audit_live_level()
 	await _audit_node_two()
 	_audit_ward_lock()
+	_audit_the_ward_speaks_with_one_voice(dialogue)
 	await _audit_node_three()
 	await _audit_arrival_speaks_once()
 	await _audit_announce_volumes()
@@ -1680,6 +1681,66 @@ func _audit_the_ward_is_wired() -> void:
 	await process_frame
 
 
+## WHAT LOLO SAYS AND WHAT THE LOCK REPORTS ARRIVE TOGETHER, SO THEY CANNOT BE TWO ANSWERS.
+##
+## A refused turn speaks twice in the same moment. The lock names the one measurement that
+## failed and the number it read -- "It counted 4 teeth on that one" -- on the hint channel;
+## Lolo says his line in the box. Both were on screen at once and neither knew about the
+## other, so the authored lines were free to contradict the build and did, twice over:
+##
+##   `fail1` asserted "the teeth are too thick" over a refusal whose reason is very often the
+##   tooth COUNT, so the player read a diagnosis and a different diagnosis side by side.
+##   `fail2` said "look at the shape inside -- you can see it now", pointing at a drawing of
+##   the ward on the canvas that has never been built and is not going to appear.
+##
+## The division that holds: the lock owns the MEASUREMENT and Lolo owns the encouragement.
+## So his lines may not name a measurement, and may not tell the player to look at anything.
+func _audit_the_ward_speaks_with_one_voice(dialogue: Dictionary) -> void:
+	# The vocabulary `game_level._ward_note` speaks in. A Lolo line reaching for any of it is
+	# a second opinion offered with no idea what the first one said.
+	# ⚠ WHOLE WORDS. The first version of this matched substrings and failed the replacement
+	# lines it was written to bless: "thin" is inside "someTHINg", and "thing" is inside it
+	# too. A vocabulary check that fires on the letters inside an unrelated word is a check
+	# nobody can write a sentence past.
+	var measurements := ["teeth", "tooth", "depth", "deep", "deeper", "blade", "stubby",
+		"count", "counted", "thick", "thicker", "thin", "thinner", "longer", "shorter"]
+	# And the promise. Nothing in this beat draws anything for the player to look at.
+	var promises := ["look at", "you can see", "see it", "on the canvas", "shape inside"]
+	for value: Variant in dialogue.get("lines", []):
+		var line: Dictionary = value
+		if not String(line.get("at", "")).begins_with("L1_N3.ward.fail"):
+			continue
+		var text := String(line.get("text", "")).to_lower()
+		var words := _words_in(text)
+		var named: Array[String] = []
+		for word in measurements:
+			if words.has(word):
+				named.append(word)
+		_check(named.is_empty(),
+			"'%s' leaves the measuring to the lock" % String(line["at"]),
+			"says nothing the hint bar is about to say" if named.is_empty()
+			else "names %s, and the lock is naming its own reading in the same frame"
+				% ", ".join(named))
+		var promised: Array[String] = []
+		for phrase in promises:
+			if text.contains(phrase):
+				promised.append(phrase)
+		_check(promised.is_empty(),
+			"'%s' points at nothing that is not there" % String(line["at"]),
+			"no reveal promised" if promised.is_empty()
+			else "promises %s -- the ward guide is not built" % ", ".join(promised))
+
+
+## A line broken into the words a reader would say, so a vocabulary check tests words and
+## not letters. Everything that is not a letter separates.
+func _words_in(text: String) -> PackedStringArray:
+	var cleaned := ""
+	for index in text.length():
+		var glyph := text[index]
+		cleaned += glyph if glyph >= "a" and glyph <= "z" else " "
+	return cleaned.split(" ", false)
+
+
 func _audit_ward_lock() -> void:
 	# Three teeth, standing well off a long thin blade: what the slot wants.
 	var right := _key_strokes(3, 26.0, 200.0)
@@ -1702,8 +1763,16 @@ func _audit_ward_lock() -> void:
 	var wrong: Dictionary = lock.try_key(_key_strokes(6, 26.0, 200.0))
 	_check(not bool(wrong["opens"]) and String(wrong["reason"]) == "bits",
 		"the wrong key turns and stops", "refused on '%s'" % wrong["reason"])
-	_check(float(wrong["revealed"]) > 0.0, "a failed turn shows more of the ward",
-		"%.0f%% of the shape is now drawn on the canvas" % (float(wrong["revealed"]) * 100.0))
+	# ⚠ WHAT THIS SAYS, AND WHAT IT USED TO CLAIM. `revealed` is a fraction the lock computes
+	# and NOTHING READS -- the canvas guide it was meant to feed has never been built, and
+	# LEVEL_1.md records that under "Not built". This assertion reported "33% of the shape is
+	# now drawn on the canvas", which was a green check standing over a feature that is not
+	# in the build: the exact failure `_audit_the_ward_is_wired` exists to catch, reproduced
+	# inside the file that catches it. What the number is, is how far through its three turns
+	# the player has got. That is all it has ever been.
+	_check(float(wrong["revealed"]) > 0.0, "a failed turn moves the lock along",
+		"%.0f%% of the way through its three turns -- a number nothing draws yet"
+			% (float(wrong["revealed"]) * 100.0))
 	lock.free()
 
 	# The right key opens it first time.

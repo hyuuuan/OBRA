@@ -74,6 +74,11 @@ const PICKUP := Color(0.337, 0.663, 0.714, 1.0)       # 56A9B6
 const PICKUP_LIT := Color(0.529, 0.804, 0.831, 1.0)   # 87CDD4
 const USE := Color(0.545, 0.690, 0.318, 1.0)          # 8BAF51
 const USE_LIT := Color(0.718, 0.820, 0.471, 1.0)      # B7D178
+## And dusk violet means GO UP THE THING YOU PUT DOWN. It is the one hue the interface had
+## not spoken for: gold is R, red is Q, terrace blue is E and rice green is F, so a fifth
+## prompt in any of them would read as one of the four at a glance over moving level art.
+const CLIMB := Color(0.608, 0.482, 0.753, 1.0)        # 9B7BC0
+const CLIMB_LIT := Color(0.737, 0.639, 0.855, 1.0)    # BCA3DA
 
 # --- The frame -------------------------------------------------------------------------
 ## Dark wood and a gold liner, and the only warm colours in the interface.
