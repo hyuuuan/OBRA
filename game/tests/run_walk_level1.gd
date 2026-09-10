@@ -670,6 +670,13 @@ func _the_overlook_needs_a_climb() -> void:
 	var offered := prompts != null and prompts.climb_is_available()
 	_check(offered, "the interface offers the climb where the climb works",
 		"CLIMB is up" if offered else "only E, which puts the ladder back in the bag")
+	# ⚠ AND IT IS ON THE GLASS, not merely decided on. The cap lives inside a row that hides
+	# itself, so "available" and "visible" are two different questions with one obvious way
+	# to come apart. Asking only the first cannot tell a working prompt from an invisible one.
+	var cap := prompts.climb_prompt_rect() if prompts != null else Rect2()
+	_check(cap.get_area() > 0.0, "and the player can see it",
+		"cap at %s" % cap.position.round() if cap.get_area() > 0.0
+		else "the cap is wanted, laid out, and not on screen")
 	# Up, and leaning toward the cliff: a ladder allows slow sideways movement, and the
 	# point of this one is the terrace beside it.
 	# ⚠ RE-READ EACH FRAME. The level frees the old body whenever it swaps the player -- a
