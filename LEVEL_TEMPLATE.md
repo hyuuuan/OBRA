@@ -130,6 +130,12 @@ load_time_assertions   [ strings ]  — the level's own invariants, in prose
 tuning                 INERT. Carried verbatim from the design doc; ink lives on
                        InkManager's own six units, one per thing (thesis FR-7).
                        Do not wire it up.
+
+⚠ A BEAT THAT NEEDS A MORPH MUST DECLARE A CHECKPOINT. Thesis FR-8 only allows
+transformation at a checkpoint, and `LevelBase.at_a_checkpoint()` reads that as
+"inside a checkpoint area, or inside a beat with a `checkpoint_on_commit`, or at
+the restore point". A beat whose only solution is to become something, with no
+checkpoint declared on it, is a beat no player can pass.
 ```
 
 **An obstacle:**
