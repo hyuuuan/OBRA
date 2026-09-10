@@ -281,7 +281,7 @@ func _ready() -> void:
 	if LevelManager.current_level_id.is_empty():
 		LevelManager.current_level_id = _own_level_id()
 	Telemetry.begin_level(LevelManager.current_level_id)
-	ink_manager.begin_level(12.0)
+	ink_manager.begin_level(InkManager.BUDGET)
 	inventory_manager.begin_level()
 	placement_controller.registry = registry
 	placement_controller.world_item_root = world_item_root
@@ -1455,19 +1455,34 @@ func _on_drawing_ready(
 	if role == "utility" or role == "physics_morph":
 		var item := DrawnItemData.from_prediction(entity_id, display_name, drawing, strokes, ink_cost, entry)
 		var first_time := not PlayerProfile.has_object(entity_id)
-		if not first_time:
-			# Re-summoning an object the player already owns is free: refund the
-			# reservation and mark the item settled so no later path charges it.
-			ink_manager.release_attempt()
-			item.ink_committed = true
+		# ⚠ A TOOL AND A PLACEABLE ARE PRICED AT DIFFERENT MOMENTS, and the difference is
+		# thesis FR-7 rather than a tuning choice. A tool costs one unit "on its first
+		# successful recognition", is then held in the toolbelt, and is "thereafter
+		# selectable and reusable at no ink cost and with no redraw". A placeable costs one
+		# unit "on each placement and is not retained".
+		#
+		# The build used to charge BOTH here, once each, and hand out every later copy free
+		# -- which is right for the axe and wrong for the ladder, and made the second half
+		# of a level cost nothing at all once the player had drawn one of everything.
+		if is_a_tool(entry):
+			if first_time:
+				PlayerProfile.record_object_acquired(entity_id)
+				# Charged on the way into the toolbelt, by _begin_new_utility.
+			else:
+				ink_manager.release_attempt()
+				item.ink_committed = true
 		else:
+			# Nothing is owed yet. The page is free; setting the thing down is what costs,
+			# and it costs again every time -- see _on_placement_confirmed.
+			ink_manager.release_attempt()
 			PlayerProfile.record_object_acquired(entity_id)
+			item.ink_committed = true
 		_begin_new_utility(item, first_time)
 		return
-	if _spawn_or_replace(entity_id, display_name, drawing, strokes):
-		ink_manager.commit_attempt()
-	else:
-		ink_manager.release_attempt()
+	# CREATURE TRANSFORMATION IS FREE. FR-7 says so in its second sentence, and FR-8 gates
+	# it on standing at a checkpoint, which is the thing that pays for it.
+	ink_manager.release_attempt()
+	var _became := _spawn_or_replace(entity_id, display_name, drawing, strokes)
 
 
 func _spawn_or_replace(
@@ -1539,9 +1554,18 @@ func _begin_new_utility(item: DrawnItemData, first_time: bool = true) -> void:
 		ink_manager.release_attempt()
 		status_label.text = "Inventory full — no room for %s" % item.display_name
 		return
+	# THE TOOLBELT IS WHERE A TOOL IS PAID FOR, once and for the rest of the run of the
+	# game. FR-7: "on its first successful recognition ... thereafter selectable and
+	# reusable at no ink cost and with no redraw". `item.ink_committed` already says which
+	# case this is -- the free ones were settled by _on_drawing_ready.
 	if not item.ink_committed:
 		item.ink_committed = true
-		ink_manager.commit_attempt()
+		if not ink_manager.spend_unit():
+			# Recognised, and unaffordable. The class is still theirs for later, so this is
+			# a delay rather than a loss, and saying which it is matters.
+			inventory_manager.take_item(slot)
+			status_label.text = "%s needs a unit of ink, and there is none left" % item.display_name
+			return
 	inventory_hud.set_selected(slot)
 	status_label.text = "%s drawn — press %d to place it" % [item.display_name, slot + 1]
 	if not first_time:
@@ -1573,6 +1597,12 @@ func _on_inventory_slot_pressed(slot: int) -> void:
 	if _is_held_tool(item):
 		_equip_from_slot(slot, item)
 		return
+	# ⚠ REFUSED BEFORE IT IS AIMED, not after it is set down. A placeable costs a unit on
+	# each placement (FR-7), and a player who lines up a ghost, finds the spot and clicks
+	# should not be told at the click that they could never have afforded it.
+	if ink_manager.total_uncommitted_available() < InkManager.UNIT - 0.0001:
+		status_label.text = "%s costs a unit to set down, and there is none left" % item.display_name
+		return
 	item = inventory_manager.take_item(slot)
 	if not placement_controller.begin_placement(item, player, slot):
 		inventory_manager.add_item(item, slot)
@@ -1583,7 +1613,11 @@ func _on_inventory_slot_pressed(slot: int) -> void:
 
 
 func _is_held_tool(item: DrawnItemData) -> bool:
-	var entry := registry.get_entity(item.entity_id)
+	return is_a_tool(registry.get_entity(item.entity_id))
+
+
+## The manifest's answer, in one place. See UtilityObject.is_held_tool and thesis FR-7.
+static func is_a_tool(entry: Dictionary) -> bool:
 	return String(entry.get("ink_role", "placeable")) == "tool"
 
 
@@ -1653,9 +1687,18 @@ func _on_placement_confirmed(
 	placed: PhysicsShapeObject,
 	_source_slot: int
 ) -> void:
-	if not item.ink_committed:
-		ink_manager.commit_attempt()
-		item.ink_committed = true
+	# ⚠ EVERY PLACEMENT, NOT THE FIRST. `item.ink_committed` used to latch here, so a
+	# placeable was paid for once and set down for the rest of the level free. FR-7 prices
+	# it "on each placement", which is what makes six units a budget rather than a tutorial.
+	if not is_a_tool(registry.get_entity(item.entity_id)):
+		# The slot press above already refused an unaffordable placement, so a failure here
+		# is a race rather than the ordinary path -- but it must not hand out a free one.
+		if not ink_manager.spend_unit():
+			placed.queue_free()
+			inventory_manager.add_item(item)
+			status_label.text = "%s costs a unit to set down, and there is none left" % item.display_name
+			return
+	item.ink_committed = true
 	_connect_utility(placed)
 	# A placed object clamps itself to the world it was built with, and only the PLAYER was
 	# ever told how big that is -- so every drawing carried the script's own 3760px default.
@@ -1675,9 +1718,9 @@ func _on_placement_confirmed(
 func _on_placement_canceled(item: DrawnItemData, source_slot: int) -> void:
 	var slot := inventory_manager.add_item(item, source_slot)
 	if slot >= 0:
-		if not item.ink_committed:
-			ink_manager.commit_attempt()
-			item.ink_committed = true
+		# PUTTING IT BACK IN THE BAG COSTS NOTHING. A placeable is priced "on each
+		# placement", and this is the path where the player decided not to place it -- so
+		# charging here billed them for changing their mind.
 		status_label.text = "%s stored in slot %d" % [item.display_name, slot + 1]
 		if tutorial != null:
 			tutorial.note("item_stored")
