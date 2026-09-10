@@ -260,6 +260,8 @@ var director: LevelDirector
 var checkpoints: CheckpointManager
 var script_lines: DialogueScript
 var requirement_strip: RequirementStrip
+## Top left, beside the ink: how many of this level's checkpoints are behind the player.
+var checkpoint_label: Label
 ## The refusal beat fires on the FIRST decline anywhere in the level, then never again.
 var _refusal_spoken := false
 ## And whether the accept that answered it has been acknowledged. See the note at the solve.
@@ -593,6 +595,7 @@ func _say_checkpoint() -> void:
 
 
 func _on_obstacle_entered(obstacle_id: String) -> void:
+	_name_the_beat(obstacle_id)
 	if tutorial != null:
 		tutorial.note("first_obstacle")
 	# A node teaches all three of its routes' verbs BEFORE the choice, because a player
@@ -737,8 +740,37 @@ func _speak_current_stage(obstacle_id: String) -> void:
 
 
 func _on_obstacle_exited(_obstacle_id: String) -> void:
+	_name_the_beat("")
 	if requirement_strip != null:
 		requirement_strip.clear()
+
+
+## THE BANNER SAYS WHICH BEAT YOU ARE STANDING IN.
+##
+## Thesis §4.5.3.5: "The quest banner runs along the top, stating the current objective."
+## The badge stated the LEVEL, once, and never changed again -- so the only thing that ever
+## named a beat was a line of dialogue as the player walked into it, and a player who
+## dismissed it had nothing on screen telling them where they were. The strip beneath says
+## what the beat NEEDS; this says which beat is asking.
+##
+## Appended rather than substituted: the level's own name is what the badge is for, and a
+## banner that replaces it leaves the player unable to see, at a glance, where they are.
+func _name_the_beat(obstacle_id: String) -> void:
+	if level_badge == null or not is_instance_valid(level_badge):
+		return
+	var beat := String(director.obstacle(obstacle_id).get("display_name", "")) \
+		if not obstacle_id.is_empty() else ""
+	level_badge.text = _level_identity() if beat.is_empty() \
+		else "%s  \u00b7  %s" % [_level_identity(), beat.to_upper()]
+
+
+## "LEVEL 1 · PAYYO", read off the catalogue rather than rebuilt in two places.
+func _level_identity() -> String:
+	var entry := LevelManager.get_level(LevelManager.current_level_id)
+	if entry.is_empty():
+		return ""
+	return "LEVEL %d  \u00b7  %s" % [
+		int(entry.get("number", 0)), String(entry.get("title", "")).to_upper()]
 
 
 func _on_requirements_changed(_obstacle_id: String, _required: Array) -> void:
@@ -2075,11 +2107,21 @@ func _build_hud_frame() -> void:
 	# The two readouts at the far corners get the same frame, so the HUD is one language
 	# rather than two framed things and two lines of text floating on the level art.
 	_wrap_in_chip(level_badge, "top_centre", Vector2(0.0, 18.0), 0.0)
-	# A fixed width, because this one's text changes every frame: the chip is placed
-	# once, and a container that grows with "GOAL REACHED" grows rightward off the
-	# edge of the screen from wherever it was parked.
-	_wrap_in_chip(goal_label, "bottom_right", Vector2(-24.0, -80.0), 150.0,
+	# ⚠ BOTTOM CENTRE, BECAUSE THE BOTTOM RIGHT IS THE VERBS NOW. R and Q moved to that
+	# corner (thesis §4.5.3.5: "the Draw button sits at the lower-right"), and a tutorial
+	# callout anchored above the Draw button lands exactly where this chip was sitting --
+	# so the first thing the game ever says about drawing was printed over the readout that
+	# says how far there is left to go.
+	#
+	# The centre also zones the display honestly: state along the top, the bag bottom left,
+	# the verbs bottom right, and the one number that is about the JOURNEY under the middle
+	# of the frame, where the eye already is.
+	#
+	# A fixed width, because this one's text changes every frame and a chip that resizes
+	# under a centre anchor shuffles sideways on every step the player takes.
+	_wrap_in_chip(goal_label, "bottom_centre", Vector2(0.0, -26.0), 150.0,
 		UIGlyph.Kind.FLAG)
+	_build_checkpoint_chip()
 	_build_morph_card()
 	_build_action_prompts()
 	_build_dialogue_box()
@@ -2118,6 +2160,62 @@ func _build_morph_card() -> void:
 	morph_card.offset_right = -24.0
 	morph_card.offset_top = 20.0
 	$CanvasLayer.add_child(morph_card)
+
+
+## THE CHECKPOINT INDICATOR, BESIDE THE INK COUNTER.
+##
+## Thesis §4.5.3.5 puts one there -- "the status line and ink counter sit at the top-left,
+## the checkpoint indicator beside them" -- and the build had none at all. The only thing
+## that ever said a checkpoint existed was a line of dialogue as the player walked through
+## one, and nothing anywhere said how many the level had or which was the last one taken.
+## In a game whose whole loop is spend ink, try something, possibly fall in the water, that
+## is the single most reassuring number on the screen and it was missing.
+##
+## It reads n / total, so it is a progress bar and a promise at once: this is where you come
+## back to, and this is how much of the level is behind you.
+func _build_checkpoint_chip() -> void:
+	checkpoint_label = Label.new()
+	checkpoint_label.name = "CheckpointLabel"
+	checkpoint_label.theme_type_variation = &"HudValue"
+	checkpoint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	$CanvasLayer.add_child(checkpoint_label)
+	# To the right of the ink plate, on its top line. The plate is 24 + 366 + 28 wide.
+	# No minimum width: this chip is two glyphs and a slash, and a floor sized for the
+	# widest state left an empty box beside the ink plate for the whole of the first beat.
+	# Growing rightward from the top-left corner is safe -- that is the warning on the goal
+	# chip, which grows from the right edge and would run off it.
+	_wrap_in_chip(checkpoint_label, "top_left", Vector2(24.0 + 394.0 + 14.0, 20.0),
+		0.0, UIGlyph.Kind.FLAG)
+	if checkpoints != null:
+		checkpoints.checkpoint_written.connect(_on_checkpoint_count_changed)
+		checkpoints.checkpoint_restored.connect(_on_checkpoint_count_changed)
+	_refresh_checkpoint_chip()
+	# ⚠ AND AGAIN ONCE THE LEVEL HAS ITS DATA. The HUD is built before the director has
+	# parsed level_01.json, so the first read finds no declared checkpoints and the chip
+	# settles on the "this level has none" dash -- which is indistinguishable, on screen,
+	# from a level that really has none.
+	_refresh_checkpoint_chip.call_deferred()
+
+
+func _on_checkpoint_count_changed(_checkpoint_id: String) -> void:
+	_refresh_checkpoint_chip()
+
+
+## How many of this level's checkpoints are behind the player.
+##
+## The dash rather than a nought for "none yet": a level opens with the player standing at
+## the start and no progress banked, and "0 / 5" reads as a score they are losing.
+func _refresh_checkpoint_chip() -> void:
+	if checkpoint_label == null or not is_instance_valid(checkpoint_label):
+		return
+	var declared := (director.level_data().get("checkpoints", []) as Array).size() \
+		if director != null else 0
+	var reached: int = checkpoints.count() if checkpoints != null else 0
+	if declared <= 0:
+		checkpoint_label.text = "—"
+		return
+	checkpoint_label.text = "—  /  %d" % declared if reached <= 0 \
+		else "%d  /  %d" % [mini(reached, declared), declared]
 
 
 ## The old controls legend advertised six actions from the first frame, including four
@@ -2207,6 +2305,11 @@ func _place_chip(chip: PanelContainer, corner: String, offset: Vector2) -> void:
 			chip.position = Vector2(view.x - chip_size.x + offset.x, view.y - chip_size.y + offset.y)
 		"bottom_left":
 			chip.position = Vector2(offset.x, view.y - chip_size.y + offset.y)
+		"top_left":
+			chip.position = offset
+		"bottom_centre":
+			chip.position = Vector2(
+				(view.x - chip_size.x) * 0.5 + offset.x, view.y - chip_size.y + offset.y)
 		_:
 			chip.position = Vector2((view.x - chip_size.x) * 0.5 + offset.x, offset.y)
 
@@ -2833,9 +2936,8 @@ func _apply_level_identity() -> void:
 	var entry := LevelManager.get_level(LevelManager.current_level_id)
 	if entry.is_empty():
 		return
-	var badge := level_badge
-	if badge != null:
-		badge.text = "LEVEL %d  \u00b7  %s" % [int(entry.get("number", 0)), String(entry.get("title", "")).to_upper()]
+	if level_badge != null:
+		level_badge.text = _level_identity()
 	var place := get_node_or_null(^"PauseMenu/PauseRoot/Panel/VBox/Place") as Label
 	if place != null:
 		place.text = String(entry.get("title", "")).to_upper()
