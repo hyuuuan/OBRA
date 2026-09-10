@@ -165,6 +165,10 @@ const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 
 ## A morph whose anchor comes within this radius of the level's GoalMarker completes it.
 const GOAL_RADIUS := 120.0
+## How near the restore point still counts as standing at it, for FR-8. Two and a bit body
+## heights: near enough to read as "here", far enough that a player who stepped off the flag
+## to get a clear patch of ground is not refused.
+const CHECKPOINT_REACH := 220.0
 ## The key on the nail in the heap. One name, read by the room that grants it and the door
 ## it opens -- see straw_room_2d.gd's collectible_id.
 const APO_SPEAKER := "Apo"
@@ -1511,9 +1515,16 @@ func _on_drawing_ready(
 			item.ink_committed = true
 		_begin_new_utility(item, first_time)
 		return
-	# CREATURE TRANSFORMATION IS FREE. FR-7 says so in its second sentence, and FR-8 gates
-	# it on standing at a checkpoint, which is the thing that pays for it.
+	# CREATURE TRANSFORMATION IS FREE. FR-7 says so in its second sentence, and FR-8 is what
+	# pays for it: you may only do it at a checkpoint.
 	ink_manager.release_attempt()
+	if not at_a_checkpoint():
+		status_label.text = "%s has to be drawn at a checkpoint" % display_name
+		_speak_refusal_of_the_morph(display_name)
+		Telemetry.record_event("morph_refused_off_checkpoint", {
+			"level_id": LevelManager.current_level_id, "entity_id": entity_id,
+		})
+		return
 	var _became := _spawn_or_replace(entity_id, display_name, drawing, strokes)
 
 
@@ -1924,6 +1935,80 @@ func _nearest_interactable_utility() -> PhysicsShapeObject:
 			nearest = utility
 			nearest_distance = distance
 	return nearest
+
+
+## MAY THE PLAYER BECOME SOMETHING, STANDING WHERE THEY ARE?
+##
+## Thesis FR-8: "The system shall allow creature transformation only while the player is at
+## a checkpoint." That is a rule about PLACE, and Payyo has almost no checkpoint places to
+## point at: of its five, only CP0 is an area in the scene and one more is an area on a
+## single route. CP1, CP2 and CP3 are `route_commit` triggers -- events, not spots -- so a
+## literal proximity test would refuse the burrow at the straw heap, which is the one morph
+## Level 1 cannot be finished without, and the requirement would have made the level
+## impossible rather than harder.
+##
+## ⚠ SO "AT A CHECKPOINT" IS READ AS THE PLACE THE LEVEL DECLARES ONE, and the data already
+## says where those are: every checkpoint's `at` field names an obstacle, and every obstacle
+## with routes declares a `checkpoint_on_commit`. Standing inside such a beat is standing at
+## its checkpoint whether or not the flag has been raised yet. That keeps what the
+## requirement is for -- transformation is anchored to the places the level considers safe,
+## and you cannot become something in the middle of open ground to skip a traverse -- and it
+## keeps Payyo finishable.
+##
+## The other reading is available and is NOT what this does: `checkpoints.has_checkpoint()`,
+## "the run has banked one", is true from the top of the first stair onward and would gate
+## nothing at all.
+func at_a_checkpoint() -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	# Standing where a reset would put you -- the last flag, or the spawn before there is one.
+	if player.global_position.distance_to(_restore_point()) <= CHECKPOINT_REACH:
+		return true
+	# Inside a checkpoint volume, raised or not: these are places by construction.
+	for node in get_tree().get_nodes_in_group(&"checkpoint_areas"):
+		var area := node as Area2D
+		if area != null and area.overlaps_body(player):
+			return true
+	# Or inside a beat that declares one.
+	var here := director.current_obstacle() if director != null else ""
+	if here.is_empty():
+		return false
+	var beat := director.obstacle(here)
+	if not String(beat.get("checkpoint_on_commit", "")).is_empty():
+		return true
+	# B0 declares no route and so no commit checkpoint, but the level puts CP0 at its top.
+	for checkpoint_value: Variant in (director.level_data().get("checkpoints", []) as Array):
+		var checkpoint: Dictionary = checkpoint_value
+		if String(checkpoint.get("at", "")).begins_with(here):
+			return true
+	return false
+
+
+## Where a reset would put the player: the last checkpoint banked, or the spawn if none has
+## been. Standing there is standing at a checkpoint under any reading of FR-8.
+##
+## ⚠ AND THE SPAWN COUNTS, which is not a technicality. Before the first flag is raised the
+## spawn IS the restore point -- `CheckpointManager.has_checkpoint()` is false and a reset
+## goes there -- so a level opens standing at its own zeroth checkpoint. Without this the
+## gate refused the player's very first drawing, one line after Lolo tells them that
+## anything they draw, this place believes.
+func _restore_point() -> Vector2:
+	if checkpoints != null and checkpoints.has_checkpoint():
+		var snapshot := checkpoints.peek()
+		if snapshot.has("position"):
+			return Vector2(snapshot["position"])
+	return spawn_point.global_position if spawn_point != null else Vector2.ZERO
+
+
+## Said in Lolo's channel, not only on the status line, because a refusal the player cannot
+## see is indistinguishable from the recogniser having failed.
+func _speak_refusal_of_the_morph(display_name: String) -> void:
+	if hint_bar == null or not is_instance_valid(hint_bar):
+		return
+	hint_bar.show_hint(
+		"Not here, apo. You can only change at a checkpoint." if display_name.is_empty()
+		else "Not here, apo. You can only become something at a checkpoint.",
+		Lolo.SPEAKER, 5.0)
 
 
 ## The nearest thing the player could climb from where they are standing.
