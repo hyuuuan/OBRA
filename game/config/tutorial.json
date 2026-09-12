@@ -134,11 +134,10 @@
         },
         {
           "id": "bag_open",
-          "at": "item_stored",
-          "after": "bag",
+          "at": "drawing_accepted",
           "action": "inventory_open",
-          "text": "{keys} opens the whole bag.",
-          "seconds": 5.0,
+          "text": "{keys} opens your bag, apo. It remembers everything you draw.",
+          "seconds": 7.0,
           "anchor": "inventory_bar",
           "side": "above"
         },
