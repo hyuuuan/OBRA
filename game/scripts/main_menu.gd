@@ -268,7 +268,11 @@ func _capture_backdrop_bases() -> void:
 
 func _play_panel_rect() -> Rect2:
 	var viewport_size := get_viewport_rect().size
-	return Rect2(Vector2(viewport_size.x * 0.5 - 170.0, viewport_size.y - 190.0), Vector2(340.0, 84.0))
+	# ⚠ WIDER THAN THE ROW BENEATH IT. The three secondary buttons are sized by their own
+	# labels -- SETTINGS and CONTROLS are eight characters plus padding -- and come to about
+	# 420 together. At 340 the hero button was NARROWER than the utilities under it, which
+	# reads as the small print being the main event.
+	return Rect2(Vector2(viewport_size.x * 0.5 - 260.0, viewport_size.y - 190.0), Vector2(520.0, 84.0))
 
 
 func _selector_panel_rect() -> Rect2:

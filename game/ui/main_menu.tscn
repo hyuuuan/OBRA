@@ -231,29 +231,29 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -201.0
-offset_top = -96.0
-offset_right = 201.0
-offset_bottom = -52.0
+offset_left = -220.0
+offset_top = -74.0
+offset_right = 220.0
+offset_bottom = -30.0
 grow_horizontal = 2
 grow_vertical = 0
 alignment = 1
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
 [node name="SettingsButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
-custom_minimum_size = Vector2(126, 44)
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "SETTINGS"
 
 [node name="ControlsButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
-custom_minimum_size = Vector2(126, 44)
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "CONTROLS"
 
 [node name="QuitButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
-custom_minimum_size = Vector2(126, 44)
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "QUIT"
