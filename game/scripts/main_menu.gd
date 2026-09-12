@@ -203,6 +203,15 @@ func _refresh_cards() -> void:
 		# only worse, because the reason is a room the player has not been in yet.
 		var armed := LevelManager.has_brush()
 		card.disabled = not (unlocked and playable and armed)
+		# ⚠ THE PADLOCK IS A CLAIM ABOUT WHETHER THE CARD CAN BE PRESSED, and nothing was
+		# keeping it honest. Which cards carry a Lock is authored in the scene -- card one
+		# has a thumbnail, cards two to five have a padlock and one line of text -- so the
+		# lock was a fact about the SHAPE of the card, decided before the level existed.
+		# Piyesta is built and playable now, and its card still wore a padlock while being
+		# perfectly pressable. `disabled` is the same question the lock is drawing.
+		var lock := card.get_node_or_null(^"Lock") as Control
+		if lock != null:
+			lock.visible = card.disabled
 		var completed: bool = profile != null and profile.is_level_completed(level_id)
 		# Tint completed cards green while preserving the alpha the reveal tween drives.
 		var rgb := Color(0.66, 0.94, 0.70) if completed else Color.WHITE
@@ -237,6 +246,15 @@ func _write_card_text(card: Button, number: int, entry: Dictionary, playable: bo
 	var theme_label := card.get_node_or_null(^"Theme") as Label
 	if theme_label != null:
 		theme_label.text = flavour
+	# ⚠ THE PICTURE COMES FROM THE CATALOGUE TOO. Level 1's was an atlas region wired into
+	# the scene, so a card could show the terraces while levels.json said something else --
+	# the same split that once had this card reading "BANAUE RICE TERRACES". Every level
+	# entry already names a `thumbnail`; a card that has somewhere to put one uses it.
+	var art := card.get_node_or_null(^"Thumbnail") as TextureRect
+	if art != null:
+		var path := String(entry.get("thumbnail", ""))
+		art.texture = load(path) as Texture2D if ResourceLoader.exists(path) else null
+		art.visible = art.texture != null
 	var text_label := card.get_node_or_null(^"Text") as Label
 	if text_label != null:
 		text_label.text = "LEVEL %d\n%s" % [number, title if playable else "COMING SOON"]
@@ -268,7 +286,11 @@ func _capture_backdrop_bases() -> void:
 
 func _play_panel_rect() -> Rect2:
 	var viewport_size := get_viewport_rect().size
-	return Rect2(Vector2(viewport_size.x * 0.5 - 170.0, viewport_size.y - 190.0), Vector2(340.0, 84.0))
+	# ⚠ WIDER THAN THE ROW BENEATH IT. The three secondary buttons are sized by their own
+	# labels -- SETTINGS and CONTROLS are eight characters plus padding -- and come to about
+	# 420 together. At 340 the hero button was NARROWER than the utilities under it, which
+	# reads as the small print being the main event.
+	return Rect2(Vector2(viewport_size.x * 0.5 - 260.0, viewport_size.y - 190.0), Vector2(520.0, 84.0))
 
 
 func _selector_panel_rect() -> Rect2:
@@ -306,6 +328,11 @@ func _layout_cards() -> void:
 	var base_y := 154.0
 	for index in range(cards.size()):
 		var card := cards[index]
-		card.position = Vector2(32.0 + float(index) * (card_width + separation), base_y - float(index) * 18.0)
+		# ⚠ FLAT. Each card used to be lifted 18px above the one to its left, which fanned
+		# the row upward and put five different bottom edges under a panel with one. Nothing
+		# in this file said why, and it read as five cards that had failed to line up rather
+		# than as a deliberate fan -- the heights all clamp to CARD_HEIGHT, so the stagger
+		# was pure offset with no compensating shape.
+		card.position = Vector2(32.0 + float(index) * (card_width + separation), base_y)
 		card.size = Vector2(card_width,
 			minf(CARD_HEIGHT, morph_panel.size.y - card.position.y - 34.0))

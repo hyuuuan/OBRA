@@ -149,11 +149,26 @@ const GOLD_EDGE := Color(0.478, 0.333, 0.098, 1.0)   # 7A5519
 const GOLD_LABEL := Color(0.106, 0.075, 0.020, 1.0)  # 1B1305
 
 ## Cream: everything else. BACK, SETTINGS, CONTROLS, the level cards.
-const CREAM_FILL := Color(0.910, 0.890, 0.769, 1.0)   # E8E3C4
-const CREAM_LIT := Color(0.961, 0.945, 0.839, 1.0)    # F5F1D6
-const CREAM_DARK := Color(0.804, 0.780, 0.651, 1.0)   # CDC7A6
-const CREAM_EDGE := Color(0.188, 0.157, 0.071, 1.0)   # 302812
-const CREAM_LABEL := Color(0.118, 0.102, 0.055, 1.0)  # 1E1A0E
+## ⚠ THE DEFAULT BUTTON IS QUIET, AND IT USED TO BE THE LOUDEST THING ON THE SCREEN.
+##
+## The families say what pressing a button DOES: cream navigates, gold acts, red destroys.
+## That reading was right and the colours inverted it. Cream was a near-white #E8E3C4 SLAB,
+## and every panel in this game is dark with a gold liner -- so on the pause menu the four
+## buttons that merely navigate were the highest-contrast objects in the frame, louder than
+## the gold RESUME they sat under and louder than the panel itself. The eye went to
+## "CONTROLS" before "PAUSED".
+##
+## Quiet now: the panel's own ground, a gold hairline, cream text. It recedes into the
+## frame it is drawn on, which is what a secondary action should do -- and it leaves the
+## filled gold free to be the only lit thing on the panel, which is what makes it read as
+## the act rather than as one more option.
+const CREAM_FILL := Color(0.086, 0.094, 0.063, 1.0)   # 161810  the panel, lit a step
+const CREAM_LIT := Color(0.137, 0.149, 0.098, 1.0)    # 232619  hover: a step nearer the gold
+const CREAM_DARK := Color(0.051, 0.063, 0.035, 1.0)   # 0D1009  pressed: down into the panel
+## The liner is GOLD, not a dark keyline. A dark edge on a dark fill is no edge at all, and
+## the button lost its shape the moment the fill stopped being white.
+const CREAM_EDGE := Color(0.690, 0.510, 0.161, 1.0)   # B08229
+const CREAM_LABEL := Color(0.910, 0.890, 0.769, 1.0)  # E8E3C4  the old fill, now the text
 
 ## Red: the one that ends something. CANCEL, EXIT, QUIT.
 const RED_FILL := Color(0.769, 0.376, 0.282, 1.0)     # C46048
@@ -308,6 +323,16 @@ static func button(family: Family, state: State) -> StyleBoxFlat:
 		var off := _ringed(OFF_FILL, OFF_EDGE, THIN, KEYLINE, THIN)
 		_pad_button(off)
 		return off
+	# ⚠ THE QUIET FAMILY IS BUILT DIFFERENTLY, not merely coloured differently. The raised
+	# treatment below -- a four-pixel grey BEVEL and a halo thicker underneath -- exists to
+	# make a LIT button sit proud of the panel. Put it on a dark fill and the bevel is just a
+	# grey ring around a hole: it was sized for a near-white slab, and the slab is gone.
+	# A hairline of gold is the whole edge here, and nothing is raised, because a secondary
+	# action should lie flat in the frame it is printed on.
+	if family == Family.CREAM:
+		var quiet := _ringed(_fill_for(family, state), _edge_for(family), THIN, KEYLINE, THIN)
+		_pad_button(quiet)
+		return quiet
 	var box := _ringed(_fill_for(family, state), BEVEL, RING, _edge_for(family), RING)
 	# Raised: the halo is thicker below than above, so the button sits on the panel.
 	box.shadow_offset = Vector2(0.0, 2.0)
