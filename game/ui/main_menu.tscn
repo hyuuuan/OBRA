@@ -225,11 +225,19 @@ theme_override_font_sizes/font_size = 30
 text = "DRAW  ·  BECOME  ·  DISCOVER"
 
 [node name="SideButtons" type="HBoxContainer" parent="MenuLayer/MenuRoot"]
-layout_mode = 0
-offset_left = 84.0
-offset_top = 330.0
-offset_right = 484.0
-offset_bottom = 374.0
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -201.0
+offset_top = -96.0
+offset_right = 201.0
+offset_bottom = -52.0
+grow_horizontal = 2
+grow_vertical = 0
+alignment = 1
 theme_override_constants/separation = 12
 
 [node name="SettingsButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
@@ -247,7 +255,7 @@ text = "CONTROLS"
 [node name="QuitButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
 custom_minimum_size = Vector2(126, 44)
 layout_mode = 2
-theme_type_variation = &"DangerButton"
+theme_type_variation = &"DialogButton"
 text = "QUIT"
 
 [node name="MorphPanel" type="PanelContainer" parent="MenuLayer/MenuRoot"]
@@ -262,12 +270,8 @@ theme_override_styles/panel = SubResource("StyleBox_panel")
 layout_mode = 2
 focus_neighbor_top = NodePath(".")
 focus_neighbor_bottom = NodePath(".")
-theme_override_colors/font_color = Color(0.106, 0.075, 0.02, 1)
-theme_override_colors/font_hover_color = Color(0.106, 0.075, 0.02, 1)
+theme_type_variation = &"PrimaryButton"
 theme_override_font_sizes/font_size = 40
-theme_override_styles/normal = SubResource("StyleBox_play")
-theme_override_styles/hover = SubResource("StyleBox_play_hover")
-theme_override_styles/pressed = SubResource("StyleBox_card")
 text = "PLAY"
 
 [node name="Selector" type="Control" parent="MenuLayer/MenuRoot/MorphPanel"]
