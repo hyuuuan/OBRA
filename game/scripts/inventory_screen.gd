@@ -52,8 +52,23 @@ const FOUND_SLOT := Vector2(72.0, 72.0)
 ## letter onto a second line, which is worse than not naming them at all. Eighty wide takes
 ## the longest of them at the twenty-pixel type floor; forty-six tall keeps fifty of them to
 ## five rows, which is what stops the panel running off the bottom of an 900-tall screen.
-const ROSTER_SLOT := Vector2(80.0, 46.0)
+## ⚠ FORTY-SIX WAS SIZED FOR ONE GRID OF FIFTY, and there are three grids now. Split into
+## bands the roster is six rows rather than five -- twenty creatures and twenty-seven
+## objects each round UP to a whole number of rows -- plus three sub-headings, and at 46 the
+## panel ran off the bottom of the screen and took its own "Tab to close" footer with it.
+## Thirty-six still clears one line of the twenty-pixel type floor; the WIDTH is what stops
+## "Ladder" wrapping and that is unchanged.
+const ROSTER_SLOT := Vector2(80.0, 36.0)
 const ROSTER_COLUMNS := 10
+
+## The three kinds the roster is counted in, in the order the thesis counts them: twenty
+## creatures, twenty-seven objects, three geometric primitives. `role` is the manifest's
+## own `runtime_role`, so a class cannot land in a band this screen invented.
+const BANDS: Array[Dictionary] = [
+	{"role": "active_ragdoll_morph", "title": "CREATURES"},
+	{"role": "utility", "title": "OBJECTS"},
+	{"role": "physics_morph", "title": "SHAPES"},
+]
 
 ## The permanent things, in the order they are found. `art` is resolved lazily because two of
 ## these are textures that only exist once their scene has been compiled.
@@ -86,8 +101,10 @@ var registry: EntityRegistry
 var _bag_buttons: Array[Button] = []
 var _bag_art: Array[TextureRect] = []
 var _found_buttons: Array[Button] = []
-var _roster_grid: GridContainer
 var _roster_count: Label
+## role -> the count label and the grid for that band. See _build_roster.
+var _band_counts: Dictionary = {}
+var _band_grids: Dictionary = {}
 var _detail_art: TextureRect
 var _detail_title: Label
 var _detail_note: Label
@@ -289,12 +306,42 @@ func _build_roster(parent: Control) -> void:
 	_roster_count.add_theme_color_override(&"font_color", UISkin.MUTED)
 	head.add_child(_roster_count)
 
-	_roster_grid = GridContainer.new()
-	_roster_grid.name = "Roster"
-	_roster_grid.columns = ROSTER_COLUMNS
-	_roster_grid.add_theme_constant_override(&"h_separation", 6)
-	_roster_grid.add_theme_constant_override(&"v_separation", 6)
-	parent.add_child(_roster_grid)
+	# ⚠ THE SHAPE OF WHAT IS STILL OUT THERE, WITHOUT NAMING ANY OF IT.
+	#
+	# One flat grid of fifty told a player only that more exists. It could not tell them
+	# that twenty of the fifty are ANIMALS -- which is the most useful thing a player who has
+	# only ever drawn ladders could learn, and the reason this screen was asked for. A first
+	# attempt ordered one grid by kind and printed the split as a caption; the bands were
+	# invisible, because twenty-seven objects do not end on a row boundary and the three
+	# shapes sat on the end of the objects' last row looking like more objects.
+	#
+	# So three bands, each with its own count. COUNTING A GROUP NAMES NOTHING, so the rule at
+	# the top of this file holds: a class the player has drawn is named, and one they have
+	# not is an unnamed empty frame in a band that says what KIND of thing is missing.
+	for band: Variant in BANDS:
+		var spec: Dictionary = band
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override(&"separation", 10)
+		parent.add_child(row)
+		var name_label := Label.new()
+		name_label.text = String(spec["title"])
+		name_label.theme_type_variation = &"HudCaption"
+		name_label.add_theme_color_override(&"font_color", UISkin.MUTED)
+		row.add_child(name_label)
+		var count := Label.new()
+		count.name = "%sCount" % String(spec["role"])
+		count.theme_type_variation = &"HudCaption"
+		count.add_theme_color_override(&"font_color", UISkin.MUTED)
+		row.add_child(count)
+		_band_counts[String(spec["role"])] = count
+
+		var grid := GridContainer.new()
+		grid.name = "%sGrid" % String(spec["role"])
+		grid.columns = ROSTER_COLUMNS
+		grid.add_theme_constant_override(&"h_separation", 6)
+		grid.add_theme_constant_override(&"v_separation", 4)
+		parent.add_child(grid)
+		_band_grids[String(spec["role"])] = grid
 
 
 func _build_detail(parent: Control) -> void:
@@ -388,23 +435,41 @@ func _refresh_roster() -> void:
 	var drawn: Array = profile.call("get_drawn_classes") if profile != null else []
 	var total: int = int(profile.call("roster_size")) if profile != null else 50
 	_roster_count.text = "%d / %d" % [drawn.size(), total]
-	# The grid holds one frame per class in the roster, and the ones that are not the
-	# player's are blank. Rebuilt rather than diffed: it changes once per drawing.
-	# REMOVED, then freed. queue_free leaves the node in the tree until the end of the frame,
-	# so a rebuild would hand the GridContainer a hundred children to lay out for one frame
-	# and the grid would visibly reflow.
-	for child in _roster_grid.get_children():
-		_roster_grid.remove_child(child)
+	for band: Variant in BANDS:
+		_fill_band(String((band as Dictionary)["role"]), drawn)
+
+
+## One kind's frames, and the count above them.
+##
+## Rebuilt rather than diffed: it changes once per drawing. REMOVED, then freed --
+## queue_free leaves the node in the tree until the end of the frame, so a rebuild would
+## hand the GridContainer twice its children to lay out for one frame and it would visibly
+## reflow.
+func _fill_band(role: String, drawn: Array) -> void:
+	var grid := _band_grids.get(role) as GridContainer
+	var count := _band_counts.get(role) as Label
+	if grid == null or count == null:
+		return
+	for child in grid.get_children():
+		grid.remove_child(child)
 		child.queue_free()
-	for index in range(total):
+	var ids := _ids_with_role(role)
+	var known := 0
+	for id_value: Variant in ids:
+		if drawn.has(String(id_value)):
+			known += 1
+	count.text = "%d / %d" % [known, ids.size()]
+	for id_value: Variant in ids:
+		var id := String(id_value)
 		var button := _slot_button(ROSTER_SLOT)
-		var id := String(drawn[index]) if index < drawn.size() else ""
-		var owned := not id.is_empty()
+		var owned := drawn.has(id)
 		var chosen := String(_chosen.get("kind", "")) == "drawn" \
 			and String(_chosen.get("id", "")) == id and owned
-		_roster_grid.add_child(button)
+		grid.add_child(button)
 		_paint(button, owned, chosen)
 		if not owned:
+			# Unnamed, untooltipped, unclickable. The frame is the only thing it says, and
+			# what it says is "one more of this kind is out there".
 			continue
 		button.tooltip_text = _display_name(id)
 		button.pressed.connect(_choose_drawn.bind(id))
@@ -418,6 +483,20 @@ func _refresh_roster() -> void:
 		label.add_theme_color_override(&"font_color", UISkin.CREAM_TEXT)
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(label)
+
+
+## Every class the manifest gives this `runtime_role`, in manifest order.
+##
+## Off the manifest rather than a list here, which is the same split the thesis counts the
+## roster by -- twenty creatures, twenty-seven objects, three geometric primitives -- so the
+## bands on this screen and the numbers in Chapter 4 cannot drift apart.
+func _ids_with_role(role: String) -> Array[String]:
+	var ids: Array[String] = []
+	for id_value: Variant in (registry.get_entity_ids() if registry != null else []):
+		var id := String(id_value)
+		if String(registry.get_entity(id).get("runtime_role", "")) == role:
+			ids.append(id)
+	return ids
 
 
 func _refresh_detail() -> void:
