@@ -246,6 +246,15 @@ func _write_card_text(card: Button, number: int, entry: Dictionary, playable: bo
 	var theme_label := card.get_node_or_null(^"Theme") as Label
 	if theme_label != null:
 		theme_label.text = flavour
+	# ⚠ THE PICTURE COMES FROM THE CATALOGUE TOO. Level 1's was an atlas region wired into
+	# the scene, so a card could show the terraces while levels.json said something else --
+	# the same split that once had this card reading "BANAUE RICE TERRACES". Every level
+	# entry already names a `thumbnail`; a card that has somewhere to put one uses it.
+	var art := card.get_node_or_null(^"Thumbnail") as TextureRect
+	if art != null:
+		var path := String(entry.get("thumbnail", ""))
+		art.texture = load(path) as Texture2D if ResourceLoader.exists(path) else null
+		art.visible = art.texture != null
 	var text_label := card.get_node_or_null(^"Text") as Label
 	if text_label != null:
 		text_label.text = "LEVEL %d\n%s" % [number, title if playable else "COMING SOON"]
