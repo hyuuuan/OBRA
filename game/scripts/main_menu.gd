@@ -203,6 +203,15 @@ func _refresh_cards() -> void:
 		# only worse, because the reason is a room the player has not been in yet.
 		var armed := LevelManager.has_brush()
 		card.disabled = not (unlocked and playable and armed)
+		# ⚠ THE PADLOCK IS A CLAIM ABOUT WHETHER THE CARD CAN BE PRESSED, and nothing was
+		# keeping it honest. Which cards carry a Lock is authored in the scene -- card one
+		# has a thumbnail, cards two to five have a padlock and one line of text -- so the
+		# lock was a fact about the SHAPE of the card, decided before the level existed.
+		# Piyesta is built and playable now, and its card still wore a padlock while being
+		# perfectly pressable. `disabled` is the same question the lock is drawing.
+		var lock := card.get_node_or_null(^"Lock") as Control
+		if lock != null:
+			lock.visible = card.disabled
 		var completed: bool = profile != null and profile.is_level_completed(level_id)
 		# Tint completed cards green while preserving the alpha the reveal tween drives.
 		var rgb := Color(0.66, 0.94, 0.70) if completed else Color.WHITE
