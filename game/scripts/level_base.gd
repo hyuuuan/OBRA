@@ -307,6 +307,7 @@ func _ready() -> void:
 	cinematic = CinematicBars.new()
 	cinematic.name = "CinematicBars"
 	add_child(cinematic)
+	cinematic.curtain_changed.connect(_on_curtain_changed)
 
 	draw_button.pressed.connect(_on_draw_button_pressed)
 	draw_panel.drawing_ready.connect(_on_drawing_ready)
@@ -2404,6 +2405,25 @@ func _place_chip(chip: PanelContainer, corner: String, offset: Vector2) -> void:
 				(view.x - chip_size.x) * 0.5 + offset.x, view.y - chip_size.y + offset.y)
 		_:
 			chip.position = Vector2((view.x - chip_size.x) * 0.5 + offset.x, offset.y)
+
+
+## THE INTERFACE STEPS BACK WHILE A BEAT IS FRAMED.
+##
+## `CinematicBars` says of its own layer that "while a beat is framed, the interface is part
+## of what is being framed out" -- and being ABOVE the HUD does not frame it out, it SLICES
+## it. The bars eat an eighth of the screen top and bottom; the ink plate is taller than that
+## and starts inside it, so every checkpoint and every level arrival cut the plate in half
+## and left the remainder sitting on a black band.
+##
+## Faded rather than moved: the bars are a held moment, and furniture that slides out of one
+## draws the eye to itself on the way. Only `$CanvasLayer` -- the gameplay HUD. Lolo speaks
+## from DialogueLayer and has to stay, because an arrival cinematic is usually him talking.
+func _on_curtain_changed(closed: float) -> void:
+	var alpha := clampf(1.0 - closed, 0.0, 1.0)
+	for child in $CanvasLayer.get_children():
+		var control := child as CanvasItem
+		if control != null:
+			control.modulate.a = alpha
 
 
 ## The drawing's clock moved. The HUD is the only thing that cares every frame; the level
