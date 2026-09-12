@@ -310,6 +310,11 @@ func _layout_cards() -> void:
 	var base_y := 154.0
 	for index in range(cards.size()):
 		var card := cards[index]
-		card.position = Vector2(32.0 + float(index) * (card_width + separation), base_y - float(index) * 18.0)
+		# ⚠ FLAT. Each card used to be lifted 18px above the one to its left, which fanned
+		# the row upward and put five different bottom edges under a panel with one. Nothing
+		# in this file said why, and it read as five cards that had failed to line up rather
+		# than as a deliberate fan -- the heights all clamp to CARD_HEIGHT, so the stagger
+		# was pure offset with no compensating shape.
+		card.position = Vector2(32.0 + float(index) * (card_width + separation), base_y)
 		card.size = Vector2(card_width,
 			minf(CARD_HEIGHT, morph_panel.size.y - card.position.y - 34.0))
