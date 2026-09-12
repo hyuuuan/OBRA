@@ -170,7 +170,7 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -28.0
-offset_top = -630.0
+offset_top = -760.0
 offset_right = 28.0
 grow_horizontal = 2
 grow_vertical = 0
@@ -225,29 +225,37 @@ theme_override_font_sizes/font_size = 30
 text = "DRAW  ·  BECOME  ·  DISCOVER"
 
 [node name="SideButtons" type="HBoxContainer" parent="MenuLayer/MenuRoot"]
-layout_mode = 0
-offset_left = 84.0
-offset_top = 330.0
-offset_right = 484.0
-offset_bottom = 374.0
-theme_override_constants/separation = 12
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -220.0
+offset_top = -74.0
+offset_right = 220.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 0
+alignment = 1
+theme_override_constants/separation = 10
 
 [node name="SettingsButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
-custom_minimum_size = Vector2(126, 44)
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "SETTINGS"
 
 [node name="ControlsButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
-custom_minimum_size = Vector2(126, 44)
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "CONTROLS"
 
 [node name="QuitButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
-custom_minimum_size = Vector2(126, 44)
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
-theme_type_variation = &"DangerButton"
+theme_type_variation = &"DialogButton"
 text = "QUIT"
 
 [node name="MorphPanel" type="PanelContainer" parent="MenuLayer/MenuRoot"]
@@ -262,12 +270,8 @@ theme_override_styles/panel = SubResource("StyleBox_panel")
 layout_mode = 2
 focus_neighbor_top = NodePath(".")
 focus_neighbor_bottom = NodePath(".")
-theme_override_colors/font_color = Color(0.106, 0.075, 0.02, 1)
-theme_override_colors/font_hover_color = Color(0.106, 0.075, 0.02, 1)
+theme_type_variation = &"PrimaryButton"
 theme_override_font_sizes/font_size = 40
-theme_override_styles/normal = SubResource("StyleBox_play")
-theme_override_styles/hover = SubResource("StyleBox_play_hover")
-theme_override_styles/pressed = SubResource("StyleBox_card")
 text = "PLAY"
 
 [node name="Selector" type="Control" parent="MenuLayer/MenuRoot/MorphPanel"]
@@ -316,7 +320,6 @@ offset_right = -8.0
 offset_bottom = 152.0
 grow_horizontal = 2
 mouse_filter = 2
-texture = SubResource("AtlasTexture_terraces")
 expand_mode = 1
 stretch_mode = 6
 
@@ -375,6 +378,66 @@ offset_right = 538.0
 offset_bottom = 432.0
 theme_override_styles/disabled = SubResource("StyleBox_locked")
 
+[node name="Thumbnail" type="TextureRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = 152.0
+grow_horizontal = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Shade" type="ColorRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -130.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0.027, 0.035, 0.024, 0.91)
+
+[node name="Number" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 160.0
+offset_right = 218.0
+offset_bottom = 182.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.859, 0.659, 0.208, 1)
+theme_override_font_sizes/font_size = 20
+text = "LEVEL 2"
+
+[node name="Name" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 186.0
+offset_right = 228.0
+offset_bottom = 248.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.769, 1)
+theme_override_font_sizes/font_size = 30
+text = "PIYESTA"
+autowrap_mode = 3
+
+[node name="Theme" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 252.0
+offset_right = 228.0
+offset_bottom = 336.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.471, 0.502, 0.353, 1)
+theme_override_font_sizes/font_size = 20
+text = ""
+autowrap_mode = 3
+
 [node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
 layout_mode = 0
 offset_left = 73.0
@@ -382,21 +445,6 @@ offset_top = 66.0
 offset_right = 173.0
 offset_bottom = 166.0
 script = ExtResource("6_lock")
-
-[node name="Text" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = -92.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.4, 0.424, 0.353, 1)
-theme_override_font_sizes/font_size = 20
-text = "LEVEL 2\nCOMING SOON"
-horizontal_alignment = 1
 
 [node name="Level3" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
 layout_mode = 0
