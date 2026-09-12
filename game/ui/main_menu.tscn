@@ -320,7 +320,6 @@ offset_right = -8.0
 offset_bottom = 152.0
 grow_horizontal = 2
 mouse_filter = 2
-texture = SubResource("AtlasTexture_terraces")
 expand_mode = 1
 stretch_mode = 6
 
@@ -379,6 +378,66 @@ offset_right = 538.0
 offset_bottom = 432.0
 theme_override_styles/disabled = SubResource("StyleBox_locked")
 
+[node name="Thumbnail" type="TextureRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = 152.0
+grow_horizontal = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Shade" type="ColorRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -130.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0.027, 0.035, 0.024, 0.91)
+
+[node name="Number" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 160.0
+offset_right = 218.0
+offset_bottom = 182.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.859, 0.659, 0.208, 1)
+theme_override_font_sizes/font_size = 20
+text = "LEVEL 2"
+
+[node name="Name" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 186.0
+offset_right = 228.0
+offset_bottom = 248.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.769, 1)
+theme_override_font_sizes/font_size = 30
+text = "PIYESTA"
+autowrap_mode = 3
+
+[node name="Theme" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 252.0
+offset_right = 228.0
+offset_bottom = 336.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.471, 0.502, 0.353, 1)
+theme_override_font_sizes/font_size = 20
+text = ""
+autowrap_mode = 3
+
 [node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
 layout_mode = 0
 offset_left = 73.0
@@ -386,21 +445,6 @@ offset_top = 66.0
 offset_right = 173.0
 offset_bottom = 166.0
 script = ExtResource("6_lock")
-
-[node name="Text" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = -92.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.4, 0.424, 0.353, 1)
-theme_override_font_sizes/font_size = 20
-text = "LEVEL 2\nCOMING SOON"
-horizontal_alignment = 1
 
 [node name="Level3" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
 layout_mode = 0
