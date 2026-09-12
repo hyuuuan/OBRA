@@ -21,6 +21,10 @@ extends CanvasLayer
 ## in the cancel chain, or Escape would "close" a camera move.
 
 signal finished()
+## How far the curtain is in, 0 to 1, every time it moves. The HUD reads it -- see the note
+## on `layer` below: the bars are ABOVE the interface, which frames the top and bottom of it
+## out and leaves the middle, so a plate in the corner comes out sliced rather than framed.
+signal curtain_changed(closed: float)
 
 ## How much of the screen each bar eats at full extension. An eighth top and bottom is the
 ## shallowest letterbox that still reads as one -- deeper starts hiding the terrace the beat
@@ -40,6 +44,7 @@ var _closed := 0.0:
 	set(value):
 		_closed = value
 		_relayout()
+		curtain_changed.emit(_closed)
 var _run: Tween
 var _playing := false
 
