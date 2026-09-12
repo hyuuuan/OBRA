@@ -1483,6 +1483,13 @@ func _on_drawing_ready(
 		ink_manager.release_attempt()
 		return
 	_classes_this_run[entity_id] = true
+	# ⚠ THE ONE DOOR EVERY ACCEPTED DRAWING COMES THROUGH, whatever it turns out to be.
+	# `bag_open` used to wait on `item_stored`, which only fires for something that lands in
+	# the bag -- so a player who spent Payyo becoming things was never told the bag screen
+	# exists, and that screen is the only place in the game that says how much of the roster
+	# is still out there. It is also the answer to "how do I know what I can draw".
+	if tutorial != null:
+		tutorial.note("drawing_accepted")
 	var role := String(entry.get("runtime_role", "active_ragdoll_morph"))
 	# A drawn shape is scenery the player positions, not a body they become. It used
 	# to replace the player the instant it was recognised, which dropped them into a
