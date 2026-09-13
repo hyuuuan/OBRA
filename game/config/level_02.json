@@ -95,6 +95,29 @@
     "none_can_be_permanently_lost": true,
     "$comment": "A missed bird defers its scrap to the next screen rather than losing it: BIRDS_IN_ALLEY2 carries the count forward and Alley 2 spawns that many tangled birds. Rides the checkpoint."
   },
+  "objectives": {
+    "$comment": "THE OBJECTIVE LINE, one per state of the run. level_2.gd decides which state the player is in; these are only the words, kept here so run_level2_audit can hold them to the rule every dialogue line is held to: no line names a drawable class. A key with a '.tags' twin uses the twin once the obstacle's tags have been taught, and says them in the strip's own words. Never 'door', 'bird', 'key', 'stairs' or 'ladder' -- all five are classes.",
+    "light": "Find a light to leave in the church. Lolo is by the dancers",
+    "dance": "Dance for them. Draw on the beat",
+    "unlock": "Get into the house with its light on",
+    "unlock.tags": "Draw something that can {tags} at the house with its light on",
+    "startle": "Clear the plaza",
+    "startle.tags": "Draw something that can {tags} beside the dancers",
+    "fetch_light": "Go into the house with its light on",
+    "take_light": "Take the candle off the table",
+    "to_church": "Take the candle to the church",
+    "rack": "Put the candle on the rack",
+    "priest": "Someone is coming over",
+    "to_alleys": "Go out the far end of the church",
+    "back_to_church": "Go back through the church to the alleys",
+    "flock": "Get her scraps back from the flock",
+    "flock.tags": "Get her scraps back. Draw something that can {tags}",
+    "alley_on": "Follow the alley on",
+    "bunting": "Reach the scraps caught in the bunting",
+    "bunting.tags": "Reach the scraps in the bunting. Draw something that can {tags}",
+    "alley_end": "Follow the alley to the end",
+    "table": "Put her painting back together"
+  },
   "obstacles": [
     {
       "id": "L2_N1",
