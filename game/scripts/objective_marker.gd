@@ -17,8 +17,11 @@ const EDGE := 46.0
 ## bottom. An arrow is kept between them so it never lands on a readout.
 const TOP_BAND := 120.0
 const BOTTOM_BAND := 104.0
-## Close enough to count as there, in world units.
-const ARRIVED := 120.0
+## Close enough to count as there, in world units. A BOX, NOT A RADIUS: targets are pointed
+## at from above -- over a door's hood, over a candle -- so a player standing right at one is
+## still two hundred units from the point, and a radius either never arrives or arrives from
+## across the room.
+const ARRIVED := Vector2(80.0, 300.0)
 
 const OUTLINE := Color(0.027, 0.035, 0.024, 0.9)
 
@@ -76,8 +79,10 @@ func _process(delta: float) -> void:
 
 
 func _arrived() -> bool:
-	return _player != null and is_instance_valid(_player) \
-		and _player.global_position.distance_to(_target) < ARRIVED
+	if _player == null or not is_instance_valid(_player):
+		return false
+	var apart := _player.global_position - _target
+	return absf(apart.x) < ARRIVED.x and absf(apart.y) < ARRIVED.y
 
 
 func _inner() -> Rect2:
@@ -92,11 +97,11 @@ func _draw() -> void:
 	var inner := _inner()
 	var bob := sin(_time * 4.2) * 5.0
 	if inner.has_point(at):
-		_draw_arrow(at + Vector2(0.0, -16.0 + bob), Vector2.DOWN, 16.0)
+		_draw_arrow(at + Vector2(0.0, -16.0 + bob), Vector2.DOWN, 20.0)
 		return
 	var centre := inner.get_center()
 	var toward := (at - centre).normalized()
-	_draw_arrow(_edge_of(inner, centre, toward) + toward * bob * 0.6, toward, 18.0)
+	_draw_arrow(_edge_of(inner, centre, toward) + toward * bob * 0.6, toward, 21.0)
 
 
 ## Where a ray from the middle of the frame leaves the inner rect.
