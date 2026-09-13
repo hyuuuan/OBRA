@@ -69,6 +69,15 @@ enum Kind { CHURCH, HOUSE, ALLEY }
 ## Drawn beside the onward opening while it is shut, so a closed way out is a thing the
 ## player can see rather than a wall they bounce off.
 @export var onward_note: String = ""
+## THE SECOND ALLEY IS LATER IN THE DAY, and it has to look like somewhere else.
+##
+## Both alleys were the same room: the same shell, the same two shuttered windows, the same
+## washing lines and crates in the same places, the same cold sky. Walking from the first
+## through its far door put the player down in a picture identical to the one they had just
+## left, and "did that door just loop me back?" is a fair reading of it -- it is the one
+## transition in the level that is supposed to mean progress. `level_02.json` already names
+## the light for Problem 3 `late_afternoon`; this is that light, and a different street.
+@export var late := false
 
 ## A doorway in a town wall: one metre by two and a bit.
 const DOOR := Vector2(76.0, 150.0)
@@ -119,6 +128,10 @@ const ALLEY_SKY := Color(0.545, 0.729, 0.851, 1.0)    # 8BBADA
 const ALLEY_SKY_LOW := Color(0.729, 0.808, 0.831, 1.0)# BACED4
 
 const PLASTER_TONES: Array[Color] = [PLASTER, PLASTER_LIT, PLASTER_DARK, PLASTER]
+## The same strip of sky with the sun going down behind the town.
+const LATE_SKY := Color(0.953, 0.690, 0.451, 1.0)     # F3B073
+const LATE_SKY_LOW := Color(0.988, 0.839, 0.612, 1.0) # FCD69C
+const LATE_FALL := Color(0.180, 0.098, 0.075, 1.0)    # 2E1913
 
 ## The ground everything is drawn against, so the plaza never shows through a wall.
 const VOID := Color(0.043, 0.047, 0.055, 1.0)         # 0B0C0E
@@ -426,7 +439,8 @@ func _shade() -> Color:
 		Kind.HOUSE:
 			return Color(1.0, 0.94, 0.84, 1.0)
 		_:
-			return Color(0.92, 0.96, 1.0, 1.0)
+			# Low sun off the plaster opposite: the wall goes toward ochre, not toward orange.
+			return Color(1.08, 0.92, 0.78, 1.0) if late else Color(0.92, 0.96, 1.0, 1.0)
 
 
 ## What the room is seen against, and only just bigger than the room: a ground that reaches a
@@ -455,8 +469,10 @@ func _draw_wall() -> void:
 	if kind == Kind.ALLEY:
 		# An alley is open to the sky. It is the only bright thing in there, and it is where
 		# the birds circle and the bandaritas are strung.
-		draw_rect(Rect2(-span, -wall_height - 260.0, span * 2.0, 260.0), ALLEY_SKY)
-		draw_rect(Rect2(-span, -wall_height - 70.0, span * 2.0, 70.0), ALLEY_SKY_LOW)
+		draw_rect(Rect2(-span, -wall_height - 260.0, span * 2.0, 260.0),
+			LATE_SKY if late else ALLEY_SKY)
+		draw_rect(Rect2(-span, -wall_height - 70.0, span * 2.0, 70.0),
+			LATE_SKY_LOW if late else ALLEY_SKY_LOW)
 	PiyestaTiles.fill_varied(self, Rect2(-span, -wall_height, span * 2.0, wall_height),
 		_wall_variants("%s_wall" % material), shade)
 	if kind == Kind.ALLEY:
@@ -488,12 +504,13 @@ func _draw_wall() -> void:
 		# under it is nearly in sun and the foot of the wall is in deep shade. Six bands,
 		# because the falloff is what the eye reads as depth; a single gradient rect would be
 		# a wash over the material rather than light on it.
+		var fall := LATE_FALL if late else SKY_FALL
 		for step in range(6):
 			var t := float(step) / 5.0
 			var band := wall_height / 6.0
 			draw_rect(Rect2(-span, -wall_height + t * (wall_height - band),
 				span * 2.0, band + 1.0),
-				Color(SKY_FALL.r, SKY_FALL.g, SKY_FALL.b, 0.03 + 0.30 * t))
+				Color(fall.r, fall.g, fall.b, 0.03 + 0.30 * t))
 	if kind == Kind.CHURCH:
 		# A nave is ashlar to about head height and plastered above it, with a string course
 		# between. That band is what gives the room a horizon and a scale.
@@ -532,6 +549,15 @@ func _draw_window() -> void:
 		Kind.HOUSE:
 			PiyestaTiles.hang(self, "house_window",
 				Vector2(room_length * 0.26, -wall_height * 0.72), 1.0)
+		_ when late:
+			# Later, and somebody is home: one window with its lamp already lit against the
+			# dusk, one still shuttered, neither where the first alley had them.
+			PiyestaTiles.hang(self, "house_window",
+				Vector2(room_length * 0.08, -wall_height * 0.78), 0.9,
+				Color(1.35, 1.12, 0.78, 1.0))
+			PiyestaTiles.hang(self, "house_window",
+				Vector2(-room_length * 0.34, -wall_height * 0.64), 0.9,
+				Color(0.62, 0.52, 0.46, 1.0))
 		_:
 			# Shutters above an alley, boarded and dark: somebody lives up there and is not
 			# looking out.
@@ -589,6 +615,24 @@ func _draw_props() -> void:
 			PiyestaTiles.stand(self, "barrel", Vector2(half - 168.0, 0.0), 1.0, shade)
 			PiyestaTiles.hang(self, "lantern_hanging",
 				Vector2(-half + 120.0, -wall_height + 26.0), 0.5, shade)
+		_ when late:
+			# ⚠ A DIFFERENT STREET, not the same one re-lit. No washing (the bunting and the
+			# birds tangled in it are what this alley is about, and nothing else hangs across
+			# it), jars and a plant somebody keeps on the step, a lamp post, a banner left over
+			# from the morning. Nothing up the wall anybody could take for a ledge: the Artist
+			# route here is to BUILD a way up, and a painted balcony would be a Climb gate that
+			# is not there.
+			PiyestaTiles.hang(self, "drainpipe",
+				Vector2(half - room_length * 0.18, -wall_height + 20.0), 1.0, shade)
+			PiyestaTiles.hang(self, "banner_cloth",
+				Vector2(-room_length * 0.14, -wall_height * 0.56), 0.52, shade)
+			PiyestaTiles.stand(self, "jar_a", Vector2(-half + 132.0, 0.0), 0.9, shade)
+			PiyestaTiles.stand(self, "jar_b", Vector2(-half + 176.0, 0.0), 0.8, shade)
+			PiyestaTiles.stand(self, "lantern_post", Vector2(room_length * 0.18, 0.0), 0.74,
+				shade)
+			PiyestaTiles.stand(self, "plants", Vector2(half - 150.0, 0.0), 0.5, shade)
+			PiyestaTiles.hang(self, "handbills",
+				Vector2(-room_length * 0.02, -wall_height * 0.24), 0.9, shade)
 		_:
 			# An alley is where a town keeps what it does not want seen: somebody's washing
 			# over your head, a downpipe with its stain, fiesta bills pasted up and half torn

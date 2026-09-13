@@ -147,6 +147,7 @@ wall_height = 440.0
 room_zoom = 1.6
 floor_depth = 140.0
 onward_note = "Nothing that way until the bandaritas give up what they are holding."
+late = true
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 
