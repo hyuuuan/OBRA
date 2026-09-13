@@ -76,6 +76,7 @@ func _run() -> void:
 	_audit_checkpoint_manager()
 	_audit_level_director()
 	await _audit_live_level()
+	await _audit_the_paddies_are_mud()
 	await _audit_node_two()
 	_audit_ward_lock()
 	_audit_the_ward_speaks_with_one_voice(dialogue)
@@ -1729,6 +1730,37 @@ func _audit_the_ward_speaks_with_one_voice(dialogue: Dictionary) -> void:
 			"'%s' points at nothing that is not there" % String(line["at"]),
 			"no reveal promised" if promised.is_empty()
 			else "promises %s -- the ward guide is not built" % ", ".join(promised))
+
+
+## ⚠ A PADDY BUILT FROM THE TERRACE KIT READS AS A TERRACE. Both paddies were floored with a
+## grass-topped cobble segment and backed with the gorge's rock shaft, under a clear blue
+## rectangle -- so the first gate in the game looked like the ground the player walks on with
+## water painted over it. Kent: "it has the same one as the platform itself, which is very
+## confusing." Every piece of a paddy has to be the paddy's own.
+func _audit_the_paddies_are_mud() -> void:
+	var environment := (load("res://levels/level_1/level_1_environment.tscn") as PackedScene) \
+		.instantiate()
+	root.add_child(environment)
+	await process_frame
+	for paddy in [["LowerPaddy", "LowerPaddyFloor", "LowerPaddyBack"],
+			["CentralPaddy", "CentralPaddyFloor", "CentralPaddyBack"]]:
+		var water := environment.get_node_or_null(
+			"GameplayPlane/WaterAreas/%s" % paddy[0]) as WaterArea2D
+		var bed := environment.get_node_or_null(
+			"GameplayPlane/Terrain/%s" % paddy[1]) as TerraceSegment2D
+		var back := environment.get_node_or_null("GameplayPlane/WaterAreas/%s" % paddy[2])
+		_check(water != null and water.paddy, "%s is drawn as a paddy" % paddy[0],
+			"murky, with rice in it" if water != null and water.paddy
+			else "clear pool water over a terrace")
+		_check(bed != null and bed.surface_style == TerraceSegment2D.SurfaceStyle.MUD,
+			"and floored with mud, not the path",
+			"MUD" if bed != null and bed.surface_style == TerraceSegment2D.SurfaceStyle.MUD
+			else "%s -- the same tile the player walks on" % (
+				TerraceSegment2D.SurfaceStyle.keys()[bed.surface_style] if bed != null else "missing"))
+		_check(back is PaddyBasin2D, "and banked with clay",
+			"PaddyBasin2D" if back is PaddyBasin2D else "the gorge's rock shaft")
+	environment.queue_free()
+	await process_frame
 
 
 ## A line broken into the words a reader would say, so a vocabulary check tests words and
