@@ -75,6 +75,23 @@
       "trigger": "route_commit"
     }
   ],
+  "objectives": {
+    "$comment": "THE OBJECTIVE LINE, one per state of the run. game_level.gd decides which state the player is in; these are only the words, kept here so run_level1_audit can hold them to the rule every dialogue line is held to: no line names a drawable class. A key with a '.tags' twin uses the twin once the obstacle's tags have been taught. Never 'stairs', 'bridge', 'ladder', 'key' or 'door' -- all classes. Ang Hagdan and Ang Bale are places, which is why they are named.",
+    "b0_sub1": "Cross the paddy",
+    "b0_sub1.tags": "Draw something that can {tags} and set it on the floating step",
+    "b0_sub2": "Get up Ang Hagdan",
+    "b0_sub2.tags": "Draw something that can {tags} across the gap in Ang Hagdan",
+    "gorge": "Follow the terraces east to the gorge",
+    "gorge.tags": "Draw something that can {tags} to get across the gorge",
+    "straw": "Find what she hid in the straw heap",
+    "straw.tags": "Find what she hid in the straw. Draw something that can {tags}",
+    "straw_inside": "Reach what is hanging on the nail",
+    "straw_leave": "Go back out of the straw",
+    "bale": "Get into Ang Bale, her house",
+    "bale.tags": "Get into Ang Bale. Draw something that can {tags}",
+    "painting": "Take her painting",
+    "onward": "Walk through the opening in the wall"
+  },
   "obstacles": [
     {
       "id": "B0_HAGDAN",

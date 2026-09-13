@@ -271,7 +271,7 @@
     },
     "burrow": {
       "display_name": "Burrow",
-      "gloss": "small enough to get in with no door",
+      "gloss": "small enough to squeeze in where you do not fit",
       "unlocked_in_level": 1,
       "declared_only": false,
       "classes": {

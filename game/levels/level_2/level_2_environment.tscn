@@ -30,6 +30,7 @@ metadata/checkpoint_moss = Color(0.318, 0.376, 0.239, 0)
 script = ExtResource("2_camera")
 target_offset = Vector2(0, -250)
 world_bottom_y = 722.0
+outdoor_x_limits = Vector2(116, 1732)
 
 [node name="Ambience" type="Node2D" parent="WorldCamera"]
 script = ExtResource("4_ambience")
@@ -72,13 +73,13 @@ position = Vector2(935.0, 660.0)
 shape = SubResource("Rect_PlazaFloor")
 
 [node name="WestWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(60.0, 250.0)
+position = Vector2(110.0, 250.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/WestWall"]
 shape = SubResource("Rect_WestWall")
 
 [node name="EastWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(1810.0, 250.0)
+position = Vector2(1740.0, 250.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/EastWall"]
 shape = SubResource("Rect_EastWall")
@@ -92,16 +93,16 @@ position = Vector2(450.0, 560.0)
 position = Vector2(720.0, 560.0)
 
 [node name="DarkHouseA" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(200.0, 560.0)
+position = Vector2(190.0, 560.0)
 
 [node name="DarkHouseB" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(330.0, 560.0)
+position = Vector2(346.0, 560.0)
 
 [node name="LitHouse" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(1060.0, 560.0)
+position = Vector2(600.0, 560.0)
 
 [node name="ChurchDoor" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(1360.0, 560.0)
+position = Vector2(1392.0, 560.0)
 
 [node name="BuntingLine" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(720.0, 205.0)
@@ -146,6 +147,7 @@ wall_height = 440.0
 room_zoom = 1.6
 floor_depth = 140.0
 onward_note = "Nothing that way until the bandaritas give up what they are holding."
+late = true
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 
@@ -154,6 +156,7 @@ position = Vector2(720.0, 400.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L2_N1"
 trigger_size = Vector2(520.0, 400)
+checkpoint_mark_offset = 340.0
 
 [node name="L2_N2" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(9450.0, -900.0)

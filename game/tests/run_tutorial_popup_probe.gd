@@ -61,8 +61,10 @@ func _run() -> void:
 	_audit_an_unknown_anchor_falls_back()
 	await _audit_a_callout_does_not_wait_for_the_bar()
 	await _audit_a_callout_goes_away()
+	await _audit_a_callout_leaves_with_its_target()
 	_audit_the_canvas_is_explained()
 	await _audit_the_two_readings_are_explained()
+	await _audit_the_bar_clears_the_letterbox()
 
 	print("OBRA_TUTORIAL_POPUP_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
@@ -179,6 +181,30 @@ func _audit_a_callout_goes_away() -> void:
 		"only an unspent lesson may appear")
 
 
+## ⚠ AND IT GOES WHEN THE THING IT POINTS AT GOES. The requirement lesson is aimed at the
+## strip, the strip clears the moment its beat is answered, and the bubble used to stand on
+## for the rest of its dwell with its beak aimed at nothing -- then ride along into the next
+## beat and sit half under the route choice. Hiding the target has to take it down at once.
+func _audit_a_callout_leaves_with_its_target() -> void:
+	tutorial.call("dismiss_callout")
+	await _wait(0.4)
+	var bag := level.get("inventory_hud") as Control
+	if bag == null or not bag.is_visible_in_tree():
+		_check(false, "the bag is up to point at", "-")
+		return
+	tutorial.call("_teach", {"id": "_probe_target_goes", "at": "never",
+		"anchor": "inventory_bar", "text": "Pointing at the bag."})
+	await process_frame
+	await process_frame
+	_check(tutorial.call("callout") != null, "a callout points at the bag", "up")
+	bag.visible = false
+	await _wait(0.5)
+	_check(tutorial.call("callout") == null, "and hiding the bag takes it down",
+		"gone" if tutorial.call("callout") == null
+		else "STILL UP -- pointing at a control that is not on screen")
+	bag.visible = true
+
+
 func _audit_the_canvas_is_explained() -> void:
 	var lines: Array = tutorial.call("canvas_briefing")
 	_check(not lines.is_empty(), "Lolo has something to say about the canvas",
@@ -243,3 +269,29 @@ func _audit_the_two_readings_are_explained() -> void:
 		"taught" if tutorial.has_taught("sure") else "sure never fired")
 	_check(order == ["clock", "sure"], "and they arrive in that order",
 		", ".join(order) if not order.is_empty() else "neither fired")
+
+
+## ⚠ THE CHECKPOINT LINE WAS PRINTED UNDER THE LETTERBOX. The bars come in over the top
+## thirteenth of the screen at every checkpoint, and the hint that goes with one sat inside
+## that band with its lower half showing. With the curtain in, the bar has to rest below it.
+func _audit_the_bar_clears_the_letterbox() -> void:
+	var bar := level.get("hint_bar") as HintBar
+	var bars := level.get("cinematic") as CinematicBars
+	if bar == null or bars == null:
+		_check(false, "the level has a hint bar and a letterbox", "-")
+		return
+	bars.close("")
+	await _wait(0.6)
+	bar.show_hint("The level will remember you from here.", "", 4.0)
+	await _wait(0.5)
+	var panel := bar.get_node("Panel") as Control
+	var depth := level.get_viewport().get_visible_rect().size.y * CinematicBars.BAR_FRACTION
+	_check(panel.global_position.y >= depth,
+		"a hint during the letterbox sits below the top bar",
+		"panel top %d, bar bottom %d" % [int(panel.global_position.y), int(depth)])
+	bars.open()
+	await _wait(0.6)
+	_check(is_equal_approx(panel.global_position.y, HintBar.TOP),
+		"and goes back under the badge when the bars leave",
+		"panel top %d" % int(panel.global_position.y))
+

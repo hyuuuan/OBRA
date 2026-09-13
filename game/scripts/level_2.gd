@@ -117,6 +117,8 @@ var _deferred_ids: Array[String] = []
 ## candle already found and the whole of Problem 1 already answered. Level 1 made exactly
 ## this mistake with the canvas in the bale.
 var _has_kandila := false
+## The candle on the table in the lit house, for pointing at.
+var _kandila_prop: Kandila2D
 
 
 # --- What this level answers ---------------------------------------------------------
@@ -276,6 +278,8 @@ func _build_the_doors() -> void:
 		door.name = "Door_%s" % entry["id"]
 		door.door_id = String(entry["id"])
 		door.lit = bool(entry["lit"])
+		door.style = PiyestaDoor2D.Style.CHURCH if entry["id"] == DOOR_CHURCH \
+			else PiyestaDoor2D.Style.HOUSE
 		door.wall_tone = Color(entry["tone"])
 		door.shut_note = String(entry["shut"])
 		door.open_note = "%s  —  press %s" % [
@@ -313,6 +317,7 @@ func _put_the_kandila_in_the_house() -> void:
 	# the door and the table is the other thing in the room.
 	candle.position = Vector2(house.room_length * 0.3, 0.0)
 	candle.taken.connect(_on_kandila_taken)
+	_kandila_prop = candle
 
 
 ## Scene 2. The nave gets its furniture from the room it is in, so the pews cannot outgrow
@@ -1000,3 +1005,91 @@ func _greet() -> void:
 	var opening: Array = script_lines.fire("L2_START.enter")
 	opening.append_array(script_lines.fire("L2_START.teach"))
 	_speak(opening)
+
+
+# --- What the player should be doing ---------------------------------------------------
+
+## PIYESTA IN ORDER: a light for the church, the candle on the rack, the flock in the first
+## alley, the bunting in the second, the table. Each step points at the thing it is about when
+## the player is where that thing is, and at the way there when they are not -- because the
+## commonest way to be lost in this level is standing in the right room's neighbour.
+func _current_objective() -> Dictionary:
+	if director == null:
+		return {}
+	if assembly_screen != null and assembly_screen.is_open():
+		return {"key": "table"}
+	var room := _room_holding_player()
+	var placed := chancel != null and chancel.kandila_on_rack
+
+	# PROBLEM 1 -- a light to leave.
+	if not _has_kandila and not placed:
+		if not director.is_solved("L2_N1"):
+			match director.committed_route("L2_N1"):
+				"artist":
+					return {"key": "dance", "target": _over_the_dancers()}
+				"pragmatist":
+					return _from(room, {"key": "unlock", "obstacle": "L2_N1",
+						"target": _over_door(DOOR_LIT_HOUSE)})
+				"protector":
+					return _from(room, {"key": "startle", "obstacle": "L2_N1",
+						"target": _over_the_dancers()})
+			var node_at := dialogue_node.global_position + Vector2(0.0, -110.0) \
+				if dialogue_node != null else _over_the_dancers()
+			return _from(room, {"key": "light", "target": node_at})
+		# The key worked and the candle is still on the table inside.
+		if room == house:
+			return {"key": "take_light", "target": _kandila_prop.global_position
+				+ Vector2(0.0, -70.0) if _kandila_prop != null else Vector2.INF}
+		return _from(room, {"key": "fetch_light", "target": _over_door(DOOR_LIT_HOUSE)})
+
+	# SCENE 2 -- the rack, and the priest.
+	if not placed:
+		if room == church:
+			return {"key": "rack", "target": chancel.rack_point() + Vector2(0.0, -110.0)}
+		return _from(room, {"key": "to_church", "target": _over_door(DOOR_CHURCH)})
+	if church != null and not church.onward_open:
+		return {"key": "priest"}
+
+	# PROBLEMS 2 AND 3, and the rooms between.
+	if room == alley_1:
+		if not director.is_solved("L2_N2"):
+			return {"key": "flock", "obstacle": "L2_N2",
+				"target": alley_1.global_position + Vector2(0.0, -BIRDS_RIDE - 60.0)}
+		return {"key": "alley_on", "target": _onward_of(alley_1)}
+	if room == alley_2:
+		if not director.is_solved("L2_N3"):
+			return {"key": "bunting", "obstacle": "L2_N3",
+				"target": alley_2.global_position + Vector2(0.0, -ALLEY_2_LINE - 20.0)}
+		return {"key": "alley_end", "target": _onward_of(alley_2)}
+	if room == church:
+		return {"key": "to_alleys", "target": _onward_of(church)}
+	return _from(room, {"key": "back_to_church", "target": _over_door(DOOR_CHURCH)})
+
+
+## A plaza objective asked while the player is inside somewhere: the same words, pointed at
+## the way out of the room they are in.
+func _from(room: Node2D, goal: Dictionary) -> Dictionary:
+	var inside := room as PiyestaRoom2D
+	if inside == null:
+		return goal
+	goal["target"] = inside.global_position + inside.exit_rect().get_center()
+	return goal
+
+
+func _over_door(door_id: String) -> Vector2:
+	var door := _doors.get(door_id) as PiyestaDoor2D
+	if door == null:
+		return Vector2.INF
+	var height := PiyestaDoor2D.PORTAL.y + 90.0 if door.style == PiyestaDoor2D.Style.CHURCH \
+		else PiyestaDoor2D.FACADE.y + 10.0
+	return door.global_position + Vector2(0.0, -height)
+
+
+func _over_the_dancers() -> Vector2:
+	var mark := _mark("DancersMark")
+	return mark.global_position + Vector2(260.0, -170.0) if mark != null else Vector2.INF
+
+
+func _onward_of(room: PiyestaRoom2D) -> Vector2:
+	return room.global_position + room.onward_rect().get_center() + Vector2(0.0, -70.0)
+

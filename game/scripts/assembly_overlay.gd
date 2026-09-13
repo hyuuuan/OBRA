@@ -98,7 +98,11 @@ func _build() -> void:
 
 	var panel := PanelContainer.new()
 	panel.name = "Panel"
-	panel.custom_minimum_size = Vector2(1340.0, 880.0)
+	# ⚠ WIDTH ONLY. The height is whatever the contents come to, and the contents were already
+	# taller than the screen: an 880 floor under a 700 stage, plus the title, the rule, the
+	# status line and the frame's own ring, came to 981 units in a 900-unit viewport. The
+	# bottom border and the line saying what to do were drawn off the bottom edge.
+	panel.custom_minimum_size = Vector2(1340.0, 0.0)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	centre.add_child(panel)
 	UIFrame.wrap(panel)
@@ -124,7 +128,7 @@ func _build() -> void:
 
 	_stage = Control.new()
 	_stage.name = "Stage"
-	_stage.custom_minimum_size = Vector2(1260.0, 700.0)
+	_stage.custom_minimum_size = Vector2(1260.0, 550.0)
 	_stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_stage.mouse_filter = Control.MOUSE_FILTER_STOP
 	_stage.gui_input.connect(_on_stage_input)
@@ -132,17 +136,25 @@ func _build() -> void:
 	_stage.resized.connect(_fit_the_board)
 	box.add_child(_stage)
 
+	# ONE ROW FOR THE LAST TWO THINGS, so CONTINUE appearing does not make the panel taller.
+	# Stacked, it added seventy units at the one moment the whole painting is on the board.
+	var foot := HBoxContainer.new()
+	foot.alignment = BoxContainer.ALIGNMENT_CENTER
+	foot.add_theme_constant_override("separation", 24)
+	foot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(foot)
+
 	_status = Label.new()
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_status.add_theme_font_size_override("font_size", 19)
 	_status.add_theme_color_override("font_color", MUTED)
-	box.add_child(_status)
+	foot.add_child(_status)
 
 	_continue = Button.new()
 	_continue.text = "CONTINUE"
 	_continue.visible = false
 	_continue.pressed.connect(_on_continue)
-	box.add_child(_continue)
+	foot.add_child(_continue)
 
 
 ## The pieces and where each belongs, straight out of what the cutter wrote.

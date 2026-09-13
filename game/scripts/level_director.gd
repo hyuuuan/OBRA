@@ -144,6 +144,11 @@ func committed_route(id: String) -> String:
 	return String(_committed.get(id, ""))
 
 
+## Whether the player has stood in this obstacle's volume at all this run.
+func was_entered(id: String) -> bool:
+	return _tier.has(id)
+
+
 func attempts(id: String) -> int:
 	return int(_attempts.get(id, 0))
 

@@ -57,6 +57,31 @@ in `run_level2_systems_probe`, in-world through the unreachable-line audit), the
 the dance, the assembly, and the ending. A stderr sweep across every Level 1 and Level 2 suite
 turned up nothing else — the `unbind` was the only runtime error in the project.
 
+### The third playthrough — "I am still confused on what to do"
+
+The level played end to end and the player still did not know what they were doing in it.
+Every fault below is the same shape as the first two rounds: something that worked, and a
+screen that never said so.
+
+| Fault | What the player got |
+|---|---|
+| **Nothing on screen said what to do** | Every instruction was a line spoken once. The badge named the level and the beat, never a task. Thesis §4.5.3.5 asks for "the quest banner … stating the current objective", and there was none |
+| **A key drawn at the lit house was judged against nothing** | The door was at x 1060 and Problem 1's volume ends at 980, and a drawing at no obstacle is silent by design. Every probe for this route called `enter_obstacle` directly |
+| **The doors were four planks in the open** | Holes tinted to a painted wall that was not behind them -- in front of a palm, a dancer and some sky. The lit house stood behind the third dancer, and the commit lantern on top of the second |
+| **The two alleys were one room** | Same windows, washing, crates and sky, so the far door of the first looked like a loop back into it |
+| **The camera slid off both ends of the painting** | Flat sky with paving under nothing, at the kiosko and at the stall |
+| **Scene 3 and the dance ran off the bottom of the screen** | 981 and 958 units of panel in a 900-unit viewport; the line saying what to do was the last row of pixels |
+
+**What changed.** An objective line under the badge and a marker over the world, derived
+from the run every time they are asked (`_current_objective` in `level_2.gd`, the words in
+`level_02.json` → `objectives`, `run_objective_probe` walks every step). The plaza doors
+are house fronts now -- plaster, quoins, a tile hood, a capiz fanlight and a wall lantern --
+and the church is a stone portal; the lit house is the one with its lantern burning, at
+x 600 inside Problem 1, and the church sits at the foot of the belfry. Alley 2 is the
+`late_afternoon` light the config already named, dressed as a different street.
+`WorldCameraController.outdoor_x_limits` holds the plaza camera on the painted extent,
+which the scene probe measures off the plate.
+
 ---
 
 ## The level in one paragraph
@@ -319,9 +344,12 @@ Nothing here stops the level being played. It is all art, plus one decision.
 4. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
    boomerang and cannon, both of which have a real reach, but there is no aim or trajectory
    preview -- the design asks for "angry birds style".
-5. **The house doors are authored, not the delivered set.** They are arched stone openings
-   cut into the painted wall and lit from inside, which is what the puzzle needs -- but the
-   design still asks for a four-state door set: closed / lit from inside / keyhole / open.
+5. **The house doors are authored, not the delivered set.** Since Sept 2026 each is a slice
+   of street front drawn in code in the painted houses' own palette -- plaster over a stone
+   plinth, quoins, a tile hood, a capiz fanlight, a wall lantern -- with the church as a
+   round-arched portal. That reads, and it is still placeholder: the design asks for a
+   four-state door set (closed / lit from inside / keyhole / open), and a painted set would
+   sit in the plate better than anything drawn over it.
 6. ~~**`levels.json` `scene_path` is still empty.**~~ **Done — Kent made the call (Sept
    2026) and Piyesta is offered from the hub.** The art items above are still owed; they
    were never what blocked it, and shipping it with authored insides is the trade that was

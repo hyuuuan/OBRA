@@ -56,6 +56,7 @@ func _run() -> void:
 
 	print("\n===== LEVEL 2 CHAIN =====")
 	_audit_the_doors_are_on_the_plaza()
+	await _audit_a_key_drawn_at_the_lit_door_is_judged()
 	await _audit_the_church_is_shut_until_the_candle()
 	await _audit_the_lit_house_hands_over_the_candle()
 	await _audit_a_shut_door_stops_talking()
@@ -128,6 +129,31 @@ func _audit_the_doors_are_on_the_plaza() -> void:
 			lit += 1
 	_check(lit == 1, "and exactly one of them has a light on inside",
 		"%d lit, %d dark" % [lit, doors.size() - lit])
+
+
+## ⚠ THE LIT HOUSE STOOD OUTSIDE THE BEAT IT BELONGS TO. "Something that can unlock gets you
+## in", Lolo says, and the natural thing to do is walk to that door and draw one. The door was
+## at x 1060 and Problem 1's volume ends at 980 -- so a player standing at it was standing at
+## no obstacle, and `_judge_submission` is SILENT at no obstacle by design. The key appeared,
+## nothing happened and nothing was said. Every probe that solves this route calls
+## `enter_obstacle` directly, which is why none of them could see it.
+func _audit_a_key_drawn_at_the_lit_door_is_judged() -> void:
+	var door := _door("lit_house")
+	var director = level.get("director")
+	if door == null or director == null:
+		_check(false, "the lit house and the director exist", "-")
+		return
+	var before := player.global_position
+	player.global_position = door.global_position + Vector2(0.0, -60.0)
+	for _frame in range(12):
+		await physics_frame
+	_check(String(director.call("current_obstacle")) == "L2_N1",
+		"standing at the lit house is standing at Problem 1",
+		"judged as %s" % (String(director.call("current_obstacle"))
+			if not String(director.call("current_obstacle")).is_empty() else "NOTHING -- a key here is silent"))
+	player.global_position = before
+	for _frame in range(12):
+		await physics_frame
 
 
 ## THE CHURCH IS THE LEVEL'S SECOND HALF, and the candle is what buys it. A church that
