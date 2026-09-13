@@ -1543,7 +1543,17 @@ func _on_drawing_ready(
 			ink_manager.release_attempt()
 			PlayerProfile.record_object_acquired(entity_id)
 			item.ink_committed = true
-		_begin_new_utility(item, first_time)
+		var kept := _begin_new_utility(item, first_time)
+		# ⚠ A TOOL IS NEVER PLACED, SO IT WAS NEVER JUDGED. A placeable is judged when it is
+		# set down and a creature when the player becomes it; a tool goes straight into the
+		# belt, and nothing on that path asked the obstacle whether it was the answer. So a key
+		# drawn at the house with its light on went into the bag and the door stayed shut, and
+		# so did every route answered by a tool -- Piyesta's lit house, its knocked-down birds
+		# and its cut bunting, Payyo's cut route and its drawn key. Every probe for those
+		# routes called `_judge_submission` directly, which is exactly the step the game did
+		# not take. Drawn is the moment a tool is made; it is judged there.
+		if kept and is_a_tool(entry):
+			_judge_submission(entity_id, strokes)
 		return
 	# CREATURE TRANSFORMATION IS FREE. FR-7 says so in its second sentence, and FR-8 is what
 	# pays for it: you may only do it at a checkpoint.
@@ -1621,12 +1631,12 @@ func _spawn_or_replace(
 ## `first_time` is whether this CLASS is new to the player, not whether the bag was empty.
 ## The card is for acquiring something; the fifth axe of the run is a tool coming out of the
 ## bag, and dimming the screen for it would make the reward beat into a loading screen.
-func _begin_new_utility(item: DrawnItemData, first_time: bool = true) -> void:
+func _begin_new_utility(item: DrawnItemData, first_time: bool = true) -> bool:
 	var slot := inventory_manager.add_item(item)
 	if slot == -1:
 		ink_manager.release_attempt()
 		status_label.text = "Inventory full — no room for %s" % item.display_name
-		return
+		return false
 	# THE TOOLBELT IS WHERE A TOOL IS PAID FOR, once and for the rest of the run of the
 	# game. FR-7: "on its first successful recognition ... thereafter selectable and
 	# reusable at no ink cost and with no redraw". `item.ink_committed` already says which
@@ -1638,16 +1648,17 @@ func _begin_new_utility(item: DrawnItemData, first_time: bool = true) -> void:
 			# a delay rather than a loss, and saying which it is matters.
 			inventory_manager.take_item(slot)
 			status_label.text = "%s needs a unit of ink, and there is none left" % item.display_name
-			return
+			return false
 	inventory_hud.set_selected(slot)
 	status_label.text = "%s drawn — press %d to place it" % [item.display_name, slot + 1]
 	if not first_time:
-		return
+		return true
 	# The player's OWN drawing, paper knocked out, held up for a second. This is the moment
 	# the recogniser agreed with them, and it was a line of grey text in the corner.
 	announce_acquisition(item.display_name,
 		"In your bag — press %d to use it" % (slot + 1),
 		DrawingSkin2D.thumbnail(item.image))
+	return true
 
 
 ## What a slot does depends on what is in it, because the two kinds of drawn object are
@@ -2105,9 +2116,24 @@ func _use_equipped_utility() -> void:
 	if _equipped_utility == null or not is_instance_valid(_equipped_utility):
 		status_label.text = "Nothing in hand — press E next to something you drew"
 		return
+	var item := _equipped_utility.item_data
+	# AND A TOOL ALREADY IN THE BELT IS ANSWERED BY USING IT. FR-7 says a tool is "thereafter
+	# selectable and reusable at no ink cost and with no redraw", so a player who drew a key
+	# in Payyo and reaches a lock in Piyesta takes it out and uses it -- they do not draw
+	# another. Only when this beat would take it: F is not a guess, and a tool that is not
+	# the answer must not count as a failed attempt against the hint ladder.
+	if item != null and director != null and not director.current_obstacle().is_empty() \
+			and not director.is_solved(director.current_obstacle()) \
+			and director.accept_set().has(item.entity_id):
+		var beat := director.current_obstacle()
+		_judge_submission(item.entity_id, item.strokes)
+		# Answered: that WAS the use. Not answered -- a lock that measured the key and turned
+		# partway -- and the tool still does whatever it does, so an axe at a dead tree swings.
+		if director.is_solved(beat):
+			return
 	var outcome := _equipped_utility.describe_use(player)
 	status_label.text = outcome if not outcome.is_empty() \
-		else "%s can't do that here" % _equipped_utility.item_data.display_name
+		else "%s can't do that here" % item.display_name
 
 
 ## Availability is refreshed from the same objects the actions use. R is intentionally
