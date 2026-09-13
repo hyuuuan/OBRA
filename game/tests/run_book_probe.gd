@@ -108,5 +108,31 @@ func _run() -> void:
 		"the creature band has twenty frames whether or not they are known",
 		"%d frames" % _grid("active_ragdoll_morph").get_child_count())
 
+	# --- ⚠ AND IT DESCRIBES A TOOL AS A TOOL ----------------------------------------------
+	# Every "utility" read "a thing you hold or set down · costs ink when you set it down",
+	# which is the placeable's rule printed under an axe. A tool is paid for once and kept.
+	var bag := level.get("inventory_manager") as Node
+	for id in ["axe", "ladder"]:
+		var item := DrawnItemData.new()
+		item.entity_id = id
+		item.display_name = id.capitalize()
+		item.ink_committed = id == "axe"
+		bag.call("add_item", item)
+	var notes: Dictionary = {}
+	var stored: Array = bag.call("items")
+	for index in range(stored.size()):
+		var item := stored[index] as DrawnItemData
+		if item == null:
+			continue
+		screen.call("_choose_bag", index)
+		await _wait(0.1)
+		notes[item.entity_id] = (screen.get("_detail_note") as Label).text
+	_check(String(notes.get("axe", "")).contains("keep")
+		and not String(notes.get("axe", "")).contains("each time"),
+		"an axe in the bag is described as a tool you keep", String(notes.get("axe", "")))
+	_check(String(notes.get("ladder", "")).contains("each time you set it down"),
+		"and a ladder as a thing that costs each time it goes down",
+		String(notes.get("ladder", "")))
+
 	print("OBRA_BOOK_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)

@@ -516,8 +516,7 @@ func _refresh_detail() -> void:
 			return
 		_detail_art.texture = _thumbnail(item)
 		_detail_title.text = item.display_name
-		_detail_note.text = "%s  ·  %s" % [_role_of(item.entity_id),
-			"already paid for" if item.ink_committed else "costs ink when you set it down"]
+		_detail_note.text = "%s  ·  %s" % [_role_of(item.entity_id), _price_of(item)]
 		return
 	if kind == "found":
 		var id := String(_chosen.get("id", ""))
@@ -612,17 +611,32 @@ func _display_name(entity_id: String) -> String:
 
 
 ## What this class IS, in the game's own vocabulary rather than the manifest's.
+##
+## ⚠ A TOOL AND A PLACEABLE ARE BOTH "utility" IN THE MANIFEST AND ARE NOT THE SAME THING TO
+## HOLD. The note read "a thing you hold or set down · costs ink when you set it down" for
+## every one of them, which was the placeable's rule printed under an axe -- a tool is paid for
+## once, on the page, and kept (FR-7). The bag is where the player goes to find out what they
+## have; it cannot describe half of it wrongly.
 func _role_of(entity_id: String) -> String:
-	var role := ""
-	if registry != null:
-		role = String(registry.get_entity(entity_id).get("runtime_role", ""))
-	match role:
+	var entry: Dictionary = registry.get_entity(entity_id) if registry != null else {}
+	match String(entry.get("runtime_role", "")):
 		"utility":
-			return "A thing you hold or set down"
+			return "A tool you keep and use" if String(entry.get("ink_role", "")) == "tool" \
+				else "A thing you set down"
 		"physics_morph":
 			return "A shape you set down"
 		_:
 			return "Something you become"
+
+
+## What it costs from here, by the same rule the level charges: a tool once, a placeable every
+## time it is set down.
+func _price_of(item: DrawnItemData) -> String:
+	var entry: Dictionary = registry.get_entity(item.entity_id) if registry != null else {}
+	if String(entry.get("ink_role", "")) == "tool":
+		return "already paid for" if item.ink_committed \
+			else "a unit of ink, once"
+	return "a unit of ink each time you set it down"
 
 
 func _thumbnail(item: DrawnItemData) -> Texture2D:
