@@ -15,6 +15,10 @@ extends Area2D
 @export var water_color: Color = Color(0.13, 0.55, 0.76, 0.72)
 @export var deep_color: Color = Color(0.055, 0.28, 0.46, 0.82)
 @export var highlight_color: Color = Color(0.62, 0.9, 0.91, 0.9)
+## A flooded rice field rather than open water: murky, sky caught on it in broken streaks, and
+## rice standing up through the surface. Only the drawing changes -- how deep it is, what
+## floats and who can swim are the same numbers as any other water.
+@export var paddy := false
 
 var _ripple_phase := 0.0
 ## A morph is several physics bodies but one visible player. Count those bodies here so
@@ -63,6 +67,9 @@ func _physics_process(_delta: float) -> void:
 
 
 func _draw() -> void:
+	if paddy:
+		_draw_paddy()
+		return
 	var rect := Rect2(-surface_size * 0.5, surface_size)
 	draw_rect(rect, water_color)
 	draw_rect(Rect2(rect.position + Vector2(0.0, surface_size.y * 0.58), Vector2(surface_size.x, surface_size.y * 0.42)), deep_color)
@@ -73,6 +80,53 @@ func _draw() -> void:
 		draw_rect(Rect2(Vector2(x, y), Vector2(18.0, 3.0)), highlight_color)
 		x += 48.0
 	draw_line(Vector2(rect.position.x, rect.position.y), Vector2(rect.end.x, rect.position.y), highlight_color, 3.0, false)
+
+
+## ⚠ NOT A POOL. The first gate in the game was a clear blue rectangle over a strip of the
+## ground the player walks on everywhere else, and it read as a platform with water painted
+## on it. Paddy water is the colour of the mud under it, it holds the sky in broken streaks
+## rather than a clean highlight, and it has rice coming up through it -- which is the one
+## detail that says "field, not floor" at a glance.
+func _draw_paddy() -> void:
+	var rect := Rect2(-surface_size * 0.5, surface_size)
+	# Murk, deepening in whole steps toward the bed. Three flat bands read as stripes; six
+	# small ones read as depth. Translucent enough that the banks and the rice on the bed show
+	# through, because a paddy you can see the bottom of is a paddy and not a wall of colour.
+	var steps := 6
+	for step in range(steps):
+		var t := float(step) / float(steps - 1)
+		var y := rect.position.y + rect.size.y * float(step) / float(steps)
+		draw_rect(Rect2(rect.position.x, floorf(y), rect.size.x,
+			ceilf(rect.size.y / float(steps)) + 1.0), water_color.lerp(deep_color, t))
+	# The sky on it, in broken streaks drifting slowly, and fainter a little way down.
+	var drift := floorf(_ripple_phase / 8.0) * 2.0
+	for row in range(2):
+		var y := rect.position.y + 7.0 + float(row) * 9.0
+		var x := rect.position.x + 6.0 + drift + float(row) * 21.0
+		var alpha := highlight_color.a * (0.55 if row == 0 else 0.28)
+		while x < rect.end.x - 10.0:
+			var length := 10.0 + fmod(x * 7.0, 14.0)
+			draw_rect(Rect2(Vector2(floorf(x), y), Vector2(minf(length, rect.end.x - x), 2.0)),
+				Color(highlight_color.r, highlight_color.g, highlight_color.b, alpha))
+			x += length + 16.0
+	# The waterline: a thin bright edge with a dark scum line under it.
+	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 2.0),
+		Color(highlight_color.r, highlight_color.g, highlight_color.b, highlight_color.a * 0.8))
+	draw_rect(Rect2(rect.position.x, rect.position.y + 2.0, rect.size.x, 2.0),
+		Color(0.14, 0.12, 0.07, 0.45))
+	# Rice up through the surface, in rows, moving a little.
+	var sway := sin(_ripple_phase / 32.0 * TAU)
+	var x := rect.position.x + 18.0
+	var index := 0
+	while x < rect.end.x - 12.0:
+		var lean := sway * (1.0 if index % 2 == 0 else -0.6)
+		var height := 13.0 + float(index % 3) * 4.0
+		var base := Vector2(floorf(x), rect.position.y + 3.0)
+		draw_rect(Rect2(base.x - 1.0, base.y - height, 2.0, height + 8.0), Color(0.33, 0.47, 0.16, 1.0))
+		draw_line(base, base + Vector2(-6.0 + lean, -height * 0.8), Color(0.47, 0.66, 0.24, 1.0), 2.0)
+		draw_line(base, base + Vector2(6.0 + lean, -height * 0.95), Color(0.58, 0.76, 0.30, 1.0), 2.0)
+		x += 28.0
+		index += 1
 
 
 func _on_body_entered(body: Node2D) -> void:
