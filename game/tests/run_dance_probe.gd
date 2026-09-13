@@ -102,6 +102,11 @@ func _audit_the_route_opens_the_screen() -> void:
 	var director = fresh.get("director")
 	_check(not bool(director.call("is_solved", "L2_N1")),
 		"and nothing is solved just by opening it", "the performance has not happened yet")
+	if screen != null:
+		for _frame in range(4):
+			await process_frame
+		var fits: Array = _fits_on_screen(screen)
+		_check(bool(fits[0]), "the dance screen fits on the screen", String(fits[1]))
 	fresh.queue_free()
 	await process_frame
 
@@ -204,3 +209,17 @@ func _the_beat_is_closed(fresh: Node, how: String) -> void:
 		if door != null and door.door_id == "church" and fresh.is_ancestor_of(door) and door.open:
 			open = true
 	_check(open, "and the church is open (%s)" % how, "the level goes on")
+
+## ⚠ THE PANEL HAS TO FIT ON THE SCREEN IT IS SHOWN ON. Its minimum size was taller than the
+## 900-unit viewport once a title, a rule, a status line and the frame's own ring were added
+## to the stage, so the bottom border and the line telling the player what to do sat off the
+## bottom edge. Nothing measured it; it was found in a screenshot.
+func _fits_on_screen(overlay: Node) -> Array:
+	var panel := overlay.find_child("Panel", true, false) as Control
+	if panel == null:
+		return [false, "no panel"]
+	var view := Rect2(Vector2.ZERO, Vector2(
+		float(ProjectSettings.get_setting("display/window/size/viewport_width")),
+		float(ProjectSettings.get_setting("display/window/size/viewport_height"))))
+	var rect := panel.get_global_rect()
+	return [view.encloses(rect), "panel %s in a %s screen" % [rect, view.size]]
