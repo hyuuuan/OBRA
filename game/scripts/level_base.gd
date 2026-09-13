@@ -2538,6 +2538,8 @@ func _on_curtain_changed(closed: float) -> void:
 		var control := child as CanvasItem
 		if control != null:
 			control.modulate.a = alpha
+	if hint_bar != null:
+		hint_bar.set_curtain(closed)
 
 
 ## The drawing's clock moved. The HUD is the only thing that cares every frame; the level

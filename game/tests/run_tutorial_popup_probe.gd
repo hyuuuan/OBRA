@@ -64,6 +64,7 @@ func _run() -> void:
 	await _audit_a_callout_leaves_with_its_target()
 	_audit_the_canvas_is_explained()
 	await _audit_the_two_readings_are_explained()
+	await _audit_the_bar_clears_the_letterbox()
 
 	print("OBRA_TUTORIAL_POPUP_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
@@ -268,3 +269,29 @@ func _audit_the_two_readings_are_explained() -> void:
 		"taught" if tutorial.has_taught("sure") else "sure never fired")
 	_check(order == ["clock", "sure"], "and they arrive in that order",
 		", ".join(order) if not order.is_empty() else "neither fired")
+
+
+## ⚠ THE CHECKPOINT LINE WAS PRINTED UNDER THE LETTERBOX. The bars come in over the top
+## thirteenth of the screen at every checkpoint, and the hint that goes with one sat inside
+## that band with its lower half showing. With the curtain in, the bar has to rest below it.
+func _audit_the_bar_clears_the_letterbox() -> void:
+	var bar := level.get("hint_bar") as HintBar
+	var bars := level.get("cinematic") as CinematicBars
+	if bar == null or bars == null:
+		_check(false, "the level has a hint bar and a letterbox", "-")
+		return
+	bars.close("")
+	await _wait(0.6)
+	bar.show_hint("The level will remember you from here.", "", 4.0)
+	await _wait(0.5)
+	var panel := bar.get_node("Panel") as Control
+	var depth := level.get_viewport().get_visible_rect().size.y * CinematicBars.BAR_FRACTION
+	_check(panel.global_position.y >= depth,
+		"a hint during the letterbox sits below the top bar",
+		"panel top %d, bar bottom %d" % [int(panel.global_position.y), int(depth)])
+	bars.open()
+	await _wait(0.6)
+	_check(is_equal_approx(panel.global_position.y, HintBar.TOP),
+		"and goes back under the badge when the bars leave",
+		"panel top %d" % int(panel.global_position.y))
+

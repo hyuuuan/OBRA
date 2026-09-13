@@ -75,6 +75,8 @@ var _queue: Array[Dictionary] = []
 ## already started. The bar went blank holding a live hint. That pair happens on any beat
 ## that carries story and advice together, which at Ang Dayami is every beat.
 var _fade: Tween
+## How far down the letterbox reaches right now, in screen units. See set_curtain.
+var _curtain := 0.0
 
 
 func _init() -> void:
@@ -285,8 +287,8 @@ func _show(speaker: String, seconds: float) -> void:
 		# of the frame -- the band the player is deliberately not looking at while judging a
 		# jump -- a fade is easy to miss entirely. Eight pixels of travel out of the top edge
 		# is what makes it register as something that just appeared.
-		_panel.position.y = TOP - 8.0
-		appear.tween_property(_panel, "position:y", TOP, 0.18) \
+		_panel.position.y = _rest_y() - 8.0
+		appear.tween_property(_panel, "position:y", _rest_y(), 0.18) \
 			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		_fade = appear
 	_relayout()
@@ -459,4 +461,21 @@ func _relayout() -> void:
 	# snap the panel to its resting place on the first frame of every appearance.
 	_panel.position.x = floorf((view.x - wanted.x) * 0.5)
 	if _fade == null or not _fade.is_valid():
-		_panel.position.y = TOP
+		_panel.position.y = _rest_y()
+
+
+## ⚠ THE LETTERBOX COVERS WHERE THIS SITS. The bars come in over the top thirteenth of the
+## screen for every checkpoint and every arrival, and the line that goes with a checkpoint --
+## "The level will remember you from here." -- was printed under the top bar with its lower
+## half showing. The HUD above it fades out for the bars and this does not, so the room is
+## there: while the curtain is in, the bar rests just under it.
+func set_curtain(closed: float) -> void:
+	_curtain = floorf(get_viewport_rect().size.y * CinematicBars.BAR_FRACTION
+		* clampf(closed, 0.0, 1.0))
+	if _fade == null or not _fade.is_valid():
+		_panel.position.y = _rest_y()
+
+
+func _rest_y() -> float:
+	return maxf(TOP, _curtain + 10.0) if _curtain > 0.0 else TOP
+
