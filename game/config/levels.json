@@ -13,7 +13,7 @@
     "id": "level_2",
     "number": 2,
     "title": "Piyesta",
-    "theme": "The town plaza on the night of the fiesta",
+    "theme": "A town plaza on the day of its fiesta",
     "scene_path": "res://level_2.tscn",
     "thumbnail": "res://assets/Level2/completed_look.png",
     "unlocked": false,
