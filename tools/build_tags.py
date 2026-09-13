@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -135,7 +136,7 @@ GLOSS = {
     "carry": "strong enough to drag a load out",
     "weather": "able to move air",
     "unlock": "shaped to the ward inside the lock",
-    "burrow": "small enough to get in with no door",
+    "burrow": "small enough to squeeze in where you do not fit",
     "feed": "worth coming down for",
     "startle": "alarming enough to scatter a crowd",
     "fly": "able to stay up with nothing to hold",
@@ -195,6 +196,19 @@ def build() -> dict:
             errors.append(
                 f"tag {tag!r} resolves {len(classes)} class(es); the floor is "
                 f"{MIN_CLASSES_PER_TAG} or an obstacle needing it has one solution")
+
+        # THE RULE THE GLOSS TABLE STATES AND NOTHING CHECKED. "small enough to get in with no
+        # door" shipped for Burrow and put a drawable class on the hint bar at the straw heap,
+        # in the one sentence whose whole job is to describe a property without naming one.
+        # Whole words and plurals, against every class in the roster.
+        words = set(re.findall(r"[a-z]+", GLOSS[tag].lower()))
+        for class_id in roster:
+            name = class_id.replace("_", " ")
+            if " " in name:
+                if name in GLOSS[tag].lower():
+                    errors.append(f"the gloss for {tag!r} names the class {class_id!r}")
+            elif name in words or name + "s" in words or name + "es" in words:
+                errors.append(f"the gloss for {tag!r} names the class {class_id!r}")
 
         tags[tag] = {
             "display_name": DISPLAY[tag],
