@@ -276,6 +276,8 @@ func _build_the_doors() -> void:
 		door.name = "Door_%s" % entry["id"]
 		door.door_id = String(entry["id"])
 		door.lit = bool(entry["lit"])
+		door.style = PiyestaDoor2D.Style.CHURCH if entry["id"] == DOOR_CHURCH \
+			else PiyestaDoor2D.Style.HOUSE
 		door.wall_tone = Color(entry["tone"])
 		door.shut_note = String(entry["shut"])
 		door.open_note = "%s  —  press %s" % [
