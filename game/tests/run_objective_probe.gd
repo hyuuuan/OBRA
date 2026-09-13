@@ -95,6 +95,17 @@ func _walk_piyesta() -> void:
 	director.commit_route("L2_N1", "pragmatist")
 	await _frames()
 	_expect("chose the lit house", "unlock", true, "UNLOCK")
+	# AND IT STANDS DOWN AT THE DOOR. The target is over the hood, two hundred units above the
+	# apo's feet; a marker still bobbing over their head at the right door is the game failing
+	# to notice they got there.
+	var pointer := level.get("objective_marker") as ObjectiveMarker
+	var start := player.global_position
+	player.global_position = Vector2(pointer.target().x, 500.0)
+	await _frames(4)
+	_check(not pointer.showing(), "at the lit house the marker stands down", "hidden")
+	player.global_position = start
+	await _frames(4)
+	_check(pointer.showing(), "and comes back when the player walks off", "showing")
 	var accepted: PackedStringArray = director.accept_set("L2_N1")
 	level.call("_judge_submission", accepted[0])
 	await _frames(20)
