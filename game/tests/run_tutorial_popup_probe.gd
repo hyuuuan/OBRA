@@ -61,6 +61,7 @@ func _run() -> void:
 	_audit_an_unknown_anchor_falls_back()
 	await _audit_a_callout_does_not_wait_for_the_bar()
 	await _audit_a_callout_goes_away()
+	await _audit_a_callout_leaves_with_its_target()
 	_audit_the_canvas_is_explained()
 	await _audit_the_two_readings_are_explained()
 
@@ -177,6 +178,30 @@ func _audit_a_callout_goes_away() -> void:
 	_check(not repeated or bool(tutorial.call("has_taught", "bag_open")),
 		"and storing again does not re-teach the same lesson",
 		"only an unspent lesson may appear")
+
+
+## ⚠ AND IT GOES WHEN THE THING IT POINTS AT GOES. The requirement lesson is aimed at the
+## strip, the strip clears the moment its beat is answered, and the bubble used to stand on
+## for the rest of its dwell with its beak aimed at nothing -- then ride along into the next
+## beat and sit half under the route choice. Hiding the target has to take it down at once.
+func _audit_a_callout_leaves_with_its_target() -> void:
+	tutorial.call("dismiss_callout")
+	await _wait(0.4)
+	var bag := level.get("inventory_hud") as Control
+	if bag == null or not bag.is_visible_in_tree():
+		_check(false, "the bag is up to point at", "-")
+		return
+	tutorial.call("_teach", {"id": "_probe_target_goes", "at": "never",
+		"anchor": "inventory_bar", "text": "Pointing at the bag."})
+	await process_frame
+	await process_frame
+	_check(tutorial.call("callout") != null, "a callout points at the bag", "up")
+	bag.visible = false
+	await _wait(0.5)
+	_check(tutorial.call("callout") == null, "and hiding the bag takes it down",
+		"gone" if tutorial.call("callout") == null
+		else "STILL UP -- pointing at a control that is not on screen")
+	bag.visible = true
 
 
 func _audit_the_canvas_is_explained() -> void:

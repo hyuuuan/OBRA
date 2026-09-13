@@ -46,6 +46,9 @@ var _life := 0.0
 ## Already going. Kept separate from `_life` because the timer running out is one of the two
 ## ways a dismiss starts, so the clock cannot also be the guard against a second one.
 var _dismissing := false
+## Asked every frame: is the thing this points at still on screen? Empty for a callout aimed
+## at a bare rectangle, which has nothing to go missing.
+var _target_alive := Callable()
 
 
 func _ready() -> void:
@@ -208,8 +211,22 @@ func _draw() -> void:
 	draw_line(_beak_from - across, tip, UISkin.GOLD, 2.0, true)
 
 
+## ⚠ A CALLOUT OUTLIVES WHAT IT POINTS AT, unless it is told to check.
+##
+## The requirement lesson points at the strip, and the strip goes the moment its beat is
+## answered -- so a player who solved Beat 0 inside the bubble's seven seconds walked on with
+## "That word is what it needs DONE" still up, its beak aimed at empty sky, and then carried
+## it into Ang Tulay, where it sat half under the route choice. The rect was captured once;
+## nothing ever asked again.
+func follow(alive: Callable) -> void:
+	_target_alive = alive
+
+
 func _process(delta: float) -> void:
 	if _dismissing or _life <= 0.0:
+		return
+	if _target_alive.is_valid() and not bool(_target_alive.call()):
+		dismiss()
 		return
 	_life -= delta
 	if _life <= 0.0:

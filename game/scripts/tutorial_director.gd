@@ -231,6 +231,10 @@ func _teach_beside(lesson: Dictionary, text: String, caps: String) -> bool:
 	# So the cap is dropped here rather than the words. The callout is already pointing at
 	# the button -- it does not also need to hold up a picture of the key.
 	_callout.point_at(target as Rect2, text, "", _side_of(lesson))
+	var finder := _find_target
+	_callout.follow(func() -> bool:
+		var now: Variant = finder.call(anchor)
+		return now is Rect2 and (now as Rect2).size.length_squared() >= 1.0)
 	return true
 
 
