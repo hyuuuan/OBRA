@@ -84,6 +84,7 @@ func _run() -> void:
 	_audit_nothing_this_level_places_is_invisible()
 	await _audit_the_apo_stands_on_something()
 	await _audit_the_frame_stays_on_the_painting()
+	_audit_no_world_note_names_a_class()
 
 	for line in results:
 		print(line)
@@ -867,3 +868,36 @@ func _painted_extent(backdrop: Sprite2D) -> Vector2:
 			last = x
 	var origin := backdrop.global_position.x - float(image.get_width()) * 0.5
 	return Vector2(origin + float(first), origin + float(last))
+
+
+## THE CLASS-NAME RULE, FOR WHAT THE WORLD SAYS AND NOT ONLY WHAT LOLO SAYS. The dialogue file
+## is audited; the notes a door or a room puts on the hint bar are written in code and in the
+## scene, and "the door does not give" and "the birds are still holding what you came for"
+## had been on screen at the lit house and the first alley since they were written. Door and
+## bird are both drawable classes. Whole words and plurals.
+func _audit_no_world_note_names_a_class() -> void:
+	var labels: Array = JSON.parse_string(FileAccess.get_file_as_string("res://../model/labels.json"))
+	var notes: Array[String] = []
+	for node in level.get_tree().get_nodes_in_group(&"piyesta_doors"):
+		var door := node as PiyestaDoor2D
+		notes.append(door.shut_note)
+		notes.append(door.open_note)
+	for node in level.get_tree().get_nodes_in_group(&"interiors"):
+		if node.get("onward_note") != null:
+			notes.append(String(node.get("onward_note")))
+	var named: Array[String] = []
+	for note in notes:
+		var words := PackedStringArray()
+		var cleaned := ""
+		for index in note.length():
+			var glyph := note[index].to_lower()
+			cleaned += glyph if glyph >= "a" and glyph <= "z" else " "
+		words = cleaned.split(" ", false)
+		for label: Variant in labels:
+			var word := String(label)
+			if (not word.contains(" ") and (words.has(word) or words.has(word + "s"))) \
+					or (word.contains(" ") and note.to_lower().contains(word)):
+				named.append("\"%s\" names %s" % [note, word])
+	_check(named.is_empty(), "no door or room note names a class",
+		"%d notes, clean" % notes.size() if named.is_empty() else "; ".join(named))
+

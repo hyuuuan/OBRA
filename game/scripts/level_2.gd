@@ -262,8 +262,8 @@ func _build_the_doors() -> void:
 			"shut": "Dark inside. Not this one."},
 		{"id": DOOR_LIT_HOUSE, "mark": "LitHouse", "lit": true, "room": house,
 			"tone": Color(0.749, 0.557, 0.380), # BF8E61, the sunlit house front
-			"shut": "There is a light on in there, and the door does not give.",
-			"open": "The door is open."},
+			"shut": "There is a light on in there, and it will not open.",
+			"open": "It is open now."},
 		{"id": DOOR_CHURCH, "mark": "ChurchDoor", "lit": false, "room": church,
 			"tone": Color(0.624, 0.427, 0.188), # 9F6D30
 			"shut": "The church. Lolo will not go in without a candle.",
