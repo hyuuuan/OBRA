@@ -120,7 +120,7 @@ func _run() -> void:
 
 	# THE ACQUISITION CARD, caught at full size rather than mid-fade.
 	level.call("announce_acquisition", "The Brass Key",
-		"Too small for the chest. It belongs to a door you have only seen painted.",
+		"Too small for the chest. It belongs to a house you have only seen painted.",
 		UIIcons.key())
 	await _wait(0.6)
 	await _capture("10_acquired")
