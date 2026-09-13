@@ -11,6 +11,7 @@
 [ext_resource type="Texture2D" path="res://assets/Level1/terraces_2.png" id="9_terraces"]
 [ext_resource type="Texture2D" path="res://assets/Level1/terraces_near_background.png" id="10_near"]
 [ext_resource type="Texture2D" path="res://assets/Level1/texturemap.png" id="11_map"]
+[ext_resource type="Shader" path="res://shaders/parallax_feather.gdshader" id="27_feather"]
 [ext_resource type="Script" path="res://scripts/ruined_bridge_2d.gd" id="12_bridge"]
 [ext_resource type="Script" path="res://scripts/gorge_wall_2d.gd" id="12_gorge"]
 [ext_resource type="Script" path="res://scripts/world_ambience_2d.gd" id="12_air"]
@@ -51,6 +52,16 @@ region = Rect2(157, 204, 1560, 739)
 [sub_resource type="AtlasTexture" id="Atlas_near"]
 atlas = ExtResource("10_near")
 region = Rect2(110, 146, 1677, 808)
+
+[sub_resource type="ShaderMaterial" id="Feather_terraces"]
+shader = ExtResource("27_feather")
+shader_parameter/region = Vector4(0.0818, 0.1889, 0.8943, 0.8731)
+shader_parameter/feather = 0.025
+
+[sub_resource type="ShaderMaterial" id="Feather_near"]
+shader = ExtResource("27_feather")
+shader_parameter/region = Vector4(0.0573, 0.1352, 0.9307, 0.8833)
+shader_parameter/feather = 0.025
 
 [sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_down_a"]
 points = PackedVector2Array(0, 0, 28, 32, 0, 32)
@@ -178,7 +189,8 @@ scale = Vector2(1.04, 1)
 texture = SubResource("Atlas_green")
 
 [node name="TerraceVistaLayer" type="Node2D" parent="." unique_id=1871817744]
-modulate = Color(0.45, 0.56, 0.68, 0.9)
+modulate = Color(0.45, 0.56, 0.68, 1)
+material = SubResource("Feather_terraces")
 z_index = -55
 script = ExtResource("3_depth")
 depth = 3.0
@@ -186,22 +198,26 @@ scroll_scale = 0.38
 z_index_base = -55
 
 [node name="VistaA" type="Sprite2D" parent="TerraceVistaLayer" unique_id=655679593]
+use_parent_material = true
 position = Vector2(590, 382)
 scale = Vector2(0.76, 0.76)
 texture = SubResource("Atlas_terraces")
 
 [node name="VistaB" type="Sprite2D" parent="TerraceVistaLayer" unique_id=216234178]
+use_parent_material = true
 position = Vector2(1740, 382)
 scale = Vector2(0.76, 0.76)
 texture = SubResource("Atlas_terraces")
 
 [node name="VistaC" type="Sprite2D" parent="TerraceVistaLayer" unique_id=525731432]
+use_parent_material = true
 position = Vector2(2890, 382)
 scale = Vector2(0.76, 0.76)
 texture = SubResource("Atlas_terraces")
 
 [node name="NearSceneryLayer" type="Node2D" parent="." unique_id=252645397]
-modulate = Color(0.44, 0.54, 0.67, 0.76)
+modulate = Color(0.44, 0.54, 0.67, 1)
+material = SubResource("Feather_near")
 z_index = -15
 script = ExtResource("3_depth")
 depth = 1.0
@@ -209,21 +225,25 @@ scroll_scale = 0.72
 z_index_base = -15
 
 [node name="NearA" type="Sprite2D" parent="NearSceneryLayer" unique_id=2109191667]
+use_parent_material = true
 position = Vector2(520, 425)
 scale = Vector2(0.57, 0.57)
 texture = SubResource("Atlas_near")
 
 [node name="NearB" type="Sprite2D" parent="NearSceneryLayer" unique_id=1823592587]
+use_parent_material = true
 position = Vector2(1460, 425)
 scale = Vector2(0.57, 0.57)
 texture = SubResource("Atlas_near")
 
 [node name="NearC" type="Sprite2D" parent="NearSceneryLayer" unique_id=1302642103]
+use_parent_material = true
 position = Vector2(2400, 425)
 scale = Vector2(0.57, 0.57)
 texture = SubResource("Atlas_near")
 
 [node name="NearD" type="Sprite2D" parent="NearSceneryLayer" unique_id=159114400]
+use_parent_material = true
 position = Vector2(3340, 425)
 scale = Vector2(0.57, 0.57)
 texture = SubResource("Atlas_near")
