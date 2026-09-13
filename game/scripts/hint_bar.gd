@@ -23,10 +23,10 @@ extends Control
 ## clear. The top of the frame is the one band of a side-scroller that is reliably empty,
 ## and it is the band the player is NOT looking at while they are judging a jump.
 ##
-## Under the badge (which owns y 20..52) and between the two top corners: the HUD frame ends
-## at x 418 and the morph card begins at x 1202, so a bar of this width centred on 800 sits
-## in the gap rather than over either of them.
-const TOP := 66.0
+## Under the badge (which owns y 20..52) and the objective line beneath it (56..90), and
+## between the two top corners: the HUD frame ends at x 418 and the morph card begins at
+## x 1202, so a bar of this width centred on 800 sits in the gap rather than over either.
+const TOP := 98.0
 ## And NARROWER than it was. A hint is one instruction, read once. At 720 wide with the
 ## story box's padding it was a slab half the width of the screen -- which is what a beat of
 ## story is supposed to look like, and the whole point of this channel is that it is not one.
