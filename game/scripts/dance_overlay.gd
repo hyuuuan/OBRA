@@ -115,7 +115,9 @@ func _build() -> void:
 
 	var panel := PanelContainer.new()
 	panel.name = "Panel"
-	panel.custom_minimum_size = Vector2(1280.0, 840.0)
+	# WIDTH ONLY -- an 840 floor plus the frame's ring came to 958 units in a 900 screen, and
+	# the line under the lane saying what to do was drawn off the bottom edge.
+	panel.custom_minimum_size = Vector2(1280.0, 0.0)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	centre.add_child(panel)
 	# Framed like every other panel in the game. `wrap` is what puts the gold ring and the
@@ -148,7 +150,10 @@ func _build() -> void:
 
 	_stage = Control.new()
 	_stage.name = "Stage"
-	_stage.custom_minimum_size = Vector2(1200.0, 660.0)
+	_stage.custom_minimum_size = Vector2(1200.0, 550.0)
+	# The cues start upstream of the lane and slide in from its right end, so without a clip
+	# the next one sat outside the frame, over the level, before it had arrived.
+	_stage.clip_contents = true
 	_stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	# THE ONE THING ON THIS SCREEN THAT TAKES INPUT. Everything else ignores the mouse, so a
 	# stroke started anywhere in the panel reaches here and nothing eats it on the way.

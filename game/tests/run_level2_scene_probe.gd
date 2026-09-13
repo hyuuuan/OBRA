@@ -83,6 +83,7 @@ func _run() -> void:
 	_audit_the_plaza_is_not_empty()
 	_audit_nothing_this_level_places_is_invisible()
 	await _audit_the_apo_stands_on_something()
+	await _audit_the_frame_stays_on_the_painting()
 
 	for line in results:
 		print(line)
@@ -814,3 +815,55 @@ func _audit_the_corner_counts_what_is_recovered() -> void:
 	_check(opened.contains("0") and label.text.contains("2") and label.text != opened,
 		"the corner counts what is recovered",
 		"'%s' -> '%s'" % [opened, label.text])
+
+
+## ⚠ THE PLAZA IS ONE PAINTING AND THE LEVEL IS TEN THOUSAND UNITS WIDE. The camera clamped to
+## the level, so walking to either end slid the frame off the picture onto flat sky with the
+## paving running on under nothing -- both ends, in the first frame anybody took of them. The
+## picture's painted extent is measured off the plate here rather than typed, so re-cutting
+## the art and forgetting the camera fails in this file and not in a playtest.
+func _audit_the_frame_stays_on_the_painting() -> void:
+	var camera := level.get_node_or_null(^"EnvironmentBaseplate/WorldCamera") as WorldCameraController
+	var player := level.get("player") as Node2D
+	var backdrop := level.get_node_or_null(^"EnvironmentBaseplate/PlazaBackdrop") as Sprite2D
+	if camera == null or player == null or backdrop == null:
+		_check(false, "the plaza has a camera, a player and a plate", "-")
+		return
+	var painted := _painted_extent(backdrop)
+	_check(camera.outdoor_x_limits.x >= painted.x - 2.0
+		and camera.outdoor_x_limits.y <= painted.y + 2.0,
+		"the camera's limits are inside the paint",
+		"limits %s, plate painted across %s" % [camera.outdoor_x_limits, painted])
+	for x: float in [painted.x + 30.0, painted.y - 30.0]:
+		player.global_position = Vector2(x, WALK_LINE - 60.0)
+		for _frame in range(3):
+			await physics_frame
+		camera.snap_to_target()
+		var half := camera.get_viewport_rect().size.x * 0.5 / camera.zoom.x
+		var left := camera.global_position.x - half
+		var right := camera.global_position.x + half
+		_check(left >= painted.x - 1.0 and right <= painted.y + 1.0,
+			"at x %d the frame shows only painting" % int(x),
+			"frame %d..%d, painting %d..%d" % [int(left), int(right), int(painted.x), int(painted.y)])
+
+
+## Where the plate stops being bare sky, in world x. The plate's two corners at the walk line
+## are sky, so anything that differs from them near the ground is painting.
+func _painted_extent(backdrop: Sprite2D) -> Vector2:
+	var image := backdrop.texture.get_image()
+	if image.is_compressed():
+		image.decompress()
+	var row := image.get_height() - 40
+	var sky := image.get_pixel(4, row)
+	var first := -1
+	var last := -1
+	for x in range(image.get_width()):
+		var pixel := image.get_pixel(x, row - 60)
+		var near := image.get_pixel(x, row)
+		if absf(pixel.r - sky.r) + absf(pixel.g - sky.g) + absf(pixel.b - sky.b) > 0.24 \
+				or absf(near.r - sky.r) + absf(near.g - sky.g) + absf(near.b - sky.b) > 0.24:
+			if first < 0:
+				first = x
+			last = x
+	var origin := backdrop.global_position.x - float(image.get_width()) * 0.5
+	return Vector2(origin + float(first), origin + float(last))

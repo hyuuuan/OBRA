@@ -67,6 +67,14 @@ signal camera_moved(camera_position: Vector2)
 ## own box in here on the way through the door and take it back on the way out; an empty
 ## rect means "no opinion", which is the level clamping itself as it always did.
 @export var room_bounds: Rect2 = Rect2()
+## HOW FAR LEFT AND RIGHT THE OUTSIDE IS ACTUALLY PAINTED, when that is less than the level.
+##
+## `world_bounds` has to be the whole level, because it is also the fall limit -- and in
+## Piyesta the level is ten thousand units wide so the rooms parked in the sky are inside it.
+## The plaza is one painting 1600 wide in the middle of that, so following the player to
+## either end of it slid the frame past the edge of the picture and showed a strip of flat
+## sky with the paving running on under nothing. (-INF, INF) is "no opinion".
+@export var outdoor_x_limits: Vector2 = Vector2(-INF, INF)
 
 var target: Node2D = null
 ## What the camera is pushed in on for a beat, and how far. Null means it is doing its
@@ -248,6 +256,10 @@ func _clamp_to_bounds(desired: Vector2) -> Vector2:
 
 	var min_x := frame.position.x + half_view.x - play_area_left
 	var max_x := bounds_end.x - half_view.x
+	# Outside only. A room brings its own box, and the painting has nothing to say about it.
+	if frame == world_bounds:
+		min_x = maxf(min_x, outdoor_x_limits.x + half_view.x)
+		max_x = minf(max_x, outdoor_x_limits.y - half_view.x)
 	if min_x <= max_x:
 		desired.x = clampf(desired.x, min_x, max_x)
 	else:
