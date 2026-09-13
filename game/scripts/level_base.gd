@@ -121,6 +121,20 @@ func _dialogue_node_obstacle_id() -> String:
 	return ""
 
 
+## WHAT THE PLAYER SHOULD BE DOING NOW, worked out from the run rather than remembered.
+##
+## { key, obstacle?, target? }. `key` names a line in the level config's `objectives` block;
+## `obstacle`, when given, lets a line with a `.tags` variant say what that obstacle is asking
+## for in the same words the strip uses; `target` is a world position for the marker. Empty
+## means the level has nothing to point at, and the banner stands down.
+##
+## ⚠ DERIVED, NEVER SET. An objective written at the moment something happened is wrong after
+## every checkpoint restore, fall and doorway that did not go through that moment -- the same
+## reason the room framing is asked every frame instead of being set on the way in.
+func _current_objective() -> Dictionary:
+	return {}
+
+
 ## WHICH LEVEL THIS IS, asked of the level's own config rather than of the hub catalog.
 ##
 ## Running a scene directly -- from the editor, or from a runner -- never goes through
@@ -228,6 +242,14 @@ var _framed_room: Node2D = null
 ## The framed box every story line is shown in. Built here rather than authored into the
 ## scene because it is pure presentation with no state to save and nothing to wire.
 var dialogue_box: DialogueBox
+## Top centre, under the badge: what to do now. See ObjectiveBanner and _current_objective.
+var objective_banner: ObjectiveBanner
+## And where. See ObjectiveMarker.
+var objective_marker: ObjectiveMarker
+## Seconds until the objective is asked again. Five times a second is instant to a person and
+## costs nothing -- the question is a handful of dictionary reads.
+var _objective_clock := 0.0
+const OBJECTIVE_EVERY := 0.2
 ## The other channel: what the game says while you keep playing.
 var hint_bar: HintBar
 ## The corner readouts and where each belongs, so they can be re-placed together.
@@ -2217,7 +2239,99 @@ func _build_hud_frame() -> void:
 	_build_checkpoint_chip()
 	_build_morph_card()
 	_build_action_prompts()
+	_build_objective()
 	_build_dialogue_box()
+
+
+## The objective line under the badge, and the marker over the world. The marker is the
+## first child of the HUD layer so every readout draws over it: an arrow may point past the
+## ink plate, never across it.
+func _build_objective() -> void:
+	objective_marker = ObjectiveMarker.new()
+	objective_marker.name = "ObjectiveMarker"
+	$CanvasLayer.add_child(objective_marker)
+	$CanvasLayer.move_child(objective_marker, 0)
+	objective_banner = ObjectiveBanner.new()
+	objective_banner.name = "ObjectiveBanner"
+	$CanvasLayer.add_child(objective_banner)
+
+
+## Ask the level what the player should be doing, and show it. Public so a probe can ask on
+## the frame it changed something rather than waiting for the clock.
+func refresh_objective() -> void:
+	if objective_banner == null or director == null:
+		return
+	var goal := _current_objective()
+	objective_banner.set_objective(objective_text(goal))
+	var target: Variant = goal.get("target", null)
+	if target is Vector2 and player != null and is_instance_valid(player) \
+			and _same_space(target as Vector2):
+		objective_marker.point_at(target as Vector2, player)
+	else:
+		objective_marker.clear()
+
+
+## The words for an objective. A line with a `.tags` variant uses it once every tag the
+## obstacle is asking for has been TAUGHT -- before that, naming the tag would be the banner
+## teaching an ability ahead of the beat that does, which is the one thing the tag layer's
+## ordering rule exists to stop.
+func objective_text(goal: Dictionary) -> String:
+	if director == null or goal.is_empty():
+		return ""
+	var table: Dictionary = director.level_data().get("objectives", {})
+	var key := String(goal.get("key", ""))
+	var obstacle := String(goal.get("obstacle", ""))
+	if not obstacle.is_empty() and table.has(key + ".tags"):
+		var spec: Dictionary = director.requirement_spec(obstacle)
+		var tags: Array = spec.get("required_tags", [])
+		var taught := not tags.is_empty()
+		for tag: Variant in tags:
+			if not AbilityTags.is_unlocked(String(tag)):
+				taught = false
+		# A tutorial beat teaches by saying it. Beat 0 has no dialogue node to unlock its
+		# tags -- Lolo names ROLL, then SPAN, in the line each sub-beat opens with, and that
+		# line fires the first time the player walks in.
+		if not taught and not tags.is_empty() \
+				and not (director.obstacle(obstacle).get("sub_beats", []) as Array).is_empty():
+			taught = director.was_entered(obstacle)
+		if taught:
+			return String(table[key + ".tags"]).replace("{tags}",
+				_objective_tags(tags, String(spec.get("match", "all"))))
+	return String(table.get(key, ""))
+
+
+## "FEED, STARTLE or STRIKE" -- a list a person would say, not the strip's "or" between each.
+func _objective_tags(tags: Array, match: String) -> String:
+	var names := PackedStringArray()
+	for tag: Variant in tags:
+		names.append(String(AbilityTags.display_name(String(tag))).to_upper())
+	if names.size() <= 1:
+		return "".join(names)
+	var last := names[names.size() - 1]
+	names.remove_at(names.size() - 1)
+	return "%s %s %s" % [", ".join(names), "or" if match == "any" else "and", last]
+
+
+## Whether a world point is in the same place as the player: both out in the level, or both
+## inside the same room. A room is parked thousands of units away, so an arrow from inside one
+## to something on the terrace would point at the sky.
+func _same_space(point: Vector2) -> bool:
+	var there: Node2D = null
+	for node in get_tree().get_nodes_in_group(&"interiors"):
+		var room := node as Node2D
+		if room != null and Rect2(room.call("bounds")).grow(90.0).has_point(point):
+			there = room
+			break
+	return there == _room_holding_player()
+
+
+## Where a named obstacle's volume stands, for pointing at. Vector2.INF if there is none.
+func _obstacle_point(obstacle_id: String) -> Vector2:
+	for node in get_tree().get_nodes_in_group(&"level_obstacles"):
+		var volume := node as LevelObstacle2D
+		if volume != null and volume.obstacle_id == obstacle_id:
+			return volume.global_position
+	return Vector2.INF
 
 
 ## Its own layer, above the HUD and below every modal. A story line must sit over the ink
@@ -2502,6 +2616,10 @@ func _physics_process(_delta: float) -> void:
 	if player == null or not is_instance_valid(player):
 		return
 	_refresh_room_framing()
+	_objective_clock -= _delta
+	if _objective_clock <= 0.0:
+		_objective_clock = OBJECTIVE_EVERY
+		refresh_objective()
 	_offer_the_nearest_sign()
 	var anchor_position := player.global_position
 	if player.has_method("get_physics_anchor"):
