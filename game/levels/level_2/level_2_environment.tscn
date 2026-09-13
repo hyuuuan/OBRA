@@ -30,6 +30,7 @@ metadata/checkpoint_moss = Color(0.318, 0.376, 0.239, 0)
 script = ExtResource("2_camera")
 target_offset = Vector2(0, -250)
 world_bottom_y = 722.0
+outdoor_x_limits = Vector2(116, 1732)
 
 [node name="Ambience" type="Node2D" parent="WorldCamera"]
 script = ExtResource("4_ambience")
@@ -72,13 +73,13 @@ position = Vector2(935.0, 660.0)
 shape = SubResource("Rect_PlazaFloor")
 
 [node name="WestWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(60.0, 250.0)
+position = Vector2(110.0, 250.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/WestWall"]
 shape = SubResource("Rect_WestWall")
 
 [node name="EastWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(1810.0, 250.0)
+position = Vector2(1740.0, 250.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/EastWall"]
 shape = SubResource("Rect_EastWall")
