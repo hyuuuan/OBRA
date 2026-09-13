@@ -796,3 +796,63 @@ func _wire_dialogue_node() -> void:
 		cave_gate.connect(&"passage_allowed", _on_cave_opened)
 		cave_gate.connect(&"passage_blocked", _on_cave_refused)
 	super()
+
+
+# --- What the player should be doing ---------------------------------------------------
+
+## PAYYO IN ORDER: up Ang Hagdan, across the gorge, into the straw, into Ang Bale, out through
+## the wall with her painting.
+##
+## ⚠ THE STRAW IS NOT A GATE. Its key opens Ang Bale, but so do climbing and cutting, and a
+## player can walk past the heap to the house. So the line moves on to Ang Bale once the heap
+## is answered, OR its key is in hand, OR the player is already past it -- telling somebody
+## standing at the house to go back and search a haystack they do not need is the banner
+## inventing a chore.
+func _current_objective() -> Dictionary:
+	if director == null:
+		return {}
+	var room := _room_holding_player()
+	var at := player.global_position if player != null and is_instance_valid(player) \
+		else Vector2.ZERO
+
+	if not director.is_solved("B0_HAGDAN"):
+		var stage := director.stage_id("B0_HAGDAN")
+		var target := Vector2(1050.0, 380.0)
+		var tread := get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Hagdan/FloatingTread") \
+			as Node2D
+		if stage == "sub1" and tread != null:
+			target = tread.global_position + Vector2(0.0, -70.0)
+		return {"key": "b0_%s" % (stage if not stage.is_empty() else "sub1"),
+			"obstacle": "B0_HAGDAN", "target": target}
+
+	var gorge := _obstacle_point("L1_N1")
+	if not director.is_solved("L1_N1") and at.x < gorge.x + 240.0:
+		if director.committed_route("L1_N1").is_empty():
+			var node_at := dialogue_node.global_position if dialogue_node != null else gorge
+			return {"key": "gorge", "target": node_at + Vector2(0.0, -110.0)}
+		return {"key": "gorge", "obstacle": "L1_N1", "target": gorge + Vector2(0.0, -130.0)}
+
+	var straw_room := get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	if room != null and room == straw_room:
+		if not pickup_taken_this_run(FOUND_KEY):
+			return {"key": "straw_inside",
+				"target": straw_room.global_position + Vector2(straw_room.get("key_at"))}
+		return {"key": "straw_leave",
+			"target": straw_room.global_position + Rect2(straw_room.call("exit_rect")).get_center()}
+
+	var heap := _obstacle_point("L1_N2")
+	if not director.is_solved("L1_N2") and not pickup_taken_this_run(FOUND_KEY) \
+			and not director.is_solved("L1_N3") and at.x < heap.x + 220.0:
+		return {"key": "straw", "obstacle": "L1_N2", "target": heap + Vector2(0.0, -110.0)}
+
+	var bale := get_tree().get_first_node_in_group(&"bale_interiors") as Node2D
+	if not director.is_solved("L1_N3"):
+		return {"key": "bale", "obstacle": "L1_N3",
+			"target": _obstacle_point("L1_N3") + Vector2(0.0, -140.0)}
+	if bale != null and room == bale:
+		var gap: Vector2 = bale.global_position + BaleInterior2D.ONWARD_AT + Vector2(0.0, -110.0)
+		if not bool(bale.call("painting_is_taken")):
+			return {"key": "painting", "target": gap}
+		return {"key": "onward", "target": gap}
+	return {"key": "bale", "target": _obstacle_point("L1_N3") + Vector2(0.0, -140.0)}
+
