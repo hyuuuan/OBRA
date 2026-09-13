@@ -703,8 +703,26 @@ it. If you are retuning a jump, a gap or an object size, read R1-R6 there first:
 numbers in this level are measured against each other, and the ones that look arbitrary
 are not.
 
+## What the player is told to do
+
+A line under the badge and a marker over the world, asked of the level five times a second
+(`_current_objective` in `game_level.gd`; the words are `level_01.json` → `objectives`).
+Cross the paddy → up Ang Hagdan → to the gorge → across it → the straw → Ang Bale → the
+painting → out through the wall. Once a beat has named its tags the line names them too.
+
+**The straw is not a gate.** Its key opens Ang Bale, but so do climbing and cutting, so the
+line moves on to the house once the heap is answered, its key is in hand, or the player has
+walked past it. Do not make the objective insist on the heap.
+
+`run_objective_probe` walks both levels through their real state changes and checks the
+line and the marker at every step. The distance readout ("GOAL 116 m") is still there; it
+says how far, and the objective says what and which way.
+
 ## Verify
 
+```bash
+godot --headless --path game --script res://tests/run_objective_probe.gd
+```
 ```bash
 godot --headless --path game --script res://tests/run_level1_audit.gd
 ```
