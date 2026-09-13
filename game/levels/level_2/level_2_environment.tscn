@@ -93,16 +93,16 @@ position = Vector2(450.0, 560.0)
 position = Vector2(720.0, 560.0)
 
 [node name="DarkHouseA" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(200.0, 560.0)
+position = Vector2(190.0, 560.0)
 
 [node name="DarkHouseB" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(330.0, 560.0)
+position = Vector2(346.0, 560.0)
 
 [node name="LitHouse" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(1060.0, 560.0)
+position = Vector2(600.0, 560.0)
 
 [node name="ChurchDoor" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(1360.0, 560.0)
+position = Vector2(1392.0, 560.0)
 
 [node name="BuntingLine" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(720.0, 205.0)
@@ -155,6 +155,7 @@ position = Vector2(720.0, 400.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L2_N1"
 trigger_size = Vector2(520.0, 400)
+checkpoint_mark_offset = 340.0
 
 [node name="L2_N2" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(9450.0, -900.0)
