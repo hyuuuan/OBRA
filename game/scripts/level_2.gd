@@ -102,6 +102,15 @@ var _lines: Dictionary = {}
 ## rather than every frame. Same shape as `_refresh_room_framing`.
 var _ceiling_for := "?"
 var _birds: Array[ScrapBird2D] = []
+## Seconds into Problem 2's Protector route, or -1 while it is not running.
+##
+## ⚠ THE TIMER THE ROUTE IS BUILT ON DID NOT EXIST. `level_02.json` gives the route 45 to 60
+## seconds, `ScrapBird2D` has `set_pressure` (the birds climb as it runs down) and
+## `timer_expired` (whatever is still up flies on to Alley 2) -- and nothing in the level ever
+## called either. So a player who drew the boomerang and walked on without throwing it left
+## five scraps circling an alley they never came back to, and finished Piyesta holding two of
+## seven: the one thing the scrap economy promises cannot happen.
+var _flock_clock := -1.0
 var dancers: DancerGroup2D
 ## WHICH pieces went on ahead, not how many.
 ##
@@ -663,12 +672,50 @@ func _go_onward(room: PiyestaRoom2D) -> void:
 	if room == alley_2:
 		_open_scene_3()
 		return
+	if room == alley_1:
+		_let_the_flock_go()
 	var next := _next_after(room)
 	if next == null:
 		return
 	next.disarm_the_way_out()
 	_step_back[next.name] = room.return_point()
 	_step_through(next.entry_point())
+
+
+## The birds climb as the clock runs down, and whatever is still up when it runs out goes on
+## ahead to Alley 2 -- deferred, never lost.
+func _run_the_flock_clock(delta: float) -> void:
+	if _flock_clock < 0.0:
+		return
+	_flock_clock += delta
+	var ratio := _flock_clock / _flock_seconds()
+	for bird in _birds:
+		bird.set_pressure(ratio)
+	if ratio >= 1.0:
+		_let_the_flock_go()
+
+
+## Everything still circling leaves now. Called when the clock runs out, and when the player
+## walks on out of the alley first: a bird left orbiting a room nobody returns to is a scrap
+## the ledger can never recover.
+func _let_the_flock_go() -> void:
+	if _flock_clock < 0.0:
+		return
+	_flock_clock = -1.0
+	for bird in _birds:
+		bird.timer_expired()
+
+
+## The shorter of the two numbers the design gives, so the pressure is felt.
+func _flock_seconds() -> float:
+	var route: Dictionary = director.obstacle("L2_N2").get("routes", {}).get("protector", {}) \
+		if director != null else {}
+	var bounds: Array = route.get("timer_seconds", [45, 60])
+	return float(bounds[0]) if not bounds.is_empty() else 45.0
+
+
+func flock_clock() -> float:
+	return _flock_clock
 
 
 func _next_after(room: PiyestaRoom2D) -> PiyestaRoom2D:
@@ -760,6 +807,7 @@ func _on_submission_refused(_entity_id: String, note: String) -> void:
 # --- The ceiling: a violation, and POSITION ONLY -------------------------------------
 
 func _level_physics(anchor_position: Vector2) -> void:
+	_run_the_flock_clock(get_physics_process_delta_time())
 	_refresh_the_ceiling()
 	if restrictions == null or player == null or not is_instance_valid(player):
 		return
@@ -881,6 +929,7 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 			# knocked down one at a time and whatever is still airborne when the timer runs
 			# out flies on to Alley 2. The way onward opens now because the beat is answered;
 			# what the player collects before walking through it is up to them.
+			_flock_clock = 0.0
 			_open_the_first_alley()
 		["L2_N3", "artist"]:
 			# Climbed to. The town keeps its bunting and the ceiling stays where it is --
@@ -1054,6 +1103,9 @@ func _current_objective() -> Dictionary:
 	if room == alley_1:
 		if not director.is_solved("L2_N2"):
 			return {"key": "flock", "obstacle": "L2_N2",
+				"target": alley_1.global_position + Vector2(0.0, -BIRDS_RIDE - 60.0)}
+		if _flock_clock >= 0.0:
+			return {"key": "flock_strike",
 				"target": alley_1.global_position + Vector2(0.0, -BIRDS_RIDE - 60.0)}
 		return {"key": "alley_on", "target": _onward_of(alley_1)}
 	if room == alley_2:
