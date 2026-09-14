@@ -176,7 +176,7 @@ script = ExtResource("6_checkpoint")
 checkpoint_id = "CP0"
 
 [node name="DialogueNode" type="Area2D" parent="GameplayPlane"]
-position = Vector2(680.0, 440.0)
+position = Vector2(680.0, 560.0)
 script = ExtResource("7_dialoguenode")
 level_id = "level_2"
 
