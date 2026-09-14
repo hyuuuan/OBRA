@@ -283,7 +283,7 @@ func _take_the_bale_key(how: String) -> void:
 		return
 	note_pickup_taken(FOUND_KEY)
 	announce_acquisition("The Brass Key",
-		"Too small for the chest. It belongs to a door you have only seen painted.",
+		"Too small for the chest. It belongs to a house you have only seen painted.",
 		UIIcons.key())
 	if PlayerProfile.is_collectible_found(FOUND_KEY):
 		return
