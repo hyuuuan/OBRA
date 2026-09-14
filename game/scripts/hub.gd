@@ -25,7 +25,7 @@ const WandererScene = preload("res://creatures/wanderer.tscn")
 ## which painting goes where and what the plate reads.
 const WALL: Array[Dictionary] = [
 	{"id": "level_1", "plate": "PAYYO"},
-	{"id": "level_2", "plate": "PISTA"},
+	{"id": "level_2", "plate": "PIYESTA"},
 	{"id": "level_3", "plate": "DAGAT"},
 	{"id": "level_4", "plate": "DILIM"},
 	{"id": "level_5", "plate": "MAYON"},

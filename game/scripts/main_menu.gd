@@ -14,6 +14,7 @@ const PANEL_SNAP := 8.0
 @onready var settings_button: Button = $MenuLayer/MenuRoot/SideButtons/SettingsButton
 @onready var controls_button: Button = $MenuLayer/MenuRoot/SideButtons/ControlsButton
 @onready var quit_button: Button = $MenuLayer/MenuRoot/SideButtons/QuitButton
+@onready var side_buttons: Control = $MenuLayer/MenuRoot/SideButtons
 @onready var cards: Array[Button] = [
 	$MenuLayer/MenuRoot/MorphPanel/Selector/Level1,
 	$MenuLayer/MenuRoot/MorphPanel/Selector/Level2,
@@ -113,6 +114,7 @@ func _show_selector() -> void:
 	_animating = true
 	_selector_open = true
 	play_button.disabled = true
+	_show_side_buttons(false)
 	var from_rect := morph_panel.get_rect()
 	var to_rect := _selector_panel_rect()
 	_start_panel_tween(from_rect, to_rect, true)
@@ -149,9 +151,26 @@ func _start_panel_tween(from_rect: Rect2, to_rect: Rect2, opening: bool) -> void
 			play_button.visible = true
 			play_button.disabled = false
 			play_button.grab_focus()
+			_show_side_buttons(true)
 			_selector_open = false
 			_animating = false
 	)
+
+
+## ⚠ THE LEVEL PANEL GROWS DOWN OVER THE BUTTON ROW, AND DOES NOT QUITE COVER IT. The panel
+## ends a few units into SETTINGS / CONTROLS / QUIT, so while the levels were up the tops of
+## three buttons stuck out from under its bottom edge, half-hidden and still clickable. The
+## row belongs to the title screen; it steps out while the selector is open.
+func _show_side_buttons(shown: bool) -> void:
+	if side_buttons == null:
+		return
+	var fade := create_tween()
+	if shown:
+		side_buttons.visible = true
+		fade.tween_property(side_buttons, "modulate:a", 1.0, 0.18)
+	else:
+		fade.tween_property(side_buttons, "modulate:a", 0.0, 0.12)
+		fade.tween_callback(func() -> void: side_buttons.visible = false)
 
 
 func _reveal_selector() -> void:
