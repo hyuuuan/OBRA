@@ -49,6 +49,12 @@ var _dismissing := false
 ## Asked every frame: is the thing this points at still on screen? Empty for a callout aimed
 ## at a bare rectangle, which has nothing to go missing.
 var _target_alive := Callable()
+## What this bubble was aimed at and from which side, so it can be re-placed when the HUD
+## around it changes. The strip it has to clear GROWS -- a fourth hint line arrives seconds
+## after the bubble was placed -- so where it stood when it appeared is not where it can stay.
+var _aimed_at := Rect2()
+var _aimed_side := 0
+var _settle := 0.0
 
 
 func _ready() -> void:
@@ -115,6 +121,9 @@ func point_at(target: Rect2, text: String, caps: String = "",
 	# The panel has to be measured before it can be placed, and a Control measures nothing
 	# until it has been laid out -- the trap HUD_SKIN.md keeps a note about.
 	await get_tree().process_frame
+	_aimed_at = target
+	_aimed_side = side
+	_settle = 0.0
 	_place(target, side)
 	_life = DWELL
 	var tween := create_tween()
@@ -151,32 +160,31 @@ func _key_cap(caps: String) -> Control:
 func _place(target: Rect2, side: int) -> void:
 	var box := _panel.size
 	var screen := get_viewport_rect().size
-	var chosen := side
-	if chosen == Side.AUTO:
-		if target.position.y - (box.y + GAP + BEAK) >= MARGIN:
-			chosen = Side.ABOVE
-		elif target.end.y + box.y + GAP + BEAK <= screen.y - MARGIN:
-			chosen = Side.BELOW
-		elif target.position.x - (box.x + GAP + BEAK) >= MARGIN:
-			chosen = Side.LEFT
-		else:
-			chosen = Side.RIGHT
+	# ⚠ AND IT HAS TO CLEAR THE REST OF THE HUD, not only the screen edge. A lesson pointing
+	# at the Draw button goes above it, which at the bottom of the screen is exactly where the
+	# requirement strip stands at its tallest -- so the bubble teaching the player to draw was
+	# printed across the panel telling them what to draw. The bubble is the thing that moves:
+	# every other piece of the HUD is where the player expects it.
+	var blockers := _hud_around_me()
+	var order: Array[int] = []
+	if side != Side.AUTO:
+		order.append(side)
+	for fallback: int in [Side.ABOVE, Side.BELOW, Side.RIGHT, Side.LEFT]:
+		if not order.has(fallback):
+			order.append(fallback)
+	var chosen := order[0]
+	var at := _corner_for(chosen, target, box, screen)
+	var least := INF
+	for candidate: int in order:
+		var spot := _corner_for(candidate, target, box, screen)
+		var cost := _overlap(Rect2(spot, box), blockers)
+		if cost < least:
+			least = cost
+			chosen = candidate
+			at = spot
+		if cost <= 0.0:
+			break
 	_side = chosen
-
-	var at := Vector2.ZERO
-	match chosen:
-		Side.ABOVE:
-			at = Vector2(target.get_center().x - box.x * 0.5,
-				target.position.y - GAP - BEAK - box.y)
-		Side.BELOW:
-			at = Vector2(target.get_center().x - box.x * 0.5, target.end.y + GAP + BEAK)
-		Side.LEFT:
-			at = Vector2(target.position.x - GAP - BEAK - box.x,
-				target.get_center().y - box.y * 0.5)
-		_:
-			at = Vector2(target.end.x + GAP + BEAK, target.get_center().y - box.y * 0.5)
-	at.x = clampf(at.x, MARGIN, maxf(MARGIN, screen.x - box.x - MARGIN))
-	at.y = clampf(at.y, MARGIN, maxf(MARGIN, screen.y - box.y - MARGIN))
 	_panel.position = at
 
 	var edge := Vector2.ZERO
@@ -194,6 +202,60 @@ func _place(target: Rect2, side: int) -> void:
 	_beak_from = edge
 	_beak_to = target.get_center()
 	queue_redraw()
+
+
+## Where the bubble's corner lands on a given side, pushed back inside the screen.
+func _corner_for(side: int, target: Rect2, box: Vector2, screen: Vector2) -> Vector2:
+	var at := Vector2.ZERO
+	match side:
+		Side.ABOVE:
+			at = Vector2(target.get_center().x - box.x * 0.5,
+				target.position.y - GAP - BEAK - box.y)
+		Side.BELOW:
+			at = Vector2(target.get_center().x - box.x * 0.5, target.end.y + GAP + BEAK)
+		Side.LEFT:
+			at = Vector2(target.position.x - GAP - BEAK - box.x,
+				target.get_center().y - box.y * 0.5)
+		_:
+			at = Vector2(target.end.x + GAP + BEAK, target.get_center().y - box.y * 0.5)
+	at.x = clampf(at.x, MARGIN, maxf(MARGIN, screen.x - box.x - MARGIN))
+	at.y = clampf(at.y, MARGIN, maxf(MARGIN, screen.y - box.y - MARGIN))
+	return at
+
+
+## How much of the bubble would land on something else, in square pixels.
+func _overlap(bubble: Rect2, blockers: Array[Rect2]) -> float:
+	var total := 0.0
+	for blocker in blockers:
+		var shared := bubble.intersection(blocker)
+		total += shared.size.x * shared.size.y
+	return total
+
+
+## THE REST OF THE HUD, read off the layer this bubble was put on rather than handed in.
+## Anything with a panel behind it is something the player is meant to be reading; a lesson
+## that covers one has taken away the thing it is talking about. Collected fresh on every
+## placement because which panels are up changes minute to minute.
+func _hud_around_me() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var layer := get_parent()
+	if layer == null:
+		return out
+	_gather_panels(layer, out)
+	return out
+
+
+func _gather_panels(node: Node, into: Array[Rect2]) -> void:
+	if node == self:
+		return
+	var panel := node as PanelContainer
+	if panel != null and panel.is_visible_in_tree() and panel.modulate.a > 0.05 \
+			and panel.size.x > 8.0 and panel.size.y > 8.0 \
+			and panel.has_theme_stylebox_override(&"panel"):
+		into.append(panel.get_global_rect())
+		return
+	for child in node.get_children():
+		_gather_panels(child, into)
 
 
 func _draw() -> void:
@@ -231,6 +293,14 @@ func _process(delta: float) -> void:
 	_life -= delta
 	if _life <= 0.0:
 		dismiss()
+		return
+	# Re-placed a few times a second, because what it has to clear moves: the requirement
+	# strip grows a line every time the player misses, and the bubble was placed against the
+	# strip as it stood when the lesson arrived.
+	_settle += delta
+	if _settle >= 0.25 and _aimed_at.size.length_squared() > 1.0:
+		_settle = 0.0
+		_place(_aimed_at, _aimed_side)
 
 
 ## Taken down early, which is what should happen the moment the player does the thing. A
