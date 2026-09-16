@@ -242,6 +242,11 @@ func _hud_around_me() -> Array[Rect2]:
 	if layer == null:
 		return out
 	_gather_panels(layer, out)
+	# And the pieces that draw their own ground rather than being a panel: the toolbelt's tray.
+	for node in get_tree().get_nodes_in_group(&"hud_blockers"):
+		var control := node as Control
+		if control != null and control.is_visible_in_tree() and control.modulate.a > 0.05:
+			out.append(control.get_global_rect().grow(8.0))
 	return out
 
 
