@@ -111,9 +111,13 @@ func set_pickup_available(available: bool, object_name: String = "") -> void:
 	_pickup.tooltip_text = "Pick up %s" % object_name if not object_name.is_empty() else "Pick up"
 
 
-func set_use_available(available: bool, object_name: String = "") -> void:
+func set_use_available(available: bool, object_name: String = "", verb: String = "USE") -> void:
 	_set_wanted(_use, available)
 	_use.tooltip_text = "Use %s" % object_name if not object_name.is_empty() else "Use held object"
+	# Restyled only when the word changes: the key cap is rebuilt by `_style_prompt`, and doing
+	# that every frame would churn a node a frame.
+	if verb != _use.text:
+		_style_prompt(_use, "F", verb, UISkin.USE, maxf(116.0, 74.0 + float(verb.length()) * 13.0))
 
 
 func set_climb_available(available: bool, object_name: String = "") -> void:
