@@ -183,8 +183,40 @@ func _weighting_body() -> Node2D:
 			continue
 		if _tags != null and bool(_tags.call("class_has_tag", class_id, required_tag)):
 			return body
-	return null
+	return _hovering_weight()
 
+
+## ⚠ AND ONE HELD JUST OFF THE DECK BY THE WATER STILL COUNTS.
+##
+## The plank floats and so does everything the player is likely to put on it, and two floating
+## bodies do not rest against each other: they bob, the contact comes and goes, and the gap
+## between them can sit open for as long as the pair keeps agreeing with the water. About one
+## attempt in three the circle came down a few pixels short and stayed there, the plank never
+## reported a contact, and the beat did not answer -- from the player's side, "I put the ball
+## on it and nothing happened". The puzzle is "is something heavy on this plank", not "are
+## these two rigid bodies touching this frame", so a rolling thing directly over the deck and
+## within a hand's width above it is on it.
+const HOVER_REACH := 26.0
+
+
+func _hovering_weight() -> Node2D:
+	var deck := global_position.y - _half_extent().y
+	for node in get_tree().get_nodes_in_group(&"placed_drawings"):
+		var prop := node as PhysicsShapeObject
+		if prop == null or not is_instance_valid(prop) or prop.item_data == null:
+			continue
+		var class_id := String(prop.item_data.entity_id)
+		if _tags == null or not bool(_tags.call("class_has_tag", class_id, required_tag)):
+			continue
+		# Its underside against the deck, and its middle over the plank rather than past
+		# the end of it.
+		var bottom := prop.global_position.y + prop.world_extent().size.y * 0.5
+		if bottom > deck + HOVER_REACH or bottom < deck - HOVER_REACH * 2.0:
+			continue
+		if absf(prop.global_position.x - global_position.x) > _half_extent().x:
+			continue
+		return prop
+	return null
 
 
 ## From ABOVE, and over the deck. Something floating against the plank's edge is not
