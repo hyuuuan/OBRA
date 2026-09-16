@@ -54,7 +54,14 @@ const DWELL := 3.2
 var _stowed := false
 ## Whether the player is standing behind the bar right now. See set_see_through.
 var _see_through := false
-var _veil: Tween
+## How much of the HUD the level's letterbox has left showing. See set_curtain_alpha.
+var _curtain_alpha := 1.0
+## ⚠ ONE WRITER FOR THE ALPHA. The bar's alpha used to be tweened from three places -- its own
+## fade-in, the see-through fade, and the level's curtain -- and whichever finished last won.
+## In play that left it faded with the player nowhere near it, or solid with her standing
+## behind it. Now each of those only sets a target, and `_process` walks the alpha toward the
+## product of them.
+const ALPHA_SPEED := 6.5
 ## How much of the bar is left when she is behind it: enough to read the numbers and see what
 ## is in the slots, little enough that she shows through.
 const SEE_THROUGH := 0.3
@@ -73,6 +80,8 @@ func _ready() -> void:
 	_home_top = offset_top
 	_home_bottom = offset_bottom
 	set_process(true)
+	# The alpha has to keep moving while a letterbox or a card has the tree stopped.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	# Packed to the left, from the corner it is docked in.
 	alignment = BoxContainer.ALIGNMENT_BEGIN
 	for index in range(6):
@@ -199,11 +208,9 @@ func _refresh(items: Array) -> void:
 			break
 	# Faded in rather than popped, the first time there is anything to show.
 	if holding and not visible:
+		# Faded in from nothing by `_process`, rather than popped.
 		modulate.a = 0.0
 		visible = true
-		var arrive := create_tween()
-		arrive.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-		arrive.tween_property(self, "modulate:a", _resting_alpha(), 0.2)
 	elif not holding:
 		visible = false
 	queue_redraw()
@@ -317,16 +324,7 @@ func is_stowed() -> bool:
 ## thins out while she is actually behind it, stays where it is, stays clickable, and comes
 ## back the moment she steps out.
 func set_see_through(on: bool) -> void:
-	if on == _see_through:
-		return
 	_see_through = on
-	if _veil != null and _veil.is_valid():
-		_veil.kill()
-	if not visible:
-		return
-	_veil = create_tween()
-	_veil.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	_veil.tween_property(self, "modulate:a", _resting_alpha(), 0.15)
 
 
 func is_see_through() -> bool:
@@ -337,12 +335,15 @@ func _resting_alpha() -> float:
 	return SEE_THROUGH if _see_through else 1.0
 
 
-## The same, for the level's curtain fade, which writes every HUD piece's alpha at once.
-func resting_alpha() -> float:
-	return _resting_alpha()
+## The level's letterbox, as a multiplier on whatever else the bar wants.
+func set_curtain_alpha(alpha: float) -> void:
+	_curtain_alpha = clampf(alpha, 0.0, 1.0)
 
 
 func _process(delta: float) -> void:
+	if visible:
+		modulate.a = move_toward(modulate.a, _resting_alpha() * _curtain_alpha,
+			ALPHA_SPEED * delta)
 	if _dwell > 0.0:
 		_dwell = maxf(0.0, _dwell - delta)
 
@@ -365,4 +366,4 @@ func _slide_to(stow: bool) -> void:
 	var seconds := STOW_TIME if stow else RAISE_TIME
 	_slide.tween_property(self, "offset_top", _home_top + drop, seconds)
 	_slide.tween_property(self, "offset_bottom", _home_bottom + drop, seconds)
-	_slide.tween_property(self, "modulate:a", 0.0 if stow else 1.0, seconds)
+	# Offsets only: the alpha has one writer, `_process`.
