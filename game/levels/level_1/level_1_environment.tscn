@@ -26,7 +26,6 @@
 [ext_resource type="Script" path="res://scripts/stair_tread_2d.gd" id="20_ryned"]
 [ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="20_y6bxt"]
 [ext_resource type="Script" path="res://scripts/floating_tread_2d.gd" id="21_a6y54"]
-[ext_resource type="Texture2D" path="res://assets/Level1/props/floating_tread.png" id="22_tread"]
 [ext_resource type="Script" path="res://scripts/straw_pile_2d.gd" id="23_3uax6"]
 [ext_resource type="Script" path="res://scripts/baul_2d.gd" id="24_vekj0"]
 [ext_resource type="Script" path="res://scripts/straw_room_2d.gd" id="24_strawroom"]
@@ -601,23 +600,10 @@ mass = 2.4
 angular_damp = 4.0
 gravity_scale = 0.35
 script = ExtResource("21_a6y54")
+z_index = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Hagdan/FloatingTread" unique_id=1837793347]
 shape = SubResource("RectangleShape2D_a6y54")
-
-[node name="Stone" type="Sprite2D" parent="GameplayPlane/Hagdan/FloatingTread" unique_id=211348818]
-z_index = 6
-texture_filter = 1
-position = Vector2(-44, 0)
-scale = Vector2(2, 2)
-texture = ExtResource("22_tread")
-
-[node name="Stone2" type="Sprite2D" parent="GameplayPlane/Hagdan/FloatingTread" unique_id=211348819]
-z_index = 6
-texture_filter = 1
-position = Vector2(44, 0)
-scale = Vector2(2, 2)
-texture = ExtResource("22_tread")
 
 [node name="CP0" type="Area2D" parent="GameplayPlane/Hagdan" unique_id=2079276445]
 position = Vector2(1250, 380)
