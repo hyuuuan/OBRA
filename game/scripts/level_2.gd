@@ -704,6 +704,22 @@ func _let_the_flock_go() -> void:
 	_flock_clock = -1.0
 	for bird in _birds:
 		bird.timer_expired()
+	_spend_the_strike_tool()
+
+
+## THE THROWN WEAPON FOR THE FLOCK IS NOT SPENT BY ANSWERING. Answering Problem 2's Protector
+## route starts the clock; knocking the five birds down is what the tool is FOR, one throw at
+## a time. It is spent when the flock is finished -- the clock out, or the player walking on.
+func _tool_is_spent_by(obstacle_id: String, route: String, _entity_id: String) -> bool:
+	return not (obstacle_id == "L2_N2" and route == "protector")
+
+
+func _spend_the_strike_tool() -> void:
+	for tool_id in ["boomerang", "cannon"]:
+		if _slot_holding(tool_id) >= 0 or (_equipped_utility != null
+				and is_instance_valid(_equipped_utility) and _equipped_utility.item_data != null
+				and _equipped_utility.item_data.entity_id == tool_id):
+			spend_tool(tool_id)
 
 
 ## The shorter of the two numbers the design gives, so the pressure is felt.
