@@ -1541,16 +1541,17 @@ func _on_drawing_ready(
 			PlayerProfile.record_object_acquired(entity_id)
 			item.ink_committed = true
 		var kept := _begin_new_utility(item, first_time)
-		# ⚠ A TOOL IS NEVER PLACED, SO IT WAS NEVER JUDGED. A placeable is judged when it is
-		# set down and a creature when the player becomes it; a tool goes straight into the
-		# belt, and nothing on that path asked the obstacle whether it was the answer. So a key
-		# drawn at the house with its light on went into the bag and the door stayed shut, and
-		# so did every route answered by a tool -- Piyesta's lit house, its knocked-down birds
-		# and its cut bunting, Payyo's cut route and its drawn key. Every probe for those
-		# routes called `_judge_submission` directly, which is exactly the step the game did
-		# not take. Drawn is the moment a tool is made; it is judged there.
-		if kept and is_a_tool(entry):
-			_judge_submission(entity_id, strokes)
+		# ⚠ DRAWING A TOOL MAKES IT; USING IT IS WHAT ANSWERS. It used to be judged the moment
+		# the recogniser named it, so a key drawn at the house with its light on opened the door
+		# before the player had done anything with it -- and when they took the key out and
+		# pressed F, which is what anybody does with a key at a door, the beat was already over
+		# and the game said "Key turns on nothing here" about the key that had just opened it.
+		# Kent: "it said key not usable here, but it did unlock it".
+		#
+		# So a tool drawn where it would answer goes straight into the hand, and the prompt over
+		# the player names what F will do. Pressing it is the answer.
+		if kept and is_a_tool(entry) and _tool_answers_here(entity_id):
+			_take_out_to_use(entity_id)
 		return
 	# CREATURE TRANSFORMATION IS FREE. FR-7 says so in its second sentence, and FR-8 is what
 	# pays for it: you may only do it at a checkpoint.
@@ -1695,6 +1696,107 @@ func _on_inventory_slot_pressed(slot: int) -> void:
 
 func _is_held_tool(item: DrawnItemData) -> bool:
 	return is_a_tool(registry.get_entity(item.entity_id))
+
+
+# --- Tools: made by drawing, answered by using, spent once used ---------------------------
+
+## The verb on the Use prompt when the tool in hand answers the beat here, by the ability it
+## answers with. Anything not listed is "USE HERE".
+const TOOL_VERBS := {
+	"unlock": "UNLOCK", "cut": "CUT", "strike": "THROW", "feed": "FEED",
+	"startle": "SCARE", "forage": "SEARCH", "carry": "CARRY", "weather": "BLOW",
+}
+
+## The offer last put on the hint bar for a tool still in the bag, so it is said once per
+## beat and taken down again only if it is still what the bar is saying.
+var _tool_offer := ""
+
+
+## Whether this tool, used here and now, would answer the beat the player is standing in.
+func _tool_answers_here(entity_id: String) -> bool:
+	if director == null or entity_id.is_empty():
+		return false
+	var here := director.current_obstacle()
+	return not here.is_empty() and not director.is_solved(here) \
+		and director.accept_set().has(entity_id)
+
+
+func _verb_for(entity_id: String) -> String:
+	if director == null or entity_id.is_empty():
+		return "USE"
+	var mine: Array = AbilityTags.tags_for_class_by_level(entity_id, director.level_order())
+	for tag: Variant in director.required_tags():
+		if mine.has(tag) and TOOL_VERBS.has(tag):
+			return String(TOOL_VERBS[tag])
+	for tag: Variant in mine:
+		if TOOL_VERBS.has(tag):
+			return String(TOOL_VERBS[tag])
+	return "USE HERE"
+
+
+## Into the hand, ready to use, with the prompt saying what it is for.
+func _take_out_to_use(entity_id: String) -> void:
+	var slot := _slot_holding(entity_id)
+	if slot < 0:
+		return
+	var held := _equipped_utility != null and is_instance_valid(_equipped_utility) \
+		and _equipped_utility.item_data != null \
+		and _equipped_utility.item_data.entity_id == entity_id
+	var item := inventory_manager.peek_item(slot)
+	if not held:
+		_equip_from_slot(slot, item)
+	if hint_bar != null and item != null:
+		hint_bar.show_hint("%s in hand  —  press %s to %s here" % [item.display_name,
+			ControlsKeys.keys_for("use_utility"), _verb_for(entity_id).to_lower()], Lolo.SPEAKER, 5.0)
+
+
+## A tool in the bag that would answer this beat, and the player not holding it: say which
+## key takes it out. Once per beat.
+func _offer_the_tool_in_the_bag(may_offer: bool) -> void:
+	if hint_bar == null:
+		return
+	var offer := ""
+	if may_offer:
+		var stored := inventory_manager.items()
+		for index in range(stored.size()):
+			var item := stored[index] as DrawnItemData
+			if item != null and is_a_tool(registry.get_entity(item.entity_id)) \
+					and _tool_answers_here(item.entity_id):
+				offer = "Your %s would %s this  —  press %d to take it out" % [
+					item.display_name.to_lower(), _verb_for(item.entity_id).to_lower(), index + 1]
+				break
+	if offer == _tool_offer:
+		return
+	if not _tool_offer.is_empty() and hint_bar.current_text() == _tool_offer:
+		hint_bar.clear()
+	_tool_offer = offer
+	if not offer.is_empty():
+		hint_bar.show_hint(offer, Lolo.SPEAKER)
+
+
+## Whether answering this beat with this tool uses it up. Almost always: the answer is the
+## whole of what the tool does. A level overrides this for the routes where the tool still
+## has work to do after the beat is answered, and spends it itself when that work is done.
+func _tool_is_spent_by(_obstacle_id: String, _route: String, _entity_id: String) -> bool:
+	return true
+
+
+## Gone: out of the hand and out of the bag. Public so a level can spend a tool whose work
+## finishes later than the answer did -- the tree that falls on the third swing, the flock
+## that is all down or all gone.
+func spend_tool(entity_id: String) -> void:
+	if _equipped_utility != null and is_instance_valid(_equipped_utility) \
+			and _equipped_utility.item_data != null \
+			and _equipped_utility.item_data.entity_id == entity_id:
+		_stow_equipped()
+	var slot := _slot_holding(entity_id)
+	if slot >= 0:
+		inventory_manager.take_item(slot)
+	if inventory_hud != null:
+		inventory_hud.set_selected(-1)
+	Telemetry.record_event("tool_spent", {
+		"level_id": LevelManager.current_level_id, "entity_id": entity_id,
+	})
 
 
 ## The manifest's answer, in one place. See UtilityObject.is_held_tool and thesis FR-7.
@@ -2114,20 +2216,33 @@ func _use_equipped_utility() -> void:
 		status_label.text = "Nothing in hand — press E next to something you drew"
 		return
 	var item := _equipped_utility.item_data
-	# AND A TOOL ALREADY IN THE BELT IS ANSWERED BY USING IT. FR-7 says a tool is "thereafter
-	# selectable and reusable at no ink cost and with no redraw", so a player who drew a key
-	# in Payyo and reaches a lock in Piyesta takes it out and uses it -- they do not draw
-	# another. Only when this beat would take it: F is not a guess, and a tool that is not
-	# the answer must not count as a failed attempt against the hint ladder.
-	if item != null and director != null and not director.current_obstacle().is_empty() \
-			and not director.is_solved(director.current_obstacle()) \
-			and director.accept_set().has(item.entity_id):
+	# USING A TOOL WHERE IT ANSWERS IS THE ANSWER. Only where this beat would take it: F is
+	# not a guess, and a tool that is not the answer must not count as a failed attempt
+	# against the hint ladder.
+	if item != null and _tool_answers_here(item.entity_id):
 		var beat := director.current_obstacle()
+		var verb := _verb_for(item.entity_id)
 		_judge_submission(item.entity_id, item.strokes)
-		# Answered: that WAS the use. Not answered -- a lock that measured the key and turned
-		# partway -- and the tool still does whatever it does, so an axe at a dead tree swings.
-		if director.is_solved(beat):
+		# Not answered -- a lock that measured the key and turned partway -- and the lock has
+		# already said why. Falling through to the tool's own use would print "turns on
+		# nothing here" under the lock's own reading, which is the contradiction this fixes.
+		if not director.is_solved(beat):
 			return
+		# ⚠ ONE USE. Kent: tools "should be one time use only". A key that has opened the door
+		# is spent, and so is anything else whose answer IS the whole of what it does. A few
+		# routes answer the beat and then still need the tool -- an axe has a tree to fell, a
+		# thrown weapon has five birds -- and the level says which; those are spent when that
+		# work is done, see `spend_tool`.
+		if _tool_is_spent_by(beat, director.committed_route(beat), item.entity_id):
+			spend_tool(item.entity_id)
+			status_label.text = "%s -- used, and gone" % item.display_name
+			if hint_bar != null:
+				hint_bar.show_hint("The %s is used up." % item.display_name.to_lower(),
+					Lolo.SPEAKER, 2.6)
+		else:
+			_equipped_utility.describe_use(player)
+			status_label.text = "%s -- keep using it" % item.display_name
+		return
 	var outcome := _equipped_utility.describe_use(player)
 	status_label.text = outcome if not outcome.is_empty() \
 		else "%s can't do that here" % item.display_name
@@ -2154,9 +2269,16 @@ func _refresh_action_prompts() -> void:
 	var can_use := can_act and _equipped_utility != null \
 		and is_instance_valid(_equipped_utility) \
 		and _equipped_utility.is_held_tool()
+	# WHAT F WILL DO, where it will do it. "F USE" over a key at a door said nothing about the
+	# door; "F UNLOCK" does, and it only says it where it is true.
+	var held_id := String(_equipped_utility.item_data.entity_id) \
+		if can_use and _equipped_utility.item_data != null else ""
+	var answers := not held_id.is_empty() and _tool_answers_here(held_id)
 	action_prompts.set_use_available(
 		can_use,
-		_drawing_display_name(_equipped_utility) if can_use else "")
+		_drawing_display_name(_equipped_utility) if can_use else "",
+		_verb_for(held_id) if answers else "USE")
+	_offer_the_tool_in_the_bag(can_act and not answers)
 
 	# ⚠ THE ONE VERB PAYYO IS ABOUT, AND THE INTERFACE SAID THE OPPOSITE OF IT.
 	#
