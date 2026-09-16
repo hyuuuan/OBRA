@@ -27,8 +27,12 @@ const PLANS := [
 const STUCK_FRAMES := 1500
 const RUN_FRAMES := 12000
 
+const HudOverlap = preload("res://tests/hud_overlap.gd")
+
 var failures := 0
 var _asked: Dictionary = {}
+## Every HUD overlap seen while playing, first sighting only, with the beat it happened in.
+var _overlaps: Dictionary = {}
 var level: Node
 var player: Node2D
 
@@ -77,6 +81,13 @@ func _play(plan: Dictionary) -> void:
 			continue
 		var goal: Dictionary = level.call("_current_objective")
 		var key := String(goal.get("key", ""))
+		# THE HUD, WHILE IT IS BEING PLAYED. A still frame with everything raised found three
+		# overlaps; the ones a player actually sees happen mid-beat, when a hint, a lesson and
+		# an objective change arrive within a second of each other.
+		if frame % 12 == 0:
+			for clash in HudOverlap.clashes(HudOverlap.painted(level)):
+				if not _overlaps.has(clash):
+					_overlaps[clash] = "%s, during '%s'" % [plan["name"], key]
 		if key != last_key:
 			trail.append(key)
 			last_key = key
@@ -91,6 +102,12 @@ func _play(plan: Dictionary) -> void:
 			break
 		await _act(plan, goal, key, done)
 	_release()
+	var seen: Array[String] = []
+	for clash: String in _overlaps.keys():
+		if String(_overlaps[clash]).begins_with(String(plan["name"])):
+			seen.append("%s (%s)" % [clash, _overlaps[clash]])
+	_check(seen.is_empty(), "%s: nothing on the HUD overlapped in play" % plan["name"],
+		"clear the whole way" if seen.is_empty() else "; ".join(seen))
 	_check(finished, "%s: the level is finished" % plan["name"],
 		" > ".join(trail) if finished else "ended on '%s' after %s" % [last_key, " > ".join(trail)])
 	if finished:
@@ -216,8 +233,21 @@ func _draw(entity_id: String) -> void:
 	await _frames(12)
 	var entry: Dictionary = (level.get("registry") as Node).call("get_entity", entity_id)
 	var role := String(entry.get("runtime_role", ""))
-	if role == "active_ragdoll_morph" or String(entry.get("ink_role", "")) == "tool":
+	if role == "active_ragdoll_morph":
 		await _frames(30)
+		return
+	# A TOOL IS ANSWERED BY USING IT: drawn where it answers it is put in hand, and F is the
+	# answer. Pressed a few times, because a lock that measures the key can turn partway first.
+	if String(entry.get("ink_role", "")) == "tool":
+		await _frames(10)
+		var director: Object = level.get("director")
+		var beat := String(director.call("current_obstacle"))
+		for _press in range(4):
+			if beat.is_empty() or bool(director.call("is_solved", beat)):
+				break
+			level.call("_use_equipped_utility")
+			await _frames(20)
+		await _frames(20)
 		return
 	var items: Array = level.get("inventory_manager").call("items")
 	for index in range(items.size()):
