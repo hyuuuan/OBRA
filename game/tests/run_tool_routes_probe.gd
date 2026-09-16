@@ -11,6 +11,16 @@ extends SceneTree
 ##
 ## So this never calls it. It hands the level a recognised drawing through the same door the
 ## drawing panel uses, and for the belt it presses the slot and uses the tool.
+##
+## ⚠ AND THE RULES CHANGED WITH KENT'S NEXT PLAYTEST. Drawing a key at the door opened it before
+## the player did anything, and then F said "Key turns on nothing here" about the key that had
+## just opened it. Now: drawing a tool where it answers puts it IN HAND with the prompt naming
+## what F will do; USING it is the answer; and a used tool is gone -- except where the level
+## says it still has work to do after the answer (the axe at the gorge, the thrown weapon for
+## the flock).
+
+## The routes whose tool outlives the answer, because the answer only opens the work.
+const KEPT_AFTER := ["L1_N1/protector", "L2_N2/protector"]
 
 const LEVELS := ["res://game_level.tscn", "res://level_2.tscn"]
 
@@ -108,6 +118,19 @@ func _answer_by_drawing(path: String, entry: Dictionary) -> void:
 		Image.create(28, 28, false, Image.FORMAT_RGBA8), {"confidence": 0.9}, [], 1.0)
 	for _frame in range(30):
 		await physics_frame
+	var name := "%s: %s at %s" % [path.get_file(), entry["tool"], entry["obstacle"]]
+	_check(not director.is_solved(entry["obstacle"]), "%s -- drawing it answers nothing yet" % name,
+		"still open until it is used" if not director.is_solved(entry["obstacle"])
+		else "ANSWERED ON DRAW -- F will then say it turns on nothing")
+	var held := level.get("_equipped_utility") as UtilityObject
+	_check(held != null and is_instance_valid(held) and held.item_data != null
+		and held.item_data.entity_id == entry["tool"],
+		"%s -- and it goes straight into the hand" % name,
+		"in hand" if held != null and is_instance_valid(held) else "left in the bag")
+	var prompts: Object = level.get("action_prompts")
+	var verb := String((prompts.get("_use") as Button).text) if prompts != null else ""
+	_check(verb != "USE" and not verb.is_empty(), "%s -- the prompt names what F does" % name,
+		"F %s" % verb)
 	# A lock that measures the key may turn partway and ask again; using the key is how a
 	# player tries again, and the lock opens on its last turn whatever was drawn.
 	for _turn in range(4):
@@ -121,7 +144,29 @@ func _answer_by_drawing(path: String, entry: Dictionary) -> void:
 			entry["obstacle"], entry["route"]],
 		"solved" if director.is_solved(entry["obstacle"])
 		else "STILL OPEN -- the %s went into the bag and nothing asked" % entry["tool"])
+	await _check_spent(level, entry, name)
 	await _close(level)
+
+
+## Used, and gone -- or kept, where the level says the tool still has work to do.
+func _check_spent(level: Node, entry: Dictionary, name: String) -> void:
+	for _frame in range(10):
+		await physics_frame
+	var in_bag := false
+	for value: Variant in level.get("inventory_manager").call("items"):
+		var item := value as DrawnItemData
+		if item != null and item.entity_id == entry["tool"]:
+			in_bag = true
+	var held := level.get("_equipped_utility") as UtilityObject
+	var in_hand := held != null and is_instance_valid(held)
+	var kept := KEPT_AFTER.has("%s/%s" % [entry["obstacle"], entry["route"]])
+	if kept:
+		_check(in_bag or in_hand, "%s -- and it is kept for the work after" % name,
+			"still yours" if in_bag or in_hand else "SPENT before its work was done")
+	else:
+		_check(not in_bag and not in_hand, "%s -- and once used it is gone" % name,
+			"spent" if not in_bag and not in_hand else "STILL %s" % (
+				"IN HAND" if in_hand else "IN THE BAG"))
 
 
 ## Drawn EARLIER, somewhere else, and taken out of the belt at the obstacle -- FR-7's "reusable
@@ -150,6 +195,8 @@ func _answer_from_the_belt(path: String, entry: Dictionary) -> void:
 	_check(director.is_solved(entry["obstacle"]),
 		"%s: and using it from the belt at %s answers it" % [path.get_file(), entry["obstacle"]],
 		"solved" if director.is_solved(entry["obstacle"]) else "STILL OPEN")
+	await _check_spent(level, entry, "%s: %s from the belt at %s" % [path.get_file(),
+		entry["tool"], entry["obstacle"]])
 	await _close(level)
 
 
