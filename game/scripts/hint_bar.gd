@@ -126,6 +126,12 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	# ⚠ ALWAYS, because the rule below is about the moment the tree is stopped. A story line
+	# pauses the game, and a paused bar never ran the check that stands it down for one -- so
+	# "LOLO: You cannot swim, apo..." sat at the top of the screen while Lolo was saying
+	# something else entirely in the box at the bottom. The countdown is behind the same
+	# check, so no advice runs out while the player is reading.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_relayout()
 	get_viewport().size_changed.connect(_relayout)
 
