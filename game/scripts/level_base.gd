@@ -2415,13 +2415,12 @@ func _build_checkpoint_chip() -> void:
 	checkpoint_label.theme_type_variation = &"HudValue"
 	checkpoint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	$CanvasLayer.add_child(checkpoint_label)
-	# To the right of the ink plate, on its top line. The plate is 24 + 366 + 28 wide.
-	# No minimum width: this chip is two glyphs and a slash, and a floor sized for the
-	# widest state left an empty box beside the ink plate for the whole of the first beat.
-	# Growing rightward from the top-left corner is safe -- that is the warning on the goal
-	# chip, which grows from the right edge and would run off it.
-	_wrap_in_chip(checkpoint_label, "top_left", Vector2(24.0 + 394.0 + 14.0, 20.0),
-		0.0, UIGlyph.Kind.FLAG)
+	# ⚠ ON THE INK PLATE, not on a chip beside it. Beside it is where the quest banner's own
+	# chip reaches once it carries the level's name as well as the task, and two chips in the
+	# top band that only sometimes touch is worse than either arrangement: it depends on how
+	# long the objective happens to be. The plate already holds the status line and the ink
+	# count, which is the group the thesis puts this in.
+	hud_panel.adopt_checkpoints(checkpoint_label)
 	if checkpoints != null:
 		checkpoints.checkpoint_written.connect(_on_checkpoint_count_changed)
 		checkpoints.checkpoint_restored.connect(_on_checkpoint_count_changed)
