@@ -256,8 +256,6 @@ var hint_bar: HintBar
 var _chips: Array = []
 ## How long the player has been under the water in their own body.
 var _submerged_seconds := 0.0
-## Where the camera's anchor was last frame, for the bag's stow rule. See _stow_the_bag.
-var _bag_anchor := Vector2.ZERO
 ## Where on the terrace to put the apo back when she comes out of the straw room.
 var _sign_prompt := ""
 ## Ang Bale's padlock, which judges the STROKES of a drawn key rather than its class.
@@ -316,9 +314,8 @@ func _ready() -> void:
 	draw_panel.ink_manager = ink_manager
 	draw_panel.set("debug_timing_logs", debug_timing_logs)
 	inventory_hud.set_manager(inventory_manager)
-	# ⚠ THE BAG COMES UP WHEN IT HAS SOMETHING TO SAY. It stands down while the apo is
-	# travelling (see _stow_the_bag), and a drawing picked up mid-run would otherwise land in
-	# a bar already on its way out of the frame -- which is the one moment it matters.
+	# THE BAG SAYS SO WHEN SOMETHING CHANGES in it: a brief brightening of the tray, which is
+	# always in the same corner.
 	inventory_manager.inventory_changed.connect(
 		func(_items: Array) -> void: inventory_hud.announce())
 	_build_hud_frame()
@@ -1543,17 +1540,19 @@ func _on_drawing_ready(
 			ink_manager.release_attempt()
 			PlayerProfile.record_object_acquired(entity_id)
 			item.ink_committed = true
-		var kept := _begin_new_utility(item, first_time)
-		# ⚠ A TOOL IS NEVER PLACED, SO IT WAS NEVER JUDGED. A placeable is judged when it is
-		# set down and a creature when the player becomes it; a tool goes straight into the
-		# belt, and nothing on that path asked the obstacle whether it was the answer. So a key
-		# drawn at the house with its light on went into the bag and the door stayed shut, and
-		# so did every route answered by a tool -- Piyesta's lit house, its knocked-down birds
-		# and its cut bunting, Payyo's cut route and its drawn key. Every probe for those
-		# routes called `_judge_submission` directly, which is exactly the step the game did
-		# not take. Drawn is the moment a tool is made; it is judged there.
-		if kept and is_a_tool(entry):
-			_judge_submission(entity_id, strokes)
+		var answers := is_a_tool(entry) and _tool_answers_here(entity_id)
+		var kept := _begin_new_utility(item, first_time, answers)
+		# ⚠ DRAWING A TOOL MAKES IT; USING IT IS WHAT ANSWERS. It used to be judged the moment
+		# the recogniser named it, so a key drawn at the house with its light on opened the door
+		# before the player had done anything with it -- and when they took the key out and
+		# pressed F, which is what anybody does with a key at a door, the beat was already over
+		# and the game said "Key turns on nothing here" about the key that had just opened it.
+		# Kent: "it said key not usable here, but it did unlock it".
+		#
+		# So a tool drawn where it would answer goes straight into the hand, and the prompt over
+		# the player names what F will do. Pressing it is the answer.
+		if kept and answers:
+			_take_out_to_use(entity_id)
 		return
 	# CREATURE TRANSFORMATION IS FREE. FR-7 says so in its second sentence, and FR-8 is what
 	# pays for it: you may only do it at a checkpoint.
@@ -1631,7 +1630,8 @@ func _spawn_or_replace(
 ## `first_time` is whether this CLASS is new to the player, not whether the bag was empty.
 ## The card is for acquiring something; the fifth axe of the run is a tool coming out of the
 ## bag, and dimming the screen for it would make the reward beat into a loading screen.
-func _begin_new_utility(item: DrawnItemData, first_time: bool = true) -> bool:
+func _begin_new_utility(item: DrawnItemData, first_time: bool = true,
+		going_into_hand: bool = false) -> bool:
 	var slot := inventory_manager.add_item(item)
 	if slot == -1:
 		ink_manager.release_attempt()
@@ -1650,13 +1650,26 @@ func _begin_new_utility(item: DrawnItemData, first_time: bool = true) -> bool:
 			status_label.text = "%s needs a unit of ink, and there is none left" % item.display_name
 			return false
 	inventory_hud.set_selected(slot)
-	status_label.text = "%s drawn — press %d to place it" % [item.display_name, slot + 1]
+	# ⚠ WHAT THE KEY ACTUALLY DOES FOR THIS THING. Every drawing said "press N to place it",
+	# which is wrong for a tool -- a tool is taken out and used, never set down -- and a tool
+	# drawn where it answers is already in hand, where pressing its number puts it AWAY. So the
+	# line and the card say what is true of this drawing, here.
+	var tool := _is_held_tool(item)
+	var next_step := ""
+	if going_into_hand:
+		next_step = "in hand — press %s to %s here" % [ControlsKeys.keys_for("use_utility"),
+			_verb_for(item.entity_id).to_lower()]
+	elif tool:
+		next_step = "in your bag — press %d to take it out" % (slot + 1)
+	else:
+		next_step = "in your bag — press %d to place it" % (slot + 1)
+	status_label.text = "%s drawn — %s" % [item.display_name, next_step]
 	if not first_time:
 		return true
 	# The player's OWN drawing, paper knocked out, held up for a second. This is the moment
 	# the recogniser agreed with them, and it was a line of grey text in the corner.
 	announce_acquisition(item.display_name,
-		"In your bag — press %d to use it" % (slot + 1),
+		next_step.substr(0, 1).to_upper() + next_step.substr(1),
 		DrawingSkin2D.thumbnail(item.image))
 	return true
 
@@ -1698,6 +1711,107 @@ func _on_inventory_slot_pressed(slot: int) -> void:
 
 func _is_held_tool(item: DrawnItemData) -> bool:
 	return is_a_tool(registry.get_entity(item.entity_id))
+
+
+# --- Tools: made by drawing, answered by using, spent once used ---------------------------
+
+## The verb on the Use prompt when the tool in hand answers the beat here, by the ability it
+## answers with. Anything not listed is "USE HERE".
+const TOOL_VERBS := {
+	"unlock": "UNLOCK", "cut": "CUT", "strike": "THROW", "feed": "FEED",
+	"startle": "SCARE", "forage": "SEARCH", "carry": "CARRY", "weather": "BLOW",
+}
+
+## The offer last put on the hint bar for a tool still in the bag, so it is said once per
+## beat and taken down again only if it is still what the bar is saying.
+var _tool_offer := ""
+
+
+## Whether this tool, used here and now, would answer the beat the player is standing in.
+func _tool_answers_here(entity_id: String) -> bool:
+	if director == null or entity_id.is_empty():
+		return false
+	var here := director.current_obstacle()
+	return not here.is_empty() and not director.is_solved(here) \
+		and director.accept_set().has(entity_id)
+
+
+func _verb_for(entity_id: String) -> String:
+	if director == null or entity_id.is_empty():
+		return "USE"
+	var mine: Array = AbilityTags.tags_for_class_by_level(entity_id, director.level_order())
+	for tag: Variant in director.required_tags():
+		if mine.has(tag) and TOOL_VERBS.has(tag):
+			return String(TOOL_VERBS[tag])
+	for tag: Variant in mine:
+		if TOOL_VERBS.has(tag):
+			return String(TOOL_VERBS[tag])
+	return "USE HERE"
+
+
+## Into the hand, ready to use, with the prompt saying what it is for.
+func _take_out_to_use(entity_id: String) -> void:
+	var slot := _slot_holding(entity_id)
+	if slot < 0:
+		return
+	var held := _equipped_utility != null and is_instance_valid(_equipped_utility) \
+		and _equipped_utility.item_data != null \
+		and _equipped_utility.item_data.entity_id == entity_id
+	var item := inventory_manager.peek_item(slot)
+	if not held:
+		_equip_from_slot(slot, item)
+	if hint_bar != null and item != null:
+		hint_bar.show_hint("%s in hand  —  press %s to %s here" % [item.display_name,
+			ControlsKeys.keys_for("use_utility"), _verb_for(entity_id).to_lower()], Lolo.SPEAKER, 5.0)
+
+
+## A tool in the bag that would answer this beat, and the player not holding it: say which
+## key takes it out. Once per beat.
+func _offer_the_tool_in_the_bag(may_offer: bool) -> void:
+	if hint_bar == null:
+		return
+	var offer := ""
+	if may_offer:
+		var stored := inventory_manager.items()
+		for index in range(stored.size()):
+			var item := stored[index] as DrawnItemData
+			if item != null and is_a_tool(registry.get_entity(item.entity_id)) \
+					and _tool_answers_here(item.entity_id):
+				offer = "Your %s would %s this  —  press %d to take it out" % [
+					item.display_name.to_lower(), _verb_for(item.entity_id).to_lower(), index + 1]
+				break
+	if offer == _tool_offer:
+		return
+	if not _tool_offer.is_empty() and hint_bar.current_text() == _tool_offer:
+		hint_bar.clear()
+	_tool_offer = offer
+	if not offer.is_empty():
+		hint_bar.show_hint(offer, Lolo.SPEAKER)
+
+
+## Whether answering this beat with this tool uses it up. Almost always: the answer is the
+## whole of what the tool does. A level overrides this for the routes where the tool still
+## has work to do after the beat is answered, and spends it itself when that work is done.
+func _tool_is_spent_by(_obstacle_id: String, _route: String, _entity_id: String) -> bool:
+	return true
+
+
+## Gone: out of the hand and out of the bag. Public so a level can spend a tool whose work
+## finishes later than the answer did -- the tree that falls on the third swing, the flock
+## that is all down or all gone.
+func spend_tool(entity_id: String) -> void:
+	if _equipped_utility != null and is_instance_valid(_equipped_utility) \
+			and _equipped_utility.item_data != null \
+			and _equipped_utility.item_data.entity_id == entity_id:
+		_stow_equipped()
+	var slot := _slot_holding(entity_id)
+	if slot >= 0:
+		inventory_manager.take_item(slot)
+	if inventory_hud != null:
+		inventory_hud.set_selected(-1)
+	Telemetry.record_event("tool_spent", {
+		"level_id": LevelManager.current_level_id, "entity_id": entity_id,
+	})
 
 
 ## The manifest's answer, in one place. See UtilityObject.is_held_tool and thesis FR-7.
@@ -2117,20 +2231,33 @@ func _use_equipped_utility() -> void:
 		status_label.text = "Nothing in hand — press E next to something you drew"
 		return
 	var item := _equipped_utility.item_data
-	# AND A TOOL ALREADY IN THE BELT IS ANSWERED BY USING IT. FR-7 says a tool is "thereafter
-	# selectable and reusable at no ink cost and with no redraw", so a player who drew a key
-	# in Payyo and reaches a lock in Piyesta takes it out and uses it -- they do not draw
-	# another. Only when this beat would take it: F is not a guess, and a tool that is not
-	# the answer must not count as a failed attempt against the hint ladder.
-	if item != null and director != null and not director.current_obstacle().is_empty() \
-			and not director.is_solved(director.current_obstacle()) \
-			and director.accept_set().has(item.entity_id):
+	# USING A TOOL WHERE IT ANSWERS IS THE ANSWER. Only where this beat would take it: F is
+	# not a guess, and a tool that is not the answer must not count as a failed attempt
+	# against the hint ladder.
+	if item != null and _tool_answers_here(item.entity_id):
 		var beat := director.current_obstacle()
+		var verb := _verb_for(item.entity_id)
 		_judge_submission(item.entity_id, item.strokes)
-		# Answered: that WAS the use. Not answered -- a lock that measured the key and turned
-		# partway -- and the tool still does whatever it does, so an axe at a dead tree swings.
-		if director.is_solved(beat):
+		# Not answered -- a lock that measured the key and turned partway -- and the lock has
+		# already said why. Falling through to the tool's own use would print "turns on
+		# nothing here" under the lock's own reading, which is the contradiction this fixes.
+		if not director.is_solved(beat):
 			return
+		# ⚠ ONE USE. Kent: tools "should be one time use only". A key that has opened the door
+		# is spent, and so is anything else whose answer IS the whole of what it does. A few
+		# routes answer the beat and then still need the tool -- an axe has a tree to fell, a
+		# thrown weapon has five birds -- and the level says which; those are spent when that
+		# work is done, see `spend_tool`.
+		if _tool_is_spent_by(beat, director.committed_route(beat), item.entity_id):
+			spend_tool(item.entity_id)
+			status_label.text = "%s -- used, and gone" % item.display_name
+			if hint_bar != null:
+				hint_bar.show_hint("The %s is used up." % item.display_name.to_lower(),
+					Lolo.SPEAKER, 2.6)
+		else:
+			_equipped_utility.describe_use(player)
+			status_label.text = "%s -- keep using it" % item.display_name
+		return
 	var outcome := _equipped_utility.describe_use(player)
 	status_label.text = outcome if not outcome.is_empty() \
 		else "%s can't do that here" % item.display_name
@@ -2157,9 +2284,16 @@ func _refresh_action_prompts() -> void:
 	var can_use := can_act and _equipped_utility != null \
 		and is_instance_valid(_equipped_utility) \
 		and _equipped_utility.is_held_tool()
+	# WHAT F WILL DO, where it will do it. "F USE" over a key at a door said nothing about the
+	# door; "F UNLOCK" does, and it only says it where it is true.
+	var held_id := String(_equipped_utility.item_data.entity_id) \
+		if can_use and _equipped_utility.item_data != null else ""
+	var answers := not held_id.is_empty() and _tool_answers_here(held_id)
 	action_prompts.set_use_available(
 		can_use,
-		_drawing_display_name(_equipped_utility) if can_use else "")
+		_drawing_display_name(_equipped_utility) if can_use else "",
+		_verb_for(held_id) if answers else "USE")
+	_offer_the_tool_in_the_bag(can_act and not answers)
 
 	# ⚠ THE ONE VERB PAYYO IS ABOUT, AND THE INTERFACE SAID THE OPPOSITE OF IT.
 	#
@@ -2247,7 +2381,9 @@ func _build_hud_frame() -> void:
 	ink_label.visible = false
 	# The two readouts at the far corners get the same frame, so the HUD is one language
 	# rather than two framed things and two lines of text floating on the level art.
-	_wrap_in_chip(level_badge, "top_centre", Vector2(0.0, 18.0), 0.0)
+	# ⚠ NOT ITS OWN CHIP ANY MORE. The badge and the objective under it were two framed boxes
+	# in a column with the story box under them; they are one chip now, and the objective
+	# banner owns it. See ObjectiveBanner.adopt_place.
 	# ⚠ BOTTOM CENTRE, BECAUSE THE BOTTOM RIGHT IS THE VERBS NOW. R and Q moved to that
 	# corner (thesis §4.5.3.5: "the Draw button sits at the lower-right"), and a tutorial
 	# callout anchored above the Draw button lands exactly where this chip was sitting --
@@ -2280,6 +2416,7 @@ func _build_objective() -> void:
 	objective_banner = ObjectiveBanner.new()
 	objective_banner.name = "ObjectiveBanner"
 	$CanvasLayer.add_child(objective_banner)
+	objective_banner.adopt_place(level_badge)
 
 
 ## Ask the level what the player should be doing, and show it. Public so a probe can ask on
@@ -2412,13 +2549,12 @@ func _build_checkpoint_chip() -> void:
 	checkpoint_label.theme_type_variation = &"HudValue"
 	checkpoint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	$CanvasLayer.add_child(checkpoint_label)
-	# To the right of the ink plate, on its top line. The plate is 24 + 366 + 28 wide.
-	# No minimum width: this chip is two glyphs and a slash, and a floor sized for the
-	# widest state left an empty box beside the ink plate for the whole of the first beat.
-	# Growing rightward from the top-left corner is safe -- that is the warning on the goal
-	# chip, which grows from the right edge and would run off it.
-	_wrap_in_chip(checkpoint_label, "top_left", Vector2(24.0 + 394.0 + 14.0, 20.0),
-		0.0, UIGlyph.Kind.FLAG)
+	# ⚠ ON THE INK PLATE, not on a chip beside it. Beside it is where the quest banner's own
+	# chip reaches once it carries the level's name as well as the task, and two chips in the
+	# top band that only sometimes touch is worse than either arrangement: it depends on how
+	# long the objective happens to be. The plate already holds the status line and the ink
+	# count, which is the group the thesis puts this in.
+	hud_panel.adopt_checkpoints(checkpoint_label)
 	if checkpoints != null:
 		checkpoints.checkpoint_written.connect(_on_checkpoint_count_changed)
 		checkpoints.checkpoint_restored.connect(_on_checkpoint_count_changed)
@@ -2559,11 +2695,23 @@ func _place_chip(chip: PanelContainer, corner: String, offset: Vector2) -> void:
 ## draws the eye to itself on the way. Only `$CanvasLayer` -- the gameplay HUD. Lolo speaks
 ## from DialogueLayer and has to stay, because an arrival cinematic is usually him talking.
 func _on_curtain_changed(closed: float) -> void:
-	var alpha := clampf(1.0 - closed, 0.0, 1.0)
+	# ⚠ GONE BEFORE THE CAPTION ARRIVES, not in step with the bars. The HUD used to fade as
+	# 1 - closed while the caption in the lower bar fades IN from a third of the way closed,
+	# so for most of every checkpoint the word CHECKPOINT was printed across the Draw prompt,
+	# the goal chip and the bag's slot numbers at half strength each. The HUD is out of the
+	# way by the time the bar has anything to say.
+	var alpha := clampf(1.0 - closed / CURTAIN_CLEAR, 0.0, 1.0)
 	for child in $CanvasLayer.get_children():
 		var control := child as CanvasItem
 		if control != null:
+			# The bag drives its own alpha and takes the curtain as a multiplier.
+			if control == inventory_hud:
+				continue
 			control.modulate.a = alpha
+	if inventory_hud != null:
+		inventory_hud.set_curtain_alpha(alpha)
+	if action_prompts != null:
+		action_prompts.set_curtain_alpha(alpha)
 	if hint_bar != null:
 		hint_bar.set_curtain(closed)
 
@@ -2655,7 +2803,9 @@ func _physics_process(_delta: float) -> void:
 		if anchor != null:
 			anchor_position = anchor.global_position
 	_level_physics(anchor_position)
-	_stow_the_bag(anchor_position)
+	# The bag no longer stands down while the apo moves -- see InventoryHUD. It stays in its
+	# corner and thins out only while she is actually standing behind it.
+	_veil_the_bag_over(anchor_position)
 	# A fall is not an ending. The wanderer used to wrap to the top of the world and a
 	# drawn creature did not handle it at all, so falling off as a fish meant falling
 	# forever. Either way the level takes them back to the last checkpoint instead.
@@ -2717,25 +2867,24 @@ func _physics_process(_delta: float) -> void:
 		_complete_level()
 
 
-## THE ONE HUD BAND THAT SITS WHERE THE PLAYER DOES.
-##
-## The bag is anchored bottom-centre and the camera keeps the apo bottom-centre, so a bag
-## with anything in it covered her from the shins to the eyes -- photographed with six
-## drawings in it, the top of her head over slot 3 was all that showed. `InventoryHUD` already
-## hides itself when the bag is EMPTY, and the note on that is about this same band burying
-## the paddy at Level 1's first gate. This finishes the rule: quiet while you are moving too.
-##
-## MEASURED OFF THE ANCHOR, NOT OFF A VELOCITY. The player is a wanderer some of the time and
-## a twelve-body rig the rest, and only one of those has a `velocity`. How far the thing the
-## camera follows actually travelled is the same question for both.
-func _stow_the_bag(anchor_position: Vector2) -> void:
-	if inventory_hud == null or not is_instance_valid(inventory_hud):
+## How far the letterbox has closed when the HUD has finished fading out. The caption in the
+## lower bar starts to show at 0.375 (see CinematicBars._relayout), so the HUD is clear first.
+const CURTAIN_CLEAR := 0.35
+
+
+## Whether the player is on screen behind the toolbelt. Measured as a box around the body the
+## camera follows, in screen space, because the bar lives on a CanvasLayer and the player does
+## not -- and "behind it" is a question about the picture, not about the world.
+const BODY_ON_SCREEN := Vector2(76.0, 120.0)
+
+
+func _veil_the_bag_over(anchor_position: Vector2) -> void:
+	if inventory_hud == null or not is_instance_valid(inventory_hud) or not inventory_hud.visible:
 		return
-	var moved := anchor_position.distance_to(_bag_anchor)
-	_bag_anchor = anchor_position
-	# A rig jitters on its joints while it is standing still, so the threshold is a walk
-	# rather than a nudge: the apo runs at 260px/s, which is about 4.3 per physics frame.
-	inventory_hud.set_stowed(moved > 1.4)
+	var feet := get_viewport().get_canvas_transform() * anchor_position
+	var body := Rect2(feet - Vector2(BODY_ON_SCREEN.x * 0.5, BODY_ON_SCREEN.y * 0.8),
+		BODY_ON_SCREEN)
+	inventory_hud.set_see_through(inventory_hud.get_global_rect().grow(8.0).intersects(body))
 
 
 ## Put the player back somewhere they can stand, and say why.

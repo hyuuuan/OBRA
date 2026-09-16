@@ -379,6 +379,20 @@ static func slot(occupied: bool, selected: bool) -> StyleBoxFlat:
 	return box
 
 
+## A FRAME FOR SOMETHING THAT IS NOT THERE. The bag screen prints one of these for every
+## class in the roster the player has not drawn yet -- fifty of them, most of them empty --
+## and in the slot ring above they read as fifty things rather than as the shape of what is
+## still out there. No fill to speak of and an edge one step off the panel: countable,
+## and quieter than anything the player actually has.
+static func hollow() -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(INK.r, INK.g, INK.b, 0.55)
+	box.border_color = RING_OUTER
+	box.set_border_width_all(THIN)
+	box.set_corner_radius_all(RADIUS)
+	return box
+
+
 # --- Generated pictograms ----------------------------------------------------------------
 
 ## A round grabber for a slider, drawn rather than shipped.

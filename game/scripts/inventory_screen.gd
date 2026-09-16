@@ -58,8 +58,15 @@ const FOUND_SLOT := Vector2(72.0, 72.0)
 ## panel ran off the bottom of the screen and took its own "Tab to close" footer with it.
 ## Thirty-six still clears one line of the twenty-pixel type floor; the WIDTH is what stops
 ## "Ladder" wrapping and that is unchanged.
-const ROSTER_SLOT := Vector2(80.0, 36.0)
-const ROSTER_COLUMNS := 10
+## ⚠ NINETY-TWO, BECAUSE "TRIANGLE" IS THE LONGEST NAME IN THE ROSTER. At eighty it wrapped
+## its last letter onto a second line inside a frame one line tall, so the "e" sat under the
+## frame on the panel. Every other name fits either width; this one sets it.
+const ROSTER_SLOT := Vector2(92.0, 34.0)
+## Nine across is what the column beside the detail pane holds at that width -- and it takes
+## the twenty-seven objects in exactly three rows, so a band ends where its kind ends. The
+## three shapes are visibly a short row of their own rather than the tail of the row above,
+## which is what the bands are for.
+const ROSTER_COLUMNS := 9
 
 ## The three kinds the roster is counted in, in the order the thesis counts them: twenty
 ## creatures, twenty-seven objects, three geometric primitives. `role` is the manifest's
@@ -108,6 +115,7 @@ var _band_grids: Dictionary = {}
 var _detail_art: TextureRect
 var _detail_title: Label
 var _detail_note: Label
+var _detail_price: Label
 var _use_button: Button
 ## What is selected, as {"kind": "bag"|"found"|"drawn", "index"/"id"}.
 var _chosen: Dictionary = {}
@@ -182,7 +190,7 @@ func _build() -> void:
 
 	var panel := PanelContainer.new()
 	panel.name = "Panel"
-	panel.custom_minimum_size = Vector2(1200.0, 0.0)
+	panel.custom_minimum_size = Vector2(1240.0, 0.0)
 	centre.add_child(panel)
 
 	var column := VBoxContainer.new()
@@ -190,11 +198,25 @@ func _build() -> void:
 	column.add_theme_constant_override(&"separation", 14)
 	panel.add_child(column)
 
+	# The title, and what the screen is FOR beside it. A player opens this because they want
+	# to know what they can draw; the sentence saying so belongs where their eye lands first.
+	var head := HBoxContainer.new()
+	head.name = "Head"
+	head.add_theme_constant_override(&"separation", 16)
+	column.add_child(head)
 	var title := Label.new()
 	title.name = "Title"
 	title.theme_type_variation = &"ScreenTitle"
 	title.text = "YOUR BAG"
-	column.add_child(title)
+	head.add_child(title)
+	var blurb := Label.new()
+	blurb.name = "Blurb"
+	blurb.theme_type_variation = &"HudCaption"
+	blurb.add_theme_color_override(&"font_color", UISkin.MUTED)
+	blurb.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	blurb.size_flags_vertical = Control.SIZE_SHRINK_END
+	blurb.text = "what you are carrying, and what this place knows you can draw"
+	head.add_child(blurb)
 	column.add_child(HSeparator.new())
 
 	var body := HBoxContainer.new()
@@ -208,8 +230,21 @@ func _build() -> void:
 	left.add_theme_constant_override(&"separation", 14)
 	body.add_child(left)
 
-	_build_bag(left)
-	_build_found(left)
+	# ⚠ THE THINGS YOU HAVE, THEN THE THINGS THAT EXIST. The bag, the found objects and the
+	# roster used to run down one column as three headings on one flat ground, and the detail
+	# pane stood beside all three with three hundred pixels of empty panel under its own
+	# button. Now: what you are carrying along the top, what exists under it, and the pane
+	# down the side of both -- so the pane is as tall as what it describes and nothing on this
+	# screen is a field of boxes with no ground of its own.
+	# Side by side rather than stacked: six bag slots and four found ones are 800 units of
+	# content in a column 900 wide, so stacked they left a hand's width of empty panel beside
+	# each and pushed the roster down the screen for nothing.
+	var carried := HBoxContainer.new()
+	carried.name = "Carried"
+	carried.add_theme_constant_override(&"separation", 14)
+	left.add_child(carried)
+	_build_bag(carried)
+	_build_found(carried)
 	_build_roster(left)
 	_build_detail(body)
 
@@ -231,12 +266,45 @@ func _heading(parent: Control, text: String) -> Label:
 	return label
 
 
+## A titled section: a sunk panel with its heading on a row of its own and, where there is a
+## count to give, a quiet figure at the right end of that row. Returns the box the caller
+## fills.
+##
+## The screen used to be a single column of headings and rows on one flat ground, so the eye
+## had nothing to group by and read fifty empty frames and six bag slots as one field of
+## boxes. A ground per section is the cheapest fix and the one the rest of the interface
+## already uses.
+func _section(parent: Control, text: String, note: Label = null) -> VBoxContainer:
+	var panel := PanelContainer.new()
+	panel.name = "%sSection" % text.capitalize()
+	panel.add_theme_stylebox_override(&"panel", UISkin.well())
+	parent.add_child(panel)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override(&"separation", 8)
+	panel.add_child(column)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 10)
+	column.add_child(row)
+	_heading(row, text)
+	if note != null:
+		var spacer := Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(spacer)
+		row.add_child(note)
+	return column
+
+
 func _build_bag(parent: Control) -> void:
-	_heading(parent, "THE BAG")
+	var note := Label.new()
+	note.theme_type_variation = &"HudCaption"
+	note.add_theme_color_override(&"font_color", UISkin.MUTED)
+	note.text = "keys 1 - 6"
+	var column := _section(parent, "THE BAG", note)
 	var row := HBoxContainer.new()
 	row.name = "Bag"
 	row.add_theme_constant_override(&"separation", 8)
-	parent.add_child(row)
+	column.add_child(row)
 	for index in range(6):
 		var button := _slot_button(BAG_SLOT)
 		button.pressed.connect(_choose_bag.bind(index))
@@ -271,11 +339,15 @@ func _build_bag(parent: Control) -> void:
 
 
 func _build_found(parent: Control) -> void:
-	_heading(parent, "FOUND")
+	var note := Label.new()
+	note.theme_type_variation = &"HudCaption"
+	note.add_theme_color_override(&"font_color", UISkin.MUTED)
+	note.text = "kept for the run"
+	var column := _section(parent, "FOUND", note)
 	var row := HBoxContainer.new()
 	row.name = "Found"
 	row.add_theme_constant_override(&"separation", 8)
-	parent.add_child(row)
+	column.add_child(row)
 	for entry in FOUND:
 		var button := _slot_button(FOUND_SLOT)
 		button.pressed.connect(_choose_found.bind(String(entry["id"])))
@@ -297,14 +369,10 @@ func _build_found(parent: Control) -> void:
 
 
 func _build_roster(parent: Control) -> void:
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override(&"separation", 12)
-	parent.add_child(head)
-	_heading(head, "DRAWN")
 	_roster_count = Label.new()
 	_roster_count.theme_type_variation = &"HudCaption"
 	_roster_count.add_theme_color_override(&"font_color", UISkin.MUTED)
-	head.add_child(_roster_count)
+	var section := _section(parent, "WHAT YOU HAVE DRAWN", _roster_count)
 
 	# ⚠ THE SHAPE OF WHAT IS STILL OUT THERE, WITHOUT NAMING ANY OF IT.
 	#
@@ -320,27 +388,34 @@ func _build_roster(parent: Control) -> void:
 	# not is an unnamed empty frame in a band that says what KIND of thing is missing.
 	for band: Variant in BANDS:
 		var spec: Dictionary = band
+		# The band's name and its count on ONE line, to the left of its own frames rather
+		# than stacked above them: three sub-headings in a column of grids read as six
+		# headings, and the eye loses which count belongs to which field.
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override(&"separation", 10)
-		parent.add_child(row)
+		section.add_child(row)
 		var name_label := Label.new()
 		name_label.text = String(spec["title"])
 		name_label.theme_type_variation = &"HudCaption"
-		name_label.add_theme_color_override(&"font_color", UISkin.MUTED)
+		name_label.add_theme_color_override(&"font_color", UISkin.CREAM_TEXT)
+		name_label.custom_minimum_size = Vector2(110.0, 0.0)
+		name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(name_label)
 		var count := Label.new()
 		count.name = "%sCount" % String(spec["role"])
 		count.theme_type_variation = &"HudCaption"
 		count.add_theme_color_override(&"font_color", UISkin.MUTED)
+		count.custom_minimum_size = Vector2(62.0, 0.0)
+		count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(count)
 		_band_counts[String(spec["role"])] = count
 
 		var grid := GridContainer.new()
 		grid.name = "%sGrid" % String(spec["role"])
 		grid.columns = ROSTER_COLUMNS
-		grid.add_theme_constant_override(&"h_separation", 6)
+		grid.add_theme_constant_override(&"h_separation", 5)
 		grid.add_theme_constant_override(&"v_separation", 4)
-		parent.add_child(grid)
+		row.add_child(grid)
 		_band_grids[String(spec["role"])] = grid
 
 
@@ -352,27 +427,47 @@ func _build_detail(parent: Control) -> void:
 	parent.add_child(panel)
 
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override(&"separation", 12)
+	column.add_theme_constant_override(&"separation", 10)
 	panel.add_child(column)
 
+	# THE DRAWING ITSELF, in a frame of its own. It was a bare 168px strip of the pane's own
+	# ground, so a thumbnail with a lot of white space in it -- which is most of them -- had
+	# no edge and floated in the panel.
+	var art_frame := PanelContainer.new()
+	art_frame.add_theme_stylebox_override(&"panel", UISkin.chip(6.0, 6.0))
+	# The drawing takes whatever height the pane has spare, rather than the pane holding a
+	# well of nothing between the note and the button: it is the player's own drawing and it
+	# is the one thing on this screen worth looking at big.
+	art_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(art_frame)
 	_detail_art = TextureRect.new()
 	_detail_art.name = "Art"
-	_detail_art.custom_minimum_size = Vector2(0.0, 168.0)
+	_detail_art.custom_minimum_size = Vector2(0.0, 140.0)
 	_detail_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_detail_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_detail_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	column.add_child(_detail_art)
+	art_frame.add_child(_detail_art)
 
 	_detail_title = Label.new()
 	_detail_title.theme_type_variation = &"ScreenSubtitle"
 	_detail_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(_detail_title)
 
+	# ⚠ TWO LINES, NOT ONE JOINED BY A DOT. What it is and what it costs were printed as
+	# "A tool you keep and use  ·  already paid for", which at this width wrapped wherever
+	# the dot happened to fall -- and a line beginning with a separator reads as a mistake.
+	# They are two different facts and they get a line each.
 	_detail_note = Label.new()
 	_detail_note.theme_type_variation = &"HudCaption"
-	_detail_note.add_theme_color_override(&"font_color", UISkin.MUTED)
+	_detail_note.add_theme_color_override(&"font_color", UISkin.CREAM_TEXT)
 	_detail_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(_detail_note)
+
+	_detail_price = Label.new()
+	_detail_price.theme_type_variation = &"HudCaption"
+	_detail_price.add_theme_color_override(&"font_color", UISkin.MUTED)
+	_detail_price.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(_detail_price)
 
 	_use_button = Button.new()
 	_use_button.theme_type_variation = &"PrimaryButton"
@@ -466,7 +561,7 @@ func _fill_band(role: String, drawn: Array) -> void:
 		var chosen := String(_chosen.get("kind", "")) == "drawn" \
 			and String(_chosen.get("id", "")) == id and owned
 		grid.add_child(button)
-		_paint(button, owned, chosen)
+		_paint(button, owned, chosen, true)
 		if not owned:
 			# Unnamed, untooltipped, unclickable. The frame is the only thing it says, and
 			# what it says is "one more of this kind is out there".
@@ -502,10 +597,11 @@ func _ids_with_role(role: String) -> Array[String]:
 func _refresh_detail() -> void:
 	var kind := String(_chosen.get("kind", ""))
 	_use_button.visible = kind == "bag"
+	_detail_price.text = ""
 	if kind.is_empty():
 		_detail_art.texture = null
 		_detail_title.text = "Nothing chosen"
-		_detail_note.text = "Pick something to see what it is."
+		_detail_note.text = "Pick anything on this screen to see what it is."
 		return
 	if kind == "bag":
 		var item := inventory_manager.peek_item(int(_chosen.get("index", -1))) \
@@ -516,7 +612,8 @@ func _refresh_detail() -> void:
 			return
 		_detail_art.texture = _thumbnail(item)
 		_detail_title.text = item.display_name
-		_detail_note.text = "%s  ·  %s" % [_role_of(item.entity_id), _price_of(item)]
+		_detail_note.text = _role_of(item.entity_id)
+		_detail_price.text = _price_of(item)
 		return
 	if kind == "found":
 		var id := String(_chosen.get("id", ""))
@@ -534,15 +631,21 @@ func _refresh_detail() -> void:
 	var class_id := String(_chosen.get("id", ""))
 	_detail_art.texture = null
 	_detail_title.text = _display_name(class_id)
-	_detail_note.text = "%s  ·  Drawn and recognised. Drawing it again is free." \
-		% _role_of(class_id)
+	_detail_note.text = _role_of(class_id)
+	_detail_price.text = "Drawn and recognised. Drawing it again is free."
 
 
-func _paint(button: Button, occupied: bool, chosen: bool) -> void:
+func _paint(button: Button, occupied: bool, chosen: bool, quiet: bool = false) -> void:
 	# The same factory the bottom strip uses. Two views of one bag that styled their slots
 	# separately would drift the first time either was touched.
+	#
+	# ⚠ EXCEPT FOR THE ONES THAT ARE NOT THERE YET. Fifty roster frames in the bag slot's own
+	# gold ring made a wall of gold boxes that shouted louder than the six things the player
+	# is actually carrying -- and most of them stand for a class nobody has drawn. An unknown
+	# class is a hollow in the panel: no ring, no fill, just enough edge to count.
 	for state in [&"normal", &"hover", &"pressed", &"disabled"]:
-		button.add_theme_stylebox_override(state, UISkin.slot(occupied, chosen))
+		button.add_theme_stylebox_override(state,
+			UISkin.hollow() if quiet and not occupied else UISkin.slot(occupied, chosen))
 	button.modulate = Color(1.12, 1.12, 1.04) if chosen else Color.WHITE
 
 

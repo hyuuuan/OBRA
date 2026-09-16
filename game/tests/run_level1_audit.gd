@@ -2312,60 +2312,66 @@ func _audit_the_bag_gets_out_of_the_way(level: Node) -> void:
 		_check(false, "the bag gets out of the way", "no hud, player or inventory")
 		return
 	paused = false
-	# ⚠ SOMETHING IN THE BAG FIRST. An empty bag draws nothing at all -- a different rule
-	# with the same symptom -- so asserting "it is out of the way" against a bar that was
-	# never there is the vacuous version of this.
+	# ⚠ SOMETHING IN THE BAG FIRST. An empty bag draws nothing at all, and asserting anything
+	# about where a bar that is not there stands is the vacuous version of this.
 	var sketch := Image.create(48, 48, false, Image.FORMAT_RGBA8)
 	sketch.fill(Color(0.1, 0.1, 0.12, 1.0))
 	bag.call("add_item", DrawnItemData.from_prediction(
 		"circle", "Circle", sketch, [], 1.0, {}))
-	await process_frame
+	# Past its fade-in, which is a fifth of a second the first time anything goes in.
+	for _frame in range(30):
+		await process_frame
 	_check(hud.visible, "the bag is showing before the walk",
 		"stocked" if hud.visible else "empty, so this audit would measure nothing")
 
-	# Long enough to outlast the announcement dwell, which outranks movement on purpose: a
-	# drawing picked up mid-run must not land in a bar already on its way out of the frame.
+	# ⚠ THE RULE CHANGED. The bar used to stand down whenever the apo moved, because it was
+	# docked where she stands and covered her. Kent found the vanishing weirder than the
+	# covering was, so it is docked in the corner and it STAYS -- and what this checks now is
+	# the thing the hiding was for: while she walks, the bar is up, clickable, and never on
+	# top of her.
 	var started := apo.global_position
+	var covered := 0
+	var down := 0
 	Input.action_press(&"move_left")
 	for _frame in range(280):
 		await physics_frame
-	var walked := apo.global_position.distance_to(started)
-	var stowed := bool(hud.call("is_stowed"))
-	var filter: int = hud.mouse_filter
+		if not hud.visible or (hud.modulate.a < 0.9 and not bool(hud.call("is_see_through"))):
+			down += 1
+		var on_screen := apo.get_global_transform_with_canvas().origin
+		if hud.get_global_rect().grow(-4.0).has_point(on_screen) \
+				and not bool(hud.call("is_see_through")):
+			covered += 1
 	Input.action_release(&"move_left")
-	for _frame in range(100):
-		await physics_frame
-	var back := not bool(hud.call("is_stowed"))
-
+	var walked := apo.global_position.distance_to(started)
 	_check(walked > 200.0, "the apo actually walked", "%.0fpx" % walked)
-	_check(stowed, "the bag stands down while she walks",
-		"stowed" if stowed else "still across the bottom of the screen, over the apo")
-	# ⚠ AND STOPS TAKING CLICKS. A Control at `modulate:a = 0` is invisible and fully
-	# hittable, so a stowed bar would go on eating clicks from a place nobody can see it --
-	# a worse version of the bug `set_click_through` was written for.
-	_check(filter == Control.MOUSE_FILTER_IGNORE,
-		"and stops taking clicks while it is away",
-		"click-through" if filter == Control.MOUSE_FILTER_IGNORE
-		else "an invisible bar is still eating clicks 78px lower")
-	_check(back, "and comes back when she stops",
-		"up" if back else "it never came back -- the bag is unreachable")
+	_check(down == 0, "the bag stays up while she walks",
+		"steady" if down == 0 else "stood down for %d frames of the walk" % down)
+	_check(hud.mouse_filter != Control.MOUSE_FILTER_IGNORE, "and takes clicks the whole time",
+		"clickable")
+	_check(covered == 0, "and never stands solid on top of her",
+		"clear of the apo" if covered == 0 else "solid over her for %d frames" % covered)
 
+	# AND WHERE SHE CAN BE BEHIND IT, IT THINS OUT. At the level's left end the camera stops and
+	# she can walk right into the corner the toolbelt is docked in.
+	apo.global_position = level.get("spawn_point").global_position
+	for _frame in range(40):
+		await physics_frame
+	var feet := level.get_viewport().get_canvas_transform() * apo.global_position
+	var behind := hud.get_global_rect().grow(40.0).has_point(feet)
+	if behind:
+		for _frame in range(20):
+			await physics_frame
+		_check(bool(hud.call("is_see_through")) and hud.modulate.a < 0.5,
+			"standing behind it, the bag goes see-through instead of covering her",
+			"alpha %.2f" % hud.modulate.a)
+	for _frame in range(4):
+		await physics_frame
+	apo.global_position += Vector2(600.0, 0.0)
+	for _frame in range(40):
+		await physics_frame
+	_check(not bool(hud.call("is_see_through")) and hud.modulate.a > 0.95,
+		"and is solid again once she is out from behind it", "alpha %.2f" % hud.modulate.a)
 
-## ⚠ THE GORGE IS THE ONE PIECE OF GEOMETRY IN THIS LEVEL THAT CAN BE MADE TOO EASY AND TOO
-## HARD BY THE SAME EDIT, AND NOTHING WALKED IT.
-##
-## Everything about Node 1 was checked as BOOKKEEPING -- `note_submission` returns
-## stage_advanced, the exclusions bite, the tally moves -- and the level 2 chain probe's own
-## header is the answer to that: "Bookkeeping is not passage." The gorge was narrowed from
-## 560 to 440 so it stops being seventy per cent of the frame, and the two things that edit
-## can break are the two ends of the same number:
-##
-##   too WIDE and the Protector chain no longer reaches -- the felled tree, the mid pillar,
-##   the crumbling platform and the far bank are a run of hops, and shortening the platform
-##   or moving the bank leaves one of them past a jump
-##
-##   too NARROW and the gorge is not an obstacle at all: the apo clears about 228px in a
-##   running jump, and a gap under that is a gap you walk over on the way past
 func _audit_the_gorge(level: Node) -> void:
 	var plane := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane")
 	if plane == null:

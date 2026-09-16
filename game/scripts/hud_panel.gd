@@ -99,6 +99,36 @@ func adopt_status(label: Label) -> void:
 	($Column as VBoxContainer).add_child(label)
 
 
+## THE CHECKPOINT COUNT, on the ink plate's own heading row rather than on a chip beside it.
+##
+## Thesis §4.5.3.5 puts the status line, the ink counter and the checkpoint indicator together
+## at the top left, and a separate chip floating to the right of this plate was the piece the
+## quest banner kept running into once the banner grew to two lines. On the heading row it is
+## in the same corner, reading against the same ground, and the top band of the screen belongs
+## to one thing again.
+func adopt_checkpoints(label: Label) -> void:
+	if label == null:
+		return
+	var parent := label.get_parent()
+	if parent != null:
+		parent.remove_child(label)
+	var heading := $Column/Heading as HBoxContainer
+	# A gap, so the flag does not read as part of the ink count beside it.
+	var gap := Control.new()
+	gap.name = "Gap"
+	gap.custom_minimum_size = Vector2(12.0, 0.0)
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	heading.add_child(gap)
+	var mark := UIGlyph.new()
+	mark.name = "Flag"
+	mark.kind = UIGlyph.Kind.FLAG
+	mark.custom_minimum_size = Vector2(12.0, 16.0)
+	heading.add_child(mark)
+	label.theme_type_variation = &"HudValue"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	heading.add_child(label)
+
+
 ## Whole units. `remaining` is continuous, so it is floored -- a gauge that rounds up claims
 ## ink the player does not have, and the one number they act on is "can I still draw
 ## something".
