@@ -2247,7 +2247,9 @@ func _build_hud_frame() -> void:
 	ink_label.visible = false
 	# The two readouts at the far corners get the same frame, so the HUD is one language
 	# rather than two framed things and two lines of text floating on the level art.
-	_wrap_in_chip(level_badge, "top_centre", Vector2(0.0, 18.0), 0.0)
+	# ⚠ NOT ITS OWN CHIP ANY MORE. The badge and the objective under it were two framed boxes
+	# in a column with the story box under them; they are one chip now, and the objective
+	# banner owns it. See ObjectiveBanner.adopt_place.
 	# ⚠ BOTTOM CENTRE, BECAUSE THE BOTTOM RIGHT IS THE VERBS NOW. R and Q moved to that
 	# corner (thesis §4.5.3.5: "the Draw button sits at the lower-right"), and a tutorial
 	# callout anchored above the Draw button lands exactly where this chip was sitting --
@@ -2280,6 +2282,7 @@ func _build_objective() -> void:
 	objective_banner = ObjectiveBanner.new()
 	objective_banner.name = "ObjectiveBanner"
 	$CanvasLayer.add_child(objective_banner)
+	objective_banner.adopt_place(level_badge)
 
 
 ## Ask the level what the player should be doing, and show it. Public so a probe can ask on
