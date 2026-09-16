@@ -2558,11 +2558,18 @@ func _place_chip(chip: PanelContainer, corner: String, offset: Vector2) -> void:
 ## draws the eye to itself on the way. Only `$CanvasLayer` -- the gameplay HUD. Lolo speaks
 ## from DialogueLayer and has to stay, because an arrival cinematic is usually him talking.
 func _on_curtain_changed(closed: float) -> void:
-	var alpha := clampf(1.0 - closed, 0.0, 1.0)
+	# ⚠ GONE BEFORE THE CAPTION ARRIVES, not in step with the bars. The HUD used to fade as
+	# 1 - closed while the caption in the lower bar fades IN from a third of the way closed,
+	# so for most of every checkpoint the word CHECKPOINT was printed across the Draw prompt,
+	# the goal chip and the bag's slot numbers at half strength each. The HUD is out of the
+	# way by the time the bar has anything to say.
+	var alpha := clampf(1.0 - closed / CURTAIN_CLEAR, 0.0, 1.0)
 	for child in $CanvasLayer.get_children():
 		var control := child as CanvasItem
 		if control != null:
-			control.modulate.a = alpha
+			# The bag keeps its own see-through while the curtain moves.
+			control.modulate.a = alpha * (inventory_hud.resting_alpha() \
+				if control == inventory_hud else 1.0)
 	if hint_bar != null:
 		hint_bar.set_curtain(closed)
 
@@ -2716,6 +2723,11 @@ func _physics_process(_delta: float) -> void:
 		if distance > GOAL_RADIUS or not may_finish else "GOAL REACHED"
 	if distance <= GOAL_RADIUS and may_finish:
 		_complete_level()
+
+
+## How far the letterbox has closed when the HUD has finished fading out. The caption in the
+## lower bar starts to show at 0.375 (see CinematicBars._relayout), so the HUD is clear first.
+const CURTAIN_CLEAR := 0.35
 
 
 ## Whether the player is on screen behind the toolbelt. Measured as a box around the body the
