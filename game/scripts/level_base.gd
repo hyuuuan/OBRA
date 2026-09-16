@@ -2398,6 +2398,7 @@ func _build_hud_frame() -> void:
 	# under a centre anchor shuffles sideways on every step the player takes.
 	_wrap_in_chip(goal_label, "bottom_centre", Vector2(0.0, -26.0), 150.0,
 		UIGlyph.Kind.FLAG)
+	_hide_chip_when_empty(goal_label)
 	_build_checkpoint_chip()
 	_build_morph_card()
 	_build_action_prompts()
@@ -2663,6 +2664,33 @@ func _place_all_chips() -> void:
 		_place_chip(spec["chip"], String(spec["corner"]), Vector2(spec["offset"]))
 
 
+## ⚠ A CHIP WITH NOTHING IN IT IS NOT DRAWN. The goal readout is blanked inside a room and once
+## Payyo's house is open, and the chip around it stayed up as a flag in an empty gold box at
+## the bottom of the screen -- in the straw room, in Ang Bale, for the rest of the level. The
+## label says whether there is anything to show; the chip follows it.
+func _hide_chip_when_empty(label: Label) -> void:
+	var chip := label.get_parent()
+	while chip != null and not (chip is PanelContainer):
+		chip = chip.get_parent()
+	if chip == null:
+		return
+	_empty_chip_watch.append({"label": label, "chip": chip})
+	_refresh_empty_chips()
+
+
+## Chips whose visibility follows their label's text, checked every frame: a fixed-width label
+## goes from "GOAL 3 m" to "" without its rect changing, so no layout signal says so.
+var _empty_chip_watch: Array[Dictionary] = []
+
+
+func _refresh_empty_chips() -> void:
+	for entry in _empty_chip_watch:
+		var label := entry["label"] as Label
+		var chip := entry["chip"] as Control
+		if label != null and chip != null and is_instance_valid(label) and is_instance_valid(chip):
+			chip.visible = not label.text.strip_edges().is_empty()
+
+
 func _place_chip(chip: PanelContainer, corner: String, offset: Vector2) -> void:
 	if chip == null or not is_instance_valid(chip):
 		return
@@ -2780,6 +2808,7 @@ func _on_ink_changed(remaining: float, capacity: float, reserved: float) -> void
 
 func _physics_process(_delta: float) -> void:
 	_refresh_action_prompts()
+	_refresh_empty_chips()
 	# ⚠ THE GOAL MARKER USED TO GATE THIS WHOLE FUNCTION, and everything below it is not
 	# about the goal. A level with no marker silently lost its FALL LIMIT, its paddy rescue
 	# and its room framing -- so the first level built without one would drop a player
