@@ -2570,6 +2570,8 @@ func _on_curtain_changed(closed: float) -> void:
 			# The bag keeps its own see-through while the curtain moves.
 			control.modulate.a = alpha * (inventory_hud.resting_alpha() \
 				if control == inventory_hud else 1.0)
+	if action_prompts != null:
+		action_prompts.set_curtain_alpha(alpha)
 	if hint_bar != null:
 		hint_bar.set_curtain(closed)
 

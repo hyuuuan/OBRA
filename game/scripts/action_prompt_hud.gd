@@ -40,6 +40,11 @@ var _time := 0.0
 ## Button -> {wanted, amount, pulse, accent}. Keeping animation here means visibility can
 ## change every physics frame without spawning and killing a tween every frame.
 var _states: Dictionary = {}
+## How much of the HUD the level's letterbox has left showing, 0..1. The prompts write their
+## own alpha every frame for the reveal, so a fade applied from outside was undone on the next
+## frame -- and the Draw key sat solid under the CHECKPOINT caption while everything around it
+## had gone.
+var _curtain_alpha := 1.0
 
 
 func _ready() -> void:
@@ -81,6 +86,10 @@ func _ready() -> void:
 
 ## The authored DrawButton stays at CanvasLayer/DrawButton because mouse and regression
 ## tests address that stable path. This controller restyles and animates it in place.
+func set_curtain_alpha(alpha: float) -> void:
+	_curtain_alpha = clampf(alpha, 0.0, 1.0)
+
+
 func bind_draw_button(button: Button) -> void:
 	_draw = button
 	_style_prompt(_draw, "R", "DRAW", UISkin.GOLD, 138.0)
@@ -246,7 +255,7 @@ func _update_animations(delta: float) -> void:
 			* float(state["pulse"]) * reveal
 		var scale_amount := (0.82 + reveal * 0.18) * (1.0 + pulse)
 		button.scale = Vector2.ONE * scale_amount
-		button.modulate.a = reveal
+		button.modulate.a = reveal * _curtain_alpha
 
 
 ## R and Q, bottom RIGHT.
