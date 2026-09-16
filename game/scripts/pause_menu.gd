@@ -56,10 +56,26 @@ func _on_opened() -> void:
 	resume_button.grab_focus()
 
 
+## ⚠ THE PAUSE PANEL STEPS BACK WHILE A SCREEN IS OPEN OVER IT. Settings and Controls are
+## smaller than this menu and open centred on top of it, so the word PAUSED stood above the
+## Settings panel and the red QUIT TO DESKTOP button stuck out under it -- half a menu behind
+## the one in use, and the one button on it that ends the session. It comes back when that
+## screen closes.
 func _open_overlay(path: NodePath) -> void:
 	var overlay := get_node_or_null(path) as ModalOverlay
-	if overlay != null:
-		overlay.open()
+	if overlay == null:
+		return
+	($PauseRoot/Panel as CanvasItem).visible = false
+	if not overlay.closed.is_connected(_on_child_closed):
+		overlay.closed.connect(_on_child_closed.bind(path))
+	overlay.open()
+
+
+func _on_child_closed(path: NodePath) -> void:
+	($PauseRoot/Panel as CanvasItem).visible = true
+	if is_open():
+		var button := settings_button if path == settings_path else controls_button
+		button.grab_focus()
 
 
 func _restart_level() -> void:
