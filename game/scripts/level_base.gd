@@ -1540,7 +1540,8 @@ func _on_drawing_ready(
 			ink_manager.release_attempt()
 			PlayerProfile.record_object_acquired(entity_id)
 			item.ink_committed = true
-		var kept := _begin_new_utility(item, first_time)
+		var answers := is_a_tool(entry) and _tool_answers_here(entity_id)
+		var kept := _begin_new_utility(item, first_time, answers)
 		# ⚠ DRAWING A TOOL MAKES IT; USING IT IS WHAT ANSWERS. It used to be judged the moment
 		# the recogniser named it, so a key drawn at the house with its light on opened the door
 		# before the player had done anything with it -- and when they took the key out and
@@ -1550,7 +1551,7 @@ func _on_drawing_ready(
 		#
 		# So a tool drawn where it would answer goes straight into the hand, and the prompt over
 		# the player names what F will do. Pressing it is the answer.
-		if kept and is_a_tool(entry) and _tool_answers_here(entity_id):
+		if kept and answers:
 			_take_out_to_use(entity_id)
 		return
 	# CREATURE TRANSFORMATION IS FREE. FR-7 says so in its second sentence, and FR-8 is what
@@ -1629,7 +1630,8 @@ func _spawn_or_replace(
 ## `first_time` is whether this CLASS is new to the player, not whether the bag was empty.
 ## The card is for acquiring something; the fifth axe of the run is a tool coming out of the
 ## bag, and dimming the screen for it would make the reward beat into a loading screen.
-func _begin_new_utility(item: DrawnItemData, first_time: bool = true) -> bool:
+func _begin_new_utility(item: DrawnItemData, first_time: bool = true,
+		going_into_hand: bool = false) -> bool:
 	var slot := inventory_manager.add_item(item)
 	if slot == -1:
 		ink_manager.release_attempt()
@@ -1648,13 +1650,26 @@ func _begin_new_utility(item: DrawnItemData, first_time: bool = true) -> bool:
 			status_label.text = "%s needs a unit of ink, and there is none left" % item.display_name
 			return false
 	inventory_hud.set_selected(slot)
-	status_label.text = "%s drawn — press %d to place it" % [item.display_name, slot + 1]
+	# ⚠ WHAT THE KEY ACTUALLY DOES FOR THIS THING. Every drawing said "press N to place it",
+	# which is wrong for a tool -- a tool is taken out and used, never set down -- and a tool
+	# drawn where it answers is already in hand, where pressing its number puts it AWAY. So the
+	# line and the card say what is true of this drawing, here.
+	var tool := _is_held_tool(item)
+	var next_step := ""
+	if going_into_hand:
+		next_step = "in hand — press %s to %s here" % [ControlsKeys.keys_for("use_utility"),
+			_verb_for(item.entity_id).to_lower()]
+	elif tool:
+		next_step = "in your bag — press %d to take it out" % (slot + 1)
+	else:
+		next_step = "in your bag — press %d to place it" % (slot + 1)
+	status_label.text = "%s drawn — %s" % [item.display_name, next_step]
 	if not first_time:
 		return true
 	# The player's OWN drawing, paper knocked out, held up for a second. This is the moment
 	# the recogniser agreed with them, and it was a line of grey text in the corner.
 	announce_acquisition(item.display_name,
-		"In your bag — press %d to use it" % (slot + 1),
+		next_step.substr(0, 1).to_upper() + next_step.substr(1),
 		DrawingSkin2D.thumbnail(item.image))
 	return true
 
