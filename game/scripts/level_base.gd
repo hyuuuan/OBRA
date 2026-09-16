@@ -256,8 +256,6 @@ var hint_bar: HintBar
 var _chips: Array = []
 ## How long the player has been under the water in their own body.
 var _submerged_seconds := 0.0
-## Where the camera's anchor was last frame, for the bag's stow rule. See _stow_the_bag.
-var _bag_anchor := Vector2.ZERO
 ## Where on the terrace to put the apo back when she comes out of the straw room.
 var _sign_prompt := ""
 ## Ang Bale's padlock, which judges the STROKES of a drawn key rather than its class.
@@ -316,9 +314,8 @@ func _ready() -> void:
 	draw_panel.ink_manager = ink_manager
 	draw_panel.set("debug_timing_logs", debug_timing_logs)
 	inventory_hud.set_manager(inventory_manager)
-	# ⚠ THE BAG COMES UP WHEN IT HAS SOMETHING TO SAY. It stands down while the apo is
-	# travelling (see _stow_the_bag), and a drawing picked up mid-run would otherwise land in
-	# a bar already on its way out of the frame -- which is the one moment it matters.
+	# THE BAG SAYS SO WHEN SOMETHING CHANGES in it: a brief brightening of the tray, which is
+	# always in the same corner.
 	inventory_manager.inventory_changed.connect(
 		func(_items: Array) -> void: inventory_hud.announce())
 	_build_hud_frame()
@@ -2657,7 +2654,9 @@ func _physics_process(_delta: float) -> void:
 		if anchor != null:
 			anchor_position = anchor.global_position
 	_level_physics(anchor_position)
-	_stow_the_bag(anchor_position)
+	# The bag no longer stands down while the apo moves -- see InventoryHUD. It stays in its
+	# corner and thins out only while she is actually standing behind it.
+	_veil_the_bag_over(anchor_position)
 	# A fall is not an ending. The wanderer used to wrap to the top of the world and a
 	# drawn creature did not handle it at all, so falling off as a fish meant falling
 	# forever. Either way the level takes them back to the last checkpoint instead.
@@ -2719,25 +2718,19 @@ func _physics_process(_delta: float) -> void:
 		_complete_level()
 
 
-## THE ONE HUD BAND THAT SITS WHERE THE PLAYER DOES.
-##
-## The bag is anchored bottom-centre and the camera keeps the apo bottom-centre, so a bag
-## with anything in it covered her from the shins to the eyes -- photographed with six
-## drawings in it, the top of her head over slot 3 was all that showed. `InventoryHUD` already
-## hides itself when the bag is EMPTY, and the note on that is about this same band burying
-## the paddy at Level 1's first gate. This finishes the rule: quiet while you are moving too.
-##
-## MEASURED OFF THE ANCHOR, NOT OFF A VELOCITY. The player is a wanderer some of the time and
-## a twelve-body rig the rest, and only one of those has a `velocity`. How far the thing the
-## camera follows actually travelled is the same question for both.
-func _stow_the_bag(anchor_position: Vector2) -> void:
-	if inventory_hud == null or not is_instance_valid(inventory_hud):
+## Whether the player is on screen behind the toolbelt. Measured as a box around the body the
+## camera follows, in screen space, because the bar lives on a CanvasLayer and the player does
+## not -- and "behind it" is a question about the picture, not about the world.
+const BODY_ON_SCREEN := Vector2(76.0, 120.0)
+
+
+func _veil_the_bag_over(anchor_position: Vector2) -> void:
+	if inventory_hud == null or not is_instance_valid(inventory_hud) or not inventory_hud.visible:
 		return
-	var moved := anchor_position.distance_to(_bag_anchor)
-	_bag_anchor = anchor_position
-	# A rig jitters on its joints while it is standing still, so the threshold is a walk
-	# rather than a nudge: the apo runs at 260px/s, which is about 4.3 per physics frame.
-	inventory_hud.set_stowed(moved > 1.4)
+	var feet := get_viewport().get_canvas_transform() * anchor_position
+	var body := Rect2(feet - Vector2(BODY_ON_SCREEN.x * 0.5, BODY_ON_SCREEN.y * 0.8),
+		BODY_ON_SCREEN)
+	inventory_hud.set_see_through(inventory_hud.get_global_rect().grow(8.0).intersects(body))
 
 
 ## Put the player back somewhere they can stand, and say why.
