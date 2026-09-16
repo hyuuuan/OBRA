@@ -43,8 +43,10 @@ func _run() -> void:
 
 	await _title_to_house(manager)
 	await _brush_and_payyo(manager)
+	await _restart_payyo_from_pause(manager)
 	await _payyo_to_piyesta(manager, profile)
 	await _piyesta_to_ending(manager)
+	await _ending_to_house(manager)
 
 	_restore()
 	print("OBRA_JOURNEY_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
@@ -66,6 +68,18 @@ func _settle(manager: Node, frames: int = 30) -> void:
 			break
 		await process_frame
 	for _i in range(frames):
+		await process_frame
+
+
+## Until a DIFFERENT instance of `expected` is current -- a restart reloads the same file, so the
+## file name alone says nothing about whether it happened.
+func _wait_for_fresh_scene(manager: Node, old: Node, expected: String, seconds: float = 8.0) -> void:
+	var waited := 0.0
+	while waited < seconds and (current_scene == old or _scene_name() != expected
+			or bool(manager.call("is_transitioning"))):
+		await create_timer(0.1, true, false, true).timeout
+		waited += 0.1
+	for _i in range(20):
 		await process_frame
 
 
@@ -155,6 +169,32 @@ func _brush_and_payyo(manager: Node) -> void:
 		badge.text if badge != null else "-")
 
 
+## RESTART LEVEL, from the pause menu, after spending ink. The tree is paused while the menu is
+## up, and a restart that forgot to let go of it -- or that kept the ink it had spent -- is the
+## player arriving back at the start frozen, or poorer.
+func _restart_payyo_from_pause(manager: Node) -> void:
+	var level := current_scene
+	var ink := level.get("ink_manager") as Node
+	ink.call("spend_unit")
+	ink.call("spend_unit")
+	var menu := level.get_node_or_null(^"PauseMenu")
+	menu.call("open_pause")
+	for _i in range(10):
+		await process_frame
+	_check(paused, "Escape pauses Payyo", "paused")
+	(menu.get("restart_button") as Button).pressed.emit()
+	await _wait_for_fresh_scene(manager, level, "game_level.tscn")
+	await _read_the_opening()
+	_check(current_scene != level, "RESTART LEVEL loads Payyo again", _scene_name())
+	await _arrived(manager, "game_level.tscn", "RESTART LEVEL")
+	var fresh_ink := current_scene.get("ink_manager") as Node
+	_check(is_equal_approx(float(fresh_ink.call("total_uncommitted_available")), 6.0),
+		"and the ink spent before it is back", "%.1f of 6"
+			% float(fresh_ink.call("total_uncommitted_available")))
+	_check(String(manager.get("current_level_id")) == "level_1", "and it is still Payyo",
+		String(manager.get("current_level_id")))
+
+
 func _payyo_to_piyesta(manager: Node, profile: Node) -> void:
 	var level := current_scene
 	if level == null or not level.has_method("_on_onward_reached"):
@@ -218,6 +258,20 @@ func _piyesta_to_ending(manager: Node) -> void:
 	overlay.call("_on_continue")
 	await _wait_for_scene(manager, "ending_screen.tscn")
 	await _arrived(manager, "ending_screen.tscn", "CONTINUE after Piyesta")
+
+
+## The ending's one button goes back to the house.
+func _ending_to_house(manager: Node) -> void:
+	var ending := current_scene
+	var button := ending.get("_continue_button") as Button if ending != null else null
+	_check(button != null, "the ending has a way out", _scene_name())
+	if button == null:
+		return
+	button.pressed.emit()
+	await _wait_for_scene(manager, "hub.tscn")
+	await _arrived(manager, "hub.tscn", "CONTINUE from the ending")
+	_check(String(manager.get("current_level_id")).is_empty(), "and the run is back in no level",
+		"'%s'" % String(manager.get("current_level_id")))
 
 
 ## Any story line up, advanced with a real key until none is.
