@@ -17,14 +17,25 @@ const SLACK := 3.0
 static func painted(level: Node) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var panels: Array[Control] = []
-	for layer in level.get_children():
-		if layer is CanvasLayer and (layer as CanvasLayer).visible:
-			_collect_panels(layer, panels)
+	for layer in _hud_layers(level):
+		_collect_panels(layer, panels)
 	for panel in panels:
 		out.append({"name": trail(panel, level), "rect": panel.get_global_rect()})
+	for layer in _hud_layers(level):
+		_collect_loose_labels(layer, panels, out, level)
+	return out
+
+
+## The layers that make up the HUD. A MODAL is not one of them: a memory card, the choice
+## screen or the pause menu is meant to stand over everything under a scrim, and counting it as
+## an overlap would make every open menu a failure.
+static func _hud_layers(level: Node) -> Array[CanvasLayer]:
+	var out: Array[CanvasLayer] = []
 	for layer in level.get_children():
-		if layer is CanvasLayer and (layer as CanvasLayer).visible:
-			_collect_loose_labels(layer, panels, out, level)
+		var canvas := layer as CanvasLayer
+		if canvas == null or not canvas.visible or canvas is ModalOverlay:
+			continue
+		out.append(canvas)
 	return out
 
 
