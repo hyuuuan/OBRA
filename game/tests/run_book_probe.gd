@@ -126,7 +126,10 @@ func _run() -> void:
 			continue
 		screen.call("_choose_bag", index)
 		await _wait(0.1)
-		notes[item.entity_id] = (screen.get("_detail_note") as Label).text
+		# What it IS and what it COSTS are two lines on the pane now, and the price is the half
+		# this check is about.
+		notes[item.entity_id] = "%s  |  %s" % [(screen.get("_detail_note") as Label).text,
+			(screen.get("_detail_price") as Label).text]
 	_check(String(notes.get("axe", "")).contains("keep")
 		and not String(notes.get("axe", "")).contains("each time"),
 		"an axe in the bag is described as a tool you keep", String(notes.get("axe", "")))
