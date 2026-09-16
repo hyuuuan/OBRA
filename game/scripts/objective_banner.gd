@@ -18,12 +18,21 @@ extends Control
 ## ⚠ THE WORDS COME FROM THE LEVEL'S CONFIG, not from here, so the audit that keeps every
 ## line of dialogue from naming a class the player has not earned can read them too.
 
-## Under the badge, which owns y 18..52.
-const TOP := 56.0
+## ⚠ THE BADGE IS INSIDE THIS NOW, so this sits where the badge used to. Where the player is
+## and what they are doing there were two chips stacked on top of each other under the top
+## edge, with Lolo's box under the pair of them -- three framed boxes in a column down the
+## middle of the screen, which is what "everything is overlapping" looks like from outside
+## even when the rectangles do not actually touch. They are one object: a small line naming
+## the place, and the task under it.
+const TOP := 18.0
 ## Longer than this is a sentence, and a sentence belongs to Lolo.
 const MAX_WIDTH := 640.0
 
 var _panel: PanelContainer
+var _column: VBoxContainer
+## The level's own name, kept by the level and drawn in here. Adopted rather than copied, so
+## whatever writes "LEVEL 1 · PAYYO · ANG TULAY" goes on writing to the same label.
+var _place: Label
 var _mark: Control
 var _label: Label
 var _text := ""
@@ -41,10 +50,18 @@ func _init() -> void:
 	_panel.add_theme_stylebox_override(&"panel", UISkin.chip(12.0, 4.0))
 	add_child(_panel)
 
+	_column = VBoxContainer.new()
+	_column.name = "Column"
+	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_column.add_theme_constant_override(&"separation", 1)
+	_panel.add_child(_column)
+
 	var row := HBoxContainer.new()
+	row.name = "Row"
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override(&"separation", 9)
-	_panel.add_child(row)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_column.add_child(row)
 
 	_mark = Control.new()
 	_mark.name = "Mark"
@@ -60,6 +77,24 @@ func _init() -> void:
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	row.add_child(_label)
+
+
+## The badge moves in here, above the objective and centred over it. The level still owns the
+## label and still writes the beat's name into it; this decides where it is drawn.
+func adopt_place(label: Label) -> void:
+	if label == null:
+		return
+	if label.get_parent() != null:
+		label.get_parent().remove_child(label)
+	_place = label
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_column.add_child(label)
+	_column.move_child(label, 0)
+	label.resized.connect(_relayout)
+	visible = true
+	_relayout.call_deferred()
 
 
 func _ready() -> void:
@@ -78,7 +113,11 @@ func set_objective(value: String) -> void:
 		return
 	_text = value
 	_label.text = value
-	visible = not value.is_empty()
+	_label.visible = not value.is_empty()
+	_mark.visible = _label.visible
+	# The chip stays up for the place line even with no task in it: the level's name is the
+	# one thing on this screen that is always true.
+	visible = _label.visible or (_place != null and not _place.text.is_empty())
 	if not visible:
 		return
 	_relayout()
@@ -103,6 +142,13 @@ func _relayout() -> void:
 		return
 	var width := font.get_string_size(_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
 	_label.custom_minimum_size = Vector2(ceilf(minf(width, MAX_WIDTH)), 0.0)
+	# The chip is as wide as the wider of its two lines, and the place line is centred in it.
+	if _place != null:
+		var place_font := _place.get_theme_font(&"font")
+		var place_size := _place.get_theme_font_size(&"font_size")
+		if place_font != null:
+			_place.custom_minimum_size = Vector2(ceilf(minf(place_font.get_string_size(
+				_place.text, HORIZONTAL_ALIGNMENT_CENTER, -1.0, place_size).x, MAX_WIDTH)), 0.0)
 	_panel.reset_size()
 	var wanted := _panel.get_combined_minimum_size()
 	_panel.size = wanted
