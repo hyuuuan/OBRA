@@ -56,26 +56,62 @@ func _init() -> void:
 	plate.add_theme_stylebox_override(&"panel", UISkin.frame(12.0, 8.0))
 	add_child(plate)
 
-	# THE NAME, big. It is the first thing read and the only word on the card.
+	# ⚠ LAID OUT, NOT POSITIONED BY HAND. Every line on this plate was a Label placed at a
+	# typed offset with a typed size, and a Label cannot be smaller than its own text -- so
+	# the name grew past the twenty-four pixels it was given and stood on the LIFE caption
+	# under it, while its box already ran forty-eight pixels into the rating's. "SEA TURTLE"
+	# and "94% SURE" printed over each other in the corner of the screen. Two rows in a
+	# container cannot do that: the name takes the room that is left after the rating, and
+	# the rows cannot walk into each other however long either gets.
+	var inside := MarginContainer.new()
+	inside.name = "Inside"
+	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inside.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	inside.add_theme_constant_override(&"margin_left", 12)
+	inside.add_theme_constant_override(&"margin_right", 12)
+	inside.add_theme_constant_override(&"margin_top", 6)
+	inside.add_theme_constant_override(&"margin_bottom", 6)
+	plate.add_child(inside)
+
+	var rows := VBoxContainer.new()
+	rows.name = "Rows"
+	rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rows.add_theme_constant_override(&"separation", 2)
+	inside.add_child(rows)
+
+	var top := HBoxContainer.new()
+	top.name = "Top"
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_theme_constant_override(&"separation", 10)
+	rows.add_child(top)
+
+	# THE NAME, big. It is the first thing read and the only word on the card. It takes
+	# whatever room the rating leaves and is cut rather than allowed to push it off the plate.
 	_name = Label.new()
 	_name.name = "Name"
 	_name.theme_type_variation = &"HudBanner"
 	_name.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
-	_name.position = Vector2(12.0, 4.0)
-	_name.size = Vector2(PLATE.x * 0.62, 24.0)
+	_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	plate.add_child(_name)
+	_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_name.clip_text = true
+	top.add_child(_name)
 
-	# HOW SURE THE RECOGNISER WAS, in the slot a battle plate puts a level in. Right
-	# aligned against the plate's inner edge so it holds still as the name changes length.
+	# HOW SURE THE RECOGNISER WAS, in the slot a battle plate puts a level in. Shrunk to its
+	# own text at the right-hand end, so it holds still as the name changes length.
 	_rating = Label.new()
 	_rating.name = "Rating"
 	_rating.theme_type_variation = &"HudValue"
 	_rating.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_rating.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_rating.position = Vector2(PLATE.x * 0.5, 4.0)
-	_rating.size = Vector2(PLATE.x * 0.5 - 24.0, 24.0)
-	plate.add_child(_rating)
+	_rating.size_flags_horizontal = Control.SIZE_SHRINK_END
+	top.add_child(_rating)
+
+	var bottom := HBoxContainer.new()
+	bottom.name = "Bottom"
+	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bottom.add_theme_constant_override(&"separation", 8)
+	rows.add_child(bottom)
 
 	# LIFE, the caption beside the bar, in the slot a battle plate writes HP in.
 	_caption = Label.new()
@@ -84,16 +120,18 @@ func _init() -> void:
 	_caption.theme_type_variation = &"HudCaption"
 	_caption.add_theme_constant_override(&"outline_size", 0)
 	_caption.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
-	_caption.position = Vector2(12.0, 30.0)
-	_caption.size = Vector2(52.0, 24.0)
 	_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	plate.add_child(_caption)
+	bottom.add_child(_caption)
 
 	_life = LifeBar.new()
 	_life.name = "Life"
-	_life.position = Vector2(64.0, 34.0)
-	_life.size = Vector2(PLATE.x - 88.0, 16.0)
-	plate.add_child(_life)
+	# Tall enough to hold the percentage INSIDE it. At sixteen the figure printed on the bar
+	# stood a few pixels proud of it top and bottom, which reads as a number lying across a
+	# gauge rather than as the gauge's own reading.
+	_life.custom_minimum_size = Vector2(0.0, 24.0)
+	_life.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_life.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bottom.add_child(_life)
 
 	# The percentage, ON the bar, the way the reference plate carries it.
 	_percent = Label.new()

@@ -30,15 +30,19 @@ var _thumbnails: Dictionary = {}
 ## Which slot the player is currently acting on, or -1.
 var _selected: int = -1
 
-## HOW FAR IT DROPS OUT OF THE FRAME WHEN IT IS NOT WANTED, and the whole reason it does.
+## ⚠ IT DOES NOT HIDE WHILE THE PLAYER WALKS ANY MORE.
 ##
-## The band is anchored bottom-CENTRE, and bottom-centre is where the camera keeps the
-## player -- so a bag with anything in it sat squarely on top of the apo. Photographed with
-## six drawings in it, the slots covered her from the shins to the eyes: you could see the
-## top of her head over slot 3 and nothing else. `_refresh` already hides the bar when the
-## bag is EMPTY, and the note on it is about this same band burying the paddy at the level's
-## first gate. This is that rule finished: the bag is not only quiet when it holds nothing,
-## it is quiet while you are moving.
+## It used to drop out of the frame every time the apo moved and come back every time she
+## stopped, because the band was anchored bottom-CENTRE, which is where the camera keeps the
+## player, and a bag with things in it covered her from the shins up. Hiding it was a fix for
+## where it was standing, and it cost the one thing a bag bar is for: you could not glance at
+## what you were carrying while doing anything. Kent: "when it disappears and reappears,
+## although it is nice, it is still weird".
+##
+## So it stands where it cannot cover her -- docked in the bottom-LEFT corner, on a tray of its
+## own, in both levels (Piyesta's scene is a text copy and still had the old centre anchor)
+## -- and it stays there. `set_stowed` is kept for anything that still wants to put it away,
+## and nothing in a level calls it.
 const STOW_DROP := 78.0
 const STOW_TIME := 0.16
 const RAISE_TIME := 0.13
@@ -48,6 +52,19 @@ const RAISE_TIME := 0.13
 const DWELL := 3.2
 
 var _stowed := false
+## Whether the player is standing behind the bar right now. See set_see_through.
+var _see_through := false
+## How much of the HUD the level's letterbox has left showing. See set_curtain_alpha.
+var _curtain_alpha := 1.0
+## ⚠ ONE WRITER FOR THE ALPHA. The bar's alpha used to be tweened from three places -- its own
+## fade-in, the see-through fade, and the level's curtain -- and whichever finished last won.
+## In play that left it faded with the player nowhere near it, or solid with her standing
+## behind it. Now each of those only sets a target, and `_process` walks the alpha toward the
+## product of them.
+const ALPHA_SPEED := 6.5
+## How much of the bar is left when she is behind it: enough to read the numbers and see what
+## is in the slots, little enough that she shows through.
+const SEE_THROUGH := 0.3
 ## Set while a placement is in progress -- see set_click_through. Kept apart from `_stowed`
 ## because either one alone must make the band click-through and neither may clear the other.
 var _click_through := false
@@ -63,10 +80,13 @@ func _ready() -> void:
 	_home_top = offset_top
 	_home_bottom = offset_bottom
 	set_process(true)
-	# Centred in its band, which is anchored bottom-CENTRE and sized to exactly its six
-	# slots -- 424px rather than the 756px it used to span, so it covers a third less of
-	# the ground the player sets objects down on while staying where the eye looks for it.
-	alignment = BoxContainer.ALIGNMENT_CENTER
+	# The alpha has to keep moving while a letterbox or a card has the tree stopped.
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	# Its tray is drawn, not a panel, so anything that steers clear of the HUD's panels has to
+	# be told this is one too -- see TutorialCallout._hud_around_me.
+	add_to_group(&"hud_blockers")
+	# Packed to the left, from the corner it is docked in.
+	alignment = BoxContainer.ALIGNMENT_BEGIN
 	for index in range(6):
 		var button := Button.new()
 		button.theme_type_variation = &"InventorySlot"
@@ -118,6 +138,17 @@ func _ready() -> void:
 		tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(tag)
 		_tags.append(tag)
+
+
+## THE TRAY. Six loose frames floating on the level read as six separate things; one dark
+## strip behind them reads as one bag. Drawn a little outside the bar's own rect, which is the
+## size of the slots exactly, so the slots keep their layout and the tray is only ground.
+const TRAY_PAD := 8.0
+
+
+func _draw() -> void:
+	var tray := Rect2(Vector2(-TRAY_PAD, -TRAY_PAD), size + Vector2(TRAY_PAD, TRAY_PAD) * 2.0)
+	draw_style_box(UISkin.strip(0.0, 0.0), tray)
 
 
 func set_manager(manager: InventoryManager) -> void:
@@ -178,7 +209,14 @@ func _refresh(items: Array) -> void:
 		if item_value != null:
 			holding = true
 			break
-	visible = holding
+	# Faded in rather than popped, the first time there is anything to show.
+	if holding and not visible:
+		# Faded in from nothing by `_process`, rather than popped.
+		modulate.a = 0.0
+		visible = true
+	elif not holding:
+		visible = false
+	queue_redraw()
 	for index in range(_buttons.size()):
 		var item := items[index] as DrawnItemData if index < items.size() else null
 		var occupied := item != null
@@ -263,13 +301,52 @@ func announce() -> void:
 		_stowed = false
 		_apply_filter()
 		_slide_to(false)
+		return
+	# A brightening, not a movement: the bar is where it always is, and says "this changed".
+	if not visible:
+		return
+	# ON self_modulate, NOT modulate. The first thing ever put in the bag arrives with the bar
+	# fading in on `modulate:a`, and a pulse written to `modulate` captured that alpha at zero
+	# and tweened back to it -- so the bar faded in and was pinned invisible by its own welcome.
+	var pulse := create_tween()
+	pulse.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	self_modulate = Color(1.35, 1.25, 0.95, 1.0)
+	pulse.tween_property(self, "self_modulate", Color.WHITE, 0.45)
 
 
 func is_stowed() -> bool:
 	return _stowed
 
 
+## SEE-THROUGH WHILE SHE IS BEHIND IT, and only then.
+##
+## The lower-left corner is where the thesis puts the toolbelt (§4.5.3.5, Figure 16) and it is
+## clear of the player almost everywhere -- except at the left end of a level or a room, where
+## the camera stops and she can walk into the corner itself. Hiding the bar on every step was
+## the old answer to a bar that was in the MIDDLE; this is the answer to one in the corner: it
+## thins out while she is actually behind it, stays where it is, stays clickable, and comes
+## back the moment she steps out.
+func set_see_through(on: bool) -> void:
+	_see_through = on
+
+
+func is_see_through() -> bool:
+	return _see_through
+
+
+func _resting_alpha() -> float:
+	return SEE_THROUGH if _see_through else 1.0
+
+
+## The level's letterbox, as a multiplier on whatever else the bar wants.
+func set_curtain_alpha(alpha: float) -> void:
+	_curtain_alpha = clampf(alpha, 0.0, 1.0)
+
+
 func _process(delta: float) -> void:
+	if visible:
+		modulate.a = move_toward(modulate.a, _resting_alpha() * _curtain_alpha,
+			ALPHA_SPEED * delta)
 	if _dwell > 0.0:
 		_dwell = maxf(0.0, _dwell - delta)
 
@@ -292,4 +369,4 @@ func _slide_to(stow: bool) -> void:
 	var seconds := STOW_TIME if stow else RAISE_TIME
 	_slide.tween_property(self, "offset_top", _home_top + drop, seconds)
 	_slide.tween_property(self, "offset_bottom", _home_bottom + drop, seconds)
-	_slide.tween_property(self, "modulate:a", 0.0 if stow else 1.0, seconds)
+	# Offsets only: the alpha has one writer, `_process`.
