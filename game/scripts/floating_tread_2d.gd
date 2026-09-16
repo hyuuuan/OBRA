@@ -81,6 +81,8 @@ var _excepted: Array[PhysicsBody2D] = []
 
 func _ready() -> void:
 	add_to_group(&"floating_treads")
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	queue_redraw()
 	_tags = get_node_or_null(^"/root/AbilityTags")
 	# Contact reporting is what tells us anything is on top at all. Without it
 	# get_colliding_bodies() is always empty and the tread can never be weighted.
@@ -182,6 +184,7 @@ func _weighting_body() -> Node2D:
 		if _tags != null and bool(_tags.call("class_has_tag", class_id, required_tag)):
 			return body
 	return null
+
 
 
 ## From ABOVE, and over the deck. Something floating against the plank's edge is not
@@ -314,3 +317,93 @@ func _half_of(body: Node) -> Vector2:
 		if collision != null and collision.shape != null and collision.shape.has_method("get_rect"):
 			return Rect2(collision.shape.call("get_rect")).size * 0.5
 	return Vector2.ZERO
+
+
+# --- What it looks like ------------------------------------------------------------------
+
+## ⚠ IT WAS A CUT OF THE GROUND, WHICH IS WHY IT LOOKED LIKE THE GROUND.
+##
+## `assets/Level1/props/floating_tread.png` is forty-four pixels of soil with grass along the
+## top -- the same earth and the same grass as the terrace the player is standing on -- so the
+## one loose object in Beat 0 was drawn in the material of the one thing that is not loose.
+## Kent: "why does it look like the terrain". A step that reads as terrain is worse than
+## unclear: the lesson of this beat is that a LOOSE thing tips and a WEIGHTED one lies flat,
+## and neither half of that is legible on something the eye files as scenery.
+##
+## So it is what Lolo calls it, out loud, in the line that introduces it: a plank. Silvered
+## timber, which is the one material anywhere near this paddy that is neither green nor
+## packed earth -- and two boards rather than one, because it is two of the stair's missing
+## treads lodged together, which is what makes it long enough to cross on.
+const PLANK_SIZE := Vector2(176.0, 20.0)
+## Weathered wood goes grey in the sun and keeps its warmth in the shade of its own grain.
+const WOOD_PALE := Color(0.780, 0.710, 0.576, 1.0)   # C7B593, the sun-bleached top face
+const WOOD := Color(0.596, 0.518, 0.404, 1.0)        # 988467
+const WOOD_GRAIN := Color(0.443, 0.373, 0.278, 1.0)  # 715F47
+const WOOD_DARK := Color(0.318, 0.278, 0.216, 1.0)   # 514737, the cut ends and the underside
+const WOOD_DEEP := Color(0.184, 0.157, 0.122, 1.0)   # 2F281F
+## Where it has stood in the paddy. Not green algae over everything -- a tide line and a
+## little weed at the ends, which is what says "this has been lying in water" without
+## turning the plank back into scenery.
+const WATER_STAIN := Color(0.278, 0.294, 0.216, 1.0) # 474B37
+const WEED := Color(0.361, 0.451, 0.212, 1.0)        # 5C7336
+## The iron that used to hold it to the stair, rusted in place.
+const IRON := Color(0.416, 0.263, 0.180, 1.0)        # 6A432E
+const IRON_LIT := Color(0.541, 0.369, 0.251, 1.0)    # 8A5E40
+
+
+func _draw() -> void:
+	var half := PLANK_SIZE * 0.5
+	# What it throws on the water under it. A plank lying ON something has a shadow; without
+	# one it reads as a decal painted on the surface.
+	draw_rect(Rect2(-half.x + 6.0, half.y - 2.0, PLANK_SIZE.x - 12.0, 7.0),
+		Color(0.0, 0.0, 0.0, 0.28))
+	# TWO BOARDS, and the seam between them is the point: this is two treads lodged
+	# together rather than one long step, and a seam is the cheapest way to say so.
+	for side: float in [-1.0, 1.0]:
+		var board := Rect2(Vector2(side * 3.0 - half.x if side < 0.0 else 3.0,
+			-half.y), Vector2(half.x - 3.0, PLANK_SIZE.y))
+		_draw_board(board, side < 0.0)
+	# The seam, in shadow, with the strap that failed across it.
+	draw_rect(Rect2(-3.0, -half.y, 6.0, PLANK_SIZE.y), WOOD_DEEP)
+	draw_rect(Rect2(-9.0, -half.y + 3.0, 18.0, 4.0), IRON)
+	draw_rect(Rect2(-9.0, -half.y + 3.0, 18.0, 1.0), IRON_LIT)
+	draw_rect(Rect2(-9.0, half.y - 7.0, 18.0, 4.0), IRON)
+
+
+## One board: a lit top edge, grain along it, a dark cut end, and the tide line underneath.
+func _draw_board(board: Rect2, left: bool) -> void:
+	draw_rect(board, WOOD)
+	# The top face catches the light; the underside is in its own shadow.
+	draw_rect(Rect2(board.position, Vector2(board.size.x, 4.0)), WOOD_PALE)
+	draw_rect(Rect2(board.position.x, board.position.y + 4.0, board.size.x, 1.0), WOOD_PALE)
+	draw_rect(Rect2(board.position.x, board.end.y - 6.0, board.size.x, 6.0), WOOD_DARK)
+	# Grain: long broken streaks, seeded off the board so the two do not match.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(absf(board.position.x)) + 17
+	for _line in range(7):
+		var y := board.position.y + 6.0 + rng.randf() * (board.size.y - 12.0)
+		var x := board.position.x + rng.randf() * board.size.x * 0.4
+		var run := board.size.x * (0.25 + rng.randf() * 0.4)
+		draw_rect(Rect2(x, floorf(y), minf(run, board.end.x - x - 2.0), 1.0), WOOD_GRAIN)
+	# A knot, and the split running out of it.
+	var knot := Vector2(board.position.x + board.size.x * (0.34 if left else 0.62),
+		board.position.y + board.size.y * 0.52)
+	draw_rect(Rect2(knot - Vector2(4.0, 3.0), Vector2(8.0, 6.0)), WOOD_GRAIN)
+	draw_rect(Rect2(knot - Vector2(2.0, 2.0), Vector2(4.0, 4.0)), WOOD_DARK)
+	draw_rect(Rect2(knot.x - 12.0, knot.y - 1.0, 10.0, 1.0), WOOD_GRAIN)
+	# The cut end, which is end grain and is always darker than the face.
+	var cut := board.position.x if left else board.end.x - 5.0
+	draw_rect(Rect2(cut, board.position.y, 5.0, board.size.y), WOOD_DARK)
+	draw_rect(Rect2(cut, board.position.y, 5.0, 3.0), WOOD_GRAIN)
+	# THE TIDE LINE. It has been lying in a flooded paddy: the bottom third is stained, and
+	# there is weed at the end that has been under longest.
+	draw_rect(Rect2(board.position.x, board.end.y - 3.0, board.size.x, 3.0), WATER_STAIN)
+	for blade in range(3):
+		var x := (board.position.x + 3.0 + float(blade) * 4.0) if left \
+			else (board.end.x - 6.0 - float(blade) * 4.0)
+		draw_rect(Rect2(x, board.end.y - 5.0, 2.0, 5.0), WEED)
+	# The nail holes it was pulled off the stair by.
+	for hole: float in [0.22, 0.78]:
+		draw_rect(Rect2(board.position.x + board.size.x * hole, board.position.y + 2.0,
+			2.0, 3.0), WOOD_DEEP)
+
