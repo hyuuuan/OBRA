@@ -689,6 +689,7 @@ func _build_level_furniture() -> void:
 	ward_lock = WardLock2D.new()
 	ward_lock.name = "WardLock"
 	add_child(ward_lock)
+	_listen_for_the_tree.call_deferred()
 
 	# WALKING INTO THE HEAP IS FINDING THE CHEST. Node 2's routes uncover it too, and
 	# reveal() is idempotent, so a player who searches the straw first and one who simply
@@ -733,6 +734,30 @@ func _extra_refusals(entity_id: String, strokes: Array) -> bool:
 
 ## Node 2 opens the heap; Node 3 opens the chest. Both own their own words, which is why
 ## the generic ".solved" line must not also fire for them.
+## THE AXE AT THE GORGE IS NOT SPENT BY ANSWERING. Cutting is how the Protector route crosses
+## Ang Tulay, and the tree takes more than one swing -- so the answer opens the route and the
+## axe stays in hand until the tree is actually down. Every other tool here is spent the moment
+## its answer lands.
+func _tool_is_spent_by(obstacle_id: String, route: String, _entity_id: String) -> bool:
+	return not (obstacle_id == "L1_N1" and route == "protector")
+
+
+func _listen_for_the_tree() -> void:
+	for node in get_tree().get_nodes_in_group(&"drawing_gates"):
+		if node.has_signal(&"felled") and not node.is_connected(&"felled", _spend_the_cutting_tool):
+			node.connect(&"felled", _spend_the_cutting_tool)
+
+
+## And spent when the tree falls.
+func _spend_the_cutting_tool() -> void:
+	for tool_id in ["axe", "sword"]:
+		if _slot_holding(tool_id) >= 0 or (_equipped_utility != null
+				and is_instance_valid(_equipped_utility) and _equipped_utility.item_data != null
+				and _equipped_utility.item_data.entity_id == tool_id):
+			spend_tool(tool_id)
+			return
+
+
 func _on_route_solved(obstacle_id: String, route: String) -> bool:
 	if obstacle_id == "L1_N2":
 		_search_the_straw(route)
