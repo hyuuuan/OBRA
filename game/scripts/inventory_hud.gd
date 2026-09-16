@@ -337,6 +337,11 @@ func _resting_alpha() -> float:
 	return SEE_THROUGH if _see_through else 1.0
 
 
+## The same, for the level's curtain fade, which writes every HUD piece's alpha at once.
+func resting_alpha() -> float:
+	return _resting_alpha()
+
+
 func _process(delta: float) -> void:
 	if _dwell > 0.0:
 		_dwell = maxf(0.0, _dwell - delta)
