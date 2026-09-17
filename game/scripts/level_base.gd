@@ -2398,11 +2398,13 @@ func _build_hud_frame() -> void:
 	# under a centre anchor shuffles sideways on every step the player takes.
 	_wrap_in_chip(goal_label, "bottom_centre", Vector2(0.0, -26.0), 150.0,
 		UIGlyph.Kind.FLAG)
+	_hide_chip_when_empty(goal_label)
 	_build_checkpoint_chip()
 	_build_morph_card()
 	_build_action_prompts()
 	_build_objective()
 	_build_dialogue_box()
+	_build_story_watch()
 
 
 ## The objective line under the badge, and the marker over the world. The marker is the
@@ -2495,6 +2497,19 @@ func _obstacle_point(obstacle_id: String) -> Vector2:
 		if volume != null and volume.obstacle_id == obstacle_id:
 			return volume.global_position
 	return Vector2.INF
+
+
+## Watches Lolo's story box on a timer that runs while the tree is paused -- which is when a
+## story line is up -- and eases the bottom row of the HUD out from under it. See
+## _watch_the_story_box.
+func _build_story_watch() -> void:
+	var watch := Timer.new()
+	watch.name = "StoryBoxWatch"
+	watch.wait_time = 0.03
+	watch.process_mode = Node.PROCESS_MODE_ALWAYS
+	watch.autostart = true
+	watch.timeout.connect(_watch_the_story_box)
+	add_child(watch)
 
 
 ## Its own layer, above the HUD and below every modal. A story line must sit over the ink
@@ -2663,6 +2678,33 @@ func _place_all_chips() -> void:
 		_place_chip(spec["chip"], String(spec["corner"]), Vector2(spec["offset"]))
 
 
+## ⚠ A CHIP WITH NOTHING IN IT IS NOT DRAWN. The goal readout is blanked inside a room and once
+## Payyo's house is open, and the chip around it stayed up as a flag in an empty gold box at
+## the bottom of the screen -- in the straw room, in Ang Bale, for the rest of the level. The
+## label says whether there is anything to show; the chip follows it.
+func _hide_chip_when_empty(label: Label) -> void:
+	var chip := label.get_parent()
+	while chip != null and not (chip is PanelContainer):
+		chip = chip.get_parent()
+	if chip == null:
+		return
+	_empty_chip_watch.append({"label": label, "chip": chip})
+	_refresh_empty_chips()
+
+
+## Chips whose visibility follows their label's text, checked every frame: a fixed-width label
+## goes from "GOAL 3 m" to "" without its rect changing, so no layout signal says so.
+var _empty_chip_watch: Array[Dictionary] = []
+
+
+func _refresh_empty_chips() -> void:
+	for entry in _empty_chip_watch:
+		var label := entry["label"] as Label
+		var chip := entry["chip"] as Control
+		if label != null and chip != null and is_instance_valid(label) and is_instance_valid(chip):
+			chip.visible = not label.text.strip_edges().is_empty()
+
+
 func _place_chip(chip: PanelContainer, corner: String, offset: Vector2) -> void:
 	if chip == null or not is_instance_valid(chip):
 		return
@@ -2695,25 +2737,61 @@ func _place_chip(chip: PanelContainer, corner: String, offset: Vector2) -> void:
 ## draws the eye to itself on the way. Only `$CanvasLayer` -- the gameplay HUD. Lolo speaks
 ## from DialogueLayer and has to stay, because an arrival cinematic is usually him talking.
 func _on_curtain_changed(closed: float) -> void:
-	# ⚠ GONE BEFORE THE CAPTION ARRIVES, not in step with the bars. The HUD used to fade as
-	# 1 - closed while the caption in the lower bar fades IN from a third of the way closed,
-	# so for most of every checkpoint the word CHECKPOINT was printed across the Draw prompt,
-	# the goal chip and the bag's slot numbers at half strength each. The HUD is out of the
-	# way by the time the bar has anything to say.
-	var alpha := clampf(1.0 - closed / CURTAIN_CLEAR, 0.0, 1.0)
-	for child in $CanvasLayer.get_children():
-		var control := child as CanvasItem
-		if control != null:
-			# The bag drives its own alpha and takes the curtain as a multiplier.
-			if control == inventory_hud:
-				continue
-			control.modulate.a = alpha
-	if inventory_hud != null:
-		inventory_hud.set_curtain_alpha(alpha)
-	if action_prompts != null:
-		action_prompts.set_curtain_alpha(alpha)
+	_curtain_closed = closed
+	_apply_hud_alpha()
 	if hint_bar != null:
 		hint_bar.set_curtain(closed)
+
+
+## How far the letterbox has closed, 0..1, and how much of the bottom of the HUD a story line
+## has left showing, 0..1. Kept apart and multiplied in one place, because every HUD alpha in
+## this game used to have several writers and the last tween to finish won.
+var _curtain_closed := 0.0
+var _story_veil := 1.0
+## The HUD pieces along the bottom of the screen, which is where Lolo's story box stands.
+const UNDER_THE_STORY_BOX := [&"GoalLabelChip", &"TutorialCallout", &"RequirementStrip",
+	&"DrawButton", &"ActionPrompts"]
+
+
+## THE ONE PLACE THE HUD'S ALPHA IS DECIDED.
+##
+## ⚠ GONE BEFORE THE CAPTION ARRIVES, not in step with the bars. The HUD used to fade as
+## 1 - closed while the caption in the lower bar fades IN from a third of the way closed, so for
+## most of every checkpoint the word CHECKPOINT was printed across the Draw prompt, the goal
+## chip and the bag's slot numbers at half strength each.
+##
+## ⚠ AND THE BOTTOM ROW STEPS BACK FOR A STORY LINE. Lolo's box is 1300 wide at the bottom of
+## the screen, and the goal chip, the tutorial bubble and the requirement strip stood half out
+## from under it -- the top of a gold box and "here. R" cut off at the frame's edge. While he
+## is talking those are not what the player is reading.
+func _apply_hud_alpha() -> void:
+	var alpha := clampf(1.0 - _curtain_closed / CURTAIN_CLEAR, 0.0, 1.0)
+	var bottom := alpha * _story_veil
+	for child in $CanvasLayer.get_children():
+		var control := child as CanvasItem
+		if control == null or control == inventory_hud:
+			# The bag drives its own alpha and takes the level's as a multiplier.
+			continue
+		control.modulate.a = bottom if UNDER_THE_STORY_BOX.has(control.name) else alpha
+	if inventory_hud != null:
+		inventory_hud.set_curtain_alpha(bottom)
+	if action_prompts != null:
+		action_prompts.set_curtain_alpha(bottom)
+
+
+## Watches the story box and eases the bottom row out and back. Runs while the tree is paused,
+## because a story line is exactly what pauses it.
+func _watch_the_story_box() -> void:
+	var speaking := dialogue_box != null and is_instance_valid(dialogue_box) \
+		and dialogue_box.visible
+	var wanted := 0.0 if speaking else 1.0
+	# While he is speaking it is re-applied every tick, not only while it moves: a tutorial
+	# bubble that arrives mid-line fades itself IN, and would otherwise finish that fade in
+	# front of the box.
+	if is_equal_approx(_story_veil, wanted) and not speaking:
+		return
+	_story_veil = move_toward(_story_veil, wanted, 0.25)
+	_apply_hud_alpha()
 
 
 ## The drawing's clock moved. The HUD is the only thing that cares every frame; the level
@@ -2780,6 +2858,7 @@ func _on_ink_changed(remaining: float, capacity: float, reserved: float) -> void
 
 func _physics_process(_delta: float) -> void:
 	_refresh_action_prompts()
+	_refresh_empty_chips()
 	# ⚠ THE GOAL MARKER USED TO GATE THIS WHOLE FUNCTION, and everything below it is not
 	# about the goal. A level with no marker silently lost its FALL LIMIT, its paddy rescue
 	# and its room framing -- so the first level built without one would drop a player
