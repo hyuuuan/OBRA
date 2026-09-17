@@ -167,19 +167,28 @@ func _build_hud() -> void:
 	title.text = "THE HOUSE"
 	title.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
 	title.add_theme_color_override(&"font_color", UISkin.GILT_LIT)
-	# ADDED FIRST, PLACED SECOND. A font-size override does not reach a Control until it is
-	# in the tree, so anything positioned or sized before add_child is laid out against the
-	# theme's 30pt rather than the 20 it draws at. See Painting2D._build_plate, where this
-	# same ordering put every picture's name to the right of its picture.
-	layer.add_child(title)
-	title.position = Vector2(40.0, 32.0)
+	# ⚠ ON A PLATE, NOT ON THE CEILING. The title and the status line were bare text laid over
+	# the pressed-tin frieze along the top of the hall, a busy repeating pattern in the same
+	# olive as the letters, so "Lola's brush is at the end of the hall. Take it first." -- the
+	# one instruction the house gives -- was the hardest thing on screen to read. They sit on
+	# the same chip the level HUD uses now, sized to what they say.
+	var plate := PanelContainer.new()
+	plate.name = "Plate"
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.add_theme_stylebox_override(&"panel", UISkin.chip(14.0, 8.0))
+	layer.add_child(plate)
+	plate.position = Vector2(24.0, 20.0)
+	var lines := VBoxContainer.new()
+	lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lines.add_theme_constant_override(&"separation", 2)
+	plate.add_child(lines)
+	lines.add_child(title)
 
 	_status = Label.new()
 	_status.name = "Status"
 	_status.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
-	_status.add_theme_color_override(&"font_color", UISkin.MUTED)
-	layer.add_child(_status)
-	_status.position = Vector2(40.0, 62.0)
+	_status.add_theme_color_override(&"font_color", UISkin.CREAM_TEXT)
+	lines.add_child(_status)
 	_write_status()
 
 	_build_carried(layer)
@@ -211,11 +220,18 @@ func _build_hud() -> void:
 ## word carries an ink outline instead, because unlike the title and the status line on the
 ## left this corner sits over the pressed-tin ceiling rather than over dark panelling.
 func _build_carried(layer: CanvasLayer) -> void:
-	_carried = HBoxContainer.new()
+	# ⚠ ON A PLATE TOO. The note above says unboxed, and it was right about the brush and wrong
+	# about the word: BRUSH in olive over the pressed-tin frieze could not be read. The plate is
+	# the level HUD's own chip, so the carried brush looks like the ink gauge it becomes.
+	_carried = PanelContainer.new()
 	_carried.name = "Carried"
 	_carried.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	(_carried as HBoxContainer).add_theme_constant_override(&"separation", 12)
+	(_carried as PanelContainer).add_theme_stylebox_override(&"panel", UISkin.chip(14.0, 6.0))
 	layer.add_child(_carried)
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override(&"separation", 12)
+	_carried.add_child(row)
 
 	var caption := Label.new()
 	caption.name = "Caption"
@@ -224,7 +240,8 @@ func _build_carried(layer: CanvasLayer) -> void:
 	caption.add_theme_color_override(&"font_color", UISkin.GILT_LIT)
 	caption.add_theme_constant_override(&"outline_size", 4)
 	caption.add_theme_color_override(&"font_outline_color", UISkin.INK)
-	_carried.add_child(caption)
+	caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(caption)
 
 	var art := TextureRect.new()
 	art.name = "Brush"
@@ -235,14 +252,14 @@ func _build_carried(layer: CanvasLayer) -> void:
 	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	art.stretch_mode = TextureRect.STRETCH_SCALE
 	art.custom_minimum_size = InkBrush.size_at(3)
-	_carried.add_child(art)
+	row.add_child(art)
 
 	# Sized before it is placed. A container does not know how wide it is until its children
 	# have been measured, and a right-hand edge computed against a zero width parks the whole
 	# row off the screen.
 	_carried.reset_size()
 	_carried.position = Vector2(
-		get_viewport_rect().size.x - _carried.size.x - 40.0, 30.0)
+		get_viewport_rect().size.x - _carried.size.x - 24.0, 20.0)
 	_carried.visible = _has_brush()
 
 

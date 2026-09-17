@@ -24,15 +24,17 @@
     {"group": "DRAWING", "action": "redraw", "label": "Open the drawing panel"},
     {"group": "DRAWING", "action": "revert_form", "label": "Change back to yourself"},
 
-    {"group": "UTILITIES", "action": "interact", "label": "Pick up, equip, or take back what you placed"},
-    {"group": "UTILITIES", "action": "use_utility", "label": "Use what you hold"},
-    {"group": "UTILITIES", "action": "rotate_left", "label": "Rotate while placing"},
-    {"group": "UTILITIES", "action": "rotate_right", "label": "Rotate the other way"},
+    {"group": "HOLDING", "action": "interact", "label": "Pick up, equip, or take back what you placed"},
+    {"group": "HOLDING", "action": "use_utility", "label": "Use what you hold, once, where it works"},
+
     {"group": "PLACING", "keys": "Left click", "label": "Set the drawing down"},
     {"group": "PLACING", "keys": "Right click", "label": "Put it back, or take back one already down"},
     {"group": "PLACING", "keys": "Scroll", "label": "Turn it before you set it down"},
-    {"group": "UTILITIES", "action": "inventory_slot_1", "through": "inventory_slot_6", "label": "Inventory slots"},
-    {"group": "UTILITIES", "action": "inventory_open", "label": "Open your bag and everything you have found"},
+    {"group": "PLACING", "action": "rotate_left", "label": "Turn it one way"},
+    {"group": "PLACING", "action": "rotate_right", "label": "Turn it the other way"},
+
+    {"group": "BAG", "action": "inventory_slot_1", "through": "inventory_slot_6", "label": "Take something out of the bag"},
+    {"group": "BAG", "action": "inventory_open", "label": "Open your bag and everything you have found"},
 
     {"group": "SYSTEM", "action": "pause", "label": "Pause, or back out"}
   ]
