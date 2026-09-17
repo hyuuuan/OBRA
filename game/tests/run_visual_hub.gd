@@ -10,17 +10,13 @@ extends SceneTree
 ## painting reads NEEDS LOLA'S BRUSH before the case is opened, and none of the five frames
 ## along the wall would show that if the runner handed itself a brush first.
 ##
-## THE PROFILE FILE IS PUT BACK. The brushless state is arranged by setting the flag on the
-## loaded dictionary, which touches nothing on disk -- but the take photographed below is
-## the real one and it commits, so by the last frame user://profile.json genuinely claims a
-## brush. Photographing this room must not hand whoever ran it one they did not walk over
-## and take.
+## The take photographed below is the real one and it commits, into the test run's own
+## profile (user_data.gd) -- so photographing this room hands nobody a brush they did not
+## walk over and take.
 
 const HUB := "res://levels/hub/hub.tscn"
 
 var hub: Node2D
-var _had_brush := false
-var _had_profile := false
 
 
 func _init() -> void:
@@ -33,8 +29,6 @@ func _run() -> void:
 	# under the glass in its _ready(), so a state set afterwards sets nothing.
 	var profile := root.get_node_or_null("PlayerProfile")
 	var data: Dictionary = profile.get("_data") if profile != null else {}
-	_had_brush = bool(data.get("brush_acquired", false))
-	_had_profile = FileAccess.file_exists("user://profile.json")
 	data["brush_acquired"] = false
 
 	hub = (load(HUB) as PackedScene).instantiate()
@@ -86,20 +80,8 @@ func _run() -> void:
 		await process_frame
 	await _shot("10_painting_open")
 
-	_restore_profile(profile)
 	print("OBRA_VISUAL_HUB_DONE")
 	quit()
-
-
-## Leave user://profile.json exactly as it was found.
-func _restore_profile(profile: Node) -> void:
-	if profile == null:
-		return
-	(profile.get("_data") as Dictionary)["brush_acquired"] = _had_brush
-	if _had_profile:
-		profile.call("save_profile")
-	elif FileAccess.file_exists("user://profile.json"):
-		DirAccess.remove_absolute("user://profile.json")
 
 
 ## WAITS FOR THE DRAW, not for two more frames of logic. Every other visual runner here
