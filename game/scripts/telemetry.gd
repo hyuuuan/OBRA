@@ -9,7 +9,11 @@ extends Node
 ## derived counts the game reasons about between sessions (class diversity, redraw
 ## rate) live in the persistent PlayerProfile instead — see player_profile.gd.
 
-const TELEMETRY_DIR := "user://telemetry"
+const UserData := preload("res://scripts/user_data.gd")
+
+## user://telemetry for a player; a test run's own folder otherwise. Before this, the log the
+## thesis aggregates was mostly bots. See user_data.gd.
+var telemetry_dir: String = UserData.path("telemetry")
 
 var _file: FileAccess = null
 var _session_path: String = ""
@@ -91,11 +95,11 @@ func end_session() -> void:
 # --- Internals ---------------------------------------------------------------
 
 func _begin_session() -> void:
-	if not _ensure_dir(TELEMETRY_DIR):
-		push_warning("Telemetry disabled: could not create %s" % TELEMETRY_DIR)
+	if not _ensure_dir(telemetry_dir):
+		push_warning("Telemetry disabled: could not create %s" % telemetry_dir)
 		return
 	var stamp := Time.get_datetime_string_from_system(true).replace(":", "-")
-	_session_path = "%s/session_%s_%04x.jsonl" % [TELEMETRY_DIR, stamp, randi() % 65536]
+	_session_path = "%s/session_%s_%04x.jsonl" % [telemetry_dir, stamp, randi() % 65536]
 	_file = FileAccess.open(_session_path, FileAccess.WRITE)
 	if _file == null:
 		push_warning("Telemetry disabled: could not open %s (err %d)" % [_session_path, FileAccess.get_open_error()])
