@@ -59,4 +59,25 @@ def preprocess_image(image_bytes: bytes) -> np.ndarray:
     if arr.mean() > 127:
         arr = 255.0 - arr
 
+    # THE PAPER IS NOT INK. Quick, Draw! bitmaps are white strokes on exactly zero, and the
+    # model has never seen anything else behind a drawing. The game's drawing panel is cream
+    # rather than white, so after inversion its paper is a faint grey (about 14 of 255) --
+    # below INK_THRESHOLD, so the crop was right, but it stayed in the frame and filled the
+    # whole 26x26 square the drawing is pasted into. An empty ring on a faint disc reads to
+    # this model as a clock face: every circle drawn in the game came back "clock" at 85-99%,
+    # which made Payyo's first puzzle (draw something that can roll) fail for the most natural
+    # answer. The same haze pushed squares toward "door".
+    #
+    # Anything below the ink threshold is background, and background is zero -- the same
+    # threshold the crop already uses to decide what ink is. Measured on 2,000 held-back Quick,
+    # Draw! drawings put on the game's cream paper: 82.9% top-1 with the haze, 87.1% without,
+    # against 87.0% for the same drawings on pure white. Circles 0/40 -> 37/40, squares 19/40
+    # -> 40/40. On white paper, and on TU-Berlin's white PNGs, the background is already zero
+    # and this changes nothing but the faintest anti-aliased edge pixels.
+    #
+    # Training calls canonicalize_ink on bitmaps that are already zero behind the strokes, so
+    # it is untouched; serving and evaluate_folder.py both come through here, so the game and
+    # the thesis evaluation still see identical preprocessing (NFR-4).
+    arr = np.where(arr > INK_THRESHOLD, arr, 0.0)
+
     return canonicalize_ink(arr).reshape(1, 1, 28, 28)
