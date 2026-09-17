@@ -25,7 +25,12 @@ var _retry_timer: Timer
 var _started_process := false
 var _ensuring := false
 var _deadline_msec := 0
-var _backend_pid := -1
+## STATIC, because this node does not live as long as the server. Each level has its own
+## supervisor and it dies on every level change; the server deliberately does not. Held on
+## the node, the pid of the server Payyo started was gone by Piyesta, whose supervisor found
+## a healthy server, launched nothing, and so had nothing to stop -- and the title screen and
+## the house have no supervisor at all, so quitting from either stopped nothing either.
+static var _backend_pid := -1
 ## Whether the failure has already been announced. It is said once; the watching carries
 ## on silently after that.
 var _gave_up := false
@@ -53,25 +58,30 @@ func ensure_backend() -> void:
 		return
 	_ensuring = true
 	_started_process = false
-	_backend_pid = -1
 	_gave_up = false
 	_deadline_msec = Time.get_ticks_msec() + int(startup_timeout_sec * 1000.0)
 	_request_health()
 
 
-## Kill the backend we started, if we started it.
+## Kill the backend the game started, if it started one.
 ##
 ## Only ever ours: `_start_backend` runs solely when nothing answered the health check, so
 ## a server the player launched by hand is never touched. Left alone, the child outlives
-## the game, keeps port 8000, and the next launch's server fails to bind against it.
+## the game, keeps port 8000, and the next launch uses it whatever code it is running.
 ##
-## NOT called from _exit_tree -- this node dies on every level change, and killing the
+## STATIC so a screen with no supervisor in it can call it: the title screen and the house.
+## NOT called from _exit_tree -- a supervisor dies on every level change, and killing the
 ## backend between levels would buy a fresh cold start each time.
-func stop_backend() -> void:
+static func stop_owned_backend() -> void:
 	if _backend_pid > 0:
 		OS.kill(_backend_pid)
 		_backend_pid = -1
-		_started_process = false
+
+
+## The group call anything about to quit makes. Same as stop_owned_backend.
+func stop_backend() -> void:
+	stop_owned_backend()
+	_started_process = false
 
 
 func _notification(what: int) -> void:

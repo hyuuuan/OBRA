@@ -90,8 +90,10 @@ func _ask_quit() -> void:
 
 func _quit_to_desktop() -> void:
 	# The backend is a child process, not a node: quitting the tree does not take it
-	# with us, and the one it leaves behind holds the port the next launch needs.
-	get_tree().call_group(BackendSupervisor.GROUP, &"stop_backend")
+	# with us, and the one it leaves behind holds the port the next launch needs. Called
+	# statically, because a screen with no level in it has no supervisor to receive a group
+	# call -- which is how quitting from here left the server running.
+	BackendSupervisor.stop_owned_backend()
 	get_tree().quit()
 
 
