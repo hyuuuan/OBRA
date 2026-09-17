@@ -16,7 +16,7 @@ extends Node
 signal profile_changed
 signal settings_changed(key: String, value: Variant)
 
-const PROFILE_PATH := "user://profile.json"
+const UserData := preload("res://scripts/user_data.gd")
 const ENTITIES_PATH := "res://config/entities.json"
 const SCHEMA_VERSION := 5
 const DEFAULT_ROSTER_SIZE := 50
@@ -40,6 +40,9 @@ const SETTING_DEFAULTS := {
 	"fullscreen": false,
 }
 
+## user://profile.json when a player runs the game; a test run's own copy otherwise, so no
+## suite can start from, or leave behind, anybody's real progress. See user_data.gd.
+var profile_path: String = UserData.path("profile.json")
 var _data: Dictionary = {}
 var _roster_ids: Dictionary = {}  # entity_id -> true, the recognised class roster
 var _roster_size: int = DEFAULT_ROSTER_SIZE
@@ -76,9 +79,9 @@ func _default_settings() -> Dictionary:
 ## Reload the profile from disk, falling back to a fresh profile on any problem.
 func load_profile() -> void:
 	_data = _default_profile()
-	if not FileAccess.file_exists(PROFILE_PATH):
+	if not FileAccess.file_exists(profile_path):
 		return
-	var text := FileAccess.get_file_as_string(PROFILE_PATH)
+	var text := FileAccess.get_file_as_string(profile_path)
 	if text.is_empty():
 		return
 	var parsed: Variant = JSON.parse_string(text)
@@ -98,7 +101,7 @@ func load_profile() -> void:
 
 ## Persist the profile atomically. Returns true on success.
 func save_profile() -> bool:
-	return _atomic_write(PROFILE_PATH, JSON.stringify(_data, "  "))
+	return _atomic_write(profile_path, JSON.stringify(_data, "  "))
 
 
 # --- Progression -------------------------------------------------------------
