@@ -129,6 +129,10 @@ func _start_backend() -> void:
 	backend_starting.emit("Starting backend...")
 
 	var python := _resolve_python_executable()
+	# WHO STARTED IT. The server watches this process and exits when it is gone
+	# (backend/lifecycle.py), which covers what stop_backend cannot: a crash, a force-quit, a
+	# run stopped from the editor. The child inherits the environment it is launched with.
+	OS.set_environment("OBRA_GAME_PID", str(OS.get_process_id()))
 	var backend_dir := _repo_root().path_join("backend")
 	var args := PackedStringArray([
 		"-m",
