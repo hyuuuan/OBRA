@@ -25,6 +25,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from lifecycle import exit_with_the_game
 from preprocess import EmptyCanvasError, preprocess_image
 from telemetry import TelemetryWriter
 
@@ -70,6 +71,10 @@ MODEL_METADATA = (
 )
 DEBUG_TIMING = os.environ.get("OBRA_DEBUG_TIMING", "").lower() in {"1", "true", "yes", "on"}
 TELEMETRY = TelemetryWriter.from_env(REPO_ROOT / "telemetry")
+
+# Started by the game: end with it, so no server outlives the game on port 8000 serving
+# whatever code it was started with. See lifecycle.py.
+exit_with_the_game()
 
 app = FastAPI(title="O.B.R.A. Sketch Classifier")
 app.add_middleware(  # required so a Godot (web) client may call us
