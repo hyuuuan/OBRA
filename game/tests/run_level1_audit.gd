@@ -1849,9 +1849,9 @@ func _audit_node_three() -> void:
 	# last run already has the crease recorded, and "the protector route creases it" passes
 	# without the route doing anything. Mutation-testing caught exactly that: removing the
 	# write left the check green.
-	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://profile.json"))
 	var profile := root.get_node_or_null("PlayerProfile")
 	if profile != null:
+		DirAccess.remove_absolute(String(profile.get("profile_path")))
 		profile.call("load_profile")
 	for route in ["artist", "pragmatist", "protector"]:
 		await _walk_node_three(route)

@@ -12,13 +12,10 @@ extends SceneTree
 ## The levels are not replayed here; the play bots do that. This takes each level's exit the way
 ## the player does and checks what arrives on the other side.
 ##
-## ⚠ The profile on disk is backed up first and put back at the end, whatever happens.
-
-const PROFILE := "user://profile.json"
+## The profile it writes is the test run's own (user_data.gd), so it starts from nothing and
+## leaves nobody's save behind.
 
 var failures := 0
-var _backup := ""
-var _had_profile := false
 
 
 func _initialize() -> void:
@@ -33,9 +30,6 @@ func _check(ok: bool, what: String, detail: String) -> void:
 
 func _run() -> void:
 	print("\n===== THE WHOLE RUN =====")
-	_had_profile = FileAccess.file_exists(PROFILE)
-	if _had_profile:
-		_backup = FileAccess.get_file_as_string(PROFILE)
 	var profile := root.get_node("PlayerProfile")
 	profile.set("_data", profile.call("_default_profile"))
 	var manager := root.get_node("LevelManager")
@@ -48,18 +42,8 @@ func _run() -> void:
 	await _piyesta_to_ending(manager)
 	await _ending_to_house(manager)
 
-	_restore()
 	print("OBRA_JOURNEY_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
-
-
-func _restore() -> void:
-	if _had_profile:
-		var file := FileAccess.open(PROFILE, FileAccess.WRITE)
-		file.store_string(_backup)
-		file.close()
-	elif FileAccess.file_exists(PROFILE):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE))
 
 
 func _settle(manager: Node, frames: int = 30) -> void:
