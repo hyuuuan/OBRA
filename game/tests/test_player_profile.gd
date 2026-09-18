@@ -148,6 +148,18 @@ func _run() -> void:
 	_expect(int(profile.call("route_count", "artist")) == 2, "route tally did not persist")
 	_expect(int(profile.call("collectible_count")) == 1, "collectible did not persist")
 
+	# A KEY IS NOT A FLOWER. The brass key and the flowers share one collectibles list, and the
+	# endings counted the whole list: one flower and the key read as "Flowers found: 2", and
+	# four flowers and the key met the Masterpiece's five.
+	profile.call("record_collectible", "L1_bale_key")
+	_expect(int(profile.call("collectible_count")) == 2, "the key was not recorded as a collectible")
+	_expect(int(profile.call("flower_count")) == 1,
+		"the brass key was counted as a flower (%d flowers)" % int(profile.call("flower_count")))
+	profile.call("record_collectible", "L2_HF")
+	_expect(int(profile.call("flower_count")) == 2, "Level 2's flower did not count as a flower")
+	_expect(int(EndingResolver.explain(profile).get("flowers", -1)) == 2,
+		"the ending screen's flower count is not the number of flowers")
+
 	# Replaying a level adds to the tally rather than overwriting it (FR-12.5).
 	profile.call("record_route", "level_1", "artist")
 	_expect(int(profile.call("route_count", "artist")) == 3, "replayed route overwrote the tally")
@@ -272,7 +284,7 @@ func _test_settings_persistence(profile) -> void:
 ## so a rename cannot reach the screen as a blank field.
 func _test_ending_screen_payload(profile) -> void:
 	var payload: Dictionary = EndingResolver.explain(profile)
-	for key in ["ending", "title", "route_counts", "class_diversity", "roster_size", "redraw_rate", "collectibles"]:
+	for key in ["ending", "title", "route_counts", "class_diversity", "roster_size", "redraw_rate", "flowers"]:
 		_expect(payload.has(key), "explain() is missing '%s', which the ending screen reads" % key)
 	_expect(not String(payload.get("title", "")).is_empty(), "explain() returned an empty ending title")
 	_expect(payload.get("route_counts") is Dictionary, "explain() route_counts is not a dictionary")
