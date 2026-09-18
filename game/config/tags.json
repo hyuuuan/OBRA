@@ -3,32 +3,26 @@
   "generated_by": "tools/build_tags.py",
   "note": "Ability tags. Obstacles declare a TAG and the loader resolves satisfying CLASSES at load time; no obstacle names a class. This grouping is a DESIGN artifact and is not ConceptNet output -- abilities.json gives each class one verb, and the tags deliberately cut across those verbs. Per-membership provenance below says which is which. Regenerate with tools/build_tags.py.",
   "provenance_summary": {
-    "memberships_total": 53,
-    "conceptnet_aligned": 12,
-    "design_authored": 41,
-    "statement": "12 of 53 tag memberships reuse the class's own ConceptNet verb; the remaining 41 are design groupings. Do not describe the tag layer as ConceptNet-derived."
+    "memberships_total": 63,
+    "conceptnet_aligned": 17,
+    "design_authored": 46,
+    "statement": "17 of 63 tag memberships reuse the class's own ConceptNet verb; the remaining 46 are design groupings. Do not describe the tag layer as ConceptNet-derived."
   },
   "unhintable_classes": {
     "classes": [
       "bird",
-      "campfire",
       "clock",
-      "fish",
-      "flashlight",
       "hot_air_balloon",
       "parachute",
       "sailboat",
-      "sea_turtle",
       "submarine",
       "umbrella"
     ],
-    "note": "In the roster and drawable, but carrying no tag yet, so no obstacle can ask for them. Most are waiting on the tags listed in held_tags_still_empty, which later levels populate -- a shark is unhintable today and will not be once Swim exists. NOTE that Fly is NOT one of those: Level 2 restricts flight rather than granting it, so bird, parachute, umbrella and hot_air_balloon stay unhintable until a level asks to fly. Build spec 12.2 names clock and snail as the residue that no planned tag covers; that claim is about the END state, so re-read this list once the held tags are filled in.",
+    "note": "In the roster and drawable, but carrying no tag yet, so no obstacle can ask for them. Most are waiting on the tags listed in held_tags_still_empty, which later levels populate -- Swim and Light arrived with Level 3 and took fish, sea_turtle, flashlight and campfire off this list, which is what filling a held tag looks like. NOTE that Fly is NOT one of those: Level 2 restricts flight rather than granting it, so bird, parachute, umbrella and hot_air_balloon stay unhintable until a level asks to fly. sailboat and submarine are a different case again -- they are required_medium water and Dagat uses them, but the boat is FOUND rather than drawn, so no obstacle asks for either. Build spec 12.2 names clock and snail as the residue that no planned tag covers; that claim is about the END state, so re-read this list once the held tags are filled in.",
     "held_tags_still_empty": [
       "crush",
       "fly",
-      "light",
-      "shield",
-      "swim"
+      "shield"
     ]
   },
   "min_classes_per_tag": 2,
@@ -390,6 +384,67 @@
         }
       }
     },
+    "swim": {
+      "display_name": "Swim",
+      "gloss": "able to move through deep water",
+      "unlocked_in_level": 3,
+      "declared_only": false,
+      "classes": {
+        "fish": {
+          "provenance": "conceptnet_aligned",
+          "source_ability": "swim"
+        },
+        "octopus": {
+          "provenance": "conceptnet_aligned",
+          "source_ability": "swim"
+        },
+        "shark": {
+          "provenance": "conceptnet_aligned",
+          "source_ability": "swim"
+        },
+        "sea_turtle": {
+          "provenance": "conceptnet_aligned",
+          "source_ability": "swim"
+        },
+        "crab": {
+          "provenance": "design_authored",
+          "source_ability": "pinch",
+          "note": "ConceptNet grounds crab as 'pinch'; membership in 'swim' is a design grouping, not a ConceptNet assertion."
+        },
+        "penguin": {
+          "provenance": "design_authored",
+          "source_ability": "slide",
+          "note": "ConceptNet grounds penguin as 'slide'; membership in 'swim' is a design grouping, not a ConceptNet assertion."
+        },
+        "frog": {
+          "provenance": "design_authored",
+          "source_ability": "jump",
+          "note": "ConceptNet grounds frog as 'jump'; membership in 'swim' is a design grouping, not a ConceptNet assertion."
+        }
+      }
+    },
+    "light": {
+      "display_name": "Light",
+      "gloss": "able to throw light into the dark",
+      "unlocked_in_level": 3,
+      "declared_only": false,
+      "classes": {
+        "flashlight": {
+          "provenance": "conceptnet_aligned",
+          "source_ability": "light"
+        },
+        "sun": {
+          "provenance": "design_authored",
+          "source_ability": "heat",
+          "note": "ConceptNet grounds sun as 'heat'; membership in 'light' is a design grouping, not a ConceptNet assertion."
+        },
+        "campfire": {
+          "provenance": "design_authored",
+          "source_ability": "warm",
+          "note": "ConceptNet grounds campfire as 'warm'; membership in 'light' is a design grouping, not a ConceptNet assertion."
+        }
+      }
+    },
     "fly": {
       "display_name": "Fly",
       "gloss": "able to stay up with nothing to hold",
@@ -397,23 +452,9 @@
       "declared_only": true,
       "classes": {}
     },
-    "swim": {
-      "display_name": "Swim",
-      "gloss": "able to move through deep water",
-      "unlocked_in_level": 3,
-      "declared_only": true,
-      "classes": {}
-    },
     "crush": {
       "display_name": "Crush",
       "gloss": "heavy enough to break what is under it",
-      "unlocked_in_level": 4,
-      "declared_only": true,
-      "classes": {}
-    },
-    "light": {
-      "display_name": "Light",
-      "gloss": "able to throw light into the dark",
       "unlocked_in_level": 4,
       "declared_only": true,
       "classes": {}

@@ -94,6 +94,33 @@ LEVEL_2_TAGS: dict[str, list[str]] = {
     "strike":  ["boomerang", "axe", "sword", "anvil", "cannon"],
 }
 
+# LEVEL 3 (Dagat). Two memberships, and between them they decide both of the level's
+# forks -- `swim` answers the dive, `light` answers the bakunawa's Artist resolution.
+#
+# `swim` IS THE SEVEN THE DESIGN NAMES, and it is worth saying that four of them are not
+# swimmer rigs: crab and sea turtle are walkers, penguin is a biped and frog is a hopper.
+# They reach the water through rig_profile.can_swim, and run_swim_reach_probe.gd is the
+# proof that all seven actually cross open water rather than walking along the bottom of
+# the sea. Seven answers is generous on purpose -- `frog` has the worst held-out recall in
+# the roster at 0.576, well under BR-7's 0.70 floor, and is safe here ONLY because six
+# other bodies answer the same gate. No obstacle may ever ask for it by name.
+#
+# `light` CAME FORWARD FROM LEVEL 4. It was held for Dilim and it still gates Payyo's
+# hidden flower, but the bakunawa's Artist resolution is a flashlight and a tag cannot be
+# declared in the level that uses it and unlocked in the one after. Bringing it to 3 also
+# brings the gorge-cave flower a level forward, which the Dagat design wants anyway: it
+# asks for one Artist-tagged reward per level and Payyo's was unreachable until 4.
+#
+# Three members rather than two, because two is the floor and a floor is not a margin.
+# flashlight is the only one ConceptNet grounds as `light`; sun's own assertion says "heat
+# and light" and campfire's says "warmth", so both are design groupings and the generated
+# provenance will say so. Neither is a sensible thing to draw underwater, which is fine --
+# this is a game where the drawing is the answer and absurd answers are allowed to work.
+LEVEL_3_TAGS: dict[str, list[str]] = {
+    "swim":  ["fish", "octopus", "shark", "sea_turtle", "crab", "penguin", "frog"],
+    "light": ["flashlight", "sun", "campfire"],
+}
+
 # Held for later levels (spec 3.1). Declared, deliberately empty -- see the note above.
 #
 # `fly` LEFT THIS LIST'S LEVEL-2 SLOT WITHOUT BEING POPULATED. The refined Level 2
@@ -101,7 +128,9 @@ LEVEL_2_TAGS: dict[str, list[str]] = {
 # bandarita line and the cap lifts only when the line comes down. Populating a tag no
 # obstacle asks for buys nothing, so fly stays empty and its unlock moves to 4. That
 # number is a placeholder until Levels 3-5 are designed.
-HELD_TAGS: list[str] = ["fly", "swim", "crush", "light", "shield"]
+#
+# `swim` AND `light` LEFT THIS LIST for Level 3 -- see LEVEL_3_TAGS above.
+HELD_TAGS: list[str] = ["fly", "crush", "shield"]
 
 DISPLAY = {
     "span": "Span", "roll": "Roll", "climb": "Climb", "leap": "Leap", "cut": "Cut",
@@ -149,8 +178,9 @@ GLOSS = {
 
 # Which level first unlocks each tag. Level 1 unlocks 9 of 15 because a tutorial has to
 # show the breadth of the system; later levels add classes under tags already known.
-UNLOCK_LEVEL = {t: 1 for t in LEVEL_1_TAGS} | {t: 2 for t in LEVEL_2_TAGS} | {
-    "fly": 4, "swim": 3, "crush": 4, "light": 4, "shield": 5,
+UNLOCK_LEVEL = {t: 1 for t in LEVEL_1_TAGS} | {t: 2 for t in LEVEL_2_TAGS} \
+    | {t: 3 for t in LEVEL_3_TAGS} | {
+    "fly": 4, "crush": 4, "shield": 5,
 }
 
 # The floor from the spec: an obstacle must never resolve to a single drawing, or a
@@ -170,6 +200,7 @@ def build() -> dict:
     tags: dict[str, dict] = {}
 
     for tag, members in (list(LEVEL_1_TAGS.items()) + list(LEVEL_2_TAGS.items())
+                         + list(LEVEL_3_TAGS.items())
                          + [(t, []) for t in HELD_TAGS]):
         classes: dict[str, dict] = {}
         for class_id in members:
@@ -253,13 +284,17 @@ def build() -> dict:
             "note": (
                 "In the roster and drawable, but carrying no tag yet, so no obstacle can "
                 "ask for them. Most are waiting on the tags listed in "
-                "held_tags_still_empty, which later levels populate -- a shark is "
-                "unhintable today and will not be once Swim exists. NOTE that Fly is NOT "
-                "one of those: Level 2 restricts flight rather than granting it, so bird, "
-                "parachute, umbrella and hot_air_balloon stay unhintable until a level "
-                "asks to fly. Build spec 12.2 names clock and snail as the residue that "
-                "no planned tag covers; that claim is about the END state, so re-read "
-                "this list once the held tags are filled in."
+                "held_tags_still_empty, which later levels populate -- Swim and Light "
+                "arrived with Level 3 and took fish, sea_turtle, flashlight and campfire "
+                "off this list, which is what filling a held tag looks like. NOTE that "
+                "Fly is NOT one of those: Level 2 restricts flight rather than granting "
+                "it, so bird, parachute, umbrella and hot_air_balloon stay unhintable "
+                "until a level asks to fly. sailboat and submarine are a different case "
+                "again -- they are required_medium water and Dagat uses them, but the "
+                "boat is FOUND rather than drawn, so no obstacle asks for either. Build "
+                "spec 12.2 names clock and snail as the residue that no planned tag "
+                "covers; that claim is about the END state, so re-read this list once "
+                "the held tags are filled in."
             ),
             "held_tags_still_empty": sorted(
                 t for t, v in tags.items() if v["declared_only"]),
