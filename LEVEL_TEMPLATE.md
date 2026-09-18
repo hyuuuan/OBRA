@@ -286,6 +286,7 @@ proposed by `LEVEL_2.md` and is listed here because it generalises.
 | **R8** | **What is placed can be taken back** — E within reach, right-click at any range. A placement spends ink, empties a slot and leaves a solid body behind. |
 | **R9** *(proposed)* | **A Fly gate is a gate with nothing under it to build on** — >362 px above the nearest buildable surface, or <180 px of floor beneath. Otherwise Climb or Span answers it. |
 | **R10** | **A gate that must be REACHED is measured against its slowest answer, not its fastest.** Within `MorphLife`'s usable window a morph covers between 428 px and 1610 px depending only on which class the player drew — a 3.8× spread. Measure the tag's members and place the gate inside the slowest one. |
+| **R10a** *(Dagat onward)* | **Where there is no clock, reach is measured in INK, not in seconds.** A level that drains ink continuously has no `MorphLife` window for R10 to be measured against, so the unit is px per unit of ink (`run_swim_reach_probe.gd`). The two readings coincide only if the drain happens to be one unit per ten seconds — and the point of a per-class rate is that it will not be, so **the slowest answer and the most expensive answer stop being the same class**. Measured underwater today: 685–762 px/ink across all seven `swim` classes, ≈3,600 px of crossing on the usable budget. |
 
 **Every gate number in your level is derived from `object_sizes.json`, not chosen.** The
 reaches that matter:
@@ -419,9 +420,21 @@ obstacles; the ladder is the escape hatch.
 
 ## The two clocks
 
-- **Ink is level-scoped: 12 units.** Reserved transactionally while drawing, committed only
-  by a successful morph or a stored/placed utility. A placement that cannot be undone costs
-  a drawing *and* the ink that made it (hence R8).
+- **Ink is level-scoped: 6 units, and one unit is one THING.** `InkManager.BUDGET`, to
+  thesis FR-7. It used to be twelve canvas diagonals of stroke, which priced neatness; the
+  length cap did not disappear, it stopped being the budget and is now a statement about how
+  much line fits on one page. A tool costs one unit on its first successful recognition and
+  is free forever after, a placeable costs one unit on every placement, a creature
+  transformation is free, and a declined drawing costs nothing. Reserved transactionally
+  while drawing, committed only by a successful morph or a stored/placed utility. A placement
+  that cannot be undone costs a drawing *and* the ink that made it (hence R8).
+- **From Dagat, ink is also a clock.** The new brush found on Level 3's shore drops the
+  ten-second timer and charges ink continuously while a form is held (`InkDrain`), refilled
+  from sources placed in the level rather than over time. It is the only system in the game
+  that could strand a player, which is why its zero case is written down and is not a loss:
+  revert, carry the apo to the surface, lose the crossing, never die. **The drain is per
+  level, not per brush** — a player who has found it and replays Payyo still gets Payyo's
+  rules, through `_morph_has_a_life()`.
 - **`MorphLife` is 10 seconds**, exported on the node — balance, not architecture. A drawing
   is a **burst spent on one obstacle**, not a body you travel in. Its own comment states the
   design question it creates, and it is the right question for every level: *"where do I
