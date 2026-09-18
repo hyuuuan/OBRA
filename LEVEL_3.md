@@ -1,9 +1,11 @@
 # Level 3 — Dagat
 
-**Status: NOT BUILT.** Nothing of this level exists in the game yet: no scene, no
-`level_03.json`, no dialogue file, no art. `levels.json` carries `level_3` as **Coming Soon**
-with an empty `scene_path`, which is what three tests assert and what keeps the hub from
-offering a card with nothing behind it.
+**Status: SYSTEMS BUILT, LEVEL NOT BUILT.** The three things Dagat needs before any of its
+content can exist are in and measured — the ink drain, swimming, and the underwater
+restriction — and the tag layer now answers both of its forks. There is still no scene, no
+`level_03.json`, no dialogue file and no art, and `levels.json` still carries `level_3` as
+**Coming Soon** with an empty `scene_path`, which is what five tests assert and what keeps the
+hub from offering a card with nothing behind it.
 
 **This document is the plan, written before the build** — `LEVEL_TEMPLATE.md` build order
 step 1, *"write `LEVEL_<N>.md` first, even as a placeholder, and mark it provisional"*. It
@@ -133,43 +135,86 @@ design is right that they are easy to underestimate.
 
 ---
 
-## Open decisions
+## What is built, and what it measured
 
-The design marks five things open (red). Two of them I have now answered from the repo; the
-other three, and two more the repo raised, are Kent's.
+Systems first, per the build plan. Each landed with its own commit; the reasoning is in the
+commit bodies rather than repeated here.
 
-**1. What the archetype tally drives, and how a two-option fork scores.** *(design, open)*
-The build already answers the first half: `EndingResolver` gates on a **threshold count** —
-`ROUTE_COMMITMENT = 3` on one route — and `LevelDirector.commit_route` increments the count
-**once per fork**, not once per level. So the design's worry is real and is worse than it
-looks: Level 1 has three forks and Level 2 has three, Level 3 as designed has two, and a
-half-point cannot be added to an integer tally that is compared against 3.
+| Built | Where | Note |
+|---|---|---|
+| **The ink drain** | `InkManager.drain()` + an emptied latch · `InkDrain` (rules only, no view) · `MorphCard.set_meter_caption()` | The latch matters: both existing charges announced exhaustion unlatched, which is harmless by the event and fires sixty times a second by the frame |
+| **Three `LevelBase` virtuals** | `_morph_has_a_life()` · `_on_ink_emptied()` · `_rescues_a_swimming_apo()` | All default to today's behaviour, so Payyo and Piyesta are untouched. **The answer is the LEVEL's, not the brush's** |
+| **Swimming for seven classes** | `can_swim` on `crab`/`penguin`/`frog` · `_drive_fish` reads seven numbers from the rig profile | Every fallback is the literal that was hard-coded, so a class naming no keys swims exactly as before |
+| **The underwater restriction** | `LevelRestrictions.aquatic_only` — `flounders()`, `check_medium()`, `flounder_note()` | A **consequence**, not a ban: the design wants a land creature to flounder and be reverted, not to be refused at the canvas |
+| **`swim` and `light`** | `tools/build_tags.py` → `LEVEL_3_TAGS` | Unhintable drops 11 → 7. `light` moved 4 → 3, which brings Payyo's flower forward |
+| **Four profile fields** | `new_brush` · `lolo_present` · `l3_bakunawa` · `L3_HF` in `FLOWER_IDS` and in the bag | Additive, no schema bump |
 
-**2. Level 1 already has a flower, and it is not an artist reward.** *(design, open —
-answered)* `level_01.json` puts Hidden Flower 1 in the gorge cave behind a `light` gate, with
-`gate_unlocked_at_level: 4`: it is a **backtracking** reward, deliberately not a fail state.
-The design's rule is that each level's flower comes from its artist-tagged resolution. Both
-cannot be true of Level 1. And if the flashlight arrives in Level 3, `light` should unlock at
-3, which brings Payyo's flower forward a level.
+### Measured (`run_swim_reach_probe.gd`, `run_behaviour_audit.gd`)
 
-**3. Tag membership for `swim`, and for `light`.** `swim` takes the seven aquatic classes.
-`light` is the problem: the artist resolution is a flashlight, and a tag needs **two** answers
-after exclusions or it is a spelling test. The candidates in the roster are `flashlight`,
-`campfire` and `sun`, and two of those are strange underwater.
+- **All seven swim.** Four of them carry land rigs and reach the water only through
+  `can_swim`, so this was the thing in doubt. All four keep their land drive too.
+- **All seven swim the same.** 685–762 px per unit of ink, a **1.11× spread**, against the
+  3.8× spread the land probe found. `swim_speed` falls back to the same 260 for everybody —
+  correct for a change that must not retune Payyo, but it means the design's "a fish costs
+  less to hold than a shark" is currently **not true**, and the only lever that can make it
+  true today is `InkDrain`'s per-class rate table.
+- **The working number for `level_03.json`: ≈3,600 px of crossing** on the usable budget at
+  the default 0.2 units/s, for any of the seven.
+- **R10 does not survive this level** and `LEVEL_TEMPLATE.md` now carries **R10a**: where
+  there is no clock, reach is measured in ink, and the slowest answer stops being the same
+  class as the most expensive one.
 
-**4. Level 2 currently ends the run.** `levels.json` has `ends_run: true` on `level_2`,
-because the last built level is the one that reaches the ending screen. That flag moves to
-Level 3 when Level 3 ships, and Piyesta's exit stops being an ending.
+---
 
-**5. Payyo's Protector debt.** `LEVEL_TEMPLATE.md` records it: Level 1's Node 3 Protector
-route creases the canvas and the crease now costs nothing mechanical, "to be paid back when
-Level 3 is designed". Dagat is the first level since where a crease could reach something
-real.
+## Decisions — settled, and still open
 
-**6. The numbers.** Drain rate per class, starting capacity, refill size and count per route.
-The design says these come out of playtesting, and that is right — but they need defaults to
-play at all, and the dive route needs more refills than the boat route because it is
-transformed from start to finish.
+Four of the design's five red items are now decided (Kent, this pass). The reasoning that
+produced each is in the build plan; what it means for the build is here.
+
+### Settled
+
+**1. The two-option fork scores as one integer point. Boat = `artist`, dive = `pragmatist`.**
+The design wanted the dive split 0.5 pragmatic / 0.5 protector. It cannot be: `route_counts`
+is an integer dictionary, `EndingResolver` compares it against `ROUTE_COMMITMENT = 3`, and
+`LevelDirector.commit_route` increments **once per fork**. Making it a float would touch
+`_merge_defaults`' int coercion, the resolver, the ending screen and the profile suite — for a
+half-point that an integer threshold has to round anyway. **Protector's expression in Dagat is
+the fight**, which is where the design says it should cost something.
+
+**2. `light` unlocks at 3, with three members** — `flashlight` (the only one ConceptNet
+grounds as `light`), `sun` and `campfire`. A tag cannot be declared in the level that uses it
+and unlocked in the one after. This brings Payyo's gorge-cave flower forward a level, which
+the design wants anyway. `level_01.json`'s `gate_unlocked_at_level` now reads 3 — nothing
+reads that field, the real gate is `ConceptGate2D` asking whether the player owns one, but it
+was documentation that had gone stale.
+
+**3. `swim` takes the seven the design names.** Measured, not assumed — see above. `frog` is
+in at 0.576 recall, which is under BR-7's floor and is safe **only** because six other bodies
+answer the same gate. **No obstacle may ever ask for it by name.**
+
+**4. The fight is in-world, with the real drawn weapons.** The five `strike` classes already
+have differentiated behaviour and reach in `UtilityObject` — swing 96 px, boomerang 320,
+cannon 640, anvil drop — which is exactly the differentiation the design asks for, and
+`Destructible2D` already has health and a `damaged` signal. **No apo health system is
+invented**: contact costs a strike, three strikes restarts from the mid-encounter checkpoint,
+consistent with a game that has no death state.
+
+### Still open
+
+**5. Level 2 currently ends the run.** `levels.json` has `ends_run: true` on `level_2`. It
+moves to `level_3` **in the shipping commit**, and five tests turn over with it:
+`run_level2_audit.gd:459`, `run_level2_finish_probe.gd:175`, `run_tests.gd:695` and `:760`,
+`test_player_profile.gd:106`, `run_hub_audit.gd:78`. The dead card moves to `level_4`.
+
+**6. Payyo's Protector debt.** `LEVEL_TEMPLATE.md` records it: Level 1's Node 3 Protector
+route creases the canvas and the crease costs nothing mechanical, "to be paid back when Level
+3 is designed". Dagat is the first level since where a crease could reach something real.
+
+**7. The numbers.** Drain rate per class, starting capacity, refill size and count per route.
+The design is right that these come out of playtesting — but the probe now says the seven are
+indistinguishable at 685–762 px/ink, so **the per-class rate table is the only lever that can
+make a shark cost more to hold than a fish**. The dive route needs more refills than the boat
+route because it is transformed from start to finish.
 
 ---
 
