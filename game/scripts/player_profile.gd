@@ -16,7 +16,7 @@ extends Node
 signal profile_changed
 signal settings_changed(key: String, value: Variant)
 
-const PROFILE_PATH := "user://profile.json"
+const UserData := preload("res://scripts/user_data.gd")
 const ENTITIES_PATH := "res://config/entities.json"
 const SCHEMA_VERSION := 5
 const DEFAULT_ROSTER_SIZE := 50
@@ -26,6 +26,10 @@ const DEFAULT_ROSTER_SIZE := 50
 ## with nothing unlocked and nothing damaged.
 const MIGRATABLE_SCHEMAS := [1, 2, 3, 4]
 const ROUTES := ["artist", "pragmatist", "protector"]
+## The Hidden Flowers, one per level, by the collectible id each level records. Spelled as the
+## saves already hold them, so they stay inconsistent rather than orphan a found flower. A
+## level that adds a flower adds its id here, or the flower counts for nothing.
+const FLOWER_IDS := ["flower_1", "L2_HF"]
 
 ## Every setting the player can change, with its default. Nothing outside this list
 ## is storable: a typo must not quietly grow the save, because each key written here
@@ -40,6 +44,9 @@ const SETTING_DEFAULTS := {
 	"fullscreen": false,
 }
 
+## user://profile.json when a player runs the game; a test run's own copy otherwise, so no
+## suite can start from, or leave behind, anybody's real progress. See user_data.gd.
+var profile_path: String = UserData.path("profile.json")
 var _data: Dictionary = {}
 var _roster_ids: Dictionary = {}  # entity_id -> true, the recognised class roster
 var _roster_size: int = DEFAULT_ROSTER_SIZE
@@ -76,9 +83,9 @@ func _default_settings() -> Dictionary:
 ## Reload the profile from disk, falling back to a fresh profile on any problem.
 func load_profile() -> void:
 	_data = _default_profile()
-	if not FileAccess.file_exists(PROFILE_PATH):
+	if not FileAccess.file_exists(profile_path):
 		return
-	var text := FileAccess.get_file_as_string(PROFILE_PATH)
+	var text := FileAccess.get_file_as_string(profile_path)
 	if text.is_empty():
 		return
 	var parsed: Variant = JSON.parse_string(text)
@@ -98,7 +105,7 @@ func load_profile() -> void:
 
 ## Persist the profile atomically. Returns true on success.
 func save_profile() -> bool:
-	return _atomic_write(PROFILE_PATH, JSON.stringify(_data, "  "))
+	return _atomic_write(profile_path, JSON.stringify(_data, "  "))
 
 
 # --- Progression -------------------------------------------------------------
@@ -287,6 +294,20 @@ func is_collectible_found(collectible_id: String) -> bool:
 
 func collectible_count() -> int:
 	return (_data["collectibles"] as Array).size()
+
+
+## How many of the Hidden Flowers have been found -- which is NOT collectible_count(). The
+## brass key is a collectible too, and counting every collectible let it stand in for a
+## flower: the ending screen told a player holding one flower they had found two, and the
+## Masterpiece's five-flower condition could be met with four. Only the ids in FLOWER_IDS
+## count.
+func flower_count() -> int:
+	var found: Array = _data["collectibles"]
+	var count := 0
+	for flower_id in FLOWER_IDS:
+		if found.has(flower_id):
+			count += 1
+	return count
 
 
 # --- Settings ----------------------------------------------------------------

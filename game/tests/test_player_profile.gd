@@ -6,8 +6,11 @@ extends SceneTree
 ## trip through disk, an atomic write that leaves no temp file, and treating an
 ## unreadable or schema-incompatible profile as a fresh one rather than a crash.
 
-const PROFILE_PATH := "user://profile.json"
-const TMP_PATH := "user://profile.json.tmp"
+## Read off the autoload, never spelled out: in a test run it is the run's own copy, and a
+## literal "user://profile.json" here is the player's save -- which this suite corrupts,
+## truncates and deletes on purpose.
+var profile_path := ""
+var tmp_path := ""
 ## Bumped in lockstep with PlayerProfile.SCHEMA_VERSION. It is written here as a
 ## separate literal on purpose: a bump fails this suite loudly until someone has
 ## confirmed the migration carries the old profile forward rather than wiping it.
@@ -24,6 +27,19 @@ func _run() -> void:
 	var profile := root.get_node_or_null("PlayerProfile")
 	_expect(profile != null, "PlayerProfile autoload is unavailable")
 	if profile == null:
+		_finish()
+		return
+
+	profile_path = String(profile.get("profile_path"))
+	tmp_path = profile_path + ".tmp"
+	# NOBODY'S SAVE. The corrupt-file and wrong-schema cases below overwrite this file, and
+	# _clean_files deletes it. Run from a suite, it must be the test run's own.
+	_expect(profile_path.begins_with("user://test_runs/"),
+		"a test run is using the player's own profile (%s)" % profile_path)
+	var telemetry := root.get_node_or_null("Telemetry")
+	_expect(telemetry != null and String(telemetry.get("telemetry_dir")).begins_with("user://test_runs/"),
+		"a test run is logging telemetry into the player's own folder")
+	if not profile_path.begins_with("user://test_runs/"):
 		_finish()
 		return
 
@@ -45,8 +61,8 @@ func _run() -> void:
 	profile.call("note_submission", false)
 	profile.call("mark_level_completed", "level_1")
 	_expect(bool(profile.call("save_profile")), "save_profile reported failure")
-	_expect(FileAccess.file_exists(PROFILE_PATH), "profile.json was not written")
-	_expect(not FileAccess.file_exists(TMP_PATH), "atomic temp file was left behind")
+	_expect(FileAccess.file_exists(profile_path), "profile.json was not written")
+	_expect(not FileAccess.file_exists(tmp_path), "atomic temp file was left behind")
 
 	profile.call("load_profile")  # re-read from disk
 	var snapshot: Dictionary = profile.call("get_snapshot")
@@ -132,6 +148,18 @@ func _run() -> void:
 	_expect(int(profile.call("route_count", "artist")) == 2, "route tally did not persist")
 	_expect(int(profile.call("collectible_count")) == 1, "collectible did not persist")
 
+	# A KEY IS NOT A FLOWER. The brass key and the flowers share one collectibles list, and the
+	# endings counted the whole list: one flower and the key read as "Flowers found: 2", and
+	# four flowers and the key met the Masterpiece's five.
+	profile.call("record_collectible", "L1_bale_key")
+	_expect(int(profile.call("collectible_count")) == 2, "the key was not recorded as a collectible")
+	_expect(int(profile.call("flower_count")) == 1,
+		"the brass key was counted as a flower (%d flowers)" % int(profile.call("flower_count")))
+	profile.call("record_collectible", "L2_HF")
+	_expect(int(profile.call("flower_count")) == 2, "Level 2's flower did not count as a flower")
+	_expect(int(EndingResolver.explain(profile).get("flowers", -1)) == 2,
+		"the ending screen's flower count is not the number of flowers")
+
 	# Replaying a level adds to the tally rather than overwriting it (FR-12.5).
 	profile.call("record_route", "level_1", "artist")
 	_expect(int(profile.call("route_count", "artist")) == 3, "replayed route overwrote the tally")
@@ -143,7 +171,7 @@ func _run() -> void:
 	_test_tag_unlocks(profile)
 
 	# --- Corrupt profile -> fresh, not fatal -------------------------------
-	var corrupt := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
+	var corrupt := FileAccess.open(profile_path, FileAccess.WRITE)
 	corrupt.store_string("{ this is not valid json ]]")
 	corrupt.close()
 	profile.call("load_profile")
@@ -151,7 +179,7 @@ func _run() -> void:
 	_expect(int(profile.call("get_snapshot")["schema_version"]) == EXPECTED_SCHEMA, "fresh profile has wrong schema version")
 
 	# --- Schema mismatch -> fresh, not fatal -------------------------------
-	var wrong := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
+	var wrong := FileAccess.open(profile_path, FileAccess.WRITE)
 	wrong.store_string(JSON.stringify({"schema_version": 999, "classes_drawn_accepted": ["x"]}))
 	wrong.close()
 	profile.call("load_profile")
@@ -256,7 +284,7 @@ func _test_settings_persistence(profile) -> void:
 ## so a rename cannot reach the screen as a blank field.
 func _test_ending_screen_payload(profile) -> void:
 	var payload: Dictionary = EndingResolver.explain(profile)
-	for key in ["ending", "title", "route_counts", "class_diversity", "roster_size", "redraw_rate", "collectibles"]:
+	for key in ["ending", "title", "route_counts", "class_diversity", "roster_size", "redraw_rate", "flowers"]:
 		_expect(payload.has(key), "explain() is missing '%s', which the ending screen reads" % key)
 	_expect(not String(payload.get("title", "")).is_empty(), "explain() returned an empty ending title")
 	_expect(payload.get("route_counts") is Dictionary, "explain() route_counts is not a dictionary")
@@ -278,7 +306,7 @@ func _test_schema_migration(profile) -> void:
 		"collectibles": [],
 		"counts": {"submissions": 4, "declines": 1},
 	}
-	var file := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(profile_path, FileAccess.WRITE)
 	file.store_string(JSON.stringify(legacy))
 	file.close()
 	profile.call("load_profile")
@@ -304,7 +332,7 @@ func _test_schema_migration(profile) -> void:
 		"collectibles": [],
 		"counts": {"submissions": 9, "declines": 2},
 	}
-	var v2_file := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
+	var v2_file := FileAccess.open(profile_path, FileAccess.WRITE)
 	v2_file.store_string(JSON.stringify(v2))
 	v2_file.close()
 	profile.call("load_profile")
@@ -325,7 +353,7 @@ func _test_schema_migration(profile) -> void:
 	var partial := v2.duplicate(true)
 	partial["schema_version"] = 3
 	partial["settings"] = {"music_volume": 0.25}
-	var partial_file := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
+	var partial_file := FileAccess.open(profile_path, FileAccess.WRITE)
 	partial_file.store_string(JSON.stringify(partial))
 	partial_file.close()
 	profile.call("load_profile")
@@ -359,7 +387,7 @@ func _test_tag_unlocks(profile) -> void:
 		"collectibles": ["hidden_flower_1"],
 		"counts": {"submissions": 9, "declines": 2},
 	}
-	var file := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(profile_path, FileAccess.WRITE)
 	file.store_string(JSON.stringify(v3))
 	file.close()
 	profile.call("load_profile")
@@ -412,10 +440,10 @@ func _test_tag_unlocks(profile) -> void:
 
 
 func _clean_files() -> void:
-	if FileAccess.file_exists(PROFILE_PATH):
-		DirAccess.remove_absolute(PROFILE_PATH)
-	if FileAccess.file_exists(TMP_PATH):
-		DirAccess.remove_absolute(TMP_PATH)
+	if FileAccess.file_exists(profile_path):
+		DirAccess.remove_absolute(profile_path)
+	if FileAccess.file_exists(tmp_path):
+		DirAccess.remove_absolute(tmp_path)
 
 
 func _expect(condition: bool, message: String) -> void:

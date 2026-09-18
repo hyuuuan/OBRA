@@ -7,8 +7,6 @@ extends SceneTree
 ## sat marooned in an empty slab. That is not visible from any headless assertion -- the
 ## labels say the right words at the right size either way.
 
-const PROFILE_PATH := "user://profile.json"
-
 var level: Node2D
 
 func _initialize() -> void:
@@ -94,13 +92,10 @@ func _run() -> void:
 		var item := DrawnItemData.from_prediction(id, String(entry.get("display_name", id)),
 			_scribble(), [], 1.0, entry)
 		bag.add_item(item)
-	# ⚠ AND PUT THE PROFILE BACK. The bag screen reads PlayerProfile, so a picture of it worth
-	# looking at needs one with things in it -- and PlayerProfile is a real file at
-	# user://profile.json that survives between runs. A screenshot fixture that grants the
-	# brush and marks seven classes drawn would quietly hand the player progress they had not
-	# earned, in a save nothing tells them was touched. Same trap LEVEL_1.md logs as #4:
-	# measure deltas, never write, against anything persistent.
-	var saved := FileAccess.get_file_as_string(PROFILE_PATH)
+	# The bag screen reads PlayerProfile, so a picture of it worth looking at needs one with
+	# things in it. These writes land in the test run's own profile (user_data.gd), never the
+	# player's -- a fixture that granted the brush and seven classes there would hand someone
+	# progress they had not earned, in a save nothing tells them was touched.
 	var profile = level.get_node_or_null(^"/root/PlayerProfile")
 	if profile != null:
 		profile.call("record_brush_acquired")
@@ -126,26 +121,8 @@ func _run() -> void:
 	await _capture("10_acquired")
 	await _wait(2.0)
 
-	_restore_profile(saved)
 	print("OBRA_VISUAL_POPUPS_DONE")
 	quit(0)
-
-
-## The save exactly as it was before this fixture ran. An empty string means there was no
-## profile to begin with, in which case the one this made is deleted rather than left behind.
-func _restore_profile(saved: String) -> void:
-	if saved.is_empty():
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE_PATH))
-		return
-	var file := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
-	if file == null:
-		push_warning("could not put the profile back; it now carries this fixture's writes")
-		return
-	file.store_string(saved)
-	file.close()
-	var profile := root.get_node_or_null(^"/root/PlayerProfile")
-	if profile != null:
-		profile.call("load_profile")
 
 
 ## A drawing to put in a slot: a few strokes on white paper, which is what the drawing panel
