@@ -195,6 +195,22 @@ func hide_form() -> void:
 	_percent.text = ""
 
 
+## WHAT THE BAR IS MEASURING. "LIFE" everywhere a drawing runs on MorphLife's clock, "INK"
+## in a level whose forms are held for as long as the ink lasts.
+##
+## The gauge itself does not change -- the same trough, the same gold-amber-red ramp, the same
+## floored percentage -- because it is answering the same question either way: how much longer
+## can this body stand up? Only the word beside it, and what feeds it, differ.
+func set_meter_caption(caption: String) -> void:
+	_caption.text = caption
+
+
+## What is left of the ink that is holding this form up, for a level with no clock. Reads
+## exactly like the life bar, deliberately: see set_meter_caption.
+func set_drain(remaining: float, capacity: float) -> void:
+	set_life(remaining, capacity)
+
+
 ## How much of the drawing is left. The percentage is floored so the bar never claims a
 ## whole point the player does not have, and it reads 1% for the whole of the last sliver
 ## rather than dropping to 0 under a creature still standing where it was left.
