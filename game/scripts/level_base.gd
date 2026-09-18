@@ -116,6 +116,38 @@ func _level_physics(_anchor_position: Vector2) -> void:
 	pass
 
 
+## DOES A DRAWING IN THIS LEVEL RUN ON A CLOCK? True everywhere it has ever been true.
+##
+## Payyo and Piyesta price a transformation in seconds: MorphLife.begin is called on every
+## spawn and the MorphCard shows the life draining. Dagat's new brush replaces the clock with
+## a continuous ink drain, so it answers false and nothing starts the timer -- but the answer
+## has to be the LEVEL's, not the brush's, because a player who has found the brush and then
+## replays Payyo must still get Payyo's rules. See InkDrain.
+func _morph_has_a_life() -> bool:
+	return true
+
+
+## THE INK RAN OUT. Return true to say the level has handled it and the generic out-of-ink
+## screen must not open.
+##
+## The default is the advisory overlay: the morph already spawned is still playable and the
+## goal may still be reachable, so it offers Resume, Restart and Level Select rather than
+## ending anything. A level that drains continuously needs its own answer instead -- Dagat's
+## is the design's: revert, carry the apo up to the surface, lose the crossing, never die.
+func _on_ink_emptied() -> bool:
+	return false
+
+
+## SHOULD THE APO BE FISHED OUT OF DEEP WATER? True everywhere water is a gate.
+##
+## Payyo's paddies are holes to be stuck in -- the wading jump clears about twenty pixels --
+## so the base takes an un-morphed apo back to the last checkpoint after 1.1 s submerged. A
+## level that IS the sea cannot do that or it is a rescue loop: Dagat answers false and owns
+## the consequence itself, which is the ink-zero case rather than a checkpoint teleport.
+func _rescues_a_swimming_apo() -> bool:
+	return true
+
+
 ## The obstacle the scene's DialogueNode2D presents, or "" if the level has none.
 func _dialogue_node_obstacle_id() -> String:
 	return ""
@@ -1607,7 +1639,14 @@ func _spawn_or_replace(
 	# A NEW LIFE, not the remains of the old one. Drawing a second creature over the first
 	# is a fresh drawing and it starts full -- otherwise the cheapest way to keep a body
 	# alive forever would be to redraw it a second before it died.
-	morph_life.begin(label, entity_id)
+	#
+	# Unless the level has no clock at all. Dagat holds a form for as long as the ink lasts,
+	# and starting the timer there would both revert the player at ten seconds and leave the
+	# MorphCard showing a life bar for a rule that no longer exists.
+	if _morph_has_a_life():
+		morph_life.begin(label, entity_id)
+	else:
+		morph_life.clear()
 	if morph_card != null:
 		morph_card.show_form(label, drawing, _last_confidence)
 	if skin != null and skin.has_method("rig_summary"):
@@ -2897,7 +2936,7 @@ func _physics_process(_delta: float) -> void:
 	# the wading jump clears about twenty pixels and the bank is a hundred above the floor
 	# -- so without this the water is not a gate, it is a hole to be stuck in. A drawn
 	# creature that swims is not rescued: being in the water is the whole point of it.
-	if player is Wanderer and bool(player.call("is_in_water")):
+	if _rescues_a_swimming_apo() and player is Wanderer and bool(player.call("is_in_water")):
 		_submerged_seconds += _delta
 		if _submerged_seconds > 1.1:
 			_submerged_seconds = 0.0
@@ -3484,6 +3523,11 @@ func _on_ink_exhausted() -> void:
 	# Advisory, not a loss: the morph already spawned is still playable and the goal
 	# may still be reachable. Not shown once the level is already won.
 	if _level_completed:
+		return
+	# Unless the level has its own answer. A level whose ink drains continuously empties it
+	# as a matter of course, and an overlay offering Restart every time a crossing is lost
+	# would read as a failure screen in a game that does not have one.
+	if _on_ink_emptied():
 		return
 	# And never over the canvas. The last of the ink is spent by a drawing being
 	# accepted, and the panel is still on screen at that moment -- an overlay eight
