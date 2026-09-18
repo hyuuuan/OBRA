@@ -100,6 +100,13 @@ const FOUND: Array[Dictionary] = [
 		"name": "Hidden Flower",
 		"note": "One of five. Pressed between the pages of her sketchbook.",
 	},
+	# Earned by the dance in Piyesta and recorded since, but never listed here: a player who
+	# won it saw nothing in the bag, and the flowers are only fair if the count can be seen.
+	{
+		"id": "L2_HF",
+		"name": "Hidden Flower",
+		"note": "One of five. The dancers gave it to you after the dance, as they once gave it to her.",
+	},
 ]
 
 var inventory_manager: InventoryManager
@@ -699,7 +706,7 @@ func _found_art(id: String) -> Texture2D:
 			return UIIcons.key()
 		"canvas_2_pista":
 			return load("res://assets/hub/paintings/level_2.png") as Texture2D
-		"flower_1":
+		"flower_1", "L2_HF":
 			return load("res://assets/Level1/hidden_flower.png") as Texture2D
 		_:
 			return null
