@@ -1,0 +1,194 @@
+{
+  "$comment": [
+    "LEVEL 3 -- DAGAT. Lolo's lines, and the apo's own at the two forks.",
+    "",
+    "⚠ NO LINE MAY NAME A DRAWABLE CLASS, and this level is where that rule is hardest.",
+    "Seventeen of the fifty are things you would reach for writing about the sea: fish,",
+    "shark, octopus, crab, sea turtle, penguin, frog, sun, cloud, sailboat, submarine,",
+    "flashlight, sword, axe, cannon, boomerang, anvil. The check is word-boundary and",
+    "case-insensitive, over text AND choice_label, and run_level3_audit.gd runs it.",
+    "",
+    "The fun facts in the coral field belong to the NON-drawable set on purpose -- jellyfish,",
+    "starfish, clam, seaweed, urchin -- which is both the design's instruction and the only",
+    "way a field of sea creatures can be written at all.",
+    "",
+    "WHAT IS NOT HERE YET: the two lore scenes in full, and the island. They are deferred",
+    "with the routes that carry them, and the hooks they will need are not authored in",
+    "advance -- an unreachable line is an audit failure, not a placeholder."
+  ],
+  "level_id": "level_3",
+  "design_level_id": "L3_DAGAT",
+  "speaker_default": "lolo",
+  "language": "en",
+  "lines": [
+    {
+      "id": "L3_B0_001",
+      "at": "L3_B0_SHORE.enter",
+      "kind": "lore",
+      "text": "She painted this one standing about where you are. She told me the water here never looked the same way twice, and she was going to keep at it until it did."
+    },
+    {
+      "id": "L3_B0_002",
+      "at": "L3_B0_SHORE.teach",
+      "kind": "hint",
+      "text": "There is something in the wet sand, apo. It has been catching the morning since we came over the dune."
+    },
+    {
+      "id": "L3_B0_003",
+      "at": "L3_B0_SHORE.sub1",
+      "kind": "hint",
+      "text": "No counting down any more. Hold a shape as long as you like — but it drinks the whole time it is holding. Something that can **swim**, and get into the shallows with it."
+    },
+    {
+      "id": "L3_B0_004",
+      "at": "on_first_decline",
+      "kind": "lore",
+      "text": "Not because you drew it badly. I could not tell it apart from something else, and I would rather say so than guess at you."
+    },
+    {
+      "id": "L3_B0_005",
+      "at": "after_first_decline_solved",
+      "kind": "lore",
+      "text": "There. That one I am sure of."
+    },
+    {
+      "id": "L3_B0_006",
+      "at": "L3_B0_SHORE.sub1.solved",
+      "kind": "hint",
+      "text": "Feel that? It is going down while you stand there. It will not stop going down until you are yourself again."
+    },
+    {
+      "id": "L3_B0_007",
+      "at": "L3_B0_SHORE.sub1.solved",
+      "kind": "lore",
+      "text": "Her old one gave you a moment and took it back. This one gives you as long as you can pay for. I am not sure yet which of those is kinder."
+    },
+
+    {
+      "id": "L3_N1_001",
+      "at": "L3_N1.enter",
+      "kind": "lore",
+      "text": "That is the whole of it, then. She never painted the far side, so I do not know what is standing on it."
+    },
+    {
+      "id": "L3_N1_002",
+      "at": "L3_N1.teach",
+      "kind": "hint",
+      "text": "Two ways across that I can see. Something that can **swim** will take you under it."
+    },
+    {
+      "id": "L3_N1_003",
+      "at": "L3_N1.teach",
+      "kind": "hint",
+      "text": "Or walk the sand a while first. Things wash up here. They always did."
+    },
+    {
+      "id": "L3_N1_004",
+      "at": "L3_N1.choice",
+      "kind": "lore",
+      "text": "So. Over it, or under it?"
+    },
+    {
+      "id": "L3_N1_005",
+      "at": "L3_N1.artist.commit",
+      "speaker": "apo",
+      "choice_label": "I will walk the sand first.",
+      "text": "I will walk the sand first. You said things wash up."
+    },
+    {
+      "id": "L3_N1_006",
+      "at": "L3_N1.pragmatist.commit",
+      "speaker": "apo",
+      "choice_label": "I will go under it.",
+      "text": "I will go under it. It is faster and I can see where I am going."
+    },
+    {
+      "id": "L3_N1_007",
+      "at": "L3_N1.artist.solved",
+      "kind": "lore",
+      "text": "Hah. Somebody left that and never came back for it. Push off, apo — I will sit at this end and keep out of your way."
+    },
+    {
+      "id": "L3_N1_008",
+      "at": "L3_N1.pragmatist.solved",
+      "kind": "lore",
+      "text": "Go on then. I will keep up. I am not carrying anything any more, so it is easy for me."
+    },
+
+    {
+      "id": "L3_N2_001",
+      "at": "L3_N2.enter",
+      "kind": "lore",
+      "text": "Wait. Wait. Do you see how it is going — back and forth over the same stretch, over and over? It is not hunting us. It has lost something."
+    },
+    {
+      "id": "L3_N2_002",
+      "at": "L3_N2.enter",
+      "kind": "lore",
+      "text": "It cannot see, apo. Not a thing. And there is something about its eyes that I know and cannot put down."
+    },
+    {
+      "id": "L3_N2_003",
+      "at": "L3_N2.teach",
+      "kind": "hint",
+      "text": "Something that can throw **light** would show it where to look. Something that can **strike** would make it stop."
+    },
+    {
+      "id": "L3_N2_004",
+      "at": "L3_N2.teach",
+      "kind": "hint",
+      "text": "Or nothing at all. It cannot see you either — keep out of the bright and it will never know you went by."
+    },
+    {
+      "id": "L3_N2_005",
+      "at": "L3_N2.choice",
+      "kind": "lore",
+      "text": "It cannot see. So what do we do about that?"
+    },
+    {
+      "id": "L3_N2_006",
+      "at": "L3_N2.artist.commit",
+      "speaker": "apo",
+      "choice_label": "I will show it where to look.",
+      "text": "I will show it where to look. It has been at this a long time."
+    },
+    {
+      "id": "L3_N2_007",
+      "at": "L3_N2.pragmatist.commit",
+      "speaker": "apo",
+      "choice_label": "I will go around it.",
+      "text": "I will go around it. It is not looking for me."
+    },
+    {
+      "id": "L3_N2_008",
+      "at": "L3_N2.protector.commit",
+      "speaker": "apo",
+      "choice_label": "I will put myself between it and you.",
+      "text": "I will put myself between it and you. It is big and it is frightened and I do not trust it."
+    },
+    {
+      "id": "L3_N2_009",
+      "at": "L3_N2.artist.solved",
+      "kind": "lore",
+      "text": "Look at it go. It had been over that same patch a hundred times and it only needed somebody to hold something up. Oh — apo. It is giving it to you."
+    },
+    {
+      "id": "L3_N2_010",
+      "at": "L3_N2.pragmatist.solved",
+      "kind": "lore",
+      "text": "Good. Quiet. Keep going and do not turn round."
+    },
+    {
+      "id": "L3_N2_011",
+      "at": "L3_N2.pragmatist.solved",
+      "kind": "lore",
+      "text": "It is still back there, still going over the same stretch. It will be there when we are gone."
+    },
+    {
+      "id": "L3_N2_012",
+      "at": "L3_N2.protector.solved",
+      "kind": "lore",
+      "text": "It has had enough. Let it go, apo — let it go. It never knew you were there. That is the part I want you to keep."
+    }
+  ]
+}
