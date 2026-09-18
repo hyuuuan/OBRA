@@ -38,7 +38,7 @@ const ROUTE_COMMITMENT := 3       # levels taken on one route to count as commit
 const HIGH_DIVERSITY := 25        # classes drawn/accepted for the Masterpiece
 const LOW_DIVERSITY := 10         # below this the player rushed
 const HIGH_REDRAW_RATE := 0.4     # sustained redrawing without route commitment
-const TOTAL_FLOWERS := 5          # hidden collectibles across the five levels
+const TOTAL_FLOWERS := 5          # Hidden Flowers across the five levels (not the key)
 
 
 ## Resolve from an explicit set of values. `profile` is the PlayerProfile autoload
@@ -52,7 +52,7 @@ static func resolve(profile) -> String:
 		int(profile.route_count("protector")),
 		int(profile.class_diversity()),
 		float(profile.redraw_rate()),
-		int(profile.collectible_count())
+		int(profile.flower_count())
 	)
 
 
@@ -63,9 +63,9 @@ static func resolve_values(
 	protector: int,
 	class_diversity: int,
 	redraw_rate: float,
-	collectibles: int
+	flowers: int
 ) -> String:
-	if artist >= ROUTE_COMMITMENT and collectibles >= TOTAL_FLOWERS and class_diversity > HIGH_DIVERSITY:
+	if artist >= ROUTE_COMMITMENT and flowers >= TOTAL_FLOWERS and class_diversity > HIGH_DIVERSITY:
 		return ENDING_A
 	if pragmatist >= ROUTE_COMMITMENT and class_diversity < LOW_DIVERSITY:
 		return ENDING_B
@@ -93,5 +93,5 @@ static func explain(profile) -> Dictionary:
 		"class_diversity": profile.class_diversity(),
 		"roster_size": profile.roster_size(),
 		"redraw_rate": profile.redraw_rate(),
-		"collectibles": profile.collectible_count(),
+		"flowers": profile.flower_count(),
 	}

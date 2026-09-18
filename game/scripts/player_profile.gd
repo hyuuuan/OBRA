@@ -26,6 +26,10 @@ const DEFAULT_ROSTER_SIZE := 50
 ## with nothing unlocked and nothing damaged.
 const MIGRATABLE_SCHEMAS := [1, 2, 3, 4]
 const ROUTES := ["artist", "pragmatist", "protector"]
+## The Hidden Flowers, one per level, by the collectible id each level records. Spelled as the
+## saves already hold them, so they stay inconsistent rather than orphan a found flower. A
+## level that adds a flower adds its id here, or the flower counts for nothing.
+const FLOWER_IDS := ["flower_1", "L2_HF"]
 
 ## Every setting the player can change, with its default. Nothing outside this list
 ## is storable: a typo must not quietly grow the save, because each key written here
@@ -290,6 +294,20 @@ func is_collectible_found(collectible_id: String) -> bool:
 
 func collectible_count() -> int:
 	return (_data["collectibles"] as Array).size()
+
+
+## How many of the Hidden Flowers have been found -- which is NOT collectible_count(). The
+## brass key is a collectible too, and counting every collectible let it stand in for a
+## flower: the ending screen told a player holding one flower they had found two, and the
+## Masterpiece's five-flower condition could be met with four. Only the ids in FLOWER_IDS
+## count.
+func flower_count() -> int:
+	var found: Array = _data["collectibles"]
+	var count := 0
+	for flower_id in FLOWER_IDS:
+		if found.has(flower_id):
+			count += 1
+	return count
 
 
 # --- Settings ----------------------------------------------------------------
