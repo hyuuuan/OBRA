@@ -13,9 +13,8 @@ extends "res://scripts/level_base.gd"
 ##   * A ZERO CASE THAT IS NOT A LOSS SCREEN. `_on_ink_emptied()` takes the out-of-ink
 ##     overlay off the table and does the design's own thing instead: revert, carry the apo
 ##     up to the surface, lose the crossing, never die.
-##   * NO DROWNING RESCUE. `_rescues_a_swimming_apo()` answers false. The base fishes an
-##     un-morphed apo out of deep water after 1.1 s, which is right when water is a gate and
-##     is a rescue loop when the level IS the sea.
+##   * THE DROWNING RESCUE IN THIS LEVEL'S OWN WORDS. It is NOT switched off -- see
+##     `_drowning_words` below for what happened when it was.
 ##   * A SECOND DIALOGUE NODE. Piyesta committed two of its three beats implicitly, through
 ##     the drawing. Dagat cannot: the bakunawa's Pragmatist resolution is not a drawing at
 ##     all, so it has to be offered out loud, and a level with two spoken forks needs two
@@ -197,10 +196,25 @@ func _on_ink_emptied() -> bool:
 	return true
 
 
-func _rescues_a_swimming_apo() -> bool:
-	# The apo still cannot swim. What is different here is the consequence: being in the
-	# water without a body is the ink-zero case, handled below, rather than a teleport.
-	return false
+## ⚠ THE RESCUE STAYS ON, AND THIS COMMENT IS HERE BECAUSE SWITCHING IT OFF STRANDED THE
+## PLAYER. The reasoning for switching it off was that fishing the apo out of a level that is
+## the sea would be a rescue loop. It is not: the rescue tests `player is Wanderer`, and a
+## morph is not one, so it can only fire when the player has no body at all -- which in this
+## level means the ink ran out or they walked in without drawing. Both of those are exactly
+## when they need carrying.
+##
+## Measured, not argued: with it off, walking off the shore sank the apo past the waterline
+## with nothing to stand on for a thousand pixels and no fall limit to catch it, because the
+## seabed is well inside the world bounds. The design is explicit that the player can never
+## be stranded.
+##
+## What a sea level needs is its own words, not an exemption. Payyo's default names Payyo's
+## plank, which means nothing out here.
+func _drowning_words() -> PackedStringArray:
+	return PackedStringArray([
+		"You cannot swim, apo. Draw yourself something that can",
+		"You cannot swim, apo. Back to %s",
+	])
 
 
 # --- Per frame --------------------------------------------------------------------------

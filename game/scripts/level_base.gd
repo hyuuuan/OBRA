@@ -138,14 +138,25 @@ func _on_ink_emptied() -> bool:
 	return false
 
 
-## SHOULD THE APO BE FISHED OUT OF DEEP WATER? True everywhere water is a gate.
+## WHAT THE RESCUE SAYS WHEN THE APO IS IN WATER WITHOUT A BODY. Two strings: what to say
+## when no checkpoint has been written yet, and a format taking the checkpoint's name.
 ##
-## Payyo's paddies are holes to be stuck in -- the wading jump clears about twenty pixels --
-## so the base takes an un-morphed apo back to the last checkpoint after 1.1 s submerged. A
-## level that IS the sea cannot do that or it is a rescue loop: Dagat answers false and owns
-## the consequence itself, which is the ink-zero case rather than a checkpoint teleport.
-func _rescues_a_swimming_apo() -> bool:
-	return true
+## ⚠ THE RESCUE ITSELF IS NOT OPTIONAL, AND THIS HOOK EXISTS BECAUSE TRYING TO MAKE IT
+## OPTIONAL STRANDED A PLAYER. Dagat first answered a `_rescues_a_swimming_apo()` virtual
+## with false, on the reasoning that fishing the apo out of a level that IS the sea would be
+## a rescue loop. It is not a loop: the morph is not a Wanderer, so this never fires while
+## the player has a body, and the only time it CAN fire is when they have none -- which is
+## exactly when they need it. With it switched off, walking off Dagat's shore sank the apo
+## toward a seabed a thousand pixels down, below the fall limit, with no way back up. The
+## one thing the design says must never happen.
+##
+## So what a sea level actually needs is not a way out of the rescue but its own words for
+## it. The default is Payyo's, which names Payyo's plank.
+func _drowning_words() -> PackedStringArray:
+	return PackedStringArray([
+		"You cannot swim, apo — put something heavy on that plank",
+		"You cannot swim, apo. Back to %s",
+	])
 
 
 ## The obstacle the scene's DialogueNode2D presents, or "" if the level has none.
@@ -2936,15 +2947,15 @@ func _physics_process(_delta: float) -> void:
 	# the wading jump clears about twenty pixels and the bank is a hundred above the floor
 	# -- so without this the water is not a gate, it is a hole to be stuck in. A drawn
 	# creature that swims is not rescued: being in the water is the whole point of it.
-	if _rescues_a_swimming_apo() and player is Wanderer and bool(player.call("is_in_water")):
+	if player is Wanderer and bool(player.call("is_in_water")):
 		_submerged_seconds += _delta
 		if _submerged_seconds > 1.1:
 			_submerged_seconds = 0.0
 			# POINTED AT THE ANSWER, not at the problem. It used to say "draw something that
 			# can cross it", which is what the beat asked for when Span came first -- and
 			# Span cannot cross three hundred pixels of water. The way over is the plank.
-			_return_to_safety("You cannot swim, apo — put something heavy on that plank",
-				"You cannot swim, apo. Back to %s")
+			var words := _drowning_words()
+			_return_to_safety(words[0], words[1])
 			return
 	else:
 		_submerged_seconds = 0.0
