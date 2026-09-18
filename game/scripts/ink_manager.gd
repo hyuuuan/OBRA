@@ -31,11 +31,21 @@ const UNIT := 1.0
 var committed: float = 0.0
 var reserved: float = 0.0
 
+## ⚠ `ink_exhausted` IS ANNOUNCED ONCE PER EMPTYING, NOT ONCE PER FRAME. Every charge below
+## used to test `total_uncommitted_available() <= 0.0001` and emit unconditionally, which was
+## harmless while ink only moved in whole units at the moment a drawing was accepted. Dagat
+## charges it continuously while a morph is held, and an unlatched test fires the signal every
+## frame for as long as the player stays at zero -- so the out-of-ink screen, or a level's own
+## zero case, runs sixty times a second. The latch clears when ink rises above zero again,
+## which is what a refill is for.
+var _emptied := false
+
 
 func begin_level(new_capacity: float = BUDGET) -> void:
 	capacity = maxf(0.0, new_capacity)
 	committed = 0.0
 	reserved = 0.0
+	_emptied = false
 	_emit_changed()
 
 
@@ -75,8 +85,7 @@ func spend_unit() -> bool:
 		return false
 	committed = minf(capacity, committed + UNIT)
 	_emit_changed()
-	if total_uncommitted_available() <= 0.0001:
-		ink_exhausted.emit()
+	_announce_if_emptied()
 	return true
 
 
@@ -85,8 +94,7 @@ func commit_attempt() -> float:
 	committed = minf(capacity, committed + amount)
 	reserved = 0.0
 	_emit_changed()
-	if total_uncommitted_available() <= 0.0001:
-		ink_exhausted.emit()
+	_announce_if_emptied()
 	return amount
 
 
@@ -97,8 +105,30 @@ func release_attempt() -> float:
 	return amount
 
 
+## Charge a fraction of a unit, for ink that is spent by TIME rather than by an event: Dagat's
+## new brush holds a transformation for as long as the player can pay for it. Returns false
+## once there is nothing left to take, so the caller knows the crossing is over without having
+## to compare floats itself.
+##
+## Deliberately not `spend_unit` with a smaller UNIT: a unit is the price of one thing and the
+## levels are balanced against it, whereas this is a rate. Keeping them separate means a drain
+## can never be mistaken for a drawing in the telemetry.
+func drain(amount: float) -> bool:
+	var wanted := maxf(0.0, amount)
+	if wanted <= 0.0:
+		return total_uncommitted_available() > 0.0001
+	committed = minf(capacity, committed + wanted)
+	_emit_changed()
+	_announce_if_emptied()
+	return total_uncommitted_available() > 0.0001
+
+
+## Give ink back. The counterpart of `drain`, and the only thing that can clear the emptied
+## latch: a refill placed on the seabed is how a route that drains continuously is survivable.
 func add_ink(amount: float) -> void:
 	committed = maxf(0.0, committed - maxf(0.0, amount))
+	if total_uncommitted_available() > 0.0001:
+		_emptied = false
 	_emit_changed()
 
 
@@ -122,6 +152,15 @@ static func static_cost_for_strokes(
 		for index in range(points.size() - 1):
 			length += points[index].distance_to(points[index + 1])
 	return length / diagonal
+
+
+func _announce_if_emptied() -> void:
+	if total_uncommitted_available() > 0.0001:
+		return
+	if _emptied:
+		return
+	_emptied = true
+	ink_exhausted.emit()
 
 
 func _emit_changed() -> void:
