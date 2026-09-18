@@ -781,7 +781,8 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
   Before that, suites read and wrote the real `user://profile.json` -- two deleted it -- and
   the telemetry folder held 3,839 bot sessions. Never spell `"user://profile.json"` in a
   test; read `profile_path` off the autoload. `test_player_profile` fails if a test run can
-  reach the real save.
+  reach the real save. **One run at a time, still:** all test runs share that one folder, so a
+  second Godot started beside the first empties the profile out from under it.
 - ⚠ **Within one run the profile still carries what earlier checks wrote.** "Exactly four
   locked cards" and "locked Level 2 initiated a transition" were once checked against
   whatever save was on the box, and the day Level 2 had a scene the call SUCCEEDED and
