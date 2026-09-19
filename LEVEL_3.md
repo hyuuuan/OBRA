@@ -148,6 +148,30 @@ commit bodies rather than repeated here.
 | **The underwater restriction** | `LevelRestrictions.aquatic_only` — `flounders()`, `check_medium()`, `flounder_note()` | A **consequence**, not a ban: the design wants a land creature to flounder and be reverted, not to be refused at the canvas |
 | **`swim` and `light`** | `tools/build_tags.py` → `LEVEL_3_TAGS` | Unhintable drops 11 → 7. `light` moved 4 → 3, which brings Payyo's flower forward |
 | **Four profile fields** | `new_brush` · `lolo_present` · `l3_bakunawa` · `L3_HF` in `FLOWER_IDS` and in the bag | Additive, no schema bump |
+| **The data layer** | `level_03.json` · `dialogue_l3.json` (27 lines, none naming a class) · `tutorial.json` level_3 (6 lessons) | `levels.json` deliberately untouched — `scene_path` goes last |
+| **The scene** | `level_3.tscn` · `level_3_environment.tscn` · `level_3.gd` | Shore, ~2,400 px of open water, the encounter, the island. Code-drawn placeholders |
+| **The shore** | The new brush as a pickup · the practice beat at the waterline · CP1 | The brush is not an obstacle: a sub-beat resolves a tag, and picking something up is not a drawing |
+| **The fork** | Beached bangka → a real `sailboat` · `swim` on the dive · three seabed refills | The boat is **found**, closed with `solve_with_item`, and it sails — a found boat that could not be sailed would answer the fork and strand the player |
+| **T3 and T1** | `run_level3_audit.gd` (24 checks) · `run_nodraw_level3.gd` | Both green |
+
+### Three things the tests caught that reasoning had not
+
+1. **Switching the drowning rescue off stranded the apo.** The plan added a
+   `_rescues_a_swimming_apo()` opt-out on the argument that rescuing in a level that *is* the
+   sea would loop. It cannot loop — the rescue tests `player is Wanderer` and a morph is not
+   one — so it only ever fires when the player has no body, which is exactly when they need
+   it. With it off, walking off the shore sank the apo toward a seabed a thousand pixels
+   down, inside the world bounds, so the fall limit never caught it either. Replaced by
+   `_drowning_words()`: a sea level needs its own words, not an exemption.
+2. **Dagat could be crossed with nothing drawn, and T1 was green throughout.** Two routes are
+   `answered_by` and an obstacle volume is a trigger rather than a wall, so a player could
+   walk past the practice beat, take the boat and sail. The walking bot never lingered near
+   the hull long enough to press E — a pass by luck. Fixed where the design already put it:
+   `LevelBase._dialogue_node_is_ready()` and `DialogueNode2D.rearm()`, so **the shore beat
+   gates the fork.**
+3. **The boat was parented to `EntityRoot`.** `_nearest_interactable_utility` skips anything
+   whose parent is not `world_item_root`, so it floated, looked right, and could not be
+   boarded.
 
 ### Measured (`run_swim_reach_probe.gd`, `run_behaviour_audit.gd`)
 
@@ -201,16 +225,22 @@ consistent with a game that has no death state.
 
 ### Still open
 
-**5. Level 2 currently ends the run.** `levels.json` has `ends_run: true` on `level_2`. It
+**5. The bakunawa, the coral field and the island are not built.** `L3_N2` has its volume,
+its fork and its three routes in data, and nothing behind them: no creature, no light cones,
+no fun-fact interactables, no flower in the world, no exit. The level currently ends in open
+water. This is the largest remaining piece and it is what "the dive route playable end to
+end" still needs.
+
+**6. Level 2 currently ends the run.** `levels.json` has `ends_run: true` on `level_2`. It
 moves to `level_3` **in the shipping commit**, and five tests turn over with it:
 `run_level2_audit.gd:459`, `run_level2_finish_probe.gd:175`, `run_tests.gd:695` and `:760`,
 `test_player_profile.gd:106`, `run_hub_audit.gd:78`. The dead card moves to `level_4`.
 
-**6. Payyo's Protector debt.** `LEVEL_TEMPLATE.md` records it: Level 1's Node 3 Protector
+**7. Payyo's Protector debt.** `LEVEL_TEMPLATE.md` records it: Level 1's Node 3 Protector
 route creases the canvas and the crease costs nothing mechanical, "to be paid back when Level
 3 is designed". Dagat is the first level since where a crease could reach something real.
 
-**7. The numbers.** Drain rate per class, starting capacity, refill size and count per route.
+**8. The numbers.** Drain rate per class, starting capacity, refill size and count per route.
 The design is right that these come out of playtesting — but the probe now says the seven are
 indistinguishable at 685–762 px/ink, so **the per-class rate table is the only lever that can
 make a shark cost more to hold than a fish**. The dive route needs more refills than the boat
