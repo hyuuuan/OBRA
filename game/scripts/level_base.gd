@@ -152,6 +152,19 @@ func _on_ink_emptied() -> bool:
 ##
 ## So what a sea level actually needs is not a way out of the rescue but its own words for
 ## it. The default is Payyo's, which names Payyo's plank.
+## IS THIS FORK READY TO BE ASKED? True everywhere it has ever been asked.
+##
+## A dialogue node fires the moment the player walks into it, which is right when everything
+## before it is scenery. Dagat has a tutorial beat between the spawn and its first fork, and
+## a beat that can be walked past is not a beat: the design puts the ink lesson before the
+## crossing precisely so nobody learns the new rule by running out of it underwater.
+##
+## Answering false re-arms the trigger, so a refusal is a "not yet" rather than a fork the
+## player has lost. Say why from inside the override -- this only decides.
+func _dialogue_node_is_ready() -> bool:
+	return true
+
+
 func _drowning_words() -> PackedStringArray:
 	return PackedStringArray([
 		"You cannot swim, apo — put something heavy on that plank",
@@ -3387,6 +3400,12 @@ func _requirements_per_route(obstacle_id: String) -> Dictionary:
 ## pausing -- it is a ModalOverlay, and UIRouter derives the tree's pause state from
 ## whoever is open -- so this only has to decide what he asks.
 func _on_dialogue_node_approached() -> void:
+	if not _dialogue_node_is_ready():
+		# NOT YET, rather than never. The trigger disarms itself on the way in, so without
+		# the re-arm a player turned away once has lost the fork for the rest of the run.
+		if dialogue_node != null and dialogue_node.has_method("rearm"):
+			dialogue_node.call("rearm")
+		return
 	if lolo != null and is_instance_valid(lolo):
 		lolo.hush()
 	# Payyo's own script, when it has one. The three buttons are read off the commit

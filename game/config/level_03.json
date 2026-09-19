@@ -28,26 +28,47 @@
   "goal": "cross the sea, get past what is in it, and reach the next painting on the far sand",
   "unlocks_on_complete": "L4_DILIM",
   "unlocks_at_checkpoint": "CP3",
-
   "tags_unlocked": [
-    { "tag": "swim", "at": "L3_B0_SHORE.sub1" },
-    { "tag": "light", "at": "L3_N2.dialogue" },
-    { "tag": "strike", "at": "L3_N2.dialogue" }
+    {
+      "tag": "swim",
+      "at": "L3_B0_SHORE.sub1"
+    },
+    {
+      "tag": "light",
+      "at": "L3_N2.dialogue"
+    },
+    {
+      "tag": "strike",
+      "at": "L3_N2.dialogue"
+    }
   ],
-
   "checkpoints": [
-    { "id": "CP1", "at": "L3_B0_SHORE", "trigger": "area" },
-    { "id": "CP2", "at": "L3_N1", "trigger": "route_commit" },
-    { "id": "CP3", "at": "L3_N2", "trigger": "route_commit" },
+    {
+      "id": "CP1",
+      "at": "L3_B0_SHORE",
+      "trigger": "area"
+    },
+    {
+      "id": "CP2",
+      "at": "L3_N1",
+      "trigger": "route_commit"
+    },
+    {
+      "id": "CP3",
+      "at": "L3_N2",
+      "trigger": "route_commit"
+    },
     {
       "id": "CP3b",
       "at": "L3_N2.midpoint",
       "trigger": "area",
-      "routes": ["pragmatist", "protector"],
+      "routes": [
+        "pragmatist",
+        "protector"
+      ],
       "$comment": "The design's own decision: 'a checkpoint sits partway through the encounter, so a reset costs the current stretch and not the whole approach. An encounter-length reset with no mid-point turns a five-minute section into twenty.' It serves both of the resolutions that can be lost -- contact while slipping past, and losing the fight."
     }
   ],
-
   "restrictions": {
     "$comment": [
       "ONE RULE, AND IT IS A CONSEQUENCE RATHER THAN A BAN. Piyesta refuses a bee at the",
@@ -62,7 +83,15 @@
       "level where flight is simply unrestricted."
     ],
     "aquatic_only": {
-      "swimmers": ["fish", "octopus", "shark", "sea_turtle", "crab", "penguin", "frog"],
+      "swimmers": [
+        "fish",
+        "octopus",
+        "shark",
+        "sea_turtle",
+        "crab",
+        "penguin",
+        "frog"
+      ],
       "fiction": "it cannot breathe down here",
       "flounder_seconds": 1.2,
       "enforcement": "flounders_then_reverts",
@@ -70,7 +99,6 @@
       "armed_where": "below the waterline only; the shore and the boat's deck are air"
     }
   },
-
   "ink_economy": {
     "$comment": [
       "NOT READ BY LevelRestrictions -- level_3.gd reads it and hands it to InkDrain. Kept",
@@ -89,21 +117,22 @@
     "rates": {},
     "zero_case": "revert, carry the apo to the surface or the nearest air pocket, lose the crossing, never die",
     "refills_are_placed_not_timed": true,
-    "working_crossing_px": 3600
+    "working_crossing_px": 3600,
+    "refill_units": 1.5,
+    "refill_count_dive": 3,
+    "refill_count_boat": 0
   },
-
   "objectives": {
     "$comment": "THE OBJECTIVE LINE, one per state of the run. level_3.gd decides which state the player is in; these are only the words, held to the same rule every dialogue line is held to: no line names a drawable class. Dangerous here in a way it was not in Piyesta -- the sea is full of classes. Never 'fish', 'shark', 'crab', 'sun', 'cloud', 'sailboat' or 'submarine'.",
     "brush": "Something in the sand is catching the light",
     "practice": "Try it in the shallows. Watch what it costs to stay changed",
     "practice.tags": "Draw something that can {tags} and take it into the shallows",
     "cross": "Get to the far side",
-    "cross.tags": "Draw something that can {tags} — or walk the shore and see what is beached there",
+    "cross.tags": "Draw something that can {tags} \u2014 or walk the shore and see what is beached there",
     "bakunawa": "It cannot see. Decide what you are going to do about that",
-    "bakunawa.tags": "Something that can {tags} — or slip by while it is looking elsewhere",
+    "bakunawa.tags": "Something that can {tags} \u2014 or slip by while it is looking elsewhere",
     "island": "Go up onto the far sand"
   },
-
   "obstacles": [
     {
       "id": "L3_B0_SHORE",
@@ -128,15 +157,26 @@
       ],
       "grants_item": "new_brush",
       "sub_beats": [
-        { "id": "sub1", "teaches": "swim", "required_tags": ["swim"], "exclude": [] }
+        {
+          "id": "sub1",
+          "teaches": "swim",
+          "required_tags": [
+            "swim"
+          ],
+          "exclude": []
+        }
       ],
-      "scripted": { "on_first_decline": "L3_B0_004" }
+      "scripted": {
+        "on_first_decline": "L3_B0_004"
+      }
     },
     {
       "id": "L3_N1",
       "type": "dialogue_node",
       "display_name": "Ang Paglalayag",
-      "teaches_before_choice": ["swim"],
+      "teaches_before_choice": [
+        "swim"
+      ],
       "checkpoint_on_commit": "CP2",
       "$comment": [
         "TWO ROUTES, NOT THREE, and that is the design rather than an omission: 'you need to",
@@ -157,7 +197,9 @@
           "$comment": "The boat gets how he died. The apo is seated and rowing, with nothing to do but listen -- the only scene in the game where they cannot draw their way out of a conversation."
         },
         "pragmatist": {
-          "required_tags": ["swim"],
+          "required_tags": [
+            "swim"
+          ],
           "exclude": [],
           "reward": "lore_what_it_did_to_lola",
           "sets_flag": "heard_about_lola",
@@ -169,7 +211,10 @@
       "id": "L3_N2",
       "type": "dialogue_node",
       "display_name": "Ang Bakunawa",
-      "teaches_before_choice": ["light", "strike"],
+      "teaches_before_choice": [
+        "light",
+        "strike"
+      ],
       "checkpoint_on_commit": "CP3",
       "$comment": [
         "ONE ENCOUNTER, THREE RESOLUTIONS, TWO STAGINGS. Both routes arrive here, so it is",
@@ -188,7 +233,9 @@
       ],
       "routes": {
         "artist": {
-          "required_tags": ["light"],
+          "required_tags": [
+            "light"
+          ],
           "exclude": [],
           "reward": "item_from_the_seabed",
           "reward_on_clear": "collectible_L3_flower",
@@ -203,7 +250,9 @@
           "$comment": "NOT A DRAWING, so it declares answered_by like the dance did. Light cones from the bakunawa, shadow is safe, contact resets to CP3b. On the boat route it is not a dive -- the player steers wide and stays out of its sweep, same logic, same light-and-shadow rule, and the boat is not abandoned mid-level. A player who drew a flashlight and then chose this has made it harder for themselves, which the design says to allow rather than prevent."
         },
         "protector": {
-          "required_tags": ["strike"],
+          "required_tags": [
+            "strike"
+          ],
           "exclude": [],
           "persistent_effect": "l3_bakunawa_fought",
           "$comment": "Five answers, and they already differ in more than damage: UtilityObject gives swing 96px, boomerang 320px, cannon 640px and the anvil a drop, which is exactly the differentiation the design asks for. Subdued or exhausted, NEVER killed -- it swims off still blind and still searching, and the cost of this route is that nothing was healed. Losing restarts the fight; it does not end the run."
@@ -211,7 +260,6 @@
       }
     }
   ],
-
   "hidden_flowers": [
     {
       "id": "L3_HF",
@@ -221,7 +269,6 @@
       "$comment": "THE THIRD OF FIVE, and unlike Payyo's it is not gated on a later level's tag -- it is this level's Artist-tagged reward, which is the rule the Dagat design sets for every level from here. The id here is documentation; the runtime id is what record_collectible is called with, and it must match PlayerProfile.FLOWER_IDS or the flower counts for nothing."
     }
   ],
-
   "inherited_effects": {
     "heard_how_he_died": {
       "from": "L3_DAGAT.L3_N1.artist",
@@ -242,14 +289,12 @@
       "does_not": "say what the flowers are for -- a secret ending that announces its requirements is not secret"
     }
   },
-
   "recognition": {
     "confidence_threshold": 0.6,
     "margin_threshold": 0.15,
     "decline_costs_ink": false,
     "decline_message_source": "dialogue"
   },
-
   "cultural_constraints": {
     "$comment": "Dagat has no sacred site in it the way Piyesta's plaza did, but it has a creature out of folk belief, and the guardrail is about how that creature is used rather than about what may be touched.",
     "bakunawa": {
@@ -264,13 +309,23 @@
       "note": "The game stays with what the apo would actually understand -- that lola forgets -- rather than naming a condition or claiming grief caused it. The original design line is kept as intent; the script does not say the word."
     }
   },
-
   "lighting_states": [
-    { "id": "shore_morning", "from": "L3_B0_SHORE", "to": "L3_N1" },
-    { "id": "open_water", "from": "L3_N1", "to": "L3_N2" },
-    { "id": "deep_dark", "from": "L3_N2.midpoint", "to": "L3_N2" }
+    {
+      "id": "shore_morning",
+      "from": "L3_B0_SHORE",
+      "to": "L3_N1"
+    },
+    {
+      "id": "open_water",
+      "from": "L3_N1",
+      "to": "L3_N2"
+    },
+    {
+      "id": "deep_dark",
+      "from": "L3_N2.midpoint",
+      "to": "L3_N2"
+    }
   ],
-
   "load_time_assertions": [
     "every obstacle route resolves >= 2 classes AFTER exclusions",
     "every class named in restrictions.aquatic_only exists in model/labels.json",

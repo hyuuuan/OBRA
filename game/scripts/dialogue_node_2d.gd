@@ -59,6 +59,18 @@ func choose(route: String) -> void:
 	route_chosen.emit(route)
 
 
+## PUT THE QUESTION BACK. Walking in disarms the trigger so the choice is not re-asked, and
+## that is right for a fork that was ANSWERED -- but a level may need to refuse to ask it yet,
+## and without this a refusal is permanent: the player is turned away once and the fork is
+## gone for the rest of the run.
+##
+## Deliberately does not clear `_answered`. A question already answered stays answered.
+func rearm() -> void:
+	if _answered:
+		return
+	_armed = true
+
+
 func _on_body_entered(body: Node) -> void:
 	if _answered or not _armed:
 		return

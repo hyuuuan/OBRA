@@ -39,6 +39,9 @@ var _drain: InkDrain
 
 ## The second spoken fork. See the header.
 var _bakunawa_node: DialogueNode2D
+## The first fork's own volume, kept because `dialogue_node` is re-pointed at the second one
+## and the base reads that field for both.
+var _shore_node: DialogueNode2D
 ## Which beat the choice overlay is currently answering for. Set when a node is approached,
 ## because `_dialogue_node_obstacle_id()` is asked at both the presenting and the committing
 ## and has to give the same answer to each.
@@ -47,6 +50,11 @@ var _live_node_obstacle := "L3_N1"
 ## Latches, so a lesson and a line are each spent once per run rather than once per frame.
 var _said_underwater := false
 var _brush_taken := false
+var _bangka_found := false
+## Which seabed refills have been taken this run, by index. Run state, not profile: a
+## checkpoint restore that handed them all back would make the crossing free.
+var _refills_taken: Array = []
+var _bangka: Area2D
 
 
 # --- What the machine asks -------------------------------------------------------------
@@ -69,6 +77,7 @@ func _resolve_level_nodes() -> void:
 		plane.get_concatenated_names() + "/DialogueNode") as DialogueNode2D
 	_bakunawa_node = get_node_or_null(
 		plane.get_concatenated_names() + "/BakunawaNode") as DialogueNode2D
+	_shore_node = dialogue_node
 	_sea = get_node_or_null(plane.get_concatenated_names() + "/Sea") as WaterArea2D
 	_marks = get_node_or_null(plane.get_concatenated_names() + "/Marks") as Node2D
 	var waterline := _mark("WaterlineMark")
@@ -106,6 +115,8 @@ func _build_level_furniture() -> void:
 		_drain.ink_emptied.connect(_on_drain_emptied)
 
 	_plant_the_brush()
+	_plant_the_bangka()
+	_plant_the_refills()
 
 
 func _roster_ids() -> PackedStringArray:
@@ -152,6 +163,75 @@ func _plant_the_brush() -> void:
 	pickup.body_entered.connect(_on_brush_touched.bind(pickup))
 
 
+## THE BOAT IS FOUND, NOT DRAWN -- the design decided it, on the grounds that finding fits
+## the Artist framing the way Piyesta's Artist route was about looking and asking rather than
+## making. So it is beached on the sand from the start and E is what answers the route.
+##
+## ⚠ IT IS NOT A PROP. Taking it puts a real `sailboat` in the water, which already carries
+## the player: `run_behaviour_audit` measures it at 570px with a passenger aboard. A found
+## boat that could not be sailed would answer the fork and then strand the player on the
+## shore with the route solved, which is a worse dead end than no boat at all.
+func _plant_the_bangka() -> void:
+	var mark := _mark("BangkaMark")
+	if mark == null:
+		return
+	_bangka = Area2D.new()
+	_bangka.name = "BeachedBangka"
+	_bangka.collision_layer = 0
+	_bangka.collision_mask = 0
+	var art := Polygon2D.new()
+	art.polygon = PackedVector2Array([
+		Vector2(-70, 0), Vector2(70, 0), Vector2(52, 26), Vector2(-52, 26)])
+	art.color = Color(0.45, 0.31, 0.19, 1.0)
+	_bangka.add_child(art)
+	_bangka.global_position = mark.global_position
+	_bangka.z_index = 6
+	mark.get_parent().add_child(_bangka)
+
+
+## Ink comes back from sources placed in the level, never over time -- the design is explicit
+## that time-based regeneration "would make the whole economy decorative". Three of them down
+## the dive route, because that route is transformed from start to finish and the boat is not.
+func _plant_the_refills() -> void:
+	var coral := _mark("CoralMark")
+	if coral == null:
+		return
+	var economy: Dictionary = director.level_data().get("ink_economy", {})
+	var amount := float(economy.get("refill_units", 1.5))
+	var spots := [
+		Vector2(1500.0, 1400.0), Vector2(2400.0, 1460.0), Vector2(3200.0, 1420.0)]
+	for index in spots.size():
+		if _refills_taken.has(index):
+			continue
+		var refill := Area2D.new()
+		refill.name = "Refill%d" % index
+		refill.collision_layer = 0
+		refill.collision_mask = 1
+		var shape := CollisionShape2D.new()
+		var circle := CircleShape2D.new()
+		circle.radius = 52.0
+		shape.shape = circle
+		refill.add_child(shape)
+		var art := Polygon2D.new()
+		art.polygon = PackedVector2Array([
+			Vector2(0, -30), Vector2(22, 0), Vector2(0, 30), Vector2(-22, 0)])
+		art.color = Color(0.15, 0.13, 0.28, 0.92)
+		refill.add_child(art)
+		refill.global_position = spots[index]
+		refill.z_index = 6
+		coral.get_parent().add_child(refill)
+		refill.body_entered.connect(_on_refill_touched.bind(index, amount, refill))
+
+
+func _on_refill_touched(body: Node, index: int, amount: float, refill: Area2D) -> void:
+	if _refills_taken.has(index) or not body.is_in_group(&"player_character"):
+		return
+	_refills_taken.append(index)
+	ink_manager.add_ink(amount)
+	_say_why("There. That will hold you a while longer.")
+	refill.queue_free()
+
+
 func _on_brush_touched(body: Node, pickup: Area2D) -> void:
 	if _brush_taken or not body.is_in_group(&"player_character"):
 		return
@@ -172,6 +252,14 @@ func _on_brush_touched(body: Node, pickup: Area2D) -> void:
 ## screen; this only adds the volume Piyesta had no equivalent of.
 func _wire_dialogue_node() -> void:
 	super()
+	# ⚠ THE APPROACH IS RE-ROUTED, AND THE REST OF super() IS KEPT. The base wires one node
+	# and reads `dialogue_node` for everything; with two forks, something has to say WHICH
+	# one is being asked before the base's handler runs. Disconnecting just the one signal
+	# leaves the overlay, the memory screen and route_chosen wired exactly as they were.
+	if dialogue_node != null \
+			and dialogue_node.approached.is_connected(_on_dialogue_node_approached):
+		dialogue_node.approached.disconnect(_on_dialogue_node_approached)
+		dialogue_node.approached.connect(_on_shore_fork_approached)
 	if _bakunawa_node == null:
 		return
 	_bakunawa_node.approached.connect(_on_bakunawa_approached)
@@ -293,7 +381,87 @@ func _carry_to_the_surface() -> void:
 	player.call("apply_morph_state", {"position": surface, "linear_velocity": Vector2.ZERO})
 
 
+## E AT THE BOAT. The only thing in this level that answers the interact key and is neither a
+## drawing nor a signpost.
+func _interact_with_level() -> bool:
+	if _bangka == null or not is_instance_valid(_bangka) or _bangka_found:
+		return false
+	if director == null or director.is_solved("L3_N1"):
+		return false
+	# ⚠ ONLY ONCE THE ROUTE IS TAKEN. Finding the boat before the fork has been answered
+	# would commit the player to a crossing they were never offered, and R6 is explicit that
+	# answering the dialogue is not the answer -- but the reverse holds too: the world must
+	# not answer a question the player has not been asked.
+	if director.committed_route("L3_N1") != "artist":
+		return false
+	if player == null or not is_instance_valid(player):
+		return false
+	if player.global_position.distance_to(_bangka.global_position) > 140.0:
+		return false
+	_bangka_found = true
+	_bangka.queue_free()
+	_launch_the_bangka()
+	director.solve_with_item("L3_N1", "bangka")
+	return true
+
+
+## ⚠ solve_with_item, NEVER note_submission. A beat answered by something other than a
+## drawing must not go through the recogniser's path, or a class nobody drew enters the
+## per-class precision and recall figures the thesis reports.
+func _launch_the_bangka() -> void:
+	var mark := _mark("WaterlineMark")
+	if mark == null or registry == null:
+		return
+	var boat := registry.instantiate_entity("sailboat") as UtilityObject
+	if boat == null:
+		return
+	# ⚠ WorldItemRoot, NOT EntityRoot. _nearest_interactable_utility skips everything whose
+	# parent is not world_item_root -- that is how a tool held in the hand keeps its
+	# placed_drawings group without offering E -- so a boat parented anywhere else floats
+	# correctly, looks right, and cannot be boarded. EntityRoot is where the player's own
+	# body goes.
+	world_item_root.add_child(boat)
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	boat.apply_item_data(DrawnItemData.from_prediction(
+		"sailboat", "Bangka", sheet, [{
+			"points": PackedVector2Array([
+				Vector2(0, 0), Vector2(120, 0), Vector2(100, 40), Vector2(20, 40), Vector2(0, 0)]),
+			"width": 6.0, "color": Color.BLACK,
+		}], 0.0, registry.get_entity("sailboat")))
+	# Afloat, just past the waterline, where the player is standing when they find it.
+	boat.global_position = Vector2(mark.global_position.x + 120.0, mark.global_position.y + 10.0)
+	boat.confirm_placement()
+	_say_why("Somebody left this and never came back for it. Get in, apo.")
+
+
 # --- The two forks -----------------------------------------------------------------------
+
+func _on_shore_fork_approached() -> void:
+	_live_node_obstacle = "L3_N1"
+	dialogue_node = _shore_node
+	_on_dialogue_node_approached()
+
+
+## ⚠ THE SHORE BEAT GATES THE FORK, AND WITHOUT THIS DAGAT IS NOT A DRAWING GAME.
+##
+## Both of the crossing's answers can be reached on foot -- the fork is a trigger volume, not
+## a wall -- and the Artist one is `answered_by` rather than a drawing. So a player could walk
+## past the practice beat, answer the fork, find the boat, get in and sail across having drawn
+## nothing at all. Measured, not supposed: a probe did exactly that.
+##
+## The design already says where the fix belongs. The shore "has to teach the replacement
+## before the fork, not after -- once they are underwater, learning the ink rule by running
+## out of it is a punishment, not a lesson." A beat that can be walked past does not teach
+## anything, so the fork waits for it.
+func _dialogue_node_is_ready() -> bool:
+	if _live_node_obstacle != "L3_N1" or director == null:
+		return true
+	if director.is_solved("L3_B0_SHORE"):
+		return true
+	_say_why("Not yet, apo. Try it here first, where you can still stand up.")
+	return false
+
 
 func _on_bakunawa_approached() -> void:
 	# The base's handler reads `dialogue_node` and `_dialogue_node_obstacle_id()`, so both
@@ -375,6 +543,8 @@ func _level_run_state() -> Dictionary:
 		"live_node": _live_node_obstacle,
 		"said_underwater": _said_underwater,
 		"brush_taken": _brush_taken,
+		"bangka_found": _bangka_found,
+		"refills_taken": _refills_taken.duplicate(),
 	}
 
 
@@ -382,6 +552,8 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	_live_node_obstacle = String(state.get("live_node", "L3_N1"))
 	_said_underwater = bool(state.get("said_underwater", false))
 	_brush_taken = bool(state.get("brush_taken", false))
+	_bangka_found = bool(state.get("bangka_found", false))
+	_refills_taken = (state.get("refills_taken", []) as Array).duplicate()
 	# A restore is a new body or none at all, so the drain starts again rather than resuming
 	# a form that is no longer standing.
 	if _drain != null:
