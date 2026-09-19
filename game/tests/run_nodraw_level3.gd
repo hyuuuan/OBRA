@@ -119,6 +119,26 @@ func _run() -> void:
 		_check(float(wet["deepest"]) < 400.0, "and never sinks out of reach",
 			"deepest %.0fpx below the waterline" % float(wet["deepest"]))
 
+	# ⚠ THE BOAT EXPLOIT, CHECKED EXPLICITLY BECAUSE IT WAS REAL.
+	#
+	# Two of this level's routes are answered_by rather than drawings, and the fork is a
+	# trigger volume rather than a wall. So the crossing could be answered on foot: walk past
+	# the practice beat, take the Artist route, find the boat, get in, sail. A probe did
+	# exactly that, and T1 was green the whole time because the walking bot never lingered
+	# near the hull long enough to press E at it.
+	#
+	# The fix is that the shore beat gates the fork. This is the check that says so, and it
+	# presses E at the boat's own position rather than hoping the bot wanders into range.
+	_route_choice = 0
+	var sneak := await _try_the_boat()
+	_check(not bool(sneak["committed"]),
+		"the fork does not open before the practice beat",
+		"L3_N1 route committed: '%s'" % String(sneak["route"]))
+	_check(not bool(sneak["solved"]), "so the boat cannot be found with nothing drawn",
+		"L3_N1 solved: %s" % sneak["solved"])
+	_check(not bool(sneak["boat"]), "and no boat is put in the water",
+		"hulls afloat: %d" % int(sneak["hulls"]))
+
 	for line in results:
 		print(line)
 	print("   questions answered: %d (answering Lolo costs no ink)" % answered)
@@ -131,6 +151,45 @@ func _run() -> void:
 	else:
 		print("OBRA_NODRAW_L3_FAILED=%d" % failures)
 		quit(1)
+
+
+## Stand on the fork, then on the beached boat, and press E at both. The most determined
+## no-draw route through this level, driven deliberately rather than left to chance.
+func _try_the_boat() -> Dictionary:
+	completed = false
+	await _open_level()
+	if player == null or not is_instance_valid(player):
+		_close_level()
+		return {"committed": false, "solved": false, "boat": false, "hulls": 0, "route": ""}
+	var director = level.get("director")
+	# Onto the fork's trigger, which is where a player walks anyway.
+	player.global_position = Vector2(900.0, 500.0)
+	for _frame in range(40):
+		await physics_frame
+		_answer_any_question()
+	# And then at the beached hull, pressing E at it from touching distance.
+	player.global_position = Vector2(840.0, 500.0)
+	for _frame in range(60):
+		await physics_frame
+		level.call("press_interact")
+		_answer_any_question()
+	var world_items := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/WorldItemRoot")
+	var hulls := 0
+	if world_items != null:
+		for child in world_items.get_children():
+			if String(child.name).begins_with("Sailboat"):
+				hulls += 1
+	var out := {
+		"committed": not String(director.call("committed_route", "L3_N1")).is_empty(),
+		"route": String(director.call("committed_route", "L3_N1")),
+		"solved": bool(director.call("is_solved", "L3_N1")),
+		"boat": hulls > 0,
+		"hulls": hulls,
+	}
+	_close_level()
+	await process_frame
+	return out
 
 
 func _open_level() -> void:
@@ -218,7 +277,12 @@ func _drive() -> void:
 		elif frame % 26 == 16:
 			Input.action_release(&"jump")
 		if frame % 18 == 9:
-			level.call("_interact_with_level")
+			# ⚠ press_interact(), NOT _interact_with_level(). The level's own hook is only one
+			# branch of what E does -- it misses picking things up and, in this level, misses
+			# BOARDING THE BOAT, which is the single thing a no-draw player most wants to do
+			# here. A bot that only presses the level's half of the key reports a crossing as
+			# impossible when a player would simply have got in.
+			level.call("press_interact")
 		await physics_frame
 		_answer_any_question()
 		if player == null or not is_instance_valid(player):
