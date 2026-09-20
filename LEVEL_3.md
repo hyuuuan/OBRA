@@ -257,11 +257,18 @@ the way Payyo's props were before they were painted.
 route creases the canvas and the crease costs nothing mechanical, "to be paid back when Level
 3 is designed". Dagat is the first level since where a crease could reach something real.
 
-**7. The numbers.** Drain rate per class, starting capacity, refill size and count per route.
-The design is right that these come out of playtesting — but the probe now says the seven are
-indistinguishable at 685–762 px/ink, so **the per-class rate table is the only lever that can
-make a shark cost more to hold than a fish**. The dive route needs more refills than the boat
-route because it is transformed from start to finish.
+**7. The numbers — tuned, and now a playtesting question rather than an open one.** The seven
+differ on two axes that pull against each other: `swim_speed` in the rig profiles and the
+per-class rate in `ink_economy`. **589–956 px/ink, a 1.62× spread** (was 1.11×), with the
+inversion the design wanted — the sea turtle is slowest and goes furthest on a tank, the shark
+fastest and nearly shortest. `fish` keeps the 260 baseline so nothing else had to be re-read
+against a moved reference.
+
+**The level charges on two axes**: distance up to the encounter, **time inside it** (a sweep
+of the creature's cone is 7.6 s and has to be waited out). Three of the six refills sit in the
+arena for that reason. `run_swim_reach_probe.gd` reads the level's own economy and fails on
+either axis — both guards verified by breaking them on purpose. What is left is playtest feel,
+not arithmetic.
 
 ---
 
