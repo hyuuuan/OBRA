@@ -235,6 +235,76 @@
       "at": "ISLAND.farewell",
       "kind": "lore",
       "text": "Go on, apo. I will be in the parts I know."
+    },
+    {
+      "id": "L3_CORAL_JELLY",
+      "at": "CORAL.jelly",
+      "kind": "hint",
+      "once": true,
+      "text": "That one has no heart and no brain and it has been down here longer than anything else. It simply is, and it has never needed to be more."
+    },
+    {
+      "id": "L3_CORAL_STAR",
+      "at": "CORAL.star",
+      "kind": "hint",
+      "once": true,
+      "text": "Turn it over some time. Hundreds of little feet, all of them walking. Take an arm off it and it grows another."
+    },
+    {
+      "id": "L3_CORAL_CLAM",
+      "at": "CORAL.clam",
+      "kind": "hint",
+      "once": true,
+      "text": "It shuts when the light changes. That is the whole of its opinion about the world, and it has never once been talked out of it."
+    },
+    {
+      "id": "L3_CORAL_WEED",
+      "at": "CORAL.weed",
+      "kind": "hint",
+      "once": true,
+      "text": "Hold onto that if a current takes you, apo. It is anchored better than you are."
+    },
+    {
+      "id": "L3_CORAL_URCHIN",
+      "at": "CORAL.urchin",
+      "kind": "hint",
+      "once": true,
+      "text": "Do not. I am serious. Do not."
+    },
+    {
+      "id": "L3_CORAL_CORAL",
+      "at": "CORAL.coral",
+      "kind": "hint",
+      "once": true,
+      "text": "All of this is alive. Every bit of it. It looks like stone because it builds in stone, the way a town does."
+    },
+    {
+      "id": "L3_CORAL_SHAFT",
+      "at": "CORAL.shaft",
+      "kind": "hint",
+      "once": true,
+      "text": "Look up. That is the whole top of the world from down here. Not much to it, is there."
+    },
+    {
+      "id": "L3_CORAL_WRECK",
+      "at": "CORAL.wreck",
+      "kind": "hint",
+      "once": true,
+      "text": "Somebody lost that. Things down here belong to whoever lost them, and nobody comes to argue."
+    },
+    {
+      "id": "L3_CORAL_LOLA1",
+      "at": "CORAL.lola1",
+      "kind": "hint",
+      "once": true,
+      "text": "Your lola sat out on that sand for a week trying to get this colour. She said the water would not hold still for her."
+    },
+    {
+      "id": "L3_CORAL_LOLA2",
+      "at": "CORAL.lola2",
+      "kind": "hint",
+      "once": true,
+      "text": "She could name every one of these. I only ever learned the ones she told me twice."
     }
   ]
 }

@@ -130,6 +130,7 @@ func _build_level_furniture() -> void:
 	_plant_the_brush()
 	_plant_the_bangka()
 	_plant_the_refills()
+	_plant_the_coral_field()
 
 	if _bakunawa != null:
 		_bakunawa.gift_offered.connect(_on_gift_offered)
@@ -245,6 +246,56 @@ func _plant_the_refills() -> void:
 		refill.z_index = 6
 		coral.get_parent().add_child(refill)
 		refill.body_entered.connect(_on_refill_touched.bind(index, amount, refill))
+
+
+## THE CORAL FIELD, and the design calls it the best small idea in the draft: Lolo as
+## somebody who taught children things, which is what makes his leaving at the island cost
+## more than the painting does.
+##
+## ⚠ NO COUNTER, NO GATE, NO INK. "The moment a counter appears they become chores." Two of
+## the ten are about lola rather than the animal, so a player who stops to look at everything
+## gets something a rushing player does not, and it is story rather than an item.
+##
+## PROXIMITY RATHER THAN A KEY PRESS. The design says interact, but the player is swimming
+## when they pass these and a fun fact is not an action -- asking for E ten times is the
+## friction that turns them into the chores the design is warning about. They fire once each,
+## through the HintBar, which does not stop the world.
+##
+## ⚠ ALL TEN ARE NON-DRAWABLE CREATURES ON PURPOSE. The design asks for it so the field does
+## not read as a menu of things the player could have drawn -- and it is also the only way a
+## field of sea life can be written at all, since seventeen of the fifty are exactly what you
+## would reach for.
+func _plant_the_coral_field() -> void:
+	var coral := _mark("CoralMark")
+	if coral == null:
+		return
+	var field := {
+		"jelly": Vector2(1360.0, 1020.0), "star": Vector2(1680.0, 1480.0),
+		"clam": Vector2(1980.0, 1500.0), "weed": Vector2(2180.0, 1240.0),
+		"urchin": Vector2(2420.0, 1490.0), "coral": Vector2(2660.0, 1360.0),
+		"shaft": Vector2(2900.0, 820.0), "wreck": Vector2(3080.0, 1470.0),
+		"lola1": Vector2(1780.0, 900.0), "lola2": Vector2(3260.0, 1120.0),
+	}
+	for key: String in field.keys():
+		var spot := Area2D.new()
+		spot.name = "Coral_%s" % key
+		spot.collision_layer = 0
+		spot.collision_mask = 1
+		var shape := CollisionShape2D.new()
+		var circle := CircleShape2D.new()
+		circle.radius = 150.0
+		shape.shape = circle
+		spot.add_child(shape)
+		spot.global_position = field[key]
+		coral.get_parent().add_child(spot)
+		spot.body_entered.connect(_on_coral_touched.bind(key))
+
+
+func _on_coral_touched(body: Node, key: String) -> void:
+	if not body.is_in_group(&"player_character"):
+		return
+	# `once` on the line does the not-twice part; firing again is free and says nothing.
+	_speak(script_lines.fire("CORAL.%s" % key))
 
 
 func _on_refill_touched(body: Node, index: int, amount: float, refill: Area2D) -> void:
