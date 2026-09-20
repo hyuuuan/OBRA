@@ -66,6 +66,7 @@ var _knocks := 0
 var _knock_cooldown := 0.0
 ## Stops the stealth reset firing again on the frames between being seen and being moved.
 var _reset_cooldown := 0.0
+var _arrived := false
 
 
 # --- What the machine asks -------------------------------------------------------------
@@ -136,6 +137,10 @@ func _build_level_furniture() -> void:
 		_bakunawa.begin_search()
 	if director != null:
 		director.route_committed.connect(_on_route_committed_here)
+	var arrival := get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/IslandArrival") as CheckpointArea2D
+	if arrival != null:
+		arrival.reached.connect(_on_island_reached)
 
 
 func _roster_ids() -> PackedStringArray:
@@ -610,6 +615,55 @@ func _award_the_flower() -> void:
 	script_lines.set_flag("has_flower_3")
 
 
+# --- The island ----------------------------------------------------------------------------
+
+## Reaching the far sand, which is the end of the level.
+##
+## ⚠ THE ARRIVAL IS SCRIPTED, AND IT HAS TO BE. The player gets here as something that swims,
+## and a thing that swims cannot walk up a beach -- the fish drive on land is a flop with no
+## horizontal drive at all. Reverting them in open water instead would hand them straight to
+## the drowning rescue. So the level reverts them AND puts them on the sand in one breath.
+func _on_island_reached(_checkpoint_id: String) -> void:
+	if _arrived or director == null or not director.is_solved("L3_N2"):
+		return
+	_arrived = true
+	_come_ashore()
+	# THE PAINTING FIRST, THE FAREWELL SECOND, then cut. Lolo leaving is the level's real
+	# ending, not the painting, so it gets the last word.
+	_speak(script_lines.fire("ISLAND.enter"))
+	_tell_the_other_half()
+	_speak(script_lines.fire("ISLAND.farewell"))
+	# ⚠ AND LEVEL 4 INHERITS IT. Dilim being unguided is the point, so it has to carry its
+	# own signposting with nobody to explain anything. That is a Level 4 problem created here.
+	PlayerProfile.record_lolo_departed()
+	_complete_level()
+
+
+func _come_ashore() -> void:
+	_revert_to_base_form()
+	var sand := _mark("IslandMark")
+	if sand == null or player == null or not is_instance_valid(player):
+		return
+	if player.has_method("apply_morph_state"):
+		player.call("apply_morph_state", {
+			"position": sand.global_position - Vector2(0.0, 40.0),
+			"linear_velocity": Vector2.ZERO,
+		})
+
+
+## WHICHEVER HALF THEY HAVE NOT HEARD. The reveal splits across the two routes and both
+## halves land in full here, so no player leaves Dagat without the whole of it -- the design
+## uses the fork instead of working around it.
+##
+## Branched in code rather than with `condition`, because a dialogue line's condition fires
+## when a flag IS set and what is wanted here is the inverse. There is no `unless`.
+func _tell_the_other_half() -> void:
+	if not script_lines.is_flag_set("heard_how_he_died"):
+		_speak(script_lines.fire("ISLAND.how_he_died"))
+	if not script_lines.is_flag_set("heard_about_lola"):
+		_speak(script_lines.fire("ISLAND.about_lola"))
+
+
 # --- What the player should be doing now --------------------------------------------------
 
 ## DERIVED, NEVER SET -- an objective written at the moment something happened is wrong after
@@ -648,6 +702,7 @@ func _level_run_state() -> Dictionary:
 		"bangka_found": _bangka_found,
 		"refills_taken": _refills_taken.duplicate(),
 		"knocks": _knocks,
+		"arrived": _arrived,
 	}
 
 
@@ -658,6 +713,7 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	_bangka_found = bool(state.get("bangka_found", false))
 	_refills_taken = (state.get("refills_taken", []) as Array).duplicate()
 	_knocks = int(state.get("knocks", 0))
+	_arrived = bool(state.get("arrived", false))
 	# A restore is a new body or none at all, so the drain starts again rather than resuming
 	# a form that is no longer standing.
 	if _drain != null:

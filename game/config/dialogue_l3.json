@@ -2,7 +2,7 @@
   "$comment": [
     "LEVEL 3 -- DAGAT. Lolo's lines, and the apo's own at the two forks.",
     "",
-    "⚠ NO LINE MAY NAME A DRAWABLE CLASS, and this level is where that rule is hardest.",
+    "\u26a0 NO LINE MAY NAME A DRAWABLE CLASS, and this level is where that rule is hardest.",
     "Seventeen of the fifty are things you would reach for writing about the sea: fish,",
     "shark, octopus, crab, sea turtle, penguin, frog, sun, cloud, sailboat, submarine,",
     "flashlight, sword, axe, cannon, boomerang, anvil. The check is word-boundary and",
@@ -37,7 +37,7 @@
       "id": "L3_B0_003",
       "at": "L3_B0_SHORE.sub1",
       "kind": "hint",
-      "text": "No counting down any more. Hold a shape as long as you like — but it drinks the whole time it is holding. Something that can **swim**, and get into the shallows with it."
+      "text": "No counting down any more. Hold a shape as long as you like \u2014 but it drinks the whole time it is holding. Something that can **swim**, and get into the shallows with it."
     },
     {
       "id": "L3_B0_004",
@@ -63,7 +63,6 @@
       "kind": "lore",
       "text": "Her old one gave you a moment and took it back. This one gives you as long as you can pay for. I am not sure yet which of those is kinder."
     },
-
     {
       "id": "L3_N1_001",
       "at": "L3_N1.enter",
@@ -106,7 +105,7 @@
       "id": "L3_N1_007",
       "at": "L3_N1.artist.solved",
       "kind": "lore",
-      "text": "Hah. Somebody left that and never came back for it. Push off, apo — I will sit at this end and keep out of your way."
+      "text": "Hah. Somebody left that and never came back for it. Push off, apo \u2014 I will sit at this end and keep out of your way."
     },
     {
       "id": "L3_N1_008",
@@ -114,12 +113,11 @@
       "kind": "lore",
       "text": "Go on then. I will keep up. I am not carrying anything any more, so it is easy for me."
     },
-
     {
       "id": "L3_N2_001",
       "at": "L3_N2.enter",
       "kind": "lore",
-      "text": "Wait. Wait. Do you see how it is going — back and forth over the same stretch, over and over? It is not hunting us. It has lost something."
+      "text": "Wait. Wait. Do you see how it is going \u2014 back and forth over the same stretch, over and over? It is not hunting us. It has lost something."
     },
     {
       "id": "L3_N2_002",
@@ -137,7 +135,7 @@
       "id": "L3_N2_004",
       "at": "L3_N2.teach",
       "kind": "hint",
-      "text": "Or nothing at all. It cannot see you either — keep out of the bright and it will never know you went by."
+      "text": "Or nothing at all. It cannot see you either \u2014 keep out of the bright and it will never know you went by."
     },
     {
       "id": "L3_N2_005",
@@ -170,7 +168,7 @@
       "id": "L3_N2_009",
       "at": "L3_N2.artist.solved",
       "kind": "lore",
-      "text": "Look at it go. It had been over that same patch a hundred times and it only needed somebody to hold something up. Oh — apo. It is giving it to you."
+      "text": "Look at it go. It had been over that same patch a hundred times and it only needed somebody to hold something up. Oh \u2014 apo. It is giving it to you."
     },
     {
       "id": "L3_N2_010",
@@ -188,7 +186,55 @@
       "id": "L3_N2_012",
       "at": "L3_N2.protector.solved",
       "kind": "lore",
-      "text": "It has had enough. Let it go, apo — let it go. It never knew you were there. That is the part I want you to keep."
+      "text": "It has had enough. Let it go, apo \u2014 let it go. It never knew you were there. That is the part I want you to keep."
+    },
+    {
+      "id": "L3_ISL_001",
+      "at": "ISLAND.enter",
+      "kind": "lore",
+      "text": "There. In the sand, where the light is catching it. That is the next one."
+    },
+    {
+      "id": "L3_ISL_002",
+      "at": "ISLAND.how_he_died",
+      "kind": "lore",
+      "text": "I should tell you the rest of it, before you go on. It happened out there, past where we came in. An afternoon like any other."
+    },
+    {
+      "id": "L3_ISL_003",
+      "at": "ISLAND.how_he_died",
+      "kind": "lore",
+      "text": "I did not get to say anything to anybody. That is the part I would change, if I were allowed to change one part."
+    },
+    {
+      "id": "L3_ISL_004",
+      "at": "ISLAND.about_lola",
+      "kind": "lore",
+      "text": "And your lola kept painting. This same water, from that same stretch of sand, over and over."
+    },
+    {
+      "id": "L3_ISL_005",
+      "at": "ISLAND.about_lola",
+      "kind": "lore",
+      "text": "Every one of them came out a little further from what it looks like. She does not always know me now, apo. She still knows which end of the handle to hold."
+    },
+    {
+      "id": "L3_ISL_006",
+      "at": "ISLAND.farewell",
+      "kind": "lore",
+      "text": "This is where I stop."
+    },
+    {
+      "id": "L3_ISL_007",
+      "at": "ISLAND.farewell",
+      "kind": "lore",
+      "text": "Past here I do not remember. I was not there for it, so there is nothing of me in it to walk through \u2014 you would be going on alone whether I came or not."
+    },
+    {
+      "id": "L3_ISL_008",
+      "at": "ISLAND.farewell",
+      "kind": "lore",
+      "text": "Go on, apo. I will be in the parts I know."
     }
   ]
 }

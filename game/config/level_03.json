@@ -27,7 +27,7 @@
   "order": 3,
   "goal": "cross the sea, get past what is in it, and reach the next painting on the far sand",
   "unlocks_on_complete": "L4_DILIM",
-  "unlocks_at_checkpoint": "CP3",
+  "unlocks_at_checkpoint": "CP4",
   "tags_unlocked": [
     {
       "tag": "swim",
@@ -67,6 +67,12 @@
         "protector"
       ],
       "$comment": "The design's own decision: 'a checkpoint sits partway through the encounter, so a reset costs the current stretch and not the whole approach. An encounter-length reset with no mid-point turns a five-minute section into twenty.' It serves both of the resolutions that can be lost -- contact while slipping past, and losing the fight."
+    },
+    {
+      "id": "CP4",
+      "at": "ISLAND",
+      "trigger": "area",
+      "$comment": "THE ARRIVAL, and it is a checkpoint because every CheckpointArea2D in a scene must be declared here or the level errors at load. Reaching it past the encounter is what ends the level; the write is incidental."
     }
   ],
   "restrictions": {

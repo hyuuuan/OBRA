@@ -3525,7 +3525,10 @@ func _complete_level() -> void:
 	# size as walking around. The bars come in on the terrace she is standing on, hold for a
 	# beat with her name for the level in them, and the panel arrives into that.
 	if cinematic != null:
-		cinematic.close("PAYYO")
+		# ⚠ THE LEVEL'S OWN NAME, not Payyo's. This was a literal, so Piyesta closed on a
+		# card reading PAYYO and Dagat would have too -- the one moment the game stops to
+		# acknowledge what the player just finished, naming a different level.
+		cinematic.close(String(LevelManager.get_level(level_id).get("title", "")).to_upper())
 		await get_tree().create_timer(1.1, true, false, true).timeout
 	# The transition used to fire HERE, on the same frame, so the one moment the game
 	# acknowledges the player lasted a frame and was never read. It now waits for them.
