@@ -10,6 +10,8 @@ extends SceneTree
 ## It also checks the two things the level owes the rest of the game on the way out: Lolo
 ## stops here, and the lore lands in full whichever way the player crossed.
 
+const RosterFixtures = preload("res://tests/roster_fixtures.gd")
+
 var level: Node
 var results: Array[String] = []
 var failures := 0
@@ -60,22 +62,6 @@ func _finish_by(crossing: String, encounter: String) -> void:
 	_check(bool(director.call("is_solved", "L3_B0_SHORE")),
 		"the shore is answered by a drawing (%s)" % tag, "a Swim answer solves it")
 
-	# THE CORAL FIELD, on the dive only. Free, ungated and uncounted -- so the only thing
-	# that can be checked is that swimming past one makes Lolo say something, which is
-	# exactly the thing that silently stops working when a hook is renamed.
-	if crossing == "pragmatist":
-		var spoken := 0
-		for spot: Vector2 in [Vector2(1360.0, 1020.0), Vector2(1780.0, 900.0),
-				Vector2(2900.0, 820.0)]:
-			(level.get("player") as Node2D).global_position = spot
-			for _frame in range(12):
-				await physics_frame
-		for key: String in ["jelly", "lola1", "shaft"]:
-			if bool(script_lines.call("has_heard", "CORAL.%s" % key)):
-				spoken += 1
-		_check(spoken == 3, "the coral field speaks (%s)" % tag,
-			"%d of 3 facts fired by swimming past them" % spoken)
-
 	# The crossing.
 	director.call("enter_obstacle", "L3_N1")
 	director.call("commit_route", "L3_N1", crossing)
@@ -86,6 +72,65 @@ func _finish_by(crossing: String, encounter: String) -> void:
 	director.call("exit_obstacle", "L3_N1")
 	_check(bool(director.call("is_solved", "L3_N1")), "the sea is crossed (%s)" % tag,
 		"route '%s'" % String(director.call("committed_route", "L3_N1")))
+	# ⚠ AFTER THE COMMIT, NOT BEFORE IT. Both blocks below depend on the route having been
+	# taken -- the lore is gated on committed_route and the staging happens at the solve --
+	# and running them first was a probe that crossed a sea nobody had chosen to cross. It
+	# reported the shadow as never seen and let the island quietly cover for the missing half.
+	# ⚠ CROSS IT, DO NOT TELEPORT PAST IT. The lore is paced along the crossing and fires
+	# from _level_physics, so a probe that jumps from the shore to the island skips the whole
+	# of it -- and, before the flags were fixed, still reported the lore as heard.
+	#
+	# ⚠ AND CROSS IT IN A BODY THE PLAYER WOULD ACTUALLY HAVE. Dragging a bare apo through
+	# deep water is not a crossing, it is drowning: the base rescues an un-morphed Wanderer
+	# after 1.1s submerged, and the rescue restores a checkpoint, which rolls the director's
+	# obstacle state back. That silently un-solved the encounter a frame after it was solved
+	# and reported it as never resolving. On the dive the player is a fish; on the boat they
+	# are on the deck, above the waterline.
+	if crossing == "pragmatist":
+		var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+		sheet.fill(Color.WHITE)
+		level.call("_spawn_or_replace", "fish", "Fish", sheet,
+			RosterFixtures.for_rig("swimmer", "fish"))
+		await physics_frame
+	var deck := 520.0 if crossing == "artist" else 1150.0
+	for x in [1300.0, 1900.0, 2500.0, 3050.0, 3350.0, 3420.0]:
+		_place(Vector2(x, deck))
+		for _frame in range(10):
+			await physics_frame
+
+	# THE CORAL FIELD, on the dive only. Free, ungated and uncounted -- so the only thing
+	# that can be checked is that swimming past one makes Lolo say something, which is
+	# exactly the thing that silently stops working when a hook is renamed.
+	if crossing == "pragmatist":
+		var spoken := 0
+		for spot: Vector2 in [Vector2(1360.0, 1020.0), Vector2(1780.0, 900.0),
+				Vector2(2900.0, 820.0)]:
+			_place(spot)
+			for _frame in range(12):
+				await physics_frame
+		for key: String in ["jelly", "lola1", "shaft"]:
+			if bool(script_lines.call("has_heard", "CORAL.%s" % key)):
+				spoken += 1
+		_check(spoken == 3, "the coral field speaks (%s)" % tag,
+			"%d of 3 facts fired by swimming past them" % spoken)
+
+	var creature := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/Bakunawa") as Node2D
+	var surface := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/Marks/SurfaceMark") as Node2D
+	if crossing == "artist":
+		# ⚠ THE SURFACE STAGING. From the boat it is silhouette and back; a creature left at
+		# depth is an encounter a boat player cannot reach at all.
+		_check(absf(creature.global_position.y - surface.global_position.y) < 40.0,
+			"and the encounter comes up to meet the boat (%s)" % tag,
+			"staged at y %.0f" % creature.global_position.y)
+		_check(bool(script_lines.call("has_heard", "L3_BOAT.shadow")),
+			"and its shadow crosses first (%s)" % tag,
+			"seen before the creature is")
+	else:
+		_check(creature.global_position.y > surface.global_position.y + 200.0,
+			"and the encounter stays down there (%s)" % tag,
+			"staged at y %.0f" % creature.global_position.y)
 
 	# The encounter.
 	director.call("enter_obstacle", "L3_N2")
@@ -103,8 +148,6 @@ func _finish_by(crossing: String, encounter: String) -> void:
 			if String(profile.call("bakunawa_outcome")) == "LIT":
 				break
 	else:
-		var creature = level.get_node_or_null(
-			^"EnvironmentBaseplate/GameplayPlane/Bakunawa")
 		director.call("note_submission", "cannon")
 		for _swing in range(6):
 			creature.call("apply_tool_hit", "cannon", 420.0, null)
@@ -114,10 +157,9 @@ func _finish_by(crossing: String, encounter: String) -> void:
 		"outcome '%s'" % String(profile.call("bakunawa_outcome")))
 
 	# The far sand.
-	var player := level.get("player") as Node2D
 	var arrival := level.get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/IslandArrival") as Node2D
-	player.global_position = arrival.global_position
+	_place(arrival.global_position)
 	# _complete_level stages the cinematic bars and holds for 1.1s before the panel arrives,
 	# so that the one moment the game acknowledges the player is not a single frame long.
 	# Thirty frames is half of it.
@@ -129,14 +171,20 @@ func _finish_by(crossing: String, encounter: String) -> void:
 		"and the level ends on the island (%s)" % tag, "the completion panel is up")
 	_check(bool(profile.call("is_level_completed", "level_3")),
 		"and is recorded as completed (%s)" % tag, "level_3 in levels_completed")
-	# ⚠ THE WHOLE OF THE LORE, WHICHEVER WAY THEY CAME. The reveal splits across the two
-	# routes and both halves land here, so no player leaves Dagat without all of it.
-	_check(bool(script_lines.call("has_heard", "ISLAND.how_he_died"))
-			or bool(script_lines.call("is_flag_set", "heard_how_he_died")),
-		"and the first half of the lore landed (%s)" % tag, "on the boat or at the island")
-	_check(bool(script_lines.call("has_heard", "ISLAND.about_lola"))
-			or bool(script_lines.call("is_flag_set", "heard_about_lola")),
-		"and the second half did too (%s)" % tag, "on the dive or at the island")
+	# ⚠ THE WHOLE OF THE LORE, WHICHEVER WAY THEY CAME, AND A FLAG IS NOT EVIDENCE OF IT.
+	#
+	# This used to accept `is_flag_set` as proof, and the flags were set at the moment the
+	# route was taken rather than when a word was spoken -- so it passed while BOTH halves
+	# were missing from both routes and the island skipped them for being "already heard".
+	# The only thing that proves a line landed is the line having been fired.
+	var how_he_died := bool(script_lines.call("has_heard", "ISLAND.how_he_died")) \
+		or bool(script_lines.call("has_heard", "L3_BOAT.lore4"))
+	var about_lola := bool(script_lines.call("has_heard", "ISLAND.about_lola")) \
+		or bool(script_lines.call("has_heard", "L3_DIVE.lore4"))
+	_check(how_he_died, "and how he died was actually spoken (%s)" % tag,
+		"on the boat or, failing that, at the island")
+	_check(about_lola, "and what it did to lola was too (%s)" % tag,
+		"on the dive or, failing that, at the island")
 	# And he stops.
 	_check(not bool(profile.call("lolo_is_present")),
 		"and Lolo does not go on to Dilim (%s)" % tag, "lolo_present is false")
@@ -146,6 +194,20 @@ func _finish_by(crossing: String, encounter: String) -> void:
 	level.queue_free()
 	level = null
 	await process_frame
+
+
+## ⚠ THROUGH apply_morph_state WHEN THERE IS ONE. A rig's bodies are top_level, so writing
+## the morph node's global_position moves the node and leaves the physics at the origin --
+## the trap run_water_audit.gd documents and the reason its fish readings were once identical
+## across three code states.
+func _place(at: Vector2) -> void:
+	var body := level.get("player") as Node2D
+	if body == null or not is_instance_valid(body):
+		return
+	if body.has_method("apply_morph_state"):
+		body.call("apply_morph_state", {"position": at, "linear_velocity": Vector2.ZERO})
+	else:
+		body.global_position = at
 
 
 func _unpause() -> void:
