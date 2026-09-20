@@ -67,6 +67,10 @@ var _knock_cooldown := 0.0
 ## Stops the stealth reset firing again on the frames between being seen and being moved.
 var _reset_cooldown := 0.0
 var _arrived := false
+## Which lore beats have been spoken this run, by hook. The crossing is a scene rather than a
+## trigger the player can re-cross, and a beat spoken twice is worse than one spoken late.
+var _told: Dictionary = {}
+var _shadow: Node2D
 
 
 # --- What the machine asks -------------------------------------------------------------
@@ -292,14 +296,14 @@ func _plant_the_coral_field() -> void:
 
 
 func _on_coral_touched(body: Node, key: String) -> void:
-	if not body.is_in_group(&"player_character"):
+	if not _is_the_player(body):
 		return
 	# `once` on the line does the not-twice part; firing again is free and says nothing.
 	_speak(script_lines.fire("CORAL.%s" % key))
 
 
 func _on_refill_touched(body: Node, index: int, amount: float, refill: Area2D) -> void:
-	if _refills_taken.has(index) or not body.is_in_group(&"player_character"):
+	if _refills_taken.has(index) or not _is_the_player(body):
 		return
 	_refills_taken.append(index)
 	ink_manager.add_ink(amount)
@@ -307,8 +311,23 @@ func _on_refill_touched(body: Node, index: int, amount: float, refill: Area2D) -
 	refill.queue_free()
 
 
+## ⚠ WALK THE PARENT CHAIN. `player_character` is on the morph's ROOT, and what actually
+## enters an Area2D is one of the rig's RigidBody2D segments -- so a direct group test on the
+## colliding body is true for the apo and false for every drawn creature. The seabed refills
+## are the ones that mattered: they sit where the player is ALWAYS a morph, so they could
+## never have been picked up, and the only symptom would have been a crossing that ran out of
+## ink. DialogueNode2D has carried the same walk since Level 1.
+func _is_the_player(body: Node) -> bool:
+	var node := body
+	while node != null:
+		if node.is_in_group(&"player_character") or node is ActiveRagdollMorph:
+			return true
+		node = node.get_parent()
+	return false
+
+
 func _on_brush_touched(body: Node, pickup: Area2D) -> void:
-	if _brush_taken or not body.is_in_group(&"player_character"):
+	if _brush_taken or not _is_the_player(body):
 		return
 	_brush_taken = true
 	PlayerProfile.record_new_brush()
@@ -386,6 +405,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	var delta := get_physics_process_delta_time()
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
+	_tell_the_crossing(anchor_position)
 
 	if underwater and not _said_underwater:
 		_said_underwater = true
@@ -639,12 +659,19 @@ func _lose_the_stretch(why: String) -> void:
 
 
 func _on_route_solved(obstacle_id: String, route: String) -> bool:
-	if obstacle_id == "L3_N1" and route == "artist":
-		# The boat is FOUND, not drawn. Nothing to spawn and nothing to judge.
-		script_lines.set_flag("heard_how_he_died")
-		return false
-	if obstacle_id == "L3_N1" and route == "pragmatist":
-		script_lines.set_flag("heard_about_lola")
+	if obstacle_id == "L3_N1":
+		# ⚠ THE FLAGS ARE NOT SET HERE ANY MORE, AND SETTING THEM HERE WAS A BUG. They said
+		# the lore had been heard at the moment the route was taken -- before a word of it was
+		# spoken -- and the island skips whichever half is flagged. So a boat player never
+		# heard how he died and a dive player never heard about lola: the heart of the level,
+		# missing on both routes, with every suite green. They are set now by the crossing
+		# itself, in _told_the_boat and _told_the_dive, when the last line actually lands.
+		if route == "artist" and _bakunawa != null:
+			# THE SURFACE STAGING. From up here it is silhouette and back; from below the
+			# player is inside its space. One creature, moved -- see Bakunawa2D.stage_at.
+			var surface := _mark("SurfaceMark")
+			if surface != null:
+				_bakunawa.stage_at(surface.global_position.y)
 		return false
 	if obstacle_id == "L3_N2":
 		if route == "artist" and _bakunawa != null:
@@ -666,6 +693,93 @@ func _award_the_flower() -> void:
 	script_lines.set_flag("has_flower_3")
 
 
+# --- The crossing, which is where the lore lives --------------------------------------------
+
+## ⚠ THE TWO CROSSINGS TELL DIFFERENT HALVES AND THEY TELL THEM DIFFERENTLY, and that second
+## part is the whole reason the fork exists rather than a coin toss.
+##
+## THE BOAT stops the world. The apo is seated and rowing with nothing to do but listen --
+## "the only scene in the game where they cannot draw their way out of a conversation" -- so
+## its lines go to the DialogueBox, which pauses and waits for a key.
+##
+## THE DIVE does not. He talks while the apo swims, unable to look at him, so its lines go to
+## the HintBar, which does not stop anything. Making both of them pause would have thrown
+## away the contrast the fork is for.
+func _tell_the_crossing(anchor_position: Vector2) -> void:
+	if director == null or _arrived:
+		return
+	match director.committed_route("L3_N1"):
+		"artist":
+			_told_the_boat(anchor_position)
+		"pragmatist":
+			_told_the_dive(anchor_position)
+
+
+func _told_the_boat(anchor_position: Vector2) -> void:
+	# Paced along the crossing rather than fired in a block, so the sea goes past underneath
+	# it and the silence between lines is part of the scene.
+	for step in [[1250.0, "L3_BOAT.lore1"], [1850.0, "L3_BOAT.lore2"],
+			[2450.0, "L3_BOAT.lore3"], [3000.0, "L3_BOAT.lore4"],
+			[3300.0, "L3_BOAT.lore5"]]:
+		if anchor_position.x >= float(step[0]):
+			_tell(String(step[1]))
+	# The shadow comes LAST and before the creature: it is the bakunawa's own silhouette,
+	# seen before the bakunawa is, which makes the shape a foreshadow rather than a second
+	# animal the player might think they could have drawn.
+	if anchor_position.x >= 3380.0 and not _told.has("L3_BOAT.shadow"):
+		_tell("L3_BOAT.shadow")
+		_cast_the_shadow()
+	if _told.has("L3_BOAT.lore4"):
+		script_lines.set_flag("heard_how_he_died")
+
+
+func _told_the_dive(anchor_position: Vector2) -> void:
+	for step in [[1250.0, "L3_DIVE.lore1"], [1900.0, "L3_DIVE.lore2"],
+			[2550.0, "L3_DIVE.lore3"], [3150.0, "L3_DIVE.lore4"]]:
+		if anchor_position.x >= float(step[0]):
+			_tell(String(step[1]))
+	if _told.has("L3_DIVE.lore4"):
+		script_lines.set_flag("heard_about_lola")
+
+
+## Once each, and remembered in the run state so a checkpoint restore does not replay the
+## crossing from the top.
+func _tell(hook: String) -> void:
+	if _told.has(hook):
+		return
+	_told[hook] = true
+	_speak(script_lines.fire(hook))
+
+
+## A long shape passing under the hull, going the wrong way round. Code-drawn, like
+## everything else here -- what it owes the art is the silhouette and the direction.
+func _cast_the_shadow() -> void:
+	if _shadow != null and is_instance_valid(_shadow):
+		return
+	var mark := _mark("SurfaceMark")
+	if mark == null:
+		return
+	var shape := Polygon2D.new()
+	shape.name = "Shadow"
+	var points := PackedVector2Array()
+	for index in range(18):
+		var along := float(index) / 17.0
+		points.append(Vector2(lerpf(-320.0, 320.0, along), sin(along * 5.0) * 26.0 - 16.0))
+	for index in range(17, -1, -1):
+		var along := float(index) / 17.0
+		points.append(Vector2(lerpf(-320.0, 320.0, along), sin(along * 5.0) * 26.0 + 16.0))
+	shape.polygon = points
+	shape.color = Color(0.04, 0.09, 0.14, 0.42)
+	shape.global_position = Vector2(mark.global_position.x - 900.0, mark.global_position.y + 90.0)
+	shape.z_index = 2
+	mark.get_parent().add_child(shape)
+	_shadow = shape
+	var glide := create_tween()
+	glide.tween_property(shape, "global_position:x",
+		mark.global_position.x + 500.0, 4.2).set_trans(Tween.TRANS_SINE)
+	glide.tween_callback(shape.queue_free)
+
+
 # --- The island ----------------------------------------------------------------------------
 
 ## Reaching the far sand, which is the end of the level.
@@ -678,6 +792,14 @@ func _on_island_reached(_checkpoint_id: String) -> void:
 	if _arrived or director == null or not director.is_solved("L3_N2"):
 		return
 	_arrived = true
+	# ⚠ DEFERRED, BECAUSE THIS ARRIVES FROM body_entered. Coming ashore reverts the player,
+	# which builds a new body and disables the old one's shapes -- and Godot refuses to
+	# change collision state while it is flushing queries. Every arrival printed two engine
+	# errors and the revert was landing on a body mid-query.
+	call_deferred("_land_on_the_island")
+
+
+func _land_on_the_island() -> void:
 	_come_ashore()
 	# THE PAINTING FIRST, THE FAREWELL SECOND, then cut. Lolo leaving is the level's real
 	# ending, not the painting, so it gets the last word.
@@ -754,6 +876,7 @@ func _level_run_state() -> Dictionary:
 		"refills_taken": _refills_taken.duplicate(),
 		"knocks": _knocks,
 		"arrived": _arrived,
+		"told": _told.keys(),
 	}
 
 
@@ -765,6 +888,9 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	_refills_taken = (state.get("refills_taken", []) as Array).duplicate()
 	_knocks = int(state.get("knocks", 0))
 	_arrived = bool(state.get("arrived", false))
+	_told.clear()
+	for hook: Variant in (state.get("told", []) as Array):
+		_told[String(hook)] = true
 	# A restore is a new body or none at all, so the drain starts again rather than resuming
 	# a form that is no longer standing.
 	if _drain != null:

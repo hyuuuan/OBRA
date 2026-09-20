@@ -67,6 +67,12 @@ signal player_arrived(obstacle_id: String)
 ## far lip, there is no ground under it, and the mark's own ground sweep walks it back onto
 ## the near lip -- straight into the dead tree the Protector route is there to cut.
 @export var checkpoint_mark_offset := 0.0
+## ⚠ AND WHETHER THERE IS A MARK AT ALL. CheckpointLantern2D stands on the ground, sweeping
+## for something solid within about 260px below the volume, and says so at load when it finds
+## nothing. Dagat's encounter is a thousand pixels of open water with the seabed well out of
+## reach -- and a lit lantern at the bottom of the sea is not a thing anyway. A beat that
+## commits a checkpoint without a place to put the flame sets this false and says why.
+@export var plants_commit_mark := true
 
 var _inside := false
 

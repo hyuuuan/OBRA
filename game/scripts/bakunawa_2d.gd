@@ -108,6 +108,18 @@ func _build_bodies() -> void:
 
 # --- What the level tells it -----------------------------------------------------------
 
+## ⚠ ONE CREATURE, TWO STAGINGS, and the design calls this the most expensive single item in
+## the level. From the boat it is mostly surface and silhouette; from underwater the player is
+## inside its space. Same encounter, same three resolutions, same sweep -- what differs is
+## where in the water column it is, and therefore what the player is looking at.
+##
+## Moved rather than duplicated. A second creature at the surface would be a second set of
+## states to keep in step with this one, and they would drift.
+func stage_at(depth_y: float) -> void:
+	global_position.y = depth_y
+	queue_redraw()
+
+
 func begin_search() -> void:
 	_state = State.SEARCHING
 	_set_channel_open(false)

@@ -305,6 +305,83 @@
       "kind": "hint",
       "once": true,
       "text": "She could name every one of these. I only ever learned the ones she told me twice."
+    },
+    {
+      "id": "L3_BOAT_001",
+      "at": "L3_BOAT.lore1",
+      "kind": "lore",
+      "once": true,
+      "text": "Row. Do not fight it \u2014 let the water carry some of the work, it is going that way anyway."
+    },
+    {
+      "id": "L3_BOAT_002",
+      "at": "L3_BOAT.lore2",
+      "kind": "lore",
+      "once": true,
+      "text": "You are sitting where I sat. I did this stretch a hundred times and never once looked at it properly."
+    },
+    {
+      "id": "L3_BOAT_003",
+      "at": "L3_BOAT.lore3",
+      "kind": "lore",
+      "once": true,
+      "text": "It was out past here. Further than you have been. An ordinary afternoon \u2014 that is the part nobody believes, and it is the only part that matters."
+    },
+    {
+      "id": "L3_BOAT_004",
+      "at": "L3_BOAT.lore4",
+      "kind": "lore",
+      "once": true,
+      "text": "I went over and I did not come up. There is no more to it than that. Nothing to see coming, and I have had a long time to look for one."
+    },
+    {
+      "id": "L3_BOAT_005",
+      "at": "L3_BOAT.lore5",
+      "kind": "lore",
+      "once": true,
+      "text": "Keep rowing, apo. I am glad you are here and I would rather you did not stop."
+    },
+    {
+      "id": "L3_BOAT_006",
+      "at": "L3_BOAT.shadow",
+      "kind": "lore",
+      "once": true,
+      "text": "Stop. Stop rowing \u2014 look down."
+    },
+    {
+      "id": "L3_BOAT_007",
+      "at": "L3_BOAT.shadow",
+      "kind": "lore",
+      "once": true,
+      "text": "Something long went under us. It is going round and round on the same stretch, the way a person does when they have lost something in the house."
+    },
+    {
+      "id": "L3_DIVE_001",
+      "at": "L3_DIVE.lore1",
+      "kind": "hint",
+      "once": true,
+      "text": "Keep going. I can talk and you can swim, it is easier that way round."
+    },
+    {
+      "id": "L3_DIVE_002",
+      "at": "L3_DIVE.lore2",
+      "kind": "hint",
+      "once": true,
+      "text": "Your lola was never the same after. I want to be careful how I put that."
+    },
+    {
+      "id": "L3_DIVE_003",
+      "at": "L3_DIVE.lore3",
+      "kind": "hint",
+      "once": true,
+      "text": "She kept painting. The same water, from the same stretch of sand, year on year."
+    },
+    {
+      "id": "L3_DIVE_004",
+      "at": "L3_DIVE.lore4",
+      "kind": "hint",
+      "once": true,
+      "text": "Now she does not always know me. She still knows which end of the handle to hold."
     }
   ]
 }

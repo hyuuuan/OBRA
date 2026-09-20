@@ -118,6 +118,9 @@ position = Vector2(2000.0, 1200.0)
 [node name="BakunawaMark" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(4000.0, 1100.0)
 
+[node name="SurfaceMark" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(4000.0, 700.0)
+
 [node name="IslandMark" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(4900.0, 560.0)
 
@@ -142,10 +145,11 @@ trigger_size = Vector2(520.0, 420.0)
 checkpoint_mark_offset = -260.0
 
 [node name="L3_N2" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(3860.0, 1360.0)
+position = Vector2(3860.0, 1060.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L3_N2"
-trigger_size = Vector2(900.0, 900.0)
+trigger_size = Vector2(900.0, 1500.0)
+plants_commit_mark = false
 
 [node name="CP1" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(640.0, 490.0)
@@ -156,7 +160,7 @@ checkpoint_id = "CP1"
 position = Vector2(3760.0, 1060.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP3b"
-trigger_size = Vector2(220.0, 700.0)
+trigger_size = Vector2(220.0, 1500.0)
 shows_mark = false
 
 [node name="IslandArrival" type="Area2D" parent="GameplayPlane"]
@@ -171,8 +175,12 @@ position = Vector2(900.0, 540.0)
 script = ExtResource("7_dialoguenode")
 level_id = "level_3"
 
+; ⚠ y IS THE BOTTOM OF THIS ONE, NOT ITS MIDDLE. DialogueNode2D anchors its box at
+; -trigger_size.y * 0.5, so the volume climbs from the node rather than straddling it --
+; unlike LevelObstacle2D and CheckpointArea2D, which centre theirs. At 1060 it covered
+; -190..1060 and a diver at 1150 swam under the fork without being asked anything.
 [node name="BakunawaNode" type="Area2D" parent="GameplayPlane"]
-position = Vector2(3560.0, 1060.0)
+position = Vector2(3560.0, 1810.0)
 script = ExtResource("7_dialoguenode")
 level_id = "level_3"
-trigger_size = Vector2(160.0, 900.0)
+trigger_size = Vector2(160.0, 1500.0)
