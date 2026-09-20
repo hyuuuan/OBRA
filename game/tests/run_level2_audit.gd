@@ -457,24 +457,25 @@ func _audit_is_playable() -> void:
 	var parsed: Variant = JSON.parse_string(text)
 	var listed := ""
 	var ends_run := false
-	var payyo_ends_run := true
+	var dagat_ends_run := false
 	for entry_value: Variant in (parsed as Array):
 		var entry: Dictionary = entry_value
 		if String(entry.get("id", "")) == "level_2":
 			listed = String(entry.get("scene_path", ""))
 			ends_run = bool(entry.get("ends_run", false))
-		if String(entry.get("id", "")) == "level_1":
-			payyo_ends_run = bool(entry.get("ends_run", false))
+		if String(entry.get("id", "")) == "level_3":
+			dagat_ends_run = bool(entry.get("ends_run", false))
 	_check(not listed.is_empty() and ResourceLoader.exists(listed),
 		"level 2 is offered from the hub",
 		"scene_path is '%s'" % listed if not listed.is_empty()
 		else "scene_path is empty -- the hub cannot open it")
-	# ⚠ THE LAST BUILT LEVEL CARRIES `ends_run`, AND ONLY IT. Payyo held it while it was the
-	# only level there was; leaving it there sends a player who finishes Payyo to the ending
-	# screen with Piyesta unplayed, and leaving Piyesta without it drops them back at the
-	# wall of paintings with no ending at all.
-	_check(ends_run and not payyo_ends_run, "and it is the one that ends the run",
-		"piyesta ends_run=%s, payyo ends_run=%s" % [ends_run, payyo_ends_run])
+	# ⚠ THE LAST BUILT LEVEL CARRIES `ends_run`, AND ONLY IT, SO THIS ASSERTION TURNS OVER
+	# EVERY TIME A LEVEL SHIPS. Payyo held it while it was the only level there was, then
+	# Piyesta; Dagat holds it now. Leaving it behind sends a player who finishes Piyesta to
+	# the ending screen with Dagat unplayed, and moving it without clearing the old one gives
+	# the run two endings.
+	_check(not ends_run and dagat_ends_run, "and it is no longer the one that ends the run",
+		"piyesta ends_run=%s, dagat ends_run=%s" % [ends_run, dagat_ends_run])
 
 
 ## ⚠ THE OTHER DIRECTION, AND IT IS THE ONE THAT KEEPS BEING WRONG.

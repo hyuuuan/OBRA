@@ -23,10 +23,10 @@ extends SceneTree
 ## and it is why the practice beat is at the waterline rather than on dry sand.** If this
 ## file ever goes red at "the sea cannot be waded", check that first.
 ##
-## ⚠ KNOWN GAP, PRINTED EVERY RUN AND NOT COUNTED AS A PASS. The island, the exit and the
-## level-complete beat are not built yet, so "the level does not finish" is currently true
-## for a duller reason than it will be. It is still checked -- a level that completes itself
-## by accident is worth catching -- but it does not yet prove what it will prove.
+## THE GAP IS CLOSED. "The level does not finish" used to be true for a duller reason than it
+## claimed -- there was no island and no exit, so nothing could have finished. Both exist now
+## and run_level3_finish_probe.gd proves the level CAN be completed, so this assertion is back
+## to meaning what it says: the ending is reachable, and not without drawing.
 
 ## Long enough to walk the shore end to end and try the water several times.
 const SEGMENT_SECONDS := 22.0
@@ -142,8 +142,6 @@ func _run() -> void:
 	for line in results:
 		print(line)
 	print("   questions answered: %d (answering Lolo costs no ink)" % answered)
-	print("   KNOWN GAP: the island and the exit are not built, so 'does not finish' is")
-	print("              true for a duller reason than it will be.")
 	if failures == 0:
 		print("   OK    the sea is what makes this a drawing game")
 		print("OBRA_NODRAW_L3_OK")

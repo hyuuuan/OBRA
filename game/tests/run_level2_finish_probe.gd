@@ -66,7 +66,7 @@ func _run() -> void:
 	await _audit_the_three_beats_answer()
 	await _audit_the_table_ends_it()
 	_audit_the_ending_is_spoken()
-	_audit_piyesta_is_the_last_level()
+	_audit_piyesta_is_not_the_last_level()
 
 	print("OBRA_LEVEL2_FINISH_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
@@ -167,15 +167,19 @@ func _audit_the_table_ends_it() -> void:
 ## Piyesta is the last level that is built, so it is the one that carries the run's ending.
 ## Payyo held the flag while it was the only level there was, and a flag left behind is a
 ## player sent to the ending screen with this level unplayed.
-func _audit_piyesta_is_the_last_level() -> void:
+## ⚠ RENAMED AND INVERTED WHEN DAGAT SHIPPED. Piyesta held `ends_run` while it was the last
+## level built; Dagat holds it now. Leaving it on Piyesta sends a player who finishes it to
+## the ending screen with Dagat unplayed, and the flag on two levels gives the run two
+## endings. This assertion turns over every time a level ships, which is the point of it.
+func _audit_piyesta_is_not_the_last_level() -> void:
 	var manager := root.get_node_or_null("LevelManager")
 	if manager == null:
-		_check(false, "Piyesta ends the run", "no LevelManager")
+		_check(false, "Piyesta hands on to Dagat", "no LevelManager")
 		return
 	var mine := bool((manager.call("get_level", "level_2") as Dictionary).get("ends_run", false))
-	var payyo := bool((manager.call("get_level", "level_1") as Dictionary).get("ends_run", false))
-	_check(mine and not payyo, "Piyesta ends the run and Payyo does not",
-		"piyesta=%s payyo=%s" % [mine, payyo])
+	var dagat := bool((manager.call("get_level", "level_3") as Dictionary).get("ends_run", false))
+	_check(not mine and dagat, "Piyesta hands on to Dagat rather than ending the run",
+		"piyesta=%s dagat=%s" % [mine, dagat])
 	_check(ResourceLoader.exists("res://ui/ending_screen.tscn"),
 		"and there is an ending for it to reach", "ending_screen.tscn")
 

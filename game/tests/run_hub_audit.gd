@@ -76,7 +76,7 @@ func _run() -> void:
 	for node in paintings:
 		if bool(node.call("is_playable")):
 			enterable.append(String(node.get("level_id")))
-	_check(enterable == ["level_1", "level_2"], "only what is built can be walked into",
+	_check(enterable == ["level_1", "level_2", "level_3"], "only what is built can be walked into",
 		"enterable: " + ", ".join(enterable))
 
 	# THE ROOM HAS TO FILL THE FRAME. The camera is pinned vertically -- one storey, a floor

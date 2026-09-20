@@ -106,12 +106,20 @@ func _run() -> void:
 			bool(manager.call("is_unlocked", "level_3")),
 			"completing level_2 did not unlock level_3"
 		)
+		# ⚠ THE DEAD CARD MOVED WITH DAGAT. _next_level_id is string arithmetic, so finishing
+		# a level always unlocks the one after it whether or not anybody built it -- there is
+		# always exactly one unlocked card with no scene behind it, and it is level 4's now.
+		profile.call("mark_level_completed", "level_3")
 		_expect(
-			not bool(manager.call("is_playable", "level_3")),
-			"level_3 reports playable with an empty scene_path, so its card would be offered"
+			bool(manager.call("is_unlocked", "level_4")),
+			"completing level_3 did not unlock level_4"
 		)
 		_expect(
-			not bool(manager.call("open_level", "level_3")),
+			not bool(manager.call("is_playable", "level_4")),
+			"level_4 reports playable with an empty scene_path, so its card would be offered"
+		)
+		_expect(
+			not bool(manager.call("open_level", "level_4")),
 			"an unlocked-but-unbuilt level started a transition"
 		)
 	_expect(int((snapshot["counts"] as Dictionary)["submissions"]) == 2, "submission count did not persist")
