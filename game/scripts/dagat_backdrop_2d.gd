@@ -38,6 +38,12 @@ const MANIFEST := "res://assets/Level3/dagat.json"
 @export var plate_top: float = -230.0
 ## Stretch the plate vertically. The deep band fills a water column that is not 941 tall.
 @export var plate_scale: float = 1.0
+## ⚠ WHERE THE BAND FADES UP, IN WORLD X. Dagat crosses from a bright shore into a storm, and
+## the design asks for exactly that: "the field has to get darker and emptier as the player
+## nears the bakunawa, or the encounter arrives without buildup." Two bands butted against
+## each other cut from noon to night at one pixel; a band that fades in over a thousand
+## pixels is the buildup. Zero means "always at full", which is what the other two want.
+@export var fade_span := Vector2.ZERO
 
 ## ⚠ THE STACK, FURTHEST FIRST. `rate` is the parallax factor: 0 is painted on the far wall
 ## and never moves, 1 travels with the world. `fps` turns a layer into an animation.
@@ -126,6 +132,19 @@ func set_camera_origin(camera_position: Vector2) -> void:
 
 
 func update_for_camera(camera_position: Vector2) -> void:
+	if fade_span != Vector2.ZERO:
+		# x < y fades the band UP across that stretch; x > y fades it DOWN. The shore and the
+		# storm are the same crossing seen twice, so one has to leave as the other arrives --
+		# otherwise a low-rate layer from the daylight band drifts far enough right to hang a
+		# palm tree over the storm.
+		# ⚠ THE RAMP ALWAYS RUNS LEFT TO RIGHT ACROSS THE WORLD; only its SENSE is reversed.
+		# Reading it from fade_span.x meant a fade-out started where it should have finished,
+		# so the daylight band stayed at full alpha across the whole crossing and hung a palm
+		# tree over the storm.
+		var lo := minf(fade_span.x, fade_span.y)
+		var hi := maxf(fade_span.x, fade_span.y)
+		var ramp := clampf((camera_position.x - lo) / maxf(1.0, hi - lo), 0.0, 1.0)
+		modulate.a = ramp if fade_span.y > fade_span.x else 1.0 - ramp
 	var travelled := camera_position - _origin
 	for layer in _layers:
 		# ⚠ HORIZONTAL ONLY, AND home + offset RATHER THAN THE OFFSET ALONE.
@@ -143,7 +162,8 @@ func update_for_camera(camera_position: Vector2) -> void:
 		#
 		# A rate of 1 sits still relative to the world; anything less lags behind the camera
 		# across the level, which is what reads as distance.
-		layer.position = layer.home + Vector2(travelled.x * (1.0 - layer.rate), 0.0)
+		layer.position = layer.home + Vector2(
+			travelled.x * (1.0 - layer.rate) - layer.spread, 0.0)
 
 
 ## One tiled, optionally animated plate.
@@ -165,6 +185,8 @@ class _Layer extends Node2D:
 	var _clock := 0.0
 
 	var _tiles: Array[Sprite2D] = []
+	## How far left of the band the tiles start, so the widened run is centred on it.
+	var spread := 0.0
 
 	func _ready() -> void:
 		# ⚠ MIRRORED TILES, NOT A REPEATING REGION. Every plate is a self-contained painting
@@ -174,7 +196,14 @@ class _Layer extends Node2D:
 		# line, which reads as more of the same place rather than as the same place again.
 		var width := maxf(1.0, span.y - span.x)
 		var texture_width := maxf(1.0, float(frames[0].get_width()))
-		var count := int(ceil(width / texture_width))
+		# ⚠ A SLOW LAYER HAS TO COVER MORE GROUND THAN THE BAND IS WIDE. At rate 0.15 the sky
+		# lags the camera by 85% of everything it travels, so across a three-thousand-pixel
+		# band it slides nearly three thousand pixels sideways -- off one end of its own tiles
+		# and into open space at the other. Widening by 1/rate covers the drift in both
+		# directions; the extra tiles are centred so neither edge runs out first.
+		var reach := width / maxf(0.25, rate)
+		var count := int(ceil(reach / texture_width))
+		spread = (float(count) * texture_width - width) * 0.5
 		for index in range(count):
 			var tile := Sprite2D.new()
 			tile.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -190,7 +219,7 @@ class _Layer extends Node2D:
 			tile.scale = Vector2(1.0, plate_scale)
 			add_child(tile)
 			_tiles.append(tile)
-		position = home
+		position = home - Vector2(spread, 0.0)
 		set_process(fps > 0.0 and frames.size() > 1)
 
 	func _process(delta: float) -> void:
