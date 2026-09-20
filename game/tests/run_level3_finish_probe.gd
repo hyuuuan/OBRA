@@ -60,6 +60,22 @@ func _finish_by(crossing: String, encounter: String) -> void:
 	_check(bool(director.call("is_solved", "L3_B0_SHORE")),
 		"the shore is answered by a drawing (%s)" % tag, "a Swim answer solves it")
 
+	# THE CORAL FIELD, on the dive only. Free, ungated and uncounted -- so the only thing
+	# that can be checked is that swimming past one makes Lolo say something, which is
+	# exactly the thing that silently stops working when a hook is renamed.
+	if crossing == "pragmatist":
+		var spoken := 0
+		for spot: Vector2 in [Vector2(1360.0, 1020.0), Vector2(1780.0, 900.0),
+				Vector2(2900.0, 820.0)]:
+			(level.get("player") as Node2D).global_position = spot
+			for _frame in range(12):
+				await physics_frame
+		for key: String in ["jelly", "lola1", "shaft"]:
+			if bool(script_lines.call("has_heard", "CORAL.%s" % key)):
+				spoken += 1
+		_check(spoken == 3, "the coral field speaks (%s)" % tag,
+			"%d of 3 facts fired by swimming past them" % spoken)
+
 	# The crossing.
 	director.call("enter_obstacle", "L3_N1")
 	director.call("commit_route", "L3_N1", crossing)
