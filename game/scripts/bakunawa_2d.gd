@@ -22,9 +22,13 @@ extends Node2D
 ##     are drawn because they ARE the rule.
 ##   * `Coils`, a body across the channel, which is what "it moves aside" means mechanically.
 ##
-## CODE-DRAWN, AND THAT IS A CONTRACT AND NOT THE ART. Nothing on Dagat's asset list exists.
-## The states below are the ones the design's own asset list asks for, so the sprite work can
-## replace `_draw()` without touching anything else.
+## PAINTED NOW, AND THE STATES DID NOT MOVE. It was code-drawn while the art was outstanding
+## and the states were chosen to be the ones the design's asset list asks for -- so the frames
+## dropped into the same machine and `sees()`, `apply_tool_hit` and the coils are untouched.
+##
+## ⚠ THE SWEEP IS STILL DRAWN BY HAND, ON PURPOSE. It is not decoration that the art could
+## replace: it IS the stealth rule, the thing `sees()` answers about, and a cone the player
+## cannot see is a rule they learn by being reset.
 
 enum State { SEARCHING, FOLLOWING, CALM, FIGHTING, SUBDUED }
 
@@ -51,6 +55,11 @@ const SWEEP_LIMIT := 1.05
 ## Three good hits. The design asks that the fight be survivable without combat skill: this is
 ## a story game and a player who picks Protector for character reasons should not be walled by
 ## execution.
+const MANIFEST := "res://assets/Level3/dagat.json"
+## The creature is delivered at 1672px and the arena is 900 wide. Scaled by its own length so
+## the number here is the one a designer would measure off the scene.
+@export var target_length: float = 940.0
+
 const HITS_TO_SUBDUE := 3
 ## What each drawn weapon is worth against it. Present so the five differ in more than reach,
 ## which the design asks for outright -- "or drawing anything becomes drawing the best one".
@@ -68,12 +77,48 @@ var _hits := 0.0
 var _follow_target := Vector2.ZERO
 var _coils: StaticBody2D
 var _hurtbox: Area2D
+var _skin: Sprite2D
+var _clips: Dictionary = {}
+var _clip := "searching"
+var _frame := 0
+var _clock := 0.0
 
 
 func _ready() -> void:
 	z_index = 4
+	_load_clips()
 	_build_bodies()
+	_build_skin()
 	set_process(true)
+
+
+## ⚠ THE CLIPS ARE THE SORT tools/build_dagat.py DID BY EYE POSITION, not by filename. Twenty
+## three delivered poses, and which way the creature faces and whether its head is reared are
+## both readable from where the bright eye sits inside its own bounding box. See that file.
+func _load_clips() -> void:
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(MANIFEST))
+	var groups: Dictionary = (parsed as Dictionary).get("groups", {}) if parsed is Dictionary else {}
+	for clip in ["searching", "thrashing", "turned"]:
+		var frames: Array[Texture2D] = []
+		for path_value: Variant in (groups.get("bakunawa/%s" % clip, {}) as Dictionary).get("frames", []):
+			var texture := load(String(path_value)) as Texture2D
+			if texture != null:
+				frames.append(texture)
+		if not frames.is_empty():
+			_clips[clip] = frames
+
+
+func _build_skin() -> void:
+	if _clips.is_empty():
+		return
+	_skin = Sprite2D.new()
+	_skin.name = "Skin"
+	_skin.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_skin.centered = true
+	_skin.texture = (_clips["searching"] as Array)[0]
+	var native := maxf(1.0, float(_skin.texture.get_width()))
+	_skin.scale = Vector2.ONE * (target_length / native)
+	add_child(_skin)
 
 
 func _build_bodies() -> void:
@@ -257,53 +302,64 @@ func _process(delta: float) -> void:
 				give_it_up()
 		State.CALM, State.SUBDUED:
 			_sweep = lerp_angle(_sweep, 0.0, minf(1.0, delta * 1.2))
+	_animate(delta)
 	queue_redraw()
 
 
-func _draw() -> void:
-	var tone := Color(0.16, 0.24, 0.32, 1.0)
-	var belly := Color(0.34, 0.46, 0.44, 1.0)
+## WHICH CLIP, AND HOW FAST. The states were named for what the creature is DOING, so this is
+## a lookup rather than a decision -- and the two that are over (calm, subdued) hold a frame
+## instead of looping, because a creature that has stopped should stop moving.
+func _animate(delta: float) -> void:
+	if _skin == null:
+		return
+	var wanted := "searching"
+	var fps := 5.0
 	match _state:
-		State.CALM:
-			tone = Color(0.22, 0.34, 0.40, 1.0)
-		State.SUBDUED:
-			tone = Color(0.14, 0.18, 0.22, 1.0)
 		State.FIGHTING:
-			tone = Color(0.24, 0.18, 0.20, 1.0)
-	if _thrash > 0.0:
-		tone = tone.lightened(0.35)
+			wanted = "thrashing"
+			fps = 9.0
+		State.FOLLOWING:
+			# Turned toward the light if it is off to the right, which is the only time this
+			# creature faces that way.
+			wanted = "turned" if _follow_target.x > global_position.x else "searching"
+			fps = 6.0
+		State.CALM, State.SUBDUED:
+			fps = 1.6
+	if not _clips.has(wanted):
+		wanted = "searching"
+	if wanted != _clip:
+		_clip = wanted
+		_frame = 0
+		_clock = 0.0
+	var frames: Array = _clips.get(_clip, [])
+	if frames.is_empty():
+		return
+	_clock += delta
+	var step := 1.0 / maxf(0.01, fps)
+	while _clock >= step:
+		_clock -= step
+		_frame = (_frame + 1) % frames.size()
+	_skin.texture = frames[_frame]
+	# ⚠ A HIT SHOWS. The white flash is the only feedback the fight has, and without it three
+	# good swings and one miss look exactly alike.
+	_skin.modulate = Color(1.6, 1.6, 1.6) if _thrash > 0.0 else Color.WHITE
+	if _state == State.SUBDUED:
+		_skin.modulate = Color(0.55, 0.6, 0.68)
 
-	# THE SWEEP FIRST, UNDER THE BODY. It is drawn because it is the rule -- a stealth section
-	# whose boundary is invisible is a boundary the player learns by being reset.
-	if _state == State.SEARCHING or _state == State.FIGHTING:
-		for facing in [_sweep, _sweep + PI]:
-			var points := PackedVector2Array([Vector2.ZERO])
-			for step in range(9):
-				var angle: float = facing - CONE_HALF_ANGLE \
-					+ CONE_HALF_ANGLE * 2.0 * (float(step) / 8.0)
-				points.append(Vector2(cos(angle), sin(angle)) * CONE_LENGTH)
-			draw_colored_polygon(points, Color(0.85, 0.92, 0.70, 0.16))
 
-	# A long body, thrown into a travelling wave. Frantic while it is searching, slack once
-	# it is not.
-	var amplitude := 44.0 if _state == State.SEARCHING or _state == State.FIGHTING else 14.0
-	var phase := float(Time.get_ticks_msec()) * 0.0022
-	var spine := PackedVector2Array()
-	for index in range(SEGMENTS + 1):
-		var along := float(index) / float(SEGMENTS)
-		var x := lerpf(-BODY_LENGTH * 0.5, BODY_LENGTH * 0.5, along)
-		var y := sin(phase + along * 5.2) * amplitude * (0.35 + along * 0.65)
-		spine.append(Vector2(x, y))
-	for index in range(SEGMENTS):
-		var here := spine[index]
-		var next := spine[index + 1]
-		var thickness := BODY_DEPTH * (0.35 + 0.65 * sin(PI * float(index) / float(SEGMENTS)))
-		draw_line(here, next, tone, thickness)
-		draw_line(here + Vector2(0.0, thickness * 0.22),
-			next + Vector2(0.0, thickness * 0.22), belly, thickness * 0.28)
-	# The eyes, which are the point of the whole encounter and are never explained.
-	var head := spine[SEGMENTS]
-	var eye := Color(0.88, 0.84, 0.52, 0.85) if _state != State.SUBDUED \
-		else Color(0.5, 0.5, 0.48, 0.5)
-	draw_circle(head + Vector2(-18.0, -16.0), 11.0, eye)
-	draw_circle(head + Vector2(-18.0, 14.0), 11.0, eye)
+## ⚠ ONLY THE SWEEP. The body is a Sprite2D now, but the cone stays hand-drawn because it is
+## not decoration -- it is the rule `sees()` answers about, and a boundary the player cannot
+## see is one they learn by being put back.
+func _draw() -> void:
+	if _state != State.SEARCHING and _state != State.FIGHTING:
+		return
+	var tint := Color(0.85, 0.92, 0.70, 0.16)
+	if _state == State.FIGHTING:
+		tint = Color(0.95, 0.72, 0.62, 0.18)
+	for facing in [_sweep, _sweep + PI]:
+		var points := PackedVector2Array([Vector2.ZERO])
+		for step in range(9):
+			var angle: float = facing - CONE_HALF_ANGLE \
+				+ CONE_HALF_ANGLE * 2.0 * (float(step) / 8.0)
+			points.append(Vector2(cos(angle), sin(angle)) * CONE_LENGTH)
+		draw_colored_polygon(points, tint)

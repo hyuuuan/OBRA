@@ -70,7 +70,7 @@ var _arrived := false
 ## Which lore beats have been spoken this run, by hook. The crossing is a scene rather than a
 ## trigger the player can re-cross, and a beat spoken twice is worse than one spoken late.
 var _told: Dictionary = {}
-var _shadow: Node2D
+var _shadow: Sprite2D
 
 
 # --- What the machine asks -------------------------------------------------------------
@@ -760,33 +760,68 @@ func _tell(hook: String) -> void:
 	_speak(script_lines.fire(hook))
 
 
-## A long shape passing under the hull, going the wrong way round. Code-drawn, like
-## everything else here -- what it owes the art is the silhouette and the direction.
+## THE CREATURE'S OWN SILHOUETTE, passing under the hull and going the wrong way round. The
+## delivered shadow is a four-frame swim, and it is the SAME animal the player meets a minute
+## later -- which is the whole point of the beat: a foreshadow rather than a second animal
+## they might think they could have drawn.
 func _cast_the_shadow() -> void:
 	if _shadow != null and is_instance_valid(_shadow):
 		return
 	var mark := _mark("SurfaceMark")
 	if mark == null:
 		return
-	var shape := Polygon2D.new()
+	var frames: Array[Texture2D] = []
+	var parsed: Variant = JSON.parse_string(
+		FileAccess.get_file_as_string("res://assets/Level3/dagat.json"))
+	if parsed is Dictionary:
+		var group: Dictionary = ((parsed as Dictionary).get("groups", {}) as Dictionary) \
+			.get("bakunawa/shadow", {})
+		for path_value: Variant in group.get("frames", []):
+			var texture := load(String(path_value)) as Texture2D
+			if texture != null:
+				frames.append(texture)
+	if frames.is_empty():
+		return
+	var shape := _DriftingShadow.new()
 	shape.name = "Shadow"
-	var points := PackedVector2Array()
-	for index in range(18):
-		var along := float(index) / 17.0
-		points.append(Vector2(lerpf(-320.0, 320.0, along), sin(along * 5.0) * 26.0 - 16.0))
-	for index in range(17, -1, -1):
-		var along := float(index) / 17.0
-		points.append(Vector2(lerpf(-320.0, 320.0, along), sin(along * 5.0) * 26.0 + 16.0))
-	shape.polygon = points
-	shape.color = Color(0.04, 0.09, 0.14, 0.42)
-	shape.global_position = Vector2(mark.global_position.x - 900.0, mark.global_position.y + 90.0)
+	shape.frames = frames
+	# Under the hull and a little deeper, big enough to read as something you do not want to
+	# be above. z below the boat so it passes UNDER it.
+	shape.global_position = Vector2(mark.global_position.x - 1100.0,
+		mark.global_position.y + 210.0)
 	shape.z_index = 2
 	mark.get_parent().add_child(shape)
 	_shadow = shape
 	var glide := create_tween()
 	glide.tween_property(shape, "global_position:x",
-		mark.global_position.x + 500.0, 4.2).set_trans(Tween.TRANS_SINE)
+		mark.global_position.x + 700.0, 5.4).set_trans(Tween.TRANS_SINE)
 	glide.tween_callback(shape.queue_free)
+
+
+## A four-frame swim cycle that fades at both ends of its crossing, so it arrives and leaves
+## out of the murk rather than popping.
+class _DriftingShadow extends Sprite2D:
+	var frames: Array[Texture2D] = []
+	var _frame := 0
+	var _clock := 0.0
+
+	func _ready() -> void:
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		texture = frames[0]
+		scale = Vector2.ONE * (1180.0 / maxf(1.0, float(texture.get_width())))
+		modulate = Color(1.0, 1.0, 1.0, 0.0)
+		var fade := create_tween()
+		fade.tween_property(self, "modulate:a", 0.75, 1.3)
+		fade.tween_interval(2.6)
+		fade.tween_property(self, "modulate:a", 0.0, 1.3)
+
+	func _process(delta: float) -> void:
+		_clock += delta
+		if _clock < 0.22:
+			return
+		_clock = 0.0
+		_frame = (_frame + 1) % frames.size()
+		texture = frames[_frame]
 
 
 # --- The island ----------------------------------------------------------------------------
