@@ -50,6 +50,31 @@ z_index = -190
 color = Color(0.043, 0.169, 0.271, 1)
 polygon = PackedVector2Array(-3000, 560, 9000, 560, 9000, 2600, -3000, 2600)
 
+; ⚠ PLACEHOLDER TERRAIN, AND IT IS THE SHAPE THAT MATTERS, NOT THE COLOUR. The shore, the
+; seabed and the island were collision boxes with nothing drawn on them, so the level ran
+; correctly and photographed as an empty blue field: no sand to stand on, no bed to swim
+; over, no far side to arrive at. These polygons trace the SAME rectangles the StaticBody2D
+; shapes use, so when the painted art lands it has the footprint to sit in. Drawn behind the
+; gameplay plane so nothing here covers the player, Lolo or the creature.
+[node name="Terrain Fills" type="Node2D" parent="."]
+z_index = -180
+
+[node name="ShoreFill" type="Polygon2D" parent="Terrain Fills"]
+color = Color(0.80, 0.72, 0.53, 1)
+polygon = PackedVector2Array(0, 560, 1000, 560, 1000, 800, 0, 800)
+
+[node name="WetSand" type="Polygon2D" parent="Terrain Fills"]
+color = Color(0.64, 0.58, 0.44, 1)
+polygon = PackedVector2Array(820, 560, 1000, 560, 1000, 800, 820, 800)
+
+[node name="SeabedFill" type="Polygon2D" parent="Terrain Fills"]
+color = Color(0.24, 0.27, 0.24, 1)
+polygon = PackedVector2Array(500, 1560, 4500, 1560, 4500, 1800, 500, 1800)
+
+[node name="IslandFill" type="Polygon2D" parent="Terrain Fills"]
+color = Color(0.84, 0.76, 0.57, 1)
+polygon = PackedVector2Array(4500, 560, 5400, 560, 5400, 800, 4500, 800)
+
 [node name="GameplayPlane" type="Node2D" parent="."]
 script = ExtResource("3_depth")
 
@@ -90,10 +115,15 @@ position = Vector2(5420.0, 400.0)
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/EastWall"]
 shape = SubResource("Rect_EastWall")
 
+; ⚠ THE SEA STARTS WHERE THE SAND ENDS. At x 500 it covered half the beach: the shore runs
+; 0..1000 with its top at the waterline, so the seaward half of it was underwater and the
+; brush, the bangka and the practice beat all sat in the shallows. The far edge stops short
+; of the island for the same reason -- the arrival at 4460 is still in the water, which is
+; where a swimmer reaches it, but the sand they climb out onto is dry.
 [node name="Sea" type="Area2D" parent="GameplayPlane"]
-position = Vector2(2750.0, 1060.0)
+position = Vector2(2735.0, 1060.0)
 script = ExtResource("8_water")
-surface_size = Vector2(4500.0, 1000.0)
+surface_size = Vector2(3570.0, 1000.0)
 water_color = Color(0.11, 0.482, 0.663, 0.62)
 deep_color = Color(0.031, 0.157, 0.29, 0.86)
 highlight_color = Color(0.702, 0.925, 0.925, 0.85)
