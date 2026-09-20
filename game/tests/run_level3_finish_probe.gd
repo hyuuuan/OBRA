@@ -11,6 +11,7 @@ extends SceneTree
 ## stops here, and the lore lands in full whichever way the player crossed.
 
 const RosterFixtures = preload("res://tests/roster_fixtures.gd")
+const InkManagerClass = preload("res://scripts/ink_manager.gd")
 
 var level: Node
 var results: Array[String] = []
@@ -55,6 +56,19 @@ func _finish_by(crossing: String, encounter: String) -> void:
 	var script_lines = level.get("script_lines")
 	var tag := "%s / %s" % [crossing, encounter]
 
+	# ⚠ TAKE THE BRUSH FIRST, BY TOUCHING IT, THE WAY A PLAYER DOES. Everything about this
+	# level's economy hangs off it: _morph_has_a_life() answers false only once new_brush is
+	# on the profile, so a probe that skips the pickup plays Dagat under PAYYO's ten-second
+	# clock with no drain at all -- and reports a crossing as affordable without ever having
+	# charged for it. It went unnoticed until something finally read the ink meter.
+	var brush_mark := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/Marks/BrushMark") as Node2D
+	_place(brush_mark.global_position)
+	for _frame in range(20):
+		await physics_frame
+	_check(bool(profile.call("has_new_brush")), "the new brush is found on the shore (%s)" % tag,
+		"the drain is armed from here")
+
 	# The shore, which nothing gets past without drawing.
 	director.call("enter_obstacle", "L3_B0_SHORE")
 	director.call("note_submission", "fish")
@@ -72,6 +86,13 @@ func _finish_by(crossing: String, encounter: String) -> void:
 	director.call("exit_obstacle", "L3_N1")
 	_check(bool(director.call("is_solved", "L3_N1")), "the sea is crossed (%s)" % tag,
 		"route '%s'" % String(director.call("committed_route", "L3_N1")))
+	# ⚠ AND THE TREE IS STILL PAUSED HERE. The commit speaks the apo's line, a DialogueBox
+	# stops the world, and a player presses a key to move on -- so the probe has to as well.
+	# Without it nothing below simulates: the fish is driven by held input and does not move a
+	# pixel, no Area2D monitoring runs, and the coral field reports itself silent while every
+	# one of its triggers is correctly placed. This project has now been caught by a paused
+	# tree three times; it looks exactly like broken physics every time.
+	await _unpause()
 	# ⚠ AFTER THE COMMIT, NOT BEFORE IT. Both blocks below depend on the route having been
 	# taken -- the lore is gated on committed_route and the staging happens at the solve --
 	# and running them first was a probe that crossed a sea nobody had chosen to cross. It
@@ -92,11 +113,40 @@ func _finish_by(crossing: String, encounter: String) -> void:
 		level.call("_spawn_or_replace", "fish", "Fish", sheet,
 			RosterFixtures.for_rig("swimmer", "fish"))
 		await physics_frame
-	var deck := 520.0 if crossing == "artist" else 1150.0
-	for x in [1300.0, 1900.0, 2500.0, 3050.0, 3350.0, 3420.0]:
-		_place(Vector2(x, deck))
-		for _frame in range(10):
+	# ⚠ THE DIVE FOLLOWS THE SEABED, WHERE THE REFILLS ARE. A path down the middle of the
+	# water column crosses the level without passing a single one of them, which is a probe
+	# proving that a crossing nobody would swim is affordable.
+	var ink = level.get("ink_manager")
+	var spent_low := 999.0
+	var path: Array = []
+	if crossing == "artist":
+		for x in [1300.0, 1900.0, 2500.0, 3050.0, 3350.0, 3420.0]:
+			path.append(Vector2(x, 520.0))
+	else:
+		for pair: Variant in (director.call("level_data") as Dictionary) \
+				.get("ink_economy", {}).get("refill_spots", []):
+			var xy: Array = pair
+			path.append(Vector2(float(xy[0]), float(xy[1])))
+		path.append(Vector2(3420.0, 1150.0))
+	for spot: Vector2 in path:
+		_place(spot)
+		# Long enough that a per-SECOND charge is readable. Ten frames is a sixth of a
+		# second, and at the cheapest rate that is three hundredths of a unit.
+		for _frame in range(30):
 			await physics_frame
+			if ink != null:
+				spent_low = minf(spent_low, float(ink.call("remaining")))
+
+	if crossing == "pragmatist":
+		# THE TUNED ECONOMY, IN THE LEVEL RATHER THAN IN THE PROBE'S POOL. Holding a form
+		# has to cost something, and the seabed has to hand some of it back -- a drain that
+		# never bites and refills nobody can reach both look like a working crossing.
+		_check(spent_low < InkManagerClass.BUDGET,
+			"holding a form costs ink while crossing (%s)" % tag,
+			"fell to %.2f of %.0f at its lowest" % [spent_low, InkManagerClass.BUDGET])
+		_check(float(ink.call("remaining")) > spent_low,
+			"and the seabed hands some back (%s)" % tag,
+			"ended at %.2f after passing the refills" % float(ink.call("remaining")))
 
 	# THE CORAL FIELD, on the dive only. Free, ungated and uncounted -- so the only thing
 	# that can be checked is that swimming past one makes Lolo say something, which is
@@ -105,9 +155,7 @@ func _finish_by(crossing: String, encounter: String) -> void:
 		var spoken := 0
 		for spot: Vector2 in [Vector2(1360.0, 1020.0), Vector2(1780.0, 900.0),
 				Vector2(2900.0, 820.0)]:
-			_place(spot)
-			for _frame in range(12):
-				await physics_frame
+			await _swim_to(spot)
 		for key: String in ["jelly", "lola1", "shaft"]:
 			if bool(script_lines.call("has_heard", "CORAL.%s" % key)):
 				spoken += 1
@@ -200,6 +248,42 @@ func _finish_by(crossing: String, encounter: String) -> void:
 ## the morph node's global_position moves the node and leaves the physics at the origin --
 ## the trap run_water_audit.gd documents and the reason its fish readings were once identical
 ## across three code states.
+## ⚠ SWIM IN UNDER POWER. DO NOT TELEPORT ONTO IT.
+##
+## An Area2D reports body_entered on a transition its monitoring actually observes, and a rig
+## moved by apply_morph_state is written straight into place while frozen -- so the pair is
+## never re-evaluated. Measured, not assumed: with the fish's own physics anchor 65px inside a
+## 150px circle, the area reported ZERO overlapping bodies while a direct space query at the
+## same point and mask found SIXTEEN. Every pickup in this level is an Area2D, so a probe that
+## teleports proves nothing about any of them.
+##
+## Held input, the way a player arrives. Slow, and the only thing that is actually a test.
+func _swim_to(at: Vector2) -> void:
+	_place(at + Vector2(-420.0, 0.0))
+	for _frame in range(6):
+		await physics_frame
+	Input.action_press(&"move_right")
+	for _frame in range(240):
+		await physics_frame
+		# ⚠ AND KEEP PRESSING THE KEY. Lolo talks during the crossing -- that is the whole
+		# point of the scene -- and a lore line stops the tree, so a swim that does not
+		# advance the dialogue stalls on the frame he starts speaking and never arrives. The
+		# player is holding a direction and tapping through him; so is this.
+		if root.get_tree().paused:
+			Input.action_release(&"move_right")
+			await _unpause()
+			Input.action_press(&"move_right")
+		var body := level.get("player") as Node
+		if body == null or not is_instance_valid(body):
+			break
+		var anchor := body.call("get_physics_anchor") as Node2D
+		if anchor != null and anchor.global_position.distance_to(at) < 60.0:
+			break
+	Input.action_release(&"move_right")
+	for _frame in range(4):
+		await physics_frame
+
+
 func _place(at: Vector2) -> void:
 	var body := level.get("player") as Node2D
 	if body == null or not is_instance_valid(body):
@@ -210,11 +294,23 @@ func _place(at: Vector2) -> void:
 		body.global_position = at
 
 
+## ⚠ DRAIN THE QUEUE, DO NOT HIDE ONE LINE. A beat speaks several lines and the box holds the
+## rest; hiding the current one and setting paused=false lets the NEXT line re-pause on the
+## following frame, so the world stops again a frame after the probe decided it was running.
+## The symptom is a fish that will not move and areas that report nothing -- physics that
+## looks broken and is simply not being stepped.
 func _unpause() -> void:
-	for node in root.get_tree().get_nodes_in_group(&"modal_overlays"):
-		if node.has_method("is_open") and bool(node.call("is_open")):
-			node.call("close")
-	call_group(DialogueBox.GROUP, &"hide_line")
-	root.get_tree().paused = false
-	for _frame in range(4):
+	for _attempt in range(60):
+		for node in root.get_tree().get_nodes_in_group(&"modal_overlays"):
+			if node.name == "LevelCompleteOverlay":
+				continue
+			if node.has_method("is_open") and bool(node.call("is_open")):
+				node.call("close")
+		call_group(DialogueBox.GROUP, &"hide_line")
+		root.get_tree().paused = false
 		await physics_frame
+		if not root.get_tree().paused:
+			# Two clear frames in a row, or the next queued line has simply not landed yet.
+			await physics_frame
+			if not root.get_tree().paused:
+				return

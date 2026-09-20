@@ -28,6 +28,7 @@ extends SceneTree
 const RosterFixtures = preload("res://tests/roster_fixtures.gd")
 const InkManagerClass = preload("res://scripts/ink_manager.gd")
 const InkDrainClass = preload("res://scripts/ink_drain.gd")
+const LEVEL_PATH := "res://config/level_03.json"
 
 ## The seven the design names for the dive, in the order it names them. All seven are in the
 ## roster and none needs retraining.
@@ -51,6 +52,8 @@ var world: Node2D
 var registry: EntityRegistry
 var rows: Array = []
 var notes: Array = []
+var failures := 0
+var _economy: Dictionary = {}
 
 
 func _initialize() -> void:
@@ -66,39 +69,84 @@ func _run() -> void:
 	_bed()
 	_pool()
 
-	# Read the rate off a fresh InkDrain rather than hardcoding it, the same reason the morph
-	# reach probe reads MorphLife.seconds: it is balance, and a probe that copies it stops
-	# being true the moment somebody tunes it.
+	# ⚠ THE LEVEL'S OWN NUMBERS, NOT InkDrain's DEFAULTS. Once the rates are per class, a
+	# probe reading the default measures a level nobody plays -- and the whole point of the
+	# tuning pass is that the seven no longer share a rate.
+	_economy = _load(LEVEL_PATH).get("ink_economy", {})
 	var drain := InkDrainClass.new()
-	var rate: float = drain.default_rate
-	var warn: float = drain.warning_ratio
+	var default_rate := float(_economy.get("default_rate_per_second", drain.default_rate))
+	var warn := float(_economy.get("warning_ratio", drain.warning_ratio))
 	drain.free()
 	var budget: float = InkManagerClass.BUDGET
 	# What is left once the player has to still be somewhere survivable, which is the same
 	# reading the morph probe's "usable" column takes.
 	var usable := budget * (1.0 - warn)
+	var longest := _longest_unrefilled()
+	var refill := float(_economy.get("refill_units", 1.5))
 
 	print("\n===== SWIM REACH =====")
-	print("ink budget %.0f units, default drain %.2f units/s, warning at %.0f%% (%.1f usable units)"
-		% [budget, rate, warn * 100.0, usable])
+	print("ink budget %.0f units, warning at %.0f%% (%.1f usable), default rate %.2f/s"
+		% [budget, warn * 100.0, usable, default_rate])
+	print("crossing %.0f..%.0fpx with %d refill(s) of %.1f -- longest unrefilled stretch %.0fpx"
+		% [float(_economy.get("crossing_from_px", 0)), float(_economy.get("crossing_to_px", 0)),
+			(_economy.get("refill_spots", []) as Array).size(), refill, longest])
 	print("a held direction for %.0fs, in open water %.0fpx deep\n" % [RUN_SECONDS, POOL_HEIGHT])
-	print("%-11s %-8s %8s %8s %8s %8s %10s  %s" % [
-		"class", "rig", "px/s", "x@run", "rise", "dive", "px/ink", "verdict"])
-	print("-".repeat(88))
+	print("%-11s %7s %6s %7s %8s %8s %7s  %s" % [
+		"class", "px/s", "rate", "px/ink", "reach", "stretch", "hold", "verdict"])
+	print("-".repeat(82))
 	for entity_id in SWIMMERS:
-		await _measure(entity_id, rate, usable)
+		await _measure(entity_id, default_rate, usable, longest)
 	for row in rows:
 		print(row)
 	print("")
-	print("* the pool ended the reading, not the creature: it reached the surface or the bed")
+	print("reach   = px on the usable budget      stretch = units to cross the longest %.0fpx"
+		% longest)
+	print("hold    = seconds a form lasts on the usable budget plus the %.1f units in the arena"
+		% _arena_refill_units())
+	print("          the encounter's budget is %ds -- a full sweep is %.1fs and has to be waited out"
+		% [int(_economy.get("encounter_seconds", 0)), 4.0 * 1.05 / 0.55])
 	print("")
 	for note in notes:
 		print("NOTE: %s" % note)
+	if failures > 0:
+		print("\nOBRA_SWIM_REACH_FAILED=%d" % failures)
+		quit(1)
+		return
 	print("\nOBRA_SWIM_REACH_OK")
 	quit(0)
 
 
-func _measure(entity_id: String, rate: float, usable_units: float) -> void:
+func _load(path: String) -> Dictionary:
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return parsed as Dictionary if parsed is Dictionary else {}
+
+
+## What is available to spend INSIDE the encounter, which is the part charged by the second.
+func _arena_refill_units() -> float:
+	var from_x := float(_economy.get("arena_from_px", INF))
+	var each := float(_economy.get("refill_units", 1.5))
+	var total := 0.0
+	for pair: Variant in _economy.get("refill_spots", []):
+		if float((pair as Array)[0]) >= from_x:
+			total += each
+	return total
+
+
+## The widest gap a player can be asked to cover on one tank: entry to the first refill, each
+## refill to the next, and the last refill to the far side.
+func _longest_unrefilled() -> float:
+	var marks: Array[float] = [float(_economy.get("crossing_from_px", 0.0))]
+	for pair: Variant in _economy.get("refill_spots", []):
+		marks.append(float((pair as Array)[0]))
+	marks.append(float(_economy.get("crossing_to_px", 0.0)))
+	var widest := 0.0
+	for index in range(marks.size() - 1):
+		widest = maxf(widest, marks[index + 1] - marks[index])
+	return widest
+
+
+func _measure(entity_id: String, default_rate: float, usable_units: float,
+		longest: float) -> void:
 	var entry := registry.get_entity(entity_id)
 	var rig_type := String(entry.get("rig_type", "none"))
 	var instance := registry.instantiate_entity(entity_id) as Node2D
@@ -140,22 +188,49 @@ func _measure(entity_id: String, rate: float, usable_units: float) -> void:
 	var dive_mark := "*" if _clamped else " "
 
 	var speed := across / RUN_SECONDS
+	var rates: Dictionary = _economy.get("rates", {})
+	var rate := float(rates.get(entity_id, default_rate))
 	# THE COLUMN A GATE IS PLACED AGAINST. Distance per unit of ink, not per second: a class
-	# that swims fast and drains fast is not a long crossing.
+	# that swims fast and drains fast is not a long crossing. R10a.
 	var per_ink := speed / maxf(0.0001, rate)
+	var reach := per_ink * usable_units
+	var stretch_cost := longest / maxf(1.0, per_ink)
+
 	var verdict := "ok"
 	if absf(across) < 60.0:
 		verdict = "DOES NOT TRAVEL"
+		failures += 1
 		notes.append("%s covers %.0fpx in %.0fs of held input -- it cannot answer a crossing"
 			% [entity_id, across, RUN_SECONDS])
 	elif rise < 40.0:
 		verdict = "cannot rise"
+		failures += 1
 		notes.append("%s only climbs %.0fpx -- it cannot get back to the surface, and the "
 			% [entity_id, rise] + "ink-zero case says the apo is carried up")
-	rows.append("%-11s %-8s %8.0f %8.0f %7.0f%s %7.0f%s %10.0f  %s" % [
-		entity_id, rig_type, speed, across, rise, rise_mark, dive, dive_mark, per_ink, verdict])
-	notes.append("%s at the usable budget: about %.0fpx of crossing (%.1f units x %.0f px/ink)"
-		% [entity_id, per_ink * usable_units, usable_units, per_ink])
+	elif stretch_cost > usable_units:
+		# ⚠ THE ONE THAT MATTERS AFTER TUNING. A body the level offers and the player cannot
+		# pay for is a dead end dressed as a choice: they draw it, swim, run dry mid-crossing
+		# and are carried back, every time, with nothing telling them the body was the problem.
+		verdict = "CANNOT PAY ITS WAY"
+		failures += 1
+		notes.append("%s needs %.2f units for the longest unrefilled stretch and has %.1f"
+			% [entity_id, stretch_cost, usable_units])
+	# THE SECOND AXIS. The encounter is the only stretch of this level priced in time, and it
+	# is the one a fast expensive class cannot brute-force: a shark holds a form for fifteen
+	# seconds on a full tank and a single sweep of the creature's own cone takes almost eight.
+	var hold := (usable_units + _arena_refill_units()) / maxf(0.0001, rate)
+	var wanted := float(_economy.get("encounter_seconds", 0.0))
+	if verdict == "ok" and wanted > 0.0 and hold < wanted:
+		verdict = "CANNOT AFFORD THE ENCOUNTER"
+		failures += 1
+		notes.append("%s holds for %.0fs with every arena refill taken, and the encounter "
+			% [entity_id, hold] + "is budgeted at %.0fs" % wanted)
+	elif verdict == "ok" and stretch_cost > usable_units * 0.75:
+		verdict = "tight"
+		notes.append("%s spends %.0f%% of a full tank on the longest stretch"
+			% [entity_id, stretch_cost / usable_units * 100.0])
+	rows.append("%-11s %7.0f %6.2f %7.0f %8.0f %8.2f %7.0f  %s" % [
+		entity_id, speed, rate, per_ink, reach, stretch_cost, hold, verdict])
 	instance.queue_free()
 	await process_frame
 
