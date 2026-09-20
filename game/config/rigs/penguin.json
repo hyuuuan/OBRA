@@ -21,5 +21,6 @@
   "air_arm_degrees": 24,
   "landing_squash": 0.16,
   "tilt_degrees": 5.0,
-  "can_swim": true
+  "can_swim": true,
+  "swim_speed": 300
 }

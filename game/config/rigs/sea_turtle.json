@@ -20,5 +20,6 @@
   "air_splay_degrees": 5,
   "tilt_degrees": 2.0,
   "landing_squash": 0.1,
-  "can_swim": true
+  "can_swim": true,
+  "swim_speed": 195
 }

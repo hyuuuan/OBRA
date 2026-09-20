@@ -19,5 +19,6 @@
   "leg_fold_degrees": 26,
   "leg_extend_degrees": 30,
   "tilt_degrees": 4.0,
-  "can_swim": true
+  "can_swim": true,
+  "swim_speed": 215
 }
