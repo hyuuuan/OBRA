@@ -1,7 +1,8 @@
 # Level 3 — Dagat
 
-**Status: BUILT AND PLAYABLE, WITH PLACEHOLDER ART.** The shore, the fork, both crossings,
-the encounter in all three resolutions, the coral field, the island and the farewell are in.
+**Status: CONTENT COMPLETE, WITH PLACEHOLDER ART.** The shore, the fork, both crossings **and
+both of their lore scenes**, the encounter in all three resolutions **in both stagings**, the
+coral field, the island and the farewell are in.
 `levels.json` carries `scene_path` and `ends_run`, so Dagat is the level the run now ends on
 and the hub opens it. **Nothing on the design's asset list exists** — every prop, the creature
 and the sea are code-drawn, and `ART_PLACEHOLDERS.md` is where each contract goes.
@@ -160,6 +161,8 @@ commit bodies rather than repeated here.
 | **The coral field** | Ten facts on proximity, all non-drawable creatures, two about lola | No counter, no gate, no ink |
 | **The island** | Scripted arrival, the painting, then the farewell, `lolo_present` false | The half of the lore they have not heard lands here |
 | **Shipped** | `levels.json` `scene_path` + `ends_run`, and five assertions turned over | The dead card is `level_4`'s now |
+| **The crossings** | Boat: 5 beats through the DialogueBox, then the shadow · Dive: 4 through the HintBar | The boat stops the world; the dive does not. That contrast is what the fork is for |
+| **Both stagings** | `Bakunawa2D.stage_at()` — surface for the boat, depth for the dive | One creature moved, not two kept in step |
 
 ### Three things the tests caught that reasoning had not
 
@@ -179,6 +182,19 @@ commit bodies rather than repeated here.
 3. **The boat was parented to `EntityRoot`.** `_nearest_interactable_utility` skips anything
    whose parent is not `world_item_root`, so it floated, looked right, and could not be
    boarded.
+4. **The lore was in neither crossing, and the flags covered for it.**
+   `heard_how_he_died` / `heard_about_lola` were set the moment the fork was answered, and
+   the island skips whichever half is flagged — so the heart of the level was missing on both
+   routes with every suite green, because the probe accepted the flag as evidence. **A flag
+   is not evidence that a line landed.**
+5. **Every pickup tested `is_in_group` on the colliding body.** `player_character` is on the
+   morph's *root*, and what enters an `Area2D` is a rig segment. The seabed refills sit where
+   the player is always a morph, so they could never have been taken — and the only symptom
+   would have been a crossing that ran out of ink for no visible reason. Walk the parent
+   chain, as `DialogueNode2D` has since Level 1.
+6. **`DialogueNode2D` anchors its box upward from its position**, unlike `LevelObstacle2D`
+   and `CheckpointArea2D`, which centre theirs. The encounter's fork covered −190…1060 and a
+   diver swam under it without being asked anything.
 
 ### Measured (`run_swim_reach_probe.gd`, `run_behaviour_audit.gd`)
 
@@ -237,16 +253,11 @@ the shore, the sea, the coral field, the bakunawa in two stagings, the island, t
 the treasure. Everything is code-drawn placeholder with the right size, place and behaviour,
 the way Payyo's props were before they were painted.
 
-**6. The boat route is a crossing, not yet a scene.** The bangka is found and the sailboat
-carries the player, but the rowing lore scene and the bakunawa's **surface staging** are not
-built — a boat player currently meets the encounter staged underwater. The design calls the
-two stagings the most expensive single item in the level.
-
-**7. Payyo's Protector debt.** `LEVEL_TEMPLATE.md` records it: Level 1's Node 3 Protector
+**6. Payyo's Protector debt.** `LEVEL_TEMPLATE.md` records it: Level 1's Node 3 Protector
 route creases the canvas and the crease costs nothing mechanical, "to be paid back when Level
 3 is designed". Dagat is the first level since where a crease could reach something real.
 
-**8. The numbers.** Drain rate per class, starting capacity, refill size and count per route.
+**7. The numbers.** Drain rate per class, starting capacity, refill size and count per route.
 The design is right that these come out of playtesting — but the probe now says the seven are
 indistinguishable at 685–762 px/ink, so **the per-class rate table is the only lever that can
 make a shark cost more to hold than a fish**. The dive route needs more refills than the boat
