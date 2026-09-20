@@ -1,11 +1,14 @@
 # Level 3 — Dagat
 
-**Status: SYSTEMS BUILT, LEVEL NOT BUILT.** The three things Dagat needs before any of its
-content can exist are in and measured — the ink drain, swimming, and the underwater
-restriction — and the tag layer now answers both of its forks. There is still no scene, no
-`level_03.json`, no dialogue file and no art, and `levels.json` still carries `level_3` as
-**Coming Soon** with an empty `scene_path`, which is what five tests assert and what keeps the
-hub from offering a card with nothing behind it.
+**Status: BUILT AND PLAYABLE, WITH PLACEHOLDER ART.** The shore, the fork, both crossings,
+the encounter in all three resolutions, the coral field, the island and the farewell are in.
+`levels.json` carries `scene_path` and `ends_run`, so Dagat is the level the run now ends on
+and the hub opens it. **Nothing on the design's asset list exists** — every prop, the creature
+and the sea are code-drawn, and `ART_PLACEHOLDERS.md` is where each contract goes.
+
+**Green:** `run_level3_audit.gd` (T3, 24 checks) · `run_nodraw_level3.gd` (T1) ·
+`run_bakunawa_probe.gd` (all three resolutions) · `run_level3_finish_probe.gd` (both
+crossings, to completion) · `run_swim_reach_probe.gd`. Levels 1 and 2 unaltered.
 
 **This document is the plan, written before the build** — `LEVEL_TEMPLATE.md` build order
 step 1, *"write `LEVEL_<N>.md` first, even as a placeholder, and mark it provisional"*. It
@@ -153,6 +156,10 @@ commit bodies rather than repeated here.
 | **The shore** | The new brush as a pickup · the practice beat at the waterline · CP1 | The brush is not an obstacle: a sub-beat resolves a tag, and picking something up is not a drawing |
 | **The fork** | Beached bangka → a real `sailboat` · `swim` on the dive · three seabed refills | The boat is **found**, closed with `solve_with_item`, and it sails — a found boat that could not be sailed would answer the fork and strand the player |
 | **T3 and T1** | `run_level3_audit.gd` (24 checks) · `run_nodraw_level3.gd` | Both green |
+| **The encounter** | `bakunawa_2d.gd` — `apply_tool_hit`, a drawn sweep, a channel body | Three resolutions, one creature. Subdued never killed; losing costs the stretch, not the run |
+| **The coral field** | Ten facts on proximity, all non-drawable creatures, two about lola | No counter, no gate, no ink |
+| **The island** | Scripted arrival, the painting, then the farewell, `lolo_present` false | The half of the lore they have not heard lands here |
+| **Shipped** | `levels.json` `scene_path` + `ends_run`, and five assertions turned over | The dead card is `level_4`'s now |
 
 ### Three things the tests caught that reasoning had not
 
@@ -225,16 +232,15 @@ consistent with a game that has no death state.
 
 ### Still open
 
-**5. The bakunawa, the coral field and the island are not built.** `L3_N2` has its volume,
-its fork and its three routes in data, and nothing behind them: no creature, no light cones,
-no fun-fact interactables, no flower in the world, no exit. The level currently ends in open
-water. This is the largest remaining piece and it is what "the dive route playable end to
-end" still needs.
+**5. Art.** The largest remaining piece by far. Nothing on the design's asset list exists —
+the shore, the sea, the coral field, the bakunawa in two stagings, the island, the new brush,
+the treasure. Everything is code-drawn placeholder with the right size, place and behaviour,
+the way Payyo's props were before they were painted.
 
-**6. Level 2 currently ends the run.** `levels.json` has `ends_run: true` on `level_2`. It
-moves to `level_3` **in the shipping commit**, and five tests turn over with it:
-`run_level2_audit.gd:459`, `run_level2_finish_probe.gd:175`, `run_tests.gd:695` and `:760`,
-`test_player_profile.gd:106`, `run_hub_audit.gd:78`. The dead card moves to `level_4`.
+**6. The boat route is a crossing, not yet a scene.** The bangka is found and the sailboat
+carries the player, but the rowing lore scene and the bakunawa's **surface staging** are not
+built — a boat player currently meets the encounter staged underwater. The design calls the
+two stagings the most expensive single item in the level.
 
 **7. Payyo's Protector debt.** `LEVEL_TEMPLATE.md` records it: Level 1's Node 3 Protector
 route creases the canvas and the crease costs nothing mechanical, "to be paid back when Level
