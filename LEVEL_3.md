@@ -1,6 +1,12 @@
 # Level 3 — Dagat
 
-**Status: CONTENT COMPLETE, WITH PLACEHOLDER ART.** The shore, the fork, both crossings **and
+**Status: CONTENT COMPLETE AND PAINTED.** The delivered art is in — three parallax bands,
+animated coral, kelp, bubbles and fish, and the bakunawa in 23 poses. `tools/build_dagat.py`
+cuts the delivery and **fails if any of the 79 files is unused**; `tools/build_dagat_props.py`
+authors the one prop the delivery has in the picture but not as a file (the seabed ink jar).
+Six things are still a developer's rectangles and they are listed in `ART_PLACEHOLDERS.md`.
+
+*(Previous status, kept for the record: content complete with placeholder art.)* The shore, the fork, both crossings **and
 both of their lore scenes**, the encounter in all three resolutions **in both stagings**, the
 coral field, the island and the farewell are in.
 `levels.json` carries `scene_path` and `ends_run`, so Dagat is the level the run now ends on
@@ -248,10 +254,17 @@ consistent with a game that has no death state.
 
 ### Still open
 
-**5. Art.** The largest remaining piece by far. Nothing on the design's asset list exists —
-the shore, the sea, the coral field, the bakunawa in two stagings, the island, the new brush,
-the treasure. Everything is code-drawn placeholder with the right size, place and behaviour,
-the way Payyo's props were before they were painted.
+**5. Art — six props, not a level.** The bands, the creature, the coral field and the
+ambience are painted. What is left is the brush, the beached and launched bangka, the
+treasure the creature uncovers, the next painting, and Lolo's farewell pose — all listed with
+their sizes and what each has to say in `ART_PLACEHOLDERS.md`.
+
+⚠ **Three things about the backdrops that will bite whoever touches them next.** A band is
+pinned by ONE derived edge (`plate_top`) and every layer in it shares that edge — the shore
+by its sand line at plate-y 790, the storm by its wave surface at 421, the deep by the
+waterline itself. **Parallax is horizontal only**: let a far layer lag vertically and it
+slides out of frame the moment the player dives. **A slow layer is widened by 1/rate**,
+because at rate 0.15 it drifts nearly as far as the band is wide. All three were bugs first.
 
 **6. Payyo's Protector debt.** `LEVEL_TEMPLATE.md` records it: Level 1's Node 3 Protector
 route creases the canvas and the crease costs nothing mechanical, "to be paid back when Level
