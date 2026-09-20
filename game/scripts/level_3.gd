@@ -26,6 +26,10 @@ extends "res://scripts/level_base.gd"
 ## memory's rules back, which is the whole reason the hook is a level virtual.
 
 const RestrictionsClass = preload("res://scripts/level_restrictions.gd")
+## ⚠ PRELOADED, NOT NAMED. A `--script` run does not register class names -- the same reason
+## this file extends level_base by path -- so naming the creature's class directly here fails
+## to parse in every one of the probes that loads this level.
+const BakunawaClass = preload("res://scripts/bakunawa_2d.gd")
 
 ## Where the waterline sits, read off the mark rather than typed twice. Everything below it
 ## is the sea: the aquatic rule is armed there and nowhere else, because the shore and a
@@ -55,6 +59,13 @@ var _bangka_found := false
 ## checkpoint restore that handed them all back would make the crossing free.
 var _refills_taken: Array = []
 var _bangka: Area2D
+var _bakunawa: BakunawaClass
+## Contacts taken in the current go at the fight. Three and the fight restarts -- which is
+## the design's own "losing restarts the fight. It does not end the run."
+var _knocks := 0
+var _knock_cooldown := 0.0
+## Stops the stealth reset firing again on the frames between being seen and being moved.
+var _reset_cooldown := 0.0
 
 
 # --- What the machine asks -------------------------------------------------------------
@@ -79,6 +90,7 @@ func _resolve_level_nodes() -> void:
 		plane.get_concatenated_names() + "/BakunawaNode") as DialogueNode2D
 	_shore_node = dialogue_node
 	_sea = get_node_or_null(plane.get_concatenated_names() + "/Sea") as WaterArea2D
+	_bakunawa = get_node_or_null(plane.get_concatenated_names() + "/Bakunawa") as BakunawaClass
 	_marks = get_node_or_null(plane.get_concatenated_names() + "/Marks") as Node2D
 	var waterline := _mark("WaterlineMark")
 	if waterline != null:
@@ -117,6 +129,13 @@ func _build_level_furniture() -> void:
 	_plant_the_brush()
 	_plant_the_bangka()
 	_plant_the_refills()
+
+	if _bakunawa != null:
+		_bakunawa.gift_offered.connect(_on_gift_offered)
+		_bakunawa.went_quiet.connect(_on_bakunawa_quiet)
+		_bakunawa.begin_search()
+	if director != null:
+		director.route_committed.connect(_on_route_committed_here)
 
 
 func _roster_ids() -> PackedStringArray:
@@ -310,6 +329,7 @@ func _drowning_words() -> PackedStringArray:
 func _level_physics(anchor_position: Vector2) -> void:
 	var delta := get_physics_process_delta_time()
 	var underwater := anchor_position.y > _waterline_y
+	_watch_the_bakunawa(anchor_position, delta)
 
 	if underwater and not _said_underwater:
 		_said_underwater = true
@@ -336,6 +356,52 @@ func _level_physics(anchor_position: Vector2) -> void:
 		# The medium rule, asked once per frame the way the ceiling is. It owns its own
 		# clock, so a creature that leaves the water gets its whole beat back next time.
 		_restrictions.check_medium(_current_form_id, underwater, delta)
+
+
+## The encounter's own frame, split out because it is the only part of this level with two
+## ways to lose and both of them are per-frame questions.
+func _watch_the_bakunawa(anchor_position: Vector2, delta: float) -> void:
+	if _bakunawa == null or director == null:
+		return
+	_reset_cooldown = maxf(0.0, _reset_cooldown - delta)
+	_knock_cooldown = maxf(0.0, _knock_cooldown - delta)
+	if _reset_cooldown > 0.0:
+		return
+	var route := director.committed_route("L3_N2")
+
+	if route == "pragmatist" and not director.is_solved("L3_N2"):
+		if _bakunawa.sees(anchor_position, _carrying_a_lit_light()):
+			_lose_the_stretch("It turned. Back to where you were.")
+			return
+		# Past the far end of the arena, in the dark, with nothing drawn at it.
+		if anchor_position.x > _bakunawa.global_position.x + 420.0:
+			director.solve_with_item("L3_N2", "the dark")
+		return
+
+	if _bakunawa.state() != BakunawaClass.State.FIGHTING or _knock_cooldown > 0.0:
+		return
+	# ⚠ CONTACT COSTS A STRIKE, AND THERE IS NO HEALTH BAR. The game has no death state and
+	# this is not where one arrives: three contacts put the player back at CP3b with the
+	# fight fresh, which is the design's "losing restarts the fight".
+	if anchor_position.distance_to(_bakunawa.global_position) < BakunawaClass.BODY_DEPTH * 1.6:
+		_knocks += 1
+		_knock_cooldown = 1.1
+		if _knocks >= 3:
+			_lose_the_stretch("It threw you off. Again, apo.")
+		else:
+			_say_why("Mind yourself.")
+
+
+## A lit flashlight makes the player a lamp. The design asks for this to be ALLOWED rather
+## than prevented: drawing the light and then choosing to sneak is a harder encounter the
+## player chose for themselves.
+func _carrying_a_lit_light() -> bool:
+	if _equipped_utility == null or not is_instance_valid(_equipped_utility):
+		return false
+	if _equipped_utility.utility_behavior != "flashlight":
+		return false
+	return not _equipped_utility.has_method("is_active") \
+		or bool(_equipped_utility.call("is_active"))
 
 
 # --- What happens when a rule bites -----------------------------------------------------
@@ -471,6 +537,51 @@ func _on_bakunawa_approached() -> void:
 	_on_dialogue_node_approached()
 
 
+## ⚠ THE ENCOUNTER STARTS AT THE COMMIT, NOT AT THE SOLVE. Two of its three resolutions need
+## the world to change the moment the player says what they are doing: the gap has to open
+## before they can slip through it, and the creature has to turn on them before they can
+## fight it. Only the Artist one waits for a drawing.
+func _on_route_committed_here(obstacle_id: String, route: String) -> void:
+	if obstacle_id != "L3_N2" or _bakunawa == null:
+		return
+	match route:
+		"pragmatist":
+			_bakunawa.open_a_gap()
+			_say_why("Stay out of the light and it will never know you were here.")
+		"protector":
+			_knocks = 0
+			_bakunawa.enter_fight()
+			_say_why("It is coming round. Put something in your hands, apo.")
+
+
+## The light found it. Everything else about the Artist route is the creature's own doing.
+func _on_gift_offered() -> void:
+	_award_the_flower()
+	PlayerProfile.record_bakunawa("LIT")
+	script_lines.set_flag("l3_bakunawa_lit")
+	if not director.is_solved("L3_N2"):
+		director.solve_with_item("L3_N2", "the light")
+
+
+func _on_bakunawa_quiet(how: String) -> void:
+	if how != "FOUGHT":
+		return
+	PlayerProfile.record_bakunawa("FOUGHT")
+	script_lines.set_flag("l3_bakunawa_fought")
+	_say_why("Enough. Let it go, apo — it never knew you were there.")
+
+
+## Being seen, and being hit, both cost the current stretch and not the approach. CP3b sits
+## partway through for exactly this: "an encounter-length reset with no mid-point turns a
+## five-minute section into twenty."
+func _lose_the_stretch(why: String) -> void:
+	_reset_cooldown = 1.4
+	_knocks = 0
+	_return_to_safety(why, "%s" % why)
+	if _bakunawa != null and _bakunawa.state() == BakunawaClass.State.FIGHTING:
+		_bakunawa.enter_fight()
+
+
 func _on_route_solved(obstacle_id: String, route: String) -> bool:
 	if obstacle_id == "L3_N1" and route == "artist":
 		# The boat is FOUND, not drawn. Nothing to spawn and nothing to judge.
@@ -480,25 +591,16 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 		script_lines.set_flag("heard_about_lola")
 		return false
 	if obstacle_id == "L3_N2":
-		_close_the_encounter(route)
-		return false
-	return false
-
-
-## One place that writes what the encounter was, so the flag, the profile and the flower
-## cannot disagree with each other.
-func _close_the_encounter(route: String) -> void:
-	match route:
-		"artist":
-			PlayerProfile.record_bakunawa("LIT")
-			script_lines.set_flag("l3_bakunawa_lit")
-			_award_the_flower()
-		"pragmatist":
+		if route == "artist" and _bakunawa != null:
+			# The drawing is accepted, so the beat is answered -- but the creature has not
+			# found anything yet. It swims to what it lost, and the flower comes from THAT.
+			_bakunawa.follow_the_light(_bakunawa.treasure_point())
+			return true
+		if route == "pragmatist":
 			PlayerProfile.record_bakunawa("EVADED")
 			script_lines.set_flag("l3_bakunawa_evaded")
-		"protector":
-			PlayerProfile.record_bakunawa("FOUGHT")
-			script_lines.set_flag("l3_bakunawa_fought")
+		return false
+	return false
 
 
 ## ⚠ THE ID HERE MUST BE IN PlayerProfile.FLOWER_IDS OR THE FLOWER COUNTS FOR NOTHING. The
@@ -545,6 +647,7 @@ func _level_run_state() -> Dictionary:
 		"brush_taken": _brush_taken,
 		"bangka_found": _bangka_found,
 		"refills_taken": _refills_taken.duplicate(),
+		"knocks": _knocks,
 	}
 
 
@@ -554,6 +657,7 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	_brush_taken = bool(state.get("brush_taken", false))
 	_bangka_found = bool(state.get("bangka_found", false))
 	_refills_taken = (state.get("refills_taken", []) as Array).duplicate()
+	_knocks = int(state.get("knocks", 0))
 	# A restore is a new body or none at all, so the drain starts again rather than resuming
 	# a form that is no longer standing.
 	if _drain != null:

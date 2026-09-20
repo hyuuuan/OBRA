@@ -1033,5 +1033,13 @@ func _set_light_active(enabled: bool) -> void:
 		_point_light.enabled = enabled
 
 
+## IS THE TOGGLE ON? For the tools in TOGGLE_TOOLS, whose whole behaviour is a state the
+## world may need to ask about -- Dagat's bakunawa sees a lit flashlight from further away
+## than a dark one, which is the design's own "a player who drew a flashlight and then chose
+## to sneak has made the encounter harder for themselves".
+func is_active() -> bool:
+	return _active
+
+
 func _is_in_water() -> bool:
 	return int(get_meta("water_overlap_count", 0)) > 0

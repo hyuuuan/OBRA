@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="6_checkpoint"]
 [ext_resource type="Script" path="res://scripts/dialogue_node_2d.gd" id="7_dialoguenode"]
 [ext_resource type="Script" path="res://scripts/water_area_2d.gd" id="8_water"]
+[ext_resource type="Script" path="res://scripts/bakunawa_2d.gd" id="9_bakunawa"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Shore"]
 size = Vector2(1000.0, 240.0)
@@ -119,6 +120,11 @@ position = Vector2(4000.0, 1100.0)
 
 [node name="IslandMark" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(4900.0, 560.0)
+
+[node name="Bakunawa" type="Node2D" parent="GameplayPlane"]
+position = Vector2(4000.0, 1150.0)
+script = ExtResource("9_bakunawa")
+treasure_offset = Vector2(-280.0, 300.0)
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 
