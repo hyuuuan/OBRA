@@ -30,6 +30,10 @@ const RestrictionsClass = preload("res://scripts/level_restrictions.gd")
 ## this file extends level_base by path -- so naming the creature's class directly here fails
 ## to parse in every one of the probes that loads this level.
 const BakunawaClass = preload("res://scripts/bakunawa_2d.gd")
+const PropClass = preload("res://scripts/dagat_prop_2d.gd")
+const PROPS := "res://assets/Level3/props/"
+const AUTHORED := "res://assets/Level3/authored/"
+const AMBIENCE := "res://assets/Level3/ambience/"
 
 ## Where the waterline sits, read off the mark rather than typed twice. Everything below it
 ## is the sea: the aquatic rule is armed there and nowhere else, because the shore and a
@@ -135,6 +139,7 @@ func _build_level_furniture() -> void:
 	_plant_the_bangka()
 	_plant_the_refills()
 	_plant_the_coral_field()
+	_scatter_the_ambience()
 
 	if _bakunawa != null:
 		_bakunawa.gift_offered.connect(_on_gift_offered)
@@ -247,10 +252,13 @@ func _plant_the_refills() -> void:
 		circle.radius = 52.0
 		shape.shape = circle
 		refill.add_child(shape)
-		var art := Polygon2D.new()
-		art.polygon = PackedVector2Array([
-			Vector2(0, -30), Vector2(22, 0), Vector2(0, 30), Vector2(-22, 0)])
-		art.color = Color(0.15, 0.13, 0.28, 0.92)
+		# The jar from the painted plate, authored as a sprite by tools/build_dagat_props.py
+		# because the delivery has it in the picture rather than as a file.
+		var art := PropClass.new()
+		art.prefix = AUTHORED + "ink_jar"
+		art.fps = 2.4
+		art.target_height = 92.0
+		art.phase = index
 		refill.add_child(art)
 		refill.global_position = spots[index]
 		refill.z_index = 6
@@ -282,12 +290,19 @@ func _plant_the_coral_field() -> void:
 	# ⚠ ON THE BED, AND THE BED MOVED. The painted terraces rest their floor at world 1349,
 	# two hundred pixels above where the placeholder seabed was, so everything that sat on it
 	# came up with it. A fact left at 1490 is a fact inside the rock.
+	# ⚠ ON THE BED, BECAUSE THE SCENERY STANDS ON IT. Every fact carries a piece of kelp or
+	# coral now, and a frond anchored at its foot in open water is a plant growing out of
+	# nothing. The bed is world 1349, so they sit a few pixels into it.
+	#
+	# `shaft` is the exception and keeps its depth: its fact is "look up, that is the whole
+	# top of the world from down here", the light shafts it names are painted into the
+	# backdrop, and standing a coral under it would be answering a different sentence.
 	var field := {
-		"jelly": Vector2(1360.0, 980.0), "star": Vector2(1680.0, 1290.0),
-		"clam": Vector2(1980.0, 1310.0), "weed": Vector2(2180.0, 1120.0),
-		"urchin": Vector2(2420.0, 1300.0), "coral": Vector2(2660.0, 1200.0),
-		"shaft": Vector2(2900.0, 780.0), "wreck": Vector2(3080.0, 1285.0),
-		"lola1": Vector2(1780.0, 860.0), "lola2": Vector2(3260.0, 1040.0),
+		"jelly": Vector2(1360.0, 1344.0), "star": Vector2(1680.0, 1348.0),
+		"clam": Vector2(1980.0, 1346.0), "weed": Vector2(2180.0, 1350.0),
+		"urchin": Vector2(2420.0, 1345.0), "coral": Vector2(2660.0, 1349.0),
+		"shaft": Vector2(2900.0, 820.0), "wreck": Vector2(3080.0, 1347.0),
+		"lola1": Vector2(1780.0, 1350.0), "lola2": Vector2(3260.0, 1346.0),
 	}
 	for key: String in field.keys():
 		var spot := Area2D.new()
@@ -302,6 +317,42 @@ func _plant_the_coral_field() -> void:
 		spot.global_position = field[key]
 		coral.get_parent().add_child(spot)
 		spot.body_entered.connect(_on_coral_touched.bind(key))
+		# ⚠ AND SOMETHING TO LOOK AT. Ten invisible trigger volumes is a field of facts about
+		# nothing: Lolo names a thing the player cannot see. Each fact now stands on the piece
+		# of scenery it is about.
+		if not SCENERY.has(key):
+			continue
+		var piece := PropClass.new()
+		piece.prefix = PROPS + String(SCENERY[key])
+		piece.target_height = float(SCENERY_HEIGHT.get(key, 120))
+		piece.fps = 1.6 + float(seed_of(key) % 5) * 0.2
+		piece.phase = seed_of(key) % 3
+		piece.mirrored = seed_of(key) % 2 == 1
+		piece.z_index = 3
+		spot.add_child(piece)
+
+
+## WHICH PIECE OF SCENERY EACH FACT IS ABOUT. The facts were written for the non-drawable
+## set on purpose -- see the header on _plant_the_coral_field -- so the kelp, the corals and
+## the urchin carry them and no fact is attached to something the player could have summoned.
+const SCENERY := {
+	"jelly": "coral_violet", "star": "coral_orange", "clam": "coral_blue",
+	"weed": "kelp_long", "urchin": "coral_red", "coral": "coral_orange",
+	"wreck": "coral_red", "lola1": "kelp_long", "lola2": "kelp_short",
+}
+const SCENERY_HEIGHT := {
+	"weed": 190, "lola1": 205, "lola2": 140,
+	"jelly": 120, "star": 105, "clam": 115, "urchin": 100, "coral": 110, "wreck": 108,
+}
+
+
+## A stable per-key number, so a frond's phase and lean are the same on every run rather than
+## re-rolled -- a bed that rearranges itself when you swim back is worse than a still one.
+static func seed_of(key: String) -> int:
+	var total := 0
+	for index in key.length():
+		total += key.unicode_at(index) * (index + 3)
+	return total
 
 
 func _on_coral_touched(body: Node, key: String) -> void:
@@ -309,6 +360,45 @@ func _on_coral_touched(body: Node, key: String) -> void:
 		return
 	# `once` on the line does the not-twice part; firing again is free and says nothing.
 	_speak(script_lines.fire("CORAL.%s" % key))
+
+
+## BUBBLES AND FISH, which are the difference between a painted sea and a sea. Nothing here
+## is interactive and nothing here is a fact -- the ten facts are earned by swimming up to
+## something, and a field where everything moves has no way to say which things are which.
+func _scatter_the_ambience() -> void:
+	var coral := _mark("CoralMark")
+	if coral == null:
+		return
+	# Columns rise off the bed; schools drift at mid-depth. Placed by hand rather than by
+	# random so nothing lands inside a terrace or on top of a fact.
+	var placings := [
+		[AMBIENCE + "bubbles_long", Vector2(1180.0, 1330.0), 210.0, 3.0],
+		[AMBIENCE + "bubbles_short", Vector2(1620.0, 1300.0), 130.0, 3.6],
+		[AMBIENCE + "bubbles_long", Vector2(2280.0, 1340.0), 235.0, 2.6],
+		[AMBIENCE + "bubbles_short", Vector2(2840.0, 1300.0), 140.0, 3.2],
+		[AMBIENCE + "bubbles_long", Vector2(3420.0, 1330.0), 200.0, 2.8],
+		[AMBIENCE + "bubbles_short", Vector2(4160.0, 1300.0), 135.0, 3.4],
+		[AMBIENCE + "school", Vector2(1450.0, 900.0), 175.0, 2.2],
+		[AMBIENCE + "school", Vector2(2350.0, 780.0), 210.0, 1.8],
+		[AMBIENCE + "school", Vector2(3150.0, 940.0), 165.0, 2.4],
+		[AMBIENCE + "school", Vector2(4020.0, 820.0), 195.0, 2.0],
+	]
+	for index in placings.size():
+		var row: Array = placings[index]
+		var piece := PropClass.new()
+		piece.name = "Ambience%d" % index
+		piece.prefix = String(row[0])
+		# ⚠ ASSIGNED, NOT CONVERTED. float(x) on a Variant that is already a float is not a
+		# constructor GDScript has, and it throws once per prop per run; the typed property
+		# does the coercion on its own.
+		piece.target_height = row[2]
+		piece.fps = row[3]
+		piece.phase = index
+		piece.mirrored = index % 3 == 0
+		piece.z_index = -20
+		piece.modulate = Color(1.0, 1.0, 1.0, 0.75)
+		coral.get_parent().add_child(piece)
+		piece.global_position = row[1]
 
 
 func _on_refill_touched(body: Node, index: int, amount: float, refill: Area2D) -> void:

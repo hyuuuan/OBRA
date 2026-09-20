@@ -75,6 +75,7 @@ polygon = PackedVector2Array(4500, 560, 5400, 560, 5400, 800, 4500, 800)
 [node name="ShoreBand" type="Node2D" parent="."]
 script = ExtResource("10_backdrop")
 band = "shore"
+depth = 2.0
 span = Vector2(-400.0, 1180.0)
 plate_top = -230.0
 
@@ -86,6 +87,7 @@ plate_top = -230.0
 [node name="DeepBand" type="Node2D" parent="."]
 script = ExtResource("10_backdrop")
 band = "deep"
+depth = 1.0
 span = Vector2(940.0, 4530.0)
 plate_top = 560.0
 

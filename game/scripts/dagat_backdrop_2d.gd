@@ -22,6 +22,13 @@ extends Node2D
 
 const MANIFEST := "res://assets/Level3/dagat.json"
 
+## ⚠ EnvironmentBaseplate SORTS ITS LAYERS BY THIS. It collects anything with
+## set_camera_origin/update_for_camera -- which is how a backdrop gets parallax for free --
+## and then sorts them with float(child.get("depth")). A layer without the property hands it
+## null and throws "Nonexistent 'float' constructor" once per sort, forever. DepthLayer2D has
+## carried it since Level 1; this is the same contract, not a new one.
+@export var depth: float = 0.0
+
 ## WHICH BAND. Each is a separate delivery and a separate place in the level.
 @export_enum("shore", "storm", "deep") var band: String = "shore"
 ## The world x range this band covers. Layers tile across it and stop at its edges, so the
