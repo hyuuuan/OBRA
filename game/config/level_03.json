@@ -107,26 +107,83 @@
   },
   "ink_economy": {
     "$comment": [
-      "NOT READ BY LevelRestrictions -- level_3.gd reads it and hands it to InkDrain. Kept",
-      "here rather than exported on the scene node because it is the level's balance and",
-      "this is where a designer looks for a level's numbers.",
+      "THE TUNING PASS. run_swim_reach_probe.gd measured all seven at 685-762 px per unit of",
+      "ink -- a 1.11x spread against the 3.8x the land probe found -- because swim_speed fell",
+      "back to the same 260 for everybody. The design asks outright for a fish to cost less to",
+      "hold than a shark, so the seven now differ on TWO axes and the axes pull against each",
+      "other, which is what makes the choice of body a choice:",
       "",
-      "EVERY RATE BELOW IS THE DEFAULT. run_swim_reach_probe.gd measured all seven classes",
-      "at 685-762 px per unit of ink -- a 1.11x spread against the 3.8x the land probe",
-      "found -- so the classes are currently indistinguishable and the design's 'a fish",
-      "costs less to hold than a shark' is NOT yet true. The per-class table is the only",
-      "lever that can make it true, because swim_speed is flat. Filling it is a tuning pass",
-      "and it needs playtesting, not a guess."
+      "  sea_turtle  slow and cheapest   -- the endurance body; it crosses furthest per unit",
+      "  fish        the baseline        -- unremarkable on purpose, and what the shore teaches",
+      "  crab        slow and cheap      -- a land animal coping, and coping adequately",
+      "  frog        quick and awkward   -- bursts, and it pays for them",
+      "  octopus     middling both ways",
+      "  penguin     fast and middling   -- genuinely a fast swimmer, and priced for it",
+      "  shark       fastest, dearest    -- the sprint. Best reach per SECOND, worst per UNIT",
+      "",
+      "The inversion is the point: the fastest class is not the one that gets furthest on a",
+      "budget. R10a in LEVEL_TEMPLATE.md says the slowest answer and the most expensive answer",
+      "stop being the same class once a drain exists, and this is that being true.",
+      "",
+      "EVERY RATE IS CHECKED, NOT CHOSEN. run_swim_reach_probe.gd reads this block rather than",
+      "InkDrain's default and fails if any of the seven cannot cover the longest stretch",
+      "between refills. A body the level offers and cannot pay for is a dead end.",
+      "",
+      "\u26a0 THREE OF THE SIX SIT INSIDE THE ARENA, AND ALL THREE ARE WEST OF THE COILS. Everything",
+      "before the encounter is priced in distance and comfortably covered; the encounter is priced",
+      "in time, and a shark holds a form for fifteen seconds on a full tank while one sweep of the",
+      "creature's cone takes almost eight. A fourth sat at 4250, behind the coils at 4230..4390 --",
+      "unreachable until the encounter is already over, and still counted toward the encounter's",
+      "budget, which is ink the player cannot spend. The one at 4050 is under the creature: going",
+      "into its space to pay for staying there is a trade worth offering."
     ],
     "default_rate_per_second": 0.2,
     "warning_ratio": 0.2,
-    "rates": {},
+    "rates": {
+      "sea_turtle": 0.12,
+      "crab": 0.16,
+      "fish": 0.17,
+      "octopus": 0.2,
+      "frog": 0.21,
+      "penguin": 0.24,
+      "shark": 0.32
+    },
     "zero_case": "revert, carry the apo to the surface or the nearest air pocket, lose the crossing, never die",
     "refills_are_placed_not_timed": true,
     "working_crossing_px": 3600,
     "refill_units": 1.5,
-    "refill_count_dive": 3,
-    "refill_count_boat": 0
+    "refill_count_dive": 6,
+    "refill_count_boat": 0,
+    "crossing_from_px": 930,
+    "crossing_to_px": 4460,
+    "refill_spots": [
+      [
+        1500,
+        1400
+      ],
+      [
+        2400,
+        1460
+      ],
+      [
+        3200,
+        1420
+      ],
+      [
+        3620,
+        1300
+      ],
+      [
+        3850,
+        1470
+      ],
+      [
+        4050,
+        1460
+      ]
+    ],
+    "arena_from_px": 3410,
+    "encounter_seconds": 24
   },
   "objectives": {
     "$comment": "THE OBJECTIVE LINE, one per state of the run. level_3.gd decides which state the player is in; these are only the words, held to the same rule every dialogue line is held to: no line names a drawable class. Dangerous here in a way it was not in Piyesta -- the sea is full of classes. Never 'fish', 'shark', 'crab', 'sun', 'cloud', 'sailboat' or 'submarine'.",

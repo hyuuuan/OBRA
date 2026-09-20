@@ -225,10 +225,16 @@ func _plant_the_refills() -> void:
 	var coral := _mark("CoralMark")
 	if coral == null:
 		return
+	# ⚠ READ FROM THE LEVEL FILE, NOT TYPED HERE. run_swim_reach_probe.gd checks that every
+	# one of the seven can cover the longest stretch BETWEEN these, so the spots and the rates
+	# have to be the same numbers the probe sees. Hard-coded here they could drift apart and
+	# the check would be verifying a layout the level does not have.
 	var economy: Dictionary = director.level_data().get("ink_economy", {})
 	var amount := float(economy.get("refill_units", 1.5))
-	var spots := [
-		Vector2(1500.0, 1400.0), Vector2(2400.0, 1460.0), Vector2(3200.0, 1420.0)]
+	var spots: Array[Vector2] = []
+	for pair: Variant in economy.get("refill_spots", []):
+		var xy: Array = pair
+		spots.append(Vector2(float(xy[0]), float(xy[1])))
 	for index in spots.size():
 		if _refills_taken.has(index):
 			continue
