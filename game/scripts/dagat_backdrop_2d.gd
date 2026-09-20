@@ -141,13 +141,13 @@ func update_for_camera(camera_position: Vector2) -> void:
 
 ## One tiled, optionally animated plate.
 ##
-## ⚠ A Sprite2D WITH A REPEATING REGION, NOT A CUSTOM _draw. The first version of this drew
+## ⚠ SPRITES, NOT A CUSTOM _draw. The first version of this drew
 ## with draw_texture_rect(..., tile = true) and produced nothing at all for four of the seven
 ## layers -- _draw ran, with the right texture, the right rect and the right position, and the
 ## screen stayed empty where they should have been. Sprite2D with region_enabled and
 ## TEXTURE_REPEAT_ENABLED is the path level_2.tscn already uses for its backdrop, and it
 ## repeats across a span wider than the texture without any of that.
-class _Layer extends Sprite2D:
+class _Layer extends Node2D:
 	var frames: Array[Texture2D] = []
 	var span := Vector2.ZERO
 	var plate_scale := 1.0
@@ -157,16 +157,32 @@ class _Layer extends Sprite2D:
 	var _frame := 0
 	var _clock := 0.0
 
+	var _tiles: Array[Sprite2D] = []
+
 	func _ready() -> void:
-		# Pixel art, and the project draws it NEAREST everywhere else.
-		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-		# Top-left anchored, because every layer in a band is pinned by the SAME top edge.
-		centered = false
-		texture = frames[0]
-		region_enabled = true
-		region_rect = Rect2(0.0, 0.0, maxf(1.0, span.y - span.x), texture.get_height())
-		scale = Vector2(1.0, plate_scale)
+		# ⚠ MIRRORED TILES, NOT A REPEATING REGION. Every plate is a self-contained painting
+		# 1672 wide and the bands are two to four times that, so it has to repeat -- and a
+		# straight repeat puts a hard vertical cut through the ruins every 1672 pixels, which
+		# the eye finds immediately. Flipping every second copy turns the cut into a mirror
+		# line, which reads as more of the same place rather than as the same place again.
+		var width := maxf(1.0, span.y - span.x)
+		var texture_width := maxf(1.0, float(frames[0].get_width()))
+		var count := int(ceil(width / texture_width))
+		for index in range(count):
+			var tile := Sprite2D.new()
+			tile.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			# Top-left anchored, because every layer in a band is pinned by the SAME top edge.
+			tile.centered = false
+			tile.texture = frames[0]
+			tile.flip_h = index % 2 == 1
+			# ⚠ THE SAME PLACE WHETHER IT IS FLIPPED OR NOT. flip_h mirrors the texture
+			# INSIDE the sprite's own rect; it does not move the rect. Offsetting flipped
+			# tiles by a tile-width on the assumption that they draw leftward left a
+			# texture-wide hole in the middle of every band.
+			tile.position = Vector2(texture_width * float(index), 0.0)
+			tile.scale = Vector2(1.0, plate_scale)
+			add_child(tile)
+			_tiles.append(tile)
 		position = home
 		set_process(fps > 0.0 and frames.size() > 1)
 
@@ -177,7 +193,5 @@ class _Layer extends Sprite2D:
 			return
 		_clock -= step
 		_frame = (_frame + 1) % frames.size()
-		texture = frames[_frame]
-		# The region is cleared by a texture swap when the new frame is a different size,
-		# so it is restated rather than assumed.
-		region_rect = Rect2(0.0, 0.0, maxf(1.0, span.y - span.x), texture.get_height())
+		for tile in _tiles:
+			tile.texture = frames[_frame]

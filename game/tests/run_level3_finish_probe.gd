@@ -153,8 +153,8 @@ func _finish_by(crossing: String, encounter: String) -> void:
 	# exactly the thing that silently stops working when a hook is renamed.
 	if crossing == "pragmatist":
 		var spoken := 0
-		for spot: Vector2 in [Vector2(1360.0, 1020.0), Vector2(1780.0, 900.0),
-				Vector2(2900.0, 820.0)]:
+		for spot: Vector2 in [Vector2(1360.0, 980.0), Vector2(1780.0, 860.0),
+				Vector2(2900.0, 780.0)]:
 			await _swim_to(spot)
 		for key: String in ["jelly", "lola1", "shaft"]:
 			if bool(script_lines.call("has_heard", "CORAL.%s" % key)):

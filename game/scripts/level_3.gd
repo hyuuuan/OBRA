@@ -279,12 +279,15 @@ func _plant_the_coral_field() -> void:
 	var coral := _mark("CoralMark")
 	if coral == null:
 		return
+	# ⚠ ON THE BED, AND THE BED MOVED. The painted terraces rest their floor at world 1349,
+	# two hundred pixels above where the placeholder seabed was, so everything that sat on it
+	# came up with it. A fact left at 1490 is a fact inside the rock.
 	var field := {
-		"jelly": Vector2(1360.0, 1020.0), "star": Vector2(1680.0, 1480.0),
-		"clam": Vector2(1980.0, 1500.0), "weed": Vector2(2180.0, 1240.0),
-		"urchin": Vector2(2420.0, 1490.0), "coral": Vector2(2660.0, 1360.0),
-		"shaft": Vector2(2900.0, 820.0), "wreck": Vector2(3080.0, 1470.0),
-		"lola1": Vector2(1780.0, 900.0), "lola2": Vector2(3260.0, 1120.0),
+		"jelly": Vector2(1360.0, 980.0), "star": Vector2(1680.0, 1290.0),
+		"clam": Vector2(1980.0, 1310.0), "weed": Vector2(2180.0, 1120.0),
+		"urchin": Vector2(2420.0, 1300.0), "coral": Vector2(2660.0, 1200.0),
+		"shaft": Vector2(2900.0, 780.0), "wreck": Vector2(3080.0, 1285.0),
+		"lola1": Vector2(1780.0, 860.0), "lola2": Vector2(3260.0, 1040.0),
 	}
 	for key: String in field.keys():
 		var spot := Area2D.new()
