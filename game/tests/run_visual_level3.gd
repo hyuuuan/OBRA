@@ -90,24 +90,24 @@ func _run() -> void:
 	await _capture("07_bakunawa_surface")
 
 	# AND AT DEPTH, which is the same creature moved. A diver is inside its space.
-	creature.call("stage_at", 1150.0)
+	creature.call("stage_at", 1510.0)
 	await _become_a_fish()
-	await _go(Vector2(3500.0, 1120.0))
+	await _go(Vector2(3500.0, 1480.0))
 	await _capture("08_bakunawa_depth")
 
 	# THE SWEEP, which IS the stealth rule and is the one thing here that has to be legible.
-	await _go(Vector2(3620.0, 1420.0))
+	await _go(Vector2(3620.0, 1680.0))
 	await _capture("09_under_the_sweep")
 
 	# THE CORAL FIELD, where the crossing is a place rather than a distance.
-	await _go(Vector2(2100.0, 1300.0))
+	await _go(Vector2(2100.0, 1640.0))
 	await _capture("10_coral_field")
-	await _go(Vector2(1500.0, 1400.0))
+	await _go(Vector2(1500.0, 1640.0))
 	await _capture("11_a_refill")
 
 	# CALM, once the light has shown it what it lost.
 	creature.call("give_it_up")
-	await _go(Vector2(3600.0, 1150.0))
+	await _go(Vector2(3600.0, 1510.0))
 	await _wait(0.8)
 	await _capture("12_bakunawa_calm")
 

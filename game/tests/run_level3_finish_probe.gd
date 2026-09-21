@@ -127,7 +127,8 @@ func _finish_by(crossing: String, encounter: String) -> void:
 				.get("ink_economy", {}).get("refill_spots", []):
 			var xy: Array = pair
 			path.append(Vector2(float(xy[0]), float(xy[1])))
-		path.append(Vector2(3420.0, 1150.0))
+		path.append((level.get_node("EnvironmentBaseplate/GameplayPlane/Bakunawa") as Node2D)
+			.global_position - Vector2(580.0, 0.0))
 	for spot: Vector2 in path:
 		_place(spot)
 		# Long enough that a per-SECOND charge is readable. Ten frames is a sixth of a
@@ -153,14 +154,19 @@ func _finish_by(crossing: String, encounter: String) -> void:
 	# exactly the thing that silently stops working when a hook is renamed.
 	if crossing == "pragmatist":
 		var spoken := 0
-		for spot: Vector2 in [Vector2(1360.0, 1344.0), Vector2(1780.0, 1350.0),
-				Vector2(2900.0, 820.0)]:
-			await _swim_to(spot)
+		# The level's own field, not a copy: the bed has moved twice.
+		var field: Dictionary = level.call("coral_field")
+		for key: String in ["jelly", "lola1", "shaft"]:
+			await _swim_to(field[key])
+		var silent: Array[String] = []
 		for key: String in ["jelly", "lola1", "shaft"]:
 			if bool(script_lines.call("has_heard", "CORAL.%s" % key)):
 				spoken += 1
+			else:
+				silent.append(key)
 		_check(spoken == 3, "the coral field speaks (%s)" % tag,
-			"%d of 3 facts fired by swimming past them" % spoken)
+			"%d of 3 facts fired by swimming past them%s" % [spoken,
+				"" if silent.is_empty() else "; silent: " + ", ".join(silent)])
 
 	var creature := level.get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/Bakunawa") as Node2D
@@ -259,7 +265,10 @@ func _finish_by(crossing: String, encounter: String) -> void:
 ##
 ## Held input, the way a player arrives. Slow, and the only thing that is actually a test.
 func _swim_to(at: Vector2) -> void:
-	_place(at + Vector2(-420.0, 0.0))
+	# ⚠ FROM OPEN WATER. The land goes down to the seabed now, so four hundred pixels left of
+	# the first fact is inside the cliff under the beach; and a fact on the bed is four pixels
+	# above the rock, so a body started level with it starts half inside the floor.
+	_place(Vector2(maxf(at.x - 420.0, 1080.0), at.y - 40.0))
 	for _frame in range(6):
 		await physics_frame
 	Input.action_press(&"move_right")
@@ -277,11 +286,29 @@ func _swim_to(at: Vector2) -> void:
 		if body == null or not is_instance_valid(body):
 			break
 		var anchor := body.call("get_physics_anchor") as Node2D
-		if anchor != null and anchor.global_position.distance_to(at) < 60.0:
+		if anchor == null:
 			break
+		if anchor.global_position.distance_to(at) < 60.0:
+			break
+		# ⚠ AND STEER, THE WAY A PLAYER DOES. A fish is buoyant by design: at its own weight
+		# against the pool's lift it settles a little under halfway down the column, so one
+		# held direction along the bed rises off it and passes over the facts standing there.
+		# It did not show while the bed was 790 under the surface; at 1150 it does.
+		var below := at.y - anchor.global_position.y
+		_hold(&"move_down", below > 24.0)
+		_hold(&"move_up", below < -24.0)
 	Input.action_release(&"move_right")
+	_hold(&"move_down", false)
+	_hold(&"move_up", false)
 	for _frame in range(4):
 		await physics_frame
+
+
+func _hold(action: StringName, on: bool) -> void:
+	if on and not Input.is_action_pressed(action):
+		Input.action_press(action)
+	elif not on and Input.is_action_pressed(action):
+		Input.action_release(action)
 
 
 func _place(at: Vector2) -> void:
