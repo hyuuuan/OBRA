@@ -13,9 +13,11 @@ coral field, the island and the farewell are in.
 and the hub opens it. **Nothing on the design's asset list exists** — every prop, the creature
 and the sea are code-drawn, and `ART_PLACEHOLDERS.md` is where each contract goes.
 
-**Green:** `run_level3_audit.gd` (T3, 24 checks) · `run_nodraw_level3.gd` (T1) ·
+**Green:** `run_level3_audit.gd` (T3, 27 checks) · `run_nodraw_level3.gd` (T1) ·
 `run_bakunawa_probe.gd` (all three resolutions) · `run_level3_finish_probe.gd` (both
-crossings, to completion) · `run_swim_reach_probe.gd`. Levels 1 and 2 unaltered.
+crossings, to completion) · `run_swim_reach_probe.gd` · **`run_level3_boat_probe.gd` (the
+bangka, actually sailed)**. All six are in `tools/run_suites.sh`. See "The playable pass"
+below for what the 2026-09-22 pass changed and why.
 
 **This document is the plan, written before the build** — `LEVEL_TEMPLATE.md` build order
 step 1, *"write `LEVEL_<N>.md` first, even as a placeholder, and mark it provisional"*. It
@@ -259,12 +261,67 @@ ambience are painted. What is left is the brush, the beached and launched bangka
 treasure the creature uncovers, the next painting, and Lolo's farewell pose — all listed with
 their sizes and what each has to say in `ART_PLACEHOLDERS.md`.
 
-⚠ **Three things about the backdrops that will bite whoever touches them next.** A band is
-pinned by ONE derived edge (`plate_top`) and every layer in it shares that edge — the shore
-by its sand line at plate-y 790, the storm by its wave surface at 421, the deep by the
-waterline itself. **Parallax is horizontal only**: let a far layer lag vertically and it
-slides out of frame the moment the player dives. **A slow layer is widened by 1/rate**,
-because at rate 0.15 it drifts nearly as far as the band is wide. All three were bugs first.
+⚠ **Six things about the backdrops that will bite whoever touches them next** — every one of
+them was a bug first, and `dagat_backdrop_2d.gd` carries the reasoning beside each:
+
+- **Each band is pinned by a derived edge**, read off the art: the shore by its sand line at
+  plate-y 790; **the storm by its FRONT wave at 664, not its horizon** (at 421 the boat sailed
+  along the skyline); the deep by **two** edges — its water at the surface, its floor layers
+  dropped by `floor_drop` 360 so the seabed lands at **1709**.
+- **Parallax is horizontal only, and measured from a fixed point in the world**, never from
+  "where the camera was at the last transformation" — `set_target` resyncs every layer on
+  each morph, and the sky used to jump.
+- **Edge scenery is placed once, not tiled.** Palms, the jetty headland and the far island are
+  single clumps drawn at a plate's edge; tiled and mirrored they stood on every screen, which
+  is most of what made the world look crammed. Rows are `pieces` (a crop at a landmark) or
+  `ground` (sand, only where there is land).
+- **`z` is absolute across all three bands** (table above `BANDS`). Numbered per band, the
+  deep's ruins drew over the storm and the frame read as three paintings shuffled together.
+- **Animation groups carry an `origin` on the plate** and must be drawn there; the waves were
+  48 px high until they were.
+- **A band's alpha is per child**, so two children that overlap by even one row draw that row
+  darker — a hairline across the whole crossing. Butt them edge to edge.
+
+---
+
+## The playable pass (2026-09-22)
+
+Kent: *"the world is too close to each other, it's so weird"* — and make it playable, no bugs.
+Both turned out to be several separate faults. In the order they were found:
+
+**The world, spread out.**
+- **The camera anchored to the seabed.** A level's camera pins itself near the bottom of its
+  world; Dagat's bottom is 800 px under the beach, so the level opened on the ruins with the
+  apo off the top of the screen. `LevelBase._camera_follows_height()` — Dagat answers true.
+- **The sea is 360 px deeper** (seabed 1709) so the surface, the open water and the ruins are
+  three places, not one picture. `level_3.gd`'s `BED_Y`, the Seabed collision and the painted
+  floor must agree; `run_level3_audit` "one seabed" fails if they do not, and checks the
+  refills and the treasure are ON the bed (they floated 60–200 px up; the treasure was inside
+  the rock).
+- **The land goes down to the seabed.** The shore was a 240-deep slab over an air pocket a
+  diver could fall into and not leave. Solid to the bottom now, drawn with authored rock
+  (`build_dagat_props.py`: `shelf_fill`, `shelf_face`, palette read off the plates).
+- **The island is painted** (the shore band's second ground, mirrored), not a tan box.
+- **The storm breaks when the encounter is resolved**, and the deep and the island take a
+  night tint while it is up. `DagatBackdrop2D.clear_the_sky()`.
+
+**The boat route, which no probe had ever sailed.** Every probe crossed by teleporting the apo
+along the sea; `run_level3_boat_probe.gd` now sails it. Four faults, all green before:
+1. **It crawled** — 240 px/s reported, 14 moved. `DepthLayer2D.update_for_camera` re-set the
+   gameplay plane's (unchanged) position every camera move, which snaps every rigid body under
+   it back to its node's stale transform. **A global fix**: assign only on change.
+2. **It sank** ~12 px/s until the passenger drowned and the rescue's checkpoint restore took
+   the boat away. A sailboat now rides a spring at `HULL_DRAFT` under `WaterArea2D.surface_y()`.
+3. **It could not reach the island** — it kept the physics script's 3760 px world and was
+   clamped at x 3940. The launched boat gets the level's bounds.
+4. **Arrival could not see it** (the volume started at the waterline; a passenger sits 40 px
+   above it), and **landing lasted one frame** (the hull re-seats its passenger).
+
+**And:** the bakunawa's coils were a fixed 1200 tall around the creature, so deepening the sea
+reopened a 350 px gap over them — the exact bug the 1200 was chosen to close. `seal_span`
+fits them to the column wherever it is staged. The encounter's signposts hung in open water
+(and one inside the seabed); `sign_reach` / `sign_offset` stand them on the bed.
+`tools/run_suites.sh` did not run any Level 3 suite; it runs all six now.
 
 **6. Payyo's Protector debt.** `LEVEL_TEMPLATE.md` records it: Level 1's Node 3 Protector
 route creases the canvas and the crease costs nothing mechanical, "to be paid back when Level

@@ -250,6 +250,17 @@ diamonds. Drawn in this project's own 8-bit idiom through `pixelart.py`, at `PX 
 at the library's default of 2 it reads as a different game's prop beside art drawn this fine.
 It lives in `assets/Level3/authored/` so the generated pipeline cannot delete it.
 
+**Also authored (22 September): the rock the land stands on under the water** —
+`shelf_fill.png` and `shelf_face.png`, same tool, same idiom. The sand plate stops 150 pixels
+under the walking surface and the sea goes down a thousand more, and the delivery has no land
+seen from the side, so the beach floated over the ruins. The fill's top row is the sand plate's
+own last row; its colours are read off the terraces. **A good candidate for the art team to
+replace**: the contract is a column that tiles sideways, starting at the sand plate's bottom
+edge (world y 711) and running to the seabed (1709) and a little past it, plus a seaward face
+whose rock edge sits on the land's collision edge (x 1000 at home, 4500 at the island,
+mirrored). The island uses the same shore plates as the home beach, mirrored; a painting of
+its own would replace a row in `DagatBackdrop2D.BANDS`, not the scene.
+
 **Still a developer's rectangles, in the order they are met:**
 
 | What | Where | What the player has to understand |
