@@ -243,7 +243,12 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 		fill.color = row["fill_below"]
 		fill.z_index = layer.z_index
 		var reach := _Layer.HALF_VIEW * 3.0
-		var top := plate_top + float(frames[0].get_height()) + layer.origin.y - 1.0
+		# ⚠ EDGE TO EDGE, NOT OVERLAPPING BY EVEN ONE ROW. The storm band fades in by its
+		# own alpha, which every child draws with separately -- so wherever the plate and
+		# the fill overlap, that strip is drawn twice at half strength and comes out darker
+		# than both. A one-row overlap was a hairline across the whole crossing; "fixing" it
+		# by overlapping three rows made it three times as thick. Both edges are whole pixels.
+		var top := plate_top + float(frames[0].get_height()) + layer.origin.y
 		fill.polygon = PackedVector2Array([
 			Vector2(span.x - reach, top), Vector2(span.y + reach, top),
 			Vector2(span.y + reach, top + 4000.0), Vector2(span.x - reach, top + 4000.0)])
