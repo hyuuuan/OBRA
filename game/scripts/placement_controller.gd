@@ -198,6 +198,7 @@ func confirm_placement() -> bool:
 	var slot := _source_slot
 	item.placement_transform = utility.global_transform
 	utility.confirm_placement()
+	_let_the_actor_step_out(utility)
 	_clear_transaction()
 	placement_confirmed.emit(item, utility, slot)
 	placement_changed.emit(false, true)
@@ -397,6 +398,68 @@ func _actor_position() -> Vector2:
 ## even refuse honestly: the climb lifted the object a body's height over their head, went
 ## green up there, and dropped it on them. The player is the only obstacle in the world that
 ## can walk away, so it is the only one that should not get a vote.
+## ⚠ SET DOWN INSIDE THE PLAYER, IT WAITS FOR THEM TO STEP OUT. The ghost is allowed to
+## overlap the player on purpose -- "who is excluded precisely because they can walk away" --
+## and building a step at your own feet is the commonest placement there is. But the moment it
+## is confirmed it is a solid body inside another solid body, and the solver shoves it out
+## sideways: the square landed forty-four pixels from its ghost. That was invisible for as
+## long as the gameplay plane was snapping rigid bodies back every frame the camera moved
+## (see DepthLayer2D) -- the bug that made Dagat's boat crawl had been pinning this in place.
+## Now the two ignore each other until they no longer overlap, which is what "walk away" means.
+func _let_the_actor_step_out(placed: PhysicsBody2D) -> void:
+	if placed == null or _actor == null or not is_instance_valid(_actor):
+		return
+	var actor_rids: Array[RID] = []
+	var actor_body := _actor as CollisionObject2D
+	if actor_body != null:
+		actor_rids.append(actor_body.get_rid())
+	for node in _actor.find_children("*", "CollisionObject2D", true, false):
+		actor_rids.append((node as CollisionObject2D).get_rid())
+	if actor_rids.is_empty():
+		return
+	var guard := _StepOutGuard.new()
+	guard.name = "StepOutGuard"
+	guard.body = placed
+	guard.others = actor_rids
+	for rid in actor_rids:
+		PhysicsServer2D.body_add_collision_exception(placed.get_rid(), rid)
+		PhysicsServer2D.body_add_collision_exception(rid, placed.get_rid())
+	placed.add_child(guard)
+
+
+## Lifts the exceptions once nothing of the actor overlaps the placed body any more. Checked
+## every physics frame, and gone the frame it is done.
+class _StepOutGuard extends Node:
+	var body: PhysicsBody2D
+	var others: Array[RID] = []
+
+	func _physics_process(_delta: float) -> void:
+		if body == null or not is_instance_valid(body) or not body.is_inside_tree():
+			queue_free()
+			return
+		if _still_inside():
+			return
+		for rid in others:
+			PhysicsServer2D.body_remove_collision_exception(body.get_rid(), rid)
+			PhysicsServer2D.body_remove_collision_exception(rid, body.get_rid())
+		queue_free()
+
+	func _still_inside() -> bool:
+		var space := body.get_world_2d().direct_space_state
+		for child in body.get_children():
+			var collision := child as CollisionShape2D
+			if collision == null or collision.shape == null or collision.disabled:
+				continue
+			var query := PhysicsShapeQueryParameters2D.new()
+			query.shape = collision.shape
+			query.transform = collision.global_transform
+			query.exclude = [body.get_rid()]
+			for hit in space.intersect_shape(query, 16):
+				if others.has(hit.get("rid")):
+					return true
+		return false
+
+
 func _refresh_preview_exclusions() -> void:
 	_excluded_rids = [_preview.get_rid()]
 	for node in _preview.find_children("*", "CollisionObject2D", true, false):
