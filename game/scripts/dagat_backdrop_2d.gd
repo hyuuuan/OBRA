@@ -146,13 +146,24 @@ const BANDS := {
 		{"key": "storm/waves", "rate": 0.80, "z": -195, "fps": 4.0},
 		# In FRONT of the waves and at their rate: the jetty's posts stand in the water, and a
 		# headland behind the sea it stands in reads as a picture of a headland pasted on.
+		#
+		# ⚠ EACH WITH A MIRRORED TWIN ON ITS CUT SIDE. Both were painted as the edges of one
+		# picture: the headland's rocks run off the plate's left border and the island's off
+		# its right, so set down on their own in open sea each ended in a ruled vertical line.
+		# The land part (not the jetty, not the buoy) is mirrored against that line, which
+		# turns the cut into the middle of an islet. The twin shares its piece's landmark, so
+		# the two drift as one thing.
 		{"key": "storm/shores", "rate": 0.80, "z": -193, "pieces": [
 			{"crop": Vector2(0, 536), "at": "headland_x", "align": "center"},
+			{"crop": Vector2(0, 270), "at": "headland_x", "nudge": -268.0, "align": "right",
+				"flip": true},
 			# ⚠ LIFTED 110. The two halves of this plate were not drawn on one waterline:
 			# with the jetty's deck at the boat's, the buoy's float sat a hundred pixels under
 			# the front wave. The CompletedLook has both in the same water.
 			{"crop": Vector2(1306, 1672), "at": "far_island_x", "align": "center",
 				"lift": 110.0},
+			{"crop": Vector2(1480, 1672), "at": "far_island_x", "nudge": 183.0,
+				"align": "left", "flip": true, "lift": 110.0},
 		]},
 		# Rain falls in front of everything, fast, and never repeats the sea's rhythm.
 		{"key": "storm/rain", "rate": 1.00, "z": 60, "fps": 10.0},
@@ -188,13 +199,13 @@ func _ready() -> void:
 				var at := _landmark(String(piece["at"]))
 				if is_nan(at):
 					continue
-				at += float(piece.get("nudge", 0.0))
 				var layer := _new_layer(row, frames, manifest)
 				layer.name = "%s_%d" % [layer.name, index]
 				layer.crop = piece.get("crop", Vector2(0.0, float(frames[0].get_width())))
 				layer.flipped = bool(piece.get("flip", false))
 				layer.lift = float(piece.get("lift", 0.0))
-				layer.place_piece(at, String(piece.get("align", "center")))
+				layer.place_piece(at, float(piece.get("nudge", 0.0)),
+					String(piece.get("align", "center")))
 				add_child(layer)
 				_layers.append(layer)
 		elif bool(row.get("ground", false)):
@@ -395,16 +406,21 @@ class _Layer extends Node2D:
 	## Set a piece down so it sits where it belongs when the camera is looking at it. For a
 	## layer at world rate that is simply where it is; for a slower one, it is where it is when
 	## the camera stands at `at`, and it drifts from there like everything else at its depth.
-	func place_piece(at: float, align: String) -> void:
+	##
+	## `nudge` moves the piece without moving its landmark. Parallax is referenced from the
+	## LANDMARK, so every piece hung on the same one drifts as one rigid thing -- referenced
+	## from each piece's own middle, a twin set beside its original slid away from it.
+	func place_piece(at: float, nudge: float, align: String) -> void:
 		var width := crop.y - crop.x
+		var edge := at + nudge
 		match align:
 			"left":
-				base_x = at
+				base_x = edge
 			"right":
-				base_x = at - width
+				base_x = edge - width
 			_:
-				base_x = at - width * 0.5
-		reference_x = base_x + width * 0.5
+				base_x = edge - width * 0.5
+		reference_x = at
 
 	func _ready() -> void:
 		if crop != Vector2.ZERO:
