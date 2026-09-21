@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Author the one Dagat prop the delivery does not contain: the ink jar on the seabed.
+"""Author what Dagat needs and the delivery does not contain: the ink jar on the seabed, and
+the rock the land stands on under the water.
 
 WHY THIS EXISTS
 ---------------
@@ -28,6 +29,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import numpy as np
+
 import pixelart
 from pixelart import Canvas, ramp
 
@@ -46,6 +49,177 @@ GLOW = ramp(["#1667a4", "#2b95d6", "#71c8ef", "#bdeaff"])
 
 W, H = 20, 30
 FRAMES = 3
+
+# --- The shelf: what the land stands on, under the water ----------------------------------
+#
+# The sand plate stops 150 pixels under the surface the apo walks on, and the sea goes down
+# a thousand more. Under the beach there was nothing painted at all -- the deep's ruins showed
+# through beneath the sand, and the collision under it was an air pocket a swimmer could get
+# into and not out of. The land now goes down to the seabed, and this is what it looks like
+# on the way: the sand plate's own earth band at the top, darkening into the deep's rock, with
+# a ragged face where it meets the water and a few ledges lit the way the painted terraces are.
+#
+# Colours are read off the delivered plates, not chosen: EARTH is the sand plate's bottom rows,
+# ROCK the terraces' body, LEDGE the terraces' lit tops.
+EARTH = ramp(["#1c1e2c", "#272939", "#33354a"])
+ROCK = ramp(["#040d23", "#082048", "#102850", "#183058", "#28406a"])
+LEDGE = ramp(["#1f6f78", "#3fa6a0", "#8fd8c0", "#c8f0c8"])
+MOSS = ramp(["#244a36", "#3a6e44"])
+SHELF_W, SHELF_H = 160, 384
+FACE_W = 46
+# (row, colour) stops down the column. The first matches the sand plate's last row exactly,
+# which is the only place the two pictures touch.
+SHELF_STOPS = [(0, EARTH[1]), (12, EARTH[1]), (64, ROCK[3]), (150, ROCK[2]),
+               (260, ROCK[1]), (383, ROCK[0])]
+# Where the face juts out into a ledge, and how far: (top row, rows thick, logical px out).
+LEDGES = [(66, 8, 16), (148, 6, 12), (229, 9, 18), (305, 7, 14), (354, 6, 11)]
+
+
+def _shelf_row(c: Canvas, y: int, x0: int, w: int) -> None:
+    for (ya, lo), (yb, hi) in zip(SHELF_STOPS, SHELF_STOPS[1:]):
+        if ya <= y <= yb:
+            amount = 0.0 if yb == ya else (y - ya) / float(yb - ya)
+            c.dither(x0, y, w, 1, lo, hi, amount)
+            return
+
+
+def _step(colour: np.ndarray, by: int) -> np.ndarray:
+    """The same material a step lighter (by > 0) or darker, on whichever ramp it lives on."""
+    for ramp_ in (ROCK, EARTH):
+        for index, value in enumerate(ramp_):
+            if (value[:3] == colour[:3]).all():
+                return ramp_[max(0, min(len(ramp_) - 1, index + by))]
+    return colour
+
+
+def _boulder(c: Canvas, cx: int, cy: int, r: int, wrap: int = 0) -> None:
+    """A rounded stone the way the painted terraces draw them: a dark outline, a body lit
+    from the upper left, a rim of the next step up on the lit side. Darker the deeper it is,
+    because the water is."""
+    import math
+    depth = min(1.0, cy / float(SHELF_H))
+    body_hi = ROCK[3] if depth < 0.55 else ROCK[2]
+    body_lo = ROCK[2] if depth < 0.55 else ROCK[1]
+    rim = ROCK[4] if depth < 0.55 else ROCK[3]
+    ry = max(2.0, r * 0.78)
+    for dy in range(-int(ry) - 1, int(ry) + 2):
+        for dx in range(-r - 1, r + 2):
+            d = math.hypot(dx / float(r), dy / ry)
+            if d > 1.0:
+                continue
+            x = cx + dx
+            if wrap:
+                x %= wrap
+            y = cy + dy
+            if d > 0.86:
+                c.px(x, y, ROCK[0])
+                continue
+            light = (-dx / float(r) - dy / ry) * 0.5 + 0.5
+            if light > 0.78 and d > 0.55:
+                c.px(x, y, rim)
+            elif (light + BAYER_AT(x, y) * 0.3) > 0.62:
+                c.px(x, y, body_hi)
+            else:
+                c.px(x, y, body_lo)
+
+
+def BAYER_AT(x: int, y: int) -> float:
+    return float(pixelart.BAYER[y % 4, x % 4])
+
+
+def _shelf_body(c: Canvas, width: int, seed: int, wrap: bool) -> None:
+    """Gradient, strata, boulders and grit. With `wrap`, all of it is periodic across the
+    width so the tile meets itself at the seam."""
+    import math
+    for y in range(SHELF_H):
+        _shelf_row(c, y, 0, width)
+    rng = np.random.default_rng(seed)
+    # Strata: gently wavy lines a step darker, on whole periods of the tile.
+    for row in (30, 88, 141, 203, 262, 318, 360):
+        phase = float(rng.uniform(0, math.tau))
+        for x in range(width):
+            wave = 1.6 * math.sin(math.tau * x / width + phase) \
+                + 0.8 * math.sin(math.tau * 3 * x / width + phase * 2)
+            y = row + int(round(wave))
+            c.px(x, y, _step(c.buf[y, x].copy(), -1))
+    # Grit, sparse and dark, so a flat area is not flat.
+    for _ in range(width * SHELF_H // 16):
+        x = int(rng.integers(0, width))
+        y = int(rng.integers(0, SHELF_H))
+        c.px(x, y, _step(c.buf[y, x].copy(), -1))
+    # Boulders set into the face of it, fewer near the top where it is still packed earth.
+    for _ in range(width * SHELF_H // 900):
+        r = int(rng.integers(3, 8))
+        cy = int(rng.integers(40, SHELF_H - r - 2))
+        cx = int(rng.integers(0, width))
+        _boulder(c, cx, cy, r, width if wrap else 0)
+
+
+def draw_shelf_fill() -> Canvas:
+    pixelart.PX = 3
+    c = Canvas(SHELF_W, SHELF_H, seed=2203)
+    _shelf_body(c, SHELF_W, 2203, True)
+    return c
+
+
+def draw_shelf_face() -> Canvas:
+    """The seaward edge, facing right. Mirrored in the scene for the island, which faces left.
+
+    A ragged edge with a few ledges jutting out of it, each lit on its top the way the
+    painted terraces are -- teal going to near-white -- with weed hanging off the lip and the
+    underside cut back, so it reads as a shelf a thing could rest on rather than a notch."""
+    import math
+    pixelart.PX = 3
+    c = Canvas(FACE_W, SHELF_H, seed=2207)
+    _shelf_body(c, FACE_W, 2207, False)
+    base = FACE_W - 20
+    edge = []
+    for y in range(SHELF_H):
+        e = base + int(round(2.6 * math.sin(y / 13.0) + 1.6 * math.sin(y / 5.7 + 1.0)
+                             + 1.0 * math.sin(y / 2.3)))
+        for top, thick, out in LEDGES:
+            if top <= y < top + thick:
+                # Full reach for the top rows, cut back underneath.
+                cut = max(0, (y - top) - 2) * out // max(1, thick)
+                e = max(e, base + out - cut - 1)
+        edge.append(min(FACE_W - 1, e))
+    for y in range(SHELF_H):
+        c.buf[y, edge[y] + 1:] = 0
+        # A right-hand face is on the shadow side: its edge carries the step down.
+        c.px(edge[y], y, ROCK[0])
+        c.px(edge[y] - 1, y, _step(c.buf[y, edge[y] - 1].copy(), -1))
+    # The slab of each ledge, a step lighter than the wall behind it so it reads as rock
+    # standing out of the face rather than a line drawn on it, outlined underneath.
+    for top, thick, out in LEDGES:
+        for y in range(top, top + thick):
+            for x in range(base - 4, edge[y] + 1):
+                slab = ROCK[3] if (x + y) % 4 else ROCK[2]
+                if y >= top + thick - 2 or x == edge[y]:
+                    slab = ROCK[1]
+                c.px(x, y, slab)
+            c.px(edge[y], y, ROCK[0])
+        for x in range(base - 2, edge[top + thick - 1] + 1):
+            c.px(x, top + thick, ROCK[0])
+    for top, thick, out in LEDGES:
+        lip = edge[top]
+        x0 = base - 6
+        for x in range(x0, lip + 1):
+            c.px(x, top, LEDGE[3] if x > x0 + 4 else LEDGE[2])
+            c.px(x, top + 1, LEDGE[1] if x > x0 + 2 else LEDGE[0])
+        # A boulder sitting on the ledge, half the time.
+        if (top // 7) % 2 == 0:
+            _boulder(c, lip - 5, top - 3, 3)
+            for x in range(lip - 8, lip - 1):
+                c.px(x, top, LEDGE[2])
+        # Weed hanging off the lip.
+        for x in range(base + 1, lip, 3):
+            length = 2 + (x * 7 + top) % 4
+            for dy in range(length):
+                c.px(x, top + thick + 1 + dy, MOSS[1] if dy < length - 1 else MOSS[0])
+    return c
+
+
+SHELF = {"shelf_fill.png": draw_shelf_fill, "shelf_face.png": draw_shelf_face}
 
 
 def draw(frame: int) -> Canvas:
@@ -67,7 +241,6 @@ def draw(frame: int) -> Canvas:
     # which is a checkerboard rather than a curved surface -- the ordered dither only reads
     # as a cylinder when the mix varies across it, bright on the lit side and dark on the
     # shaded one.
-    import numpy as np
     across = np.linspace(0.92, 0.08, 10)[None, :].repeat(16, axis=0)
     c.dither(5, 10, 10, 16, GLASS[1], GLASS[3], across)
     c.vline(5, 10, 16, GLASS[4])          # lit edge
@@ -101,7 +274,16 @@ def build() -> list[Path]:
         path = OUT / f"ink_jar_{frame}.png"
         draw(frame).save(path)
         written.append(path)
+    for name, painter in SHELF.items():
+        path = OUT / name
+        painter().save(path)
+        written.append(path)
     return written
+
+
+def _expected() -> list[Path]:
+    return [OUT / f"ink_jar_{frame}.png" for frame in range(FRAMES)] + \
+        [OUT / name for name in SHELF]
 
 
 def main() -> int:
@@ -112,8 +294,7 @@ def main() -> int:
 
     before = {}
     if args.check:
-        for frame in range(FRAMES):
-            path = OUT / f"ink_jar_{frame}.png"
+        for path in _expected():
             if not path.exists():
                 print(f"{path} does not exist -- run tools/build_dagat_props.py", file=sys.stderr)
                 return 1
