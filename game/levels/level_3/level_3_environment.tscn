@@ -73,14 +73,15 @@ polygon = PackedVector2Array(4500, 560, 5400, 560, 5400, 800, 4500, 800)
 ; the apo stands on world y 560, so the plate's top edge goes at -230 and every layer in the
 ; band is pinned by that same edge. Derived from the art, not chosen -- see
 ; dagat_backdrop_2d.gd, and re-measure with the snippet in LEVEL_3.md if the art is redrawn.
+; The daylight sky and sea run the WHOLE level: it is what the storm gathers over and what is
+; left when it clears. Only the sand and palms stop, at the ends of the land.
 [node name="ShoreBand" type="Node2D" parent="."]
 script = ExtResource("10_backdrop")
 band = "shore"
 depth = 2.0
-span = Vector2(-400.0, 1400.0)
+span = Vector2(-400.0, 5700.0)
 plate_top = -230.0
 home_ground = Vector2(100.0, 1000.0)
-fade_span = Vector2(1400.0, 1150.0)
 
 ; ⚠ plate_top = 560, THE WATERLINE ITSELF. Unlike the shore, this band is pinned by its TOP
 ; rather than by a feature inside it -- the painted column starts where the sea starts. Its
@@ -94,19 +95,25 @@ depth = 1.0
 span = Vector2(940.0, 4530.0)
 plate_top = 560.0
 
-; ⚠ plate_top = 560 - 421. The storm's own wave surface sits at plate-y 421 and the sea is
-; at world 560, so this band is pinned by ITS waterline the way the shore is pinned by its
-; sand. Faded up across the crossing rather than butted against the daylight band: the design
-; asks that the field darken as the player nears the encounter.
+; ⚠ plate_top = 560 - 664: THE FRONT WAVE, NOT THE HORIZON. The storm plate is a sea seen
+; from the side, receding from a foreground crest at plate-y ~664 up to a horizon at ~467.
+; It was pinned at 421 -- above the horizon -- so the boat rode along the skyline with two
+; hundred pixels of painted waves hanging under its keel and the jetty's posts drowned under
+; them. A side view floats on the nearest wave; everything above it is the sea going away.
+; Faded up across the crossing rather than butted against the daylight band: the design asks
+; that the field darken as the player nears the encounter, and 1600..3000 leaves the first
+; stretch of open water in daylight before it does.
 [node name="StormBand" type="Node2D" parent="."]
 script = ExtResource("10_backdrop")
 band = "storm"
 depth = 1.5
-span = Vector2(1150.0, 4560.0)
-plate_top = 139.0
-headland_x = 2350.0
+span = Vector2(1150.0, 5700.0)
+plate_top = -104.0
+headland_x = 2600.0
 far_island_x = 4450.0
-fade_span = Vector2(1200.0, 2700.0)
+sky_colour = Color(0.055, 0.149, 0.259, 1)
+sky_bottom_row = 470.0
+fade_span = Vector2(1600.0, 3000.0)
 
 [node name="GameplayPlane" type="Node2D" parent="."]
 script = ExtResource("3_depth")

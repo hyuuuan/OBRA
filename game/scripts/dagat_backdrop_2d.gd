@@ -49,6 +49,12 @@ const MANIFEST := "res://assets/Level3/dagat.json"
 ## at its right -- and each is shown ONCE, where it belongs in the crossing.
 @export var headland_x := 0.0
 @export var far_island_x := 0.0
+## A flat sky behind the band, down to this plate row. The storm's clouds are a strip across
+## the middle of the plate with nothing painted above them, so under a storm the daylight sky
+## showed through over the top of the clouds. Its colour is the storm CompletedLook's own
+## top rows. Transparent means "no sky of its own".
+@export var sky_colour := Color(0.0, 0.0, 0.0, 0.0)
+@export var sky_bottom_row := 0.0
 ## ⚠ WHERE THE BAND FADES UP, IN WORLD X. Dagat crosses from a bright shore into a storm, and
 ## the design asks for exactly that: "the field has to get darker and emptier as the player
 ## nears the bakunawa, or the encounter arrives without buildup." Two bands butted against
@@ -67,8 +73,9 @@ const MANIFEST := "res://assets/Level3/dagat.json"
 ## ordering, back to front:
 ##
 ##   shore far layers  -250..-235   the daylight sky and sea, behind everything
-##   deep              -230..-215   the water column and its floor
-##   storm             -212..-193   sky, clouds, islands, the underside, the waves, the shores
+##   deep              -230..-215   the water column and its floor -- with the storm's
+##                                  underside slotted at -228, between the two
+##   storm             -212..-193   sky, clouds, islands, the waves, the shores
 ##   shore ground      -165..-160   sand and palms: nearer than any sea, behind the player
 ##   storm rain          60         in front of everything
 const BANDS := {
@@ -105,13 +112,26 @@ const BANDS := {
 	"storm": [
 		{"key": "storm/clouds", "rate": 0.15, "z": -210},
 		{"key": "storm/islands", "rate": 0.35, "z": -205},
-		{"key": "storm/undersea", "rate": 0.50, "z": -198},
+		# ⚠ UNDER THE DEEP'S FLOOR, NOT OVER IT, AND CARRIED DOWN BELOW ITS OWN LAST ROW. The
+		# underside is the storm plate's own seabed -- rocks and weed down to the plate's edge
+		# -- and the level's water goes on for a thousand pixels past that, so drawn as it
+		# comes it ended in a ruled line with the deep's sunlit water carrying on underneath.
+		# Dithering the edge away only made the line into a checkerboard band. Instead the
+		# storm REPLACES the deep's water: this sits between that water and the deep's ridges
+		# and ruins, and its bottom row's colour carries on down, so under a storm the column
+		# is dark all the way to the seabed and the floor still stands in front of it.
+		{"key": "storm/undersea", "rate": 0.50, "z": -228,
+			"fill_below": Color(0.012, 0.094, 0.208, 1.0)},
 		{"key": "storm/waves", "rate": 0.80, "z": -195, "fps": 4.0},
 		# In FRONT of the waves and at their rate: the jetty's posts stand in the water, and a
 		# headland behind the sea it stands in reads as a picture of a headland pasted on.
 		{"key": "storm/shores", "rate": 0.80, "z": -193, "pieces": [
 			{"crop": Vector2(0, 536), "at": "headland_x", "align": "center"},
-			{"crop": Vector2(1306, 1672), "at": "far_island_x", "align": "center"},
+			# ⚠ LIFTED 110. The two halves of this plate were not drawn on one waterline:
+			# with the jetty's deck at the boat's, the buoy's float sat a hundred pixels under
+			# the front wave. The CompletedLook has both in the same water.
+			{"crop": Vector2(1306, 1672), "at": "far_island_x", "align": "center",
+				"lift": 110.0},
 		]},
 		# Rain falls in front of everything, fast, and never repeats the sea's rhythm.
 		{"key": "storm/rain", "rate": 1.00, "z": 60, "fps": 10.0},
@@ -122,6 +142,17 @@ var _layers: Array[Node2D] = []
 
 
 func _ready() -> void:
+	if sky_colour.a > 0.0:
+		var sky := Polygon2D.new()
+		sky.name = "Sky"
+		sky.color = sky_colour
+		sky.z_index = -212
+		var reach := _Layer.HALF_VIEW * 3.0
+		var bottom := plate_top + sky_bottom_row
+		sky.polygon = PackedVector2Array([
+			Vector2(span.x - reach, -4000.0), Vector2(span.y + reach, -4000.0),
+			Vector2(span.y + reach, bottom), Vector2(span.x - reach, bottom)])
+		add_child(sky)
 	var manifest := _manifest()
 	for row_value: Variant in BANDS.get(band, []):
 		var row: Dictionary = row_value
@@ -140,6 +171,7 @@ func _ready() -> void:
 				layer.name = "%s_%d" % [layer.name, index]
 				layer.crop = piece["crop"]
 				layer.flipped = bool(piece.get("flip", false))
+				layer.lift = float(piece.get("lift", 0.0))
 				layer.place_piece(at, String(piece.get("align", "center")))
 				add_child(layer)
 				_layers.append(layer)
@@ -171,6 +203,17 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 	layer.z_index = int(row["z"])
 	layer.fps = float(row.get("fps", 0.0))
 	layer.plate_top = plate_top
+	if row.has("fill_below"):
+		var fill := Polygon2D.new()
+		fill.name = layer.name + "_below"
+		fill.color = row["fill_below"]
+		fill.z_index = layer.z_index
+		var reach := _Layer.HALF_VIEW * 3.0
+		var top := plate_top + float(frames[0].get_height()) + layer.origin.y - 1.0
+		fill.polygon = PackedVector2Array([
+			Vector2(span.x - reach, top), Vector2(span.y + reach, top),
+			Vector2(span.y + reach, top + 4000.0), Vector2(span.x - reach, top + 4000.0)])
+		add_child(fill)
 	return layer
 
 
@@ -298,6 +341,8 @@ class _Layer extends Node2D:
 	var flipped := false
 	## Laid across `span` at world rate and cut off at its ends, rather than widened for drift.
 	var grounded := false
+	## How far a piece is raised off the plate's registration. See the far island.
+	var lift := 0.0
 	var _frame := 0
 	var _clock := 0.0
 
@@ -345,7 +390,9 @@ class _Layer extends Node2D:
 
 	func _build_piece() -> void:
 		var height := float(frames[0].get_height())
-		_add_tile(0.0, flipped, Rect2(crop.x - origin.x, 0.0, crop.y - crop.x, height))
+		var tile := _add_tile(0.0, flipped,
+			Rect2(crop.x - origin.x, 0.0, crop.y - crop.x, height))
+		tile.position.y -= lift
 
 	## ⚠ A CUT MIRRORED TILE SHOWS THE FAR END OF THE TEXTURE, not the near one. Mirrored
 	## copies meet edge to matching edge: an upright tile ends on the texture's last column, so
