@@ -34,6 +34,12 @@ const PropClass = preload("res://scripts/dagat_prop_2d.gd")
 const PROPS := "res://assets/Level3/props/"
 const AUTHORED := "res://assets/Level3/authored/"
 const AMBIENCE := "res://assets/Level3/ambience/"
+## ⚠ THE SEABED, IN WORLD Y. Three things have to agree on it and only one of them can be
+## typed: the painted floor (DeepBand's plate_top 560 + floor_drop 360 + the terraces' floor at
+## plate row 789), the Seabed collision's top, and everything placed on the bed here. It moved
+## twice while the level was being painted; run_level3_audit fails if the collision and this
+## disagree, so the third move cannot leave the coral standing in the rock.
+const BED_Y := 1709.0
 
 ## Where the waterline sits, read off the mark rather than typed twice. Everything below it
 ## is the sea: the aquatic rule is armed there and nowhere else, because the shore and a
@@ -297,23 +303,7 @@ func _plant_the_coral_field() -> void:
 	var coral := _mark("CoralMark")
 	if coral == null:
 		return
-	# ⚠ ON THE BED, AND THE BED MOVED. The painted terraces rest their floor at world 1349,
-	# two hundred pixels above where the placeholder seabed was, so everything that sat on it
-	# came up with it. A fact left at 1490 is a fact inside the rock.
-	# ⚠ ON THE BED, BECAUSE THE SCENERY STANDS ON IT. Every fact carries a piece of kelp or
-	# coral now, and a frond anchored at its foot in open water is a plant growing out of
-	# nothing. The bed is world 1349, so they sit a few pixels into it.
-	#
-	# `shaft` is the exception and keeps its depth: its fact is "look up, that is the whole
-	# top of the world from down here", the light shafts it names are painted into the
-	# backdrop, and standing a coral under it would be answering a different sentence.
-	var field := {
-		"jelly": Vector2(1360.0, 1344.0), "star": Vector2(1680.0, 1348.0),
-		"clam": Vector2(1980.0, 1346.0), "weed": Vector2(2180.0, 1350.0),
-		"urchin": Vector2(2420.0, 1345.0), "coral": Vector2(2660.0, 1349.0),
-		"shaft": Vector2(2900.0, 820.0), "wreck": Vector2(3080.0, 1347.0),
-		"lola1": Vector2(1780.0, 1350.0), "lola2": Vector2(3260.0, 1346.0),
-	}
+	var field := coral_field()
 	for key: String in field.keys():
 		var spot := Area2D.new()
 		spot.name = "Coral_%s" % key
@@ -340,6 +330,28 @@ func _plant_the_coral_field() -> void:
 		piece.mirrored = seed_of(key) % 2 == 1
 		piece.z_index = 3
 		spot.add_child(piece)
+
+
+## WHERE EACH FACT STANDS. Public so the probes swim to the level's own field rather than to a
+## copy of it that the next move of the seabed leaves behind.
+##
+## ⚠ ON THE BED, BECAUSE THE SCENERY STANDS ON IT. Every fact carries a piece of kelp or coral,
+## and a frond anchored at its foot in open water is a plant growing out of nothing -- so they
+## are placed on BED_Y, a few pixels into it, and move when it does. They used to be literals
+## at 1344..1350 and had to be re-typed each time the bed moved.
+##
+## `shaft` is the exception: its fact is "look up, that is the whole top of the world from down
+## here", the light shafts it names are painted into the top of the water, and standing a coral
+## under it would be answering a different sentence. It sits where the shafts are.
+func coral_field() -> Dictionary:
+	var bed := BED_Y - 4.0
+	return {
+		"jelly": Vector2(1360.0, bed), "star": Vector2(1680.0, bed + 2.0),
+		"clam": Vector2(1980.0, bed + 1.0), "weed": Vector2(2180.0, bed + 4.0),
+		"urchin": Vector2(2420.0, bed), "coral": Vector2(2660.0, bed + 3.0),
+		"shaft": Vector2(2900.0, 900.0), "wreck": Vector2(3080.0, bed + 2.0),
+		"lola1": Vector2(1780.0, bed + 4.0), "lola2": Vector2(3260.0, bed + 1.0),
+	}
 
 
 ## WHICH PIECE OF SCENERY EACH FACT IS ABOUT. The facts were written for the non-drawable
@@ -379,19 +391,20 @@ func _scatter_the_ambience() -> void:
 	var coral := _mark("CoralMark")
 	if coral == null:
 		return
-	# Columns rise off the bed; schools drift at mid-depth. Placed by hand rather than by
-	# random so nothing lands inside a terrace or on top of a fact.
+	# Columns rise off the bed; schools drift through the middle of the column. Placed by
+	# hand rather than by random so nothing lands inside a terrace or on top of a fact.
+	var bed := BED_Y
 	var placings := [
-		[AMBIENCE + "bubbles_long", Vector2(1180.0, 1330.0), 210.0, 3.0],
-		[AMBIENCE + "bubbles_short", Vector2(1620.0, 1300.0), 130.0, 3.6],
-		[AMBIENCE + "bubbles_long", Vector2(2280.0, 1340.0), 235.0, 2.6],
-		[AMBIENCE + "bubbles_short", Vector2(2840.0, 1300.0), 140.0, 3.2],
-		[AMBIENCE + "bubbles_long", Vector2(3420.0, 1330.0), 200.0, 2.8],
-		[AMBIENCE + "bubbles_short", Vector2(4160.0, 1300.0), 135.0, 3.4],
-		[AMBIENCE + "school", Vector2(1450.0, 900.0), 175.0, 2.2],
-		[AMBIENCE + "school", Vector2(2350.0, 780.0), 210.0, 1.8],
-		[AMBIENCE + "school", Vector2(3150.0, 940.0), 165.0, 2.4],
-		[AMBIENCE + "school", Vector2(4020.0, 820.0), 195.0, 2.0],
+		[AMBIENCE + "bubbles_long", Vector2(1180.0, bed - 20.0), 210.0, 3.0],
+		[AMBIENCE + "bubbles_short", Vector2(1620.0, bed - 50.0), 130.0, 3.6],
+		[AMBIENCE + "bubbles_long", Vector2(2280.0, bed - 10.0), 235.0, 2.6],
+		[AMBIENCE + "bubbles_short", Vector2(2840.0, bed - 50.0), 140.0, 3.2],
+		[AMBIENCE + "bubbles_long", Vector2(3420.0, bed - 20.0), 200.0, 2.8],
+		[AMBIENCE + "bubbles_short", Vector2(4160.0, bed - 50.0), 135.0, 3.4],
+		[AMBIENCE + "school", Vector2(1450.0, 1180.0), 175.0, 2.2],
+		[AMBIENCE + "school", Vector2(2350.0, 1060.0), 210.0, 1.8],
+		[AMBIENCE + "school", Vector2(3150.0, 1240.0), 165.0, 2.4],
+		[AMBIENCE + "school", Vector2(4020.0, 1100.0), 195.0, 2.0],
 	]
 	for index in placings.size():
 		var row: Array = placings[index]

@@ -12,19 +12,19 @@
 [ext_resource type="Script" path="res://scripts/dagat_backdrop_2d.gd" id="10_backdrop"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Shore"]
-size = Vector2(1000.0, 240.0)
+size = Vector2(1200.0, 1400.0)
 
 [sub_resource type="RectangleShape2D" id="Rect_Seabed"]
-size = Vector2(4000.0, 240.0)
+size = Vector2(6000.0, 240.0)
 
 [sub_resource type="RectangleShape2D" id="Rect_Island"]
-size = Vector2(900.0, 240.0)
+size = Vector2(1300.0, 1400.0)
 
 [sub_resource type="RectangleShape2D" id="Rect_WestWall"]
-size = Vector2(40.0, 2400.0)
+size = Vector2(40.0, 3000.0)
 
 [sub_resource type="RectangleShape2D" id="Rect_EastWall"]
-size = Vector2(40.0, 2400.0)
+size = Vector2(40.0, 3000.0)
 
 [node name="EnvironmentBaseplate" type="Node2D"]
 script = ExtResource("1_environment")
@@ -35,7 +35,7 @@ metadata/checkpoint_moss = Color(0.318, 0.376, 0.239, 0)
 [node name="WorldCamera" type="Camera2D" parent="."]
 script = ExtResource("2_camera")
 target_offset = Vector2(0, -180)
-world_bottom_y = 1520.0
+world_bottom_y = 1860.0
 outdoor_x_limits = Vector2(116, 5380)
 
 [node name="Ambience" type="Node2D" parent="WorldCamera"]
@@ -83,17 +83,20 @@ span = Vector2(-400.0, 5700.0)
 plate_top = -230.0
 home_ground = Vector2(100.0, 1000.0)
 
-; ⚠ plate_top = 560, THE WATERLINE ITSELF. Unlike the shore, this band is pinned by its TOP
-; rather than by a feature inside it -- the painted column starts where the sea starts. Its
-; own floor then lands at 560 + 789 = 1349, which is where the seabed collision was moved to
-; rather than stretching the art to meet the collision: a 1.27x vertical scale on pixel art
-; to save moving one StaticBody2D is the wrong trade.
+; ⚠ plate_top = 560, THE WATERLINE ITSELF, AND floor_drop = 360 UNDER IT. The water is
+; pinned by its top -- the painted column starts where the sea starts, and its light comes from
+; there. The floor is not: the delivered picture puts its seabed 789 under the surface, less
+; than a screen, so from the boat the ruins stood just under the keel and the beach, the sea and
+; the seabed were all one picture. The floor layers drop 360, landing the seabed at
+; 560 + 360 + 789 = 1709, and the collision, the refills and the coral field follow it --
+; level_3.gd's BED_Y is that number, and run_level3_audit checks the two agree.
 [node name="DeepBand" type="Node2D" parent="."]
 script = ExtResource("10_backdrop")
 band = "deep"
 depth = 1.0
 span = Vector2(940.0, 4530.0)
 plate_top = 560.0
+floor_drop = 360.0
 
 ; ⚠ plate_top = 560 - 664: THE FRONT WAVE, NOT THE HORIZON. The storm plate is a sea seen
 ; from the side, receding from a foreground crest at plate-y ~664 up to a horizon at ~467.
@@ -125,34 +128,40 @@ position = Vector2(260.0, 470.0)
 
 [node name="Terrain" type="Node2D" parent="GameplayPlane"]
 
+; ⚠ DOWN TO THE SEABED, NOT A SLAB OF SAND. The shore was a 240-deep box with nothing under it,
+; so between its underside and the seabed there was an air pocket the width of the beach: a
+; diver who swam under the sand left the water, fell to the bed and could not get back in.
+; The land is solid to the bottom of the world now, and its seaward face is painted where
+; this edge is (see the shelf rows in dagat_backdrop_2d.gd).
 [node name="Shore" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(500.0, 680.0)
+position = Vector2(400.0, 1260.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/Shore"]
 shape = SubResource("Rect_Shore")
 
-; 1349 + 120: the painted terraces rest their floor at plate-y 789, which is world 1349 with
-; the band pinned at the waterline. The collision follows the picture, not the other way.
+; 1709 + 120: the painted terraces rest their floor at plate-y 789, which is world 1709 with
+; the floor dropped 360 under the waterline. The collision follows the picture, not the other
+; way. It runs the whole level, under the land at both ends, so nothing falls past its edge.
 [node name="Seabed" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(2500.0, 1469.0)
+position = Vector2(2700.0, 1829.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/Seabed"]
 shape = SubResource("Rect_Seabed")
 
 [node name="Island" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(4950.0, 680.0)
+position = Vector2(5150.0, 1260.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/Island"]
 shape = SubResource("Rect_Island")
 
 [node name="WestWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(-20.0, 400.0)
+position = Vector2(-20.0, 500.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/WestWall"]
 shape = SubResource("Rect_WestWall")
 
 [node name="EastWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(5420.0, 400.0)
+position = Vector2(5420.0, 500.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/EastWall"]
 shape = SubResource("Rect_EastWall")
@@ -163,9 +172,9 @@ shape = SubResource("Rect_EastWall")
 ; of the island for the same reason -- the arrival at 4460 is still in the water, which is
 ; where a swimmer reaches it, but the sand they climb out onto is dry.
 [node name="Sea" type="Area2D" parent="GameplayPlane"]
-position = Vector2(2735.0, 1060.0)
+position = Vector2(2735.0, 1240.0)
 script = ExtResource("8_water")
-surface_size = Vector2(3570.0, 1000.0)
+surface_size = Vector2(3570.0, 1360.0)
 draws_itself = false
 water_color = Color(0.11, 0.482, 0.663, 0.62)
 deep_color = Color(0.031, 0.157, 0.29, 0.86)
@@ -186,10 +195,10 @@ position = Vector2(930.0, 560.0)
 position = Vector2(840.0, 540.0)
 
 [node name="CoralMark" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(2000.0, 1200.0)
+position = Vector2(2000.0, 1560.0)
 
 [node name="BakunawaMark" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(4000.0, 1100.0)
+position = Vector2(4000.0, 1460.0)
 
 [node name="SurfaceMark" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(4000.0, 700.0)
@@ -197,10 +206,13 @@ position = Vector2(4000.0, 700.0)
 [node name="IslandMark" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(4900.0, 560.0)
 
+; ⚠ treasure_offset LANDS ON THE BED, NOT UNDER IT. It was 300 below a creature at 1150, which
+; is 1450 -- a hundred pixels inside a seabed at 1349 -- so following the light, it swam into
+; the rock to find what it lost.
 [node name="Bakunawa" type="Node2D" parent="GameplayPlane"]
-position = Vector2(4000.0, 1150.0)
+position = Vector2(4000.0, 1510.0)
 script = ExtResource("9_bakunawa")
-treasure_offset = Vector2(-280.0, 300.0)
+treasure_offset = Vector2(-280.0, 160.0)
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 
@@ -218,7 +230,7 @@ trigger_size = Vector2(520.0, 420.0)
 checkpoint_mark_offset = -260.0
 
 [node name="L3_N2" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(3860.0, 1060.0)
+position = Vector2(3860.0, 1240.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L3_N2"
 trigger_size = Vector2(900.0, 1500.0)
@@ -230,17 +242,17 @@ script = ExtResource("6_checkpoint")
 checkpoint_id = "CP1"
 
 [node name="CP3b" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(3760.0, 1060.0)
+position = Vector2(3760.0, 1240.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP3b"
 trigger_size = Vector2(220.0, 1500.0)
 shows_mark = false
 
 [node name="IslandArrival" type="Area2D" parent="GameplayPlane"]
-position = Vector2(4460.0, 1000.0)
+position = Vector2(4460.0, 1240.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP4"
-trigger_size = Vector2(160.0, 900.0)
+trigger_size = Vector2(160.0, 1400.0)
 shows_mark = false
 
 [node name="DialogueNode" type="Area2D" parent="GameplayPlane"]
@@ -251,9 +263,10 @@ level_id = "level_3"
 ; ⚠ y IS THE BOTTOM OF THIS ONE, NOT ITS MIDDLE. DialogueNode2D anchors its box at
 ; -trigger_size.y * 0.5, so the volume climbs from the node rather than straddling it --
 ; unlike LevelObstacle2D and CheckpointArea2D, which centre theirs. At 1060 it covered
-; -190..1060 and a diver at 1150 swam under the fork without being asked anything.
+; -190..1060 and a diver at 1150 swam under the fork without being asked anything. 1990 covers
+; the surface the boat rides at down to the seabed at 1709.
 [node name="BakunawaNode" type="Area2D" parent="GameplayPlane"]
-position = Vector2(3560.0, 1810.0)
+position = Vector2(3560.0, 1990.0)
 script = ExtResource("7_dialoguenode")
 level_id = "level_3"
 trigger_size = Vector2(160.0, 1500.0)

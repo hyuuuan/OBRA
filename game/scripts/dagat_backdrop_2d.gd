@@ -21,6 +21,9 @@ extends Node2D
 ## update_for_camera, which is the same hook DepthLayer2D uses.
 
 const MANIFEST := "res://assets/Level3/dagat.json"
+## Authored by tools/build_dagat_props.py, not cut from the delivery. See that tool's header.
+const SHELF_FILL := "res://assets/Level3/authored/shelf_fill.png"
+const SHELF_FACE := "res://assets/Level3/authored/shelf_face.png"
 
 ## ⚠ EnvironmentBaseplate SORTS ITS LAYERS BY THIS. It collects anything with
 ## set_camera_origin/update_for_camera -- which is how a backdrop gets parallax for free --
@@ -44,6 +47,13 @@ const MANIFEST := "res://assets/Level3/dagat.json"
 ## island the crossing arrives at is the second, and it faces the other way.
 @export var home_ground := Vector2.ZERO
 @export var island_ground := Vector2.ZERO
+## ⚠ HOW FAR BELOW THE PLATE'S TOP THE DEEP'S FLOOR GOES. The delivered underwater picture
+## puts its seabed 789 rows under the surface, which is less than a screen: from the boat the
+## ruins stood just under the keel, and a dive was over before it had started. So the deep has
+## TWO registrations, not one -- its water is pinned at the surface, where the light in it
+## comes from, and the layers marked `floor` are pinned this much lower, where the seabed is.
+## The collision, the refills and the coral field follow the floor, never the other way.
+@export var floor_drop := 0.0
 ## Where the camera stands when each of the storm's two landmarks is centred on screen. They
 ## are halves of one plate -- a headland with a jetty at its left, an island with the ink buoy
 ## at its right -- and each is shown ONCE, where it belongs in the crossing.
@@ -92,6 +102,17 @@ const BANDS := {
 		# right. Tiled and mirrored, a clump of palms stood every screen along the beach and
 		# out across the open sea. So each is cut to the clump and set down once, at an end of
 		# the land -- and at the island, which faces the other way, mirrored.
+		# ⚠ WHAT THE LAND STANDS ON, UNDER THE WATER. The sand plate stops 150 pixels below
+		# the walking surface and the sea goes on for a thousand more, so the deep's ruins
+		# showed through under the beach. Authored rock from the plate's last row down, and a
+		# ragged face with lit ledges where it meets the water -- the face's rock edge lands
+		# on the land's own collision edge, so a diver stops where the rock looks to be.
+		{"key": SHELF_FILL, "rate": 1.00, "z": -150, "ground": true, "top_row": 941.0,
+			"mirror": false, "seaward_trim": 48.0},
+		{"key": SHELF_FACE, "rate": 1.00, "z": -149, "top_row": 941.0, "pieces": [
+			{"at": "home_ground.y", "nudge": 60.0, "align": "right"},
+			{"at": "island_ground.x", "nudge": -60.0, "align": "left", "flip": true},
+		]},
 		{"key": "shore/palms_left", "rate": 1.00, "z": -160, "pieces": [
 			{"crop": Vector2(0, 478), "at": "home_ground.x", "align": "left"},
 			{"crop": Vector2(0, 478), "at": "island_ground.y", "align": "right",
@@ -105,9 +126,9 @@ const BANDS := {
 	],
 	"deep": [
 		{"key": "deep/water", "rate": 0.15, "z": -230},
-		{"key": "deep/ridges", "rate": 0.35, "z": -225},
-		{"key": "deep/ruins", "rate": 0.55, "z": -220},
-		{"key": "deep/terraces", "rate": 0.80, "z": -215},
+		{"key": "deep/ridges", "rate": 0.35, "z": -225, "floor": true},
+		{"key": "deep/ruins", "rate": 0.55, "z": -220, "floor": true},
+		{"key": "deep/terraces", "rate": 0.80, "z": -215, "floor": true},
 	],
 	"storm": [
 		{"key": "storm/clouds", "rate": 0.15, "z": -210},
@@ -167,9 +188,10 @@ func _ready() -> void:
 				var at := _landmark(String(piece["at"]))
 				if is_nan(at):
 					continue
+				at += float(piece.get("nudge", 0.0))
 				var layer := _new_layer(row, frames, manifest)
 				layer.name = "%s_%d" % [layer.name, index]
-				layer.crop = piece["crop"]
+				layer.crop = piece.get("crop", Vector2(0.0, float(frames[0].get_width())))
 				layer.flipped = bool(piece.get("flip", false))
 				layer.lift = float(piece.get("lift", 0.0))
 				layer.place_piece(at, String(piece.get("align", "center")))
@@ -181,7 +203,14 @@ func _ready() -> void:
 					continue
 				var layer := _new_layer(row, frames, manifest)
 				layer.name = "%s_%d" % [layer.name, int(ground.x)]
-				layer.span = ground
+				# The home beach has the sea to its east and the island has it to its west;
+				# a row that stops short of the water stops short at that end.
+				var trim := float(row.get("seaward_trim", 0.0))
+				if ground == home_ground:
+					layer.span = Vector2(ground.x, ground.y - trim)
+				else:
+					layer.span = Vector2(ground.x + trim, ground.y)
+				layer.mirrored_tiles = bool(row.get("mirror", true))
 				layer.grounded = true
 				add_child(layer)
 				_layers.append(layer)
@@ -202,7 +231,12 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 	layer.rate = float(row["rate"])
 	layer.z_index = int(row["z"])
 	layer.fps = float(row.get("fps", 0.0))
-	layer.plate_top = plate_top
+	layer.plate_top = plate_top + (floor_drop if bool(row.get("floor", false)) else 0.0)
+	if row.has("top_row"):
+		# An authored texture is not on the plate at all; it says which plate row it
+		# starts at, and it repeats at its own width rather than the plate's.
+		layer.origin = Vector2(0.0, float(row["top_row"]))
+		layer.canvas_width = float(frames[0].get_width())
 	if row.has("fill_below"):
 		var fill := Polygon2D.new()
 		fill.name = layer.name + "_below"
@@ -258,7 +292,9 @@ func _frames(manifest: Dictionary, key: String) -> Array[Texture2D]:
 	var plates: Dictionary = manifest.get("plates", {})
 	var groups: Dictionary = manifest.get("groups", {})
 	var paths: Array = []
-	if plates.has(key):
+	if key.begins_with("res://"):
+		paths = [key]
+	elif plates.has(key):
 		paths = [String((plates[key] as Dictionary).get("file", ""))]
 	elif groups.has(key):
 		paths = (groups[key] as Dictionary).get("frames", [])
@@ -341,6 +377,9 @@ class _Layer extends Node2D:
 	var flipped := false
 	## Laid across `span` at world rate and cut off at its ends, rather than widened for drift.
 	var grounded := false
+	## A painted plate is mirrored every second copy to hide its seam; an authored texture is
+	## drawn to tile straight and a mirror would only put a seam back in.
+	var mirrored_tiles := true
 	## How far a piece is raised off the plate's registration. See the far island.
 	var lift := 0.0
 	var _frame := 0
@@ -407,7 +446,7 @@ class _Layer extends Node2D:
 		var index := 0
 		while x < span.y - span.x - 0.5:
 			var width := minf(texture_width, span.y - span.x - x)
-			var flip := index % 2 == 1
+			var flip := mirrored_tiles and index % 2 == 1
 			var region := Rect2(0.0, 0.0, width, height)
 			if flip:
 				region.position.x = texture_width - width
