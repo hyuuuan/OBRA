@@ -249,11 +249,15 @@ checkpoint_id = "CP3b"
 trigger_size = Vector2(220.0, 1500.0)
 shows_mark = false
 
+; ⚠ FROM ABOVE THE WATERLINE, not from it. A boat player arrives SITTING in the hull, forty
+; pixels over the surface, and the volume used to start at the surface -- so the one route
+; that arrives above the water never arrived: the bangka nosed into the island and nothing
+; happened. It runs from the deck to the seabed now, for both routes.
 [node name="IslandArrival" type="Area2D" parent="GameplayPlane"]
-position = Vector2(4460.0, 1240.0)
+position = Vector2(4460.0, 1150.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP4"
-trigger_size = Vector2(160.0, 1400.0)
+trigger_size = Vector2(160.0, 1600.0)
 shows_mark = false
 
 [node name="DialogueNode" type="Area2D" parent="GameplayPlane"]
