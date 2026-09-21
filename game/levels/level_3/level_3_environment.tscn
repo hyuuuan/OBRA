@@ -213,6 +213,7 @@ position = Vector2(4900.0, 560.0)
 position = Vector2(4000.0, 1510.0)
 script = ExtResource("9_bakunawa")
 treasure_offset = Vector2(-280.0, 160.0)
+seal_span = Vector2(420.0, 1760.0)
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 

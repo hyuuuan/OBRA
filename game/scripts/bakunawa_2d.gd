@@ -59,6 +59,14 @@ const MANIFEST := "res://assets/Level3/dagat.json"
 ## The creature is delivered at 1672px and the arena is 900 wide. Scaled by its own length so
 ## the number here is the one a designer would measure off the scene.
 @export var target_length: float = 940.0
+## ⚠ THE WORLD Y RANGE THE CHANNEL SEALS, from above the waterline to under the seabed. The
+## coils used to be a fixed 1200 tall around the creature, which is a seal only while the
+## creature happens to sit in the middle of the column: when the seabed moved down and the
+## creature with it, a 350px gap opened under the surface and the channel could be swum over
+## the top of -- the exact bug the 1200 was chosen to close. They are fitted to this span
+## now, wherever the creature is staged. ZERO keeps the old fixed box.
+@export var seal_span := Vector2.ZERO
+var _coil_block: CollisionShape2D
 
 const HITS_TO_SUBDUE := 3
 ## What each drawn weapon is worth against it. Present so the five differ in more than reach,
@@ -134,6 +142,8 @@ func _build_bodies() -> void:
 	block.position = Vector2(BODY_LENGTH * 0.5 - 40.0, 0.0)
 	_coils.add_child(block)
 	add_child(_coils)
+	_coil_block = block
+	_fit_the_coils()
 
 	# ⚠ collision_layer 1, AND AN AREA. UtilityObject._reachable_targets runs a shape query
 	# with collide_with_areas and mask 1, then walks up the parent chain looking for something
@@ -162,7 +172,18 @@ func _build_bodies() -> void:
 ## states to keep in step with this one, and they would drift.
 func stage_at(depth_y: float) -> void:
 	global_position.y = depth_y
+	_fit_the_coils()
 	queue_redraw()
+
+
+## Stretch the channel's block over `seal_span`, measured from wherever the creature is now.
+func _fit_the_coils() -> void:
+	if _coil_block == null or seal_span == Vector2.ZERO:
+		return
+	var box := _coil_block.shape as RectangleShape2D
+	box.size = Vector2(box.size.x, seal_span.y - seal_span.x)
+	_coil_block.position = Vector2(_coil_block.position.x,
+		(seal_span.x + seal_span.y) * 0.5 - global_position.y)
 
 
 func begin_search() -> void:
