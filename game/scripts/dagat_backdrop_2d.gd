@@ -47,34 +47,45 @@ const MANIFEST := "res://assets/Level3/dagat.json"
 
 ## ⚠ THE STACK, FURTHEST FIRST. `rate` is the parallax factor: 0 is painted on the far wall
 ## and never moves, 1 travels with the world. `fps` turns a layer into an animation.
+##
+## ⚠ `z` IS ABSOLUTE ACROSS ALL THREE BANDS, NOT A PLACE WITHIN ONE. The bands share a
+## screen -- the storm fades in over the shore's sky, the deep sits under both -- and when each
+## band numbered its own stack from -200 the three interleaved: the deep's ruins drew over the
+## storm's underside, the storm's waves tied with the deep's terraces and fell back on tree
+## order, and the frame read as three pictures shuffled together. So the whole level is one
+## ordering, back to front:
+##
+##   shore far layers  -250..-235   the daylight sky and sea, behind everything
+##   deep              -230..-215   the water column and its floor
+##   storm             -212..-195   sky, clouds, islands, shores, the underside, the waves
+##   shore ground      -165..-160   sand and palms: nearer than any sea, behind the player
+##   storm rain          60         in front of everything
 const BANDS := {
 	"shore": [
-		{"key": "shore/sky", "rate": 0.15, "z": -200},
-		{"key": "shore/mountains", "rate": 0.35, "z": -190},
-		{"key": "shore/ocean", "rate": 0.55, "z": -180},
+		{"key": "shore/sky", "rate": 0.15, "z": -250},
+		{"key": "shore/mountains", "rate": 0.35, "z": -245},
+		{"key": "shore/ocean", "rate": 0.55, "z": -240},
 		# The surf is foam over a still sea, so it moves a little faster than the water it
 		# sits on and slower than the sand -- which is what makes the beach read as nearer.
-		{"key": "shore/surf", "rate": 0.70, "z": -170, "fps": 3.0},
-		{"key": "shore/sand", "rate": 1.00, "z": -160},
-		# The palms are IN FRONT of the player, at slightly more than world rate, which is
-		# what a foreground gets you: the beach opens out as you walk along it.
-		{"key": "shore/palms_left", "rate": 1.08, "z": 40},
-		{"key": "shore/palms_right", "rate": 1.08, "z": 40},
-	],
-	"storm": [
-		{"key": "storm/clouds", "rate": 0.15, "z": -200},
-		{"key": "storm/islands", "rate": 0.35, "z": -190},
-		{"key": "storm/shores", "rate": 0.50, "z": -186},
-		{"key": "storm/undersea", "rate": 0.50, "z": -185},
-		{"key": "storm/waves", "rate": 0.80, "z": -170, "fps": 4.0},
-		# Rain falls in front of everything, fast, and never repeats the sea's rhythm.
-		{"key": "storm/rain", "rate": 1.00, "z": 60, "fps": 10.0},
+		{"key": "shore/surf", "rate": 0.70, "z": -235, "fps": 3.0},
+		{"key": "shore/sand", "rate": 1.00, "z": -165},
+		{"key": "shore/palms_left", "rate": 1.00, "z": -160},
+		{"key": "shore/palms_right", "rate": 1.00, "z": -160},
 	],
 	"deep": [
-		{"key": "deep/water", "rate": 0.15, "z": -200},
-		{"key": "deep/ridges", "rate": 0.35, "z": -190},
-		{"key": "deep/ruins", "rate": 0.55, "z": -180},
-		{"key": "deep/terraces", "rate": 0.80, "z": -170},
+		{"key": "deep/water", "rate": 0.15, "z": -230},
+		{"key": "deep/ridges", "rate": 0.35, "z": -225},
+		{"key": "deep/ruins", "rate": 0.55, "z": -220},
+		{"key": "deep/terraces", "rate": 0.80, "z": -215},
+	],
+	"storm": [
+		{"key": "storm/clouds", "rate": 0.15, "z": -210},
+		{"key": "storm/islands", "rate": 0.35, "z": -205},
+		{"key": "storm/shores", "rate": 0.50, "z": -200},
+		{"key": "storm/undersea", "rate": 0.50, "z": -198},
+		{"key": "storm/waves", "rate": 0.80, "z": -195, "fps": 4.0},
+		# Rain falls in front of everything, fast, and never repeats the sea's rhythm.
+		{"key": "storm/rain", "rate": 1.00, "z": 60, "fps": 10.0},
 	],
 }
 

@@ -41,18 +41,19 @@ outdoor_x_limits = Vector2(116, 5380)
 [node name="Ambience" type="Node2D" parent="WorldCamera"]
 script = ExtResource("4_ambience")
 
-; The painted sky covers the shore band; this is what is behind everywhere else until the
-; storm and deep bands land.
+; Behind every band, above the waterline. The shore's sky plate is 941 tall and the world
+; goes higher than that, so this is the plate's own top row -- a band of a different blue over
+; the painted sky was the first thing a flying morph would have seen.
 [node name="SkyFill" type="Polygon2D" parent="."]
-z_index = -210
-color = Color(0.588, 0.792, 0.871, 1)
+z_index = -300
+color = Color(0.141, 0.565, 0.953, 1)
 polygon = PackedVector2Array(-3000, -3000, 9000, -3000, 9000, 560, -3000, 560)
 
 ; Behind the painted column, and below it: the deep band is 941 tall and the world goes on
-; past that.
+; past that. The water plate's own bottom row, so where the two meet there is no seam.
 [node name="DeepFill" type="Polygon2D" parent="."]
-z_index = -205
-color = Color(0.043, 0.169, 0.271, 1)
+z_index = -290
+color = Color(0.004, 0.106, 0.275, 1)
 polygon = PackedVector2Array(-3000, 560, 9000, 560, 9000, 2600, -3000, 2600)
 
 ; ⚠ PLACEHOLDER TERRAIN, AND IT IS THE SHAPE THAT MATTERS, NOT THE COLOUR. The shore, the
