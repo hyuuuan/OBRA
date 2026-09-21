@@ -111,9 +111,16 @@ func _run() -> void:
 	await _wait(0.8)
 	await _capture("12_bakunawa_calm")
 
-	# THE FAR SAND, where he stops.
+	# THE FAR SAND, where he stops -- seen first while the storm is still up, and then once it
+	# has broken. The level breaks it when the encounter is resolved; this tour never resolves
+	# it, so it asks the bands directly.
+	await _go(Vector2(4460.0, 620.0))
+	await _capture("13_the_island_in_the_storm")
+	for band in level.get_node("EnvironmentBaseplate").get_children():
+		if band.has_method("clear_the_sky"):
+			band.call("clear_the_sky", 0.05)
 	await _go(Vector2(4700.0, 500.0))
-	await _capture("13_the_island")
+	await _capture("14_the_island")
 
 	print("OBRA_VISUAL_L3_OK")
 	quit(0)
