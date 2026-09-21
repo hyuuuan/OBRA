@@ -613,7 +613,11 @@ func _audit_one_seabed(level: Dictionary) -> void:
 		var land_bottom := land.position.y + shape.size.y * 0.5
 		if land_bottom < painted:
 			sealed.append("%s stops at %.0f" % [land_name, land_bottom])
+	# The channel has to be a wall from above the water to below the bed, at both stagings.
+	var seal: Vector2 = creature.get("seal_span")
+	if seal == Vector2.ZERO or seal.x > sea.position.y - sea_size.y * 0.5 - 40.0 or seal.y < painted + 20.0:
+		sealed.append("the coils seal %s, not the whole column" % seal)
 	_check(sealed.is_empty(), "no air under the land or the sea",
-		"sea and both shores reach the bed at %.0f" % painted if sealed.is_empty()
+		"sea, both shores and the coils all reach the bed at %.0f" % painted if sealed.is_empty()
 		else ", ".join(sealed))
 	scene.free()
