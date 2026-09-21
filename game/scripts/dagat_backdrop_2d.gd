@@ -79,7 +79,6 @@ const BANDS := {
 }
 
 var _layers: Array[Node2D] = []
-var _origin := Vector2.ZERO
 
 
 func _ready() -> void:
@@ -93,14 +92,29 @@ func _ready() -> void:
 		var layer := _Layer.new()
 		layer.name = String(row["key"]).replace("/", "_")
 		layer.frames = frames
+		layer.origin = _origin_of(manifest, String(row["key"]))
+		layer.canvas_width = float(manifest.get("plate_size", [1672, 941])[0])
 		layer.span = span
 		layer.plate_scale = plate_scale
 		layer.rate = float(row["rate"])
 		layer.z_index = int(row["z"])
 		layer.fps = float(row.get("fps", 0.0))
-		layer.home = Vector2(span.x, plate_top)
+		layer.plate_top = plate_top
 		add_child(layer)
 		_layers.append(layer)
+
+
+## ⚠ WHERE AN ANIMATION'S FRAMES SIT ON THE PLATE THEY WERE CUT FROM. A group is trimmed to
+## the union of its frames, so frame 0 of the storm's waves is 867 tall and starts 48 rows
+## down the 941 plate everything else is registered to. Drawn at the plate's top edge, the
+## waves rode 48 pixels above the sea they belong to, the surf 21 above the sand, and the rain
+## 18 to the left of its own sky. A single plate has no origin, which is (0, 0).
+func _origin_of(manifest: Dictionary, key: String) -> Vector2:
+	var groups: Dictionary = manifest.get("groups", {})
+	if not groups.has(key):
+		return Vector2.ZERO
+	var origin: Array = (groups[key] as Dictionary).get("origin", [0, 0])
+	return Vector2(float(origin[0]), float(origin[1]))
 
 
 func _manifest() -> Dictionary:
@@ -126,8 +140,13 @@ func _frames(manifest: Dictionary, key: String) -> Array[Texture2D]:
 	return out
 
 
+## ⚠ THE CAMERA'S ORIGIN IS NOT KEPT, deliberately. EnvironmentBaseplate hands every layer a
+## fresh origin whenever the player's body changes -- set_target resyncs them -- and parallax
+## measured from "wherever the camera was at the last transformation" snaps every far layer
+## back to its starting place the moment the player draws something mid-crossing. The whole
+## sky jumped sideways. Parallax here is measured from a fixed point in the world instead, so
+## the backdrop is a function of where the camera IS, never of how it got there.
 func set_camera_origin(camera_position: Vector2) -> void:
-	_origin = camera_position
 	update_for_camera(camera_position)
 
 
@@ -145,25 +164,19 @@ func update_for_camera(camera_position: Vector2) -> void:
 		var hi := maxf(fade_span.x, fade_span.y)
 		var ramp := clampf((camera_position.x - lo) / maxf(1.0, hi - lo), 0.0, 1.0)
 		modulate.a = ramp if fade_span.y > fade_span.x else 1.0 - ramp
-	var travelled := camera_position - _origin
 	for layer in _layers:
-		# ⚠ HORIZONTAL ONLY, AND home + offset RATHER THAN THE OFFSET ALONE.
+		# ⚠ HORIZONTAL ONLY. Parallax on Y unmoors the composition from the thing it is
+		# registered to: this level is a thousand pixels tall, so let the far layers lag on Y
+		# and the sky, the horizon and the surf all slide up out of frame the moment the
+		# player goes under. That is exactly what it did, and it looked like four layers
+		# failing to render.
 		#
-		# Two separate bugs live here and both of them empty the screen. Writing the parallax
-		# straight into `position` throws away the plate_top every layer is pinned by, so the
-		# band jumps to the world origin and the beach draws a screen below the apo.
-		#
-		# And parallax on Y unmoors the composition from the thing it is registered to. This
-		# level is a thousand pixels tall, so the camera travels vertically as much as it
-		# does horizontally: let the far layers lag on Y and the sky, the horizon and the
-		# surf all slide up out of frame the moment the player goes under, leaving the sand
-		# and the palms -- which run at rate 1 -- as the only things still drawn. That is
-		# exactly what it did, and it looked like four layers failing to render.
-		#
-		# A rate of 1 sits still relative to the world; anything less lags behind the camera
-		# across the level, which is what reads as distance.
-		layer.position = layer.home + Vector2(
-			travelled.x * (1.0 - layer.rate) - layer.spread, 0.0)
+		# A rate of 1 sits still relative to the world; anything less lags behind the camera,
+		# which is what reads as distance. At the reference point every layer is where it was
+		# authored; everywhere else it has drifted by (1 - rate) of the distance from there.
+		layer.position = Vector2(
+			layer.base_x + (camera_position.x - layer.reference_x) * (1.0 - layer.rate),
+			layer.plate_top)
 
 
 ## One tiled, optionally animated plate.
@@ -175,18 +188,29 @@ func update_for_camera(camera_position: Vector2) -> void:
 ## TEXTURE_REPEAT_ENABLED is the path level_2.tscn already uses for its backdrop, and it
 ## repeats across a span wider than the texture without any of that.
 class _Layer extends Node2D:
+	## The far edge of the camera's travel past either end of a band, in world pixels: half a
+	## screen at the widest zoom this level uses, with room to spare.
+	const HALF_VIEW := 1200.0
+
 	var frames: Array[Texture2D] = []
 	var span := Vector2.ZERO
 	var plate_scale := 1.0
+	var plate_top := 0.0
 	var rate := 1.0
 	var fps := 0.0
-	var home := Vector2.ZERO
+	## Where frame 0 sits on the plate it was cut from. Zero for a plate.
+	var origin := Vector2.ZERO
+	## The width every layer repeats at: the PLATE's, not the trimmed frame's, or a trimmed
+	## animation tiles at a different period from the sea it is painted on.
+	var canvas_width := 1672.0
+	## The world x the camera is at when this layer is exactly where it was authored.
+	var reference_x := 0.0
+	## Where the layer's left edge sits at that moment.
+	var base_x := 0.0
 	var _frame := 0
 	var _clock := 0.0
 
 	var _tiles: Array[Sprite2D] = []
-	## How far left of the band the tiles start, so the widened run is centred on it.
-	var spread := 0.0
 
 	func _ready() -> void:
 		# ⚠ MIRRORED TILES, NOT A REPEATING REGION. Every plate is a self-contained painting
@@ -194,16 +218,16 @@ class _Layer extends Node2D:
 		# straight repeat puts a hard vertical cut through the ruins every 1672 pixels, which
 		# the eye finds immediately. Flipping every second copy turns the cut into a mirror
 		# line, which reads as more of the same place rather than as the same place again.
-		var width := maxf(1.0, span.y - span.x)
-		var texture_width := maxf(1.0, float(frames[0].get_width()))
+		#
 		# ⚠ A SLOW LAYER HAS TO COVER MORE GROUND THAN THE BAND IS WIDE. At rate 0.15 the sky
-		# lags the camera by 85% of everything it travels, so across a three-thousand-pixel
-		# band it slides nearly three thousand pixels sideways -- off one end of its own tiles
-		# and into open space at the other. Widening by 1/rate covers the drift in both
-		# directions; the extra tiles are centred so neither edge runs out first.
-		var reach := width / maxf(0.25, rate)
-		var count := int(ceil(reach / texture_width))
-		spread = (float(count) * texture_width - width) * 0.5
+		# lags the camera by 85% of everything it travels, so it slides sideways by nearly as
+		# much as the band is wide. It is referenced from the band's middle, so it drifts by
+		# (1 - rate) of half the band plus half a screen at most in either direction, and the
+		# tiles are laid out to cover exactly that.
+		reference_x = (span.x + span.y) * 0.5
+		var drift := ((span.y - span.x) * 0.5 + HALF_VIEW) * (1.0 - rate)
+		base_x = span.x - drift
+		var count := int(ceil((span.y - span.x + drift * 2.0) / canvas_width))
 		for index in range(count):
 			var tile := Sprite2D.new()
 			tile.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -211,15 +235,17 @@ class _Layer extends Node2D:
 			tile.centered = false
 			tile.texture = frames[0]
 			tile.flip_h = index % 2 == 1
-			# ⚠ THE SAME PLACE WHETHER IT IS FLIPPED OR NOT. flip_h mirrors the texture
-			# INSIDE the sprite's own rect; it does not move the rect. Offsetting flipped
-			# tiles by a tile-width on the assumption that they draw leftward left a
-			# texture-wide hole in the middle of every band.
-			tile.position = Vector2(texture_width * float(index), 0.0)
+			# ⚠ flip_h mirrors the texture INSIDE the sprite's own rect; it does not move the
+			# rect. A trimmed frame mirrored on its canvas lands the same distance from the
+			# canvas's OTHER edge, which is the only thing that has to be worked out here.
+			var inset := origin.x
+			if tile.flip_h:
+				inset = canvas_width - origin.x - float(frames[0].get_width())
+			tile.position = Vector2(canvas_width * float(index) + inset, origin.y * plate_scale)
 			tile.scale = Vector2(1.0, plate_scale)
 			add_child(tile)
 			_tiles.append(tile)
-		position = home - Vector2(spread, 0.0)
+		position = Vector2(base_x, plate_top)
 		set_process(fps > 0.0 and frames.size() > 1)
 
 	func _process(delta: float) -> void:
