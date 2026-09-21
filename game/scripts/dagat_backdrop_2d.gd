@@ -170,7 +170,20 @@ const BANDS := {
 	],
 }
 
+## ⚠ NIGHT, AS A TINT ON A BAND THAT IS NOT THE STORM. The storm fades in over the crossing,
+## but the deep under it and the island ahead of it are painted in daylight: under a night sky
+## the island glowed like noon and the water under the storm was the sunlit water of the
+## beach. A band with a night_span darkens toward night_tint across that stretch -- the same
+## stretch the storm fades in over, so the two arrive together.
+@export var night_span := Vector2.ZERO
+@export var night_tint := Color.WHITE
+
 var _layers: Array[Node2D] = []
+## How far the storm has cleared, 0..1. The storm is over when the bakunawa is -- see
+## clear_the_sky -- and this is what every band's night and every storm's alpha answer to.
+var _clearing := 0.0
+var _clear_tween: Tween
+var _last_camera := Vector2.ZERO
 
 
 func _ready() -> void:
@@ -331,7 +344,49 @@ func set_camera_origin(camera_position: Vector2) -> void:
 	update_for_camera(camera_position)
 
 
+## THE STORM BREAKS. Called when the encounter is resolved, however it was resolved, so the
+## crossing's last stretch and the farewell on the island are in daylight: the buildup the
+## design asks for ("darker and emptier as the player nears the bakunawa") has somewhere to go
+## once it is over. It runs through the pause, because the farewell is a DialogueBox and the
+## sky should clear while he is talking, not after.
+func clear_the_sky(seconds: float) -> void:
+	if _clearing >= 1.0 or (_clear_tween != null and _clear_tween.is_valid()):
+		return
+	_clear_tween = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_clear_tween.tween_method(_set_clearing, _clearing, 1.0, maxf(0.01, seconds))
+
+
+## Back to the storm at once, for a checkpoint restored to before the encounter was over.
+func restore_the_storm() -> void:
+	if _clear_tween != null and _clear_tween.is_valid():
+		_clear_tween.kill()
+	_set_clearing(0.0)
+
+
+func is_clear() -> bool:
+	return _clearing >= 1.0
+
+
+func _set_clearing(value: float) -> void:
+	_clearing = clampf(value, 0.0, 1.0)
+	update_for_camera(_last_camera)
+
+
+static func _ramp(span_x: Vector2, x: float) -> float:
+	# ⚠ THE RAMP ALWAYS RUNS LEFT TO RIGHT ACROSS THE WORLD; only its SENSE is reversed.
+	var lo := minf(span_x.x, span_x.y)
+	var hi := maxf(span_x.x, span_x.y)
+	var ramp := clampf((x - lo) / maxf(1.0, hi - lo), 0.0, 1.0)
+	return ramp if span_x.y > span_x.x else 1.0 - ramp
+
+
 func update_for_camera(camera_position: Vector2) -> void:
+	_last_camera = camera_position
+	var weather := 1.0 - _clearing
+	if night_span != Vector2.ZERO:
+		var night := _ramp(night_span, camera_position.x) * weather
+		modulate = Color(lerpf(1.0, night_tint.r, night), lerpf(1.0, night_tint.g, night),
+			lerpf(1.0, night_tint.b, night), modulate.a)
 	if fade_span != Vector2.ZERO:
 		# x < y fades the band UP across that stretch; x > y fades it DOWN. The shore and the
 		# storm are the same crossing seen twice, so one has to leave as the other arrives --
@@ -341,10 +396,7 @@ func update_for_camera(camera_position: Vector2) -> void:
 		# Reading it from fade_span.x meant a fade-out started where it should have finished,
 		# so the daylight band stayed at full alpha across the whole crossing and hung a palm
 		# tree over the storm.
-		var lo := minf(fade_span.x, fade_span.y)
-		var hi := maxf(fade_span.x, fade_span.y)
-		var ramp := clampf((camera_position.x - lo) / maxf(1.0, hi - lo), 0.0, 1.0)
-		modulate.a = ramp if fade_span.y > fade_span.x else 1.0 - ramp
+		modulate.a = _ramp(fade_span, camera_position.x) * weather
 	for layer in _layers:
 		# ⚠ HORIZONTAL ONLY. Parallax on Y unmoors the composition from the thing it is
 		# registered to: this level is a thousand pixels tall, so let the far layers lag on Y

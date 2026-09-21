@@ -70,6 +70,8 @@ span = Vector2(-400.0, 5700.0)
 plate_top = -230.0
 home_ground = Vector2(100.0, 1000.0)
 island_ground = Vector2(4500.0, 5380.0)
+night_span = Vector2(1600.0, 3000.0)
+night_tint = Color(0.42, 0.5, 0.72, 1)
 
 ; ⚠ plate_top = 560, THE WATERLINE ITSELF, AND floor_drop = 360 UNDER IT. The water is
 ; pinned by its top -- the painted column starts where the sea starts, and its light comes from
@@ -85,6 +87,8 @@ depth = 1.0
 span = Vector2(940.0, 4530.0)
 plate_top = 560.0
 floor_drop = 360.0
+night_span = Vector2(1600.0, 3000.0)
+night_tint = Color(0.55, 0.62, 0.82, 1)
 
 ; ⚠ plate_top = 560 - 664: THE FRONT WAVE, NOT THE HORIZON. The storm plate is a sea seen
 ; from the side, receding from a foreground crest at plate-y ~664 up to a horizon at ~467.

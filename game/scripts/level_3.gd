@@ -83,6 +83,10 @@ var _arrived := false
 ## trigger the player can re-cross, and a beat spoken twice is worse than one spoken late.
 var _told: Dictionary = {}
 var _shadow: Sprite2D
+## Whether the sky has been told the encounter is over. Compared against the director every
+## frame rather than set once, so a checkpoint restored to before the resolution puts the
+## storm back.
+var _sky_is_clear := false
 
 
 # --- What the machine asks -------------------------------------------------------------
@@ -525,7 +529,28 @@ func _drowning_words() -> PackedStringArray:
 
 # --- Per frame --------------------------------------------------------------------------
 
+## THE STORM ENDS WITH THE ENCOUNTER, whichever of the three resolutions ended it. The level
+## darkens into the bakunawa on the way there; with it followed, evaded or subdued, the last
+## stretch and the island are in daylight -- which is also the light the farewell is in.
+func _keep_the_weather() -> void:
+	var calm := director != null and director.is_solved("L3_N2")
+	if calm == _sky_is_clear:
+		return
+	_sky_is_clear = calm
+	var environment_node := get_node_or_null(^"EnvironmentBaseplate")
+	if environment_node == null:
+		return
+	for band in environment_node.get_children():
+		if not band.has_method("clear_the_sky"):
+			continue
+		if calm:
+			band.call("clear_the_sky", 6.0)
+		else:
+			band.call("restore_the_storm")
+
+
 func _level_physics(anchor_position: Vector2) -> void:
+	_keep_the_weather()
 	var delta := get_physics_process_delta_time()
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
