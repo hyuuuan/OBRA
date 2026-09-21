@@ -110,7 +110,17 @@ func _mark(mark_name: String) -> Node2D:
 	return _marks.get_node_or_null(NodePath(mark_name)) as Node2D if _marks != null else null
 
 
+## The world is a column as much as a crossing -- beach, surface, seabed -- so the camera
+## follows height. See LevelBase._camera_follows_height for what the pinned camera did here.
+func _camera_follows_height() -> bool:
+	return true
+
+
 func _build_level_furniture() -> void:
+	var world_camera := _world_camera()
+	if world_camera != null:
+		world_camera.set_vertical_free(true)
+		world_camera.snap_to_target()
 	_restrictions = RestrictionsClass.new()
 	_restrictions.name = "LevelRestrictions"
 	add_child(_restrictions)

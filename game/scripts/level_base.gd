@@ -127,6 +127,18 @@ func _morph_has_a_life() -> bool:
 	return true
 
 
+## DOES THE CAMERA FOLLOW THE PLAYER UP AND DOWN OUTDOORS? False everywhere it has ever been.
+##
+## A level pins the camera near the bottom of its world and lets the player rise off it,
+## which keeps the ground in shot and a jump from swinging the view. That is right for a
+## level whose floor is where the player walks. Dagat's floor is the seabed, eight hundred
+## pixels under the beach the level starts on, so the pinned camera opened the level looking
+## at the ruins with the apo somewhere above the top of the screen. A level that is as tall
+## as it is wide answers true and the camera centres on the player instead.
+func _camera_follows_height() -> bool:
+	return false
+
+
 ## THE INK RAN OUT. Return true to say the level has handled it and the generic out-of-ink
 ## screen must not open.
 ##
@@ -1173,7 +1185,7 @@ func _refresh_room_framing(snap: bool = false) -> void:
 	# a room ended up drawn at the focus's 1.15 instead of the room's 2.
 	world_camera.release_focus(0.0)
 	var inside := room != null
-	world_camera.set_vertical_free(inside,
+	world_camera.set_vertical_free(inside or _camera_follows_height(),
 		float(room.call("eye_level")) if inside else NAN)
 	world_camera.set_base_zoom(float(room.call("how_far_in")) if inside else 1.0)
 	world_camera.set_room_bounds(_camera_rect_for(room) if inside else Rect2())
