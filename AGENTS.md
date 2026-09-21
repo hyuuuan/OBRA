@@ -430,12 +430,13 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
   Q to change back to the wanderer, Z/X to rotate a placement, and Escape to
   pause. `interact` and `rotate_right` both sat on E until the rotate pair moved
   to Z/X — check for a clash before adding a binding.
-- **A level has two clocks.** Ink is level-scoped and priced by thesis FR-7: **six units,
-  and one thing costs one unit.** A tool costs a unit on its first successful recognition
-  and is free forever after (it is in the toolbelt, and that persists across levels and
-  sessions); a placeable costs a unit on EVERY placement and is not retained; becoming a
-  creature is free; a declined drawing is free. Which of the two an object is comes off the
-  manifest's `ink_role`, never out of gameplay code. ⚠ It used to be twelve normalized
+- **A level has two clocks.** Ink is level-scoped and priced by thesis FR-7: **six units by
+  default, and one thing costs one unit.** Payyo alone exports seven as the smallest useful
+  new-player allowance; Piyesta and later levels keep six. A tool costs a unit on its first
+  successful recognition and is free forever after (it is in the toolbelt, and that persists
+  across levels and sessions); a placeable costs a unit on EVERY placement and is not
+  retained; becoming a creature is free; a declined drawing is free. Which of the two an
+  object is comes off the manifest's `ink_role`, never out of gameplay code. ⚠ It used to be twelve normalized
   canvas DIAGONALS — length, reserved while you drew — which prices neatness, and which
   meant a placeable was paid for once and set down free for the rest of the level.
   `DrawingCanvas` still caps stroke length, and that cap is a `PAGE_ALLOWANCE`, not the

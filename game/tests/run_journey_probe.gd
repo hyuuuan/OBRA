@@ -188,8 +188,8 @@ func _restart_payyo_from_pause(manager: Node) -> void:
 	_check(current_scene != level, "RESTART LEVEL loads Payyo again", _scene_name())
 	await _arrived(manager, "game_level.tscn", "RESTART LEVEL")
 	var fresh_ink := current_scene.get("ink_manager") as Node
-	_check(is_equal_approx(float(fresh_ink.call("total_uncommitted_available")), 6.0),
-		"and the ink spent before it is back", "%.1f of 6"
+	_check(is_equal_approx(float(fresh_ink.call("total_uncommitted_available")), 7.0),
+		"and Payyo's ink spent before it is back", "%.1f of 7"
 			% float(fresh_ink.call("total_uncommitted_available")))
 	_check(String(manager.get("current_level_id")) == "level_1", "and it is still Payyo",
 		String(manager.get("current_level_id")))

@@ -127,8 +127,9 @@ recognition            {confidence_threshold, margin_threshold,
 cultural_constraints   free-shape, per level — see the guardrail pattern
 lighting_states        [ {id, from, to} ]
 load_time_assertions   [ strings ]  — the level's own invariants, in prose
-tuning                 INERT. Carried verbatim from the design doc; ink lives on
-                       InkManager's own six units, one per thing (thesis FR-7).
+tuning                 INERT. Carried verbatim from the design doc; ink defaults to
+                       InkManager's six units, one per thing (thesis FR-7). Payyo's scene
+                       exports seven as a one-unit onboarding allowance; later levels do not.
                        Do not wire it up.
 
 ⚠ A BEAT THAT NEEDS A MORPH MUST DECLARE A CHECKPOINT. Thesis FR-8 only allows

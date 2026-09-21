@@ -678,12 +678,24 @@ func _test_level_framework() -> void:
 	#
 	# In memory, like the brush above, and put back the same way.
 	var had_unlocked: Array = (profile_data.get("levels_unlocked", []) as Array).duplicate()
+	var had_completed: Array = (profile_data.get("levels_completed", []) as Array).duplicate()
 	profile_data["levels_unlocked"] = []
+	profile_data["levels_completed"] = []
 	_expect(not bool(level_manager.call("is_unlocked", "level_2")),
-		"level 2 is unlocked with the progression list emptied")
+		"level 2 is unlocked with all progression emptied")
 	_expect(not bool(level_manager.call("open_level", "level_2")), "locked Level 2 initiated a transition")
 	_expect(not bool(level_manager.call("open_level", "missing")), "invalid level initiated a transition")
+
+	# THE SAVE THAT STRANDED PIYESTA. A direct Level 2 run (or an older test-mutated save)
+	# can record the level as completed and the next level as unlocked without retaining
+	# Level 2 in the redundant unlock list. The house still has to let the player revisit a
+	# painting they have completed; completion is stronger evidence than the missing entry.
+	profile_data["levels_completed"] = ["level_2"]
+	profile_data["levels_unlocked"] = ["level_3"]
+	_expect(bool(level_manager.call("is_unlocked", "level_2")),
+		"a completed Level 2 cannot be reopened when its unlock entry is missing")
 	profile_data["levels_unlocked"] = had_unlocked
+	profile_data["levels_completed"] = had_completed
 
 	# Playable and unlocked are different questions, and conflating them is the dead
 	# card: 3 to 5 have no scene, so they are never playable however the profile's
@@ -716,7 +728,9 @@ func _test_level_framework() -> void:
 	# and "exactly four locked cards" is a lie about the code rather than a fact about it.
 	# Emptied in memory and put back at the end, the same way the brush is.
 	var had_unlocked_cards: Array = (profile_data.get("levels_unlocked", []) as Array).duplicate()
+	var had_completed_cards: Array = (profile_data.get("levels_completed", []) as Array).duplicate()
 	profile_data["levels_unlocked"] = []
+	profile_data["levels_completed"] = []
 	menu.call("_refresh_cards")
 	await process_frame
 	var cards := menu.get_node("MenuLayer/MenuRoot/MorphPanel/Selector").get_children()
@@ -772,6 +786,7 @@ func _test_level_framework() -> void:
 			"level 3 would start a transition to a scene that does not exist"
 		)
 	profile_data["levels_unlocked"] = had_unlocked_cards
+	profile_data["levels_completed"] = had_completed_cards
 	menu.call("_refresh_cards")
 
 	# Card text comes from the catalog, not from strings typed into the scene.

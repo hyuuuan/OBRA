@@ -2,12 +2,10 @@ class_name StrawRoom2D
 extends Node2D
 ## Inside the heap, and it is a great deal bigger in here than the hole suggested.
 ##
-## BUILT THE WAY THE HOUSE IN THE HUB IS BUILT, and that is the whole of what changed on the
-## third attempt. The first two were a cutaway of the heap and then a wall of tiled painting,
-## and both read as a picture of straw rather than as a room -- there was nothing in either
-## of them that was made, only texture. A room is made: it has courses, and joints, and a
-## lintel over the door, and a floor laid in boards. hub_room.gd is that argument already
-## won once, so this is the same argument in straw.
+## THE PAINTED INTERIOR IS THE BACKDROP. It is a single panorama fitted to the existing room
+## ruler and wide enough for the camera's full lead without repeating or mirroring anything.
+## The floor, roof, end walls, doorway, ants, nail and pickup remain world objects; changing
+## the picture must not change any of the puzzle geometry.
 ##
 ## THE RULER IS THE APO, exactly as it is in the house. He is 96 pixels tall and a child of
 ## about a metre thirty, which puts a METRE AT SEVENTY-TWO PIXELS, and every number below is
@@ -38,6 +36,11 @@ signal exit_reached()
 ## no key press, no pause, cleared when they walk off. Same contract the bale's interior has.
 signal noticed(text: String)
 signal notice_left()
+
+const BACKDROP: Texture2D = preload("res://assets/Level1/hay_interior.png")
+## The row in the painting on which the player stands. Keeping this separate from the
+## texture dimensions makes the collision floor remain y = 0 if the source is re-exported.
+const BACKDROP_FLOOR_ROW := 555.0
 
 ## THE ROOM'S PUZZLE, SAID OUT LOUD, because it was not said anywhere at all.
 ##
@@ -453,16 +456,30 @@ func _hash(value: int) -> int:
 
 func _draw() -> void:
 	_draw_dark()
-	_draw_wall()
-	_draw_roof()
+	_draw_backdrop()
 	_draw_way_out()
-	_draw_floor()
 	# THE NAIL STAYS. It is part of the wall, and an empty nail is the room telling a player
 	# who comes back that they already took what was hanging on it -- which the old code,
 	# which stopped drawing both together, could not say.
 	_draw_nail(key_at)
 	if _key_fade > 0.0:
 		_draw_key(key_at - Vector2(0.0, _key_lift), _key_fade)
+
+
+## The supplied painting replaces only the visual shell of the room. Its floor row is
+## aligned to the existing y = 0 collision floor, so every authored position and interaction
+## continues to use the same coordinates. The panorama spans the complete camera rectangle,
+## so walking from one end wall to the other never crosses a texture join.
+func _draw_backdrop() -> void:
+	var source_size := BACKDROP.get_size()
+	var painted_width := _span() * 2.0
+	var scale_to_room := painted_width / source_size.x
+	var painted_height := source_size.y * scale_to_room
+	var painted_top := -BACKDROP_FLOOR_ROW * scale_to_room
+	var destination := Rect2(
+		Vector2(-painted_width * 0.5, painted_top),
+		Vector2(painted_width, painted_height))
+	draw_texture_rect(BACKDROP, destination, false)
 
 
 ## What the room is seen against, and only just bigger than the room: a ground that reaches
@@ -703,6 +720,12 @@ func _draw_key_halo(at: Vector2, alpha: float) -> void:
 	if alpha <= 0.0:
 		return
 	var beat := 0.72 + sin(_shine * 2.1) * 0.28
+	# The new painted roof is bright gold at the nail. A dark local contrast field keeps the
+	# brass readable without moving the key or changing the height puzzle.
+	draw_circle(at + Vector2(2.0, -8.0), 31.0,
+		Color(DEEPER, (0.46 + beat * 0.12) * alpha))
+	draw_circle(at + Vector2(2.0, -8.0), 24.0,
+		Color(DEEPER, (0.34 + beat * 0.10) * alpha), false, 2.0)
 	for ring in range(3):
 		var reach := (16.0 + float(ring) * 11.0) * (0.85 + beat * 0.3)
 		var box := Rect2(at + Vector2(2.0, -8.0) - Vector2(reach, reach * 0.66),

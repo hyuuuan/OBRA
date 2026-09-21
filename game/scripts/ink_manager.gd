@@ -8,7 +8,8 @@ extends Node
 ## economy the manuscript specifies or the one the levels are balanced against: a tool
 ## costs one unit on its first successful recognition and is then free forever, a placeable
 ## costs one unit on every placement, a creature transformation is free, and a declined
-## drawing costs nothing. Six of those, per level.
+## drawing costs nothing. Six of those by default; a level scene may export a small
+## onboarding allowance without changing what any individual action costs.
 ##
 ## The length cap did not disappear, it stopped being the budget: `DrawingCanvas` still
 ## limits how much line fits on one page, which is a statement about the page.
@@ -16,8 +17,8 @@ extends Node
 signal ink_changed(remaining: float, capacity: float, reserved: float)
 signal ink_exhausted
 
-## Thesis FR-7. Six, everywhere, for every level -- §4.5.4 is explicit that it "is
-## unchanged throughout, so the same resource covers a widening demand".
+## Thesis FR-7's baseline. Later levels use six; Payyo's scene exports seven as the smallest
+## meaningful new-player concession in a one-unit economy.
 const BUDGET := 6.0
 ## What any one chargeable thing costs. There is no other price.
 const UNIT := 1.0
@@ -126,4 +127,3 @@ static func static_cost_for_strokes(
 
 func _emit_changed() -> void:
 	ink_changed.emit(remaining(), capacity, reserved)
-

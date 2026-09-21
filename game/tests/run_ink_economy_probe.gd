@@ -9,6 +9,10 @@ extends SceneTree
 ## selectable and reusable at no ink cost and with no redraw. A placeable object ... costs
 ## one unit of ink on each placement and is not retained."
 ##
+## Payyo is the onboarding exception: seven units, the smallest increase that buys one more
+## action in this discrete economy. The shared baseline and every individual price stay six
+## and one respectively, so later levels do not inherit the concession.
+##
 ## ⚠ WHY THIS FILE EXISTS RATHER THAN AN ASSERTION IN THE FINISH PROBE. The obvious place
 ## to check the budget is the suite that plays Payyo to the end, and it is the wrong place:
 ## `run_level1_finish_probe` hands itself items and calls `_judge_submission` directly, so
@@ -84,10 +88,10 @@ func _run() -> void:
 	for _frame in range(20):
 		await physics_frame
 
-	_check(is_equal_approx(ink.capacity, 6.0),
-		"the budget is six units", "%.0f" % ink.capacity)
+	_check(is_equal_approx(ink.capacity, 7.0),
+		"Payyo gives new players seven units", "%.0f" % ink.capacity)
 	_check(is_equal_approx(InkManager.BUDGET, 6.0) and is_equal_approx(InkManager.UNIT, 1.0),
-		"and one thing costs one unit",
+		"the later-level baseline stays six and one thing still costs one",
 		"BUDGET %.0f, UNIT %.0f" % [InkManager.BUDGET, InkManager.UNIT])
 
 	# --- a placeable is priced on EVERY placement -------------------------------------

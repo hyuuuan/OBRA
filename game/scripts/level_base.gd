@@ -307,7 +307,10 @@ func _ready() -> void:
 	if LevelManager.current_level_id.is_empty():
 		LevelManager.current_level_id = _own_level_id()
 	Telemetry.begin_level(LevelManager.current_level_id)
-	ink_manager.begin_level(InkManager.BUDGET)
+	# The scene owns the starting allowance. Six remains the game-wide default, while Payyo
+	# may carry the smallest useful onboarding concession (one additional unit) without
+	# quietly changing the price or budget of every later level.
+	ink_manager.begin_level(ink_manager.capacity)
 	inventory_manager.begin_level()
 	placement_controller.registry = registry
 	placement_controller.world_item_root = world_item_root

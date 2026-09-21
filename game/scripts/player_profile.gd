@@ -125,7 +125,13 @@ func note_submission(accepted: bool) -> void:
 	_commit()
 
 
-## Mark a level complete and unlock the next one so progression survives sessions.
+## Mark a level complete and unlock both it and the next one so progression survives
+## sessions.
+##
+## A completed level is necessarily one the player may enter again. Older profiles and
+## direct level runs can contain `levels_completed: ["level_2"]` with only `level_3` in
+## `levels_unlocked`; treating those arrays as unrelated makes the completed painting in
+## the house accept E and then silently refuse to open.
 func mark_level_completed(level_id: String) -> void:
 	if level_id.is_empty():
 		return
@@ -134,9 +140,12 @@ func mark_level_completed(level_id: String) -> void:
 	if not completed.has(level_id):
 		completed.append(level_id)
 		changed = true
+	var unlocked: Array = _data["levels_unlocked"]
+	if not unlocked.has(level_id):
+		unlocked.append(level_id)
+		changed = true
 	var next_id := _next_level_id(level_id)
 	if not next_id.is_empty():
-		var unlocked: Array = _data["levels_unlocked"]
 		if not unlocked.has(next_id):
 			unlocked.append(next_id)
 			changed = true
@@ -145,7 +154,10 @@ func mark_level_completed(level_id: String) -> void:
 
 
 func is_level_unlocked(level_id: String) -> bool:
-	return (_data["levels_unlocked"] as Array).has(level_id)
+	# Completion is the stronger fact. Keep accepting older or externally produced saves
+	# that omitted the completed level from the redundant unlock list.
+	return (_data["levels_unlocked"] as Array).has(level_id) \
+		or (_data["levels_completed"] as Array).has(level_id)
 
 
 func is_level_completed(level_id: String) -> bool:

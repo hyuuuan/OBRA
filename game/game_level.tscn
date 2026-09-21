@@ -40,6 +40,7 @@ script = ExtResource("7_backend")
 
 [node name="InkManager" type="Node" parent="."]
 script = ExtResource("8_ink")
+capacity = 7.0
 
 [node name="MorphLife" type="Node" parent="."]
 script = ExtResource("8_life")

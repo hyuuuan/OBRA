@@ -75,13 +75,25 @@ func _run() -> void:
 	await _wait(0.4)
 
 	# --- Inside the heap, and the brass coming off the nail -----------------
+	# Keep an incidental R press from turning the room tour into a photograph of the canvas.
+	var draw_panel := level.get("draw_panel") as DrawPanel
+	if draw_panel != null and draw_panel.is_open():
+		draw_panel.close_panel()
 	var heap := await _step_into(&"straw_rooms", "05_straw_room")
 	if heap != null:
+		# A panorama has to survive the walk, not just the entry frame: photograph its
+		# centre and far wall so a repeated panel or exposed edge cannot hide off-screen.
+		_put(heap.global_position + Vector2(-40.0, 0.0))
+		await _wait(0.5)
+		await _capture("05a_straw_room_center")
+		_put(heap.global_position + Vector2(490.0, 0.0))
+		await _wait(0.5)
+		await _capture("05b_straw_room_right")
 		_put(heap.global_position + Vector2(-40.0, -250.0))
 		await _wait(0.3)
-		await _capture("05a_key_taken")
+		await _capture("05c_key_taken")
 		await _wait(0.6)
-		await _capture("05b_key_gone")
+		await _capture("05d_key_gone")
 
 	# --- Inside Ang Bale, which is the one that had to fill the screen ------
 	var bale := await _step_into(&"bale_interiors", "06_bale_room")

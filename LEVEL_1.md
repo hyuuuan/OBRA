@@ -129,13 +129,16 @@ it is pressed are literally the same string. **CP1** on commit.
 Three heaps of cut straw, Lola's stool and brush jar, and **the one place in Level 1 with an
 inside**: the middle heap is 220 × 200 and you can walk into it.
 
-**The art is Kent's.** The heap is `level-1-assets/Haybale.png` and the room's wall is
-`Haybale Interior Idea.png`, both cut by `tools/build_art.py`. One picture serves four
-states: the cutter also produces a **mouthless copy** (the doorway filled by mirroring the
-straw from the far side of the heap, feathered), so intact and combed draw the solid one and
-tunnelled draws the one with the hole. The ants are drawn and animated in code from a
-reference — ⚠ `ant pixel art.webp` is a **watermarked stock image**, a thing to work from
-and not a thing to ship.
+**The heap art is Kent's; the room uses the delivered interior painting.** The heap is
+`level-1-assets/Haybale.png`, cut by `tools/build_art.py`. One picture serves four states:
+the cutter also produces a **mouthless copy** (the doorway filled by mirroring the straw
+from the far side of the heap, feathered), so intact and combed draw the solid one and
+tunnelled draws the one with the hole. The room backdrop is
+`game/assets/Level1/hay_interior.png`; `StrawRoom2D` aligns its painted floor to the existing
+collision floor. It is one continuous panorama spanning the full camera rect, with no
+mirrored or repeated sections as the player walks across the room. The ants are drawn and
+animated in code from a reference — ⚠ `ant pixel art.webp` is a
+**watermarked stock image**, a thing to work from and not a thing to ship.
 
 **Going in is a press, AND THE APO DOES NOT FIT.** The way in is a gap under a haystack, so
 what goes through it is a **drawing** — the heap asks for `burrow` ("small enough to get in
@@ -155,13 +158,12 @@ mouth is on it, so a heap that swallows whoever passes is a hole in the floor of
 `run_nodraw_level1` found exactly that — its walk east stopped dead at the doorway at x 3154
 and never reached the bale.
 
-**The room is built like the hub's house.** Same ruler (the apo, 72px to the metre), same
-zoom (2), same idiom — courses, joints, a lintel over the door, a floor laid in bands. The
-wall is **thatch on a bamboo frame**: vertical straw in clumps held by binding poles, because
-the crisp rectangles that are right for timber gave a wall of crates when they were tried on
-straw. ⚠ The room is **not drawn at all while she is somewhere else** — its dark ground
-reaches past its walls so the camera never sees an edge, and left switched on that painted
-the whole valley black.
+**The room keeps the hub house's ruler and zoom.** The apo is still the measure and the room
+is still seen at zoom 2; only its visual shell is the painted thatch-and-bamboo interior.
+The authored doorway, floor collision, roof, end walls, key and ants remain independent of
+the image. ⚠ The room is **not drawn at all while she is somewhere else** — its dark
+ground reaches past its walls so the camera never sees an edge, and left switched on that
+painted the whole valley black.
 
 **Ducking into the mouth takes her somewhere else:** a cavern of straw **1700 ×
 900**, sitting in the empty sky above the level at **(1900, −900)**, reachable only through
@@ -438,6 +440,11 @@ drawn. **Nobody fails permanently.**
 ---
 
 ## Taking a placement back
+
+**Payyo starts with seven ink units.** The shared and later-level baseline remains six, and
+one chargeable thing still costs one unit. Seven is the smallest functional concession in a
+whole-unit economy: it gives a new player one extra correction without making placements
+cheaper or changing Piyesta's balance.
 
 Ink is committed when a drawing is **set down**, not when it is drawn, and the slot empties
 when it leaves the bag. So a placement that cannot be undone costs a drawing, costs the ink

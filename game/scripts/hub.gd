@@ -340,6 +340,12 @@ func _on_painting_chosen(level_id: String) -> void:
 	if not _has_brush():
 		_status.text = "Not without her brush. It is at the end of the hall."
 		return
+	if not bool(manager.call("is_unlocked", level_id)):
+		# The painting is built, so `is_playable` alone cannot explain this refusal. Without
+		# this line E was accepted, LevelManager correctly rejected the locked level, and the
+		# house said nothing at all -- indistinguishable from a broken interaction key.
+		_status.text = "That place is still out of reach. Finish the earlier painting first."
+		return
 	if not bool(manager.call("is_playable", level_id)):
 		# Named, not scolded. The plate already says it is unfinished; this is the answer to
 		# having pressed the key anyway.
