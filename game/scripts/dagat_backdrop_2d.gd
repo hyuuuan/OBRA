@@ -38,6 +38,17 @@ const MANIFEST := "res://assets/Level3/dagat.json"
 @export var plate_top: float = -230.0
 ## Stretch the plate vertically. The deep band fills a water column that is not 941 tall.
 @export var plate_scale: float = 1.0
+## ⚠ WHERE THE LAND IS. A layer marked `ground` -- the sand -- is laid only across these x
+## ranges instead of the whole band, because sand is not sky: tiled across the band it ran
+## straight out over the sea. ZERO means "no land here". The home beach is the first; the
+## island the crossing arrives at is the second, and it faces the other way.
+@export var home_ground := Vector2.ZERO
+@export var island_ground := Vector2.ZERO
+## Where the camera stands when each of the storm's two landmarks is centred on screen. They
+## are halves of one plate -- a headland with a jetty at its left, an island with the ink buoy
+## at its right -- and each is shown ONCE, where it belongs in the crossing.
+@export var headland_x := 0.0
+@export var far_island_x := 0.0
 ## ⚠ WHERE THE BAND FADES UP, IN WORLD X. Dagat crosses from a bright shore into a storm, and
 ## the design asks for exactly that: "the field has to get darker and emptier as the player
 ## nears the bakunawa, or the encounter arrives without buildup." Two bands butted against
@@ -57,7 +68,7 @@ const MANIFEST := "res://assets/Level3/dagat.json"
 ##
 ##   shore far layers  -250..-235   the daylight sky and sea, behind everything
 ##   deep              -230..-215   the water column and its floor
-##   storm             -212..-195   sky, clouds, islands, shores, the underside, the waves
+##   storm             -212..-193   sky, clouds, islands, the underside, the waves, the shores
 ##   shore ground      -165..-160   sand and palms: nearer than any sea, behind the player
 ##   storm rain          60         in front of everything
 const BANDS := {
@@ -68,9 +79,22 @@ const BANDS := {
 		# The surf is foam over a still sea, so it moves a little faster than the water it
 		# sits on and slower than the sand -- which is what makes the beach read as nearer.
 		{"key": "shore/surf", "rate": 0.70, "z": -235, "fps": 3.0},
-		{"key": "shore/sand", "rate": 1.00, "z": -165},
-		{"key": "shore/palms_left", "rate": 1.00, "z": -160},
-		{"key": "shore/palms_right", "rate": 1.00, "z": -160},
+		{"key": "shore/sand", "rate": 1.00, "z": -165, "ground": true},
+		# ⚠ PIECES, NOT TILES. Each palm plate is one clump drawn at one edge of a 1672 canvas:
+		# a palm and rocks at the far left, or a sand spit ending in rocks and a palm at the
+		# right. Tiled and mirrored, a clump of palms stood every screen along the beach and
+		# out across the open sea. So each is cut to the clump and set down once, at an end of
+		# the land -- and at the island, which faces the other way, mirrored.
+		{"key": "shore/palms_left", "rate": 1.00, "z": -160, "pieces": [
+			{"crop": Vector2(0, 478), "at": "home_ground.x", "align": "left"},
+			{"crop": Vector2(0, 478), "at": "island_ground.y", "align": "right",
+				"flip": true},
+		]},
+		{"key": "shore/palms_right", "rate": 1.00, "z": -160, "pieces": [
+			{"crop": Vector2(690, 1672), "at": "home_ground.y", "align": "right"},
+			{"crop": Vector2(690, 1672), "at": "island_ground.x", "align": "left",
+				"flip": true},
+		]},
 	],
 	"deep": [
 		{"key": "deep/water", "rate": 0.15, "z": -230},
@@ -81,9 +105,14 @@ const BANDS := {
 	"storm": [
 		{"key": "storm/clouds", "rate": 0.15, "z": -210},
 		{"key": "storm/islands", "rate": 0.35, "z": -205},
-		{"key": "storm/shores", "rate": 0.50, "z": -200},
 		{"key": "storm/undersea", "rate": 0.50, "z": -198},
 		{"key": "storm/waves", "rate": 0.80, "z": -195, "fps": 4.0},
+		# In FRONT of the waves and at their rate: the jetty's posts stand in the water, and a
+		# headland behind the sea it stands in reads as a picture of a headland pasted on.
+		{"key": "storm/shores", "rate": 0.80, "z": -193, "pieces": [
+			{"crop": Vector2(0, 536), "at": "headland_x", "align": "center"},
+			{"crop": Vector2(1306, 1672), "at": "far_island_x", "align": "center"},
+		]},
 		# Rain falls in front of everything, fast, and never repeats the sea's rhythm.
 		{"key": "storm/rain", "rate": 1.00, "z": 60, "fps": 10.0},
 	],
@@ -100,19 +129,65 @@ func _ready() -> void:
 		if frames.is_empty():
 			push_warning("DagatBackdrop2D: nothing in the manifest for %s" % row["key"])
 			continue
-		var layer := _Layer.new()
-		layer.name = String(row["key"]).replace("/", "_")
-		layer.frames = frames
-		layer.origin = _origin_of(manifest, String(row["key"]))
-		layer.canvas_width = float(manifest.get("plate_size", [1672, 941])[0])
-		layer.span = span
-		layer.plate_scale = plate_scale
-		layer.rate = float(row["rate"])
-		layer.z_index = int(row["z"])
-		layer.fps = float(row.get("fps", 0.0))
-		layer.plate_top = plate_top
-		add_child(layer)
-		_layers.append(layer)
+		if row.has("pieces"):
+			var pieces: Array = row["pieces"]
+			for index in range(pieces.size()):
+				var piece: Dictionary = pieces[index]
+				var at := _landmark(String(piece["at"]))
+				if is_nan(at):
+					continue
+				var layer := _new_layer(row, frames, manifest)
+				layer.name = "%s_%d" % [layer.name, index]
+				layer.crop = piece["crop"]
+				layer.flipped = bool(piece.get("flip", false))
+				layer.place_piece(at, String(piece.get("align", "center")))
+				add_child(layer)
+				_layers.append(layer)
+		elif bool(row.get("ground", false)):
+			for ground: Vector2 in [home_ground, island_ground]:
+				if ground == Vector2.ZERO:
+					continue
+				var layer := _new_layer(row, frames, manifest)
+				layer.name = "%s_%d" % [layer.name, int(ground.x)]
+				layer.span = ground
+				layer.grounded = true
+				add_child(layer)
+				_layers.append(layer)
+		else:
+			var layer := _new_layer(row, frames, manifest)
+			add_child(layer)
+			_layers.append(layer)
+
+
+func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary) -> _Layer:
+	var layer := _Layer.new()
+	layer.name = String(row["key"]).replace("/", "_")
+	layer.frames = frames
+	layer.origin = _origin_of(manifest, String(row["key"]))
+	layer.canvas_width = float(manifest.get("plate_size", [1672, 941])[0])
+	layer.span = span
+	layer.plate_scale = plate_scale
+	layer.rate = float(row["rate"])
+	layer.z_index = int(row["z"])
+	layer.fps = float(row.get("fps", 0.0))
+	layer.plate_top = plate_top
+	return layer
+
+
+## A landmark by name: an export, or one end of a ground ("home_ground.y"). NAN when the band
+## does not have that piece of land, which is how the island's palms stay out of a band that
+## has no island.
+func _landmark(name_path: String) -> float:
+	var parts := name_path.split(".")
+	var value: Variant = get(parts[0])
+	if value is Vector2:
+		var ground := value as Vector2
+		if ground == Vector2.ZERO:
+			return NAN
+		return ground.x if parts.size() < 2 or parts[1] == "x" else ground.y
+	if value is float and not is_zero_approx(float(value)):
+		return float(value)
+	return NAN
 
 
 ## ⚠ WHERE AN ANIMATION'S FRAMES SIT ON THE PLATE THEY WERE CUT FROM. A group is trimmed to
@@ -218,12 +293,82 @@ class _Layer extends Node2D:
 	var reference_x := 0.0
 	## Where the layer's left edge sits at that moment.
 	var base_x := 0.0
+	## A piece is one cut of a plate (`crop` is its x range on the canvas) set down once.
+	var crop := Vector2.ZERO
+	var flipped := false
+	## Laid across `span` at world rate and cut off at its ends, rather than widened for drift.
+	var grounded := false
 	var _frame := 0
 	var _clock := 0.0
 
 	var _tiles: Array[Sprite2D] = []
 
+	## Set a piece down so it sits where it belongs when the camera is looking at it. For a
+	## layer at world rate that is simply where it is; for a slower one, it is where it is when
+	## the camera stands at `at`, and it drifts from there like everything else at its depth.
+	func place_piece(at: float, align: String) -> void:
+		var width := crop.y - crop.x
+		match align:
+			"left":
+				base_x = at
+			"right":
+				base_x = at - width
+			_:
+				base_x = at - width * 0.5
+		reference_x = base_x + width * 0.5
+
 	func _ready() -> void:
+		if crop != Vector2.ZERO:
+			_build_piece()
+		elif grounded:
+			_build_ground()
+		else:
+			_build_tiles()
+		position = Vector2(base_x, plate_top)
+		set_process(fps > 0.0 and frames.size() > 1)
+
+	func _add_tile(x: float, flip: bool, region: Rect2) -> Sprite2D:
+		var tile := Sprite2D.new()
+		tile.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		# Top-left anchored, because every layer in a band is pinned by the SAME top edge.
+		tile.centered = false
+		tile.texture = frames[0]
+		tile.flip_h = flip
+		if region.size != Vector2.ZERO:
+			tile.region_enabled = true
+			tile.region_rect = region
+		tile.position = Vector2(x, origin.y * plate_scale)
+		tile.scale = Vector2(1.0, plate_scale)
+		add_child(tile)
+		_tiles.append(tile)
+		return tile
+
+	func _build_piece() -> void:
+		var height := float(frames[0].get_height())
+		_add_tile(0.0, flipped, Rect2(crop.x - origin.x, 0.0, crop.y - crop.x, height))
+
+	## ⚠ A CUT MIRRORED TILE SHOWS THE FAR END OF THE TEXTURE, not the near one. Mirrored
+	## copies meet edge to matching edge: an upright tile ends on the texture's last column, so
+	## the flipped one after it has to START on that column -- and when it is cut short, what
+	## is kept is the texture's right-hand part, reversed.
+	func _build_ground() -> void:
+		base_x = span.x
+		reference_x = span.x
+		var height := float(frames[0].get_height())
+		var texture_width := float(frames[0].get_width())
+		var x := 0.0
+		var index := 0
+		while x < span.y - span.x - 0.5:
+			var width := minf(texture_width, span.y - span.x - x)
+			var flip := index % 2 == 1
+			var region := Rect2(0.0, 0.0, width, height)
+			if flip:
+				region.position.x = texture_width - width
+			_add_tile(x, flip, region)
+			x += texture_width
+			index += 1
+
+	func _build_tiles() -> void:
 		# ⚠ MIRRORED TILES, NOT A REPEATING REGION. Every plate is a self-contained painting
 		# 1672 wide and the bands are two to four times that, so it has to repeat -- and a
 		# straight repeat puts a hard vertical cut through the ruins every 1672 pixels, which
@@ -240,24 +385,14 @@ class _Layer extends Node2D:
 		base_x = span.x - drift
 		var count := int(ceil((span.y - span.x + drift * 2.0) / canvas_width))
 		for index in range(count):
-			var tile := Sprite2D.new()
-			tile.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-			# Top-left anchored, because every layer in a band is pinned by the SAME top edge.
-			tile.centered = false
-			tile.texture = frames[0]
-			tile.flip_h = index % 2 == 1
+			var flip := index % 2 == 1
 			# ⚠ flip_h mirrors the texture INSIDE the sprite's own rect; it does not move the
 			# rect. A trimmed frame mirrored on its canvas lands the same distance from the
 			# canvas's OTHER edge, which is the only thing that has to be worked out here.
 			var inset := origin.x
-			if tile.flip_h:
+			if flip:
 				inset = canvas_width - origin.x - float(frames[0].get_width())
-			tile.position = Vector2(canvas_width * float(index) + inset, origin.y * plate_scale)
-			tile.scale = Vector2(1.0, plate_scale)
-			add_child(tile)
-			_tiles.append(tile)
-		position = Vector2(base_x, plate_top)
-		set_process(fps > 0.0 and frames.size() > 1)
+			_add_tile(canvas_width * float(index) + inset, flip, Rect2())
 
 	func _process(delta: float) -> void:
 		_clock += delta

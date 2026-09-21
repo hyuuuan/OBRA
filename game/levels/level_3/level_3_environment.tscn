@@ -79,6 +79,7 @@ band = "shore"
 depth = 2.0
 span = Vector2(-400.0, 1400.0)
 plate_top = -230.0
+home_ground = Vector2(100.0, 1000.0)
 fade_span = Vector2(1400.0, 1150.0)
 
 ; ⚠ plate_top = 560, THE WATERLINE ITSELF. Unlike the shore, this band is pinned by its TOP
@@ -103,6 +104,8 @@ band = "storm"
 depth = 1.5
 span = Vector2(1150.0, 4560.0)
 plate_top = 139.0
+headland_x = 2350.0
+far_island_x = 4450.0
 fade_span = Vector2(1200.0, 2700.0)
 
 [node name="GameplayPlane" type="Node2D" parent="."]
