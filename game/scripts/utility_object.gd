@@ -986,6 +986,19 @@ func _ignore_collisions_with(actor: Node2D, ignore: bool) -> void:
 		body.remove_collision_exception_with(self)
 
 
+## Put whoever is aboard ashore. For a level that moves the passenger somewhere itself --
+## Dagat lands the apo on the island's sand -- and must not have the hull seat them back on
+## the deck on the very next physics frame, which is what _seat_carried_actor exists to do.
+func release_passenger() -> void:
+	_unboard_actor()
+
+
+func has_passenger(actor: Node2D = null) -> bool:
+	if _boarded_actor == null or not is_instance_valid(_boarded_actor):
+		return false
+	return actor == null or actor == _boarded_actor
+
+
 func _unboard_actor() -> void:
 	if _boarded_actor != null and is_instance_valid(_boarded_actor):
 		_ignore_collisions_with(_boarded_actor, false)

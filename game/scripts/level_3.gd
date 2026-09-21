@@ -69,6 +69,8 @@ var _bangka_found := false
 ## checkpoint restore that handed them all back would make the crossing free.
 var _refills_taken: Array = []
 var _bangka: Area2D
+## The boat once it is in the water -- the real sailboat, not the beached prop above.
+var _launched_boat: UtilityObject
 var _bakunawa: BakunawaClass
 ## Contacts taken in the current go at the fight. Three and the fight restarts -- which is
 ## the design's own "losing restarts the fight. It does not end the run."
@@ -685,6 +687,14 @@ func _launch_the_bangka() -> void:
 	# correctly, looks right, and cannot be boarded. EntityRoot is where the player's own
 	# body goes.
 	world_item_root.add_child(boat)
+	# ⚠ AND TOLD HOW BIG THE WORLD IS, the way a placed drawing is. A body clamps itself to
+	# the world it was built with, and a boat that never went through placement kept the
+	# script's own 3760px default -- so it was stopped dead at x 3940, five hundred pixels
+	# short of the island the whole route exists to reach. Connected like a placed drawing
+	# too, so what it reports reaches the level.
+	boat.set_world_bounds(Rect2(environment.get("world_bounds")))
+	_connect_utility(boat)
+	_launched_boat = boat
 	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
 	sheet.fill(Color.WHITE)
 	boat.apply_item_data(DrawnItemData.from_prediction(
@@ -693,8 +703,10 @@ func _launch_the_bangka() -> void:
 				Vector2(0, 0), Vector2(120, 0), Vector2(100, 40), Vector2(20, 40), Vector2(0, 0)]),
 			"width": 6.0, "color": Color.BLACK,
 		}], 0.0, registry.get_entity("sailboat")))
-	# Afloat, just past the waterline, where the player is standing when they find it.
-	boat.global_position = Vector2(mark.global_position.x + 120.0, mark.global_position.y + 10.0)
+	# Afloat, just past the waterline, where the player is standing when they find it -- and
+	# clear of the land. At +120 the hull's back half was inside the shore, which now runs
+	# down to the seabed, and it launched perched on the corner of the beach.
+	boat.global_position = Vector2(mark.global_position.x + 170.0, mark.global_position.y + 10.0)
 	boat.confirm_placement()
 	_say_why("Somebody left this and never came back for it. Get in, apo.")
 
@@ -970,6 +982,12 @@ func _land_on_the_island() -> void:
 
 
 func _come_ashore() -> void:
+	# ⚠ OFF THE BOAT FIRST. A hull re-seats its passenger on the deck every physics frame, so
+	# a boat player "landed" on the sand was back aboard, in the water at the island's edge,
+	# one frame later -- and the farewell played to an apo sitting in a boat.
+	if _launched_boat != null and is_instance_valid(_launched_boat) \
+			and _launched_boat.has_passenger(player):
+		_launched_boat.release_passenger()
 	_revert_to_base_form()
 	var sand := _mark("IslandMark")
 	if sand == null or player == null or not is_instance_valid(player):
