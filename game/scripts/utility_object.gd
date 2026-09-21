@@ -54,6 +54,12 @@ const CLOCK_FREEZE_SECONDS := 4.0
 const WEATHER_RADIUS := 220.0
 ## How fast a drawn hull will go, however long the player holds the stick.
 const VEHICLE_TOP_SPEED := 240.0
+## How far below the surface a sailboat's middle rides, and how firmly it is held there.
+## The spring is stiff enough that the leftover 18% of gravity sags it under a pixel, and the
+## damping lets it settle in a bob or two instead of ringing.
+const HULL_DRAFT := 10.0
+const HULL_SPRING := 40.0
+const HULL_BOB_DAMP := 6.0
 
 var utility_behavior: String = ""
 var required_medium: String = "any"
@@ -538,6 +544,19 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	state.apply_central_force(-state.total_gravity * mass * 0.82)
 	state.apply_central_force(-velocity * mass * 2.4)
 	state.apply_torque(-state.angular_velocity * mass * 1.8)
+	# ⚠ A SAILBOAT RIDES THE SURFACE; IT DOES NOT MERELY SINK SLOWLY. Cancelling 82% of
+	# gravity leaves 18% pulling down with nothing pushing back, which is a sink rate of about
+	# twelve pixels a second against the drag -- invisible over the few seconds any pool in
+	# Payyo is crossed in, and fatal over Dagat's four thousand pixels: halfway across, the
+	# passenger went under, the drowning rescue fired, and the checkpoint it restored took the
+	# boat away with it. A spring to the waterline holds it there and lets it bob. The
+	# submarine is left alone -- going down is its job.
+	if utility_behavior == "sailboat":
+		var water := get_meta(&"water_area", null) as Node2D
+		if water != null and is_instance_valid(water) and water.has_method("surface_y"):
+			var sag := float(water.call("surface_y")) + HULL_DRAFT - state.transform.origin.y
+			state.apply_central_force(
+				Vector2(0.0, (sag * HULL_SPRING - velocity.y * HULL_BOB_DAMP) * mass))
 	# A hull has a top speed. Clamped HERE and not in _physics_process, because a write
 	# to linear_velocity outside the physics callback is overwritten by the solver --
 	# which is why the cap did nothing and the boat crossed the level in two seconds.

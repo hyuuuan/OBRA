@@ -137,6 +137,11 @@ func _draw_paddy() -> void:
 		index += 1
 
 
+## The world y of the water's surface. A hull asks, so it can ride it -- see UtilityObject.
+func surface_y() -> float:
+	return global_position.y - surface_size.y * 0.5
+
+
 func _on_body_entered(body: Node2D) -> void:
 	var count := int(body.get_meta("water_overlap_count", 0))
 	body.set_meta("water_overlap_count", count + 1)
