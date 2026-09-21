@@ -34,6 +34,8 @@ const RIGS_DIR := "res://config/rigs/"
 const LABELS_PATH := "res://../model/labels.json"
 const LEVELS_PATH := "res://config/levels.json"
 const METRICS_PATH := "res://../model/metrics.json"
+const ENVIRONMENT_PATH := "res://levels/level_3/level_3_environment.tscn"
+const LEVEL_SCRIPT_PATH := "res://scripts/level_3.gd"
 
 ## BR-7. No critical-path obstacle may depend on a class whose held-out recall is under this.
 const RECALL_FLOOR := 0.70
@@ -90,6 +92,7 @@ func _run() -> void:
 	_audit_every_route_has_a_button(level, dialogue)
 	_audit_conditions_match_effects(level, dialogue)
 	_audit_shipping_state()
+	_audit_one_seabed(level)
 
 	for line in results:
 		print(line)
@@ -562,3 +565,55 @@ func _audit_shipping_state() -> void:
 		_check(not ends_run and piyesta_ends_run,
 			"not shipped yet, and consistently so",
 			"no scene_path; piyesta still ends the run")
+
+
+## ⚠ ONE SEABED, AGREED ON BY EVERYTHING THAT STANDS ON IT. The floor is typed in three places
+## -- the painted terraces (DeepBand's plate_top + floor_drop + the plate's floor row), the
+## Seabed collision, and level_3.gd's BED_Y that the coral and bubbles are placed on -- and it
+## moved twice while the level was being painted. Each time something was left behind: coral
+## inside the rock, a treasure point under the floor, refills floating a hundred pixels up.
+##
+## And the space around it has to be sealed: the sea has to reach the bed (or there is a layer
+## of air at the bottom of the ocean), and the land at both ends has to go down to it (or there
+## is an air pocket under the beach a diver can fall into and not get out of -- which there was).
+func _audit_one_seabed(level: Dictionary) -> void:
+	const FLOOR_ROW := 789.0
+	var scene := (load(ENVIRONMENT_PATH) as PackedScene).instantiate()
+	var bed_node := scene.get_node("GameplayPlane/Terrain/Seabed") as Node2D
+	var bed_shape := (bed_node.get_node("Shape") as CollisionShape2D).shape as RectangleShape2D
+	var collision_top := bed_node.position.y - bed_shape.size.y * 0.5
+	var deep := scene.get_node("DeepBand")
+	var painted := float(deep.get("plate_top")) + float(deep.get("floor_drop")) + FLOOR_ROW
+	var typed := float((load(LEVEL_SCRIPT_PATH) as GDScript).get_script_constant_map()["BED_Y"])
+	_check(absf(collision_top - painted) < 1.0 and absf(typed - painted) < 1.0,
+		"one seabed", "painted %.0f, collision %.0f, BED_Y %.0f" % [painted, collision_top, typed])
+
+	var stray: Array[String] = []
+	for pair: Variant in (level.get("ink_economy", {}) as Dictionary).get("refill_spots", []):
+		var spot := Vector2(float((pair as Array)[0]), float((pair as Array)[1]))
+		if spot.y > painted + 1.0 or spot.y < painted - 12.0:
+			stray.append("(%d, %d)" % [spot.x, spot.y])
+	var creature := scene.get_node("GameplayPlane/Bakunawa") as Node2D
+	var treasure: Vector2 = creature.position + (creature.get("treasure_offset") as Vector2)
+	if treasure.y > painted:
+		stray.append("treasure (%d, %d)" % [treasure.x, treasure.y])
+	_check(stray.is_empty(), "refills and the treasure are on the bed, not in it",
+		"all within 12 px above %.0f" % painted if stray.is_empty()
+		else "off the bed: %s" % ", ".join(stray))
+
+	var sea := scene.get_node("GameplayPlane/Sea") as Node2D
+	var sea_size: Vector2 = sea.get("surface_size")
+	var sea_bottom := sea.position.y + sea_size.y * 0.5
+	var sealed: Array[String] = []
+	if sea_bottom < painted:
+		sealed.append("the sea stops at %.0f" % sea_bottom)
+	for land_name in ["Shore", "Island"]:
+		var land := scene.get_node("GameplayPlane/Terrain/%s" % land_name) as Node2D
+		var shape := (land.get_node("Shape") as CollisionShape2D).shape as RectangleShape2D
+		var land_bottom := land.position.y + shape.size.y * 0.5
+		if land_bottom < painted:
+			sealed.append("%s stops at %.0f" % [land_name, land_bottom])
+	_check(sealed.is_empty(), "no air under the land or the sea",
+		"sea and both shores reach the bed at %.0f" % painted if sealed.is_empty()
+		else ", ".join(sealed))
+	scene.free()
