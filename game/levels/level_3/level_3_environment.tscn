@@ -56,19 +56,6 @@ z_index = -290
 color = Color(0.004, 0.106, 0.275, 1)
 polygon = PackedVector2Array(-3000, 560, 9000, 560, 9000, 2600, -3000, 2600)
 
-; ⚠ PLACEHOLDER TERRAIN, AND IT IS THE SHAPE THAT MATTERS, NOT THE COLOUR. The shore, the
-; seabed and the island were collision boxes with nothing drawn on them, so the level ran
-; correctly and photographed as an empty blue field: no sand to stand on, no bed to swim
-; over, no far side to arrive at. These polygons trace the SAME rectangles the StaticBody2D
-; shapes use, so when the painted art lands it has the footprint to sit in. Drawn behind the
-; gameplay plane so nothing here covers the player, Lolo or the creature.
-[node name="Terrain Fills" type="Node2D" parent="."]
-z_index = -180
-
-[node name="IslandFill" type="Polygon2D" parent="Terrain Fills"]
-color = Color(0.84, 0.76, 0.57, 1)
-polygon = PackedVector2Array(4500, 560, 5400, 560, 5400, 800, 4500, 800)
-
 ; ⚠ plate_top = 560 - 790. The sand's surface sits at plate-y 790 in the delivered art and
 ; the apo stands on world y 560, so the plate's top edge goes at -230 and every layer in the
 ; band is pinned by that same edge. Derived from the art, not chosen -- see
@@ -82,6 +69,7 @@ depth = 2.0
 span = Vector2(-400.0, 5700.0)
 plate_top = -230.0
 home_ground = Vector2(100.0, 1000.0)
+island_ground = Vector2(4500.0, 5380.0)
 
 ; ⚠ plate_top = 560, THE WATERLINE ITSELF, AND floor_drop = 360 UNDER IT. The water is
 ; pinned by its top -- the painted column starts where the sea starts, and its light comes from
