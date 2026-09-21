@@ -64,8 +64,8 @@ const BANDS := {
 	"storm": [
 		{"key": "storm/clouds", "rate": 0.15, "z": -200},
 		{"key": "storm/islands", "rate": 0.35, "z": -190},
-		{"key": "storm/shore_left", "rate": 0.50, "z": -186},
-		{"key": "storm/shore_right", "rate": 0.50, "z": -185},
+		{"key": "storm/shores", "rate": 0.50, "z": -186},
+		{"key": "storm/undersea", "rate": 0.50, "z": -185},
 		{"key": "storm/waves", "rate": 0.80, "z": -170, "fps": 4.0},
 		# Rain falls in front of everything, fast, and never repeats the sea's rhythm.
 		{"key": "storm/rain", "rate": 1.00, "z": 60, "fps": 10.0},

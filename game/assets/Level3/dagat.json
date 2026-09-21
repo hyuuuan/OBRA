@@ -137,8 +137,8 @@
       ],
       "is_plate": true
     },
-    "storm/shore_left": {
-      "file": "res://assets/Level3/storm/shore_left.png",
+    "storm/shores": {
+      "file": "res://assets/Level3/storm/shores.png",
       "size": [
         1672,
         941
@@ -151,8 +151,8 @@
       ],
       "is_plate": true
     },
-    "storm/shore_right": {
-      "file": "res://assets/Level3/storm/shore_right.png",
+    "storm/undersea": {
+      "file": "res://assets/Level3/storm/undersea.png",
       "size": [
         1672,
         941

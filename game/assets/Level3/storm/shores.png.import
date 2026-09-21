@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bl6rpsy6iki04"
-path="res://.godot/imported/shore_left.png-eb9ef128ac7fbe87265ea9e1568801c3.ctex"
+path="res://.godot/imported/shores.png-8bb14e0151f8cc57ff8c1635d0287a49.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/Level3/storm/shore_left.png"
-dest_files=["res://.godot/imported/shore_left.png-eb9ef128ac7fbe87265ea9e1568801c3.ctex"]
+source_file="res://assets/Level3/storm/shores.png"
+dest_files=["res://.godot/imported/shores.png-8bb14e0151f8cc57ff8c1635d0287a49.ctex"]
 
 [params]
 
