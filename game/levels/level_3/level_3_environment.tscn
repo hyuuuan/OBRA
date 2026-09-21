@@ -235,6 +235,7 @@ script = ExtResource("5_obstacle")
 obstacle_id = "L3_N2"
 trigger_size = Vector2(900.0, 1500.0)
 plants_commit_mark = false
+sign_reach = 700.0
 
 [node name="CP1" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(640.0, 490.0)
@@ -270,3 +271,5 @@ position = Vector2(3560.0, 1990.0)
 script = ExtResource("7_dialoguenode")
 level_id = "level_3"
 trigger_size = Vector2(160.0, 1500.0)
+sign_offset = Vector2(0.0, -420.0)
+sign_reach = 400.0

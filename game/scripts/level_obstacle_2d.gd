@@ -73,6 +73,12 @@ signal player_arrived(obstacle_id: String)
 ## reach -- and a lit lantern at the bottom of the sea is not a thing anyway. A beat that
 ## commits a checkpoint without a place to put the flame sets this false and says why.
 @export var plants_commit_mark := true
+## ⚠ HOW FAR DOWN ITS BOARDS LOOK FOR SOMETHING TO STAND ON. Signpost2D's own 260 is right on
+## a terrace, where anything further down is the valley under a ledge the ray has left through
+## the side. Under the sea there is no ledge: the encounter's trigger is centred in the middle
+## of the column, the seabed is nearly five hundred pixels below it, and both of its boards
+## hung in open water at the height the trigger happened to be.
+@export var sign_reach := 260.0
 
 var _inside := false
 
@@ -96,8 +102,9 @@ func _ready() -> void:
 	Signpost2D.plant(self,
 		Signpost2D.Mark.STORY,
 		Vector2(-trigger_size.x * 0.5 + story_sign_offset, 0.0),
-		"%s.enter" % obstacle_id)
-	Signpost2D.plant(self, Signpost2D.Mark.HINT, Vector2(hint_sign_offset, 0.0))
+		"%s.enter" % obstacle_id, sign_reach)
+	Signpost2D.plant(self, Signpost2D.Mark.HINT, Vector2(hint_sign_offset, 0.0), "",
+		sign_reach)
 	monitoring = true
 	# Layer 0 / mask 1: it detects the player without being something the player, or a
 	# placed object, can collide with. An obstacle volume that pushed things around would

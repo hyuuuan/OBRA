@@ -18,6 +18,13 @@ signal approached()
 @export var level_id: String = "level_1"
 ## Fires once. A player who walks back over the trigger has already answered.
 @export var trigger_size := Vector2(120.0, 320.0)
+## Where its board is planted, from the node's own position, and how far down it looks for a
+## floor from there. The node's position is the BOTTOM of its volume, which on land is the
+## ground -- and under the sea is wherever the volume had to reach down to, which can be inside
+## the seabed. A board planted inside rock finds nothing under it and stays there. See
+## LevelObstacle2D.sign_reach.
+@export var sign_offset := Vector2.ZERO
+@export var sign_reach := 260.0
 
 var _answered := false
 var _armed := true
@@ -36,7 +43,7 @@ func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	# The one moment in the level that cannot be taken back gets its own glyph, and it
 	# stands at the gorge rather than being sprung on the player. See Signpost2D.
-	Signpost2D.plant(self, Signpost2D.Mark.CHOICE)
+	Signpost2D.plant(self, Signpost2D.Mark.CHOICE, sign_offset, "", sign_reach)
 
 
 func is_answered() -> bool:
