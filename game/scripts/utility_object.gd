@@ -993,6 +993,12 @@ func release_passenger() -> void:
 	_unboard_actor()
 
 
+## True when E boards this rather than picking it up: a vessel, in the water. The prompt asks,
+## so it can say BOARD instead of PICK UP -- interact() is where the same rule is acted on.
+func boards_on_interact() -> bool:
+	return utility_behavior in ["sailboat", "submarine"] and _is_in_water()
+
+
 func has_passenger(actor: Node2D = null) -> bool:
 	if _boarded_actor == null or not is_instance_valid(_boarded_actor):
 		return false

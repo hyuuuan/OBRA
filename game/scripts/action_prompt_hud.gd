@@ -106,9 +106,19 @@ func follow(target: Node2D) -> void:
 	_follow_ready = false
 
 
-func set_pickup_available(available: bool, object_name: String = "") -> void:
+## `verb` is what E will actually do. It is PICK UP almost everywhere, and it was PICK UP over
+## a boat in the water too -- where E boards it, and E again gets off. A prompt that names the
+## wrong action is worse than none: the one thing a player would not press to get into a boat
+## is the key that says it will put the boat away.
+func set_pickup_available(available: bool, object_name: String = "",
+		verb: String = "PICK UP") -> void:
 	_set_wanted(_pickup, available)
-	_pickup.tooltip_text = "Pick up %s" % object_name if not object_name.is_empty() else "Pick up"
+	var action := verb.capitalize()
+	_pickup.tooltip_text = "%s %s" % [action, object_name] if not object_name.is_empty() \
+		else action
+	if verb != _pickup.text:
+		_style_prompt(_pickup, "E", verb, UISkin.PICKUP,
+			maxf(158.0, 74.0 + float(verb.length()) * 13.0))
 
 
 func set_use_available(available: bool, object_name: String = "", verb: String = "USE") -> void:

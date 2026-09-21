@@ -2341,6 +2341,15 @@ func _use_equipped_utility() -> void:
 		else "%s can't do that here" % item.display_name
 
 
+## What E does to this utility, in the prompt's words. A vessel afloat is boarded and left
+## with E rather than picked up -- see UtilityObject.boards_on_interact.
+func _interact_verb(utility: PhysicsShapeObject) -> String:
+	var vessel := utility as UtilityObject
+	if vessel == null or not vessel.boards_on_interact():
+		return "PICK UP"
+	return "GET OFF" if vessel.has_passenger(player) else "BOARD"
+
+
 ## Availability is refreshed from the same objects the actions use. R is intentionally
 ## absent here because it is always available; the prompt controller keeps it standing.
 func _refresh_action_prompts() -> void:
@@ -2357,7 +2366,8 @@ func _refresh_action_prompts() -> void:
 	var can_pick_up := pickup != null
 	action_prompts.set_pickup_available(
 		can_pick_up,
-		_drawing_display_name(pickup) if can_pick_up else "")
+		_drawing_display_name(pickup) if can_pick_up else "",
+		_interact_verb(pickup))
 
 	var can_use := can_act and _equipped_utility != null \
 		and is_instance_valid(_equipped_utility) \
