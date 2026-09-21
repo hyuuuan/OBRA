@@ -4,8 +4,9 @@ extends SceneTree
 ##
 ## Every other suite opens one scene and stays in it. Nothing followed a player from the title
 ## screen through the scene changes that make up a run -- PLAY into the house, the brush off its
-## stand, a painting into Payyo, the gap in Ang Bale's wall into Piyesta, and the painting's
-## last piece into the ending -- and those changes are where a paused tree, a stale level id or
+## stand, a painting into Payyo, the gap in Ang Bale's wall into Piyesta, the painting's last
+## piece back to the house, Dagat's painting, and the island into the ending -- and those
+## changes are where a paused tree, a stale level id or
 ## a HUD left over from the last scene would show up: every scene works, and the run between
 ## them does not.
 ##
@@ -39,7 +40,9 @@ func _run() -> void:
 	await _brush_and_payyo(manager)
 	await _restart_payyo_from_pause(manager)
 	await _payyo_to_piyesta(manager, profile)
-	await _piyesta_to_ending(manager)
+	await _piyesta_to_house(manager, profile)
+	await _house_to_dagat(manager)
+	await _dagat_to_ending(manager)
 	await _ending_to_house(manager)
 
 	print("OBRA_JOURNEY_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
@@ -215,7 +218,11 @@ func _payyo_to_piyesta(manager: Node, profile: Node) -> void:
 		"and the ink is full again", "%.1f of 6" % float(ink.call("total_uncommitted_available")))
 
 
-func _piyesta_to_ending(manager: Node) -> void:
+## ⚠ PIYESTA NO LONGER ENDS THE RUN. Dagat shipped with `ends_run` and this still expected the
+## ending screen after Piyesta's last piece -- the probe had been failing on that since, and it
+## was not in any list anyone ran. Piyesta's CONTINUE is the way back to the house now, with
+## Dagat's painting open on the wall.
+func _piyesta_to_house(manager: Node, profile: Node) -> void:
 	var level := current_scene
 	if level == null or level.get("assembly_screen") == null:
 		_check(false, "Piyesta has its table", _scene_name())
@@ -240,8 +247,54 @@ func _piyesta_to_ending(manager: Node) -> void:
 		waited += 0.1
 	_check(overlay.is_open(), "the last piece brings up the completion card", "open")
 	overlay.call("_on_continue")
+	await _wait_for_scene(manager, "hub.tscn")
+	await _arrived(manager, "hub.tscn", "CONTINUE after Piyesta")
+	_check(bool(profile.call("is_level_unlocked", "level_3")), "and Dagat is open",
+		"level_3 unlocked")
+
+
+## Dagat's painting, the way Payyo's was taken: stand at it and press E.
+func _house_to_dagat(manager: Node) -> void:
+	var hub := current_scene
+	var apo := hub.get("_player") as Node2D if hub != null else null
+	var dagat: Node2D = null
+	for node in get_nodes_in_group(&"paintings"):
+		if String(node.get("level_id")) == "level_3":
+			dagat = node as Node2D
+	_check(apo != null and dagat != null, "the house has Dagat's painting", "-")
+	if apo == null or dagat == null:
+		return
+	apo.global_position = Vector2(dagat.global_position.x, apo.global_position.y)
+	for _i in range(20):
+		await process_frame
+	_press(&"interact")
+	await _wait_for_scene(manager, "level_3.tscn")
+	await _read_the_opening()
+	await _arrived(manager, "level_3.tscn", "E at Dagat's painting")
+	_check(String(manager.get("current_level_id")) == "level_3", "and the run knows it is in Dagat",
+		String(manager.get("current_level_id")))
+
+
+## Dagat's exit is the island. The level is not replayed here -- the Dagat probes do that --
+## so the landing is taken directly, the way Payyo's painting was granted directly.
+func _dagat_to_ending(manager: Node) -> void:
+	var level := current_scene
+	if level == null or not level.has_method("_land_on_the_island"):
+		_check(false, "Dagat has its island", _scene_name())
+		return
+	level.call("_land_on_the_island")
+	var overlay := level.get("complete_overlay") as ModalOverlay
+	var waited := 0.0
+	while waited < 12.0 and not overlay.is_open():
+		for box in get_nodes_in_group(DialogueBox.GROUP):
+			if bool(box.call("is_open")):
+				box.call("skip_all")
+		await create_timer(0.1, true, false, true).timeout
+		waited += 0.1
+	_check(overlay.is_open(), "the farewell brings up the completion card", "open")
+	overlay.call("_on_continue")
 	await _wait_for_scene(manager, "ending_screen.tscn")
-	await _arrived(manager, "ending_screen.tscn", "CONTINUE after Piyesta")
+	await _arrived(manager, "ending_screen.tscn", "CONTINUE after Dagat")
 
 
 ## The ending's one button goes back to the house.
