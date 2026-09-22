@@ -361,11 +361,31 @@ def _clam(frame: int) -> Canvas:
     return c
 
 
+def _urchin(frame: int) -> Canvas:
+    import math
+    pixelart.PX = 3
+    c = Canvas(15, 13, seed=3500)
+    cx, cy = 7, 8
+    for k in range(14):
+        a = math.pi + k * math.pi / 13
+        length = 6 if (k + frame) % 2 == 0 else 5
+        for r in range(3, length + 1):
+            c.px(int(round(cx + math.cos(a) * r)), int(round(cy + math.sin(a) * r)),
+                 URCHIN[3] if r == length else URCHIN[1])
+    for y in range(-3, 4):
+        for x in range(-4, 5):
+            if x * x / 16.0 + y * y / 9.0 <= 1.0:
+                c.px(cx + x, cy + y, URCHIN[2] if (x < 0 and y < 0) else URCHIN[1])
+    c.px(cx - 2, cy - 2, URCHIN[3])
+    return c
+
+
 LIFE = {
     "gull": (_gull, 4),
     "jelly": (_jelly, 4),
     "starfish": (_starfish, 2),
     "clam": (_clam, 3),
+    "urchin": (_urchin, 2),
 }
 
 
