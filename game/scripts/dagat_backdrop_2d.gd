@@ -367,6 +367,14 @@ func is_clear() -> bool:
 	return _clearing >= 1.0
 
 
+## How much storm there is over this x, 0..1: this band's own fade, times however far the sky
+## has cleared. DagatLife2D asks, so gulls stay out of the storm and rain stays out of the sun.
+func weather_at(x: float) -> float:
+	if fade_span == Vector2.ZERO:
+		return 0.0
+	return _ramp(fade_span, x) * (1.0 - _clearing)
+
+
 func _set_clearing(value: float) -> void:
 	_clearing = clampf(value, 0.0, 1.0)
 	update_for_camera(_last_camera)
