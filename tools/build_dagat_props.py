@@ -434,6 +434,20 @@ def _bubble(frame: int) -> Canvas:
     return c
 
 
+def _spark(frame: int) -> Canvas:
+    pixelart.PX = 3
+    c = Canvas(9, 9, seed=4000)
+    reach = [1, 3, 4, 2][frame]
+    for r in range(reach + 1):
+        tone = SPARK[2] if r == 0 else SPARK[1 if r < 3 else 0]
+        for dx, dy in [(r, 0), (-r, 0), (0, r), (0, -r)]:
+            c.px(4 + dx, 4 + dy, tone)
+    if reach >= 3:
+        for dx, dy in [(1, 1), (-1, 1), (1, -1), (-1, -1)]:
+            c.px(4 + dx, 4 + dy, SPARK[1])
+    return c
+
+
 LIFE = {
     "gull": (_gull, 4),
     "jelly": (_jelly, 4),
@@ -444,6 +458,7 @@ LIFE = {
     "splash": (_splash, 3),
     "wake": (_wake, 3),
     "bubble": (_bubble, 2),
+    "spark": (_spark, 4),
 }
 
 
