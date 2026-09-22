@@ -312,9 +312,34 @@ def _jelly(frame: int) -> Canvas:
     return c
 
 
+def _starfish(frame: int) -> Canvas:
+    import math
+    pixelart.PX = 3
+    c = Canvas(15, 15, seed=3300)
+    cx, cy = 7, 8
+    for arm in range(5):
+        angle = -math.pi / 2 + arm * 2 * math.pi / 5
+        curl = 0.25 if (frame == 1 and arm == 1) else 0.0
+        for r in range(8):
+            a = angle + curl * r / 7.0
+            x = cx + math.cos(a) * r
+            y = cy + math.sin(a) * r
+            width = 2 if r < 4 else 1
+            for dx in range(-width + 1, width):
+                for dy in range(-width + 1, width):
+                    shade = STAR[3] if (x + dx) < cx and (y + dy) < cy else STAR[2]
+                    c.px(int(round(x)) + dx, int(round(y)) + dy, shade)
+            if r in (3, 5):
+                c.px(int(round(x)), int(round(y)), STAR[4])
+    c.fill(cx - 1, cy - 1, 3, 3, STAR[2])
+    c.px(cx - 1, cy - 1, STAR[4])
+    return c
+
+
 LIFE = {
     "gull": (_gull, 4),
     "jelly": (_jelly, 4),
+    "starfish": (_starfish, 2),
 }
 
 
