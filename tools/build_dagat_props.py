@@ -336,10 +336,36 @@ def _starfish(frame: int) -> Canvas:
     return c
 
 
+def _clam(frame: int) -> Canvas:
+    """Closed, ajar with the pearl showing, open -- and back, in the scene's own loop."""
+    pixelart.PX = 3
+    c = Canvas(16, 12, seed=3400)
+    gape = [0, 2, 4][frame]
+    # Bottom shell: a ridged half-disc.
+    for x in range(1, 15):
+        depth = 3 - abs(x - 8) // 3
+        for y in range(depth + 1):
+            c.px(x, 9 + y, CLAM[2] if (x % 3) else CLAM[1])
+    c.hline(1, 9, 14, CLAM[3])
+    # The pearl, only while it is open.
+    if gape >= 2:
+        c.fill(7, 9 - gape // 2 - 1, 2, 2, CLAM[4])
+        c.px(7, 9 - gape // 2 - 1, (SPARK[2]))
+    # Top shell, hinged at the left, lifted by `gape` at the right.
+    for x in range(1, 15):
+        lift = (x - 1) * gape // 13
+        depth = 3 - abs(x - 8) // 3
+        for y in range(depth + 1):
+            c.px(x, 8 - lift - y, CLAM[3] if (x % 3) else CLAM[2])
+        c.px(x, 8 - lift - depth, CLAM[4])
+    return c
+
+
 LIFE = {
     "gull": (_gull, 4),
     "jelly": (_jelly, 4),
     "starfish": (_starfish, 2),
+    "clam": (_clam, 3),
 }
 
 
