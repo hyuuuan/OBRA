@@ -90,6 +90,8 @@ var _shadow: Sprite2D
 ## Everything that moves and is not the player -- gulls, jellies, surf, rain, lightning, the
 ## wake, bubbles, glints. See DagatLife2D.
 var _life: LifeClass
+## The establishing shot at the start, while it is still running. See _play_the_opening.
+var _opening_live := false
 ## Whether the sky has been told the encounter is over. Compared against the director every
 ## frame rather than set once, so a checkpoint restored to before the resolution puts the
 ## storm back.
@@ -170,6 +172,7 @@ func _build_level_furniture() -> void:
 	_plant_the_coral_field()
 	_scatter_the_ambience()
 	_bring_the_sea_to_life()
+	call_deferred("_play_the_opening")
 
 	if _bakunawa != null:
 		_bakunawa.gift_offered.connect(_on_gift_offered)
@@ -459,6 +462,65 @@ func _patrol(piece: Sprite2D, reach: float, seconds: float) -> void:
 	loop.tween_callback(func() -> void: piece.flip_h = false)
 	loop.tween_property(piece, "position:x", home, seconds) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+## THE OPENING. Payyo opens in the house and Piyesta on Lolo talking; Dagat opens on the sea.
+## The letterbox comes in with the level's name, the camera starts out over the open water
+## the whole level is about -- far enough to see the weather gathering -- and a few gulls head
+## in for the beach as it eases back to the apo standing on it.
+##
+## ⚠ NOTHING WAITS FOR IT. The tree is not paused and input is not taken: any key ends it at
+## once, and a player who starts walking has simply started. It is three seconds of a level a
+## player may restart many times, so it has to be skippable by doing anything at all.
+func _play_the_opening() -> void:
+	var world_camera := _world_camera()
+	if world_camera == null or cinematic == null or _marks == null or _level_completed:
+		return
+	_opening_live = true
+	var shot := Node2D.new()
+	shot.name = "OpeningShot"
+	_marks.add_child(shot)
+	shot.global_position = Vector2(2350.0, 460.0)
+	var title := String(LevelManager.get_level(LevelManager.current_level_id).get("title", ""))
+	cinematic.close(title.to_upper() if not title.is_empty() else "DAGAT")
+	world_camera.focus_on(shot, 0.9, 0.0, 0.0)
+	world_camera.snap_to_target()
+	if _life != null:
+		_life.send_gulls(shot.global_position + Vector2(260.0, 0.0), 3, 0)
+	await get_tree().create_timer(2.3).timeout
+	if _opening_live:
+		_opening_follow = world_camera.follow_lerp_speed
+		world_camera.follow_lerp_speed = 1.5
+		world_camera.release_focus(1.8)
+		await get_tree().create_timer(1.7).timeout
+	_end_the_opening(false)
+	shot.queue_free()
+
+
+var _opening_follow := -1.0
+
+
+func _end_the_opening(skipped: bool) -> void:
+	var world_camera := _world_camera()
+	if world_camera != null and _opening_follow > 0.0:
+		world_camera.follow_lerp_speed = _opening_follow
+		_opening_follow = -1.0
+	if not _opening_live:
+		return
+	_opening_live = false
+	if skipped and world_camera != null and world_camera.is_focused():
+		world_camera.release_focus(0.3)
+	if cinematic != null and not _level_completed:
+		cinematic.open()
+
+
+## Any key or click during the opening ends it -- and still does whatever it was pressed for.
+func _handle_level_input(event: InputEvent) -> bool:
+	if _opening_live and event.is_pressed() and not event.is_echo() \
+			and (event is InputEventKey or event is InputEventMouseButton
+				or event is InputEventJoypadButton):
+		_end_the_opening(true)
+	return false
 
 
 ## The level's living things, and the animals the coral field talks about.
