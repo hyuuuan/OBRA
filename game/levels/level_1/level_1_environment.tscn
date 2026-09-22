@@ -55,8 +55,6 @@ region = Rect2(110, 146, 1677, 808)
 
 [sub_resource type="ShaderMaterial" id="Feather_terraces"]
 shader = ExtResource("27_feather")
-shader_parameter/region = Vector4(0.0818, 0.1889, 0.8943, 0.8731)
-shader_parameter/feather = 0.025
 shader_parameter/midtone_lift = 0.78
 shader_parameter/saturation = 1.04
 shader_parameter/sunlight = Vector3(1.16, 1.12, 0.96)
@@ -64,8 +62,6 @@ shader_parameter/shadow_fill = 0.08
 
 [sub_resource type="ShaderMaterial" id="Feather_near"]
 shader = ExtResource("27_feather")
-shader_parameter/region = Vector4(0.0573, 0.1352, 0.9307, 0.8833)
-shader_parameter/feather = 0.025
 shader_parameter/midtone_lift = 0.72
 shader_parameter/saturation = 1.04
 shader_parameter/sunlight = Vector3(1.15, 1.11, 0.96)
@@ -73,8 +69,6 @@ shader_parameter/shadow_fill = 0.075
 
 [sub_resource type="ShaderMaterial" id="Feather_far"]
 shader = ExtResource("27_feather")
-shader_parameter/region = Vector4(0.0667, 0.2731, 0.9292, 0.7759)
-shader_parameter/feather = 0.015
 shader_parameter/midtone_lift = 0.3
 shader_parameter/saturation = 1.0
 shader_parameter/sunlight = Vector3(1.02, 1.03, 1.0)
@@ -82,8 +76,6 @@ shader_parameter/shadow_fill = 0.025
 
 [sub_resource type="ShaderMaterial" id="Feather_green"]
 shader = ExtResource("27_feather")
-shader_parameter/region = Vector4(0.0563, 0.2778, 0.9365, 0.7991)
-shader_parameter/feather = 0.015
 shader_parameter/midtone_lift = 0.64
 shader_parameter/saturation = 1.03
 shader_parameter/sunlight = Vector3(1.13, 1.11, 0.97)
@@ -262,24 +254,6 @@ z_index_base = -15
 [node name="NearA" type="Sprite2D" parent="NearSceneryLayer" unique_id=2109191667]
 use_parent_material = true
 position = Vector2(520, 425)
-scale = Vector2(0.57, 0.57)
-texture = SubResource("Atlas_near")
-
-[node name="NearB" type="Sprite2D" parent="NearSceneryLayer" unique_id=1823592587]
-use_parent_material = true
-position = Vector2(1460, 425)
-scale = Vector2(0.57, 0.57)
-texture = SubResource("Atlas_near")
-
-[node name="NearC" type="Sprite2D" parent="NearSceneryLayer" unique_id=1302642103]
-use_parent_material = true
-position = Vector2(2400, 425)
-scale = Vector2(0.57, 0.57)
-texture = SubResource("Atlas_near")
-
-[node name="NearD" type="Sprite2D" parent="NearSceneryLayer" unique_id=159114400]
-use_parent_material = true
-position = Vector2(3340, 425)
 scale = Vector2(0.57, 0.57)
 texture = SubResource("Atlas_near")
 
