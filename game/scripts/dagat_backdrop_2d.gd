@@ -90,7 +90,8 @@ const SHELF_FACE := "res://assets/Level3/authored/shelf_face.png"
 ##   storm rain          60         in front of everything
 const BANDS := {
 	"shore": [
-		{"key": "shore/sky", "rate": 0.15, "z": -250},
+		# The sky's clouds drift of their own accord, slowly; the storm's are driven.
+		{"key": "shore/sky", "rate": 0.15, "z": -250, "drift": 5.0},
 		{"key": "shore/mountains", "rate": 0.35, "z": -245},
 		{"key": "shore/ocean", "rate": 0.55, "z": -240},
 		# The surf is foam over a still sea, so it moves a little faster than the water it
@@ -113,12 +114,16 @@ const BANDS := {
 			{"at": "home_ground.y", "nudge": 60.0, "align": "right"},
 			{"at": "island_ground.x", "nudge": -60.0, "align": "left", "flip": true},
 		]},
-		{"key": "shore/palms_left", "rate": 1.00, "z": -160, "pieces": [
+		# The palms lean in the wind -- see shaders/wind_sway.gdshader. A shear of the whole
+		# clump with its foot held, so the rocks it stands on do not move with it.
+		{"key": "shore/palms_left", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.30),
+			"pieces": [
 			{"crop": Vector2(0, 478), "at": "home_ground.x", "align": "left"},
 			{"crop": Vector2(0, 478), "at": "island_ground.y", "align": "right",
 				"flip": true},
 		]},
-		{"key": "shore/palms_right", "rate": 1.00, "z": -160, "pieces": [
+		{"key": "shore/palms_right", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.26),
+			"pieces": [
 			{"crop": Vector2(690, 1672), "at": "home_ground.y", "align": "right"},
 			{"crop": Vector2(690, 1672), "at": "island_ground.x", "align": "left",
 				"flip": true},
@@ -131,7 +136,7 @@ const BANDS := {
 		{"key": "deep/terraces", "rate": 0.80, "z": -215, "floor": true},
 	],
 	"storm": [
-		{"key": "storm/clouds", "rate": 0.15, "z": -210},
+		{"key": "storm/clouds", "rate": 0.15, "z": -210, "drift": -16.0},
 		{"key": "storm/islands", "rate": 0.35, "z": -205},
 		# ⚠ UNDER THE DEEP'S FLOOR, NOT OVER IT, AND CARRIED DOWN BELOW ITS OWN LAST ROW. The
 		# underside is the storm plate's own seabed -- rocks and weed down to the plate's edge
@@ -153,7 +158,9 @@ const BANDS := {
 		# The land part (not the jetty, not the buoy) is mirrored against that line, which
 		# turns the cut into the middle of an islet. The twin shares its piece's landmark, so
 		# the two drift as one thing.
-		{"key": "storm/shores", "rate": 0.80, "z": -193, "pieces": [
+		# A storm leans them much harder.
+		{"key": "storm/shores", "rate": 0.80, "z": -193, "sway": Vector2(11.0, 0.55),
+			"pieces": [
 			{"crop": Vector2(0, 536), "at": "headland_x", "align": "center"},
 			{"crop": Vector2(0, 270), "at": "headland_x", "nudge": -268.0, "align": "right",
 				"flip": true},
@@ -256,6 +263,9 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 	layer.z_index = int(row["z"])
 	layer.fps = float(row.get("fps", 0.0))
 	layer.plate_top = plate_top + (floor_drop if bool(row.get("floor", false)) else 0.0)
+	if row.has("sway"):
+		layer.sway = row["sway"]
+	layer.slide_speed = float(row.get("drift", 0.0))
 	if row.has("top_row"):
 		# An authored texture is not on the plate at all; it says which plate row it
 		# starts at, and it repeats at its own width rather than the plate's.
@@ -415,9 +425,9 @@ func update_for_camera(camera_position: Vector2) -> void:
 		# A rate of 1 sits still relative to the world; anything less lags behind the camera,
 		# which is what reads as distance. At the reference point every layer is where it was
 		# authored; everywhere else it has drifted by (1 - rate) of the distance from there.
-		layer.position = Vector2(
-			layer.base_x + (camera_position.x - layer.reference_x) * (1.0 - layer.rate),
-			layer.plate_top)
+		layer.parallax_x = layer.base_x \
+			+ (camera_position.x - layer.reference_x) * (1.0 - layer.rate)
+		layer.place()
 
 
 ## One tiled, optionally animated plate.
@@ -458,6 +468,15 @@ class _Layer extends Node2D:
 	var mirrored_tiles := true
 	## How far a piece is raised off the plate's registration. See the far island.
 	var lift := 0.0
+	## (lean in texels, gusts per second) for a layer the wind moves. ZERO holds it still.
+	var sway := Vector2.ZERO
+	## Pixels a second a layer slides on its own -- clouds -- wrapped at the width it repeats
+	## at, which for mirrored tiles is two plates, so the seam never arrives.
+	var slide_speed := 0.0
+	var _slid := 0.0
+	## Where the camera's parallax alone puts the left edge; the slide is added on top.
+	var parallax_x := 0.0
+	const SWAY := preload("res://shaders/wind_sway.gdshader")
 	var _frame := 0
 	var _clock := 0.0
 
@@ -489,8 +508,15 @@ class _Layer extends Node2D:
 			_build_ground()
 		else:
 			_build_tiles()
-		position = Vector2(base_x, plate_top)
-		set_process(fps > 0.0 and frames.size() > 1)
+		parallax_x = base_x
+		place()
+		set_process((fps > 0.0 and frames.size() > 1) or slide_speed != 0.0)
+
+	func place() -> void:
+		var slid := 0.0
+		if slide_speed != 0.0:
+			slid = wrapf(_slid, -canvas_width, canvas_width)
+		position = Vector2(parallax_x + slid, plate_top)
 
 	func _add_tile(x: float, flip: bool, region: Rect2) -> Sprite2D:
 		var tile := Sprite2D.new()
@@ -502,6 +528,13 @@ class _Layer extends Node2D:
 		if region.size != Vector2.ZERO:
 			tile.region_enabled = true
 			tile.region_rect = region
+		if sway != Vector2.ZERO:
+			var wind := ShaderMaterial.new()
+			wind.shader = SWAY
+			wind.set_shader_parameter("lean", sway.x)
+			wind.set_shader_parameter("gust", sway.y)
+			wind.set_shader_parameter("phase", fposmod(x * 0.011 + float(_tiles.size()), TAU))
+			tile.material = wind
 		tile.position = Vector2(x, origin.y * plate_scale)
 		tile.scale = Vector2(1.0, plate_scale)
 		add_child(tile)
@@ -551,6 +584,11 @@ class _Layer extends Node2D:
 		var drift := ((span.y - span.x) * 0.5 + HALF_VIEW) * (1.0 - rate)
 		base_x = span.x - drift
 		var count := int(ceil((span.y - span.x + drift * 2.0) / canvas_width))
+		if slide_speed != 0.0:
+			# Two plates more at each end for the slide to travel into -- an even number, so
+			# the mirror pattern keeps its phase.
+			base_x -= canvas_width * 2.0
+			count += 4
 		for index in range(count):
 			var flip := index % 2 == 1
 			# ⚠ flip_h mirrors the texture INSIDE the sprite's own rect; it does not move the
@@ -562,6 +600,11 @@ class _Layer extends Node2D:
 			_add_tile(canvas_width * float(index) + inset, flip, Rect2())
 
 	func _process(delta: float) -> void:
+		if slide_speed != 0.0:
+			_slid += slide_speed * delta
+			place()
+		if fps <= 0.0 or frames.size() < 2:
+			return
 		_clock += delta
 		var step := 1.0 / maxf(0.01, fps)
 		if _clock < step:
