@@ -30,6 +30,7 @@ const RestrictionsClass = preload("res://scripts/level_restrictions.gd")
 ## this file extends level_base by path -- so naming the creature's class directly here fails
 ## to parse in every one of the probes that loads this level.
 const BakunawaClass = preload("res://scripts/bakunawa_2d.gd")
+const LifeClass = preload("res://scripts/dagat_life_2d.gd")
 const PropClass = preload("res://scripts/dagat_prop_2d.gd")
 const PROPS := "res://assets/Level3/props/"
 const AUTHORED := "res://assets/Level3/authored/"
@@ -86,6 +87,9 @@ var _arrived := false
 ## trigger the player can re-cross, and a beat spoken twice is worse than one spoken late.
 var _told: Dictionary = {}
 var _shadow: Sprite2D
+## Everything that moves and is not the player -- gulls, jellies, surf, rain, lightning, the
+## wake, bubbles, glints. See DagatLife2D.
+var _life: LifeClass
 ## Whether the sky has been told the encounter is over. Compared against the director every
 ## frame rather than set once, so a checkpoint restored to before the resolution puts the
 ## storm back.
@@ -165,6 +169,7 @@ func _build_level_furniture() -> void:
 	_plant_the_refills()
 	_plant_the_coral_field()
 	_scatter_the_ambience()
+	_bring_the_sea_to_life()
 
 	if _bakunawa != null:
 		_bakunawa.gift_offered.connect(_on_gift_offered)
@@ -435,6 +440,84 @@ func _scatter_the_ambience() -> void:
 		piece.modulate = Color(1.0, 1.0, 1.0, 0.75)
 		coral.get_parent().add_child(piece)
 		piece.global_position = row[1]
+		# ⚠ A SCHOOL THAT STAYS PUT IS A PICTURE OF ONE. They patrol a stretch of the column
+		# and turn at each end; the columns of bubbles stay where they rise from.
+		if String(row[0]).ends_with("school"):
+			_patrol(piece, 150.0 + float(index % 3) * 40.0, 7.0 + float(index % 4))
+
+
+## Back and forth across `reach`, turning to face the way it swims.
+func _patrol(piece: Sprite2D, reach: float, seconds: float) -> void:
+	var home := piece.position.x
+	var loop := piece.create_tween().set_loops()
+	loop.tween_callback(func() -> void: piece.flip_h = false)
+	loop.tween_property(piece, "position:x", home + reach, seconds) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	loop.tween_callback(func() -> void: piece.flip_h = true)
+	loop.tween_property(piece, "position:x", home - reach, seconds * 2.0) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	loop.tween_callback(func() -> void: piece.flip_h = false)
+	loop.tween_property(piece, "position:x", home, seconds) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+## The level's living things, and the animals the coral field talks about.
+func _bring_the_sea_to_life() -> void:
+	var coral := _mark("CoralMark")
+	if coral == null:
+		return
+	_life = LifeClass.new()
+	_life.name = "DagatLife"
+	_life.camera = _world_camera()
+	_life.storm = get_node_or_null(^"EnvironmentBaseplate/StormBand") as Node2D
+	_life.waterline_y = _waterline_y if is_finite(_waterline_y) else 560.0
+	_life.bed_y = BED_Y
+	var edges := level_data_shore_edges()
+	if edges != Vector2.ZERO:
+		_life.shore_edges = edges
+	_life.jelly_spots = [Vector2(1720.0, 1240.0), Vector2(2330.0, 1060.0),
+		Vector2(2780.0, 1380.0), Vector2(3180.0, 1120.0), Vector2(4300.0, 1080.0)]
+	_life.player_anchor = func() -> Vector2: return _anchor_now()
+	_life.player_swimming = func() -> bool:
+		return player != null and is_instance_valid(player) and not (player is Wanderer) \
+			and _anchor_now().y > _waterline_y + 20.0
+	_life.boat = func() -> RigidBody2D:
+		return _launched_boat if _launched_boat != null and is_instance_valid(_launched_boat) \
+			else null
+	coral.get_parent().add_child(_life)
+	# ⚠ THE ANIMALS LOLO ACTUALLY NAMES. Four of the facts are about a jellyfish, a starfish, a
+	# clam and an urchin -- chosen because none of them is something the player can draw -- and
+	# each stood on a piece of coral while he talked about it. Now the thing is there.
+	var field := coral_field()
+	for pair in [["jelly", "jelly", 70.0, Vector2(60.0, -150.0), 4.0],
+			["star", "starfish", 44.0, Vector2(58.0, 0.0), 1.2],
+			["clam", "clam", 34.0, Vector2(-56.0, 0.0), 1.0],
+			["urchin", "urchin", 40.0, Vector2(52.0, 0.0), 2.0]]:
+		if not field.has(pair[0]):
+			continue
+		var animal := PropClass.new()
+		animal.name = "Fact_%s" % pair[0]
+		animal.prefix = AUTHORED + String(pair[1])
+		animal.target_height = pair[2]
+		animal.fps = pair[4]
+		animal.phase = seed_of(String(pair[0])) % 3
+		animal.z_index = 4
+		coral.get_parent().add_child(animal)
+		animal.global_position = (field[pair[0]] as Vector2) + (pair[3] as Vector2)
+		if pair[0] == "jelly":
+			var drift := animal.create_tween().set_loops()
+			drift.tween_property(animal, "position:y", animal.position.y - 34.0, 2.6) \
+				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+			drift.tween_property(animal, "position:y", animal.position.y, 2.6) \
+				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _anchor_now() -> Vector2:
+	if player == null or not is_instance_valid(player):
+		return Vector2.ZERO
+	var anchor := player.call("get_physics_anchor") as Node2D \
+		if player.has_method("get_physics_anchor") else null
+	return anchor.global_position if anchor != null else player.global_position
 
 
 func _on_refill_touched(body: Node, index: int, amount: float, refill: Area2D) -> void:
@@ -850,6 +933,8 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 
 ## The light found it. Everything else about the Artist route is the creature's own doing.
 func _on_gift_offered() -> void:
+	if _life != null and _bakunawa != null:
+		_life.sparkle(_bakunawa.treasure_point(), 8, 55.0)
 	_award_the_flower()
 	PlayerProfile.record_bakunawa("LIT")
 	script_lines.set_flag("l3_bakunawa_lit")
@@ -1054,6 +1139,10 @@ func _on_island_reached(_checkpoint_id: String) -> void:
 
 func _land_on_the_island() -> void:
 	_come_ashore()
+	var sand := _mark("IslandMark")
+	if _life != null and sand != null:
+		# Where the painting waits: the thing they crossed the sea for, catching the light.
+		_life.sparkle(sand.global_position + Vector2(90.0, -40.0), 9, 45.0)
 	# THE PAINTING FIRST, THE FAREWELL SECOND, then cut. Lolo leaving is the level's real
 	# ending, not the painting, so it gets the last word.
 	_speak(script_lines.fire("ISLAND.enter"))
