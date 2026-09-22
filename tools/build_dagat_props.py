@@ -395,6 +395,18 @@ def _foam(frame: int) -> Canvas:
     return c
 
 
+def _splash(frame: int) -> Canvas:
+    pixelart.PX = 3
+    c = Canvas(11, 6, seed=3700)
+    if frame == 0:
+        c.px(5, 1, FOAM[2]); c.px(4, 2, FOAM[1]); c.px(6, 2, FOAM[1]); c.hline(3, 4, 5, FOAM[1])
+    elif frame == 1:
+        c.px(2, 2, FOAM[2]); c.px(8, 2, FOAM[2]); c.hline(1, 4, 9, FOAM[1]); c.px(5, 3, FOAM[2])
+    else:
+        c.hline(0, 5, 3, FOAM[0]); c.hline(8, 5, 3, FOAM[0])
+    return c
+
+
 LIFE = {
     "gull": (_gull, 4),
     "jelly": (_jelly, 4),
@@ -402,6 +414,7 @@ LIFE = {
     "clam": (_clam, 3),
     "urchin": (_urchin, 2),
     "foam": (_foam, 3),
+    "splash": (_splash, 3),
 }
 
 
