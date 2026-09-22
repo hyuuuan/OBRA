@@ -65,6 +65,13 @@ func _handle_level_input(_event: InputEvent) -> bool:
 	return false
 
 
+## Whether this level owns the timing of a route's commit line. The checkpoint still writes
+## at commit; only the dialogue waits. Payyo uses this for Ang Dayami's wind route, where a
+## sentence covering the hay before it moved hid the action the player had just requested.
+func _defer_route_commit_dialogue(_obstacle_id: String, _route: String) -> bool:
+	return false
+
+
 ## Something to interact with on E that is neither a placed drawing nor a signpost, tried
 ## between the two. Payyo offers the brass key found on the nail. True means it was used.
 func _interact_with_level() -> bool:
@@ -907,7 +914,8 @@ func _prompt_named(prompt_name: StringName) -> Control:
 ## The checkpoint is written HERE, on the commit, not on the solve -- so that every morph
 ## on the route is protected and a death cannot make the player answer Lolo twice.
 func _on_obstacle_route_committed(obstacle_id: String, route: String) -> void:
-	_speak(script_lines.fire("%s.%s.commit" % [obstacle_id, route]))
+	if not _defer_route_commit_dialogue(obstacle_id, route):
+		_speak(script_lines.fire("%s.%s.commit" % [obstacle_id, route]))
 	var checkpoint_id := String(director.obstacle(obstacle_id).get("checkpoint_on_commit", ""))
 	if not checkpoint_id.is_empty():
 		_write_checkpoint(checkpoint_id)

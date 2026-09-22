@@ -94,6 +94,25 @@ func _run() -> void:
 		await _capture("05c_key_taken")
 		await _wait(0.6)
 		await _capture("05d_key_gone")
+		for overlay in level.get_tree().get_nodes_in_group(&"modal_overlays"):
+			if overlay.has_method("is_open") and bool(overlay.call("is_open")) \
+					and overlay.has_method("close"):
+				overlay.call("close")
+		await _wait(0.2)
+		# Re-targeting the camera is what a morph expiry does. It must not make the room's
+		# elevated camera position the outdoor parallax origin before the apo walks back out.
+		var environment := level.get("environment") as Node
+		environment.call("set_target", player)
+		level.set("_straw_return", level.call("_beside_the_mouth"))
+		_put(Vector2(heap.call("entry_point")))
+		Input.action_press(&"move_left")
+		for _frame in range(90):
+			await physics_frame
+			if level.call("_room_holding_player") != heap:
+				break
+		Input.action_release(&"move_left")
+		await _wait(0.5)
+		await _capture("05e_straw_return")
 
 	# --- Inside Ang Bale, which is the one that had to fill the screen ------
 	var bale := await _step_into(&"bale_interiors", "06_bale_room")

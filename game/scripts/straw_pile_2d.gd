@@ -7,15 +7,11 @@ extends Node2D
 ## and the Protector route below does exactly that -- straw keeps the picture and removes
 ## the problem. See the build spec's cultural guardrails.
 ##
-## IT IS DELIVERED ART NOW. Two goes at drawing straw in code came and went -- the first
-## fanned thin diagonal lines out of a crown and read as scratches, the second built it from
-## axis-aligned columns and read as a shaded dome with scratches on it. Kent drew the heap;
-## `tools/build_art.py` keys it off its white page and cuts it down to the size it stands at.
-##
-## ONE PICTURE, FOUR STATES. The heap he drew has a way in, and the other two on the terrace
-## do not -- so the cutter also produces a mouthless copy, by mirroring the straw from the
-## far side of the heap over the doorway. Which of the two a pile draws is the whole of how
-## a tunnelled heap differs from a combed one.
+## IT IS DELIVERED ART NOW. The five supplied pictures are one registered three-pile group:
+## the resting hay and four wind poses. The grounded loose straw after the Protector route
+## is drawn separately because the fourth pose still has all three clumps in the air.
+## The scene still owns three pile nodes because route state, telemetry, and the entrance
+## all depend on them; only the entrance pile draws the shared picture, once.
 ##
 ## Three ways to search it, and the pile remembers which:
 ##   comb    patient, section by section. The pile is left standing
@@ -27,6 +23,10 @@ extends Node2D
 ## you climb, and a solid one would be a wall across the only route out of the level.
 
 signal searched(how: String)
+## The Protector wind beat has shown every supplied pose and the loose straw has landed.
+## GameLevel waits on this before it opens either the acquisition card or story dialogue,
+## so the effect gets the screen to itself instead of happening behind two popups.
+signal scatter_finished
 ## The apo is standing in the mouth of a heap that has one, or has stepped back off it.
 ##
 ## IT IS NOT "SHE HAS GONE IN". The mouth sits on the path east -- Terrace5 is how you get
@@ -38,24 +38,47 @@ signal at_mouth(standing: bool)
 enum State { INTACT, COMBED, TUNNELLED, SCATTERED }
 
 const HEAP := preload("res://assets/Level1/props/haybale.png")
-const HEAP_SOLID := preload("res://assets/Level1/props/haybale_solid.png")
+const SCATTER_FRAMES := [
+	preload("res://assets/Level1/props/haybale_animation_1.png"),
+	preload("res://assets/Level1/props/haybale_animation_2.png"),
+	preload("res://assets/Level1/props/haybale_animation_3.png"),
+	preload("res://assets/Level1/props/haybale_animation_4.png"),
+]
 
-## How big the heap stands. The art is 208 x 144, so a heap at that size draws it pixel for
-## pixel; the two smaller ones on the terrace are exactly HALF, which keeps their pixels
-## square. Anything in between resamples the straw and the stalks go soft.
+## The supplied art contains all three authored piles. Its 1672:941 aspect ratio is kept
+## at a 376px world width, covering the same 374px terrace footprint as the old three
+## sprites. StrawPileB is 19px right of that footprint's centre, hence the offset.
+const GROUP_SIZE := Vector2(376.0, 211.6)
+const GROUP_OFFSET_X := -19.0
+## THE SUPPORT LINE, NOT THE LAST STRAY PIXEL. Each number is the first transparent row
+## beneath the opaque base of the HIGHEST of the three pile bottoms, measured at alpha 24.
+## Using the image-wide alpha bound picked a single low fringe pixel instead; that pixel met
+## y = 0 while the three actual piles still hovered several world units above the terrace.
+## Frame 4 is authored substantially higher in its canvas, so it needs its own correction.
+const SOURCE_HEIGHT := 941.0
+const HEAP_SOURCE_GROUND_ROW := 845.0
+const SCATTER_SOURCE_GROUND_ROWS := [845.0, 842.0, 845.0, 805.0]
+## Four deliberately readable poses across one three-second wind beat. At the old 0.18s
+## rate the entire supplied sequence was over in half a second and looked like a texture
+## swap underneath the acquisition card rather than wind moving a heap.
+const SCATTER_ANIMATION_SECONDS := 3.0
+const SCATTER_FRAME_SECONDS := SCATTER_ANIMATION_SECONDS / 4.0
+
+## The old per-pile dimensions remain the gameplay dimensions for the entrance and its
+## notice zone. The replacement art is one shared group and uses GROUP_SIZE above.
 @export var pile_size := Vector2(208.0, 144.0)
 ## Straw catches the light unevenly; a row of identical mounds reads as wallpaper.
 @export var tint := Color(1.0, 1.0, 1.0, 1.0)
-## Faces the other way, so the two small heaps are not one sprite printed twice.
+## Retained for the authored scene and the measured doorway contract. The shared group is
+## already asymmetrical and is never mirrored.
 @export var flipped := false
 ## THIS ONE HAS A WAY IN, and it is the only place in Level 1 with an inside. Standing in
 ## the mouth offers it; pressing down takes it. What is through it is a room somewhere else
 ## entirely, so the mouth only has to be enterable, not stood up in.
 @export var entrance := false
 
-## Where the doorway sits in the delivered art, as a fraction of the heap. Measured off the
-## source rather than eyeballed: the mouth is x 292-570 of a picture that crops to x 22-1004,
-## and y 414-748 of one that crops to y 71-748.
+## The established gameplay opening, kept from the previous art so replacing the picture
+## cannot silently change whether the apo is allowed inside.
 const MOUTH_LEFT := 0.2747
 const MOUTH_RIGHT := 0.5575
 const MOUTH_TOP := 0.506
@@ -71,18 +94,15 @@ const HI := Color(1.000, 0.941, 0.659, 1.0)     # FFF0A8  the catch on a stalk f
 
 var _state: int = State.INTACT
 var _inside := false
-## Mirrored copies, built the first time one is asked for.
-##
-## NEITHER OF THE TWO OBVIOUS WAYS WORKS. draw_texture_rect's fifth argument is `transpose`,
-## which swaps the axes rather than mirroring -- pass `true` and the heap is drawn on its
-## side inside its own box. A Rect2 with a negative width, which is how the docs say to
-## flip, draws nothing at all in 4.7.
-static var _mirrors: Dictionary = {}
+var _scatter_frame := 0
+var _scatter_elapsed := 0.0
+var _scatter_finished := false
 
 
 func _ready() -> void:
 	add_to_group(&"straw_piles")
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	set_process(false)
 	if entrance:
 		_build_mouth_area()
 	queue_redraw()
@@ -100,8 +120,33 @@ func is_inside() -> bool:
 	return _inside
 
 
-## Where the way in is, in the heap's own space. Read off the art, so moving the doorway is
-## a matter of redrawing the heap rather than of retuning a number here.
+## Exposed for the audit: the Protector route must play every supplied wind pose before it
+## changes to the grounded aftermath, even if another modal has the gameplay tree paused.
+func scatter_animation_frame() -> int:
+	return _scatter_frame
+
+
+func scatter_animation_duration() -> float:
+	return SCATTER_ANIMATION_SECONDS
+
+
+func scatter_animation_finished() -> bool:
+	return _scatter_finished
+
+
+## The support line's local y after the same transform _draw_group uses. Audits pin every
+## supplied image to zero so changing or re-exporting one cannot silently lift it again.
+func resting_visual_baseline_y() -> float:
+	return _visual_baseline_y(HEAP_SOURCE_GROUND_ROW, Vector2.ONE)
+
+
+func scatter_visual_baseline_y(frame: int) -> float:
+	var safe_frame := clampi(frame, 0, SCATTER_SOURCE_GROUND_ROWS.size() - 1)
+	return _visual_baseline_y(float(SCATTER_SOURCE_GROUND_ROWS[safe_frame]), Vector2.ONE)
+
+
+## Where the way in is, in the entrance node's own space. This remains the established
+## gameplay opening even though the group artwork around it has been replaced.
 func mouth_rect() -> Rect2:
 	var settle := _settle()
 	var wide := pile_size.x * settle.x
@@ -139,8 +184,37 @@ func scatter() -> void:
 	if _state == State.SCATTERED:
 		return
 	_state = State.SCATTERED
+	_scatter_frame = 0
+	_scatter_elapsed = 0.0
+	_scatter_finished = false
+	if entrance:
+		# Dialogue pauses the level immediately after the route resolves. The hay is feedback
+		# for that resolution, so it must not freeze on its first pose behind the dialogue.
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		set_process(true)
 	queue_redraw()
 	searched.emit("scatter")
+
+
+func _process(delta: float) -> void:
+	if _state != State.SCATTERED or not entrance:
+		set_process(false)
+		process_mode = Node.PROCESS_MODE_INHERIT
+		return
+	_scatter_elapsed += delta
+	var next_frame := mini(int(_scatter_elapsed / SCATTER_FRAME_SECONDS),
+		SCATTER_FRAMES.size() - 1)
+	if next_frame != _scatter_frame:
+		_scatter_frame = next_frame
+		queue_redraw()
+	if _scatter_elapsed >= SCATTER_ANIMATION_SECONDS:
+		_scatter_elapsed = SCATTER_ANIMATION_SECONDS
+		_scatter_frame = SCATTER_FRAMES.size() - 1
+		_scatter_finished = true
+		set_process(false)
+		process_mode = Node.PROCESS_MODE_INHERIT
+		queue_redraw()
+		scatter_finished.emit()
 
 
 ## Put it back the way it was found.
@@ -153,6 +227,11 @@ func scatter() -> void:
 ## picture of a COMBED pile for as long as the node existed.
 func restore_intact() -> void:
 	_state = State.INTACT
+	_scatter_frame = 0
+	_scatter_elapsed = 0.0
+	_scatter_finished = false
+	set_process(false)
+	process_mode = Node.PROCESS_MODE_INHERIT
 	queue_redraw()
 
 
@@ -238,20 +317,41 @@ func _settle() -> Vector2:
 
 
 func _draw() -> void:
+	# HAY1 and every animation frame are already the complete three-pile arrangement. The
+	# side nodes remain real route-state holders, but drawing from them would print the same
+	# group three times over itself.
+	if not entrance:
+		return
 	if _state == State.SCATTERED:
-		_draw_scattered()
+		if _scatter_finished:
+			_draw_scattered_aftermath()
+		else:
+			_draw_ground_shadow(GROUP_SIZE.x * 0.5)
+			_draw_group(SCATTER_FRAMES[_scatter_frame], Vector2.ONE,
+				float(SCATTER_SOURCE_GROUND_ROWS[_scatter_frame]))
 		return
 	var settle := _settle()
-	var wide := pile_size.x * settle.x
-	var high := pile_size.y * settle.y
+	var wide := GROUP_SIZE.x * settle.x
+	var high := GROUP_SIZE.y * settle.y
 	_draw_ground_shadow(wide * 0.5)
-	# WHICH PICTURE, AND IT IS THE WHOLE STATE MACHINE. A heap you can go into has a
-	# doorway; a heap somebody tunnelled under has a hole; anything else is solid straw.
-	var art := HEAP if entrance or _state == State.TUNNELLED else HEAP_SOLID
-	var box := Rect2(Vector2(-wide * 0.5, -high), Vector2(wide, high))
-	draw_texture_rect(_mirror(art) if flipped else art, box, false, tint)
+	_draw_group(HEAP, settle)
 	if _state == State.COMBED:
 		_draw_combing(wide, high)
+
+
+func _draw_group(art: Texture2D, settle: Vector2,
+		source_ground_row: float = HEAP_SOURCE_GROUND_ROW) -> void:
+	var size := GROUP_SIZE * settle
+	var offset := Vector2(GROUP_OFFSET_X * settle.x,
+		size.y * (SOURCE_HEIGHT - source_ground_row) / SOURCE_HEIGHT)
+	var box := Rect2(Vector2(-size.x * 0.5, -size.y) + offset, size)
+	draw_texture_rect(art, box, false, tint)
+
+
+func _visual_baseline_y(source_ground_row: float, settle: Vector2) -> float:
+	var size := GROUP_SIZE * settle
+	var offset_y := size.y * (SOURCE_HEIGHT - source_ground_row) / SOURCE_HEIGHT
+	return -size.y + offset_y + size.y * source_ground_row / SOURCE_HEIGHT
 
 
 ## The marks a rake leaves. Furrows across the face of the heap and a fringe of loose stalks
@@ -279,38 +379,39 @@ func _draw_combing(wide: float, high: float) -> void:
 		draw_line(at, at + run, _ramp(rng.randf_range(0.4, 1.0)) * tint, 2.0, false)
 
 
-## What stops it floating. Everything in the house that stands on the floor has one of
-## these and the heaps did not.
-func _mirror(art: Texture2D) -> Texture2D:
-	if not _mirrors.has(art):
-		var image := art.get_image()
-		image.flip_x()
-		_mirrors[art] = ImageTexture.create_from_image(image)
-	return _mirrors[art]
-
-
 func _draw_ground_shadow(half: float) -> void:
-	draw_rect(Rect2(-half - 4.0, -3.0, half * 2.0 + 8.0, 5.0), Color(0.0, 0.0, 0.0, 0.30))
-	draw_rect(Rect2(-half - 9.0, -1.0, half * 2.0 + 18.0, 3.0), Color(0.0, 0.0, 0.0, 0.16))
+	var centre := GROUP_OFFSET_X
+	draw_rect(Rect2(centre - half - 4.0, -3.0, half * 2.0 + 8.0, 5.0),
+		Color(0.0, 0.0, 0.0, 0.30))
+	draw_rect(Rect2(centre - half - 9.0, -1.0, half * 2.0 + 18.0, 3.0),
+		Color(0.0, 0.0, 0.0, 0.16))
 
 
-## What is left after the wind: loose handfuls across the terrace, which is the whole point
-## of the Protector cost being visible rather than described. Drawn rather than cut, because
-## there is no picture of a heap that has been pulled apart -- and a heap is a silhouette
-## while scattered straw is a scatter, so nothing about the delivered art would survive it.
-func _draw_scattered() -> void:
+## The fourth supplied picture is authored highest in its canvas. Its own measured support
+## row lowers it to the terrace while it is shown; after the wind beat, loose stalks replace
+## the three clumps in a shallow bed whose shadows and lowest strands also touch y = 0.
+func _draw_scattered_aftermath() -> void:
 	var rng := _rng()
-	for index in range(150):
+	var centre := GROUP_OFFSET_X
+	# A broken, low contact shadow. It gives every clump a floor without turning the remains
+	# into one dark platform.
+	for patch in range(9):
+		var x := centre + lerpf(-205.0, 205.0, (float(patch) + 0.5) / 9.0)
+		var half := rng.randf_range(13.0, 29.0)
+		draw_line(Vector2(x - half, -1.0), Vector2(x + half, -1.0),
+			Color(0.0, 0.0, 0.0, rng.randf_range(0.13, 0.24)), 3.0, false)
+	# Denser and flatter than the old procedural scatter: this is the same amount of straw
+	# that just filled three heaps, now spread across the terrace rather than hovering over it.
+	for index in range(190):
 		var across := rng.randf_range(-1.0, 1.0)
-		var at := Vector2(across * pile_size.x * 1.25,
-			rng.randf_range(-11.0, 1.0) * (1.0 - absf(across) * 0.6))
-		var run := Vector2(rng.randf_range(-24.0, 24.0), rng.randf_range(-8.0, 2.0))
-		draw_line(at, at + run, _ramp(rng.randf_range(0.3, 1.0)) * tint,
-			3.0 if rng.randf() < 0.2 else 2.0, false)
+		var at := Vector2(centre + across * 224.0,
+			rng.randf_range(-14.0, 0.5) * (1.0 - absf(across) * 0.48))
+		var run := Vector2(rng.randf_range(-23.0, 23.0), rng.randf_range(-5.5, 1.5))
+		draw_line(at, at + run, _ramp(rng.randf_range(0.28, 1.0)) * tint,
+			3.0 if rng.randf() < 0.24 else 2.0, false)
 
 
-## Seeded from where the pile stands, so the same heap scatters the same way every frame and
-## after a restored checkpoint.
+## Seeded from where the pile stands, so the combing details do not shimmer between frames.
 func _rng() -> RandomNumberGenerator:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(absf(position.x) * 7919.0 + absf(position.y) * 104729.0) | 1

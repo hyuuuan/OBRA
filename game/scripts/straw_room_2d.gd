@@ -377,8 +377,9 @@ func _build_nail_notice() -> void:
 ## the whole reason this is a distance and not an Area2D: a rig's bodies are spread over
 ## whatever the player drew, and an Area2D at the doorway catches them on arrival.
 ##
-## `entry_point()` is 89 units from the middle of the doorway, so 52 is comfortably clear of
-## it: arriving is not leaving. ⚠ There is deliberately NO "walk further in first" rule. The
+## `entry_point()` is 53.2 horizontal units from the middle of the doorway, just outside the
+## 52-unit crossing distance: arriving is not leaving. ⚠ There is deliberately NO "walk
+## further in first" rule. The
 ## first cut had one and it made the room a TRAP -- a player who stepped in, looked around and
 ## turned straight back was never far enough from the door to arm it, and the door then never
 ## worked at all. Turning around immediately has to be allowed.
@@ -397,7 +398,15 @@ func _drive_the_way_out(delta: float, at: Vector2) -> void:
 	if _way_out_grace > 0.0:
 		_way_out_grace -= delta
 		return
-	if at.distance_to(global_position + exit_rect().get_center()) < WAY_OUT_FIRES_AT:
+	# A DOORWAY IS CROSSED HORIZONTALLY. The apo's anchor is at floor height while a rig's
+	# representative point can be near its torso. Measuring Euclidean distance to the
+	# opening's vertical centre let an ant leave and trapped the apo after that ant expired:
+	# she could stand visibly inside the door but remained 72px below its centre. X is the
+	# shared coordinate both bodies actually cross. Requiring the matching movement input
+	# keeps a many-body rig settling beside the threshold from drifting straight back out.
+	var exit_x := global_position.x + exit_rect().get_center().x
+	if Input.is_action_pressed(&"move_left") \
+			and absf(at.x - exit_x) < WAY_OUT_FIRES_AT:
 		_way_out_grace = WAY_OUT_GRACE
 		exit_reached.emit()
 

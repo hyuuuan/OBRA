@@ -1173,10 +1173,75 @@ func _walk_node_two(route: String) -> void:
 
 	d.commit_route("L1_N2", route)
 	await process_frame
+	if route == "protector":
+		_check(not bool(script_lines.call("has_heard", "L1_N2.protector.commit")),
+			"choosing the wind route opens no premature popup",
+			"its commit line waits for the visible effect")
 
 	# Solve it the way that route asks for.
 	var solver: String = {"artist": "rake", "pragmatist": "ant", "protector": "fan"}[route]
 	level.call("_judge_submission", solver)
+	if route == "protector":
+		var entrance_pile: Node = null
+		for child in dayami.get_children():
+			if child.get_script() == StrawPileClass and bool(child.get("entrance")):
+				entrance_pile = child
+				break
+		_check(entrance_pile != null, "the wind animation belongs to the entrance pile",
+			"the single shared hay picture has an animation owner")
+		if entrance_pile != null:
+			_check(absf(float(entrance_pile.call("resting_visual_baseline_y"))) <= 0.01,
+				"the intact hay's opaque base sits on the floor",
+				"its measured support line maps to local y = 0")
+			for frame in range(4):
+				_check(absf(float(entrance_pile.call("scatter_visual_baseline_y", frame))) <= 0.01,
+					"wind pose %d keeps the hay on the floor" % (frame + 1),
+					"its measured support line maps to local y = 0")
+			_check(int(entrance_pile.call("scatter_animation_frame")) == 0,
+				"Protector starts on supplied wind frame 1",
+				"the effect did not skip straight to scattered hay")
+			var animation_seconds := float(entrance_pile.call("scatter_animation_duration"))
+			_check(animation_seconds >= 2.9 and animation_seconds <= 3.1,
+				"the wind owns the screen for about three seconds",
+				"the supplied sequence lasts %.2f seconds" % animation_seconds)
+			var acquired := level.get("acquired_overlay") as Node
+			_check(acquired != null and not bool(acquired.call("is_open")),
+				"no acquisition popup covers the wind",
+				"the brass-key card waits until the hay lands")
+			_check(not bool(script_lines.call("has_heard", "L1_N2.protector.solved")),
+				"no story popup covers the wind",
+				"the solved line waits until the hay lands")
+			_check(not bool(script_lines.call("has_heard", "L1_N2.protector.commit")),
+				"the route-choice popup also waits for the wind",
+				"the player's sentence is still deferred")
+			var pose_seconds := animation_seconds / 4.0
+			for expected_frame in range(1, 4):
+				await create_timer(pose_seconds + (0.10 if expected_frame == 1 else 0.0),
+					true).timeout
+				_check(int(entrance_pile.call("scatter_animation_frame")) == expected_frame,
+					"wind reaches supplied pose %d" % (expected_frame + 1),
+					"frame %d is held long enough to read" % (expected_frame + 1))
+				_check(acquired != null and not bool(acquired.call("is_open")),
+					"pose %d is not covered by an acquisition popup" % (expected_frame + 1),
+					"the wind still owns the screen")
+			# Frame 4 holds for the final quarter rather than disappearing on the tick it
+			# arrives; only after that does the grounded aftermath and its popups replace it.
+			await create_timer(pose_seconds, true).timeout
+			_check(int(entrance_pile.call("scatter_animation_frame")) == 3,
+				"all four supplied wind poses are shown",
+				"the sequence reaches frame 4 after %.2f seconds" % animation_seconds)
+			_check(bool(entrance_pile.call("scatter_animation_finished")),
+				"the airborne hay settles after the wind",
+				"the permanent state is the grounded aftermath")
+			_check(acquired != null and bool(acquired.call("is_open")),
+				"the acquisition popup follows the wind",
+				"the brass-key card opens only after the hay lands")
+			_check(bool(script_lines.call("has_heard", "L1_N2.protector.solved")),
+				"the story popup follows the wind",
+				"the solved line fires only after the hay lands")
+			_check(bool(script_lines.call("has_heard", "L1_N2.protector.commit")),
+				"the deferred route popup follows the wind",
+				"the player's line fires only after the hay lands")
 	# The artist route plays out over a couple of seconds; the others are immediate.
 	for _frame in range(150):
 		await physics_frame
@@ -1469,7 +1534,17 @@ func _audit_the_key_chain() -> void:
 			for _frame in range(24):
 				await physics_frame
 			level.call("_judge_submission", "fan")
-			await create_timer(0.6, true).timeout
+			# The key now comes out only after the full wind beat has had the screen to
+			# itself. Waiting the old 0.6 seconds sampled the deliberate delay halfway
+			# through and then blamed the house for not having a key yet.
+			var wind_owner: Node = null
+			for node in level.get_tree().get_nodes_in_group(&"straw_piles"):
+				if bool(node.get("entrance")):
+					wind_owner = node
+					break
+			var wind_seconds := 3.0 if wind_owner == null else float(
+				wind_owner.call("scatter_animation_duration"))
+			await create_timer(wind_seconds + 0.15, true).timeout
 			_check(d.committed_route("L1_N2") == "protector",
 				"a weather drawing commits the Protector route",
 				"route '%s' -- the drawing is the choice at a node that never asks"

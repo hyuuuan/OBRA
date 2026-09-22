@@ -317,8 +317,21 @@ func _search_the_straw(route: String) -> void:
 				pile.tunnel()
 			_speak(script_lines.fire("L1_N2.pragmatist.solved"))
 		"protector":
+			var animation_owner: StrawPile2D = null
 			for pile in piles:
 				pile.scatter()
+				if pile.entrance:
+					animation_owner = pile
+			# GIVE THE WIND THE SCREEN. All four supplied poses play for three seconds and
+			# the straw lands before either of the popups below is allowed to open. Calling
+			# these first made the acquisition card cover the whole half-second effect, while
+			# dialogue paused the rest of the level behind it.
+			if animation_owner != null and not animation_owner.scatter_animation_finished():
+				await animation_owner.scatter_finished
+			# NOW the sentence may take the screen. It is authored in the past tense because
+			# the player has just watched the wind finish the action; the button they chose
+			# still carries the forward-looking "Let us scatter it."
+			_speak(script_lines.fire("L1_N2.protector.commit"))
 			# WRECKING THE HEAP TURNS THE KEY OUT OF IT. The nail is inside, out of reach,
 			# and a player who blew the whole heap across the terrace has plainly got at
 			# whatever was hanging in it -- refusing them the key would mean the fast route
@@ -732,6 +745,14 @@ func _extra_refusals(entity_id: String, strokes: Array) -> bool:
 	return _ward_refuses(entity_id, strokes)
 
 
+## The Protector button already carries the player's intention: "Let us scatter it." Its
+## commit line used to repeat that sentence in a modal dialogue box BEFORE the player drew
+## the wind, covering the hay at the exact moment the route should build anticipation.
+## `_search_the_straw` fires the line after every wind pose and the grounded result instead.
+func _defer_route_commit_dialogue(obstacle_id: String, route: String) -> bool:
+	return obstacle_id == "L1_N2" and route == "protector"
+
+
 ## Node 2 opens the heap; Node 3 opens the chest. Both own their own words, which is why
 ## the generic ".solved" line must not also fire for them.
 ## THE AXE AT THE GORGE IS NOT SPENT BY ANSWERING. Cutting is how the Protector route crosses
@@ -880,4 +901,3 @@ func _current_objective() -> Dictionary:
 			return {"key": "painting", "target": gap}
 		return {"key": "onward", "target": gap}
 	return {"key": "bale", "target": _obstacle_point("L1_N3") + Vector2(0.0, -140.0)}
-

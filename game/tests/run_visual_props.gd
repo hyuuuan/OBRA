@@ -21,10 +21,16 @@ const SHOTS: Array = [
 	{"name": "ruined_bridge", "at": Vector2(3360, 180), "size": Vector2(700, 300)},
 	{"name": "hidden_flower", "at": Vector2(3380, 578), "size": Vector2(260, 240), "do": "light_flower"},
 	{"name": "stool_and_jar", "at": Vector2(3678, 227), "size": Vector2(130, 100)},
-	{"name": "straw_1_intact", "at": Vector2(3840, 150), "size": Vector2(620, 320)},
-	{"name": "straw_2_combed", "at": Vector2(3840, 150), "size": Vector2(620, 320), "do": "comb"},
-	{"name": "straw_3_tunnelled", "at": Vector2(3840, 150), "size": Vector2(620, 320), "do": "tunnel"},
-	{"name": "straw_4_scattered", "at": Vector2(3840, 150), "size": Vector2(620, 320), "do": "scatter"},
+	# Tall enough to include the TERRACE below y=240. The old 320px crop stopped above the
+	# floor, so a floating prop and a grounded one produced the same reassuring photograph.
+	{"name": "straw_1_intact", "at": Vector2(3840, 140), "size": Vector2(620, 520)},
+	{"name": "straw_2_combed", "at": Vector2(3840, 140), "size": Vector2(620, 520), "do": "comb"},
+	{"name": "straw_3_tunnelled", "at": Vector2(3840, 140), "size": Vector2(620, 520), "do": "tunnel"},
+	{"name": "straw_wind_1", "at": Vector2(3840, 140), "size": Vector2(620, 520), "do": "wind_0"},
+	{"name": "straw_wind_2", "at": Vector2(3840, 140), "size": Vector2(620, 520), "do": "wind_1"},
+	{"name": "straw_wind_3", "at": Vector2(3840, 140), "size": Vector2(620, 520), "do": "wind_2"},
+	{"name": "straw_wind_4", "at": Vector2(3840, 140), "size": Vector2(620, 520), "do": "wind_3"},
+	{"name": "straw_4_scattered", "at": Vector2(3840, 140), "size": Vector2(620, 520), "do": "scatter"},
 	{"name": "straw_5_inside", "at": Vector2(2510, -1010), "size": Vector2(1000, 520),
 		"do": "enter_straw", "keep_player": true},
 	{"name": "baul", "at": Vector2(2756, -960), "size": Vector2(220, 180), "do": "uncover"},
@@ -121,6 +127,15 @@ func _focus(at: Variant) -> Vector2:
 ## The states worth photographing, because a route that leaves a mark on the world is
 ## asking for two drawings of the same object rather than one.
 func _prepare(what: String) -> void:
+	if what.begins_with("wind_"):
+		for node in level.get_tree().get_nodes_in_group(&"straw_piles"):
+			node.call("restore_intact")
+			node.call("scatter")
+		var frame := int(what.trim_prefix("wind_"))
+		# `_run` waits another 0.35s after preparation before the capture. Lead that wait so
+		# the screenshot lands near the middle of the requested pose, not over its boundary.
+		await _wait(0.20 + float(frame) * 0.75)
+		return
 	match what:
 		"comb", "tunnel", "scatter":
 			# PUT IT BACK FIRST. comb() and tunnel() both refuse to run on a pile that is
@@ -130,6 +145,17 @@ func _prepare(what: String) -> void:
 			for node in level.get_tree().get_nodes_in_group(&"straw_piles"):
 				node.call("restore_intact")
 				node.call(what)
+			# Wait through the complete wind beat so this photographs the grounded aftermath,
+			# not one of the four deliberately airborne supplied poses.
+			if what == "scatter":
+				var animation_owner := level.get_tree().get_first_node_in_group(
+					&"straw_piles") as Node
+				for node in level.get_tree().get_nodes_in_group(&"straw_piles"):
+					if bool(node.get("entrance")):
+						animation_owner = node
+						break
+				if animation_owner != null:
+					await _wait(float(animation_owner.call("scatter_animation_duration")) + 0.10)
 		"enter_straw":
 			# The one prop in this level with an INSIDE, and it only draws it while the apo
 			# is standing in it -- so photographing it means putting her there.

@@ -14,6 +14,11 @@ extends Node2D
 @onready var entity_root: Node2D = get_node(entity_root_path)
 
 var _layers: Array[Node] = []
+## Parallax is measured from the camera's first position in this environment. Changing the
+## controlled body is not entering a new world and must not establish a new origin -- in
+## particular, a morph expiring inside a room parked above the level would otherwise make
+## the valley's sky and mountains measure themselves from that room.
+var _layer_origins_ready := false
 
 
 func _ready() -> void:
@@ -26,6 +31,7 @@ func _ready() -> void:
 		set_target(fallback_target)
 	else:
 		_sync_layer_origins(camera_2d.global_position)
+		_layer_origins_ready = true
 
 
 func set_target(target: Node2D) -> void:
@@ -33,7 +39,12 @@ func set_target(target: Node2D) -> void:
 		return
 	camera.call("set_target", target)
 	camera.call("snap_to_target")
-	_sync_layer_origins(camera_2d.global_position)
+	# ONLY THE FIRST TARGET DEFINES THE WORLD'S PARALLAX ORIGIN. `_adopt_player` calls this
+	# every time a creature replaces the apo or expires. Re-basing here while the player was
+	# inside the hay room left every outdoor layer displaced after they came back down.
+	if not _layer_origins_ready:
+		_sync_layer_origins(camera_2d.global_position)
+		_layer_origins_ready = true
 	_update_layers(camera_2d.global_position)
 
 

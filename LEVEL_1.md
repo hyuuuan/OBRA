@@ -195,7 +195,7 @@ It costs a teleport and a fade and nothing else: the apo is the same body in the
 so ink, the bag, the drawing panel and every checkpoint carry in with her, and Lolo follows
 without being asked (he teleports past 900px and the room is thousands away).
 
-⚠ **Three things this needed that are not obvious.**
+⚠ **Four things this needed that are not obvious.**
 - `world_bounds` grew upward to `Rect2(0, −1800, 3920, 2480)` so the room has sky to sit in.
   The floor, the fall limit and `_max_camera_y` are all measured off the BOTTOM of the
   bounds and are unchanged; only `_min_camera_y` moved.
@@ -204,9 +204,12 @@ without being asked (he teleports past 900px and the room is thousands away).
   thousand units above one, where it stays below the floor and points at nothing. It is
   **not** `focus_on`: focus is what a line of dialogue takes and gives back, so a room would
   lose its framing the moment somebody finished a sentence.
-- Everything drawn in the room runs **700 units past its own walls**. The camera sees seven
-  hundred either way, so standing near an end otherwise puts the end of the floor on screen
-  with the sky behind it.
+- The panorama spans the room's complete `camera_rect()`, past both playable end walls, so
+  standing near an end cannot expose the empty sky the room is parked in.
+- **Changing form inside must not rebase the outdoor parallax.** A morph expiry replaces the
+  camera target while it is a thousand units above the valley. `EnvironmentBaseplate` keeps
+  the depth layers' first origin across target swaps; taking the room camera as a new origin
+  displaced the sky and mountains into the void when the apo came back outside.
 
 **Tags at this node.** `burrow` gets you INSIDE the heap; the three route tags below are how
 you deal with the heap from outside. They are different questions and the level asks both.
@@ -216,6 +219,21 @@ you deal with the heap from outside. They are different questions and the level 
 | Artist | Forage | combed, left standing | **sets `knows_about_key`** |
 | Pragmatist | Carry | tunnelled | — |
 | Protector | Weather | scattered, permanent | sets `straw_scattered`, **and turns out the key** |
+
+**The outdoor hay is one registered five-image sequence.**
+`assets/Level1/props/haybale.png` is the resting three-pile group,
+`haybale_animation_1.png` through `_3.png` are the Protector wind poses, and
+`haybale_animation_4.png` is the widest, last airborne pose. The scene still has three
+`StrawPile2D` nodes because route state and the one entrance are authored that way, but only
+the entrance node draws the composite group. Drawing it from every node would stamp the same
+three piles over themselves. The four poses own the screen for three seconds before any
+acquisition or dialogue popup opens, then settle into a low bed of loose straw that actually
+touches the terrace. Every supplied pose has its own measured support row: the images do not
+share a baseline, and aligning their canvas edges or their lowest stray alpha pixel leaves
+the visible piles floating. Checkpoint restores keep `SCATTERED` and do not rebuild the pile.
+The Protector choice's commit line is deferred too: the button carries the intention, all
+four wind poses and the grounded result play unobstructed, and only then may dialogue and
+the brass-key acquisition card cover the world.
 
 **And the arrival SAYS there are two ways at it.** `L1_N2.enter` used to say only "it is in
 there, inside the straw", so a player who could not fit through the mouth concluded the key

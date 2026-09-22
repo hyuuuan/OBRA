@@ -26,6 +26,12 @@ extends SceneTree
 ##    -- answered "nowhere" for every drawn creature. The camera snapped back to valley
 ##    framing a thousand units below the room and the room stopped drawing itself. Testing
 ##    only the wanderer is what let that ship.
+## 6. THE APO CAN LEAVE AFTER THE DRAWING EXPIRES. A rig and the apo report different
+##    vertical anchors. A circular distance to the doorway's centre accepted the former and
+##    left the latter standing visibly in the opening forever.
+## 7. CHANGING FORM INSIDE MUST NOT REBASE THE OUTDOOR PARALLAX. The room is parked far
+##    above the terraces; making its camera position the sky's new origin leaves the outside
+##    background displaced into the void when the player exits.
 
 const VIEW := Vector2(1600.0, 900.0)
 const RosterFixtures = preload("res://tests/roster_fixtures.gd")
@@ -310,9 +316,38 @@ func _audit_a_morph_gets_into_the_heap() -> void:
 	_check(level.call("_room_holding_player") == room, "and it stays inside the heap",
 		"ended at %s, the room is %s" % [(level.get("player") as Node2D).global_position,
 			Rect2(room.call("bounds"))])
+	var origin_before_revert: Dictionary = {}
+	var environment := level.get("environment") as Node
+	for child in environment.get_children():
+		if child.has_method("set_camera_origin") and child.has_method("update_for_camera"):
+			origin_before_revert[child.name] = Vector2(child.get("_camera_origin"))
 	level.call("_revert_to_base_form")
 	for _frame in range(20):
 		await physics_frame
+	var rebased_layers: Array[String] = []
+	for child in environment.get_children():
+		if not origin_before_revert.has(child.name):
+			continue
+		if not Vector2(child.get("_camera_origin")).is_equal_approx(
+				origin_before_revert[child.name] as Vector2):
+			rebased_layers.append(String(child.name))
+	_check(rebased_layers.is_empty(), "changing back keeps the valley's backdrop anchored",
+		"all depth origins unchanged" if rebased_layers.is_empty()
+		else "rebased inside the room: %s" % ", ".join(rebased_layers))
+	# What the player in the reported failure does: after the ant has run out, hold left into
+	# the visible doorway. Drive the InputMap rather than calling the exit signal directly.
+	player = level.get("player") as Node2D
+	Input.action_press(&"move_left")
+	var left_as_apo := false
+	for _frame in range(90):
+		await physics_frame
+		if level.call("_room_holding_player") != room:
+			left_as_apo = true
+			break
+	Input.action_release(&"move_left")
+	_check(left_as_apo, "the apo can leave after the ant expires",
+		"returned to the terrace" if left_as_apo
+		else "STILL INSIDE at %s -- the doorway only accepts a rig" % player.global_position)
 
 
 ## THE THING BEHIND THE CAVE GATE CAN BE REACHED. `try_pass()` had no caller: the gate was a
