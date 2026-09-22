@@ -3071,8 +3071,21 @@ func _return_to_safety(nothing_written: String, restored_format: String) -> void
 			player.call("apply_morph_state",
 				{"position": spawn_point.global_position, "linear_velocity": Vector2.ZERO})
 		_say_why(nothing_written)
+	elif restored_format.contains("%s"):
+		_say_why(restored_format % _checkpoint_place(restored))
 	else:
-		_say_why(restored_format % restored)
+		# ⚠ ONLY FORMATTED WHEN THERE IS SOMETHING TO FILL. A line with no %s -- Dagat's "It
+		# turned. Back to where you were." -- formatted with the checkpoint anyway raised a
+		# string-formatting error on every stealth and fight reset in the level.
+		_say_why(restored_format)
+
+
+## WHERE A CHECKPOINT IS, IN WORDS A PLAYER WOULD USE. The rescue used to say "Back to CP2",
+## which is the level file's id and means nothing to anyone playing. A level that can name its
+## places does; the rest say "the last checkpoint", which is at least a thing a player can
+## picture.
+func _checkpoint_place(_checkpoint_id: String) -> String:
+	return "the last checkpoint"
 
 
 ## Why the player is suddenly standing somewhere else.

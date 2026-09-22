@@ -531,8 +531,21 @@ func _on_ink_emptied() -> bool:
 func _drowning_words() -> PackedStringArray:
 	return PackedStringArray([
 		"You cannot swim, apo. Draw yourself something that can",
-		"You cannot swim, apo. Back to %s",
+		"Up you come, apo. Back to %s.",
 	])
+
+
+func _checkpoint_place(checkpoint_id: String) -> String:
+	match checkpoint_id:
+		"CP1", "CP2":
+			return "the beach"
+		"CP3":
+			return "the edge of its waters"
+		"CP3b":
+			return "the middle of its waters"
+		"CP4":
+			return "the island"
+	return super._checkpoint_place(checkpoint_id)
 
 
 # --- Per frame --------------------------------------------------------------------------
@@ -695,7 +708,8 @@ func _on_low_ink(_remaining: float, _capacity: float) -> void:
 func _on_drain_emptied() -> void:
 	if tutorial != null:
 		tutorial.note("ink_emptied")
-	_say_why("Out. Up you come — you lost the crossing, nothing else.")
+	# The rescue follows a moment later with where they are going; this is only what happened.
+	_say_why("Out of ink, apo. Hold on to me.")
 	_revert_to_base_form()
 	_carry_to_the_surface()
 
