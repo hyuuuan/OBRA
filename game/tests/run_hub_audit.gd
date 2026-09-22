@@ -28,15 +28,6 @@ func _x_of(node: Variant) -> float:
 	return (node as Node2D).global_position.x
 
 
-## Leave user://profile.json exactly as it was found.
-func _restore_profile(profile: Node, had_brush: bool, had_profile: bool) -> void:
-	(profile.get("_data") as Dictionary)["brush_acquired"] = had_brush
-	if had_profile:
-		profile.call("save_profile")
-	elif FileAccess.file_exists("user://profile.json"):
-		DirAccess.remove_absolute("user://profile.json")
-
-
 func _run() -> void:
 	# ARRANGED BEFORE THE HOUSE IS BUILT. BrushStand2D asks the profile whether the brush is
 	# still under the glass in its _ready(), so a "before" state set after the hub is in the
@@ -50,8 +41,6 @@ func _run() -> void:
 		quit(1)
 		return
 	var data: Dictionary = profile.get("_data")
-	var had_brush := bool(data.get("brush_acquired", false))
-	var had_profile := FileAccess.file_exists("user://profile.json")
 	data["brush_acquired"] = false
 
 	var hub := (load(HUB) as PackedScene).instantiate()
@@ -87,7 +76,7 @@ func _run() -> void:
 	for node in paintings:
 		if bool(node.call("is_playable")):
 			enterable.append(String(node.get("level_id")))
-	_check(enterable == ["level_1", "level_2"], "only what is built can be walked into",
+	_check(enterable == ["level_1", "level_2", "level_3"], "only what is built can be walked into",
 		"enterable: " + ", ".join(enterable))
 
 	# THE ROOM HAS TO FILL THE FRAME. The camera is pinned vertically -- one storey, a floor
@@ -168,15 +157,12 @@ func _run() -> void:
 	# no gate -- one that refuses forever strands the player in the hub, and one that lets
 	# them past strands them in the level.
 	#
-	# THE PROFILE FILE IS PUT BACK at the end of this block. The "before" state above was
-	# arranged in memory and touched nothing on disk, but `take()` is the thing under test
-	# and it commits, so by here user://profile.json really does claim a brush. Whoever ran
-	# this must not be handed one they did not walk over and take.
+	# `take()` is the thing under test and it commits -- into the test run's own profile
+	# (user_data.gd), so whoever ran this is not handed a brush they did not take.
 	var stand := hub.get_node_or_null("BrushStand") as Node2D
 	_check(stand != null, "the brush stands at the end of the hall",
 		"at x %.0f" % [stand.global_position.x if stand != null else -1.0])
 	if stand == null:
-		_restore_profile(profile, had_brush, had_profile)
 		quit(1)
 		return
 
@@ -210,8 +196,6 @@ func _run() -> void:
 		"nothing left under the glass")
 	_check(bool(manager.call("open_level", "level_1")), "and Payyo opens",
 		"open_level started the transition")
-
-	_restore_profile(profile, had_brush, had_profile)
 
 	if failures == 0:
 		print("OBRA_HUB_AUDIT_OK")

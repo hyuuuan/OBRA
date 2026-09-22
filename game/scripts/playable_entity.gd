@@ -492,6 +492,13 @@ func _drive_flier(body: ActiveRigBody2D, horizontal: float, _delta: float, butte
 	return "fly"
 
 
+## ⚠ THE SEVEN NUMBERS BELOW ARE NOW THE RIG PROFILE'S, AND EVERY FALLBACK IS WHAT THEY WERE
+## HARD-CODED TO. Dagat makes swimming a movement mode rather than a pool to fall into, and
+## seven classes have to feel different in it -- but a class that names none of these keys
+## swims exactly as it did before, which is the only way this could land without re-measuring
+## Payyo's paddies. In particular `swim_speed` falls back to 260, NOT to `move_speed`: shark
+## and octopus carry 285 and 235 there and have always swum at 260 regardless, so reading
+## `move_speed` here would silently retune two classes that are already measured.
 func _drive_fish(body: ActiveRigBody2D, input_vector: Vector2) -> String:
 	if is_in_water():
 		# Full weight, and let the water do the rest. Zeroing gravity here pinned the fish
@@ -499,15 +506,23 @@ func _drive_fish(body: ActiveRigBody2D, input_vector: Vector2) -> String:
 		# instead of using it. At its own weight against the pool's lift it sinks from the
 		# surface and settles a little under halfway down, and a held direction takes it
 		# anywhere from there -- which is a fish, rather than a sprite on the surface.
-		_set_rig_gravity(1.0)
-		body.linear_damp = 1.5
+		#
+		# `swim_gravity` is how a class becomes more or less buoyant than that WITHOUT
+		# touching WaterArea2D.buoyancy, which is the pool's property and is shared by every
+		# body in it -- and without the `self_buoyant` meta, which the boats already own.
+		_set_rig_gravity(_profile_float("swim_gravity", 1.0))
+		body.linear_damp = _profile_float("swim_damp", 1.5)
 		if input_vector.length() > 1.0:
 			input_vector = input_vector.normalized()
-		var target := input_vector * 260.0
-		_rig_force((target - body.linear_velocity) * 7.0)
+		var target := input_vector * _profile_float("swim_speed", 260.0)
+		_rig_force((target - body.linear_velocity) * _profile_float("swim_accel", 7.0))
 		if input_vector.length() > 0.1:
 			var desired := input_vector.angle()
-			body.apply_torque(clampf(wrapf(desired - body.rotation, -PI, PI) * 900.0 - body.angular_velocity * 90.0, -1800.0, 1800.0))
+			var turn_limit := _profile_float("turn_limit", 1800.0)
+			body.apply_torque(clampf(
+				wrapf(desired - body.rotation, -PI, PI) * _profile_float("turn_torque", 900.0)
+					- body.angular_velocity * _profile_float("turn_damp", 90.0),
+				-turn_limit, turn_limit))
 		return "swim" if input_vector.length() > 0.05 else "idle"
 	_set_rig_gravity(1.0)
 	body.linear_damp = 0.25

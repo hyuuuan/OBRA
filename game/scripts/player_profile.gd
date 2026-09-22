@@ -16,7 +16,7 @@ extends Node
 signal profile_changed
 signal settings_changed(key: String, value: Variant)
 
-const PROFILE_PATH := "user://profile.json"
+const UserData := preload("res://scripts/user_data.gd")
 const ENTITIES_PATH := "res://config/entities.json"
 const SCHEMA_VERSION := 5
 const DEFAULT_ROSTER_SIZE := 50
@@ -26,6 +26,10 @@ const DEFAULT_ROSTER_SIZE := 50
 ## with nothing unlocked and nothing damaged.
 const MIGRATABLE_SCHEMAS := [1, 2, 3, 4]
 const ROUTES := ["artist", "pragmatist", "protector"]
+## The Hidden Flowers, one per level, by the collectible id each level records. Spelled as the
+## saves already hold them, so they stay inconsistent rather than orphan a found flower. A
+## level that adds a flower adds its id here, or the flower counts for nothing.
+const FLOWER_IDS := ["flower_1", "L2_HF", "L3_HF"]
 
 ## Every setting the player can change, with its default. Nothing outside this list
 ## is storable: a typo must not quietly grow the save, because each key written here
@@ -40,6 +44,9 @@ const SETTING_DEFAULTS := {
 	"fullscreen": false,
 }
 
+## user://profile.json when a player runs the game; a test run's own copy otherwise, so no
+## suite can start from, or leave behind, anybody's real progress. See user_data.gd.
+var profile_path: String = UserData.path("profile.json")
 var _data: Dictionary = {}
 var _roster_ids: Dictionary = {}  # entity_id -> true, the recognised class roster
 var _roster_size: int = DEFAULT_ROSTER_SIZE
@@ -59,6 +66,9 @@ func _default_profile() -> Dictionary:
 		"classes_drawn_accepted": [],    # distinct classes drawn and accepted at least once
 		"acquired_objects": [],          # object/tool ids owned across levels and sessions
 		"brush_acquired": false,         # Lola's brush, taken off the stand in the house
+		"new_brush": false,              # the brush found on Dagat's shore -- ink drains, no clock
+		"lolo_present": true,            # false once he stops at the island and cannot follow
+		"l3_bakunawa": "",               # LIT | EVADED | FOUGHT -- how Dagat's encounter ended
 		"levels_completed": [],
 		"levels_unlocked": [],
 		"routes": {},                    # level_id -> most recent route taken
@@ -76,9 +86,9 @@ func _default_settings() -> Dictionary:
 ## Reload the profile from disk, falling back to a fresh profile on any problem.
 func load_profile() -> void:
 	_data = _default_profile()
-	if not FileAccess.file_exists(PROFILE_PATH):
+	if not FileAccess.file_exists(profile_path):
 		return
-	var text := FileAccess.get_file_as_string(PROFILE_PATH)
+	var text := FileAccess.get_file_as_string(profile_path)
 	if text.is_empty():
 		return
 	var parsed: Variant = JSON.parse_string(text)
@@ -98,7 +108,7 @@ func load_profile() -> void:
 
 ## Persist the profile atomically. Returns true on success.
 func save_profile() -> bool:
-	return _atomic_write(PROFILE_PATH, JSON.stringify(_data, "  "))
+	return _atomic_write(profile_path, JSON.stringify(_data, "  "))
 
 
 # --- Progression -------------------------------------------------------------
@@ -206,6 +216,69 @@ func has_brush() -> bool:
 	return bool(_data.get("brush_acquired", false))
 
 
+## THE SECOND BRUSH, found in the sand on Dagat's shore. It replaces Lola's rather than
+## joining it -- the design considered carrying both and choosing between a clock and a drain,
+## and decided against doubling the tuning surface for a thesis build.
+##
+## ⚠ THIS IS NOT WHAT SWITCHES THE RULES OFF. A level asks _morph_has_a_life(), and the answer
+## is the LEVEL's: a player who has found this and then replays Payyo still gets Payyo's ten
+## seconds, because Payyo is a memory and its rules are not up for revision. What the flag
+## does is mark the point WITHIN Dagat where the drain starts, and carry that state into
+## Levels 4 and 5.
+##
+## No schema bump, for the reason record_brush_acquired gives: an older profile has no such
+## key, _merge_defaults supplies the default, and "has not found it" is exactly true.
+func record_new_brush() -> void:
+	if has_new_brush():
+		return
+	_data["new_brush"] = true
+	_commit()
+
+
+func has_new_brush() -> bool:
+	return bool(_data.get("new_brush", false))
+
+
+## Lolo stops at the island at the end of Dagat, because beyond it is past what he remembers.
+## Dilim is unguided and that is the point, so Level 4 has to carry its own signposting.
+##
+## Defaults TRUE, which is the only safe direction: every profile written before this existed
+## is one where he is still walking beside the apo.
+func record_lolo_departed() -> void:
+	if not lolo_is_present():
+		return
+	_data["lolo_present"] = false
+	_commit()
+
+
+func lolo_is_present() -> bool:
+	return bool(_data.get("lolo_present", true))
+
+
+## How Dagat's one encounter ended: LIT, EVADED or FOUGHT. Kept because the later levels may
+## want to remember what the apo did to something that was never attacking them on purpose,
+## and because the flower hangs off exactly one of the three.
+##
+## ⚠ NOT WHERE THE ARCHETYPE GOES. The tally lives in routes/route_counts and only accepts
+## artist, pragmatist and protector; record_route silently drops anything else. This is the
+## narrative fact, and it is recorded ALONGSIDE the route rather than instead of it.
+const BAKUNAWA_OUTCOMES := ["LIT", "EVADED", "FOUGHT"]
+
+
+func record_bakunawa(outcome: String) -> void:
+	if outcome not in BAKUNAWA_OUTCOMES:
+		push_warning("PlayerProfile: '%s' is not a bakunawa outcome" % outcome)
+		return
+	if bakunawa_outcome() == outcome:
+		return
+	_data["l3_bakunawa"] = outcome
+	_commit()
+
+
+func bakunawa_outcome() -> String:
+	return String(_data.get("l3_bakunawa", ""))
+
+
 func acquired_objects() -> Array:
 	return (_data["acquired_objects"] as Array).duplicate()
 
@@ -299,6 +372,20 @@ func is_collectible_found(collectible_id: String) -> bool:
 
 func collectible_count() -> int:
 	return (_data["collectibles"] as Array).size()
+
+
+## How many of the Hidden Flowers have been found -- which is NOT collectible_count(). The
+## brass key is a collectible too, and counting every collectible let it stand in for a
+## flower: the ending screen told a player holding one flower they had found two, and the
+## Masterpiece's five-flower condition could be met with four. Only the ids in FLOWER_IDS
+## count.
+func flower_count() -> int:
+	var found: Array = _data["collectibles"]
+	var count := 0
+	for flower_id in FLOWER_IDS:
+		if found.has(flower_id):
+			count += 1
+	return count
 
 
 # --- Settings ----------------------------------------------------------------

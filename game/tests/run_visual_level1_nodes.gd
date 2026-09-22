@@ -31,9 +31,9 @@ func _initialize() -> void:
 func _run() -> void:
 	# A profile from an earlier run arrives with tags already unlocked and the canvas
 	# already creased. The frames are supposed to be a first playthrough.
-	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://profile.json"))
 	var profile := root.get_node_or_null("PlayerProfile")
 	if profile != null:
+		DirAccess.remove_absolute(String(profile.get("profile_path")))
 		profile.call("load_profile")
 
 	for route in ["artist", "pragmatist", "protector"]:

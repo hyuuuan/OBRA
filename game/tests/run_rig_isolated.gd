@@ -46,20 +46,38 @@ func _probe(entity_id: String, label: String, fixture: Array) -> void:
 	instance.call("apply_drawing", _blank_image(), fixture)
 	var anchor := skin.get_primary_body()
 
-	for _f in range(400):
+	# LANDING IS NOT COLLAPSING. Every creature here is dropped 150 px onto the floor, and
+	# righting itself out of that drop is the recovery working, not a rig that cannot stand:
+	# the stick figure -- the shape players actually draw -- took two, at 0.6 s and 1.5 s,
+	# then stood untouched for the remaining five seconds with its torso at 43 of a 44 px
+	# stand height and no tilt at all, and this called it a collapse. What "runaway recovery"
+	# means is a creature that has to be picked up AGAIN once it is settled, so the count that
+	# matters is the one after the drop is over.
+	for _f in range(150):
+		await physics_frame
+	var settled_recoveries := skin.debug_recovery_count()
+
+	for _f in range(250):
 		await physics_frame
 
-	# A creature that stands (rather than pancaking onto its own body) keeps its
-	# torso well above the floor, stays upright, and does not need runaway recovery.
+	# A creature that stands (rather than pancaking onto its own body) keeps its torso well
+	# above the floor, stays upright, and needs no further recovery once it has settled.
 	var torso_above := floor_top - anchor.global_position.y
 	var tilt := absf(rad_to_deg(anchor.rotation))
-	var recov := skin.debug_recovery_count()
+	var recov := skin.debug_recovery_count() - settled_recoveries
 	var stand_height := float(skin.get("_stand_height"))
-	var ok := torso_above > stand_height * 0.6 and tilt < 30.0 and recov <= 1
+	# ⚠ A STAND HEIGHT OF -1 MEANS THE RIG NEVER WORKED ONE OUT, and every comparison below
+	# is against a negative number, which anything clears. A flat line of strokes lying on the
+	# floor -- torso 2 px up, no legs, no stand height -- was reported as standing. Nothing
+	# here is a swimmer, and a creature that is meant to stand and cannot say how tall it
+	# stands has already failed.
+	var ok := stand_height > 0.0 and torso_above > stand_height * 0.6 and tilt < 30.0 \
+		and recov == 0
 	if not ok:
 		_failed = true
-	print("%-9s torso_above_floor=%3.0f (stand_height=%2.0f) tilt=%2.0f recov=%d  -> %s" % [
-		label, torso_above, stand_height, tilt, recov, "STAND" if ok else "COLLAPSE"])
+	print("%-9s torso_above_floor=%3.0f (stand_height=%2.0f) tilt=%2.0f recov=%d after settling (%d landing)  -> %s" % [
+		label, torso_above, stand_height, tilt, recov, settled_recoveries,
+		"STAND" if ok else "COLLAPSE"])
 	instance.queue_free()
 	world.queue_free()
 	await process_frame

@@ -1,0 +1,387 @@
+{
+  "$comment": [
+    "LEVEL 3 -- DAGAT. Lolo's lines, and the apo's own at the two forks.",
+    "",
+    "\u26a0 NO LINE MAY NAME A DRAWABLE CLASS, and this level is where that rule is hardest.",
+    "Seventeen of the fifty are things you would reach for writing about the sea: fish,",
+    "shark, octopus, crab, sea turtle, penguin, frog, sun, cloud, sailboat, submarine,",
+    "flashlight, sword, axe, cannon, boomerang, anvil. The check is word-boundary and",
+    "case-insensitive, over text AND choice_label, and run_level3_audit.gd runs it.",
+    "",
+    "The fun facts in the coral field belong to the NON-drawable set on purpose -- jellyfish,",
+    "starfish, clam, seaweed, urchin -- which is both the design's instruction and the only",
+    "way a field of sea creatures can be written at all.",
+    "",
+    "WHAT IS NOT HERE YET: the two lore scenes in full, and the island. They are deferred",
+    "with the routes that carry them, and the hooks they will need are not authored in",
+    "advance -- an unreachable line is an audit failure, not a placeholder."
+  ],
+  "level_id": "level_3",
+  "design_level_id": "L3_DAGAT",
+  "speaker_default": "lolo",
+  "language": "en",
+  "lines": [
+    {
+      "id": "L3_B0_001",
+      "at": "L3_B0_SHORE.enter",
+      "kind": "lore",
+      "text": "She painted this one standing about where you are. She told me the water here never looked the same way twice, and she was going to keep at it until it did."
+    },
+    {
+      "id": "L3_B0_002",
+      "at": "L3_B0_SHORE.teach",
+      "kind": "hint",
+      "text": "There is something in the wet sand, apo. It has been catching the morning since we came over the dune."
+    },
+    {
+      "id": "L3_B0_003",
+      "at": "L3_B0_SHORE.sub1",
+      "kind": "hint",
+      "text": "No counting down any more. Hold a shape as long as you like \u2014 but it drinks the whole time it is holding. Something that can **swim**, and get into the shallows with it."
+    },
+    {
+      "id": "L3_B0_004",
+      "at": "on_first_decline",
+      "kind": "lore",
+      "text": "Not because you drew it badly. I could not tell it apart from something else, and I would rather say so than guess at you."
+    },
+    {
+      "id": "L3_B0_005",
+      "at": "after_first_decline_solved",
+      "kind": "lore",
+      "text": "There. That one I am sure of."
+    },
+    {
+      "id": "L3_B0_006",
+      "at": "L3_B0_SHORE.sub1.solved",
+      "kind": "hint",
+      "text": "Feel that? It is going down while you stand there. It will not stop going down until you are yourself again."
+    },
+    {
+      "id": "L3_B0_007",
+      "at": "L3_B0_SHORE.sub1.solved",
+      "kind": "lore",
+      "text": "Her old one gave you a moment and took it back. This one gives you as long as you can pay for. I am not sure yet which of those is kinder."
+    },
+    {
+      "id": "L3_N1_001",
+      "at": "L3_N1.enter",
+      "kind": "lore",
+      "text": "That is the whole of it, then. She never painted the far side, so I do not know what is standing on it."
+    },
+    {
+      "id": "L3_N1_002",
+      "at": "L3_N1.teach",
+      "kind": "hint",
+      "text": "Two ways across that I can see. Something that can **swim** will take you under it."
+    },
+    {
+      "id": "L3_N1_003",
+      "at": "L3_N1.teach",
+      "kind": "hint",
+      "text": "Or walk the sand a while first. Things wash up here. They always did."
+    },
+    {
+      "id": "L3_N1_004",
+      "at": "L3_N1.choice",
+      "kind": "lore",
+      "text": "So. Over it, or under it?"
+    },
+    {
+      "id": "L3_N1_005",
+      "at": "L3_N1.artist.commit",
+      "speaker": "apo",
+      "choice_label": "I will walk the sand first.",
+      "text": "I will walk the sand first. You said things wash up."
+    },
+    {
+      "id": "L3_N1_006",
+      "at": "L3_N1.pragmatist.commit",
+      "speaker": "apo",
+      "choice_label": "I will go under it.",
+      "text": "I will go under it. It is faster and I can see where I am going."
+    },
+    {
+      "id": "L3_N1_007",
+      "at": "L3_N1.artist.solved",
+      "kind": "lore",
+      "text": "Hah. Somebody left that and never came back for it. Push off, apo \u2014 I will sit at this end and keep out of your way."
+    },
+    {
+      "id": "L3_N1_008",
+      "at": "L3_N1.pragmatist.solved",
+      "kind": "lore",
+      "text": "Go on then. I will keep up. I am not carrying anything any more, so it is easy for me."
+    },
+    {
+      "id": "L3_N2_001",
+      "at": "L3_N2.enter",
+      "kind": "lore",
+      "text": "Wait. Wait. Do you see how it is going \u2014 back and forth over the same stretch, over and over? It is not hunting us. It has lost something."
+    },
+    {
+      "id": "L3_N2_002",
+      "at": "L3_N2.enter",
+      "kind": "lore",
+      "text": "It cannot see, apo. Not a thing. And there is something about its eyes that I know and cannot put down."
+    },
+    {
+      "id": "L3_N2_003",
+      "at": "L3_N2.teach",
+      "kind": "hint",
+      "text": "Something that can throw **light** would show it where to look. Something that can **strike** would make it stop."
+    },
+    {
+      "id": "L3_N2_004",
+      "at": "L3_N2.teach",
+      "kind": "hint",
+      "text": "Or nothing at all. It cannot see you either \u2014 keep out of the bright and it will never know you went by."
+    },
+    {
+      "id": "L3_N2_005",
+      "at": "L3_N2.choice",
+      "kind": "lore",
+      "text": "It cannot see. So what do we do about that?"
+    },
+    {
+      "id": "L3_N2_006",
+      "at": "L3_N2.artist.commit",
+      "speaker": "apo",
+      "choice_label": "I will show it where to look.",
+      "text": "I will show it where to look. It has been at this a long time."
+    },
+    {
+      "id": "L3_N2_007",
+      "at": "L3_N2.pragmatist.commit",
+      "speaker": "apo",
+      "choice_label": "I will go around it.",
+      "text": "I will go around it. It is not looking for me."
+    },
+    {
+      "id": "L3_N2_008",
+      "at": "L3_N2.protector.commit",
+      "speaker": "apo",
+      "choice_label": "I will put myself between it and you.",
+      "text": "I will put myself between it and you. It is big and it is frightened and I do not trust it."
+    },
+    {
+      "id": "L3_N2_009",
+      "at": "L3_N2.artist.solved",
+      "kind": "lore",
+      "text": "Look at it go. It had been over that same patch a hundred times and it only needed somebody to hold something up. Oh \u2014 apo. It is giving it to you."
+    },
+    {
+      "id": "L3_N2_010",
+      "at": "L3_N2.pragmatist.solved",
+      "kind": "lore",
+      "text": "Good. Quiet. Keep going and do not turn round."
+    },
+    {
+      "id": "L3_N2_011",
+      "at": "L3_N2.pragmatist.solved",
+      "kind": "lore",
+      "text": "It is still back there, still going over the same stretch. It will be there when we are gone."
+    },
+    {
+      "id": "L3_N2_012",
+      "at": "L3_N2.protector.solved",
+      "kind": "lore",
+      "text": "It has had enough. Let it go, apo \u2014 let it go. It never knew you were there. That is the part I want you to keep."
+    },
+    {
+      "id": "L3_ISL_001",
+      "at": "ISLAND.enter",
+      "kind": "lore",
+      "text": "There. In the sand, where the light is catching it. That is the next one."
+    },
+    {
+      "id": "L3_ISL_002",
+      "at": "ISLAND.how_he_died",
+      "kind": "lore",
+      "text": "I should tell you the rest of it, before you go on. It happened out there, past where we came in. An afternoon like any other."
+    },
+    {
+      "id": "L3_ISL_003",
+      "at": "ISLAND.how_he_died",
+      "kind": "lore",
+      "text": "I did not get to say anything to anybody. That is the part I would change, if I were allowed to change one part."
+    },
+    {
+      "id": "L3_ISL_004",
+      "at": "ISLAND.about_lola",
+      "kind": "lore",
+      "text": "And your lola kept painting. This same water, from that same stretch of sand, over and over."
+    },
+    {
+      "id": "L3_ISL_005",
+      "at": "ISLAND.about_lola",
+      "kind": "lore",
+      "text": "Every one of them came out a little further from what it looks like. She does not always know me now, apo. She still knows which end of the handle to hold."
+    },
+    {
+      "id": "L3_ISL_006",
+      "at": "ISLAND.farewell",
+      "kind": "lore",
+      "text": "This is where I stop."
+    },
+    {
+      "id": "L3_ISL_007",
+      "at": "ISLAND.farewell",
+      "kind": "lore",
+      "text": "Past here I do not remember. I was not there for it, so there is nothing of me in it to walk through \u2014 you would be going on alone whether I came or not."
+    },
+    {
+      "id": "L3_ISL_008",
+      "at": "ISLAND.farewell",
+      "kind": "lore",
+      "text": "Go on, apo. I will be in the parts I know."
+    },
+    {
+      "id": "L3_CORAL_JELLY",
+      "at": "CORAL.jelly",
+      "kind": "hint",
+      "once": true,
+      "text": "That one has no heart and no brain and it has been down here longer than anything else. It simply is, and it has never needed to be more."
+    },
+    {
+      "id": "L3_CORAL_STAR",
+      "at": "CORAL.star",
+      "kind": "hint",
+      "once": true,
+      "text": "Turn it over some time. Hundreds of little feet, all of them walking. Take an arm off it and it grows another."
+    },
+    {
+      "id": "L3_CORAL_CLAM",
+      "at": "CORAL.clam",
+      "kind": "hint",
+      "once": true,
+      "text": "It shuts when the light changes. That is the whole of its opinion about the world, and it has never once been talked out of it."
+    },
+    {
+      "id": "L3_CORAL_WEED",
+      "at": "CORAL.weed",
+      "kind": "hint",
+      "once": true,
+      "text": "Hold onto that if a current takes you, apo. It is anchored better than you are."
+    },
+    {
+      "id": "L3_CORAL_URCHIN",
+      "at": "CORAL.urchin",
+      "kind": "hint",
+      "once": true,
+      "text": "Do not. I am serious. Do not."
+    },
+    {
+      "id": "L3_CORAL_CORAL",
+      "at": "CORAL.coral",
+      "kind": "hint",
+      "once": true,
+      "text": "All of this is alive. Every bit of it. It looks like stone because it builds in stone, the way a town does."
+    },
+    {
+      "id": "L3_CORAL_SHAFT",
+      "at": "CORAL.shaft",
+      "kind": "hint",
+      "once": true,
+      "text": "Look up. That is the whole top of the world from down here. Not much to it, is there."
+    },
+    {
+      "id": "L3_CORAL_WRECK",
+      "at": "CORAL.wreck",
+      "kind": "hint",
+      "once": true,
+      "text": "Somebody lost that. Things down here belong to whoever lost them, and nobody comes to argue."
+    },
+    {
+      "id": "L3_CORAL_LOLA1",
+      "at": "CORAL.lola1",
+      "kind": "hint",
+      "once": true,
+      "text": "Your lola sat out on that sand for a week trying to get this colour. She said the water would not hold still for her."
+    },
+    {
+      "id": "L3_CORAL_LOLA2",
+      "at": "CORAL.lola2",
+      "kind": "hint",
+      "once": true,
+      "text": "She could name every one of these. I only ever learned the ones she told me twice."
+    },
+    {
+      "id": "L3_BOAT_001",
+      "at": "L3_BOAT.lore1",
+      "kind": "lore",
+      "once": true,
+      "text": "Row. Do not fight it \u2014 let the water carry some of the work, it is going that way anyway."
+    },
+    {
+      "id": "L3_BOAT_002",
+      "at": "L3_BOAT.lore2",
+      "kind": "lore",
+      "once": true,
+      "text": "You are sitting where I sat. I did this stretch a hundred times and never once looked at it properly."
+    },
+    {
+      "id": "L3_BOAT_003",
+      "at": "L3_BOAT.lore3",
+      "kind": "lore",
+      "once": true,
+      "text": "It was out past here. Further than you have been. An ordinary afternoon \u2014 that is the part nobody believes, and it is the only part that matters."
+    },
+    {
+      "id": "L3_BOAT_004",
+      "at": "L3_BOAT.lore4",
+      "kind": "lore",
+      "once": true,
+      "text": "I went over and I did not come up. There is no more to it than that. Nothing to see coming, and I have had a long time to look for one."
+    },
+    {
+      "id": "L3_BOAT_005",
+      "at": "L3_BOAT.lore5",
+      "kind": "lore",
+      "once": true,
+      "text": "Keep rowing, apo. I am glad you are here and I would rather you did not stop."
+    },
+    {
+      "id": "L3_BOAT_006",
+      "at": "L3_BOAT.shadow",
+      "kind": "lore",
+      "once": true,
+      "text": "Stop. Stop rowing \u2014 look down."
+    },
+    {
+      "id": "L3_BOAT_007",
+      "at": "L3_BOAT.shadow",
+      "kind": "lore",
+      "once": true,
+      "text": "Something long went under us. It is going round and round on the same stretch, the way a person does when they have lost something in the house."
+    },
+    {
+      "id": "L3_DIVE_001",
+      "at": "L3_DIVE.lore1",
+      "kind": "hint",
+      "once": true,
+      "text": "Keep going. I can talk and you can swim, it is easier that way round."
+    },
+    {
+      "id": "L3_DIVE_002",
+      "at": "L3_DIVE.lore2",
+      "kind": "hint",
+      "once": true,
+      "text": "Your lola was never the same after. I want to be careful how I put that."
+    },
+    {
+      "id": "L3_DIVE_003",
+      "at": "L3_DIVE.lore3",
+      "kind": "hint",
+      "once": true,
+      "text": "She kept painting. The same water, from the same stretch of sand, year on year."
+    },
+    {
+      "id": "L3_DIVE_004",
+      "at": "L3_DIVE.lore4",
+      "kind": "hint",
+      "once": true,
+      "text": "Now she does not always know me. She still knows which end of the handle to hold."
+    }
+  ]
+}

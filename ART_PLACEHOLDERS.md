@@ -236,6 +236,51 @@ would rather use it than borrow the rice and mud tiles they use today.
 
 ---
 
+## Dagat — what is painted, and the six things that are not
+
+**Updated 21 September.** Level 3's art arrived as 79 files and is in: three parallax bands
+(the shore by day, the same sea under a storm, the deep), coral and kelp that sway, bubbles,
+fish schools, and the bakunawa itself in 23 poses. `tools/build_dagat.py` cuts the delivery
+into `game/assets/Level3/` and **fails if any delivered file is left unused**.
+
+One prop is **authored rather than delivered**: the ink jar on the seabed
+(`tools/build_dagat_props.py`). The underwater plate has those jars painted into it — pale
+glass, dark cap, blue drop — but they do not ship as a sprite, and the refills were purple
+diamonds. Drawn in this project's own 8-bit idiom through `pixelart.py`, at `PX = 3` because
+at the library's default of 2 it reads as a different game's prop beside art drawn this fine.
+It lives in `assets/Level3/authored/` so the generated pipeline cannot delete it.
+
+**Also authored (22 September): the rock the land stands on under the water** —
+`shelf_fill.png` and `shelf_face.png`, same tool, same idiom. The sand plate stops 150 pixels
+under the walking surface and the sea goes down a thousand more, and the delivery has no land
+seen from the side, so the beach floated over the ruins. The fill's top row is the sand plate's
+own last row; its colours are read off the terraces. **A good candidate for the art team to
+replace**: the contract is a column that tiles sideways, starting at the sand plate's bottom
+edge (world y 711) and running to the seabed (1709) and a little past it, plus a seaward face
+whose rock edge sits on the land's collision edge (x 1000 at home, 4500 at the island,
+mirrored). The island uses the same shore plates as the home beach, mirrored; a painting of
+its own would replace a row in `DagatBackdrop2D.BANDS`, not the scene.
+
+**And the small lives** (same tool): gull (4 frames), jelly (4), starfish (2), clam (3), urchin
+(2), foam (3), splash (3), wake (3), bubble (2), spark (4). All replaceable by name — a painted
+set with the same prefixes and frame counts drops straight in, since `DagatLife2D` and
+`DagatProp2D` find frames by prefix.
+
+**Still a developer's rectangles, in the order they are met:**
+
+| What | Where | What the player has to understand |
+|---|---|---|
+| **The new paintbrush** | Shore, `BrushMark`, a yellow quad ~50×30 | Something is lying in the wet sand that is worth picking up, and it is a *tool* — not a shell |
+| **The beached bangka** | Shore, `BangkaMark`, a brown trapezium ~140×26 | A boat somebody left, upside down on the sand, big enough to get into |
+| **The launched bangka** | In the water past the waterline | It is the same boat, now afloat and boardable. Currently the engine's drawn-object outline, because a found boat has no player strokes to build a skin from |
+| **The bakunawa's treasure** | What it uncovers on the Artist route | It is *something the player recognises* — the design asks for an object from Level 1's house, not a chest |
+| **The next painting** | Island, `IslandMark` | The thing they crossed the sea for, glittering in the sand |
+| **Lolo's farewell pose** | Island | He stops, and it is the last thing in the level. The design asks for the existing wave pose rather than a new one |
+
+**The sweep cone is not on this list and must not be.** It is drawn in code because it *is*
+the stealth rule — the thing `sees()` answers about — and a boundary the player cannot see is
+one they learn by being put back. Art may restyle it; it may not replace it with lighting.
+
 ## Where to start
 
 1. **The bulul** — small, the one with the least room for error, and the only prop here

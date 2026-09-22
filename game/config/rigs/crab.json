@@ -20,5 +20,7 @@
   "air_splay_degrees": 8,
   "tilt_degrees": 2.0,
   "landing_squash": 0.12,
-  "can_climb_walls": true
+  "can_climb_walls": true,
+  "can_swim": true,
+  "swim_speed": 170
 }

@@ -3,8 +3,8 @@
     "WHAT THE GAME TEACHES ABOUT ITSELF, and when.",
     "",
     "Level 1 is the tutorial and it was never teaching anything. The controls screen",
-    "under the pause menu is a REFERENCE — a player has to already suspect a verb",
-    "exists before they will go looking for it there — and ActionPromptHUD shows four",
+    "under the pause menu is a REFERENCE \u2014 a player has to already suspect a verb",
+    "exists before they will go looking for it there \u2014 and ActionPromptHUD shows four",
     "key caps (R, Q, E, F) with no words around them. Movement, jumping, the mouse that",
     "does all of placement, the bag, and the fact that a drawing is on a clock were",
     "never said anywhere. Lolo is standing right there and is the reason the game has a",
@@ -16,7 +16,7 @@
     "",
     "KEYS ARE NOT WRITTEN HERE. `{keys}` is filled at runtime from the live InputMap via",
     "ControlsOverlay.keys_for, so a rebinding cannot leave a lesson naming a key that no",
-    "longer does anything — the same split controls.json already makes, for the same",
+    "longer does anything \u2014 the same split controls.json already makes, for the same",
     "reason. Use `action` for one key, plus `through` for a contiguous block (the six",
     "inventory slots are one idea to the player, not six), or `keys` to name something",
     "the InputMap does not hold, which is the whole mouse.",
@@ -201,9 +201,72 @@
       ],
       "canvas_briefing": [
         "Her canvas, apo. What you draw on it, this place believes.",
-        "Draw with the mouse. The ink is measured — do not waste it.",
+        "Draw with the mouse. The ink is measured \u2014 do not waste it.",
         "Then Transform. I will say what I think it is, and how sure I am.",
         "If I am not sure enough I will say so, and it costs you nothing."
+      ]
+    },
+    "level_3": {
+      "$comment": [
+        "DAGAT TEACHES ONE THING, AND IT REPLACES SOMETHING THE PLAYER ALREADY LEARNED.",
+        "",
+        "Level 1 taught 'that bar is the drawing's life, apo -- it runs out'. Dagat takes the",
+        "clock away and charges ink instead, and a player who has been told the first thing and",
+        "not the second will read a draining bar as the same ten seconds and plan against a",
+        "rule that no longer exists.",
+        "",
+        "\u26a0 NONE OF THESE FIRE FROM MorphLife. level_1's 'clock' and 'life' lessons hang on",
+        "morph_running and morph_low, which LevelBase notes from _on_life_changed -- and Dagat",
+        "answers _morph_has_a_life() with false, so that signal never comes. level_3.gd emits",
+        "its own events off InkDrain instead. An event nothing notes is a lesson nobody gets.",
+        "",
+        "The shore is where all of this lands, before the fork. The design is firm about why:",
+        "once the player is underwater, learning the ink rule by running out of it is a",
+        "punishment rather than a lesson."
+      ],
+      "speaker_default": "lolo",
+      "lessons": [
+        {
+          "id": "new_brush",
+          "at": "new_brush_taken",
+          "text": "Hers counted you down. This one does not count at all.",
+          "seconds": 7.0
+        },
+        {
+          "id": "drain",
+          "at": "ink_draining",
+          "after": "new_brush",
+          "text": "That bar is your ink now, apo. It goes down the whole time you are holding the shape.",
+          "seconds": 8.0,
+          "anchor": "morph_card",
+          "side": "auto"
+        },
+        {
+          "id": "revert_is_free",
+          "at": "ink_draining",
+          "after": "drain",
+          "action": "revert_form",
+          "text": "{keys} puts you back, and stops it going down. Changing back never costs.",
+          "seconds": 7.0
+        },
+        {
+          "id": "refill",
+          "at": "ink_low",
+          "text": "You are nearly out. It does not come back on its own out here \u2014 you have to find more of it.",
+          "seconds": 8.0
+        },
+        {
+          "id": "no_drowning",
+          "at": "ink_emptied",
+          "text": "Up you come. You lost the crossing, not anything else. Go again.",
+          "seconds": 7.0
+        },
+        {
+          "id": "belongs_down_here",
+          "at": "underwater",
+          "text": "Only what belongs down here will hold, apo. Anything else will start drowning on you.",
+          "seconds": 8.0
+        }
       ]
     }
   }

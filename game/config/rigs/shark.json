@@ -6,10 +6,17 @@
   "joint_spring": 900,
   "joint_damping": 54,
   "joint_torque_limit": 2200,
-  "target_size": [156, 82],
+  "target_size": [
+    156,
+    82
+  ],
   "align": "center",
   "swim_style": "swim",
   "wave_length": 82,
   "wave_amplitude": 6.0,
-  "head_direction": [1, 0]
+  "head_direction": [
+    1,
+    0
+  ],
+  "swim_speed": 340
 }

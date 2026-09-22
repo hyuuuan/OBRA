@@ -54,6 +54,19 @@ const CLOCK_FREEZE_SECONDS := 4.0
 const WEATHER_RADIUS := 220.0
 ## How fast a drawn hull will go, however long the player holds the stick.
 const VEHICLE_TOP_SPEED := 240.0
+## How far below the surface a sailboat's middle rides, and how firmly it is held there.
+## The spring is stiff enough that the leftover 18% of gravity sags it under a pixel, and the
+## damping lets it settle in a bob or two instead of ringing.
+const HULL_DRAFT := 10.0
+## ⚠ A LEVEL MAY KEEP A PASSENGER ABOARD, and Dagat does while there is open sea under the
+## hull. E gets off a boat anywhere, and getting off in the middle of the sea puts an apo with
+## no body in deep water -- the drowning rescue fires, and the checkpoint it restores is from
+## before the boat was found. The level decides where getting off is sensible; the boat only
+## has to refuse, and say why.
+var holds_passenger := false
+var hold_note := ""
+const HULL_SPRING := 40.0
+const HULL_BOB_DAMP := 6.0
 
 var utility_behavior: String = ""
 var required_medium: String = "any"
@@ -140,6 +153,10 @@ func interact(actor: Node2D) -> void:
 		return
 	if utility_behavior in ["sailboat", "submarine"] and _is_in_water():
 		if _boarded_actor == actor:
+			if holds_passenger:
+				if not hold_note.is_empty():
+					interaction_note.emit(hold_note)
+				return
 			_unboard_actor()
 			return
 		_board_actor(actor)
@@ -538,6 +555,19 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	state.apply_central_force(-state.total_gravity * mass * 0.82)
 	state.apply_central_force(-velocity * mass * 2.4)
 	state.apply_torque(-state.angular_velocity * mass * 1.8)
+	# ⚠ A SAILBOAT RIDES THE SURFACE; IT DOES NOT MERELY SINK SLOWLY. Cancelling 82% of
+	# gravity leaves 18% pulling down with nothing pushing back, which is a sink rate of about
+	# twelve pixels a second against the drag -- invisible over the few seconds any pool in
+	# Payyo is crossed in, and fatal over Dagat's four thousand pixels: halfway across, the
+	# passenger went under, the drowning rescue fired, and the checkpoint it restored took the
+	# boat away with it. A spring to the waterline holds it there and lets it bob. The
+	# submarine is left alone -- going down is its job.
+	if utility_behavior == "sailboat":
+		var water := get_meta(&"water_area", null) as Node2D
+		if water != null and is_instance_valid(water) and water.has_method("surface_y"):
+			var sag := float(water.call("surface_y")) + HULL_DRAFT - state.transform.origin.y
+			state.apply_central_force(
+				Vector2(0.0, (sag * HULL_SPRING - velocity.y * HULL_BOB_DAMP) * mass))
 	# A hull has a top speed. Clamped HERE and not in _physics_process, because a write
 	# to linear_velocity outside the physics callback is overwritten by the solver --
 	# which is why the cap did nothing and the boat crossed the level in two seconds.
@@ -967,6 +997,25 @@ func _ignore_collisions_with(actor: Node2D, ignore: bool) -> void:
 		body.remove_collision_exception_with(self)
 
 
+## Put whoever is aboard ashore. For a level that moves the passenger somewhere itself --
+## Dagat lands the apo on the island's sand -- and must not have the hull seat them back on
+## the deck on the very next physics frame, which is what _seat_carried_actor exists to do.
+func release_passenger() -> void:
+	_unboard_actor()
+
+
+## True when E boards this rather than picking it up: a vessel, in the water. The prompt asks,
+## so it can say BOARD instead of PICK UP -- interact() is where the same rule is acted on.
+func boards_on_interact() -> bool:
+	return utility_behavior in ["sailboat", "submarine"] and _is_in_water()
+
+
+func has_passenger(actor: Node2D = null) -> bool:
+	if _boarded_actor == null or not is_instance_valid(_boarded_actor):
+		return false
+	return actor == null or actor == _boarded_actor
+
+
 func _unboard_actor() -> void:
 	if _boarded_actor != null and is_instance_valid(_boarded_actor):
 		_ignore_collisions_with(_boarded_actor, false)
@@ -1031,6 +1080,14 @@ func _set_light_active(enabled: bool) -> void:
 		_light_cone.visible = enabled
 	if _point_light != null:
 		_point_light.enabled = enabled
+
+
+## IS THE TOGGLE ON? For the tools in TOGGLE_TOOLS, whose whole behaviour is a state the
+## world may need to ask about -- Dagat's bakunawa sees a lit flashlight from further away
+## than a dark one, which is the design's own "a player who drew a flashlight and then chose
+## to sneak has made the encounter harder for themselves".
+func is_active() -> bool:
+	return _active
 
 
 func _is_in_water() -> bool:

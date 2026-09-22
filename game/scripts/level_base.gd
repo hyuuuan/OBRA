@@ -123,6 +123,74 @@ func _level_physics(_anchor_position: Vector2) -> void:
 	pass
 
 
+## DOES A DRAWING IN THIS LEVEL RUN ON A CLOCK? True everywhere it has ever been true.
+##
+## Payyo and Piyesta price a transformation in seconds: MorphLife.begin is called on every
+## spawn and the MorphCard shows the life draining. Dagat's new brush replaces the clock with
+## a continuous ink drain, so it answers false and nothing starts the timer -- but the answer
+## has to be the LEVEL's, not the brush's, because a player who has found the brush and then
+## replays Payyo must still get Payyo's rules. See InkDrain.
+func _morph_has_a_life() -> bool:
+	return true
+
+
+## DOES THE CAMERA FOLLOW THE PLAYER UP AND DOWN OUTDOORS? False everywhere it has ever been.
+##
+## A level pins the camera near the bottom of its world and lets the player rise off it,
+## which keeps the ground in shot and a jump from swinging the view. That is right for a
+## level whose floor is where the player walks. Dagat's floor is the seabed, eight hundred
+## pixels under the beach the level starts on, so the pinned camera opened the level looking
+## at the ruins with the apo somewhere above the top of the screen. A level that is as tall
+## as it is wide answers true and the camera centres on the player instead.
+func _camera_follows_height() -> bool:
+	return false
+
+
+## THE INK RAN OUT. Return true to say the level has handled it and the generic out-of-ink
+## screen must not open.
+##
+## The default is the advisory overlay: the morph already spawned is still playable and the
+## goal may still be reachable, so it offers Resume, Restart and Level Select rather than
+## ending anything. A level that drains continuously needs its own answer instead -- Dagat's
+## is the design's: revert, carry the apo up to the surface, lose the crossing, never die.
+func _on_ink_emptied() -> bool:
+	return false
+
+
+## WHAT THE RESCUE SAYS WHEN THE APO IS IN WATER WITHOUT A BODY. Two strings: what to say
+## when no checkpoint has been written yet, and a format taking the checkpoint's name.
+##
+## ⚠ THE RESCUE ITSELF IS NOT OPTIONAL, AND THIS HOOK EXISTS BECAUSE TRYING TO MAKE IT
+## OPTIONAL STRANDED A PLAYER. Dagat first answered a `_rescues_a_swimming_apo()` virtual
+## with false, on the reasoning that fishing the apo out of a level that IS the sea would be
+## a rescue loop. It is not a loop: the morph is not a Wanderer, so this never fires while
+## the player has a body, and the only time it CAN fire is when they have none -- which is
+## exactly when they need it. With it switched off, walking off Dagat's shore sank the apo
+## toward a seabed a thousand pixels down, below the fall limit, with no way back up. The
+## one thing the design says must never happen.
+##
+## So what a sea level actually needs is not a way out of the rescue but its own words for
+## it. The default is Payyo's, which names Payyo's plank.
+## IS THIS FORK READY TO BE ASKED? True everywhere it has ever been asked.
+##
+## A dialogue node fires the moment the player walks into it, which is right when everything
+## before it is scenery. Dagat has a tutorial beat between the spawn and its first fork, and
+## a beat that can be walked past is not a beat: the design puts the ink lesson before the
+## crossing precisely so nobody learns the new rule by running out of it underwater.
+##
+## Answering false re-arms the trigger, so a refusal is a "not yet" rather than a fork the
+## player has lost. Say why from inside the override -- this only decides.
+func _dialogue_node_is_ready() -> bool:
+	return true
+
+
+func _drowning_words() -> PackedStringArray:
+	return PackedStringArray([
+		"You cannot swim, apo — put something heavy on that plank",
+		"You cannot swim, apo. Back to %s",
+	])
+
+
 ## The obstacle the scene's DialogueNode2D presents, or "" if the level has none.
 func _dialogue_node_obstacle_id() -> String:
 	return ""
@@ -551,6 +619,9 @@ func _plant_commit_mark(volume: LevelObstacle2D) -> void:
 	var checkpoint_id := String(
 		director.obstacle(volume.obstacle_id).get("checkpoint_on_commit", ""))
 	if checkpoint_id.is_empty():
+		return
+	# Some beats have nowhere to stand a flame. See LevelObstacle2D.plants_commit_mark.
+	if not volume.plants_commit_mark:
 		return
 	var at := Vector2(volume.trigger_size.x * 0.5 - 40.0 + volume.checkpoint_mark_offset, 0.0)
 	var mark := CheckpointLantern2D.plant(volume, at)
@@ -1125,7 +1196,7 @@ func _refresh_room_framing(snap: bool = false) -> void:
 	# a room ended up drawn at the focus's 1.15 instead of the room's 2.
 	world_camera.release_focus(0.0)
 	var inside := room != null
-	world_camera.set_vertical_free(inside,
+	world_camera.set_vertical_free(inside or _camera_follows_height(),
 		float(room.call("eye_level")) if inside else NAN)
 	world_camera.set_base_zoom(float(room.call("how_far_in")) if inside else 1.0)
 	world_camera.set_room_bounds(_camera_rect_for(room) if inside else Rect2())
@@ -1618,7 +1689,14 @@ func _spawn_or_replace(
 	# A NEW LIFE, not the remains of the old one. Drawing a second creature over the first
 	# is a fresh drawing and it starts full -- otherwise the cheapest way to keep a body
 	# alive forever would be to redraw it a second before it died.
-	morph_life.begin(label, entity_id)
+	#
+	# Unless the level has no clock at all. Dagat holds a form for as long as the ink lasts,
+	# and starting the timer there would both revert the player at ten seconds and leave the
+	# MorphCard showing a life bar for a rule that no longer exists.
+	if _morph_has_a_life():
+		morph_life.begin(label, entity_id)
+	else:
+		morph_life.clear()
 	if morph_card != null:
 		morph_card.show_form(label, drawing, _last_confidence)
 	if skin != null and skin.has_method("rig_summary"):
@@ -2274,6 +2352,18 @@ func _use_equipped_utility() -> void:
 		else "%s can't do that here" % item.display_name
 
 
+## What E does to this utility, in the prompt's words. A vessel afloat is boarded and left
+## with E rather than picked up -- see UtilityObject.boards_on_interact.
+func _interact_verb(utility: PhysicsShapeObject) -> String:
+	var vessel := utility as UtilityObject
+	if vessel == null or not vessel.boards_on_interact():
+		return "PICK UP"
+	if vessel.has_passenger(player):
+		# Out at sea there is nowhere to get off to, and a prompt offering it is an invitation.
+		return "" if vessel.holds_passenger else "GET OFF"
+	return "BOARD"
+
+
 ## Availability is refreshed from the same objects the actions use. R is intentionally
 ## absent here because it is always available; the prompt controller keeps it standing.
 func _refresh_action_prompts() -> void:
@@ -2287,10 +2377,12 @@ func _refresh_action_prompts() -> void:
 	action_prompts.set_revert_available(can_act and not (player is Wanderer))
 
 	var pickup: PhysicsShapeObject = _nearest_interactable_utility() if can_act else null
-	var can_pick_up := pickup != null
+	var verb := _interact_verb(pickup)
+	var can_pick_up := pickup != null and not verb.is_empty()
 	action_prompts.set_pickup_available(
 		can_pick_up,
-		_drawing_display_name(pickup) if can_pick_up else "")
+		_drawing_display_name(pickup) if can_pick_up else "",
+		verb if can_pick_up else "PICK UP")
 
 	var can_use := can_act and _equipped_utility != null \
 		and is_instance_valid(_equipped_utility) \
@@ -2915,8 +3007,8 @@ func _physics_process(_delta: float) -> void:
 			# POINTED AT THE ANSWER, not at the problem. It used to say "draw something that
 			# can cross it", which is what the beat asked for when Span came first -- and
 			# Span cannot cross three hundred pixels of water. The way over is the plank.
-			_return_to_safety("You cannot swim, apo — put something heavy on that plank",
-				"You cannot swim, apo. Back to %s")
+			var words := _drowning_words()
+			_return_to_safety(words[0], words[1])
 			return
 	else:
 		_submerged_seconds = 0.0
@@ -2990,8 +3082,21 @@ func _return_to_safety(nothing_written: String, restored_format: String) -> void
 			player.call("apply_morph_state",
 				{"position": spawn_point.global_position, "linear_velocity": Vector2.ZERO})
 		_say_why(nothing_written)
+	elif restored_format.contains("%s"):
+		_say_why(restored_format % _checkpoint_place(restored))
 	else:
-		_say_why(restored_format % restored)
+		# ⚠ ONLY FORMATTED WHEN THERE IS SOMETHING TO FILL. A line with no %s -- Dagat's "It
+		# turned. Back to where you were." -- formatted with the checkpoint anyway raised a
+		# string-formatting error on every stealth and fight reset in the level.
+		_say_why(restored_format)
+
+
+## WHERE A CHECKPOINT IS, IN WORDS A PLAYER WOULD USE. The rescue used to say "Back to CP2",
+## which is the level file's id and means nothing to anyone playing. A level that can name its
+## places does; the rest say "the last checkpoint", which is at least a thing a player can
+## picture.
+func _checkpoint_place(_checkpoint_id: String) -> String:
+	return "the last checkpoint"
 
 
 ## Why the player is suddenly standing somewhere else.
@@ -3348,6 +3453,12 @@ func _requirements_per_route(obstacle_id: String) -> Dictionary:
 ## pausing -- it is a ModalOverlay, and UIRouter derives the tree's pause state from
 ## whoever is open -- so this only has to decide what he asks.
 func _on_dialogue_node_approached() -> void:
+	if not _dialogue_node_is_ready():
+		# NOT YET, rather than never. The trigger disarms itself on the way in, so without
+		# the re-arm a player turned away once has lost the fork for the rest of the run.
+		if dialogue_node != null and dialogue_node.has_method("rearm"):
+			dialogue_node.call("rearm")
+		return
 	if lolo != null and is_instance_valid(lolo):
 		lolo.hush()
 	# Payyo's own script, when it has one. The three buttons are read off the commit
@@ -3467,7 +3578,10 @@ func _complete_level() -> void:
 	# size as walking around. The bars come in on the terrace she is standing on, hold for a
 	# beat with her name for the level in them, and the panel arrives into that.
 	if cinematic != null:
-		cinematic.close("PAYYO")
+		# ⚠ THE LEVEL'S OWN NAME, not Payyo's. This was a literal, so Piyesta closed on a
+		# card reading PAYYO and Dagat would have too -- the one moment the game stops to
+		# acknowledge what the player just finished, naming a different level.
+		cinematic.close(String(LevelManager.get_level(level_id).get("title", "")).to_upper())
 		await get_tree().create_timer(1.1, true, false, true).timeout
 	# The transition used to fire HERE, on the same frame, so the one moment the game
 	# acknowledges the player lasted a frame and was never read. It now waits for them.
@@ -3495,6 +3609,11 @@ func _on_ink_exhausted() -> void:
 	# Advisory, not a loss: the morph already spawned is still playable and the goal
 	# may still be reachable. Not shown once the level is already won.
 	if _level_completed:
+		return
+	# Unless the level has its own answer. A level whose ink drains continuously empties it
+	# as a matter of course, and an overlay offering Restart every time a crossing is lost
+	# would read as a failure screen in a game that does not have one.
+	if _on_ink_emptied():
 		return
 	# And never over the canvas. The last of the ink is spent by a drawing being
 	# accepted, and the panel is still on screen at that moment -- an overlay eight

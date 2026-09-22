@@ -336,18 +336,27 @@ func _check_axe_on_wood() -> void:
 
 ## ⚠ THE ONE CLASS WHOSE CONCEPTNET VERB THE WORLD FLATLY CONTRADICTED. `sea_turtle` is
 ## grounded in ConceptNet as `swim` -- the same relation as fish, octopus and shark -- and it
-## shipped with `rig_type: walker`, so it walked along the bottom of the sea. It is also the
-## reason the class is unhintable: the Swim tag is empty until a later level, and when that
-## level arrives a turtle that walks is the first thing it will reach for.
+## shipped with `rig_type: walker`, so it walked along the bottom of the sea.
 ##
-## The turtle is checked beside a real swimmer, because a row that only tests the fixed class
-## cannot tell "the fix works" from "the harness moves everything".
+## THAT LATER LEVEL HAS ARRIVED. Swim was empty when this check was written and the header
+## said a turtle that walks is the first thing the level filling it would reach for. Dagat
+## fills it with seven, four of which carry land rigs -- crab and sea turtle walk, penguin is
+## a biped, frog is a hopper -- so the cohort is now READ FROM tags.json rather than listed
+## here. An audit that hardcodes the membership it is auditing stops covering the tag the
+## moment somebody adds to it, which is the failure this whole file exists to catch.
+##
+## Read from the raw file, not through AbilityTags: a test that asks the API it is testing
+## whether the API is right cannot fail.
+##
+## Every amphibious member is then checked BACK ON LAND, because `can_swim` routes to the fish
+## drive only while in water -- the point of an amphibious flag rather than `rig_type:
+## swimmer`, which would fix the sea and break the beach.
 func _check_swimmers() -> void:
 	var pool := WaterArea2D.new()
 	pool.surface_size = Vector2(2600.0, 400.0)
 	pool.position = Vector2(1500.0, 300.0)
 	world.add_child(pool)
-	for entity_id: String in ["fish", "sea_turtle"]:
+	for entity_id: String in _swim_tag_members():
 		var swimmer := _creature(entity_id, Vector2(1200.0, 300.0))
 		if swimmer == null:
 			_fail("%s swim" % entity_id, "could not be instantiated")
@@ -374,24 +383,71 @@ func _check_swimmers() -> void:
 		await process_frame
 	pool.queue_free()
 	await process_frame
-	# AND IT STILL HAS ITS LEGS. `can_swim` routes to the fish drive only while in water --
-	# the point of an amphibious flag rather than `rig_type: swimmer`, which would have fixed
-	# the sea and broken the beach, because the fish drive on land is a flop with no
-	# horizontal drive at all.
-	var turtle := _creature("sea_turtle", Vector2(600.0, 560.0))
-	if turtle != null:
+	# AND THEY STILL HAVE THEIR LEGS. The fish drive on land is a flop with no horizontal
+	# drive at all, so a class that gained `can_swim` and lost the beach has been made worse,
+	# not better -- and the shore is where Dagat starts.
+	for entity_id: String in _amphibious_members():
+		var lander := _creature(entity_id, Vector2(600.0, 560.0))
+		if lander == null:
+			continue
 		await _settle(40)
-		var beach := turtle.global_position.x
+		var beach := lander.global_position.x
 		Input.action_press("move_right")
-		await _settle(90)
+		# ⚠ A HOPPER TRAVELS ONLY BY HOPPING. `_drive_hopper` applies no horizontal force at
+		# all while grounded and unjumping -- it returns "idle" -- so holding a direction at a
+		# frog measures nothing and reports 5px, which reads exactly like a class that has
+		# lost its land drive. Held-then-released, because the charge is what sets the lift.
+		# run_morph_reach_probe.gd pumps jump for the same reason and measures the frog as the
+		# FASTEST class in its cohort.
+		var hops := _rig_type_of(entity_id) == "hopper"
+		for frame in range(90):
+			if hops:
+				if frame % 30 == 0:
+					Input.action_press("jump")
+				elif frame % 30 == 12:
+					Input.action_release("jump")
+			await physics_frame
+		Input.action_release("jump")
 		Input.action_release("move_right")
-		var walked := turtle.global_position.x - beach
+		var walked := absf(lander.global_position.x - beach)
 		if walked > 40.0:
-			_pass("sea_turtle on land", "still walks, %.0fpx" % walked)
+			_pass("%s on land" % entity_id, "still travels, %.0fpx" % walked)
 		else:
-			_fail("sea_turtle on land", "amphibious cost it the beach: %.0fpx" % walked)
-		turtle.queue_free()
+			_fail("%s on land" % entity_id,
+				"amphibious cost it the beach: %.0fpx" % walked)
+		lander.queue_free()
 		await process_frame
+
+
+## The Swim tag's membership, straight off the generated file.
+func _swim_tag_members() -> Array:
+	var parsed: Variant = JSON.parse_string(
+		FileAccess.get_file_as_string("res://config/tags.json"))
+	if not (parsed is Dictionary):
+		return ["fish", "sea_turtle"]
+	var tags: Dictionary = (parsed as Dictionary).get("tags", {})
+	var swim: Dictionary = tags.get("swim", {})
+	var members: Array = (swim.get("classes", {}) as Dictionary).keys()
+	members.sort()
+	return members if not members.is_empty() else ["fish", "sea_turtle"]
+
+
+func _rig_type_of(entity_id: String) -> String:
+	var profile: Variant = JSON.parse_string(
+		FileAccess.get_file_as_string("res://config/rigs/%s.json" % entity_id))
+	return String((profile as Dictionary).get("rig_type", "")) if profile is Dictionary else ""
+
+
+## The Swim members that are NOT swimmer rigs -- the ones that reach the water through
+## rig_profile.can_swim and therefore have a beach to lose.
+func _amphibious_members() -> Array:
+	var out: Array = []
+	for entity_id: String in _swim_tag_members():
+		var profile: Variant = JSON.parse_string(
+			FileAccess.get_file_as_string("res://config/rigs/%s.json" % entity_id))
+		if profile is Dictionary and bool((profile as Dictionary).get("can_swim", false)):
+			out.append(entity_id)
+	return out
 
 
 func _check_vehicle(entity_id: String) -> void:

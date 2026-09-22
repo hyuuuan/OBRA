@@ -17,17 +17,17 @@
     "scene_path": "res://level_2.tscn",
     "thumbnail": "res://assets/Level2/completed_look.png",
     "unlocked": false,
-    "ends_run": true
+    "ends_run": false
   },
   {
     "id": "level_3",
     "number": 3,
-    "title": "Coming Soon",
-    "theme": "",
-    "scene_path": "",
-    "thumbnail": "",
+    "title": "Dagat",
+    "theme": "The open sea, and an island past the edge of what he remembers",
+    "scene_path": "res://level_3.tscn",
+    "thumbnail": "res://assets/hub/paintings/level_3.png",
     "unlocked": false,
-    "ends_run": false
+    "ends_run": true
   },
   {
     "id": "level_4",

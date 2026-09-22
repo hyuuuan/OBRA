@@ -119,6 +119,8 @@ Opening the project in the Godot editor once does the same job, with a progress 
 ```bash
 python -m unittest -v tests.test_manifest_contract
 python -m unittest -v tests.test_backend_telemetry
+python -m unittest -v tests.test_preprocess_paper
+python -m unittest -v tests.test_backend_lifecycle
 godot --headless --path game --script res://tests/run_tests.gd
 godot --headless --path game --script res://tests/run_level_ready.gd
 godot --headless --path game --script res://tests/test_player_profile.gd
@@ -131,6 +133,14 @@ Progression persists in a single JSON player profile at `user://profile.json`
 gameplay telemetry is written per session to `user://telemetry/session_<UTC>.jsonl`.
 On macOS `user://` resolves to
 `~/Library/Application Support/Godot/app_userdata/O.B.R.A/`.
+
+Test runs (anything started with `--script`) never touch either: they keep their own profile
+and telemetry under `user://test_runs/`, emptied at the start of each run, so running the
+suites neither changes a player's save nor adds bot sessions to the telemetry.
+
+A backend the game starts exits when the game does, however the game ends. One started by
+hand keeps running and is reused by the game as long as it answers on port 8000, so restart
+it after changing anything in `backend/`.
 
 The backend additionally logs one anonymous record per prediction when enabled:
 

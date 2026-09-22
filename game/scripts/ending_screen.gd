@@ -32,7 +32,7 @@ func _render(payload: Dictionary) -> void:
 	var roster := maxi(1, int(payload.get("roster_size", 1)))
 	_add_row("Classes drawn", "%d of %d" % [diversity, roster])
 	_add_row("Redraw rate", "%d%%" % int(round(float(payload.get("redraw_rate", 0.0)) * 100.0)))
-	_add_row("Flowers found", str(int(payload.get("collectibles", 0))))
+	_add_row("Flowers found", str(int(payload.get("flowers", 0))))
 
 	var routes: Dictionary = payload.get("route_counts", {})
 	var parts: Array[String] = []

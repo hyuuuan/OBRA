@@ -266,7 +266,17 @@
       "id": "HF1",
       "at": "gorge_floor_cave",
       "gate_tag": "light",
-      "gate_unlocked_at_level": 4,
+      "gate_unlocked_at_level": 3,
+      "$comment": [
+        "MOVED 4 -> 3 WITH DAGAT. Light was held for Dilim, but Level 3's bakunawa is",
+        "answered by a flashlight and a tag cannot be declared in the level that uses it",
+        "and unlocked in the one after. The real gate is unchanged and is not this field:",
+        "ConceptGate2D asks PlayerProfile whether the player OWNS one, which is permanent",
+        "and global, so the cave opens on a return visit once Dagat has been played. This",
+        "line is the documentation of that, and it was the thing that had gone stale.",
+        "The Dagat design wants it too -- one Artist-tagged reward per level, and Payyo's",
+        "was unreachable until the fourth."
+      ],
       "behaviour_when_locked": "canvas_opens_normally_entities_spawn_inert",
       "not_a_fail_state": true
     }

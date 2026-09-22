@@ -432,11 +432,15 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
   to Z/X — check for a clash before adding a binding.
 - **A level has two clocks.** Ink is level-scoped and priced by thesis FR-7: **six units by
   default, and one thing costs one unit.** Payyo alone exports seven as the smallest useful
-  new-player allowance; Piyesta and later levels keep six. A tool costs a unit on its first
-  successful recognition and is free forever after (it is in the toolbelt, and that persists
-  across levels and sessions); a placeable costs a unit on EVERY placement and is not
-  retained; becoming a creature is free; a declined drawing is free. Which of the two an
-  object is comes off the manifest's `ink_role`, never out of gameplay code. ⚠ It used to be twelve normalized
+  new-player allowance; Piyesta and later levels keep six. A tool's CLASS costs a unit on its
+  first successful recognition and redrawing it is free forever after (profile-wide, across
+  levels and sessions) -- but the drawn tool itself is **used once** (Kent's call, overriding FR-7's
+  "reusable"): drawn where it answers it goes into the hand with the Use prompt naming the
+  verb, F answers the beat, and `LevelBase.spend_tool` takes it away. A level that needs the
+  tool to outlive the answer says so in `_tool_is_spent_by` (the axe at the gorge, the thrown
+  weapon for the flock). A placeable costs a unit on EVERY placement and is not retained;
+  becoming a creature is free; a declined drawing is free. Which of the two an object is comes off the
+  manifest's `ink_role`, never out of gameplay code. ⚠ It used to be twelve normalized
   canvas DIAGONALS — length, reserved while you drew — which prices neatness, and which
   meant a placeable was paid for once and set down free for the rest of the level.
   `DrawingCanvas` still caps stroke length, and that cap is a `PAGE_ALLOWANCE`, not the
@@ -568,7 +572,17 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
 - `Telemetry` (autoload, `game/scripts/telemetry.gd`) writes an anonymous, local
   per-session event stream to `user://telemetry/session_<UTC>.jsonl`: session and
   level lifecycle plus one recognition record per submission (class, confidence,
-  margin, runner-up, accept/decline, end-to-end latency). Nothing is uploaded.
+  margin, runner-up, accept/decline, end-to-end latency). Nothing is uploaded. Test runs
+  write theirs to `user://test_runs/telemetry/` instead, so the folder the thesis
+  aggregates holds only real play.
+- **The recognition server ends with the game.** `BackendSupervisor` launches it with
+  `OBRA_GAME_PID` set, and `backend/lifecycle.py` exits the server once that process is
+  gone -- crash, force-quit or an editor stop included. The launched pid is static on
+  `BackendSupervisor`, because each level's supervisor dies on a level change, and the
+  title screen and house stop it with `BackendSupervisor.stop_owned_backend()`, having no
+  supervisor of their own. The supervisor reuses any healthy server on 8000, so a server
+  started by hand serves whatever code it was started with: restart it after changing
+  `backend/`.
 - The backend logs one anonymous prediction record to `telemetry/backend_<date>.jsonl`
   only when `OBRA_TELEMETRY=1` (dir override `OBRA_TELEMETRY_DIR`); `/predict` also
   returns a `timing` split so end-to-end latency decomposes across game and backend.
@@ -762,13 +776,19 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
   one stays false forever. A probe written that way reported "the door never fired" while
   the door was firing, and its other two assertions would have passed with no door in the
   game at all. Use a member variable or a named method for anything a signal has to set.
-- ⚠ **A suite that READS `user://profile.json` is a suite whose result depends on the
-  machine.** `run_tests` says at the top that it must never write the profile and said
-  nothing about reading it, so "exactly four locked cards" and "locked Level 2 initiated a
-  transition" were checked against whatever save was on the box. Harmless while level 2 had
-  no scene; the day it had one the call SUCCEEDED and deferred a real scene change into the
-  middle of the suite -- surfacing as twenty unrelated rig failures. Pin progression on the
-  in-memory `_data` dictionary and put it back, the way the brush already is.
+- ⚠ **A test run never touches the player's save or telemetry.** Any run started with
+  `--script` gets its own `user://test_runs/` (`game/scripts/user_data.gd`), emptied when the
+  run starts, and `PlayerProfile.profile_path` / `Telemetry.telemetry_dir` point into it.
+  Before that, suites read and wrote the real `user://profile.json` -- two deleted it -- and
+  the telemetry folder held 3,839 bot sessions. Never spell `"user://profile.json"` in a
+  test; read `profile_path` off the autoload. `test_player_profile` fails if a test run can
+  reach the real save. **One run at a time, still:** all test runs share that one folder, so a
+  second Godot started beside the first empties the profile out from under it.
+- ⚠ **Within one run the profile still carries what earlier checks wrote.** "Exactly four
+  locked cards" and "locked Level 2 initiated a transition" were once checked against
+  whatever save was on the box, and the day Level 2 had a scene the call SUCCEEDED and
+  deferred a real scene change into the middle of the suite -- twenty unrelated rig
+  failures. Pin progression on the in-memory `_data` dictionary, the way the brush is.
 - ⚠ **A test that instantiates a level scene directly has answered none of `open_level`'s
   three questions.** No `current_level_id`, no unlock, no brush. Grant what the audit is not
   about, or every refusal is the first gate and the test passes with the fix reverted.
@@ -789,6 +809,11 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
 - Cross-dataset eval: `python3 model/evaluate_folder.py --dir <dataset-root>`
 - Contracts: `python3 -m unittest -v tests.test_manifest_contract`
 - Backend telemetry: `python3 -m unittest -v tests.test_backend_telemetry`
+- The game's paper is not ink: `python3 -m unittest -v tests.test_preprocess_paper`
+- The server ends with the game: `python3 -m unittest -v tests.test_backend_lifecycle`
+- Who stops the server: `godot --headless --path game --script res://tests/run_backend_ownership_probe.gd`
+- A real drawing through the real model (needs a window): `godot --path game --script res://tests/run_real_drawing_probe.gd`
+- The whole run, title to ending: `godot --headless --path game --script res://tests/run_journey_probe.gd`
 - **Import after any fetch that changes art:** `godot --headless --path game --import`
   — `.godot/` is gitignored, and without it no `class_name` resolves and the game comes
   up behind an undismissable ARE YOU SURE? dialog. See README.

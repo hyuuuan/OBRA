@@ -1,26 +1,31 @@
 class_name LevelRestrictions
 extends Node
-## The two rules Piyesta arms for its whole length, and the first time this project has
-## restricted what the player may draw.
+## The rules a level arms for its whole length, and the first time this project has
+## restricted what the player may draw. Piyesta arms two; Dagat arms a third.
 ##
 ## Everything before this level ADDED to what a drawing could do. Level 2 takes things away,
 ## and that is a different kind of promise: a refusal the player cannot predict reads as the
 ## recogniser failing, and a punishment for a drawing the game accepted reads as a bug. So
-## the two rules are deliberately NOT the same kind of thing:
+## the rules are deliberately NOT all the same kind of thing:
 ##
 ##   * **A banned class is REFUSED AT SUBMISSION.** It costs no ink, the player is told why,
 ##     and nothing moves. It is a boundary.
 ##   * **The flight ceiling is a VIOLATION.** The drawing was legal, the player made it and
 ##     then went somewhere they were told not to, and they are put back. It is a
 ##     consequence.
+##   * **Drowning is also a CONSEQUENCE, and deliberately not a ban.** Dagat's design is
+##     explicit that a land creature spawned underwater "should not be silently refused --
+##     let it flounder for a beat, have Lolo react, then revert it. The refusal is funnier
+##     and clearer than a blocked draw." So a horse in the sea is drawn, spawned, paid for
+##     and then cannot cope, which is a fact about horses rather than a rule about drawing.
 ##
-## The design's own flowchart routes both to the checkpoint handler. Its UI list asks for
+## Level 2's design routes its two to the checkpoint handler. Its UI list asks for
 ## feedback saying WHY a drawing was refused, and its own note says to check the size rule
 ## first so the more specific message wins -- which only makes sense if the size rule
 ## answers before anybody is airborne. Sending the player back to a checkpoint for a
 ## drawing they were never allowed to make is a punishment for the game's own rule.
 ##
-## BOTH LISTS ARE EXPLICIT AND VALIDATED. The design is emphatic: never infer size or flight
+## EVERY LIST IS EXPLICIT AND VALIDATED. The design is emphatic: never infer size or flight
 ## from a label at runtime. A rule that names a class the roster does not have bans nothing
 ## and says nothing, which is the one failure mode a restriction cannot have.
 
@@ -28,9 +33,12 @@ extends Node
 signal submission_refused(entity_id: String, note: String)
 ## A legal drawing that went somewhere it was told not to.
 signal ceiling_crossed(entity_id: String, height_over: float)
+## A legal drawing that cannot cope with the medium it is in, after its flounder.
+signal floundered(entity_id: String, note: String)
 
 const BANNED_KEY := "banned_playable_classes"
 const CEILING_KEY := "flight_ceiling"
+const AQUATIC_KEY := "aquatic_only"
 
 var _banned: Dictionary = {}          # entity_id -> true
 var _capped: Dictionary = {}          # entity_id -> true
@@ -39,6 +47,18 @@ var _ceiling_y: float = -INF          # world Y of the line; -INF means "no line
 var _lifted := false
 var _lift_flag := ""
 
+## ⚠ THE AQUATIC RULE LISTS WHAT WORKS, NOT WHAT DOES NOT. The other two name the classes
+## they act on; this one would have to name forty-three. Naming the seven that swim also
+## makes the rule readable as the sentence the design writes it as -- "underwater, only
+## aquatic classes work as playable actors" -- and makes the audit's job the right way round:
+## a swimmer list that resolves to nothing means EVERYTHING flounders.
+var _swimmers: Dictionary = {}        # entity_id -> true
+var _aquatic_armed := false
+var _flounder_fiction := ""
+var _flounder_seconds := 1.2
+var _floundering_id := ""
+var _floundering_for := 0.0
+
 
 ## Read the rules out of the level file and check every class against the manifest.
 ## Returns the problems rather than pushing them, so the caller decides whether a bad
@@ -46,8 +66,12 @@ var _lift_flag := ""
 func load_from(level: Dictionary, roster_ids: PackedStringArray) -> Array:
 	_banned.clear()
 	_capped.clear()
+	_swimmers.clear()
+	_aquatic_armed = false
 	_lifted = false
 	_ceiling_y = -INF
+	_floundering_id = ""
+	_floundering_for = 0.0
 	var problems: Array = []
 	var rules: Dictionary = level.get("restrictions", {})
 
@@ -69,6 +93,18 @@ func load_from(level: Dictionary, roster_ids: PackedStringArray) -> Array:
 			continue
 		_capped[id] = true
 
+	var sea: Dictionary = rules.get(AQUATIC_KEY, {})
+	_aquatic_armed = not sea.is_empty()
+	_flounder_fiction = String(sea.get("fiction", ""))
+	if sea.has("flounder_seconds"):
+		_flounder_seconds = maxf(0.0, float(sea.get("flounder_seconds", 1.2)))
+	for value: Variant in sea.get("swimmers", []):
+		var id := String(value)
+		if not roster_ids.has(id):
+			problems.append("%s names '%s', which is not in the roster" % [AQUATIC_KEY, id])
+			continue
+		_swimmers[id] = true
+
 	# A rule that names nothing is not a rule. Silence here is the exact failure the
 	# design says must fail loudly at startup rather than quietly at runtime.
 	if not rules.is_empty():
@@ -76,11 +112,16 @@ func load_from(level: Dictionary, roster_ids: PackedStringArray) -> Array:
 			problems.append("%s resolved to no classes at all" % BANNED_KEY)
 		if _capped.is_empty() and not (cap.get("classes", []) as Array).is_empty():
 			problems.append("%s resolved to no classes at all" % CEILING_KEY)
+		# Worse than silence: an armed aquatic rule with no swimmers reverts every creature
+		# the player draws, which is a level that cannot be finished rather than one that
+		# says nothing.
+		if _aquatic_armed and _swimmers.is_empty():
+			problems.append("%s resolved to no swimmers at all" % AQUATIC_KEY)
 	return problems
 
 
 func is_armed() -> bool:
-	return not _banned.is_empty() or not _capped.is_empty()
+	return not _banned.is_empty() or not _capped.is_empty() or _aquatic_armed
 
 
 func banned_classes() -> PackedStringArray:
@@ -176,3 +217,68 @@ func check_height(entity_id: String, world_y: float) -> bool:
 		return false
 	ceiling_crossed.emit(entity_id, height_over(entity_id, world_y))
 	return true
+
+
+# --- The medium, which is a property of the body rather than of the place --------------
+
+func aquatic_rule_armed() -> bool:
+	return _aquatic_armed
+
+
+func swimmer_classes() -> PackedStringArray:
+	var out := PackedStringArray(_swimmers.keys())
+	out.sort()
+	return out
+
+
+func swims(entity_id: String) -> bool:
+	return _swimmers.has(entity_id)
+
+
+## Would this class flounder if it were in the water? A question about the class only -- the
+## water is the caller's to know, the same way the ceiling's height is.
+func flounders(entity_id: String) -> bool:
+	return _aquatic_armed and not entity_id.is_empty() and not _swimmers.has(entity_id)
+
+
+func flounder_seconds() -> float:
+	return _flounder_seconds
+
+
+## Why it is going under, in the fiction rather than in the rule -- the same reasoning as
+## refusal_note. "Wrong required_medium" is a property of the manifest; "it cannot breathe
+## down here" is a property of the sea, and only one of those is something Lolo would say.
+func flounder_note(entity_id: String) -> String:
+	if not flounders(entity_id):
+		return ""
+	if _flounder_fiction.is_empty():
+		return "Not down here, apo. It cannot breathe."
+	return "Not down here, apo — %s." % _flounder_fiction
+
+
+## The whole per-frame question, mirroring check_height: the level says what it is and where
+## it is, and this owns the clock. Returns true on the ONE frame the flounder is over, which
+## is the level"s cue to revert. Leaving the water, or becoming something else, puts the
+## beat back -- a creature that was rescued half-drowned should get its whole beat next time.
+func check_medium(entity_id: String, in_water: bool, delta: float) -> bool:
+	if not in_water or not flounders(entity_id):
+		_floundering_id = ""
+		_floundering_for = 0.0
+		return false
+	if entity_id != _floundering_id:
+		_floundering_id = entity_id
+		_floundering_for = 0.0
+	_floundering_for += maxf(0.0, delta)
+	if _floundering_for < _flounder_seconds:
+		return false
+	_floundering_id = ""
+	_floundering_for = 0.0
+	floundered.emit(entity_id, flounder_note(entity_id))
+	return true
+
+
+## How far into its flounder the current body is, 0-1, for a level that wants to show it.
+func flounder_ratio() -> float:
+	if _floundering_id.is_empty() or _flounder_seconds <= 0.0:
+		return 0.0
+	return clampf(_floundering_for / _flounder_seconds, 0.0, 1.0)

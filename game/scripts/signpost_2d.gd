@@ -106,11 +106,12 @@ var _offered := false
 ## Stand a sign at `where`, in `host`'s parent so it keeps the host's place in the world
 ## without inheriting a scale or a rotation the trigger might be carrying.
 static func plant(host: Node2D, what: Mark, offset: Vector2 = Vector2.ZERO,
-		reads: String = "") -> Signpost2D:
+		reads: String = "", reach_down: float = 260.0) -> Signpost2D:
 	var sign := Signpost2D.new()
 	sign.name = "Signpost"
 	sign.mark = what
 	sign.reads = reads
+	sign.reach = reach_down
 	sign.position = offset
 	# Seeded off where it stands, so the sway is scattered along the level rather than
 	# synchronised, and so it is the same every run.

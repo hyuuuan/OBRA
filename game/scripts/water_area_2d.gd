@@ -19,6 +19,12 @@ extends Area2D
 ## rice standing up through the surface. Only the drawing changes -- how deep it is, what
 ## floats and who can swim are the same numbers as any other water.
 @export var paddy := false
+## ⚠ DRAWING ONLY, AND IT CHANGES NO PHYSICS. Payyo's paddies ARE this node's picture of
+## themselves -- bands, a travelling highlight and a waterline, drawn here because nothing
+## else was going to draw them. Dagat has painted water: a parallax stack with light shafts,
+## ruins and a seabed in it, and these bands sit on top of that as a flat blue rectangle with
+## a dashed line across it. A pool that somebody has painted turns its own drawing off.
+@export var draws_itself := true
 
 var _ripple_phase := 0.0
 ## A morph is several physics bodies but one visible player. Count those bodies here so
@@ -67,6 +73,8 @@ func _physics_process(_delta: float) -> void:
 
 
 func _draw() -> void:
+	if not draws_itself:
+		return
 	if paddy:
 		_draw_paddy()
 		return
@@ -127,6 +135,11 @@ func _draw_paddy() -> void:
 		draw_line(base, base + Vector2(6.0 + lean, -height * 0.95), Color(0.58, 0.76, 0.30, 1.0), 2.0)
 		x += 28.0
 		index += 1
+
+
+## The world y of the water's surface. A hull asks, so it can ride it -- see UtilityObject.
+func surface_y() -> float:
+	return global_position.y - surface_size.y * 0.5
 
 
 func _on_body_entered(body: Node2D) -> void:
