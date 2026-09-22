@@ -14,16 +14,18 @@ extends StaticBody2D
 ## be moved, drawn on, or destroyed -- the ones that are gone are gone, and the gap they
 ## left is the whole point of the beat.
 
-## Two bands cut out of the delivered stair art by tools/build_art.py: the grass you stand
-## on and the earth face under it. The stair used to borrow TerraceSegment2D's stone regions
-## out of the shared atlas, which made every step look like a slice of the retaining wall
-## behind it -- and made the tread that floated off into the paddy look like a different
-## object from the stair it fell out of, when the whole of sub-beat 0.2 is that it IS one.
+## Three tiles curated by tools/build_art.py from the cleaner staircase sheet: the grass you
+## stand on, the earth face under it, and a jagged grass-topped break. The stair used to
+## borrow TerraceSegment2D's stone regions out of the shared atlas, which made every step
+## look like a slice of the retaining wall behind it -- and made the tread that floated off
+## into the paddy look like a different object from the stair it fell out of, when the whole
+## of sub-beat 0.2 is that it IS one.
 ##
-## Both bands are bigger than any tread that uses them, so a step CROPS them. Tiling a
+## The cap and riser are bigger than any tread that uses them, so a step CROPS them. Tiling a
 ## grass strip inside a 64px cap would run a seam across the middle of it.
 const CAP_BAND := preload("res://assets/Level1/props/stair_cap.png")
 const RISER_BAND := preload("res://assets/Level1/props/stair_riser.png")
+const BROKEN_STUB := preload("res://assets/Level1/props/stair_stub.png")
 
 ## Top-left anchored, like every terrace. `position` is the tread's upper-left corner and
 ## `tread_size.y` is how far its stone face drops below the surface you stand on.
@@ -101,20 +103,20 @@ func _build_visuals() -> void:
 	add_child(cap)
 
 
-## What is left of a tread that broke: a short stub against the wall, darker, sitting where
-## the stone used to spring from. Deliberately not a neat half-tread -- a clean rectangle
-## reads as a small step and invites a jump.
+## What is left of a tread that broke: a short grass-topped stub with a snapped edge, sitting
+## where the stone used to spring from. Deliberately not a neat half-tread -- a clean
+## rectangle reads as a small step and invites a jump.
 func _build_stub() -> void:
 	var stub := TextureRect.new()
 	stub.name = "Stub"
 	stub.position = Vector2.ZERO
-	stub.size = Vector2(maxf(12.0, tread_size.x * 0.34), tread_size.y * 0.8)
-	stub.texture = RISER_BAND
-	stub.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	stub.stretch_mode = TextureRect.STRETCH_TILE
+	# A missing tread leaves a horizontal scar, not another nearly-square stone. Keeping the
+	# remnant wide and shallow is what makes the three offsets read as a broken staircase.
+	stub.size = Vector2(maxf(34.0, tread_size.x * 0.68), maxf(18.0, tread_size.y * 0.66))
+	stub.texture = BROKEN_STUB
+	stub.stretch_mode = TextureRect.STRETCH_SCALE
 	stub.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	stub.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Sunk into shadow, so it reads as a scar rather than as a ledge.
-	stub.modulate = Color(0.46, 0.44, 0.40, 1.0)
+	# Slightly sunk into the wall without throwing away the generated grass and moss palette.
+	stub.modulate = Color(0.93, 0.92, 0.88, 1.0)
 	add_child(stub)
-

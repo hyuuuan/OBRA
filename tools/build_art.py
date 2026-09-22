@@ -275,25 +275,20 @@ PROPS = [
     ("Rice Terraces Broken Bridge.png", "broken_bridge"),
 ]
 
-# StairTread2D does not draw a stair, it draws ONE step, at whatever size the level gives
-# it -- and the delivered art is a three-step run. So two bands come out of it: the grass
-# the player stands on and the earth face below. They are cut from the widest step, where
-# the art is opaque corner to corner, and doubled so their pixels come out the same size
-# as the props' when the level draws those at 2x.
-#
-# Their sizes are chosen so a tread CROPS them rather than tiling them. A cap is 14px tall
-# and a riser at most 24; anything shorter repeats inside the box and puts a seam of grass
-# across the middle of a step.
-STAIR_BANDS = [
-    # The cap comes off the TOP step, which is the only place the grass is a clean strip
-    # rather than a fringe overhanging the step below it. It is 18px of art, so it repeats
-    # across a wide tread -- grass is irregular enough that the seam does not read, and a
-    # step with no green on it does not look like the terraces it is cut into.
-    ("stair_cap", (30, 0, 18, 7)),
-    ("stair_riser", (2, 20, 46, 12)),
-]
-BAND_UPSCALE = 2
-
+# The delivered three-step prop above is still kept as provenance, but its narrow bands
+# repeated the same square stones inside every broken tread. At play scale the three scars
+# looked like a stack of crates rather than steps torn out of the terrace. The replacement
+# sheet was generated against the actual Level 1 ground reference, then curated here into
+# three runtime tiles: one wide grass cap, one tall stone/earth face, and one jagged broken
+# end. Wide/tall sources are intentional: StairTread2D crops them for every authored size,
+# so there is no visible repeat seam.
+STAIR_TILESET_SOURCE = SOURCE / "Level 1 Stair Tileset Clean.png"
+STAIR_TILESET_SIZE = (144, 128)
+STAIR_TILE_REGIONS = {
+    "stair_cap": (0, 0, 96, 14),
+    "stair_riser": (0, 24, 96, 96),
+    "stair_stub": (104, 24, 40, 32),
+}
 
 # --- the haybale and what is inside it ---------------------------------------------------
 
@@ -847,16 +842,30 @@ def build_props(write: bool) -> dict[str, bytes]:
                 "detail. Ship it at the delivered size instead of guessing a scale.")
         path = PROP_OUT / f"{name}.png"
         written[str(path.relative_to(ROOT))] = _emit(native, path, write)
-        if name == "stair_step":
-            for band_name, (bx, by, bw, bh) in STAIR_BANDS:
-                band = native.crop((bx, by, bx + bw, by + bh))
-                if np.asarray(band)[:, :, 3].min() < 255:
-                    raise SystemExit(
-                        f"{band_name} is not fully opaque -- a tread would show holes "
-                        "through it. The band bounds need re-measuring against the art.")
-                band = band.resize((bw * BAND_UPSCALE, bh * BAND_UPSCALE), Image.NEAREST)
-                band_path = PROP_OUT / f"{band_name}.png"
-                written[str(band_path.relative_to(ROOT))] = _emit(band, band_path, write)
+    return written
+
+
+def build_stair_tileset(write: bool) -> dict[str, bytes]:
+    """Install the curated generated atlas and cut its runtime tiles."""
+    if not STAIR_TILESET_SOURCE.exists():
+        raise SystemExit(f"missing {STAIR_TILESET_SOURCE.name}")
+    atlas = Image.open(STAIR_TILESET_SOURCE).convert("RGBA")
+    if atlas.size != STAIR_TILESET_SIZE:
+        raise SystemExit(
+            f"{STAIR_TILESET_SOURCE.name}: expected {STAIR_TILESET_SIZE[0]}x"
+            f"{STAIR_TILESET_SIZE[1]}, got {atlas.width}x{atlas.height}")
+    alpha_values = set(atlas.getchannel("A").getdata())
+    if not alpha_values.issubset({0, 255}):
+        raise SystemExit(
+            f"{STAIR_TILESET_SOURCE.name}: soft alpha would make a dark fringe in game")
+
+    written: dict[str, bytes] = {}
+    atlas_path = PROP_OUT / "stair_tileset.png"
+    written[str(atlas_path.relative_to(ROOT))] = _emit(atlas, atlas_path, write)
+    for name, (x, y, width, height) in STAIR_TILE_REGIONS.items():
+        tile = atlas.crop((x, y, x + width, y + height))
+        path = PROP_OUT / f"{name}.png"
+        written[str(path.relative_to(ROOT))] = _emit(tile, path, write)
     return written
 
 
@@ -1010,10 +1019,11 @@ def main() -> int:
             f"portrait {portrait_size[0]}x{portrait_size[1]}px")
 
     props = build_props(write=not args.check)
+    stair_tiles = build_stair_tileset(write=not args.check)
     logo, logo_size = build_logo(write=not args.check)
     paintings = build_paintings(write=not args.check)
     haybale, haybale_note = build_haybale(write=not args.check)
-    everything.update({**props, **logo, **paintings, **haybale})
+    everything.update({**props, **stair_tiles, **logo, **paintings, **haybale})
     figures.append(haybale_note)
 
     if args.check:
