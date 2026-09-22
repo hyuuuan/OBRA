@@ -279,8 +279,42 @@ def _gull(frame: int) -> Canvas:
     return c
 
 
+def _jelly(frame: int) -> Canvas:
+    """A bell that squeezes and opens, and tentacles that trail behind the pulse."""
+    import math
+    pixelart.PX = 3
+    c = Canvas(16, 24, seed=3200 + frame)
+    squeeze = [0, 1, 2, 1][frame]
+    half = 7 - squeeze
+    top = 1 + squeeze
+    height = 8 + squeeze
+    cx = 8
+    for y in range(height):
+        t = y / max(1, height - 1)
+        w = int(round(half * math.sqrt(max(0.0, 1.0 - (1.0 - t) ** 2 * 0.85))))
+        for x in range(cx - w, cx + w):
+            shade = JELLY[3] if x < cx - w // 3 else JELLY[2]
+            if y == height - 1:
+                shade = JELLY[1]
+            colour = shade.copy()
+            colour[3] = 215
+            c.px(x, top + y, colour)
+    # A highlight on the lit shoulder of the bell.
+    c.px(cx - half + 2, top + 2, JELLY[4])
+    c.px(cx - half + 3, top + 1, JELLY[4])
+    # Four tentacles, their wave running down them a quarter-phase a frame behind the bell.
+    for i, x0 in enumerate([cx - 4, cx - 1, cx + 1, cx + 4]):
+        for y in range(top + height, 23):
+            sway = int(round(math.sin((y * 0.7) - frame * 1.6 + i) * 1.2))
+            colour = JELLY[2 if (y + i) % 3 else 1].copy()
+            colour[3] = 190
+            c.px(x0 + sway, y, colour)
+    return c
+
+
 LIFE = {
     "gull": (_gull, 4),
+    "jelly": (_jelly, 4),
 }
 
 
