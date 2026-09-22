@@ -380,12 +380,28 @@ def _urchin(frame: int) -> Canvas:
     return c
 
 
+def _foam(frame: int) -> Canvas:
+    """Surf running up the sand and sliding back: a strip that tiles sideways."""
+    import math
+    pixelart.PX = 3
+    c = Canvas(48, 7, seed=3600)
+    reach = [0, 1, 2][frame]
+    for x in range(48):
+        crest = 3 + int(round(math.sin(x * 2 * math.pi / 16.0 + frame) * 1.2)) - reach // 2
+        for y in range(crest, 7):
+            if (x * 7 + y * 3 + frame) % 5 == 0:
+                continue
+            c.px(x, y, FOAM[2] if y == crest else FOAM[1 if y < 5 else 0])
+    return c
+
+
 LIFE = {
     "gull": (_gull, 4),
     "jelly": (_jelly, 4),
     "starfish": (_starfish, 2),
     "clam": (_clam, 3),
     "urchin": (_urchin, 2),
+    "foam": (_foam, 3),
 }
 
 
