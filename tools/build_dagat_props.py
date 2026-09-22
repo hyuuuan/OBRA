@@ -407,6 +407,23 @@ def _splash(frame: int) -> Canvas:
     return c
 
 
+def _wake(frame: int) -> Canvas:
+    import math
+    pixelart.PX = 3
+    c = Canvas(26, 6, seed=3800)
+    for x in range(26):
+        fade = x / 25.0
+        y = 2 + int(round(math.sin(x * 0.8 - frame * 2.1) * 1.0))
+        if (x + frame) % 4 == 0 and fade > 0.3:
+            continue
+        colour = FOAM[2 if fade > 0.5 else 1].copy()
+        colour[3] = int(90 + 165 * fade)
+        c.px(x, y, colour)
+        if fade > 0.6:
+            c.px(x, y + 1, FOAM[0])
+    return c
+
+
 LIFE = {
     "gull": (_gull, 4),
     "jelly": (_jelly, 4),
@@ -415,6 +432,7 @@ LIFE = {
     "urchin": (_urchin, 2),
     "foam": (_foam, 3),
     "splash": (_splash, 3),
+    "wake": (_wake, 3),
 }
 
 
