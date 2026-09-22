@@ -16,6 +16,9 @@ extends SceneTree
 ##  4. It kept its passenger. Landing the apo on the sand lasted one frame before the hull
 ##     seated them back on the deck.
 ##
+## And two that only show when something goes wrong on the way: E let the apo step off into
+## the middle of the sea, and a restore to before the boat left the route with no boat at all.
+##
 ## So this one does what a player does: takes the fork, finds the boat with E, boards it with
 ## E, holds right, and taps through Lolo.
 
@@ -55,6 +58,21 @@ func _run() -> void:
 	director.call("enter_obstacle", "L3_N1")
 	director.call("commit_route", "L3_N1", "artist")
 	await _unpause()
+
+	# ⚠ A RESTORE PUTS BACK WHAT IT ROLLS BACK. Take a jar, then be put back: the ink it gave
+	# is taken away again, so the jar has to be standing again too.
+	var jars: Dictionary = level.get("_refill_nodes")
+	var first_jar := jars.get(0) as Area2D
+	if first_jar != null:
+		_place(Vector2(700.0, 500.0))
+		await _frames(30)
+		level.call("_on_refill_touched", level.get("player"), 0, 1.5, first_jar)
+		level.call("_return_to_safety", "", "%s")
+		await _unpause()
+		await _frames(4)
+		var again := (level.get("_refill_nodes") as Dictionary).get(0) as Node
+		_check(again != null and is_instance_valid(again) and not again.is_queued_for_deletion(),
+			"a restore puts back the jar it took the ink of", "refill 0 is standing again")
 
 	# FOUND, WITH E. Standing beside the beached one is what launches the real one.
 	var beached := level.get("_bangka") as Node2D
@@ -118,11 +136,33 @@ func _run() -> void:
 		_finish()
 		return
 
+	# ⚠ AND NOBODY STEPS OFF INTO THE MIDDLE OF THE SEA. E gets off a boat anywhere, and out
+	# here that is an apo with no body in deep water, the rescue, and a restore from before the
+	# boat was found. The level keeps them aboard, and the prompt stops offering it.
+	level.call("press_interact")
+	await _frames(4)
+	_check(bool(boat.call("has_passenger", player)) and String(level.call("_interact_verb", boat)) == "",
+		"E out at sea does not put the apo in the water",
+		"still aboard, and the prompt offers nothing")
+
 	# THE CHANNEL HOLDS until the encounter is resolved, at the surface as well as below it.
 	var coils_x := creature.global_position.x + Bakunawa.BODY_LENGTH * 0.5 - 40.0 - 80.0
 	await _hold_right(4.0, boat)
 	_check(boat.global_position.x < coils_x, "and the coils stop it while it is unresolved",
 		"held at x %.0f, coils at %.0f" % [boat.global_position.x, coils_x + 80.0])
+
+	# ⚠ AND IF THE RUN IS PUT BACK TO BEFORE THE BOAT, THE BOAT IS THERE TO FIND AGAIN. A
+	# restore frees everything placed after its checkpoint -- the launched bangka among them --
+	# and the beached one had been freed when it was found. That was a soft lock.
+	level.call("_restore_level_run_state", {"bangka_found": false, "live_node": "L3_N1"})
+	await _frames(2)
+	var beached_again := level.get("_bangka") as Node2D
+	_check(beached_again != null and is_instance_valid(beached_again)
+			and not beached_again.is_queued_for_deletion(),
+		"rolled back to before the boat, the bangka is on the sand again",
+		"something to press E at")
+	level.call("_restore_level_run_state", {"bangka_found": true, "live_node": "L3_N2"})
+	await _frames(2)
 
 	# RESOLVED WITH LIGHT, the way the finish probe resolves it, and then on to the sand.
 	director.call("enter_obstacle", "L3_N2")
