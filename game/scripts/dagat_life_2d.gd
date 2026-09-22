@@ -29,6 +29,8 @@ var jelly_spots: Array[Vector2] = []
 var player_anchor: Callable
 var player_swimming: Callable
 var boat: Callable
+## The bakunawa, so the sea can churn where it breaks the surface.
+var creature: Node2D
 
 var _frames_cache: Dictionary = {}
 var _gull_clock := 2.0
@@ -36,6 +38,7 @@ var _rain_clock := 0.0
 var _thunder_clock := 6.0
 var _wake_clock := 0.0
 var _bubble_clock := 0.0
+var _churn_clock := 0.0
 var _flash: Polygon2D
 var _rng := RandomNumberGenerator.new()
 
@@ -68,6 +71,7 @@ func _process(delta: float) -> void:
 			_lightning(weather)
 	_trail_the_boat(delta)
 	_breathe(delta)
+	_churn(delta)
 
 
 ## How stormy it is over this x, 0..1 -- the storm band's own fade, times however far it has
@@ -241,6 +245,26 @@ func _breathe(delta: float) -> void:
 	bubble.ceiling = waterline_y + 6.0
 	add_child(bubble)
 	bubble.global_position = at + Vector2(_rng.randf_range(-10.0, 10.0), -18.0)
+
+
+## WHERE IT BREAKS THE SURFACE, THE SEA SAYS SO. Staged at the surface for a boat player, the
+## creature is a long dark shape just under the waves; splashes along its length are what
+## make it read as something in the water rather than something painted behind it.
+func _churn(delta: float) -> void:
+	if creature == null or not is_instance_valid(creature):
+		return
+	if creature.global_position.y > waterline_y + 260.0:
+		return
+	_churn_clock -= delta
+	if _churn_clock > 0.0:
+		return
+	_churn_clock = _rng.randf_range(0.12, 0.28)
+	var splash := _sprite("splash", 11.0, false)
+	splash.z_index = -150
+	splash.scale = Vector2.ONE * _rng.randf_range(1.2, 1.8)
+	add_child(splash)
+	splash.global_position = Vector2(creature.global_position.x + _rng.randf_range(-430.0, 430.0),
+		waterline_y + _rng.randf_range(-4.0, 8.0))
 
 
 # --- Found things --------------------------------------------------------------------------

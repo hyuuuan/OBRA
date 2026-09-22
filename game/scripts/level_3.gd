@@ -546,6 +546,7 @@ func _bring_the_sea_to_life() -> void:
 	_life.boat = func() -> RigidBody2D:
 		return _launched_boat if _launched_boat != null and is_instance_valid(_launched_boat) \
 			else null
+	_life.creature = _bakunawa
 	coral.get_parent().add_child(_life)
 	# ⚠ THE ANIMALS LOLO ACTUALLY NAMES. Four of the facts are about a jellyfish, a starfish, a
 	# clam and an urchin -- chosen because none of them is something the player can draw -- and
