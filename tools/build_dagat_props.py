@@ -424,6 +424,16 @@ def _wake(frame: int) -> Canvas:
     return c
 
 
+def _bubble(frame: int) -> Canvas:
+    pixelart.PX = 3
+    c = Canvas(5, 5, seed=3900)
+    for (x, y) in [(1, 0), (2, 0), (3, 0), (0, 1), (4, 1), (0, 2), (4, 2), (0, 3), (4, 3),
+                   (1, 4), (2, 4), (3, 4)]:
+        c.px(x, y, BUBBLE[1])
+    c.px(1 + frame % 2, 1, BUBBLE[2])
+    return c
+
+
 LIFE = {
     "gull": (_gull, 4),
     "jelly": (_jelly, 4),
@@ -433,6 +443,7 @@ LIFE = {
     "foam": (_foam, 3),
     "splash": (_splash, 3),
     "wake": (_wake, 3),
+    "bubble": (_bubble, 2),
 }
 
 
