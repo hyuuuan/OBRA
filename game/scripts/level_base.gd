@@ -2347,7 +2347,10 @@ func _interact_verb(utility: PhysicsShapeObject) -> String:
 	var vessel := utility as UtilityObject
 	if vessel == null or not vessel.boards_on_interact():
 		return "PICK UP"
-	return "GET OFF" if vessel.has_passenger(player) else "BOARD"
+	if vessel.has_passenger(player):
+		# Out at sea there is nowhere to get off to, and a prompt offering it is an invitation.
+		return "" if vessel.holds_passenger else "GET OFF"
+	return "BOARD"
 
 
 ## Availability is refreshed from the same objects the actions use. R is intentionally
@@ -2363,11 +2366,12 @@ func _refresh_action_prompts() -> void:
 	action_prompts.set_revert_available(can_act and not (player is Wanderer))
 
 	var pickup: PhysicsShapeObject = _nearest_interactable_utility() if can_act else null
-	var can_pick_up := pickup != null
+	var verb := _interact_verb(pickup)
+	var can_pick_up := pickup != null and not verb.is_empty()
 	action_prompts.set_pickup_available(
 		can_pick_up,
 		_drawing_display_name(pickup) if can_pick_up else "",
-		_interact_verb(pickup))
+		verb if can_pick_up else "PICK UP")
 
 	var can_use := can_act and _equipped_utility != null \
 		and is_instance_valid(_equipped_utility) \

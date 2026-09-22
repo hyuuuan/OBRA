@@ -557,8 +557,45 @@ func _keep_the_weather() -> void:
 			band.call("restore_the_storm")
 
 
+## Where the bangka may put its passenger down: within a hull's length of either shore. Out
+## past that there is only water under it -- see UtilityObject.holds_passenger.
+const LANDING_REACH := 170.0
+var _shore_edges := Vector2.ZERO
+
+
+func _keep_the_passenger_aboard() -> void:
+	if _launched_boat == null or not is_instance_valid(_launched_boat):
+		return
+	if _shore_edges == Vector2.ZERO:
+		_shore_edges = level_data_shore_edges()
+	var x := _launched_boat.global_position.x
+	_launched_boat.holds_passenger = _shore_edges != Vector2.ZERO \
+		and x > _shore_edges.x + LANDING_REACH and x < _shore_edges.y - LANDING_REACH
+	_launched_boat.hold_note = "Not out here, apo. There is nothing under us but sea."
+
+
+## The two shores' seaward edges, from the scene rather than typed twice.
+func level_data_shore_edges() -> Vector2:
+	var terrain := get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Terrain")
+	if terrain == null:
+		return Vector2.ZERO
+	var edges := Vector2.ZERO
+	for pair in [["Shore", true], ["Island", false]]:
+		var land := terrain.get_node_or_null(NodePath(String(pair[0]))) as Node2D
+		var shape := land.get_node_or_null(^"Shape") as CollisionShape2D if land != null else null
+		var box := shape.shape as RectangleShape2D if shape != null else null
+		if box == null:
+			return Vector2.ZERO
+		if bool(pair[1]):
+			edges.x = land.global_position.x + box.size.x * 0.5
+		else:
+			edges.y = land.global_position.x - box.size.x * 0.5
+	return edges
+
+
 func _level_physics(anchor_position: Vector2) -> void:
 	_keep_the_weather()
+	_keep_the_passenger_aboard()
 	var delta := get_physics_process_delta_time()
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)

@@ -58,6 +58,13 @@ const VEHICLE_TOP_SPEED := 240.0
 ## The spring is stiff enough that the leftover 18% of gravity sags it under a pixel, and the
 ## damping lets it settle in a bob or two instead of ringing.
 const HULL_DRAFT := 10.0
+## ⚠ A LEVEL MAY KEEP A PASSENGER ABOARD, and Dagat does while there is open sea under the
+## hull. E gets off a boat anywhere, and getting off in the middle of the sea puts an apo with
+## no body in deep water -- the drowning rescue fires, and the checkpoint it restores is from
+## before the boat was found. The level decides where getting off is sensible; the boat only
+## has to refuse, and say why.
+var holds_passenger := false
+var hold_note := ""
 const HULL_SPRING := 40.0
 const HULL_BOB_DAMP := 6.0
 
@@ -146,6 +153,10 @@ func interact(actor: Node2D) -> void:
 		return
 	if utility_behavior in ["sailboat", "submarine"] and _is_in_water():
 		if _boarded_actor == actor:
+			if holds_passenger:
+				if not hold_note.is_empty():
+					interaction_note.emit(hold_note)
+				return
 			_unboard_actor()
 			return
 		_board_actor(actor)
