@@ -57,11 +57,37 @@ region = Rect2(110, 146, 1677, 808)
 shader = ExtResource("27_feather")
 shader_parameter/region = Vector4(0.0818, 0.1889, 0.8943, 0.8731)
 shader_parameter/feather = 0.025
+shader_parameter/midtone_lift = 0.78
+shader_parameter/saturation = 1.04
+shader_parameter/sunlight = Vector3(1.16, 1.12, 0.96)
+shader_parameter/shadow_fill = 0.08
 
 [sub_resource type="ShaderMaterial" id="Feather_near"]
 shader = ExtResource("27_feather")
 shader_parameter/region = Vector4(0.0573, 0.1352, 0.9307, 0.8833)
 shader_parameter/feather = 0.025
+shader_parameter/midtone_lift = 0.72
+shader_parameter/saturation = 1.04
+shader_parameter/sunlight = Vector3(1.15, 1.11, 0.96)
+shader_parameter/shadow_fill = 0.075
+
+[sub_resource type="ShaderMaterial" id="Feather_far"]
+shader = ExtResource("27_feather")
+shader_parameter/region = Vector4(0.0667, 0.2731, 0.9292, 0.7759)
+shader_parameter/feather = 0.015
+shader_parameter/midtone_lift = 0.3
+shader_parameter/saturation = 1.0
+shader_parameter/sunlight = Vector3(1.02, 1.03, 1.0)
+shader_parameter/shadow_fill = 0.025
+
+[sub_resource type="ShaderMaterial" id="Feather_green"]
+shader = ExtResource("27_feather")
+shader_parameter/region = Vector4(0.0563, 0.2778, 0.9365, 0.7991)
+shader_parameter/feather = 0.015
+shader_parameter/midtone_lift = 0.64
+shader_parameter/saturation = 1.03
+shader_parameter/sunlight = Vector3(1.13, 1.11, 0.97)
+shader_parameter/shadow_fill = 0.06
 
 [sub_resource type="ConvexPolygonShape2D" id="Wedge_puddle_down_a"]
 points = PackedVector2Array(0, 0, 28, 32, 0, 32)
@@ -153,7 +179,11 @@ scale = Vector2(1.05, 1)
 texture = SubResource("Atlas_sky")
 
 [node name="FarMountainLayer" type="Node2D" parent="." unique_id=615819855]
-modulate = Color(0.62, 0.72, 0.93, 1)
+# The delivered plates already carry their own atmospheric perspective and colour hierarchy.
+# Drawing them at their authored colour keeps Payyo sunlit instead of putting a depth filter
+# over artwork which was already painted for depth.
+modulate = Color(1, 1, 1, 1)
+material = SubResource("Feather_far")
 z_index = -100
 script = ExtResource("3_depth")
 depth = 8.0
@@ -161,12 +191,14 @@ scroll_scale = 0.08
 z_index_base = -100
 
 [node name="FarMountains" type="Sprite2D" parent="FarMountainLayer" unique_id=801990268]
+use_parent_material = true
 position = Vector2(900, 382)
 scale = Vector2(1.25, 1)
 texture = SubResource("Atlas_far")
 
 [node name="GreenMountainLayer" type="Node2D" parent="." unique_id=1234888788]
-modulate = Color(0.5, 0.62, 0.76, 1)
+modulate = Color(1, 1, 1, 1)
+material = SubResource("Feather_green")
 z_index = -80
 script = ExtResource("3_depth")
 depth = 5.0
@@ -174,22 +206,25 @@ scroll_scale = 0.18
 z_index_base = -80
 
 [node name="GreenMountainsA" type="Sprite2D" parent="GreenMountainLayer" unique_id=1992931869]
+use_parent_material = true
 position = Vector2(820, 385)
 scale = Vector2(1.04, 1)
 texture = SubResource("Atlas_green")
 
 [node name="GreenMountainsB" type="Sprite2D" parent="GreenMountainLayer" unique_id=1306307865]
+use_parent_material = true
 position = Vector2(2510, 385)
 scale = Vector2(1.04, 1)
 texture = SubResource("Atlas_green")
 
 [node name="GreenMountainsC" type="Sprite2D" parent="GreenMountainLayer" unique_id=1306307866]
+use_parent_material = true
 position = Vector2(4200, 385)
 scale = Vector2(1.04, 1)
 texture = SubResource("Atlas_green")
 
 [node name="TerraceVistaLayer" type="Node2D" parent="." unique_id=1871817744]
-modulate = Color(0.45, 0.56, 0.68, 1)
+modulate = Color(1, 1, 1, 1)
 material = SubResource("Feather_terraces")
 z_index = -55
 script = ExtResource("3_depth")
@@ -216,7 +251,7 @@ scale = Vector2(0.76, 0.76)
 texture = SubResource("Atlas_terraces")
 
 [node name="NearSceneryLayer" type="Node2D" parent="." unique_id=252645397]
-modulate = Color(0.44, 0.54, 0.67, 1)
+modulate = Color(1, 1, 1, 1)
 material = SubResource("Feather_near")
 z_index = -15
 script = ExtResource("3_depth")
@@ -682,7 +717,7 @@ position = Vector2(4636, 80)
 script = ExtResource("26_jto6m")
 
 [node name="ForegroundLayer" type="Node2D" parent="." unique_id=3763005]
-modulate = Color(0.75, 0.9, 0.66, 0.72)
+modulate = Color(1, 1, 1, 0.82)
 z_index = 30
 script = ExtResource("3_depth")
 depth = -1.0
