@@ -1,27 +1,18 @@
 class_name TerraceSegment2D
 extends StaticBody2D
-## Solid terrace block whose visuals are tiled from the Level 1 texture atlas.
-
-## PATH is the surface the player actually walks on. The others are what the terrace is
-## made of; this one is where the feet go, and it exists because the level was unreadable
-## without it: the gameplay plane was built from the same rice and grass tiles as the
-## painted background behind it, so the ground you can stand on and the scenery you cannot
-## were the same colour at the same brightness. Packed earth against green reads instantly,
-## and a worn path along a terrace is what is actually there in Banaue.
-##
+## Solid terrace: one grass cap over a continuous, world-aligned stone material.
+## PATH keeps its serialized enum value, but now shares the bright grass ledge treatment.
 ## MUD is the floor of a flooded paddy, and it is the one style drawn in code rather than cut
 ## from the atlas: the atlas has no ground you cannot walk on, and a paddy floored with the
 ## terrace kit read as the terrace. See PaddyBasin2D.
 enum SurfaceStyle { RICE, GRASS, STONE, PATH, MUD }
 
 const TEXTURE_MAP := preload("res://assets/Level1/texturemap.png")
-const RICE_TOP := Rect2(828, 80, 84, 84)
-const GRASS_TOP := Rect2(828, 209, 84, 84)
-const STONE_TOP := Rect2(828, 343, 84, 86)
-## The packed-earth row of the atlas's edge set, unused until now.
-const PATH_TOP := Rect2(828, 473, 84, 90)
-const MUD_WALL := Rect2(217, 228, 146, 129)
-const STONE_WALL := Rect2(217, 401, 146, 125)
+const StoneFill = preload("res://scripts/terrace_material.gd")
+const AtlasTile = preload("res://scripts/atlas_tile.gd")
+const EDGE_REFERENCE := preload("res://assets/Level1/terrace_reference.png")
+const CAP_HEIGHT := 30.0
+const CORNER_RADIUS := 8.0
 
 @export var segment_size := Vector2(360.0, 216.0)
 @export var surface_style := SurfaceStyle.GRASS
@@ -33,6 +24,7 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_build_collision()
 	_build_visuals()
+	call_deferred("_round_exposed_corners")
 
 
 func _build_collision() -> void:
@@ -46,41 +38,90 @@ func _build_collision() -> void:
 
 
 func _build_visuals() -> void:
-	var wall := TextureRect.new()
+	var wall := Polygon2D.new()
 	wall.name = "RetainingWall"
-	wall.position = Vector2(0.0, 44.0)
-	if surface_style == SurfaceStyle.MUD:
-		wall.visible = segment_size.y > 44.0
-	wall.size = Vector2(segment_size.x, maxf(1.0, segment_size.y - 44.0))
-	wall.texture = _atlas(STONE_WALL if use_stone_wall else MUD_WALL)
+	wall.polygon = PackedVector2Array([Vector2.ZERO, Vector2(segment_size.x, 0),
+		segment_size, Vector2(0, segment_size.y)])
+	wall.texture = StoneFill.TEXTURE
 	wall.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	wall.stretch_mode = TextureRect.STRETCH_TILE
-	wall.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	wall.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wall.uv = StoneFill.world_uv(wall.polygon, global_position)
+	var upper := StoneFill.shade(global_position.y)
+	var lower := StoneFill.shade(global_position.y + segment_size.y)
+	wall.vertex_colors = PackedColorArray([upper, upper, lower, lower])
+	if not use_stone_wall:
+		wall.modulate = Color(0.8, 0.73, 0.6)
 	wall.show_behind_parent = true
 	add_child(wall)
 
 	if surface_style == SurfaceStyle.MUD:
 		queue_redraw()
 		return
-	var top := TextureRect.new()
+	var top := Polygon2D.new()
 	top.name = "TerraceTop"
-	top.position = Vector2.ZERO
-	top.size = Vector2(segment_size.x, 60.0)
+	top.polygon = _outline(minf(CAP_HEIGHT, segment_size.y), false, false)
 	match surface_style:
 		SurfaceStyle.RICE:
-			top.texture = _atlas(RICE_TOP)
+			top.texture = AtlasTile.cut(TEXTURE_MAP, Rect2(830, 81, 80, 22))
 		SurfaceStyle.STONE:
-			top.texture = _atlas(STONE_TOP)
-		SurfaceStyle.PATH:
-			top.texture = _atlas(PATH_TOP)
+			top.texture = AtlasTile.cut(TEXTURE_MAP, Rect2(830, 345, 80, 22))
 		_:
-			top.texture = _atlas(GRASS_TOP)
-	top.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	top.stretch_mode = TextureRect.STRETCH_TILE
-	top.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			# The user's reference supplies the actual grass and squared earth lip.
+			top.texture = AtlasTile.cut(EDGE_REFERENCE, Rect2(920, 122, 800, 90))
+	top.texture_repeat = CanvasItem.TEXTURE_REPEAT_MIRROR
+	top.uv = _cap_uv(top.polygon, top.texture.get_height())
 	add_child(top)
+
+
+func _cap_uv(points: PackedVector2Array, texture_height: float) -> PackedVector2Array:
+	var uv := PackedVector2Array()
+	for point in points:
+		uv.append(Vector2((point.x + global_position.x) * 3.0,
+			point.y * texture_height / CAP_HEIGHT))
+	return uv
+
+
+func _round_exposed_corners() -> void:
+	if surface_style == SurfaceStyle.MUD:
+		return
+	var left := true
+	var right := true
+	for neighbor in get_tree().get_nodes_in_group("terrace_ground"):
+		if neighbor == self or not neighbor is TerraceSegment2D:
+			continue
+		var bounds := Rect2(neighbor.global_position, neighbor.segment_size)
+		if bounds.has_point(global_position + Vector2(-1, 1)):
+			left = false
+		if bounds.has_point(global_position + Vector2(segment_size.x + 1, 1)):
+			right = false
+	var wall := get_node("RetainingWall") as Polygon2D
+	wall.polygon = _outline(segment_size.y, left, right)
+	wall.uv = StoneFill.world_uv(wall.polygon, global_position)
+	var tones := PackedColorArray()
+	for point in wall.polygon:
+		tones.append(StoneFill.shade(global_position.y + point.y))
+	wall.vertex_colors = tones
+	var top := get_node("TerraceTop") as Polygon2D
+	top.polygon = _outline(minf(CAP_HEIGHT, segment_size.y), left, right)
+	top.uv = _cap_uv(top.polygon, top.texture.get_height())
+
+
+func _outline(height: float, left: bool, right: bool) -> PackedVector2Array:
+	var w := segment_size.x
+	var r := minf(CORNER_RADIUS, minf(w * 0.5, height))
+	# Stepped quarter-rounds preserve the pixel grid; only eight pixels of visual trim.
+	var points := PackedVector2Array()
+	if left:
+		points.append_array(PackedVector2Array([Vector2(0, r), Vector2(2, r * 0.5),
+			Vector2(r * 0.5, 2), Vector2(r, 0)]))
+	else:
+		points.append(Vector2.ZERO)
+	if right:
+		points.append_array(PackedVector2Array([Vector2(w - r, 0), Vector2(w - r * 0.5, 2),
+			Vector2(w - 2, r * 0.5), Vector2(w, r)]))
+	else:
+		points.append(Vector2(w, 0))
+	points.append_array(PackedVector2Array([Vector2(w, height), Vector2(0, height)]))
+	return points
 
 
 ## The silt bed of a paddy: wet and dark on top, lumpy, stubble of last season's rice in it,
@@ -104,10 +145,3 @@ func _draw() -> void:
 			floorf(8.0 + rng.randf() * (band - 14.0)))
 		draw_rect(Rect2(at, Vector2(3.0, 2.0)), Color(0.451, 0.420, 0.365, 1.0))
 	draw_rect(Rect2(0.0, band - 3.0, segment_size.x, 3.0), Color(0.149, 0.110, 0.071, 1.0))
-
-
-func _atlas(region: Rect2) -> AtlasTexture:
-	var atlas_texture := AtlasTexture.new()
-	atlas_texture.atlas = TEXTURE_MAP
-	atlas_texture.region = region
-	return atlas_texture

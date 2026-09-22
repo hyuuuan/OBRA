@@ -1,5 +1,6 @@
 class_name GorgeWall2D
 extends Node2D
+const StoneFill = preload("res://scripts/terrace_material.gd")
 ## The inside of Ang Tulay's gorge: two rock faces and the dark between them.
 ##
 ## THERE WAS NOTHING HERE, AND THAT IS WHAT "THE BRIDGE LOOKS ODDLY BROKEN" WAS. The gorge is
@@ -15,9 +16,8 @@ extends Node2D
 ## across them, and the shaft between darkening with depth. It carries NO collision -- the
 ## gorge is still a gorge and the routes across it are still the only way over.
 ##
-## Drawn in code rather than tiled, for the reason ART_PLACEHOLDERS gives about this atlas:
-## its regions are terrace SLICES rather than materials, so a wall filled with one comes out
-## wearing a band of soil and a fringe of grass halfway down a cliff.
+## Uses the terrace's standalone stone fill, shaded down into the shaft. The old atlas
+## regions include grass borders, so they cannot serve as an underground material.
 
 ## The hole: x from the near lip to the far one, y from the terrace top to the valley floor.
 @export var opening := Rect2(0.0, 0.0, 560.0, 440.0)
@@ -78,6 +78,7 @@ const DAYLIGHT := Color(0.788, 0.827, 0.729, 1.0)
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	# Behind everything that stands in the gorge -- the bridge posts, the route ledges, the
 	# cave mouth and the flower -- and in front of the parallax it exists to hide.
 	z_index = -6
@@ -160,54 +161,25 @@ func _draw_floor() -> void:
 			Color(DAYLIGHT, 0.05 * (1.0 - t)))
 
 
-## The drop, in bands that darken toward the bottom. Whole-pixel steps rather than a
-## gradient, which is the rule everything else in this game is drawn by.
-## ⚠ ALL OF THIS EXISTED AND NONE OF IT REACHED THE SCREEN.
-##
-## The shaft is the far wall of the gorge: about 370 units wide and 440 deep, which at this
-## level's zoom is a third of the frame. It was drawn as fourteen bands lerped `t * t` from
-## #363230 to #1B1917 -- and squaring t crushes the whole gradient into the last few bands,
-## so eleven of the fourteen were within a step or two of the top colour. Over that went one
-## course line every OTHER band, 1px, in #444038 at 0.55 alpha, which against #363230 is six
-## steps and invisible at any distance.
-##
-## What the player saw was a flat brown-grey slab a third of the screen wide, which is what
-## "the background turns black" is. It is not a state and nothing turns it on: it is there
-## from the first frame, and it is what you are looking at when you come back west out of
-## the straw heap.
-##
-## Darker at the bottom than it was, LIGHTER at the top than it was, lerped straight so the
-## range is spread over the whole drop; strata on every band at twice the weight; and a
-## scatter of blocky rock, because at this size a gradient with lines on it is still a
-## gradient. A gorge should be dark. It should not be featureless.
+## Continuous stone, darker with depth; no synthetic horizontal mortar bands.
 func _draw_shaft() -> void:
-	var bands := 14
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 20260830
+	var bands := 48
 	for index in range(bands):
 		var t := float(index) / float(bands - 1)
 		var top := opening.position.y + opening.size.y * (float(index) / float(bands))
 		var height := opening.size.y / float(bands) + 1.0
-		draw_rect(Rect2(opening.position.x, top, opening.size.x, height),
-			shaft_top.lerp(shaft_bottom, t))
-		# A course on every band, inset a little from each side, so the far wall has a
-		# surface. Fixed offsets rather than randf, like everything else here.
-		var inset := 18.0 + float((index * 37) % 46)
-		draw_rect(Rect2(opening.position.x + inset, top,
-			opening.size.x - inset * 2.0, 2.0),
-			Color(STRATA, 0.85 - t * 0.40))
-		# And the rock itself, in blocks. Six or seven a band, no wider than a course, so
-		# what reads at a glance is a wall of stone going down rather than a painted ramp.
-		for _stone in range(7):
-			var w := rng.randf_range(14.0, 46.0)
-			var h := rng.randf_range(5.0, height - 2.0)
-			var at := Vector2(
-				opening.position.x + rng.randf_range(6.0, opening.size.x - w - 6.0),
-				top + rng.randf_range(1.0, maxf(1.5, height - h)))
-			var lit := rng.randf() < 0.42
-			var tone := shaft_top.lerp(shaft_bottom, t)
-			tone = tone.lightened(0.14) if lit else tone.darkened(0.20)
-			draw_rect(Rect2(at.floor(), Vector2(w, h).floor()), tone)
+		var band := Rect2(opening.position.x, top, opening.size.x, height)
+		_draw_stone(band, shaft_top.lerp(shaft_bottom, t).lightened(0.12))
+
+
+func _draw_stone(rect: Rect2, tint: Color) -> void:
+	var points := PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y),
+		rect.end, Vector2(rect.position.x, rect.end.y)])
+	# draw_polygon expects normalized UVs, unlike Polygon2D's pixel UVs.
+	var uv := StoneFill.world_uv(points, global_position)
+	for i in range(uv.size()):
+		uv[i] /= StoneFill.TEXTURE.get_size()
+	draw_polygon(points, PackedColorArray([tint]), uv, StoneFill.TEXTURE)
 
 
 ## One rock face, going down from a lip. `near` is the left-hand one, whose lit side faces
@@ -215,7 +187,6 @@ func _draw_shaft() -> void:
 ## direction to be lit from.
 func _draw_face(near: bool) -> void:
 	var lip_x := opening.position.x if near else opening.end.x
-	var into := 1.0 if near else -1.0
 	var rng := RandomNumberGenerator.new()
 	# Seeded, so the rock is the same rock every run and a screenshot can be compared with
 	# the last one. Same rule the pickup flourish and the checkpoint sparks follow.
@@ -230,19 +201,8 @@ func _draw_face(near: bool) -> void:
 		var reach := face_width * (1.0 - t * 0.45) + rng.randf_range(-5.0, 5.0)
 		reach = maxf(10.0, reach)
 		var x := lip_x if near else lip_x - reach
-		var band := Rect2(x if near else x, y, reach, 8.0)
-		# Darker with depth, so the two faces and the shaft agree about where the light is.
-		var shade := ROCK.lerp(ROCK_DARK, t * 0.85)
-		if not near:
-			shade = shade.darkened(0.22)
-		draw_rect(band, shade)
-		# The strata: a lit line along the top of every third course, on the side that faces
-		# the light. Without them the face is a flat brown slab.
-		if row % 3 == 0:
-			var lit := ROCK_LIT.lerp(ROCK_DARK, t * 0.8)
-			if not near:
-				lit = lit.darkened(0.3)
-			draw_rect(Rect2(band.position, Vector2(band.size.x, 1.0)), lit)
+		var band := Rect2(x, y, reach, 8.0)
+		_draw_stone(band, Color.WHITE.darkened(0.22 + t * 0.28 + (0.0 if near else 0.12)))
 		# The inner edge, which is what separates rock from drop.
 		draw_rect(Rect2((band.end.x - 1.0) if near else band.position.x, y, 1.0, 8.0), EDGE)
 
