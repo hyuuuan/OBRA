@@ -222,6 +222,68 @@ def draw_shelf_face() -> Canvas:
 SHELF = {"shelf_fill.png": draw_shelf_fill, "shelf_face.png": draw_shelf_face}
 
 
+# --- The things that live here --------------------------------------------------------------
+#
+# The delivery paints a sea with nothing moving in it but the water. These are the small
+# lives that make it a place: gulls over the beach, the creatures the coral field's facts are
+# ABOUT (Lolo names a jellyfish, a starfish, a clam and an urchin -- all deliberately things the
+# player cannot draw -- and until now pointed at a piece of coral while he did), and the foam,
+# splash, wake and bubbles that say something touched the water. Same idiom as everything else
+# here: PX 3, short ramps, light from the upper left, an outline one step darker than the body.
+
+GULL = ramp(["#2e3338", "#7d868d", "#c3cacf", "#eef0ea", "#ffffff"])
+BEAK = ramp(["#9a5a1c", "#e39a3b", "#f6c46a"])
+JELLY = ramp(["#5b2a6e", "#8e4a9a", "#c07cc4", "#e7b7e3", "#fbe6f7"])
+STAR = ramp(["#7a2c12", "#b8481b", "#e27433", "#f5a55a", "#fcd49a"])
+CLAM = ramp(["#3a3440", "#6c6474", "#a39aa6", "#d6ced3", "#f4eef0"])
+URCHIN = ramp(["#1d0f2c", "#3e1f58", "#6a3a86", "#9a6ab2"])
+FOAM = ramp(["#8fd3e0", "#c9eef2", "#f4fdfd"])
+BUBBLE = ramp(["#5fb3cf", "#a9e3f0", "#f2fcff"])
+SPARK = ramp(["#f5c542", "#fbe79a", "#ffffff"])
+
+
+def _gull(frame: int) -> Canvas:
+    """The "M" every gull is at a distance: two wings bent at the elbow, rising and falling
+    over a small white body. Four beats -- up, level, down, level -- flying right."""
+    pixelart.PX = 3
+    c = Canvas(21, 13, seed=3100 + frame)
+    elbow, tip = [(-4, -1), (-2, 0), (1, 3), (-1, 1)][frame]
+
+    def stroke(x0: int, y0: int, x1: int, y1: int, colour: np.ndarray, under: np.ndarray) -> None:
+        steps = max(abs(x1 - x0), abs(y1 - y0), 1)
+        for i in range(steps + 1):
+            x = x0 + round((x1 - x0) * i / steps)
+            y = y0 + round((y1 - y0) * i / steps)
+            c.px(x, y, colour)
+            c.px(x, y + 1, under)
+
+    # The far wing first, a step darker, so the near one reads in front of it.
+    stroke(9, 6, 5, 6 + elbow, GULL[2], GULL[1])
+    stroke(5, 6 + elbow, 1, 6 + tip, GULL[2], GULL[1])
+    c.px(1, 6 + tip, GULL[0])
+    # Body and tail.
+    c.fill(7, 6, 7, 2, GULL[3])
+    c.hline(8, 5, 5, GULL[4])
+    c.hline(7, 8, 7, GULL[2])
+    c.fill(4, 7, 3, 1, GULL[2])
+    # Head, eye, beak -- the only thing that says which way it is going.
+    c.fill(13, 5, 3, 3, GULL[4])
+    c.px(15, 6, GULL[0])
+    c.px(16, 6, BEAK[1])
+    c.px(17, 6, BEAK[0])
+    # The near wing.
+    stroke(11, 6, 14, 6 + elbow, GULL[4], GULL[2])
+    stroke(14, 6 + elbow, 19, 6 + tip, GULL[3], GULL[2])
+    c.px(19, 6 + tip, GULL[0])
+    c.px(18, 6 + tip, GULL[0])
+    return c
+
+
+LIFE = {
+    "gull": (_gull, 4),
+}
+
+
 def draw(frame: int) -> Canvas:
     # PX=3 rather than the library default of 2: this sits in a scene drawn at a much finer
     # grain than Piyesta's interiors, and at 2 the jar reads as a different game's prop.
@@ -278,12 +340,18 @@ def build() -> list[Path]:
         path = OUT / name
         painter().save(path)
         written.append(path)
+    for name, (painter, frames) in LIFE.items():
+        for frame in range(frames):
+            path = OUT / f"{name}_{frame}.png"
+            painter(frame).save(path)
+            written.append(path)
     return written
 
 
 def _expected() -> list[Path]:
     return [OUT / f"ink_jar_{frame}.png" for frame in range(FRAMES)] + \
-        [OUT / name for name in SHELF]
+        [OUT / name for name in SHELF] + \
+        [OUT / f"{name}_{frame}.png" for name, (_p, n) in LIFE.items() for frame in range(n)]
 
 
 def main() -> int:
