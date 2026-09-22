@@ -29,7 +29,10 @@ func _run() -> void:
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
-	await _wait(1.4)
+	# THE OPENING: out over the sea, before it eases back to the apo on the beach.
+	await _wait(1.0)
+	await _capture("00_opening")
+	await _wait(3.6)
 
 	player = level.get("player") as Node2D
 	if player == null:
