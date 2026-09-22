@@ -57,6 +57,7 @@ func _run() -> void:
 	_audit_the_canvas_is_a_walk_in()
 	_audit_checkpoint_marks()
 	_audit_nothing_stands_on_a_checkpoint()
+	_audit_decor_stands_on_terrain()
 	_audit_every_checkpoint_is_marked()
 	_audit_marks_stand_clear()
 	_audit_nothing_is_planted_on_a_roof()
@@ -205,6 +206,46 @@ func _audit_nothing_stands_on_a_checkpoint() -> void:
 				clashes.append("%s stands on %s" % [sprite.name, mark.get_parent().name])
 	_check(clashes.is_empty(), "no decor stands on a checkpoint",
 		"clear" if clashes.is_empty() else ", ".join(clashes))
+
+
+## A sprite's node can be on the right terrace while its visible pixels still hover above it.
+## Measure the imported alpha bounds, not just the texture rectangle, so transparent padding
+## at the foot of an asset cannot reintroduce the gap this check exists for.
+func _audit_decor_stands_on_terrain() -> void:
+	var decor := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/Decor") as Node2D
+	var terrain := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/Terrain") as Node2D
+	if decor == null or terrain == null:
+		_check(false, "bushes sit in the grass", "decor or terrain is missing")
+		return
+	var measured := 0
+	var floating: Array[String] = []
+	for child in decor.get_children():
+		var sprite := child as Sprite2D
+		if sprite == null or sprite.texture == null or not String(sprite.name).contains("Bush"):
+			continue
+		measured += 1
+		var image := sprite.texture.get_image()
+		var used := image.get_used_rect()
+		var local_top := -float(sprite.texture.get_height()) * 0.5 if sprite.centered else 0.0
+		var visible_bottom := sprite.global_position.y \
+			+ (local_top + float(used.end.y) + sprite.offset.y) * absf(sprite.global_scale.y)
+		var surface := INF
+		for node in terrain.get_children():
+			var segment := node as Node2D
+			var size: Variant = segment.get("segment_size")
+			if size == null:
+				continue
+			var span := Vector2(size)
+			if sprite.global_position.x >= segment.global_position.x \
+					and sprite.global_position.x <= segment.global_position.x + span.x:
+				surface = segment.global_position.y
+		if surface == INF or absf(visible_bottom - surface) > 1.1:
+			floating.append("%s bottom %.0f vs ground %.0f"
+				% [sprite.name, visible_bottom, surface])
+	_check(measured > 0 and floating.is_empty(), "bushes sit in the grass",
+		"%d grounded" % measured if floating.is_empty() else ", ".join(floating))
 
 
 ## Every checkpoint that can actually be reached carries a mark.

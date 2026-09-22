@@ -11,6 +11,7 @@
 [ext_resource type="Texture2D" path="res://assets/Level1/terraces_2.png" id="9_terraces"]
 [ext_resource type="Texture2D" path="res://assets/Level1/terraces_near_background.png" id="10_near"]
 [ext_resource type="Texture2D" path="res://assets/Level1/texturemap.png" id="11_map"]
+[ext_resource type="Texture2D" path="res://assets/Level1/flowering_bush.png" id="11_bush"]
 [ext_resource type="Shader" path="res://shaders/parallax_feather.gdshader" id="27_feather"]
 [ext_resource type="Script" path="res://scripts/paddy_basin_2d.gd" id="28_paddy"]
 [ext_resource type="Script" path="res://scripts/ruined_bridge_2d.gd" id="12_bridge"]
@@ -96,14 +97,6 @@ points = PackedVector2Array(0, 0, 30, 36, 0, 36)
 [sub_resource type="AtlasTexture" id="Atlas_rock"]
 atlas = ExtResource("11_map")
 region = Rect2(739, 742, 77, 61)
-
-[sub_resource type="AtlasTexture" id="Atlas_plant"]
-atlas = ExtResource("11_map")
-region = Rect2(741, 674, 70, 55)
-
-[sub_resource type="AtlasTexture" id="Atlas_bush"]
-atlas = ExtResource("11_map")
-region = Rect2(738, 826, 92, 70)
 
 [sub_resource type="AtlasTexture" id="Atlas_stool"]
 atlas = ExtResource("11_map")
@@ -482,13 +475,14 @@ z_index = 5
 position = Vector2(1630, 250)
 texture = SubResource("Atlas_rock")
 
-[node name="PlantA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1363963344]
-position = Vector2(2340, 208)
-texture = SubResource("Atlas_plant")
+[node name="FloweringBushA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1363963344]
+position = Vector2(2340, 218)
+texture = ExtResource("11_bush")
 
-[node name="BushA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1430528708]
-position = Vector2(3740, 208)
-texture = SubResource("Atlas_bush")
+[node name="FloweringBushB" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1430528708]
+position = Vector2(3588, 218)
+texture = ExtResource("11_bush")
+flip_h = true
 
 [node name="Floor" type="StaticBody2D" parent="GameplayPlane" unique_id=1952527368]
 position = Vector2(2560, 656)
@@ -689,29 +683,6 @@ script = ExtResource("26_jto6m")
 [node name="Bulul2" type="Node2D" parent="GameplayPlane/Bale" unique_id=1716894567]
 position = Vector2(4636, 80)
 script = ExtResource("26_jto6m")
-
-[node name="ForegroundLayer" type="Node2D" parent="." unique_id=3763005]
-modulate = Color(1, 1, 1, 0.82)
-z_index = 30
-script = ExtResource("3_depth")
-depth = -1.0
-scroll_scale = 1.08
-z_index_base = 30
-
-[node name="FrontPlantA" type="Sprite2D" parent="ForegroundLayer" unique_id=1148351854]
-position = Vector2(120, 625)
-scale = Vector2(1.4, 1.4)
-texture = SubResource("Atlas_plant")
-
-[node name="FrontBushA" type="Sprite2D" parent="ForegroundLayer" unique_id=2076773605]
-position = Vector2(1840, 620)
-scale = Vector2(1.25, 1.25)
-texture = SubResource("Atlas_bush")
-
-[node name="FrontPlantB" type="Sprite2D" parent="ForegroundLayer" unique_id=1744903510]
-position = Vector2(3650, 610)
-scale = Vector2(1.45, 1.45)
-texture = SubResource("Atlas_plant")
 
 [node name="BaleInterior" type="Node2D" parent="GameplayPlane" unique_id=913205179]
 z_index = 0
