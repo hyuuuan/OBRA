@@ -261,6 +261,11 @@ whose rock edge sits on the land's collision edge (x 1000 at home, 4500 at the i
 mirrored). The island uses the same shore plates as the home beach, mirrored; a painting of
 its own would replace a row in `DagatBackdrop2D.BANDS`, not the scene.
 
+**And the small lives** (same tool): gull (4 frames), jelly (4), starfish (2), clam (3), urchin
+(2), foam (3), splash (3), wake (3), bubble (2), spark (4). All replaceable by name — a painted
+set with the same prefixes and frame counts drops straight in, since `DagatLife2D` and
+`DagatProp2D` find frames by prefix.
+
 **Still a developer's rectangles, in the order they are met:**
 
 | What | Where | What the player has to understand |

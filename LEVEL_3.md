@@ -323,6 +323,35 @@ fits them to the column wherever it is staged. The encounter's signposts hung in
 (and one inside the seabed); `sign_reach` / `sign_offset` stand them on the bed.
 `tools/run_suites.sh` did not run any Level 3 suite; it runs all six now.
 
+### Second pass (2026-09-22, later): life, an opening, and what breaks when things go wrong
+
+**The sea moves.** `DagatLife2D` owns everything that moves and is not the player, because it
+all asks the same two questions — where is the camera, and is it day or storm there
+(`DagatBackdrop2D.weather_at`): gulls cross the daylight sky (and come back when the storm
+breaks); jellyfish drift in the deep; surf breaks on both shores; in the storm, rain splashes
+the sea and lightning flashes with the storm band flaring behind it; the bangka leaves a wake;
+a swimmer breathes bubbles; the water churns where the bakunawa surfaces; glints mark what it
+finds and where the painting waits. Palms lean in the wind (`shaders/wind_sway.gdshader`, a
+whole-texel shear, harder in the storm) and the clouds drift. The coral field's four facts
+about a jellyfish, a starfish, a clam and an urchin now have the animal there, and the fish
+schools patrol. All the new art is authored in `build_dagat_props.py` (35 frames, `--check`).
+
+**The opening.** Letterbox with the level's name, the camera out over the open sea, gulls
+heading for the beach, then easing back to the apo. Nothing waits for it and nothing pauses:
+any key ends it and still does what it was pressed for.
+
+**What goes wrong on the way, found by doing it on purpose:**
+- A restore to before the boat freed the launched bangka and never re-planted the beached
+  one — a **soft lock** on the boat route. `_put_back_what_the_restore_undid()` fixes it, and
+  also puts back ink jars the restore rolled back (it took their ink and left them gone).
+- **E in open water stepped off the boat**, into deep water, into that restore. The bangka now
+  keeps its passenger more than a hull's length from either shore
+  (`UtilityObject.holds_passenger`), and the prompt stops offering GET OFF there.
+- The rescue said "Back to CP2" in every level. `LevelBase._checkpoint_place()` names it;
+  Dagat's are the beach, the edge of its waters, the middle of them, the island. And every
+  stealth or fight reset raised a string-formatting error — only formatted now when there is
+  a `%s` to fill.
+
 **6. Payyo's Protector debt.** `LEVEL_TEMPLATE.md` records it: Level 1's Node 3 Protector
 route creases the canvas and the crease costs nothing mechanical, "to be paid back when Level
 3 is designed". Dagat is the first level since where a crease could reach something real.
