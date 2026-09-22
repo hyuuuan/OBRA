@@ -68,6 +68,9 @@ var _bangka_found := false
 ## Which seabed refills have been taken this run, by index. Run state, not profile: a
 ## checkpoint restore that handed them all back would make the crossing free.
 var _refills_taken: Array = []
+## The refills standing in the water now, by index -- so a restore can put back the ones it
+## rolled back without planting a second jar on top of one that is still there.
+var _refill_nodes: Dictionary = {}
 var _bangka: Area2D
 ## The boat once it is in the water -- the real sailboat, not the beached prop above.
 var _launched_boat: UtilityObject
@@ -265,6 +268,9 @@ func _plant_the_refills() -> void:
 	for index in spots.size():
 		if _refills_taken.has(index):
 			continue
+		var standing := _refill_nodes.get(index) as Node
+		if standing != null and is_instance_valid(standing) and not standing.is_queued_for_deletion():
+			continue
 		var refill := Area2D.new()
 		refill.name = "Refill%d" % index
 		refill.collision_layer = 0
@@ -286,6 +292,7 @@ func _plant_the_refills() -> void:
 		refill.z_index = 6
 		coral.get_parent().add_child(refill)
 		refill.body_entered.connect(_on_refill_touched.bind(index, amount, refill))
+		_refill_nodes[index] = refill
 
 
 ## THE CORAL FIELD, and the design calls it the best small idea in the draft: Lolo as
@@ -434,6 +441,7 @@ func _on_refill_touched(body: Node, index: int, amount: float, refill: Area2D) -
 	if _refills_taken.has(index) or not _is_the_player(body):
 		return
 	_refills_taken.append(index)
+	_refill_nodes.erase(index)
 	ink_manager.add_ink(amount)
 	_say_why("There. That will hold you a while longer.")
 	refill.queue_free()
@@ -1095,3 +1103,26 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	# a form that is no longer standing.
 	if _drain != null:
 		_drain.clear()
+	_put_back_what_the_restore_undid()
+
+
+## ⚠ A RESTORE ROLLS THE LEVEL BACK, AND TWO THINGS DID NOT COME BACK WITH IT.
+##
+## THE BOAT. LevelBase frees every placed object that did not exist at the checkpoint, and the
+## launched bangka is one -- it is put in the water after CP2 is written. The beached one it
+## replaced had been freed when it was found, and nothing planted it again. So a boat player
+## put back to CP2 -- by the drowning rescue, or by being seen at the surface before CP3b --
+## stood on the shore with the boat route committed, no boat, and nothing to press E at. A
+## soft lock on the route the design calls the gentle one. The beached bangka goes back on the
+## sand whenever the restored run says it has not been found.
+##
+## THE JARS. The restore hands back the ink spent since the checkpoint and takes back the ink
+## gained since it -- including what a refill gave -- and rolls `_refills_taken` back too. But
+## the jar itself had been freed when it was touched, so the level believed it was still there
+## and it was not: every restore in the arena cost a refill the economy was counting on.
+func _put_back_what_the_restore_undid() -> void:
+	if not _bangka_found and (_bangka == null or not is_instance_valid(_bangka)
+			or _bangka.is_queued_for_deletion()):
+		_plant_the_bangka()
+	if director != null:
+		_plant_the_refills()
