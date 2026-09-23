@@ -374,13 +374,30 @@ func _animate(delta: float) -> void:
 func _draw() -> void:
 	if _state != State.SEARCHING and _state != State.FIGHTING:
 		return
-	var tint := Color(0.85, 0.92, 0.70, 0.16)
+	# ⚠ THE EDGE KEEPS ITS EXACT ANGLE AND ITS EXACT REACH. What changes here is only how the
+	# inside of the cone is shaded: flat, one alpha corner to corner, it read as a grey
+	# triangle laid over the ruins rather than as something looking. It is brightest at the
+	# head and falls off down its length, with a rim drawn along the two edges so the boundary
+	# `sees()` answers about is still the clearest line in it -- a softer cone that a player
+	# could only guess the edge of would be a rule learned by being put back.
+	var tint := Color(0.85, 0.92, 0.70, 1.0)
 	if _state == State.FIGHTING:
-		tint = Color(0.95, 0.72, 0.62, 0.18)
+		tint = Color(0.97, 0.70, 0.58, 1.0)
+	# A slow swell, so the beam is alive while it is holding still at the end of a sweep.
+	var swell := 1.0 + 0.14 * sin(float(Time.get_ticks_msec()) * 0.0021)
+	var near := Color(tint.r, tint.g, tint.b, 0.30 * swell)
+	var far := Color(tint.r, tint.g, tint.b, 0.07 * swell)
+	var rim := Color(tint.r, tint.g, tint.b, 0.34 * swell)
 	for facing in [_sweep, _sweep + PI]:
 		var points := PackedVector2Array([Vector2.ZERO])
+		var shades := PackedColorArray([near])
 		for step in range(9):
 			var angle: float = facing - CONE_HALF_ANGLE \
 				+ CONE_HALF_ANGLE * 2.0 * (float(step) / 8.0)
 			points.append(Vector2(cos(angle), sin(angle)) * CONE_LENGTH)
-		draw_colored_polygon(points, tint)
+			shades.append(far)
+		draw_polygon(points, shades)
+		for side in [-1.0, 1.0]:
+			var along := Vector2(cos(facing + CONE_HALF_ANGLE * side),
+				sin(facing + CONE_HALF_ANGLE * side))
+			draw_line(Vector2.ZERO, along * CONE_LENGTH, rim, 2.0)
