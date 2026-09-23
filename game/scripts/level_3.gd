@@ -938,7 +938,37 @@ func _launch_the_bangka() -> void:
 	# down to the seabed, and it launched perched on the corner of the beach.
 	boat.global_position = Vector2(mark.global_position.x + 170.0, mark.global_position.y + 10.0)
 	boat.confirm_placement()
+	_dress_the_bangka(boat)
 	_say_why("Somebody left this and never came back for it. Get in, apo.")
+
+
+## ⚠ THE ONE OBJECT IN THE GAME THAT IS FOUND RATHER THAN DRAWN, and therefore the one that
+## cannot get its picture from the player's ink. Everything else placed in the world is built
+## out of the strokes somebody made on the canvas; this boat has none, so it wore the engine's
+## bare outline -- a white wireframe trapezium -- for the whole of the crossing the Artist
+## route is named after.
+##
+## ⚠ THE OUTLINE IS STILL WHAT THE HULL IS. The strokes handed to apply_item_data build the
+## collision, the draft, the buoyancy and the seat that run_level3_boat_probe measured; this
+## only turns the ink off and hangs the picture where the ink was, so the boat looks different
+## and behaves identically. Anything that changed the shape would have to be re-measured.
+func _dress_the_bangka(boat: Node2D) -> void:
+	var picture := load(AUTHORED + "bangka_afloat.png") as Texture2D
+	if picture == null or boat.has_node(^"PaintedBangka"):
+		return
+	var skin := boat.get_node_or_null(^"DrawingSkin") as CanvasItem
+	if skin != null:
+		skin.visible = false
+	var art := Sprite2D.new()
+	art.name = "PaintedBangka"
+	art.texture = picture
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# Pinned by the hull's waterline in the picture, not by the sprite's middle: the canvas
+	# carries sixty pixels of mast over a hull sixty-five deep, so centred on the body the
+	# boat rode a third of a hull under the sea. The waterline is row 90 of 132 (see
+	# BANGKA_WATERLINE), and the body floats HULL_DRAFT under the surface.
+	art.position = Vector2(0.0, -24.0 - UtilityObject.HULL_DRAFT)
+	boat.add_child(art)
 
 
 # --- The two forks -----------------------------------------------------------------------
