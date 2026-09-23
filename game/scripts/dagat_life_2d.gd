@@ -148,19 +148,30 @@ func _release_the_jellies() -> void:
 
 # --- The surf, against both shores ---------------------------------------------------------
 
+## ⚠ IT HAS TO BREATHE, OR IT IS A RULER. Two flat strips laid end to end at a fixed y read
+## as a dashed line ruled along the waterline -- the eye finds the repeat before it finds the
+## foam. Three now, each one sitting a little lower and fainter than the one inshore of it, and
+## each riding its own bob and sway so the line moves as water rather than sitting as a mark.
+## The reach is the rocks': the clump that ends each shore stands about four hundred pixels out
+## over the shallows, and foam that stopped at the collision edge broke against nothing.
 func _plant_the_surf() -> void:
 	for edge in [[shore_edges.x, false], [shore_edges.y, true]]:
-		for strip in range(2):
-			var surf := _sprite("foam", 3.0 + float(strip) * 0.4)
+		var seaward := bool(edge[1])
+		for strip in range(3):
+			var surf := _sprite("foam", 2.6 + float(strip) * 0.7)
 			surf.centered = false
-			surf.phase = float(strip) * 1.3
-			surf.flip_h = bool(edge[1])
+			surf.phase = float(strip) * 1.3 + (2.1 if seaward else 0.0)
+			surf.bob = 2.0 + float(strip)
+			surf.bob_speed = 0.9 + 0.17 * float(strip)
+			surf.sway = 3.0 + 2.0 * float(strip)
+			surf.flip_h = seaward
 			surf.z_index = -148
 			add_child(surf)
 			var width := float(surf.frames[0].get_width()) if not surf.frames.is_empty() else 144.0
-			var x := float(edge[0]) + (width * strip if not bool(edge[1]) else -width * (strip + 1))
-			surf.global_position = Vector2(x, waterline_y - 14.0)
-			surf.modulate = Color(1.0, 1.0, 1.0, 0.95 - 0.35 * float(strip))
+			var x := float(edge[0]) + (width * strip if not seaward else -width * (strip + 1))
+			surf.home = Vector2(x, waterline_y - 14.0 + 3.0 * float(strip))
+			surf.global_position = surf.home
+			surf.modulate = Color(1.0, 1.0, 1.0, 0.95 - 0.32 * float(strip))
 
 
 # --- The storm -----------------------------------------------------------------------------
