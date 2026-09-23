@@ -97,11 +97,11 @@ const BANDS := {
 		# The surf is foam over a still sea, so it moves a little faster than the water it
 		# sits on and slower than the sand -- which is what makes the beach read as nearer.
 		{"key": "shore/surf", "rate": 0.70, "z": -235, "fps": 3.0},
-		# ⚠ 64 PAST THE LAND AT THE SEAWARD END, which is a NEGATIVE trim. The clump that ends
-		# the beach stands a little out over the water, and sand that stopped on the collision
-		# edge left it standing on nothing -- a notch of open sea under a rock. The picture
-		# runs to where the picture ends, not to where the player stops, and the shelf face
-		# lands on the same 1064.
+		# ⚠ 64 PAST THE LAND AT THE SEAWARD END, which is a NEGATIVE trim. The palm clump's
+		# mirrored twin below stands 64 out over the water, and sand that stopped on the
+		# collision edge left it standing on nothing: a rock in the shallows with a notch of
+		# open sea under it. The picture runs to where the picture ends, not to where the
+		# player stops -- the shelf face already lands at the same 1060.
 		{"key": "shore/sand", "rate": 1.00, "z": -165, "ground": true,
 			"seaward_trim": -64.0},
 		# ⚠ PIECES, NOT TILES. Each palm plate is one clump drawn at one edge of a 1672 canvas:
@@ -118,21 +118,37 @@ const BANDS := {
 			"mirror": false, "seaward_trim": 48.0},
 		# ⚠ 790, THE SURFACE THE APO WALKS ON, not 941. See the lip in build_dagat_props.py:
 		# the face begins where the sand does, so the land's seaward edge is ragged the whole way
-		# down instead of a ruled cut through the sand with a ragged rock starting under it. The
-		# nudge is 64 either way so the face's edge lands on the sand's, to the pixel.
+		# down instead of a ruled cut through the sand with a ragged rock starting under it.
 		{"key": SHELF_FACE, "rate": 1.00, "z": -149, "top_row": 790.0, "pieces": [
 			{"at": "home_ground.y", "nudge": 64.0, "align": "right"},
 			{"at": "island_ground.x", "nudge": -64.0, "align": "left", "flip": true},
 		]},
 		# The palms lean in the wind -- see shaders/wind_sway.gdshader. A shear of the whole
 		# clump with its foot held, so the rocks it stands on do not move with it.
-		{"key": "shore/palms_left", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.30),
+		#
+		# ⚠ THE TWO PLATES ARE ONE CLUMP SPLIT ACROSS THE PLATE'S BORDER, and the seaward end of
+		# the land is where that shows. `palms_left` tapers to nothing by its column 478 and is
+		# CUT at its column 0; `palms_right` starts from nothing at its column 690 and is CUT at
+		# 1672. Set down with a cut against open water, the beach ended in a ruled vertical line
+		# from the palm tops to the sand -- the land guillotined, which is exactly what it looked
+		# like. But the plate tiles: its column 1672 and its column 0 are the same rock, so the
+		# head of one laid against the tail of the other rebuilds the whole clump and lets it
+		# taper away into the shallows the way the picture was painted to.
+		#
+		# ⚠ SO THE TWO ROWS MUST SWAY AS ONE. They had their own gusts, which is right for two
+		# clumps a beach apart and wrong for two halves of one: the fronds either side of the
+		# join drift apart and the seam reappears in the wind.
+		{"key": "shore/palms_left", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.28),
 			"pieces": [
 			{"crop": Vector2(0, 478), "at": "home_ground.x", "align": "left"},
+			# The head of the clump whose tail ends the home beach, and the island's.
+			{"crop": Vector2(0, 360), "at": "home_ground.y", "align": "left"},
+			{"crop": Vector2(0, 360), "at": "island_ground.x", "align": "right",
+				"flip": true},
 			{"crop": Vector2(0, 478), "at": "island_ground.y", "align": "right",
 				"flip": true},
 		]},
-		{"key": "shore/palms_right", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.26),
+		{"key": "shore/palms_right", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.28),
 			"pieces": [
 			{"crop": Vector2(690, 1672), "at": "home_ground.y", "align": "right"},
 			{"crop": Vector2(690, 1672), "at": "island_ground.x", "align": "left",
