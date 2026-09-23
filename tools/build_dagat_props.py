@@ -667,12 +667,12 @@ def _outrigger(c: Canvas) -> None:
 def _mast_and_sail(c: Canvas) -> None:
     """Furled, and lashed to its spar. A boat left for years does not leave sail up, and a
     triangle of bright canvas would be the loudest thing on the screen."""
-    mast_x = 32
+    mast_x = 44
     head = 5
     foot = _sheer(mast_x)
     # One stay each way, ending on the posts rather than sweeping over the whole boat: drawn
     # to the sheer it arced from end to end and read as a carrying handle.
-    for target in (BOW - 4, STERN + 5):
+    for target in (BOW - 3, STERN + 4):
         span = target - mast_x
         drop = _sheer(target) - 4 - head
         for step in range(abs(span) + 1):
@@ -683,7 +683,7 @@ def _mast_and_sail(c: Canvas) -> None:
         c.px(mast_x + 1, y, HULL[1])
     c.px(mast_x, head - 1, HULL[4])
     # The bundle: canvas rolled along a spar that droops away from the mast.
-    length = 22
+    length = 17
     for step in range(length):
         x = mast_x + 2 + step
         t = step / float(length - 1)
