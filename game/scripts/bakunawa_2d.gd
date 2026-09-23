@@ -94,6 +94,15 @@ var _clock := 0.0
 
 func _ready() -> void:
 	z_index = 4
+	# ⚠ THE CONE IS LIGHT, SO IT IS ADDED RATHER THAN LAID OVER. A translucent polygon on top
+	# of a dark blue seabed is a grey wedge however it is tinted -- it takes brightness out of
+	# what it covers and puts its own flat colour in. Added, the same shape brightens what is
+	# under it and disappears where there is nothing, which is what a beam in water does. The
+	# material is on THIS node, so it applies to _draw() and not to the creature's sprite,
+	# which is a child with its own.
+	var beam := CanvasItemMaterial.new()
+	beam.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	material = beam
 	_load_clips()
 	_build_bodies()
 	_build_skin()
@@ -374,30 +383,36 @@ func _animate(delta: float) -> void:
 func _draw() -> void:
 	if _state != State.SEARCHING and _state != State.FIGHTING:
 		return
-	# ⚠ THE EDGE KEEPS ITS EXACT ANGLE AND ITS EXACT REACH. What changes here is only how the
-	# inside of the cone is shaded: flat, one alpha corner to corner, it read as a grey
-	# triangle laid over the ruins rather than as something looking. It is brightest at the
-	# head and falls off down its length, with a rim drawn along the two edges so the boundary
-	# `sees()` answers about is still the clearest line in it -- a softer cone that a player
-	# could only guess the edge of would be a rule learned by being put back.
+	# ⚠ WHAT `sees()` ANSWERS ABOUT DOES NOT MOVE. The angle and the reach are the rule's;
+	# what has changed twice here is only how the inside of it is shaded, and both earlier
+	# answers were reported as ugly. Flat, one alpha corner to corner, it was a grey wedge
+	# laid over the ruins -- a translucent polygon takes brightness OUT of what it covers and
+	# puts its own colour in. Added instead (see the material in _ready), and shaded across
+	# its width as well as down its length, it brightens what is under it and disappears where
+	# there is nothing, which is what a beam in water does.
+	#
+	# ⚠ AND IT IS DRAWN A LITTLE WIDER THAN THE RULE, fading to nothing past it. A beam whose
+	# light stops exactly on the boundary teaches a player that the edge of the light is the
+	# edge of the danger, and they are then caught a pixel outside it. Wider, the faint fringe
+	# lies outside the rule, so "out of the light" is true whenever it looks true.
+	#
+	# The rim lines this carried are gone. The two cones are drawn back to back, so a rim
+	# joined its opposite number into one straight line 920 px long across the whole screen --
+	# on a seabed that is not a beam, it is a scratch on the picture, and was reported as one.
 	var tint := Color(0.85, 0.92, 0.70, 1.0)
 	if _state == State.FIGHTING:
 		tint = Color(0.97, 0.70, 0.58, 1.0)
 	# A slow swell, so the beam is alive while it is holding still at the end of a sweep.
 	var swell := 1.0 + 0.14 * sin(float(Time.get_ticks_msec()) * 0.0021)
-	var near := Color(tint.r, tint.g, tint.b, 0.30 * swell)
-	var far := Color(tint.r, tint.g, tint.b, 0.07 * swell)
-	var rim := Color(tint.r, tint.g, tint.b, 0.34 * swell)
+	var head := Color(tint.r, tint.g, tint.b, 0.24 * swell)
+	var spread := CONE_HALF_ANGLE * 1.18
 	for facing in [_sweep, _sweep + PI]:
 		var points := PackedVector2Array([Vector2.ZERO])
-		var shades := PackedColorArray([near])
-		for step in range(9):
-			var angle: float = facing - CONE_HALF_ANGLE \
-				+ CONE_HALF_ANGLE * 2.0 * (float(step) / 8.0)
+		var shades := PackedColorArray([head])
+		for step in range(17):
+			var across := float(step) / 16.0
+			var angle: float = facing - spread + spread * 2.0 * across
 			points.append(Vector2(cos(angle), sin(angle)) * CONE_LENGTH)
-			shades.append(far)
+			var falloff := pow(1.0 - absf(across * 2.0 - 1.0), 1.6)
+			shades.append(Color(tint.r, tint.g, tint.b, 0.085 * falloff * swell))
 		draw_polygon(points, shades)
-		for side in [-1.0, 1.0]:
-			var along := Vector2(cos(facing + CONE_HALF_ANGLE * side),
-				sin(facing + CONE_HALF_ANGLE * side))
-			draw_line(Vector2.ZERO, along * CONE_LENGTH, rim, 2.0)
