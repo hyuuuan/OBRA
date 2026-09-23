@@ -73,9 +73,6 @@ island_ground = Vector2(4500.0, 5380.0)
 night_span = Vector2(1600.0, 3000.0)
 night_tint = Color(0.42, 0.5, 0.72, 1)
 far_fade_span = Vector2(1000.0, 1560.0)
-night_span = Vector2(1600.0, 3000.0)
-night_tint = Color(0.60, 0.66, 0.85, 1)
-day_tint = Color(1.5, 1.52, 1.42, 1)
 
 ; ⚠ plate_top = 560, THE WATERLINE ITSELF, AND floor_drop = 360 UNDER IT. The water is
 ; pinned by its top -- the painted column starts where the sea starts, and its light comes from
@@ -99,15 +96,16 @@ night_tint = Color(0.55, 0.62, 0.82, 1)
 ; It was pinned at 421 -- above the horizon -- so the boat rode along the skyline with two
 ; hundred pixels of painted waves hanging under its keel and the jetty's posts drowned under
 ; them. A side view floats on the nearest wave; everything above it is the sea going away.
-; ⚠ 1000..1560, WHERE THE PLAYER LEAVES THE SAND, AND NOT 1600..3000. This is a change of
-; VIEWPOINT, not of weather: this sea seen from the side replaces the beach's sea seen from the
-; front. Cross-faded over fourteen hundred pixels -- with the shore band, which carries the
-; island, never leaving at all -- the whole first third of the crossing was two horizons at two
-; heights with two sets of waves between them. The shore band's far_fade_span is the same
-; stretch, reversed, so exactly one sea is ever being looked at.
-; night_span 1600..3000 is the other half of it: the LIGHT going, which is the buildup the
-; design asks for -- "darker and emptier as the player nears the bakunawa". weather_at() reads
-; this one, so the rain, the lightning and the gulls keep the timing they were tuned with.
+; ⚠ TWO SPANS, BECAUSE TWO DIFFERENT THINGS HAPPEN AND NOT ON THE SAME STRETCH.
+;   fade_span 1000..1560 is a change of VIEWPOINT: this sea seen from the side replaces the
+;     beach's sea seen from the front, over the few hundred pixels where the player leaves the
+;     sand. It ran 1600..3000 and the shore band never left at all, so for fourteen hundred
+;     pixels the crossing was two horizons at two heights with two sets of waves between them.
+;     The shore band's own far_fade_span is the same stretch, reversed, so exactly one sea is
+;     ever being looked at.
+;   night_span 1600..3000 is the LIGHT going, which is the buildup the design asks for --
+;     "darker and emptier as the player nears the bakunawa". weather_at() reads this one, so
+;     the rain, the lightning and the gulls keep the timing they were tuned with.
 [node name="StormBand" type="Node2D" parent="."]
 script = ExtResource("10_backdrop")
 band = "storm"
@@ -119,6 +117,9 @@ far_island_x = 4450.0
 sky_colour = Color(0.055, 0.149, 0.259, 1)
 sky_bottom_row = 470.0
 fade_span = Vector2(1000.0, 1560.0)
+night_span = Vector2(1600.0, 3000.0)
+night_tint = Color(0.60, 0.66, 0.85, 1)
+day_tint = Color(1.5, 1.52, 1.42, 1)
 
 [node name="GameplayPlane" type="Node2D" parent="."]
 script = ExtResource("3_depth")
