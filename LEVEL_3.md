@@ -446,6 +446,45 @@ question about all three — afterwards, can they still play?
 3. **Three knocks.** Warned twice, thrown on the third, and the fight comes back fresh — a
    knock count that survived the restart would make the third loss permanent.
 
+### The horizon, and what the bands were doing wrong (same day)
+
+Kent again: *"the islands, the platforms are not rendering properly as well as the ocean and
+the sky since its so weird like the horizon"*. Two more faults, both in how the bands were
+being composited rather than in the art.
+
+**There were two horizons, and they were 73 pixels apart.** The shore band's far layers are a
+beach **seen from the front** — a horizon, a band of sea receding to it, breakers running up
+sand. The storm band is the same sea **seen from the side**. The two plates do not even agree
+on how far the horizon sits above the waterline: 157 rows on the shore's, 84 on the storm's.
+The storm was cross-faded in over 1600..3000 and the shore band **never left at all**, so for
+the whole first third of the crossing both were drawn: two horizons, two rows of distant land
+(world 403 and 476), two sets of waves, and beach breakers running over three thousand pixels
+of open sea.
+
+It cannot be fixed with `fade_span`, because the island the crossing arrives at is the shore
+band's own sand and palms, four thousand pixels into the storm. So the split is by LAYER, and
+then the two things that were sharing one ramp get their own:
+
+| | Stretch | What it is |
+|---|---|---|
+| `far_fade_span` (shore) / `fade_span` (storm) | **1000..1560** | A change of **viewpoint**. The side view replaces the front view where the player leaves the sand. Short, because a long cross-fade between two incompatible pictures IS the double horizon |
+| `night_span` (all three) | **1600..3000** | The **light** going — the buildup the design asks for. `weather_at()` reads this one, so the rain, the lightning and the no-gulls rule keep the timing they were tuned with |
+
+Three consequences, each its own commit: the storm band gains a **`day_tint`** so its sea —
+painted for the end of the crossing — brightens back toward the light it now arrives in; its
+**clouds, rain and flat sky lid** follow the night rather than the band, because drawn with the
+band it poured on a bright sea one screen out from a sunny beach; and the shore's **sky** is
+not part of its sea, so it stays over the open water and leaves as the thunderheads come in.
+
+**And the bands were mirroring plates that were authored to tile.** Every second copy was
+flipped, on the reasoning that a straight repeat would cut through the ruins. Nobody measured
+it. The mean difference between a plate's last column and its first is **under 21 of 255
+across all eleven tiled plates, and under 11 for the ruins and the ridges** — they repeat.
+What mirroring actually did was pair each plate's most distinctive edge with its own
+reflection, so the seabed carried a symmetrical butterfly of ruin arches every 3344 pixels,
+which is what "the platforms are not rendering properly" was. `mirrored_tiles` now defaults
+off and the measurement is written beside it.
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.
