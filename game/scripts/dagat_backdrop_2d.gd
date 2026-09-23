@@ -179,11 +179,11 @@ const BANDS := {
 		{"key": "deep/ruins", "rate": 0.55, "z": -220, "floor": true, "mirror": true},
 		# ⚠ RATE 1.00, BECAUSE THIS ONE IS THE FLOOR. Every other layer here is scenery and
 		# lags the camera to read as distance; this is the seabed the coral, the kelp, the six
-		# ink jars and the signposts STAND ON, and those live in the gameplay plane at world
-		# rate. At 0.80 the painted bed slid 200 px for every 1000 the camera travelled -- seven
-		# hundred across the crossing -- so a jar that began on a ledge finished over a gap and
-		# the ledges drifted through everything standing on them. Ground is ground: the shore's
-		# sand is 1.00 for the same reason.
+		# ink jars and the signposts STAND ON, and those are placed in the gameplay plane at
+		# world rate. At 0.80 the painted bed slid 200 px west for every 1000 the camera
+		# travelled -- seven hundred across the crossing -- so a jar that began on a ledge
+		# finished over a gap and the ledges themselves drifted through everything standing on
+		# them. Ground is ground: the shore's sand is 1.00 for the same reason.
 		{"key": "deep/terraces", "rate": 1.00, "z": -215, "floor": true, "mirror": true},
 	],
 	"storm": [
@@ -198,7 +198,10 @@ const BANDS := {
 		# and ruins, and its bottom row's colour carries on down, so under a storm the column
 		# is dark all the way to the seabed and the floor still stands in front of it.
 		{"key": "storm/undersea", "rate": 0.50, "z": -228,
-			"fill_below": Color(0.012, 0.094, 0.208, 1.0), "mirror": true},
+			# ⚠ THE PLATE'S OWN LAST ROW, SAMPLED. It was #031735 and the rows above it are
+			# #04102a -- bluer and lighter by enough to draw a line across the column where
+			# the two met.
+			"fill_below": Color(0.016, 0.063, 0.165, 1.0), "mirror": true},
 		{"key": "storm/waves", "rate": 0.80, "z": -195, "fps": 4.0, "mirror": true},
 		# ⚠ BEHIND THE WAVES, AND THIS IS THE SECOND ANSWER TO THE SAME QUESTION. It was in
 		# FRONT of them, on the reasoning that the jetty's posts stand in the water and a
@@ -357,9 +360,23 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 		# than both. A one-row overlap was a hairline across the whole crossing; "fixing" it
 		# by overlapping three rows made it three times as thick. Both edges are whole pixels.
 		var top := plate_top + float(frames[0].get_height()) + layer.origin.y
+		# ⚠ A FADE, NOT A SLAB, AND THIS IS THE THIRD ANSWER TO THE SAME EDGE. The storm's
+		# underwater picture ends on a straight bottom row: drawn as it comes it ended in a
+		# ruled line with the deep's sunlit water carrying on under it, and dithering the edge
+		# only made the line a checkerboard. Four thousand pixels of one flat colour did hide
+		# the deep -- and put a band of dead navy across the middle of the column with a ruled
+		# line at the top of it instead, which is what "it is just divided" was looking at.
+		# Six hundred pixels going to nothing hands the column back to the deep's own water,
+		# which the night tint has already taken the daylight out of by the time the storm is
+		# over it.
+		#
+		# ⚠ vertex_colors REPLACES `color`; it does not multiply it. A gradient built on
+		# Color.WHITE came out as a lavender slab over the whole seabed.
+		var faded := Color(fill.color.r, fill.color.g, fill.color.b, 0.0)
 		fill.polygon = PackedVector2Array([
 			Vector2(span.x - reach, top), Vector2(span.y + reach, top),
-			Vector2(span.y + reach, top + 4000.0), Vector2(span.x - reach, top + 4000.0)])
+			Vector2(span.y + reach, top + 600.0), Vector2(span.x - reach, top + 600.0)])
+		fill.vertex_colors = PackedColorArray([fill.color, fill.color, faded, faded])
 		add_child(fill)
 	return layer
 
@@ -563,19 +580,17 @@ class _Layer extends Node2D:
 	var flipped := false
 	## Laid across `span` at world rate and cut off at its ends, rather than widened for drift.
 	var grounded := false
-	## ⚠ PER PLATE, AND LOOKED AT RATHER THAN MEASURED. The straight repeat was turned on for
-	## everything on the strength of one number -- the mean difference between a plate's last
-	## column and its first, under 21 of 255 for all thirteen -- and the number is not what
-	## decides it. `deep/water` is a lit column, bright with god-rays at one end and dark at
-	## the other: 21 of 255 sounds small and puts a bright rectangle of sea beside a dark one
-	## every 1672 pixels. `deep/terraces` and `deep/ruins` are tableaux whose edges are
-	## mid-cliff, so a straight repeat cuts a ledge in half and leaves it ending in nothing --
-	## reported as "I can see that it is cropped". Those want the mirror: a gradient met by its
-	## own reflection is a rhythm, and a cliff met by its own reflection is a bigger cliff.
-	##
-	## The ones that stay straight are the ones whose joins are genuinely invisible AND that
-	## carry something distinctive near an edge, which mirroring would put beside itself: the
-	## sky, the mountains, the sand, the clouds, the distant islands, the ridges.
+	## ⚠ PER PLATE, AND LOOKED AT RATHER THAN MEASURED. Five of the thirteen tiled plates
+	## repeat cleanly and four of the others do not repeat at all -- and the difference is not
+	## in the numbers. `deep/water` is a lit column, bright with god-rays at one end and dark
+	## at the other: its columns differ by 21 of 255, which sounds small and puts a bright
+	## rectangle of sea beside a dark one every 1672 pixels. `deep/terraces` and `deep/ruins`
+	## are tableaux whose edges are mid-cliff, so a straight repeat cuts a ledge in half and
+	## leaves it ending in nothing. Those want the mirror -- a gradient met by its own
+	## reflection is a rhythm, and a cliff met by its own reflection is a bigger cliff.
+	## The other five want the straight repeat, because mirroring a plate with something
+	## distinctive near its edge -- the ruins' arch -- puts that thing beside itself.
+	## The contact sheet these were chosen from is in LEVEL_3.md.
 	var mirrored_tiles := false
 	## How far a piece is raised off the plate's registration. See the far island.
 	var lift := 0.0
