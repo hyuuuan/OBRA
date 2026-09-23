@@ -538,11 +538,18 @@ class _Layer extends Node2D:
 		place()
 		set_process((fps > 0.0 and frames.size() > 1) or slide_speed != 0.0)
 
+	## ⚠ WHOLE PIXELS. Every layer moves at its own fraction of the camera, so at any moment
+	## the ten of them sit at ten different sub-pixel offsets -- and with nearest filtering a
+	## sub-pixel offset is not a soft half-pixel, it is a column of texels that snaps a whole
+	## pixel across when the offset crosses a half. Ten layers each snapping on its own
+	## schedule is the crawl you see in the sky while the sea underneath it holds still. Put
+	## them all on the world's pixel grid and they snap together or not at all, which reads as
+	## the painting moving rather than as the painting boiling.
 	func place() -> void:
 		var slid := 0.0
 		if slide_speed != 0.0:
 			slid = wrapf(_slid, -canvas_width, canvas_width)
-		position = Vector2(parallax_x + slid, plate_top)
+		position = Vector2(roundf(parallax_x + slid), roundf(plate_top))
 
 	func _add_tile(x: float, flip: bool, region: Rect2) -> Sprite2D:
 		var tile := Sprite2D.new()
