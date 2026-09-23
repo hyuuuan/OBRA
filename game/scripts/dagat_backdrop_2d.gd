@@ -177,7 +177,7 @@ const BANDS := {
 		{"key": "deep/terraces", "rate": 0.80, "z": -215, "floor": true},
 	],
 	"storm": [
-		{"key": "storm/clouds", "rate": 0.15, "z": -210, "drift": -16.0},
+		{"key": "storm/clouds", "rate": 0.15, "z": -210, "drift": -16.0, "weather": true},
 		{"key": "storm/islands", "rate": 0.35, "z": -205},
 		# ⚠ UNDER THE DEEP'S FLOOR, NOT OVER IT, AND CARRIED DOWN BELOW ITS OWN LAST ROW. The
 		# underside is the storm plate's own seabed -- rocks and weed down to the plate's edge
@@ -214,7 +214,7 @@ const BANDS := {
 				"align": "left", "flip": true, "lift": 110.0},
 		]},
 		# Rain falls in front of everything, fast, and never repeats the sea's rhythm.
-		{"key": "storm/rain", "rate": 1.00, "z": 60, "fps": 10.0},
+		{"key": "storm/rain", "rate": 1.00, "z": 60, "fps": 10.0, "weather": true},
 	],
 }
 
@@ -234,6 +234,8 @@ const BANDS := {
 @export var day_tint := Color.WHITE
 
 var _layers: Array[Node2D] = []
+## The band's own flat sky, if it has one. See sky_colour -- it comes in with the clouds.
+var _sky: Polygon2D
 ## How far the storm has cleared, 0..1. The storm is over when the bakunawa is -- see
 ## clear_the_sky -- and this is what every band's night and every storm's alpha answer to.
 var _clearing := 0.0
@@ -253,6 +255,11 @@ func _ready() -> void:
 			Vector2(span.x - reach, -4000.0), Vector2(span.y + reach, -4000.0),
 			Vector2(span.y + reach, bottom), Vector2(span.x - reach, bottom)])
 		add_child(sky)
+		# ⚠ IT BACKS THE CLOUDS, SO IT ARRIVES WITH THEM. This exists because the storm's
+		# clouds are a strip with nothing painted over them; with the clouds held back to the
+		# night's own stretch, a lid of flat navy that came in with the SEA put a starless
+		# midnight over a bright choppy daylight ocean one screen out from a sunny beach.
+		_sky = sky
 	var manifest := _manifest()
 	for row_value: Variant in BANDS.get(band, []):
 		var row: Dictionary = row_value
@@ -315,6 +322,7 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 		layer.sway = row["sway"]
 	layer.slide_speed = float(row.get("drift", 0.0))
 	layer.far = bool(row.get("far", false))
+	layer.weather = bool(row.get("weather", false))
 	if row.has("top_row"):
 		# An authored texture is not on the plate at all; it says which plate row it
 		# starts at, and it repeats at its own width rather than the plate's.
@@ -481,6 +489,13 @@ func update_for_camera(camera_position: Vector2) -> void:
 		for layer in _layers:
 			if layer.far:
 				layer.modulate.a = 1.0 - gone
+	# ⚠ AND THE RAIN COMES WITH THE DARK, NOT WITH THE PICTURE. The band arrives where the
+	# player leaves the sand; the weather arrives where the design says it should.
+	for layer in _layers:
+		if layer.weather:
+			layer.modulate.a = night
+	if _sky != null and night_span != Vector2.ZERO:
+		_sky.modulate.a = night
 	for layer in _layers:
 		# ⚠ HORIZONTAL ONLY. Parallax on Y unmoors the composition from the thing it is
 		# registered to: this level is a thousand pixels tall, so let the far layers lag on Y
@@ -536,6 +551,8 @@ class _Layer extends Node2D:
 	var lift := 0.0
 	## Part of this band's sea and sky rather than its land. See far_fade_span.
 	var far := false
+	## Drawn only as far as the night has come in. See night_span.
+	var weather := false
 	## (lean in texels, gusts per second) for a layer the wind moves. ZERO holds it still.
 	var sway := Vector2.ZERO
 	## Pixels a second a layer slides on its own -- clouds -- wrapped at the width it repeats
