@@ -219,15 +219,40 @@ func _plant_the_brush() -> void:
 	circle.radius = 44.0
 	shape.shape = circle
 	pickup.add_child(shape)
-	var art := Polygon2D.new()
-	art.polygon = PackedVector2Array([
-		Vector2(-26, 10), Vector2(14, -14), Vector2(22, -4), Vector2(-18, 20)])
-	art.color = Color(0.94, 0.86, 0.58, 1.0)
+	# ⚠ THE HUD'S OWN BRUSH, NOT A SECOND DRAWING OF ONE. What the apo picks up off the sand
+	# and what the ink panel carries for the rest of the run are the same tool, and two
+	# separate pictures of it are two things to keep in step. brush_full.png is 384 square
+	# with the brush across its middle, so the sprite is regioned to the ink and scaled to
+	# the size the design asks for -- a tool lying in the sand, not a shell.
+	var art := Sprite2D.new()
+	art.name = "Brush"
+	art.texture = load("res://assets/hud/brush_full.png") as Texture2D
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.region_enabled = true
+	art.region_rect = Rect2(6.0, 156.0, 366.0, 66.0)
+	art.scale = Vector2.ONE * 0.26
+	art.rotation = -0.18
+	art.position = Vector2(0.0, 6.0)
 	pickup.add_child(art)
 	pickup.global_position = mark.global_position
 	pickup.z_index = 8
 	mark.get_parent().add_child(pickup)
 	pickup.body_entered.connect(_on_brush_touched.bind(pickup))
+	# ⚠ "Something in the sand is catching the light" is the objective this level prints while
+	# the brush is on the beach, so something had better catch the light. A slow lift and a
+	# glint every few seconds; both go with the pickup when it is taken.
+	var lift := art.create_tween().set_loops()
+	lift.tween_property(art, "position:y", 0.0, 1.4).set_trans(Tween.TRANS_SINE) \
+		.set_ease(Tween.EASE_IN_OUT)
+	lift.tween_property(art, "position:y", 6.0, 1.4).set_trans(Tween.TRANS_SINE) \
+		.set_ease(Tween.EASE_IN_OUT)
+	var glint := Timer.new()
+	glint.wait_time = 2.4
+	glint.autostart = true
+	pickup.add_child(glint)
+	glint.timeout.connect(func() -> void:
+		if _life != null and is_instance_valid(_life) and is_instance_valid(pickup):
+			_life.sparkle(pickup.global_position + Vector2(14.0, -8.0), 3, 24.0))
 
 
 ## THE BOAT IS FOUND, NOT DRAWN -- the design decided it, on the grounds that finding fits
