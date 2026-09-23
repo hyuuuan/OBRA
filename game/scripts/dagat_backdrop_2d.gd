@@ -111,10 +111,10 @@ const BANDS := {
 		# instead, as the storm's own clouds come in over it.
 		{"key": "shore/sky", "rate": 0.15, "z": -250, "drift": 5.0, "day": true},
 		{"key": "shore/mountains", "rate": 0.35, "z": -245, "far": true},
-		{"key": "shore/ocean", "rate": 0.55, "z": -240, "far": true},
+		{"key": "shore/ocean", "rate": 0.55, "z": -240, "far": true, "mirror": true},
 		# The surf is foam over a still sea, so it moves a little faster than the water it
 		# sits on and slower than the sand -- which is what makes the beach read as nearer.
-		{"key": "shore/surf", "rate": 0.70, "z": -235, "fps": 3.0, "far": true},
+		{"key": "shore/surf", "rate": 0.70, "z": -235, "fps": 3.0, "far": true, "mirror": true},
 		# ⚠ 64 PAST THE LAND AT THE SEAWARD END, which is a NEGATIVE trim. The palm clump's
 		# mirrored twin below stands 64 out over the water, and sand that stopped on the
 		# collision edge left it standing on nothing: a rock in the shallows with a notch of
@@ -174,10 +174,10 @@ const BANDS := {
 		]},
 	],
 	"deep": [
-		{"key": "deep/water", "rate": 0.15, "z": -230},
+		{"key": "deep/water", "rate": 0.15, "z": -230, "mirror": true},
 		{"key": "deep/ridges", "rate": 0.35, "z": -225, "floor": true},
-		{"key": "deep/ruins", "rate": 0.55, "z": -220, "floor": true},
-		{"key": "deep/terraces", "rate": 0.80, "z": -215, "floor": true},
+		{"key": "deep/ruins", "rate": 0.55, "z": -220, "floor": true, "mirror": true},
+		{"key": "deep/terraces", "rate": 0.80, "z": -215, "floor": true, "mirror": true},
 	],
 	"storm": [
 		{"key": "storm/clouds", "rate": 0.15, "z": -210, "drift": -16.0, "weather": true},
@@ -191,8 +191,8 @@ const BANDS := {
 		# and ruins, and its bottom row's colour carries on down, so under a storm the column
 		# is dark all the way to the seabed and the floor still stands in front of it.
 		{"key": "storm/undersea", "rate": 0.50, "z": -228,
-			"fill_below": Color(0.012, 0.094, 0.208, 1.0)},
-		{"key": "storm/waves", "rate": 0.80, "z": -195, "fps": 4.0},
+			"fill_below": Color(0.012, 0.094, 0.208, 1.0), "mirror": true},
+		{"key": "storm/waves", "rate": 0.80, "z": -195, "fps": 4.0, "mirror": true},
 		# In FRONT of the waves and at their rate: the jetty's posts stand in the water, and a
 		# headland behind the sea it stands in reads as a picture of a headland pasted on.
 		#
@@ -326,6 +326,7 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 		layer.sway = row["sway"]
 	layer.slide_speed = float(row.get("drift", 0.0))
 	layer.far = bool(row.get("far", false))
+	layer.mirrored_tiles = bool(row.get("mirror", false))
 	layer.weather = bool(row.get("weather", false))
 	layer.day = bool(row.get("day", false))
 	if row.has("top_row"):
@@ -551,13 +552,19 @@ class _Layer extends Node2D:
 	var flipped := false
 	## Laid across `span` at world rate and cut off at its ends, rather than widened for drift.
 	var grounded := false
-	## ⚠ OFF, AND MEASURED. Every tiled plate in this delivery was authored to REPEAT: the
-	## mean difference between a plate's last column and its first is under 21 of 255 across
-	## all eleven of them, and under 11 for the ruins and the ridges. Mirroring was a guess
-	## made before anybody checked, and it costs more than the seam it was hiding -- each of
-	## these plates is a composition with something distinctive at its edges, so every second
-	## join put a ruin arch next to its own reflection and the eye finds a butterfly a great
-	## deal faster than it finds a repeat.
+	## ⚠ PER PLATE, AND LOOKED AT RATHER THAN MEASURED. The straight repeat was turned on for
+	## everything on the strength of one number -- the mean difference between a plate's last
+	## column and its first, under 21 of 255 for all thirteen -- and the number is not what
+	## decides it. `deep/water` is a lit column, bright with god-rays at one end and dark at
+	## the other: 21 of 255 sounds small and puts a bright rectangle of sea beside a dark one
+	## every 1672 pixels. `deep/terraces` and `deep/ruins` are tableaux whose edges are
+	## mid-cliff, so a straight repeat cuts a ledge in half and leaves it ending in nothing --
+	## reported as "I can see that it is cropped". Those want the mirror: a gradient met by its
+	## own reflection is a rhythm, and a cliff met by its own reflection is a bigger cliff.
+	##
+	## The ones that stay straight are the ones whose joins are genuinely invisible AND that
+	## carry something distinctive near an edge, which mirroring would put beside itself: the
+	## sky, the mountains, the sand, the clouds, the distant islands, the ridges.
 	var mirrored_tiles := false
 	## How far a piece is raised off the plate's registration. See the far island.
 	var lift := 0.0
