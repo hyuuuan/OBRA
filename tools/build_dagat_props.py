@@ -713,7 +713,51 @@ def draw_bangka_afloat() -> Canvas:
     return c
 
 
-BANGKA = {"bangka_afloat.png": draw_bangka_afloat}
+def draw_bangka_beached() -> Canvas:
+    """The same boat, turned over on the sand. What the apo finds and presses E at.
+
+    ⚠ DRAWN, NOT REFLECTED. Mirroring the floating hull about its waterline is the honest
+    thing to do and it produced a stack of planks: upside down you see the OUTSIDE of the
+    planking and the keel, which is one smooth arc with the sheer down in the sand -- not the
+    inside of a boat with its rail in the air."""
+    import math
+    pixelart.PX = 3
+    c = Canvas(BANGKA_W, BANGKA_H, seed=2403)
+    sand = BANGKA_WATERLINE + 9
+    left, right = STERN + 1, BOW + 1
+    for x in range(left, right + 1):
+        t = (x - left) / float(right - left)
+        # The keel, highest a little aft of amidships, and the ends lifting clear of the sand.
+        arc = 10.0 * math.sin(math.pi * min(1.0, max(0.0, t))) ** 0.7
+        keel = sand - int(round(arc))
+        lift = int(round(2.0 * (2.0 * t - 1.0) ** 2))
+        foot = sand - lift
+        if keel >= foot:
+            continue
+        for y in range(keel, foot + 1):
+            down = (y - keel) / max(1.0, float(foot - keel))
+            c.px(x, y, HULL[3] if down < 0.34 else (HULL[2] if down < 0.74 else HULL[1]))
+        c.px(x, keel, HULL[4])
+        c.px(x, foot, HULL[0])
+        # The painted band is down by the sand now, because the rail is.
+        if foot - keel >= 4:
+            c.px(x, foot - 1, TRIM[1] if (x + foot) % 3 else TRIM[2])
+    # The stems, still standing proud of the sand at both ends.
+    for x, lean in ((right, -1), (left, 1)):
+        for step in range(4):
+            at = x + lean * ((step + 1) // 2)
+            c.px(at, sand - 2 - step, HULL[3] if step % 2 else HULL[2])
+            c.px(at - lean, sand - 2 - step, HULL[1])
+    # The two booms it was dragged up on, lying beside it on the sand.
+    for x in range(left + 4, right - 6):
+        c.px(x, sand + 2, BAMBOO[2])
+        c.px(x, sand + 3, BAMBOO[0])
+    c.speckle(left + 5, sand - 8, right - left - 12, 7, HULL[1], 0.07)
+    return c
+
+
+BANGKA = {"bangka_afloat.png": draw_bangka_afloat,
+          "bangka_beached.png": draw_bangka_beached}
 
 
 def build() -> list[Path]:
