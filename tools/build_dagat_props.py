@@ -67,6 +67,20 @@ LEDGE = ramp(["#1f6f78", "#3fa6a0", "#8fd8c0", "#c8f0c8"])
 MOSS = ramp(["#244a36", "#3a6e44"])
 SHELF_W, SHELF_H = 160, 384
 FACE_W = 46
+# ⚠ THE LIP: the 151 rows of the SAND PLATE the face used to start below. The face was pinned
+# at the plate's last row, so it dressed the land's seaward edge only from there down -- and
+# the sand above it, from the surface the apo walks on to that row, was still cut off with a
+# ruled vertical line. Under water and dark, but a ruled line, and the first thing anybody
+# noticed about the end of the beach. These rows carry the sand plate's own colours down to
+# its earth band, so the face now begins where the sand does and the whole edge is ragged.
+LIP_H = 51
+## How far behind its own edge the lip is opaque. See draw_shelf_face.
+LIP_DEPTH = 15
+# Read off the sand plate: its lit surface, the shaded body under it, wet sand, and the earth
+# band that the shelf's own first stop already matches.
+SAND = ramp(["#6f5141", "#be9564", "#e6b775", "#f0c888", "#f7dba6"])
+LIP_STOPS = [(0, SAND[3]), (14, SAND[3]), (24, SAND[2]), (34, SAND[1]),
+             (40, SAND[0]), (50, EARTH[1])]
 # (row, colour) stops down the column. The first matches the sand plate's last row exactly,
 # which is the only place the two pictures touch.
 SHELF_STOPS = [(0, EARTH[1]), (12, EARTH[1]), (64, ROCK[3]), (150, ROCK[2]),
@@ -167,30 +181,65 @@ def draw_shelf_face() -> Canvas:
 
     A ragged edge with a few ledges jutting out of it, each lit on its top the way the
     painted terraces are -- teal going to near-white -- with weed hanging off the lip and the
-    underside cut back, so it reads as a shelf a thing could rest on rather than a notch."""
+    underside cut back, so it reads as a shelf a thing could rest on rather than a notch.
+
+    ⚠ IT BEGINS AT THE SAND, NOT UNDER IT. The top LIP_H rows are the sand plate's own band,
+    so the land's edge is ragged from the surface the apo stands on all the way down, instead
+    of a ruled cut through the sand with a ragged rock starting under it."""
     import math
     pixelart.PX = 3
-    c = Canvas(FACE_W, SHELF_H, seed=2207)
-    _shelf_body(c, FACE_W, 2207, False)
+    c = Canvas(FACE_W, LIP_H + SHELF_H, seed=2207)
+    body = Canvas(FACE_W, SHELF_H, seed=2207)
+    _shelf_body(body, FACE_W, 2207, False)
+    c.buf[LIP_H:] = body.buf
+    for y in range(LIP_H):
+        for (ya, lo), (yb, hi) in zip(LIP_STOPS, LIP_STOPS[1:]):
+            if ya <= y <= yb:
+                amount = 0.0 if yb == ya else (y - ya) / float(yb - ya)
+                c.dither(0, y, FACE_W, 1, lo, hi, amount)
+                break
     base = FACE_W - 20
     edge = []
-    for y in range(SHELF_H):
+    for y in range(LIP_H + SHELF_H):
         e = base + int(round(2.6 * math.sin(y / 13.0) + 1.6 * math.sin(y / 5.7 + 1.0)
                              + 1.0 * math.sin(y / 2.3)))
+        if y < LIP_H:
+            # Sand runs further out than rock does and draws back as it wets: the lip is a
+            # slope into the water, not a wall, so nothing here reads as a second cliff.
+            e += int(round((1.0 - y / float(LIP_H)) * 11.0))
         for top, thick, out in LEDGES:
-            if top <= y < top + thick:
+            if top + LIP_H <= y < top + LIP_H + thick:
                 # Full reach for the top rows, cut back underneath.
-                cut = max(0, (y - top) - 2) * out // max(1, thick)
+                cut = max(0, (y - top - LIP_H) - 2) * out // max(1, thick)
                 e = max(e, base + out - cut - 1)
         edge.append(min(FACE_W - 1, e))
-    for y in range(SHELF_H):
+    for y in range(LIP_H + SHELF_H):
         c.buf[y, edge[y] + 1:] = 0
         # A right-hand face is on the shadow side: its edge carries the step down.
-        c.px(edge[y], y, ROCK[0])
+        c.px(edge[y], y, ROCK[0] if y >= LIP_H else SAND[0])
         c.px(edge[y] - 1, y, _step(c.buf[y, edge[y] - 1].copy(), -1))
+    # ⚠ THE LIP IS AN EDGE, NOT A SLAB. Opaque for LIP_DEPTH columns behind the edge and
+    # dithered away inland of that: drawn to the full width it was a second, flatter sand
+    # laid over the plate's, and the join where the two met was a straighter line than the
+    # one it was put there to hide. The plate's own sand carries on behind this.
+    for y in range(LIP_H):
+        left = edge[y] - LIP_DEPTH
+        c.buf[y, :max(0, left)] = 0
+        for x in range(max(0, left), min(FACE_W, left + 6)):
+            if BAYER_AT(x, y) > (x - left) / 6.0:
+                c.buf[y, x] = 0
+        # Wet sand darkening toward the water.
+        for x in range(max(0, edge[y] - 5), edge[y]):
+            if (x + y) % 3 == 0:
+                c.px(x, y, SAND[1])
+    for cy, cx in ((11, base - 8), (26, base - 2), (39, base - 13), (45, base - 5)):
+        c.px(cx, cy, SAND[0])
+        c.px(cx + 1, cy, SAND[1])
+        c.px(cx, cy + 1, SAND[0])
     # The slab of each ledge, a step lighter than the wall behind it so it reads as rock
     # standing out of the face rather than a line drawn on it, outlined underneath.
-    for top, thick, out in LEDGES:
+    for top_row, thick, out in LEDGES:
+        top = top_row + LIP_H
         for y in range(top, top + thick):
             for x in range(base - 4, edge[y] + 1):
                 slab = ROCK[3] if (x + y) % 4 else ROCK[2]
@@ -200,20 +249,21 @@ def draw_shelf_face() -> Canvas:
             c.px(edge[y], y, ROCK[0])
         for x in range(base - 2, edge[top + thick - 1] + 1):
             c.px(x, top + thick, ROCK[0])
-    for top, thick, out in LEDGES:
+    for top_row, thick, out in LEDGES:
+        top = top_row + LIP_H
         lip = edge[top]
         x0 = base - 6
         for x in range(x0, lip + 1):
             c.px(x, top, LEDGE[3] if x > x0 + 4 else LEDGE[2])
             c.px(x, top + 1, LEDGE[1] if x > x0 + 2 else LEDGE[0])
         # A boulder sitting on the ledge, half the time.
-        if (top // 7) % 2 == 0:
+        if (top_row // 7) % 2 == 0:
             _boulder(c, lip - 5, top - 3, 3)
             for x in range(lip - 8, lip - 1):
                 c.px(x, top, LEDGE[2])
         # Weed hanging off the lip.
         for x in range(base + 1, lip, 3):
-            length = 2 + (x * 7 + top) % 4
+            length = 2 + (x * 7 + top_row) % 4
             for dy in range(length):
                 c.px(x, top + thick + 1 + dy, MOSS[1] if dy < length - 1 else MOSS[0])
     return c
