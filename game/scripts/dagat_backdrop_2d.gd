@@ -200,28 +200,32 @@ const BANDS := {
 		{"key": "storm/undersea", "rate": 0.50, "z": -228,
 			"fill_below": Color(0.012, 0.094, 0.208, 1.0), "mirror": true},
 		{"key": "storm/waves", "rate": 0.80, "z": -195, "fps": 4.0, "mirror": true},
-		# In FRONT of the waves and at their rate: the jetty's posts stand in the water, and a
-		# headland behind the sea it stands in reads as a picture of a headland pasted on.
+		# ⚠ BEHIND THE WAVES, AND THIS IS THE SECOND ANSWER TO THE SAME QUESTION. It was in
+		# FRONT of them, on the reasoning that the jetty's posts stand in the water and a
+		# headland drawn behind the sea it stands in reads as a picture pasted on. True, and it
+		# bought a worse problem: at the waves' own rate, in front of them, with a deck at the
+		# waterline, it read as somewhere to stand -- and it is scenery, so walking onto it is
+		# something the level cannot let anybody do. Reported as exactly that. The sea in front
+		# of its base, and lifted clear of the front crest, puts it out there instead of here.
 		#
-		# ⚠ EACH WITH A MIRRORED TWIN ON ITS CUT SIDE. Both were painted as the edges of one
-		# picture: the headland's rocks run off the plate's left border and the island's off
-		# its right, so set down on their own in open sea each ended in a ruled vertical line.
-		# The land part (not the jetty, not the buoy) is mirrored against that line, which
-		# turns the cut into the middle of an islet. The twin shares its piece's landmark, so
-		# the two drift as one thing.
-		# A storm leans them much harder.
-		{"key": "storm/shores", "rate": 0.80, "z": -193, "sway": Vector2(11.0, 0.55),
+		# ⚠ AND THE CUT SIDE IS ANSWERED BY THE PLATE'S OWN TAIL, NOT BY A MIRROR. Both halves
+		# were painted as the edges of one picture -- the headland runs off the left border, the
+		# far island off the right -- and a mirrored twin against the cut turned the headland
+		# into a symmetrical butterfly with a jetty out of each side of it. But the plate tiles:
+		# its column 1672 and its column 0 are the same rock, so the tail of it laid against the
+		# head rebuilds one island. Same fix as the beach's palms, same reason.
+		{"key": "storm/shores", "rate": 0.80, "z": -196, "sway": Vector2(11.0, 0.55),
 			"pieces": [
-			{"crop": Vector2(0, 536), "at": "headland_x", "align": "center"},
-			{"crop": Vector2(0, 270), "at": "headland_x", "nudge": -268.0, "align": "right",
-				"flip": true},
-			# ⚠ LIFTED 110. The two halves of this plate were not drawn on one waterline:
-			# with the jetty's deck at the boat's, the buoy's float sat a hundred pixels under
-			# the front wave. The CompletedLook has both in the same water.
+			{"crop": Vector2(0, 536), "at": "headland_x", "align": "center", "lift": 70.0},
+			{"crop": Vector2(1400, 1672), "at": "headland_x", "nudge": -268.0,
+				"align": "right", "lift": 70.0},
+			# ⚠ LIFTED 110. The two halves of this plate were not drawn on one waterline: with
+			# the jetty's deck at the boat's, the buoy's float sat a hundred pixels under the
+			# front wave. The CompletedLook has both in the same water.
 			{"crop": Vector2(1306, 1672), "at": "far_island_x", "align": "center",
 				"lift": 110.0},
-			{"crop": Vector2(1480, 1672), "at": "far_island_x", "nudge": 183.0,
-				"align": "left", "flip": true, "lift": 110.0},
+			{"crop": Vector2(0, 190), "at": "far_island_x", "nudge": 183.0, "align": "left",
+				"lift": 110.0},
 		]},
 		# Rain falls in front of everything, fast, and never repeats the sea's rhythm.
 		{"key": "storm/rain", "rate": 1.00, "z": 60, "fps": 10.0, "weather": true},
