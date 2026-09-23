@@ -71,6 +71,17 @@ const SHELF_FACE := "res://assets/Level3/authored/shelf_face.png"
 ## each other cut from noon to night at one pixel; a band that fades in over a thousand
 ## pixels is the buildup. Zero means "always at full", which is what the other two want.
 @export var fade_span := Vector2.ZERO
+## ⚠ WHERE THIS BAND'S SEA AND SKY LEAVE, THE LAND STAYING. The shore band cannot use
+## `fade_span`: the island the crossing arrives at is ITS sand and ITS palms, four thousand
+## pixels into the storm, so fading the whole band out takes the island with it. But its far
+## layers are a beach SEEN FROM THE FRONT -- a horizon, a band of sea receding to it, and
+## breakers running up a beach -- and the storm's are the same sea SEEN FROM THE SIDE. The two
+## plates do not even agree on how far the horizon is above the waterline: 157 rows on the
+## shore's, 84 on the storm's. Cross-faded over fourteen hundred pixels, that is two horizons
+## at two heights with two sets of waves between them, which is what the whole first third of
+## the crossing looked like. Layers marked `far` leave across this instead, so exactly one sea
+## is ever being looked at.
+@export var far_fade_span := Vector2.ZERO
 
 ## ⚠ THE STACK, FURTHEST FIRST. `rate` is the parallax factor: 0 is painted on the far wall
 ## and never moves, 1 travels with the world. `fps` turns a layer into an animation.
@@ -95,12 +106,12 @@ const SHELF_FACE := "res://assets/Level3/authored/shelf_face.png"
 const BANDS := {
 	"shore": [
 		# The sky's clouds drift of their own accord, slowly; the storm's are driven.
-		{"key": "shore/sky", "rate": 0.15, "z": -250, "drift": 5.0},
-		{"key": "shore/mountains", "rate": 0.35, "z": -245},
-		{"key": "shore/ocean", "rate": 0.55, "z": -240},
+		{"key": "shore/sky", "rate": 0.15, "z": -250, "drift": 5.0, "far": true},
+		{"key": "shore/mountains", "rate": 0.35, "z": -245, "far": true},
+		{"key": "shore/ocean", "rate": 0.55, "z": -240, "far": true},
 		# The surf is foam over a still sea, so it moves a little faster than the water it
 		# sits on and slower than the sand -- which is what makes the beach read as nearer.
-		{"key": "shore/surf", "rate": 0.70, "z": -235, "fps": 3.0},
+		{"key": "shore/surf", "rate": 0.70, "z": -235, "fps": 3.0, "far": true},
 		# ⚠ 64 PAST THE LAND AT THE SEAWARD END, which is a NEGATIVE trim. The palm clump's
 		# mirrored twin below stands 64 out over the water, and sand that stopped on the
 		# collision edge left it standing on nothing: a rock in the shallows with a notch of
@@ -296,6 +307,7 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 	if row.has("sway"):
 		layer.sway = row["sway"]
 	layer.slide_speed = float(row.get("drift", 0.0))
+	layer.far = bool(row.get("far", false))
 	if row.has("top_row"):
 		# An authored texture is not on the plate at all; it says which plate row it
 		# starts at, and it repeats at its own width rather than the plate's.
@@ -445,6 +457,13 @@ func update_for_camera(camera_position: Vector2) -> void:
 		# so the daylight band stayed at full alpha across the whole crossing and hung a palm
 		# tree over the storm.
 		modulate.a = _ramp(fade_span, camera_position.x) * weather
+	# ⚠ ON THE LAYERS, NOT ON THE BAND. See far_fade_span: the shore's land has to stay while
+	# its sea goes, so this cannot be the node's own modulate.
+	if far_fade_span != Vector2.ZERO:
+		var gone := _ramp(far_fade_span, camera_position.x) * weather
+		for layer in _layers:
+			if layer.far:
+				layer.modulate.a = 1.0 - gone
 	for layer in _layers:
 		# ⚠ HORIZONTAL ONLY. Parallax on Y unmoors the composition from the thing it is
 		# registered to: this level is a thousand pixels tall, so let the far layers lag on Y
@@ -498,6 +517,8 @@ class _Layer extends Node2D:
 	var mirrored_tiles := true
 	## How far a piece is raised off the plate's registration. See the far island.
 	var lift := 0.0
+	## Part of this band's sea and sky rather than its land. See far_fade_span.
+	var far := false
 	## (lean in texels, gusts per second) for a layer the wind moves. ZERO holds it still.
 	var sway := Vector2.ZERO
 	## Pixels a second a layer slides on its own -- clouds -- wrapped at the width it repeats
