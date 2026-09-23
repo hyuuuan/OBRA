@@ -557,6 +557,165 @@ def draw(frame: int) -> Canvas:
     return c
 
 
+# --- The bangka ------------------------------------------------------------------------------
+#
+# ⚠ THE ONE OBJECT IN THE GAME THAT IS FOUND RATHER THAN DRAWN, and therefore the one that
+# cannot get its picture from the player's ink. Everything else placed in the world is built
+# out of the strokes somebody made on the canvas; the boat has none, so it was the engine's
+# bare outline -- a white wireframe trapezium -- for the whole of the crossing the route is
+# named after. This is its picture. The hull's COLLISION still comes from that outline, so the
+# draft, the seat and the buoyancy are the numbers run_level3_boat_probe already measured.
+#
+# A bangka: a narrow hull that is a lens in profile, rising to a point at both ends and higher
+# at the prow, bamboo booms out to a katig float carried a little low and forward, and a sail
+# left furled on its spar. Weathered, because nobody came back for it.
+HULL = ramp(["#2a1a12", "#4a2f1e", "#6b4526", "#8d5f33", "#b07f4a"])
+TRIM = ramp(["#12323f", "#1c4f62", "#2a7288", "#49a0b4"])
+BAMBOO = ramp(["#4a4326", "#6f6435", "#95884a", "#bfae6a"])
+SAILCLOTH = ramp(["#6d6047", "#968660", "#bfae82", "#d8c9a0"])
+ROPE = ramp(["#5b4a32", "#8a7350"])
+BANGKA_W, BANGKA_H = 72, 44
+## The row the hull floats at. level_3.gd pins the picture to the hull by this, so redrawing
+## the sheer does not sink the boat.
+BANGKA_WATERLINE = 30
+BOW, STERN = 66, 6
+
+
+def _sheer(x: int) -> int:
+    """Top of the hull at this column. Lowest amidships, up at both ends, higher forward."""
+    t = (x - STERN) / float(BOW - STERN)
+    return BANGKA_WATERLINE - 4 - int(round(4.5 * (2.0 * t - 1.0) ** 3 * (0.5 + 0.5 * t)
+                                            + 2.0 * (2.0 * t - 1.0) ** 2))
+
+
+def _keel(x: int) -> int:
+    """Bottom of the hull. Flat-ish amidships and drawn up to meet the sheer at the ends."""
+    t = (x - STERN) / float(BOW - STERN)
+    return BANGKA_WATERLINE + 3 - int(round(9.0 * (2.0 * t - 1.0) ** 6))
+
+
+def _hull(c: Canvas, upturned: bool) -> None:
+    """The hull alone. `upturned` turns it keel-up for the one lying on the sand, which is a
+    reflection about the waterline rather than a second drawing."""
+    def row(y: int) -> int:
+        return BANGKA_WATERLINE * 2 - y if upturned else y
+
+    for x in range(STERN, BOW + 1):
+        top, bottom = _sheer(x), _keel(x)
+        if bottom < top:
+            continue
+        for y in range(top, bottom + 1):
+            down = (y - top) / max(1.0, float(bottom - top))
+            shade = HULL[3] if down < 0.30 else (HULL[2] if down < 0.68 else HULL[1])
+            c.px(x, row(y), shade)
+        # Lit along the sheer, dark along the keel -- and the other way up when it is.
+        c.px(x, row(top), HULL[0] if upturned else HULL[4])
+        c.px(x, row(bottom), HULL[4] if upturned else HULL[0])
+        # The one painted band a working boat carries, a plank under the sheer.
+        if bottom - top >= 4:
+            band = top + (1 if not upturned else 2)
+            c.px(x, row(band), TRIM[2] if (x + band) % 3 else TRIM[1])
+            c.px(x, row(band + 1), TRIM[0])
+    # Stem and stern posts, carried on past the sheer from the last column the hull actually
+    # HAS -- measured, not assumed: the ends taper to nothing a few columns inside STERN/BOW,
+    # and posts put on those two left a hook floating clear of the boat.
+    solid = [x for x in range(STERN, BOW + 1) if _keel(x) >= _sheer(x)]
+    if not solid:
+        return
+    for x, height, lean in ((solid[-1], 5, -1), (solid[0], 3, 1)):
+        for step in range(height):
+            at = x + lean * ((step + 1) // 2)
+            top = _sheer(at) - 1 - step
+            c.px(at, row(top), HULL[3] if step % 2 else HULL[2])
+            c.px(at - lean, row(top), HULL[1])
+    # A thwart amidships: the plank the apo sits on, and the only thing inside the hull.
+    if not upturned:
+        seat = _sheer(36) + 3
+        for x in range(28, 46):
+            c.px(x, row(seat), HULL[3])
+            c.px(x, row(seat + 1), HULL[1])
+        # A coil of line in the stern, left by whoever left the boat.
+        for dx in range(5):
+            c.px(16 + dx, row(_sheer(18) + 4), ROPE[1] if dx % 2 else ROPE[0])
+            c.px(16 + dx, row(_sheer(18) + 5), ROPE[0])
+
+
+def _outrigger(c: Canvas) -> None:
+    """The katig, and the two booms that carry it. In profile this is the thing that says
+    bangka rather than rowboat, so it is forward of the hull and a little low, with the booms
+    visible as separate members instead of a plank stuck to the keel."""
+    float_y = BANGKA_WATERLINE + 7
+    left, right = 30, BOW + 2
+    for x in range(left, right + 1):
+        thin = x <= left + 1 or x >= right - 1
+        c.px(x, float_y, BAMBOO[3] if not thin else BAMBOO[2])
+        c.px(x, float_y + 1, BAMBOO[2] if not thin else BAMBOO[1])
+        if not thin:
+            c.px(x, float_y + 2, BAMBOO[0])
+    for boom_x in (24, 44):
+        top = _sheer(boom_x) + 2
+        steps = float_y - top
+        for step in range(steps + 1):
+            x = boom_x + int(round(step * 0.62))
+            y = top + step
+            c.px(x, y, BAMBOO[2])
+            c.px(x + 1, y, BAMBOO[0])
+        c.px(boom_x, top, ROPE[1])
+        c.px(boom_x + int(round(steps * 0.62)), float_y - 1, ROPE[0])
+
+
+def _mast_and_sail(c: Canvas) -> None:
+    """Furled, and lashed to its spar. A boat left for years does not leave sail up, and a
+    triangle of bright canvas would be the loudest thing on the screen."""
+    mast_x = 32
+    head = 5
+    foot = _sheer(mast_x)
+    # One stay each way, ending on the posts rather than sweeping over the whole boat: drawn
+    # to the sheer it arced from end to end and read as a carrying handle.
+    for target in (BOW - 4, STERN + 5):
+        span = target - mast_x
+        drop = _sheer(target) - 4 - head
+        for step in range(abs(span) + 1):
+            x = mast_x + (1 if span > 0 else -1) * step
+            c.px(x, head + int(round(step / float(abs(span)) * drop)), ROPE[0])
+    for y in range(head, foot + 1):
+        c.px(mast_x, y, HULL[3])
+        c.px(mast_x + 1, y, HULL[1])
+    c.px(mast_x, head - 1, HULL[4])
+    # The bundle: canvas rolled along a spar that droops away from the mast.
+    length = 22
+    for step in range(length):
+        x = mast_x + 2 + step
+        t = step / float(length - 1)
+        droop = int(round(3.4 * t * t))
+        thick = 4 - int(round(2.6 * abs(t - 0.42) * 2.0))
+        thick = max(1, thick)
+        top = head + 5 + droop
+        for y in range(top, top + thick):
+            c.px(x, y, SAILCLOTH[2] if y < top + thick - 1 else SAILCLOTH[1])
+        c.px(x, top - 1, SAILCLOTH[3])
+        c.px(x, top + thick, SAILCLOTH[0])
+    for tie in (7, 15):
+        t = tie / float(length - 1)
+        top = head + 4 + int(round(3.4 * t * t))
+        for y in range(top, top + 5):
+            c.px(mast_x + 2 + tie, y, ROPE[0])
+
+
+def draw_bangka_afloat() -> Canvas:
+    pixelart.PX = 3
+    c = Canvas(BANGKA_W, BANGKA_H, seed=2401)
+    _mast_and_sail(c)
+    _hull(c, False)
+    _outrigger(c)
+    # Wear: the sea takes the paint off a boat nobody looks after.
+    c.speckle(STERN + 4, BANGKA_WATERLINE - 5, BOW - STERN - 8, 8, HULL[1], 0.05)
+    return c
+
+
+BANGKA = {"bangka_afloat.png": draw_bangka_afloat}
+
+
 def build() -> list[Path]:
     OUT.mkdir(parents=True, exist_ok=True)
     written = []
@@ -564,10 +723,11 @@ def build() -> list[Path]:
         path = OUT / f"ink_jar_{frame}.png"
         draw(frame).save(path)
         written.append(path)
-    for name, painter in SHELF.items():
-        path = OUT / name
-        painter().save(path)
-        written.append(path)
+    for table in (SHELF, BANGKA):
+        for name, painter in table.items():
+            path = OUT / name
+            painter().save(path)
+            written.append(path)
     for name, (painter, frames) in LIFE.items():
         for frame in range(frames):
             path = OUT / f"{name}_{frame}.png"
@@ -578,7 +738,7 @@ def build() -> list[Path]:
 
 def _expected() -> list[Path]:
     return [OUT / f"ink_jar_{frame}.png" for frame in range(FRAMES)] + \
-        [OUT / name for name in SHELF] + \
+        [OUT / name for name in SHELF] + [OUT / name for name in BANGKA] + \
         [OUT / f"{name}_{frame}.png" for name, (_p, n) in LIFE.items() for frame in range(n)]
 
 
