@@ -421,10 +421,18 @@ func is_clear() -> bool:
 
 ## How much storm there is over this x, 0..1: this band's own fade, times however far the sky
 ## has cleared. DagatLife2D asks, so gulls stay out of the storm and rain stays out of the sun.
+## ⚠ THE NIGHT'S RAMP, NOT THE ALPHA'S, WHEREVER THERE IS ONE. Two different things happen
+## across this crossing and they are no longer on the same stretch. The storm's sea REPLACES
+## the beach's as the player leaves the sand -- a change of viewpoint, over a few hundred
+## pixels, because two seas drawn at once is two horizons. The LIGHT goes later and slower,
+## over the stretch the design asks the field to darken across. Read from the alpha, the rain
+## and the lightning came with the picture and it was pouring on a bright sea one screen out
+## from a sunny beach.
 func weather_at(x: float) -> float:
-	if fade_span == Vector2.ZERO:
+	var span := night_span if night_span != Vector2.ZERO else fade_span
+	if span == Vector2.ZERO:
 		return 0.0
-	return _ramp(fade_span, x) * (1.0 - _clearing)
+	return _ramp(span, x) * (1.0 - _clearing)
 
 
 func _set_clearing(value: float) -> void:

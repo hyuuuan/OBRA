@@ -73,6 +73,8 @@ island_ground = Vector2(4500.0, 5380.0)
 night_span = Vector2(1600.0, 3000.0)
 night_tint = Color(0.42, 0.5, 0.72, 1)
 far_fade_span = Vector2(1000.0, 1560.0)
+night_span = Vector2(1600.0, 3000.0)
+night_tint = Color(0.60, 0.66, 0.85, 1)
 
 ; ⚠ plate_top = 560, THE WATERLINE ITSELF, AND floor_drop = 360 UNDER IT. The water is
 ; pinned by its top -- the painted column starts where the sea starts, and its light comes from
@@ -102,6 +104,9 @@ night_tint = Color(0.55, 0.62, 0.82, 1)
 ; island, never leaving at all -- the whole first third of the crossing was two horizons at two
 ; heights with two sets of waves between them. The shore band's far_fade_span is the same
 ; stretch, reversed, so exactly one sea is ever being looked at.
+; night_span 1600..3000 is the other half of it: the LIGHT going, which is the buildup the
+; design asks for -- "darker and emptier as the player nears the bakunawa". weather_at() reads
+; this one, so the rain, the lightning and the gulls keep the timing they were tuned with.
 [node name="StormBand" type="Node2D" parent="."]
 script = ExtResource("10_backdrop")
 band = "storm"
