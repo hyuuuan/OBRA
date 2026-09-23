@@ -69,9 +69,26 @@ func _process(delta: float) -> void:
 		if _thunder_clock <= 0.0:
 			_thunder_clock = _rng.randf_range(5.0, 11.0)
 			_lightning(weather)
+	_thin_the_flock(delta)
 	_trail_the_boat(delta)
 	_breathe(delta)
 	_churn(delta)
+
+
+## ⚠ A GULL IS SENT OVER A CALM SKY AND THEN FLIES FOR TEN SECONDS. The check that keeps them
+## off the storm is made where they are SENT, which is right and not enough: the crossing is
+## one continuous world, so a bird launched over the beach travels into weather that did not
+## exist when it left, and three of them were last seen over a thunderstorm with lightning
+## behind them. They climb out of it and are gone, rather than vanishing on a line.
+func _thin_the_flock(delta: float) -> void:
+	for node in get_tree().get_nodes_in_group(GULLS):
+		var gull := node as Node2D
+		if not is_instance_valid(gull) or _weather_at(gull.global_position.x) < 0.4:
+			continue
+		gull.set("drift", Vector2(gull.get("drift")) + Vector2(0.0, -38.0 * delta))
+		gull.modulate.a -= delta * 1.5
+		if gull.modulate.a <= 0.0:
+			gull.queue_free()
 
 
 ## How stormy it is over this x, 0..1 -- the storm band's own fade, times however far it has
@@ -105,6 +122,10 @@ func _sprite(prefix: String, fps: float, loop := true) -> _Flipbook:
 
 # --- Gulls ---------------------------------------------------------------------------------
 
+## Gulls are swept for one reason only -- see _thin_the_flock.
+const GULLS := &"dagat_gull"
+
+
 ## A few gulls across the sky in view, all going the same way. Public because the opening
 ## sends a flock over on purpose.
 func send_gulls(at: Vector2, count: int, rightward := -1) -> void:
@@ -125,6 +146,7 @@ func send_gulls(at: Vector2, count: int, rightward := -1) -> void:
 		gull.bob = _rng.randf_range(5.0, 10.0)
 		gull.lifetime = (view.x * 1.4) / absf(gull.drift.x)
 		gull.phase = float(index)
+		gull.add_to_group(GULLS)
 		add_child(gull)
 		gull.global_position = Vector2(start_x - (1.0 if going_right else -1.0) * index * 46.0,
 			height + index * _rng.randf_range(-18.0, 18.0))
