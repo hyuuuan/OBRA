@@ -106,7 +106,12 @@ const SHELF_FACE := "res://assets/Level3/authored/shelf_face.png"
 const BANDS := {
 	"shore": [
 		# The sky's clouds drift of their own accord, slowly; the storm's are driven.
-		{"key": "shore/sky", "rate": 0.15, "z": -250, "drift": 5.0, "far": true},
+		# ⚠ THE SKY IS NOT PART OF THE SEA. The other three far layers are a beach seen
+		# from the front and have to go when the side view arrives; the sky over that beach
+		# is the sky over the open water too, and taking it with them left a flat blue lid
+		# with nothing in it for the first third of the crossing. It leaves with the LIGHT
+		# instead, as the storm's own clouds come in over it.
+		{"key": "shore/sky", "rate": 0.15, "z": -250, "drift": 5.0, "day": true},
 		{"key": "shore/mountains", "rate": 0.35, "z": -245, "far": true},
 		{"key": "shore/ocean", "rate": 0.55, "z": -240, "far": true},
 		# The surf is foam over a still sea, so it moves a little faster than the water it
@@ -323,6 +328,7 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 	layer.slide_speed = float(row.get("drift", 0.0))
 	layer.far = bool(row.get("far", false))
 	layer.weather = bool(row.get("weather", false))
+	layer.day = bool(row.get("day", false))
 	if row.has("top_row"):
 		# An authored texture is not on the plate at all; it says which plate row it
 		# starts at, and it repeats at its own width rather than the plate's.
@@ -494,6 +500,8 @@ func update_for_camera(camera_position: Vector2) -> void:
 	for layer in _layers:
 		if layer.weather:
 			layer.modulate.a = night
+		elif layer.day:
+			layer.modulate.a = 1.0 - night
 	if _sky != null and night_span != Vector2.ZERO:
 		_sky.modulate.a = night
 	for layer in _layers:
@@ -553,6 +561,8 @@ class _Layer extends Node2D:
 	var far := false
 	## Drawn only as far as the night has come in. See night_span.
 	var weather := false
+	## Drawn only as far as it has NOT. The mirror of `weather`.
+	var day := false
 	## (lean in texels, gusts per second) for a layer the wind moves. ZERO holds it still.
 	var sway := Vector2.ZERO
 	## Pixels a second a layer slides on its own -- clouds -- wrapped at the width it repeats
