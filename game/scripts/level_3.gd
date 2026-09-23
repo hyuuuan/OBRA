@@ -1089,8 +1089,40 @@ func _lose_the_stretch(why: String) -> void:
 	_reset_cooldown = 1.4
 	_knocks = 0
 	_return_to_safety(why, "%s" % why)
+	_stand_them_clear_of_it()
 	if _bakunawa != null and _bakunawa.state() == BakunawaClass.State.FIGHTING:
 		_bakunawa.enter_fight()
+
+
+## ⚠ A CHECKPOINT RECORDS WHERE THE PLAYER WAS, NOT WHERE ITS NODE IS. CP3b's volume is 220
+## wide and the snapshot is taken at whatever point inside it the apo happened to cross, so on
+## the stealth route the place a reset returns to is regularly INSIDE the creature's cone --
+## measured at 384 px from a thing that sees 460, with two further resets in the ten seconds
+## after, the player having done nothing at all. It is not a soft lock: they can swim out
+## inside the grace. It is worse than it sounds anyway, because a checkpoint you can be caught
+## standing on is not a checkpoint, and the design's whole reason for putting one mid-encounter
+## is that losing the stretch should cost it ONCE.
+##
+## Moving the volume does not fix it. The snapshot is taken wherever the body crossed, and a
+## player coming back from the east crosses at the volume's far edge. The reach is what has to
+## be answered, so the reach is what this measures against.
+##
+## Their depth is kept, and the distance west is made up only as far as it has to be.
+func _stand_them_clear_of_it() -> void:
+	if _bakunawa == null or not is_instance_valid(_bakunawa):
+		return
+	if player == null or not is_instance_valid(player) \
+			or not player.has_method("apply_morph_state"):
+		return
+	var clear_x := _bakunawa.global_position.x - BakunawaClass.CONE_LENGTH - 100.0
+	var anchor := _anchor_now()
+	if anchor.x <= clear_x:
+		return
+	# ⚠ SHIFTED, NOT SET. apply_morph_state moves the body; the anchor is what the sweep is
+	# measured against and the two are not the same node on a rig.
+	player.call("apply_morph_state", {
+		"position": player.global_position + Vector2(clear_x - anchor.x, 0.0),
+		"linear_velocity": Vector2.ZERO})
 
 
 func _on_route_solved(obstacle_id: String, route: String) -> bool:
