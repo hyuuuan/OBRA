@@ -246,10 +246,16 @@ func _plant_the_bangka() -> void:
 	_bangka.name = "BeachedBangka"
 	_bangka.collision_layer = 0
 	_bangka.collision_mask = 0
-	var art := Polygon2D.new()
-	art.polygon = PackedVector2Array([
-		Vector2(-70, 0), Vector2(70, 0), Vector2(52, 26), Vector2(-52, 26)])
-	art.color = Color(0.45, 0.31, 0.19, 1.0)
+	var art := Sprite2D.new()
+	art.name = "Hull"
+	art.texture = load(AUTHORED + "bangka_beached.png") as Texture2D
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# ⚠ PINNED BY THE SAND LINE IN THE PICTURE, NOT BY THE SPRITE'S MIDDLE. The drawing is a
+	# 132-tall canvas with the hull lying across its lower third, so centred on the mark the
+	# boat floated a good fifty pixels over the beach. See BANGKA_WATERLINE in
+	# tools/build_dagat_props.py: the sand row is 117 down a 132 sprite, and the mark is 20
+	# above the sand the apo walks on.
+	art.position = Vector2(0.0, -31.0)
 	_bangka.add_child(art)
 	_bangka.global_position = mark.global_position
 	_bangka.z_index = 6
