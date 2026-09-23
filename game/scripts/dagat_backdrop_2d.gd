@@ -110,9 +110,13 @@ const BANDS := {
 		# on the land's own collision edge, so a diver stops where the rock looks to be.
 		{"key": SHELF_FILL, "rate": 1.00, "z": -150, "ground": true, "top_row": 941.0,
 			"mirror": false, "seaward_trim": 48.0},
-		{"key": SHELF_FACE, "rate": 1.00, "z": -149, "top_row": 941.0, "pieces": [
-			{"at": "home_ground.y", "nudge": 60.0, "align": "right"},
-			{"at": "island_ground.x", "nudge": -60.0, "align": "left", "flip": true},
+		# ⚠ 790, THE SURFACE THE APO WALKS ON, not 941. See the lip in build_dagat_props.py:
+		# the face begins where the sand does, so the land's seaward edge is ragged the whole way
+		# down instead of a ruled cut through the sand with a ragged rock starting under it. The
+		# nudge is 64 either way so the face's edge lands on the sand's, to the pixel.
+		{"key": SHELF_FACE, "rate": 1.00, "z": -149, "top_row": 790.0, "pieces": [
+			{"at": "home_ground.y", "nudge": 64.0, "align": "right"},
+			{"at": "island_ground.x", "nudge": -64.0, "align": "left", "flip": true},
 		]},
 		# The palms lean in the wind -- see shaders/wind_sway.gdshader. A shear of the whole
 		# clump with its foot held, so the rocks it stands on do not move with it.
