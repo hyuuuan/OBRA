@@ -985,11 +985,19 @@ func _launch_the_bangka() -> void:
 ## and behaves identically. Anything that changed the shape would have to be re-measured.
 func _dress_the_bangka(boat: Node2D) -> void:
 	var picture := load(AUTHORED + "bangka_afloat.png") as Texture2D
-	if picture == null or boat.has_node(^"PaintedBangka"):
+	if picture == null:
 		return
-	var skin := boat.get_node_or_null(^"DrawingSkin") as CanvasItem
-	if skin != null:
-		skin.visible = false
+	# ⚠ THE INK IS NOT UNDER `DrawingSkin`. For rig_type "none" RuntimeRig2D hangs its
+	# `SkinRoot` -- the Line2D per stroke, and the white halo under each -- off the PRIMARY
+	# BODY, which for a physics object is the RigidBody2D itself. Hiding the skin node left
+	# the outline drawn straight over the picture. Both go, and they go on every call rather
+	# than only the first, because a restore that re-launches the boat rebuilds them.
+	for node_name in ["SkinRoot", "DrawingSkin"]:
+		var ink := boat.find_child(node_name, true, false) as CanvasItem
+		if ink != null:
+			ink.visible = false
+	if boat.has_node(^"PaintedBangka"):
+		return
 	var art := Sprite2D.new()
 	art.name = "PaintedBangka"
 	art.texture = picture
