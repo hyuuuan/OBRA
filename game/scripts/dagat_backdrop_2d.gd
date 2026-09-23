@@ -86,7 +86,11 @@ const SHELF_FACE := "res://assets/Level3/authored/shelf_face.png"
 ##   deep              -230..-215   the water column and its floor -- with the storm's
 ##                                  underside slotted at -228, between the two
 ##   storm             -212..-193   sky, clouds, islands, the waves, the shores
-##   shore ground      -165..-160   sand and palms: nearer than any sea, behind the player
+##   shore ground      -165..-160   sand, the rock under it, then the palms: nearer than
+##                                  any sea, behind the player. ⚠ THE SHELF GOES BEHIND THE
+##                                  PALMS, not in front. At -150 the face's sand lip was
+##                                  drawn over the rocks the clump ends the beach with, as a
+##                                  pale smear across them.
 ##   storm rain          60         in front of everything
 const BANDS := {
 	"shore": [
@@ -114,12 +118,12 @@ const BANDS := {
 		# showed through under the beach. Authored rock from the plate's last row down, and a
 		# ragged face with lit ledges where it meets the water -- the face's rock edge lands
 		# on the land's own collision edge, so a diver stops where the rock looks to be.
-		{"key": SHELF_FILL, "rate": 1.00, "z": -150, "ground": true, "top_row": 941.0,
+		{"key": SHELF_FILL, "rate": 1.00, "z": -163, "ground": true, "top_row": 941.0,
 			"mirror": false, "seaward_trim": 48.0},
 		# ⚠ 790, THE SURFACE THE APO WALKS ON, not 941. See the lip in build_dagat_props.py:
 		# the face begins where the sand does, so the land's seaward edge is ragged the whole way
 		# down instead of a ruled cut through the sand with a ragged rock starting under it.
-		{"key": SHELF_FACE, "rate": 1.00, "z": -149, "top_row": 790.0, "pieces": [
+		{"key": SHELF_FACE, "rate": 1.00, "z": -162, "top_row": 790.0, "pieces": [
 			{"at": "home_ground.y", "nudge": 64.0, "align": "right"},
 			{"at": "island_ground.x", "nudge": -64.0, "align": "left", "flip": true},
 		]},
