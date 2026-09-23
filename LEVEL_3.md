@@ -3,8 +3,9 @@
 **Status: CONTENT COMPLETE AND PAINTED.** The delivered art is in — three parallax bands,
 animated coral, kelp, bubbles and fish, and the bakunawa in 23 poses. `tools/build_dagat.py`
 cuts the delivery and **fails if any of the 79 files is unused**; `tools/build_dagat_props.py`
-authors the one prop the delivery has in the picture but not as a file (the seabed ink jar).
-Six things are still a developer's rectangles and they are listed in `ART_PLACEHOLDERS.md`.
+authors what the delivery has in the picture but not as a file -- the seabed ink jar, the rock
+the land stands on under the water, the small lives, and the bangka. **Three** things are still
+a developer's rectangles and they are listed in `ART_PLACEHOLDERS.md`.
 
 *(Previous status, kept for the record: content complete with placeholder art.)* The shore, the fork, both crossings **and
 both of their lore scenes**, the encounter in all three resolutions **in both stagings**, the
@@ -16,8 +17,9 @@ and the sea are code-drawn, and `ART_PLACEHOLDERS.md` is where each contract goe
 **Green:** `run_level3_audit.gd` (T3, 27 checks) · `run_nodraw_level3.gd` (T1) ·
 `run_bakunawa_probe.gd` (all three resolutions) · `run_level3_finish_probe.gd` (both
 crossings, to completion) · `run_swim_reach_probe.gd` · **`run_level3_boat_probe.gd` (the
-bangka, actually sailed)**. All six are in `tools/run_suites.sh`. See "The playable pass"
-below for what the 2026-09-22 pass changed and why.
+bangka, actually sailed)** · **`run_level3_trouble_probe.gd` (the three ways to lose)**. All
+seven are in `tools/run_suites.sh`. See "The playable pass" and "The rendering pass" below for
+what the 2026-09-22 and 2026-09-23 passes changed and why.
 
 **This document is the plan, written before the build** — `LEVEL_TEMPLATE.md` build order
 step 1, *"write `LEVEL_<N>.md` first, even as a placeholder, and mark it provisional"*. It
@@ -370,6 +372,79 @@ either axis — both guards verified by breaking them on purpose. What is left i
 not arithmetic.
 
 ---
+
+## The rendering pass (2026-09-23)
+
+Kent: *"the islands are cut off and then not properly rendering"* — and make the animations
+smooth, and keep hunting bugs. Four separate things, and the first is the one anybody sees.
+
+**The land was guillotined at the water.** `palms_left` tapers to nothing by its column 478
+and is CUT at its column 0; `palms_right` starts from nothing at 690 and is CUT at 1672. Both
+cuts were set down against open water, so each shore ended in a ruled vertical line from the
+palm tops to the sand — the whole landmass chopped with a straight edge, which is exactly what
+it looked like. **But the plate tiles: its column 1672 and its column 0 are the same rock.**
+The head of one laid against the tail of the other rebuilds the clump and lets it taper into
+the shallows the way the picture was painted to. The two rows now share one gust, because two
+halves of one clump that sway at their own rates split apart at the join.
+
+Three things follow from it, each its own commit:
+- **The sand runs 64 past the land at the water end** (a NEGATIVE `seaward_trim`). What stands
+  there is a rock at the point of the beach, and sand stopping on the collision edge left it
+  over open sea.
+- **The shelf face begins where the sand does** (`top_row` 790, not 941) and carries 51 rows
+  of **lip** in the sand plate's own colours. It used to start 151 px under the walking
+  surface, so the sand above it was still a ruled cut — under water and dark, but ruled. The
+  lip is an EDGE, not a slab: opaque for fifteen columns behind its own ragged edge and
+  dithered away inland, because at the face's full width it was a second, flatter sand laid
+  over the plate's and the join was a straighter line than the one it was hiding.
+- **The shelf goes BEHIND the palms** (−163/−162, not −150/−149). In front, the new sand lip
+  was drawn over the rocks the clump ends the beach with, as a pale smear across them.
+
+**Every band lands on the world's pixel grid.** Ten layers at ten parallax rates sit at ten
+different sub-pixel offsets, and with nearest filtering a sub-pixel offset is not a soft half
+pixel: it is a column of texels that jumps a whole pixel when the offset crosses a half. Each
+layer crossing on its own schedule is the crawl in the sky over a sea that is holding still.
+
+**The things that move.** The surf was two flat strips end to end at a fixed y — a dashed line
+ruled along the waterline, and the eye finds the repeat before it finds the foam. Three now,
+each lower and fainter than the one inshore of it, each on its own bob and sway, and reaching
+as far as the rocks do. Gulls climb out of weather they were not sent into: the check that
+keeps them off the storm is made where they are SENT, which is right and not enough, because a
+bird flies for ten seconds across a world whose weather moves. And the sweep is a beam rather
+than a grey triangle laid over the ruins — brightest at the head, falling off down its length,
+on a slow swell — **with its edge unmoved**: same half angle, same reach, and a rim along both
+sides, because a cone whose edge a player has to guess at is a rule learned by being put back.
+
+**The bangka is painted**, and it is the one object in the game that is found rather than
+drawn, so it is the one that could not get its picture from the player's ink. See
+`ART_PLACEHOLDERS.md` — including the trap, which is that the outline is **not** under
+`DrawingSkin`.
+
+**The bug this pass found: a checkpoint you can be caught standing on.** A checkpoint records
+where the PLAYER was, not where its node is. CP3b's volume is 220 wide and the snapshot is
+taken wherever the apo crossed it, so on the stealth route the place a reset returns to is
+regularly inside the creature's cone — measured at **384 px from a thing that sees 460**, with
+two further resets in the ten seconds after, the player having done nothing at all. Not a soft
+lock; they can swim out inside the 1.4 s grace. Still wrong, because the reason for a
+mid-encounter checkpoint is that losing the stretch costs it ONCE. `_stand_them_clear_of_it`
+answers the REACH rather than the geometry: moving the volume would not fix a player coming
+back from the east and crossing at its far edge.
+
+**And a probe that plays the level badly on purpose** — `run_level3_trouble_probe.gd`, in
+`tools/run_suites.sh`. Every other probe here plays it correctly, which is the wrong half of
+the work: a game with no death state can only fail by leaving the player somewhere they cannot
+get out of, and none of those places are on the happy path. Three ways to lose, and the same
+question about all three — afterwards, can they still play?
+
+1. **The ink runs out on the seabed.** Reverting at the bottom of a thousand-pixel column
+   leaves a body that cannot swim where it cannot leave, and the ink that would buy another is
+   the ink that just ran out. The way back is the restore handing the spend back: measured at
+   6.00 of 6 returned. If that ever stops, it is this level's first unwinnable state and
+   nothing else in the suite would notice.
+2. **Being seen.** Costs the stretch, leaves ink to swim back with, and does not quietly
+   resolve the encounter by losing it.
+3. **Three knocks.** Warned twice, thrown on the third, and the fight comes back fresh — a
+   knock count that survived the restart would make the third loss permanent.
 
 ## Build order
 
