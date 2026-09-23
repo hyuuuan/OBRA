@@ -1,6 +1,6 @@
 extends Control
-## Freehand drawing canvas. Attach to a Control that fills a SubViewport
-## (with a white ColorRect behind it as the background).
+## Freehand drawing canvas. Attach to a Control that fills a transparent SubViewport; the
+## visible paper is supplied behind it by the panel's oval frame.
 
 signal stroke_cost_changed(cost: float)
 signal ink_blocked

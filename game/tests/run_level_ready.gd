@@ -31,6 +31,26 @@ func _run() -> void:
 	drawing.fill(Color.WHITE)
 	var draw_panel := level.get_node("DrawPanel") as DrawPanel
 	draw_panel.open_panel()
+	# The visible sheet is 568x568. Its old input viewport was only a centred 400x400
+	# square, so these four strokes began on visible paper that ignored the player.
+	var canvas := draw_panel.get("canvas") as Control
+	var frame := draw_panel.get("canvas_frame") as UIOvalFrame
+	var bounds: Rect2 = canvas.get("_bounds")
+	var centre := bounds.get_center()
+	var edge_starts := [
+		Vector2(bounds.position.x + 2.0, centre.y),
+		Vector2(bounds.end.x - 2.0, centre.y),
+		Vector2(centre.x, bounds.position.y + 2.0),
+		Vector2(centre.x, bounds.end.y - 2.0),
+	]
+	var canvas_contract := canvas.size.is_equal_approx(frame.size)
+	for start: Vector2 in edge_starts:
+		canvas_contract = canvas_contract and bool(canvas.call("accepts", start))
+		canvas.call("_start_stroke", start)
+		canvas.call("_append_point", start.lerp(centre, 0.08), true)
+		canvas.set("_current_line", null)
+	canvas_contract = canvas_contract and (canvas.call("get_strokes") as Array).size() == 4
+	canvas.call("clear_canvas")
 	draw_panel.set("_pending_strokes", _spider_fixture())
 	level.get_node("InkManager").call("reserve_attempt", 1.0)
 	# Exercise the actual prediction callback: it must remove the gray scrim,
@@ -50,7 +70,7 @@ func _run() -> void:
 		and skin.debug_recovery_count() <= 1 \
 		and not bool(draw_panel.visible) \
 		and not paused
-	var ok := base_contract and morph_contract
+	var ok := base_contract and canvas_contract and morph_contract
 	level.queue_free()
 	await process_frame
 	if ok:

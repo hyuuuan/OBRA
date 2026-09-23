@@ -38,6 +38,10 @@ signal live_prediction_failed(message: String)
 
 @export var backend_url: String = "http://127.0.0.1:8000/predict"
 @export var canvas_viewport: SubViewport
+## The on-screen SubViewport is transparent so its rectangular corners do not show outside
+## the oval frame. Captures are flattened onto this paper colour before recognition and
+## storage, preserving the opaque image contract used by thumbnails and bitmap fallbacks.
+@export var paper_color: Color = Color(0.965, 0.95, 0.9, 1.0)
 ## Below this confidence the game should ask the player to try drawing again.
 @export_range(0.0, 1.0) var confidence_threshold: float = 0.6
 ## Below this top-1 vs top-2 probability gap, the result is too ambiguous.
@@ -66,7 +70,7 @@ func _ready() -> void:
 func send_drawing() -> void:
 	var started := Time.get_ticks_usec()
 	await RenderingServer.frame_post_draw  # make sure the strokes are rendered
-	_last_drawing = canvas_viewport.get_texture().get_image()
+	_last_drawing = _capture_drawing()
 	var png_base64 := Marshalls.raw_to_base64(_last_drawing.save_png_to_buffer())
 	var body := JSON.stringify({"image_data": png_base64})
 	_request_started_usec = Time.get_ticks_usec()
@@ -91,7 +95,7 @@ func request_live_guess() -> bool:
 		return false
 	_live_busy = true
 	await RenderingServer.frame_post_draw
-	var image := canvas_viewport.get_texture().get_image()
+	var image := _capture_drawing()
 	var body := JSON.stringify({"image_data": Marshalls.raw_to_base64(image.save_png_to_buffer())})
 	var error := _live_http.request(
 		backend_url,
@@ -104,6 +108,15 @@ func request_live_guess() -> bool:
 		live_prediction_failed.emit("live guess could not be sent")
 		return false
 	return true
+
+
+func _capture_drawing() -> Image:
+	var ink := canvas_viewport.get_texture().get_image()
+	ink.convert(Image.FORMAT_RGBA8)
+	var flattened := Image.create_empty(ink.get_width(), ink.get_height(), false, Image.FORMAT_RGBA8)
+	flattened.fill(paper_color)
+	flattened.blend_rect(ink, Rect2i(Vector2i.ZERO, ink.get_size()), Vector2i.ZERO)
+	return flattened
 
 
 func _on_live_request_completed(

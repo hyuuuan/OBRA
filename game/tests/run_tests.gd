@@ -32,6 +32,7 @@ func _run() -> void:
 	_test_inventory()
 	await _test_hint_bar_plays_a_whole_beat()
 	_test_canvas_clipping()
+	_test_canvas_surface()
 	_test_game_level_contract()
 	await _test_level_framework()
 	await _test_banaue_environment()
@@ -619,6 +620,33 @@ func _test_canvas_clipping() -> void:
 	var maximum := Vector2(512.0, 512.0).length() * 0.1
 	_expect(float(canvas.call("get_drawn_length")) <= maximum + 0.01, "canvas exceeded exact ink limit")
 	canvas.queue_free()
+
+
+## Every visible point of the oval has to belong to the input viewport. This regresses the
+## old 400x400 capture square hidden in the middle of a 568x568 sheet: it looked like paper,
+## but strokes simply did not begin in the uncovered bands.
+func _test_canvas_surface() -> void:
+	for scene_path in ["res://game_level.tscn", "res://level_2.tscn", "res://level_3.tscn"]:
+		var packed := load(scene_path) as PackedScene
+		_expect(packed != null, "%s does not load for its canvas audit" % scene_path)
+		if packed == null:
+			continue
+		var level := packed.instantiate()
+		var panel := level.get_node("DrawPanel/PanelRoot") as Control
+		var frame := panel.get_node("CanvasFrame") as UIOvalFrame
+		var container := panel.get_node("SubViewportContainer") as SubViewportContainer
+		var viewport := container.get_node("SubViewport") as SubViewport
+		var paper := viewport.get_node("Paper") as CanvasItem
+		var frame_rect := Rect2(frame.position, frame.size)
+		var input_rect := Rect2(container.position, container.size)
+		_expect(input_rect.is_equal_approx(frame_rect),
+			"%s still has a smaller rectangular drawing surface: %s inside %s" % [
+				scene_path, input_rect, frame_rect])
+		_expect(viewport.size == Vector2i(roundi(frame.size.x), roundi(frame.size.y)),
+			"%s viewport does not cover the full oval frame" % scene_path)
+		_expect(viewport.transparent_bg and not paper.visible,
+			"%s full-size viewport exposes a rectangular paper background" % scene_path)
+		level.free()
 
 
 func _test_game_level_contract() -> void:

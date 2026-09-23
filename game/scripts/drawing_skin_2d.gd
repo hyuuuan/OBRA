@@ -282,14 +282,14 @@ func _build_bitmap_skin(drawing: Image) -> void:
 
 ## THE PAPER KNOCKOUT AND THE CROP ARE STATIC, because the drawing is not only ever a skin.
 ##
-## `DrawnItemData.image` is the raw 400x400 grab off the drawing panel's SubViewport, white
-## `Paper` ColorRect and all -- which is why an inventory slot showing a player's own sketch
-## is an opaque white square with something small in the middle of it. The three functions
-## that fix that (drop the paper, find the ink, crop to it with a margin) already existed
-## here for the bitmap fallback and were private methods on a Node2D, so nothing outside a
-## live rig could reach them. They touch no instance state but their two tunables, so they
-## take those as arguments and every caller that wants to LOOK at a drawing shares the one
-## implementation. See `thumbnail`.
+## `DrawnItemData.image` is the opaque grab off the drawing panel's SubViewport, flattened
+## onto cream paper -- which is why an inventory slot showing a player's own sketch would be
+## an opaque square with something small in the middle of it. The three functions that fix
+## that (drop the paper, find the ink, crop to it with a margin) already existed here for the
+## bitmap fallback and were private methods on a Node2D, so nothing outside a live rig could
+## reach them. They touch no instance state but their two tunables, so they take those as
+## arguments and every caller that wants to LOOK at a drawing shares the one implementation.
+## See `thumbnail`.
 static func knock_out_paper(image: Image, threshold: float) -> void:
 	for y in range(image.get_height()):
 		for x in range(image.get_width()):

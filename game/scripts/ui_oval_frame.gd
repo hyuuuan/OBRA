@@ -32,11 +32,10 @@ const PIXEL := 6.0
 @export var ornament_reach: float = 0.17
 ## Draw the paper itself -- the cream oval the ink lands on.
 ##
-## THE FRAME IS TWO NODES, ONE EITHER SIDE OF THE CANVAS. It has to be: the paper the player
-## draws on is a square viewport, and a square is exactly what must not be visible. So the
-## BACK copy fills the opening with paper and sits behind the canvas, the canvas draws its
-## own square of the same cream over the middle of it, and the FRONT copy draws the ring on
-## top and covers the square's four corners with moulding.
+## THE FRAME IS TWO NODES, ONE EITHER SIDE OF THE CANVAS. The BACK copy fills the opening
+## with paper and sits behind a transparent viewport; the FRONT copy draws the ring and
+## ornaments over the ink. The viewport spans this whole control so every visible part of
+## the paper receives input without exposing rectangular corners around the oval.
 ##
 ## The first attempt did it with a dark plate over the corners instead. That works and it
 ## looks like exactly what it is -- an oval in a black box -- which was the whole complaint.

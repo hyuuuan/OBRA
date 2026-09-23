@@ -94,16 +94,12 @@ func _ready() -> void:
 	visible = false
 	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_style_panel()
+	_configure_canvas_surface()
 	client.canvas_viewport = canvas_viewport
+	client.set("paper_color", canvas_frame.paper)
 	client.set("debug_timing_logs", debug_timing_logs)
 	transform_button.pressed.connect(_on_transform_pressed)
 	clear_button.pressed.connect(_clear_canvas)
-	# The frame is bigger than the viewport and offset from it, so the opening has to be
-	# carried into the canvas's own coordinates. It is the one number both of them read: the
-	# ellipse the moulding opens and the ellipse ink is allowed inside are the same ellipse.
-	var hole := canvas_frame.opening()
-	hole.position += canvas_frame.position - canvas_viewport_container.position
-	canvas.call(&"set_drawable_bounds", hole)
 	canvas.stroke_cost_changed.connect(_on_stroke_cost_changed)
 	canvas.ink_blocked.connect(_on_ink_blocked)
 	client.entity_prediction_received.connect(_on_entity_prediction)
@@ -142,7 +138,7 @@ func open_panel() -> void:
 		# for a cost that no longer depends on them. What is left is a statement about the
 		# page: enough line for any of the fifty classes and not enough to scribble the
 		# sheet solid, which is the one thing that turns the recogniser to noise.
-		canvas.set_ink_budget(PAGE_ALLOWANCE, ink_manager.canvas_size)
+		canvas.set_ink_budget(PAGE_ALLOWANCE, canvas.size)
 		if ink_manager.total_uncommitted_available() <= 0.0001:
 			# Not "nothing more can be drawn". Becoming something is free and so is a tool
 			# already in the belt, and a player on their last unit most needs to know which
@@ -301,12 +297,6 @@ func _style_panel() -> void:
 	# frame, over the scrim, with the header above it and the buttons below. The root keeps
 	# its size because everything else is laid out against it, and paints nothing.
 	panel_root.set("color", Color(0.0, 0.0, 0.0, 0.0))
-	var paper := canvas_viewport.get_node_or_null("Paper") as ColorRect
-	if paper != null:
-		# Paper, not printer white. The ink is black and the drawing is the point, so this
-		# only comes far enough off white to stop the square glaring.
-		paper.color = Color(0.965, 0.95, 0.9, 1.0)
-
 	_build_header()
 
 	guess_label.add_theme_font_size_override(&"font_size", UISkin.FONT_SUBTITLE)
@@ -320,6 +310,30 @@ func _style_panel() -> void:
 	transform_button.theme_type_variation = &"PrimaryButton"
 	transform_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
 	clear_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
+
+
+## The paper is an oval, but the SubViewport that receives pointer input used to be a
+## 400x400 square centred inside its 568x568 frame. The uncovered left, right, top and
+## bottom of the paper looked drawable and were not. Give the viewport the frame's whole
+## footprint, then let DrawingCanvas reject only points outside the actual oval opening.
+##
+## The cream paper is drawn by CanvasPaper behind this transparent viewport. Keeping the
+## viewport transparent prevents its rectangular background from showing around the oval;
+## SketchClient flattens the captured ink onto paper before sending or storing it.
+func _configure_canvas_surface() -> void:
+	var surface_size := canvas_frame.size
+	canvas_viewport_container.position = canvas_frame.position
+	canvas_viewport_container.size = surface_size
+	canvas_viewport_container.custom_minimum_size = surface_size
+	# With stretch enabled the container owns the child viewport's size. Assigning it here
+	# would be rejected by Godot; resizing the container updates the viewport automatically.
+	canvas_viewport.transparent_bg = true
+	var viewport_paper := canvas_viewport.get_node_or_null("Paper") as CanvasItem
+	if viewport_paper != null:
+		viewport_paper.visible = false
+	# The container and frame now share an origin, so the frame's opening is already in the
+	# canvas coordinate system. This is the full visible sheet minus the moulding safety rim.
+	canvas.call(&"set_drawable_bounds", canvas_frame.opening())
 
 
 ## DRAW on the left, ink on the right, in the strip above the page.
