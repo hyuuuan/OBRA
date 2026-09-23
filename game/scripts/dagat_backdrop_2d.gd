@@ -75,12 +75,10 @@ const SHELF_FACE := "res://assets/Level3/authored/shelf_face.png"
 ## `fade_span`: the island the crossing arrives at is ITS sand and ITS palms, four thousand
 ## pixels into the storm, so fading the whole band out takes the island with it. But its far
 ## layers are a beach SEEN FROM THE FRONT -- a horizon, a band of sea receding to it, and
-## breakers running up a beach -- and the storm's are the same sea SEEN FROM THE SIDE. The two
-## plates do not even agree on how far the horizon is above the waterline: 157 rows on the
-## shore's, 84 on the storm's. Cross-faded over fourteen hundred pixels, that is two horizons
-## at two heights with two sets of waves between them, which is what the whole first third of
-## the crossing looked like. Layers marked `far` leave across this instead, so exactly one sea
-## is ever being looked at.
+## breakers running up a beach -- and the storm's are the same sea SEEN FROM THE SIDE. Both
+## drawn at once is two horizons at two heights with two sets of waves between them, which is
+## what the crossing looked like for the whole stretch the storm was fading in over. Layers
+## marked `far` leave across this instead, so exactly one sea is ever being looked at.
 @export var far_fade_span := Vector2.ZERO
 
 ## ⚠ THE STACK, FURTHEST FIRST. `rate` is the parallax factor: 0 is painted on the far wall
@@ -106,10 +104,10 @@ const SHELF_FACE := "res://assets/Level3/authored/shelf_face.png"
 const BANDS := {
 	"shore": [
 		# The sky's clouds drift of their own accord, slowly; the storm's are driven.
-		# ⚠ THE SKY IS NOT PART OF THE SEA. The other three far layers are a beach seen
-		# from the front and have to go when the side view arrives; the sky over that beach
-		# is the sky over the open water too, and taking it with them left a flat blue lid
-		# with nothing in it for the first third of the crossing. It leaves with the LIGHT
+		# ⚠ THE SKY IS NOT PART OF THE SEA. The other three far layers are a beach seen from
+		# the front and have to go when the side view arrives; the sky over that beach is the
+		# sky over the open water too, and taking it with them left a flat blue lid with
+		# nothing in it for the first third of the crossing. It leaves with the LIGHT
 		# instead, as the storm's own clouds come in over it.
 		{"key": "shore/sky", "rate": 0.15, "z": -250, "drift": 5.0, "day": true},
 		{"key": "shore/mountains", "rate": 0.35, "z": -245, "far": true},
@@ -230,12 +228,13 @@ const BANDS := {
 ## stretch the storm fades in over, so the two arrive together.
 @export var night_span := Vector2.ZERO
 @export var night_tint := Color.WHITE
-## ⚠ AND WHAT THE BAND LOOKS LIKE BEFORE THE NIGHT ARRIVES. The storm's sea is painted for the
-## END of the crossing -- thunderheads, dark water -- and it now replaces the beach's sea where
-## the player leaves the sand, a screen and a half out, where the design still wants daylight.
-## WHITE leaves a band at its painted value, which is right for the shore and the deep; the
-## storm brightens back toward the light it is arriving in and darkens into its own across
-## night_span, so the buildup is carried by the LIGHT rather than by which picture is drawn.
+## ⚠ AND WHAT THE BAND LOOKS LIKE BEFORE THE NIGHT ARRIVES. The storm's sea is painted for
+## the end of the crossing -- thunderheads, dark water -- and it now replaces the beach's sea
+## as the player leaves the sand, six hundred pixels out, where the design still wants
+## daylight. WHITE leaves a band at its painted value, which for the shore and the deep is
+## right; the storm brightens back toward the light it is arriving in and darkens into its own
+## over night_span, so the buildup the design asks for is carried by the LIGHT rather than by
+## which picture is being drawn.
 @export var day_tint := Color.WHITE
 
 var _layers: Array[Node2D] = []
@@ -260,9 +259,9 @@ func _ready() -> void:
 			Vector2(span.x - reach, -4000.0), Vector2(span.y + reach, -4000.0),
 			Vector2(span.y + reach, bottom), Vector2(span.x - reach, bottom)])
 		add_child(sky)
-		# ⚠ IT BACKS THE CLOUDS, SO IT ARRIVES WITH THEM. This exists because the storm's
-		# clouds are a strip with nothing painted over them; with the clouds held back to the
-		# night's own stretch, a lid of flat navy that came in with the SEA put a starless
+		# ⚠ IT BACKS THE CLOUDS, SO IT ARRIVES WITH THEM. This is here because the storm's
+		# clouds are a strip with nothing painted over them; with the clouds now held back to
+		# the night's own stretch, a lid of flat navy that came in with the SEA put a starless
 		# midnight over a bright choppy daylight ocean one screen out from a sunny beach.
 		_sky = sky
 	var manifest := _manifest()
@@ -301,7 +300,7 @@ func _ready() -> void:
 					layer.span = Vector2(ground.x, ground.y - trim)
 				else:
 					layer.span = Vector2(ground.x + trim, ground.y)
-				layer.mirrored_tiles = bool(row.get("mirror", true))
+				layer.mirrored_tiles = bool(row.get("mirror", false))
 				layer.grounded = true
 				add_child(layer)
 				_layers.append(layer)
@@ -443,12 +442,11 @@ func is_clear() -> bool:
 ## How much storm there is over this x, 0..1: this band's own fade, times however far the sky
 ## has cleared. DagatLife2D asks, so gulls stay out of the storm and rain stays out of the sun.
 ## ⚠ THE NIGHT'S RAMP, NOT THE ALPHA'S, WHEREVER THERE IS ONE. Two different things happen
-## across this crossing and they are no longer on the same stretch. The storm's sea REPLACES
-## the beach's as the player leaves the sand -- a change of viewpoint, over a few hundred
-## pixels, because two seas drawn at once is two horizons. The LIGHT goes later and slower,
-## over the stretch the design asks the field to darken across. Read from the alpha, the rain
-## and the lightning came with the picture and it was pouring on a bright sea one screen out
-## from a sunny beach.
+## across this crossing and they are not on the same stretch. The storm's sea REPLACES the
+## beach's as the player leaves the sand -- a change of viewpoint, over a few hundred pixels,
+## because two seas drawn at once is two horizons. The LIGHT goes later and slower, over the
+## stretch the design asks the field to darken across. Rain on a bright sea a screen out from
+## the beach is the first of those borrowing the second's timing.
 func weather_at(x: float) -> float:
 	var span := night_span if night_span != Vector2.ZERO else fade_span
 	if span == Vector2.ZERO:
@@ -496,7 +494,8 @@ func update_for_camera(camera_position: Vector2) -> void:
 			if layer.far:
 				layer.modulate.a = 1.0 - gone
 	# ⚠ AND THE RAIN COMES WITH THE DARK, NOT WITH THE PICTURE. The band arrives where the
-	# player leaves the sand; the weather arrives where the design says it should.
+	# player leaves the sand; the weather arrives where the design says it should. Drawn with
+	# the band, it was raining on a bright sea one screen out from a sunny beach.
 	for layer in _layers:
 		if layer.weather:
 			layer.modulate.a = night
@@ -552,9 +551,14 @@ class _Layer extends Node2D:
 	var flipped := false
 	## Laid across `span` at world rate and cut off at its ends, rather than widened for drift.
 	var grounded := false
-	## A painted plate is mirrored every second copy to hide its seam; an authored texture is
-	## drawn to tile straight and a mirror would only put a seam back in.
-	var mirrored_tiles := true
+	## ⚠ OFF, AND MEASURED. Every tiled plate in this delivery was authored to REPEAT: the
+	## mean difference between a plate's last column and its first is under 21 of 255 across
+	## all eleven of them, and under 11 for the ruins and the ridges. Mirroring was a guess
+	## made before anybody checked, and it costs more than the seam it was hiding -- each of
+	## these plates is a composition with something distinctive at its edges, so every second
+	## join put a ruin arch next to its own reflection and the eye finds a butterfly a great
+	## deal faster than it finds a repeat.
+	var mirrored_tiles := false
 	## How far a piece is raised off the plate's registration. See the far island.
 	var lift := 0.0
 	## Part of this band's sea and sky rather than its land. See far_fade_span.
@@ -671,11 +675,13 @@ class _Layer extends Node2D:
 			index += 1
 
 	func _build_tiles() -> void:
-		# ⚠ MIRRORED TILES, NOT A REPEATING REGION. Every plate is a self-contained painting
-		# 1672 wide and the bands are two to four times that, so it has to repeat -- and a
-		# straight repeat puts a hard vertical cut through the ruins every 1672 pixels, which
-		# the eye finds immediately. Flipping every second copy turns the cut into a mirror
-		# line, which reads as more of the same place rather than as the same place again.
+		# ⚠ IT REPEATS, AND IT DOES NOT MIRROR. Every plate is a self-contained painting 1672
+		# wide and the bands are two to four times that, so it has to tile. Mirroring every
+		# second copy was the first answer, on the reasoning that a straight repeat would put
+		# a hard cut through the ruins -- but it was never measured, and the delivery tiles:
+		# see `mirrored_tiles`. What mirroring actually did was pair each plate's most
+		# distinctive edge with its own reflection, so the crossing carried a symmetrical
+		# butterfly of ruin arches every 3344 pixels.
 		#
 		# ⚠ A SLOW LAYER HAS TO COVER MORE GROUND THAN THE BAND IS WIDE. At rate 0.15 the sky
 		# lags the camera by 85% of everything it travels, so it slides sideways by nearly as
@@ -687,12 +693,11 @@ class _Layer extends Node2D:
 		base_x = span.x - drift
 		var count := int(ceil((span.y - span.x + drift * 2.0) / canvas_width))
 		if slide_speed != 0.0:
-			# Two plates more at each end for the slide to travel into -- an even number, so
-			# the mirror pattern keeps its phase.
+			# Two plates more at each end for the slide to travel into.
 			base_x -= canvas_width * 2.0
 			count += 4
 		for index in range(count):
-			var flip := index % 2 == 1
+			var flip := mirrored_tiles and index % 2 == 1
 			# ⚠ flip_h mirrors the texture INSIDE the sprite's own rect; it does not move the
 			# rect. A trimmed frame mirrored on its canvas lands the same distance from the
 			# canvas's OTHER edge, which is the only thing that has to be worked out here.
