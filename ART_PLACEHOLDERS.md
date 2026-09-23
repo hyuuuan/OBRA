@@ -236,7 +236,7 @@ would rather use it than borrow the rice and mud tiles they use today.
 
 ---
 
-## Dagat — what is painted, and the six things that are not
+## Dagat — what is painted, and the three things that are not
 
 **Updated 21 September.** Level 3's art arrived as 79 files and is in: three parallax bands
 (the shore by day, the same sea under a storm, the deep), coral and kelp that sway, bubbles,
@@ -266,13 +266,25 @@ its own would replace a row in `DagatBackdrop2D.BANDS`, not the scene.
 set with the same prefixes and frame counts drops straight in, since `DagatLife2D` and
 `DagatProp2D` find frames by prefix.
 
+**And the bangka (23 September)**, same tool: `bangka_afloat.png` and `bangka_beached.png`.
+It is **the one object in the game that is found rather than drawn**, so it is the one that
+cannot get its picture from the player's ink — it wore the engine's bare outline, a white
+wireframe trapezium, for the whole of the crossing the Artist route is named about.
+`level_3.gd._dress_the_bangka` hides the stroke visual and hangs the picture where the ink
+was; the strokes themselves are kept, so the collision, the draft, the buoyancy and the seat
+are still the numbers `run_level3_boat_probe` measured. ⚠ The ink is **not** under
+`DrawingSkin`: for `rig_type "none"` RuntimeRig2D hangs its `SkinRoot` off the RigidBody2D
+itself, and hiding the skin node alone leaves the outline drawn over the picture.
+
+**The brush is no longer a placeholder either** — the pickup on the sand is
+`assets/hud/brush_full.png`, regioned to its ink and scaled down. It is the same tool the ink
+panel carries for the rest of the run, and two pictures of one tool are two things to keep in
+step.
+
 **Still a developer's rectangles, in the order they are met:**
 
 | What | Where | What the player has to understand |
 |---|---|---|
-| **The new paintbrush** | Shore, `BrushMark`, a yellow quad ~50×30 | Something is lying in the wet sand that is worth picking up, and it is a *tool* — not a shell |
-| **The beached bangka** | Shore, `BangkaMark`, a brown trapezium ~140×26 | A boat somebody left, upside down on the sand, big enough to get into |
-| **The launched bangka** | In the water past the waterline | It is the same boat, now afloat and boardable. Currently the engine's drawn-object outline, because a found boat has no player strokes to build a skin from |
 | **The bakunawa's treasure** | What it uncovers on the Artist route | It is *something the player recognises* — the design asks for an object from Level 1's house, not a chest |
 | **The next painting** | Island, `IslandMark` | The thing they crossed the sea for, glittering in the sand |
 | **Lolo's farewell pose** | Island | He stops, and it is the last thing in the level. The design asks for the existing wave pose rather than a new one |
