@@ -225,6 +225,13 @@ const BANDS := {
 ## stretch the storm fades in over, so the two arrive together.
 @export var night_span := Vector2.ZERO
 @export var night_tint := Color.WHITE
+## ⚠ AND WHAT THE BAND LOOKS LIKE BEFORE THE NIGHT ARRIVES. The storm's sea is painted for the
+## END of the crossing -- thunderheads, dark water -- and it now replaces the beach's sea where
+## the player leaves the sand, a screen and a half out, where the design still wants daylight.
+## WHITE leaves a band at its painted value, which is right for the shore and the deep; the
+## storm brightens back toward the light it is arriving in and darkens into its own across
+## night_span, so the buildup is carried by the LIGHT rather than by which picture is drawn.
+@export var day_tint := Color.WHITE
 
 var _layers: Array[Node2D] = []
 ## How far the storm has cleared, 0..1. The storm is over when the bakunawa is -- see
@@ -451,10 +458,12 @@ static func _ramp(span_x: Vector2, x: float) -> float:
 func update_for_camera(camera_position: Vector2) -> void:
 	_last_camera = camera_position
 	var weather := 1.0 - _clearing
+	var night := 1.0
 	if night_span != Vector2.ZERO:
-		var night := _ramp(night_span, camera_position.x) * weather
-		modulate = Color(lerpf(1.0, night_tint.r, night), lerpf(1.0, night_tint.g, night),
-			lerpf(1.0, night_tint.b, night), modulate.a)
+		night = _ramp(night_span, camera_position.x) * weather
+		modulate = Color(lerpf(day_tint.r, night_tint.r, night),
+			lerpf(day_tint.g, night_tint.g, night),
+			lerpf(day_tint.b, night_tint.b, night), modulate.a)
 	if fade_span != Vector2.ZERO:
 		# x < y fades the band UP across that stretch; x > y fades it DOWN. The shore and the
 		# storm are the same crossing seen twice, so one has to leave as the other arrives --

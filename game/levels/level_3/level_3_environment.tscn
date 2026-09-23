@@ -75,6 +75,7 @@ night_tint = Color(0.42, 0.5, 0.72, 1)
 far_fade_span = Vector2(1000.0, 1560.0)
 night_span = Vector2(1600.0, 3000.0)
 night_tint = Color(0.60, 0.66, 0.85, 1)
+day_tint = Color(1.5, 1.52, 1.42, 1)
 
 ; ⚠ plate_top = 560, THE WATERLINE ITSELF, AND floor_drop = 360 UNDER IT. The water is
 ; pinned by its top -- the painted column starts where the sea starts, and its light comes from
