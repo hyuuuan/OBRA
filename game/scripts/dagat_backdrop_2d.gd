@@ -177,7 +177,14 @@ const BANDS := {
 		{"key": "deep/water", "rate": 0.15, "z": -230, "mirror": true},
 		{"key": "deep/ridges", "rate": 0.35, "z": -225, "floor": true},
 		{"key": "deep/ruins", "rate": 0.55, "z": -220, "floor": true, "mirror": true},
-		{"key": "deep/terraces", "rate": 0.80, "z": -215, "floor": true, "mirror": true},
+		# ⚠ RATE 1.00, BECAUSE THIS ONE IS THE FLOOR. Every other layer here is scenery and
+		# lags the camera to read as distance; this is the seabed the coral, the kelp, the six
+		# ink jars and the signposts STAND ON, and those live in the gameplay plane at world
+		# rate. At 0.80 the painted bed slid 200 px for every 1000 the camera travelled -- seven
+		# hundred across the crossing -- so a jar that began on a ledge finished over a gap and
+		# the ledges drifted through everything standing on them. Ground is ground: the shore's
+		# sand is 1.00 for the same reason.
+		{"key": "deep/terraces", "rate": 1.00, "z": -215, "floor": true, "mirror": true},
 	],
 	"storm": [
 		{"key": "storm/clouds", "rate": 0.15, "z": -210, "drift": -16.0, "weather": true},
