@@ -97,7 +97,13 @@ const BANDS := {
 		# The surf is foam over a still sea, so it moves a little faster than the water it
 		# sits on and slower than the sand -- which is what makes the beach read as nearer.
 		{"key": "shore/surf", "rate": 0.70, "z": -235, "fps": 3.0},
-		{"key": "shore/sand", "rate": 1.00, "z": -165, "ground": true},
+		# ⚠ 64 PAST THE LAND AT THE SEAWARD END, which is a NEGATIVE trim. The clump that ends
+		# the beach stands a little out over the water, and sand that stopped on the collision
+		# edge left it standing on nothing -- a notch of open sea under a rock. The picture
+		# runs to where the picture ends, not to where the player stops, and the shelf face
+		# lands on the same 1064.
+		{"key": "shore/sand", "rate": 1.00, "z": -165, "ground": true,
+			"seaward_trim": -64.0},
 		# ⚠ PIECES, NOT TILES. Each palm plate is one clump drawn at one edge of a 1672 canvas:
 		# a palm and rocks at the far left, or a sand spit ending in rocks and a palm at the
 		# right. Tiled and mirrored, a clump of palms stood every screen along the beach and
