@@ -419,36 +419,56 @@ hint_text = "Something is in there, but the dark is too thick to see through."
 position = Vector2(3380, 596)
 script = ExtResource("18_flower")
 
+[node name="ReturnSteps" type="Node2D" parent="GameplayPlane/Gorge"]
+
+[node name="Bottom" type="StaticBody2D" parent="GameplayPlane/Gorge/ReturnSteps"]
+position = Vector2(3224, 572)
+script = ExtResource("5_terrace")
+segment_size = Vector2(104, 28)
+surface_style = 3
+one_way_platform = true
+
+[node name="Lower" type="StaticBody2D" parent="GameplayPlane/Gorge/ReturnSteps"]
+position = Vector2(3080, 512)
+script = ExtResource("5_terrace")
+segment_size = Vector2(104, 28)
+surface_style = 3
+one_way_platform = true
+
+[node name="MiddleLower" type="StaticBody2D" parent="GameplayPlane/Gorge/ReturnSteps"]
+position = Vector2(3224, 452)
+script = ExtResource("5_terrace")
+segment_size = Vector2(104, 28)
+surface_style = 3
+one_way_platform = true
+
+[node name="MiddleUpper" type="StaticBody2D" parent="GameplayPlane/Gorge/ReturnSteps"]
+position = Vector2(3080, 392)
+script = ExtResource("5_terrace")
+segment_size = Vector2(104, 28)
+surface_style = 3
+one_way_platform = true
+
+[node name="Upper" type="StaticBody2D" parent="GameplayPlane/Gorge/ReturnSteps"]
+position = Vector2(3224, 332)
+script = ExtResource("5_terrace")
+segment_size = Vector2(104, 28)
+surface_style = 3
+one_way_platform = true
+
+[node name="Top" type="StaticBody2D" parent="GameplayPlane/Gorge/ReturnSteps"]
+position = Vector2(3080, 272)
+script = ExtResource("5_terrace")
+segment_size = Vector2(104, 28)
+surface_style = 3
+one_way_platform = true
+
 [node name="Routes" type="Node2D" parent="GameplayPlane" unique_id=960648785]
 script = ExtResource("14_routes")
 
 [node name="Artist" type="Node2D" parent="GameplayPlane/Routes" unique_id=1122981442]
 
-[node name="MidPost" type="StaticBody2D" parent="GameplayPlane/Routes/Artist" unique_id=342179837]
-position = Vector2(3330, 240)
-script = ExtResource("5_terrace")
-segment_size = Vector2(60, 332)
-surface_style = 2
-
 [node name="Pragmatist" type="Node2D" parent="GameplayPlane/Routes" unique_id=818647650]
-
-[node name="LedgeA" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist" unique_id=253390672]
-position = Vector2(3080, 336)
-script = ExtResource("5_terrace")
-segment_size = Vector2(104, 28)
-surface_style = 2
-
-[node name="LedgeB" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist" unique_id=387456915]
-position = Vector2(3144, 432)
-script = ExtResource("5_terrace")
-segment_size = Vector2(104, 28)
-surface_style = 2
-
-[node name="LedgeC" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist" unique_id=204425953]
-position = Vector2(3080, 560)
-script = ExtResource("5_terrace")
-segment_size = Vector2(120, 28)
-surface_style = 2
 
 [node name="ExitShelf" type="StaticBody2D" parent="GameplayPlane/Routes/Pragmatist" unique_id=1137262035]
 position = Vector2(3420, 560)

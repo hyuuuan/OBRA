@@ -2464,7 +2464,49 @@ func _audit_the_gorge(level: Node) -> void:
 	_check(gap > 260.0, "the gorge is still too wide to jump",
 		"%.0fpx against a running jump of about 228" % gap)
 
-	# AND THE CUT ROUTE STILL REACHES. Felled tree, mid pillar, crumbling platform, far
+	# FALLING IN MUST NOT BE A ROUTE-SPECIFIC TRAP. The old return ledges belonged to the
+	# Pragmatist branch, so choosing Artist or Protector deleted them; Artist also planted a
+	# 60x332 solid post over the flower's pickup approach. Six shared ledges now return to
+	# the near lip in 32-60px rises, below the apo's own jump, while ending far enough from
+	# the far bank that they cannot turn the gorge into a free crossing.
+	var old_pillar := plane.get_node_or_null("Routes/Artist/MidPost")
+	_check(old_pillar == null, "the dirt pillar no longer blocks the flower",
+		"the cave floor is open" if old_pillar == null else "MidPost is still solid")
+	var return_root := plane.get_node_or_null("Gorge/ReturnSteps")
+	var return_steps: Array[Node2D] = []
+	if return_root != null:
+		for child in return_root.get_children():
+			if child is Node2D and child.get("segment_size") != null:
+				return_steps.append(child as Node2D)
+	return_steps.sort_custom(func(a, b): return a.global_position.y > b.global_position.y)
+	_check(return_steps.size() == 6, "the gorge has its missing return steps",
+		"six shared ledges" if return_steps.size() == 6
+		else "%d ledge(s)" % return_steps.size())
+	var jump_height: float = pow(WandererClass.JUMP_VELOCITY, 2.0) / (2.0 * float(
+		ProjectSettings.get_setting("physics/2d/default_gravity", 980.0)))
+	var gorge_wall := plane.get_node_or_null("Gorge/GorgeWall") as Node2D
+	var last_surface := gorge_wall.global_position.y + Rect2(gorge_wall.get("opening")).end.y \
+		- float(gorge_wall.get("floor_depth")) if gorge_wall != null else 632.0
+	var bad_risers: Array[String] = []
+	for step in return_steps:
+		var rise := last_surface - step.global_position.y
+		if rise <= 0.0 or rise > jump_height:
+			bad_risers.append("%s is %.0fpx" % [step.name, rise])
+		last_surface = step.global_position.y
+	var final_rise := last_surface - near.global_position.y
+	if final_rise <= 0.0 or final_rise > jump_height:
+		bad_risers.append("top to lip is %.0fpx" % final_rise)
+	_check(bad_risers.is_empty(), "and every return riser is climbable",
+		"all inside the %.0fpx jump" % jump_height if bad_risers.is_empty()
+		else "; ".join(bad_risers))
+	var top_end := return_steps[return_steps.size() - 1].global_position.x \
+		+ Vector2(return_steps[return_steps.size() - 1].get("segment_size")).x \
+		if not return_steps.is_empty() else far_edge
+	_check(far_edge - top_end > 260.0,
+		"and the return stair does not bridge the puzzle",
+		"%.0fpx still open from its top to the far bank" % (far_edge - top_end))
+
+	# AND THE CUT ROUTE STILL REACHES. Felled tree, crumbling platform, far
 	# bank: each landing has to be inside a jump of the one before it, or the route the
 	# player just paid for ends in mid air.
 	var stones: Array[Dictionary] = []
@@ -2473,7 +2515,7 @@ func _audit_the_gorge(level: Node) -> void:
 		stones.append({"name": "the felled tree",
 			"from": tree.global_position.x,
 			"to": tree.global_position.x + float(tree.get("span_length"))})
-	for path in ["Routes/Artist/MidPost", "Routes/Protector/CrumbleA"]:
+	for path in ["Routes/Protector/CrumbleA"]:
 		var stone := plane.get_node_or_null(path) as Node2D
 		if stone == null:
 			continue

@@ -859,7 +859,7 @@ func _test_banaue_environment() -> void:
 	# signboard and the first gate were inside forty pixels of each other. The level grew by
 	# 1200 in four steps and every one of them lengthens a WALK: the near bank +260, Terrace2
 	# +420, Terrace5 +340, the Overlook +180. No GATE moved. The paddy is still 300 across,
-	# the bank still 280 from water to stair, the gorge still 560 lip to lip and the stair
+	# the bank still 280 from water to stair, the gorge still 440 lip to lip and the stair
 	# still a 136px rise -- see R7 and the gate table in GATES.md, which are what this number
 	# is really standing in for.
 	#
@@ -887,10 +887,10 @@ func _test_banaue_environment() -> void:
 	for node in get_nodes_in_group("terrace_ground"):
 		if environment.is_ancestor_of(node):
 			terrace_count += 1
-	# 11 shared segments plus the five that belong to the two route branches. Terrace4
-	# is deliberately absent: that span is the gorge the level is built around.
-	_expect(terrace_count == 16,
-		"Banaue terrain has %d terrace segments, expected 16 -- if something new joined the\n\t\tterrace_ground group, it probably should not have" % terrace_count)
+	# 11 terrain segments, six shared rescue ledges in the gorge and Pragmatist's exit shelf.
+	# Terrace4 is deliberately absent: that span is the gorge the level is built around.
+	_expect(terrace_count == 18,
+		"Banaue terrain has %d terrace segments, expected 18 -- if something new joined the\n\t\tterrace_ground group, it probably should not have" % terrace_count)
 	var water_count := 0
 	for node in get_nodes_in_group("water_medium"):
 		if environment.is_ancestor_of(node):
@@ -1105,7 +1105,8 @@ func _test_level_1_needs_drawing() -> void:
 
 	# The gorge: Terrace3's far edge to the far lip. Nothing may bridge it by default,
 	# which is what makes the dialogue node a question rather than scenery.
-	var near_lip: float = 2400.0
+	var near_bank := terrain.get_node(^"CentralRight") as Node2D
+	var near_lip: float = near_bank.global_position.x + Vector2(near_bank.get("segment_size")).x
 	var far_lip: float = float((terrain.get_node(^"Terrace5") as Node2D).global_position.x)
 	_expect(far_lip - near_lip > jump_reach + 100.0,
 		"the gorge is %.0fpx, which the wanderer can clear (%.0fpx)" % [far_lip - near_lip, jump_reach])

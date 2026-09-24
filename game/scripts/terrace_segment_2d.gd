@@ -17,6 +17,7 @@ const CORNER_RADIUS := 8.0
 @export var segment_size := Vector2(360.0, 216.0)
 @export var surface_style := SurfaceStyle.GRASS
 @export var use_stone_wall := true
+@export var one_way_platform := false
 
 
 func _ready() -> void:
@@ -31,6 +32,7 @@ func _build_collision() -> void:
 	var collision := CollisionShape2D.new()
 	collision.name = "CollisionShape2D"
 	collision.position = segment_size * 0.5
+	collision.one_way_collision = one_way_platform
 	var rectangle := RectangleShape2D.new()
 	rectangle.size = segment_size
 	collision.shape = rectangle

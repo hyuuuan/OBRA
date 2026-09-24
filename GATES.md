@@ -45,14 +45,19 @@ West to east, in the order a player meets them. "Reaches" is where T1's bot stop
 | **G1** | The paddy | 340–640 | **300 px of water, 100 px deep.** Wider than a running jump (228 px) and deeper than the apo can climb out of. Going under for a second puts you back on the bank. | **Roll** — set something that rolls on the two treads floating mid-paddy and they steady, lock and become a deck, leaving a 62 px hop at each end | 537 |
 | **G2** | Ang Hagdan | 900–1180 | **136 px of rise** from the bank to the lowest surviving stone, against a 94.3 px jump. Three treads are missing. | **Span** — a drawn primitive at the foot of it, to stand on | — (G1 stops the bot first) |
 | **G3** | Terrace 1 → 2 | ~1160 | A **140 px terrace face**. No dialogue, no strip — just a wall that is too tall. | **Span** or **Climb** | 1145 |
-| **G4** | The gorge — Artist | 2400–2960 | A post mid-gorge splits it into **two 250 px spans** | **Span**, twice | 2635 |
-| **G5** | The gorge — Pragmatist | 2400–2960 | Ledges take you down; the way out is a **bare 320 px wall** | **Span** or **Climb** | 2945 |
-| **G6** | The gorge — Protector | 2400–2960 | A **standing dead tree** blocks the lip until it is felled across | **Cut** | 2320 |
-| **G7** | The Overlook | 3320 | A **160 px cliff** between Terrace5 and the house | **Climb** | 3305 |
+| **G4** | The gorge — Artist | 3080–3520 | A **440 px gap**, wider than a running jump; the old mid-gorge dirt pillar is gone | **Span**, then **Climb** | 3315 |
+| **G5** | The gorge — Pragmatist | 3080–3520 | Shared ledges let a fall return to the near lip; the far side remains a **392 px wall** | **Leap** or **Climb** | 3505 |
+| **G6** | The gorge — Protector | 3080–3520 | A **standing dead tree** blocks the lip until it is felled across | **Cut** | 3000 |
+| **G7** | The Overlook | 4340 | A **160 px cliff** between Terrace5 and the house | **Climb** | 4325 |
 | **G8** | Ang Bale | 4520–4760 | **The level will not end until the bale is answered.** Choosing one of Lolo's three lines is free and is not an answer. | **Climb**, **Unlock** or **Cut** | 4505 |
 
 G4, G5 and G6 are the same chasm seen three ways: the route chosen at the dialogue node
 physically rebuilds it, so they are separate gates and T1 tests each on its own level.
+
+The six ledges on the near wall are shared safety geometry, not an answer. Their 32–60 px
+risers let somebody who drops to the cave and Hidden Flower climb back to the side they came
+from, but the uppermost ledge still ends 336 px short of the far bank — beyond the apo's
+running jump. They prevent a trap without crossing the gate.
 
 ---
 

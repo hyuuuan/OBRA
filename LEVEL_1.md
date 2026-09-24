@@ -289,20 +289,27 @@ level anyone is told to look on a nail, and Node 3's Artist route reads it. **CP
 
 It was **560** — seventy per cent of an 800-wide view at zoom 1, whatever colour it was
 painted. The far bank came 120 west (`Terrace5` at 3520, right edge unmoved at 4340), the
-art's `opening` followed it, `CrumbleA` was shortened from 220 to 140 so it still rests on
-the mid pillar at one end and the new bank at the other, `ExitShelf` moved with the far wall,
-and **`CrumbleB` is gone** — it was the last hop onto the old bank and stood past the new one.
+art's `opening` followed it, `CrumbleA` was shortened from 220 to 140 so it still reaches
+the new bank, `ExitShelf` moved with the far wall, and **`CrumbleB` is gone** — it was the
+last hop onto the old bank and stood past the new one.
 
 ⚠ **The near side did NOT move, and that is the constraint.** The felled tree is 250 long
-from x 3040, so it ends at 3290; the mid pillar stands at 3330. Move the bank west and shift
-the gorge's furniture west with it and the tree passes straight through the pillar. What
-narrows is the far half.
+from x 3040, so it ends at 3290. What narrowed was the far half. The old Artist-route dirt
+pillar at x 3330 is gone: it extended to the cave floor and covered the Hidden Flower's
+pickup approach, so a player could stand beside the lit bloom without reaching it.
 
 **Two numbers hold it, and `run_level1_audit` walks both.** The gap must stay over a running
 jump — the apo clears about 228px, so 440 is an obstacle and 200 is a step over. And the cut
-route's landings — felled tree → mid pillar → crumbling platform → far bank — must each be
-inside a jump of the one before, or the route the player just paid for ends in mid air.
-Everything about Node 1 had been checked as *bookkeeping* until now.
+route's landings — felled tree → crumbling platform → far bank — must each be inside a jump
+of the one before, or the route the player just paid for ends in mid air. Everything about
+Node 1 had been checked as *bookkeeping* until now.
+
+**The bottom has a shared way back out.** Six stone ledges climb the near wall from the
+gorge floor in 32–60px rises, each below the wanderer's 94.3px jump. They used to exist only
+inside the Pragmatist branch, with gaps too high to climb upward, so choosing Artist or
+Protector deleted the return path and made a fall into the optional-flower cave a trap. The
+stair reaches only the near lip: it ends 336px short of the far bank and cannot answer the
+gorge for free.
 
 ### The gorge is the dark thing, and it is meant to be
 

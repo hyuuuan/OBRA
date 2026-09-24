@@ -22,10 +22,10 @@ const SEGMENT_SECONDS := 22.0
 const SEGMENTS: Array = [
 	{"name": "the paddy and Ang Hagdan", "at": Vector2(260, 460.0)},
 	{"name": "above the stair, to the gorge", "at": Vector2(1220, 360.0)},
-	# All three, because they are physically different crossings: the Artist route puts a
-	# post mid-gorge, the Pragmatist route drops ledges down and leaves a bare wall out, and
-	# the Protector route stands a tree up to be felled. Testing whichever answer happens to
-	# be first tests one of them.
+	# All three, because they remain physically different crossings even though the rescue
+	# steps are now shared: Artist has no route geometry, Pragmatist adds the far exit shelf,
+	# and Protector stands a tree up to be felled. Testing whichever answer happens to be
+	# first tests one of them.
 	{"name": "the gorge, Artist route", "at": Vector2(3000, 200.0), "route": 0},
 	{"name": "the gorge, Pragmatist route", "at": Vector2(3000, 200.0), "route": 1},
 	{"name": "the gorge, Protector route", "at": Vector2(3000, 200.0), "route": 2},

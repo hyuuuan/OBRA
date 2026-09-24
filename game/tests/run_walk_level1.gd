@@ -78,7 +78,8 @@ func _run() -> void:
 	for beat in [_the_player_cannot_shove_the_plank, _the_paddy_needs_a_crossing,
 			_cannot_be_climbed_bare, _can_be_climbed_with_a_step,
 			_a_placement_can_be_taken_back, _the_ghost_is_where_it_lands,
-			_the_heap_has_an_inside, _the_overlook_needs_a_climb]:
+			_the_heap_has_an_inside, _the_overlook_needs_a_climb,
+			_the_gorge_flower_and_return_are_reachable]:
 		_refill_the_purse()
 		await beat.call()
 
@@ -91,6 +92,98 @@ func _run() -> void:
 	else:
 		print("OBRA_WALK_L1_FAILED=%d" % failures)
 		quit(1)
+
+
+## The cave floor is somewhere a player can deliberately visit, not a one-way fall. The
+## Artist route used to put a solid 60x332 dirt post across the flower's approach, while the
+## only ledges back out belonged to Pragmatist and disappeared on the other two choices.
+## Drive the real character through the former pillar footprint, then jump the shared stair
+## one ledge at a time and land back on the near lip.
+func _the_gorge_flower_and_return_are_reachable() -> void:
+	player.velocity = Vector2.ZERO
+	player.global_position = Vector2(3350.0, 632.0)
+	for _frame in range(10):
+		await physics_frame
+	Input.action_press(&"move_right")
+	var furthest := player.global_position.x
+	for _frame in range(80):
+		await physics_frame
+		furthest = maxf(furthest, player.global_position.x)
+		if furthest >= 3410.0:
+			break
+	Input.action_release(&"move_right")
+	_check(furthest >= 3410.0, "the flower can be approached across the cave floor",
+		"walked through the old pillar footprint to x %.0f" % furthest
+		if furthest >= 3410.0 else "blocked at x %.0f" % furthest)
+
+	player.velocity = Vector2.ZERO
+	player.global_position = Vector2(3360.0, 632.0)
+	for _frame in range(10):
+		await physics_frame
+	var landings := [
+		{"name": "Bottom", "rect": Rect2(3224.0, 572.0, 104.0, 28.0), "aim": 3276.0},
+		{"name": "Lower", "rect": Rect2(3080.0, 512.0, 104.0, 28.0), "aim": 3132.0},
+		{"name": "MiddleLower", "rect": Rect2(3224.0, 452.0, 104.0, 28.0), "aim": 3276.0},
+		{"name": "MiddleUpper", "rect": Rect2(3080.0, 392.0, 104.0, 28.0), "aim": 3132.0},
+		{"name": "Upper", "rect": Rect2(3224.0, 332.0, 104.0, 28.0), "aim": 3276.0},
+		{"name": "Top", "rect": Rect2(3080.0, 272.0, 104.0, 28.0), "aim": 3132.0},
+		{"name": "NearLip", "rect": Rect2(2880.0, 240.0, 200.0, 440.0),
+			"aim": 3060.0, "accept_above": true},
+	]
+	var missed: Array[String] = []
+	for landing: Dictionary in landings:
+		if not await _jump_to_gorge_landing(landing):
+			missed.append("%s (stopped at %s)" % [landing["name"], player.global_position])
+			break
+	_check(missed.is_empty(), "the player can climb the missing steps back out",
+		"floor -> six ledges -> near lip" if missed.is_empty() else "; ".join(missed))
+
+
+func _jump_to_gorge_landing(landing: Dictionary) -> bool:
+	var target := float(landing["aim"])
+	var rect := Rect2(landing["rect"])
+	# Clear the previous release on a physics tick. The controller reads just-released in
+	# _physics_process; pressing again before that reader has consumed the edge cuts the new
+	# jump to JUMP_CUT and turns a 94px jump into a 19px hop.
+	Input.action_release(&"jump")
+	await physics_frame
+	Input.action_press(&"jump")
+	for frame in range(120):
+		Input.action_release(&"move_left")
+		Input.action_release(&"move_right")
+		# Rise clear of the ledge's vertical face before steering around it. The stair
+		# alternates sides specifically so no tread becomes a ceiling over the one below.
+		if frame >= 8:
+			if player.global_position.x > target + 4.0:
+				Input.action_press(&"move_left")
+			elif player.global_position.x < target - 4.0:
+				Input.action_press(&"move_right")
+		if frame == 38:
+			Input.action_release(&"jump")
+		await physics_frame
+		var landed: bool = bool(player.is_on_floor()) \
+			and absf(player.global_position.y - rect.position.y) <= 3.0 \
+			and player.global_position.x >= rect.position.x + 8.0 \
+			and player.global_position.x <= rect.end.x - 8.0
+		# Crossing the lip enters its dialogue trigger, which intentionally locks player
+		# physics before the body descends onto the bank. Being above and inside that edge
+		# is the successful traversal; once the line closes, gravity completes the landing.
+		var reached_dialogue_lip: bool = bool(landing.get("accept_above", false)) \
+			and player.global_position.y <= rect.position.y \
+			and player.global_position.x >= rect.position.x \
+			and player.global_position.x <= rect.end.x
+		if frame > 8 and (landed or reached_dialogue_lip):
+			Input.action_release(&"move_left")
+			Input.action_release(&"move_right")
+			Input.action_release(&"jump")
+			player.velocity = Vector2.ZERO
+			for _settle in range(4):
+				await physics_frame
+			return true
+	Input.action_release(&"move_left")
+	Input.action_release(&"move_right")
+	Input.action_release(&"jump")
+	return false
 
 
 ## THE REPORTED BUG, and it is a regression test with a name: "the floating dirt just flies
