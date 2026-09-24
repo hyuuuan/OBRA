@@ -236,6 +236,19 @@ inside is still built to it). It was never as good as the plate. What survives o
 is the material under the cut -- paving, retaining wall, receding rooftops -- and the props
 the rest of the level draws with.
 
+**The plaza ground is a tileset again (2026-09-25).** `paving_a/b/c.png` are interchangeable
+cream-path tops and `retaining.png` is the continuous moss lip and dark block wall beneath
+them. `stone_fill.png` is a separate repeating stone tile below that decorative edge, matching
+Level 1's cap-plus-repeating-fill construction without stretching the stones. The production
+source is `level-2-assets/plaza_ground_tileset_source.png`; it follows
+Level 1's large pixel clusters and limited ramps while keeping the supplied reference's
+path / moss / wall structure. `build_plaza_art.py` cuts the four runtime tiles at the exact
+34 + 96 original depths, then adds 64 pixels of tiled stone past the camera floor.
+The join follows mortar in the final course; the square fill repeats at 320 world units,
+with mirrored wrapping to avoid exposed texture edges. The former flat dirt band is retired.
+`PiyestaPlaza2D` also paints solid fallback bands before the
+textures, because an absent Godot import must never turn the floor into blue sky again.
+
 **8-bit here is a method, not a look**: everything is drawn on a logical pixel grid and scaled
 by nearest-neighbour, colour comes from six-step ramps, and gradients are ordered Bayer
 dithers between two adjacent steps. One light, from the upper left, everywhere.

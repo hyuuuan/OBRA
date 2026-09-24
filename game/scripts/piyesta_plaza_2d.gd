@@ -29,23 +29,19 @@ extends Node2D
 @export var from_x := 80.0
 @export var to_x := 1790.0
 
-## How deep the paving strip is: the top face of the plaza, seen at a glancing angle. Shallow,
-## because it is a surface the player stands ON, not a slab they stand in front of.
+## Like Payyo's terraces, the detailed edge keeps its native proportions and a separate
+## repeating fill carries the ground below it. Never stretch the retaining tile to fill the
+## camera: that makes every stone look vertically warped.
 const PAVING_DEPTH := 34.0
-## And how far the retaining wall runs before the town below it takes over.
-##
-## ⚠ TUNED AGAINST THE CAMERA, not against how a wall looks on its own. The camera's
-## `world_bottom_y` stops it at 722, which leaves about a hundred and sixty units under the
-## walk line at rest and roughly twice that at the top of a jump.
-##
-## IT WAS 170 AND THAT IS EXACTLY THE VISIBLE BAND, so the wall filled every pixel under the
-## plaza and the town below it -- three courses of hazed rooftops, generated, imported and
-## drawn -- was never once on screen. What the player actually saw was the wall's own shadow
-## ramp: a flat dark bar across the bottom eighth of every shot, under a painting that is the
-## brightest thing in the game. Ninety-six puts the roofs back inside the frame, so the band
-## is DISTANCE rather than a black edge, and a jump shows more of the town rather than more
-## of the dark.
 const WALL_DEPTH := 96.0
+const FILL_DEPTH := 64.0
+const STONE_FILL := preload("res://assets/Level2/plaza/stone_fill.png")
+const STONE_REPEAT := 320.0
+## The fallback is deliberate. A missing or stale Godot texture import must leave an obvious
+## solid floor rather than exposing SkyFill below the player's feet again.
+const PAVING_FALLBACK := Color(0.86, 0.69, 0.39, 1.0)
+const WALL_FALLBACK := Color(0.16, 0.12, 0.08, 1.0)
+const FILL_FALLBACK := Color(0.13, 0.09, 0.055, 1.0)
 ## The colour distance goes toward here: the plaza's own sky, a little greyer. Everything
 ## below the terrace is lifted toward it rather than multiplied by it -- see _draw.
 const HAZE := Color(0.757, 0.816, 0.851, 1.0)
@@ -60,31 +56,33 @@ func _ready() -> void:
 func _draw() -> void:
 	var left := from_x - 900.0
 	var width := (to_x - from_x) + 1800.0
-	# The paving, in three cuts so it does not repeat every metre.
-	PiyestaTiles.fill_varied(self, Rect2(left, ground, width, PAVING_DEPTH),
-		["paving_a", "paving_b", "paving_c"])
-	draw_rect(Rect2(left, ground, width, 3.0), Color(1.0, 0.94, 0.82, 0.20))
-	# The wall that retains it, going into shadow as it drops.
-	PiyestaTiles.fill(self, Rect2(left, ground + PAVING_DEPTH, width, WALL_DEPTH),
-		"retaining")
-	draw_rect(Rect2(left, ground + PAVING_DEPTH, width, 4.0), Color(0.0, 0.0, 0.0, 0.45))
-	# It falls into shadow as it drops, so the eye stays on the plaza rather than on the wall.
-	# ⚠ FIVE STACKED RECTS OF IT WAS TOO MUCH BY HALF. Each one reached WALL_DEPTH below its
-	# own start, so the last four overhung the wall entirely and piled up on the town under
-	# it -- the bottom of the frame ended up at about 0.55 alpha of near-black, which is the
-	# flat bar this band used to be. Three, shallower, and stopping where the wall does.
-	for step in range(2):
-		var t := float(step)
-		var top := ground + PAVING_DEPTH + 34.0 + t * 30.0
-		draw_rect(Rect2(left, top, width, ground + PAVING_DEPTH + WALL_DEPTH - top),
-			Color(0.055, 0.047, 0.043, 0.08 + 0.05 * t))
+	var paving_rect := Rect2(left, ground, width, PAVING_DEPTH)
+	var wall_rect := Rect2(left, ground + PAVING_DEPTH, width, WALL_DEPTH)
+	var fill_band := Rect2(left, wall_rect.end.y, width, FILL_DEPTH)
+	# Draw the guaranteed floor first, then let the tiles replace it wherever they load.
+	draw_rect(paving_rect, PAVING_FALLBACK)
+	draw_rect(wall_rect, WALL_FALLBACK)
+	draw_rect(fill_band, FILL_FALLBACK)
+	PiyestaTiles.fill_varied(self, paving_rect, ["paving_a", "paving_b", "paving_c"])
+	# One continuous stone material beneath the decorative edge, at a fixed square scale.
+	var fill_rect := Rect2(left, wall_rect.position.y + 48.0, width,
+		WALL_DEPTH + FILL_DEPTH - 48.0)
+	var points := PackedVector2Array([fill_rect.position,
+		Vector2(fill_rect.end.x, fill_rect.position.y), fill_rect.end,
+		Vector2(fill_rect.position.x, fill_rect.end.y)])
+	var uv := PackedVector2Array()
+	for point in points:
+		uv.append(point / STONE_REPEAT)
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_MIRROR
+	draw_polygon(points, PackedColorArray([Color.WHITE]), uv, STONE_FILL)
+	_draw_retaining_edge(wall_rect)
 	# ⚠ AND THEN THE TOWN, BECAUSE THE CAMERA INSISTS. The vertical follow keeps the player
 	# near the middle of the frame, so about four hundred units below their feet is always on
 	# screen -- and four hundred units of retaining wall is a blank band across the bottom
 	# third of every shot. The plaza stands on high ground in a city; what is under it is the
 	# rest of the city, receding and hazing out.
 	var roofs := PiyestaTiles.size_of("rooftops_a")
-	var below := ground + PAVING_DEPTH + WALL_DEPTH
+	var below := ground + PAVING_DEPTH + WALL_DEPTH + FILL_DEPTH
 	if roofs.y > 0.0:
 		var cuts: Array = ["rooftops_a", "rooftops_b", "rooftops_c"]
 		# ⚠ A MODULATE CANNOT MAKE ANYTHING PALER, AND THAT IS WHY THIS BAND WAS BLACK.
@@ -109,3 +107,26 @@ func _draw() -> void:
 			draw_rect(Rect2(left, below + t * roofs.y * 1.8, width, roofs.y * 1.8),
 				Color(HAZE.r, HAZE.g, HAZE.b, 0.30 + 0.10 * t))
 		draw_rect(Rect2(left, below + roofs.y * 2.2, width, 900.0), HAZE)
+
+
+func _draw_retaining_edge(rect: Rect2) -> void:
+	var tile := PiyestaTiles.get_tile("retaining")
+	if tile == null:
+		return
+	var pixels := tile.get_image()
+	# Follow the existing mortar near the last stone course. A stepped two-pixel edge
+	# lets the new stone field meet the old course without a straight bottom border.
+	for column in range(0, int(rect.size.x), 2):
+		var source_x := column % tile.get_width()
+		var cut := 78
+		var best := INF
+		for row in range(66, 92):
+			var tone := pixels.get_pixel(source_x, row)
+			var score := tone.r + tone.g + tone.b + absf(float(row - 80)) * 0.004
+			if score < best:
+				best = score
+				cut = row
+		var slice_width := minf(2.0, rect.size.x - column)
+		draw_texture_rect_region(tile,
+			Rect2(rect.position + Vector2(column, 0), Vector2(slice_width, cut)),
+			Rect2(source_x, 0, slice_width, cut))

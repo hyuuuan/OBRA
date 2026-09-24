@@ -180,6 +180,34 @@ func _audit_the_ground_follows_the_painting() -> void:
 	# stands ON this line; the only thing in front of the player is an ankle-high kerb.
 	_check(tops.size() == 1, "and it is the only surface in the plaza",
 		"%s" % ", ".join(tops.keys()) if tops.size() != 1 else "one ground line, wall to wall")
+	# The floor is a real tileset again: three interchangeable path tops, one decorative wall,
+	# then a separate square stone fill. Their intrinsic heights are the guard against stretching
+	# the stones to cover the camera.
+	var missing_ground_tiles: Array[String] = []
+	for tile_name: String in ["paving_a", "paving_b", "paving_c", "retaining", "stone_fill"]:
+		if not PiyestaTiles.has_tile(tile_name):
+			missing_ground_tiles.append(tile_name)
+	var paving_size := PiyestaTiles.size_of("paving_a")
+	var wall_size := PiyestaTiles.size_of("retaining")
+	var dirt_size := PiyestaTiles.size_of("stone_fill")
+	_check(missing_ground_tiles.is_empty()
+		and is_equal_approx(paving_size.y, PiyestaPlaza2D.PAVING_DEPTH)
+		and is_equal_approx(wall_size.y, PiyestaPlaza2D.WALL_DEPTH)
+		and dirt_size.x > 0 and is_equal_approx(dirt_size.x, dirt_size.y),
+		"and the complete plaza ground tileset loads",
+		"top %dx%d, wall %dx%d, stone %dx%d" % [int(paving_size.x), int(paving_size.y),
+			int(wall_size.x), int(wall_size.y), int(dirt_size.x), int(dirt_size.y)] \
+			if missing_ground_tiles.is_empty()
+		else "missing: %s" % ", ".join(missing_ground_tiles))
+	var plaza := level.get_node_or_null(^"EnvironmentBaseplate/Plaza") as PiyestaPlaza2D
+	var camera := level.get_node_or_null(^"EnvironmentBaseplate/WorldCamera") as Camera2D
+	var tiled_bottom := plaza.ground + PiyestaPlaza2D.PAVING_DEPTH \
+		+ PiyestaPlaza2D.WALL_DEPTH + PiyestaPlaza2D.FILL_DEPTH \
+		if plaza != null else -INF
+	var camera_bottom := float(camera.get("world_bottom_y")) if camera != null else INF
+	_check(plaza != null and camera != null and tiled_bottom >= camera_bottom,
+		"and the tiled ground covers the bottom of the camera",
+		"tiles to y %.0f, camera to y %.0f" % [tiled_bottom, camera_bottom])
 
 
 
@@ -900,4 +928,3 @@ func _audit_no_world_note_names_a_class() -> void:
 				named.append("\"%s\" names %s" % [note, word])
 	_check(named.is_empty(), "no door or room note names a class",
 		"%d notes, clean" % notes.size() if named.is_empty() else "; ".join(named))
-
