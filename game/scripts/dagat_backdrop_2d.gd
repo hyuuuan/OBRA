@@ -109,7 +109,14 @@ const BANDS := {
 		# sky over the open water too, and taking it with them left a flat blue lid with
 		# nothing in it for the first third of the crossing. It leaves with the LIGHT
 		# instead, as the storm's own clouds come in over it.
-		{"key": "shore/sky", "rate": 0.15, "z": -250, "drift": 5.0, "day": true},
+		#
+		# ⚠ MIRRORED, AND MEASURED THIS TIME. It was left straight on the reasoning that its
+		# join was invisible. It is not: 127 of its rows differ by more than 30 of 255 across the
+		# join, because a cloud runs off the plate's right edge and is not waiting at its left,
+		# so the first screen of the level had a cloud cut off down a ruled line -- and the sky
+		# drifts, so the line slid across it. A mirrored copy meets its own edge, which for
+		# clouds is a longer cloud, and `slide_speed` already wraps at two plates.
+		{"key": "shore/sky", "rate": 0.15, "z": -250, "drift": 5.0, "day": true, "mirror": true},
 		{"key": "shore/mountains", "rate": 0.35, "z": -245, "far": true},
 		{"key": "shore/ocean", "rate": 0.55, "z": -240, "far": true, "mirror": true},
 		# The surf is foam over a still sea, so it moves a little faster than the water it
@@ -181,7 +188,11 @@ const BANDS := {
 		{"key": "deep/terraces", "rate": 1.00, "z": -215, "floor": true, "mirror": true},
 	],
 	"storm": [
-		{"key": "storm/clouds", "rate": 0.15, "z": -210, "drift": -16.0, "weather": true},
+		# ⚠ MIRRORED, for the same reason as the shore's sky: the bank's underside is opaque on
+		# one side of the join and empty on the other for 29 rows, which drifting at 16 px/s was
+		# a vertical step sliding across the storm.
+		{"key": "storm/clouds", "rate": 0.15, "z": -210, "drift": -16.0, "weather": true,
+			"mirror": true},
 		{"key": "storm/islands", "rate": 0.35, "z": -205},
 		# ⚠ UNDER THE DEEP'S FLOOR, NOT OVER IT, AND CARRIED DOWN BELOW ITS OWN LAST ROW. The
 		# underside is the storm plate's own seabed -- rocks and weed down to the plate's edge
