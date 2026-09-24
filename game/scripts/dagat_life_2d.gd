@@ -170,16 +170,18 @@ func _release_the_jellies() -> void:
 
 # --- The surf, against both shores ---------------------------------------------------------
 
-## ⚠ IT HAS TO BREATHE, OR IT IS A RULER. Two flat strips laid end to end at a fixed y read
-## as a dashed line ruled along the waterline -- the eye finds the repeat before it finds the
-## foam. Three now, each one sitting a little lower and fainter than the one inshore of it, and
-## each riding its own bob and sway so the line moves as water rather than sitting as a mark.
-## The reach is the rocks': the clump that ends each shore stands about four hundred pixels out
-## over the shallows, and foam that stopped at the collision edge broke against nothing.
+## ⚠ IT HAS TO BREATHE, OR IT IS A RULER. Flat strips at a fixed y read as a dashed line
+## ruled along the waterline -- the eye finds the repeat before it finds the foam -- so the
+## strip rides its own bob and sway and moves as water rather than sitting as a mark.
+##
+## ⚠ ONE STRIP, AGAINST THE SAND. There were three end to end, reaching four hundred pixels
+## out, because the clump that ended each shore stood that far out over the shallows. The clump
+## stands on the land now, and three strips of foam running out across open water from a sandy
+## edge read as a rope lying on the sea. What is left laps the foot of the sand's own slope.
 func _plant_the_surf() -> void:
 	for edge in [[shore_edges.x, false], [shore_edges.y, true]]:
 		var seaward := bool(edge[1])
-		for strip in range(3):
+		for strip in range(1):
 			var surf := _sprite("foam", 2.6 + float(strip) * 0.7)
 			surf.centered = false
 			surf.phase = float(strip) * 1.3 + (2.1 if seaward else 0.0)
