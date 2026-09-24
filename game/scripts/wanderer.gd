@@ -478,6 +478,13 @@ func get_camera_target() -> Node2D:
 	return self
 
 
+## The visible direction of the apo, shared with companions and anything else that must
+## agree with the final character pose. Reading raw input separately can get one frame ahead
+## of the player controller, or turn while a level-owned overlay is withholding movement.
+func facing_direction() -> float:
+	return _facing
+
+
 ## Carried across a morph so the drawn creature appears where the wanderer stood
 ## rather than back at the spawn point.
 func capture_morph_state() -> Dictionary:

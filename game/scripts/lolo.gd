@@ -84,6 +84,12 @@ var _current_pose: StringName = &""
 var _cheer_time: float = 0.0
 var _turn_back_time: float = 0.0
 var _facing: float = 1.0
+## The player's last horizontal travel direction. This drives the way Lolo's side-on sheet
+## faces and is deliberately remembered while the player is still, just as the wanderer
+## remembers the last direction they were walking.
+var _travel_direction: float = 1.0
+var _last_target_position := Vector2.ZERO
+var _has_target_sample := false
 
 
 func _ready() -> void:
@@ -93,7 +99,14 @@ func _ready() -> void:
 func follow(target: Node2D) -> void:
 	_target = target
 	if target != null and is_instance_valid(target):
+		_has_target_sample = false
+		var target_position := _target_position()
+		_update_travel_direction(target_position)
+		_last_target_position = target_position
+		_has_target_sample = true
 		global_position = _desired_position()
+	else:
+		_has_target_sample = false
 
 
 ## Show a line until something replaces it. `seconds` of 0 means "until told
@@ -172,16 +185,18 @@ func _process(delta: float) -> void:
 	# player in it, which is every fixture that spawns him on his own.
 	var behind := 0.0
 	if _target != null and is_instance_valid(_target):
+		var target_position := _target_position()
+		_update_travel_direction(target_position)
 		var desired := _desired_position()
 		if global_position.distance_to(desired) > teleport_distance:
 			global_position = desired
 		else:
 			global_position = global_position.lerp(
 				desired, clampf(follow_speed * delta, 0.0, 1.0))
-		behind = global_position.distance_to(_desired_position())
-		var to_target := _target_position().x - global_position.x
-		if absf(to_target) > 24.0:
-			_facing = signf(to_target)
+		behind = global_position.distance_to(desired)
+		_facing = _travel_direction
+		_last_target_position = target_position
+		_has_target_sample = true
 
 	# Measured off how far he actually moved rather than off the player's speed, because
 	# the two are not the same thing: he lerps toward a point behind their shoulder, so he
@@ -294,9 +309,50 @@ func _approach_side() -> float:
 	return 1.0 if to_target > 0.0 else -1.0
 
 
-func _target_position() -> Vector2:
+## Match where the PLAYER is going, not which side of Lolo they happen to be on.
+##
+## The old rule faced Lolo toward the player's position. After the player turned around,
+## they could walk most of the way through him before that relative position changed, so
+## the apo faced left while Lolo kept drifting right. Directional input is the immediate
+## answer for a target without a facing contract; velocity covers externally driven motion
+## and every morph type; sampled movement keeps cutscenes and tests honest when a target is
+## moved directly. The wanderer's visible facing is authoritative when available so Lolo
+## cannot get a physics tick ahead of the sprite he is meant to match.
+func _update_travel_direction(target_position: Vector2) -> void:
+	if _target.has_method("facing_direction"):
+		var target_facing := float(_target.call("facing_direction"))
+		if absf(target_facing) > 0.05:
+			_travel_direction = signf(target_facing)
+			return
+
+	var input_direction := Input.get_axis(&"move_left", &"move_right")
+	if absf(input_direction) > 0.05:
+		_travel_direction = signf(input_direction)
+		return
+
+	var anchor := _target_anchor()
+	var horizontal_velocity := 0.0
+	if anchor is CharacterBody2D:
+		horizontal_velocity = (anchor as CharacterBody2D).velocity.x
+	elif anchor is RigidBody2D:
+		horizontal_velocity = (anchor as RigidBody2D).linear_velocity.x
+	if absf(horizontal_velocity) > 12.0:
+		_travel_direction = signf(horizontal_velocity)
+		return
+
+	if _has_target_sample:
+		var travelled := target_position.x - _last_target_position.x
+		if absf(travelled) > 0.25:
+			_travel_direction = signf(travelled)
+
+
+func _target_anchor() -> Node2D:
 	if _target.has_method("get_physics_anchor"):
 		var anchor := _target.call("get_physics_anchor") as Node2D
 		if anchor != null:
-			return anchor.global_position
-	return _target.global_position
+			return anchor
+	return _target
+
+
+func _target_position() -> Vector2:
+	return _target_anchor().global_position

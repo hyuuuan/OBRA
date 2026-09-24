@@ -13,6 +13,7 @@ extends SceneTree
 ##   chasing the player puts him in the run cycle
 ##   keeping pace puts him in the drift, and the drift advances through its cells
 ##   and the chase beats the talking gesture, so he is never dragged along standing still
+##   his rendered sheet faces the same horizontal direction as the player in every shipped level
 
 var level: Node2D
 var lolo: Node2D
@@ -55,6 +56,9 @@ func _run() -> void:
 	await _audit_chasing_runs()
 	await _audit_keeping_pace_drifts()
 	await _audit_he_chases_mid_sentence()
+	await _audit_he_faces_the_players_direction("Payyo")
+	await _audit_level_facing("res://level_2.tscn", "Piyesta")
+	await _audit_level_facing("res://level_3.tscn", "Dagat")
 
 	print("OBRA_COMPANION_POSE_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
@@ -197,3 +201,78 @@ func _audit_he_chases_mid_sentence() -> void:
 	_check(chasing_started and not pose_after_chase.has("face"),
 		"and the gesture does not take it back while he is behind",
 		"once chasing: %s" % ", ".join(PackedStringArray(pose_after_chase.keys())))
+
+
+## DIRECTION, NOT RELATIVE POSITION.
+##
+## When both were travelling east Lolo correctly sat west of the player. Turning west left
+## the player east of him for several frames, so the old `target.x - lolo.x` rule kept his
+## sheet facing east until they crossed. Drive the real movement actions here and compare
+## FINAL RENDERED TRANSFORMS, not Lolo's logical direction with an assumed sheet sign. That
+## earlier assertion certified the exact bug this test was meant to catch: both controllers
+## said "right" while the final sprite transforms visibly disagreed.
+func _audit_he_faces_the_players_direction(level_name: String) -> void:
+	var player := level.get("player") as Node2D
+	if player == null:
+		_check(false, "%s: he faces the player's direction" % level_name, "no player")
+		return
+	var sprite := figure.get_node("Body") as Sprite2D
+	var player_figure := player.get_node_or_null(^"Figure") as Node2D
+	if sprite == null or player_figure == null:
+		_check(false, "%s: rendered facing can be compared" % level_name,
+			"missing player or Lolo figure")
+		return
+	player.global_position = Vector2(1200.0, 300.0)
+	lolo.call("follow", player)
+	await process_frame
+
+	Input.action_press(&"move_right")
+	await _wait(0.08)
+	var player_facing := float((player.call("capture_morph_state") as Dictionary).get("facing", 0.0))
+	var player_rendered := signf(player_figure.global_transform.x.x)
+	var lolo_rendered := signf(sprite.global_transform.x.x)
+	_check(player_facing > 0.0 and player_rendered > 0.0 and lolo_rendered == player_rendered,
+		"%s: both face right when the player goes right" % level_name,
+		"player render %.0f, Lolo render %.0f" % [player_rendered, lolo_rendered])
+
+	# Switch the real controls without waiting for Lolo and the player to cross. A
+	# relative-position rule still sees the player east of him here and faces the wrong way.
+	Input.action_release(&"move_right")
+	Input.action_press(&"move_left")
+	await _wait(0.08)
+	player_facing = float((player.call("capture_morph_state") as Dictionary).get("facing", 0.0))
+	player_rendered = signf(player_figure.global_transform.x.x)
+	lolo_rendered = signf(sprite.global_transform.x.x)
+	_check(player_facing < 0.0 and player_rendered < 0.0 and lolo_rendered == player_rendered,
+		"%s: both face left when the player goes left" % level_name,
+		"player render %.0f, Lolo render %.0f" % [player_rendered, lolo_rendered])
+	Input.action_release(&"move_left")
+
+
+## The companion scene and controller are shared by every level, but each shipped level is
+## kept here as an integration fixture. A test of the scene in isolation would miss a
+## level-specific scale or replacement of either figure.
+func _audit_level_facing(scene_path: String, level_name: String) -> void:
+	if level != null and is_instance_valid(level):
+		level.queue_free()
+		await process_frame
+	var packed := load(scene_path) as PackedScene
+	if packed == null:
+		_check(false, "%s: level loads for companion-facing audit" % level_name, scene_path)
+		return
+	level = packed.instantiate() as Node2D
+	var backend := level.get_node_or_null(^"BackendSupervisor") as BackendSupervisor
+	if backend != null:
+		backend.auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _wait(1.2)
+	lolo = level.get("lolo") as Node2D
+	if lolo == null:
+		_check(false, "%s: companion exists" % level_name, "no Lolo")
+		return
+	figure = lolo.get_node_or_null(^"Figure") as Node2D
+	if figure == null:
+		_check(false, "%s: companion figure exists" % level_name, "no Figure")
+		return
+	await _audit_he_faces_the_players_direction(level_name)

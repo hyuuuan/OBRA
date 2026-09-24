@@ -30,10 +30,11 @@ const GROUND_ROW := 103.0
 ## a whole body too high.
 const HOVER := 43.0
 
-## THE SHEET IS DRAWN FACING LEFT, where the apo's is drawn facing right. Nothing deep --
-## the two pages were made months apart -- but it is the sort of thing that is invisible in
-## code and reads on screen as a companion moonwalking after you.
-const SHEET_FACING := -1.0
+## THE SHEET IS DRAWN FACING RIGHT, the same as the apo's. The tail trails to the left and
+## the face and leading hand point right in both the walk and run strips. This was documented
+## as left-facing and `SHEET_FACING` was -1, so correct rightward state was mirrored left at
+## the final rendering step -- exactly the mismatch visible in Piyesta.
+const SHEET_FACING := 1.0
 
 const IDLE := preload("res://assets/characters/lolo/lolo_idle.png")
 const WALK := preload("res://assets/characters/lolo/lolo_walk.png")
