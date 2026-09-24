@@ -210,10 +210,22 @@ const BANDS := {
 		# into a symmetrical butterfly with a jetty out of each side of it. But the plate tiles:
 		# its column 1672 and its column 0 are the same rock, so the tail of it laid against the
 		# head rebuilds one island. Same fix as the beach's palms, same reason.
+		#
+		# ⚠ AND NOTHING OF IT BELOW PLATE ROW 650, WHICH IS WHERE THE WAVES STOP HIDING IT.
+		# The waves' band runs from the horizon down to a front crest whose lowest edge is row
+		# 652 in the shallowest of the three frames, and the headland's rocks go down to 777.
+		# Lifted 70, their last 55 rows came out from under the front wave as a slab of lit rock
+		# lying under the sea with the island standing above it -- "the islands below the
+		# ocean". Whatever is under the water is cut, not merely lifted: a lift big enough to
+		# hide it would float the headland off its own horizon.
 		{"key": "storm/shores", "rate": 0.80, "z": -196, "sway": Vector2(11.0, 0.55),
-			"pieces": [
+			"sunk_row": 650.0, "pieces": [
 			{"crop": Vector2(0, 536), "at": "headland_x", "align": "center", "lift": 70.0},
-			{"crop": Vector2(1400, 1672), "at": "headland_x", "nudge": -268.0,
+			# ⚠ FROM 1470, NOT 1400: the ink buoy stands at 1310..1465, and the far island
+			# carries it. Cut at 1400, the headland had half a buoy sign standing in the water
+			# beside it -- hidden by the waves at full strength, and a ghost of half a sign
+			# while the storm faded in.
+			{"crop": Vector2(1470, 1672), "at": "headland_x", "nudge": -268.0,
 				"align": "right", "lift": 70.0},
 			# ⚠ LIFTED 110. The two halves of this plate were not drawn on one waterline: with
 			# the jetty's deck at the boat's, the buoy's float sat a hundred pixels under the
@@ -290,6 +302,7 @@ func _ready() -> void:
 				layer.crop = piece.get("crop", Vector2(0.0, float(frames[0].get_width())))
 				layer.flipped = bool(piece.get("flip", false))
 				layer.lift = float(piece.get("lift", 0.0))
+				layer.sunk_row = float(row.get("sunk_row", 0.0))
 				layer.place_piece(at, float(piece.get("nudge", 0.0)),
 					String(piece.get("align", "center")))
 				add_child(layer)
@@ -587,6 +600,9 @@ class _Layer extends Node2D:
 	var mirrored_tiles := false
 	## How far a piece is raised off the plate's registration. See the far island.
 	var lift := 0.0
+	## The plate row a piece is cut off below, BEFORE its lift -- the row where whatever is
+	## in front of it stops hiding it. Zero keeps the whole plate. See storm/shores.
+	var sunk_row := 0.0
 	## Part of this band's sea and sky rather than its land. See far_fade_span.
 	var far := false
 	## Drawn only as far as the night has come in. See night_span.
@@ -675,6 +691,9 @@ class _Layer extends Node2D:
 
 	func _build_piece() -> void:
 		var height := float(frames[0].get_height())
+		if sunk_row > 0.0:
+			# Rows are lifted along with the piece, so the cut moves down by the same amount.
+			height = minf(height, sunk_row + lift - origin.y)
 		var tile := _add_tile(0.0, flipped,
 			Rect2(crop.x - origin.x, 0.0, crop.y - crop.x, height))
 		tile.position.y -= lift
