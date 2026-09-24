@@ -404,7 +404,7 @@ func _draw() -> void:
 		tint = Color(0.97, 0.70, 0.58, 1.0)
 	# A slow swell, so the beam is alive while it is holding still at the end of a sweep.
 	var swell := 1.0 + 0.14 * sin(float(Time.get_ticks_msec()) * 0.0021)
-	var head := Color(tint.r, tint.g, tint.b, 0.24 * swell)
+	var head := Color(tint.r, tint.g, tint.b, 0.34 * swell)
 	var spread := CONE_HALF_ANGLE * 1.18
 	for facing in [_sweep, _sweep + PI]:
 		var points := PackedVector2Array([Vector2.ZERO])
@@ -414,5 +414,5 @@ func _draw() -> void:
 			var angle: float = facing - spread + spread * 2.0 * across
 			points.append(Vector2(cos(angle), sin(angle)) * CONE_LENGTH)
 			var falloff := pow(1.0 - absf(across * 2.0 - 1.0), 1.6)
-			shades.append(Color(tint.r, tint.g, tint.b, 0.085 * falloff * swell))
+			shades.append(Color(tint.r, tint.g, tint.b, 0.13 * falloff * swell))
 		draw_polygon(points, shades)
