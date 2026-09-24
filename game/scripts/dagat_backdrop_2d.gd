@@ -115,18 +115,15 @@ const BANDS := {
 		# The surf is foam over a still sea, so it moves a little faster than the water it
 		# sits on and slower than the sand -- which is what makes the beach read as nearer.
 		{"key": "shore/surf", "rate": 0.70, "z": -235, "fps": 3.0, "far": true, "mirror": true},
-		# ⚠ 64 PAST THE LAND AT THE SEAWARD END, which is a NEGATIVE trim. The palm clump's
-		# mirrored twin below stands 64 out over the water, and sand that stopped on the
-		# collision edge left it standing on nothing: a rock in the shallows with a notch of
-		# open sea under it. The picture runs to where the picture ends, not to where the
-		# player stops -- the shelf face already lands at the same 1060.
-		{"key": "shore/sand", "rate": 1.00, "z": -165, "ground": true,
-			"seaward_trim": -64.0},
+		# ⚠ THE SAND STOPS WHERE THE GROUND DOES. It ran 64 past the land to hold up a rock
+		# that stood out over the sea; with nothing standing out there any more, sand past the
+		# collision edge is only a place the apo walks off and falls through painted beach.
+		{"key": "shore/sand", "rate": 1.00, "z": -165, "ground": true},
 		# ⚠ PIECES, NOT TILES. Each palm plate is one clump drawn at one edge of a 1672 canvas:
 		# a palm and rocks at the far left, or a sand spit ending in rocks and a palm at the
 		# right. Tiled and mirrored, a clump of palms stood every screen along the beach and
-		# out across the open sea. So each is cut to the clump and set down once, at an end of
-		# the land -- and at the island, which faces the other way, mirrored.
+		# out across the open sea. So each is cut to the clump and set down once, whole, at the
+		# landward end of one beach -- see the palm rows below.
 		# ⚠ WHAT THE LAND STANDS ON, UNDER THE WATER. The sand plate stops 150 pixels below
 		# the walking surface and the sea goes on for a thousand more, so the deep's ruins
 		# showed through under the beach. Authored rock from the plate's last row down, and a
@@ -144,33 +141,29 @@ const BANDS := {
 		# The palms lean in the wind -- see shaders/wind_sway.gdshader. A shear of the whole
 		# clump with its foot held, so the rocks it stands on do not move with it.
 		#
-		# ⚠ THE TWO PLATES ARE ONE CLUMP SPLIT ACROSS THE PLATE'S BORDER, and the seaward end of
-		# the land is where that shows. `palms_left` tapers to nothing by its column 478 and is
-		# CUT at its column 0; `palms_right` starts from nothing at its column 690 and is CUT at
-		# 1672. Set down with a cut against open water, the beach ended in a ruled vertical line
-		# from the palm tops to the sand -- the land guillotined, which is exactly what it looked
-		# like. But the plate tiles: its column 1672 and its column 0 are the same rock, so the
-		# head of one laid against the tail of the other rebuilds the whole clump and lets it
-		# taper away into the shallows the way the picture was painted to.
+		# ⚠ EVERY PIECE STANDS ON THE LAND, AND THIS IS THE THIRD ANSWER. The two plates are one
+		# clump split across the plate's border: `palms_left` is CUT at its column 0 and tapers
+		# to nothing by 478, `palms_right` starts from nothing at 690 and is CUT at 1672. The
+		# first answer put a cut side against open water, which read as the land guillotined.
+		# The second rebuilt the clump across the border -- and set the rebuilt half OUT OVER THE
+		# SEA, 360 pixels of rock and palm past the collision edge at each end of the crossing,
+		# cut flat along the plate's last row with water showing under it. It looked like ground
+		# and was not: the apo walked onto it and fell into the sea, which is what "cropped" and
+		# "not connected" were.
 		#
-		# ⚠ SO THE TWO ROWS MUST SWAY AS ONE. They had their own gusts, which is right for two
-		# clumps a beach apart and wrong for two halves of one: the fronds either side of the
-		# join drift apart and the seam reappears in the wind.
+		# So each plate is set down whole, as the CompletedLook sets it: `palms_left` at the
+		# landward end of the home beach, `palms_right` at the landward end of the island. Each
+		# cut side is at the end of the world, where the camera's own limit (116 / 5380) keeps
+		# it off the screen, and each natural taper faces the water, so both beaches run out
+		# into open sand and end on sand -- which is where the edge of the land is drawn.
 		{"key": "shore/palms_left", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.28),
 			"pieces": [
 			{"crop": Vector2(0, 478), "at": "home_ground.x", "align": "left"},
-			# The head of the clump whose tail ends the home beach, and the island's.
-			{"crop": Vector2(0, 360), "at": "home_ground.y", "align": "left"},
-			{"crop": Vector2(0, 360), "at": "island_ground.x", "align": "right",
-				"flip": true},
-			{"crop": Vector2(0, 478), "at": "island_ground.y", "align": "right",
-				"flip": true},
 		]},
 		{"key": "shore/palms_right", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.28),
 			"pieces": [
-			{"crop": Vector2(690, 1672), "at": "home_ground.y", "align": "right"},
-			{"crop": Vector2(690, 1672), "at": "island_ground.x", "align": "left",
-				"flip": true},
+			{"crop": Vector2(690, 1672), "at": "island_ground.y", "nudge": 100.0,
+				"align": "right"},
 		]},
 	],
 	"deep": [
