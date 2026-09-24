@@ -485,6 +485,71 @@ reflection, so the seabed carried a symmetrical butterfly of ruin arches every 3
 which is what "the platforms are not rendering properly" was. `mirrored_tiles` now defaults
 off and the measurement is written beside it.
 
+### The land, and what was hanging off it (2026-09-24)
+
+Kent: *"the islands below the ocean, the platform, how it is shown is so weird since there are
+parts where they are not connected, like i can see that it is cropped and its not functioning
+well. The platforms in islands are not that visible and weird to look at"*. The session that
+took this dropped mid-pass, after five commits (the sweep drawn as added light, mirroring
+chosen per plate by looking rather than measuring, the seabed at world rate, the headland
+rebuilt as one island behind the waves, the storm's underwater fading into the deep) and with
+a brighter beam uncommitted. This picks it up. A contact sheet of the level at play framing --
+fourteen points along the surface, six on the seabed, three at mid-depth -- found six things,
+and four of them were pictures of land where the level has none.
+
+**Palms and rock over open water at both ends of the crossing.** The last answer to the palm
+plates' cut edges rebuilt the clump across the plate's border and set the rebuilt half out
+past the collision edge -- 360 px at 1000..1360 and again at 4140..4500 -- cut flat along the
+plate's last row with the sea under it. It is exactly what a player walks onto and falls
+through. Each plate is now set down whole at the LANDWARD end of one beach (`palms_left` at the
+home beach's west end, `palms_right` at the island's east end), cut sides past the camera's
+limits (116, 5380), tapers toward the water. The sand stops on the collision edge instead of 64
+px past it, so both beaches end on sand, which is where the edge of the land is drawn.
+
+**The land under the water was a slab with spots on it, with five platforms floating beside
+it.** The shelf was a smooth dither with round boulders and ruled strata; its face had five thin
+lit ledges sticking out with weed hanging off them -- at game scale, five small platforms not
+connected to anything. `build_dagat_props.py` now draws both the way the painted terraces are
+built: blocks in irregular courses, a near-black crevice between every two, lit on the upper-left
+rim, moss on the tops nearest the light, darker with depth, in colours sampled off the terraces'
+cliff. The earth under the sand gives way to rock along block edges, not along a row. The face
+keeps its ragged line and its sand lip; what stands out of it now is its own bulges, mossed on
+top, and it feathers into the fill over its landward six columns so the two have no seam.
+
+**A slab of the headland under the waves.** The waves hide what is behind them only down to
+their front crest, whose lowest edge is plate row 652 in the shallowest frame. The headland's
+rocks go down to 777, and lifted 70 their last 55 rows came out beneath the sea -- a detached
+slab with the island standing above it, plainest in the opening shot. `storm/shores` carries
+`sunk_row` 650 now: every piece is cut there before its lift. The headland's tail crop moves
+from 1400 to 1470, past the ink buoy, half of which it had been carrying.
+
+**The storm's underwater picture ended on a line.** Its last row still has kelp in it --
+luminance up to 76 against a fill of about 15 -- so no fill colour could meet it. The fill's own
+colour now comes in over the plate's last 140 rows, one z above the plate and under the deep's
+floor.
+
+**And the surf** was three strips running 430 px out from each shore, because the rocks used
+to stand that far out. Against a sandy edge it read as a rope lying on the sea. One strip laps
+the foot of the sand's slope.
+
+**And both skies were tiling with a cut in them.** The day sky and the storm's clouds were left
+straight on the reasoning that their joins could not be seen. Measured: 127 of the day sky's
+rows differ by more than 30 of 255 across the join (a cloud runs off the plate's right edge and
+is not waiting at its left -- on the first screen of the level), and the storm's bank is opaque
+on one side of its join and empty on the other for 29 rows. Both drift, so the cut slid across
+the sky. Both are mirrored now; the islands (0), the mountains (2) and the rain (0) stay
+straight.
+
+Checked and NOT a fault: on the tour's open-water frames the boat sits at the top of the screen
+with the horizon cut off. That is the dialogue framing -- the camera on Lolo with the standard
+240 lift (455 + 240 / 1.15 = 663) -- held because the tour hides lines rather than finishing the
+conversation, so `conversation_finished` never releases it. Aboard and at rest the camera is
+where it should be, 180 above the apo.
+
+Left as it is, on purpose: the 1000..1560 cross-fade still double-exposes the two seas for the
+two seconds a boat takes to cross it. That is what cross-fading two paintings does; the half
+buoy that made it look broken is gone.
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.
