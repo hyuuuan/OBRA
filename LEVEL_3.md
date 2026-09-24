@@ -494,7 +494,7 @@ took this dropped mid-pass, after five commits (the sweep drawn as added light, 
 chosen per plate by looking rather than measuring, the seabed at world rate, the headland
 rebuilt as one island behind the waves, the storm's underwater fading into the deep) and with
 a brighter beam uncommitted. This picks it up. A contact sheet of the level at play framing --
-fourteen points along the surface, six on the seabed, three at mid-depth -- found six things,
+fourteen points along the surface, six on the seabed, three at mid-depth -- found seven things,
 and four of them were pictures of land where the level has none.
 
 **Palms and rock over open water at both ends of the crossing.** The last answer to the palm
@@ -546,9 +546,16 @@ with the horizon cut off. That is the dialogue framing -- the camera on Lolo wit
 conversation, so `conversation_finished` never releases it. Aboard and at rest the camera is
 where it should be, 180 above the apo.
 
-Left as it is, on purpose: the 1000..1560 cross-fade still double-exposes the two seas for the
-two seconds a boat takes to cross it. That is what cross-fading two paintings does; the half
-buoy that made it look broken is gone.
+**What the waves hide showed through them whenever the storm was half there.** The band fades
+as a whole and every child draws with that alpha on its own, so half-faded waves are
+half-transparent waves: the buoy's post and sign ghosted into the farewell shot as the sky
+cleared (the overhanging rock had been covering it by accident), and the headland hung
+half-drawn over the cross-fade. The shores and the distant islands are `late` now -- the band's
+alpha again on top of its own -- so they are faint while the waves are and whole once they are.
+
+Left as it is, on purpose: the 1000..1560 cross-fade still double-exposes the two SEAS for the
+two seconds a boat takes to cross it. That is what cross-fading two paintings does, and with the
+islands arriving late it is only water over water.
 
 ## Build order
 
