@@ -384,6 +384,21 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 			Vector2(span.y + reach, top + 600.0), Vector2(span.x - reach, top + 600.0)])
 		fill.vertex_colors = PackedColorArray([fill.color, fill.color, faded, faded])
 		add_child(fill)
+		# ⚠ AND THE PICTURE GOES DARK INTO IT, RATHER THAN STOPPING. The plate's last row still
+		# has kelp in it -- bright teal, up to 76 in luminance against a fill of about 15 -- so
+		# however closely the fill's colour matched the row, the textured sea ended on a ruled
+		# line with flat navy under it. The fill's own colour coming in over the plate's last
+		# 140 rows dissolves the kelp and the ridges into the dark instead. One step above the
+		# plate, so it is drawn over it, and still under the deep's floor, which stands in front.
+		var dusk := Polygon2D.new()
+		dusk.name = layer.name + "_dusk"
+		dusk.color = fill.color
+		dusk.z_index = layer.z_index + 1
+		dusk.polygon = PackedVector2Array([
+			Vector2(span.x - reach, top - 140.0), Vector2(span.y + reach, top - 140.0),
+			Vector2(span.y + reach, top), Vector2(span.x - reach, top)])
+		dusk.vertex_colors = PackedColorArray([faded, faded, fill.color, fill.color])
+		add_child(dusk)
 	return layer
 
 
