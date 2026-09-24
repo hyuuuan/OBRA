@@ -127,8 +127,9 @@ const BANDS := {
 		# ⚠ WHAT THE LAND STANDS ON, UNDER THE WATER. The sand plate stops 150 pixels below
 		# the walking surface and the sea goes on for a thousand more, so the deep's ruins
 		# showed through under the beach. Authored rock from the plate's last row down, and a
-		# ragged face with lit ledges where it meets the water -- the face's rock edge lands
-		# on the land's own collision edge, so a diver stops where the rock looks to be.
+		# ragged face where it meets the water -- the face's rock edge lands on the land's own
+		# collision edge, so a diver stops where the rock looks to be. Blocks, like the painted
+		# terraces, and nothing standing out of the face: see build_dagat_props.py.
 		{"key": SHELF_FILL, "rate": 1.00, "z": -163, "ground": true, "top_row": 941.0,
 			"mirror": false, "seaward_trim": 48.0},
 		# ⚠ 790, THE SURFACE THE APO WALKS ON, not 941. See the lip in build_dagat_props.py:
