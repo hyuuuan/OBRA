@@ -193,7 +193,8 @@ const BANDS := {
 		# a vertical step sliding across the storm.
 		{"key": "storm/clouds", "rate": 0.15, "z": -210, "drift": -16.0, "weather": true,
 			"mirror": true},
-		{"key": "storm/islands", "rate": 0.35, "z": -205},
+		# ⚠ LATE, like the shores below: its foot stands behind the waves. See `late`.
+		{"key": "storm/islands", "rate": 0.35, "z": -205, "late": true},
 		# ⚠ UNDER THE DEEP'S FLOOR, NOT OVER IT, AND CARRIED DOWN BELOW ITS OWN LAST ROW. The
 		# underside is the storm plate's own seabed -- rocks and weed down to the plate's edge
 		# -- and the level's water goes on for a thousand pixels past that, so drawn as it
@@ -231,7 +232,7 @@ const BANDS := {
 		# ocean". Whatever is under the water is cut, not merely lifted: a lift big enough to
 		# hide it would float the headland off its own horizon.
 		{"key": "storm/shores", "rate": 0.80, "z": -196, "sway": Vector2(11.0, 0.55),
-			"sunk_row": 650.0, "pieces": [
+			"sunk_row": 650.0, "late": true, "pieces": [
 			{"crop": Vector2(0, 536), "at": "headland_x", "align": "center", "lift": 70.0},
 			# ⚠ FROM 1470, NOT 1400: the ink buoy stands at 1310..1465, and the far island
 			# carries it. Cut at 1400, the headland had half a buoy sign standing in the water
@@ -361,6 +362,7 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 	layer.mirrored_tiles = bool(row.get("mirror", false))
 	layer.weather = bool(row.get("weather", false))
 	layer.day = bool(row.get("day", false))
+	layer.late = bool(row.get("late", false))
 	if row.has("top_row"):
 		# An authored texture is not on the plate at all; it says which plate row it
 		# starts at, and it repeats at its own width rather than the plate's.
@@ -548,6 +550,9 @@ func update_for_camera(camera_position: Vector2) -> void:
 		# so the daylight band stayed at full alpha across the whole crossing and hung a palm
 		# tree over the storm.
 		modulate.a = _ramp(fade_span, camera_position.x) * weather
+		for layer in _layers:
+			if layer.late:
+				layer.modulate.a = modulate.a * modulate.a
 	# ⚠ ON THE LAYERS, NOT ON THE BAND. See far_fade_span: the shore's land has to stay while
 	# its sea goes, so this cannot be the node's own modulate.
 	if far_fade_span != Vector2.ZERO:
@@ -636,6 +641,13 @@ class _Layer extends Node2D:
 	var weather := false
 	## Drawn only as far as it has NOT. The mirror of `weather`.
 	var day := false
+	## ⚠ STANDS BEHIND THE WAVES, SO IT ARRIVES AFTER THEM AND LEAVES BEFORE THEM. The band
+	## fades as a whole -- in over fade_span, out as the sky clears -- and every child draws with
+	## that alpha separately, so while the band is half there the waves are half there too, and
+	## whatever they exist to hide shows through them: half a buoy sign, the headland's foot, the
+	## islands' bases. A late layer's own alpha is the band's again on top of the band's, so it
+	## is faint while the waves are faint and whole only once they are.
+	var late := false
 	## (lean in texels, gusts per second) for a layer the wind moves. ZERO holds it still.
 	var sway := Vector2.ZERO
 	## Pixels a second a layer slides on its own -- clouds -- wrapped at the width it repeats
