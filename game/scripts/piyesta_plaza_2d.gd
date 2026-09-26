@@ -34,9 +34,7 @@ extends Node2D
 ## camera: that makes every stone look vertically warped.
 const PAVING_DEPTH := 34.0
 const WALL_DEPTH := 96.0
-const FILL_DEPTH := 64.0
-const STONE_FILL := preload("res://assets/Level2/plaza/stone_fill.png")
-const STONE_REPEAT := 320.0
+const FILL_DEPTH := 36.0
 ## The fallback is deliberate. A missing or stale Godot texture import must leave an obvious
 ## solid floor rather than exposing SkyFill below the player's feet again.
 const PAVING_FALLBACK := Color(0.86, 0.69, 0.39, 1.0)
@@ -64,18 +62,10 @@ func _draw() -> void:
 	draw_rect(wall_rect, WALL_FALLBACK)
 	draw_rect(fill_band, FILL_FALLBACK)
 	PiyestaTiles.fill_varied(self, paving_rect, ["paving_a", "paving_b", "paving_c"])
-	# One continuous stone material beneath the decorative edge, at a fixed square scale.
-	var fill_rect := Rect2(left, wall_rect.position.y + 48.0, width,
-		WALL_DEPTH + FILL_DEPTH - 48.0)
-	var points := PackedVector2Array([fill_rect.position,
-		Vector2(fill_rect.end.x, fill_rect.position.y), fill_rect.end,
-		Vector2(fill_rect.position.x, fill_rect.end.y)])
-	var uv := PackedVector2Array()
-	for point in points:
-		uv.append(point / STONE_REPEAT)
-	texture_repeat = CanvasItem.TEXTURE_REPEAT_MIRROR
-	draw_polygon(points, PackedColorArray([Color.WHITE]), uv, STONE_FILL)
-	_draw_retaining_edge(wall_rect)
+	PiyestaTiles.fill(self, wall_rect, "retaining")
+	# The fill is the wall's own lower course reflected across its bottom edge. Both textures
+	# start at the same world x, so the first fill row matches the last wall row pixel-for-pixel.
+	PiyestaTiles.fill(self, fill_band, "stone_fill")
 	# ⚠ AND THEN THE TOWN, BECAUSE THE CAMERA INSISTS. The vertical follow keeps the player
 	# near the middle of the frame, so about four hundred units below their feet is always on
 	# screen -- and four hundred units of retaining wall is a blank band across the bottom
@@ -107,26 +97,3 @@ func _draw() -> void:
 			draw_rect(Rect2(left, below + t * roofs.y * 1.8, width, roofs.y * 1.8),
 				Color(HAZE.r, HAZE.g, HAZE.b, 0.30 + 0.10 * t))
 		draw_rect(Rect2(left, below + roofs.y * 2.2, width, 900.0), HAZE)
-
-
-func _draw_retaining_edge(rect: Rect2) -> void:
-	var tile := PiyestaTiles.get_tile("retaining")
-	if tile == null:
-		return
-	var pixels := tile.get_image()
-	# Follow the existing mortar near the last stone course. A stepped two-pixel edge
-	# lets the new stone field meet the old course without a straight bottom border.
-	for column in range(0, int(rect.size.x), 2):
-		var source_x := column % tile.get_width()
-		var cut := 78
-		var best := INF
-		for row in range(66, 92):
-			var tone := pixels.get_pixel(source_x, row)
-			var score := tone.r + tone.g + tone.b + absf(float(row - 80)) * 0.004
-			if score < best:
-				best = score
-				cut = row
-		var slice_width := minf(2.0, rect.size.x - column)
-		draw_texture_rect_region(tile,
-			Rect2(rect.position + Vector2(column, 0), Vector2(slice_width, cut)),
-			Rect2(source_x, 0, slice_width, cut))

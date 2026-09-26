@@ -189,16 +189,29 @@ func _audit_the_ground_follows_the_painting() -> void:
 			missing_ground_tiles.append(tile_name)
 	var paving_size := PiyestaTiles.size_of("paving_a")
 	var wall_size := PiyestaTiles.size_of("retaining")
-	var dirt_size := PiyestaTiles.size_of("stone_fill")
+	var fill_size := PiyestaTiles.size_of("stone_fill")
 	_check(missing_ground_tiles.is_empty()
 		and is_equal_approx(paving_size.y, PiyestaPlaza2D.PAVING_DEPTH)
 		and is_equal_approx(wall_size.y, PiyestaPlaza2D.WALL_DEPTH)
-		and dirt_size.x > 0 and is_equal_approx(dirt_size.x, dirt_size.y),
+		and is_equal_approx(fill_size.x, wall_size.x)
+		and is_equal_approx(fill_size.y, PiyestaPlaza2D.FILL_DEPTH),
 		"and the complete plaza ground tileset loads",
 		"top %dx%d, wall %dx%d, stone %dx%d" % [int(paving_size.x), int(paving_size.y),
-			int(wall_size.x), int(wall_size.y), int(dirt_size.x), int(dirt_size.y)] \
+			int(wall_size.x), int(wall_size.y), int(fill_size.x), int(fill_size.y)] \
 			if missing_ground_tiles.is_empty()
 		else "missing: %s" % ", ".join(missing_ground_tiles))
+	var wall_texture := PiyestaTiles.get_tile("retaining")
+	var fill_texture := PiyestaTiles.get_tile("stone_fill")
+	var edge_matches := wall_texture != null and fill_texture != null
+	if edge_matches:
+		var wall_image := wall_texture.get_image()
+		var fill_image := fill_texture.get_image()
+		for x in range(wall_image.get_width()):
+			if wall_image.get_pixel(x, wall_image.get_height() - 1) != fill_image.get_pixel(x, 0):
+				edge_matches = false
+				break
+	_check(edge_matches, "and the lower stone course has no join",
+		"all boundary pixels match" if edge_matches else "wall and fill edges differ")
 	var plaza := level.get_node_or_null(^"EnvironmentBaseplate/Plaza") as PiyestaPlaza2D
 	var camera := level.get_node_or_null(^"EnvironmentBaseplate/WorldCamera") as Camera2D
 	var tiled_bottom := plaza.ground + PiyestaPlaza2D.PAVING_DEPTH \

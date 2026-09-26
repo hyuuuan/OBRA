@@ -54,6 +54,7 @@ SEED = 20260901
 GROUND_TILESET_WIDTH = 864
 PAVING_DEPTH = 34
 WALL_DEPTH = 96
+FILL_DEPTH = 36
 
 # --- Palettes ----------------------------------------------------------------------------
 # ⚠ SAMPLED OFF `Level2_CompletedLook.png`, NOT INVENTED, and that is the single change that
@@ -164,10 +165,14 @@ def _ground_tileset(tiles: dict) -> None:
                              PAVING_DEPTH + WALL_DEPTH))
     _emit_image(retaining, "retaining", tiles)
 
-    # Generated separately from the user's stone reference; never stretch or regenerate it
-    # with the decorative cap. Runtime repeats this square at a fixed world scale.
-    with Image.open(OUT_DIR / "stone_fill.png") as stone:
-        tiles["stone_fill"] = {"file": "stone_fill.png", "size": list(stone.size)}
+    # Continue the exact same material below the decorative wall. Flipping its lower course
+    # makes the two boundary rows identical, while preserving the original stone scale and
+    # palette. Runtime starts both textures at the same world x, so the join also agrees
+    # horizontally across the full 864px tile.
+    stone_fill = retaining.crop((0, WALL_DEPTH - FILL_DEPTH,
+                                 retaining.width, WALL_DEPTH))
+    stone_fill = stone_fill.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+    _emit_image(stone_fill, "stone_fill", tiles)
 
 
 # --- The Basilica -------------------------------------------------------------------------
