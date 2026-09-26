@@ -76,7 +76,8 @@ screen that never said so.
 from the run every time they are asked (`_current_objective` in `level_2.gd`, the words in
 `level_02.json` → `objectives`, `run_objective_probe` walks every step). The plaza doors
 are house fronts now -- the lit, playable one uses the supplied bamboo-and-thatch hut plate,
-the two dark decoys retain their authored plaster fronts, and the church is a stone portal.
+the two dark decoys retain their authored plaster fronts, and the church uses the supplied
+complete facade with its painted double doors anchored to the live entrance.
 The lit house is the one with its lantern burning, at
 x 600 inside Problem 1, and the church sits at the foot of the belfry. Alley 2 is the
 `late_afternoon` light the config already named, dressed as a different street.
@@ -218,7 +219,9 @@ lesson: **a level standing in front of a picture cannot bring its own palette.**
   scare changed the picture not at all. `build_dancers.py` still clears the four figures and
   repairs the palm poles, but runtime now fills that space with the three supplied troupe
   frames under `assets/Level2/dancers/`. They cycle 1 -> 2 -> 3 -> 2 in the plaza; choosing
-  the Artist route plays a 2.4-second in-world phrase before the timing overlay opens.
+  the Artist route plays a 2.4-second in-world phrase before the timing overlay opens. The
+  complete frame is drawn at 552 x 184 world pixels: its figures are about 166px tall,
+  still above the 96px apo without dominating the church frontage.
 * **The camera needed a floor of its own.** It rests at the bottom of `world_bounds`, which
   has to be well under the plaza so a fall is caught -- so it showed three hundred units of
   retaining wall. `WorldCameraController.world_bottom_y` (Piyesta: 722) stops it, and the
@@ -359,10 +362,12 @@ Nothing here stops the level being played. It is all art, plus one decision.
 4. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
    boomerang and cannon, both of which have a real reach, but there is no aim or trajectory
    preview -- the design asks for "angry birds style".
-5. **The lit house has supplied art; the two decoys remain authored.** The playable front is
+5. **The lit house and church have supplied art; the two decoys remain authored.** The playable front is
    now `game/assets/Level2/lit_house_hut.png`, a bamboo-and-thatch hut anchored to the same
-   threshold and interaction volume as the facade it replaces. The dark search doors remain
-   plaster fronts drawn in code, and the church remains a round-arched portal. A unified
+   threshold and interaction volume as the facade it replaces. The church is
+   `game/assets/Level2/church_facade.png`, likewise aligned by its visible threshold while
+   retaining the existing proximity prompt and room transfer. The dark search doors remain
+   plaster fronts drawn in code. A unified
    painted four-state set (closed / lit from inside / keyhole / open) would still make the
    decoys and the playable house read as one deliberate family.
 6. ~~**`levels.json` `scene_path` is still empty.**~~ **Done — Kent made the call (Sept

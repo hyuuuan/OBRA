@@ -50,12 +50,15 @@ func _run() -> void:
 	# A TOUR, not a walk. Walking east reaches the dialogue node, which opens the route
 	# choice and stops the tree -- correct behaviour, and it froze five of the six frames
 	# on the first run of this file. Teleporting past it is what a camera does.
-	# The marks moved when the plaza was re-authored off the painting, and these are read
-	# off them: 660 start, 995 dancers, 1330 the lit house, 1650 the church. The old
-	# waypoints ran to 2400, which is now past the east wall -- the tour photographed the
-	# apo falling through the sky and called it "the church".
+	# The church is read from its live mark so replacing a facade cannot leave this tour
+	# photographing a different part of the building. The old waypoints ran to 2400, which
+	# is now past the east wall -- the tour photographed the apo falling through the sky and
+	# called it "the church".
+	var church_mark := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/Marks/ChurchDoor") as Node2D
+	var church_x := church_mark.global_position.x if church_mark != null else 1250.0
 	for step in [[220.0, "02_kiosko"], [450.0, "03_start"], [720.0, "04_dancers"],
-			[1060.0, "05_lit_house"], [1400.0, "06_church"]]:
+			[1060.0, "05_lit_house"], [church_x, "06_church"]]:
 		var at := Vector2(float(step[0]), 480.0)
 		if player.has_method("apply_morph_state"):
 			player.call("apply_morph_state", {"position": at, "linear_velocity": Vector2.ZERO})
@@ -69,6 +72,8 @@ func _run() -> void:
 		await _capture(String(step[1]))
 		if String(step[1]) == "05_lit_house":
 			await _capture_open_hut()
+		elif String(step[1]) == "06_church":
+			await _capture_open_church()
 
 	await _look_at_the_dance()
 	await _watch_them_leave()
@@ -90,6 +95,20 @@ func _capture_open_hut() -> void:
 		door.set_open(true)
 		await _wait(0.25)
 		await _capture("05b_lit_house_open")
+		door.set_open(false)
+		return
+
+
+## The facade plate is closed, but bringing the kandila opens this entrance. Keep a visual
+## assertion beside the hut's equivalent so neither painted front can hide its live state.
+func _capture_open_church() -> void:
+	for node in level.get_tree().get_nodes_in_group(&"piyesta_doors"):
+		var door := node as PiyestaDoor2D
+		if door == null or door.door_id != "church":
+			continue
+		door.set_open(true)
+		await _wait(0.25)
+		await _capture("06a_church_open")
 		door.set_open(false)
 		return
 

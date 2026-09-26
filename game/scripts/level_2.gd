@@ -291,9 +291,9 @@ func _build_the_doors() -> void:
 		door.style = PiyestaDoor2D.Style.CHURCH if entry["id"] == DOOR_CHURCH \
 			else PiyestaDoor2D.Style.HOUSE
 		door.use_hut_art = bool(entry.get("hut", false))
-		# The hut is a building behind the people and portable props in the street. Keeping it
-		# one layer back also lets the first dancer cross its eave instead of being cut by it.
-		door.z_index = -1 if door.use_hut_art else 0
+		# The supplied plates are buildings behind the people and portable props in the street.
+		# Keeping them one layer back lets figures cross their fronts instead of being cut out.
+		door.z_index = -1 if door.use_hut_art or door.style == PiyestaDoor2D.Style.CHURCH else 0
 		door.wall_tone = Color(entry["tone"])
 		door.shut_note = String(entry["shut"])
 		door.open_note = "%s  —  press %s" % [

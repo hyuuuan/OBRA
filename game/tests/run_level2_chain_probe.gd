@@ -168,6 +168,10 @@ func _audit_the_church_is_shut_until_the_candle() -> void:
 	await _stand_at(door.global_position + Vector2(-30.0, -40.0))
 	_check(door.standing_here(), "and it notices somebody standing at it",
 		"the reach volume armed")
+	var hint_bar = level.get("hint_bar")
+	var shown := String(hint_bar.call("current_text")) if hint_bar != null else ""
+	_check(shown == door.prompt(), "and approaching it shows the church prompt",
+		shown if not shown.is_empty() else "the hint bar stayed empty")
 	# Pressed, and it must refuse: E at a shut door is the level's own rule, not a bug.
 	var used: bool = bool(level.call("_interact_with_level"))
 	_check(not used and _room_name() == "plaza", "pressing E at it does nothing yet",

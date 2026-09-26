@@ -650,6 +650,11 @@ func _audit_the_plaza_is_not_empty() -> void:
 		and frame_sizes[1] == frame_sizes[0] and frame_sizes[2] == frame_sizes[0],
 		"and the frames share one stable canvas",
 		"%s" % [frame_sizes])
+	var dancer_height := DancerGroup2D.DANCER_SOURCE_HEIGHT \
+		* DancerGroup2D.FRAME_RECT.size.y / frame_sizes[0].y
+	_check(dancer_height > APO_HEIGHT and dancer_height < APO_HEIGHT * 2.0,
+		"and the dancers are taller than the apo without looming",
+		"%.0fpx dancers against a %.0fpx apo" % [dancer_height, APO_HEIGHT])
 	# They have to stand ON the mark the scene authored, because that mark is what the
 	# scare-reach check above is measured against.
 	var mark := level.get_node_or_null(
@@ -704,15 +709,21 @@ func _audit_nothing_this_level_places_is_invisible() -> void:
 	_check(mute.is_empty(), "everything the level places draws something",
 		"%d props across 7 kinds" % checked if mute.is_empty() else "; ".join(mute))
 	var lit_house: PiyestaDoor2D = null
+	var church: PiyestaDoor2D = null
 	for node in level.get_tree().get_nodes_in_group(&"piyesta_doors"):
 		var door := node as PiyestaDoor2D
 		if door != null and door.door_id == "lit_house":
 			lit_house = door
-			break
+		elif door != null and door.door_id == "church":
+			church = door
 	_check(lit_house != null and lit_house.use_hut_art
 		and ResourceLoader.exists(PiyestaDoor2D.HUT_ART_PATH),
 		"and the lit front is the supplied hut",
 		PiyestaDoor2D.HUT_ART_PATH if lit_house != null else "lit house missing")
+	_check(church != null and church.style == PiyestaDoor2D.Style.CHURCH
+		and ResourceLoader.exists(PiyestaDoor2D.CHURCH_ART_PATH),
+		"and the church is the supplied facade",
+		PiyestaDoor2D.CHURCH_ART_PATH if church != null else "church missing")
 
 
 ## ⚠ THE WORLD CHECKS USED TO HANG OFF THE GOAL MARKER, and Piyesta has none.

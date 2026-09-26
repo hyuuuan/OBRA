@@ -58,10 +58,12 @@ const FRAME_SEQUENCE: Array[int] = [0, 1, 2, 1]
 const FRAME_SECONDS := 0.24
 ## Long enough to see two full four-pose phrases after choosing to dance.
 const PUZZLE_LEAD_IN := 2.4
-## From `DancersMark`: full source canvas fitted to the plaza, feet on y = 0. The negative x
-## accounts for the transparent source margin and restores the leftmost dancer to the old
-## troupe's first stand.
-const FRAME_RECT := Rect2(-50.0, -211.5, 660.0, 220.0)
+## From `DancersMark`: full source canvas fitted to the plaza, feet on y = 0. At this scale
+## the tallest painted figure is about 166px -- clearly taller than the 96px apo without
+## looming at twice their height. The negative x keeps the leftmost dancer on the old stand.
+const FRAME_RECT := Rect2(-50.0, -177.0, 552.0, 184.0)
+## Tallest stable alpha span across the three supplied frames, measured at source resolution.
+const DANCER_SOURCE_HEIGHT := 652.0
 ## Where they go. East, which is the way the player has not been yet -- running back past the
 ## apo would read as being chased rather than as leaving.
 const FLEE_RUN := 520.0

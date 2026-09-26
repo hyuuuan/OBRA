@@ -3,7 +3,7 @@ extends Node2D
 ## A door in the plaza wall, and the only way into anywhere in this level.
 ##
 ## FOUR OF THEM AND ONLY TWO GO ANYWHERE. The two dark residential doors remain authored
-## street fronts; the lit, playable house uses the supplied bamboo-and-thatch hut plate.
+## street fronts; the lit, playable house and the church use their supplied plates.
 ## A door that opens onto nothing is not a failure of this class -- it is the level's one
 ## piece of misdirection.
 ##
@@ -38,8 +38,8 @@ signal at_door(standing: bool)
 ## Said when the player stands at a door that is open. Carries its own key cap.
 @export var open_note: String = ""
 
-## Which kind of doorway. A house is a slice of a street front; the church is a stone portal
-## in a facade that is already painted behind it.
+## Which kind of doorway. A house is a slice of a street front; the church is the full
+## supplied facade, aligned by its painted double doors to this node's interaction point.
 enum Style { HOUSE, CHURCH }
 @export var style: Style = Style.HOUSE
 ## The one real house front in the plaza uses the user-supplied hut art. Kept explicit rather
@@ -68,6 +68,19 @@ const HUT_SOURCE := Rect2(71.0, 94.0, 1306.0, 902.0)
 const HUT_SIZE := Vector2(310.0, 214.0)
 ## The double leaves measured on the supplied plate, expressed in the world-sized draw rect.
 const HUT_DOOR := Rect2(-34.0, -112.0, 68.0, 108.0)
+
+## The supplied church replaces the old procedural portal wholesale. The source image has
+## a few near-transparent edge pixels, so draw only its stable alpha bounds. The door centre
+## and masonry baseline are measured in source pixels; anchoring both to this Node2D keeps
+## the existing reach area, prompts and room transfer on the door the player can see.
+const CHURCH_ART_PATH := "res://assets/Level2/church_facade.png"
+const CHURCH_ART: Texture2D = preload("res://assets/Level2/church_facade.png")
+const CHURCH_SOURCE := Rect2(23.0, 13.0, 1041.0, 1412.0)
+const CHURCH_SCALE := 0.45
+const CHURCH_DOOR_SOURCE := Vector2(378.0, 1423.0)
+const CHURCH_OPEN_RADIUS := 42.0
+const CHURCH_OPEN_SPRING_Y := -126.0
+const CHURCH_OPEN_BASE_Y := -11.0
 
 ## ⚠ WALL TONE IS A LIGHT LEVEL NOW, NOT A COLOUR.
 ##
@@ -113,12 +126,6 @@ const IRON := Color(0.184, 0.176, 0.169, 1.0)         # 2F2D2B
 const SHADOW := Color(0.0, 0.0, 0.0, 0.28)
 ## What the painter's shadows are made of: a warm umber, never grey.
 const SHADE := Color(0.70, 0.58, 0.46, 1.0)
-## The church is built of the cream coral stone the painted facade is, not the house plinths.
-const CHURCH := Color(0.886, 0.816, 0.682, 1.0)       # E2D0AE
-const CHURCH_LIT := Color(0.957, 0.914, 0.824, 1.0)   # F4E9D2
-const CHURCH_DARK := Color(0.749, 0.651, 0.490, 1.0)  # BFA67D
-const CHURCH_DEEP := Color(0.573, 0.475, 0.337, 1.0)  # 927956
-
 var _standing := false
 var _area: Area2D
 var _flicker := 0.0
@@ -492,81 +499,36 @@ func _draw_lamplight(opening: Rect2) -> void:
 	draw_colored_polygon(spill, Color(LAMP.r, LAMP.g, LAMP.b, 0.34 * flame))
 
 
-# --- The church's portal ---------------------------------------------------------------
+# --- The church facade ----------------------------------------------------------------
 
 func _draw_church() -> void:
-	var opening := Rect2(-PORTAL.x * 0.5, -PORTAL.y, PORTAL.x, PORTAL.y)
-	var base := -16.0
-	var pilaster := 16.0
-	var arch_rise := PORTAL.x * 0.5
-	var ring := 16.0
-	var outer := PORTAL.x * 0.5 + ring + pilaster
-	var head := base - PORTAL.y - arch_rise - ring
-	draw_rect(Rect2(-outer + 6.0, -2.0, outer * 2.0 + 6.0, 8.0), SHADOW)
-	# Two steps up to it, because nobody walks straight off a plaza into a church.
-	draw_rect(Rect2(-outer - 14.0, -8.0, (outer + 14.0) * 2.0, 8.0), _lit(CHURCH_DARK))
-	draw_rect(Rect2(-outer - 14.0, -8.0, (outer + 14.0) * 2.0, 2.0), _lit(CHURCH))
-	draw_rect(Rect2(-outer - 4.0, -16.0, (outer + 4.0) * 2.0, 8.0), _lit(CHURCH))
-	draw_rect(Rect2(-outer - 4.0, -16.0, (outer + 4.0) * 2.0, 2.0), _lit(CHURCH_LIT))
-	opening.position.y += base
-	# The wall the arch is set into, up to the cornice. Drawn first and overdrawn by the arch,
-	# which is what leaves the two spandrels standing.
-	draw_rect(Rect2(-outer + pilaster, head, (outer - pilaster) * 2.0,
-		opening.position.y - head), _lit(CHURCH, 0.95))
-	# The round arch the doors stand in: the reveal first, then the ring of wedge stones.
-	var arch := PackedVector2Array()
-	for index in range(25):
-		var t := PI + PI * float(index) / 24.0
-		arch.append(Vector2(cos(t) * PORTAL.x * 0.5, opening.position.y + sin(t) * arch_rise))
-	arch.append(Vector2(PORTAL.x * 0.5, base))
-	arch.append(Vector2(-PORTAL.x * 0.5, base))
-	draw_colored_polygon(arch, INSIDE)
-	var stones := 11
-	for stone in range(stones):
-		var a := PI + PI * float(stone) / float(stones)
-		var b := PI + PI * float(stone + 1) / float(stones)
-		var inner := PORTAL.x * 0.5
-		var out := inner + ring
-		var tone := CHURCH_LIT if stone == stones / 2 else (CHURCH if stone % 2 == 0 else CHURCH_DARK)
-		draw_colored_polygon(PackedVector2Array([
-			Vector2(cos(a) * inner, opening.position.y + sin(a) * arch_rise),
-			Vector2(cos(a) * out, opening.position.y + sin(a) * (arch_rise + ring)),
-			Vector2(cos(b) * out, opening.position.y + sin(b) * (arch_rise + ring)),
-			Vector2(cos(b) * inner, opening.position.y + sin(b) * arch_rise)]), _lit(tone))
-	# Jambs down to the step, and a pilaster either side carrying a cornice over the arch.
-	for side: float in [-1.0, 1.0]:
-		var jamb_x := -PORTAL.x * 0.5 - ring if side < 0.0 else PORTAL.x * 0.5
-		var y := base
-		var index := 0
-		while y > opening.position.y:
-			var height := minf(22.0, y - opening.position.y)
-			draw_rect(Rect2(jamb_x, y - height, ring, height),
-				_lit(CHURCH if index % 2 == 0 else CHURCH_DARK, 1.0 if side < 0.0 else 0.92))
-			y -= 22.0
-			index += 1
-		var x := -outer if side < 0.0 else outer - pilaster
-		draw_rect(Rect2(x, head, pilaster, base - head), _lit(CHURCH))
-		draw_rect(Rect2(x, head, 3.0, base - head), _lit(CHURCH_LIT))
-		draw_rect(Rect2(x + pilaster - 3.0, head, 3.0, base - head), _lit(CHURCH_DEEP))
-		draw_rect(Rect2(x - 3.0, base - 12.0, pilaster + 6.0, 12.0), _lit(CHURCH_DARK))
-	draw_rect(Rect2(-outer - 8.0, head - 12.0, (outer + 8.0) * 2.0, 12.0), _lit(CHURCH_LIT))
-	draw_rect(Rect2(-outer - 8.0, head - 2.0, (outer + 8.0) * 2.0, 3.0), _lit(CHURCH_DEEP))
-	# A carved rosette on the keystone, and nothing sacred: the guardrail in `level_02.json`
-	# keeps every image off anything the player can use, and this is a door they walk through.
-	var key := Vector2(0.0, opening.position.y - arch_rise - ring * 0.5)
-	draw_circle(key, 5.0, _lit(CHURCH_DEEP))
-	draw_circle(key, 2.0, _lit(CHURCH_LIT))
-	var leaves := Rect2(opening.position.x + 4.0, opening.position.y - arch_rise * 0.2,
-		opening.size.x - 8.0, base - opening.position.y + arch_rise * 0.2)
+	var destination := Rect2(
+		(CHURCH_SOURCE.position - CHURCH_DOOR_SOURCE) * CHURCH_SCALE,
+		CHURCH_SOURCE.size * CHURCH_SCALE)
+	draw_texture_rect_region(CHURCH_ART, destination, CHURCH_SOURCE)
 	if open:
-		# Candle warmth from inside the nave, and the two leaves folded back.
-		draw_colored_polygon(arch, Color(LAMP.r, LAMP.g, LAMP.b, 0.20))
-		for index in range(7):
-			draw_rect(Rect2(leaves.position.x + 18.0 + float(index) * 10.0,
-				base - 34.0 - float(index % 2) * 4.0, 3.0, 5.0), LAMP)
-		draw_rect(Rect2(leaves.position.x, leaves.position.y, 12.0, leaves.size.y),
-			_lit(TIMBER_DARK))
-		draw_rect(Rect2(leaves.position.x + leaves.size.x - 12.0, leaves.position.y, 12.0,
-			leaves.size.y), _lit(TIMBER))
-	else:
-		_draw_leaves(leaves, 3)
+		_draw_open_church_door()
+
+
+## The supplied plate depicts a closed church. Preserve the route's visible open state by
+## opening only the painted doorway, without repainting or covering the facade around it.
+func _draw_open_church_door() -> void:
+	var opening := PackedVector2Array()
+	for index in range(17):
+		var t := PI + PI * float(index) / 16.0
+		opening.append(Vector2(cos(t) * CHURCH_OPEN_RADIUS,
+			CHURCH_OPEN_SPRING_Y + sin(t) * CHURCH_OPEN_RADIUS))
+	opening.append(Vector2(CHURCH_OPEN_RADIUS, CHURCH_OPEN_BASE_Y))
+	opening.append(Vector2(-CHURCH_OPEN_RADIUS, CHURCH_OPEN_BASE_Y))
+	draw_colored_polygon(opening, INSIDE)
+	# Candlelight inside the nave makes the state legible at the same distance as the prompt.
+	for index in range(6):
+		var x := -25.0 + float(index) * 10.0
+		draw_rect(Rect2(x, CHURCH_OPEN_BASE_Y - 24.0 - float(index % 2) * 3.0,
+			3.0, 5.0), LAMP)
+	# The original double leaves are folded against the jambs instead of vanishing.
+	var side_height := CHURCH_OPEN_BASE_Y - CHURCH_OPEN_SPRING_Y
+	draw_rect(Rect2(-CHURCH_OPEN_RADIUS, CHURCH_OPEN_SPRING_Y, 9.0, side_height),
+		_lit(TIMBER_DARK))
+	draw_rect(Rect2(CHURCH_OPEN_RADIUS - 9.0, CHURCH_OPEN_SPRING_Y, 9.0, side_height),
+		_lit(TIMBER))
