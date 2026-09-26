@@ -75,8 +75,9 @@ screen that never said so.
 **What changed.** An objective line under the badge and a marker over the world, derived
 from the run every time they are asked (`_current_objective` in `level_2.gd`, the words in
 `level_02.json` → `objectives`, `run_objective_probe` walks every step). The plaza doors
-are house fronts now -- plaster, quoins, a tile hood, a capiz fanlight and a wall lantern --
-and the church is a stone portal; the lit house is the one with its lantern burning, at
+are house fronts now -- the lit, playable one uses the supplied bamboo-and-thatch hut plate,
+the two dark decoys retain their authored plaster fronts, and the church is a stone portal.
+The lit house is the one with its lantern burning, at
 x 600 inside Problem 1, and the church sits at the foot of the belfry. Alley 2 is the
 `late_afternoon` light the config already named, dressed as a different street.
 `WorldCameraController.outdoor_x_limits` holds the plaza camera on the painted extent,
@@ -152,7 +153,7 @@ nodes; the last has **two routes, not three**, deliberately.
 | `tools/build_plaza_art.py` | the ground under the painting, and the dance screen's props. **Not** the plaza |
 | `game/scripts/piyesta_plaza_2d.gd` | the ground under the cut painting. Nothing draws in front of the player |
 | `game/scripts/piyesta_door_2d.gd` | takes `wall_tone` off the plate at its own x -- four doors, four stones |
-| `tools/build_dancers.py` | lifts the four painted dancers out of the plate and hands them back as sprites |
+| `tools/build_dancers.py` | removes the four painted dancers and repairs the palm poles; the supplied troupe plates animate in their place |
 | `game/assets/Level2/`, `level-2-assets/` | the delivered art, imported and tracked |
 
 ```bash
@@ -212,11 +213,12 @@ lesson: **a level standing in front of a picture cannot bring its own palette.**
   its bottom edge is below the walk line, so nothing is missing.
 * **Reimport after regenerating an asset.** A `--script` run uses `.godot/imported` as it
   stands, and three renders were read as evidence about a backdrop that had already changed.
-* **The dancers came out of the painting.** They were painted into `mg_people`, so
-  `DancerGroup2D` drew nothing and the Protector scare changed the picture not at all. The
-  middle two lift out as clean components; the outer two stand in front of the palm legs and
-  are fused, so those boxes are cleared and the poles regrown by tiling the clean stretch
-  above each hat. They are sprites now, and the plaza still looks like the plate.
+* **The dancers came out of the painting, then received authored animation.** They were
+  painted into `mg_people`, so `DancerGroup2D` originally drew nothing and the Protector
+  scare changed the picture not at all. `build_dancers.py` still clears the four figures and
+  repairs the palm poles, but runtime now fills that space with the three supplied troupe
+  frames under `assets/Level2/dancers/`. They cycle 1 -> 2 -> 3 -> 2 in the plaza; choosing
+  the Artist route plays a 2.4-second in-world phrase before the timing overlay opens.
 * **The camera needed a floor of its own.** It rests at the bottom of `world_bounds`, which
   has to be well under the plaza so a fall is caught -- so it showed three hundred units of
   retaining wall. `WorldCameraController.world_bottom_y` (Piyesta: 722) stops it, and the
@@ -357,12 +359,12 @@ Nothing here stops the level being played. It is all art, plus one decision.
 4. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
    boomerang and cannon, both of which have a real reach, but there is no aim or trajectory
    preview -- the design asks for "angry birds style".
-5. **The house doors are authored, not the delivered set.** Since Sept 2026 each is a slice
-   of street front drawn in code in the painted houses' own palette -- plaster over a stone
-   plinth, quoins, a tile hood, a capiz fanlight, a wall lantern -- with the church as a
-   round-arched portal. That reads, and it is still placeholder: the design asks for a
-   four-state door set (closed / lit from inside / keyhole / open), and a painted set would
-   sit in the plate better than anything drawn over it.
+5. **The lit house has supplied art; the two decoys remain authored.** The playable front is
+   now `game/assets/Level2/lit_house_hut.png`, a bamboo-and-thatch hut anchored to the same
+   threshold and interaction volume as the facade it replaces. The dark search doors remain
+   plaster fronts drawn in code, and the church remains a round-arched portal. A unified
+   painted four-state set (closed / lit from inside / keyhole / open) would still make the
+   decoys and the playable house read as one deliberate family.
 6. ~~**`levels.json` `scene_path` is still empty.**~~ **Done — Kent made the call (Sept
    2026) and Piyesta is offered from the hub.** The art items above are still owed; they
    were never what blocked it, and shipping it with authored insides is the trade that was

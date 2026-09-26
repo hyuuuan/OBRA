@@ -347,11 +347,13 @@ game --script res://tests/run_visual_*.gd` does NOT refresh a texture whose sour
 about a backdrop that had already been rebuilt twice. Run `godot --headless --path game
 --import` first, or check the .ctex mtime against the .png.
 
-⚠ **THE DANCERS ARE THE PAINTING'S OWN, CUT OUT (2026-09-01).** `tools/build_dancers.py`
-lifts all four out of `mg_people.png` and writes `mg_people_nodancers.png` (which
-`build_plaza.py` composites) plus `painted_dancer_a` / `_b` into the plaza sheet. So the plaza
-looks exactly like the plate AND Problem 1's Protector scare finally does something on screen
--- the long-standing `MG_People` no-dancers blocker is closed, by us rather than by an artist.
+⚠ **THE PAINTED DANCERS ARE STILL CUT OUT, BUT THE RUNTIME TROUPE IS NOW AUTHORED
+(2026-09-26).** `tools/build_dancers.py` removes all four from `mg_people.png` and writes
+`mg_people_nodancers.png`, which `build_plaza.py` composites. `DancerGroup2D` no longer puts
+the static `painted_dancer_a` / `_b` cuts back: it cycles the three supplied complete-troupe
+plates in `assets/Level2/dancers/` as 1 -> 2 -> 3 -> 2. The Artist route restarts that phrase
+and waits 2.4 seconds on the dancers' own animation clock before `DanceOverlay` opens. A
+popup that appears immediately has regressed the requested in-world performance.
 
 The cut is not symmetrical and cannot be. Label the plate's alpha and the middle two fall out
 as their own components; the outer two stand in front of the palm arch's legs and are fused
@@ -363,11 +365,10 @@ the garland's overhang as a stack of ledges); threshold the source alpha at 24, 
 painting's soft edges laid a translucent rectangle across the cleared box); and never fade
 toward a cleared pixel, which is (0,0,0,0) and drags the join to grey.
 
-Slots 1 and 2 put their own cuts straight back, so those are exact. **The four are NOT
-mirrored** -- all four painted dancers hold the fan in the same hand. An attempt to flip the
-outer pair failed twice and silently: a region rect of negative width draws NOTHING, and a
-destination rect of negative width is normalised, so the sprite comes back unflipped and
-shifted its own width east. If a flip is ever wanted, write the flipped PNG in the tool.
+`painted_dancer_a` / `_b` remain build outputs and historical fallbacks, not runtime frames.
+The three authored troupe plates already contain all four girls; draw each complete plate in
+one stable destination rect. Slicing or mirroring them would break the hand-to-hand spacing
+that makes the frames register as one animation.
 
 `levels.json` `scene_path` stays EMPTY until Piyesta looks finished enough to offer from the
 hub, and `run_level2_audit` asserts it. **That is a judgement call about the art, not a

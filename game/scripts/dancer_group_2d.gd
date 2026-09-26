@@ -15,83 +15,56 @@ extends Node2D
 ## from this group's own approach volume rather than from the choice screen, so it arrives
 ## while the player is looking at the dancers and can still walk away.
 ##
-## ⚠ THE DANCE ITSELF IS NOT PLAYABLE YET. `dance_minigame.gd` is the scoring model -- cues,
-## windows, two attempts, what clears -- and there is no screen that puts a cue on the player
-## and times their stroke. Until there is, the Artist route hands over the kandila without a
-## performance and the flower cannot be earned. That is a gap, not a design, and it is
-## recorded in LEVEL_2.md and CONTENT_NEEDED.md rather than papered over with a dance that
-## always succeeds.
-##
-## THE DANCERS ARE THE PAINTING'S OWN, CUT OUT. For a long time this class drew nothing:
-## `mg_people.png` painted all four into the plaza, so a sprite on top would have put eight
-## dancers where the picture has four, and the scare was mechanically complete and visually
-## invisible. The authored 8-bit dancers existed and were nowhere near the painted ones, so
-## using them meant trading four beautiful figures for an animation.
-##
-## `tools/build_dancers.py` settles it by lifting the dancers OUT of the plate -- two come
-## away as whole connected components, the two in front of the palm legs are cleared and the
-## poles grown back down through the holes -- and handing them back as `painted_dancer_a` and
-## `painted_dancer_b`. So the plaza looks exactly as it did, and they can leave.
+## THE DANCE IS VISIBLE BEFORE IT IS PLAYABLE. The three supplied troupe plates are authored
+## animation frames, not references: the world cycles 1 -> 2 -> 3 -> 2, and committing the
+## Artist route restarts that phrase and lets it play in the plaza before the timing overlay
+## opens. The popup is therefore an invitation to join a dance the player has just watched,
+## not a rhythm exercise that replaces the dancers with a panel.
 
 ## The player has come close enough to be told what scaring them would cost.
 signal noticed(text: String)
 signal notice_left()
 ## They have finished leaving. Nothing waits on this; it is what the quiet line hangs off.
 signal scattered()
+## The complete in-world phrase has played and the timing puzzle may take over.
+signal puzzle_lead_in_finished()
 
 enum State { DANCING, FLEEING, GONE }
 
 ## How many are dancing. Four reads as a set rather than as a crowd or a couple.
 @export var dancers := 4
-## How far apart they stand. A little over a metre, which is dancing distance.
-@export var spacing := 84.0
 ## How far out the warning carries. Wide, because it has to arrive while the player can
 ## still turn round -- the dialogue node that offers the choice is only a little nearer.
 @export var notice_range := 300.0
 
-## The apo is 96 tall, so an adult is about 118 at seventy-two pixels to the metre. Used for
-## the notice volume only: the SPRITES are the painting's own scale, which is taller again,
-## and matching them to this ruler would shrink four figures the whole plaza is composed
-## around.
+## The apo is 96 tall, so an adult is about 118 at seventy-two pixels to the metre. This is
+## the notice volume's height; the authored plates keep their own visual scale below.
 const HEIGHT := 118.0
-const WIDTH := 34.0
 
-## WHERE THE PAINTING HAD THEM, as offsets from `DancersMark` (world x 720). The backdrop is
-## placed so that world x IS plate x, so these come straight off the artist's own columns --
-## 697, 857, 1022 and 1174 -- as CENTRES, since that is what a sprite is drawn about. The
-## first version used the left edges and stood all four half a dancer to the west.
-##
-## Slots 1 and 2 are EXACT: their sprites were cut from plate columns 857 and 1022 and these
-## offsets put them straight back. Slots 0 and 3 are the two that had to be cleared, measured
-## off the fused component before it went.
-const STANDS: Array[float] = [50.0, 213.0, 375.0, 530.0]
-## Which cut goes where. Two poses alternating, and NOT MIRRORED: all four painted dancers
-## hold the fan in the same hand and face the same way, so flipping the outer pair was both
-## unfaithful to the picture and, as it turned out, broken -- see `_draw`.
-const CUTS: Array[String] = [
-	"painted_dancer_b", "painted_dancer_a", "painted_dancer_b", "painted_dancer_a"]
-## How far each bobs, and how out of step with the next. A painted figure that is perfectly
-## still reads as scenery; four moving in lockstep read as one sprite drawn four times.
-const BOB := 3.0
-const OFF_BEAT := 0.7
+## The user's three complete troupe frames. They share a 2172 x 724 transparent canvas, so
+## one destination rect keeps feet, spacing and scale stable while the pose changes.
+const DANCE_FRAME_PATHS: Array[String] = [
+	"res://assets/Level2/dancers/dance_frame_01.png",
+	"res://assets/Level2/dancers/dance_frame_02.png",
+	"res://assets/Level2/dancers/dance_frame_03.png",
+]
+const DANCE_FRAMES: Array[Texture2D] = [
+	preload("res://assets/Level2/dancers/dance_frame_01.png"),
+	preload("res://assets/Level2/dancers/dance_frame_02.png"),
+	preload("res://assets/Level2/dancers/dance_frame_03.png"),
+]
+## Returning through frame 2 avoids a hard 3 -> 1 snap at the loop seam.
+const FRAME_SEQUENCE: Array[int] = [0, 1, 2, 1]
+const FRAME_SECONDS := 0.24
+## Long enough to see two full four-pose phrases after choosing to dance.
+const PUZZLE_LEAD_IN := 2.4
+## From `DancersMark`: full source canvas fitted to the plaza, feet on y = 0. The negative x
+## accounts for the transparent source margin and restores the leftmost dancer to the old
+## troupe's first stand.
+const FRAME_RECT := Rect2(-50.0, -211.5, 660.0, 220.0)
 ## Where they go. East, which is the way the player has not been yet -- running back past the
 ## apo would read as being chased rather than as leaving.
 const FLEE_RUN := 520.0
-
-## Fiesta dress: saya and barong in festival colours, one per dancer so the group reads as
-## several people rather than as a repeated sprite.
-const COSTUMES: Array[Color] = [
-	Color(0.902, 0.376, 0.353, 1.0),   # E6605A
-	Color(0.361, 0.596, 0.780, 1.0),   # 5C98C7
-	Color(0.937, 0.729, 0.294, 1.0),   # EFBA4B
-	Color(0.478, 0.694, 0.435, 1.0),   # 7AB16F
-	Color(0.741, 0.478, 0.769, 1.0),   # BD7AC4
-]
-const COSTUME_DARK := Color(0.0, 0.0, 0.0, 0.22)
-const SKIN := Color(0.769, 0.612, 0.478, 1.0)         # C49C7A
-const HAIR := Color(0.161, 0.129, 0.114, 1.0)         # 29211D
-## What they are dancing over. A shadow is what stands a figure on the ground.
-const SHADOW := Color(0.0, 0.0, 0.0, 0.16)
 
 var _state: int = State.DANCING
 var _phase := 0.0
@@ -99,6 +72,7 @@ var _phase := 0.0
 var _flee := 0.0
 var _area: Area2D
 var _told := false
+var _puzzle_lead_in := 0.0
 
 
 func _ready() -> void:
@@ -112,6 +86,10 @@ func _process(delta: float) -> void:
 	if _state == State.GONE:
 		return
 	_phase += delta
+	if _puzzle_lead_in > 0.0:
+		_puzzle_lead_in = maxf(0.0, _puzzle_lead_in - delta)
+		if _puzzle_lead_in <= 0.0:
+			puzzle_lead_in_finished.emit()
 	if _state == State.FLEEING:
 		# Still on a clock, even with nothing drawn: `scattered` is what Lolo's quiet line
 		# waits for, and firing it on the same frame as the choice would put it over the top
@@ -160,11 +138,37 @@ func are_gone() -> bool:
 	return _state == State.GONE
 
 
+## Restart the authored phrase when the player chooses to join it. The level awaits the
+## signal rather than an unrelated timer, so a paused world cannot silently spend the dance.
+func begin_puzzle_lead_in() -> void:
+	_phase = 0.0
+	_puzzle_lead_in = PUZZLE_LEAD_IN
+	queue_redraw()
+
+
+func puzzle_lead_in_active() -> bool:
+	return _puzzle_lead_in > 0.0
+
+
+func animation_frame() -> int:
+	return frame_index_at(_phase)
+
+
+static func frame_index_at(seconds: float) -> int:
+	var step := int(floor(maxf(0.0, seconds) / FRAME_SECONDS)) % FRAME_SEQUENCE.size()
+	return FRAME_SEQUENCE[step]
+
+
+static func frame_texture_at(seconds: float) -> Texture2D:
+	return DANCE_FRAMES[frame_index_at(seconds)]
+
+
 ## Problem 1's Protector route. ONE WAY: there is no unscatter, deliberately, because the
 ## whole weight of the choice is that it cannot be taken back.
 func scatter() -> bool:
 	if _state != State.DANCING:
 		return false
+	_puzzle_lead_in = 0.0
 	_state = State.FLEEING
 	return true
 
@@ -174,49 +178,30 @@ func scatter() -> bool:
 func set_already_gone() -> void:
 	_state = State.GONE
 	_flee = 1.0
+	_puzzle_lead_in = 0.0
 	set_process(false)
 	if _area != null:
 		_area.set_deferred("monitoring", false)
 	queue_redraw()
 
 
-## Four figures on the artist's own marks, breathing while they dance and gone when they go.
-##
-## ⚠ THE PAINTED CUTS, NOT THE AUTHORED 8-BIT ONES. `dancer_a` / `dancer_b` in the plaza sheet
-## are the hand-authored pair and belong to the dance screen; `painted_dancer_a` / `_b` are
-## the plate's own, and they are what the plaza is missing exactly where these stand. Swapping
-## them would leave four blocky figures in a painting composed around four painted ones.
+## One complete four-dancer plate per frame. The plate moves as one during the irreversible
+## scare route; changing art sets halfway through their exit would look like a replacement,
+## not the same people leaving.
 func _draw() -> void:
 	if _state == State.GONE:
 		return
-	for index in range(mini(dancers, STANDS.size())):
-		var cut := CUTS[index]
-		var size := PiyestaTiles.size_of(cut)
-		if size == Vector2.ZERO:
-			continue
-		var at := Vector2(STANDS[index], 0.0)
-		var fade := 1.0
-		if _state == State.FLEEING:
-			# Away east, gathering pace, and lifting very slightly -- a run, not a slide.
-			# Eased rather than linear so the first frames read as deciding to go.
-			var t: float = ease(_flee, 2.4)
-			at.x += t * FLEE_RUN * (1.0 + float(index) * 0.14)
-			at.y -= sin(_flee * PI) * 6.0
-			fade = 1.0 - clampf((_flee - 0.55) / 0.45, 0.0, 1.0)
-		else:
-			at.y -= absf(sin(_phase * 2.1 + float(index) * OFF_BEAT)) * BOB
-		# Drawn from the FEET, because the ground line is the one thing in this plaza that
-		# every other measurement is taken from.
-		var box := Rect2(at.x - size.x * 0.5, at.y - size.y, size.x, size.y)
-		var texture := PiyestaTiles.get_tile(cut)
-		if texture == null:
-			continue
-		# ⚠ NO NEGATIVE RECTS, IN EITHER ARGUMENT. Two dancers were mirrored here for a while.
-		# A region rect of negative width draws NOTHING AT ALL, and every headless suite stayed
-		# green, because a sprite that fails to draw is not an error -- the same fault that hid
-		# five birds and a whole dancer class before. Flipping the destination instead does not
-		# fail loudly either: Godot normalises the rect, so the sprite came back unmirrored and
-		# shifted its own width to the east. If a flip is ever wanted here, write the flipped
-		# PNG in `build_dancers.py` and load it by name.
-		draw_texture_rect_region(texture, box, Rect2(Vector2.ZERO, size),
-			Color(1.0, 1.0, 1.0, fade))
+	var texture := frame_texture_at(_phase)
+	if texture == null:
+		return
+	var box := FRAME_RECT
+	var fade := 1.0
+	if _state == State.FLEEING:
+		# Away east, gathering pace, and lifting very slightly -- a run, not a slide.
+		# Eased rather than linear so the first frames read as deciding to go.
+		var t: float = ease(_flee, 2.4)
+		box.position.x += t * FLEE_RUN
+		box.position.y -= sin(_flee * PI) * 6.0
+		fade = 1.0 - clampf((_flee - 0.55) / 0.45, 0.0, 1.0)
+	draw_texture_rect_region(texture, box, Rect2(Vector2.ZERO, texture.get_size()),
+		Color(1.0, 1.0, 1.0, fade))

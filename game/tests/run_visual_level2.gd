@@ -67,14 +67,31 @@ func _run() -> void:
 			% [step[1], at.x, player.global_position,
 			   cam.global_position if cam != null else Vector2.ZERO])
 		await _capture(String(step[1]))
+		if String(step[1]) == "05_lit_house":
+			await _capture_open_hut()
 
+	await _look_at_the_dance()
 	await _watch_them_leave()
 	await _tour_the_insides()
 	await _look_at_scene_3()
-	await _look_at_the_dance()
 
 	print("OBRA_VISUAL_L2_OK")
 	quit(0)
+
+
+## The supplied plate is closed, but the route opens this door. Photograph the transition:
+## a beautiful shut hut over an enterable doorway would be the same old "works and never
+## says so" defect in a new asset.
+func _capture_open_hut() -> void:
+	for node in level.get_tree().get_nodes_in_group(&"piyesta_doors"):
+		var door := node as PiyestaDoor2D
+		if door == null or door.door_id != "lit_house":
+			continue
+		door.set_open(true)
+		await _wait(0.25)
+		await _capture("05b_lit_house_open")
+		door.set_open(false)
+		return
 
 
 ## PROBLEM 1's PROTECTOR ROUTE, WHICH NOBODY HAS EVER SEEN. The dancers were painted into the
@@ -152,8 +169,9 @@ func _look_at_scene_3() -> void:
 	await _wait(0.3)
 
 
-## THE DANCE, WHICH IS THE ONLY SCREEN IN THIS LEVEL THAT IS NOT THE WORLD. It pauses the
-## tree, so it goes last: everything after it would be photographed frozen.
+## THE DANCE, WHICH IS THE ONLY SCREEN IN THIS LEVEL THAT IS NOT THE WORLD. The supplied
+## poses are photographed in the plaza first, then the whole timing run is completed so the
+## modal gives the tree back for the rest of the visual tour.
 ##
 ## Three frames, because the three things worth looking at happen at different moments -- the
 ## lane before anything has been struck, a verdict at the line, and the pips part-way through
@@ -163,8 +181,17 @@ func _look_at_the_dance() -> void:
 	if director == null:
 		return
 	director.call("commit_route", "L2_N1", "artist")
+	var group := level.get("dancers") as DancerGroup2D
+	await process_frame
+	await _capture("07a_dance_lead_01")
+	for index in range(2):
+		await create_timer(DancerGroup2D.FRAME_SECONDS * 1.1, false).timeout
+		await _capture("07a_dance_lead_%02d" % (index + 2))
+	if group != null:
+		print("  dance lead-in: frame %d, active %s" % [
+			group.animation_frame(), group.puzzle_lead_in_active()])
 	var screen := level.get("dance_screen") as DanceOverlay
-	for _frame in range(240):
+	for _frame in range(360):
 		if screen != null and screen.is_open():
 			break
 		await process_frame
@@ -175,15 +202,19 @@ func _look_at_the_dance() -> void:
 	await _capture("07_dance_lane")
 	# On the beat, so the frame catches a PERFECT at the line.
 	var track: PackedFloat32Array = (level.get("dance") as DanceMinigame).track()
-	for index in range(3):
+	for index in range(track.size()):
 		while screen.clock() < track[index] and screen.is_open():
 			await process_frame
 		var verdict := screen.perform_stroke()
 		if index == 0:
 			await _capture("08_dance_verdict")
+		if index == 2:
+			await _capture("09_dance_pips")
 		print("  dance: cue %d -> %s at t=%.2f" % [index, verdict, screen.clock()])
-	await _wait(0.6)
-	await _capture("09_dance_pips")
+	for _frame in range(420):
+		if not screen.is_open():
+			break
+		await process_frame
 
 
 func _capture(label: String) -> void:

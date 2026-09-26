@@ -62,18 +62,21 @@ func _open() -> Node:
 	return fresh
 
 
-## Commit the Artist route the way the choice screen does, and wait for the lane to come up.
-## The overlay opens on a timer -- deliberately, so the rhythm screen does not land on top
-## of the sentence the apo just said -- so this waits rather than asking on the next frame.
-func _reach_the_screen(fresh: Node) -> DanceOverlay:
-	var director = fresh.get("director")
-	director.call("commit_route", "L2_N1", "artist")
+## Wait for the lane after a route has committed. It opens only after the in-world troupe
+## finishes its lead-in, so asking on the next frame would test the old abrupt transition.
+func _wait_for_screen(fresh: Node) -> DanceOverlay:
 	var screen := fresh.get("dance_screen") as DanceOverlay
-	for _frame in range(240):
+	for _frame in range(360):
 		if screen != null and screen.is_open():
 			break
 		await physics_frame
 	return screen
+
+
+func _reach_the_screen(fresh: Node) -> DanceOverlay:
+	var director = fresh.get("director")
+	director.call("commit_route", "L2_N1", "artist")
+	return await _wait_for_screen(fresh)
 
 
 ## Finish a stroke at `at` seconds into the attempt, waiting the clock out rather than
@@ -91,15 +94,39 @@ func _stroke_at(screen: DanceOverlay, at: float) -> String:
 
 func _audit_the_route_opens_the_screen() -> void:
 	var fresh := await _open()
-	var screen := await _reach_the_screen(fresh)
+	var screen := fresh.get("dance_screen") as DanceOverlay
+	var group := fresh.get("dancers") as DancerGroup2D
+	var director = fresh.get("director")
+	director.call("commit_route", "L2_N1", "artist")
+	await process_frame
+	_check(screen != null and not screen.is_open(),
+		"the troupe dances before the puzzle opens",
+		"the world remains visible after the route commit")
+	_check(group != null and group.puzzle_lead_in_active(),
+		"and its authored lead-in is running",
+		"%.1fs before the timing lane" % DancerGroup2D.PUZZLE_LEAD_IN)
+	var seen: Dictionary = {}
+	if group != null:
+		seen[group.animation_frame()] = true
+		for _sample in range(2):
+			await fresh.get_tree().create_timer(
+				DancerGroup2D.FRAME_SECONDS * 1.1, false).timeout
+			seen[group.animation_frame()] = true
+	_check(seen.size() == 3, "all three supplied poses move in the plaza",
+		"frames %s" % [seen.keys()])
+	_check(screen != null and not screen.is_open(),
+		"and the timing panel still waits for the phrase",
+		"no popup over the dancers")
+	screen = await _wait_for_screen(fresh)
 	# ⚠ THE ASSERTION THE WHOLE COMMIT EXISTS FOR. Before this, committing "I will dance for
 	# them" closed the other two routes and nothing happened at all.
 	_check(screen != null and screen.is_open(),
 		"committing the route opens the dance", "the route that had no answer now has one")
+	_check(group != null and not group.puzzle_lead_in_active(),
+		"only after the visible lead-in finishes", "the troupe handed the beat to the player")
 	_check(screen != null and not screen.closes_on_cancel,
 		"and Escape cannot dismiss it",
 		"it is the only door out of a route already committed to")
-	var director = fresh.get("director")
 	_check(not bool(director.call("is_solved", "L2_N1")),
 		"and nothing is solved just by opening it", "the performance has not happened yet")
 	if screen != null:

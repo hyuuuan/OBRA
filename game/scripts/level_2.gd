@@ -270,6 +270,7 @@ func _build_the_doors() -> void:
 			"tone": Color(0.333, 0.251, 0.161), # 554029
 			"shut": "Dark inside. Not this one."},
 		{"id": DOOR_LIT_HOUSE, "mark": "LitHouse", "lit": true, "room": house,
+			"hut": true,
 			"tone": Color(0.749, 0.557, 0.380), # BF8E61, the sunlit house front
 			"shut": "There is a light on in there, and it will not open.",
 			"open": "It is open now."},
@@ -289,6 +290,10 @@ func _build_the_doors() -> void:
 		door.lit = bool(entry["lit"])
 		door.style = PiyestaDoor2D.Style.CHURCH if entry["id"] == DOOR_CHURCH \
 			else PiyestaDoor2D.Style.HOUSE
+		door.use_hut_art = bool(entry.get("hut", false))
+		# The hut is a building behind the people and portable props in the street. Keeping it
+		# one layer back also lets the first dancer cross its eave instead of being cut by it.
+		door.z_index = -1 if door.use_hut_art else 0
 		door.wall_tone = Color(entry["tone"])
 		door.shut_note = String(entry["shut"])
 		door.open_note = "%s  —  press %s" % [
@@ -365,10 +370,16 @@ func _build_the_dance_screen() -> void:
 func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 	if obstacle_id != "L2_N1" or route != "artist" or dance_screen == null:
 		return
-	# AFTER the commit line, not over the top of it. "I will dance for them" is spoken by
-	# the base off `route_committed`, and opening a modal in the same frame would put a
-	# rhythm lane over a sentence the player has not read yet.
-	await get_tree().create_timer(1.1, true, false, true).timeout
+	# FIRST THE DANCERS, THEN THE PUZZLE. Restart their authored three-frame phrase and wait
+	# on the animation's own clock. A detached timer could expire while the world was paused,
+	# opening a rhythm lane over a dance the player never got to see.
+	if dancers != null and not dancers.are_gone():
+		dancers.begin_puzzle_lead_in()
+		await dancers.puzzle_lead_in_finished
+	else:
+		# Defensive only: route exclusivity means the Artist choice cannot normally coexist
+		# with a scattered troupe, but a probe or restored developer state must not deadlock.
+		await get_tree().create_timer(DancerGroup2D.PUZZLE_LEAD_IN, false, false, true).timeout
 	if dance_screen != null and is_instance_valid(dance_screen):
 		dance_screen.present()
 
@@ -1160,4 +1171,3 @@ func _over_the_dancers() -> Vector2:
 
 func _onward_of(room: PiyestaRoom2D) -> Vector2:
 	return room.global_position + room.onward_rect().get_center() + Vector2(0.0, -70.0)
-

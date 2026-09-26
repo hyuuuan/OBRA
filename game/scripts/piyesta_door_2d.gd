@@ -2,18 +2,14 @@ class_name PiyestaDoor2D
 extends Node2D
 ## A door in the plaza wall, and the only way into anywhere in this level.
 ##
-## FOUR OF THEM AND ONLY TWO GO ANYWHERE, which is the design asking for it in so many
-## words: *"put the lit house past two or three dark doors so the search reads as a search"*.
+## FOUR OF THEM AND ONLY TWO GO ANYWHERE. The two dark residential doors remain authored
+## street fronts; the lit, playable house uses the supplied bamboo-and-thatch hut plate.
 ## A door that opens onto nothing is not a failure of this class -- it is the level's one
-## piece of misdirection, and the dark ones have to look exactly like the lit one except for
-## the light.
+## piece of misdirection.
 ##
-## SO THE LIGHT IS THE WHOLE TELL. A lit house has its wall lantern burning, amber in the capiz
-## fanlight over the leaves, and lamplight in the joint between them; a dark one has cold glass,
-## grey shell and a bar across the door. Nothing else about the two differs. A player who has
-## been told to look for a house with a light in the window has one thing to look for, and it
-## is legible from across the plaza -- which is what makes walking past two dark ones feel like
-## searching rather than like being made to wait.
+## THE LIGHT STILL HAS TO READ. A lit house has its lanterns burning and lamplight under the
+## leaves; a dark one has cold glass and a bar across the door. A player who has been told to
+## look for a house with a light in the window can read the answer from across the plaza.
 ##
 ## ⚠ IT IS NOT A LOCK. Level 1's padlock judges the STROKES of a drawn key -- that mechanic
 ## is `WardLock2D` and the design says to reuse it, not to rebuild it. This class holds the
@@ -46,6 +42,9 @@ signal at_door(standing: bool)
 ## in a facade that is already painted behind it.
 enum Style { HOUSE, CHURCH }
 @export var style: Style = Style.HOUSE
+## The one real house front in the plaza uses the user-supplied hut art. Kept explicit rather
+## than inferred from `lit`, so lighting remains a state and art direction remains a choice.
+@export var use_hut_art := false
 
 ## A town door: a metre wide and a little over two tall. Measured at the apo's
 ## seventy-two-pixels-to-the-metre, same ruler the rooms use.
@@ -59,6 +58,16 @@ const PORTAL := Vector2(104.0, 176.0)
 ## does not have to be pixel-perfect, narrow enough that two doors cannot both claim them --
 ## the plaza's dark pair are 200 apart.
 const REACH := Vector2(120.0, 170.0)
+
+## The supplied hut is kept at source resolution and sampled from its transparent content
+## bounds. Drawing it into a world-sized rect lets this Node2D retain the exact floor anchor,
+## reach volume and open/closed state of the facade it replaces.
+const HUT_ART_PATH := "res://assets/Level2/lit_house_hut.png"
+const HUT_ART: Texture2D = preload("res://assets/Level2/lit_house_hut.png")
+const HUT_SOURCE := Rect2(71.0, 94.0, 1306.0, 902.0)
+const HUT_SIZE := Vector2(310.0, 214.0)
+## The double leaves measured on the supplied plate, expressed in the world-sized draw rect.
+const HUT_DOOR := Rect2(-34.0, -112.0, 68.0, 108.0)
 
 ## ⚠ WALL TONE IS A LIGHT LEVEL NOW, NOT A COLOUR.
 ##
@@ -232,6 +241,8 @@ func _flame() -> float:
 func _draw() -> void:
 	if style == Style.CHURCH:
 		_draw_church()
+	elif use_hut_art:
+		_draw_hut()
 	else:
 		_draw_house()
 	if _standing and open:
@@ -242,6 +253,20 @@ func _draw() -> void:
 
 
 # --- A house front ----------------------------------------------------------------------
+
+func _draw_hut() -> void:
+	var rect := Rect2(-HUT_SIZE.x * 0.5, -HUT_SIZE.y, HUT_SIZE.x, HUT_SIZE.y)
+	# A contact shadow keeps the transparent plate planted on the same paving line as the
+	# interaction marker. The image itself ends at y = 0; neither art nor collision floats.
+	draw_rect(Rect2(rect.position.x + 10.0, -3.0, rect.size.x - 4.0, 9.0), SHADOW)
+	draw_texture_rect_region(HUT_ART, rect, HUT_SOURCE)
+	if open:
+		# Preserve the level's readable open state instead of leaving a closed painting over a
+		# doorway that gameplay says can be entered.
+		draw_rect(HUT_DOOR.grow(2.0), _lit(TIMBER_DARK))
+		_draw_open_leaves(HUT_DOOR)
+	if lit:
+		_draw_lamplight(HUT_DOOR)
 
 func _draw_house() -> void:
 	var half := FACADE.x * 0.5

@@ -436,20 +436,19 @@ func _draw_post(lane: Rect2, line_x: float) -> void:
 		Vector2(line_x, lane.position.y + lane.size.y + 6.0), lift)
 
 
-## The four of them along the back of the stage, dancing to the beat the player is being
-## asked for. They are who the performance is FOR, and the screen never showed them.
+## The same supplied troupe the player just watched in the plaza, now along the back of the
+## stage. Keeping the animation set across the transition makes the lane feel like joining
+## their performance instead of opening an unrelated rhythm exercise.
 func _draw_troupe(area: Rect2) -> void:
-	var size := PiyestaTiles.size_of("dancer_a")
-	if size.y <= 0.0:
+	var texture := DancerGroup2D.frame_texture_at(_clock)
+	if texture == null:
 		return
-	var scale := minf(1.0, area.size.y / size.y)
-	for index in range(4):
-		var at := Vector2(area.position.x + area.size.x * (0.17 + 0.22 * float(index)),
-			area.position.y + area.size.y)
-		var beat := sin(_clock * TAU / 1.0 + float(index) * 1.05)
-		var lift := absf(beat) * 6.0
-		PiyestaTiles.stand(_stage, "dancer_a" if beat > 0.0 else "dancer_b",
-			at - Vector2(0.0, lift), scale)
+	var source_size := texture.get_size()
+	var height := area.size.y
+	var width := source_size.x / source_size.y * height
+	var box := Rect2(area.position.x + (area.size.x - width) * 0.5,
+		area.position.y, width, height)
+	_stage.draw_texture_rect_region(texture, box, Rect2(Vector2.ZERO, source_size))
 
 
 ## THE CUES ARE THE DANCERS' OWN FANS. They were rings with a scratch inside them; a fan is

@@ -597,12 +597,10 @@ func _audit_the_plaza_is_not_empty() -> void:
 	var group := groups[0] as DancerGroup2D
 	_check(group.dancers >= 3, "and there are enough of them to be a set",
 		"%d dancing" % group.dancers)
-	# ⚠ AND THE CUTS THEY ARE DRAWN FROM HAVE TO EXIST. The dancers are the painting's own,
-	# lifted out by `tools/build_dancers.py` -- which means the plaza now has four holes in it
-	# that only these sprites fill. A missing tile is not an error at runtime: `_draw` skips
-	# it, the plaza comes up with a gap, and every headless suite here stays green. That has
-	# happened three times in this level already (five birds with no `_draw`, a whole dancer
-	# class detached by an override, two sprites lost to a negative rect), so it is asserted.
+	# ⚠ AND THE THREE AUTHORED FRAMES HAVE TO EXIST. The plaza plate still has the four old
+	# dancers lifted out of it, so a missing replacement frame leaves a conspicuous gap while
+	# every route and ledger check remains green. Assert both presence and a common canvas;
+	# differently sized frames would make the whole troupe jump between poses.
 	# ⚠ THE THREE SHEETS SHARE ONE NAMESPACE. `banner` was declared in both the delivered
 	# tileset and the authored plaza sheet, and the plaza's silently overwrote the other
 	# because `SHEETS` is walked in order -- so the church was drawing the right banner by load
@@ -639,17 +637,19 @@ func _audit_the_plaza_is_not_empty() -> void:
 			else "declared but absent: %s" % ", ".join(dangling))
 
 	var missing: Array[String] = []
-	for cut: String in DancerGroup2D.CUTS:
-		if not PiyestaTiles.has_tile(cut) and not missing.has(cut):
-			missing.append(cut)
-	_check(missing.is_empty(), "and the painted cuts they are drawn from are on disk",
-		"run tools/build_dancers.py -- missing %s" % ", ".join(missing) if not missing.is_empty()
-			else "%d cuts" % DancerGroup2D.CUTS.size())
-	# And they stand where the painting had them: the plate's own columns, which is the only
-	# reason the plaza still looks like the plate.
-	_check(DancerGroup2D.STANDS.size() >= group.dancers,
-		"and there is a mark for each of them",
-		"%d stands for %d dancers" % [DancerGroup2D.STANDS.size(), group.dancers])
+	for path: String in DancerGroup2D.DANCE_FRAME_PATHS:
+		if not ResourceLoader.exists(path):
+			missing.append(path)
+	_check(missing.is_empty() and DancerGroup2D.DANCE_FRAMES.size() == 3,
+		"and all three supplied dance frames are on disk",
+		"3 animation plates" if missing.is_empty() else "missing: %s" % ", ".join(missing))
+	var frame_sizes: Array[Vector2] = []
+	for texture: Texture2D in DancerGroup2D.DANCE_FRAMES:
+		frame_sizes.append(texture.get_size())
+	_check(frame_sizes.size() == 3 and frame_sizes[0] == Vector2(2172.0, 724.0)
+		and frame_sizes[1] == frame_sizes[0] and frame_sizes[2] == frame_sizes[0],
+		"and the frames share one stable canvas",
+		"%s" % [frame_sizes])
 	# They have to stand ON the mark the scene authored, because that mark is what the
 	# scare-reach check above is measured against.
 	var mark := level.get_node_or_null(
@@ -703,6 +703,16 @@ func _audit_nothing_this_level_places_is_invisible() -> void:
 				mute.append("%s never draws" % (node as Node).name)
 	_check(mute.is_empty(), "everything the level places draws something",
 		"%d props across 7 kinds" % checked if mute.is_empty() else "; ".join(mute))
+	var lit_house: PiyestaDoor2D = null
+	for node in level.get_tree().get_nodes_in_group(&"piyesta_doors"):
+		var door := node as PiyestaDoor2D
+		if door != null and door.door_id == "lit_house":
+			lit_house = door
+			break
+	_check(lit_house != null and lit_house.use_hut_art
+		and ResourceLoader.exists(PiyestaDoor2D.HUT_ART_PATH),
+		"and the lit front is the supplied hut",
+		PiyestaDoor2D.HUT_ART_PATH if lit_house != null else "lit house missing")
 
 
 ## ⚠ THE WORLD CHECKS USED TO HANG OFF THE GOAL MARKER, and Piyesta has none.
