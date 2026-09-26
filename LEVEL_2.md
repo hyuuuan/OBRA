@@ -76,8 +76,8 @@ screen that never said so.
 from the run every time they are asked (`_current_objective` in `level_2.gd`, the words in
 `level_02.json` → `objectives`, `run_objective_probe` walks every step). The plaza doors
 are house fronts now -- the lit, playable one uses the supplied bamboo-and-thatch hut plate,
-the two dark decoys retain their authored plaster fronts, and the church uses the supplied
-complete facade with its painted double doors anchored to the live entrance.
+and the church uses the supplied complete facade with its painted double doors anchored to
+the live entrance. The two former plaster decoys were removed together with their triggers.
 The lit house is the one with its lantern burning, at
 x 600 inside Problem 1, and the church sits at the foot of the belfry. Alley 2 is the
 `late_afternoon` light the config already named, dressed as a different street.
@@ -140,7 +140,7 @@ nodes; the last has **two routes, not three**, deliberately.
 | `game/scripts/dance_minigame.gd` | two attempts; **cannot dead-end the run** |
 | `game/scripts/scrap_assembly.gd` | seven slots, drag and snap, no fail state |
 | `game/scripts/piyesta_room_2d.gd` | all four insides -- one script, one contract, three dressings |
-| `game/scripts/piyesta_door_2d.gd` | the plaza's four doors; two open onto a room, two are the search |
+| `game/scripts/piyesta_door_2d.gd` | the plaza's two live entrances: the lit house and the church |
 | `game/scripts/church_interior_2d.gd` | Scene 2's furniture, and the cultural guardrail in code |
 | `game/scripts/kandila_2d.gd` | the candle on the table, which is what Path C is FOR |
 | `game/scripts/dancer_group_2d.gd` | the dancers, and the one thing here the player can destroy |
@@ -153,7 +153,7 @@ nodes; the last has **two routes, not three**, deliberately.
 | `tools/build_interiors.py` | original art for the four insides -- ashlar, sawali, plaster over rubble |
 | `tools/build_plaza_art.py` | the ground under the painting, and the dance screen's props. **Not** the plaza |
 | `game/scripts/piyesta_plaza_2d.gd` | the ground under the cut painting. Nothing draws in front of the player |
-| `game/scripts/piyesta_door_2d.gd` | takes `wall_tone` off the plate at its own x -- four doors, four stones |
+| `game/scripts/piyesta_door_2d.gd` | aligns the two supplied fronts to their live entrance volumes |
 | `tools/build_dancers.py` | removes the four painted dancers and repairs the palm poles; the supplied troupe plates animate in their place |
 | `game/assets/Level2/`, `level-2-assets/` | the delivered art, imported and tracked |
 
@@ -230,9 +230,8 @@ lesson: **a level standing in front of a picture cannot bring its own palette.**
   band of the level's flat `SkyFill` in the wrong blue. Trimmed in the tool; `SkyFill` is now
   the painting's own top sky.
 * **The doors and the checkpoint lanterns were the wrong colour, twice.** First grey slabs,
-  then one pale limestone ramp for all four doors -- which looked right on the sunlit church
-  front and chalky in the shade under the kiosko stair. Each door now takes a `wall_tone`
-  sampled off the plate at its own x, and the lantern reads `checkpoint_stone` /
+  then one pale limestone ramp for four doors. The two remaining supplied fronts retain
+  `wall_tone` only for runtime light/open-state treatment, and the lantern reads `checkpoint_stone` /
   `checkpoint_moss` meta off an ancestor so Level 1 keeps its Cordillera grey.
 
 The plaza was authored from scratch for one pass in between, themed on the **Basilica del
@@ -362,14 +361,12 @@ Nothing here stops the level being played. It is all art, plus one decision.
 4. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
    boomerang and cannon, both of which have a real reach, but there is no aim or trajectory
    preview -- the design asks for "angry birds style".
-5. **The lit house and church have supplied art; the two decoys remain authored.** The playable front is
+5. **The lit house and church have supplied art; the two decoys were removed.** The playable front is
    now `game/assets/Level2/lit_house_hut.png`, a bamboo-and-thatch hut anchored to the same
    threshold and interaction volume as the facade it replaces. The church is
    `game/assets/Level2/church_facade.png`, likewise aligned by its visible threshold while
-   retaining the existing proximity prompt and room transfer. The dark search doors remain
-   plaster fronts drawn in code. A unified
-   painted four-state set (closed / lit from inside / keyhole / open) would still make the
-   decoys and the playable house read as one deliberate family.
+   retaining the existing proximity prompt and room transfer. Removing the two plaster
+   fronts also removed their proximity areas, so there are no invisible decoy prompts.
 6. ~~**`levels.json` `scene_path` is still empty.**~~ **Done — Kent made the call (Sept
    2026) and Piyesta is offered from the hub.** The art items above are still owed; they
    were never what blocked it, and shipping it with authored insides is the trade that was

@@ -54,13 +54,9 @@ const CREASED_CANVAS := "canvas_2_pista"
 ## the track wants to be authored against the music anyway.
 var dance_track := PackedFloat32Array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
 
-## THE DOORS THAT GO SOMEWHERE, and the two that do not. The design asks for the lit house
-## to sit "past two or three dark doors so the search reads as a search", so the dark pair
-## are content rather than decoration -- they are what makes finding the lit one a find.
+## The two entrances that go somewhere: the lit house and the church.
 const DOOR_CHURCH := "church"
 const DOOR_LIT_HOUSE := "lit_house"
-const DOOR_DARK_A := "dark_a"
-const DOOR_DARK_B := "dark_b"
 
 var restrictions: LevelRestrictions
 var ledger: ScrapLedger
@@ -82,8 +78,7 @@ var house: PiyestaRoom2D
 var alley_1: PiyestaRoom2D
 var alley_2: PiyestaRoom2D
 var _marks: Node2D
-## door_id -> the door, and door_id -> the inside it opens onto. Two dictionaries rather
-## than one because the dark pair have a door and no room, which is the point of them.
+## door_id -> the door, and door_id -> the inside it opens onto.
 var _doors: Dictionary = {}
 var _door_rooms: Dictionary = {}
 ## Where the player was standing when they went in, by room name. REMEMBERED ON THE WAY IN
@@ -247,10 +242,7 @@ func _roster_ids() -> PackedStringArray:
 
 # --- The plaza's doors, and the insides behind two of them ---------------------------
 
-## FOUR DOORS ON THE PLAZA. Two open onto rooms and two open onto nothing, and they are
-## drawn identically apart from the light under the lit one -- which is the design's own
-## instruction and the reason Path C reads as a search rather than as a walk to the only
-## interactive thing on screen.
+## TWO DOORS ON THE PLAZA. Both open onto rooms once their route has made them available.
 ##
 ## Built here rather than authored into the scene because they stand ON the marks, and the
 ## marks are what the scene probe measures against the plaza floor. Two sources for one
@@ -258,17 +250,8 @@ func _roster_ids() -> PackedStringArray:
 func _build_the_doors() -> void:
 	# ⚠ `tone` IS SAMPLED OFF THE PAINTING, at each door's own x. The plaza backdrop is placed
 	# so that world x is plate x, so these are medians of the plate under each mark, taken over
-	# the door's own height. They are not four shades of one stone: the dark pair stand in the
-	# shade under the kiosko stair and the other two are in full sun, and a door drawn in the
-	# same limestone as its neighbour two hundred units away reads as pasted on. See
-	# `PiyestaDoor2D.wall_tone`.
+	# the door's own height. See `PiyestaDoor2D.wall_tone`.
 	var plan: Array[Dictionary] = [
-		{"id": DOOR_DARK_A, "mark": "DarkHouseA", "lit": false, "room": null,
-			"tone": Color(0.310, 0.231, 0.039), # 4F3B0A, deep shade under the kiosko stair
-			"shut": "Shuttered. Nobody is home -- they are all out at the fiesta."},
-		{"id": DOOR_DARK_B, "mark": "DarkHouseB", "lit": false, "room": null,
-			"tone": Color(0.333, 0.251, 0.161), # 554029
-			"shut": "Dark inside. Not this one."},
 		{"id": DOOR_LIT_HOUSE, "mark": "LitHouse", "lit": true, "room": house,
 			"hut": true,
 			"tone": Color(0.749, 0.557, 0.380), # BF8E61, the sunlit house front

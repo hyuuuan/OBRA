@@ -6,7 +6,7 @@ extends Control
 ## while it is on screen, and an arrow at the edge of the frame pointing toward it while it is
 ## not. Payyo had a distance in the corner -- "GOAL 141 m" -- which says how far and not which
 ## way, and counts down to a house the level does not end at. Piyesta had nothing at all, in a
-## level that is four doors, a church, two alleys and a table.
+## level that is a plaza, a church, two alleys and a table.
 ##
 ## ⚠ IT DRAWS NOTHING WHEN THE PLAYER IS ALREADY THERE. A marker hovering over the apo's head
 ## while they stand at the right door is the game failing to notice they arrived.

@@ -2,32 +2,27 @@ class_name PiyestaDoor2D
 extends Node2D
 ## A door in the plaza wall, and the only way into anywhere in this level.
 ##
-## FOUR OF THEM AND ONLY TWO GO ANYWHERE. The two dark residential doors remain authored
-## street fronts; the lit, playable house and the church use their supplied plates.
-## A door that opens onto nothing is not a failure of this class -- it is the level's one
-## piece of misdirection.
+## TWO OF THEM, AND BOTH GO SOMEWHERE. The lit house and the church use their supplied
+## plates; the former dark decoy fronts and their interaction areas were removed together.
 ##
 ## THE LIGHT STILL HAS TO READ. A lit house has its lanterns burning and lamplight under the
-## leaves; a dark one has cold glass and a bar across the door. A player who has been told to
-## look for a house with a light in the window can read the answer from across the plaza.
+## leaves. A player who has been told to look for a house with a light in the window can read
+## the answer from across the plaza.
 ##
 ## ⚠ IT IS NOT A LOCK. Level 1's padlock judges the STROKES of a drawn key -- that mechanic
 ## is `WardLock2D` and the design says to reuse it, not to rebuild it. This class holds the
 ## door's state and says whether the player is standing in front of it. What opens it is the
 ## level's business.
 ##
-## PLACEHOLDER ART, but no longer a hole with nothing round it. The design lists a house door
-## set -- closed, lit from inside, keyhole, open -- that has not been delivered. Drawn to
-## `ART_PLACEHOLDERS.md` rules: real size, real trigger, and nothing implying an affordance it
-## does not have.
+## Both shipped fronts are supplied art. Code-drawn house pieces remain only as a defensive
+## fallback for another caller; Level 2 does not instantiate them.
 
 ## The apo is standing in front of this door, or has stepped away from it.
 signal at_door(standing: bool)
 
 ## What the level calls this one. The level matches on it rather than on node names.
 @export var door_id: String = ""
-## Light showing under it. The one difference between the house that matters and the two
-## that do not.
+## Light showing under it. This identifies the house the first route sends the player to.
 @export var lit := false
 ## Whether it can be walked through yet. A shut door still shows what it is -- it is not a
 ## blank wall -- so a player can see where they will be going before they can go.
@@ -55,8 +50,7 @@ const FACADE := Vector2(156.0, 214.0)
 ## The church's opening, which is a double door and a head taller than any house's.
 const PORTAL := Vector2(104.0, 176.0)
 ## How far either side of the door counts as standing at it. Wide enough that the player
-## does not have to be pixel-perfect, narrow enough that two doors cannot both claim them --
-## the plaza's dark pair are 200 apart.
+## does not have to be pixel-perfect.
 const REACH := Vector2(120.0, 170.0)
 
 ## The supplied hut is kept at source resolution and sampled from its transparent content
@@ -84,17 +78,9 @@ const CHURCH_OPEN_BASE_Y := -11.0
 
 ## ⚠ WALL TONE IS A LIGHT LEVEL NOW, NOT A COLOUR.
 ##
-## It is still sampled off the painting at this door's own x and handed in by the scene -- the
-## dark pair stand in the shade under the kiosko stair and the other two in full sun -- but it
-## no longer paints the stone. The first three versions of this door drew only a hole cut in
-## the painted wall, in that wall's colour, and that was right for as long as there was a
-## painted wall behind each door. There is not: the plaza is a painting of a plaza, and the
-## marks put doors in front of a palm, a dancer and a stretch of sky. Four brown boards
-## standing in the open is what the player saw, and it read as four boards.
-##
-## So a door brings the front it is set into -- plaster over a stone plinth, quoins at the
-## corners, a tile hood -- in the palette the painted houses are already made of, and takes
-## only its BRIGHTNESS from the plate, so a front standing in shade is darker than one in sun.
+## It is sampled off the painting at this door's own x and handed in by the scene. Supplied
+## plates keep their authored colour; this value lights the runtime open-door leaves and the
+## hut's lamp treatment so those state changes still belong in the surrounding painting.
 @export var wall_tone: Color = Color(0.612, 0.482, 0.302, 1.0)   # 9C7B4D, behind the dancers
 
 ## The painted houses' own materials: lime plaster, adobe stone, clay tile, narra.

@@ -326,10 +326,9 @@ follow from standing a level in front of a painting rather than on top of a tile
 * `build_plaza.py` trims the plates' 55-row letterbox, so `SkyFill` has to be the painting's
   own top sky (`Color(0, 0.533, 0.992, 1)`) or a jump shows a band of the wrong blue.
 * **A prop drawn in one fixed palette will be wrong somewhere in a painting.** `PiyestaDoor2D`
-  takes a `wall_tone` sampled off the plate at its own x (the backdrop is placed so world x IS
-  plate x) and models everything from it -- the two dark doors stand in deep shade under the
-  kiosko stair, the other two in full sun, and one limestone ramp for all four read as four
-  doors pasted on. `CheckpointLantern2D` is re-skinned the same way, by `checkpoint_stone` /
+  keeps a `wall_tone` sampled off the plate at its own x for state overlays on the two
+  supplied fronts; the former code-drawn dark decoys were removed. `CheckpointLantern2D` is
+  re-skinned the same way, by `checkpoint_stone` /
   `checkpoint_moss` meta on an ancestor: **set it in the .tscn, never as a static**, or the
   warm plaza stone follows the player back to Level 1's terrace.
 

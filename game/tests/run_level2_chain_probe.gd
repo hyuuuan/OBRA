@@ -108,27 +108,29 @@ func _room_name() -> String:
 ## authored by hand.
 func _audit_the_doors_are_on_the_plaza() -> void:
 	var doors := _doors()
-	_check(doors.size() == 4, "four doors on the plaza", "%d built" % doors.size())
+	_check(doors.size() == 2, "the two live entrances are on the plaza", "%d built" % doors.size())
 	var space := (level as Node2D).get_world_2d().direct_space_state
 	var floating: Array[String] = []
+	var ids: Array[String] = []
 	for node in doors:
 		var door := node as PiyestaDoor2D
+		ids.append(door.door_id)
 		var from := door.global_position - Vector2(0.0, 40.0)
 		var query := PhysicsRayQueryParameters2D.create(from, from + Vector2(0.0, 300.0))
 		query.collision_mask = 1
 		if space.intersect_ray(query).is_empty():
 			floating.append("%s over nothing" % door.door_id)
 	_check(floating.is_empty(), "and every one of them stands on it",
-		"4 doorsteps" if floating.is_empty() else "; ".join(floating))
-	# THE MISDIRECTION IS CONTENT. The design asks for the lit house to sit past two or
-	# three dark doors so the search reads as a search; if all four opened, or if only one
-	# existed, there would be nothing to search.
+		"2 doorsteps" if floating.is_empty() else "; ".join(floating))
+	_check(ids.has("lit_house") and ids.has("church"),
+		"and neither removed decoy keeps an invisible trigger",
+		", ".join(ids))
 	var lit := 0
 	for node in doors:
 		if (node as PiyestaDoor2D).lit:
 			lit += 1
-	_check(lit == 1, "and exactly one of them has a light on inside",
-		"%d lit, %d dark" % [lit, doors.size() - lit])
+	_check(lit == 1, "and the house still has its identifying light",
+		"%d lit entrance" % lit)
 
 
 ## ⚠ THE LIT HOUSE STOOD OUTSIDE THE BEAT IT BELONGS TO. "Something that can unlock gets you
