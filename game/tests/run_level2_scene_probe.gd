@@ -652,8 +652,8 @@ func _audit_the_plaza_is_not_empty() -> void:
 		"%s" % [frame_sizes])
 	var dancer_height := DancerGroup2D.DANCER_SOURCE_HEIGHT \
 		* DancerGroup2D.FRAME_RECT.size.y / frame_sizes[0].y
-	_check(dancer_height > APO_HEIGHT and dancer_height < APO_HEIGHT * 2.0,
-		"and the dancers are taller than the apo without looming",
+	_check(dancer_height > APO_HEIGHT * 1.1 and dancer_height < APO_HEIGHT * 1.3,
+		"and the dancers are only a little taller than the apo",
 		"%.0fpx dancers against a %.0fpx apo" % [dancer_height, APO_HEIGHT])
 	# They have to stand ON the mark the scene authored, because that mark is what the
 	# scare-reach check above is measured against.

@@ -220,8 +220,8 @@ lesson: **a level standing in front of a picture cannot bring its own palette.**
   repairs the palm poles, but runtime now fills that space with the three supplied troupe
   frames under `assets/Level2/dancers/`. They cycle 1 -> 2 -> 3 -> 2 in the plaza; choosing
   the Artist route plays a 2.4-second in-world phrase before the timing overlay opens. The
-  complete frame is drawn at 552 x 184 world pixels: its figures are about 166px tall,
-  still above the 96px apo without dominating the church frontage.
+  complete frame is drawn at 396 x 132 world pixels: its figures are about 119px tall,
+  just above the 96px apo without dominating the church frontage.
 * **The camera needed a floor of its own.** It rests at the bottom of `world_bounds`, which
   has to be well under the plaza so a fall is caught -- so it showed three hundred units of
   retaining wall. `WorldCameraController.world_bottom_y` (Piyesta: 722) stops it, and the

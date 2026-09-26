@@ -59,9 +59,9 @@ const FRAME_SECONDS := 0.24
 ## Long enough to see two full four-pose phrases after choosing to dance.
 const PUZZLE_LEAD_IN := 2.4
 ## From `DancersMark`: full source canvas fitted to the plaza, feet on y = 0. At this scale
-## the tallest painted figure is about 166px -- clearly taller than the 96px apo without
-## looming at twice their height. The negative x keeps the leftmost dancer on the old stand.
-const FRAME_RECT := Rect2(-50.0, -177.0, 552.0, 184.0)
+## the tallest painted figure is about 119px -- just taller than the 96px apo. The x offset
+## keeps the smaller troupe centred on the same point as the previous pass.
+const FRAME_RECT := Rect2(28.0, -127.0, 396.0, 132.0)
 ## Tallest stable alpha span across the three supplied frames, measured at source resolution.
 const DANCER_SOURCE_HEIGHT := 652.0
 ## Where they go. East, which is the way the player has not been yet -- running back past the
