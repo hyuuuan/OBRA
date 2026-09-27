@@ -3453,6 +3453,13 @@ func _requirements_per_route(obstacle_id: String) -> Dictionary:
 	for route_value: Variant in routes.keys():
 		var route := String(route_value)
 		var spec: Dictionary = routes[route]
+		# ⚠ A ROUTE THAT IS NOT DRAWN SAYS WHAT IT ASKS FOR IN ITS OWN WORDS. A route
+		# `answered_by` something found or done has no tags to phrase, so its button carried
+		# nothing at all -- Dagat's "I will walk the sand first" sat beside "NEEDS SWIM" and
+		# never said that walking the sand is how the boat is found.
+		if spec.has("choice_note"):
+			notes[route] = String(spec["choice_note"])
+			continue
 		notes[route] = RequirementStrip.phrase(
 			spec.get("required_tags", []), String(spec.get("match", "all")))
 	return notes
