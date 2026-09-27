@@ -71,6 +71,7 @@ var _inside_crossing := false
 
 ## Latches, so a lesson and a line are each spent once per run rather than once per frame.
 var _said_underwater := false
+var _said_the_jars := false
 var _brush_taken := false
 var _bangka_found := false
 ## Which seabed refills have been taken this run, by index. Run state, not profile: a
@@ -624,6 +625,31 @@ func _anchor_now() -> Vector2:
 	return anchor.global_position if anchor != null else player.global_position
 
 
+## ⚠ WHAT THE JARS ARE IS SAID WHEN ONE IS FIRST IN FRONT OF THE DIVER. Nothing did say it:
+## the only line about them was "you have to find more of it" at the moment the ink was nearly
+## gone, which names neither the jars nor where they are, and taking one said "that will hold you
+## a while longer" after the fact. Pale jars with a drop on them, standing on a seabed full of
+## scenery, read as scenery. So the first time a swimmer comes within reach of one, Lolo says
+## what it is and how it is taken -- once, and never while he is mid-sentence about something
+## else, which is the hint bar's own rule.
+const JAR_NOTICE_REACH := 360.0
+
+
+func _point_out_the_jars(anchor_position: Vector2) -> void:
+	for node_value: Variant in _refill_nodes.values():
+		var jar := node_value as Node2D
+		if jar == null or not is_instance_valid(jar):
+			continue
+		if jar.global_position.distance_to(anchor_position) > JAR_NOTICE_REACH:
+			continue
+		if hint_bar != null and hint_bar.has_method("is_showing") \
+				and bool(hint_bar.call("is_showing")):
+			return
+		_said_the_jars = true
+		_say_why("Those jars on the bottom are ink, apo. Swim through one and it is yours.")
+		return
+
+
 func _on_refill_touched(body: Node, index: int, amount: float, refill: Area2D) -> void:
 	if _refills_taken.has(index) or not _is_the_player(body):
 		return
@@ -805,6 +831,8 @@ func _level_physics(anchor_position: Vector2) -> void:
 		_said_underwater = true
 		if tutorial != null:
 			tutorial.note("underwater")
+	if underwater and not _said_the_jars:
+		_point_out_the_jars(anchor_position)
 
 	# ⚠ THE DRAIN ONLY RUNS WHILE A FORM IS HELD, and `_current_form_id` is the only thing
 	# that knows. Charging on "the player is not a Wanderer" would keep charging through the
@@ -1520,6 +1548,7 @@ func _level_run_state() -> Dictionary:
 	return {
 		"live_node": _live_node_obstacle,
 		"said_underwater": _said_underwater,
+		"said_the_jars": _said_the_jars,
 		"brush_taken": _brush_taken,
 		"bangka_found": _bangka_found,
 		"refills_taken": _refills_taken.duplicate(),
@@ -1532,6 +1561,7 @@ func _level_run_state() -> Dictionary:
 func _restore_level_run_state(state: Dictionary) -> void:
 	_live_node_obstacle = String(state.get("live_node", "L3_N1"))
 	_said_underwater = bool(state.get("said_underwater", false))
+	_said_the_jars = bool(state.get("said_the_jars", false))
 	_brush_taken = bool(state.get("brush_taken", false))
 	_bangka_found = bool(state.get("bangka_found", false))
 	_refills_taken = (state.get("refills_taken", []) as Array).duplicate()
