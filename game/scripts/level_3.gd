@@ -1761,6 +1761,12 @@ func _current_objective() -> Dictionary:
 			return {"key": "cross_by_boat", "target": _mark_position("SurfaceMark")}
 		return {"key": "cross_by_dive", "target": _mark_position("BakunawaMark")}
 	if not director.is_solved("L3_N2"):
+		# ⚠ ONCE CHOSEN, THE LINE IS ABOUT DOING IT. It went on saying "Decide what you are
+		# going to do about that" after the player had decided -- sneaking past, told to decide.
+		var chosen := {"pragmatist": "bakunawa_sneak", "artist": "bakunawa_light",
+			"protector": "bakunawa_fight"}.get(director.committed_route("L3_N2"), "") as String
+		if not chosen.is_empty():
+			return {"key": chosen, "target": _mark_position("BakunawaMark")}
 		return {"key": "bakunawa", "obstacle": "L3_N2",
 			"target": _mark_position("BakunawaMark")}
 	return {"key": "island", "target": _mark_position("IslandMark")}
