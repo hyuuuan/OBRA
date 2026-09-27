@@ -1602,7 +1602,38 @@ func _land_on_the_island() -> void:
 	# ⚠ AND LEVEL 4 INHERITS IT. Dilim being unguided is the point, so it has to carry its
 	# own signposting with nobody to explain anything. That is a Level 4 problem created here.
 	PlayerProfile.record_lolo_departed()
+	# ⚠ PAINTING FIRST, FAREWELL SECOND, THEN CUT -- and the cut used to come first. The
+	# completion was staged on the same frame the lines were queued, so the level-complete
+	# panel was on its way while Lolo was still speaking, and he never left: he was simply
+	# there when the screen changed. Now the lines are read, he waves and goes, and then the
+	# level ends.
+	await _the_island_is_said()
+	await _lolo_takes_his_leave()
 	_complete_level()
+
+
+func _the_island_is_said() -> void:
+	if dialogue_box != null and dialogue_box.has_method("is_open") \
+			and bool(dialogue_box.call("is_open")):
+		await dialogue_box.conversation_finished
+
+
+func _lolo_takes_his_leave() -> void:
+	if lolo == null or not is_instance_valid(lolo) or not lolo.has_method("farewell"):
+		return
+	lolo.call("farewell")
+	# The wall clock, not this node's process delta: the island may be paused while he goes.
+	var started := Time.get_ticks_msec()
+	var sparkled := false
+	var length := float(lolo.call("farewell_length"))
+	var waited := 0.0
+	while is_instance_valid(lolo) and not bool(lolo.call("is_gone")) and waited < length + 1.0:
+		await get_tree().process_frame
+		waited = float(Time.get_ticks_msec() - started) / 1000.0
+		# A few motes lift off him as he starts to go.
+		if not sparkled and waited > length * 0.45 and _life != null:
+			sparkled = true
+			_life.sparkle(lolo.global_position + Vector2(0.0, -30.0), 7, 30.0)
 
 
 func _come_ashore() -> void:
