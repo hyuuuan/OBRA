@@ -1473,7 +1473,18 @@ class _DriftingShadow extends Sprite2D:
 ## horizontal drive at all. Reverting them in open water instead would hand them straight to
 ## the drowning rescue. So the level reverts them AND puts them on the sand in one breath.
 func _on_island_reached(_checkpoint_id: String) -> void:
-	if _arrived or director == null or not director.is_solved("L3_N2"):
+	if _arrived or director == null:
+		return
+	# ⚠ REACHING THE ISLAND UNSEEN IS SLIPPING PAST IT, WHATEVER CARRIED THE PLAYER THERE.
+	# Slipping past was answered only at 420 px beyond the creature, and a boat cannot get
+	# there: its hull runs aground on the island with the passenger seated at x 4417. So a boat
+	# player who chose to go around it sat at the island's edge -- inside the sweep's reach,
+	# with the island's own checkpoint just written under them -- and was caught and put back
+	# there, over and over, with the level unable to end. Played through, not reasoned.
+	if director.committed_route("L3_N2") == "pragmatist" and not director.is_solved("L3_N2") \
+			and _bakunawa != null and not _bakunawa.sees(_anchor_now(), _carrying_a_lit_light()):
+		director.solve_with_item("L3_N2", "the dark")
+	if not director.is_solved("L3_N2"):
 		return
 	_arrived = true
 	# ⚠ DEFERRED, BECAUSE THIS ARRIVES FROM body_entered. Coming ashore reverts the player,
