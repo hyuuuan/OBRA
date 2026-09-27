@@ -93,6 +93,7 @@ func _run() -> void:
 	_audit_conditions_match_effects(level, dialogue)
 	_audit_shipping_state()
 	_audit_one_seabed(level)
+	await _audit_sea_marks()
 
 	for line in results:
 		print(line)
@@ -621,3 +622,75 @@ func _audit_one_seabed(level: Dictionary) -> void:
 		"sea, both shores and the coils all reach the bed at %.0f" % painted if sealed.is_empty()
 		else ", ".join(sealed))
 	scene.free()
+
+
+
+## ⚠ WHAT STANDS ON THE SEABED IS OF THE SEA. The checkpoint was a stone lantern with a fire in
+## it and the boards were wooden signposts: under the water the first was left off altogether
+## ("a lit lantern at the bottom of the sea is not a thing") and the second stood there anyway,
+## three pale planks on posts at the encounter. Under the sea they are a giant clam and a broken
+## pillar from the ruins -- see under_the_sea.gd -- and on the beach exactly what they were.
+##
+## Read off the real level, planted and settled, because both decide their form from where they
+## end up standing: a data check cannot see it.
+func _audit_sea_marks() -> void:
+	var level_scene := (load("res://level_3.tscn") as PackedScene).instantiate() as Node2D
+	(level_scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level_scene)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	for _frame in range(12):
+		await physics_frame
+	var bed := float((load(LEVEL_SCRIPT_PATH) as GDScript).get_script_constant_map()["BED_Y"])
+	var sea := level_scene.get_node("EnvironmentBaseplate/GameplayPlane/Sea") as Node2D
+	var surface := float(sea.call("surface_y"))
+	var sea_size: Vector2 = sea.get("surface_size")
+	var wrong: Array[String] = []
+	var floating: Array[String] = []
+	var under := 0
+	var over := 0
+	for node in level_scene.find_children("*", "", true, false):
+		var mark := node as Node2D
+		if mark == null:
+			continue
+		var is_lantern := node is CheckpointLantern2D
+		var is_sign := node is Signpost2D
+		if not is_lantern and not is_sign:
+			continue
+		var at := mark.global_position
+		var inside := at.y > surface + 8.0 and absf(at.x - sea.global_position.x) <= sea_size.x * 0.5
+		var sea_form := int(mark.get("form")) == 1 if is_lantern else bool(mark.get("_sea"))
+		if inside:
+			under += 1
+			if absf(at.y - bed) > 2.0:
+				floating.append("%s at y %.0f" % [mark.name, at.y])
+		else:
+			over += 1
+		if sea_form != inside:
+			wrong.append("%s at (%.0f, %.0f) is %s" % [mark.name, at.x, at.y,
+				"of the sea on dry land" if sea_form else "a land mark under the sea"])
+	_check(wrong.is_empty() and under > 0 and over > 0, "marks take the sea's forms under it",
+		"%d under the sea, %d on land, every one in its own form" % [under, over]
+		if wrong.is_empty() else ", ".join(wrong))
+	_check(floating.is_empty(), "and the sea's marks stand on the bed",
+		"all at %.0f" % bed if floating.is_empty() else ", ".join(floating))
+	var clam := level_scene.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/Obstacles/CP3b/Checkpoint") as Node2D
+	_check(clam != null and int(clam.get("form")) == 1,
+		"the checkpoint mid-encounter is marked",
+		"a clam on the bed under CP3b -- it was a line of text and nothing on screen")
+	# AND ONLY WHERE A LEVEL ASKS. A mark planted in this same sea by something that is not
+	# part of a level that opted in stays what it is: Payyo's paddy is water too.
+	var stranger := Node2D.new()
+	root.add_child(stranger)
+	stranger.global_position = Vector2(3000.0, 1400.0)
+	var loose := CheckpointLantern2D.plant(stranger, Vector2.ZERO)
+	var loose_sign := Signpost2D.plant(stranger, Signpost2D.Mark.HINT, Vector2.ZERO)
+	await physics_frame
+	await physics_frame
+	_check(loose != null and int(loose.get("form")) == 0 and not bool(loose_sign.get("_sea")),
+		"and only in a level that asks for them",
+		"the same water, no under_the_sea on the way up: a lantern and a board")
+	stranger.queue_free()
+	level_scene.queue_free()
+	await process_frame
+
