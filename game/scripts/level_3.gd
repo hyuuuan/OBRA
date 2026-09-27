@@ -831,6 +831,36 @@ const LANDING_REACH := 170.0
 var _shore_edges := Vector2.ZERO
 
 
+## ⚠ UNDER THE WATER THE CAMERA LOOKS DOWN, NOT UP. The level frames the player the way a land
+## level does -- 180 above them, so there is sky over their head -- and on the beach and in the
+## boat that is right. A swimmer at mid-depth, framed that way, had the seabed, the jars, the clam
+## and most of the bakunawa below the bottom of the screen: the stealth rule is "stay out of the
+## light", and the light was mostly off it. Played, not reasoned: a first-time sneak was caught by
+## a sweep it could not see.
+##
+## ⚠ FAR ENOUGH DOWN TO HAVE THE BED IN VIEW, NEVER SO FAR THE PLAYER LEAVES THE TOP. A fixed
+## look below the player was the first answer and it was not enough: a swimmer rides at about
+## 1150, five hundred and sixty above the bed, and sixty below them still left the jars cut off
+## by the bottom of the screen. So the camera looks down as far as it takes to put the bed 370
+## below its centre -- most of the way down the screen, the creature and its sweep above it -- but
+## no further than 240 below the player, which keeps them clear of the objective line. It eases
+## in over the first 300 px of depth, from the land framing at the surface.
+const SURFACE_LOOK := -180.0
+const LOOK_EASE_DEPTH := 300.0
+const BED_IN_VIEW := 370.0
+const MOST_LOOK := 240.0
+const LEAST_LOOK := 60.0
+
+
+func _frame_the_water(anchor_position: Vector2) -> void:
+	var world_camera := _world_camera()
+	if world_camera == null or not is_finite(_waterline_y):
+		return
+	var under := clampf((anchor_position.y - _waterline_y) / LOOK_EASE_DEPTH, 0.0, 1.0)
+	var deep_look := clampf(BED_Y - BED_IN_VIEW - anchor_position.y, LEAST_LOOK, MOST_LOOK)
+	world_camera.target_offset.y = lerpf(SURFACE_LOOK, deep_look, under)
+
+
 ## ⚠ THE APO ROWS. The design lists rowing with the waves, the wind and the gulls, and the
 ## boat crossed the whole of the Artist route with the apo standing in it, arms at their sides,
 ## while the hull slid over the sea on its own -- a boat being dragged, not rowed. The sheet has
@@ -922,6 +952,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_keep_the_passenger_aboard()
 	var delta := get_physics_process_delta_time()
 	_row(delta)
+	_frame_the_water(anchor_position)
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
 	_tell_the_crossing(anchor_position)
