@@ -219,15 +219,40 @@ func _plant_the_brush() -> void:
 	circle.radius = 44.0
 	shape.shape = circle
 	pickup.add_child(shape)
-	var art := Polygon2D.new()
-	art.polygon = PackedVector2Array([
-		Vector2(-26, 10), Vector2(14, -14), Vector2(22, -4), Vector2(-18, 20)])
-	art.color = Color(0.94, 0.86, 0.58, 1.0)
+	# ⚠ THE HUD'S OWN BRUSH, NOT A SECOND DRAWING OF ONE. What the apo picks up off the sand
+	# and what the ink panel carries for the rest of the run are the same tool, and two
+	# separate pictures of it are two things to keep in step. brush_full.png is 384 square
+	# with the brush across its middle, so the sprite is regioned to the ink and scaled to
+	# the size the design asks for -- a tool lying in the sand, not a shell.
+	var art := Sprite2D.new()
+	art.name = "Brush"
+	art.texture = load("res://assets/hud/brush_full.png") as Texture2D
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.region_enabled = true
+	art.region_rect = Rect2(6.0, 156.0, 366.0, 66.0)
+	art.scale = Vector2.ONE * 0.26
+	art.rotation = -0.18
+	art.position = Vector2(0.0, 6.0)
 	pickup.add_child(art)
 	pickup.global_position = mark.global_position
 	pickup.z_index = 8
 	mark.get_parent().add_child(pickup)
 	pickup.body_entered.connect(_on_brush_touched.bind(pickup))
+	# ⚠ "Something in the sand is catching the light" is the objective this level prints while
+	# the brush is on the beach, so something had better catch the light. A slow lift and a
+	# glint every few seconds; both go with the pickup when it is taken.
+	var lift := art.create_tween().set_loops()
+	lift.tween_property(art, "position:y", 0.0, 1.4).set_trans(Tween.TRANS_SINE) \
+		.set_ease(Tween.EASE_IN_OUT)
+	lift.tween_property(art, "position:y", 6.0, 1.4).set_trans(Tween.TRANS_SINE) \
+		.set_ease(Tween.EASE_IN_OUT)
+	var glint := Timer.new()
+	glint.wait_time = 2.4
+	glint.autostart = true
+	pickup.add_child(glint)
+	glint.timeout.connect(func() -> void:
+		if _life != null and is_instance_valid(_life) and is_instance_valid(pickup):
+			_life.sparkle(pickup.global_position + Vector2(14.0, -8.0), 3, 24.0))
 
 
 ## THE BOAT IS FOUND, NOT DRAWN -- the design decided it, on the grounds that finding fits
@@ -246,10 +271,16 @@ func _plant_the_bangka() -> void:
 	_bangka.name = "BeachedBangka"
 	_bangka.collision_layer = 0
 	_bangka.collision_mask = 0
-	var art := Polygon2D.new()
-	art.polygon = PackedVector2Array([
-		Vector2(-70, 0), Vector2(70, 0), Vector2(52, 26), Vector2(-52, 26)])
-	art.color = Color(0.45, 0.31, 0.19, 1.0)
+	var art := Sprite2D.new()
+	art.name = "Hull"
+	art.texture = load(AUTHORED + "bangka_beached.png") as Texture2D
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# ⚠ PINNED BY THE SAND LINE IN THE PICTURE, NOT BY THE SPRITE'S MIDDLE. The drawing is a
+	# 132-tall canvas with the hull lying across its lower third, so centred on the mark the
+	# boat floated a good fifty pixels over the beach. See BANGKA_WATERLINE in
+	# tools/build_dagat_props.py: the sand row is 117 down a 132 sprite, and the mark is 20
+	# above the sand the apo walks on.
+	art.position = Vector2(0.0, -31.0)
 	_bangka.add_child(art)
 	_bangka.global_position = mark.global_position
 	_bangka.z_index = 6
@@ -938,7 +969,45 @@ func _launch_the_bangka() -> void:
 	# down to the seabed, and it launched perched on the corner of the beach.
 	boat.global_position = Vector2(mark.global_position.x + 170.0, mark.global_position.y + 10.0)
 	boat.confirm_placement()
+	_dress_the_bangka(boat)
 	_say_why("Somebody left this and never came back for it. Get in, apo.")
+
+
+## ⚠ THE ONE OBJECT IN THE GAME THAT IS FOUND RATHER THAN DRAWN, and therefore the one that
+## cannot get its picture from the player's ink. Everything else placed in the world is built
+## out of the strokes somebody made on the canvas; this boat has none, so it wore the engine's
+## bare outline -- a white wireframe trapezium -- for the whole of the crossing the Artist
+## route is named after.
+##
+## ⚠ THE OUTLINE IS STILL WHAT THE HULL IS. The strokes handed to apply_item_data build the
+## collision, the draft, the buoyancy and the seat that run_level3_boat_probe measured; this
+## only turns the ink off and hangs the picture where the ink was, so the boat looks different
+## and behaves identically. Anything that changed the shape would have to be re-measured.
+func _dress_the_bangka(boat: Node2D) -> void:
+	var picture := load(AUTHORED + "bangka_afloat.png") as Texture2D
+	if picture == null:
+		return
+	# ⚠ THE INK IS NOT UNDER `DrawingSkin`. For rig_type "none" RuntimeRig2D hangs its
+	# `SkinRoot` -- the Line2D per stroke, and the white halo under each -- off the PRIMARY
+	# BODY, which for a physics object is the RigidBody2D itself. Hiding the skin node left
+	# the outline drawn straight over the picture. Both go, and they go on every call rather
+	# than only the first, because a restore that re-launches the boat rebuilds them.
+	for node_name in ["SkinRoot", "DrawingSkin"]:
+		var ink := boat.find_child(node_name, true, false) as CanvasItem
+		if ink != null:
+			ink.visible = false
+	if boat.has_node(^"PaintedBangka"):
+		return
+	var art := Sprite2D.new()
+	art.name = "PaintedBangka"
+	art.texture = picture
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# Pinned by the hull's waterline in the picture, not by the sprite's middle: the canvas
+	# carries sixty pixels of mast over a hull sixty-five deep, so centred on the body the
+	# boat rode a third of a hull under the sea. The waterline is row 90 of 132 (see
+	# BANGKA_WATERLINE), and the body floats HULL_DRAFT under the surface.
+	art.position = Vector2(0.0, -24.0 - UtilityObject.HULL_DRAFT)
+	boat.add_child(art)
 
 
 # --- The two forks -----------------------------------------------------------------------
@@ -1020,8 +1089,40 @@ func _lose_the_stretch(why: String) -> void:
 	_reset_cooldown = 1.4
 	_knocks = 0
 	_return_to_safety(why, "%s" % why)
+	_stand_them_clear_of_it()
 	if _bakunawa != null and _bakunawa.state() == BakunawaClass.State.FIGHTING:
 		_bakunawa.enter_fight()
+
+
+## ⚠ A CHECKPOINT RECORDS WHERE THE PLAYER WAS, NOT WHERE ITS NODE IS. CP3b's volume is 220
+## wide and the snapshot is taken at whatever point inside it the apo happened to cross, so on
+## the stealth route the place a reset returns to is regularly INSIDE the creature's cone --
+## measured at 384 px from a thing that sees 460, with two further resets in the ten seconds
+## after, the player having done nothing at all. It is not a soft lock: they can swim out
+## inside the grace. It is worse than it sounds anyway, because a checkpoint you can be caught
+## standing on is not a checkpoint, and the design's whole reason for putting one mid-encounter
+## is that losing the stretch should cost it ONCE.
+##
+## Moving the volume does not fix it. The snapshot is taken wherever the body crossed, and a
+## player coming back from the east crosses at the volume's far edge. The reach is what has to
+## be answered, so the reach is what this measures against.
+##
+## Their depth is kept, and the distance west is made up only as far as it has to be.
+func _stand_them_clear_of_it() -> void:
+	if _bakunawa == null or not is_instance_valid(_bakunawa):
+		return
+	if player == null or not is_instance_valid(player) \
+			or not player.has_method("apply_morph_state"):
+		return
+	var clear_x := _bakunawa.global_position.x - BakunawaClass.CONE_LENGTH - 100.0
+	var anchor := _anchor_now()
+	if anchor.x <= clear_x:
+		return
+	# ⚠ SHIFTED, NOT SET. apply_morph_state moves the body; the anchor is what the sweep is
+	# measured against and the two are not the same node on a rig.
+	player.call("apply_morph_state", {
+		"position": player.global_position + Vector2(clear_x - anchor.x, 0.0),
+		"linear_velocity": Vector2.ZERO})
 
 
 func _on_route_solved(obstacle_id: String, route: String) -> bool:

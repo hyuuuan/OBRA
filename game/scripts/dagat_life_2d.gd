@@ -69,9 +69,26 @@ func _process(delta: float) -> void:
 		if _thunder_clock <= 0.0:
 			_thunder_clock = _rng.randf_range(5.0, 11.0)
 			_lightning(weather)
+	_thin_the_flock(delta)
 	_trail_the_boat(delta)
 	_breathe(delta)
 	_churn(delta)
+
+
+## ⚠ A GULL IS SENT OVER A CALM SKY AND THEN FLIES FOR TEN SECONDS. The check that keeps them
+## off the storm is made where they are SENT, which is right and not enough: the crossing is
+## one continuous world, so a bird launched over the beach travels into weather that did not
+## exist when it left, and three of them were last seen over a thunderstorm with lightning
+## behind them. They climb out of it and are gone, rather than vanishing on a line.
+func _thin_the_flock(delta: float) -> void:
+	for node in get_tree().get_nodes_in_group(GULLS):
+		var gull := node as Node2D
+		if not is_instance_valid(gull) or _weather_at(gull.global_position.x) < 0.4:
+			continue
+		gull.set("drift", Vector2(gull.get("drift")) + Vector2(0.0, -38.0 * delta))
+		gull.modulate.a -= delta * 1.5
+		if gull.modulate.a <= 0.0:
+			gull.queue_free()
 
 
 ## How stormy it is over this x, 0..1 -- the storm band's own fade, times however far it has
@@ -105,6 +122,10 @@ func _sprite(prefix: String, fps: float, loop := true) -> _Flipbook:
 
 # --- Gulls ---------------------------------------------------------------------------------
 
+## Gulls are swept for one reason only -- see _thin_the_flock.
+const GULLS := &"dagat_gull"
+
+
 ## A few gulls across the sky in view, all going the same way. Public because the opening
 ## sends a flock over on purpose.
 func send_gulls(at: Vector2, count: int, rightward := -1) -> void:
@@ -125,6 +146,7 @@ func send_gulls(at: Vector2, count: int, rightward := -1) -> void:
 		gull.bob = _rng.randf_range(5.0, 10.0)
 		gull.lifetime = (view.x * 1.4) / absf(gull.drift.x)
 		gull.phase = float(index)
+		gull.add_to_group(GULLS)
 		add_child(gull)
 		gull.global_position = Vector2(start_x - (1.0 if going_right else -1.0) * index * 46.0,
 			height + index * _rng.randf_range(-18.0, 18.0))
@@ -148,19 +170,32 @@ func _release_the_jellies() -> void:
 
 # --- The surf, against both shores ---------------------------------------------------------
 
+## ⚠ IT HAS TO BREATHE, OR IT IS A RULER. Flat strips at a fixed y read as a dashed line
+## ruled along the waterline -- the eye finds the repeat before it finds the foam -- so the
+## strip rides its own bob and sway and moves as water rather than sitting as a mark.
+##
+## ⚠ ONE STRIP, AGAINST THE SAND. There were three end to end, reaching four hundred pixels
+## out, because the clump that ended each shore stood that far out over the shallows. The clump
+## stands on the land now, and three strips of foam running out across open water from a sandy
+## edge read as a rope lying on the sea. What is left laps the foot of the sand's own slope.
 func _plant_the_surf() -> void:
 	for edge in [[shore_edges.x, false], [shore_edges.y, true]]:
-		for strip in range(2):
-			var surf := _sprite("foam", 3.0 + float(strip) * 0.4)
+		var seaward := bool(edge[1])
+		for strip in range(1):
+			var surf := _sprite("foam", 2.6 + float(strip) * 0.7)
 			surf.centered = false
-			surf.phase = float(strip) * 1.3
-			surf.flip_h = bool(edge[1])
+			surf.phase = float(strip) * 1.3 + (2.1 if seaward else 0.0)
+			surf.bob = 2.0 + float(strip)
+			surf.bob_speed = 0.9 + 0.17 * float(strip)
+			surf.sway = 3.0 + 2.0 * float(strip)
+			surf.flip_h = seaward
 			surf.z_index = -148
 			add_child(surf)
 			var width := float(surf.frames[0].get_width()) if not surf.frames.is_empty() else 144.0
-			var x := float(edge[0]) + (width * strip if not bool(edge[1]) else -width * (strip + 1))
-			surf.global_position = Vector2(x, waterline_y - 14.0)
-			surf.modulate = Color(1.0, 1.0, 1.0, 0.95 - 0.35 * float(strip))
+			var x := float(edge[0]) + (width * strip if not seaward else -width * (strip + 1))
+			surf.home = Vector2(x, waterline_y - 14.0 + 3.0 * float(strip))
+			surf.global_position = surf.home
+			surf.modulate = Color(1.0, 1.0, 1.0, 0.95 - 0.32 * float(strip))
 
 
 # --- The storm -----------------------------------------------------------------------------

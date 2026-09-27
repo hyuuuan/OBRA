@@ -71,6 +71,15 @@ const SHELF_FACE := "res://assets/Level3/authored/shelf_face.png"
 ## each other cut from noon to night at one pixel; a band that fades in over a thousand
 ## pixels is the buildup. Zero means "always at full", which is what the other two want.
 @export var fade_span := Vector2.ZERO
+## ⚠ WHERE THIS BAND'S SEA AND SKY LEAVE, THE LAND STAYING. The shore band cannot use
+## `fade_span`: the island the crossing arrives at is ITS sand and ITS palms, four thousand
+## pixels into the storm, so fading the whole band out takes the island with it. But its far
+## layers are a beach SEEN FROM THE FRONT -- a horizon, a band of sea receding to it, and
+## breakers running up a beach -- and the storm's are the same sea SEEN FROM THE SIDE. Both
+## drawn at once is two horizons at two heights with two sets of waves between them, which is
+## what the crossing looked like for the whole stretch the storm was fading in over. Layers
+## marked `far` leave across this instead, so exactly one sea is ever being looked at.
+@export var far_fade_span := Vector2.ZERO
 
 ## ⚠ THE STACK, FURTHEST FIRST. `rate` is the parallax factor: 0 is painted on the far wall
 ## and never moves, 1 travels with the world. `fps` turns a layer into an animation.
@@ -86,58 +95,106 @@ const SHELF_FACE := "res://assets/Level3/authored/shelf_face.png"
 ##   deep              -230..-215   the water column and its floor -- with the storm's
 ##                                  underside slotted at -228, between the two
 ##   storm             -212..-193   sky, clouds, islands, the waves, the shores
-##   shore ground      -165..-160   sand and palms: nearer than any sea, behind the player
+##   shore ground      -165..-160   sand, the rock under it, then the palms: nearer than
+##                                  any sea, behind the player. ⚠ THE SHELF GOES BEHIND THE
+##                                  PALMS, not in front. At -150 the face's sand lip was
+##                                  drawn over the rocks the clump ends the beach with, as a
+##                                  pale smear across them.
 ##   storm rain          60         in front of everything
 const BANDS := {
 	"shore": [
 		# The sky's clouds drift of their own accord, slowly; the storm's are driven.
-		{"key": "shore/sky", "rate": 0.15, "z": -250, "drift": 5.0},
-		{"key": "shore/mountains", "rate": 0.35, "z": -245},
-		{"key": "shore/ocean", "rate": 0.55, "z": -240},
+		# ⚠ THE SKY IS NOT PART OF THE SEA. The other three far layers are a beach seen from
+		# the front and have to go when the side view arrives; the sky over that beach is the
+		# sky over the open water too, and taking it with them left a flat blue lid with
+		# nothing in it for the first third of the crossing. It leaves with the LIGHT
+		# instead, as the storm's own clouds come in over it.
+		#
+		# ⚠ MIRRORED, AND MEASURED THIS TIME. It was left straight on the reasoning that its
+		# join was invisible. It is not: 127 of its rows differ by more than 30 of 255 across the
+		# join, because a cloud runs off the plate's right edge and is not waiting at its left,
+		# so the first screen of the level had a cloud cut off down a ruled line -- and the sky
+		# drifts, so the line slid across it. A mirrored copy meets its own edge, which for
+		# clouds is a longer cloud, and `slide_speed` already wraps at two plates.
+		{"key": "shore/sky", "rate": 0.15, "z": -250, "drift": 5.0, "day": true, "mirror": true},
+		{"key": "shore/mountains", "rate": 0.35, "z": -245, "far": true},
+		{"key": "shore/ocean", "rate": 0.55, "z": -240, "far": true, "mirror": true},
 		# The surf is foam over a still sea, so it moves a little faster than the water it
 		# sits on and slower than the sand -- which is what makes the beach read as nearer.
-		{"key": "shore/surf", "rate": 0.70, "z": -235, "fps": 3.0},
+		{"key": "shore/surf", "rate": 0.70, "z": -235, "fps": 3.0, "far": true, "mirror": true},
+		# ⚠ THE SAND STOPS WHERE THE GROUND DOES. It ran 64 past the land to hold up a rock
+		# that stood out over the sea; with nothing standing out there any more, sand past the
+		# collision edge is only a place the apo walks off and falls through painted beach.
 		{"key": "shore/sand", "rate": 1.00, "z": -165, "ground": true},
 		# ⚠ PIECES, NOT TILES. Each palm plate is one clump drawn at one edge of a 1672 canvas:
 		# a palm and rocks at the far left, or a sand spit ending in rocks and a palm at the
 		# right. Tiled and mirrored, a clump of palms stood every screen along the beach and
-		# out across the open sea. So each is cut to the clump and set down once, at an end of
-		# the land -- and at the island, which faces the other way, mirrored.
+		# out across the open sea. So each is cut to the clump and set down once, whole, at the
+		# landward end of one beach -- see the palm rows below.
 		# ⚠ WHAT THE LAND STANDS ON, UNDER THE WATER. The sand plate stops 150 pixels below
 		# the walking surface and the sea goes on for a thousand more, so the deep's ruins
 		# showed through under the beach. Authored rock from the plate's last row down, and a
-		# ragged face with lit ledges where it meets the water -- the face's rock edge lands
-		# on the land's own collision edge, so a diver stops where the rock looks to be.
-		{"key": SHELF_FILL, "rate": 1.00, "z": -150, "ground": true, "top_row": 941.0,
+		# ragged face where it meets the water -- the face's rock edge lands on the land's own
+		# collision edge, so a diver stops where the rock looks to be. Blocks, like the painted
+		# terraces, and nothing standing out of the face: see build_dagat_props.py.
+		{"key": SHELF_FILL, "rate": 1.00, "z": -163, "ground": true, "top_row": 941.0,
 			"mirror": false, "seaward_trim": 48.0},
-		{"key": SHELF_FACE, "rate": 1.00, "z": -149, "top_row": 941.0, "pieces": [
-			{"at": "home_ground.y", "nudge": 60.0, "align": "right"},
-			{"at": "island_ground.x", "nudge": -60.0, "align": "left", "flip": true},
+		# ⚠ 790, THE SURFACE THE APO WALKS ON, not 941. See the lip in build_dagat_props.py:
+		# the face begins where the sand does, so the land's seaward edge is ragged the whole way
+		# down instead of a ruled cut through the sand with a ragged rock starting under it.
+		{"key": SHELF_FACE, "rate": 1.00, "z": -162, "top_row": 790.0, "pieces": [
+			{"at": "home_ground.y", "nudge": 64.0, "align": "right"},
+			{"at": "island_ground.x", "nudge": -64.0, "align": "left", "flip": true},
 		]},
 		# The palms lean in the wind -- see shaders/wind_sway.gdshader. A shear of the whole
 		# clump with its foot held, so the rocks it stands on do not move with it.
-		{"key": "shore/palms_left", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.30),
+		#
+		# ⚠ EVERY PIECE STANDS ON THE LAND, AND THIS IS THE THIRD ANSWER. The two plates are one
+		# clump split across the plate's border: `palms_left` is CUT at its column 0 and tapers
+		# to nothing by 478, `palms_right` starts from nothing at 690 and is CUT at 1672. The
+		# first answer put a cut side against open water, which read as the land guillotined.
+		# The second rebuilt the clump across the border -- and set the rebuilt half OUT OVER THE
+		# SEA, 360 pixels of rock and palm past the collision edge at each end of the crossing,
+		# cut flat along the plate's last row with water showing under it. It looked like ground
+		# and was not: the apo walked onto it and fell into the sea, which is what "cropped" and
+		# "not connected" were.
+		#
+		# So each plate is set down whole, as the CompletedLook sets it: `palms_left` at the
+		# landward end of the home beach, `palms_right` at the landward end of the island. Each
+		# cut side is at the end of the world, where the camera's own limit (116 / 5380) keeps
+		# it off the screen, and each natural taper faces the water, so both beaches run out
+		# into open sand and end on sand -- which is where the edge of the land is drawn.
+		{"key": "shore/palms_left", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.28),
 			"pieces": [
 			{"crop": Vector2(0, 478), "at": "home_ground.x", "align": "left"},
-			{"crop": Vector2(0, 478), "at": "island_ground.y", "align": "right",
-				"flip": true},
 		]},
-		{"key": "shore/palms_right", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.26),
+		{"key": "shore/palms_right", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.28),
 			"pieces": [
-			{"crop": Vector2(690, 1672), "at": "home_ground.y", "align": "right"},
-			{"crop": Vector2(690, 1672), "at": "island_ground.x", "align": "left",
-				"flip": true},
+			{"crop": Vector2(690, 1672), "at": "island_ground.y", "nudge": 100.0,
+				"align": "right"},
 		]},
 	],
 	"deep": [
-		{"key": "deep/water", "rate": 0.15, "z": -230},
+		{"key": "deep/water", "rate": 0.15, "z": -230, "mirror": true},
 		{"key": "deep/ridges", "rate": 0.35, "z": -225, "floor": true},
-		{"key": "deep/ruins", "rate": 0.55, "z": -220, "floor": true},
-		{"key": "deep/terraces", "rate": 0.80, "z": -215, "floor": true},
+		{"key": "deep/ruins", "rate": 0.55, "z": -220, "floor": true, "mirror": true},
+		# ⚠ RATE 1.00, BECAUSE THIS ONE IS THE FLOOR. Every other layer here is scenery and
+		# lags the camera to read as distance; this is the seabed the coral, the kelp, the six
+		# ink jars and the signposts STAND ON, and those are placed in the gameplay plane at
+		# world rate. At 0.80 the painted bed slid 200 px west for every 1000 the camera
+		# travelled -- seven hundred across the crossing -- so a jar that began on a ledge
+		# finished over a gap and the ledges themselves drifted through everything standing on
+		# them. Ground is ground: the shore's sand is 1.00 for the same reason.
+		{"key": "deep/terraces", "rate": 1.00, "z": -215, "floor": true, "mirror": true},
 	],
 	"storm": [
-		{"key": "storm/clouds", "rate": 0.15, "z": -210, "drift": -16.0},
-		{"key": "storm/islands", "rate": 0.35, "z": -205},
+		# ⚠ MIRRORED, for the same reason as the shore's sky: the bank's underside is opaque on
+		# one side of the join and empty on the other for 29 rows, which drifting at 16 px/s was
+		# a vertical step sliding across the storm.
+		{"key": "storm/clouds", "rate": 0.15, "z": -210, "drift": -16.0, "weather": true,
+			"mirror": true},
+		# ⚠ LATE, like the shores below: its foot stands behind the waves. See `late`.
+		{"key": "storm/islands", "rate": 0.35, "z": -205, "late": true},
 		# ⚠ UNDER THE DEEP'S FLOOR, NOT OVER IT, AND CARRIED DOWN BELOW ITS OWN LAST ROW. The
 		# underside is the storm plate's own seabed -- rocks and weed down to the plate's edge
 		# -- and the level's water goes on for a thousand pixels past that, so drawn as it
@@ -147,33 +204,52 @@ const BANDS := {
 		# and ruins, and its bottom row's colour carries on down, so under a storm the column
 		# is dark all the way to the seabed and the floor still stands in front of it.
 		{"key": "storm/undersea", "rate": 0.50, "z": -228,
-			"fill_below": Color(0.012, 0.094, 0.208, 1.0)},
-		{"key": "storm/waves", "rate": 0.80, "z": -195, "fps": 4.0},
-		# In FRONT of the waves and at their rate: the jetty's posts stand in the water, and a
-		# headland behind the sea it stands in reads as a picture of a headland pasted on.
+			# ⚠ THE PLATE'S OWN LAST ROW, SAMPLED. It was #031735 and the rows above it are
+			# #04102a -- bluer and lighter by enough to draw a line across the column where
+			# the two met.
+			"fill_below": Color(0.016, 0.063, 0.165, 1.0), "mirror": true},
+		{"key": "storm/waves", "rate": 0.80, "z": -195, "fps": 4.0, "mirror": true},
+		# ⚠ BEHIND THE WAVES, AND THIS IS THE SECOND ANSWER TO THE SAME QUESTION. It was in
+		# FRONT of them, on the reasoning that the jetty's posts stand in the water and a
+		# headland drawn behind the sea it stands in reads as a picture pasted on. True, and it
+		# bought a worse problem: at the waves' own rate, in front of them, with a deck at the
+		# waterline, it read as somewhere to stand -- and it is scenery, so walking onto it is
+		# something the level cannot let anybody do. Reported as exactly that. The sea in front
+		# of its base, and lifted clear of the front crest, puts it out there instead of here.
 		#
-		# ⚠ EACH WITH A MIRRORED TWIN ON ITS CUT SIDE. Both were painted as the edges of one
-		# picture: the headland's rocks run off the plate's left border and the island's off
-		# its right, so set down on their own in open sea each ended in a ruled vertical line.
-		# The land part (not the jetty, not the buoy) is mirrored against that line, which
-		# turns the cut into the middle of an islet. The twin shares its piece's landmark, so
-		# the two drift as one thing.
-		# A storm leans them much harder.
-		{"key": "storm/shores", "rate": 0.80, "z": -193, "sway": Vector2(11.0, 0.55),
-			"pieces": [
-			{"crop": Vector2(0, 536), "at": "headland_x", "align": "center"},
-			{"crop": Vector2(0, 270), "at": "headland_x", "nudge": -268.0, "align": "right",
-				"flip": true},
-			# ⚠ LIFTED 110. The two halves of this plate were not drawn on one waterline:
-			# with the jetty's deck at the boat's, the buoy's float sat a hundred pixels under
-			# the front wave. The CompletedLook has both in the same water.
+		# ⚠ AND THE CUT SIDE IS ANSWERED BY THE PLATE'S OWN TAIL, NOT BY A MIRROR. Both halves
+		# were painted as the edges of one picture -- the headland runs off the left border, the
+		# far island off the right -- and a mirrored twin against the cut turned the headland
+		# into a symmetrical butterfly with a jetty out of each side of it. But the plate tiles:
+		# its column 1672 and its column 0 are the same rock, so the tail of it laid against the
+		# head rebuilds one island. Same fix as the beach's palms, same reason.
+		#
+		# ⚠ AND NOTHING OF IT BELOW PLATE ROW 650, WHICH IS WHERE THE WAVES STOP HIDING IT.
+		# The waves' band runs from the horizon down to a front crest whose lowest edge is row
+		# 652 in the shallowest of the three frames, and the headland's rocks go down to 777.
+		# Lifted 70, their last 55 rows came out from under the front wave as a slab of lit rock
+		# lying under the sea with the island standing above it -- "the islands below the
+		# ocean". Whatever is under the water is cut, not merely lifted: a lift big enough to
+		# hide it would float the headland off its own horizon.
+		{"key": "storm/shores", "rate": 0.80, "z": -196, "sway": Vector2(11.0, 0.55),
+			"sunk_row": 650.0, "late": true, "pieces": [
+			{"crop": Vector2(0, 536), "at": "headland_x", "align": "center", "lift": 70.0},
+			# ⚠ FROM 1470, NOT 1400: the ink buoy stands at 1310..1465, and the far island
+			# carries it. Cut at 1400, the headland had half a buoy sign standing in the water
+			# beside it -- hidden by the waves at full strength, and a ghost of half a sign
+			# while the storm faded in.
+			{"crop": Vector2(1470, 1672), "at": "headland_x", "nudge": -268.0,
+				"align": "right", "lift": 70.0},
+			# ⚠ LIFTED 110. The two halves of this plate were not drawn on one waterline: with
+			# the jetty's deck at the boat's, the buoy's float sat a hundred pixels under the
+			# front wave. The CompletedLook has both in the same water.
 			{"crop": Vector2(1306, 1672), "at": "far_island_x", "align": "center",
 				"lift": 110.0},
-			{"crop": Vector2(1480, 1672), "at": "far_island_x", "nudge": 183.0,
-				"align": "left", "flip": true, "lift": 110.0},
+			{"crop": Vector2(0, 190), "at": "far_island_x", "nudge": 183.0, "align": "left",
+				"lift": 110.0},
 		]},
 		# Rain falls in front of everything, fast, and never repeats the sea's rhythm.
-		{"key": "storm/rain", "rate": 1.00, "z": 60, "fps": 10.0},
+		{"key": "storm/rain", "rate": 1.00, "z": 60, "fps": 10.0, "weather": true},
 	],
 }
 
@@ -184,8 +260,18 @@ const BANDS := {
 ## stretch the storm fades in over, so the two arrive together.
 @export var night_span := Vector2.ZERO
 @export var night_tint := Color.WHITE
+## ⚠ AND WHAT THE BAND LOOKS LIKE BEFORE THE NIGHT ARRIVES. The storm's sea is painted for
+## the end of the crossing -- thunderheads, dark water -- and it now replaces the beach's sea
+## as the player leaves the sand, six hundred pixels out, where the design still wants
+## daylight. WHITE leaves a band at its painted value, which for the shore and the deep is
+## right; the storm brightens back toward the light it is arriving in and darkens into its own
+## over night_span, so the buildup the design asks for is carried by the LIGHT rather than by
+## which picture is being drawn.
+@export var day_tint := Color.WHITE
 
 var _layers: Array[Node2D] = []
+## The band's own flat sky, if it has one. See sky_colour -- it comes in with the clouds.
+var _sky: Polygon2D
 ## How far the storm has cleared, 0..1. The storm is over when the bakunawa is -- see
 ## clear_the_sky -- and this is what every band's night and every storm's alpha answer to.
 var _clearing := 0.0
@@ -205,6 +291,11 @@ func _ready() -> void:
 			Vector2(span.x - reach, -4000.0), Vector2(span.y + reach, -4000.0),
 			Vector2(span.y + reach, bottom), Vector2(span.x - reach, bottom)])
 		add_child(sky)
+		# ⚠ IT BACKS THE CLOUDS, SO IT ARRIVES WITH THEM. This is here because the storm's
+		# clouds are a strip with nothing painted over them; with the clouds now held back to
+		# the night's own stretch, a lid of flat navy that came in with the SEA put a starless
+		# midnight over a bright choppy daylight ocean one screen out from a sunny beach.
+		_sky = sky
 	var manifest := _manifest()
 	for row_value: Variant in BANDS.get(band, []):
 		var row: Dictionary = row_value
@@ -224,6 +315,7 @@ func _ready() -> void:
 				layer.crop = piece.get("crop", Vector2(0.0, float(frames[0].get_width())))
 				layer.flipped = bool(piece.get("flip", false))
 				layer.lift = float(piece.get("lift", 0.0))
+				layer.sunk_row = float(row.get("sunk_row", 0.0))
 				layer.place_piece(at, float(piece.get("nudge", 0.0)),
 					String(piece.get("align", "center")))
 				add_child(layer)
@@ -241,7 +333,7 @@ func _ready() -> void:
 					layer.span = Vector2(ground.x, ground.y - trim)
 				else:
 					layer.span = Vector2(ground.x + trim, ground.y)
-				layer.mirrored_tiles = bool(row.get("mirror", true))
+				layer.mirrored_tiles = bool(row.get("mirror", false))
 				layer.grounded = true
 				add_child(layer)
 				_layers.append(layer)
@@ -266,6 +358,11 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 	if row.has("sway"):
 		layer.sway = row["sway"]
 	layer.slide_speed = float(row.get("drift", 0.0))
+	layer.far = bool(row.get("far", false))
+	layer.mirrored_tiles = bool(row.get("mirror", false))
+	layer.weather = bool(row.get("weather", false))
+	layer.day = bool(row.get("day", false))
+	layer.late = bool(row.get("late", false))
 	if row.has("top_row"):
 		# An authored texture is not on the plate at all; it says which plate row it
 		# starts at, and it repeats at its own width rather than the plate's.
@@ -283,10 +380,39 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 		# than both. A one-row overlap was a hairline across the whole crossing; "fixing" it
 		# by overlapping three rows made it three times as thick. Both edges are whole pixels.
 		var top := plate_top + float(frames[0].get_height()) + layer.origin.y
+		# ⚠ A FADE, NOT A SLAB, AND THIS IS THE THIRD ANSWER TO THE SAME EDGE. The storm's
+		# underwater picture ends on a straight bottom row: drawn as it comes it ended in a
+		# ruled line with the deep's sunlit water carrying on under it, and dithering the edge
+		# only made the line a checkerboard. Four thousand pixels of one flat colour did hide
+		# the deep -- and put a band of dead navy across the middle of the column with a ruled
+		# line at the top of it instead, which is what "it is just divided" was looking at.
+		# Six hundred pixels going to nothing hands the column back to the deep's own water,
+		# which the night tint has already taken the daylight out of by the time the storm is
+		# over it.
+		#
+		# ⚠ vertex_colors REPLACES `color`; it does not multiply it. A gradient built on
+		# Color.WHITE came out as a lavender slab over the whole seabed.
+		var faded := Color(fill.color.r, fill.color.g, fill.color.b, 0.0)
 		fill.polygon = PackedVector2Array([
 			Vector2(span.x - reach, top), Vector2(span.y + reach, top),
-			Vector2(span.y + reach, top + 4000.0), Vector2(span.x - reach, top + 4000.0)])
+			Vector2(span.y + reach, top + 600.0), Vector2(span.x - reach, top + 600.0)])
+		fill.vertex_colors = PackedColorArray([fill.color, fill.color, faded, faded])
 		add_child(fill)
+		# ⚠ AND THE PICTURE GOES DARK INTO IT, RATHER THAN STOPPING. The plate's last row still
+		# has kelp in it -- bright teal, up to 76 in luminance against a fill of about 15 -- so
+		# however closely the fill's colour matched the row, the textured sea ended on a ruled
+		# line with flat navy under it. The fill's own colour coming in over the plate's last
+		# 140 rows dissolves the kelp and the ridges into the dark instead. One step above the
+		# plate, so it is drawn over it, and still under the deep's floor, which stands in front.
+		var dusk := Polygon2D.new()
+		dusk.name = layer.name + "_dusk"
+		dusk.color = fill.color
+		dusk.z_index = layer.z_index + 1
+		dusk.polygon = PackedVector2Array([
+			Vector2(span.x - reach, top - 140.0), Vector2(span.y + reach, top - 140.0),
+			Vector2(span.y + reach, top), Vector2(span.x - reach, top)])
+		dusk.vertex_colors = PackedColorArray([faded, faded, fill.color, fill.color])
+		add_child(dusk)
 	return layer
 
 
@@ -379,10 +505,17 @@ func is_clear() -> bool:
 
 ## How much storm there is over this x, 0..1: this band's own fade, times however far the sky
 ## has cleared. DagatLife2D asks, so gulls stay out of the storm and rain stays out of the sun.
+## ⚠ THE NIGHT'S RAMP, NOT THE ALPHA'S, WHEREVER THERE IS ONE. Two different things happen
+## across this crossing and they are not on the same stretch. The storm's sea REPLACES the
+## beach's as the player leaves the sand -- a change of viewpoint, over a few hundred pixels,
+## because two seas drawn at once is two horizons. The LIGHT goes later and slower, over the
+## stretch the design asks the field to darken across. Rain on a bright sea a screen out from
+## the beach is the first of those borrowing the second's timing.
 func weather_at(x: float) -> float:
-	if fade_span == Vector2.ZERO:
+	var span := night_span if night_span != Vector2.ZERO else fade_span
+	if span == Vector2.ZERO:
 		return 0.0
-	return _ramp(fade_span, x) * (1.0 - _clearing)
+	return _ramp(span, x) * (1.0 - _clearing)
 
 
 func _set_clearing(value: float) -> void:
@@ -401,10 +534,12 @@ static func _ramp(span_x: Vector2, x: float) -> float:
 func update_for_camera(camera_position: Vector2) -> void:
 	_last_camera = camera_position
 	var weather := 1.0 - _clearing
+	var night := 1.0
 	if night_span != Vector2.ZERO:
-		var night := _ramp(night_span, camera_position.x) * weather
-		modulate = Color(lerpf(1.0, night_tint.r, night), lerpf(1.0, night_tint.g, night),
-			lerpf(1.0, night_tint.b, night), modulate.a)
+		night = _ramp(night_span, camera_position.x) * weather
+		modulate = Color(lerpf(day_tint.r, night_tint.r, night),
+			lerpf(day_tint.g, night_tint.g, night),
+			lerpf(day_tint.b, night_tint.b, night), modulate.a)
 	if fade_span != Vector2.ZERO:
 		# x < y fades the band UP across that stretch; x > y fades it DOWN. The shore and the
 		# storm are the same crossing seen twice, so one has to leave as the other arrives --
@@ -415,6 +550,26 @@ func update_for_camera(camera_position: Vector2) -> void:
 		# so the daylight band stayed at full alpha across the whole crossing and hung a palm
 		# tree over the storm.
 		modulate.a = _ramp(fade_span, camera_position.x) * weather
+		for layer in _layers:
+			if layer.late:
+				layer.modulate.a = modulate.a * modulate.a
+	# ⚠ ON THE LAYERS, NOT ON THE BAND. See far_fade_span: the shore's land has to stay while
+	# its sea goes, so this cannot be the node's own modulate.
+	if far_fade_span != Vector2.ZERO:
+		var gone := _ramp(far_fade_span, camera_position.x) * weather
+		for layer in _layers:
+			if layer.far:
+				layer.modulate.a = 1.0 - gone
+	# ⚠ AND THE RAIN COMES WITH THE DARK, NOT WITH THE PICTURE. The band arrives where the
+	# player leaves the sand; the weather arrives where the design says it should. Drawn with
+	# the band, it was raining on a bright sea one screen out from a sunny beach.
+	for layer in _layers:
+		if layer.weather:
+			layer.modulate.a = night
+		elif layer.day:
+			layer.modulate.a = 1.0 - night
+	if _sky != null and night_span != Vector2.ZERO:
+		_sky.modulate.a = night
 	for layer in _layers:
 		# ⚠ HORIZONTAL ONLY. Parallax on Y unmoors the composition from the thing it is
 		# registered to: this level is a thousand pixels tall, so let the far layers lag on Y
@@ -463,11 +618,36 @@ class _Layer extends Node2D:
 	var flipped := false
 	## Laid across `span` at world rate and cut off at its ends, rather than widened for drift.
 	var grounded := false
-	## A painted plate is mirrored every second copy to hide its seam; an authored texture is
-	## drawn to tile straight and a mirror would only put a seam back in.
-	var mirrored_tiles := true
+	## ⚠ PER PLATE, AND LOOKED AT RATHER THAN MEASURED. Five of the thirteen tiled plates
+	## repeat cleanly and four of the others do not repeat at all -- and the difference is not
+	## in the numbers. `deep/water` is a lit column, bright with god-rays at one end and dark
+	## at the other: its columns differ by 21 of 255, which sounds small and puts a bright
+	## rectangle of sea beside a dark one every 1672 pixels. `deep/terraces` and `deep/ruins`
+	## are tableaux whose edges are mid-cliff, so a straight repeat cuts a ledge in half and
+	## leaves it ending in nothing. Those want the mirror -- a gradient met by its own
+	## reflection is a rhythm, and a cliff met by its own reflection is a bigger cliff.
+	## The other five want the straight repeat, because mirroring a plate with something
+	## distinctive near its edge -- the ruins' arch -- puts that thing beside itself.
+	## The contact sheet these were chosen from is in LEVEL_3.md.
+	var mirrored_tiles := false
 	## How far a piece is raised off the plate's registration. See the far island.
 	var lift := 0.0
+	## The plate row a piece is cut off below, BEFORE its lift -- the row where whatever is
+	## in front of it stops hiding it. Zero keeps the whole plate. See storm/shores.
+	var sunk_row := 0.0
+	## Part of this band's sea and sky rather than its land. See far_fade_span.
+	var far := false
+	## Drawn only as far as the night has come in. See night_span.
+	var weather := false
+	## Drawn only as far as it has NOT. The mirror of `weather`.
+	var day := false
+	## ⚠ STANDS BEHIND THE WAVES, SO IT ARRIVES AFTER THEM AND LEAVES BEFORE THEM. The band
+	## fades as a whole -- in over fade_span, out as the sky clears -- and every child draws with
+	## that alpha separately, so while the band is half there the waves are half there too, and
+	## whatever they exist to hide shows through them: half a buoy sign, the headland's foot, the
+	## islands' bases. A late layer's own alpha is the band's again on top of the band's, so it
+	## is faint while the waves are faint and whole only once they are.
+	var late := false
 	## (lean in texels, gusts per second) for a layer the wind moves. ZERO holds it still.
 	var sway := Vector2.ZERO
 	## Pixels a second a layer slides on its own -- clouds -- wrapped at the width it repeats
@@ -512,11 +692,18 @@ class _Layer extends Node2D:
 		place()
 		set_process((fps > 0.0 and frames.size() > 1) or slide_speed != 0.0)
 
+	## ⚠ WHOLE PIXELS. Every layer moves at its own fraction of the camera, so at any moment
+	## the ten of them sit at ten different sub-pixel offsets -- and with nearest filtering a
+	## sub-pixel offset is not a soft half-pixel, it is a column of texels that snaps a whole
+	## pixel across when the offset crosses a half. Ten layers each snapping on its own
+	## schedule is the crawl you see in the sky while the sea underneath it holds still. Put
+	## them all on the world's pixel grid and they snap together or not at all, which reads as
+	## the painting moving rather than as the painting boiling.
 	func place() -> void:
 		var slid := 0.0
 		if slide_speed != 0.0:
 			slid = wrapf(_slid, -canvas_width, canvas_width)
-		position = Vector2(parallax_x + slid, plate_top)
+		position = Vector2(roundf(parallax_x + slid), roundf(plate_top))
 
 	func _add_tile(x: float, flip: bool, region: Rect2) -> Sprite2D:
 		var tile := Sprite2D.new()
@@ -543,6 +730,9 @@ class _Layer extends Node2D:
 
 	func _build_piece() -> void:
 		var height := float(frames[0].get_height())
+		if sunk_row > 0.0:
+			# Rows are lifted along with the piece, so the cut moves down by the same amount.
+			height = minf(height, sunk_row + lift - origin.y)
 		var tile := _add_tile(0.0, flipped,
 			Rect2(crop.x - origin.x, 0.0, crop.y - crop.x, height))
 		tile.position.y -= lift
@@ -569,11 +759,13 @@ class _Layer extends Node2D:
 			index += 1
 
 	func _build_tiles() -> void:
-		# ⚠ MIRRORED TILES, NOT A REPEATING REGION. Every plate is a self-contained painting
-		# 1672 wide and the bands are two to four times that, so it has to repeat -- and a
-		# straight repeat puts a hard vertical cut through the ruins every 1672 pixels, which
-		# the eye finds immediately. Flipping every second copy turns the cut into a mirror
-		# line, which reads as more of the same place rather than as the same place again.
+		# ⚠ IT REPEATS, AND IT DOES NOT MIRROR. Every plate is a self-contained painting 1672
+		# wide and the bands are two to four times that, so it has to tile. Mirroring every
+		# second copy was the first answer, on the reasoning that a straight repeat would put
+		# a hard cut through the ruins -- but it was never measured, and the delivery tiles:
+		# see `mirrored_tiles`. What mirroring actually did was pair each plate's most
+		# distinctive edge with its own reflection, so the crossing carried a symmetrical
+		# butterfly of ruin arches every 3344 pixels.
 		#
 		# ⚠ A SLOW LAYER HAS TO COVER MORE GROUND THAN THE BAND IS WIDE. At rate 0.15 the sky
 		# lags the camera by 85% of everything it travels, so it slides sideways by nearly as
@@ -585,12 +777,11 @@ class _Layer extends Node2D:
 		base_x = span.x - drift
 		var count := int(ceil((span.y - span.x + drift * 2.0) / canvas_width))
 		if slide_speed != 0.0:
-			# Two plates more at each end for the slide to travel into -- an even number, so
-			# the mirror pattern keeps its phase.
+			# Two plates more at each end for the slide to travel into.
 			base_x -= canvas_width * 2.0
 			count += 4
 		for index in range(count):
-			var flip := index % 2 == 1
+			var flip := mirrored_tiles and index % 2 == 1
 			# ⚠ flip_h mirrors the texture INSIDE the sprite's own rect; it does not move the
 			# rect. A trimmed frame mirrored on its canvas lands the same distance from the
 			# canvas's OTHER edge, which is the only thing that has to be worked out here.

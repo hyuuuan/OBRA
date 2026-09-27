@@ -3,8 +3,9 @@
 **Status: CONTENT COMPLETE AND PAINTED.** The delivered art is in — three parallax bands,
 animated coral, kelp, bubbles and fish, and the bakunawa in 23 poses. `tools/build_dagat.py`
 cuts the delivery and **fails if any of the 79 files is unused**; `tools/build_dagat_props.py`
-authors the one prop the delivery has in the picture but not as a file (the seabed ink jar).
-Six things are still a developer's rectangles and they are listed in `ART_PLACEHOLDERS.md`.
+authors what the delivery has in the picture but not as a file -- the seabed ink jar, the rock
+the land stands on under the water, the small lives, and the bangka. **Three** things are still
+a developer's rectangles and they are listed in `ART_PLACEHOLDERS.md`.
 
 *(Previous status, kept for the record: content complete with placeholder art.)* The shore, the fork, both crossings **and
 both of their lore scenes**, the encounter in all three resolutions **in both stagings**, the
@@ -16,8 +17,9 @@ and the sea are code-drawn, and `ART_PLACEHOLDERS.md` is where each contract goe
 **Green:** `run_level3_audit.gd` (T3, 27 checks) · `run_nodraw_level3.gd` (T1) ·
 `run_bakunawa_probe.gd` (all three resolutions) · `run_level3_finish_probe.gd` (both
 crossings, to completion) · `run_swim_reach_probe.gd` · **`run_level3_boat_probe.gd` (the
-bangka, actually sailed)**. All six are in `tools/run_suites.sh`. See "The playable pass"
-below for what the 2026-09-22 pass changed and why.
+bangka, actually sailed)** · **`run_level3_trouble_probe.gd` (the three ways to lose)**. All
+seven are in `tools/run_suites.sh`. See "The playable pass" and "The rendering pass" below for
+what the 2026-09-22 and 2026-09-23 passes changed and why.
 
 **This document is the plan, written before the build** — `LEVEL_TEMPLATE.md` build order
 step 1, *"write `LEVEL_<N>.md` first, even as a placeholder, and mark it provisional"*. It
@@ -370,6 +372,190 @@ either axis — both guards verified by breaking them on purpose. What is left i
 not arithmetic.
 
 ---
+
+## The rendering pass (2026-09-23)
+
+Kent: *"the islands are cut off and then not properly rendering"* — and make the animations
+smooth, and keep hunting bugs. Four separate things, and the first is the one anybody sees.
+
+**The land was guillotined at the water.** `palms_left` tapers to nothing by its column 478
+and is CUT at its column 0; `palms_right` starts from nothing at 690 and is CUT at 1672. Both
+cuts were set down against open water, so each shore ended in a ruled vertical line from the
+palm tops to the sand — the whole landmass chopped with a straight edge, which is exactly what
+it looked like. **But the plate tiles: its column 1672 and its column 0 are the same rock.**
+The head of one laid against the tail of the other rebuilds the clump and lets it taper into
+the shallows the way the picture was painted to. The two rows now share one gust, because two
+halves of one clump that sway at their own rates split apart at the join.
+
+Three things follow from it, each its own commit:
+- **The sand runs 64 past the land at the water end** (a NEGATIVE `seaward_trim`). What stands
+  there is a rock at the point of the beach, and sand stopping on the collision edge left it
+  over open sea.
+- **The shelf face begins where the sand does** (`top_row` 790, not 941) and carries 51 rows
+  of **lip** in the sand plate's own colours. It used to start 151 px under the walking
+  surface, so the sand above it was still a ruled cut — under water and dark, but ruled. The
+  lip is an EDGE, not a slab: opaque for fifteen columns behind its own ragged edge and
+  dithered away inland, because at the face's full width it was a second, flatter sand laid
+  over the plate's and the join was a straighter line than the one it was hiding.
+- **The shelf goes BEHIND the palms** (−163/−162, not −150/−149). In front, the new sand lip
+  was drawn over the rocks the clump ends the beach with, as a pale smear across them.
+
+**Every band lands on the world's pixel grid.** Ten layers at ten parallax rates sit at ten
+different sub-pixel offsets, and with nearest filtering a sub-pixel offset is not a soft half
+pixel: it is a column of texels that jumps a whole pixel when the offset crosses a half. Each
+layer crossing on its own schedule is the crawl in the sky over a sea that is holding still.
+
+**The things that move.** The surf was two flat strips end to end at a fixed y — a dashed line
+ruled along the waterline, and the eye finds the repeat before it finds the foam. Three now,
+each lower and fainter than the one inshore of it, each on its own bob and sway, and reaching
+as far as the rocks do. Gulls climb out of weather they were not sent into: the check that
+keeps them off the storm is made where they are SENT, which is right and not enough, because a
+bird flies for ten seconds across a world whose weather moves. And the sweep is a beam rather
+than a grey triangle laid over the ruins — brightest at the head, falling off down its length,
+on a slow swell — **with its edge unmoved**: same half angle, same reach, and a rim along both
+sides, because a cone whose edge a player has to guess at is a rule learned by being put back.
+
+**The bangka is painted**, and it is the one object in the game that is found rather than
+drawn, so it is the one that could not get its picture from the player's ink. See
+`ART_PLACEHOLDERS.md` — including the trap, which is that the outline is **not** under
+`DrawingSkin`.
+
+**The bug this pass found: a checkpoint you can be caught standing on.** A checkpoint records
+where the PLAYER was, not where its node is. CP3b's volume is 220 wide and the snapshot is
+taken wherever the apo crossed it, so on the stealth route the place a reset returns to is
+regularly inside the creature's cone — measured at **384 px from a thing that sees 460**, with
+two further resets in the ten seconds after, the player having done nothing at all. Not a soft
+lock; they can swim out inside the 1.4 s grace. Still wrong, because the reason for a
+mid-encounter checkpoint is that losing the stretch costs it ONCE. `_stand_them_clear_of_it`
+answers the REACH rather than the geometry: moving the volume would not fix a player coming
+back from the east and crossing at its far edge.
+
+**And a probe that plays the level badly on purpose** — `run_level3_trouble_probe.gd`, in
+`tools/run_suites.sh`. Every other probe here plays it correctly, which is the wrong half of
+the work: a game with no death state can only fail by leaving the player somewhere they cannot
+get out of, and none of those places are on the happy path. Three ways to lose, and the same
+question about all three — afterwards, can they still play?
+
+1. **The ink runs out on the seabed.** Reverting at the bottom of a thousand-pixel column
+   leaves a body that cannot swim where it cannot leave, and the ink that would buy another is
+   the ink that just ran out. The way back is the restore handing the spend back: measured at
+   6.00 of 6 returned. If that ever stops, it is this level's first unwinnable state and
+   nothing else in the suite would notice.
+2. **Being seen.** Costs the stretch, leaves ink to swim back with, and does not quietly
+   resolve the encounter by losing it.
+3. **Three knocks.** Warned twice, thrown on the third, and the fight comes back fresh — a
+   knock count that survived the restart would make the third loss permanent.
+
+### The horizon, and what the bands were doing wrong (same day)
+
+Kent again: *"the islands, the platforms are not rendering properly as well as the ocean and
+the sky since its so weird like the horizon"*. Two more faults, both in how the bands were
+being composited rather than in the art.
+
+**There were two horizons, and they were 73 pixels apart.** The shore band's far layers are a
+beach **seen from the front** — a horizon, a band of sea receding to it, breakers running up
+sand. The storm band is the same sea **seen from the side**. The two plates do not even agree
+on how far the horizon sits above the waterline: 157 rows on the shore's, 84 on the storm's.
+The storm was cross-faded in over 1600..3000 and the shore band **never left at all**, so for
+the whole first third of the crossing both were drawn: two horizons, two rows of distant land
+(world 403 and 476), two sets of waves, and beach breakers running over three thousand pixels
+of open sea.
+
+It cannot be fixed with `fade_span`, because the island the crossing arrives at is the shore
+band's own sand and palms, four thousand pixels into the storm. So the split is by LAYER, and
+then the two things that were sharing one ramp get their own:
+
+| | Stretch | What it is |
+|---|---|---|
+| `far_fade_span` (shore) / `fade_span` (storm) | **1000..1560** | A change of **viewpoint**. The side view replaces the front view where the player leaves the sand. Short, because a long cross-fade between two incompatible pictures IS the double horizon |
+| `night_span` (all three) | **1600..3000** | The **light** going — the buildup the design asks for. `weather_at()` reads this one, so the rain, the lightning and the no-gulls rule keep the timing they were tuned with |
+
+Three consequences, each its own commit: the storm band gains a **`day_tint`** so its sea —
+painted for the end of the crossing — brightens back toward the light it now arrives in; its
+**clouds, rain and flat sky lid** follow the night rather than the band, because drawn with the
+band it poured on a bright sea one screen out from a sunny beach; and the shore's **sky** is
+not part of its sea, so it stays over the open water and leaves as the thunderheads come in.
+
+**And the bands were mirroring plates that were authored to tile.** Every second copy was
+flipped, on the reasoning that a straight repeat would cut through the ruins. Nobody measured
+it. The mean difference between a plate's last column and its first is **under 21 of 255
+across all eleven tiled plates, and under 11 for the ruins and the ridges** — they repeat.
+What mirroring actually did was pair each plate's most distinctive edge with its own
+reflection, so the seabed carried a symmetrical butterfly of ruin arches every 3344 pixels,
+which is what "the platforms are not rendering properly" was. `mirrored_tiles` now defaults
+off and the measurement is written beside it.
+
+### The land, and what was hanging off it (2026-09-24)
+
+Kent: *"the islands below the ocean, the platform, how it is shown is so weird since there are
+parts where they are not connected, like i can see that it is cropped and its not functioning
+well. The platforms in islands are not that visible and weird to look at"*. The session that
+took this dropped mid-pass, after five commits (the sweep drawn as added light, mirroring
+chosen per plate by looking rather than measuring, the seabed at world rate, the headland
+rebuilt as one island behind the waves, the storm's underwater fading into the deep) and with
+a brighter beam uncommitted. This picks it up. A contact sheet of the level at play framing --
+fourteen points along the surface, six on the seabed, three at mid-depth -- found seven things,
+and four of them were pictures of land where the level has none.
+
+**Palms and rock over open water at both ends of the crossing.** The last answer to the palm
+plates' cut edges rebuilt the clump across the plate's border and set the rebuilt half out
+past the collision edge -- 360 px at 1000..1360 and again at 4140..4500 -- cut flat along the
+plate's last row with the sea under it. It is exactly what a player walks onto and falls
+through. Each plate is now set down whole at the LANDWARD end of one beach (`palms_left` at the
+home beach's west end, `palms_right` at the island's east end), cut sides past the camera's
+limits (116, 5380), tapers toward the water. The sand stops on the collision edge instead of 64
+px past it, so both beaches end on sand, which is where the edge of the land is drawn.
+
+**The land under the water was a slab with spots on it, with five platforms floating beside
+it.** The shelf was a smooth dither with round boulders and ruled strata; its face had five thin
+lit ledges sticking out with weed hanging off them -- at game scale, five small platforms not
+connected to anything. `build_dagat_props.py` now draws both the way the painted terraces are
+built: blocks in irregular courses, a near-black crevice between every two, lit on the upper-left
+rim, moss on the tops nearest the light, darker with depth, in colours sampled off the terraces'
+cliff. The earth under the sand gives way to rock along block edges, not along a row. The face
+keeps its ragged line and its sand lip; what stands out of it now is its own bulges, mossed on
+top, and it feathers into the fill over its landward six columns so the two have no seam.
+
+**A slab of the headland under the waves.** The waves hide what is behind them only down to
+their front crest, whose lowest edge is plate row 652 in the shallowest frame. The headland's
+rocks go down to 777, and lifted 70 their last 55 rows came out beneath the sea -- a detached
+slab with the island standing above it, plainest in the opening shot. `storm/shores` carries
+`sunk_row` 650 now: every piece is cut there before its lift. The headland's tail crop moves
+from 1400 to 1470, past the ink buoy, half of which it had been carrying.
+
+**The storm's underwater picture ended on a line.** Its last row still has kelp in it --
+luminance up to 76 against a fill of about 15 -- so no fill colour could meet it. The fill's own
+colour now comes in over the plate's last 140 rows, one z above the plate and under the deep's
+floor.
+
+**And the surf** was three strips running 430 px out from each shore, because the rocks used
+to stand that far out. Against a sandy edge it read as a rope lying on the sea. One strip laps
+the foot of the sand's slope.
+
+**And both skies were tiling with a cut in them.** The day sky and the storm's clouds were left
+straight on the reasoning that their joins could not be seen. Measured: 127 of the day sky's
+rows differ by more than 30 of 255 across the join (a cloud runs off the plate's right edge and
+is not waiting at its left -- on the first screen of the level), and the storm's bank is opaque
+on one side of its join and empty on the other for 29 rows. Both drift, so the cut slid across
+the sky. Both are mirrored now; the islands (0), the mountains (2) and the rain (0) stay
+straight.
+
+Checked and NOT a fault: on the tour's open-water frames the boat sits at the top of the screen
+with the horizon cut off. That is the dialogue framing -- the camera on Lolo with the standard
+240 lift (455 + 240 / 1.15 = 663) -- held because the tour hides lines rather than finishing the
+conversation, so `conversation_finished` never releases it. Aboard and at rest the camera is
+where it should be, 180 above the apo.
+
+**What the waves hide showed through them whenever the storm was half there.** The band fades
+as a whole and every child draws with that alpha on its own, so half-faded waves are
+half-transparent waves: the buoy's post and sign ghosted into the farewell shot as the sky
+cleared (the overhanging rock had been covering it by accident), and the headland hung
+half-drawn over the cross-fade. The shores and the distant islands are `late` now -- the band's
+alpha again on top of its own -- so they are faint while the waves are and whole once they are.
+
+Left as it is, on purpose: the 1000..1560 cross-fade still double-exposes the two SEAS for the
+two seconds a boat takes to cross it. That is what cross-fading two paintings does, and with the
+islands arriving late it is only water over water.
 
 ## Build order
 
