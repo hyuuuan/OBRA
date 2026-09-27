@@ -249,7 +249,11 @@ const BANDS := {
 				"lift": 110.0},
 		]},
 		# Rain falls in front of everything, fast, and never repeats the sea's rhythm.
-		{"key": "storm/rain", "rate": 1.00, "z": 60, "fps": 10.0, "weather": true},
+		# ⚠ AND IT STOPS AT THE SEA. The plate is the full height of the picture, so the rain
+		# went on falling 280 pixels under the surface -- streaks across the underwater
+		# mountains, over the fish, in front of the diver. It is cut at the front wave.
+		{"key": "storm/rain", "rate": 1.00, "z": 60, "fps": 10.0, "weather": true,
+			"sunk_row": 660.0},
 	],
 }
 
@@ -315,7 +319,6 @@ func _ready() -> void:
 				layer.crop = piece.get("crop", Vector2(0.0, float(frames[0].get_width())))
 				layer.flipped = bool(piece.get("flip", false))
 				layer.lift = float(piece.get("lift", 0.0))
-				layer.sunk_row = float(row.get("sunk_row", 0.0))
 				layer.place_piece(at, float(piece.get("nudge", 0.0)),
 					String(piece.get("align", "center")))
 				add_child(layer)
@@ -363,6 +366,7 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 	layer.weather = bool(row.get("weather", false))
 	layer.day = bool(row.get("day", false))
 	layer.late = bool(row.get("late", false))
+	layer.sunk_row = float(row.get("sunk_row", 0.0))
 	if row.has("top_row"):
 		# An authored texture is not on the plate at all; it says which plate row it
 		# starts at, and it repeats at its own width rather than the plate's.
@@ -632,8 +636,9 @@ class _Layer extends Node2D:
 	var mirrored_tiles := false
 	## How far a piece is raised off the plate's registration. See the far island.
 	var lift := 0.0
-	## The plate row a piece is cut off below, BEFORE its lift -- the row where whatever is
-	## in front of it stops hiding it. Zero keeps the whole plate. See storm/shores.
+	## The plate row a layer is cut off below -- for a piece, BEFORE its lift. The row where
+	## whatever is in front of it stops hiding it, or where the sea starts. Zero keeps the whole
+	## plate. See storm/shores and storm/rain.
 	var sunk_row := 0.0
 	## Part of this band's sea and sky rather than its land. See far_fade_span.
 	var far := false
@@ -780,6 +785,12 @@ class _Layer extends Node2D:
 			# Two plates more at each end for the slide to travel into.
 			base_x -= canvas_width * 2.0
 			count += 4
+		# The part of the frame each tile shows: all of it, unless the layer stops at a row.
+		var region := Rect2()
+		var shown_width := float(frames[0].get_width())
+		if sunk_row > 0.0:
+			region = Rect2(0.0, 0.0, shown_width,
+				minf(float(frames[0].get_height()), sunk_row - origin.y))
 		for index in range(count):
 			var flip := mirrored_tiles and index % 2 == 1
 			# ⚠ flip_h mirrors the texture INSIDE the sprite's own rect; it does not move the
@@ -787,8 +798,8 @@ class _Layer extends Node2D:
 			# canvas's OTHER edge, which is the only thing that has to be worked out here.
 			var inset := origin.x
 			if flip:
-				inset = canvas_width - origin.x - float(frames[0].get_width())
-			_add_tile(canvas_width * float(index) + inset, flip, Rect2())
+				inset = canvas_width - inset - shown_width
+			_add_tile(canvas_width * float(index) + inset, flip, region)
 
 	func _process(delta: float) -> void:
 		if slide_speed != 0.0:
