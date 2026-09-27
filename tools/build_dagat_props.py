@@ -774,6 +774,94 @@ BANGKA = {"bangka_afloat.png": draw_bangka_afloat,
           "bangka_beached.png": draw_bangka_beached}
 
 
+# --- What is found, and what the crossing is rowed with -------------------------------------
+#
+# Three things the level had no picture of: what the bakunawa finds when the light shows it
+# where to look, and the next painting in the island's sand -- both of which the level marked
+# with a burst of sparkles over nothing -- and the paddle the apo rows the bangka with. Drawn in
+# the same idiom as everything here.
+#
+# ⚠ THE GOLD IS THE HOUSE'S GOLD. Lola's paintings hang in gilt mouldings drawn from UISkin's
+# GILT ramp; a piece of one found on the seabed has to be recognisably the same frame, or it is
+# a piece of a different picture. The canvas in it is the house's own painting of this sea.
+
+GILT_RAMP = ramp(["#8c571d", "#a57223", "#c89637", "#dba736", "#edca52", "#fbe567"])
+CANVAS_BACK = ramp(["#8f7f64", "#c9b99a", "#e8dcc0"])
+PAINTING_OF_THE_SEA = ROOT / "game" / "assets" / "hub" / "paintings" / "level_3.png"
+FRAGMENT_W, FRAGMENT_H = 30, 22
+
+
+def draw_painting_fragment() -> Canvas:
+    """A torn corner of one of Lola's canvases, still in its gilt: what the bakunawa had lost.
+
+    The design asks for "something the player recognises -- an object from Level 1's house, or a
+    piece of the painting. A generic chest wastes the beat." The house is where her paintings
+    hang, so the piece is a corner of one of them: the moulding's top and left bars, broken off,
+    and a scrap of canvas torn diagonally across, with this very sea painted on it."""
+    import math
+    from PIL import Image
+    pixelart.PX = 3
+    c = Canvas(FRAGMENT_W, FRAGMENT_H, seed=4100)
+    painting = np.array(Image.open(PAINTING_OF_THE_SEA).convert("RGBA"))
+    # The torn edge: a diagonal from the top bar's broken end to the left bar's, ragged.
+    def tear(x: int) -> float:
+        return 21.0 - x * 0.78 + 1.4 * math.sin(x * 1.7) + 0.8 * math.sin(x * 3.9 + 1.0)
+    for y in range(FRAGMENT_H):
+        for x in range(FRAGMENT_W):
+            if y > tear(x):
+                continue
+            if x < 4 or y < 4:
+                continue
+            # The canvas: the painting's own pixels -- the karst island in the middle of it and
+            # the teal water under it, the part of that picture anybody would know again.
+            sample = painting[min(painting.shape[0] - 1, 34 + y), min(painting.shape[1] - 1, 64 + x)]
+            c.px(x, y, sample)
+            # The last pixel before the tear is the canvas's own weave, pale, so the edge reads
+            # as torn cloth rather than as a cut.
+            if y + 1.2 > tear(x):
+                c.px(x, y, CANVAS_BACK[2] if (x + y) % 2 else CANVAS_BACK[1])
+    # The gilt: the top and left bars of the moulding, four pixels deep, broken off where the
+    # canvas tore. Lit on its outer edge, a keyline on the inner, as the house draws it.
+    top_end = 24
+    left_end = 18
+    for x in range(top_end):
+        broken = x > top_end - 4 and (x * 7) % 3 == 0
+        for y in range(4):
+            if broken and y > 1:
+                continue
+            tone = [GILT_RAMP[4], GILT_RAMP[5], GILT_RAMP[3], GILT_RAMP[1]][y]
+            c.px(x, y, tone)
+    for y in range(left_end):
+        broken = y > left_end - 4 and (y * 5) % 3 == 0
+        for x in range(4):
+            if broken and x > 1:
+                continue
+            tone = [GILT_RAMP[4], GILT_RAMP[5], GILT_RAMP[3], GILT_RAMP[1]][x]
+            if y < 4:
+                tone = GILT_RAMP[5] if x + y < 3 else tone
+            c.px(x, y, tone)
+    # The keyline round the outside and at the splintered ends, so it holds against the seabed.
+    outline = GILT_RAMP[0]
+    for x in range(top_end):
+        c.px(x, 0, GILT_RAMP[5] if x % 5 else GILT_RAMP[4])
+    for x in range(top_end - 3, top_end + 1):
+        c.px(x, 1 + (x % 2), outline)
+    for y in range(left_end - 3, left_end + 1):
+        c.px(1 + (y % 2), y, outline)
+    for x in range(4, top_end - 2):
+        c.px(x, 4, GILT_RAMP[0])
+    for y in range(4, left_end - 2):
+        c.px(4, y, GILT_RAMP[0])
+    # One ornament on the corner, the rosette every gilt corner in the house has at this size.
+    for dx, dy in ((1, 1), (2, 1), (1, 2), (2, 2)):
+        c.px(dx, dy, GILT_RAMP[5])
+    c.px(2, 2, GILT_RAMP[2])
+    return c
+
+
+FOUND = {"painting_fragment.png": draw_painting_fragment}
+
+
 def build() -> list[Path]:
     OUT.mkdir(parents=True, exist_ok=True)
     written = []
@@ -781,7 +869,7 @@ def build() -> list[Path]:
         path = OUT / f"ink_jar_{frame}.png"
         draw(frame).save(path)
         written.append(path)
-    for table in (SHELF, BANGKA):
+    for table in (SHELF, BANGKA, FOUND):
         for name, painter in table.items():
             path = OUT / name
             painter().save(path)
@@ -797,6 +885,7 @@ def build() -> list[Path]:
 def _expected() -> list[Path]:
     return [OUT / f"ink_jar_{frame}.png" for frame in range(FRAMES)] + \
         [OUT / name for name in SHELF] + [OUT / name for name in BANGKA] + \
+        [OUT / name for name in FOUND] + \
         [OUT / f"{name}_{frame}.png" for name, (_p, n) in LIFE.items() for frame in range(n)]
 
 
