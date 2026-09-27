@@ -31,6 +31,9 @@ const RestrictionsClass = preload("res://scripts/level_restrictions.gd")
 ## to parse in every one of the probes that loads this level.
 const BakunawaClass = preload("res://scripts/bakunawa_2d.gd")
 const LifeClass = preload("res://scripts/dagat_life_2d.gd")
+const NextPaintingClass = preload("res://scripts/next_painting_2d.gd")
+## The house's own painting of the next place -- the picture that hangs in her house for Level 4.
+const NEXT_PAINTING := preload("res://assets/hub/paintings/level_4.png")
 const PropClass = preload("res://scripts/dagat_prop_2d.gd")
 const PROPS := "res://assets/Level3/props/"
 const AUTHORED := "res://assets/Level3/authored/"
@@ -178,6 +181,7 @@ func _build_level_furniture() -> void:
 	_plant_the_bangka()
 	_plant_the_refills()
 	_plant_the_coral_field()
+	_plant_the_next_painting()
 	_scatter_the_ambience()
 	_bring_the_sea_to_life()
 	call_deferred("_play_the_opening")
@@ -301,6 +305,22 @@ func _plant_the_bangka() -> void:
 ## Ink comes back from sources placed in the level, never over time -- the design is explicit
 ## that time-based regeneration "would make the whole economy decorative". Three of them down
 ## the dive route, because that route is transformed from start to finish and the boat is not.
+## THE NEXT PAINTING, standing in the island's sand where the landing sparkles. It is the one
+## that hangs in her house for the next level, in the house's own gilt, half buried and
+## catching the light -- see NextPainting2D. Where it stands is where the landing has always
+## sparkled, so the glitter and the picture are one thing.
+func _plant_the_next_painting() -> void:
+	var sand := _mark("IslandMark")
+	if sand == null:
+		return
+	var painting := NextPaintingClass.new()
+	painting.name = "NextPainting"
+	painting.art = NEXT_PAINTING
+	painting.z_index = 5
+	sand.get_parent().add_child(painting)
+	painting.global_position = sand.global_position + Vector2(90.0, 0.0)
+
+
 func _plant_the_refills() -> void:
 	var coral := _mark("CoralMark")
 	if coral == null:
