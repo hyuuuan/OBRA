@@ -215,11 +215,15 @@ func _finish_by(crossing: String, encounter: String) -> void:
 		^"EnvironmentBaseplate/GameplayPlane/IslandArrival") as Node2D
 	_place(arrival.global_position)
 	# _complete_level stages the cinematic bars and holds for 1.1s before the panel arrives,
-	# so that the one moment the game acknowledges the player is not a single frame long.
-	# Thirty frames is half of it.
-	for _frame in range(140):
-		await physics_frame
+	# so that the one moment the game acknowledges the player is not a single frame long --
+	# and before that, Lolo waves and goes (Lolo.farewell, about four seconds), because the
+	# design ends the level on his leaving, not on the panel. So the probe waits FOR the panel,
+	# up to nine seconds, rather than a fixed number of frames that only fitted the old cut.
 	var overlay := level.get_node_or_null("LevelCompleteOverlay")
+	for _frame in range(540):
+		await physics_frame
+		if overlay != null and bool(overlay.call("is_open")):
+			break
 
 	_check(overlay != null and bool(overlay.call("is_open")),
 		"and the level ends on the island (%s)" % tag, "the completion panel is up")
@@ -239,9 +243,13 @@ func _finish_by(crossing: String, encounter: String) -> void:
 		"on the boat or, failing that, at the island")
 	_check(about_lola, "and what it did to lola was too (%s)" % tag,
 		"on the dive or, failing that, at the island")
-	# And he stops.
+	# And he stops -- in the profile, and on screen: he waves and is gone before the panel.
 	_check(not bool(profile.call("lolo_is_present")),
 		"and Lolo does not go on to Dilim (%s)" % tag, "lolo_present is false")
+	var lolo = level.get("lolo")
+	_check(lolo == null or not is_instance_valid(lolo) or bool(lolo.call("is_gone")),
+		"and he takes his leave before the level ends (%s)" % tag,
+		"the wave, then gone -- he used to be simply there when the screen changed")
 
 	if overlay != null and bool(overlay.call("is_open")):
 		overlay.call("close")
