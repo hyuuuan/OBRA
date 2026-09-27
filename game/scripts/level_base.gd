@@ -3266,6 +3266,11 @@ func _revert_to_base_form() -> void:
 	_current_form_name = ""
 	_current_form_id = ""
 	morph_life.clear()
+	# ⚠ AND THE CARD GOES WITH THE FORM, whatever clock the level runs on. It was hidden only
+	# by MorphLife reporting an empty form, and a level with no clock never starts MorphLife --
+	# so in Dagat the card went on saying FISH, with its ink bar, over the apo rowing a boat.
+	if morph_card != null:
+		morph_card.hide_form()
 	if was.is_empty():
 		status_label.text = "Back to yourself"
 	else:
