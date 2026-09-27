@@ -778,6 +778,18 @@ func _drowning_words() -> PackedStringArray:
 	])
 
 
+## ⚠ NOT MID-ENCOUNTER, AND NOT FROM THE SURFACE. The clam that marks CP3b stands on the seabed
+## in the middle of the bakunawa's waters. Framing it took the camera down to it for two seconds
+## while the sweep went on -- a player can be seen in that time and never have seen the light
+## coming -- and from the boat it is a thousand pixels under the keel. It opens either way; the
+## player simply keeps the view.
+func _may_frame_the_checkpoint(mark: Node2D) -> bool:
+	if director != null and not director.committed_route("L3_N2").is_empty() \
+			and not director.is_solved("L3_N2"):
+		return false
+	return mark.global_position.distance_to(_anchor_now()) < 700.0
+
+
 func _checkpoint_place(checkpoint_id: String) -> String:
 	match checkpoint_id:
 		"CP1", "CP2":
