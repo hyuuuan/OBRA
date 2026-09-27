@@ -247,12 +247,16 @@ position = Vector2(640.0, 490.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP1"
 
+; ⚠ ITS MARK IS A CLAM ON THE SEABED. It had none -- a lantern at the bottom of the sea is not
+; a thing -- so the one checkpoint that matters most in the level, the one losing the stretch
+; returns you to, was a line of text and nothing on screen. Under the sea CheckpointLantern2D
+; is a giant clam (see under_the_sea.gd); it drops to the bed from here and opens when reached.
 [node name="CP3b" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(3760.0, 1240.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP3b"
 trigger_size = Vector2(220.0, 1500.0)
-shows_mark = false
+mark_offset = Vector2(30.0, 0.0)
 
 ; ⚠ FROM ABOVE THE WATERLINE, not from it. A boat player arrives SITTING in the hull, forty
 ; pixels over the surface, and the volume used to start at the surface -- so the one route
