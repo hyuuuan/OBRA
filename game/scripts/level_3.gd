@@ -1492,6 +1492,14 @@ func _current_objective() -> Dictionary:
 			"target": _mark_position("WaterlineMark")}
 	if not director.is_solved("L3_N1"):
 		return {"key": "cross", "obstacle": "L3_N1", "target": _mark_position("CoralMark")}
+	# ⚠ ON THE WAY, NOT YET THERE. Finding the boat -- or drawing the swimmer -- answers the
+	# crossing on the beach, and the line jumped straight to the encounter: "It cannot see.
+	# Decide what you are going to do about that", shown on the sand to a player who had never
+	# seen the creature it means. Until they reach its stretch, the line is about the crossing.
+	if not director.was_entered("L3_N2") and not director.is_solved("L3_N2"):
+		if director.committed_route("L3_N1") == "artist":
+			return {"key": "cross_by_boat", "target": _mark_position("SurfaceMark")}
+		return {"key": "cross_by_dive", "target": _mark_position("BakunawaMark")}
 	if not director.is_solved("L3_N2"):
 		return {"key": "bakunawa", "obstacle": "L3_N2",
 			"target": _mark_position("BakunawaMark")}
