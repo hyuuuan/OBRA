@@ -258,6 +258,7 @@
       "routes": {
         "artist": {
           "answered_by": "beached_bangka",
+          "choice_note": "NEEDS  NOTHING DRAWN\nwhat washed up on the sand will carry you across",
           "reward": "lore_how_he_died",
           "sets_flag": "heard_how_he_died",
           "$comment": "The boat gets how he died. The apo is seated and rowing, with nothing to do but listen -- the only scene in the game where they cannot draw their way out of a conversation."
@@ -311,6 +312,7 @@
         },
         "pragmatist": {
           "answered_by": "slip_past_in_the_dark",
+          "choice_note": "NEEDS  NOTHING DRAWN\nkeep out of its light and slip past it",
           "attempts": 0,
           "persistent_effect": "l3_bakunawa_evaded",
           "$comment": "NOT A DRAWING, so it declares answered_by like the dance did. Light cones from the bakunawa, shadow is safe, contact resets to CP3b. On the boat route it is not a dive -- the player steers wide and stays out of its sweep, same logic, same light-and-shadow rule, and the boat is not abandoned mid-level. A player who drew a flashlight and then chose this has made it harder for themselves, which the design says to allow rather than prevent."
