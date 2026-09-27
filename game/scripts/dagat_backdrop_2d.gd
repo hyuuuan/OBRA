@@ -208,7 +208,15 @@ const BANDS := {
 		# painted into it at 1090..1480 -- a second, still dragon in the background that came
 		# round every screen and a half of the crossing, long before the real one surfaced, and
 		# was there again beside it when it did. Everything left of it is ridge, kelp and fish.
+		#
+		# ⚠ AND IT GOES AS THE CAMERA GOES DOWN. It is the sea as seen from the surface, with
+		# its floor at the plate's last row -- 870 pixels above the real seabed. From the boat
+		# that is right. From mid-depth it was a row of mountains floating in the middle of the
+		# water column with nothing under them, and the deep's own floor below them: two
+		# seabeds, one hanging over the other. It fades out between camera y 520 and 900, which
+		# is the first stretch of a dive, so by then the deep's own picture is the one in view.
 		{"key": "storm/undersea", "rate": 0.50, "z": -228, "columns": Vector2(0, 1080),
+			"depth_fade": Vector2(520.0, 900.0),
 			# ⚠ THE PLATE'S OWN LAST ROW, SAMPLED. It was #031735 and the rows above it are
 			# #04102a -- bluer and lighter by enough to draw a line across the column where
 			# the two met.
@@ -372,6 +380,7 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 	layer.day = bool(row.get("day", false))
 	layer.late = bool(row.get("late", false))
 	layer.sunk_row = float(row.get("sunk_row", 0.0))
+	layer.depth_fade = row.get("depth_fade", Vector2.ZERO)
 	if row.has("columns"):
 		layer.columns = row["columns"]
 		layer.canvas_width = layer.columns.y - layer.columns.x
@@ -410,22 +419,42 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 			Vector2(span.y + reach, top + 600.0), Vector2(span.x - reach, top + 600.0)])
 		fill.vertex_colors = PackedColorArray([fill.color, fill.color, faded, faded])
 		add_child(fill)
+		layer.companions.append(fill)
 		# ⚠ AND THE PICTURE GOES DARK INTO IT, RATHER THAN STOPPING. The plate's last row still
 		# has kelp in it -- bright teal, up to 76 in luminance against a fill of about 15 -- so
 		# however closely the fill's colour matched the row, the textured sea ended on a ruled
-		# line with flat navy under it. The fill's own colour coming in over the plate's last
-		# 140 rows dissolves the kelp and the ridges into the dark instead. One step above the
-		# plate, so it is drawn over it, and still under the deep's floor, which stands in front.
-		var dusk := Polygon2D.new()
-		dusk.name = layer.name + "_dusk"
-		dusk.color = fill.color
-		dusk.z_index = layer.z_index + 1
-		dusk.polygon = PackedVector2Array([
-			Vector2(span.x - reach, top - 140.0), Vector2(span.y + reach, top - 140.0),
-			Vector2(span.y + reach, top), Vector2(span.x - reach, top)])
-		dusk.vertex_colors = PackedColorArray([faded, faded, fill.color, fill.color])
-		add_child(dusk)
+		# line with flat navy under it. Its last 140 rows are dissolved into the fill's colour.
+		#
+		# ⚠ INTO THE PICTURE ITSELF, NOT LAID OVER IT. It was a gradient polygon drawn over the
+		# plate's last rows, and that is two things covering one strip -- which nobody could see
+		# until the plate began to fade as the camera goes down, and every child faded on its
+		# own: half-faded, the strip was drawn twice at half strength and came out as a dark
+		# ruled band across the column. Baked into the frames, the plate and the fill meet edge
+		# to edge at every alpha.
+		var dusked: Array[Texture2D] = []
+		for frame in layer.frames:
+			dusked.append(_with_dusk(frame, 140, fill.color))
+		layer.frames = dusked
 	return layer
+
+
+## A frame whose last `rows` rows go over to `colour`, top to bottom -- the fill the plate
+## carries on into. Blended in the image, once, at load.
+static func _with_dusk(texture: Texture2D, rows: int, colour: Color) -> Texture2D:
+	var image := texture.get_image()
+	if image == null:
+		return texture
+	if image.is_compressed():
+		image.decompress()
+	image.convert(Image.FORMAT_RGBA8)
+	var height := image.get_height()
+	rows = mini(rows, height)
+	var ramp := Image.create(1, rows, false, Image.FORMAT_RGBA8)
+	for y in range(rows):
+		ramp.set_pixel(0, y, Color(colour.r, colour.g, colour.b, float(y + 1) / float(rows)))
+	ramp.resize(image.get_width(), rows, Image.INTERPOLATE_NEAREST)
+	image.blend_rect(ramp, Rect2i(0, 0, image.get_width(), rows), Vector2i(0, height - rows))
+	return ImageTexture.create_from_image(image)
 
 
 ## A landmark by name: an export, or one end of a ground ("home_ground.y"). NAN when the band
@@ -583,6 +612,12 @@ func update_for_camera(camera_position: Vector2) -> void:
 	if _sky != null and night_span != Vector2.ZERO:
 		_sky.modulate.a = night
 	for layer in _layers:
+		if layer.depth_fade != Vector2.ZERO:
+			var shown := 1.0 - _ramp(layer.depth_fade, camera_position.y)
+			layer.modulate.a = shown
+			for companion in layer.companions:
+				companion.modulate.a = shown
+	for layer in _layers:
 		# ⚠ HORIZONTAL ONLY. Parallax on Y unmoors the composition from the thing it is
 		# registered to: this level is a thousand pixels tall, so let the far layers lag on Y
 		# and the sky, the horizon and the surf all slide up out of frame the moment the
@@ -650,6 +685,11 @@ class _Layer extends Node2D:
 	var sunk_row := 0.0
 	## The plate columns a tiled layer is made of, if not all of them. See storm/undersea.
 	var columns := Vector2.ZERO
+	## Camera y over which the layer goes, from all of it to none. See storm/undersea.
+	var depth_fade := Vector2.ZERO
+	## What the band drew for this layer outside it -- its fill -- which has to go when it
+	## goes.
+	var companions: Array[CanvasItem] = []
 	## Part of this band's sea and sky rather than its land. See far_fade_span.
 	var far := false
 	## Drawn only as far as the night has come in. See night_span.
