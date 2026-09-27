@@ -1680,6 +1680,7 @@ func _spawn_or_replace(
 			status_label.text = "Rig build failed safely — previous morph kept"
 			new_player.queue_free()
 			return false
+	previous_state = _where_a_new_form_arrives(entity_id, previous_state)
 	_adopt_player(new_player, previous_state, true)
 
 	var label := display_name if not display_name.is_empty() else entity_id.capitalize()
@@ -3275,6 +3276,15 @@ func _revert_to_base_form() -> void:
 		status_label.text = "Back to yourself"
 	else:
 		status_label.text = "Back to yourself — the %s is gone" % was.to_lower()
+
+
+## WHERE A NEWLY DRAWN FORM TURNS UP. It takes the place of whoever the player was, so by
+## default it arrives where they were standing -- `state` is that body's capture_morph_state.
+## A level may move it: Dagat puts a swimmer drawn at the water's edge into the water, because
+## drawn on the sand it lies there draining ink and cannot move. Return `state` unchanged to
+## leave it where it is.
+func _where_a_new_form_arrives(_entity_id: String, state: Dictionary) -> Dictionary:
+	return state
 
 
 ## Everything that has to happen when one body becomes the player in place of another,
