@@ -188,8 +188,8 @@
   "objectives": {
     "$comment": "THE OBJECTIVE LINE, one per state of the run. level_3.gd decides which state the player is in; these are only the words, held to the same rule every dialogue line is held to: no line names a drawable class. Dangerous here in a way it was not in Piyesta -- the sea is full of classes. Never 'fish', 'shark', 'crab', 'sun', 'cloud', 'sailboat' or 'submarine'.",
     "brush": "Something in the sand is catching the light",
-    "practice": "Try it in the shallows. Watch what it costs to stay changed",
-    "practice.tags": "Draw something that can {tags} and take it into the shallows",
+    "practice": "Try a shape here on the sand first. Watch what it costs to stay changed",
+    "practice.tags": "Draw something that can {tags} here on the sand, and watch the ink",
     "cross": "Get to the far side",
     "cross.tags": "Draw something that can {tags} \u2014 or walk the shore and see what is beached there",
     "bakunawa": "It cannot see. Decide what you are going to do about that",
@@ -213,10 +213,13 @@
         "resolves a tag and picking something up is not a drawing. It writes new_brush and",
         "the drain arms from there.",
         "",
-        "ONE SUB-BEAT, AND IT IS AT THE WATERLINE rather than on dry sand. That way the",
-        "practice teaches the drain AND puts a Swim body in the player's hands before L3_N1",
-        "asks for one, which is what teaches_before_choice is for. Failure is not possible:",
-        "the shallows are not deep enough to lose anything in."
+        "ONE SUB-BEAT, AND IT IS AT THE WATER'S EDGE. That way the practice teaches the",
+        "drain AND puts a Swim body in the player's hands before L3_N1 asks for one, which is",
+        "what teaches_before_choice is for. Failure is not possible because nothing here asks",
+        "the player to go in: the sea starts where the sand ends, and it is deep from the first",
+        "pixel. The words used to say 'the shallows', from when the sea covered half the beach;",
+        "there have been no shallows since, and a player sent to find them walked into the",
+        "crossing's volume -- see level_3.gd _gate_the_crossing."
       ],
       "grants_item": "new_brush",
       "sub_beats": [
