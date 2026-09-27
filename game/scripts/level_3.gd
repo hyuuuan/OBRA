@@ -61,6 +61,10 @@ var _shore_node: DialogueNode2D
 ## because `_dialogue_node_obstacle_id()` is asked at both the presenting and the committing
 ## and has to give the same answer to each.
 var _live_node_obstacle := "L3_N1"
+## How long a drain runs before its event is noted again, so the lessons chained on it land in
+## turn. The first of them stays up eight seconds.
+const DRAIN_LESSON_EVERY := 8.0
+var _drain_lesson_clock := 0.0
 ## The crossing's volume, and whether the player is standing in it. See _gate_the_crossing.
 var _crossing_area: LevelObstacle2D
 var _inside_crossing := false
@@ -813,7 +817,17 @@ func _level_physics(anchor_position: Vector2) -> void:
 	else:
 		if _drain.form_id() != _current_form_id:
 			_drain.begin(_current_form_id)
+			_drain_lesson_clock = 0.0
 			if tutorial != null:
+				tutorial.note("ink_draining")
+		else:
+			# ⚠ SAID AGAIN WHILE IT GOES ON, NOT ONLY WHEN IT STARTS. Two lessons hang on this
+			# event -- the drain, then how to stop it -- and the director teaches one per call.
+			# Noted only when a form BEGAN, the second waited for the next drawing, which on this
+			# shore is the dive: how to stop the drain arrived after the player needed it.
+			_drain_lesson_clock += delta
+			if _drain_lesson_clock >= DRAIN_LESSON_EVERY and tutorial != null:
+				_drain_lesson_clock = 0.0
 				tutorial.note("ink_draining")
 		_drain.charge(delta)
 		if morph_card != null:
