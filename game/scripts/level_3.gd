@@ -39,6 +39,8 @@ const NEXT_PAINTING := preload("res://assets/hub/paintings/level_4.png")
 const LOST_CORNER := preload("res://assets/Level3/authored/painting_fragment.png")
 const FLOWER_ART := preload("res://assets/Level1/hidden_flower.png")
 const COUNT_WORDS := ["None", "One", "Two", "Three", "Four", "Five"]
+## The bangka's paddle, the hull's own wood. See _row.
+const PADDLE := preload("res://assets/Level3/authored/paddle.png")
 const PropClass = preload("res://scripts/dagat_prop_2d.gd")
 const PROPS := "res://assets/Level3/props/"
 const AUTHORED := "res://assets/Level3/authored/"
@@ -817,6 +819,62 @@ const LANDING_REACH := 170.0
 var _shore_edges := Vector2.ZERO
 
 
+## ⚠ THE APO ROWS. The design lists rowing with the waves, the wind and the gulls, and the
+## boat crossed the whole of the Artist route with the apo standing in it, arms at their sides,
+## while the hull slid over the sea on its own -- a boat being dragged, not rowed. The sheet has
+## no seated or rowing pose, so the stroke is carried by a paddle in the apo's hands: forward,
+## in with a splash, swept back along the hull, lifted and brought round again, for as long as
+## the boat is moving; at rest across the lap when it is not.
+var _paddle: Sprite2D
+var _stroke := 0.0
+
+
+func _row(delta: float) -> void:
+	var aboard := _launched_boat != null and is_instance_valid(_launched_boat) \
+		and player != null and is_instance_valid(player) \
+		and _launched_boat.has_passenger(player)
+	if not aboard:
+		if _paddle != null and is_instance_valid(_paddle):
+			_paddle.queue_free()
+		_paddle = null
+		return
+	if _paddle == null or not is_instance_valid(_paddle) or _paddle.get_parent() != player:
+		_paddle = Sprite2D.new()
+		_paddle.name = "Paddle"
+		_paddle.texture = PADDLE
+		_paddle.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_paddle.centered = false
+		# The grip is the top of the texture, so the paddle turns about the upper hand.
+		_paddle.offset = Vector2(-PADDLE.get_width() * 0.5, -4.0)
+		_paddle.z_index = 11
+		player.add_child(_paddle)
+	var facing := 1.0
+	if player.has_method("facing_direction"):
+		facing = signf(float(player.call("facing_direction")))
+		if facing == 0.0:
+			facing = 1.0
+	var hull := _launched_boat as RigidBody2D
+	var speed := absf(hull.linear_velocity.x) if hull != null else 0.0
+	var angle := 0.18
+	if speed > 25.0:
+		var was := _stroke
+		_stroke = fmod(_stroke + delta * 0.95, 1.0)
+		# In the water for three fifths of the stroke, sweeping from forward to back; lifted
+		# and carried round for the rest.
+		if _stroke < 0.6:
+			angle = lerpf(0.55, -0.45, _stroke / 0.6)
+		else:
+			angle = lerpf(-0.45, 0.55, (_stroke - 0.6) / 0.4)
+		if _stroke < was and _life != null:
+			# A new stroke: the blade goes in, ahead of the apo on the side they are rowing to.
+			_life.splash_at(player.global_position + Vector2(34.0 * facing, 0.0))
+	else:
+		_stroke = 0.0
+	_paddle.position = Vector2(6.0 * facing, -52.0)
+	_paddle.rotation = -angle * facing
+	_paddle.flip_h = facing < 0.0
+
+
 func _keep_the_passenger_aboard() -> void:
 	if _launched_boat == null or not is_instance_valid(_launched_boat):
 		return
@@ -851,6 +909,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_keep_the_weather()
 	_keep_the_passenger_aboard()
 	var delta := get_physics_process_delta_time()
+	_row(delta)
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
 	_tell_the_crossing(anchor_position)
