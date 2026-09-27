@@ -90,6 +90,13 @@ var _facing: float = 1.0
 var _travel_direction: float = 1.0
 var _last_target_position := Vector2.ZERO
 var _has_target_sample := false
+## How far into his farewell he is, in seconds; below zero while he is still here. See farewell.
+var _farewell_time := -1.0
+
+## THE WAVE, and then the going. Long enough to be seen and short enough that the cut comes
+## while it still means something.
+const FAREWELL_WAVE := 1.8
+const FAREWELL_GO := 2.2
 
 
 func _ready() -> void:
@@ -162,7 +169,57 @@ func is_speaking() -> bool:
 	return _hints != null and _hints.is_showing()
 
 
+## ⚠ THE FAREWELL, from his own sheet. The design: "reuse the existing wave pose rather than
+## authoring a new one -- a small gesture will land harder than a big one here", and "fading
+## or dissolving, for the farewell: the wave pose covers the gesture; the exit needs its own
+## treatment". He stops following, turns to the apo and waves, then lifts a little and thins
+## out -- the edge of what he remembers, which is where the levels stop being his.
+##
+## ⚠ IT RUNS THROUGH A PAUSE. The island stops the world to say goodbye, and a companion who
+## freezes mid-wave because the box is up is a still frame, not a farewell.
+func farewell() -> void:
+	if _farewell_time >= 0.0:
+		return
+	if _target != null and is_instance_valid(_target):
+		var towards := _target_position().x - global_position.x
+		if absf(towards) > 1.0:
+			_facing = signf(towards)
+	_farewell_time = 0.0
+	_target = null
+	_speech_time = 0.0
+	_figure.set("talking", false)
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
+
+func farewell_length() -> float:
+	return FAREWELL_WAVE + FAREWELL_GO
+
+
+func is_gone() -> bool:
+	return _farewell_time >= FAREWELL_WAVE + FAREWELL_GO
+
+
+func _take_leave(delta: float) -> void:
+	_farewell_time += delta
+	_phase = fmod(_phase + delta * bob_hz, 1.0)
+	_figure.set("pose", &"wave")
+	_figure.set("pose_time", _farewell_time)
+	_figure.set("bob", _phase)
+	_figure.set("facing", _facing)
+	_figure.call("refresh")
+	var going := clampf((_farewell_time - FAREWELL_WAVE) / FAREWELL_GO, 0.0, 1.0)
+	# Thinning out rather than switching off, and lifting as he goes.
+	modulate.a = 1.0 - going * going
+	global_position.y -= delta * 22.0 * going
+	if going >= 1.0:
+		visible = false
+		set_process(false)
+
+
 func _process(delta: float) -> void:
+	if _farewell_time >= 0.0:
+		_take_leave(delta)
+		return
 	_phase = fmod(_phase + delta * bob_hz, 1.0)
 	_pose_time += delta
 	if _cheer_time > 0.0:

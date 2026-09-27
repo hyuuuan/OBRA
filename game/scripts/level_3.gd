@@ -31,6 +31,16 @@ const RestrictionsClass = preload("res://scripts/level_restrictions.gd")
 ## to parse in every one of the probes that loads this level.
 const BakunawaClass = preload("res://scripts/bakunawa_2d.gd")
 const LifeClass = preload("res://scripts/dagat_life_2d.gd")
+const NextPaintingClass = preload("res://scripts/next_painting_2d.gd")
+## The house's own painting of the next place -- the picture that hangs in her house for Level 4.
+const NEXT_PAINTING := preload("res://assets/hub/paintings/level_4.png")
+## What the bakunawa had lost: a torn corner of one of her canvases, in its gilt. Authored by
+## tools/build_dagat_props.py from the house's own painting of this sea.
+const LOST_CORNER := preload("res://assets/Level3/authored/painting_fragment.png")
+const FLOWER_ART := preload("res://assets/Level1/hidden_flower.png")
+const COUNT_WORDS := ["None", "One", "Two", "Three", "Four", "Five"]
+## The bangka's paddle, the hull's own wood. See _row.
+const PADDLE := preload("res://assets/Level3/authored/paddle.png")
 const PropClass = preload("res://scripts/dagat_prop_2d.gd")
 const PROPS := "res://assets/Level3/props/"
 const AUTHORED := "res://assets/Level3/authored/"
@@ -178,6 +188,7 @@ func _build_level_furniture() -> void:
 	_plant_the_bangka()
 	_plant_the_refills()
 	_plant_the_coral_field()
+	_plant_the_next_painting()
 	_scatter_the_ambience()
 	_bring_the_sea_to_life()
 	call_deferred("_play_the_opening")
@@ -301,6 +312,22 @@ func _plant_the_bangka() -> void:
 ## Ink comes back from sources placed in the level, never over time -- the design is explicit
 ## that time-based regeneration "would make the whole economy decorative". Three of them down
 ## the dive route, because that route is transformed from start to finish and the boat is not.
+## THE NEXT PAINTING, standing in the island's sand where the landing sparkles. It is the one
+## that hangs in her house for the next level, in the house's own gilt, half buried and
+## catching the light -- see NextPainting2D. Where it stands is where the landing has always
+## sparkled, so the glitter and the picture are one thing.
+func _plant_the_next_painting() -> void:
+	var sand := _mark("IslandMark")
+	if sand == null:
+		return
+	var painting := NextPaintingClass.new()
+	painting.name = "NextPainting"
+	painting.art = NEXT_PAINTING
+	painting.z_index = 5
+	sand.get_parent().add_child(painting)
+	painting.global_position = sand.global_position + Vector2(90.0, 0.0)
+
+
 func _plant_the_refills() -> void:
 	var coral := _mark("CoralMark")
 	if coral == null:
@@ -792,6 +819,62 @@ const LANDING_REACH := 170.0
 var _shore_edges := Vector2.ZERO
 
 
+## ⚠ THE APO ROWS. The design lists rowing with the waves, the wind and the gulls, and the
+## boat crossed the whole of the Artist route with the apo standing in it, arms at their sides,
+## while the hull slid over the sea on its own -- a boat being dragged, not rowed. The sheet has
+## no seated or rowing pose, so the stroke is carried by a paddle in the apo's hands: forward,
+## in with a splash, swept back along the hull, lifted and brought round again, for as long as
+## the boat is moving; at rest across the lap when it is not.
+var _paddle: Sprite2D
+var _stroke := 0.0
+
+
+func _row(delta: float) -> void:
+	var aboard := _launched_boat != null and is_instance_valid(_launched_boat) \
+		and player != null and is_instance_valid(player) \
+		and _launched_boat.has_passenger(player)
+	if not aboard:
+		if _paddle != null and is_instance_valid(_paddle):
+			_paddle.queue_free()
+		_paddle = null
+		return
+	if _paddle == null or not is_instance_valid(_paddle) or _paddle.get_parent() != player:
+		_paddle = Sprite2D.new()
+		_paddle.name = "Paddle"
+		_paddle.texture = PADDLE
+		_paddle.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_paddle.centered = false
+		# The grip is the top of the texture, so the paddle turns about the upper hand.
+		_paddle.offset = Vector2(-PADDLE.get_width() * 0.5, -4.0)
+		_paddle.z_index = 11
+		player.add_child(_paddle)
+	var facing := 1.0
+	if player.has_method("facing_direction"):
+		facing = signf(float(player.call("facing_direction")))
+		if facing == 0.0:
+			facing = 1.0
+	var hull := _launched_boat as RigidBody2D
+	var speed := absf(hull.linear_velocity.x) if hull != null else 0.0
+	var angle := 0.18
+	if speed > 25.0:
+		var was := _stroke
+		_stroke = fmod(_stroke + delta * 0.95, 1.0)
+		# In the water for three fifths of the stroke, sweeping from forward to back; lifted
+		# and carried round for the rest.
+		if _stroke < 0.6:
+			angle = lerpf(0.55, -0.45, _stroke / 0.6)
+		else:
+			angle = lerpf(-0.45, 0.55, (_stroke - 0.6) / 0.4)
+		if _stroke < was and _life != null:
+			# A new stroke: the blade goes in, ahead of the apo on the side they are rowing to.
+			_life.splash_at(player.global_position + Vector2(34.0 * facing, 0.0))
+	else:
+		_stroke = 0.0
+	_paddle.position = Vector2(6.0 * facing, -52.0)
+	_paddle.rotation = -angle * facing
+	_paddle.flip_h = facing < 0.0
+
+
 func _keep_the_passenger_aboard() -> void:
 	if _launched_boat == null or not is_instance_valid(_launched_boat):
 		return
@@ -826,6 +909,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_keep_the_weather()
 	_keep_the_passenger_aboard()
 	var delta := get_physics_process_delta_time()
+	_row(delta)
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
 	_tell_the_crossing(anchor_position)
@@ -1247,8 +1331,9 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 
 ## The light found it. Everything else about the Artist route is the creature's own doing.
 func _on_gift_offered() -> void:
+	var found := _uncover_the_treasure()
 	if _life != null and _bakunawa != null:
-		_life.sparkle(_bakunawa.treasure_point(), 8, 55.0)
+		_life.sparkle(found, 8, 55.0)
 	_award_the_flower()
 	PlayerProfile.record_bakunawa("LIT")
 	script_lines.set_flag("l3_bakunawa_lit")
@@ -1340,6 +1425,74 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 func _award_the_flower() -> void:
 	PlayerProfile.record_collectible("L3_HF")
 	script_lines.set_flag("has_flower_3")
+
+
+## ⚠ WHAT IT HAD LOST IS SHOWN, AND SO IS WHAT IT GIVES. The light led it to what it had been
+## searching the dark for, and the level marked the moment with a burst of sparkles over
+## nothing: the flower was recorded silently and no object was ever there. The design asks for
+## "something the player recognises -- an object from Level 1's house, or a piece of the
+## painting. A generic chest wastes the beat." So it is a corner of one of her canvases, torn,
+## still in the gilt the paintings in her house hang in, with this very sea painted on it.
+##
+## And the flower comes up out of it to the apo -- "it finds a treasure, handing you a
+## flower" -- and says which of the five it is, the way Payyo's did, because the design needs
+## the count seen: a player who missed one otherwise chases an ending already lost.
+func _uncover_the_treasure() -> Vector2:
+	if _bakunawa == null:
+		return _anchor_now()
+	var at := _bakunawa.treasure_point()
+	# ⚠ FROM THE BOAT IT IS BROUGHT UP, BESIDE THE BOW. The creature is staged at the surface
+	# there, so its treasure point lies under its own coils: shown there, the corner was drawn
+	# across the dragon's neck like something pinned to it. It rises out of the dark instead,
+	# just ahead of the boat, in open water -- found, and given.
+	var anchor := _anchor_now()
+	if anchor.y < _waterline_y:
+		var toward := signf(_bakunawa.global_position.x - anchor.x)
+		at = Vector2(anchor.x + 150.0 * (toward if toward != 0.0 else 1.0), _waterline_y + 60.0)
+	var parent := _bakunawa.get_parent()
+	var corner := Sprite2D.new()
+	corner.name = "LostCorner"
+	corner.texture = LOST_CORNER
+	corner.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	corner.z_index = 6
+	corner.rotation = -0.14
+	corner.modulate.a = 0.0
+	parent.add_child(corner)
+	corner.global_position = at + Vector2(0.0, 18.0)
+	var reveal := corner.create_tween()
+	reveal.tween_property(corner, "modulate:a", 1.0, 0.7)
+	reveal.parallel().tween_property(corner, "global_position:y", at.y, 1.1) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	var flower := Sprite2D.new()
+	flower.name = "GivenFlower"
+	flower.texture = FLOWER_ART
+	flower.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	flower.z_index = 12
+	flower.scale = Vector2.ONE * 0.2
+	flower.modulate.a = 0.0
+	parent.add_child(flower)
+	flower.global_position = at + Vector2(0.0, -10.0)
+	var give := flower.create_tween()
+	give.tween_interval(0.9)
+	give.tween_property(flower, "modulate:a", 1.0, 0.3)
+	give.parallel().tween_property(flower, "scale", Vector2.ONE * 0.9, 0.5) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# To the apo -- wherever they are by the time it gets there.
+	give.tween_method(func(t: float) -> void:
+		if is_instance_valid(flower):
+			var target := _anchor_now() + Vector2(0.0, -40.0)
+			flower.global_position = at.lerp(target, t) + Vector2(0.0, -60.0 * sin(PI * t)), \
+		0.0, 1.0, 1.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	give.tween_property(flower, "scale", Vector2.ONE * 0.3, 0.25)
+	give.parallel().tween_property(flower, "modulate:a", 0.0, 0.25)
+	give.tween_callback(func() -> void:
+		if is_instance_valid(flower):
+			flower.queue_free()
+		var count := clampi(int(PlayerProfile.flower_count()), 0, 5)
+		announce_acquisition("Hidden Flower",
+			"%s of five. It had been holding on to it all along, down in the dark, and it gave it up gladly."
+				% String(COUNT_WORDS[count]), FLOWER_ART))
+	return at
 
 
 # --- The crossing, which is where the lore lives --------------------------------------------
@@ -1508,7 +1661,38 @@ func _land_on_the_island() -> void:
 	# ⚠ AND LEVEL 4 INHERITS IT. Dilim being unguided is the point, so it has to carry its
 	# own signposting with nobody to explain anything. That is a Level 4 problem created here.
 	PlayerProfile.record_lolo_departed()
+	# ⚠ PAINTING FIRST, FAREWELL SECOND, THEN CUT -- and the cut used to come first. The
+	# completion was staged on the same frame the lines were queued, so the level-complete
+	# panel was on its way while Lolo was still speaking, and he never left: he was simply
+	# there when the screen changed. Now the lines are read, he waves and goes, and then the
+	# level ends.
+	await _the_island_is_said()
+	await _lolo_takes_his_leave()
 	_complete_level()
+
+
+func _the_island_is_said() -> void:
+	if dialogue_box != null and dialogue_box.has_method("is_open") \
+			and bool(dialogue_box.call("is_open")):
+		await dialogue_box.conversation_finished
+
+
+func _lolo_takes_his_leave() -> void:
+	if lolo == null or not is_instance_valid(lolo) or not lolo.has_method("farewell"):
+		return
+	lolo.call("farewell")
+	# The wall clock, not this node's process delta: the island may be paused while he goes.
+	var started := Time.get_ticks_msec()
+	var sparkled := false
+	var length := float(lolo.call("farewell_length"))
+	var waited := 0.0
+	while is_instance_valid(lolo) and not bool(lolo.call("is_gone")) and waited < length + 1.0:
+		await get_tree().process_frame
+		waited = float(Time.get_ticks_msec() - started) / 1000.0
+		# A few motes lift off him as he starts to go.
+		if not sparkled and waited > length * 0.45 and _life != null:
+			sparkled = true
+			_life.sparkle(lolo.global_position + Vector2(0.0, -30.0), 7, 30.0)
 
 
 func _come_ashore() -> void:

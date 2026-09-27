@@ -592,6 +592,32 @@ faded on its own.
 **`run_level3_play_probe.gd`** walks both routes and makes 19 checks; with the crossing gate and
 the slip taken out, eleven of them fail, and they are the failures that were reported.
 
+## The missing art, and the four moments it was missing from (2026-09-27)
+
+Kent: *"add the missing art and animations"*. `ART_PLACEHOLDERS.md` had three Dagat items left,
+and each was a moment the level marked with sparkles over nothing:
+
+- **What the light finds.** A torn corner of one of Lola's canvases, in the house's gilt, with
+  this sea on it (`painting_fragment.png`, sampled from the house's own painting of Dagat). It
+  rises out of the sand; the flower comes up out of it and travels to the apo; the card says
+  which of the five it is -- the count the design insists must be seen. The flower used to be
+  recorded silently. ⚠ From the boat the creature is staged at the surface and its treasure
+  point lies under its coils, so there the corner comes up beside the bow instead: drawn at the
+  point, it was pinned across the dragon's neck.
+- **The next painting.** `NextPainting2D`, the house's painting for the next level in the
+  house's gilt, standing in a heap of the island's sand and glinting. `Painting2D.draw_gilt` is
+  now the one moulding for both, so the frame on the island is one of the frames in her house.
+- **Lolo's farewell.** His own wave pose, then he lifts and thins out (`Lolo.farewell()`, about
+  four seconds). ⚠ The level used to be completed on the same frame the island's lines were
+  queued, so the panel was already coming while he spoke and he never left -- he was simply
+  there when the screen changed. `_land_on_the_island` now waits for the conversation to close,
+  then for him to go, then completes. `run_level3_finish_probe` waits for the panel rather than
+  a fixed 140 frames, and checks he has gone before it (mutation-tested: without the farewell,
+  both routes fail it).
+- **Rowing.** The apo stood in the bangka with their arms at their sides while it slid across
+  the sea. They hold a paddle now (`paddle.png`) and stroke with it while the boat moves -- in
+  with a splash, back along the hull, lifted round -- and rest it when it stops.
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.

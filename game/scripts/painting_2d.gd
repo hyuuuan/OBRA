@@ -137,8 +137,16 @@ func _draw() -> void:
 ## both edges. The oval on the canvas is the same gold and the same light; this is its
 ## square cousin, because a picture frame on a wall is square and a mirror is not.
 func _draw_moulding(picture: Rect2) -> void:
+	draw_gilt(self, picture, moulding, not _playable)
+
+
+## THE MOULDING, FOR ANY CANVAS ITEM. The house's paintings draw it round themselves; one of
+## hers found somewhere else in the game -- half buried in Dagat's island sand -- draws the same
+## gold the same way, so that it is recognisably one of this set of frames and not a picture
+## that happens to be yellow round the edge.
+static func draw_gilt(canvas: CanvasItem, picture: Rect2, width: float, dim := false) -> void:
 	var bands := 4
-	var step := moulding / float(bands)
+	var step := width / float(bands)
 	for band in range(bands):
 		var inset := step * float(band)
 		var rect := picture.grow(inset + step)
@@ -146,22 +154,24 @@ func _draw_moulding(picture: Rect2) -> void:
 		var crown := 1.0 - absf(float(band) / float(bands - 1) * 2.0 - 1.0)
 		var thickness := step
 		# Top and left catch the light; bottom and right are in shadow.
-		draw_rect(Rect2(rect.position, Vector2(rect.size.x, thickness)), _tone(0.86, crown))
-		draw_rect(Rect2(rect.position, Vector2(thickness, rect.size.y)), _tone(0.78, crown))
-		draw_rect(Rect2(Vector2(rect.position.x, rect.end.y - thickness),
-			Vector2(rect.size.x, thickness)), _tone(0.16, crown))
-		draw_rect(Rect2(Vector2(rect.end.x - thickness, rect.position.y),
-			Vector2(thickness, rect.size.y)), _tone(0.24, crown))
-	draw_rect(picture.grow(1.0), UISkin.GILT_EDGE, false, 1.0)
-	draw_rect(picture.grow(moulding), UISkin.GILT_EDGE, false, 1.0)
+		canvas.draw_rect(Rect2(rect.position, Vector2(rect.size.x, thickness)),
+			tone(0.86, crown, dim))
+		canvas.draw_rect(Rect2(rect.position, Vector2(thickness, rect.size.y)),
+			tone(0.78, crown, dim))
+		canvas.draw_rect(Rect2(Vector2(rect.position.x, rect.end.y - thickness),
+			Vector2(rect.size.x, thickness)), tone(0.16, crown, dim))
+		canvas.draw_rect(Rect2(Vector2(rect.end.x - thickness, rect.position.y),
+			Vector2(thickness, rect.size.y)), tone(0.24, crown, dim))
+	canvas.draw_rect(picture.grow(1.0), UISkin.GILT_EDGE, false, 1.0)
+	canvas.draw_rect(picture.grow(width), UISkin.GILT_EDGE, false, 1.0)
 
 
 ## `lit` is how much this side faces the light, 0 to 1. Same ramp the canvas frame uses, so
 ## the gold in the house and the gold round the canvas are the same gold.
-func _tone(lit: float, crown: float) -> Color:
+static func tone(lit: float, crown: float, dim := false) -> Color:
 	var ramp: Array[Color] = [UISkin.GILT_EDGE, UISkin.GILT_DARK, UISkin.GILT_MID,
 		UISkin.GILT, UISkin.GILT_LIT, UISkin.GILT_HI]
 	var step := int(round(clampf(lit * 0.68 + crown * 0.40, 0.0, 1.0) * float(ramp.size() - 1)))
 	var colour := ramp[step]
 	# A painting you cannot walk into yet keeps its frame, dimmed with it.
-	return colour if _playable else colour.darkened(0.45)
+	return colour.darkened(0.45) if dim else colour

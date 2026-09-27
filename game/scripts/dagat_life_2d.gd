@@ -212,6 +212,16 @@ func _splash_rain(at: Vector2) -> void:
 	splash.global_position = Vector2(x, waterline_y + _rng.randf_range(-6.0, 10.0))
 
 
+## A splash where something breaks the surface -- a paddle's blade going in. The rain's own
+## splash, in front of the hull rather than on the far water.
+func splash_at(at: Vector2) -> void:
+	var splash := _sprite("splash", 14.0, false)
+	splash.z_index = 9
+	splash.modulate = Color(0.9, 0.96, 1.0, 0.9)
+	add_child(splash)
+	splash.global_position = Vector2(at.x, waterline_y + _rng.randf_range(-4.0, 4.0))
+
+
 func _build_the_flash() -> void:
 	_flash = Polygon2D.new()
 	_flash.name = "Lightning"
