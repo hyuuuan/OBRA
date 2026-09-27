@@ -1105,6 +1105,63 @@ func _on_shore_answered(obstacle_id: String, _route: String, _label: String,
 		director.enter_obstacle("L3_N1")
 
 
+## ⚠ A SWIMMER DRAWN AT THE WATER'S EDGE GOES INTO THE WATER, once the crossing is open.
+##
+## A new form arrives where the apo stood, and on this shore the apo stands on sand that ends
+## in a drop into deep water. A swimmer there cannot move -- it lies on the sand draining ink
+## until the ink runs out, the apo drops off the edge and is fished back to the beach. The apo
+## cannot get into the water to draw there either: the rescue takes them out within a second.
+## Played, not reasoned: the dive route could not be started at all.
+##
+## So a swimmer drawn within reach of either shore's edge slips into the sea just past it. Not
+## during the practice, which is on the sand on purpose -- that is where the drain is watched
+## with nothing at stake.
+const SLIP_REACH := 420.0
+
+
+func _where_a_new_form_arrives(entity_id: String, state: Dictionary) -> Dictionary:
+	if _restrictions == null or director == null or not _restrictions.swims(entity_id):
+		return state
+	if not director.is_solved("L3_B0_SHORE") or not state.has("position"):
+		return state
+	var edges := level_data_shore_edges()
+	if edges == Vector2.ZERO:
+		return state
+	var at := Vector2(state["position"])
+	if at.y > _waterline_y + 10.0:
+		return state
+	var into := state.duplicate()
+	if at.x <= edges.x and at.x > edges.x - SLIP_REACH:
+		into["position"] = Vector2(edges.x + 90.0, _waterline_y + 70.0)
+	elif at.x >= edges.y and at.x < edges.y + SLIP_REACH:
+		into["position"] = Vector2(edges.y - 90.0, _waterline_y + 70.0)
+	else:
+		return state
+	into.erase("velocity")
+	into["linear_velocity"] = Vector2.ZERO
+	return into
+
+
+func _slip_the_swimmer_in() -> void:
+	if player == null or not is_instance_valid(player) or _current_form_id.is_empty():
+		return
+	if _restrictions == null or not _restrictions.swims(_current_form_id):
+		return
+	if not player.has_method("capture_morph_state") or not player.has_method("apply_morph_state"):
+		return
+	var state: Dictionary = player.call("capture_morph_state")
+	var into := _where_a_new_form_arrives(_current_form_id, state)
+	if into != state:
+		player.call("apply_morph_state", into)
+	# ⚠ AND IT ANSWERS THE CROSSING. The swimmer was drawn for the practice, before the dive
+	# was chosen, so nothing had put it to the crossing: the player said "I will go under it",
+	# went under it, and was told "Draw something that can SWIM" by the objective line while
+	# swimming. It is the same body the route asks for -- judged the way a new drawing would be.
+	if director != null and director.current_obstacle() == "L3_N1" \
+			and not director.is_solved("L3_N1"):
+		_judge_submission(_current_form_id)
+
+
 func _on_bakunawa_approached() -> void:
 	# The base's handler reads `dialogue_node` and `_dialogue_node_obstacle_id()`, so both
 	# have to point at this fork before it runs.
@@ -1118,6 +1175,11 @@ func _on_bakunawa_approached() -> void:
 ## before they can slip through it, and the creature has to turn on them before they can
 ## fight it. Only the Artist one waits for a drawing.
 func _on_route_committed_here(obstacle_id: String, route: String) -> void:
+	# The dive chosen while the practice's swimmer is still lying on the sand: that one goes
+	# in too. See _where_a_new_form_arrives -- the same move, for a body that already exists.
+	if obstacle_id == "L3_N1" and route == "pragmatist":
+		_slip_the_swimmer_in.call_deferred()
+		return
 	if obstacle_id != "L3_N2" or _bakunawa == null:
 		return
 	match route:
