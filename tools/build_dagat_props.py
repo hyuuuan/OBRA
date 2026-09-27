@@ -859,7 +859,38 @@ def draw_painting_fragment() -> Canvas:
     return c
 
 
-FOUND = {"painting_fragment.png": draw_painting_fragment}
+# The sand the next painting is half buried in: its own sand plate's colours, a low heap with a
+# ragged crest, lit on top and shaded underneath. It is laid in front of the frame's foot.
+MOUND_W, MOUND_H = 56, 9
+
+
+def draw_sand_mound() -> Canvas:
+    import math
+    pixelart.PX = 3
+    c = Canvas(MOUND_W, MOUND_H, seed=4200)
+    for x in range(MOUND_W):
+        t = x / float(MOUND_W - 1)
+        crest = MOUND_H - 1 - int(round((math.sin(math.pi * t) ** 0.7) * (MOUND_H - 2)
+                                        + 0.8 * math.sin(x * 0.9)))
+        crest = max(0, min(MOUND_H - 1, crest))
+        for y in range(crest, MOUND_H):
+            depth = (y - crest) / float(max(1, MOUND_H - crest))
+            if y == crest:
+                colour = SAND[4] if (x % 3) else SAND[3]
+            elif depth < 0.45:
+                colour = SAND[3]
+            elif depth < 0.8:
+                colour = SAND[2] if (x + y) % 3 else SAND[3]
+            else:
+                colour = SAND[2]
+            c.px(x, y, colour)
+    for x, y in ((9, 6), (23, 5), (38, 6), (47, 7)):
+        c.px(x, y, SAND[1])
+    return c
+
+
+FOUND = {"painting_fragment.png": draw_painting_fragment,
+         "sand_mound.png": draw_sand_mound}
 
 
 def build() -> list[Path]:
