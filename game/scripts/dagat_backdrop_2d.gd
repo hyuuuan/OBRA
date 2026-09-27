@@ -203,7 +203,12 @@ const BANDS := {
 		# storm REPLACES the deep's water: this sits between that water and the deep's ridges
 		# and ruins, and its bottom row's colour carries on down, so under a storm the column
 		# is dark all the way to the seabed and the floor still stands in front of it.
-		{"key": "storm/undersea", "rate": 0.50, "z": -228,
+		#
+		# ⚠ ONLY ITS FIRST 1080 COLUMNS, and they are mirrored. The plate has the bakunawa
+		# painted into it at 1090..1480 -- a second, still dragon in the background that came
+		# round every screen and a half of the crossing, long before the real one surfaced, and
+		# was there again beside it when it did. Everything left of it is ridge, kelp and fish.
+		{"key": "storm/undersea", "rate": 0.50, "z": -228, "columns": Vector2(0, 1080),
 			# ⚠ THE PLATE'S OWN LAST ROW, SAMPLED. It was #031735 and the rows above it are
 			# #04102a -- bluer and lighter by enough to draw a line across the column where
 			# the two met.
@@ -367,6 +372,9 @@ func _new_layer(row: Dictionary, frames: Array[Texture2D], manifest: Dictionary)
 	layer.day = bool(row.get("day", false))
 	layer.late = bool(row.get("late", false))
 	layer.sunk_row = float(row.get("sunk_row", 0.0))
+	if row.has("columns"):
+		layer.columns = row["columns"]
+		layer.canvas_width = layer.columns.y - layer.columns.x
 	if row.has("top_row"):
 		# An authored texture is not on the plate at all; it says which plate row it
 		# starts at, and it repeats at its own width rather than the plate's.
@@ -640,6 +648,8 @@ class _Layer extends Node2D:
 	## whatever is in front of it stops hiding it, or where the sea starts. Zero keeps the whole
 	## plate. See storm/shores and storm/rain.
 	var sunk_row := 0.0
+	## The plate columns a tiled layer is made of, if not all of them. See storm/undersea.
+	var columns := Vector2.ZERO
 	## Part of this band's sea and sky rather than its land. See far_fade_span.
 	var far := false
 	## Drawn only as far as the night has come in. See night_span.
@@ -785,18 +795,25 @@ class _Layer extends Node2D:
 			# Two plates more at each end for the slide to travel into.
 			base_x -= canvas_width * 2.0
 			count += 4
-		# The part of the frame each tile shows: all of it, unless the layer stops at a row.
+		# The part of the frame each tile shows: all of it, unless the layer is cut to some of
+		# its columns or stops at a row.
 		var region := Rect2()
 		var shown_width := float(frames[0].get_width())
-		if sunk_row > 0.0:
-			region = Rect2(0.0, 0.0, shown_width,
-				minf(float(frames[0].get_height()), sunk_row - origin.y))
+		if columns != Vector2.ZERO or sunk_row > 0.0:
+			var height := float(frames[0].get_height())
+			if sunk_row > 0.0:
+				height = minf(height, sunk_row - origin.y)
+			var left := 0.0
+			if columns != Vector2.ZERO:
+				left = columns.x - origin.x
+				shown_width = columns.y - columns.x
+			region = Rect2(left, 0.0, shown_width, height)
 		for index in range(count):
 			var flip := mirrored_tiles and index % 2 == 1
 			# ⚠ flip_h mirrors the texture INSIDE the sprite's own rect; it does not move the
 			# rect. A trimmed frame mirrored on its canvas lands the same distance from the
 			# canvas's OTHER edge, which is the only thing that has to be worked out here.
-			var inset := origin.x
+			var inset := origin.x if columns == Vector2.ZERO else 0.0
 			if flip:
 				inset = canvas_width - inset - shown_width
 			_add_tile(canvas_width * float(index) + inset, flip, region)
