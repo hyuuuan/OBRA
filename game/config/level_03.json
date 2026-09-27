@@ -196,6 +196,9 @@
     "cross_by_dive": "Swim along the bottom for the far side. Watch the ink",
     "bakunawa": "It cannot see. Decide what you are going to do about that",
     "bakunawa.tags": "Something that can {tags} \u2014 or slip by while it is looking elsewhere",
+    "bakunawa_sneak": "Keep out of its light and slip past it to the far side",
+    "bakunawa_light": "Draw something that can throw LIGHT, and show it where to look",
+    "bakunawa_fight": "Draw something that can STRIKE, and make it stop",
     "island": "Go up onto the far sand"
   },
   "obstacles": [
