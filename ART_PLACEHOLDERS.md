@@ -281,13 +281,21 @@ itself, and hiding the skin node alone leaves the outline drawn over the picture
 panel carries for the rest of the run, and two pictures of one tool are two things to keep in
 step.
 
-**Still a developer's rectangles, in the order they are met:**
+**Nothing in Dagat is a developer's rectangle any more (27 September).** The last three, and one
+the design listed without naming it, are authored in the same tool and idiom:
 
-| What | Where | What the player has to understand |
-|---|---|---|
-| **The bakunawa's treasure** | What it uncovers on the Artist route | It is *something the player recognises* — the design asks for an object from Level 1's house, not a chest |
-| **The next painting** | Island, `IslandMark` | The thing they crossed the sea for, glittering in the sand |
-| **Lolo's farewell pose** | Island | He stops, and it is the last thing in the level. The design asks for the existing wave pose rather than a new one |
+| What | Where | How it is drawn | What it has to say |
+|---|---|---|---|
+| **What the bakunawa had lost** | Where the light leads it, on the Artist route | `painting_fragment.png`: a torn corner of one of Lola's canvases in the house's own gilt, with this sea painted on it -- sampled from `assets/hub/paintings/level_3.png`, so it is recognisably one of hers. Rises out of the sand on the dive; from the boat it comes up beside the bow, where the apo can see it | Something the player recognises -- the design asks for "an object from Level 1's house, or a piece of the painting", never a chest. The flower comes up out of it to the apo, and the card says which of the five it is |
+| **The next painting** | The island, where the landing sparkles | `NextPainting2D`: the house's own painting for the next level, in the house's gilt -- `Painting2D.draw_gilt` is the one moulding for both -- standing in `sand_mound.png`, glinting on the gold | The thing they crossed the sea for. Scenery, not a door: the level ends on the arrival and the next level is chosen from the house |
+| **Lolo's farewell** | The island, after his last line | His own `wave` pose (the design: "reuse the existing wave pose rather than authoring a new one"), then he lifts and thins out -- `Lolo.farewell()`. The level ends only once he has gone | He stops here. Painting first, farewell second, then cut |
+| **The paddle** | In the apo's hands, aboard the bangka | `paddle.png`, the hull's own wood. It strokes -- forward, in with a splash, back along the hull, lifted round -- while the boat moves, and rests across the lap when it does not | The apo is rowing. The sheet has no seated pose, and a boat sliding under a figure standing with its arms at its sides reads as a boat being dragged |
+
+**Still open, for the art team rather than for code:** a grieving or turned-away Lolo for the
+death reveal, and a dedicated fade for his exit (the design lists both as NEW poses; the wave
+and a code fade stand in). And the bakunawa's design lists more states than were delivered: its
+attack and hurt play the thrashing clip (hurt is a white flash on it), and calm and subdued play
+the searching clip slowed down, subdued tinted grey.
 
 **The sweep cone is not on this list and must not be.** It is drawn in code because it *is*
 the stealth rule — the thing `sees()` answers about — and a boundary the player cannot see is
