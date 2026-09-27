@@ -1115,6 +1115,8 @@ func _gate_the_crossing() -> void:
 		_crossing_area = area
 	if not director.obstacle_solved.is_connected(_on_shore_answered):
 		director.obstacle_solved.connect(_on_shore_answered)
+	if not director.obstacle_entered.is_connected(_on_beat_entered):
+		director.obstacle_entered.connect(_on_beat_entered)
 
 
 func _on_crossing_entered(obstacle_id: String) -> void:
@@ -1131,6 +1133,18 @@ func _on_shore_answered(obstacle_id: String, _route: String, _label: String,
 		_attempts: int, _tier: int) -> void:
 	if obstacle_id == "L3_B0_SHORE" and _inside_crossing and director != null:
 		director.enter_obstacle("L3_N1")
+
+
+## ⚠ AND ONCE THE SHORE IS ANSWERED, STANDING IN THE CROSSING MEANS THE CROSSING. The two
+## volumes overlap and the director keeps whichever the player entered last. A checkpoint
+## restore puts the apo back inside both at once, and when the shore's volume happened to report
+## second, a finished practice was the current beat: the swimmer drawn next was judged against
+## it, counted for nothing, and the dive went on with the objective asking for a drawing the
+## player was already swimming in.
+func _on_beat_entered(obstacle_id: String) -> void:
+	if obstacle_id == "L3_B0_SHORE" and _inside_crossing and director != null \
+			and director.is_solved("L3_B0_SHORE"):
+		director.enter_obstacle.call_deferred("L3_N1")
 
 
 ## ⚠ A SWIMMER DRAWN AT THE WATER'S EDGE GOES INTO THE WATER, once the crossing is open.
