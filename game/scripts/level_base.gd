@@ -1699,7 +1699,11 @@ func _spawn_or_replace(
 		morph_life.clear()
 	if morph_card != null:
 		morph_card.show_form(label, drawing, _last_confidence)
-	if skin != null and skin.has_method("rig_summary"):
+	# ⚠ THE RIG SUMMARY IS FOR WHOEVER IS DEBUGGING, NOT FOR THE PLAYER. "Fish [vector/3
+	# bodies/2 joints | 2 strokes]" sat in the ink panel after every drawing in every level --
+	# the one line of text the game says about what the player just made, in the build's own
+	# vocabulary. It stays, behind the same flag as the timing logs.
+	if debug_timing_logs and skin != null and skin.has_method("rig_summary"):
 		label += " [%s | %d strokes]" % [skin.call("rig_summary"), strokes.size()]
 	status_label.text = label
 	if debug_timing_logs:
