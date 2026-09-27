@@ -889,8 +889,39 @@ def draw_sand_mound() -> Canvas:
     return c
 
 
+# A paddle for the bangka: the apo sits in it for the whole of the Artist crossing, and a boat
+# that moves with nobody visibly rowing it reads as a boat being dragged. Its shaft and blade
+# are the hull's own wood.
+PADDLE_W, PADDLE_H = 5, 28
+
+
+def draw_paddle() -> Canvas:
+    pixelart.PX = 3
+    c = Canvas(PADDLE_W, PADDLE_H, seed=4300)
+    # The grip at the top, a knob a pixel wider than the shaft.
+    for x in range(1, 4):
+        c.px(x, 0, HULL[1])
+    c.px(2, 0, HULL[3])
+    for y in range(1, 19):
+        c.px(2, y, HULL[3] if y % 5 else HULL[2])
+        c.px(1, y, HULL[1])
+    # The blade, widening from the shaft and rounded at the tip, lit down its left edge.
+    widths = [1, 2, 2, 2, 2, 2, 2, 1, 1]
+    for index, half in enumerate(widths):
+        y = 19 + index
+        for x in range(2 - half, 3 + half):
+            if not (0 <= x < PADDLE_W):
+                continue
+            colour = HULL[4] if x == 2 - half else HULL[3]
+            if x == 2 + half:
+                colour = HULL[1]
+            c.px(x, y, colour)
+    return c
+
+
 FOUND = {"painting_fragment.png": draw_painting_fragment,
-         "sand_mound.png": draw_sand_mound}
+         "sand_mound.png": draw_sand_mound,
+         "paddle.png": draw_paddle}
 
 
 def build() -> list[Path]:
