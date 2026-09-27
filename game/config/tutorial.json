@@ -230,7 +230,9 @@
           "id": "new_brush",
           "at": "new_brush_taken",
           "text": "Hers counted you down. This one does not count at all.",
-          "seconds": 7.0
+          "seconds": 7.0,
+          "anchor": "ink_gauge",
+          "side": "auto"
         },
         {
           "id": "drain",
@@ -247,13 +249,17 @@
           "after": "drain",
           "action": "revert_form",
           "text": "{keys} puts you back, and stops it going down. Changing back never costs.",
-          "seconds": 7.0
+          "seconds": 7.0,
+          "anchor": "revert_prompt",
+          "side": "auto"
         },
         {
           "id": "refill",
           "at": "ink_low",
           "text": "You are nearly out. It does not come back on its own out here \u2014 you have to find more of it.",
-          "seconds": 8.0
+          "seconds": 8.0,
+          "anchor": "morph_card",
+          "side": "auto"
         },
         {
           "id": "no_drowning",
