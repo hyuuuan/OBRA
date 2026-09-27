@@ -192,6 +192,8 @@
     "practice.tags": "Draw something that can {tags} here on the sand, and watch the ink",
     "cross": "Get to the far side",
     "cross.tags": "Draw something that can {tags} \u2014 or walk the shore and see what is beached there",
+    "cross_by_boat": "Row out across the open water. Something is waiting out there",
+    "cross_by_dive": "Swim along the bottom for the far side. Watch the ink",
     "bakunawa": "It cannot see. Decide what you are going to do about that",
     "bakunawa.tags": "Something that can {tags} \u2014 or slip by while it is looking elsewhere",
     "island": "Go up onto the far sand"
