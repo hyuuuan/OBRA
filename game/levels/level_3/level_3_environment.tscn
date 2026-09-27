@@ -234,11 +234,15 @@ obstacle_id = "L3_N1"
 trigger_size = Vector2(520.0, 420.0)
 checkpoint_mark_offset = -260.0
 
+; ⚠ THE "?" BOARD STANDS PAST THE JARS -- on the seabed a broken pillar, see Signpost2D. At the
+; volume's centre (3860) it landed between the refills at 3850 and 4050 and read as one of them;
+; 4150 is clear seabed short of the island.
 [node name="L3_N2" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(3860.0, 1240.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L3_N2"
 trigger_size = Vector2(900.0, 1500.0)
+hint_sign_offset = 290.0
 plants_commit_mark = false
 sign_reach = 700.0
 
