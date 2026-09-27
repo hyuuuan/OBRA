@@ -58,6 +58,33 @@ const NAIL := Color(0.478, 0.478, 0.463, 1.0)       # 7A7A76
 const INK := Color(0.129, 0.086, 0.051, 1.0)        # 21160D
 const LIT := Color(0.976, 0.847, 0.290, 1.0)        # F9D84A
 
+## ⚠ AND ON THE SEABED IT IS NOT A WOODEN BOARD. A pale plank on a post stuck in the bottom of
+## the sea is a land object dropped into the water, and Dagat has three of them at its
+## encounter. Under the sea a board is a BROKEN PILLAR from the ruins the whole seabed is made
+## of: a stump of their stone on its plinth, snapped off across the top, sunk in the silt,
+## barnacled, with the same glyph carved into its face -- the five shapes the player already
+## knows -- and glowing the sea's own light instead of the painted yellow. Chosen from where it
+## stands; see under_the_sea.gd.
+##
+## ⚠ NOT A SLAB WITH A ROUNDED TOP. That was the first cut, and a grey arched stone standing on
+## the seabed where Lolo drowned reads as a headstone. A column snapped off is architecture.
+const UnderTheSea = preload("res://scripts/under_the_sea.gd")
+const STONE := Color(0.361, 0.431, 0.529, 1.0)       # 5C6E87  lighter than the seabed, to read
+const STONE_LIT := Color(0.541, 0.620, 0.722, 1.0)   # 8A9EB8
+const STONE_DARK := Color(0.227, 0.278, 0.361, 1.0)  # 3A475C
+const STONE_EDGE := Color(0.090, 0.114, 0.157, 1.0)  # 171D28
+const SILT := Color(0.071, 0.227, 0.361, 1.0)        # 123A5C
+const SILT_DARK := Color(0.043, 0.169, 0.290, 1.0)   # 0B2B4A
+const SHELLS := Color(0.769, 0.780, 0.769, 1.0)      # C4C7C4  barnacles
+const KELP := Color(0.200, 0.459, 0.337, 1.0)        # 337556
+const CARVE := Color(0.063, 0.110, 0.157, 1.0)       # 101C28  the cut into the stone
+const GLOW := Color(0.502, 0.941, 0.878, 1.0)        # 80F0E0  what lights the carving
+const PILLAR_HALF := 12.0
+const PILLAR_HEIGHT := 36.0
+## The snapped top, as the drop below the tallest point for each pair of columns, left to right:
+## high on the left, falling away jaggedly to the right where the rest of it broke off.
+const BREAK := [0, 0, 1, 0, 2, 3, 2, 4, 5, 4, 6, 7]
+
 ## How big the board is, and how tall the post under it stands. Small on purpose: this is
 ## a hand-lettered marker beside the path, not a road sign, and the apo is 96 pixels.
 const BOARD_SIZE := Vector2(34.0, 24.0)
@@ -101,6 +128,10 @@ const READ_RANGE := 96.0
 var _time: float = 0.0
 var _sway: float = 0.0
 var _offered := false
+## Standing on the seabed of a level that asked for sea forms. See UnderTheSea.
+var _sea := false
+## How brightly the carving glows, in whole steps, so it is redrawn only when it changes.
+var _pulse := 0
 
 
 ## Stand a sign at `where`, in `host`'s parent so it keeps the host's place in the world
@@ -132,6 +163,7 @@ func _ready() -> void:
 	# terraces and their props run 0..6 and the checkpoint flag is at 8, so 7 is the band
 	# between a prop and a flag, which is exactly what a sign is.
 	z_index = 7
+	_sea = UnderTheSea.holds(self)
 	set_process(true)
 	_settle()
 
@@ -176,6 +208,10 @@ func _settle() -> void:
 		# Whole pixels. Everything in this level is drawn on them, and a post standing on
 		# a half one has a soft edge that nothing else on screen has.
 		global_position = Vector2(global_position.x, roundf(float(hit["position"].y)))
+	# Asked again where it has come to rest: the host that planted it may have been hanging
+	# in the water column, and it is the seabed it ends up on that decides what it is.
+	_sea = UnderTheSea.holds(self)
+	queue_redraw()
 	_yield_if_crowded()
 
 
@@ -266,9 +302,29 @@ func _process(delta: float) -> void:
 	if not is_equal_approx(sway, _sway):
 		_sway = sway
 		queue_redraw()
+	if _sea:
+		# The carving breathes, slowly, in four steps -- light from something alive in the
+		# grooves, not a lamp.
+		var pulse := int(roundf((sin(TAU * (_time * 0.22 + phase)) * 0.5 + 0.5) * 3.0))
+		if pulse != _pulse:
+			_pulse = pulse
+			queue_redraw()
 
 
 func _draw() -> void:
+	if _sea:
+		_draw_pillar()
+		var centre := Vector2(0.0, -PILLAR_HEIGHT * 0.5 - 1.0)
+		if _offered:
+			draw_rect(Rect2(-PILLAR_HALF - 7.0, -PILLAR_HEIGHT - 4.0,
+				PILLAR_HALF * 2.0 + 14.0, PILLAR_HEIGHT + 6.0), GLOW, false, 2.0)
+		# CUT, THEN LIT: the glyph once in the dark of the cut, a pixel down and right, and
+		# again over it in the glow -- so it reads as carved into the stone and shining out of
+		# the carving, and it reads against dark water, which a dark glyph would not.
+		_draw_mark(centre + Vector2(1.0, 1.0), CARVE, CARVE)
+		_draw_mark(centre, Color(GLOW, 0.62 + 0.12 * float(_pulse)),
+			Color(0.85, 1.0, 0.97, 1.0))
+		return
 	_draw_post()
 	var at := Vector2(0.0, -POST_HEIGHT - BOARD_SIZE.y * 0.5 + _sway)
 	if _offered:
@@ -305,46 +361,95 @@ func _draw_board(at: Vector2) -> void:
 	_draw_mark(at)
 
 
+## THE PILLAR. A plinth sunk in the silt, a shaft on it lit down its left and in shade on its
+## right, two flutes cut down its sides, and its top snapped off across -- high on the left,
+## falling away jaggedly to the right. Barnacles where the current has left them, and a strand
+## of kelp moving at its foot.
+func _draw_pillar() -> void:
+	var half := PILLAR_HALF
+	var shaft_top := -PILLAR_HEIGHT
+	# The shaft, column by column, so the broken top can drop by its own amount in each.
+	for x in range(int(-half), int(half)):
+		var drop := float(BREAK[clampi(int((float(x) + half) / 2.0), 0, BREAK.size() - 1)])
+		var top := shaft_top + drop
+		var colour := STONE
+		if x <= int(-half) + 1:
+			colour = STONE_LIT
+		elif x >= int(half) - 2:
+			colour = STONE_DARK
+		elif x == int(-half) + 4 or x == int(half) - 5:
+			colour = STONE_DARK
+		draw_rect(Rect2(float(x), top, 1.0, -top - 5.0), colour)
+		# The break: raw stone, pale on its upper face, a dark edge above it.
+		draw_rect(Rect2(float(x), top, 1.0, 1.0), STONE_LIT)
+		draw_rect(Rect2(float(x), top - 1.0, 1.0, 1.0), STONE_EDGE)
+	draw_rect(Rect2(-half - 1.0, shaft_top, 1.0, -shaft_top - 5.0), STONE_EDGE)
+	draw_rect(Rect2(half, shaft_top + float(BREAK[BREAK.size() - 1]), 1.0,
+		-shaft_top - 5.0 - float(BREAK[BREAK.size() - 1])), STONE_EDGE)
+	# The plinth it stands on: wider, a course of the same stone, lit along its top.
+	draw_rect(Rect2(-half - 4.0, -6.0, half * 2.0 + 8.0, 5.0), STONE_EDGE)
+	draw_rect(Rect2(-half - 3.0, -5.0, half * 2.0 + 6.0, 4.0), STONE)
+	draw_rect(Rect2(-half - 3.0, -5.0, half * 2.0 + 6.0, 1.0), STONE_LIT)
+	draw_rect(Rect2(half + 1.0, -5.0, 2.0, 4.0), STONE_DARK)
+	# A crack down the shaft's shaded side.
+	for step in range(6):
+		draw_rect(Rect2(6.0 + float(step % 2), -26.0 + float(step) * 3.0, 1.0, 3.0), STONE_DARK)
+	# Barnacles.
+	for spot: Vector2 in [Vector2(-10.0, -9.0), Vector2(-7.0, -8.0), Vector2(8.0, -27.0),
+			Vector2(9.0, -12.0)]:
+		draw_rect(Rect2(spot, Vector2(2.0, 2.0)), SHELLS)
+		draw_rect(Rect2(spot, Vector2(1.0, 1.0)), Color.WHITE)
+	# Sunk in the silt: a low heap either side of its foot.
+	draw_rect(Rect2(-half - 7.0, -3.0, half * 2.0 + 14.0, 3.0), SILT)
+	draw_rect(Rect2(-half - 5.0, -4.0, 7.0, 1.0), SILT)
+	draw_rect(Rect2(half - 2.0, -4.0, 7.0, 1.0), SILT)
+	draw_rect(Rect2(-half - 7.0, -1.0, half * 2.0 + 14.0, 1.0), SILT_DARK)
+	# A strand of kelp at its foot, moving on the board's own sway.
+	draw_rect(Rect2(-half - 6.0, -8.0, 1.0, 6.0), KELP)
+	draw_rect(Rect2(-half - 5.0 + _sway, -13.0, 1.0, 5.0), KELP)
+	draw_rect(Rect2(-half - 6.0 + _sway, -17.0, 1.0, 4.0), KELP)
+
+
 ## The glyph, drawn out of whole pixels like everything else. Each is built so that its
 ## SILHOUETTE carries it: at eighteen pixels of board nobody reads a picture, they read a
 ## shape, and the four have to be different shapes before they are different drawings.
-func _draw_mark(at: Vector2) -> void:
+func _draw_mark(at: Vector2, ink: Color = INK, lit: Color = LIT) -> void:
 	match mark:
 		Mark.HINT:
 			# A question mark. Nothing else on a board this size says "work something out"
 			# in one shape, and it is the one glyph here nobody has to be taught.
-			draw_rect(Rect2(at.x - 6.0, at.y - 9.0, 12.0, 4.0), INK)
-			draw_rect(Rect2(at.x - 8.0, at.y - 7.0, 4.0, 4.0), INK)
-			draw_rect(Rect2(at.x + 4.0, at.y - 7.0, 4.0, 5.0), INK)
-			draw_rect(Rect2(at.x, at.y - 3.0, 5.0, 4.0), INK)
-			draw_rect(Rect2(at.x - 2.0, at.y + 1.0, 4.0, 4.0), INK)
-			draw_rect(Rect2(at.x - 2.0, at.y + 7.0, 4.0, 4.0), INK)
-			draw_rect(Rect2(at.x - 5.0, at.y - 8.0, 10.0, 2.0), LIT)
+			draw_rect(Rect2(at.x - 6.0, at.y - 9.0, 12.0, 4.0), ink)
+			draw_rect(Rect2(at.x - 8.0, at.y - 7.0, 4.0, 4.0), ink)
+			draw_rect(Rect2(at.x + 4.0, at.y - 7.0, 4.0, 5.0), ink)
+			draw_rect(Rect2(at.x, at.y - 3.0, 5.0, 4.0), ink)
+			draw_rect(Rect2(at.x - 2.0, at.y + 1.0, 4.0, 4.0), ink)
+			draw_rect(Rect2(at.x - 2.0, at.y + 7.0, 4.0, 4.0), ink)
+			draw_rect(Rect2(at.x - 5.0, at.y - 8.0, 10.0, 2.0), lit)
 		Mark.STORY:
 			# A speech bubble with a tail: the roundest of the five.
-			draw_rect(Rect2(at.x - 9.0, at.y - 7.0, 18.0, 10.0), INK)
-			draw_rect(Rect2(at.x - 7.0, at.y - 8.0, 14.0, 1.0), INK)
-			draw_rect(Rect2(at.x - 7.0, at.y + 3.0, 9.0, 2.0), INK)
-			draw_rect(Rect2(at.x - 6.0, at.y + 5.0, 4.0, 2.0), INK)
+			draw_rect(Rect2(at.x - 9.0, at.y - 7.0, 18.0, 10.0), ink)
+			draw_rect(Rect2(at.x - 7.0, at.y - 8.0, 14.0, 1.0), ink)
+			draw_rect(Rect2(at.x - 7.0, at.y + 3.0, 9.0, 2.0), ink)
+			draw_rect(Rect2(at.x - 6.0, at.y + 5.0, 4.0, 2.0), ink)
 			for dot: float in [-5.0, 0.0, 5.0]:
-				draw_rect(Rect2(at.x + dot - 1.0, at.y - 4.0, 3.0, 3.0), LIT)
+				draw_rect(Rect2(at.x + dot - 1.0, at.y - 4.0, 3.0, 3.0), lit)
 		Mark.CHOICE:
 			# A road that forks. Two arms and a stem, which is a shape and not a picture.
-			draw_rect(Rect2(at.x - 2.0, at.y - 1.0, 3.0, 8.0), INK)
-			draw_rect(Rect2(at.x - 8.0, at.y - 3.0, 17.0, 3.0), INK)
+			draw_rect(Rect2(at.x - 2.0, at.y - 1.0, 3.0, 8.0), ink)
+			draw_rect(Rect2(at.x - 8.0, at.y - 3.0, 17.0, 3.0), ink)
 			for side: float in [-1.0, 1.0]:
-				draw_rect(Rect2(at.x + side * 7.0 - 1.0, at.y - 8.0, 3.0, 6.0), INK)
-				draw_rect(Rect2(at.x + side * 6.0 - 1.0, at.y - 9.0, 3.0, 3.0), LIT)
+				draw_rect(Rect2(at.x + side * 7.0 - 1.0, at.y - 8.0, 3.0, 6.0), ink)
+				draw_rect(Rect2(at.x + side * 6.0 - 1.0, at.y - 9.0, 3.0, 3.0), lit)
 		Mark.MEMORY:
 			# A page with writing on it, leaning the way a loose sheet does.
-			draw_rect(Rect2(at.x - 7.0, at.y - 9.0, 14.0, 18.0), INK)
-			draw_rect(Rect2(at.x - 5.0, at.y - 7.0, 10.0, 14.0), LIT)
+			draw_rect(Rect2(at.x - 7.0, at.y - 9.0, 14.0, 18.0), ink)
+			draw_rect(Rect2(at.x - 5.0, at.y - 7.0, 10.0, 14.0), lit)
 			for line in range(3):
-				draw_rect(Rect2(at.x - 3.0, at.y - 4.0 + float(line) * 4.0, 7.0, 2.0), INK)
+				draw_rect(Rect2(at.x - 3.0, at.y - 4.0 + float(line) * 4.0, 7.0, 2.0), ink)
 		Mark.FIND:
 			# A four-petal flower, which is what there is to find.
-			draw_rect(Rect2(at.x - 3.0, at.y - 9.0, 6.0, 6.0), LIT)
-			draw_rect(Rect2(at.x - 3.0, at.y + 2.0, 6.0, 6.0), LIT)
-			draw_rect(Rect2(at.x - 9.0, at.y - 3.0, 6.0, 6.0), LIT)
-			draw_rect(Rect2(at.x + 3.0, at.y - 3.0, 6.0, 6.0), LIT)
-			draw_rect(Rect2(at.x - 3.0, at.y - 3.0, 6.0, 6.0), INK)
+			draw_rect(Rect2(at.x - 3.0, at.y - 9.0, 6.0, 6.0), lit)
+			draw_rect(Rect2(at.x - 3.0, at.y + 2.0, 6.0, 6.0), lit)
+			draw_rect(Rect2(at.x - 9.0, at.y - 3.0, 6.0, 6.0), lit)
+			draw_rect(Rect2(at.x + 3.0, at.y - 3.0, 6.0, 6.0), lit)
+			draw_rect(Rect2(at.x - 3.0, at.y - 3.0, 6.0, 6.0), ink)
