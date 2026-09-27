@@ -1680,6 +1680,7 @@ func _spawn_or_replace(
 			status_label.text = "Rig build failed safely — previous morph kept"
 			new_player.queue_free()
 			return false
+	previous_state = _where_a_new_form_arrives(entity_id, previous_state)
 	_adopt_player(new_player, previous_state, true)
 
 	var label := display_name if not display_name.is_empty() else entity_id.capitalize()
@@ -1699,7 +1700,11 @@ func _spawn_or_replace(
 		morph_life.clear()
 	if morph_card != null:
 		morph_card.show_form(label, drawing, _last_confidence)
-	if skin != null and skin.has_method("rig_summary"):
+	# ⚠ THE RIG SUMMARY IS FOR WHOEVER IS DEBUGGING, NOT FOR THE PLAYER. "Fish [vector/3
+	# bodies/2 joints | 2 strokes]" sat in the ink panel after every drawing in every level --
+	# the one line of text the game says about what the player just made, in the build's own
+	# vocabulary. It stays, behind the same flag as the timing logs.
+	if debug_timing_logs and skin != null and skin.has_method("rig_summary"):
 		label += " [%s | %d strokes]" % [skin.call("rig_summary"), strokes.size()]
 	status_label.text = label
 	if debug_timing_logs:
@@ -3262,10 +3267,24 @@ func _revert_to_base_form() -> void:
 	_current_form_name = ""
 	_current_form_id = ""
 	morph_life.clear()
+	# ⚠ AND THE CARD GOES WITH THE FORM, whatever clock the level runs on. It was hidden only
+	# by MorphLife reporting an empty form, and a level with no clock never starts MorphLife --
+	# so in Dagat the card went on saying FISH, with its ink bar, over the apo rowing a boat.
+	if morph_card != null:
+		morph_card.hide_form()
 	if was.is_empty():
 		status_label.text = "Back to yourself"
 	else:
 		status_label.text = "Back to yourself — the %s is gone" % was.to_lower()
+
+
+## WHERE A NEWLY DRAWN FORM TURNS UP. It takes the place of whoever the player was, so by
+## default it arrives where they were standing -- `state` is that body's capture_morph_state.
+## A level may move it: Dagat puts a swimmer drawn at the water's edge into the water, because
+## drawn on the sand it lies there draining ink and cannot move. Return `state` unchanged to
+## leave it where it is.
+func _where_a_new_form_arrives(_entity_id: String, state: Dictionary) -> Dictionary:
+	return state
 
 
 ## Everything that has to happen when one body becomes the player in place of another,
@@ -3444,6 +3463,13 @@ func _requirements_per_route(obstacle_id: String) -> Dictionary:
 	for route_value: Variant in routes.keys():
 		var route := String(route_value)
 		var spec: Dictionary = routes[route]
+		# ⚠ A ROUTE THAT IS NOT DRAWN SAYS WHAT IT ASKS FOR IN ITS OWN WORDS. A route
+		# `answered_by` something found or done has no tags to phrase, so its button carried
+		# nothing at all -- Dagat's "I will walk the sand first" sat beside "NEEDS SWIM" and
+		# never said that walking the sand is how the boat is found.
+		if spec.has("choice_note"):
+			notes[route] = String(spec["choice_note"])
+			continue
 		notes[route] = RequirementStrip.phrase(
 			spec.get("required_tags", []), String(spec.get("match", "all")))
 	return notes

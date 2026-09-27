@@ -557,6 +557,41 @@ Left as it is, on purpose: the 1000..1560 cross-fade still double-exposes the tw
 two seconds a boat takes to cross it. That is what cross-fading two paintings does, and with the
 islands arriving late it is only water over water.
 
+## Played the way a player plays it (2026-09-27)
+
+Kent: *"its so unplayable like the things there are so weird, there are not enough guides, no
+info on what those things do... everything is off like the elements, the backgrounds, splitting
+weirdly."* Every probe in the suite was green. They all enter each beat by NAME; a player walks,
+and the volumes a player walks through overlap. So this pass recorded both routes being played --
+walked, drawn where the objective says, chosen at the fork with its overlay, boarded with the key
+the prompt names -- photographing the screen and logging every line of text on it at each step.
+What that found, in the order a player meets it:
+
+| Where | What happened | Now |
+|---|---|---|
+| The practice | The crossing's volume (640..1160) lies over the practice's (350..1050) and the director judges against the beat entered LAST. The swimmer drawn where the objective pointed answered the CROSSING: the apo announced the dive, the practice stayed unsolved, the fork never opened, the boat could not be taken, and the objective and Lolo's "not yet" never moved again | `_gate_the_crossing`: the crossing is not entered until the shore is answered, and is the current beat whenever the player stands in it after that (a checkpoint restore used to hand it back to the finished practice) |
+| The practice's words | "Take it into the shallows" -- there have been no shallows since the sea was moved to start where the sand ends | "Try a shape here on the sand first... and watch the ink" |
+| The lessons | None of Dagat's showed. The first hangs on picking up the brush, which happens once, while Lolo's own brush line is on the hint bar; a lesson bound for a busy bar waits for its event to come round again, and this one never does. The drain lesson and the change-back lesson were chained behind it | The brush, change-back, running-low and new `jars` lessons point at the controls they are about (`ink_gauge`, `revert_prompt`, `morph_card`), so they need no bar. The drain event is noted again every 8 s so chained lessons land in turn, and choosing the boat as a swimmer brings the change-back lesson at once |
+| The fork | "I will walk the sand first" carried no requirement beside "NEEDS SWIM", and nothing said walking the sand is how the boat is found | Routes may declare a `choice_note`: NEEDS NOTHING DRAWN, and what it takes instead |
+| The dive | Could not be started. A swimmer drawn on the sand cannot move and lay there draining from full to nothing; the apo cannot draw in the water either, because the rescue takes them out within a second | `_where_a_new_form_arrives` (a base hook): once the shore is answered, a swimmer drawn within 420 px of either shore's edge slips into the sea. Choosing the dive while still the practice's swimmer takes that one in and puts it to the crossing |
+| The objective | Jumped to "It cannot see. Decide what you are going to do about that" the moment the crossing was answered -- on the beach, to a player who had never seen what "it" was | `cross_by_boat` / `cross_by_dive` until the encounter's volume is entered |
+| The HUD | The ink panel said "Fish [vector/3 bodies/2 joints \| 2 strokes]" after every drawing, in every level. The form card went on saying FISH over the apo rowing, because it was only hidden by MorphLife and Dagat never starts MorphLife | The rig summary is behind `debug_timing_logs`; changing back hides the card directly |
+| The jars | Nothing said what they are. A line on the bar never landed -- Lolo tells the dive as a story and is on the bar for most of it | The `jars` lesson, beside the ink card, the first time one is within 360 px |
+| The island, by boat, going around it | Slipping past was answered only at 420 px beyond the creature. The boat's hull runs aground on the island with the passenger at x 4417, so a boat player sat at the island's edge inside the sweep's reach, with the island's checkpoint written under them, and was caught and put back there over and over. The level could not end | Reaching the island unseen is slipping past, whatever carried the player there |
+
+And three things in the backgrounds, all seen only from the diver's side of the screen: the rain
+fell 280 px under the surface (now cut at the front wave); the storm's underwater plate has the
+bakunawa PAINTED into it at columns 1090..1480, so a second, still dragon stood in the background
+every screen and a half (the layer is its first 1080 columns now, mirrored); and that plate is the
+sea seen from the boat, with its floor 870 px above the real one -- from mid-depth, a row of
+mountains floating in the middle of the column over the deep's own floor. It fades out between
+camera y 520 and 900 now. Its dissolve is baked into the frames rather than laid over them:
+two things covering one strip were invisible at full strength and a dark ruled band once each
+faded on its own.
+
+**`run_level3_play_probe.gd`** walks both routes and makes 19 checks; with the crossing gate and
+the slip taken out, eleven of them fail, and they are the failures that were reported.
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.

@@ -61,9 +61,17 @@ var _shore_node: DialogueNode2D
 ## because `_dialogue_node_obstacle_id()` is asked at both the presenting and the committing
 ## and has to give the same answer to each.
 var _live_node_obstacle := "L3_N1"
+## How long a drain runs before its event is noted again, so the lessons chained on it land in
+## turn. The first of them stays up eight seconds.
+const DRAIN_LESSON_EVERY := 8.0
+var _drain_lesson_clock := 0.0
+## The crossing's volume, and whether the player is standing in it. See _gate_the_crossing.
+var _crossing_area: LevelObstacle2D
+var _inside_crossing := false
 
 ## Latches, so a lesson and a line are each spent once per run rather than once per frame.
 var _said_underwater := false
+var _said_the_jars := false
 var _brush_taken := false
 var _bangka_found := false
 ## Which seabed refills have been taken this run, by index. Run state, not profile: a
@@ -180,6 +188,9 @@ func _build_level_furniture() -> void:
 		_bakunawa.begin_search()
 	if director != null:
 		director.route_committed.connect(_on_route_committed_here)
+		# Deferred: the obstacle volumes are wired AFTER the furniture, so the connection this
+		# replaces does not exist yet.
+		call_deferred("_gate_the_crossing")
 	var arrival := get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/IslandArrival") as CheckpointArea2D
 	if arrival != null:
@@ -614,6 +625,34 @@ func _anchor_now() -> Vector2:
 	return anchor.global_position if anchor != null else player.global_position
 
 
+## ⚠ WHAT THE JARS ARE IS SAID WHEN ONE IS FIRST IN FRONT OF THE DIVER. Nothing did say it:
+## the only line about them was "you have to find more of it" at the moment the ink was nearly
+## gone, which names neither the jars nor where they are, and taking one said "that will hold you
+## a while longer" after the fact. Pale jars with a drop on them, standing on a seabed full of
+## scenery, read as scenery. So the first time a swimmer comes within reach of one, the lesson
+## `jars` says what it is and how it is taken, beside the ink card it refills.
+const JAR_NOTICE_REACH := 360.0
+
+
+func _point_out_the_jars(anchor_position: Vector2) -> void:
+	if tutorial == null:
+		return
+	for node_value: Variant in _refill_nodes.values():
+		var jar := node_value as Node2D
+		if jar == null or not is_instance_valid(jar):
+			continue
+		if jar.global_position.distance_to(anchor_position) > JAR_NOTICE_REACH:
+			continue
+		# A LESSON BESIDE THE INK CARD, NOT A LINE ON THE BAR. The dive is told as a story, and
+		# Lolo is on the bar for most of it: a line waiting for the bar to be free waited until
+		# the diver was past every jar. Noted every frame a jar is in reach; the lesson is spent
+		# once, and the latch stops the asking.
+		tutorial.note("jar_in_reach")
+		if tutorial.has_method("has_taught") and bool(tutorial.call("has_taught", "jars")):
+			_said_the_jars = true
+		return
+
+
 func _on_refill_touched(body: Node, index: int, amount: float, refill: Area2D) -> void:
 	if _refills_taken.has(index) or not _is_the_player(body):
 		return
@@ -795,6 +834,8 @@ func _level_physics(anchor_position: Vector2) -> void:
 		_said_underwater = true
 		if tutorial != null:
 			tutorial.note("underwater")
+	if underwater and not _said_the_jars:
+		_point_out_the_jars(anchor_position)
 
 	# ⚠ THE DRAIN ONLY RUNS WHILE A FORM IS HELD, and `_current_form_id` is the only thing
 	# that knows. Charging on "the player is not a Wanderer" would keep charging through the
@@ -807,7 +848,17 @@ func _level_physics(anchor_position: Vector2) -> void:
 	else:
 		if _drain.form_id() != _current_form_id:
 			_drain.begin(_current_form_id)
+			_drain_lesson_clock = 0.0
 			if tutorial != null:
+				tutorial.note("ink_draining")
+		else:
+			# ⚠ SAID AGAIN WHILE IT GOES ON, NOT ONLY WHEN IT STARTS. Two lessons hang on this
+			# event -- the drain, then how to stop it -- and the director teaches one per call.
+			# Noted only when a form BEGAN, the second waited for the next drawing, which on this
+			# shore is the dive: how to stop the drain arrived after the player needed it.
+			_drain_lesson_clock += delta
+			if _drain_lesson_clock >= DRAIN_LESSON_EVERY and tutorial != null:
+				_drain_lesson_clock = 0.0
 				tutorial.note("ink_draining")
 		_drain.charge(delta)
 		if morph_card != null:
@@ -1038,6 +1089,124 @@ func _dialogue_node_is_ready() -> bool:
 	return false
 
 
+## ⚠ THE CROSSING WAITS FOR THE SHORE -- AS A PLACE, NOT ONLY AT THE FORK.
+##
+## The director judges a drawing against whichever beat the player walked into LAST, and the
+## crossing's volume (640..1160) lies over the seaward half of the practice's (350..1050). A
+## player who takes the brush and walks toward the water the objective points at is inside the
+## crossing by the time they draw -- so the swimmer the practice asks for answered the CROSSING:
+## the apo announced the dive ("I will go under it"), the practice stayed unsolved, the fork
+## never opened, the objective and Lolo's "not yet" never moved again, and the boat could not
+## be taken at all. Played, not reasoned: drawn at the waterline or right beside the brush
+## (x 634, the crossing starts under the apo's own body at about 625), every time. No probe
+## saw it, because every probe enters each beat by name.
+##
+## So the crossing is not entered while the shore is unanswered: the practice stays the
+## current beat anywhere on the beach, and the moment it is answered the crossing is entered
+## if the player is already standing in it.
+func _gate_the_crossing() -> void:
+	if director == null:
+		return
+	for node in get_tree().get_nodes_in_group(&"level_obstacles"):
+		var area := node as LevelObstacle2D
+		if area == null or area.obstacle_id != "L3_N1":
+			continue
+		if area.player_entered.is_connected(director.enter_obstacle):
+			area.player_entered.disconnect(director.enter_obstacle)
+		area.player_entered.connect(_on_crossing_entered)
+		area.player_exited.connect(_on_crossing_exited)
+		_crossing_area = area
+	if not director.obstacle_solved.is_connected(_on_shore_answered):
+		director.obstacle_solved.connect(_on_shore_answered)
+	if not director.obstacle_entered.is_connected(_on_beat_entered):
+		director.obstacle_entered.connect(_on_beat_entered)
+
+
+func _on_crossing_entered(obstacle_id: String) -> void:
+	_inside_crossing = true
+	if director != null and director.is_solved("L3_B0_SHORE"):
+		director.enter_obstacle(obstacle_id)
+
+
+func _on_crossing_exited(_obstacle_id: String) -> void:
+	_inside_crossing = false
+
+
+func _on_shore_answered(obstacle_id: String, _route: String, _label: String,
+		_attempts: int, _tier: int) -> void:
+	if obstacle_id == "L3_B0_SHORE" and _inside_crossing and director != null:
+		director.enter_obstacle("L3_N1")
+
+
+## ⚠ AND ONCE THE SHORE IS ANSWERED, STANDING IN THE CROSSING MEANS THE CROSSING. The two
+## volumes overlap and the director keeps whichever the player entered last. A checkpoint
+## restore puts the apo back inside both at once, and when the shore's volume happened to report
+## second, a finished practice was the current beat: the swimmer drawn next was judged against
+## it, counted for nothing, and the dive went on with the objective asking for a drawing the
+## player was already swimming in.
+func _on_beat_entered(obstacle_id: String) -> void:
+	if obstacle_id == "L3_B0_SHORE" and _inside_crossing and director != null \
+			and director.is_solved("L3_B0_SHORE"):
+		director.enter_obstacle.call_deferred("L3_N1")
+
+
+## ⚠ A SWIMMER DRAWN AT THE WATER'S EDGE GOES INTO THE WATER, once the crossing is open.
+##
+## A new form arrives where the apo stood, and on this shore the apo stands on sand that ends
+## in a drop into deep water. A swimmer there cannot move -- it lies on the sand draining ink
+## until the ink runs out, the apo drops off the edge and is fished back to the beach. The apo
+## cannot get into the water to draw there either: the rescue takes them out within a second.
+## Played, not reasoned: the dive route could not be started at all.
+##
+## So a swimmer drawn within reach of either shore's edge slips into the sea just past it. Not
+## during the practice, which is on the sand on purpose -- that is where the drain is watched
+## with nothing at stake.
+const SLIP_REACH := 420.0
+
+
+func _where_a_new_form_arrives(entity_id: String, state: Dictionary) -> Dictionary:
+	if _restrictions == null or director == null or not _restrictions.swims(entity_id):
+		return state
+	if not director.is_solved("L3_B0_SHORE") or not state.has("position"):
+		return state
+	var edges := level_data_shore_edges()
+	if edges == Vector2.ZERO:
+		return state
+	var at := Vector2(state["position"])
+	if at.y > _waterline_y + 10.0:
+		return state
+	var into := state.duplicate()
+	if at.x <= edges.x and at.x > edges.x - SLIP_REACH:
+		into["position"] = Vector2(edges.x + 90.0, _waterline_y + 70.0)
+	elif at.x >= edges.y and at.x < edges.y + SLIP_REACH:
+		into["position"] = Vector2(edges.y - 90.0, _waterline_y + 70.0)
+	else:
+		return state
+	into.erase("velocity")
+	into["linear_velocity"] = Vector2.ZERO
+	return into
+
+
+func _slip_the_swimmer_in() -> void:
+	if player == null or not is_instance_valid(player) or _current_form_id.is_empty():
+		return
+	if _restrictions == null or not _restrictions.swims(_current_form_id):
+		return
+	if not player.has_method("capture_morph_state") or not player.has_method("apply_morph_state"):
+		return
+	var state: Dictionary = player.call("capture_morph_state")
+	var into := _where_a_new_form_arrives(_current_form_id, state)
+	if into != state:
+		player.call("apply_morph_state", into)
+	# ⚠ AND IT ANSWERS THE CROSSING. The swimmer was drawn for the practice, before the dive
+	# was chosen, so nothing had put it to the crossing: the player said "I will go under it",
+	# went under it, and was told "Draw something that can SWIM" by the objective line while
+	# swimming. It is the same body the route asks for -- judged the way a new drawing would be.
+	if director != null and director.current_obstacle() == "L3_N1" \
+			and not director.is_solved("L3_N1"):
+		_judge_submission(_current_form_id)
+
+
 func _on_bakunawa_approached() -> void:
 	# The base's handler reads `dialogue_node` and `_dialogue_node_obstacle_id()`, so both
 	# have to point at this fork before it runs.
@@ -1051,6 +1220,19 @@ func _on_bakunawa_approached() -> void:
 ## before they can slip through it, and the creature has to turn on them before they can
 ## fight it. Only the Artist one waits for a drawing.
 func _on_route_committed_here(obstacle_id: String, route: String) -> void:
+	# The dive chosen while the practice's swimmer is still lying on the sand: that one goes
+	# in too. See _where_a_new_form_arrives -- the same move, for a body that already exists.
+	if obstacle_id == "L3_N1" and route == "pragmatist":
+		_slip_the_swimmer_in.call_deferred()
+		return
+	# ⚠ THE BOAT CHOSEN WHILE STILL THE PRACTICE'S SWIMMER: the apo has to change back to walk
+	# the sand, and the lesson that says how -- chained after the drain lesson, and landing after
+	# eight seconds of drain -- had not come round yet. The moment it is needed is the moment it
+	# is taught.
+	if obstacle_id == "L3_N1" and route == "artist" and not _current_form_id.is_empty() \
+			and tutorial != null:
+		tutorial.note("ink_draining")
+		return
 	if obstacle_id != "L3_N2" or _bakunawa == null:
 		return
 	match route:
@@ -1291,7 +1473,18 @@ class _DriftingShadow extends Sprite2D:
 ## horizontal drive at all. Reverting them in open water instead would hand them straight to
 ## the drowning rescue. So the level reverts them AND puts them on the sand in one breath.
 func _on_island_reached(_checkpoint_id: String) -> void:
-	if _arrived or director == null or not director.is_solved("L3_N2"):
+	if _arrived or director == null:
+		return
+	# ⚠ REACHING THE ISLAND UNSEEN IS SLIPPING PAST IT, WHATEVER CARRIED THE PLAYER THERE.
+	# Slipping past was answered only at 420 px beyond the creature, and a boat cannot get
+	# there: its hull runs aground on the island with the passenger seated at x 4417. So a boat
+	# player who chose to go around it sat at the island's edge -- inside the sweep's reach,
+	# with the island's own checkpoint just written under them -- and was caught and put back
+	# there, over and over, with the level unable to end. Played through, not reasoned.
+	if director.committed_route("L3_N2") == "pragmatist" and not director.is_solved("L3_N2") \
+			and _bakunawa != null and not _bakunawa.sees(_anchor_now(), _carrying_a_lit_light()):
+		director.solve_with_item("L3_N2", "the dark")
+	if not director.is_solved("L3_N2"):
 		return
 	_arrived = true
 	# ⚠ DEFERRED, BECAUSE THIS ARRIVES FROM body_entered. Coming ashore reverts the player,
@@ -1363,6 +1556,14 @@ func _current_objective() -> Dictionary:
 			"target": _mark_position("WaterlineMark")}
 	if not director.is_solved("L3_N1"):
 		return {"key": "cross", "obstacle": "L3_N1", "target": _mark_position("CoralMark")}
+	# ⚠ ON THE WAY, NOT YET THERE. Finding the boat -- or drawing the swimmer -- answers the
+	# crossing on the beach, and the line jumped straight to the encounter: "It cannot see.
+	# Decide what you are going to do about that", shown on the sand to a player who had never
+	# seen the creature it means. Until they reach its stretch, the line is about the crossing.
+	if not director.was_entered("L3_N2") and not director.is_solved("L3_N2"):
+		if director.committed_route("L3_N1") == "artist":
+			return {"key": "cross_by_boat", "target": _mark_position("SurfaceMark")}
+		return {"key": "cross_by_dive", "target": _mark_position("BakunawaMark")}
 	if not director.is_solved("L3_N2"):
 		return {"key": "bakunawa", "obstacle": "L3_N2",
 			"target": _mark_position("BakunawaMark")}
@@ -1383,6 +1584,7 @@ func _level_run_state() -> Dictionary:
 	return {
 		"live_node": _live_node_obstacle,
 		"said_underwater": _said_underwater,
+		"said_the_jars": _said_the_jars,
 		"brush_taken": _brush_taken,
 		"bangka_found": _bangka_found,
 		"refills_taken": _refills_taken.duplicate(),
@@ -1395,6 +1597,7 @@ func _level_run_state() -> Dictionary:
 func _restore_level_run_state(state: Dictionary) -> void:
 	_live_node_obstacle = String(state.get("live_node", "L3_N1"))
 	_said_underwater = bool(state.get("said_underwater", false))
+	_said_the_jars = bool(state.get("said_the_jars", false))
 	_brush_taken = bool(state.get("brush_taken", false))
 	_bangka_found = bool(state.get("bangka_found", false))
 	_refills_taken = (state.get("refills_taken", []) as Array).duplicate()
