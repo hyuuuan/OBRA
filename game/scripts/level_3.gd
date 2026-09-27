@@ -629,24 +629,27 @@ func _anchor_now() -> Vector2:
 ## the only line about them was "you have to find more of it" at the moment the ink was nearly
 ## gone, which names neither the jars nor where they are, and taking one said "that will hold you
 ## a while longer" after the fact. Pale jars with a drop on them, standing on a seabed full of
-## scenery, read as scenery. So the first time a swimmer comes within reach of one, Lolo says
-## what it is and how it is taken -- once, and never while he is mid-sentence about something
-## else, which is the hint bar's own rule.
+## scenery, read as scenery. So the first time a swimmer comes within reach of one, the lesson
+## `jars` says what it is and how it is taken, beside the ink card it refills.
 const JAR_NOTICE_REACH := 360.0
 
 
 func _point_out_the_jars(anchor_position: Vector2) -> void:
+	if tutorial == null:
+		return
 	for node_value: Variant in _refill_nodes.values():
 		var jar := node_value as Node2D
 		if jar == null or not is_instance_valid(jar):
 			continue
 		if jar.global_position.distance_to(anchor_position) > JAR_NOTICE_REACH:
 			continue
-		if hint_bar != null and hint_bar.has_method("is_showing") \
-				and bool(hint_bar.call("is_showing")):
-			return
-		_said_the_jars = true
-		_say_why("Those jars on the bottom are ink, apo. Swim through one and it is yours.")
+		# A LESSON BESIDE THE INK CARD, NOT A LINE ON THE BAR. The dive is told as a story, and
+		# Lolo is on the bar for most of it: a line waiting for the bar to be free waited until
+		# the diver was past every jar. Noted every frame a jar is in reach; the lesson is spent
+		# once, and the latch stops the asking.
+		tutorial.note("jar_in_reach")
+		if tutorial.has_method("has_taught") and bool(tutorial.call("has_taught", "jars")):
+			_said_the_jars = true
 		return
 
 

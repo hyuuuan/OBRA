@@ -272,6 +272,14 @@
           "at": "underwater",
           "text": "Only what belongs down here will hold, apo. Anything else will start drowning on you.",
           "seconds": 8.0
+        },
+        {
+          "id": "jars",
+          "at": "jar_in_reach",
+          "text": "Those jars on the bottom are ink. Swim through one and this fills back up.",
+          "seconds": 8.0,
+          "anchor": "morph_card",
+          "side": "auto"
         }
       ]
     }
