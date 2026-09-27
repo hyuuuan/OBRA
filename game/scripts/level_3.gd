@@ -61,6 +61,9 @@ var _shore_node: DialogueNode2D
 ## because `_dialogue_node_obstacle_id()` is asked at both the presenting and the committing
 ## and has to give the same answer to each.
 var _live_node_obstacle := "L3_N1"
+## The crossing's volume, and whether the player is standing in it. See _gate_the_crossing.
+var _crossing_area: LevelObstacle2D
+var _inside_crossing := false
 
 ## Latches, so a lesson and a line are each spent once per run rather than once per frame.
 var _said_underwater := false
@@ -180,6 +183,9 @@ func _build_level_furniture() -> void:
 		_bakunawa.begin_search()
 	if director != null:
 		director.route_committed.connect(_on_route_committed_here)
+		# Deferred: the obstacle volumes are wired AFTER the furniture, so the connection this
+		# replaces does not exist yet.
+		call_deferred("_gate_the_crossing")
 	var arrival := get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/IslandArrival") as CheckpointArea2D
 	if arrival != null:
@@ -1036,6 +1042,53 @@ func _dialogue_node_is_ready() -> bool:
 		return true
 	_say_why("Not yet, apo. Try it here first, where you can still stand up.")
 	return false
+
+
+## ⚠ THE CROSSING WAITS FOR THE SHORE -- AS A PLACE, NOT ONLY AT THE FORK.
+##
+## The director judges a drawing against whichever beat the player walked into LAST, and the
+## crossing's volume (640..1160) lies over the seaward half of the practice's (350..1050). A
+## player who takes the brush and walks toward the water the objective points at is inside the
+## crossing by the time they draw -- so the swimmer the practice asks for answered the CROSSING:
+## the apo announced the dive ("I will go under it"), the practice stayed unsolved, the fork
+## never opened, the objective and Lolo's "not yet" never moved again, and the boat could not
+## be taken at all. Played, not reasoned: drawn at the waterline or right beside the brush
+## (x 634, the crossing starts under the apo's own body at about 625), every time. No probe
+## saw it, because every probe enters each beat by name.
+##
+## So the crossing is not entered while the shore is unanswered: the practice stays the
+## current beat anywhere on the beach, and the moment it is answered the crossing is entered
+## if the player is already standing in it.
+func _gate_the_crossing() -> void:
+	if director == null:
+		return
+	for node in get_tree().get_nodes_in_group(&"level_obstacles"):
+		var area := node as LevelObstacle2D
+		if area == null or area.obstacle_id != "L3_N1":
+			continue
+		if area.player_entered.is_connected(director.enter_obstacle):
+			area.player_entered.disconnect(director.enter_obstacle)
+		area.player_entered.connect(_on_crossing_entered)
+		area.player_exited.connect(_on_crossing_exited)
+		_crossing_area = area
+	if not director.obstacle_solved.is_connected(_on_shore_answered):
+		director.obstacle_solved.connect(_on_shore_answered)
+
+
+func _on_crossing_entered(obstacle_id: String) -> void:
+	_inside_crossing = true
+	if director != null and director.is_solved("L3_B0_SHORE"):
+		director.enter_obstacle(obstacle_id)
+
+
+func _on_crossing_exited(_obstacle_id: String) -> void:
+	_inside_crossing = false
+
+
+func _on_shore_answered(obstacle_id: String, _route: String, _label: String,
+		_attempts: int, _tier: int) -> void:
+	if obstacle_id == "L3_B0_SHORE" and _inside_crossing and director != null:
+		director.enter_obstacle("L3_N1")
 
 
 func _on_bakunawa_approached() -> void:
