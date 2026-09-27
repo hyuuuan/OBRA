@@ -34,6 +34,11 @@ const LifeClass = preload("res://scripts/dagat_life_2d.gd")
 const NextPaintingClass = preload("res://scripts/next_painting_2d.gd")
 ## The house's own painting of the next place -- the picture that hangs in her house for Level 4.
 const NEXT_PAINTING := preload("res://assets/hub/paintings/level_4.png")
+## What the bakunawa had lost: a torn corner of one of her canvases, in its gilt. Authored by
+## tools/build_dagat_props.py from the house's own painting of this sea.
+const LOST_CORNER := preload("res://assets/Level3/authored/painting_fragment.png")
+const FLOWER_ART := preload("res://assets/Level1/hidden_flower.png")
+const COUNT_WORDS := ["None", "One", "Two", "Three", "Four", "Five"]
 const PropClass = preload("res://scripts/dagat_prop_2d.gd")
 const PROPS := "res://assets/Level3/props/"
 const AUTHORED := "res://assets/Level3/authored/"
@@ -1267,8 +1272,9 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 
 ## The light found it. Everything else about the Artist route is the creature's own doing.
 func _on_gift_offered() -> void:
+	var found := _uncover_the_treasure()
 	if _life != null and _bakunawa != null:
-		_life.sparkle(_bakunawa.treasure_point(), 8, 55.0)
+		_life.sparkle(found, 8, 55.0)
 	_award_the_flower()
 	PlayerProfile.record_bakunawa("LIT")
 	script_lines.set_flag("l3_bakunawa_lit")
@@ -1360,6 +1366,74 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 func _award_the_flower() -> void:
 	PlayerProfile.record_collectible("L3_HF")
 	script_lines.set_flag("has_flower_3")
+
+
+## ⚠ WHAT IT HAD LOST IS SHOWN, AND SO IS WHAT IT GIVES. The light led it to what it had been
+## searching the dark for, and the level marked the moment with a burst of sparkles over
+## nothing: the flower was recorded silently and no object was ever there. The design asks for
+## "something the player recognises -- an object from Level 1's house, or a piece of the
+## painting. A generic chest wastes the beat." So it is a corner of one of her canvases, torn,
+## still in the gilt the paintings in her house hang in, with this very sea painted on it.
+##
+## And the flower comes up out of it to the apo -- "it finds a treasure, handing you a
+## flower" -- and says which of the five it is, the way Payyo's did, because the design needs
+## the count seen: a player who missed one otherwise chases an ending already lost.
+func _uncover_the_treasure() -> Vector2:
+	if _bakunawa == null:
+		return _anchor_now()
+	var at := _bakunawa.treasure_point()
+	# ⚠ FROM THE BOAT IT IS BROUGHT UP, BESIDE THE BOW. The creature is staged at the surface
+	# there, so its treasure point lies under its own coils: shown there, the corner was drawn
+	# across the dragon's neck like something pinned to it. It rises out of the dark instead,
+	# just ahead of the boat, in open water -- found, and given.
+	var anchor := _anchor_now()
+	if anchor.y < _waterline_y:
+		var toward := signf(_bakunawa.global_position.x - anchor.x)
+		at = Vector2(anchor.x + 150.0 * (toward if toward != 0.0 else 1.0), _waterline_y + 60.0)
+	var parent := _bakunawa.get_parent()
+	var corner := Sprite2D.new()
+	corner.name = "LostCorner"
+	corner.texture = LOST_CORNER
+	corner.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	corner.z_index = 6
+	corner.rotation = -0.14
+	corner.modulate.a = 0.0
+	parent.add_child(corner)
+	corner.global_position = at + Vector2(0.0, 18.0)
+	var reveal := corner.create_tween()
+	reveal.tween_property(corner, "modulate:a", 1.0, 0.7)
+	reveal.parallel().tween_property(corner, "global_position:y", at.y, 1.1) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	var flower := Sprite2D.new()
+	flower.name = "GivenFlower"
+	flower.texture = FLOWER_ART
+	flower.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	flower.z_index = 12
+	flower.scale = Vector2.ONE * 0.2
+	flower.modulate.a = 0.0
+	parent.add_child(flower)
+	flower.global_position = at + Vector2(0.0, -10.0)
+	var give := flower.create_tween()
+	give.tween_interval(0.9)
+	give.tween_property(flower, "modulate:a", 1.0, 0.3)
+	give.parallel().tween_property(flower, "scale", Vector2.ONE * 0.9, 0.5) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# To the apo -- wherever they are by the time it gets there.
+	give.tween_method(func(t: float) -> void:
+		if is_instance_valid(flower):
+			var target := _anchor_now() + Vector2(0.0, -40.0)
+			flower.global_position = at.lerp(target, t) + Vector2(0.0, -60.0 * sin(PI * t)), \
+		0.0, 1.0, 1.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	give.tween_property(flower, "scale", Vector2.ONE * 0.3, 0.25)
+	give.parallel().tween_property(flower, "modulate:a", 0.0, 0.25)
+	give.tween_callback(func() -> void:
+		if is_instance_valid(flower):
+			flower.queue_free()
+		var count := clampi(int(PlayerProfile.flower_count()), 0, 5)
+		announce_acquisition("Hidden Flower",
+			"%s of five. It had been holding on to it all along, down in the dark, and it gave it up gladly."
+				% String(COUNT_WORDS[count]), FLOWER_ART))
+	return at
 
 
 # --- The crossing, which is where the lore lives --------------------------------------------
