@@ -118,8 +118,8 @@ position = Vector2(4200.0, -320.0)
 script = ExtResource("8_room")
 kind = 1
 room_length = 520.0
-wall_height = 310.0
-room_zoom = 2.0
+wall_height = 415.0
+room_zoom = 1.6
 floor_depth = 150.0
 
 [node name="Alley1" type="Node2D" parent="GameplayPlane/Rooms"]

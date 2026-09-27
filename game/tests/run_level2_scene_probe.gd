@@ -635,6 +635,11 @@ func _audit_the_plaza_is_not_empty() -> void:
 	_check(dangling.is_empty(), "and every tile they declare loads",
 		"%d textures" % PiyestaTiles.count() if dangling.is_empty()
 			else "declared but absent: %s" % ", ".join(dangling))
+	var house_plate := PiyestaTiles.size_of("house_wall_plate")
+	_check(house_plate == Vector2(1672.0, 941.0),
+		"and the house has its compact generated pixel-art backdrop",
+		"%.0f x %.0f, scaled in-engine with its door registered to the live entrance"
+			% [house_plate.x, house_plate.y])
 
 	var missing: Array[String] = []
 	for path: String in DancerGroup2D.DANCE_FRAME_PATHS:

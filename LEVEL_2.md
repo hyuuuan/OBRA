@@ -222,6 +222,12 @@ lesson: **a level standing in front of a picture cannot bring its own palette.**
   the Artist route plays a 2.4-second in-world phrase before the timing overlay opens. The
   complete frame is drawn at 396 x 132 world pixels: its figures are about 119px tall,
   just above the 96px apo without dominating the church frontage.
+* **The lit house uses a purpose-built compact pixel-art room as its backdrop.** The 1672 x
+  941 plate was regenerated from the supplied reference and is registered by its painted
+  threshold to the existing live entrance. At runtime its doorway is 179px tall beside the
+  96px apo. The house camera uses a 1.6 zoom and matching 565px-tall room bounds so the wider
+  frame stays fully painted. Its wall, floor, ceiling, window and lanterns are art only; the
+  kandila, pickup reach, door prompt, collision and room transfer remain the same live nodes.
 * **The camera needed a floor of its own.** It rests at the bottom of `world_bounds`, which
   has to be well under the plaza so a fall is caught -- so it showed three hundred units of
   retaining wall. `WorldCameraController.world_bottom_y` (Piyesta: 722) stops it, and the

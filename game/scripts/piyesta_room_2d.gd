@@ -84,6 +84,12 @@ const DOOR := Vector2(76.0, 150.0)
 ## How far past the walkable end each opening sits, so walking out of one does not count as
 ## walking straight back into it.
 const DOOR_INSET := 30.0
+## The generated house plate is a complete one-screen room. Draw it as one backdrop and
+## register its painted threshold to the live exit area. At 0.62 the painted opening is
+## 179px tall beside the 96px apo: still architectural, without returning to the giant
+## close-up scale of the reference plate.
+const HOUSE_BACKDROP_SCALE := 0.62
+const HOUSE_BACKDROP_DOOR_FLOOR := Vector2(585.0, 665.0)
 ## The apo's jump apex (`wanderer.gd`), the number every reachable thing in this project is
 ## measured against. Nothing in a room's shell may sit above floor + this without something
 ## to stand on, or the room is a Climb gate nobody wrote down.
@@ -402,11 +408,33 @@ func _on_onward_body(body: Node) -> void:
 ##             down it, granite setts underfoot and a drain down the middle
 func _draw() -> void:
 	_draw_void()
+	if kind == Kind.HOUSE and PiyestaTiles.has_tile("house_wall_plate"):
+		_draw_house_backdrop()
+		return
 	_draw_wall()
 	_draw_floor()
 	_draw_props()
 	_draw_opening(exit_rect(), true)
 	_draw_opening(onward_rect(), onward_open)
+
+
+## The compact generated plate contains the wall, floor, ceiling, window, lanterns and
+## painted entrance. Only the live kandila table is layered over it by its own node. The
+## visual doorway is registered to the existing Area2D rather than moving the area to fit
+## the art, which keeps the room transfer and its prompts exactly where gameplay put them.
+func _draw_house_backdrop() -> void:
+	var texture := PiyestaTiles.get_tile("house_wall_plate")
+	if texture == null:
+		return
+	var live_floor := Vector2(exit_rect().get_center().x, 0.0)
+	var top_left := live_floor - HOUSE_BACKDROP_DOOR_FLOOR * HOUSE_BACKDROP_SCALE
+	var size := Vector2(texture.get_size()) * HOUSE_BACKDROP_SCALE
+	# A 1.6 camera sees just past the composed plate. Repeat one plate on either side so
+	# camera lead never exposes the void. Both repeated doorways remain beyond `_span()`;
+	# only their ordinary edge wall can enter the frame.
+	draw_texture_rect(texture, Rect2(top_left - Vector2(size.x, 0.0), size), false)
+	draw_texture_rect(texture, Rect2(top_left, size), false)
+	draw_texture_rect(texture, Rect2(top_left + Vector2(size.x, 0.0), size), false)
 
 
 ## The three interchangeable cuts of a wall material. See `PiyestaTiles.fill_varied`.
