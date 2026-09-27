@@ -1225,6 +1225,14 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 	if obstacle_id == "L3_N1" and route == "pragmatist":
 		_slip_the_swimmer_in.call_deferred()
 		return
+	# ⚠ THE BOAT CHOSEN WHILE STILL THE PRACTICE'S SWIMMER: the apo has to change back to walk
+	# the sand, and the lesson that says how -- chained after the drain lesson, and landing after
+	# eight seconds of drain -- had not come round yet. The moment it is needed is the moment it
+	# is taught.
+	if obstacle_id == "L3_N1" and route == "artist" and not _current_form_id.is_empty() \
+			and tutorial != null:
+		tutorial.note("ink_draining")
+		return
 	if obstacle_id != "L3_N2" or _bakunawa == null:
 		return
 	match route:
