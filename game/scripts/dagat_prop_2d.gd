@@ -19,6 +19,10 @@ extends Sprite2D
 @export var phase: int = 0
 ## Kelp leans, coral does not. A little horizontal variety without needing more art.
 @export var mirrored: bool = false
+## Half the width of the shadow it casts on the ground under its foot, in world pixels. ZERO
+## casts none: a school of fish or a column of bubbles is not standing on anything. See
+## ground_shadow.gd -- without one, everything on the seabed read as pasted onto the picture.
+@export var shadow_width: float = 0.0
 
 var _frames: Array[Texture2D] = []
 var _frame := 0
@@ -45,6 +49,14 @@ func _ready() -> void:
 	var factor := target_height / native
 	scale = Vector2.ONE * factor
 	offset = Vector2(-float(texture.get_width()) * 0.5, -native)
+	if shadow_width > 0.0:
+		var shadow := _FootShadow.new()
+		shadow.name = "Shadow"
+		shadow.half_width = shadow_width
+		# Behind the sprite, at its foot, and in world pixels rather than the sprite's own.
+		shadow.show_behind_parent = true
+		shadow.scale = Vector2.ONE / factor
+		add_child(shadow)
 	set_process(_frames.size() > 1 and fps > 0.0)
 
 
@@ -68,3 +80,11 @@ func _process(delta: float) -> void:
 	_clock -= step
 	_frame = (_frame + 1) % _frames.size()
 	texture = _frames[_frame]
+
+
+class _FootShadow extends Node2D:
+	const GroundShadow = preload("res://scripts/ground_shadow.gd")
+	var half_width := 20.0
+
+	func _draw() -> void:
+		GroundShadow.draw(self, half_width, maxf(2.0, roundf(half_width * 0.14)), 0.5)
