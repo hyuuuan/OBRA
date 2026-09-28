@@ -30,6 +30,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import numpy as np
+from PIL import Image
 
 import pixelart
 from pixelart import Canvas, ramp
@@ -475,7 +476,44 @@ def _tuft(c: Canvas, x0: int, base: int, rng) -> None:
                 c.px((x + (lean if k > height * 0.6 else 0)) % c.w, y, colour)
 
 
-SEABED_ART = {"seabed_floor.png": draw_seabed_floor}
+# The terraces, taken back into the water. The delivered plate is a fine painting of stepped
+# rock, and at world rate it was a set of platforms nobody could stand on. Hazed toward the
+# water's own colour at each depth and moved back to a slower rate in the backdrop, the same
+# ledges are the far side of a valley. Its foot goes to the water's colour and then to nothing,
+# so it has no cut edge for the floor in front of it to have to hide.
+DEEP_PLATES = ROOT / "game" / "assets" / "Level3" / "deep"
+## How much of the water stands between the eye and the terraces -- and, over FAR_FOOT, all
+## of it: the ledges' feet are lost in the water long before the floor.
+FAR_HAZE = 0.42
+FAR_FOOT = (640.0, 772.0)
+FAR_GONE = (748.0, 772.0)
+## The deep band drops its floor layers this far below the waterline, so plate row r of the
+## terraces stands in front of the water plate's row r + 360. Below the water plate is the
+## DeepFill, whose colour this is.
+FLOOR_DROP = 360
+DEEP_FILL = np.array([1.0, 27.0, 70.0])
+
+
+def draw_terraces_far() -> Image.Image:
+    def smooth(a, b, x):
+        t = np.clip((x - a) / (b - a), 0.0, 1.0)
+        return t * t * (3 - 2 * t)
+
+    plate = np.array(Image.open(DEEP_PLATES / "terraces.png").convert("RGBA")).astype(float)
+    water = np.array(Image.open(DEEP_PLATES / "water.png").convert("RGB")).astype(float)
+    water_rows = water.mean(axis=1)
+    rows = np.arange(plate.shape[0], dtype=float)
+    behind = np.array([water_rows[FLOOR_DROP + r] if FLOOR_DROP + r < water.shape[0]
+                       else DEEP_FILL for r in range(plate.shape[0])])
+    amount = (FAR_HAZE + (1.0 - FAR_HAZE) * smooth(FAR_FOOT[0], FAR_FOOT[1], rows))[:, None, None]
+    out = plate.copy()
+    out[..., :3] = plate[..., :3] * (1.0 - amount) + behind[:, None, :] * amount
+    out[..., 3] = plate[..., 3] * (1.0 - smooth(FAR_GONE[0], FAR_GONE[1], rows))[:, None]
+    out[int(FAR_GONE[1]):, :, 3] = 0
+    return Image.fromarray(np.clip(out + 0.5, 0, 255).astype(np.uint8), "RGBA")
+
+
+SEABED_ART = {"seabed_floor.png": draw_seabed_floor, "terraces_far.png": draw_terraces_far}
 
 
 # --- The things that live here --------------------------------------------------------------
