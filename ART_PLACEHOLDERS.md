@@ -246,20 +246,29 @@ into `game/assets/Level3/` and **fails if any delivered file is left unused**.
 One prop is **authored rather than delivered**: the ink jar on the seabed
 (`tools/build_dagat_props.py`). The underwater plate has those jars painted into it — pale
 glass, dark cap, blue drop — but they do not ship as a sprite, and the refills were purple
-diamonds. Drawn in this project's own 8-bit idiom through `pixelart.py`, at `PX = 3` because
+diamonds. (Redrawn 28 September as a glass jar with the ink inside it: it had been a flat white
+card.) Drawn in this project's own 8-bit idiom through `pixelart.py`, at `PX = 3` because
 at the library's default of 2 it reads as a different game's prop beside art drawn this fine.
 It lives in `assets/Level3/authored/` so the generated pipeline cannot delete it.
 
-**Also authored (22 September): the rock the land stands on under the water** —
-`shelf_fill.png` and `shelf_face.png`, same tool, same idiom. The sand plate stops 150 pixels
+**Also authored (22 September, redrawn 28 September): the land under the water** —
+`land_home.png` and `land_island.png`, same tool, same idiom. The sand plate stops 150 pixels
 under the walking surface and the sea goes down a thousand more, and the delivery has no land
-seen from the side, so the beach floated over the ruins. The fill's top row is the sand plate's
-own last row; its colours are read off the terraces. **A good candidate for the art team to
-replace**: the contract is a column that tiles sideways, starting at the sand plate's bottom
-edge (world y 711) and running to the seabed (1709) and a little past it, plus a seaward face
-whose rock edge sits on the land's collision edge (x 1000 at home, 4500 at the island,
-mirrored). The island uses the same shore plates as the home beach, mirrored; a painting of
-its own would replace a row in `DagatBackdrop2D.BANDS`, not the scene.
+seen from the side, so the beach floated over the ruins. It was a tiled wall of dark blocks with a
+separate face and a dithered sand lip, which read as a black cobbled wall; each beach is now one
+painting of a heap of boulders, darkening with depth, whose seaward edge is where its own stones
+stop, with the sand plate's own pixels carried round the sand's shoulder. **A good candidate for
+the art team to replace**: the contract is one picture per beach, starting four pixels above the
+walking surface (world y 556, plate row 786 in the shore band) and running past the lowest the
+camera looks (1867), with its rock edge on the land's collision edge (x 1000 at home, 4500 at the
+island), set down from the home ground's west end (x 100) and to the island ground's east end
+(x 5380). Both are rows in `DagatBackdrop2D.BANDS`, not the scene.
+
+**And the seabed itself (28 September)**: `seabed_floor.png`, a strip that tiles on its own, the
+floor everything on the bed stands on, and `terraces_far.png`, the delivered terraces hazed into
+the water and set behind it. The contract for a painted replacement of the floor is its walking
+row: `DagatBackdrop2D.SEABED_TOP_ROW + SEABED_WALK` must land on the collision's 1709, and
+`run_level3_audit` reads the texture at that row.
 
 **And the small lives** (same tool): gull (4 frames), jelly (4), starfish (2), clam (3), urchin
 (2), foam (3), splash (3), wake (3), bubble (2), spark (4). All replaceable by name — a painted
