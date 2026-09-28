@@ -658,17 +658,40 @@ def _urchin(frame: int) -> Canvas:
 
 
 def _foam(frame: int) -> Canvas:
-    """Surf running up the sand and sliding back: a strip that tiles sideways."""
+    """Surf breaking against the shore: froth piled up where the water meets the land, thinning
+    seaward into specks, and reaching a little further out in each frame of the surge.
+
+    ⚠ IT TAPERS, AND IT HAS NO BOTTOM EDGE. It was a 144-pixel strip with a wavy top, a straight
+    bottom and a regular pattern of holes -- a dashed rectangle floating on the water beside the
+    beach, which is what it looked like. Column 0 is the shore; nothing is drawn more than a
+    row under the waterline row, so the foam sits ON the water and the sea carries on under it."""
     import math
     pixelart.PX = 3
-    c = Canvas(48, 7, seed=3600)
-    reach = [0, 1, 2][frame]
-    for x in range(48):
-        crest = 3 + int(round(math.sin(x * 2 * math.pi / 16.0 + frame) * 1.2)) - reach // 2
-        for y in range(crest, 7):
-            if (x * 7 + y * 3 + frame) % 5 == 0:
-                continue
-            c.px(x, y, FOAM[2] if y == crest else FOAM[1 if y < 5 else 0])
+    width, height, line = 40, 8, 5
+    c = Canvas(width, height, seed=3600)
+    rng = np.random.default_rng(3600 + frame)
+    reach = (0.45, 0.62, 0.8)[frame]
+    for x in range(width):
+        t = x / float(width - 1)
+        # How much froth there is at this distance from the land: a heap against it, then
+        # streaks, then nothing past this frame's reach.
+        heap = max(0.0, 1.0 - t / 0.3)
+        density = heap + max(0.0, 1.0 - t / reach) * 0.75
+        if density <= 0.02:
+            continue
+        crest = line - int(round(3.2 * heap + 0.8 * math.sin(x * 0.9 + frame * 1.7)))
+        for y in range(max(0, crest), min(height, line + 1 + int(heap * 2.5 + rng.uniform()))):
+            if y > line and rng.uniform() > heap:
+                continue  # under the waterline only where the heap is
+            if heap < 0.2 and rng.uniform() > density:
+                continue  # out on the water it breaks up into specks
+            if y == crest:
+                colour = FOAM[2]
+            elif y <= line:
+                colour = FOAM[2] if rng.uniform() < 0.35 else FOAM[1]
+            else:
+                colour = FOAM[0]
+            c.px(x, y, colour)
     return c
 
 
