@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Author what Dagat needs and the delivery does not contain: the ink jar on the seabed, and
-the rock the land stands on under the water.
+"""Author what Dagat needs and the delivery does not contain: the ink jar on the seabed, the
+rock the land stands on under the water, and the seabed itself.
 
 WHY THIS EXISTS
 ---------------
@@ -284,6 +284,198 @@ def draw_shelf_face() -> Canvas:
 
 
 SHELF = {"shelf_fill.png": draw_shelf_fill, "shelf_face.png": draw_shelf_face}
+
+
+# --- The seabed: what the diver swims over -------------------------------------------------
+#
+# The floor was the delivered TERRACES plate at world rate: a tableau of stepped ledges with
+# lit, mossed tops, and a strip of seabed along its foot. The collision under the water is a
+# flat bed at 1709 and nothing else, so every one of those ledges was a platform a diver could
+# see and swim straight through -- the "platforms" that made the sea below look messy -- and
+# their foot was a band of black silhouettes cut straight along the plate's last row.
+#
+# So the two jobs are split. The floor the refills, the coral and the clams stand on is drawn
+# here, as a strip that tiles on its own and is exactly as flat as the collision is; the
+# terraces go back into the water behind it (terraces_far, below), hazed and slower, where a
+# ledge is a place in the distance rather than a step.
+#
+# ⚠ THE WALKING LINE IS A ROW OF THIS STRIP, AND IT IS THE SEABED. `FLOOR_WALK` rows down from
+# its top edge is where everything on the bed stands: the backdrop pins the strip so that row
+# lands on level_3.gd's BED_Y, and run_level3_audit reads both numbers back off the backdrop.
+# The strip's top edge sits above that row by a few pixels of sand seen from above -- the top
+# of the floor, not a line -- so a jar stands IN the sand rather than on a rule.
+SEABED = ramp(["#020d24", "#051836", "#0a2646", "#123756", "#1c4a63",
+               "#2a606f", "#3d7a7c", "#56958c", "#76b09c", "#9ccab0"])
+PEBBLE = ramp(["#061428", "#102840", "#1f3f58", "#345a6d", "#527b88", "#7ca0a6"])
+SHELL_BITS = ramp(["#6d5f78", "#a998ad", "#ddd1da"])
+WEED = ramp(["#0f352f", "#1a5440", "#2a744c", "#48945a"])
+## Wide enough that the repeat is five times across the whole crossing, not twenty.
+FLOOR_W, FLOOR_H = 320, 66
+FLOOR_WALK = 6
+
+
+def _periodic(xs: np.ndarray, width: int, terms) -> np.ndarray:
+    """A sum of sines with a whole number of cycles across `width`, so it wraps."""
+    import math
+    out = np.zeros_like(xs, dtype=float)
+    for cycles, phase, amp in terms:
+        out += amp * np.sin(2.0 * math.pi * cycles * xs / width + phase)
+    return out
+
+
+def _noise(width: int, height: int, cell: int, seed: int) -> np.ndarray:
+    """Smooth value noise, 0..1, that wraps across the width."""
+    rng = np.random.default_rng(seed)
+    gw, gh = width // cell, height // cell + 2
+    grid = rng.uniform(0.0, 1.0, size=(gh, gw))
+    ys, xs = np.mgrid[0:height, 0:width].astype(float)
+    gx, gy = xs / cell, ys / cell
+    x0, y0 = np.floor(gx).astype(int), np.floor(gy).astype(int)
+    fx, fy = gx - x0, gy - y0
+    fx, fy = fx * fx * (3 - 2 * fx), fy * fy * (3 - 2 * fy)
+    a, b = grid[y0, x0 % gw], grid[y0, (x0 + 1) % gw]
+    c, d = grid[y0 + 1, x0 % gw], grid[y0 + 1, (x0 + 1) % gw]
+    return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy
+
+
+def _tone(c: Canvas, x: int, y: int, value: float, colours: np.ndarray) -> None:
+    """A fractional step of a ramp, dithered between the two steps either side of it. The
+    x wraps, because the strip has to meet itself."""
+    if not (0 <= y < c.h):
+        return
+    x %= c.w
+    value = max(0.0, min(len(colours) - 1.0, value))
+    low = int(value)
+    above = colours[min(len(colours) - 1, low + 1)]
+    c.px(x, y, above if value - low > BAYER_AT(x, y) else colours[low])
+
+
+def draw_seabed_floor() -> Canvas:
+    """The bed: a few rows of sand seen from above, then its front going down into the dark
+    with stones set in it."""
+    import math
+    pixelart.PX = 3
+    c = Canvas(FLOOR_W, FLOOR_H, seed=5100)
+    rng = np.random.default_rng(5100)
+    xs = np.arange(FLOOR_W, dtype=float)
+    # The back of the sand's top and its front edge, each a gentle wave that wraps.
+    far = 3.4 + _periodic(xs, FLOOR_W, [(3, 0.4, 0.9), (7, 1.3, 0.5), (19, 2.1, 0.3)])
+    near = 9.6 + _periodic(xs, FLOOR_W, [(2, 2.0, 0.7), (11, 0.3, 0.4)])
+    grain = _noise(FLOOR_W, FLOOR_H, 5, 5101)
+    mass = _noise(FLOOR_W, FLOOR_H, 16, 5102)
+    # Where the light through the surface lands on the sand: a few bright threads, not a net.
+    caustics = [(rng.uniform(0, FLOOR_W), rng.uniform(2.0, 10.0)) for _ in range(16)]
+    for x in range(FLOOR_W):
+        f, n = far[x], near[x]
+        for y in range(FLOOR_H):
+            if y < f - 0.5:
+                continue
+            if y < n:
+                t = (y - f) / max(1.0, n - f)
+                v = 6.7 - 1.1 * t + 0.35 * math.sin(2 * math.pi * 13 * x / FLOOR_W + 1.4 * y)
+                v += 0.6 * (grain[y, x] - 0.5)
+                near_two = sorted(math.hypot(min(abs(x - cx), FLOOR_W - abs(x - cx)) * 0.6,
+                                             (y - cy) * 1.8) for cx, cy in caustics)[:2]
+                if near_two[1] - near_two[0] < 0.9 and near_two[0] < 9:
+                    v += 0.9
+                if y < f + 0.8:
+                    v = max(v, 7.6)  # the crest of the sand, catching the light
+                _tone(c, x, y, v, SEABED)
+            else:
+                # ⚠ NOISE, NOT STRATA. Ruled bands of sediment read as lines drawn across the
+                # floor; a lumpy mass going dark with depth reads as ground.
+                depth = (y - n) / (FLOOR_H - n)
+                v = 4.8 - 5.2 * depth ** 0.62
+                v += 1.1 * (mass[y, x] - 0.5) + 0.7 * (grain[y, x] - 0.5)
+                if y < n + 1.0:
+                    v = min(v, 4.0)  # the shadow under the lip of the sand
+                _tone(c, x, y, v, SEABED)
+    # ⚠ ONE STONE PER CELL OF A JITTERED GRID, NOT SEVENTY THROWN AT RANDOM. Thrown, a handful
+    # landed on one column and stacked into a ladder of stones down the floor's face.
+    # Fewer near the top, where the front is still the sand's own body, and now and then a
+    # boulder, so the stones are a scatter rather than a pattern.
+    columns, courses = 22, 4
+    for course in range(courses):
+        for column in range(columns):
+            if rng.uniform() < (0.65, 0.45, 0.35, 0.35)[course]:
+                continue
+            cx = (column + rng.uniform(0.1, 0.9)) * FLOOR_W / columns
+            n = near[int(cx) % FLOOR_W]
+            depth = (course + rng.uniform(0.15, 0.85)) / courses
+            r = rng.uniform(1.4, 3.2) * (1.0 + 0.8 * depth)
+            if rng.uniform() < 0.12:
+                r *= 1.7
+            _stone(c, cx, n + 3 + depth * (FLOOR_H - n - 6), r, depth)
+    for _ in range(26):
+        cx = rng.uniform(0, FLOOR_W)
+        _pebble(c, cx, far[int(cx) % FLOOR_W] + rng.uniform(1.8, 5.2), rng.uniform(0.9, 2.2))
+    for _ in range(14):
+        x = int(rng.uniform(0, FLOOR_W))
+        y = int(far[x] + rng.uniform(1.5, 5))
+        c.px(x, y, SHELL_BITS[2])
+        c.px((x + 1) % FLOOR_W, y, SHELL_BITS[1])
+    for _ in range(7):
+        x0 = int(rng.uniform(0, FLOOR_W))
+        _tuft(c, x0, int(far[x0] + 3), rng)
+    return c
+
+
+def _stone(c: Canvas, cx: float, cy: float, r: float, depth: float) -> None:
+    """A stone set in the floor's front, drawn the way pixel art gives a thing its roundness: a
+    lit cap along the top, the body a step above the sand around it, and a dark underside with
+    its own shadow on the sand below. Darker the deeper it sits, because the water is."""
+    base = max(0.5, 3.1 - 2.5 * depth)
+    rx, ry = r, r * 0.78
+    for y in range(int(cy - ry - 1), int(cy + ry + 2)):
+        for x in range(int(cx - rx - 1), int(cx + rx + 2)):
+            nx, ny = (x + 0.5 - cx) / rx, (y + 0.5 - cy) / ry
+            d = (nx * nx + ny * ny) ** 0.5
+            if d > 1.0:
+                continue
+            if ny > 0.45 and d > 0.7:
+                v = base - 1.5
+            elif ny < -0.3 and d > 0.62:
+                v = base + 1.7
+            else:
+                v = base + 0.5 * (-0.4 * nx - 0.6 * ny)
+            _tone(c, x, y, v, PEBBLE)
+    for x in range(int(cx - rx * 0.6), int(cx + rx * 0.9) + 1):
+        y = int(cy + ry + 1)
+        if 0 <= y < c.h and c.buf[y, x % c.w, 3] > 0:
+            _tone(c, x, y, max(0.0, 3.6 - 5.0 * depth ** 0.62), SEABED)
+
+
+def _pebble(c: Canvas, cx: float, cy: float, r: float) -> None:
+    """A pebble lying on the sand, with its shadow falling down and to the right of it."""
+    import math
+    for y in range(int(cy), int(cy + r + 1.2)):
+        for x in range(int(cx - r + 1), int(cx + r + 2.2)):
+            if 0 <= y < c.h and c.buf[y, x % c.w, 3] > 0:
+                c.px(x % c.w, y, SEABED[5])
+    for y in range(int(cy - r - 1), int(cy + r + 1)):
+        for x in range(int(cx - r - 1), int(cx + r + 1)):
+            dx, dy = x + 0.5 - cx, (y + 0.5 - cy) * 1.35
+            d = math.hypot(dx, dy)
+            if d > r:
+                continue
+            lit = (-dx - dy) / max(0.001, r)
+            _tone(c, x, y, 1.0 if d > r - 0.7 and lit < 0.2 else 3.1 + 1.8 * lit, PEBBLE)
+
+
+def _tuft(c: Canvas, x0: int, base: int, rng) -> None:
+    """Sea grass: a few blades out of the sand, the tallest bent over at the top."""
+    for blade in range(int(rng.integers(2, 5))):
+        x = x0 + blade * 2 - 2
+        height = int(rng.integers(3, 7))
+        lean = int(rng.choice([-1, 1]))
+        for k in range(height):
+            y = base - k
+            if 0 <= y < c.h:
+                colour = WEED[3] if k == height - 1 else WEED[2] if k > height // 2 else WEED[1]
+                c.px((x + (lean if k > height * 0.6 else 0)) % c.w, y, colour)
+
+
+SEABED_ART = {"seabed_floor.png": draw_seabed_floor}
 
 
 # --- The things that live here --------------------------------------------------------------
@@ -931,7 +1123,7 @@ def build() -> list[Path]:
         path = OUT / f"ink_jar_{frame}.png"
         draw(frame).save(path)
         written.append(path)
-    for table in (SHELF, BANGKA, FOUND):
+    for table in (SHELF, SEABED_ART, BANGKA, FOUND):
         for name, painter in table.items():
             path = OUT / name
             painter().save(path)
@@ -946,7 +1138,8 @@ def build() -> list[Path]:
 
 def _expected() -> list[Path]:
     return [OUT / f"ink_jar_{frame}.png" for frame in range(FRAMES)] + \
-        [OUT / name for name in SHELF] + [OUT / name for name in BANGKA] + \
+        [OUT / name for name in SHELF] + [OUT / name for name in SEABED_ART] + \
+        [OUT / name for name in BANGKA] + \
         [OUT / name for name in FOUND] + \
         [OUT / f"{name}_{frame}.png" for name, (_p, n) in LIFE.items() for frame in range(n)]
 
