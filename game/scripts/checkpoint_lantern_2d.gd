@@ -66,6 +66,7 @@ const HEIGHT := 55.0
 enum Form { LANTERN, CLAM }
 var form: int = Form.LANTERN
 const UnderTheSea = preload("res://scripts/under_the_sea.gd")
+const GroundShadow = preload("res://scripts/ground_shadow.gd")
 
 ## The clam's own colours: a shell weathered pale enough to read against the dark seabed, and
 ## the mantle a taklobo shows when it opens -- blue and turquoise, spotted.
@@ -304,12 +305,15 @@ func _draw() -> void:
 	# its middle would be. And everything below is in ART pixels; see UNIT.
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2(UNIT, UNIT))
 	if form == Form.CLAM:
+		GroundShadow.draw(self, float(CLAM_HALF) + 4.0, 2.0, 0.55)
 		_draw_pool()
 		_draw_clam()
 		_draw_glow(_heart() - Vector2(0.0, 1.0))
 		_draw_bubbles()
 		_draw_spark()
 		return
+	# Under the plinth's footprint, which runs back DEPTH pixels up and to the right.
+	GroundShadow.draw(self, 18.0 + DEPTH * 0.5, 2.0, 0.5, Vector2(DEPTH * 0.5, -DEPTH * 0.5))
 	_draw_pool()
 	_draw_glow(Vector2(0.0, -36.0))
 	_draw_stone()
