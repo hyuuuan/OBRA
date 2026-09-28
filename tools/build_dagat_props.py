@@ -1079,11 +1079,29 @@ def draw_bangka_beached() -> Canvas:
             at = x + lean * ((step + 1) // 2)
             c.px(at, sand - 2 - step, HULL[3] if step % 2 else HULL[2])
             c.px(at - lean, sand - 2 - step, HULL[1])
-    # The two booms it was dragged up on, lying beside it on the sand.
-    for x in range(left + 4, right - 6):
-        c.px(x, sand + 2, BAMBOO[2])
-        c.px(x, sand + 3, BAMBOO[0])
     c.speckle(left + 5, sand - 8, right - left - 12, 7, HULL[1], 0.07)
+    # ⚠ ITS SHADOW, AND THE BOOM AS A POLE. The two booms it was dragged up on were two flat
+    # rows of olive under the hull, which at game scale read as a ruled stripe drawn along the
+    # sand -- the one flat thing left on the beach. The hull now sits in its own shadow, darkest
+    # under the keel and gone at the stems, and the boom is one length of bamboo lying in front
+    # of it: lit along its top, dark along its underside, a node every nine pixels, cut ends
+    # showing the pale cane, and its own shadow on the sand.
+    shade = np.array([40, 26, 10, 0], dtype=np.uint8)
+    for x in range(left - 2, right + 3):
+        t = (x - left) / float(right - left)
+        alpha = int(120 * max(0.0, 1.0 - abs(2.0 * t - 1.0) ** 1.6))
+        if alpha > 12 and c.buf[sand + 1, x, 3] == 0:
+            c.buf[sand + 1, x] = shade
+            c.buf[sand + 1, x, 3] = alpha
+    a, b = left + 4, right - 8
+    for x in range(a, b):
+        node = (x - a) % 9 == 0
+        c.px(x, sand + 2, BAMBOO[1] if node else BAMBOO[2])
+        c.px(x, sand + 3, BAMBOO[0])
+        c.buf[sand + 4, x] = shade
+        c.buf[sand + 4, x, 3] = 80
+    c.px(a - 1, sand + 2, BAMBOO[3])
+    c.px(b, sand + 2, BAMBOO[3])
     return c
 
 
