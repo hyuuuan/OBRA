@@ -380,12 +380,34 @@ func _draw_stone() -> void:
 		draw_rect(Rect2(9.0, -7.0, 4.0, 2.0), Color(moss_tone, moss_tone.a * 0.5))
 
 
-## One carved block: an edge all the way round, a face, and a catch of light along the top
-## and down the left, which is where the light in this game comes from.
+## ⚠ HOW DEEP A CARVED BLOCK IS, AND WHY IT HAS ANY DEPTH. Each block was a flat face with a
+## one-pixel catch of light along its top and left -- a stone lantern drawn as a paper cut-out,
+## which is what Kent's "how 3d they are" was looking at. Seen a little from above and to the
+## left, a block shows a top face going back up to the right, lit because it faces the sky, and
+## its right side in shade. Three art pixels of it.
+const DEPTH := 3.0
+
+
+## One carved block: the outline of the whole solid, its top face in the light, its right side
+## in shade, then the front face with a catch of light along its top and left edges.
 func _block(box: Rect2, face: Color, lit_face: Color) -> void:
-	draw_rect(box.grow(1.0), _stone(0.25))
+	var outline := _stone(0.25)
+	var depth := int(DEPTH)
+	draw_rect(box.grow(1.0), outline)
+	for step in range(1, depth + 1):
+		var back := float(step)
+		draw_rect(Rect2(box.position.x + back - 1.0, box.position.y - back - 1.0,
+			box.size.x + 2.0, 3.0), outline)
+		draw_rect(Rect2(box.end.x + back - 2.0, box.position.y - back - 1.0,
+			3.0, box.size.y + 2.0), outline)
+	for step in range(1, depth + 1):
+		var back := float(step)
+		draw_rect(Rect2(box.position.x + back, box.position.y - back, box.size.x, 1.0),
+			lit_face if step < depth else lit_face.lerp(face, 0.3))
+		draw_rect(Rect2(box.end.x - 1.0 + back, box.position.y - back, 1.0, box.size.y),
+			_stone(0.66).lerp(face, 0.15 * float(step)))
 	draw_rect(box, face)
-	draw_rect(Rect2(box.position, Vector2(box.size.x, 1.0)), lit_face)
+	draw_rect(Rect2(box.position, Vector2(box.size.x, 1.0)), face.lerp(lit_face, 0.6))
 	draw_rect(Rect2(box.position, Vector2(1.0, box.size.y)), lit_face)
 	draw_rect(Rect2(box.position.x, box.end.y - 1.0, box.size.x, 1.0), _stone(0.61))
 
