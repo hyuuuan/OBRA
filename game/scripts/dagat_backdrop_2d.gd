@@ -24,6 +24,16 @@ const MANIFEST := "res://assets/Level3/dagat.json"
 ## Authored by tools/build_dagat_props.py, not cut from the delivery. See that tool's header.
 const SHELF_FILL := "res://assets/Level3/authored/shelf_fill.png"
 const SHELF_FACE := "res://assets/Level3/authored/shelf_face.png"
+## The seabed and what stands behind it -- see the deep band's rows. Both authored by
+## tools/build_dagat_props.py.
+const SEABED_FLOOR := "res://assets/Level3/authored/seabed_floor.png"
+const TERRACES_FAR := "res://assets/Level3/authored/terraces_far.png"
+## ⚠ WHERE THE FLOOR STRIP IS PINNED, AND WHICH OF ITS ROWS IS THE BED. The strip's top edge
+## goes at this row of the deep's floor registration, and everything on the bed stands
+## SEABED_WALK pixels below that: 920 + 771 + 18 = 1709, which is level_3.gd's BED_Y and the
+## Seabed collision's top. run_level3_audit adds these up rather than trusting any one of them.
+const SEABED_TOP_ROW := 771.0
+const SEABED_WALK := 18.0
 
 ## ⚠ EnvironmentBaseplate SORTS ITS LAYERS BY THIS. It collects anything with
 ## set_camera_origin/update_for_camera -- which is how a backdrop gets parallax for free --
@@ -178,14 +188,23 @@ const BANDS := {
 		{"key": "deep/water", "rate": 0.15, "z": -230, "mirror": true},
 		{"key": "deep/ridges", "rate": 0.35, "z": -225, "floor": true},
 		{"key": "deep/ruins", "rate": 0.55, "z": -220, "floor": true, "mirror": true},
+		# ⚠ BEHIND THE FLOOR NOW, NOT THE FLOOR. The terraces were the seabed at world rate --
+		# stepped ledges with lit, mossed tops -- and the collision under the water is one flat
+		# bed and nothing else, so each ledge was a platform a diver could see and swim straight
+		# through, and the plate's foot was a band of black silhouettes cut along its last row.
+		# That was most of what made the sea below look messy. The same ledges hazed toward the
+		# water's colour and set back at 0.85 are the far side of the valley instead; their feet
+		# fade into the water rather than ending (see build_dagat_props.py, terraces_far).
+		{"key": TERRACES_FAR, "rate": 0.85, "z": -215, "floor": true, "mirror": true},
 		# ⚠ RATE 1.00, BECAUSE THIS ONE IS THE FLOOR. Every other layer here is scenery and
 		# lags the camera to read as distance; this is the seabed the coral, the kelp, the six
 		# ink jars and the signposts STAND ON, and those are placed in the gameplay plane at
-		# world rate. At 0.80 the painted bed slid 200 px west for every 1000 the camera
-		# travelled -- seven hundred across the crossing -- so a jar that began on a ledge
-		# finished over a gap and the ledges themselves drifted through everything standing on
-		# them. Ground is ground: the shore's sand is 1.00 for the same reason.
-		{"key": "deep/terraces", "rate": 1.00, "z": -215, "floor": true, "mirror": true},
+		# world rate. A floor at 0.80 slid 200 px west for every 1000 the camera travelled, so a
+		# jar that began on the sand finished over a gap. Ground is ground: the shore's sand is
+		# 1.00 for the same reason. It is exactly as flat as the collision is, and it tiles on
+		# its own, so it is neither mirrored nor cut.
+		{"key": SEABED_FLOOR, "rate": 1.00, "z": -214, "floor": true,
+			"top_row": SEABED_TOP_ROW},
 	],
 	"storm": [
 		# ⚠ MIRRORED, for the same reason as the shore's sky: the bank's underside is opaque on
