@@ -341,22 +341,26 @@ func _draw_pool() -> void:
 ## ⚠ NOT `draw_circle`. The first cut of this drew four filled circles of low-alpha gold and
 ## it came out as a soft grey bubble hanging on the lantern -- a radial falloff is the one
 ## thing in this whole interface that is not pixel art, and against a bright terrace it read
-## as a rendering fault rather than as light. Whole-pixel rings, stepped, breathing on the
-## same clock as the flame.
+## as a rendering fault rather than as light.
+##
+## ⚠ AND NOT RECTANGLE OUTLINES EITHER, which was the second cut: three one-pixel boxes of gold
+## round the window. Faint as they were, round a lit lantern or an open clam they read as the
+## selection box of an editor. Three filled ellipses in whole-pixel rows, each smaller than the
+## last, so the light is stepped the way pixel art steps it and brightest at the source --
+## breathing on the same clock as the flame.
 func _draw_glow(at: Vector2) -> void:
 	if _fire <= 0.0:
 		return
 	var beat := 1.0 + sin(_flicker * 1.3) * 0.08
 	for ring in range(3):
-		var reach := GLOW_RADIUS * 0.42 * _fire * beat * (0.45 + 0.34 * float(ring))
-		var box := Rect2(at - Vector2(reach, reach * 0.72), Vector2(reach * 2.0, reach * 1.44))
-		var alpha := (0.13 - 0.035 * float(ring)) * clampf(_fire, 0.0, 1.0)
-		# Four one-pixel edges rather than an unfilled draw_rect, which strokes centred on
-		# the boundary and lands on half pixels.
-		draw_rect(Rect2(box.position.x, box.position.y, box.size.x, 1.0), Color(FLAME, alpha))
-		draw_rect(Rect2(box.position.x, box.end.y - 1.0, box.size.x, 1.0), Color(FLAME, alpha))
-		draw_rect(Rect2(box.position.x, box.position.y, 1.0, box.size.y), Color(FLAME, alpha))
-		draw_rect(Rect2(box.end.x - 1.0, box.position.y, 1.0, box.size.y), Color(FLAME, alpha))
+		var reach := roundf(GLOW_RADIUS * 0.42 * _fire * beat * (0.79 - 0.17 * float(ring)))
+		var rows := roundf(reach * 0.72)
+		var tone := Color(FLAME, (0.05 + 0.02 * float(ring)) * clampf(_fire, 0.0, 1.0))
+		for row in range(int(-rows), int(rows) + 1):
+			var t := float(row) / (rows + 0.5)
+			var half := roundf(reach * sqrt(maxf(0.0, 1.0 - t * t)))
+			if half >= 1.0:
+				draw_rect(Rect2(at.x - half, at.y + float(row), half * 2.0, 1.0), tone)
 
 
 ## The lantern itself: a plinth, a shaft, the fire box, a wide cap and a finial. Carved from
