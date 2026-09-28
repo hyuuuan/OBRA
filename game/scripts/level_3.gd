@@ -1372,7 +1372,11 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 	match route:
 		"pragmatist":
 			_bakunawa.open_a_gap()
-			_say_why("Stay out of the light and it will never know you were here.")
+			# ⚠ WHEN, NOT ONLY WHAT. "Stay out of the light" told a first-time swimmer the rule
+			# and not the way through it, and played along the bed that swimmer was caught four
+			# times in twenty seconds. The beam swings, and the way past is to go while it is
+			# turned away -- which the line now says.
+			_say_why("Watch where its light goes, apo. Cross while it is turned away.")
 		"protector":
 			_knocks = 0
 			_bakunawa.enter_fight()
