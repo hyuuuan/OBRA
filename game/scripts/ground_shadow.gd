@@ -13,12 +13,14 @@ extends RefCounted
 ## fault. Two stepped ellipses, the inner over the outer, so the middle is darker than the rim.
 ##
 ## Drawn in whatever units the caller is drawing in -- the lantern's art pixels, or world pixels
-## for a scaled sprite -- centred on the caller's origin, which for everything here is its foot.
+## for a scaled sprite -- centred on `at`, which for everything here is its foot or, for a thing
+## drawn with depth, the middle of its footprint.
 
 const TONE := Color(0.016, 0.027, 0.075, 1.0)
 
 
-static func draw(item: CanvasItem, half_width: float, half_height: float, alpha: float) -> void:
+static func draw(item: CanvasItem, half_width: float, half_height: float, alpha: float,
+		at := Vector2.ZERO) -> void:
 	for layer in range(2):
 		var shrink := 1.0 - 0.4 * float(layer)
 		var reach := half_width * shrink
@@ -29,4 +31,4 @@ static func draw(item: CanvasItem, half_width: float, half_height: float, alpha:
 			var half := roundf(reach * sqrt(maxf(0.0, 1.0 - t * t)))
 			if half < 1.0:
 				continue
-			item.draw_rect(Rect2(-half, float(row), half * 2.0, 1.0), tone)
+			item.draw_rect(Rect2(at.x - half, at.y + float(row), half * 2.0, 1.0), tone)
