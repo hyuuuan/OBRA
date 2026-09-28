@@ -399,20 +399,81 @@ func _draw() -> void:
 	# The rim lines this carried are gone. The two cones are drawn back to back, so a rim
 	# joined its opposite number into one straight line 920 px long across the whole screen --
 	# on a seabed that is not a beam, it is a scratch on the picture, and was reported as one.
+	#
+	# ⚠ AND IT HAS TO BE SEEN, WHICH IS THE WHOLE OF THE STEALTH RULE. At 0.34 at its head and
+	# 0.13 across its body, added onto a seabed the storm has already darkened, the beam was a
+	# faint pale wedge a first-time player swam into without noticing -- recorded: caught four
+	# times in twenty seconds holding right along the bed, from a light they could barely see. It
+	# is half as bright again, and the water in it is full of motes that drift through the light
+	# and are gone outside it, which is how a beam in murky water reads before anything else does.
 	var tint := Color(0.85, 0.92, 0.70, 1.0)
 	if _state == State.FIGHTING:
 		tint = Color(0.97, 0.70, 0.58, 1.0)
 	# A slow swell, so the beam is alive while it is holding still at the end of a sweep.
-	var swell := 1.0 + 0.14 * sin(float(Time.get_ticks_msec()) * 0.0021)
-	var head := Color(tint.r, tint.g, tint.b, 0.34 * swell)
+	var clock := float(Time.get_ticks_msec()) * 0.001
+	var swell := 1.0 + 0.14 * sin(clock * 2.1)
+	# ⚠ RINGS AND SPOKES, NOT ONE FAN. A fan from a single bright vertex at the creature is bright
+	# all along each of its two edge rays near that vertex -- the colour of every triangle runs
+	# from the bright middle to the dark rim -- so close in, the beam had a hard straight side.
+	# Cut into cells, the light goes to nothing across the width at every distance.
 	var spread := CONE_HALF_ANGLE * 1.18
 	for facing in [_sweep, _sweep + PI]:
-		var points := PackedVector2Array([Vector2.ZERO])
-		var shades := PackedColorArray([head])
-		for step in range(17):
-			var across := float(step) / 16.0
-			var angle: float = facing - spread + spread * 2.0 * across
-			points.append(Vector2(cos(angle), sin(angle)) * CONE_LENGTH)
-			var falloff := pow(1.0 - absf(across * 2.0 - 1.0), 1.6)
-			shades.append(Color(tint.r, tint.g, tint.b, 0.13 * falloff * swell))
-		draw_polygon(points, shades)
+		for ring in range(BEAM_RINGS):
+			var near := float(ring) / float(BEAM_RINGS)
+			var far := float(ring + 1) / float(BEAM_RINGS)
+			for spoke in range(BEAM_SPOKES):
+				var left := float(spoke) / float(BEAM_SPOKES)
+				var right := float(spoke + 1) / float(BEAM_SPOKES)
+				var cell := PackedVector2Array()
+				var shades := PackedColorArray()
+				for corner: Vector2 in [Vector2(left, far), Vector2(right, far),
+						Vector2(right, near), Vector2(left, near)]:
+					if ring == 0 and corner.y == 0.0 and corner.x == right:
+						continue  # the cell against the creature is a triangle
+					var angle: float = facing - spread + spread * 2.0 * corner.x
+					var middle := corner.x if ring > 0 or corner.y > 0.0 else (left + right) * 0.5
+					if ring == 0 and corner.y == 0.0:
+						angle = facing - spread + spread * 2.0 * middle
+					cell.append(Vector2(cos(angle), sin(angle)) * CONE_LENGTH * corner.y)
+					shades.append(Color(tint.r, tint.g, tint.b,
+						_beam_strength(middle, corner.y) * swell))
+				draw_polygon(cell, shades)
+		_draw_motes(facing, tint, clock)
+
+
+const BEAM_RINGS := 5
+const BEAM_SPOKES := 12
+
+
+## How bright the beam is at a point, by how far across it (0..1, the axis at 0.5) and how far
+## along it (0..1): brightest close in, a little brighter on the axis.
+##
+## ⚠ LIT ALL THE WAY TO THE RULE'S EDGE, AND FADING ONLY OUTSIDE IT. The cells are drawn 1.18
+## times the rule's width. A falloff across the whole of that left the rule's own edge at a
+## fifteenth of the axis's light, so the part of the beam that looked lit was narrower than the
+## part that catches you, and a player would be seen standing in what looked like the dark.
+## Full strength to three quarters of the rule's angle, then down to nothing just past it: at
+## the rule's edge the light is still two fifths on, and gone by the fringe.
+static func _beam_strength(across: float, along: float) -> float:
+	var off_axis := absf(across * 2.0 - 1.0) * 1.18
+	var body := 1.0 - smoothstep(0.75, 1.18, off_axis)
+	return (0.16 + 0.3 * pow(1.0 - along, 2.0)) * body * (0.8 + 0.2 * (1.0 - off_axis))
+
+
+## Specks in the water, lit only while they are inside the beam: each drifts slowly outward
+## along its own line through the cone and wraps, whole pixels, brightest near the axis.
+const MOTES := 26
+
+
+func _draw_motes(facing: float, tint: Color, clock: float) -> void:
+	for index in range(MOTES):
+		var seed := float(index) * 12.9898
+		var across := fposmod(sin(seed) * 43758.5453, 1.0) * 2.0 - 1.0
+		var reach := fposmod(fposmod(sin(seed * 1.7) * 24634.6345, 1.0) + clock * 0.05, 1.0)
+		var angle := facing + across * CONE_HALF_ANGLE
+		var at := (Vector2(cos(angle), sin(angle)) * reach * CONE_LENGTH).round()
+		var bright := (1.0 - absf(across)) * (1.0 - reach) * 0.9
+		if bright < 0.08:
+			continue
+		var size := 2.0 if index % 3 == 0 else 1.0
+		draw_rect(Rect2(at, Vector2(size, size)), Color(tint.r, tint.g, tint.b, bright))
