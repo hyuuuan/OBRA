@@ -49,8 +49,18 @@ const CONE_LENGTH := 460.0
 const CONE_HALF_ANGLE := 0.42
 ## How fast the sweep travels, and how far either side of straight ahead it goes. Slow enough
 ## that a player can read it and time a run, which is the whole of the stealth resolution.
-const SWEEP_SPEED := 0.55
-const SWEEP_LIMIT := 1.05
+##
+## ⚠ AND NARROW ENOUGH TO LEAVE A SHADOW UNDER IT. At 1.05 either side at 0.55 a second, the
+## two cones between them reached to within six degrees of straight down: the dark under its
+## belly was 34 pixels of seabed, unmarked, under a 700-pixel body -- and a swimmer along the bed
+## makes about 100 px/s, so there was no moment at which a run straight through its reach was
+## unseen, and a run from the edge to the shadow had a 1.6-second window in every 7.6. On paper
+## a stealth resolution; played, a wall. At 0.90 and 0.38 the beam never comes within fifteen
+## degrees of straight down -- ninety pixels of the bed to wait in, in plain sight as the one
+## place the light never goes -- and each half of the crossing has a window of three seconds in
+## every nine and a half. run_bakunawa_probe measures both against the swimmer's own speed.
+const SWEEP_SPEED := 0.38
+const SWEEP_LIMIT := 0.90
 
 ## Three good hits. The design asks that the fight be survivable without combat skill: this is
 ## a story game and a player who picks Protector for character reasons should not be walled by
