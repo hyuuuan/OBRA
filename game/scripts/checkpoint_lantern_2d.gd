@@ -487,6 +487,10 @@ func _draw_clam() -> void:
 	if lift >= 1.0:
 		_draw_pearl(open)
 	_draw_lid(lid_bottom, lid_rows, lean)
+	# Where the light lands on the lid's dome: a short bright arc high on its left.
+	var crown := lid_bottom - float(lid_rows) + 2.0
+	draw_rect(Rect2(-9.0 + lean, crown, 4.0, 1.0), SHELL_HI)
+	draw_rect(Rect2(-11.0 + lean, crown + 1.0, 2.0, 1.0), SHELL_HI)
 	# Two barnacles on the lid and a tuft of weed at its foot: it has sat here a long time.
 	draw_rect(Rect2(-11.0 + lean, lid_bottom - 5.0, 2.0, 2.0), BARNACLE)
 	draw_rect(Rect2(-11.0 + lean, lid_bottom - 5.0, 1.0, 1.0), SHELL_HI)
@@ -506,11 +510,21 @@ func _rib(x: float, half: float) -> float:
 
 
 ## One pixel of rib: lit on its left, where the light comes from, in shade on its right.
+##
+## ⚠ AND THE SHELL AS A WHOLE IS ROUND. Shaded rib by rib alone, every rib was the same five
+## steps from one side of the shell to the other, and the clam read as a flat fan of stripes.
+## The left third of the shell faces the light and comes up a step; the right third turns
+## away from it and goes down one.
 func _rib_colour(x: float, half: float, lighter: int) -> Color:
 	var across := fposmod(_rib(x, half), 1.0)
 	var step := 0 if across < 0.34 else (1 if across < 0.7 else 2)
+	var side := 0
+	if x < -half * 0.4:
+		side = 1
+	elif x > half * 0.35:
+		side = -1
 	var ramp: Array[Color] = [SHELL_EDGE, SHELL_DARK, SHELL, SHELL_LIT, SHELL_HI]
-	return ramp[clampi(3 - step + lighter, 0, ramp.size() - 1)]
+	return ramp[clampi(3 - step + lighter + side, 0, ramp.size() - 1)]
 
 
 ## The bowl, widest at its lip and narrowing to the sand, darkest where it sits in it.
