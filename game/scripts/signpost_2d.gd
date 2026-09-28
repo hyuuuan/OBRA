@@ -99,6 +99,9 @@ const BREAK := [0, 0, 1, 0, 2, 3, 2, 4, 5, 4, 6, 7, 8, 7, 9]
 const BOARD_SIZE := Vector2(34.0, 24.0)
 const POST_HEIGHT := 24.0
 const POST_WIDTH := 5.0
+## How thick the plank is seen to be: its top edge going back and its right end, two pixels of
+## each. A single flat rectangle reads as a card pinned to the picture.
+const BOARD_DEPTH := 2.0
 
 ## How far the board rocks, and how slowly. A sign that is perfectly still is scenery; one
 ## pixel of sway at a third of a cycle a second is the difference between a plank in the
@@ -337,6 +340,7 @@ func _draw() -> void:
 		_draw_mark(centre, Color(GLOW, 0.62 + 0.12 * float(_pulse)),
 			Color(0.85, 1.0, 0.97, 1.0))
 		return
+	GroundShadow.draw(self, 9.0, 2.0, 0.45)
 	_draw_post()
 	var at := Vector2(0.0, -POST_HEIGHT - BOARD_SIZE.y * 0.5 + _sway)
 	if _offered:
@@ -361,6 +365,21 @@ func _draw_post() -> void:
 
 func _draw_board(at: Vector2) -> void:
 	var board := Rect2(at - BOARD_SIZE * 0.5, BOARD_SIZE)
+	# The plank's thickness first: its outline, its top edge going back in the light, its right
+	# end in shade. The face goes over the front of it.
+	var depth := int(BOARD_DEPTH)
+	for step in range(1, depth + 1):
+		var back := float(step)
+		draw_rect(Rect2(board.position.x + back - 1.0, board.position.y - back - 1.0,
+			board.size.x + 2.0, 2.0), EDGE)
+		draw_rect(Rect2(board.end.x + back - 1.0, board.position.y - back - 1.0,
+			2.0, board.size.y + 2.0), EDGE)
+	for step in range(1, depth + 1):
+		var back := float(step)
+		draw_rect(Rect2(board.position.x + back, board.position.y - back, board.size.x - 1.0, 1.0),
+			BOARD_LIT)
+		draw_rect(Rect2(board.end.x - 1.0 + back, board.position.y - back, 1.0, board.size.y),
+			POST_DARK)
 	draw_rect(board, BOARD)
 	# Two planks rather than one, because a single flat rectangle reads as a card.
 	draw_rect(Rect2(board.position, Vector2(board.size.x, 1.0)), BOARD_LIT)
