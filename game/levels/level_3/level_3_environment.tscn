@@ -31,6 +31,7 @@ script = ExtResource("1_environment")
 world_bounds = Rect2(-200, -900, 5800, 2900)
 metadata/checkpoint_stone = Color(0.659, 0.549, 0.388, 1)
 metadata/checkpoint_moss = Color(0.318, 0.376, 0.239, 0)
+metadata/under_the_sea = true
 
 [node name="WorldCamera" type="Camera2D" parent="."]
 script = ExtResource("2_camera")
@@ -233,11 +234,15 @@ obstacle_id = "L3_N1"
 trigger_size = Vector2(520.0, 420.0)
 checkpoint_mark_offset = -260.0
 
+; ⚠ THE "?" BOARD STANDS PAST THE JARS -- on the seabed a broken pillar, see Signpost2D. At the
+; volume's centre (3860) it landed between the refills at 3850 and 4050 and read as one of them;
+; 4150 is clear seabed short of the island.
 [node name="L3_N2" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(3860.0, 1240.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L3_N2"
 trigger_size = Vector2(900.0, 1500.0)
+hint_sign_offset = 290.0
 plants_commit_mark = false
 sign_reach = 700.0
 
@@ -246,12 +251,16 @@ position = Vector2(640.0, 490.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP1"
 
+; ⚠ ITS MARK IS A CLAM ON THE SEABED. It had none -- a lantern at the bottom of the sea is not
+; a thing -- so the one checkpoint that matters most in the level, the one losing the stretch
+; returns you to, was a line of text and nothing on screen. Under the sea CheckpointLantern2D
+; is a giant clam (see under_the_sea.gd); it drops to the bed from here and opens when reached.
 [node name="CP3b" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(3760.0, 1240.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP3b"
 trigger_size = Vector2(220.0, 1500.0)
-shows_mark = false
+mark_offset = Vector2(30.0, 0.0)
 
 ; ⚠ FROM ABOVE THE WATERLINE, not from it. A boat player arrives SITTING in the hull, forty
 ; pixels over the surface, and the volume used to start at the surface -- so the one route

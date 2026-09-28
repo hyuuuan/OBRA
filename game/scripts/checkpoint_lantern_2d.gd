@@ -56,6 +56,44 @@ const HEIGHT := 55.0
 ## not a clean stone, but a lamp on a swept plaza on the morning of the fiesta is.
 @export var moss_tone := Color(0.318, 0.376, 0.239, 1.0)    # 51603D
 
+## ⚠ AND UNDER THE SEA IT IS NOT A LANTERN AT ALL. A fire burning on the seabed is not a thing,
+## which is why Dagat's encounter used to have no mark: the checkpoint was written, a line said
+## so, and there was nothing to see. There it is a GIANT CLAM -- a taklobo, the Philippine seas'
+## own -- and it keeps the lantern's whole grammar: shut and dull until it is reached, then it
+## opens, and what was a fire is a pearl giving off the same gold, with light lying on the sand
+## under it and bubbles rising off it for the rest of the level. The spark the player carries
+## to it is a bubble. Chosen by plant(), from where it stands -- see under_the_sea.gd.
+enum Form { LANTERN, CLAM }
+var form: int = Form.LANTERN
+const UnderTheSea = preload("res://scripts/under_the_sea.gd")
+
+## The clam's own colours: a shell weathered pale enough to read against the dark seabed, and
+## the mantle a taklobo shows when it opens -- blue and turquoise, spotted.
+const SHELL_EDGE := Color(0.106, 0.110, 0.188, 1.0)   # 1B1C30
+const SHELL_DARK := Color(0.255, 0.255, 0.388, 1.0)   # 414163
+const SHELL := Color(0.435, 0.427, 0.569, 1.0)        # 6F6D91
+const SHELL_LIT := Color(0.635, 0.624, 0.753, 1.0)    # A29FC0
+const SHELL_HI := Color(0.831, 0.820, 0.906, 1.0)     # D4D1E7
+const MANTLE_DEEP := Color(0.043, 0.271, 0.400, 1.0)  # 0B4566
+const MANTLE := Color(0.118, 0.518, 0.667, 1.0)       # 1E84AA
+const MANTLE_LIT := Color(0.337, 0.808, 0.878, 1.0)   # 56CEE0
+const MANTLE_SPOT := Color(0.667, 0.945, 0.965, 1.0)  # AAF1F6
+const BARNACLE := Color(0.769, 0.780, 0.769, 1.0)     # C4C7C4
+const WEED := Color(0.200, 0.459, 0.337, 1.0)         # 337556
+const BUBBLE_RIM := Color(0.749, 0.945, 1.0, 1.0)     # BFF1FF
+## Half the clam's width, how far its lid lifts when it is open, and how many ribs it is folded
+## into, in art pixels. 38 art pixels is 76 across in the world -- about a metre at the house's
+## ruler of 72 to the metre, which is a giant clam and not a shell on the beach.
+const CLAM_HALF := 19
+const CLAM_LIFT := 9.0
+const CLAM_RIBS := 5.0
+## Rows of the lower valve and of the lid. The lips meet in the two rows between them.
+const LOWER_ROWS := 10
+const LID_ROWS := 8
+## Behind the creature and the jars, in front of the painted seabed: the coral pieces stand at
+## 3, and a checkpoint the bakunawa swims over should be under it, not pinned on top of it.
+const CLAM_Z := 3
+
 ## The fire. Gold, because gold is what this interface has always meant by "yours now".
 const FLAME_CORE := UISkin.GOLD_PALE
 const FLAME := UISkin.GOLD
@@ -136,6 +174,9 @@ static func plant(parent: Node2D, at: Vector2, lit_already: bool = false) -> Che
 	if skin.get("moss") != null:
 		lantern.moss_tone = Color(skin["moss"])
 	parent.add_child(lantern)
+	if UnderTheSea.holds(lantern):
+		lantern.form = Form.CLAM
+		lantern.z_index = CLAM_Z
 	lantern.stand_on_the_ground()
 	return lantern
 
@@ -152,10 +193,18 @@ func stand_on_the_ground() -> void:
 	var space := get_world_2d().direct_space_state
 	if space == null:
 		return
+	# ⚠ ON THE SEABED THE GROUND IS FURTHER DOWN. A lantern looks 260 below where it was planted,
+	# which on a terrace is the ledge it stands on; a clam is planted in the middle of the water
+	# column, where the bottom is five hundred below. It looks down to the bottom of the water.
+	var probe := GROUND_PROBE
+	if form == Form.CLAM:
+		var depth := UnderTheSea.depth_below(self, global_position)
+		if is_finite(depth):
+			probe = maxf(GROUND_PROBE, depth + LOOK_UP + 40.0)
 	for nudge in SWEEP:
 		var from := global_position + Vector2(nudge, -LOOK_UP)
 		var query := PhysicsRayQueryParameters2D.create(
-			from, from + Vector2(0.0, GROUND_PROBE))
+			from, from + Vector2(0.0, probe))
 		query.collision_mask = 1
 		var hit := space.intersect_ray(query)
 		if hit.is_empty():
@@ -204,7 +253,7 @@ func light(taker: Vector2) -> void:
 
 	var hands := Vector2(clampf(taker.x / UNIT, -40.0, 40.0),
 		minf(taker.y / UNIT - 28.0, -10.0))
-	var window := Vector2(0.0, -35.0)
+	var window := _heart()
 	_spark_at = hands
 	_sparking = true
 	set_process(true)
@@ -229,7 +278,14 @@ func light(taker: Vector2) -> void:
 ## The flare when the wick takes, thrown in the same gold and with the same vocabulary every
 ## other "yours now" in this game uses.
 func _catch() -> void:
-	PickupFlourish2D.burst(self, Vector2(0.0, -35.0 * UNIT), FLAME_CORE)
+	PickupFlourish2D.burst(self, _heart() * UNIT, FLAME_CORE)
+
+
+## Where the light lives, in art pixels: the lantern's window, or the clam's pearl.
+func _heart() -> Vector2:
+	if form == Form.CLAM:
+		return Vector2(0.0, -float(LOWER_ROWS) - 3.0)
+	return Vector2(0.0, -35.0)
 
 
 ## THE FIRE NEVER STOPS. A checkpoint you have lit is the one thing in the level that is
@@ -247,8 +303,15 @@ func _draw() -> void:
 	# so the level places one by dropping it on a terrace rather than by working out where
 	# its middle would be. And everything below is in ART pixels; see UNIT.
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2(UNIT, UNIT))
+	if form == Form.CLAM:
+		_draw_pool()
+		_draw_clam()
+		_draw_glow(_heart() - Vector2(0.0, 1.0))
+		_draw_bubbles()
+		_draw_spark()
+		return
 	_draw_pool()
-	_draw_glow()
+	_draw_glow(Vector2(0.0, -36.0))
 	_draw_stone()
 	_draw_fire()
 	_draw_spark()
@@ -276,11 +339,10 @@ func _draw_pool() -> void:
 ## thing in this whole interface that is not pixel art, and against a bright terrace it read
 ## as a rendering fault rather than as light. Whole-pixel rings, stepped, breathing on the
 ## same clock as the flame.
-func _draw_glow() -> void:
+func _draw_glow(at: Vector2) -> void:
 	if _fire <= 0.0:
 		return
 	var beat := 1.0 + sin(_flicker * 1.3) * 0.08
-	var at := Vector2(0.0, -36.0)
 	for ring in range(3):
 		var reach := GLOW_RADIUS * 0.42 * _fire * beat * (0.45 + 0.34 * float(ring))
 		var box := Rect2(at - Vector2(reach, reach * 0.72), Vector2(reach * 2.0, reach * 1.44))
@@ -363,6 +425,171 @@ func _draw_spark() -> void:
 	if not _sparking:
 		return
 	var at := _spark_at
+	if form == Form.CLAM:
+		# A bubble, carried down to it: a ring with a glint, the way the sea draws a light.
+		_bubble(at.round(), 2, 0.95)
+		return
 	draw_rect(Rect2(at - Vector2(3.0, 0.5), Vector2(6.0, 1.0)), Color(FLAME_CORE, 0.9))
 	draw_rect(Rect2(at - Vector2(0.5, 3.0), Vector2(1.0, 6.0)), Color(FLAME_CORE, 0.9))
 	draw_rect(Rect2(at - Vector2(1.0, 1.0), Vector2(2.0, 2.0)), Color(Color.WHITE, 0.9))
+
+
+## ⚠ THE CLAM, drawn out of whole art pixels like the lantern. Everything is measured up from
+## the sand it sits in. `_fire` is how far open it is: shut at 0, open at 1, and the lantern's
+## overshoot as it catches is the lid springing a pixel past open and settling back.
+##
+## ⚠ RIBS THAT FAN, AND LIPS THAT INTERLOCK. The first cut shaded ribs at a fixed width, and a
+## shell of straight vertical stripes read as a barrel. A clam's ribs run out from its hinge, so
+## here they are measured across each row rather than across the world: five of them in every
+## row, converging where the row narrows. And a taklobo is known by its wavy mouth -- the lower
+## lip rises to a point at each rib and the lid's lip drops between them, so shut, the seam is a
+## zig-zag of light and dark; open, the same teeth frame the mantle.
+func _draw_clam() -> void:
+	var open := clampf(_fire, 0.0, 1.15)
+	var lift := roundf(CLAM_LIFT * open)
+	var lean := -roundf(2.0 * clampf(open, 0.0, 1.0))
+	var lid_rows := LID_ROWS - int(roundf(2.0 * clampf(open, 0.0, 1.0)))
+	var lid_bottom := -float(LOWER_ROWS) - 3.0 - lift
+	_draw_lower_valve()
+	if lift >= 1.0:
+		_draw_mantle(lid_bottom)
+	_draw_lower_teeth()
+	if lift >= 1.0:
+		_draw_pearl(open)
+	_draw_lid(lid_bottom, lid_rows, lean)
+	# Two barnacles on the lid and a tuft of weed at its foot: it has sat here a long time.
+	draw_rect(Rect2(-11.0 + lean, lid_bottom - 5.0, 2.0, 2.0), BARNACLE)
+	draw_rect(Rect2(-11.0 + lean, lid_bottom - 5.0, 1.0, 1.0), SHELL_HI)
+	draw_rect(Rect2(6.0 + lean, lid_bottom - 6.0, 2.0, 1.0), BARNACLE)
+	draw_rect(Rect2(-4.0, -4.0, 2.0, 1.0), BARNACLE)
+	var sway := roundf(sin(_flicker * 0.35) * clampf(open, 0.0, 1.0))
+	draw_rect(Rect2(float(CLAM_HALF) - 3.0, -4.0, 1.0, 4.0), WEED)
+	draw_rect(Rect2(float(CLAM_HALF) - 2.0 + sway, -7.0, 1.0, 3.0), WEED)
+	draw_rect(Rect2(float(CLAM_HALF) - 1.0 + sway, -10.0, 1.0, 3.0), WEED)
+	draw_rect(Rect2(-float(CLAM_HALF) + 1.0, -3.0, 1.0, 3.0), WEED)
+
+
+## Where across the ribs `x` is, 0..CLAM_RIBS, measured against this row's own half-width -- so
+## the ribs converge where the shell narrows, and fan where it is wide.
+func _rib(x: float, half: float) -> float:
+	return clampf((x / maxf(1.0, half) + 1.0) * 0.5 * CLAM_RIBS, 0.0, CLAM_RIBS - 0.001)
+
+
+## One pixel of rib: lit on its left, where the light comes from, in shade on its right.
+func _rib_colour(x: float, half: float, lighter: int) -> Color:
+	var across := fposmod(_rib(x, half), 1.0)
+	var step := 0 if across < 0.34 else (1 if across < 0.7 else 2)
+	var ramp: Array[Color] = [SHELL_EDGE, SHELL_DARK, SHELL, SHELL_LIT, SHELL_HI]
+	return ramp[clampi(3 - step + lighter, 0, ramp.size() - 1)]
+
+
+## The bowl, widest at its lip and narrowing to the sand, darkest where it sits in it.
+func _draw_lower_valve() -> void:
+	for r in range(LOWER_ROWS):
+		var t := float(r) / (float(LOWER_ROWS) + 0.5)
+		var half := roundf(float(CLAM_HALF) * sqrt(maxf(0.0, 1.0 - t * t)))
+		var y := -float(LOWER_ROWS) + float(r)
+		var lighter := -1 if r >= LOWER_ROWS - 3 else 0
+		for x in range(int(-half), int(half) + 1):
+			var colour := SHELL_EDGE if absf(float(x)) >= half else _rib_colour(float(x), half, lighter)
+			draw_rect(Rect2(float(x), y, 1.0, 1.0), colour)
+	draw_rect(Rect2(-float(CLAM_HALF) + 6.0, -1.0, float(CLAM_HALF) * 2.0 - 11.0, 1.0), SHELL_EDGE)
+
+
+## The lower lip's teeth: two pixels up at the middle of every rib, none at its edges, lit.
+func _draw_lower_teeth() -> void:
+	var lip := -float(LOWER_ROWS)
+	for x in range(-CLAM_HALF + 1, CLAM_HALF):
+		var f := fposmod(_rib(float(x), float(CLAM_HALF)), 1.0)
+		var bump := int(roundf(2.0 * (1.0 - absf(2.0 * f - 1.0))))
+		for k in range(bump):
+			draw_rect(Rect2(float(x), lip - 1.0 - float(k), 1.0, 1.0),
+				SHELL_HI if k == bump - 1 else SHELL_LIT)
+
+
+## The lid, a dome over the bowl, with its own teeth hanging between the lower lip's -- offset
+## half a rib, which is what makes the two interlock.
+func _draw_lid(bottom: float, rows: int, lean: float) -> void:
+	for r in range(rows):
+		var t := float(r) / (float(rows) + 0.5)
+		var half := roundf(float(CLAM_HALF) * sqrt(maxf(0.0, 1.0 - t * t)))
+		var y := bottom - float(r)
+		var lighter := 1 if r >= rows - 3 else 0
+		for x in range(int(-half), int(half) + 1):
+			var colour := SHELL_EDGE if absf(float(x)) >= half else _rib_colour(float(x), half, lighter)
+			if r == rows - 1:
+				colour = SHELL_EDGE
+			draw_rect(Rect2(float(x) + lean, y, 1.0, 1.0), colour)
+	for x in range(-CLAM_HALF + 1, CLAM_HALF):
+		var f := fposmod(_rib(float(x), float(CLAM_HALF)) + 0.5, 1.0)
+		var drop := int(roundf(2.0 * (1.0 - absf(2.0 * f - 1.0))))
+		for k in range(drop):
+			draw_rect(Rect2(float(x) + lean, bottom + 1.0 + float(k), 1.0, 1.0),
+				SHELL_EDGE if k == drop - 1 else SHELL_DARK)
+
+
+## The inside, which is only there while it is open: the mantle filling the gap between the
+## lips, dark at the back and lit at the front, spotted the way a giant clam's is.
+func _draw_mantle(lid_bottom: float) -> void:
+	var low := -float(LOWER_ROWS) - 1.0
+	var high := lid_bottom + 2.0
+	var rows := int(low - high) + 1
+	for r in range(rows):
+		var y := low - float(r)
+		var half := CLAM_HALF - 2 - int(float(r) * 0.25)
+		for x in range(-half, half + 1):
+			var wave := sin(float(x) * 0.7 + float(r) * 1.3 + _flicker * 0.25)
+			var colour := MANTLE
+			if r >= rows - 2:
+				colour = MANTLE_DEEP
+			elif wave > 0.5:
+				colour = MANTLE_LIT
+			if (x * 5 + r * 3 + 40) % 11 == 0:
+				colour = MANTLE_SPOT
+			draw_rect(Rect2(float(x), y, 1.0, 1.0), colour)
+
+
+## The pearl on the lip at the front of the mantle: the fire's gold, and the same breathing.
+func _draw_pearl(open: float) -> void:
+	if open < 0.3:
+		return
+	var at := _heart()
+	var core := FLAME_CORE.lerp(Color.WHITE, 0.15 + 0.1 * sin(_flicker))
+	var shape := [[-1, 1], [-2, 2], [-3, 3], [-3, 3], [-3, 3], [-2, 2], [-1, 1]]
+	for index in range(shape.size()):
+		var span: Array = shape[index]
+		var y := at.y - 3.0 + float(index)
+		for x in range(int(span[0]), int(span[1]) + 1):
+			var colour := core
+			if (x >= 1 and index >= 4) or index == shape.size() - 1:
+				colour = FLAME
+			draw_rect(Rect2(at.x + float(x), y, 1.0, 1.0), colour)
+	draw_rect(Rect2(at.x - 1.0, at.y - 2.0, 1.0, 1.0), Color.WHITE)
+	draw_rect(Rect2(at.x - 2.0, at.y - 1.0, 1.0, 1.0), Color.WHITE)
+
+
+## Bubbles, rising off it forever once it is open -- the sea's version of the fire that never
+## stops, and the thing that makes it findable from across the seabed on the way back.
+func _draw_bubbles() -> void:
+	if _fire <= 0.3:
+		return
+	var from := _heart()
+	for index in range(3):
+		var phase := float(index) * 0.37
+		var rise := fposmod(_flicker * 0.11 + phase, 1.0)
+		var y := from.y - 3.0 - rise * 34.0
+		var x := from.x + roundf(sin(_flicker * 0.5 + float(index) * 2.1) * 2.0) \
+			+ float(index - 1) * 3.0
+		_bubble(Vector2(x, roundf(y)), 1 if index != 1 else 2, (1.0 - rise) * 0.85)
+
+
+func _bubble(at: Vector2, radius: int, alpha: float) -> void:
+	if alpha <= 0.02:
+		return
+	var rim := Color(BUBBLE_RIM, alpha)
+	var r := float(radius)
+	draw_rect(Rect2(at.x - r, at.y - r - 1.0, r * 2.0 + 1.0, 1.0), rim)
+	draw_rect(Rect2(at.x - r, at.y + r + 1.0, r * 2.0 + 1.0, 1.0), rim)
+	draw_rect(Rect2(at.x - r - 1.0, at.y - r, 1.0, r * 2.0 + 1.0), rim)
+	draw_rect(Rect2(at.x + r + 1.0, at.y - r, 1.0, r * 2.0 + 1.0), rim)
+	draw_rect(Rect2(at.x - r + 1.0, at.y - r, 1.0, 1.0), Color(Color.WHITE, alpha))

@@ -663,6 +663,10 @@ func _checkpoint_area_for(checkpoint_id: String) -> Node:
 func _stage_the_checkpoint(mark: Node2D) -> void:
 	if mark == null or cinematic == null or cinematic.is_playing():
 		return
+	# The mark lights either way -- the area lit it the moment it was entered. This only
+	# decides whether the moment also takes the camera and the bars.
+	if not _may_frame_the_checkpoint(mark):
+		return
 	var world_camera := _world_camera()
 	cinematic.close("CHECKPOINT")
 	if world_camera != null:
@@ -677,6 +681,14 @@ func _stage_the_checkpoint(mark: Node2D) -> void:
 		world_camera.release_focus()
 	if cinematic != null:
 		cinematic.open()
+
+
+## WHETHER A CHECKPOINT'S MOMENT MAY TAKE THE CAMERA. Yes, everywhere a mark is planted where
+## the player is standing, which is every terrace in the game. A level answers no where the
+## camera must not leave the player -- the middle of an encounter -- or where the mark is too
+## far away to frame without losing them.
+func _may_frame_the_checkpoint(_mark: Node2D) -> bool:
+	return true
 
 
 ## WHAT A CHECKPOINT SAYS. It used to say "Checkpoint" on the status label, which is the same

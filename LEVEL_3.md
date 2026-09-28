@@ -618,6 +618,39 @@ and each was a moment the level marked with sparkles over nothing:
   the sea. They hold a paddle now (`paddle.png`) and stroke with it while the boat moves -- in
   with a splash, back along the hull, lifted round -- and rest it when it stops.
 
+## What stands on the seabed, and seeing it (2026-09-28)
+
+Kent: *"make it more playable, the checkpoints underground should be something else that is
+relevant and related to what is below the ocean"*.
+
+**Under the sea the marks take the sea's forms** (`under_the_sea.gd`, opted into by
+`metadata/under_the_sea` on the environment root, because Payyo's paddy is water too):
+
+- **A checkpoint is a giant clam** -- a taklobo -- instead of a stone lantern. It keeps the lantern's
+  grammar: shut and dull until reached, then it opens over a spotted turquoise mantle, and the fire
+  is a pearl giving off the same gold, with light on the sand and bubbles rising for the rest of the
+  level. The encounter's checkpoints had NO mark before -- "a lit lantern at the bottom of the sea
+  is not a thing" -- so CP3b, the one losing the stretch returns you to, now has one, on the bed.
+- **A signpost is a broken pillar from the ruins** the seabed is painted with: a plinth, a shaft
+  snapped off across the top, the same five glyphs carved in and glowing. Not an arched slab, which
+  was the first cut and read as a headstone where Lolo drowned. The "?" board moved off the row
+  of jars to 4150.
+- The camera does not take the player to a clam mid-encounter or from the boat
+  (`_may_frame_the_checkpoint`) -- two seconds looking at the seabed while the sweep goes on is two
+  seconds a player can be seen without seeing the light.
+
+**And the dive was framed like a land level.** The camera sat 180 above the player, so a swimmer at
+mid-depth had the seabed, the jars, the clam and most of the bakunawa below the screen -- and a
+first-time sneak, recorded, was caught by a sweep it could not see. Underwater the camera now looks
+down as far as it takes to put the bed 370 below its centre, never more than 240 below the player,
+easing in over the first 300 px of depth (`_frame_the_water`). And once the player has chosen how
+to meet it, the objective says how (`bakunawa_sneak` / `bakunawa_light` / `bakunawa_fight`)
+instead of "Decide what you are going to do about that".
+
+`run_level3_audit` checks the forms from the real level: sea forms under the water and land forms
+on it, sea marks standing on the bed, CP3b marked, and no sea forms without the level's opt-in.
+Mutation-tested both ways.
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.
