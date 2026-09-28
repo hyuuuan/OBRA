@@ -44,9 +44,13 @@ OUT = ROOT / "game" / "assets" / "Level3" / "authored"
 
 # Read off the delivered plate so the jar belongs to the picture it stands in.
 GLASS = ramp(["#6f7f86", "#93a4a8", "#b9c6c4", "#dbe3dc", "#f1f4ea"])
-CAP = ramp(["#2a1d16", "#3d2b20", "#55392a", "#6d4a36"])
+CAP = ramp(["#2a1d16", "#3d2b20", "#55392a", "#6d4a36", "#8a6246"])
 DROP = ramp(["#0e3f66", "#1667a4", "#2b95d6", "#71c8ef"])
 GLOW = ramp(["#1667a4", "#2b95d6", "#71c8ef", "#bdeaff"])
+# What is in it, and the label round it.
+INK = ramp(["#07173a", "#0e2758", "#163c82", "#2256ad", "#3a7bd2", "#6aa9ea", "#a8d6f7"])
+PAPER = ramp(["#8f836a", "#bdb091", "#ddd2b5", "#f3ebd3"])
+GLASS_EDGE = np.array([22, 36, 48, 255], dtype=np.uint8)
 
 W, H = 20, 30
 FRAMES = 3
@@ -762,48 +766,125 @@ LIFE = {
 }
 
 
+## The jar's half-width, row by row down its silhouette: the lip, the neck, the shoulders
+## rounding out, the straight body, the bottom rounding in. None above the lip.
+JAR_ROWS = {8: 4.0, 9: 3.6, 10: 5.2, 11: 6.3, 27: 6.6, 28: 5.8}
+JAR_CENTRE, JAR_BODY, INK_TOP = 9.5, 7.0, 15
+
+
+def _jar_half(y: int):
+    if y < 8 or y > 28:
+        return None
+    return JAR_ROWS.get(y, JAR_BODY)
+
+
+def _jar_px(c: Canvas, x: int, y: int, colour: np.ndarray, alpha: int | None = None) -> None:
+    if 0 <= x < c.w and 0 <= y < c.h:
+        c.buf[y, x] = colour
+        if alpha is not None:
+            c.buf[y, x, 3] = alpha
+
+
+def _jar_tone(colours: np.ndarray, value: float, x: int, y: int) -> np.ndarray:
+    value = max(0.0, min(len(colours) - 1.0, value))
+    low = int(value)
+    return colours[min(len(colours) - 1, low + 1)] if value - low > BAYER_AT(x, y) \
+        else colours[low]
+
+
 def draw(frame: int) -> Canvas:
+    """The ink jar, as a jar: a glass vessel you can see the ink in.
+
+    ⚠ IT WAS A WHITE CARD. The first jar was a flat rectangle of dithered pale grey with a drop
+    on it and a stack of translucent rectangles behind it for a glow -- which read as a dark
+    box -- and next to a painted seabed it was the flattest thing in the level. Kent asked for
+    objects that look three-dimensional. So: rounded shoulders and bottom, a cork seen a little
+    from above so its top is an ellipse, the ink inside shaded as the cylinder it is and bright
+    along its surface, empty glass above it that the sea shows through, a paper label that
+    darkens as it wraps round, a specular streak down the lit side and a spark on the shoulder.
+    Light from the upper left, as everywhere.
+
+    THREE FRAMES, AND WHAT MOVES IS THE INK: it brightens a step a frame, the drop with it, and
+    a few motes rise off the cork. It is a thing left on the seabed that still has something
+    in it, not a pickup that bounces."""
+    import math
     # PX=3 rather than the library default of 2: this sits in a scene drawn at a much finer
     # grain than Piyesta's interiors, and at 2 the jar reads as a different game's prop.
     pixelart.PX = 3
     c = Canvas(W, H, seed=1703 + frame)
-
-    # The glow behind it, which is the only thing that changes between frames.
-    reach = [3, 4, 5][frame]
-    for step in range(reach):
-        tone = GLOW[max(0, 1 - step // 2)].copy()
-        tone[3] = 30 - step * 5
-        c.fill(4 - step, 9 - step, 12 + step * 2, 17 + step * 2, tone)
-
-    # The jar: a straight-sided vessel, lit from the upper left.
-    c.fill(5, 10, 10, 16, GLASS[2])
-    # ⚠ A GRADIENT AMOUNT, NOT A CONSTANT. A flat 0.45 dithers the whole face at one rate,
-    # which is a checkerboard rather than a curved surface -- the ordered dither only reads
-    # as a cylinder when the mix varies across it, bright on the lit side and dark on the
-    # shaded one.
-    across = np.linspace(0.92, 0.08, 10)[None, :].repeat(16, axis=0)
-    c.dither(5, 10, 10, 16, GLASS[1], GLASS[3], across)
-    c.vline(5, 10, 16, GLASS[4])          # lit edge
-    c.hline(5, 10, 10, GLASS[4])
-    c.vline(14, 10, 16, GLASS[0])         # shaded edge
-    c.hline(5, 25, 10, GLASS[0])
-
-    # The cap, and the neck under it.
-    c.fill(6, 6, 8, 4, CAP[2])
-    c.hline(6, 6, 8, CAP[3])
-    c.hline(6, 9, 8, CAP[0])
-    c.fill(7, 4, 6, 2, CAP[1])
-
-    # The drop on the front, brighter as the glow swells.
+    swell = (0.0, 0.5, 1.0)[frame]
+    for y in range(H):
+        half = _jar_half(y)
+        if half is None:
+            continue
+        x0 = int(math.floor(JAR_CENTRE - half + 0.5))
+        x1 = int(math.ceil(JAR_CENTRE + half - 0.5))
+        for x in range(x0, x1 + 1):
+            if x in (x0, x1):
+                _jar_px(c, x, y, GLASS_EDGE)
+                continue
+            across = (x + 0.5 - JAR_CENTRE) / half
+            curve = math.sqrt(max(0.0, 1.0 - across * across))
+            if INK_TOP <= y <= 27:
+                v = 1.2 + 3.0 * curve - 0.9 * across + swell
+                if y == INK_TOP:
+                    v += 1.6  # the ink's surface, catching the light
+                _jar_px(c, x, y, _jar_tone(INK, v, x, y))
+            else:
+                # Empty glass: mostly the sea behind it, tinted, thicker toward its rims.
+                _jar_px(c, x, y, GLASS[2], 70 + int(40 * (1.0 - curve)))
+    for x in range(int(JAR_CENTRE - 5.0), int(JAR_CENTRE + 5.0) + 1):
+        _jar_px(c, x, 28, GLASS[1] if x > JAR_CENTRE else GLASS[2])  # the thick glass base
+    for x in range(int(JAR_CENTRE - 4.0), int(JAR_CENTRE + 4.0) + 1):
+        _jar_px(c, x, 29, GLASS_EDGE)
+    for x in range(6, 14):
+        _jar_px(c, x, 8, GLASS[4] if x < 9 else GLASS[3] if x < 12 else GLASS[1])  # the lip
+    # The label, wrapped round its middle.
+    for y in range(18, 25):
+        for x in range(int(JAR_CENTRE - JAR_BODY) + 1, int(JAR_CENTRE + JAR_BODY)):
+            across = (x + 0.5 - JAR_CENTRE) / JAR_BODY
+            v = 0.6 + 2.6 * math.sqrt(max(0.0, 1.0 - across * across)) - 0.7 * across
+            if y in (18, 24):
+                v -= 0.8
+            _jar_px(c, x, y, _jar_tone(PAPER, v, x, y))
+    # The drop printed on it: a point at the top, round at the bottom, brighter as the ink is.
     lit = DROP[min(3, 2 + frame // 2)]
-    c.fill(9, 15, 2, 5, lit)
-    c.fill(8, 17, 4, 3, lit)
-    c.px(8, 16, DROP[1])
-    c.px(11, 16, DROP[1])
-    c.px(9, 14, DROP[3])
-
-    # A few motes rising off it, so a still prop still has something happening.
-    c.speckle(6, 2 + frame, 8, 4, GLOW[3], 0.07)
+    for row, (a, b) in enumerate(((9, 10), (8, 11), (8, 11), (7, 12), (8, 11))):
+        for x in range(a, b + 1):
+            _jar_px(c, x, 19 + row, lit)
+    _jar_px(c, 8, 20, DROP[3])
+    _jar_px(c, 8, 21, DROP[3])
+    for x, y in ((11, 21), (11, 22), (12, 22), (10, 23), (11, 23)):
+        _jar_px(c, x, y, DROP[1])
+    # The specular streak down the lit side, and a spark on the shoulder; a dimmer glint
+    # down the far side, where the glass turns away.
+    for y in range(12, 27):
+        if not 18 <= y <= 24:
+            _jar_px(c, 5, y, GLASS[4], 230 if y >= INK_TOP else 200)
+    _jar_px(c, 6, 11, GLASS[4])
+    _jar_px(c, 5, 12, GLASS[4])
+    for y in range(13, 26, 3):
+        _jar_px(c, 14, y, GLASS[3], 120)
+    # The cork: a cylinder seen a little from above.
+    for y in range(3, 8):
+        for x in range(6, 14):
+            across = (x + 0.5 - 10.0) / 4.0
+            if y <= 4:
+                if y == 3 and x in (6, 13):
+                    continue
+                v = 3.2 - 0.8 * across + (0.6 if y == 3 else 0.0)
+            else:
+                v = 2.6 - 1.6 * across - (0.6 if y == 7 else 0.0)
+            _jar_px(c, x, y, _jar_tone(CAP, v, x, y))
+    for x in range(7, 13):
+        _jar_px(c, x, 2, GLASS_EDGE)
+    for y in range(4, 8):
+        _jar_px(c, 5, y, GLASS_EDGE)
+        _jar_px(c, 14, y, GLASS_EDGE)
+    # A few motes rising off it, so a still thing still has something happening.
+    rng = np.random.default_rng(1703 + frame)
+    for _ in range(2 + frame):
+        _jar_px(c, int(rng.uniform(6, 14)), int(rng.uniform(0, 3)), GLOW[3], 170)
     return c
 
 
