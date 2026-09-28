@@ -364,6 +364,7 @@ func _plant_the_refills() -> void:
 		art.fps = 2.4
 		art.target_height = 92.0
 		art.phase = index
+		art.shadow_width = 24.0
 		refill.add_child(art)
 		refill.global_position = spots[index]
 		refill.z_index = 6
@@ -419,6 +420,8 @@ func _plant_the_coral_field() -> void:
 		piece.phase = seed_of(key) % 3
 		piece.mirrored = seed_of(key) % 2 == 1
 		piece.z_index = 3
+		# A frond of kelp is a stalk where it meets the sand; a coral is a heap.
+		piece.shadow_width = 16.0 if String(SCENERY[key]).begins_with("kelp") else 30.0
 		spot.add_child(piece)
 
 
@@ -621,10 +624,11 @@ func _bring_the_sea_to_life() -> void:
 	# clam and an urchin -- chosen because none of them is something the player can draw -- and
 	# each stood on a piece of coral while he talked about it. Now the thing is there.
 	var field := coral_field()
-	for pair in [["jelly", "jelly", 70.0, Vector2(60.0, -150.0), 4.0],
-			["star", "starfish", 44.0, Vector2(58.0, 0.0), 1.2],
-			["clam", "clam", 34.0, Vector2(-56.0, 0.0), 1.0],
-			["urchin", "urchin", 40.0, Vector2(52.0, 0.0), 2.0]]:
+	# The last number is the shadow each casts on the sand; the jellyfish is not on the sand.
+	for pair in [["jelly", "jelly", 70.0, Vector2(60.0, -150.0), 4.0, 0.0],
+			["star", "starfish", 44.0, Vector2(58.0, 0.0), 1.2, 24.0],
+			["clam", "clam", 34.0, Vector2(-56.0, 0.0), 1.0, 26.0],
+			["urchin", "urchin", 40.0, Vector2(52.0, 0.0), 2.0, 22.0]]:
 		if not field.has(pair[0]):
 			continue
 		var animal := PropClass.new()
@@ -632,6 +636,7 @@ func _bring_the_sea_to_life() -> void:
 		animal.prefix = AUTHORED + String(pair[1])
 		animal.target_height = pair[2]
 		animal.fps = pair[4]
+		animal.shadow_width = pair[5]
 		animal.phase = seed_of(String(pair[0])) % 3
 		animal.z_index = 4
 		coral.get_parent().add_child(animal)
