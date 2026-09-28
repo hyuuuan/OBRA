@@ -66,6 +66,7 @@ const HEIGHT := 55.0
 enum Form { LANTERN, CLAM }
 var form: int = Form.LANTERN
 const UnderTheSea = preload("res://scripts/under_the_sea.gd")
+const GroundShadow = preload("res://scripts/ground_shadow.gd")
 
 ## The clam's own colours: a shell weathered pale enough to read against the dark seabed, and
 ## the mantle a taklobo shows when it opens -- blue and turquoise, spotted.
@@ -304,12 +305,15 @@ func _draw() -> void:
 	# its middle would be. And everything below is in ART pixels; see UNIT.
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2(UNIT, UNIT))
 	if form == Form.CLAM:
+		GroundShadow.draw(self, float(CLAM_HALF) + 4.0, 2.0, 0.55)
 		_draw_pool()
 		_draw_clam()
 		_draw_glow(_heart() - Vector2(0.0, 1.0))
 		_draw_bubbles()
 		_draw_spark()
 		return
+	# Under the plinth's footprint, which runs back DEPTH pixels up and to the right.
+	GroundShadow.draw(self, 18.0 + DEPTH * 0.5, 2.0, 0.5, Vector2(DEPTH * 0.5, -DEPTH * 0.5))
 	_draw_pool()
 	_draw_glow(Vector2(0.0, -36.0))
 	_draw_stone()
@@ -337,22 +341,26 @@ func _draw_pool() -> void:
 ## ⚠ NOT `draw_circle`. The first cut of this drew four filled circles of low-alpha gold and
 ## it came out as a soft grey bubble hanging on the lantern -- a radial falloff is the one
 ## thing in this whole interface that is not pixel art, and against a bright terrace it read
-## as a rendering fault rather than as light. Whole-pixel rings, stepped, breathing on the
-## same clock as the flame.
+## as a rendering fault rather than as light.
+##
+## ⚠ AND NOT RECTANGLE OUTLINES EITHER, which was the second cut: three one-pixel boxes of gold
+## round the window. Faint as they were, round a lit lantern or an open clam they read as the
+## selection box of an editor. Three filled ellipses in whole-pixel rows, each smaller than the
+## last, so the light is stepped the way pixel art steps it and brightest at the source --
+## breathing on the same clock as the flame.
 func _draw_glow(at: Vector2) -> void:
 	if _fire <= 0.0:
 		return
 	var beat := 1.0 + sin(_flicker * 1.3) * 0.08
 	for ring in range(3):
-		var reach := GLOW_RADIUS * 0.42 * _fire * beat * (0.45 + 0.34 * float(ring))
-		var box := Rect2(at - Vector2(reach, reach * 0.72), Vector2(reach * 2.0, reach * 1.44))
-		var alpha := (0.13 - 0.035 * float(ring)) * clampf(_fire, 0.0, 1.0)
-		# Four one-pixel edges rather than an unfilled draw_rect, which strokes centred on
-		# the boundary and lands on half pixels.
-		draw_rect(Rect2(box.position.x, box.position.y, box.size.x, 1.0), Color(FLAME, alpha))
-		draw_rect(Rect2(box.position.x, box.end.y - 1.0, box.size.x, 1.0), Color(FLAME, alpha))
-		draw_rect(Rect2(box.position.x, box.position.y, 1.0, box.size.y), Color(FLAME, alpha))
-		draw_rect(Rect2(box.end.x - 1.0, box.position.y, 1.0, box.size.y), Color(FLAME, alpha))
+		var reach := roundf(GLOW_RADIUS * 0.42 * _fire * beat * (0.79 - 0.17 * float(ring)))
+		var rows := roundf(reach * 0.72)
+		var tone := Color(FLAME, (0.05 + 0.02 * float(ring)) * clampf(_fire, 0.0, 1.0))
+		for row in range(int(-rows), int(rows) + 1):
+			var t := float(row) / (rows + 0.5)
+			var half := roundf(reach * sqrt(maxf(0.0, 1.0 - t * t)))
+			if half >= 1.0:
+				draw_rect(Rect2(at.x - half, at.y + float(row), half * 2.0, 1.0), tone)
 
 
 ## The lantern itself: a plinth, a shaft, the fire box, a wide cap and a finial. Carved from
@@ -380,12 +388,34 @@ func _draw_stone() -> void:
 		draw_rect(Rect2(9.0, -7.0, 4.0, 2.0), Color(moss_tone, moss_tone.a * 0.5))
 
 
-## One carved block: an edge all the way round, a face, and a catch of light along the top
-## and down the left, which is where the light in this game comes from.
+## ⚠ HOW DEEP A CARVED BLOCK IS, AND WHY IT HAS ANY DEPTH. Each block was a flat face with a
+## one-pixel catch of light along its top and left -- a stone lantern drawn as a paper cut-out,
+## which is what Kent's "how 3d they are" was looking at. Seen a little from above and to the
+## left, a block shows a top face going back up to the right, lit because it faces the sky, and
+## its right side in shade. Three art pixels of it.
+const DEPTH := 3.0
+
+
+## One carved block: the outline of the whole solid, its top face in the light, its right side
+## in shade, then the front face with a catch of light along its top and left edges.
 func _block(box: Rect2, face: Color, lit_face: Color) -> void:
-	draw_rect(box.grow(1.0), _stone(0.25))
+	var outline := _stone(0.25)
+	var depth := int(DEPTH)
+	draw_rect(box.grow(1.0), outline)
+	for step in range(1, depth + 1):
+		var back := float(step)
+		draw_rect(Rect2(box.position.x + back - 1.0, box.position.y - back - 1.0,
+			box.size.x + 2.0, 3.0), outline)
+		draw_rect(Rect2(box.end.x + back - 2.0, box.position.y - back - 1.0,
+			3.0, box.size.y + 2.0), outline)
+	for step in range(1, depth + 1):
+		var back := float(step)
+		draw_rect(Rect2(box.position.x + back, box.position.y - back, box.size.x, 1.0),
+			lit_face if step < depth else lit_face.lerp(face, 0.3))
+		draw_rect(Rect2(box.end.x - 1.0 + back, box.position.y - back, 1.0, box.size.y),
+			_stone(0.66).lerp(face, 0.15 * float(step)))
 	draw_rect(box, face)
-	draw_rect(Rect2(box.position, Vector2(box.size.x, 1.0)), lit_face)
+	draw_rect(Rect2(box.position, Vector2(box.size.x, 1.0)), face.lerp(lit_face, 0.6))
 	draw_rect(Rect2(box.position, Vector2(1.0, box.size.y)), lit_face)
 	draw_rect(Rect2(box.position.x, box.end.y - 1.0, box.size.x, 1.0), _stone(0.61))
 
@@ -457,6 +487,10 @@ func _draw_clam() -> void:
 	if lift >= 1.0:
 		_draw_pearl(open)
 	_draw_lid(lid_bottom, lid_rows, lean)
+	# Where the light lands on the lid's dome: a short bright arc high on its left.
+	var crown := lid_bottom - float(lid_rows) + 2.0
+	draw_rect(Rect2(-9.0 + lean, crown, 4.0, 1.0), SHELL_HI)
+	draw_rect(Rect2(-11.0 + lean, crown + 1.0, 2.0, 1.0), SHELL_HI)
 	# Two barnacles on the lid and a tuft of weed at its foot: it has sat here a long time.
 	draw_rect(Rect2(-11.0 + lean, lid_bottom - 5.0, 2.0, 2.0), BARNACLE)
 	draw_rect(Rect2(-11.0 + lean, lid_bottom - 5.0, 1.0, 1.0), SHELL_HI)
@@ -476,11 +510,21 @@ func _rib(x: float, half: float) -> float:
 
 
 ## One pixel of rib: lit on its left, where the light comes from, in shade on its right.
+##
+## ⚠ AND THE SHELL AS A WHOLE IS ROUND. Shaded rib by rib alone, every rib was the same five
+## steps from one side of the shell to the other, and the clam read as a flat fan of stripes.
+## The left third of the shell faces the light and comes up a step; the right third turns
+## away from it and goes down one.
 func _rib_colour(x: float, half: float, lighter: int) -> Color:
 	var across := fposmod(_rib(x, half), 1.0)
 	var step := 0 if across < 0.34 else (1 if across < 0.7 else 2)
+	var side := 0
+	if x < -half * 0.4:
+		side = 1
+	elif x > half * 0.35:
+		side = -1
 	var ramp: Array[Color] = [SHELL_EDGE, SHELL_DARK, SHELL, SHELL_LIT, SHELL_HI]
-	return ramp[clampi(3 - step + lighter, 0, ramp.size() - 1)]
+	return ramp[clampi(3 - step + lighter + side, 0, ramp.size() - 1)]
 
 
 ## The bowl, widest at its lip and narrowing to the sand, darkest where it sits in it.

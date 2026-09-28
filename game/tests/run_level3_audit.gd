@@ -59,6 +59,59 @@ func _fail(what: String, detail: String) -> void:
 	failures += 1
 
 
+## ⚠ EVERY OBJECTIVE FITS ITS BANNER. The banner is one line, at most ObjectiveBanner.MAX_WIDTH
+## wide, and it trims anything longer to an ellipsis. Played through, the line at the creature's
+## fork was the one trimmed -- "Something that can LIGHT or STRIKE -- or slip by while it is
+## loo..." -- so the only words on screen saying there was a third way past cut off in the middle
+## of saying it. So was the first line of the level. Measured with the banner's own font at its
+## own size: every line, and every `.tags` line with its own obstacle's tags put into it.
+##
+## ⚠ WHICH OBSTACLE A `.tags` LINE SPEAKS FOR is level_3.gd's _current_objective's to decide, and
+## it is written down here for the same reason: a `.tags` line with no entry here fails rather
+## than being skipped, so a new one cannot arrive unmeasured.
+const OBJECTIVE_OBSTACLE := {"practice": "L3_B0_SHORE", "cross": "L3_N1", "bakunawa": "L3_N2"}
+
+
+func _audit_objectives_fit(level: Dictionary) -> void:
+	var level_scene := (load("res://level_3.tscn") as PackedScene).instantiate() as Node2D
+	(level_scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level_scene)
+	for _frame in range(4):
+		await process_frame
+	var label := (level_scene.get("objective_banner") as Control).get("_label") as Label
+	var font := label.get_theme_font(&"font")
+	var font_size := label.get_theme_font_size(&"font_size")
+	var director = level_scene.get("director")
+	var readings: Array[String] = []
+	var table: Dictionary = level.get("objectives", {})
+	for key: String in table.keys():
+		if key.begins_with("$"):
+			continue
+		if not key.ends_with(".tags"):
+			readings.append(String(table[key]))
+			continue
+		var owner := String(OBJECTIVE_OBSTACLE.get(key.trim_suffix(".tags"), ""))
+		var spec: Dictionary = director.call("requirement_spec", owner) if not owner.is_empty() \
+			else {}
+		var needed: Array = spec.get("required_tags", [])
+		if needed.is_empty():
+			readings.append("%s: no obstacle to take its tags from" % key)
+			continue
+		readings.append(String(table[key]).replace("{tags}", String(level_scene.call(
+			"_objective_tags", needed, String(spec.get("match", "all"))))))
+	var cut: Array[String] = []
+	for line in readings:
+		var width := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+		if width > ObjectiveBanner.MAX_WIDTH or line.contains("no obstacle to take"):
+			cut.append("\"%s\" (%.0f px)" % [line, width])
+	_check(font != null and not readings.is_empty() and cut.is_empty(),
+		"every objective fits its banner",
+		"%d readings, none wider than %.0f px" % [readings.size(), ObjectiveBanner.MAX_WIDTH]
+		if cut.is_empty() else "trimmed: " + ", ".join(cut))
+	level_scene.queue_free()
+	await process_frame
+
+
 func _check(ok: bool, what: String, detail: String) -> void:
 	if ok: _pass(what, detail)
 	else: _fail(what, detail)
@@ -94,6 +147,7 @@ func _run() -> void:
 	_audit_shipping_state()
 	_audit_one_seabed(level)
 	await _audit_sea_marks()
+	await _audit_objectives_fit(level)
 
 	for line in results:
 		print(line)
@@ -569,25 +623,38 @@ func _audit_shipping_state() -> void:
 
 
 ## ⚠ ONE SEABED, AGREED ON BY EVERYTHING THAT STANDS ON IT. The floor is typed in three places
-## -- the painted terraces (DeepBand's plate_top + floor_drop + the plate's floor row), the
-## Seabed collision, and level_3.gd's BED_Y that the coral and bubbles are placed on -- and it
-## moved twice while the level was being painted. Each time something was left behind: coral
-## inside the rock, a treasure point under the floor, refills floating a hundred pixels up.
+## -- the painted floor strip (DeepBand's plate_top + floor_drop + the row the strip is pinned
+## at + its walking row), the Seabed collision, and level_3.gd's BED_Y that the coral and
+## bubbles are placed on -- and it moved twice while the level was being painted. Each time
+## something was left behind: coral inside the rock, a treasure point under the floor, refills
+## floating a hundred pixels up. The strip is also read at that row, so a redrawn floor whose
+## sand starts lower than it says fails here rather than on screen.
 ##
 ## And the space around it has to be sealed: the sea has to reach the bed (or there is a layer
 ## of air at the bottom of the ocean), and the land at both ends has to go down to it (or there
 ## is an air pocket under the beach a diver can fall into and not get out of -- which there was).
 func _audit_one_seabed(level: Dictionary) -> void:
-	const FLOOR_ROW := 789.0
 	var scene := (load(ENVIRONMENT_PATH) as PackedScene).instantiate()
 	var bed_node := scene.get_node("GameplayPlane/Terrain/Seabed") as Node2D
 	var bed_shape := (bed_node.get_node("Shape") as CollisionShape2D).shape as RectangleShape2D
 	var collision_top := bed_node.position.y - bed_shape.size.y * 0.5
 	var deep := scene.get_node("DeepBand")
-	var painted := float(deep.get("plate_top")) + float(deep.get("floor_drop")) + FLOOR_ROW
+	var floor_art := (deep.get_script() as GDScript).get_script_constant_map()
+	var walk := float(floor_art["SEABED_WALK"])
+	var painted := float(deep.get("plate_top")) + float(deep.get("floor_drop")) \
+		+ float(floor_art["SEABED_TOP_ROW"]) + walk
 	var typed := float((load(LEVEL_SCRIPT_PATH) as GDScript).get_script_constant_map()["BED_Y"])
 	_check(absf(collision_top - painted) < 1.0 and absf(typed - painted) < 1.0,
 		"one seabed", "painted %.0f, collision %.0f, BED_Y %.0f" % [painted, collision_top, typed])
+	var strip := (load(String(floor_art["SEABED_FLOOR"])) as Texture2D).get_image()
+	if strip.is_compressed():
+		strip.decompress()
+	var bare := 0
+	for x in range(strip.get_width()):
+		if strip.get_pixel(x, int(walk)).a < 0.99:
+			bare += 1
+	_check(bare == 0, "and the painted floor is sand at that row, all the way across",
+		"%d of %d columns bare at row %d" % [bare, strip.get_width(), int(walk)])
 
 	var stray: Array[String] = []
 	for pair: Variant in (level.get("ink_economy", {}) as Dictionary).get("refill_spots", []):

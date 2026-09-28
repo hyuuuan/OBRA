@@ -651,6 +651,89 @@ instead of "Decide what you are going to do about that".
 on it, sea marks standing on the bed, CP3b marked, and no sea forms without the level's opt-in.
 Mutation-tested both ways.
 
+## Depth, and what the sea stands on (2026-09-28, later)
+
+Kent: *"make it more playable, as well as the details of the objects like how 3d they are as well
+as the rendering of the background, make sure it will not have awkward cuts as well as the
+platform and the ocean below since its so messy"*. A contact sheet at play framing -- fourteen
+points along the surface, nine on the bed, five at mid-depth -- and full-size crops of every
+object on the bed and the beach found this:
+
+**The seabed was platforms nobody could stand on.** The floor was the delivered terraces plate
+at world rate: stepped ledges with lit, mossed tops, and the collision under the water is one
+flat bed at 1709. Every ledge was a step a diver could see and swim straight through, and the
+plate ended in a band of black silhouettes cut along its last row. The two jobs are split now:
+`seabed_floor.png` (authored, `build_dagat_props.py`) is the floor -- a few rows of sand seen
+from above, then its front going down into the dark, as flat as the collision is -- and
+`terraces_far.png` is the same terraces hazed toward the water's own colour at each depth, their
+feet fading into the water, set back at 0.85 so they slide against the floor like the far side of
+a valley. The audit's "one seabed" adds up the strip's own registration now and reads the strip's
+texture at its walking row (mutation-tested).
+
+**The land under the beaches was a black cobbled wall.** Voronoi blocks in courses, near-black,
+tiled, with a separate face laid over the seaward end and a dithered sand lip down the side of the
+beach -- a checkerboard, and a seam where the two textures met. Each beach stands on one painting
+of its own now (`land_home.png`, `land_island.png`): a heap of rounded boulders lit from the upper
+left, mossed near the surface, darkening with depth as the water does, whose seaward edge is where
+its own stones stop. The sand's edge is the sand plate's own pixels carried past its straight cut,
+rounded at the surface and wet toward the water.
+
+**The surf was a dashed rectangle floating beside the beach.** It is froth heaped against the
+land, thinning seaward into specks, with no bottom edge.
+
+**The corals floated.** The delivered coral pictures carry a faint halo under their stems -- 15 to
+20 per cent of each picture's height with nothing solid in it -- so anchored by the picture's edge,
+every coral stood 15 to 22 px above the sand. It did not show on the old lumpy floor. A prop that
+casts a shadow (`DagatProp2D.shadow_width`) now stands on its lowest solid row.
+
+**Nothing cast a shadow, and the objects were cut-outs.** `ground_shadow.gd` is one stepped,
+whole-pixel shadow under everything that stands on the ground: the jars, the coral, the kelp, the
+starfish, the clam and the urchin, both forms of the checkpoint, and both forms of the signpost.
+And each object got the volume it was missing:
+
+| Object | Was | Now |
+|---|---|---|
+| Ink jar | a flat white card with a drop printed on it, and a stack of translucent rectangles behind it that read as a dark box | a glass jar: shoulders, a cork seen from above, the ink inside shaded as a cylinder and bright along its surface, empty glass above it, a label that darkens as it wraps round, a specular streak. Drawn at its own size (it was scaled 1.02, which shimmered) |
+| Stone lantern | flat blocks with a one-pixel catch of light | each block a solid seen a little from above: a lit top face going back, a right side in shade |
+| Lantern / clam glow | three one-pixel rectangle outlines, which read as an editor's selection box | three filled, stepped ellipses |
+| Giant clam | ribs shaded one by one, a flat fan of stripes | the left third of the shell up a step, the right third down one, a highlight on the dome |
+| Seabed pillar | a 24x36 slab with a lit column and a dark one | a 30x50 fluted drum shaded as a cylinder, on a square plinth seen from above |
+| Wooden sign | a flat rectangle | a plank with a top edge and an end |
+| Beached bangka | two flat rows of olive under the hull, a ruled stripe along the sand | the hull in its own shadow, and one bamboo pole lying in front of it -- lit top, dark underside, a node every nine pixels |
+
+The lantern and the sign are drawn by the same code in every level, so Payyo's and Piyesta's have
+the same depth, in their own stone and wood.
+
+**And one cut in the backdrop.** The storm's headland is the first thing of the storm band's to
+come on screen, at about x 1200, and it arrived while the band was still fading in over 1000..1560
+-- a half-transparent island of palms hanging in the daylight sky. The change of viewpoint (the
+shore's front-view sea leaving, the storm's side-view sea arriving) is done over 1000..1200 now,
+so it arrives whole and two seas overlap for a third as long. The night, and everything timed off
+it, is unchanged.
+
+**Played, the dive was still a wall at the creature.** A recorder swam the dive along the bed,
+chose to slip past, and held right the way a first-time player does -- logging every line of text
+on screen and photographing each step. Three things, each its own commit:
+
+- **The words that said the sneak existed were cut off.** The objective banner is one line of at
+  most 640 px and trims the rest; at the fork it read "Something that can LIGHT or STRIKE -- or slip
+  by while it is loo...". Three more lines were trimmed, including the first of the level. All are
+  shorter now, and `run_level3_audit` measures every line (and every `.tags` line with its own
+  obstacle's tags) with the banner's own font.
+- **The beam was nearly invisible.** It IS the stealth rule, and it was drawn at 0.34 at its head
+  and 0.13 across its body onto a seabed the storm had already darkened. The swimmer was caught four
+  times in twenty seconds by a light it could barely see. It is half as bright again, has motes
+  drifting in it, is cut into cells so it has no hard side, and is lit all the way to the rule's
+  edge -- fading only outside it, so it never looks dark where it can see you.
+- **And there was no way through at a swimmer's speed.** Along the bed a swimmer makes about
+  100 px/s. At the old sweep (1.05 either side, 0.55 a second) there was no moment at which a run
+  straight through the reach went unseen; the dark under the belly was 34 px of unmarked seabed; a
+  run from the edge to it had a 1.6-second window in every 7.6. The sweep is now 0.90 either side
+  at 0.38 a second: ninety pixels of bed the light never reaches, in plain sight, and three seconds
+  in every nine and a half to reach it -- and Lolo's line when the sneak is chosen says when to go:
+  "Watch where its light goes, apo. Cross while it is turned away." `run_bakunawa_probe` measures
+  the shadow and the window against the swimmer's own bed speed (both fail on the old sweep).
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.

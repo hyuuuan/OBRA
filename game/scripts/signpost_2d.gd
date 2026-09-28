@@ -69,8 +69,10 @@ const LIT := Color(0.976, 0.847, 0.290, 1.0)        # F9D84A
 ## ⚠ NOT A SLAB WITH A ROUNDED TOP. That was the first cut, and a grey arched stone standing on
 ## the seabed where Lolo drowned reads as a headstone. A column snapped off is architecture.
 const UnderTheSea = preload("res://scripts/under_the_sea.gd")
+const GroundShadow = preload("res://scripts/ground_shadow.gd")
 const STONE := Color(0.361, 0.431, 0.529, 1.0)       # 5C6E87  lighter than the seabed, to read
 const STONE_LIT := Color(0.541, 0.620, 0.722, 1.0)   # 8A9EB8
+const STONE_HI := Color(0.710, 0.776, 0.847, 1.0)    # B5C6D8  where the light lands on it
 const STONE_DARK := Color(0.227, 0.278, 0.361, 1.0)  # 3A475C
 const STONE_EDGE := Color(0.090, 0.114, 0.157, 1.0)  # 171D28
 const SILT := Color(0.071, 0.227, 0.361, 1.0)        # 123A5C
@@ -79,17 +81,27 @@ const SHELLS := Color(0.769, 0.780, 0.769, 1.0)      # C4C7C4  barnacles
 const KELP := Color(0.200, 0.459, 0.337, 1.0)        # 337556
 const CARVE := Color(0.063, 0.110, 0.157, 1.0)       # 101C28  the cut into the stone
 const GLOW := Color(0.502, 0.941, 0.878, 1.0)        # 80F0E0  what lights the carving
-const PILLAR_HALF := 12.0
-const PILLAR_HEIGHT := 36.0
+## ⚠ A COLUMN, SO IT IS ROUND, AND BIG ENOUGH TO BE SEEN FROM ACROSS THE BED. It was 24 by 36
+## and shaded as a flat slab with a lit left column and a dark right one: from where a diver
+## is, a small grey card on the sand. A drum of stone 30 wide and 50 tall, shaded across as
+## the cylinder it is, fluted, on a square plinth seen a little from above.
+const PILLAR_HALF := 15.0
+const PILLAR_HEIGHT := 50.0
+## Where the shaft stands on its plinth, and how deep the plinth is seen to go back.
+const PILLAR_FOOT := -9.0
+const PLINTH_DEPTH := 3.0
 ## The snapped top, as the drop below the tallest point for each pair of columns, left to right:
 ## high on the left, falling away jaggedly to the right where the rest of it broke off.
-const BREAK := [0, 0, 1, 0, 2, 3, 2, 4, 5, 4, 6, 7]
+const BREAK := [0, 0, 1, 0, 2, 3, 2, 4, 5, 4, 6, 7, 8, 7, 9]
 
 ## How big the board is, and how tall the post under it stands. Small on purpose: this is
 ## a hand-lettered marker beside the path, not a road sign, and the apo is 96 pixels.
 const BOARD_SIZE := Vector2(34.0, 24.0)
 const POST_HEIGHT := 24.0
 const POST_WIDTH := 5.0
+## How thick the plank is seen to be: its top edge going back and its right end, two pixels of
+## each. A single flat rectangle reads as a card pinned to the picture.
+const BOARD_DEPTH := 2.0
 
 ## How far the board rocks, and how slowly. A sign that is perfectly still is scenery; one
 ## pixel of sway at a third of a cycle a second is the difference between a plank in the
@@ -313,6 +325,9 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	if _sea:
+		# Under the plinth, whose footprint runs back up and to the right.
+		GroundShadow.draw(self, PILLAR_HALF + 9.0, 3.0, 0.55,
+			Vector2(PLINTH_DEPTH * 0.5, -PLINTH_DEPTH * 0.5))
 		_draw_pillar()
 		var centre := Vector2(0.0, -PILLAR_HEIGHT * 0.5 - 1.0)
 		if _offered:
@@ -325,6 +340,7 @@ func _draw() -> void:
 		_draw_mark(centre, Color(GLOW, 0.62 + 0.12 * float(_pulse)),
 			Color(0.85, 1.0, 0.97, 1.0))
 		return
+	GroundShadow.draw(self, 9.0, 2.0, 0.45)
 	_draw_post()
 	var at := Vector2(0.0, -POST_HEIGHT - BOARD_SIZE.y * 0.5 + _sway)
 	if _offered:
@@ -349,6 +365,21 @@ func _draw_post() -> void:
 
 func _draw_board(at: Vector2) -> void:
 	var board := Rect2(at - BOARD_SIZE * 0.5, BOARD_SIZE)
+	# The plank's thickness first: its outline, its top edge going back in the light, its right
+	# end in shade. The face goes over the front of it.
+	var depth := int(BOARD_DEPTH)
+	for step in range(1, depth + 1):
+		var back := float(step)
+		draw_rect(Rect2(board.position.x + back - 1.0, board.position.y - back - 1.0,
+			board.size.x + 2.0, 2.0), EDGE)
+		draw_rect(Rect2(board.end.x + back - 1.0, board.position.y - back - 1.0,
+			2.0, board.size.y + 2.0), EDGE)
+	for step in range(1, depth + 1):
+		var back := float(step)
+		draw_rect(Rect2(board.position.x + back, board.position.y - back, board.size.x - 1.0, 1.0),
+			BOARD_LIT)
+		draw_rect(Rect2(board.end.x - 1.0 + back, board.position.y - back, 1.0, board.size.y),
+			POST_DARK)
 	draw_rect(board, BOARD)
 	# Two planks rather than one, because a single flat rectangle reads as a card.
 	draw_rect(Rect2(board.position, Vector2(board.size.x, 1.0)), BOARD_LIT)
@@ -361,53 +392,75 @@ func _draw_board(at: Vector2) -> void:
 	_draw_mark(at)
 
 
-## THE PILLAR. A plinth sunk in the silt, a shaft on it lit down its left and in shade on its
-## right, two flutes cut down its sides, and its top snapped off across -- high on the left,
-## falling away jaggedly to the right. Barnacles where the current has left them, and a strand
-## of kelp moving at its foot.
+## THE PILLAR. A square plinth sunk in the silt, seen a little from above; on it a fluted drum
+## of stone shaded across as the cylinder it is, lit on its left, turning into shade on its
+## right; its top snapped off across -- high on the left, falling away jaggedly to the right,
+## the broken face pale where it looks up at the light. Barnacles where the current has left
+## them, a crack down its shaded side, and a strand of kelp moving at its foot.
 func _draw_pillar() -> void:
 	var half := PILLAR_HALF
-	var shaft_top := -PILLAR_HEIGHT
-	# The shaft, column by column, so the broken top can drop by its own amount in each.
+	var foot := PILLAR_FOOT
+	var ramp: Array[Color] = [STONE_EDGE, STONE_DARK, STONE, STONE_LIT, STONE_HI]
+	# The plinth: a block with a top going back up to the right in the light, a right side in
+	# shade, and a front face -- the same solid the lantern's blocks are.
+	var plinth := Rect2(-half - 5.0, foot, half * 2.0 + 10.0, -foot - 1.0)
+	var depth := int(PLINTH_DEPTH)
+	draw_rect(plinth.grow(1.0), STONE_EDGE)
+	for step in range(1, depth + 1):
+		var back := float(step)
+		draw_rect(Rect2(plinth.position.x + back - 1.0, plinth.position.y - back - 1.0,
+			plinth.size.x + 2.0, 3.0), STONE_EDGE)
+		draw_rect(Rect2(plinth.end.x + back - 2.0, plinth.position.y - back - 1.0,
+			3.0, plinth.size.y + 2.0), STONE_EDGE)
+	for step in range(1, depth + 1):
+		var back := float(step)
+		draw_rect(Rect2(plinth.position.x + back, plinth.position.y - back,
+			plinth.size.x, 1.0), STONE_LIT)
+		draw_rect(Rect2(plinth.end.x - 1.0 + back, plinth.position.y - back,
+			1.0, plinth.size.y), STONE_DARK)
+	draw_rect(plinth, STONE)
+	draw_rect(Rect2(plinth.position, Vector2(plinth.size.x, 1.0)), STONE_LIT)
+	draw_rect(Rect2(plinth.position, Vector2(1.0, plinth.size.y)), STONE_LIT)
+	# The shaft, column by column: each column its step of the cylinder's light, every fifth a
+	# flute cut into it with the lip beside it catching the light, and its own drop at the break.
 	for x in range(int(-half), int(half)):
-		var drop := float(BREAK[clampi(int((float(x) + half) / 2.0), 0, BREAK.size() - 1)])
-		var top := shaft_top + drop
-		var colour := STONE
-		if x <= int(-half) + 1:
-			colour = STONE_LIT
-		elif x >= int(half) - 2:
-			colour = STONE_DARK
-		elif x == int(-half) + 4 or x == int(half) - 5:
-			colour = STONE_DARK
-		draw_rect(Rect2(float(x), top, 1.0, -top - 5.0), colour)
-		# The break: raw stone, pale on its upper face, a dark edge above it.
-		draw_rect(Rect2(float(x), top, 1.0, 1.0), STONE_LIT)
+		var across := (float(x) + 0.5) / half
+		# A band of light a third of the way in from the lit side, the terminator on the
+		# shaded side, and a little light thrown back onto the lit rim by the water behind it.
+		var v := 1.2 + 2.2 * sqrt(maxf(0.0, 1.0 - across * across)) - 1.2 * across
+		var column := x + int(half)
+		if column % 5 == 4:
+			v -= 1.0
+		elif column % 5 == 0 and column > 0:
+			v += 0.5
+		var drop := float(BREAK[clampi(column / 2, 0, BREAK.size() - 1)])
+		var top := -PILLAR_HEIGHT + drop
+		draw_rect(Rect2(float(x), top, 1.0, foot - top), ramp[clampi(int(roundf(v)), 1, 4)])
+		# The break: raw stone looking up, two rows of it, and a dark edge above.
+		draw_rect(Rect2(float(x), top, 1.0, 2.0), STONE_HI if across < 0.3 else STONE_LIT)
 		draw_rect(Rect2(float(x), top - 1.0, 1.0, 1.0), STONE_EDGE)
-	draw_rect(Rect2(-half - 1.0, shaft_top, 1.0, -shaft_top - 5.0), STONE_EDGE)
-	draw_rect(Rect2(half, shaft_top + float(BREAK[BREAK.size() - 1]), 1.0,
-		-shaft_top - 5.0 - float(BREAK[BREAK.size() - 1])), STONE_EDGE)
-	# The plinth it stands on: wider, a course of the same stone, lit along its top.
-	draw_rect(Rect2(-half - 4.0, -6.0, half * 2.0 + 8.0, 5.0), STONE_EDGE)
-	draw_rect(Rect2(-half - 3.0, -5.0, half * 2.0 + 6.0, 4.0), STONE)
-	draw_rect(Rect2(-half - 3.0, -5.0, half * 2.0 + 6.0, 1.0), STONE_LIT)
-	draw_rect(Rect2(half + 1.0, -5.0, 2.0, 4.0), STONE_DARK)
+	var first := float(BREAK[0])
+	var last := float(BREAK[BREAK.size() - 1])
+	draw_rect(Rect2(-half - 1.0, -PILLAR_HEIGHT + first, 1.0, foot + PILLAR_HEIGHT - first),
+		STONE_EDGE)
+	draw_rect(Rect2(half, -PILLAR_HEIGHT + last, 1.0, foot + PILLAR_HEIGHT - last), STONE_EDGE)
 	# A crack down the shaft's shaded side.
-	for step in range(6):
-		draw_rect(Rect2(6.0 + float(step % 2), -26.0 + float(step) * 3.0, 1.0, 3.0), STONE_DARK)
+	for step in range(8):
+		draw_rect(Rect2(8.0 + float(step % 2), -38.0 + float(step) * 3.0, 1.0, 3.0), STONE_EDGE)
 	# Barnacles.
-	for spot: Vector2 in [Vector2(-10.0, -9.0), Vector2(-7.0, -8.0), Vector2(8.0, -27.0),
-			Vector2(9.0, -12.0)]:
+	for spot: Vector2 in [Vector2(-13.0, -13.0), Vector2(-10.0, -12.0), Vector2(10.0, -36.0),
+			Vector2(11.0, -17.0), Vector2(-16.0, -6.0)]:
 		draw_rect(Rect2(spot, Vector2(2.0, 2.0)), SHELLS)
 		draw_rect(Rect2(spot, Vector2(1.0, 1.0)), Color.WHITE)
 	# Sunk in the silt: a low heap either side of its foot.
-	draw_rect(Rect2(-half - 7.0, -3.0, half * 2.0 + 14.0, 3.0), SILT)
-	draw_rect(Rect2(-half - 5.0, -4.0, 7.0, 1.0), SILT)
-	draw_rect(Rect2(half - 2.0, -4.0, 7.0, 1.0), SILT)
-	draw_rect(Rect2(-half - 7.0, -1.0, half * 2.0 + 14.0, 1.0), SILT_DARK)
+	draw_rect(Rect2(-half - 9.0, -3.0, half * 2.0 + 18.0, 3.0), SILT)
+	draw_rect(Rect2(-half - 7.0, -4.0, 8.0, 1.0), SILT)
+	draw_rect(Rect2(half - 1.0, -4.0, 9.0, 1.0), SILT)
+	draw_rect(Rect2(-half - 9.0, -1.0, half * 2.0 + 18.0, 1.0), SILT_DARK)
 	# A strand of kelp at its foot, moving on the board's own sway.
-	draw_rect(Rect2(-half - 6.0, -8.0, 1.0, 6.0), KELP)
-	draw_rect(Rect2(-half - 5.0 + _sway, -13.0, 1.0, 5.0), KELP)
-	draw_rect(Rect2(-half - 6.0 + _sway, -17.0, 1.0, 4.0), KELP)
+	draw_rect(Rect2(-half - 8.0, -10.0, 1.0, 7.0), KELP)
+	draw_rect(Rect2(-half - 7.0 + _sway, -16.0, 1.0, 6.0), KELP)
+	draw_rect(Rect2(-half - 8.0 + _sway, -21.0, 1.0, 5.0), KELP)
 
 
 ## The glyph, drawn out of whole pixels like everything else. Each is built so that its

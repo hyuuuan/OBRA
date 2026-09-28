@@ -28,6 +28,9 @@ extends SceneTree
 const RosterFixtures = preload("res://tests/roster_fixtures.gd")
 const InkManagerClass = preload("res://scripts/ink_manager.gd")
 const InkDrainClass = preload("res://scripts/ink_drain.gd")
+## Only its sweep, for the line that says how long one is -- a typed copy of the numbers went
+## stale the moment the sweep was slowed.
+const BakunawaSweep = preload("res://scripts/bakunawa_2d.gd")
 const LEVEL_PATH := "res://config/level_03.json"
 
 ## The seven the design names for the dive, in the order it names them. All seven are in the
@@ -104,7 +107,8 @@ func _run() -> void:
 	print("hold    = seconds a form lasts on the usable budget plus the %.1f units in the arena"
 		% _arena_refill_units())
 	print("          the encounter's budget is %ds -- a full sweep is %.1fs and has to be waited out"
-		% [int(_economy.get("encounter_seconds", 0)), 4.0 * 1.05 / 0.55])
+		% [int(_economy.get("encounter_seconds", 0)),
+			4.0 * BakunawaSweep.SWEEP_LIMIT / BakunawaSweep.SWEEP_SPEED])
 	print("")
 	for note in notes:
 		print("NOTE: %s" % note)
@@ -217,7 +221,7 @@ func _measure(entity_id: String, default_rate: float, usable_units: float,
 			% [entity_id, stretch_cost, usable_units])
 	# THE SECOND AXIS. The encounter is the only stretch of this level priced in time, and it
 	# is the one a fast expensive class cannot brute-force: a shark holds a form for fifteen
-	# seconds on a full tank and a single sweep of the creature's own cone takes almost eight.
+	# seconds on a full tank and a single sweep of the creature's own cone takes nine and a half.
 	var hold := (usable_units + _arena_refill_units()) / maxf(0.0001, rate)
 	var wanted := float(_economy.get("encounter_seconds", 0.0))
 	if verdict == "ok" and wanted > 0.0 and hold < wanted:

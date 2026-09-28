@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Author what Dagat needs and the delivery does not contain: the ink jar on the seabed, and
-the rock the land stands on under the water.
+"""Author what Dagat needs and the delivery does not contain: the ink jar on the seabed, the
+rock the land stands on under the water, and the seabed itself.
 
 WHY THIS EXISTS
 ---------------
@@ -30,6 +30,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import numpy as np
+from PIL import Image
 
 import pixelart
 from pixelart import Canvas, ramp
@@ -43,247 +44,463 @@ OUT = ROOT / "game" / "assets" / "Level3" / "authored"
 
 # Read off the delivered plate so the jar belongs to the picture it stands in.
 GLASS = ramp(["#6f7f86", "#93a4a8", "#b9c6c4", "#dbe3dc", "#f1f4ea"])
-CAP = ramp(["#2a1d16", "#3d2b20", "#55392a", "#6d4a36"])
+CAP = ramp(["#2a1d16", "#3d2b20", "#55392a", "#6d4a36", "#8a6246"])
 DROP = ramp(["#0e3f66", "#1667a4", "#2b95d6", "#71c8ef"])
 GLOW = ramp(["#1667a4", "#2b95d6", "#71c8ef", "#bdeaff"])
+# What is in it, and the label round it.
+INK = ramp(["#07173a", "#0e2758", "#163c82", "#2256ad", "#3a7bd2", "#6aa9ea", "#a8d6f7"])
+PAPER = ramp(["#8f836a", "#bdb091", "#ddd2b5", "#f3ebd3"])
+GLASS_EDGE = np.array([22, 36, 48, 255], dtype=np.uint8)
 
 W, H = 20, 30
 FRAMES = 3
 
-# --- The shelf: what the land stands on, under the water ----------------------------------
+# --- The land under the water ---------------------------------------------------------------
 #
 # The sand plate stops 150 pixels under the surface the apo walks on, and the sea goes down
-# a thousand more. Under the beach there was nothing painted at all -- the deep's ruins showed
-# through beneath the sand, and the collision under it was an air pocket a swimmer could get
-# into and not out of. The land now goes down to the seabed, and this is what it looks like
-# on the way: the sand plate's own earth band at the top, turning into the deep's rock, with a
-# ragged face where it meets the water.
+# a thousand more. The land has to go down to the seabed too -- the collision does -- and this
+# is what it looks like on the way.
 #
-# ⚠ BLOCKS, NOT A GRADIENT WITH SPOTS ON IT. The first version was a smooth dither from earth
-# to rock with round boulders scattered through it and ruled strata across it, and under the
-# water it read as a dark wall with polka dots -- a slab, not a place. The painted terraces the
-# diver swims past are built of rock BLOCKS: irregular courses, a near-black crevice between
-# every two, each block lit along its upper-left rim and falling into shadow on its lower-right,
-# moss on the tops nearest the light. So is this now, cell by cell, in their colours.
+# ⚠ A PILE OF BOULDERS, NOT A WALL OF BLOCKS. Twice before this was drawn as a surface: first
+# a smooth dither with round stones scattered through it, a dark slab with polka dots; then
+# Voronoi blocks in courses with a crevice between every two, which at game scale was a black
+# cobbled wall standing in the sea -- "the platform" in "the platform and the ocean below since
+# its so messy". Rock under water is rounded stone heaped on stone. Each boulder here is a lumpy
+# ellipse lit from the upper left, with a lit rim along its top, a dark rim along its underside,
+# moss on its top near the surface, and the whole pile darkening with depth as the water does.
+# The gaps between them are the crevices, and near the top they are the plate's own earth.
 #
-# ⚠ AND NOTHING STICKS OUT OF THE FACE THAT IS NOT PART OF IT. The face had five thin lit
-# ledges jutting out of it with weed hanging off them, which at game scale read as five small
-# platforms floating beside the land -- the "parts that are not connected". What the face has
-# now is its own bulges, lit and mossed on top where they face the light: rock that is the wall.
+# ⚠ ONE PAINTING PER BEACH, NOT A TILE AND AN EDGE. The rock used to be a tiled fill with a
+# separate face texture laid over its seaward end, and the join between the two textures was a
+# seam however alike they were. Each beach's land is one picture now -- the home beach's facing
+# east, the island's facing west, each with its own seed so the two are not the same heap --
+# and its seaward edge is where its own stones stop: the stones nearest the water are pulled in
+# to end a little either side of the collision edge, so the edge is a line of boulders and not
+# a cut.
 #
-# Colours are read off the delivered plates, not chosen: EARTH is the sand plate's last rows,
-# ROCK the terraces' cliff (crevice, faces, and the lit rims of its blocks), MOSS the green on
-# its ledges.
-EARTH = ramp(["#181c2c", "#202838", "#282838"])
-ROCK = ramp(["#000820", "#001030", "#001838", "#002048", "#102850", "#203858"])
-MOSS = ramp(["#183c34", "#205838", "#2e6a3e"])
-SHELF_W, SHELF_H = 160, 384
-FACE_W = 46
-# ⚠ THE LIP: the 151 rows of the SAND PLATE the face used to start below. The face was pinned
-# at the plate's last row, so it dressed the land's seaward edge only from there down -- and
-# the sand above it, from the surface the apo walks on to that row, was still cut off with a
-# ruled vertical line. These rows carry the sand plate's own colours down to its earth band,
-# so the face begins where the sand does and the whole edge is ragged.
-LIP_H = 51
-## How far behind its own edge the lip is opaque. See draw_shelf_face.
-LIP_DEPTH = 15
-# Read off the sand plate: its lit surface, the shaded body under it, wet sand, and the earth
-# band that the shelf's own first rows already match.
+# ⚠ AND THE SAND'S EDGE IS THE SAND PLATE'S OWN PIXELS. The plate is laid across the ground
+# and cut straight at the collision edge. The land carries the plate's pixels on past the cut,
+# mirrored from just inside it, round-shouldered at the surface and wet toward the water -- so
+# the beach ends on its own sand, with no second, flatter sand dithered over it. (The dithered
+# lip that did that job read as a checkerboard down the side of the beach.)
+#
+# Colours: CLIFF from the terraces' rock and the water beside it, EARTH the sand plate's last
+# rows, MOSS the green on the terraces' ledges.
+CLIFF = ramp(["#040c1a", "#08172a", "#0e223a", "#152e48", "#1e3c56", "#294c64",
+              "#365d72", "#48707f", "#5e858d"])
+EARTH = ramp(["#20242f", "#282a3a", "#303444"])
+MOSS = ramp(["#15362f", "#1f5237", "#2d6b3e", "#468a4a"])
+## The beach's sand, as the plate paints it. The heap the next painting stands in is this sand.
 SAND = ramp(["#6f5141", "#be9564", "#e6b775", "#f0c888", "#f7dba6"])
-LIP_STOPS = [(0, SAND[3]), (14, SAND[3]), (24, SAND[2]), (34, SAND[1]),
-             (40, SAND[0]), (50, EARTH[1])]
-## Rows of packed earth at the top before any rock shows, then rows over which the rock takes
-## over. The earth's first row is the sand plate's last, which is the only place they touch.
-EARTH_ROWS, EARTH_BLEND = 10, 26
-## The size of a block, in logical pixels: wider than tall, so they lie in courses.
-BLOCK = (19, 12)
-## Where the face's edge sits, from its left, and the columns at its landward side that
-## dither away into the fill behind it (so there is no seam where the two textures meet).
-FACE_BASE, FACE_FEATHER = FACE_W - 20, 6
+SAND_PLATE = ROOT / "game" / "assets" / "Level3" / "shore" / "sand.png"
+## World rows: the land's picture starts just above the surface and runs past the lowest the
+## camera ever looks; the sand plate's dark earth band starts at BAND_Y and the plate ends at
+## ROCK_Y. The shore band pins its plate's top at PLATE_TOP, so the land's own top_row in the
+## backdrop is LAND_TOP - PLATE_TOP.
+LAND_TOP, LAND_BOTTOM = 556, 1867
+SURFACE_Y, BAND_Y, ROCK_Y = 560, 660, 711
+PLATE_TOP = -230
+LAND_PX = 3
+## name: (world left, world right, the collision edge, whether the sea is to its right, the
+## world x the sand plate's column 0 is laid at, seed). The left and right are where the
+## backdrop sets each piece down: the home land from the home ground's west end, the island's
+## to the island ground's east end.
+LANDS = {
+    "land_home.png": (100, 1030, 1000, True, 100, 6100),
+    "land_island.png": (4468, 5380, 4500, False, 4500, 6200),
+}
 
 
 def BAYER_AT(x: int, y: int) -> float:
     return float(pixelart.BAYER[y % 4, x % 4])
 
 
-def _blocks(width: int, height: int, seed: int, wrap: bool):
-    """Voronoi blocks on a jittered, brick-offset grid. Returns, per pixel: which block it is
-    in, how far it is from the nearest edge of that block (0 on the crevice), and which way it
-    lies from the block's middle (for the lit rim and the shadow side)."""
-    rng = np.random.default_rng(seed)
-    bw, bh = BLOCK
-    seeds = []
-    for r in range(-1, height // bh + 2):
-        shift = (r % 2) * bw * 0.5
-        for q in range(-1, width // bw + 2):
-            x = q * bw + shift + rng.uniform(-0.38, 0.38) * bw
-            y = r * bh + rng.uniform(-0.32, 0.32) * bh
-            seeds.append((x % width if wrap else x, y))
-    seeds = np.array(seeds, dtype=np.float64)
-    ids = np.arange(len(seeds))
-    if wrap:
-        # Every seed a period to either side, so a block cut by the tile's edge carries on
-        # into the next tile as the same block.
-        seeds = np.concatenate([seeds, seeds + [width, 0.0], seeds - [width, 0.0]])
-        ids = np.concatenate([ids, ids, ids])
-    cell = np.zeros((height, width), dtype=np.int64)
-    gap = np.zeros((height, width), dtype=np.float64)
-    toward = np.zeros((height, width, 2), dtype=np.float64)
-    xs = np.arange(width, dtype=np.float64) + 0.5
-    for y in range(height):
-        # Stretched on x, so blocks come out wider than they are tall.
-        dx = (xs[:, None] - seeds[None, :, 0]) * 0.72
-        dy = (y + 0.5 - seeds[None, :, 1])
-        d = np.sqrt(dx * dx + dy * dy)
-        order = np.argsort(d, axis=1)[:, :2]
-        near = order[:, 0]
-        d1 = d[np.arange(width), near]
-        d2 = d[np.arange(width), order[:, 1]]
-        cell[y] = ids[near]
-        gap[y] = d2 - d1
-        toward[y, :, 0] = dx[np.arange(width), near]
-        toward[y, :, 1] = dy[0, near]
-    return cell, gap, toward, seeds[: len(seeds) // 3 if wrap else len(seeds), 1]
-
-
-def _paint_rock(c: Canvas, top: int, width: int, height: int, seed: int, wrap: bool) -> None:
-    """Earth, then blocks of rock, darker the deeper they sit -- because the water is."""
-    cell, gap, toward, seed_y = _blocks(width, height, seed, wrap)
-    rng = np.random.default_rng(seed + 1)
-    tone_of = rng.uniform(0.0, 1.0, size=int(cell.max()) + 1)
-    mossy = rng.uniform(0.0, 1.0, size=int(cell.max()) + 1) < 0.34
-    # ⚠ THE EARTH ENDS ALONG THE BLOCKS, NOT ALONG A ROW. A dithered row-by-row change from
-    # earth to rock is a ruled band across the whole land; a block is earth or rock as a whole,
-    # so where one gives way to the other the line runs along crevices, the way rock shows
-    # through soil.
-    earth_until = rng.uniform(EARTH_ROWS, EARTH_ROWS + EARTH_BLEND, size=int(cell.max()) + 1)
-    for y in range(height):
-        depth = y / float(height)
-        for x in range(width):
-            b = BAYER_AT(x, y + top)
-            k = cell[y, x]
-            if y < EARTH_ROWS or seed_y[k] < earth_until[k]:
-                c.px(x, y + top, EARTH[2] if (x * 5 + y * 3) % 17 == 0 else EARTH[1])
-                continue
-            g = gap[y, x]
-            vx, vy = toward[y, x]
-            length = max(0.001, float(np.hypot(vx, vy)))
-            lit = (-vx - vy) / length  # +1 toward the upper left, where the light is
-            if g < 1.05:
-                c.px(x, y + top, ROCK[0])
-                continue
-            # A body tone per block, a little lighter toward its lit side, darker with depth.
-            tone = 1.45 + 1.1 * tone_of[k] + 0.35 * lit
-            tone *= 1.0 - 0.55 * depth
-            if g < 2.4 and lit > 0.35:
-                # The rim that catches the light -- moss on it near the surface.
-                if mossy[k] and depth < 0.34 and vy < 0 and abs(vx) < -vy * 1.6:
-                    c.px(x, y + top, MOSS[2] if depth < 0.2 else MOSS[1])
-                    continue
-                tone += 1.2 if depth < 0.5 else 0.8
-            elif g < 2.2 and lit < -0.35:
-                tone -= 0.9
-            tone = max(0.0, min(4.0, tone))
-            low = int(tone)
-            frac = tone - low
-            c.px(x, y + top, ROCK[min(5, low + 1)] if frac > b else ROCK[low])
-
-
-def draw_shelf_fill() -> Canvas:
-    pixelart.PX = 3
-    c = Canvas(SHELF_W, SHELF_H, seed=2203)
-    _paint_rock(c, 0, SHELF_W, SHELF_H, 2203, True)
-    return c
-
-
-def _face_edge() -> list[int]:
-    """Where the face's edge is, row by row: the lip's slope into the water, then the rock's
-    own irregular line, with a few bulges -- rounded, so each reads as the wall bulging and
-    not as a shelf stuck to it."""
+def _boulders(width: int, height: int, seed: int, edge_of, facing_right: bool,
+              first_row: float) -> list:
+    """A packed pile: scanned in rows, each row's stones sized at random, the ones that would
+    stand past the edge pulled in to end a little either side of it. Drawn in a shuffled order
+    so no row is always in front of the next."""
     import math
-    bulges = [(62, 30, 5), (171, 38, 6), (262, 26, 4), (338, 34, 5)]
-    edge = []
-    for y in range(LIP_H + SHELF_H):
-        e = FACE_BASE + 2.4 * math.sin(y / 15.0 + 0.4) + 1.5 * math.sin(y / 6.1 + 1.0) \
-            + 0.8 * math.sin(y / 2.7)
-        if y < LIP_H:
-            # Sand runs further out than rock does and draws back as it wets: the lip is a
-            # slope into the water, not a wall, so nothing here reads as a second cliff.
-            e += (1.0 - y / float(LIP_H)) * 11.0
-        else:
-            for top, span, out in bulges:
-                t = (y - LIP_H - top) / float(span)
-                if 0.0 <= t <= 1.0:
-                    e += out * math.sin(math.pi * t) ** 0.8
-        edge.append(min(FACE_W - 1, int(round(e))))
-    return edge
+    rng = np.random.default_rng(seed)
+    out = []
+    y = first_row
+    while y < height + 16:
+        x = rng.uniform(-14, 0)
+        row_r = rng.uniform(7, 14)
+        while x < width + 14:
+            r = row_r * rng.uniform(0.65, 1.4)
+            if rng.uniform() < 0.07:
+                r *= 1.6
+            cx, cy = x + r, y + rng.uniform(-3, 3) + r * 0.6
+            e = edge_of(cy)
+            reach = rng.uniform(-3.0, 6.0)
+            if facing_right and cx + r > e + reach:
+                cx = e + reach - r
+            if not facing_right and cx - r < e - reach:
+                cx = e - reach + r
+            out.append((cx, cy, r, rng.uniform(0, 2 * math.pi), rng.uniform(0, 2 * math.pi),
+                        rng.uniform(-0.6, 0.6)))
+            x += r * rng.uniform(1.5, 1.9)
+        y += row_r * rng.uniform(1.0, 1.3)
+    out = [out[i] for i in rng.permutation(len(out))]
+    # THE CORNER UNDER THE SAND. Where the plate's earth band meets the water the pile's own
+    # stones may stop short of the edge and leave the band's straight cut showing. Three
+    # stones on the corner itself, drawn last, so the band always ends in rock.
+    cut = edge_of(None)
+    for k in range(3):
+        r = rng.uniform(8.0, 11.0)
+        cy = first_row + 4.0 + k * rng.uniform(9.0, 12.0)
+        cx = cut + (r * 0.35 if facing_right else -r * 0.35) + rng.uniform(-1.5, 1.5)
+        out.append((cx, cy, r, rng.uniform(0, 2 * math.pi), rng.uniform(0, 2 * math.pi),
+                    rng.uniform(-0.3, 0.5)))
+    return out
 
 
-def draw_shelf_face() -> Canvas:
-    """The seaward edge, facing right. Mirrored in the scene for the island, which faces left.
-
-    ⚠ IT BEGINS AT THE SAND, NOT UNDER IT. The top LIP_H rows are the sand plate's own band,
-    so the land's edge is ragged from the surface the apo stands on all the way down, instead
-    of a ruled cut through the sand with a ragged rock starting under it."""
-    pixelart.PX = 3
-    c = Canvas(FACE_W, LIP_H + SHELF_H, seed=2207)
-    _paint_rock(c, LIP_H, FACE_W, SHELF_H, 2207, False)
-    for y in range(LIP_H):
-        for (ya, lo), (yb, hi) in zip(LIP_STOPS, LIP_STOPS[1:]):
-            if ya <= y <= yb:
-                amount = 0.0 if yb == ya else (y - ya) / float(yb - ya)
-                c.dither(0, y, FACE_W, 1, lo, hi, amount)
-                break
-    edge = _face_edge()
-    for y in range(LIP_H + SHELF_H):
-        e = edge[y]
-        c.buf[y, e + 1:] = 0
-        if y < LIP_H:
-            c.px(e, y, SAND[0])
-            c.px(e - 1, y, SAND[1] if (e + y) % 2 else SAND[0])
-            continue
-        # A right-hand face is on the shadow side: its edge is the crevice colour, and the
-        # pixel inside it a step down.
-        c.px(e, y, ROCK[0])
-        c.px(e - 1, y, ROCK[1])
-        # Where this row reaches further out than the one above it, the rock faces UP -- the
-        # top of a bulge -- and takes the light, and near the surface, the moss.
-        above = edge[y - 1] if y > LIP_H else e
-        for x in range(above + 1, e + 1):
-            depth = (y - LIP_H) / float(SHELF_H)
-            c.px(x, y, MOSS[2] if depth < 0.3 else ROCK[5])
-            if y + 1 < LIP_H + SHELF_H and x < edge[y + 1]:
-                c.px(x, y + 1, MOSS[1] if depth < 0.3 else ROCK[4])
-    # ⚠ THE LIP IS AN EDGE, NOT A SLAB. Opaque for LIP_DEPTH columns behind the edge and
-    # dithered away inland of that: drawn to the full width it was a second, flatter sand
-    # laid over the plate's, and the join where the two met was a straighter line than the
-    # one it was put there to hide. The plate's own sand carries on behind this.
-    for y in range(LIP_H):
-        left = edge[y] - LIP_DEPTH
-        c.buf[y, :max(0, left)] = 0
-        for x in range(max(0, left), min(FACE_W, left + 6)):
-            if BAYER_AT(x, y) > (x - left) / 6.0:
-                c.buf[y, x] = 0
-        # Wet sand darkening toward the water.
-        for x in range(max(0, edge[y] - 5), edge[y]):
-            if (x + y) % 3 == 0:
-                c.px(x, y, SAND[1])
-    for cy, cx in ((11, FACE_BASE - 8), (26, FACE_BASE - 2), (39, FACE_BASE - 13),
-                   (45, FACE_BASE - 5)):
-        c.px(cx, cy, SAND[0])
-        c.px(cx + 1, cy, SAND[1])
-        c.px(cx, cy + 1, SAND[0])
-    # ⚠ AND THE ROCK FEATHERS INTO THE FILL BEHIND IT. Two textures meeting on a column read
-    # as a seam however alike they are; dithered across a few columns, the blocks of one run
-    # into the blocks of the other. The fill is laid far enough out to sit under all of this.
-    for y in range(LIP_H, LIP_H + SHELF_H):
-        for x in range(FACE_FEATHER):
-            if BAYER_AT(x, y) >= (x + 0.5) / float(FACE_FEATHER):
-                c.buf[y, x] = 0
+def _paint_land(width: int, height: int, seed: int, edge_of, facing_right: bool) -> Canvas:
+    import math
+    tone = np.full((height, width), -9.0)
+    lid = np.zeros((height, width), dtype=bool)
+    grain = _noise(width, height, 3, seed + 11)
+    first = (ROCK_Y - LAND_TOP) / LAND_PX - 16
+    for cx, cy, r, p1, p2, shade in _boulders(width, height, seed, edge_of, facing_right, first):
+        ry = r * 0.78
+        for y in range(max(0, int(cy - ry * 1.3) - 1), min(height, int(cy + ry * 1.3) + 2)):
+            depth = max(0.0, (LAND_TOP + y * LAND_PX - ROCK_Y) / float(LAND_BOTTOM - ROCK_Y))
+            for x in range(max(0, int(cx - r * 1.3) - 1), min(width, int(cx + r * 1.3) + 2)):
+                dx, dy = x + 0.5 - cx, y + 0.5 - cy
+                angle = math.atan2(dy / ry, dx / r)
+                lump = 1.0 + 0.16 * math.sin(3 * angle + p1) + 0.09 * math.sin(5 * angle + p2)
+                nx, ny = dx / (r * lump), dy / (ry * lump)
+                d = math.hypot(nx, ny)
+                if d > 1.0:
+                    continue
+                # The light is from the upper left on both beaches: the island's land is its
+                # own painting, not the home one flipped, so its stones are not lit backwards.
+                lit = -0.55 * nx - 0.83 * ny
+                v = 4.2 + shade + 1.6 * lit * (0.4 + 0.6 * d)
+                if d > 0.86 and ny > 0.1:
+                    v = 1.0 + shade * 0.5
+                elif d > 0.8 and lit > 0.45:
+                    v += 1.3
+                v += 0.8 * (grain[y, x] - 0.5)
+                v -= 3.2 * depth ** 1.05
+                tone[y, x] = v
+                lid[y, x] = ny < -0.55 and d > 0.55
+    c = Canvas(width, height, seed=seed)
+    rng = np.random.default_rng(seed + 3)
+    for y in range(height):
+        world_y = LAND_TOP + y * LAND_PX
+        depth = max(0.0, (world_y - ROCK_Y) / float(LAND_BOTTOM - ROCK_Y))
+        e = edge_of(y)
+        for x in range(width):
+            v = tone[y, x]
+            if v < -5:
+                inside = (x < e - 3) if facing_right else (x > e + 3)
+                if world_y < BAND_Y or not inside:
+                    continue  # the plate above, or the water beside
+                if world_y < ROCK_Y + 36:
+                    c.px(x, y, EARTH[1] if (x * 5 + y * 3) % 13 else EARTH[2])
+                    continue
+                v = 0.6 - 0.6 * depth  # a crevice between two stones
+            if lid[y, x] and depth < 0.22 and rng.uniform() < 0.45 - depth * 1.5:
+                c.px(x, y, MOSS[3] if depth < 0.08 else MOSS[2])
+                continue
+            _tone(c, x, y, v, CLIFF)
     return c
 
 
-SHELF = {"shelf_fill.png": draw_shelf_fill, "shelf_face.png": draw_shelf_face}
+def _shoulder(world_y: int) -> int:
+    """How far past the collision edge the sand runs, in world pixels, row by row: rounded at
+    the surface, a wet face bulging a little, tucked back in as the earth band begins."""
+    import math
+    t = (world_y - SURFACE_Y) / float(ROCK_Y - SURFACE_Y)
+    if t < 0.03:
+        return 0
+    bulge = 9 * math.sin(math.pi * min(1.0, (t - 0.03) / 0.5)) ** 0.8
+    if t >= 0.45:
+        bulge *= max(0.0, 1.0 - (t - 0.45) / 0.55)
+    return int(round(bulge))
+
+
+def draw_land(name: str) -> Image.Image:
+    import math
+    left, right, edge, facing_right, plate_x0, seed = LANDS[name]
+    pixelart.PX = LAND_PX
+    width = (right - left) // LAND_PX
+    height = (LAND_BOTTOM - LAND_TOP) // LAND_PX
+    cut = (edge - left) / LAND_PX
+    base = cut + (-2 if facing_right else 2)
+
+    def edge_of(y):
+        if y is None:
+            return cut
+        e = base + 2.4 * math.sin(y / 13.0 + seed) + 1.3 * math.sin(y / 5.3 + 1.1)
+        # In the sand plate's own rows the edge never draws back inside the plate's cut, or
+        # the plate's straight edge shows beyond it.
+        if LAND_TOP + y * LAND_PX < ROCK_Y + 6:
+            reach = 4 + 3 * math.sin(y / 3.1)
+            e = max(e, cut + reach) if facing_right else min(e, cut - reach)
+        return e
+
+    c = _paint_land(width, height, seed, edge_of, facing_right)
+    out = np.array(Image.fromarray(c.buf, "RGBA").resize((width * LAND_PX, height * LAND_PX),
+                                                         Image.NEAREST))
+    plate = np.array(Image.open(SAND_PLATE).convert("RGBA"))
+    # The sand's edge, at the plate's own resolution. Only down to the earth band: below that
+    # the stones take over the corner, and the plate's pixels carried out there were a dark
+    # post standing on the rock.
+    for world_y in range(SURFACE_Y - 2, BAND_Y):
+        row, y = world_y - PLATE_TOP, world_y - LAND_TOP
+        if not (0 <= row < plate.shape[0] and 0 <= y < out.shape[0]):
+            continue
+        reach = _shoulder(world_y)
+        for k in range(-12, reach + 1):
+            world_x = edge + k if facing_right else edge - 1 - k
+            x = world_x - left
+            if not 0 <= x < out.shape[1]:
+                continue
+            inward = -k - 1 if k < 0 else k  # past the cut, the plate's pixels mirrored
+            column = (edge - 1 - inward if facing_right else edge + inward) - plate_x0
+            source = plate[row, column % plate.shape[1]].astype(float)
+            if source[3] < 128:
+                continue
+            wet = 0.0 if k < -9 else 0.12 if k < -3 else 0.26 if k < reach - 2 else 0.5
+            rgb = source[:3] * (1.0 - wet) + np.array([20.0, 38.0, 62.0]) * wet
+            out[y, x, :3] = np.clip(rgb, 0, 255)
+            out[y, x, 3] = 255
+    return Image.fromarray(out, "RGBA")
+
+
+LAND = {name: (lambda name=name: draw_land(name)) for name in LANDS}
+
+
+# --- The seabed: what the diver swims over -------------------------------------------------
+#
+# The floor was the delivered TERRACES plate at world rate: a tableau of stepped ledges with
+# lit, mossed tops, and a strip of seabed along its foot. The collision under the water is a
+# flat bed at 1709 and nothing else, so every one of those ledges was a platform a diver could
+# see and swim straight through -- the "platforms" that made the sea below look messy -- and
+# their foot was a band of black silhouettes cut straight along the plate's last row.
+#
+# So the two jobs are split. The floor the refills, the coral and the clams stand on is drawn
+# here, as a strip that tiles on its own and is exactly as flat as the collision is; the
+# terraces go back into the water behind it (terraces_far, below), hazed and slower, where a
+# ledge is a place in the distance rather than a step.
+#
+# ⚠ THE WALKING LINE IS A ROW OF THIS STRIP, AND IT IS THE SEABED. `FLOOR_WALK` rows down from
+# its top edge is where everything on the bed stands: the backdrop pins the strip so that row
+# lands on level_3.gd's BED_Y, and run_level3_audit reads both numbers back off the backdrop.
+# The strip's top edge sits above that row by a few pixels of sand seen from above -- the top
+# of the floor, not a line -- so a jar stands IN the sand rather than on a rule.
+SEABED = ramp(["#020d24", "#051836", "#0a2646", "#123756", "#1c4a63",
+               "#2a606f", "#3d7a7c", "#56958c", "#76b09c", "#9ccab0"])
+PEBBLE = ramp(["#061428", "#102840", "#1f3f58", "#345a6d", "#527b88", "#7ca0a6"])
+SHELL_BITS = ramp(["#6d5f78", "#a998ad", "#ddd1da"])
+WEED = ramp(["#0f352f", "#1a5440", "#2a744c", "#48945a"])
+## Wide enough that the repeat is five times across the whole crossing, not twenty.
+FLOOR_W, FLOOR_H = 320, 66
+FLOOR_WALK = 6
+
+
+def _periodic(xs: np.ndarray, width: int, terms) -> np.ndarray:
+    """A sum of sines with a whole number of cycles across `width`, so it wraps."""
+    import math
+    out = np.zeros_like(xs, dtype=float)
+    for cycles, phase, amp in terms:
+        out += amp * np.sin(2.0 * math.pi * cycles * xs / width + phase)
+    return out
+
+
+def _noise(width: int, height: int, cell: int, seed: int) -> np.ndarray:
+    """Smooth value noise, 0..1, that wraps across the width."""
+    rng = np.random.default_rng(seed)
+    gw, gh = width // cell, height // cell + 2
+    grid = rng.uniform(0.0, 1.0, size=(gh, gw))
+    ys, xs = np.mgrid[0:height, 0:width].astype(float)
+    gx, gy = xs / cell, ys / cell
+    x0, y0 = np.floor(gx).astype(int), np.floor(gy).astype(int)
+    fx, fy = gx - x0, gy - y0
+    fx, fy = fx * fx * (3 - 2 * fx), fy * fy * (3 - 2 * fy)
+    a, b = grid[y0, x0 % gw], grid[y0, (x0 + 1) % gw]
+    c, d = grid[y0 + 1, x0 % gw], grid[y0 + 1, (x0 + 1) % gw]
+    return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy
+
+
+def _tone(c: Canvas, x: int, y: int, value: float, colours: np.ndarray) -> None:
+    """A fractional step of a ramp, dithered between the two steps either side of it. The
+    x wraps, because the strip has to meet itself."""
+    if not (0 <= y < c.h):
+        return
+    x %= c.w
+    value = max(0.0, min(len(colours) - 1.0, value))
+    low = int(value)
+    above = colours[min(len(colours) - 1, low + 1)]
+    c.px(x, y, above if value - low > BAYER_AT(x, y) else colours[low])
+
+
+def draw_seabed_floor() -> Canvas:
+    """The bed: a few rows of sand seen from above, then its front going down into the dark
+    with stones set in it."""
+    import math
+    pixelart.PX = 3
+    c = Canvas(FLOOR_W, FLOOR_H, seed=5100)
+    rng = np.random.default_rng(5100)
+    xs = np.arange(FLOOR_W, dtype=float)
+    # The back of the sand's top and its front edge, each a gentle wave that wraps.
+    far = 3.4 + _periodic(xs, FLOOR_W, [(3, 0.4, 0.9), (7, 1.3, 0.5), (19, 2.1, 0.3)])
+    near = 9.6 + _periodic(xs, FLOOR_W, [(2, 2.0, 0.7), (11, 0.3, 0.4)])
+    grain = _noise(FLOOR_W, FLOOR_H, 5, 5101)
+    mass = _noise(FLOOR_W, FLOOR_H, 16, 5102)
+    # Where the light through the surface lands on the sand: a few bright threads, not a net.
+    caustics = [(rng.uniform(0, FLOOR_W), rng.uniform(2.0, 10.0)) for _ in range(16)]
+    for x in range(FLOOR_W):
+        f, n = far[x], near[x]
+        for y in range(FLOOR_H):
+            if y < f - 0.5:
+                continue
+            if y < n:
+                t = (y - f) / max(1.0, n - f)
+                v = 6.7 - 1.1 * t + 0.35 * math.sin(2 * math.pi * 13 * x / FLOOR_W + 1.4 * y)
+                v += 0.6 * (grain[y, x] - 0.5)
+                near_two = sorted(math.hypot(min(abs(x - cx), FLOOR_W - abs(x - cx)) * 0.6,
+                                             (y - cy) * 1.8) for cx, cy in caustics)[:2]
+                if near_two[1] - near_two[0] < 0.9 and near_two[0] < 9:
+                    v += 0.9
+                if y < f + 0.8:
+                    v = max(v, 7.6)  # the crest of the sand, catching the light
+                _tone(c, x, y, v, SEABED)
+            else:
+                # ⚠ NOISE, NOT STRATA. Ruled bands of sediment read as lines drawn across the
+                # floor; a lumpy mass going dark with depth reads as ground.
+                depth = (y - n) / (FLOOR_H - n)
+                v = 4.8 - 5.2 * depth ** 0.62
+                v += 1.1 * (mass[y, x] - 0.5) + 0.7 * (grain[y, x] - 0.5)
+                if y < n + 1.0:
+                    v = min(v, 4.0)  # the shadow under the lip of the sand
+                _tone(c, x, y, v, SEABED)
+    # ⚠ ONE STONE PER CELL OF A JITTERED GRID, NOT SEVENTY THROWN AT RANDOM. Thrown, a handful
+    # landed on one column and stacked into a ladder of stones down the floor's face.
+    # Fewer near the top, where the front is still the sand's own body, and now and then a
+    # boulder, so the stones are a scatter rather than a pattern.
+    columns, courses = 22, 4
+    for course in range(courses):
+        for column in range(columns):
+            if rng.uniform() < (0.65, 0.45, 0.35, 0.35)[course]:
+                continue
+            cx = (column + rng.uniform(0.1, 0.9)) * FLOOR_W / columns
+            n = near[int(cx) % FLOOR_W]
+            depth = (course + rng.uniform(0.15, 0.85)) / courses
+            r = rng.uniform(1.4, 3.2) * (1.0 + 0.8 * depth)
+            if rng.uniform() < 0.12:
+                r *= 1.7
+            _stone(c, cx, n + 3 + depth * (FLOOR_H - n - 6), r, depth)
+    for _ in range(26):
+        cx = rng.uniform(0, FLOOR_W)
+        _pebble(c, cx, far[int(cx) % FLOOR_W] + rng.uniform(1.8, 5.2), rng.uniform(0.9, 2.2))
+    for _ in range(14):
+        x = int(rng.uniform(0, FLOOR_W))
+        y = int(far[x] + rng.uniform(1.5, 5))
+        c.px(x, y, SHELL_BITS[2])
+        c.px((x + 1) % FLOOR_W, y, SHELL_BITS[1])
+    for _ in range(7):
+        x0 = int(rng.uniform(0, FLOOR_W))
+        _tuft(c, x0, int(far[x0] + 3), rng)
+    return c
+
+
+def _stone(c: Canvas, cx: float, cy: float, r: float, depth: float) -> None:
+    """A stone set in the floor's front, drawn the way pixel art gives a thing its roundness: a
+    lit cap along the top, the body a step above the sand around it, and a dark underside with
+    its own shadow on the sand below. Darker the deeper it sits, because the water is."""
+    base = max(0.5, 3.1 - 2.5 * depth)
+    rx, ry = r, r * 0.78
+    for y in range(int(cy - ry - 1), int(cy + ry + 2)):
+        for x in range(int(cx - rx - 1), int(cx + rx + 2)):
+            nx, ny = (x + 0.5 - cx) / rx, (y + 0.5 - cy) / ry
+            d = (nx * nx + ny * ny) ** 0.5
+            if d > 1.0:
+                continue
+            if ny > 0.45 and d > 0.7:
+                v = base - 1.5
+            elif ny < -0.3 and d > 0.62:
+                v = base + 1.7
+            else:
+                v = base + 0.5 * (-0.4 * nx - 0.6 * ny)
+            _tone(c, x, y, v, PEBBLE)
+    for x in range(int(cx - rx * 0.6), int(cx + rx * 0.9) + 1):
+        y = int(cy + ry + 1)
+        if 0 <= y < c.h and c.buf[y, x % c.w, 3] > 0:
+            _tone(c, x, y, max(0.0, 3.6 - 5.0 * depth ** 0.62), SEABED)
+
+
+def _pebble(c: Canvas, cx: float, cy: float, r: float) -> None:
+    """A pebble lying on the sand, with its shadow falling down and to the right of it."""
+    import math
+    for y in range(int(cy), int(cy + r + 1.2)):
+        for x in range(int(cx - r + 1), int(cx + r + 2.2)):
+            if 0 <= y < c.h and c.buf[y, x % c.w, 3] > 0:
+                c.px(x % c.w, y, SEABED[5])
+    for y in range(int(cy - r - 1), int(cy + r + 1)):
+        for x in range(int(cx - r - 1), int(cx + r + 1)):
+            dx, dy = x + 0.5 - cx, (y + 0.5 - cy) * 1.35
+            d = math.hypot(dx, dy)
+            if d > r:
+                continue
+            lit = (-dx - dy) / max(0.001, r)
+            _tone(c, x, y, 1.0 if d > r - 0.7 and lit < 0.2 else 3.1 + 1.8 * lit, PEBBLE)
+
+
+def _tuft(c: Canvas, x0: int, base: int, rng) -> None:
+    """Sea grass: a few blades out of the sand, the tallest bent over at the top."""
+    for blade in range(int(rng.integers(2, 5))):
+        x = x0 + blade * 2 - 2
+        height = int(rng.integers(3, 7))
+        lean = int(rng.choice([-1, 1]))
+        for k in range(height):
+            y = base - k
+            if 0 <= y < c.h:
+                colour = WEED[3] if k == height - 1 else WEED[2] if k > height // 2 else WEED[1]
+                c.px((x + (lean if k > height * 0.6 else 0)) % c.w, y, colour)
+
+
+# The terraces, taken back into the water. The delivered plate is a fine painting of stepped
+# rock, and at world rate it was a set of platforms nobody could stand on. Hazed toward the
+# water's own colour at each depth and moved back to a slower rate in the backdrop, the same
+# ledges are the far side of a valley. Its foot goes to the water's colour and then to nothing,
+# so it has no cut edge for the floor in front of it to have to hide.
+DEEP_PLATES = ROOT / "game" / "assets" / "Level3" / "deep"
+## How much of the water stands between the eye and the terraces -- and, over FAR_FOOT, all
+## of it: the ledges' feet are lost in the water long before the floor.
+FAR_HAZE = 0.42
+FAR_FOOT = (640.0, 772.0)
+FAR_GONE = (748.0, 772.0)
+## The deep band drops its floor layers this far below the waterline, so plate row r of the
+## terraces stands in front of the water plate's row r + 360. Below the water plate is the
+## DeepFill, whose colour this is.
+FLOOR_DROP = 360
+DEEP_FILL = np.array([1.0, 27.0, 70.0])
+
+
+def draw_terraces_far() -> Image.Image:
+    def smooth(a, b, x):
+        t = np.clip((x - a) / (b - a), 0.0, 1.0)
+        return t * t * (3 - 2 * t)
+
+    plate = np.array(Image.open(DEEP_PLATES / "terraces.png").convert("RGBA")).astype(float)
+    water = np.array(Image.open(DEEP_PLATES / "water.png").convert("RGB")).astype(float)
+    water_rows = water.mean(axis=1)
+    rows = np.arange(plate.shape[0], dtype=float)
+    behind = np.array([water_rows[FLOOR_DROP + r] if FLOOR_DROP + r < water.shape[0]
+                       else DEEP_FILL for r in range(plate.shape[0])])
+    amount = (FAR_HAZE + (1.0 - FAR_HAZE) * smooth(FAR_FOOT[0], FAR_FOOT[1], rows))[:, None, None]
+    out = plate.copy()
+    out[..., :3] = plate[..., :3] * (1.0 - amount) + behind[:, None, :] * amount
+    out[..., 3] = plate[..., 3] * (1.0 - smooth(FAR_GONE[0], FAR_GONE[1], rows))[:, None]
+    out[int(FAR_GONE[1]):, :, 3] = 0
+    return Image.fromarray(np.clip(out + 0.5, 0, 255).astype(np.uint8), "RGBA")
+
+
+SEABED_ART = {"seabed_floor.png": draw_seabed_floor, "terraces_far.png": draw_terraces_far}
 
 
 # --- The things that live here --------------------------------------------------------------
@@ -445,17 +662,40 @@ def _urchin(frame: int) -> Canvas:
 
 
 def _foam(frame: int) -> Canvas:
-    """Surf running up the sand and sliding back: a strip that tiles sideways."""
+    """Surf breaking against the shore: froth piled up where the water meets the land, thinning
+    seaward into specks, and reaching a little further out in each frame of the surge.
+
+    ⚠ IT TAPERS, AND IT HAS NO BOTTOM EDGE. It was a 144-pixel strip with a wavy top, a straight
+    bottom and a regular pattern of holes -- a dashed rectangle floating on the water beside the
+    beach, which is what it looked like. Column 0 is the shore; nothing is drawn more than a
+    row under the waterline row, so the foam sits ON the water and the sea carries on under it."""
     import math
     pixelart.PX = 3
-    c = Canvas(48, 7, seed=3600)
-    reach = [0, 1, 2][frame]
-    for x in range(48):
-        crest = 3 + int(round(math.sin(x * 2 * math.pi / 16.0 + frame) * 1.2)) - reach // 2
-        for y in range(crest, 7):
-            if (x * 7 + y * 3 + frame) % 5 == 0:
-                continue
-            c.px(x, y, FOAM[2] if y == crest else FOAM[1 if y < 5 else 0])
+    width, height, line = 40, 8, 5
+    c = Canvas(width, height, seed=3600)
+    rng = np.random.default_rng(3600 + frame)
+    reach = (0.45, 0.62, 0.8)[frame]
+    for x in range(width):
+        t = x / float(width - 1)
+        # How much froth there is at this distance from the land: a heap against it, then
+        # streaks, then nothing past this frame's reach.
+        heap = max(0.0, 1.0 - t / 0.3)
+        density = heap + max(0.0, 1.0 - t / reach) * 0.75
+        if density <= 0.02:
+            continue
+        crest = line - int(round(3.2 * heap + 0.8 * math.sin(x * 0.9 + frame * 1.7)))
+        for y in range(max(0, crest), min(height, line + 1 + int(heap * 2.5 + rng.uniform()))):
+            if y > line and rng.uniform() > heap:
+                continue  # under the waterline only where the heap is
+            if heap < 0.2 and rng.uniform() > density:
+                continue  # out on the water it breaks up into specks
+            if y == crest:
+                colour = FOAM[2]
+            elif y <= line:
+                colour = FOAM[2] if rng.uniform() < 0.35 else FOAM[1]
+            else:
+                colour = FOAM[0]
+            c.px(x, y, colour)
     return c
 
 
@@ -526,48 +766,125 @@ LIFE = {
 }
 
 
+## The jar's half-width, row by row down its silhouette: the lip, the neck, the shoulders
+## rounding out, the straight body, the bottom rounding in. None above the lip.
+JAR_ROWS = {8: 4.0, 9: 3.6, 10: 5.2, 11: 6.3, 27: 6.6, 28: 5.8}
+JAR_CENTRE, JAR_BODY, INK_TOP = 9.5, 7.0, 15
+
+
+def _jar_half(y: int):
+    if y < 8 or y > 28:
+        return None
+    return JAR_ROWS.get(y, JAR_BODY)
+
+
+def _jar_px(c: Canvas, x: int, y: int, colour: np.ndarray, alpha: int | None = None) -> None:
+    if 0 <= x < c.w and 0 <= y < c.h:
+        c.buf[y, x] = colour
+        if alpha is not None:
+            c.buf[y, x, 3] = alpha
+
+
+def _jar_tone(colours: np.ndarray, value: float, x: int, y: int) -> np.ndarray:
+    value = max(0.0, min(len(colours) - 1.0, value))
+    low = int(value)
+    return colours[min(len(colours) - 1, low + 1)] if value - low > BAYER_AT(x, y) \
+        else colours[low]
+
+
 def draw(frame: int) -> Canvas:
+    """The ink jar, as a jar: a glass vessel you can see the ink in.
+
+    ⚠ IT WAS A WHITE CARD. The first jar was a flat rectangle of dithered pale grey with a drop
+    on it and a stack of translucent rectangles behind it for a glow -- which read as a dark
+    box -- and next to a painted seabed it was the flattest thing in the level. Kent asked for
+    objects that look three-dimensional. So: rounded shoulders and bottom, a cork seen a little
+    from above so its top is an ellipse, the ink inside shaded as the cylinder it is and bright
+    along its surface, empty glass above it that the sea shows through, a paper label that
+    darkens as it wraps round, a specular streak down the lit side and a spark on the shoulder.
+    Light from the upper left, as everywhere.
+
+    THREE FRAMES, AND WHAT MOVES IS THE INK: it brightens a step a frame, the drop with it, and
+    a few motes rise off the cork. It is a thing left on the seabed that still has something
+    in it, not a pickup that bounces."""
+    import math
     # PX=3 rather than the library default of 2: this sits in a scene drawn at a much finer
     # grain than Piyesta's interiors, and at 2 the jar reads as a different game's prop.
     pixelart.PX = 3
     c = Canvas(W, H, seed=1703 + frame)
-
-    # The glow behind it, which is the only thing that changes between frames.
-    reach = [3, 4, 5][frame]
-    for step in range(reach):
-        tone = GLOW[max(0, 1 - step // 2)].copy()
-        tone[3] = 30 - step * 5
-        c.fill(4 - step, 9 - step, 12 + step * 2, 17 + step * 2, tone)
-
-    # The jar: a straight-sided vessel, lit from the upper left.
-    c.fill(5, 10, 10, 16, GLASS[2])
-    # ⚠ A GRADIENT AMOUNT, NOT A CONSTANT. A flat 0.45 dithers the whole face at one rate,
-    # which is a checkerboard rather than a curved surface -- the ordered dither only reads
-    # as a cylinder when the mix varies across it, bright on the lit side and dark on the
-    # shaded one.
-    across = np.linspace(0.92, 0.08, 10)[None, :].repeat(16, axis=0)
-    c.dither(5, 10, 10, 16, GLASS[1], GLASS[3], across)
-    c.vline(5, 10, 16, GLASS[4])          # lit edge
-    c.hline(5, 10, 10, GLASS[4])
-    c.vline(14, 10, 16, GLASS[0])         # shaded edge
-    c.hline(5, 25, 10, GLASS[0])
-
-    # The cap, and the neck under it.
-    c.fill(6, 6, 8, 4, CAP[2])
-    c.hline(6, 6, 8, CAP[3])
-    c.hline(6, 9, 8, CAP[0])
-    c.fill(7, 4, 6, 2, CAP[1])
-
-    # The drop on the front, brighter as the glow swells.
+    swell = (0.0, 0.5, 1.0)[frame]
+    for y in range(H):
+        half = _jar_half(y)
+        if half is None:
+            continue
+        x0 = int(math.floor(JAR_CENTRE - half + 0.5))
+        x1 = int(math.ceil(JAR_CENTRE + half - 0.5))
+        for x in range(x0, x1 + 1):
+            if x in (x0, x1):
+                _jar_px(c, x, y, GLASS_EDGE)
+                continue
+            across = (x + 0.5 - JAR_CENTRE) / half
+            curve = math.sqrt(max(0.0, 1.0 - across * across))
+            if INK_TOP <= y <= 27:
+                v = 1.2 + 3.0 * curve - 0.9 * across + swell
+                if y == INK_TOP:
+                    v += 1.6  # the ink's surface, catching the light
+                _jar_px(c, x, y, _jar_tone(INK, v, x, y))
+            else:
+                # Empty glass: mostly the sea behind it, tinted, thicker toward its rims.
+                _jar_px(c, x, y, GLASS[2], 70 + int(40 * (1.0 - curve)))
+    for x in range(int(JAR_CENTRE - 5.0), int(JAR_CENTRE + 5.0) + 1):
+        _jar_px(c, x, 28, GLASS[1] if x > JAR_CENTRE else GLASS[2])  # the thick glass base
+    for x in range(int(JAR_CENTRE - 4.0), int(JAR_CENTRE + 4.0) + 1):
+        _jar_px(c, x, 29, GLASS_EDGE)
+    for x in range(6, 14):
+        _jar_px(c, x, 8, GLASS[4] if x < 9 else GLASS[3] if x < 12 else GLASS[1])  # the lip
+    # The label, wrapped round its middle.
+    for y in range(18, 25):
+        for x in range(int(JAR_CENTRE - JAR_BODY) + 1, int(JAR_CENTRE + JAR_BODY)):
+            across = (x + 0.5 - JAR_CENTRE) / JAR_BODY
+            v = 0.6 + 2.6 * math.sqrt(max(0.0, 1.0 - across * across)) - 0.7 * across
+            if y in (18, 24):
+                v -= 0.8
+            _jar_px(c, x, y, _jar_tone(PAPER, v, x, y))
+    # The drop printed on it: a point at the top, round at the bottom, brighter as the ink is.
     lit = DROP[min(3, 2 + frame // 2)]
-    c.fill(9, 15, 2, 5, lit)
-    c.fill(8, 17, 4, 3, lit)
-    c.px(8, 16, DROP[1])
-    c.px(11, 16, DROP[1])
-    c.px(9, 14, DROP[3])
-
-    # A few motes rising off it, so a still prop still has something happening.
-    c.speckle(6, 2 + frame, 8, 4, GLOW[3], 0.07)
+    for row, (a, b) in enumerate(((9, 10), (8, 11), (8, 11), (7, 12), (8, 11))):
+        for x in range(a, b + 1):
+            _jar_px(c, x, 19 + row, lit)
+    _jar_px(c, 8, 20, DROP[3])
+    _jar_px(c, 8, 21, DROP[3])
+    for x, y in ((11, 21), (11, 22), (12, 22), (10, 23), (11, 23)):
+        _jar_px(c, x, y, DROP[1])
+    # The specular streak down the lit side, and a spark on the shoulder; a dimmer glint
+    # down the far side, where the glass turns away.
+    for y in range(12, 27):
+        if not 18 <= y <= 24:
+            _jar_px(c, 5, y, GLASS[4], 230 if y >= INK_TOP else 200)
+    _jar_px(c, 6, 11, GLASS[4])
+    _jar_px(c, 5, 12, GLASS[4])
+    for y in range(13, 26, 3):
+        _jar_px(c, 14, y, GLASS[3], 120)
+    # The cork: a cylinder seen a little from above.
+    for y in range(3, 8):
+        for x in range(6, 14):
+            across = (x + 0.5 - 10.0) / 4.0
+            if y <= 4:
+                if y == 3 and x in (6, 13):
+                    continue
+                v = 3.2 - 0.8 * across + (0.6 if y == 3 else 0.0)
+            else:
+                v = 2.6 - 1.6 * across - (0.6 if y == 7 else 0.0)
+            _jar_px(c, x, y, _jar_tone(CAP, v, x, y))
+    for x in range(7, 13):
+        _jar_px(c, x, 2, GLASS_EDGE)
+    for y in range(4, 8):
+        _jar_px(c, 5, y, GLASS_EDGE)
+        _jar_px(c, 14, y, GLASS_EDGE)
+    # A few motes rising off it, so a still thing still has something happening.
+    rng = np.random.default_rng(1703 + frame)
+    for _ in range(2 + frame):
+        _jar_px(c, int(rng.uniform(6, 14)), int(rng.uniform(0, 3)), GLOW[3], 170)
     return c
 
 
@@ -762,11 +1079,29 @@ def draw_bangka_beached() -> Canvas:
             at = x + lean * ((step + 1) // 2)
             c.px(at, sand - 2 - step, HULL[3] if step % 2 else HULL[2])
             c.px(at - lean, sand - 2 - step, HULL[1])
-    # The two booms it was dragged up on, lying beside it on the sand.
-    for x in range(left + 4, right - 6):
-        c.px(x, sand + 2, BAMBOO[2])
-        c.px(x, sand + 3, BAMBOO[0])
     c.speckle(left + 5, sand - 8, right - left - 12, 7, HULL[1], 0.07)
+    # ⚠ ITS SHADOW, AND THE BOOM AS A POLE. The two booms it was dragged up on were two flat
+    # rows of olive under the hull, which at game scale read as a ruled stripe drawn along the
+    # sand -- the one flat thing left on the beach. The hull now sits in its own shadow, darkest
+    # under the keel and gone at the stems, and the boom is one length of bamboo lying in front
+    # of it: lit along its top, dark along its underside, a node every nine pixels, cut ends
+    # showing the pale cane, and its own shadow on the sand.
+    shade = np.array([40, 26, 10, 0], dtype=np.uint8)
+    for x in range(left - 2, right + 3):
+        t = (x - left) / float(right - left)
+        alpha = int(120 * max(0.0, 1.0 - abs(2.0 * t - 1.0) ** 1.6))
+        if alpha > 12 and c.buf[sand + 1, x, 3] == 0:
+            c.buf[sand + 1, x] = shade
+            c.buf[sand + 1, x, 3] = alpha
+    a, b = left + 4, right - 8
+    for x in range(a, b):
+        node = (x - a) % 9 == 0
+        c.px(x, sand + 2, BAMBOO[1] if node else BAMBOO[2])
+        c.px(x, sand + 3, BAMBOO[0])
+        c.buf[sand + 4, x] = shade
+        c.buf[sand + 4, x, 3] = 80
+    c.px(a - 1, sand + 2, BAMBOO[3])
+    c.px(b, sand + 2, BAMBOO[3])
     return c
 
 
@@ -931,7 +1266,7 @@ def build() -> list[Path]:
         path = OUT / f"ink_jar_{frame}.png"
         draw(frame).save(path)
         written.append(path)
-    for table in (SHELF, BANGKA, FOUND):
+    for table in (LAND, SEABED_ART, BANGKA, FOUND):
         for name, painter in table.items():
             path = OUT / name
             painter().save(path)
@@ -946,7 +1281,8 @@ def build() -> list[Path]:
 
 def _expected() -> list[Path]:
     return [OUT / f"ink_jar_{frame}.png" for frame in range(FRAMES)] + \
-        [OUT / name for name in SHELF] + [OUT / name for name in BANGKA] + \
+        [OUT / name for name in LAND] + [OUT / name for name in SEABED_ART] + \
+        [OUT / name for name in BANGKA] + \
         [OUT / name for name in FOUND] + \
         [OUT / f"{name}_{frame}.png" for name, (_p, n) in LIFE.items() for frame in range(n)]
 

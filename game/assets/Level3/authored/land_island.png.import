@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://u01pam1x26fi"
-path="res://.godot/imported/shelf_face.png-b2e347257758bcb07c3dea6a36cba0d8.ctex"
+uid="uid://cfpihtt1r6hq1"
+path="res://.godot/imported/land_island.png-72581e09564732f44a5a4b7daee913ed.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/Level3/authored/shelf_face.png"
-dest_files=["res://.godot/imported/shelf_face.png-b2e347257758bcb07c3dea6a36cba0d8.ctex"]
+source_file="res://assets/Level3/authored/land_island.png"
+dest_files=["res://.godot/imported/land_island.png-72581e09564732f44a5a4b7daee913ed.ctex"]
 
 [params]
 

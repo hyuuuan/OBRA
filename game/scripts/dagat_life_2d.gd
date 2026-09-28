@@ -178,6 +178,14 @@ func _release_the_jellies() -> void:
 ## out, because the clump that ended each shore stood that far out over the shallows. The clump
 ## stands on the land now, and three strips of foam running out across open water from a sandy
 ## edge read as a rope lying on the sea. What is left laps the foot of the sand's own slope.
+##
+## ⚠ AND IT STARTS IN THE LAND, NOT AT IT. The froth is heaped at the foam frames' shore end
+## (see build_dagat_props.py _foam), and set down with that end a few pixels inside the land's
+## corner, so the surf breaks against the sand instead of floating beside it.
+const SURF_INTO_THE_LAND := 4.0
+## The foam frames' waterline row, in pixels from their top: they are laid so it lies on the
+## sea's surface.
+const SURF_WATERLINE := 16.0
 func _plant_the_surf() -> void:
 	for edge in [[shore_edges.x, false], [shore_edges.y, true]]:
 		var seaward := bool(edge[1])
@@ -193,7 +201,8 @@ func _plant_the_surf() -> void:
 			add_child(surf)
 			var width := float(surf.frames[0].get_width()) if not surf.frames.is_empty() else 144.0
 			var x := float(edge[0]) + (width * strip if not seaward else -width * (strip + 1))
-			surf.home = Vector2(x, waterline_y - 14.0 + 3.0 * float(strip))
+			x += SURF_INTO_THE_LAND * (1.0 if seaward else -1.0)
+			surf.home = Vector2(x, waterline_y - SURF_WATERLINE + 3.0 * float(strip))
 			surf.global_position = surf.home
 			surf.modulate = Color(1.0, 1.0, 1.0, 0.95 - 0.32 * float(strip))
 

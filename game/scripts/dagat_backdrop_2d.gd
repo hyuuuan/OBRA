@@ -22,8 +22,18 @@ extends Node2D
 
 const MANIFEST := "res://assets/Level3/dagat.json"
 ## Authored by tools/build_dagat_props.py, not cut from the delivery. See that tool's header.
-const SHELF_FILL := "res://assets/Level3/authored/shelf_fill.png"
-const SHELF_FACE := "res://assets/Level3/authored/shelf_face.png"
+const LAND_HOME := "res://assets/Level3/authored/land_home.png"
+const LAND_ISLAND := "res://assets/Level3/authored/land_island.png"
+## The seabed and what stands behind it -- see the deep band's rows. Both authored by
+## tools/build_dagat_props.py.
+const SEABED_FLOOR := "res://assets/Level3/authored/seabed_floor.png"
+const TERRACES_FAR := "res://assets/Level3/authored/terraces_far.png"
+## ⚠ WHERE THE FLOOR STRIP IS PINNED, AND WHICH OF ITS ROWS IS THE BED. The strip's top edge
+## goes at this row of the deep's floor registration, and everything on the bed stands
+## SEABED_WALK pixels below that: 920 + 771 + 18 = 1709, which is level_3.gd's BED_Y and the
+## Seabed collision's top. run_level3_audit adds these up rather than trusting any one of them.
+const SEABED_TOP_ROW := 771.0
+const SEABED_WALK := 18.0
 
 ## ⚠ EnvironmentBaseplate SORTS ITS LAYERS BY THIS. It collects anything with
 ## set_camera_origin/update_for_camera -- which is how a backdrop gets parallax for free --
@@ -96,8 +106,8 @@ const SHELF_FACE := "res://assets/Level3/authored/shelf_face.png"
 ##                                  underside slotted at -228, between the two
 ##   storm             -212..-193   sky, clouds, islands, the waves, the shores
 ##   shore ground      -165..-160   sand, the rock under it, then the palms: nearer than
-##                                  any sea, behind the player. ⚠ THE SHELF GOES BEHIND THE
-##                                  PALMS, not in front. At -150 the face's sand lip was
+##                                  any sea, behind the player. ⚠ THE LAND GOES BEHIND THE
+##                                  PALMS, not in front. At -150 the old face's sand lip was
 ##                                  drawn over the rocks the clump ends the beach with, as a
 ##                                  pale smear across them.
 ##   storm rain          60         in front of everything
@@ -132,19 +142,21 @@ const BANDS := {
 		# out across the open sea. So each is cut to the clump and set down once, whole, at the
 		# landward end of one beach -- see the palm rows below.
 		# ⚠ WHAT THE LAND STANDS ON, UNDER THE WATER. The sand plate stops 150 pixels below
-		# the walking surface and the sea goes on for a thousand more, so the deep's ruins
-		# showed through under the beach. Authored rock from the plate's last row down, and a
-		# ragged face where it meets the water -- the face's rock edge lands on the land's own
-		# collision edge, so a diver stops where the rock looks to be. Blocks, like the painted
-		# terraces, and nothing standing out of the face: see build_dagat_props.py.
-		{"key": SHELF_FILL, "rate": 1.00, "z": -163, "ground": true, "top_row": 941.0,
-			"mirror": false, "seaward_trim": 48.0},
-		# ⚠ 790, THE SURFACE THE APO WALKS ON, not 941. See the lip in build_dagat_props.py:
-		# the face begins where the sand does, so the land's seaward edge is ragged the whole way
-		# down instead of a ruled cut through the sand with a ragged rock starting under it.
-		{"key": SHELF_FACE, "rate": 1.00, "z": -162, "top_row": 790.0, "pieces": [
-			{"at": "home_ground.y", "nudge": 64.0, "align": "right"},
-			{"at": "island_ground.x", "nudge": -64.0, "align": "left", "flip": true},
+		# the walking surface and the sea goes on for a thousand more, so the land has to go
+		# down to the seabed too -- the collision does. One painting per beach, set down once:
+		# a heap of boulders darkening with depth, its seaward edge the line where its own stones
+		# stop, and the sand's rounded, wet shoulder carried out past the plate's straight cut in
+		# the plate's own pixels (see build_dagat_props.py). It replaces a tiled fill of dark
+		# blocks with a separate face laid over its end -- a black cobbled wall standing in the
+		# sea, with a checkerboard lip down the side of the beach and a seam where the two met.
+		#
+		# ⚠ 786: the plate row four pixels above the surface the apo walks on, so the shoulder
+		# is the land's own picture from the top of the sand down.
+		{"key": LAND_HOME, "rate": 1.00, "z": -163, "top_row": 786.0, "pieces": [
+			{"at": "home_ground.x", "align": "left"},
+		]},
+		{"key": LAND_ISLAND, "rate": 1.00, "z": -163, "top_row": 786.0, "pieces": [
+			{"at": "island_ground.y", "align": "right"},
 		]},
 		# The palms lean in the wind -- see shaders/wind_sway.gdshader. A shear of the whole
 		# clump with its foot held, so the rocks it stands on do not move with it.
@@ -178,14 +190,23 @@ const BANDS := {
 		{"key": "deep/water", "rate": 0.15, "z": -230, "mirror": true},
 		{"key": "deep/ridges", "rate": 0.35, "z": -225, "floor": true},
 		{"key": "deep/ruins", "rate": 0.55, "z": -220, "floor": true, "mirror": true},
+		# ⚠ BEHIND THE FLOOR NOW, NOT THE FLOOR. The terraces were the seabed at world rate --
+		# stepped ledges with lit, mossed tops -- and the collision under the water is one flat
+		# bed and nothing else, so each ledge was a platform a diver could see and swim straight
+		# through, and the plate's foot was a band of black silhouettes cut along its last row.
+		# That was most of what made the sea below look messy. The same ledges hazed toward the
+		# water's colour and set back at 0.85 are the far side of the valley instead; their feet
+		# fade into the water rather than ending (see build_dagat_props.py, terraces_far).
+		{"key": TERRACES_FAR, "rate": 0.85, "z": -215, "floor": true, "mirror": true},
 		# ⚠ RATE 1.00, BECAUSE THIS ONE IS THE FLOOR. Every other layer here is scenery and
 		# lags the camera to read as distance; this is the seabed the coral, the kelp, the six
 		# ink jars and the signposts STAND ON, and those are placed in the gameplay plane at
-		# world rate. At 0.80 the painted bed slid 200 px west for every 1000 the camera
-		# travelled -- seven hundred across the crossing -- so a jar that began on a ledge
-		# finished over a gap and the ledges themselves drifted through everything standing on
-		# them. Ground is ground: the shore's sand is 1.00 for the same reason.
-		{"key": "deep/terraces", "rate": 1.00, "z": -215, "floor": true, "mirror": true},
+		# world rate. A floor at 0.80 slid 200 px west for every 1000 the camera travelled, so a
+		# jar that began on the sand finished over a gap. Ground is ground: the shore's sand is
+		# 1.00 for the same reason. It is exactly as flat as the collision is, and it tiles on
+		# its own, so it is neither mirrored nor cut.
+		{"key": SEABED_FLOOR, "rate": 1.00, "z": -214, "floor": true,
+			"top_row": SEABED_TOP_ROW},
 	],
 	"storm": [
 		# ⚠ MIRRORED, for the same reason as the shore's sky: the bank's underside is opaque on

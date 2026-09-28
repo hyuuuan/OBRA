@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dtkrb5iwpy2yh"
-path="res://.godot/imported/shelf_fill.png-51139bfc89b487f604fd1dbfa3180fb4.ctex"
+uid="uid://c7u1kjh6aagr3"
+path="res://.godot/imported/land_home.png-6df9cf4db59735ba6db98fe722b9e3ae.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/Level3/authored/shelf_fill.png"
-dest_files=["res://.godot/imported/shelf_fill.png-51139bfc89b487f604fd1dbfa3180fb4.ctex"]
+source_file="res://assets/Level3/authored/land_home.png"
+dest_files=["res://.godot/imported/land_home.png-6df9cf4db59735ba6db98fe722b9e3ae.ctex"]
 
 [params]
 
