@@ -362,7 +362,9 @@ func _plant_the_refills() -> void:
 		var art := PropClass.new()
 		art.prefix = AUTHORED + "ink_jar"
 		art.fps = 2.4
-		art.target_height = 92.0
+		# ⚠ ITS OWN SIZE: the picture is 90 tall, and at 92 every art pixel was 1.02 screen
+		# pixels, so nearest sampling doubled one column in fifty and the glass shimmered.
+		art.target_height = 90.0
 		art.phase = index
 		art.shadow_width = 24.0
 		refill.add_child(art)
