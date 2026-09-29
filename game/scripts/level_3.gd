@@ -1491,10 +1491,6 @@ func _on_bakunawa_approached() -> void:
 	_on_dialogue_node_approached()
 
 
-## ⚠ THE ENCOUNTER STARTS AT THE COMMIT, NOT AT THE SOLVE. Two of its three resolutions need
-## the world to change the moment the player says what they are doing: the gap has to open
-## before they can slip through it, and the creature has to turn on them before they can
-## fight it. Only the Artist one waits for a drawing.
 ## ⚠ THE CREATURE IS MET BEFORE ITS ANSWERS ARE. Its volume reaches west of the place its
 ## arrival is announced, so a swimmer entered the encounter first and heard the three ways of
 ## dealing with it -- "Something that can throw LIGHT..." -- before Lolo had seen it: "Wait.
@@ -1507,6 +1503,10 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 	super._on_obstacle_entered(obstacle_id)
 
 
+## ⚠ THE ENCOUNTER STARTS AT THE COMMIT, NOT AT THE SOLVE. Two of its three resolutions need
+## the world to change the moment the player says what they are doing: the gap has to open
+## before they can slip through it, and the creature has to turn on them before they can
+## fight it. Only the Artist one waits for a drawing.
 func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 	# Whatever of Lolo's was still waiting to be said was about the choice just made.
 	_advice_waiting.clear()
@@ -1571,6 +1571,10 @@ func _lose_the_stretch(why: String) -> void:
 		_bakunawa.enter_fight()
 
 
+## How far outside the creature's reach a caught player is put back. See _stand_them_clear_of_it.
+const RESET_CLEARANCE := 220.0
+
+
 ## ⚠ A CHECKPOINT RECORDS WHERE THE PLAYER WAS, NOT WHERE ITS NODE IS. CP3b's volume is 220
 ## wide and the snapshot is taken at whatever point inside it the apo happened to cross, so on
 ## the stealth route the place a reset returns to is regularly INSIDE the creature's cone --
@@ -1585,9 +1589,6 @@ func _lose_the_stretch(why: String) -> void:
 ## be answered, so the reach is what this measures against.
 ##
 ## Their depth is kept, and the distance west is made up only as far as it has to be.
-const RESET_CLEARANCE := 220.0
-
-
 func _stand_them_clear_of_it() -> void:
 	if _bakunawa == null or not is_instance_valid(_bakunawa):
 		return
