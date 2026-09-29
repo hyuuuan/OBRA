@@ -2547,7 +2547,7 @@ func refresh_objective() -> void:
 	if objective_banner == null or director == null:
 		return
 	var goal := _current_objective()
-	objective_banner.set_objective(objective_text(goal))
+	objective_banner.set_objective(with_keys(objective_text(goal)))
 	var target: Variant = goal.get("target", null)
 	if target is Vector2 and player != null and is_instance_valid(player) \
 			and _same_space(target as Vector2):
@@ -2583,6 +2583,23 @@ func objective_text(goal: Dictionary) -> String:
 			return String(table[key + ".tags"]).replace("{tags}",
 				_objective_tags(tags, String(spec.get("match", "all"))))
 	return String(table.get(key, ""))
+
+
+## THE KEY, IN THE LINE THAT ASKS FOR THE ACTION. "Draw something that can SWIM" told a player
+## what to draw and not how; "Row out across the open water" never said which key rows. An
+## objective may carry `{key:action}` -- `{key:redraw}`, `{key:interact}` -- and it is written as
+## the key that action is bound to NOW, through the same lookup the prompts use, so a player
+## who has rebound a key is told the one they bound and a non-QWERTY one the one on their
+## keyboard. Static, so an audit can measure a line exactly as the banner will show it.
+static func with_keys(text: String) -> String:
+	if not text.contains("{key:"):
+		return text
+	var pattern := RegEx.new()
+	pattern.compile("\\{key:([a-z_]+)\\}")
+	var out := text
+	for found in pattern.search_all(text):
+		out = out.replace(found.get_string(0), ControlsKeys.key_cap_for(found.get_string(1)))
+	return out
 
 
 ## "FEED, STARTLE or STRIKE" -- a list a person would say, not the strip's "or" between each.

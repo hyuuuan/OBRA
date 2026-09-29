@@ -150,14 +150,22 @@ func _finish_by(crossing: String, encounter: String) -> void:
 			"ended at %.2f after passing the refills" % float(ink.call("remaining")))
 
 	# THE CORAL FIELD, on the dive only. Free, ungated and uncounted -- so the only thing
-	# that can be checked is that swimming past one makes Lolo say something, which is
+	# that can be checked is that swimming up to one makes Lolo say something, which is
 	# exactly the thing that silently stops working when a hook is renamed.
+	#
+	# ⚠ TO A SWIMMER WHO STOPS AT IT, NOT ONE WHO SHOOTS PAST. A fact waits while Lolo is still
+	# being read and is dropped if the player has swum on by the time he is free -- that is what
+	# keeps his story from being talked over (see level_3.gd, _pace_the_advice). So each fact is
+	# asked for the way a player gets it: swim up, and stay a few seconds. The first is asked for
+	# while he is mid-sentence, so the wait itself is what is being tested there.
 	if crossing == "pragmatist":
 		var spoken := 0
 		# The level's own field, not a copy: the bed has moved twice.
 		var field: Dictionary = level.call("coral_field")
+		level.call("_say_why", "A line of his, still being read.")
 		for key: String in ["jelly", "lola1", "shaft"]:
 			await _swim_to(field[key])
+			await _linger_at(field[key], "CORAL.%s" % key)
 		var silent: Array[String] = []
 		for key: String in ["jelly", "lola1", "shaft"]:
 			if bool(script_lines.call("has_heard", "CORAL.%s" % key)):
@@ -165,7 +173,7 @@ func _finish_by(crossing: String, encounter: String) -> void:
 			else:
 				silent.append(key)
 		_check(spoken == 3, "the coral field speaks (%s)" % tag,
-			"%d of 3 facts fired by swimming past them%s" % [spoken,
+			"%d of 3 facts said to a swimmer who stopped at them%s" % [spoken,
 				"" if silent.is_empty() else "; silent: " + ", ".join(silent)])
 
 	var creature := level.get_node_or_null(
@@ -317,6 +325,20 @@ func _hold(action: StringName, on: bool) -> void:
 		Input.action_press(action)
 	elif not on and Input.is_action_pressed(action):
 		Input.action_release(action)
+
+
+## Stay by a thing until the hook has been said, for up to twenty seconds: Lolo's story comes
+## first, and this probe crosses the dive's story triggers far faster than a swimmer does, so
+## several of his lines can be waiting ahead of the fact.
+func _linger_at(at: Vector2, hook: String) -> void:
+	var script_lines = level.get("script_lines")
+	_place(at + Vector2(-60.0, -60.0))
+	for _frame in range(1200):
+		await physics_frame
+		if root.get_tree().paused:
+			await _unpause()
+		if bool(script_lines.call("has_heard", hook)):
+			return
 
 
 func _place(at: Vector2) -> void:

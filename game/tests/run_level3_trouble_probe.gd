@@ -25,6 +25,9 @@ extends SceneTree
 const RosterFixtures = preload("res://tests/roster_fixtures.gd")
 const Bakunawa = preload("res://scripts/bakunawa_2d.gd")
 const InkManagerClass = preload("res://scripts/ink_manager.gd")
+## How fast a swimmer goes along the bed, measured -- the same figure run_bakunawa_probe holds
+## the sweep to.
+const BED_SWIM := 100.0
 
 var level: Node
 var results: Array[String] = []
@@ -164,9 +167,15 @@ func _seen_on_the_stealth_route() -> void:
 			await _unpause()
 			continue
 		seconds += 1.0 / 60.0
+	# Read on the frame it happened: what the player is told when the light finds them.
+	var told := (level.get("hint_bar") as HintBar).current_text() if caught else ""
 	_check(caught, "swimming into the sweep costs the stretch",
 		"moved off after %.1f s in its space" % seconds)
 	if caught:
+		# ⚠ WHAT TO DO, NOT ONLY WHAT HAPPENED. "It turned. Back to where you were" was the whole
+		# of it, said to a player who then swam straight back into the same beam.
+		_check(told.contains("Wait until its light turns away"),
+			"and says what to do about it, not only what happened", "\"%s\"" % told)
 		for _frame in range(40):
 			await physics_frame
 			if paused:
@@ -176,6 +185,16 @@ func _seen_on_the_stealth_route() -> void:
 			"and puts the apo back west of it, not past it",
 			"at x %.0f, the creature at %.0f" % [apo.global_position.x,
 				creature.global_position.x])
+		# ⚠ AND FAR ENOUGH BACK TO READ THAT BEFORE IT CAN SEE THEM AGAIN. A player still holding
+		# forward when the reset lands -- every player, the first time -- was back inside its reach
+		# a second later from a hundred pixels out, and was caught again: played, four times in
+		# five seconds.
+		var anchor := level.call("_anchor_now") as Vector2
+		var to_reach := creature.global_position.x - Bakunawa.CONE_LENGTH - anchor.x
+		_check(to_reach / BED_SWIM >= 2.0,
+			"and far enough back to read that before it can see them again",
+			"%.0f px short of its reach: %.1f s of swimming at %.0f px/s"
+				% [to_reach, to_reach / BED_SWIM, BED_SWIM])
 		_check(not bool(director.call("is_solved", "L3_N2")),
 			"and the encounter is not quietly resolved by losing it",
 			"L3_N2 still open")

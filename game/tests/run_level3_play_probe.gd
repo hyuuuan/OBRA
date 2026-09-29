@@ -14,6 +14,7 @@ extends SceneTree
 ## Every suite was green through all of it. This probe walks.
 
 const RosterFixtures = preload("res://tests/roster_fixtures.gd")
+const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 
 var level: Node2D
 var results: Array[String] = []
@@ -53,6 +54,20 @@ func _play(route: String) -> void:
 		level.call("_end_the_opening", true)
 	var director = level.get("director")
 	var tutorial = level.get("tutorial")
+	var lines = level.get("script_lines")
+	# The brush is the PROFILE's once found, so a second play -- this probe's dive, a player's
+	# replay -- never meets it or its lesson. Asked of the first play only.
+	var first_play := route == "boat"
+
+	# ⚠ ONE THING AT A TIME. The shore's instruction went up on walking onto the beach, about a
+	# brush not yet found; the crossing's opening line fired on picking the brush up, beside the
+	# brush's own line, its lesson and a checkpoint. Asked on the way, before the brush.
+	if first_play:
+		await _walk_to_x(520.0)
+		await _drain_dialogue(route)
+		_check(not bool(lines.call("has_heard", "L3_B0_SHORE.sub1")),
+			"the shore's instruction waits for the brush (%s)" % route,
+			"not said on walking onto the beach")
 
 	# THE SHORE: the brush, then a swimmer drawn at the waterline -- where the objective points,
 	# and inside the crossing's volume, which is the case that used to answer the crossing.
@@ -63,12 +78,17 @@ func _play(route: String) -> void:
 	_check(profile != null and bool(profile.call("has_new_brush")),
 		"the brush is taken on foot (%s)" % route,
 		"the drain is armed from here")
-	# The brush is the PROFILE's once found, so a second play -- this probe's dive, a player's
-	# replay -- never meets it or its lesson. Asked of the first play only.
-	var first_play := route == "boat"
 	if first_play:
 		_check(tutorial != null and bool(tutorial.call("has_taught", "new_brush")),
 			"and its lesson is shown (%s)" % route, "it used to wait on a busy hint bar forever")
+		_check(bool(lines.call("has_heard", "L3_B0_SHORE.sub1"))
+				and not bool(lines.call("has_heard", "L3_N1.enter")),
+			"and it brings the instruction, not the crossing (%s)" % route,
+			"the crossing's opening waits for the practice")
+		level.call("refresh_objective")
+		var objective := String((level.get("objective_banner") as Control).call("text"))
+		_check(objective.begins_with("Press %s " % ControlsKeys.key_cap_for("redraw")),
+			"and the objective says which key draws (%s)" % route, "\"%s\"" % objective)
 	await _walk_to_x(925.0)
 	await _drain_dialogue(route)
 	await _become("fish")
@@ -92,6 +112,16 @@ func _play(route: String) -> void:
 	overlay_seen = await _drain_dialogue(route) or overlay_seen
 	_check(overlay_seen, "the fork is offered after the practice (%s)" % route,
 		"the choice overlay opened")
+	# ⚠ AFTER ITS OWN INTRODUCTION. The two ways across were hint-bar lines, and the bar stands
+	# down while a choice is open -- so they were read after the crossing had been chosen, out
+	# at sea. Asked of what the box SHOWED before the choice, not of what had fired: lines fired
+	# on the frame the choice opens are said behind it.
+	if first_play:
+		_check(bool(fork_shown.get("opening", false)) and bool(fork_shown.get("ways", false)),
+			"and only after the way across has been said (%s)" % route,
+			"opening line %s, the two ways %s, before the choice opened" % [
+				"shown" if fork_shown.get("opening", false) else "NOT shown",
+				"shown" if fork_shown.get("ways", false) else "NOT shown"])
 
 	if route == "boat":
 		await _boat(director)
@@ -186,6 +216,13 @@ func _walk_to_x(x: float) -> void:
 	Input.action_release(dir)
 
 
+## Every line the dialogue box put up, in the order it put them up, as they were pressed through.
+var box_lines: Array[String] = []
+## What had been SHOWN about the crossing when its choice first opened -- not merely fired: lines
+## fired on the frame the choice opens are said behind it. See the fork's check.
+var fork_shown := {}
+
+
 ## Press through any open dialogue, and answer the fork's overlay with the route being played.
 ## Returns whether the overlay was seen.
 func _drain_dialogue(route: String) -> bool:
@@ -194,6 +231,11 @@ func _drain_dialogue(route: String) -> bool:
 		var overlay := level.get_node_or_null(^"DialogueChoiceOverlay")
 		if overlay != null and overlay.has_method("is_open") and bool(overlay.call("is_open")):
 			saw_overlay = true
+			if fork_shown.is_empty():
+				var shown := "\n".join(box_lines)
+				fork_shown["opening"] = shown.contains("That is the whole of it")
+				fork_shown["ways"] = shown.contains("Two ways across") \
+					and shown.contains("Or walk the sand")
 			if route.is_empty():
 				return true
 			overlay.call("_on_route_pressed", "artist" if route == "boat" else "pragmatist")
@@ -203,6 +245,9 @@ func _drain_dialogue(route: String) -> bool:
 		for node in get_nodes_in_group(DialogueBox.GROUP):
 			if node.has_method("is_open") and bool(node.call("is_open")):
 				open = true
+				var line := String(node.call("current_line"))
+				if box_lines.is_empty() or box_lines.back() != line:
+					box_lines.append(line)
 		if not open and not paused:
 			return saw_overlay
 		await _press(&"ui_accept")

@@ -64,7 +64,8 @@ func _fail(what: String, detail: String) -> void:
 ## fork was the one trimmed -- "Something that can LIGHT or STRIKE -- or slip by while it is
 ## loo..." -- so the only words on screen saying there was a third way past cut off in the middle
 ## of saying it. So was the first line of the level. Measured with the banner's own font at its
-## own size: every line, and every `.tags` line with its own obstacle's tags put into it.
+## own size: every line, and every `.tags` line with its own obstacle's tags put into it, each
+## with its `{key:...}` written out as the key it names.
 ##
 ## ⚠ WHICH OBSTACLE A `.tags` LINE SPEAKS FOR is level_3.gd's _current_objective's to decide, and
 ## it is written down here for the same reason: a `.tags` line with no entry here fails rather
@@ -100,6 +101,9 @@ func _audit_objectives_fit(level: Dictionary) -> void:
 		readings.append(String(table[key]).replace("{tags}", String(level_scene.call(
 			"_objective_tags", needed, String(spec.get("match", "all"))))))
 	var cut: Array[String] = []
+	for index in range(readings.size()):
+		# With its keys in, the way the banner writes it.
+		readings[index] = String(level_scene.call("with_keys", readings[index]))
 	for line in readings:
 		var width := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
 		if width > ObjectiveBanner.MAX_WIDTH or line.contains("no obstacle to take"):
@@ -450,12 +454,16 @@ func _audit_no_objective_names_a_class(level: Dictionary) -> void:
 	var terms := _class_terms()
 	var offenders: Array[String] = []
 	var counted := 0
+	# ⚠ READ AS SHOWN. A `{key:redraw}` is written out as "R" before anybody sees it -- and
+	# `key` is one of the fifty, so read raw every line that names a key named a class.
+	var base = load("res://scripts/level_base.gd")
 	for key_value: Variant in (level.get("objectives", {}) as Dictionary).keys():
 		var key := String(key_value)
 		if key.begins_with("$"):
 			continue
 		counted += 1
-		var named := _names_a_class(String((level["objectives"] as Dictionary)[key]), terms)
+		var shown := String(base.with_keys(String((level["objectives"] as Dictionary)[key])))
+		var named := _names_a_class(shown, terms)
 		if not named.is_empty():
 			offenders.append("objective '%s' names '%s'" % [key, named])
 	_check(offenders.is_empty(), "no objective names a class",

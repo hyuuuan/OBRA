@@ -734,6 +734,107 @@ on screen and photographing each step. Three things, each its own commit:
   "Watch where its light goes, apo. Cross while it is turned away." `run_bakunawa_probe` measures
   the shadow and the window against the swimmer's own bed speed (both fail on the old sweep).
 
+## The flow, one thing at a time (2026-09-29)
+
+Kent: *"make it more playable like especially the instructions and it should be clear like the
+flow and stuff since its still so confusing"*. Both routes were played again by a recorder that
+walks, draws where the objective points, answers each choice with its overlay, and logs every line
+of text on screen -- the objective banner, the hint bar, the dialogue box, the prompts and the
+lessons -- with the moment each went up. Few words were missing: three objective lines for the
+boat route. Most of what was wrong was WHEN things were said: before the thing they were about,
+over one another, behind a choice, or without saying how.
+
+**The objectives said the goal, not the move.** None said which key does it. An objective line may
+now carry `{key:action}` (`LevelBase.with_keys`), which the banner shows as the key that action is
+bound to now -- the lookup the on-screen prompts use, so a player who rebound a key is told the one
+they chose. Lines without a token are untouched, so no other level changed. Every Dagat line is
+the next action now:
+
+| Beat | Was | Now |
+|---|---|---|
+| The brush | Something in the sand is catching the light | Pick up what is catching the light in the sand |
+| The practice | Draw something that can SWIM here, and watch the ink | Press R and draw something that can SWIM |
+| The boat, chosen | "Get to the far side" -- the goal of the whole level -- until the bangka was in the water | Press Q to change back, then walk the beach → Walk the beach and find what washed up → Press E at the bangka to get in → Hold D to row out across the open water |
+| The dive, chosen | Swim along the bottom for the far side. Watch the ink | Hold S to dive, then swim along the bottom |
+| The sneak | Keep out of its light and slip past it to the far side | Wait until its light turns away, then get past it |
+| Light, strike | Draw something that can throw LIGHT, and show it where to look | Press R and draw something that throws LIGHT · Press R, draw something that can STRIKE, and hit it |
+
+"Show it where to look" asked for something the game does by itself once the light is drawn.
+
+**The start said four things at once, in the wrong order.** The volumes a player walks through
+overlap, and each spoke on entry:
+
+- The shore's instruction -- "No counting down any more... Try something that can SWIM" -- went up
+  six seconds in, about a brush the player had not found (the shore's volume starts at 350, the
+  brush lies at 620). It is said when the brush is taken.
+- The crossing's opening -- "That is the whole of it, then. She never painted the far side" --
+  fired on picking the brush up (the crossing's volume starts at 640), on the same frame as the
+  checkpoint, the brush's lesson and Lolo's line about the brush, and about a crossing the player
+  had not been shown. It is held until the practice is answered.
+- The two ways across, and the practice's "Feel that? It is going down while you stand there",
+  were hint-bar lines. The bar stands down under a modal, so played through, the ways across were
+  shown AFTER the crossing had been chosen, out at sea. They are lore now, in the conversation
+  before the choice, and `once`. The level also says them itself when the practice is answered
+  (`_open_the_crossing`) rather than leaving them to the crossing's volume: the practice's answer
+  stops the world, a stopped world's volumes do not see the new body arrive, and in one recording
+  the crossing was entered only on the frame its choice opened (see Tests below).
+- Both choices wait for the conversation that sets them up, instead of opening over it.
+
+So the practice now ends: "Feel that?" → "Her old one gave you a moment" → "That is the whole of
+it, then" → "Two ways across" → "Or walk the sand" → the choice.
+
+**The bakunawa lost its introduction.** Its volume reaches west of where its arrival is announced,
+so a swimmer heard "Something that can throw LIGHT..." before "Wait. Wait. Do you see how it is
+going". Its arrival is now said on entering the encounter, before its answers. From the boat
+nothing at all was said, and that was the dialogue box: the encounter is entered a tenth of a
+second after the shadow scene's last line, inside the box's 0.16 s fade-out, and `speak()` started
+a conversation only when the box was invisible -- so it was queued, never started, and thrown away
+by the hide at the end of the fade. The box now starts a conversation whenever none is running,
+and runs one fade at a time (a new fade cancels the hide the old one was going to do). Every
+level's dialogue goes through this.
+
+**Lolo's lines replaced one another before they could be read.** On the dive his story and the
+coral field's facts both arrive on the hint bar, which writes each new line straight over the
+last; "Your lola was never the same after" was a starfish fact within a second. His advice now
+stands for its reading time (the bar's own measure, 2.6 to 7 s by length) before anything of his
+replaces it, and what arrives meanwhile waits its turn. A coral fact is about the thing being
+passed, so it does not queue behind him: it waits while he talks, is said if the player is still
+within 260 px of the coral, and is otherwise dropped unfired -- still there if they swim back.
+Whatever was waiting when a route is chosen is dropped. Played through, story and facts arrive 2.5
+to 5 seconds apart along the whole dive.
+
+**And four smaller things.**
+
+- Being seen said "It turned. Back to where you were" -- what happened, not what to do -- and put
+  the player back 100 px outside the reach, where a player still holding forward (every player,
+  the first time) was caught four times in five seconds. Now "It saw you. Wait until its light
+  turns away, then go.", 220 px out: about two seconds of swimming, time to read it and look up.
+- "Not yet, apo. Try it here first, where you can still stand up" did not say what "it" was. Now
+  "Not yet, apo. Press R and try a shape here on the sand first."
+- The E prompt read PICK UP for a frame as a rower left the shallows: a prompt being taken down was
+  restyled with the default verb while it faded (`ActionPromptHUD`, every level).
+- Run up on the island at the end, the bangka was a boat on the sand like any other, and the
+  prompt offered to PICK UP the boat while Lolo was saying goodbye. It is only ever boarded.
+
+**Tests.** `run_level3_play_probe` makes 23 checks now. Four are new, each shown failing with its
+fix taken out, and only its own: the shore's instruction waits for the brush; the brush brings
+the instruction and not the crossing; the objective names the key that draws; and the two ways
+across are SHOWN in the conversation before the fork's choice opens -- read off the lines the box
+put up, because asking whether they had fired was not enough: lines fired on the frame the choice
+opens are said behind it. That last check fails with the two lines back on the hint bar. It does
+not fail with `_open_the_crossing`'s own call to them removed: in the probe's path, headless or
+windowed, the old body is still inside the crossing's volume when the practice is answered, so
+entering the crossing says them in time anyway. The recording that lost them could not be made
+to happen again, and the call stays so that the lines do not depend on that timing.
+
+`run_level3_boat_probe` checks the bakunawa is introduced before its choice on the boat route (fails
+with the dialogue box's fade fix reverted). `run_level3_trouble_probe` checks that being seen says
+to wait for the light to turn away, and puts the player at least two seconds of swimming short of
+the reach (one fails with the old line, the other at the old 100 px, which is 1.0 s).
+`run_level3_audit` reads each objective as the banner shows it -- `key` is one of the fifty classes,
+so the raw `{key:redraw}` failed "no objective names a class" on a word the player never sees -- and
+`run_level3_finish_probe` asks for each coral fact the way a player gets one: swim up and stay.
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.

@@ -475,6 +475,13 @@ static func seed_of(key: String) -> int:
 func _on_coral_touched(body: Node, key: String) -> void:
 	if not _is_the_player(body):
 		return
+	# ⚠ NOT OVER HIM. A fact is about the thing the player is passing, and it waits while Lolo
+	# is still being read (see _pace_the_advice) rather than being queued behind him -- queued,
+	# it would be about a coral three screens back. Not fired until it is said, so a fact that
+	# never got its moment is still there if the player swims back.
+	if _advice_left > 0.0 or not _advice_waiting.is_empty():
+		_coral_waiting = key
+		return
 	# `once` on the line does the not-twice part; firing again is free and says nothing.
 	_speak(script_lines.fire("CORAL.%s" % key))
 
@@ -725,6 +732,9 @@ func _on_brush_touched(body: Node, pickup: Area2D) -> void:
 	if morph_card != null:
 		morph_card.set_meter_caption("INK")
 	_say_why("Take it, apo. Hers is spent — this one was waiting for you.")
+	# The shore's instruction, held back until now -- and read after the line above.
+	if director != null and director.current_obstacle() == "L3_B0_SHORE":
+		_speak_current_stage("L3_B0_SHORE")
 	pickup.queue_free()
 
 
@@ -960,6 +970,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	var delta := get_physics_process_delta_time()
 	_row(delta)
 	_frame_the_water(anchor_position)
+	_pace_the_advice(delta)
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
 	_tell_the_crossing(anchor_position)
@@ -1016,7 +1027,9 @@ func _watch_the_bakunawa(anchor_position: Vector2, delta: float) -> void:
 
 	if route == "pragmatist" and not director.is_solved("L3_N2"):
 		if _bakunawa.sees(anchor_position, _carrying_a_lit_light()):
-			_lose_the_stretch("It turned. Back to where you were.")
+			# ⚠ WHAT TO DO, NOT ONLY WHAT HAPPENED. "It turned. Back to where you were" was
+			# the whole of it, said to a player who then swam straight back into the same beam.
+			_lose_the_stretch("It saw you. Wait until its light turns away, then go.")
 			return
 		# Past the far end of the arena, in the dark, with nothing drawn at it.
 		if anchor_position.x > _bakunawa.global_position.x + 420.0:
@@ -1200,7 +1213,106 @@ func _dress_the_bangka(boat: Node2D) -> void:
 func _on_shore_fork_approached() -> void:
 	_live_node_obstacle = "L3_N1"
 	dialogue_node = _shore_node
+	# The crossing's own opening line, held back from the brush (see _on_obstacle_arrived),
+	# is said here -- and the choice waits for it and for whatever the practice is still
+	# saying, instead of opening over a conversation the player is part-way through.
+	if _crossing_said_later and director != null and director.is_solved("L3_B0_SHORE"):
+		_crossing_said_later = false
+		_speak_on_arrival("L3_N1.enter")
+	if dialogue_box != null and dialogue_box.is_open():
+		if not dialogue_box.conversation_finished.is_connected(_on_dialogue_node_approached):
+			dialogue_box.conversation_finished.connect(_on_dialogue_node_approached,
+				CONNECT_ONE_SHOT)
+		return
 	_on_dialogue_node_approached()
+
+
+## ⚠ THE CROSSING'S OPENING LINE WAITS FOR THE PRACTICE. Its volume starts at 640 and the
+## brush lies at 620, so "That is the whole of it, then. She never painted the far side" was
+## said the moment the brush was picked up -- on the same frame as the checkpoint, the brush's
+## lesson and Lolo's line about the brush, four things at once, and about a crossing the player
+## had not been shown yet. It is said at the fork, just before the choice it introduces.
+var _crossing_said_later := false
+
+
+func _on_obstacle_arrived(obstacle_id: String) -> void:
+	if obstacle_id == "L3_N1" and director != null and not director.is_solved("L3_B0_SHORE"):
+		_crossing_said_later = true
+		return
+	super._on_obstacle_arrived(obstacle_id)
+
+
+## ⚠ AND THE SHORE'S INSTRUCTION WAITS FOR THE BRUSH. The shore's volume starts at 350, so its
+## instruction -- "No counting down any more... Try something that can SWIM" -- went up on the
+## hint bar six seconds into the level, about a brush the player had not picked up. It is said
+## when the brush is taken instead (see _on_brush_touched).
+func _speak_current_stage(obstacle_id: String) -> void:
+	if obstacle_id == "L3_B0_SHORE" and not PlayerProfile.has_new_brush():
+		return
+	super._speak_current_stage(obstacle_id)
+
+
+# --- Lolo, one line at a time ---------------------------------------------------------------
+
+## ⚠ A LINE OF LOLO'S IS READ BEFORE THE NEXT ONE REPLACES IT. The hint bar writes each new
+## line straight over the last, which is right for "press E to read the sign" and wrong for
+## him: on the dive his story and the coral field's facts all arrive on this bar -- a fact every
+## two or three hundred pixels, between lines of the story -- and played through they replaced
+## one another within a second. "Your lola was never the same after" was a starfish fact before
+## it could be read. Each batch of his now stands for its reading time, the bar's own measure,
+## before anything of his replaces it; what arrives meanwhile waits its turn. Counted down on
+## the physics step, so a conversation that stops the world stops the count too.
+var _advice_waiting: Array = []
+var _advice_left := 0.0
+## The coral fact the player swam up to while he was talking. See _on_coral_touched.
+var _coral_waiting := ""
+## How close the player still has to be to a coral for its fact to be worth saying late.
+const CORAL_STILL_NEAR := 260.0
+
+
+func _post_advice(advice: Array[Dictionary]) -> void:
+	if advice.is_empty():
+		return
+	if _advice_left > 0.0 or not _advice_waiting.is_empty():
+		_advice_waiting.append(advice)
+		return
+	_advise_now(advice)
+
+
+func _advise_now(advice: Array[Dictionary]) -> void:
+	super._post_advice(advice)
+	var reading := 0.0
+	for line: Dictionary in advice:
+		reading += _reading_time(String(line.get("text", "")))
+	_advice_left = reading
+
+
+## Immediate words -- a refill, being seen, the brush -- still go up at once, and are read
+## before his next line replaces them.
+func _say_why(text: String) -> void:
+	super._say_why(text)
+	_advice_left = maxf(_advice_left, _reading_time(text))
+
+
+static func _reading_time(text: String) -> float:
+	return clampf(float(text.length()) * HintBar.BEAT_PER_CHAR, HintBar.BEAT_MIN,
+		HintBar.BEAT_MAX)
+
+
+func _pace_the_advice(delta: float) -> void:
+	if _advice_left > 0.0:
+		_advice_left = maxf(0.0, _advice_left - delta)
+		return
+	if not _advice_waiting.is_empty():
+		_advise_now(_advice_waiting.pop_front())
+		return
+	if _coral_waiting.is_empty():
+		return
+	var key := _coral_waiting
+	_coral_waiting = ""
+	var spot: Variant = coral_field().get(key, null)
+	if spot is Vector2 and _anchor_now().distance_to(spot as Vector2) <= CORAL_STILL_NEAR:
+		_speak(script_lines.fire("CORAL.%s" % key))
 
 
 ## ⚠ THE SHORE BEAT GATES THE FORK, AND WITHOUT THIS DAGAT IS NOT A DRAWING GAME.
@@ -1219,7 +1331,8 @@ func _dialogue_node_is_ready() -> bool:
 		return true
 	if director.is_solved("L3_B0_SHORE"):
 		return true
-	_say_why("Not yet, apo. Try it here first, where you can still stand up.")
+	_say_why("Not yet, apo. Press %s and try a shape here on the sand first."
+		% ControlsKeys.key_cap_for("redraw"))
 	return false
 
 
@@ -1268,7 +1381,32 @@ func _on_crossing_exited(_obstacle_id: String) -> void:
 
 func _on_shore_answered(obstacle_id: String, _route: String, _label: String,
 		_attempts: int, _tier: int) -> void:
-	if obstacle_id == "L3_B0_SHORE" and _inside_crossing and director != null:
+	if obstacle_id == "L3_B0_SHORE":
+		_open_the_crossing.call_deferred()
+
+
+## ⚠ DEFERRED, SO THE PRACTICE FINISHES ITS OWN SENTENCE FIRST. This runs from the director's
+## solved signal, which reaches it before the level has spoken the practice's own answer --
+## "Feel that? It is going down while you stand there" -- so said straight away, the crossing's
+## opening came first and the practice's lines were tacked on after the way across. On the
+## next frame they are already in the box, and these join the same conversation after them:
+## the crossing's opening line (held back from the brush), then the two ways across, then the
+## choice.
+##
+## ⚠ AND THE TWO WAYS ACROSS ARE SAID HERE TOO, NOT LEFT TO THE CROSSING'S VOLUME. They are the
+## crossing's teach lines and are said when it is entered -- usually by the enter_obstacle below,
+## the old body still being inside the volume when this runs. But the body that answers the
+## practice is new, the practice's answer stops the world, and a stopped world's volumes do not
+## see a new body arrive: in one recording the crossing was entered only after the conversation,
+## on the frame the choice opened, and the two ways across were said BEHIND the choice. The play
+## probe could not make that happen again, headless or windowed; said here, the lines do not
+## depend on it. They are `once`, so entering afterwards says nothing.
+func _open_the_crossing() -> void:
+	if _crossing_said_later:
+		_crossing_said_later = false
+		_speak_on_arrival("L3_N1.enter")
+		_speak(script_lines.fire("L3_N1.teach"))
+	if _inside_crossing and director != null:
 		director.enter_obstacle("L3_N1")
 
 
@@ -1346,7 +1484,25 @@ func _on_bakunawa_approached() -> void:
 	# have to point at this fork before it runs.
 	_live_node_obstacle = "L3_N2"
 	dialogue_node = _bakunawa_node
+	# The choice after the conversation that sets it up, never over it -- see the shore's.
+	if dialogue_box != null and dialogue_box.is_open():
+		if not dialogue_box.conversation_finished.is_connected(_on_dialogue_node_approached):
+			dialogue_box.conversation_finished.connect(_on_dialogue_node_approached,
+				CONNECT_ONE_SHOT)
+		return
 	_on_dialogue_node_approached()
+
+
+## ⚠ THE CREATURE IS MET BEFORE ITS ANSWERS ARE. Its volume reaches west of the place its
+## arrival is announced, so a swimmer entered the encounter first and heard the three ways of
+## dealing with it -- "Something that can throw LIGHT..." -- before Lolo had seen it: "Wait.
+## Wait. Do you see how it is going". And from the boat the arrival was never said at all, the
+## announce area being under the keel. So entering says the arrival first, if it has not been
+## said, and then the answers, as one conversation.
+func _on_obstacle_entered(obstacle_id: String) -> void:
+	if obstacle_id == "L3_N2":
+		_speak_on_arrival("L3_N2.enter")
+	super._on_obstacle_entered(obstacle_id)
 
 
 ## ⚠ THE ENCOUNTER STARTS AT THE COMMIT, NOT AT THE SOLVE. Two of its three resolutions need
@@ -1354,6 +1510,8 @@ func _on_bakunawa_approached() -> void:
 ## before they can slip through it, and the creature has to turn on them before they can
 ## fight it. Only the Artist one waits for a drawing.
 func _on_route_committed_here(obstacle_id: String, route: String) -> void:
+	# Whatever of Lolo's was still waiting to be said was about the choice just made.
+	_advice_waiting.clear()
 	# The dive chosen while the practice's swimmer is still lying on the sand: that one goes
 	# in too. See _where_a_new_form_arrives -- the same move, for a body that already exists.
 	if obstacle_id == "L3_N1" and route == "pragmatist":
@@ -1415,6 +1573,10 @@ func _lose_the_stretch(why: String) -> void:
 		_bakunawa.enter_fight()
 
 
+## How far outside the creature's reach a caught player is put back. See _stand_them_clear_of_it.
+const RESET_CLEARANCE := 220.0
+
+
 ## ⚠ A CHECKPOINT RECORDS WHERE THE PLAYER WAS, NOT WHERE ITS NODE IS. CP3b's volume is 220
 ## wide and the snapshot is taken at whatever point inside it the apo happened to cross, so on
 ## the stealth route the place a reset returns to is regularly INSIDE the creature's cone --
@@ -1435,7 +1597,12 @@ func _stand_them_clear_of_it() -> void:
 	if player == null or not is_instance_valid(player) \
 			or not player.has_method("apply_morph_state"):
 		return
-	var clear_x := _bakunawa.global_position.x - BakunawaClass.CONE_LENGTH - 100.0
+	# ⚠ TWO SECONDS OF SWIMMING CLEAR, NOT ONE. At a hundred pixels past the reach, a player
+	# still holding forward when the reset landed -- which is every player, the first time --
+	# was back inside it in a second, before "wait until its light turns away" could be read,
+	# and was caught again: played, four times in five seconds. Along the bed a swimmer makes
+	# about a hundred pixels a second, so this is the time to read the line and look up.
+	var clear_x := _bakunawa.global_position.x - BakunawaClass.CONE_LENGTH - RESET_CLEARANCE
 	var anchor := _anchor_now()
 	if anchor.x <= clear_x:
 		return
@@ -1793,6 +1960,14 @@ func _current_objective() -> Dictionary:
 		return {"key": "practice", "obstacle": "L3_B0_SHORE",
 			"target": _mark_position("WaterlineMark")}
 	if not director.is_solved("L3_N1"):
+		# ⚠ ONCE THE BOAT IS CHOSEN, THE LINE IS ABOUT FINDING IT. It said "Get to the far side"
+		# to a player who had just said "I will walk the sand first" -- the only line on screen,
+		# and it named the goal of the whole level instead of the next thing to do. And the
+		# practice's swimmer is usually still the body they are in, which cannot walk the sand.
+		if director.committed_route("L3_N1") == "artist":
+			if not (player is Wanderer):
+				return {"key": "find_the_boat_changed", "target": _mark_position("BangkaMark")}
+			return {"key": "find_the_boat", "target": _mark_position("BangkaMark")}
 		return {"key": "cross", "obstacle": "L3_N1", "target": _mark_position("CoralMark")}
 	# ⚠ ON THE WAY, NOT YET THERE. Finding the boat -- or drawing the swimmer -- answers the
 	# crossing on the beach, and the line jumped straight to the encounter: "It cannot see.
@@ -1800,6 +1975,12 @@ func _current_objective() -> Dictionary:
 	# seen the creature it means. Until they reach its stretch, the line is about the crossing.
 	if not director.was_entered("L3_N2") and not director.is_solved("L3_N2"):
 		if director.committed_route("L3_N1") == "artist":
+			# Found is not aboard: the bangka goes into the water with E, and E again gets in.
+			if not _aboard():
+				var boat: Variant = _launched_boat.global_position \
+					if _launched_boat != null and is_instance_valid(_launched_boat) \
+					else _mark_position("BangkaMark")
+				return {"key": "board_the_boat", "target": boat}
 			return {"key": "cross_by_boat", "target": _mark_position("SurfaceMark")}
 		return {"key": "cross_by_dive", "target": _mark_position("BakunawaMark")}
 	if not director.is_solved("L3_N2"):
@@ -1812,6 +1993,24 @@ func _current_objective() -> Dictionary:
 		return {"key": "bakunawa", "obstacle": "L3_N2",
 			"target": _mark_position("BakunawaMark")}
 	return {"key": "island", "target": _mark_position("IslandMark")}
+
+
+## ⚠ THE BANGKA IS NEVER PICKED UP. It is found, not drawn, and it is the only way across on
+## its route: E boards it and E gets off it while it is afloat, and nothing else. Out of the
+## water -- run up on the island at the end -- it was a sailboat on the sand like any other,
+## and the prompt offered to put it in the bag while Lolo said goodbye.
+func _nearest_interactable_utility() -> PhysicsShapeObject:
+	var nearest := super._nearest_interactable_utility()
+	if nearest != null and nearest == _launched_boat and not _launched_boat.boards_on_interact():
+		return null
+	return nearest
+
+
+## Whether the apo is sitting in the bangka.
+func _aboard() -> bool:
+	return _launched_boat != null and is_instance_valid(_launched_boat) \
+		and player != null and is_instance_valid(player) \
+		and _launched_boat.has_passenger(player)
 
 
 func _mark_position(mark_name: String) -> Variant:
