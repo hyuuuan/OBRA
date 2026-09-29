@@ -71,9 +71,9 @@ var _arrow: Control
 var current_speaker_name := ""
 
 ## Lines still to be read, each {text, speaker}. The box shows the head of it.
+var _queue: Array[Dictionary] = []
 ## The fade the box is under now, so the next one can cancel it. See _fade_to.
 var _fade: Tween
-var _queue: Array[Dictionary] = []
 var _full := ""
 var _shown := 0.0
 var _hold := 0.0
