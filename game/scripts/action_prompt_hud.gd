@@ -113,6 +113,11 @@ func follow(target: Node2D) -> void:
 func set_pickup_available(available: bool, object_name: String = "",
 		verb: String = "PICK UP") -> void:
 	_set_wanted(_pickup, available)
+	# ⚠ A PROMPT GOING AWAY KEEPS ITS WORDS. Taken down, it was handed the default verb and
+	# restyled with it while it faded, so the moment a rower left the shallows -- where E gets
+	# off -- the prompt over their head read PICK UP for a frame on its way out.
+	if not available:
+		return
 	var action := verb.capitalize()
 	_pickup.tooltip_text = "%s %s" % [action, object_name] if not object_name.is_empty() \
 		else action
@@ -123,6 +128,9 @@ func set_pickup_available(available: bool, object_name: String = "",
 
 func set_use_available(available: bool, object_name: String = "", verb: String = "USE") -> void:
 	_set_wanted(_use, available)
+	# The same as the pick-up prompt: going away, it keeps the word it was showing.
+	if not available:
+		return
 	_use.tooltip_text = "Use %s" % object_name if not object_name.is_empty() else "Use held object"
 	# Restyled only when the word changes: the key cap is rebuilt by `_style_prompt`, and doing
 	# that every frame would churn a node a frame.
