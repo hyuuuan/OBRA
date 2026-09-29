@@ -827,11 +827,13 @@ windowed, the old body is still inside the crossing's volume when the practice i
 entering the crossing says them in time anyway. The recording that lost them could not be made
 to happen again, and the call stays so that the lines do not depend on that timing.
 
-`run_level3_boat_probe` checks the bakunawa is introduced before its choice on the boat route
-(fails with the dialogue box's fade fix reverted). `run_level3_audit` reads each objective as the
-banner shows it -- `key` is one of the fifty classes, so the raw `{key:redraw}` failed "no
-objective names a class" on a word the player never sees -- and `run_level3_finish_probe` asks
-for each coral fact the way a player gets one: swim up and stay.
+`run_level3_boat_probe` checks the bakunawa is introduced before its choice on the boat route (fails
+with the dialogue box's fade fix reverted). `run_level3_trouble_probe` checks that being seen says
+to wait for the light to turn away, and puts the player at least two seconds of swimming short of
+the reach (one fails with the old line, the other at the old 100 px, which is 1.0 s).
+`run_level3_audit` reads each objective as the banner shows it -- `key` is one of the fifty classes,
+so the raw `{key:redraw}` failed "no objective names a class" on a word the player never sees -- and
+`run_level3_finish_probe` asks for each coral fact the way a player gets one: swim up and stay.
 
 ## Build order
 
