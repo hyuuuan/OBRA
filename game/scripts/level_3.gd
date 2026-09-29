@@ -1027,7 +1027,9 @@ func _watch_the_bakunawa(anchor_position: Vector2, delta: float) -> void:
 
 	if route == "pragmatist" and not director.is_solved("L3_N2"):
 		if _bakunawa.sees(anchor_position, _carrying_a_lit_light()):
-			_lose_the_stretch("It turned. Back to where you were.")
+			# ⚠ WHAT TO DO, NOT ONLY WHAT HAPPENED. "It turned. Back to where you were" was
+			# the whole of it, said to a player who then swam straight back into the same beam.
+			_lose_the_stretch("It saw you. Wait until its light turns away, then go.")
 			return
 		# Past the far end of the arena, in the dark, with nothing drawn at it.
 		if anchor_position.x > _bakunawa.global_position.x + 420.0:
@@ -1582,13 +1584,21 @@ func _lose_the_stretch(why: String) -> void:
 ## be answered, so the reach is what this measures against.
 ##
 ## Their depth is kept, and the distance west is made up only as far as it has to be.
+const RESET_CLEARANCE := 220.0
+
+
 func _stand_them_clear_of_it() -> void:
 	if _bakunawa == null or not is_instance_valid(_bakunawa):
 		return
 	if player == null or not is_instance_valid(player) \
 			or not player.has_method("apply_morph_state"):
 		return
-	var clear_x := _bakunawa.global_position.x - BakunawaClass.CONE_LENGTH - 100.0
+	# ⚠ TWO SECONDS OF SWIMMING CLEAR, NOT ONE. At a hundred pixels past the reach, a player
+	# still holding forward when the reset landed -- which is every player, the first time --
+	# was back inside it in a second, before "wait until its light turns away" could be read,
+	# and was caught again: played, four times in five seconds. Along the bed a swimmer makes
+	# about a hundred pixels a second, so this is the time to read the line and look up.
+	var clear_x := _bakunawa.global_position.x - BakunawaClass.CONE_LENGTH - RESET_CLEARANCE
 	var anchor := _anchor_now()
 	if anchor.x <= clear_x:
 		return
