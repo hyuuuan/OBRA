@@ -153,10 +153,7 @@ func _audit_it_is_put_back_together() -> void:
 	fresh.queue_free()
 	await process_frame
 
-## ⚠ THE PANEL HAS TO FIT ON THE SCREEN IT IS SHOWN ON. Its minimum size was taller than the
-## 900-unit viewport once a title, a rule, a status line and the frame's own ring were added
-## to the stage, so the bottom border and the line telling the player what to do sat off the
-## bottom edge. Nothing measured it; it was found in a screenshot.
+
 ## ⚠ PAYYO'S CREASE IS ON THE CANVAS IT CREASED. Level 1's Protector route folded
 ## canvas_2_pista -- this plaza. It used to be drawn on the table, while the table assembled the
 ## plaza; the table assembles the sea now, a different canvas nobody folded. So with the damage
@@ -196,6 +193,10 @@ func _fold_line_heard(lines: Object) -> bool:
 	return false
 
 
+## ⚠ THE PANEL HAS TO FIT ON THE SCREEN IT IS SHOWN ON. Its minimum size was taller than the
+## 900-unit viewport once a title, a rule, a status line and the frame's own ring were added
+## to the stage, so the bottom border and the line telling the player what to do sat off the
+## bottom edge. Nothing measured it; it was found in a screenshot.
 func _fits_on_screen(overlay: Node) -> Array:
 	var panel := overlay.find_child("Panel", true, false) as Control
 	if panel == null:
