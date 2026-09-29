@@ -71,6 +71,8 @@ var _arrow: Control
 var current_speaker_name := ""
 
 ## Lines still to be read, each {text, speaker}. The box shows the head of it.
+## The fade the box is under now, so the next one can cancel it. See _fade_to.
+var _fade: Tween
 var _queue: Array[Dictionary] = []
 var _full := ""
 var _shown := 0.0
@@ -176,7 +178,12 @@ func speak(lines: Array) -> void:
 	if auto_dismiss:
 		_queue.clear()
 		return
-	if not visible:
+	# ⚠ NOT "IF NOT VISIBLE". A conversation that ends fades the box out for 0.16 s and only
+	# then hides it, and a conversation begun in that window found the box still visible, so it
+	# was queued and never started -- and the next hide_line() threw it away. Dagat lost the
+	# bakunawa's whole introduction to it: from the boat the encounter is entered a tenth of a
+	# second after the shadow scene ends. What matters is whether a conversation is RUNNING.
+	if not _blocking:
 		_advance()
 	UIRouter.refresh_pause(get_tree())
 
@@ -209,7 +216,10 @@ func show_line(text: String, speaker: String = "", seconds: float = 0.0) -> void
 	_portrait.show_for(speaker)
 	_arrow.visible = false
 	set_process(true)
-	if not visible:
+	# A box still fading out is brought back, and the fade that would have hidden it at the end
+	# is cancelled with it (see _fade_to): otherwise the new line was shown for a frame and then
+	# put away by the conversation before it.
+	if not visible or modulate.a < 1.0:
 		visible = true
 		_fade_to(1.0)
 	_relayout()
@@ -310,9 +320,14 @@ func hide_line() -> void:
 ## stays on screen at full opacity underneath. That is exactly when it must go away: a
 ## decision box opens over it and the stale line argues with the question.
 func _fade_to(alpha: float) -> Tween:
+	# One fade at a time. Killing the last one kills whatever it was going to do at its end --
+	# hiding the box -- which is the point when a new line arrives while it is going out.
+	if _fade != null and _fade.is_valid():
+		_fade.kill()
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_property(self, "modulate:a", alpha, 0.16)
+	_fade = tween
 	return tween
 
 
