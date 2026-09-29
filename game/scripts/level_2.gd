@@ -200,11 +200,17 @@ func _build_level_furniture() -> void:
 	assembly = AssemblyClass.new()
 	assembly.name = "ScrapAssembly"
 	add_child(assembly)
+	# ⚠ THE CREASE IS ON THE PLAZA, NOT ON THE TABLE. Payyo's Protector route creased the
+	# canvas it cut out of Lola's chest -- canvas_2_pista, THIS plaza -- and the design's own
+	# first wording is "a visible crease on the painting's background". It sat on the table
+	# while the table assembled the plaza; the table assembles the sea now (see build_scraps),
+	# which is a different canvas and was never folded. So the fold runs through the plaza the
+	# player is walking in, and the table's picture is whole.
 	var creased := PlayerProfile.is_canvas_damaged(CREASED_CANVAS)
-	assembly.set_creased(creased)
-	# ⚠ AND THE SCRIPT HAS TO KNOW TOO. The crease was on the PROFILE and only the assembly
-	# model read it, so `EXIT_MARKER.assembled`'s second line -- "The fold runs right through
-	# it. That was us." -- waited on a flag nothing in this level ever set, and could not
+	if creased:
+		_crease_the_plaza()
+	# ⚠ AND THE SCRIPT HAS TO KNOW TOO. The crease was on the PROFILE and nothing set the flag,
+	# so Lolo's line about it waited on a flag nothing in this level ever set, and could not
 	# fire for anybody. That line is the entire payoff of Payyo's Protector route, the one
 	# LEVEL_1.md carries as a debt because it "costs nothing mechanical". It costs this.
 	if creased and script_lines != null:
@@ -229,6 +235,55 @@ func _build_level_furniture() -> void:
 	_bring_out_the_dancers()
 	_string_the_bunting()
 	_release_the_flock()
+
+
+## Where the fold runs, in world x at the top of the painting, and how far it has wandered by
+## the bottom: between the palm arch and the church, where the plaza is walked through, and a
+## little off vertical, because a fold somebody made in a hurry is not a plumb line.
+const CREASE_X := 1110.0
+const CREASE_LEAN := 46.0
+
+
+## The fold, drawn ON the painted plaza from the top of the painting to its ground line.
+##
+## ⚠ OVER THE PAINTED FRONTS, UNDER THE PEOPLE. The first cut was a child of the backdrop, and
+## the church and the lit house are their own plates standing in front of it -- so the fold ran
+## down the sky and stopped at the first roof, and read as a wire. The fronts are part of the
+## same painting, so the fold goes over them (it is added after them at their z) and under
+## anybody alive standing in the plaza. The backdrop is placed so world x is plate x (see
+## _build_the_doors), which is what makes CREASE_X a place.
+func _crease_the_plaza() -> void:
+	var backdrop := get_node_or_null(^"EnvironmentBaseplate/PlazaBackdrop") as Sprite2D
+	var plane := get_node_or_null(^"EnvironmentBaseplate/GameplayPlane") as Node2D
+	if backdrop == null or backdrop.texture == null or plane == null:
+		return
+	var height := float(backdrop.texture.get_height())
+	var top_y := backdrop.global_position.y - (height * 0.5 if backdrop.centered else 0.0)
+	var fold := _CanvasFold.new()
+	fold.name = "Crease"
+	fold.z_index = -1
+	fold.top = Vector2(CREASE_X, top_y)
+	fold.bottom = Vector2(CREASE_X + CREASE_LEAN, top_y + height)
+	plane.add_child(fold)
+
+
+## Where Level 1's Protector route cut the canvas open. Paper, not ink: a crease is a soft
+## shadow falling away on one side of the fold, a dark crease line, a narrow lit ridge beside it
+## and a faint lift of light on the far side.
+class _CanvasFold extends Node2D:
+	const SHADE := Color(0.086, 0.075, 0.059, 0.11)
+	const DARK := Color(0.086, 0.075, 0.059, 0.66)
+	const LIT := Color(1.0, 0.976, 0.902, 0.58)
+	const LIFT := Color(1.0, 0.976, 0.902, 0.08)
+	var top := Vector2.ZERO
+	var bottom := Vector2.ZERO
+
+	func _draw() -> void:
+		draw_line(top + Vector2(-15.0, 0.0), bottom + Vector2(-15.0, 0.0), SHADE, 26.0)
+		# The crease itself: crisp, because a fold is a line and a soft one reads as a sunbeam.
+		draw_line(top, bottom, DARK, 3.0)
+		draw_line(top + Vector2(3.0, 0.0), bottom + Vector2(3.0, 0.0), LIT, 3.0)
+		draw_line(top + Vector2(12.0, 0.0), bottom + Vector2(12.0, 0.0), LIFT, 14.0)
 
 
 func _roster_ids() -> PackedStringArray:

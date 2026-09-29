@@ -16,6 +16,12 @@
       "text": "The whole town is out. But the painting is in pieces, and they did not walk off."
     },
     {
+      "id": "L2_ST_003",
+      "at": "L2_START.enter",
+      "text": "See the fold, apo? Right through her plaza. That was us. That was a thing we did.",
+      "condition": "canvas_2_creased"
+    },
+    {
       "id": "L2_ST_010",
       "at": "L2_START.teach",
       "kind": "hint",
@@ -314,12 +320,6 @@
       "id": "L2_SC3_002",
       "at": "EXIT_MARKER.assembled",
       "text": "There she is. Piyesta. Look how much of it is people, apo."
-    },
-    {
-      "id": "L2_SC3_003",
-      "at": "EXIT_MARKER.assembled",
-      "text": "The fold runs right through it. That was us. That was a thing we did.",
-      "condition": "canvas_2_creased"
     },
     {
       "id": "L2_SC3_004",

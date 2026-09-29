@@ -29,6 +29,7 @@ func _run() -> void:
 	print("\n===== SCENE 3 =====")
 	await _audit_the_pieces_are_the_ledgers()
 	await _audit_it_is_put_back_together()
+	await _audit_the_crease_is_on_the_plaza()
 	for line in results:
 		print(line)
 	if failures == 0:
@@ -156,6 +157,45 @@ func _audit_it_is_put_back_together() -> void:
 ## 900-unit viewport once a title, a rule, a status line and the frame's own ring were added
 ## to the stage, so the bottom border and the line telling the player what to do sat off the
 ## bottom edge. Nothing measured it; it was found in a screenshot.
+## ⚠ PAYYO'S CREASE IS ON THE CANVAS IT CREASED. Level 1's Protector route folded
+## canvas_2_pista -- this plaza. It used to be drawn on the table, while the table assembled the
+## plaza; the table assembles the sea now, a different canvas nobody folded. So with the damage
+## on the profile the fold is on the plaza, the table's picture is whole, and Lolo says so when
+## the player arrives rather than about a picture it is not on.
+func _audit_the_crease_is_on_the_plaza() -> void:
+	root.get_node("PlayerProfile").call("record_canvas_damage", "canvas_2_pista")
+	var fresh := await _open()
+	var fold := fresh.get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Crease") as Node2D
+	var backdrop := fresh.get_node_or_null(^"EnvironmentBaseplate/PlazaBackdrop") as Sprite2D
+	var spans := false
+	if fold != null and backdrop != null:
+		var top: Vector2 = fold.to_global(fold.get("top"))
+		var bottom: Vector2 = fold.to_global(fold.get("bottom"))
+		var painted := backdrop.get_rect()
+		painted.position += backdrop.global_position
+		spans = absf(top.y - painted.position.y) < 1.0 and absf(bottom.y - painted.end.y) < 1.0
+	_check(fold != null and spans, "the fold runs down the plaza's painting",
+		"top to bottom of the backdrop" if spans else "no fold, or not across the painting")
+	var assembly = fresh.get("assembly")
+	_check(assembly != null and not bool(assembly.call("is_creased")),
+		"and the table's picture is not folded", "a different canvas")
+	# `peek` applies a line's condition, so the fold line is in it only if the level set the
+	# flag the line waits on -- and the greeting has to have been given at all.
+	var lines = fresh.get("script_lines")
+	_check(bool(lines.call("has_heard", "L2_START.enter")) and _fold_line_heard(lines),
+		"and Lolo mentions it when they arrive", "L2_START.enter carries the fold line")
+	fresh.queue_free()
+	for _frame in range(4):
+		await process_frame
+
+
+func _fold_line_heard(lines: Object) -> bool:
+	for line: Variant in lines.call("peek", "L2_START.enter"):
+		if String((line as Dictionary).get("text", "")).contains("fold"):
+			return true
+	return false
+
+
 func _fits_on_screen(overlay: Node) -> Array:
 	var panel := overlay.find_child("Panel", true, false) as Control
 	if panel == null:
