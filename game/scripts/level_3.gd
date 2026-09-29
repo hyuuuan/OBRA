@@ -1793,6 +1793,14 @@ func _current_objective() -> Dictionary:
 		return {"key": "practice", "obstacle": "L3_B0_SHORE",
 			"target": _mark_position("WaterlineMark")}
 	if not director.is_solved("L3_N1"):
+		# ⚠ ONCE THE BOAT IS CHOSEN, THE LINE IS ABOUT FINDING IT. It said "Get to the far side"
+		# to a player who had just said "I will walk the sand first" -- the only line on screen,
+		# and it named the goal of the whole level instead of the next thing to do. And the
+		# practice's swimmer is usually still the body they are in, which cannot walk the sand.
+		if director.committed_route("L3_N1") == "artist":
+			if not (player is Wanderer):
+				return {"key": "find_the_boat_changed", "target": _mark_position("BangkaMark")}
+			return {"key": "find_the_boat", "target": _mark_position("BangkaMark")}
 		return {"key": "cross", "obstacle": "L3_N1", "target": _mark_position("CoralMark")}
 	# ⚠ ON THE WAY, NOT YET THERE. Finding the boat -- or drawing the swimmer -- answers the
 	# crossing on the beach, and the line jumped straight to the encounter: "It cannot see.
@@ -1800,6 +1808,12 @@ func _current_objective() -> Dictionary:
 	# seen the creature it means. Until they reach its stretch, the line is about the crossing.
 	if not director.was_entered("L3_N2") and not director.is_solved("L3_N2"):
 		if director.committed_route("L3_N1") == "artist":
+			# Found is not aboard: the bangka goes into the water with E, and E again gets in.
+			if not _aboard():
+				var boat: Variant = _launched_boat.global_position \
+					if _launched_boat != null and is_instance_valid(_launched_boat) \
+					else _mark_position("BangkaMark")
+				return {"key": "board_the_boat", "target": boat}
 			return {"key": "cross_by_boat", "target": _mark_position("SurfaceMark")}
 		return {"key": "cross_by_dive", "target": _mark_position("BakunawaMark")}
 	if not director.is_solved("L3_N2"):
@@ -1812,6 +1826,13 @@ func _current_objective() -> Dictionary:
 		return {"key": "bakunawa", "obstacle": "L3_N2",
 			"target": _mark_position("BakunawaMark")}
 	return {"key": "island", "target": _mark_position("IslandMark")}
+
+
+## Whether the apo is sitting in the bangka.
+func _aboard() -> bool:
+	return _launched_boat != null and is_instance_valid(_launched_boat) \
+		and player != null and is_instance_valid(player) \
+		and _launched_boat.has_passenger(player)
 
 
 func _mark_position(mark_name: String) -> Variant:
