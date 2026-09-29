@@ -149,34 +149,30 @@
     {
       "id": "L2_SC2_001",
       "at": "SCENE_2.enter",
-      "text": "On the rack. Not the middle — she went to the left, nearer the wall."
+      "text": "Light it, apo, and set it on the rack. Not the middle — she always went to the left, nearer the wall."
     },
     {
       "id": "L2_SC2_002",
-      "at": "SCENE_2.pray",
-      "text": "..."
-    },
-    {
-      "id": "L2_SC2_003",
-      "at": "SCENE_2.pray",
-      "text": "Do not look at me like that. A man can still have somewhere to put it."
+      "at": "SCENE_2.lit",
+      "text": "There. Let it burn for her a while."
     },
     {
       "id": "L2_SC2_010",
       "at": "SCENE_2.priest",
       "speaker": "priest",
-      "text": "You are looking for her. She was here — this morning, in that pew, for a long while."
+      "text": "You lit one for her? She was here this morning. That same rack, then the pew by the wall, for a long while."
     },
     {
       "id": "L2_SC2_011",
       "at": "SCENE_2.priest",
       "speaker": "priest",
-      "text": "She went behind the plaza. Two narrow ways, one after the other. Dark even now."
+      "text": "When she got up she did not go out the front. She went out the back, through there, into the alleys behind the plaza."
     },
     {
-      "id": "L2_SC2_012",
-      "at": "SCENE_2.exit",
-      "text": "Two narrow ways. Of course. Come on, apo — before the light goes."
+      "id": "L2_SC2_013",
+      "at": "SCENE_2.priest",
+      "speaker": "priest",
+      "text": "Two narrow ways, one after the other, and dark even now. Something back there has been nesting in the bunting."
     },
     {
       "id": "L2_N2_001",

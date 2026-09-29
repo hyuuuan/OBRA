@@ -131,7 +131,12 @@ func _walk_piyesta() -> void:
 	level.call("_enter_room", church, player.global_position)
 	await _frames(12)
 	_expect("in the church", "rack")
-	(level.get("chancel") as ChurchInterior2D).place_the_kandila()
+	# AT THE RACK, the way a player is when E puts it there -- the priest walks over to
+	# whoever lit it, so where they are standing is part of the scene.
+	var chancel := level.get("chancel") as ChurchInterior2D
+	(level.get("player") as Node2D).global_position = chancel.rack_point() + Vector2(0.0, -8.0)
+	await _frames(6)
+	chancel.place_the_kandila()
 	await _frames(6)
 	_expect("candle on the rack", "priest", false)
 	for _second in range(80):

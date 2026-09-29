@@ -5,7 +5,7 @@ extends Node2D
 ## SCENE 2 IS THE ONLY PLACE IN THIS LEVEL WHERE THE PACE DROPS. The design says so in as
 ## many words -- *"this is a checkpoint, and the only place in the level where the pace
 ## drops. Let it breathe before the alley sequence."* Nothing here is a puzzle. The kandila
-## goes on the rack, Lolo prays, a priest says where Lola went, and the far door opens.
+## goes on the rack, a priest walks over and says where Lola went, and the far door opens.
 ##
 ## ⚠ THE CULTURAL GUARDRAIL IS ENFORCED HERE, NOT MERELY DOCUMENTED.
 ##
@@ -64,10 +64,6 @@ const STONE := Color(0.588, 0.576, 0.541, 1.0)        # 96938A
 const STONE_DARK := Color(0.400, 0.396, 0.376, 1.0)   # 666560
 const STONE_PALE := Color(0.780, 0.765, 0.714, 1.0)   # C7C3B6
 const CLOTH := Color(0.925, 0.898, 0.827, 1.0)        # ECE5D3
-## The santo: a painted figure, robe and skin, no face drawn at this size.
-const ROBE := Color(0.475, 0.314, 0.396, 1.0)         # 795065
-const ROBE_LIT := Color(0.612, 0.435, 0.518, 1.0)     # 9C6F84
-const SKIN := Color(0.769, 0.612, 0.478, 1.0)         # C49C7A
 ## The rack's candles: the ones already burning, and the empty spikes.
 const WAX := Color(0.949, 0.925, 0.831, 1.0)          # F2ECD4
 const FLAME := Color(0.996, 0.847, 0.451, 1.0)        # FED873
@@ -76,21 +72,37 @@ const FLAME_SOFT := Color(0.988, 0.812, 0.451, 0.22)
 ## somewhere to walk toward rather than just where the room stops.
 const CANDLE_GLOW := Color(0.980, 0.788, 0.400, 0.16)
 const IRON := Color(0.184, 0.176, 0.169, 1.0)         # 2F2D2B
-## The priest. A cassock, and that is the whole of the read at this size.
-const CASSOCK := Color(0.129, 0.125, 0.137, 1.0)      # 212023
-const CASSOCK_LIT := Color(0.220, 0.212, 0.227, 1.0)  # 38363A
-const COLLAR := Color(0.937, 0.933, 0.918, 1.0)       # EFEEEA
+## THE PRIEST IS A FIGURE, NOT A DRAWING. He was a dark rectangle with a circle on it; he is
+## the apo's own sheet in a cassock now (tools/build_priest.py), so he is drawn by the same hand
+## as everyone else. He waits by the altar facing the nave, walks over once the candle is lit,
+## and stands side-on to the apo to talk -- the design asks for "idle and talking only".
+const PRIEST_WAITING := preload("res://assets/characters/priest/priest_idle.png")
+const PRIEST_WALK := preload("res://assets/characters/priest/priest_walk.png")
+const PRIEST_TALKING := preload("res://assets/characters/priest/priest_side.png")
+## A grown man, and the sheet is a child's: the same cells, a little larger.
+const PRIEST_SCALE := 1.15
+## The cell the frames are cut on, and the row his feet stand on in it -- the apo's own.
+const PRIEST_CELL := Vector2(80.0, 106.0)
+const PRIEST_FOOT_ROW := 105.0
+## A walk: 1.4 metres a second at the church's seventy-two pixels to the metre.
+const PRIEST_SPEED := 100.0
+## One full cycle of the six walk frames, in pixels walked, so his feet keep pace with the floor.
+const PRIEST_STRIDE := 84.0
+## Where he stops: near enough to be talking TO the apo, not standing in them.
+const PRIEST_STAND_OFF := 88.0
 
 var _rack_area: Area2D
 var _standing := false
 var _flicker := 0.0
-## The priest walks over once, after the candle is placed. -1 while he is waiting.
-var _priest_walk := -1.0
+var _priest: Sprite2D
 var _priest_x := 0.0
-var _priest_from := 0.0
-var _priest_to := 0.0
-## How long he takes to cross. Slow, because the design asks for this scene to breathe.
-const PRIEST_WALK_SECONDS := 2.2
+## Where the person he is walking over to is, asked every frame while he walks. He goes to the
+## PERSON, not to a spot by the rack: the apo may have stepped away, and a man who walks up to
+## where you WERE is a quest marker. A Callable rather than a node, because drawing a creature
+## in here replaces the body he would have been walking toward.
+var _priest_toward := Callable()
+var _priest_walked := 0.0
+var _priest_here := false
 
 
 func _ready() -> void:
@@ -98,20 +110,14 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_build_rack_reach()
 	_priest_x = _priest_waiting_x()
+	_build_the_priest()
 	_check_the_guardrail()
 	set_process(true)
 
 
 func _process(delta: float) -> void:
 	_flicker += delta
-	if _priest_walk >= 0.0:
-		_priest_walk += delta
-		var t := clampf(_priest_walk / PRIEST_WALK_SECONDS, 0.0, 1.0)
-		# Eased, so he sets off and settles rather than sliding at a constant rate.
-		_priest_x = _priest_from + (_priest_to - _priest_from) * (t * t * (3.0 - 2.0 * t))
-		if t >= 1.0:
-			_priest_walk = -1.0
-			priest_arrived.emit()
+	_walk_the_priest(delta)
 	queue_redraw()
 
 
@@ -179,18 +185,82 @@ func place_the_kandila() -> bool:
 	return true
 
 
-## Send the priest over. He waits by the altar until there is a reason to come across --
-## a man who walks up to you the moment you enter a church is a quest marker.
-func send_the_priest() -> void:
-	if _priest_walk >= 0.0:
+## Send the priest over to whoever `toward` says is there (a global position). He waits by the
+## altar until there is a reason to come across -- a man who walks up to you the moment you
+## enter a church is a quest marker.
+func send_the_priest(toward: Callable) -> void:
+	if _priest_toward.is_valid() or _priest_here or not toward.is_valid():
 		return
-	_priest_from = _priest_x
-	_priest_to = rack_point().x - global_position.x + 120.0
-	_priest_walk = 0.0
+	_priest_toward = toward
+
+
+## Whether he has walked over, and so has said -- or is saying -- where she went.
+func priest_has_arrived() -> bool:
+	return _priest_here
 
 
 func priest_point() -> Vector2:
 	return global_position + Vector2(_priest_x, 0.0)
+
+
+## What the camera looks at while he talks.
+func priest_figure() -> Node2D:
+	return _priest
+
+
+func _build_the_priest() -> void:
+	_priest = Sprite2D.new()
+	_priest.name = "Priest"
+	_priest.texture = PRIEST_WAITING
+	_priest.centered = false
+	_priest.offset = Vector2(-PRIEST_CELL.x * 0.5, -PRIEST_FOOT_ROW)
+	_priest.scale = Vector2.ONE * PRIEST_SCALE
+	_priest.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_priest.position = Vector2(_priest_x, 0.0)
+	add_child(_priest)
+
+
+## ⚠ HE WALKS, HE DOES NOT SLIDE. The old one eased a rectangle across the nave over a fixed
+## 2.2 seconds to a fixed spot by the rack, wherever the apo was standing. He goes to where the
+## apo IS now, at a walking pace, with his feet in step with the floor, and stops on his own
+## side of them -- coming from the altar, that is the far side -- and never outside the nave.
+func _walk_the_priest(delta: float) -> void:
+	if not _priest_toward.is_valid() or _priest_here:
+		return
+	var where: Variant = _priest_toward.call()
+	if not (where is Vector2) or not (where as Vector2).is_finite():
+		return
+	var them := to_local(where as Vector2).x
+	var side := 1.0 if _priest_x >= them else -1.0
+	var inside := nave_length * 0.5 - 60.0
+	var goal := clampf(them + side * PRIEST_STAND_OFF, -inside, inside)
+	var gap := goal - _priest_x
+	if absf(gap) <= 1.0:
+		# Only an arrival if that is actually beside them: a player who walked out of the
+		# church leaves him waiting at the end of the nave, not talking to an empty room.
+		if absf(them - _priest_x) <= PRIEST_STAND_OFF + 24.0:
+			_arrive(side)
+		return
+	var step := minf(absf(gap), PRIEST_SPEED * delta)
+	_priest_x += signf(gap) * step
+	_priest_walked += step
+	_priest.position.x = _priest_x
+	if _priest.texture != PRIEST_WALK:
+		_priest.texture = PRIEST_WALK
+		_priest.hframes = 6
+	_priest.frame = int(_priest_walked / (PRIEST_STRIDE / 6.0)) % 6
+	# The walk is drawn facing right; mirrored about his own axis to go left.
+	_priest.scale.x = PRIEST_SCALE * (1.0 if gap > 0.0 else -1.0)
+
+
+func _arrive(side: float) -> void:
+	_priest_here = true
+	_priest.frame = 0
+	_priest.hframes = 1
+	_priest.texture = PRIEST_TALKING
+	# The side-on cell faces LEFT as drawn, which is toward the apo when he stops on its right.
+	_priest.scale.x = PRIEST_SCALE * (1.0 if side > 0.0 else -1.0)
+	priest_arrived.emit()
 
 
 # --- The guardrail ----------------------------------------------------------------------
@@ -253,7 +323,6 @@ func _draw() -> void:
 	_draw_pews()
 	_draw_altar()
 	_draw_rack()
-	_draw_priest()
 
 
 ## Down the middle of the nave, in two ranks, thinning toward the door -- so the room reads
@@ -291,16 +360,3 @@ func _draw_rack() -> void:
 	var rack := PiyestaTiles.size_of("candle_rack")
 	PiyestaTiles.stand(self, "kandila_lit", Vector2(at + rack.x * 0.30, -rack.y + 16.0), 1.0)
 	draw_circle(Vector2(at + rack.x * 0.30, -rack.y - 20.0), 96.0, FLAME_SOFT)
-
-
-## He waits by the altar and walks over once. Standing still and facing the player is the
-## whole of what the design asks of him -- *"idle and talking only"*.
-##
-## ⚠ AND LOLO'S PRAYING POSE DOES NOT EXIST. The design names it as the one thing Scene 2 is
-## built on and lists it under what is missing; nothing here fakes it. See CONTENT_NEEDED.md.
-func _draw_priest() -> void:
-	var x := _priest_x
-	draw_rect(Rect2(x - 17.0, -104.0, 34.0, 104.0), CASSOCK)
-	draw_rect(Rect2(x - 17.0, -104.0, 11.0, 104.0), CASSOCK_LIT)
-	draw_rect(Rect2(x - 12.0, -104.0, 24.0, 7.0), COLLAR)
-	draw_circle(Vector2(x, -114.0), 13.0, SKIN)

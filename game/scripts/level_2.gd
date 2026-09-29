@@ -567,39 +567,66 @@ func _on_at_rack(standing: bool) -> void:
 
 
 ## THE ONE ACTION IN SCENE 2, and the pace drops from here. The design is explicit that
-## nothing in this room is a puzzle: the candle goes on the rack, Lolo prays, the priest
+## nothing in this room is a puzzle: the candle goes on the rack, the priest walks over and
 ## says where Lola went, and the far door opens.
+##
+## ⚠ LOLO'S PART IN HERE IS THE CANDLE AND NOTHING ELSE. He used to pray aloud, then say where
+## she went all over again after the priest had -- "Two narrow ways. Of course." Kent: "the
+## priest should be the one saying the dialogue ... The lolo dialogue here is just the lighting
+## of candle." So he says one thing about the light and holds still beside it.
 func _on_kandila_placed() -> void:
 	_has_kandila = false
 	script_lines.set_flag("kandila_placed")
 	if hint_bar != null:
 		hint_bar.clear()
-	_speak(script_lines.fire("SCENE_2.pray"))
-	# HE STOPS FOLLOWING. There is no praying pose in the delivered sheet -- the design names
-	# it as the thing this scene is built on and lists it as missing -- so he holds still at
-	# the rack and the dialogue carries the beat. `cheer` is arms-up celebration and would
-	# read as encouragement, which is worse than nothing here.
+	_speak(script_lines.fire("SCENE_2.lit"))
+	# HE STOPS FOLLOWING and stays by the light. There is no praying pose in the delivered
+	# sheet -- the design lists it as missing -- and `cheer` is arms-up celebration, which
+	# would read as encouragement. Standing still beside it is the beat.
 	if lolo != null and is_instance_valid(lolo) and chancel != null:
 		lolo.global_position = chancel.rack_point() + Vector2(-70.0, -20.0)
-	await get_tree().create_timer(2.4, true, false, true).timeout
+	# The priest sets off once Lolo has been heard, and a moment after -- not over the top of
+	# him, and not on a clock that could run out while the line was still being read.
+	if dialogue_box != null and dialogue_box.is_open():
+		await dialogue_box.conversation_finished
+	await get_tree().create_timer(1.0, false).timeout
 	if chancel != null and is_instance_valid(chancel):
-		chancel.send_the_priest()
+		chancel.send_the_priest(_where_the_apo_is)
+
+
+## Where the priest is walking to, asked every frame he walks: the apo, whatever body it is in.
+func _where_the_apo_is() -> Vector2:
+	if player == null or not is_instance_valid(player):
+		return Vector2.INF
+	return player.global_position
 
 
 ## He has walked over. He names the alleys -- the design calls his line "the only signpost
 ## for the second half of the level" -- and that is what opens the way out.
 func _on_priest_arrived() -> void:
 	_speak(script_lines.fire("SCENE_2.priest"))
-	_speak(script_lines.fire("SCENE_2.exit"))
-	# CP2 is declared at SCENE_2.exit and this is that moment. Written here rather than by a
-	# volume at the far door, because the scene is finished by being watched rather than by
-	# being walked through -- a player who heard the priest and then died in the first alley
-	# must not have to sit through him again.
+	# CP2 is this moment. Written here rather than by a volume at the far door, because the
+	# scene is finished by being watched rather than by being walked through -- a player who
+	# heard the priest and then died in the first alley must not have to sit through him again.
 	_write_checkpoint("CP2")
 	if lolo != null and is_instance_valid(lolo):
 		lolo.follow(player)
 	if church != null:
 		church.open_onward()
+
+
+## The priest is the one person here who is neither Lolo nor the apo. See LevelBase._speak.
+func _speaker_display(speaker_id: String) -> String:
+	if speaker_id == "priest":
+		return "Padre"
+	return super._speaker_display(speaker_id)
+
+
+## And while he talks, the camera is on him.
+func _speaker_subject(speaker_id: String) -> Node2D:
+	if speaker_id == "priest" and chancel != null and is_instance_valid(chancel):
+		return chancel.priest_figure()
+	return super._speaker_subject(speaker_id)
 
 
 func _on_at_door(standing: bool, door: PiyestaDoor2D) -> void:

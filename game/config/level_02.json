@@ -36,7 +36,7 @@
     },
     {
       "id": "CP2",
-      "at": "SCENE_2.exit",
+      "at": "SCENE_2.priest",
       "trigger": "area"
     },
     {
@@ -108,7 +108,7 @@
     "to_church": "Take the candle to the church",
     "rack": "Put the candle on the rack",
     "priest": "Someone is coming over",
-    "to_alleys": "Go out the far end of the church",
+    "to_alleys": "Go out the back of the church, into the alleys",
     "back_to_church": "Go back through the church to the alleys",
     "flock": "Get her scraps back from the flock",
     "flock.tags": "Get her scraps back. Draw something that can {tags}",
