@@ -407,6 +407,9 @@ func _audit_scene_2_happens() -> void:
 		"the priest has not spoken")
 	await _stand_at(chancel.rack_point())
 	_check(chancel.standing_at_rack(), "the rack notices somebody at it", "reach armed")
+	# Conversations ON from here, so what the box shows can be read -- see below.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
+	var box: DialogueBox = level.get("dialogue_box")
 	var placed: bool = bool(level.call("_interact_with_level"))
 	_check(placed and chancel.kandila_on_rack, "and E puts the candle on it",
 		"Scene 2\'s one action")
@@ -415,14 +418,36 @@ func _audit_scene_2_happens() -> void:
 	_check(not bool(level.get("_has_kandila")), "which is no longer in hand",
 		"placed, not copied")
 
-	# Lolo prays, then the priest crosses the nave. Both are on real clocks -- the design
-	# asks for this scene to breathe -- so this waits them out rather than poking past them.
-	for _frame in range(600):
+	# Lolo speaks about the light, then the priest crosses the nave. Both are on real clocks --
+	# the design asks for this scene to breathe -- so this waits them out rather than poking
+	# past them.
+	var lolo_said := ""
+	for _frame in range(900):
 		if church.onward_open:
 			break
+		if box.is_open():
+			if lolo_said.is_empty():
+				lolo_said = "%s: %s" % [box.current_speaker(), box.current_line()]
+			box.hide_line()
 		await physics_frame
 	_check(church.onward_open, "the priest walks over and names the alleys",
 		"and that is what opens the way on")
+	_check(lolo_said.begins_with("Lolo:") and lolo_said.contains("burn"),
+		"Lolo speaks about the light, and only that", "\"%s\"" % lolo_said)
+	# ⚠ THE PRIEST SAYS IT, AS HIMSELF. His lines were printed under the APO's name, with the
+	# apo's face above them and the camera on the apo -- the child telling himself where his
+	# grandmother went. Read off the box on the frame he starts speaking.
+	var said := "%s: %s" % [box.current_speaker(), box.current_line()] if box.is_open() else ""
+	_check(said.begins_with("Padre:") and said.contains("She was here"),
+		"and the priest is the one who says where she went", "\"%s\"" % said)
+	var subject = level.call("_speaker_subject", "priest")
+	_check(subject != null and subject == chancel.priest_figure(),
+		"with the camera on him while he does", "subject %s" % subject)
+	var gap := absf(chancel.priest_point().x - player.global_position.x)
+	_check(chancel.priest_has_arrived() and gap <= ChurchInterior2D.PRIEST_STAND_OFF + 24.0,
+		"having walked up to the apo rather than to a spot", "%.0f px from it" % gap)
+	box.hide_line()
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	var checkpoints = level.get("checkpoints")
 	_check(checkpoints != null and bool(checkpoints.call("has_checkpoint")),
 		"and CP2 is written before the alleys", "a player who dies down there keeps this")
