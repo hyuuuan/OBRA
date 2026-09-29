@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tear Level2_CompletedLook into the seven pieces the player puts back together.
+"""Tear the Dagat painting into the seven pieces the player puts back together in Piyesta.
 
 WHY THIS EXISTS
 ---------------
@@ -54,7 +54,15 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE = ROOT / "game" / "assets" / "Level2" / "completed_look.png"
+# ⚠ THE PIECES ARE THE NEXT PAINTING, NOT THIS ONE. Kent: "the painting to be assembled and the
+# birds holding is the painting Dagat, which is the next level (/clue to the next level)". So
+# what the flock carries off and the table puts back is the sea, and putting it together is
+# how Piyesta hands the player the way on -- the same move Payyo makes with the Pista canvas.
+#
+# ⚠ AND THE FILE IS MISNAMED. The five covers' filenames disagree with their pictures (commit
+# 9ee9833 records it): this one says "Level 4 Mt Makiling" and is a storm at sea among karst
+# islands -- Dagat. It is also what the hub's own level_3 painting was cut from.
+SOURCE = ROOT / "Painting_Covers" / "Level 4 Mt Makiling Completed Look.png"
 OUT_DIR = ROOT / "game" / "assets" / "Level2" / "scraps"
 MANIFEST = OUT_DIR / "scraps.json"
 
@@ -141,10 +149,15 @@ def _labels(width: int, height: int, rng) -> np.ndarray:
 
 
 def _weather(piece: np.ndarray) -> np.ndarray:
-    """A little sun and damp on the two that hung outside all afternoon."""
+    """A little sun and damp on the two that hung outside all afternoon.
+
+    ⚠ SLIGHT, AND IT HAS TO BE ON A DARK PICTURE. `x * 0.88 + 34` was tuned on the sunlit plaza,
+    where it read as a faint yellowing. On the storm it lifted the night sky into a pale block
+    across two sevenths of the picture -- a patch, not weather.
+    """
     out = piece.astype(np.float32)
-    out[..., :3] *= np.array([1.06, 1.01, 0.90], dtype=np.float32)   # warmed, yellowed
-    out[..., :3] = out[..., :3] * 0.88 + 34.0                        # and faded
+    out[..., :3] *= np.array([1.04, 1.01, 0.94], dtype=np.float32)   # warmed, yellowed
+    out[..., :3] = out[..., :3] * 0.95 + 9.0                         # and a little faded
     return np.clip(out, 0, 255).astype(np.uint8)
 
 
