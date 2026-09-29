@@ -1394,11 +1394,13 @@ func _on_shore_answered(obstacle_id: String, _route: String, _label: String,
 ## choice.
 ##
 ## ⚠ AND THE TWO WAYS ACROSS ARE SAID HERE TOO, NOT LEFT TO THE CROSSING'S VOLUME. They are the
-## crossing's teach lines and are said when it is entered -- but the body that answers the
+## crossing's teach lines and are said when it is entered -- usually by the enter_obstacle below,
+## the old body still being inside the volume when this runs. But the body that answers the
 ## practice is new, the practice's answer stops the world, and a stopped world's volumes do not
-## see a new body arrive. So the crossing was entered only after the conversation, on the frame
-## the choice opened, and the two ways across were said BEHIND the choice. Said here they are
-## part of the conversation before it. They are `once`, so entering afterwards says nothing.
+## see a new body arrive: in one recording the crossing was entered only after the conversation,
+## on the frame the choice opened, and the two ways across were said BEHIND the choice. The play
+## probe could not make that happen again, headless or windowed; said here, the lines do not
+## depend on it. They are `once`, so entering afterwards says nothing.
 func _open_the_crossing() -> void:
 	if _crossing_said_later:
 		_crossing_said_later = false
