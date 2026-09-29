@@ -147,9 +147,25 @@ func _run() -> void:
 
 	# THE CHANNEL HOLDS until the encounter is resolved, at the surface as well as below it.
 	var coils_x := creature.global_position.x + Bakunawa.BODY_LENGTH * 0.5 - 40.0 - 80.0
+	# Rowed in with the conversations ON for this stretch only -- the shadow scene and then
+	# the encounter, back to back, as a player meets them. See the check below.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
 	await _hold_right(4.0, boat)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	_check(boat.global_position.x < coils_x, "and the coils stop it while it is unresolved",
 		"held at x %.0f, coils at %.0f" % [boat.global_position.x, coils_x + 80.0])
+	# ⚠ AND IT IS INTRODUCED BEFORE ANYBODY IS ASKED WHAT TO DO ABOUT IT. From the boat the
+	# encounter is entered a tenth of a second after the shadow scene's last line, while the
+	# box is still fading out -- and a conversation begun in that window used to be queued and
+	# thrown away, so the choice opened with nothing before it. Read off the lines the box
+	# actually put up (see _unpause), in the order it put them up.
+	var said := "\n".join(box_lines)
+	var wait_at := said.find("Wait. Wait.")
+	var answers_at := said.find("Something that can throw")
+	_check(wait_at >= 0 and answers_at > wait_at,
+		"and the bakunawa is introduced before the choice",
+		"said first: \"Wait. Wait.\", then the ways of dealing with it" if wait_at >= 0
+			and answers_at > wait_at else "the box said: %s" % said.right(240))
 
 	# ⚠ AND IF THE RUN IS PUT BACK TO BEFORE THE BOAT, THE BOAT IS THERE TO FIND AGAIN. A
 	# restore frees everything placed after its checkpoint -- the launched bangka among them --
@@ -237,8 +253,18 @@ func _place(at: Vector2) -> void:
 
 ## ⚠ DRAIN THE QUEUE, DO NOT HIDE ONE LINE -- the boat's lore is the DialogueBox, which stops
 ## the world on purpose, and a probe that hides one line watches the next one re-pause it.
+## Every line it takes down -- the one showing and the rest of the conversation -- is kept in
+## `box_lines` first, so a check can ask what was actually said, and in what order.
+var box_lines: Array[String] = []
+
+
 func _unpause() -> void:
 	for _attempt in range(60):
+		for node in get_nodes_in_group(DialogueBox.GROUP):
+			if node.has_method("is_open") and bool(node.call("is_open")):
+				box_lines.append(String(node.call("current_line")))
+				for waiting: Variant in node.get("_queue"):
+					box_lines.append(String((waiting as Dictionary).get("text", "")))
 		for node in get_nodes_in_group(&"modal_overlays"):
 			if node.name == "LevelCompleteOverlay":
 				continue
