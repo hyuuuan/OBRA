@@ -1331,7 +1331,8 @@ func _dialogue_node_is_ready() -> bool:
 		return true
 	if director.is_solved("L3_B0_SHORE"):
 		return true
-	_say_why("Not yet, apo. Try it here first, where you can still stand up.")
+	_say_why("Not yet, apo. Press %s and try a shape here on the sand first."
+		% ControlsKeys.key_cap_for("redraw"))
 	return false
 
 
