@@ -475,6 +475,13 @@ static func seed_of(key: String) -> int:
 func _on_coral_touched(body: Node, key: String) -> void:
 	if not _is_the_player(body):
 		return
+	# ⚠ NOT OVER HIM. A fact is about the thing the player is passing, and it waits while Lolo
+	# is still being read (see _pace_the_advice) rather than being queued behind him -- queued,
+	# it would be about a coral three screens back. Not fired until it is said, so a fact that
+	# never got its moment is still there if the player swims back.
+	if _advice_left > 0.0 or not _advice_waiting.is_empty():
+		_coral_waiting = key
+		return
 	# `once` on the line does the not-twice part; firing again is free and says nothing.
 	_speak(script_lines.fire("CORAL.%s" % key))
 
@@ -963,6 +970,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	var delta := get_physics_process_delta_time()
 	_row(delta)
 	_frame_the_water(anchor_position)
+	_pace_the_advice(delta)
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
 	_tell_the_crossing(anchor_position)
@@ -1242,6 +1250,69 @@ func _speak_current_stage(obstacle_id: String) -> void:
 	super._speak_current_stage(obstacle_id)
 
 
+# --- Lolo, one line at a time ---------------------------------------------------------------
+
+## ⚠ A LINE OF LOLO'S IS READ BEFORE THE NEXT ONE REPLACES IT. The hint bar writes each new
+## line straight over the last, which is right for "press E to read the sign" and wrong for
+## him: on the dive his story and the coral field's facts all arrive on this bar -- a fact every
+## two or three hundred pixels, between lines of the story -- and played through they replaced
+## one another within a second. "Your lola was never the same after" was a starfish fact before
+## it could be read. Each batch of his now stands for its reading time, the bar's own measure,
+## before anything of his replaces it; what arrives meanwhile waits its turn. Counted down on
+## the physics step, so a conversation that stops the world stops the count too.
+var _advice_waiting: Array = []
+var _advice_left := 0.0
+## The coral fact the player swam up to while he was talking. See _on_coral_touched.
+var _coral_waiting := ""
+## How close the player still has to be to a coral for its fact to be worth saying late.
+const CORAL_STILL_NEAR := 260.0
+
+
+func _post_advice(advice: Array[Dictionary]) -> void:
+	if advice.is_empty():
+		return
+	if _advice_left > 0.0 or not _advice_waiting.is_empty():
+		_advice_waiting.append(advice)
+		return
+	_advise_now(advice)
+
+
+func _advise_now(advice: Array[Dictionary]) -> void:
+	super._post_advice(advice)
+	var reading := 0.0
+	for line: Dictionary in advice:
+		reading += _reading_time(String(line.get("text", "")))
+	_advice_left = reading
+
+
+## Immediate words -- a refill, being seen, the brush -- still go up at once, and are read
+## before his next line replaces them.
+func _say_why(text: String) -> void:
+	super._say_why(text)
+	_advice_left = maxf(_advice_left, _reading_time(text))
+
+
+static func _reading_time(text: String) -> float:
+	return clampf(float(text.length()) * HintBar.BEAT_PER_CHAR, HintBar.BEAT_MIN,
+		HintBar.BEAT_MAX)
+
+
+func _pace_the_advice(delta: float) -> void:
+	if _advice_left > 0.0:
+		_advice_left = maxf(0.0, _advice_left - delta)
+		return
+	if not _advice_waiting.is_empty():
+		_advise_now(_advice_waiting.pop_front())
+		return
+	if _coral_waiting.is_empty():
+		return
+	var key := _coral_waiting
+	_coral_waiting = ""
+	var spot: Variant = coral_field().get(key, null)
+	if spot is Vector2 and _anchor_now().distance_to(spot as Vector2) <= CORAL_STILL_NEAR:
+		_speak(script_lines.fire("CORAL.%s" % key))
+
+
 ## ⚠ THE SHORE BEAT GATES THE FORK, AND WITHOUT THIS DAGAT IS NOT A DRAWING GAME.
 ##
 ## Both of the crossing's answers can be reached on foot -- the fork is a trigger volume, not
@@ -1434,6 +1505,8 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 
 
 func _on_route_committed_here(obstacle_id: String, route: String) -> void:
+	# Whatever of Lolo's was still waiting to be said was about the choice just made.
+	_advice_waiting.clear()
 	# The dive chosen while the practice's swimmer is still lying on the sand: that one goes
 	# in too. See _where_a_new_form_arrives -- the same move, for a body that already exists.
 	if obstacle_id == "L3_N1" and route == "pragmatist":
