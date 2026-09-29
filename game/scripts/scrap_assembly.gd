@@ -1,6 +1,6 @@
 class_name ScrapAssembly
 extends Node
-## Scene 3: seven pieces into seven slots, and then Piyesta is whole.
+## Scene 3: seven pieces into seven slots, and then the painting is whole -- the sea, Dagat.
 ##
 ## KEEP IT LIGHT. The design is explicit that this is a light interaction and not a puzzle
 ## with a fail state at the end of the level -- the player has already answered three nodes

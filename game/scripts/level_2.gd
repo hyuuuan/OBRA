@@ -1115,7 +1115,7 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	if alley_1 != null and bool(onward.get("alley_1", false)):
 		alley_1.open_onward()
 
-## How much of the Pista painting is recovered, in the corner where Payyo counts metres.
+## How much of the Dagat painting is recovered, in the corner where Payyo counts metres.
 ##
 ## Written on every change rather than every frame: `_physics_process` owns that label for a
 ## level that has a marker, and this level has none, so nothing overwrites it in between.

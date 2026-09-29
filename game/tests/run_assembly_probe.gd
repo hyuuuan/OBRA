@@ -111,6 +111,11 @@ func _audit_it_is_put_back_together() -> void:
 		return
 	table.present()
 	var ids := table.piece_ids()
+	# ⚠ THE NAME IS THE REVEAL. The pieces are the NEXT painting, the sea, and the table saying
+	# "DAGAT" before it is whole would give away the one thing putting it back together finds.
+	var title := table.get("_title") as Label
+	_check(title != null and title.text != "DAGAT", "the table does not name the picture yet",
+		"\"%s\"" % (title.text if title != null else "no title"))
 
 	# Dropped nowhere near where it came from. Nothing happens, and nothing is lost.
 	var first: String = ids[0]
@@ -132,6 +137,8 @@ func _audit_it_is_put_back_together() -> void:
 		table.drag_to(ids[index], table.slot_of(ids[index]))
 	_check(bool(assembly.call("is_complete")), "the rest go home and that is seven",
 		"%d of %d" % [int(assembly.call("placed")), int(assembly.call("slot_count"))])
+	_check(title != null and title.text == "DAGAT", "and whole, it is the sea: the next level",
+		"\"%s\"" % (title.text if title != null else "no title"))
 
 	# ⚠ AND FINISHING IT IS WHAT ENDS THE LEVEL. Not a marker somebody has to walk to
 	# afterwards -- Level 1 shipped that and players solved its hardest node and then stood

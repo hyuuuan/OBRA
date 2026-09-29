@@ -1,6 +1,7 @@
 class_name ScrapLedger
 extends Node
-## The seven pieces of the Pista painting, and the one promise the design makes about them:
+## The seven pieces of the Dagat painting -- the NEXT level's, which is how Piyesta hands the
+## player on -- and the one promise the design makes about them:
 ## **none can be permanently lost.**
 ##
 ## That promise is the whole reason this is a ledger rather than a counter. Five scraps are

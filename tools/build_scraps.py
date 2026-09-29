@@ -63,6 +63,8 @@ ROOT = Path(__file__).resolve().parent.parent
 # 9ee9833 records it): this one says "Level 4 Mt Makiling" and is a storm at sea among karst
 # islands -- Dagat. It is also what the hub's own level_3 painting was cut from.
 SOURCE = ROOT / "Painting_Covers" / "Level 4 Mt Makiling Completed Look.png"
+# What the table calls the picture once it is whole -- the level it is the way into.
+TITLE = "DAGAT"
 OUT_DIR = ROOT / "game" / "assets" / "Level2" / "scraps"
 MANIFEST = OUT_DIR / "scraps.json"
 
@@ -210,6 +212,7 @@ def build(check: bool) -> int:
                     "`offset` is the piece's position in the whole painting, which IS its "
                     "slot: a torn piece belongs exactly where it was torn from.",
         "source": SOURCE.name,
+        "title": TITLE,
         "size": [width, height],
         "pieces": pieces,
     }

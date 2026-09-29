@@ -1,6 +1,8 @@
 class_name AssemblyOverlay
 extends ModalOverlay
-## Scene 3. Seven torn pieces of Lola's painting, and then Piyesta is whole.
+## Scene 3. Seven torn pieces of Lola's painting, and then it is whole -- and it is not the plaza.
+## The flock was carrying the NEXT one, the sea, and putting it back together is how Piyesta
+## hands the player on to Dagat. Its name is the manifest's: see tools/build_scraps.py.
 ##
 ## `scrap_assembly.gd` is the rule -- what snaps, what is idempotent, when it is finished.
 ## This is the table it happens on. Like the dance, the model shipped complete and tested
@@ -56,6 +58,10 @@ var _continue: Button
 var _pieces: Dictionary = {}
 var _order: Array[String] = []
 var _painting := Vector2(1672.0, 941.0)
+## What the picture is called, revealed when it is whole. Written by the cutter.
+var _painting_title := ""
+## What the table is called until then. The name is the reveal, so it waits.
+const TABLE_TITLE := "LOLA'S PAINTING"
 ## Painting pixels to screen pixels, and where the board's top-left sits on the stage.
 var _scale := 1.0
 var _origin := Vector2.ZERO
@@ -119,7 +125,7 @@ func _build() -> void:
 	pad.add_child(box)
 
 	_title = Label.new()
-	_title.text = "PIYESTA"
+	_title.text = TABLE_TITLE
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.add_theme_font_size_override("font_size", 32)
 	_title.add_theme_color_override("font_color", GOLD_PALE)
@@ -170,6 +176,7 @@ func _load_pieces() -> void:
 	var manifest: Dictionary = parsed
 	var size: Array = manifest.get("size", [1672, 941])
 	_painting = Vector2(float(size[0]), float(size[1]))
+	_painting_title = String(manifest.get("title", ""))
 	for entry: Variant in manifest.get("pieces", []):
 		var piece: Dictionary = entry
 		var texture := load(SCRAP_DIR + String(piece["file"])) as Texture2D
@@ -206,7 +213,7 @@ func present() -> void:
 	_scatter()
 	_done = false
 	_continue.visible = false
-	_title.text = "PIYESTA"
+	_title.text = TABLE_TITLE
 	_status.text = "Put her back together. Drag each piece to where it belongs."
 	open()
 	_fit_the_board()
@@ -393,7 +400,7 @@ func is_finished() -> bool:
 func _finish() -> void:
 	_done = true
 	_dragging = ""
-	_title.text = "PIYESTA"
+	_title.text = _painting_title if not _painting_title.is_empty() else TABLE_TITLE
 	_status.text = "There she is." if not _assembly.is_creased() \
 		else "There she is. The fold will not come out."
 	_continue.visible = true

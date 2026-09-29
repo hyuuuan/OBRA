@@ -186,10 +186,10 @@ func _audit_piyesta_is_not_the_last_level() -> void:
 
 ## ⚠ THE LEVEL'S WHOLE ENDING WAS AUTHORED AND NEVER FIRED.
 ##
-## `dialogue_l2.json` has carried four EXIT_MARKER lines since the file was written -- the
-## table ("Lay them out. Corners first"), the painting whole ("There she is. Piyesta."), the
-## crease, and the line that hands the player on to Level 3 -- and nothing in `level_2.gd`
-## called any of them. The level went from the table to a completion screen in silence.
+## `dialogue_l2.json` has carried its EXIT_MARKER lines since the file was written -- the table
+## ("Lay them out. Corners first"), the painting whole ("Water. Not this plaza at all"), and the
+## line that hands the player on to Level 3 -- and nothing in `level_2.gd` called any of them.
+## The level went from the table to a completion screen in silence.
 ##
 ## Asked of the SCRIPT rather than of the box, because the box is a queue with a key to
 ## advance it and the point is that the hooks were reached at all.
