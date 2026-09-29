@@ -54,7 +54,7 @@
     {
       "id": "L3_B0_006",
       "at": "L3_B0_SHORE.sub1.solved",
-      "kind": "hint",
+      "kind": "lore",
       "text": "Feel that? It is going down while you stand there. It will not stop going down until you are yourself again."
     },
     {
@@ -72,13 +72,13 @@
     {
       "id": "L3_N1_002",
       "at": "L3_N1.teach",
-      "kind": "hint",
+      "kind": "lore", "once": true,
       "text": "Two ways across that I can see. Something that can **swim** will take you under it."
     },
     {
       "id": "L3_N1_003",
       "at": "L3_N1.teach",
-      "kind": "hint",
+      "kind": "lore", "once": true,
       "text": "Or walk the sand a while first. Things wash up here. They always did."
     },
     {
@@ -128,13 +128,13 @@
     {
       "id": "L3_N2_003",
       "at": "L3_N2.teach",
-      "kind": "hint",
+      "kind": "lore", "once": true,
       "text": "Something that can throw **light** would show it where to look. Something that can **strike** would make it stop."
     },
     {
       "id": "L3_N2_004",
       "at": "L3_N2.teach",
-      "kind": "hint",
+      "kind": "lore", "once": true,
       "text": "Or nothing at all. It cannot see you either \u2014 keep out of the bright and it will never know you went by."
     },
     {
