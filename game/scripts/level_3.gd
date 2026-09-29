@@ -1992,6 +1992,17 @@ func _current_objective() -> Dictionary:
 	return {"key": "island", "target": _mark_position("IslandMark")}
 
 
+## ⚠ THE BANGKA IS NEVER PICKED UP. It is found, not drawn, and it is the only way across on
+## its route: E boards it and E gets off it while it is afloat, and nothing else. Out of the
+## water -- run up on the island at the end -- it was a sailboat on the sand like any other,
+## and the prompt offered to put it in the bag while Lolo said goodbye.
+func _nearest_interactable_utility() -> PhysicsShapeObject:
+	var nearest := super._nearest_interactable_utility()
+	if nearest != null and nearest == _launched_boat and not _launched_boat.boards_on_interact():
+		return null
+	return nearest
+
+
 ## Whether the apo is sitting in the bangka.
 func _aboard() -> bool:
 	return _launched_boat != null and is_instance_valid(_launched_boat) \
