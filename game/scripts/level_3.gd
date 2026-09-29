@@ -725,6 +725,9 @@ func _on_brush_touched(body: Node, pickup: Area2D) -> void:
 	if morph_card != null:
 		morph_card.set_meter_caption("INK")
 	_say_why("Take it, apo. Hers is spent — this one was waiting for you.")
+	# The shore's instruction, held back until now -- and read after the line above.
+	if director != null and director.current_obstacle() == "L3_B0_SHORE":
+		_speak_current_stage("L3_B0_SHORE")
 	pickup.queue_free()
 
 
@@ -1200,7 +1203,43 @@ func _dress_the_bangka(boat: Node2D) -> void:
 func _on_shore_fork_approached() -> void:
 	_live_node_obstacle = "L3_N1"
 	dialogue_node = _shore_node
+	# The crossing's own opening line, held back from the brush (see _on_obstacle_arrived),
+	# is said here -- and the choice waits for it and for whatever the practice is still
+	# saying, instead of opening over a conversation the player is part-way through.
+	if _crossing_said_later and director != null and director.is_solved("L3_B0_SHORE"):
+		_crossing_said_later = false
+		_speak_on_arrival("L3_N1.enter")
+	if dialogue_box != null and dialogue_box.is_open():
+		if not dialogue_box.conversation_finished.is_connected(_on_dialogue_node_approached):
+			dialogue_box.conversation_finished.connect(_on_dialogue_node_approached,
+				CONNECT_ONE_SHOT)
+		return
 	_on_dialogue_node_approached()
+
+
+## ⚠ THE CROSSING'S OPENING LINE WAITS FOR THE PRACTICE. Its volume starts at 640 and the
+## brush lies at 620, so "That is the whole of it, then. She never painted the far side" was
+## said the moment the brush was picked up -- on the same frame as the checkpoint, the brush's
+## lesson and Lolo's line about the brush, four things at once, and about a crossing the player
+## had not been shown yet. It is said at the fork, just before the choice it introduces.
+var _crossing_said_later := false
+
+
+func _on_obstacle_arrived(obstacle_id: String) -> void:
+	if obstacle_id == "L3_N1" and director != null and not director.is_solved("L3_B0_SHORE"):
+		_crossing_said_later = true
+		return
+	super._on_obstacle_arrived(obstacle_id)
+
+
+## ⚠ AND THE SHORE'S INSTRUCTION WAITS FOR THE BRUSH. The shore's volume starts at 350, so its
+## instruction -- "No counting down any more... Try something that can SWIM" -- went up on the
+## hint bar six seconds into the level, about a brush the player had not picked up. It is said
+## when the brush is taken instead (see _on_brush_touched).
+func _speak_current_stage(obstacle_id: String) -> void:
+	if obstacle_id == "L3_B0_SHORE" and not PlayerProfile.has_new_brush():
+		return
+	super._speak_current_stage(obstacle_id)
 
 
 ## ⚠ THE SHORE BEAT GATES THE FORK, AND WITHOUT THIS DAGAT IS NOT A DRAWING GAME.
@@ -1268,7 +1307,30 @@ func _on_crossing_exited(_obstacle_id: String) -> void:
 
 func _on_shore_answered(obstacle_id: String, _route: String, _label: String,
 		_attempts: int, _tier: int) -> void:
-	if obstacle_id == "L3_B0_SHORE" and _inside_crossing and director != null:
+	if obstacle_id == "L3_B0_SHORE":
+		_open_the_crossing.call_deferred()
+
+
+## ⚠ DEFERRED, SO THE PRACTICE FINISHES ITS OWN SENTENCE FIRST. This runs from the director's
+## solved signal, which reaches it before the level has spoken the practice's own answer --
+## "Feel that? It is going down while you stand there" -- so said straight away, the crossing's
+## opening came first and the practice's lines were tacked on after the way across. On the
+## next frame they are already in the box, and these join the same conversation after them:
+## the crossing's opening line (held back from the brush), then the two ways across, then the
+## choice.
+##
+## ⚠ AND THE TWO WAYS ACROSS ARE SAID HERE TOO, NOT LEFT TO THE CROSSING'S VOLUME. They are the
+## crossing's teach lines and are said when it is entered -- but the body that answers the
+## practice is new, the practice's answer stops the world, and a stopped world's volumes do not
+## see a new body arrive. So the crossing was entered only after the conversation, on the frame
+## the choice opened, and the two ways across were said BEHIND the choice. Said here they are
+## part of the conversation before it. They are `once`, so entering afterwards says nothing.
+func _open_the_crossing() -> void:
+	if _crossing_said_later:
+		_crossing_said_later = false
+		_speak_on_arrival("L3_N1.enter")
+		_speak(script_lines.fire("L3_N1.teach"))
+	if _inside_crossing and director != null:
 		director.enter_obstacle("L3_N1")
 
 
@@ -1346,6 +1408,12 @@ func _on_bakunawa_approached() -> void:
 	# have to point at this fork before it runs.
 	_live_node_obstacle = "L3_N2"
 	dialogue_node = _bakunawa_node
+	# The choice after the conversation that sets it up, never over it -- see the shore's.
+	if dialogue_box != null and dialogue_box.is_open():
+		if not dialogue_box.conversation_finished.is_connected(_on_dialogue_node_approached):
+			dialogue_box.conversation_finished.connect(_on_dialogue_node_approached,
+				CONNECT_ONE_SHOT)
+		return
 	_on_dialogue_node_approached()
 
 
@@ -1353,6 +1421,18 @@ func _on_bakunawa_approached() -> void:
 ## the world to change the moment the player says what they are doing: the gap has to open
 ## before they can slip through it, and the creature has to turn on them before they can
 ## fight it. Only the Artist one waits for a drawing.
+## ⚠ THE CREATURE IS MET BEFORE ITS ANSWERS ARE. Its volume reaches west of the place its
+## arrival is announced, so a swimmer entered the encounter first and heard the three ways of
+## dealing with it -- "Something that can throw LIGHT..." -- before Lolo had seen it: "Wait.
+## Wait. Do you see how it is going". And from the boat the arrival was never said at all, the
+## announce area being under the keel. So entering says the arrival first, if it has not been
+## said, and then the answers, as one conversation.
+func _on_obstacle_entered(obstacle_id: String) -> void:
+	if obstacle_id == "L3_N2":
+		_speak_on_arrival("L3_N2.enter")
+	super._on_obstacle_entered(obstacle_id)
+
+
 func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 	# The dive chosen while the practice's swimmer is still lying on the sand: that one goes
 	# in too. See _where_a_new_form_arrives -- the same move, for a body that already exists.
