@@ -1119,10 +1119,12 @@ func _carrying_a_lit_light() -> bool:
 
 ## A land creature has floundered for its beat. Revert through the SAME door Q uses -- never
 ## a second copy of it, which is a second chance to strand the player in a body that is gone.
+## Floundering only happens below the waterline, so the apo it leaves is in the sea: straight
+## to the rescue (see _taken_back_from_the_deep).
 func _on_floundered(_entity_id: String, note: String) -> void:
 	_say_why(note)
 	_revert_to_base_form()
-	_carry_to_the_surface()
+	_taken_back_from_the_deep.call_deferred()
 
 
 func _on_low_ink(_remaining: float, _capacity: float) -> void:
@@ -1131,32 +1133,33 @@ func _on_low_ink(_remaining: float, _capacity: float) -> void:
 	_say_why("It is nearly gone, apo.")
 
 
-## THE ZERO CASE. Revert, carry up, lose the crossing, never die. There is no death state
-## anywhere in this game and none is being added here.
+## THE ZERO CASE. Revert, lose the stretch, never die. There is no death state anywhere in this
+## game and none is being added here.
 func _on_drain_emptied() -> void:
 	if tutorial != null:
 		tutorial.note("ink_emptied")
-	# The rescue follows a moment later with where they are going; this is only what happened.
 	_say_why("Out of ink, apo. Hold on to me.")
 	_revert_to_base_form()
-	_carry_to_the_surface()
+	# On the sand -- a helper dragging the bangka down, say -- changing back is all there is to
+	# it. In the sea, the rescue.
+	if _anchor_now().y > _waterline_y + 20.0:
+		_taken_back_from_the_deep.call_deferred()
 
 
-## ⚠ THROUGH apply_morph_state, NOT global_position. Whatever the player is, its bodies may
-## be top_level, and writing the node's position moves the node and leaves the physics where
-## it was. The same trap run_water_audit.gd documents.
-func _carry_to_the_surface() -> void:
-	if player == null or not is_instance_valid(player):
+## ⚠ STRAIGHT TO THE RESCUE, NOT UP AND THEN DOWN AGAIN. Running out of ink (or floundering)
+## used to carry the apo up to the surface where they were, keeping the x -- where the apo, who
+## cannot swim, sank again, and a second later the drowning rescue took them to the checkpoint
+## anyway: two moves for one event, the camera chasing both. The rescue is what was always going
+## to happen, so it happens now, in the rescue's own words. The checkpoint gives back the shape
+## they held there -- see _give_back_the_shape -- so a rescue into deep water is a swimmer
+## again, not an apo who drowns on arrival.
+func _taken_back_from_the_deep() -> void:
+	if player == null or not is_instance_valid(player) or not (player is Wanderer):
 		return
-	if not player.has_method("apply_morph_state"):
+	if not bool(player.call("is_in_water")) and _anchor_now().y <= _waterline_y + 20.0:
 		return
-	var anchor := player.call("get_physics_anchor") as Node2D
-	var here: Vector2 = anchor.global_position if anchor != null else player.global_position
-	# Straight up to the nearest air, keeping the x: the crossing is lost, not the progress
-	# along it, and dragging the player back to the shore as well would make running out of
-	# ink the harshest thing in a game with no fail state.
-	var surface := Vector2(here.x, _waterline_y - 40.0)
-	player.call("apply_morph_state", {"position": surface, "linear_velocity": Vector2.ZERO})
+	var words := _drowning_words()
+	_return_to_safety(words[0], words[1])
 
 
 ## E AT THE BOAT. The only thing in this level that answers the interact key and is neither a
@@ -1523,11 +1526,61 @@ func _crossing_unchosen() -> bool:
 		and director.committed_route("L3_N1").is_empty()
 
 
+## THE SHAPE BEING HELD, AS DRAWN -- its class, its name, the picture and its strokes -- so a
+## checkpoint written in deep water can give it back. See _give_back_the_shape.
+var _held_shape: Dictionary = {}
+var _giving_back_a_shape := false
+
+
+func _spawn_or_replace(entity_id: String, display_name: String, drawing: Image,
+		strokes: Array) -> bool:
+	var became := super(entity_id, display_name, drawing, strokes)
+	if became:
+		_held_shape = {"id": entity_id, "name": display_name, "drawing": drawing,
+			"strokes": strokes.duplicate(true)}
+	return became
+
+
+## ⚠ A CHECKPOINT IN DEEP WATER GIVES BACK THE SHAPE THAT WAS HELD THERE.
+##
+## Two of this level's checkpoints are on the seabed (CP3, CP3b). The base restore moves
+## whatever body the player has to where the checkpoint was written -- and when that body is
+## the apo (out of ink, floundered, changed back with Q in open water) it put an apo who cannot
+## swim on the seabed in the middle of the bakunawa's waters. They drowned on arrival, the
+## rescue fired, it restored the same checkpoint as the same apo, and that went round about once
+## a second for good: "Up you come, apo. Back to the middle of its waters", forever.
+##
+## So the checkpoint remembers the shape and gives it back, exactly as drawn, without judging it
+## again (it was judged when it was drawn) -- the crossing is lost back to the checkpoint, not
+## the body. And it is given back with at least a unit of ink: a checkpoint written with the bar
+## nearly empty would otherwise run out again within a breath, and that is the same loop slower.
+const SHAPE_INK_FLOOR := 1.0
+
+
+func _give_back_the_shape(shape: Dictionary) -> void:
+	if shape.is_empty() or String(shape.get("id", "")).is_empty():
+		return
+	if _current_form_id == String(shape["id"]):
+		return
+	var drawing := shape.get("drawing") as Image
+	_giving_back_a_shape = true
+	var became := _spawn_or_replace(String(shape["id"]), String(shape.get("name", "")),
+		drawing, shape.get("strokes", []) as Array)
+	_giving_back_a_shape = false
+	if became and ink_manager.remaining() < SHAPE_INK_FLOOR:
+		ink_manager.committed = maxf(0.0, ink_manager.capacity - SHAPE_INK_FLOOR)
+		ink_manager.reserved = 0.0
+		_on_ink_changed(ink_manager.remaining(), ink_manager.capacity, ink_manager.reserved)
+
+
 ## THE BOAT'S SECOND STEP IS NOT A DRAWING. Once a helper has been accepted the crossing waits
 ## on E at the hull, and nothing drawn answers that -- a second helper, drawn after changing
 ## back, is simply a body to drag it with, and judging it would count it as a miss against a
 ## step it was never asked to answer. The first one accepted is told what it is for.
 func _judge_submission(entity_id: String, strokes: Array = []) -> void:
+	# A shape handed back by a checkpoint was judged when it was drawn. See _give_back_the_shape.
+	if _giving_back_a_shape:
+		return
 	if director == null or director.current_obstacle() != "L3_N1" \
 			or director.committed_route("L3_N1") != "artist" or director.is_solved("L3_N1"):
 		super(entity_id, strokes)
@@ -2265,6 +2318,11 @@ func _level_run_state() -> Dictionary:
 		"knocks": _knocks,
 		"arrived": _arrived,
 		"told": _told.keys(),
+		# The shape held when this was written, and whether it was written in deep water --
+		# the case where giving it back is the difference between a rescue and a drowning loop.
+		"shape": _held_shape.duplicate() if not _current_form_id.is_empty() \
+			and String(_held_shape.get("id", "")) == _current_form_id else {},
+		"underwater": _anchor_now().y > _waterline_y + 20.0,
 	}
 
 
@@ -2284,7 +2342,17 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	# a form that is no longer standing.
 	if _drain != null:
 		_drain.clear()
+	# ⚠ AND WHAT LOLO WAS WAITING TO SAY IS DROPPED. His lines are paced (see _post_advice), so a
+	# few of the dive's were usually still queued when the rescue came -- and he went on telling
+	# the swim ("Keep going. I can talk and you can swim") to an apo standing on the beach.
+	_advice_waiting.clear()
+	_advice_left = 0.0
+	_coral_waiting = ""
 	_put_back_what_the_restore_undid()
+	# Deep water: the shape held there, given back. The base moves the body to the checkpoint
+	# after this, so the shape is made here and carried there with it.
+	if bool(state.get("underwater", false)):
+		_give_back_the_shape(state.get("shape", {}) as Dictionary)
 
 
 ## ⚠ A RESTORE ROLLS THE LEVEL BACK, AND TWO THINGS DID NOT COME BACK WITH IT.
