@@ -19,10 +19,11 @@ extends SceneTree
 ## And two that only show when something goes wrong on the way: E let the apo step off into
 ## the middle of the sea, and a restore to before the boat left the route with no boat at all.
 ##
-## So this one does what a player does: takes the fork, finds the boat with E, boards it with
-## E, holds right, and taps through Lolo.
+## So this one does what a player does: takes the fork, draws something strong and drags the
+## beached bangka down with E, boards it with E, holds right, and taps through Lolo.
 
 const Bakunawa = preload("res://scripts/bakunawa_2d.gd")
+const RosterFixtures = preload("res://tests/roster_fixtures.gd")
 
 var level: Node
 var results: Array[String] = []
@@ -51,10 +52,8 @@ func _run() -> void:
 	var creature := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Bakunawa") as Node2D
 	var surface := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Marks/SurfaceMark") as Node2D
 
-	# The shore and the fork, answered the way the finish probe answers them.
-	director.call("enter_obstacle", "L3_B0_SHORE")
-	director.call("note_submission", "fish")
-	director.call("exit_obstacle", "L3_B0_SHORE")
+	# The shore (the brush answers it) and the fork, answered with the boat.
+	director.call("solve_with_item", "L3_B0_SHORE", "new_brush")
 	director.call("enter_obstacle", "L3_N1")
 	director.call("commit_route", "L3_N1", "artist")
 	await _unpause()
@@ -74,16 +73,53 @@ func _run() -> void:
 		_check(again != null and is_instance_valid(again) and not again.is_queued_for_deletion(),
 			"a restore puts back the jar it took the ink of", "refill 0 is standing again")
 
-	# FOUND, WITH E. Standing beside the beached one is what launches the real one.
+	# ⚠ BEACHED TOO HIGH FOR THE APO ALONE. E at it with nothing drawn says why and does
+	# nothing else -- the boat route asks for a drawing like the dive does (Kent, 2026-10-01).
 	var beached := level.get("_bangka") as Node2D
 	_place(beached.global_position + Vector2(-40.0, -20.0))
 	await _frames(10)
 	level.call("press_interact")
+	await _frames(120)
 	await _unpause()
+	_check(level.get("_launched_boat") == null and not bool(director.call("is_solved", "L3_N1")),
+		"the apo alone cannot push the bangka in", "nothing in the water, the crossing open")
+
+	# DRAWN, AND DRAGGED DOWN WITH E. Something strong is the route's first step; E at the hull
+	# with it held is the second.
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	level.call("_spawn_or_replace", "horse", "Horse", sheet,
+		RosterFixtures.for_rig("walker", "horse"))
+	await _frames(20)
+	await _unpause()
+	_check(int(director.call("stage", "L3_N1")) == 1, "something strong drawn is accepted",
+		"the crossing is on its second step")
+	_place(beached.global_position + Vector2(-60.0, -40.0))
+	await _frames(20)
+	level.call("press_interact")
+	# ⚠ WATCHED FROM THE PRESS, NOT AT THE END. Changed back where the helper's middle was, the
+	# apo appeared high over the beach and fell -- and two seconds later stood on the sand
+	# exactly as if nothing had happened. The highest it is seen is what tells the two apart.
+	var apo_highest := INF
+	for _frame in range(150):
+		await physics_frame
+		if paused:
+			await _unpause()
+		var now := level.get("player") as Node2D
+		if now is Wanderer:
+			apo_highest = minf(apo_highest, now.global_position.y)
 	var boat := level.get("_launched_boat") as RigidBody2D
 	_check(boat != null and bool(director.call("is_solved", "L3_N1")),
-		"E at the beached bangka puts a real one in the water",
-		"L3_N1 solved with the found boat")
+		"E with it held drags the bangka into the sea",
+		"L3_N1 solved, a real hull afloat")
+	var apo := level.get("player") as Node2D
+	var sand_y := (level.get_node(^"EnvironmentBaseplate/GameplayPlane/Marks/BrushMark")
+		as Node2D).global_position.y
+	_check(apo is Wanderer and absf(apo.global_position.y - sand_y) < 12.0
+			and sand_y - apo_highest < 24.0,
+		"and the helper is spent, the apo set down on the sand",
+		"%s at y %.0f, highest %.0f, the sand at %.0f" % [apo.get_class(),
+			apo.global_position.y, apo_highest, sand_y])
 	if boat == null:
 		_finish()
 		return
