@@ -254,7 +254,7 @@
     "canvas_2_creased": {
       "from": "L1_PAYYO.L1_N3.protector",
       "read_as": "PlayerProfile.is_canvas_damaged('canvas_2_pista')",
-      "does": "shows a crease overlay on the assembled painting in Scene 3 and on every later showing of it",
+      "does": "draws the fold through the plaza it creased -- canvas_2_pista IS this plaza -- and has Lolo say so as the level opens",
       "does_not": "change the scrap count, the paths available, or the ending",
       "$comment": "VISUAL ONLY. See LEVEL_1.md and LEVEL_TEMPLATE.md: this is a recorded debt, not a design -- Level 1's Node 3 Protector now costs nothing mechanical."
     },
