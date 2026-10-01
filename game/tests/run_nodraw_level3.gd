@@ -15,13 +15,13 @@ extends SceneTree
 ## legitimately answers a whole route with no drawing -- there is no no-draw path here at
 ## all, and both of Dagat's forks are behind the sea rather than in front of it.
 ##
-## ⚠ TWO ROUTES IN THIS LEVEL ARE `answered_by` RATHER THAN DRAWINGS: the boat is found, and
-## slipping past the bakunawa is not a summoning. On their own that is a path through the
-## level with nothing drawn -- find the boat, steer wide, arrive. What closes it is the
-## shore: L3_B0_SHORE is a tutorial beat requiring a Swim answer, it sits between the spawn
-## and the water, and there is no way around it. **That is what makes Dagat a drawing game,
-## and it is why the practice beat is at the waterline rather than on dry sand.** If this
-## file ever goes red at "the sea cannot be waded", check that first.
+## ⚠ SLIPPING PAST THE BAKUNAWA IS NOT A SUMMONING, so the crossing is what has to ask for a
+## drawing on BOTH of its routes -- and it does: a swimmer to go under, or something strong
+## drawn to drag the beached bangka down to go over (Kent's decision, 2026-10-01). It used to
+## be a practice beat at the waterline that held the fork shut until a Swim shape was drawn,
+## because the boat was found and nothing else; Kent had the choice come first instead, so the
+## boat took on a drawing of its own. **That is what makes Dagat a drawing game.** If this file
+## ever goes red at "the bangka cannot be dragged down", check level_03.json L3_N1.artist.
 ##
 ## THE GAP IS CLOSED. "The level does not finish" used to be true for a duller reason than it
 ## claimed -- there was no island and no exit, so nothing could have finished. Both exist now
@@ -82,8 +82,8 @@ func _run() -> void:
 			"the sea cannot be crossed on foot (%s)" % route,
 			"furthest east x %.0f, the far sand starts at %.0f"
 				% [float(state["reached"]), _island_x])
-		_check(not bool(state["shore_solved"]),
-			"and the practice beat needs a drawing (%s)" % route,
+		_check(not bool(state["crossing_solved"]),
+			"and the crossing needs a drawing (%s)" % route,
 			"the button commits a route; a drawing is what solves it")
 		_check(not bool(state["completed"]),
 			"and the level does not finish (%s)" % route,
@@ -121,20 +121,21 @@ func _run() -> void:
 
 	# ⚠ THE BOAT EXPLOIT, CHECKED EXPLICITLY BECAUSE IT WAS REAL.
 	#
-	# Two of this level's routes are answered_by rather than drawings, and the fork is a
-	# trigger volume rather than a wall. So the crossing could be answered on foot: walk past
-	# the practice beat, take the Artist route, find the boat, get in, sail. A probe did
-	# exactly that, and T1 was green the whole time because the walking bot never lingered
-	# near the hull long enough to press E at it.
+	# The boat was found rather than drawn, and the fork is a trigger volume rather than a
+	# wall. So the crossing could once be answered on foot: take the Artist route, find the
+	# boat, get in, sail. A probe did exactly that, and T1 was green the whole time because
+	# the walking bot never lingered near the hull long enough to press E at it.
 	#
-	# The fix is that the shore beat gates the fork. This is the check that says so, and it
-	# presses E at the boat's own position rather than hoping the bot wanders into range.
+	# The fix now is that the bangka is beached too high: E at it does nothing until something
+	# strong has been drawn to drag it down. This is the check that says so -- the brush taken,
+	# the boat chosen at the fork, and E pressed at the hull's own position rather than hoping
+	# the bot wanders into range.
 	_route_choice = 0
 	var sneak := await _try_the_boat()
-	_check(not bool(sneak["committed"]),
-		"the fork does not open before the practice beat",
+	_check(sneak["route"] == "artist",
+		"the fork asks before anything is drawn",
 		"L3_N1 route committed: '%s'" % String(sneak["route"]))
-	_check(not bool(sneak["solved"]), "so the boat cannot be found with nothing drawn",
+	_check(not bool(sneak["solved"]), "but the bangka cannot be dragged down with nothing drawn",
 		"L3_N1 solved: %s" % sneak["solved"])
 	_check(not bool(sneak["boat"]), "and no boat is put in the water",
 		"hulls afloat: %d" % int(sneak["hulls"]))
@@ -151,8 +152,9 @@ func _run() -> void:
 		quit(1)
 
 
-## Stand on the fork, then on the beached boat, and press E at both. The most determined
-## no-draw route through this level, driven deliberately rather than left to chance.
+## Take the brush, stand on the fork and take the boat, then press E at the beached hull. The
+## most determined no-draw route through this level, driven deliberately rather than left to
+## chance.
 func _try_the_boat() -> Dictionary:
 	completed = false
 	await _open_level()
@@ -160,7 +162,15 @@ func _try_the_boat() -> Dictionary:
 		_close_level()
 		return {"committed": false, "solved": false, "boat": false, "hulls": 0, "route": ""}
 	var director = level.get("director")
-	# Onto the fork's trigger, which is where a player walks anyway.
+	# Over the brush -- the fork turns anybody back for it -- and onto the fork's trigger,
+	# which is where a player walks anyway.
+	var brush := level.get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Marks/BrushMark") \
+		as Node2D
+	if brush != null:
+		player.global_position = brush.global_position + Vector2(0.0, -20.0)
+		for _frame in range(20):
+			await physics_frame
+			_answer_any_question()
 	player.global_position = Vector2(900.0, 500.0)
 	for _frame in range(40):
 		await physics_frame
@@ -170,6 +180,12 @@ func _try_the_boat() -> Dictionary:
 	for _frame in range(60):
 		await physics_frame
 		level.call("press_interact")
+		_answer_any_question()
+	# ⚠ AND LONG ENOUGH FOR A HULL TO GET THERE. Dragged down, the bangka slides for about a
+	# second and a half before the real one is put in the water -- counted at one second, a
+	# launch that had happened was not yet one this could see.
+	for _frame in range(180):
+		await physics_frame
 		_answer_any_question()
 	var world_items := level.get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/WorldItemRoot")
@@ -228,7 +244,7 @@ func _state() -> Dictionary:
 		# THE ONE THAT MATTERS. Reaching the far sand in the apo's own body would mean the
 		# sea is scenery.
 		"crossed": _furthest > _island_x - 200.0,
-		"shore_solved": director != null and bool(director.call("is_solved", "L3_B0_SHORE")),
+		"crossing_solved": director != null and bool(director.call("is_solved", "L3_N1")),
 		"completed": completed,
 		"reached": _furthest,
 		"in_water": player != null and is_instance_valid(player)
