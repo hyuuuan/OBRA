@@ -87,6 +87,20 @@ func _run() -> void:
 	_check(not prompts.revert_is_available(), "Q hides after returning to Wanderer")
 	stand_in.free()
 
+	# ⚠ ONE KEY CAP, HOWEVER OFTEN THE VERB CHANGES IN A FRAME. The old cap used to be queued
+	# for deletion and left standing until the frame ended, so USE, CUT, USE wore three caps on
+	# one prompt, one over another. Found by run_play_level2's overlap watch in Piyesta's alleys.
+	prompts.set_use_available(true, "", "CUT")
+	prompts.set_use_available(true, "", "USE")
+	prompts.set_use_available(true, "", "CUT")
+	var use_prompt := prompts.find_child("UsePrompt", true, false)
+	var caps := 0
+	if use_prompt != null:
+		for child in use_prompt.get_children():
+			if child is PanelContainer:
+				caps += 1
+	_check(caps == 1, "a verb changed three times in one frame wears one key cap (%d)" % caps)
+
 	_finish()
 
 
