@@ -65,6 +65,12 @@ func _play(route: String) -> void:
 	var first_play := route == "boat"
 	fork_shown = {}
 	box_lines.clear()
+	_cards_shown.clear()
+	var cards := level.get("acquired_overlay") as Node
+	if cards != null:
+		# Every card that goes up, by title -- read as it is presented, not afterwards.
+		var title_label := cards.get("_title") as Label
+		cards.connect(&"opened", func() -> void: _cards_shown.append(title_label.text))
 
 	# ⚠ ONE THING AT A TIME. The brush's rule went up on walking onto the beach, about a brush
 	# not yet found; the crossing's opening line fired on picking the brush up, beside the
@@ -93,6 +99,8 @@ func _play(route: String) -> void:
 		"the brush is taken on foot, and answers the shore (%s)" % route,
 		"the drain is armed from here")
 	if first_play:
+		_check(_cards_shown.has("A New Brush"), "and its acquired card is shown (%s)" % route,
+			"cards seen: %s" % str(_cards_shown))
 		_check(tutorial != null and bool(tutorial.call("has_taught", "new_brush")),
 			"and its lesson is shown (%s)" % route, "it used to wait on a busy hint bar forever")
 		_check(bool(lines.call("has_heard", "L3_B0_SHORE.brush"))
@@ -235,6 +243,9 @@ func _walk_to_x(x: float) -> void:
 			break
 	Input.action_release(dir)
 
+
+## Every acquired card that went up this play, by title.
+var _cards_shown: Array[String] = []
 
 ## Every line the dialogue box put up, in the order it put them up, as they were pressed through.
 var box_lines: Array[String] = []

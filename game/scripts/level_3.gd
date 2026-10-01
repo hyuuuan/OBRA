@@ -38,6 +38,12 @@ const NEXT_PAINTING := preload("res://assets/hub/paintings/level_4.png")
 ## tools/build_dagat_props.py from the house's own painting of this sea.
 const LOST_CORNER := preload("res://assets/Level3/authored/painting_fragment.png")
 const FLOWER_ART := preload("res://assets/Level1/hidden_flower.png")
+## A seabed jar, for its acquired card, and the blue its flourish is thrown in.
+const JAR_ART := preload("res://assets/Level3/authored/ink_jar_0.png")
+const JAR_BLUE := Color(0.55, 0.82, 1.0, 1.0)
+## Whether the first jar's card has been shown this run. Not run state: a restore that took the
+## jar back would otherwise show the card a second time.
+var _jar_announced := false
 const COUNT_WORDS := ["None", "One", "Two", "Three", "Four", "Five"]
 ## The bangka's paddle, the hull's own wood. See _row.
 const PADDLE := preload("res://assets/Level3/authored/paddle.png")
@@ -105,6 +111,10 @@ var _arrived := false
 ## trigger the player can re-cross, and a beat spoken twice is worse than one spoken late.
 var _told: Dictionary = {}
 var _shadow: Sprite2D
+## The canvas in the island's sand, and whether the apo has taken it -- which is what the ending
+## waits on. See _land_on_the_island.
+var _next_painting: NextPaintingClass
+var _painting_taken := false
 ## Everything that moves and is not the player -- gulls, jellies, surf, rain, lightning, the
 ## wake, bubbles, glints. See DagatLife2D.
 var _life: LifeClass
@@ -331,6 +341,8 @@ func _plant_the_next_painting() -> void:
 	painting.z_index = 5
 	sand.get_parent().add_child(painting)
 	painting.global_position = sand.global_position + Vector2(90.0, 0.0)
+	painting.taken.connect(_on_next_painting_taken)
+	_next_painting = painting
 
 
 func _plant_the_refills() -> void:
@@ -706,6 +718,15 @@ func _on_refill_touched(body: Node, index: int, amount: float, refill: Area2D) -
 	_refill_nodes.erase(index)
 	ink_manager.add_ink(amount)
 	_say_why("There. That will hold you a while longer.")
+	# ⚠ TAKEN, AND SEEN TO BE. The jar used to vanish with a line of Lolo's and nothing else.
+	# The first one taken gets the acquired card -- what it is and what it did -- and every one
+	# a burst of the ink's own blue where it stood. Only the first: three of the six stand in the
+	# bakunawa's waters, and a card that dims the screen mid-sneak is a card that gets you seen.
+	PickupFlourish2D.burst(refill.get_parent() as Node2D, refill.position, JAR_BLUE)
+	if not _jar_announced:
+		_jar_announced = true
+		announce_acquisition("Ink Jar",
+			"Your ink, filled back up. Each jar on the bottom can be taken once.", JAR_ART)
 	refill.queue_free()
 
 
@@ -737,6 +758,11 @@ func _on_brush_touched(body: Node, pickup: Area2D) -> void:
 	if morph_card != null:
 		morph_card.set_meter_caption("INK")
 	_say_why("Take it, apo. Hers is spent — this one was waiting for you.")
+	# ⚠ ACQUIRED, AND SAID SO. Kent: what is taken in this level "should have the acquired pop
+	# up since its an acquired" -- the card every other level shows for her key, her canvas and
+	# her candle. The picture is the HUD's own brush, the one the ink panel carries from here on.
+	announce_acquisition("A New Brush",
+		"Hers is spent. This one holds a shape for as long as there is ink.", _brush_art())
 	# The rule it brings, said as it is taken -- read after the line above. It is FELT on the
 	# first shape held from here (see INK.first_drain), whichever way across that turns out
 	# to be.
@@ -747,6 +773,17 @@ func _on_brush_touched(body: Node, pickup: Area2D) -> void:
 	if director != null:
 		director.solve_with_item("L3_B0_SHORE", "new_brush")
 	pickup.queue_free()
+
+
+## The HUD's brush, cut to the ink the way the one in the sand is, for its acquired card.
+func _brush_art() -> Texture2D:
+	var sheet := load("res://assets/hud/brush_full.png") as Texture2D
+	if sheet == null:
+		return null
+	var cut := AtlasTexture.new()
+	cut.atlas = sheet
+	cut.region = Rect2(6.0, 156.0, 366.0, 66.0)
+	return cut
 
 
 ## The second fork, wired beside the first. `super()` still owns the overlay and the memory
@@ -1802,6 +1839,23 @@ func _uncover_the_treasure() -> Vector2:
 	reveal.tween_property(corner, "modulate:a", 1.0, 0.7)
 	reveal.parallel().tween_property(corner, "global_position:y", at.y, 1.1) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	# ⚠ AND IT IS GIVEN, NOT LEFT LYING THERE. Kent: the things found at the bottom "should have
+	# the acquired pop up since its an acquired". It holds a moment where it was found, then
+	# comes to the apo and is theirs -- with its own card, ahead of the flower's.
+	reveal.tween_interval(0.5)
+	reveal.tween_method(func(t: float) -> void:
+		if is_instance_valid(corner):
+			var target := _anchor_now() + Vector2(0.0, -30.0)
+			corner.global_position = at.lerp(target, t) + Vector2(0.0, -40.0 * sin(PI * t))
+			corner.scale = Vector2.ONE * lerpf(1.0, 0.45, t), \
+		0.0, 1.0, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	reveal.tween_property(corner, "modulate:a", 0.0, 0.2)
+	reveal.tween_callback(func() -> void:
+		if is_instance_valid(corner):
+			corner.queue_free()
+		announce_acquisition("A Torn Corner",
+			"A piece of one of her canvases, with this sea on it. It was what the creature had lost.",
+			LOST_CORNER))
 	var flower := Sprite2D.new()
 	flower.name = "GivenFlower"
 	flower.texture = FLOWER_ART
@@ -1812,7 +1866,8 @@ func _uncover_the_treasure() -> Vector2:
 	parent.add_child(flower)
 	flower.global_position = at + Vector2(0.0, -10.0)
 	var give := flower.create_tween()
-	give.tween_interval(0.9)
+	# After the corner has been given: the two used to rise out of the same spot together.
+	give.tween_interval(2.9)
 	give.tween_property(flower, "modulate:a", 1.0, 0.3)
 	give.parallel().tween_property(flower, "scale", Vector2.ONE * 0.9, 0.5) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -1987,6 +2042,8 @@ func _on_island_reached(_checkpoint_id: String) -> void:
 
 
 func _land_on_the_island() -> void:
+	# Set by the arrival too; here as well so landing is landing however it was reached.
+	_arrived = true
 	_come_ashore()
 	var sand := _mark("IslandMark")
 	if _life != null and sand != null:
@@ -1995,6 +2052,37 @@ func _land_on_the_island() -> void:
 	# THE PAINTING FIRST, THE FAREWELL SECOND, then cut. Lolo leaving is the level's real
 	# ending, not the painting, so it gets the last word.
 	_speak(script_lines.fire("ISLAND.enter"))
+	# ⚠ AND THE PAINTING IS TAKEN, NOT ONLY SEEN. Kent: it "should have the acquired pop up
+	# since its an acquired". It is armed now that the apo is ashore, the line points at it, and
+	# walking into it is what carries the level on -- see _on_next_painting_taken. Without a
+	# painting (a scene with no island mark) the farewell follows at once, as it always did.
+	if _next_painting != null and is_instance_valid(_next_painting):
+		_next_painting.arm()
+		return
+	await _say_goodbye()
+
+
+## The canvas out of the sand and into the apo's hands, with the card that says so -- and then
+## the rest of what Lolo has to say, his farewell, and the end.
+func _on_next_painting_taken() -> void:
+	if not _arrived or _painting_taken:
+		return
+	_painting_taken = true
+	announce_acquisition("Dilim",
+		"Lola's next canvas, half buried in the sand. Where she went after the sea.",
+		NEXT_PAINTING)
+	# ⚠ THE CARD FIRST, THEN HIM. Started at once, his farewell typed underneath the card and
+	# the first thing he said was lost behind it. It is the card's moment; he waits for it to
+	# go, and no longer than it can take.
+	var waited := 0.0
+	while acquired_overlay != null and is_instance_valid(acquired_overlay) \
+			and acquired_overlay.is_busy() and waited < 5.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	await _say_goodbye()
+
+
+func _say_goodbye() -> void:
 	_tell_the_other_half()
 	_speak(script_lines.fire("ISLAND.farewell"))
 	# ⚠ AND LEVEL 4 INHERITS IT. Dilim being unguided is the point, so it has to carry its
@@ -2119,6 +2207,14 @@ func _current_objective() -> Dictionary:
 			return {"key": chosen, "target": _mark_position("BakunawaMark")}
 		return {"key": "bakunawa", "obstacle": "L3_N2",
 			"target": _mark_position("BakunawaMark")}
+	# Ashore: the painting, and nothing else, until it is taken -- and then nothing at all. The
+	# goodbye is not a task, and "Go up onto the far sand" said to a player standing on it with
+	# the painting in their hands was the line pointing back at the beach.
+	if _arrived and _next_painting != null and is_instance_valid(_next_painting):
+		if _painting_taken:
+			return {}
+		return {"key": "take_the_painting",
+			"target": _next_painting.global_position + Vector2(0.0, -130.0)}
 	return {"key": "island", "target": _mark_position("IslandMark")}
 
 

@@ -66,6 +66,14 @@ func _run() -> void:
 		_place(Vector2(700.0, 500.0))
 		await _frames(30)
 		level.call("_on_refill_touched", level.get("player"), 0, 1.5, first_jar)
+		# ⚠ AND IT IS SEEN TO BE TAKEN: the first jar gets the acquired card (Kent: the things
+		# at the bottom "should have the acquired pop up since its an acquired").
+		var cards := level.get("acquired_overlay") as Node
+		await _frames(2)
+		var jar_card := (cards.get("_title") as Label).text if cards != null \
+			and bool(cards.call("is_busy")) else ""
+		_check(jar_card == "Ink Jar", "the first jar taken shows its acquired card",
+			"card '%s'" % jar_card)
 		level.call("_return_to_safety", "", "%s")
 		await _unpause()
 		await _frames(4)

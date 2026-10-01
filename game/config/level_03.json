@@ -201,7 +201,8 @@
     "bakunawa_sneak": "Wait until its light turns away, then get past it",
     "bakunawa_light": "Press {key:redraw} and draw something that throws LIGHT",
     "bakunawa_fight": "Press {key:redraw}, draw something that can STRIKE, and hit it",
-    "island": "Go up onto the far sand"
+    "island": "Go up onto the far sand",
+    "take_the_painting": "Walk to the painting in the sand and take it"
   },
   "obstacles": [
     {

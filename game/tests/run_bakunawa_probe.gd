@@ -70,6 +70,25 @@ func _the_light() -> void:
 		"and it finds what it lost", "state %d" % creature.state())
 	_check(bool(profile.call("is_collectible_found", "L3_HF")),
 		"and hands over the flower", "L3_HF recorded")
+	# ⚠ AND BOTH THINGS IT GIVES ARE SEEN TO BE TAKEN, in the order they come: the torn corner
+	# of her canvas it had been searching for, then the flower. The corner was left lying on the
+	# seabed with no card at all (Kent: what is found at the bottom "should have the acquired pop
+	# up since its an acquired"). Read off the card as it plays, every distinct title in turn.
+	var cards: Node = null
+	for node in get_nodes_in_group(&"modal_overlays"):
+		if node is AcquiredOverlay:
+			cards = node
+	var titles: Array[String] = []
+	for _frame in range(720):
+		await physics_frame
+		if cards != null and bool(cards.call("is_open")):
+			var title := (cards.get("_title") as Label).text
+			if titles.is_empty() or titles.back() != title:
+				titles.append(title)
+		if titles.has("Hidden Flower"):
+			break
+	_check(titles.size() >= 2 and titles[0] == "A Torn Corner" and titles[1] == "Hidden Flower",
+		"and gives the corner, then the flower, each with its card", str(titles))
 	_check(String(profile.call("bakunawa_outcome")) == "LIT",
 		"and the run remembers how", String(profile.call("bakunawa_outcome")))
 	_check(not creature.sees(creature.global_position + Vector2(120.0, 0.0)),

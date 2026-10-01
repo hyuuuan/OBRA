@@ -276,13 +276,17 @@ func _house_to_dagat(manager: Node) -> void:
 
 
 ## Dagat's exit is the island. The level is not replayed here -- the Dagat probes do that --
-## so the landing is taken directly, the way Payyo's painting was granted directly.
+## so the landing is taken directly, the way Payyo's painting was granted directly -- and so is
+## the next painting, which the apo now takes out of the sand before Lolo says goodbye.
 func _dagat_to_ending(manager: Node) -> void:
 	var level := current_scene
 	if level == null or not level.has_method("_land_on_the_island"):
 		_check(false, "Dagat has its island", _scene_name())
 		return
 	level.call("_land_on_the_island")
+	var painting := level.get("_next_painting") as Node
+	if painting != null:
+		painting.call("take")
 	var overlay := level.get("complete_overlay") as ModalOverlay
 	var waited := 0.0
 	while waited < 12.0 and not overlay.is_open():

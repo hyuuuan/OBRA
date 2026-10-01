@@ -221,13 +221,44 @@ func _finish_by(crossing: String, encounter: String) -> void:
 	var arrival := level.get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/IslandArrival") as Node2D
 	_place(arrival.global_position)
+
+	# ⚠ THE PAINTING IS TAKEN BEFORE ANYBODY SAYS GOODBYE. Kent: it "should have the acquired pop
+	# up since its an acquired". Ashore, the level waits for the apo to walk into it -- so nothing
+	# ends on arrival -- and taking it shows its card.
+	for _frame in range(90):
+		await physics_frame
+		if paused:
+			await _unpause()
+	var ended_early := level.get_node_or_null("LevelCompleteOverlay") != null \
+		and bool(level.get_node("LevelCompleteOverlay").call("is_open"))
+	var waiting_on := String((level.call("_current_objective") as Dictionary).get("key", ""))
+	_check(bool(level.get("_arrived")) and not ended_early and waiting_on == "take_the_painting",
+		"ashore, the level waits for the painting (%s)" % tag, "objective '%s'" % waiting_on)
+	var painting := level.get("_next_painting") as Node2D
+	if painting != null:
+		_place(painting.global_position + Vector2(0.0, -40.0))
+	var card_title := ""
+	var cards := level.get("acquired_overlay") as Node
+	for _frame in range(240):
+		await physics_frame
+		if paused:
+			await _unpause()
+		if cards != null and bool(cards.call("is_open")):
+			card_title = (cards.get("_title") as Label).text
+			if card_title == "Dilim":
+				break
+	_check(painting != null and bool(painting.call("is_taken")) and card_title == "Dilim",
+		"walking into it takes it, with its acquired card (%s)" % tag,
+		"card '%s'" % card_title)
 	# _complete_level stages the cinematic bars and holds for 1.1s before the panel arrives,
 	# so that the one moment the game acknowledges the player is not a single frame long --
 	# and before that, Lolo waves and goes (Lolo.farewell, about four seconds), because the
-	# design ends the level on his leaving, not on the panel. So the probe waits FOR the panel,
-	# up to nine seconds, rather than a fixed number of frames that only fitted the old cut.
+	# design ends the level on his leaving, not on the panel -- and before THAT, the painting's
+	# card plays out (about three and a half seconds) so his farewell is not typed under it. So
+	# the probe waits FOR the panel, up to sixteen seconds, rather than a fixed number of frames
+	# that only fitted the old cut.
 	var overlay := level.get_node_or_null("LevelCompleteOverlay")
-	for _frame in range(540):
+	for _frame in range(960):
 		await physics_frame
 		if overlay != null and bool(overlay.call("is_open")):
 			break
