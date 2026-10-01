@@ -329,9 +329,11 @@
           "required_tags": [
             "strike"
           ],
-          "exclude": [],
+          "exclude": [
+            "circle"
+          ],
           "persistent_effect": "l3_bakunawa_fought",
-          "$comment": "Five answers, and they already differ in more than damage: UtilityObject gives swing 96px, boomerang 320px, cannon 640px and the anvil a drop, which is exactly the differentiation the design asks for. Subdued or exhausted, NEVER killed -- it swims off still blind and still searching, and the cost of this route is that nothing was healed. Losing restarts the fight; it does not end the run."
+          "$comment": "Five answers, and they already differ in more than damage: UtilityObject gives swing 96px, boomerang 320px, cannon 640px and the anvil a drop, which is exactly the differentiation the design asks for. `circle` carries `strike` for Piyesta, where a round shape drawn in an alley is a stone to throw at the flock. Out here nothing throws it: it is a shape that is set down, and Bakunawa2D.BITE does not take it -- so it is excluded rather than accepted and then doing nothing. Subdued or exhausted, NEVER killed -- it swims off still blind and still searching, and the cost of this route is that nothing was healed. Losing restarts the fight; it does not end the run."
         }
       }
     }
