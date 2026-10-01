@@ -70,7 +70,11 @@ func _fail(what: String, detail: String) -> void:
 ## ⚠ WHICH OBSTACLE A `.tags` LINE SPEAKS FOR is level_3.gd's _current_objective's to decide, and
 ## it is written down here for the same reason: a `.tags` line with no entry here fails rather
 ## than being skipped, so a new one cannot arrive unmeasured.
-const OBJECTIVE_OBSTACLE := {"practice": "L3_B0_SHORE", "cross": "L3_N1", "bakunawa": "L3_N2"}
+##
+## `dive_draw` is shown once the dive is chosen, when its tags are the dive's own; measured here
+## against the crossing before the choice, which puts in both ways' tags -- the longer reading,
+## so a line that fits it fits the one the player sees.
+const OBJECTIVE_OBSTACLE := {"dive_draw": "L3_N1", "bakunawa": "L3_N2"}
 
 
 func _audit_objectives_fit(level: Dictionary) -> void:
