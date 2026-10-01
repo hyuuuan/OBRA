@@ -1360,6 +1360,11 @@ func _dress_the_bangka(boat: Node2D) -> void:
 # --- The two forks -----------------------------------------------------------------------
 
 func _on_shore_fork_approached() -> void:
+	# ⚠ A QUESTION ALREADY ANSWERED IS NOT ASKED AGAIN -- a restore can put the fork's trigger
+	# back under a player whose crossing was chosen before the checkpoint. Piyesta's forks have
+	# always checked this.
+	if director != null and not director.committed_route("L3_N1").is_empty():
+		return
 	_live_node_obstacle = "L3_N1"
 	dialogue_node = _shore_node
 	# THE CROSSING IS INTRODUCED HERE, AND THE CHOICE WAITS FOR IT. Its opening line and its
@@ -1648,6 +1653,9 @@ func _where_a_new_form_arrives(entity_id: String, state: Dictionary) -> Dictiona
 
 
 func _on_bakunawa_approached() -> void:
+	# Answered already: see the shore fork.
+	if director != null and not director.committed_route("L3_N2").is_empty():
+		return
 	# The base's handler reads `dialogue_node` and `_dialogue_node_obstacle_id()`, so both
 	# have to point at this fork before it runs.
 	_live_node_obstacle = "L3_N2"
