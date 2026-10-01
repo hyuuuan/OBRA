@@ -19,8 +19,9 @@ extends SceneTree
 ## says it still has work to do after the answer (the axe at the gorge, the thrown weapon for
 ## the flock).
 
-## The routes whose tool outlives the answer, because the answer only opens the work.
-const KEPT_AFTER := ["L1_N1/protector", "L2_N2/protector"]
+## The routes whose tool outlives the answer, because the answer only opens the work: the axe
+## still has a tree to fell, and a thrown weapon has the rest of its alley's flock to knock down.
+const KEPT_AFTER := ["L1_N1/protector", "L2_N2/protector", "L2_N3/protector"]
 
 const LEVELS := ["res://game_level.tscn", "res://level_2.tscn"]
 
@@ -134,15 +135,15 @@ func _answer_by_drawing(path: String, entry: Dictionary) -> void:
 	# A lock that measures the key may turn partway and ask again; using the key is how a
 	# player tries again, and the lock opens on its last turn whatever was drawn.
 	for _turn in range(4):
-		if director.is_solved(entry["obstacle"]):
+		if _answered(director, entry):
 			break
 		_use_from_belt(level, entry["tool"])
 		for _frame in range(20):
 			await physics_frame
-	_check(director.is_solved(entry["obstacle"]),
+	_check(_answered(director, entry),
 		"%s: drawing a %s answers %s/%s" % [path.get_file(), entry["tool"],
 			entry["obstacle"], entry["route"]],
-		"solved" if director.is_solved(entry["obstacle"])
+		_how_answered(director, entry) if _answered(director, entry)
 		else "STILL OPEN -- the %s went into the bag and nothing asked" % entry["tool"])
 	await _check_spent(level, entry, name)
 	await _close(level)
@@ -187,17 +188,29 @@ func _answer_from_the_belt(path: String, entry: Dictionary) -> void:
 			entry["obstacle"]], "still open, as it should be")
 	await _enter(level, entry["obstacle"], entry["route"])
 	for _turn in range(4):
-		if director.is_solved(entry["obstacle"]):
+		if _answered(director, entry):
 			break
 		_use_from_belt(level, entry["tool"])
 		for _frame in range(20):
 			await physics_frame
-	_check(director.is_solved(entry["obstacle"]),
+	_check(_answered(director, entry),
 		"%s: and using it from the belt at %s answers it" % [path.get_file(), entry["obstacle"]],
-		"solved" if director.is_solved(entry["obstacle"]) else "STILL OPEN")
+		_how_answered(director, entry) if _answered(director, entry) else "STILL OPEN")
 	await _check_spent(level, entry, "%s: %s from the belt at %s" % [path.get_file(),
 		entry["tool"], entry["obstacle"]])
 	await _close(level)
+
+
+## Answered, or its half of the route answered. A route with a second half moves on to it
+## rather than completing -- Piyesta's throwing route is a throwable drawn, then the flock knocked
+## down with it -- and the tool's part is done the moment it does.
+func _answered(director, entry: Dictionary) -> bool:
+	return director.is_solved(entry["obstacle"]) or int(director.stage(entry["obstacle"])) > 0
+
+
+func _how_answered(director, entry: Dictionary) -> String:
+	return "solved" if director.is_solved(entry["obstacle"]) \
+		else "its half answered, on to the next"
 
 
 ## Press the slot the tool is in if it is not already in hand, then use it.
