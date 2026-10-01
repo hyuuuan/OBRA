@@ -26,6 +26,11 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_swim_reach_probe.gd
 
 const RosterFixtures = preload("res://tests/roster_fixtures.gd")
+## The least a swimming body's widest-swinging bone must move, in degrees. See _measure. A
+## swimmer's whole body is the stroke, so it is held to more than a walker paddling its legs --
+## and above the ten its fins swing on their own, which is all a rigid fish ever showed.
+const SWIM_SWING := 18.0
+const PADDLE_SWING := 8.0
 const InkManagerClass = preload("res://scripts/ink_manager.gd")
 const InkDrainClass = preload("res://scripts/ink_drain.gd")
 ## Only its sweep, for the line that says how long one is -- a typed copy of the numbers went
@@ -182,6 +187,7 @@ func _measure(entity_id: String, default_rate: float, usable_units: float,
 
 	var frames := int(RUN_SECONDS * 60.0)
 	var across := await _hold(instance, anchor, &"move_right", frames)
+	var swing := _peak_swing
 	instance.call("apply_morph_state", {"position": Vector2(600.0, SURFACE_Y + POOL_HEIGHT * 0.5)})
 	await _settle(SETTLE_FRAMES)
 	var rise := -(await _hold(instance, anchor, &"move_up", frames, true))
@@ -201,6 +207,16 @@ func _measure(entity_id: String, default_rate: float, usable_units: float,
 	var stretch_cost := longest / maxf(1.0, per_ink)
 
 	var verdict := "ok"
+	# ⚠ AND IT LOOKS LIKE SWIMMING. Kent: "fix the animation of the moving creatures". The
+	# swimmer's spine read a pixel wave height as degrees and the tail copied it, so a fish
+	# waved about six degrees and looked rigid; and the amphibious four had no swim weight at
+	# all, so a crab paddled with its legs at their idle weight -- about one degree. Every one of
+	# the seven has to swing something while it swims: a swimmer its body, a walker its legs.
+	var needed := SWIM_SWING if rig_type == "swimmer" else PADDLE_SWING
+	if swing < needed:
+		verdict = "DOES NOT LOOK LIKE SWIMMING"
+		failures += 1
+		notes.append("%s swings at most %.1f degrees while it swims" % [entity_id, swing])
 	if absf(across) < 60.0:
 		verdict = "DOES NOT TRAVEL"
 		failures += 1
@@ -233,8 +249,8 @@ func _measure(entity_id: String, default_rate: float, usable_units: float,
 		verdict = "tight"
 		notes.append("%s spends %.0f%% of a full tank on the longest stretch"
 			% [entity_id, stretch_cost / usable_units * 100.0])
-	rows.append("%-11s %7.0f %6.2f %7.0f %8.0f %8.2f %7.0f  %s" % [
-		entity_id, speed, rate, per_ink, reach, stretch_cost, hold, verdict])
+	rows.append("%-11s %7.0f %6.2f %7.0f %8.0f %8.2f %7.0f  %s  (swing %.0f deg)" % [
+		entity_id, speed, rate, per_ink, reach, stretch_cost, hold, verdict, swing])
 	instance.queue_free()
 	await process_frame
 
@@ -247,14 +263,22 @@ func _measure(entity_id: String, default_rate: float, usable_units: float,
 ## with a * so nobody reads it as an ability. The useful fact it does carry is boolean: every
 ## class can get back up, which is what the ink-zero case depends on.
 var _clamped := false
+## The widest any bone swung while the last hold was swimming, in degrees. See _measure.
+var _peak_swing := 0.0
 
 func _hold(instance: Node2D, anchor: Node2D, action: StringName, frames: int,
 		vertical := false) -> float:
 	var start := anchor.global_position
 	_clamped = false
+	_peak_swing = 0.0
+	var skin := instance.get_node_or_null(^"DrawingSkin")
 	Input.action_press(action)
 	for _frame in range(frames):
 		await physics_frame
+		var driver: Variant = skin.get("_skin_driver") if skin != null else null
+		if driver != null:
+			for angle: float in (driver as Object).get("_angles"):
+				_peak_swing = maxf(_peak_swing, rad_to_deg(absf(angle)))
 		var here := anchor.global_position
 		if here.y > BED_TOP - 40.0 or here.y < SURFACE_Y + 20.0:
 			_clamped = true
