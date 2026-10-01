@@ -473,6 +473,44 @@ def search_edges() -> None:
 LAND = {name: (lambda name=name: draw_land(name)) for name in LANDS}
 
 
+# --- The island's palms, without the beach they were painted on ----------------------------
+#
+# The delivered `palms_right` plate is a clump of palms on boulders at the end of a painted sand
+# spit -- driftwood, a coral, the spit's own wavy edge -- and all of that lies below the walking
+# line. Over the island's land it was a second beach painted across the first, at eight pixels to
+# the pixel, which kept exactly the "walking to an image" look the land above replaced. So the
+# island gets the clump alone: cut at the column the clump starts at, the sand keyed out of
+# everything below the boulders' tops, and anything left that is no longer joined to the clump
+# (a pebble that lay on the sand) dropped with it. The palms then end on their boulders at the
+# landward end of the wall, the way `palms_left` already ends the home beach.
+#
+# ⚠ THE FULL HEIGHT OF THE PLATE, SO THE SWAY DOES NOT CHANGE. wind_sway.gdshader holds the foot
+# by UV.y (`root`), so the texture keeps the plate's 941 rows and only loses columns.
+PALMS_RIGHT = ROOT / "game" / "assets" / "Level3" / "shore" / "palms_right.png"
+## The plate's columns the clump stands in: from its leftmost fern to the plate's own cut side.
+PALM_COLUMNS = (1185, 1672)
+## Plate rows from which a sand-coloured pixel is sand. Above this is trunk, whose highlights are
+## the same orange-tan as the sand.
+PALM_SAND_FROM = 760
+
+
+def draw_palms_island() -> Image.Image:
+    plate = np.array(Image.open(PALMS_RIGHT).convert("RGBA"))
+    out = plate[:, PALM_COLUMNS[0]:PALM_COLUMNS[1]].copy()
+    hue, light, sat = _hls(out[..., :3].astype(float) / 255.0)
+    degrees = hue * 360.0
+    sandy = (degrees >= 18.0) & (degrees <= 52.0) & (light > 0.42) & (sat > 0.30)
+    sandy[:PALM_SAND_FROM] = False
+    out[sandy] = 0
+    solid = out[..., 3] > 0
+    joined = _flood(solid, [(y, x) for y in range(PALM_SAND_FROM) for x in range(out.shape[1])])
+    out[~joined] = 0
+    return Image.fromarray(out, "RGBA")
+
+
+PALMS = {"palms_island.png": draw_palms_island}
+
+
 # --- The seabed: what the diver swims over -------------------------------------------------
 #
 # The floor was the delivered TERRACES plate at world rate: a tableau of stepped ledges with
@@ -1465,7 +1503,7 @@ def build() -> list[Path]:
         path = OUT / f"ink_jar_{frame}.png"
         draw(frame).save(path)
         written.append(path)
-    for table in (LAND, SEABED_ART, BANGKA, FOUND):
+    for table in (LAND, PALMS, SEABED_ART, BANGKA, FOUND):
         for name, painter in table.items():
             path = OUT / name
             painter().save(path)
@@ -1480,7 +1518,8 @@ def build() -> list[Path]:
 
 def _expected() -> list[Path]:
     return [OUT / f"ink_jar_{frame}.png" for frame in range(FRAMES)] + \
-        [OUT / name for name in LAND] + [OUT / name for name in SEABED_ART] + \
+        [OUT / name for name in LAND] + [OUT / name for name in PALMS] + \
+        [OUT / name for name in SEABED_ART] + \
         [OUT / name for name in BANGKA] + \
         [OUT / name for name in FOUND] + \
         [OUT / f"{name}_{frame}.png" for name, (_p, n) in LIFE.items() for frame in range(n)]

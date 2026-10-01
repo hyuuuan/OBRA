@@ -24,6 +24,8 @@ const MANIFEST := "res://assets/Level3/dagat.json"
 ## Authored by tools/build_dagat_props.py, not cut from the delivery. See that tool's header.
 const LAND_HOME := "res://assets/Level3/authored/land_home.png"
 const LAND_ISLAND := "res://assets/Level3/authored/land_island.png"
+## The island's palms with the sand they were painted on taken out -- see the shore band.
+const PALMS_ISLAND := "res://assets/Level3/authored/palms_island.png"
 ## The seabed and what stands behind it -- see the deep band's rows. Both authored by
 ## tools/build_dagat_props.py.
 const SEABED_FLOOR := "res://assets/Level3/authored/seabed_floor.png"
@@ -185,10 +187,15 @@ const BANDS := {
 			"pieces": [
 			{"crop": Vector2(0, 478), "at": "home_ground.x", "align": "left"},
 		]},
-		{"key": "shore/palms_right", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.28),
-			"pieces": [
-			{"crop": Vector2(690, 1672), "at": "island_ground.y", "nudge": 100.0,
-				"align": "right"},
+		# ⚠ THE ISLAND'S CLUMP WITHOUT ITS SAND SPIT. `palms_right` is the clump at the end of a
+		# painted spit -- driftwood, a coral, a wavy sand edge -- all of it below the walking
+		# line, and over the island's land it was a second, painted beach across the first.
+		# PALMS_ISLAND is the same clump with the spit cut away and the sand keyed out (see
+		# build_dagat_props.py), so the island ends on boulders against its wall the way the
+		# home beach does. Its right edge is the plate's, so it stands where it always stood.
+		{"key": PALMS_ISLAND, "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.28),
+			"top_row": 0.0, "pieces": [
+			{"at": "island_ground.y", "nudge": 100.0, "align": "right"},
 		]},
 	],
 	"deep": [

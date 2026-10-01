@@ -695,6 +695,10 @@ the deep's colour. `tools/build_dagat_props.py` draws it.
   back where the backdrop puts it: the sand's top row is the collision's top, the sand ends on the
   collision's edge, and the face is never more than 16 px short. Mutation-tested three ways: the
   old pictures, the picture 4 px lower, and the island collision 20 px further out.
+- **The island's palms had their own painted beach.** `palms_right` is a clump at the end of a sand
+  spit, with driftwood and a coral, all below the walking line, so it drew a second beach across
+  the new one. `palms_island.png` is the same clump with the spit cut off and the sand keyed out,
+  so the island ends on boulders against its wall, the way `palms_left` ends the home beach.
 
 **The surf was a dashed rectangle floating beside the beach.** It is froth heaped against the
 land, thinning seaward into specks, with no bottom edge.
