@@ -131,7 +131,12 @@ func _walk_piyesta() -> void:
 	level.call("_enter_room", church, player.global_position)
 	await _frames(12)
 	_expect("in the church", "rack")
-	(level.get("chancel") as ChurchInterior2D).place_the_kandila()
+	# AT THE RACK, the way a player is when E puts it there -- the priest walks over to
+	# whoever lit it, so where they are standing is part of the scene.
+	var chancel := level.get("chancel") as ChurchInterior2D
+	(level.get("player") as Node2D).global_position = chancel.rack_point() + Vector2(0.0, -8.0)
+	await _frames(6)
+	chancel.place_the_kandila()
 	await _frames(6)
 	_expect("candle on the rack", "priest", false)
 	for _second in range(80):
@@ -144,30 +149,137 @@ func _walk_piyesta() -> void:
 
 	level.call("_go_onward", church)
 	await _frames(12)
+	# The alley asks how at the way in. Until it is answered, the line is the flock.
 	_expect("in the first alley", "flock")
 	director.enter_obstacle("L2_N2")
 	await _frames()
 	_expect("at the flock", "flock", true, "FEED")
-	director.commit_route("L2_N2", "artist")
-	level.call("_judge_submission", (director.accept_set("L2_N2") as PackedStringArray)[0])
-	await _frames(20)
-	_expect("the flock is answered", "alley_on")
-
+	await _choose("artist")
+	_expect("chose to feed them", "flock_feed", true, "FEED")
+	_draw("bread")
+	await _frames(4)
+	await _place("bread", player.global_position + Vector2(280.0, -30.0))
 	var alley_1 := level.get("alley_1") as PiyestaRoom2D
+	var first = (level.get("_alleys") as Dictionary)["L2_N2"]
+	await _until_pieces_are_down(first)
+	_expect("the flock is down, the pieces are not in hand", "flock_collect", true)
+	await _walk_over_the_pieces(first)
+	_expect("every piece picked up", "alley_on")
+
 	level.call("_go_onward", alley_1)
 	await _frames(12)
-	_expect("in the second alley", "bunting")
-	director.enter_obstacle("L2_N3")
-	await _frames()
-	director.commit_route("L2_N3", "artist")
-	level.call("_judge_submission", (director.accept_set("L2_N3") as PackedStringArray)[0])
-	await _frames(20)
-	_expect("the bunting is answered", "alley_end")
+	_expect("in the second alley", "flock")
+	await _choose("protector")
+	_expect("chose to throw", "flock_stone", true, "STRIKE")
+	_draw("circle")
+	await _frames(4)
+	_expect("a stone in hand", "flock_aim", false)
+	var second = (level.get("_alleys") as Dictionary)["L2_N3"]
+	var thrower := second.get("thrower") as StoneThrow2D
+	thrower.follow_mouse = false
+	thrower.aim_at(level.call("_throwing_hand") + Vector2(140.0, -40.0))
+	level.call("_use_equipped_utility")
+	for _frame in range(240):
+		if not thrower.in_flight():
+			break
+		await physics_frame
+	await _frames(2)
+	_expect("the stone missed and is lying there", "flock_fetch", true)
+	player.global_position = Vector2(thrower.resting_stone().x, player.global_position.y)
+	await _frames(6)
+	_expect("picked back up", "flock_aim", false)
+	for bird: ScrapBird2D in second.get("birds"):
+		bird.strike_down()
+	await _until_pieces_are_down(second)
+	_expect("both knocked down", "flock_collect", true)
+	await _walk_over_the_pieces(second)
+	_expect("the last pieces picked up", "alley_end")
 	level.call("_open_scene_3")
 	await _frames(6)
 	_expect("at the table", "table", false)
 	level.queue_free()
 	await process_frame
+	await _walk_the_cut_route()
+
+
+## The route with two drawings in it, on its own: a climb first, then an edge, and the line says
+## which is next and points at the strings for the second.
+func _walk_the_cut_route() -> void:
+	level = await _open("res://level_2.tscn")
+	var director = level.get("director")
+	print("  -- Piyesta, the cut route")
+	level.set("_has_kandila", true)
+	(level.get("chancel") as ChurchInterior2D).kandila_on_rack = true
+	(level.get("church") as PiyestaRoom2D).open_onward()
+	level.call("_go_onward", level.get("church"))
+	await _frames(12)
+	await _choose("pragmatist")
+	_expect("chose to cut them down", "flock_climb", true, "CLIMB")
+	var alley = (level.get("_alleys") as Dictionary)["L2_N2"]
+	var line := alley.get("line") as BandaritaLine2D
+	var player := level.get("player") as Node2D
+	_draw("ladder")
+	await _frames(4)
+	await _place("ladder", Vector2(line.middle().x, player.global_position.y - 60.0))
+	_expect("something to climb set down", "flock_cut", true, "CUT")
+	var marker := level.get("objective_marker") as ObjectiveMarker
+	_check(marker.target().distance_to(line.middle()) < 2.0,
+		"and the marker is on the strings", "target %s" % marker.target())
+	_check(director.stage("L2_N2") == 1, "the cut route is on its second half", "stage 1")
+	level.queue_free()
+	await process_frame
+
+
+func _choose(route: String) -> void:
+	var choice := level.get_node_or_null(^"DialogueChoiceOverlay")
+	for _frame in range(600):
+		if choice != null and bool(choice.call("is_open")):
+			break
+		await physics_frame
+	_check(choice != null and bool(choice.call("is_open")), "the alley asks how", route)
+	if choice != null and bool(choice.call("is_open")):
+		choice.call("_on_route_pressed", route)
+	await _frames(10)
+
+
+func _draw(entity_id: String) -> void:
+	level.call("_on_drawing_ready", entity_id, entity_id.capitalize(),
+		Image.create(28, 28, false, Image.FORMAT_RGBA8), {"confidence": 0.9}, [], 1.0)
+
+
+func _place(entity_id: String, at: Vector2) -> void:
+	var slot := int(level.call("_slot_holding", entity_id))
+	if slot < 0:
+		return
+	level.call("_on_inventory_slot_pressed", slot)
+	await _frames(2)
+	var placement := level.get("placement_controller") as Node2D
+	placement.set_process(false)
+	placement.call("update_target", at)
+	await _frames(4)
+	placement.call("confirm_placement")
+	placement.set_process(true)
+	await _frames(10)
+
+
+func _until_pieces_are_down(alley) -> void:
+	var count: int = (alley.get("birds") as Array).size()
+	for _frame in range(900):
+		if (alley.get("dropped") as Dictionary).size() >= count:
+			break
+		await physics_frame
+	await _frames(2)
+
+
+func _walk_over_the_pieces(alley) -> void:
+	var player := level.get("player") as Node2D
+	for _i in range(20):
+		var pieces: Dictionary = alley.get("pieces")
+		if pieces.is_empty():
+			break
+		var piece: Node2D = pieces.values()[0]
+		player.global_position = Vector2(piece.global_position.x, player.global_position.y)
+		await _frames(6)
 
 
 # --- Payyo -----------------------------------------------------------------------------
@@ -237,14 +349,20 @@ func _audit_no_objective_names_a_class(path: String) -> void:
 				"res://config/entities.json")) as Dictionary).get("entities", []):
 			labels.append(String((entry as Dictionary).get("id", "")).replace("_", " "))
 	var named: Array[String] = []
+	# ⚠ READ AS SHOWN, the way run_level3_audit reads Dagat's. A `{key:use_utility}` is written
+	# out as "F" before anybody sees it -- and `key` is one of the fifty, so read raw, every line
+	# that names a key would name a class. Loaded here rather than preloaded: the base names the
+	# autoloads, which a `--script` run has not registered when it compiles its own constants.
+	var base = load("res://scripts/level_base.gd")
 	for key: Variant in objectives.keys():
 		if String(key).begins_with("$"):
 			continue
-		var words := _words_in(String(objectives[key]).to_lower())
+		var shown := String(base.with_keys(String(objectives[key])))
+		var words := _words_in(shown.to_lower())
 		for label: Variant in labels:
 			var word := String(label).to_lower()
 			if word.contains(" "):
-				if String(objectives[key]).to_lower().contains(word):
+				if shown.to_lower().contains(word):
 					named.append("%s: %s" % [key, word])
 				continue
 			if words.has(word) or words.has(word + "s") or words.has(word + "es"):

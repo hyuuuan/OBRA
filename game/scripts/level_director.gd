@@ -144,6 +144,13 @@ func committed_route(id: String) -> String:
 	return String(_committed.get(id, ""))
 
 
+## Which step of a multi-step route (or which sub-beat) the obstacle is on, from 0. A route's
+## `then` has no stage id of its own to fire lines on, so a level that has something to say or
+## do when the first step is done asks this before and after a submission.
+func stage(id: String) -> int:
+	return int(_stage.get(id, 0))
+
+
 ## Whether the player has stood in this obstacle's volume at all this run.
 func was_entered(id: String) -> bool:
 	return _tier.has(id)

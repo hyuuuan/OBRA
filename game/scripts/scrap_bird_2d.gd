@@ -1,50 +1,81 @@
 class_name ScrapBird2D
 extends Node2D
-## One of the five in Alley 1, each carrying one piece of the painting.
+## One of the flock in Piyesta's alleys, each carrying one piece of the painting.
 ##
-## THE DESIGN'S PROMISE IS PER-BIRD, NOT PASS/FAIL. Down three of five and you walk into
-## Alley 2 with two waiting, tangled in the bandaritas. Nothing is ever lost, only deferred
-## -- which is what keeps a timed route from feeling punitive, because the timer running out
-## costs a walk rather than a scrap.
+## THE DESIGN'S PROMISE IS PER-BIRD, NOT PASS/FAIL, so each bird is INDIVIDUALLY ADDRESSABLE
+## and owns exactly one scrap. The five do not need to look different; they need to be five
+## things, not a number.
 ##
-## So each bird is INDIVIDUALLY ADDRESSABLE and owns exactly one scrap. The five do not need
-## to look different; they need to be five things, not a number.
+## ⚠ THEY FLY, THEY DO NOT HANG. They used to circle a 120 x 46 ellipse around a point just
+## under the bunting, which from the floor read as five birds stuck to the line. Kent: "the birds
+## are just perched to the banderitas instead of flying around". They wander the alley's air now,
+## each on its own course, and every so often go back to their nests in the bunting for a few
+## seconds before taking off again -- which is also what makes cutting the line a way to get
+## what they are holding.
 ##
-## THREE ROUTES REACH THEM AND THEY ARE THREE DIFFERENT VERBS:
-##   * calmed  -- it comes down, eats, and gives up its scrap where the player can reach it.
-##   * startled -- it leaves for Alley 2 carrying the scrap. Deferred, not lost.
-##   * struck  -- it is knocked down and drops the scrap where it fell.
-## A bird that has already answered one of them answers none of the others: the routes are
-## alternatives, and a bird that could be fed AND downed would let one player take a scrap
-## twice while the ledger counted it once.
+## THREE WAYS DOWN, and a bird that has taken one answers none of the others -- the routes are
+## alternatives, and a bird that could be fed AND downed would drop its scrap twice:
+##   * calmed    -- it flies down to what was put out, eats, and leaves the scrap beside it.
+##   * struck    -- a throw hits it; it tumbles to the floor, lets go, and flies off dazed.
+##   * scattered -- its nest comes down with the line; it bolts, and the scrap flutters down.
+##
+## THE SCRAP ENDS UP ON THE FLOOR EVERY TIME, and from there it is the level's: `scrap_dropped`
+## says where it lies, the level puts the piece there for the player to walk over and pick up,
+## and this bird stops drawing it. The bird never decides whether a piece is collected.
 
+## The scrap is lying on the floor, and `at` (global) is the point on the floor under it. From
+## here it is the level's to lay out.
 signal scrap_dropped(scrap_id: String, at: Vector2)
-signal flew_off(scrap_id: String)
-signal settled(scrap_id: String)
 
-enum State { CIRCLING, CALMED, DOWNED, GONE }
+enum State { FLYING, PERCHED, DESCENDING, CALMED, FALLING, DOWNED, FLEEING, GONE }
 
-## Which piece of the painting this one has. Set by the alley when it spawns the five.
+## Which piece of the painting this one has. Set by the alley when it spawns the flock.
 @export var scrap_id: String = ""
-## The circle it flies, in world units, around wherever it was placed.
-@export var orbit := Vector2(120.0, 46.0)
-@export var orbit_seconds := 4.0
-## How high it rides as the timer runs down. The design asks for the pressure to be
-## READABLE IN THE FICTION -- the birds circling higher, the light changing -- rather than
-## shown as a bare countdown, so climbing is the clock.
-@export var climb_when_pressed := 90.0
+## Where it may fly, in the parent's (the alley's) own space: x across the alley, y above its
+## floor. The floor is y = 0 in an alley.
+@export var airspace := Rect2(-380.0, -270.0, 760.0, 150.0)
+## How fast it flies, and how hard it can turn toward where it is going.
+@export var cruise_speed := 120.0
+@export var steer := 260.0
+## How long it stays up between visits to the nest, and how long it sits there, in seconds.
+@export var flight_seconds := Vector2(6.0, 11.0)
+@export var perch_seconds := Vector2(2.5, 4.5)
+## Where a piece it lets go of may come to rest, across the parent's x: the floor between the
+## alley's two doorways. ⚠ NEVER IN A DOORWAY -- walking in to pick a piece up out of one walks
+## the apo out of the alley, and the piece is still lying there when they come back.
+@export var drop_span := Vector2(-INF, INF)
+
+## Where its nest is: a Callable returning the GLOBAL point on the bunting it lands on. The line
+## sways, so this is asked every frame while the bird is on it. Empty for a bird with no nest.
+var nest := Callable()
+## Where the floor is, in the parent's space. An alley's floor is 0.
+var floor_y := 0.0
+
+## Hit by a thrown stone at this distance from its middle. A bird is small and a stone is
+## smaller; this is generous because the player is aiming at something moving.
+const HIT_RADIUS := 30.0
+const GRAVITY := 900.0
+## How fast it comes down to food, and how fast it gets out when its nest falls.
+const DESCEND_SPEED := 150.0
+const FLEE_SPEED := 260.0
+## How long a struck bird sits stunned on the floor before it shakes it off and goes. Struck,
+## never killed: a bird lying still for the rest of the level reads as one that died.
+const DAZED_SECONDS := 1.4
+## How long a leaving bird takes to fade out.
+const LEAVING_SECONDS := 1.2
+## Where the piece lies beside a bird on the floor: far enough in front of it that the bird is
+## still seen eating, or lying stunned, rather than hidden behind what it dropped.
+const BESIDE := 32.0
+## Where a piece's picture is anchored above the floor it lies on: `draw_scrap` hangs the card
+## eighteen pixels below its anchor, so at sixteen up its lower edge just meets the floor.
+const PIECE_LIFT := 16.0
 
 ## What a bird looks like at this scale, which is not much: a body, two wings and the piece
 ## of painting in its beak. The scrap is the important half -- five identical birds are five
-## birds, but five birds each carrying something the player wants is Problem 2.
-## ⚠ THEY WERE NEARLY BLACK ON A GREY WALL AND READ AS SMUDGES. #323134 against an alley
-## rendered in #4A5051 is four steps of one hue -- at this size, circling, the eye got a dark
-## blur with a white card in front of it and no bird at all. These are the whole of Problem
-## 2: the player has to be able to see, count and aim at five of them.
-##
-## A maya is BROWN, which is both true and the thing the cold wall cannot swallow, and the
-## outline is what makes it hold at any brightness -- the same rule every other prop in this
-## project is drawn to.
+## birds, but five birds each carrying something the player wants is the problem.
+## ⚠ THEY WERE NEARLY BLACK ON A GREY WALL AND READ AS SMUDGES. A maya is BROWN, which is both
+## true and the thing the cold wall cannot swallow, and the outline is what makes it hold at
+## any brightness -- the same rule every other prop in this project is drawn to.
 const OUTLINE := Color(0.106, 0.086, 0.075, 1.0)   # 1B1613
 const BODY := Color(0.400, 0.322, 0.259, 1.0)      # 665242
 const BODY_LIT := Color(0.588, 0.490, 0.388, 1.0)  # 967D63
@@ -52,26 +83,45 @@ const WING := Color(0.310, 0.247, 0.196, 1.0)      # 4F3F32
 const WING_LIT := Color(0.463, 0.380, 0.302, 1.0)  # 76614D
 const BEAK := Color(0.898, 0.667, 0.263, 1.0)      # E5AA43
 const EYE := Color(0.937, 0.925, 0.882, 1.0)       # EFECE1
-## The scrap in the beak. Canvas, with a little of the picture on it, so it reads as a piece
-## of a painting rather than as a white card.
+## The scrap. Canvas, with a little of the sea on it -- the pieces are Dagat -- so it reads as a
+## piece of a painting rather than as a white card.
 const SCRAP := Color(0.878, 0.827, 0.729, 1.0)     # E0D3BA
 const SCRAP_EDGE := Color(0.678, 0.616, 0.502, 1.0)# AD9D80
-const SCRAP_INK := Color(0.404, 0.475, 0.522, 1.0) # 677985
-## Where a downed one is left, and what tells the player it is worth walking to.
+const SCRAP_SEA := Color(0.184, 0.482, 0.522, 1.0) # 2F7B85
+const SCRAP_SKY := Color(0.216, 0.255, 0.337, 1.0) # 374156
+## A struck one, on the floor.
 const DOWNED := Color(0.353, 0.286, 0.231, 1.0)    # 5A493B
 
-var _state: int = State.CIRCLING
-var _home := Vector2.ZERO
-var _phase := 0.0
-var _pressure := 0.0
+var _state: int = State.FLYING
+## Whether the scrap is still in its beak. False from the moment it has let go of it.
+var _holding := true
+var _velocity := Vector2.ZERO
+var _target := Vector2.ZERO
+var _clock := 0.0
+var _until := 0.0
+var _flap := 0.0
+var _facing := 1.0
+var _spin := 0.0
+## Where it is flying down to, while it is (parent space).
+var _landing := Vector2.ZERO
+## Where the food it was fed is, across the parent's x, so it lands facing it and sets its piece
+## down behind itself -- not under the thing it came down to eat. NAN when it was not fed.
+var _food_x := NAN
+## A scrap let go of in the air, fluttering down on its own (parent space). INF when none.
+var _loose_scrap := Vector2.INF
+var _loose_fall := 0.0
+var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
 	add_to_group(&"scrap_birds")
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_home = position
-	# Spread them out so five birds are a flock rather than a stack.
-	_phase = randf() * TAU
+	# Each its own course: seeded off its id, so a flock is the same flock every run and a test
+	# can reason about it, and no two of them move together.
+	_rng.seed = hash(scrap_id) + 1
+	_flap = _rng.randf() * TAU
+	_until = _rng.randf_range(flight_seconds.x * 0.3, flight_seconds.y)
+	_pick_a_heading()
 	queue_redraw()
 
 
@@ -79,116 +129,293 @@ func state() -> int:
 	return _state
 
 
+## Taken one of the three ways down. An answered bird answers nothing else.
 func is_answered() -> bool:
-	return _state != State.CIRCLING
+	return _state in [State.DESCENDING, State.CALMED, State.FALLING, State.DOWNED,
+		State.FLEEING, State.GONE]
+
+
+## Up and about, and so something a throw can hit.
+func is_airborne() -> bool:
+	return _state == State.FLYING or _state == State.PERCHED
+
+
+func is_perched() -> bool:
+	return _state == State.PERCHED
+
+
+## Whether the scrap is still in its beak.
+func is_holding() -> bool:
+	return _holding
+
+
+## Whether a thrown thing at `point` (global) has hit it.
+func hit_test(point: Vector2, radius: float = 0.0) -> bool:
+	return is_airborne() and global_position.distance_to(point) <= HIT_RADIUS + radius
 
 
 func _physics_process(delta: float) -> void:
-	if _state != State.CIRCLING:
+	_clock += delta
+	match _state:
+		State.FLYING:
+			_fly(delta)
+		State.PERCHED:
+			_sit(delta)
+		State.DESCENDING:
+			_descend(delta)
+		State.CALMED:
+			_flap += delta * 5.0
+		State.FALLING:
+			_fall(delta)
+		State.DOWNED:
+			_daze(delta)
+		State.FLEEING:
+			_flee(delta)
+	if _loose_scrap != Vector2.INF:
+		_drop_the_loose_scrap(delta)
+	queue_redraw()
+
+
+# --- Flying about ----------------------------------------------------------------------
+
+func _fly(delta: float) -> void:
+	_flap += delta * 11.0
+	if _clock >= _until and nest.is_valid():
+		# Home for a while. The nest is where the scraps live; cutting it down is a route.
+		_target = _nest_here()
+		if position.distance_to(_target) < 10.0:
+			_state = State.PERCHED
+			_clock = 0.0
+			_until = _rng.randf_range(perch_seconds.x, perch_seconds.y)
+			_velocity = Vector2.ZERO
+			return
+	elif position.distance_to(_target) < 32.0:
+		_pick_a_heading()
+	var wanted := (_target - position).normalized() * cruise_speed
+	_velocity = _velocity.move_toward(wanted, steer * delta)
+	position += _velocity * delta
+	# Never out of its air: a gust of steering must not carry it through a wall or the floor.
+	# The top is its nest's height when it is going home, which is above the air it wanders.
+	position = Vector2(clampf(position.x, airspace.position.x, airspace.end.x),
+		clampf(position.y, minf(airspace.position.y, _nest_here().y), airspace.end.y))
+	if absf(_velocity.x) > 4.0:
+		_facing = signf(_velocity.x)
+
+
+func _pick_a_heading() -> void:
+	_target = Vector2(_rng.randf_range(airspace.position.x, airspace.end.x),
+		_rng.randf_range(airspace.position.y, airspace.end.y))
+
+
+## Where its nest is now, in the parent's space -- or where it is, for a bird with none.
+func _nest_here() -> Vector2:
+	if not nest.is_valid():
+		return position
+	var at: Variant = nest.call()
+	if not (at is Vector2):
+		return position
+	var parent := get_parent() as Node2D
+	return parent.to_local(at as Vector2) if parent != null else at as Vector2
+
+
+func _sit(delta: float) -> void:
+	# Held to the string, which sways, so the bird rides it rather than hanging in the air
+	# beside it.
+	position = _nest_here()
+	_flap += delta * 2.0
+	if _clock >= _until:
+		_state = State.FLYING
+		_clock = 0.0
+		_until = _rng.randf_range(flight_seconds.x, flight_seconds.y)
+		_pick_a_heading()
+		# Off the string downward and out, the way a bird drops off a wire.
+		_velocity = Vector2(_rng.randf_range(-60.0, 60.0), 70.0)
+
+
+# --- Fed ---------------------------------------------------------------------------------
+
+## Fed. It flies down to `landing` (global) beside `food` (global) -- what was put out -- turns
+## to it, and sets its piece down behind itself. With no landing, it settles straight down from
+## where it is.
+func calm(landing: Vector2 = Vector2.INF, food: Vector2 = Vector2.INF) -> bool:
+	if is_answered():
+		return false
+	var parent := get_parent() as Node2D
+	var local := parent.to_local(landing) if landing.is_finite() and parent != null \
+		else position
+	_landing = Vector2(local.x, floor_y - 6.0)
+	_food_x = (parent.to_local(food) if parent != null else food).x if food.is_finite() else NAN
+	_state = State.DESCENDING
+	_clock = 0.0
+	return true
+
+
+func _descend(delta: float) -> void:
+	_flap += delta * 13.0
+	var to_go := _landing - position
+	if to_go.length() <= DESCEND_SPEED * delta:
+		position = _landing
+		_velocity = Vector2.ZERO
+		_state = State.CALMED
+		if is_nan(_food_x):
+			_let_go(_facing)
+			return
+		# ⚠ FACING THE FOOD, WITH THE PIECE BEHIND IT. A piece set down in front of a bird
+		# eating was set down on the food -- and the food is solid, so a piece under the bread
+		# could only be reached by climbing onto the bread. Found by the play bot.
+		_facing = 1.0 if _food_x >= position.x else -1.0
+		_let_go(-_facing)
 		return
-	_phase += delta * TAU / maxf(0.001, orbit_seconds)
-	position = _home \
-		+ Vector2(cos(_phase) * orbit.x, sin(_phase) * orbit.y) \
-		- Vector2(0.0, _pressure * climb_when_pressed)
-	queue_redraw()
+	_velocity = to_go.normalized() * DESCEND_SPEED
+	position += _velocity * delta
+	if absf(_velocity.x) > 4.0:
+		_facing = signf(_velocity.x)
 
 
-## 0 at the start of the timed route, 1 as it runs out. Nothing else reads the clock: the
-## bird's height IS the readout.
-func set_pressure(ratio: float) -> void:
-	_pressure = clampf(ratio, 0.0, 1.0)
+## Down on the floor with the scrap still in its beak: set it down on one side of itself, 1 for
+## the way it is facing and -1 for behind it.
+func _let_go(side: float) -> void:
+	if not _holding:
+		return
+	_holding = false
+	var parent := get_parent() as Node2D
+	var local := Vector2(clampf(position.x + BESIDE * side, drop_span.x, drop_span.y), floor_y)
+	scrap_dropped.emit(scrap_id, parent.to_global(local) if parent != null else local)
 
 
-# --- The three verbs -----------------------------------------------------------------
+# --- Struck --------------------------------------------------------------------------------
 
-## Fed. It comes down willingly and leaves the scrap behind it.
-func calm() -> bool:
-	if is_answered():
-		return false
-	_state = State.CALMED
-	set_physics_process(false)
-	queue_redraw()
-	scrap_dropped.emit(scrap_id, global_position)
-	settled.emit(scrap_id)
-	return true
-
-
-## Startled. It goes on ahead to Alley 2 and takes the scrap with it -- which is a DEFERRAL
-## and the ledger is told so, not a loss.
-func startle() -> bool:
-	if is_answered():
-		return false
-	_state = State.GONE
-	set_physics_process(false)
-	visible = false
-	flew_off.emit(scrap_id)
-	return true
-
-
-## Hit. The design's own wording is "downed", and what it drops is recoverable where it
-## lands rather than on the bird.
+## Hit. It tumbles to the floor, and the scrap is where it lands rather than on the bird.
 func strike_down() -> bool:
-	if is_answered():
+	if not is_airborne():
 		return false
-	_state = State.DOWNED
-	set_physics_process(false)
-	queue_redraw()
-	scrap_dropped.emit(scrap_id, global_position)
+	_state = State.FALLING
+	_velocity = Vector2(_velocity.x * 0.3, -80.0)
+	_spin = 0.0
 	return true
 
 
-## THE HIT PROTOCOL THIS PROJECT ALREADY HAS. Destructible2D answers the same call, so the
-## boomerang and the cannon reach these without either of them learning what a bird is.
-## Returns whether the hit did anything, which is what the tool reports to the player.
-func apply_tool_hit(_tool: String, _impulse: float, _actor: Node2D) -> bool:
-	return strike_down()
+func _fall(delta: float) -> void:
+	_velocity.y += GRAVITY * delta
+	position += _velocity * delta
+	_spin += delta * 9.0
+	# Not through a wall on the way down either.
+	position.x = clampf(position.x, airspace.position.x, airspace.end.x)
+	if position.y >= floor_y - 6.0:
+		position.y = floor_y - 6.0
+		_spin = 0.0
+		_velocity = Vector2.ZERO
+		_state = State.DOWNED
+		_clock = 0.0
+		_let_go(_facing)
 
 
-## When the timer expires, everything still up there leaves. One call so the alley does not
-## have to know which of the five are still circling.
-func timer_expired() -> bool:
-	if _state != State.CIRCLING:
+func _daze(_delta: float) -> void:
+	if _clock < DAZED_SECONDS:
+		return
+	# It shakes it off and goes: up and away, over whichever wall is nearer.
+	_state = State.FLEEING
+	_clock = 0.0
+	_facing = 1.0 if position.x >= 0.0 else -1.0
+	_velocity = Vector2(_facing * FLEE_SPEED * 0.6, -FLEE_SPEED)
+
+
+# --- Scattered -----------------------------------------------------------------------------
+
+## Its nest has come down. It bolts up and out of the alley, and the scrap it was holding
+## flutters down to the floor on its own -- nothing is lost, it is only let go of.
+func startle() -> bool:
+	if not is_airborne():
 		return false
-	return startle()
+	_state = State.FLEEING
+	_clock = 0.0
+	_facing = 1.0 if position.x >= 0.0 else -1.0
+	_velocity = Vector2(_facing * FLEE_SPEED, -FLEE_SPEED * 0.6)
+	if _holding:
+		_holding = false
+		_loose_scrap = position + Vector2(19.0 * _facing, 15.0)
+		_loose_fall = 0.0
+	return true
 
 
-## ⚠ THESE HAD NO `_draw` AT ALL, and nothing anywhere said so. Five birds carrying five of
-## the seven pieces of the painting, orbiting on a real physics process, invisible -- and
-## every headless check passed, because the ledger, the ids, the three verbs and the reach
-## are all true of an object nobody can see. Caught by looking at a frame, which is the
-## fourth time in this project that has been the only way.
+func _flee(delta: float) -> void:
+	_flap += delta * 16.0
+	position += _velocity * delta
+	modulate.a = clampf(1.0 - _clock / LEAVING_SECONDS, 0.0, 1.0)
+	if _clock >= LEAVING_SECONDS:
+		_state = State.GONE
+
+
+func _drop_the_loose_scrap(delta: float) -> void:
+	_loose_fall += GRAVITY * 0.35 * delta
+	_loose_scrap.y += _loose_fall * delta
+	# A card flutters rather than falls straight -- and drifts in off a doorway on the way down,
+	# so it does not land in one and then jump out of it.
+	_loose_scrap.x += sin(_clock * 7.0) * 30.0 * delta
+	_loose_scrap.x = move_toward(_loose_scrap.x,
+		clampf(_loose_scrap.x, drop_span.x, drop_span.y), 90.0 * delta)
+	if _loose_scrap.y < floor_y - PIECE_LIFT:
+		return
+	var local := Vector2(clampf(_loose_scrap.x, drop_span.x, drop_span.y), floor_y)
+	_loose_scrap = Vector2.INF
+	var parent := get_parent() as Node2D
+	scrap_dropped.emit(scrap_id, parent.to_global(local) if parent != null else local)
+
+
+## Put back to where a restore says it was: still up with its piece, or long gone with it
+## handed over. Neither replays how it got there.
+func restore_to(done: bool) -> void:
+	_loose_scrap = Vector2.INF
+	_food_x = NAN
+	_spin = 0.0
+	_clock = 0.0
+	_velocity = Vector2.ZERO
+	if done:
+		_holding = false
+		_state = State.GONE
+		modulate.a = 0.0
+		return
+	_holding = true
+	modulate.a = 1.0
+	_state = State.FLYING
+	_until = _rng.randf_range(flight_seconds.x * 0.3, flight_seconds.y)
+	_pick_a_heading()
+	position = Vector2(clampf(position.x, airspace.position.x, airspace.end.x),
+		clampf(position.y, airspace.position.y, airspace.end.y))
+
+
+# --- Drawing ---------------------------------------------------------------------------------
+
+## ⚠ THESE HAD NO `_draw` AT ALL once, and nothing anywhere said so: five birds carrying five
+## pieces, orbiting on a real physics process, invisible, with every headless check green.
 func _draw() -> void:
-	if _state == State.GONE:
-		return
-	if _state == State.CALMED or _state == State.DOWNED:
-		_draw_settled()
-		return
-	# The wingbeat is driven by the orbit rather than by its own clock, so a bird at the top
-	# of its circle is on the same beat it was the last time round.
-	var flap := sin(_phase * 3.0) * 9.0
-	# ⚠ BOTH WINGS TOGETHER. One went up while the other went down, which is a bird BANKING
-	# -- and at this size, against a wall, an asymmetric pair of triangles is not a bird at
-	# all, it is an arrow. A flap is symmetric, and the symmetry is most of what the eye
-	# recognises from across an alley.
+	if _loose_scrap != Vector2.INF:
+		draw_scrap(self, _loose_scrap - position)
+	match _state:
+		State.GONE:
+			return
+		State.CALMED, State.DOWNED:
+			_draw_on_the_floor()
+			return
+	var perched := _state == State.PERCHED
+	draw_set_transform(Vector2.ZERO, _spin, Vector2(_facing, 1.0))
+	# The wingbeat. Folded on the string; a flap in flight, both wings together -- one up and
+	# one down is a bird BANKING, and at this size an asymmetric pair of triangles is an arrow.
+	var flap := 2.0 if perched else sin(_flap) * 9.0
+	var reach := 14.0 if perched else 26.0
 	var left_wing := PackedVector2Array([
-		Vector2(-8.0, -2.0), Vector2(-26.0, -4.0 - flap), Vector2(-9.0, 6.0)])
+		Vector2(-8.0, -2.0), Vector2(-reach, -4.0 - flap), Vector2(-9.0, 6.0)])
 	var right_wing := PackedVector2Array([
-		Vector2(8.0, -2.0), Vector2(26.0, -4.0 - flap), Vector2(9.0, 6.0)])
+		Vector2(8.0, -2.0), Vector2(reach, -4.0 - flap), Vector2(9.0, 6.0)])
 	var body := PackedVector2Array([
 		Vector2(-11.0, -6.0), Vector2(9.0, -7.0), Vector2(13.0, 0.0),
 		Vector2(7.0, 7.0), Vector2(-11.0, 6.0), Vector2(-19.0, 2.0)])
-	# ⚠ THE OUTLINE FIRST, AND IT IS A STROKE RATHER THAN A SECOND POLYGON. A scaled-up copy
-	# behind a concave shape does not follow it -- the tail would grow away from the body --
-	# and `draw_polyline` traces whatever the shape actually is.
-	for shape_value: Variant in [left_wing, right_wing, body]:
-		var shape: PackedVector2Array = shape_value
+	for shape: PackedVector2Array in [left_wing, right_wing, body]:
 		var closed := shape.duplicate()
 		closed.append(shape[0])
 		draw_polyline(closed, OUTLINE, 3.0)
-	# The far wing is in the bird's own shadow; the near one catches the sky.
 	draw_colored_polygon(left_wing, WING)
 	draw_colored_polygon(right_wing, WING_LIT)
-	# Body, and a tail so it has a direction.
 	draw_colored_polygon(body, BODY)
 	draw_colored_polygon(PackedVector2Array([
 		Vector2(-4.0, -6.0), Vector2(9.0, -7.0), Vector2(11.0, -2.0),
@@ -196,29 +423,43 @@ func _draw() -> void:
 	draw_circle(Vector2(8.0, -3.0), 2.0, EYE)
 	draw_colored_polygon(PackedVector2Array([
 		Vector2(12.0, -2.0), Vector2(21.0, 1.0), Vector2(12.0, 3.0)]), BEAK)
-	# ⚠ CARRIED, NOT WORN. The scrap sat at (20, 6) and its rect reached back to x 7 and up
-	# to y -2 -- straight over the beak, the eye and half the body. What that draws is a card
-	# with something behind it. It hangs UNDER the beak now, which is where a bird carrying
-	# something actually holds it, and the whole bird is in front of it.
-	_draw_scrap(Vector2(19.0, 15.0))
+	if perched:
+		# Feet on the string.
+		draw_line(Vector2(-2.0, 6.0), Vector2(-2.0, 10.0), OUTLINE, 2.0)
+		draw_line(Vector2(3.0, 6.0), Vector2(3.0, 10.0), OUTLINE, 2.0)
+	# ⚠ CARRIED, NOT WORN: under the beak, where a bird holds something, with the bird in front.
+	if _holding:
+		draw_scrap(self, Vector2(19.0, 15.0))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-## Set down where it landed, with the scrap beside it rather than in its beak -- the piece
-## is what the player walks over, so it has to be the thing on the ground.
-func _draw_settled() -> void:
+## On the floor: head down and pecking where it was fed, or flat and stunned where it was hit.
+## The piece it let go of is not drawn here -- it is lying in front of it, and it is the level's.
+func _draw_on_the_floor() -> void:
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2(_facing, 1.0))
 	var shape := PackedVector2Array([
 		Vector2(-14.0, 0.0), Vector2(10.0, -4.0), Vector2(14.0, 2.0),
 		Vector2(-12.0, 4.0)])
 	var closed := shape.duplicate()
 	closed.append(shape[0])
 	draw_polyline(closed, OUTLINE, 3.0)
-	draw_colored_polygon(shape, DOWNED)
-	_draw_scrap(Vector2(22.0, -2.0))
+	draw_colored_polygon(shape, DOWNED if _state == State.DOWNED else BODY)
+	if _state == State.CALMED:
+		# Head down, eating, and bobbing to it.
+		var peck := absf(sin(_flap)) * 3.0
+		draw_circle(Vector2(12.0, 1.0 + peck), 4.0, BODY_LIT)
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(14.0, 2.0 + peck), Vector2(20.0, 6.0 + peck), Vector2(13.0, 5.0 + peck)]),
+			BEAK)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-func _draw_scrap(at: Vector2) -> void:
+## A piece of the painting, drawn onto `canvas` at `at`. Static so the level's piece on the
+## floor is the same picture the bird carried -- two drawings of one thing drift apart.
+static func draw_scrap(canvas: CanvasItem, at: Vector2) -> void:
 	var rect := Rect2(at + Vector2(-10.0, -6.0), Vector2(21.0, 24.0))
-	draw_rect(rect.grow(1.5), SCRAP_EDGE)
-	draw_rect(rect, SCRAP)
-	draw_rect(Rect2(rect.position + Vector2(3.0, 12.0), Vector2(15.0, 6.0)), SCRAP_INK)
-	draw_rect(Rect2(rect.position + Vector2(3.0, 4.0), Vector2(7.0, 5.0)), SCRAP_INK)
+	canvas.draw_rect(rect.grow(1.5), SCRAP_EDGE)
+	canvas.draw_rect(rect, SCRAP)
+	# A little of the storm and the sea on it.
+	canvas.draw_rect(Rect2(rect.position + Vector2(3.0, 3.0), Vector2(15.0, 8.0)), SCRAP_SKY)
+	canvas.draw_rect(Rect2(rect.position + Vector2(3.0, 12.0), Vector2(15.0, 8.0)), SCRAP_SEA)

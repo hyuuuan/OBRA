@@ -88,10 +88,14 @@ LEVEL_1_TAGS: dict[str, list[str]] = {
 # inventing `throw` alongside it -- the gloss already says what the obstacle needs
 # ("able to hit hard in one place"), and two tags for one idea is how a vocabulary rots.
 # Level 3 keeps `swim`.
+#
+# `circle` IS THE STONE. Kent's alleys ask for a rock thrown at the flock, and there is no rock
+# in the roster -- a round shape drawn is recognised as a circle, and in an alley that is what
+# gets thrown. It is last so every earlier member keeps its place in the order.
 LEVEL_2_TAGS: dict[str, list[str]] = {
     "feed":    ["bread", "bucket", "tree"],
     "startle": ["snake", "monkey", "shark", "frog"],
-    "strike":  ["boomerang", "axe", "sword", "anvil", "cannon"],
+    "strike":  ["boomerang", "axe", "sword", "anvil", "cannon", "circle"],
 }
 
 # LEVEL 3 (Dagat). Two memberships, and between them they decide both of the level's

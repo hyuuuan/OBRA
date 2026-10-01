@@ -1464,16 +1464,9 @@ func _speak(lines: Array) -> void:
 			continue
 		var speaker := String(line.get("speaker", "lolo"))
 		if script_lines.kind_of(line) == "hint":
-			advice.append({
-				"text": text,
-				"speaker": Lolo.SPEAKER if speaker == "lolo" else APO_SPEAKER,
-			})
+			advice.append({"text": text, "speaker": _speaker_display(speaker)})
 			continue
-		beat.append({
-			"text": text,
-			"speaker": Lolo.SPEAKER if speaker == "lolo" else APO_SPEAKER,
-			"at": speaker,
-		})
+		beat.append({"text": text, "speaker": _speaker_display(speaker), "at": speaker})
 	if beat.is_empty() or dialogue_box == null:
 		if not beat.is_empty():
 			status_label.text = String(beat[-1]["text"])
@@ -1489,6 +1482,30 @@ func _speak(lines: Array) -> void:
 	# The bar fades itself out and freezes its dwell while anybody is speaking, so advice
 	# posted now waits under the conversation and plays out when the player has read it.
 	_post_advice(advice)
+
+
+## WHO A LINE'S `speaker` IS ON SCREEN. Lolo and the apo are in every level; anybody else is
+## named by the level they live in -- Piyesta's priest.
+##
+## ⚠ ANYBODY ELSE USED TO BE THE APO. This was `Lolo if "lolo" else Apo`, so the priest's two
+## lines -- the only signpost the design gives the second half of Piyesta -- were printed under
+## the apo's name with the apo's face above them: the child telling himself where his
+## grandmother went.
+func _speaker_display(speaker_id: String) -> String:
+	match speaker_id:
+		"lolo":
+			return Lolo.SPEAKER
+		"apo":
+			return APO_SPEAKER
+	return speaker_id.capitalize()
+
+
+## Who the camera pushes in on while `speaker_id` is talking. The level knows where anybody
+## other than Lolo and the player is standing.
+func _speaker_subject(speaker_id: String) -> Node2D:
+	if speaker_id == "lolo" and lolo != null:
+		return lolo
+	return player
 
 
 func _post_advice(advice: Array[Dictionary]) -> void:
@@ -1514,7 +1531,7 @@ func _focus_camera_for(speaker: String) -> void:
 	# is set, because set_base_zoom defers while a focus is held -- which is how a walk into
 	# a room ended up drawn at the focus's 1.15 instead of the room's 2.
 	world_camera.release_focus(0.0)
-	var subject: Node2D = lolo if speaker == "lolo" and lolo != null else player
+	var subject: Node2D = _speaker_subject(speaker)
 	if subject == null or not is_instance_valid(subject):
 		return
 	# A BEAT IN A ROOM DOES NOT PUSH IN THE WAY A BEAT IN A VALLEY DOES. The default lift
@@ -1904,7 +1921,7 @@ func _tool_is_spent_by(_obstacle_id: String, _route: String, _entity_id: String)
 
 ## Gone: out of the hand and out of the bag. Public so a level can spend a tool whose work
 ## finishes later than the answer did -- the tree that falls on the third swing, the flock
-## that is all down or all gone.
+## that is all down.
 func spend_tool(entity_id: String) -> void:
 	if _equipped_utility != null and is_instance_valid(_equipped_utility) \
 			and _equipped_utility.item_data != null \
@@ -2351,15 +2368,18 @@ func _use_equipped_utility() -> void:
 			return
 		# ⚠ ONE USE. Kent: tools "should be one time use only". A key that has opened the door
 		# is spent, and so is anything else whose answer IS the whole of what it does. A few
-		# routes answer the beat and then still need the tool -- an axe has a tree to fell, a
-		# thrown weapon has five birds -- and the level says which; those are spent when that
-		# work is done, see `spend_tool`.
+		# routes answer the beat and then still need the tool -- an axe has a tree to fell --
+		# and the level says which; those are spent when that work is done, see `spend_tool`.
+		# (Piyesta's thrown weapons never come through here: its alleys throw them along an
+		# aimed arc, and spend them when the flock is down.)
 		if _tool_is_spent_by(beat, director.committed_route(beat), item.entity_id):
 			spend_tool(item.entity_id)
 			status_label.text = "%s -- used, and gone" % item.display_name
 			if hint_bar != null:
-				hint_bar.show_hint("The %s is used up." % item.display_name.to_lower(),
-					Lolo.SPEAKER, 2.6)
+				# "The scissors is used up" -- the one plural in the roster's tools.
+				var noun := item.display_name.to_lower()
+				hint_bar.show_hint("The %s %s used up." % [noun, "are" if noun.ends_with("s")
+					else "is"], Lolo.SPEAKER, 2.6)
 		else:
 			_equipped_utility.describe_use(player)
 			status_label.text = "%s -- keep using it" % item.display_name

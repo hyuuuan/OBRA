@@ -1,17 +1,19 @@
 class_name ScrapLedger
 extends Node
-## The seven pieces of the Pista painting, and the one promise the design makes about them:
+## The seven pieces of the Dagat painting -- the NEXT level's, which is how Piyesta hands the
+## player on -- and the one promise the design makes about them:
 ## **none can be permanently lost.**
 ##
-## That promise is the whole reason this is a ledger rather than a counter. Five scraps are
-## carried by the flock in Alley 1 and two are up in the bandaritas in Alley 2, and every
-## route through Alley 1 ends with a DIFFERENT number of them still airborne: feeding brings
-## all five down, chasing sends all five on ahead, and knocking them down leaves however many
-## the timer did not reach. A player who downs three of five must walk into Alley 2 and find
-## exactly two waiting -- not five, not zero, and not a fail screen.
+## Five are carried by the flock in Alley 1 and two by the flock in Alley 2. Every way through
+## an alley ends with all of that alley's pieces on its floor -- fed, cut down or knocked down,
+## nothing flies off with one -- and the way on out of an alley does not open until the player
+## has picked up every piece lying there. So nothing is carried from one screen to the next and
+## there is nothing to defer: the ledger is a set of which pieces are in hand.
 ##
-## So the count that survives Alley 1 is a NUMBER, not a flag, and Alley 2 spawns from it.
-## `BIRDS_IN_ALLEY2` in the design; `deferred()` here.
+## ⚠ IT USED TO CARRY A DEBT. The first flock was on a timer and whatever it did not reach flew
+## on to Alley 2, so the ledger kept a count of escapees and Alley 2 spawned that many tangled
+## birds. Kent: nothing escapes, no timer -- so the debt, and the whole second road the scraps
+## could travel by, is gone rather than kept at zero.
 ##
 ## RIDES THE CHECKPOINT. Scraps are level-scoped run state like the pickups, not profile
 ## state like a route tally: dying in Alley 2 must not undo Alley 1, and finishing the level
@@ -28,12 +30,10 @@ const IN_ALLEY_1 := 5
 const IN_ALLEY_2 := 2
 
 var _held: Dictionary = {}        # scrap_id -> true
-var _deferred := 0                # carried on to the next screen rather than lost
 
 
 func reset() -> void:
 	_held.clear()
-	_deferred = 0
 
 
 func total() -> int:
@@ -73,31 +73,11 @@ func recover_many(scrap_ids: Array) -> int:
 	return count
 
 
-# --- What Alley 1 hands to Alley 2 ---------------------------------------------------
-
-## However many of the flock got away, to be found tangled in the bandaritas next screen.
-## Never negative and never more than the five that were there.
-func defer(count: int) -> void:
-	_deferred = clampi(count, 0, IN_ALLEY_1)
-
-
-func deferred() -> int:
-	return _deferred
-
-
-## Taking the deferred ones back, once Alley 2 has spawned them and the player has freed
-## them. Clears the debt so a checkpoint restore cannot spawn them a second time.
-func claim_deferred() -> int:
-	var claimed := _deferred
-	_deferred = 0
-	return claimed
-
-
 ## THE INVARIANT, asked directly so a test can assert it rather than infer it: everything
-## not yet in hand is still reachable somewhere. This is false only if a route dropped a
-## scrap on the floor, which is the one thing the design forbids.
+## not yet in hand is still reachable somewhere -- in a beak, or lying on a floor. This is
+## false only if a route lost a scrap, which is the one thing the design forbids.
 func all_still_reachable(reachable_now: int) -> bool:
-	return _held.size() + reachable_now + _deferred >= TOTAL
+	return _held.size() + reachable_now >= TOTAL
 
 
 func is_complete() -> bool:
@@ -109,11 +89,10 @@ func is_complete() -> bool:
 func serialize() -> Dictionary:
 	var ids := _held.keys()
 	ids.sort()
-	return {"held": ids, "deferred": _deferred}
+	return {"held": ids}
 
 
 func restore(state: Dictionary) -> void:
 	_held.clear()
 	for value: Variant in state.get("held", []):
 		_held[String(value)] = true
-	_deferred = clampi(int(state.get("deferred", 0)), 0, IN_ALLEY_1)

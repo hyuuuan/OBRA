@@ -68,9 +68,13 @@ extends Control
 const PORTRAITS := {
 	"Lolo": {"art": preload("res://assets/characters/lolo/lolo_portrait.png"),
 		"bust": 0.71},
+	# Piyesta's priest. A reskin of the apo's own portrait (tools/build_priest.py), so he is cut
+	# at the same fraction for the same reason: the hands are the widest thing in the frame.
+	"Padre": {"art": preload("res://assets/characters/priest/priest_portrait.png"),
+		"bust": 0.69},
 }
-## Anyone without an entry above. The apo's own lines share the box with a different
-## plaque, and they are the only other speaker there is.
+## Anyone without an entry above, which in practice is the apo: its own lines share the box
+## with a different plaque.
 const DEFAULT_PORTRAIT := {
 	"art": preload("res://assets/characters/apo/apo_portrait.png"), "bust": 0.69,
 }

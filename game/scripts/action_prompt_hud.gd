@@ -192,8 +192,13 @@ func _make_prompt(prompt_name: StringName, key: String, verb: String,
 
 func _style_prompt(button: Button, key: String, verb: String,
 		accent: Color, width: float) -> void:
+	# ⚠ OUT OF THE TREE NOW, NOT AT THE END OF THE FRAME. A queued free leaves the old key cap
+	# standing until the frame is over, so a verb that changed twice before then -- USE, CUT,
+	# USE -- drew three key caps on one prompt, one over the other, and the new cap could not
+	# even take the name "PromptKey" while the old one still held it.
 	for child in button.get_children():
 		if child.name == &"PromptKey":
+			button.remove_child(child)
 			child.queue_free()
 	button.focus_mode = Control.FOCUS_NONE
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND

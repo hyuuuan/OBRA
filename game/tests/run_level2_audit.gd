@@ -19,6 +19,7 @@ extends SceneTree
 const AbilityTagsScript = preload("res://scripts/ability_tags.gd")
 const DialogueScriptClass = preload("res://scripts/dialogue_script.gd")
 const UtilityObjectClass = preload("res://scripts/utility_object.gd")
+const StoneThrowClass = preload("res://scripts/stone_throw_2d.gd")
 
 const TAGS_PATH := "res://config/tags.json"
 const LEVEL_PATH := "res://config/level_02.json"
@@ -107,13 +108,21 @@ func _audit_identity(level: Dictionary) -> void:
 
 ## Routes not answered by drawing declare it, and are exempt from the floor rather than
 ## silently failing a check that was never about them.
+##
+## ⚠ AND A ROUTE'S SECOND HALF IS A ROUTE TOO. The alleys' cut route is two drawings -- something
+## to climb, then something to cut with -- and only the first half was ever read here, so the
+## second could have resolved to one class, or to a banned one, and every check would have
+## passed. Each `then` is listed as `<route>.then` and held to everything the first half is.
 func _routes_of(level: Dictionary) -> Array:
 	var out: Array = []
 	for obstacle_value: Variant in level.get("obstacles", []):
 		var obstacle: Dictionary = obstacle_value
 		for name_value: Variant in (obstacle.get("routes", {}) as Dictionary).keys():
-			out.append([String(obstacle.get("id", "?")), String(name_value),
-				(obstacle["routes"] as Dictionary)[name_value] as Dictionary])
+			var route: Dictionary = (obstacle["routes"] as Dictionary)[name_value]
+			out.append([String(obstacle.get("id", "?")), String(name_value), route])
+			if route.has("then"):
+				out.append([String(obstacle.get("id", "?")), "%s.then" % name_value,
+					route["then"] as Dictionary])
 	return out
 
 
@@ -240,6 +249,12 @@ func _audit_no_route_fights_the_ceiling(level: Dictionary) -> void:
 ## have a behaviour that reaches at least that far. The reaches are READ OFF the constants
 ## in utility_object.gd rather than copied here, so tuning a throw cannot silently
 ## invalidate a level.
+##
+## ⚠ A THING THE LEVEL THROWS REACHES AS FAR AS THE THROW. The alleys' throwing route does not
+## use a tool's own behaviour at all: StoneThrow2D throws whatever is in its THROWN table along
+## an aimed arc -- a drawn circle as a stone, and the boomerang and cannon from the hand -- so
+## those are measured against StoneThrow2D.reach(), and anything else the route accepts still
+## has to reach on its own. A class the route accepts that neither can throw is not an answer.
 func _audit_ranged_routes_can_reach(level: Dictionary) -> void:
 	var roster: Dictionary = {}
 	for entity_value: Variant in _load(ENTITIES_PATH).get("entities", []):
@@ -253,6 +268,12 @@ func _audit_ranged_routes_can_reach(level: Dictionary) -> void:
 			continue
 		var needed := float(route["requires_reach_px"])
 		for candidate in _solutions(route):
+			if StoneThrowClass.THROWN.has(candidate):
+				checked += 1
+				if StoneThrowClass.reach() < needed:
+					problems.append("%s.%s accepts '%s', which is thrown %.0fpx of the %.0fpx it needs"
+						% [entry[0], entry[1], candidate, StoneThrowClass.reach(), needed])
+				continue
 			var entity: Dictionary = roster.get(candidate, {})
 			# A creature has no utility_behavior; it reaches by BEING somewhere, and a
 			# route that needs a thrown answer should not have resolved to one.
@@ -327,7 +348,11 @@ func _audit_tags_taught_before_use(level: Dictionary) -> void:
 			known[String(tag_value)] = true
 		for name_value: Variant in (obstacle.get("routes", {}) as Dictionary).keys():
 			var route: Dictionary = (obstacle["routes"] as Dictionary)[name_value]
-			for tag_value: Variant in route.get("required_tags", []):
+			var asked: Array = (route.get("required_tags", []) as Array).duplicate()
+			# The second half too: it is asked for after the choice, but it is part of what
+			# the choice commits the player to, so it is taught before it like the first.
+			asked.append_array((route.get("then", {}) as Dictionary).get("required_tags", []))
+			for tag_value: Variant in asked:
 				if not known.has(String(tag_value)):
 					problems.append("%s.%s needs '%s'" % [id, name_value, tag_value])
 	_check(problems.is_empty(), "tags taught before use",

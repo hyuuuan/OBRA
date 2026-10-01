@@ -84,21 +84,48 @@ x 600 inside Problem 1, and the church sits at the foot of the belfry. Alley 2 i
 `WorldCameraController.outdoor_x_limits` holds the plaza camera on the painted extent,
 which the scene probe measures off the plate.
 
+### The fourth playthrough — Kent, September 2026
+
+| What Kent saw | What it is now |
+|---|---|
+| **Lolo said where she went, not the priest** | The priest walks up to the apo and says it, as himself, with his own name and portrait. Lolo's part in the church is the candle and nothing else |
+| **"The birds are just perched to the banderitas instead of flying around"** | They fly the alley, each on its own course, and go home to their own nest in the bunting for a few seconds between flights (`ScrapBird2D`) |
+| **Three choices, in both alleys** | Asked out loud at the way into each: **feed** them down, **climb and cut** the strings, or **throw** at them. The same three in both, because both are where the pieces are |
+| **"Throw a rock (this includes a projectile trajectory)"** | A dotted arc from the hand to the pointer, worked out by the same step the throw flies (`StoneThrow2D`). A click or F lets go |
+| **"Cut the banderitas using a ladder and a scissor"** | Two drawings: something to climb, set under the strings, then an edge used from the top. From the floor the strings are out of reach, and the game says so |
+| **The painting the birds carry is Dagat** | The seven pieces are torn from the Dagat painting, and the table names it when it is whole |
+
+**His decisions, not to be re-asked:** the rock is **drawn** — a round shape is recognised as
+a circle, and in an alley being thrown at a circle is a stone (a boomerang or cannon throws the
+same way). Stones lying in the alley were rejected: with the dance at Problem 1 they would let
+Piyesta be finished without drawing anything. The cut route needs **both** drawings. Feed is
+Artist, climb-and-cut is Pragmatist, throwing is Protector. **Five and two**, nothing escapes,
+no timer, and a miss is only another throw.
+
+**Checked by playing it**, headless and in frames: `run_level2_alley_probe` plays every route in
+both alleys and measures the flight; `run_level2_chain_probe` walks all nine pairs of routes to
+the table at seven of seven; `run_play_level2` plays all three through the objective line.
+
 ---
 
 ## The level in one paragraph
 
-Recover **seven scraps** of the Pista painting and assemble them. Scene-based rather than
-one continuous walk: plaza → church interior → Alley 1 (five birds carry five scraps) →
-Alley 2 (the bandaritas hold two) → assembly. **Flight is a restriction, not an ability** —
-the bandarita line is a ceiling, and it lifts only when the line is cut. Three dialogue
-nodes; the last has **two routes, not three**, deliberately.
+Recover **seven scraps** of the **Dagat** painting — the next level's, which is how Piyesta
+hands the player on — and assemble them. Scene-based rather than one continuous walk: plaza →
+church interior → Alley 1 (a flock of five, a piece each) → Alley 2 (a flock of two) →
+assembly. **Flight is a restriction, not an ability** — the bandarita line in each scene is a
+ceiling, and a line that has been cut caps nothing. Three forks: the plaza's, and one at the
+way into each alley, and **both alleys are the same problem with the same three answers**.
 
 | Beat | `artist` | `pragmatist` | `protector` |
 |---|---|---|---|
 | **L2_N1** Ang Kandila | dance for the dancers *(no drawing)* | find the lit house, make a way in | scare them off — they never come back |
-| **L2_N2** Alley 1, five birds | feed them | chase them — deferred, not lost | knock them down, on a 45–60 s timer |
-| **L2_N3** Alley 2, the bandaritas | climb to them | *(none, by design)* | cut them down — and the sky opens |
+| **L2_N2** Alley 1, five birds | feed them — they come down to it | climb to the strings, then cut them down | throw at them — aimed, along a dotted arc |
+| **L2_N3** Alley 2, two birds | the same | the same — and this alley's sky opens | the same |
+
+Every way through an alley ends with its pieces **on the floor**, and they are picked up by
+walking over them; the way on opens only when every piece from that alley is in hand. Nothing
+escapes and nothing runs on a clock, so no road to the table can lose one.
 
 ---
 
@@ -130,13 +157,14 @@ nodes; the last has **two routes, not three**, deliberately.
 | | |
 |---|---|
 | `game/config/level_02.json` | the level. Adds `restrictions`, `scrap_economy`, and `answered_by` to the schema |
-| `game/config/dialogue_l2.json` | 59 lines, none naming a class |
+| `game/config/dialogue_l2.json` | 63 lines, none naming a class |
 | `game/level_2.tscn` | a **text** copy of `game_level.tscn`, three lines changed |
 | `game/levels/level_2/level_2_environment.tscn` | the plaza, six parallax layers, four room shells |
 | `game/scripts/level_2.gd` | the eleven hooks |
 | `game/scripts/level_restrictions.gd` | the two rules, validated against `labels.json` at load |
 | `game/scripts/scrap_ledger.gd` | seven pieces; none can be permanently lost |
-| `game/scripts/scrap_bird_2d.gd` | five addressable birds, three verbs, one answer each |
+| `game/scripts/scrap_bird_2d.gd` | the flock: flies, nests, and comes down one of three ways, one answer each |
+| `game/scripts/stone_throw_2d.gd` | the throwing route: the stone, the boomerang and the cannon, the dotted arc, and the flights |
 | `game/scripts/dance_minigame.gd` | two attempts; **cannot dead-end the run** |
 | `game/scripts/scrap_assembly.gd` | seven slots, drag and snap, no fail state |
 | `game/scripts/piyesta_room_2d.gd` | all four insides -- one script, one contract, three dressings |
@@ -144,7 +172,7 @@ nodes; the last has **two routes, not three**, deliberately.
 | `game/scripts/church_interior_2d.gd` | Scene 2's furniture, and the cultural guardrail in code |
 | `game/scripts/kandila_2d.gd` | the candle on the table, which is what Path C is FOR |
 | `game/scripts/dancer_group_2d.gd` | the dancers, and the one thing here the player can destroy |
-| `game/scripts/bandarita_line_2d.gd` | the bunting: the ceiling, two scraps, and the trade |
+| `game/scripts/bandarita_line_2d.gd` | the bunting: the ceiling, the flock's nests, and what the cut route brings down |
 | `game/scripts/dance_overlay.gd` | the screen the dance is played on -- lane, cues, verdicts, two goes |
 | `game/scripts/assembly_overlay.gd` | Scene 3's table: seven torn pieces, drag and snap, and the end of the level |
 | `tools/build_scraps.py` | tears the painting into the seven pieces, along noise-perturbed Voronoi |
@@ -168,6 +196,9 @@ godot --headless --path game --script res://tests/run_level2_scene_probe.gd
 ```
 ```bash
 godot --headless --path game --script res://tests/run_level2_chain_probe.gd
+```
+```bash
+godot --headless --path game --script res://tests/run_level2_alley_probe.gd
 ```
 ```bash
 godot --headless --path game --script res://tests/run_nodraw_level2.gd
@@ -284,6 +315,8 @@ now guarded.
    route to boomerang, axe and sword; only the boomerang leaves the hand (`_swing_blade`
    works inside `TOOL_REACH`, 96px). The reaches are named constants now
    (`BOOMERANG_THROW`, `CANNON_RANGE`) and the audit **reads them** rather than copying.
+   *Since September 2026 the route is thrown by `StoneThrow2D`, not by a tool's own use, and
+   the audit reads the throw's reach (`StoneThrow2D.reach()`) for what it throws.*
 4. **The two-answer floor has to be measured after the ban list**, because a banned class
    still carries its tag and `AbilityTags` counts it. Level 1 never needed this.
 5. **The scare gate was a wall for half its own answers.** The dancers stood 900px out;
@@ -312,6 +345,8 @@ now guarded.
     birds that actually got away might be 2, 3 and 4; `recover` is idempotent, so those
     calls hit nothing. Together they finished the pragmatist route at **three of seven** in
     silence. The ledger stays a count; the level remembers which pieces went on ahead.
+    *Gone since September 2026: nothing escapes an alley any more, so there is no debt to
+    carry and no second road for a piece to travel by.*
 13. **`ScrapBird2D` had no `_draw` at all.** Five birds carrying five of the seven pieces,
     orbiting on a real physics process, invisible -- and every headless suite was green,
     because the ledger, the ids, the three verbs and the reach are all true of an object
@@ -337,6 +372,34 @@ now guarded.
 18. **The draw pad was filled with the panel's own colour**, so the surface the player is
     told to draw on was invisible and the bottom half of the screen read as empty. Found by
     looking at a frame. Sixth time.
+
+19. **A piece has to come to rest somewhere a player can stand within reach of it**, and four
+    places were not -- all found by the play bot, none by a probe that teleports:
+    - *in a doorway:* fed beside something set down near the way in, the flock landed by the
+      wall and left pieces in the exit; walking in to pick them up walked the apo back out into
+      the church. Pieces and the thrown stone now rest between the two doorways, and a stone
+      that lands in one rolls back out.
+    - *under the offering:* the flock landed across the bread's own x, and one piece lay under
+      it -- solid, 84px against a 94px jump. Fed birds land clear of it, facing it, and set
+      their piece down behind them.
+    - *past the offering:* landing on both sides put pieces beyond the bread from the apo. They
+      land on the apo's side now, closing up before any is sent round the far side.
+    - *at the foot of the ladder:* the strings come down where the birds were, and a piece lay
+      40.4px from anywhere the apo could stand, with a reach of 40. A piece that comes down
+      under anything the player set down slides out from under it.
+
+    And the ladder itself: stood in the middle of the alley to cut the strings, it is solid
+    until it is climbed, with the way on past it. Climbing over works and E takes it back, and
+    nothing said either -- the bot stopped at its foot. Reaching it on the way out says so now,
+    once per alley.
+20. **A check function that errors stops and says nothing.** The scene probe read a property
+    the bunting no longer had, the error ended that one audit, and the run printed
+    `OBRA_LEVEL2_SCENE_OK` over every check it never made. A `SCRIPT ERROR` in a suite's
+    output is a failure whatever the last line says.
+21. **A key cap freed at the end of the frame is still drawn in it.** A prompt restyled for a
+    new verb queued its old key cap for deletion and drew a new one beside it, so a verb that
+    changed twice before the frame ended wore three caps, one over another. The old cap
+    leaves the tree at once now.
 
 **Three things `LEVEL_2.md` claimed about the art were wrong**, found by looking: the
 `TRANSPARENT/` set is a registered 1920 × 1080 layer set and **not** a letterboxed copy
@@ -364,9 +427,9 @@ Nothing here stops the level being played. It is all art, plus one decision.
    in a browner, darker tan. A painted set would still beat both.
 3. **`LOLOGHOST` has no praying pose and no laughing pose.** Scene 2 is built on the first
    and every restriction violation fires the second. Nothing fakes them.
-4. **The thrown-projectile aiming does not exist.** Problem 2's Protector route resolves to
-   boomerang and cannon, both of which have a real reach, but there is no aim or trajectory
-   preview -- the design asks for "angry birds style".
+4. ~~**The thrown-projectile aiming does not exist.**~~ **Done, September 2026.** Both
+   alleys' Protector route is aimed along a dotted arc and thrown -- a drawn stone, a
+   boomerang or a cannon. See the fourth playthrough.
 5. **The lit house and church have supplied art; the two decoys were removed.** The playable front is
    now `game/assets/Level2/lit_house_hut.png`, a bamboo-and-thatch hut anchored to the same
    threshold and interaction volume as the facade it replaces. The church is

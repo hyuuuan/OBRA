@@ -29,6 +29,7 @@ func _run() -> void:
 	print("\n===== SCENE 3 =====")
 	await _audit_the_pieces_are_the_ledgers()
 	await _audit_it_is_put_back_together()
+	await _audit_the_crease_is_on_the_plaza()
 	for line in results:
 		print(line)
 	if failures == 0:
@@ -110,6 +111,11 @@ func _audit_it_is_put_back_together() -> void:
 		return
 	table.present()
 	var ids := table.piece_ids()
+	# ⚠ THE NAME IS THE REVEAL. The pieces are the NEXT painting, the sea, and the table saying
+	# "DAGAT" before it is whole would give away the one thing putting it back together finds.
+	var title := table.get("_title") as Label
+	_check(title != null and title.text != "DAGAT", "the table does not name the picture yet",
+		"\"%s\"" % (title.text if title != null else "no title"))
 
 	# Dropped nowhere near where it came from. Nothing happens, and nothing is lost.
 	var first: String = ids[0]
@@ -131,6 +137,8 @@ func _audit_it_is_put_back_together() -> void:
 		table.drag_to(ids[index], table.slot_of(ids[index]))
 	_check(bool(assembly.call("is_complete")), "the rest go home and that is seven",
 		"%d of %d" % [int(assembly.call("placed")), int(assembly.call("slot_count"))])
+	_check(title != null and title.text == "DAGAT", "and whole, it is the sea: the next level",
+		"\"%s\"" % (title.text if title != null else "no title"))
 
 	# ⚠ AND FINISHING IT IS WHAT ENDS THE LEVEL. Not a marker somebody has to walk to
 	# afterwards -- Level 1 shipped that and players solved its hardest node and then stood
@@ -151,6 +159,46 @@ func _audit_it_is_put_back_together() -> void:
 	paused = false
 	fresh.queue_free()
 	await process_frame
+
+
+## ⚠ PAYYO'S CREASE IS ON THE CANVAS IT CREASED. Level 1's Protector route folded
+## canvas_2_pista -- this plaza. It used to be drawn on the table, while the table assembled the
+## plaza; the table assembles the sea now, a different canvas nobody folded. So with the damage
+## on the profile the fold is on the plaza, the table's picture is whole, and Lolo says so when
+## the player arrives rather than about a picture it is not on.
+func _audit_the_crease_is_on_the_plaza() -> void:
+	root.get_node("PlayerProfile").call("record_canvas_damage", "canvas_2_pista")
+	var fresh := await _open()
+	var fold := fresh.get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Crease") as Node2D
+	var backdrop := fresh.get_node_or_null(^"EnvironmentBaseplate/PlazaBackdrop") as Sprite2D
+	var spans := false
+	if fold != null and backdrop != null:
+		var top: Vector2 = fold.to_global(fold.get("top"))
+		var bottom: Vector2 = fold.to_global(fold.get("bottom"))
+		var painted := backdrop.get_rect()
+		painted.position += backdrop.global_position
+		spans = absf(top.y - painted.position.y) < 1.0 and absf(bottom.y - painted.end.y) < 1.0
+	_check(fold != null and spans, "the fold runs down the plaza's painting",
+		"top to bottom of the backdrop" if spans else "no fold, or not across the painting")
+	var assembly = fresh.get("assembly")
+	_check(assembly != null and not bool(assembly.call("is_creased")),
+		"and the table's picture is not folded", "a different canvas")
+	# `peek` applies a line's condition, so the fold line is in it only if the level set the
+	# flag the line waits on -- and the greeting has to have been given at all.
+	var lines = fresh.get("script_lines")
+	_check(bool(lines.call("has_heard", "L2_START.enter")) and _fold_line_heard(lines),
+		"and Lolo mentions it when they arrive", "L2_START.enter carries the fold line")
+	fresh.queue_free()
+	for _frame in range(4):
+		await process_frame
+
+
+func _fold_line_heard(lines: Object) -> bool:
+	for line: Variant in lines.call("peek", "L2_START.enter"):
+		if String((line as Dictionary).get("text", "")).contains("fold"):
+			return true
+	return false
+
 
 ## ⚠ THE PANEL HAS TO FIT ON THE SCREEN IT IS SHOWN ON. Its minimum size was taller than the
 ## 900-unit viewport once a title, a rule, a status line and the frame's own ring were added
