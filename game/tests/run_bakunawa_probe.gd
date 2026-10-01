@@ -245,6 +245,27 @@ func _the_fight() -> void:
 	# And nothing else does.
 	_check(not creature.accepts_tool("bread"), "and nothing that is not a weapon does",
 		"bread is refused")
+	# ⚠ A WEAPON DRAWN AND SWUNG ONCE DOES NOT END THE FIGHT. With the fight one step, the first
+	# press of F answered the beat: the storm cleared, Lolo said "It has had enough. Let it go",
+	# and the sword -- one use -- was spent before it had swung. Drawn and used here the way a
+	# player does, through the drawing panel's door and F.
+	var director = bits["director"]
+	var lines = level.get("script_lines")
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	level.call("_on_drawing_ready", "sword", "Sword", sheet, {"confidence": 0.9},
+		[{"points": PackedVector2Array([Vector2(0, 0), Vector2(0, 80)]), "width": 6.0,
+			"color": Color.BLACK}], 1.0)
+	await _unpause()
+	level.call("_use_equipped_utility")
+	await _unpause()
+	_check(not bool(director.call("is_solved", "L3_N2")) and int(director.call("stage", "L3_N2")) == 1,
+		"the first swing records the weapon and does not end the fight",
+		"solved %s, step %d" % [director.call("is_solved", "L3_N2"), director.call("stage", "L3_N2")])
+	_check(int(level.call("_slot_holding", "sword")) >= 0
+			and not bool(lines.call("has_heard", "L3_N2.protector.solved")),
+		"and keeps the weapon, and Lolo says nothing of it being over",
+		"the sword is still to hand")
 	var hits := 0
 	for _swing in range(6):
 		if creature.state() != BakunawaClass.State.FIGHTING:
@@ -260,6 +281,11 @@ func _the_fight() -> void:
 	_check(not creature.accepts_tool("cannon"), "and a subdued one cannot be hit again",
 		"there is no killing it")
 	await _unpause()
+	_check(bool(director.call("is_solved", "L3_N2"))
+			and bool(lines.call("has_heard", "L3_N2.protector.solved")),
+		"subdued is what answers the fight, and Lolo says so then", "solved, the line said")
+	_check(int(level.call("_slot_holding", "sword")) < 0, "and the weapon that fought it is spent",
+		"one use, and the use was this fight")
 	var gone_after := -1.0
 	for _frame in range(720):
 		await physics_frame

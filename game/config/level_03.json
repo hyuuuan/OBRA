@@ -201,6 +201,7 @@
     "bakunawa_sneak": "Wait until its light turns away, then get past it",
     "bakunawa_light": "Press {key:redraw} and draw something that throws LIGHT",
     "bakunawa_fight": "Press {key:redraw}, draw something that can STRIKE, and hit it",
+    "bakunawa_fight_on": "Hit it with {key:use_utility} until it has had enough",
     "island": "Go up onto the far sand",
     "take_the_painting": "Walk to the painting in the sand and take it"
   },
@@ -331,6 +332,10 @@
           "exclude": [
             "circle"
           ],
+          "then": {
+            "answered_by": "subdued",
+            "$comment": "THE FIGHT IS WON WHEN IT IS SUBDUED, NOT WHEN A WEAPON IS FIRST USED. One step, the first press of F with a sword answered the beat: the storm cleared, Lolo said 'It has had enough. Let it go', and the sword -- one use, by Kent's rule -- was spent before it had swung. The first use records the drawing; the creature going quiet answers the beat (level_3.gd _on_bakunawa_quiet)."
+          },
           "persistent_effect": "l3_bakunawa_fought",
           "$comment": "Five answers, and they already differ in more than damage: UtilityObject gives swing 96px, boomerang 320px, cannon 640px and the anvil a drop, which is exactly the differentiation the design asks for. `circle` carries `strike` for Piyesta, where a round shape drawn in an alley is a stone to throw at the flock. Out here nothing throws it: it is a shape that is set down, and Bakunawa2D.BITE does not take it -- so it is excluded rather than accepted and then doing nothing. Subdued or exhausted, NEVER killed -- it swims off still blind and still searching, and the cost of this route is that nothing was healed. Losing restarts the fight; it does not end the run."
         }

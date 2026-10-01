@@ -1663,6 +1663,11 @@ func _judge_submission(entity_id: String, strokes: Array = []) -> void:
 	# A shape handed back by a checkpoint was judged when it was drawn. See _give_back_the_shape.
 	if _giving_back_a_shape:
 		return
+	# ⚠ THE FIGHT'S SECOND STEP IS THE CREATURE GOING QUIET, and nothing drawn answers it --
+	# T3's widening included, which would otherwise take any weapon at all as the fight won.
+	if director != null and director.current_obstacle() == "L3_N2" \
+			and director.committed_route("L3_N2") == "protector" and director.stage("L3_N2") > 0:
+		return
 	if director == null or director.current_obstacle() != "L3_N1" \
 			or director.committed_route("L3_N1") != "artist" or director.is_solved("L3_N1"):
 		super(entity_id, strokes)
@@ -1851,12 +1856,68 @@ func _on_gift_offered() -> void:
 		director.solve_with_item("L3_N2", "the light")
 
 
+## ⚠ WORN OUT IS WHAT ANSWERS THE FIGHT. The first swing records the weapon (see
+## _use_equipped_utility); the creature going quiet closes the beat -- which is when the storm
+## clears and Lolo says "It has had enough. Let it go", the route's own solved line. That line
+## used to fire at the FIRST press of F, over a creature with nothing taken out of it, and this
+## said a second one like it at the end. And the weapons that fought it are spent now, their
+## work done -- one use, by Kent's rule, and the use was this fight.
 func _on_bakunawa_quiet(how: String) -> void:
 	if how != "FOUGHT":
 		return
 	PlayerProfile.record_bakunawa("FOUGHT")
 	script_lines.set_flag("l3_bakunawa_fought")
-	_say_why("Enough. Let it go, apo — it never knew you were there.")
+	if director != null and not director.is_solved("L3_N2"):
+		director.solve_with_item("L3_N2", "subdued")
+	for weapon: String in _fought_with.keys():
+		if _slot_holding(weapon) >= 0:
+			spend_tool(weapon)
+	_fought_with.clear()
+
+
+## The drawn weapons swung at it this go, by class -- spent when it is subdued.
+var _fought_with: Dictionary = {}
+
+
+func _fighting_it() -> bool:
+	return director != null and director.committed_route("L3_N2") == "protector" \
+		and not director.is_solved("L3_N2")
+
+
+## What the fight takes: the route's Strike classes, read off the level file.
+func _weapons() -> PackedStringArray:
+	if director == null:
+		return PackedStringArray()
+	var spec: Dictionary = (director.obstacle("L3_N2").get("routes", {}) as Dictionary) \
+		.get("protector", {})
+	return AbilityTags.resolve(spec.get("required_tags", []),
+		String(spec.get("match", "all")), spec.get("exclude", []))
+
+
+## A weapon answers the fight while the fight is on -- at its second step too, which is more of
+## the same -- so F is offered as the strike it is, there and only there.
+func _tool_answers_here(entity_id: String) -> bool:
+	if _fighting_it() and director.current_obstacle() == "L3_N2":
+		return _weapons().has(entity_id)
+	return super(entity_id)
+
+
+## ⚠ F IN THE FIGHT ALWAYS SWINGS. The base answers a beat with a tool's first use and stops
+## there, which is right for a key at a lock: the turn IS the answer. Here the answer is three
+## good hits, so the first press records the weapon and swings as well, and so does every
+## press after it.
+func _use_equipped_utility() -> void:
+	if _fighting_it() and _equipped_utility != null and is_instance_valid(_equipped_utility) \
+			and _equipped_utility.item_data != null \
+			and _weapons().has(_equipped_utility.item_data.entity_id):
+		var item := _equipped_utility.item_data
+		if director.current_obstacle() == "L3_N2" and director.stage("L3_N2") == 0:
+			_judge_submission(item.entity_id, item.strokes)
+		_fought_with[item.entity_id] = true
+		var outcome := _equipped_utility.describe_use(player)
+		status_label.text = outcome if not outcome.is_empty() else item.display_name
+		return
+	super()
 
 
 ## Being seen, and being hit, both cost the current stretch and not the approach. CP3b sits
@@ -2346,6 +2407,9 @@ func _current_objective() -> Dictionary:
 		# going to do about that" after the player had decided -- sneaking past, told to decide.
 		var chosen := {"pragmatist": "bakunawa_sneak", "artist": "bakunawa_light",
 			"protector": "bakunawa_fight"}.get(director.committed_route("L3_N2"), "") as String
+		# Armed and swinging: the line is about the fight now, not about drawing for it.
+		if chosen == "bakunawa_fight" and director.stage("L3_N2") > 0:
+			chosen = "bakunawa_fight_on"
 		if not chosen.is_empty():
 			return {"key": chosen, "target": _mark_position("BakunawaMark")}
 		return {"key": "bakunawa", "obstacle": "L3_N2",
