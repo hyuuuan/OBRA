@@ -94,6 +94,16 @@ func _the_light() -> void:
 	_check(not creature.sees(creature.global_position + Vector2(120.0, 0.0)),
 		"and a calm one sees nobody", "the sweep is down")
 	_check(await _channel_is_open(creature), "and the way on is open", "coils disabled")
+	# ⚠ AND THEN IT GOES. Found what it lost, it stayed coiled where it was for the rest of the
+	# level; it swims off now, once what it found has been given.
+	var gone_after := -1.0
+	for _frame in range(960):
+		await physics_frame
+		if creature.is_gone():
+			gone_after = float(_frame) / 60.0
+			break
+	_check(gone_after > 0.0 and not creature.visible, "and swims away once it has given it",
+		"gone after %.1f s" % gone_after if gone_after > 0.0 else "still there after 16 s")
 	_close()
 
 
@@ -106,6 +116,16 @@ func _the_dark() -> void:
 	var director = bits["director"]
 	_check(await _channel_is_open(creature),
 		"the dark: a gap opens on the commit", "coils disabled")
+	# ⚠ IT MOVES. Kent: "the bakunawa should move" -- it was set down once and held still,
+	# though Lolo's first words about it are "back and forth over the same stretch".
+	var least := INF
+	var most := -INF
+	for _frame in range(420):
+		await physics_frame
+		least = minf(least, creature.global_position.x)
+		most = maxf(most, creature.global_position.x)
+	_check(most - least > 60.0, "and it goes back and forth over its stretch",
+		"%.0f px of drift in seven seconds" % (most - least))
 	# THE SWEEP HAS TO CATCH SOMEBODY. A cone that never returns true is a stealth section
 	# with no stealth in it, and it looks identical to a well-played one in a report.
 	var caught := false
@@ -239,6 +259,24 @@ func _the_fight() -> void:
 	_check(await _channel_is_open(creature), "and the way on opens", "coils disabled")
 	_check(not creature.accepts_tool("cannon"), "and a subdued one cannot be hit again",
 		"there is no killing it")
+	await _unpause()
+	var gone_after := -1.0
+	for _frame in range(720):
+		await physics_frame
+		if creature.is_gone():
+			gone_after = float(_frame) / 60.0
+			break
+	_check(gone_after > 0.0, "and worn out, it swims off",
+		"gone after %.1f s" % gone_after if gone_after > 0.0 else "still there after 12 s")
+	# ⚠ AND A RESTORE TO BEFORE IT WAS SUBDUED PUTS IT BACK. CP3 was written at the commit; put
+	# back there, the fight is on again and the creature is in it -- not swum off from a fight the
+	# restore has undone.
+	level.call("_return_to_safety", "", "%s")
+	await _unpause()
+	_check(creature.visible and not creature.is_gone()
+			and creature.state() == BakunawaClass.State.FIGHTING,
+		"and a restore to before the end of it brings it back to the fight",
+		"visible %s, state %d" % [creature.visible, creature.state()])
 	_close()
 
 

@@ -204,6 +204,7 @@ func _build_level_furniture() -> void:
 	call_deferred("_play_the_opening")
 
 	if _bakunawa != null:
+		_bakunawa_home = _bakunawa.global_position
 		_bakunawa.gift_offered.connect(_on_gift_offered)
 		_bakunawa.went_quiet.connect(_on_bakunawa_quiet)
 		_bakunawa.begin_search()
@@ -1576,6 +1577,37 @@ func _crossing_unchosen() -> bool:
 		and director.committed_route("L3_N1").is_empty()
 
 
+## Where the creature was set down in the scene, before anything staged it. See below.
+var _bakunawa_home := Vector2.ZERO
+
+
+## ⚠ THE CREATURE IS PUT BACK AS THE RUN NOW SAYS IT IS. A restore rolls the director back, and
+## the creature went on as it was: still at the surface for a crossing chosen after the
+## checkpoint, still fighting a fight the restore had undone, still following a light, or swum
+## off from an encounter that is open again. Every part of it is re-derived from the director:
+## where it is staged (the boat's crossing brings it up to the surface), and what it is doing --
+## searching, gap open, fighting -- or, once the encounter is over by the light or the fight,
+## gone.
+func _put_the_bakunawa_back() -> void:
+	if _bakunawa == null or not is_instance_valid(_bakunawa) or director == null:
+		return
+	var at := _bakunawa_home
+	if director.is_solved("L3_N1") and director.committed_route("L3_N1") == "artist":
+		var surface := _mark("SurfaceMark")
+		if surface != null:
+			at.y = surface.global_position.y
+	var route := director.committed_route("L3_N2")
+	if director.is_solved("L3_N2") and route != "pragmatist":
+		_bakunawa.set_gone()
+		return
+	_bakunawa.reset_to(at)
+	match route:
+		"pragmatist":
+			_bakunawa.open_a_gap()
+		"protector":
+			_bakunawa.enter_fight()
+
+
 ## THE SHAPE BEING HELD, AS DRAWN -- its class, its name, the picture and its strokes -- so a
 ## checkpoint written in deep water can give it back. See _give_back_the_shape.
 var _held_shape: Dictionary = {}
@@ -2399,6 +2431,7 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	_advice_left = 0.0
 	_coral_waiting = ""
 	_put_back_what_the_restore_undid()
+	_put_the_bakunawa_back()
 	# Deep water: the shape held there, given back. The base moves the body to the checkpoint
 	# after this, so the shape is made here and carried there with it.
 	if bool(state.get("underwater", false)):

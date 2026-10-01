@@ -193,6 +193,14 @@ func _finish_by(crossing: String, encounter: String) -> void:
 			"and the encounter stays down there (%s)" % tag,
 			"staged at y %.0f" % creature.global_position.y)
 
+	# ⚠ NOT ON AN EMPTY TANK. Lingering at three of the coral facts -- up to twenty seconds each,
+	# held in a fish's body -- drinks most of the ink, and the arena's jars are not on this
+	# probe's path. It used to run dry during the light, be rescued to CP3 and have the light
+	# rolled back, and pass only because the creature went on to its gift regardless. A player
+	# passes the jars; the probe hands back what it spent standing still.
+	if ink != null:
+		ink.call("add_ink", float(ink.get("capacity")))
+
 	# The encounter.
 	director.call("enter_obstacle", "L3_N2")
 	director.call("commit_route", "L3_N2", encounter)
