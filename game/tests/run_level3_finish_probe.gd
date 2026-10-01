@@ -69,19 +69,18 @@ func _finish_by(crossing: String, encounter: String) -> void:
 	_check(bool(profile.call("has_new_brush")), "the new brush is found on the shore (%s)" % tag,
 		"the drain is armed from here")
 
-	# The shore, which nothing gets past without drawing.
-	director.call("enter_obstacle", "L3_B0_SHORE")
-	director.call("note_submission", "fish")
-	director.call("exit_obstacle", "L3_B0_SHORE")
+	# The shore is the brush: taking it answers the beat, with nothing drawn.
 	_check(bool(director.call("is_solved", "L3_B0_SHORE")),
-		"the shore is answered by a drawing (%s)" % tag, "a Swim answer solves it")
+		"the brush answers the shore (%s)" % tag, "nothing is drawn before the crossing")
 
-	# The crossing.
+	# The crossing -- each way asks for its own drawing: a swimmer, or something strong to drag
+	# the beached bangka down before it is put in the water.
 	director.call("enter_obstacle", "L3_N1")
 	director.call("commit_route", "L3_N1", crossing)
 	if crossing == "pragmatist":
 		director.call("note_submission", "fish")
 	else:
+		director.call("note_submission", "horse")
 		director.call("solve_with_item", "L3_N1", "bangka")
 	director.call("exit_obstacle", "L3_N1")
 	_check(bool(director.call("is_solved", "L3_N1")), "the sea is crossed (%s)" % tag,

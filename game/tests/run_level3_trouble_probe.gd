@@ -335,9 +335,8 @@ func _take_the_brush() -> void:
 
 
 func _answer_the_shore(director: Variant) -> void:
-	director.call("enter_obstacle", "L3_B0_SHORE")
-	director.call("note_submission", "fish")
-	director.call("exit_obstacle", "L3_B0_SHORE")
+	# The shore is the brush, and taking it answers the beat with nothing drawn.
+	director.call("solve_with_item", "L3_B0_SHORE", "new_brush")
 	await _unpause()
 
 

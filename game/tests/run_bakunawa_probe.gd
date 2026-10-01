@@ -244,9 +244,8 @@ func _open_at_the_encounter(route: String) -> Dictionary:
 	# ⚠ enter_obstacle FIRST. note_submission answers whatever the CURRENT obstacle is, and
 	# a probe that never walked into a volume has no current obstacle -- so every drawing it
 	# makes is judged against nothing and silently solves nothing.
-	director.call("enter_obstacle", "L3_B0_SHORE")
-	director.call("note_submission", "fish")
-	director.call("exit_obstacle", "L3_B0_SHORE")
+	# The shore is the brush, and taking it answers the beat with nothing drawn.
+	director.call("solve_with_item", "L3_B0_SHORE", "new_brush")
 	director.call("enter_obstacle", "L3_N1")
 	director.call("commit_route", "L3_N1", "pragmatist")
 	director.call("note_submission", "fish")
