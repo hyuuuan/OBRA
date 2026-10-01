@@ -487,100 +487,111 @@ func _distance_to(box: Rect2, at: Vector2) -> float:
 	return Vector2(dx, dy).length()
 
 
-## ALLEY 2's BUNTING HAS TO SIT IN A WINDOW WITH TWO REAL WALLS, and both of them are ways
-## to break Problem 3 without anything else in the project noticing.
+## BOTH ALLEYS' BUNTING HAS TO SIT IN A WINDOW WITH TWO REAL WALLS, and both of them are ways
+## to break the cut route without anything else in the project noticing.
 ##
-## Too low and it is not a Climb gate: a drawn primitive is 80 and the apo is 96 and the
-## jump lifts 94.3, so anybody can touch 270 for the price of one square. Too high and half
-## of `climb`'s own answers cannot reach it -- which is scar 3 of this level, where `strike`
-## resolved to a blade that swings inside 96px against a bird in the air, and the tag layer
-## agreed with the player and then did nothing.
+## Too low and it is not a climb at all: a drawn primitive is 80 and the apo is 96 and the jump
+## lifts 94.3, so anybody can touch 270 for the price of one square. Too high and half of
+## `climb`'s own answers cannot reach it -- scar 3 of this level, where `strike` resolved to a
+## blade that swings inside 96px against a bird in the air, and the tag layer agreed with the
+## player and then did nothing. Both alleys now: the flock nests in the line in each, and the
+## cut route climbs to it in each.
 func _audit_the_bunting_is_where_it_can_be_reached() -> void:
 	var lines := level.get_tree().get_nodes_in_group(&"bandarita_lines")
-	# THREE, not two: the plaza has its own line now. It used to be painted into the delivered
-	# backdrop, so the flight cap had something visible to sit under without anybody building
-	# it -- and authoring the plaza took the painting away and the bunting with it. The design
-	# is explicit that the boundary must be strings the player can see.
 	# TWO: the alleys have authored lines, and the plaza's bunting is painted into the plate
 	# it uses as a backdrop. Stringing a third over the picture is the doubling again.
 	_check(lines.size() == 2, "both alleys have a line strung in them",
 		"%d found -- the plaza's is painted into the backdrop" % lines.size())
-	var alley_2 := level.get("alley_2") as Node2D
-	var alley_1 := level.get("alley_1") as Node2D
-	if alley_2 == null or alley_1 == null:
-		_check(false, "the level has both alleys", "one is missing")
-		return
-	var line := alley_2.get_node_or_null(^"Bandaritas") as BandaritaLine2D
-	if line == null:
-		_check(false, "Alley 2's bunting is strung", "no line in the room")
-		return
-	var above_floor := alley_2.global_position.y - line.global_position.y
 	var hop := PRIMITIVE + APO_HEIGHT + JUMP_RISE
 	var climbed := STAIRS + APO_HEIGHT + JUMP_RISE
-	_check(above_floor > hop, "and Alley 2's is out of reach without climbing something",
-		"%.0fpx up against %.0f for a primitive and a jump" % [above_floor, hop])
-	_check(above_floor < climbed, "and inside reach once you have",
-		"%.0fpx against %.0f off the shortest thing `climb` resolves to" % [
-			above_floor, climbed])
-	_check(line.scraps_held == ScrapLedger.IN_ALLEY_2, "with the last two pieces on it",
-		"%d of the seven" % line.scraps_held)
-
-	# The design records Alley 1's missing line as an open question in level_02.json: it
-	# needs a flight cap and had nothing visible to hang one on, "or the cap is an invisible
-	# wall exactly where the design says it must not be".
-	var first := alley_1.get_node_or_null(^"Bandaritas") as BandaritaLine2D
-	_check(first != null and first.scraps_held == 0,
-		"Alley 1's line is a ceiling and nothing else",
-		"nothing strung on it -- it exists so the cap is visible")
-	# ⚠ AND IT MUST BE ABOVE THE ALLEY, not across it. A cap the player walks into on the
-	# ground is a wall.
-	if first != null:
-		var head := alley_1.global_position.y - first.global_position.y
-		_check(head > APO_HEIGHT + JUMP_RISE,
-			"and it is over the player's head, not across the alley",
-			"%.0fpx up against a %.0f reach on foot" % [head, APO_HEIGHT + JUMP_RISE])
+	for room_name in ["alley_1", "alley_2"]:
+		var alley := level.get(room_name) as Node2D
+		if alley == null:
+			_check(false, "the level has %s" % room_name, "missing")
+			continue
+		var line := alley.get_node_or_null(^"Bandaritas") as BandaritaLine2D
+		if line == null:
+			_check(false, "%s's bunting is strung" % room_name, "no line in the room")
+			continue
+		var above_floor := alley.global_position.y - line.global_position.y
+		_check(above_floor > hop, "%s's strings are out of reach without a climb" % room_name,
+			"%.0fpx up against %.0f for a primitive and a jump" % [above_floor, hop])
+		_check(above_floor < climbed, "and inside reach once you have climbed",
+			"%.0fpx against %.0f off the shortest thing `climb` resolves to" % [
+				above_floor, climbed])
+		var birds := _birds_in(alley)
+		_check(line.nest_count == birds.size() and birds.size() > 0,
+			"and there is a nest in them for every bird",
+			"%d nests, %d birds" % [line.nest_count, birds.size()])
 
 
-## Five birds, and the Protector route says it can hit them from 260px. If they ride higher
-## than that, the route is a wall for the one answer that is supposed to open it.
-func _audit_the_flock_is_within_reach() -> void:
-	var alley_1 := level.get("alley_1") as Node2D
-	if alley_1 == null:
-		_check(false, "the first alley exists", "-")
-		return
+## The birds in a room, in the order they were released.
+func _birds_in(room: Node2D) -> Array[ScrapBird2D]:
 	var birds: Array[ScrapBird2D] = []
-	for child in alley_1.get_children():
+	for child in room.get_children():
 		var bird := child as ScrapBird2D
 		if bird != null:
 			birds.append(bird)
-	_check(birds.size() == ScrapLedger.IN_ALLEY_1, "five birds in the first alley",
-		"%d, one scrap each" % birds.size())
-	var ids: Dictionary = {}
-	for bird in birds:
-		ids[bird.scrap_id] = true
-	_check(ids.size() == birds.size(), "and every one carries a different piece",
-		"%d distinct scrap ids" % ids.size())
+	return birds
 
-	# Read off the level data rather than restated here: the reach the Protector route
-	# claims is `requires_reach_px`, and a test carrying its own copy stops testing it.
+
+## FIVE AND TWO, SEVEN IN ALL, and every one of them where a throw can reach it. The route
+## says how high it has to be able to hit (`requires_reach_px`, read off the data, not copied
+## here) and a bird that goes higher than that -- in the air or on its nest -- is a wall for the
+## one answer that is supposed to open it.
+func _audit_the_flock_is_within_reach() -> void:
 	var director = level.get("director")
-	var reach := 260.0
-	for entry: Variant in (director.level_data().get("obstacles", []) if director != null else []):
-		var obstacle: Dictionary = entry
-		if String(obstacle.get("id", "")) != "L2_N2":
+	var ids: Dictionary = {}
+	for plan: Array in [["alley_1", "L2_N2", ScrapLedger.IN_ALLEY_1],
+			["alley_2", "L2_N3", ScrapLedger.IN_ALLEY_2]]:
+		var alley := level.get(String(plan[0])) as Node2D
+		if alley == null:
+			_check(false, "the level has %s" % plan[0], "missing")
 			continue
-		var routes: Dictionary = obstacle.get("routes", {})
-		var protector: Dictionary = routes.get("protector", {})
-		reach = float(protector.get("requires_reach_px", reach))
-	var far: Array[String] = []
-	for bird in birds:
-		# From a player standing directly under it, which is the best case the route gets.
-		var up := alley_1.global_position.y - bird.global_position.y
-		if up > reach:
-			far.append("%s rides %.0fpx up" % [bird.scrap_id, up])
-	_check(far.is_empty(), "and the flock rides inside the reach that route claims",
-		"under %.0fpx, which is what level_02.json promises" % reach
-		if far.is_empty() else "; ".join(far))
+		var birds := _birds_in(alley)
+		_check(birds.size() == int(plan[2]), "%d birds in %s" % [plan[2], plan[0]],
+			"%d, one piece each" % birds.size())
+		var reach := 0.0
+		var protector: Dictionary = (director.obstacle(String(plan[1])).get("routes", {})
+			as Dictionary).get("protector", {}) if director != null else {}
+		reach = float(protector.get("requires_reach_px", 0.0))
+		var line := alley.get_node_or_null(^"Bandaritas") as BandaritaLine2D
+		var far: Array[String] = []
+		for index in range(birds.size()):
+			var bird := birds[index]
+			ids[bird.scrap_id] = true
+			var air_top := -bird.airspace.position.y
+			var nest_up := alley.global_position.y - line.nest_point(index).y \
+				if line != null else INF
+			if air_top > reach or nest_up > reach:
+				far.append("%s flies to %.0f, nests at %.0f" % [bird.scrap_id, air_top, nest_up])
+		_check(reach > 0.0 and far.is_empty(), "and every one of them within a throw",
+			"under the %.0fpx %s's throwing route claims" % [reach, plan[1]]
+			if far.is_empty() else "; ".join(far))
+		# THE CHOICE IS AT THE WAY IN: the apo is put down inside the fork, so it is asked before
+		# anything can be drawn there. A fork anywhere else is a fork the player can walk past.
+		var fork := alley.get_node_or_null(^"Fork") as DialogueNode2D
+		var entry := (alley as PiyestaRoom2D).entry_point()
+		var covers := fork != null \
+			and absf(fork.global_position.x - entry.x) <= fork.trigger_size.x * 0.5 \
+			and entry.y <= fork.global_position.y + 1.0 \
+			and entry.y >= fork.global_position.y - fork.trigger_size.y
+		_check(covers, "and the way into %s is where it asks how" % plan[0],
+			"the entry stands inside the fork" if covers else "the fork misses the entry")
+		# AND THE BEAT IS THE WHOLE ALLEY. A drawing set down anywhere in it is judged against it;
+		# a volume narrower than the floor leaves ground where bread feeds nobody.
+		var volume: LevelObstacle2D = null
+		for node in level.get_tree().get_nodes_in_group(&"level_obstacles"):
+			if (node as LevelObstacle2D).obstacle_id == String(plan[1]):
+				volume = node as LevelObstacle2D
+		var half := (alley as PiyestaRoom2D).room_length * 0.5
+		var spans := volume != null \
+			and volume.global_position.x - volume.trigger_size.x * 0.5 <= alley.global_position.x - half \
+			and volume.global_position.x + volume.trigger_size.x * 0.5 >= alley.global_position.x + half
+		_check(spans, "and %s's beat covers the whole of it" % plan[1],
+			"wall to wall" if spans else "some of the floor is outside the beat")
+	_check(ids.size() == ScrapLedger.TOTAL, "and every bird carries a different piece",
+		"%d distinct pieces across both alleys" % ids.size())
 
 
 ## THE DANCERS ARE THE PLAZA. Everything Problem 1 offers is about them -- dance for them,
