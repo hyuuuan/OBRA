@@ -78,6 +78,14 @@ func _interact_with_level() -> bool:
 	return false
 
 
+## What `_interact_with_level` would do right now, in the prompt's words: {"name", "verb"}, or
+## empty for nothing. EMPTY BY DEFAULT. A level whose E does something only a sentence on the
+## objective line names -- Dagat's beached bangka, which takes something drawn to drag it down
+## -- puts the key over the player's head like any other E.
+func _level_interact_offer() -> Dictionary:
+	return {}
+
+
 ## Whether the level's own answer to E outranks picking up a drawing within arm's reach.
 ##
 ## FALSE BY DEFAULT, and that default is right nearly everywhere: a drawing is something the
@@ -719,10 +727,20 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 	# cannot choose a path whose verb they have never been told.
 	var teaches: Array = director.obstacle(obstacle_id).get("teaches_before_choice", [])
 	if not teaches.is_empty():
-		_speak(script_lines.fire("%s.teach" % obstacle_id))
+		if _teaches_on_entering(obstacle_id):
+			_speak(script_lines.fire("%s.teach" % obstacle_id))
 		director.teach_before_choice(obstacle_id)
 	_speak_current_stage(obstacle_id)
 	_refresh_requirements()
+
+
+## WHETHER A BEAT SAYS ITS WAYS THROUGH THE MOMENT IT IS ENTERED. True everywhere it has
+## always been true. A level whose fork stands some way inside the beat's volume says them at
+## the fork instead -- Dagat's crossing is entered beside the brush, and its two ways across
+## piled up on the brush's own lines a fork's length before the choice they introduce. The tags
+## are taught on entering either way; only the words wait.
+func _teaches_on_entering(_obstacle_id: String) -> bool:
+	return true
 
 
 ## The player has reached what the beat is about, which is where its opening line belongs.
@@ -2416,10 +2434,17 @@ func _refresh_action_prompts() -> void:
 	var pickup: PhysicsShapeObject = _nearest_interactable_utility() if can_act else null
 	var verb := _interact_verb(pickup)
 	var can_pick_up := pickup != null and not verb.is_empty()
-	action_prompts.set_pickup_available(
-		can_pick_up,
-		_drawing_display_name(pickup) if can_pick_up else "",
-		verb if can_pick_up else "PICK UP")
+	# A drawing within reach takes E first (see press_interact), so the level's own offer is
+	# only shown where there is none.
+	var offer: Dictionary = _level_interact_offer() if can_act and not can_pick_up else {}
+	if not offer.is_empty():
+		action_prompts.set_pickup_available(true, String(offer.get("name", "")),
+			String(offer.get("verb", "USE")))
+	else:
+		action_prompts.set_pickup_available(
+			can_pick_up,
+			_drawing_display_name(pickup) if can_pick_up else "",
+			verb if can_pick_up else "PICK UP")
 
 	var can_use := can_act and _equipped_utility != null \
 		and is_instance_valid(_equipped_utility) \
