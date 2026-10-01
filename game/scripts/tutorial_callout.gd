@@ -38,6 +38,7 @@ signal dismissed()
 
 var _panel: PanelContainer
 var _row: HBoxContainer
+var _speaker: Label
 var _label: Label
 var _beak_from := Vector2.ZERO
 var _beak_to := Vector2.ZERO
@@ -78,6 +79,19 @@ func _build() -> void:
 	_row.add_theme_constant_override(&"separation", 9)
 	_panel.add_child(_row)
 
+	# Who is saying it, when a lesson is somebody's -- the hint bar's "LOLO:" in the bar's own
+	# gold, so a bubble of his reads as him rather than as the interface. Hidden for a lesson
+	# with no speaker, which is every lesson that is about a control and nothing more.
+	_speaker = Label.new()
+	_speaker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_speaker.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_speaker.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
+	_speaker.add_theme_color_override(&"font_color", UISkin.GOLD)
+	_speaker.add_theme_color_override(&"font_outline_color", UISkin.INK)
+	_speaker.add_theme_constant_override(&"outline_size", 4)
+	_speaker.visible = false
+	_row.add_child(_speaker)
+
 	_label = Label.new()
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -110,10 +124,12 @@ func _bubble_style() -> StyleBoxFlat:
 ## `get_global_rect()`, so this class never holds a reference to a HUD element that can be
 ## freed under it -- and a test can aim it at a rectangle with no HUD at all.
 func point_at(target: Rect2, text: String, caps: String = "",
-		side: int = Side.AUTO) -> void:
+		side: int = Side.AUTO, speaker: String = "") -> void:
 	_label.text = text
+	_speaker.text = "%s:" % speaker.to_upper() if not speaker.is_empty() else ""
+	_speaker.visible = not speaker.is_empty()
 	for child in _row.get_children():
-		if child != _label:
+		if child != _label and child != _speaker:
 			_row.remove_child(child)
 			child.queue_free()
 	if not caps.is_empty():
@@ -166,6 +182,12 @@ func _place(target: Rect2, side: int) -> void:
 	# printed across the panel telling them what to draw. The bubble is the thing that moves:
 	# every other piece of the HUD is where the player expects it.
 	var blockers := _hud_around_me()
+	# ⚠ AND NEVER THE THING IT POINTS AT. Above a card at the very top of the screen, the
+	# bubble was pushed back down by the screen edge onto the card itself -- Dagat's ink lesson
+	# sat across the INK bar it was explaining, which is the one thing the player needed to see.
+	# The target counts as something to keep clear of, and more than anything else does.
+	for _weight in range(4):
+		blockers.append(target.grow(2.0))
 	var order: Array[int] = []
 	if side != Side.AUTO:
 		order.append(side)
