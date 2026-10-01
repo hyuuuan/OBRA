@@ -154,6 +154,7 @@ func _run() -> void:
 	_audit_conditions_match_effects(level, dialogue)
 	_audit_shipping_state()
 	_audit_one_seabed(level)
+	_audit_land_is_the_ground()
 	await _audit_sea_marks()
 	await _audit_objectives_fit(level)
 
@@ -702,6 +703,82 @@ func _audit_one_seabed(level: Dictionary) -> void:
 		else ", ".join(sealed))
 	scene.free()
 
+
+
+## ⚠ THE LAND YOU SEE IS THE LAND YOU STAND ON. Each beach is a picture (build_dagat_props.py)
+## that the shore band sets down over a collision rectangle, and the two are typed in different
+## files. The first rebuild drew the home beach's sand ending 53 pixels short of its collision and
+## the island's starting 28 pixels inside its own, so the apo walked out over open water at both
+## ends -- the exact look being fixed -- and a diver met an invisible wall in the water. So each
+## picture is read where the backdrop puts it: the sand's top row is the collision's top, the sand
+## ends on the collision's sea edge at that row, and no row of the face stops short of the edge by
+## more than 16 pixels. (Not zero: the edge is whole stones forty to seventy pixels wide, and the
+## generator chooses which -- see its LANDS.)
+func _audit_land_is_the_ground() -> void:
+	var scene := (load(ENVIRONMENT_PATH) as PackedScene).instantiate()
+	var band := scene.get_node("ShoreBand")
+	var constants := (band.get_script() as GDScript).get_script_constant_map()
+	var plate_top := float(band.get("plate_top"))
+	var shore_rows: Array = (constants["BANDS"] as Dictionary)["shore"]
+	var found: Array[String] = []
+	var problems: Array[String] = []
+	for pair: Array in [[String(constants["LAND_HOME"]), "Shore"], [String(constants["LAND_ISLAND"]), "Island"]]:
+		var key := String(pair[0])
+		var land := scene.get_node("GameplayPlane/Terrain/%s" % pair[1]) as Node2D
+		var size := ((land.get_node("Shape") as CollisionShape2D).shape as RectangleShape2D).size
+		var top := land.position.y - size.y * 0.5
+		var sea_right := String(pair[1]) == "Shore"
+		var edge := land.position.x + size.x * 0.5 if sea_right else land.position.x - size.x * 0.5
+		var row: Dictionary = {}
+		for candidate: Dictionary in shore_rows:
+			if String(candidate["key"]) == key:
+				row = candidate
+		if row.is_empty():
+			problems.append("%s is not in the shore band" % key.get_file())
+			continue
+		var piece: Dictionary = (row["pieces"] as Array)[0]
+		var image := (load(key) as Texture2D).get_image()
+		if image.is_compressed():
+			image.decompress()
+		var at_parts := String(piece["at"]).split(".")
+		var ground: Vector2 = band.get(at_parts[0])
+		var at := ground.x if at_parts[1] == "x" else ground.y
+		at += float(piece.get("nudge", 0.0))
+		var left := at if String(piece["align"]) == "left" else at - image.get_width()
+		var first := image.get_used_rect().position.y
+		var walking := plate_top + float(row["top_row"]) + first
+		# How far row `y` reaches out past the edge: + over the sea, - short of it.
+		var reach := func(y: int) -> float:
+			if sea_right:
+				for x in range(image.get_width() - 1, -1, -1):
+					if image.get_pixel(x, y).a > 0.0:
+						return left + x + 1 - edge
+			else:
+				for x in range(image.get_width()):
+					if image.get_pixel(x, y).a > 0.0:
+						return edge - (left + x)
+			return -INF
+		var at_feet: float = reach.call(first)
+		var shortest := INF
+		var shortest_at := 0
+		for y in range(first + 34, image.get_height()):
+			var r: float = reach.call(y)
+			if r < shortest:
+				shortest = r
+				shortest_at = y
+		found.append("%s: walks at %.0f on %.0f, sand %+.0f at the edge, face %+.0f at worst" % [
+			pair[1], walking, top, at_feet, shortest])
+		if absf(walking - top) > 0.5:
+			problems.append("%s's sand is at %.0f, its collision at %.0f" % [pair[1], walking, top])
+		if absf(at_feet) > 2.0:
+			problems.append("%s's sand ends %.0f %s its collision's edge at %.0f" % [
+				pair[1], absf(at_feet), "short of" if at_feet < 0.0 else "past", edge])
+		if shortest < -16.0:
+			problems.append("%s's face stops %.0f short of the edge at world y %.0f" % [
+				pair[1], -shortest, plate_top + float(row["top_row"]) + shortest_at])
+	_check(problems.is_empty(), "the land drawn is the land stood on",
+		"; ".join(found) if problems.is_empty() else ", ".join(problems))
+	scene.free()
 
 
 ## ⚠ WHAT STANDS ON THE SEABED IS OF THE SEA. The checkpoint was a stone lantern with a fire in

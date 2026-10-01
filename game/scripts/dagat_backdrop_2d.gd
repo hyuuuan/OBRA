@@ -132,26 +132,31 @@ const BANDS := {
 		# The surf is foam over a still sea, so it moves a little faster than the water it
 		# sits on and slower than the sand -- which is what makes the beach read as nearer.
 		{"key": "shore/surf", "rate": 0.70, "z": -235, "fps": 3.0, "far": true, "mirror": true},
-		# ⚠ THE SAND STOPS WHERE THE GROUND DOES. It ran 64 past the land to hold up a rock
-		# that stood out over the sea; with nothing standing out there any more, sand past the
-		# collision edge is only a place the apo walks off and falls through painted beach.
-		{"key": "shore/sand", "rate": 1.00, "z": -165, "ground": true},
+		# ⚠ THE SAND PLATE IS NOT DRAWN ANY MORE. It was the beach -- a slab painted at six to
+		# eight screen pixels to its pixel, running toward the camera, with driftwood painted on
+		# it in front of the line the apo walks -- and Kent: "it looks like im not walking to a
+		# platform but to an image ... refer to how platforms in level 2 are made". The ground
+		# is each land piece below now: a strip of sand, a coursed stone face and the courses
+		# under it, at one pixel to the pixel, the way Piyesta's plaza is built (see
+		# build_dagat_props.py). The plate painted nothing above the walking line, so nothing
+		# above it went with it.
 		# ⚠ PIECES, NOT TILES. Each palm plate is one clump drawn at one edge of a 1672 canvas:
 		# a palm and rocks at the far left, or a sand spit ending in rocks and a palm at the
 		# right. Tiled and mirrored, a clump of palms stood every screen along the beach and
 		# out across the open sea. So each is cut to the clump and set down once, whole, at the
 		# landward end of one beach -- see the palm rows below.
-		# ⚠ WHAT THE LAND STANDS ON, UNDER THE WATER. The sand plate stops 150 pixels below
-		# the walking surface and the sea goes on for a thousand more, so the land has to go
-		# down to the seabed too -- the collision does. One painting per beach, set down once:
-		# a heap of boulders darkening with depth, its seaward edge the line where its own stones
-		# stop, and the sand's rounded, wet shoulder carried out past the plate's straight cut in
-		# the plate's own pixels (see build_dagat_props.py). It replaces a tiled fill of dark
-		# blocks with a separate face laid over its end -- a black cobbled wall standing in the
-		# sea, with a checkerboard lip down the side of the beach and a seam where the two met.
+		# ⚠ THE GROUND, FROM THE SAND THE APO WALKS ON DOWN TO THE SEABED. One picture per beach,
+		# set down once: Piyesta's sand strip and coursed stone face in this sea's colours, the
+		# courses going on down into the water's colour as it deepens -- the collision goes to
+		# the seabed, and so does the land -- and the seaward edge a wall of whole stones with
+		# the sand ending on the collision's edge, rounded and wet (see build_dagat_props.py).
+		# It replaces the sand plate over a heap of boulders drawn at three pixels to the pixel.
 		#
-		# ⚠ 786: the plate row four pixels above the surface the apo walks on, so the shoulder
-		# is the land's own picture from the top of the sand down.
+		# ⚠ 786: the plate row four pixels above the surface the apo walks on, so the picture's
+		# own top is the sand's lip. ⚠ AND THE PICTURE IS HELD TO THE COLLISION: the home one is
+		# set down from the home ground's west end and the island's to the island's east end,
+		# so their sea edges land on 1000 and 4500 only because the generator draws them there.
+		# run_level3_audit reads both pictures back where this places them and checks.
 		{"key": LAND_HOME, "rate": 1.00, "z": -163, "top_row": 786.0, "pieces": [
 			{"at": "home_ground.x", "align": "left"},
 		]},
