@@ -55,59 +55,78 @@ GLASS_EDGE = np.array([22, 36, 48, 255], dtype=np.uint8)
 W, H = 20, 30
 FRAMES = 3
 
-# --- The land under the water ---------------------------------------------------------------
+# --- The ground the apo walks on, and the land under the water -------------------------------
 #
-# The sand plate stops 150 pixels under the surface the apo walks on, and the sea goes down
-# a thousand more. The land has to go down to the seabed too -- the collision does -- and this
-# is what it looks like on the way.
+# Kent: "Fix how the platforms at the islands are made since its so low quality and it looks
+# like im not walking to a platform but to an image, refer to how platforms in level 2 are made
+# since its so nice there walking it feels realistic."
 #
-# ⚠ A PILE OF BOULDERS, NOT A WALL OF BLOCKS. Twice before this was drawn as a surface: first
-# a smooth dither with round stones scattered through it, a dark slab with polka dots; then
-# Voronoi blocks in courses with a crevice between every two, which at game scale was a black
-# cobbled wall standing in the sea -- "the platform" in "the platform and the ocean below since
-# its so messy". Rock under water is rounded stone heaped on stone. Each boulder here is a lumpy
-# ellipse lit from the upper left, with a lit rim along its top, a dark rim along its underside,
-# moss on its top near the surface, and the whole pile darkening with depth as the water does.
-# The gaps between them are the crevices, and near the top they are the plate's own earth.
+# He was right on both counts, and they were one fault. Each beach was the delivered sand PLATE
+# -- a 1672-wide painting at six to eight screen pixels to its pixel, with the beach drawn as a
+# deep slab running toward the camera and driftwood painted onto it IN FRONT of the line the apo
+# walks along -- over a heap of boulders drawn at three. Next to a character drawn at one, it was
+# a picture the apo stood on the back edge of.
 #
-# ⚠ ONE PAINTING PER BEACH, NOT A TILE AND AN EDGE. The rock used to be a tiled fill with a
-# separate face texture laid over its seaward end, and the join between the two textures was a
-# seam however alike they were. Each beach's land is one picture now -- the home beach's facing
-# east, the island's facing west, each with its own seed so the two are not the same heap --
-# and its seaward edge is where its own stones stop: the stones nearest the water are pulled in
-# to end a little either side of the collision edge, so the edge is a line of boulders and not
-# a cut.
+# Piyesta's plaza is built the other way (PiyestaPlaza2D): a thin strip of paving the feet go on,
+# a coursed retaining wall of rounded stones with grass along its top, and fill below, all at one
+# pixel to the pixel. So each beach is that now, in Dagat's colours:
 #
-# ⚠ AND THE SAND'S EDGE IS THE SAND PLATE'S OWN PIXELS. The plate is laid across the ground
-# and cut straight at the collision edge. The land carries the plate's pixels on past the cut,
-# mirrored from just inside it, round-shouldered at the surface and wet toward the water -- so
-# the beach ends on its own sand, with no second, flatter sand dithered over it. (The dithered
-# lip that did that job read as a checkerboard down the side of the beach.)
+#   * THE SAND, 34 rows, the height of Piyesta's paving: a lit lip the feet stand on, dithered
+#     sand in this plate's own five tones, a few ripples and shells, damp along its foot.
+#   * THE FACE, Piyesta's own retaining wall (assets/Level2/plaza/retaining.png) re-coloured:
+#     its stones from brown to wet slate in the hues of this level's rock, its grass and vines to
+#     sea-moss. Same stones, same light, the same pixel -- which is the point of using it.
+#   * THE COURSES below it, down to the seabed: the same stones without the grass or the vines,
+#     cut between the texture's own mortar lines (rows 10 and 96) so course meets course at a
+#     joint and never through a stone, each set along by its own offset, and the whole of it
+#     going down into the water's colour as the sea gets deep.
+#   * THE SEAWARD EDGE IS WHOLE STONES, AND IT IS WHERE THE COLLISION IS. A straight cut through
+#     a coursed wall is a sliced cake, so near the edge every stone is kept or dropped whole, and
+#     the wall is solid out to its outermost stone in every row. The sand the apo walks on ends ON
+#     the collision's edge, rounded and wet. See _edge_of_the_wall for the rules and LANDS for how
+#     each beach's stones were chosen to meet it.
 #
-# Colours: CLIFF from the terraces' rock and the water beside it, EARTH the sand plate's last
-# rows, MOSS the green on the terraces' ledges.
-CLIFF = ramp(["#040c1a", "#08172a", "#0e223a", "#152e48", "#1e3c56", "#294c64",
-              "#365d72", "#48707f", "#5e858d"])
-EARTH = ramp(["#20242f", "#282a3a", "#303444"])
-MOSS = ramp(["#15362f", "#1f5237", "#2d6b3e", "#468a4a"])
-## The beach's sand, as the plate paints it. The heap the next painting stands in is this sand.
+# ⚠ THE SAND PLATE IS NO LONGER DRAWN. It painted nothing above the walking line (measured: under
+# 2% of any row above plate row 786), so taking it out takes only the slab this replaces. See the
+# shore band's rows in dagat_backdrop_2d.gd.
+#
+# The land still goes down to the seabed, because the collision does: a diver who swims under the
+# beach meets rock, not an air pocket.
+RETAINING = ROOT / "game" / "assets" / "Level2" / "plaza" / "retaining.png"
+## The beach's sand, as the plate paints it. The strip the apo walks on and the heap the next
+## painting stands in are both this sand.
 SAND = ramp(["#6f5141", "#be9564", "#e6b775", "#f0c888", "#f7dba6"])
-SAND_PLATE = ROOT / "game" / "assets" / "Level3" / "shore" / "sand.png"
-## World rows: the land's picture starts just above the surface and runs past the lowest the
-## camera ever looks; the sand plate's dark earth band starts at BAND_Y and the plate ends at
-## ROCK_Y. The shore band pins its plate's top at PLATE_TOP, so the land's own top_row in the
-## backdrop is LAND_TOP - PLATE_TOP.
+## The rock's hue and the moss's, read off the terraces' rock (#1e3c56 .. #5e858d) and the green
+## on their ledges.
+ROCK_HUE, MOSS_HUE = 202.0, 158.0
+## The colour the rock goes to with depth: the deep band's own fill below its plate.
+DEEP_RGB = np.array([1.0, 27.0, 70.0])
+## World rows. The land's picture starts just above the surface and runs past the lowest the
+## camera ever looks. The shore band pins its pieces by this top: top_row = LAND_TOP - (-230).
 LAND_TOP, LAND_BOTTOM = 556, 1867
-SURFACE_Y, BAND_Y, ROCK_Y = 560, 660, 711
-PLATE_TOP = -230
-LAND_PX = 3
-## name: (world left, world right, the collision edge, whether the sea is to its right, the
-## world x the sand plate's column 0 is laid at, seed). The left and right are where the
-## backdrop sets each piece down: the home land from the home ground's west end, the island's
-## to the island ground's east end.
+SURFACE_Y = 560
+SAND_ROWS, FACE_ROWS = 34, 96
+## Where in the retaining wall a course is cut: under the grass, at its first mortar line, down to
+## the full mortar band along its foot.
+COURSE_ROWS = (10, 96)
+## name: (world left, world right, the collision edge, whether the sea is to its right, seed,
+## phase). The left and right are where the backdrop sets each piece down: the home land from the
+## home ground's west end, the island's to the island ground's east end.
+##
+## ⚠ EACH PICTURE RUNS 120 PAST ITS EDGE, INTO THE SEA. It ran 30, and a stone standing out past
+## the edge was sliced flat along the picture's border.
+##
+## ⚠ THE PHASE IS WHICH STONES ARRIVE AT THE EDGE, AND IT WAS SEARCHED FOR, NOT CHOSEN. Whole stones
+## forty to seventy pixels wide cannot be made to end on a given column; only a different set of
+## stones can. The wall is laid along by `phase` columns, and `--search-edges` tries every one of
+## the wall's 864 and ranks them: the top course meets the sand's end (no stone short of it by more
+## than 4 or past it by more than TOP_REACH), then fewest rows short of the collision by more than
+## 16, then least rock standing out. The first edges, at phase 0, fell 60 pixels short of the
+## collision: fifty pixels of sand the apo walked on over open water, and an invisible wall in it
+## for a diver. run_level3_audit holds each picture to its collision.
 LANDS = {
-    "land_home.png": (100, 1030, 1000, True, 100, 6100),
-    "land_island.png": (4468, 5380, 4500, False, 4500, 6200),
+    "land_home.png": (100, 1120, 1000, True, 6100, 420),
+    "land_island.png": (4380, 5380, 4500, False, 6200, 102),
 }
 
 
@@ -115,163 +134,381 @@ def BAYER_AT(x: int, y: int) -> float:
     return float(pixelart.BAYER[y % 4, x % 4])
 
 
-def _boulders(width: int, height: int, seed: int, edge_of, facing_right: bool,
-              first_row: float) -> list:
-    """A packed pile: scanned in rows, each row's stones sized at random, the ones that would
-    stand past the edge pulled in to end a little either side of it. Drawn in a shuffled order
-    so no row is always in front of the next."""
-    import math
+def _hls(rgb: np.ndarray) -> tuple:
+    """RGB in 0..1 to hue (0..1), lightness, saturation, for a whole image at once."""
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    top, low = rgb.max(axis=-1), rgb.min(axis=-1)
+    light = (top + low) / 2.0
+    spread = top - low
+    some = spread > 0
+    safe = np.maximum(spread, 1e-6)
+    sat = np.where(~some, 0.0, np.where(light < 0.5, spread / np.maximum(top + low, 1e-6),
+                                        spread / np.maximum(2.0 - top - low, 1e-6)))
+    rc, gc, bc = (top - r) / safe, (top - g) / safe, (top - b) / safe
+    hue = np.where(r == top, bc - gc, np.where(g == top, 2.0 + rc - bc, 4.0 + gc - rc))
+    return np.where(some, (hue / 6.0) % 1.0, 0.0), light, sat
+
+
+def _rgb(hue: np.ndarray, light: np.ndarray, sat: np.ndarray) -> np.ndarray:
+    def channel(m1, m2, h):
+        h = h % 1.0
+        return np.where(h < 1 / 6, m1 + (m2 - m1) * h * 6, np.where(
+            h < 0.5, m2, np.where(h < 2 / 3, m1 + (m2 - m1) * (2 / 3 - h) * 6, m1)))
+    m2 = np.where(light <= 0.5, light * (1.0 + sat), light + sat - light * sat)
+    m1 = 2.0 * light - m2
+    return np.stack([channel(m1, m2, hue + 1 / 3), channel(m1, m2, hue),
+                     channel(m1, m2, hue - 1 / 3)], axis=-1)
+
+
+def _wall() -> tuple:
+    """Piyesta's retaining wall in this sea's colours, and where its vines are."""
+    source = np.array(Image.open(RETAINING).convert("RGBA")).astype(float) / 255.0
+    hue, light, sat = _hls(source[..., :3])
+    degrees = hue * 360.0
+    green = (degrees >= 65.0) & (degrees <= 170.0) & (sat > 0.18)
+    new_hue = np.where(green, MOSS_HUE, ROCK_HUE) / 360.0
+    new_light = np.where(green, light * 0.9, np.minimum(1.0, light * 1.12))
+    new_sat = np.where(green, np.minimum(1.0, sat * 0.75), np.minimum(1.0, sat * 0.765 + 0.06))
+    out = source.copy()
+    out[..., :3] = _rgb(new_hue, new_light, new_sat)
+    # Every vine pixel is still some green in the source, which it is not once darkened and
+    # re-coloured -- so the vines are found here, and grown a pixel to take their outlines.
+    vine = (degrees >= 55.0) & (degrees <= 185.0) & (sat > 0.08) & (light > 0.08)
+    grown = vine.copy()
+    grown[1:] |= vine[:-1]
+    grown[:-1] |= vine[1:]
+    grown[:, 1:] |= vine[:, :-1]
+    grown[:, :-1] |= vine[:, 1:]
+    return (out * 255.0).astype(np.uint8), grown
+
+
+def _course(wall: np.ndarray, vines: np.ndarray) -> np.ndarray:
+    """One course of the stones: under the grass, down to the mortar band, with every vine
+    pixel filled from the same column a course-and-a-half away."""
+    top, bottom = COURSE_ROWS
+    course = wall[top:bottom].copy()
+    hanging = vines[top:bottom].copy()
+    rows = course.shape[0]
+    for row in range(rows):
+        for step in (43, 21, 64):
+            other = (row + step) % rows
+            fill = hanging[row] & ~hanging[other]
+            course[row, fill] = course[other, fill]
+            hanging[row] &= ~fill
+    return course
+
+
+def _periodic_noise(width: int, height: int, cell: int, seed: int) -> np.ndarray:
+    """Value noise that wraps across its width, so the strip tiles along the beach."""
     rng = np.random.default_rng(seed)
-    out = []
-    y = first_row
-    while y < height + 16:
-        x = rng.uniform(-14, 0)
-        row_r = rng.uniform(7, 14)
-        while x < width + 14:
-            r = row_r * rng.uniform(0.65, 1.4)
-            if rng.uniform() < 0.07:
-                r *= 1.6
-            cx, cy = x + r, y + rng.uniform(-3, 3) + r * 0.6
-            e = edge_of(cy)
-            reach = rng.uniform(-3.0, 6.0)
-            if facing_right and cx + r > e + reach:
-                cx = e + reach - r
-            if not facing_right and cx - r < e - reach:
-                cx = e - reach + r
-            out.append((cx, cy, r, rng.uniform(0, 2 * math.pi), rng.uniform(0, 2 * math.pi),
-                        rng.uniform(-0.6, 0.6)))
-            x += r * rng.uniform(1.5, 1.9)
-        y += row_r * rng.uniform(1.0, 1.3)
-    out = [out[i] for i in rng.permutation(len(out))]
-    # THE CORNER UNDER THE SAND. Where the plate's earth band meets the water the pile's own
-    # stones may stop short of the edge and leave the band's straight cut showing. Three
-    # stones on the corner itself, drawn last, so the band always ends in rock.
-    cut = edge_of(None)
-    for k in range(3):
-        r = rng.uniform(8.0, 11.0)
-        cy = first_row + 4.0 + k * rng.uniform(9.0, 12.0)
-        cx = cut + (r * 0.35 if facing_right else -r * 0.35) + rng.uniform(-1.5, 1.5)
-        out.append((cx, cy, r, rng.uniform(0, 2 * math.pi), rng.uniform(0, 2 * math.pi),
-                    rng.uniform(-0.3, 0.5)))
-    return out
+    grid = rng.random((height // cell + 2, width // cell + 1))
+    ys, xs = np.arange(height) / cell, np.arange(width) / cell
+    y0, x0 = ys.astype(int), xs.astype(int)
+    fy, fx = (ys - y0)[:, None], (xs - x0)[None, :]
+    x1 = (x0 + 1) % grid.shape[1]
+    grid[:, -1] = grid[:, 0]
+    return (grid[y0][:, x0] * (1 - fx) * (1 - fy) + grid[y0][:, x1] * fx * (1 - fy)
+            + grid[y0 + 1][:, x0] * (1 - fx) * fy + grid[y0 + 1][:, x1] * fx * fy)
 
 
-def _paint_land(width: int, height: int, seed: int, edge_of, facing_right: bool) -> Canvas:
-    import math
-    tone = np.full((height, width), -9.0)
-    lid = np.zeros((height, width), dtype=bool)
-    grain = _noise(width, height, 3, seed + 11)
-    first = (ROCK_Y - LAND_TOP) / LAND_PX - 16
-    for cx, cy, r, p1, p2, shade in _boulders(width, height, seed, edge_of, facing_right, first):
-        ry = r * 0.78
-        for y in range(max(0, int(cy - ry * 1.3) - 1), min(height, int(cy + ry * 1.3) + 2)):
-            depth = max(0.0, (LAND_TOP + y * LAND_PX - ROCK_Y) / float(LAND_BOTTOM - ROCK_Y))
-            for x in range(max(0, int(cx - r * 1.3) - 1), min(width, int(cx + r * 1.3) + 2)):
-                dx, dy = x + 0.5 - cx, y + 0.5 - cy
-                angle = math.atan2(dy / ry, dx / r)
-                lump = 1.0 + 0.16 * math.sin(3 * angle + p1) + 0.09 * math.sin(5 * angle + p2)
-                nx, ny = dx / (r * lump), dy / (ry * lump)
-                d = math.hypot(nx, ny)
-                if d > 1.0:
-                    continue
-                # The light is from the upper left on both beaches: the island's land is its
-                # own painting, not the home one flipped, so its stones are not lit backwards.
-                lit = -0.55 * nx - 0.83 * ny
-                v = 4.2 + shade + 1.6 * lit * (0.4 + 0.6 * d)
-                if d > 0.86 and ny > 0.1:
-                    v = 1.0 + shade * 0.5
-                elif d > 0.8 and lit > 0.45:
-                    v += 1.3
-                v += 0.8 * (grain[y, x] - 0.5)
-                v -= 3.2 * depth ** 1.05
-                tone[y, x] = v
-                lid[y, x] = ny < -0.55 and d > 0.55
-    c = Canvas(width, height, seed=seed)
-    rng = np.random.default_rng(seed + 3)
+SAND_WIDTH = 288
+
+
+def _sand_strip() -> np.ndarray:
+    """The 34 rows the feet are on: a lit lip, the plate's five sands dithered, a few ripples
+    and shells, damp along the foot where it meets the stones."""
+    rng = np.random.default_rng(3101)
+    broad = _periodic_noise(SAND_WIDTH, SAND_ROWS, 6, 3)
+    fine = _periodic_noise(SAND_WIDTH, SAND_ROWS, 2, 4)
+    strip = np.zeros((SAND_ROWS, SAND_WIDTH, 4), dtype=np.uint8)
+    strip[..., 3] = 255
+    for y in range(SAND_ROWS):
+        depth = y / float(SAND_ROWS - 1)
+        for x in range(SAND_WIDTH):
+            value = 0.62 + 0.22 * (broad[y, x] - 0.5) + 0.12 * (fine[y, x] - 0.5) \
+                - 0.55 * max(0.0, depth - 0.62)
+            if y == 0:
+                value = 0.98
+            elif y == 1:
+                value = 0.86
+            scaled = value * 4.0
+            low = int(np.clip(np.floor(scaled), 0, 3))
+            index = int(np.clip(low + (1 if scaled - low > BAYER_AT(x, y) else 0), 0, 4))
+            strip[y, x, :3] = SAND[index][:3]
+    for _ripple in range(14):
+        x0, y0, length = int(rng.integers(0, SAND_WIDTH)), int(rng.integers(5, 18)), \
+            int(rng.integers(5, 12))
+        for dx in range(length):
+            x = (x0 + dx) % SAND_WIDTH
+            strip[y0, x, :3] = SAND[1][:3]
+            strip[y0 - 1, x, :3] = SAND[4][:3]
+    shells = [np.array([233, 214, 208]), np.array([199, 178, 173]), np.array([122, 106, 98])]
+    for index in range(9):
+        x, y = int(rng.integers(2, SAND_WIDTH - 3)), int(rng.integers(6, 24))
+        strip[y, x, :3] = shells[index % 3]
+        strip[y, x + 1, :3] = (shells[index % 3] * 0.85).astype(np.uint8)
+    strip[SAND_ROWS - 3:, :, :3] = (SAND[0][:3] * 0.8).astype(np.uint8)
+    return strip
+
+
+def _flood(mask: np.ndarray, seeds: list) -> np.ndarray:
+    from collections import deque
+    height, width = mask.shape
+    seen = np.zeros_like(mask)
+    queue = deque()
+    for y, x in seeds:
+        if mask[y, x] and not seen[y, x]:
+            seen[y, x] = True
+            queue.append((y, x))
+    while queue:
+        y, x = queue.popleft()
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            ny, nx = y + dy, x + dx
+            if 0 <= ny < height and 0 <= nx < width and mask[ny, nx] and not seen[ny, nx]:
+                seen[ny, nx] = True
+                queue.append((ny, nx))
+    return seen
+
+
+## Face rows whose stones may not stand out past the sand's end: the top course, just under the
+## feet. A stone there that passes the sand is a ledge beside the beach that nothing stands on.
+TOP_COURSE, TOP_REACH = 30, 6
+## How far any stone below that may stand out past the edge, under the water. The diver is drawn
+## in front of the land, so rock past the collision reads as rock behind them; a wall that stops
+## short of it is an invisible wall in open water, which is the worse of the two -- so a stone is
+## kept if any of it is on the land's side, and only a boulder jutting out like a ledge is not.
+MAX_REACH = 48
+## How far the sand's rounded end bulges past the collision at its middle rows.
+SAND_BULGE = 4
+## The columns either side of the edge the stones are chosen in.
+EDGE_BAND = 110
+
+
+def _stones(region: np.ndarray) -> tuple:
+    """The wall's stones near the edge, as a label per pixel and (top, left, right, size) for
+    each: lit rock, not moss, bounded by the dark mortar between."""
+    from collections import deque
+    rgb = region[..., :3].astype(float)
+    hue, light, sat = _hls(rgb / 255.0)
+    green = (hue * 360.0 >= 65.0) & (hue * 360.0 <= 170.0) & (sat > 0.18)
+    solid = (0.3 * rgb[..., 0] + 0.59 * rgb[..., 1] + 0.11 * rgb[..., 2] >= 34.0) & ~green
+    height, width = solid.shape
+    labels = np.full((height, width), -1, dtype=int)
+    found = []
     for y in range(height):
-        world_y = LAND_TOP + y * LAND_PX
-        depth = max(0.0, (world_y - ROCK_Y) / float(LAND_BOTTOM - ROCK_Y))
-        e = edge_of(y)
         for x in range(width):
-            v = tone[y, x]
-            if v < -5:
-                inside = (x < e - 3) if facing_right else (x > e + 3)
-                if world_y < BAND_Y or not inside:
-                    continue  # the plate above, or the water beside
-                if world_y < ROCK_Y + 36:
-                    c.px(x, y, EARTH[1] if (x * 5 + y * 3) % 13 else EARTH[2])
-                    continue
-                v = 0.6 - 0.6 * depth  # a crevice between two stones
-            if lid[y, x] and depth < 0.22 and rng.uniform() < 0.45 - depth * 1.5:
-                c.px(x, y, MOSS[3] if depth < 0.08 else MOSS[2])
+            if not solid[y, x] or labels[y, x] >= 0:
                 continue
-            _tone(c, x, y, v, CLIFF)
-    return c
+            label = len(found)
+            labels[y, x] = label
+            queue = deque([(y, x)])
+            top, left, right, count = y, x, x, 0
+            while queue:
+                a, b = queue.popleft()
+                count += 1
+                top, left, right = min(top, a), min(left, b), max(right, b)
+                for da, db in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    na, nb = a + da, b + db
+                    if 0 <= na < height and 0 <= nb < width and solid[na, nb] \
+                            and labels[na, nb] < 0:
+                        labels[na, nb] = label
+                        queue.append((na, nb))
+            found.append((top, left, right, count))
+    return labels, found
 
 
-def _shoulder(world_y: int) -> int:
-    """How far past the collision edge the sand runs, in world pixels, row by row: rounded at
-    the surface, a wet face bulging a little, tucked back in as the earth band begins."""
+def _edge_of_the_wall(region: np.ndarray, x_off: int, cut: int, facing_right: bool) -> np.ndarray:
+    """Which pixels of the face near the edge stay wall. Whole stones: one is kept if any of it
+    is on the land's side of the edge and it stands out no further than MAX_REACH (TOP_REACH in the
+    top course), with the mortar round it as its outline. Then the wall is solid out to its
+    outermost stone in every row -- the sea showed through between the stones otherwise, a pile of
+    rocks rather than a wall -- with two corrections, both found on screen:
+
+    * the mortar is filled only as far as the rows around it reach (a running median), so the tip
+      of one stone standing out cannot paint a hairline of mortar across the water to it; and
+    * a thin mortar row between two courses is filled as far as the courses on BOTH sides of it
+      reach, or no stone's outline covers it and the sea shows through it as a hairline instead.
+
+    The grass lip along the top has no stones of its own and runs as far as the course under it."""
+    labels, found = _stones(region)
+    kept = []
+    for top, left, right, count in found:
+        left, right = left + x_off, right + x_off
+        if facing_right:
+            keep = left < cut and right < cut + MAX_REACH and count >= 40
+            if top < TOP_COURSE:
+                keep = keep and right < cut + TOP_REACH
+        else:
+            keep = right >= cut and left >= cut - MAX_REACH and count >= 40
+            if top < TOP_COURSE:
+                keep = keep and left >= cut - TOP_REACH
+        kept.append(keep)
+    keep = np.zeros(labels.shape, dtype=bool)
+    stone = labels >= 0
+    keep[stone] = np.array(kept, dtype=bool)[labels[stone]]
+    for _round in range(2):
+        grown = keep.copy()
+        grown[1:] |= keep[:-1]
+        grown[:-1] |= keep[1:]
+        grown[:, 1:] |= keep[:, :-1]
+        grown[:, :-1] |= keep[:, 1:]
+        keep = grown
+    height, width = keep.shape
+    # The outermost wall pixel of each row: the largest column for a wall facing the sea on its
+    # right, the smallest for one facing it on its left.
+    pick, choose = (np.max, np.minimum) if facing_right else (np.min, np.maximum)
+    extent = np.array([pick(np.where(keep[r])[0]) if keep[r].any() else (-1 if facing_right else width)
+                       for r in range(height)])
+    lip = COURSE_ROWS[0]
+    extent[:lip] = pick(extent[lip:TOP_COURSE])
+    smooth = np.array([np.median(extent[max(0, r - 3):r + 4]) for r in range(height)])
+    up = np.array([pick(extent[max(0, r - 3):r]) if r > 0 else extent[r] for r in range(height)])
+    down = np.array([pick(extent[r + 1:r + 4]) if r < height - 1 else extent[r]
+                     for r in range(height)])
+    fill = choose(extent, smooth)
+    bridge = choose(up, down)
+    columns = np.arange(width)[None, :]
+    if facing_right:
+        keep |= columns <= np.maximum(fill, bridge)[:, None]
+    else:
+        keep |= columns >= np.minimum(fill, bridge)[:, None]
+    return keep
+
+
+def draw_land(name: str, phase: int | None = None) -> Image.Image:
     import math
-    t = (world_y - SURFACE_Y) / float(ROCK_Y - SURFACE_Y)
-    if t < 0.03:
-        return 0
-    bulge = 9 * math.sin(math.pi * min(1.0, (t - 0.03) / 0.5)) ** 0.8
-    if t >= 0.45:
-        bulge *= max(0.0, 1.0 - (t - 0.45) / 0.55)
-    return int(round(bulge))
+    left, right, edge, facing_right, seed, chosen = LANDS[name]
+    phase = chosen if phase is None else phase
+    width, height = right - left, LAND_BOTTOM - LAND_TOP
+    wall, vines = _wall()
+    course = _course(wall, vines)
+    sand = _sand_strip()
+    out = np.zeros((height, width, 4), dtype=np.uint8)
+    # Laid by WORLD x, so the strip and the stones line up with nothing that moves with them.
+    columns = np.arange(left, right)
+    surface = SURFACE_Y - LAND_TOP
+    out[surface:surface + SAND_ROWS] = sand[:, columns % sand.shape[1]]
+    face_top = surface + SAND_ROWS
+    out[face_top:face_top + FACE_ROWS] = wall[:, (columns + phase) % wall.shape[1]]
+    y, number = face_top + FACE_ROWS, 1
+    while y < height:
+        rows = min(course.shape[0], height - y)
+        along = (number * 347 + seed) % course.shape[1]
+        out[y:y + rows] = course[:rows, (columns + phase + along) % course.shape[1]]
+        y, number = y + rows, number + 1
 
+    cut = edge - left
+    near = slice(max(0, cut - EDGE_BAND), min(width, cut + EDGE_BAND))
+    region = out[face_top:, near].copy()
+    keep = _edge_of_the_wall(region, near.start, cut, facing_right)
+    region[~keep] = 0
+    out[face_top:, near] = region
+    if facing_right:
+        out[face_top:, near.stop:] = 0
+    else:
+        out[face_top:, :near.start] = 0
 
-def draw_land(name: str) -> Image.Image:
-    import math
-    left, right, edge, facing_right, plate_x0, seed = LANDS[name]
-    pixelart.PX = LAND_PX
-    width = (right - left) // LAND_PX
-    height = (LAND_BOTTOM - LAND_TOP) // LAND_PX
-    cut = (edge - left) / LAND_PX
-    base = cut + (-2 if facing_right else 2)
+    # The sand ends ON the collision's edge -- at the walking row, exactly where the apo stops --
+    # rounded at the top, bulging a few pixels at its middle, wet toward the end.
+    wet = np.array([20.0, 38.0, 62.0])
+    for row in range(SAND_ROWS):
+        y = surface + row
+        bulge = int(round(SAND_BULGE * math.sin(math.pi * min(1.0, (row + 1) / 30.0)) ** 0.8))
+        # The last column of sand facing right, the first facing left.
+        stop = cut - 2 + bulge if facing_right else cut + 1 - bulge
+        if facing_right:
+            out[y, stop + 1:] = 0
+        else:
+            out[y, :stop] = 0
+        for k in range(6):
+            x = stop - k if facing_right else stop + k
+            share = 0.18 - 0.03 * k
+            out[y, x, :3] = (out[y, x, :3] * (1.0 - share) + wet * share).astype(np.uint8)
 
-    def edge_of(y):
-        if y is None:
-            return cut
-        e = base + 2.4 * math.sin(y / 13.0 + seed) + 1.3 * math.sin(y / 5.3 + 1.1)
-        # In the sand plate's own rows the edge never draws back inside the plate's cut, or
-        # the plate's straight edge shows beyond it.
-        if LAND_TOP + y * LAND_PX < ROCK_Y + 6:
-            reach = 4 + 3 * math.sin(y / 3.1)
-            e = max(e, cut + reach) if facing_right else min(e, cut - reach)
-        return e
-
-    c = _paint_land(width, height, seed, edge_of, facing_right)
-    out = np.array(Image.fromarray(c.buf, "RGBA").resize((width * LAND_PX, height * LAND_PX),
-                                                         Image.NEAREST))
-    plate = np.array(Image.open(SAND_PLATE).convert("RGBA"))
-    # The sand's edge, at the plate's own resolution. Only down to the earth band: below that
-    # the stones take over the corner, and the plate's pixels carried out there were a dark
-    # post standing on the rock.
-    for world_y in range(SURFACE_Y - 2, BAND_Y):
-        row, y = world_y - PLATE_TOP, world_y - LAND_TOP
-        if not (0 <= row < plate.shape[0] and 0 <= y < out.shape[0]):
-            continue
-        reach = _shoulder(world_y)
-        for k in range(-12, reach + 1):
-            world_x = edge + k if facing_right else edge - 1 - k
-            x = world_x - left
-            if not 0 <= x < out.shape[1]:
-                continue
-            inward = -k - 1 if k < 0 else k  # past the cut, the plate's pixels mirrored
-            column = (edge - 1 - inward if facing_right else edge + inward) - plate_x0
-            source = plate[row, column % plate.shape[1]].astype(float)
-            if source[3] < 128:
-                continue
-            wet = 0.0 if k < -9 else 0.12 if k < -3 else 0.26 if k < reach - 2 else 0.5
-            rgb = source[:3] * (1.0 - wet) + np.array([20.0, 38.0, 62.0]) * wet
-            out[y, x, :3] = np.clip(rgb, 0, 255)
-            out[y, x, 3] = 255
+    # Down into the water's colour as the sea gets deep.
+    start = face_top + 60
+    for y in range(start, height):
+        share = min(1.0, (y - start) / 520.0) ** 0.9 * 0.82
+        out[y, :, :3] = (out[y, :, :3] * (1.0 - share) + DEEP_RGB * share).astype(np.uint8)
     return Image.fromarray(out, "RGBA")
 
 
+def _edge_fit(name: str, image: Image.Image) -> tuple:
+    """How far the land reaches past its collision edge, row by row, for the sand and for the
+    face below it: positive is out over the sea, negative short of the edge."""
+    left, right, edge, facing_right, _seed, _phase = LANDS[name]
+    alpha = np.array(image)[..., 3]
+    width = alpha.shape[1]
+
+    def reach(row: int) -> int:
+        solid = np.where(alpha[row] > 0)[0]
+        if facing_right:
+            return int(left + solid.max() + 1 - edge)
+        return int(edge - (right - width + solid.min()))
+
+    surface = SURFACE_Y - LAND_TOP
+    face_top = surface + SAND_ROWS
+    return ([reach(surface + row) for row in range(SAND_ROWS)],
+            np.array([reach(row) for row in range(face_top, alpha.shape[0])]))
+
+
+def search_edges() -> None:
+    """Rank every phase of the wall for each beach. See LANDS."""
+    width = _wall()[0].shape[1]
+    for name in LANDS:
+        ranked = []
+        for phase in range(0, width, 2):
+            sand, face = _edge_fit(name, draw_land(name, phase))
+            top = face[:TOP_COURSE]
+            ranked.append((int((top < -4).sum() + (top > TOP_REACH).sum()), int((face < -16).sum()),
+                           float(np.clip(face, 0, None).mean()), phase, int(face.min()),
+                           int(face.max())))
+        ranked.sort()
+        print(name, "now", LANDS[name][5])
+        for top_off, short, out, phase, low, high in ranked[:6]:
+            print(f"  phase {phase:3d}: top course off {top_off}, rows short >16 {short}, "
+                  f"mean out {out:.1f}, face {low}..{high}")
+
+
 LAND = {name: (lambda name=name: draw_land(name)) for name in LANDS}
+
+
+# --- The island's palms, without the beach they were painted on ----------------------------
+#
+# The delivered `palms_right` plate is a clump of palms on boulders at the end of a painted sand
+# spit -- driftwood, a coral, the spit's own wavy edge -- and all of that lies below the walking
+# line. Over the island's land it was a second beach painted across the first, at eight pixels to
+# the pixel, which kept exactly the "walking to an image" look the land above replaced. So the
+# island gets the clump alone: cut at the column the clump starts at, the sand keyed out of
+# everything below the boulders' tops, and anything left that is no longer joined to the clump
+# (a pebble that lay on the sand) dropped with it. The palms then end on their boulders at the
+# landward end of the wall, the way `palms_left` already ends the home beach.
+#
+# ⚠ THE FULL HEIGHT OF THE PLATE, SO THE SWAY DOES NOT CHANGE. wind_sway.gdshader holds the foot
+# by UV.y (`root`), so the texture keeps the plate's 941 rows and only loses columns.
+PALMS_RIGHT = ROOT / "game" / "assets" / "Level3" / "shore" / "palms_right.png"
+## The plate's columns the clump stands in: from its leftmost fern to the plate's own cut side.
+PALM_COLUMNS = (1185, 1672)
+## Plate rows from which a sand-coloured pixel is sand. Above this is trunk, whose highlights are
+## the same orange-tan as the sand.
+PALM_SAND_FROM = 760
+
+
+def draw_palms_island() -> Image.Image:
+    plate = np.array(Image.open(PALMS_RIGHT).convert("RGBA"))
+    out = plate[:, PALM_COLUMNS[0]:PALM_COLUMNS[1]].copy()
+    hue, light, sat = _hls(out[..., :3].astype(float) / 255.0)
+    degrees = hue * 360.0
+    sandy = (degrees >= 18.0) & (degrees <= 52.0) & (light > 0.42) & (sat > 0.30)
+    sandy[:PALM_SAND_FROM] = False
+    out[sandy] = 0
+    solid = out[..., 3] > 0
+    joined = _flood(solid, [(y, x) for y in range(PALM_SAND_FROM) for x in range(out.shape[1])])
+    out[~joined] = 0
+    return Image.fromarray(out, "RGBA")
+
+
+PALMS = {"palms_island.png": draw_palms_island}
 
 
 # --- The seabed: what the diver swims over -------------------------------------------------
@@ -1266,7 +1503,7 @@ def build() -> list[Path]:
         path = OUT / f"ink_jar_{frame}.png"
         draw(frame).save(path)
         written.append(path)
-    for table in (LAND, SEABED_ART, BANGKA, FOUND):
+    for table in (LAND, PALMS, SEABED_ART, BANGKA, FOUND):
         for name, painter in table.items():
             path = OUT / name
             painter().save(path)
@@ -1281,7 +1518,8 @@ def build() -> list[Path]:
 
 def _expected() -> list[Path]:
     return [OUT / f"ink_jar_{frame}.png" for frame in range(FRAMES)] + \
-        [OUT / name for name in LAND] + [OUT / name for name in SEABED_ART] + \
+        [OUT / name for name in LAND] + [OUT / name for name in PALMS] + \
+        [OUT / name for name in SEABED_ART] + \
         [OUT / name for name in BANGKA] + \
         [OUT / name for name in FOUND] + \
         [OUT / f"{name}_{frame}.png" for name, (_p, n) in LIFE.items() for frame in range(n)]
@@ -1291,7 +1529,12 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--search-edges", action="store_true",
+                    help="rank every phase of the wall for each beach's edge (see LANDS)")
     args = ap.parse_args()
+    if args.search_edges:
+        search_edges()
+        return 0
 
     before = {}
     if args.check:

@@ -101,6 +101,31 @@ var _clip := "searching"
 var _frame := 0
 var _clock := 0.0
 
+## ⚠ IT MOVES. Kent: "the bakunawa should move". It was a picture with a beam: placed once and
+## still for the whole encounter, though Lolo's first line about it is "back and forth over the
+## same stretch, over and over". It drifts that stretch now -- slowly, along x about the place it
+## was set down, with a slow rise and fall -- and faster while it fights. The sweep, sees(), the
+## coils and the hurtbox are all children or read off global_position, so the rule travels with
+## it; run_bakunawa_probe measures the way past against the moving creature.
+const PATROL_REACH := 110.0
+const PATROL_PERIOD := 22.0
+const FIGHT_PERIOD := 12.0
+const BOB := 16.0
+const BOB_PERIOD := 5.5
+var _home := Vector2.ZERO
+var _homed := false
+var _drift_clock := 0.0
+
+## ⚠ AND IT GOES. "There are cases where it should go away": found what it lost, or worn out, it
+## stayed coiled where it was for the rest of the level -- its own comment said it "swims off"
+## and nothing made it. Now it holds a moment and swims away down into the dark, fading as it goes.
+## Avoided, it does not: that resolution's whole point is that it keeps searching.
+const LEAVE_BY := Vector2(760.0, 320.0)
+const LEAVE_SECONDS := 5.5
+var _leaving := false
+var _gone := false
+var _leave: Tween
+
 
 func _ready() -> void:
 	z_index = 4
@@ -117,6 +142,8 @@ func _ready() -> void:
 	_build_bodies()
 	_build_skin()
 	set_process(true)
+	_home = global_position
+	_homed = true
 
 
 ## ⚠ THE CLIPS ARE THE SORT tools/build_dagat.py DID BY EYE POSITION, not by filename. Twenty
@@ -191,8 +218,47 @@ func _build_bodies() -> void:
 ## states to keep in step with this one, and they would drift.
 func stage_at(depth_y: float) -> void:
 	global_position.y = depth_y
+	_home.y = depth_y
 	_fit_the_coils()
 	queue_redraw()
+
+
+## Back to a place and a fresh search, as it was before anything happened to it -- what a
+## checkpoint restore to before the encounter's end asks of it. Any leaving is called off.
+func reset_to(at: Vector2) -> void:
+	if _leave != null and _leave.is_valid():
+		_leave.kill()
+	_leaving = false
+	_gone = false
+	visible = true
+	modulate.a = 1.0
+	set_process(true)
+	if _hurtbox != null:
+		_hurtbox.collision_layer = 1
+	global_position = at
+	_home = at
+	_homed = true
+	_drift_clock = 0.0
+	rotation = 0.0
+	_hits = 0.0
+	_thrash = 0.0
+	_fit_the_coils()
+	begin_search()
+
+
+## Gone already -- a restore to after it left. No swim, no fade: it is simply not there.
+func set_gone() -> void:
+	if _leave != null and _leave.is_valid():
+		_leave.kill()
+	_be_gone()
+
+
+func is_gone() -> bool:
+	return _gone
+
+
+func is_leaving() -> bool:
+	return _leaving
 
 
 ## Stretch the channel's block over `seal_span`, measured from wherever the creature is now.
@@ -311,14 +377,42 @@ func _subdue() -> void:
 	_set_channel_open(true)
 	queue_redraw()
 	went_quiet.emit("FOUGHT")
+	_leave_after(2.5)
 
 
 ## The Artist ending. It found what it lost and is holding it out.
 func give_it_up() -> void:
 	_state = State.CALM
 	_set_channel_open(true)
+	_home = global_position
 	queue_redraw()
 	gift_offered.emit()
+	# After what it found has been given: the corner comes up and goes to the apo, and the
+	# flower after it, over about five seconds.
+	_leave_after(6.0)
+
+
+func _leave_after(seconds: float) -> void:
+	if _leaving or _gone:
+		return
+	_leaving = true
+	_leave = create_tween()
+	_leave.tween_interval(seconds)
+	_leave.tween_property(self, "global_position", global_position + LEAVE_BY, LEAVE_SECONDS) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_leave.parallel().tween_property(self, "modulate:a", 0.0, LEAVE_SECONDS * 0.7) \
+		.set_delay(LEAVE_SECONDS * 0.3)
+	_leave.tween_callback(_be_gone)
+
+
+func _be_gone() -> void:
+	_leaving = false
+	_gone = true
+	visible = false
+	set_process(false)
+	_set_channel_open(true)
+	if _hurtbox != null:
+		_hurtbox.collision_layer = 0
 
 
 # --- Per frame -----------------------------------------------------------------------------
@@ -331,6 +425,7 @@ func _process(delta: float) -> void:
 			if absf(_sweep) > SWEEP_LIMIT:
 				_sweep = clampf(_sweep, -SWEEP_LIMIT, SWEEP_LIMIT)
 				_sweep_direction = -_sweep_direction
+			_drift(delta)
 		State.FOLLOWING:
 			var to_light := _follow_target - global_position
 			_sweep = lerp_angle(_sweep, to_light.angle(), minf(1.0, delta * 2.0))
@@ -344,6 +439,22 @@ func _process(delta: float) -> void:
 			_sweep = lerp_angle(_sweep, 0.0, minf(1.0, delta * 1.2))
 	_animate(delta)
 	queue_redraw()
+
+
+## Back and forth over its stretch, and up and down a little, never far from where it was set.
+## A rate rather than a clock it is handed, so a restore that puts it back mid-swing picks up
+## from where it is.
+func _drift(delta: float) -> void:
+	if not _homed:
+		return
+	_drift_clock += delta
+	var period := FIGHT_PERIOD if _state == State.FIGHTING else PATROL_PERIOD
+	var along := sin(_drift_clock * TAU / period)
+	global_position = _home + Vector2(along * PATROL_REACH,
+		sin(_drift_clock * TAU / BOB_PERIOD) * BOB)
+	# Leaning into the way it is going, a little.
+	rotation = cos(_drift_clock * TAU / period) * 0.035
+	_fit_the_coils()
 
 
 ## WHICH CLIP, AND HOW FAST. The states were named for what the creature is DOING, so this is
@@ -364,7 +475,8 @@ func _animate(delta: float) -> void:
 			wanted = "turned" if _follow_target.x > global_position.x else "searching"
 			fps = 6.0
 		State.CALM, State.SUBDUED:
-			fps = 1.6
+			# Still while it rests; swimming again as it goes.
+			fps = 5.0 if _leaving else 1.6
 	if not _clips.has(wanted):
 		wanted = "searching"
 	if wanted != _clip:

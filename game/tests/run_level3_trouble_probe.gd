@@ -47,6 +47,7 @@ func _check(ok: bool, what: String, detail: String) -> void:
 func _run() -> void:
 	print("\n===== GOING WRONG IN DAGAT =====")
 	await _out_of_ink_on_the_seabed()
+	await _out_of_ink_past_a_seabed_checkpoint()
 	await _seen_on_the_stealth_route()
 	await _three_knocks_in_the_fight()
 	for line in results:
@@ -76,6 +77,12 @@ func _out_of_ink_on_the_seabed() -> void:
 	# ⚠ ON THE BED, NOT IN MID-WATER, and west of the first refill: this is the crossing
 	# running out under a player who is doing everything right, not one who swam into a wall.
 	var ink = level.get("ink_manager")
+	# ⚠ HEARD FROM THE DRAIN, NOT READ OFF THE BAR. The rescue now comes on the frame the ink
+	# runs out, and the restore hands the spend back with it -- so the bar is never seen at zero
+	# by anything that looks a frame later.
+	var ran_dry := [false]
+	(level.get_node("InkDrain") as Object).connect(&"ink_emptied",
+		func() -> void: ran_dry[0] = true, CONNECT_ONE_SHOT)
 	var emptied := false
 	var seconds := 0.0
 	while seconds < 60.0:
@@ -85,7 +92,7 @@ func _out_of_ink_on_the_seabed() -> void:
 			await _unpause()
 			continue
 		seconds += 1.0 / 60.0
-		if float(ink.call("remaining")) <= 0.0001:
+		if ran_dry[0] or float(ink.call("remaining")) <= 0.0001:
 			emptied = true
 			break
 	_check(emptied, "holding a body on the seabed empties the ink",
@@ -119,6 +126,68 @@ func _out_of_ink_on_the_seabed() -> void:
 		"%.2f of %.0f back" % [left, InkManagerClass.BUDGET])
 	_check(not bool(level.get("_level_completed")), "and the level did not end on a loss",
 		"still playing")
+	await _close_the_level()
+
+
+## ⚠ AND PAST A CHECKPOINT ON THE SEABED, WHERE THE RESCUE USED TO DROWN THEM AGAIN. CP3b is
+## on the bed in the middle of the bakunawa's waters. Run dry past it, the apo was carried up,
+## sank, and the rescue restored CP3b -- as the apo, who cannot swim, on the seabed. They drowned
+## on arrival and the rescue fired again, about once a second, for good. The checkpoint gives
+## back the shape that was held there now, and the rescue comes at once instead of after a sink.
+func _out_of_ink_past_a_seabed_checkpoint() -> void:
+	await _open_the_level()
+	var director = level.get("director")
+	var checkpoints = level.get("checkpoints")
+	await _take_the_brush()
+	await _answer_the_shore(director)
+	director.call("enter_obstacle", "L3_N1")
+	director.call("commit_route", "L3_N1", "pragmatist")
+	director.call("note_submission", "fish")
+	director.call("exit_obstacle", "L3_N1")
+	await _unpause()
+	await _become_a_fish()
+	var mid := level.get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Obstacles/CP3b") \
+		as Node2D
+	for _frame in range(40):
+		_place(mid.global_position)
+		await physics_frame
+		if paused:
+			await _unpause()
+		if String(checkpoints.call("latest_id")) == "CP3b":
+			break
+	_check(String(checkpoints.call("latest_id")) == "CP3b",
+		"(past the seabed checkpoint) CP3b is written as a swimmer", "the fish is held there")
+	var ink = level.get("ink_manager")
+	_place(Vector2(3400.0, 1600.0))
+	await physics_frame
+	# Something of Lolo's still waiting its turn when the ink goes -- the dive's lore usually is.
+	var first: Array[Dictionary] = [{"text": "A line being read.", "speaker": "lolo"}]
+	var waiting: Array[Dictionary] = [{"text": "A line still waiting its turn.", "speaker": "lolo"}]
+	level.call("_post_advice", first)
+	level.call("_post_advice", waiting)
+	ink.call("drain", float(ink.call("remaining")) - 0.02)
+	var before := int(checkpoints.call("restore_count", "CP3b"))
+	var stale_after_rescue := -1
+	for _frame in range(300):
+		await physics_frame
+		if paused:
+			await _unpause()
+		if stale_after_rescue < 0 and int(checkpoints.call("restore_count", "CP3b")) > before:
+			stale_after_rescue = (level.get("_advice_waiting") as Array).size()
+	var rescues := int(checkpoints.call("restore_count", "CP3b")) - before
+	var apo := level.get("player") as Node2D
+	_check(rescues == 1, "running dry there is one rescue, not a loop",
+		"%d restore(s) of CP3b in five seconds" % rescues)
+	_check(not (apo is Wanderer) and String(level.get("_current_form_id")) == "fish",
+		"and it gives back the swimmer held there", "the player is %s (%s)" % [
+			apo.get_class(), String(level.get("_current_form_id"))])
+	_check(float(ink.call("remaining")) >= 1.0, "with ink to swim on",
+		"%.2f left" % float(ink.call("remaining")))
+	# ⚠ AND WHAT LOLO HAD QUEUED FOR THE SWIM IS NOT SAID AFTER IT. Rescued to the beach, he
+	# went on with the dive's lore -- "Keep going. I can talk and you can swim" -- to an apo
+	# standing on the sand.
+	_check(stale_after_rescue == 0, "and the rescue drops what Lolo was still waiting to say",
+		"%d line(s) still queued after the restore" % stale_after_rescue)
 	await _close_the_level()
 
 
@@ -335,9 +404,8 @@ func _take_the_brush() -> void:
 
 
 func _answer_the_shore(director: Variant) -> void:
-	director.call("enter_obstacle", "L3_B0_SHORE")
-	director.call("note_submission", "fish")
-	director.call("exit_obstacle", "L3_B0_SHORE")
+	# The shore is the brush, and taking it answers the beat with nothing drawn.
+	director.call("solve_with_item", "L3_B0_SHORE", "new_brush")
 	await _unpause()
 
 

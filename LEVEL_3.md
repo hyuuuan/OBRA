@@ -678,6 +678,28 @@ left, mossed near the surface, darkening with depth as the water does, whose sea
 its own stones stop. The sand's edge is the sand plate's own pixels carried past its straight cut,
 rounded at the surface and wet toward the water.
 
+**The beaches were still a picture, not a platform** (Kent, 2026-10-02: *"it looks like im not
+walking to a platform but to an image, refer to how platforms in level 2 are made"*). The sand
+plate is gone. Each beach is built the way Piyesta's plaza is (`PiyestaPlaza2D`), at one pixel to
+the pixel: a 34-row sand strip the feet go on, Piyesta's own retaining wall (`retaining.png`)
+recoloured to wet slate and sea-moss, and its courses going down to the seabed, darkening toward
+the deep's colour. `tools/build_dagat_props.py` draws it.
+
+- **The edge is on the collision.** Whole stones can't end on a chosen column, so the generator
+  picks which stones arrive there: the wall is laid along by a phase, and `--search-edges` tries
+  all 864 and ranks them. The sand ends exactly on the collision edge (1000 and 4500). No row of
+  the face falls more than 13 px short of it. Stones may stand out past it under the water (the
+  diver is drawn in front of them), but at most 48 px, and the top course at most 6.
+- **The first rebuild missed it by 53 px at home and 28 at the island.** The apo walked out over
+  open water, and a diver met an invisible wall in it. `run_level3_audit` now reads each picture
+  back where the backdrop puts it: the sand's top row is the collision's top, the sand ends on the
+  collision's edge, and the face is never more than 16 px short. Mutation-tested three ways: the
+  old pictures, the picture 4 px lower, and the island collision 20 px further out.
+- **The island's palms had their own painted beach.** `palms_right` is a clump at the end of a sand
+  spit, with driftwood and a coral, all below the walking line, so it drew a second beach across
+  the new one. `palms_island.png` is the same clump with the spit cut off and the sand keyed out,
+  so the island ends on boulders against its wall, the way `palms_left` ends the home beach.
+
 **The surf was a dashed rectangle floating beside the beach.** It is froth heaped against the
 land, thinning seaward into specks, with no bottom edge.
 

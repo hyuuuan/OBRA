@@ -7,9 +7,12 @@ extends Node2D
 ## drawn by Painting2D's own moulding, so it is recognisably one of that set -- stood upright
 ## with its foot buried in a heap of this island's sand, and catching the light as it goes.
 ##
-## ⚠ SCENERY, NOT A DOOR. It is not an Area2D and nothing reads it: the level ends on the
-## island's arrival, not on touching this, and the next level is chosen from the house. What
-## it has to say is only "that is where she went next".
+## ⚠ TAKEN, NOT ONLY SEEN. It was scenery -- the level ended on the island's arrival and this
+## was looked at and left in the sand. Kent: "the acquiring of the painting ... should have the
+## acquired pop up since its an acquired". So it is picked up the way Payyo's canvas is: walked
+## onto, it lifts out of the sand and fades with the same gold flourish, and `taken` tells the
+## level, which shows the card and then lets Lolo say goodbye. The level ARMS it once the apo
+## is ashore; before that nothing can take it.
 ##
 ## Anchored at its FOOT: `position` is where the frame meets the sand, and the picture is built
 ## upward from there, the way every prop in this project stands.
@@ -24,7 +27,16 @@ const MOUND := preload("res://assets/Level3/authored/sand_mound.png")
 ## How much of the frame the heap of sand in front of it hides, in pixels.
 @export var buried := 22.0
 
+## The apo has taken it. Fired once, the moment they reach it -- the lift is still playing.
+signal taken
+
 var _clock := 0.0
+var _reach: Area2D
+var _armed := false
+var _taken := false
+## How far it has risen out of the sand while it is being taken. It fades through
+## `self_modulate`, so the heap of sand it stood in stays where it was.
+var _lift := 0.0
 ## Where on the gilt the light catches, as fractions round the frame, each with its own phase.
 const GLINTS := [Vector2(0.18, 0.0), Vector2(1.0, 0.34), Vector2(0.62, 0.0), Vector2(0.0, 0.55)]
 
@@ -40,6 +52,72 @@ func _ready() -> void:
 	mound.position = Vector2(-MOUND.get_width() * 0.5, 6.0 - MOUND.get_height())
 	mound.z_index = 1
 	add_child(mound)
+	# What the apo walks into to take it: the frame's width, from the sand up a body's height.
+	var reach := Area2D.new()
+	reach.name = "Reach"
+	reach.collision_layer = 0
+	reach.collision_mask = 1
+	var shape := CollisionShape2D.new()
+	var box := RectangleShape2D.new()
+	box.size = Vector2(picture_rect().size.x + moulding * 2.0, 110.0)
+	shape.shape = box
+	shape.position = Vector2(0.0, -55.0)
+	reach.add_child(shape)
+	add_child(reach)
+	reach.body_entered.connect(_on_body)
+	_reach = reach
+
+
+## From here on, walking into it takes it -- and standing in it already, as a player set down
+## beside it can be, counts as having walked into it.
+func arm() -> void:
+	_armed = true
+	_take_if_standing_in_it.call_deferred()
+
+
+func _take_if_standing_in_it() -> void:
+	if _reach == null or _taken:
+		return
+	for body in _reach.get_overlapping_bodies():
+		if _is_the_player(body):
+			take()
+			return
+
+
+func is_taken() -> bool:
+	return _taken
+
+
+func _on_body(body: Node) -> void:
+	if not _armed or _taken or not _is_the_player(body):
+		return
+	take()
+
+
+## Out of the sand: it lifts, the gold throws its flourish, and it fades -- Payyo's canvas, as
+## taken in the bale. `taken` fires at once rather than at the end, so nothing downstream waits
+## on an animation to know the apo has it.
+func take() -> void:
+	if _taken:
+		return
+	_taken = true
+	PickupFlourish2D.burst(self, picture_rect().get_center())
+	var lift := create_tween()
+	lift.set_parallel(true)
+	lift.tween_property(self, "_lift", 46.0, 0.6).set_trans(Tween.TRANS_CUBIC) \
+		.set_ease(Tween.EASE_OUT)
+	lift.tween_property(self, "self_modulate:a", 0.0, 0.5).set_delay(0.15)
+	taken.emit()
+
+
+## The rig's segments are what enter an area, and `player_character` is on the body's root.
+func _is_the_player(body: Node) -> bool:
+	var node := body
+	while node != null:
+		if node.is_in_group(&"player_character") or node is ActiveRagdollMorph:
+			return true
+		node = node.get_parent()
+	return false
 
 
 func _process(delta: float) -> void:
@@ -57,6 +135,7 @@ func picture_rect() -> Rect2:
 
 func _draw() -> void:
 	var picture := picture_rect()
+	picture.position.y -= _lift
 	if art != null:
 		draw_texture_rect(art, picture, false)
 	PaintingClass.draw_gilt(self, picture, moulding)

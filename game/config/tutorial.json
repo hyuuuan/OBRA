@@ -232,7 +232,8 @@
           "text": "Hers counted you down. This one does not count at all.",
           "seconds": 7.0,
           "anchor": "ink_gauge",
-          "side": "auto"
+          "side": "below",
+          "speaker": "Lolo"
         },
         {
           "id": "drain",
@@ -241,7 +242,8 @@
           "text": "That bar is your ink now, apo. It goes down the whole time you are holding the shape.",
           "seconds": 8.0,
           "anchor": "morph_card",
-          "side": "auto"
+          "side": "below",
+          "speaker": "Lolo"
         },
         {
           "id": "revert_is_free",
@@ -251,7 +253,8 @@
           "text": "{keys} puts you back, and stops it going down. Changing back never costs.",
           "seconds": 7.0,
           "anchor": "revert_prompt",
-          "side": "auto"
+          "side": "auto",
+          "speaker": "Lolo"
         },
         {
           "id": "refill",
@@ -259,7 +262,8 @@
           "text": "You are nearly out. It does not come back on its own out here \u2014 you have to find more of it.",
           "seconds": 8.0,
           "anchor": "morph_card",
-          "side": "auto"
+          "side": "below",
+          "speaker": "Lolo"
         },
         {
           "id": "no_drowning",
@@ -279,7 +283,8 @@
           "text": "Those jars on the bottom are ink. Swim through one and this fills back up.",
           "seconds": 8.0,
           "anchor": "morph_card",
-          "side": "auto"
+          "side": "below",
+          "speaker": "Lolo"
         }
       ]
     }

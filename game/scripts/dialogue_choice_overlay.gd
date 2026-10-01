@@ -87,9 +87,21 @@ func present(speaker: String, context: String, choices: Dictionary,
 		for index in range(note.split("\n").size()):
 			column.add_child(_line_label(note.split("\n")[index], true, index > 0))
 	open()
-	await get_tree().process_frame
-	if _buttons.get_child_count() > 0:
+	# ⚠ NOT AT ONCE. The question opens on the frame the conversation before it ends, and the
+	# player is usually still pressing the advance key through that conversation -- so with the
+	# first answer focused a frame later, the next press answered it: a route chosen by the key
+	# that was turning Lolo's pages, before the question had been read. Played: Dagat's fork
+	# committed the boat that way in a recording that was pressing through his lines. A click is
+	# a deliberate act and works at once; the keyboard waits a beat for its focus.
+	await get_tree().create_timer(KEYBOARD_GRACE, true).timeout
+	if is_open() and _buttons.get_child_count() > 0:
 		(_buttons.get_child(0) as Button).grab_focus()
+
+
+## How long after the question opens before the keyboard can answer it. Long enough for a
+## press meant for the last line of dialogue to land on nothing; short enough that somebody who
+## read the question and reached for Enter does not notice.
+const KEYBOARD_GRACE := 0.5
 
 
 ## One line inside a button. The requirement is set in the interface's own gold and a size

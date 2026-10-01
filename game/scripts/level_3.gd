@@ -38,6 +38,12 @@ const NEXT_PAINTING := preload("res://assets/hub/paintings/level_4.png")
 ## tools/build_dagat_props.py from the house's own painting of this sea.
 const LOST_CORNER := preload("res://assets/Level3/authored/painting_fragment.png")
 const FLOWER_ART := preload("res://assets/Level1/hidden_flower.png")
+## A seabed jar, for its acquired card, and the blue its flourish is thrown in.
+const JAR_ART := preload("res://assets/Level3/authored/ink_jar_0.png")
+const JAR_BLUE := Color(0.55, 0.82, 1.0, 1.0)
+## Whether the first jar's card has been shown this run. Not run state: a restore that took the
+## jar back would otherwise show the card a second time.
+var _jar_announced := false
 const COUNT_WORDS := ["None", "One", "Two", "Three", "Four", "Five"]
 ## The bangka's paddle, the hull's own wood. See _row.
 const PADDLE := preload("res://assets/Level3/authored/paddle.png")
@@ -105,6 +111,10 @@ var _arrived := false
 ## trigger the player can re-cross, and a beat spoken twice is worse than one spoken late.
 var _told: Dictionary = {}
 var _shadow: Sprite2D
+## The canvas in the island's sand, and whether the apo has taken it -- which is what the ending
+## waits on. See _land_on_the_island.
+var _next_painting: NextPaintingClass
+var _painting_taken := false
 ## Everything that moves and is not the player -- gulls, jellies, surf, rain, lightning, the
 ## wake, bubbles, glints. See DagatLife2D.
 var _life: LifeClass
@@ -194,6 +204,7 @@ func _build_level_furniture() -> void:
 	call_deferred("_play_the_opening")
 
 	if _bakunawa != null:
+		_bakunawa_home = _bakunawa.global_position
 		_bakunawa.gift_offered.connect(_on_gift_offered)
 		_bakunawa.went_quiet.connect(_on_bakunawa_quiet)
 		_bakunawa.begin_search()
@@ -228,6 +239,11 @@ func _roster_ids() -> PackedStringArray:
 func _plant_the_brush() -> void:
 	if PlayerProfile.has_new_brush():
 		_brush_taken = true
+		# Found on an earlier run: there is nothing on the sand to take, so the beat the brush
+		# answers is answered from the start, or the crossing would wait for it forever.
+		# Deferred, so the director's listeners are wired before it is told.
+		if director != null:
+			director.solve_with_item.call_deferred("L3_B0_SHORE", "new_brush")
 		return
 	var mark := _mark("BrushMark")
 	if mark == null:
@@ -326,6 +342,8 @@ func _plant_the_next_painting() -> void:
 	painting.z_index = 5
 	sand.get_parent().add_child(painting)
 	painting.global_position = sand.global_position + Vector2(90.0, 0.0)
+	painting.taken.connect(_on_next_painting_taken)
+	_next_painting = painting
 
 
 func _plant_the_refills() -> void:
@@ -701,6 +719,15 @@ func _on_refill_touched(body: Node, index: int, amount: float, refill: Area2D) -
 	_refill_nodes.erase(index)
 	ink_manager.add_ink(amount)
 	_say_why("There. That will hold you a while longer.")
+	# ⚠ TAKEN, AND SEEN TO BE. The jar used to vanish with a line of Lolo's and nothing else.
+	# The first one taken gets the acquired card -- what it is and what it did -- and every one
+	# a burst of the ink's own blue where it stood. Only the first: three of the six stand in the
+	# bakunawa's waters, and a card that dims the screen mid-sneak is a card that gets you seen.
+	PickupFlourish2D.burst(refill.get_parent() as Node2D, refill.position, JAR_BLUE)
+	if not _jar_announced:
+		_jar_announced = true
+		announce_acquisition("Ink Jar",
+			"Your ink, filled back up. Each jar on the bottom can be taken once.", JAR_ART)
 	refill.queue_free()
 
 
@@ -732,10 +759,32 @@ func _on_brush_touched(body: Node, pickup: Area2D) -> void:
 	if morph_card != null:
 		morph_card.set_meter_caption("INK")
 	_say_why("Take it, apo. Hers is spent — this one was waiting for you.")
-	# The shore's instruction, held back until now -- and read after the line above.
-	if director != null and director.current_obstacle() == "L3_B0_SHORE":
-		_speak_current_stage("L3_B0_SHORE")
+	# ⚠ ACQUIRED, AND SAID SO. Kent: what is taken in this level "should have the acquired pop
+	# up since its an acquired" -- the card every other level shows for her key, her canvas and
+	# her candle. The picture is the HUD's own brush, the one the ink panel carries from here on.
+	announce_acquisition("A New Brush",
+		"Hers is spent. This one holds a shape for as long as there is ink.", _brush_art())
+	# The rule it brings, said as it is taken -- read after the line above. It is FELT on the
+	# first shape held from here (see INK.first_drain), whichever way across that turns out
+	# to be.
+	_speak(script_lines.fire("L3_B0_SHORE.brush"))
+	# ⚠ TAKING IT IS THE BEAT. There was a practice here -- a Swim drawing at the waterline
+	# before the fork would open -- and Kent had it taken out: the choice comes first, and each
+	# way across asks for its own drawing. Nothing was drawn, so it is closed as an item.
+	if director != null:
+		director.solve_with_item("L3_B0_SHORE", "new_brush")
 	pickup.queue_free()
+
+
+## The HUD's brush, cut to the ink the way the one in the sand is, for its acquired card.
+func _brush_art() -> Texture2D:
+	var sheet := load("res://assets/hud/brush_full.png") as Texture2D
+	if sheet == null:
+		return null
+	var cut := AtlasTexture.new()
+	cut.atlas = sheet
+	cut.region = Rect2(6.0, 156.0, 366.0, 66.0)
+	return cut
 
 
 ## The second fork, wired beside the first. `super()` still owns the overlay and the memory
@@ -974,6 +1023,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
 	_tell_the_crossing(anchor_position)
+	_climb_out_at_home(anchor_position)
 
 	if underwater and not _said_underwater:
 		_said_underwater = true
@@ -996,6 +1046,11 @@ func _level_physics(anchor_position: Vector2) -> void:
 			_drain_lesson_clock = 0.0
 			if tutorial != null:
 				tutorial.note("ink_draining")
+			# THE RULE, FELT. Said once, on the first shape held after the brush -- the swimmer
+			# that goes under, or the helper that drags the bangka down. It was the practice's
+			# answer on the sand; there is no practice now, so it belongs to whichever drawing
+			# the player makes first.
+			_speak_on_arrival("INK.first_drain")
 		else:
 			# ⚠ SAID AGAIN WHILE IT GOES ON, NOT ONLY WHEN IT STARTS. Two lessons hang on this
 			# event -- the drain, then how to stop it -- and the director teaches one per call.
@@ -1012,6 +1067,55 @@ func _level_physics(anchor_position: Vector2) -> void:
 		# The medium rule, asked once per frame the way the ceiling is. It owns its own
 		# clock, so a creature that leaves the water gets its whole beat back next time.
 		_restrictions.check_medium(_current_form_id, underwater, delta)
+
+
+## ⚠ BACK ONTO THE HOME SAND, FROM THE WATER. Kent: "i cant swim back at the sand". The home
+## shore's seaward edge is a sheer face with the sand a body's height above the water, and a
+## swimmer pushing at it stopped there for good -- recorded at x 1023, the surface, holding left
+## and up, going nowhere. The island has its own way out (_come_ashore, at the arrival); home had
+## none. So a swimmer at the top of the water by the home shore, pushing toward the sand, is
+## lifted onto it: a shape that can walk on land stays itself, and one that cannot (a pure
+## swimmer, which flops) is changed back -- free, as Q is -- with the apo stood on the sand.
+const ASHORE_REACH := 70.0
+var _land_walkers: Dictionary = {}
+
+
+func _climb_out_at_home(anchor_position: Vector2) -> void:
+	if _current_form_id.is_empty() or not Input.is_action_pressed(&"move_left"):
+		return
+	if player == null or not is_instance_valid(player) or not player.has_method("apply_morph_state"):
+		return
+	var edges := level_data_shore_edges()
+	if edges == Vector2.ZERO:
+		return
+	if anchor_position.x > edges.x + ASHORE_REACH or anchor_position.x < edges.x - 20.0:
+		return
+	# The top of the water only: down the face, the way out is up first.
+	if anchor_position.y > _waterline_y + 90.0 or anchor_position.y < _waterline_y - 20.0:
+		return
+	var sand := _mark("BrushMark")
+	var ground_y := sand.global_position.y if sand != null else _waterline_y
+	var onto := Vector2(edges.x - 70.0, ground_y)
+	if _walks_on_land(_current_form_id):
+		player.call("apply_morph_state", {"position": onto + Vector2(0.0, -30.0),
+			"linear_velocity": Vector2.ZERO})
+		return
+	_revert_to_base_form()
+	if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
+		player.call("apply_morph_state", {"position": onto + Vector2(0.0, -2.0),
+			"linear_velocity": Vector2.ZERO})
+	_say_why("Up you come, apo. That one cannot walk on sand.")
+
+
+## Whether a class can walk once it is out of the water: everything but a swimmer's rig. Read
+## off the rig profiles, the same files run_level3_audit reads, and remembered.
+func _walks_on_land(entity_id: String) -> bool:
+	if not _land_walkers.has(entity_id):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(
+			"res://config/rigs/%s.json" % entity_id))
+		var rig: Dictionary = parsed as Dictionary if parsed is Dictionary else {}
+		_land_walkers[entity_id] = String(rig.get("rig_type", "walker")) != "swimmer"
+	return bool(_land_walkers[entity_id])
 
 
 ## The encounter's own frame, split out because it is the only part of this level with two
@@ -1066,10 +1170,12 @@ func _carrying_a_lit_light() -> bool:
 
 ## A land creature has floundered for its beat. Revert through the SAME door Q uses -- never
 ## a second copy of it, which is a second chance to strand the player in a body that is gone.
+## Floundering only happens below the waterline, so the apo it leaves is in the sea: straight
+## to the rescue (see _taken_back_from_the_deep).
 func _on_floundered(_entity_id: String, note: String) -> void:
 	_say_why(note)
 	_revert_to_base_form()
-	_carry_to_the_surface()
+	_taken_back_from_the_deep.call_deferred()
 
 
 func _on_low_ink(_remaining: float, _capacity: float) -> void:
@@ -1078,56 +1184,152 @@ func _on_low_ink(_remaining: float, _capacity: float) -> void:
 	_say_why("It is nearly gone, apo.")
 
 
-## THE ZERO CASE. Revert, carry up, lose the crossing, never die. There is no death state
-## anywhere in this game and none is being added here.
+## THE ZERO CASE. Revert, lose the stretch, never die. There is no death state anywhere in this
+## game and none is being added here.
 func _on_drain_emptied() -> void:
 	if tutorial != null:
 		tutorial.note("ink_emptied")
-	# The rescue follows a moment later with where they are going; this is only what happened.
 	_say_why("Out of ink, apo. Hold on to me.")
 	_revert_to_base_form()
-	_carry_to_the_surface()
+	# On the sand -- a helper dragging the bangka down, say -- changing back is all there is to
+	# it. In the sea, the rescue.
+	if _anchor_now().y > _waterline_y + 20.0:
+		_taken_back_from_the_deep.call_deferred()
 
 
-## ⚠ THROUGH apply_morph_state, NOT global_position. Whatever the player is, its bodies may
-## be top_level, and writing the node's position moves the node and leaves the physics where
-## it was. The same trap run_water_audit.gd documents.
-func _carry_to_the_surface() -> void:
-	if player == null or not is_instance_valid(player):
+## ⚠ STRAIGHT TO THE RESCUE, NOT UP AND THEN DOWN AGAIN. Running out of ink (or floundering)
+## used to carry the apo up to the surface where they were, keeping the x -- where the apo, who
+## cannot swim, sank again, and a second later the drowning rescue took them to the checkpoint
+## anyway: two moves for one event, the camera chasing both. The rescue is what was always going
+## to happen, so it happens now, in the rescue's own words. The checkpoint gives back the shape
+## they held there -- see _give_back_the_shape -- so a rescue into deep water is a swimmer
+## again, not an apo who drowns on arrival.
+func _taken_back_from_the_deep() -> void:
+	if player == null or not is_instance_valid(player) or not (player is Wanderer):
 		return
-	if not player.has_method("apply_morph_state"):
+	if not bool(player.call("is_in_water")) and _anchor_now().y <= _waterline_y + 20.0:
 		return
-	var anchor := player.call("get_physics_anchor") as Node2D
-	var here: Vector2 = anchor.global_position if anchor != null else player.global_position
-	# Straight up to the nearest air, keeping the x: the crossing is lost, not the progress
-	# along it, and dragging the player back to the shore as well would make running out of
-	# ink the harshest thing in a game with no fail state.
-	var surface := Vector2(here.x, _waterline_y - 40.0)
-	player.call("apply_morph_state", {"position": surface, "linear_velocity": Vector2.ZERO})
+	var words := _drowning_words()
+	_return_to_safety(words[0], words[1])
 
 
 ## E AT THE BOAT. The only thing in this level that answers the interact key and is neither a
 ## drawing nor a signpost.
+##
+## ⚠ IT TAKES SOMETHING DRAWN. The bangka is beached too high for the apo and Lolo -- Kent's
+## decision, so that the way over the water asks for a drawing the way the way under it does
+## (see level_03.json L3_N1). A Carry shape held at the hull drags it down; the apo alone is
+## told why it will not move, and E is spent on saying so rather than on the nearest sign.
 func _interact_with_level() -> bool:
+	if not _at_the_beached_bangka():
+		return false
+	if not _a_helper_is_held():
+		_say_why("It will not move for the two of us, apo. Draw something strong enough to drag it down.")
+		return true
+	_drag_the_bangka_in()
+	return true
+
+
+## E over the hull says what it will do: drag it down with a helper held, and push without one
+## -- which is what the apo would try, and E then says why it will not go.
+func _level_interact_offer() -> Dictionary:
+	if not _at_the_beached_bangka():
+		return {}
+	return {"name": "Bangka", "verb": "DRAG IN" if _a_helper_is_held() else "PUSH"}
+
+
+## How close to the hull E reaches it. Measured from the player's anchor, which for a drawn
+## body is its middle -- an elephant's middle is a good way from whatever end of it is
+## touching the boat.
+const BANGKA_REACH := 190.0
+
+
+## Standing at the beached bangka with the boat route chosen and the bangka not yet in the
+## water.
+func _at_the_beached_bangka() -> bool:
 	if _bangka == null or not is_instance_valid(_bangka) or _bangka_found:
 		return false
 	if director == null or director.is_solved("L3_N1"):
 		return false
-	# ⚠ ONLY ONCE THE ROUTE IS TAKEN. Finding the boat before the fork has been answered
-	# would commit the player to a crossing they were never offered, and R6 is explicit that
+	# ⚠ ONLY ONCE THE ROUTE IS TAKEN. Using the boat before the fork has been answered would
+	# commit the player to a crossing they were never offered, and R6 is explicit that
 	# answering the dialogue is not the answer -- but the reverse holds too: the world must
 	# not answer a question the player has not been asked.
 	if director.committed_route("L3_N1") != "artist":
 		return false
 	if player == null or not is_instance_valid(player):
 		return false
-	if player.global_position.distance_to(_bangka.global_position) > 140.0:
-		return false
+	return _anchor_now().distance_to(_bangka.global_position) <= BANGKA_REACH
+
+
+## The body the player is in can drag the bangka: one of the Carry shapes the route accepts.
+## Read off the route itself, so the level file is the one list.
+func _a_helper_is_held() -> bool:
+	return not _current_form_id.is_empty() and _helpers().has(_current_form_id)
+
+
+func _helpers() -> PackedStringArray:
+	if director == null:
+		return PackedStringArray()
+	var spec: Dictionary = (director.obstacle("L3_N1").get("routes", {}) as Dictionary) \
+		.get("artist", {})
+	return AbilityTags.resolve(spec.get("required_tags", []),
+		String(spec.get("match", "all")), spec.get("exclude", []))
+
+
+## THE HELPER'S ONE JOB. The hull slides down the sand and into the sea, and the shape that
+## dragged it goes back into the ink as it goes -- its strength went into the boat, and the
+## apo is left on the sand to get in. Changing back is free; the drain stops with it.
+##
+## ⚠ JUDGED FIRST, IF IT NEVER WAS. A helper is judged when it is drawn, but only against the
+## beat the player is standing in -- drawn a step west of the crossing's volume it was judged
+## against nothing, and the boat would then be launched by a drawing the per-class figures
+## never saw. Judged here as well, quietly, and the bangka itself is closed as an item.
+func _drag_the_bangka_in() -> void:
 	_bangka_found = true
-	_bangka.queue_free()
-	_launch_the_bangka()
-	director.solve_with_item("L3_N1", "bangka")
-	return true
+	if director.stage("L3_N1") == 0:
+		director.enter_obstacle("L3_N1")
+		director.note_submission(_current_form_id)
+	var hull := _bangka
+	var edges := level_data_shore_edges()
+	var edge_x := edges.x if edges != Vector2.ZERO else hull.global_position.x + 160.0
+	var stood := _anchor_now()
+	_revert_to_base_form()
+	# ⚠ ON THE SAND, NOT WHERE THE HELPER'S MIDDLE WAS. A changed-back apo lands at the old
+	# body's anchor, and a four-legged body carries its anchor well above the beach -- recorded at
+	# 180 px for a drawn horse, which dropped the apo out of the sky with the camera chasing them
+	# while the boat went in. The beach's surface is the brush's mark.
+	var sand := _mark("BrushMark")
+	if sand != null and player != null and is_instance_valid(player) \
+			and player.has_method("apply_morph_state"):
+		player.call("apply_morph_state", {
+			"position": Vector2(stood.x, sand.global_position.y - 2.0),
+			"linear_velocity": Vector2.ZERO})
+	_say_why("Hup! Down she goes.")
+	# Behind the apo as it passes: it is on the sand, and the apo is standing on it too.
+	hull.z_index = 6
+	var slide := hull.create_tween()
+	slide.tween_property(hull, "global_position:x", edge_x - 30.0, 1.1) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	# Over the lip and in, nose first.
+	slide.tween_property(hull, "global_position", Vector2(edge_x + 70.0,
+		hull.global_position.y + 30.0), 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	slide.parallel().tween_property(hull, "rotation", 0.22, 0.32)
+	slide.parallel().tween_property(hull, "modulate:a", 0.0, 0.32)
+	slide.tween_callback(func() -> void:
+		if _life != null:
+			_life.splash_at(Vector2(edge_x + 70.0, _waterline_y))
+		if is_instance_valid(hull):
+			hull.queue_free()
+		_launch_the_bangka()
+		if director != null and not director.is_solved("L3_N1"):
+			director.solve_with_item("L3_N1", "bangka"))
+	# Sand thrown up behind it on the way.
+	if _life != null:
+		for step in range(4):
+			get_tree().create_timer(0.2 + 0.22 * float(step)).timeout.connect(func() -> void:
+				if is_instance_valid(hull) and _life != null:
+					_life.sparkle(hull.global_position + Vector2(-50.0, 6.0), 3, 18.0))
 
 
 ## ⚠ solve_with_item, NEVER note_submission. A beat answered by something other than a
@@ -1168,7 +1370,8 @@ func _launch_the_bangka() -> void:
 	boat.global_position = Vector2(mark.global_position.x + 170.0, mark.global_position.y + 10.0)
 	boat.confirm_placement()
 	_dress_the_bangka(boat)
-	_say_why("Somebody left this and never came back for it. Get in, apo.")
+	# What is said about it is the crossing's own solved line -- "There she goes. Somebody left
+	# that and never came back for it" -- which fires as it is closed.
 
 
 ## ⚠ THE ONE OBJECT IN THE GAME THAT IS FOUND RATHER THAN DRAWN, and therefore the one that
@@ -1211,14 +1414,22 @@ func _dress_the_bangka(boat: Node2D) -> void:
 # --- The two forks -----------------------------------------------------------------------
 
 func _on_shore_fork_approached() -> void:
+	# ⚠ A QUESTION ALREADY ANSWERED IS NOT ASKED AGAIN -- a restore can put the fork's trigger
+	# back under a player whose crossing was chosen before the checkpoint. Piyesta's forks have
+	# always checked this.
+	if director != null and not director.committed_route("L3_N1").is_empty():
+		return
 	_live_node_obstacle = "L3_N1"
 	dialogue_node = _shore_node
-	# The crossing's own opening line, held back from the brush (see _on_obstacle_arrived),
-	# is said here -- and the choice waits for it and for whatever the practice is still
-	# saying, instead of opening over a conversation the player is part-way through.
-	if _crossing_said_later and director != null and director.is_solved("L3_B0_SHORE"):
-		_crossing_said_later = false
+	# THE CROSSING IS INTRODUCED HERE, AND THE CHOICE WAITS FOR IT. Its opening line and its
+	# two ways across are held back from the volume (see _on_obstacle_arrived and
+	# _teaches_on_entering) and said at the fork -- the question they set up comes straight
+	# after, once the box is read, instead of opening over a conversation the player is
+	# part-way through. Both are once-only, so a second visit goes straight to the question.
+	# Not before the brush: the fork turns the player back for it, and says why.
+	if PlayerProfile.has_new_brush():
 		_speak_on_arrival("L3_N1.enter")
+		_speak(script_lines.fire("L3_N1.teach"))
 	if dialogue_box != null and dialogue_box.is_open():
 		if not dialogue_box.conversation_finished.is_connected(_on_dialogue_node_approached):
 			dialogue_box.conversation_finished.connect(_on_dialogue_node_approached,
@@ -1227,19 +1438,20 @@ func _on_shore_fork_approached() -> void:
 	_on_dialogue_node_approached()
 
 
-## ⚠ THE CROSSING'S OPENING LINE WAITS FOR THE PRACTICE. Its volume starts at 640 and the
-## brush lies at 620, so "That is the whole of it, then. She never painted the far side" was
-## said the moment the brush was picked up -- on the same frame as the checkpoint, the brush's
-## lesson and Lolo's line about the brush, four things at once, and about a crossing the player
-## had not been shown yet. It is said at the fork, just before the choice it introduces.
-var _crossing_said_later := false
-
-
+## ⚠ THE CROSSING'S OPENING LINE WAITS FOR THE FORK. Its volume starts at 640 and the brush
+## lies at 620, so "That is the whole of it, then. She never painted the far side" was said the
+## moment the brush was picked up -- on the same frame as the checkpoint, the brush's lesson and
+## Lolo's line about the brush, four things at once, and about a crossing the player had not
+## been shown yet. It is said at the fork, just before the choice it introduces.
 func _on_obstacle_arrived(obstacle_id: String) -> void:
-	if obstacle_id == "L3_N1" and director != null and not director.is_solved("L3_B0_SHORE"):
-		_crossing_said_later = true
+	if obstacle_id == "L3_N1":
 		return
 	super._on_obstacle_arrived(obstacle_id)
+
+
+## And the two ways across with it, for the same reason. See _on_shore_fork_approached.
+func _teaches_on_entering(obstacle_id: String) -> bool:
+	return obstacle_id != "L3_N1"
 
 
 ## ⚠ AND THE SHORE'S INSTRUCTION WAITS FOR THE BRUSH. The shore's volume starts at 350, so its
@@ -1315,25 +1527,156 @@ func _pace_the_advice(delta: float) -> void:
 		_speak(script_lines.fire("CORAL.%s" % key))
 
 
-## ⚠ THE SHORE BEAT GATES THE FORK, AND WITHOUT THIS DAGAT IS NOT A DRAWING GAME.
+## THE FORK WAITS FOR THE BRUSH, AND FOR NOTHING DRAWN.
 ##
-## Both of the crossing's answers can be reached on foot -- the fork is a trigger volume, not
-## a wall -- and the Artist one is `answered_by` rather than a drawing. So a player could walk
-## past the practice beat, answer the fork, find the boat, get in and sail across having drawn
-## nothing at all. Measured, not supposed: a probe did exactly that.
+## It used to wait for a practice drawing -- a Swim shape at the waterline -- because both ways
+## across could otherwise be taken with nothing drawn at all, and the practice was what kept
+## Dagat a drawing game. Kent: "there should be the choice and then to draw if necessary." So
+## the choice comes first, and each way across asks for its own drawing instead -- a swimmer to
+## go under, something strong to drag the beached bangka down to go over.
 ##
-## The design already says where the fix belongs. The shore "has to teach the replacement
-## before the fork, not after -- once they are underwater, learning the ink rule by running
-## out of it is a punishment, not a lesson." A beat that can be walked past does not teach
-## anything, so the fork waits for it.
+## The brush is still waited for, and it is not a drawing: it is what switches the clock off
+## and the drain on, and a player who had jumped it would be choosing a crossing under Payyo's
+## ten seconds.
 func _dialogue_node_is_ready() -> bool:
 	if _live_node_obstacle != "L3_N1" or director == null:
 		return true
-	if director.is_solved("L3_B0_SHORE"):
+	if PlayerProfile.has_new_brush():
 		return true
-	_say_why("Not yet, apo. Press %s and try a shape here on the sand first."
-		% ControlsKeys.key_cap_for("redraw"))
+	_say_why("Something back there in the sand is catching the light, apo. Take it first.")
 	return false
+
+
+## ⚠ NOTHING IS DRAWN BEFORE THE CROSSING IS CHOSEN. Choice first is the rule (see
+## _dialogue_node_is_ready), and a drawing made before it would decide for the player: inside
+## the crossing's volume a swimmer would be judged against the dive and commit it without the
+## question ever being asked, and anywhere on the beach a body would arrive that the choice then
+## has to work around. Refused before anything is made or paid for -- the ink attempt is handed
+## back -- and Lolo says where the question is.
+func _on_drawing_ready(
+	entity_id: String,
+	display_name: String,
+	drawing: Image,
+	response: Dictionary,
+	strokes: Array,
+	ink_cost: float
+) -> void:
+	if _crossing_unchosen():
+		ink_manager.release_attempt()
+		# Before the brush the next thing is the brush, not the question it leads to.
+		if not PlayerProfile.has_new_brush():
+			_say_why("Not yet, apo. Something in the sand is catching the light — take it first.")
+		else:
+			_say_why("Not yet, apo. Tell me how you mean to cross first. I am at the water.")
+		return
+	super(entity_id, display_name, drawing, response, strokes, ink_cost)
+
+
+func _crossing_unchosen() -> bool:
+	return director != null and not director.is_solved("L3_N1") \
+		and director.committed_route("L3_N1").is_empty()
+
+
+## Where the creature was set down in the scene, before anything staged it. See below.
+var _bakunawa_home := Vector2.ZERO
+
+
+## ⚠ THE CREATURE IS PUT BACK AS THE RUN NOW SAYS IT IS. A restore rolls the director back, and
+## the creature went on as it was: still at the surface for a crossing chosen after the
+## checkpoint, still fighting a fight the restore had undone, still following a light, or swum
+## off from an encounter that is open again. Every part of it is re-derived from the director:
+## where it is staged (the boat's crossing brings it up to the surface), and what it is doing --
+## searching, gap open, fighting -- or, once the encounter is over by the light or the fight,
+## gone.
+func _put_the_bakunawa_back() -> void:
+	if _bakunawa == null or not is_instance_valid(_bakunawa) or director == null:
+		return
+	var at := _bakunawa_home
+	if director.is_solved("L3_N1") and director.committed_route("L3_N1") == "artist":
+		var surface := _mark("SurfaceMark")
+		if surface != null:
+			at.y = surface.global_position.y
+	var route := director.committed_route("L3_N2")
+	if director.is_solved("L3_N2") and route != "pragmatist":
+		_bakunawa.set_gone()
+		return
+	_bakunawa.reset_to(at)
+	match route:
+		"pragmatist":
+			_bakunawa.open_a_gap()
+		"protector":
+			_bakunawa.enter_fight()
+
+
+## THE SHAPE BEING HELD, AS DRAWN -- its class, its name, the picture and its strokes -- so a
+## checkpoint written in deep water can give it back. See _give_back_the_shape.
+var _held_shape: Dictionary = {}
+var _giving_back_a_shape := false
+
+
+func _spawn_or_replace(entity_id: String, display_name: String, drawing: Image,
+		strokes: Array) -> bool:
+	var became := super(entity_id, display_name, drawing, strokes)
+	if became:
+		_held_shape = {"id": entity_id, "name": display_name, "drawing": drawing,
+			"strokes": strokes.duplicate(true)}
+	return became
+
+
+## ⚠ A CHECKPOINT IN DEEP WATER GIVES BACK THE SHAPE THAT WAS HELD THERE.
+##
+## Two of this level's checkpoints are on the seabed (CP3, CP3b). The base restore moves
+## whatever body the player has to where the checkpoint was written -- and when that body is
+## the apo (out of ink, floundered, changed back with Q in open water) it put an apo who cannot
+## swim on the seabed in the middle of the bakunawa's waters. They drowned on arrival, the
+## rescue fired, it restored the same checkpoint as the same apo, and that went round about once
+## a second for good: "Up you come, apo. Back to the middle of its waters", forever.
+##
+## So the checkpoint remembers the shape and gives it back, exactly as drawn, without judging it
+## again (it was judged when it was drawn) -- the crossing is lost back to the checkpoint, not
+## the body. And it is given back with at least a unit of ink: a checkpoint written with the bar
+## nearly empty would otherwise run out again within a breath, and that is the same loop slower.
+const SHAPE_INK_FLOOR := 1.0
+
+
+func _give_back_the_shape(shape: Dictionary) -> void:
+	if shape.is_empty() or String(shape.get("id", "")).is_empty():
+		return
+	if _current_form_id == String(shape["id"]):
+		return
+	var drawing := shape.get("drawing") as Image
+	_giving_back_a_shape = true
+	var became := _spawn_or_replace(String(shape["id"]), String(shape.get("name", "")),
+		drawing, shape.get("strokes", []) as Array)
+	_giving_back_a_shape = false
+	if became and ink_manager.remaining() < SHAPE_INK_FLOOR:
+		ink_manager.committed = maxf(0.0, ink_manager.capacity - SHAPE_INK_FLOOR)
+		ink_manager.reserved = 0.0
+		_on_ink_changed(ink_manager.remaining(), ink_manager.capacity, ink_manager.reserved)
+
+
+## THE BOAT'S SECOND STEP IS NOT A DRAWING. Once a helper has been accepted the crossing waits
+## on E at the hull, and nothing drawn answers that -- a second helper, drawn after changing
+## back, is simply a body to drag it with, and judging it would count it as a miss against a
+## step it was never asked to answer. The first one accepted is told what it is for.
+func _judge_submission(entity_id: String, strokes: Array = []) -> void:
+	# A shape handed back by a checkpoint was judged when it was drawn. See _give_back_the_shape.
+	if _giving_back_a_shape:
+		return
+	# ⚠ THE FIGHT'S SECOND STEP IS THE CREATURE GOING QUIET, and nothing drawn answers it --
+	# T3's widening included, which would otherwise take any weapon at all as the fight won.
+	if director != null and director.current_obstacle() == "L3_N2" \
+			and director.committed_route("L3_N2") == "protector" and director.stage("L3_N2") > 0:
+		return
+	if director == null or director.current_obstacle() != "L3_N1" \
+			or director.committed_route("L3_N1") != "artist" or director.is_solved("L3_N1"):
+		super(entity_id, strokes)
+		return
+	if director.stage("L3_N1") > 0:
+		return
+	super(entity_id, strokes)
+	if director.stage("L3_N1") > 0:
+		_speak(script_lines.fire("L3_N1.artist.helper"))
 
 
 ## ⚠ THE CROSSING WAITS FOR THE SHORE -- AS A PLACE, NOT ONLY AT THE FORK.
@@ -1348,9 +1691,13 @@ func _dialogue_node_is_ready() -> bool:
 ## (x 634, the crossing starts under the apo's own body at about 625), every time. No probe
 ## saw it, because every probe enters each beat by name.
 ##
-## So the crossing is not entered while the shore is unanswered: the practice stays the
-## current beat anywhere on the beach, and the moment it is answered the crossing is entered
-## if the player is already standing in it.
+## So the crossing is not entered while the shore is unanswered: the shore stays the current
+## beat anywhere on the beach, and the moment it is answered the crossing is entered if the
+## player is already standing in it.
+##
+## (The practice is gone -- the brush answers the shore now, and nothing is drawn before the
+## crossing is chosen, see _on_drawing_ready -- but the order still matters: a crossing entered
+## before the brush would be a beat with its drain unarmed.)
 func _gate_the_crossing() -> void:
 	if director == null:
 		return
@@ -1385,27 +1732,10 @@ func _on_shore_answered(obstacle_id: String, _route: String, _label: String,
 		_open_the_crossing.call_deferred()
 
 
-## ⚠ DEFERRED, SO THE PRACTICE FINISHES ITS OWN SENTENCE FIRST. This runs from the director's
-## solved signal, which reaches it before the level has spoken the practice's own answer --
-## "Feel that? It is going down while you stand there" -- so said straight away, the crossing's
-## opening came first and the practice's lines were tacked on after the way across. On the
-## next frame they are already in the box, and these join the same conversation after them:
-## the crossing's opening line (held back from the brush), then the two ways across, then the
-## choice.
-##
-## ⚠ AND THE TWO WAYS ACROSS ARE SAID HERE TOO, NOT LEFT TO THE CROSSING'S VOLUME. They are the
-## crossing's teach lines and are said when it is entered -- usually by the enter_obstacle below,
-## the old body still being inside the volume when this runs. But the body that answers the
-## practice is new, the practice's answer stops the world, and a stopped world's volumes do not
-## see a new body arrive: in one recording the crossing was entered only after the conversation,
-## on the frame the choice opened, and the two ways across were said BEHIND the choice. The play
-## probe could not make that happen again, headless or windowed; said here, the lines do not
-## depend on it. They are `once`, so entering afterwards says nothing.
+## The brush taken while already standing in the crossing's volume -- its pickup reaches past
+## the volume's west edge -- enters the crossing then, since walking in has already happened.
+## Deferred: this runs from the director's own solved signal.
 func _open_the_crossing() -> void:
-	if _crossing_said_later:
-		_crossing_said_later = false
-		_speak_on_arrival("L3_N1.enter")
-		_speak(script_lines.fire("L3_N1.teach"))
 	if _inside_crossing and director != null:
 		director.enter_obstacle("L3_N1")
 
@@ -1430,16 +1760,19 @@ func _on_beat_entered(obstacle_id: String) -> void:
 ## cannot get into the water to draw there either: the rescue takes them out within a second.
 ## Played, not reasoned: the dive route could not be started at all.
 ##
-## So a swimmer drawn within reach of either shore's edge slips into the sea just past it. Not
-## during the practice, which is on the sand on purpose -- that is where the drain is watched
-## with nothing at stake.
+## So a swimmer drawn within reach of either shore's edge slips into the sea just past it --
+## once the dive is the way across, or the crossing is settled either way. Not on the boat route
+## before the bangka is in the water: a swimmer there is the wrong answer to "drag it down", and
+## slipping it in would hand the player the other crossing without the question.
 const SLIP_REACH := 420.0
 
 
 func _where_a_new_form_arrives(entity_id: String, state: Dictionary) -> Dictionary:
 	if _restrictions == null or director == null or not _restrictions.swims(entity_id):
 		return state
-	if not director.is_solved("L3_B0_SHORE") or not state.has("position"):
+	if not state.has("position"):
+		return state
+	if director.committed_route("L3_N1") != "pragmatist" and not director.is_solved("L3_N1"):
 		return state
 	var edges := level_data_shore_edges()
 	if edges == Vector2.ZERO:
@@ -1459,27 +1792,10 @@ func _where_a_new_form_arrives(entity_id: String, state: Dictionary) -> Dictiona
 	return into
 
 
-func _slip_the_swimmer_in() -> void:
-	if player == null or not is_instance_valid(player) or _current_form_id.is_empty():
-		return
-	if _restrictions == null or not _restrictions.swims(_current_form_id):
-		return
-	if not player.has_method("capture_morph_state") or not player.has_method("apply_morph_state"):
-		return
-	var state: Dictionary = player.call("capture_morph_state")
-	var into := _where_a_new_form_arrives(_current_form_id, state)
-	if into != state:
-		player.call("apply_morph_state", into)
-	# ⚠ AND IT ANSWERS THE CROSSING. The swimmer was drawn for the practice, before the dive
-	# was chosen, so nothing had put it to the crossing: the player said "I will go under it",
-	# went under it, and was told "Draw something that can SWIM" by the objective line while
-	# swimming. It is the same body the route asks for -- judged the way a new drawing would be.
-	if director != null and director.current_obstacle() == "L3_N1" \
-			and not director.is_solved("L3_N1"):
-		_judge_submission(_current_form_id)
-
-
 func _on_bakunawa_approached() -> void:
+	# Answered already: see the shore fork.
+	if director != null and not director.committed_route("L3_N2").is_empty():
+		return
 	# The base's handler reads `dialogue_node` and `_dialogue_node_obstacle_id()`, so both
 	# have to point at this fork before it runs.
 	_live_node_obstacle = "L3_N2"
@@ -1512,19 +1828,6 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 	# Whatever of Lolo's was still waiting to be said was about the choice just made.
 	_advice_waiting.clear()
-	# The dive chosen while the practice's swimmer is still lying on the sand: that one goes
-	# in too. See _where_a_new_form_arrives -- the same move, for a body that already exists.
-	if obstacle_id == "L3_N1" and route == "pragmatist":
-		_slip_the_swimmer_in.call_deferred()
-		return
-	# ⚠ THE BOAT CHOSEN WHILE STILL THE PRACTICE'S SWIMMER: the apo has to change back to walk
-	# the sand, and the lesson that says how -- chained after the drain lesson, and landing after
-	# eight seconds of drain -- had not come round yet. The moment it is needed is the moment it
-	# is taught.
-	if obstacle_id == "L3_N1" and route == "artist" and not _current_form_id.is_empty() \
-			and tutorial != null:
-		tutorial.note("ink_draining")
-		return
 	if obstacle_id != "L3_N2" or _bakunawa == null:
 		return
 	match route:
@@ -1553,12 +1856,68 @@ func _on_gift_offered() -> void:
 		director.solve_with_item("L3_N2", "the light")
 
 
+## ⚠ WORN OUT IS WHAT ANSWERS THE FIGHT. The first swing records the weapon (see
+## _use_equipped_utility); the creature going quiet closes the beat -- which is when the storm
+## clears and Lolo says "It has had enough. Let it go", the route's own solved line. That line
+## used to fire at the FIRST press of F, over a creature with nothing taken out of it, and this
+## said a second one like it at the end. And the weapons that fought it are spent now, their
+## work done -- one use, by Kent's rule, and the use was this fight.
 func _on_bakunawa_quiet(how: String) -> void:
 	if how != "FOUGHT":
 		return
 	PlayerProfile.record_bakunawa("FOUGHT")
 	script_lines.set_flag("l3_bakunawa_fought")
-	_say_why("Enough. Let it go, apo — it never knew you were there.")
+	if director != null and not director.is_solved("L3_N2"):
+		director.solve_with_item("L3_N2", "subdued")
+	for weapon: String in _fought_with.keys():
+		if _slot_holding(weapon) >= 0:
+			spend_tool(weapon)
+	_fought_with.clear()
+
+
+## The drawn weapons swung at it this go, by class -- spent when it is subdued.
+var _fought_with: Dictionary = {}
+
+
+func _fighting_it() -> bool:
+	return director != null and director.committed_route("L3_N2") == "protector" \
+		and not director.is_solved("L3_N2")
+
+
+## What the fight takes: the route's Strike classes, read off the level file.
+func _weapons() -> PackedStringArray:
+	if director == null:
+		return PackedStringArray()
+	var spec: Dictionary = (director.obstacle("L3_N2").get("routes", {}) as Dictionary) \
+		.get("protector", {})
+	return AbilityTags.resolve(spec.get("required_tags", []),
+		String(spec.get("match", "all")), spec.get("exclude", []))
+
+
+## A weapon answers the fight while the fight is on -- at its second step too, which is more of
+## the same -- so F is offered as the strike it is, there and only there.
+func _tool_answers_here(entity_id: String) -> bool:
+	if _fighting_it() and director.current_obstacle() == "L3_N2":
+		return _weapons().has(entity_id)
+	return super(entity_id)
+
+
+## ⚠ F IN THE FIGHT ALWAYS SWINGS. The base answers a beat with a tool's first use and stops
+## there, which is right for a key at a lock: the turn IS the answer. Here the answer is three
+## good hits, so the first press records the weapon and swings as well, and so does every
+## press after it.
+func _use_equipped_utility() -> void:
+	if _fighting_it() and _equipped_utility != null and is_instance_valid(_equipped_utility) \
+			and _equipped_utility.item_data != null \
+			and _weapons().has(_equipped_utility.item_data.entity_id):
+		var item := _equipped_utility.item_data
+		if director.current_obstacle() == "L3_N2" and director.stage("L3_N2") == 0:
+			_judge_submission(item.entity_id, item.strokes)
+		_fought_with[item.entity_id] = true
+		var outcome := _equipped_utility.describe_use(player)
+		status_label.text = outcome if not outcome.is_empty() else item.display_name
+		return
+	super()
 
 
 ## Being seen, and being hit, both cost the current stretch and not the approach. CP3b sits
@@ -1684,6 +2043,23 @@ func _uncover_the_treasure() -> Vector2:
 	reveal.tween_property(corner, "modulate:a", 1.0, 0.7)
 	reveal.parallel().tween_property(corner, "global_position:y", at.y, 1.1) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	# ⚠ AND IT IS GIVEN, NOT LEFT LYING THERE. Kent: the things found at the bottom "should have
+	# the acquired pop up since its an acquired". It holds a moment where it was found, then
+	# comes to the apo and is theirs -- with its own card, ahead of the flower's.
+	reveal.tween_interval(0.5)
+	reveal.tween_method(func(t: float) -> void:
+		if is_instance_valid(corner):
+			var target := _anchor_now() + Vector2(0.0, -30.0)
+			corner.global_position = at.lerp(target, t) + Vector2(0.0, -40.0 * sin(PI * t))
+			corner.scale = Vector2.ONE * lerpf(1.0, 0.45, t), \
+		0.0, 1.0, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	reveal.tween_property(corner, "modulate:a", 0.0, 0.2)
+	reveal.tween_callback(func() -> void:
+		if is_instance_valid(corner):
+			corner.queue_free()
+		announce_acquisition("A Torn Corner",
+			"A piece of one of her canvases, with this sea on it. It was what the creature had lost.",
+			LOST_CORNER))
 	var flower := Sprite2D.new()
 	flower.name = "GivenFlower"
 	flower.texture = FLOWER_ART
@@ -1694,7 +2070,8 @@ func _uncover_the_treasure() -> Vector2:
 	parent.add_child(flower)
 	flower.global_position = at + Vector2(0.0, -10.0)
 	var give := flower.create_tween()
-	give.tween_interval(0.9)
+	# After the corner has been given: the two used to rise out of the same spot together.
+	give.tween_interval(2.9)
 	give.tween_property(flower, "modulate:a", 1.0, 0.3)
 	give.parallel().tween_property(flower, "scale", Vector2.ONE * 0.9, 0.5) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -1869,6 +2246,8 @@ func _on_island_reached(_checkpoint_id: String) -> void:
 
 
 func _land_on_the_island() -> void:
+	# Set by the arrival too; here as well so landing is landing however it was reached.
+	_arrived = true
 	_come_ashore()
 	var sand := _mark("IslandMark")
 	if _life != null and sand != null:
@@ -1877,6 +2256,37 @@ func _land_on_the_island() -> void:
 	# THE PAINTING FIRST, THE FAREWELL SECOND, then cut. Lolo leaving is the level's real
 	# ending, not the painting, so it gets the last word.
 	_speak(script_lines.fire("ISLAND.enter"))
+	# ⚠ AND THE PAINTING IS TAKEN, NOT ONLY SEEN. Kent: it "should have the acquired pop up
+	# since its an acquired". It is armed now that the apo is ashore, the line points at it, and
+	# walking into it is what carries the level on -- see _on_next_painting_taken. Without a
+	# painting (a scene with no island mark) the farewell follows at once, as it always did.
+	if _next_painting != null and is_instance_valid(_next_painting):
+		_next_painting.arm()
+		return
+	await _say_goodbye()
+
+
+## The canvas out of the sand and into the apo's hands, with the card that says so -- and then
+## the rest of what Lolo has to say, his farewell, and the end.
+func _on_next_painting_taken() -> void:
+	if not _arrived or _painting_taken:
+		return
+	_painting_taken = true
+	announce_acquisition("Dilim",
+		"Lola's next canvas, half buried in the sand. Where she went after the sea.",
+		NEXT_PAINTING)
+	# ⚠ THE CARD FIRST, THEN HIM. Started at once, his farewell typed underneath the card and
+	# the first thing he said was lost behind it. It is the card's moment; he waits for it to
+	# go, and no longer than it can take.
+	var waited := 0.0
+	while acquired_overlay != null and is_instance_valid(acquired_overlay) \
+			and acquired_overlay.is_busy() and waited < 5.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	await _say_goodbye()
+
+
+func _say_goodbye() -> void:
 	_tell_the_other_half()
 	_speak(script_lines.fire("ISLAND.farewell"))
 	# ⚠ AND LEVEL 4 INHERITS IT. Dilim being unguided is the point, so it has to carry its
@@ -1956,19 +2366,28 @@ func _current_objective() -> Dictionary:
 		return {}
 	if not PlayerProfile.has_new_brush():
 		return {"key": "brush", "target": _mark_position("BrushMark")}
-	if not director.is_solved("L3_B0_SHORE"):
-		return {"key": "practice", "obstacle": "L3_B0_SHORE",
-			"target": _mark_position("WaterlineMark")}
 	if not director.is_solved("L3_N1"):
-		# ⚠ ONCE THE BOAT IS CHOSEN, THE LINE IS ABOUT FINDING IT. It said "Get to the far side"
-		# to a player who had just said "I will walk the sand first" -- the only line on screen,
-		# and it named the goal of the whole level instead of the next thing to do. And the
-		# practice's swimmer is usually still the body they are in, which cannot walk the sand.
-		if director.committed_route("L3_N1") == "artist":
-			if not (player is Wanderer):
-				return {"key": "find_the_boat_changed", "target": _mark_position("BangkaMark")}
-			return {"key": "find_the_boat", "target": _mark_position("BangkaMark")}
-		return {"key": "cross", "obstacle": "L3_N1", "target": _mark_position("CoralMark")}
+		# ⚠ ONCE A WAY ACROSS IS CHOSEN, THE LINE IS ABOUT DOING IT. It said "Get to the far side"
+		# to a player who had just chosen -- the only line on screen, and it named the goal of the
+		# whole level instead of the next thing to do.
+		match director.committed_route("L3_N1"):
+			"artist":
+				var hull: Variant = _bangka.global_position + Vector2(0.0, -80.0) \
+					if _bangka != null and is_instance_valid(_bangka) \
+					else _mark_position("BangkaMark")
+				# Sliding down the sand: the next thing is getting in.
+				if _bangka_found:
+					return {"key": "board_the_boat", "target": hull}
+				if _a_helper_is_held():
+					return {"key": "drag_the_boat_now", "target": hull}
+				return {"key": "drag_the_boat", "target": hull}
+			"pragmatist":
+				return {"key": "dive_draw", "obstacle": "L3_N1",
+					"target": _mark_position("WaterlineMark")}
+		# Before the choice: to Lolo at the water, where the question is.
+		var fork: Variant = _shore_node.global_position + Vector2(0.0, -110.0) \
+			if _shore_node != null else _mark_position("WaterlineMark")
+		return {"key": "cross", "target": fork}
 	# ⚠ ON THE WAY, NOT YET THERE. Finding the boat -- or drawing the swimmer -- answers the
 	# crossing on the beach, and the line jumped straight to the encounter: "It cannot see.
 	# Decide what you are going to do about that", shown on the sand to a player who had never
@@ -1988,10 +2407,21 @@ func _current_objective() -> Dictionary:
 		# going to do about that" after the player had decided -- sneaking past, told to decide.
 		var chosen := {"pragmatist": "bakunawa_sneak", "artist": "bakunawa_light",
 			"protector": "bakunawa_fight"}.get(director.committed_route("L3_N2"), "") as String
+		# Armed and swinging: the line is about the fight now, not about drawing for it.
+		if chosen == "bakunawa_fight" and director.stage("L3_N2") > 0:
+			chosen = "bakunawa_fight_on"
 		if not chosen.is_empty():
 			return {"key": chosen, "target": _mark_position("BakunawaMark")}
 		return {"key": "bakunawa", "obstacle": "L3_N2",
 			"target": _mark_position("BakunawaMark")}
+	# Ashore: the painting, and nothing else, until it is taken -- and then nothing at all. The
+	# goodbye is not a task, and "Go up onto the far sand" said to a player standing on it with
+	# the painting in their hands was the line pointing back at the beach.
+	if _arrived and _next_painting != null and is_instance_valid(_next_painting):
+		if _painting_taken:
+			return {}
+		return {"key": "take_the_painting",
+			"target": _next_painting.global_position + Vector2(0.0, -130.0)}
 	return {"key": "island", "target": _mark_position("IslandMark")}
 
 
@@ -2034,6 +2464,11 @@ func _level_run_state() -> Dictionary:
 		"knocks": _knocks,
 		"arrived": _arrived,
 		"told": _told.keys(),
+		# The shape held when this was written, and whether it was written in deep water --
+		# the case where giving it back is the difference between a rescue and a drowning loop.
+		"shape": _held_shape.duplicate() if not _current_form_id.is_empty() \
+			and String(_held_shape.get("id", "")) == _current_form_id else {},
+		"underwater": _anchor_now().y > _waterline_y + 20.0,
 	}
 
 
@@ -2053,7 +2488,18 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	# a form that is no longer standing.
 	if _drain != null:
 		_drain.clear()
+	# ⚠ AND WHAT LOLO WAS WAITING TO SAY IS DROPPED. His lines are paced (see _post_advice), so a
+	# few of the dive's were usually still queued when the rescue came -- and he went on telling
+	# the swim ("Keep going. I can talk and you can swim") to an apo standing on the beach.
+	_advice_waiting.clear()
+	_advice_left = 0.0
+	_coral_waiting = ""
 	_put_back_what_the_restore_undid()
+	_put_the_bakunawa_back()
+	# Deep water: the shape held there, given back. The base moves the body to the checkpoint
+	# after this, so the shape is made here and carried there with it.
+	if bool(state.get("underwater", false)):
+		_give_back_the_shape(state.get("shape", {}) as Dictionary)
 
 
 ## ⚠ A RESTORE ROLLS THE LEVEL BACK, AND TWO THINGS DID NOT COME BACK WITH IT.

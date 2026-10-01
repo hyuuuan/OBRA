@@ -31,7 +31,7 @@
   "tags_unlocked": [
     {
       "tag": "swim",
-      "at": "L3_B0_SHORE.sub1"
+      "at": "L3_N1.dialogue"
     },
     {
       "tag": "light",
@@ -188,13 +188,12 @@
   "objectives": {
     "$comment": "THE OBJECTIVE LINE, one per state of the run. level_3.gd decides which state the player is in; these are only the words, held to the same rule every dialogue line is held to: no line names a drawable class. Dangerous here in a way it was not in Piyesta -- the sea is full of classes. Never 'fish', 'shark', 'crab', 'sun', 'cloud', 'sailboat' or 'submarine'.",
     "brush": "Pick up what is catching the light in the sand",
-    "practice": "Press {key:redraw} and draw a shape here on the sand",
-    "practice.tags": "Press {key:redraw} and draw something that can {tags}",
-    "cross": "Choose how to get to the far side",
-    "find_the_boat": "Walk the beach and find what washed up",
-    "find_the_boat_changed": "Press {key:revert_form} to change back, then walk the beach",
+    "cross": "Go to Lolo at the water and choose how to cross",
+    "drag_the_boat": "Press {key:redraw} and draw something strong enough to drag the bangka",
+    "drag_the_boat_now": "Press {key:interact} at the bangka to drag it into the sea",
+    "dive_draw": "Press {key:redraw} and draw something that can swim",
+    "dive_draw.tags": "Press {key:redraw} and draw something that can {tags}",
     "board_the_boat": "Press {key:interact} at the bangka to get in",
-    "cross.tags": "Draw something that can {tags} \u2014 or find what is beached",
     "cross_by_boat": "Hold {key:move_right} to row out across the open water",
     "cross_by_dive": "Hold {key:move_down} to dive, then swim along the bottom",
     "bakunawa": "It cannot see. Choose what to do about it",
@@ -202,7 +201,9 @@
     "bakunawa_sneak": "Wait until its light turns away, then get past it",
     "bakunawa_light": "Press {key:redraw} and draw something that throws LIGHT",
     "bakunawa_fight": "Press {key:redraw}, draw something that can STRIKE, and hit it",
-    "island": "Go up onto the far sand"
+    "bakunawa_fight_on": "Hit it with {key:use_utility} until it has had enough",
+    "island": "Go up onto the far sand",
+    "take_the_painting": "Walk to the painting in the sand and take it"
   },
   "obstacles": [
     {
@@ -211,45 +212,28 @@
       "dialogue_node": false,
       "fail_state": false,
       "$comment": [
-        "A TUTORIAL BEAT DISGUISED AS A PICKUP, and the design is firm that it comes before",
-        "the fork: 'the player has spent two levels with a timer and now loses it, so the",
-        "shore has to teach the replacement before the fork, not after -- once they are",
-        "underwater, learning the ink rule by running out of it is a punishment, not a",
-        "lesson.'",
+        "THE BRUSH IS THE BEAT. Taking the new brush off the sand answers it (level_3.gd,",
+        "_on_brush_touched, with solve_with_item -- nothing was drawn), and Lolo says the rule",
+        "it brings as it is taken: no clock any more, and a shape drinks ink for as long as it",
+        "is held. The rule is FELT on the first shape held after it, whichever way across that",
+        "is -- see INK.first_drain.",
         "",
-        "THE BRUSH ITSELF IS NOT AN OBSTACLE. It is a pickup in the scene, because a sub-beat",
-        "resolves a tag and picking something up is not a drawing. It writes new_brush and",
-        "the drain arms from there.",
-        "",
-        "ONE SUB-BEAT, AND IT IS AT THE WATER'S EDGE. That way the practice teaches the",
-        "drain AND puts a Swim body in the player's hands before L3_N1 asks for one, which is",
-        "what teaches_before_choice is for. Failure is not possible because nothing here asks",
-        "the player to go in: the sea starts where the sand ends, and it is deep from the first",
-        "pixel. The words used to say 'the shallows', from when the sea covered half the beach;",
-        "there have been no shallows since, and a player sent to find them walked into the",
-        "crossing's volume -- see level_3.gd _gate_the_crossing."
+        "⚠ THERE WAS A PRACTICE HERE, AND KENT HAD IT TAKEN OUT (2026-10-01). A sub-beat asked",
+        "for a Swim drawing at the waterline before the fork would open, so the level's first",
+        "choice waited on a drawing the player had not been told the reason for: 'there should",
+        "be the choice and then to draw if necessary.' The choice comes first now, and each way",
+        "across asks for its own drawing -- which is what keeps Dagat a drawing game (T1)."
       ],
       "grants_item": "new_brush",
-      "sub_beats": [
-        {
-          "id": "sub1",
-          "teaches": "swim",
-          "required_tags": [
-            "swim"
-          ],
-          "exclude": []
-        }
-      ],
-      "scripted": {
-        "on_first_decline": "L3_B0_004"
-      }
+      "answered_by": "new_brush"
     },
     {
       "id": "L3_N1",
       "type": "dialogue_node",
       "display_name": "Ang Paglalayag",
       "teaches_before_choice": [
-        "swim"
+        "swim",
+        "carry"
       ],
       "checkpoint_on_commit": "CP2",
       "$comment": [
@@ -258,15 +242,31 @@
         "missing route rather than drawing a blank button -- L2_N3 is the precedent -- so",
         "this renders two buttons end to end.",
         "",
-        "THE BOAT IS FOUND, NOT DRAWN. The design decided it: 'found fits the artist framing",
-        "-- the artist path in Level 2 was also about looking and asking rather than making.'",
-        "So the route declares answered_by and is closed with director.solve_with_item, which",
-        "is what keeps a class nobody drew out of the per-class precision and recall figures."
+        "THE BOAT IS FOUND, AND DRAGGED DOWN BY SOMETHING DRAWN. It was found and nothing else,",
+        "which left a way through Dagat with nothing drawn once the practice before the fork",
+        "was taken out: the boat, then slipping past the bakunawa. Kent's decision",
+        "(2026-10-01): the bangka is beached too high for the apo and Lolo, and something",
+        "strong is drawn to drag it into the sea. Two steps, like Piyesta's alleys: a Carry",
+        "drawing, then E at the hull with it. The hull is still closed with",
+        "director.solve_with_item -- the drawing was judged at its first step, and the boat",
+        "itself is not a class anybody drew.",
+        "",
+        "Not the bucket, which carries water and not boats, and not the octopus, which can carry",
+        "a load in the sea and cannot cross a beach to reach one."
       ],
       "routes": {
         "artist": {
-          "answered_by": "beached_bangka",
-          "choice_note": "NEEDS  NOTHING DRAWN\nwhat washed up on the sand will carry you across",
+          "required_tags": [
+            "carry"
+          ],
+          "exclude": [
+            "bucket",
+            "octopus"
+          ],
+          "then": {
+            "answered_by": "beached_bangka"
+          },
+          "choice_note": "NEEDS  CARRY\nsomething strong enough to drag the beached bangka down to the sea",
           "reward": "lore_how_he_died",
           "sets_flag": "heard_how_he_died",
           "$comment": "The boat gets how he died. The apo is seated and rowing, with nothing to do but listen -- the only scene in the game where they cannot draw their way out of a conversation."
@@ -332,6 +332,10 @@
           "exclude": [
             "circle"
           ],
+          "then": {
+            "answered_by": "subdued",
+            "$comment": "THE FIGHT IS WON WHEN IT IS SUBDUED, NOT WHEN A WEAPON IS FIRST USED. One step, the first press of F with a sword answered the beat: the storm cleared, Lolo said 'It has had enough. Let it go', and the sword -- one use, by Kent's rule -- was spent before it had swung. The first use records the drawing; the creature going quiet answers the beat (level_3.gd _on_bakunawa_quiet)."
+          },
           "persistent_effect": "l3_bakunawa_fought",
           "$comment": "Five answers, and they already differ in more than damage: UtilityObject gives swing 96px, boomerang 320px, cannon 640px and the anvil a drop, which is exactly the differentiation the design asks for. `circle` carries `strike` for Piyesta, where a round shape drawn in an alley is a stone to throw at the flock. Out here nothing throws it: it is a shape that is set down, and Bakunawa2D.BITE does not take it -- so it is excluded rather than accepted and then doing nothing. Subdued or exhausted, NEVER killed -- it swims off still blind and still searching, and the cost of this route is that nothing was healed. Losing restarts the fight; it does not end the run."
         }

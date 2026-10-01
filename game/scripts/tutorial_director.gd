@@ -230,7 +230,10 @@ func _teach_beside(lesson: Dictionary, text: String, caps: String) -> bool:
 	#
 	# So the cap is dropped here rather than the words. The callout is already pointing at
 	# the button -- it does not also need to hold up a picture of the key.
-	_callout.point_at(target as Rect2, text, "", _side_of(lesson))
+	# A lesson that names its speaker is HIS, and the bubble says so (Kent, on Dagat's ink:
+	# "it should just be a pop up by Lolo explaining that"). Without one it is the interface.
+	_callout.point_at(target as Rect2, text, "", _side_of(lesson),
+		String(lesson.get("speaker", "")))
 	var finder := _find_target
 	_callout.follow(func() -> bool:
 		var now: Variant = finder.call(anchor)

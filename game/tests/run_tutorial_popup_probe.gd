@@ -65,6 +65,7 @@ func _run() -> void:
 	_audit_the_canvas_is_explained()
 	await _audit_the_two_readings_are_explained()
 	await _audit_the_bar_clears_the_letterbox()
+	await _audit_a_callout_never_covers_its_target()
 
 	print("OBRA_TUTORIAL_POPUP_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
@@ -295,3 +296,31 @@ func _audit_the_bar_clears_the_letterbox() -> void:
 		"and goes back under the badge when the bars leave",
 		"panel top %d" % int(panel.global_position.y))
 
+
+## ⚠ A CALLOUT NEVER COVERS THE THING IT POINTS AT. Pointed at a card in the top corner of the
+## screen -- where the morph card and its INK bar sit -- "auto" tried above first, the screen
+## edge pushed the bubble back down, and it landed across the very bar it was explaining (Kent's
+## screenshot of Dagat's jars lesson). On a bare layer with nothing else to avoid, so the target
+## is the only thing that can push it clear. And a lesson with a speaker says whose it is.
+func _audit_a_callout_never_covers_its_target() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 90
+	root.add_child(layer)
+	var view := level.get_viewport().get_visible_rect().size
+	var card := Rect2(Vector2(view.x - 400.0, 14.0), Vector2(380.0, 92.0))
+	var bubble := TutorialCallout.new()
+	layer.add_child(bubble)
+	bubble.point_at(card, "That bar is your ink now, apo. It goes down the whole time you are holding the shape.",
+		"", TutorialCallout.Side.AUTO, "Lolo")
+	await _wait(0.5)
+	var panel := bubble.get("_panel") as Control
+	var drawn := panel.get_global_rect() if panel != null else Rect2()
+	_check(panel != null and not drawn.intersects(card),
+		"a callout at a card in the corner stands clear of it",
+		"bubble %s, card %s" % [drawn, card])
+	var speaker := bubble.get("_speaker") as Label
+	_check(speaker != null and speaker.visible and speaker.text == "LOLO:",
+		"and a lesson with a speaker says whose it is",
+		"'%s'" % (speaker.text if speaker != null else ""))
+	layer.queue_free()
+	await process_frame

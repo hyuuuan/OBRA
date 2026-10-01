@@ -70,11 +70,40 @@ func _the_light() -> void:
 		"and it finds what it lost", "state %d" % creature.state())
 	_check(bool(profile.call("is_collectible_found", "L3_HF")),
 		"and hands over the flower", "L3_HF recorded")
+	# ⚠ AND BOTH THINGS IT GIVES ARE SEEN TO BE TAKEN, in the order they come: the torn corner
+	# of her canvas it had been searching for, then the flower. The corner was left lying on the
+	# seabed with no card at all (Kent: what is found at the bottom "should have the acquired pop
+	# up since its an acquired"). Read off the card as it plays, every distinct title in turn.
+	var cards: Node = null
+	for node in get_nodes_in_group(&"modal_overlays"):
+		if node is AcquiredOverlay:
+			cards = node
+	var titles: Array[String] = []
+	for _frame in range(720):
+		await physics_frame
+		if cards != null and bool(cards.call("is_open")):
+			var title := (cards.get("_title") as Label).text
+			if titles.is_empty() or titles.back() != title:
+				titles.append(title)
+		if titles.has("Hidden Flower"):
+			break
+	_check(titles.size() >= 2 and titles[0] == "A Torn Corner" and titles[1] == "Hidden Flower",
+		"and gives the corner, then the flower, each with its card", str(titles))
 	_check(String(profile.call("bakunawa_outcome")) == "LIT",
 		"and the run remembers how", String(profile.call("bakunawa_outcome")))
 	_check(not creature.sees(creature.global_position + Vector2(120.0, 0.0)),
 		"and a calm one sees nobody", "the sweep is down")
 	_check(await _channel_is_open(creature), "and the way on is open", "coils disabled")
+	# ⚠ AND THEN IT GOES. Found what it lost, it stayed coiled where it was for the rest of the
+	# level; it swims off now, once what it found has been given.
+	var gone_after := -1.0
+	for _frame in range(960):
+		await physics_frame
+		if creature.is_gone():
+			gone_after = float(_frame) / 60.0
+			break
+	_check(gone_after > 0.0 and not creature.visible, "and swims away once it has given it",
+		"gone after %.1f s" % gone_after if gone_after > 0.0 else "still there after 16 s")
 	_close()
 
 
@@ -87,6 +116,16 @@ func _the_dark() -> void:
 	var director = bits["director"]
 	_check(await _channel_is_open(creature),
 		"the dark: a gap opens on the commit", "coils disabled")
+	# ⚠ IT MOVES. Kent: "the bakunawa should move" -- it was set down once and held still,
+	# though Lolo's first words about it are "back and forth over the same stretch".
+	var least := INF
+	var most := -INF
+	for _frame in range(420):
+		await physics_frame
+		least = minf(least, creature.global_position.x)
+		most = maxf(most, creature.global_position.x)
+	_check(most - least > 60.0, "and it goes back and forth over its stretch",
+		"%.0f px of drift in seven seconds" % (most - least))
 	# THE SWEEP HAS TO CATCH SOMEBODY. A cone that never returns true is a stealth section
 	# with no stealth in it, and it looks identical to a well-played one in a report.
 	var caught := false
@@ -206,6 +245,27 @@ func _the_fight() -> void:
 	# And nothing else does.
 	_check(not creature.accepts_tool("bread"), "and nothing that is not a weapon does",
 		"bread is refused")
+	# ⚠ A WEAPON DRAWN AND SWUNG ONCE DOES NOT END THE FIGHT. With the fight one step, the first
+	# press of F answered the beat: the storm cleared, Lolo said "It has had enough. Let it go",
+	# and the sword -- one use -- was spent before it had swung. Drawn and used here the way a
+	# player does, through the drawing panel's door and F.
+	var director = bits["director"]
+	var lines = level.get("script_lines")
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	level.call("_on_drawing_ready", "sword", "Sword", sheet, {"confidence": 0.9},
+		[{"points": PackedVector2Array([Vector2(0, 0), Vector2(0, 80)]), "width": 6.0,
+			"color": Color.BLACK}], 1.0)
+	await _unpause()
+	level.call("_use_equipped_utility")
+	await _unpause()
+	_check(not bool(director.call("is_solved", "L3_N2")) and int(director.call("stage", "L3_N2")) == 1,
+		"the first swing records the weapon and does not end the fight",
+		"solved %s, step %d" % [director.call("is_solved", "L3_N2"), director.call("stage", "L3_N2")])
+	_check(int(level.call("_slot_holding", "sword")) >= 0
+			and not bool(lines.call("has_heard", "L3_N2.protector.solved")),
+		"and keeps the weapon, and Lolo says nothing of it being over",
+		"the sword is still to hand")
 	var hits := 0
 	for _swing in range(6):
 		if creature.state() != BakunawaClass.State.FIGHTING:
@@ -220,6 +280,29 @@ func _the_fight() -> void:
 	_check(await _channel_is_open(creature), "and the way on opens", "coils disabled")
 	_check(not creature.accepts_tool("cannon"), "and a subdued one cannot be hit again",
 		"there is no killing it")
+	await _unpause()
+	_check(bool(director.call("is_solved", "L3_N2"))
+			and bool(lines.call("has_heard", "L3_N2.protector.solved")),
+		"subdued is what answers the fight, and Lolo says so then", "solved, the line said")
+	_check(int(level.call("_slot_holding", "sword")) < 0, "and the weapon that fought it is spent",
+		"one use, and the use was this fight")
+	var gone_after := -1.0
+	for _frame in range(720):
+		await physics_frame
+		if creature.is_gone():
+			gone_after = float(_frame) / 60.0
+			break
+	_check(gone_after > 0.0, "and worn out, it swims off",
+		"gone after %.1f s" % gone_after if gone_after > 0.0 else "still there after 12 s")
+	# ⚠ AND A RESTORE TO BEFORE IT WAS SUBDUED PUTS IT BACK. CP3 was written at the commit; put
+	# back there, the fight is on again and the creature is in it -- not swum off from a fight the
+	# restore has undone.
+	level.call("_return_to_safety", "", "%s")
+	await _unpause()
+	_check(creature.visible and not creature.is_gone()
+			and creature.state() == BakunawaClass.State.FIGHTING,
+		"and a restore to before the end of it brings it back to the fight",
+		"visible %s, state %d" % [creature.visible, creature.state()])
 	_close()
 
 
@@ -244,9 +327,8 @@ func _open_at_the_encounter(route: String) -> Dictionary:
 	# ⚠ enter_obstacle FIRST. note_submission answers whatever the CURRENT obstacle is, and
 	# a probe that never walked into a volume has no current obstacle -- so every drawing it
 	# makes is judged against nothing and silently solves nothing.
-	director.call("enter_obstacle", "L3_B0_SHORE")
-	director.call("note_submission", "fish")
-	director.call("exit_obstacle", "L3_B0_SHORE")
+	# The shore is the brush, and taking it answers the beat with nothing drawn.
+	director.call("solve_with_item", "L3_B0_SHORE", "new_brush")
 	director.call("enter_obstacle", "L3_N1")
 	director.call("commit_route", "L3_N1", "pragmatist")
 	director.call("note_submission", "fish")

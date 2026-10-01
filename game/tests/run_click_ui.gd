@@ -61,6 +61,7 @@ func _run() -> void:
 	await _placing_click_reaches_the_world()
 	await _a_click_places_it_and_right_click_takes_it_back()
 	await _dialogue_choices_answer_a_click()
+	await _a_page_turn_does_not_answer_the_question()
 	await _escape_during_a_question_is_not_a_pause_menu()
 
 	print("\n===== UI CLICK AUDIT =====")
@@ -477,6 +478,22 @@ func _dialogue_can_be_advanced() -> void:
 		presses += 1
 	_check(not box.call("is_open"), "a beat can always be read to the end",
 		"finished after %d presses" % presses)
+
+	# ⚠ A CONVERSATION THE BOX IS NOT SHOWING STILL TAKES THE KEY. Whatever hides the box with a
+	# beat still running, the player must be able to read their way out of it -- the key used to
+	# be ignored unless the box was visible, which turned any such slip into a world paused for
+	# good. (The slip that did it -- a beat begun on the frame the last one ended -- is held by
+	# run_dialogue_box_probe, headless, where the frame it needs can be made to happen.)
+	box.call("speak", [{"text": "Read with the box hidden.", "speaker": "Lolo"},
+		{"text": "And the next.", "speaker": "Lolo"}])
+	await _wait(0.2)
+	(box as CanvasItem).visible = false
+	presses = 0
+	while box.call("is_open") and presses < 24:
+		await _press_accept()
+		presses += 1
+	_check(not box.call("is_open"), "a hidden conversation can still be read out of",
+		"finished after %d presses" % presses)
 	await _wait(0.3)
 	var holding: Array[String] = []
 	for node in get_nodes_in_group(ModalOverlay.GROUP):
@@ -533,6 +550,41 @@ func _dialogue_choices_answer_a_click() -> void:
 	_check(picked[0] == "artist", "a dialogue choice answers a click",
 		"picked '%s'" % picked[0] if not picked[0].is_empty()
 		else "nothing was picked -- the question cannot be answered with the mouse")
+	if bool(overlay.call("is_open")):
+		overlay.call("close")
+	await process_frame
+
+
+## ⚠ THE KEY THAT TURNS LOLO'S PAGES DOES NOT ANSWER HIS QUESTION. The question opens on the
+## frame the conversation before it ends, and a player pressing through that conversation used
+## to answer it with their next press -- the first answer had focus a frame after it opened.
+## Played: a recording pressing through Dagat's fork committed the boat before reading anything.
+## The keyboard gets its focus a beat later; after that, Enter answers as it always did.
+func _a_page_turn_does_not_answer_the_question() -> void:
+	var overlay := level.get_node_or_null("DialogueChoiceOverlay")
+	if overlay == null:
+		_fail("a page turn", "the level has no DialogueChoiceOverlay")
+		return
+	var picked := [""]
+	var listen := func(route: String) -> void: picked[0] = route
+	overlay.connect(&"route_picked", listen)
+	overlay.call("present", "Lolo", "Which?", {
+		"artist": "Let us put it back.",
+		"pragmatist": "There is another way.",
+	})
+	# The press meant for the last line, landing a moment after the question opens -- the way
+	# somebody pressing through a conversation presses, a few tenths of a second apart.
+	await _wait(0.2)
+	await _press_accept()
+	_check(picked[0].is_empty() and bool(overlay.call("is_open")),
+		"the key turning the last page does not answer the question",
+		"nothing picked, the question still up" if picked[0].is_empty()
+		else "it picked '%s' before the question could be read" % picked[0])
+	await _wait(0.7)
+	await _press_accept()
+	_check(picked[0] == "artist", "and a beat later Enter answers it",
+		"picked '%s'" % picked[0] if not picked[0].is_empty() else "the keyboard cannot answer at all")
+	overlay.disconnect(&"route_picked", listen)
 	if bool(overlay.call("is_open")):
 		overlay.call("close")
 	await process_frame

@@ -35,9 +35,9 @@
     },
     {
       "id": "L3_B0_003",
-      "at": "L3_B0_SHORE.sub1",
+      "at": "L3_B0_SHORE.brush",
       "kind": "hint",
-      "text": "No counting down any more. Hold a shape as long as you like \u2014 but it drinks the whole time it is holding. Try something that can **swim** \u2014 here at the edge of the sand, where you can still stand up."
+      "text": "No counting down any more. Hold a shape as long as you like \u2014 but it drinks the whole time you are holding it."
     },
     {
       "id": "L3_B0_004",
@@ -53,13 +53,13 @@
     },
     {
       "id": "L3_B0_006",
-      "at": "L3_B0_SHORE.sub1.solved",
+      "at": "INK.first_drain",
       "kind": "lore",
-      "text": "Feel that? It is going down while you stand there. It will not stop going down until you are yourself again."
+      "text": "Feel that? It is going down already. It will not stop going down until you are yourself again."
     },
     {
       "id": "L3_B0_007",
-      "at": "L3_B0_SHORE.sub1.solved",
+      "at": "INK.first_drain",
       "kind": "lore",
       "text": "Her old one gave you a moment and took it back. This one gives you as long as you can pay for. I am not sure yet which of those is kinder."
     },
@@ -79,7 +79,7 @@
       "id": "L3_N1_003",
       "at": "L3_N1.teach",
       "kind": "lore", "once": true,
-      "text": "Or walk the sand a while first. Things wash up here. They always did."
+      "text": "Or that bangka up on the sand. It is too heavy for the two of us \u2014 but something that can **carry** a load could drag it down to the water."
     },
     {
       "id": "L3_N1_004",
@@ -91,8 +91,8 @@
       "id": "L3_N1_005",
       "at": "L3_N1.artist.commit",
       "speaker": "apo",
-      "choice_label": "I will walk the sand first.",
-      "text": "I will walk the sand first. You said things wash up."
+      "choice_label": "I will take the bangka.",
+      "text": "I will take the bangka. Something strong can drag it down to the water."
     },
     {
       "id": "L3_N1_006",
@@ -105,13 +105,19 @@
       "id": "L3_N1_007",
       "at": "L3_N1.artist.solved",
       "kind": "lore",
-      "text": "Hah. Somebody left that and never came back for it. Push off, apo \u2014 I will sit at this end and keep out of your way."
+      "text": "There she goes. Somebody left that and never came back for it. Get in, apo \u2014 I will sit at this end and keep out of your way."
     },
     {
       "id": "L3_N1_008",
       "at": "L3_N1.pragmatist.solved",
       "kind": "lore",
       "text": "Go on then. I will keep up. I am not carrying anything any more, so it is easy for me."
+    },
+    {
+      "id": "L3_N1_009",
+      "at": "L3_N1.artist.helper",
+      "kind": "hint",
+      "text": "That one has the back for it. Put it to the bangka, apo."
     },
     {
       "id": "L3_N2_001",
