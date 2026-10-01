@@ -74,6 +74,8 @@ var current_speaker_name := ""
 var _queue: Array[Dictionary] = []
 ## The fade the box is under now, so the next one can cancel it. See _fade_to.
 var _fade: Tween
+## Where that fade is going: 1.0 coming in, 0.0 going out. See show_line.
+var _fading_to := 1.0
 var _full := ""
 var _shown := 0.0
 var _hold := 0.0
@@ -219,7 +221,16 @@ func show_line(text: String, speaker: String = "", seconds: float = 0.0) -> void
 	# A box still fading out is brought back, and the fade that would have hidden it at the end
 	# is cancelled with it (see _fade_to): otherwise the new line was shown for a frame and then
 	# put away by the conversation before it.
-	if not visible or modulate.a < 1.0:
+	#
+	# ⚠ INCLUDING ON THE FADE'S FIRST FRAME, WHEN NOTHING HAS FADED YET. A conversation begun in
+	# the same frame the last one ended -- from `conversation_finished`, or from the first
+	# physics step of the world it gave back -- found the box still visible at full opacity, so
+	# the fade-out was left running. It hid the box 0.16 s later with the new conversation still
+	# open: the world paused under an invisible box that ignored the advance key, for good.
+	# Played: Dagat's dive, whose ink lines start on the frame Lolo's last word ends.
+	var fading_out := _fade != null and _fade.is_valid() and _fade.is_running() \
+		and _fading_to < 1.0
+	if not visible or modulate.a < 1.0 or fading_out:
 		visible = true
 		_fade_to(1.0)
 	_relayout()
@@ -328,6 +339,7 @@ func _fade_to(alpha: float) -> Tween:
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_property(self, "modulate:a", alpha, 0.16)
 	_fade = tween
+	_fading_to = alpha
 	return tween
 
 
@@ -335,7 +347,11 @@ func _fade_to(alpha: float) -> Tween:
 ## it is still typing, and the next one turns the page. A single press that did both would
 ## make a fast reader skip a line they never saw.
 func _unhandled_input(event: InputEvent) -> void:
-	if not _blocking or not visible:
+	# ⚠ A RUNNING CONVERSATION ALWAYS TAKES THE KEY, SEEN OR NOT. It used to need the box
+	# visible as well, so a conversation left running under a hidden box (see show_line) held
+	# the world paused with nothing that could ever end it. Whatever hid it, the key now reads
+	# on -- and showing the next line brings the box back.
+	if not _blocking:
 		return
 	var pressed := event.is_action_pressed(&"ui_accept")
 	if not pressed and event is InputEventMouseButton:

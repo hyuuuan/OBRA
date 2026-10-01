@@ -477,6 +477,22 @@ func _dialogue_can_be_advanced() -> void:
 		presses += 1
 	_check(not box.call("is_open"), "a beat can always be read to the end",
 		"finished after %d presses" % presses)
+
+	# ⚠ A CONVERSATION THE BOX IS NOT SHOWING STILL TAKES THE KEY. Whatever hides the box with a
+	# beat still running, the player must be able to read their way out of it -- the key used to
+	# be ignored unless the box was visible, which turned any such slip into a world paused for
+	# good. (The slip that did it -- a beat begun on the frame the last one ended -- is held by
+	# run_dialogue_box_probe, headless, where the frame it needs can be made to happen.)
+	box.call("speak", [{"text": "Read with the box hidden.", "speaker": "Lolo"},
+		{"text": "And the next.", "speaker": "Lolo"}])
+	await _wait(0.2)
+	(box as CanvasItem).visible = false
+	presses = 0
+	while box.call("is_open") and presses < 24:
+		await _press_accept()
+		presses += 1
+	_check(not box.call("is_open"), "a hidden conversation can still be read out of",
+		"finished after %d presses" % presses)
 	await _wait(0.3)
 	var holding: Array[String] = []
 	for node in get_nodes_in_group(ModalOverlay.GROUP):
