@@ -96,6 +96,20 @@ func _stand_at(at: Vector2) -> void:
 		await physics_frame
 
 
+## Wait for an alley's choice to come up, and answer it. False if it never came.
+func _answer_the_alley(route: String, on: Node = null) -> bool:
+	var host := on if on != null else level
+	var choice := host.get_node_or_null(^"DialogueChoiceOverlay")
+	for _frame in range(600):
+		if choice != null and bool(choice.call("is_open")):
+			choice.call("_on_route_pressed", route)
+			for _settle in range(10):
+				await physics_frame
+			return true
+		await physics_frame
+	return false
+
+
 ## Where the player is, through the same door the level asks: `_room_holding_player` reads
 ## each room's own bounds rather than a flag, so this is the level's own answer and not a
 ## second opinion that can drift from it.
@@ -332,6 +346,10 @@ func _audit_the_chain_runs_to_alley_2() -> void:
 		await physics_frame
 	_check(_room_name() == "Alley1", "the church's far door reaches the first alley",
 		"the apo is in the %s" % _room_name())
+	# ⚠ AND THE ALLEY ASKS HOW, the moment the apo is in it. The choice is a modal, so it has to
+	# be answered before anything after it can run -- it is what the player meets first.
+	_check(await _answer_the_alley("artist"), "and the first alley asks how, at the way in",
+		"the choice is up")
 
 	alley_1.open_onward()
 	await _stand_at(alley_1.global_position + Rect2(alley_1.onward_rect()).get_center())
@@ -339,6 +357,7 @@ func _audit_the_chain_runs_to_alley_2() -> void:
 		await physics_frame
 	_check(_room_name() == "Alley2", "and the first alley reaches the second",
 		"the apo is in the %s" % _room_name())
+	_check(await _answer_the_alley("artist"), "and the second asks how too", "the choice is up")
 
 	# ⚠ AND THE FAR DOOR OF ALLEY 2 IS SCENE 3, NOT A FOURTH ROOM. The chain of places ends
 	# here and becomes a table with seven pieces on it.
@@ -454,22 +473,32 @@ func _audit_scene_2_happens() -> void:
 
 
 ## THE ONE PROMISE THE WHOLE SCRAP ECONOMY RESTS ON: none of the seven can be permanently
-## lost. `run_level2_systems_probe` proves the ledger and the birds keep it between
-## themselves. This asks the harder question -- whether the LEVEL, which is what actually
-## connects them, keeps it too.
+## lost. `run_level2_systems_probe` proves every way down puts every piece on the floor, and
+## `run_level2_alley_probe` plays each way in each alley. This asks the harder question --
+## whether the LEVEL, which is what actually connects them, keeps it on every road to the table.
 ##
-## Six paths reach Scene 3: three ways through Alley 1 and two through Alley 2, freely
-## combined. Every one of them has to arrive at seven, and the interesting ones are the
-## routes where birds escape, because those scraps travel by a different road than the rest.
+## Nine roads: three ways through Alley 1 and the same three through Alley 2, freely combined.
+## Every one has to arrive at the table holding seven, with nothing counted that was not walked
+## over. Each alley is answered through its own choice and brought down by its own route; the
+## throwing route's birds are knocked down one by one, which is what that route is.
 func _audit_no_path_loses_a_scrap() -> void:
+	# ⚠ THE LEVEL THE CHAIN WAS WALKED IN GOES FIRST. Every Piyesta built in one tree shares one
+	# world, so its alleys stand exactly where a fresh one's do -- and a room is found by where
+	# the player is, so the fresh level's apo was found standing in the OLD level's alley, and
+	# nothing it walked over was ever counted. Nothing after this needs that level.
+	if level != null and is_instance_valid(level):
+		level.queue_free()
+		await process_frame
+		await process_frame
 	for first in ["artist", "pragmatist", "protector"]:
-		for last in ["artist", "protector"]:
+		for last in ["artist", "pragmatist", "protector"]:
 			var held := await _walk_the_scraps(first, last)
-			_check(held == ScrapLedger.TOTAL, "%s then %s recovers all seven" % [first, last],
-				"%d of %d" % [held, ScrapLedger.TOTAL])
+			_check(held == ScrapLedger.TOTAL, "%s then %s reaches the table with all seven"
+				% [first, last], "%d of %d" % [held, ScrapLedger.TOTAL])
 
 
-## One run of the level, answered by the two routes given, counted at the end.
+## One run of the second half of the level, the two alleys answered by the routes given, and
+## counted at the table. -1 if the table never opened.
 func _walk_the_scraps(alley_1_route: String, alley_2_route: String) -> int:
 	var fresh := (load("res://level_2.tscn") as PackedScene).instantiate()
 	(fresh.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
@@ -477,32 +506,62 @@ func _walk_the_scraps(alley_1_route: String, alley_2_route: String) -> int:
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	for _frame in range(20):
 		await physics_frame
-	fresh.call("_on_route_solved", "L2_N2", alley_1_route)
-	# ⚠ THE PROTECTOR ROUTE IS PER-BIRD AND ON A TIMER, so answering it downs nothing by
-	# itself. This is the case that actually exercises deferral: two knocked down, three
-	# flying on to the bandaritas, and the level has to find all five again in Alley 2.
-	if alley_1_route == "protector":
-		var birds: Array[ScrapBird2D] = []
-		var alley := fresh.get("alley_1") as Node2D
-		for child in alley.get_children():
-			var bird := child as ScrapBird2D
-			if bird != null:
-				birds.append(bird)
-		for index in range(birds.size()):
-			if index < 2:
-				birds[index].strike_down()
-			else:
-				birds[index].timer_expired()
+	fresh.set("_has_kandila", true)
+	(fresh.get("chancel") as ChurchInterior2D).kandila_on_rack = true
+	var church := fresh.get("church") as PiyestaRoom2D
+	church.open_onward()
+	fresh.call("_go_onward", church)
+	for _frame in range(20):
+		await physics_frame
+	await _bring_the_flock_down(fresh, "L2_N2", alley_1_route)
+	fresh.call("_go_onward", fresh.get("alley_1"))
+	for _frame in range(20):
+		await physics_frame
+	await _bring_the_flock_down(fresh, "L2_N3", alley_2_route)
+	# The far door of Alley 2 is the table, and it opens only once both alleys are done.
+	fresh.call("_go_onward", fresh.get("alley_2"))
 	for _frame in range(6):
 		await physics_frame
-	fresh.call("_on_route_solved", "L2_N3", alley_2_route)
-	for _frame in range(6):
-		await physics_frame
+	var table := fresh.get("assembly_screen") as AssemblyOverlay
 	var ledger = fresh.get("ledger")
-	var held: int = int(ledger.call("held")) if ledger != null else -1
+	var held: int = int(ledger.call("held")) if table != null and table.is_open() else -1
+	if table != null and table.is_open():
+		table.close()
 	fresh.queue_free()
 	await physics_frame
+	await physics_frame
+	paused = false
 	return held
+
+
+## Answer an alley by `route` and bring its flock down, then walk over every piece it dropped.
+func _bring_the_flock_down(host: Node, obstacle_id: String, route: String) -> void:
+	if not await _answer_the_alley(route, host):
+		return
+	var director = host.get("director")
+	var alley = (host.get("_alleys") as Dictionary)[obstacle_id]
+	var birds: Array = alley.get("birds")
+	if route == "protector":
+		# The route is every bird knocked down; the throw that does it is played elsewhere.
+		for bird: ScrapBird2D in birds:
+			bird.strike_down()
+	else:
+		# Fed, or cut down: answered the way the director records an answer, and the level does
+		# what that route does with the flock.
+		director.solve_with_item(obstacle_id, "probe")
+	for _frame in range(600):
+		if (alley.get("dropped") as Dictionary).size() >= birds.size():
+			break
+		await physics_frame
+	var body := host.get("player") as Node2D
+	for _i in range(20):
+		var pieces: Dictionary = alley.get("pieces")
+		if pieces.is_empty():
+			break
+		var piece: Node2D = pieces.values()[0]
+		body.global_position = Vector2(piece.global_position.x, body.global_position.y)
+		for _frame in range(6):
+			await physics_frame
 
 
 ## THE ONE DESTRUCTIVE ACT IN PIYESTA, and the only thing the player can take from it that
