@@ -130,7 +130,7 @@ room_length = 900.0
 wall_height = 470.0
 room_zoom = 1.6
 floor_depth = 110.0
-onward_note = "The alley runs on. The flock is still holding what you came for."
+onward_note = "The alley runs on. Not without every piece of her from here."
 
 [node name="Alley2" type="Node2D" parent="GameplayPlane/Rooms"]
 position = Vector2(9450.0, 280.0)
@@ -140,7 +140,7 @@ room_length = 900.0
 wall_height = 440.0
 room_zoom = 1.6
 floor_depth = 140.0
-onward_note = "Nothing that way until the bandaritas give up what they are holding."
+onward_note = "Not yet -- not without the last of her."
 late = true
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
@@ -152,17 +152,25 @@ obstacle_id = "L2_N1"
 trigger_size = Vector2(520.0, 400)
 checkpoint_mark_offset = 340.0
 
+; THE ALLEYS' BEATS ARE THE WHOLE ALLEY, wall to wall and floor to well above the strings:
+; bread set down anywhere in one is judged against it, and an apo at the top of whatever they
+; climbed to cut the strings must still be standing in it, or the edge in their hand swings at
+; nothing instead of cutting.
 [node name="L2_N2" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(9450.0, -900.0)
+position = Vector2(9450.0, -960.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L2_N2"
-trigger_size = Vector2(700.0, 400)
+trigger_size = Vector2(900.0, 520)
+story_sign_offset = 100.0
+checkpoint_mark_offset = -100.0
 
 [node name="L2_N3" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(9450.0, 120.0)
+position = Vector2(9450.0, 60.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L2_N3"
-trigger_size = Vector2(700.0, 400)
+trigger_size = Vector2(900.0, 520)
+story_sign_offset = 100.0
+checkpoint_mark_offset = -100.0
 
 [node name="CP0" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(450.0, 490.0)
