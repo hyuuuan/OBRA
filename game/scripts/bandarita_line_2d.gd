@@ -8,38 +8,27 @@ extends Node2D
 ##    warning band should be drawn at the bandarita line so the boundary is the art, not a
 ##    HUD element."* So the line owns its own Y and the level reads the ceiling off it. A
 ##    scene with no line has no ceiling, which is the correct answer and not an oversight.
-## 2. **PROBLEM 3.** Two scraps are strung up in Alley 2's line, and whatever birds were
-##    deferred out of Alley 1 are tangled in it. Climbing to them keeps the town; cutting
-##    them down marks it.
-## 3. **THE TRADE.** Cutting lifts the ceiling for the rest of the level, which is what
-##    makes it a choice rather than a free win. *"The restriction was never an arbitrary
-##    rule: it was an obstacle the player was always able to remove."*
+## 2. **WHERE THE FLOCK NESTS.** The birds carrying the painting's pieces fly the alley and go
+##    back to their nests in the bunting between flights. One of the three ways to get the
+##    pieces is to get up to the line and cut it down: the nests come down with it and the
+##    birds bolt, dropping what they carry.
+## 3. **THE TRADE.** Cutting a line lifts that scene's ceiling, which is what makes it a
+##    choice rather than a free win. *"The restriction was never an arbitrary rule: it was an
+##    obstacle the player was always able to remove."* It is also the one player action in the
+##    level that permanently changes the town.
 ##
-## FOUR STATES, which is what the design asks the art for: intact, tangled with birds,
-## being cut, removed. `cut` is a one-shot -- the flags fall, and after that the line is
-## gone from this scene and from every scene after it.
-##
-## ⚠ THE PLAZA'S LINE IS PAINTED INTO THE BACKDROPS AND THIS ONE IS NOT.
-## `BG_Clouds` and `FG_Huts` both have bunting drawn into them, which is why the design
-## flags "no-bandarita variants of both" as required by the cut route. Until those land,
-## cutting Alley 2's line cannot visibly change the plaza -- the plaza's bunting is paint.
-## That is a known art debt, recorded in CONTENT_NEEDED.md, and it is exactly trap 2 of
-## `ART_PLACEHOLDERS.md`: two bunting lines at different depths, one interactive and one
-## not. This class is the interactive one and it is the only one this level reads.
+## ⚠ THE PLAZA'S LINE IS PAINTED INTO THE BACKDROP AND THIS ONE IS NOT. `BG_Clouds` and
+## `FG_Huts` both have bunting drawn into them, which is why the design flags "no-bandarita
+## variants of both" as required by the cut route. The alleys' lines are this class and the
+## only ones a player can cut.
 
-## The line has come down. Carries how many scraps and how many birds it was holding, so
-## the level does not have to ask twice.
-signal cut(scraps: int, birds: int)
-## Something strung up here has been reached -- climbed to rather than cut down.
-signal reached(scraps: int, birds: int)
+## The line has come down.
+signal cut()
 
 ## How wide the run of bunting is. Set by whoever builds it, off the room's own length.
 @export var span := 900.0
-## How many painting scraps are pegged to it. Two in Alley 2, none anywhere else.
-@export var scraps_held := 0
-## How many birds are tangled in it. Written by Problem 2 -- zero if they were fed, five if
-## they were chased, and whatever the timer did not reach on the Protector route.
-@export var birds_tangled := 0
+## How many nests are in it. Birds are handed one each; two can share.
+@export var nest_count := 3
 ## Whether the strings are still up.
 @export var intact := true
 
@@ -51,6 +40,8 @@ const CEILING_DROP := 20.0
 const FLAG_DROP := 34.0
 ## Flag spacing along the run. Close enough to read as bunting, far enough not to be a wall.
 const FLAG_STEP := 52.0
+## The catenary's sag at the middle of the run.
+const SAG := 26.0
 
 ## Fiesta bunting is printed paper in four or five colours, repeating.
 const FLAGS: Array[Color] = [
@@ -62,17 +53,13 @@ const FLAGS: Array[Color] = [
 ]
 const STRING := Color(0.302, 0.267, 0.220, 1.0)     # 4D4438
 const STRING_LIT := Color(0.475, 0.427, 0.353, 1.0) # 796D5A
-## A scrap of the painting, pegged up. Canvas, not paper -- it has to read as a different
-## material from the flags around it or it is one more flag.
-const SCRAP := Color(0.878, 0.827, 0.729, 1.0)      # E0D3BA
-const SCRAP_EDGE := Color(0.678, 0.616, 0.502, 1.0) # AD9D80
-const SCRAP_INK := Color(0.404, 0.475, 0.522, 1.0)  # 677985
-## A bird caught in the strings. Dark, and it moves, which is what tells them apart from
-## the flags at a glance.
-const BIRD := Color(0.208, 0.204, 0.216, 1.0)       # 353437
-const BIRD_LIT := Color(0.353, 0.345, 0.365, 1.0)   # 5A585D
+## A nest: dry grass and twigs, darker underneath, so it reads against the flags as a THING
+## caught in the bunting rather than as one more pennant.
+const NEST := Color(0.541, 0.431, 0.278, 1.0)       # 8A6E47
+const NEST_DARK := Color(0.337, 0.259, 0.161, 1.0)  # 564229
+const NEST_LIT := Color(0.690, 0.580, 0.400, 1.0)   # B09466
 
-## Drives the sway and the tangled birds' struggling.
+## Drives the sway.
 var _drift := 0.0
 ## How far through the cut it is, 0 to 1. The one-shot the design calls "being cut".
 var _falling := 0.0
@@ -100,37 +87,78 @@ func ceiling_y() -> float:
 
 ## Whether this line still stops anything. A cut line does not.
 func still_a_ceiling() -> bool:
-	return intact
+	return intact and _falling <= 0.0
 
 
-## Everything strung up here, without taking it down. Problem 3's Artist route: the town
-## keeps its bunting and the player climbs.
-func take_what_is_up_here() -> int:
-	var taken := scraps_held + birds_tangled
-	scraps_held = 0
-	birds_tangled = 0
-	reached.emit(taken, 0)
-	queue_redraw()
-	return taken
+## Where the string is at `t` along the run (0 at one wall, 1 at the other), in this node's
+## space, sag and sway and all.
+func _string_at(t: float) -> Vector2:
+	var x := -span * 0.5 + t * span
+	var y := sin(t * PI) * SAG + sin(_drift * 0.8 + t * 4.0) * 3.0
+	return Vector2(x, y + _falling * 220.0 * t)
 
 
-## Problem 3's Protector route, and the one player action in this level that permanently
-## changes the town. Everything on the line comes down with it -- neither route can lose a
-## scrap, which the design states outright.
-func cut_it_down() -> int:
-	if not intact or _falling > 0.0:
-		return 0
-	var scraps := scraps_held
-	var birds := birds_tangled
-	scraps_held = 0
-	birds_tangled = 0
+func _nest_t(index: int) -> float:
+	return (float(index % maxi(1, nest_count)) + 1.0) / float(maxi(1, nest_count) + 1)
+
+
+## Where a bird sits on nest `index`, globally: on top of it, on the string. Asked every frame
+## by a bird on it, because the line sways.
+func nest_point(index: int) -> Vector2:
+	return to_global(_string_at(_nest_t(index)) + Vector2(0.0, -9.0))
+
+
+## How far `point` (global) is from the string, which is what a cutting edge has to reach.
+func reach_distance(point: Vector2) -> float:
+	var local := to_local(point)
+	var best := INF
+	var steps := maxi(8, int(span / 24.0))
+	var previous := _string_at(0.0)
+	for index in range(1, steps + 1):
+		var here := _string_at(float(index) / float(steps))
+		best = minf(best, Geometry2D.get_closest_point_to_segment(local, previous, here)
+			.distance_to(local))
+		previous = here
+	return best
+
+
+## The middle of the run, globally: what the objective points at when the strings are the
+## thing to reach.
+func middle() -> Vector2:
+	return to_global(_string_at(0.5))
+
+
+## The cut route, and the one player action in this level that changes the town for good. The
+## nests come down with the strings, and the level scatters whatever is living in them.
+func cut_it_down() -> bool:
+	if is_cut():
+		return false
 	_falling = 0.001
-	cut.emit(scraps, birds)
-	return scraps + birds
+	cut.emit()
+	return true
+
+
+## Down, or on its way down.
+func is_cut() -> bool:
+	return not intact or _falling > 0.0
 
 
 func is_falling() -> bool:
 	return _falling > 0.0 and _falling < 1.0
+
+
+## Set straight to down, for a restore after it was cut: without replaying the fall.
+func set_already_cut() -> void:
+	_falling = 1.0
+	intact = false
+	queue_redraw()
+
+
+## Strung again, for a restore to before it was cut.
+func put_back_up() -> void:
+	_falling = 0.0
+	intact = true
+	queue_redraw()
 
 
 func _draw() -> void:
@@ -145,13 +173,9 @@ func _draw() -> void:
 	# The catenary. A string strung between two points sags, and a straight line across the
 	# top of a scene reads as a HUD element -- which is the one thing the design says this
 	# must not be.
-	var sag := 26.0
 	var points := PackedVector2Array()
 	for index in range(count + 1):
-		var t := float(index) / float(count)
-		var x := -span * 0.5 + t * span
-		var y := sin(t * PI) * sag + sin(_drift * 0.8 + t * 4.0) * 3.0
-		points.append(Vector2(x, y + fall * 220.0 * t))
+		points.append(_string_at(float(index) / float(count)))
 	draw_polyline(points, STRING, 3.0)
 	draw_polyline(points, STRING_LIT, 1.0)
 	for index in range(count):
@@ -163,41 +187,19 @@ func _draw() -> void:
 		draw_colored_polygon(PackedVector2Array([
 			at, at + Vector2(FLAG_STEP * 0.8, 0.0),
 			at + Vector2(FLAG_STEP * 0.4, FLAG_DROP)]), colour)
-	_draw_the_scraps(points)
-	_draw_the_birds(points)
+	for index in range(nest_count):
+		_draw_nest(_string_at(_nest_t(index)))
 
 
-## Pegged along the run, evenly, so two scraps on a nine-metre line are found rather than
-## stumbled over.
-func _draw_the_scraps(points: PackedVector2Array) -> void:
-	if scraps_held <= 0 or points.size() < 2:
-		return
-	for index in range(scraps_held):
-		var t := (float(index) + 1.0) / float(scraps_held + 1)
-		var at := points[clampi(int(t * float(points.size() - 1)), 0, points.size() - 1)]
-		var rect := Rect2(at + Vector2(-22.0, 6.0), Vector2(44.0, 52.0))
-		draw_rect(rect.grow(2.0), SCRAP_EDGE)
-		draw_rect(rect, SCRAP)
-		# A little of the picture on it, so it reads as a piece of a painting rather than as
-		# a blank card.
-		draw_rect(Rect2(rect.position + Vector2(4.0, 26.0), Vector2(36.0, 12.0)), SCRAP_INK)
-		draw_rect(Rect2(rect.position + Vector2(4.0, 8.0), Vector2(16.0, 10.0)), SCRAP_INK)
-
-
-## And whatever came through from Alley 1. They struggle, which is the only movement on the
-## line and therefore the thing the eye finds first.
-func _draw_the_birds(points: PackedVector2Array) -> void:
-	if birds_tangled <= 0 or points.size() < 2:
-		return
-	for index in range(birds_tangled):
-		var t := (float(index) + 0.5) / float(birds_tangled)
-		var at := points[clampi(int(t * float(points.size() - 1)), 0, points.size() - 1)]
-		var flap := sin(_drift * 6.0 + float(index) * 1.7) * 7.0
-		draw_rect(Rect2(at + Vector2(-11.0, 4.0), Vector2(22.0, 15.0)), BIRD)
-		# One wing up and one down, out of phase, which is a struggle rather than a flight.
-		draw_colored_polygon(PackedVector2Array([
-			at + Vector2(-9.0, 8.0), at + Vector2(-26.0, 8.0 - flap),
-			at + Vector2(-9.0, 15.0)]), BIRD_LIT)
-		draw_colored_polygon(PackedVector2Array([
-			at + Vector2(9.0, 8.0), at + Vector2(26.0, 8.0 + flap),
-			at + Vector2(9.0, 15.0)]), BIRD_LIT)
+## A cup of grass hung on the string: dark underside, lit rim, a few stray stalks.
+func _draw_nest(at: Vector2) -> void:
+	var cup := PackedVector2Array([
+		at + Vector2(-14.0, -3.0), at + Vector2(14.0, -3.0), at + Vector2(10.0, 7.0),
+		at + Vector2(-10.0, 7.0)])
+	draw_colored_polygon(cup, NEST)
+	draw_colored_polygon(PackedVector2Array([
+		at + Vector2(-11.0, 3.0), at + Vector2(11.0, 3.0), at + Vector2(10.0, 7.0),
+		at + Vector2(-10.0, 7.0)]), NEST_DARK)
+	draw_line(at + Vector2(-15.0, -3.0), at + Vector2(15.0, -3.0), NEST_LIT, 2.0)
+	for stalk: Vector2 in [Vector2(-16.0, -1.0), Vector2(12.0, 5.0), Vector2(4.0, 8.0)]:
+		draw_line(at + stalk, at + stalk + Vector2(signf(stalk.x) * 5.0, 2.0), NEST_DARK, 1.0)

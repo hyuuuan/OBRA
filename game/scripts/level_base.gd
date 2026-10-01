@@ -1921,7 +1921,7 @@ func _tool_is_spent_by(_obstacle_id: String, _route: String, _entity_id: String)
 
 ## Gone: out of the hand and out of the bag. Public so a level can spend a tool whose work
 ## finishes later than the answer did -- the tree that falls on the third swing, the flock
-## that is all down or all gone.
+## that is all down.
 func spend_tool(entity_id: String) -> void:
 	if _equipped_utility != null and is_instance_valid(_equipped_utility) \
 			and _equipped_utility.item_data != null \
@@ -2368,9 +2368,10 @@ func _use_equipped_utility() -> void:
 			return
 		# ⚠ ONE USE. Kent: tools "should be one time use only". A key that has opened the door
 		# is spent, and so is anything else whose answer IS the whole of what it does. A few
-		# routes answer the beat and then still need the tool -- an axe has a tree to fell, a
-		# thrown weapon has five birds -- and the level says which; those are spent when that
-		# work is done, see `spend_tool`.
+		# routes answer the beat and then still need the tool -- an axe has a tree to fell --
+		# and the level says which; those are spent when that work is done, see `spend_tool`.
+		# (Piyesta's thrown weapons never come through here: its alleys throw them along an
+		# aimed arc, and spend them when the flock is down.)
 		if _tool_is_spent_by(beat, director.committed_route(beat), item.entity_id):
 			spend_tool(item.entity_id)
 			status_label.text = "%s -- used, and gone" % item.display_name

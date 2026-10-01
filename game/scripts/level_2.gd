@@ -7,12 +7,15 @@ extends "res://scripts/level_base.gd"
 ## What this level adds to the machine that Payyo did not need:
 ##   * TWO RESTRICTIONS, armed for the level's whole length. See level_restrictions.gd for
 ##     why one refuses and the other punishes.
-##   * A LEDGER, because the seven pieces of the painting are recovered across two screens
-##     and the count that survives the first is a NUMBER, not a flag.
+##   * A LEDGER, because the seven pieces of the painting are recovered across two screens.
 ##   * A CEILING THAT IS A PLACE. It is set per scene from the bandaritas' own Y, so the
 ##     boundary is the art rather than a HUD element, and it lifts when the line is cut.
+##   * TWO ALLEYS THAT ARE ONE PROBLEM TWICE: a flock carrying pieces of the painting, nesting
+##     in the bunting, and the same three ways to get them back -- see `_Alley`.
 
-## WHERE ALLEY 2'S BUNTING HANGS, above that alley's floor, and it is a measured number.
+## WHERE THE ALLEYS' BUNTING HANGS, above the floor, and it is a measured number. Both alleys,
+## because both are now the same problem: the flock nests in the line and the cut route climbs
+## to it.
 ##
 ## The window is narrow and both walls of it are real. A player standing on a drawn primitive
 ## reaches 80 + 96 + 94.3 = 270 at the top of a jump (R4 and R1), so a line at or under that
@@ -21,22 +24,34 @@ extends "res://scripts/level_base.gd"
 ## climbed reaches 340. So the line has to sit above 270 and below 340, and 320 is the
 ## middle of that with about fifty pixels of margin each way.
 ##
-## ⚠ MOVING THIS BREAKS THE LEVEL IN ONE DIRECTION OR THE OTHER, silently. Lower and Problem
-## 3 can be jumped; higher and half of `climb`'s own answers cannot reach it, which is scar
-## 3 of this level repeating. `run_level2_scene_probe` measures both walls.
-const ALLEY_2_LINE := 320.0
-## Alley 1's line is a CEILING AND NOTHING ELSE -- nothing is strung on it. It exists because
-## `level_02.json` records the gap in so many words: that alley needs a flight cap and had no
-## diegetic line to hang it on, "or the cap is an invisible wall exactly where the design says
-## it must not be". A town dressed for a fiesta has bunting in its side streets too.
+## ⚠ MOVING THIS BREAKS THE CUT ROUTE IN ONE DIRECTION OR THE OTHER, silently. Lower and the
+## strings can be jumped at; higher and half of `climb`'s own answers cannot reach them.
+## `run_level2_scene_probe` measures both walls, in both alleys.
 ##
-## 380 rather than 460, which is where it was first strung: at the alley's zoom the camera
-## sees about 340 units above the player, and a boundary drawn off the top of the frame is an
-## invisible wall wearing a picture of a rope. Checked by looking at a frame.
-const ALLEY_1_LINE := 380.0
-## How high the flock rides above the alley floor. Inside the 260px the level data gives the
-## Protector route as its reach, so a player standing under a bird can hit it.
-const BIRDS_RIDE := 200.0
+## Alley 1's line used to sit at 380 with nothing on it: a flight cap and no more. A cap at 380
+## was out of reach on purpose, and the strings the flock nests in cannot be.
+const ALLEY_LINE := 320.0
+## Where the flock flies, above an alley's floor: from a little over the apo's head to a little
+## under the strings. Every bit of it is inside a throw -- see StoneThrow2D.reach.
+const FLOCK_LOW := 120.0
+const FLOCK_HIGH := 270.0
+## How close the cutting edge has to be to the strings. From the floor, even jumping, the apo's
+## hand is 150 short of them; from the top of drawn stairs it is 70.
+const CUT_REACH := 110.0
+## Walking this close to a piece of the painting on the floor picks it up -- and a piece comes
+## to rest at least this far clear of anything solid the player set down, so there is somewhere
+## to stand within reach of it.
+const PIECE_REACH := 40.0
+const PIECE_STANDOFF := 24.0
+## How far inside an alley's doorways anything the player has to walk to comes to rest. See
+## _between_the_doors.
+const DOOR_CLEARANCE := 20.0
+## How far clear of the offering's edge the nearest fed bird lands, how far apart the rest of
+## the flock settles beside it, and how close they will crowd to keep to the apo's side of it.
+## See _feed_the_flock.
+const FEED_CLEARANCE := 40.0
+const FEED_SPACING := 56.0
+const FEED_CROWDED := 32.0
 
 const RestrictionsClass = preload("res://scripts/level_restrictions.gd")
 const LedgerClass = preload("res://scripts/scrap_ledger.gd")
@@ -96,26 +111,19 @@ var _lines: Dictionary = {}
 ## Which room the ceiling is currently set for, so it is changed when the answer changes
 ## rather than every frame. Same shape as `_refresh_room_framing`.
 var _ceiling_for := "?"
-var _birds: Array[ScrapBird2D] = []
-## Seconds into Problem 2's Protector route, or -1 while it is not running.
-##
-## ⚠ THE TIMER THE ROUTE IS BUILT ON DID NOT EXIST. `level_02.json` gives the route 45 to 60
-## seconds, `ScrapBird2D` has `set_pressure` (the birds climb as it runs down) and
-## `timer_expired` (whatever is still up flies on to Alley 2) -- and nothing in the level ever
-## called either. So a player who drew the boomerang and walked on without throwing it left
-## five scraps circling an alley they never came back to, and finished Piyesta holding two of
-## seven: the one thing the scrap economy promises cannot happen.
-var _flock_clock := -1.0
 var dancers: DancerGroup2D
-## WHICH pieces went on ahead, not how many.
-##
-## `ScrapLedger.defer` takes a COUNT and sets it, because the design's BIRDS_IN_ALLEY2 is an
-## integer -- and that is right for the ledger, which only has to know how many birds Alley 2
-## spawns. But `recover` takes an ID, so recovering the deferred ones needs to know which
-## five, and the level is the only thing that does. Guessing by index recovered `alley1_0`
-## for a bird that was actually `alley1_3`, hit nothing (recover is idempotent), and finished
-## the run at four of seven with no error anywhere.
-var _deferred_ids: Array[String] = []
+## The two alleys, by the obstacle each one is: "L2_N2" and "L2_N3".
+var _alleys: Dictionary = {}
+## THREE FORKS NOW, and the base knows one. The plaza's is the scene's DialogueNode; each alley
+## has its own. `dialogue_node` is pointed at whichever was approached last, and this says which
+## beat it is answering for -- `_dialogue_node_obstacle_id()` is asked both when the choice is
+## presented and when it is committed, and it must give the same answer to each.
+var _live_node_obstacle := "L2_N1"
+var _plaza_node: DialogueNode2D
+## Where the last thing set down in an alley was put, for the flock to come down to, and how
+## far it reaches either side of that. INF and 0 when the answer was a tool used in the hand.
+var _feed_at := Vector2.INF
+var _feed_half_width := 0.0
 ## Whether the kandila is in hand. LEVEL RUN STATE, not the profile: `has_object` is
 ## permanent by design, so recording it there would open every later run of Piyesta with the
 ## candle already found and the whole of Problem 1 already answered. Level 1 made exactly
@@ -136,12 +144,13 @@ func dialogue_path() -> String:
 
 
 func _dialogue_node_obstacle_id() -> String:
-	return "L2_N1"
+	return _live_node_obstacle
 
 
 func _resolve_level_nodes() -> void:
 	dialogue_node = get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/DialogueNode") as DialogueNode2D
+	_plaza_node = dialogue_node
 	_marks = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Marks") as Node2D
 	var line := _mark("BuntingLine")
 	if line != null:
@@ -233,8 +242,7 @@ func _build_level_furniture() -> void:
 	_put_the_kandila_in_the_house()
 	_furnish_the_church()
 	_bring_out_the_dancers()
-	_string_the_bunting()
-	_release_the_flock()
+	_build_the_alleys()
 
 
 ## Where the fold runs, in world x at the top of the painting, and how far it has wandered by
@@ -495,116 +503,608 @@ func _on_dancers_scattered() -> void:
 	_speak(script_lines.fire("L2_N1.protector.solved"))
 
 
-## THE BUNTING, IN EVERY SCENE THAT HAS ANY. Each line owns its own Y and the flight rule
-## reads the ceiling off it, which is what makes the boundary the art rather than a number.
-func _string_the_bunting() -> void:
-	for entry: Array in [[alley_1, ALLEY_1_LINE, 0], [alley_2, ALLEY_2_LINE,
-			ScrapLedger.IN_ALLEY_2]]:
+# --- The alleys: a flock each, and three ways to get the pieces back ------------------
+
+## ONE ALLEY, and everything in it that Problem 2 or Problem 3 is about. Both alleys are built
+## from this because they are one problem twice -- Kent asked for the same three choices "in
+## the two areas where the player needs to collect the parts of the painting": feed the flock
+## down, climb to the strings and cut the nests down, or throw at them.
+class _Alley extends RefCounted:
+	## The obstacle this alley is, and the room it is in.
+	var obstacle_id := ""
+	var room: PiyestaRoom2D
+	## The bunting: the flight cap, where the flock nests, and what the cut route brings down.
+	var line: BandaritaLine2D
+	var birds: Array[ScrapBird2D] = []
+	var thrower: StoneThrow2D
+	## The choice, asked out loud at the way in.
+	var fork: DialogueNode2D
+	## The pieces this alley's flock carries, one per bird.
+	var scraps := PackedStringArray()
+	## The checkpoint the route commit writes, written again once every piece is in hand.
+	var checkpoint_id := ""
+	## Lolo's line once the climb half of the cut route is done.
+	var climbed_hook := ""
+	## Pieces lying on the floor waiting to be walked over, by scrap id.
+	var pieces: Dictionary = {}
+	## Every piece that has come down, picked up or not.
+	var dropped: Dictionary = {}
+	## The drawn tools thrown here, spent once the flock is down.
+	var thrown_with: Dictionary = {}
+
+	func has_everything(held: ScrapLedger) -> bool:
+		for scrap_id in scraps:
+			if not held.has(scrap_id):
+				return false
+		return true
+
+	## Every bird has taken one of the three ways down.
+	func flock_is_down() -> bool:
+		for bird in birds:
+			if not bird.is_answered():
+				return false
+		return true
+
+
+## A piece of the painting lying on an alley's floor, waiting to be walked over. Drawn with the
+## bird's own picture of it, lifting a little off the setts every second or so, because a thing
+## worth walking over has to be found by a player scanning a dark floor.
+class _FloorPiece extends Node2D:
+	var scrap_id := ""
+	## Where it is sliding to, out from under something solid it came down on (global x).
+	var slide_to := NAN
+	var _clock := 0.0
+
+	func _ready() -> void:
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		z_index = 1
+
+	func _process(delta: float) -> void:
+		_clock += delta
+		if not is_nan(slide_to):
+			global_position.x = move_toward(global_position.x, slide_to, 260.0 * delta)
+		queue_redraw()
+
+	func _draw() -> void:
+		var lift := maxf(0.0, sin(_clock * 3.0)) * 3.0
+		ScrapBird2D.draw_scrap(self, Vector2(0.0, -ScrapBird2D.PIECE_LIFT - lift))
+
+
+## BOTH ALLEYS, built the same way: the bunting, the flock nesting in it, the throw, and the
+## fork at the way in. The pieces are named here, and `tools/build_scraps.py` writes the same
+## names into the table's manifest -- `run_assembly_probe` holds the two together.
+func _build_the_alleys() -> void:
+	var plan: Array = [
+		[alley_1, "L2_N2", "alley1", ScrapLedger.IN_ALLEY_1, "L2_N2.pragmatist.climbed"],
+		[alley_2, "L2_N3", "alley2", ScrapLedger.IN_ALLEY_2, "L2_N3.pragmatist.climbed"],
+	]
+	for entry: Array in plan:
 		var room := entry[0] as PiyestaRoom2D
 		if room == null:
 			continue
-		var line := BandaritaLine2D.new()
-		line.name = "Bandaritas"
-		line.span = room.room_length - 120.0
-		line.scraps_held = int(entry[2])
-		line.position = Vector2(0.0, -float(entry[1]))
-		room.add_child(line)
-		line.cut.connect(_on_bandaritas_cut)
-		line.reached.connect(_on_bandaritas_reached)
-		_lines[room.name] = line
+		var alley := _Alley.new()
+		alley.obstacle_id = String(entry[1])
+		alley.room = room
+		alley.climbed_hook = String(entry[4])
+		if director != null:
+			alley.checkpoint_id = String(
+				director.obstacle(alley.obstacle_id).get("checkpoint_on_commit", ""))
+		for index in range(int(entry[3])):
+			alley.scraps.append("%s_%d" % [entry[2], index])
+		_string_the_bunting(alley)
+		_release_the_flock(alley)
+		_ready_the_throw(alley)
+		_plant_the_fork(alley)
+		_alleys[alley.obstacle_id] = alley
 
 
-## ⚠ THE PLAZA'S OWN LINE, AND IT HAS TO EXIST OR THE CEILING IS AN INVISIBLE WALL.
-##
-## The bunting used to be painted into the delivered backdrop, so the flight cap had
-## something visible to sit under without anybody building it. Authoring the plaza took the
-## painting away and took the bunting with it -- and the design is explicit that the boundary
-## must be the strings the player can see, never a HUD element or a number. So the plaza gets
-## a real line, strung the width of it at the height the mark records.
-func _string_the_plaza() -> void:
-	var mark := _mark("BuntingLine")
-	var plaza := get_node_or_null(^"EnvironmentBaseplate/Plaza") as Node2D
-	if mark == null or plaza == null:
-		return
+## THE BUNTING. Each line owns its own Y and the flight rule reads the ceiling off it, which is
+## what makes the boundary the art rather than a number. A nest for every bird.
+func _string_the_bunting(alley: _Alley) -> void:
 	var line := BandaritaLine2D.new()
-	line.name = "PlazaBandaritas"
-	line.span = 2900.0
-	line.scraps_held = 0
-	line.global_position = mark.global_position
-	plaza.add_child(line)
-	line.global_position = mark.global_position
-	_lines["plaza"] = line
+	line.name = "Bandaritas"
+	line.span = alley.room.room_length - 120.0
+	line.nest_count = alley.scraps.size()
+	line.position = Vector2(0.0, -ALLEY_LINE)
+	alley.room.add_child(line)
+	alley.line = line
+	_lines[alley.room.name] = line
 
 
-## Five birds, five pieces, individually addressable. The design is explicit that the
-## outcome is per-bird rather than pass or fail, which is only true if there are five things
-## rather than a number.
-func _release_the_flock() -> void:
-	if alley_1 == null:
-		return
-	var run := alley_1.room_length - 260.0
-	for index in range(ScrapLedger.IN_ALLEY_1):
+## One bird per piece, individually addressable: the design's outcome is per bird, which is
+## only true if there are birds rather than a number. They start spread through the alley's air
+## and find their own way home to the strings.
+func _release_the_flock(alley: _Alley) -> void:
+	var half := alley.room.room_length * 0.5 - 70.0
+	var count := alley.scraps.size()
+	for index in range(count):
 		var bird := ScrapBird2D.new()
 		bird.name = "Bird%d" % index
-		bird.scrap_id = "alley1_%d" % index
-		bird.position = Vector2(
-			-run * 0.5 + run * (float(index) + 0.5) / float(ScrapLedger.IN_ALLEY_1),
-			-BIRDS_RIDE)
-		alley_1.add_child(bird)
-		bird.scrap_dropped.connect(_on_scrap_dropped)
-		bird.flew_off.connect(_on_bird_flew_off)
-		_birds.append(bird)
+		bird.scrap_id = alley.scraps[index]
+		bird.airspace = Rect2(-half, -FLOCK_HIGH, half * 2.0, FLOCK_HIGH - FLOCK_LOW)
+		bird.drop_span = _between_the_doors(alley.room)
+		bird.nest = alley.line.nest_point.bind(index)
+		bird.position = Vector2(lerpf(-half, half, (float(index) + 0.5) / float(count)),
+			-lerpf(FLOCK_LOW, FLOCK_HIGH, 0.35 + 0.3 * float(index % 2)))
+		alley.room.add_child(bird)
+		bird.scrap_dropped.connect(_on_scrap_dropped.bind(alley.obstacle_id))
+		alley.birds.append(bird)
 
 
-func _on_scrap_dropped(scrap_id: String, _at: Vector2) -> void:
-	if ledger != null:
+## What the Protector route throws with. It is told every frame what is in the player's hand
+## (see _tend_the_alleys) and owns the stone, the arc and whatever is in the air.
+func _ready_the_throw(alley: _Alley) -> void:
+	var thrower := StoneThrow2D.new()
+	thrower.name = "Throw"
+	alley.room.add_child(thrower)
+	var half := alley.room.room_length * 0.5
+	thrower.floor_y = alley.room.global_position.y
+	thrower.walls = Vector2(alley.room.global_position.x - half,
+		alley.room.global_position.x + half)
+	var clear := _between_the_doors(alley.room)
+	thrower.rest_span = Vector2(alley.room.global_position.x + clear.x,
+		alley.room.global_position.x + clear.y)
+	thrower.hand = _throwing_hand
+	var flock := alley.birds
+	thrower.targets = func() -> Array: return flock
+	alley.thrower = thrower
+
+
+## THE CHOICE, ASKED AT THE WAY IN. The apo is put down inside this when they walk into the
+## alley, so the three ways are offered as soon as Lolo has seen the flock -- before there is
+## anything to draw at, which is what keeps a drawing from being judged against no route.
+func _plant_the_fork(alley: _Alley) -> void:
+	var fork := DialogueNode2D.new()
+	fork.name = "Fork"
+	fork.level_id = "level_2"
+	fork.trigger_size = Vector2(160.0, 360.0)
+	fork.position = Vector2(alley.room.entry_point().x - alley.room.global_position.x + 30.0, 0.0)
+	alley.room.add_child(fork)
+	alley.fork = fork
+
+
+## THREE FORKS. `super()` still owns the overlay, the memory screen and the plaza's
+## `route_chosen`; this re-routes the plaza's approach so it says which beat is being asked,
+## and wires the two in the alleys the same way.
+func _wire_dialogue_node() -> void:
+	super()
+	if _plaza_node != null \
+			and _plaza_node.approached.is_connected(_on_dialogue_node_approached):
+		_plaza_node.approached.disconnect(_on_dialogue_node_approached)
+		_plaza_node.approached.connect(_on_fork_approached.bind(_plaza_node, "L2_N1"))
+	for alley: _Alley in _alleys.values():
+		alley.fork.approached.connect(_on_fork_approached.bind(alley.fork, alley.obstacle_id))
+		alley.fork.route_chosen.connect(_on_route_chosen)
+
+
+## A FORK IS APPROACHED. The base's handler reads `dialogue_node` and
+## `_dialogue_node_obstacle_id()`, so both are pointed at this one before it runs.
+func _on_fork_approached(fork: DialogueNode2D, obstacle_id: String) -> void:
+	if director == null or not director.committed_route(obstacle_id).is_empty():
+		return
+	_live_node_obstacle = obstacle_id
+	dialogue_node = fork
+	if _alleys.has(obstacle_id):
+		# THE FLOCK IS SEEN BEFORE ITS ANSWERS ARE OFFERED. The fork and the alley's own volume
+		# are entered on the frame the apo is put down in the alley, in whichever order the
+		# physics server reports them. So the beat is entered here -- which is what teaches its
+		# four verbs -- and Lolo's arrival is said first, and the choice waits for him.
+		director.enter_obstacle(obstacle_id)
+		_speak_on_arrival("%s.enter" % obstacle_id)
+	# The choice after the conversation that sets it up, never over it.
+	if dialogue_box != null and dialogue_box.is_open():
+		if not dialogue_box.conversation_finished.is_connected(_on_dialogue_node_approached):
+			dialogue_box.conversation_finished.connect(_on_dialogue_node_approached,
+				CONNECT_ONE_SHOT)
+		return
+	_on_dialogue_node_approached()
+
+
+## Asked again, for an alley whose choice somehow has not been made. See _extra_refusals.
+func _ask_at(alley: _Alley) -> void:
+	if alley.fork == null or alley.fork.is_answered():
+		return
+	if dialogue_overlay != null and bool(dialogue_overlay.call("is_open")):
+		return
+	_on_fork_approached(alley.fork, alley.obstacle_id)
+
+
+## THE FLOOR BETWEEN AN ALLEY'S TWO DOORWAYS, in the room's own x. Everything the player has to
+## walk over -- a piece of the painting, the stone they threw -- comes to rest inside this.
+##
+## ⚠ FOUND BY PLAYING IT. Fed beside something set down near the way in, the flock landed by the
+## wall and left two pieces lying in the doorway. Walking in to pick them up walked the apo back
+## out into the church, and the pieces were still in the doorway when they came back.
+func _between_the_doors(room: PiyestaRoom2D) -> Vector2:
+	return Vector2(room.exit_rect().end.x + DOOR_CLEARANCE,
+		room.onward_rect().position.x - DOOR_CLEARANCE)
+
+
+## The alley holding the player, or null out on the plaza or in another room.
+func _alley_holding_player() -> _Alley:
+	return _alley_in(_room_holding_player())
+
+
+func _alley_in(room: Node2D) -> _Alley:
+	if room == null:
+		return null
+	for alley: _Alley in _alleys.values():
+		if alley.room == room:
+			return alley
+	return null
+
+
+## The alley whose beat the director is judging against, or null.
+func _alley_at_beat() -> _Alley:
+	if director == null:
+		return null
+	return _alleys.get(director.current_obstacle()) as _Alley
+
+
+## Whether this alley's flock is being thrown at: the throwing route chosen, and a bird still up.
+func _throwing_at(alley: _Alley) -> bool:
+	return alley != null and director != null \
+		and director.committed_route(alley.obstacle_id) == "protector" \
+		and not director.is_solved(alley.obstacle_id) and not alley.flock_is_down()
+
+
+## Halfway up the cut route: the climb is done and the strings are the next thing.
+func _cutting_at(alley: _Alley) -> bool:
+	return alley != null and director != null \
+		and director.committed_route(alley.obstacle_id) == "pragmatist" \
+		and director.stage(alley.obstacle_id) > 0 and not director.is_solved(alley.obstacle_id)
+
+
+## The drawn tool in the player's hand, if it is one that is thrown from it.
+func _held_throwable() -> UtilityObject:
+	if _equipped_utility == null or not is_instance_valid(_equipped_utility) \
+			or _equipped_utility.item_data == null:
+		return null
+	var kind := int(StoneThrow2D.THROWN.get(_equipped_utility.item_data.entity_id,
+		StoneThrow2D.Kind.NONE))
+	if kind == StoneThrow2D.Kind.BOOMERANG or kind == StoneThrow2D.Kind.CANNON:
+		return _equipped_utility
+	return null
+
+
+func _has_a_throwable_in_the_bag() -> bool:
+	for value: Variant in inventory_manager.items():
+		var item := value as DrawnItemData
+		if item == null:
+			continue
+		var kind := int(StoneThrow2D.THROWN.get(item.entity_id, StoneThrow2D.Kind.NONE))
+		if kind == StoneThrow2D.Kind.BOOMERANG or kind == StoneThrow2D.Kind.CANNON:
+			return true
+	return false
+
+
+## Where a throw leaves from: the tool itself when one is held, and otherwise the apo's own
+## hand -- the grip a tool would be in, on the side they are facing.
+func _throwing_hand() -> Vector2:
+	if player == null or not is_instance_valid(player):
+		return Vector2.INF
+	var tool := _held_throwable()
+	if tool != null:
+		return tool.global_position
+	var facing := float(player.call("facing_direction")) \
+		if player.has_method("facing_direction") else 1.0
+	return _player_anchor_position() + Vector2(14.0 * facing, -StoneThrow2D.HAND_HEIGHT)
+
+
+## Whether the held boomerang was hidden for being in the air, so it is shown again only if this
+## is what hid it.
+var _hid_the_throwable := false
+
+
+## THE ALLEYS, EVERY FRAME: what is in the hand to throw, and the pieces lying within reach.
+func _tend_the_alleys() -> void:
+	var here := _alley_holding_player()
+	var tool := _held_throwable()
+	var hide_it := false
+	for alley: _Alley in _alleys.values():
+		var kind := StoneThrow2D.Kind.NONE
+		if alley == here and _throwing_at(alley):
+			if tool != null:
+				kind = int(StoneThrow2D.THROWN[tool.item_data.entity_id])
+				# The boomerang in the hand IS the one in the air, so it is not in the hand
+				# while it flies.
+				hide_it = kind == StoneThrow2D.Kind.BOOMERANG \
+					and alley.thrower.in_flight(StoneThrow2D.Kind.BOOMERANG)
+			elif alley.thrower.has_stone():
+				kind = StoneThrow2D.Kind.STONE
+		alley.thrower.hold(kind)
+	if tool != null and hide_it:
+		tool.visible = false
+		_hid_the_throwable = true
+	elif tool != null and _hid_the_throwable:
+		tool.visible = true
+		_hid_the_throwable = false
+	if here != null:
+		_pick_up_the_pieces(here)
+		_say_what_is_in_the_way(here)
+
+
+## Which alleys have already said that a drawing is in the way, so it is said once.
+var _said_in_the_way: Dictionary = {}
+
+
+## A DRAWING STANDING IN THE WAY ON, said once, when the apo reaches it. A ladder stood in the
+## middle of an alley to cut the strings is solid until it is climbed, and the way on is past
+## it. Climbing over it works, and E takes it back -- and nothing said either. Found by the play
+## bot, stopped at the foot of the ladder with the way on open behind it.
+func _say_what_is_in_the_way(alley: _Alley) -> void:
+	if not alley.room.onward_open or _said_in_the_way.has(alley.obstacle_id):
+		return
+	var near := _nearest_interactable_utility()
+	if near == null:
+		return
+	var me := _player_anchor_position().x
+	var way_on := alley.room.global_position.x + alley.room.onward_rect().get_center().x
+	var extent := near.world_extent()
+	if extent.end.x <= minf(me, way_on) or extent.position.x >= maxf(me, way_on):
+		return
+	_said_in_the_way[alley.obstacle_id] = true
+	var climbable := near is UtilityObject and (near as UtilityObject).can_be_climbed()
+	_say_why("Your %s is in the way -- %spress %s to take it back." % [
+		_drawing_display_name(near).to_lower(), "climb over it, or " if climbable else "",
+		ControlsKeys.key_cap_for("interact")])
+
+
+## Walking over a piece picks it up. The corner counts it, and once every piece in the alley is
+## in hand the way on opens.
+func _pick_up_the_pieces(alley: _Alley) -> void:
+	if ledger == null:
+		return
+	var at := _player_anchor_position()
+	for scrap_id: String in alley.pieces.keys():
+		var piece := alley.pieces[scrap_id] as Node2D
+		if piece == null or not is_instance_valid(piece):
+			alley.pieces.erase(scrap_id)
+			continue
+		if absf(piece.global_position.x - at.x) > PIECE_REACH \
+				or absf(piece.global_position.y - at.y) > 110.0:
+			continue
+		alley.pieces.erase(scrap_id)
+		piece.queue_free()
 		ledger.recover(scrap_id)
+	if not alley.room.onward_open and alley.has_everything(ledger):
+		_the_alley_is_done(alley)
 
 
-## Deferred, never lost. Alley 2's line spawns exactly this many tangled birds, which is the
-## promise the whole scrap economy rests on.
-func _on_bird_flew_off(scrap_id: String) -> void:
-	if scrap_id.is_empty() or _deferred_ids.has(scrap_id):
+## Every piece from here is in hand. The way on opens, and the checkpoint is written again, so
+## nothing a restore does can put a piece back in a beak.
+func _the_alley_is_done(alley: _Alley) -> void:
+	alley.thrower.clear()
+	alley.room.open_onward()
+	if not alley.checkpoint_id.is_empty():
+		_write_checkpoint(alley.checkpoint_id)
+	_say_why("That is all of her from here. The way on is open.")
+
+
+## A piece is on the floor. It is laid out where it fell for the player to walk over, and on the
+## Protector route the last one coming down is what answers the beat.
+func _on_scrap_dropped(scrap_id: String, at: Vector2, obstacle_id: String) -> void:
+	var alley := _alleys.get(obstacle_id) as _Alley
+	if alley == null:
 		return
-	_deferred_ids.append(scrap_id)
-	if ledger != null:
-		# SET, not incremented: `defer` assigns, and calling it with 1 five times leaves the
-		# count at one. That is what put the pragmatist route at three of seven.
-		ledger.defer(_deferred_ids.size())
-	_tangle_the_deferred()
+	alley.dropped[scrap_id] = true
+	if ledger != null and not ledger.has(scrap_id) and not alley.pieces.has(scrap_id):
+		var piece := _FloorPiece.new()
+		piece.name = "Piece_%s" % scrap_id
+		piece.scrap_id = scrap_id
+		alley.room.add_child(piece)
+		var clear := _between_the_doors(alley.room)
+		var x := clampf(at.x, alley.room.global_position.x + clear.x,
+			alley.room.global_position.x + clear.y)
+		piece.global_position = Vector2(x, alley.room.global_position.y)
+		piece.slide_to = _clear_of_drawings(alley, x)
+		alley.pieces[scrap_id] = piece
+	if director != null and director.committed_route(obstacle_id) == "protector" \
+			and not director.is_solved(obstacle_id) \
+			and alley.dropped.size() >= alley.scraps.size():
+		director.solve_with_item(obstacle_id, "thrown")
 
 
-func _tangle_the_deferred() -> void:
-	var line: BandaritaLine2D = _lines.get(alley_2.name) if alley_2 != null else null
-	if line != null and ledger != null:
-		line.birds_tangled = ledger.deferred()
-		line.queue_redraw()
+## THE NEAREST FLOOR TO `x` THAT NOTHING SOLID STANDS ON, in this alley -- so a piece that comes
+## down at the foot of the ladder the strings were cut from slides out from under it.
+##
+## ⚠ FOUND BY THE PLAY BOT. A drawing set down is solid until it is climbed, and a piece that
+## landed under the ladder lay 40.4px from the nearest place the apo could stand, with the reach
+## 40. A player could take the ladder back with E; nobody should have to. Clear by enough to
+## stand beside the thing and reach it.
+func _clear_of_drawings(alley: _Alley, x: float) -> float:
+	var clear := _between_the_doors(alley.room)
+	var left := alley.room.global_position.x + clear.x
+	var right := alley.room.global_position.x + clear.y
+	var floor_y := alley.room.global_position.y
+	var standing: Array[Rect2] = []
+	for child in world_item_root.get_children():
+		var drawn := child as PhysicsShapeObject
+		if drawn == null or drawn.is_preview:
+			continue
+		var extent := drawn.world_extent()
+		# On this alley's floor: both alleys share their x, and the other one is not in the way.
+		if extent.end.y < floor_y - 40.0 or extent.position.y > floor_y + 10.0:
+			continue
+		standing.append(Rect2(extent.position.x - PIECE_STANDOFF, 0.0,
+			extent.size.x + PIECE_STANDOFF * 2.0, 1.0))
+	var blocked := func(at: float) -> bool:
+		for box: Rect2 in standing:
+			if at > box.position.x and at < box.end.x:
+				return true
+		return false
+	if not bool(blocked.call(x)):
+		return x
+	# Outward a step at a time, both ways, and the nearer clear floor wins.
+	for step in range(1, 120):
+		for side: float in [-1.0, 1.0]:
+			var at := x + side * float(step) * 6.0
+			if at >= left and at <= right and not bool(blocked.call(at)):
+				return at
+	return x
 
 
-## Problem 3, the Artist route: everything strung up here comes down into the player's hands
-## and the town keeps its bunting.
-func _on_bandaritas_reached(taken: int, _birds_freed: int) -> void:
-	_collect_from_the_line(taken)
-
-
-## And the Protector route: the same scraps, and the strings with them.
-func _on_bandaritas_cut(scraps: int, birds_freed: int) -> void:
-	_collect_from_the_line(scraps + birds_freed)
-
-
-## NEITHER ROUTE CAN LOSE A SCRAP -- the design says so outright -- so both arrive here.
-## Whatever was on the line is recovered, including every bird that was deferred out of
-## Alley 1, which is where the "nothing is ever lost, only deferred" promise is finally paid.
-func _collect_from_the_line(taken: int) -> void:
-	if ledger == null or taken <= 0:
+## THE ARTIST ROUTE. Every bird comes down to what was put out -- or, for something used in the
+## hand, to where the apo is standing -- and lands beside it on the APO'S side, facing it, with
+## its piece set down behind it: between the food and the player.
+##
+## ⚠ BESIDE IT, NOT ON IT, AND NOT PAST IT. Both found by the play bot. The flock used to land
+## spread across the offering's own x, so one bird came down on the bread and left its piece
+## under it; and spread to both sides, pieces lay beyond the bread from the apo -- and what was
+## set down is solid, 84px of it against a 94px jump. So the slots start clear of the thing's
+## own width, fill the apo's side first, and use the far side only if the near one runs out of
+## floor. None is in a doorway.
+func _feed_the_flock(alley: _Alley) -> void:
+	if alley == null:
 		return
-	if not _deferred_ids.is_empty():
-		ledger.claim_deferred()
-		for scrap_id in _deferred_ids:
-			ledger.recover(scrap_id)
-		_deferred_ids.clear()
-	for index in range(ScrapLedger.IN_ALLEY_2):
-		ledger.recover("alley2_%d" % index)
+	var landing := _feed_at
+	var reach := _feed_half_width
+	_feed_at = Vector2.INF
+	if not landing.is_finite() or not Rect2(alley.room.bounds()).grow(60.0).has_point(landing):
+		landing = _player_anchor_position()
+		reach = 0.0
+	var clear := _between_the_doors(alley.room)
+	var left := alley.room.global_position.x + clear.x
+	var right := alley.room.global_position.x + clear.y
+	var near := signf(_player_anchor_position().x - landing.x)
+	if near == 0.0:
+		near = 1.0
+	var count := alley.birds.size()
+	var first := reach + FEED_CLEARANCE
+	# The near row closes up before anybody is sent round the far side: down to FEED_CROWDED
+	# apart, which is birds shoulder to shoulder.
+	var near_floor := (landing.x - left) if near < 0.0 else (right - landing.x)
+	var near_spacing := FEED_SPACING
+	if count > 1:
+		near_spacing = clampf((near_floor - first) / float(count - 1), FEED_CROWDED, FEED_SPACING)
+	var slots: Array[float] = []
+	for side: float in [near, -near]:
+		var spacing := near_spacing if side == near else FEED_SPACING
+		var rank := 0
+		while slots.size() < count:
+			var x := landing.x + side * (first + float(rank) * spacing)
+			if x < left - 0.5 or x > right + 0.5:
+				break
+			slots.append(clampf(x, left, right))
+			rank += 1
+	for index in range(count):
+		# More birds than the floor has room for, somehow: the rest come down at the edge.
+		var x: float = slots[index] if index < slots.size() else clampf(landing.x, left, right)
+		alley.birds[index].calm(Vector2(x, alley.room.global_position.y),
+			Vector2(landing.x, alley.room.global_position.y))
+
+
+## THE PRAGMATIST ROUTE, answered: the strings come down, the nests with them, and every bird
+## bolts and lets go of what it was carrying. The alley's sky opens with it.
+func _cut_the_bunting(alley: _Alley) -> void:
+	if alley == null:
+		return
+	script_lines.set_flag("bandaritas_cut")
+	alley.line.cut_it_down()
+	for bird in alley.birds:
+		bird.startle()
+	# The cap has to be recomputed rather than waited for: the player is standing in the room
+	# whose line has just come down.
+	_ceiling_for = "?"
+
+
+## THE PROTECTOR ROUTE, answered by the last piece coming down. The throw is put away, and any
+## drawn tool that did the throwing is spent -- one use, and the use was this flock.
+func _the_flock_is_down(alley: _Alley) -> void:
+	if alley == null:
+		return
+	alley.thrower.clear()
+	for tool_id: String in alley.thrown_with.keys():
+		if _slot_holding(tool_id) >= 0:
+			spend_tool(tool_id)
+	alley.thrown_with.clear()
+	# The status line was still saying "Stone in hand" over a stone that no longer exists.
+	status_label.text = "Every one of them is down"
+
+
+## A ROUND SHAPE DRAWN WHERE A FLOCK IS BEING THROWN AT IS A STONE, and it goes into the hand
+## rather than the bag. Priced like the placeable it is -- a unit, the moment it is set down --
+## because putting it in the hand is setting it down.
+func _take_up_a_stone(alley: _Alley, entity_id: String, strokes: Array) -> void:
+	ink_manager.release_attempt()
+	var thrower := alley.thrower
+	if thrower.has_stone():
+		# Free: one stone is all the route needs, and a second would only be two to keep track of.
+		_say_why("One stone is enough -- %s" % ("it is in your hand."
+			if thrower.stone_in_hand() else "pick it up where it landed."))
+		return
+	if not ink_manager.spend_unit():
+		status_label.text = "A stone costs a unit of ink, and there is none left"
+		return
+	_classes_this_run[entity_id] = true
+	PlayerProfile.record_object_acquired(entity_id)
+	if tutorial != null:
+		tutorial.note("drawing_accepted")
+	# The first half of the route is drawing something to throw, and this is it.
+	if director.stage(alley.obstacle_id) == 0:
+		_judge_submission(entity_id, strokes)
+	thrower.give_stone()
+	status_label.text = "Stone in hand"
+
+
+## Let go of whatever is in hand, along the arc. A drawn tool's first throw is also its answer
+## to the route's first half -- a tool is answered by using it, and here the use is a throw.
+func _throw_in(alley: _Alley) -> bool:
+	_tend_the_alleys()
+	var thrower := alley.thrower
+	if not thrower.ready_to_throw():
+		return false
+	var tool := _held_throwable()
+	if tool != null and director.stage(alley.obstacle_id) == 0:
+		_judge_submission(tool.item_data.entity_id, tool.item_data.strokes)
+	if not thrower.throw():
+		return false
+	if tool != null:
+		alley.thrown_with[tool.item_data.entity_id] = true
+	return true
+
+
+func _over_the_flock(alley: _Alley) -> Vector2:
+	return alley.room.global_position + Vector2(0.0, -(FLOCK_LOW + FLOCK_HIGH) * 0.5)
+
+
+func _nearest_piece(alley: _Alley) -> Vector2:
+	var best := Vector2.INF
+	var from := _player_anchor_position()
+	for value: Variant in alley.pieces.values():
+		var piece := value as Node2D
+		if piece == null or not is_instance_valid(piece):
+			continue
+		if not best.is_finite() or piece.global_position.distance_to(from) < best.distance_to(from):
+			best = piece.global_position
+	return best
+
+
+## An alley put back to a checkpoint: every bird whose piece is in hand long gone, every other one
+## up again with its piece, nothing lying on the floor, the strings as they were, and the throw
+## holding only what it held then. A checkpoint is written at the choice and once everything is
+## in hand, so those are the only two states a restore ever lands on.
+func _put_the_alley_back(alley: _Alley, saved: Dictionary) -> void:
+	for value: Variant in alley.pieces.values():
+		var piece := value as Node
+		if piece != null and is_instance_valid(piece):
+			piece.queue_free()
+	alley.pieces.clear()
+	alley.dropped.clear()
+	for bird in alley.birds:
+		var done := ledger != null and ledger.has(bird.scrap_id)
+		bird.restore_to(done)
+		if done:
+			alley.dropped[bird.scrap_id] = true
+	if bool(saved.get("cut", false)):
+		alley.line.set_already_cut()
+	else:
+		alley.line.put_back_up()
+	alley.thrower.clear()
+	if bool(saved.get("stone", false)):
+		alley.thrower.give_stone()
+	alley.thrown_with.clear()
+	_ceiling_for = "?"
 
 
 func _on_at_rack(standing: bool) -> void:
@@ -748,66 +1248,12 @@ func _go_onward(room: PiyestaRoom2D) -> void:
 	if room == alley_2:
 		_open_scene_3()
 		return
-	if room == alley_1:
-		_let_the_flock_go()
 	var next := _next_after(room)
 	if next == null:
 		return
 	next.disarm_the_way_out()
 	_step_back[next.name] = room.return_point()
 	_step_through(next.entry_point())
-
-
-## The birds climb as the clock runs down, and whatever is still up when it runs out goes on
-## ahead to Alley 2 -- deferred, never lost.
-func _run_the_flock_clock(delta: float) -> void:
-	if _flock_clock < 0.0:
-		return
-	_flock_clock += delta
-	var ratio := _flock_clock / _flock_seconds()
-	for bird in _birds:
-		bird.set_pressure(ratio)
-	if ratio >= 1.0:
-		_let_the_flock_go()
-
-
-## Everything still circling leaves now. Called when the clock runs out, and when the player
-## walks on out of the alley first: a bird left orbiting a room nobody returns to is a scrap
-## the ledger can never recover.
-func _let_the_flock_go() -> void:
-	if _flock_clock < 0.0:
-		return
-	_flock_clock = -1.0
-	for bird in _birds:
-		bird.timer_expired()
-	_spend_the_strike_tool()
-
-
-## THE THROWN WEAPON FOR THE FLOCK IS NOT SPENT BY ANSWERING. Answering Problem 2's Protector
-## route starts the clock; knocking the five birds down is what the tool is FOR, one throw at
-## a time. It is spent when the flock is finished -- the clock out, or the player walking on.
-func _tool_is_spent_by(obstacle_id: String, route: String, _entity_id: String) -> bool:
-	return not (obstacle_id == "L2_N2" and route == "protector")
-
-
-func _spend_the_strike_tool() -> void:
-	for tool_id in ["boomerang", "cannon"]:
-		if _slot_holding(tool_id) >= 0 or (_equipped_utility != null
-				and is_instance_valid(_equipped_utility) and _equipped_utility.item_data != null
-				and _equipped_utility.item_data.entity_id == tool_id):
-			spend_tool(tool_id)
-
-
-## The shorter of the two numbers the design gives, so the pressure is felt.
-func _flock_seconds() -> float:
-	var route: Dictionary = director.obstacle("L2_N2").get("routes", {}).get("protector", {}) \
-		if director != null else {}
-	var bounds: Array = route.get("timer_seconds", [45, 60])
-	return float(bounds[0]) if not bounds.is_empty() else 45.0
-
-
-func flock_clock() -> float:
-	return _flock_clock
 
 
 func _next_after(room: PiyestaRoom2D) -> PiyestaRoom2D:
@@ -886,7 +1332,20 @@ func _hold_the_kandila() -> void:
 # --- The size rule: a refusal, which costs nothing -----------------------------------
 
 func _extra_refusals(entity_id: String, _strokes: Array) -> bool:
-	return restrictions != null and restrictions.refuses(entity_id)
+	if restrictions != null and restrictions.refuses(entity_id):
+		return true
+	# ⚠ NOTHING IS JUDGED AT AN ALLEY BEFORE ITS CHOICE. Before a route is committed the
+	# director judges against every route's tags at once and ignores each route's exclusions,
+	# so a blade -- `cut` for one route, excluded from `strike` by another -- would answer the
+	# beat by no route at all, and a beat solved by no route has no flock to bring down: the way
+	# on would never open. The choice is asked at the way in, so this is only ever reached by
+	# something getting past it -- and then it asks again rather than refusing forever.
+	var alley := _alley_at_beat()
+	if alley != null and director.committed_route(alley.obstacle_id).is_empty():
+		_say_why("Tell Lolo how you will do it first.")
+		_ask_at(alley)
+		return true
+	return false
 
 
 func _on_submission_refused(_entity_id: String, note: String) -> void:
@@ -896,10 +1355,115 @@ func _on_submission_refused(_entity_id: String, note: String) -> void:
 		hint_bar.show_hint(note, Lolo.SPEAKER)
 
 
+# --- The alleys' answers, where they are not the base's --------------------------------
+
+## THE SECOND HALF OF THE THROWING ROUTE IS NOT A DRAWING. It is answered by the last piece
+## coming down, and nothing drawn may answer it -- T3's widening included, which would otherwise
+## take any drawing at all as every bird knocked down and end the beat with the flock still up.
+##
+## And halfway up the cut route, Lolo says what the second drawing is for.
+func _judge_submission(entity_id: String, strokes: Array = []) -> void:
+	var alley := _alley_at_beat()
+	if alley == null:
+		super(entity_id, strokes)
+		return
+	var route := director.committed_route(alley.obstacle_id)
+	if route == "protector" and director.stage(alley.obstacle_id) > 0:
+		return
+	var before := director.stage(alley.obstacle_id)
+	super(entity_id, strokes)
+	if route == "pragmatist" and before == 0 and director.stage(alley.obstacle_id) > 0:
+		_speak(script_lines.fire(alley.climbed_hook))
+
+
+## A round shape drawn where a flock is being thrown at goes into the hand as a stone. Anything
+## else is drawn the way it is everywhere.
+func _on_drawing_ready(
+	entity_id: String,
+	display_name: String,
+	drawing: Image,
+	response: Dictionary,
+	strokes: Array,
+	ink_cost: float
+) -> void:
+	var alley := _alley_holding_player()
+	if _throwing_at(alley) and int(StoneThrow2D.THROWN.get(entity_id, StoneThrow2D.Kind.NONE)) \
+			== StoneThrow2D.Kind.STONE:
+		_take_up_a_stone(alley, entity_id, strokes)
+		return
+	super(entity_id, display_name, drawing, response, strokes, ink_cost)
+
+
+## Where a drawing was set down, kept for the flock while it is judged -- the judging is what
+## feeds them, and they come down to the thing that was put out, not to the player.
+func _on_placement_confirmed(
+	item: DrawnItemData,
+	placed: PhysicsShapeObject,
+	source_slot: int
+) -> void:
+	if placed != null and is_instance_valid(placed):
+		var extent := placed.world_extent()
+		_feed_at = extent.get_center() if extent.size != Vector2.ZERO else placed.global_position
+		_feed_half_width = extent.size.x * 0.5
+	super(item, placed, source_slot)
+	_feed_at = Vector2.INF
+	_feed_half_width = 0.0
+
+
+## At a flock being thrown at, the drawn things that are thrown answer it -- at either half of
+## the route, since the second half is more of the same -- and nothing else does: the blades the
+## route excludes swing, and must not be offered as a throw.
+func _tool_answers_here(entity_id: String) -> bool:
+	var alley := _alley_at_beat()
+	if alley != null and director.committed_route(alley.obstacle_id) == "protector" \
+			and not director.is_solved(alley.obstacle_id):
+		var kind := int(StoneThrow2D.THROWN.get(entity_id, StoneThrow2D.Kind.NONE))
+		return kind == StoneThrow2D.Kind.BOOMERANG or kind == StoneThrow2D.Kind.CANNON
+	return super(entity_id)
+
+
+## F IN AN ALLEY. Whatever is held to throw is thrown along the arc -- a boomerang's own use is a
+## throw straight ahead at nothing -- and a cutting edge only cuts the strings it can reach.
+func _use_equipped_utility() -> void:
+	var alley := _alley_holding_player()
+	if _throwing_at(alley):
+		_tend_the_alleys()
+		if alley.thrower.kind != StoneThrow2D.Kind.NONE:
+			if not _throw_in(alley) and alley.thrower.kind == StoneThrow2D.Kind.STONE \
+					and alley.thrower.stone_on_the_floor():
+				_say_why("Your stone is where it landed -- walk over it to pick it up.")
+			return
+	if _cutting_at(alley) and _equipped_utility != null and is_instance_valid(_equipped_utility) \
+			and _equipped_utility.item_data != null \
+			and _tool_answers_here(_equipped_utility.item_data.entity_id) \
+			and alley.line.reach_distance(_equipped_utility.global_position) > CUT_REACH:
+		_say_why("Up to the strings first -- they are out of reach from down here.")
+		return
+	super()
+
+
+## A CLICK THROWS, in an alley being thrown at: the arc follows the pointer, and letting go where
+## you are pointing is the gesture it invites. F throws too, through `_use_equipped_utility`.
+func _handle_level_input(event: InputEvent) -> bool:
+	var click := event as InputEventMouseButton
+	if click == null or not click.pressed or click.button_index != MOUSE_BUTTON_LEFT:
+		return false
+	if placement_controller.is_placing():
+		return false
+	var alley := _alley_holding_player()
+	if not _throwing_at(alley):
+		return false
+	_tend_the_alleys()
+	if not alley.thrower.ready_to_throw():
+		return false
+	alley.thrower.aim_at(get_viewport().get_canvas_transform().affine_inverse() * click.position)
+	return _throw_in(alley)
+
+
 # --- The ceiling: a violation, and POSITION ONLY -------------------------------------
 
 func _level_physics(anchor_position: Vector2) -> void:
-	_run_the_flock_clock(get_physics_process_delta_time())
+	_tend_the_alleys()
 	_refresh_the_ceiling()
 	if restrictions == null or player == null or not is_instance_valid(player):
 		return
@@ -1003,61 +1567,18 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 			# the candle is inside. It fires when the candle is taken. The commit already had
 			# its own line ("someone is home, I will let myself in"), which is the door.
 			return true
-		["L2_N2", "artist"]:
-			# One offering brings all five down. Splitting it per bird would turn a lore
-			# beat into a chore. Driven through the BIRDS rather than straight into the
-			# ledger, so what the player sees and what the count says cannot disagree.
-			for bird in _birds:
-				bird.calm()
-			_open_the_first_alley()
-		["L2_N2", "pragmatist"]:
-			# All five go on ahead. Deferred, not lost -- Alley 2's line spawns exactly this
-			# many tangled birds, which `_on_bird_flew_off` keeps in step.
-			for bird in _birds:
-				bird.startle()
-			_open_the_first_alley()
-		["L2_N2", "protector"]:
-			# Per-bird and on a timer, so this route does NOT resolve here: the birds are
-			# knocked down one at a time and whatever is still airborne when the timer runs
-			# out flies on to Alley 2. The way onward opens now because the beat is answered;
-			# what the player collects before walking through it is up to them.
-			_flock_clock = 0.0
-			_open_the_first_alley()
-		["L2_N3", "artist"]:
-			# Climbed to. The town keeps its bunting and the ceiling stays where it is --
-			# that is the half of the trade the player is choosing.
-			var climbed: BandaritaLine2D = _lines.get(alley_2.name) if alley_2 != null else null
-			if climbed != null:
-				climbed.take_what_is_up_here()
-			_open_the_way_to_scene_3()
-		["L2_N3", "protector"]:
-			# The one action in this level that permanently changes the town, and the
-			# reason the cut is a trade: it buys the sky for the rest of the level.
-			script_lines.set_flag("bandaritas_cut")
-			var line: BandaritaLine2D = _lines.get(alley_2.name) if alley_2 != null else null
-			if line != null:
-				line.cut_it_down()
-			if restrictions != null:
-				restrictions.lift()
-			# And the cap has to be recomputed rather than waited for: the player is standing
-			# in the room whose line has just come down.
-			_ceiling_for = "?"
-			_open_the_way_to_scene_3()
+		["L2_N2", "artist"], ["L2_N3", "artist"]:
+			# One offering brings the whole flock down. Driven through the BIRDS rather than
+			# straight into the ledger, so what the player sees and what the count says cannot
+			# disagree -- and the pieces are on the floor to be picked up, not handed over.
+			_feed_the_flock(_alleys.get(obstacle_id) as _Alley)
+		["L2_N2", "pragmatist"], ["L2_N3", "pragmatist"]:
+			_cut_the_bunting(_alleys.get(obstacle_id) as _Alley)
+		["L2_N2", "protector"], ["L2_N3", "protector"]:
+			_the_flock_is_down(_alleys.get(obstacle_id) as _Alley)
+	# FALSE for every alley route, so the generic `.solved` line fires. The way on is NOT opened
+	# here: it opens when every piece is in hand, which is later -- see _pick_up_the_pieces.
 	return false
-
-
-## Problem 2 is answered, so the way to Alley 2 opens. All three routes reach it -- the
-## design has every one of them end "move to alley 2" -- and none of them can be failed.
-func _open_the_first_alley() -> void:
-	if alley_1 != null:
-		alley_1.open_onward()
-
-
-## Problem 3 is answered by either route, and both recover every remaining scrap -- the
-## design says neither can lose one -- so both open the way to the table.
-func _open_the_way_to_scene_3() -> void:
-	if alley_2 != null:
-		alley_2.open_onward()
 
 
 func _on_dance_finished(cleared: bool, flower_earned: bool) -> void:
@@ -1085,21 +1606,36 @@ func _level_run_state() -> Dictionary:
 		"onward": {
 			"church": church != null and church.onward_open,
 			"alley_1": alley_1 != null and alley_1.onward_open,
+			"alley_2": alley_2 != null and alley_2.onward_open,
 		},
+		# Which fork the choice screen is answering for. See _live_node_obstacle.
+		"live_node": _live_node_obstacle,
 	}
 	if ledger != null:
 		out["scraps"] = ledger.serialize()
-	out["deferred_ids"] = _deferred_ids.duplicate()
+	# What each alley has done that the birds and the ledger do not already say: whether its
+	# strings are down, and whether a stone has been drawn there.
+	var alleys: Dictionary = {}
+	for alley: _Alley in _alleys.values():
+		alleys[alley.obstacle_id] = {
+			"cut": alley.line.is_cut(),
+			"stone": alley.thrower.has_stone(),
+		}
+	out["alleys"] = alleys
 	return out
 
 
 func _restore_level_run_state(state: Dictionary) -> void:
 	if ledger != null and state.has("scraps"):
 		ledger.restore(state["scraps"])
-	_deferred_ids.clear()
-	for value: Variant in state.get("deferred_ids", []):
-		_deferred_ids.append(String(value))
-	_tangle_the_deferred()
+	# AFTER the ledger, because the birds are put back by it: a bird whose piece is in hand is
+	# gone, and every other one is up again with its piece.
+	var alleys: Dictionary = state.get("alleys", {})
+	for alley: _Alley in _alleys.values():
+		_put_the_alley_back(alley, alleys.get(alley.obstacle_id, {}))
+	_live_node_obstacle = String(state.get("live_node", _live_node_obstacle))
+	var live := _alleys.get(_live_node_obstacle) as _Alley
+	dialogue_node = live.fork if live != null else _plaza_node
 	if dancers != null and bool(state.get("dancers_gone", false)):
 		# Set, not replayed: a restore after they left must not run them off the plaza a
 		# second time, which would look like the level happening again.
@@ -1114,6 +1650,9 @@ func _restore_level_run_state(state: Dictionary) -> void:
 		church.open_onward()
 	if alley_1 != null and bool(onward.get("alley_1", false)):
 		alley_1.open_onward()
+	if alley_2 != null and bool(onward.get("alley_2", false)):
+		alley_2.open_onward()
+
 
 ## How much of the Dagat painting is recovered, in the corner where Payyo counts metres.
 ##
@@ -1174,8 +1713,8 @@ func _current_objective() -> Dictionary:
 				"protector":
 					return _from(room, {"key": "startle", "obstacle": "L2_N1",
 						"target": _over_the_dancers()})
-			var node_at := dialogue_node.global_position + Vector2(0.0, -110.0) \
-				if dialogue_node != null else _over_the_dancers()
+			var node_at := _plaza_node.global_position + Vector2(0.0, -110.0) \
+				if _plaza_node != null else _over_the_dancers()
 			return _from(room, {"key": "light", "target": node_at})
 		# The key worked and the candle is still on the table inside.
 		if room == house:
@@ -1192,22 +1731,53 @@ func _current_objective() -> Dictionary:
 		return {"key": "priest"}
 
 	# PROBLEMS 2 AND 3, and the rooms between.
-	if room == alley_1:
-		if not director.is_solved("L2_N2"):
-			return {"key": "flock", "obstacle": "L2_N2",
-				"target": alley_1.global_position + Vector2(0.0, -BIRDS_RIDE - 60.0)}
-		if _flock_clock >= 0.0:
-			return {"key": "flock_strike",
-				"target": alley_1.global_position + Vector2(0.0, -BIRDS_RIDE - 60.0)}
-		return {"key": "alley_on", "target": _onward_of(alley_1)}
-	if room == alley_2:
-		if not director.is_solved("L2_N3"):
-			return {"key": "bunting", "obstacle": "L2_N3",
-				"target": alley_2.global_position + Vector2(0.0, -ALLEY_2_LINE - 20.0)}
-		return {"key": "alley_end", "target": _onward_of(alley_2)}
+	var alley := _alley_in(room)
+	if alley != null:
+		return _alley_objective(alley)
 	if room == church:
 		return {"key": "to_alleys", "target": _onward_of(church)}
 	return _from(room, {"key": "back_to_church", "target": _over_door(DOOR_CHURCH)})
+
+
+## AN ALLEY, STEP BY STEP. The same words in both, because they are the same problem: choose,
+## do the route's one or two things, pick the pieces up, go on. Each step points at what it is
+## about -- the flock, the strings, the stone where it landed, the nearest piece -- and the aim
+## points at nothing, because the birds are the target and they are on screen.
+func _alley_objective(alley: _Alley) -> Dictionary:
+	var ob := alley.obstacle_id
+	if alley.room.onward_open:
+		return {"key": "alley_on" if alley.room == alley_1 else "alley_end",
+			"target": _onward_of(alley.room)}
+	# Everything is coming down, or down: the pieces are the thing now.
+	if director.is_solved(ob) or alley.flock_is_down():
+		var piece := _nearest_piece(alley)
+		return {"key": "flock_collect",
+			"target": piece + Vector2(0.0, -60.0) if piece.is_finite() else Vector2.INF}
+	match director.committed_route(ob):
+		"artist":
+			return {"key": "flock_feed", "obstacle": ob, "target": _over_the_flock(alley)}
+		"pragmatist":
+			if director.stage(ob) == 0:
+				return {"key": "flock_climb", "obstacle": ob,
+					"target": alley.line.middle() + Vector2(0.0, ALLEY_LINE * 0.5)}
+			return {"key": "flock_cut", "obstacle": ob, "target": alley.line.middle()}
+		"protector":
+			return _throw_objective(alley)
+	return {"key": "flock", "obstacle": ob, "target": _over_the_flock(alley)}
+
+
+## The throwing route, which has the most states: something to draw, something in the bag,
+## a stone on the floor, or something in hand.
+func _throw_objective(alley: _Alley) -> Dictionary:
+	var thrower := alley.thrower
+	if _held_throwable() == null and thrower.stone_on_the_floor():
+		return {"key": "flock_fetch", "target": thrower.resting_stone() + Vector2(0.0, -60.0)}
+	if thrower.kind != StoneThrow2D.Kind.NONE:
+		return {"key": "flock_aim"}
+	if _has_a_throwable_in_the_bag():
+		return {"key": "flock_hold", "target": _over_the_flock(alley)}
+	return {"key": "flock_stone", "obstacle": alley.obstacle_id,
+		"target": _over_the_flock(alley)}
 
 
 ## A plaza objective asked while the player is inside somewhere: the same words, pointed at

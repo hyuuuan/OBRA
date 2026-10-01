@@ -85,7 +85,7 @@
       ],
       "lifted_by_flag": "bandaritas_cut",
       "drawn_at": "the bandarita line in each scene",
-      "$comment": "Per scene, not one global number: whatever Y the bandaritas are strung at, the ceiling sits just under it, and the warning band is DRAWN AT THE LINE so the boundary is the art rather than a HUD element. Lifting it on bandaritas_cut is what makes cutting a trade rather than a free choice. CLOSED 2026-08-30: Alley 1 had no bandaritas in the art list and so no diegetic line to hang its cap on. It has one now -- a run of bunting strung across the alley at 460px above its floor, holding nothing. A town dressed for a fiesta has bunting in its side streets too, and the alternative was an invisible wall exactly where the design says there must not be one. run_level2_scene_probe measures both lines."
+      "$comment": "Per scene, not one global number: whatever Y the bandaritas are strung at, the ceiling sits just under it, and the warning band is DRAWN AT THE LINE so the boundary is the art rather than a HUD element. A line that has been cut caps nothing, so cutting an alley's bunting opens THAT alley's sky -- the trade the cut route makes. `lifted_by_flag` names the flag the cut sets; the lift itself is read off each scene's own line, not off the flag. Both alleys have a line now, at the same measured height (Level2.ALLEY_LINE): the flock nests in it and the cut route climbs to it. run_level2_scene_probe measures both."
     }
   },
   "scrap_economy": {
@@ -93,7 +93,7 @@
     "in_alley_1": 5,
     "in_alley_2": 2,
     "none_can_be_permanently_lost": true,
-    "$comment": "A missed bird defers its scrap to the next screen rather than losing it: BIRDS_IN_ALLEY2 carries the count forward and Alley 2 spawns that many tangled birds. Rides the checkpoint."
+    "$comment": "Each alley's flock carries that alley's pieces and nothing else, and every way through an alley ends with all of them on its floor. The way on does not open until the player has picked up every piece lying there, so nothing is carried from one screen to the next. There used to be a timer on the first flock and a count of escapees carried into Alley 2; Kent: nothing escapes, no timer. Rides the checkpoint."
   },
   "objectives": {
     "$comment": "THE OBJECTIVE LINE, one per state of the run. level_2.gd decides which state the player is in; these are only the words, kept here so run_level2_audit can hold them to the rule every dialogue line is held to: no line names a drawable class. A key with a '.tags' twin uses the twin once the obstacle's tags have been taught, and says them in the strip's own words. Never 'door', 'bird', 'key', 'stairs' or 'ladder' -- all five are classes.",
@@ -112,10 +112,19 @@
     "back_to_church": "Go back through the church to the alleys",
     "flock": "Get her scraps back from the flock",
     "flock.tags": "Get her scraps back. Draw something that can {tags}",
-    "flock_strike": "Knock down what you can before they climb away, then follow the alley on",
+    "flock_feed": "Put something out for them to come down to",
+    "flock_feed.tags": "Draw something that can {tags}, and set it down for them",
+    "flock_climb": "Set something under the strings to climb",
+    "flock_climb.tags": "Draw something that can {tags}, and set it under the strings",
+    "flock_cut": "Climb up to the strings and cut them down",
+    "flock_cut.tags": "Climb up to the strings and {tags} them down",
+    "flock_stone": "Draw something to throw at them",
+    "flock_stone.tags": "Draw something that can {tags}, to throw at them",
+    "flock_aim": "Aim with the pointer. Click, or press {key:use_utility}, to throw",
+    "flock_fetch": "Pick your stone back up where it landed",
+    "flock_hold": "Take out what you drew, and throw it",
+    "flock_collect": "Pick up the pieces of her painting",
     "alley_on": "Follow the alley on",
-    "bunting": "Reach the scraps caught in the bunting",
-    "bunting.tags": "Reach the scraps in the bunting. Draw something that can {tags}",
     "alley_end": "Follow the alley to the end",
     "table": "Put her painting back together"
   },
@@ -162,10 +171,12 @@
       "display_name": "Ang Unang Eskinita",
       "teaches_before_choice": [
         "feed",
-        "startle",
+        "climb",
+        "cut",
         "strike"
       ],
       "checkpoint_on_commit": "CP3",
+      "$comment": "THE SAME THREE WAYS IN BOTH ALLEYS -- Kent: the three choices apply \"to the two areas where the player needs to collect the parts of the painting\". Five birds here, one piece each. The flock flies the alley and nests in the bunting between flights; whichever way it is answered, every piece ends up on the floor and the player picks them up by walking over them. The way on opens when all five are in hand. Nothing escapes and nothing runs on a clock, so no path can lose a piece. The fork is asked out loud at the alley's entrance, after Lolo has seen the flock.",
       "routes": {
         "artist": {
           "required_tags": [
@@ -173,23 +184,29 @@
           ],
           "exclude": [],
           "reward": "lore_they_used_to_feed_them",
-          "recovers_scraps": 5,
-          "sets_counter": {
-            "birds_in_alley_2": 0
-          },
-          "$comment": "One offering calms all five. Splitting it into one per bird would turn a lore beat into a chore."
+          "$comment": "Set down where they can see it, and every bird in the alley comes down to it, eats, and leaves its piece beside it. One offering for the whole flock: splitting it per bird would turn a lore beat into a chore. `bucket` is a tool and is used where the player stands, which is where they come down."
         },
         "pragmatist": {
           "required_tags": [
-            "startle"
+            "climb"
           ],
           "exclude": [
-            "shark"
+            "spider",
+            "bat",
+            "monkey",
+            "crab"
           ],
-          "sets_counter": {
-            "birds_in_alley_2": 5
+          "then": {
+            "required_tags": [
+              "cut"
+            ],
+            "exclude": [
+              "elephant"
+            ]
           },
-          "$comment": "All five scatter into the bandaritas at once and are recovered in Alley 2. Nothing is lost, only deferred. `shark` is excluded because a narrow alley is not a plaza -- and it leaves three answers."
+          "choice_note": "NEEDS  CLIMB,  then  CUT\nsomething to get you up to the strings, then an edge to cut them down",
+          "persistent_effect": "bandaritas_cut",
+          "$comment": "TWO DRAWINGS, the way Kent asked for it: something to get up to the strings, and something to cut them with. The strings come down, the nests with them, and the flock bolts and lets go of every piece. The climb is something the APO stands on -- the cut needs the apo's hands -- so the climbing creatures are out: `spider` is banned here anyway, `bat` is a flight-ceiling class reaching for the ceiling, and a `monkey` or `crab` up a wall has nothing to cut with. `elephant` cuts by being an elephant and cannot get up there. The cutting edge has to be used within reach of the strings (Level2.CUT_REACH), which from the floor it is not. It lifts THIS alley's ceiling -- the flight cap is read off the line in each scene, and a line that is down caps nothing."
         },
         "protector": {
           "required_tags": [
@@ -200,15 +217,12 @@
             "axe",
             "sword"
           ],
-          "requires_reach_px": 260,
-          "timer_seconds": [
-            45,
-            60
-          ],
-          "sets_counter": {
-            "birds_in_alley_2": "however many escaped"
+          "then": {
+            "answered_by": "every_bird_down"
           },
-          "$comment": "Per-bird rather than pass/fail: down three of five and walk into Alley 2 with two waiting. The timer is shown IN THE FICTION -- the birds circling higher, the light changing -- not as a bare countdown. THE EXCLUSIONS ARE ABOUT REACH, not taste: this route asks the player to hit something in the air, and a blade swings inside UtilityObject.TOOL_REACH (96px) -- so axe and sword were accepted by the tag layer and then did nothing, which is the tag layer agreeing with the player and lying. `anvil` drops straight down. What is left is what actually leaves the hand: the boomerang at 320px and the cannon, whose shot is a body under gravity. A cannon in a plaza is excessive, and this is the Protector route -- excess is its character."
+          "requires_reach_px": 330,
+          "choice_note": "NEEDS  STRIKE\nsomething to throw at them — aim it, and let go",
+          "$comment": "THROWN, and aimed: a dotted arc from the hand shows where it will go (StoneThrow2D). The first half is drawing something to throw -- a round shape is recognised as a circle and becomes a stone; a boomerang or a cannon is thrown the same way from the hand. The second half is every bird knocked down, one throw at a time, and it is answered by the last piece coming down rather than by a drawing. A miss costs nothing but the walk: a stone lies where it landed and is picked back up, a boomerang comes back, a cannon keeps its shot. THE EXCLUSIONS ARE ABOUT WHAT LEAVES THE HAND: a blade swings inside UtilityObject.TOOL_REACH and the anvil drops straight down, and StoneThrow2D.THROWN names what can be thrown. `requires_reach_px` is how high above the alley floor the route has to be able to hit -- the strings, where the nests are -- and run_level2_audit measures every answer's real throw against it."
         }
       }
     },
@@ -217,33 +231,59 @@
       "type": "dialogue_node",
       "display_name": "Ang Ikalawang Eskinita",
       "teaches_before_choice": [
+        "feed",
         "climb",
-        "cut"
+        "cut",
+        "strike"
       ],
       "checkpoint_on_commit": "CP4",
+      "$comment": "THE SAME THREE WAYS IN BOTH ALLEYS -- Kent: the three choices apply \"to the two areas where the player needs to collect the parts of the painting\". Two here, and they are the last two pieces. The flock flies the alley and nests in the bunting between flights; whichever way it is answered, every piece ends up on the floor and the player picks them up by walking over them. The way on opens when both are in hand. Nothing escapes and nothing runs on a clock, so no path can lose a piece. The fork is asked out loud at the alley's entrance, after Lolo has seen the flock.",
       "routes": {
         "artist": {
+          "required_tags": [
+            "feed"
+          ],
+          "exclude": [],
+          "reward": "lore_they_used_to_feed_them",
+          "$comment": "Set down where they can see it, and every bird in the alley comes down to it, eats, and leaves its piece beside it. One offering for the whole flock: splitting it per bird would turn a lore beat into a chore. `bucket` is a tool and is used where the player stands, which is where they come down."
+        },
+        "pragmatist": {
           "required_tags": [
             "climb"
           ],
           "exclude": [
-            "crab",
-            "snake",
-            "bat"
+            "spider",
+            "bat",
+            "monkey",
+            "crab"
           ],
-          "recovers_scraps": 2,
-          "$comment": "TWO ROUTES AT THIS NODE, deliberately -- the design says so. Climbing preserves the town and cutting marks it, so climb is the Artist stance here and there is no Pragmatist. ⚠ `bat` is excluded for a reason the tag layer cannot see: it is a flight-ceiling class, and this route asks the player to reach the bandaritas, which IS the ceiling. Without the exclusion the tag layer offers an answer the restriction handler then punishes -- the game agreeing with the player and then taking it back."
+          "then": {
+            "required_tags": [
+              "cut"
+            ],
+            "exclude": [
+              "elephant"
+            ]
+          },
+          "choice_note": "NEEDS  CLIMB,  then  CUT\nsomething to get you up to the strings, then an edge to cut them down",
+          "persistent_effect": "bandaritas_cut",
+          "$comment": "TWO DRAWINGS, the way Kent asked for it: something to get up to the strings, and something to cut them with. The strings come down, the nests with them, and the flock bolts and lets go of every piece. The climb is something the APO stands on -- the cut needs the apo's hands -- so the climbing creatures are out: `spider` is banned here anyway, `bat` is a flight-ceiling class reaching for the ceiling, and a `monkey` or `crab` up a wall has nothing to cut with. `elephant` cuts by being an elephant and cannot get up there. The cutting edge has to be used within reach of the strings (Level2.CUT_REACH), which from the floor it is not. It lifts THIS alley's ceiling -- the flight cap is read off the line in each scene, and a line that is down caps nothing."
         },
         "protector": {
           "required_tags": [
-            "cut"
+            "strike"
           ],
           "exclude": [
-            "elephant"
+            "anvil",
+            "axe",
+            "sword"
           ],
-          "recovers_scraps": 2,
-          "persistent_effect": "bandaritas_cut",
-          "$comment": "The one player action in this level that permanently changes the town, and worth a beat of reaction. It also LIFTS THE FLIGHT CEILING, which is the trade: climbing keeps the town, cutting buys the sky. The level owes the player one stretch of open air afterwards or the reward never registers."
+          "then": {
+            "answered_by": "every_bird_down"
+          },
+          "requires_reach_px": 330,
+          "choice_note": "NEEDS  STRIKE\nsomething to throw at them — aim it, and let go",
+          "$comment": "THROWN, and aimed: a dotted arc from the hand shows where it will go (StoneThrow2D). The first half is drawing something to throw -- a round shape is recognised as a circle and becomes a stone; a boomerang or a cannon is thrown the same way from the hand. The second half is every bird knocked down, one throw at a time, and it is answered by the last piece coming down rather than by a drawing. A miss costs nothing but the walk: a stone lies where it landed and is picked back up, a boomerang comes back, a cannon keeps its shot. THE EXCLUSIONS ARE ABOUT WHAT LEAVES THE HAND: a blade swings inside UtilityObject.TOOL_REACH and the anvil drops straight down, and StoneThrow2D.THROWN names what can be thrown. `requires_reach_px` is how high above the alley floor the route has to be able to hit -- the strings, where the nests are -- and run_level2_audit measures every answer's real throw against it."
         }
       }
     }

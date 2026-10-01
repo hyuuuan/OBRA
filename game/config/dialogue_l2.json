@@ -188,37 +188,37 @@
     {
       "id": "L2_N2_002",
       "at": "L2_N2.enter",
-      "text": "They are not stealing, apo. They are nesting. The same thing to us, not to them."
+      "text": "They are not stealing, apo. They are nesting — up in the strings, all of them."
     },
     {
       "id": "L2_N2_003",
       "at": "L2_N2.teach",
       "kind": "hint",
-      "text": "Three ways again. Bring them down gently — something that can **feed**."
+      "text": "Three ways again. Bring them down gently — something that can **feed**, set down where they can see it."
     },
     {
       "id": "L2_N2_004",
       "at": "L2_N2.teach",
       "kind": "hint",
-      "text": "Or put them up — something that can **startle**. They scatter, and take her with them."
+      "text": "Or go up after the nests — something that can **climb**, then something that can **cut**. Down come the strings, and they let go."
     },
     {
       "id": "L2_N2_005",
       "at": "L2_N2.teach",
       "kind": "hint",
-      "text": "Or knock them down. Something that can **strike** from here. You will not get all five."
+      "text": "Or knock them out of the air. Something that can **strike**, thrown. They will not come to you."
     },
     {
       "id": "L2_N2_006",
       "at": "L2_N2.choice",
-      "text": "Quickly, apo. They are going higher."
+      "text": "So. How do we get her back?"
     },
     {
       "id": "L2_N2_010",
       "at": "L2_N2.artist.commit",
       "speaker": "apo",
-      "choice_label": "I will call them down.",
-      "text": "I will call them down."
+      "choice_label": "I will feed them.",
+      "text": "I will feed them."
     },
     {
       "id": "L2_N2_011",
@@ -229,53 +229,59 @@
       "id": "L2_N2_015",
       "at": "L2_N2.pragmatist.commit",
       "speaker": "apo",
-      "choice_label": "Up you go, then.",
-      "text": "Up you go, then."
+      "choice_label": "I will cut their nests down.",
+      "text": "I will cut their nests down."
+    },
+    {
+      "id": "L2_N2_017",
+      "at": "L2_N2.pragmatist.climbed",
+      "kind": "hint",
+      "text": "Up you go, then. Cut the strings from up there."
     },
     {
       "id": "L2_N2_016",
       "at": "L2_N2.pragmatist.solved",
-      "text": "Maybe they flew nearby. Come on — nothing is lost in a place this small."
+      "text": "There goes the bunting. They will string it up again. They always do."
     },
     {
       "id": "L2_N2_020",
       "at": "L2_N2.protector.commit",
       "speaker": "apo",
-      "choice_label": "I will bring them down.",
-      "text": "I will bring them down."
+      "choice_label": "I will knock them down.",
+      "text": "I will knock them down."
     },
     {
       "id": "L2_N2_021",
       "at": "L2_N2.protector.solved",
-      "text": "The rest got away. They will not have gone far — they never do."
+      "text": "That is the last of them. Poor things — they were only nesting."
     },
     {
       "id": "L2_N3_001",
       "at": "L2_N3.enter",
-      "text": "Here they are. Tangled in the strings, the whole line, flapping like the wash."
+      "text": "Two more, apo. The last of her."
     },
     {
       "id": "L2_N3_002",
       "at": "L2_N3.enter",
-      "text": "And two more up there that were never in a beak. The wind put those."
+      "text": "Look how late it has got. She would be packing up her brushes by now."
     },
     {
       "id": "L2_N3_003",
       "at": "L2_N3.teach",
       "kind": "hint",
-      "text": "Two ways only, apo. Go up to them — something that can **climb**, set against the wall."
+      "text": "Same three ways. Something that can **feed**, and they come down to it."
     },
     {
       "id": "L2_N3_004",
       "at": "L2_N3.teach",
       "kind": "hint",
-      "text": "Do not go over. The strings are what you are reaching for."
+      "text": "Something that can **climb**, then something that can **cut**, and the strings come down."
     },
     {
       "id": "L2_N3_005",
       "at": "L2_N3.teach",
       "kind": "hint",
-      "text": "Or bring the line down. Something that can **cut**. The town wakes to bare poles."
+      "text": "Or something that can **strike**, and a good arm."
     },
     {
       "id": "L2_N3_006",
@@ -286,8 +292,8 @@
       "id": "L2_N3_010",
       "at": "L2_N3.artist.commit",
       "speaker": "apo",
-      "choice_label": "I will go up to them.",
-      "text": "I will go up to them."
+      "choice_label": "I will feed these two as well.",
+      "text": "I will feed these two as well."
     },
     {
       "id": "L2_N3_011",
@@ -295,21 +301,39 @@
       "text": "Slow, and everything still standing. She would have done it that way and complained."
     },
     {
+      "id": "L2_N3_015",
+      "at": "L2_N3.pragmatist.commit",
+      "speaker": "apo",
+      "choice_label": "I will bring these strings down too.",
+      "text": "I will bring these strings down too."
+    },
+    {
+      "id": "L2_N3_017",
+      "at": "L2_N3.pragmatist.climbed",
+      "kind": "hint",
+      "text": "Up again. Mind the flags on the way."
+    },
+    {
+      "id": "L2_N3_016",
+      "at": "L2_N3.pragmatist.solved",
+      "text": "They put those up at first light, apo. All of them, together. It took the morning."
+    },
+    {
+      "id": "L2_N3_018",
+      "at": "L2_N3.pragmatist.solved",
+      "text": "Well. The sky is open now, at least. Nothing left to be in anyone's way."
+    },
+    {
       "id": "L2_N3_020",
       "at": "L2_N3.protector.commit",
       "speaker": "apo",
-      "choice_label": "I will bring the line down.",
-      "text": "I will bring the line down."
+      "choice_label": "I will knock these two down.",
+      "text": "I will knock these two down."
     },
     {
       "id": "L2_N3_021",
       "at": "L2_N3.protector.solved",
-      "text": "They put those up at first light, apo. All of them, together. It took the morning."
-    },
-    {
-      "id": "L2_N3_022",
-      "at": "L2_N3.protector.solved",
-      "text": "Well. The way up is open now, at least. Nothing left to be in anyone's way."
+      "text": "There. Every piece of her. The table is through there, apo — come."
     },
     {
       "id": "L2_SC3_001",
