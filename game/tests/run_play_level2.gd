@@ -12,15 +12,17 @@ extends SceneTree
 ## plays the dance on the beat and drags the painting together -- and fails the moment the
 ## objective stops changing for longer than a player would stand still.
 ##
-## Three runs, so every route at every beat is walked by one of them.
+## Three runs, so every route at every beat is walked by one of them: each alley is fed, cut
+## down and thrown at across the three, and thrown at once with a stone and once with a
+## boomerang.
 
 const PLANS := [
-	{"name": "house, bread, ladder",
-		"L2_N1": "pragmatist", "L2_N2": "bread", "L2_N3": "ladder"},
-	{"name": "scare, boomerang, axe",
-		"L2_N1": "protector", "L2_N2": "boomerang", "L2_N3": "axe"},
-	{"name": "dance, snake, ladder",
-		"L2_N1": "artist", "L2_N2": "snake", "L2_N3": "ladder"},
+	{"name": "house, feed, cut",
+		"L2_N1": "pragmatist", "L2_N2": "artist", "L2_N3": "pragmatist"},
+	{"name": "scare, stones, feed",
+		"L2_N1": "protector", "L2_N2": "protector", "L2_N3": "artist", "throw": "circle"},
+	{"name": "dance, cut, boomerang",
+		"L2_N1": "artist", "L2_N2": "pragmatist", "L2_N3": "protector", "throw": "boomerang"},
 ]
 ## How long one objective may stand unchanged before the run counts as stuck, in physics
 ## frames. Twenty-five seconds: the priest's walk and the dance are the longest waits.
@@ -128,12 +130,15 @@ func _handle_screens(plan: Dictionary) -> bool:
 		# ⚠ ASKED BY WALKING, and nothing else here can open it. The DialogueNode was left at
 		# y 440 when the plaza's walk line moved to 560, so its box ended over the apo's head
 		# and Problem 1 -- the first beat, which opens only on this choice -- never began.
-		if not _asked.has(plan["name"]):
-			_asked[plan["name"]] = true
-			_check(true, "%s: walking to the dancers opens the choice" % plan["name"],
+		# Three forks now: the plaza's, and one at the way into each alley.
+		var asking := String(level.call("_dialogue_node_obstacle_id"))
+		var asked_key := "%s/%s" % [plan["name"], asking]
+		if not _asked.has(asked_key):
+			_asked[asked_key] = true
+			_check(true, "%s: %s asks how" % [plan["name"], asking],
 				"asked at x %d" % int(player.global_position.x))
 		await _frames(20)
-		choice.call("_on_route_pressed", String(plan["L2_N1"]))
+		choice.call("_on_route_pressed", String(plan[asking]))
 		await _frames(10)
 		return true
 	var dance := level.get("dance_screen") as DanceOverlay
@@ -178,24 +183,212 @@ func _act(plan: Dictionary, goal: Dictionary, key: String, done: Dictionary) -> 
 			if await _walk_toward(target):
 				level.call("press_interact")
 				await _frames(20)
-		"flock_strike":
-			# The route the bot is proving is that nothing is lost by walking on, so it walks on.
-			await _walk_toward(_onward_of("alley_1"), 4.0)
-		"take_light", "to_alleys", "alley_on", "alley_end":
+		"take_light", "to_alleys":
 			await _walk_toward(target, 4.0)
+		"alley_on", "alley_end":
+			# The ladder the strings were cut from may be standing between the apo and the way
+			# on: taken back, the way the hint and the PICK UP prompt over it say.
+			if not await _take_back_what_is_in_the_way(target):
+				await _walk_toward(target, 4.0)
 		"priest":
 			_release()
 			await physics_frame
 		"flock":
-			if await _walk_toward(target) and not done.has("flock"):
-				done["flock"] = true
-				await _draw(String(plan["L2_N2"]))
-		"bunting":
-			if await _walk_toward(target) and not done.has("bunting"):
-				done["bunting"] = true
-				await _draw(String(plan["L2_N3"]))
+			# The alley asks at the way in; this is only ever seen for the frame before it does.
+			await _walk_toward(target)
+		"flock_feed":
+			# Set down in front, where the flock can see it -- not on the way back out.
+			if not done.has(_beat("feed")):
+				done[_beat("feed")] = true
+				await _draw("bread", true, player.global_position + Vector2(160.0, -30.0))
+			else:
+				await physics_frame
+		"flock_climb":
+			# Under the strings, the way the line says: walked to, and set down in front.
+			if await _walk_toward(target, 30.0) and not done.has(_beat("climb")):
+				done[_beat("climb")] = true
+				await _draw("ladder", true, player.global_position + Vector2(90.0, -60.0))
+			else:
+				await physics_frame
+		"flock_cut":
+			await _climb_and_cut(done)
+		"flock_stone":
+			if not done.has(_beat("throwable")):
+				done[_beat("throwable")] = true
+				await _draw(String(plan.get("throw", "circle")), false)
+			else:
+				await physics_frame
+		"flock_hold":
+			await _take_out_the_throwable()
+		"flock_aim":
+			await _throw_at_the_flock()
+		"flock_fetch", "flock_collect":
+			# The stone where it landed, or the nearest piece: walked over, and picked up. A
+			# drawing standing in the way -- the ladder the strings were cut from -- is taken back
+			# first, the way the PICK UP prompt over it offers.
+			if not await _take_back_what_is_in_the_way(target):
+				await _walk_toward(target, 10.0)
 		_:
 			await physics_frame
+
+
+## The alley the player is standing in, as the level holds it, and its beat.
+func _alley_here():
+	var room := level.call("_room_holding_player") as Node2D
+	for alley in (level.get("_alleys") as Dictionary).values():
+		if alley.get("room") == room:
+			return alley
+	return null
+
+
+func _beat(what: String) -> String:
+	var alley = _alley_here()
+	return "%s/%s" % [alley.get("obstacle_id") if alley != null else "?", what]
+
+
+## THE SECOND HALF OF THE CUT ROUTE, the way a player does it: something to cut with in hand,
+## walk to the ladder, stand on it and hold up, and use the edge once it can reach the strings.
+func _climb_and_cut(done: Dictionary) -> void:
+	var alley = _alley_here()
+	if alley == null:
+		await physics_frame
+		return
+	if not done.has(_beat("edge")):
+		done[_beat("edge")] = true
+		await _draw("scissors", false)
+		return
+	var ladder := _placed("ladder")
+	if ladder == null:
+		await physics_frame
+		return
+	# A player climbs when the CLIMB prompt comes up: close enough is whatever the ladder says
+	# is close enough (UtilityObject.climb_reaches), and a ladder is solid until it is climbed,
+	# so its middle is not somewhere anybody can stand.
+	if level.call("_nearest_climbable") != ladder:
+		await _walk_toward(ladder.global_position, 40.0)
+		return
+	_release()
+	var line := alley.get("line") as BandaritaLine2D
+	var cut_reach := float((level.get_script() as Script).get_script_constant_map()["CUT_REACH"])
+	Input.action_press(&"move_up")
+	for _frame in range(300):
+		var held := level.get("_equipped_utility") as UtilityObject
+		if held != null and line.reach_distance(held.global_position) <= cut_reach:
+			break
+		await physics_frame
+	level.call("_use_equipped_utility")
+	Input.action_release(&"move_up")
+	await _frames(30)
+	# Down off the ladder again, to where the pieces fall.
+	if player.has_method("end_ladder"):
+		player.call("end_ladder")
+	await _frames(60)
+
+
+func _take_out_the_throwable() -> void:
+	var items: Array = level.get("inventory_manager").call("items")
+	for index in range(items.size()):
+		var item := items[index] as DrawnItemData
+		if item != null and item.entity_id in ["boomerang", "cannon"]:
+			level.call("_on_inventory_slot_pressed", index)
+			break
+	await _frames(10)
+
+
+## THE THROWING ROUTE: walk under a bird sitting on its nest, aim along the arc, and let go. The
+## aim is found the way a player finds it, by trying the directions and strengths the pointer
+## can give until the dotted arc runs through the bird.
+func _throw_at_the_flock() -> void:
+	var alley = _alley_here()
+	if alley == null:
+		await physics_frame
+		return
+	var thrower := alley.get("thrower") as StoneThrow2D
+	thrower.follow_mouse = false
+	var target: ScrapBird2D = null
+	for bird: ScrapBird2D in alley.get("birds"):
+		if bird.is_perched():
+			target = bird
+			break
+	if target == null:
+		_release()
+		await _frames(6)
+		return
+	# Under it, and never in a doorway: walking into one walks the apo out of the alley.
+	var room := alley.get("room") as Node2D
+	var stand := clampf(target.global_position.x - 90.0, room.global_position.x - 300.0,
+		room.global_position.x + 300.0)
+	if not await _walk_toward(Vector2(stand, 0.0), 14.0):
+		return
+	if not target.is_perched() or not thrower.ready_to_throw():
+		await _frames(4)
+		return
+	var aim := _aim_for(thrower, target.global_position)
+	if not aim.is_finite():
+		await _frames(10)
+		return
+	thrower.aim_at(aim)
+	level.call("_use_equipped_utility")
+	for _frame in range(360):
+		if not thrower.in_flight():
+			break
+		await physics_frame
+
+
+func _aim_for(thrower: StoneThrow2D, target: Vector2) -> Vector2:
+	var hand: Vector2 = level.call("_throwing_hand")
+	var best := Vector2.INF
+	var best_miss := INF
+	for step in range(0, 120):
+		var angle := deg_to_rad(-178.0 + step * (176.0 / 120.0))
+		for pull in range(4, 40):
+			var point := hand + Vector2.from_angle(angle) * (pull * 10.0)
+			var miss := INF
+			for at in thrower.trajectory(thrower.velocity_for(point), 2.0):
+				miss = minf(miss, at.distance_to(target))
+			if miss < best_miss:
+				best_miss = miss
+				best = point
+	return best if best_miss < 12.0 else Vector2.INF
+
+
+## E at a drawing standing between the apo and `target`, if the apo is close enough to take it
+## back. True when it did.
+func _take_back_what_is_in_the_way(target: Variant) -> bool:
+	var blocking := _placed_between(target)
+	if blocking == null or level.call("_nearest_interactable_utility") != blocking:
+		return false
+	_release()
+	level.call("press_interact")
+	await _frames(10)
+	return true
+
+
+## A drawing set down between the apo and `target`, in the room they are standing in.
+func _placed_between(target: Variant) -> Node2D:
+	if not (target is Vector2):
+		return null
+	var from := player.global_position.x
+	var to := (target as Vector2).x
+	for item in (level.get("world_item_root") as Node).get_children():
+		var drawn := item as PhysicsShapeObject
+		if drawn == null or absf(drawn.global_position.y - player.global_position.y) > 300.0:
+			continue
+		var extent := drawn.world_extent()
+		if extent.end.x > minf(from, to) and extent.position.x < maxf(from, to):
+			return drawn
+	return null
+
+
+## The newest drawing of `entity_id` set down: both alleys are at the same x, so an older one
+## may well be in the other alley.
+func _placed(entity_id: String) -> Node2D:
+	var newest: Node2D = null
+	for item in (level.get("world_item_root") as Node).get_children():
+		var drawn := item as PhysicsShapeObject
+		if drawn != null and drawn.item_data != null and drawn.item_data.entity_id == entity_id:
+			newest = drawn
+	return newest
 
 
 ## Walk toward a target with the movement keys, jumping when a step does not move the body.
@@ -225,8 +418,10 @@ func _walk_toward(target: Variant, close_enough: float = 22.0) -> bool:
 
 
 ## A drawing, recognised: handed to the level through the panel's own signal handler, then set
-## down through the placement controller if it is a thing that is set down.
-func _draw(entity_id: String) -> void:
+## down through the placement controller if it is a thing that is set down. `use` false leaves a
+## tool in the hand for whatever the beat does with it next -- a throw, or a cut from up a ladder.
+## `at` is where to set it down; without one it goes behind, the old way (see below).
+func _draw(entity_id: String, use: bool = true, at: Variant = null) -> void:
 	_release()
 	level.call("_on_drawing_ready", entity_id, entity_id.capitalize(),
 		Image.create(28, 28, false, Image.FORMAT_RGBA8), {"confidence": 0.9}, [], 1.0)
@@ -240,6 +435,8 @@ func _draw(entity_id: String) -> void:
 	# answer. Pressed a few times, because a lock that measures the key can turn partway first.
 	if String(entry.get("ink_role", "")) == "tool":
 		await _frames(10)
+		if not use:
+			return
 		var director: Object = level.get("director")
 		var beat := String(director.call("current_obstacle"))
 		for _press in range(4):
@@ -261,8 +458,9 @@ func _draw(entity_id: String) -> void:
 			placement.set_process(false)
 			# BEHIND, the way a player sets something down that is not a step: every target in
 			# this level is further on, and a ladder stood in the way is a wall until it is
-			# climbed or taken back.
-			placement.call("update_target", player.global_position + Vector2(-110.0, -30.0))
+			# climbed or taken back. Unless the beat says where.
+			placement.call("update_target", at if at is Vector2
+				else player.global_position + Vector2(-110.0, -30.0))
 			await _frames(4)
 			if not bool(placement.call("confirm_placement")):
 				placement.call("update_target", player.global_position + Vector2(110.0, -30.0))
