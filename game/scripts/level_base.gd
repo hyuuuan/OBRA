@@ -2375,8 +2375,10 @@ func _use_equipped_utility() -> void:
 			spend_tool(item.entity_id)
 			status_label.text = "%s -- used, and gone" % item.display_name
 			if hint_bar != null:
-				hint_bar.show_hint("The %s is used up." % item.display_name.to_lower(),
-					Lolo.SPEAKER, 2.6)
+				# "The scissors is used up" -- the one plural in the roster's tools.
+				var noun := item.display_name.to_lower()
+				hint_bar.show_hint("The %s %s used up." % [noun, "are" if noun.ends_with("s")
+					else "is"], Lolo.SPEAKER, 2.6)
 		else:
 			_equipped_utility.describe_use(player)
 			status_label.text = "%s -- keep using it" % item.display_name
