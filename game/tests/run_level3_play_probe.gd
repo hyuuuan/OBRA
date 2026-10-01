@@ -203,6 +203,17 @@ func _dive(director) -> void:
 	Input.action_release(&"move_down")
 	_check(_anchor_x() > start_x + 300.0, "and the swimmer can actually swim away (dive)",
 		"from %.0f to %.0f" % [start_x, _anchor_x()])
+	# ⚠ AND BACK OUT AGAIN. Kent: "i cant swim back at the sand" -- a swimmer pushing at the
+	# home shore's face stopped there for good. Swum back at the top of the water, holding toward
+	# the sand, it comes out: a shape that cannot walk on land is changed back on the sand.
+	Input.action_press(&"move_up")
+	await _walk_to_x(940.0)
+	Input.action_release(&"move_up")
+	await _wait(0.4)
+	_check(level.get("player") is Wanderer and _anchor_x() < 1000.0 and _anchor_y() < 570.0,
+		"and swum back to the home shore, it comes out onto the sand (dive)",
+		"%s at (%.0f, %.0f); the sand ends at 1000, its top at 560" % [
+			level.get("player").get_class(), _anchor_x(), _anchor_y()])
 
 
 func _objective_key() -> String:

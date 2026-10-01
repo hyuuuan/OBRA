@@ -1022,6 +1022,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
 	_tell_the_crossing(anchor_position)
+	_climb_out_at_home(anchor_position)
 
 	if underwater and not _said_underwater:
 		_said_underwater = true
@@ -1065,6 +1066,55 @@ func _level_physics(anchor_position: Vector2) -> void:
 		# The medium rule, asked once per frame the way the ceiling is. It owns its own
 		# clock, so a creature that leaves the water gets its whole beat back next time.
 		_restrictions.check_medium(_current_form_id, underwater, delta)
+
+
+## ⚠ BACK ONTO THE HOME SAND, FROM THE WATER. Kent: "i cant swim back at the sand". The home
+## shore's seaward edge is a sheer face with the sand a body's height above the water, and a
+## swimmer pushing at it stopped there for good -- recorded at x 1023, the surface, holding left
+## and up, going nowhere. The island has its own way out (_come_ashore, at the arrival); home had
+## none. So a swimmer at the top of the water by the home shore, pushing toward the sand, is
+## lifted onto it: a shape that can walk on land stays itself, and one that cannot (a pure
+## swimmer, which flops) is changed back -- free, as Q is -- with the apo stood on the sand.
+const ASHORE_REACH := 70.0
+var _land_walkers: Dictionary = {}
+
+
+func _climb_out_at_home(anchor_position: Vector2) -> void:
+	if _current_form_id.is_empty() or not Input.is_action_pressed(&"move_left"):
+		return
+	if player == null or not is_instance_valid(player) or not player.has_method("apply_morph_state"):
+		return
+	var edges := level_data_shore_edges()
+	if edges == Vector2.ZERO:
+		return
+	if anchor_position.x > edges.x + ASHORE_REACH or anchor_position.x < edges.x - 20.0:
+		return
+	# The top of the water only: down the face, the way out is up first.
+	if anchor_position.y > _waterline_y + 90.0 or anchor_position.y < _waterline_y - 20.0:
+		return
+	var sand := _mark("BrushMark")
+	var ground_y := sand.global_position.y if sand != null else _waterline_y
+	var onto := Vector2(edges.x - 70.0, ground_y)
+	if _walks_on_land(_current_form_id):
+		player.call("apply_morph_state", {"position": onto + Vector2(0.0, -30.0),
+			"linear_velocity": Vector2.ZERO})
+		return
+	_revert_to_base_form()
+	if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
+		player.call("apply_morph_state", {"position": onto + Vector2(0.0, -2.0),
+			"linear_velocity": Vector2.ZERO})
+	_say_why("Up you come, apo. That one cannot walk on sand.")
+
+
+## Whether a class can walk once it is out of the water: everything but a swimmer's rig. Read
+## off the rig profiles, the same files run_level3_audit reads, and remembered.
+func _walks_on_land(entity_id: String) -> bool:
+	if not _land_walkers.has(entity_id):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(
+			"res://config/rigs/%s.json" % entity_id))
+		var rig: Dictionary = parsed as Dictionary if parsed is Dictionary else {}
+		_land_walkers[entity_id] = String(rig.get("rig_type", "walker")) != "swimmer"
+	return bool(_land_walkers[entity_id])
 
 
 ## The encounter's own frame, split out because it is the only part of this level with two
