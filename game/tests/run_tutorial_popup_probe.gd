@@ -291,10 +291,19 @@ func _audit_the_bar_clears_the_letterbox() -> void:
 		"a hint during the letterbox sits below the top bar",
 		"panel top %d, bar bottom %d" % [int(panel.global_position.y), int(depth)])
 	bars.open()
-	await _wait(0.6)
-	_check(is_equal_approx(panel.global_position.y, HintBar.TOP),
-		"and goes back under the badge when the bars leave",
-		"panel top %d" % int(panel.global_position.y))
+	await _wait(1.2)
+	# OVER THE APO, NOT UNDER THE BADGE. Kent: the top "cant be seen knowing that the player is
+	# focused at the center". With the bars gone it stands where she is: centred on her, its
+	# lower edge over her head -- or under her feet where her head is too near the top.
+	var feet := level.get_viewport().get_canvas_transform() * (level.get("player") as Node2D).global_position
+	var bottom := panel.global_position.y + panel.size.y
+	var over := absf(bottom - (feet.y - HintBar.OVER_THE_HEAD)) <= 3.0
+	var under := absf(panel.global_position.y - (feet.y + HintBar.UNDER_THE_FEET)) <= 3.0
+	var beside := absf(panel.global_position.x + panel.size.x * 0.5 - feet.x) <= 3.0 \
+		or panel.global_position.x <= HintBar.EDGE + 1.0
+	_check((over or under) and beside and panel.global_position.y > HintBar.TOP + 1.0,
+		"and stands over the apo when the bars leave, not at the top",
+		"panel at %s, the apo's feet at %s" % [panel.global_position.round(), feet.round()])
 
 
 ## ⚠ A CALLOUT NEVER COVERS THE THING IT POINTS AT. Pointed at a card in the top corner of the
