@@ -50,6 +50,9 @@ func _run() -> void:
 			figures[cell].set("stride", (float(cell) + 0.01) / float(CELLS))
 			figures[cell].call("refresh")
 		await RenderingServer.frame_post_draw
+		if not await _check_dry_palette(figures):
+			quit(1)
+			return
 		var shot := root.get_texture().get_image()
 		# ⚠ THE CROP IS IN WINDOW PIXELS, NOT IN THE UNITS THE FIGURES WERE PLACED IN.
 		# `set_content_scale_size` says what a unit means; it does not resize the window,
@@ -66,3 +69,23 @@ func _run() -> void:
 		shot.save_png("/tmp/obra_walk_%s.png" % pose)
 	print("OBRA_VISUAL_WALK_DONE")
 	quit()
+
+
+## A dry water-lighting material must be visually identical to unshaded source art.
+## This catches multiplying TEXTURE twice, which headless material-state checks cannot.
+func _check_dry_palette(figures: Array[Node2D]) -> bool:
+	var shaded := root.get_texture().get_image().get_data()
+	var materials: Array[Material] = []
+	for figure in figures:
+		var sprite := figure.get_node("Body") as Sprite2D
+		materials.append(sprite.material)
+		sprite.material = null
+	await RenderingServer.frame_post_draw
+	var original := root.get_texture().get_image().get_data()
+	for index in range(figures.size()):
+		(figures[index].get_node("Body") as Sprite2D).material = materials[index]
+	await RenderingServer.frame_post_draw
+	if shaded != original:
+		push_error("Dry character material changes the supplied art's palette or alpha")
+		return false
+	return true

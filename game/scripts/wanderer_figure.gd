@@ -6,25 +6,23 @@ extends Node2D
 ## Nothing outside it changed shape: the node is still `Figure`, it is still scaled by
 ## `scale.x` to face, and it is still told a stride phase every physics frame.
 ##
-## THE FRAMES COME OUT OF `tools/build_art.py`, not out of a folder somebody sliced by
-## hand. The delivered sheet is a presentation page -- panels, labels, a palette, a flat
-## dark background and no alpha anywhere -- so every pose has to be found, keyed and
-## aligned before it is a sprite. That script does it and can be re-run when the sheet is
-## redelivered; read its header for how the keying and the anchoring work.
-##
-## EVERY STRIP SHARES ONE CELL SIZE AND ONE ANCHOR. That is the whole reason the poses can
-## be swapped by changing a texture: the feet sit on the same row and the head sits on the
-## same column in all twenty-three of them, so switching from walking to standing still
-## moves nothing. If a future strip is built to a different cell, this breaks silently and
-## looks like the character twitching.
+## The walk/run atlas replaces the old procedural leg patches. Its source sheets and
+## preparation notes live in assets/characters/apo/source/. Other poses still come from
+## tools/build_art.py. Each atlas frame has a measured anchor so differing sheet spacing
+## never makes the body lurch sideways; flight frames keep their clearance above ground.
 
 ## Frame size and the row the feet stand on, both fixed by the generator.
 const CELL := Vector2(80.0, 106.0)
 const FOOT_ROW := 105.0
 
 const IDLE := preload("res://assets/characters/apo/apo_idle.png")
-const WALK := preload("res://assets/characters/apo/apo_walk.png")
-const RUN := preload("res://assets/characters/apo/apo_run.png")
+const LOCOMOTION := preload("res://assets/characters/apo/apo_locomotion.png")
+## One scale for both rows: the walk is 96px tall and the run crouches naturally.
+const LOCOMOTION_SCALE := 0.28
+const ATLAS_COLUMNS := [0, 362, 724, 1086, 1447, 1809, 2171]
+const WALK_ANCHORS := [216.0, 211.5, 192.0, 192.5, 168.0, 153.5]
+const RUN_ANCHORS := [223.0, 198.5, 193.5, 195.5, 198.5, 206.0]
+const WALK_GROUND := [377.0, 374.0, 374.0, 377.0, 377.0, 374.0]
 const JUMP := preload("res://assets/characters/apo/apo_jump.png")
 const LOOK_UP := preload("res://assets/characters/apo/apo_look_up.png")
 const LOOK_DOWN := preload("res://assets/characters/apo/apo_look_down.png")
@@ -41,20 +39,8 @@ const UNDERWATER_SHADER := preload("res://shaders/underwater_character.gdshader"
 ## facing away from you, and the walk cycle seen from the side reads as walking on air.
 const POSES := {
 	&"idle": {"texture": IDLE, "count": 1, "cycle": false, "frame": 0},
-	# THE WALK IS BUILT, NOT CUT. The delivered walk sheet is six near-identical striding
-	# poses -- the gap between the feet stays between 53 and 56 pixels across all of them, so
-	# the legs never pass each other, and the leg mass either side of the body axis is the
-	# same in every one. For a while this pose drew the RUN sheet instead, on the grounds
-	# that a hurrying child beats a gliding one; that sheet turns out to plant the same foot
-	# at the same place in all six of its frames, so what it actually looked like was a boy
-	# hopping.
-	#
-	# tools/build_art.py now makes a real cycle out of the one stride the sheet does have,
-	# by moving the legs below the knee and leaving every pixel above it alone. Contact,
-	# closing, pass, and the same three with the feet exchanged. The feet alternate: the
-	# planted foot at the pass is at x=47 in one half of the cycle and x=31 in the other.
-	&"walk": {"texture": WALK, "count": 6, "cycle": true, "frame": 0},
-	&"run": {"texture": RUN, "count": 6, "cycle": true, "frame": 0},
+	&"walk": {"texture": LOCOMOTION, "count": 6, "cycle": true, "frame": 0},
+	&"run": {"texture": LOCOMOTION, "count": 6, "cycle": true, "frame": 0},
 	&"air": {"texture": JUMP, "count": 1, "cycle": false, "frame": 0},
 	&"look_up": {"texture": LOOK_UP, "count": 1, "cycle": false, "frame": 0},
 	&"look_down": {"texture": LOOK_DOWN, "count": 1, "cycle": false, "frame": 0},
@@ -133,45 +119,31 @@ func refresh() -> void:
 	var entry: Dictionary = POSES.get(pose, POSES[&"idle"])
 	var texture: Texture2D = entry["texture"]
 	var count: int = int(entry["count"])
-	if _sprite.texture != texture:
-		_sprite.texture = texture
-		_sprite.hframes = count
 	var frame := int(entry["frame"])
 	if bool(entry["cycle"]):
 		# posmod, not %, because the phase is a float that can go negative on a rewind and
 		# a negative frame index leaves the sprite showing nothing at all.
 		frame = posmod(int(floor(stride * float(count))), count)
-	_sprite.frame = frame
-	_sprite.position.y = _bob(bool(entry["cycle"]))
-
-
-## The rise and fall of a body over its own legs.
-##
-## NEITHER SHEET HAS ONE. The head sits within a pixel of the same row in all six frames of
-## both cycles, and a figure that travels without rising and falling is the definition of a
-## glide -- it is the single thing most responsible for the character reading as though he
-## were on rails rather than on feet.
-##
-## TWICE THE STRIDE FREQUENCY, because there are two footfalls in a stride and the body
-## comes up over each of them. The same reason gait_driver.gd runs its bob at double the
-## limb rate for the drawn creatures, and it is why a bob at the stride rate reads as a limp.
-##
-## Two pixels for the walk, and rounded to whole ones. It has to be small there: a walk
-## always has a foot down, so lifting the whole figure lifts that foot off the floor with
-## it, and past about two pixels that is what the eye notices instead of the gait.
-##
-## FIVE FOR THE RUN, because a run is the gait that LEAVES THE GROUND. Both feet are off it
-## for part of every stride, which is the thing that separates running from walking quickly
-## and the thing the delivered run sheet has none of -- its head sits within a pixel of the
-## same row in all six frames. At two pixels the run was a walk played fast; at five the
-## boy bounds.
-const BOB_PIXELS := {
-	&"walk": 2.0,
-	&"run": 5.0,
-}
-
-
-func _bob(cycling: bool) -> float:
-	if not cycling:
-		return 0.0
-	return -roundf(absf(sin(TAU * stride)) * float(BOB_PIXELS.get(pose, 2.0)))
+	# Clear the previous strip's frame before changing its divisions (climb has five).
+	_sprite.frame = 0
+	_sprite.hframes = 1
+	_sprite.texture = texture
+	_sprite.region_enabled = bool(entry["cycle"])
+	_sprite.position = Vector2.ZERO
+	if bool(entry["cycle"]):
+		var running := pose == &"run"
+		var top := 382.0 if running else 0.0
+		var height := 342.0 if running else 382.0
+		_sprite.region_rect = Rect2(float(ATLAS_COLUMNS[frame]), top,
+			float(ATLAS_COLUMNS[frame + 1] - ATLAS_COLUMNS[frame]), height)
+		_sprite.region_filter_clip_enabled = true
+		_sprite.scale = Vector2.ONE * LOCOMOTION_SCALE
+		var anchor: float = RUN_ANCHORS[frame] if running else WALK_ANCHORS[frame]
+		# Run contact baseline is 707 in the sheet. Do not ground the lifted flight feet.
+		var ground: float = 325.0 if running else WALK_GROUND[frame]
+		_sprite.offset = Vector2(-anchor, -ground)
+	else:
+		_sprite.scale = Vector2.ONE
+		_sprite.offset = Vector2(-CELL.x * 0.5, -FOOT_ROW)
+		_sprite.hframes = count
+		_sprite.frame = frame

@@ -2,9 +2,7 @@ class_name Wanderer
 extends CharacterBody2D
 ## The player character: who the journey belongs to, and what a drawn animal replaces.
 ##
-## DELIBERATELY A PLACEHOLDER. It is drawn in code from a handful of primitives rather
-## than from art, so it can be thrown away whole when the real design lands without
-## anything else having to change. What is NOT placeholder is the interface: the level
+## The shared character controller used by every level. WandererFigure owns the art; the level
 ## talks to whoever is the player through get_physics_anchor / get_camera_target /
 ## capture_morph_state / set_world_bounds, and a drawn creature answers exactly the
 ## same calls. That is what lets the two swap.
@@ -34,8 +32,10 @@ const JUMP_BUFFER_TIME := 0.12
 ## hold is a full jump. It can only ever make the jump shorter.
 const JUMP_CUT := 0.45
 
-## How fast the walk cycle plays, in cycles per second at full speed.
-const STRIDE_HZ := 2.2
+## World distance per complete left/right stride. Playback follows movement speed;
+## walking takes shorter steps and running takes longer ones.
+const WALK_STRIDE := 76.0
+const RUN_STRIDE := 118.0
 ## Above this share of SPEED the character is running rather than walking. Placed so the
 ## acceleration ramp is visible -- set it near 1.0 and the walk cycle never plays, set it
 ## near 0 and the run cycle is the only one anybody sees.
@@ -252,10 +252,16 @@ func _physics_process(delta: float) -> void:
 ## The stride advances with actual speed, so it cannot look like it is running on the
 ## spot while sliding to a stop -- or while sitting still on a boat.
 func _advance_stride(delta: float, horizontal_speed: float) -> void:
-	var moving := absf(horizontal_speed) > 12.0
-	_phase += delta * STRIDE_HZ * (absf(horizontal_speed) / SPEED if moving else 0.0)
+	var next_pose := _pose_for(horizontal_speed)
+	if next_pose == &"walk" or next_pose == &"run":
+		var previous_pose: StringName = _figure.get(&"pose")
+		if previous_pose != &"walk" and previous_pose != &"run":
+			_phase = 0.0
+		else:
+			var stride_distance := RUN_STRIDE if next_pose == &"run" else WALK_STRIDE
+			_phase = fposmod(_phase + delta * absf(horizontal_speed) / stride_distance, 1.0)
 	_figure.scale.x = _facing
-	_figure.set(&"pose", _pose_for(horizontal_speed))
+	_figure.set(&"pose", next_pose)
 	_figure.set(&"stride", _phase)
 	_figure.set(&"carrying", _carrying)
 	_figure.call(&"refresh")

@@ -20,7 +20,9 @@ void vertex() {
 
 
 void fragment() {
-	vec4 source = texture(TEXTURE, UV) * COLOR;
+	// CanvasItem fragment COLOR already includes TEXTURE. Sampling it a second time
+	// squared the sprite's palette and alpha, even when the character was on dry land.
+	vec4 source = COLOR;
 	float water_depth = max(bottom_y - surface_y, 1.0);
 	float depth = clamp((world_position.y - surface_y) / water_depth, 0.0, 1.0);
 	// A narrow feather avoids a one-pixel on/off seam as the character crosses the
