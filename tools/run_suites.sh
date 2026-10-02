@@ -49,13 +49,22 @@ if [ "${1:-}" = "quick" ]; then
 fi
 
 failed=()
+# ⚠ A --script file that fails to parse prints "SCRIPT ERROR: Parse Error: ..." and Godot
+# still exits 0 -- nothing ran, and the exit code alone called it ok (run_level3_trouble_probe,
+# 2026-10-02). Each run's output is caught on its own so it can be read before it joins $LOG.
+RUN_OUT=$(mktemp -t obra_suite)
+trap 'rm -f "$RUN_OUT"' EXIT
 run_one () {  # name, extra godot args
   local name=$1; shift
   print "########## $name" >> "$LOG"
-  godot "$@" --path game --script "res://tests/$name.gd" >> "$LOG" 2>&1
+  godot "$@" --path game --script "res://tests/$name.gd" > "$RUN_OUT" 2>&1
   local code=$?
+  cat "$RUN_OUT" >> "$LOG"
+  local script_error=0
+  grep -qF -e 'SCRIPT ERROR' -e 'Parse Error' "$RUN_OUT" && script_error=1
   print "[exit $code]" >> "$LOG"
-  if [ $code -ne 0 ]; then failed+=("$name"); print "  FAILED  $name"; else print "  ok      $name"; fi
+  [ $script_error -eq 1 ] && print "[script error in output -- counted as FAILED]" >> "$LOG"
+  if [ $code -ne 0 ] || [ $script_error -eq 1 ]; then failed+=("$name"); print "  FAILED  $name"; else print "  ok      $name"; fi
 }
 
 for s in $HEADLESS; do run_one "$s" --headless; done
