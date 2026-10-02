@@ -3647,7 +3647,7 @@ func _complete_level() -> void:
 	_level_completed = true
 	var level_id := LevelManager.current_level_id
 	Telemetry.end_level(level_id, "completed")
-	PlayerProfile.mark_level_completed(level_id)
+	mark_finished(level_id)
 	status_label.text = "Level complete!"
 	# STAGED BEFORE THE PANEL. The level used to end by putting a screen over an unchanged
 	# view -- the last thing the player did and the acknowledgement of it happened at the same
@@ -3664,6 +3664,16 @@ func _complete_level() -> void:
 	complete_overlay.call("present", run_stats())
 	if cinematic != null:
 		cinematic.open()
+
+
+## The level is finished -- and if that is what opens the next one, the house is told to open
+## it in front of the player (LevelManager.pending_reveal, Painting2D.reveal).
+func mark_finished(level_id: String) -> void:
+	var next := LevelManager.next_level_id(level_id)
+	var was_open := next.is_empty() or LevelManager.is_unlocked(next)
+	PlayerProfile.mark_level_completed(level_id)
+	if not was_open and LevelManager.is_unlocked(next) and LevelManager.is_playable(next):
+		LevelManager.pending_reveal = next
 
 
 ## Whether the run ends with this level, or the level select comes next. The branch

@@ -624,7 +624,7 @@ func _on_onward_reached() -> void:
 		"level_id": level_id, "through": "canvas_doorway", "onward": onward,
 	})
 	Telemetry.end_level(level_id, "completed")
-	PlayerProfile.mark_level_completed(level_id)
+	mark_finished(level_id)
 	status_label.text = "Level complete!"
 	# The bars come in on the room she is standing in, the same beat the completion screen
 	# is staged into -- so going straight on is still an ending rather than a scene cut.
@@ -643,7 +643,8 @@ func _on_onward_reached() -> void:
 func _grant_the_canvas() -> void:
 	note_pickup_taken("canvas_2_pista")
 	PlayerProfile.record_object_acquired("canvas_2_pista")
-	PlayerProfile.mark_level_completed(LevelManager.current_level_id)
+	mark_finished(LevelManager.current_level_id if not LevelManager.current_level_id.is_empty()
+		else _own_level_id())
 	Telemetry.record_event("item_granted", {
 		"level_id": LevelManager.current_level_id, "item": "canvas_2_pista",
 	})

@@ -16,6 +16,9 @@ const GRID_COLUMNS := 20
 const GRID_ROWS := 12
 
 var current_level_id := ""
+## A level the run has just opened, for the house to open in front of the player. Set as a
+## level ends and taken once by the house. Not saved: a quit in between skips only the moment.
+var pending_reveal := ""
 var transition_step_seconds := 0.012
 
 var _levels: Array[Dictionary] = []
@@ -120,6 +123,12 @@ func next_level_id(level_id: String) -> String:
 ## which means PROGRESSION: finishing level 1 unlocks level 2 in the profile, and the
 ## menu would then enable a card whose scene_path is empty -- an enabled button that
 ## silently does nothing when clicked.
+func take_pending_reveal() -> String:
+	var out := pending_reveal
+	pending_reveal = ""
+	return out
+
+
 func is_playable(level_id: String) -> bool:
 	var scene_path := String(get_level(level_id).get("scene_path", ""))
 	return not scene_path.is_empty() and ResourceLoader.exists(scene_path)

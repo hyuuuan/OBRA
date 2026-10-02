@@ -37,6 +37,32 @@ signal chosen(level_id: String)
 
 var _playable := false
 var _art_size := Vector2(128.0, 72.0)
+var _plate: Label
+
+## LOCKED IS A STATE OF ITS OWN, AND IT LOOKS IT. Kent, of finishing Payyo: back to the house,
+## and "there should be an animation wherein the level gets unlocked". There was nothing to
+## animate from -- a painting that was built and not yet reached hung exactly as an open one
+## did, and only a refusal on E said otherwise. It hangs dimmed now, with a padlock on the
+## frame and LOCKED on its plate, and the house plays `reveal` on the one a level has opened.
+var _locked := false
+## How lit the picture is, 0 dimmed to 1 full colour. Driven by `reveal`.
+var _light := 1.0:
+	set(value):
+		_light = value
+		queue_redraw()
+## The padlock: how much of it shows, how far it has fallen, and how hard it is shaking.
+var _lock_alpha := 0.0:
+	set(value):
+		_lock_alpha = value
+		queue_redraw()
+var _lock_drop := 0.0:
+	set(value):
+		_lock_drop = value
+		queue_redraw()
+var _lock_shake := 0.0:
+	set(value):
+		_lock_shake = value
+		queue_redraw()
 
 
 func _ready() -> void:
@@ -48,6 +74,9 @@ func _ready() -> void:
 		_art_size = art.get_size()
 	var manager := get_node_or_null(^"/root/LevelManager")
 	_playable = manager != null and bool(manager.call("is_playable", level_id))
+	_locked = _playable and not bool(manager.call("is_unlocked", level_id))
+	_light = 1.0 if _playable and not _locked else 0.0
+	_lock_alpha = 1.0 if _locked else 0.0
 	# The reach is an Area2D only so the room can find the nearest one cheaply; nothing
 	# collides with a painting.
 	var shape := CollisionShape2D.new()
@@ -65,11 +94,10 @@ func _ready() -> void:
 func _build_plate() -> void:
 	var plate := Label.new()
 	plate.name = "Plate"
-	plate.text = plate_text if _playable else "%s  —  NOT YET PAINTED" % plate_text
+	_plate = plate
+	_write_plate()
 	plate.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	plate.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
-	plate.add_theme_color_override(&"font_color",
-		UISkin.GILT_HI if _playable else UISkin.GILT_DARK)
 	plate.add_theme_color_override(&"font_shadow_color", Color(0.0, 0.0, 0.0, 0.75))
 	plate.add_theme_constant_override(&"shadow_offset_x", 2)
 	plate.add_theme_constant_override(&"shadow_offset_y", 2)
@@ -100,8 +128,79 @@ func _build_plate() -> void:
 		_art_size.y * 0.5 + moulding + 6.0)
 
 
+## What the plate says, and in what light: the name of an open painting, LOCKED on one that is
+## built and not yet reached, NOT YET PAINTED on one that is not built.
+func _write_plate() -> void:
+	if _plate == null:
+		return
+	_plate.text = plate_text if _playable and not _locked \
+		else ("%s  —  LOCKED" % plate_text if _playable else "%s  —  NOT YET PAINTED" % plate_text)
+	_plate.add_theme_color_override(&"font_color",
+		UISkin.GILT_HI if _playable and not _locked else UISkin.GILT_DARK)
+
+
 func is_playable() -> bool:
 	return _playable
+
+
+func is_locked() -> bool:
+	return _locked
+
+
+## Hang it as it was before it was opened, so the house can open it in front of the player.
+func show_locked() -> void:
+	if not _playable:
+		return
+	_locked = true
+	_light = 0.0
+	_lock_alpha = 1.0
+	_lock_drop = 0.0
+	_lock_shake = 0.0
+	_write_plate()
+
+
+## THE UNLOCK, played where the player can see it: the padlock shakes, lets go and falls, the
+## picture comes up out of the dark into its colours with the burst every reward in the game
+## uses, its plate takes its name, and UNLOCKED rises off it. Awaitable; about two seconds.
+func reveal() -> void:
+	if not _locked:
+		return
+	var run := create_tween()
+	run.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	run.tween_property(self, "_lock_shake", 1.0, 0.5)
+	run.tween_property(self, "_lock_drop", 1.0, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	run.parallel().tween_property(self, "_lock_alpha", 0.0, 0.4).set_ease(Tween.EASE_IN)
+	run.tween_callback(func() -> void:
+		_locked = false
+		_write_plate()
+		PickupFlourish2D.burst(self, Vector2.ZERO)
+		_rise_word())
+	run.tween_property(self, "_light", 1.0, 0.7).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	await run.finished
+
+
+## UNLOCKED, rising off the picture and going. Half size, like the plate, because the house is
+## drawn at double.
+func _rise_word() -> void:
+	var word := Label.new()
+	word.name = "Unlocked"
+	word.text = "UNLOCKED"
+	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	word.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
+	word.add_theme_color_override(&"font_color", UISkin.GILT_HI)
+	word.add_theme_constant_override(&"outline_size", 6)
+	word.add_theme_color_override(&"font_outline_color", UISkin.INK)
+	word.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	word.scale = Vector2(0.5, 0.5)
+	add_child(word)
+	word.size = Vector2(240.0, 28.0)
+	var from := Vector2(-word.size.x * word.scale.x * 0.5, -_art_size.y * 0.5 - 18.0)
+	word.position = from
+	var rise := word.create_tween()
+	rise.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	rise.tween_property(word, "position:y", from.y - 26.0, 1.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	rise.parallel().tween_property(word, "modulate:a", 0.0, 0.6).set_delay(0.9)
+	rise.tween_callback(word.queue_free)
 
 
 ## How far the apo is from this painting, measured to its middle. The room uses it to pick
@@ -125,11 +224,12 @@ func _draw() -> void:
 	# The picture first, then the moulding over its edge, so the frame sits on the painting
 	# rather than beside it.
 	if art != null:
-		draw_texture_rect(art, picture, false,
-			Color.WHITE if _playable else Color(0.42, 0.40, 0.44, 1.0))
+		draw_texture_rect(art, picture, false, Color(0.42, 0.40, 0.44, 1.0).lerp(Color.WHITE, _light))
 	else:
 		draw_rect(picture, UISkin.PANEL)
 	_draw_moulding(picture)
+	if _lock_alpha > 0.0:
+		_draw_padlock(picture)
 
 
 ## A rectangular gilt moulding, stepped rather than smooth: four bands, lighter on the top
@@ -137,7 +237,33 @@ func _draw() -> void:
 ## both edges. The oval on the canvas is the same gold and the same light; this is its
 ## square cousin, because a picture frame on a wall is square and a mirror is not.
 func _draw_moulding(picture: Rect2) -> void:
-	draw_gilt(self, picture, moulding, not _playable)
+	draw_gilt(self, picture, moulding, _light < 0.5)
+
+
+## A padlock hung on the bottom rail of the frame: an iron body with a brass plate and a
+## keyhole, and a shackle over it. Square-cut, to sit with the stepped gilt. It shakes as it is
+## undone, then drops and fades.
+func _draw_padlock(picture: Rect2) -> void:
+	var shake := sin(_lock_shake * TAU * 5.0) * 3.0 * (1.0 - _lock_drop)
+	var centre := Vector2(shake, picture.end.y - 4.0 + _lock_drop * 46.0)
+	var tilt := _lock_drop * 0.6
+	draw_set_transform(centre, tilt, Vector2.ONE)
+	var alpha := _lock_alpha
+	var iron := Color(0.16, 0.15, 0.17, alpha)
+	var brass := Color(UISkin.GILT_LIT, alpha)
+	var dark := Color(0.05, 0.05, 0.06, alpha)
+	# Shackle: three bars, square, open at the bottom into the body.
+	draw_rect(Rect2(Vector2(-8.0, -22.0), Vector2(16.0, 4.0)), iron)
+	draw_rect(Rect2(Vector2(-8.0, -22.0), Vector2(4.0, 12.0)), iron)
+	draw_rect(Rect2(Vector2(4.0, -22.0), Vector2(4.0, 12.0)), iron)
+	# Body, rim and plate.
+	draw_rect(Rect2(Vector2(-12.0, -12.0), Vector2(24.0, 20.0)), dark)
+	draw_rect(Rect2(Vector2(-11.0, -11.0), Vector2(22.0, 18.0)), iron)
+	draw_rect(Rect2(Vector2(-8.0, -8.0), Vector2(16.0, 12.0)), brass)
+	# Keyhole.
+	draw_rect(Rect2(Vector2(-2.0, -5.0), Vector2(4.0, 4.0)), dark)
+	draw_rect(Rect2(Vector2(-1.0, -1.0), Vector2(2.0, 4.0)), dark)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## THE MOULDING, FOR ANY CANVAS ITEM. The house's paintings draw it round themselves; one of

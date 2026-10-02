@@ -72,6 +72,8 @@ enum Wear { NONE, TAKE, VIEW, REFUSE }
 ## The card that says a thing is yours now. See AcquiredOverlay.
 var _acquired: AcquiredOverlay
 var _wearing: Wear = Wear.NONE
+## Where the camera looks instead of at the apo, while the house is showing her something.
+var _look_at := NAN
 
 
 func _ready() -> void:
@@ -141,6 +143,44 @@ func _ready() -> void:
 
 	_build_hud()
 	set_process(true)
+	var manager := get_node_or_null(^"/root/LevelManager")
+	var opened := String(manager.call("take_pending_reveal")) \
+		if manager != null and manager.has_method("take_pending_reveal") else ""
+	if not opened.is_empty():
+		_open_in_front_of_her.call_deferred(opened)
+
+
+## A LEVEL JUST FINISHED HAS OPENED THE NEXT PAINTING, AND THE HOUSE OPENS IT IN FRONT OF HER.
+## Kent: "after obtaining the painting, it should return to the house like the lobby and there
+## should be an animation wherein the level gets unlocked". The camera goes to the frame, the
+## padlock comes off and the picture comes up into its colours (Painting2D.reveal), and the
+## line under the title says where to go. The apo waits while it plays.
+func _open_in_front_of_her(level_id: String) -> void:
+	var painting: Node2D = null
+	for node in get_tree().get_nodes_in_group(&"paintings"):
+		if String(node.get("level_id")) == level_id:
+			painting = node as Node2D
+	if painting == null:
+		return
+	painting.call("show_locked")
+	_player.set_physics_process(false)
+	# Home first -- she is seen to arrive -- and then the eye goes over to the picture.
+	await get_tree().create_timer(0.7).timeout
+	_look_at = painting.global_position.x
+	await get_tree().create_timer(0.9).timeout
+	await painting.call("reveal")
+	await get_tree().create_timer(0.7).timeout
+	_look_at = NAN
+	_player.set_physics_process(true)
+	var manager := get_node_or_null(^"/root/LevelManager")
+	var title := String(manager.call("get_level", level_id).get("title", "")) if manager != null else ""
+	_status.text = "%s is open. Walk to it and press E." % title if not title.is_empty() \
+		else "A new painting is open."
+
+
+## Whether the house is in the middle of opening a painting.
+func is_revealing() -> bool:
+	return is_finite(_look_at)
 
 
 ## One painting, hung and wired.
@@ -266,7 +306,7 @@ func _build_carried(layer: CanvasLayer) -> void:
 func _process(_delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
-	_camera.global_position = _eye_on(_player.global_position.x)
+	_camera.global_position = _eye_on(_look_at if is_finite(_look_at) else _player.global_position.x)
 	_near = _nearest_target()
 	_prompt.visible = _near != null
 	if _near == null:
