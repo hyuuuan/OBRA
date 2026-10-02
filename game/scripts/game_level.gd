@@ -125,8 +125,8 @@ func _ward_note(reason: String, measured: Dictionary) -> String:
 ## It answers the Pragmatist route, the one that asks for Unlock -- so a player who took the
 ## trouble to get up to the nail does not also have to draw a key, and one who never went
 ## inside still can. The route is committed the ordinary way rather than the obstacle being
-## marked solved behind the director's back, so the tally, CP3 and the telemetry all record
-## it exactly as they would a drawn key.
+## marked solved behind the director's back, so the tally and the telemetry both record it
+## exactly as they would a drawn key.
 ##
 ## NOT A TAG MATCH AND NOT ASSISTED EITHER. `note_submission` is the wrong door for this: it
 ## takes a recognised CLASS, and this is a thing already in the bag. It is recorded as its
@@ -603,8 +603,8 @@ func _on_onward_reached() -> void:
 		cinematic.open()
 
 
-## What the chest held, and the reason Pista opens. The unlock happens at CP3 rather than
-## at the marker stone, so a player who stops after this keeps the progress.
+## What the chest held, and the reason Pista opens. The unlock happens when the canvas is
+## taken, so a player who stops after this keeps the progress.
 func _grant_the_canvas() -> void:
 	note_pickup_taken("canvas_2_pista")
 	PlayerProfile.record_object_acquired("canvas_2_pista")

@@ -234,8 +234,14 @@ func _audit_checkpoints_precede_morphs(level: Dictionary) -> void:
 	for cp_value: Variant in level.get("checkpoints", []):
 		declared[String((cp_value as Dictionary).get("id", ""))] = true
 	var problems: Array[String] = []
+	# EXCEPT THE BEAT THE LEVEL ENDS WITH. Kent: "why is there a checkpoint at the end, its so
+	# unnecessary". Answering Ang Bale finishes Payyo, so a checkpoint there saves nothing a
+	# player keeps; a fall at the house goes back to the straw heap's.
+	var last := String(level.get("completes_with", ""))
 	for obstacle_value: Variant in level.get("obstacles", []):
 		var obstacle: Dictionary = obstacle_value
+		if String(obstacle.get("id", "")) == last:
+			continue
 		if not (obstacle.get("routes", {}) as Dictionary).is_empty():
 			var cp := String(obstacle.get("checkpoint_on_commit", ""))
 			if cp.is_empty():
@@ -245,6 +251,18 @@ func _audit_checkpoints_precede_morphs(level: Dictionary) -> void:
 	_check(problems.is_empty(), "checkpoint per route commit",
 		"%d checkpoints declared" % declared.size() if problems.is_empty()
 		else "; ".join(problems))
+	# And none at the end, by the commit or by a checkpoint placed at it.
+	var at_the_end: Array[String] = []
+	for obstacle_value: Variant in level.get("obstacles", []):
+		var obstacle: Dictionary = obstacle_value
+		if String(obstacle.get("id", "")) == last and not String(obstacle.get("checkpoint_on_commit", "")).is_empty():
+			at_the_end.append(String(obstacle.get("checkpoint_on_commit", "")))
+	for cp_value: Variant in level.get("checkpoints", []):
+		if not last.is_empty() and String((cp_value as Dictionary).get("at", "")).begins_with(last):
+			at_the_end.append(String((cp_value as Dictionary).get("id", "")))
+	_check(not last.is_empty() and at_the_end.is_empty(), "no checkpoint at the end",
+		"%s, the beat Payyo ends with, has none" % last if not last.is_empty() and at_the_end.is_empty()
+		else "the level names no last beat" if last.is_empty() else "%s at %s" % [", ".join(at_the_end), last])
 
 
 # --- 4. THE CARDINAL RULE: no line may name a drawable class -----------------
@@ -2139,9 +2157,9 @@ func _audit_completion_gate() -> void:
 	_check(not bool(overlay.call("is_open")), "arriving at the bale does not end the level",
 		"the player is standing on the goal marker and Ang Bale is unanswered")
 
-	# Choosing a way in is not the same as getting in. CP3 is written on the commit, so a
-	# gate that only asked whether the checkpoint existed would let the player finish by
-	# pressing a dialogue button and walking four metres without drawing anything.
+	# Choosing a way in is not the same as getting in. A gate that only asked whether the
+	# route was chosen would let the player finish by pressing a dialogue button and walking
+	# four metres without drawing anything.
 	d.enter_obstacle("L1_N3")
 	d.commit_route("L1_N3", "pragmatist")
 	await process_frame
@@ -2149,7 +2167,7 @@ func _audit_completion_gate() -> void:
 	for _frame in range(30):
 		await physics_frame
 	_check(not bool(overlay.call("is_open")), "committing to a route does not end it either",
-		"CP3 is written, the bale is still shut")
+		"the route is chosen, the bale is still shut")
 
 	# Now answer it -- and it STILL does not end at the marker. This is the assertion that
 	# turned over: it used to require the opposite, because arriving was the ending.

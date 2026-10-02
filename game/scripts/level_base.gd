@@ -609,7 +609,7 @@ func _build_obstacle_layer() -> void:
 ## A MARK FOR THE CHECKPOINTS NOBODY COULD SEE.
 ##
 ## Payyo declares six checkpoints and exactly ONE of them had anything on screen: CP0, the
-## walk-in at the top of the stair. CP1, CP2 and CP3 are written the instant a route is
+## walk-in at the top of the stair. CP1 and CP2 are written the instant a route is
 ## committed, which is every node in the level, and they were a dictionary entry and a
 ## telemetry event and nothing else. So the three moments the game is most generous to the
 ## player -- the ones it puts in front of every morph on a route -- said nothing at all, and
@@ -3124,13 +3124,14 @@ func _say_why(text: String) -> void:
 ## completion screen came up over a node the player had not played. Caught by
 ## photographing the bale.
 ##
-## The condition is not written here. Level 1's own file names the checkpoint that unlocks
-## it (`unlocks_at_checkpoint`, CP3), the checkpoint list says which obstacle that
-## checkpoint belongs to (CP3 is `at: L1_N3`), and the level may end once that obstacle has
-## been SOLVED. Not committed: CP3 is written on the route commit, so asking only whether
-## the checkpoint exists would let a player finish by pressing a dialogue button and walking
-## four metres, without drawing anything. A level that names no such checkpoint ends on
-## arrival exactly as before, which is what the levels with no obstacle layer want.
+## The condition is not written here. A level's own file names the beat that unlocks it --
+## outright (`completes_with`: Payyo's L1_N3, whose checkpoint Kent removed as one at the
+## end), or by its checkpoint (`unlocks_at_checkpoint`: Piyesta's and Dagat's CP4, whose
+## entry says which obstacle it belongs to) -- and the level may end once that obstacle has
+## been SOLVED. Not committed: a route is committed by pressing a dialogue button, so a gate
+## on the commit would let a player finish by walking four metres without drawing anything.
+## A level that names neither ends on arrival exactly as before, which is what the levels
+## with no obstacle layer want.
 ## Whether arriving at the GoalMarker is one of the ways this level ends.
 ##
 ## TRUE FOR A LEVEL WHOSE ENDING IS A PLACE, which is every level built against this host
@@ -3157,6 +3158,11 @@ func _completion_unlocked() -> bool:
 
 func _obstacle_that_unlocks_the_exit() -> String:
 	var data := director.level_data()
+	# Named outright, by a level whose last beat carries no checkpoint -- Payyo's, since Kent
+	# asked why there was a checkpoint at the end. Otherwise found through the checkpoint.
+	var named := String(data.get("completes_with", ""))
+	if not named.is_empty():
+		return named
 	var checkpoint_id := String(data.get("unlocks_at_checkpoint", ""))
 	if checkpoint_id.is_empty():
 		return ""

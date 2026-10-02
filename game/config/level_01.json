@@ -6,7 +6,7 @@
   "display_name_note": "REQ-4.11-1 currently reads 'Bahay Kubo'. See build spec 12.1.",
   "order": 1,
   "unlocks_on_complete": "L2_PISTA",
-  "unlocks_at_checkpoint": "CP3",
+  "completes_with": "L1_N3",
   "tags_unlocked": [
     {
       "tag": "roll",
@@ -67,11 +67,6 @@
     {
       "id": "CP2",
       "at": "L1_N2",
-      "trigger": "route_commit"
-    },
-    {
-      "id": "CP3",
-      "at": "L1_N3",
       "trigger": "route_commit"
     }
   ],
@@ -221,7 +216,6 @@
       "teaches_before_choice": [
         "unlock"
       ],
-      "checkpoint_on_commit": "CP3",
       "routes": {
         "artist": {
           "required_tags": [
