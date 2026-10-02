@@ -1675,7 +1675,7 @@ func _on_drawing_ready(
 			PlayerProfile.record_object_acquired(entity_id)
 			item.ink_committed = true
 		var answers := is_a_tool(entry) and _tool_answers_here(entity_id)
-		var kept := _begin_new_utility(item, first_time, answers)
+		var kept := _begin_new_utility(item, answers)
 		# ⚠ DRAWING A TOOL MAKES IT; USING IT IS WHAT ANSWERS. It used to be judged the moment
 		# the recogniser named it, so a key drawn at the house with its light on opened the door
 		# before the player had done anything with it -- and when they took the key out and
@@ -1773,11 +1773,7 @@ func _spawn_or_replace(
 ## the cursor that they had not asked for and could not put down without either
 ## placing it or right-clicking. Deciding WHAT to draw and deciding WHERE it goes are
 ## two separate thoughts, and the game was making the second one for them.
-## `first_time` is whether this CLASS is new to the player, not whether the bag was empty.
-## The card is for acquiring something; the fifth axe of the run is a tool coming out of the
-## bag, and dimming the screen for it would make the reward beat into a loading screen.
-func _begin_new_utility(item: DrawnItemData, first_time: bool = true,
-		going_into_hand: bool = false) -> bool:
+func _begin_new_utility(item: DrawnItemData, going_into_hand: bool = false) -> bool:
 	var slot := inventory_manager.add_item(item)
 	if slot == -1:
 		ink_manager.release_attempt()
@@ -1810,13 +1806,11 @@ func _begin_new_utility(item: DrawnItemData, first_time: bool = true,
 	else:
 		next_step = "in your bag — press %d to place it" % (slot + 1)
 	status_label.text = "%s drawn — %s" % [item.display_name, next_step]
-	if not first_time:
-		return true
-	# The player's OWN drawing, paper knocked out, held up for a second. This is the moment
-	# the recogniser agreed with them, and it was a line of grey text in the corner.
-	announce_acquisition(item.display_name,
-		next_step.substr(0, 1).to_upper() + next_step.substr(1),
-		DrawingSkin2D.thumbnail(item.image))
+	# The player's OWN drawing, paper knocked out, flown from the canvas into the slot it went
+	# to, with what its key does said over the bag. It used to be held up on the acquisition
+	# card, which dimmed the level and took the mouse while it was up -- see InventoryHUD.arrive.
+	inventory_hud.arrive(slot, DrawingSkin2D.thumbnail(item.image),
+		"%s — %s" % [item.display_name, next_step])
 	return true
 
 

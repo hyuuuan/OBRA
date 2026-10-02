@@ -74,6 +74,33 @@ var _slide: Tween
 var _home_top := 0.0
 var _home_bottom := 0.0
 
+## HOW A DRAWING GETS INTO THE BAG: IT FLIES THERE.
+##
+## A new drawing used to come up on AcquiredOverlay -- the world dimmed to a fifth and the
+## drawing held large in the middle of the screen for three and a half seconds -- and while
+## it was up, every mouse press only took the card away, so the scroll that turns a placement
+## and the click that sets it down did nothing. Kent: "i dont like how the animation is
+## happening in like whats happening in the inventory, i cant scroll, drag, etc. from it".
+## It was the wrong picture besides: it said "in your bag" from the middle of the screen,
+## nowhere near the bag.
+##
+## Now the drawing leaves from where the canvas was and lands in its own slot, the slot lights
+## as it lands, and a line over the bag says what the slot's key does with it. Nothing dims,
+## nothing waits for a key, and nothing on the way takes the mouse. The card is kept for what
+## the game HANDS the player -- a key, a painting, a flower -- which is what it was made for.
+## How big the drawing is as it leaves the canvas, and how long it takes to reach the bag.
+const ARRIVE_SIZE := 200.0
+const ARRIVE_TIME := 0.45
+## How far over the straight line the drawing is tossed, so it drops INTO the bag.
+const ARRIVE_ARC := 120.0
+## How long the line over the bag stays, and how long it takes to go.
+const CAPTION_HOLD := 3.2
+const CAPTION_FADE := 0.4
+## Each slot's drawing in flight, so a second one into the same slot replaces the first.
+var _arrivals: Dictionary = {}
+var _caption: Label
+var _caption_run: Tween
+
 
 func _ready() -> void:
 	add_theme_constant_override(&"separation", 8)
@@ -276,6 +303,115 @@ func _on_slot_pressed(slot: int) -> void:
 	slot_pressed.emit(slot)
 
 
+## Fly `art` from the middle of the screen into `slot`, and say `caption` over the bag. See
+## ARRIVE_SIZE. Called after the drawing is already in the slot: the slot's own picture is
+## held back until the flying one lands on it.
+func arrive(slot: int, art: Texture2D, caption: String = "") -> void:
+	if slot < 0 or slot >= _buttons.size():
+		return
+	_say(caption)
+	var layer := get_parent()
+	if art == null or layer == null:
+		return
+	var previous := _arrivals.get(slot) as Node
+	if previous != null and is_instance_valid(previous):
+		previous.queue_free()
+	var flier := TextureRect.new()
+	flier.name = "Arriving%d" % (slot + 1)
+	flier.texture = art
+	flier.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	flier.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	flier.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(flier)
+	_arrivals[slot] = flier
+	_art[slot].modulate.a = 0.0
+	var screen := get_viewport().get_visible_rect().size
+	var leaving := Rect2(screen * 0.5 - Vector2.ONE * ARRIVE_SIZE * 0.5, Vector2.ONE * ARRIVE_SIZE)
+	_fly(0.0, flier, leaving, slot)
+	var run := flier.create_tween()
+	# A drawing is very often answered by a line of story, and a line stops the world; one
+	# frozen halfway to the bag is worse than either end of the flight.
+	run.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	run.tween_method(_fly.bind(flier, leaving, slot), 0.0, 1.0, ARRIVE_TIME) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	run.tween_callback(_land.bind(slot, flier))
+
+
+## Whether a drawing is still on its way into the bag.
+func is_arriving() -> bool:
+	for flier: Variant in _arrivals.values():
+		if flier != null and is_instance_valid(flier):
+			return true
+	return false
+
+
+## The line over the bag, or "" when there is none up.
+func caption() -> String:
+	return _caption.text if _caption != null and _caption.visible else ""
+
+
+## One step of the flight: along a curve that rises over the straight line and drops into the
+## slot, shrinking to the slot's picture. Aimed at where the slot IS on each step, not where it
+## was at the start -- the bar fades in under the first drawing ever put in it.
+func _fly(t: float, flier: TextureRect, leaving: Rect2, slot: int) -> void:
+	if not is_instance_valid(flier):
+		return
+	var landing := _art[slot].get_global_rect()
+	var from := leaving.get_center()
+	var to := landing.get_center()
+	var over := Vector2((from.x + to.x) * 0.5, minf(from.y, to.y) - ARRIVE_ARC)
+	var at := from.lerp(over, t).lerp(over.lerp(to, t), t)
+	flier.size = leaving.size.lerp(landing.size, t)
+	flier.position = at - flier.size * 0.5
+
+
+func _land(slot: int, flier: TextureRect) -> void:
+	if is_instance_valid(flier):
+		flier.queue_free()
+	if _arrivals.get(slot) == flier:
+		_arrivals.erase(slot)
+	_art[slot].modulate.a = 1.0
+	# The frame lights as the drawing lands in it -- on self_modulate, for the reason announce()
+	# gives, and because `_refresh` owns the button's modulate for the in-hand state.
+	var button := _buttons[slot]
+	var flash := button.create_tween()
+	flash.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	button.self_modulate = Color(1.6, 1.45, 1.0, 1.0)
+	flash.tween_property(button, "self_modulate", Color.WHITE, 0.45)
+
+
+func _say(text: String) -> void:
+	if text.is_empty():
+		return
+	var layer := get_parent()
+	if layer == null:
+		return
+	if _caption == null:
+		_caption = Label.new()
+		_caption.name = "BagCaption"
+		_caption.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
+		_caption.add_theme_color_override(&"font_color", UISkin.GOLD_PALE)
+		_caption.add_theme_constant_override(&"outline_size", 6)
+		_caption.add_theme_color_override(&"font_outline_color", UISkin.INK)
+		_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		layer.add_child(_caption)
+	_caption.text = text
+	_caption.reset_size()
+	# Over the tray, from its left edge -- where the eye already is when a slot lights.
+	var bar := get_global_rect()
+	_caption.position = Vector2(bar.position.x - TRAY_PAD,
+		bar.position.y - TRAY_PAD - _caption.size.y - 6.0)
+	_caption.visible = true
+	_caption.modulate.a = 1.0
+	if _caption_run != null and _caption_run.is_valid():
+		_caption_run.kill()
+	_caption_run = _caption.create_tween()
+	_caption_run.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_caption_run.tween_interval(CAPTION_HOLD)
+	_caption_run.tween_property(_caption, "modulate:a", 0.0, CAPTION_FADE)
+	_caption_run.tween_callback(func() -> void: _caption.visible = false)
+
+
 ## Out of the way, or back. Driven by the level: the bag stands down while the apo is
 ## travelling and comes up when she stops, so the one band that sits where she does is
 ## never between the player and what they are walking into.
@@ -347,6 +483,13 @@ func _process(delta: float) -> void:
 	if visible:
 		modulate.a = move_toward(modulate.a, _resting_alpha() * _curtain_alpha,
 			ALPHA_SPEED * delta)
+	# The line over the bag and a drawing on its way into it belong to the bar, and the level's
+	# letterbox takes them down with it.
+	if _caption != null:
+		_caption.self_modulate.a = _curtain_alpha
+	for flier: Variant in _arrivals.values():
+		if flier != null and is_instance_valid(flier):
+			(flier as CanvasItem).self_modulate.a = _curtain_alpha
 	if _dwell > 0.0:
 		_dwell = maxf(0.0, _dwell - delta)
 
