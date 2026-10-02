@@ -113,7 +113,7 @@ func _run() -> void:
 		% _arena_refill_units())
 	print("          the encounter's budget is %ds -- a full sweep is %.1fs and has to be waited out"
 		% [int(_economy.get("encounter_seconds", 0)),
-			4.0 * BakunawaSweep.SWEEP_LIMIT / BakunawaSweep.SWEEP_SPEED])
+			2.0 * (BakunawaSweep.LOOK_UP + BakunawaSweep.LOOK_DOWN) / BakunawaSweep.SWEEP_SPEED])
 	print("")
 	for note in notes:
 		print("NOTE: %s" % note)

@@ -1592,15 +1592,17 @@ func _put_the_bakunawa_back() -> void:
 	if _bakunawa == null or not is_instance_valid(_bakunawa) or director == null:
 		return
 	var at := _bakunawa_home
+	var surfaced := false
 	if director.is_solved("L3_N1") and director.committed_route("L3_N1") == "artist":
 		var surface := _mark("SurfaceMark")
 		if surface != null:
 			at.y = surface.global_position.y
+			surfaced = true
 	var route := director.committed_route("L3_N2")
 	if director.is_solved("L3_N2") and route != "pragmatist":
 		_bakunawa.set_gone()
 		return
-	_bakunawa.reset_to(at)
+	_bakunawa.reset_to(at, surfaced)
 	match route:
 		"pragmatist":
 			_bakunawa.open_a_gap()
@@ -1836,8 +1838,12 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 			# ⚠ WHEN, NOT ONLY WHAT. "Stay out of the light" told a first-time swimmer the rule
 			# and not the way through it, and played along the bed that swimmer was caught four
 			# times in twenty seconds. The beam swings, and the way past is to go while it is
-			# turned away -- which the line now says.
-			_say_why("Watch where its light goes, apo. Cross while it is turned away.")
+			# turned away -- which the line now says. Down in the water its two beams lift and
+			# dip together (Bakunawa2D.DEEP_REACH), so the line says which way to go when.
+			if _bakunawa.reach() > BakunawaClass.CONE_LENGTH:
+				_say_why("Watch its light, apo. When it looks up, keep low; when it looks down, go high. Right under it, it never looks.")
+			else:
+				_say_why("Watch where its light goes, apo. Cross while it is turned away.")
 		"protector":
 			_knocks = 0
 			_bakunawa.enter_fight()
@@ -1961,7 +1967,7 @@ func _stand_them_clear_of_it() -> void:
 	# was back inside it in a second, before "wait until its light turns away" could be read,
 	# and was caught again: played, four times in five seconds. Along the bed a swimmer makes
 	# about a hundred pixels a second, so this is the time to read the line and look up.
-	var clear_x := _bakunawa.global_position.x - BakunawaClass.CONE_LENGTH - RESET_CLEARANCE
+	var clear_x := _bakunawa.global_position.x - _bakunawa.reach() - RESET_CLEARANCE
 	var anchor := _anchor_now()
 	if anchor.x <= clear_x:
 		return

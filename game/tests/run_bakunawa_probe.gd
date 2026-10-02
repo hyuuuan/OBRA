@@ -144,24 +144,74 @@ func _the_dark() -> void:
 	# Straight down, below the body, is where the design says to swim.
 	var below: Vector2 = creature.global_position + Vector2(0.0, 340.0)
 	_check(not creature.sees(below), "and below it is dark", "the way past is under it")
-	# ⚠ AND THE WAY UNDER IT IS ONE A SWIMMER CAN ACTUALLY TAKE. "Below it is dark" was true of a
-	# strip 34 px wide, and at the speed a swimmer really makes along the bed no run through the
-	# reach was ever unseen. Measured with the creature's own sees() and its own sweep, at the
-	# bed a swimmer holds to: how much of it the beam never reaches, and how long, in every
-	# sweep, a run from outside the reach to that shadow goes unseen. The cones are symmetric,
-	# so the run out the far side is the same number.
-	var ways := _the_way_under(creature)
-	_check(float(ways["shadow"]) >= 60.0, "and there is room to wait under it",
-		"%.0f px of the bed below it the beam never reaches" % float(ways["shadow"]))
-	_check(float(ways["window"]) >= 2.0, "and time to reach it at the swimmer's speed",
-		"%.1f s in every %.1f s, swimming %.0f px/s along the bed" % [float(ways["window"]),
-			float(ways["period"]), BED_SWIM])
+	# ⚠ AND THERE IS ROOM TO WAIT UNDER IT. "Below it is dark" was true of a strip 34 px wide.
+	# Measured with the creature's own sees() over its whole sweep, at the bed a swimmer holds to.
+	var bed := float((load("res://scripts/level_3.gd") as GDScript).get_script_constant_map()["BED_Y"])
+	var home: Vector2 = creature.get("_home")
+	var shadow := _shadow_under(creature, home, bed - BED_CLEARANCE)
+	_check(shadow >= 60.0, "and there is room to wait under it",
+		"%.0f px of the bed below it the beam never reaches" % shadow)
+	# ⚠ AND NO DEPTH IS OUT OF ITS LIGHT. Kent: "i can get pass through it easily like the light
+	# is not doing anything". Its beam reached 460 px from a creature 950 px under the surface,
+	# so everything above y ~1050 was out of reach and a swimmer along the top was never seen --
+	# finished the level in thirteen seconds holding right. Held forward at a fast swimmer's
+	# speed from outside its reach, at every depth from under the surface to the bed, a run
+	# that does not watch the light has to be caught at least two times in three. Measured when
+	# this went in: 70% right under the surface (the water farthest from its eyes), 88% just
+	# below, 100% at every depth from there to the bed -- against 0% anywhere above y 1034.
+	var worst := 1.0
+	var worst_at := 0.0
+	var free: Array[String] = []
+	var depth := 600.0
+	while depth <= bed - BED_CLEARANCE + 0.5:
+		var caught_share := 1.0 - _blind_runs(creature, home, depth, FAST_SWIM, 60)
+		if caught_share < worst:
+			worst = caught_share
+			worst_at = depth
+		if caught_share < 2.0 / 3.0:
+			free.append("y %.0f caught %.0f%%" % [depth, caught_share * 100.0])
+		depth += 108.6
+	_check(free.is_empty(), "and no depth is out of its light",
+		"a blind run at %.0f px/s caught at least %.0f%% of the time at every depth (worst y %.0f)"
+			% [FAST_SWIM, worst * 100.0, worst_at] if free.is_empty() else ", ".join(free))
+	# ⚠ AND A PLAYER WHO WATCHES IT STILL GETS PAST, slowly. Closing the free lane must not close
+	# the way: at the bed (through the shadow under it) and along the top, a swimmer at the slow
+	# speed a swimmer makes along the bed, stopping and backing off and going when it looks
+	# away, gets past from wherever in its cycle they arrive -- searched, not hoped for.
+	var period := 2.0 * (creature.sweep_range().y - creature.sweep_range().x) / BakunawaClass.SWEEP_SPEED
+	for lane: Array in [["along the bed", bed - BED_CLEARANCE], ["along the top", 600.0]]:
+		var slowest := 0.0
+		var stuck := 0
+		for phase in range(4):
+			var took := _careful_run(creature, home, float(lane[1]), BED_SWIM, float(phase) * period * 0.83)
+			if took < 0.0:
+				stuck += 1
+			slowest = maxf(slowest, took)
+		_check(stuck == 0 and slowest <= 45.0, "and a careful swimmer gets past %s" % lane[0],
+			"from 4 of 4 arrivals at %.0f px/s, the slowest in %.0f s" % [BED_SWIM, slowest]
+				if stuck == 0 else "stuck from %d of 4 arrivals" % stuck)
 	# A lit flashlight gives the player away wherever they are.
 	_check(creature.sees(below, true), "unless you brought a light",
 		"drawing one and then sneaking is a harder encounter, on purpose")
-	# Reaching the far side answers the beat.
+	# ⚠ FROM THE BOAT THE OLD SWEEP STAYS, AND THE BOAT CAN STILL TIME IT. Staged just under
+	# the hull, the boat's lane is level with it, where two beams rising and falling together
+	# would light it nearly all the time.
+	var surface := level.call("_mark", "SurfaceMark") as Node2D
+	creature.stage_at(surface.global_position.y)
+	var surfaced_home: Vector2 = creature.get("_home")
+	_check(is_equal_approx(creature.reach(), BakunawaClass.CONE_LENGTH),
+		"and from the boat its light is the short sweep", "reach %.0f" % creature.reach())
+	var boat_period := 2.0 * (creature.sweep_range().y - creature.sweep_range().x) / BakunawaClass.SWEEP_SPEED
+	var boat_stuck := 0
+	for phase in range(4):
+		if _careful_run(creature, surfaced_home, surface.global_position.y - 170.0, FAST_SWIM,
+				float(phase) * boat_period * 0.83) < 0.0:
+			boat_stuck += 1
+	_check(boat_stuck == 0, "and the boat can time its way past it",
+		"from 4 of 4 arrivals" if boat_stuck == 0 else "stuck from %d of 4 arrivals" % boat_stuck)
+	# Reaching the far side answers the beat: past it, and out of its light.
 	var player := level.get("player") as Node2D
-	player.global_position = creature.global_position + Vector2(520.0, -80.0)
+	player.global_position = Vector2(creature.global_position.x + creature.reach() + 60.0, 480.0)
 	for _frame in range(20):
 		await physics_frame
 	_check(bool(director.call("is_solved", "L3_N2")),
@@ -171,57 +221,122 @@ func _the_dark() -> void:
 
 ## How fast a swimmer makes along the bed holding right and down, and how far above the bed its
 ## anchor rides there. Clocked, not assumed: a fish on the Dagat bed covers about 25 px every
-## quarter second at y 1686, with the bed at 1709.
+## quarter second at y 1686, with the bed at 1709. FAST_SWIM is a fish held forward in open water
+## (run_swim_reach_probe), and the boat's own pace is about the same.
 const BED_SWIM := 100.0
+const FAST_SWIM := 150.0
 const BED_CLEARANCE := 23.0
 
 
-func _the_way_under(creature: BakunawaClass) -> Dictionary:
-	var bed := float((load("res://scripts/level_3.gd") as GDScript).get_script_constant_map()["BED_Y"])
-	var depth := bed - BED_CLEARANCE - creature.global_position.y
-	var limit := BakunawaClass.SWEEP_LIMIT
-	var speed := BakunawaClass.SWEEP_SPEED
-	var period := 4.0 * limit / speed
-	var kept := float(creature.get("_sweep"))
+## Put the creature where it would be `t` seconds into its drift and its sweep, as
+## Bakunawa2D._process and _drift move it, and return where it is.
+func _at_moment(creature: BakunawaClass, home: Vector2, t: float) -> Vector2:
+	var ends := creature.sweep_range()
+	creature.set("_sweep", _sweep_at(t, ends, BakunawaClass.SWEEP_SPEED))
+	creature.global_position = home + Vector2(
+		sin(t * TAU / BakunawaClass.PATROL_PERIOD) * BakunawaClass.PATROL_REACH,
+		sin(t * TAU / BakunawaClass.BOB_PERIOD) * BakunawaClass.BOB)
+	return creature.global_position
+
+
+## How much of the bed straight under it the beam never reaches, held still at home.
+func _shadow_under(creature: BakunawaClass, home: Vector2, bed_y: float) -> float:
+	var kept_at := creature.global_position
+	var kept_sweep := float(creature.get("_sweep"))
+	var ends := creature.sweep_range()
+	creature.global_position = home
 	var shadow := 0.0
 	for across in range(-200, 201, 2):
 		var ever := false
-		for step in range(120):
-			creature.set("_sweep", _sweep_at(float(step) / 120.0 * period, limit, speed))
-			if creature.sees(creature.global_position + Vector2(float(across), depth)):
+		for step in range(160):
+			creature.set("_sweep", lerpf(ends.x, ends.y, float(step) / 159.0))
+			if creature.sees(home + Vector2(float(across), bed_y - home.y)):
 				ever = true
 				break
 		if not ever:
 			shadow += 2.0
-	var tries := 200
+	creature.global_position = kept_at
+	creature.set("_sweep", kept_sweep)
+	return shadow
+
+
+## A straight run at one depth, held forward at `speed` from outside its reach until past it
+## (the level's own rule: 420 east of it): the share of arrival times that go unseen.
+func _blind_runs(creature: BakunawaClass, home: Vector2, depth_y: float, speed: float,
+		tries: int) -> float:
+	var kept_at := creature.global_position
+	var kept_sweep := float(creature.get("_sweep"))
+	var ends := creature.sweep_range()
+	var period := 2.0 * (ends.y - ends.x) / BakunawaClass.SWEEP_SPEED
 	var unseen := 0
 	for attempt in range(tries):
-		var start := float(attempt) / float(tries) * period
-		var x := -BakunawaClass.CONE_LENGTH - 10.0
-		var clock := 0.0
+		# Spread over three sweeps, so the drift's phase varies as well as the sweep's.
+		var t := float(attempt) / float(tries) * period * 3.0
+		var x := home.x - creature.reach() - 150.0
 		var seen := false
-		while x < 0.0:
-			creature.set("_sweep", _sweep_at(start + clock, limit, speed))
-			if creature.sees(creature.global_position + Vector2(x, depth)):
+		while true:
+			var at := _at_moment(creature, home, t)
+			if x > at.x + 420.0:
+				break
+			if creature.sees(Vector2(x, depth_y)):
 				seen = true
 				break
-			clock += 0.02
-			x += BED_SWIM * 0.02
+			t += 0.02
+			x += speed * 0.02
 		if not seen:
 			unseen += 1
-	creature.set("_sweep", kept)
-	return {"shadow": shadow, "window": float(unseen) / float(tries) * period, "period": period}
+	creature.global_position = kept_at
+	creature.set("_sweep", kept_sweep)
+	return float(unseen) / float(tries)
 
 
-## The sweep's angle `t` seconds into its travel: out to +limit, back across to -limit, and home.
-static func _sweep_at(t: float, limit: float, speed: float) -> float:
-	var leg := limit / speed
-	t = fposmod(t, 4.0 * leg)
+## Can a swimmer who watches it get past at this depth -- stopping, backing off, going when it
+## looks away? Every place they could be, a tenth of a second at a time, from outside its reach
+## at `t0`. The seconds the quickest way takes, or -1 if there is none within a minute.
+func _careful_run(creature: BakunawaClass, home: Vector2, depth_y: float, speed: float,
+		t0: float) -> float:
+	var kept_at := creature.global_position
+	var kept_sweep := float(creature.get("_sweep"))
+	var tick := 0.1
+	var stride := speed * tick
+	var start := home.x - creature.reach() - 150.0
+	var places := {0: true}
+	var t := t0
+	var took := -1.0
+	for _step in range(600):
+		t += tick
+		var at := _at_moment(creature, home, t)
+		var next := {}
+		for place: int in places:
+			for move in [-1, 0, 1]:
+				var p: int = place + move
+				if p < 0 or next.has(p):
+					continue
+				var x := start + float(p) * stride
+				if creature.sees(Vector2(x, depth_y)):
+					continue
+				if x > at.x + 420.0:
+					took = t - t0
+					break
+				next[p] = true
+			if took >= 0.0:
+				break
+		if took >= 0.0 or next.is_empty():
+			break
+		places = next
+	creature.global_position = kept_at
+	creature.set("_sweep", kept_sweep)
+	return took
+
+
+## The sweep's angle `t` seconds into its travel between `ends` (up, down) and back -- the bounce
+## Bakunawa2D._process makes.
+static func _sweep_at(t: float, ends: Vector2, speed: float) -> float:
+	var leg := (ends.y - ends.x) / speed
+	t = fposmod(t, 2.0 * leg)
 	if t < leg:
-		return speed * t
-	if t < 3.0 * leg:
-		return limit - speed * (t - leg)
-	return -limit + speed * (t - 3.0 * leg)
+		return ends.x + speed * t
+	return ends.y - speed * (t - leg)
 
 
 func _the_fight() -> void:

@@ -57,10 +57,31 @@ const CONE_HALF_ANGLE := 0.42
 ## unseen, and a run from the edge to the shadow had a 1.6-second window in every 7.6. On paper
 ## a stealth resolution; played, a wall. At 0.90 and 0.38 the beam never comes within fifteen
 ## degrees of straight down -- ninety pixels of the bed to wait in, in plain sight as the one
-## place the light never goes -- and each half of the crossing has a window of three seconds in
-## every nine and a half. run_bakunawa_probe measures both against the swimmer's own speed.
+## place the light never goes -- and each half of the crossing had a window of three seconds in
+## every nine and a half at the old reach (see DEEP_REACH for the reach now). run_bakunawa_probe
+## searches for the way past at a slow swimmer's own speed.
 const SWEEP_SPEED := 0.38
 const SWEEP_LIMIT := 0.90
+
+## ⚠ DOWN IN THE WATER ITS LIGHT REACHES THE WHOLE COLUMN, AND BOTH BEAMS LOOK THE SAME WAY.
+## Kent: "i can get pass through it easily like the light is not doing anything". He could: the
+## beam reached CONE_LENGTH from a creature lying 950 px under the surface, so once the stealth
+## route opened the coils, everything above y ~1050 was out of its reach -- a swimmer along the
+## top was never seen and finished the level in thirteen seconds. Longer alone did not close it.
+## The two beams pointed opposite ways, back to back, so when one looked up the other looked
+## down and neither ever looked straight up: a chimney of dark over it that, at this reach,
+## still let three blind runs in four along the surface through. Down here the beams are two eyes. They lift together,
+## past straight up, and dip together, never quite to straight down -- so the shadow under its
+## belly the design keeps as the place to wait is still there, and there is no other. When it
+## looks up, keep low; when it looks down, go high. run_bakunawa_probe measures every depth.
+const DEEP_REACH := 1000.0
+const LOOK_UP := 1.2
+const LOOK_DOWN := 0.9
+## ⚠ AT THE SURFACE IT KEEPS THE SHORT, BACK-TO-BACK SWEEP. Staged for the boat it lies just
+## under the hull, so the boat's lane is level with it and within a thousand pixels of it all the
+## way across: with the deep beam there, the boat could not time a way past from any point in the
+## cycle (run_bakunawa_probe, measured). The old sweep leaves it one, and the probe holds that.
+var _surfaced := false
 
 ## Three good hits. The design asks that the fight be survivable without combat skill: this is
 ## a story game and a player who picks Protector for character reasons should not be walled by
@@ -216,16 +237,19 @@ func _build_bodies() -> void:
 ##
 ## Moved rather than duplicated. A second creature at the surface would be a second set of
 ## states to keep in step with this one, and they would drift.
-func stage_at(depth_y: float) -> void:
+func stage_at(depth_y: float, surfaced: bool = true) -> void:
 	global_position.y = depth_y
 	_home.y = depth_y
+	_surfaced = surfaced
 	_fit_the_coils()
 	queue_redraw()
 
 
 ## Back to a place and a fresh search, as it was before anything happened to it -- what a
 ## checkpoint restore to before the encounter's end asks of it. Any leaving is called off.
-func reset_to(at: Vector2) -> void:
+## `surfaced` is the staging, as for stage_at: the run decides it, not where it was last.
+func reset_to(at: Vector2, surfaced: bool = false) -> void:
+	_surfaced = surfaced
 	if _leave != null and _leave.is_valid():
 		_leave.kill()
 	_leaving = false
@@ -315,6 +339,25 @@ func treasure_point() -> Vector2:
 	return global_position + treasure_offset
 
 
+## How far its light reaches, staged where it is now. See DEEP_REACH.
+func reach() -> float:
+	return CONE_LENGTH if _surfaced else DEEP_REACH
+
+
+## The two ways its light points this moment: back to back at the surface, side by side below.
+func facings() -> Array[float]:
+	if _surfaced:
+		return [_sweep, _sweep + PI]
+	return [_sweep, PI - _sweep]
+
+
+## The sweep's ends, up (negative) and down, staged where it is now.
+func sweep_range() -> Vector2:
+	if _surfaced:
+		return Vector2(-SWEEP_LIMIT, SWEEP_LIMIT)
+	return Vector2(-LOOK_UP, LOOK_DOWN)
+
+
 func _set_channel_open(open: bool) -> void:
 	if _coils != null:
 		_coils.process_mode = Node.PROCESS_MODE_DISABLED if open else Node.PROCESS_MODE_INHERIT
@@ -334,9 +377,9 @@ func sees(point: Vector2, lit: bool = false) -> bool:
 	var offset := point - global_position
 	if lit and offset.length() < CONE_LENGTH * 1.6:
 		return true
-	if offset.length() > CONE_LENGTH:
+	if offset.length() > reach():
 		return false
-	for facing in [_sweep, _sweep + PI]:
+	for facing in facings():
 		var heading := Vector2(cos(facing), sin(facing))
 		# ⚠ absf. Vector2.angle_to is SIGNED, so an unsigned test is true for every point on
 		# one side of the heading and for the whole of the aft cone -- which made the sweep
@@ -421,9 +464,10 @@ func _process(delta: float) -> void:
 	_thrash = maxf(0.0, _thrash - delta)
 	match _state:
 		State.SEARCHING, State.FIGHTING:
+			var ends := sweep_range()
 			_sweep += SWEEP_SPEED * _sweep_direction * delta
-			if absf(_sweep) > SWEEP_LIMIT:
-				_sweep = clampf(_sweep, -SWEEP_LIMIT, SWEEP_LIMIT)
+			if _sweep < ends.x or _sweep > ends.y:
+				_sweep = clampf(_sweep, ends.x, ends.y)
 				_sweep_direction = -_sweep_direction
 			_drift(delta)
 		State.FOLLOWING:
@@ -539,7 +583,8 @@ func _draw() -> void:
 	# from the bright middle to the dark rim -- so close in, the beam had a hard straight side.
 	# Cut into cells, the light goes to nothing across the width at every distance.
 	var spread := CONE_HALF_ANGLE * 1.18
-	for facing in [_sweep, _sweep + PI]:
+	var length := reach()
+	for facing in facings():
 		for ring in range(BEAM_RINGS):
 			var near := float(ring) / float(BEAM_RINGS)
 			var far := float(ring + 1) / float(BEAM_RINGS)
@@ -556,11 +601,11 @@ func _draw() -> void:
 					var middle := corner.x if ring > 0 or corner.y > 0.0 else (left + right) * 0.5
 					if ring == 0 and corner.y == 0.0:
 						angle = facing - spread + spread * 2.0 * middle
-					cell.append(Vector2(cos(angle), sin(angle)) * CONE_LENGTH * corner.y)
+					cell.append(Vector2(cos(angle), sin(angle)) * length * corner.y)
 					shades.append(Color(tint.r, tint.g, tint.b,
 						_beam_strength(middle, corner.y) * swell))
 				draw_polygon(cell, shades)
-		_draw_motes(facing, tint, clock)
+		_draw_motes(facing, tint, clock, length)
 
 
 const BEAM_RINGS := 5
@@ -587,14 +632,15 @@ static func _beam_strength(across: float, along: float) -> float:
 const MOTES := 26
 
 
-func _draw_motes(facing: float, tint: Color, clock: float) -> void:
-	for index in range(MOTES):
+func _draw_motes(facing: float, tint: Color, clock: float, length: float) -> void:
+	# As thick in a long beam as in a short one.
+	for index in range(int(round(MOTES * length / CONE_LENGTH))):
 		var seed := float(index) * 12.9898
 		var across := fposmod(sin(seed) * 43758.5453, 1.0) * 2.0 - 1.0
-		var reach := fposmod(fposmod(sin(seed * 1.7) * 24634.6345, 1.0) + clock * 0.05, 1.0)
+		var out := fposmod(fposmod(sin(seed * 1.7) * 24634.6345, 1.0) + clock * 0.05, 1.0)
 		var angle := facing + across * CONE_HALF_ANGLE
-		var at := (Vector2(cos(angle), sin(angle)) * reach * CONE_LENGTH).round()
-		var bright := (1.0 - absf(across)) * (1.0 - reach) * 0.9
+		var at := (Vector2(cos(angle), sin(angle)) * out * length).round()
+		var bright := (1.0 - absf(across)) * (1.0 - out) * 0.9
 		if bright < 0.08:
 			continue
 		var size := 2.0 if index % 3 == 0 else 1.0
