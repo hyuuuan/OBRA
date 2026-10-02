@@ -24,7 +24,6 @@
 [ext_resource type="Script" path="res://scripts/concept_gate_2d.gd" id="17_gate"]
 [ext_resource type="Script" path="res://scripts/hidden_flower_2d.gd" id="18_flower"]
 [ext_resource type="Script" path="res://scripts/level_obstacle_2d.gd" id="19_j5wv8"]
-[ext_resource type="Script" path="res://scripts/stair_tread_2d.gd" id="20_ryned"]
 [ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="20_y6bxt"]
 [ext_resource type="Script" path="res://scripts/straw_pile_2d.gd" id="23_3uax6"]
 [ext_resource type="Script" path="res://scripts/baul_2d.gd" id="24_vekj0"]
@@ -591,18 +590,6 @@ script = ExtResource("24_strawroom")
 [node name="House" type="Node2D" parent="GameplayPlane/Bale" unique_id=1120996384]
 position = Vector2(4650, 80)
 script = ExtResource("25_owbyo")
-
-[node name="Steps" type="Node2D" parent="GameplayPlane/Bale" unique_id=913205180]
-
-[node name="Lower" type="StaticBody2D" parent="GameplayPlane/Bale/Steps" unique_id=913205181]
-position = Vector2(4384, 36)
-script = ExtResource("20_ryned")
-tread_size = Vector2(56, 44)
-
-[node name="Landing" type="StaticBody2D" parent="GameplayPlane/Bale/Steps" unique_id=913205182]
-position = Vector2(4430, -19)
-script = ExtResource("20_ryned")
-tread_size = Vector2(56, 99)
 
 [node name="Bulul1" type="Node2D" parent="GameplayPlane/Bale" unique_id=525187676]
 position = Vector2(4592, 80)
