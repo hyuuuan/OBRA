@@ -9,6 +9,8 @@
 #
 #   tools/run_suites.sh            everything, to /tmp/obra_suites.log
 #   tools/run_suites.sh quick      skips run_tests, which alone takes over ten minutes
+#   tools/suite_watch.py [LOG]     in another terminal: a live bar -- done, ok, failed, what is
+#                                  running, how long -- read off the log as it is written
 #
 # ⚠ ONE GODOT AT A TIME. Every test run shares user://test_runs, and a second run started
 # beside this one empties the first one's profile out from under it.
@@ -25,6 +27,7 @@ set -u
 cd "$(dirname "$0")/.."
 LOG=${OBRA_SUITE_LOG:-/tmp/obra_suites.log}
 : > "$LOG"
+print "progress: tools/suite_watch.py $LOG"
 
 HEADLESS=(
   run_tests run_level_ready test_player_profile
