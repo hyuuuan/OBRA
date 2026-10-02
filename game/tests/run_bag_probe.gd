@@ -13,6 +13,11 @@ extends SceneTree
 ## Now a drawing flies into its own slot, and the card -- kept for what the game hands the
 ## player -- leaves the mouse alone. Both are driven the way a player drives them: the drawing
 ## through the level's own door for a recognised drawing, the mouse as input events.
+##
+## AND THE SCREEN HE MEANT IS THE TAB BAG. It snapped on in one frame, the wheel did nothing
+## and nothing could be dragged. Its rise, the wheel, a trackpad and the arrows are driven here
+## as input; the drag is Godot's own, which needs a real pointer, so the drop it ends in is
+## called the way Godot calls it -- and run_click_ui drags one with a real mouse.
 
 var level: Node
 var results: Array[String] = []
@@ -39,6 +44,7 @@ func _run() -> void:
 	await _unpause()
 	await _a_drawing_flies_into_its_slot()
 	await _a_card_leaves_the_mouse_alone()
+	await _the_bag_screen_moves()
 	for line in results:
 		print(line)
 	if failures == 0:
@@ -114,6 +120,96 @@ func _card_up(cards: AcquiredOverlay) -> void:
 		await process_frame
 		if bool(cards.get("_holding")):
 			return
+
+
+func _the_bag_screen_moves() -> void:
+	var placement := level.get("placement_controller") as PlacementController
+	if placement.is_placing():
+		placement.cancel_placement()
+	var bag := level.get("inventory_manager") as InventoryManager
+	var hud := level.get("inventory_hud") as InventoryHUD
+	for slot in range(bag.capacity):
+		bag.take_item(slot)
+	bag.add_item(_item("ladder"), 0)
+	bag.add_item(_item("square"), 2)
+	var screen: InventoryScreen = null
+	for node in get_nodes_in_group(&"modal_overlays"):
+		if node is InventoryScreen:
+			screen = node
+	_action(&"inventory_open")
+	await process_frame
+	await process_frame
+	var panel := screen.get("_panel") as Control
+	_check(screen.is_open() and not screen.is_settled() and panel.scale.x < 0.99,
+		"Tab: the bag rises in rather than snapping on",
+		"scale %.2f on its second frame" % panel.scale.x)
+	var started := Time.get_ticks_msec()
+	while not screen.is_settled() and Time.get_ticks_msec() - started < 1500:
+		await process_frame
+	var scrim := screen.get("_scrim") as Control
+	_check(screen.is_settled() and is_equal_approx(panel.scale.x, 1.0)
+			and is_equal_approx(scrim.modulate.a, 1.0), "and settles",
+		"in %.2f s" % ((Time.get_ticks_msec() - started) / 1000.0))
+
+	_wheel(MOUSE_BUTTON_WHEEL_DOWN)
+	await process_frame
+	_check(_chosen(screen) == "bag 0", "the wheel looks through it", _chosen(screen))
+	_wheel(MOUSE_BUTTON_WHEEL_DOWN)
+	await process_frame
+	_check(_chosen(screen) == "bag 2", "and skips the empty slots", _chosen(screen))
+	_wheel(MOUSE_BUTTON_WHEEL_UP)
+	await process_frame
+	_check(_chosen(screen) == "bag 0", "and goes back up", _chosen(screen))
+	var pan := InputEventPanGesture.new()
+	pan.delta = Vector2(0.0, 1.2)
+	Input.parse_input_event(pan)
+	await process_frame
+	_check(_chosen(screen) == "bag 2", "and so does a trackpad", _chosen(screen))
+	_action(&"ui_left")
+	await process_frame
+	_check(_chosen(screen) == "bag 0", "and the arrow keys", _chosen(screen))
+
+	hud.set_selected(0)
+	screen.call("_drop_on_bag", Vector2.ZERO, {"bag_slot": 0}, 4)
+	_check(bag.peek_item(4) != null and bag.peek_item(4).entity_id == "ladder"
+			and bag.peek_item(0) == null, "a drawing let go over slot 5 moves to it",
+		"5 is the %s" % (bag.peek_item(4).entity_id if bag.peek_item(4) != null else "nothing"))
+	_check(hud.selected_slot() == 4, "and the bar's SEL goes with it", "SEL on %d" % (hud.selected_slot() + 1))
+	_check(_chosen(screen) == "bag 4", "and it is still the one chosen", _chosen(screen))
+	screen.call("_drop_on_bag", Vector2.ZERO, {"bag_slot": 2}, 4)
+	_check(bag.peek_item(4).entity_id == "square" and bag.peek_item(2).entity_id == "ladder",
+		"one let go over another swaps the two", "3 ladder, 5 square")
+	screen.call("_drop_outside", Vector2.ZERO, {"bag_slot": 2})
+	await process_frame
+	_check(not screen.is_open() and placement.is_placing(),
+		"one let go off the bag is taken out", "on the cursor to set down"
+			if not screen.is_open() and placement.is_placing() else "open %s, placing %s"
+			% [screen.is_open(), placement.is_placing()])
+	if placement.is_placing():
+		placement.cancel_placement()
+
+
+func _chosen(screen: InventoryScreen) -> String:
+	var chosen: Dictionary = screen.get("_chosen")
+	return "%s %s" % [chosen.get("kind", "none"), chosen.get("index", chosen.get("id", ""))]
+
+
+func _item(entity_id: String) -> DrawnItemData:
+	var item := DrawnItemData.new()
+	item.entity_id = entity_id
+	item.display_name = entity_id.capitalize()
+	return item
+
+
+func _action(action: StringName) -> void:
+	var press := InputEventAction.new()
+	press.action = action
+	press.pressed = true
+	Input.parse_input_event(press)
+	var lift := InputEventAction.new()
+	lift.action = action
+	lift.pressed = false
+	Input.parse_input_event(lift)
 
 
 func _draw(entity_id: String) -> void:
