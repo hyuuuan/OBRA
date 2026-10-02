@@ -20,7 +20,7 @@ const SEGMENT_SECONDS := 22.0
 ## there. Testing only from the spawn tells you about the FIRST gate and nothing else: the
 ## bot stops at Beat 0 and the whole level behind it goes unexamined.
 const SEGMENTS: Array = [
-	{"name": "the paddy and Ang Hagdan", "at": Vector2(260, 460.0)},
+	{"name": "the bank below Ang Hagdan", "at": Vector2(260, 460.0)},
 	{"name": "above the stair, to the gorge", "at": Vector2(1220, 360.0)},
 	# All three, because they remain physically different crossings even though the rescue
 	# steps are now shared: Artist has no route geometry, Pragmatist adds the far exit shelf,

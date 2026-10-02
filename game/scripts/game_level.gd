@@ -865,14 +865,8 @@ func _current_objective() -> Dictionary:
 		else Vector2.ZERO
 
 	if not director.is_solved("B0_HAGDAN"):
-		var stage := director.stage_id("B0_HAGDAN")
-		var target := Vector2(1050.0, 380.0)
-		var tread := get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Hagdan/FloatingTread") \
-			as Node2D
-		if stage == "sub1" and tread != null:
-			target = tread.global_position + Vector2(0.0, -70.0)
-		return {"key": "b0_%s" % (stage if not stage.is_empty() else "sub1"),
-			"obstacle": "B0_HAGDAN", "target": target}
+		# The foot of Ang Hagdan's wall, where the drawing goes.
+		return {"key": "b0_sub1", "obstacle": "B0_HAGDAN", "target": Vector2(1130.0, 470.0)}
 
 	var gorge := _obstacle_point("L1_N1")
 	if not director.is_solved("L1_N1") and at.x < gorge.x + 240.0:

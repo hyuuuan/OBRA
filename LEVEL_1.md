@@ -544,6 +544,16 @@ edge or every drawing set down from the bank is judged against no obstacle at al
 attempt counted, no tier moved, no solve. `run_level1_audit` stands the player on the bank
 and asserts the director is at `B0_HAGDAN`, which is what caught the narrowing.
 
+**BEAT 0 IS THE STAIR AND NOTHING ELSE (Kent, 2026-10-02).** "Remove the first obstacle and
+put more emphasis to the part that requires stairs, I don't like there are blocks of dirt when
+it can just be removed since the player will draw a stair." The paddy, its floating plank
+(`FloatingTread2D`, deleted) and the stair's broken treads are gone, and Terrace1 is raised to
+y 340: the bank meets it in ONE 220px wall at x 1180 -- more than a square and a jump (75+94),
+less than a drawn stair and a jump (177+94). So Beat 0 asks for `climb` (a stair, a ladder),
+not `span`; `span` is taught at the gorge instead, where Lolo already names it. Terrace1 onto
+Terrace2 is a slope now (`Rise2`), so there is one climb, not two dirt steps. `run_level1_audit`
+and `run_walk_level1` measure the wall against a real drawn stair and square.
+
 **THE LEVEL IS 5120 WIDE, NOT 3920, AND THE GAPS ARE THE POINT.** Every beat used to open
 within a stride of the last one finishing. The level grew by 1200 in four steps — the near
 bank +260, Terrace2 +420, Terrace5 +340, the Overlook +180 — and every one of them lengthens
@@ -566,7 +576,7 @@ lever for the hint board, and Node 2 uses it — see below.
 
 | Obstacle | Spans | What is in it |
 |---|---|---|
-| `B0_HAGDAN` | 440 – 1260 | the floating plank (750), the three broken treads (1060–1144) |
+| `B0_HAGDAN` | 700 – 1240 | the bank below Ang Hagdan, and the wall itself at 1180 |
 | `L1_N1` | 2850 – 3230 | the dialogue node (3010), the dead tree (3040), the ruined bridge (3080) |
 | `L1_N2` | 3640 – 4380 | the three straw piles (3654–4368), on Terrace5 |
 | `L1_N3` | 4430 – 4810 | the bale's floor (4520–4760) and both bululs |

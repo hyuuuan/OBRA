@@ -5,20 +5,20 @@ const RosterFixtures = preload("res://tests/roster_fixtures.gd")
 ##
 ##	 godot --headless --path game --script res://tests/run_walk_level1.gd
 ##
-## run_level1_audit proves the obstacle ACCEPTS a square: it calls _judge_submission and
+## run_level1_audit proves the obstacle ACCEPTS a stair: it calls _judge_submission and
 ## reads the director's answer. That is a statement about bookkeeping. It says nothing
-## about whether a player who draws the square can then put it somewhere and climb it,
-## which is the only question Beat 0 actually asks -- and the answer was no, because every
+## about whether a player who draws one can then put it somewhere and climb it, which is
+## the only question Beat 0 actually asks -- and once the answer was no, because every
 ## click aimed at the foot of the stair was landing in the inventory bar.
 ##
-## So this one drives the character: place the step, then hold the keys a player holds and
-## see where the body ends up.
+## So this one drives the character: stand the stair up, then hold the keys a player holds
+## and see where the body ends up.
 
 const WandererClass = preload("res://scripts/wanderer.gd")
-const StairTreadClass = preload("res://scripts/stair_tread_2d.gd")
 ## Read off the level, not restated here: a test that carries its own copy of the
 ## geometry stops testing the geometry the moment somebody moves it.
-var tread_top := 0.0
+## The bank Beat 0 is answered from, and the top of Ang Hagdan's wall -- Terrace1.
+var ledge_top := 0.0
 var bank_top := 0.0
 
 var passes := 0
@@ -46,14 +46,13 @@ func _run() -> void:
 	for _frame in range(30):
 		await physics_frame
 	player = level.get("player") as Node2D
-	var hagdan := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane/Hagdan")
 	var bank := level.get_node_or_null(
-		"EnvironmentBaseplate/GameplayPlane/Terrain/LowerRight") as Node2D
-	if hagdan != null and bank != null:
+		"EnvironmentBaseplate/GameplayPlane/Terrain/LowerLeft") as Node2D
+	var ledge := level.get_node_or_null(
+		"EnvironmentBaseplate/GameplayPlane/Terrain/Terrace1") as Node2D
+	if bank != null and ledge != null:
 		bank_top = bank.global_position.y
-		for child in hagdan.get_children():
-			if child.get_script() == StairTreadClass and not bool(child.get("is_broken")):
-				tread_top = maxf(tread_top, float(child.call("surface_y")))
+		ledge_top = ledge.global_position.y
 	if player == null:
 		print("OBRA_WALK_L1_FAILED=1  (no player)")
 		quit(1)
@@ -61,8 +60,8 @@ func _run() -> void:
 
 	var jump_height: float = pow(WandererClass.JUMP_VELOCITY, 2.0) / (2.0 * float(
 		ProjectSettings.get_setting("physics/2d/default_gravity", 980.0)))
-	_check(bank_top - tread_top > jump_height, "the stair is a real gate",
-		"%.0fpx of rise against a %.0fpx jump" % [bank_top - tread_top, jump_height])
+	_check(bank_top - ledge_top > jump_height, "the stair is a real gate",
+		"%.0fpx of rise against a %.0fpx jump" % [bank_top - ledge_top, jump_height])
 
 	# ⚠ THIS FIXTURE RUNS WITH A FULL PURSE, DELIBERATELY, and the reason is worth writing
 	# down. Thesis FR-7 gives a level six units and prices a placeable at one unit per
@@ -75,8 +74,7 @@ func _run() -> void:
 	# Whether the level can actually be FINISHED inside six units is a real question and it
 	# has its own answer: `run_level1_finish_probe` plays all three routes to the end and
 	# asserts what it spent. This one is about whether the mechanisms work at all.
-	for beat in [_the_player_cannot_shove_the_plank, _the_paddy_needs_a_crossing,
-			_cannot_be_climbed_bare, _can_be_climbed_with_a_step,
+	for beat in [_cannot_be_climbed_bare, _one_step_is_not_enough, _can_be_climbed_with_a_stair,
 			_a_placement_can_be_taken_back, _the_ghost_is_where_it_lands,
 			_the_heap_has_an_inside, _the_overlook_needs_a_climb,
 			_the_gorge_flower_and_return_are_reachable]:
@@ -186,161 +184,6 @@ func _jump_to_gorge_landing(landing: Dictionary) -> bool:
 	return false
 
 
-## THE REPORTED BUG, and it is a regression test with a name: "the floating dirt just flies
-## when I go to the water".
-##
-## The plank is on its own collision layer so the player cannot use it as a free stepping
-## stone -- but Godot pairs two bodies when EITHER side matches, and the plank's mask was
-## the default 1, which is the layer the player is on. The pair existed, so the apo passed
-## through it exactly as designed and shoved it the length of the paddy on the way, because
-## a kinematic body against a light rigid one wins every contact.
-##
-## Standing IN it is the sharpest version of the question: if the pair is live, the solver
-## ejects the plank the moment the two overlap.
-func _the_player_cannot_shove_the_plank() -> void:
-	var tread := level.get_node_or_null(
-		"EnvironmentBaseplate/GameplayPlane/Hagdan/FloatingTread") as Node2D
-	if tread == null:
-		_fail("wading past the plank", "the level has no floating tread")
-		return
-	var before := tread.global_position
-	player.set("velocity", Vector2.ZERO)
-	player.global_position = tread.global_position
-	# Well under the 1.1s the drowning rescue waits, so this measures the contact and not
-	# the teleport that follows it.
-	for _frame in range(40):
-		await physics_frame
-	var shoved := before.distance_to(tread.global_position)
-	_check(shoved < 12.0, "wading through the plank does not shove it",
-		"%.0fpx of drift" % shoved)
-	# BACK ON DRY LAND BEFORE THE NEXT CASE. The drowning timer is on the level, not on this
-	# body, and it keeps counting through whatever the next test is doing -- so a case that
-	# leaves the player in the water hands the one after it a teleport it never asked for.
-	player.set("velocity", Vector2.ZERO)
-	player.global_position = Vector2(200, 520.0)
-	for _frame in range(30):
-		await physics_frame
-
-
-## The paddy is 300px of water, deeper than the apo can climb out of and wider than she
-## can jump. That makes it a gate -- and a gate is only a gate if it OPENS. A crossing that
-## cannot be crossed even with the right drawing is not a puzzle, it is a wall.
-##
-## THIS USED TO PROVE IT WITH A BRIDGE, which is the one answer the beat rejects. Sub-beat
-## 1 excludes bridge and ladder, so what it actually accepts is a square or a triangle at
-## eighty pixels -- and no eighty-pixel object crosses three hundred pixels of water. The
-## gate had never been shown to open, because with what it accepted it could not.
-##
-## What opens it is the plank already floating in it: set something that rolls on top and
-## it steadies, lies flat, locks, and is a step. So this walks the real loop -- weigh the
-## plank down from the near bank, then cross it.
-func _the_paddy_needs_a_crossing() -> void:
-	var inventory := level.get("inventory_manager") as Node
-	var placement := level.get("placement_controller") as Node2D
-	var tread := level.get_node_or_null(
-		"EnvironmentBaseplate/GameplayPlane/Hagdan/FloatingTread") as RigidBody2D
-	if tread == null:
-		_fail("crossing the paddy", "the level has no floating tread")
-		return
-	player.set("velocity", Vector2.ZERO)
-	player.global_position = Vector2(300, 500.0)
-	# ON THE BANK, not still falling onto it. The crossing below jumps when the player is
-	# grounded and near a lip, and a body still dropping the last few pixels walks straight
-	# past the lip without ever being grounded in the window.
-	for _frame in range(60):
-		await physics_frame
-		if bool(player.call("is_on_floor")):
-			break
-
-	# LOOSE, IT IS NOT A STEP, and that has to be true or the water costs nothing. The
-	# player's own layer is 1; a plank they could stand on before paying for it would halve
-	# the crossing into two hops of a hundred and six pixels, which a running jump covers.
-	_check(tread.collision_layer & 1 == 0, "a loose plank is not something to stand on",
-		"layer %d -- the player passes through it" % tread.collision_layer)
-
-	var item := DrawnItemData.new()
-	item.entity_id = "circle"
-	item.display_name = "Circle"
-	var slot: int = inventory.call("add_item", item)
-	level.call("_on_inventory_slot_pressed", slot)
-	await process_frame
-	if not bool(placement.call("is_placing")):
-		_fail("weighting the plank", "the placement never started")
-		return
-	placement.set_process(false)
-	# On the deck, from the bank. 150px away against a 360px reach.
-	placement.call("update_target", tread.global_position - Vector2(0.0, 52.0))
-	for _frame in range(4):
-		await physics_frame
-	var placed: bool = placement.call("confirm_placement")
-	_check(placed, "something that rolls can be set on the plank",
-		"placed" if placed else "REFUSED -- the weight cannot be put where it is needed")
-	if not placed:
-		return
-	for _frame in range(60):
-		await physics_frame
-	_check(bool(tread.call("is_settled")), "and the weight settles it",
-		"locked at y=%.0f" % tread.global_position.y if bool(tread.call("is_settled"))
-		else "STILL LOOSE at %s -- there is no way over the water"
-			% tread.global_position.round())
-	if not bool(tread.call("is_settled")):
-		return
-	_check(tread.collision_layer & 1 != 0, "a settled plank is",
-		"layer %d -- it carries the player now" % tread.collision_layer)
-
-	# JUMPED AT THE LIP, not on a metronome. The old loop pressed jump every twenty-four
-	# frames whatever was under the player, which is fine for a wall you run at and useless
-	# for two 106px gaps: whether it cleared them was down to where in the cycle the run
-	# happened to start, and a miss lands in water nobody can climb out of. A player aims;
-	# so does this.
-	# Read off the plank's own collision, not a number typed here: it is two of the missing
-	# treads lodged together, and a stale half-width aims the second jump from the middle of
-	# the deck instead of from the end of it.
-	var plank_half := 44.0
-	for child in tread.get_children():
-		var collision := child as CollisionShape2D
-		if collision != null and collision.shape != null and collision.shape.has_method("get_rect"):
-			plank_half = Rect2(collision.shape.call("get_rect")).size.x * 0.5
-			break
-	var plank_east: float = tread.global_position.x + plank_half
-	# 600 is the near bank's lip since the level was stretched -- the bank grew from 340 wide
-	# to 600 so the opening beat has somewhere to happen. It was 340, which is now the middle
-	# of the bank: the walker jumped early, landed short of the deck, and the paddy read as a
-	# wall it could not cross.
-	var lips: Array[float] = [600.0, plank_east]
-	# HELD, THEN LET GO, THEN PRESSED AGAIN. The wanderer jumps on
-	# is_action_just_pressed, so a key held down from the first gap never fires the second
-	# one -- the player walked the deck, stepped off the far end and drowned, and the trace
-	# showed a jump that was pressed and did nothing. Ten frames is a full-height jump; the
-	# release is what makes the next press count.
-	Input.action_press(&"move_right")
-	var crossed := false
-	var hold := 0
-	for _frame in range(360):
-		var here: float = player.global_position.x
-		var grounded: bool = bool(player.call("is_on_floor"))
-		var at_a_lip := false
-		for lip in lips:
-			if here > lip - 34.0 and here < lip:
-				at_a_lip = true
-		if hold > 0:
-			hold -= 1
-			if hold == 0:
-				Input.action_release(&"jump")
-		elif grounded and at_a_lip:
-			Input.action_press(&"jump")
-			hold = 10
-		await physics_frame
-		if player.global_position.x > 920.0:
-			crossed = true
-			break
-	Input.action_release(&"move_right")
-	Input.action_release(&"jump")
-	_check(crossed, "and the player walks across it",
-		"reached the far bank" if crossed
-		else "STILL STUCK at x %.0f -- the paddy is a wall" % player.global_position.x)
-
-
 ## THE ROUND TRIP, and both halves of it. Node 2's heap is the only thing in Level 1 with an
 ## inside, and the inside is a room in the empty sky above the level rather than a cutaway
 ## where the heap stands -- so getting in is a fade and a teleport, and getting out is
@@ -422,42 +265,83 @@ func _cannot_be_climbed_bare() -> void:
 		else "CLIMBED IT -- the beat asks for nothing")
 
 
-## And it has to be answerable. A step is placed at the foot of the stair, which is what
-## the player does after drawing something that spans the gap.
-func _can_be_climbed_with_a_step() -> void:
-	var inventory := level.get("inventory_manager") as Node
-	var placement := level.get("placement_controller") as Node2D
-	_stand_on_the_bank()
-
-	var item := DrawnItemData.new()
-	item.entity_id = "square"
-	item.display_name = "Square"
-	var slot: int = inventory.call("add_item", item)
-	level.call("_on_inventory_slot_pressed", slot)
-	await process_frame
-	if not bool(placement.call("is_placing")):
-		_fail("placing the step", "the placement never started")
+## AND ONE STEP IS NOT THE ANSWER. Kent wanted the emphasis on the part that needs a stair:
+## the wall is 220px, and an 80px square and a jump fall short of it, so a player who
+## reaches for the smallest thing that might do is told by the wall rather than let past.
+func _one_step_is_not_enough() -> void:
+	var placed := await _stand_up("square", Vector2(1140.0, 520.0))
+	if placed == null:
+		_fail("a single step", "a square could not be set down at the wall")
 		return
-
-	# At the foot of the stair, under open sky: the surviving tread overhangs the right
-	# end of the bank, so the useful ground is west of it.
-	# The controller re-aims at the live cursor every frame in _process, and a
-	# headless run has no cursor -- the preview was being dragged to (0,0) and
-	# clamped to the reach radius, which put the step in the paddy. Hold the aim.
-	placement.set_process(false)
-	placement.call("update_target", Vector2(1070, 505.0))
+	var reached := await _run_at_the_stair()
+	_check(not reached, "one square at the wall is not enough",
+		"still below it -- it wants a stair" if not reached
+		else "CLIMBED IT on one square -- the stair is not what it asks for")
+	placed.queue_free()
 	for _frame in range(4):
 		await physics_frame
-	var placed: bool = placement.call("confirm_placement")
-	_check(placed, "a step can be set down at the foot of the stair",
-		"placed" if placed else "REFUSED -- there is nowhere to put it")
-	if not placed:
-		return
 
+
+## And it has to be answerable, with what it asks for: a drawn stair stood against the wall,
+## climbed by holding up, the way a placed ladder is. Placing it answers Beat 0.
+func _can_be_climbed_with_a_stair() -> void:
+	var placed := await _stand_up("stairs", Vector2(1120.0, 440.0))
+	_check(placed != null, "a stair can be stood up against Ang Hagdan",
+		"placed" if placed != null else "REFUSED -- there is nowhere to put it")
+	if placed == null:
+		return
+	var director = level.get("director")
+	_check(director != null and bool(director.call("is_solved", "B0_HAGDAN")),
+		"and standing it up answers Beat 0", "B0_HAGDAN solved")
 	var reached := await _run_at_the_stair()
-	_check(reached, "and the stair can then be climbed",
+	_check(reached, "and Ang Hagdan can then be climbed",
 		"the player reached the top" if reached
-		else "STILL STUCK -- the step is down and the beat is unbeatable")
+		else "STILL STUCK -- the stair is up and the beat is unbeatable")
+
+
+## Draw `entity_id` the way the canvas hands it over, take it out of the bag and set it down
+## at `aim` from the bank. Returns what was placed, or null.
+func _stand_up(entity_id: String, aim: Vector2) -> PhysicsShapeObject:
+	var placement := level.get("placement_controller") as Node2D
+	_stand_on_the_bank()
+	for _frame in range(20):
+		await physics_frame
+	var points := PackedVector2Array([Vector2(0, 0), Vector2(90, 0), Vector2(90, 90),
+		Vector2(0, 90), Vector2(0, 0)])
+	if entity_id == "stairs":
+		points = PackedVector2Array()
+		for i in range(5):
+			points.append(Vector2(i * 50.0, 200.0 - i * 50.0))
+			points.append(Vector2((i + 1) * 50.0, 200.0 - i * 50.0))
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	level.call("_on_drawing_ready", entity_id, entity_id.capitalize(), sheet, {"confidence": 0.9},
+		[{"points": points, "width": 6.0, "color": Color.BLACK}], 1.0)
+	await process_frame
+	level.call("_on_inventory_slot_pressed", int(level.call("_slot_holding", entity_id)))
+	await process_frame
+	if not bool(placement.call("is_placing")):
+		return null
+	# The controller re-aims at the live cursor every frame in _process, and a headless run
+	# has no cursor -- hold the aim.
+	placement.set_process(false)
+	placement.call("update_target", aim)
+	for _frame in range(4):
+		await physics_frame
+	placement.call("update_target", aim)
+	var ok: bool = placement.call("confirm_placement")
+	placement.set_process(true)
+	if not ok:
+		return null
+	for _frame in range(60):
+		await physics_frame
+	var found: PhysicsShapeObject = null
+	for node in level.get_tree().get_nodes_in_group(&"placed_drawings"):
+		var shape := node as PhysicsShapeObject
+		if shape != null and not shape.is_preview and shape.item_data != null \
+				and shape.item_data.entity_id == entity_id:
+			found = shape
+	return found
 
 
 ## A PLACEMENT THE PLAYER CANNOT UNDO IS A TRAP. Ink is committed when the object is set
@@ -687,7 +571,7 @@ func _preview_in(world_items: Node2D) -> PhysicsShapeObject:
 
 
 ## The Overlook stands 140px over Terrace5, so the last stretch before the bale is a climb
-## rather than a walk. Same rule as the paddy: prove it opens, or it is a wall.
+## rather than a walk. Same rule as Ang Hagdan: prove it opens, or it is a wall.
 func _the_overlook_needs_a_climb() -> void:
 	var inventory := level.get("inventory_manager") as Node
 	var placement := level.get("placement_controller") as Node2D
@@ -827,6 +711,8 @@ func _the_overlook_needs_a_climb() -> void:
 ## through the Input singleton rather than fed as events.
 func _run_at_the_stair() -> bool:
 	Input.action_press(&"move_right")
+	# AND UP, which is how a placed stair or ladder is climbed. On a bare wall it only looks up.
+	Input.action_press(&"move_up")
 	# STANDING on the stone, not passing over it. A peak height alone is satisfied by a
 	# jump that clears the tread and lands back where it started, which is the failure
 	# this is meant to catch.
@@ -837,10 +723,11 @@ func _run_at_the_stair() -> bool:
 		elif frame % 24 == 18:
 			Input.action_release(&"jump")
 		await physics_frame
-		if bool(player.call("is_on_floor")) and player.global_position.y <= tread_top + 2.0:
+		if bool(player.call("is_on_floor")) and player.global_position.y <= ledge_top + 2.0:
 			arrived = true
 			break
 	Input.action_release(&"move_right")
+	Input.action_release(&"move_up")
 	Input.action_release(&"jump")
 	return arrived
 

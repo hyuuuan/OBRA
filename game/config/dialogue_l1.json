@@ -11,27 +11,17 @@
     {
       "id": "L1_B0_002",
       "at": "B0_HAGDAN.enter",
-      "text": "The paddy is deeper than she painted it. It has taken a carabao, apo."
-    },
-    {
-      "id": "L1_B0_003",
-      "at": "B0_HAGDAN.sub1",
-      "text": "That plank is one of the missing steps. Draw something that can **roll**, and set it on top."
-    },
-    {
-      "id": "L1_B0_004",
-      "at": "B0_HAGDAN.sub1.solved",
-      "text": "There. Ugly does not matter — I could read it. Cross while it holds."
+      "text": "Ang Hagdan, apo. Her stair. Every step of it has fallen."
     },
     {
       "id": "L1_B0_005",
-      "at": "B0_HAGDAN.sub2",
-      "text": "Now look up. The steps are gone. Draw something that can **span** the gap."
+      "at": "B0_HAGDAN.sub1",
+      "text": "Look up. Draw something you can **climb**, and set it against the wall."
     },
     {
       "id": "L1_B0_008",
-      "at": "B0_HAGDAN.sub2.solved",
-      "text": "Up you go. She would have laughed at that step, and then she would have used it."
+      "at": "B0_HAGDAN.sub1.solved",
+      "text": "Up you go. She would have laughed at that, and then she would have used it."
     },
     {
       "id": "L1_B0_006",

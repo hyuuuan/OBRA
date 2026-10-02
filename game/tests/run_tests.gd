@@ -858,10 +858,9 @@ func _test_banaue_environment() -> void:
 	# the level opened within a stride of the last one finishing -- the opening dialogue, its
 	# signboard and the first gate were inside forty pixels of each other. The level grew by
 	# 1200 in four steps and every one of them lengthens a WALK: the near bank +260, Terrace2
-	# +420, Terrace5 +340, the Overlook +180. No GATE moved. The paddy is still 300 across,
-	# the bank still 280 from water to stair, the gorge still 440 lip to lip and the stair
-	# still a 136px rise -- see R7 and the gate table in GATES.md, which are what this number
-	# is really standing in for.
+	# +420, Terrace5 +340, the Overlook +180. Since then Beat 0 lost its paddy and became one
+	# 220px wall at Ang Hagdan (Kent, 2026-10-02); the gorge is still 440 lip to lip -- see
+	# R7 and the gate table in GATES.md, which are what this number is really standing in for.
 	#
 	# MEASURED FROM THE BOTTOM, not as a raw size. Everything that matters here hangs off
 	# the floor of the world: the baseplate builds its floor body at the bottom edge, the
@@ -887,15 +886,16 @@ func _test_banaue_environment() -> void:
 	for node in get_nodes_in_group("terrace_ground"):
 		if environment.is_ancestor_of(node):
 			terrace_count += 1
-	# 11 terrain segments, six shared rescue ledges in the gorge and Pragmatist's exit shelf.
-	# Terrace4 is deliberately absent: that span is the gorge the level is built around.
-	_expect(terrace_count == 18,
-		"Banaue terrain has %d terrace segments, expected 18 -- if something new joined the\n\t\tterrace_ground group, it probably should not have" % terrace_count)
+	# 9 terrain segments, six shared rescue ledges in the gorge and Pragmatist's exit shelf.
+	# Terrace4 is deliberately absent: that span is the gorge the level is built around. The
+	# first paddy's floor and the bank after it went with Beat 0's first half.
+	_expect(terrace_count == 16,
+		"Banaue terrain has %d terrace segments, expected 16 -- if something new joined the\n\t\tterrace_ground group, it probably should not have" % terrace_count)
 	var water_count := 0
 	for node in get_nodes_in_group("water_medium"):
 		if environment.is_ancestor_of(node):
 			water_count += 1
-	_expect(water_count == 2, "Banaue must contain exactly two physical paddies")
+	_expect(water_count == 1, "Banaue must contain exactly one physical paddy, the central one")
 
 	var camera_delta := Vector2(100.0, 0.0)
 	var far_layer := environment.get_node("FarMountainLayer") as DepthLayer2D
@@ -910,10 +910,10 @@ func _test_banaue_environment() -> void:
 	_expect(far_screen_motion < green_screen_motion and green_screen_motion < near_screen_motion, "Banaue parallax depth ordering is reversed")
 
 	var probe := RigidBody2D.new()
-	var lower_paddy := environment.get_node("GameplayPlane/WaterAreas/LowerPaddy") as WaterArea2D
-	lower_paddy.call("_on_body_entered", probe)
+	var paddy := environment.get_node("GameplayPlane/WaterAreas/CentralPaddy") as WaterArea2D
+	paddy.call("_on_body_entered", probe)
 	_expect(probe.has_meta("water_area") and int(probe.get_meta("water_overlap_count", 0)) == 1, "paddy did not apply water metadata")
-	lower_paddy.call("_on_body_exited", probe)
+	paddy.call("_on_body_exited", probe)
 	_expect(not probe.has_meta("water_area") and int(probe.get_meta("water_overlap_count", 0)) == 0, "paddy did not clear water metadata")
 	probe.free()
 	environment.queue_free()
@@ -1112,9 +1112,8 @@ func _test_level_1_needs_drawing() -> void:
 		"the gorge is %.0fpx, which the wanderer can clear (%.0fpx)" % [far_lip - near_lip, jump_reach])
 
 	# EVERY CLIMB NEEDS SOMEWHERE TO BUILD AT ITS FOOT. The bank below the first wall was
-	# 40px wide against a 72px ladder, so the one spot the player HAS to build in could
-	# not hold the thing they had to build -- the ladder slid off it into the paddy. A
-	# gate you cannot answer is worse than no gate.
+	# once 40px wide against a 72px ladder, so the one spot the player HAS to build in could
+	# not hold the thing they had to build. A gate you cannot answer is worse than no gate.
 	var widest_standing_prop := 0.0
 	var sizes_text := FileAccess.get_file_as_string("res://config/object_sizes.json")
 	var sizes_parsed: Variant = JSON.parse_string(sizes_text) if not sizes_text.is_empty() else null
@@ -1126,7 +1125,8 @@ func _test_level_1_needs_drawing() -> void:
 	_expect(widest_standing_prop > 0.0, "could not read object_sizes.json to size the build banks")
 	# Plus clearance, so the prop is standing ON the bank rather than balanced on its lip.
 	widest_standing_prop += 40.0
-	for foot in [["LowerRight", "Terrace1"], ["Terrace1", "Terrace2"]]:
+	# Ang Hagdan is the one climb now; Terrace1 onto Terrace2 is a slope (Rise2).
+	for foot in [["LowerLeft", "Terrace1"]]:
 		var bank := terrain.get_node_or_null(NodePath(String(foot[0]))) as Node2D
 		_expect(bank != null, "no bank at the foot of the climb onto %s" % foot[1])
 		if bank == null:

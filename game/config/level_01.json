@@ -9,15 +9,11 @@
   "completes_with": "L1_N3",
   "tags_unlocked": [
     {
-      "tag": "roll",
+      "tag": "climb",
       "at": "B0_HAGDAN.sub1"
     },
     {
       "tag": "span",
-      "at": "B0_HAGDAN.sub2"
-    },
-    {
-      "tag": "climb",
       "at": "L1_N1.dialogue"
     },
     {
@@ -72,10 +68,8 @@
   ],
   "objectives": {
     "$comment": "THE OBJECTIVE LINE, one per state of the run. game_level.gd decides which state the player is in; these are only the words, kept here so run_level1_audit can hold them to the rule every dialogue line is held to: no line names a drawable class. A key with a '.tags' twin uses the twin once the obstacle's tags have been taught. Never 'stairs', 'bridge', 'ladder', 'key' or 'door' -- all classes. Ang Hagdan and Ang Bale are places, which is why they are named.",
-    "b0_sub1": "Cross the paddy",
-    "b0_sub1.tags": "Draw something that can {tags} and set it on the floating step",
-    "b0_sub2": "Get up Ang Hagdan",
-    "b0_sub2.tags": "Draw something that can {tags} across the gap in Ang Hagdan",
+    "b0_sub1": "Get up Ang Hagdan",
+    "b0_sub1.tags": "Draw something that can {tags} and set it against Ang Hagdan",
     "gorge": "Follow the terraces east to the gorge",
     "gorge.tags": "Draw something that can {tags} to get across the gorge",
     "straw": "Find what she hid in the straw heap",
@@ -96,24 +90,14 @@
       "sub_beats": [
         {
           "id": "sub1",
-          "teaches": "roll",
+          "teaches": "climb",
           "required_tags": [
-            "roll"
-          ],
-          "exclude": [],
-          "$comment": "The paddy, and it comes first because it is what the player meets first. Three hundred pixels of water, and nothing 80px wide spans that -- so the crossing is the plank already floating in it: weigh it down with something that rolls and it lies flat, steadies and becomes a step. Span used to be asked here and could not be answered, because the only class long enough to reach across is the one this beat excludes."
-        },
-        {
-          "id": "sub2",
-          "teaches": "span",
-          "required_tags": [
-            "span"
+            "climb"
           ],
           "exclude": [
-            "bridge",
-            "ladder"
+            "crab"
           ],
-          "$comment": "The stair, past the water: a 136px rise against a 94.3px jump with three treads missing. A drawn primitive is 80px, which is a step -- so bridge and ladder are excluded here to keep the answer a thing you build up to rather than a thing you lay across."
+          "$comment": "THE STAIR, AND NOTHING BEFORE IT. Kent: remove the first obstacle and put the emphasis on the part that needs a stair, without the blocks of dirt -- the player will draw the stair. The paddy and its floating plank are gone, and so are the stair's broken treads; Ang Hagdan is one 220px wall from the bank to Terrace1, against a 94px jump. A drawn stair (178px tall) or ladder (233px) climbs it and a single square (80px) does not, which is why this asks for climb and not span. crab is excluded here as it is at Ang Bale: it does not go up a wall."
         }
       ],
       "scripted": {
@@ -125,7 +109,7 @@
       "type": "dialogue_node",
       "display_name": "Ang Tulay",
       "teaches_before_choice": [
-        "climb",
+        "span",
         "leap",
         "cut"
       ],

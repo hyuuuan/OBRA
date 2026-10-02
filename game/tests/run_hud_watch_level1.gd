@@ -10,8 +10,8 @@ extends SceneTree
 ## of them land in the same place.
 ##
 ## So this does what a first-time player does in the first minutes -- stands at the spawn while
-## Lolo talks, walks to the paddy, draws a circle and sets it on the plank, draws a square,
-## walks the terraces, takes Lolo's choice at the gorge, draws the tool the route needs and uses
+## Lolo talks, walks to Ang Hagdan, draws a stair and stands it against the wall, walks the
+## terraces, takes Lolo's choice at the gorge, draws the tool the route needs and uses
 ## it, and does the same at the straw and at the house -- and every few frames asks what the
 ## HUD is painting and whether any of it is standing on anything else.
 ##
@@ -46,10 +46,8 @@ func _run() -> void:
 	physics_frame.connect(_watch)
 
 	await _moment_of("the opening, standing still", 480)
-	await _walk("walking to the paddy", &"move_right", 150)
-	await _draw_and_place("circle", Vector2(750.0, 520.0), "a circle for the plank")
-	await _moment_of("the plank settling", 120)
-	await _draw_and_place("square", Vector2(1120.0, 470.0), "a square at the stair")
+	await _walk("walking to Ang Hagdan", &"move_right", 150)
+	await _draw_and_place("stairs", Vector2(1120.0, 440.0), "a stair at Ang Hagdan")
 	await _moment_of("after the stair", 180)
 
 	for beat in [
