@@ -126,8 +126,18 @@ for a 8bit game"*. Both were the weakest drawing in the level, for two different
   (`tools/build_priest.py`), at native size in 80 × 124 cells. He has a standing collar with
   the clerical tab, buttons, pleats, bell sleeves, a wooden cross on a cord, black shoes, grey
   hair and round spectacles. His face is still the apo's, so he is drawn by the same hand. The
-  dialogue portrait is the apo's painted portrait head over the same robe at 3×, cut just under
-  the cross.
+  dialogue portrait was the apo's painted portrait head over the same robe at 3×, cut just under
+  the cross. **Superseded by the supplied priest sheet below.**
+
+### The supplied elderly priest sheet — October 2026
+
+The priest now uses Kent's **Elderly Priest Pixel Art Character Sheet**: grey hair, black
+spectacles, cream ceremonial robes and gold crosses. The original and transparent cutouts
+are retained in `level-2-assets/priest/`. `tools/build_priest.py` now packs that artwork;
+it no longer draws a robe or borrows the apo's face. Front, six walk frames and the left-facing
+turnaround fill the existing 80 × 124 cells, aligned at foot row 123. The large portrait is
+197 × 352, with its bust cut remeasured at row 250. The candle, approach, dialogue and onward
+door use the same gameplay sequence.
 
 ---
 
