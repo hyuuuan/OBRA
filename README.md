@@ -14,6 +14,25 @@ drawing as the body texture.
 - `game/` is a Godot 4 project with manifest-backed entity spawning and
   class-guided procedural animation profiles in `game/config/rigs/`.
 
+## On Windows
+
+1. Install **Godot 4.7** for Windows (the standard build, not .NET). It has to be 4.7: the
+   project is saved by 4.7, and an older Godot cannot run it.
+2. Install **Python 3.10 or newer** from python.org, and tick **"Add python.exe to PATH"** in
+   the installer. The `python3` that Windows offers from the Microsoft Store is not Python;
+   it opens the Store.
+3. After cloning, and **after every `git pull`**, double-click **`play_windows.bat`** in the
+   repository root. It makes `.venv` and installs the recogniser's packages when they are
+   missing or have changed, brings Godot's import up to date, and starts the game. It
+   looks for Godot on PATH and in Downloads, Desktop and Documents; if it cannot find it,
+   drag `Godot_v4.7-stable_win64.exe` onto `play_windows.bat` once -- it remembers.
+
+Running from the Godot editor works too once `play_windows.bat` has made `.venv`: the game
+finds `.venv\Scripts\python.exe` and starts the recogniser itself.
+
+If it still will not start, send Godot's log:
+`%APPDATA%\Godot\app_userdata\O.B.R.A\logs\godot.log`.
+
 ## Python Setup
 
 This Mac currently has `python3` as Python 3.14, which may be too new for
