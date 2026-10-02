@@ -72,18 +72,22 @@ const FLAME_SOFT := Color(0.988, 0.812, 0.451, 0.22)
 ## somewhere to walk toward rather than just where the room stops.
 const CANDLE_GLOW := Color(0.980, 0.788, 0.400, 0.16)
 const IRON := Color(0.184, 0.176, 0.169, 1.0)         # 2F2D2B
-## THE PRIEST IS A FIGURE, NOT A DRAWING. He was a dark rectangle with a circle on it; he is
-## the apo's own sheet in a cassock now (tools/build_priest.py), so he is drawn by the same hand
-## as everyone else. He waits by the altar facing the nave, walks over once the candle is lit,
-## and stands side-on to the apo to talk -- the design asks for "idle and talking only".
+## THE PRIEST IS A FIGURE, NOT A DRAWING. He was a dark rectangle with a circle on it; he is an
+## old man in a white sotana now, with the apo's own face (tools/build_priest.py), so he is drawn
+## by the same hand as everyone else. He waits by the altar facing the nave, walks over once the
+## candle is lit, and stands side-on to the apo to talk -- the design asks for "idle and talking
+## only".
 const PRIEST_WAITING := preload("res://assets/characters/priest/priest_idle.png")
 const PRIEST_WALK := preload("res://assets/characters/priest/priest_walk.png")
 const PRIEST_TALKING := preload("res://assets/characters/priest/priest_side.png")
-## A grown man, and the sheet is a child's: the same cells, a little larger.
-const PRIEST_SCALE := 1.15
-## The cell the frames are cut on, and the row his feet stand on in it -- the apo's own.
-const PRIEST_CELL := Vector2(80.0, 106.0)
-const PRIEST_FOOT_ROW := 105.0
+## ⚠ DRAWN AT HIS SIZE, NEVER SCALED. He was the apo's child-sized sheet drawn at 1.15, which on
+## pixel art is uneven, smeared pixels -- part of why he looked "so weird". The sheet is a grown
+## man's now, at the apo's own pixel size.
+const PRIEST_SCALE := 1.0
+## The cell the frames are cut on -- the apo's width, and an adult's height -- and the row his
+## feet stand on in it.
+const PRIEST_CELL := Vector2(80.0, 124.0)
+const PRIEST_FOOT_ROW := 123.0
 ## A walk: 1.4 metres a second at the church's seventy-two pixels to the metre.
 const PRIEST_SPEED := 100.0
 ## One full cycle of the six walk frames, in pixels walked, so his feet keep pace with the floor.
