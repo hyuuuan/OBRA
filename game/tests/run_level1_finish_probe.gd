@@ -268,17 +268,16 @@ func _find_painting(room: Node) -> Node:
 	return null
 
 
-## THE WAY ON, AND THE THREE THINGS THAT MAKE IT A DOOR RATHER THAN A TRAPDOOR.
+## THE CANVAS, AND THE WAY HOME.
 ##
-## Lifting Lola's canvas off the boards opens the wall behind it, and walking into the gap
-## ends Payyo and starts Piyesta. The player is standing ON that spot at the moment it
-## opens -- the painting is taken by walking into it -- so an unguarded door would take them
-## to the next level on the frame they picked the canvas up, before they had seen the room
-## the whole level is for. Held here:
+## Lifting Lola's canvas off the boards opens the wall behind it. The gap is not the way on
+## any more: Kent wanted the painting to "return to the house like the lobby and there should
+## be an animation wherein the level gets unlocked", so taking the canvas ends Payyo and the
+## next thing on screen is the house. Held here:
 ##
-##   shut until the painting is taken
-##   does not fire on the step that opened it
-##   fires once they have been clear of it and come back, and lands in Piyesta
+##   the wall is shut while the painting hangs on it
+##   the step that takes the painting does not fire the gap under the player
+##   taking it ends Payyo and goes HOME -- not through the wall into Piyesta
 func _audit_the_wall_opens() -> void:
 	# ⚠ EVERY OTHER PAYYO OUT OF THE TREE FIRST. This audit lets the transition happen for
 	# real, and a level built by _build_obstacle_layer finds its volumes through a GROUP --
@@ -331,37 +330,20 @@ func _audit_the_wall_opens() -> void:
 	_check(not stepped_through, "and the wall it uncovers does not fire under them",
 		"still standing in the opening, and Payyo has not ended")
 
-	# --- clear of it, and back --------------------------------------------------
-	_place(apo, room.global_position + Vector2(constants["DOOR_AT"]) + Vector2(54.0, 0.0))
-	await _wait(0.6)
-	_place(apo, door)
-	await _wait(0.8)
-	_check(stepped_through, "stepping away and back walks through it",
-		"onward_reached fired" if stepped_through else "the door never fired -- Payyo cannot be left")
-
-	# --- and it lands in Piyesta -------------------------------------------------
+	# --- and home, not through the wall -----------------------------------------
 	var manager := root.get_node_or_null("LevelManager")
-	_check(manager != null and String(manager.call("next_level_id", "level_1")) == "level_2",
-		"and the level after Payyo is Piyesta",
-		String(manager.call("next_level_id", "level_1")) if manager != null else "no manager")
-	# The handler stages the cinematic bars before it opens anything, so this has to wait
-	# them out -- and then stop the moment the manager has been told.
-	#
-	# ⚠ POLLED, AND RETURNED FROM THE INSTANT IT FLIPS. `open_level` writes current_level_id
-	# and DEFERS the scene change, which then spends about a third of a second closing the
-	# pixel transition before it swaps anything. Catching the write inside that window is
-	# what proves the door opened Piyesta without loading Piyesta on top of a tree that
-	# still has this probe's Payyo in it -- which reads Payyo's obstacle volumes out of the
-	# group and pushes an error for every one of them.
-	var landed := false
-	for step in range(60):
+	var home := false
+	for step in range(80):
 		await _wait(0.05)
-		if manager != null and String(manager.get("current_level_id")) == "level_2":
-			landed = true
+		if bool(fresh.get("_level_completed")) and manager != null \
+				and bool(manager.call("is_transitioning")) \
+				and String(manager.get("current_level_id")).is_empty():
+			home = true
 			break
-	_check(landed, "and the door opens it",
-		"LevelManager is on '%s'" % (String(manager.get("current_level_id"))
-			if manager != null else "?"))
+	_check(home, "and taking it takes Payyo home to the house",
+		"the house is loading" if home else "Payyo did not end, or ended somewhere else")
+	_check(not stepped_through, "not through the wall into Piyesta",
+		"the gap never fired" if not stepped_through else "the gap fired")
 
 
 ## Put the apo somewhere, whatever body they are currently in.

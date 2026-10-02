@@ -536,13 +536,38 @@ func _on_painting_taken() -> void:
 	# The marker is gone; the moment is here, with the canvas in her hands.
 	_speak(script_lines.fire("EXIT_MARKER.canvas"))
 	_grant_the_canvas()
-	# ⚠ AND SAY THAT THE WALL IS OPEN. The gap appears behind the canvas on the frame it is
-	# lifted, at the far end of a room the player is looking at the near end of, while a
-	# beat and an acquisition card are both on screen. A door nobody is told about is a door
-	# nobody walks through -- and this one is the way out of the level.
-	if hint_bar != null:
-		hint_bar.show_hint("The wall behind it is open, apo. That is the plaza.",
-			Lolo.SPEAKER, 7.0)
+	_go_home_with_the_canvas()
+
+
+## HOME, WITH HER CANVAS. Kent: "after obtaining the painting, it should return to the house
+## like the lobby and there should be an animation wherein the level gets unlocked". Payyo ends
+## the moment the canvas is in her hands and its card and lines have been read: the bars come in
+## on the room with the level's name in them, and the next thing on screen is the house, where
+## Pista's frame is unlocked in front of her (LevelManager.pending_reveal, Painting2D.reveal).
+## It used to end at a gap in the wall that walked straight into Piyesta, or down the ladder
+## and through a completion screen.
+func _go_home_with_the_canvas() -> void:
+	if _level_completed:
+		return
+	_level_completed = true
+	# After the card and the lines: the reward is read before the scene changes.
+	var waited := 0.0
+	while waited < 30.0 and (get_tree().paused or (acquired_overlay != null
+			and is_instance_valid(acquired_overlay) and acquired_overlay.is_busy())):
+		await get_tree().create_timer(0.1, true, false, true).timeout
+		waited += 0.1
+	var level_id := LevelManager.current_level_id
+	if level_id.is_empty():
+		level_id = _own_level_id()
+	Telemetry.record_event("level_exit", {
+		"level_id": level_id, "through": "canvas_home", "onward": "house",
+	})
+	Telemetry.end_level(level_id, "completed")
+	status_label.text = "Level complete!"
+	if cinematic != null:
+		cinematic.close(String(LevelManager.get_level(level_id).get("title", "")).to_upper())
+		await get_tree().create_timer(1.1, true, false, true).timeout
+	LevelManager.return_to_house()
 
 
 ## Back down the ladder, onto the terrace they climbed from.
@@ -571,10 +596,9 @@ func _on_bale_exit() -> void:
 		_step_through(_bale_return)
 	if not _completion_unlocked():
 		return
-	# After the step, so the level ends with the apo standing on the terrace she came from
-	# rather than inside a room the completion screen is drawn over.
+	# After the step, so the level ends with the apo standing on the terrace she came from.
 	await get_tree().process_frame
-	_complete_level()
+	_go_home_with_the_canvas()
 
 
 ## PAYYO ENDS AT A DOOR, NOT AT A SPOT ON THE TERRACE.
