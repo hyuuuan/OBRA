@@ -3398,7 +3398,22 @@ func _adopt_player(new_player: Node2D, previous_state: Dictionary, flash: bool) 
 		if node.has_method("except_player"):
 			node.call("except_player", new_player)
 	if old_player != null and is_instance_valid(old_player):
+		# ⚠ OUT OF THE WORLD NOW, NOT AT THE END OF THE FRAME. queue_free leaves the old body
+		# colliding until then, and the new one is set down where it stood, so for one physics
+		# step the two overlap and the new one is shoved: 12 px into the ground changing back out
+		# of a crab, 6 px up out of a frog (run_revert_probe), the same jolt for any swap.
+		_stop_colliding(old_player)
 		old_player.queue_free()
+
+
+## Takes a body out of every collision at once: everything it is made of, areas included.
+static func _stop_colliding(body: Node) -> void:
+	var parts: Array[Node] = body.find_children("*", "CollisionObject2D", true, false)
+	if body is CollisionObject2D:
+		parts.append(body)
+	for part in parts:
+		(part as CollisionObject2D).collision_layer = 0
+		(part as CollisionObject2D).collision_mask = 0
 
 
 ## Lolo's script, from config rather than from strings typed into this file, for the
