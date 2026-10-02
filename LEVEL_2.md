@@ -106,6 +106,29 @@ no timer, and a miss is only another throw.
 both alleys and measures the flight; `run_level2_chain_probe` walks all nine pairs of routes to
 the table at seven of seven; `run_play_level2` plays all three through the objective line.
 
+### The birds and the priest, redrawn — Kent, October 2026
+
+Kent: *"fix the appearance of the birds, the priest since its so weird its not detailed enough
+for a 8bit game"*. Both were the weakest drawing in the level, for two different reasons.
+
+- **The birds were not pixel art at all.** `ScrapBird2D._draw` was three smooth polygons and a
+  circle, which at the alley's zoom are antialiased brown arrowheads carrying a flat card. They
+  are **maya** now, the tree sparrow of every plaza, at the apo's own pixel size
+  (`tools/build_birds.py`). The head is where the pixels go: chestnut cap, white cheek with its
+  black spot, black bib and lores, a stubby dark bill. The back is streaked brown with a white
+  wing bar. There are eight frames on one origin: three wingbeat frames (the level one
+  foreshortened), perched with a blink, standing and pecking where it was fed, and dazed on its
+  back. The card is now a torn bit of canvas with the Dagat sea on it, the same size and anchor
+  as before. It hangs ahead of the bill, because hung from its middle it covered the face.
+- **The priest was a child in a sack, drawn at 1.15.** He was the apo's sheet recoloured: the
+  satchel strap and shorts still showed through the black, the blush had turned into blue
+  tears, and the 1.15 scale smeared every pixel. He is an **old man in a white sotana** now
+  (`tools/build_priest.py`), at native size in 80 × 124 cells. He has a standing collar with
+  the clerical tab, buttons, pleats, bell sleeves, a wooden cross on a cord, black shoes, grey
+  hair and round spectacles. His face is still the apo's, so he is drawn by the same hand. The
+  dialogue portrait is the apo's painted portrait head over the same robe at 3×, cut just under
+  the cross.
+
 ---
 
 ## The level in one paragraph

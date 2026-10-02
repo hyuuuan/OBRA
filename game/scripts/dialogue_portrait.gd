@@ -68,10 +68,12 @@ extends Control
 const PORTRAITS := {
 	"Lolo": {"art": preload("res://assets/characters/lolo/lolo_portrait.png"),
 		"bust": 0.71},
-	# Piyesta's priest. A reskin of the apo's own portrait (tools/build_priest.py), so he is cut
-	# at the same fraction for the same reason: the hands are the widest thing in the frame.
+	# Piyesta's priest: the apo's own portrait head, grey and in spectacles, over a white sotana
+	# (tools/build_priest.py). Cut just under his wooden cross -- row 243 of 312, which the tool
+	# prints -- so he speaks with his collar and his cross; his sleeves run on past the cut, so
+	# nothing is left a stump.
 	"Padre": {"art": preload("res://assets/characters/priest/priest_portrait.png"),
-		"bust": 0.69},
+		"bust": 243.0 / 312.0},
 }
 ## Anyone without an entry above, which in practice is the apo: its own lines share the box
 ## with a different plaque.

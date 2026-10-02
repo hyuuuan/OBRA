@@ -1,0 +1,68 @@
+{
+  "cell": [
+    44,
+    44
+  ],
+  "origin": [
+    22,
+    24
+  ],
+  "frames": {
+    "fly_up": {
+      "index": 0,
+      "beak": [
+        13,
+        1
+      ]
+    },
+    "fly_mid": {
+      "index": 1,
+      "beak": [
+        13,
+        1
+      ]
+    },
+    "fly_down": {
+      "index": 2,
+      "beak": [
+        13,
+        1
+      ]
+    },
+    "perch": {
+      "index": 3,
+      "beak": [
+        11,
+        -5
+      ]
+    },
+    "blink": {
+      "index": 4,
+      "beak": [
+        11,
+        -5
+      ]
+    },
+    "stand": {
+      "index": 5,
+      "beak": [
+        11,
+        -9
+      ]
+    },
+    "peck": {
+      "index": 6,
+      "beak": [
+        10,
+        1
+      ]
+    },
+    "dazed": {
+      "index": 7,
+      "beak": [
+        13,
+        3
+      ]
+    }
+  }
+}
