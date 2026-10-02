@@ -137,12 +137,15 @@ var _use_button: Button
 var _chosen: Dictionary = {}
 var _thumbnails: Dictionary = {}
 
-## ⚠ IT SNAPPED ON, ITS SLOTS JUMPED, AND THE WHEEL DID NOTHING. Kent, of this screen: "i dont
-## like how the animation is happening ... i cant scroll, drag, etc. from it". It appeared in
-## one frame, its slots answered a click the way a menu button does -- a dip, a pop and a ring
-## going off inside the frame -- and the wheel did nothing. So now it rises in the way the
-## drawing canvas does, a slot under the mouse lifts and lights, and the wheel, a trackpad and
-## the arrow keys step through everything on it.
+## ⚠ IT WAS A STILL PICTURE YOU COULD ONLY CLICK. Kent, of this screen: "i dont like how the
+## animation is happening ... i cant scroll, drag, etc. from it". It snapped on in one frame,
+## its slots answered a click the way a menu button does -- a dip, a pop and a ring going off
+## inside the frame -- the wheel did nothing, and the only way to use a drawing was to pick it
+## and then find the button. So now: it rises in the way the drawing canvas does; a slot under
+## the mouse lifts and lights; the wheel, a trackpad and the arrow keys step through everything
+## on it; and a drawing can be DRAGGED -- onto another slot to swap the two (the slot is the
+## number key, so this is how the ladder goes on 1), or off the bag to take it out, which for
+## something set down puts it on the cursor where it was dropped.
 ##
 ## IT CLOSES AT ONCE, on purpose. Pause is derived from whichever overlays are open (see
 ## ModalOverlay), so a closing animation is either the game held paused behind it or a panel
@@ -321,6 +324,57 @@ func _step(direction: int) -> void:
 	_show_choice()
 
 
+# --- Dragging ----------------------------------------------------------------------
+
+func _drag_from_bag(_at: Vector2, index: int) -> Variant:
+	var item := inventory_manager.peek_item(index) if inventory_manager != null else null
+	if item == null:
+		return null
+	# What is being carried is what is chosen, so the pane says what is in the hand.
+	_chosen = {"kind": "bag", "index": index}
+	refresh()
+	# Centred on the pointer: a preview hangs from its top-left corner otherwise.
+	var holder := Control.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var art := TextureRect.new()
+	art.texture = _thumbnail(item)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.size = BAG_SLOT
+	art.position = -BAG_SLOT * 0.5
+	art.modulate = Color(1.0, 1.0, 1.0, 0.85)
+	holder.add_child(art)
+	_bag_buttons[index].set_drag_preview(holder)
+	return {"bag_slot": index}
+
+
+func _can_drop_on_bag(_at: Vector2, data: Variant, index: int) -> bool:
+	return data is Dictionary and (data as Dictionary).has("bag_slot") \
+		and int((data as Dictionary)["bag_slot"]) != index
+
+
+func _drop_on_bag(_at: Vector2, data: Variant, index: int) -> void:
+	var from := int((data as Dictionary)["bag_slot"])
+	# Chosen first: moving it refreshes this screen, and the pane follows the drawing.
+	_chosen = {"kind": "bag", "index": index}
+	if inventory_manager == null or not inventory_manager.move_item(from, index):
+		_chosen = {"kind": "bag", "index": from}
+	refresh()
+	_show_choice()
+
+
+func _can_drop_outside(_at: Vector2, data: Variant) -> bool:
+	return data is Dictionary and (data as Dictionary).has("bag_slot")
+
+
+## Out of the bag -- the same thing TAKE IT OUT does, so a tool goes into the hand and a thing
+## to set down goes onto the cursor, right where it was let go.
+func _drop_outside(_at: Vector2, data: Variant) -> void:
+	_chosen = {"kind": "bag", "index": int((data as Dictionary)["bag_slot"])}
+	_use_chosen()
+
+
 # --- Building ------------------------------------------------------------------------
 
 func _build() -> void:
@@ -335,6 +389,8 @@ func _build() -> void:
 	scrim.color = Color(UISkin.INK, 0.86)
 	root.add_child(scrim)
 	_scrim = scrim
+	# Off the bag is out of the bag: a drawing dropped anywhere outside the panel is taken out.
+	scrim.set_drag_forwarding(Callable(), _can_drop_outside, _drop_outside)
 
 	var centre := CenterContainer.new()
 	centre.name = "Centre"
@@ -420,7 +476,8 @@ func _build() -> void:
 	footer.name = "Footer"
 	footer.theme_type_variation = &"HudCaption"
 	footer.add_theme_color_override(&"font_color", UISkin.MUTED)
-	footer.text = "%s to close  ·  scroll to look through" % ControlsKeys.keys_for("inventory_open")
+	footer.text = "%s to close  ·  scroll to look through  ·  drag a drawing to another slot, or off the bag to take it out" \
+		% ControlsKeys.keys_for("inventory_open")
 	column.add_child(footer)
 
 
@@ -475,6 +532,8 @@ func _build_bag(parent: Control) -> void:
 	for index in range(6):
 		var button := _slot_button(BAG_SLOT)
 		button.pressed.connect(_choose_bag.bind(index))
+		button.set_drag_forwarding(_drag_from_bag.bind(index), _can_drop_on_bag.bind(index),
+			_drop_on_bag.bind(index))
 		row.add_child(button)
 		_bag_buttons.append(button)
 
