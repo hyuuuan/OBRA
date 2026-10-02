@@ -35,7 +35,8 @@ HEADLESS=(
   run_ink_economy_probe run_morph_gate_probe run_book_probe run_tutorial_audit
   run_tutorial_popup_probe run_action_prompt_probe run_hint_probe run_dialogue_box_probe
   run_room_probe
-  run_companion_pose_probe run_morph_reach_probe run_revert_probe run_behaviour_audit run_roster_sweep
+  run_companion_pose_probe run_morph_reach_probe run_revert_probe run_placement_probe
+  run_behaviour_audit run_roster_sweep
   run_level2_audit run_level2_scene_probe run_level2_chain_probe run_level2_finish_probe
   run_level2_systems_probe run_level2_alley_probe run_nodraw_level2 run_water_audit run_hub_audit
   run_assembly_probe run_dance_probe run_objective_probe run_tool_routes_probe
