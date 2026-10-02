@@ -392,6 +392,20 @@ func _land(slot: int, flier: TextureRect) -> void:
 	flash.tween_property(button, "self_modulate", Color.WHITE, 0.45)
 
 
+## Whether a panel on this layer -- a lesson's bubble, a card -- is drawn over `rect`. The same
+## reading of "a panel" the HUD overlap check makes: a PanelContainer with its own stylebox.
+func _under_a_panel(node: Node, rect: Rect2) -> bool:
+	if node == self or node == _caption:
+		return false
+	var panel := node as PanelContainer
+	if panel != null and panel.is_visible_in_tree() and panel.has_theme_stylebox_override(&"panel"):
+		return panel.get_global_rect().intersects(rect.grow(-3.0))
+	for child in node.get_children():
+		if _under_a_panel(child, rect):
+			return true
+	return false
+
+
 func _say(text: String) -> void:
 	if text.is_empty():
 		return
@@ -499,6 +513,12 @@ func _process(delta: float) -> void:
 	# letterbox takes them down with it.
 	if _caption != null:
 		_caption.self_modulate.a = _curtain_alpha
+		# ⚠ AND IT GIVES WAY. A lesson's bubble pointing at the bag or the Draw button lands right
+		# here, and the bubble is the thing the player is being taught from; this line only
+		# repeats the status line. Both up at once was a caption printed across the bubble
+		# (run_hud_watch_level1, drawing the rake at the straw).
+		if _caption.visible and _under_a_panel(get_parent(), _caption.get_global_rect()):
+			_caption.visible = false
 	for flier: Variant in _arrivals.values():
 		if flier != null and is_instance_valid(flier):
 			(flier as CanvasItem).self_modulate.a = _curtain_alpha
