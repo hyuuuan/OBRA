@@ -155,6 +155,7 @@ func _run() -> void:
 	_audit_shipping_state()
 	_audit_one_seabed(level)
 	_audit_land_is_the_ground()
+	_audit_checkpoints_are_spread_out(level)
 	await _audit_sea_marks()
 	await _audit_objectives_fit(level)
 
@@ -703,6 +704,43 @@ func _audit_one_seabed(level: Dictionary) -> void:
 		else ", ".join(sealed))
 	scene.free()
 
+
+
+## ⚠ ONE CHECKPOINT TO A STRETCH. CP1 was an area at x 640 on the beach and CP2, written when the
+## crossing is chosen, planted its mark at 860: two checkpoints, two notices, a few seconds apart
+## on a beach where nothing can be lost (Kent: "why is there two checkpoints in the first part of
+## level 3, i think that is unnecessary"). Every mark the level shows -- an area's own, and the
+## one a commit plants at its obstacle's far edge -- has to be well clear of every other.
+const CHECKPOINT_SPACING := 600.0
+
+
+func _audit_checkpoints_are_spread_out(level: Dictionary) -> void:
+	var scene := (load(ENVIRONMENT_PATH) as PackedScene).instantiate()
+	var marks := {}
+	var commits := {}
+	for entry: Dictionary in (level.get("obstacles", []) as Array):
+		var on_commit := String(entry.get("checkpoint_on_commit", ""))
+		if not on_commit.is_empty():
+			commits[String(entry.get("id", ""))] = on_commit
+	for node in scene.find_children("*", "Area2D", true, false):
+		if "checkpoint_id" in node and not String(node.get("checkpoint_id")).is_empty():
+			marks[String(node.get("checkpoint_id"))] = (node as Node2D).position
+		elif "obstacle_id" in node and commits.has(String(node.get("obstacle_id"))) \
+				and bool(node.get("plants_commit_mark")):
+			var size: Vector2 = node.get("trigger_size")
+			marks[commits[String(node.get("obstacle_id"))]] = (node as Node2D).position + Vector2(
+				size.x * 0.5 - 40.0 + float(node.get("checkpoint_mark_offset")), 0.0)
+	var crowded: Array[String] = []
+	var ids := marks.keys()
+	for i in range(ids.size()):
+		for j in range(i + 1, ids.size()):
+			var gap := (marks[ids[i]] as Vector2).distance_to(marks[ids[j]] as Vector2)
+			if gap < CHECKPOINT_SPACING:
+				crowded.append("%s and %s are %.0f px apart" % [ids[i], ids[j], gap])
+	_check(crowded.is_empty(), "one checkpoint to a stretch",
+		"%d marks, every pair at least %.0f px apart" % [marks.size(), CHECKPOINT_SPACING]
+			if crowded.is_empty() else ", ".join(crowded))
+	scene.free()
 
 
 ## ⚠ THE LAND YOU SEE IS THE LAND YOU STAND ON. Each beach is a picture (build_dagat_props.py)

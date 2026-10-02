@@ -858,7 +858,12 @@ func _may_frame_the_checkpoint(mark: Node2D) -> bool:
 
 func _checkpoint_place(checkpoint_id: String) -> String:
 	match checkpoint_id:
-		"CP1", "CP2":
+		# ⚠ ONE ON THE BEACH, NOT TWO. CP1 was an area at x 640 and CP2, written when the
+		# crossing is chosen, plants its mark at the same 640 -- two checkpoints in one place
+		# a few seconds apart (Kent: "why is there two checkpoints in the first part of level
+		# 3, i think that is unnecessary"). Nothing on the beach can be lost before the choice,
+		# so the choice's is the one kept.
+		"CP2":
 			return "the beach"
 		"CP3":
 			return "the edge of its waters"

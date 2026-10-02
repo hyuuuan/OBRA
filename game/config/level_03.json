@@ -44,11 +44,6 @@
   ],
   "checkpoints": [
     {
-      "id": "CP1",
-      "at": "L3_B0_SHORE",
-      "trigger": "area"
-    },
-    {
       "id": "CP2",
       "at": "L3_N1",
       "trigger": "route_commit"

@@ -251,11 +251,6 @@ hint_sign_offset = 290.0
 plants_commit_mark = false
 sign_reach = 700.0
 
-[node name="CP1" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(640.0, 490.0)
-script = ExtResource("6_checkpoint")
-checkpoint_id = "CP1"
-
 ; ⚠ ITS MARK IS A CLAM ON THE SEABED. It had none -- a lantern at the bottom of the sea is not
 ; a thing -- so the one checkpoint that matters most in the level, the one losing the stretch
 ; returns you to, was a line of text and nothing on screen. Under the sea CheckpointLantern2D
