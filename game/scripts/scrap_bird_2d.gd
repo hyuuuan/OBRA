@@ -70,27 +70,25 @@ const BESIDE := 32.0
 ## eighteen pixels below its anchor, so at sixteen up its lower edge just meets the floor.
 const PIECE_LIFT := 16.0
 
-## What a bird looks like at this scale, which is not much: a body, two wings and the piece
-## of painting in its beak. The scrap is the important half -- five identical birds are five
-## birds, but five birds each carrying something the player wants is the problem.
-## ⚠ THEY WERE NEARLY BLACK ON A GREY WALL AND READ AS SMUDGES. A maya is BROWN, which is both
-## true and the thing the cold wall cannot swallow, and the outline is what makes it hold at
-## any brightness -- the same rule every other prop in this project is drawn to.
-const OUTLINE := Color(0.106, 0.086, 0.075, 1.0)   # 1B1613
-const BODY := Color(0.400, 0.322, 0.259, 1.0)      # 665242
-const BODY_LIT := Color(0.588, 0.490, 0.388, 1.0)  # 967D63
-const WING := Color(0.310, 0.247, 0.196, 1.0)      # 4F3F32
-const WING_LIT := Color(0.463, 0.380, 0.302, 1.0)  # 76614D
-const BEAK := Color(0.898, 0.667, 0.263, 1.0)      # E5AA43
-const EYE := Color(0.937, 0.925, 0.882, 1.0)       # EFECE1
-## The scrap. Canvas, with a little of the sea on it -- the pieces are Dagat -- so it reads as a
-## piece of a painting rather than as a white card.
-const SCRAP := Color(0.878, 0.827, 0.729, 1.0)     # E0D3BA
-const SCRAP_EDGE := Color(0.678, 0.616, 0.502, 1.0)# AD9D80
-const SCRAP_SEA := Color(0.184, 0.482, 0.522, 1.0) # 2F7B85
-const SCRAP_SKY := Color(0.216, 0.255, 0.337, 1.0) # 374156
-## A struck one, on the floor.
-const DOWNED := Color(0.353, 0.286, 0.231, 1.0)    # 5A493B
+## ⚠ PIXEL ART, NOT POLYGONS. Kent: the birds are "so weird ... not detailed enough for a 8bit
+## game". They were three smooth polygons and a circle drawn here, which at the alley's zoom are
+## antialiased brown arrowheads beside an apo painted pixel by pixel. They are maya now -- the
+## tree sparrow of every plaza -- drawn at the apo's own density by tools/build_birds.py: a sheet
+## of frames on one origin (MANIFEST says which cell is which, and where each frame's bill is),
+## and the piece of painting they carry, a torn bit of canvas with the Dagat sea on it.
+const SHEET := preload("res://assets/Level2/birds/maya.png")
+const SCRAP_ART := preload("res://assets/Level2/birds/scrap.png")
+const MANIFEST := "res://assets/Level2/birds/maya.json"
+## The four beats of a wingbeat: up, level, down, level.
+const STROKE := ["fly_up", "fly_mid", "fly_down", "fly_mid"]
+## Where the piece hangs from the bill: by its top corner, ahead of the bill and below it. Hung
+## from its middle, the card covered the bird's whole face -- the part that makes it a maya.
+const HELD_BELOW_BILL := Vector2(9.0, 6.0)
+
+## The sheet's layout, read once for every bird.
+static var _cells := {}
+static var _cell := Vector2.ZERO
+static var _origin := Vector2.ZERO
 
 var _state: int = State.FLYING
 ## Whether the scrap is still in its beak. False from the moment it has let go of it.
@@ -116,6 +114,7 @@ var _rng := RandomNumberGenerator.new()
 func _ready() -> void:
 	add_to_group(&"scrap_birds")
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_read_the_sheet()
 	# Each its own course: seeded off its id, so a flock is the same flock every run and a test
 	# can reason about it, and no two of them move together.
 	_rng.seed = hash(scrap_id) + 1
@@ -391,75 +390,54 @@ func restore_to(done: bool) -> void:
 func _draw() -> void:
 	if _loose_scrap != Vector2.INF:
 		draw_scrap(self, _loose_scrap - position)
+	if _state == State.GONE:
+		return
+	var frame_name := _frame_now()
+	# On the floor it does not tumble; in the air a struck bird spins as it falls.
+	var spin := 0.0 if _state in [State.CALMED, State.DOWNED] else _spin
+	draw_set_transform(Vector2.ZERO, spin, Vector2(_facing, 1.0))
+	var cell: Dictionary = _cells.get(frame_name, {})
+	if not cell.is_empty():
+		draw_texture_rect_region(SHEET, Rect2(-_origin, _cell),
+			Rect2(Vector2(float(cell["index"]) * _cell.x, 0.0), _cell))
+		# ⚠ CARRIED, NOT WORN: hanging from the bill, in front of the bird.
+		if _holding:
+			draw_scrap(self, (cell["beak"] as Vector2) + HELD_BELOW_BILL)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Which frame it is showing: the stroke of its wings in the air, folded on the string with a
+## blink now and then, and on the floor pecking where it was fed or flat where it was hit.
+func _frame_now() -> String:
 	match _state:
-		State.GONE:
-			return
-		State.CALMED, State.DOWNED:
-			_draw_on_the_floor()
-			return
-	var perched := _state == State.PERCHED
-	draw_set_transform(Vector2.ZERO, _spin, Vector2(_facing, 1.0))
-	# The wingbeat. Folded on the string; a flap in flight, both wings together -- one up and
-	# one down is a bird BANKING, and at this size an asymmetric pair of triangles is an arrow.
-	var flap := 2.0 if perched else sin(_flap) * 9.0
-	var reach := 14.0 if perched else 26.0
-	var left_wing := PackedVector2Array([
-		Vector2(-8.0, -2.0), Vector2(-reach, -4.0 - flap), Vector2(-9.0, 6.0)])
-	var right_wing := PackedVector2Array([
-		Vector2(8.0, -2.0), Vector2(reach, -4.0 - flap), Vector2(9.0, 6.0)])
-	var body := PackedVector2Array([
-		Vector2(-11.0, -6.0), Vector2(9.0, -7.0), Vector2(13.0, 0.0),
-		Vector2(7.0, 7.0), Vector2(-11.0, 6.0), Vector2(-19.0, 2.0)])
-	for shape: PackedVector2Array in [left_wing, right_wing, body]:
-		var closed := shape.duplicate()
-		closed.append(shape[0])
-		draw_polyline(closed, OUTLINE, 3.0)
-	draw_colored_polygon(left_wing, WING)
-	draw_colored_polygon(right_wing, WING_LIT)
-	draw_colored_polygon(body, BODY)
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(-4.0, -6.0), Vector2(9.0, -7.0), Vector2(11.0, -2.0),
-		Vector2(-4.0, -1.0)]), BODY_LIT)
-	draw_circle(Vector2(8.0, -3.0), 2.0, EYE)
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(12.0, -2.0), Vector2(21.0, 1.0), Vector2(12.0, 3.0)]), BEAK)
-	if perched:
-		# Feet on the string.
-		draw_line(Vector2(-2.0, 6.0), Vector2(-2.0, 10.0), OUTLINE, 2.0)
-		draw_line(Vector2(3.0, 6.0), Vector2(3.0, 10.0), OUTLINE, 2.0)
-	# ⚠ CARRIED, NOT WORN: under the beak, where a bird holds something, with the bird in front.
-	if _holding:
-		draw_scrap(self, Vector2(19.0, 15.0))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		State.PERCHED:
+			return "blink" if fposmod(_flap, 7.0) < 0.3 else "perch"
+		State.CALMED:
+			return "peck" if sin(_flap) > 0.2 else "stand"
+		State.DOWNED:
+			return "dazed"
+	return STROKE[int(fposmod(_flap, TAU) / TAU * float(STROKE.size())) % STROKE.size()]
 
 
-## On the floor: head down and pecking where it was fed, or flat and stunned where it was hit.
-## The piece it let go of is not drawn here -- it is lying in front of it, and it is the level's.
-func _draw_on_the_floor() -> void:
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2(_facing, 1.0))
-	var shape := PackedVector2Array([
-		Vector2(-14.0, 0.0), Vector2(10.0, -4.0), Vector2(14.0, 2.0),
-		Vector2(-12.0, 4.0)])
-	var closed := shape.duplicate()
-	closed.append(shape[0])
-	draw_polyline(closed, OUTLINE, 3.0)
-	draw_colored_polygon(shape, DOWNED if _state == State.DOWNED else BODY)
-	if _state == State.CALMED:
-		# Head down, eating, and bobbing to it.
-		var peck := absf(sin(_flap)) * 3.0
-		draw_circle(Vector2(12.0, 1.0 + peck), 4.0, BODY_LIT)
-		draw_colored_polygon(PackedVector2Array([
-			Vector2(14.0, 2.0 + peck), Vector2(20.0, 6.0 + peck), Vector2(13.0, 5.0 + peck)]),
-			BEAK)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+static func _read_the_sheet() -> void:
+	if not _cells.is_empty():
+		return
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(MANIFEST))
+	if not (parsed is Dictionary):
+		push_warning("ScrapBird2D: no sheet manifest at %s" % MANIFEST)
+		return
+	var sheet := parsed as Dictionary
+	_cell = Vector2(float(sheet["cell"][0]), float(sheet["cell"][1]))
+	_origin = Vector2(float(sheet["origin"][0]), float(sheet["origin"][1]))
+	for frame_name: String in (sheet["frames"] as Dictionary):
+		var entry: Dictionary = sheet["frames"][frame_name]
+		_cells[frame_name] = {"index": int(entry["index"]),
+			"beak": Vector2(float(entry["beak"][0]), float(entry["beak"][1]))}
 
 
-## A piece of the painting, drawn onto `canvas` at `at`. Static so the level's piece on the
-## floor is the same picture the bird carried -- two drawings of one thing drift apart.
+## A piece of the painting, drawn onto `canvas` at `at`: the card's top edge six above `at` and
+## its foot eighteen below, as it always was -- the level lays its pieces on the floor by that.
+## Static so the level's piece on the floor is the same picture the bird carried -- two drawings
+## of one thing drift apart.
 static func draw_scrap(canvas: CanvasItem, at: Vector2) -> void:
-	var rect := Rect2(at + Vector2(-10.0, -6.0), Vector2(21.0, 24.0))
-	canvas.draw_rect(rect.grow(1.5), SCRAP_EDGE)
-	canvas.draw_rect(rect, SCRAP)
-	# A little of the storm and the sea on it.
-	canvas.draw_rect(Rect2(rect.position + Vector2(3.0, 3.0), Vector2(15.0, 8.0)), SCRAP_SKY)
-	canvas.draw_rect(Rect2(rect.position + Vector2(3.0, 12.0), Vector2(15.0, 8.0)), SCRAP_SEA)
+	canvas.draw_texture(SCRAP_ART, at + Vector2(-10.0, -6.0))
