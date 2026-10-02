@@ -293,10 +293,7 @@ func _walk_payyo() -> void:
 
 	director.enter_obstacle("B0_HAGDAN")
 	await _frames()
-	_expect("at the paddy", "b0_sub1", true, "ROLL")
-	level.call("_judge_submission", (director.accept_set("B0_HAGDAN") as PackedStringArray)[0])
-	await _frames(12)
-	_expect("the step floats", "b0_sub2", true, "SPAN")
+	_expect("at Ang Hagdan", "b0_sub1", true, "CLIMB")
 	level.call("_judge_submission", (director.accept_set("B0_HAGDAN") as PackedStringArray)[0])
 	await _frames(12)
 	director.exit_obstacle("B0_HAGDAN")

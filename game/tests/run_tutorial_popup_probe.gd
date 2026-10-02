@@ -65,6 +65,7 @@ func _run() -> void:
 	_audit_the_canvas_is_explained()
 	await _audit_the_two_readings_are_explained()
 	await _audit_the_bar_clears_the_letterbox()
+	await _audit_the_first_checkpoint_explains_itself()
 	await _audit_a_callout_never_covers_its_target()
 
 	print("OBRA_TUTORIAL_POPUP_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
@@ -272,6 +273,34 @@ func _audit_the_two_readings_are_explained() -> void:
 		", ".join(order) if not order.is_empty() else "neither fired")
 
 
+## ⚠ THE FIRST CHECKPOINT SAYS WHAT A CHECKPOINT IS, AND THE SAYING STAYS UP. Kent: "when I do
+## checkpoint, as a first time player, i dont know what it does". The lesson that explains it
+## yielded to whatever Lolo was saying as the player walked in, and when it did go up it was
+## replaced in the same frame by "The level will remember you from here".
+func _audit_the_first_checkpoint_explains_itself() -> void:
+	var bar := level.get("hint_bar") as HintBar
+	var tutorial := level.get("tutorial") as TutorialDirector
+	if bar == null or tutorial == null:
+		_check(false, "the level has a hint bar and a tutorial", "-")
+		return
+	_check(not tutorial.has_taught("checkpoint"), "no checkpoint has been explained yet", "fresh run")
+	# Lolo mid-sentence, as he is when the player walks up Ang Hagdan.
+	bar.show_hint("Walk with me, apo.", Lolo.SPEAKER, 0.0)
+	await _wait(0.2)
+	level.call("_say_checkpoint")
+	await _wait(0.4)
+	var said := String(bar.call("current_text"))
+	_check(tutorial.has_taught("checkpoint") and said.contains("If you fall or get stuck"),
+		"the first checkpoint explains itself over Lolo", said)
+	level.call("_say_checkpoint")
+	await _wait(0.4)
+	said = String(bar.call("current_text"))
+	_check(said.begins_with("Checkpoint.") and said.contains("start again from here"),
+		"and the ones after it say so in a line", said)
+	bar.clear()
+	await _wait(0.3)
+
+
 ## ⚠ THE CHECKPOINT LINE WAS PRINTED UNDER THE LETTERBOX. The bars come in over the top
 ## thirteenth of the screen at every checkpoint, and the hint that goes with one sat inside
 ## that band with its lower half showing. With the curtain in, the bar has to rest below it.
@@ -291,10 +320,19 @@ func _audit_the_bar_clears_the_letterbox() -> void:
 		"a hint during the letterbox sits below the top bar",
 		"panel top %d, bar bottom %d" % [int(panel.global_position.y), int(depth)])
 	bars.open()
-	await _wait(0.6)
-	_check(is_equal_approx(panel.global_position.y, HintBar.TOP),
-		"and goes back under the badge when the bars leave",
-		"panel top %d" % int(panel.global_position.y))
+	await _wait(1.2)
+	# OVER THE APO, NOT UNDER THE BADGE. Kent: the top "cant be seen knowing that the player is
+	# focused at the center". With the bars gone it stands where she is: centred on her, its
+	# lower edge over her head -- or under her feet where her head is too near the top.
+	var feet := level.get_viewport().get_canvas_transform() * (level.get("player") as Node2D).global_position
+	var bottom := panel.global_position.y + panel.size.y
+	var over := absf(bottom - (feet.y - HintBar.OVER_THE_HEAD)) <= 3.0
+	var under := absf(panel.global_position.y - (feet.y + HintBar.UNDER_THE_FEET)) <= 3.0
+	var beside := absf(panel.global_position.x + panel.size.x * 0.5 - feet.x) <= 3.0 \
+		or panel.global_position.x <= HintBar.EDGE + 1.0
+	_check((over or under) and beside and panel.global_position.y > HintBar.TOP + 1.0,
+		"and stands over the apo when the bars leave, not at the top",
+		"panel at %s, the apo's feet at %s" % [panel.global_position.round(), feet.round()])
 
 
 ## ⚠ A CALLOUT NEVER COVERS THE THING IT POINTS AT. Pointed at a card in the top corner of the

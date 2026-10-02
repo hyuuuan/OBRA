@@ -4,7 +4,8 @@ extends SceneTree
 ##
 ## Every other suite opens one scene and stays in it. Nothing followed a player from the title
 ## screen through the scene changes that make up a run -- PLAY into the house, the brush off its
-## stand, a painting into Payyo, the gap in Ang Bale's wall into Piyesta, the painting's last
+## stand, a painting into Payyo, her canvas home to the house where Piyesta's frame is unlocked in
+## front of her, Piyesta's painting into Piyesta, the painting's last
 ## piece back to the house, Dagat's painting, and the island into the ending -- and those
 ## changes are where a paused tree, a stale level id or
 ## a HUD left over from the last scene would show up: every scene works, and the run between
@@ -184,22 +185,42 @@ func _restart_payyo_from_pause(manager: Node) -> void:
 
 func _payyo_to_piyesta(manager: Node, profile: Node) -> void:
 	var level := current_scene
-	if level == null or not level.has_method("_on_onward_reached"):
-		_check(false, "Payyo has a way through to Piyesta", _scene_name())
+	if level == null or not level.has_method("_on_painting_taken"):
+		_check(false, "Payyo has her painting to take", _scene_name())
 		return
-	# Ang Bale's gap in the wall is the door. It is reached after the painting is taken, and the
-	# painting is what unlocks the next level -- so the painting goes first, as it does in play.
-	level.call("_grant_the_canvas")
+	# HOME WITH HER CANVAS. Kent: "after obtaining the painting, it should return to the house
+	# like the lobby and there should be an animation wherein the level gets unlocked". Taking
+	# the painting ends Payyo, and the next thing on screen is the house.
+	level.call("_on_painting_taken")
 	for _i in range(10):
 		await process_frame
 	_check(bool(profile.call("is_level_unlocked", "level_2")), "taking her painting unlocks Piyesta",
 		"unlocked")
-	level.call("_on_onward_reached")
-	await _wait_for_scene(manager, "level_2.tscn")
-	# Piyesta opens on Lolo speaking, and a story line stops the world by design. Read through it
-	# the way a player does -- a key per line -- and THEN the world has to be running.
+	# Her lines over the canvas stop the world, and the level waits for them to be read.
 	await _read_the_opening()
-	await _arrived(manager, "level_2.tscn", "through the gap in Ang Bale's wall")
+	await _wait_for_scene(manager, "hub.tscn", 30.0)
+	_check(_scene_name() == "hub.tscn", "and takes her home to the house", _scene_name())
+	var hub := current_scene
+	var frame: Node = null
+	for node in get_nodes_in_group(&"paintings"):
+		if String(node.get("level_id")) == "level_2":
+			frame = node
+	_check(frame != null and bool(frame.call("is_locked")),
+		"where Piyesta's frame hangs locked as she arrives", "padlocked" if frame != null
+			and bool(frame.call("is_locked")) else "already open, or missing")
+	var waited := 0.0
+	while waited < 8.0 and (frame == null or bool(frame.call("is_locked")) or bool(hub.call("is_revealing"))):
+		await create_timer(0.1).timeout
+		waited += 0.1
+	var plate := frame.get_node_or_null("Plate") as Label if frame != null else null
+	_check(frame != null and not bool(frame.call("is_locked")) and plate != null and plate.text == "PIYESTA",
+		"and is unlocked in front of her", "in %.1f s, the plate reads %s" % [waited,
+			plate.text if plate != null else "-"])
+	_check(String(manager.call("take_pending_reveal")).is_empty(), "and only once", "the house took it")
+	frame.call("choose")
+	await _wait_for_scene(manager, "level_2.tscn")
+	await _read_the_opening()
+	await _arrived(manager, "level_2.tscn", "through Piyesta's painting in the house")
 	_check(String(manager.get("current_level_id")) == "level_2", "and the run knows it is in Piyesta",
 		String(manager.get("current_level_id")))
 	var piyesta := current_scene

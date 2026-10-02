@@ -118,6 +118,10 @@ func _ward_note(reason: String, measured: Dictionary) -> String:
 			return "It turned, and stopped."
 
 
+## Whether Ang Bale was opened with the brass key found in the straw, rather than a drawn one.
+var _with_the_found_key := false
+
+
 ## The key off the nail in the heap opens Ang Bale, and that is the whole chain: what you
 ## find in the heap is the way into the house, and what you find in the house is the
 ## painting of the next place.
@@ -125,8 +129,8 @@ func _ward_note(reason: String, measured: Dictionary) -> String:
 ## It answers the Pragmatist route, the one that asks for Unlock -- so a player who took the
 ## trouble to get up to the nail does not also have to draw a key, and one who never went
 ## inside still can. The route is committed the ordinary way rather than the obstacle being
-## marked solved behind the director's back, so the tally, CP3 and the telemetry all record
-## it exactly as they would a drawn key.
+## marked solved behind the director's back, so the tally and the telemetry both record it
+## exactly as they would a drawn key.
 ##
 ## NOT A TAG MATCH AND NOT ASSISTED EITHER. `note_submission` is the wrong door for this: it
 ## takes a recognised CLASS, and this is a thing already in the bag. It is recorded as its
@@ -139,6 +143,13 @@ func _use_the_found_key() -> bool:
 		return false
 	if not PlayerProfile.is_collectible_found(FOUND_KEY):
 		return false
+	# The offer is answered: off the bar now, not when the level next runs a physics frame --
+	# that is after the house's opening lines, which stop the world, and the offer stood over
+	# the room the whole time they were read.
+	if hint_bar != null and not _key_prompt.is_empty() and hint_bar.current_text() == _key_prompt:
+		hint_bar.clear()
+	_key_prompt = ""
+	_with_the_found_key = true
 	director.commit_route("L1_N3", "pragmatist")
 	director.solve_with_item("L1_N3", FOUND_KEY)
 	# AND IT STAYS IN THE LOCK. The door is open; the key is not carried any more, so the bag
@@ -183,11 +194,16 @@ func _found_key_would_open() -> bool:
 const BURROW_TAG := "burrow"
 
 
-## Whether whatever the player currently IS can get in under the straw. The apo cannot; a
-## drawing can, if it is one of the things `burrow` resolves to.
+## Whether whatever the player currently IS can get in under the straw: the apo, or a drawing
+## that `burrow` resolves to. A horse cannot.
+##
+## ⚠ THE APO GOES IN. Kent: "the haybale world, its gone like where is it? why cant i go to
+## it?" Only a burrowing drawing used to fit, and Level 1 never unlocks or teaches `burrow` --
+## so the one room in the level could be found only by a player who guessed a tag nobody had
+## named. The room's own puzzle was built for her anyway: the nail is forty pixels over HER jump.
 func _fits_through_the_straw() -> bool:
 	if _current_form_id.is_empty():
-		return false
+		return true
 	return AbilityTags.class_has_tag(_current_form_id, BURROW_TAG)
 
 
@@ -199,8 +215,8 @@ func _on_straw_mouth(standing: bool) -> void:
 		hint_bar.clear()
 		return
 	if _fits_through_the_straw():
-		hint_bar.show_hint("You will fit under there  —  press %s"
-			% ControlsKeys.keys_for("move_down"))
+		hint_bar.show_hint("There is a way in under the straw  —  press %s"
+			% ControlsKeys.keys_for("interact"))
 		return
 	# The requirement, in the same words the strip and the route buttons use, so the heap
 	# cannot describe itself differently from everything else that asks for something.
@@ -399,6 +415,11 @@ func _open_the_baul(route: String) -> void:
 	# IN FIRST, THEN THE BEAT. The route lines are said by people standing in the house, and
 	# saying them before the player is moved framed the camera on a speaker out on the
 	# terrace while the apo was already a thousand units up in the room.
+	# THE KEY TURNS WHERE THE PLAYER CAN SEE IT, and only then do they go in. Kent: "how i open
+	# the key" -- E at the house took the apo inside on the same frame, so a key nobody saw go
+	# into a lock opened a door nobody saw open.
+	if route == "pragmatist":
+		await _turn_the_key()
 	await _into_the_bale()
 	match route:
 		"artist":
@@ -419,6 +440,20 @@ func _open_the_baul(route: String) -> void:
 				"cross_level_effect": "L2_PISTA.painting.creased",
 			})
 			_speak(script_lines.fire("L1_N3.protector.solved"))
+
+
+## The door glints, the lock is heard, Lolo says so, and a beat later she goes in.
+func _turn_the_key() -> void:
+	var house := get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Bale/House") as Bale2D
+	if house == null:
+		return
+	PickupFlourish2D.burst(house, Bale2D.DOOR)
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"unlock")
+	if hint_bar != null:
+		hint_bar.show_hint("The key turns. The door is open.", Lolo.SPEAKER, 3.0)
+	await get_tree().create_timer(0.9, false).timeout
 
 
 ## Over the thatch and in under the eaves. The halipan are what make this the way in rather
@@ -501,13 +536,38 @@ func _on_painting_taken() -> void:
 	# The marker is gone; the moment is here, with the canvas in her hands.
 	_speak(script_lines.fire("EXIT_MARKER.canvas"))
 	_grant_the_canvas()
-	# ⚠ AND SAY THAT THE WALL IS OPEN. The gap appears behind the canvas on the frame it is
-	# lifted, at the far end of a room the player is looking at the near end of, while a
-	# beat and an acquisition card are both on screen. A door nobody is told about is a door
-	# nobody walks through -- and this one is the way out of the level.
-	if hint_bar != null:
-		hint_bar.show_hint("The wall behind it is open, apo. That is the plaza.",
-			Lolo.SPEAKER, 7.0)
+	_go_home_with_the_canvas()
+
+
+## HOME, WITH HER CANVAS. Kent: "after obtaining the painting, it should return to the house
+## like the lobby and there should be an animation wherein the level gets unlocked". Payyo ends
+## the moment the canvas is in her hands and its card and lines have been read: the bars come in
+## on the room with the level's name in them, and the next thing on screen is the house, where
+## Pista's frame is unlocked in front of her (LevelManager.pending_reveal, Painting2D.reveal).
+## It used to end at a gap in the wall that walked straight into Piyesta, or down the ladder
+## and through a completion screen.
+func _go_home_with_the_canvas() -> void:
+	if _level_completed:
+		return
+	_level_completed = true
+	# After the card and the lines: the reward is read before the scene changes.
+	var waited := 0.0
+	while waited < 30.0 and (get_tree().paused or (acquired_overlay != null
+			and is_instance_valid(acquired_overlay) and acquired_overlay.is_busy())):
+		await get_tree().create_timer(0.1, true, false, true).timeout
+		waited += 0.1
+	var level_id := LevelManager.current_level_id
+	if level_id.is_empty():
+		level_id = _own_level_id()
+	Telemetry.record_event("level_exit", {
+		"level_id": level_id, "through": "canvas_home", "onward": "house",
+	})
+	Telemetry.end_level(level_id, "completed")
+	status_label.text = "Level complete!"
+	if cinematic != null:
+		cinematic.close(String(LevelManager.get_level(level_id).get("title", "")).to_upper())
+		await get_tree().create_timer(1.1, true, false, true).timeout
+	LevelManager.return_to_house()
 
 
 ## Back down the ladder, onto the terrace they climbed from.
@@ -536,10 +596,9 @@ func _on_bale_exit() -> void:
 		_step_through(_bale_return)
 	if not _completion_unlocked():
 		return
-	# After the step, so the level ends with the apo standing on the terrace she came from
-	# rather than inside a room the completion screen is drawn over.
+	# After the step, so the level ends with the apo standing on the terrace she came from.
 	await get_tree().process_frame
-	_complete_level()
+	_go_home_with_the_canvas()
 
 
 ## PAYYO ENDS AT A DOOR, NOT AT A SPOT ON THE TERRACE.
@@ -589,7 +648,7 @@ func _on_onward_reached() -> void:
 		"level_id": level_id, "through": "canvas_doorway", "onward": onward,
 	})
 	Telemetry.end_level(level_id, "completed")
-	PlayerProfile.mark_level_completed(level_id)
+	mark_finished(level_id)
 	status_label.text = "Level complete!"
 	# The bars come in on the room she is standing in, the same beat the completion screen
 	# is staged into -- so going straight on is still an ending rather than a scene cut.
@@ -603,12 +662,13 @@ func _on_onward_reached() -> void:
 		cinematic.open()
 
 
-## What the chest held, and the reason Pista opens. The unlock happens at CP3 rather than
-## at the marker stone, so a player who stops after this keeps the progress.
+## What the chest held, and the reason Pista opens. The unlock happens when the canvas is
+## taken, so a player who stops after this keeps the progress.
 func _grant_the_canvas() -> void:
 	note_pickup_taken("canvas_2_pista")
 	PlayerProfile.record_object_acquired("canvas_2_pista")
-	PlayerProfile.mark_level_completed(LevelManager.current_level_id)
+	mark_finished(LevelManager.current_level_id if not LevelManager.current_level_id.is_empty()
+		else _own_level_id())
 	Telemetry.record_event("item_granted", {
 		"level_id": LevelManager.current_level_id, "item": "canvas_2_pista",
 	})
@@ -752,8 +812,12 @@ func _extra_refusals(entity_id: String, strokes: Array) -> bool:
 ## commit line used to repeat that sentence in a modal dialogue box BEFORE the player drew
 ## the wind, covering the hay at the exact moment the route should build anticipation.
 ## `_search_the_straw` fires the line after every wind pose and the grounded result instead.
+## And Node 3's, when it is the brass key from the straw that opens the house: the Unlock
+## route's commit line is the apo saying "I will make something that opens it", which is the
+## wrong thing to say while turning a key she found. The key's own beat says what happened.
 func _defer_route_commit_dialogue(obstacle_id: String, route: String) -> bool:
-	return obstacle_id == "L1_N2" and route == "protector"
+	return (obstacle_id == "L1_N2" and route == "protector") \
+		or (obstacle_id == "L1_N3" and _with_the_found_key)
 
 
 ## Node 2 opens the heap; Node 3 opens the chest. Both own their own words, which is why
@@ -801,14 +865,25 @@ func _handle_level_input(event: InputEvent) -> bool:
 
 
 func _interact_with_level() -> bool:
+	# The way into the straw is offered on E, over her head, where the hint bar's version of it
+	# was talked over by Lolo's three lines about the heap. Down still works.
+	if _at_straw_mouth and _fits_through_the_straw():
+		_on_straw_entered()
+		return true
 	return _use_the_found_key()
+
+
+func _level_interact_offer() -> Dictionary:
+	if _at_straw_mouth and _fits_through_the_straw():
+		return {"name": "the straw", "verb": "GO IN"}
+	return {}
 
 
 ## THE OFFER ON THE BAR IS A PROMISE, and the same condition makes it. `_offer_the_found_key`
 ## writes "you are carrying her key -- press E to try it" whenever this is true, so the two
 ## cannot drift: if the sentence is up, this key press belongs to the door.
 func _level_answers_first() -> bool:
-	return _found_key_would_open()
+	return _found_key_would_open() or (_at_straw_mouth and _fits_through_the_straw())
 
 
 func _level_physics(anchor_position: Vector2) -> void:
@@ -865,14 +940,8 @@ func _current_objective() -> Dictionary:
 		else Vector2.ZERO
 
 	if not director.is_solved("B0_HAGDAN"):
-		var stage := director.stage_id("B0_HAGDAN")
-		var target := Vector2(1050.0, 380.0)
-		var tread := get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Hagdan/FloatingTread") \
-			as Node2D
-		if stage == "sub1" and tread != null:
-			target = tread.global_position + Vector2(0.0, -70.0)
-		return {"key": "b0_%s" % (stage if not stage.is_empty() else "sub1"),
-			"obstacle": "B0_HAGDAN", "target": target}
+		# The foot of Ang Hagdan's wall, where the drawing goes.
+		return {"key": "b0_sub1", "obstacle": "B0_HAGDAN", "target": Vector2(1130.0, 470.0)}
 
 	var gorge := _obstacle_point("L1_N1")
 	if not director.is_solved("L1_N1") and at.x < gorge.x + 240.0:

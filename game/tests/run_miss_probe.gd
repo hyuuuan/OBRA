@@ -16,13 +16,13 @@ func _run() -> void:
 	var hint = level.get("hint_bar")
 	var player := level.get("player") as Node2D
 
-	# On the left bank, where you stand to reach the plank.
-	player.global_position = Vector2(320.0, 500.0)
+	# In front of Ang Hagdan's wall, where a stair is stood up.
+	player.global_position = Vector2(1000.0, 500.0)
 	for _f in range(20):
 		await physics_frame
-	print("standing on the bank at x=320 -> director sees '%s'" % director.current_obstacle())
+	print("standing at the wall at x=1000 -> director sees '%s'" % director.current_obstacle())
 
-	# Beat 0 sub1 wants Roll. A frog leaps.
+	# Beat 0 wants Climb. A frog leaps.
 	level.call("_judge_submission", "frog")
 	await process_frame
 	print("tier after one miss: %d" % director.hint_tier())

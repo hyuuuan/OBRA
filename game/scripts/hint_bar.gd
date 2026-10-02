@@ -13,7 +13,17 @@ extends Control
 ## it clears itself. It wears HUD colours rather than the picture frame, because a hint is
 ## the interface talking and the frame is reserved for the fiction.
 
-## WHERE IT SITS: TOP CENTRE, IN THE SKY, tucked under the level badge.
+## WHERE IT SITS: OVER THE APO'S HEAD, and it goes where she goes.
+##
+## ⚠ THE TOP OF THE FRAME WAS THE BAND NOBODY READ. Kent: "do not place it at the top since it
+## cant be seen knowing that the player is focused at the center" -- the reasoning below was
+## right that the top is empty while a jump is being judged, and that is exactly why a hint
+## parked there went unread. It stands over the apo now: above her head and the key prompts
+## that ride there (ActionPromptHUD.FOLLOW_OFFSET), eased after her the way they are. Where
+## she is high enough that it would reach the objective line, it goes under her feet instead,
+## clear of the bag, the readout and the Draw key. With no player it stands where it used to.
+##
+## WHAT IT REPLACED: top centre, in the sky, tucked under the level badge.
 ##
 ## It used to be lifted 396 off the BOTTOM of the screen, which on a 900-tall canvas puts
 ## its top at y 454 -- dead centre, straight across the path the player is trying to read.
@@ -27,6 +37,18 @@ extends Control
 ## between the two top corners: the HUD frame ends at x 418 and the morph card begins at
 ## x 1202, so a bar of this width centred on 800 sits in the gap rather than over either.
 const TOP := 98.0
+## The bar's lower edge, this far above the apo's feet: clear of her head and of the row of
+## key prompts that rides above it.
+const OVER_THE_HEAD := 172.0
+## Its top, this far below her feet, when over her head would run into the objective line.
+const UNDER_THE_FEET := 36.0
+## And this far below the key prompts, when they are under her feet too.
+const KEYS_GAP := 10.0
+## The band along the bottom the bag, the readout and the Draw key live in.
+const BOTTOM_CLEAR := 150.0
+const EDGE := 18.0
+## How quickly it eases after her, as ActionPromptHUD does.
+const FOLLOW_SPEED := 6.2
 ## And NARROWER than it was. A hint is one instruction, read once. At 720 wide with the
 ## story box's padding it was a slab half the width of the screen -- which is what a beat of
 ## story is supposed to look like, and the whole point of this channel is that it is not one.
@@ -77,6 +99,13 @@ var _queue: Array[Dictionary] = []
 var _fade: Tween
 ## How far down the letterbox reaches right now, in screen units. See set_curtain.
 var _curtain := 0.0
+## Where the apo's feet are on screen, from the level every frame. INF with no player.
+var _near := Vector2.INF
+## Where the bar is on its way to, kept off the pixel grid; the panel gets it rounded.
+var _follow := Vector2.ZERO
+var _placed := false
+## The drop-in on arrival, as an offset on top of wherever it is following to.
+var _rise := 0.0
 
 
 func _init() -> void:
@@ -89,6 +118,9 @@ func _init() -> void:
 	_panel.name = "Panel"
 	_panel.add_theme_stylebox_override(&"panel", UISkin.chip(9.0, 4.0))
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# A lesson's bubble steers clear of it, as it does of the bag: the bar stands over the apo
+	# now, which is where a lesson pointing at her or at Lolo wants to go too.
+	_panel.add_to_group(&"hud_blockers")
 	add_child(_panel)
 
 	var row := HBoxContainer.new()
@@ -293,8 +325,9 @@ func _show(speaker: String, seconds: float) -> void:
 		# of the frame -- the band the player is deliberately not looking at while judging a
 		# jump -- a fade is easy to miss entirely. Eight pixels of travel out of the top edge
 		# is what makes it register as something that just appeared.
-		_panel.position.y = _rest_y() - 8.0
-		appear.tween_property(_panel, "position:y", _rest_y(), 0.18) \
+		_rise = -8.0
+		_placed = false
+		appear.tween_property(self, "_rise", 0.0, 0.18) \
 			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		_fade = appear
 	_relayout()
@@ -402,6 +435,7 @@ func _process(delta: float) -> void:
 	if _refit > 0:
 		_refit -= 1
 		_relayout()
+	_place(delta, false)
 	var speaking := _someone_is_speaking()
 	if _panel != null:
 		_panel.modulate.a = 0.0 if speaking else 1.0
@@ -434,7 +468,6 @@ func _process(delta: float) -> void:
 ## character wide and a hundred tall -- so sizing the panel to its own minimum produced
 ## exactly that: a vertical strip of single letters down the middle of the screen.
 func _relayout() -> void:
-	var view := get_viewport_rect().size
 	var font := _text.get_theme_font(&"font")
 	var font_size := _text.get_theme_font_size(&"font_size")
 	if font == null:
@@ -463,11 +496,8 @@ func _relayout() -> void:
 	_panel.reset_size()
 	var wanted := _panel.get_combined_minimum_size()
 	_panel.size = wanted
-	# X only. The drop-in tween owns y while it is running, and writing both here would
-	# snap the panel to its resting place on the first frame of every appearance.
-	_panel.position.x = floorf((view.x - wanted.x) * 0.5)
-	if _fade == null or not _fade.is_valid():
-		_panel.position.y = _rest_y()
+	# Placed at once the first time it is laid out, and eased after the apo from then on.
+	_place(0.0, not _placed)
 
 
 ## ⚠ THE LETTERBOX COVERS WHERE THIS SITS. The bars come in over the top thirteenth of the
@@ -478,10 +508,46 @@ func _relayout() -> void:
 func set_curtain(closed: float) -> void:
 	_curtain = floorf(get_viewport_rect().size.y * CinematicBars.BAR_FRACTION
 		* clampf(closed, 0.0, 1.0))
-	if _fade == null or not _fade.is_valid():
-		_panel.position.y = _rest_y()
 
 
-func _rest_y() -> float:
-	return maxf(TOP, _curtain + 10.0) if _curtain > 0.0 else TOP
+## Where the apo's feet are on screen. The level tells it every physics frame; INF when there
+## is nobody to stand near.
+func stand_near(screen_point: Vector2) -> void:
+	_near = screen_point
+
+
+## Where the bar wants to be: over the apo's head, else under her feet, else the old top spot.
+func _target() -> Vector2:
+	var view := get_viewport_rect().size
+	var size := _panel.size
+	var highest := maxf(TOP, _curtain + 10.0) if _curtain > 0.0 else TOP
+	if not (is_finite(_near.x) and is_finite(_near.y)):
+		return Vector2(floorf((view.x - size.x) * 0.5), highest)
+	var x := clampf(_near.x - size.x * 0.5, EDGE, maxf(EDGE, view.x - size.x - EDGE))
+	var y := _near.y - OVER_THE_HEAD - size.y
+	if y < highest:
+		# Below her key prompts, when they have gone under her feet as well: they are nearer.
+		var under := _near.y + maxf(UNDER_THE_FEET, _keys_below_feet() + KEYS_GAP)
+		y = under if under + size.y <= view.y - BOTTOM_CLEAR else highest
+	return Vector2(x, y)
+
+
+func _keys_below_feet() -> float:
+	var reach := 0.0
+	for keys in get_tree().get_nodes_in_group(ActionPromptHUD.GROUP):
+		reach = maxf(reach, float(keys.call("keys_below_feet")))
+	return reach
+
+
+func _place(delta: float, snap: bool) -> void:
+	if _panel == null:
+		return
+	var to := _target()
+	if snap or not _placed or _follow.distance_to(to) > 500.0:
+		_follow = to
+		_placed = true
+	else:
+		_follow = _follow.lerp(to, 1.0 - exp(-FOLLOW_SPEED * delta))
+	# Whole pixels, so the pixel face stays sharp while the ease underneath is continuous.
+	_panel.position = (_follow + Vector2(0.0, _rise)).round()
 

@@ -17,8 +17,6 @@ const AbilityTagsScript = preload("res://scripts/ability_tags.gd")
 const DialogueScriptClass = preload("res://scripts/dialogue_script.gd")
 const CheckpointManagerClass = preload("res://scripts/checkpoint_manager.gd")
 ## Preloaded, not named: class_name is not registered yet in a --script run.
-const StairTreadClass = preload("res://scripts/stair_tread_2d.gd")
-const FloatingTreadClass = preload("res://scripts/floating_tread_2d.gd")
 const StrawPileClass = preload("res://scripts/straw_pile_2d.gd")
 const WardLockClass = preload("res://scripts/ward_lock_2d.gd")
 const BululClass = preload("res://scripts/bulul_2d.gd")
@@ -234,8 +232,14 @@ func _audit_checkpoints_precede_morphs(level: Dictionary) -> void:
 	for cp_value: Variant in level.get("checkpoints", []):
 		declared[String((cp_value as Dictionary).get("id", ""))] = true
 	var problems: Array[String] = []
+	# EXCEPT THE BEAT THE LEVEL ENDS WITH. Kent: "why is there a checkpoint at the end, its so
+	# unnecessary". Answering Ang Bale finishes Payyo, so a checkpoint there saves nothing a
+	# player keeps; a fall at the house goes back to the straw heap's.
+	var last := String(level.get("completes_with", ""))
 	for obstacle_value: Variant in level.get("obstacles", []):
 		var obstacle: Dictionary = obstacle_value
+		if String(obstacle.get("id", "")) == last:
+			continue
 		if not (obstacle.get("routes", {}) as Dictionary).is_empty():
 			var cp := String(obstacle.get("checkpoint_on_commit", ""))
 			if cp.is_empty():
@@ -245,6 +249,18 @@ func _audit_checkpoints_precede_morphs(level: Dictionary) -> void:
 	_check(problems.is_empty(), "checkpoint per route commit",
 		"%d checkpoints declared" % declared.size() if problems.is_empty()
 		else "; ".join(problems))
+	# And none at the end, by the commit or by a checkpoint placed at it.
+	var at_the_end: Array[String] = []
+	for obstacle_value: Variant in level.get("obstacles", []):
+		var obstacle: Dictionary = obstacle_value
+		if String(obstacle.get("id", "")) == last and not String(obstacle.get("checkpoint_on_commit", "")).is_empty():
+			at_the_end.append(String(obstacle.get("checkpoint_on_commit", "")))
+	for cp_value: Variant in level.get("checkpoints", []):
+		if not last.is_empty() and String((cp_value as Dictionary).get("at", "")).begins_with(last):
+			at_the_end.append(String((cp_value as Dictionary).get("id", "")))
+	_check(not last.is_empty() and at_the_end.is_empty(), "no checkpoint at the end",
+		"%s, the beat Payyo ends with, has none" % last if not last.is_empty() and at_the_end.is_empty()
+		else "the level names no last beat" if last.is_empty() else "%s at %s" % [", ".join(at_the_end), last])
 
 
 # --- 4. THE CARDINAL RULE: no line may name a drawable class -----------------
@@ -451,29 +467,28 @@ func _audit_level_director() -> void:
 	root.add_child(d)          # _ready resolves the autoloads it talks to
 	_check(d.load_level(LEVEL_PATH), "director loads", "%s" % LEVEL_PATH)
 
-	# --- Beat 0: sub-beats run in order, and each is its own requirement -------
+	# --- Beat 0: the stair, and only the stair --------------------------------
 	d.enter_obstacle("B0_HAGDAN")
 	_check(d.current_obstacle() == "B0_HAGDAN", "enter", "at B0_HAGDAN")
-	# ROLL FIRST, because the paddy is what the player meets first and the plank floating in
-	# it is the answer. Span comes second, at the stair on the far bank.
-	_check((d.required_tags() as Array) == ["roll"], "sub-beat 1 asks for roll",
+	# ONE ASK. Kent: remove the first obstacle and put the emphasis on the part that needs a
+	# stair. The paddy (roll) is gone; Ang Hagdan asks for something to climb.
+	_check((d.required_tags() as Array) == ["climb"], "beat 0 asks for climb",
 		"%s" % [d.required_tags()])
 
 	# A wrong-tag drawing must not solve it, and must cost an attempt.
 	var wrong: Dictionary = d.note_submission("frog")
 	_check(not wrong["solves"] and not wrong["tag_match"] and int(wrong["attempts"]) == 1,
-		"wrong tag is refused", "frog vs roll -> attempts %d" % wrong["attempts"])
+		"wrong tag is refused", "frog vs climb -> attempts %d" % wrong["attempts"])
+	# A square is a step, and one step does not get up a 220px wall: span is not asked here.
+	var step: Dictionary = d.note_submission("square")
+	_check(not step["solves"], "a single step does not answer it", "square carries span, not climb")
+	# crab carries climb and does not go up a wall; the exclusion must bite.
+	var crab: Dictionary = d.note_submission("crab")
+	_check(not crab["solves"], "beat 0's exclusion bites", "crab carries climb but is excluded")
 
-	var right: Dictionary = d.note_submission("circle")
-	_check(right["solves"] and right["tag_match"], "right tag solves", "circle carries roll")
-	# Two sub-beats, so the first solve ADVANCES rather than completing the beat.
-	_check(bool(right["stage_advanced"]) and not bool(right["obstacle_complete"]),
-		"sub-beat advances", "stage moved to sub2 instead of finishing the beat")
-	_check((d.required_tags() as Array) == ["span"], "sub-beat 2 asks for span",
-		"%s" % [d.required_tags()])
-	var done: Dictionary = d.note_submission("square")
+	var done: Dictionary = d.note_submission("stairs")
 	_check(bool(done["obstacle_complete"]) and d.is_solved("B0_HAGDAN"),
-		"beat completes", "square closed B0_HAGDAN")
+		"a stair completes the beat", "stairs closed B0_HAGDAN in one ask")
 
 	# --- Node 1: the choice gates the requirement -----------------------------
 	d.exit_obstacle("B0_HAGDAN")
@@ -615,7 +630,7 @@ func _audit_live_level() -> void:
 	# walked in and waited heard nothing for thirty seconds. Read off the live bubble,
 	# because "the hook exists in the file" was true the whole time it was broken.
 	var asked := _lolo_bubble(level)
-	_check(asked.to_lower().contains("roll"), "beat 0 asks out loud at T0",
+	_check(asked.to_lower().contains("climb"), "beat 0 asks out loud at T0",
 		"Lolo: %s" % asked.substr(0, 64))
 	# The script marks tags with **asterisks**; Lolo's bubble is a plain Label with no
 	# markup and printed them literally, which reads as a typo in the one line the
@@ -629,85 +644,50 @@ func _audit_live_level() -> void:
 	_check(d.hint_tier() >= 1 and strip.visible, "canvas open raises to T1",
 		"tier %d, strip visible" % d.hint_tier())
 	var shown := _strip_text(strip)
-	_check(shown.to_lower().contains("roll"), "T1 names the tag", shown)
+	_check(shown.to_lower().contains("climb"), "T1 names the tag", shown)
 	# The cardinal rule, enforced on the live HUD and not just on the dialogue file.
 	var named := _class_named_in(shown)
 	_check(named.is_empty(), "the strip names no class",
 		shown if named.is_empty() else "strip said '%s'" % named)
 
-	# Solving it through the real level entry point, not the director directly.
-	level.call("_judge_submission", "circle")
-	await process_frame
-	_check(d.stage_id("B0_HAGDAN") == "sub2", "solving advances the beat",
-		"now at sub-beat '%s'" % d.stage_id("B0_HAGDAN"))
-	var asked2 := _lolo_bubble(level)
-	_check(asked2.to_lower().contains("span"), "the second sub-beat asks for itself",
-		"Lolo: %s" % asked2.substr(0, 64))
-
-	level.call("_judge_submission", "square")
+	# Solving it through the real level entry point, not the director directly. One ask, so
+	# one answer finishes it -- there is no second sub-beat any more.
+	level.call("_judge_submission", "stairs")
 	await process_frame
 	_check(d.is_solved("B0_HAGDAN"), "beat completes in the live level", "B0_HAGDAN solved")
 	_check(not strip.visible, "solved obstacle clears the strip", "nothing left to ask for")
 
-	# --- the stair must still be a stair the player cannot just walk up ------
-	# THE TREADS DEFEATED THE BEAT ONCE ALREADY. Added centre-anchored while the terrain is
-	# top-left anchored, every riser came out half a tread short: 24, 36 and 80px against a
-	# 94.3px jump, so the player could walk straight up and Beat 0 asked them for nothing.
-	# Art that illustrates a gap must not fill it.
+	# --- Ang Hagdan is ONE WALL, and it asks for a stair -------------------------
+	# Kent: "i dont like there are blocks of dirt when it can just be removed since the player
+	# will draw a stair". The broken treads and their stubs are gone, and so is the second
+	# dirt step above them: the bank meets Terrace1 in one face. It has to be taller than a
+	# jump, taller than a single step and a jump, and short enough for a drawn stair and a
+	# jump -- each measured off the thing itself rather than a number typed here.
 	var hagdan := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane/Hagdan")
 	_check(hagdan != null, "Ang Hagdan exists", "the stair is in the level")
 	if hagdan != null:
-		# Read off the wanderer itself. This used to be the literal 430.0 with a comment
-		# saying "from wanderer.gd", so retuning the jump would have left the assertion
-		# measuring a number nobody was using any more.
+		var pieces: Array[String] = []
+		for child in hagdan.get_children():
+			if child is StaticBody2D:
+				pieces.append(String(child.name))
+		_check(pieces.is_empty(), "no blocks of dirt at Ang Hagdan",
+			"a clean wall" if pieces.is_empty() else "still there: %s" % ", ".join(pieces))
+		# Read off the wanderer itself, so retuning the jump fails here.
 		var jump: float = pow(WandererClass.JUMP_VELOCITY, 2.0) / (2.0 * float(
 			ProjectSettings.get_setting("physics/2d/default_gravity", 980.0)))
-		var lower := level.get_node_or_null(
-			"EnvironmentBaseplate/GameplayPlane/Terrain/LowerRight") as Node2D
-		# ONLY the stones you can stand on. The broken stubs share the script -- they are
-		# what the missing treads left behind -- but they carry no collision, so counting
-		# them would measure the gap from a thing that cannot hold the player.
-		var treads: Array[Node2D] = []
-		for child in hagdan.get_children():
-			if child.get_script() == StairTreadClass and not bool(child.get("is_broken")):
-				treads.append(child as Node2D)
-		var stubs := 0
-		for child in hagdan.get_children():
-			if child.get_script() == StairTreadClass and bool(child.get("is_broken")):
-				stubs += 1
-		# The absence has to be drawn or two stones read as two rocks rather than as a
-		# stair someone has to repair.
-		_check(stubs == 3, "the three missing treads are drawn",
-			"%d broken stub(s) where the gone ones were" % stubs)
-		# And a stub must never be standable, or the gap quietly fills itself.
-		var solid_stubs: Array[String] = []
-		for child in hagdan.get_children():
-			if child.get_script() == StairTreadClass and bool(child.get("is_broken")):
-				for grandchild in child.get_children():
-					if grandchild is CollisionShape2D or grandchild is CollisionPolygon2D:
-						solid_stubs.append(String(child.name))
-		_check(solid_stubs.is_empty(), "broken stubs are not standable",
-			"none carry collision" if solid_stubs.is_empty() else ", ".join(solid_stubs))
-		# Highest surface_y is the lowest stone on screen: y grows downward.
-		treads.sort_custom(func(a, b): return float(a.call("surface_y")) > float(b.call("surface_y")))
-		_check(not treads.is_empty(), "the stair has treads", "%d stone(s) survive" % treads.size())
-
-		if not treads.is_empty() and lower != null:
-			var rise: float = lower.global_position.y - float(treads[0].call("surface_y"))
-			_check(rise > jump + 8.0, "the gap is still ungated",
-				"%.0fpx from the bank to the lowest stone, against a %.0fpx jump" % [rise, jump])
-
-		# And once the gap IS bridged the treads have to connect, or the player pays for a
-		# step and is stranded one stone higher.
-		var unreachable: Array[String] = []
-		for index in range(treads.size() - 1):
-			var step: float = float(treads[index].call("surface_y")) - float(treads[index + 1].call("surface_y"))
-			if step > jump:
-				unreachable.append("%s -> %s is %.0fpx" % [
-					treads[index].name, treads[index + 1].name, step])
-		_check(unreachable.is_empty(), "the surviving treads connect",
-			"%d step(s), all climbable" % maxi(0, treads.size() - 1) if unreachable.is_empty()
-			else "; ".join(unreachable))
+		var bank_node := level.get_node_or_null(
+			"EnvironmentBaseplate/GameplayPlane/Terrain/LowerLeft") as Node2D
+		var top_node := level.get_node_or_null(
+			"EnvironmentBaseplate/GameplayPlane/Terrain/Terrace1") as Node2D
+		if bank_node != null and top_node != null:
+			var rise: float = bank_node.global_position.y - top_node.global_position.y
+			var stair_height := _drawn_height(level, "stairs")
+			var step_height := _drawn_height(level, "square")
+			_check(rise > jump + step_height + 8.0, "the wall is more than a step and a jump",
+				"%.0fpx against a %.0fpx step and a %.0fpx jump" % [rise, step_height, jump])
+			_check(stair_height > 0.0 and rise < stair_height + jump - 8.0,
+				"and a drawn stair and a jump get up it",
+				"%.0fpx against a %.0fpx stair and a %.0fpx jump" % [rise, stair_height, jump])
 
 	# --- R7: a gate is only a puzzle if there is floor to build on ------------
 	# Every gate in this level is measured as a RISE or a GAP, and both of those can be
@@ -720,27 +700,17 @@ func _audit_live_level() -> void:
 	# Read off the nodes, so moving a piece is what fails this rather than editing a copy
 	# of the number.
 	var bank := level.get_node_or_null(
-		"EnvironmentBaseplate/GameplayPlane/Terrain/LowerRight") as Node2D
+		"EnvironmentBaseplate/GameplayPlane/Terrain/LowerLeft") as Node2D
 	if bank != null:
-		var bank_width: float = Vector2(bank.get("segment_size")).x
-		_check(bank_width >= 240.0, "the landing between the paddy and the stair has room",
-			"%.0fpx of bank" % bank_width)
-		# And most of it has to be under open sky. The lowest surviving stone overhangs the
-		# right end of the bank, and the pocket under it is 102px for an 80px character --
-		# usable to stand in, not to stand a drawing up in.
-		var hagdan_node := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane/Hagdan")
-		var overhang := INF
-		if hagdan_node != null:
-			for child in hagdan_node.get_children():
-				if child.get_script() == StairTreadClass and not bool(child.get("is_broken")):
-					overhang = minf(overhang, (child as Node2D).global_position.x)
-		if overhang < INF:
-			# Bank floor, not distance to the stone: clamped to the bank's own right edge, or a
-			# narrow bank that ends before the overhang even starts would score the full gap.
-			var open_sky: float = minf(overhang, bank.global_position.x + bank_width) \
-				- bank.global_position.x
-			_check(open_sky >= 180.0, "and most of it is under open sky",
-				"%.0fpx of bank clear of the overhanging stone" % open_sky)
+		# The ground in front of Ang Hagdan, from where Beat 0 starts to the foot of the wall:
+		# a drawn stair is 220px wide and has to be stood up there with the apo beside it.
+		var b0 := level.get_node_or_null(
+			"EnvironmentBaseplate/GameplayPlane/Obstacles/B0_HAGDAN") as Node2D
+		var foot: float = bank.global_position.x + Vector2(bank.get("segment_size")).x
+		var from: float = b0.global_position.x - Vector2(b0.get("trigger_size")).x * 0.5 \
+			if b0 != null else bank.global_position.x
+		_check(foot - from >= 360.0, "there is room in front of the wall to stand a stair up",
+			"%.0fpx of bank inside Beat 0" % (foot - from))
 
 	var terrace1 := level.get_node_or_null(
 		"EnvironmentBaseplate/GameplayPlane/Terrain/Terrace1") as Node2D
@@ -769,182 +739,20 @@ func _audit_live_level() -> void:
 			_check(behind >= 120.0, "and the house is not pressed against the world's edge",
 				"%.0fpx behind it" % behind)
 
-	# --- the steps up to the bale --------------------------------------------
-	# ⚠ THE ONLY WAY UP USED TO BE A DRAWING, and that is what made the key unusable: the
-	# player drew a ladder to reach a door that is only a metre and a bit off the ground,
-	# and the ladder then ate the E they pressed to try the key. Two stones now climb from
-	# the terrace to the house's own floor line, so getting to the front of Ang Bale costs
-	# nothing and the drawing is spent on the beat instead of on the approach.
-	#
-	# Both risers are measured against the wanderer's own jump, and the top one against the
-	# house's own deck, so retuning either of those fails here rather than on the terrace.
-	if overlook != null and house != null:
-		var jump_reach: float = pow(WandererClass.JUMP_VELOCITY, 2.0) / (2.0 * float(
-			ProjectSettings.get_setting("physics/2d/default_gravity", 980.0)))
-		var steps := level.get_node_or_null(
-			"EnvironmentBaseplate/GameplayPlane/Bale/Steps")
-		_check(steps != null, "there are steps up to the bale", "Bale/Steps")
-		if steps != null:
-			var stones: Array[Node2D] = []
-			for child in steps.get_children():
-				if child.get_script() == StairTreadClass:
-					stones.append(child as Node2D)
-			# Lowest first: y grows downward.
-			stones.sort_custom(func(a, b): return float(a.call("surface_y")) > float(b.call("surface_y")))
-			_check(stones.size() >= 2, "and they are a flight, not a block",
-				"%d stone(s)" % stones.size())
-			if stones.size() >= 2:
-				var first: float = overlook.global_position.y - float(stones[0].call("surface_y"))
-				_check(first > 0.0 and first <= jump_reach,
-					"the first is one hop off the terrace",
-					"%.0fpx against a %.0fpx jump" % [first, jump_reach])
-				var risers: Array[String] = []
-				for index in range(stones.size() - 1):
-					var rise: float = float(stones[index].call("surface_y")) \
-						- float(stones[index + 1].call("surface_y"))
-					if rise <= 0.0 or rise > jump_reach:
-						risers.append("%s -> %s is %.0fpx" % [
-							stones[index].name, stones[index + 1].name, rise])
-				_check(risers.is_empty(), "and every riser after it is one hop too",
-					"all inside %.0fpx" % jump_reach if risers.is_empty()
-					else "; ".join(risers))
-				# A flight you can climb that ends below the floor it is for is a flight to
-				# nowhere. The top stone stands level with the deck the house sits on.
-				var deck_top: float = house.global_position.y \
-					- float(house.get("post_height")) - Vector2(house.get("floor_size")).y
-				var landing: float = float(stones[stones.size() - 1].call("surface_y"))
-				_check(absf(landing - deck_top) <= 4.0,
-					"and the top one stands level with the house's floor",
-					"landing at %.0f, deck at %.0f" % [landing, deck_top])
-				# ⚠ AND CLEAR OF THE THATCH. The roof is a solid triangle from the eave up,
-				# so a landing that reaches under it is a landing the apo cannot stand on --
-				# their body meets the slope and they are stopped, or worse, wedged.
-				var eave: float = house.global_position.x \
-					+ float(_house_constant(house, "EAVE_LEFT", -160.0))
-				var landing_right: float = stones[stones.size() - 1].global_position.x \
-					+ Vector2(stones[stones.size() - 1].get("tread_size")).x
-				_check(landing_right <= eave, "and stops short of the eaves",
-					"landing ends at %.0f, the eave starts at %.0f" % [landing_right, eave])
-				# ⚠ AND NOTHING IS PLANTED INSIDE THEM. L1_N3's hint board stood at the
-				# obstacle's centre less 150 -- which is x 4470, the middle of the landing --
-				# so the board grew out of the top step. It moved west onto the terrace, and
-				# `hint_sign_offset` is only a number: this is what says why it is that one.
-				#
-				# FOOTPRINT, NOT CLEARANCE. A board whose corner touches a stone beside it is
-				# a board standing next to a step, which is what it should look like; the
-				# defect is a post rooted in ground that is not there.
-				var boards: Array[String] = []
-				for node in level.get_tree().get_nodes_in_group(&"signposts"):
-					var post := node as Node2D
-					for stone in stones:
-						var left: float = stone.global_position.x
-						var right: float = left + Vector2(stone.get("tread_size")).x
-						if post.global_position.x > left and post.global_position.x < right:
-							boards.append("%s is rooted in %s" % [post.name, stone.name])
-				_check(boards.is_empty(), "and nothing is planted inside them",
-					"the terrace either side is clear" if boards.is_empty()
-					else "; ".join(boards))
-				# ⚠ AND THEN ACTUALLY WALKED UP, because every number above can be right
-				# while the flight is still unclimbable: the two stones also have to OVERLAP
-				# in x, or the second riser is a hop the apo has no run-up to. Geometry that
-				# is individually correct and collectively impossible is exactly the failure
-				# this level has had twice.
-				await _audit_the_steps_can_be_walked_up(level, stones, overlook)
-				await _audit_the_bag_gets_out_of_the_way(level)
-				await _audit_the_gorge(level)
-
-	# --- the tread that floated off, and what Roll does to it ----------------
-	# Sub-beat 0.2's whole lesson. It was drawn and it floated, but nothing made weighing it
-	# down mean anything, so the mechanic was fiction: the strip asked for ROLL and any
-	# rolling thing placed anywhere satisfied it.
-	var floater := level.get_node_or_null(
-		"EnvironmentBaseplate/GameplayPlane/Hagdan/FloatingTread")
-	_check(floater != null and floater.get_script() == FloatingTreadClass,
-		"the floating tread is live", "carries FloatingTread2D")
-	if floater != null and floater.get_script() == FloatingTreadClass:
-		_check(not bool(floater.call("is_settled")), "loose to begin with",
-			"nothing is holding it down yet")
-
-		# Something that does NOT roll must not settle it, or the tag is decorative.
-		var wrong := _drop_on(level, floater, "square")
-		for _frame in range(40):
-			await physics_frame
-		_check(not bool(floater.call("is_settled")), "a non-rolling weight does not settle it",
-			"a square on it is still just a square on it")
-		if wrong != null and is_instance_valid(wrong):
-			wrong.queue_free()
-		await process_frame
-		# LET IT COME BACK UP FIRST. A square rides it forty-five pixels under before it is
-		# taken away, and a circle dropped into that gap floats up past the plank rising to
-		# meet it -- the plank ends up sitting ON the circle, which is a fair reading of
-		# "things slide off a loose plank" and is not what this check is asking about.
-		for _frame in range(90):
-			await physics_frame
-
-		# Something that does.
-		var roller := _drop_on(level, floater, "circle")
-		_check(roller != null, "a rolling weight exists to drop", "circle placed above it")
-		for _frame in range(140):
-			await physics_frame
-		var touching := PackedStringArray()
-		for b in (floater as RigidBody2D).get_colliding_bodies():
-			touching.append("%s@%s" % [b.name, (b as Node2D).global_position.round()])
-		_check(bool(floater.call("is_settled")), "a rolling weight settles it",
-			"settled by '%s'" % floater.call("settling_class") if bool(floater.call("is_settled"))
-			else "tread@%s vy=%.1f rot=%.2f touching=[%s] roller@%s" % [
-				(floater as Node2D).global_position.round(),
-				(floater as RigidBody2D).linear_velocity.y,
-				float(floater.get("rotation")), ", ".join(touching),
-				roller.global_position.round() if roller != null and is_instance_valid(roller) else "gone"])
-		if bool(floater.call("is_settled")):
-			_check(bool(floater.get("freeze")), "settled means solid",
-				"frozen, so the water cannot lift it back up")
-			_check(absf(float(floater.get("rotation"))) < 0.05, "it settles level",
-				"%.3f rad -- a crooked tread is a ramp nobody asked for" % floater.get("rotation"))
-
-			# --- and the settled plank has to be a CROSSING ---------------------
-			# This is sub-beat 1's whole answer now: three hundred pixels of water, and
-			# nothing the beat accepts is eighty pixels wide, let alone three hundred. The
-			# plank is what gets you over, so the two hops either side of it and the height
-			# of its deck are gates in their own right and are measured like any other.
-			var paddy := level.get_node_or_null(
-				"EnvironmentBaseplate/GameplayPlane/WaterAreas/LowerPaddy") as Node2D
-			if paddy != null:
-				var pool := Vector2(paddy.get("surface_size"))
-				var surface_y: float = paddy.global_position.y - pool.y * 0.5
-				var deck: float = (floater as Node2D).global_position.y - _half_of(floater).y
-				# ABOVE THE WATERLINE, and this one is not cosmetic. wanderer.gd tests
-				# `elif is_in_water():` before `elif is_on_floor():`, so a deck at or under
-				# the surface gets the wading branch and its 55px kick -- the player would
-				# step on and never be able to step off, and the drowning rescue would fish
-				# them out while they stood on a solid floor.
-				_check(deck < surface_y, "the settled deck is out of the water",
-					"%.0fpx of dry plank above the surface" % (surface_y - deck))
-				# And the player has to be able to reach it from the bank and leave it on
-				# the far side. A running jump covers about 228px; both hops are flat.
-				var half: float = _half_of(floater).x
-				var plank_x: float = (floater as Node2D).global_position.x
-				var west: float = (plank_x - half) - (paddy.global_position.x - pool.x * 0.5)
-				var east: float = (paddy.global_position.x + pool.x * 0.5) - (plank_x + half)
-				_check(maxf(west, east) <= 228.0, "and both hops are inside a running jump",
-					"%.0fpx to it and %.0fpx off it, against 228px" % [west, east])
-
-			# AND IT LETS GO AGAIN. R8 says what is placed can be taken back, and the plank
-			# has to come loose when it is -- a crossing that survives the removal of the
-			# thing that bought it is a crossing the ink was not really spent on. The layer
-			# has to go back too, or the player keeps standing on a plank that is adrift.
-			if roller != null and is_instance_valid(roller):
-				roller.queue_free()
-				for _frame in range(20):
-					await physics_frame
-				_check(not bool(floater.call("is_settled")) and int(floater.get("collision_layer")) & 1 == 0,
-					"and taking the weight away lets it go",
-					"loose again on layer %d" % floater.get("collision_layer"))
+	# --- no dirt column at the house ------------------------------------------
+	# Kent: the final house "looks like an anomaly". Two stones stood beside Ang Bale as a
+	# pillar of mossy dirt -- the "flight up to the floor line" the key once needed, from
+	# when E only worked at the door. Every way in is answered from the ground in front now,
+	# so the column went.
+	_check(level.get_node_or_null("EnvironmentBaseplate/GameplayPlane/Bale/Steps") == null,
+		"no dirt column beside Ang Bale", "the house stands on its own posts")
+	await _audit_the_bag_gets_out_of_the_way(level)
+	await _audit_the_gorge(level)
 
 	# --- CP0: a checkpoint you reach by walking ------------------------------
 	# Beat 0 has no dialogue node, so before this it had no checkpoint at all and a slip on
-	# the terrace above sent the player back to the level's start with both sub-beats
-	# already solved.
+	# the terrace above sent the player back to the level's start with the stair already
+	# answered.
 	var cp_area := level.get_node_or_null(
 		"EnvironmentBaseplate/GameplayPlane/Hagdan/CP0") as CheckpointArea2D
 	_check(cp_area != null, "CP0 exists", "at the top of the flight")
@@ -1036,32 +844,6 @@ func _lolo_bubble(level: Node) -> String:
 	var bar = level.get("hint_bar")
 	return "" if bar == null else _collect_labels(bar)
 
-
-## Drop a placed prop of `class_id` just above `target`, the way a player placing one
-## there would. Returns it so the caller can clear it away again.
-func _drop_on(level: Node, target: Node2D, class_id: String) -> PhysicsShapeObject:
-	var registry := level.get_node("EntityRegistry") as EntityRegistry
-	var prop := registry.instantiate_entity(class_id) as PhysicsShapeObject
-	if prop == null:
-		return null
-	level.get_node("EnvironmentBaseplate/GameplayPlane/WorldItemRoot").add_child(prop)
-	prop.apply_item_data(DrawnItemData.from_prediction(
-		class_id, class_id.capitalize(), _blank_image(), [], 0.4, registry.get_entity(class_id)))
-	# CLEAR ABOVE IT, not inside it. A flat 46 put an 80px square's bottom edge six pixels
-	# INSIDE a 20px plank, so the solver ejected it and kicked the plank halfway across the
-	# paddy before anything could come to rest on it -- the fixture was measuring its own
-	# spawn overlap. The real game never does this: placement refuses an overlapping spot
-	# and drops the object onto the first surface under it.
-	var clearance := 8.0
-	for child in target.get_children():
-		var collision := child as CollisionShape2D
-		if collision != null and collision.shape != null and collision.shape.has_method("get_rect"):
-			clearance += Rect2(collision.shape.call("get_rect")).size.y * 0.5
-			break
-	prop.global_position = target.global_position - Vector2(0.0,
-		clearance + prop.world_extent().size.y * 0.5)
-	prop.confirm_placement()
-	return prop
 
 
 ## A minimal placed prop, so the restore has something to clean up. Not a real drawing --
@@ -1429,12 +1211,11 @@ func _audit_arrival_speaks_once() -> void:
 
 ## --- 13. A drawing that does not fit says so, and counts ----------------------------
 ##
-## Two failures that looked like one. A submission was judged against the volume the PLAYER
-## is standing in, and Beat 0's volume did not reach the left bank -- which is where you
-## stand to put something on the plank, because the plank is in the water and you cannot
-## swim. So every drawing placed from there was judged against no obstacle at all: no
+## Two failures that looked like one. A submission is judged against the volume the PLAYER
+## is standing in, and Beat 0's volume once did not reach the ground the player answered it
+## from. So every drawing placed from there was judged against no obstacle at all: no
 ## attempt counted, no tier moved, no requirement strip appeared, and the beat never
-## registered as solved even when the plank physically sank.
+## registered as solved.
 ##
 ## And a miss said nothing. The verdict was computed and thrown away, so the player watched
 ## their drawing land and got silence whether the game had noticed or not.
@@ -1454,17 +1235,15 @@ func _audit_a_miss_says_why() -> void:
 	var hint = level.get("hint_bar")
 	var player := level.get("player") as Node2D
 
-	# The left bank: LowerLeft runs x 0..600 with its surface at y 560, and the plank the
-	# first sub-beat is about floats at x 750. There is nowhere else to stand, so the volume
-	# has to reach here -- which is why B0_HAGDAN cannot be narrowed. See LEVEL_1.md.
-	player.global_position = Vector2(520.0, 500.0)
+	# In front of Ang Hagdan's wall, which is where a stair is stood up.
+	player.global_position = Vector2(1000.0, 500.0)
 	for _frame in range(20):
 		await physics_frame
 	_check(String(director_node.current_obstacle()) == "B0_HAGDAN",
-		"the bank counts as being at the beat",
-		"standing at x 520, director is at '%s'" % director_node.current_obstacle())
+		"the foot of the wall counts as being at the beat",
+		"standing at x 1000, director is at '%s'" % director_node.current_obstacle())
 
-	# Sub-beat 1 wants Roll. A frog leaps.
+	# Beat 0 wants Climb. A frog leaps.
 	level.call("_judge_submission", "frog")
 	await process_frame
 	_check(director_node.attempts("B0_HAGDAN") == 1, "a miss from the bank counts",
@@ -1473,7 +1252,7 @@ func _audit_a_miss_says_why() -> void:
 		"tier %d -- a wrong answer is a request for help" % director_node.hint_tier("B0_HAGDAN"))
 
 	var said := String(hint.call("current_text"))
-	_check(said.contains("LEAP") and said.contains("ROLL"),
+	_check(said.contains("LEAP") and said.contains("CLIMB"),
 		"the miss says what it can do and what is needed", said)
 	# A frog is also STARTLE, which Level 2 unlocks. Tag membership is global, so without
 	# a level scope this line advertises an ability the player cannot reach for another
@@ -1482,7 +1261,7 @@ func _audit_a_miss_says_why() -> void:
 		"and no tag from a later level", said)
 	# The requirement's own tag, not a class that would satisfy it: naming the player's own
 	# drawing is fine, naming the answer is the thing the tag layer exists to prevent.
-	_check(not said.to_lower().contains("circle") and not said.to_lower().contains("wheel"),
+	_check(not said.to_lower().contains("stairs") and not said.to_lower().contains("ladder"),
 		"and it does not name a class that would work", said)
 
 	level.queue_free()
@@ -1559,9 +1338,27 @@ func _audit_the_key_chain() -> void:
 		_check(bool(level.call("_found_key_would_open")), "the door offers it (%s)" % how,
 			"at '%s', carrying the key" % d.current_obstacle())
 		_check(bool(level.call("_use_the_found_key")), "and it opens (%s)" % how, "pragmatist")
-		await create_timer(0.8, true).timeout
+		# THE KEY IS SEEN TO TURN. Kent: "how i open the key" -- it used to take her inside on
+		# the frame E was pressed, with nothing at the door at all.
+		await create_timer(0.15, true).timeout
+		var turning := String((level.get("hint_bar") as HintBar).current_text())
+		_check(turning.contains("The key turns"), "and the key turns at the door first (%s)" % how,
+			turning if not turning.is_empty() else "nothing said at the door")
+		# The key turns at the door first -- a beat the player sees -- and THEN she goes in, so
+		# this waits for her to be inside rather than for a number that races the beat.
+		for _step in range(40):
+			await create_timer(0.05, true).timeout
+			var room_now: Node = level.call("_room_holding_player")
+			if room_now != null and room_now.is_in_group(&"bale_interiors"):
+				break
 		_check(d.is_solved("L1_N3") and d.committed_route("L1_N3") == "pragmatist",
 			"by the Unlock route (%s)" % how, "solved, route '%s'" % d.committed_route("L1_N3"))
+		# NOT "I will make something that opens it": that is the Unlock route's commit line, for
+		# a player choosing to DRAW a key, and the apo said it while turning the one she found.
+		var lines: Variant = level.get("script_lines")
+		var said_it: bool = lines == null or bool(lines.call("has_heard", "L1_N3.pragmatist.commit"))
+		_check(not said_it, "and the apo does not say she will make one (%s)" % how,
+			"the key's own beat speaks" if not said_it else "she said \"I will make something that opens it\"")
 		# THE SOLVE GETS YOU IN; IT DOES NOT HAND YOU THE PAINTING. That used to arrive the
 		# instant the route landed, which made the room a cutscene with a floor. It leans
 		# against the wall in there now and is picked up by walking into it.
@@ -1817,8 +1614,8 @@ func _audit_the_paddies_are_mud() -> void:
 		.instantiate()
 	root.add_child(environment)
 	await process_frame
-	for paddy in [["LowerPaddy", "LowerPaddyFloor", "LowerPaddyBack"],
-			["CentralPaddy", "CentralPaddyFloor", "CentralPaddyBack"]]:
+	# The central paddy. The one at the level's start went with Beat 0's first half.
+	for paddy in [["CentralPaddy", "CentralPaddyFloor", "CentralPaddyBack"]]:
 		var water := environment.get_node_or_null(
 			"GameplayPlane/WaterAreas/%s" % paddy[0]) as WaterArea2D
 		var bed := environment.get_node_or_null(
@@ -2139,9 +1936,9 @@ func _audit_completion_gate() -> void:
 	_check(not bool(overlay.call("is_open")), "arriving at the bale does not end the level",
 		"the player is standing on the goal marker and Ang Bale is unanswered")
 
-	# Choosing a way in is not the same as getting in. CP3 is written on the commit, so a
-	# gate that only asked whether the checkpoint existed would let the player finish by
-	# pressing a dialogue button and walking four metres without drawing anything.
+	# Choosing a way in is not the same as getting in. A gate that only asked whether the
+	# route was chosen would let the player finish by pressing a dialogue button and walking
+	# four metres without drawing anything.
 	d.enter_obstacle("L1_N3")
 	d.commit_route("L1_N3", "pragmatist")
 	await process_frame
@@ -2149,7 +1946,7 @@ func _audit_completion_gate() -> void:
 	for _frame in range(30):
 		await physics_frame
 	_check(not bool(overlay.call("is_open")), "committing to a route does not end it either",
-		"CP3 is written, the bale is still shut")
+		"the route is chosen, the bale is still shut")
 
 	# Now answer it -- and it STILL does not end at the marker. This is the assertion that
 	# turned over: it used to require the opposite, because arriving was the ending.
@@ -2252,43 +2049,6 @@ func _house_constant(house: Node, name: String, fallback: Variant) -> Variant:
 			return constants[name]
 		script = script.get_base_script()
 	return fallback
-
-
-## Climb it. Right and jump, from the terrace beside the bottom stone, and the apo has to
-## end up standing on the top one.
-func _audit_the_steps_can_be_walked_up(level: Node2D, stones: Array[Node2D],
-		overlook: Node2D) -> void:
-	var apo := level.get("player") as Node2D
-	if apo == null:
-		_check(false, "and the apo can walk up them", "no player")
-		return
-	paused = false
-	var landing: float = float(stones[stones.size() - 1].call("surface_y"))
-	# On the terrace, just short of the bottom stone -- which is where a player coming up
-	# the cliff arrives. Dropped in a few pixels above the surface rather than placed on it,
-	# because a body spawned exactly level with a floor can start the frame inside it.
-	var start := Vector2(stones[0].global_position.x - 34.0,
-		overlook.global_position.y - 20.0)
-	apo.call("apply_morph_state", {"position": start, "linear_velocity": Vector2.ZERO})
-	for _settle in range(20):
-		await physics_frame
-	var highest := apo.global_position.y
-	Input.action_press(&"move_right")
-	# ⚠ HELD, NOT TAPPED. `JUMP_CUT` halves the rise the moment the key is let go, so a
-	# four-frame tap clears about 40px of a 94px jump -- which is enough to fail a riser
-	# the player would clear easily and blame the geometry for it. Forty frames a cycle,
-	# held for thirty of them, is longer than the 0.44s rise.
-	for step in range(240):
-		if step % 40 == 0:
-			Input.action_press(&"jump")
-		elif step % 40 == 30:
-			Input.action_release(&"jump")
-		await physics_frame
-		highest = minf(highest, apo.global_position.y)
-	Input.action_release(&"move_right")
-	Input.action_release(&"jump")
-	_check(highest <= landing + 6.0, "and the apo can walk up them",
-		"reached %.0f, the landing is at %.0f" % [highest, landing])
 
 
 ## ⚠ IS EVERY LINE ANYBODY WROTE EVER SAID? The other direction, and the one that keeps being
@@ -2535,3 +2295,28 @@ func _audit_the_gorge(level: Node) -> void:
 		"and the cut route still reaches the far side",
 		"%d landings, every hop inside a jump" % stones.size() if breaks.is_empty()
 		else "; ".join(breaks))
+
+
+## How tall a drawing of `entity_id` stands in the world, measured off a real one: drawings
+## are normalised on the way in, so the canvas size is not the answer.
+func _drawn_height(level: Node, entity_id: String) -> float:
+	var registry = level.get("registry")
+	var thing = registry.call("instantiate_entity", entity_id)
+	if thing == null:
+		return 0.0
+	(level.get("world_item_root") as Node).add_child(thing)
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	var points := PackedVector2Array([Vector2(0, 0), Vector2(90, 0), Vector2(90, 90), Vector2(0, 90),
+		Vector2(0, 0)])
+	if entity_id == "stairs":
+		points = PackedVector2Array()
+		for i in range(5):
+			points.append(Vector2(i * 50.0, 200.0 - i * 50.0))
+			points.append(Vector2((i + 1) * 50.0, 200.0 - i * 50.0))
+	thing.call("apply_item_data", DrawnItemData.from_prediction(entity_id, entity_id, sheet,
+		[{"points": points, "width": 6.0, "color": Color.BLACK}], 0.9,
+		registry.call("get_entity", entity_id)))
+	var height: float = (thing.call("world_extent") as Rect2).size.y
+	thing.queue_free()
+	return height

@@ -191,8 +191,13 @@ func _teach(lesson: Dictionary) -> bool:
 	# Beat 0's "draw something that can roll" and replaced it, which is the one statement of
 	# the puzzle the player gets. Leaving the lesson unspent means it simply arrives the
 	# next time its event comes round, by which point the bar has cleared itself.
-	if _hint_bar != null and _hint_bar.has_method("is_showing") \
-			and bool(_hint_bar.call("is_showing")):
+	#
+	# ⚠ UNLESS THE LESSON IS ABOUT THE MOMENT ITSELF (`interrupts`). The checkpoint's lesson is
+	# what a checkpoint IS, and it yielded to whatever Lolo was saying as the player walked
+	# in -- so the first checkpoint went by with only "Checkpoint", and the explanation turned
+	# up at the second one, if at all. Kent: "as a first time player, i dont know what it does".
+	if not bool(lesson.get("interrupts", false)) and _hint_bar != null \
+			and _hint_bar.has_method("is_showing") and bool(_hint_bar.call("is_showing")):
 		return false
 	_seen[id] = true
 	var speaker := String(lesson.get("speaker", "Lolo"))
@@ -235,9 +240,8 @@ func _teach_beside(lesson: Dictionary, text: String, caps: String) -> bool:
 	_callout.point_at(target as Rect2, text, "", _side_of(lesson),
 		String(lesson.get("speaker", "")))
 	var finder := _find_target
-	_callout.follow(func() -> bool:
-		var now: Variant = finder.call(anchor)
-		return now is Rect2 and (now as Rect2).size.length_squared() >= 1.0)
+	_callout.follow(func() -> Variant: return finder.call(anchor))
+	_callout.keep_clear_of(func() -> Variant: return finder.call("player"))
 	return true
 
 

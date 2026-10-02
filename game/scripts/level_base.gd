@@ -262,10 +262,6 @@ const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 
 ## A morph whose anchor comes within this radius of the level's GoalMarker completes it.
 const GOAL_RADIUS := 120.0
-## How near the restore point still counts as standing at it, for FR-8. Two and a bit body
-## heights: near enough to read as "here", far enough that a player who stepped off the flag
-## to get a clear patch of ground is not refused.
-const CHECKPOINT_REACH := 220.0
 ## The key on the nail in the heap. One name, read by the room that grants it and the door
 ## it opens -- see straw_room_2d.gd's collectible_id.
 const APO_SPEAKER := "Apo"
@@ -613,7 +609,7 @@ func _build_obstacle_layer() -> void:
 ## A MARK FOR THE CHECKPOINTS NOBODY COULD SEE.
 ##
 ## Payyo declares six checkpoints and exactly ONE of them had anything on screen: CP0, the
-## walk-in at the top of the stair. CP1, CP2 and CP3 are written the instant a route is
+## walk-in at the top of the stair. CP1 and CP2 are written the instant a route is
 ## committed, which is every node in the level, and they were a dictionary entry and a
 ## telemetry event and nothing else. So the three moments the game is most generous to the
 ## player -- the ones it puts in front of every morph on a route -- said nothing at all, and
@@ -708,12 +704,20 @@ func _may_frame_the_checkpoint(_mark: Node2D) -> bool:
 ## checkpoint is frequently crossed mid-jump. The sound id has no file behind it yet and
 ## AudioDirector treats that as silence rather than as an error, which is what lets the call
 ## exist before the recording does.
+##
+## ⚠ AND THE FIRST ONE IS EXPLAINED, AND THE EXPLANATION IS LEFT UP. Kent: "when I do
+## checkpoint, as a first time player, i dont know what it does". The lesson that says so
+## went up on this bar and was replaced in the same frame by the line below, so nobody ever
+## read it; and that line, "The level will remember you from here", does not say what for.
 func _say_checkpoint() -> void:
 	status_label.text = "Checkpoint"
+	var explained := false
 	if tutorial != null:
+		var before := tutorial.has_taught("checkpoint")
 		tutorial.note("checkpoint")
-	if hint_bar != null:
-		hint_bar.show_hint("The level will remember you from here.", "", 3.0)
+		explained = not before and tutorial.has_taught("checkpoint")
+	if hint_bar != null and not explained:
+		hint_bar.show_hint("Checkpoint. If you fall, you start again from here.", "", 3.5)
 	var audio := get_node_or_null(^"/root/AudioDirector")
 	if audio != null:
 		audio.call("play_sfx", &"checkpoint")
@@ -947,7 +951,11 @@ func _refresh_requirements() -> void:
 ## Every anchor name a lesson may use. A probe reads it to check `tutorial.json` against the
 ## level, which is the only way to catch a name that resolves to an empty rect forever.
 const TUTORIAL_ANCHORS := ["draw_button", "pickup_prompt", "use_prompt", "revert_prompt",
-	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card"]
+	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card", "player"]
+## The apo, on screen, as `player` answers it: her feet are the anchor, and this is the box
+## standing on them. A drawn body's anchor is its middle, so it gets a box round that instead.
+const PLAYER_BOX := Rect2(-28.0, -92.0, 56.0, 92.0)
+const DRAWN_BOX := Rect2(-56.0, -56.0, 112.0, 112.0)
 
 
 ## WHAT A LESSON'S `anchor` MEANS, in one place.
@@ -972,6 +980,10 @@ func _tutorial_target(anchor: String) -> Rect2:
 			% [anchor, ", ".join(TUTORIAL_ANCHORS)])
 		return Rect2()
 	match anchor:
+		"player":
+			# Not a control: where the player stands, on the glass. A lesson's bubble keeps
+			# clear of it (TutorialCallout.keep_clear_of).
+			return _player_on_screen()
 		"draw_button":
 			node = draw_button
 		"pickup_prompt":
@@ -1002,6 +1014,20 @@ func _tutorial_target(anchor: String) -> Rect2:
 	if node == null or not node.is_inside_tree() or not node.is_visible_in_tree():
 		return Rect2()
 	return node.get_global_rect()
+
+
+func _player_on_screen() -> Rect2:
+	if player == null or not is_instance_valid(player) or not player.is_inside_tree():
+		return Rect2()
+	var anchor := player as Node2D
+	if player.has_method("get_physics_anchor"):
+		var body := player.call("get_physics_anchor") as Node2D
+		if body != null:
+			anchor = body
+	var box := PLAYER_BOX if player is Wanderer else DRAWN_BOX
+	var to_screen := get_viewport().get_canvas_transform()
+	var corner := to_screen * (anchor.global_position + box.position)
+	return Rect2(corner, to_screen * (anchor.global_position + box.end) - corner).abs()
 
 
 ## The action prompts are built in code and re-parented between a fixed corner and a row
@@ -1688,16 +1714,15 @@ func _on_drawing_ready(
 		if kept and answers:
 			_take_out_to_use(entity_id)
 		return
-	# CREATURE TRANSFORMATION IS FREE. FR-7 says so in its second sentence, and FR-8 is what
-	# pays for it: you may only do it at a checkpoint.
+	# CREATURE TRANSFORMATION IS FREE (FR-7), AND IT IS ALLOWED ANYWHERE.
+	#
+	# ⚠ THIS DEPARTS FROM THESIS FR-8, on Kent's decision (2026-10-02): "why cant the player
+	# transform anywhere, why does it need to be in a checkpoint its so weird". FR-8 allowed it
+	# only at a checkpoint, and this was read as standing inside a beat that declares one --
+	# which a player cannot see, so a drawing that turned into a frog on one patch of terrace
+	# was refused on the next with nothing to tell the two apart. A level that must refuse a
+	# creature still does, through `_extra_refusals` (Piyesta's small animals).
 	ink_manager.release_attempt()
-	if not at_a_checkpoint():
-		status_label.text = "%s has to be drawn at a checkpoint" % display_name
-		_speak_refusal_of_the_morph(display_name)
-		Telemetry.record_event("morph_refused_off_checkpoint", {
-			"level_id": LevelManager.current_level_id, "entity_id": entity_id,
-		})
-		return
 	var _became := _spawn_or_replace(entity_id, display_name, drawing, strokes)
 
 
@@ -2230,80 +2255,6 @@ func _nearest_interactable_utility() -> PhysicsShapeObject:
 			nearest = utility
 			nearest_distance = distance
 	return nearest
-
-
-## MAY THE PLAYER BECOME SOMETHING, STANDING WHERE THEY ARE?
-##
-## Thesis FR-8: "The system shall allow creature transformation only while the player is at
-## a checkpoint." That is a rule about PLACE, and Payyo has almost no checkpoint places to
-## point at: of its five, only CP0 is an area in the scene and one more is an area on a
-## single route. CP1, CP2 and CP3 are `route_commit` triggers -- events, not spots -- so a
-## literal proximity test would refuse the burrow at the straw heap, which is the one morph
-## Level 1 cannot be finished without, and the requirement would have made the level
-## impossible rather than harder.
-##
-## ⚠ SO "AT A CHECKPOINT" IS READ AS THE PLACE THE LEVEL DECLARES ONE, and the data already
-## says where those are: every checkpoint's `at` field names an obstacle, and every obstacle
-## with routes declares a `checkpoint_on_commit`. Standing inside such a beat is standing at
-## its checkpoint whether or not the flag has been raised yet. That keeps what the
-## requirement is for -- transformation is anchored to the places the level considers safe,
-## and you cannot become something in the middle of open ground to skip a traverse -- and it
-## keeps Payyo finishable.
-##
-## The other reading is available and is NOT what this does: `checkpoints.has_checkpoint()`,
-## "the run has banked one", is true from the top of the first stair onward and would gate
-## nothing at all.
-func at_a_checkpoint() -> bool:
-	if player == null or not is_instance_valid(player):
-		return false
-	# Standing where a reset would put you -- the last flag, or the spawn before there is one.
-	if player.global_position.distance_to(_restore_point()) <= CHECKPOINT_REACH:
-		return true
-	# Inside a checkpoint volume, raised or not: these are places by construction.
-	for node in get_tree().get_nodes_in_group(&"checkpoint_areas"):
-		var area := node as Area2D
-		if area != null and area.overlaps_body(player):
-			return true
-	# Or inside a beat that declares one.
-	var here := director.current_obstacle() if director != null else ""
-	if here.is_empty():
-		return false
-	var beat := director.obstacle(here)
-	if not String(beat.get("checkpoint_on_commit", "")).is_empty():
-		return true
-	# B0 declares no route and so no commit checkpoint, but the level puts CP0 at its top.
-	for checkpoint_value: Variant in (director.level_data().get("checkpoints", []) as Array):
-		var checkpoint: Dictionary = checkpoint_value
-		if String(checkpoint.get("at", "")).begins_with(here):
-			return true
-	return false
-
-
-## Where a reset would put the player: the last checkpoint banked, or the spawn if none has
-## been. Standing there is standing at a checkpoint under any reading of FR-8.
-##
-## ⚠ AND THE SPAWN COUNTS, which is not a technicality. Before the first flag is raised the
-## spawn IS the restore point -- `CheckpointManager.has_checkpoint()` is false and a reset
-## goes there -- so a level opens standing at its own zeroth checkpoint. Without this the
-## gate refused the player's very first drawing, one line after Lolo tells them that
-## anything they draw, this place believes.
-func _restore_point() -> Vector2:
-	if checkpoints != null and checkpoints.has_checkpoint():
-		var snapshot := checkpoints.peek()
-		if snapshot.has("position"):
-			return Vector2(snapshot["position"])
-	return spawn_point.global_position if spawn_point != null else Vector2.ZERO
-
-
-## Said in Lolo's channel, not only on the status line, because a refusal the player cannot
-## see is indistinguishable from the recogniser having failed.
-func _speak_refusal_of_the_morph(display_name: String) -> void:
-	if hint_bar == null or not is_instance_valid(hint_bar):
-		return
-	hint_bar.show_hint(
-		"Not here, apo. You can only change at a checkpoint." if display_name.is_empty()
-		else "Not here, apo. You can only become something at a checkpoint.",
-		Lolo.SPEAKER, 5.0)
 
 
 ## The nearest thing the player could climb from where they are standing.
@@ -3066,6 +3017,9 @@ func _physics_process(_delta: float) -> void:
 	# The bag no longer stands down while the apo moves -- see InventoryHUD. It stays in its
 	# corner and thins out only while she is actually standing behind it.
 	_veil_the_bag_over(anchor_position)
+	# And Lolo's hints stand over her, where the player is looking. See HintBar.
+	if hint_bar != null:
+		hint_bar.stand_near(get_viewport().get_canvas_transform() * anchor_position)
 	# A fall is not an ending. The wanderer used to wrap to the top of the world and a
 	# drawn creature did not handle it at all, so falling off as a fish meant falling
 	# forever. Either way the level takes them back to the last checkpoint instead.
@@ -3203,13 +3157,14 @@ func _say_why(text: String) -> void:
 ## completion screen came up over a node the player had not played. Caught by
 ## photographing the bale.
 ##
-## The condition is not written here. Level 1's own file names the checkpoint that unlocks
-## it (`unlocks_at_checkpoint`, CP3), the checkpoint list says which obstacle that
-## checkpoint belongs to (CP3 is `at: L1_N3`), and the level may end once that obstacle has
-## been SOLVED. Not committed: CP3 is written on the route commit, so asking only whether
-## the checkpoint exists would let a player finish by pressing a dialogue button and walking
-## four metres, without drawing anything. A level that names no such checkpoint ends on
-## arrival exactly as before, which is what the levels with no obstacle layer want.
+## The condition is not written here. A level's own file names the beat that unlocks it --
+## outright (`completes_with`: Payyo's L1_N3, whose checkpoint Kent removed as one at the
+## end), or by its checkpoint (`unlocks_at_checkpoint`: Piyesta's and Dagat's CP4, whose
+## entry says which obstacle it belongs to) -- and the level may end once that obstacle has
+## been SOLVED. Not committed: a route is committed by pressing a dialogue button, so a gate
+## on the commit would let a player finish by walking four metres without drawing anything.
+## A level that names neither ends on arrival exactly as before, which is what the levels
+## with no obstacle layer want.
 ## Whether arriving at the GoalMarker is one of the ways this level ends.
 ##
 ## TRUE FOR A LEVEL WHOSE ENDING IS A PLACE, which is every level built against this host
@@ -3236,6 +3191,11 @@ func _completion_unlocked() -> bool:
 
 func _obstacle_that_unlocks_the_exit() -> String:
 	var data := director.level_data()
+	# Named outright, by a level whose last beat carries no checkpoint -- Payyo's, since Kent
+	# asked why there was a checkpoint at the end. Otherwise found through the checkpoint.
+	var named := String(data.get("completes_with", ""))
+	if not named.is_empty():
+		return named
 	var checkpoint_id := String(data.get("unlocks_at_checkpoint", ""))
 	if checkpoint_id.is_empty():
 		return ""
@@ -3420,13 +3380,6 @@ func _adopt_player(new_player: Node2D, previous_state: Dictionary, flash: bool) 
 		action_prompts.follow(new_player)
 	if lolo != null and is_instance_valid(lolo):
 		lolo.follow(new_player)
-	# Whoever the player is now, a loose floating tread has to ignore them -- see
-	# FloatingTread2D.except_player. It is re-pointed here rather than watched from the
-	# tread, because this is already the one place in the game that anything about who the
-	# player is may change, and a fourth swap path is a fourth chance to forget one.
-	for node in get_tree().get_nodes_in_group(&"floating_treads"):
-		if node.has_method("except_player"):
-			node.call("except_player", new_player)
 	if old_player != null and is_instance_valid(old_player):
 		# ⚠ OUT OF THE WORLD NOW, NOT AT THE END OF THE FRAME. queue_free leaves the old body
 		# colliding until then, and the new one is set down where it stood, so for one physics
@@ -3716,7 +3669,7 @@ func _complete_level() -> void:
 	_level_completed = true
 	var level_id := LevelManager.current_level_id
 	Telemetry.end_level(level_id, "completed")
-	PlayerProfile.mark_level_completed(level_id)
+	mark_finished(level_id)
 	status_label.text = "Level complete!"
 	# STAGED BEFORE THE PANEL. The level used to end by putting a screen over an unchanged
 	# view -- the last thing the player did and the acknowledgement of it happened at the same
@@ -3733,6 +3686,16 @@ func _complete_level() -> void:
 	complete_overlay.call("present", run_stats())
 	if cinematic != null:
 		cinematic.open()
+
+
+## The level is finished -- and if that is what opens the next one, the house is told to open
+## it in front of the player (LevelManager.pending_reveal, Painting2D.reveal).
+func mark_finished(level_id: String) -> void:
+	var next := LevelManager.next_level_id(level_id)
+	var was_open := next.is_empty() or LevelManager.is_unlocked(next)
+	PlayerProfile.mark_level_completed(level_id)
+	if not was_open and LevelManager.is_unlocked(next) and LevelManager.is_playable(next):
+		LevelManager.pending_reveal = next
 
 
 ## Whether the run ends with this level, or the level select comes next. The branch

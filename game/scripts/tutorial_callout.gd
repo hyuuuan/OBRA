@@ -47,9 +47,12 @@ var _life := 0.0
 ## Already going. Kept separate from `_life` because the timer running out is one of the two
 ## ways a dismiss starts, so the clock cannot also be the guard against a second one.
 var _dismissing := false
-## Asked every frame: is the thing this points at still on screen? Empty for a callout aimed
-## at a bare rectangle, which has nothing to go missing.
-var _target_alive := Callable()
+## Asked every frame: where is the thing this points at now? An empty rect is "gone". Empty
+## for a callout aimed at a bare rectangle, which has nothing to go missing.
+var _target_where := Callable()
+## Asked at every placement: where the player is on screen, so the bubble is not set down on
+## them. Empty for a callout with nobody to keep clear of.
+var _player_where := Callable()
 ## What this bubble was aimed at and from which side, so it can be re-placed when the HUD
 ## around it changes. The strip it has to clear GROWS -- a fourth hint line arrives seconds
 ## after the bubble was placed -- so where it stood when it appeared is not where it can stay.
@@ -188,6 +191,13 @@ func _place(target: Rect2, side: int) -> void:
 	# The target counts as something to keep clear of, and more than anything else does.
 	for _weight in range(4):
 		blockers.append(target.grow(2.0))
+	# Nor on the player. A key prompt under the apo's feet, pointed at from above, put the
+	# bubble across her -- in the middle of the screen, where Kent said the eye is.
+	if _player_where.is_valid():
+		var player: Variant = _player_where.call()
+		if player is Rect2 and (player as Rect2).size.length_squared() > 1.0:
+			for _weight in range(2):
+				blockers.append((player as Rect2).grow(6.0))
 	var order: Array[int] = []
 	if side != Side.AUTO:
 		order.append(side)
@@ -307,25 +317,40 @@ func _draw() -> void:
 ## "That word is what it needs DONE" still up, its beak aimed at empty sky, and then carried
 ## it into Ang Tulay, where it sat half under the route choice. The rect was captured once;
 ## nothing ever asked again.
-func follow(alive: Callable) -> void:
-	_target_alive = alive
+##
+## ⚠ AND WHAT IT POINTS AT MOVES. `where` answers with the target's rect as it is NOW. A key
+## prompt rides with the apo, and at Ang Bale it goes under her feet a moment after "F uses
+## it." is taught -- the bubble kept the rect it was handed, stayed over her head pointing at
+## nothing, and the key slid down through it.
+func follow(where: Callable) -> void:
+	_target_where = where
+
+
+## Who not to set the bubble down on. `where` answers with the player's rect on screen.
+func keep_clear_of(where: Callable) -> void:
+	_player_where = where
 
 
 func _process(delta: float) -> void:
 	if _dismissing or _life <= 0.0:
 		return
-	if _target_alive.is_valid() and not bool(_target_alive.call()):
-		dismiss()
-		return
+	var moved := false
+	if _target_where.is_valid():
+		var now: Variant = _target_where.call()
+		if not (now is Rect2) or (now as Rect2).size.length_squared() < 1.0:
+			dismiss(true)
+			return
+		moved = (now as Rect2).position.distance_to(_aimed_at.position) > 1.0
+		_aimed_at = now
 	_life -= delta
 	if _life <= 0.0:
 		dismiss()
 		return
 	# Re-placed a few times a second, because what it has to clear moves: the requirement
 	# strip grows a line every time the player misses, and the bubble was placed against the
-	# strip as it stood when the lesson arrived.
+	# strip as it stood when the lesson arrived. At once when the target itself moved.
 	_settle += delta
-	if _settle >= 0.25 and _aimed_at.size.length_squared() > 1.0:
+	if (moved or _settle >= 0.25) and _aimed_at.size.length_squared() > 1.0:
 		_settle = 0.0
 		_place(_aimed_at, _aimed_side)
 
@@ -339,11 +364,21 @@ func _process(delta: float) -> void:
 ## life and returns immediately. So a callout could be taken down by the player doing the
 ## thing and could never take itself down, which is a bubble parked permanently over the bag
 ## it is pointing at. Reported as "the inventory popup never stops", and it never did.
-func dismiss() -> void:
+##
+## `at_once` for a bubble whose target has gone: there is nothing left for it to be about,
+## and while it faded, what had been standing clear of the target moved into the space --
+## the key prompt used up under the apo's feet, Lolo's bar rose to where the key had been,
+## and slid in under "F uses it." on its way out.
+func dismiss(at_once := false) -> void:
 	if _dismissing:
 		return
 	_dismissing = true
 	set_process(false)
+	if at_once:
+		visible = false
+		dismissed.emit()
+		queue_free()
+		return
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, FADE)
 	tween.tween_callback(func() -> void:

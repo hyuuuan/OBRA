@@ -250,7 +250,7 @@ func _audit_decor_stands_on_terrain() -> void:
 
 ## Every checkpoint that can actually be reached carries a mark.
 ##
-## Payyo declares six. Only CP0 was a node in the scene; CP1, CP2 and CP3 are written the
+## Payyo declared six. Only CP0 was a node in the scene; CP1, CP2 and CP3 were written the
 ## instant a route is committed and had no visual of any kind, so three of the four
 ## checkpoints a player actually reaches happened in total silence.
 func _audit_every_checkpoint_is_marked() -> void:
@@ -271,8 +271,15 @@ func _audit_every_checkpoint_is_marked() -> void:
 			marked.append(declares)
 		else:
 			missing.append(declares)
-	_check(missing.is_empty() and marked.size() >= 4, "every checkpoint has a mark",
-		"marked: %s" % ", ".join(marked) if missing.is_empty()
+	# As many as the level declares that every run reaches: the ones not tied to one route.
+	# Read from the file rather than a number here -- it said four, and counted the one at the
+	# house that Kent had removed as a checkpoint at the end.
+	var expected := 0
+	for entry_value: Variant in (director.level_data().get("checkpoints", []) as Array):
+		if ((entry_value as Dictionary).get("routes", []) as Array).is_empty():
+			expected += 1
+	_check(missing.is_empty() and marked.size() >= expected, "every checkpoint has a mark",
+		"marked: %s of %d" % [", ".join(marked), expected] if missing.is_empty()
 			else "unmarked: %s" % ", ".join(missing))
 
 
