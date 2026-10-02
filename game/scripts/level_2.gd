@@ -1725,7 +1725,7 @@ func _current_objective() -> Dictionary:
 	# SCENE 2 -- the rack, and the priest.
 	if not placed:
 		if room == church:
-			return {"key": "rack", "target": chancel.rack_point() + Vector2(0.0, -110.0)}
+			return {"key": "rack", "target": chancel.rack_marker_point()}
 		return _from(room, {"key": "to_church", "target": _over_door(DOOR_CHURCH)})
 	if church != null and not church.onward_open:
 		return {"key": "priest"}

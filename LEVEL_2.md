@@ -141,6 +141,28 @@ door use the same gameplay sequence.
 
 ---
 
+## The supplied church interior — October 2026
+
+The church now uses `CHURCH_BG`, `CHURCH_ALTAR`, and `CHURCH_FLOOR`, with
+`CHURCH_CompletedLook` as the composition reference. Originals live in
+`level-2-assets/church/`; `tools/build_church.py` packs the runtime nave, rack and candle into
+`game/assets/Level2/church/`. The floor plate owns the dais: the altar cut excludes its
+own stairs so the room has one platform. The old generated church furniture is no longer
+drawn here.
+
+The rack sits **left of the altar**, matching Lolo's instruction, and a short extra wall
+bay holds the alley doorway. The source aisle row is **790**; both painted door centres
+(204 and 1868) register to the room's live openings. `church_art.gd` holds the shared
+registration for the background, rack, candle, priest and camera. The camera stays inside
+the 2072 × 820 plate, at 1.2 zoom, rather than looking below it into the void.
+
+Scene 2 keeps its sequence: E places and consumes the carried candle, a taller candle
+appears on the supplied rack, Lolo speaks, the priest walks to the apo and speaks as Padre,
+CP2 is recorded, and the painted alley door opens. Sacred images remain background pixels
+with no collision or interaction. `run_level2_chain_probe` checks the art registration and
+the level’s E handler; `run_visual_level2 --church` pushes E through a real viewport
+and captures both doors, the rack and the placed-candle state.
+
 ## The level in one paragraph
 
 Recover **seven scraps** of the **Dagat** painting — the next level's, which is how Piyesta

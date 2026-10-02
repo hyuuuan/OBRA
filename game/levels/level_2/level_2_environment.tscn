@@ -107,10 +107,10 @@ position = Vector2(720.0, 205.0)
 position = Vector2(6450.0, -940.0)
 script = ExtResource("8_room")
 kind = 0
-room_length = 1400.0
-wall_height = 470.0
-room_zoom = 1.4
-floor_depth = 190.0
+room_length = 1800.0
+wall_height = 720.0
+room_zoom = 1.2
+floor_depth = 100.0
 onward_note = "The way to the alleys. Not yet -- the kandila first."
 
 [node name="HouseInterior" type="Node2D" parent="GameplayPlane/Rooms"]

@@ -63,8 +63,9 @@ func _run() -> void:
 	await _audit_the_way_back_works()
 	await _audit_scene_2_happens()
 	await _audit_the_chain_runs_to_alley_2()
-	await _audit_no_path_loses_a_scrap()
-	await _audit_the_dancers_do_not_come_back()
+	if not OS.get_cmdline_user_args().has("--church"):
+		await _audit_no_path_loses_a_scrap()
+		await _audit_the_dancers_do_not_come_back()
 
 	for line in results:
 		print(line)
@@ -324,7 +325,12 @@ func _audit_a_shut_door_stops_talking() -> void:
 		"walking into it says why it is shut", "'%s'" % bar.call("current_text"))
 	# AND THEN AWAY AGAIN. The note is a standing prompt: if leaving does not take it down,
 	# nothing else will until some other beat happens to write over it.
-	await _stand_at(church.global_position + Vector2(0.0, -40.0))
+	# The centre now falls within reach of the supplied rack. Use clear aisle instead.
+	var away := church.global_position + Vector2(-350.0, -40.0)
+	var chancel := level.get("chancel") as ChurchInterior2D
+	_check(absf(away.x - chancel.rack_point().x) > 150.0,
+		"harness: the quiet spot is clear of the rack", str(away))
+	await _stand_at(away)
 	for _frame in range(10):
 		await physics_frame
 	# ⚠ ASSERTED ON `is_showing`, NOT ONLY ON THE TEXT. `clear()` fades the panel and leaves
@@ -434,17 +440,37 @@ func _audit_scene_2_happens() -> void:
 		"the furniture is measured off the room", "%.0fpx of nave" % chancel.nave_length)
 	var rack_in := Rect2(church.call("bounds")).grow(40.0).has_point(chancel.rack_point())
 	_check(rack_in, "and the rack stands inside it", "left of the altar, against the wall")
+	# These are measured on the packed artwork, independently of rack_point / exit_rect.
+	var art_origin := church.global_position + Vector2(-1036.0, -790.0)
+	_check(chancel.rack_point().distance_to(art_origin + Vector2(950.0, 790.0)) < 1.0,
+		"the rack trigger follows the supplied rack", "source x 950, aisle row 790")
+	_check(absf(church.to_local(art_origin + Vector2(204.0, 790.0)).x
+		- church.exit_rect().get_center().x) < 1.0
+		and absf(church.to_local(art_origin + Vector2(1868.0, 790.0)).x
+		- church.onward_rect().get_center().x) < 1.0,
+		"both painted doors own their live openings", "door centres 204 and 1868")
+	var art_bounds := Rect2(art_origin + Vector2(0.0, 70.0), Vector2(2072.0, 820.0))
+	_check(art_bounds.encloses(church.camera_rect()),
+		"the church camera stays inside the supplied art", str(church.camera_rect()))
 
 	await _stand_at(church.entry_point())
 	_check(not church.onward_open, "the way to the alleys starts shut",
 		"the priest has not spoken")
 	await _stand_at(chancel.rack_point())
 	_check(chancel.standing_at_rack(), "the rack notices somebody at it", "reach armed")
+	var box: DialogueBox = level.get("dialogue_box")
+	# Let any entry conversation finish before pressing E; input must honour modal pause.
+	for _tick in range(30):
+		if not box.is_open() and not paused:
+			break
+		await create_timer(0.1, true).timeout
+	_check(not paused, "harness: the candle press is not under a modal", str(paused))
 	# Conversations ON from here, so what the box shows can be read -- see below.
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
-	var box: DialogueBox = level.get("dialogue_box")
-	var placed: bool = bool(level.call("_interact_with_level"))
-	_check(placed and chancel.kandila_on_rack, "and E puts the candle on it",
+	# Use this level's E handler (including pick-up priority), not the candle API.
+	# run_visual_level2 --church additionally pushes the key through a real viewport.
+	level.call("press_interact")
+	_check(chancel.kandila_on_rack, "and E puts the candle on it",
 		"Scene 2\'s one action")
 	# ⚠ AND IT IS NO LONGER IN HAND. A candle placed and still carried would let the player
 	# put it on the rack again, and would leave Problem 1 permanently solved for a rerun.

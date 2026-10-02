@@ -46,6 +46,11 @@ func _run() -> void:
 	if choice != null and choice.has_method("close"):
 		choice.call("close")
 	await _wait(0.4)
+	if OS.get_cmdline_user_args().has("--church"):
+		var ok := await _look_at_the_church(level.get("church") as Node2D)
+		print("OBRA_VISUAL_CHURCH_%s" % ("OK" if ok else "FAILED"))
+		quit(0 if ok else 1)
+		return
 
 	# A TOUR, not a walk. Walking east reaches the dialogue node, which opens the route
 	# choice and stops the tree -- correct behaviour, and it froze five of the six frames
@@ -160,6 +165,40 @@ func _tour_the_insides() -> void:
 		await _wait(1.1)
 		print("  %s: player at %s" % [room_name, player.global_position])
 		await _capture("07_%s" % room_name.to_lower())
+		if room_name == "ChurchInterior":
+			await _look_at_the_church(room)
+
+
+## Both doors and the rack must agree with the picture. Photograph the state change too:
+## a candle accepted in data with no visible result is not a working scene.
+func _look_at_the_church(room: Node2D) -> bool:
+	var chancel := level.get("chancel") as ChurchInterior2D
+	level.call("_hold_the_kandila")
+	var points := [Vector2(room.call("entry_point")), chancel.rack_point(),
+		Vector2(room.call("return_point"))]
+	for index in range(points.size()):
+		level.call("_step_through", points[index] - Vector2(0.0, 8.0))
+		await _wait(1.0)
+		await _capture("07_church_%d" % index)
+	level.call("_step_through", chancel.rack_point() - Vector2(0.0, 8.0))
+	await _wait(0.8)
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_E
+	key.pressed = true
+	root.push_input(key)
+	await process_frame
+	key = key.duplicate() as InputEventKey
+	key.pressed = false
+	root.push_input(key)
+	await _wait(7.0)
+	await _capture("07_church_candle_placed")
+	print("  church: candle placed %s, priest arrived %s, onward open %s" % [
+		chancel.kandila_on_rack, chancel.priest_has_arrived(), room.get("onward_open")])
+	level.call("_step_through", Vector2(room.call("return_point")) - Vector2(0.0, 8.0))
+	await _wait(1.0)
+	await _capture("07_church_onward_open")
+	return chancel.kandila_on_rack and chancel.priest_has_arrived() \
+		and bool(room.get("onward_open")) and not bool(level.get("_has_kandila"))
 
 
 ## SCENE 3, half mended and then whole. Both states are worth looking at: the scatter has to

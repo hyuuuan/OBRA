@@ -11,13 +11,9 @@ extends Node2D
 ## collision, and the failure that causes is a player standing in a room the camera says
 ## they have left.
 ##
-## PLACEHOLDER ART, DELIBERATELY. The design asks for a church interior set, both alley
-## layer sets, and a dark-palette variant of TextureMap_Piyesta, and none of the four
-## exists -- `Level 2 Pista Design Refined.pdf` lists all of them under "Environments and
-## backgrounds". So these rooms are drawn in code the way Payyo's props were before the art
-## arrived, to `ART_PLACEHOLDERS.md` rules: real size, real collision, and nothing implying
-## an affordance it does not have. When the sets land, this script becomes a sprite driver
-## and the numbers below are the brief.
+## The church and lit house use composed picture assets registered to their live doors.
+## The alleys use the authored interior tiles. The same shell still supplies the floor,
+## boundaries and transitions; sacred images and background furniture are only pixels.
 ##
 ## THE RULER IS THE APO, as it is in the straw room. He is 96 pixels tall and a child of
 ## about a metre thirty, so A METRE IS SEVENTY-TWO PIXELS, and every dimension here carries
@@ -45,6 +41,8 @@ signal notice_left()
 ## Which dressing. The shell is identical; this picks the palette, the material and whether
 ## there is a roof over it or open sky.
 enum Kind { CHURCH, HOUSE, ALLEY }
+
+const CHURCH_ART = preload("res://scripts/church_art.gd")
 
 @export var kind: Kind = Kind.ALLEY
 ## How long the room is, floor centre at this node's origin.
@@ -235,6 +233,8 @@ func bounds() -> Rect2:
 ## room is DRAWN past its own walls (see `_span`) so the camera can lead the player to the
 ## end of it without the plaza appearing behind the masonry.
 func camera_rect() -> Rect2:
+	if kind == Kind.CHURCH:
+		return Rect2(global_position + CHURCH_ART.RECT.position, CHURCH_ART.RECT.size)
 	var span := _span()
 	return Rect2(global_position - Vector2(span, wall_height),
 		Vector2(span * 2.0, wall_height + floor_depth))
@@ -418,6 +418,9 @@ func _on_onward_body(body: Node) -> void:
 ##   alley  -- lime plaster over rubble with the render fallen off in patches, damp running
 ##             down it, granite setts underfoot and a drain down the middle
 func _draw() -> void:
+	if kind == Kind.CHURCH:
+		CHURCH_ART.draw_nave(self, exit_rect(), onward_rect(), onward_open)
+		return
 	_draw_void()
 	if kind == Kind.HOUSE and PiyestaTiles.has_tile("house_wall_plate"):
 		_draw_house_backdrop()

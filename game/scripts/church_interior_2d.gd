@@ -23,9 +23,8 @@ extends Node2D
 ## where Lolo says his wife always went -- *"not the middle -- she always went to the left
 ## side, nearer the wall."*
 ##
-## PLACEHOLDER ART. The design lists the entire church interior under what does not exist:
-## nave background, altar, candle rack, pews, window light. `MG_Church` is a facade. Drawn
-## to `ART_PLACEHOLDERS.md` rules and measured at seventy-two pixels to the metre.
+## The supplied church plates are packed by tools/build_church.py. The room draws the
+## architecture and sacred images; this node owns only the live rack and priest.
 
 ## The kandila is on the rack. Scene 2's first beat, and the only one the player performs.
 signal kandila_placed()
@@ -36,42 +35,15 @@ signal priest_arrived()
 
 ## Where the nave ends, measured from this node. Set by the level off the room's own length
 ## so the furniture cannot outgrow the room it is in.
-@export var nave_length := 1400.0
-@export var nave_height := 470.0
+@export var nave_length := 1800.0
+@export var nave_height := 720.0
 ## Whether the candle is already on the rack. Rides the level's run state, so a restore
 ## inside the church does not ask for it twice.
 @export var kandila_on_rack := false
 
-## An altar platform is a step and a half up: 40 is a little over half a metre.
-const ALTAR := Vector2(300.0, 44.0)
-## The retablo behind it. Two and a half metres of carved timber, which is modest for one.
-const RETABLO := Vector2(260.0, 300.0)
-## The rack: waist high, a metre wide. Somewhere you put a candle down without reaching.
-const RACK := Vector2(150.0, 96.0)
-const RACK_REACH := Vector2(150.0, 170.0)
-## A pew is a bench: 2.4m long, seat at 45cm.
-const PEW := Vector2(174.0, 44.0)
-
-const TIMBER_DEEP := Color(0.129, 0.086, 0.055, 1.0)  # 21160E
-const TIMBER_DARK := Color(0.235, 0.161, 0.098, 1.0)  # 3C2919
-const TIMBER := Color(0.353, 0.251, 0.149, 1.0)       # 5A4026
-const TIMBER_LIT := Color(0.482, 0.361, 0.227, 1.0)   # 7B5C3A
-## Gilding on the retablo, dulled by two centuries of candle smoke.
-const GILT := Color(0.749, 0.588, 0.243, 1.0)         # BF963E
-const GILT_LIT := Color(0.878, 0.749, 0.412, 1.0)     # E0BF69
-## Lime-washed stone for the altar table and the platform, matching the room's own wall.
-const STONE := Color(0.588, 0.576, 0.541, 1.0)        # 96938A
-const STONE_DARK := Color(0.400, 0.396, 0.376, 1.0)   # 666560
-const STONE_PALE := Color(0.780, 0.765, 0.714, 1.0)   # C7C3B6
-const CLOTH := Color(0.925, 0.898, 0.827, 1.0)        # ECE5D3
-## The rack's candles: the ones already burning, and the empty spikes.
-const WAX := Color(0.949, 0.925, 0.831, 1.0)          # F2ECD4
-const FLAME := Color(0.996, 0.847, 0.451, 1.0)        # FED873
-const FLAME_SOFT := Color(0.988, 0.812, 0.451, 0.22)
-## Candle warmth thrown up the wall behind the altar, so the far end of the nave is
-## somewhere to walk toward rather than just where the room stops.
-const CANDLE_GLOW := Color(0.980, 0.788, 0.400, 0.16)
-const IRON := Color(0.184, 0.176, 0.169, 1.0)         # 2F2D2B
+const ART = preload("res://scripts/church_art.gd")
+const RACK_REACH := Vector2(170.0, 190.0)
+const FLAME_SOFT := Color(0.988, 0.812, 0.451, 0.16)
 ## The supplied elderly priest sheet: front while waiting, six walking frames, and the
 ## left-facing turnaround while speaking. tools/build_priest.py packs the cutouts into
 ## matching cells with one foot baseline. He walks over once the candle is lit.
@@ -124,16 +96,15 @@ func _process(delta: float) -> void:
 
 ## Left of the altar and against the wall, which is where Lolo says she always went.
 func rack_point() -> Vector2:
-	return global_position + Vector2(nave_length * 0.5 - 460.0, 0.0)
+	return global_position + Vector2(ART.RACK_FOOT.x, 0.0)
 
 
-func _altar_x() -> float:
-	return nave_length * 0.5 - 190.0
+func rack_marker_point() -> Vector2:
+	return global_position + ART.RACK_FOOT - Vector2(0.0, ART.RACK.get_height() + 24.0)
 
 
 func _priest_waiting_x() -> float:
-	# Off to the side of the altar, where somebody who works here would be.
-	return nave_length * 0.5 - 90.0
+	return ART.PRIEST_X
 
 
 func _build_rack_reach() -> void:
@@ -306,56 +277,14 @@ func guardrail_holds() -> bool:
 
 # --- What it looks like -------------------------------------------------------------------
 
-## DRAWN FROM MATERIAL AUTHORED FOR A CHURCH, not with `draw_rect`.
-##
-## The altar, the retablo, the pews and the candle rack were flat polygons in a room that is
-## now 8-bit pixel art, which made the one part of this level the cultural guardrail is
-## ABOUT the least convincing thing in it. They come from `tools/build_interiors.py` now --
-## gilded timber over a stone table with the santo in its niche, benches with real backs,
-## and an iron rack with candles already burning on it.
-##
-## ⚠ THE GUARDRAIL IS UNCHANGED BY THIS. The altar and the santo are still DRAWN and are
-## still not nodes: there is nothing to give a collision shape to, and `_check_the_guardrail`
-## still fails loudly if anybody adds one. Swapping how they are painted must not quietly
-## turn them into objects.
+## The altar and pews are already in the room plate. Only the rack changes when E is pressed.
 func _draw() -> void:
-	_draw_pews()
-	_draw_altar()
-	_draw_rack()
-
-
-## Down the middle of the nave, in two ranks, thinning toward the door -- so the room reads
-## as long and the walk to the altar has something to walk past.
-func _draw_pews() -> void:
-	var x := -nave_length * 0.5 + 210.0
-	while x < _altar_x() - 420.0:
-		PiyestaTiles.stand(self, "pew", Vector2(x, 0.0), 1.0)
-		x += PiyestaTiles.size_of("pew").x + 58.0
-
-
-## The platform, the table, and the retablo standing on it. All of it drawn, none of it
-## built -- see `_check_the_guardrail`.
-func _draw_altar() -> void:
-	var base := _altar_x()
-	var altar := PiyestaTiles.size_of("altar")
-	# The dais it stands on, in the nave's own flagstone.
-	PiyestaTiles.fill(self, Rect2(base - altar.x * 0.62, -34.0, altar.x * 1.24, 34.0),
-		"church_floor", Color(1.08, 1.05, 1.0, 1.0))
-	draw_rect(Rect2(base - altar.x * 0.62, -36.0, altar.x * 1.24, 4.0),
-		Color(0.847, 0.741, 0.573, 1.0))
-	PiyestaTiles.stand(self, "altar", Vector2(base, -34.0), 1.0)
-	# Candle warmth on the wall behind it, so the far end of the nave is somewhere to walk to.
-	draw_rect(Rect2(base - 190.0, -nave_height, 380.0, nave_height), CANDLE_GLOW)
-
-
-## The one thing in the room the player may touch, and it is not the altar.
-func _draw_rack() -> void:
-	var at := rack_point().x - global_position.x
-	PiyestaTiles.stand(self, "candle_rack", Vector2(at, 0.0), 1.0)
+	draw_texture(ART.RACK, ART.RACK_FOOT - Vector2(ART.RACK.get_width() * 0.5,
+		ART.RACK.get_height()))
 	if not kandila_on_rack:
 		return
-	# The player's own, taller than the rest because it has not burned down yet. This is the
-	# whole visible result of Scene 2's one action, so it has to be legible at a glance.
-	var rack := PiyestaTiles.size_of("candle_rack")
-	PiyestaTiles.stand(self, "kandila_lit", Vector2(at + rack.x * 0.30, -rack.y + 16.0), 1.0)
-	draw_circle(Vector2(at + rack.x * 0.30, -rack.y - 20.0), 96.0, FLAME_SOFT)
+	draw_texture(ART.CANDLE, ART.CANDLE_FOOT - Vector2(ART.CANDLE.get_width() * 0.5,
+		ART.CANDLE.get_height()))
+	var glow := 0.85 + 0.15 * sin(_flicker * 3.0)
+	draw_circle(ART.CANDLE_FOOT - Vector2(0.0, ART.CANDLE.get_height() - 10.0), 28.0,
+		Color(FLAME_SOFT, FLAME_SOFT.a * glow))
