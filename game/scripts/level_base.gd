@@ -3318,6 +3318,17 @@ func _revert_to_base_form() -> void:
 	if player != null and is_instance_valid(player):
 		landing = player.global_position
 	landing = Vector2(previous_state.get("position", landing))
+	# ⚠ ON ITS FEET, NOT ITS MIDDLE. A creature's position is its anchor -- the torso the rig
+	# hangs from -- and the apo's is the soles of its feet, so changing back put the apo's feet
+	# where the creature's middle had been and it fell to the ground: 73 px out of a horse, 93
+	# out of an elephant, 39 even out of a crab (Kent: "fix the Q revert drop"; measured by
+	# run_revert_probe). The lowest point of the creature's own bodies is where it stood.
+	if player != null and is_instance_valid(player):
+		var feet := lowest_point_of(player)
+		if is_finite(feet):
+			landing.y = feet
+	if not previous_state.is_empty():
+		previous_state["position"] = landing
 
 	var wanderer := _instantiate_wanderer()
 	if wanderer == null:
@@ -3350,6 +3361,26 @@ func _revert_to_base_form() -> void:
 		status_label.text = "Back to yourself"
 	else:
 		status_label.text = "Back to yourself — the %s is gone" % was.to_lower()
+
+
+## The lowest point of a body's own collision: every shape on its physics bodies, and none on
+## its areas, since how far a sensor reaches is not where anything stands. -INF when it has no
+## shape at all. For a drawn creature this is its feet, wherever the rig put its anchor.
+static func lowest_point_of(body: Node) -> float:
+	var lowest := -INF
+	for node in body.find_children("*", "CollisionShape2D", true, false):
+		var shape_node := node as CollisionShape2D
+		if shape_node.disabled or shape_node.shape == null \
+				or not (shape_node.get_parent() is PhysicsBody2D):
+			continue
+		lowest = maxf(lowest, (shape_node.global_transform * shape_node.shape.get_rect()).end.y)
+	for node in body.find_children("*", "CollisionPolygon2D", true, false):
+		var polygon := node as CollisionPolygon2D
+		if polygon.disabled or not (polygon.get_parent() is PhysicsBody2D):
+			continue
+		for point in polygon.polygon:
+			lowest = maxf(lowest, (polygon.global_transform * point).y)
+	return lowest
 
 
 ## WHERE A NEWLY DRAWN FORM TURNS UP. It takes the place of whoever the player was, so by
@@ -3398,7 +3429,22 @@ func _adopt_player(new_player: Node2D, previous_state: Dictionary, flash: bool) 
 		if node.has_method("except_player"):
 			node.call("except_player", new_player)
 	if old_player != null and is_instance_valid(old_player):
+		# ⚠ OUT OF THE WORLD NOW, NOT AT THE END OF THE FRAME. queue_free leaves the old body
+		# colliding until then, and the new one is set down where it stood, so for one physics
+		# step the two overlap and the new one is shoved: 12 px into the ground changing back out
+		# of a crab, 6 px up out of a frog (run_revert_probe), the same jolt for any swap.
+		_stop_colliding(old_player)
 		old_player.queue_free()
+
+
+## Takes a body out of every collision at once: everything it is made of, areas included.
+static func _stop_colliding(body: Node) -> void:
+	var parts: Array[Node] = body.find_children("*", "CollisionObject2D", true, false)
+	if body is CollisionObject2D:
+		parts.append(body)
+	for part in parts:
+		(part as CollisionObject2D).collision_layer = 0
+		(part as CollisionObject2D).collision_mask = 0
 
 
 ## Lolo's script, from config rather than from strings typed into this file, for the

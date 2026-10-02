@@ -857,6 +857,36 @@ the reach (one fails with the old line, the other at the old 100 px, which is 1.
 so the raw `{key:redraw}` failed "no objective names a class" on a word the player never sees -- and
 `run_level3_finish_probe` asks for each coral fact the way a player gets one: swim up and stay.
 
+## Its light does something (2026-10-02)
+
+Kent: *"i can get pass through it easily like the light is not doing anything"*. Reproduced: on the
+stealth route the commit opens the coils across the whole column, and the beam reached 460 px from
+a creature lying near the bed, 950 px under the surface. Everything above y ≈ 1034 was out of its
+reach. A swimmer along the top was never seen, and finished the level in 12.6 s holding right.
+The light route was checked too: a drawn flashlight or sun (used with F) or campfire (placed),
+even one drawn before the fork is answered, makes it follow, find what it lost, and open the way.
+
+- **Down in the water the beam reaches 1000 px, and the two beams look the same way.** Longer alone
+  did not close it. The beams pointed back to back, so neither ever looked straight up, and three
+  blind surface runs in four still got through. They now lift together, past straight up, and dip
+  together, never quite to straight down. The shadow under its belly stays (90 px of bed) and is
+  the only one. Lolo's commit line says how to read it: when it looks up, keep low; when it looks
+  down, go high.
+- **From the boat it keeps the short, back-to-back sweep.** Staged just under the hull, the boat's
+  lane is level with it, and with the deep beam the boat could not time a way past at all.
+- **A caught swimmer is put back outside the real reach** (`Bakunawa2D.reach()`, not the old
+  constant): 1251 px away, no further catches in 10 s.
+
+`run_bakunawa_probe` now measures the rule with the creature's own `sees()`, sweep and drift:
+- a blind run at 150 px/s is caught at least two times in three at every depth (70% just under the
+  surface, 88% below that, 100% from y 817 to the bed, against 0% above y 1034 before);
+- a careful swimmer at 100 px/s, free to stop and back off, gets past along the bed (≤ 35 s) and
+  along the top (≤ 26 s) from every arrival tried;
+- the boat can still time its way past at the surface.
+
+Mutation-tested: the old beam everywhere fails the first, a 1400 px reach fails the second, and
+the deep beam at the surface staging fails the third.
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.

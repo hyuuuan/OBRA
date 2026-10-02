@@ -204,7 +204,7 @@ func _seen_on_the_stealth_route() -> void:
 	director.call("exit_obstacle", "L3_N1")
 	await _unpause()
 	await _become_a_fish()
-	var creature := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Bakunawa") as Node2D
+	var creature := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Bakunawa") as Bakunawa
 	# Reach the mid-encounter checkpoint first, so what is lost is the stretch and not the
 	# approach -- which is the thing CP3b exists for.
 	_place(Vector2(3760.0, 1240.0))
@@ -259,7 +259,7 @@ func _seen_on_the_stealth_route() -> void:
 		# a second later from a hundred pixels out, and was caught again: played, four times in
 		# five seconds.
 		var anchor := level.call("_anchor_now") as Vector2
-		var to_reach := creature.global_position.x - Bakunawa.CONE_LENGTH - anchor.x
+		var to_reach := creature.global_position.x - creature.reach() - anchor.x
 		_check(to_reach / BED_SWIM >= 2.0,
 			"and far enough back to read that before it can see them again",
 			"%.0f px short of its reach: %.1f s of swimming at %.0f px/s"
@@ -302,10 +302,10 @@ func _seen_on_the_stealth_route() -> void:
 				armed = true
 		_check(again == 0, "and it cannot see them there", "%d further resets in 10 s" % again)
 		var resting := (level.get("player") as Node2D).global_position
-		_check(resting.distance_to(creature.global_position) > Bakunawa.CONE_LENGTH,
+		_check(resting.distance_to(creature.global_position) > creature.reach(),
 			"which is measured, not hoped for",
 			"%.0f px away, its cone reaches %.0f"
-				% [resting.distance_to(creature.global_position), Bakunawa.CONE_LENGTH])
+				% [resting.distance_to(creature.global_position), creature.reach()])
 	await _close_the_level()
 
 
