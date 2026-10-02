@@ -137,6 +137,42 @@ var _use_button: Button
 var _chosen: Dictionary = {}
 var _thumbnails: Dictionary = {}
 
+## ⚠ IT WAS A STILL PICTURE YOU COULD ONLY CLICK. Kent, of this screen: "i dont like how the
+## animation is happening ... i cant scroll, drag, etc. from it". It snapped on in one frame,
+## its slots answered a click the way a menu button does -- a dip, a pop and a ring going off
+## inside the frame -- the wheel did nothing, and the only way to use a drawing was to pick it
+## and then find the button. So now: it rises in the way the drawing canvas does; a slot under
+## the mouse lifts and lights; the wheel, a trackpad and the arrow keys step through everything
+## on it; and a drawing can be DRAGGED -- onto another slot to swap the two (the slot is the
+## number key, so this is how the ladder goes on 1), or off the bag to take it out, which for
+## something set down puts it on the cursor where it was dropped.
+##
+## IT CLOSES AT ONCE, on purpose. Pause is derived from whichever overlays are open (see
+## ModalOverlay), so a closing animation is either the game held paused behind it or a panel
+## that still looks open after it has stopped being one. Tab and the world come back together.
+const OPEN_FROM := 0.88
+const OPEN_TIME := 0.32
+## How far a slot lifts under the mouse, and how fast.
+const HOVER_SCALE := 1.07
+const HOVER_TIME := 0.09
+## A trackpad scrolls in small amounts rather than in notches; this much is one step.
+const PAN_STEP := 1.0
+## ⚠ AND EACH ONE ARRIVES TWICE. Godot 4.7 hands `_input` two copies of every pan gesture that
+## comes through Input.parse_input_event -- same delta, same frame, two objects (measured,
+## window and headless alike) -- which is the road a trackpad's events take. Counted twice, a
+## swipe moved the choice two places.
+var _last_pan := Vector2.INF
+var _last_pan_frame := -1
+var _scrim: ColorRect
+var _panel: PanelContainer
+var _open_run: Tween
+var _pan := 0.0
+## class id -> its roster frame, and the drawn classes the bands were last built for. The
+## bands are rebuilt only when that changes: rebuilt on every choice, the frame under the
+## mouse was freed and remade on each step of the wheel and lost its hover.
+var _roster_buttons: Dictionary = {}
+var _roster_built_for: Variant = null
+
 
 func _ready() -> void:
 	super()
@@ -181,7 +217,162 @@ func _on_opened() -> void:
 	# on purpose. Same courtesy MemoryOverlay pays.
 	get_tree().call_group(DialogueBox.GROUP, &"hide_line")
 	_chosen = {}
+	_pan = 0.0
 	refresh()
+	_rise()
+
+
+## In the drawing canvas's handwriting -- the dark arrives first, the panel settles out of the
+## pale gold the interface is trimmed in and overshoots into place -- and quicker, because this
+## is opened far more often than the canvas is.
+func _rise() -> void:
+	if _open_run != null and _open_run.is_valid():
+		_open_run.kill()
+	_panel.pivot_offset = _panel.size * 0.5
+	_scrim.modulate.a = 0.0
+	_panel.modulate = Color(UISkin.GOLD_PALE.r, UISkin.GOLD_PALE.g, UISkin.GOLD_PALE.b, 0.0)
+	_panel.scale = Vector2.ONE * OPEN_FROM
+	_open_run = create_tween()
+	# This screen is what pauses the game; a tween bound to the pause would never start.
+	_open_run.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_open_run.set_parallel(true)
+	_open_run.tween_property(_scrim, "modulate:a", 1.0, OPEN_TIME * 0.6) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_open_run.tween_property(_panel, "modulate", Color.WHITE, OPEN_TIME * 0.55) \
+		.set_delay(0.03).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_open_run.tween_property(_panel, "scale", Vector2.ONE, OPEN_TIME) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## Whether it has finished arriving.
+func is_settled() -> bool:
+	return is_open() and not (_open_run != null and _open_run.is_valid() and _open_run.is_running())
+
+
+# --- Looking through it ----------------------------------------------------------------
+
+## The wheel, a trackpad and the arrows step through everything on the screen; Enter takes
+## out the drawing that is chosen. In `_input` rather than `_unhandled_input`, because the
+## panel and its slots stop the mouse -- a wheel turned over them never reaches unhandled.
+func _input(event: InputEvent) -> void:
+	if not is_open():
+		return
+	var wheel := event as InputEventMouseButton
+	if wheel != null:
+		if wheel.pressed and wheel.button_index in [MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_RIGHT]:
+			_step(1)
+			get_viewport().set_input_as_handled()
+		elif wheel.pressed and wheel.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_LEFT]:
+			_step(-1)
+			get_viewport().set_input_as_handled()
+		return
+	# A Mac trackpad does not turn a wheel: two fingers arrive as a pan, in small amounts.
+	var pan := event as InputEventPanGesture
+	if pan != null:
+		get_viewport().set_input_as_handled()
+		if pan.delta == _last_pan and Engine.get_process_frames() == _last_pan_frame:
+			return
+		_last_pan = pan.delta
+		_last_pan_frame = Engine.get_process_frames()
+		_pan += pan.delta.y + pan.delta.x
+		while absf(_pan) >= PAN_STEP:
+			_step(1 if _pan > 0.0 else -1)
+			_pan -= PAN_STEP * signf(_pan)
+		return
+	if event.is_action_pressed(&"ui_right", true) or event.is_action_pressed(&"ui_down", true):
+		_step(1)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed(&"ui_left", true) or event.is_action_pressed(&"ui_up", true):
+		_step(-1)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed(&"ui_accept") and String(_chosen.get("kind", "")) == "bag":
+		get_viewport().set_input_as_handled()
+		_use_chosen()
+
+
+## Everything that can be chosen, in the order the screen reads: the bag, what has been found,
+## then what has been drawn, band by band.
+func _choices() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for index in range(_bag_buttons.size()):
+		if inventory_manager != null and inventory_manager.peek_item(index) != null:
+			out.append({"kind": "bag", "index": index})
+	for entry in FOUND:
+		var id := String(entry["id"])
+		if _has_found(id) and not _is_used(id):
+			out.append({"kind": "found", "id": id})
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	var drawn: Array = profile.call("get_drawn_classes") if profile != null else []
+	for band: Variant in BANDS:
+		for id in _ids_with_role(String((band as Dictionary)["role"])):
+			if drawn.has(id):
+				out.append({"kind": "drawn", "id": id})
+	return out
+
+
+func _step(direction: int) -> void:
+	var choices := _choices()
+	if choices.is_empty():
+		return
+	var at := choices.find(_chosen)
+	if at < 0:
+		at = 0 if direction > 0 else choices.size() - 1
+	else:
+		at = posmod(at + direction, choices.size())
+	_chosen = choices[at]
+	refresh()
+	_show_choice()
+
+
+# --- Dragging ----------------------------------------------------------------------
+
+func _drag_from_bag(_at: Vector2, index: int) -> Variant:
+	var item := inventory_manager.peek_item(index) if inventory_manager != null else null
+	if item == null:
+		return null
+	# What is being carried is what is chosen, so the pane says what is in the hand.
+	_chosen = {"kind": "bag", "index": index}
+	refresh()
+	# Centred on the pointer: a preview hangs from its top-left corner otherwise.
+	var holder := Control.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var art := TextureRect.new()
+	art.texture = _thumbnail(item)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.size = BAG_SLOT
+	art.position = -BAG_SLOT * 0.5
+	art.modulate = Color(1.0, 1.0, 1.0, 0.85)
+	holder.add_child(art)
+	_bag_buttons[index].set_drag_preview(holder)
+	return {"bag_slot": index}
+
+
+func _can_drop_on_bag(_at: Vector2, data: Variant, index: int) -> bool:
+	return data is Dictionary and (data as Dictionary).has("bag_slot") \
+		and int((data as Dictionary)["bag_slot"]) != index
+
+
+func _drop_on_bag(_at: Vector2, data: Variant, index: int) -> void:
+	var from := int((data as Dictionary)["bag_slot"])
+	# Chosen first: moving it refreshes this screen, and the pane follows the drawing.
+	_chosen = {"kind": "bag", "index": index}
+	if inventory_manager == null or not inventory_manager.move_item(from, index):
+		_chosen = {"kind": "bag", "index": from}
+	refresh()
+	_show_choice()
+
+
+func _can_drop_outside(_at: Vector2, data: Variant) -> bool:
+	return data is Dictionary and (data as Dictionary).has("bag_slot")
+
+
+## Out of the bag -- the same thing TAKE IT OUT does, so a tool goes into the hand and a thing
+## to set down goes onto the cursor, right where it was let go.
+func _drop_outside(_at: Vector2, data: Variant) -> void:
+	_chosen = {"kind": "bag", "index": int((data as Dictionary)["bag_slot"])}
+	_use_chosen()
 
 
 # --- Building ------------------------------------------------------------------------
@@ -197,6 +388,9 @@ func _build() -> void:
 	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	scrim.color = Color(UISkin.INK, 0.86)
 	root.add_child(scrim)
+	_scrim = scrim
+	# Off the bag is out of the bag: a drawing dropped anywhere outside the panel is taken out.
+	scrim.set_drag_forwarding(Callable(), _can_drop_outside, _drop_outside)
 
 	var centre := CenterContainer.new()
 	centre.name = "Centre"
@@ -204,10 +398,23 @@ func _build() -> void:
 	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(centre)
 
+	# ⚠ IN A HOLDER, NOT IN THE CENTRE CONTAINER ITSELF. A container resets the scale of every
+	# child it lays out, and filling this screen on the way in lays it out -- so the rise was
+	# cut off on its first frames and the panel snapped to full size anyway. A plain Control is
+	# never sorted; the holder is as big as the panel, and the container centres that.
+	var holder := Control.new()
+	holder.name = "Holder"
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	centre.add_child(holder)
 	var panel := PanelContainer.new()
 	panel.name = "Panel"
 	panel.custom_minimum_size = Vector2(1240.0, 0.0)
-	centre.add_child(panel)
+	holder.add_child(panel)
+	_panel = panel
+	panel.minimum_size_changed.connect(func() -> void:
+		panel.reset_size()
+		holder.custom_minimum_size = panel.size)
+	panel.resized.connect(func() -> void: panel.pivot_offset = panel.size * 0.5)
 
 	var column := VBoxContainer.new()
 	column.name = "Column"
@@ -269,7 +476,8 @@ func _build() -> void:
 	footer.name = "Footer"
 	footer.theme_type_variation = &"HudCaption"
 	footer.add_theme_color_override(&"font_color", UISkin.MUTED)
-	footer.text = "%s to close" % ControlsKeys.keys_for("inventory_open")
+	footer.text = "%s to close  ·  scroll to look through  ·  drag a drawing to another slot, or off the bag to take it out" \
+		% ControlsKeys.keys_for("inventory_open")
 	column.add_child(footer)
 
 
@@ -324,6 +532,8 @@ func _build_bag(parent: Control) -> void:
 	for index in range(6):
 		var button := _slot_button(BAG_SLOT)
 		button.pressed.connect(_choose_bag.bind(index))
+		button.set_drag_forwarding(_drag_from_bag.bind(index), _can_drop_on_bag.bind(index),
+			_drop_on_bag.bind(index))
 		row.add_child(button)
 		_bag_buttons.append(button)
 
@@ -500,7 +710,47 @@ func _slot_button(box: Vector2) -> Button:
 	button.custom_minimum_size = box
 	button.focus_mode = Control.FOCUS_NONE
 	button.text = ""
+	# ⚠ OUT OF UIFeedback, which every other button in the game keeps. It gives each button a
+	# dip on press, a pop back and a ring that leaves the click point -- right on a menu button,
+	# and on this screen a ring going off inside a 34-pixel frame and a grid of frames that
+	# jumped at every click. Its hover also tweened the same `scale` this one does, and
+	# whichever started last won. Marked before the button enters the tree, which is when
+	# UIFeedback looks.
+	button.set_meta(&"ui_feedback", true)
+	button.resized.connect(func() -> void: button.pivot_offset = button.size * 0.5)
+	button.mouse_entered.connect(_hover.bind(button, true))
+	button.mouse_exited.connect(_hover.bind(button, false))
 	return button
+
+
+## A slot that holds something lifts under the mouse; an empty frame does not, because there is
+## nothing there to pick. Scale and self_modulate only -- the container owns the button's
+## position, and `_paint` owns its modulate for the chosen state.
+func _hover(button: Button, over: bool) -> void:
+	if over and not bool(button.get_meta(&"live", false)):
+		return
+	var lift := button.create_tween()
+	lift.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	lift.set_parallel(true)
+	lift.tween_property(button, "scale", Vector2.ONE * (HOVER_SCALE if over else 1.0), HOVER_TIME) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	lift.tween_property(button, "self_modulate",
+		Color(1.25, 1.2, 1.05, 1.0) if over else Color.WHITE, HOVER_TIME)
+
+
+## The drawing in the pane comes up when something new is chosen, so the eye goes there.
+func _show_choice() -> void:
+	if _detail_art == null:
+		return
+	_detail_art.pivot_offset = _detail_art.size * 0.5
+	_detail_art.scale = Vector2.ONE * 0.9
+	_detail_art.modulate.a = 0.4
+	var pop := _detail_art.create_tween()
+	pop.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	pop.set_parallel(true)
+	pop.tween_property(_detail_art, "scale", Vector2.ONE, 0.18) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	pop.tween_property(_detail_art, "modulate:a", 1.0, 0.12)
 
 
 # --- Filling -------------------------------------------------------------------------
@@ -547,6 +797,14 @@ func _refresh_roster() -> void:
 	var drawn: Array = profile.call("get_drawn_classes") if profile != null else []
 	var total: int = int(profile.call("roster_size")) if profile != null else 50
 	_roster_count.text = "%d / %d" % [drawn.size(), total]
+	if _roster_built_for is Array and (_roster_built_for as Array) == drawn:
+		for id: String in _roster_buttons:
+			var chosen := String(_chosen.get("kind", "")) == "drawn" \
+				and String(_chosen.get("id", "")) == id and drawn.has(id)
+			_paint(_roster_buttons[id] as Button, drawn.has(id), chosen, true)
+		return
+	_roster_built_for = drawn.duplicate()
+	_roster_buttons.clear()
 	for band: Variant in BANDS:
 		_fill_band(String((band as Dictionary)["role"]), drawn)
 
@@ -578,6 +836,7 @@ func _fill_band(role: String, drawn: Array) -> void:
 		var chosen := String(_chosen.get("kind", "")) == "drawn" \
 			and String(_chosen.get("id", "")) == id and owned
 		grid.add_child(button)
+		_roster_buttons[id] = button
 		_paint(button, owned, chosen, true)
 		if not owned:
 			# Unnamed, untooltipped, unclickable. The frame is the only thing it says, and
@@ -664,6 +923,7 @@ func _paint(button: Button, occupied: bool, chosen: bool, quiet: bool = false) -
 		button.add_theme_stylebox_override(state,
 			UISkin.hollow() if quiet and not occupied else UISkin.slot(occupied, chosen))
 	button.modulate = Color(1.12, 1.12, 1.04) if chosen else Color.WHITE
+	button.set_meta(&"live", occupied)
 
 
 # --- Choosing ------------------------------------------------------------------------
@@ -671,6 +931,7 @@ func _paint(button: Button, occupied: bool, chosen: bool, quiet: bool = false) -
 func _choose_bag(index: int) -> void:
 	_chosen = {"kind": "bag", "index": index}
 	refresh()
+	_show_choice()
 
 
 func _choose_found(id: String) -> void:
@@ -678,11 +939,13 @@ func _choose_found(id: String) -> void:
 		return
 	_chosen = {"kind": "found", "id": id}
 	refresh()
+	_show_choice()
 
 
 func _choose_drawn(id: String) -> void:
 	_chosen = {"kind": "drawn", "id": id}
 	refresh()
+	_show_choice()
 
 
 ## Hand the slot back to the level, which decides what a slot DOES -- a tool goes into the

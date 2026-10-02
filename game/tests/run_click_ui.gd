@@ -60,6 +60,7 @@ func _run() -> void:
 	await _dialogue_can_be_advanced()
 	await _placing_click_reaches_the_world()
 	await _a_click_places_it_and_right_click_takes_it_back()
+	await _the_bag_screen_answers_the_mouse()
 	await _dialogue_choices_answer_a_click()
 	await _a_page_turn_does_not_answer_the_question()
 	await _escape_during_a_question_is_not_a_pause_menu()
@@ -633,6 +634,91 @@ func _key(pressed: bool) -> InputEventKey:
 			copy.pressed = pressed
 			return copy
 	return InputEventKey.new()
+
+
+## THE TAB BAG, WITH A MOUSE. Kent: "i cant scroll, drag, etc. from it". A slot lifts under
+## the pointer, the wheel looks through what is there, and a drawing is dragged: onto another
+## slot to swap, and off the bag to take it out. Godot's drag needs a real pointer moving with
+## the button held, which is the one thing no headless suite can give it.
+func _the_bag_screen_answers_the_mouse() -> void:
+	var placement := level.get("placement_controller") as PlacementController
+	var bag := level.get("inventory_manager") as InventoryManager
+	var screen: InventoryScreen = null
+	for node in get_nodes_in_group(&"modal_overlays"):
+		if node is InventoryScreen:
+			screen = node
+	if placement == null or bag == null or screen == null:
+		_fail("the bag screen", "the level did not build what this needs")
+		return
+	if placement.is_placing():
+		placement.cancel_placement()
+	var panel := level.get_node_or_null("DrawPanel")
+	if panel != null and bool(panel.call("is_open")):
+		panel.call("close_panel")
+	for slot in range(bag.capacity):
+		bag.take_item(slot)
+	for pair in [["ladder", 0], ["square", 2]]:
+		var item := DrawnItemData.new()
+		item.entity_id = String(pair[0])
+		item.display_name = String(pair[0]).capitalize()
+		bag.add_item(item, int(pair[1]))
+	screen.open()
+	for _frame in range(120):
+		await process_frame
+		if screen.is_settled():
+			break
+	var slots: Array = screen.get("_bag_buttons")
+	var first := slots[0] as Button
+	var at := first.get_global_rect().get_center()
+	_inject(_motion(at))
+	for _frame in range(30):
+		await process_frame
+		if root.gui_get_hovered_control() == first:
+			break
+	await _wait(0.25)
+	_check(first.scale.x > 1.04, "a bag slot lifts under the mouse", "scale %.2f" % first.scale.x)
+	_inject(_button(at, true, MOUSE_BUTTON_WHEEL_DOWN))
+	_inject(_button(at, false, MOUSE_BUTTON_WHEEL_DOWN))
+	await process_frame
+	var chosen: Dictionary = screen.get("_chosen")
+	_check(chosen == {"kind": "bag", "index": 0}, "the wheel looks through the bag", str(chosen))
+	await _drag(at, (slots[4] as Control).get_global_rect().get_center())
+	_check(bag.peek_item(4) != null and bag.peek_item(4).entity_id == "ladder"
+			and bag.peek_item(0) == null, "a drawing dragged onto slot 5 moves there",
+		"5 holds %s" % (bag.peek_item(4).entity_id if bag.peek_item(4) != null else "nothing"))
+	await _drag((slots[4] as Control).get_global_rect().get_center(),
+		Vector2(root.get_visible_rect().size.x * 0.5, 40.0))
+	_check(not screen.is_open() and placement.is_placing(),
+		"one dragged off the bag is taken out to set down",
+		"on the cursor" if placement.is_placing() else "open %s, placing %s"
+			% [screen.is_open(), placement.is_placing()])
+	if placement.is_placing():
+		placement.cancel_placement()
+	if screen.is_open():
+		screen.close()
+
+
+## Press, move in steps with the button held, let go. Each step carries how far it moved,
+## because Godot starts a drag on the distance travelled, not on where the pointer is.
+func _drag(from: Vector2, to: Vector2) -> void:
+	_inject(_motion(from))
+	for _frame in range(4):
+		await process_frame
+	_inject(_button(from, true))
+	await process_frame
+	var last := from
+	for step in range(1, 13):
+		var next := from.lerp(to, step / 12.0)
+		var held := _motion(next)
+		held.relative = next - last
+		held.button_mask = MOUSE_BUTTON_MASK_LEFT
+		last = next
+		_inject(held)
+		await process_frame
+		await process_frame
+	_inject(_button(to, false))
+	for _frame in range(4):
+		await process_frame
 
 
 ## A real click: move there, press, release. Buttons fire on RELEASE by default, so a

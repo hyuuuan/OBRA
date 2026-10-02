@@ -180,12 +180,26 @@ func _resolve_python_executable() -> String:
 	var configured := python_executable.strip_edges()
 	if not configured.is_empty():
 		return configured
+	return python_in(_repo_root().path_join(".venv"), OS.has_feature("windows"))
 
-	var venv_python := _repo_root().path_join(".venv/bin/python")
-	if FileAccess.file_exists(venv_python):
-		return venv_python
 
-	return "python3"
+## The venv's interpreter, wherever this platform keeps it, or else what this platform calls
+## Python.
+##
+## ⚠ IT ONLY EVER LOOKED FOR `.venv/bin/python`, and a Windows venv has no `bin`: its
+## interpreter is `Scripts\python.exe`. Every Windows checkout fell through to `python3` --
+## which on Windows is usually not Python at all but the Microsoft Store's stand-in for it --
+## so the server never came up and every drawing went unrecognised. Kent's teammates on
+## Windows: "the game is not playable in their end". Static, and told the platform, so a test
+## on any machine can ask it about both.
+static func python_in(venv_dir: String, windows: bool) -> String:
+	var inside := ["Scripts/python.exe", "bin/python", "bin/python3"] if windows \
+		else ["bin/python", "bin/python3"]
+	for relative: String in inside:
+		var candidate := venv_dir.path_join(relative)
+		if FileAccess.file_exists(candidate):
+			return candidate
+	return "python" if windows else "python3"
 
 
 func _repo_root() -> String:
