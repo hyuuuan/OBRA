@@ -182,6 +182,8 @@ func set_manager(manager: InventoryManager) -> void:
 	_manager = manager
 	if not manager.inventory_changed.is_connected(_refresh):
 		manager.inventory_changed.connect(_refresh)
+	if not manager.item_moved.is_connected(_on_item_moved):
+		manager.item_moved.connect(_on_item_moved)
 	_refresh(manager.items())
 
 
@@ -194,6 +196,16 @@ func set_selected(slot: int) -> void:
 
 func selected_slot() -> int:
 	return _selected
+
+
+## The thing in hand keeps its SEL when the bag screen moves it to another slot. The level
+## knows what is in hand by what it IS; only this bar knows it by number. Fires before
+## inventory_changed, so the refresh that follows already draws the new number.
+func _on_item_moved(from_slot: int, to_slot: int) -> void:
+	if _selected == from_slot:
+		_selected = to_slot
+	elif _selected == to_slot:
+		_selected = from_slot
 
 
 ## Stand out of the way of the mouse while something is being placed.

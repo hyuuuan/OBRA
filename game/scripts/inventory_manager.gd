@@ -6,6 +6,9 @@ extends Node
 signal inventory_changed(items: Array)
 signal item_added(slot: int, item: DrawnItemData)
 signal item_removed(slot: int, item: DrawnItemData)
+## Something moved from one slot to another, swapping with whatever was there. Nothing left
+## the bag and nothing came into it, which is why neither of the two above fires for it.
+signal item_moved(from_slot: int, to_slot: int)
 
 @export_range(1, 12) var capacity: int = 6
 
@@ -56,6 +59,23 @@ func take_item(slot: int) -> DrawnItemData:
 	item_removed.emit(slot, item)
 	_emit_changed()
 	return item
+
+
+## Move what is in `from_slot` to `to_slot`, and whatever was there to `from_slot`: the bag
+## screen's drag. The slot is the number key that reaches it, so this is how a player puts the
+## ladder on 1.
+func move_item(from_slot: int, to_slot: int) -> bool:
+	if from_slot == to_slot or from_slot < 0 or to_slot < 0 \
+			or from_slot >= _items.size() or to_slot >= _items.size():
+		return false
+	if _items[from_slot] == null:
+		return false
+	var moving: Variant = _items[from_slot]
+	_items[from_slot] = _items[to_slot]
+	_items[to_slot] = moving
+	item_moved.emit(from_slot, to_slot)
+	_emit_changed()
+	return true
 
 
 func peek_item(slot: int) -> DrawnItemData:
