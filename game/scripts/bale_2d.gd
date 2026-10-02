@@ -71,6 +71,8 @@ const EAVE_RIGHT := 126.0
 const RIDGE_X := -9.0
 ## How far the walls reach either side. Symmetric, unlike everything above it.
 const WALL_HALF := 126.0
+## The door: the dark opening in the storey over the deck, its middle measured off the art.
+const DOOR := Vector2(-38.0, -120.0)
 
 var _attic: Area2D
 var _entered := false

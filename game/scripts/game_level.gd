@@ -118,6 +118,10 @@ func _ward_note(reason: String, measured: Dictionary) -> String:
 			return "It turned, and stopped."
 
 
+## Whether Ang Bale was opened with the brass key found in the straw, rather than a drawn one.
+var _with_the_found_key := false
+
+
 ## The key off the nail in the heap opens Ang Bale, and that is the whole chain: what you
 ## find in the heap is the way into the house, and what you find in the house is the
 ## painting of the next place.
@@ -139,6 +143,13 @@ func _use_the_found_key() -> bool:
 		return false
 	if not PlayerProfile.is_collectible_found(FOUND_KEY):
 		return false
+	# The offer is answered: off the bar now, not when the level next runs a physics frame --
+	# that is after the house's opening lines, which stop the world, and the offer stood over
+	# the room the whole time they were read.
+	if hint_bar != null and not _key_prompt.is_empty() and hint_bar.current_text() == _key_prompt:
+		hint_bar.clear()
+	_key_prompt = ""
+	_with_the_found_key = true
 	director.commit_route("L1_N3", "pragmatist")
 	director.solve_with_item("L1_N3", FOUND_KEY)
 	# AND IT STAYS IN THE LOCK. The door is open; the key is not carried any more, so the bag
@@ -399,6 +410,11 @@ func _open_the_baul(route: String) -> void:
 	# IN FIRST, THEN THE BEAT. The route lines are said by people standing in the house, and
 	# saying them before the player is moved framed the camera on a speaker out on the
 	# terrace while the apo was already a thousand units up in the room.
+	# THE KEY TURNS WHERE THE PLAYER CAN SEE IT, and only then do they go in. Kent: "how i open
+	# the key" -- E at the house took the apo inside on the same frame, so a key nobody saw go
+	# into a lock opened a door nobody saw open.
+	if route == "pragmatist":
+		await _turn_the_key()
 	await _into_the_bale()
 	match route:
 		"artist":
@@ -419,6 +435,20 @@ func _open_the_baul(route: String) -> void:
 				"cross_level_effect": "L2_PISTA.painting.creased",
 			})
 			_speak(script_lines.fire("L1_N3.protector.solved"))
+
+
+## The door glints, the lock is heard, Lolo says so, and a beat later she goes in.
+func _turn_the_key() -> void:
+	var house := get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Bale/House") as Bale2D
+	if house == null:
+		return
+	PickupFlourish2D.burst(house, Bale2D.DOOR)
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"unlock")
+	if hint_bar != null:
+		hint_bar.show_hint("The key turns. The door is open.", Lolo.SPEAKER, 3.0)
+	await get_tree().create_timer(0.9, false).timeout
 
 
 ## Over the thatch and in under the eaves. The halipan are what make this the way in rather
@@ -752,8 +782,12 @@ func _extra_refusals(entity_id: String, strokes: Array) -> bool:
 ## commit line used to repeat that sentence in a modal dialogue box BEFORE the player drew
 ## the wind, covering the hay at the exact moment the route should build anticipation.
 ## `_search_the_straw` fires the line after every wind pose and the grounded result instead.
+## And Node 3's, when it is the brass key from the straw that opens the house: the Unlock
+## route's commit line is the apo saying "I will make something that opens it", which is the
+## wrong thing to say while turning a key she found. The key's own beat says what happened.
 func _defer_route_commit_dialogue(obstacle_id: String, route: String) -> bool:
-	return obstacle_id == "L1_N2" and route == "protector"
+	return (obstacle_id == "L1_N2" and route == "protector") \
+		or (obstacle_id == "L1_N3" and _with_the_found_key)
 
 
 ## Node 2 opens the heap; Node 3 opens the chest. Both own their own words, which is why

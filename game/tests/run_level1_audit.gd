@@ -1338,9 +1338,27 @@ func _audit_the_key_chain() -> void:
 		_check(bool(level.call("_found_key_would_open")), "the door offers it (%s)" % how,
 			"at '%s', carrying the key" % d.current_obstacle())
 		_check(bool(level.call("_use_the_found_key")), "and it opens (%s)" % how, "pragmatist")
-		await create_timer(0.8, true).timeout
+		# THE KEY IS SEEN TO TURN. Kent: "how i open the key" -- it used to take her inside on
+		# the frame E was pressed, with nothing at the door at all.
+		await create_timer(0.15, true).timeout
+		var turning := String((level.get("hint_bar") as HintBar).current_text())
+		_check(turning.contains("The key turns"), "and the key turns at the door first (%s)" % how,
+			turning if not turning.is_empty() else "nothing said at the door")
+		# The key turns at the door first -- a beat the player sees -- and THEN she goes in, so
+		# this waits for her to be inside rather than for a number that races the beat.
+		for _step in range(40):
+			await create_timer(0.05, true).timeout
+			var room_now: Node = level.call("_room_holding_player")
+			if room_now != null and room_now.is_in_group(&"bale_interiors"):
+				break
 		_check(d.is_solved("L1_N3") and d.committed_route("L1_N3") == "pragmatist",
 			"by the Unlock route (%s)" % how, "solved, route '%s'" % d.committed_route("L1_N3"))
+		# NOT "I will make something that opens it": that is the Unlock route's commit line, for
+		# a player choosing to DRAW a key, and the apo said it while turning the one she found.
+		var lines: Variant = level.get("script_lines")
+		var said_it: bool = lines == null or bool(lines.call("has_heard", "L1_N3.pragmatist.commit"))
+		_check(not said_it, "and the apo does not say she will make one (%s)" % how,
+			"the key's own beat speaks" if not said_it else "she said \"I will make something that opens it\"")
 		# THE SOLVE GETS YOU IN; IT DOES NOT HAND YOU THE PAINTING. That used to arrive the
 		# instant the route landed, which made the room a cutscene with a floor. It leans
 		# against the wall in there now and is picked up by walking into it.
