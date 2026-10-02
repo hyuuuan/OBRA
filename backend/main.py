@@ -57,7 +57,7 @@ if not LABELS_PATH.exists():
 ENTITIES = load_entities(validate_scene_paths=True)
 ENTITY_BY_SOURCE_LABEL = entities_by_source_label(ENTITIES)
 ABILITIES = load_abilities(entities=ENTITIES)  # ConceptNet-grounded, validated on load
-LABELS: list[str] = json.loads(LABELS_PATH.read_text())
+LABELS: list[str] = json.loads(LABELS_PATH.read_text(encoding="utf-8"))
 validate_model_labels(LABELS, ENTITIES, source=str(LABELS_PATH))
 SESSION = onnxruntime.InferenceSession(str(MODEL_PATH))
 OUTPUT_NAME = SESSION.get_outputs()[0].name
@@ -67,7 +67,7 @@ if OUTPUT_SHAPE and isinstance(OUTPUT_SHAPE[-1], int) and OUTPUT_SHAPE[-1] != le
         f"Model output width is {OUTPUT_SHAPE[-1]}, but labels.json has {len(LABELS)} labels."
     )
 MODEL_METADATA = (
-    json.loads(MODEL_METADATA_PATH.read_text()) if MODEL_METADATA_PATH.exists() else {}
+    json.loads(MODEL_METADATA_PATH.read_text(encoding="utf-8")) if MODEL_METADATA_PATH.exists() else {}
 )
 DEBUG_TIMING = os.environ.get("OBRA_DEBUG_TIMING", "").lower() in {"1", "true", "yes", "on"}
 TELEMETRY = TelemetryWriter.from_env(REPO_ROOT / "telemetry")

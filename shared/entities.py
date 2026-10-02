@@ -148,7 +148,7 @@ def load_entities(
 ) -> list[EntityDefinition]:
     """Load entity definitions in model-output order."""
     path = Path(manifest_path) if manifest_path is not None else DEFAULT_MANIFEST_PATH
-    doc = json.loads(path.read_text())
+    doc = json.loads(path.read_text(encoding="utf-8"))
     raw_entities = doc.get("entities")
     if not isinstance(raw_entities, list):
         raise ValueError(f"{path} must contain an 'entities' list")
@@ -224,7 +224,7 @@ def load_abilities(
     and the geometric primitives must be hand-authored.
     """
     path = Path(abilities_path) if abilities_path is not None else DEFAULT_ABILITIES_PATH
-    doc = json.loads(path.read_text())
+    doc = json.loads(path.read_text(encoding="utf-8"))
     raw = doc.get("abilities", doc) if isinstance(doc, dict) else doc
     if not isinstance(raw, dict):
         raise ValueError(f"{path} must contain an 'abilities' object keyed by entity id")
