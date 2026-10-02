@@ -269,13 +269,23 @@ func _dismiss() -> void:
 ## there is no wrong key to press. It does NOT pause, so this is the only way a player can
 ## get their game back sooner; `_holding` is what stops a direction they were already holding
 ## from eating the card before it has finished arriving.
+##
+## ⚠ THE MOUSE IS NEVER TAKEN. Every mouse button used to dismiss the card AND be swallowed,
+## and the wheel is a mouse button -- so while a card was up, the scroll that turns a
+## placement and the click that sets it down did nothing but take the card away. Kent: "i
+## cant scroll, drag, etc. from it". A click still takes the card down, and then goes on to
+## do what it was for; the wheel does not touch the card at all.
 func _unhandled_input(event: InputEvent) -> void:
 	if not _holding or not is_open():
 		return
-	if not (event is InputEventKey or event is InputEventMouseButton
-			or event is InputEventJoypadButton):
-		return
 	if not event.is_pressed() or event.is_echo():
+		return
+	var mouse := event as InputEventMouseButton
+	if mouse != null:
+		if mouse.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE]:
+			_dismiss()
+		return
+	if not (event is InputEventKey or event is InputEventJoypadButton):
 		return
 	get_viewport().set_input_as_handled()
 	_dismiss()
