@@ -955,7 +955,7 @@ func _handle_unlock_result(result: Variant) -> void:
 func _board_actor(actor: Node2D) -> void:
 	_unboard_actor()
 	var anchor := actor.call("get_physics_anchor") as RigidBody2D if actor.has_method("get_physics_anchor") else null
-	var seat_position := global_position + Vector2(0.0, -_target_size().y * 0.25).rotated(global_rotation)
+	var seat_position := seat_point()
 	if anchor == null:
 		# The player is not a rigid body -- the wanderer is a CharacterBody2D, and it is
 		# who the player IS until they draw an animal. Refusing to board it meant the
@@ -989,6 +989,37 @@ func _board_actor(actor: Node2D) -> void:
 	utility_used.emit(utility_behavior, item_data)
 
 
+## How far into the hull a passenger's feet go below its rim: standing IN the boat, not on
+## top of its edge.
+const DECK_SINK := 6.0
+
+
+## Where a passenger stands, in world space: on the hull -- the lowest of the shapes the drawing
+## was built into -- at its middle, its feet just inside the rim.
+##
+## ⚠ NOT A QUARTER OF THE WAY UP THE WHOLE DRAWING. The seat was the body's middle lifted by a
+## quarter of its height, and the middle of a drawn boat is wherever the drawing's middle is: on
+## a sailboat drawn the way people draw one, a tall sail over a small hull, that put the apo's
+## feet forty pixels over the deck, standing on nothing beside the sail (Kent: "it looks like
+## im floating even tho im not").
+func seat_point() -> Vector2:
+	var hull: CollisionShape2D = null
+	var hull_bottom := -INF
+	for child in get_children():
+		var collision := child as CollisionShape2D
+		if collision == null or collision.shape == null or collision.disabled:
+			continue
+		var bottom := (collision.transform * collision.shape.get_rect()).end.y
+		if bottom > hull_bottom:
+			hull_bottom = bottom
+			hull = collision
+	var seat := Vector2(0.0, -_target_size().y * 0.25)
+	if hull != null:
+		var rect := hull.transform * hull.shape.get_rect()
+		seat = Vector2(rect.get_center().x, minf(rect.position.y + DECK_SINK, rect.end.y))
+	return global_position + seat.rotated(global_rotation)
+
+
 ## Holds a non-rigid passenger on the deck. A pinned rigid rider is held by its joint;
 ## a CharacterBody2D has to be put there, because nothing else will move it.
 func _seat_carried_actor() -> void:
@@ -996,8 +1027,7 @@ func _seat_carried_actor() -> void:
 		return
 	if _boarded_actor == null or not is_instance_valid(_boarded_actor):
 		return
-	_boarded_actor.global_position = global_position \
-		+ Vector2(0.0, -_target_size().y * 0.25).rotated(global_rotation)
+	_boarded_actor.global_position = seat_point()
 
 
 ## A passenger is cargo, not an obstacle. The seat is inside the hull and the rider is
