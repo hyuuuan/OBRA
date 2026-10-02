@@ -539,6 +539,7 @@ func _refresh_found() -> void:
 		var art := _found_buttons[index].get_node_or_null(^"Art") as TextureRect
 		if art != null:
 			art.texture = _found_art(id) if owned else null
+		_found_buttons[index].visible = not _is_used(id)
 
 
 func _refresh_roster() -> void:
@@ -695,6 +696,14 @@ func _use_chosen() -> void:
 
 
 # --- Reading -------------------------------------------------------------------------
+
+## A found thing given up -- the brass key left in the lock it opened -- is not carried, and is
+## not shown: not as found, and not as an empty frame waiting to be found either.
+func _is_used(id: String) -> bool:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	return profile != null and profile.has_method("is_item_used") \
+		and bool(profile.call("is_item_used", id))
+
 
 func _has_found(id: String) -> bool:
 	var profile := get_node_or_null(^"/root/PlayerProfile")
