@@ -195,8 +195,9 @@
         {
           "id": "checkpoint",
           "at": "checkpoint",
-          "text": "You begin here now, not at the start.",
-          "seconds": 7.0
+          "text": "That lantern is a checkpoint, apo. If you fall or get stuck, you start again from here, with the ink you had.",
+          "seconds": 9.0,
+          "interrupts": true
         }
       ],
       "canvas_briefing": [

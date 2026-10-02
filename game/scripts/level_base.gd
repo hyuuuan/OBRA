@@ -704,12 +704,20 @@ func _may_frame_the_checkpoint(_mark: Node2D) -> bool:
 ## checkpoint is frequently crossed mid-jump. The sound id has no file behind it yet and
 ## AudioDirector treats that as silence rather than as an error, which is what lets the call
 ## exist before the recording does.
+##
+## ⚠ AND THE FIRST ONE IS EXPLAINED, AND THE EXPLANATION IS LEFT UP. Kent: "when I do
+## checkpoint, as a first time player, i dont know what it does". The lesson that says so
+## went up on this bar and was replaced in the same frame by the line below, so nobody ever
+## read it; and that line, "The level will remember you from here", does not say what for.
 func _say_checkpoint() -> void:
 	status_label.text = "Checkpoint"
+	var explained := false
 	if tutorial != null:
+		var before := tutorial.has_taught("checkpoint")
 		tutorial.note("checkpoint")
-	if hint_bar != null:
-		hint_bar.show_hint("The level will remember you from here.", "", 3.0)
+		explained = not before and tutorial.has_taught("checkpoint")
+	if hint_bar != null and not explained:
+		hint_bar.show_hint("Checkpoint. If you fall, you start again from here.", "", 3.5)
 	var audio := get_node_or_null(^"/root/AudioDirector")
 	if audio != null:
 		audio.call("play_sfx", &"checkpoint")

@@ -65,6 +65,7 @@ func _run() -> void:
 	_audit_the_canvas_is_explained()
 	await _audit_the_two_readings_are_explained()
 	await _audit_the_bar_clears_the_letterbox()
+	await _audit_the_first_checkpoint_explains_itself()
 	await _audit_a_callout_never_covers_its_target()
 
 	print("OBRA_TUTORIAL_POPUP_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
@@ -270,6 +271,34 @@ func _audit_the_two_readings_are_explained() -> void:
 		"taught" if tutorial.has_taught("sure") else "sure never fired")
 	_check(order == ["clock", "sure"], "and they arrive in that order",
 		", ".join(order) if not order.is_empty() else "neither fired")
+
+
+## ⚠ THE FIRST CHECKPOINT SAYS WHAT A CHECKPOINT IS, AND THE SAYING STAYS UP. Kent: "when I do
+## checkpoint, as a first time player, i dont know what it does". The lesson that explains it
+## yielded to whatever Lolo was saying as the player walked in, and when it did go up it was
+## replaced in the same frame by "The level will remember you from here".
+func _audit_the_first_checkpoint_explains_itself() -> void:
+	var bar := level.get("hint_bar") as HintBar
+	var tutorial := level.get("tutorial") as TutorialDirector
+	if bar == null or tutorial == null:
+		_check(false, "the level has a hint bar and a tutorial", "-")
+		return
+	_check(not tutorial.has_taught("checkpoint"), "no checkpoint has been explained yet", "fresh run")
+	# Lolo mid-sentence, as he is when the player walks up Ang Hagdan.
+	bar.show_hint("Walk with me, apo.", Lolo.SPEAKER, 0.0)
+	await _wait(0.2)
+	level.call("_say_checkpoint")
+	await _wait(0.4)
+	var said := String(bar.call("current_text"))
+	_check(tutorial.has_taught("checkpoint") and said.contains("If you fall or get stuck"),
+		"the first checkpoint explains itself over Lolo", said)
+	level.call("_say_checkpoint")
+	await _wait(0.4)
+	said = String(bar.call("current_text"))
+	_check(said.begins_with("Checkpoint.") and said.contains("start again from here"),
+		"and the ones after it say so in a line", said)
+	bar.clear()
+	await _wait(0.3)
 
 
 ## ⚠ THE CHECKPOINT LINE WAS PRINTED UNDER THE LETTERBOX. The bars come in over the top
