@@ -26,7 +26,7 @@
 set -u
 cd "$(dirname "$0")/.."
 LOG=${OBRA_SUITE_LOG:-/tmp/obra_suites.log}
-: > "$LOG"
+print "started $(date +%s)" > "$LOG"
 print "progress: tools/suite_watch.py $LOG"
 
 HEADLESS=(

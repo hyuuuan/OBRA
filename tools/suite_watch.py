@@ -84,7 +84,24 @@ def total_for(state: dict) -> int:
     return len(plan)
 
 
+STARTED = re.compile(r"^started (\d+)$")
+
+
 def started_at(log: Path) -> float:
+    """When the run began: the stamp run_suites.sh writes as the log's first line.
+
+    NOT the file's birth time, which is what this read first. run_suites.sh empties the log
+    rather than making a new one, so the file kept the birth time of the first run ever made
+    with it, and a run four minutes old read 96:39:08. A log from before the stamp falls back
+    to the birth time, which is right only when the file was new.
+    """
+    try:
+        with log.open(errors="replace") as handle:
+            stamped = STARTED.match(handle.readline().strip())
+    except FileNotFoundError:
+        return time.time()
+    if stamped:
+        return float(stamped.group(1))
     stat = log.stat()
     return getattr(stat, "st_birthtime", stat.st_mtime)
 
