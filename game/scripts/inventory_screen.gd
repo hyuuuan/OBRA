@@ -137,6 +137,23 @@ var _use_button: Button
 var _chosen: Dictionary = {}
 var _thumbnails: Dictionary = {}
 
+## ⚠ IT SNAPPED ON, AND ITS SLOTS JUMPED. Kent, of this screen: "i dont like how the animation
+## is happening". It appeared in one frame, and its slots answered a click the way a menu button
+## does -- a dip, a pop and a ring going off inside the frame. So now it rises in the way the
+## drawing canvas does, a slot under the mouse lifts and lights, and nothing else moves.
+##
+## IT CLOSES AT ONCE, on purpose. Pause is derived from whichever overlays are open (see
+## ModalOverlay), so a closing animation is either the game held paused behind it or a panel
+## that still looks open after it has stopped being one. Tab and the world come back together.
+const OPEN_FROM := 0.88
+const OPEN_TIME := 0.32
+## How far a slot lifts under the mouse, and how fast.
+const HOVER_SCALE := 1.07
+const HOVER_TIME := 0.09
+var _scrim: ColorRect
+var _panel: PanelContainer
+var _open_run: Tween
+
 
 func _ready() -> void:
 	super()
@@ -182,6 +199,34 @@ func _on_opened() -> void:
 	get_tree().call_group(DialogueBox.GROUP, &"hide_line")
 	_chosen = {}
 	refresh()
+	_rise()
+
+
+## In the drawing canvas's handwriting -- the dark arrives first, the panel settles out of the
+## pale gold the interface is trimmed in and overshoots into place -- and quicker, because this
+## is opened far more often than the canvas is.
+func _rise() -> void:
+	if _open_run != null and _open_run.is_valid():
+		_open_run.kill()
+	_panel.pivot_offset = _panel.size * 0.5
+	_scrim.modulate.a = 0.0
+	_panel.modulate = Color(UISkin.GOLD_PALE.r, UISkin.GOLD_PALE.g, UISkin.GOLD_PALE.b, 0.0)
+	_panel.scale = Vector2.ONE * OPEN_FROM
+	_open_run = create_tween()
+	# This screen is what pauses the game; a tween bound to the pause would never start.
+	_open_run.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_open_run.set_parallel(true)
+	_open_run.tween_property(_scrim, "modulate:a", 1.0, OPEN_TIME * 0.6) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_open_run.tween_property(_panel, "modulate", Color.WHITE, OPEN_TIME * 0.55) \
+		.set_delay(0.03).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_open_run.tween_property(_panel, "scale", Vector2.ONE, OPEN_TIME) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## Whether it has finished arriving.
+func is_settled() -> bool:
+	return is_open() and not (_open_run != null and _open_run.is_valid() and _open_run.is_running())
 
 
 # --- Building ------------------------------------------------------------------------
@@ -197,6 +242,7 @@ func _build() -> void:
 	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	scrim.color = Color(UISkin.INK, 0.86)
 	root.add_child(scrim)
+	_scrim = scrim
 
 	var centre := CenterContainer.new()
 	centre.name = "Centre"
@@ -204,10 +250,23 @@ func _build() -> void:
 	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(centre)
 
+	# ⚠ IN A HOLDER, NOT IN THE CENTRE CONTAINER ITSELF. A container resets the scale of every
+	# child it lays out, and filling this screen on the way in lays it out -- so the rise was
+	# cut off on its first frames and the panel snapped to full size anyway. A plain Control is
+	# never sorted; the holder is as big as the panel, and the container centres that.
+	var holder := Control.new()
+	holder.name = "Holder"
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	centre.add_child(holder)
 	var panel := PanelContainer.new()
 	panel.name = "Panel"
 	panel.custom_minimum_size = Vector2(1240.0, 0.0)
-	centre.add_child(panel)
+	holder.add_child(panel)
+	_panel = panel
+	panel.minimum_size_changed.connect(func() -> void:
+		panel.reset_size()
+		holder.custom_minimum_size = panel.size)
+	panel.resized.connect(func() -> void: panel.pivot_offset = panel.size * 0.5)
 
 	var column := VBoxContainer.new()
 	column.name = "Column"
@@ -500,7 +559,47 @@ func _slot_button(box: Vector2) -> Button:
 	button.custom_minimum_size = box
 	button.focus_mode = Control.FOCUS_NONE
 	button.text = ""
+	# ⚠ OUT OF UIFeedback, which every other button in the game keeps. It gives each button a
+	# dip on press, a pop back and a ring that leaves the click point -- right on a menu button,
+	# and on this screen a ring going off inside a 34-pixel frame and a grid of frames that
+	# jumped at every click. Its hover also tweened the same `scale` this one does, and
+	# whichever started last won. Marked before the button enters the tree, which is when
+	# UIFeedback looks.
+	button.set_meta(&"ui_feedback", true)
+	button.resized.connect(func() -> void: button.pivot_offset = button.size * 0.5)
+	button.mouse_entered.connect(_hover.bind(button, true))
+	button.mouse_exited.connect(_hover.bind(button, false))
 	return button
+
+
+## A slot that holds something lifts under the mouse; an empty frame does not, because there is
+## nothing there to pick. Scale and self_modulate only -- the container owns the button's
+## position, and `_paint` owns its modulate for the chosen state.
+func _hover(button: Button, over: bool) -> void:
+	if over and not bool(button.get_meta(&"live", false)):
+		return
+	var lift := button.create_tween()
+	lift.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	lift.set_parallel(true)
+	lift.tween_property(button, "scale", Vector2.ONE * (HOVER_SCALE if over else 1.0), HOVER_TIME) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	lift.tween_property(button, "self_modulate",
+		Color(1.25, 1.2, 1.05, 1.0) if over else Color.WHITE, HOVER_TIME)
+
+
+## The drawing in the pane comes up when something new is chosen, so the eye goes there.
+func _show_choice() -> void:
+	if _detail_art == null:
+		return
+	_detail_art.pivot_offset = _detail_art.size * 0.5
+	_detail_art.scale = Vector2.ONE * 0.9
+	_detail_art.modulate.a = 0.4
+	var pop := _detail_art.create_tween()
+	pop.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	pop.set_parallel(true)
+	pop.tween_property(_detail_art, "scale", Vector2.ONE, 0.18) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	pop.tween_property(_detail_art, "modulate:a", 1.0, 0.12)
 
 
 # --- Filling -------------------------------------------------------------------------
@@ -664,6 +763,7 @@ func _paint(button: Button, occupied: bool, chosen: bool, quiet: bool = false) -
 		button.add_theme_stylebox_override(state,
 			UISkin.hollow() if quiet and not occupied else UISkin.slot(occupied, chosen))
 	button.modulate = Color(1.12, 1.12, 1.04) if chosen else Color.WHITE
+	button.set_meta(&"live", occupied)
 
 
 # --- Choosing ------------------------------------------------------------------------
@@ -671,6 +771,7 @@ func _paint(button: Button, occupied: bool, chosen: bool, quiet: bool = false) -
 func _choose_bag(index: int) -> void:
 	_chosen = {"kind": "bag", "index": index}
 	refresh()
+	_show_choice()
 
 
 func _choose_found(id: String) -> void:
@@ -678,11 +779,13 @@ func _choose_found(id: String) -> void:
 		return
 	_chosen = {"kind": "found", "id": id}
 	refresh()
+	_show_choice()
 
 
 func _choose_drawn(id: String) -> void:
 	_chosen = {"kind": "drawn", "id": id}
 	refresh()
+	_show_choice()
 
 
 ## Hand the slot back to the level, which decides what a slot DOES -- a tool goes into the
