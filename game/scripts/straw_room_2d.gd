@@ -172,14 +172,8 @@ func _ready() -> void:
 ## without going through it -- and a room that is still drawn once she has left is a room
 ## painted over the level.
 func _process(delta: float) -> void:
-	var here := false
-	var at := Vector2.INF
-	for node in get_tree().get_nodes_in_group(&"player_character"):
-		var body := node as Node2D
-		if body != null and bounds().grow(90.0).has_point(body.global_position):
-			here = true
-			at = body.global_position
-			break
+	var at := _where_the_apo_is()
+	var here := at != Vector2.INF
 	# THE BRASS CATCHES THE LIGHT, and that is the only moving thing in a dark room.
 	#
 	# The key is a 45-pixel object at the far end of a fifteen-metre barn made entirely of
@@ -190,13 +184,31 @@ func _process(delta: float) -> void:
 	if here and not _taken:
 		_shine += delta
 		queue_redraw()
-	if here and at != Vector2.INF:
+	if here:
 		_drive_the_way_out(delta, at)
+	_show(here)
+
+
+## Drawn while she is in here. Public for the reason PiyestaRoom2D.show_while_occupied gives:
+## a pause stops `_process`, so the level calls this the moment it puts her down.
+func show_while_occupied() -> void:
+	_show(_where_the_apo_is() != Vector2.INF)
+
+
+func _show(here: bool) -> void:
 	if here == visible:
 		return
 	visible = here
 	if _ants != null:
 		_ants.set_process(here)
+
+
+func _where_the_apo_is() -> Vector2:
+	for node in get_tree().get_nodes_in_group(&"player_character"):
+		var body := node as Node2D
+		if body != null and bounds().grow(90.0).has_point(body.global_position):
+			return body.global_position
+	return Vector2.INF
 
 
 ## HOW FAR EVERYTHING IN HERE IS DRAWN PAST THE WALLS SHE CAN REACH.

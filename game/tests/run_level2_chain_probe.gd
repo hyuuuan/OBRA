@@ -195,7 +195,21 @@ func _audit_the_church_is_shut_until_the_candle() -> void:
 
 	level.call("_hold_the_kandila")
 	_check(door.open, "the candle opens it", "one door for all three routes")
+	# ⚠ WITH LOLO'S LINE LEFT UP, the way a player meets it. Walking in fires a line, a line in
+	# the box pauses the game, and a room shows itself from `_process` -- so the church stayed
+	# undrawn behind the box and the apo stood in the empty sky it is parked in.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
 	used = bool(level.call("_interact_with_level"))
+	for _frame in range(12):
+		await process_frame
+	var church := level.get("church") as CanvasItem
+	_check(paused and church != null and church.visible, "and the church is drawn while Lolo speaks",
+		"behind the box" if paused and church != null and church.visible
+			else "not drawn -- the apo stands in the sky" if paused
+			else "nothing paused: the line this is about never came")
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	call_group(DialogueBox.GROUP, &"hide_line")
+	paused = false
 	for _frame in range(12):
 		await physics_frame
 	_check(used and _room_name() == "ChurchInterior", "and now E steps through it",

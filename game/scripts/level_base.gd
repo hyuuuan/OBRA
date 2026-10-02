@@ -1190,6 +1190,11 @@ func _walk_through(to: Vector2) -> void:
 		return
 	_frame_the_step()
 	player.call("apply_morph_state", {"position": to, "linear_velocity": Vector2.ZERO})
+	# ⚠ AND THE ROOM IS DRAWN NOW, not when it next processes. A room shows itself from its
+	# own `_process`, which a pause stops, and the way into the church speaks -- so the apo
+	# stood in the sky behind Lolo's box until it was dismissed. Deferred as this is, it runs
+	# paused or not. See PiyestaRoom2D.show_while_occupied.
+	get_tree().call_group(&"interiors", &"show_while_occupied")
 	# And it has to arrive already framed: easing across four thousand units is a whip pan
 	# through the whole level.
 	_refresh_room_framing(true)

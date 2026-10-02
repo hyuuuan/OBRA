@@ -199,6 +199,17 @@ func _process(_delta: float) -> void:
 		_exit_armed = true
 	if not _onward_armed and not _somebody_in(_onward_area):
 		_onward_armed = true
+	show_while_occupied()
+
+
+## Drawn while the apo is in here, and not otherwise.
+##
+## ⚠ PUBLIC, BECAUSE `_process` STOPS FOR A PAUSE. Walking into the church fires Lolo's
+## line, and a line in the box pauses the game -- in the same frame the step-through carries
+## the apo up here. The room never got the frame it needed to notice her, so for as long as
+## the line was up she stood in the empty sky the church is parked in, with the box over
+## her. The level calls this the moment it puts her down, paused or not.
+func show_while_occupied() -> void:
 	var here := false
 	for node in get_tree().get_nodes_in_group(&"player_character"):
 		var body := node as Node2D
