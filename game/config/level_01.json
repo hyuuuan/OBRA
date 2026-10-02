@@ -79,7 +79,7 @@
     "bale": "Get into Ang Bale, her house",
     "bale.tags": "Get into Ang Bale. Draw something that can {tags}",
     "painting": "Take her painting",
-    "onward": "Walk through the opening in the wall"
+    "home": "Take it home to Lola's house"
   },
   "obstacles": [
     {

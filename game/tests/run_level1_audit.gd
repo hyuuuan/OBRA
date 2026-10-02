@@ -1897,12 +1897,12 @@ func _all_nodes(node: Node) -> Array[Node]:
 ## chest was opened. `unlocks_at_checkpoint` papered over that by refusing until the beat was
 ## solved -- which left a THIRD ending that fired by standing under the house once it was.
 ##
-## Payyo ends at a door now. Two of them, both inside the room: back down the ladder, or
-## through the gap the painting leaves in the wall. So the marker is a POINTER and only that,
+## Payyo ends inside Ang Bale now: taking her painting goes home, and so does the ladder with
+## it. So the marker is a POINTER and only that,
 ## and this audit turned over with it -- the old third check asserted the marker DID complete
 ## the level, which was the behaviour being removed. What ends the level is walked through in
-## `run_level1_finish_probe`, which is where an ending belongs: it can open the door and
-## follow it into Piyesta, and this file cannot.
+## `run_level1_finish_probe`, which is where an ending belongs: it can take the painting and
+## follow it home, and this file cannot.
 func _audit_completion_gate() -> void:
 	# The overlay is the visible effect. Asserting the private flag behind it would pass
 	# against a level that completed silently and showed the player nothing.
