@@ -76,7 +76,7 @@ func _run() -> void:
 	# asserts what it spent. This one is about whether the mechanisms work at all.
 	for beat in [_cannot_be_climbed_bare, _one_step_is_not_enough, _can_be_climbed_with_a_stair,
 			_a_placement_can_be_taken_back, _the_ghost_is_where_it_lands,
-			_the_heap_has_an_inside, _the_overlook_needs_a_climb,
+			_the_apo_goes_into_the_straw, _the_heap_has_an_inside, _the_overlook_needs_a_climb,
 			_the_gorge_flower_and_return_are_reachable]:
 		_refill_the_purse()
 		await beat.call()
@@ -184,6 +184,43 @@ func _jump_to_gorge_landing(landing: Dictionary) -> bool:
 	return false
 
 
+## THE APO GOES INTO THE STRAW HERSELF, ON E. Kent: "the haybale world, its gone like where is
+## it? why cant i go to it?" Only a burrowing drawing fitted, and Level 1 never names `burrow`.
+## At the mouth the E prompt over her head says GO IN, and a real E press takes her inside.
+func _the_apo_goes_into_the_straw() -> void:
+	var pile: Node2D = null
+	for node in level.get_tree().get_nodes_in_group(&"straw_piles"):
+		if bool((node as Node2D).get("entrance")):
+			pile = node as Node2D
+	var room := level.get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	if pile == null or room == null:
+		_fail("the apo goes into the straw", "no heap with a way in, or no room behind it")
+		return
+	var mouth := Rect2(pile.call("mouth_rect"))
+	player.set("velocity", Vector2.ZERO)
+	player.global_position = pile.global_position + Vector2(mouth.get_center().x, 0.0)
+	for _frame in range(30):
+		await physics_frame
+	var prompts := level.get("action_prompts") as Node
+	var chip := prompts.find_child("PickupPrompt", true, false) as Control if prompts != null else null
+	var offered: bool = bool(level.call("_fits_through_the_straw")) and bool(level.get("_at_straw_mouth"))
+	var says := (chip as Button).text if chip is Button and chip.is_visible_in_tree() else ""
+	_check(offered and says.contains("GO IN"), "at the mouth, E offers to go in",
+		says.strip_edges() if offered else "the apo does not fit, or is not at the mouth")
+	Input.parse_input_event(_key(&"interact", true))
+	await physics_frame
+	Input.parse_input_event(_key(&"interact", false))
+	for _frame in range(60):
+		await physics_frame
+	var held: Node = level.call("_room_holding_player")
+	_check(held == room, "and E takes the apo herself inside",
+		"in the straw room" if held == room else "still on the terrace")
+	if held == room:
+		level.call("_on_straw_exit")
+		for _frame in range(30):
+			await physics_frame
+
+
 ## THE ROUND TRIP, and both halves of it. Node 2's heap is the only thing in Level 1 with an
 ## inside, and the inside is a room in the empty sky above the level rather than a cutaway
 ## where the heap stands -- so getting in is a fade and a teleport, and getting out is
@@ -204,10 +241,8 @@ func _the_heap_has_an_inside() -> void:
 	player.global_position = outside + Vector2(mouth.get_center().x, 0.0)
 	for _frame in range(10):
 		await physics_frame
-	# AND THE APO DOES NOT FIT. The way in is a gap under a haystack, so what goes through it
-	# is a DRAWING small enough to use it -- the `burrow` tag. Standing here as herself, the
-	# press is refused and the heap says why. So the walker becomes something that fits
-	# first, which is what a player has to do.
+	# AS SOMETHING THAT BURROWS, which still fits; the apo herself goes in on E -- see
+	# _the_apo_goes_into_the_straw.
 	var drawing := Image.create_empty(400, 400, false, Image.FORMAT_RGBA8)
 	drawing.fill(Color.WHITE)
 	level.call("_spawn_or_replace", "ant", "Ant", drawing,

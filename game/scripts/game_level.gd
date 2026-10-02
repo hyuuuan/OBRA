@@ -194,11 +194,16 @@ func _found_key_would_open() -> bool:
 const BURROW_TAG := "burrow"
 
 
-## Whether whatever the player currently IS can get in under the straw. The apo cannot; a
-## drawing can, if it is one of the things `burrow` resolves to.
+## Whether whatever the player currently IS can get in under the straw: the apo, or a drawing
+## that `burrow` resolves to. A horse cannot.
+##
+## ⚠ THE APO GOES IN. Kent: "the haybale world, its gone like where is it? why cant i go to
+## it?" Only a burrowing drawing used to fit, and Level 1 never unlocks or teaches `burrow` --
+## so the one room in the level could be found only by a player who guessed a tag nobody had
+## named. The room's own puzzle was built for her anyway: the nail is forty pixels over HER jump.
 func _fits_through_the_straw() -> bool:
 	if _current_form_id.is_empty():
-		return false
+		return true
 	return AbilityTags.class_has_tag(_current_form_id, BURROW_TAG)
 
 
@@ -210,8 +215,8 @@ func _on_straw_mouth(standing: bool) -> void:
 		hint_bar.clear()
 		return
 	if _fits_through_the_straw():
-		hint_bar.show_hint("You will fit under there  —  press %s"
-			% ControlsKeys.keys_for("move_down"))
+		hint_bar.show_hint("There is a way in under the straw  —  press %s"
+			% ControlsKeys.keys_for("interact"))
 		return
 	# The requirement, in the same words the strip and the route buttons use, so the heap
 	# cannot describe itself differently from everything else that asks for something.
@@ -835,14 +840,25 @@ func _handle_level_input(event: InputEvent) -> bool:
 
 
 func _interact_with_level() -> bool:
+	# The way into the straw is offered on E, over her head, where the hint bar's version of it
+	# was talked over by Lolo's three lines about the heap. Down still works.
+	if _at_straw_mouth and _fits_through_the_straw():
+		_on_straw_entered()
+		return true
 	return _use_the_found_key()
+
+
+func _level_interact_offer() -> Dictionary:
+	if _at_straw_mouth and _fits_through_the_straw():
+		return {"name": "the straw", "verb": "GO IN"}
+	return {}
 
 
 ## THE OFFER ON THE BAR IS A PROMISE, and the same condition makes it. `_offer_the_found_key`
 ## writes "you are carrying her key -- press E to try it" whenever this is true, so the two
 ## cannot drift: if the sentence is up, this key press belongs to the door.
 func _level_answers_first() -> bool:
-	return _found_key_would_open()
+	return _found_key_would_open() or (_at_straw_mouth and _fits_through_the_straw())
 
 
 func _level_physics(anchor_position: Vector2) -> void:
