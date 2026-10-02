@@ -141,6 +141,9 @@ func _use_the_found_key() -> bool:
 		return false
 	director.commit_route("L1_N3", "pragmatist")
 	director.solve_with_item("L1_N3", FOUND_KEY)
+	# AND IT STAYS IN THE LOCK. The door is open; the key is not carried any more, so the bag
+	# stops showing it.
+	PlayerProfile.record_item_used(FOUND_KEY)
 	Telemetry.record_event("obstacle_solved", {
 		"level_id": LevelManager.current_level_id,
 		"obstacle_id": "L1_N3", "route": "pragmatist", "accepted_label": FOUND_KEY,

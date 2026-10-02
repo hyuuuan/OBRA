@@ -54,10 +54,15 @@ const CLOCK_FREEZE_SECONDS := 4.0
 const WEATHER_RADIUS := 220.0
 ## How fast a drawn hull will go, however long the player holds the stick.
 const VEHICLE_TOP_SPEED := 240.0
-## How far below the surface a sailboat's middle rides, and how firmly it is held there.
-## The spring is stiff enough that the leftover 18% of gravity sags it under a pixel, and the
-## damping lets it settle in a bob or two instead of ringing.
-const HULL_DRAFT := 10.0
+## How far below the surface a sailboat's KEEL rides -- its lowest point -- and how firmly it
+## is held there. The spring is stiff enough that the leftover 18% of gravity sags it under a
+## pixel, and the damping lets it settle in a bob or two instead of ringing.
+##
+## ⚠ BY THE KEEL, NOT THE MIDDLE. It held the hull's MIDDLE ten under the surface, and the middle
+## of a drawn boat is wherever the drawing's middle is: two thirds of the bangka's hull rode under
+## the water, and a sailboat drawn the way people draw one -- a tall sail over a small hull --
+## floated with all of its hull and half its sail under (Kent: "it looks like its sinking").
+const HULL_DRAFT := 12.0
 ## ⚠ A LEVEL MAY KEEP A PASSENGER ABOARD, and Dagat does while there is open sea under the
 ## hull. E gets off a boat anywhere, and getting off in the middle of the sea puts an apo with
 ## no body in deep water -- the drowning rescue fires, and the checkpoint it restores is from
@@ -565,7 +570,8 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	if utility_behavior == "sailboat":
 		var water := get_meta(&"water_area", null) as Node2D
 		if water != null and is_instance_valid(water) and water.has_method("surface_y"):
-			var sag := float(water.call("surface_y")) + HULL_DRAFT - state.transform.origin.y
+			var sag := float(water.call("surface_y")) + HULL_DRAFT - _keel() \
+				- state.transform.origin.y
 			state.apply_central_force(
 				Vector2(0.0, (sag * HULL_SPRING - velocity.y * HULL_BOB_DAMP) * mass))
 	# A hull has a top speed. Clamped HERE and not in _physics_process, because a write
@@ -577,6 +583,21 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	state.linear_velocity = Vector2(
 		clampf(state.linear_velocity.x, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED),
 		clampf(state.linear_velocity.y, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED))
+
+
+## How far below the body's origin its lowest point is, in its own frame: the keel a hull floats
+## by. Read off the collision the drawing was built into, so it is the hull that was drawn.
+func _keel() -> float:
+	var keel := -INF
+	for child in get_children():
+		var collision := child as CollisionShape2D
+		if collision == null or collision.shape == null or collision.disabled:
+			continue
+		var rect: Rect2 = collision.shape.get_rect()
+		for corner in [rect.position, Vector2(rect.end.x, rect.position.y),
+				Vector2(rect.position.x, rect.end.y), rect.end]:
+			keel = maxf(keel, (collision.transform * corner).y)
+	return keel if is_finite(keel) else 0.0
 
 
 ## Chop, slash and snip are one motion against different things: the tool name is
@@ -934,7 +955,7 @@ func _handle_unlock_result(result: Variant) -> void:
 func _board_actor(actor: Node2D) -> void:
 	_unboard_actor()
 	var anchor := actor.call("get_physics_anchor") as RigidBody2D if actor.has_method("get_physics_anchor") else null
-	var seat_position := global_position + Vector2(0.0, -_target_size().y * 0.25).rotated(global_rotation)
+	var seat_position := seat_point()
 	if anchor == null:
 		# The player is not a rigid body -- the wanderer is a CharacterBody2D, and it is
 		# who the player IS until they draw an animal. Refusing to board it meant the
@@ -968,6 +989,37 @@ func _board_actor(actor: Node2D) -> void:
 	utility_used.emit(utility_behavior, item_data)
 
 
+## How far into the hull a passenger's feet go below its rim: standing IN the boat, not on
+## top of its edge.
+const DECK_SINK := 6.0
+
+
+## Where a passenger stands, in world space: on the hull -- the lowest of the shapes the drawing
+## was built into -- at its middle, its feet just inside the rim.
+##
+## ⚠ NOT A QUARTER OF THE WAY UP THE WHOLE DRAWING. The seat was the body's middle lifted by a
+## quarter of its height, and the middle of a drawn boat is wherever the drawing's middle is: on
+## a sailboat drawn the way people draw one, a tall sail over a small hull, that put the apo's
+## feet forty pixels over the deck, standing on nothing beside the sail (Kent: "it looks like
+## im floating even tho im not").
+func seat_point() -> Vector2:
+	var hull: CollisionShape2D = null
+	var hull_bottom := -INF
+	for child in get_children():
+		var collision := child as CollisionShape2D
+		if collision == null or collision.shape == null or collision.disabled:
+			continue
+		var bottom := (collision.transform * collision.shape.get_rect()).end.y
+		if bottom > hull_bottom:
+			hull_bottom = bottom
+			hull = collision
+	var seat := Vector2(0.0, -_target_size().y * 0.25)
+	if hull != null:
+		var rect := hull.transform * hull.shape.get_rect()
+		seat = Vector2(rect.get_center().x, minf(rect.position.y + DECK_SINK, rect.end.y))
+	return global_position + seat.rotated(global_rotation)
+
+
 ## Holds a non-rigid passenger on the deck. A pinned rigid rider is held by its joint;
 ## a CharacterBody2D has to be put there, because nothing else will move it.
 func _seat_carried_actor() -> void:
@@ -975,8 +1027,7 @@ func _seat_carried_actor() -> void:
 		return
 	if _boarded_actor == null or not is_instance_valid(_boarded_actor):
 		return
-	_boarded_actor.global_position = global_position \
-		+ Vector2(0.0, -_target_size().y * 0.25).rotated(global_rotation)
+	_boarded_actor.global_position = seat_point()
 
 
 ## A passenger is cargo, not an obstacle. The seat is inside the hull and the rider is

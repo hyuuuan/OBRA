@@ -74,6 +74,7 @@ func _default_profile() -> Dictionary:
 		"routes": {},                    # level_id -> most recent route taken
 		"route_counts": {"artist": 0, "pragmatist": 0, "protector": 0},
 		"collectibles": [],
+		"used_items": [],                # found things given up: the brass key left in the lock
 		"counts": {"submissions": 0, "declines": 0},
 		"settings": _default_settings(),
 	}
@@ -370,6 +371,23 @@ func is_collectible_found(collectible_id: String) -> bool:
 	return (_data["collectibles"] as Array).has(collectible_id)
 
 
+## A found thing that has been used up -- the brass key, left turned in the lock it opened. It
+## stays FOUND (the run still found it, and nothing that counts finds goes backwards); it is
+## simply not carried any more, so the inventory stops showing it. Kent: "in cases like a key is
+## used, it should be gone in the inventory".
+func record_item_used(item_id: String) -> void:
+	if item_id.is_empty():
+		return
+	var used: Array = _data["used_items"]
+	if not used.has(item_id):
+		used.append(item_id)
+		_commit()
+
+
+func is_item_used(item_id: String) -> bool:
+	return (_data["used_items"] as Array).has(item_id)
+
+
 func collectible_count() -> int:
 	return (_data["collectibles"] as Array).size()
 
@@ -478,7 +496,7 @@ func _merge_defaults(incoming: Dictionary) -> Dictionary:
 		for route in ROUTES:  # a partial tally from an older save must still resolve
 			var counts: Dictionary = base["route_counts"]
 			counts[route] = int(counts.get(route, 0))
-	for key in ["acquired_objects", "collectibles", "classes_drawn_accepted", "levels_completed", "levels_unlocked", "unlocked_tags", "canvas_damage"]:
+	for key in ["acquired_objects", "collectibles", "used_items", "classes_drawn_accepted", "levels_completed", "levels_unlocked", "unlocked_tags", "canvas_damage"]:
 		if not (base[key] is Array):
 			base[key] = []
 	# A v2 profile has no settings block at all and simply keeps the defaults above.

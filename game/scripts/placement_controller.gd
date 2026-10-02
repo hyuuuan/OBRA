@@ -232,6 +232,7 @@ func update_target(world_position: Vector2) -> void:
 	var placeable := _lift_clear_of_obstacles()
 	if placeable:
 		_settle_onto_support()
+		placeable = _clear_of_the_actor(world_position)
 	else:
 		_resting = false
 	_refresh_fall_line(placeable)
@@ -409,6 +410,12 @@ func _actor_position() -> Vector2:
 func _let_the_actor_step_out(placed: PhysicsBody2D) -> void:
 	if placed == null or _actor == null or not is_instance_valid(_actor):
 		return
+	# ⚠ ONLY WHEN IT WAS SET DOWN WHERE THEY ARE. Turned on for every placement, a body placed
+	# clear of the player -- over their head, say -- fell straight through them and came to
+	# rest around them. One placed clear of them meets them like anything else.
+	var shape := placed as PhysicsShapeObject
+	if shape != null and not shape.world_extent().intersects(_actor_box().grow(-2.0)):
+		return
 	var actor_rids: Array[RID] = []
 	var actor_body := _actor as CollisionObject2D
 	if actor_body != null:
@@ -458,6 +465,53 @@ class _StepOutGuard extends Node:
 				if others.has(hit.get("rid")):
 					return true
 		return false
+
+
+## ⚠ NEVER ON THE PLAYER. The player is left out of the climb and the settle on purpose, so a
+## step can be aimed at your own feet -- and so a ghost aimed over your head settled straight
+## down THROUGH you to the floor you stood on, and was set down around you: you were inside it
+## (Kent: "i placed something above me, it automatically like puts me inside which is weird").
+## Wherever the ghost comes to rest, if that is on the player it goes beside them instead -- to
+## the side the pointer is on, or the way they face -- and is settled again there. Hemmed in on
+## both sides, it is refused rather than dropped on them.
+func _clear_of_the_actor(aim: Vector2) -> bool:
+	var body := _actor_box().grow(-2.0)
+	if body.size.x <= 0.0 or not _preview.world_extent().intersects(body):
+		return true
+	var first := signf(aim.x - body.get_center().x)
+	if first == 0.0:
+		first = float(_actor.call("facing_direction")) if _actor.has_method("facing_direction") else 1.0
+	var start := _preview.global_position
+	for side: float in [first, -first]:
+		var ghost := _preview.world_extent()
+		var shift := (body.end.x - ghost.position.x + 4.0) if side > 0.0 \
+			else (body.position.x - ghost.end.x - 4.0)
+		_preview.global_position = Vector2(start.x + shift, aim.y)
+		if _lift_clear_of_obstacles():
+			_settle_onto_support()
+			if not _preview.world_extent().intersects(body):
+				return true
+		_preview.global_position = start
+	return false
+
+
+## The player's own body, as one world rectangle: every shape on its physics bodies, none on
+## its areas (how far a sensor reaches is not where anybody is standing).
+func _actor_box() -> Rect2:
+	if _actor == null or not is_instance_valid(_actor):
+		return Rect2()
+	var parts: Array[Node] = _actor.find_children("*", "CollisionShape2D", true, false)
+	var bounds := Rect2()
+	var started := false
+	for node in parts:
+		var collision := node as CollisionShape2D
+		if collision.disabled or collision.shape == null \
+				or not (collision.get_parent() is PhysicsBody2D):
+			continue
+		var rect := collision.global_transform * collision.shape.get_rect()
+		bounds = bounds.merge(rect) if started else rect
+		started = true
+	return bounds
 
 
 func _refresh_preview_exclusions() -> void:

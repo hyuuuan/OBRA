@@ -146,12 +146,18 @@ func _run() -> void:
 
 	# SAILED, UNDER POWER, to the edge of the encounter.
 	var start := boat.global_position
-	# Where a hull should ride: its draft under the surface. Measured once it is under way,
-	# because boarding sets it bobbing and a bob is not a sink.
+	# Where a hull should ride: its KEEL its draft under the surface. Measured once it is under
+	# way, because boarding sets it bobbing and a bob is not a sink.
+	# ⚠ THE KEEL, NOT THE ORIGIN. This measured the boat's middle against "surface + draft", the
+	# very rule that put two thirds of the hull under the water -- so it passed a boat that looked
+	# like it was sinking (Kent: "it looks like its sinking"). It reads the hull's own lowest
+	# point now, and how much of the hull is wet.
 	var water := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Sea")
-	var rest := float(water.call("surface_y")) + UtilityObject.HULL_DRAFT
+	var sea_top := float(water.call("surface_y"))
+	var rest := sea_top + UtilityObject.HULL_DRAFT
 	var lowest := rest
 	var highest := rest
+	var wettest := 0.0
 	var seconds := 0.0
 	Input.action_press(&"move_right")
 	while boat != null and is_instance_valid(boat) and boat.global_position.x < 3300.0 \
@@ -164,16 +170,20 @@ func _run() -> void:
 			continue
 		seconds += 1.0 / 60.0
 		if seconds > 2.0:
-			lowest = maxf(lowest, boat.global_position.y)
-			highest = minf(highest, boat.global_position.y)
+			var hull: Rect2 = (boat as PhysicsShapeObject).world_extent()
+			lowest = maxf(lowest, hull.end.y)
+			highest = minf(highest, hull.end.y)
+			wettest = maxf(wettest, clampf(hull.end.y - sea_top, 0.0, hull.size.y) / maxf(1.0, hull.size.y))
 	Input.action_release(&"move_right")
 	var kept := boat != null and is_instance_valid(boat)
 	_check(kept and boat.global_position.x >= 3300.0 and seconds < 25.0,
 		"it sails, not crawls", "%.0f px in %.1f s under sail" % [
 			(boat.global_position.x if kept else 0.0) - start.x, seconds])
 	_check(kept and lowest - rest < 16.0 and rest - highest < 16.0,
-		"and it floats rather than sinking", "rode between %.0f and %.0f, its waterline %.0f"
+		"and it floats rather than sinking", "its keel rode between %.0f and %.0f, its waterline %.0f"
 			% [highest, lowest, rest])
+	_check(kept and wettest <= 0.35, "and most of the hull rides above the water",
+		"at most %.0f%% of it under, sailing" % (wettest * 100.0))
 	_check(kept and bool(boat.call("has_passenger", player)),
 		"and nobody is fished out of the sea on the way", "the apo is still aboard")
 	if not kept:
