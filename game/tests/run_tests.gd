@@ -1098,10 +1098,13 @@ func _test_level_1_needs_drawing() -> void:
 	var tops: Dictionary = {}
 	for child in terrain.get_children():
 		tops[child.name] = (child as Node2D).global_position.y
-	for climb in [["LowerLeft", "Terrace1"], ["Terrace1", "Terrace2"]]:
-		var rise: float = float(tops.get(climb[0], 0.0)) - float(tops.get(climb[1], 0.0))
-		_expect(rise > jump_height + 12.0,
-			"%s -> %s is a %.0fpx step, which the wanderer can jump (%.0fpx)" % [climb[0], climb[1], rise, jump_height])
+	# Ang Hagdan is the one wall a drawing has to answer (Kent: "put more emphasis to the part
+	# that requires stairs"). The step after it, onto Terrace2, is walked up the Rise2 slope.
+	var wall: float = float(tops.get("LowerLeft", 0.0)) - float(tops.get("Terrace1", 0.0))
+	_expect(wall > jump_height + 12.0,
+		"LowerLeft -> Terrace1 is a %.0fpx step, which the wanderer can jump (%.0fpx)" % [wall, jump_height])
+	_expect(level.get_node_or_null(^"GameplayPlane/Transitions/Rise2") != null,
+		"Terrace1 -> Terrace2 has no slope: a second wall where Ang Hagdan is meant to be the only one")
 
 	# The gorge: Terrace3's far edge to the far lip. Nothing may bridge it by default,
 	# which is what makes the dialogue node a question rather than scenery.
