@@ -26,6 +26,19 @@ const FOLLOW_SPEED := 6.2
 const TELEPORT_DISTANCE := 620.0
 const EDGE_GUARD := 18.0
 const REVEAL_SPEED := 7.5
+## The row's top, this far below the player's feet, when over their head would put it behind
+## the HUD along the top.
+const UNDER_THE_FEET := 14.0
+## How clear of that HUD over the head has to be before the row goes back up. Without it the
+## row turns over at the line itself, and a hop on the line turns it every frame.
+const BACK_OVER_CLEARANCE := 24.0
+## So Lolo's hint bar can find the row and stand clear of it. See `keys_below_feet`.
+const GROUP := &"key_prompts"
+## The room one prompt needs, for deciding over or under while none is showing.
+const ROOM := Vector2(160.0, 42.0)
+## How often over-or-under is decided. It walks the HUD, and the apo does not cross the line
+## between them in a tenth of a second.
+const JUDGE_EVERY := 0.1
 
 var _draw: Button
 var _revert: Button
@@ -45,12 +58,16 @@ var _states: Dictionary = {}
 ## frame -- and the Draw key sat solid under the CHECKPOINT caption while everything around it
 ## had gone.
 var _curtain_alpha := 1.0
+## Whether the row has gone under the player's feet. See `_follow_player`.
+var _under := false
+var _judge_in := 0.0
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	clip_contents = false
+	add_to_group(GROUP)
 
 	_revert = _make_prompt(&"ChangeBackPrompt", "Q", "CHANGE BACK", UISkin.RED_FILL, 198.0)
 	add_child(_revert)
@@ -104,6 +121,7 @@ func follow(target: Node2D) -> void:
 	# A body swap can move the player a whole room in one frame. Like Lolo, the prompt
 	# appears with them rather than spending several seconds flying through scenery.
 	_follow_ready = false
+	_judge_in = 0.0
 
 
 ## `verb` is what E will actually do. It is PICK UP almost everywhere, and it was PICK UP over
@@ -327,11 +345,30 @@ func _follow_player(delta: float) -> void:
 	_floating_row.visible = _pickup.visible or _use.visible or _climb.visible
 	var row_size := _floating_row.get_combined_minimum_size()
 	_floating_row.size = row_size
-	var desired := get_viewport().get_canvas_transform() * (anchor as Vector2)
-	desired += FOLLOW_OFFSET - Vector2(row_size.x * 0.5, row_size.y)
-	var view := get_viewport_rect().size
-	desired.x = clampf(desired.x, EDGE_GUARD, maxf(EDGE_GUARD, view.x - row_size.x - EDGE_GUARD))
-	desired.y = clampf(desired.y, EDGE_GUARD, maxf(EDGE_GUARD, view.y - row_size.y - EDGE_GUARD))
+	var feet := get_viewport().get_canvas_transform() * (anchor as Vector2)
+	# ⚠ OVER THE HEAD, UNLESS THAT IS BEHIND THE HUD. Ang Bale is the top of Payyo, and the
+	# camera follows a climb by only three quarters of it, so at the door the apo stands high
+	# on the screen -- and F UNLOCK, 118px over her, went up behind the objective line and was
+	# clamped there, a sliver of gold under the banner (Kent, of prompts at the top: "it cant
+	# be seen"). It goes under her feet instead, as Lolo's bar does, and back over her head
+	# only once there is clear room there again.
+	#
+	# ⚠ AND IT IS DECIDED WHILE THE ROW IS AWAY, at the size a prompt would be. A prompt
+	# appears where the row already is, and the lesson that points at it is taught that same
+	# frame -- decided only once something was showing, the key came up behind the banner,
+	# slid down past "F uses it." and left the bubble's beak aimed at the banner.
+	_judge_in -= delta
+	if _judge_in <= 0.0:
+		_judge_in = JUDGE_EVERY
+		var room := Vector2(maxf(row_size.x, ROOM.x), maxf(row_size.y, ROOM.y))
+		var panels := _hud_panels()
+		var over_room := Rect2(_over(feet, room), room)
+		if _under:
+			_under = _lands_on(over_room.grow(BACK_OVER_CLEARANCE), panels)
+		else:
+			_under = _lands_on(over_room, panels) \
+				and not _lands_on(Rect2(_under_feet(feet, room), room), panels)
+	var desired := _under_feet(feet, row_size) if _under else _over(feet, row_size)
 	if not _follow_ready or _follow_position.distance_to(desired) > TELEPORT_DISTANCE:
 		_follow_position = desired
 		_follow_ready = true
@@ -343,6 +380,77 @@ func _follow_player(delta: float) -> void:
 	# Whole-pixel placement keeps Geist Pixel sharp even though the underlying ease is
 	# continuous. It reads as smooth motion but never lands the type between pixels.
 	_floating_row.position = (_follow_position + Vector2(0.0, bob)).round()
+
+
+## How far below the player's feet the row reaches while it is down there, and 0 while it is
+## over their head or away. Lolo's hint bar asks, so that under her feet it stands below the
+## keys rather than across them: the keys are what she can do right here, and nearer to her.
+func keys_below_feet() -> float:
+	if not _under or _floating_row == null or not _floating_row.visible:
+		return 0.0
+	return UNDER_THE_FEET + _floating_row.size.y
+
+
+func _over(feet: Vector2, row_size: Vector2) -> Vector2:
+	return _on_screen(feet + FOLLOW_OFFSET - Vector2(row_size.x * 0.5, row_size.y), row_size)
+
+
+func _under_feet(feet: Vector2, row_size: Vector2) -> Vector2:
+	return _on_screen(Vector2(feet.x - row_size.x * 0.5, feet.y + UNDER_THE_FEET), row_size)
+
+
+func _on_screen(at: Vector2, row_size: Vector2) -> Vector2:
+	var view := get_viewport_rect().size
+	return Vector2(
+		clampf(at.x, EDGE_GUARD, maxf(EDGE_GUARD, view.x - row_size.x - EDGE_GUARD)),
+		clampf(at.y, EDGE_GUARD, maxf(EDGE_GUARD, view.y - row_size.y - EDGE_GUARD)))
+
+
+func _lands_on(rect: Rect2, panels: Array[Rect2]) -> bool:
+	for panel in panels:
+		if rect.intersects(panel):
+			return true
+	return false
+
+
+## The rest of the HUD on this layer: every framed panel, and what draws its own ground.
+##
+## Not Lolo's bar and not a lesson's bubble. The bar stands clear of these keys (see
+## `keys_below_feet`), and a bubble is placed against them -- moving for either would leave
+## the bar dodging back and the bubble's beak aimed at where the keys used to be.
+func _hud_panels() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var layer := get_parent()
+	if layer != null:
+		_gather_panels(layer, out)
+	for node in get_tree().get_nodes_in_group(&"hud_blockers"):
+		var control := node as Control
+		if control != null and control.is_visible_in_tree() and control.modulate.a > 0.05 \
+				and not _yields_to_the_keys(control):
+			out.append(control.get_global_rect())
+	return out
+
+
+func _gather_panels(node: Node, into: Array[Rect2]) -> void:
+	if node == self or node is HintBar or node is TutorialCallout:
+		return
+	var panel := node as PanelContainer
+	if panel != null and panel.is_visible_in_tree() and panel.modulate.a > 0.05 \
+			and panel.size.x > 8.0 and panel.size.y > 8.0 \
+			and panel.has_theme_stylebox_override(&"panel"):
+		into.append(panel.get_global_rect())
+		return
+	for child in node.get_children():
+		_gather_panels(child, into)
+
+
+func _yields_to_the_keys(control: Control) -> bool:
+	var cursor: Node = control
+	while cursor != null:
+		if cursor is HintBar or cursor is TutorialCallout:
+			return true
+		cursor = cursor.get_parent()
+	return false
 
 
 func _amount(button: Button) -> float:

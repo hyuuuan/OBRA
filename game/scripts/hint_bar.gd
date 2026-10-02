@@ -42,6 +42,8 @@ const TOP := 98.0
 const OVER_THE_HEAD := 172.0
 ## Its top, this far below her feet, when over her head would run into the objective line.
 const UNDER_THE_FEET := 36.0
+## And this far below the key prompts, when they are under her feet too.
+const KEYS_GAP := 10.0
 ## The band along the bottom the bag, the readout and the Draw key live in.
 const BOTTOM_CLEAR := 150.0
 const EDGE := 18.0
@@ -524,9 +526,17 @@ func _target() -> Vector2:
 	var x := clampf(_near.x - size.x * 0.5, EDGE, maxf(EDGE, view.x - size.x - EDGE))
 	var y := _near.y - OVER_THE_HEAD - size.y
 	if y < highest:
-		var under := _near.y + UNDER_THE_FEET
+		# Below her key prompts, when they have gone under her feet as well: they are nearer.
+		var under := _near.y + maxf(UNDER_THE_FEET, _keys_below_feet() + KEYS_GAP)
 		y = under if under + size.y <= view.y - BOTTOM_CLEAR else highest
 	return Vector2(x, y)
+
+
+func _keys_below_feet() -> float:
+	var reach := 0.0
+	for keys in get_tree().get_nodes_in_group(ActionPromptHUD.GROUP):
+		reach = maxf(reach, float(keys.call("keys_below_feet")))
+	return reach
 
 
 func _place(delta: float, snap: bool) -> void:
