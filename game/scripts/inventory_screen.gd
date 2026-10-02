@@ -137,10 +137,12 @@ var _use_button: Button
 var _chosen: Dictionary = {}
 var _thumbnails: Dictionary = {}
 
-## ⚠ IT SNAPPED ON, AND ITS SLOTS JUMPED. Kent, of this screen: "i dont like how the animation
-## is happening". It appeared in one frame, and its slots answered a click the way a menu button
-## does -- a dip, a pop and a ring going off inside the frame. So now it rises in the way the
-## drawing canvas does, a slot under the mouse lifts and lights, and nothing else moves.
+## ⚠ IT SNAPPED ON, ITS SLOTS JUMPED, AND THE WHEEL DID NOTHING. Kent, of this screen: "i dont
+## like how the animation is happening ... i cant scroll, drag, etc. from it". It appeared in
+## one frame, its slots answered a click the way a menu button does -- a dip, a pop and a ring
+## going off inside the frame -- and the wheel did nothing. So now it rises in the way the
+## drawing canvas does, a slot under the mouse lifts and lights, and the wheel, a trackpad and
+## the arrow keys step through everything on it.
 ##
 ## IT CLOSES AT ONCE, on purpose. Pause is derived from whichever overlays are open (see
 ## ModalOverlay), so a closing animation is either the game held paused behind it or a panel
@@ -150,9 +152,23 @@ const OPEN_TIME := 0.32
 ## How far a slot lifts under the mouse, and how fast.
 const HOVER_SCALE := 1.07
 const HOVER_TIME := 0.09
+## A trackpad scrolls in small amounts rather than in notches; this much is one step.
+const PAN_STEP := 1.0
+## ⚠ AND EACH ONE ARRIVES TWICE. Godot 4.7 hands `_input` two copies of every pan gesture that
+## comes through Input.parse_input_event -- same delta, same frame, two objects (measured,
+## window and headless alike) -- which is the road a trackpad's events take. Counted twice, a
+## swipe moved the choice two places.
+var _last_pan := Vector2.INF
+var _last_pan_frame := -1
 var _scrim: ColorRect
 var _panel: PanelContainer
 var _open_run: Tween
+var _pan := 0.0
+## class id -> its roster frame, and the drawn classes the bands were last built for. The
+## bands are rebuilt only when that changes: rebuilt on every choice, the frame under the
+## mouse was freed and remade on each step of the wheel and lost its hover.
+var _roster_buttons: Dictionary = {}
+var _roster_built_for: Variant = null
 
 
 func _ready() -> void:
@@ -198,6 +214,7 @@ func _on_opened() -> void:
 	# on purpose. Same courtesy MemoryOverlay pays.
 	get_tree().call_group(DialogueBox.GROUP, &"hide_line")
 	_chosen = {}
+	_pan = 0.0
 	refresh()
 	_rise()
 
@@ -227,6 +244,81 @@ func _rise() -> void:
 ## Whether it has finished arriving.
 func is_settled() -> bool:
 	return is_open() and not (_open_run != null and _open_run.is_valid() and _open_run.is_running())
+
+
+# --- Looking through it ----------------------------------------------------------------
+
+## The wheel, a trackpad and the arrows step through everything on the screen; Enter takes
+## out the drawing that is chosen. In `_input` rather than `_unhandled_input`, because the
+## panel and its slots stop the mouse -- a wheel turned over them never reaches unhandled.
+func _input(event: InputEvent) -> void:
+	if not is_open():
+		return
+	var wheel := event as InputEventMouseButton
+	if wheel != null:
+		if wheel.pressed and wheel.button_index in [MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_RIGHT]:
+			_step(1)
+			get_viewport().set_input_as_handled()
+		elif wheel.pressed and wheel.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_LEFT]:
+			_step(-1)
+			get_viewport().set_input_as_handled()
+		return
+	# A Mac trackpad does not turn a wheel: two fingers arrive as a pan, in small amounts.
+	var pan := event as InputEventPanGesture
+	if pan != null:
+		get_viewport().set_input_as_handled()
+		if pan.delta == _last_pan and Engine.get_process_frames() == _last_pan_frame:
+			return
+		_last_pan = pan.delta
+		_last_pan_frame = Engine.get_process_frames()
+		_pan += pan.delta.y + pan.delta.x
+		while absf(_pan) >= PAN_STEP:
+			_step(1 if _pan > 0.0 else -1)
+			_pan -= PAN_STEP * signf(_pan)
+		return
+	if event.is_action_pressed(&"ui_right", true) or event.is_action_pressed(&"ui_down", true):
+		_step(1)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed(&"ui_left", true) or event.is_action_pressed(&"ui_up", true):
+		_step(-1)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed(&"ui_accept") and String(_chosen.get("kind", "")) == "bag":
+		get_viewport().set_input_as_handled()
+		_use_chosen()
+
+
+## Everything that can be chosen, in the order the screen reads: the bag, what has been found,
+## then what has been drawn, band by band.
+func _choices() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for index in range(_bag_buttons.size()):
+		if inventory_manager != null and inventory_manager.peek_item(index) != null:
+			out.append({"kind": "bag", "index": index})
+	for entry in FOUND:
+		var id := String(entry["id"])
+		if _has_found(id) and not _is_used(id):
+			out.append({"kind": "found", "id": id})
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	var drawn: Array = profile.call("get_drawn_classes") if profile != null else []
+	for band: Variant in BANDS:
+		for id in _ids_with_role(String((band as Dictionary)["role"])):
+			if drawn.has(id):
+				out.append({"kind": "drawn", "id": id})
+	return out
+
+
+func _step(direction: int) -> void:
+	var choices := _choices()
+	if choices.is_empty():
+		return
+	var at := choices.find(_chosen)
+	if at < 0:
+		at = 0 if direction > 0 else choices.size() - 1
+	else:
+		at = posmod(at + direction, choices.size())
+	_chosen = choices[at]
+	refresh()
+	_show_choice()
 
 
 # --- Building ------------------------------------------------------------------------
@@ -328,7 +420,7 @@ func _build() -> void:
 	footer.name = "Footer"
 	footer.theme_type_variation = &"HudCaption"
 	footer.add_theme_color_override(&"font_color", UISkin.MUTED)
-	footer.text = "%s to close" % ControlsKeys.keys_for("inventory_open")
+	footer.text = "%s to close  ·  scroll to look through" % ControlsKeys.keys_for("inventory_open")
 	column.add_child(footer)
 
 
@@ -646,6 +738,14 @@ func _refresh_roster() -> void:
 	var drawn: Array = profile.call("get_drawn_classes") if profile != null else []
 	var total: int = int(profile.call("roster_size")) if profile != null else 50
 	_roster_count.text = "%d / %d" % [drawn.size(), total]
+	if _roster_built_for is Array and (_roster_built_for as Array) == drawn:
+		for id: String in _roster_buttons:
+			var chosen := String(_chosen.get("kind", "")) == "drawn" \
+				and String(_chosen.get("id", "")) == id and drawn.has(id)
+			_paint(_roster_buttons[id] as Button, drawn.has(id), chosen, true)
+		return
+	_roster_built_for = drawn.duplicate()
+	_roster_buttons.clear()
 	for band: Variant in BANDS:
 		_fill_band(String((band as Dictionary)["role"]), drawn)
 
@@ -677,6 +777,7 @@ func _fill_band(role: String, drawn: Array) -> void:
 		var chosen := String(_chosen.get("kind", "")) == "drawn" \
 			and String(_chosen.get("id", "")) == id and owned
 		grid.add_child(button)
+		_roster_buttons[id] = button
 		_paint(button, owned, chosen, true)
 		if not owned:
 			# Unnamed, untooltipped, unclickable. The frame is the only thing it says, and
