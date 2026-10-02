@@ -54,10 +54,15 @@ const CLOCK_FREEZE_SECONDS := 4.0
 const WEATHER_RADIUS := 220.0
 ## How fast a drawn hull will go, however long the player holds the stick.
 const VEHICLE_TOP_SPEED := 240.0
-## How far below the surface a sailboat's middle rides, and how firmly it is held there.
-## The spring is stiff enough that the leftover 18% of gravity sags it under a pixel, and the
-## damping lets it settle in a bob or two instead of ringing.
-const HULL_DRAFT := 10.0
+## How far below the surface a sailboat's KEEL rides -- its lowest point -- and how firmly it
+## is held there. The spring is stiff enough that the leftover 18% of gravity sags it under a
+## pixel, and the damping lets it settle in a bob or two instead of ringing.
+##
+## ⚠ BY THE KEEL, NOT THE MIDDLE. It held the hull's MIDDLE ten under the surface, and the middle
+## of a drawn boat is wherever the drawing's middle is: two thirds of the bangka's hull rode under
+## the water, and a sailboat drawn the way people draw one -- a tall sail over a small hull --
+## floated with all of its hull and half its sail under (Kent: "it looks like its sinking").
+const HULL_DRAFT := 12.0
 ## ⚠ A LEVEL MAY KEEP A PASSENGER ABOARD, and Dagat does while there is open sea under the
 ## hull. E gets off a boat anywhere, and getting off in the middle of the sea puts an apo with
 ## no body in deep water -- the drowning rescue fires, and the checkpoint it restores is from
@@ -565,7 +570,8 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	if utility_behavior == "sailboat":
 		var water := get_meta(&"water_area", null) as Node2D
 		if water != null and is_instance_valid(water) and water.has_method("surface_y"):
-			var sag := float(water.call("surface_y")) + HULL_DRAFT - state.transform.origin.y
+			var sag := float(water.call("surface_y")) + HULL_DRAFT - _keel() \
+				- state.transform.origin.y
 			state.apply_central_force(
 				Vector2(0.0, (sag * HULL_SPRING - velocity.y * HULL_BOB_DAMP) * mass))
 	# A hull has a top speed. Clamped HERE and not in _physics_process, because a write
@@ -577,6 +583,21 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	state.linear_velocity = Vector2(
 		clampf(state.linear_velocity.x, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED),
 		clampf(state.linear_velocity.y, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED))
+
+
+## How far below the body's origin its lowest point is, in its own frame: the keel a hull floats
+## by. Read off the collision the drawing was built into, so it is the hull that was drawn.
+func _keel() -> float:
+	var keel := -INF
+	for child in get_children():
+		var collision := child as CollisionShape2D
+		if collision == null or collision.shape == null or collision.disabled:
+			continue
+		var rect: Rect2 = collision.shape.get_rect()
+		for corner in [rect.position, Vector2(rect.end.x, rect.position.y),
+				Vector2(rect.position.x, rect.end.y), rect.end]:
+			keel = maxf(keel, (collision.transform * corner).y)
+	return keel if is_finite(keel) else 0.0
 
 
 ## Chop, slash and snip are one motion against different things: the tool name is
