@@ -240,9 +240,8 @@ func _teach_beside(lesson: Dictionary, text: String, caps: String) -> bool:
 	_callout.point_at(target as Rect2, text, "", _side_of(lesson),
 		String(lesson.get("speaker", "")))
 	var finder := _find_target
-	_callout.follow(func() -> bool:
-		var now: Variant = finder.call(anchor)
-		return now is Rect2 and (now as Rect2).size.length_squared() >= 1.0)
+	_callout.follow(func() -> Variant: return finder.call(anchor))
+	_callout.keep_clear_of(func() -> Variant: return finder.call("player"))
 	return true
 
 

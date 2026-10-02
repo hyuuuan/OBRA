@@ -951,7 +951,11 @@ func _refresh_requirements() -> void:
 ## Every anchor name a lesson may use. A probe reads it to check `tutorial.json` against the
 ## level, which is the only way to catch a name that resolves to an empty rect forever.
 const TUTORIAL_ANCHORS := ["draw_button", "pickup_prompt", "use_prompt", "revert_prompt",
-	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card"]
+	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card", "player"]
+## The apo, on screen, as `player` answers it: her feet are the anchor, and this is the box
+## standing on them. A drawn body's anchor is its middle, so it gets a box round that instead.
+const PLAYER_BOX := Rect2(-28.0, -92.0, 56.0, 92.0)
+const DRAWN_BOX := Rect2(-56.0, -56.0, 112.0, 112.0)
 
 
 ## WHAT A LESSON'S `anchor` MEANS, in one place.
@@ -976,6 +980,10 @@ func _tutorial_target(anchor: String) -> Rect2:
 			% [anchor, ", ".join(TUTORIAL_ANCHORS)])
 		return Rect2()
 	match anchor:
+		"player":
+			# Not a control: where the player stands, on the glass. A lesson's bubble keeps
+			# clear of it (TutorialCallout.keep_clear_of).
+			return _player_on_screen()
 		"draw_button":
 			node = draw_button
 		"pickup_prompt":
@@ -1006,6 +1014,20 @@ func _tutorial_target(anchor: String) -> Rect2:
 	if node == null or not node.is_inside_tree() or not node.is_visible_in_tree():
 		return Rect2()
 	return node.get_global_rect()
+
+
+func _player_on_screen() -> Rect2:
+	if player == null or not is_instance_valid(player) or not player.is_inside_tree():
+		return Rect2()
+	var anchor := player as Node2D
+	if player.has_method("get_physics_anchor"):
+		var body := player.call("get_physics_anchor") as Node2D
+		if body != null:
+			anchor = body
+	var box := PLAYER_BOX if player is Wanderer else DRAWN_BOX
+	var to_screen := get_viewport().get_canvas_transform()
+	var corner := to_screen * (anchor.global_position + box.position)
+	return Rect2(corner, to_screen * (anchor.global_position + box.end) - corner).abs()
 
 
 ## The action prompts are built in code and re-parented between a fixed corner and a row

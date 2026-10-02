@@ -24,6 +24,8 @@ var failures := 0
 var level: Node
 var _frame := 0
 var _seen: Dictionary = {}
+## Moment -> the bubble that was across the apo then.
+var _on_the_apo: Dictionary = {}
 var _moment := "spawn"
 
 
@@ -63,6 +65,11 @@ func _run() -> void:
 		lines.append("%s (during %s)" % [clash, _seen[clash]])
 	_check(lines.is_empty(), "nothing on Payyo's HUD overlapped in play",
 		"clear the whole way" if lines.is_empty() else "; ".join(lines))
+	var covered: Array[String] = []
+	for moment: String in _on_the_apo.keys():
+		covered.append("%s (during %s)" % [_on_the_apo[moment], moment])
+	_check(covered.is_empty(), "no lesson's bubble was set down on the apo",
+		"clear of her the whole way" if covered.is_empty() else "; ".join(covered))
 	print("OBRA_HUD_WATCH_L1_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
 
@@ -86,6 +93,20 @@ func _watch() -> void:
 	for clash in HudOverlap.clashes(HudOverlap.painted(level)):
 		if not _seen.has(clash):
 			_seen[clash] = _moment
+	# And no lesson's bubble on the apo herself. Not a HUD overlap -- she is not HUD -- so the
+	# check above cannot see it: at Ang Bale the key prompt goes under her feet, and "F uses
+	# it.", authored to sit ABOVE the prompt, landed across her.
+	var apo: Variant = level.call("_tutorial_target", "player")
+	if not (apo is Rect2) or (apo as Rect2).size.length_squared() < 1.0:
+		return
+	for node in level.get_node(^"CanvasLayer").get_children():
+		var bubble := node as TutorialCallout
+		# By its field: the panel is unnamed, so it has no path to ask for.
+		var panel := bubble.get("_panel") as Control if bubble != null else null
+		if panel != null and panel.is_visible_in_tree() and HudOverlap.shows(panel) \
+				and panel.get_global_rect().intersects((apo as Rect2).grow(-4.0)) \
+				and not _on_the_apo.has(_moment):
+			_on_the_apo[_moment] = HudOverlap.trail(panel, level)
 
 
 func _moment_of(what: String, frames: int) -> void:
