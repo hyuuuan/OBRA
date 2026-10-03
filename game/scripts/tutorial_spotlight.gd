@@ -66,6 +66,11 @@ const PULSE_SEC := 1.3
 ## How long a card stays up when nobody is there to press anything.
 const AUTO_SEC := 2.5
 const CAPTION_FONT := 26
+## The least time between two moves of the card, so something going up and down across the
+## line between its two places does not make it flicker from one to the other.
+const MOVE_AFTER_SEC := 0.6
+## How quickly it slides to the other place, per second.
+const SLIDE_RATE := 14.0
 
 ## Read by UIRouter.refresh_pause through the modal_overlays group: true only while a
 ## `look` lesson is up and somebody is there to dismiss it.
@@ -85,6 +90,11 @@ enum Place { TOP, BOTTOM, LEFT, RIGHT }
 var _place := Place.TOP
 ## Below 1 only beside a tall box, where the full card would not fit between it and the edge.
 var _card_scale := 1.0
+## What a `do` card also keeps clear of, every frame: the apo, who is still being moved.
+var _avoid := Callable()
+## When the card last went to the other of its two places, and where it is going.
+var _moved_at := -10.0
+var _card_goal := Vector2.ZERO
 
 var _root: Control
 var _dim: ColorRect
@@ -165,9 +175,11 @@ func _build() -> void:
 ## Put a lesson up. `lesson` is the director's resolved form of a `tutorial.json` entry:
 ## id, mode ("do" or "look"), visual, caps, caption, seconds, actions, mouse. `target`
 ## answers where the lit box is, every frame, as a screen Rect2 -- empty for none.
-func present(lesson: Dictionary, target: Callable) -> void:
+func present(lesson: Dictionary, target: Callable, avoid: Callable = Callable()) -> void:
 	_lesson = lesson
 	_target = target
+	_avoid = avoid
+	_moved_at = -10.0
 	_age = 0.0
 	_closing = -1.0
 	_lost_for = 0.0
@@ -190,7 +202,7 @@ func present(lesson: Dictionary, target: Callable) -> void:
 	_card.scale = Vector2.ONE * _card_scale
 	_hole = _screen().grow(240.0)
 	_root.modulate.a = 0.0
-	_refresh(rect)
+	_refresh(rect, 0.0)
 	UIRouter.refresh_pause(get_tree())
 
 
@@ -242,6 +254,11 @@ func is_auto() -> bool:
 	return _auto
 
 
+## Standing where it is going, not sliding between its two places.
+func is_settled() -> bool:
+	return _open and _card.position.distance_to(_card_goal) < 1.0
+
+
 ## The modal_overlays way of taking it down, which the probes that clear the screen use.
 func close() -> void:
 	finish("closed")
@@ -286,7 +303,7 @@ func _process(delta: float) -> void:
 			return
 	else:
 		_lost_for = 0.0
-	_refresh(rect)
+	_refresh(rect, delta)
 	if _auto and _age >= AUTO_SEC:
 		finish("auto")
 	elif _mode() == "do" and _age >= float(_lesson.get("seconds", 10.0)):
@@ -392,8 +409,9 @@ func _choose_place(rect: Rect2, size: Vector2) -> Place:
 	var lit := rect.grow(HOLE_PAD)
 	var top_first := rect.position.y - view.position.y > view.end.y - rect.end.y
 	var order := [Place.TOP, Place.BOTTOM] if top_first else [Place.BOTTOM, Place.TOP]
+	var keep := _keep_clear(rect)
 	for place: Place in order:
-		if not _card_rect_at(place, lit, size).intersects(lit):
+		if _clear_at(place, lit, size, keep):
 			return place
 	var left_room := lit.position.x - view.position.x
 	var right_room := view.end.x - lit.end.x
@@ -405,6 +423,27 @@ func _choose_place(rect: Rect2, size: Vector2) -> Place:
 		_card_scale = minf(1.0, fits)
 		return beside
 	return order[0]
+
+
+## What the card must not stand on: the lit box, and for a `do` card the apo too -- the world
+## keeps running under one, and she walks wherever the player takes her.
+func _keep_clear(rect: Rect2) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	if rect.has_area():
+		out.append(rect.grow(HOLE_PAD))
+	if _mode() == "do" and _avoid.is_valid():
+		var apo: Variant = _avoid.call()
+		if apo is Rect2 and (apo as Rect2).has_area():
+			out.append(apo as Rect2)
+	return out
+
+
+func _clear_at(place: Place, lit: Rect2, size: Vector2, keep: Array[Rect2]) -> bool:
+	var card := _card_rect_at(place, lit, size)
+	for box in keep:
+		if card.intersects(box):
+			return false
+	return true
 
 
 func _card_rect_at(place: Place, lit: Rect2, unscaled: Vector2) -> Rect2:
@@ -423,7 +462,7 @@ func _card_rect_at(place: Place, lit: Rect2, unscaled: Vector2) -> Rect2:
 	return Rect2(Vector2(centred_x, view.position.y + TOP_GAP), size)
 
 
-func _refresh(rect: Rect2) -> void:
+func _refresh(rect: Rect2, delta: float) -> void:
 	var view := _screen()
 	var iris := _ease(clampf(_age / IRIS_SEC, 0.0, 1.0))
 	if rect.has_area():
@@ -440,7 +479,23 @@ func _refresh(rect: Rect2) -> void:
 	var size := _card.get_combined_minimum_size()
 	_card.size = size
 	var lit := rect.grow(HOLE_PAD) if rect.has_area() else Rect2()
-	_card.position = _card_rect_at(_place, lit, size).position.floor()
+	# ⚠ THE OTHER PLACE WHEN THIS ONE IS COVERED. A place chosen when the card went up stops
+	# being clear when what it lights moves under it -- the camera rising with a climb, the apo
+	# jumping into the top of the screen under a card about the draw button. Found by playing
+	# Payyo with the HUD watched. It goes to the other of its two places, never anywhere else,
+	# and slides there rather than jumping.
+	if rect.has_area() and _place in [Place.TOP, Place.BOTTOM] \
+			and _age - _moved_at >= MOVE_AFTER_SEC:
+		var keep := _keep_clear(rect)
+		var other := Place.BOTTOM if _place == Place.TOP else Place.TOP
+		if not _clear_at(_place, lit, size, keep) and _clear_at(other, lit, size, keep):
+			_place = other
+			_moved_at = _age
+	_card_goal = _card_rect_at(_place, lit, size).position.floor()
+	if delta <= 0.0 or _card.position.distance_to(_card_goal) < 1.0:
+		_card.position = _card_goal
+	else:
+		_card.position = _card.position.lerp(_card_goal, clampf(delta * SLIDE_RATE, 0.0, 1.0))
 	_pointer.queue_redraw()
 
 

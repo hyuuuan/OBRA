@@ -277,7 +277,10 @@ func _show(lesson: Dictionary) -> void:
 		if anchor.is_empty() or not finder.is_valid():
 			return Rect2()
 		return finder.call(anchor)
-	_spotlight.present(_card_for(lesson), target)
+	# The apo, which a card the world runs under has to keep off as she moves.
+	var apo := func() -> Variant:
+		return finder.call("player") if finder.is_valid() else Rect2()
+	_spotlight.present(_card_for(lesson), target, apo)
 	lesson_taught.emit(id)
 
 
