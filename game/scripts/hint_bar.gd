@@ -388,15 +388,21 @@ func _dwell_for(text: String) -> float:
 func clear() -> void:
 	_queue.clear()
 	_life = 0.0
-	set_process(false)
 	if not visible:
+		set_process(false)
 		return
 	if _fade != null and _fade.is_valid():
 		_fade.kill()
 	var fade := create_tween()
 	fade.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	fade.tween_property(self, "modulate:a", 0.0, 0.14)
-	fade.tween_callback(func() -> void: visible = false)
+	# ⚠ STILL FOLLOWING HER WHILE IT FADES. This stopped the bar the moment it was cleared,
+	# so for the fade it stood still where she had been -- and walking away from a sign up
+	# onto the straw heap's ledge, her key prompts rose straight into "Press E to read the
+	# sign" going out. Found by the HUD watch. It stops when it is gone.
+	fade.tween_callback(func() -> void:
+		visible = false
+		set_process(false))
 	_fade = fade
 
 
