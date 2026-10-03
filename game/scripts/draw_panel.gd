@@ -120,6 +120,12 @@ func is_open() -> bool:
 	return _is_open
 
 
+## Whether the drawing has gone to the recogniser and the page is waiting on its answer. A
+## lesson about the page has nothing to say while it is.
+func is_submitting() -> bool:
+	return _submitting
+
+
 func open_panel() -> void:
 	if _is_open:
 		return
