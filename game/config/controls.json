@@ -32,6 +32,9 @@
     {"group": "PLACING", "keys": "Scroll", "label": "Turn it before you set it down"},
     {"group": "PLACING", "action": "rotate_left", "label": "Turn it one way"},
     {"group": "PLACING", "action": "rotate_right", "label": "Turn it the other way"},
+    {"group": "PLACING", "keys": "Shift + Scroll", "label": "Make it bigger or smaller"},
+    {"group": "PLACING", "action": "shrink_placement", "label": "Make it smaller"},
+    {"group": "PLACING", "action": "grow_placement", "label": "Make it bigger"},
 
     {"group": "BAG", "action": "inventory_slot_1", "through": "inventory_slot_6", "label": "Take something out of the bag"},
     {"group": "BAG", "action": "inventory_open", "label": "Open your bag and everything you have found"},

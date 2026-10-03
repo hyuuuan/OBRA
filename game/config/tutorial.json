@@ -83,6 +83,16 @@
           "seconds": 5.0
         },
         {
+          "id": "resize",
+          "at": "placement_started",
+          "after": "rotate",
+          "action": "shrink_placement",
+          "through": "grow_placement",
+          "join": " and ",
+          "text": "{keys} make it smaller and bigger. So does scrolling with Shift held.",
+          "seconds": 6.0
+        },
+        {
           "id": "undo",
           "at": "placement_confirmed",
           "keys": "Right click",

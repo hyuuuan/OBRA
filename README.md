@@ -135,6 +135,14 @@ did not load. The fix is the command above; then run the game again.
 
 Opening the project in the Godot editor once does the same job, with a progress bar.
 
+**And the game now does it for you if you forget.** `ImportGuard` (`game/scripts/import_guard.gd`,
+the first autoload) checks at launch whether this machine's cache matches the checkout: every
+imported file present, every source still the one that was imported, every `class_name` in
+the class table. If not, the window says "Getting O.B.R.A. ready for this computer", runs the
+import above, and starts the game again by itself, once per update. It never runs during a
+test suite (`--script`) or in an exported build. The command above is still the quickest way,
+and `play_windows.bat` still runs it before every launch.
+
 ```bash
 python -m unittest -v tests.test_manifest_contract
 python -m unittest -v tests.test_backend_telemetry

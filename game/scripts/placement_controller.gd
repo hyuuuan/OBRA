@@ -21,6 +21,13 @@ signal placement_rejected()
 ## the cursor at an invisible radius reads as the game dropping things at random.
 @export var show_reach_ring: bool = true
 
+## RESIZING, beside turning. One notch of Shift+scroll, one pinch step or one tap is a tenth
+## bigger or smaller; holding C or V changes it smoothly, at this rate per second (as a power
+## of e, so growing and shrinking feel the same speed). 100% is a detent: passing through it
+## stops there for a frame, so the authored size is always easy to get back to.
+const RESIZE_STEP := 1.1
+const RESIZE_RATE := 0.9
+
 ## Granularity of the climb out of an obstacle. Small enough that the object looks
 ## like it is resting on the surface rather than hovering over it.
 const _LIFT_STEP := 12.0
@@ -74,6 +81,11 @@ var _excluded_rids: Array[RID] = []
 ##
 ## The room hands its own box in on the way through the door and takes it back on the way out.
 var _allowed: Rect2 = Rect2()
+## Where the player last aimed, before the reach and the room held it in. Kept so a resize
+## can place the ghost again from the same aim rather than from wherever the mouse is.
+var _aim: Vector2 = Vector2.ZERO
+var _last_pinch := 0.0
+var _last_pinch_frame := -1
 
 
 func _ready() -> void:
@@ -168,12 +180,38 @@ func _process(delta: float) -> void:
 	var rotate_axis := Input.get_axis("rotate_left", "rotate_right")
 	if absf(rotate_axis) > 0.05:
 		_preview.rotation += deg_to_rad(keyboard_rotation_speed) * rotate_axis * delta
+	var size_axis := Input.get_axis("shrink_placement", "grow_placement")
+	if absf(size_axis) > 0.05:
+		resize_preview(exp(RESIZE_RATE * size_axis * delta))
 	update_target(get_global_mouse_position())
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_placing():
 		return
+	# A pinch on a trackpad. ⚠ ONCE PER FRAME FOR THE SAME FACTOR: a gesture reaches this twice
+	# for one movement (InventoryScreen found the same of the pan gesture), and taken twice a
+	# 25% pinch was a 56% one.
+	if event is InputEventMagnifyGesture:
+		var frame := Engine.get_process_frames()
+		if frame != _last_pinch_frame or not is_equal_approx(event.factor, _last_pinch):
+			_last_pinch_frame = frame
+			_last_pinch = event.factor
+			resize_preview(event.factor)
+		get_viewport().set_input_as_handled()
+		return
+	# ⚠ SHIFT OR CTRL TURNS THE WHEEL INTO SIZE, and both directions of it count. macOS sends
+	# Shift+scroll as a SIDEWAYS scroll, so up-or-left grows and down-or-right shrinks; and
+	# Windows sends a trackpad pinch as Ctrl+scroll.
+	if event is InputEventMouseButton and event.pressed and (event.shift_pressed or event.ctrl_pressed):
+		if event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_LEFT]:
+			resize_preview(RESIZE_STEP)
+			get_viewport().set_input_as_handled()
+			return
+		if event.button_index in [MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_RIGHT]:
+			resize_preview(1.0 / RESIZE_STEP)
+			get_viewport().set_input_as_handled()
+			return
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			_preview.rotation -= deg_to_rad(rotation_step_degrees)
@@ -197,6 +235,9 @@ func confirm_placement() -> bool:
 	var utility := _preview
 	var slot := _source_slot
 	item.placement_transform = utility.global_transform
+	# The size goes with the drawing only now, when it is set down. Resized and then put back,
+	# it keeps the size it had.
+	item.size_scale = utility.size_scale
 	utility.confirm_placement()
 	_let_the_actor_step_out(utility)
 	_clear_transaction()
@@ -211,6 +252,7 @@ func confirm_placement() -> bool:
 func update_target(world_position: Vector2) -> void:
 	if not is_placing() or not is_instance_valid(_actor):
 		return
+	_aim = world_position
 	var origin := _actor_position()
 	var offset := world_position - origin
 	var beyond_reach := offset.length() > maximum_distance
@@ -244,6 +286,27 @@ func update_target(world_position: Vector2) -> void:
 		placement_changed.emit(true, _valid)
 	_preview.set_preview_valid(_valid)
 	queue_redraw()
+
+
+## How big the ghost is against its authored size: 1 is the size it was drawn to.
+func size_scale() -> float:
+	return _preview.size_scale if is_placing() else 1.0
+
+
+## Make the ghost `factor` times bigger (or smaller, under 1), held to the object's limits, and
+## place it again from the same aim -- a bigger thing may need lifting clear of the ground it
+## now overlaps, and a smaller one may now fit where the bigger one did not.
+func resize_preview(factor: float) -> void:
+	if not is_placing() or factor <= 0.0:
+		return
+	var was := _preview.size_scale
+	var next := was * factor
+	if (was < 1.0 and next > 1.0) or (was > 1.0 and next < 1.0):
+		next = 1.0
+	_preview.set_size_scale(next)
+	if not is_equal_approx(_preview.size_scale, was):
+		update_target(_aim)
+		placement_changed.emit(true, _valid)
 
 
 ## Climbs the preview out of anything solid it landed in and reports whether it found
@@ -379,6 +442,17 @@ func _draw() -> void:
 		var to := to_local(_fall_landing)
 		draw_dashed_line(from, to, Color(tint, 0.55), 2.0, 10.0)
 		draw_arc(to, 12.0, 0.0, TAU, 32, Color(tint, 0.8), 2.0, true)
+	# And how big it is, once it is not the size it was drawn to: under the ghost, so the
+	# number is read where the eye already is.
+	if not is_equal_approx(_preview.size_scale, 1.0):
+		var box := _preview_rect()
+		var label := "%d%%" % roundi(_preview.size_scale * 100.0)
+		var font := ThemeDB.fallback_font
+		var at := to_local(Vector2(box.get_center().x, box.end.y + 26.0))
+		at.x -= font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x * 0.5
+		draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, 5,
+			Color(0.05, 0.06, 0.05, 0.85))
+		draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(tint, 1.0))
 
 
 func _actor_position() -> Vector2:

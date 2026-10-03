@@ -1079,6 +1079,16 @@ func _unboard_actor() -> void:
 	_vehicle_joint = null
 
 
+## Its reach follows its size: a ladder made taller is reached from as far along it.
+func _on_resized() -> void:
+	if _interaction_area == null:
+		return
+	for child in _interaction_area.get_children():
+		var collision := child as CollisionShape2D
+		if collision != null and collision.shape is RectangleShape2D:
+			(collision.shape as RectangleShape2D).size = _target_size() + Vector2(72.0, 72.0)
+
+
 func _create_interaction_area() -> void:
 	_interaction_area = Area2D.new()
 	_interaction_area.name = "InteractionArea"
