@@ -226,14 +226,16 @@
         {
           "id": "bag",
           "at": "item_stored",
-          "mode": "look",
+          "mode": "do",
           "visual": "keys",
           "context": "world",
           "anchor": "inventory_bar",
           "action": "inventory_slot_1",
           "through": "inventory_slot_6",
           "caption": "Take it out of your bag",
-          "text": "In your bag. {keys} brings it out."
+          "text": "In your bag. {keys} brings it out.",
+          "delay": 0.6,
+          "seconds": 12.0
         },
         {
           "id": "bag_open",
