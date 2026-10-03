@@ -69,7 +69,6 @@ def _stop(*processes: subprocess.Popen) -> None:
             process.wait()
 
 
-@unittest.skipIf(os.name == "nt", "the watcher does not run on Windows; see lifecycle.py")
 class WatcherTests(unittest.TestCase):
     SERVER = textwrap.dedent(
         f"""
@@ -114,15 +113,14 @@ def _free_port() -> int:
         return sock.getsockname()[1]
 
 
-@unittest.skipIf(os.name == "nt", "the watcher does not run on Windows; see lifecycle.py")
 @unittest.skipUnless(_BACKEND_READY, "backend ML dependencies or the trained model are missing")
 class RealServerTests(unittest.TestCase):
     def test_the_real_backend_exits_when_the_game_does(self) -> None:
         port = _free_port()
         game = _fake_game()
+        # Launched the way the game launches it: backend/serve.py, not uvicorn directly.
         server = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "--app-dir", str(BACKEND_DIR), "main:app",
-             "--host", "127.0.0.1", "--port", str(port)],
+            [sys.executable, str(BACKEND_DIR / "serve.py"), "--host", "127.0.0.1", "--port", str(port)],
             env=_env_naming(game),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -143,6 +141,55 @@ class RealServerTests(unittest.TestCase):
             self.assertTrue(_ended_within(server, 8.0), "the backend outlived the game")
         finally:
             _stop(server, game)
+
+
+class _FakeKernel32:
+    """Stands in for Windows' kernel32 so the Windows probe can be tested anywhere."""
+
+    def __init__(self, handle: int, error: int = 0, wait: int = 0x102) -> None:
+        self.handle, self.error, self.wait = handle, error, wait
+        self.closed: list[int] = []
+
+    def OpenProcess(self, _access: int, _inherit: bool, _pid: int) -> int:  # noqa: N802
+        return self.handle
+
+    def GetLastError(self) -> int:  # noqa: N802
+        return self.error
+
+    def WaitForSingleObject(self, _handle: int, _ms: int) -> int:  # noqa: N802
+        return self.wait
+
+    def CloseHandle(self, handle: int) -> None:  # noqa: N802
+        self.closed.append(handle)
+
+
+class WindowsProbeTests(unittest.TestCase):
+    """os.kill(pid, 0) sends Ctrl+C on Windows, so there the game is looked for through the
+    Win32 process API instead. Run here against a stand-in, because the CI is not Windows."""
+
+    def setUp(self) -> None:
+        sys.path.insert(0, str(BACKEND_DIR))
+        import lifecycle
+
+        self.lifecycle = lifecycle
+
+    def test_a_running_game_is_running(self) -> None:
+        kernel = _FakeKernel32(handle=42, wait=0x102)  # WAIT_TIMEOUT: not finished
+        self.assertTrue(self.lifecycle._exists_on_windows(1234, kernel))
+        self.assertEqual(kernel.closed, [42], "the handle was not closed")
+
+    def test_a_finished_game_is_gone(self) -> None:
+        kernel = _FakeKernel32(handle=42, wait=0)  # WAIT_OBJECT_0: it has exited
+        self.assertFalse(self.lifecycle._exists_on_windows(1234, kernel))
+        self.assertEqual(kernel.closed, [42])
+
+    def test_a_game_that_cannot_be_opened_is_gone(self) -> None:
+        kernel = _FakeKernel32(handle=0, error=87)  # ERROR_INVALID_PARAMETER: no such process
+        self.assertFalse(self.lifecycle._exists_on_windows(1234, kernel))
+
+    def test_a_game_owned_by_someone_else_is_still_there(self) -> None:
+        kernel = _FakeKernel32(handle=0, error=5)  # ERROR_ACCESS_DENIED: it exists
+        self.assertTrue(self.lifecycle._exists_on_windows(1234, kernel))
 
 
 if __name__ == "__main__":

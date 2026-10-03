@@ -27,6 +27,8 @@ GAME_PID_ENV = "OBRA_GAME_PID"
 
 
 def _exists(pid: int) -> bool:
+    if os.name == "nt":
+        return _exists_on_windows(pid)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -34,6 +36,37 @@ def _exists(pid: int) -> bool:
     except PermissionError:  # alive, owned by someone else
         return True
     return True
+
+
+# Win32, by name: SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, and what the calls answer.
+_SYNCHRONIZE = 0x00100000
+_QUERY_LIMITED = 0x00001000
+_WAIT_TIMEOUT = 0x00000102
+_ERROR_ACCESS_DENIED = 5
+
+
+def _exists_on_windows(pid: int, kernel32=None) -> bool:
+    """Whether a Windows process is still running.
+
+    os.kill(pid, 0) is not a probe on Windows -- signal 0 is CTRL_C_EVENT -- so ask the system:
+    open the process, and see whether it has finished. A process that cannot be opened at all
+    is gone, unless the reason is that it belongs to someone else, which means it is there.
+    `kernel32` is a parameter so the logic can be tested on a machine that is not Windows.
+    """
+    if kernel32 is None:
+        import ctypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        get_error = ctypes.get_last_error
+    else:
+        get_error = kernel32.GetLastError
+    handle = kernel32.OpenProcess(_SYNCHRONIZE | _QUERY_LIMITED, False, pid)
+    if not handle:
+        return get_error() == _ERROR_ACCESS_DENIED
+    try:
+        return kernel32.WaitForSingleObject(handle, 0) == _WAIT_TIMEOUT
+    finally:
+        kernel32.CloseHandle(handle)
 
 
 def exit_with_the_game(
@@ -46,10 +79,9 @@ def exit_with_the_game(
     raw = environ.get(GAME_PID_ENV, "").strip()
     if not raw.isdigit():
         return None
-    # On Windows os.kill(pid, 0) is not a probe: signal 0 is CTRL_C_EVENT. No Windows build
-    # has been run end to end (NFR-9), so rather than guess, do not watch there.
-    if os.name == "nt":
-        return None
+    # Windows too, now. It was skipped here because os.kill(pid, 0) is not a probe there, and
+    # a server left behind on Windows -- after a crash, or a run stopped from the editor -- held
+    # port 8000 for the next launch. _exists asks Windows properly (_exists_on_windows).
     game_pid = int(raw)
     # When the game is the direct parent, a change of parent is the surest sign it has gone:
     # the orphan is re-parented the moment the game exits, before anything reaps it, while a

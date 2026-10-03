@@ -27,6 +27,14 @@
           "She looks up from the canvas, straight out of it, and smiles like she knew you would come this way."
         ]
       },
+      "chest_memory": {
+        "title": "Her sketchbook page",
+        "lines": [
+          "A page from her sketchbook, folded twice and kept under the lid.",
+          "Payyo in pencil: the terraces stepping down the valley, every wall drawn before a single grain was planted.",
+          "And under it, in her hand: draw what you need, apo. The valley will believe you."
+        ]
+      },
       "cave": "There's a cave down there. Too dark to see into — we'd need to bring our own light. Not today.",
       "arrival": "That's her overlook. Go on — she'd want you to see it."
     }

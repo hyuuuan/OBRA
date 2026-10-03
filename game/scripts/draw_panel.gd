@@ -105,6 +105,9 @@ func _ready() -> void:
 	client.entity_prediction_received.connect(_on_entity_prediction)
 	client.entity_declined.connect(_on_entity_declined)
 	client.prediction_failed.connect(_on_prediction_failed)
+	# Still submitting, buttons still held: only the words change, so the player knows the
+	# drawing is waiting for the recogniser rather than lost.
+	client.prediction_waiting.connect(func(message: String) -> void: status.text = message)
 	client.live_prediction.connect(_on_live_prediction)
 	client.live_prediction_failed.connect(_on_live_prediction_failed)
 	set_process(false)

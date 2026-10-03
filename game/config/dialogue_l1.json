@@ -264,6 +264,16 @@
       "text": "Locked. Of course."
     },
     {
+      "id": "L1_N2_021",
+      "at": "L1_N2.solved",
+      "text": "Something that can **cut** would go through that hasp, though."
+    },
+    {
+      "id": "L1_N2_022",
+      "at": "L1_N2.chest.opened",
+      "text": "Her sketchbook. She never went up a terrace without it."
+    },
+    {
       "id": "L1_N3_001",
       "at": "L1_N3.enter",
       "text": "There is the house."

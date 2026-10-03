@@ -110,6 +110,12 @@ func _say(text: String) -> void:
 	_note.text = text
 
 
+## Whether this launch is importing and about to restart. RecognitionBackend asks, so it does
+## not start a server the restarted game would not know it owns.
+func is_importing() -> bool:
+	return _import != null
+
+
 ## A game run from source -- not an export, which carries `project.binary` instead of this file
 ## and has the `template` feature -- and not a `--script` run.
 static func wants_checking(args: PackedStringArray = OS.get_cmdline_args()) -> bool:

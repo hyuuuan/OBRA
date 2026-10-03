@@ -406,6 +406,81 @@ func _uncover_the_baul() -> void:
 	_speak_on_arrival("L1_N2.solved")
 
 
+## HER CHEST OPENS. Kent's friend: "the box in level 1 is not openable". Found in the straw
+## and called "Locked. Of course.", and nothing in the game ever opened it -- it is where the
+## painting used to be, before the painting moved into Ang Bale. Now something that can
+## UNLOCK or CUT opens it, used with F where it stands, and her sketchbook page is inside.
+## Optional, like the cave's flower: the level does not wait on it.
+const CHEST_REACH := 110.0
+const CHEST_TAGS := ["unlock", "cut"]
+
+
+func _chest_to_open() -> Baul2D:
+	if player == null or not is_instance_valid(player):
+		return null
+	var at := _player_anchor_position()
+	for node in get_tree().get_nodes_in_group(&"baul"):
+		var chest := node as Baul2D
+		if chest != null and chest.is_found() and not chest.is_opened() \
+				and chest.global_position.distance_to(at) < CHEST_REACH:
+			return chest
+	return null
+
+
+func _opens_the_chest(entity_id: String) -> bool:
+	for tag: String in CHEST_TAGS:
+		if AbilityTags.class_has_tag(entity_id, tag):
+			return true
+	return false
+
+
+func _level_use_verb(entity_id: String) -> String:
+	return "OPEN" if _opens_the_chest(entity_id) and _chest_to_open() != null else ""
+
+
+func _level_uses_the_tool(item: DrawnItemData) -> bool:
+	var chest := _chest_to_open()
+	if chest == null or not _opens_the_chest(item.entity_id):
+		return false
+	chest.open()
+	PickupFlourish2D.burst(chest, Vector2(0.0, -chest.chest_size.y))
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"unlock")
+	# One use, like every tool (Kent: tools "should be one time use only").
+	spend_tool(item.entity_id)
+	status_label.text = "%s -- used, and gone" % item.display_name
+	# The board beside it said "Locked. Of course."; it says what she kept in there now.
+	for child in chest.get_children():
+		if child is Signpost2D:
+			(child as Signpost2D).reads = "L1_N2.chest.opened"
+	Telemetry.record_event("route_reward", {
+		"level_id": LevelManager.current_level_id, "obstacle_id": "L1_N2",
+		"reward": "chest_sketchbook_page", "opened_with": item.entity_id,
+	})
+	var page := _level_memory("chest_memory")
+	if not page.is_empty():
+		var lines := PackedStringArray()
+		for line in page.get("lines", []):
+			lines.append(String(line))
+		memory_overlay.call("present", String(page.get("title", "A memory")), lines)
+	return true
+
+
+## A memory card of this level's, from dialogue.json -- read straight from the file when the
+## level was opened directly rather than through the level select, as a probe opens it.
+func _level_memory(key: String) -> Dictionary:
+	var found: Variant = _script_lines.get(key, {})
+	if found is Dictionary and not (found as Dictionary).is_empty():
+		return found
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://config/dialogue.json"))
+	if parsed is Dictionary:
+		var level: Variant = ((parsed as Dictionary).get("levels", {}) as Dictionary).get(_own_level_id(), {})
+		if level is Dictionary:
+			return (level as Dictionary).get(key, {})
+	return {}
+
+
 ## Ang Bale: three ways into the same chest, and the third one costs something.
 ## GETTING IN IS THE SOLVE; THE PAINTING IS PICKED UP. It used to be granted here, the
 ## instant the route landed, which made the room a cutscene with a floor -- the reward

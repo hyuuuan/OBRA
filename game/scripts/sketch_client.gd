@@ -35,8 +35,13 @@ signal live_prediction(
 ## The live guess could not be formed: an empty canvas, or the backend being down.
 ## Separate from prediction_failed so a polling error never disturbs a real submission.
 signal live_prediction_failed(message: String)
+## The drawing was sent while the recogniser was still starting. It is being held and sent
+## again until the recogniser answers -- the player does not have to press Transform twice.
+signal prediction_waiting(message: String)
 
-@export var backend_url: String = "http://127.0.0.1:8000/predict"
+## Empty: wherever the game's own server is (BackendSupervisor.url), which is port 8000 unless
+## something else held it. Set to send somewhere else.
+@export var backend_url: String = ""
 @export var canvas_viewport: SubViewport
 ## The on-screen SubViewport is transparent so its rectangular corners do not show outside
 ## the oval frame. Captures are flattened onto this paper colour before recognition and
@@ -55,6 +60,16 @@ var _live_http: HTTPRequest
 var _live_busy := false
 var _last_drawing: Image
 var _request_started_usec: int = 0
+## ⚠ A DRAWING SENT TOO EARLY WAITS INSTEAD OF FAILING. Kent's friend on Windows "had to wait
+## minutes for a drawing to be recognized": the recogniser was still starting, every press
+## of Transform failed with "backend unreachable", and the only thing to do was press it
+## again. While the game's own server is starting (BackendSupervisor.is_waking) the drawing
+## is kept and sent again every second, for up to five minutes, and the panel says why.
+const WAKE_RETRY_SEC := 1.0
+const WAKE_PATIENCE_SEC := 300.0
+var _pending_body := ""
+var _waiting_since_msec := 0
+var _resend: Timer
 
 
 func _ready() -> void:
@@ -64,6 +79,24 @@ func _ready() -> void:
 	_live_http = HTTPRequest.new()
 	add_child(_live_http)
 	_live_http.request_completed.connect(_on_live_request_completed)
+	_resend = Timer.new()
+	_resend.one_shot = true
+	add_child(_resend)
+	_resend.timeout.connect(_send_pending)
+
+
+func _predict_url() -> String:
+	return backend_url if not backend_url.is_empty() else BackendSupervisor.url("/predict")
+
+
+func _send_pending() -> void:
+	if _pending_body.is_empty():
+		return
+	_request_started_usec = Time.get_ticks_usec()
+	if _http.request(_predict_url(), ["Content-Type: application/json"], HTTPClient.METHOD_POST,
+			_pending_body) != OK:
+		_pending_body = ""
+		prediction_failed.emit("could not start the request (is another one running?)")
 
 
 ## Call this from your "Transform!" button.
@@ -72,19 +105,12 @@ func send_drawing() -> void:
 	await RenderingServer.frame_post_draw  # make sure the strokes are rendered
 	_last_drawing = _capture_drawing()
 	var png_base64 := Marshalls.raw_to_base64(_last_drawing.save_png_to_buffer())
-	var body := JSON.stringify({"image_data": png_base64})
-	_request_started_usec = Time.get_ticks_usec()
-	var error := _http.request(
-		backend_url,
-		["Content-Type: application/json"],
-		HTTPClient.METHOD_POST,
-		body
-	)
+	_pending_body = JSON.stringify({"image_data": png_base64})
+	_waiting_since_msec = 0
 	if debug_timing_logs:
-		var capture_ms := float(_request_started_usec - started) / 1000.0
+		var capture_ms := float(Time.get_ticks_usec() - started) / 1000.0
 		print("SketchClient capture/encode %.2f ms" % capture_ms)
-	if error != OK:
-		prediction_failed.emit("could not start the request (is another one running?)")
+	_send_pending()
 
 
 ## Asks what the drawing looks like SO FAR. Returns false when a poll is already in
@@ -98,7 +124,7 @@ func request_live_guess() -> bool:
 	var image := _capture_drawing()
 	var body := JSON.stringify({"image_data": Marshalls.raw_to_base64(image.save_png_to_buffer())})
 	var error := _live_http.request(
-		backend_url,
+		_predict_url(),
 		["Content-Type: application/json"],
 		HTTPClient.METHOD_POST,
 		body
@@ -152,8 +178,22 @@ func _on_request_completed(
 		var request_ms := float(Time.get_ticks_usec() - _request_started_usec) / 1000.0
 		print("SketchClient request %.2f ms" % request_ms)
 	if result != HTTPRequest.RESULT_SUCCESS:
-		prediction_failed.emit("backend unreachable — is the Python server running?")
+		var now := Time.get_ticks_msec()
+		if BackendSupervisor.is_waking() and (_waiting_since_msec == 0
+				or now - _waiting_since_msec < int(WAKE_PATIENCE_SEC * 1000.0)):
+			if _waiting_since_msec == 0:
+				_waiting_since_msec = now
+				prediction_waiting.emit("The drawing recogniser is still waking up -- this drawing "
+					+ "will go through by itself")
+			_resend.start(WAKE_RETRY_SEC)
+			return
+		_pending_body = ""
+		var why := BackendSupervisor.failure_reason()
+		prediction_failed.emit(why if not why.is_empty()
+			else "The drawing recogniser is not running -- close the game and run %s" % (
+				"play_windows.bat" if OS.has_feature("windows") else "./play.sh"))
 		return
+	_pending_body = ""
 	var parsed: Variant = JSON.parse_string(body.get_string_from_utf8())
 	if response_code != 200 or parsed == null:
 		var detail: String = parsed.get("detail", "unknown error") if parsed is Dictionary else "bad response"

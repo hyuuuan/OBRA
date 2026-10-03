@@ -1,3 +1,8 @@
 # cmd.exe misreads a batch file with Unix line endings -- `goto :label` and `call :label` stop
 # finding their labels -- so a .bat is checked out with Windows line endings everywhere.
 *.bat text eol=crlf
+
+# And a shell script with Windows line endings does not run on a Mac at all ("bad interpreter"),
+# so the macOS/Linux launchers are checked out with Unix line endings everywhere.
+*.sh text eol=lf
+*.command text eol=lf

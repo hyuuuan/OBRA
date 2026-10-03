@@ -77,7 +77,8 @@ func _run() -> void:
 	for beat in [_cannot_be_climbed_bare, _one_step_is_not_enough, _can_be_climbed_with_a_stair,
 			_a_placement_can_be_taken_back, _the_ghost_is_where_it_lands,
 			_the_lake_is_a_lake, _the_lake_is_crossed_by_boat,
-			_the_apo_goes_into_the_straw, _the_heap_has_an_inside, _the_overlook_needs_a_climb,
+			_the_apo_goes_into_the_straw, _her_chest_opens, _the_heap_has_an_inside,
+			_the_overlook_needs_a_climb,
 			_the_gorge_flower_and_return_are_reachable]:
 		_refill_the_purse()
 		await beat.call()
@@ -883,6 +884,83 @@ func _the_lake_is_crossed_by_boat() -> void:
 			else "at %s, on floor %s" % [player.global_position.round(), player.call("is_on_floor")])
 	boat.queue_free()
 	await _carry_on(2)
+
+
+## HER CHEST OPENS -- with something that can CUT or UNLOCK, and nothing else. Kent's friend:
+## "the box in level 1 is not openable". Found in the straw and called "Locked. Of course.", and
+## nothing in the game ever opened it. Played with the apo, inside the heap, with F.
+func _her_chest_opens() -> void:
+	var chest := level.get_tree().get_first_node_in_group(&"baul") as Baul2D
+	if chest == null:
+		_fail("her chest opens", "there is no chest")
+		return
+	player = level.get("player") as Node2D
+	level.call("_on_straw_entered")
+	await _carry_on(60)
+	_check(chest.is_found() and not chest.is_opened(), "inside the heap her chest is found, locked",
+		"found" if chest.is_found() else "not found")
+	player.call("apply_morph_state", {"position": chest.global_position + Vector2(-50.0, -4.0),
+		"velocity": Vector2.ZERO})
+	await _carry_on(20)
+	level.call("_use_equipped_utility")
+	await _carry_on(4)
+	_check(not chest.is_opened(), "with nothing in hand, F does not open it", "still locked")
+
+	_draw_tool("rake")
+	await _carry_on(20)
+	var said := _use_prompt()
+	level.call("_use_equipped_utility")
+	await _carry_on(4)
+	_check(not chest.is_opened() and said != "OPEN", "something that cannot cut or unlock does not",
+		"a rake: F says %s, and it stays locked" % said)
+
+	_draw_tool("axe")
+	await _carry_on(20)
+	said = _use_prompt()
+	_check(said == "OPEN", "holding something that can cut, F offers to OPEN it", "F %s" % said)
+	level.call("_use_equipped_utility")
+	await physics_frame
+	var card := level.get("memory_overlay") as Node
+	var title := ""
+	var body := ""
+	for label in card.find_children("*", "Label", true, false):
+		if (label as Label).text == "HER SKETCHBOOK PAGE":
+			title = (label as Label).text
+		elif (label as Label).text.contains("The valley will believe you"):
+			body = (label as Label).text
+	_check(chest.is_opened(), "and F opens it", "the padlock comes off" if chest.is_opened() else "still locked")
+	_check(bool(card.call("is_open")) and not title.is_empty() and not body.is_empty(),
+		"and her sketchbook page is inside",
+		"a memory card: \"%s\"" % title if not title.is_empty() else "no card")
+	_check(int(level.call("_slot_holding", "axe")) < 0 and level.get("_equipped_utility") == null,
+		"and the axe is used up, as every tool is", "gone")
+	var reads := ""
+	for child in chest.get_children():
+		if child is Signpost2D:
+			reads = (child as Signpost2D).reads
+	_check(reads == "L1_N2.chest.opened", "and its sign stops saying it is locked", reads)
+	_check(bool(level.call("_opens_the_chest", "key")), "something that can unlock opens it too",
+		"key")
+	await _carry_on(10)
+	level.call("_on_straw_exit")
+	await _carry_on(20)
+
+
+## Drawn, and taken out of the bag into her hand with its number key, as a player does.
+func _draw_tool(entity_id: String) -> void:
+	_refill_the_purse()
+	level.call("_on_drawing_ready", entity_id, entity_id.capitalize(),
+		Image.create(28, 28, false, Image.FORMAT_RGBA8), {"confidence": 0.9}, [], 1.0)
+	var slot := int(level.call("_slot_holding", entity_id))
+	if slot >= 0:
+		level.call("_on_inventory_slot_pressed", slot)
+
+
+## What the F prompt over the apo says.
+func _use_prompt() -> String:
+	var hud := level.get("action_prompts") as Node
+	var use := hud.get("_use") as Button
+	return use.text if use != null and use.visible else "(nothing)"
 
 
 ## Frames that keep going through whatever stops the tree: the gorge's lines as the apo

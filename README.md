@@ -33,6 +33,33 @@ finds `.venv\Scripts\python.exe` and starts the recogniser itself.
 If it still will not start, send Godot's log:
 `%APPDATA%\Godot\app_userdata\O.B.R.A\logs\godot.log`.
 
+## On macOS and Linux
+
+The same steps, as **`./play.sh`** (on a Mac, double-clicking **`play_mac.command`** runs it in
+Terminal). Run it after cloning and after every `git pull`. It needs Python 3.10 or newer
+(`brew install python`, or python.org). It finds Godot on PATH or in `/Applications`; if not,
+run `./play.sh /path/to/Godot` once and it remembers.
+
+## The drawing recogniser
+
+The game starts it (`backend/serve.py`, with `.venv`'s Python) **when the title screen
+opens**, so it is ready by the time anyone draws. Both launchers also load it once before the
+game opens: its first start on a computer is the slow one (on Windows, Defender reads every
+file numpy and onnxruntime are made of), and the launcher's window is the place for that wait.
+
+If a drawing is sent while the recogniser is still starting, the panel says it is waking up,
+and the drawing goes through by itself once it answers; there is no need to press Transform
+again. If the recogniser cannot start at all, the game says why: no Python, missing packages
+or the model missing. It also writes everything to `backend.log` in the game's user folder
+(`%APPDATA%\Godot\app_userdata\O.B.R.A\` on Windows, `~/Library/Application Support/Godot/app_userdata/O.B.R.A/`
+on a Mac). Port 8000 is used unless something else holds it, and then 8765-8774. On Windows
+some machines reserve 8000 for Hyper-V or WSL. The recogniser exits when the game does, on
+every platform, even after a crash.
+
+To check it by hand: `.venv/bin/python backend/serve.py --check` (Windows:
+`.venv\Scripts\python.exe backend\serve.py --check`) loads everything and says
+`OBRA_BACKEND_READY`, or one `OBRA_BACKEND_FAILED:` line saying why not.
+
 ## Python Setup
 
 This Mac currently has `python3` as Python 3.14, which may be too new for
