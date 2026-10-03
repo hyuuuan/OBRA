@@ -500,6 +500,7 @@ obstacle_id = "L1_N1"
 trigger_size = Vector2(380, 420)
 announce_size = Vector2(180, 420)
 announce_offset = 0.0
+story_sign_offset = 140.0
 checkpoint_mark_offset = -270.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Obstacles/L1_N1" unique_id=1714758991]
