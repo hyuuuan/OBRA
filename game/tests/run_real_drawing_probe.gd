@@ -124,7 +124,7 @@ func _draw_and_submit(panel: DrawPanel, strokes: Array, what: String) -> void:
 		panel.open_panel()
 	for _i in range(20):
 		await process_frame
-	# Past the canvas's own briefing lines, if any are up.
+	# Past any conversation that is up.
 	for _i in range(10):
 		for box in get_nodes_in_group(DialogueBox.GROUP):
 			if bool(box.call("is_open")):
