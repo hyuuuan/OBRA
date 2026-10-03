@@ -12,6 +12,10 @@ backend/requirements.txt has changed (stamped in .venv/obra-requirements.txt, th
 the launchers use), and then runs itself again inside it. Pulling the game and pressing Play
 is enough; play_windows.bat and play.sh still work and do the same, earlier.
 
+A .venv that cannot serve -- made with macOS's Python 3.9, or with a Python since removed or
+upgraded out from under it -- is moved aside to venv/previous.<when>/.venv and made again, as
+play.sh does (a teammate hit the 3.9 one). Kept rather than deleted, so nothing is lost.
+
 IT SAYS WHAT IT IS DOING, AND WHY IT CANNOT. Everything goes to --log, which the game reads
 while it waits: a line `OBRA_BACKEND_STATUS: <what is happening>` for each step it can show
 the player, and on failure one `OBRA_BACKEND_FAILED: <reason>` with what to do about it.
@@ -71,6 +75,35 @@ def requirements_current(venv_dir: Path = VENV_DIR, requirements: Path = REQUIRE
     return stamp.exists() and stamp.read_bytes() == requirements.read_bytes()
 
 
+def usable(python: Path) -> bool:
+    """Whether an environment's interpreter runs at all, and is new enough to serve."""
+    if not python.exists():
+        return False
+    try:
+        done = subprocess.run(
+            [str(python), "-c", "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)"],
+            capture_output=True, timeout=60,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return done.returncode == 0
+
+
+def set_aside(venv_dir: Path) -> Path:
+    """Move an environment that cannot serve out of the way, beside it in venv/previous.<when>
+    (where play.sh keeps them too, and .gitignore already covers), and say where it went."""
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    holder = venv_dir.parent / "venv" / f"previous.{stamp}"
+    count = 1
+    while holder.exists():
+        holder = venv_dir.parent / "venv" / f"previous.{stamp}.{count}"
+        count += 1
+    holder.mkdir(parents=True)
+    kept = holder / venv_dir.name
+    shutil.move(str(venv_dir), str(kept))
+    return kept
+
+
 def missing_packages() -> list[str]:
     return [pip for module, pip in REQUIRED.items() if importlib.util.find_spec(module) is None]
 
@@ -115,6 +148,18 @@ def ensure_environment(venv_dir: Path = VENV_DIR,
     """
     python = venv_python(venv_dir)
     changed = False
+    # ⚠ ONE THAT IS THERE BUT CANNOT SERVE. Only "is there no python" was asked, so a .venv made
+    # with macOS's Python 3.9 was kept forever and every start failed with "3.10 or newer is
+    # needed" -- on a computer that had 3.12. A Python removed or upgraded under its venv (a
+    # Homebrew upgrade does it) leaves one that does not run at all; same answer.
+    if venv_dir.exists() and not usable(python):
+        status("The Python environment here is too old or broken for the drawing recogniser -- "
+               "making a new one")
+        try:
+            kept = set_aside(venv_dir)
+        except OSError as error:
+            return f"could not move the old Python environment at {venv_dir} aside: {error}", False
+        print(f"Kept the old environment at {kept}", flush=True)
     if not python.exists():
         status("Making a Python environment for the drawing recogniser -- first time on this "
                "computer")
