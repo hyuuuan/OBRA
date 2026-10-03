@@ -568,7 +568,9 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	# boat away with it. A spring to the waterline holds it there and lets it bob. The
 	# submarine is left alone -- going down is its job.
 	if utility_behavior == "sailboat":
-		var water := get_meta(&"water_area", null) as Node2D
+		# has_meta first: a null default counts as NO default in Godot 4, so asking a boat that
+		# has never touched water printed an error to every run's log.
+		var water := (get_meta(&"water_area") if has_meta(&"water_area") else null) as Node2D
 		if water != null and is_instance_valid(water) and water.has_method("surface_y"):
 			var sag := float(water.call("surface_y")) + HULL_DRAFT - _keel() \
 				- state.transform.origin.y
