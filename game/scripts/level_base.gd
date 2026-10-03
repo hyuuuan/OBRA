@@ -2115,7 +2115,7 @@ func _on_placement_changed(active: bool, valid: bool) -> void:
 	elif placement_controller.is_at_reach_limit():
 		status_label.text = "At arm's reach — click to place, right-click to store"
 	else:
-		status_label.text = "Click to place, right-click to store, scroll to rotate"
+		status_label.text = "Click to place, right-click to store. Scroll turns it; Shift+scroll resizes"
 
 
 func _on_placement_rejected() -> void:
