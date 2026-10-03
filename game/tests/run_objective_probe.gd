@@ -324,7 +324,7 @@ func _walk_payyo() -> void:
 	var bale := get_first_node_in_group(&"bale_interiors")
 	bale.call("_on_painting_body", player)
 	await _frames(12)
-	_expect("painting in hand", "onward")
+	_expect("painting in hand", "home", false)
 	level.queue_free()
 	await process_frame
 

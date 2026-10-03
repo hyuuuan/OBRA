@@ -11,12 +11,6 @@ extends SceneTree
 var level: Node2D
 var director
 var failures := 0
-## ⚠ A MEMBER, NOT A LOCAL. GDScript lambdas capture locals BY VALUE, so `var stepped := false`
-## with a `func(): stepped = true` connected to the signal writes to the lambda's own copy and
-## the outer one stays false forever. The door was firing and all three assertions below read
-## a variable nothing could ever change -- which would have passed the "it does not fire under
-## them" check with no door in the game at all.
-var stepped_through := false
 
 
 func _initialize() -> void:
@@ -46,10 +40,10 @@ func _run() -> void:
 	await _audit_the_key_opens_the_lock()
 	for route in ["artist", "pragmatist", "protector"]:
 		await _audit_route(route)
-	# ⚠ LAST, AND IT REALLY TRANSITIONS. The door's whole claim is that it opens Piyesta,
-	# and the only honest way to check that is to let it -- which changes the scene out from
-	# under everything above. Nothing may follow it.
-	await _audit_the_wall_opens()
+	# ⚠ LAST, AND IT REALLY TRANSITIONS. The painting's whole claim is that it takes Payyo
+	# home, and the only honest way to check that is to let it -- which changes the scene out
+	# from under everything above. Nothing may follow it.
+	await _audit_the_canvas_goes_home()
 
 	print("OBRA_LEVEL1_FINISH_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
@@ -270,18 +264,17 @@ func _find_painting(room: Node) -> Node:
 
 ## THE CANVAS, AND THE WAY HOME.
 ##
-## Lifting Lola's canvas off the boards opens the wall behind it. The gap is not the way on
-## any more: Kent wanted the painting to "return to the house like the lobby and there should
-## be an animation wherein the level gets unlocked", so taking the canvas ends Payyo and the
-## next thing on screen is the house. Held here:
+## Kent wanted the painting to "return to the house like the lobby and there should be an
+## animation wherein the level gets unlocked", so taking the canvas ends Payyo and the next
+## thing on screen is the house. It used to lift off the boards and open the wall behind it
+## onto Piyesta; that gap could no longer be reached and is gone. Held here:
 ##
-##   the wall is shut while the painting hangs on it
-##   the step that takes the painting does not fire the gap under the player
-##   taking it ends Payyo and goes HOME -- not through the wall into Piyesta
-func _audit_the_wall_opens() -> void:
+##   walking into the canvas takes it
+##   taking it ends Payyo and goes HOME -- the house loading, not Piyesta
+func _audit_the_canvas_goes_home() -> void:
 	# ⚠ EVERY OTHER PAYYO OUT OF THE TREE FIRST. This audit lets the transition happen for
 	# real, and a level built by _build_obstacle_layer finds its volumes through a GROUP --
-	# so Piyesta loading beside three leftover Payyos reads Payyo's obstacle volumes and
+	# so the house loading beside three leftover Payyos reads Payyo's obstacle volumes and
 	# pushes an error for every one of them. Only ever true in a probe; only ever noise.
 	if level != null and is_instance_valid(level):
 		level.queue_free()
@@ -295,42 +288,23 @@ func _audit_the_wall_opens() -> void:
 	var room := fresh.get_tree().get_first_node_in_group(&"bale_interiors") as Node2D
 	var apo := fresh.get("player") as Node2D
 	if room == null or apo == null:
-		_check(false, "the way on: the room and the apo exist", "-")
+		_check(false, "the canvas: the room and the apo exist", "-")
 		fresh.queue_free()
 		return
-	var script := room.get_script() as Script
-	var constants: Dictionary = script.get_script_constant_map()
-	var door: Vector2 = room.global_position + Vector2(constants["ONWARD_AT"])
-
-	stepped_through = false
-	room.connect(&"onward_reached", _on_stepped_through)
+	var canvas: Vector2 = room.global_position + BaleInterior2D.PAINTING_AT
 	# ⚠ ARRIVE THE WAY A PLAYER DOES. open_level asks three questions -- is it building, is
-	# it unlocked, is she carrying Lola's brush -- and a probe that instantiates the scene
-	# directly has answered none of them. Without the brush the door refuses for a reason
-	# that has nothing to do with the door.
+	# it unlocked, is she carrying Lola's brush -- and the house is no different.
 	var profile := root.get_node_or_null("PlayerProfile")
 	if profile != null:
 		profile.call("record_brush_acquired")
 
-	# --- shut, while the painting is still on the boards ----------------------
 	fresh.call("_into_the_bale")
 	await _wait(0.6)
-	# Beside the opening but NOT on the canvas, which would take it and open the wall --
-	# the trigger reaches down to the walk line and is 74 wide.
-	_place(apo, door + Vector2(0.0, 130.0))
-	await _wait(0.8)
-	_check(not stepped_through, "the wall is shut while the painting hangs on it",
-		"nothing fired" if not stepped_through else "it opened with the canvas still there")
-
-	# --- taken, and it does not fire on that step -----------------------------
-	_place(apo, door)
+	_place(apo, canvas)
 	await _wait(1.0)
 	_check(bool(room.call("painting_is_taken")), "walking into the canvas takes it",
 		"taken" if bool(room.call("painting_is_taken")) else "the canvas was not picked up")
-	_check(not stepped_through, "and the wall it uncovers does not fire under them",
-		"still standing in the opening, and Payyo has not ended")
 
-	# --- and home, not through the wall -----------------------------------------
 	var manager := root.get_node_or_null("LevelManager")
 	var home := false
 	for step in range(80):
@@ -342,8 +316,6 @@ func _audit_the_wall_opens() -> void:
 			break
 	_check(home, "and taking it takes Payyo home to the house",
 		"the house is loading" if home else "Payyo did not end, or ended somewhere else")
-	_check(not stepped_through, "not through the wall into Piyesta",
-		"the gap never fired" if not stepped_through else "the gap fired")
 
 
 ## Put the apo somewhere, whatever body they are currently in.
@@ -370,6 +342,3 @@ func _place(apo: Node2D, at: Vector2) -> void:
 	else:
 		apo.global_position = at
 
-
-func _on_stepped_through() -> void:
-	stepped_through = true

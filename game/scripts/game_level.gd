@@ -601,12 +601,12 @@ func _on_bale_exit() -> void:
 	_go_home_with_the_canvas()
 
 
-## PAYYO ENDS AT A DOOR, NOT AT A SPOT ON THE TERRACE.
+## PAYYO ENDS INSIDE ANG BALE, NOT AT A SPOT ON THE TERRACE.
 ##
-## Two of them, both inside Ang Bale -- back down the ladder, or through the gap the painting
-## leaves in the wall. The GoalMarker still stands at the house and the readout still counts
-## down to it, because while the house is shut that is exactly what the player should be
-## walking toward; it just does not END anything any more.
+## Taking her painting ends it, and so does going back down the ladder with it. The GoalMarker
+## still stands at the house and the readout still counts down to it, because while the house
+## is shut that is exactly what the player should be walking toward; it just does not END
+## anything any more.
 ##
 ## THE LAST CHECKPOINT WENT WITH IT. `level_01.json` declared CP4 at an `EXIT_MARKER` that
 ## does not exist in the scene and that nothing has ever written or read -- the checkpoint
@@ -614,52 +614,6 @@ func _on_bale_exit() -> void:
 ## spanned it) names L1_N3 instead, which is where the ending actually happens.
 func _marker_ends_the_level() -> bool:
 	return false
-
-
-## Through the gap the painting left in the wall, and out the other side into Piyesta.
-##
-## THIS IS WHAT THE LEVEL ENDS ON NOW. Payyo used to finish by walking back OUT of the house
-## and then taking a completion screen, a CONTINUE, the wall of paintings and Pista's frame
-## to reach the next place -- five steps, three of them menus, between finishing a level and
-## starting the one it just handed you the key to.
-##
-## THE LADDER STILL WORKS AND STILL FINISHES THE LEVEL. Two ways out of one room, and they
-## mean different things: down the ladder is "I am done here", which takes the completion
-## screen and the wall of paintings; through the wall is "on to the next place". Neither
-## strands anybody, which is the whole reason the old exit was left alone.
-##
-## ⚠ AND IT FALLS BACK. A door that leads nowhere is worse than no door: if the next level
-## cannot be opened -- unbuilt, still locked, no brush -- the level ends the way it always
-## did rather than leaving the player standing in an opening that does nothing. There is no
-## outcome here where Payyo is not finished.
-func _on_onward_reached() -> void:
-	if _level_completed:
-		return
-	_level_completed = true
-	# ⚠ ASKED OF THE LEVEL WHEN THE MANAGER HAS NOT BEEN TOLD. A scene run directly -- from
-	# the editor, or from a probe -- never went through open_level, so current_level_id is ""
-	# and "the level after nothing" is nothing: the door would open, fire, and do nothing at
-	# all. `_own_level_id` is the same fallback the badge and the telemetry already use.
-	var level_id := LevelManager.current_level_id
-	if level_id.is_empty():
-		level_id = _own_level_id()
-	var onward := LevelManager.next_level_id(level_id)
-	Telemetry.record_event("level_exit", {
-		"level_id": level_id, "through": "canvas_doorway", "onward": onward,
-	})
-	Telemetry.end_level(level_id, "completed")
-	mark_finished(level_id)
-	status_label.text = "Level complete!"
-	# The bars come in on the room she is standing in, the same beat the completion screen
-	# is staged into -- so going straight on is still an ending rather than a scene cut.
-	if cinematic != null:
-		cinematic.close("PAYYO")
-		await get_tree().create_timer(1.1, true, false, true).timeout
-	if not onward.is_empty() and LevelManager.open_level(onward):
-		return
-	complete_overlay.call("present", run_stats())
-	if cinematic != null:
-		cinematic.open()
 
 
 ## What the chest held, and the reason Pista opens. The unlock happens when the canvas is
@@ -777,8 +731,6 @@ func _build_level_furniture() -> void:
 			node.connect(&"exit_reached", _on_bale_exit)
 		if node.has_signal(&"painting_taken"):
 			node.connect(&"painting_taken", _on_painting_taken)
-		if node.has_signal(&"onward_reached"):
-			node.connect(&"onward_reached", _on_onward_reached)
 		# What is in the room besides the canvas. The HINT channel, not the story box: none
 		# of it is a beat, none of it may pause the world, and it clears itself.
 		if node.has_signal(&"noticed"):
@@ -968,8 +920,9 @@ func _current_objective() -> Dictionary:
 		return {"key": "bale", "obstacle": "L1_N3",
 			"target": _obstacle_point("L1_N3") + Vector2(0.0, -140.0)}
 	if bale != null and room == bale:
-		var gap: Vector2 = bale.global_position + BaleInterior2D.ONWARD_AT + Vector2(0.0, -110.0)
 		if not bool(bale.call("painting_is_taken")):
-			return {"key": "painting", "target": gap}
-		return {"key": "onward", "target": gap}
+			return {"key": "painting",
+				"target": bale.global_position + BaleInterior2D.PAINTING_AT + Vector2(0.0, -110.0)}
+		# Nothing to walk to: taking it ends Payyo and goes home (_go_home_with_the_canvas).
+		return {"key": "home"}
 	return {"key": "bale", "target": _obstacle_point("L1_N3") + Vector2(0.0, -140.0)}

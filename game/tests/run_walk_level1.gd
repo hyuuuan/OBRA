@@ -76,6 +76,7 @@ func _run() -> void:
 	# asserts what it spent. This one is about whether the mechanisms work at all.
 	for beat in [_cannot_be_climbed_bare, _one_step_is_not_enough, _can_be_climbed_with_a_stair,
 			_a_placement_can_be_taken_back, _the_ghost_is_where_it_lands,
+			_the_lake_is_a_lake, _the_lake_is_crossed_by_boat,
 			_the_apo_goes_into_the_straw, _the_heap_has_an_inside, _the_overlook_needs_a_climb,
 			_the_gorge_flower_and_return_are_reachable]:
 		_refill_the_purse()
@@ -392,8 +393,9 @@ func _stand_up(entity_id: String, aim: Vector2) -> PhysicsShapeObject:
 ##
 ## Run on an empty terrace on purpose. The bank at Beat 0 is littered with the step from the
 ## case above by the time this runs, and a square set down on top of another square is a
-## test of stacking, not of taking things back.
-const CLEAR_GROUND := Vector2(2280, 236.0)
+## test of stacking, not of taking things back. Terrace2: it was Terrace3 at x 2280, which is
+## the lake's edge since the lake was lengthened, and a square set down there slid into it.
+const CLEAR_GROUND := Vector2(1900, 276.0)
 ## Where the Overlook's west face is. Node 3's climb is measured against this rather than
 ## typed as an absolute, so the next time the level is stretched the ladder still leans on
 ## the cliff instead of standing in the middle of a terrace.
@@ -776,6 +778,124 @@ func _key(action: StringName, pressed: bool) -> InputEventKey:
 			copy.pressed = pressed
 			return copy
 	return InputEventKey.new()
+
+
+## THE LAKE BEFORE THE GORGE IS A LAKE. Kent: "make the lake in level 1 longer instead of a
+## puddle". It was 300px -- a drawn bridge's length -- and is 600 now, grown west into the bank
+## before it so the gorge and everything after it stay where they are. Its water, its floor and
+## its clay basin are three nodes, and a lake whose water ran past its floor would be water
+## over a hole, so all three are held to the same span, between the two banks.
+##
+## AND NOTHING STANDS IN IT. The gorge's story board is planted at the leading edge of the
+## gorge's trigger, which is over the water, so it settled on the lake bed where nobody can
+## reach it -- under the old paddy as well. It stands on the shelf before the gorge now.
+func _the_lake_is_a_lake() -> void:
+	var plane := "EnvironmentBaseplate/GameplayPlane/"
+	var water := level.get_node_or_null(plane + "WaterAreas/CentralPaddy") as WaterArea2D
+	var floor_body := level.get_node_or_null(plane + "Terrain/CentralPaddyFloor") as Node2D
+	var basin := level.get_node_or_null(plane + "WaterAreas/CentralPaddyBack") as Node2D
+	var west := level.get_node_or_null(plane + "Terrain/CentralLeft") as Node2D
+	var east := level.get_node_or_null(plane + "Terrain/CentralRight") as Node2D
+	if water == null or floor_body == null or basin == null or west == null or east == null:
+		_fail("the lake", "a piece of it is missing")
+		return
+	var lake := Rect2(water.global_position - water.surface_size * 0.5, water.surface_size)
+	_check(lake.size.x >= 600.0, "the lake is a lake, not a puddle",
+		"%.0fpx of water" % lake.size.x)
+	var floor_x := Vector2(floor_body.global_position.x,
+		floor_body.global_position.x + Vector2(floor_body.get("segment_size")).x)
+	var opening := Rect2(basin.get("opening"))
+	var basin_x := Vector2(basin.global_position.x + opening.position.x,
+		basin.global_position.x + opening.end.x)
+	var banks := Vector2(west.global_position.x + Vector2(west.get("segment_size")).x,
+		east.global_position.x)
+	var span := Vector2(lake.position.x, lake.end.x)
+	_check(span.is_equal_approx(floor_x) and span.is_equal_approx(basin_x)
+			and span.is_equal_approx(banks),
+		"and its water, bed and basin run bank to bank",
+		"water %s, bed %s, basin %s, banks %s" % [span, floor_x, basin_x, banks])
+	var drowned: Array[String] = []
+	for node in level.get_tree().get_nodes_in_group(&"signposts"):
+		var post := node as Node2D
+		if post != null and lake.grow_individual(0.0, 0.0, 0.0, 8.0).has_point(post.global_position):
+			drowned.append("%s at x %.0f" % [post.get_parent().name, post.global_position.x])
+	_check(drowned.is_empty(), "and no signpost stands in it",
+		"all on dry ground" if drowned.is_empty() else ", ".join(drowned))
+
+
+## AND IT CAN STILL BE CROSSED. A 340px drawn bridge spanned the old paddy and does not span
+## this one; a boat does, and this rides one: put in at the west bank, E aboard, steer east to
+## the far wall, E off, and up onto the shelf before the gorge.
+func _the_lake_is_crossed_by_boat() -> void:
+	var plane := "EnvironmentBaseplate/GameplayPlane/"
+	var water := level.get_node_or_null(plane + "WaterAreas/CentralPaddy") as WaterArea2D
+	var east := level.get_node_or_null(plane + "Terrain/CentralRight") as Node2D
+	if water == null or east == null:
+		_fail("the lake is crossed by boat", "no lake")
+		return
+	var west_edge := water.global_position.x - water.surface_size.x * 0.5
+	var surface := water.global_position.y - water.surface_size.y * 0.5
+	var registry = level.get("registry")
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	var hull := PackedVector2Array([Vector2(0, 0), Vector2(120, 0), Vector2(100, 40), Vector2(20, 40),
+		Vector2(0, 0)])
+	var boat := registry.call("instantiate_entity", "sailboat") as UtilityObject
+	(level.get("world_item_root") as Node).add_child(boat)
+	boat.set_world_bounds(Rect2(level.get("environment").get("world_bounds")))
+	boat.apply_item_data(DrawnItemData.from_prediction("sailboat", "Sailboat", sheet,
+		[{"points": hull, "width": 6.0, "color": Color.BLACK}], 0.9,
+		registry.call("get_entity", "sailboat")))
+	boat.global_position = Vector2(west_edge + 80.0, surface - 10.0)
+	boat.confirm_placement()
+	level.call("_connect_utility", boat)
+	player.call("apply_morph_state", {"position": Vector2(west_edge - 30.0, surface - 10.0),
+		"velocity": Vector2.ZERO})
+	await _carry_on(90)
+	boat.interact(player)
+	await _carry_on(20)
+	_check(bool(player.call("is_riding")), "the lake: E puts the apo in the boat", "aboard")
+	Input.action_press(&"move_right")
+	var ashore := false
+	for _frame in range(360):
+		await _carry_on(1)
+		if absf(boat.linear_velocity.x) < 5.0 and boat.global_position.x > east.global_position.x - 140.0:
+			break
+	Input.action_release(&"move_right")
+	_check(boat.global_position.x > east.global_position.x - 140.0, "and it sails to the far bank",
+		"the boat at x %.0f, the bank at %.0f" % [boat.global_position.x, east.global_position.x])
+	boat.interact(player)
+	await _carry_on(10)
+	Input.action_press(&"move_right")
+	Input.action_press(&"jump")
+	for frame in range(90):
+		if frame == 12:
+			Input.action_release(&"jump")
+		await _carry_on(1)
+		if bool(player.call("is_on_floor")) and absf(player.global_position.y - east.global_position.y) < 4.0 \
+				and player.global_position.x > east.global_position.x + 4.0:
+			ashore = true
+			break
+	Input.action_release(&"move_right")
+	Input.action_release(&"jump")
+	_check(ashore, "and the apo steps off onto the shelf before the gorge",
+		"standing at x %.0f" % player.global_position.x if ashore
+			else "at %s, on floor %s" % [player.global_position.round(), player.call("is_on_floor")])
+	boat.queue_free()
+	await _carry_on(2)
+
+
+## Frames that keep going through whatever stops the tree: the gorge's lines as the apo
+## comes ashore, or a choice. Nobody is here to turn the page.
+func _carry_on(count: int) -> void:
+	for _i in range(count):
+		await physics_frame
+		if paused:
+			for node in get_nodes_in_group(&"modal_overlays"):
+				if node.has_method("is_open") and node.has_method("close") and bool(node.call("is_open")):
+					node.call("close")
+			call_group(DialogueBox.GROUP, &"hide_line")
+			paused = false
 
 
 ## On the bank below the gap, standing still.

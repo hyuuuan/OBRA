@@ -616,15 +616,18 @@ so the only thing on screen at full contrast is the playfield. The near scenery 
 offender: it scrolls at 0.72 and was drawn at almost foreground brightness, so a painted hut
 and a painted stone staircase read as things you could walk on.
 
-**The level ENDS AT A DOOR, and there are two of them.** It used to end at the GoalMarker out
-on the Overlook, so finishing Payyo meant solving the hardest node in the level, climbing in,
-taking the canvas, climbing back out — and then walking to a spot that looks like every other
-spot on the terrace. Players did the first four and stood there.
+**The level ENDS WITH HER PAINTING.** It used to end at the GoalMarker out on the Overlook, so
+finishing Payyo meant solving the hardest node in the level, climbing in, taking the canvas,
+climbing back out — and then walking to a spot that looks like every other spot on the
+terrace. Players did the first four and stood there.
 
-| Way out | What it means | What happens |
-|---|---|---|
-| the ladder doorway, left | *I am done here* | `_on_bale_exit` → completion screen → the wall of paintings |
-| the gap the painting leaves | *on to the next place* | `_on_onward_reached` → straight into Piyesta |
+| Way out | What happens |
+|---|---|
+| taking the canvas | `_go_home_with_the_canvas` → back to Lola's house, where Piyesta's frame unlocks in front of her |
+| the ladder doorway, left | `_on_bale_exit` → hands over the canvas if she left it, then home the same way |
+
+Lifting the canvas used to open the wall behind it onto Piyesta (`_on_onward_reached`). Once
+taking it went home, nothing could reach that gap, and it was removed.
 
 **There is no checkpoint at the exit and the marker ends nothing.** `CP4` was declared at an
 `EXIT_MARKER` no scene has, that nothing wrote and nothing read — the checkpoint for an
@@ -745,12 +748,21 @@ it. If you are retuning a jump, a gap or an object size, read R1-R6 there first:
 numbers in this level are measured against each other, and the ones that look arbitrary
 are not.
 
+**The lake before the gorge (`CentralPaddy`) is 600px, x 2280–2880** (Kent, 2026-10-03: "longer
+instead of a puddle"). It was a 300px paddy, which a 340px drawn bridge spanned; it grew west
+into the bank before it, so the gorge and everything after it did not move. A bridge no longer
+reaches across. A boat does, and so does something that swims. It is 160 deep and filled to
+the rim, so the apo cannot wade it, and going under puts her back at her last checkpoint.
+`run_walk_level1` holds the width, keeps water, bed and basin bank to bank, checks no signpost
+stands in it, and rides a boat across. It is not in `GATES.md` and has no beat or hint of its
+own: the banner says "Follow the terraces east to the gorge" all the way across it.
+
 ## What the player is told to do
 
 A line under the badge and a marker over the world, asked of the level five times a second
 (`_current_objective` in `game_level.gd`; the words are `level_01.json` → `objectives`).
-Cross the paddy → up Ang Hagdan → to the gorge → across it → the straw → Ang Bale → the
-painting → out through the wall. Once a beat has named its tags the line names them too.
+Up Ang Hagdan → to the gorge → across it → the straw → Ang Bale → the painting → home (no
+marker: taking it ends the level). Once a beat has named its tags the line names them too.
 
 **The straw is not a gate.** Its key opens Ang Bale, but so do climbing and cutting, so the
 line moves on to the house once the heap is answered, its key is in hand, or the player has
