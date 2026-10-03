@@ -20,6 +20,9 @@ uniform vec4 ring_color : source_color = vec4(0.859, 0.659, 0.208, 1.0);
 // 0..1, how far the current ring has travelled out from the edge of the box.
 uniform float pulse = 0.0;
 uniform float ring_strength : hint_range(0.0, 1.0) = 1.0;
+// The whole dim fading in and out. A shader that writes COLOR does not get the node's
+// modulate, so the fade has to be its own.
+uniform float fade : hint_range(0.0, 1.0) = 1.0;
 
 float round_box(vec2 p, vec2 half_size, float r) {
 	vec2 q = abs(p) - half_size + vec2(r);
@@ -41,5 +44,5 @@ void fragment() {
 		ring = max(edge * 0.85, travel * (1.0 - pulse)) * ring_strength;
 	}
 	vec3 colour = mix(shade.rgb, ring_color.rgb, ring);
-	COLOR = vec4(colour, max(alpha, ring));
+	COLOR = vec4(colour, max(alpha, ring) * fade);
 }

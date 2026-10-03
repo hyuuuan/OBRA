@@ -202,7 +202,7 @@ func present(lesson: Dictionary, target: Callable, avoid: Callable = Callable())
 	_place = _choose_place(rect, _card.get_combined_minimum_size())
 	_card.scale = Vector2.ONE * _card_scale
 	_hole = _screen().grow(240.0)
-	_root.modulate.a = 0.0
+	_set_fade(0.0)
 	_refresh(rect, 0.0)
 	UIRouter.refresh_pause(get_tree())
 
@@ -288,12 +288,12 @@ func _process(delta: float) -> void:
 	_age += delta
 	if _closing >= 0.0:
 		_closing += delta
-		_root.modulate.a = 1.0 - clampf(_closing / _close_length, 0.0, 1.0)
+		_set_fade(1.0 - clampf(_closing / _close_length, 0.0, 1.0))
 		_pointer.queue_redraw()
 		if _closing >= _close_length:
 			_teardown()
 		return
-	_root.modulate.a = clampf(_age / FADE_SEC, 0.0, 1.0)
+	_set_fade(clampf(_age / FADE_SEC, 0.0, 1.0))
 	var rect := _target_rect()
 	# What it pointed at is gone -- the placement ended, the prompt went away -- so the
 	# lesson has nothing left to show. A frame or two of nothing is a layout settling.
@@ -531,6 +531,13 @@ func _draw_pointer() -> void:
 	_pointer.draw_colored_polygon(shape, UISkin.GOLD)
 	shape.append(tip)
 	_pointer.draw_polyline(shape, UISkin.RING_OUTER, 2.0)
+
+
+## The card and arrow fade with the node's modulate; the dim is a shader writing its own
+## colour, so it is told.
+func _set_fade(amount: float) -> void:
+	_root.modulate.a = amount
+	_material.set_shader_parameter(&"fade", amount)
 
 
 func _teardown() -> void:
