@@ -23,15 +23,23 @@ fail() {
 
 # ---- Python 3.10 or newer, for the recogniser -------------------------------------------
 PY=""
-for candidate in python3.14 python3.13 python3.12 python3.11 python3.10 python3; do
+for candidate in python3.12 python3.11 python3.13 python3.14 python3.10 python3; do
   if command -v "$candidate" >/dev/null 2>&1 && \
       "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
     PY="$candidate"
     break
   fi
 done
-if [ ! -x .venv/bin/python ]; then
+if ! .venv/bin/python -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
   [ -n "$PY" ] || fail "Python 3.10 or newer is needed for the drawing recogniser, and none was found. Install it (https://www.python.org/downloads/, or 'brew install python'), then run this again."
+  # An existing environment may still point at macOS's Python 3.9. Recreating it
+  # keeps old packages out of the new interpreter; retain the old files for recovery.
+  if [ -e .venv ]; then
+    mkdir -p venv || fail "Could not create the environment backup folder."
+    BACKUP="$(mktemp -d venv/previous.XXXXXX)" || fail "Could not create an environment backup."
+    mv .venv "$BACKUP/.venv" || fail "Could not back up the old .venv."
+    echo "Saved the incompatible Python environment in $BACKUP/.venv"
+  fi
   echo "Making the Python environment in .venv ..."
   "$PY" -m venv .venv || fail "Could not make .venv with $PY."
 fi

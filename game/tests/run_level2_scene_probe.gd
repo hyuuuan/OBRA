@@ -84,6 +84,7 @@ func _run() -> void:
 	_audit_nothing_this_level_places_is_invisible()
 	await _audit_the_apo_stands_on_something()
 	await _audit_the_frame_stays_on_the_painting()
+	_audit_wide_windows_keep_the_plaza_in_view()
 	_audit_no_world_note_names_a_class()
 
 	for line in results:
@@ -924,6 +925,43 @@ func _audit_the_frame_stays_on_the_painting() -> void:
 		_check(left >= painted.x - 1.0 and right <= painted.y + 1.0,
 			"at x %d the frame shows only painting" % int(x),
 			"frame %d..%d, painting %d..%d" % [int(left), int(right), int(painted.x), int(painted.y)])
+
+
+## A maximized 1920x1080 Windows window loses 25px to its title bar. keep_height then
+## shows about 1638 world pixels, wider than the plaza's 1616px camera bounds. Exercise
+## actual viewport sizes: a clamp at the default 1600x900 never reached this fallback.
+func _audit_wide_windows_keep_the_plaza_in_view() -> void:
+	var source := level.get_node(^"EnvironmentBaseplate/WorldCamera") as WorldCameraController
+	var viewport := SubViewport.new()
+	root.add_child(viewport)
+	var camera := WorldCameraController.new()
+	camera.world_bounds = source.world_bounds
+	camera.outdoor_x_limits = source.outdoor_x_limits
+	viewport.add_child(camera)
+	var subject := Node2D.new()
+	viewport.add_child(subject)
+	camera.set_target(subject)
+	var limits := source.outdoor_x_limits
+	for width: int in [1600, 1638, 2400]:
+		viewport.size = Vector2i(width, 900)
+		for zoom_scale: float in [1.0, 1.15]:
+			camera.set_base_zoom(zoom_scale)
+			var half := width * 0.5 / zoom_scale
+			for edge: float in [limits.x, limits.y]:
+				subject.position = Vector2(edge, WALK_LINE - 60.0)
+				camera.snap_to_target()
+				var expected := (limits.x + limits.y) * 0.5
+				if half * 2.0 <= limits.y - limits.x:
+					expected = clampf(edge, limits.x + half, limits.y - half)
+				_check(is_equal_approx(camera.position.x, expected),
+					"plaza at width %d, zoom %.2f, x %.0f" % [width, zoom_scale, edge],
+					"camera x %.1f, expected %.1f" % [camera.position.x, expected])
+	# Interiors bring their own bounds and must ignore the outdoor painting's centre.
+	camera.set_room_bounds(Rect2(6000, -1000, 900, 600))
+	camera.snap_to_target()
+	_check(is_equal_approx(camera.position.x, 6450.0),
+		"wide room keeps its own centre", "camera x %.1f" % camera.position.x)
+	viewport.free()
 
 
 ## Where the plate stops being bare sky, in world x. The plate's two corners at the walk line

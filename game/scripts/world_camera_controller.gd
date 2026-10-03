@@ -263,7 +263,10 @@ func _clamp_to_bounds(desired: Vector2) -> Vector2:
 	if min_x <= max_x:
 		desired.x = clampf(desired.x, min_x, max_x)
 	else:
-		desired.x = frame.position.x + frame.size.x * 0.5
+		# A wide window can see more than the outdoor painting. Centre on the
+		# effective limits, not the whole level (which includes distant rooms).
+		# The half-view offsets cancel, leaving the middle of the allowed span.
+		desired.x = (min_x + max_x) * 0.5
 
 	desired.y = _clamp_camera_y(desired.y)
 
