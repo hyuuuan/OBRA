@@ -55,6 +55,8 @@ func _run() -> void:
 	_check(here == expected and (here.ends_with("python.exe") or here.ends_with("python")
 			or here.ends_with("python3")), "this checkout resolves the same way", here)
 
+	_audit_a_venv_that_cannot_serve_is_passed_over(root_dir)
+
 	for line in results:
 		print(line)
 	if failures == 0:
@@ -70,3 +72,38 @@ func _touch(path: String) -> void:
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	file.store_string("")
 	file.close()
+
+
+## ⚠ A .venv THAT IS THERE BUT CANNOT SERVE. One made with macOS's Python 3.9 was used because
+## its file existed, and serve.py refused to run under it on a computer that had 3.12. Each
+## stand-in Python here is a script that answers the version question the way that Python
+## would, so this asks the real choice without needing a 3.9 installed.
+func _audit_a_venv_that_cannot_serve_is_passed_over(root_dir: String) -> void:
+	if OS.has_feature("windows"):
+		_check(true, "a venv that cannot serve is passed over", "not asked on Windows (sh stand-ins)")
+		return
+	var system := _stand_in(root_dir.path_join("system/python3.12"), "echo 3 12")
+	var old := _stand_in(root_dir.path_join("old/.venv/bin/python"), "echo 3 9")
+	var broken := _stand_in(root_dir.path_join("broken/.venv/bin/python"), "exit 1")
+	var good := _stand_in(root_dir.path_join("good/.venv/bin/python"), "echo 3 12")
+	var others: Array[PackedStringArray] = [PackedStringArray([system])]
+	var chosen := BackendSupervisor.choose_python(old, others)
+	_check(chosen == PackedStringArray([system]), "a venv made with 3.9 is passed over",
+		" ".join(chosen))
+	chosen = BackendSupervisor.choose_python(broken, others)
+	_check(chosen == PackedStringArray([system]), "and one whose Python no longer runs",
+		" ".join(chosen))
+	chosen = BackendSupervisor.choose_python(good, others)
+	_check(chosen == PackedStringArray([good]), "a venv that can serve is used", " ".join(chosen))
+	chosen = BackendSupervisor.choose_python(root_dir.path_join("none/.venv/bin/python"), others)
+	_check(chosen == PackedStringArray([system]), "no venv: the computer's Python",
+		" ".join(chosen))
+
+
+func _stand_in(path: String, body: String) -> String:
+	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string("#!/bin/sh\n%s\n" % body)
+	file.close()
+	OS.execute("chmod", ["+x", path])
+	return path
