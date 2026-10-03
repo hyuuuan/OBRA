@@ -35,6 +35,7 @@ func _run() -> void:
 	_this_project_is_current()
 	await _a_small_project_goes_stale()
 	_the_relaunch_finds_the_project()
+	await _the_game_opens_on_a_scene_that_always_loads()
 	for line in results:
 		print(line)
 	print("OBRA_IMPORT_GUARD_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
@@ -129,6 +130,26 @@ func _the_relaunch_finds_the_project() -> void:
 		"a test suite is never checked or restarted", "--script")
 	_check(Guard.wants_checking(PackedStringArray(["res://game_level.tscn"])),
 		"and a game run from source is", "res://game_level.tscn")
+
+
+## A fresh clone has no cache at all, so a first scene made of imported art cannot load, and
+## Godot quits before ImportGuard -- an autoload -- ever runs. The game opens on a scene that
+## needs nothing imported, and that scene goes on to the title screen.
+func _the_game_opens_on_a_scene_that_always_loads() -> void:
+	var boot := String(ProjectSettings.get_setting("application/run/main_scene"))
+	_check(boot == "res://ui/boot.tscn", "the game opens on the boot scene", boot)
+	var scene := FileAccess.get_file_as_string(boot)
+	var resources := RegEx.create_from_string('\\[ext_resource[^\\]]*path="([^"]+)"').search_all(scene)
+	var paths := resources.map(func(m: RegExMatch) -> String: return m.get_string(1))
+	var script := FileAccess.get_file_as_string("res://scripts/boot.gd")
+	var declares := RegEx.create_from_string("(?m)^\\s*(class_name|const\\s+\\w+\\s*=\\s*preload)").search(script)
+	_check(paths == ["res://scripts/boot.gd"] and declares == null,
+		"which needs nothing imported to load", ", ".join(paths))
+	change_scene_to_file(boot)
+	for _frame in range(10):
+		await process_frame
+	var now := current_scene.scene_file_path if current_scene != null else "(none)"
+	_check(now == "res://ui/main_menu.tscn", "and goes straight on to the title screen", now)
 
 
 func _says(reasons: PackedStringArray, reason: String) -> bool:
