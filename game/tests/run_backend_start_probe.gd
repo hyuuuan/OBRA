@@ -12,6 +12,9 @@ extends SceneTree
 ##   a drawing sent while the recogniser is starting waits, and goes through by itself
 ##   a port something else is holding is passed over for a spare one
 ##   a recogniser that cannot start says why, in words a player can act on
+##
+## And it sets itself up (Kent: "i want it to be automatic"): with no .venv the game finds a
+## Python 3.10+ by itself, and the note on screen says what the first start is doing.
 
 const UserData = preload("res://scripts/user_data.gd")
 ## Not 8000, and not one of the spares, so nothing left over answers in this run's place.
@@ -42,6 +45,11 @@ func _run() -> void:
 	BackendSupervisor.stop_owned_backend()
 	await create_timer(0.5).timeout
 	await _a_recogniser_that_cannot_start_says_why()
+	BackendSupervisor.stop_owned_backend()
+	await create_timer(0.5).timeout
+	_python_is_found_without_a_venv()
+	await _a_live_process_is_not_given_up_on()
+	await _the_note_says_what_the_first_start_is_doing()
 	BackendSupervisor.stop_owned_backend()
 	for line in results:
 		print(line)
@@ -129,6 +137,87 @@ func _a_recogniser_that_cannot_start_says_why() -> void:
 		"failure_reason() matches")
 	supervisor.queue_free()
 	await process_frame
+
+
+## A computer that has never run the game has no .venv; the game finds a Python to make one
+## with. On a Mac never by the bare name -- see BackendSupervisor.python_candidates.
+func _python_is_found_without_a_venv() -> void:
+	var windows := OS.has_feature("windows")
+	var candidates := BackendSupervisor.python_candidates(windows)
+	var found := BackendSupervisor.find_python(candidates)
+	_check(not found.is_empty(), "with no .venv, a Python 3.10 or newer is found by itself",
+		" ".join(found) if not found.is_empty() else "none found")
+	var bare := candidates.filter(func(c: PackedStringArray) -> bool:
+		return not c[0].contains("/") and not c[0].contains("\\"))
+	if OS.has_feature("macos"):
+		_check(bare.is_empty(), "and on a Mac never the bare python3 (Apple's /usr/bin stub)",
+			"%d candidates, all by full path" % candidates.size())
+	if windows:
+		return
+	var old := _fake_python("old_python.sh", "3 9")
+	var new := _fake_python("new_python.sh", "3 12")
+	var picked := BackendSupervisor.find_python([PackedStringArray([old]), PackedStringArray([new])])
+	_check(picked.size() == 1 and picked[0] == new, "an old Python is passed over for a newer one",
+		"3.9 skipped, 3.12 taken" if picked.size() == 1 and picked[0] == new else str(picked))
+	_check(BackendSupervisor.find_python([PackedStringArray([old])]).is_empty(),
+		"and with only an old one, none is", "3.9 alone")
+
+
+## OS.is_process_running can say no to a live process; the supervisor asks the system before
+## believing it. This game's own process is alive and is not a child it launched, so the engine's
+## answer is no and only the system's can be yes. And a child that has really exited is gone.
+func _a_live_process_is_not_given_up_on() -> void:
+	_check(not OS.is_process_running(OS.get_process_id())
+			and BackendSupervisor.process_alive(OS.get_process_id()),
+		"a live process the engine says no to is still alive", "this one, asked of the system")
+	var quick := OS.create_process("/bin/sh" if not OS.has_feature("windows") else "cmd.exe",
+		["-c", "exit 0"] if not OS.has_feature("windows") else ["/c", "exit 0"])
+	await create_timer(1.0).timeout
+	_check(not BackendSupervisor.process_alive(quick), "and one that has exited is gone",
+		"pid %d" % quick)
+
+
+## A first start that is setting itself up says so, on screen, from the title screen on: the
+## note is RecognitionBackend's, and what it says is serve.py's status lines.
+func _the_note_says_what_the_first_start_is_doing() -> void:
+	if OS.has_feature("windows"):
+		return
+	var setup := ProjectSettings.globalize_path(UserData.path("setting_up.sh"))
+	_write(setup, "#!/bin/sh\nlog=\"\"\nwhile [ $# -gt 0 ]; do [ \"$1\" = --log ] && log=\"$2\"; shift; done\n"
+		+ "echo 'OBRA_BACKEND_STATUS: Installing the drawing recogniser'\"'\"'s packages' > \"$log\"\n"
+		+ "sleep 4\necho 'OBRA_BACKEND_FAILED: installing failed. Is this computer online?' >> \"$log\"\n"
+		+ "exit 3\n")
+	OS.execute("chmod", ["+x", setup])
+	var note := (load("res://scripts/recognition_backend.gd") as GDScript).new() as Node
+	root.add_child(note)
+	note.call("begin", setup, PORT)
+	var saw_status := ""
+	var saw_reason := ""
+	var waited := 0.0
+	while waited < 20.0 and saw_reason.is_empty():
+		await create_timer(0.25).timeout
+		waited += 0.25
+		var text := String(note.call("note_text"))
+		if bool(note.call("is_note_showing")):
+			# The status itself, not "...stopped: OBRA_BACKEND_STATUS: Installing", which
+			# also contains the word and would mean the process was wrongly given up on.
+			if text.begins_with("Installing"):
+				saw_status = text
+			elif text.contains("could not start") or text.contains("stopped"):
+				saw_reason = text
+	_check(not saw_status.is_empty(), "the note says what the first start is doing",
+		"\"%s\"" % saw_status if not saw_status.is_empty() else "never said")
+	_check(saw_reason.contains("Is this computer online"), "and when it fails, why",
+		"\"%s\"" % saw_reason.left(90) if not saw_reason.is_empty() else "never said")
+	note.queue_free()
+	await process_frame
+
+
+func _fake_python(name: String, version: String) -> String:
+	var path := ProjectSettings.globalize_path(UserData.path(name))
+	_write(path, "#!/bin/sh\necho %s\n" % version)
+	OS.execute("chmod", ["+x", path])
+	return path
 
 
 func _supervisor(port: int) -> BackendSupervisor:
