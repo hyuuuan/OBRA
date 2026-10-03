@@ -24,6 +24,7 @@ buses/default_bus_layout="res://audio/default_bus_layout.tres"
 
 [autoload]
 
+ImportGuard="*res://scripts/import_guard.gd"
 LevelManager="*res://scripts/level_manager.gd"
 PlayerProfile="*res://scripts/player_profile.gd"
 AbilityTags="*res://scripts/ability_tags.gd"

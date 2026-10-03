@@ -36,7 +36,7 @@ HEADLESS=(
   run_tutorial_popup_probe run_action_prompt_probe run_hint_probe run_dialogue_box_probe
   run_room_probe
   run_companion_pose_probe run_morph_reach_probe run_revert_probe run_placement_probe run_key_probe
-  run_boarding_probe run_bag_probe run_python_lookup_probe run_unlock_reveal_probe
+  run_boarding_probe run_bag_probe run_python_lookup_probe run_unlock_reveal_probe run_import_guard_probe
   run_behaviour_audit run_roster_sweep
   run_level2_audit run_level2_scene_probe run_level2_chain_probe run_level2_finish_probe
   run_level2_systems_probe run_level2_alley_probe run_nodraw_level2 run_water_audit run_hub_audit
