@@ -13,6 +13,8 @@ extends SceneTree
 ##   a `do` card ends in the thing it taught: the press goes on and does it
 ##   a `look` card stops the world, waits, and spends the press that dismisses it
 ##   a card never stands over what it lights, and stands in one of two places
+##   when what it lights -- or the apo, under a do card -- moves under it, it goes to the other
+##   no card over the letterbox and its caption
 ##   Lolo's line steps back while a card is up, and comes back after
 ##   a lesson only in its moment
 ##   with nobody at the keys, nothing waits for a key
@@ -68,6 +70,8 @@ func _run() -> void:
 	await _audit_a_do_card_ends_in_what_it_taught()
 	await _audit_a_look_card_stops_the_world()
 	await _audit_a_card_never_covers_what_it_lights()
+	await _audit_a_card_gets_out_of_the_way()
+	await _audit_no_card_over_the_letterbox()
 	await _audit_the_hint_bar_steps_back()
 	await _audit_only_in_its_moment()
 	await _audit_the_bar_clears_the_letterbox()
@@ -268,6 +272,64 @@ func _audit_a_card_never_covers_what_it_lights() -> void:
 	_check(hole.has_area() and not card.intersects(hole),
 		"the canvas card stands clear of the page", "card %s, page %s" % [card, hole])
 	panel.close_panel()
+	await _fresh()
+
+
+## ⚠ WHAT IT LIGHTS MOVES UNDER IT. Found by playing Payyo with the HUD watched: a card placed
+## clear of the apo when it went up was across her a moment later -- the camera rising with a
+## climb, a jump into the top of the screen. A card goes to the other of its two places when
+## its own is covered, by the box it lights or, under a do card, by the apo.
+func _audit_a_card_gets_out_of_the_way() -> void:
+	await _fresh()
+	var view := level.get_viewport().get_visible_rect().size
+	var low := Rect2(Vector2(view.x * 0.5 - 40.0, view.y - 220.0), Vector2(80.0, 100.0))
+	var high := Rect2(Vector2(view.x * 0.5 - 40.0, 120.0), Vector2(80.0, 100.0))
+	var lit := {"rect": low}
+	var apo := {"rect": Rect2()}
+	var card := {"id": "_probe_moving", "mode": "do", "visual": "walk",
+		"caps": PackedStringArray(["A", "D"]), "caption": "Walk", "seconds": 30.0,
+		"actions": [], "mouse": []}
+	spot.present(card, func() -> Variant: return lit["rect"], func() -> Variant: return apo["rect"])
+	await _wait(0.4)
+	_check(spot.card_place() == "top", "a card goes up away from what it lights", spot.card_place())
+	lit["rect"] = high
+	await _wait(0.9)
+	_check(spot.card_place() == "bottom" and spot.is_settled()
+			and not spot.card_rect().intersects(spot.hole_rect()),
+		"and goes to the other place when that moves under it",
+		"%s, card %s, lit %s" % [spot.card_place(), spot.card_rect(), spot.hole_rect()])
+	spot.finish("skipped")
+	await _wait(TutorialSpotlight.CLOSE_SEC + 0.1)
+	# Now the apo, under a do card about something in the corner -- the draw button.
+	lit["rect"] = Rect2(Vector2(view.x - 200.0, view.y - 90.0), Vector2(160.0, 60.0))
+	spot.present(card, func() -> Variant: return lit["rect"], func() -> Variant: return apo["rect"])
+	await _wait(0.4)
+	apo["rect"] = high
+	await _wait(0.9)
+	_check(spot.card_place() == "bottom" and spot.is_settled()
+			and not spot.card_rect().intersects(apo["rect"]),
+		"a do card keeps off the apo too", "%s, card %s" % [spot.card_place(), spot.card_rect()])
+	spot.finish("skipped")
+	await _wait(TutorialSpotlight.CLOSE_SEC + 0.1)
+
+
+## NO CARD OVER THE LETTERBOX. The bars frame a beat and carry its caption -- "Checkpoint", at
+## a checkpoint -- and the checkpoint's own card went up over it: two things to read at once.
+func _audit_no_card_over_the_letterbox() -> void:
+	await _fresh()
+	var bars := level.get("cinematic") as CinematicBars
+	if bars == null:
+		_check(false, "the level has a letterbox", "-")
+		return
+	bars.close("Checkpoint")
+	await _wait(0.3)
+	tutorial.note("checkpoint")
+	await _wait(0.6)
+	_check(not spot.is_open() and tutorial.pending_ids().has("checkpoint"),
+		"no card while the letterbox is in", "up '%s'" % spot.lesson_id())
+	bars.open()
+	await _wait(0.8)
+	_check(spot.lesson_id() == "checkpoint", "and the card once it has gone", "up '%s'" % spot.lesson_id())
 	await _fresh()
 
 
