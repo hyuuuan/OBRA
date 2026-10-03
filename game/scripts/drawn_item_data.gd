@@ -14,6 +14,10 @@ var ink_cost: float = 0.0
 var entity_metadata: Dictionary = {}
 var runtime_state: Dictionary = {}
 var placement_transform: Transform2D = Transform2D.IDENTITY
+## How much bigger or smaller than its authored size (config/object_sizes.json) the player made
+## it the last time they set it down. 1 until they resize it while placing, and it is written
+## only when a placement is CONFIRMED -- resizing and then putting it back leaves this alone.
+var size_scale: float = 1.0
 var ink_committed: bool = false
 
 

@@ -21,6 +21,17 @@ signal pickup_requested(object: PhysicsShapeObject)
 var entity_metadata: Dictionary = {}
 var rig_profile: Dictionary = {}
 
+## THE PLAYER CAN MAKE IT BIGGER OR SMALLER WHILE PLACING IT. Kent: "there are parts where it
+## needs a bridge right but the default scale of the drawing is not big enough or not too small
+## enough". Every drawing is fitted to one authored box (config/object_sizes.json); this scales
+## that box, and the drawing, its collision and its reach are rebuilt to it. 1 is the authored
+## size and nothing changes it unless the player resizes.
+const SIZE_SCALE_MIN := 0.5
+const SIZE_SCALE_MAX := 2.0
+var size_scale := 1.0
+## The box at a scale of 1, taken once the entity is configured.
+var _base_target_size := Vector2.ZERO
+
 var _collision_shape: CollisionShape2D
 var _spawn_motion_applied := false
 var _move_force := 1600.0
@@ -261,8 +272,38 @@ func apply_item_data(item: DrawnItemData) -> void:
 	# and the floating tread could not tell a circle resting on it from a rock.
 	item_data = item
 	apply_drawing(item.image, item.strokes)
+	# At the size it was last set down at -- which for a drawing nobody resized is 1, its
+	# authored size, so this does nothing at all.
+	if not is_equal_approx(item.size_scale, size_scale):
+		set_size_scale(item.size_scale)
 	if not item.runtime_state.is_empty() and has_method("restore_utility_state"):
 		call("restore_utility_state", item.runtime_state)
+
+
+## Make it `factor` times its authored size, within SIZE_SCALE_MIN..MAX. The drawing is fitted
+## to the scaled box again, so its strokes and the collision built from them grow together:
+## a bridge made twice as long is a bridge twice as long to stand on, not a picture of one.
+func set_size_scale(factor: float) -> void:
+	factor = clampf(factor, SIZE_SCALE_MIN, SIZE_SCALE_MAX)
+	if _base_target_size == Vector2.ZERO:
+		_base_target_size = _target_size()
+	if is_equal_approx(factor, size_scale):
+		return
+	size_scale = factor
+	rig_profile["target_size"] = [_base_target_size.x * factor, _base_target_size.y * factor]
+	_configure_skin()
+	# The drawing refitted to the new box rebuilds the collision from it; with no drawing, the
+	# class's fallback shape is built from the box itself.
+	if item_data != null:
+		apply_drawing(item_data.image, item_data.strokes)
+	else:
+		_rebuild_collision()
+	_on_resized()
+
+
+## For a subclass with something else sized from the box. UtilityObject's reach is.
+func _on_resized() -> void:
+	pass
 
 
 func _resolve_shape_type() -> String:
