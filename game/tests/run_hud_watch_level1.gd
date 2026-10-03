@@ -106,7 +106,10 @@ func _watch() -> void:
 	var id := spot.lesson_id()
 	if _cards.is_empty() or _cards[-1] != id:
 		_cards.append(id)
-	if float(spot.get("_age")) < TutorialSpotlight.IRIS_SEC or _card_over.has(_moment):
+	# Settled: while it slides from one of its two places to the other it crosses what it is
+	# getting out of the way of, for a few frames, by design.
+	if float(spot.get("_age")) < TutorialSpotlight.IRIS_SEC or _card_over.has(_moment) \
+			or not spot.is_settled():
 		return
 	var card := spot.card_rect()
 	if card.intersects(spot.hole_rect()):
