@@ -41,6 +41,19 @@ if errorlevel 1 (
   copy /y "backend\requirements.txt" ".venv\obra-requirements.txt" >nul
 )
 
+rem ---- Wake the recogniser once, here ----------------------------------------------------
+rem Its first start on a computer is slow -- Windows Defender reads every file numpy and
+rem onnxruntime are made of -- and done inside the game that wait was a drawing that would not
+rem be recognised for minutes. Done here it is a line in this window, and every start after
+rem it is quick. It also says plainly what is wrong if the recogniser cannot load at all.
+echo Getting the drawing recogniser ready - the first time on a computer can take a minute ...
+".venv\Scripts\python.exe" "backend\serve.py" --check
+if errorlevel 1 (
+  echo.
+  echo  The drawing recogniser cannot start. The line above that says OBRA_BACKEND_FAILED says why.
+  goto :fail
+)
+
 rem ---- Godot 4.7 -------------------------------------------------------------------------
 rem The last Godot that worked is remembered in .venv, so dragging it on once is enough.
 set "GODOT_EXE=%~1"
