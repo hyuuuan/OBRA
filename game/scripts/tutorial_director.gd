@@ -2,66 +2,89 @@ class_name TutorialDirector
 extends Node
 ## The part of the game that teaches the game.
 ##
-## LEVEL 1 IS THE TUTORIAL AND IT WAS NOT TEACHING ANYTHING. Two things existed and
-## neither is instruction: `ControlsOverlay` is a REFERENCE table behind the pause menu,
-## which a player only reaches if they already suspect the verb they are looking for
-## exists; and `ActionPromptHUD` puts four key caps on screen (R, Q, E, F) with a verb
-## printed on them and no sentence anywhere. Walking, jumping, the mouse -- which is all
-## three halves of placement -- the six-slot bag, and the fact that a drawing is on a
-## ten-second clock were said in no place at all. A player who never right-clicks
-## concludes a misplaced drawing is permanent, which is the single most expensive wrong
-## belief this game can give somebody: it costs a drawing and the ink that made it against
-## a budget of twelve.
+## LEVEL 1 IS THE TUTORIAL. Walking, jumping, the mouse that does all of placement, the bag
+## and the drawing's clock were once said nowhere; then they were all said, in sentences, in
+## eight places on the screen, as fast as the events came -- and Kent, playing it: "its just
+## knowledge dumping at this point, i feel so overwhelmed, why are the instructions popping
+## everywhere". Both failures are the same failure: the tutorial never decided WHEN.
 ##
-## LOLO IS WHY THIS IS A NODE AND NOT A TOOLTIP. The game already has a guide standing
-## next to the player, in voice, whose whole narrative job is knowing this place better
-## than the apo does. Instruction routed through him is characterisation; instruction
-## routed through a popup is an interruption wearing the game's font.
+## So this decides when, and the rules are the whole class:
 ##
-## EVERYTHING GOES TO THE HINT BAR. Never DialogueBox. The bar does not pause the tree,
-## needs no key to dismiss, fades under a conversation and clears itself -- and pausing
-## the world to explain walking is the exact complaint this class was written to answer.
-## `_speak` in the level already routes hint-kind lines this way; a lesson is the same
-## channel with a key cap in it.
+##   ONE AT A TIME, THEN A BREATH. A lesson waits for the last one to be gone and for a gap
+##   after it (short when the player just did the thing, longer when they only looked). An
+##   event that arrives meanwhile QUEUES its lesson rather than dropping it, which is what
+##   lets a one-off moment -- the first checkpoint, the first obstacle -- still be taught
+##   after the conversation it landed in.
 ##
-## SPENT ONCE PER RUN, IN MEMORY. Not on the profile: a lesson is cheap (it does not stop
-## the game), the ledger is small, and a profile schema bump costs a migration plus the
-## EXPECTED_SCHEMA literal in test_player_profile.gd. If a returning player should skip
-## these, that is a profile flag and a v6 bump, deliberately -- not a side effect of
-## adding a tutorial.
+##   NOTHING OVER ANYONE TALKING. A conversation, the pause menu, any modal: the lesson waits
+##   behind it. A lesson about the canvas is the one exception, because the canvas IS a modal.
+##
+##   NOT WHAT THEY ALREADY DID. A lesson can wait a `delay` before it shows, and if in that
+##   time the player presses what it would have taught, it is spent without ever appearing.
+##   A player who walks at once is never told how to walk.
+##
+##   ONLY IN ITS MOMENT. A lesson has a `context` -- in the world, placing, a drawing, the
+##   canvas -- and an `anchor` it lights up. Until both hold it waits; if they do not come
+##   back within PATIENCE it goes back to unspent, and its event will offer it again.
+##
+## WHERE IT GOES is TutorialSpotlight: the screen dims, the thing is lit, one card shows the
+## key or the mouse doing it. A lesson with `mode: "say"` is Lolo talking rather than the game
+## instructing, and goes to the hint bar over the apo's head as it always did. With no
+## spotlight bound -- a probe with no HUD -- every lesson is taught at once through the bar,
+## one per event, which is what the data audits measure.
+##
+## SPENT ONCE PER RUN, IN MEMORY. Not on the profile: a returning player skipping these is a
+## profile flag and a schema bump, deliberately -- not a side effect of a tutorial.
 
 const CONFIG_PATH := "res://config/tutorial.json"
 ## PRELOADED, NOT NAMED. controls_overlay.gd declares no class_name, so the only way to
-## reach its static key lookup is the script itself -- the same const inventory_screen.gd
-## and level_base.gd both already keep, for the same reason.
+## reach its static key lookup is the script itself.
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
+
+## After a card the player answered by doing the thing, and after one they only looked at.
+const GAP_AFTER_DONE := 1.2
+const GAP_AFTER := 2.6
+## A queued lesson whose moment has passed -- its context or its anchor gone for this long --
+## goes back to unspent. A lesson can ask for longer with `patience`.
+const PATIENCE := 8.0
 
 ## Emitted when a lesson is actually shown, so telemetry and tests can see the teaching
 ## happen rather than infer it from a label.
 signal lesson_taught(lesson_id: String)
+## Emitted when a lesson is spent without being shown, because the player did it first.
+signal lesson_skipped(lesson_id: String)
 
 var _lessons: Array[Dictionary] = []
-## lesson id -> true once it has been shown. Also the `after` gate's memory.
+## lesson id -> "shown" or "skipped", once spent.
 var _seen: Dictionary = {}
-## `at` -> Array[lesson id], built once so an event is a dictionary lookup rather than a
-## scan of the ledger on every physics frame. `moved` is polled, so this runs hot.
+## `at` -> Array[lesson id], built once so an event is a dictionary lookup rather than a scan
+## of the ledger on every physics frame. `moved` is polled, so this runs hot.
 var _by_event: Dictionary = {}
+## Lesson ids waiting for their moment, oldest first.
+var _queue: Array[String] = []
+var _ready_for: Dictionary = {}
+var _unready_for: Dictionary = {}
+var _gap := 0.0
 var _hint_bar: Node
-## Where callouts are parented, and how an `anchor` string becomes something on screen.
-var _callout_layer: Node
+var _spotlight: TutorialSpotlight
+## anchor name -> screen Rect2, and context name -> bool. Handed in by the level, so this
+## class stays testable without one.
 var _find_target: Callable = Callable()
-## The one callout that is up, if any. One at a time, for the same reason the bar carries
-## one line at a time: two fingers pointing at two things is not instruction.
-var _callout: TutorialCallout
+var _in_context: Callable = Callable()
 var _enabled := true
-## Lolo's explanation of the drawing screen, said inside the panel the first time it opens.
-var _canvas_briefing: Array = []
+
+
+func _ready() -> void:
+	# The canvas lessons are shown while the drawing panel has the tree paused, so the queue
+	# has to keep moving then. Everything else that pauses is a modal it waits behind.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
 func load_for(level_id: String) -> bool:
 	_lessons.clear()
 	_by_event.clear()
 	_seen.clear()
+	_queue.clear()
 	var text := FileAccess.get_file_as_string(CONFIG_PATH)
 	if text.is_empty():
 		push_warning("TutorialDirector: could not read %s" % CONFIG_PATH)
@@ -72,11 +95,9 @@ func load_for(level_id: String) -> bool:
 		return false
 	var levels: Dictionary = (parsed as Dictionary).get("levels", {})
 	if not levels.has(level_id):
-		# A level with nothing to teach is not an error. Level 2 introduces one verb and
-		# will want two lessons; Level 5 may want none.
+		# A level with nothing to teach is not an error.
 		return false
 	var block: Dictionary = levels[level_id]
-	_canvas_briefing = block.get("canvas_briefing", [])
 	for value: Variant in block.get("lessons", []):
 		var lesson: Dictionary = value
 		var id := String(lesson.get("id", ""))
@@ -94,25 +115,49 @@ func bind_hint_bar(bar: Node) -> void:
 	_hint_bar = bar
 
 
-## Where a callout may be added, and how it finds what a lesson points at.
-##
-## The layer is handed in rather than looked up so this class stays testable without a HUD:
-## a probe binds a bare CanvasLayer and gets real callouts it can measure.
-func bind_callout_layer(layer: Node, finder: Callable) -> void:
-	_callout_layer = layer
+## The one place lessons are shown, how an `anchor` becomes something on screen, and how a
+## `context` is asked about. Handed in rather than looked up so a probe can bind its own.
+func bind_spotlight(spotlight: TutorialSpotlight, finder: Callable, context: Callable) -> void:
+	_spotlight = spotlight
 	_find_target = finder
+	_in_context = context
+	if _spotlight != null and not _spotlight.finished.is_connected(_on_card_finished):
+		_spotlight.finished.connect(_on_card_finished)
+
+
+func spotlight() -> TutorialSpotlight:
+	return _spotlight
 
 
 func set_enabled(on: bool) -> void:
 	_enabled = on
+	if not on:
+		_queue.clear()
+		if _spotlight != null and _spotlight.is_open():
+			_spotlight.finish("skipped")
 
 
+## Spent: shown, or skipped because the player did it first.
 func has_taught(lesson_id: String) -> bool:
 	return _seen.has(lesson_id)
 
 
+## Shown on screen, as opposed to skipped.
+func was_shown(lesson_id: String) -> bool:
+	return String(_seen.get(lesson_id, "")) == "shown"
+
+
+## Spent, or waiting in the queue to be: the lesson WILL be said, so the caller need not.
+func is_coming(lesson_id: String) -> bool:
+	return _seen.has(lesson_id) or _queue.has(lesson_id)
+
+
 func taught_count() -> int:
 	return _seen.size()
+
+
+func pending_ids() -> Array[String]:
+	return _queue.duplicate()
 
 
 func lesson_ids() -> Array[String]:
@@ -122,40 +167,183 @@ func lesson_ids() -> Array[String]:
 	return out
 
 
-## Something happened that a lesson might be waiting on. Cheap enough to call from a
-## physics frame: an event nobody is waiting on is one dictionary miss.
-##
-## AT MOST ONE LESSON PER EVENT, per call. Two lessons landing in the same frame is two
-## writes to one label inside one frame, and only the last is ever drawn -- the defect
-## `_speak` in the level already carries a comment about fixing twice. The second lesson
-## is not lost; its event fires again (placement starts more than once, items are stored
-## more than once) and by then the first is spent and no longer shadows it.
+## Something happened that a lesson might be waiting on. Cheap enough to call from a physics
+## frame: an event nobody is waiting on is one dictionary miss.
 func note(event: String) -> void:
 	if not _enabled or not _by_event.has(event):
 		return
 	for id_value: Variant in _by_event[event]:
 		var id := String(id_value)
-		if _seen.has(id):
+		if _seen.has(id) or _queue.has(id):
 			continue
 		var lesson := _find(id)
 		if lesson.is_empty():
 			continue
+		# Ordering that survives a player doing things out of sequence: a lesson behind
+		# another waits for that one to be spent and is offered again on its next event.
 		var after := String(lesson.get("after", ""))
-		# Ordering that survives a player doing things out of sequence. The lesson is not
-		# discarded -- it waits for its event to come round again, by which time the one it
-		# depends on has been spent.
 		if not after.is_empty() and not _seen.has(after):
 			continue
-		# ⚠ ONE TAUGHT LESSON PER CALL, NOT ONE ATTEMPT. This used to `return` whatever
-		# `_teach` did with it -- and `_teach` can decline: a lesson bound for the hint bar
-		# yields while the bar is busy, and is deliberately left unspent so it can arrive
-		# later. An unspent lesson is tried FIRST every time its event comes round, so one
-		# that can never be spent -- an anchor on a control this level never builds, a bar
-		# that is never free -- silently starves every lesson behind it at that event,
-		# forever. The rule the return is there for is that two lessons must not land in one
-		# frame; a lesson that declined has not landed.
-		if _teach(lesson):
-			return
+		_queue.append(id)
+		_ready_for[id] = 0.0
+		_unready_for[id] = 0.0
+	_pump(0.0)
+
+
+func _process(delta: float) -> void:
+	if _enabled and not _queue.is_empty():
+		_pump(delta)
+	elif _gap > 0.0:
+		_gap = maxf(0.0, _gap - delta)
+
+
+## THE PLAYER DID IT BEFORE WE SAID IT. A press made while a lesson is queued -- its moment
+## has come, its card has not -- and that is one of the inputs it teaches, in the context
+## it teaches it in, spends it unshown.
+func _input(event: InputEvent) -> void:
+	if not _enabled or _queue.is_empty():
+		return
+	if event is InputEventMouseMotion or event.is_echo() or not event.is_pressed():
+		return
+	for id in _queue.duplicate():
+		var lesson := _find(id)
+		if lesson.is_empty() or not _context_holds(lesson):
+			continue
+		if TutorialSpotlight.matches(_card_for(lesson), event):
+			_queue.erase(id)
+			_seen[id] = "skipped"
+			lesson_skipped.emit(id)
+
+
+## Show the first queued lesson whose moment it is, if nothing else is up.
+func _pump(delta: float) -> void:
+	if _spotlight == null:
+		_teach_at_once()
+		return
+	if _spotlight.is_busy():
+		return
+	_gap = maxf(0.0, _gap - delta)
+	for id in _queue.duplicate():
+		var lesson := _find(id)
+		if lesson.is_empty():
+			_queue.erase(id)
+			continue
+		if not _context_holds(lesson) or not _anchor_ready(lesson):
+			_ready_for[id] = 0.0
+			_unready_for[id] = float(_unready_for.get(id, 0.0)) + delta
+			if float(_unready_for[id]) > float(lesson.get("patience", PATIENCE)):
+				_queue.erase(id)
+			continue
+		_unready_for[id] = 0.0
+		if _gap > 0.0 or not _coast_is_clear(lesson):
+			continue
+		_ready_for[id] = float(_ready_for.get(id, 0.0)) + delta
+		if float(_ready_for[id]) < float(lesson.get("delay", 0.0)):
+			continue
+		_queue.erase(id)
+		_show(lesson)
+		return
+
+
+## No spotlight: the old channel, one lesson per call, straight to the bar. What a probe
+## with no HUD gets, and what the data audits measure.
+func _teach_at_once() -> void:
+	if _queue.is_empty():
+		return
+	var id: String = _queue.pop_front()
+	var lesson := _find(id)
+	_seen[id] = "shown"
+	if _hint_bar != null and _hint_bar.has_method("show_hint"):
+		var text := resolve(lesson)
+		if not text.is_empty():
+			_hint_bar.call("show_hint", text, String(lesson.get("speaker", "Lolo")),
+				float(lesson.get("seconds", 0.0)))
+	lesson_taught.emit(id)
+
+
+func _show(lesson: Dictionary) -> void:
+	var id := String(lesson["id"])
+	_seen[id] = "shown"
+	if _mode_of(lesson) == "say":
+		if _hint_bar != null and _hint_bar.has_method("show_hint"):
+			_hint_bar.call("show_hint", resolve(lesson), String(lesson.get("speaker", "Lolo")),
+				float(lesson.get("seconds", 6.0)))
+		_gap = GAP_AFTER
+		lesson_taught.emit(id)
+		return
+	var anchor := String(lesson.get("anchor", ""))
+	var finder := _find_target
+	var target := func() -> Variant:
+		if anchor.is_empty() or not finder.is_valid():
+			return Rect2()
+		return finder.call(anchor)
+	_spotlight.present(_card_for(lesson), target)
+	lesson_taught.emit(id)
+
+
+func _on_card_finished(_lesson_id: String, how: String) -> void:
+	_gap = GAP_AFTER_DONE if how == "done" else GAP_AFTER
+
+
+func _context_holds(lesson: Dictionary) -> bool:
+	if not _in_context.is_valid():
+		return true
+	return bool(_in_context.call(String(lesson.get("context", "world"))))
+
+
+func _anchor_ready(lesson: Dictionary) -> bool:
+	var anchor := String(lesson.get("anchor", ""))
+	if anchor.is_empty() or not _find_target.is_valid():
+		return true
+	var rect: Variant = _find_target.call(anchor)
+	return rect is Rect2 and (rect as Rect2).has_area()
+
+
+## Nobody else is talking. A conversation, a line in the story box, any open modal -- except
+## the drawing panel, for a lesson that is about the drawing panel.
+func _coast_is_clear(lesson: Dictionary) -> bool:
+	var on_canvas := String(lesson.get("context", "world")) == "canvas"
+	for node in get_tree().get_nodes_in_group(ModalOverlay.GROUP):
+		if node == _spotlight or not node.has_method(&"is_open"):
+			continue
+		if on_canvas and node is DrawPanel:
+			continue
+		if bool(node.call(&"is_open")):
+			return false
+	for box in get_tree().get_nodes_in_group(DialogueBox.GROUP):
+		var shown: Variant = box.get(&"visible")
+		if shown is bool and shown:
+			return false
+	# Lolo's own line waits for the bar to be free: the advice about the obstacle in front of
+	# the player outranks him remarking on the interface.
+	if _mode_of(lesson) == "say" and _hint_bar != null and _hint_bar.has_method(&"is_showing") \
+			and bool(_hint_bar.call(&"is_showing")):
+		return false
+	return true
+
+
+func _mode_of(lesson: Dictionary) -> String:
+	var mode := String(lesson.get("mode", ""))
+	if not mode.is_empty():
+		return mode
+	var teaches := not String(lesson.get("action", "")).is_empty() \
+		or not (lesson.get("mouse", []) as Array).is_empty()
+	return "do" if teaches else "look"
+
+
+## The spotlight's form of a lesson: what to draw, what to say under it, and which presses
+## count as doing it.
+func _card_for(lesson: Dictionary) -> Dictionary:
+	return {
+		"id": String(lesson.get("id", "")),
+		"mode": _mode_of(lesson),
+		"visual": String(lesson.get("visual", "keys")),
+		"caps": caps_list(lesson),
+		"caption": String(lesson.get("caption", resolve(lesson))),
+		"seconds": float(lesson.get("seconds", 10.0)),
+		"actions": actions_for(lesson),
+		"mouse": lesson.get("mouse", []),
+	}
 
 
 func _find(id: String) -> Dictionary:
@@ -165,123 +353,11 @@ func _find(id: String) -> Dictionary:
 	return {}
 
 
-## Whether the lesson was actually taught. False means it declined and is still unspent --
-## see the note in `note()` on why that is not the same as "done with this event".
-func _teach(lesson: Dictionary) -> bool:
-	var text := resolve(lesson)
-	if text.is_empty():
-		return false
-	var id := String(lesson["id"])
-	var caps := caps_for(lesson)
-	# ⚠ POINTED IF IT CAN BE, SPOKEN IF IT CANNOT, AND THE POINTED ONE DOES NOT WAIT FOR THE
-	# BAR. A callout stands beside the control it is about and never touches the HintBar, so
-	# the busy-bar rule below has nothing to say about it -- gating it on the bar meant every
-	# lesson about a button was silently deferred for as long as Lolo was mid-sentence, which
-	# at the start of Level 1 is most of the time the player is first looking at the HUD.
-	if _teach_beside(lesson, text, caps):
-		_seen[id] = true
-		lesson_taught.emit(id)
-		return true
-
-	# NEVER OVER A BUSY BAR, and the lesson is NOT spent when it yields.
-	#
-	# The HintBar is a shared channel and this is the least important thing on it: Lolo
-	# telling you what the obstacle in front of you needs outranks the game explaining its
-	# own interface, always. Measured -- the requirement lesson landed in the same frame as
-	# Beat 0's "draw something that can roll" and replaced it, which is the one statement of
-	# the puzzle the player gets. Leaving the lesson unspent means it simply arrives the
-	# next time its event comes round, by which point the bar has cleared itself.
-	#
-	# ⚠ UNLESS THE LESSON IS ABOUT THE MOMENT ITSELF (`interrupts`). The checkpoint's lesson is
-	# what a checkpoint IS, and it yielded to whatever Lolo was saying as the player walked
-	# in -- so the first checkpoint went by with only "Checkpoint", and the explanation turned
-	# up at the second one, if at all. Kent: "as a first time player, i dont know what it does".
-	if not bool(lesson.get("interrupts", false)) and _hint_bar != null \
-			and _hint_bar.has_method("is_showing") and bool(_hint_bar.call("is_showing")):
-		return false
-	_seen[id] = true
-	var speaker := String(lesson.get("speaker", "Lolo"))
-	var seconds := float(lesson.get("seconds", 0.0))
-	# THE KEY IS DRAWN, NOT SPELLED, where the bar can do it. `resolve()` is still the
-	# fallback and is still what the tests read, so a bar without the richer entry point --
-	# a fixture, an older scene -- degrades to the sentence rather than to nothing.
-	if _hint_bar != null and _hint_bar.has_method("show_lesson") and not caps.is_empty():
-		_hint_bar.call("show_lesson", String(lesson.get("text", "")), speaker, seconds, caps)
-	elif _hint_bar != null and _hint_bar.has_method("show_hint"):
-		_hint_bar.call("show_hint", text, speaker, seconds)
-	lesson_taught.emit(id)
-	return true
-
-
-## Put the lesson next to the thing it is about. False means it could not be, and the
-## caller falls through to the hint bar.
-func _teach_beside(lesson: Dictionary, text: String, caps: String) -> bool:
-	var anchor := String(lesson.get("anchor", ""))
-	if anchor.is_empty() or _callout_layer == null or not _find_target.is_valid():
-		return false
-	var target: Variant = _find_target.call(anchor)
-	if not (target is Rect2) or (target as Rect2).size.length_squared() < 1.0:
-		return false
-	if _callout != null and is_instance_valid(_callout):
-		_callout.dismiss()
-	_callout = TutorialCallout.new()
-	_callout.name = "TutorialCallout"
-	_callout_layer.add_child(_callout)
-	# ⚠ THE RESOLVED SENTENCE, WITH ITS KEY IN IT. The first version handed over the raw
-	# template and stripped `{keys}`, on the reasoning that the cap is drawn beside it -- and
-	# "This is where her brush is for. opens it" is what came out. The hint bar can split a
-	# sentence around its cap because it lays the row out itself; a wrapping bubble cannot,
-	# and a sentence with a hole in it is worse than one that names the key twice.
-	#
-	# So the cap is dropped here rather than the words. The callout is already pointing at
-	# the button -- it does not also need to hold up a picture of the key.
-	# A lesson that names its speaker is HIS, and the bubble says so (Kent, on Dagat's ink:
-	# "it should just be a pop up by Lolo explaining that"). Without one it is the interface.
-	_callout.point_at(target as Rect2, text, "", _side_of(lesson),
-		String(lesson.get("speaker", "")))
-	var finder := _find_target
-	_callout.follow(func() -> Variant: return finder.call(anchor))
-	_callout.keep_clear_of(func() -> Variant: return finder.call("player"))
-	return true
-
-
-func _side_of(lesson: Dictionary) -> int:
-	match String(lesson.get("side", "auto")):
-		"above":
-			return TutorialCallout.Side.ABOVE
-		"below":
-			return TutorialCallout.Side.BELOW
-		"left":
-			return TutorialCallout.Side.LEFT
-		"right":
-			return TutorialCallout.Side.RIGHT
-	return TutorialCallout.Side.AUTO
-
-
-## Take down whatever is being pointed at, because the player has done it. Called by the
-## level on the events that mean a lesson has landed.
-func dismiss_callout() -> void:
-	if _callout != null and is_instance_valid(_callout):
-		_callout.dismiss()
-		_callout = null
-
-
-## What Lolo says the first time the canvas is opened. Empty for a level that authored
-## none, which is every level but the tutorial.
-func canvas_briefing() -> Array:
-	return _canvas_briefing if _enabled else []
-
-
-func callout() -> TutorialCallout:
-	return _callout if _callout != null and is_instance_valid(_callout) else null
-
-
-## The lesson's sentence with `{keys}` filled from the LIVE InputMap.
+## The lesson's sentence with `{keys}` filled from the LIVE InputMap. What the hint bar says,
+## and what a card falls back to when the lesson has no `caption`.
 ##
-## Public and static-shaped so a test can assert what a lesson would say without a HUD, a
-## level or a viewport. Returns "" for a lesson whose action is not bound at all, which is
-## the same call ControlsOverlay makes: a sentence that names no key is worse than silence,
-## because the player goes looking for a control that is not there.
+## Returns "" for a lesson whose action is not bound at all: a sentence that names no key is
+## worse than silence, because the player goes looking for a control that is not there.
 func resolve(lesson: Dictionary) -> String:
 	var text := String(lesson.get("text", ""))
 	if text.is_empty():
@@ -292,9 +368,7 @@ func resolve(lesson: Dictionary) -> String:
 	return "" if caps.is_empty() else text.replace("{keys}", caps)
 
 
-## What goes on the cap. Empty for a lesson whose action is not bound at all, which is the
-## same call ControlsOverlay makes: a sentence that names no key is worse than silence,
-## because the player goes looking for a control that is not there.
+## The keys as one string, for a sentence. Empty when the action is not bound.
 func caps_for(lesson: Dictionary) -> String:
 	var literal := String(lesson.get("keys", ""))
 	if not literal.is_empty():
@@ -309,11 +383,47 @@ func caps_for(lesson: Dictionary) -> String:
 	return "" if caps.contains("unbound") else caps
 
 
+## The keys as caps to draw, one per key: [A, D] for walking, [1 .. 6] for the bag.
+func caps_list(lesson: Dictionary) -> PackedStringArray:
+	var out := PackedStringArray()
+	var literal := String(lesson.get("keys", ""))
+	if not literal.is_empty():
+		out.append(literal)
+		return out
+	for action in actions_for(lesson):
+		var cap := _cap(String(action), lesson)
+		if not cap.is_empty() and not cap.contains("unbound"):
+			out.append(cap)
+	return out
+
+
+## Every action the lesson teaches. `through` is the other end: two actions, or -- when both
+## end in a number, like inventory_slot_1 .. inventory_slot_6 -- the run between them.
+func actions_for(lesson: Dictionary) -> Array[String]:
+	var out: Array[String] = []
+	var action := String(lesson.get("action", ""))
+	if action.is_empty() or not InputMap.has_action(action):
+		return out
+	var through := String(lesson.get("through", ""))
+	if through.is_empty() or not InputMap.has_action(through):
+		out.append(action)
+		return out
+	var numbered := RegEx.create_from_string("^(.*?)(\\d+)$")
+	var first := numbered.search(action)
+	var last := numbered.search(through)
+	if first != null and last != null and first.get_string(1) == last.get_string(1):
+		for n in range(int(first.get_string(2)), int(last.get_string(2)) + 1):
+			var name := "%s%d" % [first.get_string(1), n]
+			if InputMap.has_action(name):
+				out.append(name)
+		return out
+	out.append(action)
+	out.append(through)
+	return out
+
+
 ## ONE KEY, NOT EVERY BINDING. ControlsOverlay lists all of them because it is a reference
-## table and completeness is the whole point of a reference table. A lesson is a sentence,
-## and movement bound to both WASD and the arrows came out as "D  /  Right - A  /  Left",
-## which is four keys, two separators and no instruction. The player needs one key that
-## works; the controls screen is still there for the rest. `all_keys` opts back in.
+## table; a lesson needs one key that works. `all_keys` opts back in.
 func _cap(action: String, lesson: Dictionary) -> String:
 	var caps := ControlsKeys.keys_for(action)
 	if bool(lesson.get("all_keys", false)):

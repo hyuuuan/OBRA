@@ -178,6 +178,12 @@ func _someone_is_speaking() -> bool:
 		var box := node as CanvasItem
 		if box != null and box.visible:
 			return true
+	# A LESSON CARD IS UP. The screen is dimmed around one thing and the card is the one
+	# thing to read; Lolo's line waits under it, timer held, and comes back when it goes.
+	# Asked of the card itself, not the pause state, because a "do" card stops nothing.
+	for node in get_tree().get_nodes_in_group(TutorialSpotlight.GROUP):
+		if node.has_method(&"is_open") and bool(node.call(&"is_open")):
+			return true
 	# AND A MODAL COUNTS. The route decision at the gorge is a full-screen framed panel that
 	# stops the world, and the beat that teaches the three requirements fires from the
 	# obstacle volume a hundred and sixty pixels before it -- so the advice was still playing
