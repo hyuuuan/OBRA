@@ -74,8 +74,8 @@ class ProblemTests(unittest.TestCase):
         self.assertEqual(out.getvalue().strip(), f"{serve.FAILED} the reason")
 
 
-class SetupTests(unittest.TestCase):
-    """Pull the game, press Play: the environment is made and filled by the first start."""
+class _InAThrowawayFolder(unittest.TestCase):
+    """A .venv and a requirements file in a folder of their own, never the project's."""
 
     def setUp(self) -> None:
         self.folder = tempfile.TemporaryDirectory()
@@ -93,6 +93,10 @@ class SetupTests(unittest.TestCase):
 
     def _python(self) -> Path:
         return self.venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+
+
+class SetupTests(_InAThrowawayFolder):
+    """Pull the game, press Play: the environment is made and filled by the first start."""
 
     def test_the_first_start_makes_the_environment_and_runs_inside_it(self) -> None:
         code, log = _run("--check", env=self.env)
@@ -122,6 +126,53 @@ class SetupTests(unittest.TestCase):
         self.assertIn("Installing the drawing recogniser's packages", log)
         self.assertEqual((self.venv / "obra-requirements.txt").read_text(encoding="utf-8"),
                          "pip\n# changed upstream\n")
+
+
+class StaleEnvironmentTests(_InAThrowawayFolder):
+    """A .venv that is there but cannot serve is set aside and made again, not used forever.
+
+    A teammate's .venv had been made with macOS's Python 3.9: every start failed with "3.10 or
+    newer is needed" on a computer that had 3.12, because only "is there a python" was asked.
+    """
+
+    def _old_venv(self, python_body: str | None) -> Path:
+        marker = self.venv / "made-by-an-old-python"
+        marker.parent.mkdir(parents=True)
+        marker.write_text("keep me\n", encoding="utf-8")
+        if python_body is not None:
+            python = self._python()
+            python.parent.mkdir(parents=True)
+            python.write_text(f"#!/bin/sh\n{python_body}\n", encoding="utf-8")
+            python.chmod(0o755)
+        return marker
+
+    def _check_rebuilt(self, log: str) -> None:
+        self.assertIn(f"{serve.STATUS} The Python environment here is too old or broken", log)
+        self.assertIn(f"{serve.STATUS} Making a Python environment", log)
+        self.assertTrue(serve.usable(self._python()), log)
+        kept = list((Path(self.folder.name) / "venv").glob("previous.*/.venv/made-by-an-old-python"))
+        self.assertEqual(len(kept), 1, log)
+        self.assertEqual(kept[0].read_text(encoding="utf-8"), "keep me\n")
+
+    @unittest.skipIf(os.name == "nt", "the stand-in Python is a shell script")
+    def test_a_venv_whose_python_is_too_old_is_set_aside_and_made_again(self) -> None:
+        # Exits 1 to the version question, as Python 3.9 does.
+        self._old_venv("exit 1")
+        self.assertFalse(serve.usable(self._python()))
+        _code, log = _run("--check", env=self.env)
+        self._check_rebuilt(log)
+
+    def test_a_venv_with_no_python_left_in_it_is_set_aside_and_made_again(self) -> None:
+        # What a Python removed or upgraded out from under its venv leaves behind.
+        self._old_venv(None)
+        _code, log = _run("--check", env=self.env)
+        self._check_rebuilt(log)
+
+    def test_a_venv_that_can_serve_is_not_touched(self) -> None:
+        _run("--check", env=self.env)
+        _code, log = _run("--check", env=self.env)
+        self.assertNotIn("too old or broken", log)
+        self.assertFalse((Path(self.folder.name) / "venv").exists())
 
 
 @unittest.skipUnless(_BACKEND_READY, "backend ML dependencies or the trained model are missing")
