@@ -2,40 +2,23 @@
   "_comment": [
     "WHAT THE GAME TEACHES ABOUT ITSELF, and when.",
     "",
-    "Level 1 is the tutorial and it was never teaching anything. The controls screen",
-    "under the pause menu is a REFERENCE \u2014 a player has to already suspect a verb",
-    "exists before they will go looking for it there \u2014 and ActionPromptHUD shows four",
-    "key caps (R, Q, E, F) with no words around them. Movement, jumping, the mouse that",
-    "does all of placement, the bag, and the fact that a drawing is on a clock were",
-    "never said anywhere. Lolo is standing right there and is the reason the game has a",
-    "guide at all, so he says them.",
+    "Kent, playing Level 1: 'its just knowledge dumping at this point, i feel so overwhelmed, why are the instructions popping everywhere ... when there is instructions it is better that the screen goes dim and then that part is highlighted'. And before that: 'not like those just text but add visuals like the button itself ... there are players that will play it without reading it'.",
     "",
-    "EVERY LESSON GOES TO THE HINT BAR, NEVER THE DIALOGUE BOX. The bar does not stop",
-    "the world, needs no key press and clears itself. A tutorial that pauses the game to",
-    "tell you how to walk is the thing this file exists to stop.",
+    "So a lesson is a CARD in one of two places (top or bottom centre, away from what it is about), over a dimmed screen with a hole lit where the lesson is, and the card is first a PICTURE -- `visual` -- of the key or mouse doing the thing, then a short `caption`. TutorialSpotlight draws it; TutorialDirector decides when. One at a time, a breath between them, nothing over anyone talking.",
     "",
-    "KEYS ARE NOT WRITTEN HERE. `{keys}` is filled at runtime from the live InputMap via",
-    "ControlsOverlay.keys_for, so a rebinding cannot leave a lesson naming a key that no",
-    "longer does anything \u2014 the same split controls.json already makes, for the same",
-    "reason. Use `action` for one key, plus `through` for a contiguous block (the six",
-    "inventory slots are one idea to the player, not six), or `keys` to name something",
-    "the InputMap does not hold, which is the whole mouse.",
+    "`mode`: `do` lessons keep the world running and go the moment the player presses what they show (the press still does its job); `look` lessons stop the world -- they are about a reading that moves, the clock, the ink -- and any key or click dismisses them. `say` is Lolo remarking rather than the game instructing, and goes to his hint bar over the apo.",
     "",
-    "`at` is the moment the lesson is offered; the director spends each one once per run.",
-    "`after` holds a lesson back until another has been seen, so the order survives a",
-    "player who does things out of sequence.",
+    "`delay` is how long a lesson waits, once its moment has come, before it shows. If the player does the thing in that time it is spent unshown: a player who walks at once is never told how to walk.",
     "",
-    "NO LESSON MAY NAME A DRAWABLE CLASS. Same rule as the dialogue, and it bites harder",
-    "here than anywhere: `key` and `door` are both classes in the roster and both are the",
-    "answer to a Level 1 route, so a lesson saying 'press this key' would be naming a",
-    "solution in the one place the player is guaranteed to read. Say `{keys}` and let the",
-    "cap speak.",
-    "A lesson with an `anchor` is taught in a TutorialCallout beside that control instead of in the hint bar. `side` is a preference; auto picks whichever side has room. An anchor the level cannot resolve falls back to the bar rather than being dropped -- an unteachable lesson is worse than an unpointed one.",
-    "Anchor names are the tutorial's own vocabulary, resolved by LevelBase._tutorial_target. They are deliberately NOT node paths: rename a HUD node and that one function changes.",
-    "canvas_briefing is Lolo's explanation of the drawing screen, said in a dialogue box INSIDE the panel the first time it is opened. It is the one place the tutorial stops the world, and it costs nothing because the panel is a modal and the world is already stopped. Omit it and the canvas opens straight to the paper.",
-    "The morph card top right carries two readings the game showed and never explained: how long this drawing has left, and how sure the recogniser was of it. `clock` waits for `morph_running` rather than `became_creature` -- two seconds into a ten-second life -- because `revert` already has that frame and one callout at a time is the rule. `sure` then waits on `clock` and not on `revert`: it only has to avoid landing on top of the other reading, and hanging it off a lesson that may itself be deferred (a revert prompt that has not been built, a busy bar) means it can be deferred twice."
+    "`context` (world / placing / creature / canvas / any) is when it may show; `anchor` is what it lights up, resolved by LevelBase._tutorial_target -- the tutorial's own vocabulary, not node paths. A lesson whose context or anchor does not hold waits for it, and gives up after `patience` seconds (default 8) to be offered again by its event.",
+    "",
+    "KEYS ARE NOT WRITTEN HERE. `action` (plus `through` for a pair or a numbered run) is read off the live InputMap and drawn as caps, so a rebinding cannot leave a lesson showing a key that no longer does anything. `mouse` lists the mouse inputs a lesson teaches: left, right, wheel, shift_wheel. `text` is the full sentence, still what the hint bar says when there is no spotlight, and what the audits read.",
+    "",
+    "NO LESSON MAY NAME A DRAWABLE CLASS, in its text or its caption. Same rule as the dialogue: `key`, `door`, `wheel` are all classes and all answers somewhere. The pictures follow it too: 'your drawing' is drawn as a scrap of paper with a scribble on it, never a shape.",
+    "",
+    "`at` is the event that offers a lesson; `after` holds it back until another has been spent, so the order survives a player who does things out of sequence. Cut on this pass because they were the dumping: `pause` (Escape is the one key everybody already knows), `sure` (the confidence number is shown on the card; explaining it at the second second of a ten-second life was a third card in a row), `sign` (the E READ prompt already says it), and the canvas briefing, four lines of Lolo inside the panel -- the canvas is now taught by two cards that only appear if the player hesitates."
   ],
-  "version": 1,
+  "version": 2,
   "levels": {
     "level_1": {
       "speaker_default": "lolo",
@@ -43,178 +26,254 @@
         {
           "id": "move",
           "at": "level_start",
+          "mode": "do",
+          "visual": "walk",
+          "context": "world",
+          "anchor": "player",
           "action": "move_left",
           "through": "move_right",
           "join": " and ",
-          "text": "Walk with me, apo. {keys}.",
-          "seconds": 5.0
+          "delay": 2.0,
+          "seconds": 12.0,
+          "caption": "Walk",
+          "text": "Walk with me, apo. {keys}."
         },
         {
           "id": "jump",
           "at": "moved",
           "after": "move",
+          "mode": "do",
+          "visual": "jump",
+          "context": "world",
+          "anchor": "player",
           "action": "jump",
-          "text": "{keys} to jump.",
-          "seconds": 5.0
+          "delay": 3.0,
+          "seconds": 10.0,
+          "caption": "Jump",
+          "text": "{keys} to jump."
         },
         {
           "id": "draw",
           "at": "first_obstacle",
-          "action": "redraw",
-          "text": "Her brush is in here. {keys} opens it.",
-          "seconds": 7.0,
+          "mode": "do",
+          "visual": "draw_key",
+          "context": "world",
           "anchor": "draw_button",
-          "side": "above"
+          "action": "redraw",
+          "delay": 2.0,
+          "seconds": 14.0,
+          "caption": "Draw something",
+          "text": "Her brush is in here. {keys} opens it."
+        },
+        {
+          "id": "canvas",
+          "at": "canvas_opened",
+          "mode": "do",
+          "visual": "draw",
+          "context": "canvas",
+          "anchor": "canvas_paper",
+          "mouse": [
+            "left"
+          ],
+          "delay": 1.2,
+          "seconds": 12.0,
+          "caption": "Draw with the mouse",
+          "text": "Draw with the mouse, apo."
+        },
+        {
+          "id": "transform",
+          "at": "canvas_opened",
+          "mode": "do",
+          "visual": "click",
+          "context": "canvas",
+          "anchor": "transform_button",
+          "delay": 3.0,
+          "seconds": 10.0,
+          "patience": 120.0,
+          "caption": "Done? Press Transform",
+          "text": "Then Transform, apo."
         },
         {
           "id": "place",
           "at": "placement_started",
-          "keys": "Left click",
-          "text": "Mouse aims. {keys} sets it down.",
-          "seconds": 6.0
-        },
-        {
-          "id": "rotate",
-          "at": "placement_started",
-          "after": "place",
-          "action": "rotate_left",
-          "through": "rotate_right",
-          "text": "{keys} turns it. So does scrolling.",
-          "seconds": 5.0
+          "mode": "do",
+          "visual": "place",
+          "context": "placing",
+          "anchor": "placement",
+          "mouse": [
+            "left"
+          ],
+          "delay": 0.8,
+          "seconds": 12.0,
+          "caption": "Move to aim. Click to set it down",
+          "text": "Mouse aims. Left click sets it down."
         },
         {
           "id": "resize",
           "at": "placement_started",
-          "after": "rotate",
+          "after": "place",
+          "mode": "do",
+          "visual": "resize",
+          "context": "placing",
+          "anchor": "placement",
           "action": "shrink_placement",
           "through": "grow_placement",
           "join": " and ",
-          "text": "{keys} make it smaller and bigger. So does scrolling with Shift held.",
-          "seconds": 6.0
+          "mouse": [
+            "shift_wheel"
+          ],
+          "delay": 0.8,
+          "seconds": 12.0,
+          "caption": "Make it bigger or smaller",
+          "text": "{keys} make it smaller and bigger. So does scrolling with Shift held."
+        },
+        {
+          "id": "rotate",
+          "at": "placement_started",
+          "after": "resize",
+          "mode": "do",
+          "visual": "rotate",
+          "context": "placing",
+          "anchor": "placement",
+          "action": "rotate_left",
+          "through": "rotate_right",
+          "mouse": [
+            "wheel"
+          ],
+          "delay": 0.8,
+          "seconds": 12.0,
+          "caption": "Turn it",
+          "text": "{keys} turns it. So does scrolling."
         },
         {
           "id": "undo",
           "at": "placement_confirmed",
-          "keys": "Right click",
-          "text": "{keys} takes it back, and the ink with it.",
-          "seconds": 7.0
+          "mode": "look",
+          "visual": "take_back",
+          "context": "world",
+          "anchor": "placed",
+          "mouse": [
+            "right"
+          ],
+          "delay": 1.0,
+          "caption": "Right-click takes it back, ink and all",
+          "text": "Right click takes it back, and the ink with it."
         },
         {
           "id": "revert",
           "at": "became_creature",
-          "action": "revert_form",
-          "text": "{keys} puts you back as yourself.",
-          "seconds": 6.0,
+          "mode": "look",
+          "visual": "revert",
+          "context": "creature",
           "anchor": "revert_prompt",
-          "side": "auto"
+          "action": "revert_form",
+          "delay": 0.6,
+          "caption": "Change back to yourself",
+          "text": "{keys} puts you back as yourself."
         },
         {
           "id": "clock",
           "at": "morph_running",
-          "text": "That bar is the drawing's life, apo. It runs out.",
-          "seconds": 7.0,
+          "after": "revert",
+          "mode": "look",
+          "visual": "clock",
+          "context": "creature",
           "anchor": "morph_card",
-          "side": "auto"
-        },
-        {
-          "id": "sure",
-          "at": "became_creature",
-          "after": "clock",
-          "text": "The number beside it is how sure I was of your drawing.",
-          "seconds": 7.0,
-          "anchor": "morph_card",
-          "side": "auto"
+          "caption": "It runs out",
+          "text": "That bar is the drawing's life, apo. It runs out."
         },
         {
           "id": "life",
           "at": "morph_low",
           "after": "revert",
-          "text": "It is going, apo. A drawing does not last.",
-          "seconds": 6.0
-        },
-        {
-          "id": "bag",
-          "at": "item_stored",
-          "action": "inventory_slot_1",
-          "through": "inventory_slot_6",
-          "text": "In your bag. {keys} brings it out.",
+          "mode": "say",
+          "speaker": "Lolo",
           "seconds": 6.0,
-          "anchor": "inventory_bar",
-          "side": "above"
+          "text": "It is going, apo. A drawing does not last."
         },
         {
-          "id": "bag_open",
-          "at": "drawing_accepted",
-          "action": "inventory_open",
-          "text": "{keys} opens your bag, apo. It remembers everything you draw.",
-          "seconds": 7.0,
-          "anchor": "inventory_bar",
-          "side": "above"
-        },
-        {
-          "id": "sign",
-          "at": "sign_readable",
-          "action": "interact",
-          "text": "{keys} and I will read it again.",
-          "seconds": 6.0
-        },
-        {
-          "id": "climb",
-          "at": "climb_ready",
-          "action": "move_up",
-          "text": "Stand at it and hold {keys}, apo. That is how you go up.",
-          "seconds": 7.0,
-          "anchor": "climb_prompt",
-          "side": "auto"
-        },
-        {
-          "id": "hold",
-          "at": "tool_held",
-          "action": "use_utility",
-          "text": "{keys} uses it.",
-          "seconds": 5.0,
-          "anchor": "use_prompt",
-          "side": "above"
-        },
-        {
-          "id": "pause",
-          "at": "moved",
-          "after": "jump",
-          "action": "pause",
-          "text": "{keys} stops everything.",
-          "seconds": 5.0
+          "id": "ink",
+          "at": "ink_spent",
+          "after": "undo",
+          "mode": "look",
+          "visual": "ink",
+          "context": "world",
+          "anchor": "ink_gauge",
+          "caption": "Every drawing costs ink",
+          "text": "That cost ink, apo. There is not much of it."
         },
         {
           "id": "requirement",
           "at": "requirement_shown",
           "after": "draw",
-          "text": "That word is what it needs DONE, not what to draw.",
-          "seconds": 8.0,
+          "mode": "look",
+          "visual": "requirement",
+          "context": "world",
           "anchor": "requirement_strip",
-          "side": "auto"
-        },
-        {
-          "id": "ink",
-          "at": "ink_spent",
-          "after": "draw",
-          "text": "That cost ink, apo. There is not much of it.",
-          "seconds": 6.0,
-          "anchor": "ink_gauge",
-          "side": "below"
+          "caption": "What it needs DONE, not drawn",
+          "text": "That word is what it needs DONE, not what to draw."
         },
         {
           "id": "checkpoint",
           "at": "checkpoint",
-          "text": "That lantern is a checkpoint, apo. If you fall or get stuck, you start again from here, with the ink you had.",
-          "seconds": 9.0,
-          "interrupts": true
+          "mode": "look",
+          "visual": "checkpoint",
+          "context": "world",
+          "anchor": "player",
+          "caption": "Fall, and you start again here",
+          "text": "That lantern is a checkpoint, apo. If you fall or get stuck, you start again from here, with the ink you had."
+        },
+        {
+          "id": "bag",
+          "at": "item_stored",
+          "mode": "do",
+          "visual": "keys",
+          "context": "world",
+          "anchor": "inventory_bar",
+          "action": "inventory_slot_1",
+          "through": "inventory_slot_6",
+          "caption": "Take it out of your bag",
+          "text": "In your bag. {keys} brings it out.",
+          "delay": 0.6,
+          "seconds": 12.0
+        },
+        {
+          "id": "bag_open",
+          "at": "item_stored",
+          "after": "bag",
+          "mode": "look",
+          "visual": "keys",
+          "context": "world",
+          "anchor": "inventory_bar",
+          "action": "inventory_open",
+          "caption": "Open your bag",
+          "text": "{keys} opens your bag, apo. It remembers everything you draw."
+        },
+        {
+          "id": "climb",
+          "at": "climb_ready",
+          "mode": "do",
+          "visual": "hold",
+          "context": "world",
+          "anchor": "player",
+          "action": "move_up",
+          "delay": 1.0,
+          "seconds": 12.0,
+          "caption": "Hold to climb",
+          "text": "Stand at it and hold {keys}, apo. That is how you go up."
+        },
+        {
+          "id": "hold",
+          "at": "tool_held",
+          "mode": "look",
+          "visual": "keys",
+          "context": "world",
+          "anchor": "use_prompt",
+          "action": "use_utility",
+          "delay": 0.6,
+          "caption": "Use what you hold",
+          "text": "{keys} uses it."
         }
-      ],
-      "canvas_briefing": [
-        "Her canvas, apo. What you draw on it, this place believes.",
-        "Draw with the mouse. The ink is measured \u2014 do not waste it.",
-        "Then Transform. I will say what I think it is, and how sure I am.",
-        "If I am not sure enough I will say so, and it costs you nothing."
       ]
     },
     "level_3": {
@@ -226,7 +285,7 @@
         "not the second will read a draining bar as the same ten seconds and plan against a",
         "rule that no longer exists.",
         "",
-        "\u26a0 NONE OF THESE FIRE FROM MorphLife. level_1's 'clock' and 'life' lessons hang on",
+        "⚠ NONE OF THESE FIRE FROM MorphLife. level_1's 'clock' and 'life' lessons hang on",
         "morph_running and morph_low, which LevelBase notes from _on_life_changed -- and Dagat",
         "answers _morph_has_a_life() with false, so that signal never comes. level_3.gd emits",
         "its own events off InkDrain instead. An event nothing notes is a lesson nobody gets.",
@@ -240,62 +299,76 @@
         {
           "id": "new_brush",
           "at": "new_brush_taken",
-          "text": "Hers counted you down. This one does not count at all.",
-          "seconds": 7.0,
+          "mode": "look",
+          "visual": "ink",
+          "context": "world",
           "anchor": "ink_gauge",
-          "side": "below",
-          "speaker": "Lolo"
+          "speaker": "Lolo",
+          "caption": "No counting down with this brush. It spends ink instead",
+          "text": "Hers counted you down. This one does not count at all."
         },
         {
           "id": "drain",
           "at": "ink_draining",
           "after": "new_brush",
-          "text": "That bar is your ink now, apo. It goes down the whole time you are holding the shape.",
-          "seconds": 8.0,
+          "mode": "look",
+          "visual": "ink",
+          "context": "world",
           "anchor": "morph_card",
-          "side": "below",
-          "speaker": "Lolo"
+          "speaker": "Lolo",
+          "caption": "Holding a shape drains your ink",
+          "text": "That bar is your ink now, apo. It goes down the whole time you are holding the shape."
         },
         {
           "id": "revert_is_free",
           "at": "ink_draining",
           "after": "drain",
-          "action": "revert_form",
-          "text": "{keys} puts you back, and stops it going down. Changing back never costs.",
-          "seconds": 7.0,
+          "mode": "look",
+          "visual": "revert",
+          "context": "world",
           "anchor": "revert_prompt",
-          "side": "auto",
-          "speaker": "Lolo"
+          "speaker": "Lolo",
+          "action": "revert_form",
+          "caption": "Change back to stop it. That is free",
+          "text": "{keys} puts you back, and stops it going down. Changing back never costs."
         },
         {
           "id": "refill",
           "at": "ink_low",
-          "text": "You are nearly out. It does not come back on its own out here \u2014 you have to find more of it.",
-          "seconds": 8.0,
+          "mode": "look",
+          "visual": "ink",
+          "context": "world",
           "anchor": "morph_card",
-          "side": "below",
-          "speaker": "Lolo"
+          "speaker": "Lolo",
+          "caption": "Nearly out. Find more ink",
+          "text": "You are nearly out. It does not come back on its own out here — you have to find more of it."
         },
         {
           "id": "no_drowning",
           "at": "ink_emptied",
-          "text": "Up you come. You lost the crossing, not anything else. Go again.",
-          "seconds": 7.0
+          "mode": "say",
+          "speaker": "Lolo",
+          "seconds": 7.0,
+          "text": "Up you come. You lost the crossing, not anything else. Go again."
         },
         {
           "id": "belongs_down_here",
           "at": "underwater",
-          "text": "Only what belongs down here will hold, apo. Anything else will start drowning on you.",
-          "seconds": 8.0
+          "mode": "say",
+          "speaker": "Lolo",
+          "seconds": 8.0,
+          "text": "Only what belongs down here will hold, apo. Anything else will start drowning on you."
         },
         {
           "id": "jars",
           "at": "jar_in_reach",
-          "text": "Those jars on the bottom are ink. Swim through one and this fills back up.",
-          "seconds": 8.0,
+          "mode": "look",
+          "visual": "ink",
+          "context": "world",
           "anchor": "morph_card",
-          "side": "below",
-          "speaker": "Lolo"
+          "speaker": "Lolo",
+          "caption": "Swim through a jar to fill up",
+          "text": "Those jars on the bottom are ink. Swim through one and this fills back up."
         }
       ]
     }

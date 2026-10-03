@@ -64,11 +64,13 @@ var _request_started_usec: int = 0
 ## minutes for a drawing to be recognized": the recogniser was still starting, every press
 ## of Transform failed with "backend unreachable", and the only thing to do was press it
 ## again. While the game's own server is starting (BackendSupervisor.is_waking) the drawing
-## is kept and sent again every second, for up to five minutes, and the panel says why.
+## is kept and sent again every second, for up to fifteen minutes -- a first start that is
+## installing the packages takes minutes -- and the panel says why.
 const WAKE_RETRY_SEC := 1.0
-const WAKE_PATIENCE_SEC := 300.0
+const WAKE_PATIENCE_SEC := 900.0
 var _pending_body := ""
 var _waiting_since_msec := 0
+var _waiting_said := ""
 var _resend: Timer
 
 
@@ -181,17 +183,20 @@ func _on_request_completed(
 		var now := Time.get_ticks_msec()
 		if BackendSupervisor.is_waking() and (_waiting_since_msec == 0
 				or now - _waiting_since_msec < int(WAKE_PATIENCE_SEC * 1000.0)):
-			if _waiting_since_msec == 0:
-				_waiting_since_msec = now
-				prediction_waiting.emit("The drawing recogniser is still waking up -- this drawing "
-					+ "will go through by itself")
+			var doing := BackendSupervisor.status()
+			var message := "%s -- this drawing will go through by itself" % (doing
+				if not doing.is_empty() else "The drawing recogniser is still waking up")
+			if _waiting_since_msec == 0 or message != _waiting_said:
+				if _waiting_since_msec == 0:
+					_waiting_since_msec = now
+				_waiting_said = message
+				prediction_waiting.emit(message)
 			_resend.start(WAKE_RETRY_SEC)
 			return
 		_pending_body = ""
 		var why := BackendSupervisor.failure_reason()
 		prediction_failed.emit(why if not why.is_empty()
-			else "The drawing recogniser is not running -- close the game and run %s" % (
-				"play_windows.bat" if OS.has_feature("windows") else "./play.sh"))
+			else "The drawing recogniser is not running -- close the game and start it again")
 		return
 	_pending_body = ""
 	var parsed: Variant = JSON.parse_string(body.get_string_from_utf8())

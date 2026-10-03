@@ -21,6 +21,8 @@ extends CanvasLayer
 ## in the cancel chain, or Escape would "close" a camera move.
 
 signal finished()
+## So a lesson can wait for a framed beat to end without being handed the bars.
+const GROUP := &"cinematic_bars"
 ## How far the curtain is in, 0 to 1, every time it moves. The HUD reads it -- see the note
 ## on `layer` below: the bars are ABOVE the interface, which frames the top and bottom of it
 ## out and leaves the middle, so a plate in the corner comes out sliced rather than framed.
@@ -54,6 +56,7 @@ func _ready() -> void:
 	# framed, the interface is part of what is being framed out.
 	layer = 9
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	add_to_group(GROUP)
 	visible = false
 	_build()
 	get_viewport().size_changed.connect(_relayout)

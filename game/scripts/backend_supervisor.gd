@@ -36,8 +36,9 @@ signal backend_failed(message: String)
 
 ## After this long starting, the player is told why it is slow.
 const SLOW_START_SEC := 8.0
-## And after this long, that something may be wrong -- while still waiting.
-const STUCK_SEC := 300.0
+## And after this long, that something may be wrong -- while still waiting. Fifteen minutes,
+## because a first start that has to install the packages on a slow connection takes minutes.
+const STUCK_SEC := 900.0
 ## Where to look when the asked-for port is taken: something else on the machine, or a range
 ## Windows has reserved for Hyper-V or WSL, where binding fails with WinError 10013.
 const SPARE_PORTS := [8765, 8766, 8767, 8768, 8769, 8770, 8771, 8772, 8773, 8774]
@@ -66,6 +67,10 @@ static var _launched_msec := 0
 static var _answered := false
 ## The last thing that went wrong, in words a player can act on. Empty when nothing has.
 static var _reason := ""
+## What the recogniser last said it was doing (serve.py's OBRA_BACKEND_STATUS lines): making
+## its environment, installing, starting. Empty once it answers.
+static var _status := ""
+var _status_read_msec := 0
 
 
 ## Anything that is about to quit the game calls this group, so the Python child does not
@@ -115,12 +120,38 @@ static func is_waking() -> bool:
 
 
 static func owned_backend_running() -> bool:
-	return _backend_pid > 0 and OS.is_process_running(_backend_pid)
+	return _backend_pid > 0 and process_alive(_backend_pid)
+
+
+## Whether a process is still running, ASKING THE SYSTEM before saying no.
+##
+## ⚠ OS.is_process_running CAN SAY NO TO A LIVE PROCESS, and then says it for good. It asks
+## waitpid, treats any error as "exited" and remembers the answer -- and once in a windowed run
+## it reported the first start's setup as stopped while it was still installing, which would
+## tell a player the recogniser had died in the middle of getting ready. So a "no" is checked
+## once more with the system's own tool (kill -0, or tasklist on Windows) before it is believed.
+static func process_alive(pid: int) -> bool:
+	if pid <= 0:
+		return false
+	if OS.is_process_running(pid):
+		return true
+	var output: Array = []
+	if OS.has_feature("windows"):
+		if OS.execute("tasklist", ["/FI", "PID eq %d" % pid, "/NH"], output, true) != 0 \
+				or output.is_empty():
+			return false
+		return String(output[0]).contains(" %d " % pid)
+	return OS.execute("kill", ["-0", str(pid)], output, true) == 0
 
 
 ## What went wrong last, in words; empty if nothing has.
 static func failure_reason() -> String:
 	return _reason
+
+
+## What it is doing while it starts, in words; empty when it is not starting.
+static func status() -> String:
+	return _status if is_waking() else ""
 
 
 ## Kill the backend the game started, if it started one.
@@ -175,6 +206,7 @@ func _on_health_completed(
 			_gave_up = false
 			_answered = true
 			_reason = ""
+			_status = ""
 			if debug_logs:
 				print("BackendSupervisor ready at %s" % backend_url())
 			backend_ready.emit()
@@ -189,14 +221,23 @@ func _handle_health_failure(reason: String) -> void:
 	# OURS AND STILL STARTING: wait, however long it takes, and say why once it is slow.
 	if owned_backend_running():
 		var waited := (Time.get_ticks_msec() - _launched_msec) / 1000.0
+		# What it says it is doing -- making its environment, installing -- read back from its
+		# log about once a second and passed on whenever it changes.
+		if Time.get_ticks_msec() - _status_read_msec >= 1000:
+			_status_read_msec = Time.get_ticks_msec()
+			var now := _status_from_log()
+			if not now.is_empty() and now != _status:
+				_status = now
+				_said_slow = true
+				backend_starting.emit(now)
 		if waited >= SLOW_START_SEC and not _said_slow:
 			_said_slow = true
 			backend_starting.emit("Waking the drawing recogniser up -- the first start on a "
 				+ "computer can take a minute or two")
 		if waited >= STUCK_SEC and not _said_stuck:
 			_said_stuck = true
-			_reason = "The drawing recogniser has been starting for five minutes. Close the " \
-				+ "game and run %s again." % _launcher_name()
+			_reason = "The drawing recogniser has been starting for fifteen minutes. Close the " \
+				+ "game and start it again."
 			backend_failed.emit(_reason)
 		_retry_timer.start(poll_interval_sec)
 		return
@@ -215,8 +256,7 @@ func _handle_health_failure(reason: String) -> void:
 
 	if Time.get_ticks_msec() >= _deadline_msec:
 		if _reason.is_empty():
-			_reason = "The drawing recogniser is not answering. Close the game and run %s." \
-				% _launcher_name()
+			_reason = "The drawing recogniser is not answering. Close the game and start it again."
 		_fail(_reason)
 		return
 	_retry_timer.start(poll_interval_sec)
@@ -226,6 +266,7 @@ func _start_backend() -> void:
 	_started_process = true
 	_answered = false
 	_reason = ""
+	_status = ""
 	_port = _choose_port()
 	if _port <= 0:
 		_port = backend_port
@@ -234,7 +275,13 @@ func _start_backend() -> void:
 		return
 	backend_starting.emit("Starting the drawing recogniser...")
 
-	var python := _resolve_python_executable()
+	var python := _python_command()
+	if python.is_empty():
+		_reason = "Python 3.10 or newer is not installed on this computer, and the drawing " \
+			+ "recogniser needs it. Install it from python.org (on Windows, tick \"Add python.exe " \
+			+ "to PATH\"), then start the game again -- the rest sets itself up."
+		_fail(_reason)
+		return
 	# WHO STARTED IT. The server watches this process and exits when it is gone
 	# (backend/lifecycle.py), which covers what stop_backend cannot: a crash, a force-quit, a
 	# run stopped from the editor. The child inherits the environment it is launched with.
@@ -245,13 +292,14 @@ func _start_backend() -> void:
 		"--port", str(_port),
 		"--log", log_path(),
 	])
-	_backend_pid = OS.create_process(python, args)
+	_backend_pid = OS.create_process(python[0], python.slice(1) + args)
 	_launched_msec = Time.get_ticks_msec()
 	if debug_logs:
-		print("BackendSupervisor launched pid %d with %s %s" % [_backend_pid, python, " ".join(args)])
+		print("BackendSupervisor launched pid %d with %s %s" % [_backend_pid, " ".join(python),
+			" ".join(args)])
 	if _backend_pid <= 0:
-		_reason = "Python could not be started (%s). Run %s once -- it sets Python up for " \
-			% [python, _launcher_name()] + "the game."
+		_reason = "Python could not be started (%s). Install Python 3.10 or newer from " \
+			% python[0] + "python.org, then start the game again."
 		_fail(_reason)
 
 
@@ -276,6 +324,15 @@ static func log_path() -> String:
 	return ProjectSettings.globalize_path(_UserData.path("backend.log"))
 
 
+## The last OBRA_BACKEND_STATUS line serve.py wrote, or "".
+func _status_from_log() -> String:
+	var said := ""
+	for line in FileAccess.get_file_as_string(log_path()).split("\n", false):
+		if line.begins_with("OBRA_BACKEND_STATUS:"):
+			said = line.trim_prefix("OBRA_BACKEND_STATUS:").strip_edges()
+	return said
+
+
 ## The reason serve.py gave, or the last thing it said, or -- when it said nothing at all,
 ## which is a Python that never ran our code -- what that usually means.
 func _reason_from_log() -> String:
@@ -290,8 +347,8 @@ func _reason_from_log() -> String:
 			last = said
 	if not last.is_empty():
 		return "The drawing recogniser stopped: %s" % last
-	return "The drawing recogniser stopped before it could start -- Python may be missing. " \
-		+ "Run %s once." % _launcher_name()
+	return "The drawing recogniser stopped before it could start -- Python 3.10 or newer may " \
+		+ "not be installed. Install it from python.org, then start the game again."
 
 
 ## Say so once, and then KEEP LOOKING.
@@ -308,15 +365,79 @@ func _fail(message: String) -> void:
 	_retry_timer.start(recovery_poll_sec)
 
 
-static func _launcher_name() -> String:
-	return "play_windows.bat" if OS.has_feature("windows") else "./play.sh"
-
-
 func _resolve_python_executable() -> String:
 	var configured := python_executable.strip_edges()
 	if not configured.is_empty():
 		return configured
 	return python_in(_repo_root().path_join(".venv"), OS.has_feature("windows"))
+
+
+## The command that starts serve.py: the project's .venv when it has one, and on a computer
+## that has never run the game -- no .venv yet -- the first Python 3.10+ it can find, which
+## serve.py then uses to make the .venv and fill it. Empty when there is no such Python.
+func _python_command() -> PackedStringArray:
+	var configured := python_executable.strip_edges()
+	if not configured.is_empty():
+		return PackedStringArray([configured])
+	var windows := OS.has_feature("windows")
+	var venv := python_in(_repo_root().path_join(".venv"), windows)
+	if FileAccess.file_exists(venv):
+		return PackedStringArray([venv])
+	return find_python(python_candidates(windows))
+
+
+## Where a Python might be, in the order to ask. 3.12 and 3.11 first: every package the
+## recogniser needs has wheels for them, and the newest Python sometimes does not yet.
+##
+## ⚠ ON A MAC, NEVER THE BARE `python3`. A game opened from Finder gets a PATH of /usr/bin and
+## little else, so `python3` is Apple's /usr/bin stub -- 3.9 at best, and on a Mac without
+## the developer tools it opens a dialog offering to install them. The places Python is
+## actually installed are asked by their full path instead.
+static func python_candidates(windows: bool) -> Array[PackedStringArray]:
+	var out: Array[PackedStringArray] = []
+	var versions := ["3.12", "3.11", "3.13", "3.10", "3.14"]
+	if windows:
+		for version: String in versions:
+			out.append(PackedStringArray(["py", "-" + version]))
+		out.append(PackedStringArray(["py", "-3"]))
+		out.append(PackedStringArray(["python"]))
+		out.append(PackedStringArray(["python3"]))
+		return out
+	var home := OS.get_environment("HOME")
+	var folders := ["/opt/homebrew/bin", "/usr/local/bin", home.path_join(".pyenv/shims"),
+		home.path_join(".local/bin"), home.path_join("miniconda3/bin"),
+		home.path_join("anaconda3/bin")]
+	for version: String in versions:
+		folders.append("/Library/Frameworks/Python.framework/Versions/%s/bin" % version)
+	var mac := OS.has_feature("macos")
+	for version: String in versions:
+		for folder: String in folders:
+			var path := folder.path_join("python" + version)
+			if FileAccess.file_exists(path):
+				out.append(PackedStringArray([path]))
+		if not mac:
+			out.append(PackedStringArray(["python" + version]))
+	for folder: String in folders:
+		var path := folder.path_join("python3")
+		if FileAccess.file_exists(path):
+			out.append(PackedStringArray([path]))
+	if not mac:
+		out.append(PackedStringArray(["python3"]))
+	return out
+
+
+## The first candidate that runs and is Python 3.10 or newer; empty if none is.
+static func find_python(candidates: Array[PackedStringArray]) -> PackedStringArray:
+	for command in candidates:
+		var output: Array = []
+		var args := command.slice(1)
+		args.append_array(["-c", "import sys; print(sys.version_info[0], sys.version_info[1])"])
+		if OS.execute(command[0], args, output, true) != 0 or output.is_empty():
+			continue
+		var parts := String(output[0]).strip_edges().split(" ")
+		if parts.size() == 2 and (int(parts[0]) > 3 or (int(parts[0]) == 3 and int(parts[1]) >= 10)):
+			return command
+	return PackedStringArray()
 
 
 ## The venv's interpreter, wherever this platform keeps it, or else what this platform calls

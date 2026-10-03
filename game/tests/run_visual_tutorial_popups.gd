@@ -1,17 +1,19 @@
 extends SceneTree
-## Eyes on the pointing tutorial. Needs a real viewport:
+## Eyes on the tutorial: every lesson card, over the dim, with its hole where it points.
+## Needs a real viewport:
 ##   godot --path game --script res://tests/run_visual_tutorial_popups.gd
-## Frames land in /tmp/obra_tut_*.png
+## Frames land in /tmp/obra_tut_<lesson>.png (and _b for a second moment of the animation).
 ##
-## ⚠ THE WHOLE POINT IS WHERE THINGS ARE, so nothing headless can check it. A callout that
-## says the right sentence with its beak pointing at empty sky, or one clipped off the
-## bottom of the screen because the prompt it belongs to sits in the corner, passes every
-## assertion about its text.
+## ⚠ THE WHOLE POINT IS WHAT IT LOOKS LIKE, so nothing headless can check it: a card whose
+## keys are drawn off its own edge, a hole lit around empty sky, a caption under the dim --
+## every one of those passes every assertion about the lesson's text.
 
 const OUTPUT_DIR := "/tmp"
+const BRIDGE := [Vector2(10, 40), Vector2(54, 40)]
 
 var level: Node2D
 var tutorial
+var spot
 
 
 func _initialize() -> void:
@@ -23,73 +25,85 @@ func _run() -> void:
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
-	await _wait(1.4)
+	await _wait(1.5)
 	tutorial = level.get("tutorial")
-
-	# THE DRAW BUTTON, bottom-left. The hardest placement in the level: a bubble authored
-	# "above" it is right, and one authored "below" would hang off the screen entirely.
-	_teach("draw")
+	spot = level.get("tutorial_spotlight")
+	# The level's own lessons would fire while this stages things; this shows them by hand.
+	tutorial.call("set_enabled", false)
 	await _wait(0.6)
-	await _capture("00_points_at_draw")
+	# Off again, so each card is the one a player sees: a `look` card stops the world and
+	# carries its click-to-continue mouse.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
+	await _capture("none")
 
-	# ⚠ THE BAG HAS TO HAVE SOMETHING IN IT. `InventoryHUD` is hidden while empty, so its
-	# rect is empty, so the anchor does not resolve and the lesson correctly falls back to
-	# the bar -- which is right in the game (the `bag` lesson fires at `item_stored`) and
-	# useless in a test that forced it early. Give it an item first, as the level would.
-	_dismiss()
-	var bagged := DrawnItemData.new()
-	bagged.entity_id = "square"
-	bagged.display_name = "Square"
-	(level.get("inventory_manager") as Node).call("add_item", bagged)
+	for id in ["move", "jump", "draw", "requirement", "checkpoint", "ink"]:
+		await _card(id)
+
+	# Something in the bag, for the bag's two lessons.
+	_draw("bridge", "Bridge")
 	await _wait(0.4)
-	_teach("bag")
-	await _wait(0.6)
-	await _capture("01_points_at_bag")
+	await _card("bag")
+	await _card("bag_open")
 
-	_dismiss()
-	_teach("ink")
-	await _wait(0.6)
-	await _capture("02_points_at_ink")
+	# The three placement cards, lit around the drawing on the end of the mouse.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	level.call("_on_inventory_slot_pressed", int(level.call("_slot_holding", "bridge")))
+	var placement := level.get("placement_controller") as PlacementController
+	placement.set_process(false)
+	var player := level.get("player") as Node2D
+	placement.update_target(player.global_position + Vector2(220.0, -60.0))
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
+	await _wait(0.3)
+	for id in ["place", "resize", "rotate"]:
+		await _card(id, true)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	placement.confirm_placement()
+	placement.set_process(true)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
+	await _wait(0.4)
+	await _card("undo")
 
-	# AND THEN LOLO EXPLAINS THE SCREEN. The panel is a modal, so the world is already
-	# stopped; this is the one lesson that is allowed to be a conversation.
-	_dismiss()
+	# A drawing worn: the change-back key and the clock.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	_draw("frog", "Frog")
+	await _wait(1.0)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
+	await _card("revert")
+	await _card("clock")
+
+	# And the canvas: the page while it is empty, the button once there is ink on it.
 	var panel = level.get("draw_panel")
 	panel.call("open_panel")
 	await _wait(0.9)
-	await _capture("03_lolo_explains_the_canvas")
-
-	var briefing = panel.get_node_or_null("CanvasBriefing")
-	if briefing != null:
-		briefing.call("_input", _accept())
-		await _wait(0.5)
-		await _capture("04_second_line")
-		briefing.call("_input", _accept())
-		briefing.call("_input", _accept())
-		await _wait(0.7)
-		await _capture("05_canvas_is_free")
-	print("briefing present: %s" % (briefing != null))
+	await _card("canvas", true)
+	(panel.get("transform_button") as Button).disabled = false
+	await _card("transform", true)
 	print("OBRA_VISUAL_TUTORIAL_POPUPS_DONE")
 	quit(0)
 
 
-func _accept() -> InputEvent:
-	var event := InputEventAction.new()
-	event.action = &"ui_accept"
-	event.pressed = true
-	return event
-
-
-func _teach(lesson_id: String) -> void:
-	var lesson: Dictionary = tutorial.call("_find", lesson_id)
+func _card(id: String, twice := false) -> void:
+	var lesson: Dictionary = tutorial.call("_find", id)
 	if lesson.is_empty():
-		print("no lesson %s" % lesson_id)
+		print("no lesson %s" % id)
 		return
-	tutorial.call("_teach", lesson)
+	tutorial.call("_show", lesson)
+	await _wait(0.9)
+	await _capture(id)
+	if twice:
+		await _wait(0.8)
+		await _capture(id + "_b")
+	print("%-12s card %s  hole %s  caption '%s'  kind %s" % [id, spot.call("card_rect"),
+		spot.call("hole_rect"), spot.call("caption_text"), spot.call("visual_kind")])
+	spot.call("finish", "seen")
+	await _wait(0.5)
 
 
-func _dismiss() -> void:
-	tutorial.call("dismiss_callout")
+func _draw(entity: String, display: String) -> void:
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	level.call("_on_drawing_ready", entity, display, sheet, {"confidence": 0.9},
+		[{"points": PackedVector2Array(BRIDGE), "width": 6.0, "color": Color.BLACK}], 1.0)
 
 
 func _capture(label: String) -> void:

@@ -143,12 +143,14 @@ func _painted(level: Node) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var panels: Array[Control] = []
 	for layer in level.get_children():
-		if layer is CanvasLayer:
+		# Not a lesson card: it stands over the whole HUD, the screen dimmed under it, on purpose.
+		if layer is CanvasLayer and not (layer is TutorialSpotlight):
 			_collect_panels(layer, panels)
 	for panel in panels:
 		out.append({"name": _trail(panel, level), "rect": panel.get_global_rect()})
 	for layer in level.get_children():
-		if layer is CanvasLayer:
+		# Not a lesson card: it stands over the whole HUD, the screen dimmed under it, on purpose.
+		if layer is CanvasLayer and not (layer is TutorialSpotlight):
 			_collect_loose_labels(layer, panels, out, level)
 	return out
 

@@ -304,8 +304,13 @@ var morph_card: MorphCard
 var action_prompts: ActionPromptHUD
 ## The part of the game that teaches the game. Level-scoped and spent once per run; a
 ## level with no block in tutorial.json simply never teaches anything. See
-## TutorialDirector -- every lesson goes to the HintBar, so teaching never stops the tree.
+## TutorialDirector for WHEN a lesson is shown and TutorialSpotlight for where.
 var tutorial: TutorialDirector
+## The one place a lesson appears: the screen dims around what it is about, and a card shows
+## the key or the mouse doing it.
+var tutorial_spotlight: TutorialSpotlight
+## The drawing most recently set down -- what the take-it-back lesson lights up.
+var _last_placed: PhysicsShapeObject
 ## First horizontal input of the run, polled rather than signalled: there is nothing to
 ## signal on, because walking is not an event the level owns.
 var _has_moved := false
@@ -433,12 +438,10 @@ func _ready() -> void:
 	add_child(tutorial)
 	tutorial.load_for(LevelManager.current_level_id)
 	tutorial.bind_hint_bar(hint_bar)
-	tutorial.bind_callout_layer(get_node_or_null(^"CanvasLayer"), _tutorial_target)
-	# The panel does not read `tutorial.json` itself: it is a screen, not a level, and it is
-	# reused by every level that has one. The lines come from whoever knows which level this
-	# is, which is here.
-	if draw_panel != null:
-		draw_panel.set("briefing_lines", tutorial.canvas_briefing())
+	tutorial_spotlight = TutorialSpotlight.new()
+	tutorial_spotlight.name = "TutorialSpotlight"
+	add_child(tutorial_spotlight)
+	tutorial.bind_spotlight(tutorial_spotlight, _tutorial_target, _tutorial_context)
 	_run_started_msec = Time.get_ticks_msec()
 	_apply_level_identity()
 	_resolve_level_nodes()
@@ -471,12 +474,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			placement_controller.cancel_placement()
 			draw_panel.open_panel()
+			_note_canvas_opened()
 		return
 	if event.is_action_pressed("redraw"):
 		get_viewport().set_input_as_handled()
 		if director != null:
 			director.note_canvas_opened()
 		draw_panel.open_panel()
+		_note_canvas_opened()
 		return
 	if event.is_action_pressed("inventory_open"):
 		get_viewport().set_input_as_handled()
@@ -515,6 +520,14 @@ func _on_draw_button_pressed() -> void:
 	if director != null:
 		director.note_canvas_opened()
 	draw_panel.open_panel()
+	_note_canvas_opened()
+
+
+## The canvas is up: the moment its two lessons -- draw on the page, then Transform -- are
+## waiting for. They show only if the player hesitates; see `canvas_paper`.
+func _note_canvas_opened() -> void:
+	if tutorial != null:
+		tutorial.note("canvas_opened")
 
 
 func _on_backend_ready() -> void:
@@ -713,9 +726,11 @@ func _say_checkpoint() -> void:
 	status_label.text = "Checkpoint"
 	var explained := false
 	if tutorial != null:
-		var before := tutorial.has_taught("checkpoint")
+		# COMING, not taught: the lesson may be queued behind a conversation and shown a
+		# moment later, and the one-line fallback below would then say it twice.
+		var before := tutorial.is_coming("checkpoint")
 		tutorial.note("checkpoint")
-		explained = not before and tutorial.has_taught("checkpoint")
+		explained = not before and tutorial.is_coming("checkpoint")
 	if hint_bar != null and not explained:
 		hint_bar.show_hint("Checkpoint. If you fall, you start again from here.", "", 3.5)
 	var audio := get_node_or_null(^"/root/AudioDirector")
@@ -951,7 +966,10 @@ func _refresh_requirements() -> void:
 ## Every anchor name a lesson may use. A probe reads it to check `tutorial.json` against the
 ## level, which is the only way to catch a name that resolves to an empty rect forever.
 const TUTORIAL_ANCHORS := ["draw_button", "pickup_prompt", "use_prompt", "revert_prompt",
-	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card", "player"]
+	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card", "player",
+	"placement", "placed", "canvas_paper", "transform_button"]
+## Every `context` a lesson may name, answered by _tutorial_context.
+const TUTORIAL_CONTEXTS := ["world", "placing", "creature", "canvas", "any"]
 ## The apo, on screen, as `player` answers it: her feet are the anchor, and this is the box
 ## standing on them. A drawn body's anchor is its middle, so it gets a box round that instead.
 const PLAYER_BOX := Rect2(-28.0, -92.0, 56.0, 92.0)
@@ -981,9 +999,31 @@ func _tutorial_target(anchor: String) -> Rect2:
 		return Rect2()
 	match anchor:
 		"player":
-			# Not a control: where the player stands, on the glass. A lesson's bubble keeps
-			# clear of it (TutorialCallout.keep_clear_of).
+			# Not a control: where the player stands, on the glass.
 			return _player_on_screen()
+		"placement":
+			# The drawing on the end of the mouse, while it is being placed.
+			return _world_box_on_screen(placement_controller.preview_bounds())
+		"placed":
+			if _last_placed == null or not is_instance_valid(_last_placed) \
+					or not _last_placed.is_inside_tree():
+				return Rect2()
+			return _world_box_on_screen(PlacementController.body_bounds(_last_placed))
+		"canvas_paper":
+			# Only while the page is empty and could be drawn on: a lesson about drawing on it
+			# has nothing to say once there is a line there.
+			if draw_panel == null or not draw_panel.is_open() or draw_panel.is_submitting() \
+					or not draw_panel.transform_button.disabled:
+				return Rect2()
+			node = draw_panel.canvas_viewport_container
+		"transform_button":
+			# Only once there is something to transform and the pen is up -- the lesson is for
+			# a player who has drawn and then stopped, not for one mid-stroke.
+			if draw_panel == null or not draw_panel.is_open() or draw_panel.is_submitting() \
+					or draw_panel.transform_button.disabled \
+					or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+				return Rect2()
+			node = draw_panel.transform_button
 		"draw_button":
 			node = draw_button
 		"pickup_prompt":
@@ -1014,6 +1054,36 @@ func _tutorial_target(anchor: String) -> Rect2:
 	if node == null or not node.is_inside_tree() or not node.is_visible_in_tree():
 		return Rect2()
 	return node.get_global_rect()
+
+
+## A box in the world, as the screen shows it. Empty in, empty out.
+func _world_box_on_screen(box: Rect2) -> Rect2:
+	if not box.has_area():
+		return Rect2()
+	var to_screen := get_viewport().get_canvas_transform()
+	var corner := to_screen * box.position
+	return Rect2(corner, to_screen * box.end - corner).abs()
+
+
+## WHEN a lesson may show, in the level's own terms. `world` is ordinary play; `placing`
+## is a drawing on the end of the mouse; `creature` is the player wearing a drawing; `canvas`
+## is the drawing panel. Nothing but `canvas` holds while the panel is up.
+func _tutorial_context(context: String) -> bool:
+	var canvas_open := draw_panel != null and draw_panel.is_open()
+	match context:
+		"canvas":
+			return canvas_open
+		"any":
+			return true
+	if canvas_open or _level_completed or player == null or not is_instance_valid(player):
+		return false
+	var placing := placement_controller.is_placing()
+	match context:
+		"placing":
+			return placing
+		"creature":
+			return not placing and not (player is Wanderer)
+	return not placing
 
 
 func _player_on_screen() -> Rect2:
@@ -2073,6 +2143,7 @@ func _on_placement_confirmed(
 			status_label.text = "%s costs a unit to set down, and there is none left" % item.display_name
 			return
 	item.ink_committed = true
+	_last_placed = placed
 	_connect_utility(placed)
 	# A placed object clamps itself to the world it was built with, and only the PLAYER was
 	# ever told how big that is -- so every drawing carried the script's own 3760px default.
@@ -2896,7 +2967,7 @@ func _on_curtain_changed(closed: float) -> void:
 var _curtain_closed := 0.0
 var _story_veil := 1.0
 ## The HUD pieces along the bottom of the screen, which is where Lolo's story box stands.
-const UNDER_THE_STORY_BOX := [&"GoalLabelChip", &"TutorialCallout", &"RequirementStrip",
+const UNDER_THE_STORY_BOX := [&"GoalLabelChip", &"RequirementStrip",
 	&"DrawButton", &"ActionPrompts"]
 
 

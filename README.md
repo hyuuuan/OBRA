@@ -14,6 +14,32 @@ drawing as the body texture.
 - `game/` is a Godot 4 project with manifest-backed entity spawning and
   class-guided procedural animation profiles in `game/config/rigs/`.
 
+## Getting it running: install two things, then just press Play
+
+Install, once per computer:
+
+1. **Godot 4.7** (the standard build, not .NET). It has to be 4.7: the project is saved by
+   4.7, and an older Godot cannot run it.
+2. **Python 3.10 or newer**. On Windows, from python.org, with **"Add python.exe to PATH"**
+   ticked; the Microsoft Store's `python3` is not Python. On a Mac, `brew install python` or
+   python.org.
+
+Then clone or pull, open `game/` in Godot and press Play (or run `godot --path game`). **Nothing
+else is needed; the game sets the rest up itself:**
+
+- **Godot's import cache.** If it is missing or out of date, the game imports and starts
+  again by itself (`ImportGuard`). The game opens on `ui/boot.tscn`, a scene that loads with
+  nothing imported, so this works on a fresh clone too.
+- **The drawing recogniser.** It is started with the title screen. On a computer that has
+  never run the game, it finds Python, makes `.venv`, installs the packages and then starts
+  (`backend/serve.py`). That first time takes a few minutes and needs the internet; a note
+  at the top of the screen says what it is doing. After that it is quick, and it updates
+  itself when `backend/requirements.txt` changes. A drawing sent while it is still getting
+  ready waits and goes through by itself.
+
+The launchers below still work and do the same steps before the game opens, so the waiting
+happens in their window rather than in the game.
+
 ## On Windows
 
 1. Install **Godot 4.7** for Windows (the standard build, not .NET). It has to be 4.7: the
@@ -27,8 +53,8 @@ drawing as the body texture.
    looks for Godot on PATH and in Downloads, Desktop and Documents; if it cannot find it,
    drag `Godot_v4.7-stable_win64.exe` onto `play_windows.bat` once -- it remembers.
 
-Running from the Godot editor works too once `play_windows.bat` has made `.venv`: the game
-finds `.venv\Scripts\python.exe` and starts the recogniser itself.
+Running from the Godot editor works too, with or without `play_windows.bat` first: the game
+sets up `.venv` itself if it is not there.
 
 If it still will not start, send Godot's log:
 `%APPDATA%\Godot\app_userdata\O.B.R.A\logs\godot.log`.

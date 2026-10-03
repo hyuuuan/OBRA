@@ -399,9 +399,22 @@ func _refresh_fall_line(placeable: bool) -> void:
 ## World-space box the preview's own collision occupies, rotation included. Only its SIZE is
 ## ever used, which is why it does not matter that this is measured before the aim moves it.
 func _preview_rect() -> Rect2:
+	return body_bounds(_preview)
+
+
+## The preview's box in the world, or an empty one when nothing is being placed. The tutorial
+## lights it up while it teaches the mouse.
+func preview_bounds() -> Rect2:
+	return body_bounds(_preview) if is_placing() else Rect2()
+
+
+## World-space box a drawing's own collision occupies, rotation included.
+static func body_bounds(body: Node2D) -> Rect2:
 	var bounds := Rect2()
 	var started := false
-	for child in _preview.get_children():
+	if body == null or not is_instance_valid(body):
+		return bounds
+	for child in body.get_children():
 		var collision := child as CollisionShape2D
 		if collision == null or collision.shape == null or not collision.shape.has_method("get_rect"):
 			continue

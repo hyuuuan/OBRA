@@ -9,8 +9,18 @@
 #
 #   tools/run_suites.sh            everything, to /tmp/obra_suites.log
 #   tools/run_suites.sh quick      skips run_tests, which alone takes over ten minutes
-#   tools/suite_watch.py [LOG]     in another terminal: a live bar -- done, ok, failed, what is
-#                                  running, how long -- read off the log as it is written
+#   tools/run_suites.sh only A B   just those suites ("python" for the Python tests): what a
+#                                  change touches, which is what to run after most changes
+#   tools/suite_watch.py [LOG]     a live bar for a run going somewhere else -- in the
+#                                  background, in another terminal -- read off its log
+#
+# IN A TERMINAL IT SHOWS ITS OWN PROGRESS BAR. Kent: "can i have a tracker or progress bar for
+# the running suites and also for the future". The bar fills by TIME, not by count -- run_tests
+# alone is a quarter of the run -- with how long is left, what is running and for how long
+# against its usual time, and every failure on its own line as it happens. Each suite's start
+# and duration go in the log, and every duration in a history file the estimate is made from
+# (OBRA_SUITE_TIMES, default ~/.cache/obra/suite_times.tsv). Not in a terminal (redirected, in
+# the background) it prints a line per suite as before.
 #
 # ⚠ ONE GODOT AT A TIME. Every test run shares user://test_runs, and a second run started
 # beside this one empties the first one's profile out from under it.
@@ -24,10 +34,14 @@
 # and every run_visual_*) are deliberately NOT here: a clean run from one is not evidence.
 
 set -u
+zmodload zsh/datetime
 cd "$(dirname "$0")/.."
 LOG=${OBRA_SUITE_LOG:-/tmp/obra_suites.log}
-print "started $(date +%s)" > "$LOG"
-print "progress: tools/suite_watch.py $LOG"
+TIMES=${OBRA_SUITE_TIMES:-$HOME/.cache/obra/suite_times.tsv}
+mkdir -p "$(dirname "$TIMES")"
+PY=.venv/bin/python
+[ -x "$PY" ] || PY=python3
+print "started $EPOCHSECONDS" > "$LOG"
 
 HEADLESS=(
   run_tests run_level_ready test_player_profile
@@ -52,32 +66,88 @@ WINDOW=(run_click_ui run_hud_watch_level1 run_real_drawing_probe)
 if [ "${1:-}" = "quick" ]; then
   HEADLESS=("${(@)HEADLESS:#run_tests}")
 fi
+WITH_PYTHON=1
+if [ "${1:-}" = "only" ]; then
+  shift
+  want=("$@")
+  unknown=(${want:|HEADLESS})
+  unknown=(${unknown:|WINDOW})
+  unknown=(${unknown:#python})
+  if (( ${#unknown} )); then
+    print "not a suite here: ${unknown[*]}"
+    exit 2
+  fi
+  HEADLESS=(${HEADLESS:*want})
+  WINDOW=(${WINDOW:*want})
+  (( ${want[(Ie)python]} )) || WITH_PYTHON=0
+fi
+# What this run will make, for the bar: a run of a few suites is a bar of a few suites.
+PLAN=($HEADLESS $WINDOW)
+(( WITH_PYTHON )) && PLAN+=(python)
+print "plan ${PLAN[*]}" >> "$LOG"
+
+# Each suite's own output, to look for a script error in once it is done.
+OUT=$(mktemp -t obra_suite)
+WATCHER=""
+trap '[ -n "$WATCHER" ] && kill $WATCHER 2>/dev/null; rm -f "$OUT"' EXIT
+
+# The bar, when somebody is watching. It reads the log, so it shows exactly what is written.
+if [ -t 1 ]; then
+  "$PY" tools/suite_watch.py "$LOG" --times "$TIMES" &
+  WATCHER=$!
+else
+  print "progress: tools/suite_watch.py $LOG"
+fi
 
 failed=()
+# A suite's verdict and how long it took, into the log and into the history.
+note_result () {  # name, exit code, seconds
+  print "[exit $2 in ${3}s]" >> "$LOG"
+  print "$1\t$3\t$2\t$EPOCHSECONDS" >> "$TIMES"
+  if [ $2 -ne 0 ]; then failed+=("$1"); fi
+  # With the bar up, it reports each result itself.
+  if [ -z "$WATCHER" ]; then
+    if [ $2 -ne 0 ]; then print "  FAILED  $1"; else print "  ok      $1"; fi
+  fi
+}
+
+# ⚠ A SCRIPT THAT DOES NOT PARSE EXITS 0. Godot prints the error and runs nothing, and a runner
+# that trusted the exit code called it passed -- seen with run_level3_trouble_probe. So a suite
+# whose own output holds a GDScript "SCRIPT ERROR" or "Parse Error" has failed, whatever it
+# exited with; the bar has always read it that way, and now the summary agrees with the bar.
+# The output still reaches the log as it is written (tee), so the bar sees it live.
 run_one () {  # name, extra godot args
   local name=$1; shift
+  local began=$EPOCHSECONDS
   print "########## $name" >> "$LOG"
-  godot "$@" --path game --script "res://tests/$name.gd" >> "$LOG" 2>&1
-  local code=$?
-  print "[exit $code]" >> "$LOG"
-  if [ $code -ne 0 ]; then failed+=("$name"); print "  FAILED  $name"; else print "  ok      $name"; fi
+  print "[start $began]" >> "$LOG"
+  godot "$@" --path game --script "res://tests/$name.gd" 2>&1 | tee "$OUT" >> "$LOG"
+  local code=${pipestatus[1]}
+  if [ $code -eq 0 ] && grep -q -E "SCRIPT ERROR|Parse Error" "$OUT"; then code=70; fi
+  note_result "$name" $code $(( EPOCHSECONDS - began ))
 }
 
 for s in $HEADLESS; do run_one "$s" --headless; done
 for s in $WINDOW; do run_one "$s"; done
 
-print "########## python" >> "$LOG"
-PY=.venv/bin/python
-[ -x "$PY" ] || PY=python3
-"$PY" -m unittest tests.test_backend_lifecycle tests.test_preprocess_paper \
-  tests.test_backend_telemetry tests.test_manifest_contract >> "$LOG" 2>&1
-code=$?
-print "[exit $code]" >> "$LOG"
-if [ $code -ne 0 ]; then failed+=("python"); print "  FAILED  python"; else print "  ok      python"; fi
+if (( WITH_PYTHON )); then
+  began=$EPOCHSECONDS
+  print "########## python" >> "$LOG"
+  print "[start $began]" >> "$LOG"
+  "$PY" -m unittest tests.test_backend_lifecycle tests.test_preprocess_paper \
+    tests.test_backend_telemetry tests.test_manifest_contract tests.test_backend_serve \
+    tests.test_suite_watch >> "$LOG" 2>&1
+  note_result python $? $(( EPOCHSECONDS - began ))
+fi
 
+# The bar finishes by itself once it reads the last result; let it, so its last line is drawn.
+if [ -n "$WATCHER" ]; then
+  wait $WATCHER 2>/dev/null
+  WATCHER=""
+fi
 print ""
 if [ ${#failed[@]} -eq 0 ]; then
-  print "ALL SUITES PASSED  ($(( ${#HEADLESS[@]} + ${#WINDOW[@]} + 1 )) runs)  log: $LOG"
+  print "ALL SUITES PASSED  (${#PLAN[@]} runs)  log: $LOG"
   exit 0
 fi
 print "FAILED: ${failed[*]}"

@@ -110,7 +110,7 @@ func _ready() -> void:
 	# The alpha has to keep moving while a letterbox or a card has the tree stopped.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	# Its tray is drawn, not a panel, so anything that steers clear of the HUD's panels has to
-	# be told this is one too -- see TutorialCallout._hud_around_me.
+	# be told this is one too -- see ActionPromptHUD._hud_panels.
 	add_to_group(&"hud_blockers")
 	# Packed to the left, from the corner it is docked in.
 	alignment = BoxContainer.ALIGNMENT_BEGIN

@@ -178,6 +178,12 @@ func _someone_is_speaking() -> bool:
 		var box := node as CanvasItem
 		if box != null and box.visible:
 			return true
+	# A LESSON CARD IS UP. The screen is dimmed around one thing and the card is the one
+	# thing to read; Lolo's line waits under it, timer held, and comes back when it goes.
+	# Asked of the card itself, not the pause state, because a "do" card stops nothing.
+	for node in get_tree().get_nodes_in_group(TutorialSpotlight.GROUP):
+		if node.has_method(&"is_open") and bool(node.call(&"is_open")):
+			return true
 	# AND A MODAL COUNTS. The route decision at the gorge is a full-screen framed panel that
 	# stops the world, and the beat that teaches the three requirements fires from the
 	# obstacle volume a hundred and sixty pixels before it -- so the advice was still playing
@@ -382,15 +388,21 @@ func _dwell_for(text: String) -> float:
 func clear() -> void:
 	_queue.clear()
 	_life = 0.0
-	set_process(false)
 	if not visible:
+		set_process(false)
 		return
 	if _fade != null and _fade.is_valid():
 		_fade.kill()
 	var fade := create_tween()
 	fade.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	fade.tween_property(self, "modulate:a", 0.0, 0.14)
-	fade.tween_callback(func() -> void: visible = false)
+	# ⚠ STILL FOLLOWING HER WHILE IT FADES. This stopped the bar the moment it was cleared,
+	# so for the fade it stood still where she had been -- and walking away from a sign up
+	# onto the straw heap's ledge, her key prompts rose straight into "Press E to read the
+	# sign" going out. Found by the HUD watch. It stops when it is gone.
+	fade.tween_callback(func() -> void:
+		visible = false
+		set_process(false))
 	_fade = fade
 
 

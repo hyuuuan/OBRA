@@ -28,12 +28,15 @@ static func painted(level: Node) -> Array[Dictionary]:
 
 ## The layers that make up the HUD. A MODAL is not one of them: a memory card, the choice
 ## screen or the pause menu is meant to stand over everything under a scrim, and counting it as
-## an overlap would make every open menu a failure.
+## an overlap would make every open menu a failure. Nor is a lesson card, which stands over the
+## whole HUD with the screen dimmed under it on purpose; what it must not cover -- what it
+## lights, and the apo -- the play bots check against the spotlight itself.
 static func _hud_layers(level: Node) -> Array[CanvasLayer]:
 	var out: Array[CanvasLayer] = []
 	for layer in level.get_children():
 		var canvas := layer as CanvasLayer
-		if canvas == null or not canvas.visible or canvas is ModalOverlay:
+		if canvas == null or not canvas.visible or canvas is ModalOverlay \
+				or canvas is TutorialSpotlight:
 			continue
 		out.append(canvas)
 	return out
