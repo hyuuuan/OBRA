@@ -317,6 +317,11 @@ func _coast_is_clear(lesson: Dictionary) -> bool:
 		var shown: Variant = box.get(&"visible")
 		if shown is bool and shown:
 			return false
+	# Nor while the letterbox is in. It frames a beat and carries its own caption -- at a
+	# checkpoint, "Checkpoint" in the lower bar -- and a card over it was two things to read.
+	for bars in get_tree().get_nodes_in_group(CinematicBars.GROUP):
+		if bars.has_method(&"is_playing") and bool(bars.call(&"is_playing")):
+			return false
 	# Lolo's own line waits for the bar to be free: the advice about the obstacle in front of
 	# the player outranks him remarking on the interface.
 	if _mode_of(lesson) == "say" and _hint_bar != null and _hint_bar.has_method(&"is_showing") \
