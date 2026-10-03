@@ -57,7 +57,8 @@ func _initialize() -> void:
 		terms.append(String(entry["id"]))
 	for value: Variant in lessons:
 		var lesson: Dictionary = value
-		var text := String(lesson["text"]).to_lower()
+		# The caption too: it is the line under the picture, read by everyone who reads.
+		var text := ("%s %s" % [lesson.get("text", ""), lesson.get("caption", "")]).to_lower()
 		var named := ""
 		for term in terms:
 			var re := RegEx.new()
@@ -94,13 +95,57 @@ func _initialize() -> void:
 		"%d taught after two identical events" % director.taught_count())
 	_check(director.has_taught("move"), "level_start teaches walking", "move")
 
-	# 6. One lesson per event per call: two writes to one label in one frame and only the
-	#    last is ever drawn. The second lesson waits for the event to come round again.
+	# 6. One lesson per event per call: the placement's three lessons are three placements,
+	#    not one placement with three things said over it. Resize before turning -- the lake
+	#    is crossed by a drawing made longer, and that comes before anything wants turning.
 	director.note("placement_started")
-	_check(director.has_taught("place") and not director.has_taught("rotate"),
-		"two lessons on one event do not collide", "place taught, rotate still waiting")
+	_check(director.has_taught("place") and not director.has_taught("resize"),
+		"two lessons on one event do not collide", "place taught, resize still waiting")
 	director.note("placement_started")
-	_check(director.has_taught("rotate"), "and the second arrives next time", "rotate")
+	_check(director.has_taught("resize") and not director.has_taught("rotate"),
+		"and the second arrives next time", "resize")
+	director.note("placement_started")
+	_check(director.has_taught("rotate"), "and the third the time after", "rotate")
+
+	# 7. A PICTURE FIRST, A FEW WORDS SECOND. Kent: "avoid like just texts since there are
+	#    players that will play it without reading it". Every lesson the game shows -- all but
+	#    Lolo's own `say` lines -- names a picture LessonVisual knows how to draw, and its
+	#    caption is short enough to be a label rather than a paragraph.
+	for value: Variant in lessons:
+		var lesson: Dictionary = value
+		var id := String(lesson["id"])
+		var mode := String(lesson.get("mode", ""))
+		_check(mode in ["do", "look", "say"], "'%s' says how it is shown" % id, mode)
+		if mode == "say":
+			_check(not lesson.has("visual") and not lesson.has("anchor"),
+				"'%s' is Lolo talking, with no card" % id, "say")
+			continue
+		var visual := String(lesson.get("visual", ""))
+		_check(LessonVisual.KINDS.has(visual), "'%s' has a picture" % id, visual)
+		var caption := String(lesson.get("caption", ""))
+		var words := caption.split(" ", false).size()
+		_check(words > 0 and words <= 8, "'%s' has a few words, not a paragraph" % id,
+			"%d words" % words)
+		_check(not String(lesson.get("anchor", "")).is_empty(),
+			"'%s' lights up what it is about" % id, String(lesson.get("anchor", "NONE")))
+		if visual == "keys":
+			_check(not director.caps_list(lesson).is_empty(), "'%s' has keys to draw" % id,
+				", ".join(director.caps_list(lesson)))
+		# A `do` card goes when its input is pressed -- or, for a button the player clicks,
+		# when the button it lights goes away. One with neither could only time out.
+		if mode == "do":
+			var ends := not director.actions_for(lesson).is_empty() \
+				or not (lesson.get("mouse", []) as Array).is_empty() \
+				or String(lesson.get("anchor", "")) == "transform_button"
+			_check(ends, "'%s' ends when it is done" % id, "has an input" if ends else "ONLY TIMES OUT")
+
+	# 8. LESS OF IT. Kent: "its just knowledge dumping at this point". The four cut on that
+	#    pass stay cut, and the tutorial level stays under twenty things to say.
+	for cut in ["pause", "sure", "sign"]:
+		_check(not ids.has(cut), "'%s' stays cut" % cut, "absent" if not ids.has(cut) else "BACK")
+	_check(lessons.size() < 20, "Level 1 says fewer than twenty things", "%d" % lessons.size())
+	_check(not ledger["levels"]["level_1"].has("canvas_briefing"),
+		"the canvas is taught by cards, not four lines of Lolo", "no briefing")
 
 	print("--- %d passed, %d failed ---" % [_passed, _failed])
 	print("OBRA_TUTORIAL_FAILED=%d" % _failed if _failed > 0 else "OBRA_TUTORIAL_OK")
