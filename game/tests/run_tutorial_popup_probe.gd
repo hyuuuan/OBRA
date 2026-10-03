@@ -1,18 +1,25 @@
 extends SceneTree
-## The pointing tutorial, without a viewport.
+## The tutorial's one place, without a viewport.
 ##   godot --headless --path game --script res://tests/run_tutorial_popup_probe.gd
 ##
-## It cannot judge where a bubble looks like it is pointing -- `run_visual_tutorial_popups`
-## is for that -- but it can hold the contract that makes the visual right:
+## Kent, playing Level 1: "its just knowledge dumping ... why are the instructions popping
+## everywhere ... it is better that the screen goes dim and then that part is highlighted".
+## What can be held without eyes, this holds; `run_visual_tutorial_popups` is for the look.
 ##
-##   anchored lessons are anchored to something this level actually has
-##   a callout does NOT wait for the hint bar, because it does not use the hint bar
-##   an anchor that cannot be resolved falls back to the bar instead of vanishing
-##   the canvas briefing is authored, and is said once
-##   the morph card's two readings are taught, pointed at the card that shows them
+##   every anchor, context and picture a lesson names is one the game has
+##   one card at a time, and a breath after each
+##   nothing over anyone talking, and it is not lost for having waited
+##   a player who already did it is not told
+##   a `do` card ends in the thing it taught: the press goes on and does it
+##   a `look` card stops the world, waits, and spends the press that dismisses it
+##   a card never stands over what it lights, and stands in one of two places
+##   Lolo's line steps back while a card is up, and comes back after
+##   a lesson only in its moment
+##   with nobody at the keys, nothing waits for a key
 
 var level: Node2D
-var tutorial
+var tutorial: TutorialDirector
+var spot: TutorialSpotlight
 var failures := 0
 
 
@@ -23,7 +30,7 @@ func _initialize() -> void:
 func _check(ok: bool, what: String, detail: String) -> void:
 	if not ok:
 		failures += 1
-	print("  %s  %-46s %s" % ["OK  " if ok else "FAIL", what, detail])
+	print("  %s  %-58s %s" % ["OK  " if ok else "FAIL", what, detail])
 
 
 ## A constant off the level's own script chain, with no compile-time reference to its class.
@@ -45,260 +52,255 @@ func _run() -> void:
 	level = (load("res://game_level.tscn") as PackedScene).instantiate() as Node2D
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
-	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	_auto(true)
 	await _wait(1.2)
-	tutorial = level.get("tutorial")
-	if tutorial == null:
-		print("OBRA_TUTORIAL_POPUP_FAILED=1  (no tutorial director)")
+	tutorial = level.get("tutorial") as TutorialDirector
+	spot = level.get("tutorial_spotlight") as TutorialSpotlight
+	if tutorial == null or spot == null:
+		print("OBRA_TUTORIAL_POPUP_FAILED=1  (no tutorial director or spotlight)")
 		quit(1)
 		return
 
-	_audit_every_anchor_resolves()
-	# ⚠ THE FALLBACK IS CHECKED FIRST, while the bar has never been written to. The busy-bar
-	# audit below deliberately occupies it, and the bar does not let go on demand -- `clear()`
-	# fades over 0.14s and re-asserts `visible` while it does. Ordering is cheaper and more
-	# honest than fighting a widget's own animation to prove something unrelated to it.
-	_audit_an_unknown_anchor_falls_back()
-	await _audit_a_callout_does_not_wait_for_the_bar()
-	await _audit_a_callout_goes_away()
-	await _audit_a_callout_leaves_with_its_target()
-	_audit_the_canvas_is_explained()
-	await _audit_the_two_readings_are_explained()
+	_audit_the_ledger_matches_the_level()
+	await _audit_one_card_at_a_time()
+	await _audit_nothing_over_a_conversation()
+	await _audit_a_player_who_already_did_it_is_not_told()
+	await _audit_a_do_card_ends_in_what_it_taught()
+	await _audit_a_look_card_stops_the_world()
+	await _audit_a_card_never_covers_what_it_lights()
+	await _audit_the_hint_bar_steps_back()
+	await _audit_only_in_its_moment()
 	await _audit_the_bar_clears_the_letterbox()
 	await _audit_the_first_checkpoint_explains_itself()
-	await _audit_a_callout_never_covers_its_target()
+	await _audit_nobody_at_the_keys()
 
 	print("OBRA_TUTORIAL_POPUP_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
 
 
-## ⚠ AN ANCHOR NAMING SOMETHING THIS LEVEL DOES NOT HAVE IS SILENT. The lesson still gets
-## taught -- it falls back to the hint bar -- so a typo in `tutorial.json`, or a HUD node
-## renamed under it, costs the pointing and says nothing. Two of the first three anchors
-## written were wrong this way: `ink_gauge` named the authored ProgressBar the visible gauge
-## replaced, which is in the scene and invisible, so it resolved to an empty rect forever.
-func _audit_every_anchor_resolves() -> void:
-	# ⚠ READ OFF THE RUNNING LEVEL, NOT AS `LevelBase.TUTORIAL_ANCHORS`. Naming the class
-	# makes this file depend on it at COMPILE time, and a `--script` run has no autoloads --
-	# the whole suite failed to load on `LevelManager` and reported "no tutorial director".
-	# The same lesson `run_level2_scene_probe` already carries for `GOAL_RADIUS`.
-	var known: Array = _level_constant("TUTORIAL_ANCHORS", [])
-	_check(not known.is_empty(), "the level declares its anchor vocabulary",
-		"%d names" % known.size())
-	var unresolved: Array[String] = []
-	var anchored := 0
-	for id in tutorial.call("lesson_ids"):
-		var lesson: Dictionary = tutorial.call("_find", String(id))
+func _auto(on: bool) -> void:
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", on)
+
+
+## A clean slate: no card up, nothing queued, no gap, and the two lessons the level offers on
+## its own every frame (walking, jumping) already spent so they do not wander into a check.
+func _fresh() -> void:
+	if spot.is_busy():
+		spot.finish("skipped")
+	while spot.is_busy():
+		await process_frame
+	tutorial.load_for("level_1")
+	tutorial.set("_gap", 0.0)
+	var seen: Dictionary = tutorial.get("_seen")
+	seen["move"] = "shown"
+	seen["jump"] = "shown"
+	paused = false
+
+
+func _show(id: String) -> void:
+	tutorial.call("_show", tutorial.call("_find", id))
+
+
+func _press(action: StringName) -> void:
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = true
+	Input.parse_input_event(event)
+	var release := InputEventAction.new()
+	release.action = action
+	release.pressed = false
+	Input.parse_input_event(release)
+
+
+## ⚠ A NAME THE GAME DOES NOT HAVE IS SILENT. An anchor nothing answers resolves empty, which
+## reads exactly like a target that is off screen right now -- so a typo in tutorial.json would
+## just mean a lesson that waits forever. Same for a context nothing answers.
+func _audit_the_ledger_matches_the_level() -> void:
+	var anchors: Array = _level_constant("TUTORIAL_ANCHORS", [])
+	var contexts: Array = _level_constant("TUTORIAL_CONTEXTS", [])
+	for id in tutorial.lesson_ids():
+		var lesson: Dictionary = tutorial.call("_find", id)
 		var anchor := String(lesson.get("anchor", ""))
-		if anchor.is_empty():
-			continue
-		anchored += 1
-		# ⚠ CHECKED AGAINST THE VOCABULARY, NOT AGAINST THE RECT. An unknown name resolves to
-		# an empty Rect2 -- exactly like a known one whose target is hidden, which the bag is
-		# whenever it is empty -- so a check on the rect passes for a typo and is vacuous.
-		# Mutation-tested: renaming `ink_gauge` in the resolver now fails this.
-		if not known.has(anchor):
-			unresolved.append(anchor)
-	_check(anchored > 0, "some lessons point at a control", "%d anchored" % anchored)
-	_check(unresolved.is_empty(), "and every anchor is a name the level knows",
-		"%d anchors" % anchored if unresolved.is_empty()
-		else "unknown: %s" % ", ".join(unresolved))
+		if not anchor.is_empty():
+			_check(anchors.has(anchor), "'%s' lights something the level has" % id, anchor)
+		var context := String(lesson.get("context", "world"))
+		_check(contexts.has(context), "'%s' waits for a moment the level knows" % id, context)
 
 
-## The callout does not touch the HintBar, so the bar being busy must not defer it. This was
-## wrong first: every lesson about a button waited for Lolo to stop talking, and at the start
-## of Level 1 he is talking for most of the time the player is first looking at the HUD.
-func _audit_a_callout_does_not_wait_for_the_bar() -> void:
-	var bar = level.get("hint_bar")
-	if bar == null:
-		_check(false, "the level has a hint bar", "-")
+## ONE AT A TIME, THEN A BREATH. Two lessons whose moments land together, neither of which
+## waits for anything of its own: the second waits for the first to go, and then for a gap.
+##
+## ⚠ THE BREATH IS A NUMBER WRITTEN HERE, not GAP_AFTER read back. Compared against the
+## constant, a gap set to nothing passed: the check moved with the thing it was checking.
+func _audit_one_card_at_a_time() -> void:
+	await _fresh()
+	(tutorial.get("_seen") as Dictionary)["undo"] = "shown"
+	var times := {}
+	var on_finished := func(id: String, _how: String) -> void:
+		times["gone_" + id] = Time.get_ticks_msec() / 1000.0
+	var on_taught := func(id: String) -> void:
+		times["shown_" + id] = Time.get_ticks_msec() / 1000.0
+	spot.finished.connect(on_finished)
+	tutorial.lesson_taught.connect(on_taught)
+	tutorial.note("checkpoint")
+	tutorial.note("ink_spent")
+	_check(spot.lesson_id() == "checkpoint" and tutorial.pending_ids().has("ink"),
+		"two moments at once: one card, the other waits",
+		"up '%s', waiting %s" % [spot.lesson_id(), tutorial.pending_ids()])
+	var waited := 0.0
+	while not times.has("shown_ink") and waited < 12.0:
+		await _wait(0.1)
+		waited += 0.1
+	_check(times.has("shown_ink"), "and the one that waited is still shown", "ink")
+	var between := float(times.get("shown_ink", 0.0)) - float(times.get("gone_checkpoint", 0.0))
+	_check(times.has("gone_checkpoint") and between >= 2.0,
+		"two seconds of nothing between two cards", "%.2f s between them" % between)
+	spot.finished.disconnect(on_finished)
+	tutorial.lesson_taught.disconnect(on_taught)
+
+
+## NOTHING OVER ANYONE TALKING -- and a one-off moment that lands under a menu is not lost.
+func _audit_nothing_over_a_conversation() -> void:
+	await _fresh()
+	var menu := level.get_node_or_null(^"PauseMenu") as ModalOverlay
+	if menu == null:
+		_check(false, "the level has a pause menu to stand in for a conversation", "-")
 		return
-	bar.call("show_hint", "Lolo is in the middle of something.", "Lolo")
+	menu.open()
+	tutorial.note("checkpoint")
+	await _wait(0.6)
+	_check(not spot.is_open() and tutorial.pending_ids().has("checkpoint"),
+		"no card over an open menu", "up '%s'" % spot.lesson_id())
+	menu.close()
+	await _wait(0.3)
+	_check(spot.lesson_id() == "checkpoint", "and it is shown once the menu closes",
+		"up '%s'" % spot.lesson_id())
+
+
+## NOT WHAT THEY ALREADY DID. Walking waits two seconds; a player who walks in that time is
+## never shown how.
+func _audit_a_player_who_already_did_it_is_not_told() -> void:
+	await _fresh()
+	(tutorial.get("_seen") as Dictionary).erase("move")
+	tutorial.note("level_start")
+	await _wait(0.3)
+	_check(tutorial.pending_ids().has("move") and not spot.is_open(),
+		"walking waits a moment before it is taught", "pending")
+	_press(&"move_right")
 	await _wait(0.2)
-	_check(bool(bar.call("is_showing")), "the bar is busy for this check", "occupied")
-	var lesson: Dictionary = tutorial.call("_find", "draw")
-	tutorial.call("_teach", lesson)
-	await process_frame
-	_check(tutorial.call("callout") != null,
-		"a pointed lesson is taught over a busy bar",
-		"it stands beside its button and never touches the bar")
-	_check(bool(tutorial.call("has_taught", "draw")), "and is spent", "not re-offered")
-	tutorial.call("dismiss_callout")
+	_check(tutorial.has_taught("move") and not tutorial.was_shown("move"),
+		"a player who walks first is never shown how",
+		"skipped" if tutorial.has_taught("move") and not tutorial.was_shown("move")
+			else "shown %s, spent %s" % [tutorial.was_shown("move"), tutorial.has_taught("move")])
+	await _wait(2.3)
+	_check(spot.lesson_id() != "move", "and no walking card comes later", "up '%s'" % spot.lesson_id())
 
 
-func _audit_an_unknown_anchor_falls_back() -> void:
-	tutorial.call("dismiss_callout")
-	# A lesson whose anchor names nothing: it must still be TAUGHT.
-	var lesson := {"id": "_probe_unknown", "at": "never", "anchor": "no_such_control",
-		"text": "This still has to reach the player."}
-	tutorial.call("_teach", lesson)
-	_check(tutorial.call("callout") == null, "an unknown anchor points at nothing",
-		"no callout, as expected")
-	# ⚠ NOT SPENT, WHICH IS THE GUARANTEE THAT MATTERS. The first version asserted the
-	# lesson had been TAUGHT -- and Lolo is mid-sentence on the hint bar for the first
-	# several seconds of Level 1, so the bar path correctly deferred it and the check read
-	# as "the lesson was lost". Deferral is the design: an unspent lesson arrives the next
-	# time its event comes round. What must never happen is a lesson marked taught by a
-	# callout that could not be built, which is silent loss.
-	_check(not bool(tutorial.call("has_taught", "_probe_unknown")),
-		"and an unbuildable callout does not spend it",
-		"still unspent, so its event brings it back")
+## A `do` CARD ENDS IN THE THING IT TAUGHT. The draw key closes the card -- and still opens
+## the canvas, because the press is not spent on the card.
+func _audit_a_do_card_ends_in_what_it_taught() -> void:
+	await _fresh()
+	var panel := level.get("draw_panel") as DrawPanel
+	var result := {"how": ""}
+	var on_finished := func(_id: String, why: String) -> void:
+		result["how"] = why
+	spot.finished.connect(on_finished)
+	_show("draw")
+	await _wait(0.4)
+	_check(spot.lesson_id() == "draw" and spot.lesson_mode() == "do" and not paused,
+		"the draw card is up, and the world is not stopped", "paused %s" % paused)
+	_press(&"redraw")
+	await _wait(0.2)
+	_check(result["how"] == "done", "pressing the key it shows ends it", String(result["how"]))
+	_check(panel.is_open(), "and the same press opens the canvas", "open %s" % panel.is_open())
+	spot.finished.disconnect(on_finished)
+	panel.close_panel()
+	await _wait(0.2)
 
 
-## ⚠ A CALLOUT THAT NEVER LEAVES IS WORSE THAN NO CALLOUT. It stands over the HUD it points
-## at, so one that outstays its dwell covers the bag it is explaining -- reported as "the
-## inventory popup never stops". Two things have to hold: it takes itself down on its own,
-## and the same lesson never comes back.
-func _audit_a_callout_goes_away() -> void:
-	tutorial.call("dismiss_callout")
-	var lesson: Dictionary = tutorial.call("_find", "bag")
-	if lesson.is_empty():
-		_check(false, "there is a bag lesson to teach", "-")
-		return
-	# The bag is hidden while empty, so give it something -- the anchor resolves to an empty
-	# rect otherwise and this measures the wrong thing.
+## A `look` CARD STOPS THE WORLD AND WAITS FOR YOU -- and the press that dismisses it does
+## nothing else. Asked with somebody at the keys, which is the only time it may stop anything.
+func _audit_a_look_card_stops_the_world() -> void:
+	await _fresh()
+	_auto(false)
+	var panel := level.get("draw_panel") as DrawPanel
+	_show("ink")
+	await _wait(0.3)
+	_check(spot.lesson_mode() == "look" and paused, "a look card stops the world",
+		"paused %s" % paused)
+	await _wait(TutorialSpotlight.AUTO_SEC + 0.5)
+	_check(spot.lesson_id() == "ink", "and waits for the player, not for a clock", "still up")
+	_press(&"redraw")
+	await _wait(0.2)
+	_check(not spot.is_open() and not paused, "a key lets it go, and the world back",
+		"up %s, paused %s" % [spot.is_open(), paused])
+	_check(not panel.is_open(), "and that key is spent on the card", "canvas open %s" % panel.is_open())
+	if panel.is_open():
+		panel.close_panel()
+	_auto(true)
+
+
+## THE CARD NEVER STANDS OVER WHAT IT LIGHTS, and it stands top-centre or bottom-centre --
+## beside, only for a box too tall for either (the drawing page).
+func _audit_a_card_never_covers_what_it_lights() -> void:
 	var bagged := DrawnItemData.new()
 	bagged.entity_id = "square"
 	bagged.display_name = "Square"
 	(level.get("inventory_manager") as Node).call("add_item", bagged)
-	await _wait(0.4)
-	tutorial.call("_teach", lesson)
-	await process_frame
-	_check(tutorial.call("callout") != null, "the bag lesson points at the bag",
-		"a callout is up")
-	await _wait(TutorialCallout.DWELL + 1.2)
-	_check(tutorial.call("callout") == null, "and it takes itself down",
-		"gone after its dwell" if tutorial.call("callout") == null
-		else "STILL UP -- it covers the bag it is pointing at")
-
-	# AND IT DOES NOT COME BACK. `note` is called on every store, and a lesson that is not
-	# spent is re-offered every single time.
-	for again in range(4):
-		tutorial.call("note", "item_stored")
-		await process_frame
-	var repeated := tutorial.call("callout") != null \
-		and String(tutorial.call("callout").name) != ""
-	_check(not repeated or bool(tutorial.call("has_taught", "bag_open")),
-		"and storing again does not re-teach the same lesson",
-		"only an unspent lesson may appear")
-
-
-## ⚠ AND IT GOES WHEN THE THING IT POINTS AT GOES. The requirement lesson is aimed at the
-## strip, the strip clears the moment its beat is answered, and the bubble used to stand on
-## for the rest of its dwell with its beak aimed at nothing -- then ride along into the next
-## beat and sit half under the route choice. Hiding the target has to take it down at once.
-func _audit_a_callout_leaves_with_its_target() -> void:
-	tutorial.call("dismiss_callout")
-	await _wait(0.4)
-	var bag := level.get("inventory_hud") as Control
-	if bag == null or not bag.is_visible_in_tree():
-		_check(false, "the bag is up to point at", "-")
-		return
-	tutorial.call("_teach", {"id": "_probe_target_goes", "at": "never",
-		"anchor": "inventory_bar", "text": "Pointing at the bag."})
-	await process_frame
-	await process_frame
-	_check(tutorial.call("callout") != null, "a callout points at the bag", "up")
-	bag.visible = false
-	await _wait(0.5)
-	_check(tutorial.call("callout") == null, "and hiding the bag takes it down",
-		"gone" if tutorial.call("callout") == null
-		else "STILL UP -- pointing at a control that is not on screen")
-	bag.visible = true
+	for id in ["move", "draw", "ink", "checkpoint", "bag"]:
+		await _fresh()
+		_show(id)
+		await _wait(TutorialSpotlight.IRIS_SEC + 0.15)
+		var card := spot.card_rect()
+		var hole := spot.hole_rect()
+		_check(hole.has_area() and not card.intersects(hole),
+			"'%s': the card stands clear of what it lights" % id, "card %s, lit %s" % [card, hole])
+		_check(spot.card_place() in ["top", "bottom"], "'%s': in one of the two places" % id,
+			spot.card_place())
+	var panel := level.get("draw_panel") as DrawPanel
+	await _fresh()
+	panel.open_panel()
+	await _wait(0.6)
+	_show("canvas")
+	await _wait(TutorialSpotlight.IRIS_SEC + 0.15)
+	var card := spot.card_rect()
+	var hole := spot.hole_rect()
+	_check(hole.has_area() and not card.intersects(hole),
+		"the canvas card stands clear of the page", "card %s, page %s" % [card, hole])
+	panel.close_panel()
+	await _fresh()
 
 
-func _audit_the_canvas_is_explained() -> void:
-	var lines: Array = tutorial.call("canvas_briefing")
-	_check(not lines.is_empty(), "Lolo has something to say about the canvas",
-		"%d lines" % lines.size())
-	var panel = level.get("draw_panel")
-	_check(panel != null and (panel.get("briefing_lines") as Array).size() == lines.size(),
-		"and the panel was handed them",
-		"the panel does not read tutorial.json itself")
-
-
-## THE TWO NUMBERS ON THE MORPH CARD, which the game showed from the day the card existed
-## and never once explained: the bar is how long this drawing has left, and the percentage
-## beside the name is how sure the recogniser was of it.
-##
-## ⚠ THEY MUST NOT ARRIVE TOGETHER. One callout is up at a time -- a second in the same
-## frame dismisses the first before it has been read -- so `clock` waits for `morph_running`
-## (two seconds into a ten-second life, by which point the bar it points at has visibly
-## moved) and `sure` waits for the morph after that. Asserting only that both are eventually
-## taught would pass with both firing on one frame, so the ORDER is what is checked.
-func _audit_the_two_readings_are_explained() -> void:
-	var life: Node = level.get("morph_life")
-	var card: Control = level.get("morph_card")
-	if life == null or card == null:
-		_check(false, "the level has a morph card and a clock", "-")
-		return
-	var order: Array[String] = []
-	tutorial.lesson_taught.connect(func(id: String) -> void:
-		if id == "clock" or id == "sure":
-			order.append(id))
-
-	# ⚠ THE CARD IS SHOWN AT THE MORPH SITE, NOT BY THE CLOCK. `begin` starts the life and
-	# emits, and that is all it does -- the plate is filled in where the submitted drawing is
-	# in hand, because MorphLife only knows names. A probe that starts the clock and expects
-	# a visible card is anchoring a lesson to a control nobody made visible, which resolves
-	# empty and quietly falls back to the hint bar.
-	var sketch := Image.create(28, 28, false, Image.FORMAT_RGBA8)
-	sketch.fill(Color.WHITE)
-
-	# First drawing: `revert` takes the frame it starts on, and `clock` arrives once the
-	# life has visibly gone down.
-	card.call("show_form", "Spider", sketch, 0.87)
-	life.call("begin", "Spider", "spider")
-	await _wait(0.2)
-	_check(card.visible, "the card is up while she is a drawing",
-		"visible" if card.visible else "the plate is hidden, so the lesson has nothing to point at")
-	_check(not tutorial.has_taught("clock"), "the clock is not explained on the first frame",
-		"revert has that frame")
-	await _wait(3.0)
-	_check(tutorial.has_taught("clock"), "the clock is explained once the bar has moved",
-		"taught" if tutorial.has_taught("clock") else "morph_running never reached a lesson")
-	_check(not tutorial.has_taught("sure"),
-		"and the second reading does not land on top of it", "still waiting for a morph")
-
-	# Back to the apo, then a second drawing: now `sure` has its own frame.
-	life.call("clear")
-	card.call("hide_form")
-	await _wait(0.4)
-	card.call("show_form", "Frog", sketch, 0.62)
-	life.call("begin", "Frog", "frog")
-	await _wait(0.5)
-	_check(tutorial.has_taught("sure"), "the confidence reading is explained on the next one",
-		"taught" if tutorial.has_taught("sure") else "sure never fired")
-	_check(order == ["clock", "sure"], "and they arrive in that order",
-		", ".join(order) if not order.is_empty() else "neither fired")
-
-
-## ⚠ THE FIRST CHECKPOINT SAYS WHAT A CHECKPOINT IS, AND THE SAYING STAYS UP. Kent: "when I do
-## checkpoint, as a first time player, i dont know what it does". The lesson that explains it
-## yielded to whatever Lolo was saying as the player walked in, and when it did go up it was
-## replaced in the same frame by "The level will remember you from here".
-func _audit_the_first_checkpoint_explains_itself() -> void:
+## LOLO STEPS BACK FOR A CARD, AND COMES BACK. Two things to read at once is the overwhelm
+## this answers; losing his line to it would be a new fault.
+func _audit_the_hint_bar_steps_back() -> void:
+	await _fresh()
 	var bar := level.get("hint_bar") as HintBar
-	var tutorial := level.get("tutorial") as TutorialDirector
-	if bar == null or tutorial == null:
-		_check(false, "the level has a hint bar and a tutorial", "-")
-		return
-	_check(not tutorial.has_taught("checkpoint"), "no checkpoint has been explained yet", "fresh run")
-	# Lolo mid-sentence, as he is when the player walks up Ang Hagdan.
-	bar.show_hint("Walk with me, apo.", Lolo.SPEAKER, 0.0)
-	await _wait(0.2)
-	level.call("_say_checkpoint")
-	await _wait(0.4)
-	var said := String(bar.call("current_text"))
-	_check(tutorial.has_taught("checkpoint") and said.contains("If you fall or get stuck"),
-		"the first checkpoint explains itself over Lolo", said)
-	level.call("_say_checkpoint")
-	await _wait(0.4)
-	said = String(bar.call("current_text"))
-	_check(said.begins_with("Checkpoint.") and said.contains("start again from here"),
-		"and the ones after it say so in a line", said)
-	bar.clear()
+	var bar_panel := bar.get_node("Panel") as Control
+	bar.show_hint("Draw something that can climb, apo.", Lolo.SPEAKER, 0.0)
 	await _wait(0.3)
+	# A `do` card, which stops nothing: the pause state cannot be what sends Lolo back.
+	_show("draw")
+	await _wait(0.2)
+	_check(bar_panel.modulate.a < 0.01, "Lolo's line steps back while a card is up",
+		"alpha %.2f" % bar_panel.modulate.a)
+	spot.finish("seen")
+	await _wait(TutorialSpotlight.CLOSE_SEC + 0.2)
+	_check(bar_panel.modulate.a > 0.99 and bar.current_text().contains("climb"),
+		"and comes back, still saying it", "'%s'" % bar.current_text())
+	bar.clear()
+
+
+## ONLY IN ITS MOMENT. The placement's lesson waits for a placement; offered without one, it
+## does not show at all.
+func _audit_only_in_its_moment() -> void:
+	await _fresh()
+	tutorial.note("placement_started")
+	await _wait(1.5)
+	_check(not spot.is_open() and tutorial.pending_ids().has("place"),
+		"a placement lesson does not show with nothing being placed",
+		"up '%s'" % spot.lesson_id())
+	await _fresh()
 
 
 ## ⚠ THE CHECKPOINT LINE WAS PRINTED UNDER THE LETTERBOX. The bars come in over the top
@@ -333,32 +335,40 @@ func _audit_the_bar_clears_the_letterbox() -> void:
 	_check((over or under) and beside and panel.global_position.y > HintBar.TOP + 1.0,
 		"and stands over the apo when the bars leave, not at the top",
 		"panel at %s, the apo's feet at %s" % [panel.global_position.round(), feet.round()])
+	bar.clear()
 
 
-## ⚠ A CALLOUT NEVER COVERS THE THING IT POINTS AT. Pointed at a card in the top corner of the
-## screen -- where the morph card and its INK bar sit -- "auto" tried above first, the screen
-## edge pushed the bubble back down, and it landed across the very bar it was explaining (Kent's
-## screenshot of Dagat's jars lesson). On a bare layer with nothing else to avoid, so the target
-## is the only thing that can push it clear. And a lesson with a speaker says whose it is.
-func _audit_a_callout_never_covers_its_target() -> void:
-	var layer := CanvasLayer.new()
-	layer.layer = 90
-	root.add_child(layer)
-	var view := level.get_viewport().get_visible_rect().size
-	var card := Rect2(Vector2(view.x - 400.0, 14.0), Vector2(380.0, 92.0))
-	var bubble := TutorialCallout.new()
-	layer.add_child(bubble)
-	bubble.point_at(card, "That bar is your ink now, apo. It goes down the whole time you are holding the shape.",
-		"", TutorialCallout.Side.AUTO, "Lolo")
-	await _wait(0.5)
-	var panel := bubble.get("_panel") as Control
-	var drawn := panel.get_global_rect() if panel != null else Rect2()
-	_check(panel != null and not drawn.intersects(card),
-		"a callout at a card in the corner stands clear of it",
-		"bubble %s, card %s" % [drawn, card])
-	var speaker := bubble.get("_speaker") as Label
-	_check(speaker != null and speaker.visible and speaker.text == "LOLO:",
-		"and a lesson with a speaker says whose it is",
-		"'%s'" % (speaker.text if speaker != null else ""))
-	layer.queue_free()
-	await process_frame
+## ⚠ THE FIRST CHECKPOINT SAYS WHAT A CHECKPOINT IS. Kent: "when I do checkpoint, as a first
+## time player, i dont know what it does". The first one is a card; the ones after are a line.
+func _audit_the_first_checkpoint_explains_itself() -> void:
+	await _fresh()
+	var bar := level.get("hint_bar") as HintBar
+	bar.show_hint("Walk with me, apo.", Lolo.SPEAKER, 0.0)
+	await _wait(0.2)
+	level.call("_say_checkpoint")
+	await _wait(0.4)
+	_check(spot.lesson_id() == "checkpoint" and spot.caption_text().contains("start again"),
+		"the first checkpoint explains itself on a card", "'%s'" % spot.caption_text())
+	_check(not bar.current_text().begins_with("Checkpoint."),
+		"and is not said twice on the bar underneath", "'%s'" % bar.current_text())
+	spot.finish("seen")
+	await _wait(TutorialSpotlight.CLOSE_SEC + 0.2)
+	level.call("_say_checkpoint")
+	await _wait(0.4)
+	var said := bar.current_text()
+	_check(not spot.is_open() and said.begins_with("Checkpoint.") and said.contains("start again from here"),
+		"and the ones after it say so in a line", said)
+	bar.clear()
+
+
+## ⚠ NOBODY AT THE KEYS. A run nobody is playing -- every headless suite -- must never be held
+## by a card waiting for a key: it stops nothing and goes by itself.
+func _audit_nobody_at_the_keys() -> void:
+	await _fresh()
+	_auto(true)
+	_show("ink")
+	await _wait(0.2)
+	_check(spot.is_auto() and not paused, "with nobody at the keys a look card stops nothing",
+		"paused %s" % paused)
+	await _wait(TutorialSpotlight.AUTO_SEC + TutorialSpotlight.CLOSE_SEC + 0.3)
+	_check(not spot.is_busy(), "and goes by itself", "up '%s'" % spot.lesson_id())
