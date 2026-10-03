@@ -372,18 +372,35 @@ func _resolve_python_executable() -> String:
 	return python_in(_repo_root().path_join(".venv"), OS.has_feature("windows"))
 
 
-## The command that starts serve.py: the project's .venv when it has one, and on a computer
-## that has never run the game -- no .venv yet -- the first Python 3.10+ it can find, which
-## serve.py then uses to make the .venv and fill it. Empty when there is no such Python.
+## The command that starts serve.py: the project's .venv when it has one that can serve, and
+## otherwise -- a computer that has never run the game, or a .venv that cannot -- the first
+## Python 3.10+ it can find, which serve.py then uses to make the .venv and fill it. Empty when
+## there is no such Python.
 func _python_command() -> PackedStringArray:
 	var configured := python_executable.strip_edges()
 	if not configured.is_empty():
 		return PackedStringArray([configured])
 	var windows := OS.has_feature("windows")
-	var venv := python_in(_repo_root().path_join(".venv"), windows)
-	if FileAccess.file_exists(venv):
-		return PackedStringArray([venv])
-	return find_python(python_candidates(windows))
+	return choose_python(python_in(_repo_root().path_join(".venv"), windows),
+		python_candidates(windows))
+
+
+## The .venv's own interpreter if it runs and is 3.10 or newer, and otherwise the first of
+## `candidates` that is.
+##
+## ⚠ THERE IS NOT THE SAME AS USABLE. This used the .venv's Python whenever the file existed,
+## so a .venv made with macOS's Python 3.9 started serve.py under 3.9, which refused -- "3.10 or
+## newer is needed" -- on a computer that had 3.12, and every start after said the same.
+## play.sh learnt to rebuild it (a teammate hit it); now the game does too: serve.py, started
+## with a Python that can, sets the old .venv aside and makes a new one. A Python removed or
+## upgraded out from under its .venv does not run at all, and is passed over the same way.
+static func choose_python(venv_python: String,
+		candidates: Array[PackedStringArray]) -> PackedStringArray:
+	if FileAccess.file_exists(venv_python):
+		var own: Array[PackedStringArray] = [PackedStringArray([venv_python])]
+		if not find_python(own).is_empty():
+			return own[0]
+	return find_python(candidates)
 
 
 ## Where a Python might be, in the order to ask. 3.12 and 3.11 first: every package the
