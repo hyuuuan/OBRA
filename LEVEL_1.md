@@ -129,6 +129,18 @@ it is pressed are literally the same string. **CP1** on commit.
 Three heaps of cut straw, Lola's stool and brush jar, and **the one place in Level 1 with an
 inside**: the middle heap is 220 × 200 and you can walk into it.
 
+**Her chest opens (2026-10-03).** Inside the heap stands Lola's padlocked chest (`Baul2D`).
+It used to be found, called "Locked. Of course.", and then never opened by anything. It was
+where the painting lived before the painting moved into Ang Bale, and a playtester reported
+"the box is not openable". Now, standing at it holding a drawn tool that can **cut** or
+**unlock**, F reads OPEN (`GameLevel._level_use_verb`, through LevelBase's
+`_level_use_verb` / `_level_uses_the_tool` hooks). F opens it, and the tool is used up like
+every tool. Her sketchbook page is shown as a memory card (`dialogue.json` →
+`levels.level_1.chest_memory`), and the board beside it re-reads `L1_N2.chest.opened`. The
+line after "Locked. Of course." says something that can **cut** would go through the hasp:
+**cut** is taught at the gorge, and **unlock** not until Ang Bale. Optional, like the cave's
+flower; the level waits on nothing in it. `run_walk_level1` → `_her_chest_opens`.
+
 **The heap art is Kent's; the room uses the delivered interior painting.** The heap is
 `level-1-assets/Haybale.png`, cut by `tools/build_art.py`. One picture serves four states:
 the cutter also produces a **mouthless copy** (the doorway filled by mirroring the straw
