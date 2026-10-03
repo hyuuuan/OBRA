@@ -9,6 +9,8 @@
 #
 #   tools/run_suites.sh            everything, to /tmp/obra_suites.log
 #   tools/run_suites.sh quick      skips run_tests, which alone takes over ten minutes
+#   tools/run_suites.sh only A B   just those suites ("python" for the Python tests): what a
+#                                  change touches, which is what to run after most changes
 #   tools/suite_watch.py [LOG]     a live bar for a run going somewhere else -- in the
 #                                  background, in another terminal -- read off its log
 #
@@ -64,6 +66,25 @@ WINDOW=(run_click_ui run_hud_watch_level1 run_real_drawing_probe)
 if [ "${1:-}" = "quick" ]; then
   HEADLESS=("${(@)HEADLESS:#run_tests}")
 fi
+WITH_PYTHON=1
+if [ "${1:-}" = "only" ]; then
+  shift
+  want=("$@")
+  unknown=(${want:|HEADLESS})
+  unknown=(${unknown:|WINDOW})
+  unknown=(${unknown:#python})
+  if (( ${#unknown} )); then
+    print "not a suite here: ${unknown[*]}"
+    exit 2
+  fi
+  HEADLESS=(${HEADLESS:*want})
+  WINDOW=(${WINDOW:*want})
+  (( ${want[(Ie)python]} )) || WITH_PYTHON=0
+fi
+# What this run will make, for the bar: a run of a few suites is a bar of a few suites.
+PLAN=($HEADLESS $WINDOW)
+(( WITH_PYTHON )) && PLAN+=(python)
+print "plan ${PLAN[*]}" >> "$LOG"
 
 # Each suite's own output, to look for a script error in once it is done.
 OUT=$(mktemp -t obra_suite)
@@ -109,13 +130,15 @@ run_one () {  # name, extra godot args
 for s in $HEADLESS; do run_one "$s" --headless; done
 for s in $WINDOW; do run_one "$s"; done
 
-began=$EPOCHSECONDS
-print "########## python" >> "$LOG"
-print "[start $began]" >> "$LOG"
-"$PY" -m unittest tests.test_backend_lifecycle tests.test_preprocess_paper \
-  tests.test_backend_telemetry tests.test_manifest_contract tests.test_backend_serve \
-  tests.test_suite_watch >> "$LOG" 2>&1
-note_result python $? $(( EPOCHSECONDS - began ))
+if (( WITH_PYTHON )); then
+  began=$EPOCHSECONDS
+  print "########## python" >> "$LOG"
+  print "[start $began]" >> "$LOG"
+  "$PY" -m unittest tests.test_backend_lifecycle tests.test_preprocess_paper \
+    tests.test_backend_telemetry tests.test_manifest_contract tests.test_backend_serve \
+    tests.test_suite_watch >> "$LOG" 2>&1
+  note_result python $? $(( EPOCHSECONDS - began ))
+fi
 
 # The bar finishes by itself once it reads the last result; let it, so its last line is drawn.
 if [ -n "$WATCHER" ]; then
@@ -124,7 +147,7 @@ if [ -n "$WATCHER" ]; then
 fi
 print ""
 if [ ${#failed[@]} -eq 0 ]; then
-  print "ALL SUITES PASSED  ($(( ${#HEADLESS[@]} + ${#WINDOW[@]} + 1 )) runs)  log: $LOG"
+  print "ALL SUITES PASSED  (${#PLAN[@]} runs)  log: $LOG"
   exit 0
 fi
 print "FAILED: ${failed[*]}"

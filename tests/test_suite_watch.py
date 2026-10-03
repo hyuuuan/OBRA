@@ -74,6 +74,12 @@ class ReadsTheLog(unittest.TestCase):
         self.assertEqual(watch.plan_for(quick, plan), ["run_level_ready", "python"])
         self.assertEqual(watch.plan_for(watch.parse(OLD_LOG), plan), plan)
 
+    def test_a_run_of_a_few_suites_is_a_bar_of_a_few(self) -> None:
+        log = "started 1\nplan run_tutorial_audit python\n########## run_tutorial_audit\n[exit 0]\n"
+        state = watch.parse(log)
+        self.assertEqual(watch.plan_for(state, ["run_tests", "run_tutorial_audit", "python"]),
+                         ["run_tutorial_audit", "python"])
+
     def test_the_plan_is_read_off_the_runner(self) -> None:
         plan = watch.planned()
         self.assertEqual(plan[0], "run_tests")

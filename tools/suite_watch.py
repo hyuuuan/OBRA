@@ -43,6 +43,8 @@ HEADER = re.compile(r"^########## (\S+)\s*$")
 START = re.compile(r"^\[start (\d+)\]\s*$")
 EXIT = re.compile(r"^\[exit (-?\d+)(?: in (\d+)s)?\]\s*$")
 STARTED = re.compile(r"^started (\d+)$")
+# The runner's own list of what this run makes -- all of it, `quick`, or `only` a few.
+PLAN = re.compile(r"^plan (.*)$")
 BROKEN = ("SCRIPT ERROR", "Parse Error")
 BAR = 24
 # How many of a suite's past runs its estimate is the median of.
@@ -68,7 +70,13 @@ def parse(text: str) -> dict:
     """
     runs: list[dict] = []
     current = None
+    plan: list[str] = []
     for line in text.splitlines():
+        if not runs and not plan:
+            listed = PLAN.match(line)
+            if listed:
+                plan = listed.group(1).split()
+                continue
         header = HEADER.match(line)
         if header:
             current = {"name": header.group(1), "code": None, "broken": False,
@@ -91,14 +99,14 @@ def parse(text: str) -> dict:
             current["broken"] = True
     finished = [run for run in runs if run["code"] is not None]
     running = runs[-1] if runs and runs[-1]["code"] is None else None
-    return {"runs": finished, "current": running}
+    return {"runs": finished, "current": running, "plan": plan}
 
 
 def read(log: Path) -> dict:
     try:
         return parse(log.read_text(errors="replace"))
     except FileNotFoundError:
-        return {"runs": [], "current": None}
+        return {"runs": [], "current": None, "plan": []}
 
 
 def failed(run: dict) -> bool:
@@ -106,6 +114,10 @@ def failed(run: dict) -> bool:
 
 
 def plan_for(state: dict, plan: list[str]) -> list[str]:
+    """What this run makes: the plan the runner wrote into the log, or -- for a log from before
+    it did -- the runner's lists, without run_tests if the run did not start with it."""
+    if state.get("plan"):
+        return state["plan"]
     seen = [run["name"] for run in state["runs"]]
     if state["current"]:
         seen.append(state["current"]["name"])
