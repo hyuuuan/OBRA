@@ -415,9 +415,9 @@ func _lands_on(rect: Rect2, panels: Array[Rect2]) -> bool:
 
 ## The rest of the HUD on this layer: every framed panel, and what draws its own ground.
 ##
-## Not Lolo's bar and not a lesson's bubble. The bar stands clear of these keys (see
-## `keys_below_feet`), and a bubble is placed against them -- moving for either would leave
-## the bar dodging back and the bubble's beak aimed at where the keys used to be.
+## Not Lolo's bar. The bar stands clear of these keys (see `keys_below_feet`), and moving
+## for it would leave the two dodging each other. A lesson card is on its own layer over a
+## dimmed screen and is not part of this HUD at all.
 func _hud_panels() -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	var layer := get_parent()
@@ -432,7 +432,7 @@ func _hud_panels() -> Array[Rect2]:
 
 
 func _gather_panels(node: Node, into: Array[Rect2]) -> void:
-	if node == self or node is HintBar or node is TutorialCallout:
+	if node == self or node is HintBar:
 		return
 	var panel := node as PanelContainer
 	if panel != null and panel.is_visible_in_tree() and panel.modulate.a > 0.05 \
@@ -447,7 +447,7 @@ func _gather_panels(node: Node, into: Array[Rect2]) -> void:
 func _yields_to_the_keys(control: Control) -> bool:
 	var cursor: Node = control
 	while cursor != null:
-		if cursor is HintBar or cursor is TutorialCallout:
+		if cursor is HintBar:
 			return true
 		cursor = cursor.get_parent()
 	return false

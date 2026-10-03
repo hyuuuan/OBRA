@@ -2967,7 +2967,7 @@ func _on_curtain_changed(closed: float) -> void:
 var _curtain_closed := 0.0
 var _story_veil := 1.0
 ## The HUD pieces along the bottom of the screen, which is where Lolo's story box stands.
-const UNDER_THE_STORY_BOX := [&"GoalLabelChip", &"TutorialCallout", &"RequirementStrip",
+const UNDER_THE_STORY_BOX := [&"GoalLabelChip", &"RequirementStrip",
 	&"DrawButton", &"ActionPrompts"]
 
 
