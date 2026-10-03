@@ -748,6 +748,15 @@ it. If you are retuning a jump, a gap or an object size, read R1-R6 there first:
 numbers in this level are measured against each other, and the ones that look arbitrary
 are not.
 
+**The lake before the gorge (`CentralPaddy`) is 600px, x 2280–2880** (Kent, 2026-10-03: "longer
+instead of a puddle"). It was a 300px paddy, which a 340px drawn bridge spanned; it grew west
+into the bank before it, so the gorge and everything after it did not move. A bridge no longer
+reaches across. A boat does, and so does something that swims. It is 160 deep and filled to
+the rim, so the apo cannot wade it, and going under puts her back at her last checkpoint.
+`run_walk_level1` holds the width, keeps water, bed and basin bank to bank, checks no signpost
+stands in it, and rides a boat across. It is not in `GATES.md` and has no beat or hint of its
+own: the banner says "Follow the terraces east to the gorge" all the way across it.
+
 ## What the player is told to do
 
 A line under the badge and a marker over the world, asked of the level five times a second

@@ -273,19 +273,19 @@ surface_style = 3
 [node name="Terrace3" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=979666756]
 position = Vector2(2160, 240)
 script = ExtResource("5_terrace")
-segment_size = Vector2(360, 440)
+segment_size = Vector2(60, 440)
 surface_style = 3
 
 [node name="CentralLeft" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1543895957]
-position = Vector2(2520, 240)
+position = Vector2(2220, 240)
 script = ExtResource("5_terrace")
 segment_size = Vector2(60, 440)
 surface_style = 3
 
 [node name="CentralPaddyFloor" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1699466670]
-position = Vector2(2580, 400)
+position = Vector2(2280, 400)
 script = ExtResource("5_terrace")
-segment_size = Vector2(300, 280)
+segment_size = Vector2(600, 280)
 surface_style = 4
 
 [node name="CentralRight" type="StaticBody2D" parent="GameplayPlane/Terrain" unique_id=1740253419]
@@ -321,7 +321,7 @@ position = Vector2(1420, 280)
 shape = SubResource("Wedge_rise_60")
 
 [node name="CentralPaddyDown" type="StaticBody2D" parent="GameplayPlane/Transitions" unique_id=1372162065]
-position = Vector2(2580, 240)
+position = Vector2(2280, 240)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Transitions/CentralPaddyDown" unique_id=28919375]
 shape = SubResource("Wedge_puddle_down_b")
@@ -329,17 +329,17 @@ shape = SubResource("Wedge_puddle_down_b")
 [node name="WaterAreas" type="Node2D" parent="GameplayPlane" unique_id=1471465019]
 
 [node name="CentralPaddyBack" type="Node2D" parent="GameplayPlane/WaterAreas" unique_id=1471465021]
-position = Vector2(2580, 240)
+position = Vector2(2280, 240)
 script = ExtResource("28_paddy")
-opening = Rect2(0, 0, 300, 164)
+opening = Rect2(0, 0, 600, 164)
 
 [node name="CentralPaddy" type="Area2D" parent="GameplayPlane/WaterAreas" unique_id=1991169185]
 z_index = 3
-position = Vector2(2730, 320)
+position = Vector2(2580, 320)
 script = ExtResource("4_water")
 buoyancy = 2.6
 linear_drag = 3.1
-surface_size = Vector2(300, 160)
+surface_size = Vector2(600, 160)
 water_color = Color(0.380, 0.420, 0.259, 0.6)
 deep_color = Color(0.184, 0.176, 0.098, 0.8)
 highlight_color = Color(0.784, 0.843, 0.749, 0.85)
@@ -452,7 +452,7 @@ position = Vector2(1630, 250)
 texture = SubResource("Atlas_rock")
 
 [node name="FloweringBushA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1363963344]
-position = Vector2(2340, 218)
+position = Vector2(2190, 218)
 texture = ExtResource("11_bush")
 
 [node name="FloweringBushB" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1430528708]
