@@ -1954,6 +1954,17 @@ func _offer_the_tool_in_the_bag(may_offer: bool) -> void:
 		hint_bar.show_hint(offer, Lolo.SPEAKER)
 
 
+## What F would do with this held tool HERE for a reason of the level's own, outside any beat
+## -- Payyo's chest -- in the prompt's words. "" when it would do nothing of the kind.
+func _level_use_verb(_entity_id: String) -> String:
+	return ""
+
+
+## Use the held tool for that reason. True when the level took it; F then does nothing else.
+func _level_uses_the_tool(_item: DrawnItemData) -> bool:
+	return false
+
+
 ## Whether answering this beat with this tool uses it up. Almost always: the answer is the
 ## whole of what the tool does. A level overrides this for the routes where the tool still
 ## has work to do after the beat is answered, and spends it itself when that work is done.
@@ -2352,6 +2363,9 @@ func _use_equipped_utility() -> void:
 			_equipped_utility.describe_use(player)
 			status_label.text = "%s -- keep using it" % item.display_name
 		return
+	# Or for something of the level's own, outside any beat (Payyo's chest).
+	if item != null and _level_uses_the_tool(item):
+		return
 	var outcome := _equipped_utility.describe_use(player)
 	status_label.text = outcome if not outcome.is_empty() \
 		else "%s can't do that here" % item.display_name
@@ -2404,11 +2418,12 @@ func _refresh_action_prompts() -> void:
 	var held_id := String(_equipped_utility.item_data.entity_id) \
 		if can_use and _equipped_utility.item_data != null else ""
 	var answers := not held_id.is_empty() and _tool_answers_here(held_id)
+	var level_verb := "" if answers or held_id.is_empty() else _level_use_verb(held_id)
 	action_prompts.set_use_available(
 		can_use,
 		_drawing_display_name(_equipped_utility) if can_use else "",
-		_verb_for(held_id) if answers else "USE")
-	_offer_the_tool_in_the_bag(can_act and not answers)
+		_verb_for(held_id) if answers else (level_verb if not level_verb.is_empty() else "USE"))
+	_offer_the_tool_in_the_bag(can_act and not answers and level_verb.is_empty())
 
 	# ⚠ THE ONE VERB PAYYO IS ABOUT, AND THE INTERFACE SAID THE OPPOSITE OF IT.
 	#
