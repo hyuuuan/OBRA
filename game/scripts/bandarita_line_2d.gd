@@ -31,6 +31,14 @@ signal cut()
 @export var nest_count := 3
 ## Whether the strings are still up.
 @export var intact := true
+## A supplied two-string plate can skin the upper live string. The lower painted string is
+## deliberately outside the sampled strip: there is one reachable line, not a second fake one.
+@export var pennant_texture: Texture2D
+
+const TEXTURE_STEPS := 128
+const TEXTURE_ABOVE := 8.0
+const TEXTURE_BELOW := 100.0
+var _rope_rows := PackedFloat32Array()
 
 ## THE CEILING SITS JUST UNDER THE STRINGS, not at them: a flier at exactly the line has not
 ## crossed anything, and a boundary that triggers where the art is drawn reads as the art
@@ -68,6 +76,7 @@ var _falling := 0.0
 func _ready() -> void:
 	add_to_group(&"bandarita_lines")
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_prepare_pennants()
 	set_process(true)
 
 
@@ -163,10 +172,18 @@ func put_back_up() -> void:
 
 func _draw() -> void:
 	if not intact and _falling >= 1.0:
+		if pennant_texture != null:
+			# The supplied alley is open sky here, not the old wall that held these pegs.
+			return
 		# The pegs stay in the wall. An empty line is the scene telling a player who comes
 		# back that something used to be strung here, which "nothing at all" cannot say.
 		for side: float in [-1.0, 1.0]:
 			draw_rect(Rect2(side * span * 0.5 - 4.0, -10.0, 8.0, 20.0), STRING)
+		return
+	if pennant_texture != null and _rope_rows.size() == TEXTURE_STEPS + 1:
+		_draw_pennants()
+		for index in range(nest_count):
+			_draw_nest(_string_at(_nest_t(index)))
 		return
 	var fall := _falling
 	var count := int(span / FLAG_STEP)
@@ -189,6 +206,50 @@ func _draw() -> void:
 			at + Vector2(FLAG_STEP * 0.4, FLAG_DROP)]), colour)
 	for index in range(nest_count):
 		_draw_nest(_string_at(_nest_t(index)))
+
+
+## Follow the plate's upper rope with UV strips, then put those strips on the SAME curve
+## reach_distance and nest_point use. A fixed sprite would leave the birds beside the rope
+## and let the player cut empty sky as soon as its painted sag differed from SAG.
+func _prepare_pennants() -> void:
+	if pennant_texture == null:
+		return
+	var picture := pennant_texture.get_image()
+	for index in range(TEXTURE_STEPS + 1):
+		var x := mini(picture.get_width() - 1,
+			int(float(index) / TEXTURE_STEPS * picture.get_width()))
+		var rope := -1
+		# Ignore faint stray alpha outside the actual art, and stop before the second rope.
+		for y in range(int(picture.get_height() * 0.20), int(picture.get_height() * 0.49)):
+			if picture.get_pixel(x, y).a > 0.85:
+				rope = y
+				break
+		if rope < 0:
+			push_error("Bandarita plate has no upper rope at column %d" % x)
+			_rope_rows.clear()
+			return
+		_rope_rows.append(float(rope))
+
+
+func _draw_pennants() -> void:
+	var size := pennant_texture.get_size()
+	# The rope spans the full source width; use that same scale vertically for each flag.
+	var texture_scale := span / size.x
+	var tint := PackedColorArray([Color(1.0, 1.0, 1.0, 1.0 - _falling * 0.5)])
+	for index in range(TEXTURE_STEPS):
+		var left := float(index) / TEXTURE_STEPS
+		var right := float(index + 1) / TEXTURE_STEPS
+		var a := _string_at(left)
+		var b := _string_at(right)
+		var top := Vector2(0.0, -TEXTURE_ABOVE * texture_scale)
+		var bottom := Vector2(0.0, TEXTURE_BELOW * texture_scale)
+		var uv := PackedVector2Array([
+			Vector2(left, (_rope_rows[index] - TEXTURE_ABOVE) / size.y),
+			Vector2(right, (_rope_rows[index + 1] - TEXTURE_ABOVE) / size.y),
+			Vector2(right, (_rope_rows[index + 1] + TEXTURE_BELOW) / size.y),
+			Vector2(left, (_rope_rows[index] + TEXTURE_BELOW) / size.y)])
+		draw_polygon(PackedVector2Array([a + top, b + top, b + bottom, a + bottom]),
+			tint, uv, pennant_texture)
 
 
 ## A cup of grass hung on the string: dark underside, lit rim, a few stray stalks.

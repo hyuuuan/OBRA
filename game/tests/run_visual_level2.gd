@@ -46,6 +46,11 @@ func _run() -> void:
 	if choice != null and choice.has_method("close"):
 		choice.call("close")
 	await _wait(0.4)
+	if OS.get_cmdline_user_args().has("--alley1"):
+		var ok := await _look_at_alley1()
+		print("OBRA_VISUAL_ALLEY1_%s" % ("OK" if ok else "FAILED"))
+		quit(0 if ok else 1)
+		return
 	if OS.get_cmdline_user_args().has("--church"):
 		var ok := await _look_at_the_church(level.get("church") as Node2D)
 		print("OBRA_VISUAL_CHURCH_%s" % ("OK" if ok else "FAILED"))
@@ -273,6 +278,96 @@ func _look_at_the_dance() -> void:
 		if not screen.is_open():
 			break
 		await process_frame
+
+
+## Photograph the supplied plates at both approaches, then climb and cut through gameplay
+## so the cut frame includes the birds, scraps and sky restriction changing with the art.
+func _look_at_alley1() -> bool:
+	(level.get("chancel") as ChurchInterior2D).kandila_on_rack = true
+	(level.get("church") as PiyestaRoom2D).open_onward()
+	level.call("_go_onward", level.get("church"))
+	var choice := level.get_node(^"DialogueChoiceOverlay")
+	var deadline := Time.get_ticks_msec() + 5000
+	while not bool(choice.call("is_open")) and Time.get_ticks_msec() < deadline:
+		await process_frame
+	if not bool(choice.call("is_open")):
+		push_error("Alley 1 visual harness: entry never offered its routes")
+		return false
+	choice.call("_on_route_pressed", "pragmatist")
+	await _wait(1.0)
+	var room := level.get("alley_1") as PiyestaRoom2D
+	for step in [[room.entry_point().x, "entry"], [room.global_position.x, "middle"],
+			[room.return_point().x, "onward"]]:
+		level.call("_step_through", Vector2(float(step[0]), room.global_position.y - 4.0))
+		await _wait(0.9)
+		await _capture("alley1_%s" % step[1])
+	var line := room.get_node("Bandaritas") as BandaritaLine2D
+	if line.pennant_texture == null or not await _climb_and_cut(line, room):
+		push_error("Alley 1 visual harness: supplied bunting was absent or could not be cut")
+		return false
+	await _wait(0.25)
+	await _capture("alley1_falling")
+	await _wait(0.8)
+	await _capture("alley1_cut")
+	level.call("_restore_checkpoint")
+	await _wait(0.9)
+	await _capture("alley1_restored")
+	return line.still_a_ceiling()
+
+
+func _climb_and_cut(line: BandaritaLine2D, room: PiyestaRoom2D) -> bool:
+	level.call("_step_through", Vector2(line.middle().x, room.global_position.y - 4.0))
+	await _wait(0.4)
+	_visual_draw("ladder")
+	await _wait(0.2)
+	var slot := int(level.call("_slot_holding", "ladder"))
+	if slot < 0:
+		push_error("Alley 1 visual harness: ladder did not enter the inventory")
+		return false
+	level.call("_on_inventory_slot_pressed", slot)
+	await _wait(0.1)
+	var placement := level.get("placement_controller") as Node2D
+	placement.set_process(false)
+	placement.call("update_target", Vector2(line.middle().x, player.global_position.y - 60.0))
+	await _wait(0.1)
+	placement.call("confirm_placement")
+	placement.set_process(true)
+	await _wait(0.3)
+	var ladder: PhysicsShapeObject
+	for item in (level.get("world_item_root") as Node).get_children():
+		var drawn := item as PhysicsShapeObject
+		if drawn != null and drawn.item_data != null and drawn.item_data.entity_id == "ladder":
+			ladder = drawn
+	if ladder == null:
+		push_error("Alley 1 visual harness: ladder could not be set under the strings")
+		return false
+	_visual_draw("scissors")
+	await _wait(0.2)
+	player.global_position.x = ladder.global_position.x
+	await _wait(0.3)
+	Input.action_press(&"move_up")
+	await _wait(4.0)
+	level.call("_use_equipped_utility")
+	Input.action_release(&"move_up")
+	return line.is_cut() and bool(level.get("director").call("is_solved", "L2_N2"))
+
+
+func _visual_draw(entity_id: String) -> void:
+	var drawing := Image.create(64, 132, false, Image.FORMAT_RGBA8)
+	drawing.fill(Color.TRANSPARENT)
+	var strokes: Array = []
+	if entity_id == "ladder":
+		# Give the visual probe actual ink; the headless fixture is an empty bitmap.
+		for x in [12, 52]:
+			drawing.fill_rect(Rect2i(x - 2, 4, 4, 124), Color.BLACK)
+			strokes.append({"points": PackedVector2Array([Vector2(x, 6), Vector2(x, 126)]),
+				"width": 4.0, "color": Color.BLACK})
+		for y in range(18, 127, 24):
+			drawing.fill_rect(Rect2i(10, y - 2, 44, 4), Color.BLACK)
+			strokes.append({"points": PackedVector2Array([Vector2(12, y), Vector2(52, y)]),
+				"width": 4.0, "color": Color.BLACK})
+	level.call("_on_drawing_ready", entity_id, entity_id.capitalize(),
+		drawing, {"confidence": 0.9}, strokes, 1.0)
 
 
 func _capture(label: String) -> void:

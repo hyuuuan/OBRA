@@ -12,8 +12,9 @@ extends Node2D
 ## they have left.
 ##
 ## The church and lit house use composed picture assets registered to their live doors.
-## The alleys use the authored interior tiles. The same shell still supplies the floor,
-## boundaries and transitions; sacred images and background furniture are only pixels.
+## Alley 1 overrides the dressing with its supplied sky, shop and ground plates; Alley 2
+## uses the authored interior tiles. The same shell supplies the floor, boundaries and
+## transitions; sacred images and background furniture are only pixels.
 ##
 ## THE RULER IS THE APO, as it is in the straw room. He is 96 pixels tall and a child of
 ## about a metre thirty, so A METRE IS SEVENTY-TWO PIXELS, and every dimension here carries
@@ -76,6 +77,8 @@ const CHURCH_ART = preload("res://scripts/church_art.gd")
 ## transition in the level that is supposed to mean progress. `level_02.json` already names
 ## the light for Problem 3 `late_afternoon`; this is that light, and a different street.
 @export var late := false
+## Optional art for the live cuttable line. Its curve, nests and reach stay in BandaritaLine2D.
+@export var bunting_texture: Texture2D
 
 ## A doorway in a town wall: one metre by two and a bit.
 const DOOR := Vector2(76.0, 150.0)

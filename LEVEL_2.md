@@ -163,6 +163,29 @@ with no collision or interaction. `run_level2_chain_probe` checks the art regist
 the level’s E handler; `run_visual_level2 --church` pushes E through a real viewport
 and captures both doors, the rack and the placed-candle state.
 
+## The supplied Alley 1 layers — October 2026
+
+Alley 1 now uses the supplied afternoon sky, sari-sari store, ground and red bandaritas.
+Originals are preserved in `level-2-assets/alley_1/`; the runtime PNGs are under
+`game/assets/Level2/alley_1/`. `alley_1_room_2d.gd` inherits the existing room shell and
+only changes its dressing and camera clamp. The ground's walking row is 895, while the
+store's feet are at 800: each is registered separately to the same live floor. The original
+floor, transition areas, flock space and route mechanics retain their geometry. Small
+street signs mark the existing exits, with a barrier on the onward route until collection
+opens it. The plates use one scale on both axes to preserve their original proportions;
+Alley 2 keeps its previous art.
+
+The supplied store also contained painted flags. Its runtime copy removes those with
+ImageGen, retaining the unedited original alongside the other source plates. The upper
+string from `bandaritas.png` skins `BandaritaLine2D` through UV strips that follow its
+existing curve. Nests, cutting reach, sway and falling all use that same curve; the extra
+painted string is outside the sampled strip, so it cannot become an unreachable second
+target. Cutting leaves no flags in the store backdrop, and restoring raises the live line.
+
+Visual check: `run_visual_level2.gd -- --alley1` photographs the entry, middle, onward
+approach, falling bunting, cut state and restored state. The existing alley probe plays
+feeding, climbing/cutting, throwing, collecting and checkpoint restore in both alleys.
+
 ## The level in one paragraph
 
 Recover **seven scraps** of the **Dagat** painting — the next level's, which is how Piyesta

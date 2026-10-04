@@ -605,6 +605,7 @@ func _string_the_bunting(alley: _Alley) -> void:
 	line.name = "Bandaritas"
 	line.span = alley.room.room_length - 120.0
 	line.nest_count = alley.scraps.size()
+	line.pennant_texture = alley.room.bunting_texture
 	line.position = Vector2(0.0, -ALLEY_LINE)
 	alley.room.add_child(line)
 	alley.line = line
