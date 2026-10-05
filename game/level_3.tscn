@@ -1,21 +1,20 @@
-[gd_scene load_steps=26 format=3]
+[gd_scene format=3 uid="uid://c20rrwqj4cif4"]
 
-[ext_resource type="Script" path="res://scripts/level_3.gd" id="1_level"]
-[ext_resource type="Script" path="res://scripts/ui_oval_frame.gd" id="40_oval"]
-[ext_resource type="Script" path="res://scripts/entity_registry.gd" id="2_registry"]
-[ext_resource type="Script" path="res://scripts/draw_panel.gd" id="3_panel"]
-[ext_resource type="Script" path="res://scripts/drawing_canvas.gd" id="4_canvas"]
-[ext_resource type="Script" path="res://scripts/sketch_client.gd" id="5_client"]
+[ext_resource type="Script" uid="uid://xi550ovp0ml1" path="res://scripts/level_3.gd" id="1_level"]
+[ext_resource type="Script" uid="uid://d0an1bmtb5qc3" path="res://scripts/entity_registry.gd" id="2_registry"]
+[ext_resource type="Script" uid="uid://drxne0eggtwt1" path="res://scripts/draw_panel.gd" id="3_panel"]
+[ext_resource type="Script" uid="uid://mvf0xesfnobu" path="res://scripts/drawing_canvas.gd" id="4_canvas"]
+[ext_resource type="Script" uid="uid://cbdgsfbyjxvt2" path="res://scripts/sketch_client.gd" id="5_client"]
 [ext_resource type="PackedScene" path="res://levels/level_3/level_3_environment.tscn" id="6_environment"]
-[ext_resource type="Script" path="res://scripts/backend_supervisor.gd" id="7_backend"]
-[ext_resource type="Script" path="res://scripts/ink_manager.gd" id="8_ink"]
-[ext_resource type="Script" path="res://scripts/ink_drain.gd" id="8_drain"]
-[ext_resource type="Script" path="res://scripts/morph_life.gd" id="8_life"]
-[ext_resource type="Script" path="res://scripts/inventory_manager.gd" id="9_inventory"]
-[ext_resource type="Script" path="res://scripts/placement_controller.gd" id="10_placement"]
-[ext_resource type="Script" path="res://scripts/inventory_hud.gd" id="11_inventory_hud"]
-[ext_resource type="Script" path="res://scripts/pause_menu.gd" id="12_pause"]
-[ext_resource type="Script" path="res://scripts/ui_router.gd" id="13_ui_router"]
+[ext_resource type="Script" uid="uid://b2p201vb2w6tp" path="res://scripts/backend_supervisor.gd" id="7_backend"]
+[ext_resource type="Script" uid="uid://b5ibthi4fg1of" path="res://scripts/ink_drain.gd" id="8_drain"]
+[ext_resource type="Script" uid="uid://b5jeuje3h7caj" path="res://scripts/ink_manager.gd" id="8_ink"]
+[ext_resource type="Script" uid="uid://duoir2cd4gu7c" path="res://scripts/morph_life.gd" id="8_life"]
+[ext_resource type="Script" uid="uid://c3gdi3u1p0kp3" path="res://scripts/inventory_manager.gd" id="9_inventory"]
+[ext_resource type="Script" uid="uid://kg7lq2pj2nmo" path="res://scripts/placement_controller.gd" id="10_placement"]
+[ext_resource type="Script" uid="uid://dwfnd1ypdgi0y" path="res://scripts/inventory_hud.gd" id="11_inventory_hud"]
+[ext_resource type="Script" uid="uid://dvkf8nndle23o" path="res://scripts/pause_menu.gd" id="12_pause"]
+[ext_resource type="Script" uid="uid://bmndkbc1xcd1a" path="res://scripts/ui_router.gd" id="13_ui_router"]
 [ext_resource type="PackedScene" path="res://ui/settings_overlay.tscn" id="14_settings"]
 [ext_resource type="PackedScene" path="res://ui/controls_overlay.tscn" id="15_controls"]
 [ext_resource type="PackedScene" path="res://ui/confirm_overlay.tscn" id="16_confirm"]
@@ -23,51 +22,64 @@
 [ext_resource type="PackedScene" path="res://ui/out_of_ink_overlay.tscn" id="18_out_of_ink"]
 [ext_resource type="PackedScene" path="res://ui/dialogue_choice_overlay.tscn" id="19_dialogue"]
 [ext_resource type="PackedScene" path="res://ui/memory_overlay.tscn" id="20_memory"]
-[ext_resource type="Shader" path="res://shaders/draw_panel_background.gdshader" id="41_draw_bg"]
+[ext_resource type="Script" uid="uid://cs5x2snkr6ijx" path="res://scripts/ui_oval_frame.gd" id="40_oval"]
+[ext_resource type="Shader" uid="uid://dpj3tvq5x7vrs" path="res://shaders/draw_panel_background.gdshader" id="41_draw_bg"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_draw_bg"]
 shader = ExtResource("41_draw_bg")
+shader_parameter/veil_color = Color(0.027, 0.035, 0.024, 1)
+shader_parameter/wind_gold = Color(0.859, 0.659, 0.208, 1)
+shader_parameter/wind_pale = Color(0.945, 0.855, 0.616, 1)
+shader_parameter/veil_strength = 0.66
+shader_parameter/edge_blur_lod = 5.8
+shader_parameter/spin_blur = 0.02
+shader_parameter/chromatic_pixels = 2.1
+shader_parameter/polar_displacement = 0.007
+shader_parameter/dream_flow_pixels = 14.0
+shader_parameter/dream_speed = 0.34
+shader_parameter/dream_breathe = 0.1
+shader_parameter/opening_burst = 0.0
 
-[node name="Level3" type="Node2D"]
+[node name="Level3" type="Node2D" unique_id=241774718]
 script = ExtResource("1_level")
 
-[node name="EnvironmentBaseplate" parent="." instance=ExtResource("6_environment")]
+[node name="EnvironmentBaseplate" parent="." unique_id=934048935 instance=ExtResource("6_environment")]
 
-[node name="EntityRegistry" type="Node" parent="."]
+[node name="EntityRegistry" type="Node" parent="." unique_id=2012804185]
 script = ExtResource("2_registry")
 
-[node name="BackendSupervisor" type="Node" parent="."]
+[node name="BackendSupervisor" type="Node" parent="." unique_id=2105576339]
 script = ExtResource("7_backend")
 
-[node name="InkManager" type="Node" parent="."]
+[node name="InkManager" type="Node" parent="." unique_id=587683049]
 script = ExtResource("8_ink")
 
-[node name="MorphLife" type="Node" parent="."]
+[node name="MorphLife" type="Node" parent="." unique_id=245752002]
 script = ExtResource("8_life")
 
-[node name="InkDrain" type="Node" parent="."]
+[node name="InkDrain" type="Node" parent="." unique_id=555822001]
 script = ExtResource("8_drain")
 
-[node name="InventoryManager" type="Node" parent="."]
+[node name="InventoryManager" type="Node" parent="." unique_id=415712145]
 script = ExtResource("9_inventory")
 
-[node name="PlacementController" type="Node2D" parent="."]
+[node name="PlacementController" type="Node2D" parent="." unique_id=2135634912]
 script = ExtResource("10_placement")
 
-[node name="WorldItemRoot" type="Node2D" parent="EnvironmentBaseplate/GameplayPlane"]
+[node name="WorldItemRoot" type="Node2D" parent="EnvironmentBaseplate/GameplayPlane" unique_id=1462903377]
 z_index = 5
 
-[node name="CanvasLayer" type="CanvasLayer" parent="."]
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1999831669]
 layer = 5
 
-[node name="StatusLabel" type="Label" parent="CanvasLayer"]
+[node name="StatusLabel" type="Label" parent="CanvasLayer" unique_id=876130217]
 offset_left = 24.0
 offset_top = 20.0
 offset_right = 620.0
 offset_bottom = 52.0
 text = "Ready"
 
-[node name="DrawButton" type="Button" parent="CanvasLayer"]
+[node name="DrawButton" type="Button" parent="CanvasLayer" unique_id=1711541771]
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
@@ -79,7 +91,7 @@ grow_horizontal = 0
 focus_mode = 0
 text = "Draw"
 
-[node name="InkBar" type="ProgressBar" parent="CanvasLayer"]
+[node name="InkBar" type="ProgressBar" parent="CanvasLayer" unique_id=918748958]
 offset_left = 24.0
 offset_top = 62.0
 offset_right = 344.0
@@ -88,14 +100,14 @@ mouse_filter = 2
 value = 100.0
 show_percentage = false
 
-[node name="InkLabel" type="Label" parent="CanvasLayer"]
+[node name="InkLabel" type="Label" parent="CanvasLayer" unique_id=2026205760]
 offset_left = 354.0
 offset_top = 61.0
 offset_right = 620.0
 offset_bottom = 88.0
 text = "Ink 12.0 / 12.0"
 
-[node name="InventoryHUD" type="HBoxContainer" parent="CanvasLayer"]
+[node name="InventoryHUD" type="HBoxContainer" parent="CanvasLayer" unique_id=1948051715]
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
@@ -103,23 +115,21 @@ offset_left = 24.0
 offset_top = -122.0
 offset_right = 448.0
 offset_bottom = -58.0
-grow_horizontal = 1
 grow_vertical = 0
 theme_override_constants/separation = 8
 script = ExtResource("11_inventory_hud")
 
-[node name="LevelBadge" type="Label" parent="CanvasLayer"]
+[node name="LevelBadge" type="Label" parent="CanvasLayer" unique_id=784263975]
 anchors_preset = 10
 anchor_right = 1.0
 offset_top = 20.0
 offset_bottom = 52.0
 grow_horizontal = 2
-mouse_filter = 2
 theme_type_variation = &"HudBanner"
 text = "LEVEL 1  ·  BANAUE RICE TERRACES"
 horizontal_alignment = 1
 
-[node name="HintLabel" type="Label" parent="CanvasLayer"]
+[node name="HintLabel" type="Label" parent="CanvasLayer" unique_id=1088632377]
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
@@ -128,11 +138,10 @@ offset_top = -108.0
 offset_right = 620.0
 offset_bottom = -84.0
 grow_vertical = 0
-mouse_filter = 2
 theme_type_variation = &"HudHint"
 text = "R DRAW  ·  E PICK UP  ·  RIGHT-CLICK UNDO  ·  F USE  ·  Q CHANGE BACK  ·  ESC MENU"
 
-[node name="GoalLabel" type="Label" parent="CanvasLayer"]
+[node name="GoalLabel" type="Label" parent="CanvasLayer" unique_id=1157881491]
 anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
@@ -144,17 +153,15 @@ offset_right = -24.0
 offset_bottom = -84.0
 grow_horizontal = 0
 grow_vertical = 0
-mouse_filter = 2
 theme_type_variation = &"HudValue"
-text = ""
 horizontal_alignment = 2
 
-[node name="DrawPanel" type="CanvasLayer" parent="."]
-visible = false
+[node name="DrawPanel" type="CanvasLayer" parent="." unique_id=1285276427]
 layer = 10
+visible = false
 script = ExtResource("3_panel")
 
-[node name="Scrim" type="ColorRect" parent="DrawPanel"]
+[node name="Scrim" type="ColorRect" parent="DrawPanel" unique_id=1214975541]
 material = SubResource("ShaderMaterial_draw_bg")
 anchors_preset = 15
 anchor_right = 1.0
@@ -163,7 +170,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 0.42)
 
-[node name="PanelRoot" type="ColorRect" parent="DrawPanel"]
+[node name="PanelRoot" type="ColorRect" parent="DrawPanel" unique_id=360681794]
 custom_minimum_size = Vector2(660, 860)
 anchors_preset = 8
 anchor_left = 0.5
@@ -178,43 +185,44 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.12, 0.14, 0.16, 1)
 
-[node name="CanvasPaper" type="Control" parent="DrawPanel/PanelRoot"]
-layout_mode = 0
+[node name="CanvasPaper" type="Control" parent="DrawPanel/PanelRoot" unique_id=991410137]
+anchors_preset = 0
 offset_left = 46.0
 offset_top = 64.0
 offset_right = 614.0
 offset_bottom = 632.0
 mouse_filter = 2
 script = ExtResource("40_oval")
-moulding = 0.10
+moulding = 0.1
 ornament_reach = 0.141
 shows_paper = true
 shows_moulding = false
 
-[node name="SubViewportContainer" type="SubViewportContainer" parent="DrawPanel/PanelRoot"]
+[node name="SubViewportContainer" type="SubViewportContainer" parent="DrawPanel/PanelRoot" unique_id=750592477]
 custom_minimum_size = Vector2(568, 568)
+layout_mode = 0
 offset_left = 46.0
 offset_top = 64.0
 offset_right = 614.0
 offset_bottom = 632.0
 stretch = true
 
-[node name="SubViewport" type="SubViewport" parent="DrawPanel/PanelRoot/SubViewportContainer"]
+[node name="SubViewport" type="SubViewport" parent="DrawPanel/PanelRoot/SubViewportContainer" unique_id=2017655592]
 transparent_bg = true
+handle_input_locally = false
 size = Vector2i(568, 568)
 render_target_update_mode = 0
 
-[node name="Paper" type="ColorRect" parent="DrawPanel/PanelRoot/SubViewportContainer/SubViewport"]
+[node name="Paper" type="ColorRect" parent="DrawPanel/PanelRoot/SubViewportContainer/SubViewport" unique_id=1390238282]
 visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(1, 1, 1, 1)
 
-[node name="Canvas" type="Control" parent="DrawPanel/PanelRoot/SubViewportContainer/SubViewport"]
-layout_mode = 1
+[node name="Canvas" type="Control" parent="DrawPanel/PanelRoot/SubViewportContainer/SubViewport" unique_id=1508706239]
+layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -222,30 +230,29 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("4_canvas")
 
-[node name="CanvasFrame" type="Control" parent="DrawPanel/PanelRoot"]
-layout_mode = 0
+[node name="CanvasFrame" type="Control" parent="DrawPanel/PanelRoot" unique_id=735485116]
+anchors_preset = 0
 offset_left = 46.0
 offset_top = 64.0
 offset_right = 614.0
 offset_bottom = 632.0
-moulding = 0.155
-ornament_reach = 0.141
 mouse_filter = 2
 script = ExtResource("40_oval")
 
-[node name="GuessLabel" type="Label" parent="DrawPanel/PanelRoot"]
+[node name="GuessLabel" type="Label" parent="DrawPanel/PanelRoot" unique_id=402162112]
+layout_mode = 0
 offset_left = 74.0
 offset_top = 682.0
 offset_right = 586.0
 offset_bottom = 728.0
-mouse_filter = 2
 theme_override_font_sizes/font_size = 40
 text = "…"
 horizontal_alignment = 1
 vertical_alignment = 1
 clip_text = true
 
-[node name="TransformButton" type="Button" parent="DrawPanel/PanelRoot"]
+[node name="TransformButton" type="Button" parent="DrawPanel/PanelRoot" unique_id=1634678953]
+layout_mode = 0
 offset_left = 74.0
 offset_top = 738.0
 offset_right = 398.0
@@ -253,7 +260,8 @@ offset_bottom = 798.0
 focus_mode = 0
 text = "Paint"
 
-[node name="ClearButton" type="Button" parent="DrawPanel/PanelRoot"]
+[node name="ClearButton" type="Button" parent="DrawPanel/PanelRoot" unique_id=2139581802]
+layout_mode = 0
 offset_left = 422.0
 offset_top = 738.0
 offset_right = 586.0
@@ -261,7 +269,8 @@ offset_bottom = 798.0
 focus_mode = 0
 text = "Clear"
 
-[node name="StatusLabel" type="Label" parent="DrawPanel/PanelRoot"]
+[node name="StatusLabel" type="Label" parent="DrawPanel/PanelRoot" unique_id=1928138389]
+layout_mode = 0
 offset_left = 74.0
 offset_top = 806.0
 offset_right = 586.0
@@ -269,19 +278,19 @@ offset_bottom = 852.0
 text = "Ready"
 autowrap_mode = 3
 
-[node name="SketchClient" type="Node" parent="DrawPanel/PanelRoot"]
+[node name="SketchClient" type="Node" parent="DrawPanel/PanelRoot" unique_id=1159345950]
 script = ExtResource("5_client")
 
-[node name="DialogueChoiceOverlay" parent="." instance=ExtResource("19_dialogue")]
+[node name="DialogueChoiceOverlay" parent="." unique_id=304862228 instance=ExtResource("19_dialogue")]
 
-[node name="MemoryOverlay" parent="." instance=ExtResource("20_memory")]
+[node name="MemoryOverlay" parent="." unique_id=1089876389 instance=ExtResource("20_memory")]
 
-[node name="PauseMenu" type="CanvasLayer" parent="."]
-visible = false
+[node name="PauseMenu" type="CanvasLayer" parent="." unique_id=1697309532]
 layer = 50
+visible = false
 script = ExtResource("12_pause")
 
-[node name="PauseRoot" type="Control" parent="PauseMenu"]
+[node name="PauseRoot" type="Control" parent="PauseMenu" unique_id=1157319563]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -289,7 +298,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Dim" type="ColorRect" parent="PauseMenu/PauseRoot"]
+[node name="Dim" type="ColorRect" parent="PauseMenu/PauseRoot" unique_id=947401432]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -299,7 +308,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.027, 0.035, 0.024, 0.78)
 
-[node name="Panel" type="PanelContainer" parent="PauseMenu/PauseRoot"]
+[node name="Panel" type="PanelContainer" parent="PauseMenu/PauseRoot" unique_id=1824162177]
 custom_minimum_size = Vector2(430, 520)
 layout_mode = 1
 anchors_preset = 8
@@ -314,72 +323,72 @@ offset_bottom = 260.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="PauseMenu/PauseRoot/Panel"]
+[node name="VBox" type="VBoxContainer" parent="PauseMenu/PauseRoot/Panel" unique_id=928668240]
 layout_mode = 2
 theme_override_constants/separation = 10
 alignment = 1
 
-[node name="Title" type="Label" parent="PauseMenu/PauseRoot/Panel/VBox"]
+[node name="Title" type="Label" parent="PauseMenu/PauseRoot/Panel/VBox" unique_id=2001069353]
 layout_mode = 2
 theme_type_variation = &"ScreenTitle"
 text = "PAUSED"
 horizontal_alignment = 1
 
-[node name="Rule" type="HSeparator" parent="PauseMenu/PauseRoot/Panel/VBox"]
+[node name="Rule" type="HSeparator" parent="PauseMenu/PauseRoot/Panel/VBox" unique_id=2042249587]
 layout_mode = 2
 
-[node name="Place" type="Label" parent="PauseMenu/PauseRoot/Panel/VBox"]
+[node name="Place" type="Label" parent="PauseMenu/PauseRoot/Panel/VBox" unique_id=351906256]
 layout_mode = 2
 theme_type_variation = &"HudHint"
 text = "BANAUE RICE TERRACES"
 horizontal_alignment = 1
 
-[node name="ResumeButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
+[node name="ResumeButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox" unique_id=643718712]
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
 theme_type_variation = &"PrimaryButton"
 text = "RESUME"
 
-[node name="RestartButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
+[node name="RestartButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox" unique_id=413872992]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "RESTART LEVEL"
 
-[node name="SettingsButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
+[node name="SettingsButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox" unique_id=2069493516]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "SETTINGS"
 
-[node name="ControlsButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
+[node name="ControlsButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox" unique_id=482134621]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "CONTROLS"
 
-[node name="LevelSelectButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
+[node name="LevelSelectButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox" unique_id=1574593416]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "LEVEL SELECT"
 
-[node name="QuitButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox"]
+[node name="QuitButton" type="Button" parent="PauseMenu/PauseRoot/Panel/VBox" unique_id=1601805592]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 theme_type_variation = &"DangerButton"
 text = "QUIT TO DESKTOP"
 
-[node name="LevelCompleteOverlay" parent="." instance=ExtResource("17_complete")]
+[node name="LevelCompleteOverlay" parent="." unique_id=1375178757 instance=ExtResource("17_complete")]
 
-[node name="OutOfInkOverlay" parent="." instance=ExtResource("18_out_of_ink")]
+[node name="OutOfInkOverlay" parent="." unique_id=861523436 instance=ExtResource("18_out_of_ink")]
 
-[node name="SettingsOverlay" parent="." instance=ExtResource("14_settings")]
+[node name="SettingsOverlay" parent="." unique_id=675585428 instance=ExtResource("14_settings")]
 
-[node name="ControlsOverlay" parent="." instance=ExtResource("15_controls")]
+[node name="ControlsOverlay" parent="." unique_id=1356117828 instance=ExtResource("15_controls")]
 
-[node name="ConfirmOverlay" parent="." instance=ExtResource("16_confirm")]
+[node name="ConfirmOverlay" parent="." unique_id=144313219 instance=ExtResource("16_confirm")]
 
-[node name="UIRouter" type="Node" parent="."]
+[node name="UIRouter" type="Node" parent="." unique_id=1496123291]
 script = ExtResource("13_ui_router")
-cancel_chain = [NodePath("../ConfirmOverlay"), NodePath("../LevelCompleteOverlay"), NodePath("../MemoryOverlay"), NodePath("../DialogueChoiceOverlay"), NodePath("../OutOfInkOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("../DrawPanel"), NodePath("../PlacementController"), NodePath("../PauseMenu")]
+cancel_chain = Array[NodePath]([NodePath("../ConfirmOverlay"), NodePath("../LevelCompleteOverlay"), NodePath("../MemoryOverlay"), NodePath("../DialogueChoiceOverlay"), NodePath("../OutOfInkOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("../DrawPanel"), NodePath("../PlacementController"), NodePath("../PauseMenu")])

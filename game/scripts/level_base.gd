@@ -54,6 +54,13 @@ func _extra_refusals(_entity_id: String, _strokes: Array) -> bool:
 	return false
 
 
+## Whether the apo -- no drawing, just themselves -- can swim here. Nowhere but the sea: the
+## paddies are gates, and a gate the apo can swim through is not one. A level that says yes
+## keeps its own breath and its own rescue; the base's "you cannot swim" is switched off.
+func _apo_can_swim() -> bool:
+	return false
+
+
 ## What this level DOES when an obstacle is solved. True means the level handled the beat
 ## and the generic "<obstacle>.<route>.solved" line must not also fire.
 func _on_route_solved(_obstacle_id: String, _route: String) -> bool:
@@ -273,7 +280,13 @@ const WANDERER_SCENE := "res://creatures/wanderer.tscn"
 @onready var environment: Node = $EnvironmentBaseplate
 @onready var spawn_point: Marker2D = $EnvironmentBaseplate/GameplayPlane/SpawnPoint
 @onready var entity_root: Node2D = $EnvironmentBaseplate/GameplayPlane/EntityRoot
-@onready var world_item_root: Node2D = $EnvironmentBaseplate/GameplayPlane/WorldItemRoot
+## ⚠ LOOKED FOR, AND MADE IF IT IS NOT THERE. It is declared in each level's scene under the
+## environment's GameplayPlane -- a node added inside an instanced scene -- and an editor save of
+## level_3.tscn dropped it (2026-10-05). Every drawing placed or given back then had nowhere to go:
+## the first restore errored on a null, the debugger stopped the game there, and Dagat could not be
+## opened. See _ensure_world_item_root.
+@onready var world_item_root: Node2D = get_node_or_null(
+	^"EnvironmentBaseplate/GameplayPlane/WorldItemRoot") as Node2D
 @onready var backend_supervisor: Node = $BackendSupervisor
 @onready var status_label: Label = $CanvasLayer/StatusLabel
 @onready var draw_button: Button = $CanvasLayer/DrawButton
@@ -379,6 +392,21 @@ var _run_started_msec := 0
 var _classes_this_run: Dictionary = {}
 
 
+## Where placed drawings live, made in the gameplay plane if the scene lost it -- the same node,
+## the same name and the same z it is declared with.
+func _ensure_world_item_root() -> void:
+	if world_item_root != null and is_instance_valid(world_item_root):
+		return
+	var plane := get_node_or_null(^"EnvironmentBaseplate/GameplayPlane")
+	if plane == null:
+		return
+	push_warning("%s: WorldItemRoot is missing from the scene; making it." % name)
+	world_item_root = Node2D.new()
+	world_item_root.name = "WorldItemRoot"
+	world_item_root.z_index = 5
+	plane.add_child(world_item_root)
+
+
 func _ready() -> void:
 	# Findable by the rooms, which have to ask what this RUN has already handed over rather
 	# than what the profile remembers forever. See pickup_taken_this_run.
@@ -396,6 +424,7 @@ func _ready() -> void:
 	# quietly changing the price or budget of every later level.
 	ink_manager.begin_level(ink_manager.capacity)
 	inventory_manager.begin_level()
+	_ensure_world_item_root()
 	placement_controller.registry = registry
 	placement_controller.world_item_root = world_item_root
 	draw_panel.ink_manager = ink_manager
@@ -3236,6 +3265,7 @@ func _physics_process(_delta: float) -> void:
 		if anchor != null:
 			anchor_position = anchor.global_position
 	_level_physics(anchor_position)
+	_mantle_onto_a_drawing()
 	# The bag no longer stands down while the apo moves -- see InventoryHUD. It stays in its
 	# corner and thins out only while she is actually standing behind it.
 	_veil_the_bag_over(anchor_position)
@@ -3254,7 +3284,8 @@ func _physics_process(_delta: float) -> void:
 	# the wading jump clears about twenty pixels and the bank is a hundred above the floor
 	# -- so without this the water is not a gate, it is a hole to be stuck in. A drawn
 	# creature that swims is not rescued: being in the water is the whole point of it.
-	if player is Wanderer and bool(player.call("is_in_water")):
+	# A level that lets the apo swim on a breath (Dagat) looks after its own water.
+	if player is Wanderer and bool(player.call("is_in_water")) and not _apo_can_swim():
 		_submerged_seconds += _delta
 		if _submerged_seconds > 1.1:
 			_submerged_seconds = 0.0
@@ -3301,6 +3332,67 @@ func _physics_process(_delta: float) -> void:
 		if distance > GOAL_RADIUS or not may_finish else "GOAL REACHED"
 	if distance <= GOAL_RADIUS and may_finish:
 		_complete_level()
+
+
+## ⚠ UP ONTO WHAT SHE DREW. Kent: "sometimes i cant draw items to climb/stand on to get to the
+## key". Whether a drawing was something to stand on depended on the size it came out at: the
+## apo jumps 94px, and a bucket is 96 tall, a campfire 104, a wheel 128 -- she could put one
+## under the nail and never get on top of it. So when she jumps against the side of a drawing,
+## pressing toward it, and its top is only a little above her feet, she pulls herself up onto it.
+##
+## ⚠ DRAWINGS ONLY, NEVER TERRAIN. Every gap and ledge in the levels is measured against the
+## jump (R1); a mantle onto the ground would hand those over for free. A drawing is something the
+## player made to be climbed, and reaching the top of it is what they made it for.
+const MANTLE_REACH := 52.0
+
+
+func _mantle_onto_a_drawing() -> void:
+	var apo := player as Wanderer
+	if apo == null or world_item_root == null or apo.is_on_floor() or apo.velocity.y < -80.0:
+		return
+	if apo.is_in_water() or apo.is_riding() or apo.get("_ladder") != null:
+		return
+	var press := Input.get_axis(&"move_left", &"move_right")
+	if absf(press) < 0.2:
+		return
+	var direction := signf(press)
+	var feet := apo.global_position
+	for child in world_item_root.get_children():
+		var drawing := child as PhysicsShapeObject
+		if drawing == null or drawing.is_preview or not drawing.is_inside_tree():
+			continue
+		# A boat is boarded with E, not climbed: stood on its deck she is not its passenger.
+		var vessel := drawing as UtilityObject
+		if vessel != null and vessel.utility_behavior in ["sailboat", "submarine"]:
+			continue
+		var box := drawing.world_extent()
+		if box.size.y < 8.0 or box.size.x < 20.0:
+			continue
+		var top := box.position.y
+		if feet.y < top or feet.y - top > MANTLE_REACH:
+			continue
+		var side := box.position.x if direction > 0.0 else box.end.x
+		if absf(feet.x - side) > 30.0:
+			continue
+		var onto := Vector2(side + direction * minf(22.0, box.size.x * 0.5), top - 1.0)
+		if not _room_to_stand(apo, onto):
+			continue
+		apo.global_position = onto
+		apo.velocity = Vector2.ZERO
+		return
+
+
+## Whether the apo's own body fits standing at `feet` -- nothing solid but her where she would be.
+func _room_to_stand(apo: Wanderer, feet: Vector2) -> bool:
+	var collision := apo.get_node_or_null(^"Collision") as CollisionShape2D
+	if collision == null or collision.shape == null:
+		return true
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = collision.shape
+	query.transform = Transform2D(0.0, feet + collision.position + Vector2(0.0, -2.0))
+	query.collision_mask = 1
+	query.exclude = [apo.get_rid()]
+	return get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
 ## How far the letterbox has closed when the HUD has finished fading out. The caption in the

@@ -132,60 +132,75 @@
       "budget, which is ink the player cannot spend. The one at 4050 is under the creature: going",
       "into its space to pay for staying there is a trade worth offering."
     ],
-    "default_rate_per_second": 0.2,
+    "$comment_slower": "HALVED, 2026-10-05. Kent: 'there should be more time before the ink runs out'. Every rate is half what the tuning pass set and the order between them is untouched -- the turtle is still the endurance body and the shark still the sprint -- so the choice of body is the same choice with more room in it. The sea is longer too (see the scene), which is what the extra jars are for.",
+    "default_rate_per_second": 0.1,
     "warning_ratio": 0.2,
     "rates": {
-      "sea_turtle": 0.12,
-      "crab": 0.16,
-      "fish": 0.17,
-      "octopus": 0.2,
-      "frog": 0.21,
-      "penguin": 0.24,
-      "shark": 0.32
+      "sea_turtle": 0.06,
+      "crab": 0.08,
+      "fish": 0.085,
+      "octopus": 0.1,
+      "frog": 0.105,
+      "penguin": 0.12,
+      "shark": 0.16
     },
     "zero_case": "revert, carry the apo to the surface or the nearest air pocket, lose the crossing, never die",
     "refills_are_placed_not_timed": true,
-    "working_crossing_px": 3600,
-    "refill_units": 1.5,
-    "refill_count_dive": 6,
+    "working_crossing_px": 5300,
+    "refill_units": 2.0,
+    "refill_count_dive": 9,
     "refill_count_boat": 0,
-    "crossing_from_px": 930,
-    "crossing_to_px": 4460,
+    "crossing_from_px": 1530,
+    "crossing_to_px": 6860,
     "refill_spots": [
       [
-        1500,
+        1950,
         1704
       ],
       [
-        2400,
+        2475,
         1704
       ],
       [
-        3200,
-        1704
-      ],
-      [
-        3620,
-        1704
-      ],
-      [
-        3850,
+        3150,
         1704
       ],
       [
         4050,
         1704
+      ],
+      [
+        4750,
+        1704
+      ],
+      [
+        5450,
+        1704
+      ],
+      [
+        6020,
+        1704
+      ],
+      [
+        6250,
+        1704
+      ],
+      [
+        6450,
+        1704
       ]
     ],
-    "arena_from_px": 3410,
+    "arena_from_px": 5810,
     "encounter_seconds": 24
   },
   "objectives": {
     "$comment": "THE OBJECTIVE LINE, one per state of the run. level_3.gd decides which state the player is in; these are only the words, held to the same rule every dialogue line is held to: no line names a drawable class. Dangerous here in a way it was not in Piyesta -- the sea is full of classes. Never 'fish', 'shark', 'crab', 'sun', 'cloud', 'sailboat' or 'submarine'.",
     "brush": "Pick up what is catching the light in the sand",
     "cross": "Go to Lolo at the water and choose how to cross",
-    "drag_the_boat": "Press {key:redraw} and draw something strong enough to drag the bangka",
-    "drag_the_boat_now": "Press {key:interact} at the bangka to drag it into the sea",
+    "drag_the_boat": "Press {key:redraw} and draw something strong or heavy to move the bangka",
+    "drag_the_boat_now": "Press {key:interact} to dig the bangka out and drag it in",
+    "push_the_boat": "Push the bangka down the sand into the sea",
+    "drop_on_the_boat": "Press {key:use_utility} behind the bangka to shove it seaward",
     "dive_draw": "Press {key:redraw} and draw something that can swim",
     "dive_draw.tags": "Press {key:redraw} and draw something that can {tags}",
     "board_the_boat": "Press {key:interact} at the bangka to get in",
@@ -195,6 +210,7 @@
     "bakunawa.tags": "Something that can {tags} \u2014 or slip by it unseen",
     "bakunawa_sneak": "Wait until its light turns away, then get past it",
     "bakunawa_light": "Press {key:redraw} and draw something that throws LIGHT",
+    "bakunawa_lead": "Point the light with the mouse and lead it home to the cave",
     "bakunawa_fight": "Press {key:redraw}, draw something that can STRIKE, and hit it",
     "bakunawa_fight_on": "Hit it with {key:use_utility} until it has had enough",
     "island": "Go up onto the far sand",
@@ -228,7 +244,8 @@
       "display_name": "Ang Paglalayag",
       "teaches_before_choice": [
         "swim",
-        "carry"
+        "carry",
+        "strike"
       ],
       "checkpoint_on_commit": "CP2",
       "$comment": [
@@ -252,16 +269,24 @@
       "routes": {
         "artist": {
           "required_tags": [
-            "carry"
+            "carry",
+            "strike"
           ],
+          "match": "any",
           "exclude": [
             "bucket",
-            "octopus"
+            "octopus",
+            "boomerang",
+            "axe",
+            "sword",
+            "cannon",
+            "circle"
           ],
+          "$comment_heavy": "CARRY, OR THE ANVIL. Kent (2026-10-05): 'let the bangka be pushable using an anvil, not just the ant'. The anvil is not a Carry class -- it is in Strike, for the fight -- so the route takes either tag and excludes every Strike class but the anvil: the blades swing, the cannon shoots, the boomerang and the circle are thrown, and none of those moves a boat. Dropped behind the hull it shoves it down the sand (level_3.gd _shove_with_the_anvil).",
           "then": {
             "answered_by": "beached_bangka"
           },
-          "choice_note": "NEEDS  CARRY\nsomething strong enough to drag the beached bangka down to the sea",
+          "choice_note": "NEEDS  CARRY  or something HEAVY\nto dig the beached bangka out and get it down to the sea",
           "reward": "lore_how_he_died",
           "sets_flag": "heard_how_he_died",
           "$comment": "The boat gets how he died. The apo is seated and rowing, with nothing to do but listen -- the only scene in the game where they cannot draw their way out of a conversation."
@@ -307,6 +332,10 @@
             "light"
           ],
           "exclude": [],
+          "then": {
+            "answered_by": "led_home",
+            "$comment": "LED HOME, THEN ANSWERED. Kent (2026-10-05): the light follows the mouse, the creature follows the light, and it is brought home to a cave under the first beach. The drawing is the first step; the creature swimming into the cave closes the beat (level_3.gd _on_gift_offered), and that is where it gives up what it found."
+          },
           "reward": "item_from_the_seabed",
           "reward_on_clear": "collectible_L3_flower",
           "sets_flag": "has_flower_3",

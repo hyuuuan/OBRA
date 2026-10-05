@@ -73,6 +73,21 @@ const WADE_SINK_SPEED := 120.0
 ## jump properly in water" that does not hand the player a way across.
 const WADE_KICK := 55.0
 
+## ⚠ SWIMMING, ON A BREATH, WHERE A LEVEL SAYS SO. Kent: "the player can dive underwater without
+## resetting if they still have air". The apo still cannot swim ACROSS anything -- the level that
+## switches this on keeps them near a shore and counts their breath (Dagat; see level_3.gd
+## _breathe) -- but in the water they swim, slowly, up, down and along, and float when nothing is
+## held, instead of sinking to be fished out a second later.
+var can_swim := false
+## Out of breath: carried up to the surface whatever is held. The level sets it and clears it.
+var surfacing := false
+const SWIM_SPEED := 150.0
+const SWIM_VERTICAL := 170.0
+const SWIM_ACCEL := 560.0
+## A gentle rise with nothing held: the apo floats.
+const SWIM_FLOAT := -70.0
+const SURFACING_SPEED := -340.0
+
 @onready var _figure: Node2D = $Figure
 
 var world_bounds := Rect2(0.0, -520.0, 3760.0, 1200.0)
@@ -174,6 +189,8 @@ func _physics_process(delta: float) -> void:
 		_jump_buffered = maxf(0.0, _jump_buffered - delta)
 
 	var direction := Input.get_axis(&"move_left", &"move_right")
+	# What the last frame left: a swimmer's pace is built from this, not from the walk below.
+	var carried_x := velocity.x
 	if direction != 0.0:
 		velocity.x = move_toward(velocity.x, direction * SPEED, ACCELERATION * delta)
 		_facing = signf(direction)
@@ -199,6 +216,9 @@ func _physics_process(delta: float) -> void:
 		if Input.is_action_just_pressed(&"jump"):
 			end_ladder()
 			_jump()
+	elif is_in_water() and can_swim:
+		velocity.x = carried_x
+		_swim(delta, direction)
 	elif is_in_water():
 		# WADING, NOT WALKING. Water used to be scenery you strolled through at full
 		# speed, which made a drawn boat pointless and a swimmer morph a novelty. It
@@ -247,6 +267,24 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector2.ZERO
 
 	_advance_stride(delta, velocity.x)
+
+
+## Along, up and down at a swimmer's pace; floating up when nothing is held; and straight up,
+## whatever is held, while `surfacing`.
+func _swim(delta: float, direction: float) -> void:
+	_jump_buffered = 0.0
+	if surfacing:
+		velocity.x = move_toward(velocity.x, 0.0, SWIM_ACCEL * delta)
+		velocity.y = move_toward(velocity.y, SURFACING_SPEED, 1600.0 * delta)
+		return
+	velocity.x = move_toward(velocity.x, direction * SWIM_SPEED, SWIM_ACCEL * delta)
+	var vertical := Input.get_axis(&"move_up", &"move_down")
+	if Input.is_action_pressed(&"jump"):
+		vertical = -1.0
+	if vertical != 0.0:
+		velocity.y = move_toward(velocity.y, vertical * SWIM_VERTICAL, SWIM_ACCEL * delta)
+	else:
+		velocity.y = move_toward(velocity.y, SWIM_FLOAT, 260.0 * delta)
 
 
 ## The stride advances with actual speed, so it cannot look like it is running on the

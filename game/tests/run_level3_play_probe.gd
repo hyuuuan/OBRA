@@ -101,6 +101,13 @@ func _play(route: String) -> void:
 	if first_play:
 		_check(_cards_shown.has("A New Brush"), "and its acquired card is shown (%s)" % route,
 			"cards seen: %s" % str(_cards_shown))
+		# ⚠ AFTER LOLO'S LEAD-IN. Every lesson card is now introduced by a line of his first (see
+		# TutorialDirector.bind_lead), and the card comes up once that line has been read.
+		for _beat in range(12):
+			if tutorial == null or bool(tutorial.call("has_taught", "new_brush")):
+				break
+			await _wait(0.4)
+			await _drain_dialogue(route)
 		_check(tutorial != null and bool(tutorial.call("has_taught", "new_brush")),
 			"and its lesson is shown (%s)" % route, "it used to wait on a busy hint bar forever")
 		_check(bool(lines.call("has_heard", "L3_B0_SHORE.brush"))
@@ -113,7 +120,8 @@ func _play(route: String) -> void:
 		"the objective sends the apo to the question (%s)" % route, "\"%s\"" % objective)
 
 	# THE FORK, answered with the overlay the way a player answers it -- with nothing drawn.
-	await _walk_to_x(905.0)
+	# The fork is at the water's edge, which is at 1600 since the beach grew (2026-10-05).
+	await _walk_to_x(1505.0)
 	var overlay_seen := await _drain_dialogue(route)
 	_check(overlay_seen, "the fork is offered before anything is drawn (%s)" % route,
 		"the choice overlay opened")
@@ -143,7 +151,7 @@ func _boat(director) -> void:
 	_check(_objective_key() == "drag_the_boat",
 		"choosing the boat asks for something strong (boat)", "key '%s'" % _objective_key())
 	# Alone at the hull: E says why, and nothing goes in the water.
-	await _walk_to_x(860.0)
+	await _walk_to_x(880.0)
 	_check(String((level.call("_level_interact_offer") as Dictionary).get("verb", "")) == "PUSH",
 		"E over the beached bangka offers a push (boat)", "the prompt names the key")
 	await _press(&"interact")
@@ -159,25 +167,26 @@ func _boat(director) -> void:
 		"a strong shape is accepted, and the line says E (boat)", "key '%s'" % _objective_key())
 	_check(tutorial != null and bool(tutorial.call("has_taught", "drain")),
 		"and the first shape held teaches the drain (boat)", "that bar is your ink now")
-	_check(String((level.call("_level_interact_offer") as Dictionary).get("verb", "")) == "DRAG IN",
-		"and E over the hull now says it drags it in (boat)", "the prompt changes with the body")
+	# Half buried until something digs it out: E says that first.
+	_check(String((level.call("_level_interact_offer") as Dictionary).get("verb", "")) == "DIG OUT",
+		"and E over the hull now says it digs it out (boat)", "the prompt changes with the body")
 	await _press(&"interact")
-	await _wait(2.0)
+	await _wait(3.2)
 	await _drain_dialogue("boat")
 	_check(bool(director.call("is_solved", "L3_N1")) and level.get("_launched_boat") != null,
 		"E drags the bangka into the sea (boat)", "the crossing is answered")
 	var card := level.get("morph_card") as Control
 	_check(level.get("player") is Wanderer and (card == null or not card.visible),
 		"and the helper is spent with its card (boat)", "the apo is themselves again")
-	await _walk_to_x(990.0)
+	await _walk_to_x(1590.0)
 	await _wait(0.4)
 	await _press(&"interact")
 	await _wait(0.8)
 	await _drain_dialogue("boat")
 	_check(_objective_key() == "cross_by_boat",
 		"the objective is about rowing, not the creature (boat)", "key '%s'" % _objective_key())
-	await _walk_to_x(2200.0)
-	_check(_anchor_x() > 2000.0, "and the boat actually carries the apo out (boat)",
+	await _walk_to_x(2800.0)
+	_check(_anchor_x() > 2600.0, "and the boat actually carries the apo out (boat)",
 		"x %.0f" % _anchor_x())
 
 
@@ -190,16 +199,16 @@ func _dive(director) -> void:
 	await _drain_dialogue("dive")
 	var body_x := _anchor_x()
 	var body_y := _anchor_y()
-	_check(body_x > 1000.0 and body_y > 560.0,
+	_check(body_x > 1600.0 and body_y > 560.0,
 		"the swimmer drawn on the sand goes into the sea (dive)",
-		"at (%.0f, %.0f); the shore ends at 1000 and the sea's surface is 560" % [body_x, body_y])
+		"at (%.0f, %.0f); the shore ends at 1600 and the sea's surface is 560" % [body_x, body_y])
 	_check(bool(director.call("is_solved", "L3_N1")), "and it answers the crossing (dive)",
 		"route '%s'" % String(director.call("committed_route", "L3_N1")))
 	_check(_objective_key() == "cross_by_dive",
 		"the objective is about the swim, not the creature (dive)", "key '%s'" % _objective_key())
 	var start_x := _anchor_x()
 	Input.action_press(&"move_down")
-	await _walk_to_x(1500.0)
+	await _walk_to_x(2100.0)
 	Input.action_release(&"move_down")
 	_check(_anchor_x() > start_x + 300.0, "and the swimmer can actually swim away (dive)",
 		"from %.0f to %.0f" % [start_x, _anchor_x()])
@@ -207,12 +216,12 @@ func _dive(director) -> void:
 	# home shore's face stopped there for good. Swum back at the top of the water, holding toward
 	# the sand, it comes out: a shape that cannot walk on land is changed back on the sand.
 	Input.action_press(&"move_up")
-	await _walk_to_x(940.0)
+	await _walk_to_x(1540.0)
 	Input.action_release(&"move_up")
 	await _wait(0.4)
-	_check(level.get("player") is Wanderer and _anchor_x() < 1000.0 and _anchor_y() < 570.0,
+	_check(level.get("player") is Wanderer and _anchor_x() < 1600.0 and _anchor_y() < 570.0,
 		"and swum back to the home shore, it comes out onto the sand (dive)",
-		"%s at (%.0f, %.0f); the sand ends at 1000, its top at 560" % [
+		"%s at (%.0f, %.0f); the sand ends at 1600, its top at 560" % [
 			level.get("player").get_class(), _anchor_x(), _anchor_y()])
 
 

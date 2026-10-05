@@ -146,6 +146,13 @@ func restart_level() -> bool:
 	if scene_path.is_empty() or not ResourceLoader.exists(scene_path):
 		return false
 	get_tree().paused = false
+	# ⚠ FROM THE BEGINNING, WHATEVER WAS SAVED. Leaving a level keeps its last checkpoint for the
+	# next visit (LevelBase._resume_saved_checkpoint), and restarting used to reload straight into
+	# it. Kent: "if i click reset the level then the level should start from the beginning of that
+	# level regardless if i am returning to it or not." A restart forgets it first.
+	var saved := preload("res://scripts/user_data.gd").path("checkpoints/%s.save" % current_level_id)
+	if FileAccess.file_exists(saved):
+		DirAccess.remove_absolute(saved)
 	_transition_to.call_deferred(scene_path, current_level_id)
 	return true
 

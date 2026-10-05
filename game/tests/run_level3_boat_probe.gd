@@ -160,7 +160,8 @@ func _run() -> void:
 	var wettest := 0.0
 	var seconds := 0.0
 	Input.action_press(&"move_right")
-	while boat != null and is_instance_valid(boat) and boat.global_position.x < 3300.0 \
+	# ⚠ 5300, NOT 3300: the sea is 1800 longer (2026-10-05) and the encounter starts at 5810.
+	while boat != null and is_instance_valid(boat) and boat.global_position.x < 5300.0 \
 			and seconds < 60.0:
 		await physics_frame
 		if paused:
@@ -176,7 +177,7 @@ func _run() -> void:
 			wettest = maxf(wettest, clampf(hull.end.y - sea_top, 0.0, hull.size.y) / maxf(1.0, hull.size.y))
 	Input.action_release(&"move_right")
 	var kept := boat != null and is_instance_valid(boat)
-	_check(kept and boat.global_position.x >= 3300.0 and seconds < 25.0,
+	_check(kept and boat.global_position.x >= 5300.0 and seconds < 30.0,
 		"it sails, not crawls", "%.0f px in %.1f s under sail" % [
 			(boat.global_position.x if kept else 0.0) - start.x, seconds])
 	_check(kept and lowest - rest < 16.0 and rest - highest < 16.0,
@@ -193,20 +194,36 @@ func _run() -> void:
 	# ⚠ AND NOBODY STEPS OFF INTO THE MIDDLE OF THE SEA. E gets off a boat anywhere, and out
 	# here that is an apo with no body in deep water, the rescue, and a restore from before the
 	# boat was found. The level keeps them aboard, and the prompt stops offering it.
+	# ⚠ AND GETTING OFF ANYWHERE IS ALLOWED NOW (2026-10-05). Kent: "i should be able to exit the
+	# boat whenever" -- the apo swims on a breath, and nothing in the water restores a checkpoint.
+	# Off, in the water beside the hull, not reset; and back aboard with E.
+	var off_at := boat.global_position.x
 	level.call("press_interact")
+	await _frames(30)
+	player = level.get("player") as Node2D
+	_check(not bool(boat.call("has_passenger", player))
+			and absf(player.global_position.x - off_at) < 300.0,
+		"E out at sea puts the apo in the water beside the boat, not back at a checkpoint",
+		"apo at x %.0f, the boat at %.0f" % [player.global_position.x, off_at])
+	_place(boat.global_position + Vector2(0.0, -40.0))
 	await _frames(4)
-	_check(bool(boat.call("has_passenger", player)) and String(level.call("_interact_verb", boat)) == "",
-		"E out at sea does not put the apo in the water",
-		"still aboard, and the prompt offers nothing")
+	level.call("press_interact")
+	await _unpause()
+	_check(bool(boat.call("has_passenger", level.get("player"))), "and E gets them back in",
+		"aboard again")
 
 	# THE CHANNEL HOLDS until the encounter is resolved, at the surface as well as below it.
 	var coils_x := creature.global_position.x + Bakunawa.BODY_LENGTH * 0.5 - 40.0 - 80.0
 	# Rowed in with the conversations ON for this stretch only -- the shadow scene and then
 	# the encounter, back to back, as a player meets them. See the check below.
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
-	await _hold_right(4.0, boat)
+	await _hold_right(7.0, boat)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
-	_check(boat.global_position.x < coils_x, "and the coils stop it while it is unresolved",
+	# ⚠ AGAINST THE COILS AT THE FAR END OF ITS DRIFT. The creature patrols PATROL_REACH either way
+	# and the coils go with it, so the boat stops wherever they were when it got there -- measured
+	# against where they are now, a boat held at the east end of the swing reads as a leak.
+	_check(boat.global_position.x < coils_x + Bakunawa.PATROL_REACH,
+		"and the coils stop it while it is unresolved",
 		"held at x %.0f, coils at %.0f" % [boat.global_position.x, coils_x + 80.0])
 	# ⚠ AND IT IS INTRODUCED BEFORE ANYBODY IS ASKED WHAT TO DO ABOUT IT. From the boat the
 	# encounter is entered a tenth of a second after the shadow scene's last line, while the
@@ -235,10 +252,19 @@ func _run() -> void:
 	await _frames(2)
 
 	# RESOLVED WITH LIGHT, the way the finish probe resolves it, and then on to the sand.
+	# ⚠ THE LIGHT LEADS IT HOME NOW (2026-10-05): drawn, it is the first step, and the creature
+	# swimming into the cave under the first beach is the second. Led across the whole sea that is
+	# a minute of play the finish probe already walks; here it is brought within reach of the cave.
 	director.call("enter_obstacle", "L3_N2")
 	director.call("commit_route", "L3_N2", "artist")
 	await _unpause()
 	director.call("note_submission", "flashlight")
+	await _frames(4)
+	_check(int(director.call("stage", "L3_N2")) == 1 and not bool(director.call("is_solved", "L3_N2")),
+		"the light is the first step, not the answer", "it has to be led home first")
+	var mouth: Vector2 = level.get("_cave_mouth")
+	creature.global_position = mouth + Vector2(380.0, -260.0)
+	level.set("lure_override", mouth)
 	for _frame in range(900):
 		await physics_frame
 		if paused:

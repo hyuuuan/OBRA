@@ -85,8 +85,10 @@ func _out_of_ink_on_the_seabed() -> void:
 		func() -> void: ran_dry[0] = true, CONNECT_ONE_SHOT)
 	var emptied := false
 	var seconds := 0.0
-	while seconds < 60.0:
-		_place(Vector2(1200.0, 1650.0))
+	# Up to three minutes: a shape drinks half as fast since 2026-10-05, about 140 s on a full bar.
+	while seconds < 180.0:
+		# Open water off the home beach, which runs to 1600 since it grew (2026-10-05).
+		_place(Vector2(1900.0, 1650.0))
 		await physics_frame
 		if paused:
 			await _unpause()
@@ -104,32 +106,43 @@ func _out_of_ink_on_the_seabed() -> void:
 			or not bool(overlay.call("is_open")),
 		"and no out-of-ink screen opens over it", "Dagat answers for itself")
 
-	# Then the rescue, which is the base's and fires on an un-morphed apo in water.
-	for _frame in range(280):
+	# ⚠ NO CHECKPOINT IN THE WATER (2026-10-05). Kent: "the return to last checkpoint should not
+	# work here if it is underwater" -- it rolled the whole run back, the bakunawa sent home
+	# included. The body goes, the apo is where it was, and swims up on a breath.
+	var checkpoints = level.get("checkpoints")
+	var restored_before := int(checkpoints.call("restore_count", String(checkpoints.call("latest_id"))))
+	var waterline := float(level.get("_waterline_y"))
+	var surfaced := false
+	for _frame in range(int(14.0 * 60.0)):
 		await physics_frame
 		if paused:
 			await _unpause()
+		if level.get("player") is Wanderer and (level.get("player") as Node2D).global_position.y \
+				<= waterline + 40.0:
+			surfaced = true
+			break
 	var apo := level.get("player") as Node2D
 	_check(apo is Wanderer, "the body is given up rather than drowned in",
 		"the apo is %s" % apo.get_class())
-	var waterline := float(level.get("_waterline_y"))
-	_check(apo.global_position.y <= waterline + 40.0,
-		"and the apo is carried back up, not left on the bed",
-		"at y %.0f, the surface at %.0f" % [apo.global_position.y, waterline])
+	_check(surfaced and apo.global_position.x > 1650.0,
+		"and the apo comes up where they were, not back on the beach",
+		"at %s, the surface at %.0f" % [apo.global_position.round(), waterline])
+	_check(int(checkpoints.call("restore_count", String(checkpoints.call("latest_id")))) == restored_before,
+		"and nothing is rolled back to a checkpoint", "no restore")
 
-	# ⚠ AND THE RUN IS STILL WINNABLE, which is the only thing here that is not cosmetic. The
-	# ink that would buy another body is the ink that just ran out, and the only way back is
-	# the checkpoint restore handing the spend back. If it stops, Dagat has its first
-	# unwinnable state and every other probe in the level stays green through it.
+	# ⚠ AND THE RUN IS STILL WINNABLE. The restore used to be what handed the spent ink back; the
+	# ink is handed back without it -- to where it stood at the last checkpoint, and never under
+	# one unit -- so there is a swimmer to draw.
 	var left := float(ink.call("remaining"))
-	_check(left > 0.5, "and there is ink to try again with",
+	_check(left >= 0.99, "and there is ink to try again with",
 		"%.2f of %.0f back" % [left, InkManagerClass.BUDGET])
 	_check(not bool(level.get("_level_completed")), "and the level did not end on a loss",
 		"still playing")
 	await _close_the_level()
 
 
-## ⚠ AND PAST A CHECKPOINT ON THE SEABED, WHERE THE RESCUE USED TO DROWN THEM AGAIN. CP3b is
+## ⚠ AND PAST A CHECKPOINT ON THE SEABED, WHERE THE RESCUE USED TO DROWN THEM AGAIN -- and where,
+## since 2026-10-05, nothing is restored at all. CP3b is
 ## on the bed in the middle of the bakunawa's waters. Run dry past it, the apo was carried up,
 ## sank, and the rescue restored CP3b -- as the apo, who cannot swim, on the seabed. They drowned
 ## on arrival and the rescue fired again, about once a second, for good. The checkpoint gives
@@ -158,7 +171,7 @@ func _out_of_ink_past_a_seabed_checkpoint() -> void:
 	_check(String(checkpoints.call("latest_id")) == "CP3b",
 		"(past the seabed checkpoint) CP3b is written as a swimmer", "the fish is held there")
 	var ink = level.get("ink_manager")
-	_place(Vector2(3400.0, 1600.0))
+	_place(Vector2(5800.0, 1600.0))
 	await physics_frame
 	# Something of Lolo's still waiting its turn when the ink goes -- the dive's lore usually is.
 	var first: Array[Dictionary] = [{"text": "A line being read.", "speaker": "lolo"}]
@@ -167,27 +180,20 @@ func _out_of_ink_past_a_seabed_checkpoint() -> void:
 	level.call("_post_advice", waiting)
 	ink.call("drain", float(ink.call("remaining")) - 0.02)
 	var before := int(checkpoints.call("restore_count", "CP3b"))
-	var stale_after_rescue := -1
 	for _frame in range(300):
 		await physics_frame
 		if paused:
 			await _unpause()
-		if stale_after_rescue < 0 and int(checkpoints.call("restore_count", "CP3b")) > before:
-			stale_after_rescue = (level.get("_advice_waiting") as Array).size()
-	var rescues := int(checkpoints.call("restore_count", "CP3b")) - before
 	var apo := level.get("player") as Node2D
-	_check(rescues == 1, "running dry there is one rescue, not a loop",
-		"%d restore(s) of CP3b in five seconds" % rescues)
-	_check(not (apo is Wanderer) and String(level.get("_current_form_id")) == "fish",
-		"and it gives back the swimmer held there", "the player is %s (%s)" % [
-			apo.get_class(), String(level.get("_current_form_id"))])
-	_check(float(ink.call("remaining")) >= 1.0, "with ink to swim on",
+	# ⚠ NOT A RESTORE AT ALL NOW (2026-10-05) -- and so not a loop of them either. Before, the apo
+	# was put back on the seabed at CP3b and drowned again once a second; then CP3b gave back the
+	# swimmer. Now nothing is restored in the water: the apo swims up from where they were.
+	_check(int(checkpoints.call("restore_count", "CP3b")) == before,
+		"running dry there restores nothing", "no restore of CP3b")
+	_check(apo is Wanderer and absf(apo.global_position.x - 5800.0) < 300.0,
+		"and the apo is in the water where the body was", "at %s" % apo.global_position.round())
+	_check(float(ink.call("remaining")) >= 0.99, "with ink to draw a swimmer again",
 		"%.2f left" % float(ink.call("remaining")))
-	# ⚠ AND WHAT LOLO HAD QUEUED FOR THE SWIM IS NOT SAID AFTER IT. Rescued to the beach, he
-	# went on with the dive's lore -- "Keep going. I can talk and you can swim" -- to an apo
-	# standing on the sand.
-	_check(stale_after_rescue == 0, "and the rescue drops what Lolo was still waiting to say",
-		"%d line(s) still queued after the restore" % stale_after_rescue)
 	await _close_the_level()
 
 
@@ -207,7 +213,7 @@ func _seen_on_the_stealth_route() -> void:
 	var creature := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Bakunawa") as Bakunawa
 	# Reach the mid-encounter checkpoint first, so what is lost is the stretch and not the
 	# approach -- which is the thing CP3b exists for.
-	_place(Vector2(3760.0, 1240.0))
+	_place(Vector2(6160.0, 1240.0))
 	for _frame in range(30):
 		await physics_frame
 	director.call("enter_obstacle", "L3_N2")
@@ -227,7 +233,9 @@ func _seen_on_the_stealth_route() -> void:
 		if float(level.get("_reset_cooldown")) > 0.0:
 			caught = true
 			break
-		_place(creature.global_position + Vector2(120.0, -40.0))
+		# ⚠ IN ITS LIGHT, NOT IN ITS BODY. Touching the body costs the stretch too now, with its own
+		# words (level_3.gd _watch_the_bakunawa); this is about the sweep, so it is clear of the coils.
+		_place(creature.global_position + Vector2(480.0, -60.0))
 		await physics_frame
 		if float(level.get("_reset_cooldown")) > 0.0:
 			caught = true
@@ -323,7 +331,7 @@ func _three_knocks_in_the_fight() -> void:
 	await _unpause()
 	await _become_a_fish()
 	var creature := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Bakunawa") as Node2D
-	_place(Vector2(3760.0, 1240.0))
+	_place(Vector2(6160.0, 1240.0))
 	for _frame in range(30):
 		await physics_frame
 	director.call("enter_obstacle", "L3_N2")

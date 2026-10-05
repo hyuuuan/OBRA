@@ -14,7 +14,9 @@ extends SceneTree
 ## the same paused frame six times. See run_visual_level2.gd, which learned it first.
 
 const RosterFixtures = preload("res://tests/roster_fixtures.gd")
-const OUTPUT_DIR := "/tmp"
+## Where the shots go: OBRA_SHOTS if it is set (there is no /tmp on Windows), else /tmp.
+var OUTPUT_DIR: String = OS.get_environment("OBRA_SHOTS") if OS.has_environment("OBRA_SHOTS") \
+	else "/tmp"
 
 var level: Node2D
 var player: Node2D
@@ -48,7 +50,10 @@ func _run() -> void:
 	await _capture("02_the_new_brush")
 
 	# The practice beat is at the waterline, which is where the level teaches the drain.
-	await _go(Vector2(930.0, 520.0))
+	# Half in the sand, up the beach -- dug out and pushed down since 2026-10-05.
+	await _go(Vector2(860.0, 500.0))
+	await _capture("03a_the_buried_bangka")
+	await _go(Vector2(1530.0, 520.0))
 	await _capture("03_the_waterline")
 
 	# ⚠ DISARMED SO THE TOUR CAN PASS. Walking into either fork opens the choice overlay and
@@ -69,14 +74,14 @@ func _run() -> void:
 	await _unpause()
 	level.call("_launch_the_bangka")
 	await _wait(0.8)
-	await _go(Vector2(930.0, 500.0))
+	await _go(Vector2(1530.0, 500.0))
 	await _capture("04_the_bangka")
 
 	# ⚠ ON THE BOAT, NOT IN THE SEA. The surface route is ridden, and an apo teleported over
 	# open water has nothing under it: it falls, the drowning rescue takes it back to the
 	# shore, and the tour photographs an empty stretch of sea and calls it the crossing.
 	await _board_the_bangka()
-	await _sail_to(2400.0)
+	await _sail_to(3600.0)
 	await _capture("05_open_water")
 	level.call("_cast_the_shadow")
 	await _wait(1.6)
@@ -89,40 +94,43 @@ func _run() -> void:
 	var surface_mark := level.get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/Marks/SurfaceMark") as Node2D
 	creature.call("stage_at", surface_mark.global_position.y)
-	await _sail_to(3620.0)
+	await _sail_to(6000.0)
 	await _capture("07_bakunawa_surface")
 
 	# AND AT DEPTH, which is the same creature moved. A diver is inside its space.
-	creature.call("stage_at", 1510.0)
+	creature.call("stage_at", 1180.0, false)
 	await _become_a_fish()
-	await _go(Vector2(3500.0, 1480.0))
+	await _go(Vector2(5900.0, 1300.0))
 	await _capture("08_bakunawa_depth")
 
 	# THE SWEEP, which IS the stealth rule and is the one thing here that has to be legible.
-	await _go(Vector2(3620.0, 1680.0))
+	await _go(Vector2(6400.0, 1640.0))
 	await _capture("09_under_the_sweep")
 
 	# THE CORAL FIELD, where the crossing is a place rather than a distance.
-	await _go(Vector2(2100.0, 1640.0))
+	await _go(Vector2(3400.0, 1640.0))
 	await _capture("10_coral_field")
-	await _go(Vector2(1500.0, 1640.0))
+	await _go(Vector2(2475.0, 1640.0))
 	await _capture("11_a_refill")
+	# Its home, under the first beach, where the light route leads it.
+	await _go(Vector2(1950.0, 1420.0))
+	await _capture("11b_the_cave")
 
 	# CALM, once the light has shown it what it lost.
 	creature.call("give_it_up")
-	await _go(Vector2(3600.0, 1510.0))
+	await _go(Vector2(6000.0, 1250.0))
 	await _wait(0.8)
 	await _capture("12_bakunawa_calm")
 
 	# THE FAR SAND, where he stops -- seen first while the storm is still up, and then once it
 	# has broken. The level breaks it when the encounter is resolved; this tour never resolves
 	# it, so it asks the bands directly.
-	await _go(Vector2(4460.0, 620.0))
+	await _go(Vector2(6860.0, 620.0))
 	await _capture("13_the_island_in_the_storm")
 	for band in level.get_node("EnvironmentBaseplate").get_children():
 		if band.has_method("clear_the_sky"):
 			band.call("clear_the_sky", 0.05)
-	await _go(Vector2(4700.0, 500.0))
+	await _go(Vector2(7300.0, 500.0))
 	await _capture("14_the_island")
 
 	print("OBRA_VISUAL_L3_OK")

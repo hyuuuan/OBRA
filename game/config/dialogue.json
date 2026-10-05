@@ -28,11 +28,13 @@
         ]
       },
       "chest_memory": {
-        "title": "Her sketchbook page",
+        "title": "Her diary",
         "lines": [
-          "A page from her sketchbook, folded twice and kept under the lid.",
-          "Payyo in pencil: the terraces stepping down the valley, every wall drawn before a single grain was planted.",
-          "And under it, in her hand: draw what you need, apo. The valley will believe you."
+          "A page from her diary, folded small and kept under the lid. The ink has gone brown at the edges.",
+          "I took the old canvases down again today. Payyo first, then the fiesta, then the sea. I sat with each one until I could hear him in it.",
+          "He is easier to find in the paintings than in my head now. That is why I painted him into every one of them, so he would always be somewhere.",
+          "Some mornings I reach for his name and come back with nothing. So I walk through them with him, one by one, while I still know the way.",
+          "If a day comes when I cannot find him at all, I hope somebody walks them for me."
         ]
       },
       "cave": "There's a cave down there. Too dark to see into — we'd need to bring our own light. Not today.",

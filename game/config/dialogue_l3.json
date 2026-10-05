@@ -81,7 +81,7 @@
       "at": "L3_N1.teach",
       "kind": "lore",
       "once": true,
-      "text": "Or that bangka up on the sand. It is too heavy for the two of us — but something that can **carry** a load could drag it down to the water."
+      "text": "Or that bangka up on the sand. It is too heavy for the two of us — but something that can **carry** a load could dig it out and drag it down to the water. Or something heavy enough to shove it."
     },
     {
       "id": "L3_N1_004",
@@ -120,6 +120,20 @@
       "at": "L3_N1.artist.helper",
       "kind": "hint",
       "text": "That one has the back for it. Put it to the bangka, apo."
+    },
+    {
+      "id": "L3_N1_010",
+      "at": "L3_N1.artist.dug",
+      "kind": "hint",
+      "once": true,
+      "text": "There — it is loose. Now put your weight behind it, apo, all the way down to the water."
+    },
+    {
+      "id": "L3_N1_011",
+      "at": "L3_N1.artist.shove",
+      "kind": "hint",
+      "once": true,
+      "text": "Ha! It moved. Pick it up and do that again — it is a long way down to the water."
     },
     {
       "id": "L3_N2_001",
@@ -178,7 +192,7 @@
       "id": "L3_N2_009",
       "at": "L3_N2.artist.solved",
       "kind": "lore",
-      "text": "Look at it go. It had been over that same patch a hundred times and it only needed somebody to hold something up. Oh — apo. It is giving it to you."
+      "text": "Home. It had been going over that same stretch for who knows how long, looking for the way back, and it only needed somebody to hold something up. Oh — apo. It is giving you something."
     },
     {
       "id": "L3_N2_010",
@@ -197,6 +211,26 @@
       "at": "L3_N2.protector.solved",
       "kind": "lore",
       "text": "It has had enough. Let it go, apo — let it go. It never knew you were there. That is the part I want you to keep."
+    },
+    {
+      "id": "L3_N2_013",
+      "at": "L3_N2.protector.solved",
+      "kind": "lore",
+      "text": "And whatever it was searching for, it has taken with it. Down into the dark. We will never know what it was."
+    },
+    {
+      "id": "L3_N2_014",
+      "at": "L3_N2.artist.lead",
+      "kind": "lore",
+      "once": true,
+      "text": "Look — it turned to it. It follows the light, apo. Lead it home."
+    },
+    {
+      "id": "L3_N2_015",
+      "at": "L3_N2.artist.lead",
+      "kind": "lore",
+      "once": true,
+      "text": "There is a hollow in the rock under the first beach, where we came in. I would wager that is where it lives. Bring it back across, and keep the light where it can see it."
     },
     {
       "id": "L3_ISL_001",
@@ -345,6 +379,13 @@
       "text": "I went over and I did not come up. There is no more to it than that. Nothing to see coming, and I have had a long time to look for one."
     },
     {
+      "id": "L3_BOAT_008",
+      "at": "L3_BOAT.hum",
+      "kind": "lore",
+      "once": true,
+      "text": "Listen to the water on the hull. Your lola used to say it sounded like somebody humming in the next room."
+    },
+    {
       "id": "L3_BOAT_005",
       "at": "L3_BOAT.lore5",
       "kind": "lore",
@@ -392,6 +433,143 @@
       "kind": "hint",
       "once": true,
       "text": "Now she does not always know me. She still knows which end of the handle to hold."
+    },
+    {
+      "id": "L3_DIVE_005",
+      "at": "L3_DIVE.light",
+      "kind": "hint",
+      "once": true,
+      "text": "Look at the light coming down through all of that. She tried to get it right every summer and never once said she had."
+    },
+    {
+      "id": "L3_SEA_000",
+      "at": "L3_N1.pragmatist.creatures",
+      "kind": "lore",
+      "once": true,
+      "text": "And you will not be alone down there, apo. Pawikan, dikya, pugita, whole schools of bangus. If you like, draw yourself as one of them and swim the way they do."
+    },
+    {
+      "id": "L3_SEA_001",
+      "at": "SEA.bangus",
+      "kind": "hint",
+      "once": true,
+      "text": "Bangus! The whole country chose that one as its own, apo. Raised in the ponds of Pangasinan and Bulacan, and grilled at every fiesta from here to Mindanao."
+    },
+    {
+      "id": "L3_SEA_002",
+      "at": "SEA.pawikan",
+      "kind": "hint",
+      "once": true,
+      "text": "A pawikan. Five of the world's seven kinds swim in our seas, and they come back to the very beach they hatched on to lay their eggs."
+    },
+    {
+      "id": "L3_SEA_003",
+      "at": "SEA.dikya",
+      "kind": "hint",
+      "once": true,
+      "text": "Dikya. Mind the long threads, apo, they sting. I learned that the hard way once, wading at Bantayan."
+    },
+    {
+      "id": "L3_SEA_004",
+      "at": "SEA.pugita",
+      "kind": "hint",
+      "once": true,
+      "text": "Pugita! Three hearts and blue blood. It can change its colour quicker than you can blink, and squeeze through any gap wider than its beak."
+    },
+    {
+      "id": "L3_SEA_010",
+      "at": "SEA.provoked",
+      "kind": "lore",
+      "once": true,
+      "text": "Apo! Now they are all upset with you. Everything with a sting or a beak is coming for you. Only the bangus will not bother."
+    },
+    {
+      "id": "L3_SEA_011",
+      "at": "SEA.killed1",
+      "kind": "lore",
+      "text": "Oh. Oh, apo. It was only living here."
+    },
+    {
+      "id": "L3_SEA_012",
+      "at": "SEA.killed2",
+      "kind": "lore",
+      "text": "Another one. I wish you would not. They were here long before any of us."
+    },
+    {
+      "id": "L3_SEA_013",
+      "at": "SEA.killed3",
+      "kind": "lore",
+      "text": "Please, apo. That is enough. The sea is not ours to empty."
+    },
+    {
+      "id": "L3_SEA_014",
+      "at": "SEA.killed4",
+      "kind": "lore",
+      "text": "...I do not want to watch this any more."
+    },
+    {
+      "id": "L3_SEA_015",
+      "at": "SEA.sent_up",
+      "kind": "lore",
+      "text": "Enough! Up you come, apo. Up, and leave them be."
+    },
+    {
+      "id": "L3_HOOK_001",
+      "at": "HOOK.uncovered",
+      "kind": "hint",
+      "once": true,
+      "text": "There, under all that sand. Somebody's lost hook, and still sharp."
+    },
+    {
+      "id": "L3_HOOK_002",
+      "at": "HOOK.found",
+      "kind": "lore",
+      "once": true,
+      "text": "With that and a line you could sit in the bangka and see what is down there. Your lola's father did it every morning off this beach."
+    },
+    {
+      "id": "L3_HOOK_003",
+      "at": "HOOK.cast",
+      "kind": "hint",
+      "once": true,
+      "text": "Let it sink, apo. Something will come and look. When it bites, wind it in, and do not let it rest."
+    },
+    {
+      "id": "L3_HOOK_004",
+      "at": "HOOK.broke",
+      "kind": "lore",
+      "once": true,
+      "text": "There, it has snapped. Five is good going for an old hook. Let the sea keep it."
+    },
+    {
+      "id": "L3_CATCH_001",
+      "at": "CATCH.bangus",
+      "kind": "hint",
+      "text": "Bangus on the line! They are full of little bones. The cooks in Dagupan take every one out by hand with tweezers. Back you go, little one."
+    },
+    {
+      "id": "L3_CATCH_002",
+      "at": "CATCH.pawikan",
+      "kind": "hint",
+      "text": "Gently, gently. The pawikan is protected by law here, so we look, and we let it go. They were swimming these seas before there were people to watch them."
+    },
+    {
+      "id": "L3_CATCH_003",
+      "at": "CATCH.dikya",
+      "kind": "hint",
+      "text": "Careful how you hold that. Some dikya in our waters glow in the dark; the old fishermen used to steer home by them at night."
+    },
+    {
+      "id": "L3_CATCH_004",
+      "at": "CATCH.pugita",
+      "kind": "hint",
+      "text": "A pugita! In the Visayas they hang them to dry on bamboo racks along the shore. This one goes back where it came from."
+    },
+    {
+      "id": "L3_CATCH_005",
+      "at": "CATCH.again",
+      "kind": "hint",
+      "text": "Another one! Look at it, and let it go, apo."
     },
     {
       "id": "L3_RT_001",

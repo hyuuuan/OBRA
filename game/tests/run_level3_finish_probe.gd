@@ -119,7 +119,8 @@ func _finish_by(crossing: String, encounter: String) -> void:
 	var spent_low := 999.0
 	var path: Array = []
 	if crossing == "artist":
-		for x in [1300.0, 1900.0, 2500.0, 3050.0, 3350.0, 3420.0]:
+		# Past every one of the boat's lines and the shadow -- the sea is longer since 2026-10-05.
+		for x in [2050.0, 2650.0, 3250.0, 3850.0, 4350.0, 4800.0, 5500.0, 5560.0]:
 			path.append(Vector2(x, 520.0))
 	else:
 		for pair: Variant in (director.call("level_data") as Dictionary) \
@@ -161,6 +162,11 @@ func _finish_by(crossing: String, encounter: String) -> void:
 		var spoken := 0
 		# The level's own field, not a copy: the bed has moved twice.
 		var field: Dictionary = level.call("coral_field")
+		# ⚠ NOT BEHIND THE WHOLE CROSSING'S WORTH OF HIM. The path above passes every one of the
+		# dive's lines in a few seconds, which a swimmer meets minutes apart, and since the sea grew
+		# (2026-10-05) that is half a minute of him queued -- longer than any fact here is waited for.
+		level.set("_advice_waiting", [])
+		level.set("_advice_left", 0.0)
 		level.call("_say_why", "A line of his, still being read.")
 		for key: String in ["jelly", "lola1", "shaft"]:
 			await _swim_to(field[key])
@@ -212,13 +218,22 @@ func _finish_by(crossing: String, encounter: String) -> void:
 		# it does next. Waiting on is_solved here returned on the first frame and reported an
 		# empty outcome.
 		director.call("note_submission", "flashlight")
-		for _frame in range(600):
+		# ⚠ AND THEN IT IS LED HOME (2026-10-05). The light is the first step; the creature
+		# swimming into the cave under the first beach is the second, and the gift comes from that.
+		# Brought within reach of the cave rather than led the whole sea back.
+		var mouth: Vector2 = level.get("_cave_mouth")
+		creature.global_position = mouth + Vector2(380.0, -260.0)
+		level.set("lure_override", mouth)
+		for _frame in range(900):
 			await physics_frame
+			if paused:
+				await _unpause()
 			if String(profile.call("bakunawa_outcome")) == "LIT":
 				break
 	else:
 		director.call("note_submission", "cannon")
-		for _swing in range(6):
+		# Fifteen blows now, not three (Bakunawa2D.HITS_TO_SUBDUE).
+		for _swing in range(int(creature.get("HITS_TO_SUBDUE"))):
 			creature.call("apply_tool_hit", "cannon", 420.0, null)
 			await physics_frame
 	director.call("exit_obstacle", "L3_N2")
