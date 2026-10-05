@@ -18,3 +18,7 @@ venv/
 
 # Thesis working documents
 thesisdocs/
+
+# Personal tool settings and indexes: each person's own, never the project's
+.claude/settings.local.json
+.codebase-memory/
