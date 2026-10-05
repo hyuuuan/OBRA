@@ -568,7 +568,8 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
 - `EndingResolver` (`game/scripts/ending_resolver.gd`) is total and deterministic:
   fixed precedence A → B → C → D, with D as the default so every profile resolves to
   exactly one ending. Keep it pure — `resolve_values()` must stay directly testable.
-- Remaining gaps and their blockers are tracked in `PERSISTENCE_BACKTRACKING_TODO.md`.
+- The July status notes for this work (the persistence TODO and its handoff) were retired
+  on 2026-10-05; they are in git history if needed.
 - `Telemetry` (autoload, `game/scripts/telemetry.gd`) writes an anonymous, local
   per-session event stream to `user://telemetry/session_<UTC>.jsonl`: session and
   level lifecycle plus one recognition record per submission (class, confidence,
