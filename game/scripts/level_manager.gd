@@ -186,6 +186,17 @@ func return_to_selector() -> bool:
 	return true
 
 
+## Back to the title screen itself -- NEW GAME / CONTINUE -- rather than the card grid that
+## return_to_selector opens. What the house's MAIN MENU button and Escape do.
+func open_main_menu() -> bool:
+	if _transitioning or not ResourceLoader.exists(SELECTOR_SCENE):
+		return false
+	get_tree().paused = false
+	_selector_requested = false
+	_transition_to.call_deferred(SELECTOR_SCENE, "")
+	return true
+
+
 func consume_selector_request() -> bool:
 	var requested := _selector_requested
 	_selector_requested = false

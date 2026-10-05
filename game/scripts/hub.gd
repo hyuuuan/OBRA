@@ -232,6 +232,7 @@ func _build_hud() -> void:
 	_write_status()
 
 	_build_carried(layer)
+	_build_menu_button(layer)
 
 	# The prompt follows the painting rather than the player: it is a label on the picture,
 	# and one pinned over the apo's head covers the thing they are looking at.
@@ -359,7 +360,36 @@ func _nearest_target() -> Node2D:
 	return best
 
 
+## THE WAY OUT OF THE HOUSE THAT IS NOT A PAINTING. The house replaced the title screen's
+## level grid, and the grid had a way back to the title; the house had none, so the only way
+## to reach NEW GAME, the settings or Quit from here was to walk into a level and pause.
+## Bottom left, out of the way of the plate and the brush, and Escape does the same.
+func _build_menu_button(layer: CanvasLayer) -> void:
+	var button := Button.new()
+	button.name = "MainMenuButton"
+	button.text = "ESC  MAIN MENU"
+	button.theme_type_variation = &"DialogButton"
+	button.focus_mode = Control.FOCUS_NONE
+	button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	button.offset_left = 24.0
+	button.offset_top = -72.0
+	button.offset_right = 284.0
+	button.offset_bottom = -24.0
+	button.pressed.connect(_to_main_menu)
+	layer.add_child(button)
+
+
+func _to_main_menu() -> void:
+	var manager := get_node_or_null(^"/root/LevelManager")
+	if manager != null:
+		manager.call("open_main_menu")
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"ui_cancel"):
+		get_viewport().set_input_as_handled()
+		_to_main_menu()
+		return
 	if not event.is_action_pressed(&"interact") or _near == null:
 		return
 	get_viewport().set_input_as_handled()

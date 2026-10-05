@@ -413,6 +413,8 @@ func commit_route(id: String, route: String) -> void:
 	_stage[id] = 0
 	if _profile != null:
 		_profile.call("record_route", level_id(), route)
+		if _profile.has_method("record_obstacle_route"):
+			_profile.call("record_obstacle_route", level_id(), id, route)
 	route_committed.emit(id, route)
 	_emit_requirements()
 	if _telemetry != null:

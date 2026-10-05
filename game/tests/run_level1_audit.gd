@@ -2096,6 +2096,54 @@ func _audit_no_line_is_unreachable(level: Dictionary, dialogue: Dictionary) -> v
 				continue
 			reachable["%s.%s" % [id, sub]] = true
 			reachable["%s.%s.solved" % [id, sub]] = true
+		# A fork the apo has answered before opens with Lolo remembering it
+		# (LevelBase._remind_of_last_choice): one line per route taken last, or `all`.
+		for route_value: Variant in (obstacle.get("routes", {}) as Dictionary).keys():
+			reachable["%s.choice.again.%s" % [id, route_value]] = true
+		if not (obstacle.get("routes", {}) as Dictionary).is_empty():
+			reachable["%s.choice.again.all" % id] = true
+	# ⚠ CONVERSATIONS AND THE REPLAY POOL POINT AT HOOKS AND LINES AS DATA. The intro and the
+	# welcome-back greetings are played by LevelBase._run_conversation, which reads its steps
+	# out of this same file -- so a hook named by a step is fired, and an option's line is said
+	# by id. Anything a step names that no line carries is a step that says nothing, and is
+	# reported as such below rather than quietly counted as reachable.
+	var steps: Array = []
+	for conversation_value: Variant in (dialogue.get("conversations", {}) as Dictionary).values():
+		if conversation_value is Array:
+			steps.append_array(conversation_value)
+	for entry_value: Variant in dialogue.get("returns", []):
+		steps.append_array((entry_value as Dictionary).get("steps", []))
+	var spoken_ids: Dictionary = {}
+	for step_value: Variant in steps:
+		var step: Dictionary = step_value
+		for key in ["say", "ask", "again"]:
+			if step.has(key):
+				reachable[String(step[key])] = true
+		for option_value: Variant in step.get("options", []):
+			var option: Dictionary = option_value
+			spoken_ids[String(option.get("line", ""))] = true
+			if option.has("then"):
+				reachable[String(option["then"])] = true
+	var authored_hooks: Dictionary = {}
+	var authored_ids: Dictionary = {}
+	for line_value: Variant in dialogue.get("lines", []):
+		authored_hooks[String((line_value as Dictionary).get("at", ""))] = true
+		authored_ids[String((line_value as Dictionary).get("id", ""))] = true
+	var empty_steps: Array[String] = []
+	for step_value: Variant in steps:
+		var step: Dictionary = step_value
+		for key in ["say", "ask", "again"]:
+			if step.has(key) and not authored_hooks.has(String(step[key])):
+				empty_steps.append(String(step[key]))
+		for option_value: Variant in step.get("options", []):
+			var option: Dictionary = option_value
+			if not authored_ids.has(String(option.get("line", ""))):
+				empty_steps.append(String(option.get("line", "")))
+			if option.has("then") and not authored_hooks.has(String(option["then"])):
+				empty_steps.append(String(option["then"]))
+	_check(empty_steps.is_empty(), "every conversation step has words",
+		"%d steps" % steps.size() if empty_steps.is_empty()
+		else "says nothing: %s" % ", ".join(empty_steps))
 	# `%` is in the class on purpose: a call site may name a family rather than a line.
 	var literal := RegEx.create_from_string("\"([A-Za-z0-9_%]+(?:\\.[A-Za-z0-9_%]+)*)\"")
 	for path in HOST_SOURCES:
@@ -2111,7 +2159,8 @@ func _audit_no_line_is_unreachable(level: Dictionary, dialogue: Dictionary) -> v
 	var dead: Array[String] = []
 	for line_value: Variant in dialogue.get("lines", []):
 		var hook := String((line_value as Dictionary).get("at", ""))
-		if hook.is_empty() or reachable.has(hook) or NOT_FIRED.has(hook):
+		if hook.is_empty() or reachable.has(hook) or NOT_FIRED.has(hook) \
+				or spoken_ids.has(String((line_value as Dictionary).get("id", ""))):
 			continue
 		var built := false
 		for prefix in prefixes:

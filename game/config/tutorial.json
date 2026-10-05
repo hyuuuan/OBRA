@@ -16,7 +16,9 @@
     "",
     "NO LESSON MAY NAME A DRAWABLE CLASS, in its text or its caption. Same rule as the dialogue: `key`, `door`, `wheel` are all classes and all answers somewhere. The pictures follow it too: 'your drawing' is drawn as a scrap of paper with a scribble on it, never a shape.",
     "",
-    "`at` is the event that offers a lesson; `after` holds it back until another has been spent, so the order survives a player who does things out of sequence. Cut on this pass because they were the dumping: `pause` (Escape is the one key everybody already knows), `sure` (the confidence number is shown on the card; explaining it at the second second of a ten-second life was a third card in a row), `sign` (the E READ prompt already says it), and the canvas briefing, four lines of Lolo inside the panel -- the canvas is now taught by two cards that only appear if the player hesitates."
+    "`at` is the event that offers a lesson; `after` holds it back until another has been spent, so the order survives a player who does things out of sequence. Cut on this pass because they were the dumping: `pause` (Escape is the one key everybody already knows), `sure` (the confidence number is shown on the card; explaining it at the second second of a ten-second life was a third card in a row), `sign` (the E READ prompt already says it), and the canvas briefing, four lines of Lolo inside the panel -- the canvas is now taught by two cards that only appear if the player hesitates.",
+    "",
+    "`lead` is what Lolo says in the story box BEFORE a card shows, so the card answers something he asked: 'Come, apo, walk with me' and then the keys. Said once, through TutorialDirector.bind_lead. Not used on `say` lessons (they are Lolo already) or on the canvas, whose story box is hidden under the drawing panel -- the `draw` lesson leads into it. Cards do not play at all on a return visit."
   ],
   "version": 2,
   "levels": {
@@ -36,7 +38,8 @@
           "delay": 2.0,
           "seconds": 12.0,
           "caption": "Walk",
-          "text": "Walk with me, apo. {keys}."
+          "text": "Walk with me, apo. {keys}.",
+          "lead": "Come, apo. Walk with me — the terraces will not wait for us."
         },
         {
           "id": "jump",
@@ -50,7 +53,8 @@
           "delay": 3.0,
           "seconds": 10.0,
           "caption": "Jump",
-          "text": "{keys} to jump."
+          "text": "{keys} to jump.",
+          "lead": "Mind the little walls between the paddies. Hop over them, the way the farmers do."
         },
         {
           "id": "draw",
@@ -63,7 +67,11 @@
           "delay": 2.0,
           "seconds": 14.0,
           "caption": "Draw something",
-          "text": "Her brush is in here. {keys} opens it."
+          "text": "Her brush is in here. {keys} opens it.",
+          "lead": [
+            "That wall is too tall to walk up.",
+            "Her brush is in your hand. Open her canvas, draw what you need, then Paint it — whatever you paint, this place believes."
+          ]
         },
         {
           "id": "canvas",
@@ -90,8 +98,8 @@
           "delay": 3.0,
           "seconds": 10.0,
           "patience": 120.0,
-          "caption": "Done? Press Transform",
-          "text": "Then Transform, apo."
+          "caption": "Done? Press Paint",
+          "text": "Then Paint it, apo."
         },
         {
           "id": "place",
@@ -106,7 +114,8 @@
           "delay": 0.8,
           "seconds": 12.0,
           "caption": "Move to aim. Click to set it down",
-          "text": "Mouse aims. Left click sets it down."
+          "text": "Mouse aims. Left click sets it down.",
+          "lead": "Now set it where you need it. Aim it, and put it down gently."
         },
         {
           "id": "resize",
@@ -125,7 +134,8 @@
           "delay": 0.8,
           "seconds": 12.0,
           "caption": "Make it bigger or smaller",
-          "text": "{keys} make it smaller and bigger. So does scrolling with Shift held."
+          "text": "{keys} make it smaller and bigger. So does scrolling with Shift held.",
+          "lead": "Too big? Too small? You can change its size before you let go."
         },
         {
           "id": "rotate",
@@ -143,7 +153,8 @@
           "delay": 0.8,
           "seconds": 12.0,
           "caption": "Turn it",
-          "text": "{keys} turns it. So does scrolling."
+          "text": "{keys} turns it. So does scrolling.",
+          "lead": "And you can turn it, too — tilt it until it sits right."
         },
         {
           "id": "undo",
@@ -157,7 +168,8 @@
           ],
           "delay": 1.0,
           "caption": "Right-click takes it back, ink and all",
-          "text": "Right click takes it back, and the ink with it."
+          "text": "Right click takes it back, and the ink with it.",
+          "lead": "Changed your mind? You can always take a drawing back."
         },
         {
           "id": "revert",
@@ -169,7 +181,8 @@
           "action": "revert_form",
           "delay": 0.6,
           "caption": "Change back to yourself",
-          "text": "{keys} puts you back as yourself."
+          "text": "{keys} puts you back as yourself.",
+          "lead": "You can always come back to yourself, apo. Remember how."
         },
         {
           "id": "clock",
@@ -180,7 +193,8 @@
           "context": "creature",
           "anchor": "morph_card",
           "caption": "It runs out",
-          "text": "That bar is the drawing's life, apo. It runs out."
+          "text": "That bar is the drawing's life, apo. It runs out.",
+          "lead": "Watch that bar, apo. Something you become does not last forever."
         },
         {
           "id": "life",
@@ -200,7 +214,8 @@
           "context": "world",
           "anchor": "ink_gauge",
           "caption": "Every drawing costs ink",
-          "text": "That cost ink, apo. There is not much of it."
+          "text": "That cost ink, apo. There is not much of it.",
+          "lead": "Her brush runs on ink, apo, and we do not have much. Spend it wisely."
         },
         {
           "id": "requirement",
@@ -211,7 +226,8 @@
           "context": "world",
           "anchor": "requirement_strip",
           "caption": "What it needs DONE, not drawn",
-          "text": "That word is what it needs DONE, not what to draw."
+          "text": "That word is what it needs DONE, not what to draw.",
+          "lead": "See that word? It tells you what must be DONE here — not what to draw."
         },
         {
           "id": "checkpoint",
@@ -221,7 +237,8 @@
           "context": "world",
           "anchor": "player",
           "caption": "Fall, and you start again here",
-          "text": "That lantern is a checkpoint, apo. If you fall or get stuck, you start again from here, with the ink you had."
+          "text": "That lantern is a checkpoint, apo. If you fall or get stuck, you start again from here, with the ink you had.",
+          "lead": "A lantern! She lit these so nobody would lose their way."
         },
         {
           "id": "bag",
@@ -235,7 +252,8 @@
           "caption": "Take it out of your bag",
           "text": "In your bag. {keys} brings it out.",
           "delay": 0.6,
-          "seconds": 12.0
+          "seconds": 12.0,
+          "lead": "You kept it. Good — whatever goes in your bag, you can bring out again."
         },
         {
           "id": "bag_open",
@@ -247,7 +265,8 @@
           "anchor": "inventory_bar",
           "action": "inventory_open",
           "caption": "Open your bag",
-          "text": "{keys} opens your bag, apo. It remembers everything you draw."
+          "text": "{keys} opens your bag, apo. It remembers everything you draw.",
+          "lead": "Your bag remembers everything you have ever drawn. Have a look inside sometime."
         },
         {
           "id": "climb",
@@ -260,7 +279,8 @@
           "delay": 1.0,
           "seconds": 12.0,
           "caption": "Hold to climb",
-          "text": "Stand at it and hold {keys}, apo. That is how you go up."
+          "text": "Stand at it and hold {keys}, apo. That is how you go up.",
+          "lead": "There — something to go up. Hold on tight and climb."
         },
         {
           "id": "hold",
@@ -272,7 +292,8 @@
           "action": "use_utility",
           "delay": 0.6,
           "caption": "Use what you hold",
-          "text": "{keys} uses it."
+          "text": "{keys} uses it.",
+          "lead": "You are holding it now. Go on, apo, use it."
         }
       ]
     },
@@ -305,7 +326,8 @@
           "anchor": "ink_gauge",
           "speaker": "Lolo",
           "caption": "No counting down with this brush. It spends ink instead",
-          "text": "Hers counted you down. This one does not count at all."
+          "text": "Hers counted you down. This one does not count at all.",
+          "lead": "A new brush! Hers counted the time down... this one is different."
         },
         {
           "id": "drain",
@@ -317,7 +339,8 @@
           "anchor": "morph_card",
           "speaker": "Lolo",
           "caption": "Holding a shape drains your ink",
-          "text": "That bar is your ink now, apo. It goes down the whole time you are holding the shape."
+          "text": "That bar is your ink now, apo. It goes down the whole time you are holding the shape.",
+          "lead": "Careful, apo. Out here, holding a shape costs ink the whole time."
         },
         {
           "id": "revert_is_free",
@@ -330,7 +353,8 @@
           "speaker": "Lolo",
           "action": "revert_form",
           "caption": "Change back to stop it. That is free",
-          "text": "{keys} puts you back, and stops it going down. Changing back never costs."
+          "text": "{keys} puts you back, and stops it going down. Changing back never costs.",
+          "lead": "If it gets low, let go of the shape. Being yourself costs nothing."
         },
         {
           "id": "refill",
@@ -341,7 +365,8 @@
           "anchor": "morph_card",
           "speaker": "Lolo",
           "caption": "Nearly out. Find more ink",
-          "text": "You are nearly out. It does not come back on its own out here — you have to find more of it."
+          "text": "You are nearly out. It does not come back on its own out here — you have to find more of it.",
+          "lead": "The ink is nearly gone. Look around — the sea keeps some, if you know where."
         },
         {
           "id": "no_drowning",
@@ -368,7 +393,8 @@
           "anchor": "morph_card",
           "speaker": "Lolo",
           "caption": "Swim through a jar to fill up",
-          "text": "Those jars on the bottom are ink. Swim through one and this fills back up."
+          "text": "Those jars on the bottom are ink. Swim through one and this fills back up.",
+          "lead": "Look down there, apo! Those jars on the seabed — they are full of ink."
         }
       ]
     }

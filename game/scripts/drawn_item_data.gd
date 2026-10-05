@@ -19,6 +19,10 @@ var placement_transform: Transform2D = Transform2D.IDENTITY
 ## only when a placement is CONFIRMED -- resizing and then putting it back leaves this alone.
 var size_scale: float = 1.0
 var ink_committed: bool = false
+## Whether this drawing has already been paid for by being set down once. A placeable costs
+## its unit the first time it is placed; taking it back into the bag and setting it down
+## again is free, because it is the same drawing and not a new one.
+var placement_paid: bool = false
 
 
 func _init() -> void:

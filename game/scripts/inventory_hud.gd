@@ -16,6 +16,8 @@ signal slot_pressed(slot: int)
 const SLOT := Vector2(64.0, 64.0)
 const GOLD := UISkin.GOLD
 const DIM := UISkin.MUTED
+## The drawing canvas's own paper, so a drawing in a slot looks the way it did on the page.
+const PAPER := Color(0.965, 0.95, 0.9, 1.0)
 
 var _manager: InventoryManager
 var _buttons: Array[Button] = []
@@ -272,8 +274,13 @@ func _refresh(items: Array) -> void:
 		# The frame is applied to every state, not only the chosen one. The theme leaves
 		# InventorySlot unstyled precisely so this can own it; removing the override left
 		# a slot with no frame at all.
+		# ⚠ A SLOT WITH A DRAWING IN IT IS PAPER. The thumbnail is dark ink with the paper
+		# knocked out, and on the panel's near-black fill it disappeared.
+		var frame := UISkin.slot(occupied, chosen)
+		if occupied:
+			frame.bg_color = PAPER
 		for state in [&"normal", &"hover", &"pressed", &"disabled"]:
-			button.add_theme_stylebox_override(state, UISkin.slot(occupied, chosen))
+			button.add_theme_stylebox_override(state, frame)
 		button.modulate = Color(1.12, 1.12, 1.04) if chosen else Color.WHITE
 		_numbers[index].add_theme_color_override(&"font_color", GOLD if occupied else DIM)
 		_tags[index].visible = chosen

@@ -72,6 +72,13 @@ var _spotlight: TutorialSpotlight
 var _find_target: Callable = Callable()
 var _in_context: Callable = Callable()
 var _enabled := true
+## LOLO SAYS IT FIRST. A lesson may carry a `lead`: a line (or lines) Lolo says in the story
+## box before its card appears, so the card is the answer to something he asked rather than
+## an instruction out of nowhere -- "Come, apo, walk with me", THEN the keys. Said through
+## whatever the level binds here, once per lesson; the card follows when he has finished,
+## because nothing is shown over anyone talking (_coast_is_clear).
+var _lead_speaker: Callable = Callable()
+var _led: Dictionary = {}
 
 
 func _ready() -> void:
@@ -125,6 +132,23 @@ func bind_spotlight(spotlight: TutorialSpotlight, finder: Callable, context: Cal
 		_spotlight.finished.connect(_on_card_finished)
 
 
+func bind_lead(speaker: Callable) -> void:
+	_lead_speaker = speaker
+
+
+## The lead lines a lesson carries, as an array. Not for `say` lessons, which are Lolo talking
+## already, nor for the canvas: the story box sits under the drawing panel, so a line there
+## would stop the world behind a panel that hides it. The canvas is led into by the lesson
+## that opens it.
+func lead_of(lesson: Dictionary) -> Array:
+	if _mode_of(lesson) == "say" or String(lesson.get("context", "world")) == "canvas":
+		return []
+	var lead: Variant = lesson.get("lead", [])
+	if lead is String:
+		return [] if String(lead).is_empty() else [lead]
+	return (lead as Array).duplicate() if lead is Array else []
+
+
 func spotlight() -> TutorialSpotlight:
 	return _spotlight
 
@@ -158,6 +182,20 @@ func taught_count() -> int:
 
 func pending_ids() -> Array[String]:
 	return _queue.duplicate()
+
+
+## Every lesson spent so far, shown or skipped -- what a saved checkpoint keeps, so resuming
+## a level does not teach walking again.
+func taught_ids() -> Array:
+	return _seen.keys()
+
+
+## Spend these lessons without showing them.
+func mark_taught(ids: Array) -> void:
+	for id_value: Variant in ids:
+		var id := String(id_value)
+		_seen[id] = "skipped"
+		_queue.erase(id)
 
 
 func lesson_ids() -> Array[String]:
@@ -205,6 +243,11 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion or event.is_echo() or not event.is_pressed():
 		return
+	# A key pressed while somebody is talking turns the page. Counted as the lesson, the
+	# space that advanced Lolo's lead line spent the jump card it was leading into.
+	for box in get_tree().get_nodes_in_group(DialogueBox.GROUP):
+		if box.has_method(&"is_open") and bool(box.call(&"is_open")):
+			return
 	for id in _queue.duplicate():
 		var lesson := _find(id)
 		if lesson.is_empty() or not _context_holds(lesson):
@@ -240,6 +283,13 @@ func _pump(delta: float) -> void:
 		_ready_for[id] = float(_ready_for.get(id, 0.0)) + delta
 		if float(_ready_for[id]) < float(lesson.get("delay", 0.0)):
 			continue
+		var lead := lead_of(lesson)
+		if not lead.is_empty() and not _led.has(id) and _lead_speaker.is_valid():
+			# Said now; the card comes on a later pump, once he has finished. It stays at the
+			# front of the queue with its delay already served.
+			_led[id] = true
+			_lead_speaker.call(lead)
+			return
 		_queue.erase(id)
 		_show(lesson)
 		return

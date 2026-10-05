@@ -109,8 +109,9 @@ func _run() -> void:
 		"%d frames" % _grid("active_ragdoll_morph").get_child_count())
 
 	# --- ⚠ AND IT DESCRIBES A TOOL AS A TOOL ----------------------------------------------
-	# Every "utility" read "a thing you hold or set down · costs ink when you set it down",
-	# which is the placeable's rule printed under an axe. A tool is paid for once and kept.
+	# Every "utility" read "a thing you hold or set down", which is the placeable's rule
+	# printed under an axe. A tool is kept; a placeable is set down. And the bag no longer
+	# talks about ink at all -- the gauge says what is left.
 	var bag := level.get("inventory_manager") as Node
 	for id in ["axe", "ladder"]:
 		var item := DrawnItemData.new()
@@ -126,16 +127,17 @@ func _run() -> void:
 			continue
 		screen.call("_choose_bag", index)
 		await _wait(0.1)
-		# What it IS and what it COSTS are two lines on the pane now, and the price is the half
-		# this check is about.
-		notes[item.entity_id] = "%s  |  %s" % [(screen.get("_detail_note") as Label).text,
-			(screen.get("_detail_price") as Label).text]
-	_check(String(notes.get("axe", "")).contains("keep")
-		and not String(notes.get("axe", "")).contains("each time"),
+		notes[item.entity_id] = (screen.get("_detail_note") as Label).text
+	_check(String(notes.get("axe", "")).contains("keep"),
 		"an axe in the bag is described as a tool you keep", String(notes.get("axe", "")))
-	_check(String(notes.get("ladder", "")).contains("each time you set it down"),
-		"and a ladder as a thing that costs each time it goes down",
-		String(notes.get("ladder", "")))
+	_check(String(notes.get("ladder", "")).contains("set down"),
+		"and a ladder as a thing you set down", String(notes.get("ladder", "")))
+	var inky: Array[String] = []
+	for label in screen.find_children("*", "Label", true, false):
+		if (label as Label).is_visible_in_tree() and (label as Label).text.to_lower().contains("ink"):
+			inky.append((label as Label).text)
+	_check(inky.is_empty(), "and nothing on the bag mentions ink",
+		"none" if inky.is_empty() else ", ".join(inky))
 
 	print("OBRA_BOOK_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)

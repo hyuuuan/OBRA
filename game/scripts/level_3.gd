@@ -140,6 +140,20 @@ func _dialogue_node_obstacle_id() -> String:
 	return _live_node_obstacle
 
 
+## Dagat asks at the shore and again at the bakunawa.
+func _fork_for(obstacle_id: String) -> DialogueNode2D:
+	match obstacle_id:
+		"L3_N1":
+			return _shore_node
+		"L3_N2":
+			return _bakunawa_node
+	return super._fork_for(obstacle_id)
+
+
+func _resume_committed_route(obstacle_id: String, route: String) -> void:
+	_on_route_committed_here(obstacle_id, route)
+
+
 func _resolve_level_nodes() -> void:
 	var plane := ^"EnvironmentBaseplate/GameplayPlane"
 	dialogue_node = get_node_or_null(

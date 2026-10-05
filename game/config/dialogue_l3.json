@@ -2,7 +2,7 @@
   "$comment": [
     "LEVEL 3 -- DAGAT. Lolo's lines, and the apo's own at the two forks.",
     "",
-    "\u26a0 NO LINE MAY NAME A DRAWABLE CLASS, and this level is where that rule is hardest.",
+    "⚠ NO LINE MAY NAME A DRAWABLE CLASS, and this level is where that rule is hardest.",
     "Seventeen of the fifty are things you would reach for writing about the sea: fish,",
     "shark, octopus, crab, sea turtle, penguin, frog, sun, cloud, sailboat, submarine,",
     "flashlight, sword, axe, cannon, boomerang, anvil. The check is word-boundary and",
@@ -37,7 +37,7 @@
       "id": "L3_B0_003",
       "at": "L3_B0_SHORE.brush",
       "kind": "hint",
-      "text": "No counting down any more. Hold a shape as long as you like \u2014 but it drinks the whole time you are holding it."
+      "text": "No counting down any more. Hold a shape as long as you like — but it drinks the whole time you are holding it."
     },
     {
       "id": "L3_B0_004",
@@ -72,14 +72,16 @@
     {
       "id": "L3_N1_002",
       "at": "L3_N1.teach",
-      "kind": "lore", "once": true,
+      "kind": "lore",
+      "once": true,
       "text": "Two ways across that I can see. Something that can **swim** will take you under it."
     },
     {
       "id": "L3_N1_003",
       "at": "L3_N1.teach",
-      "kind": "lore", "once": true,
-      "text": "Or that bangka up on the sand. It is too heavy for the two of us \u2014 but something that can **carry** a load could drag it down to the water."
+      "kind": "lore",
+      "once": true,
+      "text": "Or that bangka up on the sand. It is too heavy for the two of us — but something that can **carry** a load could drag it down to the water."
     },
     {
       "id": "L3_N1_004",
@@ -105,7 +107,7 @@
       "id": "L3_N1_007",
       "at": "L3_N1.artist.solved",
       "kind": "lore",
-      "text": "There she goes. Somebody left that and never came back for it. Get in, apo \u2014 I will sit at this end and keep out of your way."
+      "text": "There she goes. Somebody left that and never came back for it. Get in, apo — I will sit at this end and keep out of your way."
     },
     {
       "id": "L3_N1_008",
@@ -123,7 +125,7 @@
       "id": "L3_N2_001",
       "at": "L3_N2.enter",
       "kind": "lore",
-      "text": "Wait. Wait. Do you see how it is going \u2014 back and forth over the same stretch, over and over? It is not hunting us. It has lost something."
+      "text": "Wait. Wait. Do you see how it is going — back and forth over the same stretch, over and over? It is not hunting us. It has lost something."
     },
     {
       "id": "L3_N2_002",
@@ -134,14 +136,16 @@
     {
       "id": "L3_N2_003",
       "at": "L3_N2.teach",
-      "kind": "lore", "once": true,
+      "kind": "lore",
+      "once": true,
       "text": "Something that can throw **light** would show it where to look. Something that can **strike** would make it stop."
     },
     {
       "id": "L3_N2_004",
       "at": "L3_N2.teach",
-      "kind": "lore", "once": true,
-      "text": "Or nothing at all. It cannot see you either \u2014 keep out of the bright and it will never know you went by."
+      "kind": "lore",
+      "once": true,
+      "text": "Or nothing at all. It cannot see you either — keep out of the bright and it will never know you went by."
     },
     {
       "id": "L3_N2_005",
@@ -174,7 +178,7 @@
       "id": "L3_N2_009",
       "at": "L3_N2.artist.solved",
       "kind": "lore",
-      "text": "Look at it go. It had been over that same patch a hundred times and it only needed somebody to hold something up. Oh \u2014 apo. It is giving it to you."
+      "text": "Look at it go. It had been over that same patch a hundred times and it only needed somebody to hold something up. Oh — apo. It is giving it to you."
     },
     {
       "id": "L3_N2_010",
@@ -192,7 +196,7 @@
       "id": "L3_N2_012",
       "at": "L3_N2.protector.solved",
       "kind": "lore",
-      "text": "It has had enough. Let it go, apo \u2014 let it go. It never knew you were there. That is the part I want you to keep."
+      "text": "It has had enough. Let it go, apo — let it go. It never knew you were there. That is the part I want you to keep."
     },
     {
       "id": "L3_ISL_001",
@@ -234,7 +238,7 @@
       "id": "L3_ISL_007",
       "at": "ISLAND.farewell",
       "kind": "lore",
-      "text": "Past here I do not remember. I was not there for it, so there is nothing of me in it to walk through \u2014 you would be going on alone whether I came or not."
+      "text": "Past here I do not remember. I was not there for it, so there is nothing of me in it to walk through — you would be going on alone whether I came or not."
     },
     {
       "id": "L3_ISL_008",
@@ -317,7 +321,7 @@
       "at": "L3_BOAT.lore1",
       "kind": "lore",
       "once": true,
-      "text": "Row. Do not fight it \u2014 let the water carry some of the work, it is going that way anyway."
+      "text": "Row. Do not fight it — let the water carry some of the work, it is going that way anyway."
     },
     {
       "id": "L3_BOAT_002",
@@ -331,7 +335,7 @@
       "at": "L3_BOAT.lore3",
       "kind": "lore",
       "once": true,
-      "text": "It was out past here. Further than you have been. An ordinary afternoon \u2014 that is the part nobody believes, and it is the only part that matters."
+      "text": "It was out past here. Further than you have been. An ordinary afternoon — that is the part nobody believes, and it is the only part that matters."
     },
     {
       "id": "L3_BOAT_004",
@@ -352,7 +356,7 @@
       "at": "L3_BOAT.shadow",
       "kind": "lore",
       "once": true,
-      "text": "Stop. Stop rowing \u2014 look down."
+      "text": "Stop. Stop rowing — look down."
     },
     {
       "id": "L3_BOAT_007",
@@ -388,6 +392,385 @@
       "kind": "hint",
       "once": true,
       "text": "Now she does not always know me. She still knows which end of the handle to hold."
+    },
+    {
+      "id": "L3_RT_001",
+      "at": "RETURN.back",
+      "text": "Back on the shore, apo. The tide brought you home."
+    },
+    {
+      "id": "L3_RT_002",
+      "at": "RETURN.quiet",
+      "text": "The sea again. Listen to it — it has been waiting for you."
+    },
+    {
+      "id": "L3_RT_003",
+      "at": "RETURN.again",
+      "text": "You keep coming back to the water. She was the same."
+    },
+    {
+      "id": "L3_RT_010",
+      "at": "RETURN.from.level_1",
+      "text": "From the mountains to the sea! Mind the salt, apo — it gets everywhere."
+    },
+    {
+      "id": "L3_RT_011",
+      "at": "RETURN.from.level_1",
+      "speaker": "apo",
+      "text": "It is so flat here after all those terraces."
+    },
+    {
+      "id": "L3_RT_012",
+      "at": "RETURN.from.level_1",
+      "text": "Flat on top. Underneath, it is deeper than any mountain is tall."
+    },
+    {
+      "id": "L3_RT_013",
+      "at": "RETURN.from.level_2",
+      "text": "Still humming the fiesta drums? Out here the waves keep a slower beat."
+    },
+    {
+      "id": "L3_RT_014",
+      "at": "RETURN.from.level_2",
+      "speaker": "apo",
+      "text": "Two steps forward, one step back... like the tide."
+    },
+    {
+      "id": "L3_RT_015",
+      "at": "RETURN.from.level_2",
+      "text": "Just like the tide. You are learning, apo."
+    },
+    {
+      "id": "L3_RT_020",
+      "at": "RETURN.artist",
+      "text": "Last time you took the bangka out. Will you try the water itself today?"
+    },
+    {
+      "id": "L3_RT_021",
+      "at": "RETURN.pragmatist",
+      "text": "Last time you went down under the waves. The bangka is still waiting on the sand."
+    },
+    {
+      "id": "L3_RT_022",
+      "at": "RETURN.protector",
+      "text": "Last time you stood between me and the deep. Brave. Perhaps there is a kinder way."
+    },
+    {
+      "id": "L3_FA_001",
+      "at": "RETURN.fact.islands",
+      "text": "Did you know, apo? The Philippines has more than seven thousand islands. Seven thousand six hundred and forty-one, at the last count."
+    },
+    {
+      "id": "L3_FA_002",
+      "at": "RETURN.fact.islands",
+      "speaker": "apo",
+      "text": "Have you been to all of them?"
+    },
+    {
+      "id": "L3_FA_003",
+      "at": "RETURN.fact.islands",
+      "text": "Not even close. Some are so small they vanish at high tide."
+    },
+    {
+      "id": "L3_FA_004",
+      "at": "RETURN.fact.coral",
+      "text": "These seas are some of the richest on Earth, apo. Scientists say more kinds of reef life live in Philippine waters than almost anywhere else in the world."
+    },
+    {
+      "id": "L3_FA_005",
+      "at": "RETURN.fact.bangka",
+      "text": "See the bamboo arms on each side of the bangka? Those are outriggers. They are why it does not tip over in rough water."
+    },
+    {
+      "id": "L3_FA_006",
+      "at": "RETURN.fact.balangay",
+      "text": "Long ago our ancestors crossed these seas in boats called balangay. One dug up in Butuan is more than a thousand years old."
+    },
+    {
+      "id": "L3_FA_007",
+      "at": "RETURN.fact.bakunawa",
+      "text": "The old Visayans told of the bakunawa — a great sea serpent that rose from the deep to swallow the moon."
+    },
+    {
+      "id": "L3_FA_008",
+      "at": "RETURN.fact.bakunawa",
+      "speaker": "apo",
+      "text": "Swallow the MOON?"
+    },
+    {
+      "id": "L3_FA_009",
+      "at": "RETURN.fact.bakunawa",
+      "text": "So the people banged pots and pans until it spat the moon back out. That is how they explained an eclipse."
+    },
+    {
+      "id": "L3_FA_010",
+      "at": "RETURN.fact.moons",
+      "text": "They say there were once seven moons in the sky, and the bakunawa swallowed six of them. The last one is the one the people protected."
+    },
+    {
+      "id": "L3_FA_011",
+      "at": "RETURN.fact.tubbataha",
+      "text": "Far south, in the Sulu Sea, there is a reef called Tubbataha. It is so precious that visitors may only come a few months of the year."
+    },
+    {
+      "id": "L3_FA_012",
+      "at": "RETURN.fact.butanding",
+      "text": "In Donsol, the gentle butanding comes to feed — the biggest creature in these seas, and it lives on the tiniest things in the water."
+    },
+    {
+      "id": "L3_FA_013",
+      "at": "RETURN.fact.butanding",
+      "text": "The fishers there used to hunt it. Now they guide people to swim beside it instead."
+    },
+    {
+      "id": "L3_AG_001",
+      "at": "L3_N1.choice.again.artist",
+      "text": "Last time you took the bangka over. Will you go under, this time?"
+    },
+    {
+      "id": "L3_AG_002",
+      "at": "L3_N1.choice.again.pragmatist",
+      "text": "Last time you went under. The bangka is still waiting on the sand."
+    },
+    {
+      "id": "L3_AG_003",
+      "at": "L3_N1.choice.again.all",
+      "text": "You have crossed both ways now. Choose whichever feels right."
+    },
+    {
+      "id": "L3_AG_004",
+      "at": "L3_N2.choice.again.artist",
+      "text": "Last time you showed it where to look. Will you try another way today?"
+    },
+    {
+      "id": "L3_AG_005",
+      "at": "L3_N2.choice.again.pragmatist",
+      "text": "Last time you slipped around it. Perhaps face it, this time?"
+    },
+    {
+      "id": "L3_AG_006",
+      "at": "L3_N2.choice.again.protector",
+      "text": "Last time you put yourself between us and it. There may be a kinder way."
+    },
+    {
+      "id": "L3_AG_007",
+      "at": "L3_N2.choice.again.all",
+      "text": "You have met it every way there is. Choose what your heart says."
+    }
+  ],
+  "returns": [
+    {
+      "id": "L3_return_from_l1",
+      "pool": "greeting",
+      "priority": 6,
+      "when": {
+        "visits_at_least": 2,
+        "came_from": "level_1"
+      },
+      "steps": [
+        {
+          "say": "RETURN.from.level_1"
+        }
+      ]
+    },
+    {
+      "id": "L3_return_from_l2",
+      "pool": "greeting",
+      "priority": 6,
+      "when": {
+        "visits_at_least": 2,
+        "came_from": "level_2"
+      },
+      "steps": [
+        {
+          "say": "RETURN.from.level_2"
+        }
+      ]
+    },
+    {
+      "id": "L3_return_last_artist",
+      "pool": "greeting",
+      "priority": 5,
+      "when": {
+        "visits_at_least": 2,
+        "last_route": "artist"
+      },
+      "steps": [
+        {
+          "say": "RETURN.artist"
+        }
+      ]
+    },
+    {
+      "id": "L3_return_last_pragmatist",
+      "pool": "greeting",
+      "priority": 5,
+      "when": {
+        "visits_at_least": 2,
+        "last_route": "pragmatist"
+      },
+      "steps": [
+        {
+          "say": "RETURN.pragmatist"
+        }
+      ]
+    },
+    {
+      "id": "L3_return_last_protector",
+      "pool": "greeting",
+      "priority": 5,
+      "when": {
+        "visits_at_least": 2,
+        "last_route": "protector"
+      },
+      "steps": [
+        {
+          "say": "RETURN.protector"
+        }
+      ]
+    },
+    {
+      "id": "L3_return_again",
+      "pool": "greeting",
+      "priority": 2,
+      "when": {
+        "visits_at_least": 3
+      },
+      "steps": [
+        {
+          "say": "RETURN.again"
+        }
+      ]
+    },
+    {
+      "id": "L3_return_back",
+      "pool": "greeting",
+      "priority": 1,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.back"
+        }
+      ]
+    },
+    {
+      "id": "L3_return_quiet",
+      "pool": "greeting",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.quiet"
+        }
+      ]
+    },
+    {
+      "id": "L3_fact_islands",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.islands"
+        }
+      ]
+    },
+    {
+      "id": "L3_fact_coral",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.coral"
+        }
+      ]
+    },
+    {
+      "id": "L3_fact_bangka",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.bangka"
+        }
+      ]
+    },
+    {
+      "id": "L3_fact_balangay",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.balangay"
+        }
+      ]
+    },
+    {
+      "id": "L3_fact_bakunawa",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.bakunawa"
+        }
+      ]
+    },
+    {
+      "id": "L3_fact_moons",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.moons"
+        }
+      ]
+    },
+    {
+      "id": "L3_fact_tubbataha",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.tubbataha"
+        }
+      ]
+    },
+    {
+      "id": "L3_fact_butanding",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.butanding"
+        }
+      ]
     }
   ]
 }
