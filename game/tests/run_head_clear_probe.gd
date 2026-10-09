@@ -96,11 +96,14 @@ func _measure(where: String, outdoors: bool) -> void:
 	# before a lesson card, through the story box, and the camera zooms in on him to 1.15 for
 	# it; the hint bar stands aside while he talks. So wait for the quiet, and if a line starts
 	# while the bar settles, wait again and take it again.
+	# In auto-dismiss nobody is ever seen speaking -- a story beat is dropped as it is said -- but
+	# the beat still takes the hint bar down (two channels never talk at once), so the line is
+	# checked for as well, and said again if a beat took it.
 	for attempt in 4:
 		await _quiet()
 		hint.show_hint("Cold ash in the hearth, and the rack still hung over it.", "Lolo", 30.0)
 		await _wait(1.6)
-		if not _someone_speaking() and _at_rest():
+		if not _someone_speaking() and _at_rest() and _hint_up():
 			break
 	var row := keys.find_child("FloatingActions", true, false) as Control
 	var bar := hint.find_child("Panel", true, false) as Control
@@ -157,6 +160,11 @@ func _quiet() -> void:
 		camera.release_focus(0.0)
 	while not _at_rest() and Time.get_ticks_msec() < deadline:
 		await process_frame
+
+
+func _hint_up() -> bool:
+	var bar := hint.find_child("Panel", true, false) as Control
+	return bar != null and bar.is_visible_in_tree() and bar.modulate.a > 0.5
 
 
 func _at_rest() -> bool:
