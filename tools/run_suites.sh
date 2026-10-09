@@ -59,7 +59,7 @@ HEADLESS=(
   run_button_feedback_probe run_rig_isolated run_underwater_appearance_probe
   run_level3_audit run_nodraw_level3 run_bakunawa_probe run_level3_finish_probe
   run_swim_reach_probe run_level3_boat_probe run_level3_trouble_probe
-  run_level3_play_probe
+  run_level3_play_probe run_level3_sea_probe run_opening_probe run_resume_probe
 )
 WINDOW=(run_click_ui run_hud_watch_level1 run_real_drawing_probe)
 
