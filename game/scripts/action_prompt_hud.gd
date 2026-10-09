@@ -39,10 +39,11 @@ const ROOM := Vector2(160.0, 42.0)
 ## How often over-or-under is decided. It walks the HUD, and the apo does not cross the line
 ## between them in a tenth of a second.
 const JUDGE_EVERY := 0.1
-## The least room between the top of the player's head and the bottom of the row. Outdoors
-## the camera is at 1 and the apo stands 92px, so FOLLOW_OFFSET already leaves her 26px and
-## nothing moves; this only matters once she is drawn taller than 106px. See `lift_for`.
-const HEAD_GAP := 12.0
+## The room between the top of the player's box and the bottom of the row: exactly what
+## FOLLOW_OFFSET has always left the apo outdoors (118 over her feet, 92 tall, at zoom 1), so
+## nothing moves outdoors and indoors she keeps the same clearance. Not less: the box stops at
+## 92 but her hair at about 96, and at 12 the row sat on her hair in Alley 1. See `lift_for`.
+const HEAD_GAP := 26.0
 
 var _draw: Button
 var _revert: Button
