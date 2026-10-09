@@ -145,20 +145,13 @@ func _measure(where: String, outdoors: bool) -> void:
 
 ## Nobody talking, and the camera at the room's own zoom rather than a close-up on a speaker.
 ##
-## ⚠ AND LET GO OF A CLOSE-UP NOBODY IS IN. The level zooms in on whoever speaks and lets go
-## on the story box's `conversation_finished` -- but in auto-dismiss, which every unattended
-## probe runs in, DialogueBox.speak() drops the lines without emitting it, so the camera stays
-## at 1.15 for good. Played for real (lines pressed through) it lets go at once; checked on
-## 2026-10-09. So once nobody is talking, a focus still held is released here, as the level
-## would have.
+## ⚠ NOT RELEASED BY HAND. In auto-dismiss DialogueBox.speak() used to drop a beat without
+## emitting `conversation_finished`, which is what the level gives the camera back on, so the
+## close-up never ended and this probe let go of it itself. The box says the beat is over now,
+## so a camera still pushed in here is a real fault and the wait runs out on it.
 func _quiet() -> void:
 	var deadline := Time.get_ticks_msec() + 15000
-	while _someone_speaking() and Time.get_ticks_msec() < deadline:
-		await process_frame
-	var camera := level.call("_world_camera") as WorldCameraController
-	if camera != null and camera.get("_focus") != null:
-		camera.release_focus(0.0)
-	while not _at_rest() and Time.get_ticks_msec() < deadline:
+	while (_someone_speaking() or not _at_rest()) and Time.get_ticks_msec() < deadline:
 		await process_frame
 
 
