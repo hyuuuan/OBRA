@@ -3685,6 +3685,13 @@ func _level_run_state() -> Dictionary:
 		"hook_catches": _catches,
 		"hook_broken": _hook_broken,
 		"bangka_x": _bangka_x if is_finite(_bangka_x) else -1.0,
+		# The launched boat, as plain values: a save on disk cannot carry the boat itself, and a
+		# level resumed from one has to float it again. See _float_the_bangka_again.
+		"boat_afloat": _boat_afloat(),
+		"boat_x": _launched_boat.global_position.x if _boat_afloat() else 0.0,
+		"boat_y": _launched_boat.global_position.y if _boat_afloat() else 0.0,
+		"aboard": _boat_afloat() and player != null and is_instance_valid(player) \
+			and _launched_boat.has_passenger(player),
 		"refills_taken": _refills_taken.duplicate(),
 		"knocks": _knocks,
 		"arrived": _arrived,
@@ -3779,3 +3786,9 @@ func _put_back_what_the_restore_undid() -> void:
 			_sand_heap.modulate.a = 1.0
 	if director != null:
 		_plant_the_refills()
+
+
+## Whether the launched bangka is in the world and staying there.
+func _boat_afloat() -> bool:
+	return _launched_boat != null and is_instance_valid(_launched_boat) \
+		and not _launched_boat.is_queued_for_deletion()
