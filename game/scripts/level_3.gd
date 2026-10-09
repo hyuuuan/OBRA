@@ -3795,7 +3795,8 @@ func _put_back_what_the_restore_undid() -> void:
 ## the fresh level has no boat to keep -- and a fork already answered is not answered again, so
 ## nothing launched one. A boat player who quit at CP3b came back in the open sea, out of the
 ## boat and without it, where the current holds a swimmer short of the island. The checkpoint
-## says the bangka was afloat, so it is floated again where it was.
+## says the bangka was afloat, so it is floated again where it was, and the apo put back aboard
+## if that is where she was. Deferred: the base moves her to the checkpoint after this.
 func _float_the_bangka_again(state: Dictionary) -> void:
 	if not bool(state.get("boat_afloat", false)):
 		return
@@ -3811,6 +3812,25 @@ func _float_the_bangka_again(state: Dictionary) -> void:
 		Transform2D(0.0, at))
 	boat.global_position = at
 	boat.linear_velocity = Vector2.ZERO
+	if bool(state.get("aboard", false)):
+		_seat_the_apo_again.call_deferred(boat)
+
+
+## ⚠ ONCE THE HULL HAS FELT THE WATER, not before. A boat carrying somebody that is not in the
+## water has run aground and puts them down (UtilityObject._physics_process), and a hull floated
+## a moment ago has not yet had the physics frame that registers the sea -- seated at once, the
+## apo was set down again on the next frame, about half the time.
+func _seat_the_apo_again(boat: UtilityObject) -> void:
+	for _frame in range(30):
+		if boat == null or not is_instance_valid(boat) or boat.is_queued_for_deletion():
+			return
+		if boat.boards_on_interact():
+			break
+		await get_tree().physics_frame
+	if boat == null or not is_instance_valid(boat) or not boat.boards_on_interact():
+		return
+	if player != null and is_instance_valid(player) and not boat.has_passenger(player):
+		boat.take_aboard(player)
 
 
 ## Whether the launched bangka is in the world and staying there.
