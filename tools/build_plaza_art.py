@@ -43,7 +43,7 @@ import numpy as np
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pixelart import PX, Canvas, ramp   # noqa: E402
+from pixelart import PX, Canvas, Pictures, ramp   # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "game" / "assets" / "Level2" / "plaza"
@@ -103,17 +103,19 @@ HAIR = ["#120A06", "#22140C", "#382214", "#4E3220"]
 HILL = ["#3E5A3A", "#4E6E48", "#5F8257", "#75986A", "#8FAE84"]
 
 
+## Where the pictures go. build() replaces it with a checking one for --check, which writes
+## nothing -- see pixelart.Pictures.
+_pictures = Pictures(check=False, root=ROOT)
+
+
 def _emit(c: Canvas, name: str, tiles: dict) -> None:
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    size = c.save(OUT_DIR / ("%s.png" % name))
-    tiles[name] = {"file": "%s.png" % name, "size": [size[0], size[1]]}
+    _emit_image(c.image(), name, tiles)
 
 
 def _emit_image(image: Image.Image, name: str, tiles: dict) -> None:
     """Write a runtime tile and its manifest entry."""
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
     path = OUT_DIR / ("%s.png" % name)
-    image.save(path)
+    _pictures.put(image, path)
     tiles[name] = {"file": path.name, "size": [image.width, image.height]}
 
 
@@ -432,6 +434,8 @@ def _carried() -> dict:
 
 
 def build(check: bool) -> int:
+    global _pictures
+    _pictures = Pictures(check=check, root=ROOT)
     tiles: dict = {}
     _ground_tileset(tiles)
     _fan_sprites(tiles)
@@ -459,9 +463,16 @@ def build(check: bool) -> int:
             "pixel_scale": PX,
             "tiles": tiles,
         }, indent=2) + "\n")
+    elif not MANIFEST.exists() or json.loads(MANIFEST.read_text()).get("tiles") != tiles:
+        _pictures.stale.append(str(MANIFEST.relative_to(ROOT)))
     print("%s %d plaza pieces at %dx" % ("checked" if check else "wrote", len(tiles), PX))
     for name in sorted(tiles):
         print("   %-14s %s" % (name, tiles[name]["size"]))
+    if _pictures.stale:
+        print("stale, re-run tools/build_plaza_art.py:")
+        for rel in _pictures.stale:
+            print("   ", rel)
+        return 1
     return 0
 
 
