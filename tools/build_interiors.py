@@ -52,7 +52,7 @@ OUT_DIR = ROOT / "game" / "assets" / "Level2" / "interiors"
 MANIFEST = OUT_DIR / "interiors.json"
 HOUSE_WALL_PLATE = OUT_DIR / "house_wall_plate.png"
 
-from pixelart import PX, BAYER, Canvas, ramp   # noqa: E402  the shared 8-bit library
+from pixelart import PX, BAYER, Canvas, Pictures, ramp   # noqa: E402  the shared 8-bit library
 
 SEED = 20260831
 
@@ -729,9 +729,15 @@ def _drain(tiles: dict) -> None:
     tiles["drain"] = _emit(c, "drain")
 
 
+## Where the pictures go. build() replaces it with a checking one for --check, which writes
+## nothing -- see pixelart.Pictures.
+_pictures = Pictures(check=False, root=ROOT)
+
+
 def _emit(c: Canvas, name: str) -> dict:
-    size = c.save(OUT_DIR / ("%s.png" % name))
-    return {"file": "%s.png" % name, "size": [size[0], size[1]]}
+    image = c.image()
+    _pictures.put(image, OUT_DIR / ("%s.png" % name))
+    return {"file": "%s.png" % name, "size": [image.width, image.height]}
 
 
 def _register_house_backdrop(tiles: dict) -> None:
@@ -751,7 +757,8 @@ def _register_house_backdrop(tiles: dict) -> None:
 
 
 def build(check: bool) -> int:
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    global _pictures
+    _pictures = Pictures(check=check, root=ROOT)
     tiles: dict = {}
     _wall("church_wall", "church", tiles)
     _wall("church_upper", "church_upper", tiles)
@@ -793,9 +800,16 @@ def build(check: bool) -> int:
             "pixel_scale": PX,
             "tiles": tiles,
         }, indent=2) + "\n")
+    elif not MANIFEST.exists() or json.loads(MANIFEST.read_text()).get("tiles") != tiles:
+        _pictures.stale.append(str(MANIFEST.relative_to(ROOT)))
     print("%s %d interior pieces at %dx" % ("checked" if check else "wrote", len(tiles), PX))
     for name in sorted(tiles):
         print("   %-16s %s" % (name, tiles[name]["size"]))
+    if _pictures.stale:
+        print("stale, re-run tools/build_interiors.py:")
+        for rel in _pictures.stale:
+            print("   ", rel)
+        return 1
     return 0
 
 

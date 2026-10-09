@@ -9,6 +9,13 @@ extends SceneTree
 const LEDGER := "res://config/tutorial.json"
 const LEVEL_BASE := "res://scripts/level_base.gd"
 const TutorialScript = preload("res://scripts/tutorial_director.gd")
+## Where each level's lesson events are fired, besides LevelBase. Every level in the ledger
+## must be here: one that is not fails, rather than having its events looked for in the
+## wrong file and passing or failing by accident.
+const LEVEL_SCRIPTS := {
+	"level_1": [],
+	"level_3": ["res://scripts/level_3.gd"],
+}
 
 var _passed := 0
 var _failed := 0
@@ -26,15 +33,67 @@ func _check(ok: bool, what: String, detail: String = "") -> void:
 func _initialize() -> void:
 	print("--- tutorial ---")
 	var ledger: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(LEDGER))
+	# ⚠ EVERY LEVEL'S LESSONS, NOT ONLY THE TUTORIAL LEVEL'S. This read only level_1, so
+	# Dagat's cards were never held to any of it -- and its first card's caption ran to ten
+	# words, two past the rule, the whole time.
+	for level_id: String in ledger["levels"]:
+		_audit_level(ledger, level_id)
+
+	# Level 1 IS the tutorial: the order it teaches in, and what it was cut down to.
 	var lessons: Array = ledger["levels"]["level_1"]["lessons"]
-	_check(not lessons.is_empty(), "level 1 has lessons", "%d" % lessons.size())
+	var ids: Array[String] = []
+	for value: Variant in lessons:
+		ids.append(String((value as Dictionary)["id"]))
+	var director := TutorialScript.new()
+	root.add_child(director)
+	director.load_for("level_1")
+
+	# 5. Spent once. A lesson that re-teaches is the interruption this replaced.
+	director.note("level_start")
+	var first := director.taught_count()
+	director.note("level_start")
+	_check(director.taught_count() == first, "a lesson is spent once",
+		"%d taught after two identical events" % director.taught_count())
+	_check(director.has_taught("move"), "level_start teaches walking", "move")
+
+	# 6. One lesson per event per call: the placement's three lessons are three placements,
+	#    not one placement with three things said over it. Resize before turning -- the lake
+	#    is crossed by a drawing made longer, and that comes before anything wants turning.
+	director.note("placement_started")
+	_check(director.has_taught("place") and not director.has_taught("resize"),
+		"two lessons on one event do not collide", "place taught, resize still waiting")
+	director.note("placement_started")
+	_check(director.has_taught("resize") and not director.has_taught("rotate"),
+		"and the second arrives next time", "resize")
+	director.note("placement_started")
+	_check(director.has_taught("rotate"), "and the third the time after", "rotate")
+
+	# 8. LESS OF IT. Kent: "its just knowledge dumping at this point". The four cut on that
+	#    pass stay cut, and the tutorial level stays under twenty things to say.
+	for cut in ["pause", "sure", "sign"]:
+		_check(not ids.has(cut), "'%s' stays cut" % cut, "absent" if not ids.has(cut) else "BACK")
+	_check(lessons.size() < 20, "Level 1 says fewer than twenty things", "%d" % lessons.size())
+	_check(not ledger["levels"]["level_1"].has("canvas_briefing"),
+		"the canvas is taught by cards, not four lines of Lolo", "no briefing")
+
+	print("--- %d passed, %d failed ---" % [_passed, _failed])
+	print("OBRA_TUTORIAL_FAILED=%d" % _failed if _failed > 0 else "OBRA_TUTORIAL_OK")
+	quit(1 if _failed > 0 else 0)
+
+
+func _audit_level(ledger: Dictionary, level_id: String) -> void:
+	print("  -- %s --" % level_id)
+	var lessons: Array = ledger["levels"][level_id]["lessons"]
+	_check(not lessons.is_empty(), "%s has lessons" % level_id, "%d" % lessons.size())
+	_check(LEVEL_SCRIPTS.has(level_id), "%s says where its lessons fire" % level_id,
+		"LEVEL_SCRIPTS" if LEVEL_SCRIPTS.has(level_id) else "NOT IN LEVEL_SCRIPTS")
 
 	# 1. Every lesson says a real key. resolve() returns "" for an action the InputMap does
 	#    not hold, which is the failure worth catching: a sentence promising a control that
 	#    does not exist sends the player hunting for it.
 	var director := TutorialScript.new()
 	root.add_child(director)
-	director.load_for("level_1")
+	director.load_for(level_id)
 	var ids: Array[String] = []
 	for value: Variant in lessons:
 		var lesson: Dictionary = value
@@ -81,31 +140,13 @@ func _initialize() -> void:
 	#    noted is a lesson the player never sees, and nothing else in this suite would say
 	#    so -- it looks exactly like a lesson that is simply waiting its turn.
 	var source := FileAccess.get_file_as_string(LEVEL_BASE)
+	for path: String in LEVEL_SCRIPTS.get(level_id, []):
+		source += FileAccess.get_file_as_string(path)
 	for value: Variant in lessons:
 		var lesson: Dictionary = value
 		var at := String(lesson["at"])
 		_check(source.contains('tutorial.note("%s")' % at),
 			"'%s' waits on an event that fires" % String(lesson["id"]), at)
-
-	# 5. Spent once. A lesson that re-teaches is the interruption this replaced.
-	director.note("level_start")
-	var first := director.taught_count()
-	director.note("level_start")
-	_check(director.taught_count() == first, "a lesson is spent once",
-		"%d taught after two identical events" % director.taught_count())
-	_check(director.has_taught("move"), "level_start teaches walking", "move")
-
-	# 6. One lesson per event per call: the placement's three lessons are three placements,
-	#    not one placement with three things said over it. Resize before turning -- the lake
-	#    is crossed by a drawing made longer, and that comes before anything wants turning.
-	director.note("placement_started")
-	_check(director.has_taught("place") and not director.has_taught("resize"),
-		"two lessons on one event do not collide", "place taught, resize still waiting")
-	director.note("placement_started")
-	_check(director.has_taught("resize") and not director.has_taught("rotate"),
-		"and the second arrives next time", "resize")
-	director.note("placement_started")
-	_check(director.has_taught("rotate"), "and the third the time after", "rotate")
 
 	# 7. A PICTURE FIRST, A FEW WORDS SECOND. Kent: "avoid like just texts since there are
 	#    players that will play it without reading it". Every lesson the game shows -- all but
@@ -138,15 +179,4 @@ func _initialize() -> void:
 				or not (lesson.get("mouse", []) as Array).is_empty() \
 				or String(lesson.get("anchor", "")) == "transform_button"
 			_check(ends, "'%s' ends when it is done" % id, "has an input" if ends else "ONLY TIMES OUT")
-
-	# 8. LESS OF IT. Kent: "its just knowledge dumping at this point". The four cut on that
-	#    pass stay cut, and the tutorial level stays under twenty things to say.
-	for cut in ["pause", "sure", "sign"]:
-		_check(not ids.has(cut), "'%s' stays cut" % cut, "absent" if not ids.has(cut) else "BACK")
-	_check(lessons.size() < 20, "Level 1 says fewer than twenty things", "%d" % lessons.size())
-	_check(not ledger["levels"]["level_1"].has("canvas_briefing"),
-		"the canvas is taught by cards, not four lines of Lolo", "no briefing")
-
-	print("--- %d passed, %d failed ---" % [_passed, _failed])
-	print("OBRA_TUTORIAL_FAILED=%d" % _failed if _failed > 0 else "OBRA_TUTORIAL_OK")
-	quit(1 if _failed > 0 else 0)
+	director.queue_free()

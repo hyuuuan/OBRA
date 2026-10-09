@@ -3269,9 +3269,15 @@ func _physics_process(_delta: float) -> void:
 	# The bag no longer stands down while the apo moves -- see InventoryHUD. It stays in its
 	# corner and thins out only while she is actually standing behind it.
 	_veil_the_bag_over(anchor_position)
-	# And Lolo's hints stand over her, where the player is looking. See HintBar.
+	# And Lolo's hints stand over her, where the player is looking. See HintBar. Both they
+	# and the key row are told how tall she stands on screen, which a room's zoom triples.
+	var feet := get_viewport().get_canvas_transform() * anchor_position
+	var standing := _player_on_screen()
+	var head_room := feet.y - standing.position.y if standing.has_area() else 0.0
 	if hint_bar != null:
-		hint_bar.stand_near(get_viewport().get_canvas_transform() * anchor_position)
+		hint_bar.stand_near(feet, head_room)
+	if action_prompts != null and is_instance_valid(action_prompts):
+		action_prompts.set_head_room(head_room)
 	# A fall is not an ending. The wanderer used to wrap to the top of the world and a
 	# drawn creature did not handle it at all, so falling off as a fish meant falling
 	# forever. Either way the level takes them back to the last checkpoint instead.
