@@ -94,8 +94,47 @@ class Canvas:
         for _ in range(count):
             self.px(x + int(self.rng.integers(0, w)), y + int(self.rng.integers(0, h)), colour)
 
-    def save(self, path: Path) -> tuple[int, int]:
+    def image(self) -> Image.Image:
+        """The canvas at its shipped size: scaled up by PX with nearest-neighbour."""
         image = Image.fromarray(self.buf, "RGBA")
-        image = image.resize((self.w * PX, self.h * PX), Image.NEAREST)
+        return image.resize((self.w * PX, self.h * PX), Image.NEAREST)
+
+    def save(self, path: Path) -> tuple[int, int]:
+        image = self.image()
         image.save(path)
         return image.size
+
+
+class Pictures:
+    """Where a tool's pictures go: written, or under --check compared with what is there.
+
+    ⚠ A CHECK THAT WRITES IS NOT A CHECK. `build_plaza_art.py --check` and
+    `build_interiors.py --check` skipped only their manifests: every PNG was drawn and SAVED
+    over the committed one, and the run always said it was fine. The redraw happened to match,
+    but a hand-edited picture would have been overwritten by the command meant to look at it.
+    Checking compares PIXELS, not bytes -- the committed PNGs were encoded by another Pillow, so
+    their bytes differ while every pixel is the same.
+    """
+
+    def __init__(self, check: bool, root: Path) -> None:
+        self.check = check
+        self.root = root
+        self.stale: list[str] = []
+
+    def put(self, image: Image.Image, path: Path) -> None:
+        if not self.check:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            image.save(path)
+            return
+        if not same_pixels(image, path):
+            self.stale.append(str(path.relative_to(self.root)))
+
+
+def same_pixels(image: Image.Image, path: Path) -> bool:
+    """Whether the PNG at `path` holds exactly these pixels, alpha included."""
+    if not path.exists():
+        return False
+    with Image.open(path) as old:
+        if old.size != image.size:
+            return False
+        return np.array_equal(np.asarray(old.convert("RGBA")), np.asarray(image.convert("RGBA")))
