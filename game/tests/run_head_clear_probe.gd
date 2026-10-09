@@ -23,6 +23,8 @@ var keys: ActionPromptHUD
 var hint: HintBar
 var spot: TutorialSpotlight
 var failures := 0
+## How far the row stood over her head outdoors, where it has always been right.
+var _outdoor_clearance := INF
 
 
 func _initialize() -> void:
@@ -110,6 +112,17 @@ func _measure(where: String, outdoors: bool) -> void:
 	var bar_rect := bar.get_global_rect()
 	_check(not row_rect.intersects(apo), "%s: the keys are not on her" % where,
 		"row bottom %.0f, her head %.0f" % [row_rect.end.y, apo.position.y])
+	# NOT JUST OFF HER BOX: as far off it as outdoors. The box stops at 92 and her hair at
+	# about 96, so a row that only cleared the box sat on her hair in Alley 1. Measured
+	# against what outdoors actually showed, not against the constant that sets it.
+	var clearance := apo.position.y - row_rect.end.y
+	if outdoors:
+		_outdoor_clearance = clearance
+	else:
+		# Both readings bob, so they may sit two bobs apart.
+		_check(clearance >= _outdoor_clearance - 2.0 * BOB,
+			"%s: with the room it has outdoors" % where,
+			"%.0f px over her head, outdoors %.0f" % [clearance, _outdoor_clearance])
 	_check(not bar_rect.intersects(apo), "%s: Lolo's line is not on her" % where,
 		"bar bottom %.0f, her head %.0f" % [bar_rect.end.y, apo.position.y])
 	_check(not bar_rect.intersects(row_rect), "%s: nor on the keys" % where,
