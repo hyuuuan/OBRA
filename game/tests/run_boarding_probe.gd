@@ -52,6 +52,17 @@ func _board(drawing: String, shapes: Array) -> void:
 	root.add_child(level)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _frames(40)
+	# OUT AT SEA, half a screen past where the home beach ends -- read off the level, because the
+	# beach moves. It ran to 1000 until the 2026-10-05 rework made room to dig the bangka out and
+	# ran it to 1600; a boat set down at the old 1500 sat on the sand, where E takes a drawing
+	# back instead of boarding it, and this read a freed boat.
+	var shore := level.find_child("ShoreBand", true, false)
+	if shore == null:
+		_check(false, "%s: the level has a home beach" % drawing, "no ShoreBand")
+		level.queue_free()
+		await _frames(4)
+		return
+	var sea_x := float((shore.get("home_ground") as Vector2).y) + 500.0
 	var registry = level.get("registry")
 	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
 	sheet.fill(Color.WHITE)
@@ -63,14 +74,20 @@ func _board(drawing: String, shapes: Array) -> void:
 	boat.set_world_bounds(Rect2(level.get("environment").get("world_bounds")))
 	boat.apply_item_data(DrawnItemData.from_prediction("sailboat", "Sailboat", sheet, strokes, 0.9,
 		registry.call("get_entity", "sailboat")))
-	boat.global_position = Vector2(1500.0, 540.0)
+	boat.global_position = Vector2(sea_x, 540.0)
 	boat.confirm_placement()
 	level.call("_connect_utility", boat)
 	var apo := level.get("player") as Node2D
-	apo.call("apply_morph_state", {"position": Vector2(1500.0, 380.0), "velocity": Vector2.ZERO})
+	apo.call("apply_morph_state", {"position": Vector2(sea_x, 380.0), "velocity": Vector2.ZERO})
 	await _frames(90)
 	boat.interact(apo)
 	await _frames(120)
+	if not is_instance_valid(boat):
+		_check(false, "%s: E puts the apo aboard" % drawing,
+			"the boat was TAKEN BACK at x %.0f -- it was not in the water" % sea_x)
+		level.queue_free()
+		await _frames(4)
+		return
 	# The hull is the lowest of the shapes the drawing was built into; its top is the rim.
 	var rim := INF
 	var keel := -INF
