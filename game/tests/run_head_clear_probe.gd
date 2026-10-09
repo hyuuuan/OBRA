@@ -96,11 +96,14 @@ func _measure(where: String, outdoors: bool) -> void:
 	# before a lesson card, through the story box, and the camera zooms in on him to 1.15 for
 	# it; the hint bar stands aside while he talks. So wait for the quiet, and if a line starts
 	# while the bar settles, wait again and take it again.
+	# In auto-dismiss nobody is ever seen speaking -- a story beat is dropped as it is said -- but
+	# the beat still takes the hint bar down (two channels never talk at once), so the line is
+	# checked for as well, and said again if a beat took it.
 	for attempt in 4:
 		await _quiet()
 		hint.show_hint("Cold ash in the hearth, and the rack still hung over it.", "Lolo", 30.0)
 		await _wait(1.6)
-		if not _someone_speaking() and _at_rest():
+		if not _someone_speaking() and _at_rest() and _hint_up():
 			break
 	var row := keys.find_child("FloatingActions", true, false) as Control
 	var bar := hint.find_child("Panel", true, false) as Control
@@ -142,21 +145,19 @@ func _measure(where: String, outdoors: bool) -> void:
 
 ## Nobody talking, and the camera at the room's own zoom rather than a close-up on a speaker.
 ##
-## ⚠ AND LET GO OF A CLOSE-UP NOBODY IS IN. The level zooms in on whoever speaks and lets go
-## on the story box's `conversation_finished` -- but in auto-dismiss, which every unattended
-## probe runs in, DialogueBox.speak() drops the lines without emitting it, so the camera stays
-## at 1.15 for good. Played for real (lines pressed through) it lets go at once; checked on
-## 2026-10-09. So once nobody is talking, a focus still held is released here, as the level
-## would have.
+## ⚠ NOT RELEASED BY HAND. In auto-dismiss DialogueBox.speak() used to drop a beat without
+## emitting `conversation_finished`, which is what the level gives the camera back on, so the
+## close-up never ended and this probe let go of it itself. The box says the beat is over now,
+## so a camera still pushed in here is a real fault and the wait runs out on it.
 func _quiet() -> void:
 	var deadline := Time.get_ticks_msec() + 15000
-	while _someone_speaking() and Time.get_ticks_msec() < deadline:
+	while (_someone_speaking() or not _at_rest()) and Time.get_ticks_msec() < deadline:
 		await process_frame
-	var camera := level.call("_world_camera") as WorldCameraController
-	if camera != null and camera.get("_focus") != null:
-		camera.release_focus(0.0)
-	while not _at_rest() and Time.get_ticks_msec() < deadline:
-		await process_frame
+
+
+func _hint_up() -> bool:
+	var bar := hint.find_child("Panel", true, false) as Control
+	return bar != null and bar.is_visible_in_tree() and bar.modulate.a > 0.5
 
 
 func _at_rest() -> bool:

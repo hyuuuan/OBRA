@@ -1057,6 +1057,14 @@ func release_passenger() -> void:
 	_unboard_actor()
 
 
+## Seat `actor` aboard without E: for a level putting a passenger back where its save says they
+## were. E boards only once the hull has registered the water (boards_on_interact), and a boat
+## floated a moment ago has not yet had the physics frame that tells it so; this does not ask.
+func take_aboard(actor: Node2D) -> void:
+	if actor != null and is_instance_valid(actor):
+		_board_actor(actor)
+
+
 ## True when E boards this rather than picking it up: a vessel, in the water. The prompt asks,
 ## so it can say BOARD instead of PICK UP -- interact() is where the same rule is acted on.
 func boards_on_interact() -> bool:

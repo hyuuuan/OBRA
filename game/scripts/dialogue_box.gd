@@ -177,8 +177,14 @@ func speak(lines: Array) -> void:
 			_queue.append(line)
 	if _queue.is_empty():
 		return
+	# ⚠ AND SAID TO BE OVER. Auto-dismiss drops the beat unread -- but whoever began it is
+	# waiting for its end: the level pushes the camera in on the speaker and gives it back on
+	# `conversation_finished`. Dropped silently, the push-in was never given back, and every
+	# unattended run that heard one line stayed at 1.15 on Lolo for good (found when Lolo's
+	# lesson leads arrived: run_head_clear_probe measured the close-up instead of the room).
 	if auto_dismiss:
 		_queue.clear()
+		conversation_finished.emit()
 		return
 	# ⚠ NOT "IF NOT VISIBLE". A conversation that ends fades the box out for 0.16 s and only
 	# then hides it, and a conversation begun in that window found the box still visible, so it

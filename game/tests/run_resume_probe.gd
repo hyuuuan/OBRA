@@ -13,6 +13,10 @@ const FORKS := [
 	{"level": "level_2", "scene": "res://level_2.tscn", "obstacle": "L2_N1", "route": "pragmatist"},
 	{"level": "level_3", "scene": "res://level_3.tscn", "obstacle": "L3_N2", "route": "pragmatist"},
 ]
+const RosterFixtures = preload("res://tests/roster_fixtures.gd")
+## Where Dagat's sea checkpoint is: its volume runs from the seabed to above the deck, so a
+## boat player sailing past writes it sitting in the bangka.
+const CP3B_X := 6160.0
 
 var failures := 0
 
@@ -92,5 +96,87 @@ func _run() -> void:
 		level.queue_free()
 		await _wait(0.4)
 
+	await _boat_player_resumes()
 	print("OBRA_RESUME_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(failures)
+
+
+## AND A BOAT PLAYER LEFT AT SEA COMES BACK IN THE BOAT. Inside one visit the launched bangka
+## survives a restore -- LevelBase keeps what was placed before the checkpoint, by instance id
+## -- but a level resumed from disk has no boat to keep, and the fork that launched it is
+## already answered. Quit at CP3b, come back, and the apo was in the open sea out of the boat
+## and without it, where the current holds a swimmer short of the island.
+func _boat_player_resumes() -> void:
+	print("\n===== LEVEL_3, BY BOAT =====")
+	var spec := {"level": "level_3", "scene": "res://level_3.tscn"}
+	var level := _open(spec)
+	level.call("_forget_saved_checkpoint")
+	await _wait(1.0)
+	var director = level.get("director")
+	director.call("solve_with_item", "L3_B0_SHORE", "new_brush")
+	director.call("enter_obstacle", "L3_N1")
+	director.call("commit_route", "L3_N1", "artist")
+	await _settle()
+	# Something strong drawn, and E at the hull: the route's own way into the water.
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	level.call("_spawn_or_replace", "horse", "Horse", sheet, RosterFixtures.for_rig("walker", "horse"))
+	await _settle()
+	var beached := level.get("_bangka") as Node2D
+	_put(level, beached.global_position + Vector2(-60.0, -40.0))
+	await _wait(0.3)
+	level.call("press_interact")
+	await _settle(2.5)
+	var boat := level.get("_launched_boat") as RigidBody2D
+	if boat == null:
+		_check(false, "the bangka is launched", "no boat")
+		level.queue_free()
+		return
+	_put(level, boat.global_position + Vector2(0.0, -40.0))
+	await _wait(0.1)
+	level.call("press_interact")
+	await _settle()
+	# Out to the sea checkpoint, aboard -- carried there rather than rowed past the creature.
+	var out := Vector2(CP3B_X, boat.global_position.y)
+	PhysicsServer2D.body_set_state(boat.get_rid(), PhysicsServer2D.BODY_STATE_TRANSFORM,
+		Transform2D(0.0, out))
+	boat.global_position = out
+	await _settle(1.5)
+	var player := level.get("player") as Node2D
+	var aboard_before := bool(boat.call("has_passenger", player))
+	var latest := String((level.get("checkpoints") as Object).call("latest_id"))
+	_check(aboard_before and latest == "CP3b", "sailing past CP3b writes it, aboard",
+		"%s, aboard %s" % [latest, aboard_before])
+	level.queue_free()
+	await _wait(0.4)
+
+	level = _open(spec)
+	await _settle(1.8)
+	var again := level.get("_launched_boat") as Node2D
+	player = level.get("player") as Node2D
+	_check(again != null and is_instance_valid(again) and absf(again.global_position.x - CP3B_X) < 120.0,
+		"coming back, the bangka is afloat where it was",
+		"boat at %s" % (again.global_position.round() if again != null and is_instance_valid(again) else "NONE"))
+	_check(again != null and is_instance_valid(again) and bool(again.call("has_passenger", player)),
+		"and the apo is in it", "riding %s" % player.call("is_riding"))
+	level.call("_forget_saved_checkpoint")
+	level.queue_free()
+	await _wait(0.4)
+
+
+func _put(level: Node2D, at: Vector2) -> void:
+	(level.get("player") as Node2D).call("apply_morph_state",
+		{"position": at, "linear_velocity": Vector2.ZERO})
+
+
+## Wait, closing whatever stops the world on the way: a drawing's card, a line of Lolo's.
+func _settle(seconds: float = 0.6) -> void:
+	var until := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < until:
+		await physics_frame
+		for node in get_nodes_in_group(&"modal_overlays"):
+			if node.has_method("is_open") and node.has_method("close") and bool(node.call("is_open")):
+				node.call("close")
+		if paused:
+			call_group(DialogueBox.GROUP, &"hide_line")
+			paused = false

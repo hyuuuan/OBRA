@@ -500,8 +500,11 @@ func _let_the_actor_step_out(placed: PhysicsBody2D) -> void:
 	# ⚠ ONLY WHEN IT WAS SET DOWN WHERE THEY ARE. Turned on for every placement, a body placed
 	# clear of the player -- over their head, say -- fell straight through them and came to
 	# rest around them. One placed clear of them meets them like anything else.
+	# And an actor with no body to stand in has nothing to step out of: its box is empty, and
+	# shrunk by two pixels it turns inside out, which the engine refuses to measure.
+	var inside := _actor_box().grow(-2.0)
 	var shape := placed as PhysicsShapeObject
-	if shape != null and not shape.world_extent().intersects(_actor_box().grow(-2.0)):
+	if shape != null and (not inside.has_area() or not shape.world_extent().intersects(inside)):
 		return
 	var actor_rids: Array[RID] = []
 	var actor_body := _actor as CollisionObject2D
