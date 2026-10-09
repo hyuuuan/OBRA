@@ -3748,6 +3748,7 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	_advice_left = 0.0
 	_coral_waiting = ""
 	_put_back_what_the_restore_undid()
+	_float_the_bangka_again(state)
 	_put_the_bakunawa_back()
 	# Deep water: the shape held there, given back. The base moves the body to the checkpoint
 	# after this, so the shape is made here and carried there with it.
@@ -3786,6 +3787,30 @@ func _put_back_what_the_restore_undid() -> void:
 			_sand_heap.modulate.a = 1.0
 	if director != null:
 		_plant_the_refills()
+
+
+## ⚠ AND THE BANGKA AFLOAT, WHEN THE LEVEL WAS LEFT AND COME BACK TO. Inside one visit the
+## launched boat survives a restore: LevelBase keeps whatever was placed before the checkpoint,
+## by instance id. But a checkpoint resumed from disk was written by objects that are gone, and
+## the fresh level has no boat to keep -- and a fork already answered is not answered again, so
+## nothing launched one. A boat player who quit at CP3b came back in the open sea, out of the
+## boat and without it, where the current holds a swimmer short of the island. The checkpoint
+## says the bangka was afloat, so it is floated again where it was.
+func _float_the_bangka_again(state: Dictionary) -> void:
+	if not bool(state.get("boat_afloat", false)):
+		return
+	if _boat_afloat():
+		return
+	_launch_the_bangka()
+	var boat := _launched_boat
+	if boat == null or not is_instance_valid(boat) or boat.is_queued_for_deletion():
+		return
+	var at := Vector2(float(state.get("boat_x", boat.global_position.x)),
+		float(state.get("boat_y", boat.global_position.y)))
+	PhysicsServer2D.body_set_state(boat.get_rid(), PhysicsServer2D.BODY_STATE_TRANSFORM,
+		Transform2D(0.0, at))
+	boat.global_position = at
+	boat.linear_velocity = Vector2.ZERO
 
 
 ## Whether the launched bangka is in the world and staying there.
