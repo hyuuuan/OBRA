@@ -247,7 +247,7 @@ offset_top = 738.0
 offset_right = 398.0
 offset_bottom = 798.0
 focus_mode = 0
-text = "Transform"
+text = "Paint"
 
 [node name="ClearButton" type="Button" parent="DrawPanel/PanelRoot"]
 offset_left = 422.0

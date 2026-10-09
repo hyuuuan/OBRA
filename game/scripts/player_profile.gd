@@ -47,6 +47,10 @@ const SETTING_DEFAULTS := {
 ## user://profile.json when a player runs the game; a test run's own copy otherwise, so no
 ## suite can start from, or leave behind, anybody's real progress. See user_data.gd.
 var profile_path: String = UserData.path("profile.json")
+## class id -> its kept drawing (or null once looked for and not found). See class_drawing.
+var _drawings: Dictionary = {}
+## Bumped whenever a kept drawing changes, so a screen showing them knows to redraw.
+var drawings_version := 0
 var _data: Dictionary = {}
 var _roster_ids: Dictionary = {}  # entity_id -> true, the recognised class roster
 var _roster_size: int = DEFAULT_ROSTER_SIZE
@@ -72,6 +76,11 @@ func _default_profile() -> Dictionary:
 		"levels_completed": [],
 		"levels_unlocked": [],
 		"routes": {},                    # level_id -> most recent route taken
+		"obstacle_routes": {},           # level_id -> {obstacle_id -> [routes chosen there, oldest first]}
+		"level_visits": {},              # level_id -> times the level has been entered
+		"last_level": "",                # the level entered most recently -- the title screen paints it
+		"came_from": "",                 # the level entered before that one -- Lolo remarks on it
+		"dialogue_heard": {},            # conversation id -> times it has been played
 		"route_counts": {"artist": 0, "pragmatist": 0, "protector": 0},
 		"collectibles": [],
 		"used_items": [],                # found things given up: the brass key left in the lock
@@ -124,6 +133,56 @@ func record_class_drawn(entity_id: String) -> void:
 	if not accepted.has(entity_id):
 		accepted.append(entity_id)
 		_commit()
+
+
+## Keep the player's latest drawing of a class, so the bag's card for it can show it.
+##
+## Beside the profile rather than in it: a PNG per class, cropped to the ink with the paper
+## knocked out (DrawingSkin2D.thumbnail), overwritten each time the class is drawn again.
+## A card only looks here for a class in `classes_drawn_accepted`, so a file left over
+## from an earlier save is never shown for a class this one has not drawn.
+func record_class_drawing(entity_id: String, drawing: Image) -> void:
+	if entity_id.is_empty() or drawing == null:
+		return
+	var texture := DrawingSkin2D.thumbnail(drawing)
+	if texture == null:
+		return
+	var image := texture.get_image()
+	var path := _drawing_path(entity_id)
+	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	if image.save_png(path) == OK:
+		_drawings[entity_id] = ImageTexture.create_from_image(image)
+		drawings_version += 1
+
+
+## The player's own drawing of a class, or null if none has been kept.
+func class_drawing(entity_id: String) -> Texture2D:
+	if _drawings.has(entity_id):
+		return _drawings[entity_id]
+	var path := _drawing_path(entity_id)
+	var texture: Texture2D = null
+	if FileAccess.file_exists(path):
+		var image := Image.load_from_file(ProjectSettings.globalize_path(path))
+		if image != null and not image.is_empty():
+			# Kept before the thumbnail learned the paper is cream: its corner is still paper.
+			# Cleaned once and saved back.
+			image.convert(Image.FORMAT_RGBA8)
+			if image.get_pixel(0, 0).a > 0.5:
+				var cleaned := DrawingSkin2D.thumbnail(image)
+				if cleaned != null:
+					image = cleaned.get_image()
+					image.save_png(path)
+			texture = ImageTexture.create_from_image(image)
+	_drawings[entity_id] = texture
+	return texture
+
+
+func has_class_drawing(entity_id: String) -> bool:
+	return class_drawing(entity_id) != null
+
+
+func _drawing_path(entity_id: String) -> String:
+	return profile_path.get_base_dir().path_join("drawings").path_join("%s.png" % entity_id)
 
 
 ## Count one submission and, if it was declined by the recogniser, one decline.
@@ -294,6 +353,103 @@ func record_route(level_id: String, route: String) -> void:
 	var counts: Dictionary = _data["route_counts"]
 	counts[route] = int(counts.get(route, 0)) + 1
 	_commit()
+
+
+## The route a level was last finished by, or "" if it has not been answered yet.
+func last_route(level_id: String) -> String:
+	return String((_data["routes"] as Dictionary).get(level_id, ""))
+
+
+## Which route was taken at one obstacle, every time it was answered, oldest first. Lolo reads
+## this at the fork on a replay to say what the player did last time and nudge them elsewhere.
+func record_obstacle_route(level_id: String, obstacle_id: String, route: String) -> void:
+	if level_id.is_empty() or obstacle_id.is_empty() or route not in ROUTES:
+		return
+	var levels: Dictionary = _data["obstacle_routes"]
+	if not (levels.get(level_id) is Dictionary):
+		levels[level_id] = {}
+	var at: Dictionary = levels[level_id]
+	if not (at.get(obstacle_id) is Array):
+		at[obstacle_id] = []
+	(at[obstacle_id] as Array).append(route)
+	_commit()
+
+
+func routes_taken_at(level_id: String, obstacle_id: String) -> Array:
+	var at: Variant = (_data["obstacle_routes"] as Dictionary).get(level_id, {})
+	if not (at is Dictionary):
+		return []
+	var taken: Variant = (at as Dictionary).get(obstacle_id, [])
+	return (taken as Array).duplicate() if taken is Array else []
+
+
+## Count one entry into a level and return the new count: 1 is the first time.
+func record_level_visit(level_id: String) -> int:
+	var visits: Dictionary = _data["level_visits"]
+	visits[level_id] = int(visits.get(level_id, 0)) + 1
+	# Where the apo was before this: "back from the sea already?" is about the LAST level,
+	# which is the one being replaced here.
+	_data["came_from"] = String(_data.get("last_level", ""))
+	_data["last_level"] = level_id
+	_commit()
+	return int(visits[level_id])
+
+
+## The level entered most recently, or "" on a save that has never entered one.
+func last_level() -> String:
+	return String(_data.get("last_level", ""))
+
+
+## The level entered before the current one, or "" if there was none.
+func came_from() -> String:
+	return String(_data.get("came_from", ""))
+
+
+## Whether there is anything to continue: a save that has taken the brush, entered a level
+## or drawn anything. A save with none of that is a new game whichever button starts it.
+func has_progress() -> bool:
+	return has_brush() or not (_data["level_visits"] as Dictionary).is_empty() \
+		or not (_data["levels_completed"] as Array).is_empty() \
+		or not (_data["classes_drawn_accepted"] as Array).is_empty()
+
+
+## NEW GAME. Everything the player has done goes; their SETTINGS stay, because the volume and
+## the window mode are about the machine, not the playthrough. The kept drawings go too --
+## they belong to the classes this save had drawn.
+func reset_progress() -> void:
+	var settings: Dictionary = (_data.get("settings", _default_settings()) as Dictionary).duplicate(true)
+	_data = _default_profile()
+	_data["settings"] = settings
+	var folder := profile_path.get_base_dir().path_join("drawings")
+	var dir := DirAccess.open(folder)
+	if dir != null:
+		for file in dir.get_files():
+			DirAccess.remove_absolute(folder.path_join(file))
+	_drawings.clear()
+	drawings_version += 1
+	# And the checkpoints kept between visits: a new game starts every level at its start.
+	var saves := profile_path.get_base_dir().path_join("checkpoints")
+	var saves_dir := DirAccess.open(saves)
+	if saves_dir != null:
+		for file in saves_dir.get_files():
+			DirAccess.remove_absolute(saves.path_join(file))
+	_commit()
+
+
+func level_visits(level_id: String) -> int:
+	return int((_data["level_visits"] as Dictionary).get(level_id, 0))
+
+
+## How many times a conversation has been played -- what the replay pool sorts on, so the
+## one heard least is the one that comes next and nothing repeats until the rest have played.
+func note_dialogue_heard(conversation_id: String) -> void:
+	var heard: Dictionary = _data["dialogue_heard"]
+	heard[conversation_id] = int(heard.get(conversation_id, 0)) + 1
+	_commit()
+
+
+func dialogue_heard_count(conversation_id: String) -> int:
+	return int((_data["dialogue_heard"] as Dictionary).get(conversation_id, 0))
 
 
 func route_counts() -> Dictionary:
@@ -504,6 +660,11 @@ func _merge_defaults(incoming: Dictionary) -> Dictionary:
 	# or hand-edited -- because the loop over incoming keys replaced the whole
 	# dictionary wholesale and every key it omitted would be gone. The settings screen
 	# reads all of them unconditionally, so each has to resolve.
+	for key in ["last_level", "came_from"]:
+		base[key] = String(base.get(key, ""))
+	for key in ["obstacle_routes", "level_visits", "dialogue_heard", "routes"]:
+		if not (base[key] is Dictionary):
+			base[key] = {}
 	if not (base["settings"] is Dictionary):
 		base["settings"] = _default_settings()
 	else:

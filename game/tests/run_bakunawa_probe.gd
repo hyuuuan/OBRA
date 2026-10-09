@@ -62,12 +62,22 @@ func _the_light() -> void:
 	_check(creature.state() == BakunawaClass.State.FOLLOWING,
 		"the light: it goes to the light",
 		"state %d" % creature.state())
-	for _frame in range(360):
+	# ⚠ LED HOME, THEN IT GIVES (2026-10-05). Kent: the light follows the pointer, the creature
+	# follows the light, and it is brought home to a cave under the first beach -- where it goes in,
+	# and what it had lost comes out to the apo. Brought within reach of the cave here; the sea
+	# probe leads it by the light.
+	var mouth: Vector2 = level.get("_cave_mouth")
+	creature.global_position = mouth + Vector2(380.0, -260.0)
+	level.set("lure_override", mouth)
+	for _frame in range(600):
 		await physics_frame
-		if creature.state() == BakunawaClass.State.CALM:
+		if paused:
+			await _unpause()
+		if creature.is_gone():
 			break
-	_check(creature.state() == BakunawaClass.State.CALM,
-		"and it finds what it lost", "state %d" % creature.state())
+	_check(creature.state() == BakunawaClass.State.CALM and creature.is_gone(),
+		"and it finds what it lost: home", "state %d, gone in %s" % [creature.state(),
+			creature.is_gone()])
 	_check(bool(profile.call("is_collectible_found", "L3_HF")),
 		"and hands over the flower", "L3_HF recorded")
 	# ⚠ AND BOTH THINGS IT GIVES ARE SEEN TO BE TAKEN, in the order they come: the torn corner
@@ -102,8 +112,9 @@ func _the_light() -> void:
 		if creature.is_gone():
 			gone_after = float(_frame) / 60.0
 			break
-	_check(gone_after > 0.0 and not creature.visible, "and swims away once it has given it",
-		"gone after %.1f s" % gone_after if gone_after > 0.0 else "still there after 16 s")
+	# Home, it is gone into the cave before what it held comes out -- so it may be gone already.
+	_check(gone_after >= 0.0 and not creature.visible, "and is gone, once it has given it",
+		"gone after %.1f s" % gone_after if gone_after >= 0.0 else "still there after 16 s")
 	_close()
 
 
@@ -168,7 +179,12 @@ func _the_dark() -> void:
 		if caught_share < worst:
 			worst = caught_share
 			worst_at = depth
-		if caught_share < 2.0 / 3.0:
+		# ⚠ UNDER ITS BELLY THE BAR IS LOWER, ON PURPOSE. Kent (2026-10-05): "there should be space
+		# below the sea serpent where we can dodge the lights". The lane along the bottom is the way
+		# past -- dark straight under it, lit either side while it looks down -- so a blind run there
+		# is meant to get through more often than in open water. Not free: caught one time in three.
+		var under_it := depth > home.y + creature.drawn_size().y * 0.5
+		if caught_share < (1.0 / 3.0 if under_it else 2.0 / 3.0):
 			free.append("y %.0f caught %.0f%%" % [depth, caught_share * 100.0])
 		depth += 108.6
 	_check(free.is_empty(), "and no depth is out of its light",
@@ -179,7 +195,12 @@ func _the_dark() -> void:
 	# speed a swimmer makes along the bed, stopping and backing off and going when it looks
 	# away, gets past from wherever in its cycle they arrive -- searched, not hoped for.
 	var period := 2.0 * (creature.sweep_range().y - creature.sweep_range().x) / BakunawaClass.SWEEP_SPEED
-	for lane: Array in [["along the bed", bed - BED_CLEARANCE], ["along the top", 600.0]]:
+	# ⚠ THE BED ONLY, SINCE 2026-10-05. Lifted off the bottom so there is room under it (Kent:
+	# "space below the sea serpent where we can dodge the lights"), it is nearer the surface, and
+	# the top of the water is in its reach for most of the sweep: the way past is under it now, and
+	# Lolo says so ("Keep low, along the bottom"). Along the top was the other way when it lay on
+	# the bed; it is not asked of it any more.
+	for lane: Array in [["along the bed", bed - BED_CLEARANCE]]:
 		var slowest := 0.0
 		var stuck := 0
 		for phase in range(4):
@@ -382,7 +403,8 @@ func _the_fight() -> void:
 		"and keeps the weapon, and Lolo says nothing of it being over",
 		"the sword is still to hand")
 	var hits := 0
-	for _swing in range(6):
+	# Fifteen blows to subdue it now (Bakunawa2D.HITS_TO_SUBDUE), one of which was the first swing.
+	for _swing in range(BakunawaClass.HITS_TO_SUBDUE + 1):
 		if creature.state() != BakunawaClass.State.FIGHTING:
 			break
 		if creature.apply_tool_hit("cannon", 420.0, null):

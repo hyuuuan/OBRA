@@ -124,9 +124,14 @@ COURSE_ROWS = (10, 96)
 ## 16, then least rock standing out. The first edges, at phase 0, fell 60 pixels short of the
 ## collision: fifty pixels of sand the apo walked on over open water, and an invisible wall in it
 ## for a diver. run_level3_audit holds each picture to its collision.
+##
+## ⚠ THE BEACH IS 600 LONGER AND THE SEA 1800 (2026-10-05). Kent: room on the sand to dig the bangka
+## out and drag it down, and a crossing long enough that Lolo is not rushed. The home edge moved
+## from 1000 to 1600 and the island from 4500 to 6900; the island's phase is its old one carried
+## the 2400 along (so its stones are the same stones), the home's was searched again.
 LANDS = {
-    "land_home.png": (100, 1120, 1000, True, 6100, 420),
-    "land_island.png": (4380, 5380, 4500, False, 6200, 102),
+    "land_home.png": (100, 1720, 1600, True, 6100, 684),
+    "land_island.png": (6780, 7780, 6900, False, 6200, 294),
 }
 
 

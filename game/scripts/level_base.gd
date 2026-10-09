@@ -54,6 +54,13 @@ func _extra_refusals(_entity_id: String, _strokes: Array) -> bool:
 	return false
 
 
+## Whether the apo -- no drawing, just themselves -- can swim here. Nowhere but the sea: the
+## paddies are gates, and a gate the apo can swim through is not one. A level that says yes
+## keeps its own breath and its own rescue; the base's "you cannot swim" is switched off.
+func _apo_can_swim() -> bool:
+	return false
+
+
 ## What this level DOES when an obstacle is solved. True means the level handled the beat
 ## and the generic "<obstacle>.<route>.solved" line must not also fire.
 func _on_route_solved(_obstacle_id: String, _route: String) -> bool:
@@ -273,7 +280,13 @@ const WANDERER_SCENE := "res://creatures/wanderer.tscn"
 @onready var environment: Node = $EnvironmentBaseplate
 @onready var spawn_point: Marker2D = $EnvironmentBaseplate/GameplayPlane/SpawnPoint
 @onready var entity_root: Node2D = $EnvironmentBaseplate/GameplayPlane/EntityRoot
-@onready var world_item_root: Node2D = $EnvironmentBaseplate/GameplayPlane/WorldItemRoot
+## ⚠ LOOKED FOR, AND MADE IF IT IS NOT THERE. It is declared in each level's scene under the
+## environment's GameplayPlane -- a node added inside an instanced scene -- and an editor save of
+## level_3.tscn dropped it (2026-10-05). Every drawing placed or given back then had nowhere to go:
+## the first restore errored on a null, the debugger stopped the game there, and Dagat could not be
+## opened. See _ensure_world_item_root.
+@onready var world_item_root: Node2D = get_node_or_null(
+	^"EnvironmentBaseplate/GameplayPlane/WorldItemRoot") as Node2D
 @onready var backend_supervisor: Node = $BackendSupervisor
 @onready var status_label: Label = $CanvasLayer/StatusLabel
 @onready var draw_button: Button = $CanvasLayer/DrawButton
@@ -379,6 +392,21 @@ var _run_started_msec := 0
 var _classes_this_run: Dictionary = {}
 
 
+## Where placed drawings live, made in the gameplay plane if the scene lost it -- the same node,
+## the same name and the same z it is declared with.
+func _ensure_world_item_root() -> void:
+	if world_item_root != null and is_instance_valid(world_item_root):
+		return
+	var plane := get_node_or_null(^"EnvironmentBaseplate/GameplayPlane")
+	if plane == null:
+		return
+	push_warning("%s: WorldItemRoot is missing from the scene; making it." % name)
+	world_item_root = Node2D.new()
+	world_item_root.name = "WorldItemRoot"
+	world_item_root.z_index = 5
+	plane.add_child(world_item_root)
+
+
 func _ready() -> void:
 	# Findable by the rooms, which have to ask what this RUN has already handed over rather
 	# than what the profile remembers forever. See pickup_taken_this_run.
@@ -396,6 +424,7 @@ func _ready() -> void:
 	# quietly changing the price or budget of every later level.
 	ink_manager.begin_level(ink_manager.capacity)
 	inventory_manager.begin_level()
+	_ensure_world_item_root()
 	placement_controller.registry = registry
 	placement_controller.world_item_root = world_item_root
 	draw_panel.ink_manager = ink_manager
@@ -442,6 +471,7 @@ func _ready() -> void:
 	tutorial_spotlight.name = "TutorialSpotlight"
 	add_child(tutorial_spotlight)
 	tutorial.bind_spotlight(tutorial_spotlight, _tutorial_target, _tutorial_context)
+	tutorial.bind_lead(_say_tutorial_lead)
 	_run_started_msec = Time.get_ticks_msec()
 	_apply_level_identity()
 	_resolve_level_nodes()
@@ -1458,6 +1488,7 @@ func _write_checkpoint(checkpoint_id: String) -> void:
 		"placed": _placed_entity_records(),
 		"level": _level_run_state(),
 	})
+	_save_checkpoint_to_disk(checkpoint_id)
 	Telemetry.record_event("checkpoint_written", {
 		"level_id": LevelManager.current_level_id, "checkpoint_id": checkpoint_id,
 	})
@@ -1477,6 +1508,135 @@ func _placed_entity_records() -> Array:
 			"transform": prop.global_transform,
 		})
 	return records
+
+
+# --- Checkpoints that outlive leaving the level ---------------------------------------
+
+## WHERE THE LAST CHECKPOINT IS KEPT BETWEEN VISITS, one file per level.
+##
+## CheckpointManager is in memory on purpose -- it answers "start again from here" inside one
+## sitting. But leaving a level and coming back put the apo at the very start of it, however
+## far they had got, and walking the whole of Payyo again to reach the fork they had already
+## answered is the game forgetting them. So the latest snapshot is ALSO written here, and a
+## level entered with one waiting resumes from it (_resume_saved_checkpoint). Finishing the
+## level, or a new game, throws it away.
+func _checkpoint_save_path() -> String:
+	var level_id := LevelManager.current_level_id
+	if level_id.is_empty():
+		return ""
+	return preload("res://scripts/user_data.gd").path("checkpoints/%s.save" % level_id)
+
+
+func _save_checkpoint_to_disk(checkpoint_id: String) -> void:
+	var path := _checkpoint_save_path()
+	if path.is_empty() or checkpoints == null:
+		return
+	var payload := {
+		"version": 1,
+		"id": checkpoint_id,
+		"state": _disk_safe(checkpoints.peek(checkpoint_id)),
+		"taught": tutorial.taught_ids() if tutorial != null else [],
+	}
+	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file != null:
+		file.store_string(var_to_str(payload))
+
+
+## What a snapshot can carry onto disk: plain values only. A live object -- the Image of a
+## shape held in deep water -- cannot be written and read back, so a dictionary holding one
+## is dropped whole rather than coming back half-built; the level's restore already treats
+## an empty one as "nothing to give back".
+func _disk_safe(value: Variant) -> Variant:
+	if value is Object:
+		return null
+	if value is Dictionary:
+		var out: Dictionary = {}
+		for key: Variant in (value as Dictionary).keys():
+			var item: Variant = (value as Dictionary)[key]
+			if item is Object:
+				return {}
+			out[key] = _disk_safe(item)
+		return out
+	if value is Array:
+		var list: Array = []
+		for item: Variant in value:
+			list.append(_disk_safe(item))
+		return list
+	return value
+
+
+func _has_saved_checkpoint() -> bool:
+	var path := _checkpoint_save_path()
+	return not path.is_empty() and FileAccess.file_exists(path)
+
+
+func _forget_saved_checkpoint() -> void:
+	var path := _checkpoint_save_path()
+	if not path.is_empty() and FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+
+
+## Pick up where the apo left off. The saved snapshot is handed to the CheckpointManager as if
+## it had just been written -- so a fall after resuming lands here too -- and then restored by
+## the same path a fall uses. What that path cannot do, because a fall never needed it, is put
+## back the forks: a fresh level has every fork unanswered and every route's branch standing.
+## _resume_routes answers them again, silently.
+func _resume_saved_checkpoint() -> bool:
+	if not resume_enabled or not _has_saved_checkpoint() or checkpoints == null or director == null:
+		return false
+	var text := FileAccess.get_file_as_string(_checkpoint_save_path())
+	var payload: Variant = str_to_var(text) if not text.is_empty() else null
+	if not (payload is Dictionary) or not ((payload as Dictionary).get("state") is Dictionary):
+		_forget_saved_checkpoint()
+		return false
+	var saved: Dictionary = payload
+	checkpoints.write(String(saved.get("id", "CP")), saved["state"] as Dictionary)
+	if _restore_checkpoint().is_empty():
+		return false
+	var obstacles: Dictionary = (saved["state"] as Dictionary).get("obstacles", {})
+	_resume_routes(obstacles.get("committed", {}) as Dictionary,
+		obstacles.get("solved", {}) as Dictionary)
+	if tutorial != null:
+		tutorial.mark_taught(saved.get("taught", []) as Array)
+	_refresh_requirements()
+	var world_camera := _world_camera()
+	if world_camera != null:
+		world_camera.snap_to_target()
+	return true
+
+
+## Answer again, without a word, every fork the snapshot says was answered: the fork stops
+## asking, and the branch it chose is the one standing. A route committed but not yet solved
+## also gets whatever its level sets up when it is first chosen (_resume_committed_route).
+func _resume_routes(committed: Dictionary, solved: Dictionary) -> void:
+	# Somewhere already arrived at is not arrived at again: Lolo does not re-tell the gorge to
+	# an apo resuming on the far side of it.
+	if script_lines != null:
+		for obstacle_value: Variant in committed.keys() + solved.keys():
+			script_lines.mark_heard("%s.enter" % String(obstacle_value))
+	for obstacle_value: Variant in committed.keys():
+		var obstacle_id := String(obstacle_value)
+		var route := String(committed[obstacle_value])
+		var fork := _fork_for(obstacle_id)
+		if fork != null and is_instance_valid(fork):
+			fork.set("_answered", true)
+			if fork == dialogue_node and route_layout != null:
+				route_layout.apply_route(route)
+		if not solved.has(obstacle_id):
+			_resume_committed_route(obstacle_id, route)
+
+
+## The DialogueNode2D that asks at `obstacle_id`, or null. The base knows its one node.
+func _fork_for(obstacle_id: String) -> DialogueNode2D:
+	if dialogue_node != null and _dialogue_node_obstacle_id() == obstacle_id:
+		return dialogue_node
+	return null
+
+
+## What a level does when a route is chosen that a resume has to do again. Nothing, here.
+func _resume_committed_route(_obstacle_id: String, _route: String) -> void:
+	pass
 
 
 ## How far below the world the player may fall before the level takes them back.
@@ -1929,10 +2089,12 @@ func _on_inventory_slot_pressed(slot: int) -> void:
 	if _is_held_tool(item):
 		_equip_from_slot(slot, item)
 		return
-	# ⚠ REFUSED BEFORE IT IS AIMED, not after it is set down. A placeable costs a unit on
-	# each placement (FR-7), and a player who lines up a ghost, finds the spot and clicks
-	# should not be told at the click that they could never have afforded it.
-	if ink_manager.total_uncommitted_available() < InkManager.UNIT - 0.0001:
+	# ⚠ REFUSED BEFORE IT IS AIMED, not after it is set down. A placeable costs a unit the
+	# first time it is set down, and a player who lines up a ghost, finds the spot and clicks
+	# should not be told at the click that they could never have afforded it. One already
+	# paid for -- set down once and taken back into the bag -- goes down again free.
+	if not item.placement_paid \
+			and ink_manager.total_uncommitted_available() < InkManager.UNIT - 0.0001:
 		status_label.text = "%s costs a unit to set down, and there is none left" % item.display_name
 		return
 	item = inventory_manager.take_item(slot)
@@ -2131,10 +2293,12 @@ func _on_placement_confirmed(
 	placed: PhysicsShapeObject,
 	_source_slot: int
 ) -> void:
-	# ⚠ EVERY PLACEMENT, NOT THE FIRST. `item.ink_committed` used to latch here, so a
-	# placeable was paid for once and set down for the rest of the level free. FR-7 prices
-	# it "on each placement", which is what makes six units a budget rather than a tutorial.
-	if not is_a_tool(registry.get_entity(item.entity_id)):
+	# ⚠ THE FIRST PLACEMENT OF EACH DRAWING, NOT EVERY ONE. A drawn ladder is paid for when
+	# it is first set down; taken back into the bag and set down again it is the same ladder
+	# and costs nothing (`item.placement_paid`). A NEW drawing of a ladder is a new item and
+	# pays again, so the budget still limits how many things the player can make.
+	# This departs from FR-7's "on each placement and is not retained" by design decision.
+	if not is_a_tool(registry.get_entity(item.entity_id)) and not item.placement_paid:
 		# The slot press above already refused an unaffordable placement, so a failure here
 		# is a race rather than the ordinary path -- but it must not hand out a free one.
 		if not ink_manager.spend_unit():
@@ -2143,6 +2307,7 @@ func _on_placement_confirmed(
 			status_label.text = "%s costs a unit to set down, and there is none left" % item.display_name
 			return
 	item.ink_committed = true
+	item.placement_paid = true
 	_last_placed = placed
 	_connect_utility(placed)
 	# A placed object clamps itself to the world it was built with, and only the PLAYER was
@@ -3100,6 +3265,7 @@ func _physics_process(_delta: float) -> void:
 		if anchor != null:
 			anchor_position = anchor.global_position
 	_level_physics(anchor_position)
+	_mantle_onto_a_drawing()
 	# The bag no longer stands down while the apo moves -- see InventoryHUD. It stays in its
 	# corner and thins out only while she is actually standing behind it.
 	_veil_the_bag_over(anchor_position)
@@ -3124,7 +3290,8 @@ func _physics_process(_delta: float) -> void:
 	# the wading jump clears about twenty pixels and the bank is a hundred above the floor
 	# -- so without this the water is not a gate, it is a hole to be stuck in. A drawn
 	# creature that swims is not rescued: being in the water is the whole point of it.
-	if player is Wanderer and bool(player.call("is_in_water")):
+	# A level that lets the apo swim on a breath (Dagat) looks after its own water.
+	if player is Wanderer and bool(player.call("is_in_water")) and not _apo_can_swim():
 		_submerged_seconds += _delta
 		if _submerged_seconds > 1.1:
 			_submerged_seconds = 0.0
@@ -3171,6 +3338,67 @@ func _physics_process(_delta: float) -> void:
 		if distance > GOAL_RADIUS or not may_finish else "GOAL REACHED"
 	if distance <= GOAL_RADIUS and may_finish:
 		_complete_level()
+
+
+## ⚠ UP ONTO WHAT SHE DREW. Kent: "sometimes i cant draw items to climb/stand on to get to the
+## key". Whether a drawing was something to stand on depended on the size it came out at: the
+## apo jumps 94px, and a bucket is 96 tall, a campfire 104, a wheel 128 -- she could put one
+## under the nail and never get on top of it. So when she jumps against the side of a drawing,
+## pressing toward it, and its top is only a little above her feet, she pulls herself up onto it.
+##
+## ⚠ DRAWINGS ONLY, NEVER TERRAIN. Every gap and ledge in the levels is measured against the
+## jump (R1); a mantle onto the ground would hand those over for free. A drawing is something the
+## player made to be climbed, and reaching the top of it is what they made it for.
+const MANTLE_REACH := 52.0
+
+
+func _mantle_onto_a_drawing() -> void:
+	var apo := player as Wanderer
+	if apo == null or world_item_root == null or apo.is_on_floor() or apo.velocity.y < -80.0:
+		return
+	if apo.is_in_water() or apo.is_riding() or apo.get("_ladder") != null:
+		return
+	var press := Input.get_axis(&"move_left", &"move_right")
+	if absf(press) < 0.2:
+		return
+	var direction := signf(press)
+	var feet := apo.global_position
+	for child in world_item_root.get_children():
+		var drawing := child as PhysicsShapeObject
+		if drawing == null or drawing.is_preview or not drawing.is_inside_tree():
+			continue
+		# A boat is boarded with E, not climbed: stood on its deck she is not its passenger.
+		var vessel := drawing as UtilityObject
+		if vessel != null and vessel.utility_behavior in ["sailboat", "submarine"]:
+			continue
+		var box := drawing.world_extent()
+		if box.size.y < 8.0 or box.size.x < 20.0:
+			continue
+		var top := box.position.y
+		if feet.y < top or feet.y - top > MANTLE_REACH:
+			continue
+		var side := box.position.x if direction > 0.0 else box.end.x
+		if absf(feet.x - side) > 30.0:
+			continue
+		var onto := Vector2(side + direction * minf(22.0, box.size.x * 0.5), top - 1.0)
+		if not _room_to_stand(apo, onto):
+			continue
+		apo.global_position = onto
+		apo.velocity = Vector2.ZERO
+		return
+
+
+## Whether the apo's own body fits standing at `feet` -- nothing solid but her where she would be.
+func _room_to_stand(apo: Wanderer, feet: Vector2) -> bool:
+	var collision := apo.get_node_or_null(^"Collision") as CollisionShape2D
+	if collision == null or collision.shape == null:
+		return true
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = collision.shape
+	query.transform = Transform2D(0.0, feet + collision.position + Vector2(0.0, -2.0))
+	query.collision_mask = 1
+	query.exclude = [apo.get_rid()]
+	return get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
 ## How far the letterbox has closed when the HUD has finished fading out. The caption in the
@@ -3519,7 +3747,7 @@ func _spawn_lolo() -> void:
 	lolo.follow(player)
 	if hint_bar != null:
 		lolo.set_hint_bar(hint_bar)
-	_greet()
+	_play_opening.call_deferred()
 
 
 ## The two set-piece lines from the old script -- the greeting and the arrival after the
@@ -3593,6 +3821,210 @@ func _toggle_inventory_screen() -> void:
 	inventory_screen.open()
 
 
+## WHETHER THE LEVEL OPENS WITH A CONVERSATION. Off for every suite and probe: a talk at the
+## first frame stops the tree until somebody answers it, and there is nobody there to. A probe
+## that is ABOUT the opening turns it back on before adding the level to the tree.
+var intro_enabled := not preload("res://scripts/user_data.gd").is_test_run()
+## WHETHER A LEVEL ENTERED WITH A SAVED CHECKPOINT RESUMES FROM IT. Off for suites and
+## probes for the same reason as the opening: a fixture that builds the same level twice
+## expects two fresh levels, and the second would otherwise pick up where the first stopped.
+## run_resume_probe turns it on.
+var resume_enabled := not preload("res://scripts/user_data.gd").is_test_run()
+## How long the level is on screen before the opening speaks, so the first line does not land
+## on the frame the scene appears.
+const OPENING_DELAY := 0.8
+
+
+## THE LEVEL'S FIRST WORDS, chosen by whether the apo has been here before.
+##
+## The first time: the level's `intro` conversation -- for Payyo, the apo waking up in a place
+## they do not know and a ghost they have never met explaining himself. Every time after:
+## one greeting from the level's `returns` pool, drawn by `_pick_return_conversation` so that
+## replaying does not mean hearing the same welcome twice. Either way the tutorial waits: it
+## shows nothing over anyone talking (TutorialDirector), so Walk comes after the last word.
+func _play_opening() -> void:
+	var level_id := LevelManager.current_level_id
+	var visits := 1
+	if PlayerProfile.has_method("record_level_visit"):
+		visits = int(PlayerProfile.record_level_visit(level_id))
+	# BACK AT THE LAST CHECKPOINT, if they left part way through. Before anything is said, so
+	# the welcome is spoken where they are standing and not at the start of the level.
+	var resumed := _resume_saved_checkpoint()
+	if not intro_enabled or script_lines == null or dialogue_box == null:
+		_greet()
+		return
+	# A profile that finished the level before visits were counted is a return, not a first.
+	var first_time := visits <= 1 and not PlayerProfile.is_level_completed(level_id)
+	# COMING BACK, THE CARDS DO NOT. Somebody who has been through a level has been taught
+	# how to walk in it; teaching them again on every replay is the game not listening.
+	# Resuming a level they have NOT finished keeps the cards they have not seen yet -- the
+	# ones they have are marked taught by the resume.
+	if not first_time and not resumed and tutorial != null:
+		tutorial.set_enabled(false)
+	if not first_time and resumed and PlayerProfile.is_level_completed(level_id) \
+			and tutorial != null:
+		tutorial.set_enabled(false)
+	await get_tree().create_timer(OPENING_DELAY).timeout
+	if not is_inside_tree():
+		return
+	# Lolo says all of it, so with no Lolo in the level -- he stays behind after Dagat --
+	# there is nobody to say it.
+	if lolo == null or not is_instance_valid(lolo):
+		_greet()
+		return
+	var steps: Array = []
+	if first_time:
+		steps = script_lines.conversation("intro")
+	else:
+		# A greeting -- the route they took, the place they have just come from -- and then
+		# something true about where they are standing.
+		steps = _pick_return_conversation(level_id, visits, "greeting")
+		steps.append_array(_pick_return_conversation(level_id, visits, "fact"))
+	if not steps.is_empty():
+		await _run_conversation(steps)
+	_greet()
+
+
+## What a tutorial card's `lead` is said through: the story box, as Lolo, with the camera on
+## him -- the same as any other line of his.
+func _say_tutorial_lead(lines: Array) -> void:
+	var beat: Array = []
+	for text in lines:
+		beat.append({"text": String(text), "speaker": "lolo"})
+	_speak(beat)
+
+
+## Play a conversation's steps in order: lines to read, and questions the player answers.
+func _run_conversation(steps: Array) -> void:
+	for step_value: Variant in steps:
+		if not is_inside_tree():
+			return
+		var step: Dictionary = step_value
+		if step.has("say"):
+			await _speak_and_wait(script_lines.fire(String(step["say"])))
+		elif step.has("ask"):
+			await _ask_in_conversation(step)
+
+
+## Lolo asks; the apo's possible answers are buttons; the one picked is said, then Lolo's
+## reply. A `repeat` question comes back with the answered option gone -- "ask me anything"
+## -- until the player picks the `until` option or there is nothing left to ask.
+func _ask_in_conversation(step: Dictionary) -> void:
+	var question := _first_text(script_lines.peek(String(step["ask"])))
+	var options: Array = (step.get("options", []) as Array).duplicate()
+	var until := String(step.get("until", ""))
+	while not options.is_empty() and is_inside_tree():
+		var labels: Array = []
+		for option_value: Variant in options:
+			var line := script_lines.line_by_id(String((option_value as Dictionary).get("line", "")))
+			labels.append(String(line.get("choice_label", line.get("text", ""))))
+		dialogue_overlay.call("present_options", Lolo.SPEAKER, question, labels)
+		var picked: int = await Signal(dialogue_overlay, &"option_picked")
+		var option: Dictionary = options[clampi(picked, 0, options.size() - 1)]
+		var reply: Array = []
+		var said := script_lines.line_by_id(String(option.get("line", "")))
+		if not said.is_empty():
+			reply.append(said)
+		if option.has("then"):
+			reply.append_array(script_lines.fire(String(option["then"])))
+		await _speak_and_wait(reply)
+		if not bool(step.get("repeat", false)) or String(option.get("line", "")) == until:
+			return
+		options.remove_at(options.find(option))
+		if step.has("again"):
+			question = _first_text(script_lines.peek(String(step["again"])))
+
+
+func _speak_and_wait(lines: Array) -> void:
+	if lines.is_empty() or dialogue_box == null:
+		return
+	_speak(lines)
+	if dialogue_box.is_open():
+		await dialogue_box.conversation_finished
+
+
+func _first_text(lines: Array) -> String:
+	for line_value: Variant in lines:
+		return script_lines.display_text(line_value as Dictionary)
+	return ""
+
+
+## THE REPLAY GREETING, from a priority queue rather than a fixed line.
+##
+## Every entry in the level's `returns` says when it may play (`when`) and how much it matters
+## (`priority`). Of the ones that may play now, the one heard FEWEST times wins; among those,
+## the highest priority; among those, the first in the file. So a returning player hears the
+## most relevant greeting first -- the one about the route they took last time -- then works
+## through the rest, and only once every eligible one has been heard does anything come round
+## again. The count lives on the profile, so the queue survives quitting the game.
+##
+## `pool` splits the entries: "greeting" (the default for an entry that names none) is how
+## Lolo says hello, "fact" is something true about the real place the painting is of. One of
+## each is drawn per return, each pool rotating on its own.
+func _pick_return_conversation(level_id: String, visits: int, pool: String = "greeting") -> Array:
+	var best: Dictionary = {}
+	var best_key: Array = []
+	var entries := script_lines.returns()
+	for index in range(entries.size()):
+		var entry: Dictionary = entries[index]
+		if String(entry.get("pool", "greeting")) != pool:
+			continue
+		if not _return_applies(entry.get("when", {}) as Dictionary, level_id, visits):
+			continue
+		var id := String(entry.get("id", ""))
+		var key := [PlayerProfile.dialogue_heard_count(id), -int(entry.get("priority", 0)), index]
+		if best_key.is_empty() or _sorts_before(key, best_key):
+			best_key = key
+			best = entry
+	if best.is_empty():
+		return []
+	PlayerProfile.note_dialogue_heard(String(best.get("id", "")))
+	return best.get("steps", []) as Array
+
+
+func _sorts_before(a: Array, b: Array) -> bool:
+	for index in range(mini(a.size(), b.size())):
+		if a[index] != b[index]:
+			return a[index] < b[index]
+	return false
+
+
+## Whether one replay greeting fits this visit. Every condition given must hold.
+func _return_applies(when: Dictionary, level_id: String, visits: int) -> bool:
+	if when.has("visits_at_least") and visits < int(when["visits_at_least"]):
+		return false
+	if when.has("completed") and PlayerProfile.is_level_completed(level_id) != bool(when["completed"]):
+		return false
+	if when.has("last_route") and PlayerProfile.last_route(level_id) != String(when["last_route"]):
+		return false
+	if when.has("missing") and PlayerProfile.is_collectible_found(String(when["missing"])):
+		return false
+	# Where they have just come from -- "tired of swimming already?" -- which is only worth
+	# saying about a DIFFERENT place.
+	if when.has("came_from") and (PlayerProfile.came_from() != String(when["came_from"])
+			or String(when["came_from"]) == level_id):
+		return false
+	return true
+
+
+## AT A FORK THE APO HAS STOOD AT BEFORE, Lolo remembers what they chose and asks for
+## something else. `<obstacle>.choice.again.<route>` is said for the route taken last time,
+## or `<obstacle>.choice.again.all` once all three have been. Returns the routes taken here,
+## so the buttons can say which ones they are.
+func _remind_of_last_choice(obstacle_id: String) -> Array:
+	var taken: Array = PlayerProfile.routes_taken_at(LevelManager.current_level_id, obstacle_id) \
+		if PlayerProfile.has_method("routes_taken_at") else []
+	if taken.is_empty() or script_lines == null:
+		return taken
+	var distinct: Dictionary = {}
+	for route_value: Variant in taken:
+		distinct[String(route_value)] = true
+	var hook := "%s.choice.again.%s" % [obstacle_id,
+		"all" if distinct.size() >= 3 else String(taken[-1])]
+	await _speak_and_wait(script_lines.fire(hook))
+	return taken
+
+
 func _greet() -> void:
 	if lolo == null or not is_instance_valid(lolo):
 		return
@@ -3658,11 +4090,16 @@ func _on_dialogue_node_approached() -> void:
 	var choices: Dictionary = script_lines.choices_for(node_obstacle) \
 		if script_lines != null and not node_obstacle.is_empty() else {}
 	if not choices.is_empty():
+		var taken: Array = await _remind_of_last_choice(node_obstacle)
 		var context := ""
 		for line_value: Variant in script_lines.peek("%s.choice" % node_obstacle):
 			context = String((line_value as Dictionary).get("text", ""))
-		dialogue_overlay.call("present", "Lolo", context, choices,
-			_requirements_per_route(node_obstacle))
+		var notes := _requirements_per_route(node_obstacle)
+		for route_value: Variant in taken:
+			var route := String(route_value)
+			if choices.has(route) and not String(notes.get(route, "")).contains("CHOSE THIS"):
+				notes[route] = (String(notes.get(route, "")) + "\nYOU CHOSE THIS BEFORE").strip_edges()
+		dialogue_overlay.call("present", "Lolo", context, choices, notes)
 		_frame_the_decision()
 		return
 	var node_lines: Dictionary = _script_lines.get("node", {})
@@ -3760,6 +4197,8 @@ func _complete_level() -> void:
 		return
 	_level_completed = true
 	var level_id := LevelManager.current_level_id
+	# Finished: the next visit is a replay from the start, not a resume.
+	_forget_saved_checkpoint()
 	Telemetry.end_level(level_id, "completed")
 	mark_finished(level_id)
 	status_label.text = "Level complete!"

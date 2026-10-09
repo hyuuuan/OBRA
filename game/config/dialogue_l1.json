@@ -4,9 +4,348 @@
   "speaker_default": "lolo",
   "lines": [
     {
+      "id": "L1_IN_001",
+      "at": "INTRO.wake",
+      "speaker": "apo",
+      "text": "...Ugh. My head."
+    },
+    {
+      "id": "L1_IN_002",
+      "at": "INTRO.wake",
+      "speaker": "apo",
+      "text": "I was in Lola's house. I picked up her brush, and the painting on the wall — it moved. It pulled me in."
+    },
+    {
+      "id": "L1_IN_003",
+      "at": "INTRO.wake",
+      "speaker": "apo",
+      "text": "Where am I? These terraces... those mountains. It smells like rain."
+    },
+    {
+      "id": "L1_IN_004",
+      "at": "INTRO.appear",
+      "text": "Apo."
+    },
+    {
+      "id": "L1_IN_005",
+      "at": "INTRO.appear",
+      "speaker": "apo",
+      "text": "Who said that? Hello?"
+    },
+    {
+      "id": "L1_IN_006",
+      "at": "INTRO.appear",
+      "text": "Here. Just behind you."
+    },
+    {
+      "id": "L1_IN_007",
+      "at": "INTRO.appear",
+      "speaker": "apo",
+      "text": "AAH! You — you're see-through! You're a GHOST!"
+    },
+    {
+      "id": "L1_IN_010",
+      "at": "INTRO.q1",
+      "text": "Easy, easy. Mind the edge — it is a long way down to the paddy."
+    },
+    {
+      "id": "L1_IN_011",
+      "at": "INTRO.q1.opt",
+      "speaker": "apo",
+      "choice_label": "Stay back! Don't come any closer!",
+      "text": "Stay back! Don't come any closer!"
+    },
+    {
+      "id": "L1_IN_012",
+      "at": "INTRO.q1.back",
+      "text": "I will stay right here. See? Not one step."
+    },
+    {
+      "id": "L1_IN_013",
+      "at": "INTRO.q1.back",
+      "text": "I would never hurt you, apo. Never."
+    },
+    {
+      "id": "L1_IN_014",
+      "at": "INTRO.q1.opt",
+      "speaker": "apo",
+      "choice_label": "W-what are you?",
+      "text": "W-what are you?"
+    },
+    {
+      "id": "L1_IN_015",
+      "at": "INTRO.q1.what",
+      "text": "A fair question. A strange one to be asked, after all this time."
+    },
+    {
+      "id": "L1_IN_016",
+      "at": "INTRO.q1.opt",
+      "speaker": "apo",
+      "choice_label": "This is a dream. I'm going to wake up.",
+      "text": "This is a dream. I'm going to wake up now. Any second."
+    },
+    {
+      "id": "L1_IN_017",
+      "at": "INTRO.q1.dream",
+      "text": "Pinch yourself, if you like. It will only hurt."
+    },
+    {
+      "id": "L1_IN_018",
+      "at": "INTRO.q1.dream",
+      "text": "It is not a dream. Though she would have liked that you thought so."
+    },
+    {
+      "id": "L1_IN_020",
+      "at": "INTRO.explain",
+      "text": "I am Lolo. That is what everyone in this valley called me, and you may too."
+    },
+    {
+      "id": "L1_IN_021",
+      "at": "INTRO.explain",
+      "text": "And you, apo, are standing inside one of your Lola's paintings."
+    },
+    {
+      "id": "L1_IN_022",
+      "at": "INTRO.explain",
+      "speaker": "apo",
+      "text": "Inside a painting? That's impossible."
+    },
+    {
+      "id": "L1_IN_023",
+      "at": "INTRO.explain",
+      "text": "Look at the light on the walls. Look at the edges of things. Every stroke of it is hers."
+    },
+    {
+      "id": "L1_IN_024",
+      "at": "INTRO.explain",
+      "speaker": "apo",
+      "text": "...It does look like her work. That green she always mixed."
+    },
+    {
+      "id": "L1_IN_030",
+      "at": "INTRO.q2",
+      "text": "Ask me what you need to. We have a little time before we walk."
+    },
+    {
+      "id": "L1_IN_031",
+      "at": "INTRO.q2.again",
+      "text": "What else would you like to know?"
+    },
+    {
+      "id": "L1_IN_032",
+      "at": "INTRO.q2.opt",
+      "speaker": "apo",
+      "choice_label": "Why are you a ghost?",
+      "text": "Why are you a ghost?"
+    },
+    {
+      "id": "L1_IN_033",
+      "at": "INTRO.q2.ghost",
+      "text": "Because she painted me here. On this very terrace, one summer, with my sleeves rolled up."
+    },
+    {
+      "id": "L1_IN_034",
+      "at": "INTRO.q2.ghost",
+      "text": "When a painter loves a place, a little of it stays in the paint. When she loves a person, a little of them stays too."
+    },
+    {
+      "id": "L1_IN_035",
+      "at": "INTRO.q2.ghost",
+      "text": "I am the little that stayed. Paint and memory. Not quite a ghost — not quite not one."
+    },
+    {
+      "id": "L1_IN_036",
+      "at": "INTRO.q2.opt",
+      "speaker": "apo",
+      "choice_label": "How did I get in here?",
+      "text": "How did I get in here?"
+    },
+    {
+      "id": "L1_IN_037",
+      "at": "INTRO.q2.how",
+      "text": "You picked up her brush. Her paintings are not pictures, apo. They are worlds — every one a place she loved."
+    },
+    {
+      "id": "L1_IN_038",
+      "at": "INTRO.q2.how",
+      "text": "And they open for the people she loved. That is you."
+    },
+    {
+      "id": "L1_IN_039",
+      "at": "INTRO.q2.opt",
+      "speaker": "apo",
+      "choice_label": "Where is Lola?",
+      "text": "Where is Lola?"
+    },
+    {
+      "id": "L1_IN_040",
+      "at": "INTRO.q2.lola",
+      "text": "..."
+    },
+    {
+      "id": "L1_IN_041",
+      "at": "INTRO.q2.lola",
+      "text": "Not in this one. But she left pieces of herself in all of them."
+    },
+    {
+      "id": "L1_IN_042",
+      "at": "INTRO.q2.lola",
+      "text": "Follow the pieces, and perhaps we will both understand."
+    },
+    {
+      "id": "L1_IN_043",
+      "at": "INTRO.q2.opt",
+      "speaker": "apo",
+      "choice_label": "How do I get home?",
+      "text": "How do I get home?"
+    },
+    {
+      "id": "L1_IN_044",
+      "at": "INTRO.q2.home",
+      "text": "Her paintings have worn through in places. Steps fallen, crossings rotted away."
+    },
+    {
+      "id": "L1_IN_045",
+      "at": "INTRO.q2.home",
+      "text": "But her brush still works here. Whatever you paint with it, this world believes."
+    },
+    {
+      "id": "L1_IN_046",
+      "at": "INTRO.q2.home",
+      "text": "Mend the way through, and the way leads home."
+    },
+    {
+      "id": "L1_IN_047",
+      "at": "INTRO.q2.opt",
+      "speaker": "apo",
+      "choice_label": "Okay. Show me.",
+      "text": "Okay... show me."
+    },
+    {
+      "id": "L1_IN_048",
+      "at": "INTRO.q2.go",
+      "text": "Good. I know these terraces better than anyone — she painted me walking them."
+    },
+    {
+      "id": "L1_IN_049",
+      "at": "INTRO.q2.go",
+      "text": "Stay close, apo. I will be your guide."
+    },
+    {
+      "id": "L1_RT_001",
+      "at": "RETURN.back",
+      "text": "Apo! You came back."
+    },
+    {
+      "id": "L1_RT_002",
+      "at": "RETURN.back",
+      "speaker": "apo",
+      "text": "I couldn't stay away."
+    },
+    {
+      "id": "L1_RT_003",
+      "at": "RETURN.back",
+      "text": "Neither could she. She painted this valley more times than I can count."
+    },
+    {
+      "id": "L1_RT_004",
+      "at": "RETURN.back.ask",
+      "text": "Shall we walk it a different way this time?"
+    },
+    {
+      "id": "L1_RT_005",
+      "at": "RETURN.back.opt",
+      "speaker": "apo",
+      "choice_label": "Yes. Show me something new.",
+      "text": "Yes. Show me something new."
+    },
+    {
+      "id": "L1_RT_006",
+      "at": "RETURN.back.new",
+      "text": "Then keep your eyes open. Every fork in this valley has more than one answer."
+    },
+    {
+      "id": "L1_RT_007",
+      "at": "RETURN.back.opt",
+      "speaker": "apo",
+      "choice_label": "I liked it the way it was.",
+      "text": "I liked it the way it was."
+    },
+    {
+      "id": "L1_RT_008",
+      "at": "RETURN.back.same",
+      "text": "So did she. But she never painted the same terrace the same way twice."
+    },
+    {
+      "id": "L1_RT_010",
+      "at": "RETURN.artist",
+      "text": "Welcome back, apo. Last time you mended everything you touched — just as she would have."
+    },
+    {
+      "id": "L1_RT_011",
+      "at": "RETURN.artist",
+      "text": "This time, try another road. The valley looks different from a different path."
+    },
+    {
+      "id": "L1_RT_012",
+      "at": "RETURN.pragmatist",
+      "text": "There you are. Last time you found your way around everything. Clever."
+    },
+    {
+      "id": "L1_RT_013",
+      "at": "RETURN.pragmatist",
+      "text": "But what would happen if you mended it instead? Or made a road of your own?"
+    },
+    {
+      "id": "L1_RT_014",
+      "at": "RETURN.protector",
+      "text": "Back again. Last time you cut your own path through. Strong hands."
+    },
+    {
+      "id": "L1_RT_015",
+      "at": "RETURN.protector",
+      "text": "There are gentler ways, apo. She would want you to see those too."
+    },
+    {
+      "id": "L1_RT_016",
+      "at": "RETURN.again",
+      "text": "You again! You know these terraces nearly as well as I do now."
+    },
+    {
+      "id": "L1_RT_017",
+      "at": "RETURN.again",
+      "speaker": "apo",
+      "text": "You're always here when I come back."
+    },
+    {
+      "id": "L1_RT_018",
+      "at": "RETURN.again",
+      "text": "Where else would I be? This is where she painted me."
+    },
+    {
+      "id": "L1_RT_019",
+      "at": "RETURN.flower",
+      "text": "Apo — did you ever find what she pressed and hid in this valley?"
+    },
+    {
+      "id": "L1_RT_020",
+      "at": "RETURN.flower",
+      "text": "There is a hollow under the far wall. Bring your own light, and look."
+    },
+    {
+      "id": "L1_RT_021",
+      "at": "RETURN.remember",
+      "text": "Every time you come back, the colours look a little brighter. I think the painting remembers you."
+    },
+    {
+      "id": "L1_RT_022",
+      "at": "RETURN.quiet",
+      "text": "Welcome back, apo. Her stair is waiting."
+    },
+    {
       "id": "L1_B0_001",
       "at": "B0_HAGDAN.enter",
-      "text": "This is not the place she left me. This is the place she *painted*."
+      "text": "Her stair is just ahead. She painted it from right here, every morning one summer."
     },
     {
       "id": "L1_B0_002",
@@ -271,7 +610,7 @@
     {
       "id": "L1_N2_022",
       "at": "L1_N2.chest.opened",
-      "text": "Her sketchbook. She never went up a terrace without it."
+      "text": "Her diary. She wrote in it every night, even when the words got harder to find."
     },
     {
       "id": "L1_N3_001",
@@ -371,7 +710,7 @@
     {
       "id": "L1_N3_019",
       "at": "L1_N3.ward.fail1",
-      "text": "It turned, then stopped. Something in the shape is wrong \u2014 it will say which."
+      "text": "It turned, then stopped. Something in the shape is wrong — it will say which."
     },
     {
       "id": "L1_N3_020",
@@ -431,8 +770,476 @@
       "id": "L1_EX_005",
       "at": "EXIT_MARKER.canvas",
       "text": "Apo — look at the edge. The shawl. I know that shawl."
+    },
+    {
+      "id": "L1_AG_001",
+      "at": "L1_N1.choice.again.artist",
+      "text": "Last time you put the crossing back. The other two ways are still waiting for you."
+    },
+    {
+      "id": "L1_AG_002",
+      "at": "L1_N1.choice.again.pragmatist",
+      "text": "Last time we went around by the walls. Will you try something else today?"
+    },
+    {
+      "id": "L1_AG_003",
+      "at": "L1_N1.choice.again.protector",
+      "text": "Last time you cut through the old growth. Perhaps a gentler way, this time?"
+    },
+    {
+      "id": "L1_AG_004",
+      "at": "L1_N1.choice.again.all",
+      "text": "You have tried every way across. Choose whichever your heart likes best."
+    },
+    {
+      "id": "L1_AG_005",
+      "at": "L1_N2.choice.again.artist",
+      "text": "Last time you sifted it slowly. You could be quicker about it today."
+    },
+    {
+      "id": "L1_AG_006",
+      "at": "L1_N2.choice.again.pragmatist",
+      "text": "Last time you went in and dragged it out. There are other ways into straw."
+    },
+    {
+      "id": "L1_AG_007",
+      "at": "L1_N2.choice.again.protector",
+      "text": "Last time the wind took it all. Go gently this time, and see what you missed."
+    },
+    {
+      "id": "L1_AG_008",
+      "at": "L1_N2.choice.again.all",
+      "text": "Every way into the straw, you have tried. Pick the one you liked."
+    },
+    {
+      "id": "L1_AG_009",
+      "at": "L1_N3.choice.again.artist",
+      "text": "Last time you went in under the roof. There are other ways into her house."
+    },
+    {
+      "id": "L1_AG_010",
+      "at": "L1_N3.choice.again.pragmatist",
+      "text": "Last time you made something to open it. Try another way today?"
+    },
+    {
+      "id": "L1_AG_011",
+      "at": "L1_N3.choice.again.protector",
+      "text": "Last time you cut your way in. She would not have minded — but there are softer ways."
+    },
+    {
+      "id": "L1_AG_012",
+      "at": "L1_N3.choice.again.all",
+      "text": "You have opened her house every way there is. Choose the one that felt right."
+    },
+    {
+      "id": "L1_RT_030",
+      "at": "RETURN.from.level_2",
+      "text": "Welcome back, apo! Still dizzy from all that dancing in the plaza?"
+    },
+    {
+      "id": "L1_RT_031",
+      "at": "RETURN.from.level_2",
+      "speaker": "apo",
+      "text": "My feet still hurt."
+    },
+    {
+      "id": "L1_RT_032",
+      "at": "RETURN.from.level_2",
+      "text": "Then walk slowly. The terraces have never once been in a hurry."
+    },
+    {
+      "id": "L1_RT_033",
+      "at": "RETURN.from.level_3",
+      "text": "Welcome back, apo! Tired of swimming already?"
+    },
+    {
+      "id": "L1_RT_034",
+      "at": "RETURN.from.level_3",
+      "speaker": "apo",
+      "text": "I still have sand in my shoes."
+    },
+    {
+      "id": "L1_RT_035",
+      "at": "RETURN.from.level_3",
+      "text": "Shake it out on the terraces. The farmers will not mind."
+    },
+    {
+      "id": "L1_FA_001",
+      "at": "RETURN.fact.byhand",
+      "text": "Did you know, apo? The Ifugao carved every one of these terraces into the mountain by hand."
+    },
+    {
+      "id": "L1_FA_002",
+      "at": "RETURN.fact.byhand",
+      "speaker": "apo",
+      "text": "By hand? All of them?"
+    },
+    {
+      "id": "L1_FA_003",
+      "at": "RETURN.fact.byhand",
+      "text": "All of them. Stone, mud and patience. They say if you laid the walls end to end, they would stretch halfway around the world."
+    },
+    {
+      "id": "L1_FA_004",
+      "at": "RETURN.fact.unesco",
+      "text": "These are the Rice Terraces of the Philippine Cordilleras, apo. The whole world agreed they are worth keeping — they are a UNESCO World Heritage Site."
+    },
+    {
+      "id": "L1_FA_005",
+      "at": "RETURN.fact.muyong",
+      "text": "Every terrace drinks from the forest above it. Ifugao families keep their own woodlots — muyong — so the water never stops running down."
+    },
+    {
+      "id": "L1_FA_006",
+      "at": "RETURN.fact.muyong",
+      "text": "Cut the forest, and the terraces go thirsty. That is why it matters what we do up here."
+    },
+    {
+      "id": "L1_FA_007",
+      "at": "RETURN.fact.hudhud",
+      "text": "At harvest the Ifugao sing the hudhud — long chanted stories, passed from voice to voice."
+    },
+    {
+      "id": "L1_FA_008",
+      "at": "RETURN.fact.hudhud",
+      "text": "Some take days to sing all the way through. UNESCO counts them among the world's treasures too."
+    },
+    {
+      "id": "L1_FA_009",
+      "at": "RETURN.fact.bulul",
+      "text": "Those carved figures by the granaries are bulul, apo. Guardians of the rice — farmers trusted them to keep the harvest plentiful."
+    },
+    {
+      "id": "L1_FA_010",
+      "at": "RETURN.fact.tinawon",
+      "text": "Up here they grow an heirloom rice called tinawon. It is planted only once a year, and it takes its time — like everything worth eating."
+    },
+    {
+      "id": "L1_FA_011",
+      "at": "RETURN.fact.carabao",
+      "text": "All over the Philippines, farmers work the paddies with the carabao. Strong, patient, and happiest up to its knees in mud."
+    },
+    {
+      "id": "L1_FA_012",
+      "at": "RETURN.fact.rice",
+      "text": "We say a meal without rice is not a real meal. Every grain out there was planted by somebody's hands, apo. Remember that at dinner."
     }
   ],
   "design_level_id": "L1_PAYYO",
-  "language": "en"
+  "language": "en",
+  "conversations": {
+    "$comment": "Scripted exchanges, played by LevelBase._run_conversation. Steps point at hooks and line ids above; nothing here is said that is not a line.",
+    "intro": [
+      {
+        "say": "INTRO.wake"
+      },
+      {
+        "say": "INTRO.appear"
+      },
+      {
+        "ask": "INTRO.q1",
+        "options": [
+          {
+            "line": "L1_IN_011",
+            "then": "INTRO.q1.back"
+          },
+          {
+            "line": "L1_IN_014",
+            "then": "INTRO.q1.what"
+          },
+          {
+            "line": "L1_IN_016",
+            "then": "INTRO.q1.dream"
+          }
+        ]
+      },
+      {
+        "say": "INTRO.explain"
+      },
+      {
+        "ask": "INTRO.q2",
+        "again": "INTRO.q2.again",
+        "repeat": true,
+        "until": "L1_IN_047",
+        "options": [
+          {
+            "line": "L1_IN_032",
+            "then": "INTRO.q2.ghost"
+          },
+          {
+            "line": "L1_IN_036",
+            "then": "INTRO.q2.how"
+          },
+          {
+            "line": "L1_IN_039",
+            "then": "INTRO.q2.lola"
+          },
+          {
+            "line": "L1_IN_043",
+            "then": "INTRO.q2.home"
+          },
+          {
+            "line": "L1_IN_047",
+            "then": "INTRO.q2.go"
+          }
+        ]
+      }
+    ]
+  },
+  "returns": [
+    {
+      "id": "L1_return_from_l2",
+      "pool": "greeting",
+      "priority": 6,
+      "when": {
+        "visits_at_least": 2,
+        "came_from": "level_2"
+      },
+      "steps": [
+        {
+          "say": "RETURN.from.level_2"
+        }
+      ]
+    },
+    {
+      "id": "L1_return_from_l3",
+      "pool": "greeting",
+      "priority": 6,
+      "when": {
+        "visits_at_least": 2,
+        "came_from": "level_3"
+      },
+      "steps": [
+        {
+          "say": "RETURN.from.level_3"
+        }
+      ]
+    },
+    {
+      "id": "L1_return_last_artist",
+      "priority": 5,
+      "when": {
+        "visits_at_least": 2,
+        "last_route": "artist"
+      },
+      "steps": [
+        {
+          "say": "RETURN.artist"
+        }
+      ],
+      "pool": "greeting"
+    },
+    {
+      "id": "L1_return_last_pragmatist",
+      "priority": 5,
+      "when": {
+        "visits_at_least": 2,
+        "last_route": "pragmatist"
+      },
+      "steps": [
+        {
+          "say": "RETURN.pragmatist"
+        }
+      ],
+      "pool": "greeting"
+    },
+    {
+      "id": "L1_return_last_protector",
+      "priority": 5,
+      "when": {
+        "visits_at_least": 2,
+        "last_route": "protector"
+      },
+      "steps": [
+        {
+          "say": "RETURN.protector"
+        }
+      ],
+      "pool": "greeting"
+    },
+    {
+      "id": "L1_return_flower",
+      "priority": 4,
+      "when": {
+        "completed": true,
+        "missing": "flower_1"
+      },
+      "steps": [
+        {
+          "say": "RETURN.flower"
+        }
+      ],
+      "pool": "greeting"
+    },
+    {
+      "id": "L1_return_again",
+      "priority": 2,
+      "when": {
+        "visits_at_least": 3
+      },
+      "steps": [
+        {
+          "say": "RETURN.again"
+        }
+      ],
+      "pool": "greeting"
+    },
+    {
+      "id": "L1_return_back",
+      "priority": 1,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.back"
+        },
+        {
+          "ask": "RETURN.back.ask",
+          "options": [
+            {
+              "line": "L1_RT_005",
+              "then": "RETURN.back.new"
+            },
+            {
+              "line": "L1_RT_007",
+              "then": "RETURN.back.same"
+            }
+          ]
+        }
+      ],
+      "pool": "greeting"
+    },
+    {
+      "id": "L1_return_remember",
+      "priority": 1,
+      "when": {
+        "visits_at_least": 4
+      },
+      "steps": [
+        {
+          "say": "RETURN.remember"
+        }
+      ],
+      "pool": "greeting"
+    },
+    {
+      "id": "L1_return_quiet",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.quiet"
+        }
+      ],
+      "pool": "greeting"
+    },
+    {
+      "id": "L1_fact_byhand",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.byhand"
+        }
+      ]
+    },
+    {
+      "id": "L1_fact_unesco",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.unesco"
+        }
+      ]
+    },
+    {
+      "id": "L1_fact_muyong",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.muyong"
+        }
+      ]
+    },
+    {
+      "id": "L1_fact_hudhud",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.hudhud"
+        }
+      ]
+    },
+    {
+      "id": "L1_fact_bulul",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.bulul"
+        }
+      ]
+    },
+    {
+      "id": "L1_fact_tinawon",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.tinawon"
+        }
+      ]
+    },
+    {
+      "id": "L1_fact_carabao",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.carabao"
+        }
+      ]
+    },
+    {
+      "id": "L1_fact_rice",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.rice"
+        }
+      ]
+    }
+  ],
+  "$comment_returns": "returns: the replay pool, in two halves by `pool` -- a `greeting` (the route taken last time, the level just come from, how often they have been back) and a `fact` about the real place. One of each plays per return. Within a pool the entry heard fewest times wins (PlayerProfile.dialogue_heard), then highest `priority`, then file order -- so the most relevant comes first and nothing repeats until every eligible one has played."
 }

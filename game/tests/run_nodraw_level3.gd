@@ -35,7 +35,7 @@ const ROUTE_NAMES: Array[String] = ["the first answer", "the second answer"]
 ## Where the sea begins, and where the far sand does. Read off the scene in _open_level so a
 ## moved waterline cannot leave this asserting against a coastline that is not there.
 var _waterline_y := 560.0
-var _island_x := 4500.0
+var _island_x := 6900.0
 
 var level: Node
 var player: CharacterBody2D
@@ -98,7 +98,9 @@ func _run() -> void:
 	# nothing else. This is the segment that proves the rescue: an apo put in the shallows and
 	# driven east must end up back on the sand, not on the seabed.
 	_route_choice = 0
-	var wet := await _try_segment(Vector2(1200.0, 500.0))
+	# Just off the home beach, which runs to 1600 since it grew (2026-10-05). The apo swims here
+	# now, on a breath -- and a current turns them back before they are anywhere near across.
+	var wet := await _try_segment(Vector2(1800.0, 500.0))
 	if wet.is_empty():
 		_check(false, "the bot could be put in the water", "no player")
 	else:
@@ -171,12 +173,12 @@ func _try_the_boat() -> Dictionary:
 		for _frame in range(20):
 			await physics_frame
 			_answer_any_question()
-	player.global_position = Vector2(900.0, 500.0)
+	player.global_position = Vector2(1500.0, 500.0)
 	for _frame in range(40):
 		await physics_frame
 		_answer_any_question()
 	# And then at the beached hull, pressing E at it from touching distance.
-	player.global_position = Vector2(840.0, 500.0)
+	player.global_position = Vector2(1000.0, 500.0)
 	for _frame in range(60):
 		await physics_frame
 		level.call("press_interact")

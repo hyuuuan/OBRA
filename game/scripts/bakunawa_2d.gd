@@ -38,6 +38,8 @@ signal saw_the_player
 signal gift_offered
 ## Worn out. Still blind, still searching, swimming off.
 signal went_quiet(how: String)
+## A blow landed, and how many it has taken of how many it can.
+signal hit_taken(hits: int, needed: int)
 
 ## Long and low: this is a body the player swims the length of, not a sprite they stand next
 ## to. The arena is 900 wide, so it fills most of it and leaving is a real exit.
@@ -76,7 +78,13 @@ const SWEEP_LIMIT := 0.90
 ## looks up, keep low; when it looks down, go high. run_bakunawa_probe measures every depth.
 const DEEP_REACH := 1000.0
 const LOOK_UP := 1.2
-const LOOK_DOWN := 0.9
+## ⚠ 0.45, AND THAT IS THE WAY PAST UNDER IT. Kent: "there should be space below the sea serpent
+## where we can dodge the lights and not get hit by their hitbox". At 0.9 the two beams dipped to
+## within a few degrees of straight down and the creature lay with its belly on the bed, so the
+## dark under it was a sliver no swimmer could stand in. It is lifted off the bed now (see the
+## scene) and its light dips only this far: under its belly, along the bottom, the light never
+## reaches -- and the stretch either side of it is lit only while it is looking down.
+const LOOK_DOWN := 0.6
 ## ⚠ AT THE SURFACE IT KEEPS THE SHORT, BACK-TO-BACK SWEEP. Staged for the boat it lies just
 ## under the hull, so the boat's lane is level with it and within a thousand pixels of it all the
 ## way across: with the deep beam there, the boat could not time a way past from any point in the
@@ -99,12 +107,24 @@ const MANIFEST := "res://assets/Level3/dagat.json"
 @export var seal_span := Vector2.ZERO
 var _coil_block: CollisionShape2D
 
-const HITS_TO_SUBDUE := 3
-## What each drawn weapon is worth against it. Present so the five differ in more than reach,
-## which the design asks for outright -- "or drawing anything becomes drawing the best one".
+## ⚠ FIFTEEN, AND EACH BLOW IS ONE. Kent: "it should take maybe fifteen hits before they swim
+## away". Three was over before the fight had been felt, and with fractional bites a sword needed
+## four swings and a cannon three, which no player could see. A blow is a blow now -- the five
+## still differ in REACH, which is the difference a player feels -- and the meter over it counts
+## them down. Getting thrown off does not undo them: see enter_fight.
+const HITS_TO_SUBDUE := 15
+## The weapons it answers to. Read as a list now, not as damage -- see HITS_TO_SUBDUE.
 const BITE := {
-	"cannon": 1.0, "anvil": 1.0, "axe": 0.8, "sword": 0.8, "boomerang": 0.6,
+	"cannon": 1.0, "anvil": 1.0, "axe": 1.0, "sword": 1.0, "boomerang": 1.0,
 }
+## How long a landed blow shows, in red, and how hard it jolts the body.
+const HURT_SECONDS := 0.32
+const HURT_JOLT := 14.0
+## The look of it from above the water: a shape, not a creature. See set_silhouette.
+const SILHOUETTE := Color(0.02, 0.05, 0.11, 0.9)
+## How fast it goes after a light that is leading it, at most, and how close is close enough.
+const GUIDE_SPEED := 230.0
+const GUIDE_STOP := 50.0
 
 @export var treasure_offset := Vector2(-260.0, 220.0)
 
@@ -141,11 +161,27 @@ var _drift_clock := 0.0
 ## stayed coiled where it was for the rest of the level -- its own comment said it "swims off"
 ## and nothing made it. Now it holds a moment and swims away down into the dark, fading as it goes.
 ## Avoided, it does not: that resolution's whole point is that it keeps searching.
-const LEAVE_BY := Vector2(760.0, 320.0)
-const LEAVE_SECONDS := 5.5
+## ⚠ AWAY, AND SEEN TO GO. It sank off down-right and faded inside five seconds, mostly while
+## Lolo's line was still up -- Kent: "it should swim away". It turns and swims off along the
+## bottom, a good way, at a swimming pace, and only fades at the end of it.
+const LEAVE_BY := Vector2(1500.0, 240.0)
+const LEAVE_SECONDS := 7.5
 var _leaving := false
 var _gone := false
 var _leave: Tween
+## Which way it is heading as it goes, so it faces that way.
+var _leave_heading := 1.0
+
+## A blow's red, counting down; and the jolt it gave, decaying.
+var _hurt := 0.0
+## 0 in the water with the player, 1 seen from above it. Eased, so it does not snap.
+var _silhouette := 0.0
+var _silhouette_wanted := 0.0
+## Led by a light rather than sent to a place. See be_guided.
+var _guided := false
+## Whatever it took with it when it was fought off. See carry_away.
+var _carried: Sprite2D
+var _meter: _HitMeter
 
 
 func _ready() -> void:
@@ -162,6 +198,12 @@ func _ready() -> void:
 	_load_clips()
 	_build_bodies()
 	_build_skin()
+	_meter = _HitMeter.new()
+	_meter.name = "HitMeter"
+	_meter.needed = HITS_TO_SUBDUE
+	_meter.position = Vector2(0.0, -drawn_size().y * 0.5 - 30.0)
+	_meter.visible = false
+	add_child(_meter)
 	set_process(true)
 	_home = global_position
 	_homed = true
@@ -264,8 +306,14 @@ func reset_to(at: Vector2, surfaced: bool = false) -> void:
 	_homed = true
 	_drift_clock = 0.0
 	rotation = 0.0
+	scale = Vector2.ONE
 	_hits = 0.0
 	_thrash = 0.0
+	_hurt = 0.0
+	_guided = false
+	if _carried != null and is_instance_valid(_carried):
+		_carried.queue_free()
+	_carried = null
 	_fit_the_coils()
 	begin_search()
 
@@ -318,13 +366,111 @@ func follow_the_light(point: Vector2) -> void:
 	queue_redraw()
 
 
-func enter_fight() -> void:
+## ⚠ LED, NOT SENT. Kent: "the flashlight should follow where my mouse is pointing and the sea
+## serpent should follow it", home to a cave under the beach. follow_the_light sends it to one
+## place and it gives up what it found when it gets there; this is asked every frame with wherever
+## the light is now, it goes after it at a swimming pace, and arriving anywhere is not the end --
+## the level decides when it is home (go_home). The channel is open while it is led: a wall that
+## moves with a creature swimming after a light is a wall that shoves the player around.
+func be_guided(point: Vector2) -> void:
+	if _state == State.SUBDUED or _state == State.CALM or _gone:
+		return
+	if _state != State.FOLLOWING or not _guided:
+		_state = State.FOLLOWING
+		_guided = true
+		_set_channel_open(true)
+	_follow_target = point
+	queue_redraw()
+
+
+func is_guided() -> bool:
+	return _guided and _state == State.FOLLOWING
+
+
+## Home: into the cave mouth, and on into the dark of it, growing small and dim as it goes --
+## and THEN it gives up what it was holding. `mouth` is where the cave opens, `inside` how far in
+## it swims before it is gone.
+func go_home(mouth: Vector2, inside: Vector2) -> void:
+	if _leaving or _gone:
+		return
+	_state = State.CALM
+	_guided = false
+	_leaving = true
+	_set_channel_open(true)
+	_leave_heading = signf(inside.x - global_position.x)
+	if _leave != null and _leave.is_valid():
+		_leave.kill()
+	_leave = create_tween()
+	_leave.tween_property(self, "global_position", mouth,
+		clampf(global_position.distance_to(mouth) / GUIDE_SPEED, 0.6, 3.0)) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_leave.tween_property(self, "global_position", inside, 2.4) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_leave.parallel().tween_property(self, "scale", Vector2.ONE * 0.35, 2.4)
+	_leave.parallel().tween_property(self, "modulate", Color(0.15, 0.18, 0.25, 0.0), 2.4) \
+		.set_ease(Tween.EASE_IN)
+	_leave.tween_callback(func() -> void:
+		_be_gone()
+		gift_offered.emit())
+
+
+## ⚠ THE FIGHT KEEPS THE BLOWS IT HAS TAKEN. Being thrown off three times puts the player back
+## at the checkpoint and the creature back on its guard -- `keep_hits` -- but taking away ten good
+## blows for it would make fifteen a wall rather than a fight. Only a fresh fight starts at none.
+func enter_fight(keep_hits: bool = false) -> void:
 	if _state == State.SUBDUED:
 		return
 	_state = State.FIGHTING
-	_hits = 0.0
+	_guided = false
+	if not keep_hits:
+		_hits = 0.0
+	if _meter != null:
+		_meter.hits = int(_hits)
+		_meter.queue_redraw()
 	_set_channel_open(false)
 	queue_redraw()
+
+
+## What it swims off with when it is fought off: whatever it was searching for, held where it
+## can be seen, going with it. Kent: "if we choose to fight it, it takes the treasure with them".
+func carry_away(picture: Texture2D) -> void:
+	if picture == null or (_carried != null and is_instance_valid(_carried)):
+		return
+	_carried = Sprite2D.new()
+	_carried.name = "Carried"
+	_carried.texture = picture
+	_carried.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_carried.z_index = 1
+	_carried.rotation = 0.3
+	# Under its jaw, which is at the left end of the body in every clip but "turned".
+	_carried.position = Vector2(-drawn_size().x * 0.36, drawn_size().y * 0.18)
+	add_child(_carried)
+
+
+## The size the body is drawn at, in world pixels.
+func drawn_size() -> Vector2:
+	if _skin == null or _skin.texture == null:
+		return Vector2(BODY_LENGTH, BODY_DEPTH * 2.0)
+	return _skin.texture.get_size() * _skin.scale
+
+
+## ⚠ THE BODY IS A THING YOU CAN SWIM INTO. Kent: "space below the sea serpent where we can ...
+## not get hit by their hitbox". An ellipse inside the drawing -- the coils fill most of the frame
+## but not its corners -- so touching what you can see is touching it, and passing under its belly
+## with clear water between is not.
+func touches(point: Vector2) -> bool:
+	if _gone or _state == State.SUBDUED or _state == State.CALM:
+		return false
+	var half := drawn_size() * Vector2(0.42, 0.36) * scale
+	var offset := (point - global_position).rotated(-rotation)
+	return pow(offset.x / half.x, 2.0) + pow(offset.y / half.y, 2.0) < 1.0
+
+
+## Seen from above the water it is a shape, not a creature: the level sets this from where the
+## player is. Kent: "when the player is still above water, the sea serpent should just be a
+## silhouette". Eased, so a dive takes it from shadow to creature rather than switching.
+func set_silhouette(on: bool) -> void:
+	_silhouette_wanted = 1.0 if on else 0.0
 
 
 func state() -> int:
@@ -333,6 +479,14 @@ func state() -> int:
 
 func hits_taken() -> float:
 	return _hits
+
+
+## Put back the blows a fight had landed, after a restore that started it again.
+func restore_hits(value: float) -> void:
+	_hits = clampf(value, 0.0, float(HITS_TO_SUBDUE) - 1.0)
+	if _meter != null:
+		_meter.hits = int(_hits)
+		_meter.queue_redraw()
 
 
 func treasure_point() -> Vector2:
@@ -372,7 +526,10 @@ func _set_channel_open(open: bool) -> void:
 ## flashlight and then chose to sneak has made the encounter harder for themselves, and the
 ## design says to allow that rather than prevent it.
 func sees(point: Vector2, lit: bool = false) -> bool:
-	if _state == State.SUBDUED or _state == State.CALM:
+	if _state == State.SUBDUED or _state == State.CALM or _gone:
+		return false
+	# Led by a light, it is looking at the light.
+	if _state == State.FOLLOWING and _guided:
 		return false
 	var offset := point - global_position
 	if lit and offset.length() < CONE_LENGTH * 1.6:
@@ -402,7 +559,16 @@ func apply_tool_hit(tool: String, _impulse: float, _actor: Node2D) -> bool:
 		return false
 	_hits += float(BITE[tool])
 	_thrash = 0.5
+	# ⚠ A HIT SHOWS, IN RED. Kent: "the fight ... should indicate when he is hit (like a red flash
+	# or something)". It flashed white for a tenth of a second, which on a storm-dark sea read as
+	# lightning. Red now, longer, with a jolt through the body and the meter over it ticking down.
+	_hurt = HURT_SECONDS
+	if _meter != null:
+		_meter.hits = int(_hits)
+		_meter.flash = 1.0
+		_meter.queue_redraw()
 	queue_redraw()
+	hit_taken.emit(int(_hits), HITS_TO_SUBDUE)
 	if _hits >= float(HITS_TO_SUBDUE):
 		_subdue()
 	return true
@@ -420,7 +586,7 @@ func _subdue() -> void:
 	_set_channel_open(true)
 	queue_redraw()
 	went_quiet.emit("FOUGHT")
-	_leave_after(2.5)
+	_leave_after(1.6)
 
 
 ## The Artist ending. It found what it lost and is holding it out.
@@ -439,12 +605,13 @@ func _leave_after(seconds: float) -> void:
 	if _leaving or _gone:
 		return
 	_leaving = true
+	_leave_heading = signf(LEAVE_BY.x)
 	_leave = create_tween()
 	_leave.tween_interval(seconds)
 	_leave.tween_property(self, "global_position", global_position + LEAVE_BY, LEAVE_SECONDS) \
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-	_leave.parallel().tween_property(self, "modulate:a", 0.0, LEAVE_SECONDS * 0.7) \
-		.set_delay(LEAVE_SECONDS * 0.3)
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_leave.parallel().tween_property(self, "modulate:a", 0.0, LEAVE_SECONDS * 0.35) \
+		.set_delay(LEAVE_SECONDS * 0.65)
 	_leave.tween_callback(_be_gone)
 
 
@@ -456,12 +623,16 @@ func _be_gone() -> void:
 	_set_channel_open(true)
 	if _hurtbox != null:
 		_hurtbox.collision_layer = 0
+	if _meter != null:
+		_meter.visible = false
 
 
 # --- Per frame -----------------------------------------------------------------------------
 
 func _process(delta: float) -> void:
 	_thrash = maxf(0.0, _thrash - delta)
+	_hurt = maxf(0.0, _hurt - delta)
+	_silhouette = move_toward(_silhouette, _silhouette_wanted, delta * 2.5)
 	match _state:
 		State.SEARCHING, State.FIGHTING:
 			var ends := sweep_range()
@@ -473,7 +644,17 @@ func _process(delta: float) -> void:
 		State.FOLLOWING:
 			var to_light := _follow_target - global_position
 			_sweep = lerp_angle(_sweep, to_light.angle(), minf(1.0, delta * 2.0))
-			if to_light.length() > 24.0:
+			if _guided:
+				# After the light at a swimming pace, slowing as it gets there, and holding
+				# there with a slow rise and fall while the light holds still.
+				if to_light.length() > GUIDE_STOP:
+					var speed := minf(GUIDE_SPEED, to_light.length() * 1.6)
+					global_position += to_light.normalized() * speed * delta
+				_drift_clock += delta
+				rotation = lerp_angle(rotation, clampf(to_light.x * 0.0004, -0.08, 0.08), delta * 2.0)
+				_home = global_position
+				_fit_the_coils()
+			elif to_light.length() > 24.0:
 				global_position += to_light.normalized() * 120.0 * delta
 			else:
 				# It got there. Announcing this itself keeps the level from having to poll a
@@ -481,6 +662,11 @@ func _process(delta: float) -> void:
 				give_it_up()
 		State.CALM, State.SUBDUED:
 			_sweep = lerp_angle(_sweep, 0.0, minf(1.0, delta * 1.2))
+	if _meter != null:
+		_meter.visible = _state == State.FIGHTING and not _gone
+		_meter.flash = maxf(0.0, _meter.flash - delta * 3.0)
+		if _meter.visible:
+			_meter.queue_redraw()
 	_animate(delta)
 	queue_redraw()
 
@@ -519,8 +705,10 @@ func _animate(delta: float) -> void:
 			wanted = "turned" if _follow_target.x > global_position.x else "searching"
 			fps = 6.0
 		State.CALM, State.SUBDUED:
-			# Still while it rests; swimming again as it goes.
+			# Still while it rests; swimming again as it goes -- and facing the way it goes.
 			fps = 5.0 if _leaving else 1.6
+			if _leaving and _leave_heading > 0.0:
+				wanted = "turned"
 	if not _clips.has(wanted):
 		wanted = "searching"
 	if wanted != _clip:
@@ -536,11 +724,25 @@ func _animate(delta: float) -> void:
 		_clock -= step
 		_frame = (_frame + 1) % frames.size()
 	_skin.texture = frames[_frame]
-	# ⚠ A HIT SHOWS. The white flash is the only feedback the fight has, and without it three
-	# good swings and one miss look exactly alike.
-	_skin.modulate = Color(1.6, 1.6, 1.6) if _thrash > 0.0 else Color.WHITE
+	var tint := Color.WHITE
 	if _state == State.SUBDUED:
-		_skin.modulate = Color(0.55, 0.6, 0.68)
+		tint = Color(0.55, 0.6, 0.68)
+	# From above the water, a shape. Under it, the creature.
+	tint = tint.lerp(SILHOUETTE, _silhouette)
+	# ⚠ A HIT SHOWS, AND IT SHOWS OVER EVERYTHING ELSE -- a blow struck from the boat lands on
+	# the silhouette too. See apply_tool_hit.
+	if _hurt > 0.0:
+		var share := _hurt / HURT_SECONDS
+		tint = tint.lerp(Color(2.2, 0.32, 0.28, tint.a), share)
+		_skin.position = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * HURT_JOLT * share
+	else:
+		_skin.position = Vector2.ZERO
+	_skin.modulate = tint
+	# Whatever it took goes dark with it.
+	if _carried != null and is_instance_valid(_carried):
+		_carried.modulate = Color.WHITE.lerp(SILHOUETTE, _silhouette)
+		_carried.flip_h = wanted == "turned"
+		_carried.position.x = absf(_carried.position.x) * (1.0 if wanted == "turned" else -1.0)
 
 
 ## ⚠ ONLY THE SWEEP. The body is a Sprite2D now, but the cone stays hand-drawn because it is
@@ -645,3 +847,32 @@ func _draw_motes(facing: float, tint: Color, clock: float, length: float) -> voi
 			continue
 		var size := 2.0 if index % 3 == 0 else 1.0
 		draw_rect(Rect2(at, Vector2(size, size)), Color(tint.r, tint.g, tint.b, bright))
+
+
+## THE BLOWS IT HAS LEFT, over its back while it fights: a row of pips that go out as it is hit,
+## and blink red on the one that just went. A fight of fifteen with no count is a fight a player
+## gives up on at nine, not knowing it was nearly over. Drawn with its own (normal) blend, not the
+## creature's additive one -- see the material in _ready, which is on the parent alone.
+class _HitMeter extends Node2D:
+	var needed := 15
+	var hits := 0
+	var flash := 0.0
+
+	const PIP := Vector2(14.0, 10.0)
+	const GAP := 4.0
+
+	func _ready() -> void:
+		z_index = 20
+
+	func _draw() -> void:
+		var width := needed * PIP.x + (needed - 1) * GAP
+		var left := -width * 0.5
+		draw_rect(Rect2(left - 6.0, -PIP.y * 0.5 - 5.0, width + 12.0, PIP.y + 10.0),
+			Color(0.02, 0.03, 0.06, 0.72))
+		for index in range(needed):
+			var box := Rect2(left + index * (PIP.x + GAP), -PIP.y * 0.5, PIP.x, PIP.y)
+			var left_standing := index >= hits
+			var colour := Color(0.96, 0.84, 0.52) if left_standing else Color(0.32, 0.1, 0.1, 0.8)
+			if index == hits - 1 and flash > 0.0:
+				colour = colour.lerp(Color(1.0, 0.2, 0.15), flash)
+			draw_rect(box, colour)

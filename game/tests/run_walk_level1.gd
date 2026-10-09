@@ -924,13 +924,13 @@ func _her_chest_opens() -> void:
 	var title := ""
 	var body := ""
 	for label in card.find_children("*", "Label", true, false):
-		if (label as Label).text == "HER SKETCHBOOK PAGE":
+		if (label as Label).text == "HER DIARY":
 			title = (label as Label).text
-		elif (label as Label).text.contains("The valley will believe you"):
+		elif (label as Label).text.contains("while I still know the way"):
 			body = (label as Label).text
 	_check(chest.is_opened(), "and F opens it", "the padlock comes off" if chest.is_opened() else "still locked")
 	_check(bool(card.call("is_open")) and not title.is_empty() and not body.is_empty(),
-		"and her sketchbook page is inside",
+		"and a page of her diary is inside",
 		"a memory card: \"%s\"" % title if not title.is_empty() else "no card")
 	_check(int(level.call("_slot_holding", "axe")) < 0 and level.get("_equipped_utility") == null,
 		"and the axe is used up, as every tool is", "gone")

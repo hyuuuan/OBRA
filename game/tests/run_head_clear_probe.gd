@@ -92,11 +92,16 @@ func _stand(at: Vector2) -> void:
 ## Wait for the story box to have finished (the bar stands down while anyone speaks), say a
 ## line, let both ease into place, then read what each paints against where she stands.
 func _measure(where: String, outdoors: bool) -> void:
-	var deadline := Time.get_ticks_msec() + 12000
-	while _someone_speaking() and Time.get_ticks_msec() < deadline:
-		await process_frame
-	hint.show_hint("Cold ash in the hearth, and the rack still hung over it.", "Lolo", 30.0)
-	await _wait(1.6)
+	# ⚠ A READING TAKEN IN A CLOSE-UP IS NOT A READING OF THE ROOM. Lolo says a `lead` line
+	# before a lesson card, through the story box, and the camera zooms in on him to 1.15 for
+	# it; the hint bar stands aside while he talks. So wait for the quiet, and if a line starts
+	# while the bar settles, wait again and take it again.
+	for attempt in 4:
+		await _quiet()
+		hint.show_hint("Cold ash in the hearth, and the rack still hung over it.", "Lolo", 30.0)
+		await _wait(1.6)
+		if not _someone_speaking() and _at_rest():
+			break
 	var row := keys.find_child("FloatingActions", true, false) as Control
 	var bar := hint.find_child("Panel", true, false) as Control
 	var apo: Rect2 = level.call("_player_on_screen")
@@ -133,6 +138,32 @@ func _measure(where: String, outdoors: bool) -> void:
 		_check(absf(row_rect.end.y - usual) <= BOB, "outdoors: the row is where it always was",
 			"bottom %.0f, %.0f over her feet as before" % [row_rect.end.y, -ActionPromptHUD.FOLLOW_OFFSET.y])
 	hint.clear()
+
+
+## Nobody talking, and the camera at the room's own zoom rather than a close-up on a speaker.
+##
+## ⚠ AND LET GO OF A CLOSE-UP NOBODY IS IN. The level zooms in on whoever speaks and lets go
+## on the story box's `conversation_finished` -- but in auto-dismiss, which every unattended
+## probe runs in, DialogueBox.speak() drops the lines without emitting it, so the camera stays
+## at 1.15 for good. Played for real (lines pressed through) it lets go at once; checked on
+## 2026-10-09. So once nobody is talking, a focus still held is released here, as the level
+## would have.
+func _quiet() -> void:
+	var deadline := Time.get_ticks_msec() + 15000
+	while _someone_speaking() and Time.get_ticks_msec() < deadline:
+		await process_frame
+	var camera := level.call("_world_camera") as WorldCameraController
+	if camera != null and camera.get("_focus") != null:
+		camera.release_focus(0.0)
+	while not _at_rest() and Time.get_ticks_msec() < deadline:
+		await process_frame
+
+
+func _at_rest() -> bool:
+	var camera := level.call("_world_camera") as Camera2D
+	if camera == null:
+		return true
+	return absf(camera.zoom.y - float(camera.get("base_zoom"))) < 0.005
 
 
 func _someone_speaking() -> bool:

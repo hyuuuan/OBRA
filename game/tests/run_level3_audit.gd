@@ -585,10 +585,50 @@ func _audit_no_line_is_unreachable(level: Dictionary, dialogue: Dictionary) -> v
 		if cut > 0:
 			prefixes.append(text.substr(0, cut))
 
+	# ⚠ CONVERSATIONS, THE REPLAY POOL AND THE FORK REMINDERS ARE FIRED FROM DATA. The
+	# welcome-back greetings and fun facts are played by LevelBase._run_conversation out of
+	# this same file, and a fork answered before opens with `<obstacle>.choice.again.<route>`
+	# (LevelBase._remind_of_last_choice). A step naming a hook no line carries says nothing,
+	# and is reported rather than counted.
+	for obstacle_value: Variant in level.get("obstacles", []):
+		var forked: Dictionary = (obstacle_value as Dictionary).get("routes", {})
+		var fork_id := String((obstacle_value as Dictionary).get("id", "?"))
+		for route_value: Variant in forked.keys():
+			reachable["%s.choice.again.%s" % [fork_id, route_value]] = true
+		if not forked.is_empty():
+			reachable["%s.choice.again.all" % fork_id] = true
+	var steps: Array = []
+	for conversation_value: Variant in (dialogue.get("conversations", {}) as Dictionary).values():
+		if conversation_value is Array:
+			steps.append_array(conversation_value)
+	for entry_value: Variant in dialogue.get("returns", []):
+		steps.append_array((entry_value as Dictionary).get("steps", []))
+	var spoken_ids: Dictionary = {}
+	var authored_hooks: Dictionary = {}
+	for line_value: Variant in dialogue.get("lines", []):
+		authored_hooks[String((line_value as Dictionary).get("at", ""))] = true
+	var empty_steps: Array[String] = []
+	for step_value: Variant in steps:
+		var step: Dictionary = step_value
+		for key in ["say", "ask", "again"]:
+			if step.has(key):
+				reachable[String(step[key])] = true
+				if not authored_hooks.has(String(step[key])):
+					empty_steps.append(String(step[key]))
+		for option_value: Variant in step.get("options", []):
+			var option: Dictionary = option_value
+			spoken_ids[String(option.get("line", ""))] = true
+			if option.has("then"):
+				reachable[String(option["then"])] = true
+	_check(empty_steps.is_empty(), "every conversation step has words",
+		"%d steps" % steps.size() if empty_steps.is_empty()
+		else "says nothing: %s" % ", ".join(empty_steps))
+
 	var dead: Array[String] = []
 	for line_value: Variant in dialogue.get("lines", []):
 		var hook := String((line_value as Dictionary).get("at", ""))
-		if hook.is_empty() or reachable.has(hook):
+		if hook.is_empty() or reachable.has(hook) \
+				or spoken_ids.has(String((line_value as Dictionary).get("id", ""))):
 			continue
 		var built := false
 		for prefix in prefixes:

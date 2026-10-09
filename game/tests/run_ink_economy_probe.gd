@@ -9,6 +9,10 @@ extends SceneTree
 ## selectable and reusable at no ink cost and with no redraw. A placeable object ... costs
 ## one unit of ink on each placement and is not retained."
 ##
+## ⚠ CHANGED BY DESIGN DECISION: a placeable is paid for the first time each DRAWING is set
+## down. Taken back into the bag and set down again, the same drawing is free; a new drawing
+## of it pays again.
+##
 ## Payyo is the onboarding exception: seven units, the smallest increase that buys one more
 ## action in this discrete economy. The shared baseline and every individual price stay six
 ## and one respectively, so later levels do not inherit the concession.
@@ -94,7 +98,7 @@ func _run() -> void:
 		"the later-level baseline stays six and one thing still costs one",
 		"BUDGET %.0f, UNIT %.0f" % [InkManager.BUDGET, InkManager.UNIT])
 
-	# --- a placeable is priced on EVERY placement -------------------------------------
+	# --- a placeable is priced once per drawing -----------------------------------------
 	ink.committed = 0.0
 	var before := ink.committed
 	var first: bool = await _place("ladder")
@@ -117,10 +121,41 @@ func _run() -> void:
 	# ⚠ THE DETAIL HAS TO SAY WHICH FAILED. "1 -> 1" is true both when the placement was
 	# charged nothing and when it never happened, and those are opposite bugs.
 	_check(second and is_equal_approx(ink.committed - after_one, 1.0),
-		"and setting the same one down again costs another",
-		"%.0f -> %.0f  (FR-7: 'on each placement and is not retained')"
-			% [after_one, ink.committed] if second
+		"and a NEW drawing of the same thing costs another",
+		"%.0f -> %.0f" % [after_one, ink.committed] if second
 		else "the second placement was refused, so nothing was charged to test")
+
+	# --- ⚠ BUT THE SAME DRAWING TAKEN BACK AND SET DOWN AGAIN IS FREE ------------------
+	# A ladder drawn, placed, picked back up into the bag and placed again is one ladder,
+	# and it was paid for the first time it went down.
+	var placed_ladder: PhysicsShapeObject = null
+	for child in world_items.get_children():
+		if child is PhysicsShapeObject and not (child as PhysicsShapeObject).is_preview:
+			placed_ladder = child
+	var taken_back := false
+	if placed_ladder != null:
+		level.call("_on_utility_pickup_requested", placed_ladder)
+		for _frame in range(4):
+			await physics_frame
+		taken_back = int(level.call("_slot_holding", "ladder")) >= 0
+	var before_again := ink.committed
+	var placed_again := false
+	if taken_back:
+		level.call("_on_inventory_slot_pressed", int(level.call("_slot_holding", "ladder")))
+		await process_frame
+		var placement := level.get("placement_controller") as Node2D
+		if bool(placement.call("is_placing")):
+			placement.set_process(false)
+			placement.call("update_target", OVERLOOK + Vector2(0.0, 40.0))
+			for _frame in range(4):
+				await physics_frame
+			placed_again = bool(placement.call("confirm_placement"))
+			for _frame in range(4):
+				await physics_frame
+	_check(taken_back and placed_again and is_equal_approx(ink.committed, before_again),
+		"and the same ladder taken back and set down again is free",
+		"%.0f -> %.0f" % [before_again, ink.committed] if placed_again
+		else "taken back %s, placed again %s" % [taken_back, placed_again])
 
 	# --- a tool is priced once, ever ---------------------------------------------------
 	ink.committed = 0.0

@@ -2,6 +2,37 @@ extends Node2D
 
 const PANEL_SNAP := 8.0
 
+## THE TITLE SCREEN WEARS THE LAST PLACE THE APO WAS. Each level's backdrop is its own layered
+## art, back to front, with how far each layer drifts with the mouse. Payyo's is the scene's
+## own four layers (cropped and placed in main_menu.tscn); the others are full-frame layers
+## that are laid over the whole screen. A save that has entered no level shows Payyo, which
+## is where every game starts.
+const BACKDROPS := {
+	"level_2": [
+		["res://assets/Level2/bg_sky.png", -4.0],
+		["res://assets/Level2/bg_clouds.png", -8.0],
+		["res://assets/Level2/mg_church.png", -16.0],
+		["res://assets/Level2/fg_huts.png", -28.0],
+	],
+	"level_3": [
+		["res://assets/Level3/shore/sky.png", -4.0],
+		["res://assets/Level3/shore/mountains.png", -8.0],
+		["res://assets/Level3/shore/ocean.png", -14.0],
+		["res://assets/Level3/shore/sand.png", -20.0],
+		["res://assets/Level3/shore/palms_left.png", -30.0],
+		["res://assets/Level3/shore/palms_right.png", -30.0],
+	],
+}
+## The part of a level's layers that is actually painted, when that is less than the frame.
+## Piyesta's layers are 1920x1080 with the plaza in the middle and nothing round it, so laid
+## over the screen whole they left a grey border; all of them are cropped to the same box so
+## they still line up -- the church's width, from the top of the sky to the ground.
+const BACKDROP_REGIONS := {
+	"level_2": Rect2(190.0, 66.0, 1549.0, 870.0),
+}
+## How far past the screen edge a full-frame layer is laid, so drifting never shows its edge.
+const LAYER_BLEED := 36.0
+
 @onready var backdrop: Control = $Backdrop
 @onready var sky: TextureRect = $Backdrop/Sky
 @onready var far_mountains: TextureRect = $Backdrop/FarMountains
@@ -15,6 +46,14 @@ const PANEL_SNAP := 8.0
 @onready var controls_button: Button = $MenuLayer/MenuRoot/SideButtons/ControlsButton
 @onready var quit_button: Button = $MenuLayer/MenuRoot/SideButtons/QuitButton
 @onready var side_buttons: Control = $MenuLayer/MenuRoot/SideButtons
+## Built here rather than in the scene: it only exists when there is a save to throw away.
+var new_game_button: Button
+## Which question the shared confirm box is asking -- "quit" or "new_game" -- so one
+## `confirmed` handler answers both and a cancelled one cannot fire the other later.
+var _pending_confirm := ""
+## The backdrop's moving layers: {node, base, factor}. Payyo's four, or the ones built for
+## another level's art.
+var _layers: Array[Dictionary] = []
 @onready var cards: Array[Button] = [
 	$MenuLayer/MenuRoot/MorphPanel/Selector/Level1,
 	$MenuLayer/MenuRoot/MorphPanel/Selector/Level2,
@@ -27,10 +66,6 @@ var _selector_open := false
 var _animating := false
 var _panel_tween: Tween
 var _parallax_target := Vector2.ZERO
-var _sky_base := Vector2.ZERO
-var _far_base := Vector2.ZERO
-var _green_base := Vector2.ZERO
-var _terraces_base := Vector2.ZERO
 var _backdrop_bases_ready := false
 
 
@@ -38,7 +73,10 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	# PLAY opens the HOUSE, not a grid of cards. Levels are chosen by walking up to the
 	# painting of one, which is the whole reason the house exists.
-	play_button.pressed.connect(func() -> void: LevelManager.open_house())
+	_build_new_game_button()
+	_refresh_start_buttons()
+	play_button.pressed.connect(_on_play_pressed)
+	_apply_backdrop(PlayerProfile.last_level())
 	settings_button.pressed.connect(_open_overlay.bind(^"SettingsOverlay"))
 	controls_button.pressed.connect(_open_overlay.bind(^"ControlsOverlay"))
 	quit_button.pressed.connect(_ask_quit)
@@ -66,10 +104,10 @@ func _process(delta: float) -> void:
 	var mouse_offset := get_viewport().get_mouse_position() - viewport_size * 0.5
 	_parallax_target = mouse_offset / viewport_size
 	var weight := 1.0 - exp(-4.0 * delta)
-	sky.position = sky.position.lerp(_sky_base + _parallax_target * -4.0, weight)
-	far_mountains.position = far_mountains.position.lerp(_far_base + _parallax_target * -10.0, weight)
-	green_mountains.position = green_mountains.position.lerp(_green_base + _parallax_target * -18.0, weight)
-	terraces.position = terraces.position.lerp(_terraces_base + _parallax_target * -28.0, weight)
+	for layer in _layers:
+		var node := layer["node"] as Control
+		node.position = node.position.lerp(
+			Vector2(layer["base"]) + _parallax_target * float(layer["factor"]), weight)
 
 
 ## The shared overlays are siblings of this node, instanced into the menu scene.
@@ -83,8 +121,8 @@ func _ask_quit() -> void:
 	var confirm := get_node_or_null(^"ConfirmOverlay")
 	if confirm == null:
 		return
-	if not confirm.is_connected(&"confirmed", _quit_to_desktop):
-		confirm.connect(&"confirmed", _quit_to_desktop)
+	_pending_confirm = "quit"
+	_connect_confirm(confirm)
 	confirm.call(&"ask", "QUIT TO DESKTOP?", "Your progress is saved.", "QUIT")
 
 
@@ -298,11 +336,107 @@ func _on_viewport_size_changed() -> void:
 
 
 func _capture_backdrop_bases() -> void:
-	_sky_base = sky.position
-	_far_base = far_mountains.position
-	_green_base = green_mountains.position
-	_terraces_base = terraces.position
+	for layer in _layers:
+		layer["base"] = (layer["node"] as Control).position
 	_backdrop_bases_ready = true
+
+
+## Paint the backdrop for `level_id`: Payyo's own layers, or another level's art laid over
+## the whole screen in their place.
+func _apply_backdrop(level_id: String) -> void:
+	_layers.clear()
+	var payyo: Array[Control] = [sky, far_mountains, green_mountains, terraces]
+	var art: Array = BACKDROPS.get(level_id, [])
+	for node in payyo:
+		node.visible = art.is_empty()
+	if art.is_empty():
+		var factors := [-4.0, -10.0, -18.0, -28.0]
+		for index in range(payyo.size()):
+			_layers.append({"node": payyo[index], "base": payyo[index].position,
+				"factor": factors[index]})
+		return
+	var shade := backdrop.get_node_or_null(^"Shade")
+	for entry_value: Variant in art:
+		var entry: Array = entry_value
+		var texture := load(String(entry[0])) as Texture2D
+		if texture == null:
+			continue
+		if BACKDROP_REGIONS.has(level_id):
+			var cropped := AtlasTexture.new()
+			cropped.atlas = texture
+			cropped.region = BACKDROP_REGIONS[level_id]
+			texture = cropped
+		var layer := TextureRect.new()
+		layer.name = String(entry[0]).get_file().get_basename().capitalize().replace(" ", "")
+		layer.texture = texture
+		layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		layer.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		layer.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		layer.offset_left = -LAYER_BLEED
+		layer.offset_right = LAYER_BLEED
+		layer.offset_top = -LAYER_BLEED
+		layer.offset_bottom = LAYER_BLEED
+		backdrop.add_child(layer)
+		if shade != null:
+			backdrop.move_child(layer, shade.get_index())
+		_layers.append({"node": layer, "base": layer.position, "factor": float(entry[1])})
+
+
+## NEW GAME and CONTINUE. With nothing saved the big button is NEW GAME and there is nothing
+## to continue; with a save it CONTINUES -- back to the house, to pick a painting -- and
+## NEW GAME moves to the row underneath, behind a confirmation.
+func _refresh_start_buttons() -> void:
+	var saved: bool = PlayerProfile.has_progress()
+	# Just the word. The backdrop already shows where Continue goes.
+	play_button.text = "CONTINUE" if saved else "NEW GAME"
+	new_game_button.visible = saved
+
+
+func _build_new_game_button() -> void:
+	new_game_button = Button.new()
+	new_game_button.name = "NewGameButton"
+	new_game_button.text = "NEW GAME"
+	new_game_button.theme_type_variation = &"DialogButton"
+	new_game_button.pressed.connect(_ask_new_game)
+	side_buttons.add_child(new_game_button)
+	side_buttons.move_child(new_game_button, 0)
+	# Four buttons where there were three: the row is anchored to the middle and sized in
+	# the scene for three, so it is widened here rather than letting it spill to the right.
+	side_buttons.offset_left = -340.0
+	side_buttons.offset_right = 340.0
+
+
+## Both NEW GAME (on a fresh save) and CONTINUE go to the house, where the level is chosen.
+func _on_play_pressed() -> void:
+	LevelManager.open_house()
+
+
+func _ask_new_game() -> void:
+	var confirm := get_node_or_null(^"ConfirmOverlay")
+	if confirm == null:
+		return
+	_pending_confirm = "new_game"
+	_connect_confirm(confirm)
+	confirm.call(&"ask", "START A NEW GAME?",
+		"Everything you have found and drawn will be forgotten. Your settings are kept.",
+		"NEW GAME")
+
+
+func _connect_confirm(confirm: Node) -> void:
+	if not confirm.is_connected(&"confirmed", _on_confirmed):
+		confirm.connect(&"confirmed", _on_confirmed)
+
+
+func _on_confirmed() -> void:
+	var asked := _pending_confirm
+	_pending_confirm = ""
+	match asked:
+		"quit":
+			_quit_to_desktop()
+		"new_game":
+			PlayerProfile.reset_progress()
+			LevelManager.open_house()
 
 
 func _play_panel_rect() -> Rect2:

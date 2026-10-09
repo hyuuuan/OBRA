@@ -21,6 +21,18 @@ extends RefCounted
 ##   once          fire once per level, ever -- for the refusal beat
 ##   choice_label  present on the three route-commit lines; the button the player presses
 ##   condition     a flag that must be set for the line to fire (e.g. knows_about_key)
+##
+## Two conversation blocks sit beside the lines and only ever point INTO them (by hook or by
+## line id), so every word the player can read is still a line, and the no-class rule still
+## has one place to look:
+##
+##   conversations  {name: [step, ...]} -- a scripted exchange. "intro" is the first time the
+##                  apo arrives in the level. A step is {"say": hook} or
+##                  {"ask": hook, "options": [{"line": id, "then": hook}], "repeat": bool,
+##                   "until": id, "again": hook} -- the apo's options are the choice_label of
+##                  each `line`; picking one says that line, then `then`.
+##   returns        [{id, priority, when, steps}] -- the pool a replay greeting is drawn from.
+##                  See LevelBase._pick_return_conversation.
 
 const DEFAULT_SPEAKER := "lolo"
 
@@ -31,6 +43,8 @@ var _heard: Dictionary = {}        # hook -> true, for beats that play themselve
 var _spoken := 0                   # lines handed out, ever. See lines_spoken().
 var _flags: Dictionary = {}        # narrative flags, e.g. knows_about_key
 var _level_id := ""
+var _conversations: Dictionary = {}
+var _returns: Array = []
 
 
 func load_from(path: String) -> bool:
@@ -49,6 +63,8 @@ func load_from(path: String) -> bool:
 		return false
 	var doc := parsed as Dictionary
 	_level_id = String(doc.get("level_id", ""))
+	_conversations = (doc.get("conversations", {}) as Dictionary).duplicate(true) 		if doc.get("conversations", {}) is Dictionary else {}
+	_returns = (doc.get("returns", []) as Array).duplicate(true) 		if doc.get("returns", []) is Array else []
 	for line_value: Variant in doc.get("lines", []):
 		var line: Dictionary = line_value
 		var hook := String(line.get("at", ""))
@@ -115,6 +131,11 @@ func lines_spoken() -> int:
 	return _spoken
 
 
+## Count a hook as already played without playing it -- a resumed level has been here.
+func mark_heard(hook: String) -> void:
+	_heard[hook] = true
+
+
 func has_heard(hook: String) -> bool:
 	return _heard.has(hook)
 
@@ -130,6 +151,16 @@ func peek(hook: String) -> Array:
 			continue
 		out.append(line)
 	return out
+
+
+## A scripted conversation's steps, or [] if this level has none by that name.
+func conversation(name: String) -> Array:
+	return (_conversations.get(name, []) as Array).duplicate(true)
+
+
+## The replay greetings, in file order.
+func returns() -> Array:
+	return _returns.duplicate(true)
 
 
 func line_by_id(id: String) -> Dictionary:

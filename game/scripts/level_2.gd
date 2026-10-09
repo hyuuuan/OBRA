@@ -147,6 +147,18 @@ func _dialogue_node_obstacle_id() -> String:
 	return _live_node_obstacle
 
 
+## Piyesta has a fork per alley as well as the plaza's.
+func _fork_for(obstacle_id: String) -> DialogueNode2D:
+	if obstacle_id == "L2_N1":
+		return _plaza_node
+	var alley := _alleys.get(obstacle_id) as _Alley
+	return alley.fork if alley != null else super._fork_for(obstacle_id)
+
+
+func _resume_committed_route(obstacle_id: String, route: String) -> void:
+	_on_route_committed_here(obstacle_id, route)
+
+
 func _resolve_level_nodes() -> void:
 	dialogue_node = get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/DialogueNode") as DialogueNode2D

@@ -361,6 +361,430 @@
       "at": "after_first_decline_solved",
       "once": true,
       "text": "There. Now I see it."
+    },
+    {
+      "id": "L2_RT_001",
+      "at": "RETURN.back",
+      "text": "Welcome back to the fiesta, apo! The drums never stopped while you were gone."
+    },
+    {
+      "id": "L2_RT_002",
+      "at": "RETURN.quiet",
+      "text": "Back in the plaza. Listen — they are still singing."
+    },
+    {
+      "id": "L2_RT_003",
+      "at": "RETURN.again",
+      "text": "You again! At this rate the dancers will teach you the steps."
+    },
+    {
+      "id": "L2_RT_004",
+      "at": "RETURN.again",
+      "speaker": "apo",
+      "text": "I already know two steps forward."
+    },
+    {
+      "id": "L2_RT_005",
+      "at": "RETURN.again",
+      "text": "Then you only need the one step back."
+    },
+    {
+      "id": "L2_RT_010",
+      "at": "RETURN.from.level_1",
+      "text": "Back from the terraces? You still have mud on your heels, apo."
+    },
+    {
+      "id": "L2_RT_011",
+      "at": "RETURN.from.level_1",
+      "text": "Nobody here will notice. Everybody is too busy dancing."
+    },
+    {
+      "id": "L2_RT_012",
+      "at": "RETURN.from.level_3",
+      "text": "You smell like the sea, apo! The plaza missed you."
+    },
+    {
+      "id": "L2_RT_013",
+      "at": "RETURN.from.level_3",
+      "speaker": "apo",
+      "text": "Is that seaweed in my hair?"
+    },
+    {
+      "id": "L2_RT_014",
+      "at": "RETURN.from.level_3",
+      "text": "Leave it. Call it a fiesta decoration."
+    },
+    {
+      "id": "L2_RT_020",
+      "at": "RETURN.artist",
+      "text": "Last time you danced your way through. She would have joined you."
+    },
+    {
+      "id": "L2_RT_021",
+      "at": "RETURN.artist",
+      "text": "Will you try another way today? The plaza has more than one way in."
+    },
+    {
+      "id": "L2_RT_022",
+      "at": "RETURN.pragmatist",
+      "text": "Last time you let yourself in where you were not asked. Quick hands, apo."
+    },
+    {
+      "id": "L2_RT_023",
+      "at": "RETURN.pragmatist",
+      "text": "Perhaps today, ask the town for help instead."
+    },
+    {
+      "id": "L2_RT_024",
+      "at": "RETURN.protector",
+      "text": "Last time you cleared a path through all of it. Strong, but loud."
+    },
+    {
+      "id": "L2_RT_025",
+      "at": "RETURN.protector",
+      "text": "Try something gentler today. It is a fiesta, after all."
+    },
+    {
+      "id": "L2_FA_001",
+      "at": "RETURN.fact.sinulog",
+      "text": "She painted this fiesta like the Sinulog of Cebu. Every third Sunday of January, the whole city dances for the Santo Niño."
+    },
+    {
+      "id": "L2_FA_002",
+      "at": "RETURN.fact.sulog",
+      "text": "Sinulog comes from 'sulog' — the current of the water. Two steps forward, one step back, so the dance moves like a river."
+    },
+    {
+      "id": "L2_FA_003",
+      "at": "RETURN.fact.pit",
+      "text": "When the drums are loudest, everyone shouts 'Pit Señor!' It means calling out to the Lord, asking Him to hear you."
+    },
+    {
+      "id": "L2_FA_004",
+      "at": "RETURN.fact.nino",
+      "text": "The Santo Niño of Cebu was a gift to Queen Juana in 1521. It is the oldest Christian image in the Philippines."
+    },
+    {
+      "id": "L2_FA_005",
+      "at": "RETURN.fact.nino",
+      "speaker": "apo",
+      "text": "The old one, apo? Older than the church?"
+    },
+    {
+      "id": "L2_FA_006",
+      "at": "RETURN.fact.nino",
+      "text": "Older than every church here. They built the Basilica around it."
+    },
+    {
+      "id": "L2_FA_007",
+      "at": "RETURN.fact.baroque",
+      "text": "Four of our old churches — in Manila, Paoay, Santa Maria and Miagao — are UNESCO World Heritage Sites. The Baroque Churches of the Philippines."
+    },
+    {
+      "id": "L2_FA_008",
+      "at": "RETURN.fact.quake",
+      "text": "See how thick those church walls are? Builders here made them wide and heavy, with great buttresses, so earthquakes could not knock them over."
+    },
+    {
+      "id": "L2_FA_009",
+      "at": "RETURN.fact.quake",
+      "text": "People call it Earthquake Baroque. The ground here moves, so the churches learned to stand their ground."
+    },
+    {
+      "id": "L2_FA_010",
+      "at": "RETURN.fact.agustin",
+      "text": "San Agustin in Manila is the oldest stone church in the country. It has stood since 1607 — through earthquakes, fires and wars."
+    },
+    {
+      "id": "L2_FA_011",
+      "at": "RETURN.fact.fiesta",
+      "text": "Every town in the Philippines keeps a fiesta for its patron saint. Houses open their tables, and even strangers are fed."
+    },
+    {
+      "id": "L2_FA_012",
+      "at": "RETURN.fact.fiesta",
+      "speaker": "apo",
+      "text": "Strangers too?"
+    },
+    {
+      "id": "L2_FA_013",
+      "at": "RETURN.fact.fiesta",
+      "text": "Especially strangers. Nobody walks home hungry from a fiesta."
+    },
+    {
+      "id": "L2_AG_001",
+      "at": "L2_N1.choice.again.artist",
+      "text": "Last time you danced for it. Will you try another way today?"
+    },
+    {
+      "id": "L2_AG_002",
+      "at": "L2_N1.choice.again.pragmatist",
+      "text": "Last time you let yourself into someone's house. Perhaps a kinder way, this time?"
+    },
+    {
+      "id": "L2_AG_003",
+      "at": "L2_N1.choice.again.protector",
+      "text": "Last time you cleared the whole plaza. Gentler, this time?"
+    },
+    {
+      "id": "L2_AG_004",
+      "at": "L2_N1.choice.again.all",
+      "text": "You have tried every way here. Choose whichever you liked best."
+    },
+    {
+      "id": "L2_AG_005",
+      "at": "L2_N2.choice.again.artist",
+      "text": "Last time you fed them. There are other ways to get her pieces back."
+    },
+    {
+      "id": "L2_AG_006",
+      "at": "L2_N2.choice.again.pragmatist",
+      "text": "Last time you cut their nests down. Will you try something else?"
+    },
+    {
+      "id": "L2_AG_007",
+      "at": "L2_N2.choice.again.protector",
+      "text": "Last time you knocked them down. Perhaps something softer today?"
+    },
+    {
+      "id": "L2_AG_008",
+      "at": "L2_N2.choice.again.all",
+      "text": "Every way up to them, you have tried. Pick the one that felt right."
+    },
+    {
+      "id": "L2_AG_009",
+      "at": "L2_N3.choice.again.artist",
+      "text": "Last time you fed these two as well. Try another way?"
+    },
+    {
+      "id": "L2_AG_010",
+      "at": "L2_N3.choice.again.pragmatist",
+      "text": "Last time you brought their strings down. There is more than one way."
+    },
+    {
+      "id": "L2_AG_011",
+      "at": "L2_N3.choice.again.protector",
+      "text": "Last time you knocked these two down. Gentler, today?"
+    },
+    {
+      "id": "L2_AG_012",
+      "at": "L2_N3.choice.again.all",
+      "text": "You know every way to the last of her now. Choose what your heart says."
+    }
+  ],
+  "returns": [
+    {
+      "id": "L2_return_from_l1",
+      "pool": "greeting",
+      "priority": 6,
+      "when": {
+        "visits_at_least": 2,
+        "came_from": "level_1"
+      },
+      "steps": [
+        {
+          "say": "RETURN.from.level_1"
+        }
+      ]
+    },
+    {
+      "id": "L2_return_from_l3",
+      "pool": "greeting",
+      "priority": 6,
+      "when": {
+        "visits_at_least": 2,
+        "came_from": "level_3"
+      },
+      "steps": [
+        {
+          "say": "RETURN.from.level_3"
+        }
+      ]
+    },
+    {
+      "id": "L2_return_last_artist",
+      "pool": "greeting",
+      "priority": 5,
+      "when": {
+        "visits_at_least": 2,
+        "last_route": "artist"
+      },
+      "steps": [
+        {
+          "say": "RETURN.artist"
+        }
+      ]
+    },
+    {
+      "id": "L2_return_last_pragmatist",
+      "pool": "greeting",
+      "priority": 5,
+      "when": {
+        "visits_at_least": 2,
+        "last_route": "pragmatist"
+      },
+      "steps": [
+        {
+          "say": "RETURN.pragmatist"
+        }
+      ]
+    },
+    {
+      "id": "L2_return_last_protector",
+      "pool": "greeting",
+      "priority": 5,
+      "when": {
+        "visits_at_least": 2,
+        "last_route": "protector"
+      },
+      "steps": [
+        {
+          "say": "RETURN.protector"
+        }
+      ]
+    },
+    {
+      "id": "L2_return_again",
+      "pool": "greeting",
+      "priority": 2,
+      "when": {
+        "visits_at_least": 3
+      },
+      "steps": [
+        {
+          "say": "RETURN.again"
+        }
+      ]
+    },
+    {
+      "id": "L2_return_back",
+      "pool": "greeting",
+      "priority": 1,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.back"
+        }
+      ]
+    },
+    {
+      "id": "L2_return_quiet",
+      "pool": "greeting",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.quiet"
+        }
+      ]
+    },
+    {
+      "id": "L2_fact_sinulog",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.sinulog"
+        }
+      ]
+    },
+    {
+      "id": "L2_fact_sulog",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.sulog"
+        }
+      ]
+    },
+    {
+      "id": "L2_fact_pit",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.pit"
+        }
+      ]
+    },
+    {
+      "id": "L2_fact_nino",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.nino"
+        }
+      ]
+    },
+    {
+      "id": "L2_fact_baroque",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.baroque"
+        }
+      ]
+    },
+    {
+      "id": "L2_fact_quake",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.quake"
+        }
+      ]
+    },
+    {
+      "id": "L2_fact_agustin",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.agustin"
+        }
+      ]
+    },
+    {
+      "id": "L2_fact_fiesta",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.fiesta"
+        }
+      ]
     }
   ]
 }

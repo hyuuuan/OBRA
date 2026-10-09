@@ -301,6 +301,17 @@ static func knock_out_paper(image: Image, threshold: float) -> void:
 			image.set_pixel(x, y, color)
 
 
+static func _knock_out_colour(image: Image, colour: Color, tolerance: float) -> void:
+	for y in range(image.get_height()):
+		for x in range(image.get_width()):
+			var pixel := image.get_pixel(x, y)
+			if pixel.a > 0.0 and absf(pixel.r - colour.r) <= tolerance \
+					and absf(pixel.g - colour.g) <= tolerance \
+					and absf(pixel.b - colour.b) <= tolerance:
+				pixel.a = 0.0
+				image.set_pixel(x, y, pixel)
+
+
 ## A drawing as a picture of itself: paper dropped, cropped to the ink, ready to hang in a
 ## slot or on a card. Null for a drawing with nothing in it, so a caller can fall back.
 static func thumbnail(drawing: Image, threshold: float = 0.92, padding: int = 10) -> Texture2D:
@@ -308,7 +319,14 @@ static func thumbnail(drawing: Image, threshold: float = 0.92, padding: int = 10
 		return null
 	var image := drawing.duplicate()
 	image.convert(Image.FORMAT_RGBA8)
+	# THE PAPER IS CREAM, NOT WHITE. The canvas flattens the ink onto its own paper colour
+	# (about F6F2E6), whose blue sits under the near-white threshold -- so the whole sheet
+	# survived as "ink" and the thumbnail was a cream rectangle with a line on it. A corner of
+	# the page is paper, so whatever colour it is goes too.
+	var paper: Color = image.get_pixel(0, 0)
 	knock_out_paper(image, threshold)
+	if paper.a > 0.5 and paper.v >= 0.7:
+		_knock_out_colour(image, paper, 0.1)
 	var bounds := ink_bounds(image)
 	if bounds.size.x <= 0 or bounds.size.y <= 0:
 		return null

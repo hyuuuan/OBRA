@@ -409,8 +409,10 @@ func _uncover_the_baul() -> void:
 ## HER CHEST OPENS. Kent's friend: "the box in level 1 is not openable". Found in the straw
 ## and called "Locked. Of course.", and nothing in the game ever opened it -- it is where the
 ## painting used to be, before the painting moved into Ang Bale. Now something that can
-## UNLOCK or CUT opens it, used with F where it stands, and her sketchbook page is inside.
-## Optional, like the cave's flower: the level does not wait on it.
+## UNLOCK or CUT opens it, used with F where it stands, and a page of her DIARY is inside
+## (Kent, 2026-10-05): Lola going back through her paintings with Lolo while she can still find
+## him in them -- the game's one look at her forgetting from her side, said without a name for
+## it. Optional, like the cave's flower: the level does not wait on it.
 const CHEST_REACH := 110.0
 const CHEST_TAGS := ["unlock", "cut"]
 
@@ -456,7 +458,7 @@ func _level_uses_the_tool(item: DrawnItemData) -> bool:
 			(child as Signpost2D).reads = "L1_N2.chest.opened"
 	Telemetry.record_event("route_reward", {
 		"level_id": LevelManager.current_level_id, "obstacle_id": "L1_N2",
-		"reward": "chest_sketchbook_page", "opened_with": item.entity_id,
+		"reward": "chest_diary_page", "opened_with": item.entity_id,
 	})
 	var page := _level_memory("chest_memory")
 	if not page.is_empty():

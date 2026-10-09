@@ -8,6 +8,10 @@ extends ModalOverlay
 ## route then does to the level is RouteLayout2D's business.
 
 signal route_picked(route: String)
+## The answer picked from `present_options`, by its index in the list it was given. A
+## conversation choice, which changes what is said next and nothing about the level -- so it
+## is a separate signal, and never reaches the route machinery listening to `route_picked`.
+signal option_picked(index: int)
 
 ## Route ids in PlayerProfile.ROUTES order, one per button.
 const ROUTES := ["artist", "pragmatist", "protector"]
@@ -96,6 +100,43 @@ func present(speaker: String, context: String, choices: Dictionary,
 	await get_tree().create_timer(KEYBOARD_GRACE, true).timeout
 	if is_open() and _buttons.get_child_count() > 0:
 		(_buttons.get_child(0) as Button).grab_focus()
+
+
+## A conversation question: the same framed panel, any number of plain answers, and the
+## index of the one picked comes back through `option_picked`.
+func present_options(speaker: String, context: String, labels: Array) -> void:
+	_speaker.text = speaker.to_upper()
+	_context.text = context
+	for child in _buttons.get_children():
+		_buttons.remove_child(child)
+		child.queue_free()
+	for index in range(labels.size()):
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(0, 68)
+		button.theme_type_variation = &"DialogButton"
+		button.pressed.connect(_on_option_pressed.bind(index))
+		_buttons.add_child(button)
+		var column := VBoxContainer.new()
+		column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		column.offset_left = 14.0
+		column.offset_right = -14.0
+		column.offset_top = 8.0
+		column.offset_bottom = -8.0
+		column.alignment = BoxContainer.ALIGNMENT_CENTER
+		column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.add_child(column)
+		column.add_child(_line_label(String(labels[index]), false))
+	open()
+	# The same grace as a route question, for the same reason: the key that turned the last
+	# page must not answer this one.
+	await get_tree().create_timer(KEYBOARD_GRACE, true).timeout
+	if is_open() and _buttons.get_child_count() > 0:
+		(_buttons.get_child(0) as Button).grab_focus()
+
+
+func _on_option_pressed(index: int) -> void:
+	close()
+	option_picked.emit(index)
 
 
 ## How long after the question opens before the keyboard can answer it. Long enough for a

@@ -26,6 +26,7 @@ extends "res://scripts/level_base.gd"
 ## memory's rules back, which is the whole reason the hook is a level virtual.
 
 const RestrictionsClass = preload("res://scripts/level_restrictions.gd")
+const SkinClass = preload("res://scripts/drawing_skin_2d.gd")
 ## ⚠ PRELOADED, NOT NAMED. A `--script` run does not register class names -- the same reason
 ## this file extends level_base by path -- so naming the creature's class directly here fails
 ## to parse in every one of the probes that loads this level.
@@ -125,6 +126,48 @@ var _opening_live := false
 ## storm back.
 var _sky_is_clear := false
 
+## THE BANGKA IS DUG OUT, THEN MOVED. Kent (2026-10-05): "the sand/shore should be longer so that
+## there will be space for the bangka to be dug then dragged to the water. let the bangka be
+## pushable using an anvil, not just the ant". It lies half buried up the beach; something drawn
+## digs it free, and from then it moves when it is pushed -- by a Carry shape walking it down the
+## sand, by an anvil dropped behind it, or all the way in with E. Run state, both.
+var _bangka_dug := false
+## Where the hull has got to down the sand, or NAN where it was planted.
+var _bangka_x := NAN
+## How far into the sand it lies before it is dug out, and the sand heaped over its keel.
+const BURIED_SINK := 6.0
+var _sand_heap: Sprite2D
+## A Carry shape walking it down: how far ahead of the shape's middle the hull is kept.
+const PUSH_LEAD := 150.0
+## One anvil dropped behind it: how far the hull goes.
+const ANVIL_SHOVE := 320.0
+## How fast E drags it the whole way.
+const DRAG_SPEED := 300.0
+var _anvil_lines := 0
+
+## THE APO'S BREATH. See _breathe. Seconds of it, how fast it comes back at the surface, how deep
+## the head has to be before it is being spent, and how far out from either shore the apo may
+## swim on it before the current turns them back -- the crossing is still a drawing, not a swim.
+const AIR_SECONDS := 7.0
+const AIR_REFILL := 3.5
+const AIR_DEPTH := 30.0
+const APO_SWIM_REACH := 700.0
+var _air := AIR_SECONDS
+var _air_meter: _AirMeter
+var _told_the_current := false
+
+## THE LIGHT THAT LEADS IT. See _guide_the_bakunawa. How far from the player it reaches, how close
+## to it the creature has to be to notice it, and how near the cave counts as home.
+const LURE_REACH := 600.0
+const LURE_NOTICE := 1300.0
+const HOME_REACH := 520.0
+var _lure: _Lure
+## Where the light is for a run with no mouse to point it -- the probes set this.
+var lure_override: Variant = null
+var _cave_mouth := Vector2.ZERO
+var _cave_inside := Vector2.ZERO
+var _lead_told := false
+
 
 # --- What the machine asks -------------------------------------------------------------
 
@@ -138,6 +181,20 @@ func dialogue_path() -> String:
 
 func _dialogue_node_obstacle_id() -> String:
 	return _live_node_obstacle
+
+
+## Dagat asks at the shore and again at the bakunawa.
+func _fork_for(obstacle_id: String) -> DialogueNode2D:
+	match obstacle_id:
+		"L3_N1":
+			return _shore_node
+		"L3_N2":
+			return _bakunawa_node
+	return super._fork_for(obstacle_id)
+
+
+func _resume_committed_route(obstacle_id: String, route: String) -> void:
+	_on_route_committed_here(obstacle_id, route)
 
 
 func _resolve_level_nodes() -> void:
@@ -199,6 +256,9 @@ func _build_level_furniture() -> void:
 	_plant_the_refills()
 	_plant_the_coral_field()
 	_plant_the_next_painting()
+	_plant_the_cave()
+	_plant_the_hook()
+	_release_the_sea_creatures()
 	_scatter_the_ambience()
 	_bring_the_sea_to_life()
 	call_deferred("_play_the_opening")
@@ -207,6 +267,7 @@ func _build_level_furniture() -> void:
 		_bakunawa_home = _bakunawa.global_position
 		_bakunawa.gift_offered.connect(_on_gift_offered)
 		_bakunawa.went_quiet.connect(_on_bakunawa_quiet)
+		_bakunawa.hit_taken.connect(_on_bakunawa_hit)
 		_bakunawa.begin_search()
 	if director != null:
 		director.route_committed.connect(_on_route_committed_here)
@@ -318,9 +379,23 @@ func _plant_the_bangka() -> void:
 	# boat floated a good fifty pixels over the beach. See BANGKA_WATERLINE in
 	# tools/build_dagat_props.py: the sand row is 117 down a 132 sprite, and the mark is 20
 	# above the sand the apo walks on.
-	art.position = Vector2(0.0, -31.0)
+	art.position = Vector2(0.0, -31.0 + (0.0 if _bangka_dug else BURIED_SINK))
 	_bangka.add_child(art)
+	# HALF IN THE SAND until it is dug out: the keel sunk and a heap of the beach over it.
+	var heap := Sprite2D.new()
+	heap.name = "SandHeap"
+	heap.texture = load(AUTHORED + "sand_mound.png") as Texture2D
+	heap.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# Over the stern only: the bow sticks out of the drift, so it is a boat in the sand, not a heap.
+	heap.scale = Vector2(0.85, 1.1)
+	heap.position = Vector2(48.0, 4.0)
+	heap.z_index = 1
+	heap.visible = not _bangka_dug
+	_bangka.add_child(heap)
+	_sand_heap = heap
 	_bangka.global_position = mark.global_position
+	if is_finite(_bangka_x):
+		_bangka.global_position.x = _bangka_x
 	_bangka.z_index = 6
 	mark.get_parent().add_child(_bangka)
 
@@ -344,6 +419,82 @@ func _plant_the_next_painting() -> void:
 	painting.global_position = sand.global_position + Vector2(90.0, 0.0)
 	painting.taken.connect(_on_next_painting_taken)
 	_next_painting = painting
+
+
+## THE BAKUNAWA'S HOME: a hollow in the rock face of the first beach, under the water. Kent
+## (2026-10-05): "lets put a cave opening near the island where i started so we can bring the sea
+## serpent home there". The light route leads it back across the sea to here, and it goes in.
+##
+## Drawn on the face rather than cut into the collision: the land is solid to the seabed so a
+## diver cannot fall into an air pocket under the beach, and a real tunnel would be exactly that.
+## What the creature does here is swim into the dark of it and be gone.
+func _plant_the_cave() -> void:
+	var mark := _mark("CaveMark")
+	if mark == null:
+		return
+	var edges := level_data_shore_edges()
+	var face_x := edges.x if edges != Vector2.ZERO else mark.global_position.x
+	var cave := Node2D.new()
+	cave.name = "Cave"
+	cave.z_index = -40
+	mark.get_parent().add_child(cave)
+	cave.global_position = Vector2(face_x, mark.global_position.y)
+	# The opening: an arch of dark going back into the rock, a rim of lit stone round it, and a
+	# few stones fallen at its foot. Shapes, not a picture -- it is a hole, and holes are dark.
+	var arch := PackedVector2Array()
+	var rim := PackedVector2Array()
+	for step in range(25):
+		var t := PI * float(step) / 24.0
+		arch.append(Vector2(-190.0 * sin(t) * 0.9, -150.0 * cos(t) - 10.0) + Vector2(-8.0, 0.0))
+		rim.append(Vector2(-214.0 * sin(t) * 0.9, -172.0 * cos(t) - 10.0) + Vector2(-2.0, 0.0))
+	var stone := Polygon2D.new()
+	stone.polygon = rim
+	stone.color = Color(0.13, 0.27, 0.36, 1.0)
+	cave.add_child(stone)
+	var dark := Polygon2D.new()
+	dark.polygon = arch
+	dark.color = Color(0.01, 0.03, 0.07, 1.0)
+	# Darkest at the back, the water's own blue at the lip.
+	var shades := PackedColorArray()
+	for point in arch:
+		var back := clampf(-point.x / 170.0, 0.0, 1.0)
+		shades.append(Color(0.02, 0.07, 0.14, 1.0).lerp(Color(0.0, 0.01, 0.03, 1.0), back))
+	dark.vertex_colors = shades
+	cave.add_child(dark)
+	for pebble in [[Vector2(18.0, 236.0), 26.0], [Vector2(52.0, 242.0), 18.0],
+			[Vector2(-30.0, 240.0), 20.0]]:
+		var rock := Polygon2D.new()
+		var outline := PackedVector2Array()
+		var radius: float = pebble[1]
+		for k in range(9):
+			var a := TAU * float(k) / 9.0
+			outline.append(Vector2(cos(a) * radius * 1.3, sin(a) * radius * 0.8))
+		rock.polygon = outline
+		rock.position = pebble[0]
+		rock.color = Color(0.1, 0.22, 0.3, 1.0)
+		cave.add_child(rock)
+	# Kelp either side of the mouth, so it is a place and not a smudge on the wall.
+	# Their feet on the bed, which is BED_Y - the cave mark's own height below it.
+	var foot := BED_Y - 4.0 - mark.global_position.y
+	for side in [[Vector2(70.0, foot), "kelp_long", 210.0], [Vector2(150.0, foot), "kelp_short", 140.0]]:
+		var kelp := PropClass.new()
+		kelp.prefix = PROPS + String(side[1])
+		kelp.target_height = side[2]
+		kelp.fps = 1.8
+		kelp.shadow_width = 16.0
+		kelp.position = side[0]
+		cave.add_child(kelp)
+	_cave_mouth = cave.global_position + Vector2(90.0, 20.0)
+	_cave_inside = cave.global_position + Vector2(-150.0, 10.0)
+	# A glint at the mouth every few seconds while the creature is being led -- so the place it
+	# is being led to can be found from across the water.
+	var glint := Timer.new()
+	glint.wait_time = 2.2
+	glint.autostart = true
+	cave.add_child(glint)
+	glint.timeout.connect(func() -> void:
+		if _life != null and is_instance_valid(_life) and _guiding():
+			_life.sparkle(_cave_mouth + Vector2(-40.0, -60.0), 4, 40.0))
 
 
 func _plant_the_refills() -> void:
@@ -458,12 +609,13 @@ func _plant_the_coral_field() -> void:
 ## under it would be answering a different sentence. It sits where the shafts are.
 func coral_field() -> Dictionary:
 	var bed := BED_Y - 4.0
+	# Spread down the longer sea (2026-10-05) at the same intervals, half again as wide.
 	return {
-		"jelly": Vector2(1360.0, bed), "star": Vector2(1680.0, bed + 2.0),
-		"clam": Vector2(1980.0, bed + 1.0), "weed": Vector2(2180.0, bed + 4.0),
-		"urchin": Vector2(2420.0, bed), "coral": Vector2(2660.0, bed + 3.0),
-		"shaft": Vector2(2900.0, 900.0), "wreck": Vector2(3080.0, bed + 2.0),
-		"lola1": Vector2(1780.0, bed + 4.0), "lola2": Vector2(3260.0, bed + 1.0),
+		"jelly": Vector2(2230.0, bed), "star": Vector2(2790.0, bed + 2.0),
+		"clam": Vector2(3315.0, bed + 1.0), "weed": Vector2(3665.0, bed + 4.0),
+		"urchin": Vector2(4085.0, bed), "coral": Vector2(4505.0, bed + 3.0),
+		"shaft": Vector2(4925.0, 900.0), "wreck": Vector2(5240.0, bed + 2.0),
+		"lola1": Vector2(2965.0, bed + 4.0), "lola2": Vector2(5555.0, bed + 1.0),
 	}
 
 
@@ -515,16 +667,16 @@ func _scatter_the_ambience() -> void:
 	# hand rather than by random so nothing lands inside a terrace or on top of a fact.
 	var bed := BED_Y
 	var placings := [
-		[AMBIENCE + "bubbles_long", Vector2(1180.0, bed - 20.0), 210.0, 3.0],
-		[AMBIENCE + "bubbles_short", Vector2(1620.0, bed - 50.0), 130.0, 3.6],
-		[AMBIENCE + "bubbles_long", Vector2(2280.0, bed - 10.0), 235.0, 2.6],
-		[AMBIENCE + "bubbles_short", Vector2(2840.0, bed - 50.0), 140.0, 3.2],
-		[AMBIENCE + "bubbles_long", Vector2(3420.0, bed - 20.0), 200.0, 2.8],
-		[AMBIENCE + "bubbles_short", Vector2(4160.0, bed - 50.0), 135.0, 3.4],
-		[AMBIENCE + "school", Vector2(1450.0, 1180.0), 175.0, 2.2],
-		[AMBIENCE + "school", Vector2(2350.0, 1060.0), 210.0, 1.8],
-		[AMBIENCE + "school", Vector2(3150.0, 1240.0), 165.0, 2.4],
-		[AMBIENCE + "school", Vector2(4020.0, 1100.0), 195.0, 2.0],
+		[AMBIENCE + "bubbles_long", Vector2(1915.0, bed - 20.0), 210.0, 3.0],
+		[AMBIENCE + "bubbles_short", Vector2(2685.0, bed - 50.0), 130.0, 3.6],
+		[AMBIENCE + "bubbles_long", Vector2(3840.0, bed - 10.0), 235.0, 2.6],
+		[AMBIENCE + "bubbles_short", Vector2(4820.0, bed - 50.0), 140.0, 3.2],
+		[AMBIENCE + "bubbles_long", Vector2(5820.0, bed - 20.0), 200.0, 2.8],
+		[AMBIENCE + "bubbles_short", Vector2(6560.0, bed - 50.0), 135.0, 3.4],
+		[AMBIENCE + "school", Vector2(2390.0, 1180.0), 175.0, 2.2],
+		[AMBIENCE + "school", Vector2(3960.0, 1060.0), 210.0, 1.8],
+		[AMBIENCE + "school", Vector2(5360.0, 1240.0), 165.0, 2.4],
+		[AMBIENCE + "school", Vector2(4560.0, 1100.0), 195.0, 2.0],
 	]
 	for index in placings.size():
 		var row: Array = placings[index]
@@ -579,7 +731,7 @@ func _play_the_opening() -> void:
 	var shot := Node2D.new()
 	shot.name = "OpeningShot"
 	_marks.add_child(shot)
-	shot.global_position = Vector2(2350.0, 460.0)
+	shot.global_position = Vector2(3960.0, 460.0)
 	var title := String(LevelManager.get_level(LevelManager.current_level_id).get("title", ""))
 	cinematic.close(title.to_upper() if not title.is_empty() else "DAGAT")
 	world_camera.focus_on(shot, 0.9, 0.0, 0.0)
@@ -615,6 +767,19 @@ func _end_the_opening(skipped: bool) -> void:
 
 ## Any key or click during the opening ends it -- and still does whatever it was pressed for.
 func _handle_level_input(event: InputEvent) -> bool:
+	# The fishing key is HELD: pressed starts a cast charging (or winds a line already out), and
+	# released lets the cast go. Taken here, at the press and the release, because the base only
+	# hears the press.
+	if event.is_action(&"use_utility") and not event.is_echo():
+		if event.is_pressed():
+			if _line != null:
+				return true
+			if _can_cast():
+				_begin_charge()
+				return true
+		elif _charge >= 0.0:
+			_release_charge()
+			return true
 	if _opening_live and event.is_pressed() and not event.is_echo() \
 			and (event is InputEventKey or event is InputEventMouseButton
 				or event is InputEventJoypadButton):
@@ -636,13 +801,16 @@ func _bring_the_sea_to_life() -> void:
 	var edges := level_data_shore_edges()
 	if edges != Vector2.ZERO:
 		_life.shore_edges = edges
-	_life.jelly_spots = [Vector2(1720.0, 1240.0), Vector2(2330.0, 1060.0),
-		Vector2(2780.0, 1380.0), Vector2(3180.0, 1120.0), Vector2(4300.0, 1080.0)]
+	_life.jelly_spots = [Vector2(2860.0, 1240.0), Vector2(3930.0, 1060.0),
+		Vector2(4715.0, 1380.0), Vector2(5415.0, 1120.0), Vector2(6700.0, 1080.0)]
 	_life.player_anchor = func() -> Vector2: return _anchor_now()
 	_life.player_swimming = func() -> bool:
 		return player != null and is_instance_valid(player) and not (player is Wanderer) \
 			and _anchor_now().y > _waterline_y + 20.0
 	_life.boat = func() -> RigidBody2D:
+		var carrying := _boat_carrying_player()
+		if carrying != null:
+			return carrying
 		return _launched_boat if _launched_boat != null and is_instance_valid(_launched_boat) \
 			else null
 	_life.creature = _bakunawa
@@ -896,12 +1064,6 @@ func _keep_the_weather() -> void:
 			band.call("restore_the_storm")
 
 
-## Where the bangka may put its passenger down: within a hull's length of either shore. Out
-## past that there is only water under it -- see UtilityObject.holds_passenger.
-const LANDING_REACH := 170.0
-var _shore_edges := Vector2.ZERO
-
-
 ## ⚠ UNDER THE WATER THE CAMERA LOOKS DOWN, NOT UP. The level frames the player the way a land
 ## level does -- 180 above them, so there is sky over their head -- and on the beach and in the
 ## boat that is right. A swimmer at mid-depth, framed that way, had the seabed, the jars, the clam
@@ -943,10 +1105,9 @@ var _stroke := 0.0
 
 
 func _row(delta: float) -> void:
-	var aboard := _launched_boat != null and is_instance_valid(_launched_boat) \
-		and player != null and is_instance_valid(player) \
-		and _launched_boat.has_passenger(player)
-	if not aboard:
+	# Whichever boat: the bangka, or one the player drew.
+	var boat := _boat_carrying_player()
+	if boat == null:
 		if _paddle != null and is_instance_valid(_paddle):
 			_paddle.queue_free()
 		_paddle = null
@@ -966,7 +1127,7 @@ func _row(delta: float) -> void:
 		facing = signf(float(player.call("facing_direction")))
 		if facing == 0.0:
 			facing = 1.0
-	var hull := _launched_boat as RigidBody2D
+	var hull := boat as RigidBody2D
 	var speed := absf(hull.linear_velocity.x) if hull != null else 0.0
 	var angle := 0.18
 	if speed > 25.0:
@@ -988,15 +1149,42 @@ func _row(delta: float) -> void:
 	_paddle.flip_h = facing < 0.0
 
 
+## ⚠ GETTING OFF ANYWHERE, NOW. The bangka used to hold its passenger out at sea, because off it
+## the apo could not swim and the rescue restored a checkpoint from before the boat. The apo swims
+## on a breath now and nothing in the water restores a checkpoint, and Kent: "i should be able to
+## exit the boat whenever". So no boat holds anybody -- and a boat the player DREW, rowed out
+## while the bangka is still on the sand, is a way across the boat route too.
 func _keep_the_passenger_aboard() -> void:
-	if _launched_boat == null or not is_instance_valid(_launched_boat):
-		return
-	if _shore_edges == Vector2.ZERO:
-		_shore_edges = level_data_shore_edges()
-	var x := _launched_boat.global_position.x
-	_launched_boat.holds_passenger = _shore_edges != Vector2.ZERO \
-		and x > _shore_edges.x + LANDING_REACH and x < _shore_edges.y - LANDING_REACH
-	_launched_boat.hold_note = "Not out here, apo. There is nothing under us but sea."
+	for boat in _boats():
+		boat.holds_passenger = false
+	var carrying := _boat_carrying_player()
+	if carrying != null and director != null and carrying != _launched_boat \
+			and director.committed_route("L3_N1") == "artist" and not director.is_solved("L3_N1"):
+		# An item, not a submission: the boat was judged as what it is when it was drawn.
+		director.solve_with_item("L3_N1", "drawn_boat")
+
+
+## Every boat afloat in the level: the bangka once it is launched, and any the player drew.
+func _boats() -> Array[UtilityObject]:
+	var out: Array[UtilityObject] = []
+	if world_item_root == null:
+		return out
+	for child in world_item_root.get_children():
+		var boat := child as UtilityObject
+		if boat != null and is_instance_valid(boat) and not boat.is_queued_for_deletion() \
+				and boat.utility_behavior in ["sailboat", "submarine"]:
+			out.append(boat)
+	return out
+
+
+## The boat the player is sitting in, or null.
+func _boat_carrying_player() -> UtilityObject:
+	if player == null or not is_instance_valid(player):
+		return null
+	for boat in _boats():
+		if boat.has_passenger(player):
+			return boat
+	return null
 
 
 ## The two shores' seaward edges, from the scene rather than typed twice.
@@ -1027,6 +1215,15 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_pace_the_advice(delta)
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
+	_guide_the_bakunawa(anchor_position)
+	_push_the_bangka(anchor_position, delta)
+	_breathe(anchor_position, delta)
+	_fish()
+	_mind_the_creatures(anchor_position)
+	# From above the water it is a shape in the dark, not a creature. Kent: "when the player is
+	# still above water, the sea serpent should just be a silhouette".
+	if _bakunawa != null and is_instance_valid(_bakunawa):
+		_bakunawa.set_silhouette(anchor_position.y < _waterline_y + AIR_DEPTH)
 	_tell_the_crossing(anchor_position)
 	_climb_out_at_home(anchor_position)
 
@@ -1086,7 +1283,22 @@ var _land_walkers: Dictionary = {}
 
 
 func _climb_out_at_home(anchor_position: Vector2) -> void:
-	if _current_form_id.is_empty() or not Input.is_action_pressed(&"move_left"):
+	if not Input.is_action_pressed(&"move_left"):
+		return
+	# The apo, swimming on a breath, climbs out the same way: at the top of the water by the
+	# home shore, pushing toward the sand.
+	if _current_form_id.is_empty():
+		if not (player is Wanderer) or not bool(player.call("is_in_water")):
+			return
+		var home := level_data_shore_edges()
+		if home == Vector2.ZERO or anchor_position.x > home.x + ASHORE_REACH \
+				or anchor_position.y > _waterline_y + 90.0:
+			return
+		var beach := _mark("BrushMark")
+		player.call("apply_morph_state", {
+			"position": Vector2(home.x - 70.0,
+				(beach.global_position.y if beach != null else _waterline_y) - 2.0),
+			"linear_velocity": Vector2.ZERO})
 		return
 	if player == null or not is_instance_valid(player) or not player.has_method("apply_morph_state"):
 		return
@@ -1140,6 +1352,12 @@ func _watch_the_bakunawa(anchor_position: Vector2, delta: float) -> void:
 			# the whole of it, said to a player who then swam straight back into the same beam.
 			_lose_the_stretch("It saw you. Wait until its light turns away, then go.")
 			return
+		# ⚠ AND ITS BODY IS NOT A PLACE TO SWIM THROUGH. It never was anything -- a player could
+		# go straight through the coils unseen -- and the way past is meant to be UNDER it. Only
+		# in the water: from the boat it lies under the keel, and the hull rides over its back.
+		if anchor_position.y > _waterline_y + AIR_DEPTH and _bakunawa.touches(anchor_position):
+			_lose_the_stretch("You brushed it, apo. Keep low — there is room under it, along the bottom.")
+			return
 		# Past the far end of the arena, in the dark, with nothing drawn at it.
 		if anchor_position.x > _bakunawa.global_position.x + 420.0:
 			director.solve_with_item("L3_N2", "the dark")
@@ -1175,12 +1393,12 @@ func _carrying_a_lit_light() -> bool:
 
 ## A land creature has floundered for its beat. Revert through the SAME door Q uses -- never
 ## a second copy of it, which is a second chance to strand the player in a body that is gone.
-## Floundering only happens below the waterline, so the apo it leaves is in the sea: straight
-## to the rescue (see _taken_back_from_the_deep).
+## Floundering only happens below the waterline, so the apo it leaves is in the sea -- where they
+## swim now, on a full breath (see _breathe), instead of being taken back to a checkpoint.
 func _on_floundered(_entity_id: String, note: String) -> void:
 	_say_why(note)
 	_revert_to_base_form()
-	_taken_back_from_the_deep.call_deferred()
+	_air = AIR_SECONDS
 
 
 func _on_low_ink(_remaining: float, _capacity: float) -> void:
@@ -1197,25 +1415,34 @@ func _on_drain_emptied() -> void:
 	_say_why("Out of ink, apo. Hold on to me.")
 	_revert_to_base_form()
 	# On the sand -- a helper dragging the bangka down, say -- changing back is all there is to
-	# it. In the sea, the rescue.
+	# it. In the sea, the apo swims for it with the ink handed back.
 	if _anchor_now().y > _waterline_y + 20.0:
 		_taken_back_from_the_deep.call_deferred()
 
 
-## ⚠ STRAIGHT TO THE RESCUE, NOT UP AND THEN DOWN AGAIN. Running out of ink (or floundering)
-## used to carry the apo up to the surface where they were, keeping the x -- where the apo, who
-## cannot swim, sank again, and a second later the drowning rescue took them to the checkpoint
-## anyway: two moves for one event, the camera chasing both. The rescue is what was always going
-## to happen, so it happens now, in the rescue's own words. The checkpoint gives back the shape
-## they held there -- see _give_back_the_shape -- so a rescue into deep water is a swimmer
-## again, not an apo who drowns on arrival.
+## ⚠ NO CHECKPOINT IN THE WATER (2026-10-05). The ink running out under a drawn body used to
+## restore the last checkpoint -- the design's "lose the crossing, never die" -- and a restore rolls
+## the whole run back with it. Kent: "when i fall off the boat it resets me to the previous
+## checkpoint but also resets the bakunawa as well even after i sent it home. the return to last
+## checkpoint should not work here if it is underwater."
+##
+## So nothing is rolled back. The apo is where the body was, on a full breath, and swims (see
+## _breathe). What the restore did that still has to be done is the ink: it handed back what had
+## been spent since the checkpoint, and without that the apo would be in the sea with an empty bar
+## and nothing to draw a swimmer with. That part is kept -- the bar goes back to where it stood at
+## the last checkpoint, and never below SHAPE_INK_FLOOR, so the next shape lasts a breath or two.
 func _taken_back_from_the_deep() -> void:
 	if player == null or not is_instance_valid(player) or not (player is Wanderer):
 		return
-	if not bool(player.call("is_in_water")) and _anchor_now().y <= _waterline_y + 20.0:
-		return
-	var words := _drowning_words()
-	_return_to_safety(words[0], words[1])
+	_air = AIR_SECONDS
+	var latest := String(checkpoints.call("latest_id")) if checkpoints != null else ""
+	var state: Dictionary = checkpoints.call("peek", latest) if not latest.is_empty() else {}
+	if state.has("ink_committed"):
+		ink_manager.committed = minf(ink_manager.committed, float(state["ink_committed"]))
+	if ink_manager.remaining() < SHAPE_INK_FLOOR:
+		ink_manager.committed = maxf(0.0, ink_manager.capacity - SHAPE_INK_FLOOR - ink_manager.reserved)
+	_on_ink_changed(ink_manager.remaining(), ink_manager.capacity, ink_manager.reserved)
+	_say_why("Swim for the top, apo. The brush has given back a little of what it took.")
 
 
 ## E AT THE BOAT. The only thing in this level that answers the interact key and is neither a
@@ -1229,18 +1456,165 @@ func _interact_with_level() -> bool:
 	if not _at_the_beached_bangka():
 		return false
 	if not _a_helper_is_held():
-		_say_why("It will not move for the two of us, apo. Draw something strong enough to drag it down.")
+		if _holding_the_anvil():
+			_say_why("Drop it behind the bangka, apo — %s. The weight will shove it." % \
+				ControlsKeys.keys_for("use_utility"))
+			return true
+		_say_why("It will not move for the two of us, apo. Draw something strong enough to drag it down, or heavy enough to shove it.")
 		return true
 	_drag_the_bangka_in()
 	return true
 
 
-## E over the hull says what it will do: drag it down with a helper held, and push without one
-## -- which is what the apo would try, and E then says why it will not go.
+## E over the hull says what it will do: dig it out and drag it down with a helper held, and push
+## without one -- which is what the apo would try, and E then says why it will not go.
 func _level_interact_offer() -> Dictionary:
 	if not _at_the_beached_bangka():
 		return {}
-	return {"name": "Bangka", "verb": "DRAG IN" if _a_helper_is_held() else "PUSH"}
+	if not _a_helper_is_held():
+		return {"name": "Bangka", "verb": "PUSH"}
+	return {"name": "Bangka", "verb": "DRAG IN" if _bangka_dug else "DIG OUT"}
+
+
+## The anvil in the apo's hand.
+func _holding_the_anvil() -> bool:
+	return _equipped_utility != null and is_instance_valid(_equipped_utility) \
+		and _equipped_utility.item_data != null \
+		and _equipped_utility.item_data.entity_id == "anvil"
+
+
+## ⚠ THE BOAT ROUTE'S FIRST STEP, ANSWERED BY WHATEVER MOVES THE BOAT FIRST -- quietly, the way
+## the drag always was: a helper is judged when it is drawn, but only against the beat the player
+## is standing in, and an anvil is judged when it is used. Either way the beat is entered and the
+## class noted once, so the per-class figures see exactly one drawing for it.
+func _judge_the_mover(entity_id: String) -> void:
+	if director == null or director.stage("L3_N1") > 0:
+		return
+	director.enter_obstacle("L3_N1")
+	director.note_submission(entity_id)
+	_refresh_requirements()
+
+
+## Dug out: the keel comes up out of the sand, the heap over it goes, and sand flies. Once.
+func _dig_out_the_bangka() -> void:
+	if _bangka_dug or _bangka == null or not is_instance_valid(_bangka):
+		return
+	_bangka_dug = true
+	var hull := _bangka.get_node_or_null(^"Hull") as Node2D
+	if hull != null:
+		var lift := hull.create_tween()
+		lift.tween_property(hull, "position:y", -31.0, 0.45) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if _sand_heap != null and is_instance_valid(_sand_heap):
+		var go := _sand_heap.create_tween()
+		go.tween_property(_sand_heap, "modulate:a", 0.0, 0.35)
+		go.tween_callback(_sand_heap.hide)
+	if _life != null:
+		for step in range(3):
+			_life.sparkle(_bangka.global_position + Vector2(-60.0 + 60.0 * step, 4.0), 4, 22.0)
+	_speak(script_lines.fire("L3_N1.artist.dug"))
+
+
+## The hull moved `by` toward the sea, sand thrown up behind it. True when that took it to the
+## water's edge, which is where it goes in.
+func _move_the_bangka(to_x: float) -> bool:
+	if _bangka == null or not is_instance_valid(_bangka):
+		return false
+	var edges := level_data_shore_edges()
+	var stop := (edges.x if edges != Vector2.ZERO else to_x + 1.0) - 110.0
+	_bangka.global_position.x = minf(to_x, stop)
+	_bangka_x = _bangka.global_position.x
+	return _bangka.global_position.x >= stop - 0.5
+
+
+## ⚠ PUSHED, BY SOMETHING THAT CAN. A Carry shape on the landward side of the hull, walking toward
+## the water, keeps it just ahead of itself -- the hull has no collision on the sand, so this IS the
+## push: the shape walks, and the boat goes where the shape is about to be. Dug out first, if it was
+## not: walking into a half-buried hull digs it.
+func _push_the_bangka(anchor_position: Vector2, _delta: float) -> void:
+	if _bangka == null or not is_instance_valid(_bangka) or _bangka_found or _sliding:
+		return
+	if director == null or director.committed_route("L3_N1") != "artist" \
+			or director.is_solved("L3_N1") or not _a_helper_is_held():
+		return
+	var hull_x := _bangka.global_position.x
+	if absf(anchor_position.y - _bangka.global_position.y) > 180.0:
+		return
+	if anchor_position.x > hull_x - 30.0 or anchor_position.x < hull_x - PUSH_LEAD - 140.0:
+		return
+	if not Input.is_action_pressed(&"move_right"):
+		return
+	_judge_the_mover(_current_form_id)
+	if not _bangka_dug:
+		_dig_out_the_bangka()
+		return
+	var lead := anchor_position.x + PUSH_LEAD
+	if lead <= hull_x:
+		return
+	if _life != null and int(lead / 40.0) != int(hull_x / 40.0):
+		_life.sparkle(_bangka.global_position + Vector2(-90.0, 4.0), 2, 14.0)
+	if _move_the_bangka(lead):
+		_send_the_bangka_in()
+
+
+## ⚠ THE ANVIL SHOVES IT -- AND STAYS IN THE HAND. Dropped behind the hull, the weight knocks it a
+## good way down the sand: the first drop digs it out and starts it, a few more see it into the
+## water. F again is the next drop.
+##
+## ⚠ NOT A REAL ANVIL ON THE SAND. It used to leave the hand as a body -- the tool's own F, a drop
+## from above the apo -- and land on the apo: Kent, "when i use the anchor its just stuck there and i
+## cant move". A forty-kilo body resting on a character pins it, and a second drop stacked a second
+## one. What falls now is the drawing of it, onto the stern, and the anvil stays where tools stay:
+## in the hand, in the bag, its ink already paid.
+func _shove_with_the_anvil() -> void:
+	_judge_the_mover("anvil")
+	var hull := _bangka
+	if hull == null or not is_instance_valid(hull) or _sliding:
+		return
+	var stern := hull.global_position + Vector2(-95.0, -10.0)
+	var weight := Sprite2D.new()
+	weight.name = "DroppedAnvil"
+	var item := _equipped_utility.item_data if _equipped_utility != null else null
+	weight.texture = SkinClass.thumbnail(item.image) if item != null and item.image != null else null
+	if weight.texture != null:
+		weight.scale = Vector2.ONE * (70.0 / maxf(1.0, float(weight.texture.get_width())))
+	weight.z_index = 9
+	hull.get_parent().add_child(weight)
+	weight.global_position = stern + Vector2(0.0, -260.0)
+	_sliding = true
+	var fall := weight.create_tween()
+	fall.tween_property(weight, "global_position:y", stern.y - 20.0, 0.24) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	fall.tween_callback(func() -> void:
+		if _life != null:
+			_life.sparkle(stern, 6, 30.0)
+		var world_camera := _world_camera()
+		if world_camera != null and world_camera.has_method("shake"):
+			world_camera.call("shake", 6.0, 0.25)
+		if not is_instance_valid(hull) or _bangka_found:
+			_sliding = false
+			return
+		if not _bangka_dug:
+			_dig_out_the_bangka()
+		var from_x := hull.global_position.x
+		var arrives := _move_the_bangka(from_x + ANVIL_SHOVE)
+		var to_x := hull.global_position.x
+		hull.global_position.x = from_x
+		var slide := hull.create_tween()
+		slide.tween_property(hull, "global_position:x", to_x, 0.6) \
+			.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+		slide.tween_callback(func() -> void:
+			_sliding = false
+			if arrives:
+				_send_the_bangka_in()))
+	fall.tween_property(weight, "modulate:a", 0.0, 0.35)
+	fall.tween_callback(weight.queue_free)
+	_anvil_lines += 1
+	if _anvil_lines == 1:
+		_speak(script_lines.fire("L3_N1.artist.shove"))
+
+
+var _sliding := false
 
 
 ## How close to the hull E reaches it. Measured from the player's anchor, which for a drawn
@@ -1252,7 +1626,7 @@ const BANGKA_REACH := 190.0
 ## Standing at the beached bangka with the boat route chosen and the bangka not yet in the
 ## water.
 func _at_the_beached_bangka() -> bool:
-	if _bangka == null or not is_instance_valid(_bangka) or _bangka_found:
+	if _bangka == null or not is_instance_valid(_bangka) or _bangka_found or _sliding:
 		return false
 	if director == null or director.is_solved("L3_N1"):
 		return false
@@ -1282,22 +1656,21 @@ func _helpers() -> PackedStringArray:
 		String(spec.get("match", "all")), spec.get("exclude", []))
 
 
-## THE HELPER'S ONE JOB. The hull slides down the sand and into the sea, and the shape that
-## dragged it goes back into the ink as it goes -- its strength went into the boat, and the
-## apo is left on the sand to get in. Changing back is free; the drain stops with it.
+## THE HELPER'S ONE JOB, ALL AT ONCE. E with a helper held digs the hull out if it is still
+## buried and drags it the whole way down the sand and into the sea, and the shape that dragged it
+## goes back into the ink as it goes -- its strength went into the boat, and the apo is left on the
+## sand to get in. Changing back is free; the drain stops with it. (Walking it down is the other
+## way -- see _push_the_bangka -- and the anvil a third, _shove_with_the_anvil.)
 ##
 ## ⚠ JUDGED FIRST, IF IT NEVER WAS. A helper is judged when it is drawn, but only against the
 ## beat the player is standing in -- drawn a step west of the crossing's volume it was judged
 ## against nothing, and the boat would then be launched by a drawing the per-class figures
 ## never saw. Judged here as well, quietly, and the bangka itself is closed as an item.
 func _drag_the_bangka_in() -> void:
-	_bangka_found = true
-	if director.stage("L3_N1") == 0:
-		director.enter_obstacle("L3_N1")
-		director.note_submission(_current_form_id)
+	_judge_the_mover(_current_form_id)
+	if not _bangka_dug:
+		_dig_out_the_bangka()
 	var hull := _bangka
-	var edges := level_data_shore_edges()
-	var edge_x := edges.x if edges != Vector2.ZERO else hull.global_position.x + 160.0
 	var stood := _anchor_now()
 	_revert_to_base_form()
 	# ⚠ ON THE SAND, NOT WHERE THE HELPER'S MIDDLE WAS. A changed-back apo lands at the old
@@ -1311,12 +1684,51 @@ func _drag_the_bangka_in() -> void:
 			"position": Vector2(stood.x, sand.global_position.y - 2.0),
 			"linear_velocity": Vector2.ZERO})
 	_say_why("Hup! Down she goes.")
+	var from_x := hull.global_position.x
+	_move_the_bangka(INF)
+	var to_x := hull.global_position.x
+	hull.global_position.x = from_x
+	_sliding = true
 	# Behind the apo as it passes: it is on the sand, and the apo is standing on it too.
 	hull.z_index = 6
 	var slide := hull.create_tween()
-	slide.tween_property(hull, "global_position:x", edge_x - 30.0, 1.1) \
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	# Over the lip and in, nose first.
+	slide.tween_interval(0.35)
+	slide.tween_property(hull, "global_position:x", to_x,
+		maxf(0.6, (to_x - from_x) / DRAG_SPEED)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	slide.tween_callback(func() -> void:
+		_sliding = false
+		_send_the_bangka_in())
+	# Sand thrown up behind it on the way.
+	if _life != null:
+		var seconds := maxf(0.6, (to_x - from_x) / DRAG_SPEED)
+		for step in range(int(seconds / 0.22) + 1):
+			get_tree().create_timer(0.4 + 0.22 * float(step)).timeout.connect(func() -> void:
+				if is_instance_valid(hull) and _life != null:
+					_life.sparkle(hull.global_position + Vector2(-50.0, 6.0), 3, 18.0))
+
+
+## At the water's edge: over the lip and in, nose first, and the real boat put afloat. Every way of
+## moving it ends here, once. A helper still held is changed back -- the boat is in, and the apo
+## gets in it.
+func _send_the_bangka_in() -> void:
+	if _bangka_found or _bangka == null or not is_instance_valid(_bangka):
+		return
+	_bangka_found = true
+	_judge_the_mover(_current_form_id if not _current_form_id.is_empty() else "anvil")
+	if _a_helper_is_held():
+		var stood := _anchor_now()
+		_revert_to_base_form()
+		var sand := _mark("BrushMark")
+		if sand != null and player != null and is_instance_valid(player) \
+				and player.has_method("apply_morph_state"):
+			player.call("apply_morph_state", {
+				"position": Vector2(minf(stood.x, level_data_shore_edges().x - 60.0),
+					sand.global_position.y - 2.0),
+				"linear_velocity": Vector2.ZERO})
+	var hull := _bangka
+	var edges := level_data_shore_edges()
+	var edge_x := edges.x if edges != Vector2.ZERO else hull.global_position.x + 160.0
+	var slide := hull.create_tween()
 	slide.tween_property(hull, "global_position", Vector2(edge_x + 70.0,
 		hull.global_position.y + 30.0), 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	slide.parallel().tween_property(hull, "rotation", 0.22, 0.32)
@@ -1329,12 +1741,6 @@ func _drag_the_bangka_in() -> void:
 		_launch_the_bangka()
 		if director != null and not director.is_solved("L3_N1"):
 			director.solve_with_item("L3_N1", "bangka"))
-	# Sand thrown up behind it on the way.
-	if _life != null:
-		for step in range(4):
-			get_tree().create_timer(0.2 + 0.22 * float(step)).timeout.connect(func() -> void:
-				if is_instance_valid(hull) and _life != null:
-					_life.sparkle(hull.global_position + Vector2(-50.0, 6.0), 3, 18.0))
 
 
 ## ⚠ solve_with_item, NEVER note_submission. A beat answered by something other than a
@@ -1414,6 +1820,714 @@ func _dress_the_bangka(boat: Node2D) -> void:
 	# BANGKA_WATERLINE), and the body floats HULL_DRAFT under the surface.
 	art.position = Vector2(0.0, -24.0 - UtilityObject.HULL_DRAFT)
 	boat.add_child(art)
+
+
+# --- The apo in the water ------------------------------------------------------------------
+
+## ⚠ THE APO SWIMS HERE, ON A BREATH. Kent (2026-10-05): "the player can dive underwater without
+## resetting if they still have 'air' (maybe 5-8 seconds) left. if not, then they are pushed to the
+## surface." The base's "you cannot swim" rescue is off; this level keeps its own water.
+func _apo_can_swim() -> bool:
+	return true
+
+
+## The breath, spent while the apo's head is under and given back at the top; at nothing, they are
+## carried up -- not reset. And out past APO_SWIM_REACH a current turns them back: the crossing is
+## a drawing's to make, and an apo who could swim it would have no reason to draw anything.
+func _breathe(anchor_position: Vector2, delta: float) -> void:
+	var apo := player as Wanderer
+	if apo == null or not is_instance_valid(apo):
+		_air = AIR_SECONDS
+		if _air_meter != null and is_instance_valid(_air_meter):
+			_air_meter.visible = false
+		return
+	apo.can_swim = true
+	var wet := bool(apo.call("is_in_water"))
+	var under := wet and anchor_position.y > _waterline_y + AIR_DEPTH
+	if apo.surfacing and (not wet or anchor_position.y <= _waterline_y + 12.0):
+		apo.surfacing = false
+	if under and not apo.surfacing:
+		_air = maxf(0.0, _air - delta)
+		if _air <= 0.0:
+			apo.surfacing = true
+			_say_why("Out of breath — up you come, apo!")
+	elif not under:
+		_air = minf(AIR_SECONDS, _air + AIR_REFILL * delta)
+	# THE CURRENT, past where the apo may swim: it holds them -- swimming further out goes nowhere --
+	# but it does not carry them off and it never takes them back to a checkpoint (Kent: "the return
+	# to last checkpoint should not work here if it is underwater"). Toward the nearer shore they
+	# swim freely, and near a boat freely every way: stepping off the bangka out at sea is allowed
+	# now (Kent: "i should be able to exit the boat whenever"), and getting back in has to be.
+	var out := _distance_out(anchor_position)
+	# In the sea, not only wet: floating at the top the apo bobs clear of the water for a frame at
+	# a time, and that is still the open sea.
+	wet = wet or (out > 0.0 and anchor_position.y > _waterline_y - 40.0)
+	if wet and out > APO_SWIM_REACH and not _near_a_boat(anchor_position):
+		var edges := level_data_shore_edges()
+		var homeward := -1.0 if anchor_position.x - edges.x < edges.y - anchor_position.x else 1.0
+		if apo.velocity.x * homeward < 0.0:
+			# Held, not shoved: the way out is simply closed. Bobbing clear of the water the apo is
+			# on the walk's acceleration for a frame, which a force alone let them creep out on.
+			apo.velocity.x = 0.0
+			apo.apply_external_force(Vector2(homeward * 1500.0, 0.0))
+		if not _told_the_current:
+			_told_the_current = true
+			_say_why("The current is too strong out there, apo. Draw yourself something that can swim.")
+	_show_the_breath(anchor_position, under or _air < AIR_SECONDS - 0.05)
+
+
+## How near a boat the apo swims as freely as by the shore.
+const BOAT_REACH := 450.0
+
+
+func _near_a_boat(at: Vector2) -> bool:
+	for boat in _boats():
+		if boat.global_position.distance_to(at) <= BOAT_REACH:
+			return true
+	return false
+
+
+## How far out into the sea from the nearer shore's edge.
+func _distance_out(at: Vector2) -> float:
+	var edges := level_data_shore_edges()
+	if edges == Vector2.ZERO:
+		return 0.0
+	return minf(at.x - edges.x, edges.y - at.x)
+
+
+func _show_the_breath(anchor_position: Vector2, showing: bool) -> void:
+	if _air_meter == null or not is_instance_valid(_air_meter):
+		if not showing or _marks == null:
+			return
+		_air_meter = _AirMeter.new()
+		_air_meter.name = "AirMeter"
+		_marks.get_parent().add_child(_air_meter)
+	_air_meter.visible = showing
+	_air_meter.global_position = anchor_position + Vector2(0.0, -96.0)
+	_air_meter.ratio = _air / AIR_SECONDS
+	_air_meter.queue_redraw()
+
+
+## Bubbles over the apo's head, one going out at a time. Seven seconds is seven bubbles.
+class _AirMeter extends Node2D:
+	var ratio := 1.0
+
+	func _ready() -> void:
+		z_index = 40
+
+	func _draw() -> void:
+		var count := 7
+		for index in range(count):
+			var share := clampf(ratio * count - index, 0.0, 1.0)
+			var at := Vector2((index - (count - 1) * 0.5) * 15.0, 0.0)
+			draw_circle(at, 6.0, Color(0.02, 0.08, 0.16, 0.45))
+			if share > 0.0:
+				draw_circle(at, 5.0 * share, Color(0.72, 0.92, 1.0, 0.95))
+				draw_circle(at + Vector2(-1.5, -1.5), 1.5 * share, Color(1, 1, 1, 0.95))
+			draw_arc(at, 6.0, 0.0, TAU, 14, Color(0.8, 0.95, 1.0, 0.8), 1.0)
+
+
+# --- The light that leads it home ------------------------------------------------------------
+
+## The light's first step is done and its second -- bringing it home -- is not.
+func _guiding() -> bool:
+	return director != null and director.committed_route("L3_N2") == "artist" \
+		and director.stage("L3_N2") > 0 and not director.is_solved("L3_N2")
+
+
+## The light is up and it has turned to it. Lolo says where home is, a held flashlight comes on,
+## and from here the creature goes where the light goes.
+func _begin_the_guiding() -> void:
+	if not _lead_told:
+		_lead_told = true
+		_speak(script_lines.fire("L3_N2.artist.lead"))
+	if _equipped_utility != null and is_instance_valid(_equipped_utility) \
+			and _equipped_utility.utility_behavior == "flashlight" \
+			and not bool(_equipped_utility.call("is_active")):
+		_equipped_utility.describe_use(player)
+	refresh_objective()
+
+
+## ⚠ THE LIGHT FOLLOWS THE MOUSE AND THE CREATURE FOLLOWS THE LIGHT. Kent: "when they are guided
+## by the flash light, the flashlight should follow where my mouse is pointing and the sea serpent
+## should follow it." A glow in the water where the pointer is -- within reach of the apo, and in
+## the water, never in the sky or the rock -- with a flashlight in hand turned to shine on it. Near
+## enough to see it, the creature swims after it; brought within reach of the cave, it goes in.
+func _guide_the_bakunawa(anchor_position: Vector2) -> void:
+	var leading := _guiding() and _bakunawa != null and is_instance_valid(_bakunawa) \
+		and not _bakunawa.is_gone() and not _bakunawa.is_leaving()
+	if not leading:
+		if _lure != null and is_instance_valid(_lure):
+			_lure.visible = false
+		return
+	if _lure == null or not is_instance_valid(_lure):
+		_lure = _Lure.new()
+		_lure.name = "Lure"
+		_marks.get_parent().add_child(_lure)
+	var target := _lure_target(anchor_position)
+	_lure.global_position = target
+	_lure.visible = true
+	_aim_the_light(target)
+	if _bakunawa.global_position.distance_to(target) <= LURE_NOTICE:
+		_bakunawa.be_guided(target)
+	else:
+		_bakunawa.be_guided(_bakunawa.global_position)
+	if _cave_mouth != Vector2.ZERO \
+			and _bakunawa.global_position.distance_to(_cave_mouth) <= HOME_REACH:
+		_lure.visible = false
+		_bakunawa.go_home(_cave_mouth, _cave_inside)
+
+
+## Where the light is: the pointer, or what a probe set, held within reach of the apo and inside
+## the water.
+func _lure_target(anchor_position: Vector2) -> Vector2:
+	var wanted: Vector2 = lure_override if lure_override is Vector2 else get_global_mouse_position()
+	var offset := wanted - anchor_position
+	if offset.length() > LURE_REACH:
+		offset = offset.normalized() * LURE_REACH
+	var at := anchor_position + offset
+	var top := (_waterline_y if is_finite(_waterline_y) else 560.0) + 110.0
+	at.y = clampf(at.y, top, BED_Y - 110.0)
+	return at
+
+
+## A flashlight in hand shines where the light is -- turned to it, its beam drawn out to reach it.
+func _aim_the_light(target: Vector2) -> void:
+	if _equipped_utility == null or not is_instance_valid(_equipped_utility) \
+			or _equipped_utility.utility_behavior != "flashlight":
+		return
+	if not bool(_equipped_utility.call("is_active")):
+		_equipped_utility.describe_use(player)
+	_equipped_utility.look_at(target)
+	var cone := _equipped_utility.get_node_or_null(^"VisibleLightCone") as Node2D
+	if cone != null:
+		cone.scale.x = clampf(_equipped_utility.global_position.distance_to(target) / 230.0, 0.6, 3.0)
+
+
+## The light at rest again, once it has done its work.
+func _rest_the_light() -> void:
+	if _equipped_utility == null or not is_instance_valid(_equipped_utility) \
+			or _equipped_utility.utility_behavior != "flashlight":
+		return
+	_equipped_utility.rotation = 0.0
+	var cone := _equipped_utility.get_node_or_null(^"VisibleLightCone") as Node2D
+	if cone != null:
+		cone.scale.x = 1.0
+
+
+## The glow it follows: a soft light in the water, breathing.
+class _Lure extends Node2D:
+	var _clock := 0.0
+
+	func _ready() -> void:
+		z_index = 9
+		var glow := CanvasItemMaterial.new()
+		glow.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		material = glow
+
+	func _process(delta: float) -> void:
+		_clock += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		var swell := 1.0 + 0.12 * sin(_clock * 3.0)
+		for ring in range(6):
+			var radius := (70.0 - ring * 11.0) * swell
+			draw_circle(Vector2.ZERO, radius, Color(1.0, 0.9, 0.55, 0.06 + ring * 0.035))
+		draw_circle(Vector2.ZERO, 6.0 * swell, Color(1.0, 0.97, 0.85, 0.9))
+
+
+# --- The sea's creatures, and fishing for them -------------------------------------------------
+#
+# Kent (2026-10-05): a fishing hook hidden in the sand, that the rake uncovers; cast from the boat
+# (or the water's edge), the camera following the hook; a creature that swims into it is reeled in
+# by drawing spirals, at a pace and for a length set by the creature; five catches and the hook
+# breaks. Or swim with them -- and strike one, and every one but the bangus turns on the player:
+# ten bites and they are sent up to the surface, five blows and a creature dies, and Lolo is sad
+# about it. He talks about each of them, the first time the player swims up to one or lands one.
+
+const SeaCreatureClass = preload("res://scripts/sea_creature_2d.gd")
+const FishingLineClass = preload("res://scripts/fishing_line_2d.gd")
+const HOOK_ART := preload("res://assets/Level3/creatures/fishing_hook.png")
+## Kent: "after 5 sea creatures, the fish hook breaks" and "it takes 10 hits to the player before
+## they are sent back up to the surface".
+const HOOK_CATCHES := 5
+const PLAYER_HITS := 10
+## How near a creature the player swims before Lolo says what it is; how near the sand the rake
+## reaches; how near a shore's edge the apo may stand to cast from it.
+const MEET_REACH := 240.0
+const RAKE_REACH := 170.0
+const CAST_FROM_SHORE := 170.0
+## Who lives where: the kind, the middle of the water it wanders, and how many. All of it west of
+## the bakunawa's stretch -- the encounter is its own.
+const SEA_LIFE := [
+	["bangus", Vector2(2100.0, 780.0), 4], ["bangus", Vector2(3000.0, 900.0), 5],
+	["bangus", Vector2(4300.0, 820.0), 4],
+	["pawikan", Vector2(2700.0, 1250.0), 1], ["pawikan", Vector2(4000.0, 1200.0), 1],
+	["pawikan", Vector2(5100.0, 1150.0), 1],
+	["dikya", Vector2(2450.0, 1050.0), 1], ["dikya", Vector2(3550.0, 1350.0), 1],
+	["dikya", Vector2(4700.0, 1000.0), 1],
+	["pugita", Vector2(3150.0, 1560.0), 1], ["pugita", Vector2(4350.0, 1580.0), 1],
+	["pugita", Vector2(5250.0, 1560.0), 1],
+]
+## What each card says the first time one is landed.
+const CATCH_NOTES := {
+	"bangus": "Silver and quick, and bony. The whole country's own -- and let go again.",
+	"pawikan": "Protected, and old as the sea. Lifted for a look, and let go gently.",
+	"dikya": "Mind the threads. Held a moment at arm's length, and let go.",
+	"pugita": "Three hearts and a beak. It did not want to come up, and it is let go.",
+}
+
+var _hook_mound: Node2D
+var _hook_revealed := false
+var _has_hook := false
+var _hook_broken := false
+var _catches := 0
+var _caught_kinds: Dictionary = {}
+var _hook_hint_said := false
+var _first_cast := true
+var _line: Node2D
+## THE CAST IS HELD. Kent: "if i hold the button longer, the stronger the cast is and the deeper it
+## gets". Charging while the key is held, 0..1 over CHARGE_SECONDS; -1 when not charging.
+var _charge := -1.0
+const CHARGE_SECONDS := 1.2
+var _power_meter: _PowerMeter
+## For a run with no key to hold: true/false overrides the held cast and the held reel.
+var hold_override: Variant = null
+var _hooked: Node2D
+var _creatures_hostile := false
+var _hits_taken := 0
+var _kills := 0
+var _met_kinds: Dictionary = {}
+var _health_meter: _HealthMeter
+
+
+## THE HOOK, in the sand of the first beach, under a heap of it that glints now and then.
+func _plant_the_hook() -> void:
+	var mark := _mark("HookMark")
+	if mark == null:
+		return
+	var mound := Node2D.new()
+	mound.name = "HookMound"
+	mound.z_index = 6
+	mark.get_parent().add_child(mound)
+	mound.global_position = mark.global_position
+	var hook := Sprite2D.new()
+	hook.name = "Hook"
+	hook.texture = HOOK_ART
+	hook.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	hook.scale = Vector2.ONE * 2.0
+	hook.rotation = 0.8
+	hook.position = Vector2(0.0, -14.0)
+	mound.add_child(hook)
+	var sand := Sprite2D.new()
+	sand.name = "Sand"
+	sand.texture = load(AUTHORED + "sand_mound.png") as Texture2D
+	sand.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sand.scale = Vector2(0.8, 1.1)
+	sand.position = Vector2(0.0, -6.0)
+	sand.z_index = 1
+	mound.add_child(sand)
+	var pickup := Area2D.new()
+	pickup.name = "Pickup"
+	pickup.collision_layer = 0
+	pickup.collision_mask = 1
+	var shape := CollisionShape2D.new()
+	var circle := CircleShape2D.new()
+	circle.radius = 50.0
+	shape.shape = circle
+	pickup.add_child(shape)
+	mound.add_child(pickup)
+	pickup.body_entered.connect(_on_hook_touched)
+	var glint := Timer.new()
+	glint.wait_time = 3.1
+	glint.autostart = true
+	mound.add_child(glint)
+	glint.timeout.connect(func() -> void:
+		if _life != null and is_instance_valid(_life) and not _has_hook:
+			_life.sparkle(mound.global_position + Vector2(8.0, -16.0), 2, 14.0))
+	_hook_mound = mound
+	_show_the_hook_mound()
+
+
+## The heap and the hook as the run says they are.
+func _show_the_hook_mound() -> void:
+	if _hook_mound == null or not is_instance_valid(_hook_mound):
+		return
+	var sand := _hook_mound.get_node_or_null(^"Sand") as CanvasItem
+	var hook := _hook_mound.get_node_or_null(^"Hook") as CanvasItem
+	if sand != null:
+		sand.visible = not _hook_revealed
+		sand.modulate.a = 1.0
+	if hook != null:
+		hook.visible = _hook_revealed and not _has_hook
+
+
+func _at_the_hook_mound() -> bool:
+	return _hook_mound != null and is_instance_valid(_hook_mound) and not _hook_revealed \
+		and _anchor_now().distance_to(_hook_mound.global_position) <= RAKE_REACH
+
+
+## The rake combs the sand away and the hook is there.
+func _clear_the_sand() -> void:
+	_hook_revealed = true
+	var sand := _hook_mound.get_node_or_null(^"Sand") as CanvasItem
+	if sand != null:
+		var go := sand.create_tween()
+		go.tween_property(sand, "modulate:a", 0.0, 0.4)
+		go.tween_callback(sand.hide)
+	var hook := _hook_mound.get_node_or_null(^"Hook") as CanvasItem
+	if hook != null:
+		hook.visible = true
+	if _life != null:
+		_life.sparkle(_hook_mound.global_position + Vector2(0.0, -14.0), 6, 26.0)
+	_speak(script_lines.fire("HOOK.uncovered"))
+
+
+func _on_hook_touched(body: Node) -> void:
+	if not _hook_revealed or _has_hook or not _is_the_player(body):
+		return
+	_has_hook = true
+	_show_the_hook_mound()
+	announce_acquisition("Fishing Hook",
+		"Found under the sand. Cast it with F from a boat or the water's edge, and work the line up and down. It will hold for five catches.",
+		HOOK_ART)
+	_speak(script_lines.fire("HOOK.found"))
+
+
+## Where the hook can be cast from: a boat, or the apo standing at the water's edge.
+func _at_a_fishing_spot() -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	if _boat_carrying_player() != null:
+		return true
+	if not (player is Wanderer) or bool(player.call("is_in_water")):
+		return false
+	var at := _anchor_now()
+	var edges := level_data_shore_edges()
+	if edges == Vector2.ZERO or at.y > _waterline_y + 4.0:
+		return false
+	return absf(at.x - edges.x) <= CAST_FROM_SHORE or absf(at.x - edges.y) <= CAST_FROM_SHORE
+
+
+func _can_cast() -> bool:
+	if not _has_hook or _hook_broken or _line != null or _level_completed:
+		return false
+	if _equipped_utility != null and is_instance_valid(_equipped_utility):
+		return false
+	return _at_a_fishing_spot()
+
+
+func _rod_tip() -> Vector2:
+	var facing := 1.0
+	if player != null and is_instance_valid(player) and player.has_method("facing_direction"):
+		facing = signf(float(player.call("facing_direction")))
+		if facing == 0.0:
+			facing = 1.0
+	return _anchor_now() + Vector2(26.0 * facing, -44.0)
+
+
+## Out it goes, toward the pointer -- and out over the water, never back at the sand -- as hard
+## and as deep as it was held for.
+func _cast(toward: Variant = null, power: float = 0.6) -> void:
+	var tip := _rod_tip()
+	var aim: Vector2
+	if toward is Vector2:
+		aim = toward
+	elif lure_override is Vector2:
+		aim = lure_override
+	else:
+		aim = get_global_mouse_position()
+	var edges := level_data_shore_edges()
+	var seaward := 1.0 if edges == Vector2.ZERO or absf(tip.x - edges.x) < absf(tip.x - edges.y) else -1.0
+	if _boat_carrying_player() == null and signf(aim.x - tip.x) != seaward:
+		aim.x = tip.x + 320.0 * seaward
+	_line = FishingLineClass.new()
+	_line.name = "FishingLine"
+	_line.rod_tip = _rod_tip
+	_line.reeling = _holding_the_key
+	_line.waterline = _waterline_y if is_finite(_waterline_y) else 560.0
+	_line.floor_y = BED_Y
+	_marks.get_parent().add_child(_line)
+	_line.cast(tip, aim, power)
+	_line.splashed.connect(func(at: Vector2) -> void:
+		if _life != null:
+			_life.splash_at(at))
+	_line.reeled_in.connect(_put_the_line_away)
+	_line.landed.connect(_on_landed)
+	_line.escaped.connect(_on_escaped)
+	# The camera goes with the hook.
+	var world_camera := _world_camera()
+	if world_camera != null:
+		world_camera.focus_on(_line.hook, 1.0, 0.4, 0.0)
+	if _first_cast:
+		_first_cast = false
+		_speak(script_lines.fire("HOOK.cast"))
+	_say_why("Up and down to work the line. Hold %s to wind it in." % ControlsKeys.keys_for("use_utility"))
+
+
+## The use key, held -- or what a probe says it is.
+func _holding_the_key() -> bool:
+	if hold_override is bool:
+		return hold_override
+	return Input.is_action_pressed(&"use_utility")
+
+
+func _begin_charge() -> void:
+	_charge = 0.0
+
+
+## Let go: the cast, at whatever it had charged to.
+func _release_charge() -> void:
+	if _charge < 0.0:
+		return
+	var power := _charge
+	_charge = -1.0
+	_show_the_power(Vector2.ZERO, false)
+	if _can_cast():
+		_cast(null, power)
+
+
+func _show_the_power(anchor_position: Vector2, showing: bool) -> void:
+	if _power_meter == null or not is_instance_valid(_power_meter):
+		if not showing or _marks == null:
+			return
+		_power_meter = _PowerMeter.new()
+		_power_meter.name = "PowerMeter"
+		_marks.get_parent().add_child(_power_meter)
+	_power_meter.visible = showing
+	if showing:
+		_power_meter.global_position = anchor_position + Vector2(0.0, -110.0)
+		_power_meter.power = maxf(0.0, _charge)
+		_power_meter.queue_redraw()
+
+
+## How hard the cast will be, over the apo's head while it is held.
+class _PowerMeter extends Node2D:
+	var power := 0.0
+
+	func _ready() -> void:
+		z_index = 40
+
+	func _draw() -> void:
+		var bar := Rect2(Vector2(-46.0, -6.0), Vector2(92.0, 12.0))
+		draw_rect(bar.grow(3.0), Color(0.02, 0.04, 0.08, 0.85))
+		draw_rect(Rect2(bar.position, Vector2(bar.size.x * power, bar.size.y)),
+			Color(0.5, 0.8, 1.0).lerp(Color(1.0, 0.85, 0.35), power))
+		draw_rect(bar, Color(1, 1, 1, 0.7), false, 1.0)
+
+
+func _reel_in_empty() -> void:
+	if _line != null and is_instance_valid(_line) and not _line.is_reeling():
+		_line.reel_in()
+
+
+func _put_the_line_away() -> void:
+	if _line != null and is_instance_valid(_line):
+		_line.queue_free()
+	_line = null
+	var world_camera := _world_camera()
+	if world_camera != null and world_camera.is_focused():
+		world_camera.release_focus(0.4)
+
+
+## Per frame: the line comes in if whatever was fishing stopped, and a creature that swims into the
+## hook takes it.
+func _fish() -> void:
+	if _charge >= 0.0:
+		if not _can_cast():
+			_charge = -1.0
+			_show_the_power(Vector2.ZERO, false)
+		elif _holding_the_key():
+			_charge = minf(1.0, _charge + get_physics_process_delta_time() / CHARGE_SECONDS)
+			_show_the_power(_anchor_now(), true)
+		else:
+			_release_charge()
+	if _line == null:
+		return
+	if not is_instance_valid(_line):
+		_line = null
+		return
+	if _line.has_fish():
+		return
+	if not _at_a_fishing_spot():
+		_reel_in_empty()
+		return
+	if not _line.in_water():
+		return
+	var at: Vector2 = _line.hook_position()
+	for node in get_tree().get_nodes_in_group(&"sea_creatures"):
+		var creature := node as Node2D
+		if creature == null or not bool(creature.call("is_alive")) or bool(creature.call("is_hooked")):
+			continue
+		if creature.global_position.distance_to(at) <= float(creature.call("radius")) + 14.0:
+			_on_bite(creature)
+			return
+
+
+## ⚠ ON THE LINE, IN THE WATER, WHERE IT CAN BE SEEN. Kent: "in most fishing games, we visibly see
+## the fish getting pulled back, not a circle screen." Nothing stops: the camera is on the hook and
+## the creature is on it, and the fight is the line's (FishingLine2D) -- hold to wind, ease off when
+## it runs.
+func _on_bite(creature: Node2D) -> void:
+	_hooked = creature
+	creature.call("hook_onto", _line.hook)
+	_line.hook_creature(creature, creature.call("fight") as Dictionary)
+	_say_why("A %s on the line! Hold %s to wind it in -- ease off when it runs, or the line snaps." % [
+		String(creature.call("display_name")), ControlsKeys.keys_for("use_utility")])
+
+
+func _on_escaped(creature: Node2D, why: String) -> void:
+	_hooked = null
+	if creature != null and is_instance_valid(creature):
+		creature.call("release_from_hook")
+	_say_why("The line snapped! It got away, apo." if why == "snapped"
+		else "It took all the line and got away, apo.")
+
+
+func _on_landed(creature: Node2D) -> void:
+	_hooked = null
+	if creature == null or not is_instance_valid(creature):
+		_put_the_line_away()
+		return
+	_catches += 1
+	var kind := String(creature.get("kind"))
+	creature.call("land", _anchor_now() + Vector2(0.0, -80.0))
+	_put_the_line_away()
+	var first := not _caught_kinds.has(kind)
+	_caught_kinds[kind] = true
+	if first:
+		announce_acquisition("A %s!" % String(creature.call("display_name")),
+			String(CATCH_NOTES.get(kind, "")), creature.call("portrait") as Texture2D)
+	_speak(script_lines.fire(("CATCH.%s" % kind) if first else "CATCH.again"))
+	if _catches >= HOOK_CATCHES:
+		_hook_broken = true
+		_speak(script_lines.fire("HOOK.broke"))
+
+
+## The sea's creatures, put in the water once.
+func _release_the_sea_creatures() -> void:
+	if _marks == null:
+		return
+	var top := (_waterline_y if is_finite(_waterline_y) else 560.0) + 70.0
+	var water := Rect2(1700.0, top, 5600.0 - 1700.0, BED_Y - 30.0 - top)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3157
+	for row: Array in SEA_LIFE:
+		var centre: Vector2 = row[1]
+		for _index in range(int(row[2])):
+			var creature := SeaCreatureClass.new()
+			creature.kind = String(row[0])
+			creature.bounds = water
+			creature.wander = Rect2(centre - Vector2(380.0, 130.0), Vector2(760.0, 260.0)) \
+				.intersection(water)
+			creature.target = _anchor_now
+			creature.target_reachable = _creatures_can_reach_the_player
+			creature.position = Vector2(
+				clampf(centre.x + rng.randf_range(-220.0, 220.0), water.position.x, water.end.x),
+				clampf(centre.y + rng.randf_range(-70.0, 70.0), water.position.y, water.end.y))
+			_marks.get_parent().add_child(creature)
+			creature.struck.connect(_on_creature_struck)
+			creature.died.connect(_on_creature_died)
+			creature.bit_player.connect(_on_bitten)
+
+
+## They bite a player who is in the water with them -- not one sitting in a boat or on the sand.
+func _creatures_can_reach_the_player() -> bool:
+	return player != null and is_instance_valid(player) and _boat_carrying_player() == null \
+		and _anchor_now().y > _waterline_y + AIR_DEPTH
+
+
+## The first blow on any of them turns all of them but the bangus.
+func _on_creature_struck(_creature: Node2D) -> void:
+	if _creatures_hostile:
+		return
+	_creatures_hostile = true
+	_set_the_creatures_hostile(true)
+	_speak(script_lines.fire("SEA.provoked"))
+
+
+func _set_the_creatures_hostile(on: bool) -> void:
+	for node in get_tree().get_nodes_in_group(&"sea_creatures"):
+		node.call("set_hostile", on)
+
+
+func _on_creature_died(_creature: Node2D) -> void:
+	_kills += 1
+	_speak(script_lines.fire("SEA.killed%d" % mini(_kills, 4)))
+
+
+func _on_bitten(_creature: Node2D) -> void:
+	if _level_completed:
+		return
+	_hits_taken += 1
+	if player != null and is_instance_valid(player):
+		var flash := player.create_tween()
+		flash.tween_property(player, "modulate", Color(2.0, 0.45, 0.45), 0.06)
+		flash.tween_property(player, "modulate", Color.WHITE, 0.25)
+	if _hits_taken >= PLAYER_HITS:
+		_sent_up()
+
+
+## Ten bites: up to the surface, out of it -- not back to a checkpoint -- and the sea calms down.
+func _sent_up() -> void:
+	_hits_taken = 0
+	_creatures_hostile = false
+	_set_the_creatures_hostile(false)
+	_air = AIR_SECONDS
+	var at := _anchor_now()
+	if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
+		player.call("apply_morph_state", {"position": Vector2(at.x, _waterline_y + 24.0),
+			"linear_velocity": Vector2.ZERO})
+	_speak(script_lines.fire("SEA.sent_up"))
+
+
+## Per frame: Lolo on each kind the first time the player swims up to one, and the bites counted
+## over the player's head while the sea is angry.
+func _mind_the_creatures(anchor_position: Vector2) -> void:
+	if anchor_position.y > _waterline_y + AIR_DEPTH:
+		for node in get_tree().get_nodes_in_group(&"sea_creatures"):
+			var creature := node as Node2D
+			var kind := String(creature.get("kind"))
+			if _met_kinds.has(kind) or not bool(creature.call("is_alive")):
+				continue
+			if creature.global_position.distance_to(anchor_position) <= MEET_REACH:
+				_met_kinds[kind] = true
+				_speak(script_lines.fire("SEA.%s" % kind))
+				break
+	var showing := _creatures_hostile or _hits_taken > 0
+	if _health_meter == null or not is_instance_valid(_health_meter):
+		if not showing or _marks == null:
+			return
+		_health_meter = _HealthMeter.new()
+		_health_meter.name = "HealthMeter"
+		_marks.get_parent().add_child(_health_meter)
+	_health_meter.visible = showing
+	_health_meter.global_position = anchor_position + Vector2(0.0, -122.0)
+	_health_meter.left = PLAYER_HITS - _hits_taken
+	_health_meter.queue_redraw()
+	# A hint for the hook, once, standing at its heap with nothing to clear it.
+	if not _hook_hint_said and _hook_mound != null and not _hook_revealed \
+			and anchor_position.distance_to(_hook_mound.global_position) < 140.0:
+		_hook_hint_said = true
+		_say_why("Something hard is under the sand here, apo. You would need something with teeth to comb it away.")
+
+
+## Hearts over the player's head while the sea's creatures are angry: ten, going out one a bite.
+class _HealthMeter extends Node2D:
+	var left := 10
+
+	func _ready() -> void:
+		z_index = 40
+
+	func _draw() -> void:
+		for index in range(10):
+			var at := Vector2((index - 4.5) * 13.0, 0.0)
+			var colour := Color(0.95, 0.3, 0.32) if index < left else Color(0.25, 0.1, 0.12, 0.7)
+			draw_circle(at + Vector2(-2.5, -2.0), 3.2, colour)
+			draw_circle(at + Vector2(2.5, -2.0), 3.2, colour)
+			draw_colored_polygon(PackedVector2Array([at + Vector2(-5.6, -1.0),
+				at + Vector2(5.6, -1.0), at + Vector2(0.0, 5.5)]), colour)
 
 
 # --- The two forks -----------------------------------------------------------------------
@@ -1613,6 +2727,10 @@ func _put_the_bakunawa_back() -> void:
 			_bakunawa.open_a_gap()
 		"protector":
 			_bakunawa.enter_fight()
+		"artist":
+			# The light was up when this was written: it is following again, from where it was.
+			if director.stage("L3_N2") > 0:
+				_bakunawa.be_guided(at)
 
 
 ## THE SHAPE BEING HELD, AS DRAWN -- its class, its name, the picture and its strokes -- so a
@@ -1675,14 +2793,22 @@ func _judge_submission(entity_id: String, strokes: Array = []) -> void:
 	if director != null and director.current_obstacle() == "L3_N2" \
 			and director.committed_route("L3_N2") == "protector" and director.stage("L3_N2") > 0:
 		return
+	# ⚠ THE LIGHT'S SECOND STEP IS BRINGING IT HOME, and nothing drawn answers that either.
+	if director != null and director.current_obstacle() == "L3_N2" \
+			and director.committed_route("L3_N2") == "artist" and director.stage("L3_N2") > 0:
+		return
 	if director == null or director.current_obstacle() != "L3_N1" \
 			or director.committed_route("L3_N1") != "artist" or director.is_solved("L3_N1"):
+		var lit_before := _guiding()
 		super(entity_id, strokes)
+		if not lit_before and _guiding():
+			_begin_the_guiding()
 		return
 	if director.stage("L3_N1") > 0:
 		return
 	super(entity_id, strokes)
-	if director.stage("L3_N1") > 0:
+	# A helper is told what it is for. The anvil is told when it is dropped (see the shove).
+	if director.stage("L3_N1") > 0 and entity_id != "anvil":
 		_speak(script_lines.fire("L3_N1.artist.helper"))
 
 
@@ -1835,6 +2961,10 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 	# Whatever of Lolo's was still waiting to be said was about the choice just made.
 	_advice_waiting.clear()
+	# Kent: "when the player chooses swim, lolo prompts that the player can turn into one of the
+	# sea creatures if they wanted to".
+	if obstacle_id == "L3_N1" and route == "pragmatist":
+		_speak(script_lines.fire("L3_N1.pragmatist.creatures"))
 	if obstacle_id != "L3_N2" or _bakunawa == null:
 		return
 	match route:
@@ -1846,7 +2976,7 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 			# turned away -- which the line now says. Down in the water its two beams lift and
 			# dip together (Bakunawa2D.DEEP_REACH), so the line says which way to go when.
 			if _bakunawa.reach() > BakunawaClass.CONE_LENGTH:
-				_say_why("Watch its light, apo. When it looks up, keep low; when it looks down, go high. Right under it, it never looks.")
+				_say_why("Watch its light, apo. Keep low, along the bottom — under its belly the light never reaches. Go when it looks up.")
 			else:
 				_say_why("Watch where its light goes, apo. Cross while it is turned away.")
 		"protector":
@@ -1855,16 +2985,27 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 			_say_why("It is coming round. Put something in your hands, apo.")
 
 
-## The light found it. Everything else about the Artist route is the creature's own doing.
+## Home. It swam into the cave and is gone, and what it was holding on to comes up out of the
+## mouth of it to the apo. That closes the beat -- the light's second step (level_03.json).
 func _on_gift_offered() -> void:
-	var found := _uncover_the_treasure()
+	var at := _cave_mouth if _cave_mouth != Vector2.ZERO else _bakunawa.treasure_point()
+	var found := _uncover_the_treasure(at)
 	if _life != null and _bakunawa != null:
 		_life.sparkle(found, 8, 55.0)
+	if _lure != null and is_instance_valid(_lure):
+		_lure.visible = false
+	_rest_the_light()
 	_award_the_flower()
 	PlayerProfile.record_bakunawa("LIT")
 	script_lines.set_flag("l3_bakunawa_lit")
 	if not director.is_solved("L3_N2"):
-		director.solve_with_item("L3_N2", "the light")
+		director.solve_with_item("L3_N2", "led_home")
+
+
+## A blow landed: the creature flashes red (Bakunawa2D), and the bar says how many are left.
+func _on_bakunawa_hit(hits: int, needed: int) -> void:
+	if hits < needed:
+		status_label.text = "Hit! %d more" % (needed - hits)
 
 
 ## ⚠ WORN OUT IS WHAT ANSWERS THE FIGHT. The first swing records the weapon (see
@@ -1878,6 +3019,10 @@ func _on_bakunawa_quiet(how: String) -> void:
 		return
 	PlayerProfile.record_bakunawa("FOUGHT")
 	script_lines.set_flag("l3_bakunawa_fought")
+	# ⚠ AND IT TAKES WHAT IT WAS LOOKING FOR WITH IT. Kent: "if we choose to fight it, it takes the
+	# treasure with them". The torn corner the light route is given goes off in its coils, seen.
+	if _bakunawa != null:
+		_bakunawa.carry_away(LOST_CORNER)
 	if director != null and not director.is_solved("L3_N2"):
 		director.solve_with_item("L3_N2", "subdued")
 	for weapon: String in _fought_with.keys():
@@ -1913,11 +3058,62 @@ func _tool_answers_here(entity_id: String) -> bool:
 	return super(entity_id)
 
 
+## F with the anvil at the bangka says what it does there.
+func _verb_for(entity_id: String) -> String:
+	if entity_id == "anvil" and _at_the_beached_bangka():
+		return "SHOVE"
+	return super(entity_id)
+
+
+func _level_use_verb(entity_id: String) -> String:
+	if entity_id == "anvil" and _at_the_beached_bangka():
+		return "SHOVE"
+	if entity_id == "rake" and (_at_the_hook_mound() or (_at_the_beached_bangka() and not _bangka_dug)):
+		return "CLEAR SAND"
+	return super(entity_id)
+
+
+## ⚠ THE RAKE CLEARS SAND. Kent: "the rake should be able to get rid of the sand" -- off the hook
+## hidden in the beach, and off the half-buried bangka (digging it out is not moving it: that still
+## takes something strong or heavy).
+func _level_uses_the_tool(item: DrawnItemData) -> bool:
+	if item != null and item.entity_id == "rake":
+		if _at_the_hook_mound():
+			_clear_the_sand()
+			return true
+		if _at_the_beached_bangka() and not _bangka_dug:
+			_dig_out_the_bangka()
+			return true
+	return super(item)
+
+
+## F over the water says it casts, and with a line out that it reels in.
+func _refresh_action_prompts() -> void:
+	super()
+	if action_prompts == null or _level_completed:
+		return
+	if _line != null:
+		action_prompts.set_use_available(true, "Fishing Line", "HOLD TO REEL")
+	elif _can_cast():
+		action_prompts.set_use_available(true, "Fishing Hook", "HOLD TO CAST")
+
+
 ## ⚠ F IN THE FIGHT ALWAYS SWINGS. The base answers a beat with a tool's first use and stops
 ## there, which is right for a key at a lock: the turn IS the answer. Here the answer is three
 ## good hits, so the first press records the weapon and swings as well, and so does every
 ## press after it.
 func _use_equipped_utility() -> void:
+	# A line out is wound while the key is held (see _handle_level_input); a cast is charged by
+	# holding it. This is the tap, for anything that reaches here without the hold.
+	if _line != null:
+		return
+	if _can_cast():
+		_cast(null, 0.4)
+		return
+	# The anvil behind the bangka shoves it -- at the boat's first step or any later one.
+	if _holding_the_anvil() and _at_the_beached_bangka():
+		_shove_with_the_anvil()
+		return
 	if _fighting_it() and _equipped_utility != null and is_instance_valid(_equipped_utility) \
 			and _equipped_utility.item_data != null \
 			and _weapons().has(_equipped_utility.item_data.entity_id):
@@ -1934,13 +3130,19 @@ func _use_equipped_utility() -> void:
 ## Being seen, and being hit, both cost the current stretch and not the approach. CP3b sits
 ## partway through for exactly this: "an encounter-length reset with no mid-point turns a
 ## five-minute section into twenty."
+##
+## ⚠ THE FIGHT KEEPS THE BLOWS LANDED. Fifteen to win (Bakunawa2D.HITS_TO_SUBDUE); a restore puts
+## the creature back on its guard, and the blows it has taken go back on it after.
 func _lose_the_stretch(why: String) -> void:
 	_reset_cooldown = 1.4
 	_knocks = 0
+	var fighting := _bakunawa != null and _bakunawa.state() == BakunawaClass.State.FIGHTING
+	var landed := _bakunawa.hits_taken() if fighting else 0.0
 	_return_to_safety(why, "%s" % why)
 	_stand_them_clear_of_it()
-	if _bakunawa != null and _bakunawa.state() == BakunawaClass.State.FIGHTING:
-		_bakunawa.enter_fight()
+	if fighting and _bakunawa.state() == BakunawaClass.State.FIGHTING:
+		_bakunawa.enter_fight(true)
+		_bakunawa.restore_hits(landed)
 
 
 ## How far outside the creature's reach a caught player is put back. See _stand_them_clear_of_it.
@@ -1999,11 +3201,8 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 				_bakunawa.stage_at(surface.global_position.y)
 		return false
 	if obstacle_id == "L3_N2":
-		if route == "artist" and _bakunawa != null:
-			# The drawing is accepted, so the beat is answered -- but the creature has not
-			# found anything yet. It swims to what it lost, and the flower comes from THAT.
-			_bakunawa.follow_the_light(_bakunawa.treasure_point())
-			return true
+		# The light's beat closes when the creature is home (see _on_gift_offered), and its own
+		# solved line -- "Home ... it is giving you something" -- is the generic one.
 		if route == "pragmatist":
 			PlayerProfile.record_bakunawa("EVADED")
 			script_lines.set_flag("l3_bakunawa_evaded")
@@ -2028,17 +3227,15 @@ func _award_the_flower() -> void:
 ## And the flower comes up out of it to the apo -- "it finds a treasure, handing you a
 ## flower" -- and says which of the five it is, the way Payyo's did, because the design needs
 ## the count seen: a player who missed one otherwise chases an ending already lost.
-func _uncover_the_treasure() -> Vector2:
+func _uncover_the_treasure(where: Vector2) -> Vector2:
 	if _bakunawa == null:
 		return _anchor_now()
-	var at := _bakunawa.treasure_point()
-	# ⚠ FROM THE BOAT IT IS BROUGHT UP, BESIDE THE BOW. The creature is staged at the surface
-	# there, so its treasure point lies under its own coils: shown there, the corner was drawn
-	# across the dragon's neck like something pinned to it. It rises out of the dark instead,
-	# just ahead of the boat, in open water -- found, and given.
+	var at := where
+	# ⚠ FROM THE BOAT IT IS BROUGHT UP. The cave is a long way under the keel, so what comes out
+	# of it rises to the surface ahead of the boat -- found, and given.
 	var anchor := _anchor_now()
 	if anchor.y < _waterline_y:
-		var toward := signf(_bakunawa.global_position.x - anchor.x)
+		var toward := signf(where.x - anchor.x)
 		at = Vector2(anchor.x + 150.0 * (toward if toward != 0.0 else 1.0), _waterline_y + 60.0)
 	var parent := _bakunawa.get_parent()
 	var corner := Sprite2D.new()
@@ -2129,15 +3326,21 @@ func _tell_the_crossing(anchor_position: Vector2) -> void:
 func _told_the_boat(anchor_position: Vector2) -> void:
 	# Paced along the crossing rather than fired in a block, so the sea goes past underneath
 	# it and the silence between lines is part of the scene.
-	for step in [[1250.0, "L3_BOAT.lore1"], [1850.0, "L3_BOAT.lore2"],
-			[2450.0, "L3_BOAT.lore3"], [3000.0, "L3_BOAT.lore4"],
-			[3300.0, "L3_BOAT.lore5"]]:
+	# ⚠ SPREAD DOWN THE WHOLE CROSSING, AND THE LAST TWO FAR APART. Kent: "the 'keep rowing'
+	# dialogue is directly before 'stop' when they see the serpent". They were eighty pixels apart
+	# -- a third of a second at the oars -- so "I would rather you did not stop" was answered by
+	# "Stop" before it had been read. The sea is longer now, a line every six or seven hundred
+	# pixels, one more of them in the quiet stretch, and seven hundred of open water between
+	# "keep rowing" and the shadow.
+	for step in [[2000.0, "L3_BOAT.lore1"], [2600.0, "L3_BOAT.lore2"],
+			[3200.0, "L3_BOAT.lore3"], [3800.0, "L3_BOAT.lore4"],
+			[4300.0, "L3_BOAT.hum"], [4750.0, "L3_BOAT.lore5"]]:
 		if anchor_position.x >= float(step[0]):
 			_tell(String(step[1]))
 	# The shadow comes LAST and before the creature: it is the bakunawa's own silhouette,
 	# seen before the bakunawa is, which makes the shape a foreshadow rather than a second
 	# animal the player might think they could have drawn.
-	if anchor_position.x >= 3380.0 and not _told.has("L3_BOAT.shadow"):
+	if anchor_position.x >= 5450.0 and not _told.has("L3_BOAT.shadow"):
 		_tell("L3_BOAT.shadow")
 		_cast_the_shadow()
 	if _told.has("L3_BOAT.lore4"):
@@ -2145,8 +3348,8 @@ func _told_the_boat(anchor_position: Vector2) -> void:
 
 
 func _told_the_dive(anchor_position: Vector2) -> void:
-	for step in [[1250.0, "L3_DIVE.lore1"], [1900.0, "L3_DIVE.lore2"],
-			[2550.0, "L3_DIVE.lore3"], [3150.0, "L3_DIVE.lore4"]]:
+	for step in [[2100.0, "L3_DIVE.lore1"], [2900.0, "L3_DIVE.lore2"],
+			[3700.0, "L3_DIVE.lore3"], [4500.0, "L3_DIVE.lore4"], [5150.0, "L3_DIVE.light"]]:
 		if anchor_position.x >= float(step[0]):
 			_tell(String(step[1]))
 	if _told.has("L3_DIVE.lore4"):
@@ -2389,8 +3592,11 @@ func _current_objective() -> Dictionary:
 				# Sliding down the sand: the next thing is getting in.
 				if _bangka_found:
 					return {"key": "board_the_boat", "target": hull}
+				if _holding_the_anvil():
+					return {"key": "drop_on_the_boat", "target": hull}
 				if _a_helper_is_held():
-					return {"key": "drag_the_boat_now", "target": hull}
+					return {"key": "push_the_boat" if _bangka_dug else "drag_the_boat_now",
+						"target": hull}
 				return {"key": "drag_the_boat", "target": hull}
 			"pragmatist":
 				return {"key": "dive_draw", "obstacle": "L3_N1",
@@ -2421,6 +3627,10 @@ func _current_objective() -> Dictionary:
 		# Armed and swinging: the line is about the fight now, not about drawing for it.
 		if chosen == "bakunawa_fight" and director.stage("L3_N2") > 0:
 			chosen = "bakunawa_fight_on"
+		# The light is up and it is following: the line is about bringing it home.
+		if chosen == "bakunawa_light" and director.stage("L3_N2") > 0:
+			return {"key": "bakunawa_lead",
+				"target": _cave_mouth if _cave_mouth != Vector2.ZERO else _mark_position("BakunawaMark")}
 		if not chosen.is_empty():
 			return {"key": chosen, "target": _mark_position("BakunawaMark")}
 		return {"key": "bakunawa", "obstacle": "L3_N2",
@@ -2449,9 +3659,7 @@ func _nearest_interactable_utility() -> PhysicsShapeObject:
 
 ## Whether the apo is sitting in the bangka.
 func _aboard() -> bool:
-	return _launched_boat != null and is_instance_valid(_launched_boat) \
-		and player != null and is_instance_valid(player) \
-		and _launched_boat.has_passenger(player)
+	return _boat_carrying_player() != null
 
 
 func _mark_position(mark_name: String) -> Variant:
@@ -2471,6 +3679,12 @@ func _level_run_state() -> Dictionary:
 		"said_the_jars": _said_the_jars,
 		"brush_taken": _brush_taken,
 		"bangka_found": _bangka_found,
+		"bangka_dug": _bangka_dug,
+		"hook_revealed": _hook_revealed,
+		"has_hook": _has_hook,
+		"hook_catches": _catches,
+		"hook_broken": _hook_broken,
+		"bangka_x": _bangka_x if is_finite(_bangka_x) else -1.0,
 		"refills_taken": _refills_taken.duplicate(),
 		"knocks": _knocks,
 		"arrived": _arrived,
@@ -2489,9 +3703,30 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	_said_the_jars = bool(state.get("said_the_jars", false))
 	_brush_taken = bool(state.get("brush_taken", false))
 	_bangka_found = bool(state.get("bangka_found", false))
+	_bangka_dug = bool(state.get("bangka_dug", false))
+	# ⚠ THE HOOK IS NEVER TAKEN BACK. What was found and caught stays found and caught -- a restore
+	# from the encounter is about the encounter -- and a resumed run picks it up from the save.
+	_hook_revealed = _hook_revealed or bool(state.get("hook_revealed", false))
+	_has_hook = _has_hook or bool(state.get("has_hook", false))
+	_catches = maxi(_catches, int(state.get("hook_catches", 0)))
+	_hook_broken = _hook_broken or bool(state.get("hook_broken", false))
+	_show_the_hook_mound()
+	_charge = -1.0
+	_show_the_power(Vector2.ZERO, false)
+	_put_the_line_away()
+	var hull_x := float(state.get("bangka_x", -1.0))
+	_bangka_x = hull_x if hull_x > 0.0 else NAN
+	_sliding = false
+	_air = AIR_SECONDS
+	_lead_told = false
 	_refills_taken = (state.get("refills_taken", []) as Array).duplicate()
 	_knocks = int(state.get("knocks", 0))
-	_arrived = bool(state.get("arrived", false))
+	# ⚠ NEVER RESTORED AS ARRIVED. A checkpoint can be written after the island was reached -- swim
+	# back through CP3b and it is -- and resumed from it with `_arrived` set, reaching the island
+	# again did nothing: the landing is guarded by it, so the painting never armed and the level
+	# could not end. Wherever a restore puts the apo, arriving is something they do again; put
+	# back at the island itself, they are standing in its volume and land on the next frame.
+	_arrived = false
 	_told.clear()
 	for hook: Variant in (state.get("told", []) as Array):
 		_told[String(hook)] = true
@@ -2531,5 +3766,16 @@ func _put_back_what_the_restore_undid() -> void:
 	if not _bangka_found and (_bangka == null or not is_instance_valid(_bangka)
 			or _bangka.is_queued_for_deletion()):
 		_plant_the_bangka()
+	elif not _bangka_found and _bangka != null and is_instance_valid(_bangka):
+		# Still on the sand: where the run says it had got to, and buried or not as it says.
+		var mark := _mark("BangkaMark")
+		_bangka.global_position.x = _bangka_x if is_finite(_bangka_x) \
+			else (mark.global_position.x if mark != null else _bangka.global_position.x)
+		var hull := _bangka.get_node_or_null(^"Hull") as Node2D
+		if hull != null:
+			hull.position.y = -31.0 + (0.0 if _bangka_dug else BURIED_SINK)
+		if _sand_heap != null and is_instance_valid(_sand_heap):
+			_sand_heap.visible = not _bangka_dug
+			_sand_heap.modulate.a = 1.0
 	if director != null:
 		_plant_the_refills()

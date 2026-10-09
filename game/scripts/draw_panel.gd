@@ -107,7 +107,7 @@ func _ready() -> void:
 	client.live_prediction_failed.connect(_on_live_prediction_failed)
 	set_process(false)
 	_clear_guess()
-	status.text = "Draw something, then Transform!"
+	status.text = "Draw something, then Paint!"
 
 
 ## Part of the modal_overlays contract, so the derived pause state can see this.
@@ -152,9 +152,9 @@ func open_panel() -> void:
 			# The header gauge carries the budget. This said "Ink remaining 12.0 / 12.0"
 			# beneath a gauge already showing it, in decimals, and then went stale the
 			# moment the first stroke landed.
-			status.text = "Draw something, then Transform"
+			status.text = "Draw something, then Paint"
 	else:
-		status.text = "Draw something, then Transform"
+		status.text = "Draw something, then Paint"
 	# Nothing has been drawn yet, so there is nothing to transform.
 	transform_button.disabled = true
 	_refresh_ink_row(0.0)
@@ -246,7 +246,10 @@ func _on_live_prediction(
 	guess_label.modulate = Color.WHITE
 	guess_label.add_theme_color_override(&"font_color",
 		UISkin.GOLD_PALE if sure else UISkin.PENDING)
-	transform_button.text = "Transform into %s" % display_name if sure else "Transform"
+	# One word whatever is on the page. "Transform into Ladder" said the player would become
+	# a ladder, which is not what drawing an object does -- and it ran off the button. The
+	# guess line above already names what it sees.
+	transform_button.text = "Paint"
 
 
 func _on_live_prediction_failed(message: String) -> void:
@@ -381,7 +384,7 @@ func _forget_guess() -> void:
 	_guess_margin = 0.0
 	guess_label.text = "…"
 	guess_label.add_theme_color_override(&"font_color", UISkin.MUTED)
-	transform_button.text = "Transform"
+	transform_button.text = "Paint"
 
 
 func _on_transform_pressed() -> void:
@@ -437,6 +440,7 @@ func _on_entity_prediction(
 		})
 	if _profile:
 		_profile.record_class_drawn(entity)
+		_profile.record_class_drawing(entity, drawing)
 		_profile.note_submission(true)
 	var ink_cost: float = float(canvas.get_current_cost())
 	var submitted_strokes := _pending_strokes.duplicate(true)

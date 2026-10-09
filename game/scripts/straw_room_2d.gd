@@ -332,11 +332,18 @@ func _build_key_area() -> void:
 	_key_area.collision_mask = 1
 	_key_area.position = key_at
 	add_child(_key_area)
+	# ⚠ REACHED FROM ON TOP OF ANYTHING, NEVER FROM THE FLOOR. Kent: "sometimes i cant draw items
+	# to climb/stand on to get to the key". The grab used to start 236 above the floor -- the top
+	# of her collision at the height of a jump off a 46px step -- so what she stood on had to be
+	# tall enough, and anything over her 94px jump she could not get onto at all: a narrow window
+	# that the size a drawing comes out at decided. It reaches down to 200 now: a jump off the
+	# floor tops out at 174 (an 80px body, a 94px jump) and never gets it, and a jump off anything
+	# at all does. Getting ONTO the taller things is LevelBase._mantle_onto_a_drawing.
 	var shape := CollisionShape2D.new()
 	var box := RectangleShape2D.new()
-	box.size = Vector2(70.0, 96.0)
+	box.size = Vector2(70.0, 132.0)
 	shape.shape = box
-	shape.position = Vector2(0.0, -34.0)
+	shape.position = Vector2(0.0, -16.0)
 	_key_area.add_child(shape)
 	_key_area.body_entered.connect(_on_key_body)
 
