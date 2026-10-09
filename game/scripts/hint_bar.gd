@@ -101,6 +101,8 @@ var _fade: Tween
 var _curtain := 0.0
 ## Where the apo's feet are on screen, from the level every frame. INF with no player.
 var _near := Vector2.INF
+## And how far above them her head is, on screen. See `stand_near`.
+var _head_room := 0.0
 ## Where the bar is on its way to, kept off the pixel grid; the panel gets it rounded.
 var _follow := Vector2.ZERO
 var _placed := false
@@ -523,9 +525,12 @@ func set_curtain(closed: float) -> void:
 
 
 ## Where the apo's feet are on screen. The level tells it every physics frame; INF when there
-## is nobody to stand near.
-func stand_near(screen_point: Vector2) -> void:
+## is nobody to stand near. `head_room` is how far above them her head is on screen: in a room
+## the camera zooms in and she stands up to three times her outdoor height, and a bar 172px
+## over her feet sat across her face in Ang Bale. It rises with the key row, by the same rule.
+func stand_near(screen_point: Vector2, head_room: float = 0.0) -> void:
 	_near = screen_point
+	_head_room = maxf(0.0, head_room)
 
 
 ## Where the bar wants to be: over the apo's head, else under her feet, else the old top spot.
@@ -536,7 +541,7 @@ func _target() -> Vector2:
 	if not (is_finite(_near.x) and is_finite(_near.y)):
 		return Vector2(floorf((view.x - size.x) * 0.5), highest)
 	var x := clampf(_near.x - size.x * 0.5, EDGE, maxf(EDGE, view.x - size.x - EDGE))
-	var y := _near.y - OVER_THE_HEAD - size.y
+	var y := _near.y - OVER_THE_HEAD - ActionPromptHUD.lift_for(_head_room) - size.y
 	if y < highest:
 		# Below her key prompts, when they have gone under her feet as well: they are nearer.
 		var under := _near.y + maxf(UNDER_THE_FEET, _keys_below_feet() + KEYS_GAP)

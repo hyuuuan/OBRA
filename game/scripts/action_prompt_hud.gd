@@ -39,6 +39,10 @@ const ROOM := Vector2(160.0, 42.0)
 ## How often over-or-under is decided. It walks the HUD, and the apo does not cross the line
 ## between them in a tenth of a second.
 const JUDGE_EVERY := 0.1
+## The least room between the top of the player's head and the bottom of the row. Outdoors
+## the camera is at 1 and the apo stands 92px, so FOLLOW_OFFSET already leaves her 26px and
+## nothing moves; this only matters once she is drawn taller than 106px. See `lift_for`.
+const HEAD_GAP := 12.0
 
 var _draw: Button
 var _revert: Button
@@ -61,6 +65,9 @@ var _curtain_alpha := 1.0
 ## Whether the row has gone under the player's feet. See `_follow_player`.
 var _under := false
 var _judge_in := 0.0
+## How far the top of the player's head is above the point the row follows, on screen. The
+## level says so every physics frame. See `set_head_room`.
+var _head_room := 0.0
 
 
 func _ready() -> void:
@@ -122,6 +129,23 @@ func follow(target: Node2D) -> void:
 	# appears with them rather than spending several seconds flying through scenery.
 	_follow_ready = false
 	_judge_in = 0.0
+
+
+## ⚠ THE ROW RIDES OVER THE HEAD, NOT A FIXED DISTANCE OVER THE FEET. The rooms zoom in --
+## the alleys and the lit house to 1.6, the straw room to 2, Ang Bale to 3 -- and the prompts
+## are in screen space on purpose (see the top of this file), so the apo grew around a row
+## that stayed 118px over her feet: E PICK UP and W CLIMB sat across her face in Alley 1, and
+## Lolo's bar above them across her face in Ang Bale. The level measures her on screen and
+## says how far up her head is; the row lifts by exactly what it takes to clear it.
+func set_head_room(screen_height: float) -> void:
+	_head_room = maxf(0.0, screen_height)
+
+
+## How much higher than FOLLOW_OFFSET the row has to ride to clear a head `head_room` above
+## the feet. Zero at the outdoor zoom. Static so Lolo's hint bar, which stands above the row,
+## lifts by the same amount and stays clear of both.
+static func lift_for(head_room: float) -> float:
+	return maxf(0.0, head_room + HEAD_GAP + FOLLOW_OFFSET.y)
 
 
 ## `verb` is what E will actually do. It is PICK UP almost everywhere, and it was PICK UP over
@@ -392,7 +416,9 @@ func keys_below_feet() -> float:
 
 
 func _over(feet: Vector2, row_size: Vector2) -> Vector2:
-	return _on_screen(feet + FOLLOW_OFFSET - Vector2(row_size.x * 0.5, row_size.y), row_size)
+	var lift := Vector2(0.0, lift_for(_head_room))
+	return _on_screen(feet + FOLLOW_OFFSET - lift - Vector2(row_size.x * 0.5, row_size.y),
+		row_size)
 
 
 func _under_feet(feet: Vector2, row_size: Vector2) -> Vector2:
