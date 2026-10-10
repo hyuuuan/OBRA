@@ -91,6 +91,9 @@ const SURFACING_SPEED := -340.0
 const SWIM_STROKE := 90.0
 ## Treading water, the surface at her chest: how far the figure is drawn down from her feet.
 const TREAD_SINK := 30.0
+## Afloat, how far under the surface her feet ride. Under Dagat's AIR_DEPTH (30), so she breathes
+## there; under the water's top at all, so the water keeps hold of her and she does not pop out.
+const FLOAT_DEPTH := 18.0
 
 @onready var _figure: Node2D = $Figure
 
@@ -294,8 +297,27 @@ func _swim(delta: float, direction: float) -> void:
 		vertical = -1.0
 	if vertical != 0.0:
 		velocity.y = move_toward(velocity.y, vertical * SWIM_VERTICAL, SWIM_ACCEL * delta)
-	else:
-		velocity.y = move_toward(velocity.y, SWIM_FLOAT, 260.0 * delta)
+		return
+	# ⚠ AFLOAT AT THE TOP, NOT BOBBING CLEAR OF IT. She rose at SWIM_FLOAT until the water let go
+	# of her -- which is when her FEET left it, the whole body above the sea -- fell back in, and
+	# rose again: about one frame in five out of the water, drawn mid-jump, standing on the sea.
+	# Near the surface she eases to FLOAT_DEPTH under it now and stays there; deeper down she
+	# still floats up to it.
+	var surface := _water_surface()
+	var target := SWIM_FLOAT
+	if is_finite(surface):
+		target = clampf((surface + FLOAT_DEPTH - global_position.y) * 4.0, SWIM_FLOAT, -SWIM_FLOAT)
+	velocity.y = move_toward(velocity.y, target, 260.0 * delta)
+
+
+## The top of the water she is in, or INF when there is none to ask.
+func _water_surface() -> float:
+	if not has_meta(&"water_area"):
+		return INF
+	var area := get_meta(&"water_area") as Node
+	if area == null or not is_instance_valid(area) or not area.has_method(&"surface_y"):
+		return INF
+	return float(area.call(&"surface_y"))
 
 
 ## The stride advances with actual speed, so it cannot look like it is running on the
