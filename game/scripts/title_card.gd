@@ -66,6 +66,13 @@ var note := "":
 var from_source := false
 ## Whether the vista drifts with the mouse. The home screen's; a loading screen holds still.
 var drifts := false
+## Whether the vista is shown at all. The home screen takes it away to put the last level's
+## art behind the logo instead.
+var shows_vista := true:
+	set(value):
+		shows_vista = value
+		if _vista != null:
+			_vista.visible = value
 
 var _vista: TextureRect
 var _logo: TextureRect
@@ -91,6 +98,7 @@ func _ready() -> void:
 	for side in [SIDE_RIGHT, SIDE_BOTTOM]:
 		_vista.set_offset(side, DRIFT)
 	_vista.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	_vista.visible = shows_vista
 	add_child(_vista)
 	_logo = TextureRect.new()
 	_logo.name = "Logo"
