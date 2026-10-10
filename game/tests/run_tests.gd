@@ -780,6 +780,27 @@ func _test_level_framework() -> void:
 		var home_style := home_button.get_theme_stylebox(&"normal") as StyleBoxFlat
 		_expect(home_style != null and home_style.corner_radius_top_left >= 8,
 			"the home screen's %s has square corners" % button_path.get_file())
+	# THE HOME SCREEN WEARS THE LAST LEVEL PLAYED, and the vista when there is none. Kent: "keep
+	# kaina's dynamic backdrop but make the default (no save) the one we made now".
+	var title_card := menu.get_node("MenuLayer/MenuRoot/TitleCard")
+	menu.call("_apply_backdrop", "")
+	_expect(bool(title_card.get("shows_vista")) and menu.get_node_or_null("MenuLayer/MenuRoot/Backdrop") == null,
+		"with no level played, the home screen does not show the vista")
+	for backdrop_level in ["level_1", "level_2", "level_3"]:
+		menu.call("_apply_backdrop", backdrop_level)
+		var backdrop := menu.get_node_or_null("MenuLayer/MenuRoot/Backdrop")
+		var painted := 0
+		if backdrop != null:
+			for layer in backdrop.get_children():
+				if layer is TextureRect and (layer as TextureRect).texture != null:
+					painted += 1
+		var expected: int = (menu.get("BACKDROPS")[backdrop_level] as Array).size()
+		_expect(not bool(title_card.get("shows_vista")) and painted == expected,
+			"after %s the home screen shows %d of its %d layers%s" % [backdrop_level, painted, expected,
+			", over the vista" if bool(title_card.get("shows_vista")) else ""])
+		_expect(backdrop == null or backdrop.get_index() < title_card.get_index(),
+			"%s's backdrop is drawn over the logo" % backdrop_level)
+	menu.call("_apply_backdrop", "")
 	menu.call("_show_selector")
 	await create_timer(0.7).timeout
 	_expect(bool(menu.call("is_selector_open")), "Play did not expand into the level selector")

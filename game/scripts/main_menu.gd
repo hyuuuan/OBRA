@@ -2,12 +2,54 @@ extends Node2D
 
 const PANEL_SNAP := 8.0
 
-## THE HOME SCREEN IS THE TITLE CARD (title_card.gd): Kent's vista -- the apo looking out over
-## the place the game is set -- with the logo and "DRAW ◆ BECOME ◆ DISCOVER" over it, the same
-## card the loading screen shows, so loading fades onto this without the picture moving and
-## the PLAY button stands where the loading bar was. It replaces the backdrop that wore the
-## last level the apo was in (October 2026); that table is in git history if it comes back.
+## THE HOME SCREEN IS THE TITLE CARD (title_card.gd): the logo and "DRAW ◆ BECOME ◆
+## DISCOVER", over Kent's vista -- the apo looking out over the place the game is set -- the
+## same card the loading screen shows, so loading fades onto this without the picture moving
+## and the PLAY button stands where the loading bar was.
 const TITLE_CARD := preload("res://scripts/title_card.gd")
+
+## AND IT WEARS THE LAST PLACE THE APO WAS (Kaina's). With a save that has been in a level, that
+## level's art stands behind the logo instead of the vista, each layer drifting with the mouse
+## by `drift`. With no save, or one that has entered no level yet, it is the vista -- Kent:
+## "keep kaina's dynamic backdrop but make the default (no save) the one we made now".
+##
+## Each layer, back to front: `art`, cropped to `region` where the painted part is less than the
+## frame. A layer with a `height` is laid along the bottom of the screen that tall (Payyo's
+## hills, as the scene used to place them); any other covers the screen, laid LAYER_BLEED past
+## its edge so drifting never shows it. Piyesta's layers are 1920x1080 with the plaza in the
+## middle and nothing round it, so all of them are cropped to the same box -- the church's
+## width, from the top of the sky to the ground -- and still line up.
+const BACKDROPS := {
+	"level_1": [
+		{"art": "res://assets/Level1/bg_withclouds.png", "region": Rect2(88, 58, 1712, 963),
+			"drift": -4.0, "bleed": 0.0},
+		{"art": "res://assets/Level1/mountains_furthest_background.png",
+			"region": Rect2(128, 295, 1656, 543), "drift": -10.0, "height": 560.0,
+			"tint": Color(0.85, 0.93, 1.0)},
+		{"art": "res://assets/Level1/mountain_further_background.png",
+			"region": Rect2(108, 300, 1690, 563), "drift": -18.0, "height": 620.0,
+			"tint": Color(0.86, 0.95, 0.83)},
+		{"art": "res://assets/Level1/terraces_2.png", "region": Rect2(157, 204, 1560, 739),
+			"drift": -28.0, "height": 760.0, "bleed": 28.0},
+	],
+	"level_2": [
+		{"art": "res://assets/Level2/bg_sky.png", "region": Rect2(190, 66, 1549, 870), "drift": -4.0},
+		{"art": "res://assets/Level2/bg_clouds.png", "region": Rect2(190, 66, 1549, 870), "drift": -8.0},
+		{"art": "res://assets/Level2/mg_church.png", "region": Rect2(190, 66, 1549, 870), "drift": -16.0},
+		{"art": "res://assets/Level2/fg_huts.png", "region": Rect2(190, 66, 1549, 870), "drift": -28.0},
+	],
+	"level_3": [
+		{"art": "res://assets/Level3/shore/sky.png", "drift": -4.0},
+		{"art": "res://assets/Level3/shore/mountains.png", "drift": -8.0},
+		{"art": "res://assets/Level3/shore/ocean.png", "drift": -14.0},
+		{"art": "res://assets/Level3/shore/sand.png", "drift": -20.0},
+		{"art": "res://assets/Level3/shore/palms_left.png", "drift": -30.0},
+		{"art": "res://assets/Level3/shore/palms_right.png", "drift": -30.0},
+	],
+}
+const LAYER_BLEED := 36.0
+## Over a level's art, so the logo and the buttons read on it. The vista needs none.
+const BACKDROP_SHADE := Color(0.027, 0.035, 0.024, 0.31)
 
 ## THE HOME SCREEN'S BUTTONS ARE ROUNDED. Kent: "the buttons in the menu/home should not be
 ## edgy, make them use smooth rounded edges". The theme's buttons are the game's square pixel
@@ -31,6 +73,11 @@ var new_game_button: Button
 var _pending_confirm := ""
 ## The vista, the logo and the tagline, behind the buttons.
 var _card: Control
+## The last level's art, behind the card, or null when the card shows the vista.
+var _backdrop: Control
+## The backdrop's moving layers: {node, base, drift}.
+var _layers: Array[Dictionary] = []
+var _layer_bases_ready := false
 @onready var cards: Array[Button] = [
 	$MenuLayer/MenuRoot/MorphPanel/Selector/Level1,
 	$MenuLayer/MenuRoot/MorphPanel/Selector/Level2,
@@ -60,6 +107,7 @@ func _ready() -> void:
 	var menu_root := $MenuLayer/MenuRoot as Control
 	menu_root.add_child(_card)
 	menu_root.move_child(_card, 0)
+	_apply_backdrop(PlayerProfile.last_level())
 	settings_button.pressed.connect(_open_overlay.bind(&"SettingsOverlay"))
 	controls_button.pressed.connect(_open_overlay.bind(&"ControlsOverlay"))
 	quit_button.pressed.connect(_ask_quit)
@@ -306,6 +354,87 @@ func _apply_current_layout() -> void:
 
 func _on_viewport_size_changed() -> void:
 	_apply_current_layout()
+	_layer_bases_ready = false
+	_capture_layer_bases.call_deferred()
+
+
+func _process(delta: float) -> void:
+	var viewport_size := get_viewport_rect().size
+	if not _layer_bases_ready or viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+	var toward := (get_viewport().get_mouse_position() - viewport_size * 0.5) / viewport_size
+	toward = toward.clamp(-Vector2.ONE * 0.5, Vector2.ONE * 0.5)
+	var weight := 1.0 - exp(-4.0 * delta)
+	for layer in _layers:
+		var node := layer["node"] as Control
+		node.position = node.position.lerp(Vector2(layer["base"]) + toward * float(layer["drift"]), weight)
+
+
+## Put up `level_id`'s art behind the card -- or, for a level with none or no level at all,
+## take it down and let the card show the vista.
+func _apply_backdrop(level_id: String) -> void:
+	if _backdrop != null:
+		# Out of the tree now, not at the end of the frame: the new one is named Backdrop too.
+		_backdrop.get_parent().remove_child(_backdrop)
+		_backdrop.queue_free()
+		_backdrop = null
+	_layers.clear()
+	_layer_bases_ready = false
+	var art: Array = BACKDROPS.get(level_id, [])
+	_card.set("shows_vista", art.is_empty())
+	if art.is_empty():
+		return
+	_backdrop = Control.new()
+	_backdrop.name = "Backdrop"
+	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var menu_root := _card.get_parent()
+	menu_root.add_child(_backdrop)
+	menu_root.move_child(_backdrop, _card.get_index())
+	for entry_value: Variant in art:
+		var entry: Dictionary = entry_value
+		var texture := load(String(entry["art"])) as Texture2D
+		if texture == null:
+			continue
+		if entry.has("region"):
+			var cropped := AtlasTexture.new()
+			cropped.atlas = texture
+			cropped.region = entry["region"]
+			texture = cropped
+		var layer := TextureRect.new()
+		layer.name = String(entry["art"]).get_file().get_basename().capitalize().replace(" ", "")
+		layer.texture = texture
+		layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		layer.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		layer.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		layer.modulate = entry.get("tint", Color.WHITE)
+		var bleed := float(entry.get("bleed", LAYER_BLEED))
+		if entry.has("height"):
+			layer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+			layer.offset_top = -float(entry["height"])
+			layer.offset_bottom = 0.0
+		else:
+			layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			layer.offset_top = -bleed
+			layer.offset_bottom = bleed
+		layer.offset_left = -bleed if entry.has("bleed") or not entry.has("height") else 0.0
+		layer.offset_right = -layer.offset_left
+		_backdrop.add_child(layer)
+		_layers.append({"node": layer, "base": Vector2.ZERO, "drift": float(entry["drift"])})
+	var shade := ColorRect.new()
+	shade.name = "Shade"
+	shade.color = BACKDROP_SHADE
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_backdrop.add_child(shade)
+	_capture_layer_bases.call_deferred()
+
+
+## Where each layer rests, once it has been laid out: the drift is measured from there.
+func _capture_layer_bases() -> void:
+	for layer in _layers:
+		layer["base"] = (layer["node"] as Control).position
+	_layer_bases_ready = true
 
 
 ## NEW GAME and CONTINUE. With nothing saved the big button is NEW GAME and there is nothing
@@ -313,7 +442,7 @@ func _on_viewport_size_changed() -> void:
 ## NEW GAME moves to the row underneath, behind a confirmation.
 func _refresh_start_buttons() -> void:
 	var saved: bool = PlayerProfile.has_progress()
-	# Just the word: Continue goes back to the house, which is where it always goes.
+	# Just the word. The backdrop already shows where Continue goes.
 	play_button.text = "CONTINUE" if saved else "NEW GAME"
 	new_game_button.visible = saved
 
