@@ -8,14 +8,19 @@ extends Node
 ## where it was needed most was the one it could never reach.
 ##
 ## So the game opens on this: one node, no art, no class_name anywhere in it. It loads with
-## nothing imported. If ImportGuard is importing, it waits to be restarted; otherwise it goes
-## straight on to the title screen, a frame later.
+## nothing imported. If ImportGuard is importing, it waits to be restarted; otherwise it puts
+## up the loading screen, which loads the title screen behind it and then fades onto it.
+## The loading screen is reached with load() at run time, never preload(): only once
+## ImportGuard has said the cache is whole is it safe to load anything that is drawn.
 
 const TITLE := "res://ui/main_menu.tscn"
+const LOADING := "res://scripts/loading_screen.gd"
 
 
 func _ready() -> void:
 	var guard := get_node_or_null(^"/root/ImportGuard")
 	if guard != null and guard.has_method("is_importing") and bool(guard.call("is_importing")):
 		return
-	get_tree().call_deferred(&"change_scene_to_file", TITLE)
+	var screen: Node = (load(LOADING) as GDScript).new()
+	get_tree().root.add_child.call_deferred(screen)
+	screen.call(&"begin", TITLE)

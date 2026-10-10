@@ -134,7 +134,8 @@ func _the_relaunch_finds_the_project() -> void:
 
 ## A fresh clone has no cache at all, so a first scene made of imported art cannot load, and
 ## Godot quits before ImportGuard -- an autoload -- ever runs. The game opens on a scene that
-## needs nothing imported, and that scene goes on to the title screen.
+## needs nothing imported, and that scene goes on to the title screen -- by way of the loading
+## screen, which loads it behind the title card and then fades onto it.
 func _the_game_opens_on_a_scene_that_always_loads() -> void:
 	var boot := String(ProjectSettings.get_setting("application/run/main_scene"))
 	_check(boot == "res://ui/boot.tscn", "the game opens on the boot scene", boot)
@@ -146,10 +147,46 @@ func _the_game_opens_on_a_scene_that_always_loads() -> void:
 	_check(paths == ["res://scripts/boot.gd"] and declares == null,
 		"which needs nothing imported to load", ", ".join(paths))
 	change_scene_to_file(boot)
-	for _frame in range(10):
+	for _frame in range(4):
 		await process_frame
+	var loading := _loading_screen()
+	var card := loading.get_node_or_null(^"TitleCard") if loading != null else null
+	_check(card != null and int(card.get("mode")) == 1, "it puts up the loading screen",
+		"none" if card == null else "mode %d" % int(card.get("mode")))
+	# The bar is held to at least loading_screen.gd's MIN_SECONDS, so this is real time.
+	var started := Time.get_ticks_msec()
+	var most := 0.0
+	var backwards := false
+	var full_at := -1.0
+	while Time.get_ticks_msec() - started < 8000:
+		await process_frame
+		if is_instance_valid(loading):
+			var shown := float(loading.call(&"shown_progress"))
+			backwards = backwards or shown < most - 0.0001
+			most = maxf(most, shown)
+			if full_at < 0.0 and shown >= 0.999:
+				full_at = (Time.get_ticks_msec() - started) / 1000.0
+		if _at_title() and not is_instance_valid(loading):
+			break
+	var took := (Time.get_ticks_msec() - started) / 1000.0
+	_check(not backwards and most >= 0.999, "whose bar only ever fills", "reached %.2f" % most)
+	# The menu loads in a blink; a bar that flashes full and vanishes reads as a glitch.
+	_check(full_at >= 1.0, "and takes its time doing it", "full at %.1f s" % full_at)
 	var now := current_scene.scene_file_path if current_scene != null else "(none)"
-	_check(now == "res://ui/main_menu.tscn", "and goes straight on to the title screen", now)
+	_check(now == "res://ui/main_menu.tscn", "and goes on to the title screen", "%s, %.1f s" % [now, took])
+	_check(not is_instance_valid(loading), "and the loading screen is gone once it fades",
+		"gone" if not is_instance_valid(loading) else "still up")
+
+
+func _loading_screen() -> Node:
+	for child in root.get_children():
+		if child is CanvasLayer and child.has_method(&"shown_progress"):
+			return child
+	return null
+
+
+func _at_title() -> bool:
+	return current_scene != null and current_scene.scene_file_path == "res://ui/main_menu.tscn"
 
 
 func _says(reasons: PackedStringArray, reason: String) -> bool:
