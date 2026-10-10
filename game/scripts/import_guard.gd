@@ -31,12 +31,13 @@ const RELAUNCHED := "--obra-reimported"
 ## imported from: `x.png-<md5>.ctex` beside `x.png-<md5>.md5`.
 const _STAMP := "^(.*-[0-9a-f]{32})\\."
 const _CLASS_NAME := "(?m)^class_name\\s+(\\w+)"
+const TITLE_CARD := "res://scripts/title_card.gd"
 
 
 ## The import, running beside the game so the window can say what is happening. A first
 ## import on a slow laptop takes minutes, and a frozen splash for minutes reads as a crash.
 var _import: Thread
-var _note: Label
+var _card: Control
 
 
 func _ready() -> void:
@@ -53,8 +54,8 @@ func _ready() -> void:
 	print("O.B.R.A.: this computer's copy of the game's imported files is out of date (%d: %s). "
 		% [reasons.size(), reasons[0]] + "Importing, then starting again -- once per update.")
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_say("Getting O.B.R.A. ready for this computer.\n\nThe game was updated, so its files are "
-		+ "being prepared again. This happens once,\nand the game starts again by itself.")
+	_say("The game was updated, so its files are being prepared again.\n"
+		+ "This happens once, and the game starts again by itself.")
 	_import = Thread.new()
 	_import.start(_run_the_import)
 
@@ -75,9 +76,9 @@ func _process(_delta: float) -> void:
 	if code != 0:
 		# Stopped rather than looped: a restart would find the same cache and do this again.
 		push_error("ImportGuard: the import exited %d." % code)
-		_say("O.B.R.A. could not prepare its files (the import stopped with code %d).\n\n" % code
+		_say("O.B.R.A. could not prepare its files (the import stopped with code %d).\n" % code
 			+ "Close this window, then run play_windows.bat -- or open the project\nin the Godot "
-			+ "editor once and let it finish importing.")
+			+ "editor once and let it finish importing.", false)
 		return
 	OS.set_restart_on_exit(true, relaunch_args())
 	get_tree().quit()
@@ -89,25 +90,23 @@ func _run_the_import() -> int:
 		["--headless", "--path", project_dir(), "--import"], output, true)
 
 
-## Over everything, in the engine's own font: the project's theme and its pixel font are
-## among the files being imported, and may be the very ones that are missing.
-func _say(text: String) -> void:
-	if _note == null:
+## Over everything, on the title card -- the loading screen's picture, with its bar sweeping
+## while the import runs, since there is nothing to measure. The card takes its picture and its
+## font straight from their files (`from_source`): the project's theme, its pixel font and the
+## vista are among the files being imported, and may be the very ones that are missing. The
+## card is reached with load(), and names no class, for the same reason.
+func _say(text: String, working := true) -> void:
+	if _card == null:
 		var layer := CanvasLayer.new()
 		layer.layer = 128
 		add_child(layer)
-		var shade := ColorRect.new()
-		shade.color = Color(0.051, 0.067, 0.055)
-		shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-		layer.add_child(shade)
-		_note = Label.new()
-		_note.set_anchors_preset(Control.PRESET_FULL_RECT)
-		_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		_note.add_theme_font_size_override(&"font_size", 22)
-		_note.add_theme_color_override(&"font_color", Color(0.93, 0.91, 0.84))
-		layer.add_child(_note)
-	_note.text = text
+		_card = (load(TITLE_CARD) as GDScript).new()
+		_card.name = "TitleCard"
+		_card.set("from_source", true)
+		layer.add_child(_card)
+	_card.set("mode", 2 if working else 0)  # WAITING, or HOME: no bar once it has stopped
+	_card.set("status", "GETTING READY")
+	_card.set("note", text)
 
 
 ## Whether this launch is importing and about to restart. RecognitionBackend asks, so it does
