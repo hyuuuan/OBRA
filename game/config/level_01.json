@@ -73,11 +73,11 @@
     "gorge": "Follow the terraces east to the gorge",
     "gorge.tags": "Draw something that can {tags} to get across the gorge",
     "straw": "Find what she hid in the straw heap",
-    "straw.tags": "Find what she hid in the straw. Draw something that can {tags}",
+    "straw.tags": "The straw: draw something that can {tags}",
     "straw_inside": "Reach what is hanging on the nail",
     "straw_leave": "Go back out of the straw",
     "bale": "Get into Ang Bale, her house",
-    "bale.tags": "Get into Ang Bale. Draw something that can {tags}",
+    "bale.tags": "Into Ang Bale: draw something that can {tags}",
     "painting": "Take her painting",
     "home": "Take it home to Lola's house"
   },
