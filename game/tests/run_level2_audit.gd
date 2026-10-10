@@ -79,6 +79,7 @@ func _run() -> void:
 	_audit_every_route_has_a_button(level, dialogue)
 	_audit_conditions_match_effects(level, dialogue)
 	_audit_is_playable()
+	await _audit_objectives_fit(level)
 
 	for line in results:
 		print(line)
@@ -621,3 +622,76 @@ func _audit_no_line_is_unreachable(level: Dictionary, dialogue: Dictionary) -> v
 	_check(dead.is_empty(), "every authored line has a caller",
 		"nothing in dialogue_l2.json is written and never said" if dead.is_empty()
 		else "never fired: %s" % ", ".join(dead))
+
+
+## ⚠ EVERY OBJECTIVE FITS ITS BANNER, read the way the player reads it. The banner trims to an
+## ellipsis at ObjectiveBanner.MAX_WIDTH, and in both alleys the line before the choice read "Get
+## her scraps back. Draw something that can FEED, CLIMB or S..." -- the third way was never named.
+## Dagat's audit has measured its lines since September; this level's never were.
+##
+## A `.tags` line is measured in the state that puts it on screen: its obstacle, the route
+## committed there (none, for the line asked before the choice) and the stage of that route. A
+## `.tags` line with no entry here fails rather than being skipped, so none arrives unmeasured.
+const OBJECTIVE_STATE := {
+	"unlock": [["L2_N1"], "pragmatist", 0],
+	"startle": [["L2_N1"], "protector", 0],
+	"flock": [["L2_N2", "L2_N3"], "", 0],
+	"flock_feed": [["L2_N2", "L2_N3"], "artist", 0],
+	"flock_climb": [["L2_N2", "L2_N3"], "pragmatist", 0],
+	"flock_cut": [["L2_N2", "L2_N3"], "pragmatist", 1],
+	"flock_stone": [["L2_N2", "L2_N3"], "protector", 0],
+}
+
+
+func _audit_objectives_fit(level: Dictionary) -> void:
+	var level_scene := (load("res://level_2.tscn") as PackedScene).instantiate() as Node2D
+	(level_scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level_scene)
+	for _frame in range(4):
+		await process_frame
+	var label := (level_scene.get("objective_banner") as Control).get("_label") as Label
+	var font := label.get_theme_font(&"font")
+	var font_size := label.get_theme_font_size(&"font_size")
+	var director = level_scene.get("director")
+	var committed: Dictionary = director.get("_committed")
+	var stages: Dictionary = director.get("_stage")
+	var readings: Array[String] = []
+	var table: Dictionary = level.get("objectives", {})
+	for key: String in table.keys():
+		if key.begins_with("$"):
+			continue
+		if not key.ends_with(".tags"):
+			readings.append(String(table[key]))
+			continue
+		var base := key.trim_suffix(".tags")
+		if not OBJECTIVE_STATE.has(base):
+			readings.append("%s: no state to read its tags in" % key)
+			continue
+		var state: Array = OBJECTIVE_STATE[base]
+		for obstacle: String in state[0]:
+			committed.erase(obstacle)
+			if not String(state[1]).is_empty():
+				committed[obstacle] = state[1]
+			stages[obstacle] = int(state[2])
+			var spec: Dictionary = director.call("requirement_spec", obstacle)
+			var needed: Array = spec.get("required_tags", [])
+			if needed.is_empty():
+				readings.append("%s at %s: no tags in that state" % [key, obstacle])
+				continue
+			readings.append(String(table[key]).replace("{tags}", String(level_scene.call(
+				"_objective_tags", needed, String(spec.get("match", "all"))))))
+			committed.erase(obstacle)
+			stages.erase(obstacle)
+	var cut: Array[String] = []
+	for line in readings:
+		# With its keys in, the way the banner writes it.
+		var shown := String(level_scene.call("with_keys", line))
+		var width := font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+		if width > ObjectiveBanner.MAX_WIDTH or line.contains(": no "):
+			cut.append("\"%s\" (%.0f px)" % [shown, width])
+	_check(font != null and not readings.is_empty() and cut.is_empty(),
+		"every objective fits its banner",
+		"%d readings, none wider than %.0f px" % [readings.size(), ObjectiveBanner.MAX_WIDTH]
+		if cut.is_empty() else "trimmed: " + ", ".join(cut))
+	level_scene.queue_free()
+	await process_frame
