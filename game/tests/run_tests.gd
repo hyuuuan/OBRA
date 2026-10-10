@@ -209,6 +209,21 @@ func _test_shared_overlays() -> void:
 					chain_names.has(overlay_name),
 					"%s's cancel chain omits %s" % [label, overlay_name]
 				)
+		# ⚠ OPENED BY ITS OWN BUTTON, NOT ONLY BY open(). The menu bound SETTINGS and CONTROLS
+		# to `_open_overlay` with a NodePath, which takes a StringName, and the call refused it:
+		# both buttons did nothing on the home screen while every check above, which calls
+		# open() directly, passed. Kent: "cant enter the settings".
+		if label == "main_menu.tscn":
+			for pair in [["SettingsButton", "SettingsOverlay"], ["ControlsButton", "ControlsOverlay"]]:
+				var button := instance.get_node_or_null("MenuLayer/MenuRoot/SideButtons/" + String(pair[0])) as Button
+				var opened: Node = instance.get_node_or_null(String(pair[1]))
+				_expect(button != null and opened != null, "the menu has no %s for %s" % pair)
+				if button == null or opened == null:
+					continue
+				button.pressed.emit()
+				await process_frame
+				_expect(bool(opened.call("is_open")), "the menu's %s does not open %s" % pair)
+				opened.call("handle_cancel")
 		instance.queue_free()
 		await process_frame
 	paused = false
@@ -757,6 +772,14 @@ func _test_level_framework() -> void:
 	root.add_child(menu)
 	await process_frame
 	_expect(not bool(menu.call("is_selector_open")), "menu did not start in Play state")
+	# Kent: "the buttons in the menu/home should not be edgy". Rounded on the home screen only;
+	# the theme's square pixel boxes stay everywhere else.
+	for button_path in ["MenuLayer/MenuRoot/MorphPanel/PlayButton", "MenuLayer/MenuRoot/SideButtons/SettingsButton",
+			"MenuLayer/MenuRoot/SideButtons/QuitButton"]:
+		var home_button := menu.get_node(button_path) as Button
+		var home_style := home_button.get_theme_stylebox(&"normal") as StyleBoxFlat
+		_expect(home_style != null and home_style.corner_radius_top_left >= 8,
+			"the home screen's %s has square corners" % button_path.get_file())
 	menu.call("_show_selector")
 	await create_timer(0.7).timeout
 	_expect(bool(menu.call("is_selector_open")), "Play did not expand into the level selector")
