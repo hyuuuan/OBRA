@@ -163,9 +163,14 @@ In a terminal it draws a live progress bar with the time left; `tools/suite_watc
 
 A thesis project of the Department of Computer, Information Sciences and Mathematics, University of San Carlos, Cebu, Philippines.
 
-<a href="https://github.com/hyuuuan/OBRA/graphs/contributors">
-	<img alt="Contributors" src="https://contrib.rocks/image?repo=hyuuuan/OBRA" />
-</a>
+<table>
+	<tr>
+		<td align="center"><a href="https://github.com/kntucky-y"><img src="https://github.com/kntucky-y.png?size=100" width="80" alt="kntucky-y" /><br /><sub><b>kntucky-y</b></sub></a></td>
+		<td align="center"><a href="https://github.com/2232-Api"><img src="https://github.com/2232-Api.png?size=100" width="80" alt="2232-Api" /><br /><sub><b>2232-Api</b></sub></a></td>
+		<td align="center"><a href="https://github.com/k-ains"><img src="https://github.com/k-ains.png?size=100" width="80" alt="k-ains" /><br /><sub><b>k-ains</b></sub></a></td>
+		<td align="center"><a href="https://github.com/hyuuuan"><img src="https://github.com/hyuuuan.png?size=100" width="80" alt="hyuuuan" /><br /><sub><b>hyuuuan</b></sub></a></td>
+	</tr>
+</table>
 
 <h3>Credits</h3>
 
