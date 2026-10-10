@@ -816,8 +816,9 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
 - A real drawing through the real model (needs a window): `godot --path game --script res://tests/run_real_drawing_probe.gd`
 - The whole run, title to ending: `godot --headless --path game --script res://tests/run_journey_probe.gd`
 - **Import after any fetch that changes art:** `godot --headless --path game --import`
-  — `.godot/` is gitignored, and without it no `class_name` resolves and the game comes
-  up behind an undismissable ARE YOU SURE? dialog. See README.
+  — `.godot/` is gitignored, and without it no `class_name` resolves. A game launched
+  normally fixes this itself (ImportGuard imports and restarts), but a `--script` test run
+  skips ImportGuard, so import before running suites.
 - Godot physics: `godot --headless --path game --script res://tests/run_tests.gd`
 - Level 2 data: `godot --headless --path game --script res://tests/run_level2_audit.gd`
 - The two insides: `godot --headless --path game --script res://tests/run_room_probe.gd`
