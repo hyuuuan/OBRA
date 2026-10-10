@@ -1512,6 +1512,9 @@ func _placed_entity_records() -> Array:
 
 # --- Checkpoints that outlive leaving the level ---------------------------------------
 
+## How a picture in a snapshot is written on disk: {DISK_IMAGE: its PNG bytes}. See _disk_safe.
+const DISK_IMAGE := "$png"
+
 ## WHERE THE LAST CHECKPOINT IS KEPT BETWEEN VISITS, one file per level.
 ##
 ## CheckpointManager is in memory on purpose -- it answers "start again from here" inside one
@@ -1543,18 +1546,24 @@ func _save_checkpoint_to_disk(checkpoint_id: String) -> void:
 		file.store_string(var_to_str(payload))
 
 
-## What a snapshot can carry onto disk: plain values only. A live object -- the Image of a
-## shape held in deep water -- cannot be written and read back, so a dictionary holding one
-## is dropped whole rather than coming back half-built; the level's restore already treats
-## an empty one as "nothing to give back".
+## What a snapshot can carry onto disk: plain values only. A live object cannot be written and
+## read back, so a dictionary holding one is dropped whole rather than coming back half-built;
+## the level's restore already treats an empty one as "nothing to give back".
+##
+## ⚠ BUT A PICTURE IS NOT A LIVE OBJECT. The shape held in deep water carries the player's own
+## drawing as an Image, and dropping it dropped the shape: a diver who left Dagat at CP3b came
+## back as the apo, out of the fish they had drawn, in the middle of the sea. An Image is written
+## as its PNG bytes under DISK_IMAGE and made a picture again by _from_disk.
 func _disk_safe(value: Variant) -> Variant:
+	if value is Image:
+		return {DISK_IMAGE: (value as Image).save_png_to_buffer()}
 	if value is Object:
 		return null
 	if value is Dictionary:
 		var out: Dictionary = {}
 		for key: Variant in (value as Dictionary).keys():
 			var item: Variant = (value as Dictionary)[key]
-			if item is Object:
+			if item is Object and not item is Image:
 				return {}
 			out[key] = _disk_safe(item)
 		return out
@@ -1562,6 +1571,25 @@ func _disk_safe(value: Variant) -> Variant:
 		var list: Array = []
 		for item: Variant in value:
 			list.append(_disk_safe(item))
+		return list
+	return value
+
+
+## The other half of _disk_safe: what it wrote as a picture comes back as one.
+func _from_disk(value: Variant) -> Variant:
+	if value is Dictionary:
+		var entry := value as Dictionary
+		if entry.size() == 1 and entry.get(DISK_IMAGE) is PackedByteArray:
+			var picture := Image.new()
+			return picture if picture.load_png_from_buffer(entry[DISK_IMAGE]) == OK else null
+		var out: Dictionary = {}
+		for key: Variant in entry.keys():
+			out[key] = _from_disk(entry[key])
+		return out
+	if value is Array:
+		var list: Array = []
+		for item: Variant in value:
+			list.append(_from_disk(item))
 		return list
 	return value
 
@@ -1591,7 +1619,7 @@ func _resume_saved_checkpoint() -> bool:
 		_forget_saved_checkpoint()
 		return false
 	var saved: Dictionary = payload
-	checkpoints.write(String(saved.get("id", "CP")), saved["state"] as Dictionary)
+	checkpoints.write(String(saved.get("id", "CP")), _from_disk(saved["state"]) as Dictionary)
 	if _restore_checkpoint().is_empty():
 		return false
 	var obstacles: Dictionary = (saved["state"] as Dictionary).get("obstacles", {})

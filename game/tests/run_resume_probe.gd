@@ -97,6 +97,7 @@ func _run() -> void:
 		await _wait(0.4)
 
 	await _boat_player_resumes()
+	await _diver_resumes_as_their_shape()
 	print("OBRA_RESUME_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(failures)
 
@@ -159,6 +160,45 @@ func _boat_player_resumes() -> void:
 		"boat at %s" % (again.global_position.round() if again != null and is_instance_valid(again) else "NONE"))
 	_check(again != null and is_instance_valid(again) and bool(again.call("has_passenger", player)),
 		"and the apo is in it", "riding %s" % player.call("is_riding"))
+	level.call("_forget_saved_checkpoint")
+	level.queue_free()
+	await _wait(0.4)
+
+
+## AND A DIVER LEFT IN DEEP WATER COMES BACK AS WHAT THEY DREW. A deep checkpoint keeps the
+## shape held there -- the drawing's picture and strokes -- so a restore gives it back instead of
+## a drowning apo. On disk the picture, an Image, was not "plain" and the whole shape was dropped:
+## quit at CP3b as a fish and Continue put the apo in the middle of the sea without it.
+func _diver_resumes_as_their_shape() -> void:
+	print("\n===== LEVEL_3, DIVING =====")
+	var spec := {"level": "level_3", "scene": "res://level_3.tscn"}
+	var level := _open(spec)
+	level.call("_forget_saved_checkpoint")
+	await _wait(1.0)
+	var director = level.get("director")
+	director.call("solve_with_item", "L3_B0_SHORE", "new_brush")
+	director.call("enter_obstacle", "L3_N1")
+	director.call("commit_route", "L3_N1", "pragmatist")
+	await _settle()
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	level.call("_spawn_or_replace", "fish", "Fish", sheet, RosterFixtures.for_rig("swimmer", "fish"))
+	await _settle(1.0)
+	_put(level, Vector2(CP3B_X, 1240.0))
+	await _settle(1.5)
+	var latest := String((level.get("checkpoints") as Object).call("latest_id"))
+	_check(latest == "CP3b" and String(level.get("_current_form_id")) == "fish",
+		"a fish at the seabed clam writes CP3b", "%s, as %s" % [latest, level.get("_current_form_id")])
+	level.queue_free()
+	await _wait(0.4)
+
+	level = _open(spec)
+	await _settle(2.0)
+	var form := String(level.get("_current_form_id"))
+	var anchor: Vector2 = level.call("_anchor_now")
+	_check(form == "fish" and absf(anchor.x - CP3B_X) < 120.0,
+		"coming back, they are the fish again, at the clam",
+		"as '%s' at %s" % [form, anchor.round()])
 	level.call("_forget_saved_checkpoint")
 	level.queue_free()
 	await _wait(0.4)

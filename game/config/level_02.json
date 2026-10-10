@@ -111,7 +111,7 @@
     "to_alleys": "Go out the back of the church, into the alleys",
     "back_to_church": "Go back through the church to the alleys",
     "flock": "Get her scraps back from the flock",
-    "flock.tags": "Get her scraps back. Draw something that can {tags}",
+    "flock.tags": "For her scraps, draw something that can {tags}",
     "flock_feed": "Put something out for them to come down to",
     "flock_feed.tags": "Draw something that can {tags}, and set it down for them",
     "flock_climb": "Set something under the strings to climb",

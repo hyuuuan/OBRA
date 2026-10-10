@@ -84,6 +84,7 @@ func _run() -> void:
 	await _audit_a_miss_says_why()
 	await _audit_the_key_chain()
 	await _audit_the_ward_is_wired()
+	await _audit_objectives_fit()
 	# LAST. It opens the completion overlay, which pauses the tree, and a paused tree
 	# makes every physics check after it read zero.
 	await _audit_completion_gate()
@@ -2369,3 +2370,92 @@ func _drawn_height(level: Node, entity_id: String) -> float:
 	var height: float = (thing.call("world_extent") as Rect2).size.y
 	thing.queue_free()
 	return height
+
+
+## ⚠ EVERY OBJECTIVE FITS ITS BANNER, read the way the player reads it. The banner trims to an
+## ellipsis at ObjectiveBanner.MAX_WIDTH, and three of Payyo's lines ran past it once their tags
+## were filled in: at the straw heap "...FORAGE, CARRY or WEATHER" (836px) and, on the protector
+## route, "...can WEATH" (649px); at Ang Bale "...CLIMB, UNLOCK or CUT" (657px). A node teaches
+## all three of its routes' tags before it asks, so the long line is on screen while the choice
+## is up and whenever the player steps away from it. Never measured until Piyesta's alley line
+## was seen trimmed.
+##
+## Each `.tags` line is measured in every state that shows it, which is how its level decides
+## it (game_level.gd _current_objective): Beat 0 sub-beat by sub-beat; the gorge only once a
+## route is chosen, each route and each stage of it; the straw heap and Ang Bale before the
+## choice as well. A `.tags` line with no entry here fails, so none arrives unmeasured.
+const OBJECTIVE_STATE := {
+	"b0_sub1": ["B0_HAGDAN", "sub_beats"],
+	"gorge": ["L1_N1", "routes"],
+	"straw": ["L1_N2", "open"],
+	"bale": ["L1_N3", "open"],
+}
+
+
+func _audit_objectives_fit() -> void:
+	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://config/level_01.json"))
+	var level_scene := (load("res://game_level.tscn") as PackedScene).instantiate() as Node2D
+	(level_scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level_scene)
+	for _frame in range(4):
+		await process_frame
+	var label := (level_scene.get("objective_banner") as Control).get("_label") as Label
+	var font := label.get_theme_font(&"font")
+	var font_size := label.get_theme_font_size(&"font_size")
+	var director = level_scene.get("director")
+	var committed: Dictionary = director.get("_committed")
+	var stages: Dictionary = director.get("_stage")
+	var readings: Array[String] = []
+	var table: Dictionary = data.get("objectives", {})
+	for key: String in table.keys():
+		if key.begins_with("$"):
+			continue
+		if not key.ends_with(".tags"):
+			readings.append(String(table[key]))
+			continue
+		var base := key.trim_suffix(".tags")
+		if not OBJECTIVE_STATE.has(base):
+			readings.append("%s: no state to read its tags in" % key)
+			continue
+		var obstacle_id := String(OBJECTIVE_STATE[base][0])
+		var obstacle: Dictionary = director.call("obstacle", obstacle_id)
+		var routes: Dictionary = obstacle.get("routes", {})
+		var states: Array = []
+		match String(OBJECTIVE_STATE[base][1]):
+			"sub_beats":
+				for index in range((obstacle.get("sub_beats", []) as Array).size()):
+					states.append(["", index])
+			"routes", "open":
+				if String(OBJECTIVE_STATE[base][1]) == "open":
+					states.append(["", 0])
+				for route: String in routes.keys():
+					states.append([route, 0])
+					if (routes[route] as Dictionary).has("then"):
+						states.append([route, 1])
+		for state: Array in states:
+			committed.erase(obstacle_id)
+			if not String(state[0]).is_empty():
+				committed[obstacle_id] = state[0]
+			stages[obstacle_id] = int(state[1])
+			var spec: Dictionary = director.call("requirement_spec", obstacle_id)
+			var needed: Array = spec.get("required_tags", [])
+			if needed.is_empty():
+				readings.append("%s %s: no tags in that state" % [key, state])
+				continue
+			readings.append(String(table[key]).replace("{tags}", String(level_scene.call(
+				"_objective_tags", needed, String(spec.get("match", "all"))))))
+		committed.erase(obstacle_id)
+		stages.erase(obstacle_id)
+	var cut: Array[String] = []
+	for line in readings:
+		# With its keys in, the way the banner writes it.
+		var shown := String(level_scene.call("with_keys", line))
+		var width := font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+		if width > ObjectiveBanner.MAX_WIDTH or line.contains(": no "):
+			cut.append("\"%s\" (%.0f px)" % [shown, width])
+	_check(font != null and not readings.is_empty() and cut.is_empty(),
+		"every objective fits its banner",
+		"%d readings, none wider than %.0f px" % [readings.size(), ObjectiveBanner.MAX_WIDTH]
+		if cut.is_empty() else "trimmed: " + ", ".join(cut))
+	level_scene.queue_free()
+	await process_frame
