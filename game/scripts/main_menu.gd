@@ -50,8 +50,8 @@ func _ready() -> void:
 	var menu_root := $MenuLayer/MenuRoot as Control
 	menu_root.add_child(_card)
 	menu_root.move_child(_card, 0)
-	settings_button.pressed.connect(_open_overlay.bind(^"SettingsOverlay"))
-	controls_button.pressed.connect(_open_overlay.bind(^"ControlsOverlay"))
+	settings_button.pressed.connect(_open_overlay.bind(&"SettingsOverlay"))
+	controls_button.pressed.connect(_open_overlay.bind(&"ControlsOverlay"))
 	quit_button.pressed.connect(_ask_quit)
 	for index in range(cards.size()):
 		var level_id := "level_%d" % (index + 1)
