@@ -87,6 +87,10 @@ const SWIM_ACCEL := 560.0
 ## A gentle rise with nothing held: the apo floats.
 const SWIM_FLOAT := -70.0
 const SURFACING_SPEED := -340.0
+## How far a swim stroke carries her: one kick cycle per this much water, at any heading.
+const SWIM_STROKE := 90.0
+## Treading water, the surface at her chest: how far the figure is drawn down from her feet.
+const TREAD_SINK := 30.0
 
 @onready var _figure: Node2D = $Figure
 
@@ -269,6 +273,13 @@ func _physics_process(delta: float) -> void:
 	_advance_stride(delta, velocity.x)
 
 
+## Which way she is steering a stroke, -1 up .. 1 down: what the head follows.
+func _swim_heading() -> float:
+	if Input.is_action_pressed(&"jump"):
+		return -1.0
+	return Input.get_axis(&"move_up", &"move_down")
+
+
 ## Along, up and down at a swimmer's pace; floating up when nothing is held; and straight up,
 ## whatever is held, while `surfacing`.
 func _swim(delta: float, direction: float) -> void:
@@ -298,9 +309,19 @@ func _advance_stride(delta: float, horizontal_speed: float) -> void:
 		else:
 			var stride_distance := RUN_STRIDE if next_pose == &"run" else WALK_STRIDE
 			_phase = fposmod(_phase + delta * absf(horizontal_speed) / stride_distance, 1.0)
+	elif next_pose == &"swim":
+		# The kick keeps time with the water covered either way: diving straight down is a stroke.
+		_phase = fposmod(_phase + delta * velocity.length() / SWIM_STROKE, 1.0)
 	_figure.scale.x = _facing
 	_figure.set(&"pose", next_pose)
 	_figure.set(&"stride", _phase)
+	# The head goes where she is steering, not where the water is moving her: afloat she bobs on
+	# the surface, and a tilt read off that bob tipped a swimmer on her head every few frames.
+	_figure.set(&"tilt", _swim_heading() if next_pose == &"swim" else 0.0)
+	# Afloat, the surface is at her chest: drawn down from the feet's point. Not where she can
+	# stand, and not sinking where she cannot swim -- she is going under then, not floating.
+	_figure.set(&"water_sink", TREAD_SINK if next_pose == &"tread" and can_swim \
+		and not is_on_floor() else 0.0)
 	_figure.set(&"carrying", _carrying)
 	_figure.call(&"refresh")
 
@@ -322,6 +343,16 @@ func _pose_for(horizontal_speed: float) -> StringName:
 	if not is_on_floor() and not is_in_water() and not _riding() and not _climbing():
 		return &"air"
 	var speed := absf(horizontal_speed)
+	# ⚠ IN DEEP WATER SHE SWIMS OR KEEPS AFLOAT; SHE DOES NOT WALK. Kent: "apo can walk in the
+	# water". The water is left out of the air test above, so it fell through to the speed check
+	# below: swimming the Dagat crossing she was drawn upright and striding along the surface,
+	# and sinking in Payyo's lake she walked on the way down. Stroking -- a direction held --
+	# is `swim`; anything else in the water is `tread`. Feet on a bottom she cannot swim off,
+	# a shallow wade, is still a walk.
+	if is_in_water() and not _riding() and (can_swim or not is_on_floor()):
+		var stroking := Input.get_axis(&"move_left", &"move_right") != 0.0 \
+			or Input.get_axis(&"move_up", &"move_down") != 0.0
+		return &"swim" if can_swim and stroking and not surfacing else &"tread"
 	# Riding is standing on something that is moving. The deck carries the player, so the
 	# hull's speed is not theirs and a walk cycle here is running on the spot.
 	if not _riding() and speed > 12.0:
