@@ -108,8 +108,103 @@ func _run() -> void:
 		level.queue_free()
 		await process_frame
 		paused = false
+	await _check_water()
 	print("LOCOMOTION_PROBE failures=%d" % _failures)
 	quit(0 if _failures == 0 else 1)
+
+
+## IN DEEP WATER SHE SWIMS OR KEEPS AFLOAT; SHE DOES NOT WALK. Kent: "apo can walk in the
+## water". The water was left out of the jump-pose test, so it fell through to the speed check:
+## swimming Dagat's crossing she was drawn upright and striding along the surface, and sinking in
+## Payyo's lake she walked on the way down. A real pool, a real WaterArea2D, real input.
+func _check_water() -> void:
+	var world := Node2D.new()
+	root.add_child(world)
+	_block(world, Vector2(700.0, 900.0), Vector2(2000.0, 40.0))
+	# A ledge under the water at the far end: a shallow wade, feet on a bottom.
+	_block(world, Vector2(1150.0, 380.0), Vector2(300.0, 40.0))
+	var pool := WaterArea2D.new()
+	pool.surface_size = Vector2(1200.0, 500.0)
+	pool.position = Vector2(700.0, 550.0)
+	var water_shape := CollisionShape2D.new()
+	var water_rect := RectangleShape2D.new()
+	water_rect.size = pool.surface_size
+	water_shape.shape = water_rect
+	pool.add_child(water_shape)
+	world.add_child(pool)
+	var player := PLAYER.instantiate() as Wanderer
+	player.position = Vector2(400.0, 330.0)
+	world.add_child(player)
+	var figure := player.get_node("Figure") as Node2D
+	var body := figure.get_node("Body") as Sprite2D
+	await _frames(6)
+	_expect(player.is_in_water(), "harness: the apo is in the pool")
+
+	# Payyo: she cannot swim. Going under with a direction held, she struggles -- not a walk.
+	Input.action_press(&"move_right")
+	await _frames(20)
+	_expect(not player.is_on_floor() and figure.get("pose") == &"tread",
+		"sinking where she cannot swim is not a walk (was %s)" % figure.get("pose"))
+	Input.action_release(&"move_right")
+
+	# Dagat: she can. A direction held is a stroke, laid flat, head first either way.
+	player.can_swim = true
+	player.global_position = Vector2(400.0, 330.0)
+	player.velocity = Vector2.ZERO
+	Input.action_press(&"move_right")
+	await _frames(20)
+	_expect(figure.get("pose") == &"swim" and absf(body.rotation) > 1.0 and figure.scale.x > 0.0,
+		"swimming right is a stroke, laid flat (pose %s, turned %.2f)" % [figure.get("pose"), body.rotation])
+	Input.action_release(&"move_right")
+	Input.action_press(&"move_left")
+	await _frames(20)
+	_expect(figure.get("pose") == &"swim" and figure.scale.x < 0.0,
+		"and swimming left is the same stroke, mirrored")
+	Input.action_release(&"move_left")
+	# Nothing held: afloat, upright, the surface at her chest rather than her ankles -- and AT
+	# the surface, not bobbing clear of it: rising until the water let go of her, she spent a frame
+	# in five entirely above the sea, drawn mid-jump.
+	var clear_of_it := 0
+	for _frame in range(90):
+		await physics_frame
+		if not player.is_in_water() or figure.get("pose") == &"air":
+			clear_of_it += 1
+	_expect(clear_of_it == 0, "afloat she stays in the water (%d of 90 frames out of it)" % clear_of_it)
+	_expect(figure.get("pose") == &"tread" and absf(body.rotation) < 0.01 and body.position.y > 0.0,
+		"afloat with nothing held she treads water, drawn down (pose %s, %.0f)" % [
+			figure.get("pose"), body.position.y])
+
+	# A shallow wade, feet on the ledge, where she cannot swim: that IS a walk.
+	player.can_swim = false
+	player.global_position = Vector2(1100.0, 355.0)
+	player.velocity = Vector2.ZERO
+	await _frames(10)
+	Input.action_press(&"move_right")
+	await _frames(10)
+	_expect(player.is_in_water() and player.is_on_floor()
+			and figure.get("pose") in [&"walk", &"run"],
+		"wading with her feet on the bottom is still a walk (pose %s)" % figure.get("pose"))
+	Input.action_release(&"move_right")
+	# Out of the water, the swimmer stands up: nothing laid flat on dry land.
+	player.global_position = Vector2(200.0, 860.0)
+	player.velocity = Vector2.ZERO
+	pool.queue_free()
+	await _frames(20)
+	_expect(not player.is_in_water() and absf(body.rotation) < 0.01 and body.position == Vector2.ZERO,
+		"out of the water she stands up again")
+	world.queue_free()
+	await process_frame
+
+
+func _block(world: Node2D, at: Vector2, size: Vector2) -> void:
+	var block := StaticBody2D.new()
+	var block_shape := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = size
+	block_shape.shape = rect
+	block.position = at
+	block.add_child(block_shape)
+	world.add_child(block)
 
 
 func _check_registration(figure: Node2D, body: Sprite2D) -> void:
