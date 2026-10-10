@@ -1,32 +1,11 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
-[ext_resource type="Texture2D" path="res://assets/Level1/bg_withclouds.png" id="2_sky"]
-[ext_resource type="Texture2D" path="res://assets/Level1/mountains_furthest_background.png" id="3_far"]
-[ext_resource type="Texture2D" path="res://assets/Level1/mountain_further_background.png" id="4_green"]
-[ext_resource type="Texture2D" path="res://assets/Level1/terraces_2.png" id="5_terraces"]
-[ext_resource type="Texture2D" path="res://assets/ui/obra_logo.png" id="7_logo"]
 [ext_resource type="Script" path="res://scripts/pixel_lock.gd" id="6_lock"]
-[ext_resource type="Script" path="res://scripts/ui_router.gd" id="99_ui_router"]
 [ext_resource type="PackedScene" path="res://ui/settings_overlay.tscn" id="96_settings"]
 [ext_resource type="PackedScene" path="res://ui/controls_overlay.tscn" id="97_controls"]
 [ext_resource type="PackedScene" path="res://ui/confirm_overlay.tscn" id="98_confirm"]
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_sky"]
-atlas = ExtResource("2_sky")
-region = Rect2(88, 58, 1712, 963)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_far"]
-atlas = ExtResource("3_far")
-region = Rect2(128, 295, 1656, 543)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_green"]
-atlas = ExtResource("4_green")
-region = Rect2(108, 300, 1690, 563)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_terraces"]
-atlas = ExtResource("5_terraces")
-region = Rect2(157, 204, 1560, 739)
+[ext_resource type="Script" path="res://scripts/ui_router.gd" id="99_ui_router"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_panel"]
 bg_color = Color(0.051, 0.063, 0.035, 0.96)
@@ -42,36 +21,6 @@ corner_radius_bottom_left = 2
 shadow_color = Color(0.133, 0.102, 0.047, 1)
 shadow_size = 4
 
-[sub_resource type="StyleBoxFlat" id="StyleBox_play"]
-bg_color = Color(0.855, 0.659, 0.239, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0.302, 0.306, 0.282, 1)
-shadow_color = Color(0.478, 0.333, 0.098, 1)
-shadow_size = 4
-shadow_offset = Vector2(0, 2)
-corner_radius_top_left = 2
-corner_radius_top_right = 2
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 2
-
-[sub_resource type="StyleBoxFlat" id="StyleBox_play_hover"]
-bg_color = Color(0.925, 0.769, 0.361, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0.302, 0.306, 0.282, 1)
-shadow_color = Color(0.478, 0.333, 0.098, 1)
-shadow_size = 4
-shadow_offset = Vector2(0, 2)
-corner_radius_top_left = 2
-corner_radius_top_right = 2
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 2
-
 [sub_resource type="StyleBoxFlat" id="StyleBox_card"]
 bg_color = Color(0.051, 0.063, 0.035, 1)
 border_width_left = 4
@@ -79,12 +28,12 @@ border_width_top = 4
 border_width_right = 4
 border_width_bottom = 4
 border_color = Color(0.859, 0.659, 0.208, 1)
-shadow_color = Color(0.133, 0.102, 0.047, 1)
-shadow_size = 4
 corner_radius_top_left = 2
 corner_radius_top_right = 2
 corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
+shadow_color = Color(0.133, 0.102, 0.047, 1)
+shadow_size = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_card_hover"]
 bg_color = Color(0.086, 0.094, 0.063, 1)
@@ -93,12 +42,12 @@ border_width_top = 4
 border_width_right = 4
 border_width_bottom = 4
 border_color = Color(0.945, 0.855, 0.616, 1)
-shadow_color = Color(0.133, 0.102, 0.047, 1)
-shadow_size = 4
 corner_radius_top_left = 2
 corner_radius_top_right = 2
 corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
+shadow_color = Color(0.133, 0.102, 0.047, 1)
+shadow_size = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_locked"]
 bg_color = Color(0.051, 0.063, 0.035, 0.96)
@@ -107,92 +56,20 @@ border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
 border_color = Color(0.227, 0.204, 0.157, 1)
-shadow_color = Color(0.027, 0.035, 0.024, 1)
-shadow_size = 2
 corner_radius_top_left = 2
 corner_radius_top_right = 2
 corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
+shadow_color = Color(0.027, 0.035, 0.024, 1)
+shadow_size = 2
 
-[node name="MainMenu" type="Node2D"]
+[node name="MainMenu" type="Node2D" unique_id=1694713237]
 script = ExtResource("1_menu")
 
-[node name="Backdrop" type="Control" parent="."]
-layout_mode = 0
-mouse_filter = 2
-
-[node name="Sky" type="TextureRect" parent="Backdrop"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-texture = SubResource("AtlasTexture_sky")
-expand_mode = 1
-stretch_mode = 6
-
-[node name="FarMountains" type="TextureRect" parent="Backdrop"]
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = -560.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_filter = 2
-texture = SubResource("AtlasTexture_far")
-expand_mode = 1
-stretch_mode = 6
-modulate = Color(0.85, 0.93, 1, 1)
-
-[node name="GreenMountains" type="TextureRect" parent="Backdrop"]
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = -620.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_filter = 2
-texture = SubResource("AtlasTexture_green")
-expand_mode = 1
-stretch_mode = 6
-modulate = Color(0.86, 0.95, 0.83, 1)
-
-[node name="Terraces" type="TextureRect" parent="Backdrop"]
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -28.0
-offset_top = -760.0
-offset_right = 28.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_filter = 2
-texture = SubResource("AtlasTexture_terraces")
-expand_mode = 1
-stretch_mode = 6
-
-[node name="Shade" type="ColorRect" parent="Backdrop"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-color = Color(0.027, 0.035, 0.024, 0.31)
-
-[node name="MenuLayer" type="CanvasLayer" parent="."]
+[node name="MenuLayer" type="CanvasLayer" parent="." unique_id=1623009381]
 layer = 10
 
-[node name="MenuRoot" type="Control" parent="MenuLayer"]
+[node name="MenuRoot" type="Control" parent="MenuLayer" unique_id=1223268209]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -200,31 +77,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Title" type="TextureRect" parent="MenuLayer/MenuRoot"]
-layout_mode = 0
-offset_left = 72.0
-offset_top = 34.0
-offset_right = 495.0
-offset_bottom = 259.0
-texture_filter = 1
-texture = ExtResource("7_logo")
-expand_mode = 1
-stretch_mode = 5
-
-[node name="Subtitle" type="Label" parent="MenuLayer/MenuRoot"]
-layout_mode = 0
-offset_left = 80.0
-offset_top = 272.0
-offset_right = 720.0
-offset_bottom = 314.0
-theme_override_colors/font_color = Color(0.91, 0.89, 0.769, 1)
-theme_override_colors/font_shadow_color = Color(0.027, 0.035, 0.024, 1)
-theme_override_constants/shadow_offset_x = 3
-theme_override_constants/shadow_offset_y = 3
-theme_override_font_sizes/font_size = 30
-text = "DRAW  ·  BECOME  ·  DISCOVER"
-
-[node name="SideButtons" type="HBoxContainer" parent="MenuLayer/MenuRoot"]
+[node name="SideButtons" type="HBoxContainer" parent="MenuLayer/MenuRoot" unique_id=1379745624]
 layout_mode = 1
 anchors_preset = 7
 anchor_left = 0.5
@@ -237,28 +90,28 @@ offset_right = 220.0
 offset_bottom = -30.0
 grow_horizontal = 2
 grow_vertical = 0
-alignment = 1
 theme_override_constants/separation = 10
+alignment = 1
 
-[node name="SettingsButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
+[node name="SettingsButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons" unique_id=391449148]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "SETTINGS"
 
-[node name="ControlsButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
+[node name="ControlsButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons" unique_id=1857538824]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "CONTROLS"
 
-[node name="QuitButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons"]
+[node name="QuitButton" type="Button" parent="MenuLayer/MenuRoot/SideButtons" unique_id=688278358]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 theme_type_variation = &"DialogButton"
 text = "QUIT"
 
-[node name="MorphPanel" type="PanelContainer" parent="MenuLayer/MenuRoot"]
+[node name="MorphPanel" type="PanelContainer" parent="MenuLayer/MenuRoot" unique_id=2146839275]
 layout_mode = 0
 offset_left = 630.0
 offset_top = 710.0
@@ -266,7 +119,7 @@ offset_right = 970.0
 offset_bottom = 794.0
 theme_override_styles/panel = SubResource("StyleBox_panel")
 
-[node name="PlayButton" type="Button" parent="MenuLayer/MenuRoot/MorphPanel"]
+[node name="PlayButton" type="Button" parent="MenuLayer/MenuRoot/MorphPanel" unique_id=839894302]
 layout_mode = 2
 focus_neighbor_top = NodePath(".")
 focus_neighbor_bottom = NodePath(".")
@@ -274,32 +127,32 @@ theme_type_variation = &"PrimaryButton"
 theme_override_font_sizes/font_size = 40
 text = "PLAY"
 
-[node name="Selector" type="Control" parent="MenuLayer/MenuRoot/MorphPanel"]
+[node name="Selector" type="Control" parent="MenuLayer/MenuRoot/MorphPanel" unique_id=1527549303]
 visible = false
 layout_mode = 2
 mouse_filter = 1
 
-[node name="SelectorTitle" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+[node name="SelectorTitle" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector" unique_id=273817483]
 layout_mode = 0
 offset_left = 32.0
 offset_top = 24.0
 offset_right = 900.0
 offset_bottom = 98.0
-theme_override_colors/font_color = Color(0.945, 0.855, 0.616, 1)
 theme_override_font_sizes/font_size = 40
+theme_override_colors/font_color = Color(0.945, 0.855, 0.616, 1)
 text = "CHOOSE A LEVEL"
 
-[node name="SelectorHint" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+[node name="SelectorHint" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector" unique_id=236864823]
 layout_mode = 0
 offset_left = 35.0
 offset_top = 86.0
 offset_right = 900.0
 offset_bottom = 120.0
-theme_override_colors/font_color = Color(0.471, 0.502, 0.353, 1)
 theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.471, 0.502, 0.353, 1)
 text = "ESC TO CLOSE  ·  ENTER TO TRAVEL"
 
-[node name="Level1" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+[node name="Level1" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector" unique_id=1713699891]
 clip_contents = true
 layout_mode = 0
 offset_left = 32.0
@@ -310,7 +163,7 @@ theme_override_styles/normal = SubResource("StyleBox_card")
 theme_override_styles/hover = SubResource("StyleBox_card_hover")
 theme_override_styles/focus = SubResource("StyleBox_card_hover")
 
-[node name="Thumbnail" type="TextureRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1"]
+[node name="Thumbnail" type="TextureRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1" unique_id=1181215978]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
@@ -323,7 +176,7 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 6
 
-[node name="Shade" type="ColorRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1"]
+[node name="Shade" type="ColorRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1" unique_id=89096004]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
@@ -335,42 +188,39 @@ grow_vertical = 0
 mouse_filter = 2
 color = Color(0.027, 0.035, 0.024, 0.91)
 
-[node name="Number" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1"]
+[node name="Number" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1" unique_id=1787510217]
 layout_mode = 0
 offset_left = 18.0
 offset_top = 160.0
 offset_right = 218.0
 offset_bottom = 182.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.859, 0.659, 0.208, 1)
 theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.859, 0.659, 0.208, 1)
 text = "LEVEL 1"
 
-[node name="Name" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1"]
+[node name="Name" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1" unique_id=1563052988]
 layout_mode = 0
 offset_left = 18.0
 offset_top = 186.0
 offset_right = 228.0
 offset_bottom = 248.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.91, 0.89, 0.769, 1)
 theme_override_font_sizes/font_size = 30
+theme_override_colors/font_color = Color(0.91, 0.89, 0.769, 1)
 text = "BANAUE RICE TERRACES"
 autowrap_mode = 3
 
-[node name="Theme" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1"]
+[node name="Theme" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level1" unique_id=1443525908]
 layout_mode = 0
 offset_left = 18.0
 offset_top = 252.0
 offset_right = 228.0
 offset_bottom = 336.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.471, 0.502, 0.353, 1)
 theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.471, 0.502, 0.353, 1)
 text = "MOUNTAIN RICE TERRACES AND IRRIGATION PADDIES"
 autowrap_mode = 3
 
-[node name="Level2" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+[node name="Level2" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector" unique_id=355253106]
 layout_mode = 0
 offset_left = 292.0
 offset_top = 136.0
@@ -378,7 +228,7 @@ offset_right = 538.0
 offset_bottom = 432.0
 theme_override_styles/disabled = SubResource("StyleBox_locked")
 
-[node name="Thumbnail" type="TextureRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+[node name="Thumbnail" type="TextureRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2" unique_id=958718139]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
@@ -391,7 +241,7 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 6
 
-[node name="Shade" type="ColorRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+[node name="Shade" type="ColorRect" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2" unique_id=51113754]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
@@ -403,50 +253,46 @@ grow_vertical = 0
 mouse_filter = 2
 color = Color(0.027, 0.035, 0.024, 0.91)
 
-[node name="Number" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+[node name="Number" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2" unique_id=659357220]
 layout_mode = 0
 offset_left = 18.0
 offset_top = 160.0
 offset_right = 218.0
 offset_bottom = 182.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.859, 0.659, 0.208, 1)
 theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.859, 0.659, 0.208, 1)
 text = "LEVEL 2"
 
-[node name="Name" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+[node name="Name" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2" unique_id=431533393]
 layout_mode = 0
 offset_left = 18.0
 offset_top = 186.0
 offset_right = 228.0
 offset_bottom = 248.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.91, 0.89, 0.769, 1)
 theme_override_font_sizes/font_size = 30
+theme_override_colors/font_color = Color(0.91, 0.89, 0.769, 1)
 text = "PIYESTA"
 autowrap_mode = 3
 
-[node name="Theme" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
+[node name="Theme" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2" unique_id=1303307580]
 layout_mode = 0
 offset_left = 18.0
 offset_top = 252.0
 offset_right = 228.0
 offset_bottom = 336.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.471, 0.502, 0.353, 1)
 theme_override_font_sizes/font_size = 20
-text = ""
+theme_override_colors/font_color = Color(0.471, 0.502, 0.353, 1)
 autowrap_mode = 3
 
-[node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2"]
-layout_mode = 0
+[node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level2" unique_id=921427796]
+anchors_preset = 0
 offset_left = 73.0
 offset_top = 66.0
 offset_right = 173.0
 offset_bottom = 166.0
 script = ExtResource("6_lock")
 
-[node name="Level3" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+[node name="Level3" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector" unique_id=1317925996]
 layout_mode = 0
 offset_left = 552.0
 offset_top = 118.0
@@ -454,15 +300,15 @@ offset_right = 798.0
 offset_bottom = 414.0
 theme_override_styles/disabled = SubResource("StyleBox_locked")
 
-[node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level3"]
-layout_mode = 0
+[node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level3" unique_id=47892631]
+anchors_preset = 0
 offset_left = 73.0
 offset_top = 66.0
 offset_right = 173.0
 offset_bottom = 166.0
 script = ExtResource("6_lock")
 
-[node name="Text" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level3"]
+[node name="Text" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level3" unique_id=950909667]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
@@ -471,13 +317,13 @@ anchor_bottom = 1.0
 offset_top = -92.0
 grow_horizontal = 2
 grow_vertical = 0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.4, 0.424, 0.353, 1)
 theme_override_font_sizes/font_size = 20
-text = "LEVEL 3\nCOMING SOON"
+theme_override_colors/font_color = Color(0.4, 0.424, 0.353, 1)
+text = "LEVEL 3
+COMING SOON"
 horizontal_alignment = 1
 
-[node name="Level4" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+[node name="Level4" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector" unique_id=1832840048]
 layout_mode = 0
 offset_left = 812.0
 offset_top = 100.0
@@ -485,15 +331,15 @@ offset_right = 1058.0
 offset_bottom = 396.0
 theme_override_styles/disabled = SubResource("StyleBox_locked")
 
-[node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level4"]
-layout_mode = 0
+[node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level4" unique_id=2104970747]
+anchors_preset = 0
 offset_left = 73.0
 offset_top = 66.0
 offset_right = 173.0
 offset_bottom = 166.0
 script = ExtResource("6_lock")
 
-[node name="Text" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level4"]
+[node name="Text" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level4" unique_id=1891003611]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
@@ -502,13 +348,13 @@ anchor_bottom = 1.0
 offset_top = -92.0
 grow_horizontal = 2
 grow_vertical = 0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.4, 0.424, 0.353, 1)
 theme_override_font_sizes/font_size = 20
-text = "LEVEL 4\nCOMING SOON"
+theme_override_colors/font_color = Color(0.4, 0.424, 0.353, 1)
+text = "LEVEL 4
+COMING SOON"
 horizontal_alignment = 1
 
-[node name="Level5" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector"]
+[node name="Level5" type="Button" parent="MenuLayer/MenuRoot/MorphPanel/Selector" unique_id=2031929445]
 layout_mode = 0
 offset_left = 1072.0
 offset_top = 82.0
@@ -516,15 +362,15 @@ offset_right = 1318.0
 offset_bottom = 378.0
 theme_override_styles/disabled = SubResource("StyleBox_locked")
 
-[node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level5"]
-layout_mode = 0
+[node name="Lock" type="Control" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level5" unique_id=1648252846]
+anchors_preset = 0
 offset_left = 73.0
 offset_top = 66.0
 offset_right = 173.0
 offset_bottom = 166.0
 script = ExtResource("6_lock")
 
-[node name="Text" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level5"]
+[node name="Text" type="Label" parent="MenuLayer/MenuRoot/MorphPanel/Selector/Level5" unique_id=346046770]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
@@ -533,18 +379,18 @@ anchor_bottom = 1.0
 offset_top = -92.0
 grow_horizontal = 2
 grow_vertical = 0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.4, 0.424, 0.353, 1)
 theme_override_font_sizes/font_size = 20
-text = "LEVEL 5\nCOMING SOON"
+theme_override_colors/font_color = Color(0.4, 0.424, 0.353, 1)
+text = "LEVEL 5
+COMING SOON"
 horizontal_alignment = 1
 
-[node name="SettingsOverlay" parent="." instance=ExtResource("96_settings")]
+[node name="SettingsOverlay" parent="." unique_id=1769316672 instance=ExtResource("96_settings")]
 
-[node name="ControlsOverlay" parent="." instance=ExtResource("97_controls")]
+[node name="ControlsOverlay" parent="." unique_id=2139465299 instance=ExtResource("97_controls")]
 
-[node name="ConfirmOverlay" parent="." instance=ExtResource("98_confirm")]
+[node name="ConfirmOverlay" parent="." unique_id=1569471092 instance=ExtResource("98_confirm")]
 
-[node name="UIRouter" type="Node" parent="."]
+[node name="UIRouter" type="Node" parent="." unique_id=512237226]
 script = ExtResource("99_ui_router")
-cancel_chain = [NodePath("../ConfirmOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("..")]
+cancel_chain = Array[NodePath]([NodePath("../ConfirmOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("..")])

@@ -2,42 +2,13 @@ extends Node2D
 
 const PANEL_SNAP := 8.0
 
-## THE TITLE SCREEN WEARS THE LAST PLACE THE APO WAS. Each level's backdrop is its own layered
-## art, back to front, with how far each layer drifts with the mouse. Payyo's is the scene's
-## own four layers (cropped and placed in main_menu.tscn); the others are full-frame layers
-## that are laid over the whole screen. A save that has entered no level shows Payyo, which
-## is where every game starts.
-const BACKDROPS := {
-	"level_2": [
-		["res://assets/Level2/bg_sky.png", -4.0],
-		["res://assets/Level2/bg_clouds.png", -8.0],
-		["res://assets/Level2/mg_church.png", -16.0],
-		["res://assets/Level2/fg_huts.png", -28.0],
-	],
-	"level_3": [
-		["res://assets/Level3/shore/sky.png", -4.0],
-		["res://assets/Level3/shore/mountains.png", -8.0],
-		["res://assets/Level3/shore/ocean.png", -14.0],
-		["res://assets/Level3/shore/sand.png", -20.0],
-		["res://assets/Level3/shore/palms_left.png", -30.0],
-		["res://assets/Level3/shore/palms_right.png", -30.0],
-	],
-}
-## The part of a level's layers that is actually painted, when that is less than the frame.
-## Piyesta's layers are 1920x1080 with the plaza in the middle and nothing round it, so laid
-## over the screen whole they left a grey border; all of them are cropped to the same box so
-## they still line up -- the church's width, from the top of the sky to the ground.
-const BACKDROP_REGIONS := {
-	"level_2": Rect2(190.0, 66.0, 1549.0, 870.0),
-}
-## How far past the screen edge a full-frame layer is laid, so drifting never shows its edge.
-const LAYER_BLEED := 36.0
+## THE HOME SCREEN IS THE TITLE CARD (title_card.gd): Kent's vista -- the apo looking out over
+## the place the game is set -- with the logo and "DRAW ◆ BECOME ◆ DISCOVER" over it, the same
+## card the loading screen shows, so loading fades onto this without the picture moving and
+## the PLAY button stands where the loading bar was. It replaces the backdrop that wore the
+## last level the apo was in (October 2026); that table is in git history if it comes back.
+const TITLE_CARD := preload("res://scripts/title_card.gd")
 
-@onready var backdrop: Control = $Backdrop
-@onready var sky: TextureRect = $Backdrop/Sky
-@onready var far_mountains: TextureRect = $Backdrop/FarMountains
-@onready var green_mountains: TextureRect = $Backdrop/GreenMountains
-@onready var terraces: TextureRect = $Backdrop/Terraces
 @onready var morph_panel: PanelContainer = $MenuLayer/MenuRoot/MorphPanel
 @onready var play_button: Button = $MenuLayer/MenuRoot/MorphPanel/PlayButton
 @onready var selector: Control = $MenuLayer/MenuRoot/MorphPanel/Selector
@@ -51,9 +22,8 @@ var new_game_button: Button
 ## Which question the shared confirm box is asking -- "quit" or "new_game" -- so one
 ## `confirmed` handler answers both and a cancelled one cannot fire the other later.
 var _pending_confirm := ""
-## The backdrop's moving layers: {node, base, factor}. Payyo's four, or the ones built for
-## another level's art.
-var _layers: Array[Dictionary] = []
+## The vista, the logo and the tagline, behind the buttons.
+var _card: Control
 @onready var cards: Array[Button] = [
 	$MenuLayer/MenuRoot/MorphPanel/Selector/Level1,
 	$MenuLayer/MenuRoot/MorphPanel/Selector/Level2,
@@ -65,8 +35,6 @@ var _layers: Array[Dictionary] = []
 var _selector_open := false
 var _animating := false
 var _panel_tween: Tween
-var _parallax_target := Vector2.ZERO
-var _backdrop_bases_ready := false
 
 
 func _ready() -> void:
@@ -76,7 +44,12 @@ func _ready() -> void:
 	_build_new_game_button()
 	_refresh_start_buttons()
 	play_button.pressed.connect(_on_play_pressed)
-	_apply_backdrop(PlayerProfile.last_level())
+	_card = TITLE_CARD.new()
+	_card.name = "TitleCard"
+	_card.set("drifts", true)
+	var menu_root := $MenuLayer/MenuRoot as Control
+	menu_root.add_child(_card)
+	menu_root.move_child(_card, 0)
 	settings_button.pressed.connect(_open_overlay.bind(^"SettingsOverlay"))
 	controls_button.pressed.connect(_open_overlay.bind(^"ControlsOverlay"))
 	quit_button.pressed.connect(_ask_quit)
@@ -88,26 +61,10 @@ func _ready() -> void:
 	play_button.visible = true
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
 	_apply_current_layout()
-	_capture_backdrop_bases.call_deferred()
 	if LevelManager.consume_selector_request():
 		_show_selector.call_deferred()
 	else:
 		play_button.grab_focus()
-
-
-func _process(delta: float) -> void:
-	var viewport_size := get_viewport_rect().size
-	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		return
-	if not _backdrop_bases_ready:
-		return
-	var mouse_offset := get_viewport().get_mouse_position() - viewport_size * 0.5
-	_parallax_target = mouse_offset / viewport_size
-	var weight := 1.0 - exp(-4.0 * delta)
-	for layer in _layers:
-		var node := layer["node"] as Control
-		node.position = node.position.lerp(
-			Vector2(layer["base"]) + _parallax_target * float(layer["factor"]), weight)
 
 
 ## The shared overlays are siblings of this node, instanced into the menu scene.
@@ -320,67 +277,13 @@ func _write_card_text(card: Button, number: int, entry: Dictionary, playable: bo
 
 
 func _apply_current_layout() -> void:
-	var viewport_size := get_viewport_rect().size
-	if viewport_size.x > 0.0 and viewport_size.y > 0.0:
-		backdrop.position = Vector2.ZERO
-		backdrop.size = viewport_size
 	_set_panel_rect(_selector_panel_rect() if _selector_open else _play_panel_rect())
 	if _selector_open:
 		_layout_cards()
 
 
 func _on_viewport_size_changed() -> void:
-	_backdrop_bases_ready = false
 	_apply_current_layout()
-	_capture_backdrop_bases.call_deferred()
-
-
-func _capture_backdrop_bases() -> void:
-	for layer in _layers:
-		layer["base"] = (layer["node"] as Control).position
-	_backdrop_bases_ready = true
-
-
-## Paint the backdrop for `level_id`: Payyo's own layers, or another level's art laid over
-## the whole screen in their place.
-func _apply_backdrop(level_id: String) -> void:
-	_layers.clear()
-	var payyo: Array[Control] = [sky, far_mountains, green_mountains, terraces]
-	var art: Array = BACKDROPS.get(level_id, [])
-	for node in payyo:
-		node.visible = art.is_empty()
-	if art.is_empty():
-		var factors := [-4.0, -10.0, -18.0, -28.0]
-		for index in range(payyo.size()):
-			_layers.append({"node": payyo[index], "base": payyo[index].position,
-				"factor": factors[index]})
-		return
-	var shade := backdrop.get_node_or_null(^"Shade")
-	for entry_value: Variant in art:
-		var entry: Array = entry_value
-		var texture := load(String(entry[0])) as Texture2D
-		if texture == null:
-			continue
-		if BACKDROP_REGIONS.has(level_id):
-			var cropped := AtlasTexture.new()
-			cropped.atlas = texture
-			cropped.region = BACKDROP_REGIONS[level_id]
-			texture = cropped
-		var layer := TextureRect.new()
-		layer.name = String(entry[0]).get_file().get_basename().capitalize().replace(" ", "")
-		layer.texture = texture
-		layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		layer.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		layer.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		layer.offset_left = -LAYER_BLEED
-		layer.offset_right = LAYER_BLEED
-		layer.offset_top = -LAYER_BLEED
-		layer.offset_bottom = LAYER_BLEED
-		backdrop.add_child(layer)
-		if shade != null:
-			backdrop.move_child(layer, shade.get_index())
-		_layers.append({"node": layer, "base": layer.position, "factor": float(entry[1])})
 
 
 ## NEW GAME and CONTINUE. With nothing saved the big button is NEW GAME and there is nothing
@@ -388,7 +291,7 @@ func _apply_backdrop(level_id: String) -> void:
 ## NEW GAME moves to the row underneath, behind a confirmation.
 func _refresh_start_buttons() -> void:
 	var saved: bool = PlayerProfile.has_progress()
-	# Just the word. The backdrop already shows where Continue goes.
+	# Just the word: Continue goes back to the house, which is where it always goes.
 	play_button.text = "CONTINUE" if saved else "NEW GAME"
 	new_game_button.visible = saved
 
