@@ -47,7 +47,20 @@ const POSES := {
 	&"wave": {"texture": WAVE, "count": 1, "cycle": false, "frame": 0},
 	&"cheer": {"texture": CHEER, "count": 1, "cycle": false, "frame": 0},
 	&"climb": {"texture": TURNAROUND, "count": 5, "cycle": false, "frame": 4},
+	# THE WATER HAS ITS OWN TWO. There is no swimming drawing on the sheet, so `swim` lays the
+	# run cycle flat -- the reaching arm and the alternating legs read as a stroke and a kick --
+	# and `tread` is the arms-out jump frame, upright: keeping afloat, or failing to.
+	&"swim": {"texture": LOCOMOTION, "count": 6, "cycle": true, "frame": 0},
+	&"tread": {"texture": JUMP, "count": 1, "cycle": false, "frame": 0},
 }
+## Laid flat to swim: head first, the body's length centred over the feet's point, and its line
+## a little above it -- the apo floats with her feet just under the surface, so this puts the
+## swimmer ON the waterline rather than standing on it.
+const SWIM_OFFSET := Vector2(-43.0, -22.0)
+## How far a swimmer's head dips or lifts with the stroke's direction, steering fully down or up.
+const SWIM_MAX_TILT := 0.5
+## The run cycle leans into its stride, so laid flat it swam head-down; this takes the lean out.
+const SWIM_LEAN := 0.3
 
 ## Which pose to draw. Set by Wanderer every physics frame; an unknown name falls back to
 ## idle rather than leaving the character mid-stride forever.
@@ -60,6 +73,11 @@ const POSES := {
 ## screen in the character's hand; the stand-in silhouette this file used to draw beside
 ## it was a second copy of the same axe.
 @export var carrying: String = ""
+## Swimming only: -1 rising .. 1 diving. The head leads the way the stroke is going.
+@export var tilt: float = 0.0
+## Treading water only: how far the figure is drawn down from the feet's point, so the surface
+## is at her chest rather than her ankles. Set by Wanderer; 0 anywhere she can stand.
+@export var water_sink: float = 0.0
 
 var _sprite: Sprite2D
 var _underwater_material: ShaderMaterial
@@ -130,8 +148,16 @@ func refresh() -> void:
 	_sprite.texture = texture
 	_sprite.region_enabled = bool(entry["cycle"])
 	_sprite.position = Vector2.ZERO
+	_sprite.rotation = 0.0
+	if pose == &"swim":
+		# A quarter turn clockwise puts the head forward; the parent's mirror then carries it
+		# to whichever side she faces, and a tilt the same sign as the dive dips the head.
+		_sprite.rotation = PI * 0.5 - SWIM_LEAN + clampf(tilt, -1.0, 1.0) * SWIM_MAX_TILT
+		_sprite.position = SWIM_OFFSET
+	elif pose == &"tread":
+		_sprite.position = Vector2(0.0, water_sink)
 	if bool(entry["cycle"]):
-		var running := pose == &"run"
+		var running := pose == &"run" or pose == &"swim"
 		var top := 382.0 if running else 0.0
 		var height := 342.0 if running else 382.0
 		_sprite.region_rect = Rect2(float(ATLAS_COLUMNS[frame]), top,
