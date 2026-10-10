@@ -772,6 +772,14 @@ func _test_level_framework() -> void:
 	root.add_child(menu)
 	await process_frame
 	_expect(not bool(menu.call("is_selector_open")), "menu did not start in Play state")
+	# Kent: "the buttons in the menu/home should not be edgy". Rounded on the home screen only;
+	# the theme's square pixel boxes stay everywhere else.
+	for button_path in ["MenuLayer/MenuRoot/MorphPanel/PlayButton", "MenuLayer/MenuRoot/SideButtons/SettingsButton",
+			"MenuLayer/MenuRoot/SideButtons/QuitButton"]:
+		var home_button := menu.get_node(button_path) as Button
+		var home_style := home_button.get_theme_stylebox(&"normal") as StyleBoxFlat
+		_expect(home_style != null and home_style.corner_radius_top_left >= 8,
+			"the home screen's %s has square corners" % button_path.get_file())
 	menu.call("_show_selector")
 	await create_timer(0.7).timeout
 	_expect(bool(menu.call("is_selector_open")), "Play did not expand into the level selector")

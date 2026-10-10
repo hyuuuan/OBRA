@@ -9,6 +9,13 @@ const PANEL_SNAP := 8.0
 ## last level the apo was in (October 2026); that table is in git history if it comes back.
 const TITLE_CARD := preload("res://scripts/title_card.gd")
 
+## THE HOME SCREEN'S BUTTONS ARE ROUNDED. Kent: "the buttons in the menu/home should not be
+## edgy, make them use smooth rounded edges". The theme's buttons are the game's square pixel
+## boxes, and stay so in the levels; here each one's own style is copied and rounded, so the
+## theme is left alone. The panel round PLAY is rounded by as much more as it is wider.
+const CORNER := 14
+const BUTTON_STYLES: Array[StringName] = [&"normal", &"hover", &"pressed", &"focus", &"disabled"]
+
 @onready var morph_panel: PanelContainer = $MenuLayer/MenuRoot/MorphPanel
 @onready var play_button: Button = $MenuLayer/MenuRoot/MorphPanel/PlayButton
 @onready var selector: Control = $MenuLayer/MenuRoot/MorphPanel/Selector
@@ -43,6 +50,9 @@ func _ready() -> void:
 	# painting of one, which is the whole reason the house exists.
 	_build_new_game_button()
 	_refresh_start_buttons()
+	for button: Button in [play_button, new_game_button, settings_button, controls_button, quit_button]:
+		_round(button, BUTTON_STYLES, CORNER)
+	_round(morph_panel, [&"panel"], CORNER + 4)
 	play_button.pressed.connect(_on_play_pressed)
 	_card = TITLE_CARD.new()
 	_card.name = "TitleCard"
@@ -65,6 +75,18 @@ func _ready() -> void:
 		_show_selector.call_deferred()
 	else:
 		play_button.grab_focus()
+
+
+func _round(control: Control, styles: Array[StringName], radius: int) -> void:
+	for style_name in styles:
+		var style := control.get_theme_stylebox(style_name) as StyleBoxFlat
+		if style == null:
+			continue
+		var rounded := style.duplicate() as StyleBoxFlat
+		rounded.set_corner_radius_all(radius)
+		rounded.corner_detail = 12
+		rounded.anti_aliasing = true
+		control.add_theme_stylebox_override(style_name, rounded)
 
 
 ## The shared overlays are siblings of this node, instanced into the menu scene.
