@@ -18,6 +18,7 @@ extends SceneTree
 ##   Lolo's line steps back while a card is up, and comes back after
 ##   a lesson only in its moment
 ##   with nobody at the keys, nothing waits for a key
+##   it comes and goes smoothly: round corners, an eased fade, a rise in and a sink out
 
 var level: Node2D
 var tutorial: TutorialDirector
@@ -77,6 +78,7 @@ func _run() -> void:
 	await _audit_the_bar_clears_the_letterbox()
 	await _audit_the_first_checkpoint_explains_itself()
 	await _audit_nobody_at_the_keys()
+	await _audit_it_comes_and_goes_smoothly()
 
 	print("OBRA_TUTORIAL_POPUP_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
@@ -434,3 +436,41 @@ func _audit_nobody_at_the_keys() -> void:
 		"paused %s" % paused)
 	await _wait(TutorialSpotlight.AUTO_SEC + TutorialSpotlight.CLOSE_SEC + 0.3)
 	_check(not spot.is_busy(), "and goes by itself", "up '%s'" % spot.lesson_id())
+
+
+## SMOOTH, LIKE THE HOME SCREEN'S BUTTONS. Kent: "lets make the tutorials smooth like the
+## buttons, dimming of bg, and like the smoothness of animations". Stepped by hand -- the
+## spotlight's own clock driven with chosen deltas -- because what is held is the curve, not
+## whatever the frame rate happens to be.
+func _audit_it_comes_and_goes_smoothly() -> void:
+	await _fresh()
+	_auto(true)
+	var card := spot.get_node("Spotlight/CardHolder/LessonCard") as PanelContainer
+	var frame := card.get_theme_stylebox(&"panel") as StyleBoxFlat
+	_check(frame != null and frame.corner_radius_top_left >= 8 and frame.anti_aliasing,
+		"the card's corners are round", "radius %d" % (frame.corner_radius_top_left if frame != null else -1))
+	_show("ink")
+	spot.set_process(false)
+	var holder := spot.get_node("Spotlight/CardHolder") as Control
+	var shown := spot.get_node("Spotlight") as Control
+	# The first frame up is the one that compiles the dim's shader, and it comes in late.
+	spot._process(0.5)
+	_check(shown.modulate.a < 0.01 and holder.scale.x < 0.95,
+		"a slow first frame does not skip the way in", "alpha %.2f, scale %.2f" % [shown.modulate.a, holder.scale.x])
+	spot._process(TutorialSpotlight.FADE_SEC * 0.25)
+	var quarter := shown.modulate.a
+	spot._process(TutorialSpotlight.FADE_SEC * 0.25)
+	var half := shown.modulate.a
+	# Eased out: a quarter of the way through it is well past a quarter of the way in.
+	_check(quarter > 0.4 and half > quarter and half < 1.0,
+		"it fades in on an ease, not a line", "%.2f at a quarter, %.2f at half" % [quarter, half])
+	spot._process(TutorialSpotlight.POP_SEC)
+	_check(shown.modulate.a > 0.99 and absf(holder.scale.x - 1.0) < 0.01, "and comes to rest full size",
+		"alpha %.2f, scale %.3f" % [shown.modulate.a, holder.scale.x])
+	spot.finish("seen")
+	spot._process(TutorialSpotlight.CLOSE_SEC * 0.5)
+	_check(shown.modulate.a > 0.1 and shown.modulate.a < 0.9 and holder.scale.x < 0.995,
+		"it fades and sinks on the way out", "alpha %.2f, scale %.3f" % [shown.modulate.a, holder.scale.x])
+	spot.set_process(true)
+	while spot.is_busy():
+		await process_frame
