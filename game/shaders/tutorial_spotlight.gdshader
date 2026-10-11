@@ -12,8 +12,8 @@ shader_type canvas_item;
 uniform vec2 rect_size = vec2(1600.0, 900.0);
 // x, y, width, height of the lit box. A zero size dims the whole screen.
 uniform vec4 hole = vec4(0.0);
-uniform float radius = 18.0;
-uniform float feather = 26.0;
+uniform float radius = 22.0;
+uniform float feather = 34.0;
 uniform float dim : hint_range(0.0, 1.0) = 0.62;
 uniform vec4 shade : source_color = vec4(0.02, 0.03, 0.02, 1.0);
 uniform vec4 ring_color : source_color = vec4(0.859, 0.659, 0.208, 1.0);
