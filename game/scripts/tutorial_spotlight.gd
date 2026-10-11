@@ -109,6 +109,10 @@ var _avoid := Callable()
 ## When the card last went to the other of its two places, and where it is going.
 var _moved_at := -10.0
 var _card_goal := Vector2.ZERO
+## ⚠ THE FIRST FRAME AFTER A CARD GOES UP IS NOT COUNTED. It is the frame that first draws the
+## dim, and its shader compiles then: that frame's delta came in at a seventh of a second and
+## the fade began most of the way in -- a card that popped rather than rose.
+var _first_frame := false
 
 var _root: Control
 var _dim: ColorRect
@@ -203,6 +207,7 @@ func present(lesson: Dictionary, target: Callable, avoid: Callable = Callable())
 	_avoid = avoid
 	_moved_at = -10.0
 	_age = 0.0
+	_first_frame = true
 	_closing = -1.0
 	_lost_for = 0.0
 	_auto = _nobody_at_the_keys()
@@ -306,6 +311,9 @@ func finish(how: String) -> void:
 func _process(delta: float) -> void:
 	if not _open:
 		return
+	if _first_frame:
+		_first_frame = false
+		delta = 0.0
 	_age += delta
 	if _closing >= 0.0:
 		_closing += delta
