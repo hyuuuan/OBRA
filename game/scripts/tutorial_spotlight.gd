@@ -72,6 +72,9 @@ const CAPTION_FONT := 26
 const MOVE_AFTER_SEC := 0.6
 ## How quickly it slides to the other place, per second.
 const SLIDE_RATE := 14.0
+## Round-cornered, like the home screen's buttons. Kent: "lets make the tutorials smooth like
+## the buttons".
+const CARD_RADIUS := 16
 
 ## Read by UIRouter.refresh_pause through the modal_overlays group: true only while a
 ## `look` lesson is up and somebody is there to dismiss it.
@@ -150,7 +153,7 @@ func _build() -> void:
 	_card = PanelContainer.new()
 	_card.name = "LessonCard"
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_card.add_theme_stylebox_override(&"panel", UISkin.frame(18.0, 12.0))
+	_card.add_theme_stylebox_override(&"panel", UISkin.rounded(UISkin.frame(18.0, 12.0), CARD_RADIUS))
 	_root.add_child(_card)
 
 	var column := VBoxContainer.new()
