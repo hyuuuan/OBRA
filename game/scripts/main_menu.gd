@@ -127,14 +127,9 @@ func _ready() -> void:
 
 func _round(control: Control, styles: Array[StringName], radius: int) -> void:
 	for style_name in styles:
-		var style := control.get_theme_stylebox(style_name) as StyleBoxFlat
-		if style == null:
-			continue
-		var rounded := style.duplicate() as StyleBoxFlat
-		rounded.set_corner_radius_all(radius)
-		rounded.corner_detail = 12
-		rounded.anti_aliasing = true
-		control.add_theme_stylebox_override(style_name, rounded)
+		var style := control.get_theme_stylebox(style_name)
+		if style is StyleBoxFlat:
+			control.add_theme_stylebox_override(style_name, UISkin.rounded(style, radius))
 
 
 ## The shared overlays are siblings of this node, instanced into the menu scene.
