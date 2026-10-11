@@ -246,11 +246,17 @@ func _own_level_id() -> String:
 
 ## Anything a checkpoint must carry that is the LEVEL's rather than the machine's. Payyo
 ## needs none of this -- its state is all pickups and obstacles, which the generic snapshot
-## already holds. Piyesta rides its scrap ledger here: five of seven pieces are recovered
+## holds (the pickups as "taken"). Piyesta rides its scrap ledger here: five of seven pieces are recovered
 ## in one alley and claimed in the next, so a death between the two must not un-recover
 ## them, and must not spawn them a second time either.
 func _level_run_state() -> Dictionary:
 	return {}
+
+
+## The level's rooms decided what to hold when it was built, before a Continue said what had
+## been taken: anything that shows a pickup asks again here. Nothing, in the base.
+func _show_taken_pickups() -> void:
+	pass
 
 
 func _restore_level_run_state(_state: Dictionary) -> void:
@@ -1487,6 +1493,7 @@ func _write_checkpoint(checkpoint_id: String) -> void:
 		"obstacles": director.obstacle_state(),
 		"placed": _placed_entity_records(),
 		"bag_paid": _paid_in_bag(),
+		"taken": _taken_this_run.duplicate(),
 		"level": _level_run_state(),
 	})
 	_save_checkpoint_to_disk(checkpoint_id)
@@ -1738,6 +1745,13 @@ func _restore_checkpoint() -> String:
 
 	_restore_placed_entities(state.get("placed", []))
 	_restore_level_run_state(state.get("level", {}))
+	# ⚠ WHAT WAS TAKEN ON THIS RUN STAYS TAKEN. Pickups are guarded per run on purpose -- a
+	# replay finds them again -- and the run was not in the checkpoint, so continuing after the
+	# brass key put it back on its nail, to be walked into and announced a second time. Only
+	# ever added to: a fall in the same sitting keeps anything taken since, as it always did.
+	for id_value: Variant in (state.get("taken", {}) as Dictionary):
+		_taken_this_run[String(id_value)] = true
+	_show_taken_pickups()
 
 	var landing := Vector2(state.get("position", spawn_point.global_position))
 	if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):

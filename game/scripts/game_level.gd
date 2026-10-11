@@ -288,6 +288,20 @@ func _on_straw_key_taken() -> void:
 	_take_the_bale_key("off_the_nail")
 
 
+## Continue, after the key or the painting or the flower: each was put out when the level was
+## built, before the checkpoint said it had already been taken. The flower is only asked when
+## it was taken -- asking resets whether the cave has shown it.
+func _show_taken_pickups() -> void:
+	var straw := get_tree().get_first_node_in_group(&"straw_rooms")
+	if straw != null and pickup_taken_this_run(FOUND_KEY) and straw.has_method("mark_key_taken"):
+		straw.call("mark_key_taken")
+	var bale := get_tree().get_first_node_in_group(&"bale_interiors")
+	if bale != null and bale.has_method("refresh_from_profile"):
+		bale.call("refresh_from_profile")
+	if hidden_flower != null and pickup_taken_this_run(hidden_flower.collectible_id):
+		hidden_flower.refresh_for_run()
+
+
 ## The brass key, however it was come by: off the nail inside the heap, or out of the wreck
 ## of one. StrawRoom2D writes the profile itself when the nail is reached, so this is
 ## idempotent on purpose -- it is the telemetry and the hint that must not fire twice, and

@@ -99,6 +99,7 @@ func _run() -> void:
 	await _boat_player_resumes()
 	await _diver_resumes_as_their_shape()
 	await _ink_for_what_is_lost_comes_back()
+	await _a_key_taken_stays_taken()
 	print("OBRA_RESUME_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(failures)
 
@@ -248,6 +249,32 @@ func _ink_for_what_is_lost_comes_back() -> void:
 	_check(is_equal_approx(spent_before - spent_after, 2.0),
 		"coming back, the two units of what is gone are given back",
 		"spent %.1f before leaving, %.1f after" % [spent_before, spent_after])
+	level.call("_forget_saved_checkpoint")
+	level.queue_free()
+	await _wait(0.4)
+
+
+## AND WHAT WAS TAKEN STAYS TAKEN. Pickups are guarded per run, and the run was not in the
+## checkpoint: continuing after the brass key put it back on its nail, to be walked into and
+## announced again.
+func _a_key_taken_stays_taken() -> void:
+	print("\n===== LEVEL_1, THE KEY ALREADY TAKEN =====")
+	var spec := {"level": "level_1", "scene": "res://game_level.tscn"}
+	var level := _open(spec)
+	level.call("_forget_saved_checkpoint")
+	await _settle(1.0)
+	level.call("_take_the_bale_key", "off_the_nail")
+	level.call("_write_checkpoint", "CP_KEY")
+	level.queue_free()
+	await _wait(0.4)
+
+	level = _open(spec)
+	await _settle(2.0)
+	var taken := bool(level.call("pickup_taken_this_run", "L1_bale_key"))
+	var straw := get_first_node_in_group(&"straw_rooms")
+	var off_the_nail := straw != null and bool(straw.call("key_is_taken"))
+	_check(taken and off_the_nail, "coming back, the key taken is not on its nail again",
+		"taken this run %s, off the nail %s" % [taken, off_the_nail])
 	level.call("_forget_saved_checkpoint")
 	level.queue_free()
 	await _wait(0.4)
