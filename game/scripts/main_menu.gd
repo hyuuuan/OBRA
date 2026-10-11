@@ -51,12 +51,10 @@ const LAYER_BLEED := 36.0
 ## Over a level's art, so the logo and the buttons read on it. The vista needs none.
 const BACKDROP_SHADE := Color(0.027, 0.035, 0.024, 0.31)
 
-## THE HOME SCREEN'S BUTTONS ARE ROUNDED. Kent: "the buttons in the menu/home should not be
-## edgy, make them use smooth rounded edges". The theme's buttons are the game's square pixel
-## boxes, and stay so in the levels; here each one's own style is copied and rounded, so the
-## theme is left alone. The panel round PLAY is rounded by as much more as it is wider.
-const CORNER := 14
-const BUTTON_STYLES: Array[StringName] = [&"normal", &"hover", &"pressed", &"focus", &"disabled"]
+## THE PANEL ROUND PLAY IS ROUNDED TO MATCH IT, by as much more as it is wider. The buttons
+## are round everywhere now, from the theme (UISkin.BUTTON_RADIUS); a panel is not, so this
+## one is rounded here.
+const PANEL_CORNER := UISkin.BUTTON_RADIUS + 4
 
 @onready var morph_panel: PanelContainer = $MenuLayer/MenuRoot/MorphPanel
 @onready var play_button: Button = $MenuLayer/MenuRoot/MorphPanel/PlayButton
@@ -97,9 +95,8 @@ func _ready() -> void:
 	# painting of one, which is the whole reason the house exists.
 	_build_new_game_button()
 	_refresh_start_buttons()
-	for button: Button in [play_button, new_game_button, settings_button, controls_button, quit_button]:
-		_round(button, BUTTON_STYLES, CORNER)
-	_round(morph_panel, [&"panel"], CORNER + 4)
+	morph_panel.add_theme_stylebox_override(&"panel",
+		UISkin.rounded(morph_panel.get_theme_stylebox(&"panel"), PANEL_CORNER))
 	play_button.pressed.connect(_on_play_pressed)
 	_card = TITLE_CARD.new()
 	_card.name = "TitleCard"
@@ -123,13 +120,6 @@ func _ready() -> void:
 		_show_selector.call_deferred()
 	else:
 		play_button.grab_focus()
-
-
-func _round(control: Control, styles: Array[StringName], radius: int) -> void:
-	for style_name in styles:
-		var style := control.get_theme_stylebox(style_name)
-		if style is StyleBoxFlat:
-			control.add_theme_stylebox_override(style_name, UISkin.rounded(style, radius))
 
 
 ## The shared overlays are siblings of this node, instanced into the menu scene.
