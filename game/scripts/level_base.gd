@@ -1486,6 +1486,7 @@ func _write_checkpoint(checkpoint_id: String) -> void:
 		"toolbelt": PlayerProfile.acquired_objects(),
 		"obstacles": director.obstacle_state(),
 		"placed": _placed_entity_records(),
+		"bag_paid": _paid_in_bag(),
 		"level": _level_run_state(),
 	})
 	_save_checkpoint_to_disk(checkpoint_id)
@@ -1506,8 +1507,27 @@ func _placed_entity_records() -> Array:
 			"entity_id": prop.item_data.entity_id,
 			"instance_id": prop.get_instance_id(),
 			"transform": prop.global_transform,
+			"paid": _paid_for(prop.item_data),
 		})
 	return records
+
+
+## The ink a drawing has already cost: a placeable is paid for the first time it is set down,
+## and stays paid -- in the world, or taken back into the bag. A tool is paid for once, when it
+## is first drawn, and stays the player's whatever happens to the drawing.
+func _paid_for(item: DrawnItemData) -> float:
+	if item == null or not item.placement_paid or registry == null:
+		return 0.0
+	return 0.0 if is_a_tool(registry.get_entity(item.entity_id)) else InkManager.UNIT
+
+
+func _paid_in_bag() -> float:
+	var units := 0.0
+	if inventory_manager == null:
+		return units
+	for value: Variant in inventory_manager.items():
+		units += _paid_for(value as DrawnItemData)
+	return units
 
 
 # --- Checkpoints that outlive leaving the level ---------------------------------------
@@ -1622,6 +1642,7 @@ func _resume_saved_checkpoint() -> bool:
 	checkpoints.write(String(saved.get("id", "CP")), _from_disk(saved["state"]) as Dictionary)
 	if _restore_checkpoint().is_empty():
 		return false
+	_give_back_what_cannot_come_back(saved["state"] as Dictionary)
 	var obstacles: Dictionary = (saved["state"] as Dictionary).get("obstacles", {})
 	_resume_routes(obstacles.get("committed", {}) as Dictionary,
 		obstacles.get("solved", {}) as Dictionary)
@@ -1632,6 +1653,22 @@ func _resume_saved_checkpoint() -> bool:
 	if world_camera != null:
 		world_camera.snap_to_target()
 	return true
+
+
+## ⚠ WHAT CANNOT COME BACK GIVES BACK ITS INK. A snapshot keeps where each placed drawing
+## stood, not the drawing -- so a level entered fresh has none of them, and its bag starts
+## empty, as every level's does. The ink they had cost stayed spent: a player who continued
+## had fewer units and nothing to show for them. Only on Continue; a fall in the same sitting
+## still has every one of them, in the world or in the bag.
+func _give_back_what_cannot_come_back(state: Dictionary) -> void:
+	var owed := float(state.get("bag_paid", 0.0))
+	for value: Variant in state.get("placed", []):
+		if value is Dictionary:
+			owed += float((value as Dictionary).get("paid", 0.0))
+	if owed <= 0.0:
+		return
+	ink_manager.committed = maxf(0.0, ink_manager.committed - owed)
+	_on_ink_changed(ink_manager.remaining(), ink_manager.capacity, ink_manager.reserved)
 
 
 ## Answer again, without a word, every fork the snapshot says was answered: the fork stops

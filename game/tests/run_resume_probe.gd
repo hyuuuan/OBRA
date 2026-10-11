@@ -98,6 +98,7 @@ func _run() -> void:
 
 	await _boat_player_resumes()
 	await _diver_resumes_as_their_shape()
+	await _ink_for_what_is_lost_comes_back()
 	print("OBRA_RESUME_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(failures)
 
@@ -199,6 +200,54 @@ func _diver_resumes_as_their_shape() -> void:
 	_check(form == "fish" and absf(anchor.x - CP3B_X) < 120.0,
 		"coming back, they are the fish again, at the clam",
 		"as '%s' at %s" % [form, anchor.round()])
+	level.call("_forget_saved_checkpoint")
+	level.queue_free()
+	await _wait(0.4)
+
+
+## AND THE INK OF WHAT CANNOT COME BACK, COMES BACK. A snapshot keeps where a placed drawing
+## stood, not the drawing, and every level starts with an empty bag -- so a ladder set down
+## before the checkpoint, and a paid one taken back into the bag, are both gone on Continue.
+## Their ink stayed spent: the apo came back poorer, with nothing to show for it.
+func _ink_for_what_is_lost_comes_back() -> void:
+	print("\n===== LEVEL_1, THE INK OF WHAT IS LOST =====")
+	var spec := {"level": "level_1", "scene": "res://game_level.tscn"}
+	var level := _open(spec)
+	level.call("_forget_saved_checkpoint")
+	await _settle(1.0)
+	var registry = level.get("registry")
+	var set_down := DrawnItemData.from_prediction("ladder", "Ladder", null, [], 1.0,
+		registry.call("get_entity", "ladder"))
+	set_down.placement_paid = true
+	var tool := DrawnItemData.from_prediction("axe", "Axe", null, [], 1.0, registry.call("get_entity", "axe"))
+	tool.placement_paid = true
+	var never_set_down := DrawnItemData.from_prediction("ladder", "Ladder", null, [], 1.0,
+		registry.call("get_entity", "ladder"))
+	var owed := [float(level.call("_paid_for", set_down)), float(level.call("_paid_for", tool)),
+		float(level.call("_paid_for", never_set_down))]
+	_check(owed == [1.0, 0.0, 0.0], "only a placeable already set down is owed its unit",
+		"ladder %s, axe %s, unplaced ladder %s" % owed)
+	# Two units paid: a ladder taken back into the bag, and one standing in the world.
+	var ink = level.get("ink_manager")
+	ink.call("spend_unit")
+	ink.call("spend_unit")
+	(level.get("inventory_manager") as Object).call("add_item", set_down)
+	level.call("_write_checkpoint", "CP_INK")
+	var path := String(level.call("_checkpoint_save_path"))
+	var payload: Dictionary = str_to_var(FileAccess.get_file_as_string(path))
+	(payload["state"]["placed"] as Array).append({"entity_id": "ladder", "instance_id": 0,
+		"transform": Transform2D(), "paid": 1.0})
+	FileAccess.open(path, FileAccess.WRITE).store_string(var_to_str(payload))
+	var spent_before := float(ink.get("committed"))
+	level.queue_free()
+	await _wait(0.4)
+
+	level = _open(spec)
+	await _settle(2.0)
+	var spent_after := float((level.get("ink_manager") as Object).get("committed"))
+	_check(is_equal_approx(spent_before - spent_after, 2.0),
+		"coming back, the two units of what is gone are given back",
+		"spent %.1f before leaving, %.1f after" % [spent_before, spent_after])
 	level.call("_forget_saved_checkpoint")
 	level.queue_free()
 	await _wait(0.4)
