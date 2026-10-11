@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-	<img src="docs/screenshots/title.jpg" width="760" alt="The O.B.R.A. title screen: the apo looking out over the terraces and the bay" />
+	<img src="docs/screenshots/home.jpg" width="760" alt="The O.B.R.A. home screen: the apo looking out over the terraces and the bay" />
 </p>
 
 <h3>About</h3>

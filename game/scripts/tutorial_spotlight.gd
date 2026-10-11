@@ -58,7 +58,7 @@ const BESIDE_GAP := 20.0
 const MIN_BESIDE_SCALE := 0.72
 const HOLE_PAD := 12.0
 const IRIS_SEC := 0.42
-const FADE_SEC := 0.22
+const FADE_SEC := 0.3
 const CLOSE_SEC := 0.32
 const DONE_SEC := 0.55
 const LOOK_MIN_SEC := 0.6
@@ -72,6 +72,19 @@ const CAPTION_FONT := 26
 const MOVE_AFTER_SEC := 0.6
 ## How quickly it slides to the other place, per second.
 const SLIDE_RATE := 14.0
+
+## SMOOTH, LIKE THE HOME SCREEN'S BUTTONS. Kent: "lets make the tutorials smooth like the
+## buttons, dimming of bg, and like the smoothness of animations". The card's corners are
+## round; the dim and the card fade on an ease, not a straight line; and the card rises from a
+## little smaller, just overshooting, the way the bag opens -- and sinks a little as it goes.
+## The rise ends inside IRIS_SEC, so the card stands where it will stay by the time the hole
+## has closed on its target, which is when the probes measure it.
+const CARD_RADIUS := 16
+const POP_FROM := 0.9
+const POP_SEC := 0.36
+const SINK_TO := 0.96
+## The arrow comes in once the hole has closed, rather than appearing.
+const ARROW_FADE_SEC := 0.25
 
 ## Read by UIRouter.refresh_pause through the modal_overlays group: true only while a
 ## `look` lesson is up and somebody is there to dismiss it.
@@ -96,11 +109,18 @@ var _avoid := Callable()
 ## When the card last went to the other of its two places, and where it is going.
 var _moved_at := -10.0
 var _card_goal := Vector2.ZERO
+## ⚠ THE FIRST FRAME AFTER A CARD GOES UP IS NOT COUNTED. It is the frame that first draws the
+## dim, and its shader compiles then: that frame's delta came in at a seventh of a second and
+## the fade began most of the way in -- a card that popped rather than rose.
+var _first_frame := false
 
 var _root: Control
 var _dim: ColorRect
 var _material: ShaderMaterial
 var _pointer: Control
+## What is placed and what rises: the card's own scale is the smaller size it takes beside a
+## tall box, and the two would fight over one property.
+var _holder: Control
 var _card: PanelContainer
 var _visual: LessonVisual
 var _caption: Label
@@ -147,11 +167,16 @@ func _build() -> void:
 	_pointer.draw.connect(_draw_pointer)
 	_root.add_child(_pointer)
 
+	_holder = Control.new()
+	_holder.name = "CardHolder"
+	_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_holder)
+
 	_card = PanelContainer.new()
 	_card.name = "LessonCard"
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_card.add_theme_stylebox_override(&"panel", UISkin.frame(18.0, 12.0))
-	_root.add_child(_card)
+	_card.add_theme_stylebox_override(&"panel", UISkin.rounded(UISkin.frame(18.0, 12.0), CARD_RADIUS))
+	_holder.add_child(_card)
 
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -182,6 +207,7 @@ func present(lesson: Dictionary, target: Callable, avoid: Callable = Callable())
 	_avoid = avoid
 	_moved_at = -10.0
 	_age = 0.0
+	_first_frame = true
 	_closing = -1.0
 	_lost_for = 0.0
 	_auto = _nobody_at_the_keys()
@@ -255,9 +281,9 @@ func is_auto() -> bool:
 	return _auto
 
 
-## Standing where it is going, not sliding between its two places.
+## Standing where it is going: risen, and not sliding between its two places.
 func is_settled() -> bool:
-	return _open and _card.position.distance_to(_card_goal) < 1.0
+	return _open and _age >= POP_SEC and _holder.position.distance_to(_card_goal) < 1.0
 
 
 ## The modal_overlays way of taking it down, which the probes that clear the screen use.
@@ -285,15 +311,20 @@ func finish(how: String) -> void:
 func _process(delta: float) -> void:
 	if not _open:
 		return
+	if _first_frame:
+		_first_frame = false
+		delta = 0.0
 	_age += delta
 	if _closing >= 0.0:
 		_closing += delta
-		_set_fade(1.0 - clampf(_closing / _close_length, 0.0, 1.0))
+		var gone := _ease(clampf(_closing / _close_length, 0.0, 1.0))
+		_set_fade(1.0 - gone)
+		_holder.scale = Vector2.ONE * lerpf(1.0, SINK_TO, gone)
 		_pointer.queue_redraw()
 		if _closing >= _close_length:
 			_teardown()
 		return
-	_set_fade(clampf(_age / FADE_SEC, 0.0, 1.0))
+	_set_fade(_ease_out(clampf(_age / FADE_SEC, 0.0, 1.0)))
 	var rect := _target_rect()
 	# What it pointed at is gone -- the placement ended, the prompt went away -- so the
 	# lesson has nothing left to show. A frame or two of nothing is a layout settling.
@@ -465,7 +496,7 @@ func _card_rect_at(place: Place, lit: Rect2, unscaled: Vector2) -> Rect2:
 
 func _refresh(rect: Rect2, delta: float) -> void:
 	var view := _screen()
-	var iris := _ease(clampf(_age / IRIS_SEC, 0.0, 1.0))
+	var iris := _ease_out(clampf(_age / IRIS_SEC, 0.0, 1.0))
 	if rect.has_area():
 		var goal := rect.grow(HOLE_PAD)
 		var from := view.grow(240.0)
@@ -479,6 +510,9 @@ func _refresh(rect: Rect2, delta: float) -> void:
 	_material.set_shader_parameter(&"ring_strength", iris)
 	var size := _card.get_combined_minimum_size()
 	_card.size = size
+	_holder.size = size * _card_scale
+	_holder.pivot_offset = _holder.size * 0.5
+	_holder.scale = Vector2.ONE * lerpf(POP_FROM, 1.0, _back_out(clampf(_age / POP_SEC, 0.0, 1.0)))
 	var lit := rect.grow(HOLE_PAD) if rect.has_area() else Rect2()
 	# ⚠ THE OTHER PLACE WHEN THIS ONE IS COVERED. A place chosen when the card went up stops
 	# being clear when what it lights moves under it -- the camera rising with a climb, the apo
@@ -493,10 +527,10 @@ func _refresh(rect: Rect2, delta: float) -> void:
 			_place = other
 			_moved_at = _age
 	_card_goal = _card_rect_at(_place, lit, size).position.floor()
-	if delta <= 0.0 or _card.position.distance_to(_card_goal) < 1.0:
-		_card.position = _card_goal
+	if delta <= 0.0 or _holder.position.distance_to(_card_goal) < 1.0:
+		_holder.position = _card_goal
 	else:
-		_card.position = _card.position.lerp(_card_goal, clampf(delta * SLIDE_RATE, 0.0, 1.0))
+		_holder.position = _holder.position.lerp(_card_goal, clampf(delta * SLIDE_RATE, 0.0, 1.0))
 	_pointer.queue_redraw()
 
 
@@ -504,6 +538,7 @@ func _refresh(rect: Rect2, delta: float) -> void:
 func _draw_pointer() -> void:
 	if not _open or not _hole.has_area() or _age < IRIS_SEC:
 		return
+	var shown := _ease_out(clampf((_age - IRIS_SEC) / ARROW_FADE_SEC, 0.0, 1.0))
 	var view := _screen()
 	# The way the arrow points: from the card's side towards the box.
 	var dir := Vector2.DOWN
@@ -528,9 +563,9 @@ func _draw_pointer() -> void:
 	var side := dir.orthogonal()
 	var shape := PackedVector2Array([tip, tip - dir * 26.0 + side * 16.0,
 		tip - dir * 26.0 - side * 16.0])
-	_pointer.draw_colored_polygon(shape, UISkin.GOLD)
+	_pointer.draw_colored_polygon(shape, Color(UISkin.GOLD, shown))
 	shape.append(tip)
-	_pointer.draw_polyline(shape, UISkin.RING_OUTER, 2.0)
+	_pointer.draw_polyline(shape, Color(UISkin.RING_OUTER, shown), 2.0, true)
 
 
 ## The card and arrow fade with the node's modulate; the dim is a shader writing its own
@@ -560,3 +595,15 @@ func _nobody_at_the_keys() -> bool:
 
 func _ease(u: float) -> float:
 	return u * u * (3.0 - 2.0 * u)
+
+
+## Quick to start, slow to land: a fade or an iris that settles rather than stops.
+func _ease_out(u: float) -> float:
+	return 1.0 - pow(1.0 - u, 3.0)
+
+
+## Like _ease_out, going a hair past the end and coming back -- the card's rise.
+func _back_out(u: float) -> float:
+	var overshoot := 1.2
+	var v := u - 1.0
+	return 1.0 + (overshoot + 1.0) * v * v * v + overshoot * v * v

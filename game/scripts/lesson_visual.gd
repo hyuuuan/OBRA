@@ -24,6 +24,10 @@ const SIZE := Vector2(440.0, 150.0)
 const CAP_HEIGHT := 50.0
 const CAP_TRAVEL := 5.0
 const CAP_FONT := 24
+## Kent: the tutorial "smooth like the buttons". Every box in a picture -- a key, a page, a
+## bar, the button -- is round-cornered, and every line and shape is antialiased.
+const CAP_RADIUS := 8.0
+const CLEAR := Color(0, 0, 0, 0)
 const PAPER := Color(0.965, 0.95, 0.9, 1.0)
 const SCRIBBLE := Color(0.16, 0.13, 0.09, 1.0)
 const FIGURE := UISkin.CREAM_TEXT
@@ -125,7 +129,7 @@ func _draw_walk() -> void:
 	_cap(Vector2(378.0, 62.0), _cap_label(1, "D"), right_down)
 	_chevron(Vector2(62.0, 118.0), Vector2.LEFT, left_down)
 	_chevron(Vector2(378.0, 118.0), Vector2.RIGHT, right_down)
-	draw_line(Vector2(140.0, 128.0), Vector2(300.0, 128.0), DIM_LINE, 2.0)
+	draw_line(Vector2(140.0, 128.0), Vector2(300.0, 128.0), DIM_LINE, 2.0, true)
 	var x := 0.0
 	var facing := 1.0
 	if p < 0.5:
@@ -143,7 +147,7 @@ func _draw_jump() -> void:
 	_cap(Vector2(140.0, 70.0), _cap_label(0, "Space"), down, 168.0)
 	var air := clampf((p - 0.08) / 0.5, 0.0, 1.0)
 	var lift := sin(PI * air) * 58.0
-	draw_line(Vector2(270.0, 128.0), Vector2(370.0, 128.0), DIM_LINE, 2.0)
+	draw_line(Vector2(270.0, 128.0), Vector2(370.0, 128.0), DIM_LINE, 2.0, true)
 	_figure(Vector2(320.0, 128.0 - lift), 1.0, false)
 	if lift > 2.0:
 		_arrow(Vector2(390.0, 112.0), Vector2(390.0, 52.0), Color(LIT, clampf(lift / 40.0, 0.0, 1.0)))
@@ -156,9 +160,11 @@ func _draw_hold() -> void:
 	_cap(Vector2(110.0, 58.0), _cap_label(0, "W"), held)
 	var fill := clampf((p - 0.08) / 0.72, 0.0, 1.0) if held > 0.0 else 0.0
 	var bar := Rect2(66.0, 104.0, 88.0, 10.0)
-	draw_rect(bar, UISkin.INK)
-	draw_rect(Rect2(bar.position, Vector2(bar.size.x * fill, bar.size.y)), LIT)
-	draw_rect(bar, UISkin.RING_MID, false, 2.0)
+	_rounded("hold_track", bar, UISkin.INK, 5.0)
+	if fill > 0.0:
+		_rounded("hold_fill", Rect2(bar.position, Vector2(maxf(bar.size.x * fill, bar.size.y), bar.size.y)),
+			LIT, 5.0)
+	_rounded("hold_edge", bar, CLEAR, 5.0, UISkin.RING_MID, 2.0)
 	# The way up as a dotted line, not rungs: rungs would be a picture of one of the fifty.
 	for dot in 9:
 		draw_circle(Vector2(320.0, 136.0 - dot * 11.0), 2.0, DIM_LINE)
@@ -174,8 +180,7 @@ func _draw_draw_key() -> void:
 	_cap(Vector2(110.0, 72.0), _cap_label(0, "R"), down)
 	_arrow(Vector2(170.0, 72.0), Vector2(226.0, 72.0), Color(LIT, 0.7))
 	var page := Rect2(248.0, 22.0, 152.0, 106.0)
-	draw_rect(page, PAPER)
-	draw_rect(page, UISkin.GOLD_EDGE, false, 3.0)
+	_rounded("page", page, PAPER, 10.0, UISkin.GOLD_EDGE, 3.0)
 	_scribble(page.get_center(), Vector2(56.0, 24.0), clampf((p - 0.22) / 0.55, 0.0, 1.0))
 
 
@@ -192,7 +197,7 @@ func _draw_revert() -> void:
 		_figure(spot + Vector2(0.0, 16.0), 1.0, false, turned)
 	if turned > 0.0 and turned < 1.0:
 		draw_arc(spot + Vector2(0.0, -26.0), 20.0 + turned * 40.0, 0.0, TAU, 32,
-			Color(LIT, 1.0 - turned), 3.0)
+			Color(LIT, 1.0 - turned), 3.0, true)
 
 
 ## The mouse aiming a drawing, then the left button setting it down.
@@ -202,7 +207,7 @@ func _draw_place() -> void:
 	var x := 220.0 + sin(aim * TAU) * 70.0
 	var click := _pulse(p, 0.58, 0.12)
 	var set_down := p >= 0.6
-	draw_line(Vector2(90.0, 92.0), Vector2(350.0, 92.0), DIM_LINE, 2.0)
+	draw_line(Vector2(90.0, 92.0), Vector2(350.0, 92.0), DIM_LINE, 2.0, true)
 	var scrap_y := 64.0 if set_down else 52.0
 	_scrap(Vector2(x if not set_down else 220.0, scrap_y), Vector2(84.0, 52.0), 0.0,
 		1.0 if set_down else 0.5)
@@ -211,7 +216,7 @@ func _draw_place() -> void:
 		for side: float in [-1.0, 1.0]:
 			draw_line(Vector2(220.0 + side * (46.0 + dust * 16.0), 90.0),
 				Vector2(220.0 + side * (56.0 + dust * 22.0), 84.0 - dust * 6.0),
-				Color(FIGURE, 1.0 - dust), 2.0)
+				Color(FIGURE, 1.0 - dust), 2.0, true)
 	_mouse(Vector2(x if not set_down else 220.0, 126.0), click, 0.0, 0.0, 0.62)
 
 
@@ -222,7 +227,7 @@ func _draw_take_back() -> void:
 	var gone := clampf((p - 0.3) / 0.35, 0.0, 1.0)
 	var from := Vector2(150.0, 64.0)
 	var bag := Vector2(370.0, 92.0)
-	draw_line(Vector2(80.0, 96.0), Vector2(220.0, 96.0), DIM_LINE, 2.0)
+	draw_line(Vector2(80.0, 96.0), Vector2(220.0, 96.0), DIM_LINE, 2.0, true)
 	_bag(bag)
 	if gone < 1.0:
 		var at := from.lerp(bag + Vector2(0.0, -10.0), _ease(gone))
@@ -291,8 +296,7 @@ func _draw_resize() -> void:
 func _draw_drawing() -> void:
 	var p := _phase(2.6)
 	var page := Rect2(60.0, 14.0, 250.0, 122.0)
-	draw_rect(page, PAPER)
-	draw_rect(page, UISkin.GOLD_EDGE, false, 3.0)
+	_rounded("page", page, PAPER, 10.0, UISkin.GOLD_EDGE, 3.0)
 	var progress := clampf(p / 0.7, 0.0, 1.0)
 	var tip := _scribble(page.get_center(), Vector2(96.0, 34.0), progress)
 	var drawing := p < 0.7
@@ -307,16 +311,16 @@ func _draw_click() -> void:
 	var press := _pulse(p, 0.48, 0.14)
 	var button := Rect2(196.0, 46.0, 190.0, 58.0)
 	var sink := Vector2(0.0, 3.0 * press)
-	draw_rect(Rect2(button.position + Vector2(0.0, 4.0), button.size), UISkin.GOLD_EDGE)
-	draw_rect(Rect2(button.position + sink, button.size), UISkin.GOLD_FILL.lerp(UISkin.GOLD_DARK, press))
-	draw_rect(Rect2(button.position + sink, button.size), UISkin.GOLD_LIT, false, 2.0)
+	_rounded("button_side", Rect2(button.position + Vector2(0.0, 4.0), button.size), UISkin.GOLD_EDGE, 14.0)
+	_rounded("button_face", Rect2(button.position + sink, button.size),
+		UISkin.GOLD_FILL.lerp(UISkin.GOLD_DARK, press), 14.0, UISkin.GOLD_LIT, 2.0)
 	_sparkle(button.get_center() + sink, 14.0, UISkin.GOLD_LABEL)
 	if p > 0.5 and p < 0.8:
 		var burst := (p - 0.5) / 0.3
 		for i in 8:
 			var dir := Vector2.RIGHT.rotated(TAU * float(i) / 8.0)
 			draw_line(button.get_center() + dir * (40.0 + burst * 30.0),
-				button.get_center() + dir * (52.0 + burst * 34.0), Color(LIT, 1.0 - burst), 3.0)
+				button.get_center() + dir * (52.0 + burst * 34.0), Color(LIT, 1.0 - burst), 3.0, true)
 	var tip := Vector2(70.0, 128.0).lerp(button.get_center() + Vector2(30.0, 6.0), travel)
 	_cursor(tip)
 
@@ -326,10 +330,11 @@ func _draw_clock() -> void:
 	var p := _phase(3.0)
 	var left := 1.0 - clampf(p / 0.75, 0.0, 1.0)
 	var bar := Rect2(150.0, 64.0, 250.0, 22.0)
-	draw_rect(bar, UISkin.INK)
-	draw_rect(Rect2(bar.position, Vector2(bar.size.x * left, bar.size.y)),
-		LIT if left > 0.25 else UISkin.RED_FILL)
-	draw_rect(bar, UISkin.RING_MID, false, 2.0)
+	_rounded("clock_track", bar, UISkin.INK, 11.0)
+	if left > 0.0:
+		_rounded("clock_fill", Rect2(bar.position, Vector2(maxf(bar.size.x * left, bar.size.y), bar.size.y)),
+			LIT if left > 0.25 else UISkin.RED_FILL, 11.0)
+	_rounded("clock_edge", bar, CLEAR, 11.0, UISkin.RING_MID, 2.0)
 	var spot := Vector2(76.0, 100.0)
 	if left > 0.0:
 		_scrap(spot + Vector2(0.0, -26.0), Vector2(70.0, 54.0), 0.0, 1.0)
@@ -338,7 +343,7 @@ func _draw_clock() -> void:
 		_figure(spot + Vector2(0.0, 20.0), 1.0, false, back)
 		if back < 1.0:
 			draw_arc(spot + Vector2(0.0, -22.0), 18.0 + back * 36.0, 0.0, TAU, 32,
-				Color(LIT, 1.0 - back), 3.0)
+				Color(LIT, 1.0 - back), 3.0, true)
 
 
 ## The ink: a row of notches, and a drop leaving it each time something is made.
@@ -350,10 +355,10 @@ func _draw_ink() -> void:
 	for i in notches:
 		var cell := Rect2(70.0 + i * 52.0, 40.0, 42.0, 30.0)
 		var full := i < notches - spent - (1 if within > 0.35 else 0)
-		draw_rect(cell, UISkin.INK)
+		_rounded("ink_cell", cell, UISkin.INK, 8.0)
 		if full:
-			draw_rect(cell.grow(-4.0), Color(0.18, 0.32, 0.55, 1.0))
-		draw_rect(cell, UISkin.RING_MID, false, 2.0)
+			_rounded("ink_full", cell.grow(-4.0), Color(0.18, 0.32, 0.55, 1.0), 5.0)
+		_rounded("ink_edge", cell, CLEAR, 8.0, UISkin.RING_MID, 2.0)
 	var leaving := notches - spent - 1
 	if leaving >= 0 and within > 0.35:
 		var fall := clampf((within - 0.35) / 0.5, 0.0, 1.0)
@@ -366,8 +371,8 @@ func _draw_checkpoint() -> void:
 	var p := _phase(3.0)
 	var lantern := Vector2(300.0, 92.0)
 	_lantern(lantern)
-	draw_line(Vector2(90.0, 128.0), Vector2(210.0, 128.0), DIM_LINE, 2.0)
-	draw_line(Vector2(250.0, 128.0), Vector2(380.0, 128.0), DIM_LINE, 2.0)
+	draw_line(Vector2(90.0, 128.0), Vector2(210.0, 128.0), DIM_LINE, 2.0, true)
+	draw_line(Vector2(250.0, 128.0), Vector2(380.0, 128.0), DIM_LINE, 2.0, true)
 	if p < 0.45:
 		var walk := _ease(clampf(p / 0.3, 0.0, 1.0))
 		var drop := clampf((p - 0.3) / 0.15, 0.0, 1.0)
@@ -379,29 +384,28 @@ func _draw_checkpoint() -> void:
 		_figure(at, 1.0, false, back)
 		if back > 0.0 and back < 1.0:
 			draw_arc(at + Vector2(0.0, -30.0), 16.0 + back * 34.0, 0.0, TAU, 32,
-				Color(LIT, 1.0 - back), 3.0)
+				Color(LIT, 1.0 - back), 3.0, true)
 
 
 ## The word at the top is something to DO: the word, an arrow, the apo doing it.
 func _draw_requirement() -> void:
 	var p := _phase(2.4)
 	var chip := Rect2(40.0, 48.0, 150.0, 44.0)
-	draw_rect(chip, UISkin.PANEL_LIT)
-	draw_rect(chip, LIT, false, 3.0)
+	_rounded("chip", chip, UISkin.PANEL_LIT, 12.0, LIT, 3.0)
 	for i in 3:
-		draw_rect(Rect2(chip.position + Vector2(18.0 + i * 40.0, 16.0), Vector2(30.0, 12.0)),
-			UISkin.CREAM_TEXT)
+		_rounded("chip_word", Rect2(chip.position + Vector2(18.0 + i * 40.0, 16.0), Vector2(30.0, 12.0)),
+			UISkin.CREAM_TEXT, 6.0)
 	_arrow(Vector2(204.0, 70.0), Vector2(250.0, 70.0), LIT, 4.0)
 	# The apo DOING something -- moving, with the lines behind her -- and nothing being made.
 	# Anything she climbed onto or crossed here would be a picture of an answer.
 	var go := _ease(clampf((p - 0.15) / 0.6, 0.0, 1.0))
 	var at := Vector2(lerpf(290.0, 380.0, go), 112.0)
-	draw_line(Vector2(270.0, 112.0), Vector2(410.0, 112.0), DIM_LINE, 2.0)
+	draw_line(Vector2(270.0, 112.0), Vector2(410.0, 112.0), DIM_LINE, 2.0, true)
 	if go > 0.0 and go < 1.0:
 		for i in 3:
 			var y := at.y - 34.0 + i * 10.0
 			draw_line(Vector2(at.x - 18.0 - i * 4.0, y), Vector2(at.x - 36.0 - i * 6.0, y),
-				Color(LIT, 0.8), 2.0)
+				Color(LIT, 0.8), 2.0, true)
 	_figure(at, 1.0, go > 0.0 and go < 1.0)
 
 
@@ -443,13 +447,15 @@ func _cap(centre: Vector2, label: String, down: float, min_width := 52.0) -> voi
 	var w := _cap_width(label, min_width)
 	var h := CAP_HEIGHT
 	var base := Rect2(centre.x - w * 0.5, centre.y - h * 0.5 + CAP_TRAVEL, w, h)
-	draw_rect(Rect2(base.position + Vector2(0.0, 2.0), base.size), Color(0, 0, 0, 0.35))
-	draw_rect(base, UISkin.GOLD_EDGE)
+	_rounded("cap_shadow", Rect2(base.position + Vector2(0.0, 2.0), base.size), Color(0, 0, 0, 0.35),
+		CAP_RADIUS)
+	_rounded("cap_side", base, UISkin.GOLD_EDGE, CAP_RADIUS)
 	var face := Rect2(base.position - Vector2(0.0, CAP_TRAVEL * (1.0 - down)), base.size)
-	draw_rect(face, UISkin.GOLD_FILL.lerp(UISkin.GOLD_DARK, down * 0.7))
-	draw_line(face.position + Vector2(2.0, 2.0), face.position + Vector2(face.size.x - 2.0, 2.0),
-		UISkin.GOLD_LIT.lerp(UISkin.GILT_HI, 0.5 * (1.0 - down)), 2.0)
-	draw_rect(face, UISkin.GOLD_EDGE, false, 2.0)
+	_rounded("cap_face", face, UISkin.GOLD_FILL.lerp(UISkin.GOLD_DARK, down * 0.7), CAP_RADIUS)
+	# The lit top edge, held inside the round corners.
+	draw_line(face.position + Vector2(CAP_RADIUS, 3.0), face.position + Vector2(face.size.x - CAP_RADIUS, 3.0),
+		UISkin.GOLD_LIT.lerp(UISkin.GILT_HI, 0.5 * (1.0 - down)), 2.0, true)
+	_rounded("cap_edge", face, CLEAR, CAP_RADIUS, UISkin.GOLD_EDGE, 2.0)
 	var font := get_theme_default_font()
 	if font == null:
 		return
@@ -488,13 +494,13 @@ func _mouse(centre: Vector2, left: float, right: float, wheel: float, scale := 1
 			size.x * 0.44, false, true),
 			Rect2(Vector2(centre.x + 1.0, body.position.y + inset), button_size))
 	draw_line(Vector2(centre.x, body.position.y + 2.0), Vector2(centre.x, split),
-		UISkin.CREAM_TEXT, maxf(1.5, 2.0 * scale))
+		UISkin.CREAM_TEXT, maxf(1.5, 2.0 * scale), true)
 	draw_line(Vector2(body.position.x + 2.0, split), Vector2(body.end.x - 2.0, split),
-		UISkin.CREAM_TEXT, maxf(1.5, 2.0 * scale))
+		UISkin.CREAM_TEXT, maxf(1.5, 2.0 * scale), true)
 	var wheel_rect := Rect2(centre.x - 5.0 * scale, body.position.y + size.y * 0.1,
 		10.0 * scale, size.y * 0.22)
-	draw_rect(wheel_rect, LIT if wheel != 0.0 else UISkin.INK)
-	draw_rect(wheel_rect, UISkin.CREAM_TEXT, false, maxf(1.0, 1.5 * scale))
+	_rounded("wheel_%.2f" % scale, wheel_rect, LIT if wheel != 0.0 else UISkin.INK, 5.0 * scale,
+		UISkin.CREAM_TEXT, maxf(1.0, 1.5 * scale))
 	if wheel != 0.0:
 		var run := fmod(_t * 2.2, 1.0)
 		var dir := Vector2(0.0, signf(wheel))
@@ -510,9 +516,9 @@ func _cursor(tip: Vector2) -> void:
 	var shape := PackedVector2Array([tip, tip + Vector2(0.0, 28.0), tip + Vector2(7.0, 21.0),
 		tip + Vector2(12.0, 32.0), tip + Vector2(17.0, 30.0), tip + Vector2(12.0, 19.0),
 		tip + Vector2(21.0, 19.0)])
-	draw_colored_polygon(shape, UISkin.CREAM_TEXT)
+	_soft_polygon(shape, UISkin.CREAM_TEXT)
 	shape.append(tip)
-	draw_polyline(shape, UISkin.INK, 2.0)
+	draw_polyline(shape, UISkin.INK, 2.0, true)
 
 
 ## "Your drawing": a scrap of paper with a scribble on it. Never a shape -- see the top.
@@ -521,14 +527,13 @@ func _scrap(centre: Vector2, extent: Vector2, angle: float, alpha: float) -> voi
 		return
 	draw_set_transform(centre, angle, Vector2.ONE)
 	var rect := Rect2(-extent * 0.5, extent)
-	draw_rect(rect, Color(PAPER, alpha))
-	draw_rect(rect, Color(UISkin.GOLD_EDGE, alpha), false, 2.0)
+	_rounded("scrap", rect, Color(PAPER, alpha), 6.0, Color(UISkin.GOLD_EDGE, alpha), 2.0)
 	var points := PackedVector2Array()
 	for i in 13:
 		var u := float(i) / 12.0
 		points.append(Vector2(lerpf(-extent.x * 0.32, extent.x * 0.32, u),
 			sin(u * TAU * 1.5) * extent.y * 0.22))
-	draw_polyline(points, Color(SCRIBBLE, alpha), 3.0)
+	draw_polyline(points, Color(SCRIBBLE, alpha), 3.0, true)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
@@ -545,7 +550,7 @@ func _scribble(centre: Vector2, extent: Vector2, progress: float) -> Vector2:
 			sin(u * TAU * 1.5) * extent.y - cos(u * TAU * 3.0) * extent.y * 0.25)
 		points.append(last)
 	if points.size() > 1:
-		draw_polyline(points, SCRIBBLE, 4.0)
+		draw_polyline(points, SCRIBBLE, 4.0, true)
 	return last
 
 
@@ -556,11 +561,11 @@ func _figure(feet: Vector2, facing: float, walking: bool, alpha := 1.0) -> void:
 	var colour := Color(FIGURE, alpha)
 	var swing := sin(_t * 14.0) * 7.0 if walking else 0.0
 	var hip := feet + Vector2(0.0, -20.0)
-	draw_line(hip, feet + Vector2(swing, 0.0), colour, 4.0)
-	draw_line(hip, feet + Vector2(-swing, 0.0), colour, 4.0)
+	draw_line(hip, feet + Vector2(swing, 0.0), colour, 4.0, true)
+	draw_line(hip, feet + Vector2(-swing, 0.0), colour, 4.0, true)
 	var neck := hip + Vector2(0.0, -22.0)
-	draw_line(hip, neck, colour, 6.0)
-	draw_line(neck + Vector2(0.0, 4.0), neck + Vector2(facing * 10.0 - swing * 0.4, 16.0), colour, 3.0)
+	draw_line(hip, neck, colour, 6.0, true)
+	draw_line(neck + Vector2(0.0, 4.0), neck + Vector2(facing * 10.0 - swing * 0.4, 16.0), colour, 3.0, true)
 	draw_circle(neck + Vector2(0.0, -9.0), 8.0, colour)
 	draw_circle(neck + Vector2(facing * 3.5, -10.0), 1.8, Color(UISkin.INK, alpha))
 
@@ -568,25 +573,26 @@ func _figure(feet: Vector2, facing: float, walking: bool, alpha := 1.0) -> void:
 func _bag(at: Vector2) -> void:
 	var body := Rect2(at - Vector2(28.0, 22.0), Vector2(56.0, 46.0))
 	draw_style_box(_box("bag", UISkin.WOOD, UISkin.WOOD_LIT, 2.0, 14.0), body)
-	draw_line(at + Vector2(-14.0, -22.0), at + Vector2(-8.0, -32.0), UISkin.WOOD_LIT, 3.0)
-	draw_line(at + Vector2(14.0, -22.0), at + Vector2(8.0, -32.0), UISkin.WOOD_LIT, 3.0)
-	draw_line(at + Vector2(-8.0, -32.0), at + Vector2(8.0, -32.0), UISkin.WOOD_LIT, 3.0)
+	draw_line(at + Vector2(-14.0, -22.0), at + Vector2(-8.0, -32.0), UISkin.WOOD_LIT, 3.0, true)
+	draw_line(at + Vector2(14.0, -22.0), at + Vector2(8.0, -32.0), UISkin.WOOD_LIT, 3.0, true)
+	draw_line(at + Vector2(-8.0, -32.0), at + Vector2(8.0, -32.0), UISkin.WOOD_LIT, 3.0, true)
 
 
 func _lantern(at: Vector2) -> void:
 	var flicker := 0.85 + 0.15 * sin(_t * 9.0)
 	draw_circle(at + Vector2(0.0, -6.0), 34.0 * flicker, Color(LIT, 0.16))
-	draw_rect(Rect2(at - Vector2(14.0, 22.0), Vector2(28.0, 36.0)), UISkin.WOOD_DARK)
-	draw_rect(Rect2(at - Vector2(10.0, 18.0), Vector2(20.0, 28.0)), Color(LIT, 0.55 * flicker))
+	_rounded("lantern", Rect2(at - Vector2(14.0, 22.0), Vector2(28.0, 36.0)), UISkin.WOOD_DARK, 6.0)
+	_rounded("lantern_glow", Rect2(at - Vector2(10.0, 18.0), Vector2(20.0, 28.0)),
+		Color(LIT, 0.55 * flicker), 4.0)
 	var flame := PackedVector2Array([at + Vector2(0.0, -14.0 - 4.0 * flicker),
 		at + Vector2(6.0, 4.0), at + Vector2(-6.0, 4.0)])
-	draw_colored_polygon(flame, UISkin.GILT_HI)
-	draw_line(at + Vector2(0.0, 14.0), at + Vector2(0.0, 36.0), UISkin.WOOD_DARK, 4.0)
+	_soft_polygon(flame, UISkin.GILT_HI)
+	draw_line(at + Vector2(0.0, 14.0), at + Vector2(0.0, 36.0), UISkin.WOOD_DARK, 4.0, true)
 
 
 func _drop(at: Vector2, colour: Color) -> void:
 	draw_circle(at + Vector2(0.0, 4.0), 7.0, colour)
-	draw_colored_polygon(PackedVector2Array([at + Vector2(0.0, -10.0), at + Vector2(6.0, 2.0),
+	_soft_polygon(PackedVector2Array([at + Vector2(0.0, -10.0), at + Vector2(6.0, 2.0),
 		at + Vector2(-6.0, 2.0)]), colour)
 
 
@@ -595,7 +601,7 @@ func _sparkle(at: Vector2, radius: float, colour: Color) -> void:
 	for i in 8:
 		var r := radius if i % 2 == 0 else radius * 0.35
 		points.append(at + Vector2.UP.rotated(TAU * float(i) / 8.0) * r)
-	draw_colored_polygon(points, colour)
+	_soft_polygon(points, colour)
 
 
 func _arrow(from: Vector2, to: Vector2, colour: Color, width := 4.0) -> void:
@@ -603,8 +609,8 @@ func _arrow(from: Vector2, to: Vector2, colour: Color, width := 4.0) -> void:
 	if dir == Vector2.ZERO:
 		return
 	var head := 4.0 + width * 2.2
-	draw_line(from, to - dir * head * 0.6, colour, width)
-	draw_colored_polygon(PackedVector2Array([to, to - dir * head + dir.orthogonal() * head * 0.6,
+	draw_line(from, to - dir * head * 0.6, colour, width, true)
+	_soft_polygon(PackedVector2Array([to, to - dir * head + dir.orthogonal() * head * 0.6,
 		to - dir * head - dir.orthogonal() * head * 0.6]), colour)
 
 
@@ -612,7 +618,7 @@ func _arrow(from: Vector2, to: Vector2, colour: Color, width := 4.0) -> void:
 func _chevron(at: Vector2, dir: Vector2, lit: float, size := 10.0) -> void:
 	var colour := DIM_LINE.lerp(LIT, clampf(lit, 0.0, 1.0))
 	var side := dir.orthogonal()
-	draw_colored_polygon(PackedVector2Array([at + dir * size, at - dir * size * 0.6 + side * size,
+	_soft_polygon(PackedVector2Array([at + dir * size, at - dir * size * 0.6 + side * size,
 		at - dir * size * 0.6 - side * size]), colour)
 
 
@@ -621,7 +627,7 @@ func _chevron_turn(at: Vector2, turn: float, lit: float) -> void:
 	var colour := DIM_LINE.lerp(LIT, clampf(lit, 0.0, 1.0))
 	var start := PI * 1.15
 	var end := PI * 1.85
-	draw_arc(at, 14.0, start, end, 12, colour, 3.0)
+	draw_arc(at, 14.0, start, end, 12, colour, 3.0, true)
 	var tip_angle := end if turn > 0.0 else start
 	var tip := at + Vector2.RIGHT.rotated(tip_angle) * 14.0
 	var along := Vector2.RIGHT.rotated(tip_angle + PI * 0.5 * signf(turn))
@@ -629,17 +635,17 @@ func _chevron_turn(at: Vector2, turn: float, lit: float) -> void:
 
 
 func _plus(at: Vector2) -> void:
-	draw_line(at + Vector2(-8.0, 0.0), at + Vector2(8.0, 0.0), DIM_LINE, 3.0)
-	draw_line(at + Vector2(0.0, -8.0), at + Vector2(0.0, 8.0), DIM_LINE, 3.0)
+	draw_line(at + Vector2(-8.0, 0.0), at + Vector2(8.0, 0.0), DIM_LINE, 3.0, true)
+	draw_line(at + Vector2(0.0, -8.0), at + Vector2(0.0, 8.0), DIM_LINE, 3.0, true)
 
 
 func _ripple(centre: Vector2, width: float, down: float) -> void:
 	var colour := Color(LIT, 0.55 * down)
 	for side: float in [-1.0, 1.0]:
 		var corner := centre + Vector2(side * (width * 0.5 + 8.0), -CAP_HEIGHT * 0.5)
-		draw_line(corner, corner + Vector2(side * 8.0, -8.0), colour, 3.0)
+		draw_line(corner, corner + Vector2(side * 8.0, -8.0), colour, 3.0, true)
 	draw_line(centre + Vector2(0.0, -CAP_HEIGHT * 0.5 - 8.0),
-		centre + Vector2(0.0, -CAP_HEIGHT * 0.5 - 18.0), colour, 3.0)
+		centre + Vector2(0.0, -CAP_HEIGHT * 0.5 - 18.0), colour, 3.0, true)
 
 
 ## Bottom right: a small mouse with its left button blinking -- this goes when you click.
@@ -654,7 +660,7 @@ func _draw_tick() -> void:
 	draw_circle(centre, 46.0 * grow, Color(UISkin.PANEL, 0.86))
 	var points := PackedVector2Array([centre + Vector2(-22.0, 2.0) * grow,
 		centre + Vector2(-6.0, 18.0) * grow, centre + Vector2(24.0, -16.0) * grow])
-	draw_polyline(points, UISkin.USE_LIT, 8.0)
+	draw_polyline(points, UISkin.USE_LIT, 8.0, true)
 
 
 # --- time --------------------------------------------------------------------------------
@@ -674,6 +680,20 @@ func _pulse(phase: float, start: float, length: float) -> float:
 func _ease(u: float) -> float:
 	var x := clampf(u, 0.0, 1.0)
 	return x * x * (3.0 - 2.0 * x)
+
+
+## A round-cornered box through the cache below: filled, and edged when `border` is above 0.
+func _rounded(key: String, rect: Rect2, fill: Color, radius: float, edge := CLEAR, border := 0.0) -> void:
+	draw_style_box(_box(key, fill, edge, border, radius), rect)
+
+
+## A solid shape with a smoothed edge: draw_colored_polygon draws hard pixel steps along a
+## slope, so an antialiased line of the same colour goes round it.
+func _soft_polygon(points: PackedVector2Array, colour: Color) -> void:
+	draw_colored_polygon(points, colour)
+	var outline := points.duplicate()
+	outline.append(points[0])
+	draw_polyline(outline, colour, 1.0, true)
 
 
 ## One box per shape, recoloured on every use. The colours change every frame (a button

@@ -236,6 +236,21 @@ static func frame(pad_x: float = 14.0, pad_y: float = 11.0) -> StyleBoxFlat:
 	return box
 
 
+## A copy of `box` with round, smoothed corners. RADIUS stays the game's cut corner -- the HUD
+## and the levels keep it -- and this is for the places Kent asked to be soft: the home
+## screen's buttons ("should not be edgy, make them use smooth rounded edges") and the
+## tutorial ("smooth like the buttons"). Anything but a StyleBoxFlat comes back as it was.
+static func rounded(box: StyleBox, radius: int) -> StyleBox:
+	var flat := box as StyleBoxFlat
+	if flat == null:
+		return box
+	var copy := flat.duplicate() as StyleBoxFlat
+	copy.set_corner_radius_all(radius)
+	copy.corner_detail = 12
+	copy.anti_aliasing = true
+	return copy
+
+
 ## The same frame at chip scale, for the readouts pinned to the corners. Two-pixel rings,
 ## because a 4 px ring around a one-line label is mostly ring.
 static func chip(pad_x: float = 10.0, pad_y: float = 5.0) -> StyleBoxFlat:
