@@ -408,6 +408,16 @@ func _test_theme_resource() -> void:
 			theme.is_type_variation(variation, theme.get_type_variation_base(variation)),
 			"theme has no type variation '%s'" % variation
 		)
+	# Kent: "like the buttons in game, make them use the rounded ones like the edges instead of
+	# like the edgy rectangles". Every button the theme styles is round, the focus ring with it,
+	# and so are the HUD's key prompts and the hotbar's slots, which UISkin builds directly.
+	for button_type in ["Button", "PrimaryButton", "DangerButton", "DialogButton"]:
+		for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+			var button_style := theme.get_stylebox(state, button_type) as StyleBoxFlat
+			_expect(button_style != null and button_style.corner_radius_top_left >= 8,
+				"the theme's %s is square when %s" % [button_type, state])
+	_expect(UISkin.action_prompt(UISkin.GOLD).corner_radius_top_left >= 8, "a HUD key prompt is square")
+	_expect(UISkin.slot(true, false).corner_radius_top_left >= 8, "a hotbar slot is square")
 	# The base types the HUD and every new screen inherit from, which have no
 	# overrides of their own and would otherwise render as raw engine defaults.
 	_expect(theme.has_stylebox("normal", "Button"), "theme does not style a plain Button")
