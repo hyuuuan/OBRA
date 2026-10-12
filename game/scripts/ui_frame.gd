@@ -71,6 +71,17 @@ const BANDS := [
 ## How much of the rect the frame itself eats, in units. What is left is canvas.
 const TOTAL_U := 10.0
 
+## SOFT CORNERS, LIKE EVERY OTHER BOX. Kent: "there are still boxes in the game like the brush
+## container or like the dialogue or hints, i told you to make them use the soft edged curve".
+## Each band is a rounded rect inset from the one outside it, and its corner is the outer
+## corner less how far in it is -- so the moulding turns the corner as one piece, not as rings
+## of different curves. In units, like the bands.
+const CORNER_U := 6.0
+## However deep in the frame, a corner never closes tighter than this.
+const MIN_CORNER := 4.0
+
+var _boxes := {}
+
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -111,13 +122,19 @@ func _draw() -> void:
 	if rect.size.x < u * TOTAL_U * 2.0 or rect.size.y < u * TOTAL_U * 2.0:
 		return
 
+	var corner := CORNER_U * u
+	var inset := 0.0
 	for band: Array in BANDS:
 		var w := float(band[0]) * u
+		var radius := maxf(corner - inset, MIN_CORNER)
 		if String(band[1]) == "bevel":
-			rect = _bevel(rect, w, String(band[2]))
+			_bevel(rect, w, String(band[2]), radius)
 		else:
-			rect = _ring(rect, w, _band_color(String(band[2])))
-	draw_rect(rect, canvas_color)
+			_fill(rect, _band_color(String(band[2])), radius)
+		# The next band is painted over everything inside this one, leaving this one a ring.
+		rect = rect.grow(-w)
+		inset += w
+	_fill(rect, canvas_color, maxf(corner - inset, MIN_CORNER))
 
 
 func _band_color(name: String) -> Color:
@@ -136,54 +153,31 @@ func _band_color(name: String) -> Color:
 			return UISkin.MAT
 
 
-## Paint a ring `w` thick inside `rect` and hand back what is left. Four rects rather than
-## an unfilled draw_rect, because an unfilled one strokes centred on the boundary and
-## leaves the ring half outside the rect it was supposed to fit in.
-func _ring(rect: Rect2, w: float, color: Color) -> Rect2:
-	draw_rect(Rect2(rect.position, Vector2(rect.size.x, w)), color)
-	draw_rect(Rect2(rect.position + Vector2(0.0, rect.size.y - w),
-		Vector2(rect.size.x, w)), color)
-	draw_rect(Rect2(rect.position + Vector2(0.0, w), Vector2(w, rect.size.y - w * 2.0)), color)
-	draw_rect(Rect2(rect.position + Vector2(rect.size.x - w, w),
-		Vector2(w, rect.size.y - w * 2.0)), color)
-	return Rect2(rect.position + Vector2(w, w), rect.size - Vector2(w, w) * 2.0)
+## A filled rounded rect. Recolouring a shared box is safe: a StyleBox is read when it is drawn.
+func _fill(rect: Rect2, color: Color, radius: float) -> void:
+	var key := int(round(radius))
+	var box := _boxes.get(key) as StyleBoxFlat
+	if box == null:
+		box = StyleBoxFlat.new()
+		box.set_corner_radius_all(key)
+		box.corner_detail = 12
+		box.anti_aliasing = true
+		_boxes[key] = box
+	box.bg_color = color
+	draw_style_box(box, rect)
 
 
-## A ring whose top and left take the lit tone and whose bottom and right take the shaded
-## one. Mitred at the corners, so the two meet on the diagonal the way a moulding is
-## actually cut rather than one overrunning the other and putting a bright notch in a dark
-## edge.
+## A band whose top and left take the lit tone and whose bottom and right take the shaded one:
+## the whole band in shade, then the lit tone over it from the top-left corner, stopping a band
+## short of the bottom and right. The next band in covers the middle.
 ##
 ## WOOD_DARK is named as the lit tone for the inner arris on purpose: there the surface
 ## turns AWAY from the light, so the pair swaps and the wood below it becomes the highlight.
-func _bevel(rect: Rect2, w: float, name: String) -> Rect2:
+func _bevel(rect: Rect2, w: float, name: String, radius: float) -> void:
 	var lit := _band_color(name)
 	var dark := UISkin.WOOD_DARK if name != "WOOD_DARK" else UISkin.WOOD_LIT
 	if name == "FILLET":
 		lit = UISkin.FILLET_LIT
 		dark = UISkin.FILLET
-	draw_colored_polygon(PackedVector2Array([
-		rect.position,
-		rect.position + Vector2(rect.size.x, 0.0),
-		rect.position + Vector2(rect.size.x - w, w),
-		rect.position + Vector2(w, w),
-	]), lit)
-	draw_colored_polygon(PackedVector2Array([
-		rect.position,
-		rect.position + Vector2(w, w),
-		rect.position + Vector2(w, rect.size.y - w),
-		rect.position + Vector2(0.0, rect.size.y),
-	]), lit)
-	draw_colored_polygon(PackedVector2Array([
-		rect.position + Vector2(0.0, rect.size.y),
-		rect.position + Vector2(w, rect.size.y - w),
-		rect.position + Vector2(rect.size.x - w, rect.size.y - w),
-		rect.position + rect.size,
-	]), dark)
-	draw_colored_polygon(PackedVector2Array([
-		rect.position + Vector2(rect.size.x, 0.0),
-		rect.position + rect.size,
-		rect.position + Vector2(rect.size.x - w, rect.size.y - w),
-		rect.position + Vector2(rect.size.x - w, w),
-	]), dark)
-	return Rect2(rect.position + Vector2(w, w), rect.size - Vector2(w, w) * 2.0)
+	_fill(rect, dark, radius)
+	_fill(Rect2(rect.position, rect.size - Vector2(w, w)), lit, radius)
