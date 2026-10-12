@@ -245,9 +245,11 @@ class LifeBar extends Control:
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
+	## A pill, like every box now (UISkin.RADIUS): the trough, and the fill inside it.
+	var _boxes := {}
+
 	func _draw() -> void:
-		draw_rect(Rect2(Vector2.ZERO, size), TROUGH)
-		draw_rect(Rect2(Vector2.ZERO, size), EDGE, false, 2.0)
+		_pill(Rect2(Vector2.ZERO, size), TROUGH, EDGE, 2)
 		if capacity <= 0.0:
 			return
 		var ratio := clampf(remaining / capacity, 0.0, 1.0)
@@ -255,14 +257,33 @@ class LifeBar extends Control:
 			return
 		var inset := 2.0
 		var track := size.x - inset * 2.0
+		var height := size.y - inset * 2.0
 		# Any life left keeps a sliver of bar. Rounding the last fraction of a second down
-		# to nothing shows an empty bar under a creature still standing where it was left.
-		var width := minf(track, maxf(3.0, track * ratio))
+		# to nothing shows an empty bar under a creature still standing where it was left --
+		# and the sliver is as wide as the bar is tall, so it is still a rounded end.
+		var width := minf(track, maxf(height, track * ratio))
 		var tone := _tone(ratio)
-		draw_rect(Rect2(Vector2(inset, inset), Vector2(width, size.y - inset * 2.0)), tone)
+		_pill(Rect2(Vector2(inset, inset), Vector2(width, height)), tone)
 		# A lit strip along the top of the fill, which is what stops a flat bar reading as
-		# a coloured rectangle rather than as something with a surface.
-		draw_rect(Rect2(Vector2(inset, inset), Vector2(width, 2.0)), tone.lightened(0.35))
+		# a coloured rectangle rather than as something with a surface. Held inside the ends.
+		var round_end := height * 0.5
+		if width > round_end * 2.0:
+			draw_line(Vector2(inset + round_end, inset + 1.0), Vector2(inset + width - round_end, inset + 1.0),
+				tone.lightened(0.35), 2.0, true)
+
+	func _pill(rect: Rect2, fill: Color, edge := Color(0, 0, 0, 0), border := 0) -> void:
+		var key := "%d|%d" % [int(rect.size.y), border]
+		var box := _boxes.get(key) as StyleBoxFlat
+		if box == null:
+			box = StyleBoxFlat.new()
+			box.set_corner_radius_all(int(ceilf(rect.size.y * 0.5)))
+			box.set_border_width_all(border)
+			box.corner_detail = 12
+			box.anti_aliasing = true
+			_boxes[key] = box
+		box.bg_color = fill
+		box.border_color = edge
+		draw_style_box(box, rect)
 
 	func _tone(ratio: float) -> Color:
 		if ratio <= CRITICAL_AT:
