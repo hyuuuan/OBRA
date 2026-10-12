@@ -196,6 +196,13 @@ const THIN := 2
 ## Everything is very slightly cut rather than square. Pure 90-degree corners read as a
 ## debug rect; a 2 px radius reads as a drawn box.
 const RADIUS := 2
+## EXCEPT WHAT IS PRESSED, WHICH IS ROUND. Kent: "like the buttons in game, make them use the
+## rounded ones like the edges instead of like the edgy rectangles". Every button and the
+## focus ring round it, the HUD's key prompts and the keys on them, and the hotbar's slots;
+## the panels and frames they sit in keep RADIUS.
+const BUTTON_RADIUS := 14
+const KEY_RADIUS := 6
+const SLOT_RADIUS := 10
 
 ## THE TYPE SCALE.
 ##
@@ -236,18 +243,15 @@ static func frame(pad_x: float = 14.0, pad_y: float = 11.0) -> StyleBoxFlat:
 	return box
 
 
-## A copy of `box` with round, smoothed corners. RADIUS stays the game's cut corner -- the HUD
-## and the levels keep it -- and this is for the places Kent asked to be soft: the home
-## screen's buttons ("should not be edgy, make them use smooth rounded edges") and the
-## tutorial ("smooth like the buttons"). Anything but a StyleBoxFlat comes back as it was.
+## A copy of `box` with round, smoothed corners: for a panel that is to match the buttons
+## round it -- the home screen's, the tutorial card ("smooth like the buttons"). Buttons
+## themselves are round already. Anything but a StyleBoxFlat comes back as it was.
 static func rounded(box: StyleBox, radius: int) -> StyleBox:
 	var flat := box as StyleBoxFlat
 	if flat == null:
 		return box
 	var copy := flat.duplicate() as StyleBoxFlat
-	copy.set_corner_radius_all(radius)
-	copy.corner_detail = 12
-	copy.anti_aliasing = true
+	_round(copy, radius)
 	return copy
 
 
@@ -301,6 +305,7 @@ static func action_prompt(accent: Color, state: State = State.NORMAL) -> StyleBo
 	var fill := PANEL_LIT.lerp(accent, mix)
 	var edge := Color(accent.r, accent.g, accent.b, 0.48)
 	var box := _ringed(fill, accent, THIN, edge, 3)
+	_round(box, BUTTON_RADIUS)
 	box.shadow_offset = Vector2(0.0, 2.0 if state != State.PRESSED else 1.0)
 	box.content_margin_left = 44.0
 	box.content_margin_right = 11.0
@@ -316,7 +321,7 @@ static func action_key(accent: Color) -> StyleBoxFlat:
 	box.bg_color = accent
 	box.border_color = accent.lightened(0.22)
 	box.set_border_width_all(1)
-	box.set_corner_radius_all(RADIUS)
+	_round(box, KEY_RADIUS)
 	box.content_margin_left = 6.0
 	box.content_margin_right = 6.0
 	box.content_margin_top = 1.0
@@ -336,7 +341,7 @@ static func action_key(accent: Color) -> StyleBoxFlat:
 static func button(family: Family, state: State) -> StyleBoxFlat:
 	if state == State.DISABLED:
 		var off := _ringed(OFF_FILL, OFF_EDGE, THIN, KEYLINE, THIN)
-		_pad_button(off)
+		_shape_button(off)
 		return off
 	# ⚠ THE QUIET FAMILY IS BUILT DIFFERENTLY, not merely coloured differently. The raised
 	# treatment below -- a four-pixel grey BEVEL and a halo thicker underneath -- exists to
@@ -346,12 +351,12 @@ static func button(family: Family, state: State) -> StyleBoxFlat:
 	# action should lie flat in the frame it is printed on.
 	if family == Family.CREAM:
 		var quiet := _ringed(_fill_for(family, state), _edge_for(family), THIN, KEYLINE, THIN)
-		_pad_button(quiet)
+		_shape_button(quiet)
 		return quiet
 	var box := _ringed(_fill_for(family, state), BEVEL, RING, _edge_for(family), RING)
 	# Raised: the halo is thicker below than above, so the button sits on the panel.
 	box.shadow_offset = Vector2(0.0, 2.0)
-	_pad_button(box)
+	_shape_button(box)
 	return box
 
 
@@ -363,8 +368,7 @@ static func focus_ring() -> StyleBoxFlat:
 	box.bg_color = Color(0, 0, 0, 0)
 	box.border_color = GOLD_PALE
 	box.set_border_width_all(THIN)
-	box.set_corner_radius_all(RADIUS)
-	_pad_button(box)
+	_shape_button(box)
 	return box
 
 
@@ -390,7 +394,7 @@ static func label_color(family: Family) -> Color:
 static func slot(occupied: bool, selected: bool) -> StyleBoxFlat:
 	var box := _ringed(PANEL_LIT if occupied else PANEL,
 		PENDING if selected else GOLD, THIN, RING_OUTER, THIN)
-	box.set_corner_radius_all(RADIUS)
+	_round(box, SLOT_RADIUS)
 	return box
 
 
@@ -477,7 +481,9 @@ static func _ringed(fill: Color, inner: Color, inner_w: int,
 	return box
 
 
-static func _pad_button(box: StyleBoxFlat) -> void:
+## A button's padding, and its round corners.
+static func _shape_button(box: StyleBoxFlat) -> void:
+	_round(box, BUTTON_RADIUS)
 	box.content_margin_left = 18.0
 	box.content_margin_right = 18.0
 	box.content_margin_top = 9.0
@@ -505,3 +511,9 @@ static func _edge_for(family: Family) -> Color:
 			return RED_EDGE
 		_:
 			return CREAM_EDGE
+
+
+static func _round(box: StyleBoxFlat, radius: int) -> void:
+	box.set_corner_radius_all(radius)
+	box.corner_detail = 12
+	box.anti_aliasing = true

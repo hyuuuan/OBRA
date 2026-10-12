@@ -250,6 +250,16 @@ func key_is_taken() -> bool:
 	return _taken
 
 
+## Already off the nail -- taken earlier in a run that is being continued. No flourish, and
+## nothing to walk into.
+func mark_key_taken() -> void:
+	_taken = true
+	_key_fade = 0.0
+	if _key_area != null:
+		_key_area.set_deferred(&"monitoring", false)
+	queue_redraw()
+
+
 func how_far_in() -> float:
 	return room_zoom
 
