@@ -50,6 +50,8 @@ var _boxes := {}
 func _init() -> void:
 	custom_minimum_size = SIZE
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The brush is pixel art on a six-pixel grid: drawn nearest, like the HUD's.
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 
 func show_kind(new_kind: String, new_caps: PackedStringArray, click_to_continue: bool) -> void:
@@ -346,24 +348,67 @@ func _draw_clock() -> void:
 				Color(LIT, 1.0 - back), 3.0, true)
 
 
-## The ink: a row of notches, and a drop leaving it each time something is made.
+## THE INK IS LOLA'S BRUSH -- the one in the corner of the screen, drawn by the same code
+## (InkBrush.paint). Kent: "it did not use the paint brush asset with the ink logic as the
+## tutorial, instead it used like boxes that disappears representing the ink which i do not
+## like, make use of the paintbrush". It was a row of six boxes going out one at a time.
+##
+## Now the brush starts loaded and gold. A drop gathers at the bristles and falls onto a scrap
+## of paper -- a drawing made -- and the gold draws back by a unit as it goes, toward the
+## handle, the way the gauge empties. Three drawings, and it fills again before it starts over,
+## so the loop never jumps.
+const INK_UNITS := 6.0
+const INK_CYCLE := 4.6
+const INK_SCALE := 5
+const INK_BRUSH_AT := Vector2(52.0, 22.0)
+const INK_PAPER_AT := Vector2(346.0, 120.0)
+const INK_DRAWINGS := 3
+const INK_FIRST := 0.35
+const INK_EVERY := 1.15
+const INK_REFILL_AT := 4.0
+
+
 func _draw_ink() -> void:
-	var p := _phase(3.6)
-	var spent := int(floor(p * 3.0))
-	var within := fmod(p * 3.0, 1.0)
-	var notches := 6
-	for i in notches:
-		var cell := Rect2(70.0 + i * 52.0, 40.0, 42.0, 30.0)
-		var full := i < notches - spent - (1 if within > 0.35 else 0)
-		_rounded("ink_cell", cell, UISkin.INK, 8.0)
-		if full:
-			_rounded("ink_full", cell.grow(-4.0), Color(0.18, 0.32, 0.55, 1.0), 5.0)
-		_rounded("ink_edge", cell, CLEAR, 8.0, UISkin.RING_MID, 2.0)
-	var leaving := notches - spent - 1
-	if leaving >= 0 and within > 0.35:
-		var fall := clampf((within - 0.35) / 0.5, 0.0, 1.0)
-		var at := Vector2(91.0 + leaving * 52.0, 76.0 + fall * 52.0)
-		_drop(at, Color(0.32, 0.5, 0.82, 1.0 - fall))
+	var t := fmod(_t, INK_CYCLE)
+	var brush := Vector2(InkBrush.ART) * float(INK_SCALE)
+	# The underside of the bristles, at the head end on the right.
+	var tip := INK_BRUSH_AT + Vector2(brush.x - 14.0, brush.y * 0.72)
+	var refill := _ease(clampf((t - INK_REFILL_AT) / 0.45, 0.0, 1.0))
+	var spent := 0.0
+	var made := 0
+	var landed_at := -1.0
+	var falling: Array[Vector3] = []
+	for k in INK_DRAWINGS:
+		var start := INK_FIRST + INK_EVERY * float(k)
+		if t < start:
+			break
+		var gather := clampf((t - start) / 0.28, 0.0, 1.0)
+		var fall := clampf((t - start - 0.28) / 0.42, 0.0, 1.0)
+		# The gold draws back as the drop leaves, not before it has gathered.
+		spent += _ease(clampf((t - start - 0.18) / 0.45, 0.0, 1.0))
+		if fall < 1.0:
+			# Quickening as it falls, the way a drop does.
+			var at := tip.lerp(INK_PAPER_AT + Vector2(0.0, -16.0), fall * fall)
+			falling.append(Vector3(at.x, at.y, lerpf(2.5, 6.0, _ease(gather))))
+		else:
+			made += 1
+			landed_at = start + 0.7
+	InkBrush.paint(self, INK_BRUSH_AT, INK_SCALE, (INK_UNITS - spent * (1.0 - refill)) / INK_UNITS)
+	if made > 0:
+		# The drawing: in on the first drop, a little lift on each one after, out with the refill.
+		var since := clampf((t - landed_at) / 0.3, 0.0, 1.0)
+		var lift := 1.0 - _back(since) if made > 1 else 0.0
+		var grow := _back(since) if made == 1 else 1.0
+		var extent := Vector2(64.0, 40.0) * lerpf(0.55, 1.0, grow) * (1.0 + 0.06 * lift)
+		_scrap(INK_PAPER_AT, extent, -0.06, 1.0 - refill)
+	for drop in falling:
+		_drop(Vector2(drop.x, drop.y), LIT, drop.z)
+
+
+## Overshoots a touch and settles: something set down, not placed.
+func _back(u: float) -> float:
+	var v := u - 1.0
+	return 1.0 + 2.2 * v * v * v + 1.2 * v * v
 
 
 ## A checkpoint: the apo falls, and comes back beside the lantern.
@@ -590,10 +635,11 @@ func _lantern(at: Vector2) -> void:
 	draw_line(at + Vector2(0.0, 14.0), at + Vector2(0.0, 36.0), UISkin.WOOD_DARK, 4.0, true)
 
 
-func _drop(at: Vector2, colour: Color) -> void:
-	draw_circle(at + Vector2(0.0, 4.0), 7.0, colour)
-	_soft_polygon(PackedVector2Array([at + Vector2(0.0, -10.0), at + Vector2(6.0, 2.0),
-		at + Vector2(-6.0, 2.0)]), colour)
+func _drop(at: Vector2, colour: Color, radius := 7.0) -> void:
+	var k := radius / 7.0
+	draw_circle(at + Vector2(0.0, 4.0) * k, radius, colour, true, -1.0, true)
+	_soft_polygon(PackedVector2Array([at + Vector2(0.0, -10.0) * k, at + Vector2(6.0, 2.0) * k,
+		at + Vector2(-6.0, 2.0) * k]), colour)
 
 
 func _sparkle(at: Vector2, radius: float, colour: Color) -> void:
