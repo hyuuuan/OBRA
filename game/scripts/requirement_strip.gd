@@ -144,7 +144,8 @@ func _panel_style() -> StyleBoxFlat:
 	style.bg_color = Color(0.055, 0.12, 0.075, 0.92)
 	style.border_color = Color(0.52, 0.67, 0.22, 1.0)
 	style.set_border_width_all(2)
-	style.set_corner_radius_all(4)
+	style.set_corner_radius_all(UISkin.RADIUS)
+	style.corner_detail = 12
 	style.content_margin_left = 14.0
 	style.content_margin_right = 14.0
 	style.content_margin_top = 8.0
