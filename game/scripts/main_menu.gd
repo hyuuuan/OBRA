@@ -15,22 +15,28 @@ const TITLE_CARD := preload("res://scripts/title_card.gd")
 ##
 ## Each layer, back to front: `art`, cropped to `region` where the painted part is less than the
 ## frame. A layer with a `height` is laid along the bottom of the screen that tall (Payyo's
-## hills, as the scene used to place them); any other covers the screen, laid LAYER_BLEED past
-## its edge so drifting never shows it. Piyesta's layers are 1920x1080 with the plaza in the
+## hills, as the scene used to place them); any other covers the screen. Every one is laid
+## `bleed` (LAYER_BLEED unless it says) past the screen's edges -- and a ground-standing one
+## `below` past its bottom -- so drifting with the mouse never shows an edge. Piyesta's layers are 1920x1080 with the plaza in the
 ## middle and nothing round it, so all of them are cropped to the same box -- the church's
 ## width, from the top of the sky to the ground -- and still line up.
 const BACKDROPS := {
 	"level_1": [
 		{"art": "res://assets/Level1/bg_withclouds.png", "region": Rect2(88, 58, 1712, 963),
-			"drift": -4.0, "bleed": 0.0},
+			"drift": -4.0},
 		{"art": "res://assets/Level1/mountains_furthest_background.png",
 			"region": Rect2(128, 295, 1656, 543), "drift": -10.0, "height": 560.0,
 			"tint": Color(0.85, 0.93, 1.0)},
 		{"art": "res://assets/Level1/mountain_further_background.png",
 			"region": Rect2(108, 300, 1690, 563), "drift": -18.0, "height": 620.0,
 			"tint": Color(0.86, 0.95, 0.83)},
-		{"art": "res://assets/Level1/terraces_2.png", "region": Rect2(157, 204, 1560, 739),
-			"drift": -28.0, "height": 760.0, "bleed": 28.0},
+		# ⚠ THE TERRACES ARE AN ISLAND OF PAINT: a ragged grass edge along the bottom and clear
+		# corners either side of it, which in the level stand on the ground. Here nothing stood
+		# under them -- Kent: "it looks like it cropped at the bottom" -- so the crop is taken
+		# inside the painted part (solid to its last row and edge to edge), and the layer reaches
+		# `below` past the screen so drifting with the mouse never lifts its edge into view.
+		{"art": "res://assets/Level1/terraces_2.png", "region": Rect2(220, 204, 1440, 640),
+			"drift": -28.0, "height": 760.0, "bleed": 28.0, "below": 20.0},
 	],
 	"level_2": [
 		{"art": "res://assets/Level2/bg_sky.png", "region": Rect2(190, 66, 1549, 870), "drift": -4.0},
@@ -397,13 +403,15 @@ func _apply_backdrop(level_id: String) -> void:
 		if entry.has("height"):
 			layer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 			layer.offset_top = -float(entry["height"])
-			layer.offset_bottom = 0.0
+			layer.offset_bottom = float(entry.get("below", bleed))
 		else:
 			layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			layer.offset_top = -bleed
 			layer.offset_bottom = bleed
-		layer.offset_left = -bleed if entry.has("bleed") or not entry.has("height") else 0.0
-		layer.offset_right = -layer.offset_left
+		# Past both sides too, every layer: Payyo's two ranges of hills stopped at the screen's
+		# edge, and drifting with the mouse slid their ends into view.
+		layer.offset_left = -bleed
+		layer.offset_right = bleed
 		_backdrop.add_child(layer)
 		_layers.append({"node": layer, "base": Vector2.ZERO, "drift": float(entry["drift"])})
 	var shade := ColorRect.new()

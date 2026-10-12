@@ -88,6 +88,25 @@ func _audit(path: String) -> void:
 	_check(escaped.is_empty(), "%s: nothing hangs off the screen" % path.get_file(),
 		"all inside %s" % view.size if escaped.is_empty() else "; ".join(escaped))
 
+	# --- and the ink on the drawing page stands beside it -----------------------------------
+	# Kent: "the ink bar is at the top whenever i am opening the canvas, and its too small ...
+	# make it vertical and it should be beside the canvas". It was a 158 x 22 strip over the
+	# oval, at two screen pixels to the brush's pixel.
+	var panel_root := level.get_node_or_null(^"DrawPanel/PanelRoot") as Control
+	var gauge := panel_root.get_node_or_null(^"InkGauge") as InkBrush if panel_root != null else null
+	var page := panel_root.get_node_or_null(^"CanvasFrame") as Control if panel_root != null else null
+	if gauge == null or page == null:
+		_check(false, "%s: the drawing page has its ink" % path.get_file(), "no InkGauge or CanvasFrame")
+	else:
+		var brush := Rect2(gauge.position, gauge.size)
+		var sheet := Rect2(page.position, page.size)
+		var upright := gauge.vertical and brush.size.y >= InkBrush.size_at(5, true).y
+		var beside := not brush.intersects(sheet) \
+			and (brush.position.x >= sheet.end.x or brush.end.x <= sheet.position.x) \
+			and brush.get_center().y > sheet.position.y and brush.get_center().y < sheet.end.y
+		_check(upright and beside, "%s: the page's ink stands beside it, upright and big" % path.get_file(),
+			"brush %s, page %s" % [brush, sheet])
+
 	level.queue_free()
 	await process_frame
 

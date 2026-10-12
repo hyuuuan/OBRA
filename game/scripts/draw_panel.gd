@@ -49,6 +49,9 @@ const OPEN_DURATION := 0.54
 ## The header's own ink readout. The scrim covers the HUD, so while the panel is open the
 ## gauge in the corner of the screen is hidden -- at exactly the moment ink matters most.
 var _ink_gauge: InkBrush
+## How much of a unit the drawing on the page is taking, and how much the brush shows yet.
+var _claim := 0.0
+var _claim_shown := 0.0
 var _ink_value: Label
 
 
@@ -133,6 +136,8 @@ func open_panel() -> void:
 	transform_button.disabled = false
 	clear_button.disabled = false
 	canvas.clear_canvas()
+	_claim = 0.0
+	_claim_shown = 0.0
 	_clear_guess()
 	set_process(true)
 	if ink_manager != null:
@@ -157,7 +162,7 @@ func open_panel() -> void:
 		status.text = "Draw something, then Paint"
 	# Nothing has been drawn yet, so there is nothing to transform.
 	transform_button.disabled = true
-	_refresh_ink_row(0.0)
+	_refresh_ink_row()
 	UIRouter.refresh_pause(get_tree())
 	_play_open_animation()
 
@@ -204,7 +209,10 @@ func close_panel(emit_closed: bool = true, release_ink: bool = true) -> void:
 ## decides on the player's behalf that the drawing is finished -- pausing to look at
 ## what you have made is not the same as saying you are done with it.
 func _process(delta: float) -> void:
-	if not _is_open or _submitting:
+	if not _is_open:
+		return
+	_ease_the_claim(delta)
+	if _submitting:
 		return
 	_live_cooldown = maxf(0.0, _live_cooldown - delta)
 	var revision: int = canvas.content_revision()
@@ -327,7 +335,28 @@ func _configure_canvas_surface() -> void:
 	canvas.call(&"set_drawable_bounds", canvas_frame.opening())
 
 
-## DRAW on the left, ink on the right, in the strip above the page.
+## THE BRUSH STANDS BESIDE THE PAGE. Kent: "the ink bar is at the top whenever i am opening
+## the canvas, and its too small ... make it vertical and it should be beside the canvas or
+## keep it horizontal but bigger". It was a 158 x 22 strip squeezed above the oval at two screen
+## pixels to the art pixel, and nothing bigger fits there -- the oval's gilt top is in the way.
+## Beside the page there is room for three times that. So the same brush, stood bristles-up
+## like a brush in a jar (InkBrush.vertical): the gold drains downward the way a level does,
+## and the bristles still go dry first. INK over it, how much is left under it, and all three
+## in the same soft container the level HUD keeps its brush in, so it reads over any scene.
+const GAUGE_SCALE := 6
+## THE BRUSH ANSWERS THE PEN. Kent: "whenever i draw, the ink is not dynamically affected like
+## its not changing live". Since FR-7 a thing costs one unit however it is drawn, and the gauge
+## was held still while a stroke was down -- true, and dead to the hand. So the drawing on the
+## page now shows on the brush as it goes: the gold it is taking turns to the claimed colour,
+## from the bristles down, growing with the stroke as the page fills -- and a full page is one
+## whole unit, never more, because one unit is what a drawing costs. Nothing is spent: Clear
+## gives it back, and Paint settles it as the economy says. Eased, never jumping.
+const CLAIM_EASE := 10.0
+const GAUGE_GAP := 34.0
+const GAUGE_PAD := Vector2(26.0, 14.0)
+
+
+## DRAW over the page; the brush, its name and its count beside it.
 func _build_header() -> void:
 	var caption := Label.new()
 	caption.name = "Caption"
@@ -337,35 +366,67 @@ func _build_header() -> void:
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel_root.add_child(caption)
 
+	# It is the SAME OBJECT the level HUD shows, on purpose: the thing draining while you draw
+	# is the thing you took off the stand in the house.
+	var page := Rect2(canvas_frame.position, canvas_frame.size)
+	_ink_gauge = InkBrush.new()
+	_ink_gauge.name = "InkGauge"
+	_ink_gauge.vertical = true
+	_ink_gauge.size = InkBrush.size_at(GAUGE_SCALE, true)
+	_ink_gauge.position = Vector2(page.end.x + GAUGE_GAP,
+		roundf(page.get_center().y - _ink_gauge.size.y * 0.5))
+	panel_root.add_child(_ink_gauge)
+	var column := Rect2(_ink_gauge.position.x - 40.0, 0.0, _ink_gauge.size.x + 80.0, 0.0)
+	var holder := Panel.new()
+	holder.name = "InkHolder"
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_theme_stylebox_override(&"panel", UISkin.frame())
+	holder.position = _ink_gauge.position - Vector2(GAUGE_PAD.x, 40.0 + GAUGE_PAD.y)
+	holder.size = _ink_gauge.size + Vector2(GAUGE_PAD.x * 2.0, 40.0 + 12.0 + 28.0 + GAUGE_PAD.y * 2.0)
+	panel_root.add_child(holder)
+	# Behind the brush, which was added first.
+	panel_root.move_child(holder, _ink_gauge.get_index())
+
+	var heading := Label.new()
+	heading.name = "InkCaption"
+	heading.text = "INK"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.theme_type_variation = &"HudCaption"
+	heading.position = Vector2(column.position.x, _ink_gauge.position.y - 40.0)
+	heading.size = Vector2(column.size.x, 28.0)
+	heading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel_root.add_child(heading)
+
 	_ink_value = Label.new()
 	_ink_value.name = "InkValue"
 	_ink_value.text = ""
-	_ink_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_ink_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_ink_value.theme_type_variation = &"HudValue"
-	_ink_value.position = Vector2(406.0, 26.0)
-	_ink_value.size = Vector2(168.0, 24.0)
+	_ink_value.position = Vector2(column.position.x, _ink_gauge.position.y + _ink_gauge.size.y + 12.0)
+	_ink_value.size = Vector2(column.size.x, 28.0)
 	_ink_value.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel_root.add_child(_ink_value)
 
-	# The same brush the level HUD shows, two art pixels to the screen pixel instead of
-	# three -- this strip is 158 wide between the caption and the number, and the brush is
-	# 61 of its own pixels long. It is the SAME OBJECT in both places on purpose: the thing
-	# draining while you draw is the thing you took off the stand in the house.
-	_ink_gauge = InkBrush.new()
-	_ink_gauge.name = "InkGauge"
-	_ink_gauge.position = Vector2(248.0, 28.0)
-	_ink_gauge.size = Vector2(158.0, 22.0)
-	panel_root.add_child(_ink_gauge)
+
+func _ease_the_claim(delta: float) -> void:
+	if is_equal_approx(_claim_shown, _claim):
+		return
+	_claim_shown = lerpf(_claim_shown, _claim, 1.0 - exp(-CLAIM_EASE * delta))
+	if absf(_claim_shown - _claim) < 0.002:
+		_claim_shown = _claim
+	_refresh_ink_row()
 
 
-## Keep the header honest while the player draws: what is left, and what the strokes on
-## the page have claimed so far.
-func _refresh_ink_row(cost: float) -> void:
+## Keep the gauge honest while the player draws: what is left, and -- out of that, from the
+## bristles down -- what the drawing on the page is taking.
+func _refresh_ink_row() -> void:
 	if _ink_gauge == null or ink_manager == null:
 		return
+	var left := ink_manager.remaining()
+	var taking := clampf(_claim_shown, 0.0, left)
 	_ink_gauge.capacity = ink_manager.capacity
-	_ink_gauge.remaining = ink_manager.remaining()
-	_ink_gauge.reserved = maxf(0.0, cost)
+	_ink_gauge.remaining = left - taking
+	_ink_gauge.reserved = taking
 	_ink_gauge.queue_redraw()
 	_ink_value.text = "%d of %d" % [
 		floori(maxf(0.0, ink_manager.remaining())), roundi(ink_manager.capacity)]
@@ -513,9 +574,9 @@ func _on_stroke_cost_changed(cost: float) -> void:
 		return
 	# There is ink on the canvas now, so there is something to offer the recogniser.
 	transform_button.disabled = cost <= 0.0
-	# The page is free. Drawing claims no ink, so the gauge does not move while a stroke is
-	# down -- it moves when a thing is acquired or set down, which is when a unit is spent.
-	_refresh_ink_row(0.0)
+	# Nothing is spent while a stroke is down -- a unit goes when a thing is acquired or set
+	# down -- but the brush shows what this drawing is taking. See CLAIM_EASE.
+	_claim = InkManager.UNIT * clampf(cost / PAGE_ALLOWANCE, 0.0, 1.0)
 	# The status line no longer recites the ink. It used to read "Ink remaining 10.7 / 12.0
 	# -- attempt 1.3" on every stroke point, which is the header gauge's job now, said in
 	# decimals, over the top of whatever the panel had last told the player. This line is
