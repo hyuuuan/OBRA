@@ -157,18 +157,37 @@ func _init() -> void:
 	box.add_theme_stylebox_override(&"panel", UISkin.chip(4.0, 4.0))
 	add_child(box)
 
+	# THE DRAWING ON A PAGE WITH SOFT CORNERS, like the frame round it. It was the drawing as
+	# drawn, its square of paper and all, and that square was the one hard corner left on the
+	# HUD. Now the paper is a rounded page and the drawing on it is the ink alone.
+	var page := Panel.new()
+	page.name = "Page"
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in [SIDE_LEFT, SIDE_TOP]:
+		page.set_offset(side, 6.0)
+	for side in [SIDE_RIGHT, SIDE_BOTTOM]:
+		page.set_offset(side, -6.0)
+	var sheet := StyleBoxFlat.new()
+	sheet.bg_color = InventoryHUD.PAPER
+	sheet.set_corner_radius_all(8)
+	sheet.corner_detail = 12
+	sheet.anti_aliasing = true
+	page.add_theme_stylebox_override(&"panel", sheet)
+	box.add_child(page)
+
 	_art = TextureRect.new()
 	_art.name = "Drawing"
 	_art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_art.offset_left = 7.0
-	_art.offset_top = 7.0
-	_art.offset_right = -7.0
-	_art.offset_bottom = -7.0
+	for side in [SIDE_LEFT, SIDE_TOP]:
+		_art.set_offset(side, 4.0)
+	for side in [SIDE_RIGHT, SIDE_BOTTOM]:
+		_art.set_offset(side, -4.0)
 	_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(_art)
+	page.add_child(_art)
 
 
 ## Become a drawing.
@@ -181,7 +200,10 @@ func show_form(form_name: String, image: Image, confidence: float) -> void:
 	_rating.text = "%d%% SURE" % roundi(clampf(confidence, 0.0, 1.0) * 100.0)
 	if image != _art_source:
 		_art_source = image
-		_art.texture = ImageTexture.create_from_image(image) if image != null else null
+		# The ink alone -- the page is drawn under it. A drawing with no ink found in it is
+		# shown as it was rather than as nothing.
+		var ink := DrawingSkin2D.thumbnail(image) if image != null else null
+		_art.texture = ink if ink != null else (ImageTexture.create_from_image(image) if image != null else null)
 	visible = true
 
 
