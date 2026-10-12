@@ -820,6 +820,39 @@ func _test_level_framework() -> void:
 			", over the vista" if bool(title_card.get("shows_vista")) else ""])
 		_expect(backdrop == null or backdrop.get_index() < title_card.get_index(),
 			"%s's backdrop is drawn over the logo" % backdrop_level)
+	# AND NEVER SHOWS ITS EDGE. Kent: "fix the menu screen for the level 1 since it looks like it
+	# cropped at the bottom". Every layer, pushed as far as the mouse can drift it, still covers
+	# what it has to -- the whole screen, or for one standing on the ground the bottom and both
+	# sides -- and a ground-standing front layer is solid where it meets the bottom of the screen.
+	var screen := Rect2(Vector2.ZERO, menu.get_viewport().get_visible_rect().size)
+	var backdrops: Dictionary = menu.get("BACKDROPS")
+	for backdrop_level: String in backdrops:
+		menu.call("_apply_backdrop", backdrop_level)
+		await process_frame
+		var art: Array = backdrops[backdrop_level]
+		var placed: Array = menu.get("_layers")
+		var short: Array[String] = []
+		for index in range(mini(art.size(), placed.size())):
+			var entry: Dictionary = art[index]
+			var layer := (placed[index] as Dictionary)["node"] as TextureRect
+			var reach := absf(float(entry["drift"])) * 0.5
+			var at_rest := Rect2(Vector2((placed[index] as Dictionary)["base"]), layer.size)
+			var needed := screen.grow(reach)
+			if entry.has("height"):
+				needed = Rect2(needed.position.x, at_rest.position.y + reach, needed.size.x,
+					needed.end.y - at_rest.position.y - reach)
+			if not at_rest.encloses(needed):
+				short.append("%s drifted to its edge" % layer.name)
+			if entry.has("height") and index == art.size() - 1 and layer.texture is AtlasTexture:
+				var sheet := (layer.texture as AtlasTexture).atlas.get_image()
+				var region := Rect2i((layer.texture as AtlasTexture).region)
+				var solid := 0
+				for x in range(region.position.x, region.end.x):
+					if sheet.get_pixel(x, region.end.y - 1).a > 0.8:
+						solid += 1
+				if solid < region.size.x:
+					short.append("%s is see-through along the bottom (%d of %d)" % [layer.name, solid, region.size.x])
+		_expect(short.is_empty(), "%s's home backdrop shows its edge: %s" % [backdrop_level, "; ".join(short)])
 	menu.call("_apply_backdrop", "")
 	menu.call("_show_selector")
 	await create_timer(0.7).timeout
