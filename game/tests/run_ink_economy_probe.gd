@@ -98,6 +98,28 @@ func _run() -> void:
 		"the later-level baseline stays six and one thing still costs one",
 		"BUDGET %.0f, UNIT %.0f" % [InkManager.BUDGET, InkManager.UNIT])
 
+	# --- the page's brush answers the pen ----------------------------------------------
+	# Kent: "whenever i draw, the ink is not dynamically affected like its not changing live".
+	# The brush beside the page shows what the drawing is taking as it is drawn -- growing
+	# with the stroke, never more than the one unit a drawing costs -- and nothing is SPENT.
+	var panel := level.get("draw_panel") as DrawPanel
+	var canvas := panel.get("canvas") as Node
+	ink.committed = 0.0
+	panel.open_panel()
+	var gauge := panel.get("_ink_gauge") as InkBrush
+	var taken: Array[float] = []
+	for page in [0.5, 3.0, 0.0]:
+		canvas.emit_signal(&"stroke_cost_changed", DrawPanel.PAGE_ALLOWANCE * page)
+		await _wait(0.6)
+		taken.append(gauge.reserved)
+	_check(absf(taken[0] - 0.5) < 0.02 and absf(taken[1] - 1.0) < 0.02 and taken[2] < 0.02,
+		"the page's brush shows the drawing taking ink, as drawn",
+		"half a page %.2f, a page and more %.2f, cleared %.2f" % taken)
+	_check(is_zero_approx(ink.committed) and is_equal_approx(gauge.remaining + gauge.reserved, ink.remaining()),
+		"and nothing is spent until the thing is made", "committed %.1f" % ink.committed)
+	panel.close_panel()
+	await _wait(0.3)
+
 	# --- a placeable is priced once per drawing -----------------------------------------
 	ink.committed = 0.0
 	var before := ink.committed
