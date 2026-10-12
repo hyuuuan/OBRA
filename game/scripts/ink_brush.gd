@@ -117,7 +117,11 @@ static func paint(canvas: CanvasItem, origin: Vector2, scale: int, ratio: float,
 	var lit := _columns(ratio)
 	_band(canvas, origin, scale, 0, lit, FULL, _health_tint(clampf(ratio, 0.0, 1.0)))
 	if claimed > ratio:
-		_band(canvas, origin, scale, lit, _columns(claimed), FULL, PENDING)
+		# The ink a drawing on the page is taking: the gold already gone from that stretch --
+		# the dry art -- lit in the claimed colour, so the brush is seen to give it up as the
+		# stroke goes down, and says by its colour that nothing is spent yet. Drawn from the
+		# wet art it was a dull copper on the ferrule, and could not be seen to move.
+		_band(canvas, origin, scale, lit, _columns(claimed), EMPTY, PENDING)
 
 
 ## How many of the brush's own 61 pixels are wet at this fraction of the budget.
