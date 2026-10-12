@@ -5,8 +5,13 @@ extends Control
 ## at the top in the middle, "DRAW ◆ BECOME ◆ DISCOVER" under it, and at the foot a gold
 ## LOADING bar. One card for all three places it shows -- the import ImportGuard runs on a
 ## new or updated copy, the loading screen between boot and the menu, and the home screen
-## itself -- so loading hands over to the menu without the picture moving: the bar goes, and
-## the PLAY button is where it was.
+## itself -- so loading hands over to the menu without the picture moving.
+##
+## IN THE GAME'S OWN DRESS. Kent: "its so edgy and not styled perfectly ... make the theme match
+## the game and also not that edgy". The status and the bar stand in the home screen's PLAY
+## panel -- the same place, size and style, a dark panel in a gold ring with soft corners --
+## so when loading hands over, the panel stays put and only what is in it changes: the bar
+## gives way to the button. The bar is a gold pill in a dark track, like the game's buttons.
 ##
 ## ⚠ NO class_name, AND IT NAMES NONE. ImportGuard shows this before anything is imported, on
 ## a copy with no class table yet; a script that names a class there does not compile.
@@ -27,23 +32,35 @@ const TAGLINE_Y := 432.0
 const TAGLINE_SIZE := 34
 const TAGLINE_WORDS: Array[String] = ["DRAW", "BECOME", "DISCOVER"]
 const TAGLINE_GAP := 30.0
-const STATUS_Y := 728.0
-const STATUS_SIZE := 26
-## The smaller words under the bar, a line apart.
+## The panel: main_menu._play_panel_rect, and its StyleBox_panel rounded by
+## UISkin.BUTTON_RADIUS + 4. Change one, change the other.
+const PANEL_RECT := Rect2(540.0, 710.0, 520.0, 84.0)
+const PANEL_CORNER := 18
+const PANEL_RING := 4
+const STATUS_BASELINE := 745.0
+const STATUS_SIZE := 24
+## The bar's track, inside the panel, and how far in from the track the fill sits.
+const BAR := Rect2(578.0, 758.0, 444.0, 18.0)
+const BAR_INSET := 3.0
+## The smaller words under the panel, a line apart.
 const NOTE_Y := 834.0
 const NOTE_SIZE := 18
 const NOTE_LEADING := 26.0
-## The bar's track, inside its frame. The PLAY button stands on this spot on the home screen.
-const BAR := Rect2(565.0, 760.0, 470.0, 30.0)
 ## How far the vista drifts against the mouse on the home screen, at most.
 const DRIFT := 10.0
 
-const INK := Color("17120c")
-const CREAM := Color(0.95, 0.92, 0.80)
-const GOLD := Color("e9b43c")
-const GOLD_LIGHT := Color("ffe39a")
-const GOLD_DARK := Color("9a6516")
-const TRACK := Color("25291f")
+## The game's palette, COPIED from UISkin rather than named -- see the top.
+const PANEL := Color(0.051, 0.063, 0.035, 0.96)   # UISkin.PANEL, as the PLAY panel has it
+const RING := Color(0.859, 0.659, 0.208)          # UISkin.GOLD
+const HALO := Color(0.133, 0.102, 0.047)          # UISkin.RING_OUTER
+const TRACK := Color(0.027, 0.035, 0.024)         # UISkin.INK
+const TRACK_EDGE := Color(0.420, 0.306, 0.090)    # UISkin.RING_MID
+const FILL := Color(0.855, 0.659, 0.239)          # UISkin.GOLD_FILL
+const FILL_LIT := Color(0.925, 0.769, 0.361)      # UISkin.GOLD_LIT
+const CREAM := Color(0.910, 0.890, 0.769)         # UISkin.CREAM_TEXT
+const GOLD := RING
+const GOLD_LIGHT := Color(0.945, 0.855, 0.616)    # UISkin.GOLD_PALE
+const GOLD_DARK := Color(0.690, 0.510, 0.161)     # UISkin.GOLD_DARK
 
 var mode := Mode.HOME:
 	set(value):
@@ -77,6 +94,7 @@ var shows_vista := true:
 var _vista: TextureRect
 var _logo: TextureRect
 var _ink: Control
+var _styles := {}
 var _font: Font
 var _time := 0.0
 
@@ -144,11 +162,6 @@ func frame_left() -> float:
 	return roundf((size.x - DESIGN.x) * 0.5)
 
 
-## The bar's track on screen -- what the home screen puts its PLAY button over.
-func bar_rect() -> Rect2:
-	return Rect2(BAR.position + Vector2(frame_left(), 0.0), BAR.size)
-
-
 func _lay_out() -> void:
 	if _logo == null or _logo.texture == null:
 		return
@@ -165,6 +178,7 @@ func _paint() -> void:
 		return
 	_draw_tagline()
 	if mode != Mode.HOME:
+		_draw_panel()
 		_draw_status()
 		_draw_bar()
 	_draw_note()
@@ -189,72 +203,105 @@ func _draw_tagline() -> void:
 			x += TAGLINE_GAP * 2.0
 
 
-## LOADING, with dots that count up while it waits. The word stays put; the dots grow after it.
+func _on_frame(rect: Rect2) -> Rect2:
+	return Rect2(rect.position + Vector2(frame_left(), 0.0), rect.size)
+
+
+## The PLAY panel, before there is a PLAY button in it.
+func _draw_panel() -> void:
+	_ink.draw_style_box(_style("panel", PANEL, PANEL_CORNER, RING, PANEL_RING, HALO, 4),
+		_on_frame(PANEL_RECT))
+
+
+## LOADING, in the panel, with dots that count up while it waits. The word stays put; the dots
+## grow after it.
 func _draw_status() -> void:
 	var width := _font.get_string_size(status, HORIZONTAL_ALIGNMENT_LEFT, -1, STATUS_SIZE).x
 	var x := roundf((size.x - width) * 0.5)
-	var baseline := STATUS_Y + roundf(_font.get_ascent(STATUS_SIZE) * 0.5) - 2.0
 	var dots := ".".repeat(1 + int(_time * 2.5) % 3)
-	_word(Vector2(x, baseline), status + dots, STATUS_SIZE)
+	_ink.draw_string(_font, Vector2(x, STATUS_BASELINE), status + dots, HORIZONTAL_ALIGNMENT_LEFT,
+		-1, STATUS_SIZE, CREAM)
 
 
-## The bar: a dark outline, a gold frame lit along its top, a dark track, the gold fill with a
-## pale band along its top, and a gold diamond at each end.
+## The bar: a dark track with a thin edge, and a gold pill inside it lit along its top -- the
+## game's gold button, laid on its side. A band sweeps back and forth instead when there is
+## nothing to measure.
 func _draw_bar() -> void:
-	var track := bar_rect()
-	_ink.draw_rect(track.grow(7.0), INK)
-	_ink.draw_rect(track.grow(5.0), GOLD_DARK)
-	_ink.draw_rect(Rect2(track.grow(5.0).position, Vector2(track.size.x + 10.0, 3.0)), GOLD_LIGHT)
-	_ink.draw_rect(track.grow(3.0), GOLD)
-	_ink.draw_rect(track.grow(1.0), INK)
-	_ink.draw_rect(track, TRACK)
+	var track := _on_frame(BAR)
+	_ink.draw_style_box(_style("track", TRACK, int(track.size.y * 0.5), TRACK_EDGE, 2), track)
+	var inner := track.grow(-BAR_INSET)
 	var fill := Rect2()
 	if mode == Mode.WAITING:
 		# Nothing to measure, so a band sweeps back and forth: the import is running, not stuck.
-		var band := track.size.x * 0.3
-		var sweep := (sin(_time * 2.2) * 0.5 + 0.5) * (track.size.x - band)
-		fill = Rect2(track.position + Vector2(roundf(sweep), 0.0), Vector2(band, track.size.y))
-	else:
-		fill = Rect2(track.position, Vector2(roundf(track.size.x * progress), track.size.y))
-	if fill.size.x >= 1.0:
-		_ink.draw_rect(fill, GOLD)
-		_ink.draw_rect(Rect2(fill.position, Vector2(fill.size.x, roundf(track.size.y * 0.3))), GOLD_LIGHT)
-		_ink.draw_rect(Rect2(fill.position + Vector2(0.0, track.size.y - 4.0), Vector2(fill.size.x, 4.0)),
-			GOLD_DARK)
-	var middle := track.position.y + track.size.y * 0.5
-	_diamond(Vector2(track.position.x - 14.0, middle), 13.0)
-	_diamond(Vector2(track.end.x + 14.0, middle), 13.0)
+		var band := inner.size.x * 0.3
+		var sweep := (sin(_time * 2.2) * 0.5 + 0.5) * (inner.size.x - band)
+		fill = Rect2(inner.position + Vector2(roundf(sweep), 0.0), Vector2(band, inner.size.y))
+	elif progress > 0.0:
+		# Never narrower than it is tall, so even a sliver of progress has round ends.
+		fill = Rect2(inner.position, Vector2(maxf(inner.size.y, roundf(inner.size.x * progress)), inner.size.y))
+	if fill.size.x < 1.0:
+		return
+	var end := fill.size.y * 0.5
+	_ink.draw_style_box(_style("fill", FILL, int(end)), fill)
+	if fill.size.x > end * 2.0 + 2.0:
+		_ink.draw_line(fill.position + Vector2(end, 2.0), fill.position + Vector2(fill.size.x - end, 2.0),
+			FILL_LIT, 2.0, true)
+
+
+## A rounded box, made once per use and recoloured: a StyleBox is read when it is drawn.
+func _style(key: String, fill: Color, radius: int, edge := Color(0, 0, 0, 0), border := 0,
+		halo := Color(0, 0, 0, 0), halo_size := 0) -> StyleBoxFlat:
+	var box := _styles.get(key) as StyleBoxFlat
+	if box == null:
+		box = StyleBoxFlat.new()
+		box.corner_detail = 12
+		box.anti_aliasing = true
+		_styles[key] = box
+	box.bg_color = fill
+	box.set_corner_radius_all(radius)
+	box.border_color = edge
+	box.set_border_width_all(border)
+	box.shadow_color = halo
+	box.shadow_size = halo_size
+	return box
 
 
 ## Under the bar -- or, with no bar, where the bar would be, so a note that has stopped the game
 ## stands in the middle of the foot rather than under nothing.
 func _draw_note() -> void:
 	var lines := note.split("\n")
-	var top := NOTE_Y if mode != Mode.HOME else BAR.position.y
+	var top := NOTE_Y if mode != Mode.HOME else PANEL_RECT.position.y + 28.0
 	for index in range(lines.size()):
 		var width := _font.get_string_size(lines[index], HORIZONTAL_ALIGNMENT_LEFT, -1, NOTE_SIZE).x
 		var at := Vector2(roundf((size.x - width) * 0.5), top + NOTE_LEADING * float(index))
-		_ink.draw_string_outline(_font, at, lines[index], HORIZONTAL_ALIGNMENT_LEFT, -1, NOTE_SIZE, 6, INK)
+		_ink.draw_string_outline(_font, at, lines[index], HORIZONTAL_ALIGNMENT_LEFT, -1, NOTE_SIZE, 6, HALO)
 		_ink.draw_string(_font, at, lines[index], HORIZONTAL_ALIGNMENT_LEFT, -1, NOTE_SIZE, CREAM)
 
 
 func _word(at: Vector2, text: String, font_size: int) -> void:
-	_ink.draw_string_outline(_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 8, INK)
+	_ink.draw_string_outline(_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 6, HALO)
 	_ink.draw_string(_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, CREAM)
 
 
-## A gold diamond outlined in ink, lit on its upper-left faces.
+## A gold diamond with a dark edge, lit on its upper-left faces -- each face edged with an
+## antialiased line of its own colour, so the slopes are smooth rather than stepped.
 func _diamond(centre: Vector2, half: float) -> void:
 	var outline := half + 3.0
-	_ink.draw_colored_polygon(PackedVector2Array([centre + Vector2(0, -outline),
-		centre + Vector2(outline, 0), centre + Vector2(0, outline), centre + Vector2(-outline, 0)]),
-		INK)
-	_ink.draw_colored_polygon(PackedVector2Array([centre + Vector2(0, -half), centre + Vector2(half, 0),
+	_soft(PackedVector2Array([centre + Vector2(0, -outline), centre + Vector2(outline, 0),
+		centre + Vector2(0, outline), centre + Vector2(-outline, 0)]), HALO)
+	_soft(PackedVector2Array([centre + Vector2(0, -half), centre + Vector2(half, 0),
 		centre + Vector2(0, half), centre + Vector2(-half, 0)]), GOLD)
-	_ink.draw_colored_polygon(PackedVector2Array([centre + Vector2(0, -half),
-		centre + Vector2(0, 0), centre + Vector2(-half, 0)]), GOLD_LIGHT)
-	_ink.draw_colored_polygon(PackedVector2Array([centre + Vector2(half, 0), centre + Vector2(0, half),
-		centre + Vector2(0, 0)]), GOLD_DARK)
+	_soft(PackedVector2Array([centre + Vector2(0, -half), centre, centre + Vector2(-half, 0)]),
+		GOLD_LIGHT)
+	_soft(PackedVector2Array([centre + Vector2(half, 0), centre + Vector2(0, half), centre]),
+		GOLD_DARK)
+
+
+func _soft(points: PackedVector2Array, colour: Color) -> void:
+	_ink.draw_colored_polygon(points, colour)
+	var edge := points.duplicate()
+	edge.append(points[0])
+	_ink.draw_polyline(edge, colour, 1.0, true)
 
 
 func _picture(path: String) -> Texture2D:

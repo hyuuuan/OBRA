@@ -418,6 +418,16 @@ func _test_theme_resource() -> void:
 				"the theme's %s is square when %s" % [button_type, state])
 	_expect(UISkin.action_prompt(UISkin.GOLD).corner_radius_top_left >= 8, "a HUD key prompt is square")
 	_expect(UISkin.slot(true, false).corner_radius_top_left >= 8, "a hotbar slot is square")
+	# And the boxes. Kent: "there are still boxes in the game like the brush container or like
+	# the dialogue or hints, i told you to make them use the soft edged curve". The theme's panels
+	# and every box UISkin builds -- the brush container is a frame, a hint is a chip.
+	for panel_type in ["Panel", "PanelContainer", "PopupPanel"]:
+		var panel_style := theme.get_stylebox("panel", panel_type) as StyleBoxFlat
+		_expect(panel_style != null and panel_style.corner_radius_top_left >= 8,
+			"the theme's %s is square" % panel_type)
+	var boxes := {"frame": UISkin.frame(), "chip": UISkin.chip(), "strip": UISkin.strip(), "well": UISkin.well()}
+	for box_name: String in boxes:
+		_expect((boxes[box_name] as StyleBoxFlat).corner_radius_top_left >= 8, "a UISkin %s is square" % box_name)
 	# The base types the HUD and every new screen inherit from, which have no
 	# overrides of their own and would otherwise render as raw engine defaults.
 	_expect(theme.has_stylebox("normal", "Button"), "theme does not style a plain Button")
