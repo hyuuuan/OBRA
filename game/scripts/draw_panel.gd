@@ -327,7 +327,18 @@ func _configure_canvas_surface() -> void:
 	canvas.call(&"set_drawable_bounds", canvas_frame.opening())
 
 
-## DRAW on the left, ink on the right, in the strip above the page.
+## THE BRUSH STANDS BESIDE THE PAGE. Kent: "the ink bar is at the top whenever i am opening
+## the canvas, and its too small ... make it vertical and it should be beside the canvas or
+## keep it horizontal but bigger". It was a 158 x 22 strip squeezed above the oval at two screen
+## pixels to the art pixel, and nothing bigger fits there -- the oval's gilt top is in the way.
+## Beside the page there is room for three times that. So the same brush, stood bristles-up
+## like a brush in a jar (InkBrush.vertical): the gold drains downward the way a level does,
+## and the bristles still go dry first. INK over it, how much is left under it.
+const GAUGE_SCALE := 6
+const GAUGE_GAP := 34.0
+
+
+## DRAW over the page; the brush, its name and its count beside it.
 func _build_header() -> void:
 	var caption := Label.new()
 	caption.name = "Caption"
@@ -337,25 +348,37 @@ func _build_header() -> void:
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel_root.add_child(caption)
 
+	# It is the SAME OBJECT the level HUD shows, on purpose: the thing draining while you draw
+	# is the thing you took off the stand in the house.
+	var page := Rect2(canvas_frame.position, canvas_frame.size)
+	_ink_gauge = InkBrush.new()
+	_ink_gauge.name = "InkGauge"
+	_ink_gauge.vertical = true
+	_ink_gauge.size = InkBrush.size_at(GAUGE_SCALE, true)
+	_ink_gauge.position = Vector2(page.end.x + GAUGE_GAP,
+		roundf(page.get_center().y - _ink_gauge.size.y * 0.5))
+	panel_root.add_child(_ink_gauge)
+	var column := Rect2(_ink_gauge.position.x - 40.0, 0.0, _ink_gauge.size.x + 80.0, 0.0)
+
+	var heading := Label.new()
+	heading.name = "InkCaption"
+	heading.text = "INK"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.theme_type_variation = &"HudCaption"
+	heading.position = Vector2(column.position.x, _ink_gauge.position.y - 40.0)
+	heading.size = Vector2(column.size.x, 28.0)
+	heading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel_root.add_child(heading)
+
 	_ink_value = Label.new()
 	_ink_value.name = "InkValue"
 	_ink_value.text = ""
-	_ink_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_ink_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_ink_value.theme_type_variation = &"HudValue"
-	_ink_value.position = Vector2(406.0, 26.0)
-	_ink_value.size = Vector2(168.0, 24.0)
+	_ink_value.position = Vector2(column.position.x, _ink_gauge.position.y + _ink_gauge.size.y + 12.0)
+	_ink_value.size = Vector2(column.size.x, 28.0)
 	_ink_value.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel_root.add_child(_ink_value)
-
-	# The same brush the level HUD shows, two art pixels to the screen pixel instead of
-	# three -- this strip is 158 wide between the caption and the number, and the brush is
-	# 61 of its own pixels long. It is the SAME OBJECT in both places on purpose: the thing
-	# draining while you draw is the thing you took off the stand in the house.
-	_ink_gauge = InkBrush.new()
-	_ink_gauge.name = "InkGauge"
-	_ink_gauge.position = Vector2(248.0, 28.0)
-	_ink_gauge.size = Vector2(158.0, 22.0)
-	panel_root.add_child(_ink_gauge)
 
 
 ## Keep the header honest while the player draws: what is left, and what the strokes on
