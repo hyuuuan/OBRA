@@ -86,15 +86,22 @@ func _draw() -> void:
 	# of doubled columns down one side of the brush.
 	var origin := ((size - drawn) * 0.5).floor()
 
+	var span := maxf(0.001, capacity)
+	paint(self, origin, scale, remaining / span, (remaining + maxf(0.0, reserved)) / span)
+
+
+## The brush at `ratio` full, onto any canvas: the HUD's gauge, and the lesson card that
+## teaches what the gauge is (LessonVisual's ink picture), which must be the same brush.
+## `claimed` is how far the ink already promised to the drawing on the page reaches.
+static func paint(canvas: CanvasItem, origin: Vector2, scale: int, ratio: float,
+		claimed: float = -1.0) -> void:
 	# The dry brush underneath, whole. The lit part is painted over it, so the boundary
 	# between wet and dry needs no mask -- it is simply where the gold stops.
-	_band(origin, scale, 0, ART.x, EMPTY, DRY)
-
-	var span := maxf(0.001, capacity)
-	var lit := _columns(remaining / span)
-	var claimed := _columns((remaining + maxf(0.0, reserved)) / span)
-	_band(origin, scale, 0, lit, FULL, _health_tint(clampf(remaining / span, 0.0, 1.0)))
-	_band(origin, scale, lit, claimed, FULL, PENDING)
+	_band(canvas, origin, scale, 0, ART.x, EMPTY, DRY)
+	var lit := _columns(ratio)
+	_band(canvas, origin, scale, 0, lit, FULL, _health_tint(clampf(ratio, 0.0, 1.0)))
+	if claimed > ratio:
+		_band(canvas, origin, scale, lit, _columns(claimed), FULL, PENDING)
 
 
 ## How many of the brush's own 61 pixels are wet at this fraction of the budget.
@@ -107,14 +114,14 @@ func _draw() -> void:
 ## Any ink at all keeps one column lit. Rounding a real but tiny reserve down to nothing
 ## would show a dry brush to a player who can still draw, which is the one lie a gauge
 ## must not tell.
-func _columns(ratio: float) -> int:
+static func _columns(ratio: float) -> int:
 	if ratio <= 0.0:
 		return 0
 	return clampi(maxi(1, roundi(ratio * float(ART.x))), 0, ART.x)
 
 
 ## Paint art pixels [from, to) of the brush from one of the two sheets.
-func _band(origin: Vector2, scale: int, from: int, to: int,
+static func _band(canvas: CanvasItem, origin: Vector2, scale: int, from: int, to: int,
 		texture: Texture2D, modulate: Color) -> void:
 	if to <= from:
 		return
@@ -124,7 +131,7 @@ func _band(origin: Vector2, scale: int, from: int, to: int,
 	var target := Rect2(
 		origin + Vector2(float(from * scale), 0.0),
 		Vector2(float((to - from) * scale), float(ART.y * scale)))
-	draw_texture_rect_region(texture, target, source, modulate)
+	canvas.draw_texture_rect_region(texture, target, source, modulate)
 
 
 ## The largest whole number of screen pixels one art pixel can take and still fit the box.
@@ -139,7 +146,7 @@ func _fit() -> int:
 ## Gold while there is ink to spare, amber as it runs low, red at the end. Multiplied over
 ## the artwork rather than replacing it, so the brush keeps its own shading throughout and
 ## only the light on it changes.
-func _health_tint(ratio: float) -> Color:
+static func _health_tint(ratio: float) -> Color:
 	if ratio >= LOW:
 		return Color.WHITE
 	if ratio >= CRITICAL:
