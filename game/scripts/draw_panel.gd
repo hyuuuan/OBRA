@@ -333,9 +333,11 @@ func _configure_canvas_surface() -> void:
 ## pixels to the art pixel, and nothing bigger fits there -- the oval's gilt top is in the way.
 ## Beside the page there is room for three times that. So the same brush, stood bristles-up
 ## like a brush in a jar (InkBrush.vertical): the gold drains downward the way a level does,
-## and the bristles still go dry first. INK over it, how much is left under it.
+## and the bristles still go dry first. INK over it, how much is left under it, and all three
+## in the same soft container the level HUD keeps its brush in, so it reads over any scene.
 const GAUGE_SCALE := 6
 const GAUGE_GAP := 34.0
+const GAUGE_PAD := Vector2(26.0, 14.0)
 
 
 ## DRAW over the page; the brush, its name and its count beside it.
@@ -359,6 +361,15 @@ func _build_header() -> void:
 		roundf(page.get_center().y - _ink_gauge.size.y * 0.5))
 	panel_root.add_child(_ink_gauge)
 	var column := Rect2(_ink_gauge.position.x - 40.0, 0.0, _ink_gauge.size.x + 80.0, 0.0)
+	var holder := Panel.new()
+	holder.name = "InkHolder"
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_theme_stylebox_override(&"panel", UISkin.frame())
+	holder.position = _ink_gauge.position - Vector2(GAUGE_PAD.x, 40.0 + GAUGE_PAD.y)
+	holder.size = _ink_gauge.size + Vector2(GAUGE_PAD.x * 2.0, 40.0 + 12.0 + 28.0 + GAUGE_PAD.y * 2.0)
+	panel_root.add_child(holder)
+	# Behind the brush, which was added first.
+	panel_root.move_child(holder, _ink_gauge.get_index())
 
 	var heading := Label.new()
 	heading.name = "InkCaption"
