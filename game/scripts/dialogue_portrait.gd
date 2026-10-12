@@ -60,14 +60,21 @@ extends Control
 ## survive the cut -- true of those frames, and not a reason to keep showing a picture six
 ## times too small.
 ##
+## ⚠ OUTLINED, BY tools/build_portrait_outlines.py. Kent: "the black outlines of the characters
+## are not visible making them like cut off or like broken in bits". The background knock-out
+## that cut these from their sheets took most of the outline with it -- Lolo's was slivers with
+## gaps, the apo's nearly gone -- so the tool draws it back on, on a canvas grown by its width
+## (OUTLINE, 7) on every side. The cuts below are rows of THAT canvas: the same place on the
+## figure as before, seven rows further down. The Padre's sheet kept its outline whole.
+##
 ## IT IS PER SPEAKER BECAUSE THEY ARE NOT BUILT THE SAME. The apo is a child at roughly four
 ## heads tall; Lolo is a chibi ghost whose head is two fifths of him and whose legs are a
 ## tail. Both fractions are measured to cut at the HANDS -- the widest thing in the frame --
-## so neither speaker is holding a stump, and both land on a 215px source, which is what
-## keeps their pixels the same size as each other's.
+## so neither speaker is holding a stump, and both land on a 222px source (215 before the
+## outline was drawn round them), which is what keeps their pixels the same size as each other's.
 const PORTRAITS := {
-	"Lolo": {"art": preload("res://assets/characters/lolo/lolo_portrait.png"),
-		"bust": 0.71},
+	"Lolo": {"art": preload("res://assets/characters/lolo/lolo_portrait_outlined.png"),
+		"bust": 222.0 / 317.0},
 	# The supplied priest sheet's large portrait, kept at source resolution. Cut below
 	# the pendant at row 250 of 352; the old portrait's bust fraction does not fit this art.
 	"Padre": {"art": preload("res://assets/characters/priest/priest_portrait.png"),
@@ -76,7 +83,7 @@ const PORTRAITS := {
 ## Anyone without an entry above, which in practice is the apo: its own lines share the box
 ## with a different plaque.
 const DEFAULT_PORTRAIT := {
-	"art": preload("res://assets/characters/apo/apo_portrait.png"), "bust": 0.69,
+	"art": preload("res://assets/characters/apo/apo_portrait_outlined.png"), "bust": 222.0 / 326.0,
 }
 ## How tall the bust wants to stand on screen. A TARGET, not a ceiling: what it is rounded
 ## to is a whole multiple of the source, so the drawing is never resampled onto a half
