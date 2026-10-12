@@ -70,6 +70,13 @@ const DANGER := Color(1.0, 0.42, 0.34)
 var remaining := 12.0
 var capacity := 12.0
 var reserved := 0.0
+## STOOD ON END, bristles up, like a brush in a jar: the gold drains downward the way a level
+## does, and the bristles still go dry first. The drawing page's gauge, beside the oval.
+## Turned a quarter rather than redrawn, so it is the same art on the same whole-pixel grid.
+var vertical := false:
+	set(value):
+		vertical = value
+		queue_redraw()
 
 
 func _init() -> void:
@@ -81,13 +88,22 @@ func _draw() -> void:
 	var scale := _fit()
 	if scale <= 0:
 		return
-	var drawn := Vector2(ART) * float(scale)
+	var drawn := size_at(scale, vertical)
 	# Centred and on whole pixels. Half a pixel of offset on nearest-neighbour art is a row
 	# of doubled columns down one side of the brush.
 	var origin := ((size - drawn) * 0.5).floor()
 
 	var span := maxf(0.001, capacity)
-	paint(self, origin, scale, remaining / span, (remaining + maxf(0.0, reserved)) / span)
+	var ratio := remaining / span
+	var claimed := (remaining + maxf(0.0, reserved)) / span
+	if not vertical:
+		paint(self, origin, scale, ratio, claimed)
+		return
+	# A quarter turn anticlockwise about the bottom-left corner: the handle end at the bottom,
+	# the head at the top, the art's top row down the left-hand side.
+	draw_set_transform(origin + Vector2(0.0, drawn.y), -PI * 0.5, Vector2.ONE)
+	paint(self, Vector2.ZERO, scale, ratio, claimed)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## The brush at `ratio` full, onto any canvas: the HUD's gauge, and the lesson card that
@@ -140,6 +156,8 @@ static func _band(canvas: CanvasItem, origin: Vector2, scale: int, from: int, to
 ## -- the level HUD and the strip over the drawing page -- are different widths; letting it
 ## scale to fill either one would put the brush on half pixels in at least one of them.
 func _fit() -> int:
+	if vertical:
+		return mini(int(size.y) / ART.x, int(size.x) / ART.y)
 	return mini(int(size.x) / ART.x, int(size.y) / ART.y)
 
 
@@ -158,8 +176,9 @@ static func _health_tint(ratio: float) -> Color:
 ##
 ## Asked for rather than written out, because the two places that show a brush want it at
 ## different sizes and neither should be carrying its own copy of 61 by 11.
-static func size_at(scale: int) -> Vector2:
-	return Vector2(ART) * float(maxi(1, scale))
+static func size_at(scale: int, standing := false) -> Vector2:
+	var box := Vector2(ART) * float(maxi(1, scale))
+	return Vector2(box.y, box.x) if standing else box
 
 
 ## What the gauge is showing, for anything that wants to place a label beside it.
