@@ -193,13 +193,15 @@ const OFF_LABEL := Color(0.435, 0.404, 0.341, 1.0)    # 6F6757
 ## chip small enough that three rings would eat it uses THIN.
 const RING := 4
 const THIN := 2
-## Everything is very slightly cut rather than square. Pure 90-degree corners read as a
-## debug rect; a 2 px radius reads as a drawn box.
-const RADIUS := 2
-## EXCEPT WHAT IS PRESSED, WHICH IS ROUND. Kent: "like the buttons in game, make them use the
-## rounded ones like the edges instead of like the edgy rectangles". Every button and the
-## focus ring round it, the HUD's key prompts and the keys on them, and the hotbar's slots;
-## the panels and frames they sit in keep RADIUS.
+## SOFT CORNERS, ON EVERYTHING. It was a 2 px cut -- "pure 90-degree corners read as a debug
+## rect; a 2 px radius reads as a drawn box" -- and then Kent: "there are still boxes in the
+## game like the brush container or like the dialogue or hints, i told you to make them use
+## the soft edged curve". Every panel, chip, strip and well is rounded by RADIUS, and what is
+## pressed by a little more.
+const RADIUS := 12
+## Kent: "like the buttons in game, make them use the rounded ones like the edges instead of
+## like the edgy rectangles". Every button and the focus ring round it, the HUD's key prompts
+## and the keys on them, and the hotbar's slots.
 const BUTTON_RADIUS := 14
 const KEY_RADIUS := 6
 const SLOT_RADIUS := 10
@@ -274,7 +276,7 @@ static func well() -> StyleBoxFlat:
 	box.bg_color = INK
 	box.border_color = RING_MID
 	box.set_border_width_all(THIN)
-	box.set_corner_radius_all(RADIUS)
+	_round(box, RADIUS)
 	return box
 
 
@@ -285,7 +287,7 @@ static func strip(pad_x: float = 12.0, pad_y: float = 4.0) -> StyleBoxFlat:
 	box.bg_color = Color(PANEL.r, PANEL.g, PANEL.b, 0.90)
 	box.border_color = RING_MID
 	box.set_border_width_all(THIN)
-	box.set_corner_radius_all(RADIUS)
+	_round(box, RADIUS)
 	box.content_margin_left = pad_x
 	box.content_margin_right = pad_x
 	box.content_margin_top = pad_y
@@ -408,7 +410,7 @@ static func hollow() -> StyleBoxFlat:
 	box.bg_color = Color(INK.r, INK.g, INK.b, 0.55)
 	box.border_color = RING_OUTER
 	box.set_border_width_all(THIN)
-	box.set_corner_radius_all(RADIUS)
+	_round(box, RADIUS)
 	return box
 
 
@@ -474,7 +476,7 @@ static func _ringed(fill: Color, inner: Color, inner_w: int,
 	box.bg_color = fill
 	box.border_color = inner
 	box.set_border_width_all(inner_w)
-	box.set_corner_radius_all(RADIUS)
+	_round(box, RADIUS)
 	box.shadow_color = outer
 	box.shadow_size = outer_w
 	box.shadow_offset = Vector2.ZERO
