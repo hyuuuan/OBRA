@@ -1532,7 +1532,8 @@ func _paid_in_bag() -> float:
 	var units := 0.0
 	if inventory_manager == null:
 		return units
-	for value: Variant in inventory_manager.items():
+	# Every drawing, not the one each slot shows: three paid ladders are one slot.
+	for value: Variant in inventory_manager.all_items():
 		units += _paid_for(value as DrawnItemData)
 	return units
 
@@ -2121,8 +2122,9 @@ func _begin_new_utility(item: DrawnItemData, going_into_hand: bool = false) -> b
 		item.ink_committed = true
 		if not ink_manager.spend_unit():
 			# Recognised, and unaffordable. The class is still theirs for later, so this is
-			# a delay rather than a loss, and saying which it is matters.
-			inventory_manager.take_item(slot)
+			# a delay rather than a loss, and saying which it is matters. THIS drawing comes
+			# back out, not whichever its slot shows: it may have gone onto a stack.
+			inventory_manager.remove_item(item)
 			status_label.text = "%s needs a unit of ink, and there is none left" % item.display_name
 			return false
 	inventory_hud.set_selected(slot)
@@ -2287,13 +2289,18 @@ func _tool_is_spent_by(_obstacle_id: String, _route: String, _entity_id: String)
 ## finishes later than the answer did -- the tree that falls on the third swing, the flock
 ## that is all down.
 func spend_tool(entity_id: String) -> void:
+	# The one in the hand, when it is that one; with two of a tool stacked in a slot, the other
+	# stays in the bag.
+	var spent: DrawnItemData = null
 	if _equipped_utility != null and is_instance_valid(_equipped_utility) \
 			and _equipped_utility.item_data != null \
 			and _equipped_utility.item_data.entity_id == entity_id:
+		spent = _equipped_utility.item_data
 		_stow_equipped()
-	var slot := _slot_holding(entity_id)
-	if slot >= 0:
-		inventory_manager.take_item(slot)
+	if spent == null or inventory_manager.remove_item(spent) == -1:
+		var slot := _slot_holding(entity_id)
+		if slot >= 0:
+			inventory_manager.take_item(slot)
 	if inventory_hud != null:
 		inventory_hud.set_selected(-1)
 	Telemetry.record_event("tool_spent", {
@@ -2478,14 +2485,17 @@ func _on_utility_pickup_requested(utility: PhysicsShapeObject) -> void:
 	# A tool taken out of a slot never left the bag, so putting it away must not put a
 	# second copy in. Without this, a pickup request on a held axe handed the inventory an
 	# axe it was already holding and duplicated it every time it was stowed.
-	if utility.item_data != null and _slot_holding(utility.item_data.entity_id) >= 0:
+	# ⚠ THIS DRAWING, NOT ITS CLASS. It asked whether the bag held anything of the same class,
+	# so a ladder set down and picked up again while another ladder was in the bag was freed
+	# as though it had never left -- gone, and its ink with it.
+	if utility.item_data != null and inventory_manager.holds(utility.item_data):
 		if utility == _equipped_utility:
 			_stow_equipped()
 		else:
 			utility.queue_free()
 		status_label.text = "%s put away" % utility.item_data.display_name
 		return
-	if inventory_manager.is_full():
+	if not inventory_manager.has_room_for(utility.item_data):
 		status_label.text = "Inventory full"
 		return
 	var item := utility.prepare_for_inventory()
@@ -2504,7 +2514,7 @@ func _on_utility_pickup_requested(utility: PhysicsShapeObject) -> void:
 func _on_utility_equipped(utility: UtilityObject, _actor: Node2D) -> void:
 	if _equipped_utility != null and is_instance_valid(_equipped_utility) and _equipped_utility != utility:
 		var previous := _equipped_utility
-		if inventory_manager.is_full():
+		if not inventory_manager.has_room_for(previous.item_data):
 			var drop_at := player.global_position
 			if player.has_method("get_physics_anchor"):
 				var anchor := player.call("get_physics_anchor") as Node2D
