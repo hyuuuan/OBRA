@@ -28,10 +28,19 @@ const FONT := "res://ui/fonts/GeistPixel-Regular.ttf"
 const DESIGN := Vector2(1600.0, 900.0)
 const LOGO_SCALE := 4.0
 const LOGO_TOP := 96.0
-const TAGLINE_Y := 432.0
-const TAGLINE_SIZE := 34
+## THE TAGLINE ON A RIBBON. Kent: "the tagline in the loading screen ... should be redesigned
+## as well since its weird looking". It was cream letters in a thick dark outline, standing on
+## whatever sky was behind them -- chunky, and like nothing else on the screen. Now it is a
+## soft dark ribbon with a gold rim under the logo, the same dress as the PLAY panel and the
+## HUD's chips, the words in pale gold and spaced a little apart, a small diamond between each.
+const TAGLINE_Y := 434.0
+const TAGLINE_SIZE := 24
 const TAGLINE_WORDS: Array[String] = ["DRAW", "BECOME", "DISCOVER"]
-const TAGLINE_GAP := 30.0
+## Extra space after each letter, and either side of each diamond.
+const TAGLINE_TRACKING := 4.0
+const TAGLINE_GAP := 22.0
+const RIBBON_HEIGHT := 46.0
+const RIBBON_PAD := 30.0
 ## The panel: main_menu._play_panel_rect, and its StyleBox_panel rounded by
 ## UISkin.BUTTON_RADIUS + 4. Change one, change the other.
 const PANEL_RECT := Rect2(540.0, 710.0, 520.0, 84.0)
@@ -184,23 +193,42 @@ func _paint() -> void:
 	_draw_note()
 
 
-## "DRAW ◆ BECOME ◆ DISCOVER": the words in cream, outlined dark, with gold diamonds between.
+## "DRAW ◆ BECOME ◆ DISCOVER", on its ribbon. See TAGLINE_TRACKING.
 func _draw_tagline() -> void:
 	var widths: Array[float] = []
 	var total := 0.0
 	for word in TAGLINE_WORDS:
-		var width := _font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, TAGLINE_SIZE).x
+		var width := _tracked_width(word, TAGLINE_SIZE)
 		widths.append(width)
 		total += width
 	total += TAGLINE_GAP * 2.0 * float(TAGLINE_WORDS.size() - 1)
-	var x := roundf((size.x - total) * 0.5)
-	var baseline := TAGLINE_Y + roundf(_font.get_ascent(TAGLINE_SIZE) * 0.5) - 2.0
+	var ribbon := Rect2(roundf((size.x - total) * 0.5 - RIBBON_PAD), roundf(TAGLINE_Y - RIBBON_HEIGHT * 0.5),
+		roundf(total + RIBBON_PAD * 2.0), RIBBON_HEIGHT)
+	_ink.draw_style_box(_style("ribbon", PANEL, int(RIBBON_HEIGHT * 0.5), RING, 2, HALO, 3), ribbon)
+	var x := ribbon.position.x + RIBBON_PAD
+	var baseline := roundf(TAGLINE_Y + (_font.get_ascent(TAGLINE_SIZE) - _font.get_descent(TAGLINE_SIZE)) * 0.5)
 	for index in range(TAGLINE_WORDS.size()):
-		_word(Vector2(x, baseline), TAGLINE_WORDS[index], TAGLINE_SIZE)
+		_tracked(Vector2(x, baseline), TAGLINE_WORDS[index], TAGLINE_SIZE, GOLD_LIGHT)
 		x += widths[index]
 		if index < TAGLINE_WORDS.size() - 1:
-			_diamond(Vector2(x + TAGLINE_GAP, TAGLINE_Y), 8.0)
+			_diamond(Vector2(x + TAGLINE_GAP, TAGLINE_Y), 5.0)
 			x += TAGLINE_GAP * 2.0
+
+
+## A word drawn a letter at a time with TAGLINE_TRACKING after each but the last.
+func _tracked(at: Vector2, word: String, font_size: int, colour: Color) -> void:
+	var x := at.x
+	for index in range(word.length()):
+		var letter := word.unicode_at(index)
+		_ink.draw_char(_font, Vector2(x, at.y), word[index], font_size, colour)
+		x += _font.get_char_size(letter, font_size).x + TAGLINE_TRACKING
+
+
+func _tracked_width(word: String, font_size: int) -> float:
+	var width := 0.0
+	for index in range(word.length()):
+		width += _font.get_char_size(word.unicode_at(index), font_size).x
+	return width + TAGLINE_TRACKING * float(maxi(0, word.length() - 1))
 
 
 func _on_frame(rect: Rect2) -> Rect2:
@@ -276,11 +304,6 @@ func _draw_note() -> void:
 		var at := Vector2(roundf((size.x - width) * 0.5), top + NOTE_LEADING * float(index))
 		_ink.draw_string_outline(_font, at, lines[index], HORIZONTAL_ALIGNMENT_LEFT, -1, NOTE_SIZE, 6, HALO)
 		_ink.draw_string(_font, at, lines[index], HORIZONTAL_ALIGNMENT_LEFT, -1, NOTE_SIZE, CREAM)
-
-
-func _word(at: Vector2, text: String, font_size: int) -> void:
-	_ink.draw_string_outline(_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 6, HALO)
-	_ink.draw_string(_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, CREAM)
 
 
 ## A gold diamond with a dark edge, lit on its upper-left faces -- each face edged with an
