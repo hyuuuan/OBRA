@@ -131,8 +131,10 @@ func _the_bag_screen_moves() -> void:
 		placement.cancel_placement()
 	var bag := level.get("inventory_manager") as InventoryManager
 	var hud := level.get("inventory_hud") as InventoryHUD
+	# Every drawing out, not one a slot: drawings of one kind share a slot now.
 	for slot in range(bag.capacity):
-		bag.take_item(slot)
+		while bag.take_item(slot) != null:
+			pass
 	bag.add_item(_item("ladder"), 0)
 	bag.add_item(_item("square"), 2)
 	var screen: InventoryScreen = null

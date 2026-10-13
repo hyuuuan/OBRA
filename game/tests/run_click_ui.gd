@@ -634,8 +634,10 @@ func _the_bag_screen_answers_the_mouse() -> void:
 	var panel := level.get_node_or_null("DrawPanel")
 	if panel != null and bool(panel.call("is_open")):
 		panel.call("close_panel")
+	# Every drawing out, not one a slot: drawings of one kind share a slot now.
 	for slot in range(bag.capacity):
-		bag.take_item(slot)
+		while bag.take_item(slot) != null:
+			pass
 	for pair in [["ladder", 0], ["square", 2]]:
 		var item := DrawnItemData.new()
 		item.entity_id = String(pair[0])
