@@ -3,19 +3,20 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_screens_fit_probe.gd
 ##
 ## Kent: "its not properly oriented or responsive to all screens like some parts are cut off
-## ... dont forget the settings screens/keybinds/etc". The game is stretched keep_height
-## (project.godot): it is never shown narrower or shorter than 1600 x 900 -- a taller screen
-## gets bars above and below -- and a wider one gets more width. So a screen that fits 1600 x
-## 900 fits every screen, and one that stays centred on a wide one is the right way round on
-## it. Two did not fit: the keybind list was 949 pixels tall, with BACK cut in half under the
+## ... dont forget the settings screens/keybinds/etc". The game is stretched `expand`
+## (project.godot): it is never shown narrower or shorter than 1600 x 900, and a screen of any
+## other shape gets more of one or the other -- more width on a wide one, more height on a
+## MacBook's 16:10 or an iPad's 4:3. So a screen that fits 1600 x 900 fits every screen, and
+## one that stays centred on the others is the right way round on them. Two did not fit: the keybind list was 949 pixels tall, with BACK cut in half under the
 ## bottom of the screen, and the bag with its tabs was 1620 across -- wider still with a found
 ## thing chosen, because one line on its card did not wrap.
 ##
 ## So this opens every one of them -- the home screen, its settings and keybinds, and every
-## overlay in both levels, the bag with its longest card up -- at 1600 x 900 and at 2100 x
-## 900, and fails on anything drawn off the screen or off the middle of it.
+## overlay in both levels, the bag with its longest card up -- at 16:9, 21:9, 16:10 and 4:3,
+## and fails on anything drawn off the screen or off the middle of it.
 
-const SIZES: Array[Vector2i] = [Vector2i(1600, 900), Vector2i(2100, 900)]
+const SIZES: Array[Vector2i] = [Vector2i(1600, 900), Vector2i(2100, 900), Vector2i(1600, 1000),
+	Vector2i(1600, 1200)]
 const LEVELS := ["res://game_level.tscn", "res://level_2.tscn"]
 ## How far off the middle a screen may sit before it is the wrong way round.
 const OFF_CENTRE := 4.0
@@ -70,6 +71,14 @@ func _level(path: String) -> void:
 	root.add_child(level)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _frames(30)
+	# THE WORLD IS FRAMED AS TALL AS IT WAS PAINTED, whatever the screen. A taller screen gets
+	# more interface, and the camera sits further in so the world above the painted sky and
+	# below the walk line never shows (WorldCameraController.DESIGN_HEIGHT).
+	var camera := level.call("_world_camera") as WorldCameraController
+	var framed := root.get_visible_rect().size.y / camera.zoom.y if camera != null else 0.0
+	_check(absf(framed - WorldCameraController.DESIGN_HEIGHT) < 0.5,
+		"%s: the world is framed as tall as it was painted" % path.get_file().get_basename(),
+		"%.0f units tall" % framed)
 	_fill_the_bag(level)
 	for node in get_nodes_in_group(&"modal_overlays"):
 		var overlay := node as CanvasLayer
