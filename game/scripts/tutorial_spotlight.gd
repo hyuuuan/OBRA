@@ -48,9 +48,9 @@ const SHADER := preload("res://shaders/tutorial_spotlight.gdshader")
 ## has to dim the canvas -- and below the pause menu (50), which must still open over it.
 const LAYER := 45
 const DIM := 0.74
-## From the top of the screen to the card: clear of the level's name plate and the objective
-## under it, which sit there -- at 72 the card's top edge sat on the objective's frame.
-const TOP_GAP := 88.0
+## From the top of the screen to the card: clear of the quest card, which sits there -- at 72
+## the card's top edge sat on the objective's frame. Measured off the quest card's own bottom.
+const TOP_GAP := ObjectiveBanner.BOTTOM + 10.0
 ## From the bottom of the screen.
 const EDGE_GAP := 52.0
 ## From the lit box when the card stands beside it, and the smallest it may be drawn there.
