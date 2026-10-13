@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_dialogue_portraits_are_outlined()
 	_test_the_brass_key_is_drawn_whole()
 	_test_the_checkpoint_lantern_is_drawn_whole()
+	_test_the_signpost_is_drawn_whole()
 	_test_audio_buses()
 	_test_ink_accounting()
 	_test_inventory()
@@ -448,6 +449,42 @@ func _test_the_checkpoint_lantern_is_drawn_whole() -> void:
 	var tall := float(CheckpointLantern2D.POST_ROWS.size()) * CheckpointLantern2D.UNIT
 	_expect(tall >= 60.0 and tall < 95.0,
 		"the checkpoint lantern is %.0f px tall: it should stand shorter than the apo (95) and still be seen" % tall)
+
+
+## THE SIGNPOST IS WHOLE, ITS MARKS ARE ON ITS BOARD, AND IT STANDS UNDER THE APO. Kent: "fix the
+## design of the signs/dialogue signs since it does not match the style of the game". The sign
+## is drawn from rows of pixels now, where one short row, one character with no colour, or a
+## mark that runs off its board tears the picture without a word.
+func _test_the_signpost_is_drawn_whole() -> void:
+	var torn: Array[String] = []
+	var drawings: Array = [[Signpost2D.SIGN_ROWS, Signpost2D.SIGN_PALETTE, "the sign"]]
+	for mark: int in Signpost2D.GLYPH_ROWS:
+		drawings.append([Signpost2D.GLYPH_ROWS[mark], Signpost2D.GLYPH_PALETTE, "mark %d" % mark])
+		drawings.append([Signpost2D.GLYPH_ROWS[mark], Signpost2D.GLYPH_LIT, "mark %d lit" % mark])
+	for drawing: Array in drawings:
+		var rows: Array = drawing[0]
+		var palette: Dictionary = drawing[1]
+		var width := String(rows[0]).length()
+		for index in range(rows.size()):
+			var row := String(rows[index])
+			if row.length() != width:
+				torn.append("%s row %d is %d wide, not %d" % [drawing[2], index, row.length(), width])
+			for character in row:
+				if character != "." and not palette.has(character):
+					torn.append("%s row %d has '%s', which has no colour" % [drawing[2], index, character])
+	_expect(torn.is_empty(), "the signpost is torn: %s" % "; ".join(torn.slice(0, 4)))
+	var board: Rect2i = Signpost2D.BOARD
+	var off: Array[String] = []
+	for mark: int in Signpost2D.GLYPH_ROWS:
+		var rows: Array = Signpost2D.GLYPH_ROWS[mark]
+		var face := Rect2i(Signpost2D.FACE, Vector2i(String(rows[0]).length(), rows.size()))
+		if not board.grow(-1).encloses(face):
+			off.append("mark %d at %s" % [mark, face])
+	_expect(off.is_empty() and Signpost2D.GLYPH_ROWS.size() == Signpost2D.Mark.size(),
+		"a sign's mark is missing or runs off its board: %s" % ", ".join(off))
+	var tall := float(Signpost2D.SIGN_ROWS.size()) * Signpost2D.UNIT
+	_expect(tall >= 48.0 and tall < 80.0,
+		"the signpost is %.0f px tall: it should stand under the apo (95) and still be seen" % tall)
 
 
 ## EVERY SPEAKER'S OUTLINE IS WHOLE. Kent: "the dialogue avatars for the characters have faulty
