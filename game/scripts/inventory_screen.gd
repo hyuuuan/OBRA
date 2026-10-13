@@ -123,7 +123,7 @@ const PARCHMENT_INK := Color(0.227, 0.149, 0.094) # 3A2618
 ## The brass of a name plaque, and the gallery label's own edge and quiet text.
 const BRASS := Color(0.835, 0.706, 0.443)         # D5B471
 const LABEL_EDGE := Color(0.576, 0.443, 0.306)    # 93714E
-const LABEL_MUTED := Color(0.455, 0.345, 0.235)   # 74583C
+const LABEL_MUTED := Color(0.364, 0.276, 0.188)   # 5D4630  6:1 on the paper (was 74583C, 4.4:1)
 const LABEL_ACCENT := Color(0.604, 0.247, 0.133)  # 9A3F22  the ability, in a painter's red
 ## The plaque under a roster card's painting, two lines of name tall.
 const PLAQUE_H := 48.0
