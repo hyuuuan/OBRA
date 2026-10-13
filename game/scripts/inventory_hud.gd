@@ -29,6 +29,8 @@ var _numbers: Array[Label] = []
 ## The word SEL under the number of the slot in hand. A brighter frame says "this one"
 ## only if you already know what the frames mean; a word says it outright.
 var _tags: Array[Label] = []
+## How many drawings each slot holds, from two up. See count_badge.
+var _counts: Array[Label] = []
 ## One texture per drawing, keyed by the item that owns it. Rebuilding a 512x512 image
 ## into a texture on every inventory change, six at a time, is work for nothing.
 var _thumbnails: Dictionary = {}
@@ -170,6 +172,10 @@ func _ready() -> void:
 		tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(tag)
 		_tags.append(tag)
+
+		var count := count_badge()
+		button.add_child(count)
+		_counts.append(count)
 
 
 ## THE TRAY. Six loose frames floating on the level read as six separate things; one dark
@@ -323,6 +329,7 @@ func _refresh(items: Array) -> void:
 		button.modulate = Color(1.12, 1.12, 1.04) if chosen else Color.WHITE
 		_numbers[index].add_theme_color_override(&"font_color", GOLD if occupied else DIM)
 		_tags[index].visible = chosen
+		show_count(_counts[index], _manager.count(index) if _manager != null else int(occupied))
 	_forget_stale_thumbnails(items)
 
 

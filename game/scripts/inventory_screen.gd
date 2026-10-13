@@ -153,6 +153,7 @@ var registry: EntityRegistry
 
 var _bag_buttons: Array[Button] = []
 var _bag_art: Array[TextureRect] = []
+var _bag_counts: Array[Label] = []
 var _found_buttons: Array[Button] = []
 ## One per pocket on the Found shelf, in the shelf's order: {"key", "entries"}. See _shelves.
 var _found_shelves: Array[Dictionary] = []
@@ -662,6 +663,10 @@ func _build_bag(parent: Control) -> void:
 		number.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(number)
 
+		var count := InventoryHUD.count_badge()
+		button.add_child(count)
+		_bag_counts.append(count)
+
 
 func _build_found(parent: Control) -> void:
 	var column := _section(parent, "FOUND", _note("kept for the run"))
@@ -1166,6 +1171,8 @@ func _refresh_bag() -> void:
 		_paint(_bag_buttons[index], occupied, chosen)
 		_bag_buttons[index].tooltip_text = item.display_name if occupied else "Empty"
 		_bag_art[index].texture = _thumbnail(item) if occupied else null
+		InventoryHUD.show_count(_bag_counts[index],
+			inventory_manager.count(index) if inventory_manager != null else 0)
 
 
 func _refresh_found() -> void:
@@ -1409,7 +1416,9 @@ func _refresh_detail() -> void:
 			_refresh_detail()
 			return
 		_fill_class_card(item.entity_id, _thumbnail(item))
-		_detail_title.text = item.display_name
+		var held := inventory_manager.count(int(_chosen.get("index", -1)))
+		_detail_title.text = item.display_name if held < 2 \
+			else "%s  \u00d7%d" % [item.display_name, held]
 		return
 	if kind == "found":
 		var shelf := _shelf(String(_chosen.get("id", "")))
