@@ -126,7 +126,11 @@ func _ready() -> void:
 	# CLOSER THAN THE LEVELS, because a room is closer than a valley. The levels get away
 	# with a wide view because there is terrain and sky doing the work; here the subject is
 	# a person and five pictures, so the camera comes in until the room fills the frame.
-	_camera.zoom = Vector2(ZOOM, ZOOM)
+	# Fitted to the screen as the levels' cameras are: a taller screen sees the same room, as
+	# tall as it was painted, rather than the floor below it. See WorldCameraController.
+	_camera.zoom = Vector2.ONE * ZOOM * WorldCameraController.screen_fit(get_viewport())
+	get_viewport().size_changed.connect(func() -> void:
+		_camera.zoom = Vector2.ONE * ZOOM * WorldCameraController.screen_fit(get_viewport()))
 	# Vertically pinned. The room is one storey and the floor never moves, so a camera that
 	# follows the apo up and down would sway the whole wall every time they jumped.
 	_camera.position_smoothing_enabled = true
@@ -329,7 +333,7 @@ func _process(_delta: float) -> void:
 ## screen pixels and so do not know about the zoom -- with limits set to the room width the
 ## view slid past the end of the wall at anything other than 1:1.
 func _eye_on(x: float) -> Vector2:
-	var half := get_viewport_rect().size.x / (2.0 * ZOOM)
+	var half := get_viewport_rect().size.x / (2.0 * _camera.zoom.x)
 	var span := float(_room.get("room_width"))
 	return Vector2(clampf(x, half, maxf(half, span - half)), EYE_Y)
 

@@ -50,6 +50,16 @@ signal camera_moved(camera_position: Vector2)
 ## in the hub -- seventy-two pixels to the metre, seen at 2 -- so going in changes this, and
 ## a line of dialogue in there has to give the camera back at 2 and not at 1.
 @export var base_zoom: float = 1.0
+## ⚠ THE WORLD IS FRAMED 900 UNITS TALL ON EVERY SCREEN. The game stretches `expand`: a screen
+## taller than 16:9 -- every MacBook -- gets more interface height rather than black bars above
+## and below. But the world is painted to be seen 900 tall: Payyo's sky stops at `sky_top_y`,
+## Piyesta's plaza is cut off at the walk line, and showing more of either shows where the
+## painting ends. So every zoom this camera takes is multiplied by how much taller than 900
+## the screen is (screen_fit): on 16:10 it sits 1.16 further in, the world fills the screen
+## at exactly the height it was painted for, and what the taller screen loses is a little
+## width at the sides -- never a strip of nothing at the top. On 16:9 and wider it is 1.
+## Kent: "yes make sure everything is visually appealing".
+const DESIGN_HEIGHT := 900.0
 ## WHERE TO LOOK WHILE `vertical_free` IS ON, if anywhere in particular.
 ##
 ## A room is a fixed thing and the camera should sit at its eye level and stay there, the way
@@ -91,7 +101,28 @@ var _last_emitted_position := Vector2(INF, INF)
 
 func _ready() -> void:
 	make_current()
+	zoom = _fitted(base_zoom)
+	get_viewport().size_changed.connect(_refit)
 	snap_to_target()
+
+
+## How much taller than the design the screen is, or 1. See DESIGN_HEIGHT.
+static func screen_fit(viewport: Viewport) -> float:
+	if viewport == null:
+		return 1.0
+	return maxf(1.0, viewport.get_visible_rect().size.y / DESIGN_HEIGHT)
+
+
+## A zoom as the camera takes it on this screen.
+func _fitted(scale: float) -> Vector2:
+	return Vector2.ONE * scale * screen_fit(get_viewport())
+
+
+## The window changed shape: the same framing at the new fit, at once.
+func _refit() -> void:
+	if _focus_tween != null and _focus_tween.is_valid():
+		_focus_tween.kill()
+	zoom = _fitted(_focus_zoom if _focus != null else base_zoom)
 
 
 func _process(delta: float) -> void:
@@ -142,7 +173,7 @@ func focus_on(node: Node2D, zoom_scale: float = 1.15, seconds: float = 0.45,
 	_focus_zoom = maxf(0.1, zoom_scale * base_zoom)
 	_focus_lift = lift
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_tween_zoom(Vector2(_focus_zoom, _focus_zoom), seconds)
+	_tween_zoom(_fitted(_focus_zoom), seconds)
 
 
 func release_focus(seconds: float = 0.35) -> void:
@@ -151,7 +182,7 @@ func release_focus(seconds: float = 0.35) -> void:
 	_focus = null
 	_focus_zoom = 1.0
 	var restore := _rest_process_mode
-	_tween_zoom(Vector2(base_zoom, base_zoom), seconds).finished.connect(
+	_tween_zoom(_fitted(base_zoom), seconds).finished.connect(
 		func() -> void: process_mode = restore)
 
 
@@ -217,7 +248,7 @@ func set_base_zoom(scale: float) -> void:
 	# then slid out of it.
 	if _focus_tween != null and _focus_tween.is_valid():
 		_focus_tween.kill()
-	zoom = Vector2(base_zoom, base_zoom)
+	zoom = _fitted(base_zoom)
 
 
 func snap_to_target() -> void:
