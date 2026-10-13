@@ -47,6 +47,7 @@ func _run() -> void:
 	await _the_bag_screen_moves()
 	_the_bag_reads_clean()
 	await _the_flowers_share_a_pocket()
+	await _two_of_a_kind_share_a_slot()
 	for line in results:
 		print(line)
 	if failures == 0:
@@ -254,6 +255,38 @@ func _the_flowers_share_a_pocket() -> void:
 		"'%s'" % said.left(40))
 	screen.call("close")
 	await process_frame
+
+
+## AND SO DO TWO DRAWINGS OF ONE THING. Two squares drawn were two slots with the same picture
+## in them; they are one slot, saying "×2". And one set down and picked back up goes onto that
+## stack: the pickup used to ask whether the bag held ANY square, and if it did, freed the one
+## on the ground as though it had never left the bag -- the drawing and its ink, gone.
+func _two_of_a_kind_share_a_slot() -> void:
+	var bag := level.get("inventory_manager") as InventoryManager
+	var hud := level.get("inventory_hud") as InventoryHUD
+	for slot in range(bag.capacity):
+		while bag.take_item(slot) != null:
+			pass
+	_draw("square")
+	_draw("square")
+	await process_frame
+	var slot := int(level.call("_slot_holding", "square"))
+	var badge := (hud.get("_counts") as Array)[slot] as Label if slot >= 0 else null
+	_check(slot >= 0 and bag.count(slot) == 2 and bag.all_items().size() == 2,
+		"two squares drawn go into one slot", "slot %d holds %d of %d in the bag"
+			% [slot + 1, bag.count(slot), bag.all_items().size()])
+	_check(badge != null and badge.visible and badge.text == "\u00d72", "and the bar counts them",
+		"'%s'" % (badge.text if badge != null and badge.visible else "no count"))
+	var item := bag.take_item(slot)
+	var registry := level.get("registry") as EntityRegistry
+	var placed := registry.instantiate_entity("square") as PhysicsShapeObject
+	(level.get("world_item_root") as Node).add_child(placed)
+	placed.apply_item_data(item)
+	level.call("_on_utility_pickup_requested", placed)
+	await process_frame
+	_check(bag.count(slot) == 2 and bag.holds(item), "one set down and picked up goes back on the stack",
+		"%d in the slot, the picked-up one %s" % [bag.count(slot),
+			"among them" if bag.holds(item) else "gone"])
 
 
 func _luminance(colour: Color) -> float:
