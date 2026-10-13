@@ -18,23 +18,39 @@ extends RefCounted
 ## pixels, and the control comes up invisible with nothing to say why. These live in memory.
 
 ## Rows top to bottom. '.' is nothing; the other characters index into the palette below.
+##
+## A KEY YOU CAN TELL IS A KEY. Kent: "redesign ... the brass key you get in level 1". It was
+## twelve by nine, and at that size a bow, a shaft and two teeth come out as a lump with a
+## tail -- on the acquisition card it read as a little bird. Now forty by seventeen: a round
+## bow with a hole through it, a collar, a long shaft, and a bit with two teeth, outlined, lit
+## along the top of every part and shaded along the bottom. The straw room hangs this same
+## picture on its nail, so the key on the wall and the key on the card are one drawing.
 const BRASS_KEY := [
-	"..ddd.......",
-	".dbbbd......",
-	".db.bd......",
-	".dbbbd......",
-	"..dbbdddd...",
-	"...bbbbbbdd.",
-	"...dbbbbbbbd",
-	"....dddb.b.d",
-	".......d.d.d",
+	".....oooooo.............................",
+	"...ooollllooo...........................",
+	"..oollbbbblloo..........................",
+	".oolbbbbbbbbloo.........................",
+	"oolbbbssssbbblooooo.....................",
+	"olbbbsoooosbbblllloo....................",
+	"obbbboo..oobbbbbbbloooooooooooooooooooo.",
+	"obbbbo....obbbbbbbbllllllllllllllllllloo",
+	"obbbbo....obbbbbbbbbbbbbbbbbbbbbbbbbbblo",
+	"obbbbo....obbbbbbbbssssssssssbbbbbbbbsoo",
+	"obbbboo..oobbbbbbbsoooooooooobbbbbbbboo.",
+	"osbbbloooolbbbssssoo........obbbbbbsso..",
+	"oosbbbllllbbbsooooo.........obbssbbooo..",
+	".oosbbbbbbbbsoo.............obboobbo....",
+	"..oossbbbbssoo..............obboobbo....",
+	"...ooossssooo...............ossoosso....",
+	".....oooooo.................oooooooo....",
 ]
 
 const PALETTES := {
 	"brass": {
-		"b": Color(0.804, 0.616, 0.216, 1.0),  # CD9E37  the metal
-		"d": Color(0.427, 0.310, 0.098, 1.0),  # 6D4F19  its edge
-		"l": Color(0.949, 0.855, 0.529, 1.0),  # F2DA87  the catch of light
+		"b": Color(0.804, 0.620, 0.216, 1.0),  # CD9E37  the metal
+		"l": Color(0.949, 0.855, 0.529, 1.0),  # F2DA87  the catch of light along its top
+		"s": Color(0.604, 0.435, 0.133, 1.0),  # 9A6F22  the shade along its underside
+		"o": Color(0.235, 0.157, 0.055, 1.0),  # 3C280E  its outline
 	},
 }
 
