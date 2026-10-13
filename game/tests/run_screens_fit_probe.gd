@@ -21,6 +21,7 @@ const LEVELS := ["res://game_level.tscn", "res://level_2.tscn"]
 ## How far off the middle a screen may sit before it is the wrong way round.
 const OFF_CENTRE := 4.0
 const InventoryBagArt = preload("res://scripts/bag_art.gd")
+const ScreenShapeScript = preload("res://scripts/screen_shape.gd")
 
 var failures := 0
 
@@ -37,6 +38,7 @@ func _check(ok: bool, what: String, detail: String) -> void:
 
 func _run() -> void:
 	print("\n===== EVERY SCREEN FITS =====")
+	_which_screens_are_filled()
 	for shape in SIZES:
 		root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_IGNORE
 		root.content_scale_size = shape
@@ -47,6 +49,23 @@ func _run() -> void:
 			await _level(path)
 	print("OBRA_SCREENS_FIT_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
+
+
+## FILLED FROM 4:3 TO ULTRAWIDE, KEPT IN SHAPE PAST IT. A taller screen gets more interface and
+## the world camera sits further in -- but a page squarer than 4:3 would squeeze the world to a
+## sliver, so it keeps the game's shape and letterboxes. A headless run's 64 x 64 is that case.
+func _which_screens_are_filled() -> void:
+	var fill := Window.CONTENT_SCALE_ASPECT_EXPAND
+	var keep := Window.CONTENT_SCALE_ASPECT_KEEP
+	var cases := [[Vector2(1920, 1080), fill, "16:9"], [Vector2(2560, 1600), fill, "16:10"],
+		[Vector2(2048, 1536), fill, "4:3"], [Vector2(3440, 1440), fill, "21:9"],
+		[Vector2(1080, 1920), keep, "a portrait monitor"], [Vector2(64, 64), keep, "headless"]]
+	var wrong: Array[String] = []
+	for case: Array in cases:
+		if ScreenShapeScript.aspect_for(case[0]) != case[1]:
+			wrong.append(String(case[2]))
+	_check(wrong.is_empty(), "screens from 4:3 to ultrawide are filled, squarer ones kept",
+		"all six as they should be" if wrong.is_empty() else "wrong for " + ", ".join(wrong))
 
 
 func _home() -> void:
