@@ -85,7 +85,8 @@ func _audit_objectives_fit(level: Dictionary) -> void:
 		await process_frame
 	var label := (level_scene.get("objective_banner") as Control).get("_label") as Label
 	var font := label.get_theme_font(&"font")
-	var font_size := label.get_theme_font_size(&"font_size")
+	# At the smallest the quest card sets a task: one that does not fit at body size drops to it.
+	var font_size := ObjectiveBanner.SMALL
 	var director = level_scene.get("director")
 	var readings: Array[String] = []
 	var table: Dictionary = level.get("objectives", {})
