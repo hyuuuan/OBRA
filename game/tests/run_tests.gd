@@ -671,22 +671,44 @@ func _test_ink_accounting() -> void:
 	manager.free()
 
 
+## SIX SLOTS, AND A SLOT IS A STACK. Kent: "storing the same object in the inventory places
+## them separately ... how about we use the counter like x1 x2". Six kinds fill six slots and a
+## seventh kind is turned away; another of a kind already held goes onto its stack, full bag or
+## not; and each drawing keeps its own identity in and out of the stack.
 func _test_inventory() -> void:
 	var inventory := InventoryManager.new()
 	inventory.capacity = 6
 	world.add_child(inventory)
 	inventory.begin_level()
-	var ids: Array[int] = []
 	for index in range(6):
-		var item := DrawnItemData.new()
-		item.entity_id = "key"
-		ids.append(item.instance_id)
-		_expect(inventory.add_item(item) == index, "inventory did not fill in slot order")
+		_expect(inventory.add_item(_bag_item(["ladder", "axe", "square", "circle", "triangle",
+			"rope"][index])) == index, "inventory did not fill in slot order")
 	_expect(inventory.is_full(), "six-slot inventory did not report full")
-	_expect(inventory.add_item(DrawnItemData.new()) == -1, "inventory accepted a seventh item")
+	_expect(inventory.add_item(_bag_item("boat")) == -1, "inventory accepted a seventh kind")
+	var first := inventory.peek_item(2)
+	var second := _bag_item("square")
+	_expect(inventory.add_item(second) == 2 and inventory.count(2) == 2
+		and inventory.all_items().size() == 7, "a second square did not stack on the first")
 	var recovered := inventory.take_item(2)
-	_expect(recovered != null and recovered.instance_id == ids[2], "inventory lost item identity")
+	_expect(recovered == second and inventory.count(2) == 1 and inventory.peek_item(2) == first,
+		"taking from a stack lost item identity")
+	# One already paid for comes out before a new one, or setting it down charges again.
+	var paid := _bag_item("square")
+	paid.placement_paid = true
+	var fresh := _bag_item("square")
+	inventory.add_item(paid)
+	inventory.add_item(fresh)
+	_expect(inventory.peek_item(2) == paid and inventory.take_item(2) == paid,
+		"a stack handed out a new square before the one already paid for")
+	_expect(inventory.remove_item(fresh) == 2 and not inventory.holds(fresh)
+		and inventory.holds(first), "one drawing could not be taken out of the middle of a stack")
 	inventory.queue_free()
+
+
+func _bag_item(entity_id: String) -> DrawnItemData:
+	var item := DrawnItemData.new()
+	item.entity_id = entity_id
+	return item
 
 
 ## A BEAT OF ADVICE IS SEVERAL LINES AND ALL OF THEM HAVE TO BE SEEN.
