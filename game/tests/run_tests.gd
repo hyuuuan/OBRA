@@ -28,6 +28,8 @@ func _run() -> void:
 	_test_manifest_roles()
 	_test_theme_resource()
 	_test_dialogue_portraits_are_outlined()
+	_test_the_brass_key_is_drawn_whole()
+	_test_the_checkpoint_lantern_is_drawn_whole()
 	_test_audio_buses()
 	_test_ink_accounting()
 	_test_inventory()
@@ -397,6 +399,57 @@ func _test_overlay_pause_refcount() -> void:
 ## theme_type_variation names something the theme does not define does not warn and
 ## does not fail -- it silently falls back to the engine's default look, which is
 ## precisely the mismatch the theme was added to remove, reappearing invisibly.
+## THE BRASS KEY IS A PICTURE OF A KEY. Kent: "redesign ... the brass key you get in level 1".
+## At twelve by nine it read as a bird; it is drawn at forty by seventeen now, and a typo in one
+## of its rows -- a short row, a character with no colour -- would tear it without a word.
+func _test_the_brass_key_is_drawn_whole() -> void:
+	var rows: Array = UIIcons.BRASS_KEY
+	var palette: Dictionary = UIIcons.PALETTES["brass"]
+	var width := String(rows[0]).length()
+	var torn: Array[String] = []
+	for index in range(rows.size()):
+		var row := String(rows[index])
+		if row.length() != width:
+			torn.append("row %d is %d wide, not %d" % [index, row.length(), width])
+		for character in row:
+			if character != "." and not palette.has(character):
+				torn.append("row %d has '%s', which has no colour" % [index, character])
+	_expect(torn.is_empty(), "the brass key's rows are torn: %s" % "; ".join(torn))
+	var picture := UIIcons.key()
+	_expect(picture != null and picture.get_width() >= 32 and picture.get_height() >= 14,
+		"the brass key is drawn too small to read as a key: %s" % (picture.get_size() if picture != null else "none"))
+
+
+## THE CHECKPOINT LANTERN IS WHOLE, AND SHORTER THAN THE APO. Kent: "redesign the lamp/lanterns
+## (checkpoints) since it does not match the style and its too big". The stone lantern stood a
+## hundred and ten pixels to her ninety-five; the bamboo post is drawn from rows of pixels now,
+## where one short row or one character with no colour tears the picture without a word.
+func _test_the_checkpoint_lantern_is_drawn_whole() -> void:
+	var torn: Array[String] = []
+	var post_palette: Dictionary = CheckpointLantern2D.POST_PALETTE.duplicate()
+	for slot in ["T", "S", "s", "m", "M"]:
+		post_palette[slot] = Color.WHITE  # the level's stone and moss, filled in per lantern
+	var alight: Dictionary = CheckpointLantern2D.LANTERN_PALETTE.duplicate()
+	alight.merge(CheckpointLantern2D.LANTERN_ALIGHT, true)
+	for drawing: Array in [[CheckpointLantern2D.POST_ROWS, post_palette, "post"],
+			[CheckpointLantern2D.LANTERN_ROWS, CheckpointLantern2D.LANTERN_PALETTE, "lantern"],
+			[CheckpointLantern2D.LANTERN_ROWS, alight, "lantern alight"]]:
+		var rows: Array = drawing[0]
+		var palette: Dictionary = drawing[1]
+		var width := String(rows[0]).length()
+		for index in range(rows.size()):
+			var row := String(rows[index])
+			if row.length() != width:
+				torn.append("%s row %d is %d wide, not %d" % [drawing[2], index, row.length(), width])
+			for character in row:
+				if character != "." and not palette.has(character):
+					torn.append("%s row %d has '%s', which has no colour" % [drawing[2], index, character])
+	_expect(torn.is_empty(), "the checkpoint lantern is torn: %s" % "; ".join(torn.slice(0, 4)))
+	var tall := float(CheckpointLantern2D.POST_ROWS.size()) * CheckpointLantern2D.UNIT
+	_expect(tall >= 60.0 and tall < 95.0,
+		"the checkpoint lantern is %.0f px tall: it should stand shorter than the apo (95) and still be seen" % tall)
+
+
 ## EVERY SPEAKER'S OUTLINE IS WHOLE. Kent: "the dialogue avatars for the characters have faulty
 ## drawing edges like the black outlines of the characters are not visible making them like cut
 ## off or like broken in bits". The background knock-out had taken most of Lolo's and the apo's

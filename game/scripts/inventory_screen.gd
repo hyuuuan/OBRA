@@ -123,7 +123,7 @@ const PARCHMENT_INK := Color(0.227, 0.149, 0.094) # 3A2618
 ## The brass of a name plaque, and the gallery label's own edge and quiet text.
 const BRASS := Color(0.835, 0.706, 0.443)         # D5B471
 const LABEL_EDGE := Color(0.576, 0.443, 0.306)    # 93714E
-const LABEL_MUTED := Color(0.455, 0.345, 0.235)   # 74583C
+const LABEL_MUTED := Color(0.364, 0.276, 0.188)   # 5D4630  6:1 on the paper (was 74583C, 4.4:1)
 const LABEL_ACCENT := Color(0.604, 0.247, 0.133)  # 9A3F22  the ability, in a painter's red
 ## The plaque under a roster card's painting, two lines of name tall.
 const PLAQUE_H := 48.0
@@ -410,10 +410,27 @@ func _drop_outside(_at: Vector2, data: Variant) -> void:
 
 # --- Building ------------------------------------------------------------------------
 
+## INK ON PAPER CASTS NO SHADOW. Kent: "the font style of the text in the inventory since its
+## not that readable". Every label in the game drops a two-pixel ink shadow (the theme's), which
+## is what lets cream text stand off a dark panel -- and most of the bag's words are DARK ink on
+## cream paper and brass, where a dark shadow under dark letters doubles every stroke and smears
+## them into each other. So under the bag the shadow is gone; its light words on the leather
+## carry their own outline, which is what keeps those readable. And a hair more space between
+## lines, for the paragraphs on the label card.
+func _lettering() -> Theme:
+	var lettering := Theme.new()
+	lettering.set_color(&"font_shadow_color", &"Label", Color(0, 0, 0, 0))
+	lettering.set_constant(&"shadow_offset_x", &"Label", 0)
+	lettering.set_constant(&"shadow_offset_y", &"Label", 0)
+	lettering.set_constant(&"line_spacing", &"Label", 2)
+	return lettering
+
+
 func _build() -> void:
 	var root := Control.new()
 	root.name = "Root"
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.theme = _lettering()
 	add_child(root)
 
 	var scrim := ColorRect.new()
