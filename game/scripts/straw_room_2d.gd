@@ -112,10 +112,9 @@ const DAYLIGHT_DIM := Color(0.847, 0.784, 0.588, 1.0) # D8C896
 const OUTSIDE_SKY := Color(0.643, 0.831, 0.933, 1.0)   # A4D4EE
 const OUTSIDE_GREEN := Color(0.478, 0.667, 0.353, 1.0) # 7AAA5A
 const OUTSIDE_EARTH := Color(0.749, 0.647, 0.443, 1.0) # BFA571
-## Brass, dulled. A key that has been in a straw heap is not a bright one.
-const BRASS := Color(0.831, 0.667, 0.216, 1.0)      # D4AA37
+## The catch of light on the brass: its halo and the flourish as it is taken. The key itself is
+## UIIcons.BRASS_KEY.
 const BRASS_LIT := Color(0.949, 0.851, 0.427, 1.0)  # F2D96D
-const BRASS_DARK := Color(0.502, 0.376, 0.098, 1.0) # 806019
 
 ## How wide the way out is, and how tall. A doorway in a barn: one metre by two.
 const DOOR := Vector2(72.0, 144.0)
@@ -779,15 +778,9 @@ func _draw_key(at: Vector2, alpha: float = 1.0) -> void:
 	_draw_key_halo(at, alpha)
 	# The shadow it casts on the wall goes as it leaves, so the brass does not fade out over
 	# a dark smear that stays behind.
-	draw_rect(Rect2(at + Vector2(-20.0, -3.0), Vector2(44.0, 5.0)), Color(0, 0, 0, 0.45 * alpha))
-	# The bow.
-	draw_rect(Rect2(at + Vector2(-19.0, -15.0), Vector2(15.0, 15.0)), Color(BRASS_DARK, alpha))
-	draw_rect(Rect2(at + Vector2(-18.0, -14.0), Vector2(13.0, 13.0)), Color(BRASS, alpha))
-	draw_rect(Rect2(at + Vector2(-18.0, -14.0), Vector2(13.0, 2.0)), Color(BRASS_LIT, alpha))
-	draw_rect(Rect2(at + Vector2(-14.0, -11.0), Vector2(6.0, 7.0)), Color(DEEPER, alpha))
-	# The shank, and the two teeth on the end of it.
-	draw_rect(Rect2(at + Vector2(-4.0, -11.0), Vector2(26.0, 6.0)), Color(BRASS_DARK, alpha))
-	draw_rect(Rect2(at + Vector2(-4.0, -11.0), Vector2(26.0, 4.0)), Color(BRASS, alpha))
-	draw_rect(Rect2(at + Vector2(-4.0, -11.0), Vector2(26.0, 1.0)), Color(BRASS_LIT, alpha))
-	draw_rect(Rect2(at + Vector2(14.0, -5.0), Vector2(4.0, 5.0)), Color(BRASS_DARK, alpha))
-	draw_rect(Rect2(at + Vector2(20.0, -5.0), Vector2(3.0, 4.0)), Color(BRASS_DARK, alpha))
+	draw_rect(Rect2(at + Vector2(-18.0, -2.0), Vector2(40.0, 4.0)), Color(0, 0, 0, 0.45 * alpha))
+	# THE KEY ON THE CARD, hung here: one drawing (UIIcons.BRASS_KEY), not a second one in
+	# rectangles that matched it only roughly. Pixel for pixel, in the room's own nearest light.
+	var picture := UIIcons.key()
+	draw_texture_rect(picture, Rect2(at + Vector2(-20.0, -16.0), picture.get_size()), false,
+		Color(1.0, 1.0, 1.0, alpha))
