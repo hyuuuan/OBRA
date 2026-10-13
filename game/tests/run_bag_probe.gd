@@ -45,6 +45,7 @@ func _run() -> void:
 	await _a_drawing_flies_into_its_slot()
 	await _a_card_leaves_the_mouse_alone()
 	await _the_bag_screen_moves()
+	_the_bag_reads_clean()
 	for line in results:
 		print(line)
 	if failures == 0:
@@ -187,6 +188,45 @@ func _the_bag_screen_moves() -> void:
 			% [screen.is_open(), placement.is_placing()])
 	if placement.is_placing():
 		placement.cancel_placement()
+
+
+## INK ON PAPER, NO SHADOW. Kent: "the font style of the text in the inventory since its not
+## that readable". The theme drops a two-pixel ink shadow under every label, and under the
+## bag's dark ink on cream paper it doubled every stroke. No label in the bag casts one, and
+## the faintest ink on its paper is still 5:1 against it.
+func _the_bag_reads_clean() -> void:
+	var screen: InventoryScreen = null
+	for node in get_nodes_in_group(&"modal_overlays"):
+		if node is InventoryScreen:
+			screen = node
+	var labels: Array[Label] = []
+	var stack: Array[Node] = [screen]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		if node is Label:
+			labels.append(node as Label)
+		stack.append_array(node.get_children())
+	var shadowed: Array[String] = []
+	for label in labels:
+		var shadow := label.get_theme_color(&"font_shadow_color")
+		var offset := Vector2(label.get_theme_constant(&"shadow_offset_x"), label.get_theme_constant(&"shadow_offset_y"))
+		if shadow.a > 0.01 and offset != Vector2.ZERO:
+			shadowed.append("'%s'" % label.text.left(20))
+	_check(labels.size() > 10 and shadowed.is_empty(), "the bag's lettering casts no shadow",
+		"%d labels, all clean" % labels.size() if shadowed.is_empty()
+		else "shadowed: %s" % ", ".join(shadowed.slice(0, 5)))
+	var paper := InventoryScreen.PARCHMENT
+	var faint := InventoryScreen.LABEL_MUTED
+	var contrast := (maxf(_luminance(paper), _luminance(faint)) + 0.05) \
+		/ (minf(_luminance(paper), _luminance(faint)) + 0.05)
+	_check(contrast >= 5.0, "and its faintest ink reads on its paper", "%.1f:1" % contrast)
+
+
+func _luminance(colour: Color) -> float:
+	var channel := func(v: float) -> float:
+		return v / 12.92 if v <= 0.03928 else pow((v + 0.055) / 1.055, 2.4)
+	return 0.2126 * float(channel.call(colour.r)) + 0.7152 * float(channel.call(colour.g)) \
+		+ 0.0722 * float(channel.call(colour.b))
 
 
 func _chosen(screen: InventoryScreen) -> String:
