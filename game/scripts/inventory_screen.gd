@@ -54,7 +54,15 @@ const ROSTER_SLOT := Vector2(116.0, 156.0)
 ## Nine across takes the twenty-seven objects in exactly three rows, and three rows of cards
 ## is what fits under the pockets on a 900-tall screen.
 const ROSTER_COLUMNS := 9
-const DETAIL_WIDTH := 304.0
+const DETAIL_WIDTH := 288.0
+## ⚠ THE BAG HAS TO FIT A 1600 x 900 SCREEN, TABS AND ALL. The game is never shown narrower or
+## shorter than that (project.godot stretches with keep_height: a taller screen gets bars, a
+## wider one gets more width), and the bag with its tabs was 1620 across, so its centre
+## container pushed both edges off -- the leather against the left of the screen and the tabs
+## cut through on the right. Kent: "some parts are cut off". The lining, the gap beside the
+## big card, the card and the roster's gutters each gave a little, and it stands 1568 across.
+const LINING_MARGIN := 22
+const ROSTER_GUTTER := 4
 
 ## The three kinds the roster is counted in, in the order the thesis counts them: twenty
 ## creatures, twenty-seven objects, three geometric primitives. `role` is the manifest's
@@ -502,8 +510,8 @@ func _build() -> void:
 
 	var margins := MarginContainer.new()
 	margins.name = "Lining"
-	margins.add_theme_constant_override(&"margin_left", 30)
-	margins.add_theme_constant_override(&"margin_right", 30)
+	margins.add_theme_constant_override(&"margin_left", LINING_MARGIN)
+	margins.add_theme_constant_override(&"margin_right", LINING_MARGIN)
 	margins.add_theme_constant_override(&"margin_top", 14)
 	margins.add_theme_constant_override(&"margin_bottom", int(BagArt.FEET_H) + 12)
 	bag.add_child(margins)
@@ -555,7 +563,7 @@ func _build() -> void:
 
 	var body := HBoxContainer.new()
 	body.name = "Body"
-	body.add_theme_constant_override(&"separation", 16)
+	body.add_theme_constant_override(&"separation", 12)
 	lining.add_child(body)
 
 	var left := VBoxContainer.new()
@@ -765,11 +773,11 @@ func _build_roster(parent: Control) -> void:
 		var grid := GridContainer.new()
 		grid.name = "%sGrid" % role
 		grid.columns = ROSTER_COLUMNS
-		grid.add_theme_constant_override(&"h_separation", 6)
+		grid.add_theme_constant_override(&"h_separation", ROSTER_GUTTER)
 		grid.add_theme_constant_override(&"v_separation", 6)
 		# Always three rows tall, so the bag does not change size from tab to tab.
 		grid.custom_minimum_size = Vector2(
-			ROSTER_COLUMNS * ROSTER_SLOT.x + (ROSTER_COLUMNS - 1) * 6.0,
+			ROSTER_COLUMNS * ROSTER_SLOT.x + (ROSTER_COLUMNS - 1) * ROSTER_GUTTER,
 			3.0 * ROSTER_SLOT.y + 2.0 * 6.0)
 		box.add_child(grid)
 		_band_grids[role] = grid
@@ -870,6 +878,10 @@ func _build_detail(parent: Control) -> void:
 	_detail_kind = Label.new()
 	_detail_kind.theme_type_variation = &"HudCaption"
 	_detail_kind.add_theme_color_override(&"font_color", LABEL_MUTED)
+	# Wrapped, because it is the one line on the card that was not: "Found · kept for the whole
+	# run" is wider than the card, so choosing anything found widened the card and the bag
+	# with it, and the tabs went off the right of the screen.
+	_detail_kind.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_child(_detail_kind)
 
 	var rule := ColorRect.new()
