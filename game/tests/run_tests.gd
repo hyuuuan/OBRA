@@ -28,6 +28,7 @@ func _run() -> void:
 	_test_manifest_roles()
 	_test_theme_resource()
 	_test_dialogue_portraits_are_outlined()
+	_test_the_brass_key_is_drawn_whole()
 	_test_audio_buses()
 	_test_ink_accounting()
 	_test_inventory()
@@ -397,6 +398,27 @@ func _test_overlay_pause_refcount() -> void:
 ## theme_type_variation names something the theme does not define does not warn and
 ## does not fail -- it silently falls back to the engine's default look, which is
 ## precisely the mismatch the theme was added to remove, reappearing invisibly.
+## THE BRASS KEY IS A PICTURE OF A KEY. Kent: "redesign ... the brass key you get in level 1".
+## At twelve by nine it read as a bird; it is drawn at forty by seventeen now, and a typo in one
+## of its rows -- a short row, a character with no colour -- would tear it without a word.
+func _test_the_brass_key_is_drawn_whole() -> void:
+	var rows: Array = UIIcons.BRASS_KEY
+	var palette: Dictionary = UIIcons.PALETTES["brass"]
+	var width := String(rows[0]).length()
+	var torn: Array[String] = []
+	for index in range(rows.size()):
+		var row := String(rows[index])
+		if row.length() != width:
+			torn.append("row %d is %d wide, not %d" % [index, row.length(), width])
+		for character in row:
+			if character != "." and not palette.has(character):
+				torn.append("row %d has '%s', which has no colour" % [index, character])
+	_expect(torn.is_empty(), "the brass key's rows are torn: %s" % "; ".join(torn))
+	var picture := UIIcons.key()
+	_expect(picture != null and picture.get_width() >= 32 and picture.get_height() >= 14,
+		"the brass key is drawn too small to read as a key: %s" % (picture.get_size() if picture != null else "none"))
+
+
 ## EVERY SPEAKER'S OUTLINE IS WHOLE. Kent: "the dialogue avatars for the characters have faulty
 ## drawing edges like the black outlines of the characters are not visible making them like cut
 ## off or like broken in bits". The background knock-out had taken most of Lolo's and the apo's
