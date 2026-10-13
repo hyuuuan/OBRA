@@ -31,10 +31,55 @@ func _run() -> void:
 	print("\n===== OBJECTIVES =====")
 	_audit_no_objective_names_a_class("res://config/level_01.json")
 	_audit_no_objective_names_a_class("res://config/level_02.json")
+	await _the_card_reads_as_the_quest()
 	await _walk_piyesta()
 	await _walk_payyo()
 	print("OBRA_OBJECTIVE_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
+
+
+## THE QUEST, NOT A STATUS LINE. Kent: "the quest ui is not that visible or not making any sense
+## of importance so fix that since it is needed". It was a thin chip of caption-sized cream in
+## the readouts' own dress. A card on its own, so the level's clock cannot change its words
+## between two questions: it says QUEST, sets a task that fits at the size Lolo speaks at,
+## stands inside the band the hint bar and the lesson card keep clear of, between the ink plate
+## and the morph card -- and a new task arrives, and settles.
+func _the_card_reads_as_the_quest() -> void:
+	var card := ObjectiveBanner.new()
+	root.add_child(card)
+	var place := Label.new()
+	place.text = "LEVEL 1  \u00b7  PAYYO  \u00b7  ANG HAGDAN"
+	card.adopt_place(place)
+	card.set_objective("Get up Ang Hagdan")
+	await _frames(60)
+	var word := card.find_child("Word", true, false) as Label
+	_check(word != null and word.is_visible_in_tree() and word.text == "QUEST",
+		"the card says it is the quest", "'%s'" % (word.text if word != null else "no tag"))
+	var task := card.get("_label") as Label
+	_check(task.get_theme_font_size(&"font_size") == ObjectiveBanner.LARGE,
+		"a task that fits is set at body size", "%d px" % task.get_theme_font_size(&"font_size"))
+	var longest := "Draw something that can CLIMB, UNLOCK or CUT at the house with its light on"
+	_check(card.size_for(longest) == ObjectiveBanner.SMALL, "and one that does not, at caption size",
+		"%d px" % card.size_for(longest))
+	var panel := card.get("_panel") as Control
+	var short_rect := panel.get_global_rect()
+	card.set_objective(longest)
+	_check(card.is_arriving(), "a new task arrives rather than swapping silently",
+		"arriving" if card.is_arriving() else "swapped in silently")
+	await _frames(90)
+	var was := card.get("_was") as Label
+	_check(not card.is_arriving() and is_zero_approx(task.position.y) and task.modulate.a > 0.99
+		and not was.visible and is_equal_approx(panel.scale.x, 1.0), "and settles",
+		"line at %.1f, alpha %.2f, scale %.2f" % [task.position.y, task.modulate.a, panel.scale.x])
+	var long_rect := panel.get_global_rect()
+	_check(short_rect.end.y <= ObjectiveBanner.BOTTOM and long_rect.end.y <= ObjectiveBanner.BOTTOM,
+		"the card stays above its BOTTOM, whatever it says",
+		"%.0f and %.0f, bottom %.0f" % [short_rect.end.y, long_rect.end.y, ObjectiveBanner.BOTTOM])
+	_check(long_rect.position.x >= 418.0 and long_rect.end.x <= 1202.0,
+		"and between the ink plate and the morph card", "x %.0f to %.0f" % [long_rect.position.x,
+			long_rect.end.x])
+	card.queue_free()
+	await _frames(2)
 
 
 func _open(path: String) -> Node:
