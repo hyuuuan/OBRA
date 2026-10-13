@@ -46,6 +46,7 @@ func _run() -> void:
 	await _a_card_leaves_the_mouse_alone()
 	await _the_bag_screen_moves()
 	_the_bag_reads_clean()
+	await _the_flowers_share_a_pocket()
 	for line in results:
 		print(line)
 	if failures == 0:
@@ -220,6 +221,39 @@ func _the_bag_reads_clean() -> void:
 	var contrast := (maxf(_luminance(paper), _luminance(faint)) + 0.05) \
 		/ (minf(_luminance(paper), _luminance(faint)) + 0.05)
 	_check(contrast >= 5.0, "and its faintest ink reads on its paper", "%.1f:1" % contrast)
+
+
+## ONE POCKET FOR THE FLOWERS, WITH THEIR COUNT ON IT. Kent: "storing the same object in the
+## inventory places them separately like the flower so instead of that how about we use the
+## counter like x1 x2". Two flowers found were two lit pockets beside a dark one.
+func _the_flowers_share_a_pocket() -> void:
+	var screen: InventoryScreen = null
+	for node in get_nodes_in_group(&"modal_overlays"):
+		if node is InventoryScreen:
+			screen = node
+	var profile := root.get_node("PlayerProfile")
+	for id: String in ["flower_1", "L2_HF"]:
+		profile.call("record_collectible", id)
+	screen.call("open")
+	await process_frame
+	var buttons: Array = screen.get("_found_buttons")
+	var counts: Array = screen.get("_found_counts")
+	var flowers: Array[int] = []
+	for index in range(buttons.size()):
+		var button := buttons[index] as Button
+		if button.visible and button.tooltip_text == "Hidden Flower":
+			flowers.append(index)
+	var count := counts[flowers[0]] as Label if flowers.size() == 1 else null
+	_check(flowers.size() == 1 and count.visible and count.text == "\u00d72",
+		"two flowers found are one pocket, counted",
+		"%d pockets, the count reads '%s'" % [flowers.size(),
+			count.text if count != null and count.visible else "nothing"])
+	screen.call("_choose_found", "hidden_flower")
+	var said := String((screen.get("_ability_text") as Label).text)
+	_check(said.begins_with("Two of five."), "and its card says how many of how many",
+		"'%s'" % said.left(40))
+	screen.call("close")
+	await process_frame
 
 
 func _luminance(colour: Color) -> float:
