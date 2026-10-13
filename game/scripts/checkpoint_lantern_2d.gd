@@ -1,7 +1,7 @@
 class_name CheckpointLantern2D
 extends Node2D
-## The mark on the ground that says the level has remembered you: a carved stone lantern,
-## cold until you reach it and burning afterwards.
+## The mark on the ground that says the level has remembered you: a lantern hanging from a
+## bamboo post, cold until you reach it and burning afterwards.
 ##
 ## IT WAS A FLAG AND THE FLAG READ AS A SIGNPOST. A pole with a small cloth on it is the
 ## checkpoint every platformer has used since checkpoints existed, and at this size, on this
@@ -16,9 +16,20 @@ extends Node2D
 ## and it never stops. The previous mark changed from grey cloth to gold cloth, which is a
 ## difference you have to already be looking at it to notice.
 ##
-## IT BELONGS HERE. A stone lantern on a path is a thing the Cordillera would have -- carved
-## from the same rock the terrace walls are built out of -- and it is the one object in the
-## level whose entire job is to be looked at from a distance.
+## A BAMBOO POST AND A CAPIZ LANTERN, NOT A STONE TORO. Kent: "redesign the lamp/lanterns
+## (checkpoints) since it does not match the style and its too big. Make it more detailed and
+## match the style of the game". It was a carved stone lantern built of flat grey blocks at two
+## screen pixels to the art pixel, a head taller than the apo -- flat where everything round it
+## is shaded, and a Japanese garden lantern standing in the Cordillera. Now it is the lamp
+## this country hangs: a capiz-shelled lantern in a wooden frame with a red tassel, on a hook at
+## the end of a lashed arm, on a jointed bamboo pole set in a few foot stones. Drawn as pixel
+## art (POST_ROWS, LANTERN_ROWS) with the world's own dark-brown outline, at the world's grain --
+## the apo's painted pixels are two screen pixels across, and so are these -- and shorter than
+## she is: eighty pixels to her ninety-five, where the stone stood a hundred and ten.
+##
+## Unlit, the shells are dull and pearly and nothing moves. Lit, they glow gold from a flame
+## inside, the light pools on the ground under it, and the lantern sways on its hook -- harder
+## for a moment as it catches, as a lantern does when a hand has just been at it.
 ##
 ## Everything below is measured in ART pixels and drawn at UNIT times that, so the pixel grid
 ## survives. An INTEGER, deliberately: every art pixel is exactly two screen pixels.
@@ -35,9 +46,114 @@ extends Node2D
 		queue_redraw()
 
 const UNIT := 2.0
-## Top of the finial, in art pixels. Times UNIT that is 110 -- a shade taller than the apo,
-## which is the size a thing has to be before the eye picks it out of a terrace.
-const HEIGHT := 55.0
+
+const POST_ROWS := [
+	".....kkk............",
+	"....kTTBk...........",
+	"....kLBDk...........",
+	"....kccckkkkkkkkk...",
+	"....kLBDwwwwwwwwwk..",
+	"....kLBDWWWWWWWWWk..",
+	"....kccckkWkkkkkIk..",
+	"....kLLDkWk.....k...",
+	"...kNNNNWk..........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLLDk...........",
+	"...kNNNNNk..........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLLDk...........",
+	"...kNNNNNk..........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"....kLLDk...........",
+	"...kNNNNNk..........",
+	"....kLBDk...........",
+	"....kLBDk...........",
+	"..kkMmBDk...........",
+	".kmmTLBmMk..kk......",
+	"kSSSSskTTTkkmTk.....",
+	"ksssssSSSSsssssk....",
+	".kkkkkkkkkkkkkk.....",
+]
+const LANTERN_ROWS := [
+	".....kIk.....",
+	"....kIkIk....",
+	"...kkfffkk...",
+	".kkFfffffFkk.",
+	"kFFFFFFFFFFFk",
+	".kFQQpGQQpFk.",
+	".kFPPpGPPpFk.",
+	".kFPPpGPPpFk.",
+	".kFPPpGPPpFk.",
+	".kFFFFGFFFFk.",
+	".kFQQpGQQpFk.",
+	".kFPPpGPPpFk.",
+	".kFPPpGPPpFk.",
+	".kFPPpGPPpFk.",
+	"kFFFFFFFFFFFk",
+	".kkfffffffkk.",
+	"...kkkRkkk...",
+	"....krRRk....",
+	".....krk.....",
+]
+## Where the pole stands in POST_ROWS (its foot is the bottom row), where the hook is, and
+## where on LANTERN_ROWS the ring hangs from it -- all in art pixels.
+const POLE_X := 6
+const HOOK := Vector2(16, 7)
+const RING_X := 6
+
+## The post's palette. The foot stones are the level's own rock (stone_tone) and the tuft on them
+## its moss (moss_tone), filled in per lantern; the rest is bamboo, lashing and iron.
+const POST_PALETTE := {
+	"k": Color(0.165, 0.102, 0.055, 1.0),   # 2A1A0E  the outline every painted thing here wears
+	"B": Color(0.788, 0.643, 0.361, 1.0),   # C9A45C  bamboo
+	"L": Color(0.910, 0.812, 0.541, 1.0),   # E8CF8A  the light down its side
+	"D": Color(0.561, 0.416, 0.184, 1.0),   # 8F6A2F  its shade
+	"N": Color(0.431, 0.310, 0.133, 1.0),   # 6E4F22  the nodes
+	"w": Color(0.490, 0.333, 0.188, 1.0),   # 7D5530  the arm
+	"W": Color(0.353, 0.227, 0.118, 1.0),   # 5A3A1E  its underside and the brace
+	"c": Color(0.722, 0.588, 0.376, 1.0),   # B89660  the lashing
+	"i": Color(0.231, 0.231, 0.251, 1.0),   # 3B3B40  iron
+	"I": Color(0.427, 0.427, 0.459, 1.0),   # 6D6D75  iron in the light
+}
+## The lantern, cold and alight. Only the shells and the wood nearest them change.
+const LANTERN_PALETTE := {
+	"k": Color(0.165, 0.102, 0.055, 1.0),
+	"F": Color(0.353, 0.204, 0.094, 1.0),   # 5A3418  the frame
+	"f": Color(0.541, 0.353, 0.173, 1.0),   # 8A5A2C  its lit edges, the cap and the base
+	"G": Color(0.431, 0.267, 0.125, 1.0),   # 6E4420  the middle mullion
+	"I": Color(0.427, 0.427, 0.459, 1.0),   # the ring it hangs by
+	"P": Color(0.667, 0.643, 0.588, 1.0),   # AAA496  a shell, cold
+	"p": Color(0.549, 0.529, 0.486, 1.0),   # 8C877C  its neighbour
+	"Q": Color(0.369, 0.322, 0.259, 1.0),   # 5E5242  the leading between them
+	"R": Color(0.722, 0.208, 0.165, 1.0),   # B8352A  the tassel
+	"r": Color(0.490, 0.125, 0.094, 1.0),   # 7D2018
+}
+const LANTERN_ALIGHT := {
+	"P": Color(1.0, 0.871, 0.502, 1.0),     # FFDE80
+	"p": Color(0.965, 0.714, 0.298, 1.0),   # F6B64C
+	"Q": Color(0.769, 0.471, 0.157, 1.0),   # C47828
+	"G": Color(0.588, 0.345, 0.141, 1.0),
+	"f": Color(0.667, 0.439, 0.204, 1.0),
+}
+## How far the lantern swings either side of its hook, in whole art pixels: idle once lit, and
+## for the moment it catches.
+const SWAY := 0.8
+const SWAY_CAUGHT := 2.2
 
 ## ⚠ THE ROCK IS NOT THE SAME ROCK IN EVERY LEVEL, and it used to be.
 ##
@@ -98,12 +214,13 @@ const CLAM_Z := 3
 ## The fire. Gold, because gold is what this interface has always meant by "yours now".
 const FLAME_CORE := UISkin.GOLD_PALE
 const FLAME := UISkin.GOLD
-const FLAME_DEEP := Color(0.851, 0.443, 0.129, 1.0) # D97121
-const COLD := Color(0.078, 0.075, 0.071, 1.0)       # 141312  the empty window
 
 ## How far the light reaches, in art pixels, and how much of it lands on the ground.
-const GLOW_RADIUS := 46.0
-const POOL_WIDTH := 44.0
+const GLOW_RADIUS := 40.0
+const POOL_WIDTH := 26.0
+## The clam's, at its own scale.
+const CLAM_GLOW_RADIUS := 46.0
+const CLAM_POOL_WIDTH := 44.0
 
 ## How hard the fire is burning, 0 cold to 1 alight. Driven by tweens through the setter, so
 ## the node has no idle work while it is cold.
@@ -123,6 +240,13 @@ var _sparking := false:
 ## The flicker, which runs forever once it is lit. Whole art pixels of movement only.
 var _flicker := 0.0
 var _lighting := false
+## How hard it is swinging, falling back to SWAY after the catch.
+var _swing := 0.0
+## This lantern's pictures: the post in its level's stone and moss, the lantern cold and alight.
+var _post_picture: Texture2D
+var _cold_picture: Texture2D
+var _alight_picture: Texture2D
+static var _pictures := {}
 
 ## Over the terrace, under the foreground planting: terrace tops and their props run 0..6,
 ## signposts sit at 7, and the front layer is at 30.
@@ -274,6 +398,12 @@ func light(taker: Vector2) -> void:
 	run.tween_property(self, "_fire", 1.0, 0.34) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	run.tween_callback(func() -> void: _lighting = false)
+	# And it swings with the hand that lit it, then settles to the idle sway.
+	_swing = SWAY_CAUGHT
+	var settle := create_tween()
+	settle.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	settle.tween_interval(0.4)
+	settle.tween_property(self, "_swing", SWAY, 1.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 ## The flare when the wick takes, thrown in the same gold and with the same vocabulary every
@@ -286,7 +416,8 @@ func _catch() -> void:
 func _heart() -> Vector2:
 	if form == Form.CLAM:
 		return Vector2(0.0, -float(LOWER_ROWS) - 3.0)
-	return Vector2(0.0, -35.0)
+	# The middle of the shells, with the lantern where it is in its swing.
+	return _lantern_at() + Vector2(float(RING_X), 9.0)
 
 
 ## THE FIRE NEVER STOPS. A checkpoint you have lit is the one thing in the level that is
@@ -306,33 +437,35 @@ func _draw() -> void:
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2(UNIT, UNIT))
 	if form == Form.CLAM:
 		GroundShadow.draw(self, float(CLAM_HALF) + 4.0, 2.0, 0.55)
-		_draw_pool()
+		_draw_pool(0.0, CLAM_POOL_WIDTH)
 		_draw_clam()
-		_draw_glow(_heart() - Vector2(0.0, 1.0))
+		_draw_glow(_heart() - Vector2(0.0, 1.0), CLAM_GLOW_RADIUS)
 		_draw_bubbles()
 		_draw_spark()
 		return
-	# Under the plinth's footprint, which runs back DEPTH pixels up and to the right.
-	GroundShadow.draw(self, 18.0 + DEPTH * 0.5, 2.0, 0.5, Vector2(DEPTH * 0.5, -DEPTH * 0.5))
-	_draw_pool()
-	_draw_glow(Vector2(0.0, -36.0))
-	_draw_stone()
-	_draw_fire()
+	_make_pictures()
+	# Under the foot stones, which sit either side of the pole and a little to its right.
+	GroundShadow.draw(self, 9.0, 1.5, 0.5, Vector2(2.0, 0.0))
+	var heart := _heart()
+	_draw_pool(heart.x, POOL_WIDTH)
+	_draw_glow(heart, GLOW_RADIUS)
+	draw_texture(_post_picture, Vector2(-float(POLE_X), -float(POST_ROWS.size())))
+	_draw_lantern()
 	_draw_spark()
 
 
 ## Whole-pixel bands of light lying on the ground under it, which is what tells the eye the
 ## lantern is a light source rather than a lit-up object.
-func _draw_pool() -> void:
+func _draw_pool(centre: float, width: float) -> void:
 	if _fire <= 0.0:
 		return
 	var beat := 1.0 + sin(_flicker) * 0.05 + sin(_flicker * 2.7) * 0.03
-	var reach := POOL_WIDTH * _fire * beat
+	var reach := width * _fire * beat
 	for step in range(3):
 		var t := float(step) / 3.0
 		var half := reach * (1.0 - t * 0.42)
 		var alpha := (0.26 - t * 0.07) * clampf(_fire, 0.0, 1.0)
-		draw_rect(Rect2(-half, -2.0 - float(step) * 2.0, half * 2.0, 2.0),
+		draw_rect(Rect2(centre - half, -2.0 - float(step) * 2.0, half * 2.0, 2.0),
 			Color(FLAME, alpha))
 
 
@@ -348,12 +481,12 @@ func _draw_pool() -> void:
 ## selection box of an editor. Three filled ellipses in whole-pixel rows, each smaller than the
 ## last, so the light is stepped the way pixel art steps it and brightest at the source --
 ## breathing on the same clock as the flame.
-func _draw_glow(at: Vector2) -> void:
+func _draw_glow(at: Vector2, radius: float) -> void:
 	if _fire <= 0.0:
 		return
 	var beat := 1.0 + sin(_flicker * 1.3) * 0.08
 	for ring in range(3):
-		var reach := roundf(GLOW_RADIUS * 0.42 * _fire * beat * (0.79 - 0.17 * float(ring)))
+		var reach := roundf(radius * 0.42 * _fire * beat * (0.79 - 0.17 * float(ring)))
 		var rows := roundf(reach * 0.72)
 		var tone := Color(FLAME, (0.05 + 0.02 * float(ring)) * clampf(_fire, 0.0, 1.0))
 		for row in range(int(-rows), int(rows) + 1):
@@ -363,90 +496,71 @@ func _draw_glow(at: Vector2) -> void:
 				draw_rect(Rect2(at.x - half, at.y + float(row), half * 2.0, 1.0), tone)
 
 
-## The lantern itself: a plinth, a shaft, the fire box, a wide cap and a finial. Carved from
-## the same grey the terrace walls are, so it belongs to the path rather than to the HUD.
-func _draw_stone() -> void:
-	var warm := clampf(_fire, 0.0, 1.0)
-	# Facing edges catch the fire when it is burning. The stone itself never changes colour;
-	# what changes is that there is now something lighting it.
-	var lit_face := _stone(1.28).lerp(FLAME_CORE, 0.34 * warm)
-	var body := stone_tone.lerp(FLAME_DEEP, 0.10 * warm)
-
-	_block(Rect2(-15.0, -9.0, 30.0, 9.0), body, lit_face)      # plinth
-	_block(Rect2(-11.0, -13.0, 22.0, 4.0), body, lit_face)     # plinth cap
-	_block(Rect2(-6.0, -26.0, 12.0, 13.0), body, lit_face)     # shaft
-	_block(Rect2(-13.0, -30.0, 26.0, 4.0), body, lit_face)     # the platform it stands on
-	_block(Rect2(-11.0, -44.0, 22.0, 14.0), body, lit_face)    # the fire box
-	_block(Rect2(-16.0, -49.0, 32.0, 5.0), body, lit_face)     # the cap
-	_block(Rect2(-11.0, -52.0, 22.0, 3.0), body, lit_face)     # the cap's upper course
-	_block(Rect2(-3.0, -HEIGHT, 6.0, 3.0), body, lit_face)     # the finial
-
-	# Moss on the north side, because a stone that has stood on a terrace for a lifetime is
-	# not a clean stone. Only on the plinth, where rain collects.
-	if moss_tone.a > 0.0:
-		draw_rect(Rect2(-15.0, -9.0, 5.0, 3.0), Color(moss_tone, moss_tone.a * 0.7))
-		draw_rect(Rect2(9.0, -7.0, 4.0, 2.0), Color(moss_tone, moss_tone.a * 0.5))
+## Where the lantern's top-left is, in art pixels: hung by its ring from the hook, and swung
+## a whole pixel or two either side of it while it burns.
+func _lantern_at() -> Vector2:
+	var sway := 0.0
+	if _fire > 0.0:
+		sway = roundf(sin(_flicker * 0.42) * _swing * clampf(_fire, 0.0, 1.0))
+	return Vector2(float(HOOK.x - POLE_X) - float(RING_X) + sway, float(HOOK.y) - float(POST_ROWS.size()))
 
 
-## ⚠ HOW DEEP A CARVED BLOCK IS, AND WHY IT HAS ANY DEPTH. Each block was a flat face with a
-## one-pixel catch of light along its top and left -- a stone lantern drawn as a paper cut-out,
-## which is what Kent's "how 3d they are" was looking at. Seen a little from above and to the
-## left, a block shows a top face going back up to the right, lit because it faces the sky, and
-## its right side in shade. Three art pixels of it.
-const DEPTH := 3.0
-
-
-## One carved block: the outline of the whole solid, its top face in the light, its right side
-## in shade, then the front face with a catch of light along its top and left edges.
-func _block(box: Rect2, face: Color, lit_face: Color) -> void:
-	var outline := _stone(0.25)
-	var depth := int(DEPTH)
-	draw_rect(box.grow(1.0), outline)
-	for step in range(1, depth + 1):
-		var back := float(step)
-		draw_rect(Rect2(box.position.x + back - 1.0, box.position.y - back - 1.0,
-			box.size.x + 2.0, 3.0), outline)
-		draw_rect(Rect2(box.end.x + back - 2.0, box.position.y - back - 1.0,
-			3.0, box.size.y + 2.0), outline)
-	for step in range(1, depth + 1):
-		var back := float(step)
-		draw_rect(Rect2(box.position.x + back, box.position.y - back, box.size.x, 1.0),
-			lit_face if step < depth else lit_face.lerp(face, 0.3))
-		draw_rect(Rect2(box.end.x - 1.0 + back, box.position.y - back, 1.0, box.size.y),
-			_stone(0.66).lerp(face, 0.15 * float(step)))
-	draw_rect(box, face)
-	draw_rect(Rect2(box.position, Vector2(box.size.x, 1.0)), face.lerp(lit_face, 0.6))
-	draw_rect(Rect2(box.position, Vector2(1.0, box.size.y)), lit_face)
-	draw_rect(Rect2(box.position.x, box.end.y - 1.0, box.size.x, 1.0), _stone(0.61))
-
-
-## The window, and what is in it. Cold it is a black slot with a stone mullion; lit it is a
-## fire that moves, drawn as stacked whole-pixel rows so the flame steps rather than blurs.
-func _draw_fire() -> void:
-	var window := Rect2(-7.0, -42.0, 14.0, 11.0)
-	draw_rect(window.grow(1.0), _stone(0.25))
-	if _fire <= 0.0:
-		draw_rect(window, COLD)
-		# The mullion, which is the detail that makes the dark slot read as an opening in a
-		# stone rather than as a hole in the drawing.
-		draw_rect(Rect2(-0.5, window.position.y, 1.0, window.size.y), _stone(0.61))
+## The lantern on its hook: cold, the alight one over it as the fire takes, and the flame's
+## heart flickering in the middle shells.
+func _draw_lantern() -> void:
+	var at := _lantern_at()
+	# The ring rides the hook; a pixel of swing pulls it off-centre, which is the swing showing.
+	draw_texture(_cold_picture, at)
+	var alight := clampf(_fire, 0.0, 1.0)
+	if alight <= 0.0:
 		return
+	draw_texture(_alight_picture, at, Color(1.0, 1.0, 1.0, alight))
+	# The flame's heart: the inner column of shells either side of the mullion, breathing.
+	var breath := 0.45 + 0.25 * sin(_flicker * 1.9) + 0.12 * sin(_flicker * 4.3)
+	var core := Color(FLAME_CORE.lerp(Color.WHITE, 0.4), breath * alight)
+	draw_rect(Rect2(at + Vector2(float(RING_X) - 1.0, 7.0), Vector2(1.0, 6.0)), core)
+	draw_rect(Rect2(at + Vector2(float(RING_X) + 1.0, 7.0), Vector2(1.0, 6.0)), core)
 
-	draw_rect(window, COLD)
-	var strength := clampf(_fire, 0.0, 1.4)
-	# The flame: rows narrowing toward the top, each one nudged by a whole pixel of flicker.
-	var rows := int(clampf(roundf(9.0 * strength), 1.0, 10.0))
-	for row in range(rows):
-		var t := float(row) / 9.0
-		var half := roundf(lerpf(5.0, 1.0, t * t) * strength)
-		if half < 1.0:
-			continue
-		var sway := roundf(sin(_flicker * 1.7 + t * 3.1) * (1.0 + t * 1.6))
-		var y := window.end.y - 1.0 - float(row)
-		var tone := FLAME_DEEP if t < 0.18 else (FLAME if t < 0.62 else FLAME_CORE)
-		draw_rect(Rect2(-half + sway, y, half * 2.0, 1.0), Color(tone, minf(1.0, strength)))
-	# And the light thrown out of the opening onto the stone lip beneath it.
-	draw_rect(Rect2(-8.0, -31.0, 16.0, 1.0), Color(FLAME_CORE, 0.5 * clampf(_fire, 0.0, 1.0)))
+
+## The post in this lantern's stone and moss, and the lantern cold and alight, made once per
+## combination and kept: they are pictures, and building one is per-pixel work.
+func _make_pictures() -> void:
+	if _post_picture != null:
+		return
+	var key := "%s|%s" % [stone_tone.to_html(), moss_tone.to_html()]
+	if not _pictures.has(key):
+		var palette := POST_PALETTE.duplicate()
+		palette["T"] = _stone(1.3)
+		palette["S"] = stone_tone
+		palette["s"] = _stone(0.7)
+		if moss_tone.a > 0.0:
+			palette["m"] = moss_tone
+			palette["M"] = moss_tone.lightened(0.25)
+		else:
+			# No moss: the stone it would have grown on.
+			palette["m"] = stone_tone
+			palette["M"] = _stone(1.3)
+		_pictures[key] = _picture(POST_ROWS, palette)
+	_post_picture = _pictures[key]
+	if not _pictures.has("cold"):
+		_pictures["cold"] = _picture(LANTERN_ROWS, LANTERN_PALETTE)
+		var alight := LANTERN_PALETTE.duplicate()
+		alight.merge(LANTERN_ALIGHT, true)
+		_pictures["alight"] = _picture(LANTERN_ROWS, alight)
+	_cold_picture = _pictures["cold"]
+	_alight_picture = _pictures["alight"]
+
+
+static func _picture(rows: Array, palette: Dictionary) -> Texture2D:
+	var width := String(rows[0]).length()
+	var image := Image.create_empty(width, rows.size(), false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+	for y in range(rows.size()):
+		var row := String(rows[y])
+		for x in range(mini(width, row.length())):
+			if palette.has(row[x]):
+				image.set_pixel(x, y, palette[row[x]] as Color)
+	return ImageTexture.create_from_image(image)
 
 
 ## The spark on its way from the player's hands. Drawn as a small cross rather than a dot so
