@@ -147,20 +147,63 @@ func _check_water() -> void:
 		"sinking where she cannot swim is not a walk (was %s)" % figure.get("pose"))
 	Input.action_release(&"move_right")
 
-	# Dagat: she can. A direction held is a stroke, laid flat, head first either way.
+	# Dagat: use the supplied swimming frames, already posed head first.
 	player.can_swim = true
 	player.global_position = Vector2(400.0, 330.0)
 	player.velocity = Vector2.ZERO
 	Input.action_press(&"move_right")
 	await _frames(20)
-	_expect(figure.get("pose") == &"swim" and absf(body.rotation) > 1.0 and figure.scale.x > 0.0,
-		"swimming right is a stroke, laid flat (pose %s, turned %.2f)" % [figure.get("pose"), body.rotation])
+	_expect(figure.get("pose") == &"swim" and absf(body.rotation) < 0.01
+			and figure.scale.x > 0.0 and body.texture.resource_path.ends_with("apo_swim_right.png"),
+		"right swimming uses the authored stroke without a quarter turn")
+	_expect(not body.region_enabled and body.hframes == 6,
+		"swim strips replace the irregular running atlas")
+	var seen_frames: Dictionary = {}
+	for _frame in range(60):
+		await physics_frame
+		seen_frames[body.frame] = true
+	_expect(seen_frames.size() == 6, "real right input plays all six swim frames")
 	Input.action_release(&"move_right")
 	Input.action_press(&"move_left")
 	await _frames(20)
-	_expect(figure.get("pose") == &"swim" and figure.scale.x < 0.0,
-		"and swimming left is the same stroke, mirrored")
+	_expect(figure.get("pose") == &"swim" and figure.scale.x < 0.0 and body.scale.x < 0.0
+			and body.texture.resource_path.ends_with("apo_swim_left.png"),
+		"left swimming uses the authored left row without mirroring it twice")
 	Input.action_release(&"move_left")
+	player.global_position = Vector2(400.0, 500.0)
+	player.velocity = Vector2.ZERO
+	await _frames(4)
+	_expect(figure.get("pose") == &"swim_idle_side"
+			and body.texture.resource_path.ends_with("apo_swim_idle_side.png"),
+		"resting underwater uses the side idle sheet")
+	var idle_frame := body.frame
+	await _frames(20)
+	_expect(body.frame != idle_frame, "idle water animation advances without input")
+	var paused_frame := body.frame
+	paused = true
+	await create_timer(0.08, true).timeout
+	_expect(body.frame == paused_frame, "pause freezes the swim idle animation")
+	paused = false
+	Input.action_press(&"jump")
+	await _frames(8)
+	_expect(figure.get("pose") == &"swim_float"
+			and body.texture.resource_path.ends_with("apo_swim_float.png"),
+		"Space alone swims upward with the float sheet")
+	Input.action_release(&"jump")
+	Input.action_press(&"move_down")
+	await _frames(12)
+	_expect(figure.get("pose") == &"swim" and body.rotation > 0.0,
+		"diving tilts the swim stroke toward the bottom")
+	Input.action_release(&"move_down")
+	player.surfacing = true
+	Input.action_press(&"move_right")
+	await _frames(4)
+	_expect(figure.get("pose") == &"swim_float" and absf(body.rotation) < 0.01,
+		"out of breath uses the upward float pose even against sideways input")
+	Input.action_release(&"move_right")
+	player.surfacing = false
+	player.global_position = Vector2(400.0, 318.0)
+	player.velocity = Vector2.ZERO
 	# Nothing held: afloat, upright, the surface at her chest rather than her ankles -- and AT
 	# the surface, not bobbing clear of it: rising until the water let go of her, she spent a frame
 	# in five entirely above the sea, drawn mid-jump.
@@ -170,9 +213,9 @@ func _check_water() -> void:
 		if not player.is_in_water() or figure.get("pose") == &"air":
 			clear_of_it += 1
 	_expect(clear_of_it == 0, "afloat she stays in the water (%d of 90 frames out of it)" % clear_of_it)
-	_expect(figure.get("pose") == &"tread" and absf(body.rotation) < 0.01 and body.position.y > 0.0,
-		"afloat with nothing held she treads water, drawn down (pose %s, %.0f)" % [
-			figure.get("pose"), body.position.y])
+	_expect(figure.get("pose") == &"swim_idle_front" and absf(body.rotation) < 0.01
+			and body.texture.resource_path.ends_with("apo_swim_idle_front.png") and body.hframes == 4,
+		"afloat at the surface uses all four front idle frames")
 
 	# A shallow wade, feet on the ledge, where she cannot swim: that IS a walk.
 	player.can_swim = false

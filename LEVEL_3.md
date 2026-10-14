@@ -1,5 +1,12 @@
 # Level 3 — Dagat
 
+**Apo swimming (2026-10-15):** the supplied underwater sheet replaces the rotated
+running pose. Five `apo_swim_*` strips in `game/assets/characters/apo/` cover both
+directions, side/front idle and upward floating. Source and import notes are in
+`assets/characters/apo/source/SWIMMING.md`; `tools/build_apo_swim.py` rebuilds them.
+`run_locomotion_probe` checks real water input, Space, breath recovery and pause;
+`run_visual_swim` photographs the 24 frames and the apo in Dagat.
+
 **Status: CONTENT COMPLETE AND PAINTED.** The delivered art is in — three parallax bands,
 animated coral, kelp, bubbles and fish, and the bakunawa in 23 poses. `tools/build_dagat.py`
 cuts the delivery and **fails if any of the 79 files is unused**; `tools/build_dagat_props.py`

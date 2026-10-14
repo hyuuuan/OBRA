@@ -7,8 +7,9 @@ extends Node2D
 ## `scale.x` to face, and it is still told a stride phase every physics frame.
 ##
 ## The walk/run atlas replaces the old procedural leg patches. Its source sheets and
-## preparation notes live in assets/characters/apo/source/. Other poses still come from
-## tools/build_art.py. Each atlas frame has a measured anchor so differing sheet spacing
+## preparation notes live in assets/characters/apo/source/. The swim strips are imported
+## by tools/build_apo_swim.py; the remaining poses come from tools/build_art.py.
+## Each atlas frame has a measured anchor so differing sheet spacing
 ## never makes the body lurch sideways; flight frames keep their clearance above ground.
 
 ## Frame size and the row the feet stand on, both fixed by the generator.
@@ -29,6 +30,14 @@ const LOOK_DOWN := preload("res://assets/characters/apo/apo_look_down.png")
 const WAVE := preload("res://assets/characters/apo/apo_wave.png")
 const CHEER := preload("res://assets/characters/apo/apo_cheer.png")
 const TURNAROUND := preload("res://assets/characters/apo/apo_turnaround.png")
+const SWIM_RIGHT := preload("res://assets/characters/apo/apo_swim_right.png")
+const SWIM_LEFT := preload("res://assets/characters/apo/apo_swim_left.png")
+const SWIM_IDLE_SIDE := preload("res://assets/characters/apo/apo_swim_idle_side.png")
+const SWIM_IDLE_FRONT := preload("res://assets/characters/apo/apo_swim_idle_front.png")
+const SWIM_FLOAT := preload("res://assets/characters/apo/apo_swim_float.png")
+## All water frames share a torso-centred 320px cell, at one common art scale.
+const SWIM_CELL := Vector2(320.0, 320.0)
+const SWIM_SCALE := 0.5
 const UNDERWATER_SHADER := preload("res://shaders/underwater_character.gdshader")
 
 ## What each pose draws. `cycle` means the stride phase picks the frame; anything else
@@ -47,20 +56,17 @@ const POSES := {
 	&"wave": {"texture": WAVE, "count": 1, "cycle": false, "frame": 0},
 	&"cheer": {"texture": CHEER, "count": 1, "cycle": false, "frame": 0},
 	&"climb": {"texture": TURNAROUND, "count": 5, "cycle": false, "frame": 4},
-	# THE WATER HAS ITS OWN TWO. There is no swimming drawing on the sheet, so `swim` lays the
-	# run cycle flat -- the reaching arm and the alternating legs read as a stroke and a kick --
-	# and `tread` is the arms-out jump frame, upright: keeping afloat, or failing to.
-	&"swim": {"texture": LOCOMOTION, "count": 6, "cycle": true, "frame": 0},
+	&"swim": {"texture": SWIM_RIGHT, "count": 6, "cycle": true, "frame": 0},
+	&"swim_idle_side": {"texture": SWIM_IDLE_SIDE, "count": 4, "cycle": true, "frame": 0},
+	&"swim_idle_front": {"texture": SWIM_IDLE_FRONT, "count": 4, "cycle": true, "frame": 0},
+	&"swim_float": {"texture": SWIM_FLOAT, "count": 4, "cycle": true, "frame": 0},
+	# Wading/sinking in earlier levels still uses the struggling jump pose.
 	&"tread": {"texture": JUMP, "count": 1, "cycle": false, "frame": 0},
 }
-## Laid flat to swim: head first, the body's length centred over the feet's point, and its line
-## a little above it -- the apo floats with her feet just under the surface, so this puts the
-## swimmer ON the waterline rather than standing on it.
-const SWIM_OFFSET := Vector2(-43.0, -22.0)
+## Torso over the controller's capsule; the supplied art already swims head first.
+const SWIM_OFFSET := Vector2(0.0, -40.0)
 ## How far a swimmer's head dips or lifts with the stroke's direction, steering fully down or up.
 const SWIM_MAX_TILT := 0.5
-## The run cycle leans into its stride, so laid flat it swam head-down; this takes the lean out.
-const SWIM_LEAN := 0.3
 
 ## Which pose to draw. Set by Wanderer every physics frame; an unknown name falls back to
 ## idle rather than leaving the character mid-stride forever.
@@ -136,6 +142,10 @@ func refresh() -> void:
 		return
 	var entry: Dictionary = POSES.get(pose, POSES[&"idle"])
 	var texture: Texture2D = entry["texture"]
+	var water_pose := pose in [&"swim", &"swim_idle_side", &"swim_idle_front", &"swim_float"]
+	var facing_left := scale.x < 0.0
+	if pose == &"swim" and facing_left:
+		texture = SWIM_LEFT
 	var count: int = int(entry["count"])
 	var frame := int(entry["frame"])
 	if bool(entry["cycle"]):
@@ -146,18 +156,28 @@ func refresh() -> void:
 	_sprite.frame = 0
 	_sprite.hframes = 1
 	_sprite.texture = texture
-	_sprite.region_enabled = bool(entry["cycle"])
+	_sprite.region_enabled = bool(entry["cycle"]) and not water_pose
 	_sprite.position = Vector2.ZERO
 	_sprite.rotation = 0.0
-	if pose == &"swim":
-		# A quarter turn clockwise puts the head forward; the parent's mirror then carries it
-		# to whichever side she faces, and a tilt the same sign as the dive dips the head.
-		_sprite.rotation = PI * 0.5 - SWIM_LEAN + clampf(tilt, -1.0, 1.0) * SWIM_MAX_TILT
+	if water_pose:
+		_sprite.scale = Vector2.ONE * SWIM_SCALE
+		# The left row is authored leftward. Cancel the parent's facing mirror for it
+		# and the front view; side idle and float use the normal facing mirror.
+		if facing_left and pose in [&"swim", &"swim_idle_front"]:
+			_sprite.scale.x = -SWIM_SCALE
+		_sprite.offset = -SWIM_CELL * 0.5
 		_sprite.position = SWIM_OFFSET
+		if pose == &"swim":
+			_sprite.rotation = clampf(tilt, -1.0, 1.0) * SWIM_MAX_TILT
+		elif pose == &"swim_idle_front":
+			_sprite.position.y = -55.0 + water_sink
+		_sprite.hframes = count
+		_sprite.frame = frame
+		return
 	elif pose == &"tread":
 		_sprite.position = Vector2(0.0, water_sink)
 	if bool(entry["cycle"]):
-		var running := pose == &"run" or pose == &"swim"
+		var running := pose == &"run"
 		var top := 382.0 if running else 0.0
 		var height := 342.0 if running else 382.0
 		_sprite.region_rect = Rect2(float(ATLAS_COLUMNS[frame]), top,
