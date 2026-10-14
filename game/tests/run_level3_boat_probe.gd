@@ -102,6 +102,17 @@ func _run() -> void:
 	await _unpause()
 	_check(int(director.call("stage", "L3_N1")) == 1, "something strong drawn is accepted",
 		"the crossing is on its second step")
+	# ⚠ E REACHES THE HULL ACROSS THE SAND, WHATEVER THE BODY'S HEIGHT. A drawn body arrives with
+	# its middle well over the beach -- a horse 133 over the hull's mark -- and reach used to be one
+	# straight line, so a horse drawn 135 from the hull was at it or not by a pixel. Asked of the
+	# rule itself, at three anchors: beside the hull and high (205 away in a straight line), far
+	# over it in the air, and past it across the sand.
+	var hull_at := beached.global_position
+	var tall := bool(level.call("_reaches_the_bangka", hull_at + Vector2(-150.0, -140.0)))
+	var aloft := bool(level.call("_reaches_the_bangka", hull_at + Vector2(-150.0, -400.0)))
+	var past := bool(level.call("_reaches_the_bangka", hull_at + Vector2(-220.0, 0.0)))
+	_check(tall and not aloft and not past, "E reaches the hull across, whatever the height",
+		"beside and high %s, far over it %s, past it %s" % [tall, aloft, past])
 	_place(beached.global_position + Vector2(-60.0, -40.0))
 	await _frames(20)
 	level.call("press_interact")
