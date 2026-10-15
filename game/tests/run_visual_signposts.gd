@@ -47,7 +47,11 @@ func _run() -> void:
 	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
 	var shot := root.get_texture().get_image()
-	shot.get_region(Rect2i(0, GROUND - 60 * ZOOM, PITCH * MARKS.size() * 2, 62 * ZOOM)) \
-		.save_png("/tmp/obra_signposts.png")
+	# The layout is measured in layout pixels; the picture is in WINDOW pixels, three of them
+	# to one on this Mac's Retina screen. Cropped unconverted, the strip kept the top-left
+	# corner -- two and a half boards, cut off through their marks. And the strip itself, 60
+	# units tall from the ground, cut the tops off the boards. So: the whole layout, converted.
+	var layout := Rect2(Vector2.ZERO, Vector2(PITCH * MARKS.size() * 2, GROUND + 40))
+	shot.get_region(Rect2i(root.get_final_transform() * layout)).save_png("/tmp/obra_signposts.png")
 	print("OBRA_VISUAL_SIGNPOSTS_DONE")
 	quit()

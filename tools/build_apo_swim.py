@@ -92,6 +92,19 @@ def extract(image: Image.Image) -> tuple[Image.Image, tuple[int, int]]:
     return result, anchor
 
 
+def same_pixels(strip: Image.Image, path: Path) -> bool:
+    """Whether the PNG at `path` holds exactly these pixels, alpha included.
+
+    Pixels, not bytes: the same pixels encode to different PNG bytes under another Pillow
+    or zlib, so a byte comparison called the committed strips stale on every machine but
+    the one that wrote them (tools/pixelart.py `same_pixels` is the same rule).
+    """
+    if not path.exists():
+        return False
+    with Image.open(path) as old:
+        return old.size == strip.size and old.convert("RGBA").tobytes() == strip.tobytes()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
@@ -112,12 +125,12 @@ def main() -> None:
                 raise ValueError(f"Clipped {name} frame {frame}")
             strip.alpha_composite(image, (frame * CELL + x, y))
         path = OUT / f"apo_{name}.png"
-        buffer = BytesIO()
-        strip.save(buffer, format="PNG")
         if args.check:
-            if not path.exists() or path.read_bytes() != buffer.getvalue():
+            if not same_pixels(strip, path):
                 raise SystemExit(f"Stale import: {path}")
         else:
+            buffer = BytesIO()
+            strip.save(buffer, format="PNG")
             path.write_bytes(buffer.getvalue())
         print(f"{path.relative_to(ROOT)}: {len(columns) - 1} frames")
 

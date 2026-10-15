@@ -652,7 +652,10 @@ func _fire_cannon(actor: Node2D) -> String:
 	ink.color = Color(0.1, 0.1, 0.12)
 	shot.add_child(ink)
 	var facing := _facing_of(actor)
-	var world := get_parent()
+	var world := _world_root()
+	if world == null:
+		shot.queue_free()
+		return ""
 	world.add_child(shot)
 	shot.global_position = global_position + Vector2(facing * 44.0, -14.0)
 	shot.linear_velocity = Vector2(facing * 980.0, -190.0)
@@ -880,8 +883,16 @@ func _tool_target(collider: Node) -> Node:
 	return collider
 
 
+## Where what a tool makes or lets go of belongs: the level the player stands in.
+##
+## ⚠ NOT THE TOOL'S OWN PARENT WHEN IT IS HELD. `equip_to` puts a held tool on the grip, a
+## Marker2D on the player, so walking up from the tool stopped at the hand: a held cloud's
+## pool was made inside her and walked along with her, a held anvil was "dropped" into her
+## and carried, and a cannon shot flew as her child. The holder's own parent is the level.
 func _world_root() -> Node2D:
 	var node := get_parent()
+	if _equipped_actor != null and is_instance_valid(_equipped_actor):
+		node = _equipped_actor.get_parent()
 	while node != null and not (node is Node2D):
 		node = node.get_parent()
 	return node as Node2D

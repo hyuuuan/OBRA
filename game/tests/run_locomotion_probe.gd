@@ -30,6 +30,9 @@ func _run() -> void:
 	var figure := player.get_node("Figure") as Node2D
 	var body := figure.get_node("Body") as Sprite2D
 	_expect(figure.get("pose") == &"idle", "stationary player is idle")
+	# Taken in hand facing right, as `UtilityObject.equip_to` does: on the grip, at its origin.
+	var held := Node2D.new()
+	(player.call("get_grip_anchor") as Node2D).add_child(held)
 
 	# Low action strength exercises a sustained walk; normal keyboard input accelerates
 	# through the same state into running. Both go through the real controller.
@@ -49,11 +52,17 @@ func _run() -> void:
 	paused = false
 	await _frames(12)
 	_expect(body.region_rect != running_region, "running advances actual atlas frames")
-	_expect(figure.scale.x > 0.0, "right input faces right")
+	_expect(figure.scale.x > 0.0 and held.global_position.x > player.global_position.x,
+		"right input faces right, the held tool in front")
 	Input.action_release(&"move_right")
 	Input.action_press(&"move_left")
 	await _frames(20)
 	_expect(player.velocity.x < 0.0 and figure.scale.x < 0.0, "left input moves and mirrors left")
+	# It stayed on the side she faced when she took it: behind her, and a tool used standing
+	# still acts toward whichever side of her it is on.
+	_expect(held.global_position.x < player.global_position.x,
+		"a held tool turns to her front with her (%.0f from her)" % [
+			held.global_position.x - player.global_position.x])
 	Input.action_press(&"jump")
 	await _frames(4)
 	_expect(not player.is_on_floor() and figure.get("pose") == &"air",

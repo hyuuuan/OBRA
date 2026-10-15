@@ -1718,6 +1718,18 @@ func _test_every_utility_acts() -> void:
 		_expect(not outcome.is_empty(), "%s (%s) did nothing and said nothing on F" % [entity_id, behavior])
 		if not outcome.is_empty():
 			acted += 1
+		# What a held tool makes or lets go of is put in the level, not in the hand. The pool a
+		# held cloud made was the holder's child and walked along with her; a dropped anvil and
+		# a thrown boomerang stayed in her; a cannon shot flew as her child.
+		var in_hand: Array[String] = []
+		for left in actor.find_children("*", "", true, false):
+			if left == utility:
+				if behavior in ["anvil", "boomerang"]:
+					in_hand.append(entity_id)
+			elif not utility.is_ancestor_of(left) and (left is WaterArea2D or left is RigidBody2D):
+				in_hand.append(String(left.name))
+		_expect(in_hand.is_empty(), "%s on F left %s in the hand instead of the level" % [
+			entity_id, ", ".join(in_hand)])
 		# Whatever the use spawned -- a shot, a pool -- must not be left in the world
 		# for the next entity to trip over.
 		for spawned in world.get_children():

@@ -52,6 +52,8 @@ const CLIMB_RELEASE := 120.0
 const CLIMB_OVERSHOOT := 40.0
 ## An open umbrella is a parachute you are holding.
 const UMBRELLA_FALL_LIMIT := 190.0
+## Her forward hand, from the feet, facing right: x is mirrored to whichever way she faces.
+const GRIP := Vector2(14.0, -48.0)
 
 ## Wading. Deep water is meant to stop a walker, so it costs most of your speed, pulls
 ## you steadily down, and leaves you barely able to jump out of it.
@@ -343,6 +345,7 @@ func _advance_stride(delta: float, horizontal_speed: float) -> void:
 			_phase = 0.0
 		_phase = fposmod(_phase + delta / SWIM_IDLE_CYCLE, 1.0)
 	_figure.scale.x = _facing
+	_place_grip()
 	_figure.set(&"pose", next_pose)
 	_figure.set(&"stride", _phase)
 	# The head goes where she is steering, not where the water is moving her: afloat she bobs on
@@ -437,8 +440,18 @@ func get_grip_anchor() -> Node2D:
 		_grip = Marker2D.new()
 		_grip.name = "GripAnchor"
 		add_child(_grip)
-	_grip.position = Vector2(14.0 * _facing, -48.0)
+	_place_grip()
 	return _grip
+
+
+## ⚠ THE HAND TURNS WITH HER. The grip used to be placed only when a tool was equipped, so
+## after she turned round the axe stayed on the side she had faced -- behind her back -- and
+## a tool asked to act standing still (`UtilityObject._facing_of` falls back to which side of
+## her the tool is on) swung, fired and threw backwards. Only the side moves: the drawing is
+## not mirrored, because the swing already turns by the facing and would turn twice.
+func _place_grip() -> void:
+	if _grip != null and is_instance_valid(_grip):
+		_grip.position = Vector2(GRIP.x * _facing, GRIP.y)
 
 
 func set_equipped_utility(utility: Node2D) -> void:
