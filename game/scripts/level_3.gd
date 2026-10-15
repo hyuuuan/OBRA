@@ -1617,10 +1617,26 @@ func _shove_with_the_anvil() -> void:
 var _sliding := false
 
 
-## How close to the hull E reaches it. Measured from the player's anchor, which for a drawn
-## body is its middle -- an elephant's middle is a good way from whatever end of it is
+## How close to the hull E reaches it, across the sand. Measured from the player's anchor, which
+## for a drawn body is its middle -- an elephant's middle is a good way from whatever end of it is
 ## touching the boat.
+##
+## ⚠ ACROSS AND UP ARE JUDGED APART. This was one straight-line distance to the hull's mark, and
+## a tall body spent most of it on being tall. The apo's anchor is its feet, 20 under the mark,
+## so it reached 189 across the sand; a drawn body's middle is over the beach, and further over
+## it as it arrives -- it turns up where the apo's feet were and is thrown up out of the sand
+## before it settles. Beside the hull (measured 2026-10-14) a horse came up 133 over the mark and
+## settled at 51, an elephant 108 to 150 and 72, a frog 122 and 34. A horse drawn 135 from the
+## hull had 136 left across at its highest, so run_level3_play_probe's "E over the hull now says
+## it digs it out" passed or failed by a pixel. Across is BANGKA_REACH whatever the body's
+## height, and up is BANGKA_HEADROOM.
 const BANGKA_REACH := 190.0
+
+## How far over (or under) the hull's mark the anchor may be and still be at the hull: ninety
+## clear of the highest arrival above. No body stands that tall -- the highest settled middle is
+## the elephant's, 72 over the mark -- so anything past it is in the air over the boat, not
+## beside it.
+const BANGKA_HEADROOM := 240.0
 
 
 ## Standing at the beached bangka with the boat route chosen and the bangka not yet in the
@@ -1638,7 +1654,13 @@ func _at_the_beached_bangka() -> bool:
 		return false
 	if player == null or not is_instance_valid(player):
 		return false
-	return _anchor_now().distance_to(_bangka.global_position) <= BANGKA_REACH
+	return _reaches_the_bangka(_anchor_now())
+
+
+## An anchor at `at` is at the hull: within BANGKA_REACH of it across, BANGKA_HEADROOM up.
+func _reaches_the_bangka(at: Vector2) -> bool:
+	var off := at - _bangka.global_position
+	return absf(off.x) <= BANGKA_REACH and absf(off.y) <= BANGKA_HEADROOM
 
 
 ## The body the player is in can drag the bangka: one of the Carry shapes the route accepts.
