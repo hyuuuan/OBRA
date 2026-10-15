@@ -18,9 +18,7 @@ var _built := false
 
 func _ready() -> void:
 	super()
-	# This screen holds twenty-five rows and is the only one that runs out of screen. The
-	# shared panel padding is sized for a six-line dialog, and here it is the difference
-	# between the BACK button being on screen and being under it.
+	# The shared panel padding is sized for a six-line dialog, and a table wants less of it.
 	var tight := UISkin.frame(24.0, 14.0)
 	($Root/Center/Panel as PanelContainer).add_theme_stylebox_override(&"panel", tight)
 	_back_button.pressed.connect(close)
@@ -44,6 +42,13 @@ func _build() -> void:
 		push_warning("ControlsOverlay: %s is not a JSON object" % CONFIG_PATH)
 		return
 
+	# ⚠ TWO COLUMNS, NOT ONE. Twenty-five lines in one column were 949 pixels of panel on a
+	# 900-pixel screen: its top against the edge and BACK cut in half under the bottom. Kent:
+	# "its not properly oriented or responsive to all screens like some parts are cut off ...
+	# dont forget the settings screens/keybinds". The groups are dealt into two columns in
+	# order, the first ones on the left until it holds half the lines, so the table reads
+	# down the left and then down the right and the whole screen is on screen.
+	var groups: Array[Array] = []
 	var current_group := ""
 	for row_value: Variant in (parsed as Dictionary).get("rows", []):
 		var row: Dictionary = row_value
@@ -58,11 +63,43 @@ func _build() -> void:
 		if literal_keys.is_empty() and (action.is_empty() or not InputMap.has_action(action)):
 			continue
 		var group := String(row.get("group", ""))
-		if group != current_group:
+		if group != current_group or groups.is_empty():
 			current_group = group
-			_rows.add_child(_group_heading(group))
-		_rows.add_child(_control_row(
+			groups.append([_group_heading(group)])
+		groups.back().append(_control_row(
 			String(row.get("label", action)), action, String(row.get("through", "")), literal_keys))
+
+	var columns := HBoxContainer.new()
+	columns.name = "Columns"
+	columns.add_theme_constant_override(&"separation", COLUMN_GAP)
+	_rows.add_child(columns)
+	var lines := 0
+	for group: Array in groups:
+		lines += group.size()
+	var column := _column(columns)
+	var filled := 0
+	for group: Array in groups:
+		# Into the right-hand column once the left has half the lines -- and never leave the
+		# right one empty.
+		if column.get_index() == 0 and filled > 0 and filled + group.size() > ceili(lines * 0.5):
+			column = _column(columns)
+		for line: Control in group:
+			column.add_child(line)
+		filled += group.size()
+
+
+## Between the two columns of the table: wide enough that a key on the left is not read as
+## the start of a line on the right.
+const COLUMN_GAP := 56
+
+
+func _column(parent: HBoxContainer) -> VBoxContainer:
+	var column := VBoxContainer.new()
+	column.name = "Column%d" % (parent.get_child_count() + 1)
+	column.add_theme_constant_override(&"separation", 2)
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(column)
+	return column
 
 
 func _group_heading(text: String) -> Control:

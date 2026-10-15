@@ -33,10 +33,10 @@ extends Control
 ## clear. The top of the frame is the one band of a side-scroller that is reliably empty,
 ## and it is the band the player is NOT looking at while they are judging a jump.
 ##
-## Under the badge (which owns y 20..52) and the objective line beneath it (56..90), and
-## between the two top corners: the HUD frame ends at x 418 and the morph card begins at
-## x 1202, so a bar of this width centred on 800 sits in the gap rather than over either.
-const TOP := 98.0
+## Under the quest card (ObjectiveBanner, to its BOTTOM), and between the two top corners: the
+## HUD frame ends at x 418 and the morph card begins at x 1202, so a bar of this width centred
+## on 800 sits in the gap rather than over either.
+const TOP := ObjectiveBanner.BOTTOM + 8.0
 ## The bar's lower edge, this far above the apo's feet: clear of her head and of the row of
 ## key prompts that rides above it.
 const OVER_THE_HEAD := 172.0

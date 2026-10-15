@@ -42,21 +42,153 @@ enum Mark {
 	FIND,
 }
 
-## Wood, and PALE wood. The first cut used the tones the rest of the level's timber is
-## drawn in, and against wet terrace green at this size a dark brown board is a dark
-## smudge -- the sign has to be legible from far enough away to be worth walking toward,
-## which means it is lighter than anything it stands in front of rather than in keeping
-## with it.
-const POST := Color(0.545, 0.373, 0.216, 1.0)       # 8B5F37
-const POST_DARK := Color(0.318, 0.204, 0.110, 1.0)  # 51341C
-const BOARD := Color(0.816, 0.678, 0.443, 1.0)      # D0AD71
-const BOARD_LIT := Color(0.918, 0.816, 0.596, 1.0)  # EAD098
-const EDGE := Color(0.145, 0.086, 0.043, 1.0)       # 25160B
-const NAIL := Color(0.478, 0.478, 0.463, 1.0)       # 7A7A76
-## The glyph, and the one warm colour on the sign, so the eye goes to the mark rather than
-## to the plank it is painted on.
-const INK := Color(0.129, 0.086, 0.051, 1.0)        # 21160D
-const LIT := Color(0.976, 0.847, 0.290, 1.0)        # F9D84A
+## ⚠ IT WAS A CARD ON A STICK, AND THE WORLD IS PAINTED. Kent: "fix the design of the
+## signs/dialogue signs since it does not match the style of the game". It was a pale plank
+## and a five-pixel stick drawn rectangle by rectangle at one screen pixel to the pixel, with a
+## one-pixel outline and flat colour -- beside bamboo houses and terraces painted at two screen
+## pixels to the pixel, shaded, and edged in dark brown, it read as a sticker on the picture.
+##
+## So it is drawn the way the checkpoint lantern is: as rows of pixels at UNIT, the world's own
+## grain, in the outline every painted thing here wears. A bamboo post, jointed, driven into a
+## few pebbles; a board of dark carved wood in a bevelled frame, lit along its top and left and
+## shaded along its bottom and right, with its grain showing, lashed to the post above and below;
+## and over it a peaked cap of straw with its fringe hanging loose, the way a roof is made here.
+## The mark is PAINTED on the wood in cream -- pale on dark reads against the green of the
+## terraces, the gold of the plaza and the blue of the sea alike -- with a touch of gold, and
+## the whole mark turns gold when the board can be read back.
+const UNIT := 2.0
+## The post's column, so the sign stands centred on where it was planted.
+const POST_X := 10
+## Where the mark is painted on the board, and the board's own box, in art pixels.
+const FACE := Vector2i(4, 10)
+const BOARD := Rect2i(1, 8, 19, 13)
+const SIGN_ROWS := [
+	".....kkkTTTTTkkk......",
+	"..kkkTTttthTtthhkkk...",
+	"kkTTtthTttthTttthhhkk.",
+	"TThTttthTttthTttthThhk",
+	"HHHHHHHHHHHHHHHHHHHHHk",
+	"khHkHhkhHLBDkhHkHhkhk.",
+	"........kLBDk.........",
+	".kkkkkkkkccCkkkkkkkk..",
+	"keeeeeeeeeeeeeeeeeeek.",
+	"keOOOOOOOOOOOOOOOOOek.",
+	"keOooooooooooooooodek.",
+	"keOogggooooooooooodek.",
+	"keOooooooooooogggodek.",
+	"keOooooooooooooooodek.",
+	"keOooooooooooooooodek.",
+	"keOooooooooooooooodek.",
+	"keOooooooooooooooodek.",
+	"keOoggggoooooooooodek.",
+	"keOoooooooooogggoodek.",
+	"keOddddddddddddddddek.",
+	"keeeeeeeeeeeeeeeeeeek.",
+	".kkkkkkkkccCkkkkkkkk..",
+	"........kCBCk.........",
+	"........kLBDk.........",
+	"........kLBDk.........",
+	"........kLBDk.........",
+	"........kLLDk.........",
+	"........kNNNk.........",
+	"........kLBDk.........",
+	".......kkLBDkk........",
+	"......kSkLBDkZk.......",
+	"......kssLBDssk.......",
+	".......kkkkkkk........",
+]
+const GLYPH_ROWS := {
+	Mark.STORY: [
+		"..PPPPPPPP..",
+		".PPPPPPPPPP.",
+		"PPYPPYPPYPPp",
+		"PPYPPYPPYPPp",
+		".PPPPPPPPPpp",
+		"..PPPPPPPpp.",
+		"..PPp.......",
+		".PPp........",
+		".pp.........",
+	],
+	Mark.HINT: [
+		"...PPPPP....",
+		"..PPPPPPPp..",
+		"..PPp..PPPp.",
+		".......PPPp.",
+		".....PPPPp..",
+		"....PPPpp...",
+		"....PPp.....",
+		"............",
+		"....YYp.....",
+	],
+	Mark.CHOICE: [
+		"PPp......PPp",
+		"YPPp....PPYp",
+		"..PPp..PPp..",
+		"...PPPPPp...",
+		"....PPPp....",
+		"....PPp.....",
+		"....PPp.....",
+		"....PPp.....",
+		"...PPPPp....",
+	],
+	Mark.MEMORY: [
+		"...PPPPPPp..",
+		"...PYYYYPp..",
+		"...PPPPPPp..",
+		"...PYYYPPp..",
+		"...PPPPPPp..",
+		"...PYYYYPp..",
+		"...PPPPPPp..",
+		"...PPPPPPp..",
+		"....pppppp..",
+	],
+	Mark.FIND: [
+		"....PP......",
+		"...PPPp.....",
+		".PP.PP.PPp..",
+		"PPPpYYpPPPp.",
+		".PPpYYpPPp..",
+		"..PPp.PPp...",
+		".PPp...PPp..",
+		"..p.....p...",
+		"............",
+	],
+}
+const SIGN_PALETTE := {
+	"k": Color(0.165, 0.102, 0.055, 1.0),   # 2A1A0E  the outline the lantern and the world wear
+	"B": Color(0.788, 0.643, 0.361, 1.0),   # C9A45C  bamboo
+	"L": Color(0.910, 0.812, 0.541, 1.0),   # E8CF8A  the light down its side
+	"D": Color(0.561, 0.416, 0.184, 1.0),   # 8F6A2F  its shade
+	"N": Color(0.431, 0.310, 0.133, 1.0),   # 6E4F22  a node
+	"c": Color(0.722, 0.588, 0.376, 1.0),   # B89660  the lashing
+	"C": Color(0.541, 0.424, 0.243, 1.0),   # 8A6C3E  the lashing, round the back
+	"T": Color(0.933, 0.808, 0.494, 1.0),   # EECE7E  straw in the light
+	"t": Color(0.839, 0.659, 0.306, 1.0),   # D6A84E  straw
+	"h": Color(0.612, 0.431, 0.173, 1.0),   # 9C6E2C  straw in shade
+	"H": Color(0.420, 0.275, 0.102, 1.0),   # 6B461A  the eave, and the fringe under it
+	"e": Color(0.290, 0.169, 0.078, 1.0),   # 4A2B14  the board's frame
+	"O": Color(0.659, 0.420, 0.227, 1.0),   # A86B3A  its lit bevel
+	"o": Color(0.525, 0.322, 0.165, 1.0),   # 86522A  its face
+	"g": Color(0.455, 0.275, 0.133, 1.0),   # 744622  the grain
+	"d": Color(0.384, 0.227, 0.110, 1.0),   # 623A1C  its shaded bevel
+	"S": Color(0.557, 0.541, 0.502, 1.0),   # 8E8A80  a pebble
+	"s": Color(0.384, 0.373, 0.345, 1.0),   # 625F58  pebbles in shade
+	"Z": Color(0.706, 0.690, 0.643, 1.0),   # B4B0A4  a pebble in the light
+}
+## The mark: paint, the shade it leaves on the wood, and its touch of gold.
+const GLYPH_PALETTE := {
+	"P": Color(0.953, 0.906, 0.776, 1.0),   # F3E7C6
+	"p": Color(0.788, 0.718, 0.557, 1.0),   # C9B78E
+	"Y": Color(0.961, 0.784, 0.259, 1.0),   # F5C842
+}
+## The mark when the board can be read back: gold, and its gold gone pale.
+const GLYPH_LIT := {
+	"P": Color(1.0, 0.859, 0.361, 1.0),     # FFDB5C
+	"p": Color(0.690, 0.478, 0.118, 1.0),   # B07A1E
+	"Y": Color(1.0, 0.965, 0.847, 1.0),     # FFF6D8
+}
+## The ring round a board that can be read back, the mark's own gold.
+const LIT := Color(1.0, 0.859, 0.361, 1.0)
 
 ## ⚠ AND ON THE SEABED IT IS NOT A WOODEN BOARD. A pale plank on a post stuck in the bottom of
 ## the sea is a land object dropped into the water, and Dagat has three of them at its
@@ -94,19 +226,9 @@ const PLINTH_DEPTH := 3.0
 ## high on the left, falling away jaggedly to the right where the rest of it broke off.
 const BREAK := [0, 0, 1, 0, 2, 3, 2, 4, 5, 4, 6, 7, 8, 7, 9]
 
-## How big the board is, and how tall the post under it stands. Small on purpose: this is
-## a hand-lettered marker beside the path, not a road sign, and the apo is 96 pixels.
-const BOARD_SIZE := Vector2(34.0, 24.0)
-const POST_HEIGHT := 24.0
-const POST_WIDTH := 5.0
-## How thick the plank is seen to be: its top edge going back and its right end, two pixels of
-## each. A single flat rectangle reads as a card pinned to the picture.
-const BOARD_DEPTH := 2.0
-
-## How far the board rocks, and how slowly. A sign that is perfectly still is scenery; one
-## pixel of sway at a third of a cycle a second is the difference between a plank in the
-## ground and something the game is pointing at. It is deliberately not a bounce -- these
-## sit beside cultural objects, and a jiggling arrow over a bulul would be the wrong tone.
+## The kelp at a pillar's foot moves, a whole pixel either way at a third of a cycle a second.
+## The board on land does not: it is lashed to its post, and the painted mark is what says
+## "something here".
 const SWAY_PIXELS := 1.0
 const SWAY_HZ := 0.35
 
@@ -139,6 +261,9 @@ const READ_RANGE := 96.0
 
 var _time: float = 0.0
 var _sway: float = 0.0
+## The sign's pictures, built once for every sign: the post, board and cap, and each mark
+## plain and lit. See _picture.
+static var _pictures: Dictionary = {}
 var _offered := false
 ## Standing on the seabed of a level that asked for sea forms. See UnderTheSea.
 var _sea := false
@@ -306,10 +431,10 @@ func offer(on: bool) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
-	# Redrawn only when the board has actually moved. The sway is a WHOLE pixel either way,
-	# so at a third of a cycle a second it changes about once a second -- asking for a
-	# redraw every frame would be sixty times the work for the same picture, on every sign
-	# in the level, forever.
+	if not _sea:
+		return
+	# Redrawn only when the kelp has actually moved. The sway is a WHOLE pixel either way, so
+	# at a third of a cycle a second it changes about once a second.
 	var sway := roundf(sin(TAU * (_time * SWAY_HZ + phase)) * SWAY_PIXELS)
 	if not is_equal_approx(sway, _sway):
 		_sway = sway
@@ -340,56 +465,38 @@ func _draw() -> void:
 		_draw_mark(centre, Color(GLOW, 0.62 + 0.12 * float(_pulse)),
 			Color(0.85, 1.0, 0.97, 1.0))
 		return
-	GroundShadow.draw(self, 9.0, 2.0, 0.45)
-	_draw_post()
-	var at := Vector2(0.0, -POST_HEIGHT - BOARD_SIZE.y * 0.5 + _sway)
+	GroundShadow.draw(self, 14.0, 2.0, 0.45)
+	# Art pixels from here, drawn at UNIT. The post's foot is on the ground at the origin.
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2(UNIT, UNIT))
+	var origin := Vector2(-float(POST_X), -float(SIGN_ROWS.size() - 1))
 	if _offered:
-		# A ring of the same warm yellow the glyphs are painted in, one pixel off the
-		# board on every side. It is not a key badge: the hint bar is already saying which
-		# key, in the live binding, and a letter drawn on a 34-pixel plank would be four
-		# pixels tall and unreadable at the distance the player is actually standing.
-		draw_rect(Rect2(at - BOARD_SIZE * 0.5 - Vector2(3.0, 3.0),
-			BOARD_SIZE + Vector2(6.0, 6.0)), LIT, false, 2.0)
-	_draw_board(at)
+		# A ring of the mark's own gold round the board, a pixel off it on every side. Not a
+		# key badge: the hint bar is already saying which key, in the live binding.
+		draw_rect(Rect2(origin + Vector2(BOARD.position) - Vector2.ONE * 1.5,
+			Vector2(BOARD.size) + Vector2.ONE * 3.0), LIT, false, 1.0)
+	draw_texture(_picture("sign", SIGN_ROWS, SIGN_PALETTE), origin)
+	draw_texture(_picture("%d%s" % [mark, " lit" if _offered else ""], GLYPH_ROWS[mark],
+		GLYPH_LIT if _offered else GLYPH_PALETTE), origin + Vector2(FACE))
+	draw_set_transform(Vector2.ZERO)
 
 
-## The post, with a little heap of earth at its foot so it reads as driven in rather than
-## resting on the ground.
-func _draw_post() -> void:
-	draw_rect(Rect2(-POST_WIDTH * 0.5, -POST_HEIGHT, POST_WIDTH, POST_HEIGHT), POST)
-	draw_rect(Rect2(-POST_WIDTH * 0.5, -POST_HEIGHT, 1.0, POST_HEIGHT), BOARD_LIT)
-	draw_rect(Rect2(POST_WIDTH * 0.5 - 1.0, -POST_HEIGHT, 1.0, POST_HEIGHT), POST_DARK)
-	draw_rect(Rect2(-5.0, -3.0, 10.0, 3.0), POST_DARK)
-	draw_rect(Rect2(-3.0, -1.0, 6.0, 1.0), EDGE)
-
-
-func _draw_board(at: Vector2) -> void:
-	var board := Rect2(at - BOARD_SIZE * 0.5, BOARD_SIZE)
-	# The plank's thickness first: its outline, its top edge going back in the light, its right
-	# end in shade. The face goes over the front of it.
-	var depth := int(BOARD_DEPTH)
-	for step in range(1, depth + 1):
-		var back := float(step)
-		draw_rect(Rect2(board.position.x + back - 1.0, board.position.y - back - 1.0,
-			board.size.x + 2.0, 2.0), EDGE)
-		draw_rect(Rect2(board.end.x + back - 1.0, board.position.y - back - 1.0,
-			2.0, board.size.y + 2.0), EDGE)
-	for step in range(1, depth + 1):
-		var back := float(step)
-		draw_rect(Rect2(board.position.x + back, board.position.y - back, board.size.x - 1.0, 1.0),
-			BOARD_LIT)
-		draw_rect(Rect2(board.end.x - 1.0 + back, board.position.y - back, 1.0, board.size.y),
-			POST_DARK)
-	draw_rect(board, BOARD)
-	# Two planks rather than one, because a single flat rectangle reads as a card.
-	draw_rect(Rect2(board.position, Vector2(board.size.x, 1.0)), BOARD_LIT)
-	draw_rect(Rect2(board.position.x, at.y - 1.0, board.size.x, 1.0), POST_DARK)
-	draw_rect(Rect2(board.position.x, board.end.y - 2.0, board.size.x, 2.0), POST_DARK)
-	draw_rect(board, EDGE, false, 1.0)
-	for side: float in [-1.0, 1.0]:
-		draw_rect(Rect2(at.x + side * (BOARD_SIZE.x * 0.5 - 3.0) - 1.0,
-			board.position.y + 3.0, 2.0, 2.0), NAIL)
-	_draw_mark(at)
+## A picture from rows of pixels, built once and shared by every sign: each character is a
+## colour in `palette`, and one it does not name is clear.
+static func _picture(key: String, rows: Array, palette: Dictionary) -> Texture2D:
+	var cached: Texture2D = _pictures.get(key)
+	if cached != null:
+		return cached
+	var width := String(rows[0]).length()
+	var image := Image.create_empty(width, rows.size(), false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+	for y in range(rows.size()):
+		var row := String(rows[y])
+		for x in range(mini(width, row.length())):
+			if palette.has(row[x]):
+				image.set_pixel(x, y, palette[row[x]] as Color)
+	var texture := ImageTexture.create_from_image(image)
+	_pictures[key] = texture
+	return texture
 
 
 ## THE PILLAR. A square plinth sunk in the silt, seen a little from above; on it a fluted drum
@@ -463,10 +570,11 @@ func _draw_pillar() -> void:
 	draw_rect(Rect2(-half - 8.0 + _sway, -21.0, 1.0, 5.0), KELP)
 
 
-## The glyph, drawn out of whole pixels like everything else. Each is built so that its
-## SILHOUETTE carries it: at eighteen pixels of board nobody reads a picture, they read a
-## shape, and the four have to be different shapes before they are different drawings.
-func _draw_mark(at: Vector2, ink: Color = INK, lit: Color = LIT) -> void:
+## The glyph carved into a seabed pillar, drawn out of whole pixels. Each is built so that its
+## SILHOUETTE carries it: at eighteen pixels nobody reads a picture, they read a shape, and the
+## five have to be different shapes before they are different drawings. (The board on land
+## paints its mark from GLYPH_ROWS.)
+func _draw_mark(at: Vector2, ink: Color, lit: Color) -> void:
 	match mark:
 		Mark.HINT:
 			# A question mark. Nothing else on a board this size says "work something out"

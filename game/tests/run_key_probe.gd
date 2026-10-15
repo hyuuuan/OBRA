@@ -91,10 +91,12 @@ func _found_on_the_screen(id: String) -> bool:
 		return true
 	screen.call("open")
 	await process_frame
+	# One pocket per shelf, not per FOUND entry: the flowers share one.
 	var buttons: Array = screen.get("_found_buttons")
+	var shelves: Array = screen.get("_found_shelves")
 	var shown := false
 	for index in range(buttons.size()):
-		if String(InventoryScreen.FOUND[index]["id"]) == id:
+		if String((shelves[index] as Dictionary)["key"]) == id:
 			shown = (buttons[index] as Button).visible
 	screen.call("close")
 	await process_frame

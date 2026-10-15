@@ -18,6 +18,9 @@ const GOLD := UISkin.GOLD
 const DIM := UISkin.MUTED
 ## The drawing canvas's own paper, so a drawing in a slot looks the way it did on the page.
 const PAPER := Color(0.965, 0.95, 0.9, 1.0)
+## How far the count sits in from a slot's top-right corner. Top, because the bottom-left
+## carries SEL; right, because the top-left carries the key number.
+const COUNT_INSET := 3.0
 
 var _manager: InventoryManager
 var _buttons: Array[Button] = []
@@ -26,6 +29,8 @@ var _numbers: Array[Label] = []
 ## The word SEL under the number of the slot in hand. A brighter frame says "this one"
 ## only if you already know what the frames mean; a word says it outright.
 var _tags: Array[Label] = []
+## How many drawings each slot holds, from two up. See count_badge.
+var _counts: Array[Label] = []
 ## One texture per drawing, keyed by the item that owns it. Rebuilding a 512x512 image
 ## into a texture on every inventory change, six at a time, is work for nothing.
 var _thumbnails: Dictionary = {}
@@ -168,6 +173,10 @@ func _ready() -> void:
 		button.add_child(tag)
 		_tags.append(tag)
 
+		var count := count_badge()
+		button.add_child(count)
+		_counts.append(count)
+
 
 ## THE TRAY. Six loose frames floating on the level read as six separate things; one dark
 ## strip behind them reads as one bag. Drawn a little outside the bar's own rect, which is the
@@ -178,6 +187,42 @@ const TRAY_PAD := 8.0
 func _draw() -> void:
 	var tray := Rect2(Vector2(-TRAY_PAD, -TRAY_PAD), size + Vector2(TRAY_PAD, TRAY_PAD) * 2.0)
 	draw_style_box(UISkin.strip(0.0, 0.0), tray)
+
+
+## HOW MANY OF ONE THING A SLOT HOLDS. Kent: "storing the same object in the inventory places
+## them separately like the flower so instead of that how about we use the counter like x1 x2".
+## One slot per kind of thing, and a small gold tab in its corner saying how many: "×2". Shared
+## with the bag screen, so the pockets there and the bar here count the same way.
+static func count_badge() -> Label:
+	var badge := Label.new()
+	badge.name = "Count"
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.visible = false
+	badge.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
+	badge.add_theme_color_override(&"font_color", UISkin.GOLD_LABEL)
+	badge.add_theme_color_override(&"font_shadow_color", Color.TRANSPARENT)
+	var tab := StyleBoxFlat.new()
+	tab.bg_color = UISkin.GOLD_FILL
+	tab.border_color = UISkin.GOLD_EDGE
+	tab.set_border_width_all(UISkin.THIN)
+	tab.content_margin_left = 5.0
+	tab.content_margin_right = 5.0
+	badge.add_theme_stylebox_override(&"normal", UISkin.rounded(tab, UISkin.KEY_RADIUS))
+	# Pinned by its top-right corner and grown down and to the left, so "×2" and "×12" both
+	# keep that corner where it is.
+	badge.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	badge.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	badge.offset_left = -COUNT_INSET
+	badge.offset_right = -COUNT_INSET
+	badge.offset_top = COUNT_INSET
+	badge.offset_bottom = COUNT_INSET
+	return badge
+
+
+## One of anything needs no number on it; from two on, the tab says how many.
+static func show_count(badge: Label, count: int) -> void:
+	badge.text = "×%d" % count
+	badge.visible = count > 1
 
 
 func set_manager(manager: InventoryManager) -> void:
@@ -284,6 +329,7 @@ func _refresh(items: Array) -> void:
 		button.modulate = Color(1.12, 1.12, 1.04) if chosen else Color.WHITE
 		_numbers[index].add_theme_color_override(&"font_color", GOLD if occupied else DIM)
 		_tags[index].visible = chosen
+		show_count(_counts[index], _manager.count(index) if _manager != null else int(occupied))
 	_forget_stale_thumbnails(items)
 
 

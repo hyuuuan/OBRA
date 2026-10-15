@@ -16,7 +16,8 @@ extends ModalOverlay
 ##  - THE POCKETS are six slots of drawings, level-scoped, and they empty. Keys 1 - 6.
 ##  - FOUND is permanent and global. It is the profile's own list, and an entry that is not
 ##    yet found is shown as an empty pocket rather than hidden, because the shape of what is
-##    still out there is the useful part.
+##    still out there is the useful part. Several of one thing -- the hidden flowers -- share
+##    ONE pocket with their count on it, and the card says how many of how many.
 ##  - THE CARDS are the fifty-class roster, one card per class, sorted onto three tabs down
 ##    the bag's side -- creatures, objects, shapes -- and the card that is picked is shown
 ##    large beside them: the player's own drawing of it, what it can do (its ConceptNet
@@ -53,7 +54,15 @@ const ROSTER_SLOT := Vector2(116.0, 156.0)
 ## Nine across takes the twenty-seven objects in exactly three rows, and three rows of cards
 ## is what fits under the pockets on a 900-tall screen.
 const ROSTER_COLUMNS := 9
-const DETAIL_WIDTH := 304.0
+const DETAIL_WIDTH := 288.0
+## ⚠ THE BAG HAS TO FIT A 1600 x 900 SCREEN, TABS AND ALL. The game is never shown narrower or
+## shorter than that (project.godot stretches with keep_height: a taller screen gets bars, a
+## wider one gets more width), and the bag with its tabs was 1620 across, so its centre
+## container pushed both edges off -- the leather against the left of the screen and the tabs
+## cut through on the right. Kent: "some parts are cut off". The lining, the gap beside the
+## big card, the card and the roster's gutters each gave a little, and it stands 1568 across.
+const LINING_MARGIN := 22
+const ROSTER_GUTTER := 4
 
 ## The three kinds the roster is counted in, in the order the thesis counts them: twenty
 ## creatures, twenty-seven objects, three geometric primitives. `role` is the manifest's
@@ -66,6 +75,12 @@ const BANDS: Array[Dictionary] = [
 
 ## The permanent things, in the order they are found. `art` is resolved lazily because two of
 ## these are textures that only exist once their scene has been compiled.
+##
+## ⚠ ONE POCKET PER THING, NOT PER ENTRY. Entries that share a `stack` are the same thing found
+## again -- the hidden flowers, one a level -- and sat in three pockets side by side, two lit
+## and one dark. Kent: "storing the same object in the inventory places them separately like
+## the flower so instead of that how about we use the counter like x1 x2". They share one
+## pocket now, with "×2" on it; STACKS names the pocket and how many of the thing there are.
 const FOUND: Array[Dictionary] = [
 	{
 		"id": "brush",
@@ -85,14 +100,16 @@ const FOUND: Array[Dictionary] = [
 	{
 		"id": "flower_1",
 		"name": "Hidden Flower",
-		"note": "One of five. Pressed between the pages of her sketchbook.",
+		"stack": "hidden_flower",
+		"note": "Pressed between the pages of her sketchbook.",
 	},
 	# Earned by the dance in Piyesta and recorded since, but never listed here: a player who
 	# won it saw nothing in the bag, and the flowers are only fair if the count can be seen.
 	{
 		"id": "L2_HF",
 		"name": "Hidden Flower",
-		"note": "One of five. The dancers gave it to you after the dance, as they once gave it to her.",
+		"stack": "hidden_flower",
+		"note": "The dancers gave it to you after the dance, as they once gave it to her.",
 	},
 	# Dagat's, and the reason the bag is where the count lives. The design asks for the five
 	# to be visible somewhere between levels -- diegetically, without explaining what they are
@@ -101,9 +118,18 @@ const FOUND: Array[Dictionary] = [
 	{
 		"id": "L3_HF",
 		"name": "Hidden Flower",
-		"note": "One of five. It had been holding on to it all along, down in the dark, and it gave it up gladly.",
+		"stack": "hidden_flower",
+		"note": "It had been holding on to it all along, down in the dark, and it gave it up gladly.",
 	},
 ]
+## What a shared pocket is called, and how many of its thing the whole game hides. Five
+## flowers, one a level, though only three levels hide one yet -- the card says "Two of five"
+## and its own entry's line, the newest found.
+const STACKS := {
+	"hidden_flower": {"name": "Hidden Flower", "of": 5},
+}
+## The count, as a card writes it at the head of a sentence.
+const COUNT_WORDS := ["None", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
 
 ## How a creature gets about, as the card prints it.
 const MOVES := {
@@ -135,7 +161,11 @@ var registry: EntityRegistry
 
 var _bag_buttons: Array[Button] = []
 var _bag_art: Array[TextureRect] = []
+var _bag_counts: Array[Label] = []
 var _found_buttons: Array[Button] = []
+## One per pocket on the Found shelf, in the shelf's order: {"key", "entries"}. See _shelves.
+var _found_shelves: Array[Dictionary] = []
+var _found_counts: Array[Label] = []
 var _roster_count: Label
 ## role -> the count label and the grid for that band. See _build_roster.
 var _band_counts: Dictionary = {}
@@ -329,10 +359,9 @@ func _choices() -> Array[Dictionary]:
 	for index in range(_bag_buttons.size()):
 		if inventory_manager != null and inventory_manager.peek_item(index) != null:
 			out.append({"kind": "bag", "index": index})
-	for entry in FOUND:
-		var id := String(entry["id"])
-		if _has_found(id) and not _is_used(id):
-			out.append({"kind": "found", "id": id})
+	for shelf in _found_shelves:
+		if not _held(shelf).is_empty():
+			out.append({"kind": "found", "id": String(shelf["key"])})
 	var profile := get_node_or_null(^"/root/PlayerProfile")
 	var drawn: Array = profile.call("get_drawn_classes") if profile != null else []
 	for band: Variant in BANDS:
@@ -481,8 +510,8 @@ func _build() -> void:
 
 	var margins := MarginContainer.new()
 	margins.name = "Lining"
-	margins.add_theme_constant_override(&"margin_left", 30)
-	margins.add_theme_constant_override(&"margin_right", 30)
+	margins.add_theme_constant_override(&"margin_left", LINING_MARGIN)
+	margins.add_theme_constant_override(&"margin_right", LINING_MARGIN)
 	margins.add_theme_constant_override(&"margin_top", 14)
 	margins.add_theme_constant_override(&"margin_bottom", int(BagArt.FEET_H) + 12)
 	bag.add_child(margins)
@@ -534,7 +563,7 @@ func _build() -> void:
 
 	var body := HBoxContainer.new()
 	body.name = "Body"
-	body.add_theme_constant_override(&"separation", 16)
+	body.add_theme_constant_override(&"separation", 12)
 	lining.add_child(body)
 
 	var left := VBoxContainer.new()
@@ -642,6 +671,10 @@ func _build_bag(parent: Control) -> void:
 		number.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(number)
 
+		var count := InventoryHUD.count_badge()
+		button.add_child(count)
+		_bag_counts.append(count)
+
 
 func _build_found(parent: Control) -> void:
 	var column := _section(parent, "FOUND", _note("kept for the run"))
@@ -649,9 +682,10 @@ func _build_found(parent: Control) -> void:
 	row.name = "Found"
 	row.add_theme_constant_override(&"separation", 8)
 	column.add_child(row)
-	for entry in FOUND:
+	_found_shelves = _shelves()
+	for shelf in _found_shelves:
 		var button := _slot_button(FOUND_SLOT)
-		button.pressed.connect(_choose_found.bind(String(entry["id"])))
+		button.pressed.connect(_choose_found.bind(String(shelf["key"])))
 		row.add_child(button)
 		_found_buttons.append(button)
 
@@ -667,6 +701,43 @@ func _build_found(parent: Control) -> void:
 		art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(art)
+		var count := InventoryHUD.count_badge()
+		button.add_child(count)
+		_found_counts.append(count)
+
+
+## The Found shelf's pockets: one per entry, except that entries sharing a `stack` share one.
+static func _shelves() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var by_key: Dictionary = {}
+	for entry in FOUND:
+		var key := String(entry.get("stack", entry["id"]))
+		if by_key.has(key):
+			((by_key[key] as Dictionary)["entries"] as Array).append(entry)
+			continue
+		var shelf := {"key": key, "entries": [entry]}
+		by_key[key] = shelf
+		out.append(shelf)
+	return out
+
+
+## The shelf a pocket key names, or an empty one.
+func _shelf(key: String) -> Dictionary:
+	for shelf in _found_shelves:
+		if String(shelf["key"]) == key:
+			return shelf
+	return {}
+
+
+## What this pocket holds: its entries found and not given up, in the order they are found.
+func _held(shelf: Dictionary) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for entry_value: Variant in shelf.get("entries", []):
+		var entry: Dictionary = entry_value
+		var id := String(entry["id"])
+		if _has_found(id) and not _is_used(id):
+			out.append(entry)
+	return out
 
 
 ## One box per kind: its heading and count, and a grid of a card per class. Only the box
@@ -702,11 +773,11 @@ func _build_roster(parent: Control) -> void:
 		var grid := GridContainer.new()
 		grid.name = "%sGrid" % role
 		grid.columns = ROSTER_COLUMNS
-		grid.add_theme_constant_override(&"h_separation", 6)
+		grid.add_theme_constant_override(&"h_separation", ROSTER_GUTTER)
 		grid.add_theme_constant_override(&"v_separation", 6)
 		# Always three rows tall, so the bag does not change size from tab to tab.
 		grid.custom_minimum_size = Vector2(
-			ROSTER_COLUMNS * ROSTER_SLOT.x + (ROSTER_COLUMNS - 1) * 6.0,
+			ROSTER_COLUMNS * ROSTER_SLOT.x + (ROSTER_COLUMNS - 1) * ROSTER_GUTTER,
 			3.0 * ROSTER_SLOT.y + 2.0 * 6.0)
 		box.add_child(grid)
 		_band_grids[role] = grid
@@ -807,6 +878,10 @@ func _build_detail(parent: Control) -> void:
 	_detail_kind = Label.new()
 	_detail_kind.theme_type_variation = &"HudCaption"
 	_detail_kind.add_theme_color_override(&"font_color", LABEL_MUTED)
+	# Wrapped, because it is the one line on the card that was not: "Found · kept for the whole
+	# run" is wider than the card, so choosing anything found widened the card and the bag
+	# with it, and the tabs went off the right of the screen.
+	_detail_kind.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_child(_detail_kind)
 
 	var rule := ColorRect.new()
@@ -1108,24 +1183,38 @@ func _refresh_bag() -> void:
 		_paint(_bag_buttons[index], occupied, chosen)
 		_bag_buttons[index].tooltip_text = item.display_name if occupied else "Empty"
 		_bag_art[index].texture = _thumbnail(item) if occupied else null
+		InventoryHUD.show_count(_bag_counts[index],
+			inventory_manager.count(index) if inventory_manager != null else 0)
 
 
 func _refresh_found() -> void:
 	for index in range(_found_buttons.size()):
-		var entry: Dictionary = FOUND[index]
-		var id := String(entry["id"])
-		var owned := _has_found(id)
+		var shelf: Dictionary = _found_shelves[index]
+		var key := String(shelf["key"])
+		var held := _held(shelf)
+		var owned := not held.is_empty()
 		var chosen := String(_chosen.get("kind", "")) == "found" \
-			and String(_chosen.get("id", "")) == id
+			and String(_chosen.get("id", "")) == key
 		_paint(_found_buttons[index], owned, chosen)
 		# An unfound thing is an empty pocket and nothing else -- no name, no tooltip. The
 		# shape of what is still out there is worth showing; what it is called is not this
 		# screen's to give away.
-		_found_buttons[index].tooltip_text = String(entry["name"]) if owned else ""
+		_found_buttons[index].tooltip_text = _shelf_name(shelf) if owned else ""
 		var art := _found_buttons[index].get_node_or_null(^"Art") as TextureRect
 		if art != null:
-			art.texture = _found_art(id) if owned else null
-		_found_buttons[index].visible = not _is_used(id)
+			art.texture = _found_art(String(held.back()["id"])) if owned else null
+		InventoryHUD.show_count(_found_counts[index], held.size())
+		# Given up, every one of it -- the brass key left in its lock -- and it is not carried.
+		var given_up := true
+		for entry_value: Variant in shelf["entries"]:
+			if not _is_used(String((entry_value as Dictionary)["id"])):
+				given_up = false
+		_found_buttons[index].visible = not given_up
+
+
+func _shelf_name(shelf: Dictionary) -> String:
+	var stack: Dictionary = STACKS.get(String(shelf["key"]), {})
+	return String(stack.get("name", (shelf["entries"] as Array)[0]["name"]))
 
 
 
@@ -1339,26 +1428,36 @@ func _refresh_detail() -> void:
 			_refresh_detail()
 			return
 		_fill_class_card(item.entity_id, _thumbnail(item))
-		_detail_title.text = item.display_name
+		var held := inventory_manager.count(int(_chosen.get("index", -1)))
+		_detail_title.text = item.display_name if held < 2 \
+			else "%s  \u00d7%d" % [item.display_name, held]
 		return
 	if kind == "found":
-		var id := String(_chosen.get("id", ""))
-		for entry in FOUND:
-			if String(entry["id"]) != id:
-				continue
-			_style_detail(_palette(""))
-			_detail_number.text = ""
-			_detail_title.text = String(entry["name"])
-			_detail_kind.text = "Found  ·  kept for the whole run"
-			_set_art(_found_art(id), "")
-			var note := String(entry["note"])
-			var profile := get_node_or_null(^"/root/PlayerProfile")
-			if profile != null and bool(profile.call("is_canvas_damaged", id)):
-				note += "  It is creased along the break."
-			_set_ability("", note)
-			_set_skills([])
-			_set_rows("", "")
+		var shelf := _shelf(String(_chosen.get("id", "")))
+		var held := _held(shelf)
+		if held.is_empty():
+			_chosen = {}
+			_refresh_detail()
 			return
+		# The newest found is the one the card shows and tells, and the count leads its line.
+		var entry: Dictionary = held.back()
+		var id := String(entry["id"])
+		_style_detail(_palette(""))
+		_detail_number.text = ""
+		_detail_title.text = _shelf_name(shelf)
+		_detail_kind.text = "Found  ·  kept for the whole run"
+		_set_art(_found_art(id), "")
+		var note := String(entry["note"])
+		var stack: Dictionary = STACKS.get(String(shelf["key"]), {})
+		if not stack.is_empty():
+			note = "%s of %s. %s" % [_count_word(held.size()),
+				_count_word(int(stack["of"])).to_lower(), note]
+		var profile := get_node_or_null(^"/root/PlayerProfile")
+		if profile != null and bool(profile.call("is_canvas_damaged", id)):
+			note += "  It is creased along the break."
+		_set_ability("", note)
+		_set_skills([])
+		_set_rows("", "")
 		return
 	var class_id := String(_chosen.get("id", ""))
 	_fill_class_card(class_id, _class_drawing(class_id))
@@ -1450,7 +1549,7 @@ func _choose_bag(index: int) -> void:
 
 
 func _choose_found(id: String) -> void:
-	if not _has_found(id):
+	if _held(_shelf(id)).is_empty():
 		return
 	_chosen = {"kind": "found", "id": id}
 	refresh()
@@ -1499,6 +1598,10 @@ func _is_used(id: String) -> bool:
 	var profile := get_node_or_null(^"/root/PlayerProfile")
 	return profile != null and profile.has_method("is_item_used") \
 		and bool(profile.call("is_item_used", id))
+
+
+static func _count_word(count: int) -> String:
+	return COUNT_WORDS[count] if count >= 0 and count < COUNT_WORDS.size() else str(count)
 
 
 func _has_found(id: String) -> bool:

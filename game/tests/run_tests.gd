@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_dialogue_portraits_are_outlined()
 	_test_the_brass_key_is_drawn_whole()
 	_test_the_checkpoint_lantern_is_drawn_whole()
+	_test_the_signpost_is_drawn_whole()
 	_test_audio_buses()
 	_test_ink_accounting()
 	_test_inventory()
@@ -450,6 +451,42 @@ func _test_the_checkpoint_lantern_is_drawn_whole() -> void:
 		"the checkpoint lantern is %.0f px tall: it should stand shorter than the apo (95) and still be seen" % tall)
 
 
+## THE SIGNPOST IS WHOLE, ITS MARKS ARE ON ITS BOARD, AND IT STANDS UNDER THE APO. Kent: "fix the
+## design of the signs/dialogue signs since it does not match the style of the game". The sign
+## is drawn from rows of pixels now, where one short row, one character with no colour, or a
+## mark that runs off its board tears the picture without a word.
+func _test_the_signpost_is_drawn_whole() -> void:
+	var torn: Array[String] = []
+	var drawings: Array = [[Signpost2D.SIGN_ROWS, Signpost2D.SIGN_PALETTE, "the sign"]]
+	for mark: int in Signpost2D.GLYPH_ROWS:
+		drawings.append([Signpost2D.GLYPH_ROWS[mark], Signpost2D.GLYPH_PALETTE, "mark %d" % mark])
+		drawings.append([Signpost2D.GLYPH_ROWS[mark], Signpost2D.GLYPH_LIT, "mark %d lit" % mark])
+	for drawing: Array in drawings:
+		var rows: Array = drawing[0]
+		var palette: Dictionary = drawing[1]
+		var width := String(rows[0]).length()
+		for index in range(rows.size()):
+			var row := String(rows[index])
+			if row.length() != width:
+				torn.append("%s row %d is %d wide, not %d" % [drawing[2], index, row.length(), width])
+			for character in row:
+				if character != "." and not palette.has(character):
+					torn.append("%s row %d has '%s', which has no colour" % [drawing[2], index, character])
+	_expect(torn.is_empty(), "the signpost is torn: %s" % "; ".join(torn.slice(0, 4)))
+	var board: Rect2i = Signpost2D.BOARD
+	var off: Array[String] = []
+	for mark: int in Signpost2D.GLYPH_ROWS:
+		var rows: Array = Signpost2D.GLYPH_ROWS[mark]
+		var face := Rect2i(Signpost2D.FACE, Vector2i(String(rows[0]).length(), rows.size()))
+		if not board.grow(-1).encloses(face):
+			off.append("mark %d at %s" % [mark, face])
+	_expect(off.is_empty() and Signpost2D.GLYPH_ROWS.size() == Signpost2D.Mark.size(),
+		"a sign's mark is missing or runs off its board: %s" % ", ".join(off))
+	var tall := float(Signpost2D.SIGN_ROWS.size()) * Signpost2D.UNIT
+	_expect(tall >= 48.0 and tall < 80.0,
+		"the signpost is %.0f px tall: it should stand under the apo (95) and still be seen" % tall)
+
+
 ## EVERY SPEAKER'S OUTLINE IS WHOLE. Kent: "the dialogue avatars for the characters have faulty
 ## drawing edges like the black outlines of the characters are not visible making them like cut
 ## off or like broken in bits". The background knock-out had taken most of Lolo's and the apo's
@@ -671,22 +708,44 @@ func _test_ink_accounting() -> void:
 	manager.free()
 
 
+## SIX SLOTS, AND A SLOT IS A STACK. Kent: "storing the same object in the inventory places
+## them separately ... how about we use the counter like x1 x2". Six kinds fill six slots and a
+## seventh kind is turned away; another of a kind already held goes onto its stack, full bag or
+## not; and each drawing keeps its own identity in and out of the stack.
 func _test_inventory() -> void:
 	var inventory := InventoryManager.new()
 	inventory.capacity = 6
 	world.add_child(inventory)
 	inventory.begin_level()
-	var ids: Array[int] = []
 	for index in range(6):
-		var item := DrawnItemData.new()
-		item.entity_id = "key"
-		ids.append(item.instance_id)
-		_expect(inventory.add_item(item) == index, "inventory did not fill in slot order")
+		_expect(inventory.add_item(_bag_item(["ladder", "axe", "square", "circle", "triangle",
+			"rope"][index])) == index, "inventory did not fill in slot order")
 	_expect(inventory.is_full(), "six-slot inventory did not report full")
-	_expect(inventory.add_item(DrawnItemData.new()) == -1, "inventory accepted a seventh item")
+	_expect(inventory.add_item(_bag_item("boat")) == -1, "inventory accepted a seventh kind")
+	var first := inventory.peek_item(2)
+	var second := _bag_item("square")
+	_expect(inventory.add_item(second) == 2 and inventory.count(2) == 2
+		and inventory.all_items().size() == 7, "a second square did not stack on the first")
 	var recovered := inventory.take_item(2)
-	_expect(recovered != null and recovered.instance_id == ids[2], "inventory lost item identity")
+	_expect(recovered == second and inventory.count(2) == 1 and inventory.peek_item(2) == first,
+		"taking from a stack lost item identity")
+	# One already paid for comes out before a new one, or setting it down charges again.
+	var paid := _bag_item("square")
+	paid.placement_paid = true
+	var fresh := _bag_item("square")
+	inventory.add_item(paid)
+	inventory.add_item(fresh)
+	_expect(inventory.peek_item(2) == paid and inventory.take_item(2) == paid,
+		"a stack handed out a new square before the one already paid for")
+	_expect(inventory.remove_item(fresh) == 2 and not inventory.holds(fresh)
+		and inventory.holds(first), "one drawing could not be taken out of the middle of a stack")
 	inventory.queue_free()
+
+
+func _bag_item(entity_id: String) -> DrawnItemData:
+	var item := DrawnItemData.new()
+	item.entity_id = entity_id
+	return item
 
 
 ## A BEAT OF ADVICE IS SEVERAL LINES AND ALL OF THEM HAVE TO BE SEEN.
