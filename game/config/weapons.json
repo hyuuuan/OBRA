@@ -1,0 +1,32 @@
+{
+  "_comment": [
+    "What each drawn weapon does in a fight, read by WeaponTable.",
+    "",
+    "'default' is every level that does not say otherwise, and it is exactly what the",
+    "weapons did before this file existed: blade reach 96 (UtilityObject.TOOL_REACH), a",
+    "half-plane arc (180), a 270 ms swing, and no wear (uses 0 = never wears out). The",
+    "weapon probe checks those rows against the constants, so the two cannot drift.",
+    "",
+    "'levels' overrides a row per level id, field by field. Dilim's rows are the tuning",
+    "sheet's starting numbers: uses / damage / reach px / arc degrees / cooldown ms.",
+    "'damage' is what an enemy loses per blow; Levels 1-3 count blows, not damage."
+  ],
+  "default": {
+    "sword": {"uses": 0, "damage": 1, "reach": 96, "arc": 180, "cooldown_ms": 270},
+    "axe": {"uses": 0, "damage": 1, "reach": 96, "arc": 180, "cooldown_ms": 270},
+    "scissors": {"uses": 0, "damage": 1, "reach": 96, "arc": 180, "cooldown_ms": 270},
+    "boomerang": {"uses": 0, "damage": 1, "reach": 320, "arc": 360, "cooldown_ms": 0},
+    "cannon": {"uses": 0, "damage": 1, "reach": 640, "arc": 360, "cooldown_ms": 0},
+    "anvil": {"uses": 0, "damage": 1, "reach": 56, "arc": 360, "cooldown_ms": 0}
+  },
+  "levels": {
+    "level_4": {
+      "sword": {"uses": 14, "damage": 1, "reach": 88, "arc": 120, "cooldown_ms": 300},
+      "axe": {"uses": 9, "damage": 2, "reach": 96, "arc": 150, "cooldown_ms": 700},
+      "scissors": {"uses": 10, "damage": 1, "reach": 64, "arc": 90, "cooldown_ms": 250},
+      "boomerang": {"uses": 8, "damage": 1, "cooldown_ms": 1100},
+      "cannon": {"uses": 5, "damage": 3, "cooldown_ms": 1400},
+      "anvil": {"uses": 3, "damage": 4, "cooldown_ms": 800}
+    }
+  }
+}
