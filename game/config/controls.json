@@ -12,7 +12,11 @@
     "A row may carry 'keys' INSTEAD of 'action' and name its keys outright. That is for",
     "the mouse: aiming, rotating and setting a drawing down are not InputMap actions, so",
     "before this the controls screen could not say them at all -- and a player who cannot",
-    "find how to undo a placement will conclude the game does not let them."
+    "find how to undo a placement will conclude the game does not let them.",
+    "",
+    "A row may carry 'levels', a list of level ids, and is shown only in those. A control",
+    "one level adds (Dilim's walk and its click to swing) must not appear in the levels",
+    "where it does nothing."
   ],
   "rows": [
     {"group": "MOVEMENT", "action": "move_left", "label": "Move left"},
@@ -20,6 +24,7 @@
     {"group": "MOVEMENT", "action": "move_up", "label": "Look up / swim up"},
     {"group": "MOVEMENT", "action": "move_down", "label": "Crouch / swim down"},
     {"group": "MOVEMENT", "action": "jump", "label": "Jump, flap or hop"},
+    {"group": "MOVEMENT", "action": "walk", "label": "Walk, quietly", "levels": ["level_4"]},
 
     {"group": "DRAWING", "action": "redraw", "label": "Open the drawing panel"},
     {"group": "DRAWING", "action": "revert_form", "label": "Change back to yourself"},
