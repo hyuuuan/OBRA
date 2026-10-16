@@ -62,6 +62,8 @@ func _build() -> void:
 		# blank key -- a row that names nothing is worse than no row.
 		if literal_keys.is_empty() and (action.is_empty() or not InputMap.has_action(action)):
 			continue
+		if not _shows_here(row):
+			continue
 		var group := String(row.get("group", ""))
 		if group != current_group or groups.is_empty():
 			current_group = group
@@ -91,6 +93,18 @@ func _build() -> void:
 ## Between the two columns of the table: wide enough that a key on the left is not read as
 ## the start of a line on the right.
 const COLUMN_GAP := 56
+
+
+## A row with `levels` belongs to those levels only: a control one level adds says nothing in the
+## others. The level is asked of LevelManager through the tree, not by name, so a `--script`
+## runner that compiles this before any autoload exists can still load it.
+static func _shows_here(row: Dictionary) -> bool:
+	var levels: Array = row.get("levels", [])
+	if levels.is_empty():
+		return true
+	var tree := Engine.get_main_loop() as SceneTree
+	var manager := tree.root.get_node_or_null(^"LevelManager") if tree != null else null
+	return manager != null and levels.has(String(manager.get("current_level_id")))
 
 
 func _column(parent: HBoxContainer) -> VBoxContainer:

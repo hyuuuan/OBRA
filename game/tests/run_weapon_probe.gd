@@ -34,12 +34,14 @@ func _run() -> void:
 	for _frame in range(30):
 		await physics_frame
 
+	_the_table_is_what_the_weapons_did()
 	await _a_blade_cuts_in_front_and_not_behind()
 	await _a_blade_finishes_its_swing_first()
 	await _a_blade_never_shoves_its_holder()
 	await _a_boomerang_strikes_once_per_throw()
 	await _a_cannon_lands_on_an_area_once()
 	await _an_anvil_crushes_once_and_leaves_the_hand()
+	await _dilim_blades_follow_their_rows()
 
 	if failures == 0:
 		print("OBRA_WEAPONS_OK")
@@ -47,6 +49,34 @@ func _run() -> void:
 	else:
 		print("OBRA_WEAPONS_FAILED=%d" % failures)
 		quit(1)
+
+
+## config/weapons.json's defaults are the constants Levels 1-3 were built against.
+func _the_table_is_what_the_weapons_did() -> void:
+	var drift: Array[String] = []
+	for blade in ["sword", "axe", "scissors"]:
+		if WeaponTable.reach(blade, "level_1") != UtilityObject.TOOL_REACH \
+				or WeaponTable.cooldown_ms(blade, "level_1") != UtilityObject.BLADE_COOLDOWN_MS \
+				or WeaponTable.arc_degrees(blade, "level_1") < 180.0:
+			drift.append(blade)
+	if WeaponTable.reach("boomerang", "level_1") != UtilityObject.BOOMERANG_THROW:
+		drift.append("boomerang")
+	if WeaponTable.reach("cannon", "level_1") != UtilityObject.CANNON_RANGE:
+		drift.append("cannon")
+	for weapon in ["sword", "axe", "scissors", "boomerang", "cannon", "anvil"]:
+		if WeaponTable.uses(weapon, "level_1") != 0:
+			drift.append("%s wears" % weapon)
+	_check(drift.is_empty(), "the weapon table's defaults are what the weapons always did",
+		"no drift" if drift.is_empty() else ", ".join(drift))
+	var unworn: Array[String] = []
+	for weapon in ["sword", "axe", "scissors", "boomerang", "cannon", "anvil"]:
+		if WeaponTable.uses(weapon, "level_4") <= 0:
+			unworn.append(weapon)
+	_check(unworn.is_empty() and WeaponTable.reach("sword", "level_4") == 88.0
+			and WeaponTable.reach("boomerang", "level_4") == UtilityObject.BOOMERANG_THROW
+			and not WeaponTable.is_weapon("bread"),
+		"Dilim overrides a row field by field, and only weapons have one",
+		"sword reach %.0f" % WeaponTable.reach("sword", "level_4"))
 
 
 func _a_blade_cuts_in_front_and_not_behind() -> void:
@@ -141,6 +171,40 @@ func _an_anvil_crushes_once_and_leaves_the_hand() -> void:
 	_check(anvil.get("_equipped_actor") == null and left[0] == 1,
 		"and it has left her hand", "left_the_hand emitted %d time(s)" % left[0])
 	await _clear([anvil, under])
+
+
+## In Dilim the sword swings a 120-degree arc and the axe takes 700 ms; elsewhere, as before.
+func _dilim_blades_follow_their_rows() -> void:
+	var high_hits: Array[int] = []
+	var axe_hits: Array[int] = []
+	for level_id in ["level_1", "level_4"]:
+		_set_level(level_id)
+		var sword := await _in_hand("sword")
+		# 72 degrees above her facing, 84 px off: inside both reaches, outside a 120 arc.
+		var high := _target("Area2D", _anchor() + Vector2(26.0, -80.0), 10.0)
+		await _frames(2)
+		sword.describe_use(apo)
+		await _frames(2)
+		high_hits.append(int(high.get("hits")))
+		await _clear([sword, high])
+		var axe := await _in_hand("axe")
+		var ahead := _target("Area2D", _anchor() + Vector2(60.0, 0.0))
+		await _frames(2)
+		axe.describe_use(apo)
+		await create_timer(0.4).timeout
+		axe.describe_use(apo)
+		await _frames(2)
+		axe_hits.append(int(ahead.get("hits")))
+		await _clear([axe, ahead])
+	_set_level("")
+	_check(high_hits == [1, 0], "a sword's arc is the level's: all she faces, or Dilim's 120 degrees",
+		"high target struck %s" % [high_hits])
+	_check(axe_hits == [2, 1], "and so is an axe's swing: 270 ms, or Dilim's 700",
+		"two presses 0.4 s apart landed %s" % [axe_hits])
+
+
+func _set_level(level_id: String) -> void:
+	root.get_node(^"LevelManager").set(&"current_level_id", level_id)
 
 
 # --- fixture -------------------------------------------------------------------------

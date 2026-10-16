@@ -67,6 +67,33 @@ func _has_player_health() -> bool:
 	return false
 
 
+## Whether every tool drawn costs a unit of ink, not only the first of its kind. Off everywhere but
+## a level that fights: elsewhere a tool is paid for once and kept (FR-7), and a weapon that wears
+## out and is drawn again would otherwise be free forever.
+func _every_drawing_costs_ink() -> bool:
+	return false
+
+
+## Whether the weapon or light the drawing makes goes straight into her hand rather than the bag.
+## Off everywhere but a level that fights, where a sword is drawn to be swung now.
+func _draws_into_the_hand(_entity_id: String) -> bool:
+	return false
+
+
+## Whether a left click in the world swings the weapon in hand toward the pointer, the way a fight
+## wants it. Off everywhere but a level that fights. Placement, the HUD and a line of dialogue all
+## take the click first: placing returns before this, buttons consume it, and a line pauses the tree.
+func _click_attacks() -> bool:
+	return false
+
+
+## Whether weapons wear out here, by the uses in config/weapons.json: a sword good for so many
+## swings, drawn again when spent. Off everywhere but a level that fights; elsewhere a tool is
+## one-use or kept, exactly as it was.
+func _tool_wear_enabled() -> bool:
+	return false
+
+
 ## Whether the camera follows in physics ticks, in step with the player, rather than easing toward
 ## her every render frame. Off everywhere but where a fight is watched closely.
 func _camera_follows_physics() -> bool:
@@ -563,6 +590,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		# real pointer was never at -- and it is the event that is authoritative regardless.
 		_take_back_under_cursor(
 			get_viewport().get_canvas_transform().affine_inverse() * click.position)
+		return
+	if click != null and click.button_index == MOUSE_BUTTON_LEFT and click.pressed \
+			and _click_attacks() and _holding_a_weapon():
+		get_viewport().set_input_as_handled()
+		# The click's own position, for the reason the right-click above gives.
+		var aim := get_viewport().get_canvas_transform().affine_inverse() * click.position
+		if player != null and player.has_method("face_toward"):
+			player.call("face_toward", aim.x)
+		_use_equipped_utility()
 		return
 	if event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
@@ -2025,8 +2061,9 @@ func _on_drawing_ready(
 		if is_a_tool(entry):
 			if first_time:
 				PlayerProfile.record_object_acquired(entity_id)
-				# Charged on the way into the toolbelt, by _begin_new_utility.
-			else:
+			# Charged on the way into the toolbelt, by _begin_new_utility -- the first time, or
+			# every time where the level says every drawing costs.
+			if not first_time and not _every_drawing_costs_ink():
 				ink_manager.release_attempt()
 				item.ink_committed = true
 		else:
@@ -2036,7 +2073,9 @@ func _on_drawing_ready(
 			PlayerProfile.record_object_acquired(entity_id)
 			item.ink_committed = true
 		var answers := is_a_tool(entry) and _tool_answers_here(entity_id)
-		var kept := _begin_new_utility(item, answers)
+		# Or where the level hands every weapon straight over, a sword drawn mid-fight.
+		var into_hand := answers or (is_a_tool(entry) and _draws_into_the_hand(entity_id))
+		var kept := _begin_new_utility(item, into_hand)
 		# ⚠ DRAWING A TOOL MAKES IT; USING IT IS WHAT ANSWERS. It used to be judged the moment
 		# the recogniser named it, so a key drawn at the house with its light on opened the door
 		# before the player had done anything with it -- and when they took the key out and
@@ -2046,7 +2085,7 @@ func _on_drawing_ready(
 		#
 		# So a tool drawn where it would answer goes straight into the hand, and the prompt over
 		# the player names what F will do. Pressing it is the answer.
-		if kept and answers:
+		if kept and into_hand:
 			_take_out_to_use(entity_id)
 		return
 	# CREATURE TRANSFORMATION IS FREE (FR-7), AND IT IS ALLOWED ANYWHERE.
@@ -2134,6 +2173,8 @@ func _spawn_or_replace(
 ## placing it or right-clicking. Deciding WHAT to draw and deciding WHERE it goes are
 ## two separate thoughts, and the game was making the second one for them.
 func _begin_new_utility(item: DrawnItemData, going_into_hand: bool = false) -> bool:
+	# Before the bag, so the slot shows a full bar the moment it arrives.
+	_start_wear(item)
 	var slot := inventory_manager.add_item(item)
 	if slot == -1:
 		ink_manager.release_attempt()
@@ -2719,7 +2760,9 @@ func _use_equipped_utility() -> void:
 		# and the level says which; those are spent when that work is done, see `spend_tool`.
 		# (Piyesta's thrown weapons never come through here: its alleys throw them along an
 		# aimed arc, and spend them when the flock is down.)
-		if _tool_is_spent_by(beat, director.committed_route(beat), item.entity_id):
+		# Where weapons wear (Dilim), the swing that answers is one swing like any other.
+		if not _tool_wear_enabled() \
+				and _tool_is_spent_by(beat, director.committed_route(beat), item.entity_id):
 			spend_tool(item.entity_id)
 			status_label.text = "%s -- used, and gone" % item.display_name
 			if hint_bar != null:
@@ -2728,15 +2771,59 @@ func _use_equipped_utility() -> void:
 				hint_bar.show_hint("The %s %s used up." % [noun, "are" if noun.ends_with("s")
 					else "is"], Lolo.SPEAKER, 2.6)
 		else:
-			_equipped_utility.describe_use(player)
+			var used := _equipped_utility
+			if not used.describe_use(player).is_empty():
+				_wear_one(item, used)
 			status_label.text = "%s -- keep using it" % item.display_name
 		return
 	# Or for something of the level's own, outside any beat (Payyo's chest).
 	if item != null and _level_uses_the_tool(item):
 		return
-	var outcome := _equipped_utility.describe_use(player)
+	var used := _equipped_utility
+	var outcome := used.describe_use(player)
+	if not outcome.is_empty():
+		_wear_one(item, used)
 	status_label.text = outcome if not outcome.is_empty() \
 		else "%s can't do that here" % item.display_name
+
+
+func _holding_a_weapon() -> bool:
+	return _equipped_utility != null and is_instance_valid(_equipped_utility) \
+		and WeaponTable.is_weapon(_equipped_utility.utility_behavior)
+
+
+## A weapon's uses, from its row, where this level wears weapons out. Drawn again, it starts full.
+func _start_wear(item: DrawnItemData) -> void:
+	if item == null or not _tool_wear_enabled():
+		return
+	var total := WeaponTable.uses(item.entity_id)
+	if total <= 0 or item.runtime_state.has("uses_total"):
+		return
+	item.runtime_state["uses_total"] = total
+	item.runtime_state["uses_left"] = total
+
+
+## One swing, throw or drop off a worn weapon, and the weapon spent at none. A use refused --
+## still mid-swing -- never gets here: describe_use said nothing.
+func _wear_one(item: DrawnItemData, used: UtilityObject) -> void:
+	if item == null or not _tool_wear_enabled() or not item.runtime_state.has("uses_total"):
+		return
+	var left := int(item.runtime_state.get("uses_left", 0)) - 1
+	item.runtime_state["uses_left"] = left
+	if inventory_hud != null:
+		inventory_hud.refresh_wear()
+	if left > 0:
+		return
+	spend_tool(item.entity_id)
+	# Spent out of the hand (a dropped anvil, on the ground): it goes once it has landed.
+	if is_instance_valid(used) and used.is_inside_tree():
+		get_tree().create_timer(1.0).timeout.connect(func() -> void:
+			if is_instance_valid(used):
+				used.queue_free())
+	if hint_bar != null:
+		var noun := item.display_name.to_lower()
+		hint_bar.show_hint("The %s %s worn out. Draw another." % [noun, "are" if noun.ends_with("s")
+			else "is"], Lolo.SPEAKER, 2.6)
 
 
 ## What E does to this utility, in the prompt's words. A vessel afloat is boarded and left

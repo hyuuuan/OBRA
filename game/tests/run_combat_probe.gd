@@ -18,6 +18,11 @@ func _run() -> void:
 	await _the_hurtbox_follows_and_passes_blows_on()
 	await _a_level_that_fights()
 	await _the_camera_can_keep_step()
+	await _weapons_wear_where_a_level_says()
+	await _a_redrawn_tool_costs_where_a_level_says()
+	await _a_drawn_weapon_comes_to_hand_where_a_level_says()
+	await _a_click_swings_toward_the_pointer()
+	await _the_controls_screen_says_what_is_here()
 
 	if failures == 0:
 		print("OBRA_COMBAT_OK")
@@ -288,6 +293,160 @@ func _the_camera_can_keep_step() -> void:
 	camera.queue_free()
 	target.queue_free()
 	await physics_frame
+
+
+## Dilim's sword is good for fourteen swings; Payyo's, as it is, never wears.
+func _weapons_wear_where_a_level_says() -> void:
+	# Dilim's rows in both runs, so the level's hook is the only thing deciding.
+	root.get_node(^"LevelManager").set(&"current_level_id", "level_4")
+	var plain := await _open_level(null)
+	var kept := await _swing_a_drawn_sword(plain, 16, SWING_GAP)
+	_check(kept["held"] and not kept["bar"], "where a level does not wear weapons, a sword never wears",
+		"16 swings, still in hand")
+	root.get_node(^"LevelManager").set(&"current_level_id", "")
+	plain.queue_free()
+	await _frames(3)
+	var wears := GDScript.new()
+	wears.source_code = "extends \"res://scripts/game_level.gd\"\n" \
+		+ "func _tool_wear_enabled() -> bool:\n\treturn true\n"
+	wears.reload()
+	var level := await _open_level(wears)
+	# Dilim's rows: the level's own configs are loaded, so only the table reads this.
+	root.get_node(^"LevelManager").set(&"current_level_id", "level_4")
+	var uses := WeaponTable.uses("sword")
+	var nearly := await _swing_a_drawn_sword(level, uses - 1, SWING_GAP, true)
+	_check(nearly["drawn_full"] and nearly["held"] and nearly["left"] == 1 and nearly["bar"],
+		"a drawn sword arrives full, and %d swings leave it one" % (uses - 1),
+		"%d left, bar %s" % [nearly["left"], nearly["bar"]])
+	var last := await _swing_a_drawn_sword(level, 1, SWING_GAP, false)
+	_check(not last["held"] and int(level.call("_slot_holding", "sword")) < 0,
+		"and the last swing wears it out", "gone from hand and bag")
+	root.get_node(^"LevelManager").set(&"current_level_id", "")
+	level.queue_free()
+	await _frames(3)
+
+
+## Wider than Dilim's 300 ms sword swing by a loaded frame or two: the press lands mid-frame,
+## after the frame's own clock, and 0.31 s was refused now and then with other suites running.
+const SWING_GAP := 0.40
+
+
+## A second sword is free in Payyo (FR-7: paid once, kept); where every drawing costs, it is not.
+func _a_redrawn_tool_costs_where_a_level_says() -> void:
+	var spent: Array[float] = []
+	for script in [null, _level_saying("_every_drawing_costs_ink")]:
+		var level := await _open_level(script)
+		var ink := level.get("ink_manager") as InkManager
+		await _swing_a_drawn_sword(level, 0, SWING_GAP)
+		var before := ink.remaining()
+		await _swing_a_drawn_sword(level, 0, SWING_GAP)
+		spent.append(before - ink.remaining())
+		level.queue_free()
+		await _frames(3)
+	_check(spent == [0.0, 1.0], "a sword drawn again is free, or a unit where every drawing costs",
+		"second sword cost %s" % [spent])
+
+
+## A sword drawn in Payyo goes in the bag; where the level hands weapons over, into her hand.
+func _a_drawn_weapon_comes_to_hand_where_a_level_says() -> void:
+	var in_hand: Array[bool] = []
+	for script in [null, _level_saying("_draws_into_the_hand")]:
+		var level := await _open_level(script)
+		var drawn := await _swing_a_drawn_sword(level, 0, SWING_GAP)
+		in_hand.append(drawn["in_hand_on_draw"])
+		level.queue_free()
+		await _frames(3)
+	_check(in_hand == [false, true], "a drawn sword goes in the bag, or into her hand where a level says",
+		"in hand on drawing %s" % [in_hand])
+
+
+## A left click behind her: nothing in Payyo as it is; where clicks attack, she turns and swings.
+func _a_click_swings_toward_the_pointer() -> void:
+	var outcomes: Array[String] = []
+	for script in [null, _level_saying("_click_attacks")]:
+		var level := await _open_level(script)
+		await _swing_a_drawn_sword(level, 0, SWING_GAP)
+		var apo := level.get("player") as Wanderer
+		var sword := level.get("_equipped_utility") as UtilityObject
+		apo.face_toward(apo.global_position.x + 100.0)
+		await _frames(2)
+		var behind := apo.global_position + Vector2(-200.0, -40.0)
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = true
+		click.position = level.get_viewport().get_canvas_transform() * behind
+		level.call("_unhandled_input", click)
+		await _frames(2)
+		outcomes.append("facing %+.0f, %s" % [float(apo.get(&"_facing")),
+			"swung" if sword != null and not sword.is_ready() else "still"])
+		level.queue_free()
+		await _frames(3)
+	_check(outcomes == ["facing +1, still", "facing -1, swung"],
+		"a click behind her does nothing, or turns her and swings where a level says",
+		" / ".join(outcomes))
+
+
+## The controls screen names Dilim's walk and click to swing in Dilim, and nowhere else.
+func _the_controls_screen_says_what_is_here() -> void:
+	var level := await _open_level(null)
+	var overlay := level.get_node(^"ControlsOverlay")
+	var shown: Array[bool] = []
+	for level_id in ["level_1", "level_4"]:
+		root.get_node(^"LevelManager").set(&"current_level_id", level_id)
+		overlay.call("_build")
+		await _frames(2)
+		var walk := false
+		for label in overlay.find_children("*", "Label", true, false):
+			walk = walk or (label as Label).text == "Walk, quietly"
+		shown.append(walk)
+	root.get_node(^"LevelManager").set(&"current_level_id", "")
+	_check(shown == [false, true], "the controls screen names the walk in Dilim and nowhere else",
+		"shown in Payyo / Dilim: %s" % [shown])
+	level.queue_free()
+	await _frames(3)
+
+
+## Payyo, told one hook says yes.
+func _level_saying(hook: String) -> GDScript:
+	var script := GDScript.new()
+	script.source_code = "extends \"res://scripts/game_level.gd\"\nfunc %s(_a = null) -> bool:\n\treturn true\n" % hook
+	script.reload()
+	return script
+
+
+## Draw a sword (unless one is in hand already) and swing it `swings` times, `gap` seconds apart,
+## with an extra press inside each swing that must cost nothing.
+func _swing_a_drawn_sword(level: Node, swings: int, gap: float, draw: bool = true) -> Dictionary:
+	var report := {"drawn_full": false}
+	if draw:
+		var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+		sheet.fill(Color.WHITE)
+		level.call("_on_drawing_ready", "sword", "Sword", sheet, {"confidence": 0.9},
+			[{"points": PackedVector2Array([Vector2(0, 0), Vector2(0, 80)]), "width": 6.0,
+				"color": Color.BLACK}], 1.0)
+		await _frames(4)
+		var slot := int(level.call("_slot_holding", "sword"))
+		var items: Array = (level.get("inventory_manager") as InventoryManager).items()
+		report["drawn_full"] = slot >= 0 and InventoryHUD.wear_of(items[slot]) == 1.0
+		var holding := level.get("_equipped_utility") as UtilityObject
+		report["in_hand_on_draw"] = holding != null and is_instance_valid(holding) \
+			and holding.item_data != null and holding.item_data.entity_id == "sword"
+		if slot >= 0 and level.get("_equipped_utility") == null:
+			level.call("_on_inventory_slot_pressed", slot)
+			await _frames(4)
+	for _swing in range(swings):
+		level.call("_use_equipped_utility")
+		level.call("_use_equipped_utility")
+		await create_timer(gap).timeout
+	var held := level.get("_equipped_utility") as UtilityObject
+	report["held"] = held != null and is_instance_valid(held)
+	report["left"] = int(held.item_data.runtime_state.get("uses_left", -1)) if report["held"] else -1
+	var bar := false
+	var hud := level.get("inventory_hud") as InventoryHUD
+	for wear in hud.find_children("Wear", "Panel", true, false):
+		bar = bar or (wear as Panel).visible
+	report["bar"] = bar
+	return report
 
 
 func _open_level(script: GDScript) -> Node:
