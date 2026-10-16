@@ -20,6 +20,7 @@ func _run() -> void:
 	await _the_lantern_shrinks_with_the_flame()
 	await _a_level_that_is_dark()
 	await _a_flashlight_and_a_fire_light_the_dark()
+	await _a_sound_shows_where_it_came_from()
 	if failures == 0:
 		print("OBRA_DARKNESS_OK")
 		quit(0)
@@ -186,6 +187,29 @@ func _a_flashlight_and_a_fire_light_the_dark() -> void:
 		"a burning checkpoint lights the dark round it; a cold one does not", "lit at 60 px")
 	world.queue_free()
 	await _frames(3)
+
+
+## A sound off screen ripples on the edge toward it, fades in its time, and a silent one shows nothing.
+func _a_sound_shows_where_it_came_from() -> void:
+	var ripple := EdgeRipple.new()
+	root.add_child(ripple)
+	await process_frame
+	var screen := root.get_visible_rect()
+	var far_right := ripple.screen_point(Vector2(screen.size.x * 3.0, screen.size.y * 0.5))
+	var on_screen := ripple.screen_point(Vector2(300.0, 200.0))
+	_check(absf(far_right.x - (screen.size.x - EdgeRipple.INSET)) < 1.0
+			and absf(far_right.y - screen.size.y * 0.5) < 1.0 and on_screen.is_equal_approx(Vector2(300.0, 200.0)),
+		"a sound off screen shows on the edge toward it; one on screen, where it is",
+		"edge at (%.0f, %.0f)" % [far_right.x, far_right.y])
+	ripple.cue("tiktik", Vector2(screen.size.x * 3.0, 100.0), 0.6)
+	ripple.cue("tiyanak", Vector2(100.0, 100.0), 0.0)
+	var started := ripple.active()
+	await create_timer(EdgeRipple.LIFE + 0.2).timeout
+	_check(started == 1 and ripple.active() == 0 and ripple.layer > 3 and ripple.layer < 5,
+		"its rings fade in their time, a silent sound shows none, and it sits over the dark",
+		"%d shown, %d left after %.1f s, layer %d" % [started, ripple.active(), EdgeRipple.LIFE + 0.2, ripple.layer])
+	ripple.queue_free()
+	await process_frame
 
 
 func _flashlight_in_hand(registry: EntityRegistry, apo: Node2D) -> UtilityObject:
