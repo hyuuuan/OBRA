@@ -149,6 +149,13 @@ func _a_flashlight_and_a_fire_light_the_dark() -> void:
 	_check(dark_before and LightField.light_at(self, ahead) > 0.9 and LightField.light_at(self, behind) == 0.0,
 		"a flashlight, switched on, lights the cone ahead of it and not behind",
 		"%.2f ahead, %.2f behind" % [LightField.light_at(self, ahead), LightField.light_at(self, behind)])
+	var spare := registry.instantiate_entity("flashlight") as UtilityObject
+	world.add_child(spare)
+	await _frames(2)
+	var beam_a := torch.get_node_or_null(^"LightCone") as PointLight2D
+	var beam_b := spare.get_node_or_null(^"LightCone") as PointLight2D
+	_check(beam_a != null and beam_b != null and beam_a.texture == beam_b.texture,
+		"every flashlight shares one beam picture, built once", "same texture")
 	world.queue_free()
 	await _frames(3)
 
