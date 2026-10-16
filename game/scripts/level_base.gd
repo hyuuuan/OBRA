@@ -61,6 +61,13 @@ func _apo_can_swim() -> bool:
 	return false
 
 
+## Whether this level has a companion at all. Lolo walks Levels 1-3; Dilim is past what he
+## remembers, and the apo goes alone. False leaves him out but keeps the opening: it still plays,
+## in whoever's voice its lines name, and the visit is still recorded.
+func _has_companion() -> bool:
+	return true
+
+
 ## What this level DOES when an obstacle is solved. True means the level handled the beat
 ## and the generic "<obstacle>.<route>.solved" line must not also fire.
 func _on_route_solved(_obstacle_id: String, _route: String) -> bool:
@@ -3827,6 +3834,11 @@ func _load_dialogue() -> void:
 ## The companion, present from the first frame. His ART is a placeholder; the level
 ## talks to him through follow/say, which a designed Lolo answers the same way.
 func _spawn_lolo() -> void:
+	# ⚠ NOT A PLAIN RETURN. This is what starts the opening, and the opening is what records the
+	# visit, offers Continue and decides the tutorial -- a level without him still needs all of it.
+	if not _has_companion():
+		_play_opening.call_deferred()
+		return
 	var scene := load("res://creatures/lolo.tscn") as PackedScene
 	if scene == null:
 		push_warning("GameLevel: no Lolo scene; the level runs without a companion")
@@ -3956,9 +3968,10 @@ func _play_opening() -> void:
 	await get_tree().create_timer(OPENING_DELAY).timeout
 	if not is_inside_tree():
 		return
-	# Lolo says all of it, so with no Lolo in the level -- he stays behind after Dagat --
-	# there is nobody to say it.
-	if lolo == null or not is_instance_valid(lolo):
+	# Lolo says all of it, so a level that should have him and does not -- his scene failed to
+	# load -- has nobody to say it. A level that goes on without him says its own, in its lines'
+	# own voice.
+	if _has_companion() and (lolo == null or not is_instance_valid(lolo)):
 		_greet()
 		return
 	var steps: Array = []
