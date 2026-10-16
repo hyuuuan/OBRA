@@ -194,8 +194,6 @@ func refresh() -> void:
 		_sprite.hframes = count
 		_sprite.frame = frame
 		return
-	elif pose == &"tread":
-		_sprite.position = Vector2(0.0, water_sink)
 	if bool(entry["cycle"]):
 		var running := pose == &"run"
 		var top := 382.0 if running else 0.0
