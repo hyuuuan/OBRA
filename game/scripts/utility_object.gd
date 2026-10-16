@@ -116,6 +116,9 @@ var _equipped_actor: Node2D
 var ink_role := "placeable"
 var _boarded_actor: Node2D
 var _light_cone: Polygon2D
+## The beam's falloff picture, built once for every flashlight in the run. Building it is 16,000
+## set_pixel calls, and it used to happen each time a flashlight was made -- a hitch on equip.
+static var _cone_texture: ImageTexture = null
 var _point_light: PointLight2D
 var _interaction_area: Area2D
 var _vehicle_joint: PinJoint2D
@@ -1281,9 +1284,26 @@ func _create_flashlight_nodes() -> void:
 	_point_light.position = Vector2(96.0, 0.0)
 	add_child(_point_light)
 	_set_light_active(_active)
+	add_to_group(LightField.GROUP)
+
+
+## How far a lit flashlight's beam reaches in the dark, and how wide: the cone it draws.
+const BEAM_REACH := 260.0
+const BEAM_HALF_ANGLE := 0.38
+
+
+## A lit flashlight's beam, for the dark and for anything asking how lit a place is (LightField):
+## the cone it draws, from the lens, the way the tool is pointing.
+func light_hole() -> Dictionary:
+	if utility_behavior != "flashlight" or not _active:
+		return {}
+	return {"position": global_transform * Vector2(20.0, 0.0), "radius": BEAM_REACH,
+		"strength": 1.0, "direction": global_transform.x.normalized(), "half_angle": BEAM_HALF_ANGLE}
 
 
 func _make_cone_texture() -> ImageTexture:
+	if _cone_texture != null:
+		return _cone_texture
 	var image := Image.create(256, 128, false, Image.FORMAT_RGBA8)
 	image.fill(Color.TRANSPARENT)
 	for x in range(128, 256):
@@ -1293,7 +1313,8 @@ func _make_cone_texture() -> ImageTexture:
 			var edge := absf(float(y - 64)) / maxf(1.0, half_height)
 			var alpha := (1.0 - edge) * (1.0 - ratio * 0.7)
 			image.set_pixel(x, y, Color(1.0, 0.94, 0.68, alpha))
-	return ImageTexture.create_from_image(image)
+	_cone_texture = ImageTexture.create_from_image(image)
+	return _cone_texture
 
 
 func _set_light_active(enabled: bool) -> void:
