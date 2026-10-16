@@ -34,6 +34,7 @@ func _run() -> void:
 	for _frame in range(30):
 		await physics_frame
 
+	_the_table_is_what_the_weapons_did()
 	await _a_blade_cuts_in_front_and_not_behind()
 	await _a_blade_finishes_its_swing_first()
 	await _a_blade_never_shoves_its_holder()
@@ -47,6 +48,34 @@ func _run() -> void:
 	else:
 		print("OBRA_WEAPONS_FAILED=%d" % failures)
 		quit(1)
+
+
+## config/weapons.json's defaults are the constants Levels 1-3 were built against.
+func _the_table_is_what_the_weapons_did() -> void:
+	var drift: Array[String] = []
+	for blade in ["sword", "axe", "scissors"]:
+		if WeaponTable.reach(blade, "level_1") != UtilityObject.TOOL_REACH \
+				or WeaponTable.cooldown_ms(blade, "level_1") != UtilityObject.BLADE_COOLDOWN_MS \
+				or WeaponTable.arc_degrees(blade, "level_1") < 180.0:
+			drift.append(blade)
+	if WeaponTable.reach("boomerang", "level_1") != UtilityObject.BOOMERANG_THROW:
+		drift.append("boomerang")
+	if WeaponTable.reach("cannon", "level_1") != UtilityObject.CANNON_RANGE:
+		drift.append("cannon")
+	for weapon in ["sword", "axe", "scissors", "boomerang", "cannon", "anvil"]:
+		if WeaponTable.uses(weapon, "level_1") != 0:
+			drift.append("%s wears" % weapon)
+	_check(drift.is_empty(), "the weapon table's defaults are what the weapons always did",
+		"no drift" if drift.is_empty() else ", ".join(drift))
+	var unworn: Array[String] = []
+	for weapon in ["sword", "axe", "scissors", "boomerang", "cannon", "anvil"]:
+		if WeaponTable.uses(weapon, "level_4") <= 0:
+			unworn.append(weapon)
+	_check(unworn.is_empty() and WeaponTable.reach("sword", "level_4") == 88.0
+			and WeaponTable.reach("boomerang", "level_4") == UtilityObject.BOOMERANG_THROW
+			and not WeaponTable.is_weapon("bread"),
+		"Dilim overrides a row field by field, and only weapons have one",
+		"sword reach %.0f" % WeaponTable.reach("sword", "level_4"))
 
 
 func _a_blade_cuts_in_front_and_not_behind() -> void:
