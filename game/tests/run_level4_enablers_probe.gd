@@ -14,6 +14,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_a_dialogue_file_names_its_own_speaker()
+	await _a_level_can_go_without_lolo()
 	if failures == 0:
 		print("OBRA_L4_ENABLERS_OK")
 		quit(0)
@@ -39,8 +40,36 @@ func _a_dialogue_file_names_its_own_speaker() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
-func _shown(speaker: String) -> String:
-	return "%s:" % speaker.to_upper()
+func _a_level_can_go_without_lolo() -> void:
+	var with_him := await _open_level(null)
+	var visits_before := int(_profile().call("level_visits", _level_id()))
+	_check(with_him.get("lolo") != null, "Payyo as it is has Lolo", "present")
+	with_him.queue_free()
+	await _frames(3)
+	var alone := GDScript.new()
+	alone.source_code = "extends \"res://scripts/game_level.gd\"\n" \
+		+ "func _has_companion() -> bool:\n\treturn false\n"
+	alone.reload()
+	# Openings are off in test runs unless asked for (see run_opening_probe); this one is the point.
+	var level := await _open_level(alone, true)
+	_check(level.get("lolo") == null, "a level told it goes alone has no Lolo", "absent")
+	_check(int(_profile().call("level_visits", _level_id())) > visits_before,
+		"and its opening still plays: the visit is recorded", "visits %d" % _profile().call("level_visits", _level_id()))
+	# Her opening is said rather than skipped: lines spoken with nobody beside her to say them.
+	var script_lines = level.get("script_lines")
+	var spoken := 0
+	for _frame in range(180):
+		await physics_frame
+		if root.get_tree().paused:
+			call_group(DialogueBox.GROUP, &"hide_line")
+			paused = false
+		spoken = int(script_lines.call("lines_spoken"))
+		if spoken > 0:
+			break
+	_check(spoken > 0, "and its opening is said, with nobody beside her to say it",
+		"%d line(s) spoken" % spoken)
+	level.queue_free()
+	await _frames(3)
 
 
 ## The autoloads, through the tree: a --script runner compiles this before any of them exists.
