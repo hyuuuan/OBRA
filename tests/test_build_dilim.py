@@ -71,7 +71,7 @@ class FlatKeyTest(unittest.TestCase):
 class DeliveryTest(unittest.TestCase):
     def test_every_delivered_file_is_claimed(self) -> None:
         claimed = {source for source, _ in dilim.PLATES.values()} | dilim.REFERENCE_ONLY \
-            | dilim.NOT_YET_CUT
+            | dilim.NOT_YET_CUT | {dilim.TILESET}
         self.assertEqual(sorted(dilim.delivered() - claimed), [])
 
     def test_the_committed_plates_are_current(self) -> None:
@@ -79,6 +79,24 @@ class DeliveryTest(unittest.TestCase):
             path = dilim.OUT / f"{plate}.png"
             self.assertTrue(dilim.pixelart.same_pixels(dilim.keyed(source, method), path),
                             f"{path.name} is stale: run tools/build_dilim.py")
+
+
+class TileTest(unittest.TestCase):
+    def test_each_tile_is_cut_inside_its_outline(self) -> None:
+        for name in dilim.TILES:
+            picture = np.asarray(dilim.tile(name).convert("RGB")).astype(int)
+            self.assertTrue(40 <= picture.shape[0] <= 70 and 40 <= picture.shape[1] <= 70, name)
+            # No cream page along its edges: the cut is inside the tile, not around it. (Inside, the
+            # path's sand is page-coloured here and there, honestly.)
+            page = np.array([239, 231, 218])
+            near_page = np.abs(picture - page).max(axis=-1) <= 24
+            for edge in (near_page[0], near_page[-1], near_page[:, 0], near_page[:, -1]):
+                self.assertLess(edge.mean(), 0.3, f"{name} still has page along an edge")
+
+    def test_the_committed_tiles_are_current(self) -> None:
+        for name in dilim.TILES:
+            path = dilim.TILE_OUT / f"{name}.png"
+            self.assertTrue(dilim.pixelart.same_pixels(dilim.tile(name), path), f"{name} is stale")
 
 
 if __name__ == "__main__":
