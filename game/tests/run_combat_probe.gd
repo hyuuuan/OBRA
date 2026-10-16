@@ -15,6 +15,7 @@ func _run() -> void:
 	await _the_grace_is_physics_time()
 	await _guttering_puts_it_out()
 	await _a_blow_beats_her_steering()
+	await _the_hurtbox_follows_and_passes_blows_on()
 
 	if failures == 0:
 		print("OBRA_COMBAT_OK")
@@ -147,6 +148,79 @@ func _a_blow_beats_her_steering() -> void:
 		"facing %+.0f" % float(apo.get(&"_facing")))
 	world.queue_free()
 	await physics_frame
+
+
+## The level's hurtbox: on her middle, found by an enemy's hitbox and by nothing a weapon asks.
+func _the_hurtbox_follows_and_passes_blows_on() -> void:
+	var world := Node2D.new()
+	root.add_child(world)
+	var ground := StaticBody2D.new()
+	var shape := CollisionShape2D.new()
+	var box := RectangleShape2D.new()
+	box.size = Vector2(4000.0, 40.0)
+	shape.shape = box
+	ground.add_child(shape)
+	world.add_child(ground)
+	ground.position = Vector2(600.0, 420.0)
+	var apo := (load("res://creatures/wanderer.tscn") as PackedScene).instantiate() as Wanderer
+	apo.set_world_bounds(Rect2(-1000.0, -1000.0, 4000.0, 3000.0))
+	world.add_child(apo)
+	apo.global_position = Vector2(600.0, 400.0)
+	var health := _health()
+	health.invulnerable_seconds = 0.5
+	var hurtbox := PlayerHurtbox2D.new()
+	world.add_child(hurtbox)
+	hurtbox.health = health
+	hurtbox.player = apo
+	var claws := _probe_area(PhysicsLayers.PLAYER_HURTBOX)
+	var blade := _probe_area(PhysicsLayers.WORLD)
+	world.add_child(claws)
+	world.add_child(blade)
+	await _frames(20)
+	claws.global_position = hurtbox.global_position
+	blade.global_position = hurtbox.global_position
+	await _frames(3)
+	var middle := apo.global_position.y - hurtbox.global_position.y
+	_check(absf(middle - PlayerHurtbox2D.FEET_TO_MIDDLE) < 1.0, "the hurtbox rides on her middle",
+		"%.0f px above her feet" % middle)
+	_check(claws.get_overlapping_areas().has(hurtbox), "an enemy's hitbox finds it",
+		"on PLAYER_HURTBOX")
+	_check(not blade.get_overlapping_areas().has(hurtbox),
+		"and nothing that asks the world layer does, so no weapon strikes her",
+		"%d found" % blade.get_overlapping_areas().size())
+	_check(hurtbox.receive_hit(apo.global_position + Vector2(80.0, -40.0))
+			and health.stage == PlayerHealth.DIM and apo.velocity.x < -100.0,
+		"a blow from the right dims the lantern and knocks her left",
+		"stage %d, %.0f px/s" % [health.stage, apo.velocity.x])
+	_check(not hurtbox.receive_hit(apo.global_position + Vector2(80.0, -40.0)),
+		"and the next, inside the grace, does nothing", "stage %d" % health.stage)
+	await _frames(60)
+	health.invulnerable_seconds = 0.0
+	hurtbox.receive_hit(apo.global_position)
+	hurtbox.receive_hit(apo.global_position)
+	await _frames(30)
+	var out := [0]
+	health.snuffed.connect(func() -> void: out[0] += 1)
+	var resting := apo.velocity
+	_check(hurtbox.receive_hit(apo.global_position + Vector2(-80.0, -40.0)) and out[0] == 1
+			and apo.velocity == resting and not apo.is_staggered(),
+		"the blow that puts the lantern out does not also throw her",
+		"snuffed %d, velocity %s" % [out[0], apo.velocity])
+	world.queue_free()
+	health.queue_free()
+	await physics_frame
+
+
+func _probe_area(mask: int) -> Area2D:
+	var area := Area2D.new()
+	area.collision_layer = 0
+	area.collision_mask = mask
+	var shape := CollisionShape2D.new()
+	var circle := CircleShape2D.new()
+	circle.radius = 12.0
+	shape.shape = circle
+	area.add_child(shape)
+	return area
 
 
 func _frames(count: int) -> void:
