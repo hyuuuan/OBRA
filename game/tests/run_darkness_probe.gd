@@ -18,6 +18,7 @@ func _run() -> void:
 	_how_lit_a_point_is()
 	await _the_dark_cuts_what_lights_there_are()
 	await _the_lantern_shrinks_with_the_flame()
+	await _a_level_that_is_dark()
 	if failures == 0:
 		print("OBRA_DARKNESS_OK")
 		quit(0)
@@ -98,6 +99,49 @@ func _the_lantern_shrinks_with_the_flame() -> void:
 	lamp.queue_free()
 	health.queue_free()
 	await physics_frame
+
+
+func _a_level_that_is_dark() -> void:
+	var plain := await _open_level(null)
+	_check(plain.get("darkness_layer") == null and plain.get("held_lantern") == null,
+		"a level that is not dark builds no dark and no lantern", "Payyo as it is")
+	plain.queue_free()
+	await _frames(3)
+	var dark_script := GDScript.new()
+	dark_script.source_code = "extends \"res://scripts/game_level.gd\"\n" \
+		+ "func _darkness() -> float:\n\treturn 0.88\n" \
+		+ "func _has_player_health() -> bool:\n\treturn true\n"
+	dark_script.reload()
+	var level := await _open_level(dark_script)
+	var layer := level.get("darkness_layer") as DarknessLayer
+	var lamp := level.get("held_lantern") as HeldLantern2D
+	var apo := level.get("player") as Node2D
+	_check(layer != null and is_equal_approx(layer.darkness, 0.88) and lamp != null
+			and lamp.player == apo and lamp.health == level.get("player_health"),
+		"told it is dark, the level hangs the dark and hands her a lantern that is her health",
+		"darkness %.2f" % (layer.darkness if layer != null else -1.0))
+	if lamp != null and apo != null:
+		await _frames(2)
+		_check(lamp.global_position.distance_to(PlayerHurtbox2D.middle_of(apo)) < 20.0,
+			"and it hangs at her side", "%.0f px from her middle" % lamp.global_position.distance_to(
+				PlayerHurtbox2D.middle_of(apo)))
+	level.queue_free()
+	await _frames(3)
+
+
+func _open_level(script: GDScript) -> Node:
+	var level := (load("res://game_level.tscn") as PackedScene).instantiate()
+	if script != null:
+		level.set_script(script)
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	for _frame in range(40):
+		await physics_frame
+	call_group(DialogueBox.GROUP, &"hide_line")
+	paused = false
+	await _frames(4)
+	return level
 
 
 func _frames(count: int) -> void:
