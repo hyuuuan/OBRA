@@ -125,6 +125,17 @@ func _a_blow_beats_her_steering() -> void:
 	await _frames(30)
 	_check(apo.global_position.x > turned + 40.0, "she runs on the way she was going",
 		"%.0f px forward" % (apo.global_position.x - turned))
+	# Shift where the level has not allowed it changes nothing; where it has, she walks.
+	Input.action_press(&"walk")
+	await _frames(20)
+	var running := absf(apo.velocity.x)
+	apo.can_walk = true
+	await _frames(20)
+	var walking := absf(apo.velocity.x)
+	apo.can_walk = false
+	Input.action_release(&"walk")
+	_check(is_equal_approx(running, Wanderer.SPEED) and is_equal_approx(walking, Wanderer.WALK_SPEED),
+		"Shift walks her only where a level allows it", "%.0f px/s, then %.0f" % [running, walking])
 	Input.action_release(&"move_right")
 	await _frames(20)
 	apo.knock_back(Vector2(300.0, -220.0))
