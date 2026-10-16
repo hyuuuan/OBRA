@@ -22,8 +22,9 @@
 # (OBRA_SUITE_TIMES, default ~/.cache/obra/suite_times.tsv). Not in a terminal (redirected, in
 # the background) it prints a line per suite as before.
 #
-# ⚠ ONE GODOT AT A TIME. Every test run shares user://test_runs, and a second run started
-# beside this one empties the first one's profile out from under it.
+# ⚠ ONE GODOT AT A TIME PER CHECKOUT. Test runs no longer share their data -- each keeps it in
+# user://test_runs/<its pid> (see game/scripts/user_data.gd), so runs in two worktrees can
+# overlap -- but two runs in ONE checkout still share its .godot import cache.
 #
 # ⚠ The four runners marked "window" below need a real viewport: the dummy display server
 # delivers no mouse events and cannot capture the drawing canvas off a SubViewport. They are
@@ -49,7 +50,7 @@ HEADLESS=(
   run_ink_economy_probe run_morph_gate_probe run_book_probe run_tutorial_audit
   run_tutorial_popup_probe run_action_prompt_probe run_hint_probe run_dialogue_box_probe
   run_room_probe run_head_clear_probe
-  run_locomotion_probe run_companion_pose_probe run_morph_reach_probe run_revert_probe run_placement_probe run_key_probe
+  run_locomotion_probe run_test_runs_probe run_companion_pose_probe run_morph_reach_probe run_revert_probe run_placement_probe run_key_probe
   run_boarding_probe run_bag_probe run_python_lookup_probe run_unlock_reveal_probe run_import_guard_probe run_resize_probe run_backend_start_probe
   run_behaviour_audit run_roster_sweep
   run_level2_audit run_level2_scene_probe run_level2_chain_probe run_level2_finish_probe

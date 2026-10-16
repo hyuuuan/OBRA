@@ -52,6 +52,7 @@ func _run() -> void:
 	await _the_hook_under_the_sand()
 	await _fishing_from_the_boat()
 	await _the_creatures_fight_back()
+	await _the_fact_is_the_coral_she_stopped_at()
 	for line in results:
 		print(line)
 	if failures == 0:
@@ -641,6 +642,45 @@ func _tool_item(entity_id: String, display: String) -> DrawnItemData:
 ## Read at run time: preloaded at the top, level_3.gd compiles before the autoloads it names exist.
 func _level_const(name: String) -> Variant:
 	return (load("res://scripts/level_3.gd") as GDScript).get_script_constant_map()[name]
+
+
+## ⚠ THE CORAL SHE STOPPED AT, NOT THE LAST CIRCLE THAT NOTICED HER. lola1 stands 175 px from
+## star, inside star's 150 px reach, so stopping at lola1 while Lolo talks is standing in star's
+## circle too, and her edge brushing it again made star the waiting fact: lola1's was dropped, and
+## with star already said, nothing was said at all. run_level3_finish_probe failed on it now and then.
+func _the_fact_is_the_coral_she_stopped_at() -> void:
+	var said: Array[String] = []
+	for star_said_first in [false, true]:
+		await _open_the_level()
+		var field: Dictionary = level.call("coral_field")
+		var lines = level.get("script_lines")
+		if star_said_first:
+			level.call("_speak", lines.call("fire", "CORAL.star"))
+			await _unpause()
+		var stop := (field["lola1"] as Vector2) + Vector2(-60.0, -60.0)
+		_place(stop)
+		await _seconds(0.3)
+		var apo := level.get("player") as Node2D
+		# He is talking; she reaches lola1, then star's circle notices her again.
+		level.set("_advice_waiting", [])
+		level.set("_advice_left", 1.5)
+		level.call("_on_coral_touched", apo, "lola1")
+		level.call("_on_coral_touched", apo, "star")
+		# And she stays where she stopped -- a swimmer left alone floats up and away -- while he
+		# finishes whatever else he has queued.
+		for _frame in range(900):
+			_place(stop)
+			await physics_frame
+			if paused:
+				await _unpause()
+			if bool(lines.call("has_heard", "CORAL.lola1")) or bool(lines.call("has_heard", "CORAL.star")) \
+					and not star_said_first:
+				break
+		said.append("lola1 %s" % ("said" if bool(lines.call("has_heard", "CORAL.lola1")) else "SILENT"))
+		await _close_the_level()
+	_check(said == ["lola1 said", "lola1 said"],
+		"a fact that waited for him is the coral she stopped at, not the last circle she brushed",
+		"neither said yet: %s; star said already: %s" % [said[0], said[1]])
 
 
 func _open_the_level() -> void:
