@@ -16,6 +16,7 @@ func _run() -> void:
 	_a_dialogue_file_names_its_own_speaker()
 	await _a_level_can_go_without_lolo()
 	await _a_level_can_be_tallied_by_majority()
+	_dilims_tags_are_there()
 	if failures == 0:
 		print("OBRA_L4_ENABLERS_OK")
 		quit(0)
@@ -117,6 +118,19 @@ func _a_level_can_be_tallied_by_majority() -> void:
 	_check(tie.settle_majority_route() == "protector", "a tie goes to the most recent",
 		tie.settle_majority_route())
 	tie.free()
+
+
+func _dilims_tags_are_there() -> void:
+	var tags: Dictionary = (JSON.parse_string(FileAccess.get_file_as_string("res://config/tags.json"))
+		as Dictionary).get("tags", {})
+	var hoof: Dictionary = (tags.get("hoof", {}) as Dictionary).get("classes", {})
+	var beast: Dictionary = (tags.get("beast", {}) as Dictionary).get("classes", {})
+	var absurd: Dictionary = (tags.get("absurd", {}) as Dictionary).get("classes", {})
+	_check(hoof.has("horse") and hoof.has("pig") and beast.size() == 20
+			and absurd.keys().all(func(id: String) -> bool: return id in ["fish", "shark", "octopus", "sailboat", "submarine"])
+			and absurd.size() == 5 and int((tags["absurd"] as Dictionary).get("unlocked_in_level", 0)) == 4,
+		"Dilim's tags: hoof, beast (every creature) and absurd (the sea, in a forest)",
+		"%d / %d / %d classes" % [hoof.size(), beast.size(), absurd.size()])
 
 
 func _shown(speaker: String) -> String:
