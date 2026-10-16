@@ -68,8 +68,22 @@ PLATES: dict[str, tuple[str, str]] = {
 }
 ## Delivered for the eye, not the engine: the composed look and the mockup it came from.
 REFERENCE_ONLY = {"Level4_CompletedLook.png", "ChatGPT Image Aug 14, 2026, 04_46_26 PM.png"}
-## Delivered and not cut by this commit: the tileset, which the next rule cuts.
-NOT_YET_CUT = {"TextureMap_Makiling.png"}
+NOT_YET_CUT: set[str] = set()
+
+## THE TILESET'S SEAMLESS TEXTURES, one per section of TextureMap_Makiling: the section's box,
+## measured by hand off the sheet, and which of its tiles to take. Each tile sits on the sheet's
+## cream page with its own dark outline, so it is found as a square of not-page inside the box
+## and cut INSIDE the outline -- tiled as drawn, the outline is a grid of seams.
+TILESET = "TextureMap_Makiling.png"
+TILES: dict[str, tuple[tuple[int, int, int, int], int]] = {
+    "leaf": ((5, 80, 410, 270), 0),      # 1) jungle canopy / leaf ground cover (top surface)
+    "mud": ((420, 80, 740, 270), 1),     # 2) mud / dirt wall
+    "stone": ((745, 80, 1095, 270), 0),  # 3) mossy stone retaining wall
+    "path": ((1100, 80, 1445, 270), 0),  # 4) forest path / packed earth
+}
+TILE_OUT = ROOT / "game" / "assets" / "Level4" / "tiles"
+## How far inside a tile's found square its outline ends.
+TILE_INSET = 7
 
 ## THE CLOUDS, measured by hand off the plates (x0, y0, x1, y1), with room around each. They are
 ## the only white art on a checker plate, and only inside these does the flood go cell by cell by
@@ -330,6 +344,26 @@ def keyed(name: str, method: str) -> Image.Image:
     return Image.fromarray(out, "RGBA")
 
 
+def tile(name: str) -> Image.Image:
+    """One seamless texture off the tileset: the chosen square in its section, inside its outline."""
+    (x0, y0, x1, y1), index = TILES[name]
+    sheet = load(TILESET)
+    page = np.median(sheet[5:30, 5:200].reshape(-1, 3), axis=0)
+    not_page = np.abs(sheet[y0:y1, x0:x1] - page).max(axis=-1) > 24
+    labels, _ = ndimage.label(not_page)
+    squares = []
+    for box in ndimage.find_objects(labels):
+        h, w = box[0].stop - box[0].start, box[1].stop - box[1].start
+        if 45 <= w <= 80 and 45 <= h <= 80:
+            squares.append((box[0].start + y0, box[1].start + x0, h, w))
+    squares.sort(key=lambda sq: (sq[0] // 40, sq[1]))
+    if index >= len(squares):
+        raise SystemExit(f"tileset section {name!r} has {len(squares)} tiles, not {index + 1}")
+    y, x, h, w = squares[index]
+    inner = sheet[y + TILE_INSET:y + h - TILE_INSET, x + TILE_INSET:x + w - TILE_INSET]
+    return Image.fromarray(inner.astype(np.uint8), "RGB").convert("RGBA")
+
+
 def delivered() -> set[str]:
     return {p.name for p in SRC.glob("*.png")}
 
@@ -339,7 +373,7 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--check", action="store_true", help="compare, do not write")
     args = ap.parse_args()
-    claimed = {source for source, _ in PLATES.values()} | REFERENCE_ONLY | NOT_YET_CUT
+    claimed = {source for source, _ in PLATES.values()} | REFERENCE_ONLY | NOT_YET_CUT | {TILESET}
     orphans = sorted(delivered() - claimed)
     if orphans:
         print("ERROR: delivered art nothing claims: " + ", ".join(orphans), file=sys.stderr)
@@ -347,13 +381,15 @@ def main() -> int:
     pictures = pixelart.Pictures(args.check, ROOT)
     for plate, (source, method) in PLATES.items():
         pictures.put(keyed(source, method), OUT / f"{plate}.png")
+    for name in TILES:
+        pictures.put(tile(name), TILE_OUT / f"{name}.png")
     if args.check:
         if pictures.stale:
             print("stale or missing:\n  " + "\n  ".join(pictures.stale))
             return 1
-        print(f"OK: {len(PLATES)} Makiling plates are current")
+        print(f"OK: {len(PLATES)} Makiling plates and {len(TILES)} tiles are current")
         return 0
-    print(f"wrote {len(PLATES)} plates to {OUT.relative_to(ROOT)}")
+    print(f"wrote {len(PLATES)} plates and {len(TILES)} tiles under game/assets/Level4/")
     return 0
 
 
