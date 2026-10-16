@@ -114,6 +114,32 @@ func level_id() -> String:
 	return String(_level.get("level_id", ""))
 
 
+## Whether this level gives the ending ONE point -- its majority route -- rather than one per
+## committed route (Kent, 2026-10-16: Dilim's nine encounters must not outvote three whole levels).
+func tallies_by_majority() -> bool:
+	return String(_level.get("tally", "")) == "majority"
+
+
+## The route taken most across this level's commits, ties going to the most recent of the tied;
+## "" when nothing was committed. `_committed` keeps commit order (a Dictionary keeps insertion
+## order) and is saved and restored with every checkpoint, so this needs no state of its own.
+func settle_majority_route() -> String:
+	var counts := {}
+	var latest := {}
+	var order := 0
+	for route_value: Variant in _committed.values():
+		var route := String(route_value)
+		counts[route] = int(counts.get(route, 0)) + 1
+		latest[route] = order
+		order += 1
+	var best := ""
+	for route: String in counts:
+		if best.is_empty() or int(counts[route]) > int(counts[best]) \
+				or (int(counts[route]) == int(counts[best]) and int(latest[route]) > int(latest[best])):
+			best = route
+	return best
+
+
 ## Which level this is, 1-5. Read off the level file rather than the hub entry so it is
 ## available in a --script run where LevelManager is not an autoload.
 func level_order() -> int:
@@ -412,7 +438,10 @@ func commit_route(id: String, route: String) -> void:
 	_committed[id] = route
 	_stage[id] = 0
 	if _profile != null:
-		_profile.call("record_route", level_id(), route)
+		# A level tallied by majority gives the ending one point, when it is finished -- see
+		# settle_majority_route. Every encounter is still logged, per obstacle and in telemetry.
+		if not tallies_by_majority():
+			_profile.call("record_route", level_id(), route)
 		if _profile.has_method("record_obstacle_route"):
 			_profile.call("record_obstacle_route", level_id(), id, route)
 	route_committed.emit(id, route)

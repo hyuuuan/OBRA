@@ -112,6 +112,19 @@ func _knockout_words() -> String:
 	return "The light went out. Back to %s."
 
 
+## Whether this level has a companion at all. Lolo walks Levels 1-3; Dilim is past what he
+## remembers, and the apo goes alone. False leaves him out but keeps the opening: it still plays,
+## in whoever's voice its lines name, and the visit is still recorded.
+func _has_companion() -> bool:
+	return true
+
+
+## Who says the level's own notes and hints -- the rescue lines, the tool notes, the questions --
+## by display name. Lolo, wherever he walks with her; the apo herself where she goes alone.
+func _companion_speaker() -> String:
+	return Lolo.SPEAKER
+
+
 ## What this level DOES when an obstacle is solved. True means the level handled the beat
 ## and the generic "<obstacle>.<route>.solved" line must not also fire.
 func _on_route_solved(_obstacle_id: String, _route: String) -> bool:
@@ -1336,7 +1349,7 @@ func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
 	else:
 		text = "A %s can %s. This needs something that can %s." % [
 			drawn, _tag_phrase(mine, "any"), needed]
-	hint_bar.show_hint(text, Lolo.SPEAKER)
+	hint_bar.show_hint(text, _companion_speaker())
 
 
 ## Tag names as the player sees them everywhere else: upper case, joined by the rule the
@@ -2318,7 +2331,7 @@ func _take_out_to_use(entity_id: String) -> void:
 		_equip_from_slot(slot, item)
 	if hint_bar != null and item != null:
 		hint_bar.show_hint("%s in hand  —  press %s to %s here" % [item.display_name,
-			ControlsKeys.keys_for("use_utility"), _verb_for(entity_id).to_lower()], Lolo.SPEAKER, 5.0)
+			ControlsKeys.keys_for("use_utility"), _verb_for(entity_id).to_lower()], _companion_speaker(), 5.0)
 
 
 ## A tool in the bag that would answer this beat, and the player not holding it: say which
@@ -2342,7 +2355,7 @@ func _offer_the_tool_in_the_bag(may_offer: bool) -> void:
 		hint_bar.clear()
 	_tool_offer = offer
 	if not offer.is_empty():
-		hint_bar.show_hint(offer, Lolo.SPEAKER)
+		hint_bar.show_hint(offer, _companion_speaker())
 
 
 ## What F would do with this held tool HERE for a reason of the level's own, outside any beat
@@ -2612,7 +2625,7 @@ func _on_utility_equipped(utility: UtilityObject, _actor: Node2D) -> void:
 ## this is the game talking about its own state while the player is standing at the object.
 func _on_utility_note(text: String) -> void:
 	if hint_bar != null:
-		hint_bar.show_hint(text, Lolo.SPEAKER, 2.6)
+		hint_bar.show_hint(text, _companion_speaker(), 2.6)
 	else:
 		status_label.text = text
 
@@ -2781,7 +2794,7 @@ func _use_equipped_utility() -> void:
 				# "The scissors is used up" -- the one plural in the roster's tools.
 				var noun := item.display_name.to_lower()
 				hint_bar.show_hint("The %s %s used up." % [noun, "are" if noun.ends_with("s")
-					else "is"], Lolo.SPEAKER, 2.6)
+					else "is"], _companion_speaker(), 2.6)
 		else:
 			var used := _equipped_utility
 			if not used.describe_use(player).is_empty():
@@ -3697,7 +3710,7 @@ func _checkpoint_place(_checkpoint_id: String) -> String:
 func _say_why(text: String) -> void:
 	status_label.text = text
 	if hint_bar != null:
-		hint_bar.show_hint(text, Lolo.SPEAKER)
+		hint_bar.show_hint(text, _companion_speaker())
 
 
 ## Whether the level is allowed to end yet.
@@ -4025,6 +4038,11 @@ func _load_dialogue() -> void:
 ## The companion, present from the first frame. His ART is a placeholder; the level
 ## talks to him through follow/say, which a designed Lolo answers the same way.
 func _spawn_lolo() -> void:
+	# ⚠ NOT A PLAIN RETURN. This is what starts the opening, and the opening is what records the
+	# visit, offers Continue and decides the tutorial -- a level without him still needs all of it.
+	if not _has_companion():
+		_play_opening.call_deferred()
+		return
 	var scene := load("res://creatures/lolo.tscn") as PackedScene
 	if scene == null:
 		push_warning("GameLevel: no Lolo scene; the level runs without a companion")
@@ -4050,7 +4068,7 @@ func _lolo_says(key: String, seconds: float = 0.0) -> void:
 		lolo.say(line, seconds)
 		return
 	_focus_camera_for("lolo")
-	dialogue_box.speak([{"text": line, "speaker": Lolo.SPEAKER}])
+	dialogue_box.speak([{"text": line, "speaker": _companion_speaker()}])
 
 
 ## THE OPENING IS ONE BEAT NOW, AND THIS IS NOT IT.
@@ -4154,9 +4172,10 @@ func _play_opening() -> void:
 	await get_tree().create_timer(OPENING_DELAY).timeout
 	if not is_inside_tree():
 		return
-	# Lolo says all of it, so with no Lolo in the level -- he stays behind after Dagat --
-	# there is nobody to say it.
-	if lolo == null or not is_instance_valid(lolo):
+	# Lolo says all of it, so a level that should have him and does not -- his scene failed to
+	# load -- has nobody to say it. A level that goes on without him says its own, in its lines'
+	# own voice.
+	if _has_companion() and (lolo == null or not is_instance_valid(lolo)):
 		_greet()
 		return
 	var steps: Array = []
@@ -4205,7 +4224,7 @@ func _ask_in_conversation(step: Dictionary) -> void:
 		for option_value: Variant in options:
 			var line := script_lines.line_by_id(String((option_value as Dictionary).get("line", "")))
 			labels.append(String(line.get("choice_label", line.get("text", ""))))
-		dialogue_overlay.call("present_options", Lolo.SPEAKER, question, labels)
+		dialogue_overlay.call("present_options", _companion_speaker(), question, labels)
 		var picked: int = await Signal(dialogue_overlay, &"option_picked")
 		var option: Dictionary = options[clampi(picked, 0, options.size() - 1)]
 		var reply: Array = []
@@ -4386,7 +4405,7 @@ func _on_dialogue_node_approached() -> void:
 			var route := String(route_value)
 			if choices.has(route) and not String(notes.get(route, "")).contains("CHOSE THIS"):
 				notes[route] = (String(notes.get(route, "")) + "\nYOU CHOSE THIS BEFORE").strip_edges()
-		dialogue_overlay.call("present", "Lolo", context, choices, notes)
+		dialogue_overlay.call("present", _companion_speaker(), context, choices, notes)
 		_frame_the_decision()
 		return
 	var node_lines: Dictionary = _script_lines.get("node", {})
@@ -4394,7 +4413,7 @@ func _on_dialogue_node_approached() -> void:
 		return
 	dialogue_overlay.call(
 		"present",
-		String(node_lines.get("speaker", "Lolo")),
+		String(node_lines.get("speaker", _companion_speaker())),
 		String(node_lines.get("context", "")),
 		node_lines.get("choices", {})
 	)
@@ -4448,7 +4467,7 @@ func _on_route_chosen(route: String) -> void:
 			var chosen := String(routes.get(route, ""))
 			if not chosen.is_empty() and dialogue_box != null:
 				_focus_camera_for("lolo")
-				dialogue_box.speak([{"text": chosen, "speaker": Lolo.SPEAKER}])
+				dialogue_box.speak([{"text": chosen, "speaker": _companion_speaker()}])
 		status_label.text = "Route: %s" % route.capitalize()
 
 
@@ -4487,6 +4506,11 @@ func _complete_level() -> void:
 	# Finished: the next visit is a replay from the start, not a resume.
 	_forget_saved_checkpoint()
 	Telemetry.end_level(level_id, "completed")
+	# A level tallied by majority gives the ending its one point now, at the end.
+	if director != null and director.tallies_by_majority():
+		var settled := director.settle_majority_route()
+		if not settled.is_empty():
+			PlayerProfile.record_route(level_id, settled)
 	mark_finished(level_id)
 	status_label.text = "Level complete!"
 	# STAGED BEFORE THE PANEL. The level used to end by putting a screen over an unchanged
