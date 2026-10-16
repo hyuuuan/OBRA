@@ -16,6 +16,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_how_lit_a_point_is()
+	await _the_dark_cuts_what_lights_there_are()
 	await _the_lantern_shrinks_with_the_flame()
 	if failures == 0:
 		print("OBRA_DARKNESS_OK")
@@ -42,6 +43,34 @@ func _how_lit_a_point_is() -> void:
 	_check(LightField.light_from([lamp, torch], Vector2(150.0, 0.0), 0.1) >= 0.99
 			and is_equal_approx(LightField.light_from([lamp], Vector2(900.0, 900.0), 0.1), 0.1),
 		"two lights: the brighter wins; out of every light, the ambient floor", "max, then ambient")
+
+
+func _the_dark_cuts_what_lights_there_are() -> void:
+	var dark := DarknessLayer.new()
+	root.add_child(dark)
+	var lamp := HeldLantern2D.new()
+	root.add_child(lamp)
+	lamp.global_position = Vector2(400.0, 300.0)
+	var hidden_lamp := HeldLantern2D.new()
+	root.add_child(hidden_lamp)
+	hidden_lamp.visible = false
+	await process_frame
+	await process_frame
+	var shown := dark.shown()
+	var hole := dark.first_hole()
+	_check(dark.layer < 5 and dark.layer > 0, "the dark sits over the world and under the HUD",
+		"layer %d" % dark.layer)
+	_check(shown == Vector2i(1, 0) and Vector2(hole.x, hole.y).distance_to(Vector2(400.0, 300.0)) < 1.0
+			and is_equal_approx(hole.z, HeldLantern2D.RADII[PlayerHealth.FULL]),
+		"it cuts one hole per light that shows, where the light is, its size",
+		"%d hole(s) at (%.0f, %.0f) r %.0f" % [shown.x, hole.x, hole.y, hole.z])
+	_check(is_equal_approx(LightField.light_at(self, lamp.global_position), 1.0)
+			and LightField.light_at(self, lamp.global_position + Vector2(600.0, 0.0)) == 0.0,
+		"and gameplay counts the same light: lit at the lantern, dark past its reach", "light_at")
+	dark.queue_free()
+	lamp.queue_free()
+	hidden_lamp.queue_free()
+	await process_frame
 
 
 func _the_lantern_shrinks_with_the_flame() -> void:
