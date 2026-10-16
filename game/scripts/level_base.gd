@@ -67,6 +67,13 @@ func _has_player_health() -> bool:
 	return false
 
 
+## Whether weapons wear out here, by the uses in config/weapons.json: a sword good for so many
+## swings, drawn again when spent. Off everywhere but a level that fights; elsewhere a tool is
+## one-use or kept, exactly as it was.
+func _tool_wear_enabled() -> bool:
+	return false
+
+
 ## Whether the camera follows in physics ticks, in step with the player, rather than easing toward
 ## her every render frame. Off everywhere but where a fight is watched closely.
 func _camera_follows_physics() -> bool:
@@ -2134,6 +2141,8 @@ func _spawn_or_replace(
 ## placing it or right-clicking. Deciding WHAT to draw and deciding WHERE it goes are
 ## two separate thoughts, and the game was making the second one for them.
 func _begin_new_utility(item: DrawnItemData, going_into_hand: bool = false) -> bool:
+	# Before the bag, so the slot shows a full bar the moment it arrives.
+	_start_wear(item)
 	var slot := inventory_manager.add_item(item)
 	if slot == -1:
 		ink_manager.release_attempt()
@@ -2719,7 +2728,9 @@ func _use_equipped_utility() -> void:
 		# and the level says which; those are spent when that work is done, see `spend_tool`.
 		# (Piyesta's thrown weapons never come through here: its alleys throw them along an
 		# aimed arc, and spend them when the flock is down.)
-		if _tool_is_spent_by(beat, director.committed_route(beat), item.entity_id):
+		# Where weapons wear (Dilim), the swing that answers is one swing like any other.
+		if not _tool_wear_enabled() \
+				and _tool_is_spent_by(beat, director.committed_route(beat), item.entity_id):
 			spend_tool(item.entity_id)
 			status_label.text = "%s -- used, and gone" % item.display_name
 			if hint_bar != null:
@@ -2728,15 +2739,54 @@ func _use_equipped_utility() -> void:
 				hint_bar.show_hint("The %s %s used up." % [noun, "are" if noun.ends_with("s")
 					else "is"], Lolo.SPEAKER, 2.6)
 		else:
-			_equipped_utility.describe_use(player)
+			var used := _equipped_utility
+			if not used.describe_use(player).is_empty():
+				_wear_one(item, used)
 			status_label.text = "%s -- keep using it" % item.display_name
 		return
 	# Or for something of the level's own, outside any beat (Payyo's chest).
 	if item != null and _level_uses_the_tool(item):
 		return
-	var outcome := _equipped_utility.describe_use(player)
+	var used := _equipped_utility
+	var outcome := used.describe_use(player)
+	if not outcome.is_empty():
+		_wear_one(item, used)
 	status_label.text = outcome if not outcome.is_empty() \
 		else "%s can't do that here" % item.display_name
+
+
+## A weapon's uses, from its row, where this level wears weapons out. Drawn again, it starts full.
+func _start_wear(item: DrawnItemData) -> void:
+	if item == null or not _tool_wear_enabled():
+		return
+	var total := WeaponTable.uses(item.entity_id)
+	if total <= 0 or item.runtime_state.has("uses_total"):
+		return
+	item.runtime_state["uses_total"] = total
+	item.runtime_state["uses_left"] = total
+
+
+## One swing, throw or drop off a worn weapon, and the weapon spent at none. A use refused --
+## still mid-swing -- never gets here: describe_use said nothing.
+func _wear_one(item: DrawnItemData, used: UtilityObject) -> void:
+	if item == null or not _tool_wear_enabled() or not item.runtime_state.has("uses_total"):
+		return
+	var left := int(item.runtime_state.get("uses_left", 0)) - 1
+	item.runtime_state["uses_left"] = left
+	if inventory_hud != null:
+		inventory_hud.refresh_wear()
+	if left > 0:
+		return
+	spend_tool(item.entity_id)
+	# Spent out of the hand (a dropped anvil, on the ground): it goes once it has landed.
+	if is_instance_valid(used) and used.is_inside_tree():
+		get_tree().create_timer(1.0).timeout.connect(func() -> void:
+			if is_instance_valid(used):
+				used.queue_free())
+	if hint_bar != null:
+		var noun := item.display_name.to_lower()
+		hint_bar.show_hint("The %s %s worn out. Draw another." % [noun, "are" if noun.ends_with("s")
+			else "is"], Lolo.SPEAKER, 2.6)
 
 
 ## What E does to this utility, in the prompt's words. A vessel afloat is boarded and left
