@@ -35,6 +35,10 @@ const BLADE_POINT_BLANK := 40.0
 ## How far behind her own line a target's origin may sit and still count as in front -- a
 ## target centred on her is not "behind" by a pixel of rounding.
 const BLADE_EDGE_SLACK := 4.0
+## A swing takes this long (the tween below: 0.11 out, 0.16 back), and a second swing cannot
+## start inside it. Mashing F used to land a blow per key repeat while the blade was still
+## drawn on screen mid-arc -- strikes nobody could see.
+const BLADE_COOLDOWN_MS := 270
 ## The shot is a body under gravity rather than a fixed arc, so this is where it lands on
 ## the flat, measured from the muzzle velocity below. Conservative on purpose.
 const CANNON_RANGE := 640.0
@@ -88,6 +92,8 @@ var _active: bool = false
 ## every frame used to land a hit every frame -- a five-blow sea creature died in five
 ## frames and the bakunawa's fifteen went in a quarter of a second.
 var _struck: Dictionary = {}
+## When this tool may be used again, in Time.get_ticks_msec. Only a swing sets it.
+var _ready_at_ms: int = 0
 ## Seconds left on a timed effect (the clock's stopped time).
 var _effect_time: float = 0.0
 ## Bodies the clock is holding still, and the freeze state each had before.
@@ -265,6 +271,11 @@ func use_utility(actor: Node2D) -> bool:
 
 ## The same action, reporting what happened. `use_utility` is kept as the boolean
 ## contract the older call sites and the requirement hooks were written against.
+## Whether a press of Use would do anything yet. False only while a swing is still under way.
+func is_ready() -> bool:
+	return Time.get_ticks_msec() >= _ready_at_ms
+
+
 func describe_use(actor: Node2D) -> String:
 	if actor == null or (_equipped_actor != null and actor != _equipped_actor):
 		return ""
@@ -618,6 +629,9 @@ func _keel() -> float:
 ## barricade wants the axe). It also shoves loose bodies, so a swing does something
 ## visible even where the level has put nothing to cut.
 func _swing_blade(actor: Node2D) -> String:
+	if not is_ready():
+		return ""
+	_ready_at_ms = Time.get_ticks_msec() + BLADE_COOLDOWN_MS
 	var struck := 0
 	var shoved := 0
 	var facing := _facing_of(actor)
