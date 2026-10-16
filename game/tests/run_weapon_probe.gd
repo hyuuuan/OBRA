@@ -41,6 +41,7 @@ func _run() -> void:
 	await _a_boomerang_strikes_once_per_throw()
 	await _a_cannon_lands_on_an_area_once()
 	await _an_anvil_crushes_once_and_leaves_the_hand()
+	await _dilim_blades_follow_their_rows()
 
 	if failures == 0:
 		print("OBRA_WEAPONS_OK")
@@ -170,6 +171,40 @@ func _an_anvil_crushes_once_and_leaves_the_hand() -> void:
 	_check(anvil.get("_equipped_actor") == null and left[0] == 1,
 		"and it has left her hand", "left_the_hand emitted %d time(s)" % left[0])
 	await _clear([anvil, under])
+
+
+## In Dilim the sword swings a 120-degree arc and the axe takes 700 ms; elsewhere, as before.
+func _dilim_blades_follow_their_rows() -> void:
+	var high_hits: Array[int] = []
+	var axe_hits: Array[int] = []
+	for level_id in ["level_1", "level_4"]:
+		_set_level(level_id)
+		var sword := await _in_hand("sword")
+		# 72 degrees above her facing, 84 px off: inside both reaches, outside a 120 arc.
+		var high := _target("Area2D", _anchor() + Vector2(26.0, -80.0), 10.0)
+		await _frames(2)
+		sword.describe_use(apo)
+		await _frames(2)
+		high_hits.append(int(high.get("hits")))
+		await _clear([sword, high])
+		var axe := await _in_hand("axe")
+		var ahead := _target("Area2D", _anchor() + Vector2(60.0, 0.0))
+		await _frames(2)
+		axe.describe_use(apo)
+		await create_timer(0.4).timeout
+		axe.describe_use(apo)
+		await _frames(2)
+		axe_hits.append(int(ahead.get("hits")))
+		await _clear([axe, ahead])
+	_set_level("")
+	_check(high_hits == [1, 0], "a sword's arc is the level's: all she faces, or Dilim's 120 degrees",
+		"high target struck %s" % [high_hits])
+	_check(axe_hits == [2, 1], "and so is an axe's swing: 270 ms, or Dilim's 700",
+		"two presses 0.4 s apart landed %s" % [axe_hits])
+
+
+func _set_level(level_id: String) -> void:
+	root.get_node(^"LevelManager").set(&"current_level_id", level_id)
 
 
 # --- fixture -------------------------------------------------------------------------
