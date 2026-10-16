@@ -2057,7 +2057,9 @@ func _on_drawing_ready(
 			PlayerProfile.record_object_acquired(entity_id)
 			item.ink_committed = true
 		var answers := is_a_tool(entry) and _tool_answers_here(entity_id)
-		var kept := _begin_new_utility(item, answers)
+		# Or where the level hands every weapon straight over, a sword drawn mid-fight.
+		var into_hand := answers or (is_a_tool(entry) and _draws_into_the_hand(entity_id))
+		var kept := _begin_new_utility(item, into_hand)
 		# ⚠ DRAWING A TOOL MAKES IT; USING IT IS WHAT ANSWERS. It used to be judged the moment
 		# the recogniser named it, so a key drawn at the house with its light on opened the door
 		# before the player had done anything with it -- and when they took the key out and
@@ -2067,7 +2069,7 @@ func _on_drawing_ready(
 		#
 		# So a tool drawn where it would answer goes straight into the hand, and the prompt over
 		# the player names what F will do. Pressing it is the answer.
-		if kept and answers:
+		if kept and into_hand:
 			_take_out_to_use(entity_id)
 		return
 	# CREATURE TRANSFORMATION IS FREE (FR-7), AND IT IS ALLOWED ANYWHERE.
