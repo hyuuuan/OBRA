@@ -3653,6 +3653,10 @@ func _instantiate_wanderer() -> Node2D:
 		push_warning("GameLevel: no wanderer scene; the level starts empty")
 		return null
 	var wanderer := scene.instantiate() as Node2D
+	# From her first frame, not the level's next _breathe: an apo turned back in deep water
+	# drew one frame of the drowning tread before the level told her she could swim.
+	if wanderer is Wanderer:
+		(wanderer as Wanderer).can_swim = _apo_can_swim()
 	entity_root.add_child(wanderer)
 	wanderer.call("set_world_bounds", Rect2(environment.get("world_bounds")))
 	return wanderer
