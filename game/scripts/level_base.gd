@@ -2848,7 +2848,7 @@ func _wear_one(item: DrawnItemData, used: UtilityObject) -> void:
 	if hint_bar != null:
 		var noun := item.display_name.to_lower()
 		hint_bar.show_hint("The %s %s worn out. Draw another." % [noun, "are" if noun.ends_with("s")
-			else "is"], Lolo.SPEAKER, 2.6)
+			else "is"], _companion_speaker(), 2.6)
 
 
 ## What E does to this utility, in the prompt's words. A vessel afloat is boarded and left
