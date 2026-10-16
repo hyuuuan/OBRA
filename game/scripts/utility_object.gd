@@ -77,6 +77,11 @@ var utility_behavior: String = ""
 var required_medium: String = "any"
 
 var _active: bool = false
+## What this throw of the boomerang has already struck, by instance id. One throw is one
+## blow per target: the flight is flown a frame at a time, and asking "what is in reach"
+## every frame used to land a hit every frame -- a five-blow sea creature died in five
+## frames and the bakunawa's fifteen went in a quarter of a second.
+var _struck: Dictionary = {}
 ## Seconds left on a timed effect (the clock's stopped time).
 var _effect_time: float = 0.0
 ## Bodies the clock is holding still, and the freeze state each had before.
@@ -690,6 +695,7 @@ func _throw_boomerang(actor: Node2D) -> String:
 	if _active:
 		return ""
 	_active = true
+	_struck.clear()
 	var origin := _actor_position(actor)
 	var facing := _facing_of(actor)
 	var world := _world_root()
@@ -717,7 +723,8 @@ func _fly_boomerang(actor: Node2D, origin: Vector2, facing: float, t: float) -> 
 	global_position = origin + Vector2(facing * BOOMERANG_THROW * out, -120.0 * out * out - 40.0 * out)
 	rotation += 0.55
 	for target in _reachable_targets():
-		if target.has_method("apply_tool_hit"):
+		if target.has_method("apply_tool_hit") and not _struck.has(target.get_instance_id()):
+			_struck[target.get_instance_id()] = true
 			target.call("apply_tool_hit", "boomerang", 180.0, actor)
 		var body := target as RigidBody2D
 		if body != null and body != self and not body.freeze:
