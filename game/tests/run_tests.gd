@@ -260,6 +260,10 @@ func _test_shared_overlays() -> void:
 					not String(row.get("label", "")).is_empty(),
 					"controls.json row for keys '%s' has no label" % literal_keys
 				)
+			for level_value: Variant in row.get("levels", []):
+				_expect(String(level_value).begins_with("level_"),
+					"controls.json row '%s' lists '%s', which is not a level id"
+						% [row.get("label", ""), level_value])
 			var through := String(row.get("through", ""))
 			if not through.is_empty():
 				_expect(
