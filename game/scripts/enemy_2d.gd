@@ -35,6 +35,12 @@ const DEATH_FADE := 0.4
 ## PLACEHOLDER BODY until there is art for it: a shape darker than the dark, and its eyes.
 const SHADE := Color(0.055, 0.047, 0.067)
 const EYE := Color(1.0, 0.62, 0.22)
+## Its strips, if it has any (tools/build_dilim_creatures.py, or drawn art under the same names).
+const ART := "res://assets/Level4/creatures/"
+const ANIM_FOR := {
+	State.IDLE: "idle", State.CHASE: "run", State.WINDUP: "windup", State.ATTACK: "attack",
+	State.RECOVER: "idle", State.STUN: "hurt", State.DEAD: "death",
+}
 
 @export var kind := "aswang_dog"
 ## Beyond this distance from her it does nothing at all: no thinking, no moving.
@@ -56,6 +62,7 @@ var state := State.IDLE
 var hurtbox: Area2D
 var hitbox: Area2D
 var telegraph: Telegraph2D
+var art: PixelStripAnimator
 
 var _state_left := 0.0
 var _home := Vector2.ZERO
@@ -83,12 +90,19 @@ func _ready() -> void:
 	hurtbox.monitoring = false
 	hitbox = _area("Hitbox", 0, PhysicsLayers.PLAYER_HURTBOX, body_size + Vector2(20.0, 8.0))
 	hitbox.monitorable = false
+	art = PixelStripAnimator.new()
+	art.name = "Art"
+	art.position = Vector2(0.0, body_size.y * 0.5)
+	add_child(art)
+	art.load_kind(ART, kind, ANIM_FOR.values())
+	art.play("idle")
 	telegraph = Telegraph2D.new()
 	telegraph.position = Vector2(body_size.x * 0.25, -body_size.y * 0.5)
 	add_child(telegraph)
 
 
 func _physics_process(delta: float) -> void:
+	art.advance(delta)
 	if state == State.DEAD:
 		return
 	_find_prey()
@@ -194,6 +208,7 @@ func _begin_attack(_to_prey: Vector2) -> void:
 func _enter(next: State) -> void:
 	var was := state
 	state = next
+	art.play(ANIM_FOR[next])
 	match next:
 		State.WINDUP:
 			_state_left = windup
@@ -251,10 +266,13 @@ func _face(dx: float) -> void:
 	if absf(dx) > 2.0 and signf(dx) != _facing:
 		_facing = signf(dx)
 		telegraph.position.x = absf(telegraph.position.x) * _facing
+		art.face(_facing)
 		queue_redraw()
 
 
 func _draw() -> void:
+	if art != null and art.has_art():
+		return
 	var half := body_size * 0.5
 	draw_rect(Rect2(-half, body_size), SHADE)
 	var eye := Vector2(_facing * half.x * 0.55, -half.y * 0.35)
