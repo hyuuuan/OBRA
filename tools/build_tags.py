@@ -125,6 +125,19 @@ LEVEL_3_TAGS: dict[str, list[str]] = {
     "light": ["flashlight", "sun", "campfire"],
 }
 
+# LEVEL 4 -- DILIM. Kent's design (2026-10-16): the tikbalang wants a body with hooves (`hoof`) or
+# any animal body at all (`beast`, the transformation route), and the bungisngis -- a giant who
+# laughs at the absurd -- is disarmed by something that has no business in a mountain forest.
+# Kent chose the sea for that: every one of the five is a sea thing, and each clears BR-7 with
+# held-out recall above 0.84. All three are design groupings, and the provenance will say so.
+LEVEL_4_TAGS: dict[str, list[str]] = {
+    "hoof":   ["horse", "pig"],
+    "beast":  ["ant", "bat", "bee", "bird", "butterfly", "crab", "elephant", "fish", "frog",
+               "horse", "monkey", "octopus", "penguin", "pig", "scorpion", "sea_turtle",
+               "shark", "snail", "snake", "spider"],
+    "absurd": ["fish", "shark", "octopus", "sailboat", "submarine"],
+}
+
 # Held for later levels (spec 3.1). Declared, deliberately empty -- see the note above.
 #
 # `fly` LEFT THIS LIST'S LEVEL-2 SLOT WITHOUT BEING POPULATED. The refined Level 2
@@ -143,6 +156,7 @@ DISPLAY = {
     "feed": "Feed", "startle": "Startle",
     "fly": "Fly", "swim": "Swim", "crush": "Crush", "strike": "Strike",
     "light": "Light", "shield": "Shield",
+    "hoof": "Hoof", "beast": "Beast", "absurd": "Absurd",
 }
 
 # What the tag MEANS, in the player's words rather than the designer's.
@@ -178,12 +192,15 @@ GLOSS = {
     "strike": "able to hit hard in one place",
     "light": "able to throw light into the dark",
     "shield": "able to stand between you and it",
+    "hoof": "sure-footed, on hooves",
+    "beast": "a living body you can become",
+    "absurd": "so out of place on a mountain that it is funny",
 }
 
 # Which level first unlocks each tag. Level 1 unlocks 9 of 15 because a tutorial has to
 # show the breadth of the system; later levels add classes under tags already known.
 UNLOCK_LEVEL = {t: 1 for t in LEVEL_1_TAGS} | {t: 2 for t in LEVEL_2_TAGS} \
-    | {t: 3 for t in LEVEL_3_TAGS} | {
+    | {t: 3 for t in LEVEL_3_TAGS} | {t: 4 for t in LEVEL_4_TAGS} | {
     "fly": 4, "crush": 4, "shield": 5,
 }
 
@@ -204,7 +221,7 @@ def build() -> dict:
     tags: dict[str, dict] = {}
 
     for tag, members in (list(LEVEL_1_TAGS.items()) + list(LEVEL_2_TAGS.items())
-                         + list(LEVEL_3_TAGS.items())
+                         + list(LEVEL_3_TAGS.items()) + list(LEVEL_4_TAGS.items())
                          + [(t, []) for t in HELD_TAGS]):
         classes: dict[str, dict] = {}
         for class_id in members:
