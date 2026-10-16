@@ -2657,6 +2657,10 @@ func _use_equipped_utility() -> void:
 	if _equipped_utility == null or not is_instance_valid(_equipped_utility):
 		status_label.text = "Nothing in hand — press E next to something you drew"
 		return
+	# A swing still under way. The press is nothing -- not a failed use, not "can't do that
+	# here", and not a second answer to the beat.
+	if not _equipped_utility.is_ready():
+		return
 	var item := _equipped_utility.item_data
 	# USING A TOOL WHERE IT ANSWERS IS THE ANSWER. Only where this beat would take it: F is
 	# not a guess, and a tool that is not the answer must not count as a failed attempt
