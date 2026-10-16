@@ -226,6 +226,10 @@ func _check_water() -> void:
 			and body.texture.resource_path.ends_with("apo_swim_idle_front.png") and body.hframes == 4,
 		"afloat at the surface uses all four front idle frames")
 
+	_expect(body.texture.get_height() == 160 and is_equal_approx(body.scale.y, 1.0),
+		"the swim strips are drawn 1:1, not a 320 cell halved by nearest filtering (%dpx at %.2f)"
+			% [body.texture.get_height(), body.scale.y])
+
 	# A shallow wade, feet on the ledge, where she cannot swim: that IS a walk.
 	player.can_swim = false
 	player.global_position = Vector2(1100.0, 355.0)
