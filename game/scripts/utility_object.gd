@@ -94,6 +94,9 @@ var _active: bool = false
 var _struck: Dictionary = {}
 ## When this tool may be used again, in Time.get_ticks_msec. Only a swing sets it.
 var _ready_at_ms: int = 0
+## The reach query, kept between calls. See _reachable_targets.
+var _reach_shape: CircleShape2D
+var _reach_query: PhysicsShapeQueryParameters2D
 ## Seconds left on a timed effect (the clock's stopped time).
 var _effect_time: float = 0.0
 ## Bodies the clock is holding still, and the freeze state each had before.
@@ -903,15 +906,19 @@ func _reachable_targets(reach: float = TOOL_REACH) -> Array[Node]:
 	if _interaction_area != null:
 		raw.append_array(_interaction_area.get_overlapping_bodies())
 		raw.append_array(_interaction_area.get_overlapping_areas())
-	var shape := CircleShape2D.new()
-	shape.radius = maxf(reach, _target_size().length() * 0.5)
-	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = shape
-	query.transform = Transform2D(0.0, global_position)
-	query.collision_mask = 1
-	query.collide_with_areas = true
-	query.exclude = [get_rid()]
-	for hit in get_world_2d().direct_space_state.intersect_shape(query, 24):
+	# Made once and reused. This runs every frame a boomerang flies or a fan blows, and once
+	# per placed climbable per frame through the climb prompt; it used to allocate a shape
+	# and a query each time.
+	if _reach_query == null:
+		_reach_shape = CircleShape2D.new()
+		_reach_query = PhysicsShapeQueryParameters2D.new()
+		_reach_query.shape = _reach_shape
+		_reach_query.collision_mask = 1
+		_reach_query.collide_with_areas = true
+	_reach_shape.radius = maxf(reach, _target_size().length() * 0.5)
+	_reach_query.transform = Transform2D(0.0, global_position)
+	_reach_query.exclude = [get_rid()]
+	for hit in get_world_2d().direct_space_state.intersect_shape(_reach_query, 24):
 		var collider: Variant = hit.get("collider")
 		if collider is Node:
 			raw.append(collider)
