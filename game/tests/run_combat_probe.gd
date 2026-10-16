@@ -18,6 +18,7 @@ func _run() -> void:
 	await _the_hurtbox_follows_and_passes_blows_on()
 	await _a_level_that_fights()
 	await _the_camera_can_keep_step()
+	await _weapons_wear_where_a_level_says()
 
 	if failures == 0:
 		print("OBRA_COMBAT_OK")
@@ -288,6 +289,74 @@ func _the_camera_can_keep_step() -> void:
 	camera.queue_free()
 	target.queue_free()
 	await physics_frame
+
+
+## Dilim's sword is good for fourteen swings; Payyo's, as it is, never wears.
+func _weapons_wear_where_a_level_says() -> void:
+	# Dilim's rows in both runs, so the level's hook is the only thing deciding.
+	root.get_node(^"LevelManager").set(&"current_level_id", "level_4")
+	var plain := await _open_level(null)
+	var kept := await _swing_a_drawn_sword(plain, 16, SWING_GAP)
+	_check(kept["held"] and not kept["bar"], "where a level does not wear weapons, a sword never wears",
+		"16 swings, still in hand")
+	root.get_node(^"LevelManager").set(&"current_level_id", "")
+	plain.queue_free()
+	await _frames(3)
+	var wears := GDScript.new()
+	wears.source_code = "extends \"res://scripts/game_level.gd\"\n" \
+		+ "func _tool_wear_enabled() -> bool:\n\treturn true\n"
+	wears.reload()
+	var level := await _open_level(wears)
+	# Dilim's rows: the level's own configs are loaded, so only the table reads this.
+	root.get_node(^"LevelManager").set(&"current_level_id", "level_4")
+	var uses := WeaponTable.uses("sword")
+	var nearly := await _swing_a_drawn_sword(level, uses - 1, SWING_GAP, true)
+	_check(nearly["drawn_full"] and nearly["held"] and nearly["left"] == 1 and nearly["bar"],
+		"a drawn sword arrives full, and %d swings leave it one" % (uses - 1),
+		"%d left, bar %s" % [nearly["left"], nearly["bar"]])
+	var last := await _swing_a_drawn_sword(level, 1, SWING_GAP, false)
+	_check(not last["held"] and int(level.call("_slot_holding", "sword")) < 0,
+		"and the last swing wears it out", "gone from hand and bag")
+	root.get_node(^"LevelManager").set(&"current_level_id", "")
+	level.queue_free()
+	await _frames(3)
+
+
+## Wider than Dilim's 300 ms sword swing by a loaded frame or two: the press lands mid-frame,
+## after the frame's own clock, and 0.31 s was refused now and then with other suites running.
+const SWING_GAP := 0.40
+
+
+## Draw a sword (unless one is in hand already) and swing it `swings` times, `gap` seconds apart,
+## with an extra press inside each swing that must cost nothing.
+func _swing_a_drawn_sword(level: Node, swings: int, gap: float, draw: bool = true) -> Dictionary:
+	var report := {"drawn_full": false}
+	if draw:
+		var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+		sheet.fill(Color.WHITE)
+		level.call("_on_drawing_ready", "sword", "Sword", sheet, {"confidence": 0.9},
+			[{"points": PackedVector2Array([Vector2(0, 0), Vector2(0, 80)]), "width": 6.0,
+				"color": Color.BLACK}], 1.0)
+		await _frames(4)
+		var slot := int(level.call("_slot_holding", "sword"))
+		var items: Array = (level.get("inventory_manager") as InventoryManager).items()
+		report["drawn_full"] = slot >= 0 and InventoryHUD.wear_of(items[slot]) == 1.0
+		if slot >= 0 and level.get("_equipped_utility") == null:
+			level.call("_on_inventory_slot_pressed", slot)
+			await _frames(4)
+	for _swing in range(swings):
+		level.call("_use_equipped_utility")
+		level.call("_use_equipped_utility")
+		await create_timer(gap).timeout
+	var held := level.get("_equipped_utility") as UtilityObject
+	report["held"] = held != null and is_instance_valid(held)
+	report["left"] = int(held.item_data.runtime_state.get("uses_left", -1)) if report["held"] else -1
+	var bar := false
+	var hud := level.get("inventory_hud") as InventoryHUD
+	for wear in hud.find_children("Wear", "Panel", true, false):
+		bar = bar or (wear as Panel).visible
+	report["bar"] = bar
+	return report
 
 
 func _open_level(script: GDScript) -> Node:
