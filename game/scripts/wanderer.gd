@@ -385,6 +385,9 @@ func _advance_stride(delta: float, horizontal_speed: float) -> void:
 func _pose_for(horizontal_speed: float) -> StringName:
 	if _climbing():
 		return &"climb"
+	# Knocked back, on land: a blow reads as a blow. In water the stroke poses already carry it.
+	if is_staggered() and not is_in_water():
+		return &"hurt"
 	# OFF THE GROUND BEATS MOVING, and this test has to come first.
 	#
 	# It used to sit under the speed check, which meant it only ever ran when the player was
