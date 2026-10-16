@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Draw Dilim's creatures as animated pixel strips, beginning with the aswang as a dog.
+"""Draw Dilim's creatures as animated pixel strips: the aswang as a dog and as a pig.
 
 WHY CODE-DRAWN
 --------------
@@ -142,7 +142,57 @@ def draw_dog(anim: str, frame: int) -> Canvas:
     return canvas
 
 
-KINDS = {"aswang_dog": draw_dog}
+# --- the pig ------------------------------------------------------------------------------
+
+PIG_RUN = [(0, 1, 1, -1), (1, 0, 0, 0), (0, -1, 1, 1), (1, 0, 0, 0)]
+
+
+def draw_pig(anim: str, frame: int) -> Canvas:
+    canvas = Canvas(GRID, GRID, seed=pixelart.SEED + 100 + frame)
+    drop = 0
+    stretch = 0
+    legs = (0, 0, 0, 0)
+    if anim == "idle":
+        drop = frame % 2
+    elif anim == "run":
+        legs = PIG_RUN[frame]
+        drop = frame % 2
+    elif anim == "windup":
+        drop = 1 + frame
+        legs = (0, -1, 0, 1)
+    elif anim == "attack":
+        stretch = 2
+        legs = (2, 2, 1, -2) if frame == 0 else (1, 1, 0, -1)
+        drop = -1
+    elif anim == "hurt":
+        drop = 1
+    elif anim == "death":
+        drop = 2 + frame * 2
+        legs = (0, 1 + frame, 0, -1 - frame)
+    body_y = 13 + drop
+    leg(canvas, 15 + stretch, body_y + 3, legs[0], legs[1])
+    leg(canvas, 12 + stretch, body_y + 3, max(0, legs[0] - 1), legs[1])
+    leg(canvas, 7 - stretch, body_y + 3, legs[2], legs[3])
+    leg(canvas, 4 - stretch, body_y + 3, max(0, legs[2] - 1), legs[3])
+    # Heavy and low: a barrel of a body with a ridge of bristles along the back.
+    ellipse(canvas, 10.5, body_y + 0.5, 8.0 + stretch, 4.5, HIDE[1])
+    for x in range(5, 16, 2):
+        canvas.px(x, body_y - 4 - (x % 4 == 1), HIDE[1])
+    head_y = body_y - 1 + (1 if anim == "windup" else 0)
+    ellipse(canvas, 18.5 + stretch, head_y + 0.5, 3.2, 3.0, HIDE[1])
+    canvas.fill(21 + stretch, head_y, 2, 3, HIDE[2])
+    canvas.px(17 + stretch, head_y - 3, HIDE[1])
+    edge_light(canvas)
+    canvas.px(22 + stretch, head_y + 3, TUSK[1])
+    canvas.px(23 + stretch, head_y + 2, TUSK[0])
+    if anim == "hurt":
+        canvas.px(19 + stretch, head_y - 1, HURT[1])
+    elif anim != "death" or frame == 0:
+        canvas.px(19 + stretch, head_y - 1, EYE[2] if anim in ("windup", "attack") else EYE[1])
+    return canvas
+
+
+KINDS = {"aswang_dog": draw_dog, "aswang_pig": draw_pig}
 
 
 def strip(kind: str, anim: str) -> Image.Image:
