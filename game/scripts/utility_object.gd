@@ -623,7 +623,9 @@ func _swing_blade(actor: Node2D) -> String:
 	var facing := _facing_of(actor)
 	var origin := _actor_position(actor)
 	for target in _reachable_targets():
-		if not _is_in_front(target, origin, facing):
+		# Her own body is in reach of everything she holds. A drawn creature holding a blade
+		# is made of loose rigid bodies, and the swing used to shove its own limbs.
+		if _is_player_body(target) or not _is_in_front(target, origin, facing):
 			continue
 		if target.has_method("apply_tool_hit") and bool(target.call("apply_tool_hit", utility_behavior, 420.0, actor)):
 			struck += 1
@@ -754,7 +756,7 @@ func _fly_boomerang(actor: Node2D, origin: Vector2, facing: float, t: float) -> 
 			_struck[target.get_instance_id()] = true
 			target.call("apply_tool_hit", "boomerang", 180.0, actor)
 		var body := target as RigidBody2D
-		if body != null and body != self and not body.freeze:
+		if body != null and body != self and not body.freeze and not _is_player_body(body):
 			# Retrieve: what it touches is dragged back the way it came.
 			body.apply_central_force((origin - body.global_position).normalized() * 900.0 * body.mass)
 
