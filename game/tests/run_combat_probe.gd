@@ -22,6 +22,7 @@ func _run() -> void:
 	await _a_redrawn_tool_costs_where_a_level_says()
 	await _a_drawn_weapon_comes_to_hand_where_a_level_says()
 	await _a_click_swings_toward_the_pointer()
+	await _the_controls_screen_says_what_is_here()
 
 	if failures == 0:
 		print("OBRA_COMBAT_OK")
@@ -383,6 +384,26 @@ func _a_click_swings_toward_the_pointer() -> void:
 	_check(outcomes == ["facing +1, still", "facing -1, swung"],
 		"a click behind her does nothing, or turns her and swings where a level says",
 		" / ".join(outcomes))
+
+
+## The controls screen names Dilim's walk and click to swing in Dilim, and nowhere else.
+func _the_controls_screen_says_what_is_here() -> void:
+	var level := await _open_level(null)
+	var overlay := level.get_node(^"ControlsOverlay")
+	var shown: Array[bool] = []
+	for level_id in ["level_1", "level_4"]:
+		root.get_node(^"LevelManager").set(&"current_level_id", level_id)
+		overlay.call("_build")
+		await _frames(2)
+		var walk := false
+		for label in overlay.find_children("*", "Label", true, false):
+			walk = walk or (label as Label).text == "Walk, quietly"
+		shown.append(walk)
+	root.get_node(^"LevelManager").set(&"current_level_id", "")
+	_check(shown == [false, true], "the controls screen names the walk in Dilim and nowhere else",
+		"shown in Payyo / Dilim: %s" % [shown])
+	level.queue_free()
+	await _frames(3)
 
 
 ## Payyo, told one hook says yes.
