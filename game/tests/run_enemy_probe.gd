@@ -33,6 +33,7 @@ func _run() -> void:
 	await _a_flier_dives_on_a_locked_line_after_its_windup()
 	await _a_canopy_is_a_ceiling_to_a_flier()
 	await _a_far_one_sleeps_and_a_restore_puts_one_back()
+	await _its_strips_follow_what_it_is_doing()
 	root.get_node(^"LevelManager").set(&"current_level_id", "")
 	if failures == 0:
 		print("OBRA_ENEMIES_OK")
@@ -240,6 +241,25 @@ func _a_far_one_sleeps_and_a_restore_puts_one_back() -> void:
 			and far.hurtbox.collision_layer & PhysicsLayers.WORLD != 0,
 		"a restore puts a dead one back where it started, whole and hittable",
 		"hp %d at %s" % [far.hp, far.global_position.round()])
+
+
+## The dog's strips play what it is doing and face her; a kind with no strips keeps its placeholder.
+func _its_strips_follow_what_it_is_doing() -> void:
+	await _fresh_world()
+	await _place_apo(Vector2(400.0, FLOOR_Y))
+	var dog := _enemy(GroundEnemy2D, "aswang_dog", Vector2(700.0, FLOOR_Y - 14.0))
+	var seen: Dictionary = {}
+	var mirrored := false
+	for _frame in range(90):
+		await physics_frame
+		seen[dog.art.anim()] = true
+		mirrored = mirrored or dog.art.flip_h
+	_check(dog.art.has_art() and dog.art.visible and seen.has("run") and seen.has("windup") and mirrored,
+		"a dog's strips play its run and its windup, turned toward her", "played %s" % [seen.keys()])
+	var bird := _enemy(FlyingEnemy2D, "wakwak", Vector2(900.0, FLOOR_Y - 200.0))
+	await _frames(2)
+	_check(not bird.art.has_art() and not bird.art.visible,
+		"a kind with no strips yet keeps its placeholder body", "wakwak")
 
 
 # --- fixture ---------------------------------------------------------------------------
