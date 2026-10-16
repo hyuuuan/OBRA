@@ -17,6 +17,7 @@ func _run() -> void:
 	await _a_blow_beats_her_steering()
 	await _the_hurtbox_follows_and_passes_blows_on()
 	await _a_level_that_fights()
+	await _the_camera_can_keep_step()
 
 	if failures == 0:
 		print("OBRA_COMBAT_OK")
@@ -251,6 +252,34 @@ func _a_level_that_fights() -> void:
 		"stage %d, %.0f px from the start" % [health.stage, absf(now.global_position.x - spawn.x)])
 	level.queue_free()
 	await _frames(3)
+
+
+## Opted in, the camera moves on physics ticks only; left alone, on render frames as before.
+func _the_camera_can_keep_step() -> void:
+	var camera := WorldCameraController.new()
+	camera.world_bounds = Rect2(-5000.0, -5000.0, 10000.0, 10000.0)
+	root.add_child(camera)
+	var target := Node2D.new()
+	root.add_child(target)
+	camera.set_target(target)
+	camera.set_process(false)
+	camera.set_physics_process(false)
+	var moved := func(step: Callable) -> bool:
+		target.global_position += Vector2(300.0, 0.0)
+		var before := camera.global_position
+		step.call(1.0 / 60.0)
+		return not camera.global_position.is_equal_approx(before)
+	var idle_default: bool = moved.call(camera._process)
+	var physics_default: bool = moved.call(camera._physics_process)
+	camera.follow_on_physics = true
+	var idle_opted: bool = moved.call(camera._process)
+	var physics_opted: bool = moved.call(camera._physics_process)
+	_check(idle_default and not physics_default and not idle_opted and physics_opted,
+		"the camera follows on render frames, or on physics ticks once a level asks",
+		"default %s/%s, opted %s/%s" % [idle_default, physics_default, idle_opted, physics_opted])
+	camera.queue_free()
+	target.queue_free()
+	await physics_frame
 
 
 func _open_level(script: GDScript) -> Node:
