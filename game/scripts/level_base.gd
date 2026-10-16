@@ -67,6 +67,19 @@ func _has_player_health() -> bool:
 	return false
 
 
+## Whether every tool drawn costs a unit of ink, not only the first of its kind. Off everywhere but
+## a level that fights: elsewhere a tool is paid for once and kept (FR-7), and a weapon that wears
+## out and is drawn again would otherwise be free forever.
+func _every_drawing_costs_ink() -> bool:
+	return false
+
+
+## Whether the weapon or light the drawing makes goes straight into her hand rather than the bag.
+## Off everywhere but a level that fights, where a sword is drawn to be swung now.
+func _draws_into_the_hand(_entity_id: String) -> bool:
+	return false
+
+
 ## Whether weapons wear out here, by the uses in config/weapons.json: a sword good for so many
 ## swings, drawn again when spent. Off everywhere but a level that fights; elsewhere a tool is
 ## one-use or kept, exactly as it was.
@@ -2032,8 +2045,9 @@ func _on_drawing_ready(
 		if is_a_tool(entry):
 			if first_time:
 				PlayerProfile.record_object_acquired(entity_id)
-				# Charged on the way into the toolbelt, by _begin_new_utility.
-			else:
+			# Charged on the way into the toolbelt, by _begin_new_utility -- the first time, or
+			# every time where the level says every drawing costs.
+			if not first_time and not _every_drawing_costs_ink():
 				ink_manager.release_attempt()
 				item.ink_committed = true
 		else:
