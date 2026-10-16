@@ -67,6 +67,12 @@ func _has_player_health() -> bool:
 	return false
 
 
+## What she is told when the lantern goes out and she is back at the checkpoint. A "%s" is
+## filled with the place, as _return_to_safety does for every other rescue.
+func _knockout_words() -> String:
+	return "The light went out. Back to %s."
+
+
 ## What this level DOES when an obstacle is solved. True means the level handled the beat
 ## and the generic "<obstacle>.<route>.solved" line must not also fire.
 func _on_route_solved(_obstacle_id: String, _route: String) -> bool:
@@ -3839,10 +3845,26 @@ func _arm_player_health() -> void:
 	player_health = PlayerHealth.new()
 	player_health.name = "PlayerHealth"
 	add_child(player_health)
+	player_health.snuffed.connect(_on_lantern_snuffed)
 	player_hurtbox = PlayerHurtbox2D.new()
 	player_hurtbox.name = "PlayerHurtbox"
 	player_hurtbox.health = player_health
 	entity_root.add_child(player_hurtbox)
+
+
+## ⚠ DEFERRED. The blow that snuffs it arrives from inside an enemy's physics callback, and a
+## restore moves bodies and can swap the player -- not something to do while the physics server
+## is still flushing the query that found her.
+func _on_lantern_snuffed() -> void:
+	call_deferred("_knockout")
+
+
+## Out: back to the last checkpoint with a full flame and the longer grace.
+func _knockout() -> void:
+	var words := _knockout_words()
+	_return_to_safety(words.replace("%s", "the start"), words)
+	if player_health != null:
+		player_health.reset_full()
 
 
 ## Takes a body out of every collision at once: everything it is made of, areas included.
