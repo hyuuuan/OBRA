@@ -9,6 +9,9 @@ signal utility_consumed(utility: UtilityObject)
 ## E reached this and it declined, with a reason. A refusal the player cannot hear is
 ## indistinguishable from a broken key -- which is exactly how an unsettled ladder read.
 signal interaction_note(text: String)
+## The tool was in a hand and is now in the world -- dropped by its own use (the anvil), or
+## because whoever held it is gone. The level must stop treating it as the thing in hand.
+signal left_the_hand(utility: UtilityObject)
 
 ## Tools whose F is a state that stays on until pressed again, rather than one action.
 const TOGGLE_TOOLS := ["flashlight", "umbrella", "fan", "parachute", "hot_air_balloon", "wheel"]
@@ -251,6 +254,7 @@ func prepare_for_inventory() -> DrawnItemData:
 func drop_to_world(world_root: Node2D, at: Vector2) -> void:
 	if world_root == null:
 		return
+	var was_held := _equipped_actor != null
 	if _equipped_actor != null and is_instance_valid(_equipped_actor):
 		if utility_behavior == "umbrella" and _equipped_actor.has_method("set_umbrella_open"):
 			_equipped_actor.call("set_umbrella_open", false)
@@ -264,6 +268,8 @@ func drop_to_world(world_root: Node2D, at: Vector2) -> void:
 	collision_layer = 1
 	collision_mask = 1
 	sleeping = false
+	if was_held:
+		left_the_hand.emit(self)
 
 
 ## What pressing F does. Every behavior in the 50-class table answers here: the `_:`
