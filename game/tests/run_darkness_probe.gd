@@ -19,6 +19,7 @@ func _run() -> void:
 	await _the_dark_cuts_what_lights_there_are()
 	await _the_lantern_shrinks_with_the_flame()
 	await _a_level_that_is_dark()
+	await _a_flashlight_and_a_fire_light_the_dark()
 	if failures == 0:
 		print("OBRA_DARKNESS_OK")
 		quit(0)
@@ -127,6 +128,45 @@ func _a_level_that_is_dark() -> void:
 				PlayerHurtbox2D.middle_of(apo)))
 	level.queue_free()
 	await _frames(3)
+
+
+## A lit flashlight lights the cone ahead of it and not behind; a burning checkpoint lights round it.
+func _a_flashlight_and_a_fire_light_the_dark() -> void:
+	var world := Node2D.new()
+	root.add_child(world)
+	var registry := EntityRegistry.new()
+	world.add_child(registry)
+	registry.load_manifest()
+	var apo := (load("res://creatures/wanderer.tscn") as PackedScene).instantiate() as Wanderer
+	world.add_child(apo)
+	apo.global_position = Vector2(600.0, 400.0)
+	var torch := await _flashlight_in_hand(registry, apo)
+	var dark_before := torch.light_hole().is_empty()
+	torch.describe_use(apo)
+	await _frames(2)
+	var ahead := torch.global_transform * Vector2(150.0, 0.0)
+	var behind := torch.global_transform * Vector2(-150.0, 0.0)
+	_check(dark_before and LightField.light_at(self, ahead) > 0.9 and LightField.light_at(self, behind) == 0.0,
+		"a flashlight, switched on, lights the cone ahead of it and not behind",
+		"%.2f ahead, %.2f behind" % [LightField.light_at(self, ahead), LightField.light_at(self, behind)])
+	world.queue_free()
+	await _frames(3)
+
+
+func _flashlight_in_hand(registry: EntityRegistry, apo: Node2D) -> UtilityObject:
+	var tool := registry.instantiate_entity("flashlight") as UtilityObject
+	apo.get_parent().add_child(tool)
+	var entry := registry.get_entity("flashlight")
+	var page := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	page.fill(Color.WHITE)
+	tool.apply_item_data(DrawnItemData.from_prediction("flashlight", "Flashlight", page,
+		[{"points": PackedVector2Array([Vector2(0, 0), Vector2(40, 0)]), "width": 6.0,
+			"color": Color.BLACK}], 0.9, entry))
+	tool.global_position = apo.global_position + Vector2(30.0, -40.0)
+	await physics_frame
+	tool.interact(apo)
+	await _frames(3)
+	return tool
 
 
 func _open_level(script: GDScript) -> Node:
