@@ -101,6 +101,13 @@ func _the_longer_level() -> void:
 func _the_apo_dives_on_a_breath() -> void:
 	await _open_the_level()
 	var apo := level.get("player") as Wanderer
+	# Changed back in deep water, she is a swimmer from her first frame: the level told her so
+	# only on its next _breathe, and the frame between drew the drowning tread.
+	var fresh := level.call("_instantiate_wanderer") as Wanderer
+	_check(fresh != null and fresh.can_swim, "a new apo can swim from her first frame",
+		"can_swim %s" % (fresh.can_swim if fresh != null else "-"))
+	if fresh != null:
+		fresh.queue_free()
 	var waterline := float(level.get("_waterline_y"))
 	_place(Vector2(1850.0, 900.0))
 	await _seconds(2.0)
