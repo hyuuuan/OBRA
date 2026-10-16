@@ -67,6 +67,12 @@ func _has_player_health() -> bool:
 	return false
 
 
+## Whether the camera follows in physics ticks, in step with the player, rather than easing toward
+## her every render frame. Off everywhere but where a fight is watched closely.
+func _camera_follows_physics() -> bool:
+	return false
+
+
 ## What she is told when the lantern goes out and she is back at the checkpoint. A "%s" is
 ## filled with the place, as _return_to_safety does for every other rescue.
 func _knockout_words() -> String:
@@ -498,6 +504,9 @@ func _ready() -> void:
 	_resolve_level_nodes()
 	_build_obstacle_layer()
 	_arm_player_health()
+	var world_camera := _world_camera()
+	if world_camera != null:
+		world_camera.follow_on_physics = _camera_follows_physics()
 	_spawn_wanderer()
 	_load_dialogue()
 	_spawn_lolo()
