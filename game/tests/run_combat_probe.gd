@@ -19,6 +19,7 @@ func _run() -> void:
 	await _a_level_that_fights()
 	await _the_camera_can_keep_step()
 	await _weapons_wear_where_a_level_says()
+	await _a_redrawn_tool_costs_where_a_level_says()
 
 	if failures == 0:
 		print("OBRA_COMBAT_OK")
@@ -325,6 +326,30 @@ func _weapons_wear_where_a_level_says() -> void:
 ## Wider than Dilim's 300 ms sword swing by a loaded frame or two: the press lands mid-frame,
 ## after the frame's own clock, and 0.31 s was refused now and then with other suites running.
 const SWING_GAP := 0.40
+
+
+## A second sword is free in Payyo (FR-7: paid once, kept); where every drawing costs, it is not.
+func _a_redrawn_tool_costs_where_a_level_says() -> void:
+	var spent: Array[float] = []
+	for script in [null, _level_saying("_every_drawing_costs_ink")]:
+		var level := await _open_level(script)
+		var ink := level.get("ink_manager") as InkManager
+		await _swing_a_drawn_sword(level, 0, SWING_GAP)
+		var before := ink.remaining()
+		await _swing_a_drawn_sword(level, 0, SWING_GAP)
+		spent.append(before - ink.remaining())
+		level.queue_free()
+		await _frames(3)
+	_check(spent == [0.0, 1.0], "a sword drawn again is free, or a unit where every drawing costs",
+		"second sword cost %s" % [spent])
+
+
+## Payyo, told one hook says yes.
+func _level_saying(hook: String) -> GDScript:
+	var script := GDScript.new()
+	script.source_code = "extends \"res://scripts/game_level.gd\"\nfunc %s(_a = null) -> bool:\n\treturn true\n" % hook
+	script.reload()
+	return script
 
 
 ## Draw a sword (unless one is in hand already) and swing it `swings` times, `gap` seconds apart,
