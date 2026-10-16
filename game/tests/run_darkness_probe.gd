@@ -104,8 +104,9 @@ func _the_lantern_shrinks_with_the_flame() -> void:
 
 func _a_level_that_is_dark() -> void:
 	var plain := await _open_level(null)
-	_check(plain.get("darkness_layer") == null and plain.get("held_lantern") == null,
-		"a level that is not dark builds no dark and no lantern", "Payyo as it is")
+	_check(plain.get("darkness_layer") == null and plain.get("held_lantern") == null
+			and plain.get("lantern_hud") == null,
+		"a level that is not dark builds no dark, no lantern and no lantern chip", "Payyo as it is")
 	plain.queue_free()
 	await _frames(3)
 	var dark_script := GDScript.new()
@@ -126,6 +127,22 @@ func _a_level_that_is_dark() -> void:
 		_check(lamp.global_position.distance_to(PlayerHurtbox2D.middle_of(apo)) < 20.0,
 			"and it hangs at her side", "%.0f px from her middle" % lamp.global_position.distance_to(
 				PlayerHurtbox2D.middle_of(apo)))
+	var chip := level.get("lantern_hud") as LanternHud
+	var health := level.get("player_health") as PlayerHealth
+	if chip != null and health != null:
+		chip.gutter(1.0)
+		chip.lean(0.8)
+		await _frames(2)
+		var calm_red := chip.red_edge()
+		health.take_hit()
+		await _frames(2)
+		_check(chip.is_inside_tree() and calm_red == 0.0 and chip.is_shaking() and chip.red_edge() > 0.0
+				and chip.stage() == PlayerHealth.DIM,
+			"the lantern chip on the ink plate shakes and edges red on a hit, and only then",
+			"guttering and leaning: red %.2f; hit: red %.2f" % [calm_red, chip.red_edge()])
+	else:
+		_check(false, "the lantern chip on the ink plate shakes and edges red on a hit, and only then",
+			"no chip")
 	level.queue_free()
 	await _frames(3)
 
