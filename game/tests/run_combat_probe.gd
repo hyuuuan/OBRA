@@ -14,6 +14,7 @@ func _run() -> void:
 	await _the_lantern_counts_down()
 	await _the_grace_is_physics_time()
 	await _guttering_puts_it_out()
+	await _a_blow_beats_her_steering()
 
 	if failures == 0:
 		print("OBRA_COMBAT_OK")
@@ -83,6 +84,63 @@ func _guttering_puts_it_out() -> void:
 		"back from it, full and graced", "stage %d" % health.stage)
 	health.queue_free()
 	await physics_frame
+
+
+## Knocked back while running the other way: the blow decides, and then she does again.
+func _a_blow_beats_her_steering() -> void:
+	var world := Node2D.new()
+	root.add_child(world)
+	var ground := StaticBody2D.new()
+	var shape := CollisionShape2D.new()
+	var box := RectangleShape2D.new()
+	box.size = Vector2(4000.0, 40.0)
+	shape.shape = box
+	ground.add_child(shape)
+	world.add_child(ground)
+	ground.position = Vector2(600.0, 420.0)
+	var apo := (load("res://creatures/wanderer.tscn") as PackedScene).instantiate() as Wanderer
+	apo.set_world_bounds(Rect2(-1000.0, -1000.0, 4000.0, 3000.0))
+	world.add_child(apo)
+	apo.global_position = Vector2(600.0, 400.0)
+	await _frames(20)
+	Input.action_press(&"move_right")
+	await _frames(10)
+	var from := apo.global_position.x
+	apo.knock_back(Vector2(-300.0, -220.0))
+	_check(apo.is_staggered(), "a blow takes the controls", "staggered")
+	await _frames(2)
+	var facing := float(apo.get(&"_facing"))
+	apo.face_toward(apo.global_position.x - 200.0)
+	_check(float(apo.get(&"_facing")) == facing,
+		"a swing cannot turn her mid-blow", "facing %+.0f" % facing)
+	var furthest := from
+	for _frame in range(24):
+		await physics_frame
+		furthest = minf(furthest, apo.global_position.x)
+	# Friction against the held key, which is what a one-frame shove met, gave about 25.
+	_check(from - furthest >= 50.0, "it carries her back though she runs the other way",
+		"%.0f px back" % (from - furthest))
+	_check(not apo.is_staggered(), "and the controls come back", "after 0.43 s")
+	var turned := apo.global_position.x
+	await _frames(30)
+	_check(apo.global_position.x > turned + 40.0, "she runs on the way she was going",
+		"%.0f px forward" % (apo.global_position.x - turned))
+	Input.action_release(&"move_right")
+	await _frames(20)
+	apo.knock_back(Vector2(300.0, -220.0))
+	_check(float(apo.get(&"_facing")) < 0.0, "hit from behind, she turns to face it",
+		"facing %+.0f" % float(apo.get(&"_facing")))
+	await _frames(40)
+	apo.face_toward(apo.global_position.x + 200.0)
+	_check(float(apo.get(&"_facing")) > 0.0, "out of it, a swing aimed the other way turns her",
+		"facing %+.0f" % float(apo.get(&"_facing")))
+	world.queue_free()
+	await physics_frame
+
+
+func _frames(count: int) -> void:
+	for _frame in range(count):
+		await physics_frame
 
 
 func _health() -> PlayerHealth:
