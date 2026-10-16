@@ -44,11 +44,16 @@ func _a_level_can_go_without_lolo() -> void:
 	var with_him := await _open_level(null)
 	var visits_before := int(_profile().call("level_visits", _level_id()))
 	_check(with_him.get("lolo") != null, "Payyo as it is has Lolo", "present")
+	with_him.call("_say_why", "Back to the terraces.")
+	var hint := with_him.get("hint_bar") as HintBar
+	_check(hint != null and hint.current_speaker() == _shown(Lolo.SPEAKER),
+		"and he says its notes", hint.current_speaker() if hint != null else "-")
 	with_him.queue_free()
 	await _frames(3)
 	var alone := GDScript.new()
 	alone.source_code = "extends \"res://scripts/game_level.gd\"\n" \
-		+ "func _has_companion() -> bool:\n\treturn false\n"
+		+ "func _has_companion() -> bool:\n\treturn false\n" \
+		+ "func _companion_speaker() -> String:\n\treturn APO_SPEAKER\n"
 	alone.reload()
 	# Openings are off in test runs unless asked for (see run_opening_probe); this one is the point.
 	var level := await _open_level(alone, true)
@@ -68,8 +73,16 @@ func _a_level_can_go_without_lolo() -> void:
 			break
 	_check(spoken > 0, "and its opening is said, with nobody beside her to say it",
 		"%d line(s) spoken" % spoken)
+	level.call("_say_why", "Back to the terraces.")
+	var her_hint := level.get("hint_bar") as HintBar
+	_check(her_hint != null and her_hint.current_speaker() == _shown(String(level.get("APO_SPEAKER"))),
+		"and its notes are in her own voice", her_hint.current_speaker() if her_hint != null else "-")
 	level.queue_free()
 	await _frames(3)
+
+
+func _shown(speaker: String) -> String:
+	return "%s:" % speaker.to_upper()
 
 
 ## The autoloads, through the tree: a --script runner compiles this before any of them exists.
