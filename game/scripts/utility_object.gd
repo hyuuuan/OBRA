@@ -29,6 +29,12 @@ const TOOL_REACH := 96.0
 ## inside TOOL_REACH, so two of that route's three answers were accepted by the tag layer
 ## and then did nothing. A reach that lives only inside a function body cannot be checked.
 const BOOMERANG_THROW := 320.0
+## A blade reaches anything this close whichever side it is on: a target pressed against her
+## is struck even if she has just turned her back on it.
+const BLADE_POINT_BLANK := 40.0
+## How far behind her own line a target's origin may sit and still count as in front -- a
+## target centred on her is not "behind" by a pixel of rounding.
+const BLADE_EDGE_SLACK := 4.0
 ## The shot is a body under gravity rather than a fixed arc, so this is where it lands on
 ## the flat, measured from the muzzle velocity below. Conservative on purpose.
 const CANNON_RANGE := 640.0
@@ -615,7 +621,10 @@ func _swing_blade(actor: Node2D) -> String:
 	var struck := 0
 	var shoved := 0
 	var facing := _facing_of(actor)
+	var origin := _actor_position(actor)
 	for target in _reachable_targets():
+		if not _is_in_front(target, origin, facing):
+			continue
 		if target.has_method("apply_tool_hit") and bool(target.call("apply_tool_hit", utility_behavior, 420.0, actor)):
 			struck += 1
 			continue
@@ -636,6 +645,24 @@ func _swing_blade(actor: Node2D) -> String:
 	if shoved > 0:
 		return "%s knocked %d loose" % [_display_name(), shoved]
 	return "%s swings — nothing in reach" % _display_name()
+
+
+## Whether a swing facing `facing` from `origin` reaches `target`: the half of the world
+## she is facing, edge included, and anything close enough to touch whichever side it is on.
+##
+## The reach query is a circle around the blade, so without this a swing cut whatever stood
+## BEHIND her as readily as what she was looking at. The half-plane rather than a narrow
+## arc, because a beat may hang its target overhead -- a rope, a lid -- and the cut gates of
+## the first levels were built against a swing that reached up. Narrower arcs per weapon are
+## a level's choice, not the blade's.
+func _is_in_front(target: Node, origin: Vector2, facing: float) -> bool:
+	var node := target as Node2D
+	if node == null:
+		return true
+	var offset := node.global_position - origin
+	if offset.length() <= BLADE_POINT_BLANK:
+		return true
+	return offset.x * facing >= -BLADE_EDGE_SLACK
 
 
 ## Blast: a heavy shot that carries its own damage to whatever it lands on. Spawned
