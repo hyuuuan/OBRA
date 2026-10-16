@@ -20,6 +20,7 @@ func _run() -> void:
 	await _the_camera_can_keep_step()
 	await _weapons_wear_where_a_level_says()
 	await _a_redrawn_tool_costs_where_a_level_says()
+	await _a_drawn_weapon_comes_to_hand_where_a_level_says()
 
 	if failures == 0:
 		print("OBRA_COMBAT_OK")
@@ -344,6 +345,19 @@ func _a_redrawn_tool_costs_where_a_level_says() -> void:
 		"second sword cost %s" % [spent])
 
 
+## A sword drawn in Payyo goes in the bag; where the level hands weapons over, into her hand.
+func _a_drawn_weapon_comes_to_hand_where_a_level_says() -> void:
+	var in_hand: Array[bool] = []
+	for script in [null, _level_saying("_draws_into_the_hand")]:
+		var level := await _open_level(script)
+		var drawn := await _swing_a_drawn_sword(level, 0, SWING_GAP)
+		in_hand.append(drawn["in_hand_on_draw"])
+		level.queue_free()
+		await _frames(3)
+	_check(in_hand == [false, true], "a drawn sword goes in the bag, or into her hand where a level says",
+		"in hand on drawing %s" % [in_hand])
+
+
 ## Payyo, told one hook says yes.
 func _level_saying(hook: String) -> GDScript:
 	var script := GDScript.new()
@@ -366,6 +380,9 @@ func _swing_a_drawn_sword(level: Node, swings: int, gap: float, draw: bool = tru
 		var slot := int(level.call("_slot_holding", "sword"))
 		var items: Array = (level.get("inventory_manager") as InventoryManager).items()
 		report["drawn_full"] = slot >= 0 and InventoryHUD.wear_of(items[slot]) == 1.0
+		var holding := level.get("_equipped_utility") as UtilityObject
+		report["in_hand_on_draw"] = holding != null and is_instance_valid(holding) \
+			and holding.item_data != null and holding.item_data.entity_id == "sword"
 		if slot >= 0 and level.get("_equipped_utility") == null:
 			level.call("_on_inventory_slot_pressed", slot)
 			await _frames(4)
