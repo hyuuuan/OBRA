@@ -711,6 +711,22 @@ func _fire_cannon(actor: Node2D) -> String:
 	shot.global_position = global_position + Vector2(facing * 44.0, -14.0)
 	shot.linear_velocity = Vector2(facing * 980.0, -190.0)
 	shot.body_entered.connect(func(hit: Node) -> void: _on_shot_landed(shot, hit, actor))
+	# ⚠ A RIGID BODY'S CONTACTS NEVER REPORT AREAS. A creature whose hurtbox is an Area2D --
+	# every sea creature, the bakunawa -- was flown straight through. The sensor rides on the
+	# shot and lands it on an area that answers to a tool; anything else it passes is ignored
+	# (water, triggers), so the shot still only stops on what it can hurt or on the world.
+	var sensor := Area2D.new()
+	sensor.name = "Sensor"
+	sensor.collision_layer = 0
+	sensor.collision_mask = 1
+	sensor.monitorable = false
+	var sensed := CollisionShape2D.new()
+	var reach := CircleShape2D.new()
+	reach.radius = 14.0
+	sensed.shape = reach
+	sensor.add_child(sensed)
+	shot.add_child(sensor)
+	sensor.area_entered.connect(func(area: Area2D) -> void: _on_shot_met_area(shot, area, actor))
 	# Recoil, so firing is something the player feels rather than only sees.
 	_push_actor_impulse(actor, Vector2(-facing * 120.0, -40.0))
 	# The despawn timer is a CHILD of the shot, so it dies with it. A SceneTree timer
@@ -725,9 +741,19 @@ func _fire_cannon(actor: Node2D) -> String:
 	return "Cannon fired"
 
 
-func _on_shot_landed(shot: RigidBody2D, hit: Node, actor: Node2D) -> void:
-	if not is_instance_valid(shot):
+func _on_shot_met_area(shot: RigidBody2D, area: Area2D, actor: Node2D) -> void:
+	var target := _tool_target(area)
+	if target == null or not target.has_method("apply_tool_hit") or _is_player_body(target):
 		return
+	_on_shot_landed(shot, area, actor)
+
+
+func _on_shot_landed(shot: RigidBody2D, hit: Node, actor: Node2D) -> void:
+	# One shot, one blow: a body contact and the sensor's area can both report in the same
+	# frame, and queue_free does not stop the second.
+	if not is_instance_valid(shot) or shot.has_meta(&"landed"):
+		return
+	shot.set_meta(&"landed", true)
 	var target := _tool_target(hit)
 	if target != null and target.has_method("apply_tool_hit"):
 		target.call("apply_tool_hit", "cannon", 900.0, actor)
