@@ -425,6 +425,8 @@ var dialogue_node: DialogueNode2D
 var player: Node2D
 ## The lantern and the hurtbox, where _has_player_health() says the player can be hurt; else null.
 var player_health: PlayerHealth = null
+## Its chip on the ink plate, alongside it.
+var lantern_hud: LanternHud = null
 var player_hurtbox: PlayerHurtbox2D = null
 ## The dark and the lantern she carries through it, where _darkness() is above 0; else null.
 var darkness_layer: DarknessLayer = null
@@ -3955,6 +3957,8 @@ func _arm_player_health() -> void:
 	player_health.name = "PlayerHealth"
 	add_child(player_health)
 	player_health.snuffed.connect(_on_lantern_snuffed)
+	if hud_panel != null:
+		lantern_hud = hud_panel.adopt_lantern(player_health)
 	player_hurtbox = PlayerHurtbox2D.new()
 	player_hurtbox.name = "PlayerHurtbox"
 	player_hurtbox.health = player_health
