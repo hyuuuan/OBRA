@@ -30,6 +30,8 @@ func _run() -> void:
 	await _four_dilim_sword_swings_bring_a_dog_down()
 	await _an_axe_throws_it_further_than_a_sword()
 	await _she_runs_through_it_and_it_never_stands_on_her()
+	await _a_flier_dives_on_a_locked_line_after_its_windup()
+	await _a_canopy_is_a_ceiling_to_a_flier()
 	await _a_far_one_sleeps_and_a_restore_puts_one_back()
 	root.get_node(^"LevelManager").set(&"current_level_id", "")
 	if failures == 0:
@@ -163,6 +165,57 @@ func _she_runs_through_it_and_it_never_stands_on_her() -> void:
 	var bottom := dog.global_position.y + dog.body_size.y * 0.5
 	_check(absf(bottom - FLOOR_Y) < 4.0, "and one dropping onto her lands on the ground, not on her",
 		"its feet at %.0f, the ground at %.0f" % [bottom, FLOOR_Y])
+
+
+func _a_flier_dives_on_a_locked_line_after_its_windup() -> void:
+	await _fresh_world()
+	await _place_apo(Vector2(600.0, FLOOR_Y))
+	var bird := _enemy(FlyingEnemy2D, "wakwak", Vector2(450.0, FLOOR_Y - 260.0))
+	var windup_at := -1.0
+	var attack_at := -1.0
+	var locked := Vector2.ZERO
+	var held_line := true
+	var was := ""
+	var before := bird.global_position
+	var dive_from := Vector2.ZERO
+	for frame in range(360):
+		before = bird.global_position
+		await physics_frame
+		var now := float(frame) / 60.0
+		var name := bird.state_name()
+		if name == "WINDUP" and was != "WINDUP" and windup_at < 0.0:
+			windup_at = now
+		if name == "ATTACK" and was != "ATTACK" and attack_at < 0.0:
+			attack_at = now
+			dive_from = before
+			locked = bird.dive_direction()
+			# She steps aside the moment it commits; the dive must not follow.
+			apo.global_position.x += 160.0
+		if name == "ATTACK" and attack_at >= 0.0:
+			var moved := bird.global_position - dive_from
+			if moved.length() > 8.0:
+				held_line = held_line and moved.normalized().dot(locked) > 0.98
+		if attack_at >= 0.0 and name != "ATTACK":
+			break
+		was = name
+	_check(windup_at >= 0.0 and attack_at - windup_at >= 0.69,
+		"a flier dives only after its 0.7 s windup", "%.2f s" % (attack_at - windup_at))
+	_check(held_line and locked != Vector2.ZERO, "and the dive keeps the line it chose: a step aside dodges it",
+		"held" if held_line else "it turned after her")
+
+
+func _a_canopy_is_a_ceiling_to_a_flier() -> void:
+	await _fresh_world()
+	# She is above a solid canopy; the flier is below it and wants to reach her.
+	_block(Vector2(600.0, 100.0), Vector2(2000.0, 40.0))
+	await _place_apo(Vector2(600.0, 60.0))
+	var bird := _enemy(FlyingEnemy2D, "wakwak", Vector2(600.0, 300.0))
+	var highest := INF
+	for _frame in range(240):
+		await physics_frame
+		highest = minf(highest, bird.global_position.y - bird.body_size.y * 0.5)
+	_check(highest >= 120.0 - 1.0, "a flier never passes through a canopy to reach her",
+		"its top reached y %.0f; the canopy's underside is 120" % highest)
 
 
 func _a_far_one_sleeps_and_a_restore_puts_one_back() -> void:
