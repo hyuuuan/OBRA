@@ -39,7 +39,7 @@ const BLADE_POINT_BLANK := 40.0
 ## target centred on her is not "behind" by a pixel of rounding.
 const BLADE_EDGE_SLACK := 4.0
 ## A swing takes this long (the tween below: 0.11 out, 0.16 back), and a second swing cannot
-## start inside it. Mashing F used to land a blow per key repeat while the blade was still
+## start inside it. config/weapons.json's default rows carry it now; this is what they match. Mashing F used to land a blow per key repeat while the blade was still
 ## drawn on screen mid-arc -- strikes nobody could see.
 const BLADE_COOLDOWN_MS := 270
 ## How fast a dropped anvil must still be falling for what it meets to count as crushed.
@@ -290,9 +290,14 @@ func is_ready() -> bool:
 func describe_use(actor: Node2D) -> String:
 	if actor == null or (_equipped_actor != null and actor != _equipped_actor):
 		return ""
+	# Still in its swing, throw or reload: the press is nothing.
+	if not is_ready():
+		return ""
 	var outcome := _perform_use(actor)
 	if outcome.is_empty():
 		return ""
+	# The level's table says how long; anything that is not a weapon has no wait at all.
+	_ready_at_ms = Time.get_ticks_msec() + WeaponTable.cooldown_ms(utility_behavior)
 	utility_used.emit(utility_behavior, item_data)
 	return outcome
 
@@ -640,17 +645,15 @@ func _keel() -> float:
 ## barricade wants the axe). It also shoves loose bodies, so a swing does something
 ## visible even where the level has put nothing to cut.
 func _swing_blade(actor: Node2D) -> String:
-	if not is_ready():
-		return ""
-	_ready_at_ms = Time.get_ticks_msec() + BLADE_COOLDOWN_MS
 	var struck := 0
 	var shoved := 0
 	var facing := _facing_of(actor)
 	var origin := _actor_position(actor)
-	for target in _reachable_targets():
+	var arc := WeaponTable.arc_degrees(utility_behavior)
+	for target in _reachable_targets(WeaponTable.reach(utility_behavior)):
 		# Her own body is in reach of everything she holds. A drawn creature holding a blade
 		# is made of loose rigid bodies, and the swing used to shove its own limbs.
-		if _is_player_body(target) or not _is_in_front(target, origin, facing):
+		if _is_player_body(target) or not _is_in_front(target, origin, facing, arc):
 			continue
 		if target.has_method("apply_tool_hit") and bool(target.call("apply_tool_hit", utility_behavior, 420.0, actor)):
 			struck += 1
@@ -681,15 +684,17 @@ func _swing_blade(actor: Node2D) -> String:
 ## BEHIND her as readily as what she was looking at. The half-plane rather than a narrow
 ## arc, because a beat may hang its target overhead -- a rope, a lid -- and the cut gates of
 ## the first levels were built against a swing that reached up. Narrower arcs per weapon are
-## a level's choice, not the blade's.
-func _is_in_front(target: Node, origin: Vector2, facing: float) -> bool:
+## a level's choice, not the blade's: config/weapons.json, `arc`, centred on her facing.
+func _is_in_front(target: Node, origin: Vector2, facing: float, arc: float = 180.0) -> bool:
 	var node := target as Node2D
 	if node == null:
 		return true
 	var offset := node.global_position - origin
 	if offset.length() <= BLADE_POINT_BLANK:
 		return true
-	return offset.x * facing >= -BLADE_EDGE_SLACK
+	if arc >= 180.0:
+		return offset.x * facing >= -BLADE_EDGE_SLACK
+	return absf(Vector2(facing, 0.0).angle_to(offset)) <= deg_to_rad(arc * 0.5)
 
 
 ## Blast: a heavy shot that carries its own damage to whatever it lands on. Spawned
