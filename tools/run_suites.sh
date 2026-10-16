@@ -22,8 +22,9 @@
 # (OBRA_SUITE_TIMES, default ~/.cache/obra/suite_times.tsv). Not in a terminal (redirected, in
 # the background) it prints a line per suite as before.
 #
-# ⚠ ONE GODOT AT A TIME. Every test run shares user://test_runs, and a second run started
-# beside this one empties the first one's profile out from under it.
+# ⚠ ONE GODOT AT A TIME PER CHECKOUT. Test runs no longer share their data -- each keeps it in
+# user://test_runs/<its pid> (see game/scripts/user_data.gd), so runs in two worktrees can
+# overlap -- but two runs in ONE checkout still share its .godot import cache.
 #
 # ⚠ The four runners marked "window" below need a real viewport: the dummy display server
 # delivers no mouse events and cannot capture the drawing canvas off a SubViewport. They are
