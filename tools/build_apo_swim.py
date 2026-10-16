@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Import the supplied swim sheet without redrawing or resampling its pixels.
+"""Import the supplied swim sheet without redrawing its pixels.
+
+The frames are cut at the sheet's own resolution (320-px cells), then reduced by half
+with a premultiplied box average so the game can draw them 1:1. They used to be written
+at 320 and drawn at 0.5 with nearest filtering, which is a resample too -- the worst one:
+it keeps every other source pixel and drops the rest, and because the art's colour runs
+are mostly one pixel wide, which half survived changed as the figure moved and the
+outline shimmered. An area average is the reduction that stays still in motion.
 
 Run `python3 tools/build_apo_swim.py` after replacing source/swim_reference.png.
 The presentation headings are outside the measured frame regions. Chroma keys
@@ -19,6 +26,8 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "game/assets/characters/apo"
 SOURCE = OUT / "source/swim_reference.png"
 CELL = 320
+# Written to disk at CELL // REDUCE, the size it is drawn on screen.
+REDUCE = 2
 # Half-open source regions, measured between figures, below each heading.
 ROWS = {
     "swim_right": (80, 280, [8, 198, 374, 546, 734, 922, 1114]),
@@ -92,6 +101,12 @@ def extract(image: Image.Image) -> tuple[Image.Image, tuple[int, int]]:
     return result, anchor
 
 
+def reduced(strip: Image.Image) -> Image.Image:
+    """Halve the strip by area, in premultiplied alpha, so edges carry no dark fringe."""
+    size = (strip.width // REDUCE, strip.height // REDUCE)
+    return strip.convert("RGBa").resize(size, Image.BOX).convert("RGBA")
+
+
 def same_pixels(strip: Image.Image, path: Path) -> bool:
     """Whether the PNG at `path` holds exactly these pixels, alpha included.
 
@@ -124,6 +139,7 @@ def main() -> None:
                     and 0 <= y + bounds[1] < y + bounds[3] <= CELL):
                 raise ValueError(f"Clipped {name} frame {frame}")
             strip.alpha_composite(image, (frame * CELL + x, y))
+        strip = reduced(strip)
         path = OUT / f"apo_{name}.png"
         if args.check:
             if not same_pixels(strip, path):

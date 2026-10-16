@@ -93,8 +93,9 @@ const SURFACING_SPEED := -340.0
 const SWIM_STROKE := 90.0
 ## Four-frame idle/float sheets breathe once a second, even when resting.
 const SWIM_IDLE_CYCLE := 1.0
-## Treading water, the surface at her chest: how far the figure is drawn down from her feet.
-const TREAD_SINK := 30.0
+## Floating at rest: how far below the feet's point her painted feet hang. 15 keeps the float
+## exactly where the first import drew it, now that standing no longer hovers.
+const TREAD_SINK := 15.0
 ## Afloat, how far under the surface her feet ride. Under Dagat's AIR_DEPTH (30), so she breathes
 ## there; under the water's top at all, so the water keeps hold of her and she does not pop out.
 const FLOAT_DEPTH := 18.0
