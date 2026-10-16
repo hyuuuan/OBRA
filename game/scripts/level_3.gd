@@ -650,7 +650,10 @@ func _on_coral_touched(body: Node, key: String) -> void:
 	# it would be about a coral three screens back. Not fired until it is said, so a fact that
 	# never got its moment is still there if the player swims back.
 	if _advice_left > 0.0 or not _advice_waiting.is_empty():
-		_coral_waiting = key
+		# A fact already said does not wait: firing it again says nothing, and it would have taken
+		# the place of one still to say.
+		if not script_lines.has_heard("CORAL.%s" % key) and not _coral_waiting.has(key):
+			_coral_waiting.append(key)
 		return
 	# `once` on the line does the not-twice part; firing again is free and says nothing.
 	_speak(script_lines.fire("CORAL.%s" % key))
@@ -2617,8 +2620,15 @@ func _speak_current_stage(obstacle_id: String) -> void:
 ## the physics step, so a conversation that stops the world stops the count too.
 var _advice_waiting: Array = []
 var _advice_left := 0.0
-## The coral fact the player swam up to while he was talking. See _on_coral_touched.
-var _coral_waiting := ""
+## The coral facts the player swam up to while he was talking. See _on_coral_touched.
+##
+## ⚠ EVERY ONE TOUCHED, AND THE NEAREST IS SAID -- not whichever was touched last. Corals sit
+## closer together than their 150 px reach (lola1 is 175 px from star), so standing at one is
+## standing inside the next one's circle too, and a nudge across its edge while he talked made the
+## neighbour the "last touched": lola1's fact was dropped for star's, and if star had already been
+## said, nothing was said at all. Which fact she gets now depends on where she is, not on the order
+## two circles noticed her in.
+var _coral_waiting: Array[String] = []
 ## How close the player still has to be to a coral for its fact to be worth saying late.
 const CORAL_STILL_NEAR := 260.0
 
@@ -2661,11 +2671,20 @@ func _pace_the_advice(delta: float) -> void:
 		return
 	if _coral_waiting.is_empty():
 		return
-	var key := _coral_waiting
-	_coral_waiting = ""
-	var spot: Variant = coral_field().get(key, null)
-	if spot is Vector2 and _anchor_now().distance_to(spot as Vector2) <= CORAL_STILL_NEAR:
-		_speak(script_lines.fire("CORAL.%s" % key))
+	var field := coral_field()
+	var here := _anchor_now()
+	var nearest := ""
+	for key in _coral_waiting:
+		var spot: Variant = field.get(key, null)
+		if not (spot is Vector2) or script_lines.has_heard("CORAL.%s" % key):
+			continue
+		var reach := here.distance_to(spot as Vector2)
+		if reach <= CORAL_STILL_NEAR and (nearest.is_empty()
+				or reach < here.distance_to(field[nearest] as Vector2)):
+			nearest = key
+	_coral_waiting.clear()
+	if not nearest.is_empty():
+		_speak(script_lines.fire("CORAL.%s" % nearest))
 
 
 ## THE FORK WAITS FOR THE BRUSH, AND FOR NOTHING DRAWN.
@@ -3768,7 +3787,7 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	# the swim ("Keep going. I can talk and you can swim") to an apo standing on the beach.
 	_advice_waiting.clear()
 	_advice_left = 0.0
-	_coral_waiting = ""
+	_coral_waiting.clear()
 	_put_back_what_the_restore_undid()
 	_float_the_bangka_again(state)
 	_put_the_bakunawa_back()
