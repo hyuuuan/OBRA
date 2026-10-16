@@ -13,6 +13,9 @@ extends CharacterBody2D
 ## walk around with while everything else is being built.
 
 const SPEED := 260.0
+## Holding Shift where a level allows it (`can_walk`): slow enough that a thing hunting by
+## movement loses interest, and under RUN_FRACTION, so the walk cycle is what plays.
+const WALK_SPEED := 110.0
 const ACCELERATION := 1800.0
 const FRICTION := 2200.0
 const JUMP_VELOCITY := -430.0
@@ -54,6 +57,10 @@ const CLIMB_OVERSHOOT := 40.0
 const UMBRELLA_FALL_LIMIT := 190.0
 ## Her forward hand, from the feet, facing right: x is mirrored to whichever way she faces.
 const GRIP := Vector2(14.0, -48.0)
+## Knocked back, the flight is the blow's: how fast it bleeds off while her steering is locked.
+## Well under FRICTION, which would eat a 300 px/s shove in a seventh of a second -- the old
+## one-frame impulse did exactly that, and a hit read as a twitch rather than a knock.
+const STAGGER_DRAG := 500.0
 
 ## Wading. Deep water is meant to stop a walker, so it costs most of your speed, pulls
 ## you steadily down, and leaves you barely able to jump out of it.
@@ -102,6 +109,8 @@ const FLOAT_DEPTH := 18.0
 @onready var _figure: Node2D = $Figure
 
 var world_bounds := Rect2(0.0, -520.0, 3760.0, 1200.0)
+## Whether Shift slows her to WALK_SPEED. Off unless a level turns it on.
+var can_walk := false
 
 var _gravity: float = 980.0
 var _phase: float = 0.0
@@ -110,6 +119,8 @@ var _carrying := ""
 ## Outside forces, in acceleration and in velocity, both cleared every physics frame.
 var _assist := Vector2.ZERO
 var _impulse := Vector2.ZERO
+## Seconds left in which a blow, not the player, decides where she goes.
+var _stagger_left := 0.0
 ## Seconds of grace left after walking off an edge, and how long a jump pressed in the air
 ## keeps waiting for the ground.
 var _coyote_left := 0.0
@@ -200,10 +211,18 @@ func _physics_process(delta: float) -> void:
 		_jump_buffered = maxf(0.0, _jump_buffered - delta)
 
 	var direction := Input.get_axis(&"move_left", &"move_right")
+	var staggered := _stagger_left > 0.0
+	if staggered:
+		_stagger_left = maxf(0.0, _stagger_left - delta)
+		direction = 0.0
+		_jump_buffered = 0.0
 	# What the last frame left: a swimmer's pace is built from this, not from the walk below.
 	var carried_x := velocity.x
-	if direction != 0.0:
-		velocity.x = move_toward(velocity.x, direction * SPEED, ACCELERATION * delta)
+	if staggered:
+		velocity.x = move_toward(velocity.x, 0.0, STAGGER_DRAG * delta)
+	elif direction != 0.0:
+		var pace := WALK_SPEED if can_walk and Input.is_action_pressed(&"walk") else SPEED
+		velocity.x = move_toward(velocity.x, direction * pace, ACCELERATION * delta)
 		_facing = signf(direction)
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, FRICTION * delta)
@@ -257,7 +276,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y = minf(velocity.y + (_gravity + _assist.y) * delta, _fall_limit)
 	# Let go early and the rise is cut short. Only ever downward, so the 94.3px peak
 	# stands as the maximum rather than becoming a new minimum.
-	if Input.is_action_just_released(&"jump") and velocity.y < 0.0:
+	if Input.is_action_just_released(&"jump") and velocity.y < 0.0 and not staggered:
 		velocity.y *= JUMP_CUT
 	velocity.x += _assist.x * delta
 	velocity += _impulse
@@ -366,6 +385,9 @@ func _advance_stride(delta: float, horizontal_speed: float) -> void:
 func _pose_for(horizontal_speed: float) -> StringName:
 	if _climbing():
 		return &"climb"
+	# Knocked back, on land: a blow reads as a blow. In water the stroke poses already carry it.
+	if is_staggered() and not is_in_water():
+		return &"hurt"
 	# OFF THE GROUND BEATS MOVING, and this test has to come first.
 	#
 	# It used to sit under the speed check, which meant it only ever ran when the player was
@@ -423,6 +445,37 @@ func apply_external_force(acceleration: Vector2) -> void:
 
 
 ## An instant velocity change: a cannon's recoil.
+## A blow: it sets her flight outright and takes the controls for `lock_seconds`. She turns to
+## face whatever hit her, which is the way the shove did not go. Off a ladder; not off a boat,
+## which carries her wherever it is going.
+func knock_back(velocity_change: Vector2, lock_seconds: float = 0.22) -> void:
+	if _riding():
+		return
+	if _climbing():
+		end_ladder()
+	velocity = velocity_change
+	_stagger_left = maxf(_stagger_left, lock_seconds)
+	if velocity_change.x != 0.0:
+		_turn_to(-signf(velocity_change.x))
+
+
+func is_staggered() -> bool:
+	return _stagger_left > 0.0
+
+
+## Turn to look at a point, for a swing aimed with the mouse. Not while staggered.
+func face_toward(world_x: float) -> void:
+	if is_staggered() or absf(world_x - global_position.x) < 1.0:
+		return
+	_turn_to(signf(world_x - global_position.x))
+
+
+func _turn_to(facing: float) -> void:
+	_facing = facing
+	_figure.scale.x = _facing
+	_place_grip()
+
+
 func apply_external_impulse(velocity_change: Vector2) -> void:
 	_impulse += velocity_change
 
