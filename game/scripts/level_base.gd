@@ -80,6 +80,13 @@ func _draws_into_the_hand(_entity_id: String) -> bool:
 	return false
 
 
+## Whether a left click in the world swings the weapon in hand toward the pointer, the way a fight
+## wants it. Off everywhere but a level that fights. Placement, the HUD and a line of dialogue all
+## take the click first: placing returns before this, buttons consume it, and a line pauses the tree.
+func _click_attacks() -> bool:
+	return false
+
+
 ## Whether weapons wear out here, by the uses in config/weapons.json: a sword good for so many
 ## swings, drawn again when spent. Off everywhere but a level that fights; elsewhere a tool is
 ## one-use or kept, exactly as it was.
@@ -583,6 +590,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		# real pointer was never at -- and it is the event that is authoritative regardless.
 		_take_back_under_cursor(
 			get_viewport().get_canvas_transform().affine_inverse() * click.position)
+		return
+	if click != null and click.button_index == MOUSE_BUTTON_LEFT and click.pressed \
+			and _click_attacks() and _holding_a_weapon():
+		get_viewport().set_input_as_handled()
+		# The click's own position, for the reason the right-click above gives.
+		var aim := get_viewport().get_canvas_transform().affine_inverse() * click.position
+		if player != null and player.has_method("face_toward"):
+			player.call("face_toward", aim.x)
+		_use_equipped_utility()
 		return
 	if event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
@@ -2769,6 +2785,11 @@ func _use_equipped_utility() -> void:
 		_wear_one(item, used)
 	status_label.text = outcome if not outcome.is_empty() \
 		else "%s can't do that here" % item.display_name
+
+
+func _holding_a_weapon() -> bool:
+	return _equipped_utility != null and is_instance_valid(_equipped_utility) \
+		and WeaponTable.is_weapon(_equipped_utility.utility_behavior)
 
 
 ## A weapon's uses, from its row, where this level wears weapons out. Drawn again, it starts full.
