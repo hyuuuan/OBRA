@@ -39,6 +39,8 @@ const BLADE_EDGE_SLACK := 4.0
 ## start inside it. Mashing F used to land a blow per key repeat while the blade was still
 ## drawn on screen mid-arc -- strikes nobody could see.
 const BLADE_COOLDOWN_MS := 270
+## How fast a dropped anvil must still be falling for what it meets to count as crushed.
+const CRUSH_MIN_FALL := 120.0
 ## The shot is a body under gravity rather than a fixed arc, so this is where it lands on
 ## the flat, measured from the muzzle velocity below. Conservative on purpose.
 const CANNON_RANGE := 640.0
@@ -852,7 +854,50 @@ func _drop_anvil(actor: Node2D) -> String:
 	linear_velocity = Vector2(0.0, 900.0)
 	angular_velocity = 0.0
 	lock_rotation = true
+	_arm_crush(actor)
 	return "Anvil dropped"
+
+
+## ⚠ THE ANVIL USED TO HURT NOTHING. It was dropped and fell, and the only thing that ever
+## happened to what it landed on was physics -- a sea creature or the bakunawa, hurt through
+## the apply_tool_hit contract, never heard about it, though both list the anvil as a weapon.
+##
+## A crush zone rides the falling anvil and strikes each thing that answers to a tool once,
+## only while it is still coming down: resting on something is not crushing it.
+func _arm_crush(actor: Node2D) -> void:
+	var old := get_node_or_null(^"CrushZone")
+	if old != null:
+		old.queue_free()
+	var crushed := {}
+	var zone := Area2D.new()
+	zone.name = "CrushZone"
+	zone.collision_layer = 0
+	zone.collision_mask = 1
+	zone.monitorable = false
+	var shape := CollisionShape2D.new()
+	var reach := CircleShape2D.new()
+	reach.radius = _target_size().length() * 0.5 + 8.0
+	shape.shape = reach
+	zone.add_child(shape)
+	add_child(zone)
+	var crush := func(node: Node) -> void:
+		if linear_velocity.y < CRUSH_MIN_FALL:
+			return
+		var target := _tool_target(node)
+		if target == null or target == self or not target.has_method("apply_tool_hit") \
+				or _is_player_body(target) or crushed.has(target.get_instance_id()):
+			return
+		crushed[target.get_instance_id()] = true
+		target.call("apply_tool_hit", "anvil", 900.0, actor)
+	zone.body_entered.connect(crush)
+	zone.area_entered.connect(crush)
+	# The fall is over long before this; the zone has nothing left to do.
+	var done := Timer.new()
+	done.one_shot = true
+	done.wait_time = 1.5
+	zone.add_child(done)
+	done.timeout.connect(zone.queue_free)
+	done.start()
 
 
 ## Freeze Time: everything loose nearby stops where it is for a few seconds. The
