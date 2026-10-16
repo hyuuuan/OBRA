@@ -236,6 +236,19 @@ func _a_level_that_fights() -> void:
 		level.queue_free()
 		await _frames(3)
 		return
+	var spawn := (level.get("spawn_point") as Node2D).global_position
+	apo.call("apply_morph_state", {"position": spawn + Vector2(500.0, -10.0),
+		"linear_velocity": Vector2.ZERO})
+	await _frames(10)
+	health.invulnerable_seconds = 0.0
+	for _blow in range(PlayerHealth.FULL):
+		hurtbox.receive_hit(hurtbox.global_position + Vector2(60.0, 0.0))
+	await _frames(4)
+	var now := level.get("player") as Node2D
+	_check(health.stage == PlayerHealth.FULL and health.is_invulnerable()
+			and absf(now.global_position.x - spawn.x) < 150.0,
+		"when the light goes out she is back, full and graced",
+		"stage %d, %.0f px from the start" % [health.stage, absf(now.global_position.x - spawn.x)])
 	level.queue_free()
 	await _frames(3)
 
