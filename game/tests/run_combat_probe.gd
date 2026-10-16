@@ -21,6 +21,7 @@ func _run() -> void:
 	await _weapons_wear_where_a_level_says()
 	await _a_redrawn_tool_costs_where_a_level_says()
 	await _a_drawn_weapon_comes_to_hand_where_a_level_says()
+	await _a_click_swings_toward_the_pointer()
 
 	if failures == 0:
 		print("OBRA_COMBAT_OK")
@@ -356,6 +357,32 @@ func _a_drawn_weapon_comes_to_hand_where_a_level_says() -> void:
 		await _frames(3)
 	_check(in_hand == [false, true], "a drawn sword goes in the bag, or into her hand where a level says",
 		"in hand on drawing %s" % [in_hand])
+
+
+## A left click behind her: nothing in Payyo as it is; where clicks attack, she turns and swings.
+func _a_click_swings_toward_the_pointer() -> void:
+	var outcomes: Array[String] = []
+	for script in [null, _level_saying("_click_attacks")]:
+		var level := await _open_level(script)
+		await _swing_a_drawn_sword(level, 0, SWING_GAP)
+		var apo := level.get("player") as Wanderer
+		var sword := level.get("_equipped_utility") as UtilityObject
+		apo.face_toward(apo.global_position.x + 100.0)
+		await _frames(2)
+		var behind := apo.global_position + Vector2(-200.0, -40.0)
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = true
+		click.position = level.get_viewport().get_canvas_transform() * behind
+		level.call("_unhandled_input", click)
+		await _frames(2)
+		outcomes.append("facing %+.0f, %s" % [float(apo.get(&"_facing")),
+			"swung" if sword != null and not sword.is_ready() else "still"])
+		level.queue_free()
+		await _frames(3)
+	_check(outcomes == ["facing +1, still", "facing -1, swung"],
+		"a click behind her does nothing, or turns her and swings where a level says",
+		" / ".join(outcomes))
 
 
 ## Payyo, told one hook says yes.
