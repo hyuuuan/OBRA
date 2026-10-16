@@ -31,6 +31,7 @@
 
     {"group": "HOLDING", "action": "interact", "label": "Pick up, equip, or take back what you placed"},
     {"group": "HOLDING", "action": "use_utility", "label": "Use what you hold, once, where it works"},
+    {"group": "HOLDING", "keys": "Left click", "label": "Swing it toward the pointer", "levels": ["level_4"]},
 
     {"group": "PLACING", "keys": "Left click", "label": "Set the drawing down"},
     {"group": "PLACING", "keys": "Right click", "label": "Put it back, or take back one already down"},
