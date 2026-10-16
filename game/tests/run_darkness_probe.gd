@@ -156,6 +156,17 @@ func _a_flashlight_and_a_fire_light_the_dark() -> void:
 	var beam_b := spare.get_node_or_null(^"LightCone") as PointLight2D
 	_check(beam_a != null and beam_b != null and beam_a.texture == beam_b.texture,
 		"every flashlight shares one beam picture, built once", "same texture")
+	var fire := CheckpointLantern2D.new()
+	fire.lit = true
+	world.add_child(fire)
+	fire.global_position = Vector2(200.0, 400.0)
+	var cold := CheckpointLantern2D.new()
+	world.add_child(cold)
+	cold.global_position = Vector2(1200.0, 400.0)
+	await _frames(2)
+	var heart: Vector2 = fire.light_hole().get("position", Vector2.INF)
+	_check(cold.light_hole().is_empty() and LightField.light_at(self, heart + Vector2(60.0, 0.0)) > 0.9,
+		"a burning checkpoint lights the dark round it; a cold one does not", "lit at 60 px")
 	world.queue_free()
 	await _frames(3)
 
