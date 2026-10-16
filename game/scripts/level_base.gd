@@ -4308,6 +4308,11 @@ func _complete_level() -> void:
 	# Finished: the next visit is a replay from the start, not a resume.
 	_forget_saved_checkpoint()
 	Telemetry.end_level(level_id, "completed")
+	# A level tallied by majority gives the ending its one point now, at the end.
+	if director != null and director.tallies_by_majority():
+		var settled := director.settle_majority_route()
+		if not settled.is_empty():
+			PlayerProfile.record_route(level_id, settled)
 	mark_finished(level_id)
 	status_label.text = "Level complete!"
 	# STAGED BEFORE THE PANEL. The level used to end by putting a screen over an unchanged
