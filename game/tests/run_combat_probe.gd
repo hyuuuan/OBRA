@@ -16,6 +16,7 @@ func _run() -> void:
 	await _guttering_puts_it_out()
 	await _a_blow_beats_her_steering()
 	await _the_hurtbox_follows_and_passes_blows_on()
+	await _a_level_that_fights()
 
 	if failures == 0:
 		print("OBRA_COMBAT_OK")
@@ -209,6 +210,49 @@ func _the_hurtbox_follows_and_passes_blows_on() -> void:
 	world.queue_free()
 	health.queue_free()
 	await physics_frame
+
+
+## Payyo as it is builds nothing; the same level told it fights arms the lantern, points the
+## hurtbox at her, and when the light goes out puts her back with a full flame.
+func _a_level_that_fights() -> void:
+	var plain := await _open_level(null)
+	_check(plain.get("player_health") == null and plain.get("player_hurtbox") == null,
+		"a level that does not fight builds no lantern and no hurtbox",
+		"Payyo as it is")
+	plain.queue_free()
+	await _frames(3)
+	var fights := GDScript.new()
+	fights.source_code = "extends \"res://scripts/game_level.gd\"\n" \
+		+ "func _has_player_health() -> bool:\n\treturn true\n"
+	fights.reload()
+	var level := await _open_level(fights)
+	var health := level.get("player_health") as PlayerHealth
+	var hurtbox := level.get("player_hurtbox") as PlayerHurtbox2D
+	var apo := level.get("player") as Node2D
+	_check(health != null and hurtbox != null and hurtbox.player == apo,
+		"told it fights, the level arms the lantern and points the hurtbox at her",
+		"armed")
+	if health == null or hurtbox == null or apo == null:
+		level.queue_free()
+		await _frames(3)
+		return
+	level.queue_free()
+	await _frames(3)
+
+
+func _open_level(script: GDScript) -> Node:
+	var level := (load("res://game_level.tscn") as PackedScene).instantiate()
+	if script != null:
+		level.set_script(script)
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	for _frame in range(40):
+		await physics_frame
+	call_group(DialogueBox.GROUP, &"hide_line")
+	paused = false
+	await _frames(4)
+	return level
 
 
 func _probe_area(mask: int) -> Area2D:
