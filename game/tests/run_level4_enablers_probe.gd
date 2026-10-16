@@ -17,6 +17,7 @@ func _run() -> void:
 	await _a_level_can_go_without_lolo()
 	await _a_level_can_be_tallied_by_majority()
 	_dilims_tags_are_there()
+	_dilims_flower_counts()
 	if failures == 0:
 		print("OBRA_L4_ENABLERS_OK")
 		quit(0)
@@ -133,6 +134,15 @@ func _dilims_tags_are_there() -> void:
 		"%d / %d / %d classes" % [hoof.size(), beast.size(), absurd.size()])
 
 
+func _dilims_flower_counts() -> void:
+	var listed := false
+	for entry: Dictionary in InventoryScreen.FOUND:
+		listed = listed or String(entry.get("id", "")) == "L4_HF"
+	_check("L4_HF" in (load("res://scripts/player_profile.gd") as GDScript).get_script_constant_map()["FLOWER_IDS"] and listed,
+		"Dilim's flower counts toward the five and has a place in the bag", "L4_HF")
+
+
+## A speaker as the hint bar prints it: "LOLO:".
 func _shown(speaker: String) -> String:
 	return "%s:" % speaker.to_upper()
 
