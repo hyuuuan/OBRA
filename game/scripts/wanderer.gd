@@ -13,6 +13,9 @@ extends CharacterBody2D
 ## walk around with while everything else is being built.
 
 const SPEED := 260.0
+## Holding Shift where a level allows it (`can_walk`): slow enough that a thing hunting by
+## movement loses interest, and under RUN_FRACTION, so the walk cycle is what plays.
+const WALK_SPEED := 110.0
 const ACCELERATION := 1800.0
 const FRICTION := 2200.0
 const JUMP_VELOCITY := -430.0
@@ -106,6 +109,8 @@ const FLOAT_DEPTH := 18.0
 @onready var _figure: Node2D = $Figure
 
 var world_bounds := Rect2(0.0, -520.0, 3760.0, 1200.0)
+## Whether Shift slows her to WALK_SPEED. Off unless a level turns it on.
+var can_walk := false
 
 var _gravity: float = 980.0
 var _phase: float = 0.0
@@ -216,7 +221,8 @@ func _physics_process(delta: float) -> void:
 	if staggered:
 		velocity.x = move_toward(velocity.x, 0.0, STAGGER_DRAG * delta)
 	elif direction != 0.0:
-		velocity.x = move_toward(velocity.x, direction * SPEED, ACCELERATION * delta)
+		var pace := WALK_SPEED if can_walk and Input.is_action_pressed(&"walk") else SPEED
+		velocity.x = move_toward(velocity.x, direction * pace, ACCELERATION * delta)
 		_facing = signf(direction)
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, FRICTION * delta)
