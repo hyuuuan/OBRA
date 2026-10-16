@@ -217,21 +217,24 @@ func _the_hurtbox_follows_and_passes_blows_on() -> void:
 ## hurtbox at her, and when the light goes out puts her back with a full flame.
 func _a_level_that_fights() -> void:
 	var plain := await _open_level(null)
-	_check(plain.get("player_health") == null and plain.get("player_hurtbox") == null,
-		"a level that does not fight builds no lantern and no hurtbox",
+	_check(plain.get("player_health") == null and plain.get("player_hurtbox") == null
+			and not (plain.call("_world_camera") as WorldCameraController).follow_on_physics,
+		"a level that does not fight builds no lantern and no hurtbox, and its camera is as it was",
 		"Payyo as it is")
 	plain.queue_free()
 	await _frames(3)
 	var fights := GDScript.new()
 	fights.source_code = "extends \"res://scripts/game_level.gd\"\n" \
-		+ "func _has_player_health() -> bool:\n\treturn true\n"
+		+ "func _has_player_health() -> bool:\n\treturn true\n" \
+		+ "func _camera_follows_physics() -> bool:\n\treturn true\n"
 	fights.reload()
 	var level := await _open_level(fights)
 	var health := level.get("player_health") as PlayerHealth
 	var hurtbox := level.get("player_hurtbox") as PlayerHurtbox2D
 	var apo := level.get("player") as Node2D
-	_check(health != null and hurtbox != null and hurtbox.player == apo,
-		"told it fights, the level arms the lantern and points the hurtbox at her",
+	_check(health != null and hurtbox != null and hurtbox.player == apo
+			and (level.call("_world_camera") as WorldCameraController).follow_on_physics,
+		"told it fights, the level arms the lantern, points the hurtbox at her, steps its camera",
 		"armed")
 	if health == null or hurtbox == null or apo == null:
 		level.queue_free()
