@@ -13,6 +13,9 @@ extends Area2D
 
 signal struck(from_position: Vector2)
 
+## How an enemy finds it: there is one per fighting level.
+const GROUP := &"player_hurtbox"
+
 const SIZE := Vector2(30.0, 72.0)
 ## The apo's anchor is her soles; her middle is this far above them.
 const FEET_TO_MIDDLE := 44.0
@@ -25,6 +28,7 @@ var player: Node2D = null
 
 
 func _ready() -> void:
+	add_to_group(GROUP)
 	collision_layer = PhysicsLayers.PLAYER_HURTBOX
 	collision_mask = 0
 	monitoring = false
