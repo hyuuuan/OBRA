@@ -35,9 +35,11 @@ const SWIM_LEFT := preload("res://assets/characters/apo/apo_swim_left.png")
 const SWIM_IDLE_SIDE := preload("res://assets/characters/apo/apo_swim_idle_side.png")
 const SWIM_IDLE_FRONT := preload("res://assets/characters/apo/apo_swim_idle_front.png")
 const SWIM_FLOAT := preload("res://assets/characters/apo/apo_swim_float.png")
-## All water frames share a torso-centred 320px cell, at one common art scale.
-const SWIM_CELL := Vector2(320.0, 320.0)
-const SWIM_SCALE := 0.5
+## All water frames share a torso-centred 160px cell, drawn 1:1. tools/build_apo_swim.py cuts
+## them at the sheet's own 320 and halves them by area; drawing a 320 cell at 0.5 with nearest
+## filtering kept every other source pixel, and the outline shimmered as she swam.
+const SWIM_CELL := Vector2(160.0, 160.0)
+const SWIM_SCALE := 1.0
 const UNDERWATER_SHADER := preload("res://shaders/underwater_character.gdshader")
 
 ## What each pose draws. `cycle` means the stride phase picks the frame; anything else
