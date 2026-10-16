@@ -100,6 +100,12 @@ func _camera_follows_physics() -> bool:
 	return false
 
 
+## How dark this level is outside its lights, 0 to 1. At 0 -- every level but one that is dark --
+## no darkness layer is built at all.
+func _darkness() -> float:
+	return 0.0
+
+
 ## What she is told when the lantern goes out and she is back at the checkpoint. A "%s" is
 ## filled with the place, as _return_to_safety does for every other rescue.
 func _knockout_words() -> String:
@@ -420,6 +426,8 @@ var player: Node2D
 ## The lantern and the hurtbox, where _has_player_health() says the player can be hurt; else null.
 var player_health: PlayerHealth = null
 var player_hurtbox: PlayerHurtbox2D = null
+## The dark, where _darkness() is above 0; else null.
+var darkness_layer: DarknessLayer = null
 var lolo: Lolo
 ## Lolo's lines for this level, from config/dialogue.json.
 var _script_lines: Dictionary = {}
@@ -531,6 +539,7 @@ func _ready() -> void:
 	_resolve_level_nodes()
 	_build_obstacle_layer()
 	_arm_player_health()
+	_arm_darkness()
 	var world_camera := _world_camera()
 	if world_camera != null:
 		world_camera.follow_on_physics = _camera_follows_physics()
@@ -3946,6 +3955,17 @@ func _arm_player_health() -> void:
 	player_hurtbox.name = "PlayerHurtbox"
 	player_hurtbox.health = player_health
 	entity_root.add_child(player_hurtbox)
+
+
+## The dark, built once, before the first player is adopted.
+func _arm_darkness() -> void:
+	var dark := _darkness()
+	if dark <= 0.0:
+		return
+	darkness_layer = DarknessLayer.new()
+	darkness_layer.name = "DarknessLayer"
+	darkness_layer.darkness = dark
+	add_child(darkness_layer)
 
 
 ## ⚠ DEFERRED. The blow that snuffs it arrives from inside an enemy's physics callback, and a
