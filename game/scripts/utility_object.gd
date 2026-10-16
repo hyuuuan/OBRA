@@ -1281,6 +1281,21 @@ func _create_flashlight_nodes() -> void:
 	_point_light.position = Vector2(96.0, 0.0)
 	add_child(_point_light)
 	_set_light_active(_active)
+	add_to_group(LightField.GROUP)
+
+
+## How far a lit flashlight's beam reaches in the dark, and how wide: the cone it draws.
+const BEAM_REACH := 260.0
+const BEAM_HALF_ANGLE := 0.38
+
+
+## A lit flashlight's beam, for the dark and for anything asking how lit a place is (LightField):
+## the cone it draws, from the lens, the way the tool is pointing.
+func light_hole() -> Dictionary:
+	if utility_behavior != "flashlight" or not _active:
+		return {}
+	return {"position": global_transform * Vector2(20.0, 0.0), "radius": BEAM_REACH,
+		"strength": 1.0, "direction": global_transform.x.normalized(), "half_angle": BEAM_HALF_ANGLE}
 
 
 func _make_cone_texture() -> ImageTexture:
