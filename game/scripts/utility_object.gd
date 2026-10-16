@@ -9,6 +9,9 @@ signal utility_consumed(utility: UtilityObject)
 ## E reached this and it declined, with a reason. A refusal the player cannot hear is
 ## indistinguishable from a broken key -- which is exactly how an unsettled ladder read.
 signal interaction_note(text: String)
+## The tool was in a hand and is now in the world -- dropped by its own use (the anvil), or
+## because whoever held it is gone. The level must stop treating it as the thing in hand.
+signal left_the_hand(utility: UtilityObject)
 
 ## Tools whose F is a state that stays on until pressed again, rather than one action.
 const TOGGLE_TOOLS := ["flashlight", "umbrella", "fan", "parachute", "hot_air_balloon", "wheel"]
@@ -29,6 +32,18 @@ const TOOL_REACH := 96.0
 ## inside TOOL_REACH, so two of that route's three answers were accepted by the tag layer
 ## and then did nothing. A reach that lives only inside a function body cannot be checked.
 const BOOMERANG_THROW := 320.0
+## A blade reaches anything this close whichever side it is on: a target pressed against her
+## is struck even if she has just turned her back on it.
+const BLADE_POINT_BLANK := 40.0
+## How far behind her own line a target's origin may sit and still count as in front -- a
+## target centred on her is not "behind" by a pixel of rounding.
+const BLADE_EDGE_SLACK := 4.0
+## A swing takes this long (the tween below: 0.11 out, 0.16 back), and a second swing cannot
+## start inside it. Mashing F used to land a blow per key repeat while the blade was still
+## drawn on screen mid-arc -- strikes nobody could see.
+const BLADE_COOLDOWN_MS := 270
+## How fast a dropped anvil must still be falling for what it meets to count as crushed.
+const CRUSH_MIN_FALL := 120.0
 ## The shot is a body under gravity rather than a fixed arc, so this is where it lands on
 ## the flat, measured from the muzzle velocity below. Conservative on purpose.
 const CANNON_RANGE := 640.0
@@ -77,6 +92,16 @@ var utility_behavior: String = ""
 var required_medium: String = "any"
 
 var _active: bool = false
+## What this throw of the boomerang has already struck, by instance id. One throw is one
+## blow per target: the flight is flown a frame at a time, and asking "what is in reach"
+## every frame used to land a hit every frame -- a five-blow sea creature died in five
+## frames and the bakunawa's fifteen went in a quarter of a second.
+var _struck: Dictionary = {}
+## When this tool may be used again, in Time.get_ticks_msec. Only a swing sets it.
+var _ready_at_ms: int = 0
+## The reach query, kept between calls. See _reachable_targets.
+var _reach_shape: CircleShape2D
+var _reach_query: PhysicsShapeQueryParameters2D
 ## Seconds left on a timed effect (the clock's stopped time).
 var _effect_time: float = 0.0
 ## Bodies the clock is holding still, and the freeze state each had before.
@@ -229,6 +254,7 @@ func prepare_for_inventory() -> DrawnItemData:
 func drop_to_world(world_root: Node2D, at: Vector2) -> void:
 	if world_root == null:
 		return
+	var was_held := _equipped_actor != null
 	if _equipped_actor != null and is_instance_valid(_equipped_actor):
 		if utility_behavior == "umbrella" and _equipped_actor.has_method("set_umbrella_open"):
 			_equipped_actor.call("set_umbrella_open", false)
@@ -242,6 +268,8 @@ func drop_to_world(world_root: Node2D, at: Vector2) -> void:
 	collision_layer = 1
 	collision_mask = 1
 	sleeping = false
+	if was_held:
+		left_the_hand.emit(self)
 
 
 ## What pressing F does. Every behavior in the 50-class table answers here: the `_:`
@@ -254,6 +282,11 @@ func use_utility(actor: Node2D) -> bool:
 
 ## The same action, reporting what happened. `use_utility` is kept as the boolean
 ## contract the older call sites and the requirement hooks were written against.
+## Whether a press of Use would do anything yet. False only while a swing is still under way.
+func is_ready() -> bool:
+	return Time.get_ticks_msec() >= _ready_at_ms
+
+
 func describe_use(actor: Node2D) -> String:
 	if actor == null or (_equipped_actor != null and actor != _equipped_actor):
 		return ""
@@ -607,10 +640,18 @@ func _keel() -> float:
 ## barricade wants the axe). It also shoves loose bodies, so a swing does something
 ## visible even where the level has put nothing to cut.
 func _swing_blade(actor: Node2D) -> String:
+	if not is_ready():
+		return ""
+	_ready_at_ms = Time.get_ticks_msec() + BLADE_COOLDOWN_MS
 	var struck := 0
 	var shoved := 0
 	var facing := _facing_of(actor)
+	var origin := _actor_position(actor)
 	for target in _reachable_targets():
+		# Her own body is in reach of everything she holds. A drawn creature holding a blade
+		# is made of loose rigid bodies, and the swing used to shove its own limbs.
+		if _is_player_body(target) or not _is_in_front(target, origin, facing):
+			continue
 		if target.has_method("apply_tool_hit") and bool(target.call("apply_tool_hit", utility_behavior, 420.0, actor)):
 			struck += 1
 			continue
@@ -631,6 +672,24 @@ func _swing_blade(actor: Node2D) -> String:
 	if shoved > 0:
 		return "%s knocked %d loose" % [_display_name(), shoved]
 	return "%s swings — nothing in reach" % _display_name()
+
+
+## Whether a swing facing `facing` from `origin` reaches `target`: the half of the world
+## she is facing, edge included, and anything close enough to touch whichever side it is on.
+##
+## The reach query is a circle around the blade, so without this a swing cut whatever stood
+## BEHIND her as readily as what she was looking at. The half-plane rather than a narrow
+## arc, because a beat may hang its target overhead -- a rope, a lid -- and the cut gates of
+## the first levels were built against a swing that reached up. Narrower arcs per weapon are
+## a level's choice, not the blade's.
+func _is_in_front(target: Node, origin: Vector2, facing: float) -> bool:
+	var node := target as Node2D
+	if node == null:
+		return true
+	var offset := node.global_position - origin
+	if offset.length() <= BLADE_POINT_BLANK:
+		return true
+	return offset.x * facing >= -BLADE_EDGE_SLACK
 
 
 ## Blast: a heavy shot that carries its own damage to whatever it lands on. Spawned
@@ -660,6 +719,22 @@ func _fire_cannon(actor: Node2D) -> String:
 	shot.global_position = global_position + Vector2(facing * 44.0, -14.0)
 	shot.linear_velocity = Vector2(facing * 980.0, -190.0)
 	shot.body_entered.connect(func(hit: Node) -> void: _on_shot_landed(shot, hit, actor))
+	# ⚠ A RIGID BODY'S CONTACTS NEVER REPORT AREAS. A creature whose hurtbox is an Area2D --
+	# every sea creature, the bakunawa -- was flown straight through. The sensor rides on the
+	# shot and lands it on an area that answers to a tool; anything else it passes is ignored
+	# (water, triggers), so the shot still only stops on what it can hurt or on the world.
+	var sensor := Area2D.new()
+	sensor.name = "Sensor"
+	sensor.collision_layer = 0
+	sensor.collision_mask = 1
+	sensor.monitorable = false
+	var sensed := CollisionShape2D.new()
+	var reach := CircleShape2D.new()
+	reach.radius = 14.0
+	sensed.shape = reach
+	sensor.add_child(sensed)
+	shot.add_child(sensor)
+	sensor.area_entered.connect(func(area: Area2D) -> void: _on_shot_met_area(shot, area, actor))
 	# Recoil, so firing is something the player feels rather than only sees.
 	_push_actor_impulse(actor, Vector2(-facing * 120.0, -40.0))
 	# The despawn timer is a CHILD of the shot, so it dies with it. A SceneTree timer
@@ -674,9 +749,19 @@ func _fire_cannon(actor: Node2D) -> String:
 	return "Cannon fired"
 
 
-func _on_shot_landed(shot: RigidBody2D, hit: Node, actor: Node2D) -> void:
-	if not is_instance_valid(shot):
+func _on_shot_met_area(shot: RigidBody2D, area: Area2D, actor: Node2D) -> void:
+	var target := _tool_target(area)
+	if target == null or not target.has_method("apply_tool_hit") or _is_player_body(target):
 		return
+	_on_shot_landed(shot, area, actor)
+
+
+func _on_shot_landed(shot: RigidBody2D, hit: Node, actor: Node2D) -> void:
+	# One shot, one blow: a body contact and the sensor's area can both report in the same
+	# frame, and queue_free does not stop the second.
+	if not is_instance_valid(shot) or shot.has_meta(&"landed"):
+		return
+	shot.set_meta(&"landed", true)
 	var target := _tool_target(hit)
 	if target != null and target.has_method("apply_tool_hit"):
 		target.call("apply_tool_hit", "cannon", 900.0, actor)
@@ -690,6 +775,7 @@ func _throw_boomerang(actor: Node2D) -> String:
 	if _active:
 		return ""
 	_active = true
+	_struck.clear()
 	var origin := _actor_position(actor)
 	var facing := _facing_of(actor)
 	var world := _world_root()
@@ -717,10 +803,11 @@ func _fly_boomerang(actor: Node2D, origin: Vector2, facing: float, t: float) -> 
 	global_position = origin + Vector2(facing * BOOMERANG_THROW * out, -120.0 * out * out - 40.0 * out)
 	rotation += 0.55
 	for target in _reachable_targets():
-		if target.has_method("apply_tool_hit"):
+		if target.has_method("apply_tool_hit") and not _struck.has(target.get_instance_id()):
+			_struck[target.get_instance_id()] = true
 			target.call("apply_tool_hit", "boomerang", 180.0, actor)
 		var body := target as RigidBody2D
-		if body != null and body != self and not body.freeze:
+		if body != null and body != self and not body.freeze and not _is_player_body(body):
 			# Retrieve: what it touches is dragged back the way it came.
 			body.apply_central_force((origin - body.global_position).normalized() * 900.0 * body.mass)
 
@@ -773,7 +860,50 @@ func _drop_anvil(actor: Node2D) -> String:
 	linear_velocity = Vector2(0.0, 900.0)
 	angular_velocity = 0.0
 	lock_rotation = true
+	_arm_crush(actor)
 	return "Anvil dropped"
+
+
+## ⚠ THE ANVIL USED TO HURT NOTHING. It was dropped and fell, and the only thing that ever
+## happened to what it landed on was physics -- a sea creature or the bakunawa, hurt through
+## the apply_tool_hit contract, never heard about it, though both list the anvil as a weapon.
+##
+## A crush zone rides the falling anvil and strikes each thing that answers to a tool once,
+## only while it is still coming down: resting on something is not crushing it.
+func _arm_crush(actor: Node2D) -> void:
+	var old := get_node_or_null(^"CrushZone")
+	if old != null:
+		old.queue_free()
+	var crushed := {}
+	var zone := Area2D.new()
+	zone.name = "CrushZone"
+	zone.collision_layer = 0
+	zone.collision_mask = 1
+	zone.monitorable = false
+	var shape := CollisionShape2D.new()
+	var reach := CircleShape2D.new()
+	reach.radius = _target_size().length() * 0.5 + 8.0
+	shape.shape = reach
+	zone.add_child(shape)
+	add_child(zone)
+	var crush := func(node: Node) -> void:
+		if linear_velocity.y < CRUSH_MIN_FALL:
+			return
+		var target := _tool_target(node)
+		if target == null or target == self or not target.has_method("apply_tool_hit") \
+				or _is_player_body(target) or crushed.has(target.get_instance_id()):
+			return
+		crushed[target.get_instance_id()] = true
+		target.call("apply_tool_hit", "anvil", 900.0, actor)
+	zone.body_entered.connect(crush)
+	zone.area_entered.connect(crush)
+	# The fall is over long before this; the zone has nothing left to do.
+	var done := Timer.new()
+	done.one_shot = true
+	done.wait_time = 1.5
+	zone.add_child(done)
+	done.timeout.connect(zone.queue_free)
+	done.start()
 
 
 ## Freeze Time: everything loose nearby stops where it is for a few seconds. The
@@ -853,15 +983,19 @@ func _reachable_targets(reach: float = TOOL_REACH) -> Array[Node]:
 	if _interaction_area != null:
 		raw.append_array(_interaction_area.get_overlapping_bodies())
 		raw.append_array(_interaction_area.get_overlapping_areas())
-	var shape := CircleShape2D.new()
-	shape.radius = maxf(reach, _target_size().length() * 0.5)
-	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = shape
-	query.transform = Transform2D(0.0, global_position)
-	query.collision_mask = 1
-	query.collide_with_areas = true
-	query.exclude = [get_rid()]
-	for hit in get_world_2d().direct_space_state.intersect_shape(query, 24):
+	# Made once and reused. This runs every frame a boomerang flies or a fan blows, and once
+	# per placed climbable per frame through the climb prompt; it used to allocate a shape
+	# and a query each time.
+	if _reach_query == null:
+		_reach_shape = CircleShape2D.new()
+		_reach_query = PhysicsShapeQueryParameters2D.new()
+		_reach_query.shape = _reach_shape
+		_reach_query.collision_mask = 1
+		_reach_query.collide_with_areas = true
+	_reach_shape.radius = maxf(reach, _target_size().length() * 0.5)
+	_reach_query.transform = Transform2D(0.0, global_position)
+	_reach_query.exclude = [get_rid()]
+	for hit in get_world_2d().direct_space_state.intersect_shape(_reach_query, 24):
 		var collider: Variant = hit.get("collider")
 		if collider is Node:
 			raw.append(collider)

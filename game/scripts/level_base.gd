@@ -2477,6 +2477,8 @@ func _connect_utility(placed: PhysicsShapeObject) -> void:
 		utility.utility_consumed.connect(_on_utility_consumed)
 	if not utility.interaction_note.is_connected(_on_utility_note):
 		utility.interaction_note.connect(_on_utility_note)
+	if not utility.left_the_hand.is_connected(_on_utility_left_hand):
+		utility.left_the_hand.connect(_on_utility_left_hand)
 
 
 func _on_utility_pickup_requested(utility: PhysicsShapeObject) -> void:
@@ -2548,6 +2550,18 @@ func _on_utility_consumed(utility: UtilityObject) -> void:
 		_equipped_utility = null
 	utility.queue_free()
 	status_label.text = "Key consumed"
+
+
+## A tool that has left the hand is not the thing in hand any more.
+##
+## ⚠ THE DROPPED ANVIL STAYED "EQUIPPED". Its own use drops it into the world, but the level
+## kept it as _equipped_utility: F dropped it again from wherever it had landed, and E and
+## right-click skipped it as the thing she was holding, so it could not be picked back up.
+func _on_utility_left_hand(utility: UtilityObject) -> void:
+	if utility != _equipped_utility:
+		return
+	_equipped_utility = null
+	_show_carried("")
 
 
 ## True when it actually reached something, so the interact key can fall through to
@@ -2656,6 +2670,10 @@ func _take_back_under_cursor(world_position: Vector2) -> void:
 func _use_equipped_utility() -> void:
 	if _equipped_utility == null or not is_instance_valid(_equipped_utility):
 		status_label.text = "Nothing in hand — press E next to something you drew"
+		return
+	# A swing still under way. The press is nothing -- not a failed use, not "can't do that
+	# here", and not a second answer to the beat.
+	if not _equipped_utility.is_ready():
 		return
 	var item := _equipped_utility.item_data
 	# USING A TOOL WHERE IT ANSWERS IS THE ANSWER. Only where this beat would take it: F is
