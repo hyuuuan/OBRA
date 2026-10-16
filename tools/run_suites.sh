@@ -136,7 +136,7 @@ if (( WITH_PYTHON )); then
   print "[start $began]" >> "$LOG"
   "$PY" -m unittest tests.test_backend_lifecycle tests.test_preprocess_paper \
     tests.test_backend_telemetry tests.test_manifest_contract tests.test_backend_serve \
-    tests.test_suite_watch >> "$LOG" 2>&1
+    tests.test_suite_watch tests.test_build_dilim_creatures >> "$LOG" 2>&1
   note_result python $? $(( EPOCHSECONDS - began ))
 fi
 
