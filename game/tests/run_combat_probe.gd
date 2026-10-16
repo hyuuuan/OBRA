@@ -112,6 +112,10 @@ func _a_blow_beats_her_steering() -> void:
 	apo.knock_back(Vector2(-300.0, -220.0))
 	_check(apo.is_staggered(), "a blow takes the controls", "staggered")
 	await _frames(2)
+	var figure := apo.get_node("Figure") as Node2D
+	var body := figure.get_node("Body") as Sprite2D
+	_check(figure.get("pose") == &"hurt" and body.rotation < -0.1,
+		"and she is drawn taking it, leaning back", "%s at %.2f rad" % [figure.get("pose"), body.rotation])
 	var facing := float(apo.get(&"_facing"))
 	apo.face_toward(apo.global_position.x - 200.0)
 	_check(float(apo.get(&"_facing")) == facing,
@@ -123,7 +127,8 @@ func _a_blow_beats_her_steering() -> void:
 	# Friction against the held key, which is what a one-frame shove met, gave about 25.
 	_check(from - furthest >= 50.0, "it carries her back though she runs the other way",
 		"%.0f px back" % (from - furthest))
-	_check(not apo.is_staggered(), "and the controls come back", "after 0.43 s")
+	_check(not apo.is_staggered() and figure.get("pose") != &"hurt" and absf(body.rotation) < 0.01,
+		"and the controls come back, and she stands up", "after 0.43 s, %s" % figure.get("pose"))
 	var turned := apo.global_position.x
 	await _frames(30)
 	_check(apo.global_position.x > turned + 40.0, "she runs on the way she was going",
