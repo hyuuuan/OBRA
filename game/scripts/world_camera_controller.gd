@@ -23,6 +23,11 @@ signal camera_moved(camera_position: Vector2)
 ## nothing. This is not `focus_on`, deliberately: focus is what a line of dialogue takes and
 ## gives back, and a room would lose its framing the moment somebody finished a sentence.
 @export var vertical_free: bool = false
+## FOLLOW IN PHYSICS TICKS, NOT RENDER FRAMES. The player moves in physics ticks; a camera easing
+## toward her every render frame on a 120 Hz display catches her on alternate frames, and she
+## judders against the world -- which a fight, watched closely, shows at once. Off by default; a
+## level that fights turns it on.
+@export var follow_on_physics: bool = false
 ## THE TOP OF THE PAINTED SKY, which is not the top of the world any more.
 ##
 ## The world grew a thousand units of headroom so the room inside the straw heap has
@@ -126,6 +131,16 @@ func _refit() -> void:
 
 
 func _process(delta: float) -> void:
+	if not follow_on_physics:
+		_follow(delta)
+
+
+func _physics_process(delta: float) -> void:
+	if follow_on_physics:
+		_follow(delta)
+
+
+func _follow(delta: float) -> void:
 	var desired := _clamped_target_position()
 	if not _vector_is_finite(desired):
 		desired = world_bounds.get_center()
