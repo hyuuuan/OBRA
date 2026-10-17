@@ -15,6 +15,7 @@
 [ext_resource type="Script" path="res://scripts/satchel_pickup_2d.gd" id="13_pickup"]
 [ext_resource type="Script" path="res://scripts/sigbin_2d.gd" id="14_sigbin"]
 [ext_resource type="Script" path="res://scripts/tikbalang_2d.gd" id="15_tikbalang"]
+[ext_resource type="Script" path="res://scripts/ink_jar_2d.gd" id="16_jar"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -275,6 +276,20 @@ script = ExtResource("13_pickup")
 item = "asin"
 amount = 3
 pickup_id = "L4_P_ASIN2"
+
+; level_04.json's ink_economy.jars_before: a jar in the stretch before each encounter that can only
+; be passed by drawing -- the kapre, and the bungisngis.
+[node name="InkJars" type="Node2D" parent="GameplayPlane"]
+
+[node name="BeforeKapre" type="Area2D" parent="GameplayPlane/InkJars"]
+position = Vector2(12900.0, 600.0)
+script = ExtResource("16_jar")
+pickup_id = "L4_JAR_KAPRE"
+
+[node name="BeforeBungisngis" type="Area2D" parent="GameplayPlane/InkJars"]
+position = Vector2(18150.0, 600.0)
+script = ExtResource("16_jar")
+pickup_id = "L4_JAR_BUNGISNGIS"
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 
