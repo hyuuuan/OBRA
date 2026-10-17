@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 15
+const CHECKS := 16
 var level: Node
 
 
@@ -37,6 +37,10 @@ func _run() -> void:
 		await tikbalang_check.call()
 		level.queue_free()
 		await _frames(3)
+	level = await _open_level()
+	await _a_jar_before_the_kapre_gives_her_ink()
+	level.queue_free()
+	await _frames(3)
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -244,6 +248,23 @@ func _a_race_walked_is_lost() -> void:
 	_check(not director.call("is_solved", "L4_TIKBALANG") and not tikbalang.is_racing() and _her_x() < 8700.0,
 		"walked, the race is lost, and she is led back", "solved %s, at %.0f"
 			% [director.call("is_solved", "L4_TIKBALANG"), _her_x()])
+
+
+# --- The ink jars ----------------------------------------------------------------------------
+
+func _a_jar_before_the_kapre_gives_her_ink() -> void:
+	var ink := level.get("ink_manager") as InkManager
+	await _stand_at(12780.0, &"move_right")
+	ink.drain(ink.remaining() - 2.0)
+	var before := ink.remaining()
+	Input.action_press(&"walk")
+	Input.action_press(&"move_right")
+	await _frames(int(1.6 * 60.0))
+	Input.action_release(&"move_right")
+	Input.action_release(&"walk")
+	await _frames(20)
+	_check(is_equal_approx(ink.remaining(), before + 2.0) and bool(level.call("pickup_taken_this_run", "L4_JAR_KAPRE")),
+		"a jar of ink before the kapre gives her two", "%.1f -> %.1f" % [before, ink.remaining()])
 
 
 # --- Helpers -----------------------------------------------------------------------------
