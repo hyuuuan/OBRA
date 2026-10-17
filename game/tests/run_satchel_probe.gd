@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 13
+const CHECKS := 16
 
 
 func _initialize() -> void:
@@ -39,6 +39,12 @@ func _run() -> void:
 	await _frames(3)
 	level = await _open_level()
 	await _a_continue_does_not_find_a_taken_one()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _falls_drop_by_their_chances()
+	await _a_drop_is_taken_like_any_other()
+	await _no_lamp_oil_falls_in_the_night()
 	level.queue_free()
 	await _frames(3)
 	if checked != CHECKS:
@@ -238,6 +244,103 @@ func _a_continue_does_not_find_a_taken_one() -> void:
 	_check(pickup == null or not is_instance_valid(pickup) or pickup.is_queued_for_deletion(),
 		"a Continue does not find one this run already took", "kandila there %s"
 			% (pickup != null and is_instance_valid(pickup) and not pickup.is_queued_for_deletion()))
+
+
+## An aswang standing still and asleep, far from her, to fall as often as a check needs.
+func _sleeper(x: float) -> Enemy2D:
+	var foe := GroundEnemy2D.new()
+	foe.position = Vector2(x, 560.0)
+	(level.get("entity_root") as Node2D).add_child(foe)
+	return foe
+
+
+## What fell since `before`, by kind: every pickup in the gameplay plane that is no placed one.
+func _dropped() -> Dictionary:
+	var counts: Dictionary = {}
+	for node in level.find_children("*", "Area2D", true, false):
+		var pickup := node as SatchelPickup2D
+		if pickup != null and pickup.pickup_id.is_empty() and not pickup.is_taken():
+			counts[pickup.item] = int(counts.get(pickup.item, 0)) + 1
+	return counts
+
+
+func _clear_drops() -> void:
+	for node in level.find_children("*", "Area2D", true, false):
+		var pickup := node as SatchelPickup2D
+		if pickup != null and pickup.pickup_id.is_empty():
+			pickup.free()
+
+
+## Three hundred falls from a known stream: each kind near its share (within four deviations).
+func _falls_drop_by_their_chances() -> void:
+	level.call("set_drop_seed", 4401)
+	var foe := _sleeper(9000.0)
+	await _frames(2)
+	for _fall in range(300):
+		foe.died.emit(foe)
+	await _frames(2)
+	var counts := _dropped()
+	var satchel = level.get("satchel")
+	var off: Array[String] = []
+	for id: String in satchel.ids():
+		var chance := float(satchel.row(id).get("drop_chance", 0.0))
+		var expected := 300.0 * chance
+		var spread := 4.0 * sqrt(300.0 * chance * (1.0 - chance)) + 1.0
+		if absf(float(counts.get(id, 0)) - expected) > spread:
+			off.append("%s %d (about %.0f)" % [id, counts.get(id, 0), expected])
+	_check(off.is_empty() and int(counts.get("asin", 0)) > int(counts.get("langis", 0)),
+		"a fallen aswang drops Lola's things, each by its chance", "%s" % [counts] if off.is_empty()
+		else "off: " + ", ".join(off))
+	foe.queue_free()
+	_clear_drops()
+	await _frames(2)
+
+
+## One that falls at her feet drops what she walks into and takes.
+func _a_drop_is_taken_like_any_other() -> void:
+	var satchel = level.get("satchel")
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(9000.0, 596.0), "linear_velocity": Vector2.ZERO})
+	await _frames(6)
+	var before := 0
+	for id: String in satchel.ids():
+		before += satchel.count(id)
+	var foe := _sleeper(9000.0)
+	await _frames(2)
+	level.call("set_drop_seed", 7)
+	var tries := 0
+	while _dropped().is_empty() and tries < 20:
+		foe.died.emit(foe)
+		tries += 1
+		await _frames(1)
+	await _frames(6)
+	var after := 0
+	for id: String in satchel.ids():
+		after += satchel.count(id)
+	_check(after > before, "and what falls at her feet she takes like any other",
+		"held %d, then %d" % [before, after])
+	foe.queue_free()
+	_clear_drops()
+	await _frames(2)
+
+
+func _no_lamp_oil_falls_in_the_night() -> void:
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(21520.0, 596.0), "linear_velocity": Vector2.ZERO})
+	(level.get("player_health") as PlayerHealth).call("_start_grace", 600.0)
+	await _frames(30)
+	var night := bool((level.get("_finale") as Node).call("is_running"))
+	level.call("set_drop_seed", 4402)
+	var foe := _sleeper(9000.0)
+	await _frames(2)
+	for _fall in range(300):
+		foe.died.emit(foe)
+	await _frames(2)
+	var counts := _dropped()
+	_check(night and int(counts.get("langis", 0)) == 0 and int(counts.get("asin", 0)) > 0,
+		"no lamp oil falls while the night runs", "night %s, %s" % [night, counts])
+	foe.queue_free()
+	_clear_drops()
 
 
 func _open_level() -> Node:
