@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 10
+const CHECKS := 13
 
 
 func _initialize() -> void:
@@ -30,6 +30,15 @@ func _run() -> void:
 	await _z_pours_lamp_oil()
 	await _oil_is_not_wasted_on_a_full_lamp()
 	await _the_keys_stay_with_whoever_has_them()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _walking_into_one_takes_it()
+	await _a_full_kind_leaves_it_lying()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _a_continue_does_not_find_a_taken_one()
 	level.queue_free()
 	await _frames(3)
 	if checked != CHECKS:
@@ -181,6 +190,54 @@ func _the_keys_stay_with_whoever_has_them() -> void:
 	await _frames(2)
 	_check(placing and kept == ["placing", "drawing", "the bag"],
 		"while placing, drawing or in the bag, Z is not the satchel's", "placing %s, kept for %s" % [placing, kept])
+
+
+func _pickup(pickup_name: String) -> SatchelPickup2D:
+	return level.get_node_or_null(NodePath("EnvironmentBaseplate/GameplayPlane/Pickups/" + pickup_name)) as SatchelPickup2D
+
+
+## Walks her (Shift held: the santelmo is near) from `from` for `seconds`.
+func _walk_her(from: float, seconds: float) -> void:
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(from, 596.0), "linear_velocity": Vector2.ZERO})
+	await _frames(6)
+	Input.action_press(&"walk")
+	Input.action_press(&"move_right")
+	await _frames(int(seconds * 60.0))
+	Input.action_release(&"move_right")
+	Input.action_release(&"walk")
+	await _frames(4)
+
+
+func _walking_into_one_takes_it() -> void:
+	var satchel = level.get("satchel")
+	var pickup := _pickup("Asin1")
+	await _walk_her(1000.0, 1.6)
+	var said := (level.get("hint_bar") as HintBar).current_text()
+	_check(satchel.count("asin") == 2 and (pickup == null or not is_instance_valid(pickup) or pickup.is_taken())
+			and bool(level.call("pickup_taken_this_run", "L4_P_ASIN1")) and said.begins_with("Asin -- salt. It is on Z"),
+		"walking into one takes it, and the first of a kind says its key",
+		"asin %d, said \"%s\"" % [satchel.count("asin"), said])
+
+
+func _a_full_kind_leaves_it_lying() -> void:
+	var satchel = level.get("satchel")
+	satchel.add("asin", 99)
+	var pickup := _pickup("Asin2")
+	await _walk_her(19650.0, 1.6)
+	_check(satchel.count("asin") == 12 and pickup != null and is_instance_valid(pickup) and not pickup.is_taken(),
+		"with no room for more, it stays where it lies", "asin %d, still there %s"
+			% [satchel.count("asin"), pickup != null and is_instance_valid(pickup) and not pickup.is_taken()])
+
+
+func _a_continue_does_not_find_a_taken_one() -> void:
+	level.call("note_pickup_taken", "L4_P_KANDILA1")
+	level.call("_show_taken_pickups")
+	await _frames(2)
+	var pickup := _pickup("Kandila1")
+	_check(pickup == null or not is_instance_valid(pickup) or pickup.is_queued_for_deletion(),
+		"a Continue does not find one this run already took", "kandila there %s"
+			% (pickup != null and is_instance_valid(pickup) and not pickup.is_queued_for_deletion()))
 
 
 func _open_level() -> Node:
