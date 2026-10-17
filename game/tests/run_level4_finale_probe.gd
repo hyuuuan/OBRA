@@ -13,7 +13,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 8
+const CHECKS := 10
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -32,11 +32,14 @@ func _run() -> void:
 	finale = _the_finale()
 	await _nothing_before_the_clearing()
 	await _stepping_in_begins_the_night()
+	_the_clock_comes_with_the_night()
 	await _one_falls_and_another_comes()
 	await _never_more_than_two()
 	await _a_knockout_starts_the_night_over()
 	await _morning_ends_it()
 	await _the_dark_lifts_and_she_is_through()
+	_check(not (level.get("dawn_clock") as Control).visible, "and the night's clock is gone",
+		"visible %s" % (level.get("dawn_clock") as Control).visible)
 	level.queue_free()
 	await _frames(3)
 	if checked != CHECKS:
@@ -67,6 +70,7 @@ func _nothing_before_the_clearing() -> void:
 	await _seconds(1.0)
 	_check(not finale.is_running() and finale.alive().is_empty(),
 		"short of the last clearing, nothing has begun", "running %s" % finale.is_running())
+	set_meta(&"clock_before", (level.get("dawn_clock") as Control).visible)
 
 
 func _stepping_in_begins_the_night() -> void:
@@ -81,6 +85,18 @@ func _stepping_in_begins_the_night() -> void:
 func _never_more_than_two() -> void:
 	await _seconds(3.0)
 	_check(most_alive == 2, "never more than two at once", "at most %d" % most_alive)
+
+
+## Hidden before the night, up once it begins, and following it -- a share of the night, no numbers --
+## within a tick or two: the level reads it before the night has counted its own.
+func _the_clock_comes_with_the_night() -> void:
+	var clock := level.get("dawn_clock") as DawnClockHud
+	_check(not bool(get_meta(&"clock_before", true)) and clock.visible
+			and absf(clock.progress() - finale.progress()) < 2.0 / (60.0 * DilimFinale2D.DAWN_SECONDS)
+			and clock.progress() > 0.0,
+		"the night's clock comes up with it, and follows it",
+		"before %s, now %s at %.3f of %.3f" % [get_meta(&"clock_before", true), clock.visible,
+			clock.progress(), finale.progress()])
 
 
 func _one_falls_and_another_comes() -> void:
