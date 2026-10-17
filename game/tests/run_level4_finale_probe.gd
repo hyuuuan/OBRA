@@ -13,7 +13,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 10
+const CHECKS := 11
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -74,7 +74,12 @@ func _nothing_before_the_clearing() -> void:
 
 
 func _stepping_in_begins_the_night() -> void:
+	var ink := level.get("ink_manager") as InkManager
+	ink.drain(ink.remaining() - 1.0)
+	var low := ink.remaining()
 	await _put_her_at(CLEARING_WEST + 120.0)
+	_check(low < 1.5 and is_equal_approx(ink.remaining(), ink.capacity),
+		"the last clearing's edge fills her ink", "%.1f -> %.1f" % [low, ink.remaining()])
 	await _seconds(0.5)
 	_check(finale.is_running() and finale.alive().size() == DilimFinale2D.WAVE_SIZE,
 		"stepping in begins the night, two aswang on her",
