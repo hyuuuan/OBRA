@@ -72,11 +72,15 @@ func _walking_past_the_santelmo_is_safe() -> void:
 	var flame := _flame_at(1500.0)
 	await _put_her_at(1000.0)
 	var wanted := false
+	var dimmed := false
+	var spotlight := level.get("tutorial_spotlight") as Node
 	Input.action_press(&"walk")
 	Input.action_press(&"move_right")
 	for _frame in range(60 * 9):
 		await physics_frame
 		wanted = wanted or flame.is_chasing()
+		dimmed = dimmed or bool(spotlight.call("is_open"))
+	set_meta(&"dimmed_near_flame", dimmed)
 	_release_all()
 	var past := _her_x() > 1600.0
 	_check(past and not wanted and _stage() == PlayerHealth.FULL,
@@ -91,6 +95,8 @@ func _its_flame_teaches_walking() -> void:
 	var tutorial := level.get("tutorial") as Node
 	var told := bool(tutorial.call("has_taught", "walk_past")) or bool(tutorial.call("is_coming", "walk_past"))
 	_check(told, "near a santelmo, the walk is taught", "walk_past %s" % ("shown" if told else "never offered"))
+	var dimmed := bool(get_meta(&"dimmed_near_flame", true))
+	_check(not dimmed, "and nothing dims the flame it is about", "dimmed %s" % dimmed)
 
 
 func _running_brings_it_and_it_burns() -> void:
