@@ -433,3 +433,20 @@ func _lift_curse() -> void:
 		apo.pace_scale = 1.0
 		apo.jump_scale = 1.0
 
+
+
+# --- The clearings ----------------------------------------------------------------------------
+
+const CLEARINGS := ["L4_REST1", "L4_REST2"]
+
+
+func _build_level_furniture() -> void:
+	director.obstacle_entered.connect(_on_beat_entered)
+
+
+## INK COMES BACK AT A CLEARING (Kent: "a single clearing restores both"). On arriving, before the
+## checkpoint standing in it writes, so the checkpoint keeps her full -- and so she can always draw
+## the light the clearing asks for, however dry she came in.
+func _on_beat_entered(obstacle_id: String) -> void:
+	if CLEARINGS.has(obstacle_id) and ink_manager != null:
+		ink_manager.add_ink(ink_manager.capacity)
