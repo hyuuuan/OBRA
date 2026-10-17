@@ -469,6 +469,9 @@ func _build_level_furniture() -> void:
 	quick_slots.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	quick_slots.position = Vector2(-quick_slots.size.x * 0.5, -quick_slots.size.y - QUICK_SLOTS_BOTTOM)
 	$CanvasLayer.add_child(quick_slots)
+	for node in find_children("*", "Area2D", true, false):
+		if node is SatchelPickup2D:
+			_wire_pickup(node as SatchelPickup2D)
 
 
 ## INK COMES BACK AT A CLEARING (Kent: "a single clearing restores both"). On arriving, before the
@@ -595,6 +598,51 @@ func _quick_slots_answer() -> bool:
 	if draw_panel != null and draw_panel.is_open():
 		return false
 	return not (inventory_screen != null and inventory_screen.is_open())
+
+
+## Every pickup in the woods, placed or dropped, is answered here when she walks into it. One this
+## run has already taken is not there to find.
+func _wire_pickup(pickup: SatchelPickup2D) -> void:
+	if not pickup.pickup_id.is_empty() and pickup_taken_this_run(pickup.pickup_id):
+		pickup.queue_free()
+		return
+	if not pickup.touched.is_connected(_on_pickup_touched):
+		pickup.touched.connect(_on_pickup_touched)
+
+
+## A Continue says what this run took before it: those are gone from the woods.
+func _show_taken_pickups() -> void:
+	for node in find_children("*", "Area2D", true, false):
+		var pickup := node as SatchelPickup2D
+		if pickup != null and not pickup.pickup_id.is_empty() and pickup_taken_this_run(pickup.pickup_id):
+			pickup.queue_free()
+
+
+## Into the satchel if there is room; if not it stays where it lies, for later. The first of each
+## kind she finds says what it is and which key it is on.
+func _on_pickup_touched(pickup: SatchelPickup2D) -> void:
+	var first := satchel.count(pickup.item) == 0 and not _met.has(pickup.item)
+	var took := satchel.add(pickup.item, pickup.amount)
+	if took <= 0:
+		return
+	if not pickup.pickup_id.is_empty():
+		note_pickup_taken(pickup.pickup_id)
+	pickup.take()
+	var index := satchel.slots().find(pickup.item)
+	quick_slots.flash(index)
+	if first:
+		_met[pickup.item] = true
+		var row := satchel.row(pickup.item)
+		# Named through the same lookup the prompts use, so a rebinding is named as bound. Not by
+		# with_keys: its {key:...} takes no digits, and every slot's action has one.
+		var on := " It is on %s." % ControlsKeys.key_cap_for("quick_slot_%d" % (index + 1)) \
+			if index >= 0 else ""
+		hint_bar.show_hint("%s -- %s.%s" % [row.get("display_name", pickup.item),
+			String(row.get("gloss", "")).to_lower(), on], _companion_speaker(), 4.0)
+
+
+## The kinds she has found at least once this run, for the first-find line.
+var _met: Dictionary = {}
 
 
 ## What each thing does, by its `use` in the file. False when it cannot be used here and now, so
