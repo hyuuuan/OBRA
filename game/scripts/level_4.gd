@@ -68,6 +68,15 @@ func _camera_follows_physics() -> bool:
 	return true
 
 
+## Shift walks here (the santelmo rule: it chases what runs). Set on every body of hers the level
+## makes -- at the start, and each time she changes back.
+func _instantiate_wanderer() -> Node2D:
+	var wanderer := super()
+	if wanderer != null:
+		wanderer.set(&"can_walk", true)
+	return wanderer
+
+
 ## How many times the lantern has gone out this run, so the RESPAWN pool turns over.
 var _knockouts := 0
 
