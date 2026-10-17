@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 8
+const CHECKS := 9
 var level: Node
 
 
@@ -96,8 +96,14 @@ func _sigbin() -> Sigbin2D:
 func _a_light_sends_the_sigbin_off() -> void:
 	await _stand_at(6950.0, &"move_right")
 	await _become("flashlight")
+	# Lines left up for this one read: the probe otherwise dismisses each as it comes.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
 	level.call("_use_equipped_utility")
+	await physics_frame
+	var said := String((level.get("dialogue_box") as Node).call("current_line"))
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _frames(90)
+	_check(said.begins_with("It cannot bear being seen"), "and she says what Lola knew of it", "\"%s\"" % said)
 	var director = level.get("director")
 	_check(director.call("committed_route", "L4_SIGBIN") == "artist" and director.call("is_solved", "L4_SIGBIN")
 			and _sigbin().is_gone(),
