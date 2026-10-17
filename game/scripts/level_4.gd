@@ -238,3 +238,13 @@ func _arm_player_health() -> void:
 		player_health.hit_taken.connect(func(_stage: int) -> void:
 			if tutorial != null:
 				tutorial.note("lantern_hit"))
+
+
+## PUT BACK, THE WOODS ARE PUT BACK TOO. A restore -- a knockout, a fall, a Continue -- goes to a
+## moment before whatever is after her now, so everything in the encounters' group goes back the
+## way it was then: a santelmo home, an aswang where it waited, at full strength. Before any
+## checkpoint is written as well, when the moment is the start.
+func _restore_checkpoint() -> String:
+	var restored := super()
+	get_tree().call_group(Enemy2D.GROUP, &"reset_for_restore")
+	return restored
