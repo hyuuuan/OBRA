@@ -141,6 +141,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 			_darkness_at(anchor_position.x), DARKNESS_EASE * get_physics_process_delta_time())
 	_note_lesson_moments()
 	_hold_the_drain(get_physics_process_delta_time())
+	_watch_her_back(get_physics_process_delta_time())
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
@@ -288,6 +289,9 @@ var _mound: NunoMound2D
 
 
 func _resolve_level_nodes() -> void:
+	_sigbin = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Sigbin") as Sigbin2D
+	if _sigbin != null:
+		_sigbin.died.connect(_on_sigbin_driven_off)
 	_mound = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Hazards/NunoMound") as NunoMound2D
 	_finale = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Finale") as DilimFinale2D
 	if _finale != null:
@@ -343,6 +347,8 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 		_flower_from_the_mound()
 	if CLEARINGS.has(obstacle_id):
 		_rest_by_the_fire()
+	if obstacle_id == "L4_SIGBIN" and route == "artist" and _sigbin != null:
+		_sigbin.flee()
 	return false
 
 
@@ -831,4 +837,60 @@ func _hold_the_drain(delta: float) -> void:
 	if morph_card != null:
 		morph_card.set_meter_caption("INK")
 		morph_card.set_drain(ink_manager.remaining(), ink_manager.capacity)
+
+
+# --- The sigbin ---------------------------------------------------------------------------------
+
+## Kent's design: "keep your back to a wall or a rock face so it cannot get behind you." Five
+## seconds with her back to a surface -- within WALL_GAP of it, facing away -- while it hunts her,
+## and it gives up. Shown a light (a drawing with LIGHT, in its beat), it flees. Struck down, it is
+## driven off. Each is the route that was taken.
+const WALL_SECONDS := 5.0
+const WALL_GAP := 28.0
+
+var _sigbin: Sigbin2D
+var _back_to_wall := 0.0
+
+
+func _watch_her_back(delta: float) -> void:
+	if _sigbin == null or _sigbin.is_gone() or director.is_solved("L4_SIGBIN") \
+			or _sigbin.state_name() == "IDLE" or not _her_back_is_to_a_surface():
+		_back_to_wall = 0.0
+		return
+	_back_to_wall += delta
+	if _back_to_wall >= WALL_SECONDS:
+		_sigbin.flee()
+		_answer("L4_SIGBIN", "pragmatist")
+
+
+## A surface right behind her: a ray from her middle, back the way she is not facing.
+func _her_back_is_to_a_surface() -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	var facing: Variant = player.get(&"_facing")
+	var back := -signf(float(facing)) if facing != null and float(facing) != 0.0 else -1.0
+	var middle := PlayerHurtbox2D.middle_of(player)
+	var reach := PlayerHurtbox2D.SIZE.x * 0.5 + WALL_GAP
+	var ray := PhysicsRayQueryParameters2D.create(middle, middle + Vector2(back * reach, 0.0),
+		PhysicsLayers.WORLD)
+	if player is CollisionObject2D:
+		ray.exclude = [(player as CollisionObject2D).get_rid()]
+	return not get_world_2d().direct_space_state.intersect_ray(ray).is_empty()
+
+
+func _on_sigbin_driven_off(_foe: Enemy2D) -> void:
+	_answer("L4_SIGBIN", "protector")
+
+
+## A route given by what she did: committed if nothing was yet, and answered with its own deed.
+func _answer(obstacle_id: String, route: String) -> void:
+	if director == null or director.is_solved(obstacle_id):
+		return
+	if director.committed_route(obstacle_id).is_empty():
+		director.commit_route(obstacle_id, route)
+	if director.committed_route(obstacle_id) != route:
+		return
+	var spec: Dictionary = (director.obstacle(obstacle_id).get("routes", {}) as Dictionary).get(route, {})
+	var deed := String(spec.get("answered_by", (spec.get("then", {}) as Dictionary).get("answered_by", route)))
+	director.solve_with_item(obstacle_id, deed)
 
