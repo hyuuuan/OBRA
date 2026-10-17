@@ -464,10 +464,16 @@ func _build_level_furniture() -> void:
 
 ## INK COMES BACK AT A CLEARING (Kent: "a single clearing restores both"). On arriving, before the
 ## checkpoint standing in it writes, so the checkpoint keeps her full -- and so she can always draw
-## the light the clearing asks for, however dry she came in.
+## the light the clearing asks for, however dry she came in. Where is level_04.json's to say.
 func _on_beat_entered(obstacle_id: String) -> void:
-	if CLEARINGS.has(obstacle_id) and ink_manager != null:
+	if _refills_at(obstacle_id) and ink_manager != null:
 		ink_manager.add_ink(ink_manager.capacity)
+
+
+## Whether the level file names this beat or checkpoint as a place her ink is filled.
+func _refills_at(place: String) -> bool:
+	var economy: Dictionary = director.level_data().get("ink_economy", {}) if director != null else {}
+	return (economy.get("refilled_at", []) as Array).has(place)
 
 
 ## RUNNING DRY IS NOT A LOSS HERE. Every drawing costs, so it will happen, and the way on is still
