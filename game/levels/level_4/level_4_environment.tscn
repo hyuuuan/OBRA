@@ -9,6 +9,9 @@
 [ext_resource type="Script" path="res://scripts/makiling_backdrop_2d.gd" id="7_backdrop"]
 [ext_resource type="Script" path="res://scripts/makiling_terrain_2d.gd" id="8_terrain"]
 [ext_resource type="Texture2D" path="res://assets/Level4/tiles/leaf.png" id="9_leaf"]
+[ext_resource type="Script" path="res://scripts/santelmo_2d.gd" id="10_santelmo"]
+[ext_resource type="Script" path="res://scripts/nuno_mound_2d.gd" id="11_mound"]
+[ext_resource type="Script" path="res://scripts/dilim_finale_2d.gd" id="12_finale"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -167,15 +170,38 @@ position = Vector2(20500.0, 600.0)
 [node name="FinaleMark" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(21900.0, 600.0)
 
+; What is in the woods that is not an encounter: a hazard has no route and no beat.
+[node name="Hazards" type="Node2D" parent="GameplayPlane"]
+
+; The edge of the woods' santelmo, at her middle's height, before the mound -- the first thing
+; that wants her, and the place she learns to walk rather than run.
+[node name="Santelmo" type="Node2D" parent="GameplayPlane/Hazards"]
+position = Vector2(1700.0, 530.0)
+script = ExtResource("10_santelmo")
+
+; The nuno's mound, on the ground at its mark. Jumped clean, or stood on and cursed.
+[node name="NunoMound" type="StaticBody2D" parent="GameplayPlane/Hazards"]
+position = Vector2(3400.0, 600.0)
+script = ExtResource("11_mound")
+
+; The last clearing's night, at its middle on the ground: it begins when she is past the
+; clearing's west edge (its beat's), and its aswang come from either side of here.
+[node name="Finale" type="Node2D" parent="GameplayPlane"]
+position = Vector2(21900.0, 600.0)
+script = ExtResource("12_finale")
+arena_west = 21400.0
+
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 
 ; Each beat's ground, from the canopy to just under her feet. None plants a commit flag: Dilim's
 ; checkpoints are the clearings, walked into.
+; Its "?" board stands where she stops to ask, west of the mound -- not on the crown.
 [node name="L4_NUNO" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(3400.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_NUNO"
 trigger_size = Vector2(1200.0, 460.0)
+hint_sign_offset = -280.0
 plants_commit_mark = false
 
 [node name="L4_REST1" type="Area2D" parent="GameplayPlane/Obstacles"]
