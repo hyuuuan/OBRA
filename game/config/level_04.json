@@ -92,11 +92,11 @@
       "type": "dialogue_node",
       "display_name": "Ang Kapre",
       "routes": {
-        "artist": {"required_tags": ["weather"], "exclude": ["bucket"],
-                   "$comment": "Blow its smoke away."},
-        "pragmatist": {"required_tags": ["cut"], "exclude": ["scissors", "elephant"],
-                       "$comment": "Cut the tree it sits in a path through."},
-        "protector": {"required_tags": ["strike"], "exclude": ["axe", "sword", "anvil", "circle"],
+        "artist": {"required_tags": ["weather"], "exclude": ["bucket"], "then": {"answered_by": "smoke_cleared"},
+                   "$comment": "Blow its smoke away: the fan drawn is the choice, held up to the smoke the answer."},
+        "pragmatist": {"required_tags": ["cut"], "exclude": ["scissors", "elephant"], "then": {"answered_by": "tree_felled"},
+                       "$comment": "Cut the tree it sits in: the blade drawn is the choice, three chops the answer."},
+        "protector": {"required_tags": ["strike"], "exclude": ["axe", "sword", "anvil", "circle"], "then": {"answered_by": "cigar_knocked"},
                       "$comment": "Knock the cigar out of its hand, 260 px up: only what leaves the hand reaches."}
       }
     },
