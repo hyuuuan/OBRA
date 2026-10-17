@@ -327,6 +327,11 @@ func _audit_no_line_is_unreachable(level: Dictionary, dialogue: Dictionary) -> v
 		var id := String(obstacle.get("id", "?"))
 		for suffix in ["enter", "teach", "choice", "solved", "warn"]:
 			reachable["%s.%s" % [id, suffix]] = true
+		# A clearing's sub-beat: "<id>.<stage>" on entering it, "<id>.<stage>.solved" when it lands.
+		for beat_value: Variant in obstacle.get("sub_beats", []):
+			var beat := String((beat_value as Dictionary).get("id", "?"))
+			reachable["%s.%s" % [id, beat]] = true
+			reachable["%s.%s.solved" % [id, beat]] = true
 		for route_value: Variant in (obstacle.get("routes", {}) as Dictionary).keys():
 			for suffix in ["commit", "solved", "warn", "failed", "retry"]:
 				reachable["%s.%s.%s" % [id, route_value, suffix]] = true
