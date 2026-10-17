@@ -96,6 +96,7 @@ func _run() -> void:
 	_audit_checkpoints_in_their_clearings(level, scene)
 	_audit_canopy_over_every_beat(level, scene)
 	_audit_santelmo_before_the_mound(scene)
+	_audit_the_night_is_in_the_last_clearing(scene)
 	_audit_level_goes_alone(scene)
 	_audit_fighting_hooks_on(scene)
 	_audit_dark_by_zone(level, scene)
@@ -501,6 +502,23 @@ func _audit_santelmo_before_the_mound(scene: Node) -> void:
 		ahead = ahead or (at.x > start and at.x < mound_west and reaches)
 	_check(ahead, "a santelmo waits before the mound, within her reach",
 		"at %s; the mound from %.0f" % [", ".join(placed), mound_west])
+
+
+## One night, standing in the finale's beat and beginning exactly at its west edge -- where CP3
+## puts her back -- so a knockout there starts it over and nothing short of it does.
+func _audit_the_night_is_in_the_last_clearing(scene: Node) -> void:
+	var span: Vector2 = (scene.call("_beat_spans") as Dictionary).get("L4_FINALE", Vector2.ZERO)
+	var nights: Array[String] = []
+	var right := false
+	for node in scene.find_children("*", "Node2D", true, false):
+		var night := node as DilimFinale2D
+		if night == null:
+			continue
+		var x := night.global_position.x
+		nights.append("%.0f from %.0f" % [x, night.arena_west])
+		right = x > span.x and x < span.y and is_equal_approx(night.arena_west, span.x)
+	_check(nights.size() == 1 and right, "the night stands in the last clearing, from its edge",
+		"%s; the clearing %.0f..%.0f" % [", ".join(nights), span.x, span.y])
 
 
 func _audit_level_goes_alone(scene: Node) -> void:
