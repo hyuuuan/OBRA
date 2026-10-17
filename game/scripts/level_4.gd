@@ -138,6 +138,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	if darkness_layer != null:
 		darkness_layer.darkness = move_toward(darkness_layer.darkness,
 			_darkness_at(anchor_position.x), DARKNESS_EASE * get_physics_process_delta_time())
+	_note_lesson_moments()
 
 
 ## Each beat's ground, west edge to east edge in world x, by obstacle id: read off the scene's
@@ -211,3 +212,29 @@ func _next_mark_east(x: float) -> Variant:
 				and (best == null or (at as Vector2).x < (best as Vector2).x):
 			best = at
 	return best
+
+
+## Uses left at which a weapon counts as nearly worn out: the lesson about drawing another comes
+## before it is gone, not after.
+const WEARING_AT := 2
+
+
+## THE MOMENTS DILIM'S LESSONS WAIT FOR (tutorial.json, level_4): a weapon in her hand and one
+## nearly worn out, polled -- nothing signals either -- and the first hit to the lantern, below.
+## The lesson director spends each once.
+func _note_lesson_moments() -> void:
+	if tutorial == null or not _holding_a_weapon():
+		return
+	tutorial.note("weapon_in_hand")
+	var item := _equipped_utility.item_data
+	if item != null and int(item.runtime_state.get("uses_total", 0)) > 0 \
+			and int(item.runtime_state.get("uses_left", WEARING_AT + 1)) <= WEARING_AT:
+		tutorial.note("weapon_wearing")
+
+
+func _arm_player_health() -> void:
+	super()
+	if player_health != null:
+		player_health.hit_taken.connect(func(_stage: int) -> void:
+			if tutorial != null:
+				tutorial.note("lantern_hit"))
