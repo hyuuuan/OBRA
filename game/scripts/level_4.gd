@@ -219,17 +219,33 @@ func _next_mark_east(x: float) -> Variant:
 const WEARING_AT := 2
 
 
-## THE MOMENTS DILIM'S LESSONS WAIT FOR (tutorial.json, level_4): a weapon in her hand and one
-## nearly worn out, polled -- nothing signals either -- and the first hit to the lantern, below.
-## The lesson director spends each once.
+## THE MOMENTS DILIM'S LESSONS WAIT FOR (tutorial.json, level_4): a santelmo that can see her, a
+## weapon in her hand and one nearly worn out, polled -- nothing signals any of them -- and the
+## first hit to the lantern, below. The lesson director spends each once.
 func _note_lesson_moments() -> void:
-	if tutorial == null or not _holding_a_weapon():
+	if tutorial == null:
+		return
+	if _a_santelmo_sees_her():
+		tutorial.note("santelmo_near")
+	if not _holding_a_weapon():
 		return
 	tutorial.note("weapon_in_hand")
 	var item := _equipped_utility.item_data
 	if item != null and int(item.runtime_state.get("uses_total", 0)) > 0 \
 			and int(item.runtime_state.get("uses_left", WEARING_AT + 1)) <= WEARING_AT:
 		tutorial.note("weapon_wearing")
+
+
+## A burning santelmo close enough that running now would bring it.
+func _a_santelmo_sees_her() -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	for node in get_tree().get_nodes_in_group(Enemy2D.GROUP):
+		var flame := node as Santelmo2D
+		if flame != null and not flame.is_out() \
+				and flame.global_position.distance_to(player.global_position) <= Santelmo2D.SIGHT:
+			return true
+	return false
 
 
 func _arm_player_health() -> void:
