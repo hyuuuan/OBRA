@@ -1,0 +1,168 @@
+{
+  "$comment": [
+    "LEVEL 4 -- DILIM. The dark forest on Mt. Makiling. The design record is LEVEL_4.md; the",
+    "decisions in it are Kent's (2026-10-15/16) and are not re-litigated here.",
+    "",
+    "WHAT IS DIFFERENT FROM LEVELS 1-3, and where each lives:",
+    "- the apo goes alone (no Lolo) and every line is hers -- level_4.gd's hooks, dialogue_l4.json;",
+    "- the lantern is her health, and the woods are dark -- _has_player_health, _darkness;",
+    "- every encounter is answered BY WHAT SHE DOES: drawing the route's tag, doing the route's",
+    "  deed (a route that is `answered_by` a deed asks for no drawing at all, as Piyesta's dance), or",
+    "  fighting. There is no choice popup; the first answer given is the route taken;",
+    "- the ending gets ONE point from Dilim, its majority route (`tally`) -- level_director.gd."
+  ],
+  "schema_version": 1,
+  "level_id": "level_4",
+  "design_level_id": "L4_DILIM",
+  "display_name": "Dilim",
+  "display_name_note": "Tagalog: darkness. Where Lolo cannot follow.",
+  "order": 4,
+  "goal": "Cross the dark forest on Mt. Makiling and last until morning.",
+  "unlocks_on_complete": "L5_MAYON",
+  "unlocks_at_checkpoint": null,
+  "tally": "majority",
+  "tags_unlocked": [
+    {"tag": "hoof", "at": "L4_TIKBALANG.dialogue"},
+    {"tag": "beast", "at": "L4_TIKBALANG.dialogue"},
+    {"tag": "absurd", "at": "L4_BUNGISNGIS.dialogue"}
+  ],
+  "checkpoints": [
+    {"id": "CP1", "at": "L4_REST1", "trigger": "area",
+     "$comment": "The first rest clearing: the lantern and the ink refilled, a curse lifted."},
+    {"id": "CP2", "at": "L4_REST2", "trigger": "area"},
+    {"id": "CP3", "at": "L4_FINALE", "trigger": "area",
+     "$comment": "The last clearing's edge. A knockout in the finale puts her here with the waves and the clock reset."}
+  ],
+  "restrictions": {},
+  "ink_economy": {
+    "$comment": "Every weapon or light drawn costs a unit (_every_drawing_costs_ink); a creature form drains 0.25 a second. Rest clearings and CP3 refill; two jars stand before the kapre and the bungisngis.",
+    "capacity": 6,
+    "creature_drain_per_second": 0.25,
+    "refilled_at": ["L4_REST1", "L4_REST2", "CP3"],
+    "jars_before": ["L4_KAPRE", "L4_BUNGISNGIS"]
+  },
+  "objectives": {
+    "$comment": "In her own voice, short enough for the banner (720 px).",
+    "edge": "Lola said: ask before you pass.",
+    "woods": "Get through the woods. Keep the light lit.",
+    "rest": "Rest by the fire while it lasts.",
+    "dawn": "Last until morning."
+  },
+  "obstacles": [
+    {
+      "id": "L4_NUNO",
+      "type": "dialogue_node",
+      "display_name": "Ang Punso",
+      "routes": {
+        "artist": {"answered_by": "said_tabi_tabi_po",
+                   "reward": "flower_4", "$comment": "Stop beside the mound and ask to pass; cross without touching its crown. The flower rises."},
+        "pragmatist": {"answered_by": "crossed_clean",
+                       "$comment": "Cross without touching the crown, and without asking."}
+      },
+      "$comment": "No protector route: the nuno has no hurtbox. Touching the crown curses her (slower, lower jumps, the lantern down a stage) and answers nothing."
+    },
+    {"id": "L4_REST1", "type": "tutorial", "dialogue_node": false, "fail_state": false},
+    {
+      "id": "L4_SIGBIN",
+      "type": "dialogue_node",
+      "display_name": "Ang Sigbin",
+      "routes": {
+        "artist": {"required_tags": ["light"], "$comment": "Show it the light; it flees."},
+        "pragmatist": {"answered_by": "back_to_a_wall",
+                       "$comment": "Stand with her back to a surface for five seconds: it hunts from behind."},
+        "protector": {"required_tags": ["strike"]}
+      }
+    },
+    {
+      "id": "L4_TIKBALANG",
+      "type": "dialogue_node",
+      "display_name": "Ang Tikbalang",
+      "routes": {
+        "artist": {"required_tags": ["hoof"], "$comment": "A body with hooves: it takes her for one of its own."},
+        "pragmatist": {"required_tags": ["beast"], "$comment": "Any animal body: become something it does not chase."},
+        "protector": {"answered_by": "won_the_race",
+                      "$comment": "Race it to the landmark rock and win (it runs 245, she 260)."}
+      }
+    },
+    {
+      "id": "L4_KAPRE",
+      "type": "dialogue_node",
+      "display_name": "Ang Kapre",
+      "routes": {
+        "artist": {"required_tags": ["weather"], "exclude": ["bucket"],
+                   "$comment": "Blow its smoke away."},
+        "pragmatist": {"required_tags": ["cut"], "exclude": ["scissors", "elephant"],
+                       "$comment": "Cut the tree it sits in a path through."},
+        "protector": {"required_tags": ["strike"], "exclude": ["axe", "sword", "anvil", "circle"],
+                      "$comment": "Knock the cigar out of its hand, 260 px up: only what leaves the hand reaches."}
+      }
+    },
+    {"id": "L4_REST2", "type": "tutorial", "dialogue_node": false, "fail_state": false},
+    {
+      "id": "L4_TIYANAK",
+      "type": "dialogue_node",
+      "display_name": "Ang Tiyanak",
+      "routes": {
+        "artist": {"required_tags": ["light"], "$comment": "Light shows it for what it is; it flees."},
+        "pragmatist": {"answered_by": "kept_clear",
+                       "$comment": "Reach the far marker without going toward the cry."},
+        "protector": {"required_tags": ["strike"]}
+      }
+    },
+    {
+      "id": "L4_BUNGISNGIS",
+      "type": "dialogue_node",
+      "display_name": "Ang Bungisngis",
+      "routes": {
+        "artist": {"required_tags": ["absurd"], "$comment": "Something with no business on a mountain: it laughs itself out of the way."},
+        "pragmatist": {"required_tags": ["span", "climb"], "match": "any",
+                       "exclude": ["fish", "shark", "octopus", "sailboat", "submarine"],
+                       "$comment": "Over the ravine, or up the high path."},
+        "protector": {"required_tags": ["strike"]}
+      }
+    },
+    {
+      "id": "L4_MANANANGGAL",
+      "type": "dialogue_node",
+      "display_name": "Ang Manananggal",
+      "routes": {
+        "artist": {"required_tags": ["light"], "$comment": "Light on the lower half, or the sun."},
+        "pragmatist": {"answered_by": "salted",
+                       "$comment": "Salt on the lower half while the upper is away."},
+        "protector": {"required_tags": ["strike"]}
+      }
+    },
+    {
+      "id": "L4_FINALE",
+      "type": "finale",
+      "dialogue_node": false,
+      "fail_state": false,
+      "answered_by": "dawn",
+      "$comment": "Survive until dawn: three waves on a clock, and the sun ends it."
+    }
+  ],
+  "hidden_flowers": [
+    {"id": "L4_HF", "at": "L4_NUNO", "awarded_by": "artist", "not_a_fail_state": true,
+     "$comment": "For the one who stopped and asked to pass."}
+  ],
+  "recognition": {
+    "confidence_threshold": 0.6,
+    "margin_threshold": 0.15,
+    "decline_costs_ink": false,
+    "decline_message_source": "dialogue"
+  },
+  "lighting_states": [
+    {"id": "dusk_edge", "from": "L4_NUNO", "to": "L4_REST1", "darkness": 0.80},
+    {"id": "deep_woods", "from": "L4_REST1", "to": "L4_REST2", "darkness": 0.94},
+    {"id": "far_woods", "from": "L4_REST2", "to": "L4_FINALE", "darkness": 0.88},
+    {"id": "last_clearing", "from": "L4_FINALE", "to": "L4_FINALE", "darkness": 0.92}
+  ],
+  "load_time_assertions": [
+    "every route with required_tags resolves >= 2 classes after exclusions (BR-7: held-out recall >= 0.70)",
+    "every encounter has a route that is not a fight",
+    "an ink jar or an ink-free route stands before every encounter that needs a drawing",
+    "the canopy covers every segment",
+    "the nuno has no hurtbox and no protector route; the tiyanak drops nothing",
+    "no story line is spoken mid-encounter"
+  ]
+}

@@ -29,7 +29,7 @@ const ROUTES := ["artist", "pragmatist", "protector"]
 ## The Hidden Flowers, one per level, by the collectible id each level records. Spelled as the
 ## saves already hold them, so they stay inconsistent rather than orphan a found flower. A
 ## level that adds a flower adds its id here, or the flower counts for nothing.
-const FLOWER_IDS := ["flower_1", "L2_HF", "L3_HF"]
+const FLOWER_IDS := ["flower_1", "L2_HF", "L3_HF", "L4_HF"]
 
 ## Every setting the player can change, with its default. Nothing outside this list
 ## is storable: a typo must not quietly grow the save, because each key written here

@@ -43,6 +43,8 @@ var _heard: Dictionary = {}        # hook -> true, for beats that play themselve
 var _spoken := 0                   # lines handed out, ever. See lines_spoken().
 var _flags: Dictionary = {}        # narrative flags, e.g. knows_about_key
 var _level_id := ""
+## The file's own `speaker_default` -- who says a line that does not name its speaker.
+var _speaker_default := DEFAULT_SPEAKER
 var _conversations: Dictionary = {}
 var _returns: Array = []
 
@@ -63,6 +65,9 @@ func load_from(path: String) -> bool:
 		return false
 	var doc := parsed as Dictionary
 	_level_id = String(doc.get("level_id", ""))
+	# It was in every level's file and never read: a level whose lines are all the apo's own would
+	# have had each unmarked one put in Lolo's mouth.
+	_speaker_default = String(doc.get("speaker_default", DEFAULT_SPEAKER))
 	_conversations = (doc.get("conversations", {}) as Dictionary).duplicate(true) 		if doc.get("conversations", {}) is Dictionary else {}
 	_returns = (doc.get("returns", []) as Array).duplicate(true) 		if doc.get("returns", []) is Array else []
 	for line_value: Variant in doc.get("lines", []):
@@ -204,7 +209,7 @@ func kind_of(line: Dictionary) -> String:
 
 
 func speaker_of(line: Dictionary) -> String:
-	return String(line.get("speaker", DEFAULT_SPEAKER))
+	return String(line.get("speaker", _speaker_default))
 
 
 ## The line as the player should SEE it.

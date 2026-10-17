@@ -3,19 +3,16 @@
   "generated_by": "tools/build_tags.py",
   "note": "Ability tags. Obstacles declare a TAG and the loader resolves satisfying CLASSES at load time; no obstacle names a class. This grouping is a DESIGN artifact and is not ConceptNet output -- abilities.json gives each class one verb, and the tags deliberately cut across those verbs. Per-membership provenance below says which is which. Regenerate with tools/build_tags.py.",
   "provenance_summary": {
-    "memberships_total": 64,
+    "memberships_total": 91,
     "conceptnet_aligned": 17,
-    "design_authored": 47,
-    "statement": "17 of 64 tag memberships reuse the class's own ConceptNet verb; the remaining 47 are design groupings. Do not describe the tag layer as ConceptNet-derived."
+    "design_authored": 74,
+    "statement": "17 of 91 tag memberships reuse the class's own ConceptNet verb; the remaining 74 are design groupings. Do not describe the tag layer as ConceptNet-derived."
   },
   "unhintable_classes": {
     "classes": [
-      "bird",
       "clock",
       "hot_air_balloon",
       "parachute",
-      "sailboat",
-      "submarine",
       "umbrella"
     ],
     "note": "In the roster and drawable, but carrying no tag yet, so no obstacle can ask for them. Most are waiting on the tags listed in held_tags_still_empty, which later levels populate -- Swim and Light arrived with Level 3 and took fish, sea_turtle, flashlight and campfire off this list, which is what filling a held tag looks like. NOTE that Fly is NOT one of those: Level 2 restricts flight rather than granting it, so bird, parachute, umbrella and hot_air_balloon stay unhintable until a level asks to fly. sailboat and submarine are a different case again -- they are required_medium water and Dagat uses them, but the boat is FOUND rather than drawn, so no obstacle asks for either. Build spec 12.2 names clock and snail as the residue that no planned tag covers; that claim is about the END state, so re-read this list once the held tags are filled in.",
@@ -447,6 +444,165 @@
           "provenance": "design_authored",
           "source_ability": "warm",
           "note": "ConceptNet grounds campfire as 'warm'; membership in 'light' is a design grouping, not a ConceptNet assertion."
+        }
+      }
+    },
+    "hoof": {
+      "display_name": "Hoof",
+      "gloss": "sure-footed, on hooves",
+      "unlocked_in_level": 4,
+      "declared_only": false,
+      "classes": {
+        "horse": {
+          "provenance": "design_authored",
+          "source_ability": "gallop",
+          "note": "ConceptNet grounds horse as 'gallop'; membership in 'hoof' is a design grouping, not a ConceptNet assertion."
+        },
+        "pig": {
+          "provenance": "design_authored",
+          "source_ability": "dig",
+          "note": "ConceptNet grounds pig as 'dig'; membership in 'hoof' is a design grouping, not a ConceptNet assertion."
+        }
+      }
+    },
+    "beast": {
+      "display_name": "Beast",
+      "gloss": "a living body you can become",
+      "unlocked_in_level": 4,
+      "declared_only": false,
+      "classes": {
+        "ant": {
+          "provenance": "design_authored",
+          "source_ability": "carry",
+          "note": "ConceptNet grounds ant as 'carry'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "bat": {
+          "provenance": "design_authored",
+          "source_ability": "fly",
+          "note": "ConceptNet grounds bat as 'fly'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "bee": {
+          "provenance": "design_authored",
+          "source_ability": "pollinate",
+          "note": "ConceptNet grounds bee as 'pollinate'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "bird": {
+          "provenance": "design_authored",
+          "source_ability": "fly",
+          "note": "ConceptNet grounds bird as 'fly'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "butterfly": {
+          "provenance": "design_authored",
+          "source_ability": "fly",
+          "note": "ConceptNet grounds butterfly as 'fly'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "crab": {
+          "provenance": "design_authored",
+          "source_ability": "pinch",
+          "note": "ConceptNet grounds crab as 'pinch'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "elephant": {
+          "provenance": "design_authored",
+          "source_ability": "stomp",
+          "note": "ConceptNet grounds elephant as 'stomp'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "fish": {
+          "provenance": "design_authored",
+          "source_ability": "swim",
+          "note": "ConceptNet grounds fish as 'swim'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "frog": {
+          "provenance": "design_authored",
+          "source_ability": "jump",
+          "note": "ConceptNet grounds frog as 'jump'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "horse": {
+          "provenance": "design_authored",
+          "source_ability": "gallop",
+          "note": "ConceptNet grounds horse as 'gallop'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "monkey": {
+          "provenance": "design_authored",
+          "source_ability": "climb",
+          "note": "ConceptNet grounds monkey as 'climb'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "octopus": {
+          "provenance": "design_authored",
+          "source_ability": "swim",
+          "note": "ConceptNet grounds octopus as 'swim'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "penguin": {
+          "provenance": "design_authored",
+          "source_ability": "slide",
+          "note": "ConceptNet grounds penguin as 'slide'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "pig": {
+          "provenance": "design_authored",
+          "source_ability": "dig",
+          "note": "ConceptNet grounds pig as 'dig'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "scorpion": {
+          "provenance": "design_authored",
+          "source_ability": "sting",
+          "note": "ConceptNet grounds scorpion as 'sting'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "sea_turtle": {
+          "provenance": "design_authored",
+          "source_ability": "swim",
+          "note": "ConceptNet grounds sea_turtle as 'swim'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "shark": {
+          "provenance": "design_authored",
+          "source_ability": "swim",
+          "note": "ConceptNet grounds shark as 'swim'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "snail": {
+          "provenance": "design_authored",
+          "source_ability": "crawl",
+          "note": "ConceptNet grounds snail as 'crawl'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "snake": {
+          "provenance": "design_authored",
+          "source_ability": "slither",
+          "note": "ConceptNet grounds snake as 'slither'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        },
+        "spider": {
+          "provenance": "design_authored",
+          "source_ability": "climb",
+          "note": "ConceptNet grounds spider as 'climb'; membership in 'beast' is a design grouping, not a ConceptNet assertion."
+        }
+      }
+    },
+    "absurd": {
+      "display_name": "Absurd",
+      "gloss": "so out of place on a mountain that it is funny",
+      "unlocked_in_level": 4,
+      "declared_only": false,
+      "classes": {
+        "fish": {
+          "provenance": "design_authored",
+          "source_ability": "swim",
+          "note": "ConceptNet grounds fish as 'swim'; membership in 'absurd' is a design grouping, not a ConceptNet assertion."
+        },
+        "shark": {
+          "provenance": "design_authored",
+          "source_ability": "swim",
+          "note": "ConceptNet grounds shark as 'swim'; membership in 'absurd' is a design grouping, not a ConceptNet assertion."
+        },
+        "octopus": {
+          "provenance": "design_authored",
+          "source_ability": "swim",
+          "note": "ConceptNet grounds octopus as 'swim'; membership in 'absurd' is a design grouping, not a ConceptNet assertion."
+        },
+        "sailboat": {
+          "provenance": "design_authored",
+          "source_ability": "sail",
+          "note": "ConceptNet grounds sailboat as 'sail'; membership in 'absurd' is a design grouping, not a ConceptNet assertion."
+        },
+        "submarine": {
+          "provenance": "design_authored",
+          "source_ability": "dive",
+          "note": "ConceptNet grounds submarine as 'dive'; membership in 'absurd' is a design grouping, not a ConceptNet assertion."
         }
       }
     },
