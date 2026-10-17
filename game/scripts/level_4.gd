@@ -697,8 +697,22 @@ func _use_from_satchel(id: String) -> bool:
 	match String(item.get("use", "")):
 		"oil":
 			return _pour_oil(int(item.get("stages", 2)))
+		"candle":
+			return _set_down_a_candle(float(item.get("radius", 220.0)), float(item.get("seconds", 45.0)))
 		_:
 			return false
+
+
+## KANDILA: lit and set down at her feet, a light that costs no ink.
+func _set_down_a_candle(radius: float, seconds: float) -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	var candle := CandleFlame2D.new()
+	candle.radius = radius
+	candle.seconds = seconds
+	candle.position = player.global_position
+	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(candle)
+	return true
 
 
 ## LANGIS: stages back into the lantern. Not when it is already full -- that would only waste it.
