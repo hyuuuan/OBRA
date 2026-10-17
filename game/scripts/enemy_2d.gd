@@ -25,6 +25,8 @@ enum State { IDLE, CHASE, WINDUP, ATTACK, RECOVER, STUN, DEAD }
 
 ## Every encounter a checkpoint restore must put back the way it was.
 const GROUP := &"dilim_encounters"
+## Anything it will not cross while it hunts by smell. Each answers `reach()`, a radius.
+const WARDS := &"scent_wards"
 const CONFIG := "res://config/enemies.json"
 ## A blow takes it out of whatever it was doing for this long, windup included.
 const STUN_SECONDS := 0.3
@@ -43,6 +45,9 @@ const ANIM_FOR := {
 }
 
 @export var kind := "aswang_dog"
+## Whether it hunts by smell -- and so will not cross a ward of bawang (Kent's design: "anything
+## that hunts by smell will not cross it"). Every aswang does.
+@export var hunts_by_smell := true
 ## Beyond this distance from her it does nothing at all: no thinking, no moving.
 @export var sleep_beyond := 1400.0
 
@@ -136,6 +141,7 @@ func _physics_process(delta: float) -> void:
 				_enter(State.CHASE)
 	_move(delta, to_prey)
 	move_and_slide()
+	_keep_out_of_wards()
 
 
 ## A weapon's blow. Damage is the weapon's row for this level; anything that is not a weapon
@@ -158,6 +164,25 @@ func apply_tool_hit(tool: String, _impulse: float, actor: Node2D) -> bool:
 		_enter(State.STUN)
 		_state_left = STUN_SECONDS
 	return true
+
+
+## Back out to the edge of any ward it has come into, across, never up: a walker stays on its
+## ground. Whatever it was doing toward the ward's middle stops there.
+func _keep_out_of_wards() -> void:
+	if not hunts_by_smell:
+		return
+	for node in get_tree().get_nodes_in_group(WARDS):
+		var ward := node as Node2D
+		if ward == null or not ward.has_method("reach"):
+			continue
+		var reach := float(ward.call("reach"))
+		var away := global_position - ward.global_position
+		if away.length() >= reach or absf(away.y) >= reach:
+			continue
+		var side := signf(away.x) if away.x != 0.0 else -_facing
+		global_position.x = ward.global_position.x + side * sqrt(reach * reach - away.y * away.y)
+		if signf(velocity.x) == -side:
+			velocity.x = 0.0
 
 
 ## Put back the way it was before the fight -- the checkpoint the level restored is from then.
