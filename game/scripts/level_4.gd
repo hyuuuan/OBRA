@@ -470,6 +470,14 @@ func _on_beat_entered(obstacle_id: String) -> void:
 		ink_manager.add_ink(ink_manager.capacity)
 
 
+## And at a checkpoint the file names -- the last clearing's edge -- before it writes, so every try
+## at the night starts full.
+func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
+	if _refills_at(checkpoint_id) and ink_manager != null:
+		ink_manager.add_ink(ink_manager.capacity)
+	super(checkpoint_id)
+
+
 ## Whether the level file names this beat or checkpoint as a place her ink is filled.
 func _refills_at(place: String) -> bool:
 	var economy: Dictionary = director.level_data().get("ink_economy", {}) if director != null else {}
