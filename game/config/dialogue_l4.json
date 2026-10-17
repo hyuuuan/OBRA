@@ -76,6 +76,13 @@
       "text": "Lola said when the lamp goes out, you go back to where it was last lit."
     },
     {
+      "id": "L4_IK_001",
+      "at": "INK.empty",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "No more ink. The next clearing will give it back."
+    },
+    {
       "id": "L4_NU_001",
       "at": "L4_NUNO.enter",
       "speaker": "apo",
