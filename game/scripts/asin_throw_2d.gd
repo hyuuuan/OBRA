@@ -3,14 +3,17 @@ extends Node2D
 ## A handful of asin, thrown: an arc ahead of her that burns the first aswang it lands on.
 ##
 ## Kent's design: "Throwable. Burns aswang flesh over time ... Common, stacks high, the workhorse
-## item." It flies `reach` px ahead along a low arc and, on meeting an aswang's body, burns it
-## (Enemy2D.apply_burn) and is spent; on the ground it is spent too. One throw, one burn.
+## item." It flies along a low arc from her middle to the ground `reach` px ahead and, on meeting
+## an aswang's body, burns it (Enemy2D.apply_burn) and is spent; on the ground it is spent too.
+## One throw, one burn.
 
 const GRAVITY := 980.0
-## How long the arc takes to come back down to where it was thrown from.
-const FLIGHT := 0.7
-## How close to an aswang's middle counts as landing on it, past half its body.
-const MARGIN := 10.0
+## How long it is in the air, and how far it falls in that time: thrown from her middle, it comes
+## down on the ground at its full reach -- a low throw, over nothing taller than her.
+const FLIGHT := 0.55
+const DROP := 44.0
+## How far past an aswang's body counts as landing on it: a handful spreads, more up and down.
+const MARGIN := Vector2(10.0, 30.0)
 const GRAIN := Color(0.95, 0.96, 0.98)
 
 @export var reach := 300.0
@@ -27,7 +30,7 @@ signal landed(on: Enemy2D)
 
 
 func _ready() -> void:
-	_velocity = Vector2(direction * reach / FLIGHT, -GRAVITY * FLIGHT * 0.5)
+	_velocity = Vector2(direction * reach / FLIGHT, (DROP - 0.5 * GRAVITY * FLIGHT * FLIGHT) / FLIGHT)
 	_from_y = global_position.y
 	z_index = 7
 
@@ -42,12 +45,13 @@ func _physics_process(delta: float) -> void:
 		var foe := node as Enemy2D
 		if foe == null or foe.is_dead():
 			continue
-		if global_position.distance_to(foe.global_position) <= maxf(foe.body_size.x, foe.body_size.y) * 0.5 + MARGIN:
+		var off := (global_position - foe.global_position).abs()
+		if off.x <= foe.body_size.x * 0.5 + MARGIN.x and off.y <= foe.body_size.y * 0.5 + MARGIN.y:
 			foe.apply_burn(burn_ticks, burn_seconds)
 			_spend(foe)
 			return
-	# Back down past where it left her hand: on the ground, spent.
-	if _clock > FLIGHT * 0.5 and global_position.y > _from_y + 40.0:
+	# Down on the ground: spent.
+	if global_position.y >= _from_y + DROP:
 		_spend(null)
 	queue_redraw()
 
