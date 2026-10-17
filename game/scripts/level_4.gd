@@ -154,3 +154,15 @@ func _beat_spans() -> Dictionary:
 				_spans[volume.obstacle_id] = Vector2(volume.global_position.x - half,
 					volume.global_position.x + half)
 	return _spans
+
+
+## Where a rescue puts her, in words a player would use rather than "the last checkpoint".
+func _checkpoint_place(checkpoint_id: String) -> String:
+	match checkpoint_id:
+		"CP1":
+			return "the first clearing"
+		"CP2":
+			return "the second clearing"
+		"CP3":
+			return "the edge of the last clearing"
+	return super(checkpoint_id)
