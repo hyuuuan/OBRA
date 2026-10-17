@@ -6,8 +6,9 @@ extends SceneTree
 const SatchelScript = preload("res://scripts/satchel.gd")
 
 var failures := 0
+var level: Node
 var checked := 0
-const CHECKS := 7
+const CHECKS := 10
 
 
 func _initialize() -> void:
@@ -15,6 +16,9 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	create_timer(120.0).timeout.connect(func() -> void:
+		print("OBRA_SATCHEL_FAILED=watchdog")
+		quit(2))
 	_it_knows_lolas_five_things()
 	_a_stack_stops_at_its_cap()
 	_the_slots_fill_in_pickup_order()
@@ -22,6 +26,12 @@ func _run() -> void:
 	_nothing_is_used_from_nothing()
 	_it_is_kept_as_plain_data()
 	_kept_data_is_held_to_the_file()
+	level = await _open_level()
+	await _z_pours_lamp_oil()
+	await _oil_is_not_wasted_on_a_full_lamp()
+	await _the_keys_stay_with_whoever_has_them()
+	level.queue_free()
+	await _frames(3)
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -100,6 +110,94 @@ func _kept_data_is_held_to_the_file() -> void:
 	_check(back.count("asin") == 12 and back.count("feather") == 0 and back.slots() == ["", "asin", "", ""],
 		"what comes back is held to the file: caps, and only its kinds",
 		"asin %d, slots %s" % [back.count("asin"), back.slots()])
+
+
+# --- In Dilim ---------------------------------------------------------------------------
+
+## Z, as the keyboard sends it: the physical key the first quick slot is bound to.
+func _press_z() -> void:
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_Z
+	key.pressed = true
+	level.call("_unhandled_input", key)
+	await _frames(2)
+
+
+func _z_pours_lamp_oil() -> void:
+	var satchel = level.get("satchel")
+	var health := level.get("player_health") as PlayerHealth
+	satchel.add("langis", 1)
+	health.dim(PlayerHealth.LOW)
+	health.dim(PlayerHealth.LOW)
+	var low := health.stage
+	await _press_z()
+	_check(low == PlayerHealth.LOW and health.stage == PlayerHealth.FULL and satchel.count("langis") == 0,
+		"in Dilim, Z pours the lamp oil on its slot: two stages back",
+		"stage %d -> %d, langis %d left" % [low, health.stage, satchel.count("langis")])
+
+
+func _oil_is_not_wasted_on_a_full_lamp() -> void:
+	var satchel = level.get("satchel")
+	satchel.add("langis", 1)
+	await _press_z()
+	_check(satchel.count("langis") == 1, "and none is wasted on a full lantern",
+		"langis %d" % satchel.count("langis"))
+
+
+## While a drawing is being placed Z turns it; while one is drawn, or the bag is open, it is theirs.
+func _the_keys_stay_with_whoever_has_them() -> void:
+	var satchel = level.get("satchel")
+	var health := level.get("player_health") as PlayerHealth
+	health.dim(PlayerHealth.LOW)
+	var kept: Array[String] = []
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	level.call("_on_drawing_ready", "campfire", "Campfire", sheet, {"confidence": 0.9},
+		[{"points": PackedVector2Array([Vector2(0, 0), Vector2(40, 0)]), "width": 6.0, "color": Color.BLACK}], 1.0)
+	await _frames(4)
+	# Into the bag; setting it down starts from its slot.
+	var slot := int(level.call("_slot_holding", "campfire"))
+	if slot >= 0 and not bool((level.get("placement_controller") as Node).call("is_placing")):
+		level.call("_on_inventory_slot_pressed", slot)
+		await _frames(4)
+	var placing := bool((level.get("placement_controller") as Node).call("is_placing"))
+	await _press_z()
+	if satchel.count("langis") == 1:
+		kept.append("placing")
+	(level.get("placement_controller") as Node).call("cancel_placement")
+	await _frames(2)
+	(level.get("draw_panel") as Node).call("open_panel")
+	await _frames(2)
+	await _press_z()
+	if satchel.count("langis") == 1:
+		kept.append("drawing")
+	(level.get("draw_panel") as Node).call("close_panel")
+	await _frames(2)
+	(level.get("inventory_screen") as Node).call("open")
+	await _frames(2)
+	await _press_z()
+	if satchel.count("langis") == 1:
+		kept.append("the bag")
+	(level.get("inventory_screen") as Node).call("close")
+	await _frames(2)
+	_check(placing and kept == ["placing", "drawing", "the bag"],
+		"while placing, drawing or in the bag, Z is not the satchel's", "placing %s, kept for %s" % [placing, kept])
+
+
+func _open_level() -> Node:
+	var scene := (load("res://level_4.tscn") as PackedScene).instantiate()
+	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(scene)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _frames(30)
+	return scene
+
+
+func _frames(count: int) -> void:
+	for _frame in range(count):
+		await physics_frame
+		if paused:
+			call_group(DialogueBox.GROUP, &"hide_line")
+			paused = false
 
 
 func _check(ok: bool, what: String, detail: String) -> void:
