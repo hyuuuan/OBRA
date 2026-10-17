@@ -140,6 +140,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 		darkness_layer.darkness = move_toward(darkness_layer.darkness,
 			_darkness_at(anchor_position.x), DARKNESS_EASE * get_physics_process_delta_time())
 	_note_lesson_moments()
+	_hold_the_drain(get_physics_process_delta_time())
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
@@ -455,6 +456,7 @@ const CLEARINGS := ["L4_REST1", "L4_REST2"]
 
 func _build_level_furniture() -> void:
 	director.obstacle_entered.connect(_on_beat_entered)
+	_arm_the_drain()
 	# Top centre, under the quest card: the last clearing's clock.
 	dawn_clock = DawnClockHud.new()
 	dawn_clock.name = "DawnClock"
@@ -792,4 +794,41 @@ func _resume_saved_checkpoint() -> bool:
 	var resumed := super()
 	_resuming = false
 	return resumed
+
+
+# --- A drawn body costs ink while it is held ------------------------------------------------
+
+## Like everything drawn in Dilim, a creature's body is paid for in ink -- level_04.json's
+## creature_drain_per_second (0.25) for as long as she holds it -- and there is no ten-second
+## clock. At none she is herself again.
+var _drain: InkDrain
+
+
+func _morph_has_a_life() -> bool:
+	return false
+
+
+func _arm_the_drain() -> void:
+	_drain = get_node_or_null(^"InkDrain") as InkDrain
+	if _drain == null:
+		return
+	_drain.bind(ink_manager)
+	var economy: Dictionary = director.level_data().get("ink_economy", {})
+	_drain.default_rate = float(economy.get("creature_drain_per_second", _drain.default_rate))
+	_drain.ink_emptied.connect(_revert_to_base_form)
+
+
+func _hold_the_drain(delta: float) -> void:
+	if _drain == null:
+		return
+	if _current_form_id.is_empty():
+		if _drain.is_draining():
+			_drain.clear()
+		return
+	if _drain.form_id() != _current_form_id:
+		_drain.begin(_current_form_id)
+	_drain.charge(delta)
+	if morph_card != null:
+		morph_card.set_meter_caption("INK")
+		morph_card.set_drain(ink_manager.remaining(), ink_manager.capacity)
 
