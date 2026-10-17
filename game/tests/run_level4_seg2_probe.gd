@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 3
+const CHECKS := 8
 var level: Node
 
 
@@ -27,6 +27,11 @@ func _run() -> void:
 	await _at_no_ink_she_is_herself()
 	level.queue_free()
 	await _frames(3)
+	for sigbin_check in [_a_light_sends_the_sigbin_off, _her_back_to_the_rock_and_it_gives_up, _facing_the_rock_is_not_her_back_to_it, _well_off_the_rock_is_not_against_it, _struck_down_it_is_driven_off]:
+		level = await _open_level()
+		await sigbin_check.call()
+		level.queue_free()
+		await _frames(3)
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -68,6 +73,81 @@ func _at_no_ink_she_is_herself() -> void:
 	await _frames(60)
 	_check(String(level.get("_current_form_id")).is_empty() and level.get("player") is Wanderer,
 		"at no ink she is herself again", "form '%s'" % level.get("_current_form_id"))
+
+
+# --- The sigbin --------------------------------------------------------------------------
+
+## Her in the sigbin's ground in a long grace (its blows land nothing), facing `toward`.
+func _stand_at(x: float, toward: StringName) -> void:
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(x, GROUND_Y - 4.0), "linear_velocity": Vector2.ZERO})
+	(level.get("player_health") as PlayerHealth).call("_start_grace", 600.0)
+	await _frames(6)
+	Input.action_press(toward)
+	await _frames(2)
+	Input.action_release(toward)
+	await _frames(6)
+
+
+func _sigbin() -> Sigbin2D:
+	return level.get("_sigbin") as Sigbin2D
+
+
+func _a_light_sends_the_sigbin_off() -> void:
+	await _stand_at(6950.0, &"move_right")
+	await _become("flashlight")
+	level.call("_use_equipped_utility")
+	await _frames(90)
+	var director = level.get("director")
+	_check(director.call("committed_route", "L4_SIGBIN") == "artist" and director.call("is_solved", "L4_SIGBIN")
+			and _sigbin().is_gone(),
+		"shown a light, the sigbin flees", "route '%s', gone %s" % [director.call("committed_route", "L4_SIGBIN"), _sigbin().is_gone()])
+
+
+func _her_back_to_the_rock_and_it_gives_up() -> void:
+	await _stand_at(6812.0, &"move_right")
+	await _frames(4 * 60)
+	var director = level.get("director")
+	var early := bool(director.call("is_solved", "L4_SIGBIN"))
+	await _frames(int(1.6 * 60.0))
+	_check(not early and director.call("committed_route", "L4_SIGBIN") == "pragmatist"
+			and director.call("is_solved", "L4_SIGBIN") and _sigbin().is_gone(),
+		"with her back to the rock five seconds, it cannot get behind her and gives up",
+		"at four seconds %s; then route '%s', gone %s" % [early, director.call("committed_route", "L4_SIGBIN"), _sigbin().is_gone()])
+
+
+func _facing_the_rock_is_not_her_back_to_it() -> void:
+	await _stand_at(6812.0, &"move_left")
+	await _frames(6 * 60)
+	var director = level.get("director")
+	_check(not director.call("is_solved", "L4_SIGBIN") and not _sigbin().is_gone(),
+		"facing the rock is not her back to it", "solved %s after six seconds" % director.call("is_solved", "L4_SIGBIN"))
+
+
+## Her back to the rock but 200 px off it: open ground behind her, and it can get round.
+func _well_off_the_rock_is_not_against_it() -> void:
+	await _stand_at(7010.0, &"move_right")
+	await _frames(6 * 60)
+	var director = level.get("director")
+	_check(not director.call("is_solved", "L4_SIGBIN"), "and nor is standing well off it",
+		"solved %s after six seconds, 200 px off the rock" % director.call("is_solved", "L4_SIGBIN"))
+
+
+func _struck_down_it_is_driven_off() -> void:
+	await _stand_at(6950.0, &"move_right")
+	await _become("sword")
+	level.call("_use_equipped_utility")
+	await _frames(10)
+	var director = level.get("director")
+	var drawn_in := String(director.call("committed_route", "L4_SIGBIN"))
+	var solved_by_the_swing := bool(director.call("is_solved", "L4_SIGBIN"))
+	var apo := level.get("player") as Node2D
+	for _blow in range(_sigbin().max_hp):
+		_sigbin().apply_tool_hit("sword", 0.0, apo)
+	await _frames(10)
+	_check(drawn_in == "protector" and not solved_by_the_swing and director.call("is_solved", "L4_SIGBIN"),
+		"struck down, it is driven off -- and the swing that drew the fight in did not end it",
+		"committed '%s', solved by the swing %s, then %s" % [drawn_in, solved_by_the_swing, director.call("is_solved", "L4_SIGBIN")])
 
 
 # --- Helpers -----------------------------------------------------------------------------
