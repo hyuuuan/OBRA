@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 9
+const CHECKS := 14
 var level: Node
 
 
@@ -30,6 +30,11 @@ func _run() -> void:
 	for sigbin_check in [_a_light_sends_the_sigbin_off, _her_back_to_the_rock_and_it_gives_up, _facing_the_rock_is_not_her_back_to_it, _well_off_the_rock_is_not_against_it, _struck_down_it_is_driven_off]:
 		level = await _open_level()
 		await sigbin_check.call()
+		level.queue_free()
+		await _frames(3)
+	for tikbalang_check in [_walking_on_she_comes_back_to_the_rock, _a_body_with_hooves_is_let_by, _another_animals_body_is_let_by, _a_race_run_flat_out_is_won, _a_race_walked_is_lost]:
+		level = await _open_level()
+		await tikbalang_check.call()
 		level.queue_free()
 		await _frames(3)
 	if checked != CHECKS:
@@ -154,6 +159,89 @@ func _struck_down_it_is_driven_off() -> void:
 	_check(drawn_in == "protector" and not solved_by_the_swing and director.call("is_solved", "L4_SIGBIN"),
 		"struck down, it is driven off -- and the swing that drew the fight in did not end it",
 		"committed '%s', solved by the swing %s, then %s" % [drawn_in, solved_by_the_swing, director.call("is_solved", "L4_SIGBIN")])
+
+
+# --- The tikbalang ---------------------------------------------------------------------------
+
+func _her_x() -> float:
+	return (level.get("player") as Node2D).global_position.x
+
+
+## Holds the keys until she has gone past `past` and come back short of `back`, or `seconds` pass.
+## Returns whether she was led back.
+func _walk_on(seconds: float, walking: bool, past: float = 9650.0, back: float = 9000.0) -> bool:
+	if walking:
+		Input.action_press(&"walk")
+	Input.action_press(&"move_right")
+	var beyond := false
+	var returned := false
+	for _frame in range(int(seconds * 60.0)):
+		await _frames(1)
+		beyond = beyond or _her_x() >= past
+		if beyond and _her_x() < back:
+			returned = true
+			break
+	Input.action_release(&"move_right")
+	Input.action_release(&"walk")
+	await _frames(4)
+	return returned
+
+
+func _walking_on_she_comes_back_to_the_rock() -> void:
+	await _stand_at(9550.0, &"move_right")
+	var led_back := await _walk_on(3.0, false)
+	_check(led_back and absf(_her_x() - 8350.0) < 40.0, "walking on past the tikbalang, she comes back to the same rock",
+		"led back %s, at %.0f" % [led_back, _her_x()])
+
+
+func _a_body_with_hooves_is_let_by() -> void:
+	await _stand_at(9000.0, &"move_right")
+	await _become("horse")
+	var director = level.get("director")
+	var route := String(director.call("committed_route", "L4_TIKBALANG"))
+	var tikbalang := level.get("_tikbalang") as Tikbalang2D
+	await _frames(60)
+	level.call("_revert_to_base_form")
+	await _frames(10)
+	await _stand_at(9550.0, &"move_right")
+	var led_back := await _walk_on(2.0, false)
+	_check(route == "artist" and director.call("is_solved", "L4_TIKBALANG") and tikbalang.is_aside()
+			and not led_back and _her_x() > 9750.0,
+		"a body with hooves it takes for its own, and the way on is open",
+		"route '%s', aside %s, led back %s, at %.0f" % [route, tikbalang.is_aside(), led_back, _her_x()])
+
+
+func _another_animals_body_is_let_by() -> void:
+	await _stand_at(9000.0, &"move_right")
+	await _become("monkey")
+	var director = level.get("director")
+	_check(director.call("committed_route", "L4_TIKBALANG") == "pragmatist" and director.call("is_solved", "L4_TIKBALANG"),
+		"any other animal's body it does not chase", "route '%s'" % director.call("committed_route", "L4_TIKBALANG"))
+
+
+func _a_race_run_flat_out_is_won() -> void:
+	await _stand_at(8480.0, &"move_right")
+	var offer: Dictionary = level.call("_level_interact_offer")
+	level.call("press_interact")
+	await _frames(int(1.05 * 60.0))
+	await _walk_on(5.5, false)
+	var director = level.get("director")
+	_check(String(offer.get("verb", "")) == "RACE" and director.call("committed_route", "L4_TIKBALANG") == "protector"
+			and director.call("is_solved", "L4_TIKBALANG"),
+		"a race to its finish, run the whole way, she wins", "offer %s, route '%s'"
+			% [offer, director.call("committed_route", "L4_TIKBALANG")])
+
+
+func _a_race_walked_is_lost() -> void:
+	await _stand_at(8480.0, &"move_right")
+	level.call("press_interact")
+	await _frames(int(1.05 * 60.0))
+	await _walk_on(6.0, true, 9200.0, 8700.0)
+	var director = level.get("director")
+	var tikbalang := level.get("_tikbalang") as Tikbalang2D
+	_check(not director.call("is_solved", "L4_TIKBALANG") and not tikbalang.is_racing() and _her_x() < 8700.0,
+		"walked, the race is lost, and she is led back", "solved %s, at %.0f"
+			% [director.call("is_solved", "L4_TIKBALANG"), _her_x()])
 
 
 # --- Helpers -----------------------------------------------------------------------------
