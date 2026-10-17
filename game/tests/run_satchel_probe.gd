@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 16
+const CHECKS := 18
 
 
 func _initialize() -> void:
@@ -45,6 +45,11 @@ func _run() -> void:
 	await _falls_drop_by_their_chances()
 	await _a_drop_is_taken_like_any_other()
 	await _no_lamp_oil_falls_in_the_night()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _a_candle_lights_without_ink()
+	await _a_candle_burns_down()
 	level.queue_free()
 	await _frames(3)
 	if checked != CHECKS:
@@ -341,6 +346,65 @@ func _no_lamp_oil_falls_in_the_night() -> void:
 		"no lamp oil falls while the night runs", "night %s, %s" % [night, counts])
 	foe.queue_free()
 	_clear_drops()
+
+
+# --- What each thing does ---------------------------------------------------------------
+
+## The slot a kind sits on, used as its key would.
+func _use(id: String) -> void:
+	var satchel = level.get("satchel")
+	level.call("use_quick_slot", satchel.slots().find(id))
+	await _frames(2)
+
+
+func _candles() -> Array[CandleFlame2D]:
+	var out: Array[CandleFlame2D] = []
+	for node in level.find_children("*", "Node2D", true, false):
+		if node is CandleFlame2D and not node.is_queued_for_deletion():
+			out.append(node)
+	return out
+
+
+func _a_candle_lights_without_ink() -> void:
+	var satchel = level.get("satchel")
+	var ink := level.get("ink_manager") as InkManager
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(7000.0, 596.0), "linear_velocity": Vector2.ZERO})
+	await _frames(6)
+	satchel.add("kandila", 1)
+	var before := ink.remaining()
+	await _use("kandila")
+	var candles := _candles()
+	# Its own hole among the lights, not her lantern's: the lantern lights her wherever she is.
+	var lit := 0.0
+	for hole: Dictionary in LightField.holes_in(self):
+		if not candles.is_empty() and absf(float(hole.get("radius", 0.0)) - 220.0) < 2.0 \
+				and (hole["position"] as Vector2).distance_to(candles[0].global_position) < 40.0:
+			lit = LightField.contribution(hole, player.global_position + Vector2(0.0, -40.0))
+	_check(candles.size() == 1 and candles[0].global_position.distance_to(player.global_position) < 8.0
+			and is_equal_approx(candles[0].radius, 220.0) and lit > 0.9 and is_equal_approx(ink.remaining(), before)
+			and satchel.count("kandila") == 0,
+		"a candle from its slot is lit at her feet, a light that costs no ink",
+		"%d candle(s), lit %.2f, ink %.1f -> %.1f" % [candles.size(), lit, before, ink.remaining()])
+
+
+func _a_candle_burns_down() -> void:
+	var candles := _candles()
+	var lit := candles[0].seconds_left() if not candles.is_empty() else 0.0
+	# Shrinking, on one well short of its last guttering seconds; gone, on one a second long.
+	var long := CandleFlame2D.new()
+	long.seconds = 20.0
+	var short := CandleFlame2D.new()
+	short.seconds = 1.0
+	(level.get("entity_root") as Node2D).add_child(long)
+	(level.get("entity_root") as Node2D).add_child(short)
+	await _frames(30)
+	var halfway := long.light_radius()
+	await _frames(60)
+	long.queue_free()
+	_check(lit > 44.0 and lit <= 45.0 and halfway < 219.5 and halfway > 210.0 and not is_instance_valid(short),
+		"it burns down, its light shrinking, and is gone", "%.1f s left of 45; half a second in, %.1f px; a one-second candle gone %s"
+			% [lit, halfway, not is_instance_valid(short)])
 
 
 func _open_level() -> Node:
