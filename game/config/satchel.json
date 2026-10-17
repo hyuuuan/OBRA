@@ -34,11 +34,11 @@
       "gloss": "Ash",
       "cap": 6,
       "drop_chance": 0.2,
-      "use": "cloud",
+      "use": "dust",
       "radius": 160,
       "stun_seconds": 1.5,
       "reveal_seconds": 6.0,
-      "$comment": "Thrown into a cloud where she stands: blinds what it touches for a moment, and shows what hides in shadow."
+      "$comment": "Thrown into the air where she stands: it hangs there, blinds what it touches for a moment, and shows what hides in shadow."
     },
     "bawang": {
       "display_name": "Bawang",
