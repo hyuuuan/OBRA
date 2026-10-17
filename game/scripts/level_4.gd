@@ -135,7 +135,8 @@ func _read_dark_zones() -> Array:
 
 
 func _level_physics(anchor_position: Vector2) -> void:
-	if darkness_layer != null:
+	# Once it is morning the dawn has the dark; the zones would only pull it back.
+	if darkness_layer != null and not (_finale != null and _finale.has_dawned()):
 		darkness_layer.darkness = move_toward(darkness_layer.darkness,
 			_darkness_at(anchor_position.x), DARKNESS_EASE * get_physics_process_delta_time())
 	_note_lesson_moments()
@@ -282,6 +283,9 @@ var _mound: NunoMound2D
 
 func _resolve_level_nodes() -> void:
 	_mound = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Hazards/NunoMound") as NunoMound2D
+	_finale = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Finale") as DilimFinale2D
+	if _finale != null:
+		_finale.dawned.connect(_on_dawn)
 	if _mound != null:
 		_mound.crossed.connect(_on_mound_crossed)
 		_mound.crown_touched.connect(_on_crown_touched)
@@ -469,4 +473,26 @@ func _rest_by_the_fire() -> void:
 	if player_health != null:
 		player_health.refill(PlayerHealth.FULL)
 	_lift_curse()
+
+
+# --- The last clearing --------------------------------------------------------------------------
+
+## How long the dark takes to lift at dawn, and how long the morning is held before the level ends.
+const DAWN_LIFT_SECONDS := 2.0
+const MORNING_HOLD := 1.0
+
+var _finale: DilimFinale2D
+
+
+## MORNING. The dark lifts -- on the dark layer's own clock, which runs while a line is up -- she says
+## the line the level was for, and the level is done: the majority route settled, the one point given.
+func _on_dawn() -> void:
+	if darkness_layer != null:
+		darkness_layer.create_tween().tween_property(darkness_layer, "darkness", 0.0, DAWN_LIFT_SECONDS)
+	await _speak_and_wait(script_lines.fire("L4_FINALE.solved"))
+	if not is_inside_tree():
+		return
+	await get_tree().create_timer(MORNING_HOLD, false).timeout
+	if is_inside_tree():
+		_complete_level()
 
