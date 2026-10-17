@@ -472,6 +472,11 @@ func _build_level_furniture() -> void:
 	for node in find_children("*", "Area2D", true, false):
 		if node is SatchelPickup2D:
 			_wire_pickup(node as SatchelPickup2D)
+	# Every aswang that falls, now or later -- the finale makes its own as the night goes.
+	get_tree().node_added.connect(_on_node_added)
+	for node in find_children("*", "CharacterBody2D", true, false):
+		_on_node_added(node)
+	_drops.randomize()
 
 
 ## INK COMES BACK AT A CLEARING (Kent: "a single clearing restores both"). On arriving, before the
@@ -639,6 +644,46 @@ func _on_pickup_touched(pickup: SatchelPickup2D) -> void:
 			if index >= 0 else ""
 		hint_bar.show_hint("%s -- %s.%s" % [row.get("display_name", pickup.item),
 			String(row.get("gloss", "")).to_lower(), on], _companion_speaker(), 4.0)
+
+
+# --- What a fallen aswang drops -----------------------------------------------------------
+
+## Kent's design: "Aswangs drop them. That closes the loop: fighting feeds the economy that lets
+## you keep fighting." Each of Lola's things rolls its own `drop_chance`, so a fall can drop
+## nothing or more than one; lamp oil never while the last clearing's night runs ("Langis carried
+## in is what the player has"). Seedable, so a probe can count what a known stream gives.
+var _drops := RandomNumberGenerator.new()
+## How far apart two things dropped by one fall lie.
+const DROP_SPREAD := 26.0
+
+
+func set_drop_seed(seed_value: int) -> void:
+	_drops.seed = seed_value
+
+
+func _on_node_added(node: Node) -> void:
+	var foe := node as Enemy2D
+	if foe != null and not foe.died.is_connected(_on_foe_fell):
+		foe.died.connect(_on_foe_fell)
+
+
+func _on_foe_fell(foe: Enemy2D) -> void:
+	if satchel == null or not is_instance_valid(foe):
+		return
+	var night := _finale != null and _finale.is_running()
+	var dropped := 0
+	for id in satchel.ids():
+		var row := satchel.row(id)
+		if night and bool(row.get("never_in_finale", false)):
+			continue
+		if _drops.randf() >= float(row.get("drop_chance", 0.0)):
+			continue
+		var pickup := SatchelPickup2D.new()
+		pickup.item = id
+		pickup.position = foe.global_position + Vector2(DROP_SPREAD * dropped, foe.body_size.y * 0.5)
+		pickup.touched.connect(_on_pickup_touched)
+		get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(pickup)
+		dropped += 1
 
 
 ## The kinds she has found at least once this run, for the first-find line.
