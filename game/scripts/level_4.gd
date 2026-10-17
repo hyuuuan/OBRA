@@ -768,3 +768,28 @@ func _pour_oil(stages: int) -> bool:
 	player_health.refill(stages)
 	return true
 
+
+# --- What a checkpoint keeps of the satchel ---------------------------------------------------
+
+## Kent: "death rolls ink and drawings back to the checkpoint; collectibles kept." So a knockout or
+## a fall leaves the satchel as it is -- what she found since the checkpoint is still hers -- and
+## only a Continue, which starts the level fresh, takes it from the checkpoint. Plain counts and
+## slot ids: a run state holding an object is dropped whole on its way to disk.
+var _resuming := false
+
+
+func _level_run_state() -> Dictionary:
+	return {"satchel": satchel.to_data()} if satchel != null else {}
+
+
+func _restore_level_run_state(state: Dictionary) -> void:
+	if _resuming and satchel != null and state.get("satchel") is Dictionary:
+		satchel.from_data(state["satchel"] as Dictionary)
+
+
+func _resume_saved_checkpoint() -> bool:
+	_resuming = true
+	var resumed := super()
+	_resuming = false
+	return resumed
+
