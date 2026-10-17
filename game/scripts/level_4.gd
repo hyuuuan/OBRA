@@ -142,6 +142,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_note_lesson_moments()
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
+		_place_dawn_clock()
 	_tick_curse(get_physics_process_delta_time())
 
 
@@ -509,7 +510,20 @@ const MORNING_HOLD := 1.0
 var _finale: DilimFinale2D
 ## The night's clock on screen, under the quest card; shown only while the night runs.
 var dawn_clock: DawnClockHud
-const DAWN_CLOCK_TOP := 92.0
+const DAWN_CLOCK_TOP := 104.0
+## Clear air between the quest card's frame and the clock's strip.
+const DAWN_CLOCK_GAP := 10.0
+
+
+## UNDER THE QUEST CARD, NOT AGAINST IT. Seen in a window: placed at a fixed height the strip sat
+## flush on the card's frame, and the card grows when it has a second line. So it follows the
+## frame's bottom.
+func _place_dawn_clock() -> void:
+	var frame := objective_banner.get_node_or_null(^"Panel") as Control \
+		if objective_banner != null else null
+	var bottom := frame.get_global_rect().end.y if frame != null and frame.is_visible_in_tree() \
+		else DAWN_CLOCK_TOP
+	dawn_clock.position.y = bottom + DAWN_CLOCK_GAP - DawnClockHud.STRIP_TOP
 
 
 ## The night has begun: its clock comes up, and goes on the first frame of the morning.
