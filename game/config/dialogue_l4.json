@@ -17,7 +17,7 @@
     "",
     "RESPAWN is a pool: LevelBase says one per knockout, in turn, through the hint bar.",
     "",
-    "WHAT IS NOT HERE YET: each encounter's answered and after lines, the nuno's curse, the",
+    "WHAT IS NOT HERE YET: each later encounter's answered and after lines, the",
     "finale's waves and the morning. They come with the encounters that say them -- an",
     "unreachable line is an audit failure, not a placeholder."
   ],
@@ -81,6 +81,34 @@
       "speaker": "apo",
       "kind": "lore",
       "text": "A mound on the path, with things left all round it. Lola said: when you pass a punso, you ask first. Tabi-tabi po."
+    },
+    {
+      "id": "L4_NU_002",
+      "at": "L4_NUNO.asked",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Tabi-tabi po. Excuse me -- I only need to pass."
+    },
+    {
+      "id": "L4_NU_003",
+      "at": "L4_NUNO.cursed",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "My foot -- it is swelling. I stood on it. Lola said it wears off if I keep going."
+    },
+    {
+      "id": "L4_NU_004",
+      "at": "L4_NUNO.artist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Something stirred in the mound. Lola said they remember the ones who ask."
+    },
+    {
+      "id": "L4_NU_005",
+      "at": "L4_NUNO.pragmatist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Over, and not a crumb of it touched. Lola would still have asked."
     },
     {
       "id": "L4_R1_001",
