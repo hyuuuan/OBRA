@@ -25,6 +25,8 @@ enum State { IDLE, CHASE, WINDUP, ATTACK, RECOVER, STUN, DEAD }
 
 ## Every encounter a checkpoint restore must put back the way it was.
 const GROUP := &"dilim_encounters"
+## Anything it will not cross while it hunts by smell. Each answers `reach()`, a radius.
+const WARDS := &"scent_wards"
 const CONFIG := "res://config/enemies.json"
 ## A blow takes it out of whatever it was doing for this long, windup included.
 const STUN_SECONDS := 0.3
@@ -43,6 +45,9 @@ const ANIM_FOR := {
 }
 
 @export var kind := "aswang_dog"
+## Whether it hunts by smell -- and so will not cross a ward of bawang (Kent's design: "anything
+## that hunts by smell will not cross it"). Every aswang does.
+@export var hunts_by_smell := true
 ## Beyond this distance from her it does nothing at all: no thinking, no moving.
 @export var sleep_beyond := 1400.0
 
@@ -72,6 +77,10 @@ var _prey: PlayerHurtbox2D = null
 var _excepted: Array[PhysicsBody2D] = []
 var _excepted_for: Node = null
 var _fade: Tween
+## A burn still to land: ticks left, and the time to the next.
+var _burn_ticks := 0
+var _burn_every := 0.0
+var _burn_clock := 0.0
 
 
 func _ready() -> void:
@@ -105,6 +114,9 @@ func _physics_process(delta: float) -> void:
 	art.advance(delta)
 	if state == State.DEAD:
 		return
+	_burn(delta)
+	if state == State.DEAD:
+		return
 	_find_prey()
 	if _prey == null or global_position.distance_to(_prey.global_position) > sleep_beyond:
 		velocity = Vector2.ZERO
@@ -136,6 +148,7 @@ func _physics_process(delta: float) -> void:
 				_enter(State.CHASE)
 	_move(delta, to_prey)
 	move_and_slide()
+	_keep_out_of_wards()
 
 
 ## A weapon's blow. Damage is the weapon's row for this level; anything that is not a weapon
@@ -160,11 +173,71 @@ func apply_tool_hit(tool: String, _impulse: float, actor: Node2D) -> bool:
 	return true
 
 
+## Back out to the edge of any ward it has come into, across, never up: a walker stays on its
+## ground. Whatever it was doing toward the ward's middle stops there.
+func _keep_out_of_wards() -> void:
+	if not hunts_by_smell:
+		return
+	for node in get_tree().get_nodes_in_group(WARDS):
+		var ward := node as Node2D
+		if ward == null or not ward.has_method("reach"):
+			continue
+		var reach := float(ward.call("reach"))
+		var away := global_position - ward.global_position
+		if away.length() >= reach or absf(away.y) >= reach:
+			continue
+		var side := signf(away.x) if away.x != 0.0 else -_facing
+		global_position.x = ward.global_position.x + side * sqrt(reach * reach - away.y * away.y)
+		if signf(velocity.x) == -side:
+			velocity.x = 0.0
+
+
+## BLINDED FOR A MOMENT -- ash in its eyes (abo): out of whatever it was doing, a windup
+## included, and standing still until it can see again. No harm and no shove.
+func stun(seconds: float) -> void:
+	if state == State.DEAD or seconds <= 0.0:
+		return
+	_enter(State.STUN)
+	_state_left = seconds
+	velocity.x = 0.0
+
+
+## SALT ON ITS FLESH (Kent's design: "Burns aswang flesh over time"). `ticks` of one, spread over
+## `seconds`, each a flash and no shove -- it is not a blow -- and the last can kill it. A second
+## burn while one is under way starts over rather than stacking.
+func apply_burn(ticks: int, seconds: float) -> void:
+	if state == State.DEAD or ticks <= 0:
+		return
+	_burn_ticks = ticks
+	_burn_every = seconds / float(ticks)
+	_burn_clock = _burn_every
+
+
+func is_burning() -> bool:
+	return _burn_ticks > 0
+
+
+func _burn(delta: float) -> void:
+	if _burn_ticks <= 0:
+		return
+	_burn_clock -= delta
+	if _burn_clock > 0.0:
+		return
+	_burn_ticks -= 1
+	_burn_clock = _burn_every
+	hp -= 1
+	_flash()
+	if hp <= 0:
+		_burn_ticks = 0
+		_die()
+
+
 ## Put back the way it was before the fight -- the checkpoint the level restored is from then.
 func reset_for_restore() -> void:
 	if _fade != null and _fade.is_valid():
 		_fade.kill()
 	hp = max_hp
+	_burn_ticks = 0
 	global_position = _home
 	velocity = Vector2.ZERO
 	modulate = Color.WHITE
