@@ -264,3 +264,105 @@ func _restore_checkpoint() -> String:
 	var restored := super()
 	get_tree().call_group(Enemy2D.GROUP, &"reset_for_restore")
 	return restored
+
+
+# --- The nuno's mound -----------------------------------------------------------------------
+
+## The flower the mound gives back, and the count it says (the design needs the count seen).
+const FLOWER_ART := preload("res://assets/Level1/hidden_flower.png")
+const COUNT_WORDS := ["None", "One", "Two", "Three", "Four", "Five"]
+## How far west of the mound's foot she can stand and still be asking it.
+const ASKING_REACH := 220.0
+
+var _mound: NunoMound2D
+
+
+func _resolve_level_nodes() -> void:
+	_mound = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Hazards/NunoMound") as NunoMound2D
+	if _mound != null:
+		_mound.crossed.connect(_on_mound_crossed)
+
+
+## ASKED BY WHAT SHE DOES (Kent): stop beside the mound and say tabi-tabi po, then cross without
+## touching its crown, and the flower is given -- the artist's way. Cross clean without asking,
+## the pragmatist's. Touching the crown answers nothing.
+func _level_interact_offer() -> Dictionary:
+	if not _can_ask_the_mound():
+		return {}
+	return {"name": "Punso", "verb": "SAY TABI-TABI PO"}
+
+
+## Offering it, E is hers to ask with, not to pick up a drawing lying near.
+func _level_answers_first() -> bool:
+	return _can_ask_the_mound()
+
+
+func _interact_with_level() -> bool:
+	if not _can_ask_the_mound():
+		return false
+	_mound.ask()
+	_speak(script_lines.fire("L4_NUNO.asked"))
+	return true
+
+
+func _can_ask_the_mound() -> bool:
+	if _mound == null or _mound.asked or director == null or director.is_solved("L4_NUNO") \
+			or player == null or not is_instance_valid(player):
+		return false
+	var foot := _mound.global_position.x - NunoMound2D.WIDTH * 0.5
+	var x := player.global_position.x
+	return x <= foot and x >= foot - ASKING_REACH
+
+
+func _on_mound_crossed(clean: bool, asked: bool) -> void:
+	if not clean or director == null or director.is_solved("L4_NUNO"):
+		return
+	var route := "artist" if asked else "pragmatist"
+	director.commit_route("L4_NUNO", route)
+	var routes: Dictionary = director.obstacle("L4_NUNO").get("routes", {})
+	director.solve_with_item("L4_NUNO", String((routes.get(route, {}) as Dictionary).get("answered_by", route)))
+
+
+func _on_route_solved(obstacle_id: String, route: String) -> bool:
+	if obstacle_id == "L4_NUNO" and route == "artist":
+		_flower_from_the_mound()
+	return false
+
+
+## ⚠ THE ID HERE MUST BE IN PlayerProfile.FLOWER_IDS OR THE FLOWER COUNTS FOR NOTHING. It comes up
+## out of the crown, to her, and says which of the five it is.
+func _flower_from_the_mound() -> void:
+	PlayerProfile.record_collectible("L4_HF")
+	if _mound == null:
+		return
+	var at := _mound.global_position + Vector2(0.0, -NunoMound2D.HEIGHT)
+	var flower := Sprite2D.new()
+	flower.name = "GivenFlower"
+	flower.texture = FLOWER_ART
+	flower.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	flower.z_index = 12
+	flower.scale = Vector2.ONE * 0.2
+	flower.modulate.a = 0.0
+	_mound.get_parent().add_child(flower)
+	flower.global_position = at
+	var give := flower.create_tween()
+	give.tween_property(flower, "modulate:a", 1.0, 0.3)
+	give.parallel().tween_property(flower, "global_position:y", at.y - 60.0, 0.6) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	give.parallel().tween_property(flower, "scale", Vector2.ONE * 0.9, 0.5) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var risen := at + Vector2(0.0, -60.0)
+	give.tween_method(func(t: float) -> void:
+		if is_instance_valid(flower) and player != null and is_instance_valid(player):
+			var target := player.global_position + Vector2(0.0, -80.0)
+			flower.global_position = risen.lerp(target, t) + Vector2(0.0, -40.0 * sin(PI * t)), \
+		0.0, 1.0, 1.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	give.tween_property(flower, "scale", Vector2.ONE * 0.3, 0.25)
+	give.parallel().tween_property(flower, "modulate:a", 0.0, 0.25)
+	give.tween_callback(func() -> void:
+		if is_instance_valid(flower):
+			flower.queue_free()
+		var count := clampi(int(PlayerProfile.flower_count()), 0, 5)
+		announce_acquisition("Hidden Flower",
+			"%s of five. The mound gave it back, for asking first." % String(COUNT_WORDS[count]),
+			FLOWER_ART))
