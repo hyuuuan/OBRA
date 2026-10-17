@@ -97,6 +97,7 @@ func _run() -> void:
 	_audit_canopy_over_every_beat(level, scene)
 	_audit_santelmo_before_the_mound(scene)
 	_audit_the_night_is_in_the_last_clearing(scene)
+	_audit_nothing_stands_on_the_crown(scene)
 	_audit_level_goes_alone(scene)
 	_audit_fighting_hooks_on(scene)
 	_audit_dark_by_zone(level, scene)
@@ -519,6 +520,23 @@ func _audit_the_night_is_in_the_last_clearing(scene: Node) -> void:
 		right = x > span.x and x < span.y and is_equal_approx(night.arena_west, span.x)
 	_check(nights.size() == 1 and right, "the night stands in the last clearing, from its edge",
 		"%s; the clearing %.0f..%.0f" % [", ".join(nights), span.x, span.y])
+
+
+## A board planted on the nuno's mound puts the one thing she must not stand on under the thing
+## she reads -- seen in a window, the "?" board stood on the crown. Every board stays off it.
+func _audit_nothing_stands_on_the_crown(scene: Node) -> void:
+	var mound := scene.get("_mound") as NunoMound2D
+	var on_it: Array[String] = []
+	var boards := 0
+	for node in scene.get_tree().get_nodes_in_group(&"signposts"):
+		var board := node as Node2D
+		if board == null or mound == null:
+			continue
+		boards += 1
+		if absf(board.global_position.x - mound.global_position.x) <= NunoMound2D.WIDTH * 0.5 + 20.0:
+			on_it.append("%s at %.0f" % [board.name, board.global_position.x])
+	_check(mound != null and boards > 0 and on_it.is_empty(), "no board stands on the nuno's mound",
+		"%d boards clear of it" % boards if on_it.is_empty() else "on it: " + ", ".join(on_it))
 
 
 func _audit_level_goes_alone(scene: Node) -> void:
