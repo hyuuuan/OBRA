@@ -464,6 +464,14 @@ func _audit_checkpoints_in_their_clearings(level: Dictionary, scene: Node) -> vo
 func _audit_canopy_over_every_beat(level: Dictionary, scene: Node) -> void:
 	var spans: Dictionary = scene.call("_beat_spans")
 	var space := (scene as Node2D).get_world_2d().direct_space_state
+	# The canopy, not what stands under it: a branch or a rock is ground to stand on, and the
+	# ray looks past every piece of the terrain that is not the ceiling.
+	var past: Array[RID] = []
+	var terrain := scene.get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Terrain")
+	if terrain != null:
+		for piece in terrain.get_children():
+			if piece is CollisionObject2D and piece.name != "Canopy":
+				past.append((piece as CollisionObject2D).get_rid())
 	var problems: Array[String] = []
 	var lowest := INF
 	for obstacle_value: Variant in level.get("obstacles", []):
@@ -471,7 +479,7 @@ func _audit_canopy_over_every_beat(level: Dictionary, scene: Node) -> void:
 		var span: Vector2 = spans.get(id, Vector2.ZERO)
 		for x in [span.x + 20.0, (span.x + span.y) * 0.5, span.y - 20.0]:
 			var query := PhysicsRayQueryParameters2D.create(Vector2(x, GROUND_Y - 4.0),
-				Vector2(x, GROUND_Y - 3000.0), 1)
+				Vector2(x, GROUND_Y - 3000.0), 1, past)
 			var hit := space.intersect_ray(query)
 			if hit.is_empty():
 				problems.append("open sky over %s at %.0f" % [id, x])
