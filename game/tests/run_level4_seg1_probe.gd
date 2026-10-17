@@ -351,7 +351,12 @@ func _a_light_of_her_own_at_the_clearing() -> void:
 	level.call("_on_drawing_ready", "flashlight", "Flashlight", sheet, {"confidence": 0.9},
 		[{"points": PackedVector2Array([Vector2(0, 0), Vector2(40, 0)]), "width": 6.0, "color": Color.BLACK}], 1.0)
 	await _frames(6)
+	# Lines left up for this one read: the probe otherwise dismisses each as it comes.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
 	level.call("_use_equipped_utility")
+	await physics_frame
+	var said := String((level.get("dialogue_box") as Node).call("current_line"))
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _seconds(1.0)
 	var director = level.get("director")
 	_check(low == PlayerHealth.LOW and cursed and director.call("is_solved", "L4_REST1")
@@ -359,6 +364,7 @@ func _a_light_of_her_own_at_the_clearing() -> void:
 		"a light of her own at the clearing: the lantern full, the curse gone",
 		"stage %d -> %d, cursed %s -> %s, lit %s" % [low, _stage(), cursed, level.call("is_cursed"),
 			director.call("is_solved", "L4_REST1")])
+	_check(said.begins_with("There. Warm."), "and she says so", "\"%s\"" % said)
 	var goal: Dictionary = level.call("_current_objective")
 	_check(String(goal.get("key", "")) == "woods", "and once it is lit, the banner moves on",
 		"'%s'" % goal.get("key", ""))
