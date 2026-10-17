@@ -40,6 +40,12 @@ func _has_player_health() -> bool:
 	return true
 
 
+## Every weapon or light drawn costs a unit of ink, not only the first of its kind (Kent): a sword
+## that wears out and is drawn again is paid for again, and the clearings are where ink comes back.
+func _every_drawing_costs_ink() -> bool:
+	return true
+
+
 ## How many times the lantern has gone out this run, so the RESPAWN pool turns over.
 var _knockouts := 0
 
