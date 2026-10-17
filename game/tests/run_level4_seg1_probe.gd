@@ -24,6 +24,7 @@ func _run() -> void:
 		quit(2))
 	level = await _open_level()
 	await _walking_past_the_santelmo_is_safe()
+	_its_flame_teaches_walking()
 	await _running_brings_it_and_it_burns()
 	await _it_forms_again_at_home()
 	await _walking_away_it_loses_interest()
@@ -65,6 +66,13 @@ func _walking_past_the_santelmo_is_safe() -> void:
 			% [_her_x(), wanted, _stage()])
 	flame.queue_free()
 	await _frames(2)
+
+
+## Within its sight is where walking is taught: the card with the walk key on it.
+func _its_flame_teaches_walking() -> void:
+	var tutorial := level.get("tutorial") as Node
+	var told := bool(tutorial.call("has_taught", "walk_past")) or bool(tutorial.call("is_coming", "walk_past"))
+	_check(told, "near a santelmo, the walk is taught", "walk_past %s" % ("shown" if told else "never offered"))
 
 
 func _running_brings_it_and_it_burns() -> void:
