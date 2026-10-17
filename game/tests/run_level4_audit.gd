@@ -98,6 +98,7 @@ func _run() -> void:
 	_audit_santelmo_before_the_mound(scene)
 	_audit_the_night_is_in_the_last_clearing(scene)
 	_audit_nothing_stands_on_the_crown(scene)
+	_audit_jars_where_the_file_says(level, scene)
 	_audit_level_goes_alone(scene)
 	_audit_fighting_hooks_on(scene)
 	_audit_dark_by_zone(level, scene)
@@ -464,6 +465,14 @@ func _audit_checkpoints_in_their_clearings(level: Dictionary, scene: Node) -> vo
 func _audit_canopy_over_every_beat(level: Dictionary, scene: Node) -> void:
 	var spans: Dictionary = scene.call("_beat_spans")
 	var space := (scene as Node2D).get_world_2d().direct_space_state
+	# The canopy, not what stands under it: a branch or a rock is ground to stand on, and the
+	# ray looks past every piece of the terrain that is not the ceiling.
+	var past: Array[RID] = []
+	var terrain := scene.get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Terrain")
+	if terrain != null:
+		for piece in terrain.get_children():
+			if piece is CollisionObject2D and piece.name != "Canopy":
+				past.append((piece as CollisionObject2D).get_rid())
 	var problems: Array[String] = []
 	var lowest := INF
 	for obstacle_value: Variant in level.get("obstacles", []):
@@ -471,7 +480,7 @@ func _audit_canopy_over_every_beat(level: Dictionary, scene: Node) -> void:
 		var span: Vector2 = spans.get(id, Vector2.ZERO)
 		for x in [span.x + 20.0, (span.x + span.y) * 0.5, span.y - 20.0]:
 			var query := PhysicsRayQueryParameters2D.create(Vector2(x, GROUND_Y - 4.0),
-				Vector2(x, GROUND_Y - 3000.0), 1)
+				Vector2(x, GROUND_Y - 3000.0), 1, past)
 			var hit := space.intersect_ray(query)
 			if hit.is_empty():
 				problems.append("open sky over %s at %.0f" % [id, x])
@@ -537,6 +546,30 @@ func _audit_nothing_stands_on_the_crown(scene: Node) -> void:
 			on_it.append("%s at %.0f" % [board.name, board.global_position.x])
 	_check(mound != null and boards > 0 and on_it.is_empty(), "no board stands on the nuno's mound",
 		"%d boards clear of it" % boards if on_it.is_empty() else "on it: " + ", ".join(on_it))
+
+
+## Every encounter level_04.json says has a jar before it has one: in the stretch between the beat
+## before it and its own ground.
+func _audit_jars_where_the_file_says(level: Dictionary, scene: Node) -> void:
+	var spans: Dictionary = scene.call("_beat_spans")
+	var order: Array[String] = []
+	for obstacle_value: Variant in level.get("obstacles", []):
+		order.append(String((obstacle_value as Dictionary).get("id", "")))
+	var jars: Array[float] = []
+	for node in scene.find_children("*", "Area2D", true, false):
+		if node is InkJar2D:
+			jars.append((node as Node2D).global_position.x)
+	var missing: Array[String] = []
+	var wanted: Array = (level.get("ink_economy", {}) as Dictionary).get("jars_before", [])
+	for id_value: Variant in wanted:
+		var id := String(id_value)
+		var at := order.find(id)
+		var from := (spans.get(order[at - 1], Vector2.ZERO) as Vector2).y if at > 0 else -INF
+		var to := (spans.get(id, Vector2.ZERO) as Vector2).x
+		if not jars.any(func(x: float) -> bool: return x > from and x < to):
+			missing.append(id)
+	_check(not wanted.is_empty() and missing.is_empty(), "a jar of ink before each encounter the file names",
+		"%d jars, before %s" % [jars.size(), ", ".join(wanted)] if missing.is_empty() else "none before: " + ", ".join(missing))
 
 
 func _audit_level_goes_alone(scene: Node) -> void:
