@@ -7,7 +7,7 @@
     "- the apo goes alone (no Lolo) and every line is hers -- level_4.gd's hooks, dialogue_l4.json;",
     "- the lantern is her health, and the woods are dark -- _has_player_health, _darkness;",
     "- every encounter is answered BY WHAT SHE DOES: drawing the route's tag, doing the route's",
-    "  deed (a route with no required_tags is answered only by its `then.answered_by` deed), or",
+    "  deed (a route that is `answered_by` a deed asks for no drawing at all, as Piyesta's dance), or",
     "  fighting. There is no choice popup; the first answer given is the route taken;",
     "- the ending gets ONE point from Dilim, its majority route (`tally`) -- level_director.gd."
   ],
@@ -54,9 +54,9 @@
       "type": "dialogue_node",
       "display_name": "Ang Punso",
       "routes": {
-        "artist": {"required_tags": [], "then": {"answered_by": "said_tabi_tabi_po"},
+        "artist": {"answered_by": "said_tabi_tabi_po",
                    "reward": "flower_4", "$comment": "Stop beside the mound and ask to pass; cross without touching its crown. The flower rises."},
-        "pragmatist": {"required_tags": [], "then": {"answered_by": "crossed_clean"},
+        "pragmatist": {"answered_by": "crossed_clean",
                        "$comment": "Cross without touching the crown, and without asking."}
       },
       "$comment": "No protector route: the nuno has no hurtbox. Touching the crown curses her (slower, lower jumps, the lantern down a stage) and answers nothing."
@@ -68,7 +68,7 @@
       "display_name": "Ang Sigbin",
       "routes": {
         "artist": {"required_tags": ["light"], "$comment": "Show it the light; it flees."},
-        "pragmatist": {"required_tags": [], "then": {"answered_by": "back_to_a_wall"},
+        "pragmatist": {"answered_by": "back_to_a_wall",
                        "$comment": "Stand with her back to a surface for five seconds: it hunts from behind."},
         "protector": {"required_tags": ["strike"]}
       }
@@ -80,7 +80,7 @@
       "routes": {
         "artist": {"required_tags": ["hoof"], "$comment": "A body with hooves: it takes her for one of its own."},
         "pragmatist": {"required_tags": ["beast"], "$comment": "Any animal body: become something it does not chase."},
-        "protector": {"required_tags": [], "then": {"answered_by": "won_the_race"},
+        "protector": {"answered_by": "won_the_race",
                       "$comment": "Race it to the landmark rock and win (it runs 245, she 260)."}
       }
     },
@@ -104,7 +104,7 @@
       "display_name": "Ang Tiyanak",
       "routes": {
         "artist": {"required_tags": ["light"], "$comment": "Light shows it for what it is; it flees."},
-        "pragmatist": {"required_tags": [], "then": {"answered_by": "kept_clear"},
+        "pragmatist": {"answered_by": "kept_clear",
                        "$comment": "Reach the far marker without going toward the cry."},
         "protector": {"required_tags": ["strike"]}
       }
@@ -127,7 +127,7 @@
       "display_name": "Ang Manananggal",
       "routes": {
         "artist": {"required_tags": ["light"], "$comment": "Light on the lower half, or the sun."},
-        "pragmatist": {"required_tags": [], "then": {"answered_by": "salted"},
+        "pragmatist": {"answered_by": "salted",
                        "$comment": "Salt on the lower half while the upper is away."},
         "protector": {"required_tags": ["strike"]}
       }
