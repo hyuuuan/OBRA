@@ -23,12 +23,16 @@ func _run() -> void:
 		print("OBRA_L4_SEG1_FAILED=watchdog")
 		quit(2))
 	level = await _open_level()
+	_set_aside_the_levels_own_flame()
 	await _walking_past_the_santelmo_is_safe()
 	_its_flame_teaches_walking()
 	await _running_brings_it_and_it_burns()
 	await _it_forms_again_at_home()
 	await _walking_away_it_loses_interest()
 	await _a_knockout_puts_the_woods_back()
+	await _asking_then_crossing_clean_gives_the_flower()
+	await _crossing_clean_without_asking_is_the_pragmatists()
+	await _standing_on_the_crown_answers_nothing()
 	_release_all()
 	level.queue_free()
 	await _frames(3)
@@ -41,6 +45,16 @@ func _run() -> void:
 
 
 # --- The santelmo ------------------------------------------------------------------------
+
+## The level's own santelmo stands where the probe's flames do: still and out of the way, so each
+## check is about one flame.
+func _set_aside_the_levels_own_flame() -> void:
+	var own := level.get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Hazards/Santelmo") as Node2D
+	if own != null:
+		own.process_mode = Node.PROCESS_MODE_DISABLED
+		own.visible = false
+		own.remove_from_group(Enemy2D.GROUP)
+
 
 ## A flame of the probe's own, so each check starts from a known place, at her middle's height.
 func _flame_at(x: float) -> Santelmo2D:
@@ -156,6 +170,85 @@ func _a_knockout_puts_the_woods_back() -> void:
 	await _frames(2)
 
 
+# --- The nuno's mound ------------------------------------------------------------------------
+
+const MOUND_X := 3400.0
+const MOUND_HALF := 75.0
+
+
+## A fresh level for each way past the mound: the first answer given is the one it keeps.
+func _fresh_level() -> void:
+	_release_all()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+
+
+## Runs at the mound from `start` and jumps from just short of its foot, holding the jump through
+## the arc, then runs on until she is well past it.
+func _jump_the_mound(start: float) -> void:
+	await _put_her_at(start)
+	Input.action_press(&"move_right")
+	for _frame in range(60 * 4):
+		await _frames(1)
+		if _her_x() >= MOUND_X - MOUND_HALF - 30.0 and not Input.is_action_pressed(&"jump"):
+			Input.action_press(&"jump")
+		if _her_x() > MOUND_X + MOUND_HALF + 120.0:
+			break
+	_release_all()
+	await _seconds(0.5)
+
+
+func _asking_then_crossing_clean_gives_the_flower() -> void:
+	await _fresh_level()
+	await _put_her_at(MOUND_X - MOUND_HALF - 120.0)
+	var offer: Dictionary = level.call("_level_interact_offer")
+	level.call("press_interact")
+	await _frames(2)
+	var mound := level.get("_mound") as NunoMound2D
+	var found_before := bool(_profile().call("is_collectible_found", "L4_HF"))
+	await _jump_the_mound(MOUND_X - MOUND_HALF - 120.0)
+	var director = level.get("director")
+	await _seconds(4.0)
+	_check(String(offer.get("verb", "")) == "SAY TABI-TABI PO" and mound.asked,
+		"beside the mound, E asks to pass", "offer %s, asked %s" % [offer, mound.asked])
+	_check(director.call("is_solved", "L4_NUNO") and director.call("committed_route", "L4_NUNO") == "artist"
+			and not mound.touched_this_crossing(),
+		"asking, then crossing without touching, is the artist's way",
+		"route '%s', touched %s" % [director.call("committed_route", "L4_NUNO"), mound.touched_this_crossing()])
+	var found_after := bool(_profile().call("is_collectible_found", "L4_HF"))
+	_check(not found_before and found_after, "and the mound gives the flower",
+		"L4_HF found before %s, after %s" % [found_before, found_after])
+
+
+func _crossing_clean_without_asking_is_the_pragmatists() -> void:
+	await _fresh_level()
+	await _jump_the_mound(MOUND_X - MOUND_HALF - 120.0)
+	var director = level.get("director")
+	_check(director.call("is_solved", "L4_NUNO") and director.call("committed_route", "L4_NUNO") == "pragmatist",
+		"crossing clean without asking is the pragmatist's way",
+		"route '%s'" % director.call("committed_route", "L4_NUNO"))
+
+
+func _standing_on_the_crown_answers_nothing() -> void:
+	await _fresh_level()
+	await _put_her_at(MOUND_X - MOUND_HALF - 120.0)
+	var mound := level.get("_mound") as NunoMound2D
+	var touched := [false]
+	mound.crown_touched.connect(func() -> void: touched[0] = true)
+	# On top of it, as a player who jumped short lands.
+	(level.get("player") as Node2D).call("apply_morph_state",
+		{"position": Vector2(MOUND_X, GROUND_Y - NunoMound2D.HEIGHT - 6.0), "linear_velocity": Vector2.ZERO})
+	await _seconds(0.5)
+	Input.action_press(&"move_right")
+	await _seconds(2.0)
+	_release_all()
+	var director = level.get("director")
+	_check(touched[0] and _her_x() > MOUND_X + MOUND_HALF and not director.call("is_solved", "L4_NUNO"),
+		"standing on the crown touches it, and answers nothing",
+		"touched %s, at %.0f, solved %s" % [touched[0], _her_x(), director.call("is_solved", "L4_NUNO")])
+
+
 # --- Helpers -----------------------------------------------------------------------------
 
 func _open_level() -> Node:
@@ -177,6 +270,10 @@ func _put_her_at(x: float) -> void:
 
 func _her_x() -> float:
 	return (level.get("player") as Node2D).global_position.x
+
+
+func _profile() -> Node:
+	return root.get_node(^"PlayerProfile")
 
 
 func _health() -> PlayerHealth:
