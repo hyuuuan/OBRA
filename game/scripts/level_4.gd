@@ -450,3 +450,11 @@ func _build_level_furniture() -> void:
 func _on_beat_entered(obstacle_id: String) -> void:
 	if CLEARINGS.has(obstacle_id) and ink_manager != null:
 		ink_manager.add_ink(ink_manager.capacity)
+
+
+## RUNNING DRY IS NOT A LOSS HERE. Every drawing costs, so it will happen, and the way on is still
+## open: every encounter has a way past that needs no ink, and the clearings fill it again. The
+## out-of-ink screen stays shut, and she says where more is.
+func _on_ink_emptied() -> bool:
+	_speak(script_lines.fire("INK.empty"))
+	return true
