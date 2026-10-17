@@ -36,6 +36,7 @@ func _run() -> void:
 	await _the_crown_curses_her()
 	await _a_restore_lifts_the_curse()
 	await _a_clearing_fills_the_ink()
+	await _a_light_of_her_own_at_the_clearing()
 	_release_all()
 	level.queue_free()
 	await _frames(3)
@@ -333,6 +334,31 @@ func _a_clearing_fills_the_ink() -> void:
 	await _seconds(0.3)
 	_check(dry < 0.01 and is_equal_approx(ink.remaining(), ink.capacity),
 		"arriving at the clearing fills her ink", "%.1f -> %.1f of %.0f" % [dry, ink.remaining(), ink.capacity])
+
+
+## Low and cursed, she lights the clearing's light -- a lamp drawn and switched on -- and the
+## lantern is full and the curse gone.
+func _a_light_of_her_own_at_the_clearing() -> void:
+	await _put_her_at(CLEARING_X + 150.0)
+	_health().dim(PlayerHealth.LOW)
+	_health().dim(PlayerHealth.LOW)
+	level.call("_on_crown_touched")
+	await _frames(2)
+	var low := _stage()
+	var cursed := bool(level.call("is_cursed"))
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	level.call("_on_drawing_ready", "flashlight", "Flashlight", sheet, {"confidence": 0.9},
+		[{"points": PackedVector2Array([Vector2(0, 0), Vector2(40, 0)]), "width": 6.0, "color": Color.BLACK}], 1.0)
+	await _frames(6)
+	level.call("_use_equipped_utility")
+	await _seconds(1.0)
+	var director = level.get("director")
+	_check(low == PlayerHealth.LOW and cursed and director.call("is_solved", "L4_REST1")
+			and _stage() == PlayerHealth.FULL and not bool(level.call("is_cursed")),
+		"a light of her own at the clearing: the lantern full, the curse gone",
+		"stage %d -> %d, cursed %s -> %s, lit %s" % [low, _stage(), cursed, level.call("is_cursed"),
+			director.call("is_solved", "L4_REST1")])
 
 
 # --- Helpers -----------------------------------------------------------------------------
