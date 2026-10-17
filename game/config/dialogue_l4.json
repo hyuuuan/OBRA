@@ -223,6 +223,13 @@
       "text": "Then I only have to last until morning."
     },
     {
+      "id": "L4_FN_003",
+      "at": "L4_FINALE.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Morning. Lola named every one of them for me, one by one. I needed every one."
+    },
+    {
       "id": "L4_RT_001",
       "at": "RETURN.back",
       "speaker": "apo",
