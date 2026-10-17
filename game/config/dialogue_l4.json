@@ -230,6 +230,34 @@
       "text": "Smoke, and somebody up there smoking it. Lola said the kapre sits high and keeps to itself, and the smoke turns you round."
     },
     {
+      "id": "L4_KP_002",
+      "at": "L4_KAPRE.turned",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Turned round in the smoke again. I am back where I came in."
+    },
+    {
+      "id": "L4_KP_003",
+      "at": "L4_KAPRE.artist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There it is. It was only sitting up there smoking, the whole time."
+    },
+    {
+      "id": "L4_KP_004",
+      "at": "L4_KAPRE.pragmatist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Down it comes, and off it goes. I did not have to be so hard on it."
+    },
+    {
+      "id": "L4_KP_005",
+      "at": "L4_KAPRE.protector.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Knocked clean out of its hand. It will not sit there smoking at anyone else tonight."
+    },
+    {
       "id": "L4_R2_001",
       "at": "L4_REST2.enter",
       "speaker": "apo",
