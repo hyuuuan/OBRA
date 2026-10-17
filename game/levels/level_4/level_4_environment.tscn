@@ -195,11 +195,13 @@ arena_west = 21400.0
 
 ; Each beat's ground, from the canopy to just under her feet. None plants a commit flag: Dilim's
 ; checkpoints are the clearings, walked into.
+; Its "?" board stands where she stops to ask, west of the mound -- not on the crown.
 [node name="L4_NUNO" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(3400.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_NUNO"
 trigger_size = Vector2(1200.0, 460.0)
+hint_sign_offset = -280.0
 plants_commit_mark = false
 
 [node name="L4_REST1" type="Area2D" parent="GameplayPlane/Obstacles"]
