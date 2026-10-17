@@ -19,6 +19,10 @@ extends Node2D
 const GROUP := &"dilim_encounters"
 ## Faster than this, horizontally, and she is running: her walk is 110, her run 260.
 const RUNNING_PACE := 187.0
+## Faster than this between two ticks is not running, it is being put somewhere -- a restore, a
+## knockout, a Continue: the reading starts over rather than calling it a sprint. Seen in a window:
+## put down near it, she was taken for a runner at seventy thousand px/s, and it burned her.
+const PUT_DOWN_PACE := 1200.0
 ## How much faster than her it comes while she runs.
 const CHASE_SHARE := 1.15
 ## How far it can see a runner.
@@ -71,6 +75,8 @@ func _physics_process(delta: float) -> void:
 	var pace := 0.0
 	if _last_middle != Vector2.INF and delta > 0.0:
 		pace = absf(middle.x - _last_middle.x) / delta
+	if pace > PUT_DOWN_PACE:
+		pace = 0.0
 	_last_middle = middle
 	var running := pace > RUNNING_PACE
 	var to_her := middle - global_position
