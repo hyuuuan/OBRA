@@ -72,7 +72,8 @@
         "artist": {"required_tags": ["light"], "$comment": "Show it the light; it flees."},
         "pragmatist": {"answered_by": "back_to_a_wall",
                        "$comment": "Stand with her back to a surface for five seconds: it hunts from behind."},
-        "protector": {"required_tags": ["strike"]}
+        "protector": {"required_tags": ["strike"], "then": {"answered_by": "driven_off"},
+                      "$comment": "Drawing something to strike with is the choice; driving it off is the answer."}
       }
     },
     {
