@@ -701,6 +701,8 @@ func _use_from_satchel(id: String) -> bool:
 			return _set_down_a_candle(float(item.get("radius", 220.0)), float(item.get("seconds", 45.0)))
 		"ward":
 			return _crush_garlic(float(item.get("radius", 150.0)), float(item.get("seconds", 10.0)))
+		"throw":
+			return _throw_salt(item)
 		_:
 			return false
 
@@ -726,6 +728,21 @@ func _crush_garlic(radius: float, seconds: float) -> bool:
 	ward.seconds = seconds
 	ward.position = player.global_position
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(ward)
+	return true
+
+
+## ASIN: a handful thrown ahead of her, the way she faces, from her middle.
+func _throw_salt(item: Dictionary) -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	var throw := AsinThrow2D.new()
+	throw.reach = float(item.get("reach", 300.0))
+	throw.burn_ticks = int(item.get("burn_ticks", 3))
+	throw.burn_seconds = float(item.get("burn_seconds", 2.4))
+	var facing: Variant = player.get(&"_facing")
+	throw.direction = signf(float(facing)) if facing != null and float(facing) != 0.0 else 1.0
+	throw.position = PlayerHurtbox2D.middle_of(player)
+	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(throw)
 	return true
 
 
