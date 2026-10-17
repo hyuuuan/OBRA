@@ -166,3 +166,48 @@ func _checkpoint_place(checkpoint_id: String) -> String:
 		"CP3":
 			return "the edge of the last clearing"
 	return super(checkpoint_id)
+
+
+## Each beat's mark, by obstacle id: where the thing it is about stands.
+const BEAT_MARKS := {"L4_NUNO": "NunoMark", "L4_REST1": "Rest1Mark", "L4_SIGBIN": "SigbinMark",
+	"L4_TIKBALANG": "TikbalangMark", "L4_KAPRE": "KapreMark", "L4_REST2": "Rest2Mark",
+	"L4_TIYANAK": "TiyanakMark", "L4_BUNGISNGIS": "BungisngisMark",
+	"L4_MANANANGGAL": "ManananggalMark", "L4_FINALE": "FinaleMark"}
+
+
+## THE BANNER SAYS WHAT IS NEXT, BY WHERE SHE IS. Lola's rule up to the mound, rest in a
+## clearing, the morning once she is in the last one, and getting through the woods everywhere
+## between -- pointing at the next thing east of her. The morning points at nothing: it comes to
+## her.
+func _current_objective() -> Dictionary:
+	if player == null or not is_instance_valid(player) or director == null:
+		return {}
+	var x := player.global_position.x
+	var spans := _beat_spans()
+	if spans.has("L4_FINALE") and x >= (spans["L4_FINALE"] as Vector2).x:
+		return {"key": "dawn"}
+	for rest in ["L4_REST1", "L4_REST2"]:
+		var span: Vector2 = spans.get(rest, Vector2(INF, -INF))
+		if x >= span.x and x <= span.y:
+			return {"key": "rest", "target": _mark_at(rest)}
+	var key := "woods"
+	if spans.has("L4_NUNO") and x <= (spans["L4_NUNO"] as Vector2).y:
+		key = "edge"
+	return {"key": key, "target": _next_mark_east(x)}
+
+
+func _mark_at(obstacle_id: String) -> Variant:
+	var mark := get_node_or_null(NodePath("EnvironmentBaseplate/GameplayPlane/Marks/%s"
+		% BEAT_MARKS.get(obstacle_id, ""))) as Node2D
+	return mark.global_position if mark != null else null
+
+
+## The nearest beat's mark still ahead of her, a little past where she stands.
+func _next_mark_east(x: float) -> Variant:
+	var best: Variant = null
+	for obstacle_id: String in BEAT_MARKS:
+		var at: Variant = _mark_at(obstacle_id)
+		if at is Vector2 and (at as Vector2).x > x + 60.0 \
+				and (best == null or (at as Vector2).x < (best as Vector2).x):
+			best = at
+	return best
