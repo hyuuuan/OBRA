@@ -46,6 +46,12 @@ func _every_drawing_costs_ink() -> bool:
 	return true
 
 
+## A tool drawn here goes straight into her hand: in a fight a sword is drawn to be swung now, and
+## a light to be held up now, not put in the bag.
+func _draws_into_the_hand(_entity_id: String) -> bool:
+	return true
+
+
 ## How many times the lantern has gone out this run, so the RESPAWN pool turns over.
 var _knockouts := 0
 
