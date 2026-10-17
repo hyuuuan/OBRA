@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 14
+const CHECKS := 15
 var level: Node
 
 
@@ -192,6 +192,8 @@ func _walking_on_she_comes_back_to_the_rock() -> void:
 	var led_back := await _walk_on(3.0, false)
 	_check(led_back and absf(_her_x() - 8350.0) < 40.0, "walking on past the tikbalang, she comes back to the same rock",
 		"led back %s, at %.0f" % [led_back, _her_x()])
+	var said := (level.get("hint_bar") as HintBar).current_text()
+	_check(said.begins_with("The same rock again"), "and she knows it for the same rock", "\"%s\"" % said)
 
 
 func _a_body_with_hooves_is_let_by() -> void:
