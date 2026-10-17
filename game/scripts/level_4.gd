@@ -703,6 +703,8 @@ func _use_from_satchel(id: String) -> bool:
 			return _crush_garlic(float(item.get("radius", 150.0)), float(item.get("seconds", 10.0)))
 		"throw":
 			return _throw_salt(item)
+		"dust":
+			return _throw_ash(item)
 		_:
 			return false
 
@@ -743,6 +745,19 @@ func _throw_salt(item: Dictionary) -> bool:
 	throw.direction = signf(float(facing)) if facing != null and float(facing) != 0.0 else 1.0
 	throw.position = PlayerHurtbox2D.middle_of(player)
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(throw)
+	return true
+
+
+## ABO: a handful thrown into the air where she stands.
+func _throw_ash(item: Dictionary) -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	var dust := AboDust2D.new()
+	dust.radius = float(item.get("radius", 160.0))
+	dust.stun_seconds = float(item.get("stun_seconds", 1.5))
+	dust.reveal_seconds = float(item.get("reveal_seconds", 6.0))
+	dust.position = player.global_position
+	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(dust)
 	return true
 
 
