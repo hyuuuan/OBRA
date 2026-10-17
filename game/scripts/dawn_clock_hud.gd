@@ -20,6 +20,8 @@ const SUN := UISkin.GOLD_PALE
 const SUN_LOW := 0.0
 const SUN_HIGH := 7.0
 const FADE_SECONDS := 0.4
+## Where the strip starts inside the control: the sun's headroom over it.
+const STRIP_TOP := SUN_HIGH + 4.0
 
 var _progress := 0.0
 var _fade: Tween
@@ -62,7 +64,7 @@ func _fade_to(alpha: float) -> void:
 
 
 func _draw() -> void:
-	var top := SUN_HIGH + 4.0
+	var top := STRIP_TOP
 	var strip := Rect2(Vector2(0.0, top), SIZE)
 	_round(strip, NIGHT, EDGE, 1.5)
 	if _progress > 0.0:
