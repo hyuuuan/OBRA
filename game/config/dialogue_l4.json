@@ -146,6 +146,27 @@
       "text": "Give it no dark to hide in, she said, or nothing behind you to come from."
     },
     {
+      "id": "L4_SG_003",
+      "at": "L4_SIGBIN.artist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It cannot bear being seen. Lola was right about that one."
+    },
+    {
+      "id": "L4_SG_004",
+      "at": "L4_SIGBIN.pragmatist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Nothing behind me but rock, and nowhere for it to be. It gave up."
+    },
+    {
+      "id": "L4_SG_005",
+      "at": "L4_SIGBIN.protector.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Gone. Lola would say it will be back for someone else, just not tonight."
+    },
+    {
       "id": "L4_TB_001",
       "at": "L4_TIKBALANG.enter",
       "speaker": "apo",
