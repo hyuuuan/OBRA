@@ -192,6 +192,16 @@ func _keep_out_of_wards() -> void:
 			velocity.x = 0.0
 
 
+## BLINDED FOR A MOMENT -- ash in its eyes (abo): out of whatever it was doing, a windup
+## included, and standing still until it can see again. No harm and no shove.
+func stun(seconds: float) -> void:
+	if state == State.DEAD or seconds <= 0.0:
+		return
+	_enter(State.STUN)
+	_state_left = seconds
+	velocity.x = 0.0
+
+
 ## SALT ON ITS FLESH (Kent's design: "Burns aswang flesh over time"). `ticks` of one, spread over
 ## `seconds`, each a flash and no shove -- it is not a blow -- and the last can kill it. A second
 ## burn while one is under way starts over rather than stacking.
