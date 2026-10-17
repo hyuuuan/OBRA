@@ -32,3 +32,19 @@ func _has_companion() -> bool:
 
 func _companion_speaker() -> String:
 	return APO_SPEAKER
+
+
+## How many times the lantern has gone out this run, so the RESPAWN pool turns over.
+var _knockouts := 0
+
+
+## Back where the lantern was last lit, in Lola's words rather than a failure message (Kent's
+## design: "the apo's dialogue on respawn be lola's voice"). One line of the RESPAWN pool per
+## knockout, in turn, so the second time is not the first time again.
+func _knockout_words() -> String:
+	var pool: Array = script_lines.peek("RESPAWN") if script_lines != null else []
+	if pool.is_empty():
+		return super()
+	var line: Dictionary = pool[_knockouts % pool.size()]
+	_knockouts += 1
+	return script_lines.display_text(line)
