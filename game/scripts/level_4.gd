@@ -329,6 +329,8 @@ func _on_mound_crossed(clean: bool, asked: bool) -> void:
 func _on_route_solved(obstacle_id: String, route: String) -> bool:
 	if obstacle_id == "L4_NUNO" and route == "artist":
 		_flower_from_the_mound()
+	if CLEARINGS.has(obstacle_id):
+		_rest_by_the_fire()
 	return false
 
 
@@ -458,3 +460,12 @@ func _on_beat_entered(obstacle_id: String) -> void:
 func _on_ink_emptied() -> bool:
 	_speak(script_lines.fire("INK.empty"))
 	return true
+
+
+## A LIGHT OF HER OWN, AND SHE RESTS BY IT. The clearing's light lit fills the lantern to full and
+## lifts the nuno's curse -- the one place in the woods both happen.
+func _rest_by_the_fire() -> void:
+	if player_health != null:
+		player_health.refill(PlayerHealth.FULL)
+	_lift_curse()
+
