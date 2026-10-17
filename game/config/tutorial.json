@@ -397,6 +397,65 @@
           "lead": "Look down there, apo! Those jars on the seabed — they are full of ink."
         }
       ]
+    },
+    "level_4": {
+      "$comment": [
+        "DILIM TEACHES WHAT IS NEW ABOUT A FIGHT, AND NOTHING ELSE.",
+        "",
+        "Lolo is not here, so every lesson is hers (`speaker` Apo) and none has a `lead`: there is",
+        "nobody to ask the question a card answers. Two cards with pictures -- the click that",
+        "swings, and the ink every drawing costs -- and two lines on the hint bar, which never",
+        "stops play, for the moments that come mid-fight: the first hit to the lantern, and a",
+        "weapon nearly worn through.",
+        "",
+        "Every event is level_4.gd's or LevelBase's: weapon_in_hand and weapon_wearing are polled",
+        "off the weapon in her hand, lantern_hit is the lantern's own signal, ink_spent is the",
+        "base's. Walking with Shift is taught at the santelmo, where it matters, not here."
+      ],
+      "speaker_default": "apo",
+      "lessons": [
+        {
+          "id": "swing",
+          "at": "weapon_in_hand",
+          "mode": "do",
+          "visual": "click",
+          "context": "world",
+          "anchor": "player",
+          "speaker": "Apo",
+          "mouse": [
+            "left"
+          ],
+          "caption": "Click where you want to swing",
+          "text": "A click, and I swing at whatever is there."
+        },
+        {
+          "id": "every_drawing_costs",
+          "at": "ink_spent",
+          "mode": "look",
+          "visual": "ink",
+          "context": "world",
+          "anchor": "ink_gauge",
+          "speaker": "Apo",
+          "caption": "Every drawing costs ink here",
+          "text": "Out here every drawing costs ink, even one I have drawn before. The clearings fill it back up."
+        },
+        {
+          "id": "lantern",
+          "at": "lantern_hit",
+          "mode": "say",
+          "speaker": "Apo",
+          "seconds": 7.0,
+          "text": "Every hit dims the lamp. If it goes out, I go back to where it was last lit."
+        },
+        {
+          "id": "wearing",
+          "at": "weapon_wearing",
+          "mode": "say",
+          "speaker": "Apo",
+          "seconds": 6.0,
+          "text": "This one is nearly worn through. When it goes, I draw another."
+        }
+      ]
     }
   }
 }
