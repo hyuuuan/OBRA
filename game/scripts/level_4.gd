@@ -34,6 +34,12 @@ func _companion_speaker() -> String:
 	return APO_SPEAKER
 
 
+## The lantern is her health (Kent): four stages, a hit takes one, a hit at the last puts her back
+## where the lantern was last lit.
+func _has_player_health() -> bool:
+	return true
+
+
 ## How many times the lantern has gone out this run, so the RESPAWN pool turns over.
 var _knockouts := 0
 
