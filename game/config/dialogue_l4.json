@@ -181,6 +181,48 @@
       "text": "It lets its own kind through, she said. And it hates to lose a race."
     },
     {
+      "id": "L4_TB_003",
+      "at": "L4_TIKBALANG.led_back",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "The same rock again. Whichever way I go, it brings me back."
+    },
+    {
+      "id": "L4_TB_004",
+      "at": "L4_TIKBALANG.race",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "To the far side, then. All the way, and no stopping."
+    },
+    {
+      "id": "L4_TB_005",
+      "at": "L4_TIKBALANG.race.lost",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "It got there first. Back to the rock."
+    },
+    {
+      "id": "L4_TB_006",
+      "at": "L4_TIKBALANG.artist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It took me for one of its own, and stepped aside."
+    },
+    {
+      "id": "L4_TB_007",
+      "at": "L4_TIKBALANG.pragmatist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It does not chase what it does not hunt. Lola said that was the trick."
+    },
+    {
+      "id": "L4_TB_008",
+      "at": "L4_TIKBALANG.protector.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Beat it. Lola said it never forgives that -- but it keeps its word."
+    },
+    {
       "id": "L4_KP_001",
       "at": "L4_KAPRE.enter",
       "speaker": "apo",
