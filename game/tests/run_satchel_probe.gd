@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 21
+const CHECKS := 24
 
 
 func _initialize() -> void:
@@ -56,6 +56,12 @@ func _run() -> void:
 	await _without_a_ward_it_reaches_her()
 	await _a_ward_holds_it_off()
 	await _a_spent_ward_lets_it_in()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _salt_burns_what_it_lands_on()
+	await _salt_goes_the_way_she_faces()
+	await _salt_falls_short_of_what_is_far()
 	level.queue_free()
 	await _frames(3)
 	if checked != CHECKS:
@@ -472,6 +478,75 @@ func _a_spent_ward_lets_it_in() -> void:
 		"and once it is spent, it comes in", "held at %.0f, then %.0f px" % [float(held[0]), float(after[0])])
 	foe.queue_free()
 	await _frames(2)
+
+
+## An aswang `ahead` px from her, asleep and still until it is touched -- sight 0 keeps it from
+## coming for her and spoiling the count.
+func _still_aswang(ahead: float) -> Enemy2D:
+	var foe := GroundEnemy2D.new()
+	foe.position = Vector2(WARD_X + ahead, 586.0)
+	(level.get("entity_root") as Node2D).add_child(foe)
+	foe.sight = 0.0
+	return foe
+
+
+## Facing right or left: a tap of the key.
+func _face(action: StringName) -> void:
+	Input.action_press(action)
+	await _frames(2)
+	Input.action_release(action)
+	await _frames(6)
+
+
+func _salt_burns_what_it_lands_on() -> void:
+	var satchel = level.get("satchel")
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(WARD_X, 596.0), "linear_velocity": Vector2.ZERO})
+	(level.get("player_health") as PlayerHealth).call("_start_grace", 600.0)
+	await _frames(6)
+	await _face(&"move_right")
+	var foe := _still_aswang(200.0)
+	await _frames(4)
+	satchel.add("asin", 2)
+	await _use("asin")
+	await _frames(int(0.8 * 60.0))
+	var landed := foe.is_burning()
+	var hp_at_once := foe.hp
+	await _frames(int(2.0 * 60.0))
+	_check(landed and hp_at_once >= foe.max_hp - 1 and foe.hp == foe.max_hp - 3 and satchel.count("asin") == 1,
+		"thrown salt lands on an aswang ahead and burns it, three ticks over time",
+		"burning %s; hp %d of %d soon after, %d at the end" % [landed, hp_at_once, foe.max_hp, foe.hp])
+	foe.queue_free()
+	await _frames(2)
+
+
+func _salt_goes_the_way_she_faces() -> void:
+	await _face(&"move_left")
+	var foe := _still_aswang(200.0)
+	await _frames(4)
+	await _use("asin")
+	await _frames(int(1.6 * 60.0))
+	_check(not foe.is_burning() and foe.hp == foe.max_hp, "and it goes the way she faces",
+		"facing away, the one behind her: burning %s, hp %d" % [foe.is_burning(), foe.hp])
+	foe.queue_free()
+	await _frames(2)
+
+
+## Each alone, so the near one cannot take a throw meant to be measured against the far one.
+func _salt_falls_short_of_what_is_far() -> void:
+	await _face(&"move_right")
+	var burnt: Array[bool] = []
+	for ahead in [280.0, 420.0]:
+		var foe := _still_aswang(ahead)
+		await _frames(4)
+		(level.get("satchel")).add("asin", 1)
+		await _use("asin")
+		await _frames(int(1.0 * 60.0))
+		burnt.append(foe.is_burning())
+		foe.queue_free()
+		await _frames(2)
+	_check(burnt == [true, false], "and it lands near its reach, no further",
+		"at 280 px burning %s, at 420 px %s" % [burnt[0], burnt[1]])
 
 
 func _open_level() -> Node:
