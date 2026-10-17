@@ -123,17 +123,13 @@ func _darkness_at(x: float) -> float:
 
 
 func _read_dark_zones() -> Array:
-	var west_edges: Dictionary = {}
-	for node in get_tree().get_nodes_in_group(&"level_obstacles"):
-		var volume := node as LevelObstacle2D
-		if volume != null:
-			west_edges[volume.obstacle_id] = volume.global_position.x - volume.trigger_size.x * 0.5
+	var spans := _beat_spans()
 	var zones: Array = []
 	for state_value: Variant in director.level_data().get("lighting_states", []):
 		var state: Dictionary = state_value
 		var from := String(state.get("from", ""))
-		if west_edges.has(from) and state.has("darkness"):
-			zones.append([float(west_edges[from]), float(state["darkness"])])
+		if spans.has(from) and state.has("darkness"):
+			zones.append([(spans[from] as Vector2).x, float(state["darkness"])])
 	zones.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
 	return zones
 
@@ -142,3 +138,19 @@ func _level_physics(anchor_position: Vector2) -> void:
 	if darkness_layer != null:
 		darkness_layer.darkness = move_toward(darkness_layer.darkness,
 			_darkness_at(anchor_position.x), DARKNESS_EASE * get_physics_process_delta_time())
+
+
+## Each beat's ground, west edge to east edge in world x, by obstacle id: read off the scene's
+## volumes once, since they do not move.
+var _spans: Dictionary = {}
+
+
+func _beat_spans() -> Dictionary:
+	if _spans.is_empty():
+		for node in get_tree().get_nodes_in_group(&"level_obstacles"):
+			var volume := node as LevelObstacle2D
+			if volume != null:
+				var half := volume.trigger_size.x * 0.5
+				_spans[volume.obstacle_id] = Vector2(volume.global_position.x - half,
+					volume.global_position.x + half)
+	return _spans
