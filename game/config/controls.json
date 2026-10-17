@@ -44,6 +44,7 @@
 
     {"group": "BAG", "action": "inventory_slot_1", "through": "inventory_slot_6", "label": "Take something out of the bag"},
     {"group": "BAG", "action": "inventory_open", "label": "Open your bag and everything you have found"},
+    {"group": "BAG", "action": "quick_slot_1", "through": "quick_slot_4", "label": "Use one of Lola's things from the satchel", "levels": ["level_4"]},
 
     {"group": "SYSTEM", "action": "pause", "label": "Pause, or back out"}
   ]
