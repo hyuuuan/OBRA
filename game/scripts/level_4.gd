@@ -140,6 +140,8 @@ func _level_physics(anchor_position: Vector2) -> void:
 		darkness_layer.darkness = move_toward(darkness_layer.darkness,
 			_darkness_at(anchor_position.x), DARKNESS_EASE * get_physics_process_delta_time())
 	_note_lesson_moments()
+	if dawn_clock != null and _finale != null:
+		dawn_clock.set_progress(_finale.progress())
 	_tick_curse(get_physics_process_delta_time())
 
 
@@ -266,6 +268,8 @@ func _arm_player_health() -> void:
 func _restore_checkpoint() -> String:
 	var restored := super()
 	get_tree().call_group(Enemy2D.GROUP, &"reset_for_restore")
+	if dawn_clock != null:
+		dawn_clock.hide_night()
 	_lift_curse()
 	return restored
 
@@ -286,6 +290,7 @@ func _resolve_level_nodes() -> void:
 	_finale = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Finale") as DilimFinale2D
 	if _finale != null:
 		_finale.dawned.connect(_on_dawn)
+		_finale.began.connect(_on_night_began)
 	if _mound != null:
 		_mound.crossed.connect(_on_mound_crossed)
 		_mound.crown_touched.connect(_on_crown_touched)
@@ -449,6 +454,12 @@ const CLEARINGS := ["L4_REST1", "L4_REST2"]
 
 func _build_level_furniture() -> void:
 	director.obstacle_entered.connect(_on_beat_entered)
+	# Top centre, under the quest card: the last clearing's clock.
+	dawn_clock = DawnClockHud.new()
+	dawn_clock.name = "DawnClock"
+	dawn_clock.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	dawn_clock.position = Vector2(-DawnClockHud.SIZE.x * 0.5, DAWN_CLOCK_TOP)
+	$CanvasLayer.add_child(dawn_clock)
 
 
 ## INK COMES BACK AT A CLEARING (Kent: "a single clearing restores both"). On arriving, before the
@@ -482,11 +493,23 @@ const DAWN_LIFT_SECONDS := 2.0
 const MORNING_HOLD := 1.0
 
 var _finale: DilimFinale2D
+## The night's clock on screen, under the quest card; shown only while the night runs.
+var dawn_clock: DawnClockHud
+const DAWN_CLOCK_TOP := 92.0
+
+
+## The night has begun: its clock comes up, and goes on the first frame of the morning.
+func _on_night_began() -> void:
+	if dawn_clock != null:
+		dawn_clock.show_night()
 
 
 ## MORNING. The dark lifts -- on the dark layer's own clock, which runs while a line is up -- she says
 ## the line the level was for, and the level is done: the majority route settled, the one point given.
 func _on_dawn() -> void:
+	if dawn_clock != null:
+		dawn_clock.set_progress(1.0)
+		dawn_clock.hide_night()
 	if darkness_layer != null:
 		darkness_layer.create_tween().tween_property(darkness_layer, "darkness", 0.0, DAWN_LIFT_SECONDS)
 	await _speak_and_wait(script_lines.fire("L4_FINALE.solved"))
