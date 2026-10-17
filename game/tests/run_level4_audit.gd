@@ -95,6 +95,7 @@ func _run() -> void:
 	_audit_beats_in_order(level, scene)
 	_audit_checkpoints_in_their_clearings(level, scene)
 	_audit_canopy_over_every_beat(level, scene)
+	_audit_santelmo_before_the_mound(scene)
 	_audit_level_goes_alone(scene)
 	_audit_fighting_hooks_on(scene)
 	_audit_dark_by_zone(level, scene)
@@ -475,6 +476,26 @@ func _audit_canopy_over_every_beat(level: Dictionary, scene: Node) -> void:
 	_check(problems.is_empty() and lowest < INF, "the canopy is a ceiling over every beat",
 		"lowest %.0f px over the ground, above the %.0f px reach" % [lowest, PLACED_REACH]
 		if problems.is_empty() else "; ".join(problems))
+
+
+## Segment 1 is "santelmo and the nuno" (Kent's design): a flame between where she starts and the
+## mound, floating where it can reach her -- at her middle, not over her head.
+func _audit_santelmo_before_the_mound(scene: Node) -> void:
+	var spans: Dictionary = scene.call("_beat_spans")
+	var mound_west := (spans.get("L4_NUNO", Vector2.ZERO) as Vector2).x
+	var start := (scene.get("spawn_point") as Node2D).global_position.x
+	var placed: Array[String] = []
+	var ahead := false
+	for node in scene.find_children("*", "Node2D", true, false):
+		var flame := node as Santelmo2D
+		if flame == null:
+			continue
+		var at := flame.home()
+		placed.append("%.0f,%.0f" % [at.x, at.y])
+		var reaches := at.y > GROUND_Y - 100.0 and at.y < GROUND_Y - 30.0
+		ahead = ahead or (at.x > start and at.x < mound_west and reaches)
+	_check(ahead, "a santelmo waits before the mound, within her reach",
+		"at %s; the mound from %.0f" % [", ".join(placed), mound_west])
 
 
 func _audit_level_goes_alone(scene: Node) -> void:
