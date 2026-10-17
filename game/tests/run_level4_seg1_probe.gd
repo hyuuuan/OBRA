@@ -27,6 +27,7 @@ func _run() -> void:
 	await _running_brings_it_and_it_burns()
 	await _it_forms_again_at_home()
 	await _walking_away_it_loses_interest()
+	await _a_knockout_puts_the_woods_back()
 	_release_all()
 	level.queue_free()
 	await _frames(3)
@@ -124,6 +125,25 @@ func _walking_away_it_loses_interest() -> void:
 	_check(wanted and gave_up and heading_home and _stage() == PlayerHealth.FULL,
 		"walking away, it loses interest and goes home",
 		"wanted %s, gave up %s, homing %s, stage %d" % [wanted, gave_up, heading_home, _stage()])
+	flame.queue_free()
+	await _frames(2)
+
+
+## Whatever was after her goes back to before, with her: the flame home, wanting nothing.
+func _a_knockout_puts_the_woods_back() -> void:
+	var flame := _flame_at(1500.0)
+	await _put_her_at(900.0)
+	_health().reset_full()
+	await _seconds(0.3)
+	Input.action_press(&"move_right")
+	await _seconds(0.5)
+	_release_all()
+	var away := flame.global_position.distance_to(flame.home()) > 40.0 and flame.is_chasing()
+	level.call("_knockout")
+	await _frames(4)
+	_check(away and not flame.is_chasing() and flame.global_position.distance_to(flame.home()) < 1.0,
+		"a knockout puts the woods back: the flame home, wanting nothing",
+		"was away and chasing %s; now %.0f px from home" % [away, flame.global_position.distance_to(flame.home())])
 	flame.queue_free()
 	await _frames(2)
 
