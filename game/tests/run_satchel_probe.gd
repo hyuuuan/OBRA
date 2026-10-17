@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 24
+const CHECKS := 26
 
 
 func _initialize() -> void:
@@ -62,6 +62,11 @@ func _run() -> void:
 	await _salt_burns_what_it_lands_on()
 	await _salt_goes_the_way_she_faces()
 	await _salt_falls_short_of_what_is_far()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _ash_blinds_what_is_near()
+	await _ash_shows_what_hides()
 	level.queue_free()
 	await _frames(3)
 	if checked != CHECKS:
@@ -547,6 +552,54 @@ func _salt_falls_short_of_what_is_far() -> void:
 		await _frames(2)
 	_check(burnt == [true, false], "and it lands near its reach, no further",
 		"at 280 px burning %s, at 420 px %s" % [burnt[0], burnt[1]])
+
+
+## One awake and coming for her 120 px off, one 300 px off: the near one blinded and still for the
+## moment, then hunting again; the far one never touched.
+func _ash_blinds_what_is_near() -> void:
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(WARD_X, 596.0), "linear_velocity": Vector2.ZERO})
+	(level.get("player_health") as PlayerHealth).call("_start_grace", 600.0)
+	await _frames(6)
+	var near := GroundEnemy2D.new()
+	near.position = Vector2(WARD_X + 120.0, 586.0)
+	var far := GroundEnemy2D.new()
+	far.position = Vector2(WARD_X - 300.0, 586.0)
+	(level.get("entity_root") as Node2D).add_child(near)
+	(level.get("entity_root") as Node2D).add_child(far)
+	await _frames(3)
+	(level.get("satchel")).add("abo", 1)
+	await _use("abo")
+	var blinded := near.state_name() == "STUN"
+	var far_untouched := far.state_name() != "STUN"
+	var at := near.global_position.x
+	await _frames(int(1.2 * 60.0))
+	var still := absf(near.global_position.x - at) < 4.0 and near.state_name() == "STUN"
+	await _frames(int(0.6 * 60.0))
+	var hunting := near.state_name() != "STUN"
+	_check(blinded and still and hunting and far_untouched,
+		"ash blinds the aswang near her, and it stands still for the moment",
+		"blinded %s, still %s, hunting after %s; the far one untouched %s" % [blinded, still, hunting, far_untouched])
+	near.queue_free()
+	far.queue_free()
+	await _frames(2)
+
+
+## Something that hides in the dark, standing within the dust: asked to show itself, for six seconds.
+func _ash_shows_what_hides() -> void:
+	var hiding := GDScript.new()
+	hiding.source_code = "extends Node2D\nvar shown := 0.0\nfunc reveal(seconds: float) -> void:\n\tshown = seconds\n"
+	hiding.reload()
+	var hider := Node2D.new()
+	hider.set_script(hiding)
+	hider.position = Vector2(WARD_X + 80.0, 560.0)
+	hider.add_to_group(AboDust2D.REVEALS)
+	(level.get("entity_root") as Node2D).add_child(hider)
+	(level.get("satchel")).add("abo", 1)
+	await _use("abo")
+	_check(is_equal_approx(float(hider.get(&"shown")), 6.0), "and shows what hides in shadow, for six seconds",
+		"shown for %.1f s" % float(hider.get(&"shown")))
+	hider.queue_free()
 
 
 func _open_level() -> Node:
