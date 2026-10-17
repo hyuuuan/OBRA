@@ -77,6 +77,10 @@ var _prey: PlayerHurtbox2D = null
 var _excepted: Array[PhysicsBody2D] = []
 var _excepted_for: Node = null
 var _fade: Tween
+## A burn still to land: ticks left, and the time to the next.
+var _burn_ticks := 0
+var _burn_every := 0.0
+var _burn_clock := 0.0
 
 
 func _ready() -> void:
@@ -108,6 +112,9 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	art.advance(delta)
+	if state == State.DEAD:
+		return
+	_burn(delta)
 	if state == State.DEAD:
 		return
 	_find_prey()
@@ -185,11 +192,42 @@ func _keep_out_of_wards() -> void:
 			velocity.x = 0.0
 
 
+## SALT ON ITS FLESH (Kent's design: "Burns aswang flesh over time"). `ticks` of one, spread over
+## `seconds`, each a flash and no shove -- it is not a blow -- and the last can kill it. A second
+## burn while one is under way starts over rather than stacking.
+func apply_burn(ticks: int, seconds: float) -> void:
+	if state == State.DEAD or ticks <= 0:
+		return
+	_burn_ticks = ticks
+	_burn_every = seconds / float(ticks)
+	_burn_clock = _burn_every
+
+
+func is_burning() -> bool:
+	return _burn_ticks > 0
+
+
+func _burn(delta: float) -> void:
+	if _burn_ticks <= 0:
+		return
+	_burn_clock -= delta
+	if _burn_clock > 0.0:
+		return
+	_burn_ticks -= 1
+	_burn_clock = _burn_every
+	hp -= 1
+	_flash()
+	if hp <= 0:
+		_burn_ticks = 0
+		_die()
+
+
 ## Put back the way it was before the fight -- the checkpoint the level restored is from then.
 func reset_for_restore() -> void:
 	if _fade != null and _fade.is_valid():
 		_fade.kill()
 	hp = max_hp
+	_burn_ticks = 0
 	global_position = _home
 	velocity = Vector2.ZERO
 	modulate = Color.WHITE
