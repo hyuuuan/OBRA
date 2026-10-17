@@ -600,7 +600,18 @@ func _quick_slots_answer() -> bool:
 ## What each thing does, by its `use` in the file. False when it cannot be used here and now, so
 ## it is not spent.
 func _use_from_satchel(id: String) -> bool:
-	match String(satchel.row(id).get("use", "")):
+	var item := satchel.row(id)
+	match String(item.get("use", "")):
+		"oil":
+			return _pour_oil(int(item.get("stages", 2)))
 		_:
 			return false
+
+
+## LANGIS: stages back into the lantern. Not when it is already full -- that would only waste it.
+func _pour_oil(stages: int) -> bool:
+	if player_health == null or player_health.stage >= PlayerHealth.FULL:
+		return false
+	player_health.refill(stages)
+	return true
 
