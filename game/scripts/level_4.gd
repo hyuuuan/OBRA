@@ -58,6 +58,11 @@ func _tool_wear_enabled() -> bool:
 	return true
 
 
+## A left click in the world swings the weapon in hand toward the pointer, Terraria's way.
+func _click_attacks() -> bool:
+	return true
+
+
 ## How many times the lantern has gone out this run, so the RESPAWN pool turns over.
 var _knockouts := 0
 
