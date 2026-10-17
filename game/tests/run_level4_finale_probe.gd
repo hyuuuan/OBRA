@@ -13,7 +13,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 11
+const CHECKS := 12
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -32,7 +32,7 @@ func _run() -> void:
 	finale = _the_finale()
 	await _nothing_before_the_clearing()
 	await _stepping_in_begins_the_night()
-	_the_clock_comes_with_the_night()
+	await _the_clock_comes_with_the_night()
 	await _one_falls_and_another_comes()
 	await _never_more_than_two()
 	await _a_knockout_starts_the_night_over()
@@ -102,6 +102,17 @@ func _the_clock_comes_with_the_night() -> void:
 		"the night's clock comes up with it, and follows it",
 		"before %s, now %s at %.3f of %.3f" % [get_meta(&"clock_before", true), clock.visible,
 			clock.progress(), finale.progress()])
+	var frame := (level.get("objective_banner") as Node).get_node(^"Panel") as Control
+	var strip_top := clock.get_global_rect().position.y + DawnClockHud.STRIP_TOP
+	var gap := strip_top - frame.get_global_rect().end.y
+	# And it follows the card: a taller card (a second line) pushes its frame's bottom down.
+	frame.position.y += 30.0
+	await _frames(3)
+	var followed := clock.get_global_rect().position.y + DawnClockHud.STRIP_TOP - frame.get_global_rect().end.y
+	frame.position.y -= 30.0
+	_check(gap >= 6.0 and gap <= 20.0 and absf(followed - gap) < 1.0,
+		"and it sits under the quest card, clear of it, following it", "%.0f px between, %.0f after the card grew"
+			% [gap, followed])
 
 
 func _one_falls_and_another_comes() -> void:
