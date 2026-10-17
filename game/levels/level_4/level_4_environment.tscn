@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/makiling_terrain_2d.gd" id="8_terrain"]
 [ext_resource type="Texture2D" path="res://assets/Level4/tiles/leaf.png" id="9_leaf"]
 [ext_resource type="Script" path="res://scripts/santelmo_2d.gd" id="10_santelmo"]
+[ext_resource type="Script" path="res://scripts/nuno_mound_2d.gd" id="11_mound"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -176,6 +177,11 @@ position = Vector2(21900.0, 600.0)
 [node name="Santelmo" type="Node2D" parent="GameplayPlane/Hazards"]
 position = Vector2(1700.0, 530.0)
 script = ExtResource("10_santelmo")
+
+; The nuno's mound, on the ground at its mark. Jumped clean, or stood on and cursed.
+[node name="NunoMound" type="StaticBody2D" parent="GameplayPlane/Hazards"]
+position = Vector2(3400.0, 600.0)
+script = ExtResource("11_mound")
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 
