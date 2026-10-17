@@ -35,6 +35,7 @@ func _run() -> void:
 	await _standing_on_the_crown_answers_nothing()
 	await _the_crown_curses_her()
 	await _a_restore_lifts_the_curse()
+	await _a_clearing_fills_the_ink()
 	_release_all()
 	level.queue_free()
 	await _frames(3)
@@ -306,6 +307,26 @@ func _a_restore_lifts_the_curse() -> void:
 	var apo := level.get("player") as Node2D
 	_check(cursed and not bool(level.call("is_cursed")) and float(apo.get(&"pace_scale")) == 1.0,
 		"a knockout lifts the curse", "cursed before %s, after %s" % [cursed, level.call("is_cursed")])
+
+
+# --- The first clearing ----------------------------------------------------------------------
+
+const CLEARING_X := 4600.0
+
+
+## However dry she comes in, the clearing gives her ink to draw its light with.
+func _a_clearing_fills_the_ink() -> void:
+	await _fresh_level()
+	var ink := level.get("ink_manager") as InkManager
+	ink.drain(ink.remaining())
+	await _put_her_at(CLEARING_X - 200.0)
+	var dry := ink.remaining()
+	Input.action_press(&"move_right")
+	await _seconds(1.4)
+	_release_all()
+	await _seconds(0.3)
+	_check(dry < 0.01 and is_equal_approx(ink.remaining(), ink.capacity),
+		"arriving at the clearing fills her ink", "%.1f -> %.1f of %.0f" % [dry, ink.remaining(), ink.capacity])
 
 
 # --- Helpers -----------------------------------------------------------------------------
