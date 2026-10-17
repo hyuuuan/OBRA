@@ -491,6 +491,8 @@ func _build_level_furniture() -> void:
 	for node in find_children("*", "Area2D", true, false):
 		if node is SatchelPickup2D:
 			_wire_pickup(node as SatchelPickup2D)
+		elif node is InkJar2D:
+			_wire_jar(node as InkJar2D)
 	# Every aswang that falls, now or later -- the finale makes its own as the night goes.
 	get_tree().node_added.connect(_on_node_added)
 	for node in find_children("*", "CharacterBody2D", true, false):
@@ -640,6 +642,9 @@ func _show_taken_pickups() -> void:
 		var pickup := node as SatchelPickup2D
 		if pickup != null and not pickup.pickup_id.is_empty() and pickup_taken_this_run(pickup.pickup_id):
 			pickup.queue_free()
+		var jar := node as InkJar2D
+		if jar != null and not jar.pickup_id.is_empty() and pickup_taken_this_run(jar.pickup_id):
+			jar.queue_free()
 
 
 ## Into the satchel if there is room; if not it stays where it lies, for later. The first of each
@@ -703,6 +708,18 @@ func _on_foe_fell(foe: Enemy2D) -> void:
 		pickup.touched.connect(_on_pickup_touched)
 		get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(pickup)
 		dropped += 1
+
+
+## A jar of ink on the way: its ink back to her, and gone for the run.
+func _wire_jar(jar: InkJar2D) -> void:
+	if not jar.pickup_id.is_empty() and pickup_taken_this_run(jar.pickup_id):
+		jar.queue_free()
+		return
+	jar.touched.connect(func(taken: InkJar2D) -> void:
+		ink_manager.add_ink(taken.amount)
+		if not taken.pickup_id.is_empty():
+			note_pickup_taken(taken.pickup_id)
+		taken.take())
 
 
 ## The kinds she has found at least once this run, for the first-find line.
