@@ -33,6 +33,8 @@ func _run() -> void:
 	await _asking_then_crossing_clean_gives_the_flower()
 	await _crossing_clean_without_asking_is_the_pragmatists()
 	await _standing_on_the_crown_answers_nothing()
+	await _the_crown_curses_her()
+	await _a_restore_lifts_the_curse()
 	_release_all()
 	level.queue_free()
 	await _frames(3)
@@ -247,6 +249,58 @@ func _standing_on_the_crown_answers_nothing() -> void:
 	_check(touched[0] and _her_x() > MOUND_X + MOUND_HALF and not director.call("is_solved", "L4_NUNO"),
 		"standing on the crown touches it, and answers nothing",
 		"touched %s, at %.0f, solved %s" % [touched[0], _her_x(), director.call("is_solved", "L4_NUNO")])
+
+
+## Her pace over a second of running on the flat, once she is up to speed.
+func _pace() -> float:
+	Input.action_press(&"move_right")
+	await _seconds(0.4)
+	var from := _her_x()
+	await _seconds(1.0)
+	_release_all()
+	return _her_x() - from
+
+
+## Twenty seconds slow and short of jump, the lantern down a stage at once and again at ten,
+## never below LOW -- then it wears off.
+func _the_crown_curses_her() -> void:
+	await _fresh_level()
+	_health().reset_full()
+	await _seconds(2.2)
+	(level.get("player") as Node2D).call("apply_morph_state",
+		{"position": Vector2(MOUND_X, GROUND_Y - NunoMound2D.HEIGHT - 6.0), "linear_velocity": Vector2.ZERO})
+	await _seconds(0.5)
+	var at_once := _stage()
+	await _put_her_at(MOUND_X + 300.0)
+	var slowed := await _pace()
+	var cursed := bool(level.call("is_cursed"))
+	await _put_her_at(MOUND_X + 300.0)
+	await _seconds(8.4)
+	var at_ten := _stage()
+	# About 10.5 s in at this point: half a second past the twenty, not on it.
+	await _seconds(10.0)
+	var still := bool(level.call("is_cursed"))
+	await _put_her_at(MOUND_X + 300.0)
+	var after := await _pace()
+	_check(cursed and at_once == PlayerHealth.DIM and slowed > 130.0 and slowed < 175.0,
+		"the crown curses her: a stage at once, and slow",
+		"stage %d, %.0f px/s (her own 260; cursed 156)" % [at_once, slowed])
+	_check(at_ten == PlayerHealth.LOW, "another stage at ten seconds, and no lower",
+		"stage %d" % at_ten)
+	_check(not still and after > 240.0 and _stage() == PlayerHealth.LOW,
+		"it wears off at twenty seconds", "cursed %s, %.0f px/s, stage %d" % [still, after, _stage()])
+
+
+func _a_restore_lifts_the_curse() -> void:
+	(level.get("player") as Node2D).call("apply_morph_state",
+		{"position": Vector2(MOUND_X, GROUND_Y - NunoMound2D.HEIGHT - 6.0), "linear_velocity": Vector2.ZERO})
+	await _seconds(0.5)
+	var cursed := bool(level.call("is_cursed"))
+	level.call("_knockout")
+	await _frames(4)
+	var apo := level.get("player") as Node2D
+	_check(cursed and not bool(level.call("is_cursed")) and float(apo.get(&"pace_scale")) == 1.0,
+		"a knockout lifts the curse", "cursed before %s, after %s" % [cursed, level.call("is_cursed")])
 
 
 # --- Helpers -----------------------------------------------------------------------------
