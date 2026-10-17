@@ -139,6 +139,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 		darkness_layer.darkness = move_toward(darkness_layer.darkness,
 			_darkness_at(anchor_position.x), DARKNESS_EASE * get_physics_process_delta_time())
 	_note_lesson_moments()
+	_tick_curse(get_physics_process_delta_time())
 
 
 ## Each beat's ground, west edge to east edge in world x, by obstacle id: read off the scene's
@@ -263,6 +264,7 @@ func _arm_player_health() -> void:
 func _restore_checkpoint() -> String:
 	var restored := super()
 	get_tree().call_group(Enemy2D.GROUP, &"reset_for_restore")
+	_lift_curse()
 	return restored
 
 
@@ -281,6 +283,7 @@ func _resolve_level_nodes() -> void:
 	_mound = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Hazards/NunoMound") as NunoMound2D
 	if _mound != null:
 		_mound.crossed.connect(_on_mound_crossed)
+		_mound.crown_touched.connect(_on_crown_touched)
 
 
 ## ASKED BY WHAT SHE DOES (Kent): stop beside the mound and say tabi-tabi po, then cross without
@@ -366,3 +369,67 @@ func _flower_from_the_mound() -> void:
 		announce_acquisition("Hidden Flower",
 			"%s of five. The mound gave it back, for asking first." % String(COUNT_WORDS[count]),
 			FLOWER_ART))
+
+
+# --- The nuno's curse -------------------------------------------------------------------------
+
+## Kent's design: "Step on it and the apo is cursed: swollen foot, slowed movement, hearts
+## draining until it wears off." Twenty seconds: her pace to 0.6 and her jump to 0.85, the lantern
+## down a stage at once and another at ten seconds -- never below LOW, never out. A restore lifts
+## it, and so does the first clearing (the fire).
+const CURSE_SECONDS := 20.0
+const CURSE_PACE := 0.6
+const CURSE_JUMP := 0.85
+const CURSE_SECOND_DIM := 10.0
+
+var _curse_left := 0.0
+var _curse_dimmed_twice := false
+
+
+func is_cursed() -> bool:
+	return _curse_left > 0.0
+
+
+## Touching it again while cursed does not curse her twice.
+func _on_crown_touched() -> void:
+	if is_cursed():
+		return
+	_curse_left = CURSE_SECONDS
+	_curse_dimmed_twice = false
+	if player_health != null:
+		player_health.dim(PlayerHealth.LOW)
+	_speak(script_lines.fire("L4_NUNO.cursed"))
+	Telemetry.record_event("nuno_cursed", {"level_id": LevelManager.current_level_id,
+		"obstacle_id": "L4_NUNO"})
+	_weigh_on_her()
+
+
+func _tick_curse(delta: float) -> void:
+	if not is_cursed():
+		return
+	_curse_left -= delta
+	if not _curse_dimmed_twice and _curse_left <= CURSE_SECONDS - CURSE_SECOND_DIM:
+		_curse_dimmed_twice = true
+		if player_health != null:
+			player_health.dim(PlayerHealth.LOW)
+	if _curse_left <= 0.0:
+		_lift_curse()
+	else:
+		# Every tick: she may have changed body since, and a new one starts unweighted.
+		_weigh_on_her()
+
+
+func _weigh_on_her() -> void:
+	var apo := player as Wanderer
+	if apo != null:
+		apo.pace_scale = CURSE_PACE
+		apo.jump_scale = CURSE_JUMP
+
+
+func _lift_curse() -> void:
+	_curse_left = 0.0
+	var apo := player as Wanderer
+	if apo != null:
+		apo.pace_scale = 1.0
+		apo.jump_scale = 1.0
+
