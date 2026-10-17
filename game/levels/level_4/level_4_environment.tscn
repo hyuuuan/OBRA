@@ -16,6 +16,7 @@
 [ext_resource type="Script" path="res://scripts/sigbin_2d.gd" id="14_sigbin"]
 [ext_resource type="Script" path="res://scripts/tikbalang_2d.gd" id="15_tikbalang"]
 [ext_resource type="Script" path="res://scripts/ink_jar_2d.gd" id="16_jar"]
+[ext_resource type="Script" path="res://scripts/kapre_2d.gd" id="17_kapre"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -226,6 +227,11 @@ script = ExtResource("14_sigbin")
 [node name="Tikbalang" type="Node2D" parent="GameplayPlane/Encounters"]
 position = Vector2(8450.0, 600.0)
 script = ExtResource("15_tikbalang")
+
+; The kapre in its tree at its mark; its smoke runs 600 px west of the trunk, over the way in.
+[node name="Kapre" type="Node2D" parent="GameplayPlane/Encounters"]
+position = Vector2(13800.0, 600.0)
+script = ExtResource("17_kapre")
 
 [node name="Pickups" type="Node2D" parent="GameplayPlane"]
 
