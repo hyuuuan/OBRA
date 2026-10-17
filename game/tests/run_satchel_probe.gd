@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 26
+const CHECKS := 29
 
 
 func _initialize() -> void:
@@ -67,6 +67,14 @@ func _run() -> void:
 	level = await _open_level()
 	await _ash_blinds_what_is_near()
 	await _ash_shows_what_hides()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level(true)
+	await _a_knockout_keeps_what_she_carries()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level(true)
+	await _a_continue_gives_it_back()
 	level.queue_free()
 	await _frames(3)
 	if checked != CHECKS:
@@ -602,8 +610,44 @@ func _ash_shows_what_hides() -> void:
 	hider.queue_free()
 
 
-func _open_level() -> Node:
+## Five at the checkpoint, two more found after it, then knocked out: all seven still hers.
+func _a_knockout_keeps_what_she_carries() -> void:
+	var satchel = level.get("satchel")
+	# Counted from what she starts with: an earlier check may have left a checkpoint on disk.
+	await _frames(60)
+	var start: int = satchel.count("asin")
+	satchel.add("asin", 5)
+	level.call("_write_checkpoint", "CP1")
+	var kept: Variant = JSON.parse_string(JSON.stringify((level.get("checkpoints") as Node).call("peek", "CP1")))
+	satchel.add("asin", 2)
+	level.call("_knockout")
+	await _frames(4)
+	var saved_asin := -1
+	# Read as data, and anything else -- an object JSON could not carry -- reads as nothing kept.
+	if kept is Dictionary and (kept as Dictionary).get("level") is Dictionary:
+		var held: Variant = ((kept as Dictionary)["level"] as Dictionary).get("satchel")
+		if held is Dictionary and (held as Dictionary).get("counts") is Dictionary:
+			saved_asin = int(((held as Dictionary)["counts"] as Dictionary).get("asin", -1))
+	set_meta(&"saved_asin", saved_asin)
+	_check(saved_asin == start + 5, "a checkpoint keeps the satchel as plain data",
+		"asin %d in the checkpoint (%d + 5)" % [saved_asin, start])
+	_check(satchel.count("asin") == start + 7, "a knockout keeps what she carries, found since included",
+		"asin %d (%d + 5 at the checkpoint, 2 after)" % [satchel.count("asin"), start])
+
+
+## A fresh level, resuming from that checkpoint on disk: the five it held.
+func _a_continue_gives_it_back() -> void:
+	await _frames(60)
+	var satchel = level.get("satchel")
+	var saved := int(get_meta(&"saved_asin", -1))
+	_check(saved > 0 and satchel.count("asin") == saved, "a Continue gives back what the checkpoint held",
+		"asin %d of %d" % [satchel.count("asin"), saved])
+
+
+func _open_level(resuming: bool = false) -> Node:
 	var scene := (load("res://level_4.tscn") as PackedScene).instantiate()
+	# Resume is off in test runs unless asked for; the Continue checks are about it.
+	scene.set(&"resume_enabled", resuming)
 	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(scene)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
