@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 18
+const CHECKS := 21
 
 
 func _initialize() -> void:
@@ -50,6 +50,12 @@ func _run() -> void:
 	level = await _open_level()
 	await _a_candle_lights_without_ink()
 	await _a_candle_burns_down()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _without_a_ward_it_reaches_her()
+	await _a_ward_holds_it_off()
+	await _a_spent_ward_lets_it_in()
 	level.queue_free()
 	await _frames(3)
 	if checked != CHECKS:
@@ -405,6 +411,67 @@ func _a_candle_burns_down() -> void:
 	_check(lit > 44.0 and lit <= 45.0 and halfway < 219.5 and halfway > 210.0 and not is_instance_valid(short),
 		"it burns down, its light shrinking, and is gone", "%.1f s left of 45; half a second in, %.1f px; a one-second candle gone %s"
 			% [lit, halfway, not is_instance_valid(short)])
+
+
+const WARD_X := 5800.0
+
+
+## Her at WARD_X in a long grace, and an aswang awake 300 px off; its nearest approach in `seconds`.
+func _how_near_it_comes(seconds: float, foe: Enemy2D = null) -> Array:
+	var player := level.get("player") as Node2D
+	if foe == null:
+		player.call("apply_morph_state", {"position": Vector2(WARD_X, 596.0), "linear_velocity": Vector2.ZERO})
+		(level.get("player_health") as PlayerHealth).call("_start_grace", 600.0)
+		await _frames(6)
+		foe = GroundEnemy2D.new()
+		foe.position = Vector2(WARD_X + 300.0, 560.0)
+		(level.get("entity_root") as Node2D).add_child(foe)
+	var nearest := INF
+	for _frame in range(int(seconds * 60.0)):
+		await _frames(1)
+		nearest = minf(nearest, absf(foe.global_position.x - WARD_X))
+	return [nearest, foe]
+
+
+func _without_a_ward_it_reaches_her() -> void:
+	var seen: Array = await _how_near_it_comes(3.0)
+	(seen[1] as Node).queue_free()
+	await _frames(2)
+	_check(float(seen[0]) < 100.0, "without a ward, an aswang reaches her", "%.0f px" % float(seen[0]))
+
+
+func _a_ward_holds_it_off() -> void:
+	var satchel = level.get("satchel")
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(WARD_X, 596.0), "linear_velocity": Vector2.ZERO})
+	await _frames(6)
+	satchel.add("bawang", 1)
+	await _use("bawang")
+	var ward: BawangWard2D = null
+	for node in level.find_children("*", "Node2D", true, false):
+		if node is BawangWard2D:
+			ward = node
+	var seen: Array = await _how_near_it_comes(3.0)
+	_check(ward != null and absf(ward.global_position.x - WARD_X) < 8.0 and float(seen[0]) >= 140.0,
+		"a ward of bawang at her feet holds it off at its edge", "nearest %.0f px of a 150 px ward" % float(seen[0]))
+	set_meta(&"held_foe", seen[1])
+	if ward != null:
+		ward.queue_free()
+	await _frames(2)
+
+
+func _a_spent_ward_lets_it_in() -> void:
+	var foe := get_meta(&"held_foe") as Enemy2D
+	var short := BawangWard2D.new()
+	short.seconds = 1.0
+	short.position = Vector2(WARD_X, 600.0)
+	level.get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(short)
+	var held: Array = await _how_near_it_comes(0.8, foe)
+	var after: Array = await _how_near_it_comes(2.5, foe)
+	_check(float(held[0]) >= 140.0 and not is_instance_valid(short) and float(after[0]) < 100.0,
+		"and once it is spent, it comes in", "held at %.0f, then %.0f px" % [float(held[0]), float(after[0])])
+	foe.queue_free()
+	await _frames(2)
 
 
 func _open_level() -> Node:
