@@ -461,6 +461,14 @@ func _build_level_furniture() -> void:
 	dawn_clock.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	dawn_clock.position = Vector2(-DawnClockHud.SIZE.x * 0.5, DAWN_CLOCK_TOP)
 	$CanvasLayer.add_child(dawn_clock)
+	# Bottom centre: Lola's things on Z, X, C and V.
+	satchel = Satchel.new()
+	quick_slots = QuickSlotBar.new()
+	quick_slots.name = "QuickSlots"
+	quick_slots.bind(satchel)
+	quick_slots.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	quick_slots.position = Vector2(-quick_slots.size.x * 0.5, -quick_slots.size.y - QUICK_SLOTS_BOTTOM)
+	$CanvasLayer.add_child(quick_slots)
 
 
 ## INK COMES BACK AT A CLEARING (Kent: "a single clearing restores both"). On arriving, before the
@@ -546,4 +554,53 @@ func _on_dawn() -> void:
 	await get_tree().create_timer(MORNING_HOLD, false).timeout
 	if is_inside_tree():
 		_complete_level()
+
+
+# --- The satchel ----------------------------------------------------------------------------
+
+## Lola's things, counted, four on quick slots (config/satchel.json, Satchel).
+var satchel: Satchel
+var quick_slots: QuickSlotBar
+const QUICK_SLOTS_BOTTOM := 28.0
+
+
+func _handle_level_input(event: InputEvent) -> bool:
+	for index in range(Satchel.SLOTS):
+		if event.is_action_pressed("quick_slot_%d" % (index + 1)):
+			return use_quick_slot(index)
+	return false
+
+
+## Z, X, C or V: the thing on that slot, used now, and one fewer. Spent only if it did something.
+## Returns whether the press was the satchel's -- it is not while a drawing is being placed (the
+## same keys turn and size it), drawn, or the bag is open: those keep the key.
+func use_quick_slot(index: int) -> bool:
+	if not _quick_slots_answer():
+		return false
+	var id := satchel.slot_item(index)
+	if id.is_empty() or satchel.count(id) <= 0:
+		return true
+	if _use_from_satchel(id):
+		satchel.take(id)
+		quick_slots.flash(index)
+		Telemetry.record_event("satchel_used", {"level_id": LevelManager.current_level_id, "item": id})
+	return true
+
+
+func _quick_slots_answer() -> bool:
+	if satchel == null or get_tree().paused:
+		return false
+	if placement_controller != null and placement_controller.is_placing():
+		return false
+	if draw_panel != null and draw_panel.is_open():
+		return false
+	return not (inventory_screen != null and inventory_screen.is_open())
+
+
+## What each thing does, by its `use` in the file. False when it cannot be used here and now, so
+## it is not spent.
+func _use_from_satchel(id: String) -> bool:
+	match String(satchel.row(id).get("use", "")):
+		_:
+			return false
 
