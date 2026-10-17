@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://scripts/makiling_backdrop_2d.gd" id="7_backdrop"]
 [ext_resource type="Script" path="res://scripts/makiling_terrain_2d.gd" id="8_terrain"]
 [ext_resource type="Texture2D" path="res://assets/Level4/tiles/leaf.png" id="9_leaf"]
+[ext_resource type="Script" path="res://scripts/santelmo_2d.gd" id="10_santelmo"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -166,6 +167,15 @@ position = Vector2(20500.0, 600.0)
 
 [node name="FinaleMark" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(21900.0, 600.0)
+
+; What is in the woods that is not an encounter: a hazard has no route and no beat.
+[node name="Hazards" type="Node2D" parent="GameplayPlane"]
+
+; The edge of the woods' santelmo, at her middle's height, before the mound -- the first thing
+; that wants her, and the place she learns to walk rather than run.
+[node name="Santelmo" type="Node2D" parent="GameplayPlane/Hazards"]
+position = Vector2(1700.0, 530.0)
+script = ExtResource("10_santelmo")
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 
