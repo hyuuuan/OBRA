@@ -143,6 +143,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_hold_the_drain(get_physics_process_delta_time())
 	_watch_her_back(get_physics_process_delta_time())
 	_lead_her_round()
+	_tend_the_kapre(get_physics_process_delta_time())
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
@@ -290,6 +291,9 @@ var _mound: NunoMound2D
 
 
 func _resolve_level_nodes() -> void:
+	_kapre = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Kapre") as Kapre2D
+	if _kapre != null:
+		_kapre.cigar_knocked.connect(_on_cigar_knocked)
 	_tikbalang = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Tikbalang") as Tikbalang2D
 	if _tikbalang != null:
 		_tikbalang.race_finished.connect(_on_race_finished)
@@ -981,4 +985,68 @@ func _on_race_finished(she_won: bool) -> void:
 		return
 	_put_her_back_at_the_rock()
 	_speak(script_lines.fire("L4_TIKBALANG.race.lost"))
+
+
+# --- The kapre ----------------------------------------------------------------------------------
+
+## Kent's design: its smoke turns her round -- crossing the middle of the smoke bank on her own
+## feet, while it stands, puts her back at the bank's edge. Answered three ways, each a drawing
+## and then a deed: a fan held up to it within FAN_REACH for FAN_SECONDS clears the smoke (artist);
+## a blade used at its tree CHOPS times fells it (pragmatist); something thrown knocks the cigar
+## out of its hand (protector).
+const FAN_REACH := 360.0
+const FAN_SECONDS := 1.5
+const CHOP_REACH := 110.0
+const SMOKE_EDGE_BACK := 50.0
+
+var _kapre: Kapre2D
+var _fanned := 0.0
+var _smoke_last_x := INF
+
+
+func _tend_the_kapre(delta: float) -> void:
+	if _kapre == null or player == null or not is_instance_valid(player):
+		return
+	var x := PlayerHurtbox2D.middle_of(player).x
+	var span := _kapre.smoke_span()
+	var middle := (span.x + span.y) * 0.5
+	var crossed := _smoke_last_x < middle and x >= middle and x - _smoke_last_x < CROSSING_STEP
+	_smoke_last_x = x
+	if crossed and _kapre.smoke_stands() and not director.is_solved("L4_KAPRE"):
+		player.call("apply_morph_state", {"position": Vector2(span.x + SMOKE_EDGE_BACK, player.global_position.y),
+			"linear_velocity": Vector2.ZERO})
+		_smoke_last_x = span.x + SMOKE_EDGE_BACK
+		_speak(script_lines.fire("L4_KAPRE.turned"))
+	# The fan, held up to it.
+	if director.committed_route("L4_KAPRE") == "artist" and not director.is_solved("L4_KAPRE") \
+			and _holding("fan") and absf(x - _kapre.global_position.x) <= FAN_REACH:
+		_fanned += delta
+		if _fanned >= FAN_SECONDS:
+			_kapre.clear_smoke()
+			_answer("L4_KAPRE", "artist")
+	else:
+		_fanned = 0.0
+
+
+## A blade swung at its tree is a chop -- the first one too, the swing that draws the route in.
+## Read after the swing, and only of a swing that happened (a press inside a swing is nothing).
+func _use_equipped_utility() -> void:
+	var swung := _equipped_utility != null and is_instance_valid(_equipped_utility) \
+		and _equipped_utility.is_ready()
+	super()
+	if swung and _kapre != null and not _kapre.is_felled() and director != null \
+			and director.committed_route("L4_KAPRE") == "pragmatist" and not director.is_solved("L4_KAPRE") \
+			and player != null and absf(player.global_position.x - _kapre.global_position.x) <= CHOP_REACH:
+		if _kapre.chop():
+			_answer("L4_KAPRE", "pragmatist")
+
+
+func _on_cigar_knocked() -> void:
+	_kapre.leave()
+	_answer("L4_KAPRE", "protector")
+
+
+func _holding(entity_id: String) -> bool:
+	return _equipped_utility != null and is_instance_valid(_equipped_utility) \
+		and _equipped_utility.item_data != null and _equipped_utility.item_data.entity_id == entity_id
 
