@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://scripts/nuno_mound_2d.gd" id="11_mound"]
 [ext_resource type="Script" path="res://scripts/dilim_finale_2d.gd" id="12_finale"]
 [ext_resource type="Script" path="res://scripts/satchel_pickup_2d.gd" id="13_pickup"]
+[ext_resource type="Script" path="res://scripts/sigbin_2d.gd" id="14_sigbin"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -109,6 +110,13 @@ platforms = Array[Rect2]([Rect2(-200, 600, 22800, 800)])
 ; ⚠ THE CANOPY IS A CEILING, NOT A RULE (Kent's design: 'the canopy block flight physically').
 ; 440 up: higher than a drawn tree reaches (362), so every way over the ground still fits under
 ; it, and a flier meets leaves instead of a refusal. run_level4_audit holds it over every beat.
+; A rock in the sigbin's ground, waist-high: she can jump it (94 px), it cannot climb it (48), so
+; with her back to it nothing can get behind her.
+[node name="SigbinRock" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+platforms = Array[Rect2]([Rect2(6700, 530, 90, 70)])
+body = "stone"
+
 [node name="Canopy" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(11200.0, -520.0)
 
@@ -193,6 +201,14 @@ script = ExtResource("12_finale")
 arena_west = 21400.0
 
 ; Lola's things, lying where she will find them. Aswang drop more as they fall.
+; Who is in the woods, waiting.
+[node name="Encounters" type="Node2D" parent="GameplayPlane"]
+
+; The sigbin, in the dark past the rock.
+[node name="Sigbin" type="CharacterBody2D" parent="GameplayPlane/Encounters"]
+position = Vector2(7200.0, 585.0)
+script = ExtResource("14_sigbin")
+
 [node name="Pickups" type="Node2D" parent="GameplayPlane"]
 
 ; the edge of the woods: the first of Lola's things, early
