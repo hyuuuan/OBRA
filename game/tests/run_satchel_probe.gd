@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 29
+const CHECKS := 30
 
 
 func _initialize() -> void:
@@ -75,6 +75,7 @@ func _run() -> void:
 	await _frames(3)
 	level = await _open_level(true)
 	await _a_continue_gives_it_back()
+	await _the_controls_screen_names_the_slots()
 	level.queue_free()
 	await _frames(3)
 	if checked != CHECKS:
@@ -642,6 +643,22 @@ func _a_continue_gives_it_back() -> void:
 	var saved := int(get_meta(&"saved_asin", -1))
 	_check(saved > 0 and satchel.count("asin") == saved, "a Continue gives back what the checkpoint held",
 		"asin %d of %d" % [satchel.count("asin"), saved])
+
+
+func _the_controls_screen_names_the_slots() -> void:
+	var overlay := level.get_node(^"ControlsOverlay")
+	var shown: Array[bool] = []
+	for level_id in ["level_1", "level_4"]:
+		root.get_node(^"LevelManager").set(&"current_level_id", level_id)
+		overlay.call("_build")
+		await _frames(2)
+		var named := false
+		for label in overlay.find_children("*", "Label", true, false):
+			named = named or (label as Label).text.begins_with("Use one of Lola's things")
+		shown.append(named)
+	root.get_node(^"LevelManager").set(&"current_level_id", "level_4")
+	_check(shown == [false, true], "the controls screen names the quick slots in Dilim and nowhere else",
+		"shown in Payyo / Dilim: %s" % [shown])
 
 
 func _open_level(resuming: bool = false) -> Node:
