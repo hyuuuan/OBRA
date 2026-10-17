@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 16
+const CHECKS := 20
 var level: Node
 
 
@@ -41,6 +41,11 @@ func _run() -> void:
 	await _a_jar_before_the_kapre_gives_her_ink()
 	level.queue_free()
 	await _frames(3)
+	for kapre_check in [_the_smoke_turns_her_round, _a_fan_clears_the_smoke, _three_chops_fell_its_tree, _a_throw_knocks_its_cigar]:
+		level = await _open_level()
+		await kapre_check.call()
+		level.queue_free()
+		await _frames(3)
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -265,6 +270,70 @@ func _a_jar_before_the_kapre_gives_her_ink() -> void:
 	await _frames(20)
 	_check(is_equal_approx(ink.remaining(), before + 2.0) and bool(level.call("pickup_taken_this_run", "L4_JAR_KAPRE")),
 		"a jar of ink before the kapre gives her two", "%.1f -> %.1f" % [before, ink.remaining()])
+
+
+# --- The kapre -------------------------------------------------------------------------------
+
+func _kapre() -> Kapre2D:
+	return level.get("_kapre") as Kapre2D
+
+
+func _kapre_route() -> String:
+	return String(level.get("director").call("committed_route", "L4_KAPRE"))
+
+
+func _kapre_solved() -> bool:
+	return bool(level.get("director").call("is_solved", "L4_KAPRE"))
+
+
+func _the_smoke_turns_her_round() -> void:
+	await _stand_at(13350.0, &"move_right")
+	Input.action_press(&"move_right")
+	var turned := false
+	for _frame in range(90):
+		await _frames(1)
+		if _her_x() < 13300.0:
+			turned = true
+			break
+	Input.action_release(&"move_right")
+	var said := (level.get("hint_bar") as HintBar).current_text()
+	_check(turned and said.begins_with("Turned round in the smoke"), "the kapre's smoke turns her round, and she says so",
+		"turned %s, said \"%s\"" % [turned, said])
+
+
+func _a_fan_clears_the_smoke() -> void:
+	await _stand_at(13650.0, &"move_right")
+	await _become("fan")
+	level.call("_use_equipped_utility")
+	await _frames(int(1.0 * 60.0))
+	var early := _kapre_solved()
+	await _frames(int(1.0 * 60.0))
+	_check(not early and _kapre_route() == "artist" and _kapre_solved(),
+		"a fan held up to the smoke a moment clears it", "at a second %s; route '%s', solved %s"
+			% [early, _kapre_route(), _kapre_solved()])
+
+
+func _three_chops_fell_its_tree() -> void:
+	await _stand_at(13760.0, &"move_right")
+	await _become("axe")
+	var after_two := false
+	for chop in range(3):
+		level.call("_use_equipped_utility")
+		await _frames(50)
+		if chop == 1:
+			after_two = _kapre_solved()
+	_check(not after_two and _kapre_route() == "pragmatist" and _kapre_solved() and _kapre().is_felled(),
+		"three chops fell its tree, the first one counting", "after two %s; route '%s', felled %s"
+			% [after_two, _kapre_route(), _kapre().is_felled()])
+
+
+func _a_throw_knocks_its_cigar() -> void:
+	await _stand_at(13500.0, &"move_right")
+	var apo := level.get("player") as Node2D
+	_kapre().apply_tool_hit("boomerang", 0.0, apo)
+	await _frames(5)
+	_check(_kapre_route() == "protector" and _kapre_solved() and _kapre().is_gone() and not _kapre().cigar_is_lit(),
+		"a throw that reaches the cigar knocks it out of its hand", "route '%s', gone %s" % [_kapre_route(), _kapre().is_gone()])
 
 
 # --- Helpers -----------------------------------------------------------------------------
