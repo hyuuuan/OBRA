@@ -319,6 +319,12 @@ func _a_clearing_fills_the_ink() -> void:
 	await _fresh_level()
 	var ink := level.get("ink_manager") as InkManager
 	ink.drain(ink.remaining())
+	await _frames(2)
+	var screen := (level.get("out_of_ink_overlay") as ModalOverlay).is_open()
+	var said := (level.get("hint_bar") as HintBar).current_text()
+	_check(not screen and said.begins_with("No more ink"),
+		"running dry is not a loss: no out-of-ink screen, and she says where more is",
+		"screen open %s, said \"%s\"" % [screen, said])
 	await _put_her_at(CLEARING_X - 200.0)
 	var dry := ink.remaining()
 	Input.action_press(&"move_right")
