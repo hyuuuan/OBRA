@@ -63,6 +63,11 @@ func _click_attacks() -> bool:
 	return true
 
 
+## The camera keeps step with her in physics ticks, so a knockback or a lunge does not judder.
+func _camera_follows_physics() -> bool:
+	return true
+
+
 ## How many times the lantern has gone out this run, so the RESPAWN pool turns over.
 var _knockouts := 0
 
