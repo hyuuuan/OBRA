@@ -142,6 +142,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_note_lesson_moments()
 	_hold_the_drain(get_physics_process_delta_time())
 	_watch_her_back(get_physics_process_delta_time())
+	_lead_her_round()
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
@@ -289,6 +290,9 @@ var _mound: NunoMound2D
 
 
 func _resolve_level_nodes() -> void:
+	_tikbalang = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Tikbalang") as Tikbalang2D
+	if _tikbalang != null:
+		_tikbalang.race_finished.connect(_on_race_finished)
 	_sigbin = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Sigbin") as Sigbin2D
 	if _sigbin != null:
 		_sigbin.died.connect(_on_sigbin_driven_off)
@@ -306,22 +310,27 @@ func _resolve_level_nodes() -> void:
 ## touching its crown, and the flower is given -- the artist's way. Cross clean without asking,
 ## the pragmatist's. Touching the crown answers nothing.
 func _level_interact_offer() -> Dictionary:
-	if not _can_ask_the_mound():
-		return {}
-	return {"name": "Punso", "verb": "SAY TABI-TABI PO"}
+	if _can_ask_the_mound():
+		return {"name": "Punso", "verb": "SAY TABI-TABI PO"}
+	if _can_race():
+		return {"name": "Tikbalang", "verb": "RACE"}
+	return {}
 
 
-## Offering it, E is hers to ask with, not to pick up a drawing lying near.
+## Offering something, E is hers for it, not to pick up a drawing lying near.
 func _level_answers_first() -> bool:
-	return _can_ask_the_mound()
+	return _can_ask_the_mound() or _can_race()
 
 
 func _interact_with_level() -> bool:
-	if not _can_ask_the_mound():
-		return false
-	_mound.ask()
-	_speak(script_lines.fire("L4_NUNO.asked"))
-	return true
+	if _can_ask_the_mound():
+		_mound.ask()
+		_speak(script_lines.fire("L4_NUNO.asked"))
+		return true
+	if _can_race():
+		_line_up_for_the_race()
+		return true
+	return false
 
 
 func _can_ask_the_mound() -> bool:
@@ -349,6 +358,8 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 		_rest_by_the_fire()
 	if obstacle_id == "L4_SIGBIN" and route == "artist" and _sigbin != null:
 		_sigbin.flee()
+	if obstacle_id == "L4_TIKBALANG" and _tikbalang != null:
+		_tikbalang.stand_aside()
 	return false
 
 
@@ -893,4 +904,64 @@ func _answer(obstacle_id: String, route: String) -> void:
 	var spec: Dictionary = (director.obstacle(obstacle_id).get("routes", {}) as Dictionary).get(route, {})
 	var deed := String(spec.get("answered_by", (spec.get("then", {}) as Dictionary).get("answered_by", route)))
 	director.solve_with_item(obstacle_id, deed)
+
+
+# --- The tikbalang ------------------------------------------------------------------------------
+
+## Kent's design: "whichever path the player takes arrives back at the same place." Past LOOP_X,
+## while it is unanswered and not racing her, she is back at its rock. Answered -- a body with
+## hooves it takes for its own kind (artist), any animal's body it does not chase (pragmatist), a
+## race to its finish she wins (protector) -- it stands aside and the way on is open.
+const LOOP_X := 9700.0
+const LED_BACK_TO := 8350.0
+const RACE_REACH := 150.0
+
+var _tikbalang: Tikbalang2D
+## Where she was last tick, and the most a tick of her own going could carry her.
+var _her_last_x := INF
+const CROSSING_STEP := 120.0
+
+
+## Only for going past it -- crossing the line from the west, a step at a time. Put down beyond it
+## by a restore or a Continue is not going past it: the line was never crossed.
+func _lead_her_round() -> void:
+	if _tikbalang == null or player == null or not is_instance_valid(player):
+		return
+	var x := PlayerHurtbox2D.middle_of(player).x
+	var crossed := _her_last_x < LOOP_X and x >= LOOP_X and x - _her_last_x < CROSSING_STEP
+	_her_last_x = x
+	if not crossed or director.is_solved("L4_TIKBALANG") or _tikbalang.is_racing():
+		return
+	_put_her_back_at_the_rock()
+	_her_last_x = PlayerHurtbox2D.middle_of(player).x
+	_speak(script_lines.fire("L4_TIKBALANG.led_back"))
+
+
+func _put_her_back_at_the_rock() -> void:
+	var ground: Variant = _mark_at("L4_TIKBALANG")
+	var y := (ground as Vector2).y - 4.0 if ground is Vector2 else player.global_position.y
+	player.call("apply_morph_state", {"position": Vector2(LED_BACK_TO, y), "linear_velocity": Vector2.ZERO})
+
+
+func _can_race() -> bool:
+	return _tikbalang != null and not _tikbalang.is_aside() and not _tikbalang.is_racing() \
+		and director != null and not director.is_solved("L4_TIKBALANG") \
+		and player != null and is_instance_valid(player) \
+		and absf(player.global_position.x - _tikbalang.global_position.x) <= RACE_REACH
+
+
+## At its side, at its line: the race starts after its moment to get ready.
+func _line_up_for_the_race() -> void:
+	var line_x := _tikbalang.start_race()
+	player.call("apply_morph_state", {"position": Vector2(line_x, player.global_position.y),
+		"linear_velocity": Vector2.ZERO})
+	_speak(script_lines.fire("L4_TIKBALANG.race"))
+
+
+func _on_race_finished(she_won: bool) -> void:
+	if she_won:
+		_answer("L4_TIKBALANG", "protector")
+		return
+	_put_her_back_at_the_rock()
+	_speak(script_lines.fire("L4_TIKBALANG.race.lost"))
 
