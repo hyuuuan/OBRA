@@ -359,6 +359,9 @@ func _a_light_of_her_own_at_the_clearing() -> void:
 		"a light of her own at the clearing: the lantern full, the curse gone",
 		"stage %d -> %d, cursed %s -> %s, lit %s" % [low, _stage(), cursed, level.call("is_cursed"),
 			director.call("is_solved", "L4_REST1")])
+	var goal: Dictionary = level.call("_current_objective")
+	_check(String(goal.get("key", "")) == "woods", "and once it is lit, the banner moves on",
+		"'%s'" % goal.get("key", ""))
 
 
 # --- Helpers -----------------------------------------------------------------------------
