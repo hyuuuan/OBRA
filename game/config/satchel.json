@@ -1,0 +1,74 @@
+{
+  "$comment": [
+    "DILIM'S SATCHEL: what Lola taught her to carry, found in the woods and dropped by aswang.",
+    "",
+    "Kent's design: none of these is in the fifty and none is drawable -- 'The brush is the apo's.",
+    "These are lola's.' So they never go through the bag or the recogniser: they stack here, with",
+    "a visible count, and four of them sit on quick slots (Z X C V) because a fight has no time for",
+    "a menu. The slots fill in the order things are first picked up.",
+    "",
+    "`cap` is how many she can carry; `drop_chance` is the share of aswang that drop one when they",
+    "fall (one roll per item, so a fall can drop nothing or more than one). `never_in_finale` keeps",
+    "the lantern from being refilled mid-night: 'Langis carried in is what the player has.'",
+    "",
+    "WHAT IS NOT HERE YET: the buntot pagi, the stingray-tail whip, which drops only in the finale's",
+    "later waves and comes with them. An item in the satchel that does nothing is a bug, not a",
+    "placeholder."
+  ],
+  "schema_version": 1,
+  "quick_slots": 4,
+  "items": {
+    "asin": {
+      "display_name": "Asin",
+      "gloss": "Salt",
+      "cap": 12,
+      "drop_chance": 0.35,
+      "use": "throw",
+      "reach": 300,
+      "burn_seconds": 2.4,
+      "burn_ticks": 3,
+      "$comment": "Thrown in an arc. Burns aswang flesh: three ticks of one over 2.4 s. The only thing that kills a manananggal's lower half."
+    },
+    "abo": {
+      "display_name": "Abo",
+      "gloss": "Ash",
+      "cap": 6,
+      "drop_chance": 0.2,
+      "use": "cloud",
+      "radius": 160,
+      "stun_seconds": 1.5,
+      "reveal_seconds": 6.0,
+      "$comment": "Thrown into a cloud where she stands: blinds what it touches for a moment, and shows what hides in shadow."
+    },
+    "bawang": {
+      "display_name": "Bawang",
+      "gloss": "Garlic",
+      "cap": 4,
+      "drop_chance": 0.12,
+      "use": "ward",
+      "radius": 150,
+      "seconds": 10.0,
+      "$comment": "Crushed where she stands: for ten seconds nothing that hunts by smell will cross into it. Defensive -- room to draw."
+    },
+    "kandila": {
+      "display_name": "Kandila",
+      "gloss": "Candle",
+      "cap": 3,
+      "drop_chance": 0.08,
+      "use": "candle",
+      "radius": 220,
+      "seconds": 45.0,
+      "$comment": "A light that costs no ink, set down where she stands, burning for 45 s. What a player hoards for the last clearing."
+    },
+    "langis": {
+      "display_name": "Langis",
+      "gloss": "Lamp oil",
+      "cap": 3,
+      "drop_chance": 0.05,
+      "use": "oil",
+      "stages": 2,
+      "never_in_finale": true,
+      "$comment": "Two stages back into the lantern. The healing item, and the scarcest. Never dropped in the last clearing."
+    }
+  }
+}
