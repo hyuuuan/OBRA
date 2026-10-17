@@ -207,13 +207,16 @@ func _asking_then_crossing_clean_gives_the_flower() -> void:
 	var offer: Dictionary = level.call("_level_interact_offer")
 	level.call("press_interact")
 	await _frames(2)
+	var said := (level.get("hint_bar") as HintBar).current_text()
 	var mound := level.get("_mound") as NunoMound2D
 	var found_before := bool(_profile().call("is_collectible_found", "L4_HF"))
 	await _jump_the_mound(MOUND_X - MOUND_HALF - 120.0)
 	var director = level.get("director")
 	await _seconds(4.0)
-	_check(String(offer.get("verb", "")) == "SAY TABI-TABI PO" and mound.asked,
-		"beside the mound, E asks to pass", "offer %s, asked %s" % [offer, mound.asked])
+	_check(String(offer.get("verb", "")) == "SAY TABI-TABI PO" and mound.asked
+			and said.begins_with("Tabi-tabi po"),
+		"beside the mound, E asks to pass, and she says it", "offer %s, asked %s, said \"%s\""
+			% [offer, mound.asked, said])
 	_check(director.call("is_solved", "L4_NUNO") and director.call("committed_route", "L4_NUNO") == "artist"
 			and not mound.touched_this_crossing(),
 		"asking, then crossing without touching, is the artist's way",
@@ -271,6 +274,7 @@ func _the_crown_curses_her() -> void:
 		{"position": Vector2(MOUND_X, GROUND_Y - NunoMound2D.HEIGHT - 6.0), "linear_velocity": Vector2.ZERO})
 	await _seconds(0.5)
 	var at_once := _stage()
+	var cursed_line := (level.get("hint_bar") as HintBar).current_text()
 	await _put_her_at(MOUND_X + 300.0)
 	var slowed := await _pace()
 	var cursed := bool(level.call("is_cursed"))
@@ -282,7 +286,8 @@ func _the_crown_curses_her() -> void:
 	var still := bool(level.call("is_cursed"))
 	await _put_her_at(MOUND_X + 300.0)
 	var after := await _pace()
-	_check(cursed and at_once == PlayerHealth.DIM and slowed > 130.0 and slowed < 175.0,
+	_check(cursed and at_once == PlayerHealth.DIM and slowed > 130.0 and slowed < 175.0
+			and cursed_line.begins_with("My foot"),
 		"the crown curses her: a stage at once, and slow",
 		"stage %d, %.0f px/s (her own 260; cursed 156)" % [at_once, slowed])
 	_check(at_ten == PlayerHealth.LOW, "another stage at ten seconds, and no lower",
