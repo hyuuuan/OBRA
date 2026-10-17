@@ -411,21 +411,19 @@
         "Every event is level_4.gd's or LevelBase's: weapon_in_hand and weapon_wearing are polled",
         "off the weapon in her hand, lantern_hit is the lantern's own signal, ink_spent is the",
         "base's; santelmo_near is a burning santelmo within sight of her, which is where walking",
-        "with Shift is taught -- where it matters."
+        "with Shift is taught -- where it matters. ON THE HINT BAR, NOT A CARD: a card dims all but",
+        "her, and the flame it is about would vanish under its own warning."
       ],
       "speaker_default": "apo",
       "lessons": [
         {
           "id": "walk_past",
           "at": "santelmo_near",
-          "mode": "do",
-          "visual": "keys",
-          "context": "world",
-          "anchor": "player",
+          "mode": "say",
           "speaker": "Apo",
           "action": "walk",
-          "caption": "Hold it to walk past",
-          "text": "Lola said never to run from a santelmo. Hold {keys} and walk, and it loses interest."
+          "text": "Lola said never to run from a santelmo. Hold {keys} and walk, and it loses interest.",
+          "seconds": 7.0
         },
         {
           "id": "swing",
