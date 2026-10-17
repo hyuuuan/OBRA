@@ -125,6 +125,13 @@
       "text": "A clearing. Lola said: wherever you can make a **light** of your own, stop, and fill the lamp before you go on."
     },
     {
+      "id": "L4_R1_002",
+      "at": "L4_REST1.fire.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There. Warm. The lamp drinks it up, and the dark steps back a little."
+    },
+    {
       "id": "L4_SG_001",
       "at": "L4_SIGBIN.enter",
       "speaker": "apo",
@@ -165,6 +172,13 @@
       "speaker": "apo",
       "kind": "lore",
       "text": "Somewhere to stop. Lola said the far side of the woods is the worst of it. Fill the lamp first."
+    },
+    {
+      "id": "L4_R2_002",
+      "at": "L4_REST2.fire.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Warm again. Whatever is past here, I will meet it with a full lamp."
     },
     {
       "id": "L4_TY_001",
