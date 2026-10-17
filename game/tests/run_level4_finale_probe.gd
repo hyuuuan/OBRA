@@ -13,7 +13,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 6
+const CHECKS := 8
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -36,6 +36,7 @@ func _run() -> void:
 	await _never_more_than_two()
 	await _a_knockout_starts_the_night_over()
 	await _morning_ends_it()
+	await _the_dark_lifts_and_she_is_through()
 	level.queue_free()
 	await _frames(3)
 	if checked != CHECKS:
@@ -114,9 +115,16 @@ func _a_knockout_starts_the_night_over() -> void:
 
 func _morning_ends_it() -> void:
 	var said := [false]
-	finale.dawned.connect(func() -> void: said[0] = true)
+	var box := level.get("dialogue_box") as Node
+	# After the level's own answer to it has begun -- connected later, so called later.
+	finale.dawned.connect(func() -> void:
+		said[0] = true
+		set_meta(&"dawn_line", String(box.call("current_line"))))
+	# Lines left up for the dawn's to be read: the probe otherwise dismisses each as it comes.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
 	finale.elapsed = DilimFinale2D.DAWN_SECONDS - 0.5
 	await _seconds(0.8)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _seconds(DilimFinale2D.FLEE_FADE + 0.4)
 	var left := 0
 	for node in finale.find_children("*", "", true, false):
@@ -124,6 +132,17 @@ func _morning_ends_it() -> void:
 			left += 1
 	_check(said[0] and finale.has_dawned() and not finale.is_running() and left == 0,
 		"morning ends it, and they go", "dawned %s, %d still in the clearing" % [said[0], left])
+
+
+## Her line, then the dark gone and the level finished: the majority route settled.
+func _the_dark_lifts_and_she_is_through() -> void:
+	var line := String(get_meta(&"dawn_line", ""))
+	_check(line.begins_with("Morning. Lola named every one"), "at dawn she says what the night was for",
+		"\"%s\"" % line)
+	await _seconds(3.5)
+	var dark := float((level.get("darkness_layer") as Node).get(&"darkness"))
+	_check(dark < 0.05 and bool(level.get("_level_completed")), "the dark lifts, and the level is done",
+		"dark %.2f, completed %s" % [dark, level.get("_level_completed")])
 
 
 # --- Helpers -------------------------------------------------------------------------------
