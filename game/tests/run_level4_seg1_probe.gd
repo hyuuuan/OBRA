@@ -29,6 +29,7 @@ func _run() -> void:
 	await _running_brings_it_and_it_burns()
 	await _it_forms_again_at_home()
 	await _walking_away_it_loses_interest()
+	await _being_put_down_near_it_is_not_running()
 	await _a_knockout_puts_the_woods_back()
 	await _asking_then_crossing_clean_gives_the_flower()
 	await _crossing_clean_without_asking_is_the_pragmatists()
@@ -157,6 +158,25 @@ func _walking_away_it_loses_interest() -> void:
 	_check(wanted and gave_up and heading_home and _stage() == PlayerHealth.FULL,
 		"walking away, it loses interest and goes home",
 		"wanted %s, gave up %s, homing %s, stage %d" % [wanted, gave_up, heading_home, _stage()])
+	flame.queue_free()
+	await _frames(2)
+
+
+## Put down within its sight from far away -- a restore, a Continue -- she has not run.
+func _being_put_down_near_it_is_not_running() -> void:
+	var flame := _flame_at(1500.0)
+	await _put_her_at(300.0)
+	_health().reset_full()
+	await _seconds(2.2)
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(1250.0, GROUND_Y - 4.0), "linear_velocity": Vector2.ZERO})
+	var wanted := false
+	for _frame in range(90):
+		await _frames(1)
+		wanted = wanted or flame.is_chasing()
+	_check(not wanted and not flame.is_out() and _stage() == PlayerHealth.FULL,
+		"put down near it from far away, she has not run", "chased %s, out %s, stage %d"
+			% [wanted, flame.is_out(), _stage()])
 	flame.queue_free()
 	await _frames(2)
 
