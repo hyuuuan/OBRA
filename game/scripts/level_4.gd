@@ -699,6 +699,8 @@ func _use_from_satchel(id: String) -> bool:
 			return _pour_oil(int(item.get("stages", 2)))
 		"candle":
 			return _set_down_a_candle(float(item.get("radius", 220.0)), float(item.get("seconds", 45.0)))
+		"ward":
+			return _crush_garlic(float(item.get("radius", 150.0)), float(item.get("seconds", 10.0)))
 		_:
 			return false
 
@@ -712,6 +714,18 @@ func _set_down_a_candle(radius: float, seconds: float) -> bool:
 	candle.seconds = seconds
 	candle.position = player.global_position
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(candle)
+	return true
+
+
+## BAWANG: crushed at her feet, a ward nothing that hunts by smell will cross.
+func _crush_garlic(radius: float, seconds: float) -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	var ward := BawangWard2D.new()
+	ward.radius = radius
+	ward.seconds = seconds
+	ward.position = player.global_position
+	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(ward)
 	return true
 
 
