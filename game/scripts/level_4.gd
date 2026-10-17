@@ -177,10 +177,10 @@ const BEAT_MARKS := {"L4_NUNO": "NunoMark", "L4_REST1": "Rest1Mark", "L4_SIGBIN"
 	"L4_MANANANGGAL": "ManananggalMark", "L4_FINALE": "FinaleMark"}
 
 
-## THE BANNER SAYS WHAT IS NEXT, BY WHERE SHE IS. Lola's rule up to the mound, rest in a
-## clearing, the morning once she is in the last one, and getting through the woods everywhere
-## between -- pointing at the next thing east of her. The morning points at nothing: it comes to
-## her.
+## THE BANNER SAYS WHAT IS NEXT, BY WHERE SHE IS. Lola's rule up to the mound, a light in a
+## clearing until it is lit, the morning once she is in the last one, and getting through the
+## woods everywhere between -- pointing at the next thing east of her. The morning points at
+## nothing: it comes to her.
 func _current_objective() -> Dictionary:
 	if player == null or not is_instance_valid(player) or director == null:
 		return {}
@@ -190,7 +190,8 @@ func _current_objective() -> Dictionary:
 		return {"key": "dawn"}
 	for rest in ["L4_REST1", "L4_REST2"]:
 		var span: Vector2 = spans.get(rest, Vector2(INF, -INF))
-		if x >= span.x and x <= span.y:
+		# Until its light is lit: after, the woods again.
+		if x >= span.x and x <= span.y and not director.is_solved(rest):
 			return {"key": "rest", "target": _mark_at(rest)}
 	var key := "woods"
 	if spans.has("L4_NUNO") and x <= (spans["L4_NUNO"] as Vector2).y:
