@@ -54,3 +54,54 @@ func _knockout_words() -> String:
 	var line: Dictionary = pool[_knockouts % pool.size()]
 	_knockouts += 1
 	return script_lines.display_text(line)
+
+
+## How fast the dark settles to a new zone's, per second: a change of about a tenth takes about a
+## second, so walking into the deep woods is felt rather than switched.
+const DARKNESS_EASE := 0.1
+
+## [start x, darkness] for each of level_04.json's `lighting_states`, west to east. A zone starts
+## at the west edge of its `from` beat's volume and runs until the next one starts; before the
+## first, the first holds.
+var _dark_zones: Array = []
+
+
+## THE WOODS ARE DARK, AND DARKER FURTHER IN. Read off the level file rather than typed here: the
+## edge of the woods 0.80, the deep woods 0.94, the far side 0.88, the last clearing 0.92. The
+## level opens at the dark of wherever she starts.
+func _darkness() -> float:
+	return _darkness_at(spawn_point.global_position.x)
+
+
+func _darkness_at(x: float) -> float:
+	if _dark_zones.is_empty():
+		_dark_zones = _read_dark_zones()
+	if _dark_zones.is_empty():
+		return 0.0
+	var dark := float((_dark_zones[0] as Array)[1])
+	for zone: Array in _dark_zones:
+		if x >= float(zone[0]):
+			dark = float(zone[1])
+	return dark
+
+
+func _read_dark_zones() -> Array:
+	var west_edges: Dictionary = {}
+	for node in get_tree().get_nodes_in_group(&"level_obstacles"):
+		var volume := node as LevelObstacle2D
+		if volume != null:
+			west_edges[volume.obstacle_id] = volume.global_position.x - volume.trigger_size.x * 0.5
+	var zones: Array = []
+	for state_value: Variant in director.level_data().get("lighting_states", []):
+		var state: Dictionary = state_value
+		var from := String(state.get("from", ""))
+		if west_edges.has(from) and state.has("darkness"):
+			zones.append([float(west_edges[from]), float(state["darkness"])])
+	zones.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	return zones
+
+
+func _level_physics(anchor_position: Vector2) -> void:
+	if darkness_layer != null:
+		darkness_layer.darkness = move_toward(darkness_layer.darkness,
+			_darkness_at(anchor_position.x), DARKNESS_EASE * get_physics_process_delta_time())
