@@ -52,6 +52,12 @@ func _draws_into_the_hand(_entity_id: String) -> bool:
 	return true
 
 
+## Weapons wear out by the uses in config/weapons.json's level_4 rows -- a sword good for fourteen
+## swings -- and are drawn again when spent.
+func _tool_wear_enabled() -> bool:
+	return true
+
+
 ## How many times the lantern has gone out this run, so the RESPAWN pool turns over.
 var _knockouts := 0
 
