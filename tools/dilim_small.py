@@ -199,3 +199,175 @@ def manananggal_lower(smoke: float = 0.0) -> Sculpt:
             a = k * 0.8
             s.dot(cx + math.cos(a) * (6 + smoke * 10), ground - 48 - smoke * 14 - k, s.tone("tapis", 4), alpha=int(200 * (1 - smoke)))
     return img
+
+
+# --- the kapre's balete ---
+
+BARK = hexes("#140c08", "#281c14", "#3e2c20", "#58402e", "#745840", "#927456")
+WOOD = hexes("#3a2a1a", "#6a5032", "#94764c", "#b89a68", "#d4b886")
+LEAVES = hexes("#06160e", "#0d2a18", "#174224", "#225a2e", "#337638", "#4f9446")
+
+
+def _leaf_marks(s: Sculpt, count: int, seed: int) -> None:
+    """Leaves, not a balloon: small tufts picked out where a clump turns to the light."""
+    from creature_sculpt import LIGHT
+    k = seed
+    for _ in range(count):
+        k = (k * 1103515245 + 12345) & 0x7FFFFFFF
+        x = k % s.w
+        y = (k // s.w) % s.h
+        if s.mat[y, x] != s.names["leaves"] or float(s.nrm[y, x] @ LIGHT) * 0.5 + 0.5 < 0.68:
+            continue
+        c = s.tone("leaves", 5)
+        s.dot(x, y, c)
+        s.dot(x + 1, y - 1, c)
+        s.dot(x + 2, y, c)
+
+
+def _mass(s: Sculpt, name: str, x: float, y: float, w: float) -> None:
+    """A mass of leaf: a flat dark underside, its top broken into lit bumps -- each bump catches
+    the light on its own, which is what makes it read as foliage."""
+    s.ellipse(name, x, y, w, w * 0.66, flat=0.2)
+    n = max(3, int(w / 9))
+    for i in range(n):
+        a = math.pi * (1.0 + i / (n - 1))
+        r = w * (0.36 + 0.08 * ((i * 7) % 3) / 2)
+        s.ellipse(name, x + math.cos(a) * w * 0.68, y + math.sin(a) * w * 0.52, r, r * 0.9, flat=0.1)
+
+
+def balete(felled: bool = False) -> Sculpt:
+    """The kapre's tree: a balete, a strangler fig -- its trunk a lattice of roots grown round the
+    tree they strangled, the dark of it showing between them, the roots flaring into buttresses
+    at its foot and spreading into its branches at the top, a crown wider than it is tall, roots
+    hanging from the branches to the ground. Standing, 260 x 500 with its foot on the bottom
+    edge (the trunk about 70 wide, 340 to the crown, as the level has it). Felled, the trunk lies
+    along the ground, its root plate torn up at one end, 380 x 96."""
+    if felled:
+        return _balete_felled()
+    s = Sculpt(260, 500)
+    s.material("bark", BARK)
+    s.material("bark_dark", BARK[[0, 0, 1, 1, 2, 2]])
+    s.material("leaves", LEAVES)
+    s.material("leaves_dark", LEAVES[[0, 0, 1, 2, 2, 3]])
+    cx, ground = 130, 499
+    fork = ground - 300
+    # The crown behind: the dark of it, spread wide.
+    for x, y, rx, ry in [(cx, 146, 116, 50), (cx - 54, 112, 62, 50), (cx + 56, 108, 62, 50), (cx, 86, 70, 48)]:
+        s.ellipse("leaves_dark", x, y, rx, ry, flat=0.3)
+    for x, y, w in [(cx - 90, 160, 30), (cx + 92, 154, 30), (cx - 84, 118, 28), (cx + 88, 112, 28),
+                    (cx - 48, 76, 30), (cx + 50, 72, 30), (cx, 56, 32), (cx - 40, 180, 28), (cx + 42, 178, 28)]:
+        _mass(s, "leaves_dark", x, y, w)
+    # The tree inside, strangled: dark between the roots.
+    s.poly("bark_dark", [
+        (cx - 30, fork - 10), (cx + 30, fork - 10), (cx + 36, fork + 30), (cx + 30, ground - 120),
+        (cx + 42, ground - 40), (cx + 70, ground), (cx - 70, ground), (cx - 42, ground - 40),
+        (cx - 30, ground - 120), (cx - 36, fork + 30),
+    ], bulge=0.15)
+    # The roots grown round it, twisting, each one tube from its buttress at the foot up through
+    # the fork and out along a branch into the crown.
+    roots = [(-54, -18, 0.0, 7.0, (cx - 100, 166)), (-32, 2, 1.7, 5.8, (cx - 62, 146)),
+             (-10, -22, 3.1, 6.6, (cx - 34, 160)), (12, 20, 4.4, 6.2, (cx + 38, 158)),
+             (34, -2, 5.6, 5.8, (cx + 64, 144)), (56, 16, 0.9, 7.0, (cx + 100, 162))]
+    paths = []
+    for foot, top, phase, r, end in roots:
+        pts, radii = [], []
+        for j in range(12):
+            t = j / 12
+            y = ground - 2 - t * (ground - fork)
+            spread = (1 - t) ** 2.4
+            x = cx + foot * spread + top * (1 - spread) * 0.9 + math.sin(t * 5.2 + phase) * 7 * (1 - 0.6 * spread)
+            pts.append((x, y))
+            radii.append(r * (1.3 - 0.35 * t) * (0.80 + 0.20 * math.cos(t * 9 + phase)))
+        bx, by = pts[-1]
+        pts += [(bx + (end[0] - bx) * 0.35, by - 14), (bx + (end[0] - bx) * 0.75, (by + end[1]) / 2 - 4), end]
+        radii += [r * 0.9, r * 0.65, r * 0.35]
+        s.tube("bark", pts, radii)
+        paths.append((pts, radii))
+    # Two thin ones crossing over, the way a strangler's roots lattice.
+    for p in ([(cx - 30, ground - 70), (cx - 4, ground - 150), (cx + 22, ground - 230)],
+              [(cx + 26, ground - 120), (cx + 2, ground - 200), (cx - 20, fork + 6)]):
+        s.tube("bark", p, [3.6, 2.8, 3.2])
+    # Buttresses: fins flared out along the ground.
+    for side in (-1, 1):
+        for reach, h in [(96, 48), (78, 76)]:
+            s.tube("bark", [(cx + side * 34, ground - h), (cx + side * (reach - 22), ground - 10), (cx + side * reach, ground - 2)],
+                   [8.0, 5.0, 2.2])
+    # Roots hanging from the branches, the outer two reaching the ground to root again.
+    for x0, y0, length, r in [(cx - 92, 168, 110, 1.3), (cx - 66, 182, 200, 1.1), (cx - 46, 200, 76, 1.0),
+                              (cx + 56, 196, 90, 1.0), (cx + 78, 170, 150, 1.2), (cx + 96, 162, 64, 1.0)]:
+        s.tube("bark", [(x0, y0), (x0 + 2, y0 + length * 0.5), (x0 - 1, y0 + length)], [r, r, r * 0.7])
+    for side in (-1, 1):
+        x0 = cx + side * 94
+        pts = [(x0 + side * math.sin(t * 2.6) * 6, 170 + t * (ground - 171)) for t in (k / 15 for k in range(16))]
+        s.tube("bark", pts, [1.2 + 2.2 * (k / 15) ** 3 for k in range(16)])
+    # The crown in front: the lit masses, more of them toward the light.
+    for x, y, w in [(cx - 66, 138, 30), (cx - 34, 100, 32), (cx + 10, 86, 28), (cx - 14, 54, 24),
+                    (cx + 58, 120, 26), (cx - 98, 122, 18), (cx + 96, 142, 16), (cx + 12, 140, 24),
+                    (cx - 64, 72, 20), (cx + 50, 70, 18), (cx - 36, 164, 18)]:
+        _mass(s, "leaves", x, y, w)
+    img = s
+    _leaf_marks(s, 2600, 7)
+    # Grooves down the shadowed side of each root.
+    for pts, radii in paths:
+        for (x, y), r in list(zip(pts, radii))[2:11]:
+            s.dot(x + r * 0.5, y, s.tone("bark", 1))
+            s.dot(x + r * 0.5, y - 3, s.tone("bark", 1))
+            s.dot(x + r * 0.5, y - 6, s.tone("bark", 1))
+    return img
+
+
+def _balete_felled() -> Sculpt:
+    s = Sculpt(380, 96)
+    s.material("bark", BARK)
+    s.material("bark_dark", BARK[[0, 0, 1, 1, 2, 2]])
+    s.material("wood", WOOD)
+    s.material("earth", EARTH)
+    s.material("leaves", LEAVES)
+    s.material("leaves_dark", LEAVES[[0, 0, 1, 2, 2, 3]])
+    ground = 96
+    mid = ground - 32
+    # The crown's wreck at the far end, crushed flat under the trunk.
+    for x, y, w in [(346, ground - 20, 22), (330, ground - 14, 18), (356, ground - 40, 13)]:
+        _mass(s, "leaves_dark", x, y, w)
+    # The trunk on its side: the strangled tree dark between the roots.
+    s.tube("bark_dark", [(44, mid), (200, mid + 1), (338, mid + 2)], [31, 29, 25])
+    # The roots running its length, twisting over one another.
+    lengthwise = [(-20, 0.0, 6.6), (-7, 1.9, 6.0), (7, 3.6, 7.0), (20, 5.1, 6.0)]
+    for off, phase, r in lengthwise:
+        pts, radii = [], []
+        for j in range(15):
+            t = j / 14
+            pts.append((48 + t * 290, mid + off + math.sin(t * 6 + phase) * 6))
+            radii.append(r * (0.80 + 0.20 * math.cos(t * 10 + phase)) * (1.0 - 0.15 * t))
+        s.tube("bark", pts, radii)
+    # The broken end, splintered pale, and the stubs of branches that snapped when it fell.
+    s.poly("wood", [(334, mid - 22), (346, mid - 18), (342, mid - 8), (354, mid - 2), (344, mid + 6),
+                    (352, mid + 14), (338, mid + 22), (330, mid)], bulge=0.2)
+    for x, lean in [(246, -1), (296, 1)]:
+        s.tube("bark", [(x, mid - 20), (x + lean * 8, mid - 34), (x + lean * 12, mid - 42)], [8, 6.5, 5.5])
+        s.ellipse("wood", x + lean * 12, mid - 43, 5, 2.4, flat=0.5)
+    # The root plate, torn up with the earth still in it, its roots splayed across the face.
+    for a, bend, reach in [(200, 30, 36), (230, -24, 40), (262, 20, 44), (296, -18, 40), (166, -26, 34),
+                           (134, 22, 32), (104, -20, 32), (326, 26, 34)]:
+        ang, turn = math.radians(a), math.radians(a + bend)
+        mid_p = (38 + math.cos(ang) * reach * 0.6, mid - 4 + math.sin(ang) * reach * 0.6)
+        s.tube("bark", [(38, mid - 4), mid_p, (mid_p[0] + math.cos(turn) * reach * 0.5, mid_p[1] + math.sin(turn) * reach * 0.5)],
+               [4.6, 3.0, 1.2])
+    s.poly("earth", [(32, mid - 42), (48, mid - 36), (56, mid - 14), (56, mid + 12), (50, mid + 28),
+                     (32, mid + 32), (18, mid + 24), (12, mid + 2), (14, mid - 22), (22, mid - 38)], bulge=0.3)
+    for p in ([(24, mid - 30), (38, mid - 10), (34, mid + 10), (46, mid + 26)], [(50, mid - 26), (30, mid + 2), (20, mid + 20)]):
+        s.tube("bark", p, [2.6, 3.0, 2.4, 1.6][:len(p)])
+    img = s
+    _leaf_marks(s, 900, 11)
+    for off, phase, r in lengthwise:
+        for j in range(1, 14):
+            t = j / 14
+            x = 48 + t * 290
+            y = mid + off + math.sin(t * 6 + phase) * 6
+            s.dot(x, y + r * 0.5, s.tone("bark", 1))
+            s.dot(x + 3, y + r * 0.5, s.tone("bark", 1))
+    for k in range(22):
+        x, y = 14 + (k * 13) % 42, mid - 38 + (k * 17) % 68
+        if s.mat[y, x] == s.names["earth"]:
+            s.dot(x, y, s.tone("earth", 4))
+    return img
