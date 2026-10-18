@@ -696,7 +696,7 @@ func _on_node_added(node: Node) -> void:
 
 
 func _on_foe_fell(foe: Enemy2D) -> void:
-	if satchel == null or not is_instance_valid(foe):
+	if satchel == null or not is_instance_valid(foe) or not foe.drops:
 		return
 	var night := _finale != null and _finale.is_running()
 	var dropped := 0
