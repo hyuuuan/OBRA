@@ -39,6 +39,7 @@ class Giant:
     feet: str = "hoof"          # hoof / foot
     cloth: object = None        # a bahag, if any
     gaunt: bool = True
+    belly: float = 0.0          # 0 none .. 1 a great round gut
 
 
 @dataclass
@@ -142,10 +143,14 @@ def draw(g: Giant, st: Stance) -> Sculpt:
     chest = _along(pelvis, top, 0.72, g.chest_r * 0.12)
     hips = g.waist_r * (0.95 if g.gaunt else 1.0) + (0.0 if g.gaunt else 2.0)
     s.tube("skin", [(pelvis[0] + (2 if g.gaunt else 0), pelvis[1]), waist, chest, top], [hips, g.waist_r, g.chest_r, g.chest_r * 0.8])
-    # The chest's front, a mass of its own.
+    # The chest's front, a mass of its own, and a gut hung under it if it has one.
     pec = (chest[0] + g.chest_r * 0.45, chest[1] + g.chest_r * 0.1)
     if not g.gaunt:
         s.ellipse("skin", pec[0], pec[1], g.chest_r * 0.6, g.chest_r * 0.5, flat=0.6)
+    gut = None
+    if g.belly > 0:
+        gut = (waist[0] + g.waist_r * 0.3 * g.belly, waist[1] + g.waist_r * 0.2)
+        s.ellipse("skin", gut[0], gut[1], g.waist_r * (0.7 + 0.35 * g.belly), g.waist_r * (0.66 + 0.3 * g.belly))
     if g.cloth is not None:
         # A bahag: a band round the waist, a long flap hanging in front and a shorter one behind.
         w = g.waist_r
@@ -164,9 +169,15 @@ def draw(g: Giant, st: Stance) -> Sculpt:
         for k in range(4):
             y = cy + k * 3.5
             s.curve([(cx - g.chest_r * 0.7, y), (cx, y - 1.5), (cx + g.chest_r * 0.7, y + 0.5)], s.tone("skin", 1), only_on_body=True)
-    # The line under the chest, and a lit edge down the back.
+    # The line under the chest, the belly's underside and its navel, and a lit edge down the back.
     s.curve([(pec[0] - g.chest_r * 0.4, pec[1] + g.chest_r * 0.42), (pec[0] + g.chest_r * 0.1, pec[1] + g.chest_r * 0.5),
              (pec[0] + g.chest_r * 0.55, pec[1] + g.chest_r * 0.3)], s.tone("skin", 1), only_on_body=True)
+    if gut is not None:
+        gw, gh = g.waist_r * (0.7 + 0.35 * g.belly), g.waist_r * (0.66 + 0.3 * g.belly)
+        s.curve([(gut[0] - gw * 0.5, gut[1] + gh * 0.88), (gut[0] + gw * 0.2, gut[1] + gh * 0.98),
+                 (gut[0] + gw * 0.8, gut[1] + gh * 0.6)], s.tone("skin", 1), only_on_body=True)
+        s.dot(gut[0] + gw * 0.55, gut[1] + gh * 0.1, s.tone("skin", 1))
+        s.dot(gut[0] + gw * 0.55, gut[1] + gh * 0.1 + 1, s.tone("skin", 0))
     s.curve([(pelvis[0] - g.waist_r * 0.8, pelvis[1] - 6), (waist[0] - g.waist_r * 0.85, waist[1]),
              (chest[0] - g.chest_r * 0.85, chest[1])], s.tone("skin", 4), only_on_body=True)
     if head_info:
@@ -306,7 +317,8 @@ EYEBALL = hexes("#4a4338", "#9a9180", "#d8d0bc", "#f4eedc")
 IRIS = hexes("#2a1404", "#6b3a0c", "#b8721c", "#e8b24a")
 
 BUNGISNGIS = Giant("bungisngis", BUNG_SKIN, BUNG_HAIR, size=250, leg=48, thigh_r=15, shin_r=12, torso=46,
-    chest_r=28, waist_r=24, arm=64, arm_r=11.0, neck=10, head="cyclops", feet="foot", cloth=BAHAG, gaunt=False)
+    chest_r=24, waist_r=23, arm=64, arm_r=10.0, neck=10, head="cyclops", feet="foot", cloth=BAHAG, gaunt=False,
+    belly=1.0)
 
 
 def draw_bungisngis(st: Stance, club: bool = True) -> Sculpt:
