@@ -10,9 +10,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from creature_sculpt import Sculpt, hexes, rot, strip  # noqa: E402
 
 W, H = 176, 128
-SKIN = hexes("#231d27", "#433a45", "#625761", "#857980", "#a89c9e", "#c6bbb8")
+SKIN = hexes("#1e1424", "#3a2a44", "#5a4664", "#7c6686", "#a08aa8", "#c4b0c8")
 HAIR = hexes("#050407", "#100d15", "#1d1824", "#2e2737", "#463d52")
-MEMBRANE = hexes("#110b15", "#231a2a", "#33263c", "#46344f", "#5a4565")
+MEMBRANE = hexes("#120a1a", "#2a1638", "#42245a", "#5e367c", "#7c4c9e")
 BONE = hexes("#1c1422", "#54445c", "#85738c", "#b3a2b6")
 GUT = hexes("#2a070c", "#5c1420", "#8e2433", "#bb4b54", "#dd8584")
 CLAW = hexes("#2b2420", "#6b5f55", "#b6a894", "#e8dcc4")
@@ -127,8 +127,8 @@ def manananggal_upper(lift: float, reach: float = 0.0) -> Sculpt:
     for k in range(4):
         s.capsule("claw", hand, (hand[0] + 8, hand[1] - 3 + k * 2.5), 0.9, 0.3)
     # The head: gaunt, long-jawed, tilted forward to hunt.
-    s.ellipse("skin", head[0], head[1], 9, 10)
-    s.ellipse("skin", head[0] + 5, head[1] + 6, 6, 5)
+    s.ellipse("skin", head[0], head[1], 12, 12)
+    s.ellipse("skin", head[0] + 6, head[1] + 7, 7, 5.5)
     s.ellipse("skin", head[0] + 9, head[1] + 1, 2.4, 2.8)
     # Hair over the crown, and a hank down the near side of the face.
     s.ellipse("hair", head[0] - 3, head[1] - 5, 9, 7)
@@ -142,12 +142,13 @@ def manananggal_upper(lift: float, reach: float = 0.0) -> Sculpt:
         y = cy - 2 + k * 3.5
         s.curve([(cx - 7, y + 1), (cx - 2, y - 1), (cx + 3, y), (cx + 7, y + 2)], s.tone("skin", 2), only_on_body=True)
     # The eye, sunk in a dark socket and burning; a glint.
-    eye = (head[0] + 5, head[1] - 1)
-    s.ellipse("hair", eye[0], eye[1], 2.6, 2.0)
-    s.dot(eye[0], eye[1], s.tone("eye", 2))
-    s.dot(eye[0] + 1, eye[1], s.tone("eye", 2))
-    s.dot(eye[0] - 1, eye[1], s.tone("eye", 1))
-    s.dot(eye[0], eye[1] - 1, s.tone("eye", 3))
+    eye = (head[0] + 6, head[1] - 1)
+    # A big burning eye in a dark socket: a red disc, a slit pupil, a white glint, a scowl.
+    s.ellipse("hair", eye[0], eye[1], 4.4, 3.6)
+    s.ellipse("eye", eye[0] + 0.5, eye[1] + 0.3, 3.2, 2.8)
+    s.line((eye[0] + 1, eye[1] - 1.5), (eye[0] + 1, eye[1] + 1.8), s.tone("eye", 0))
+    s.dot(eye[0] - 1, eye[1] - 1, (255, 255, 255))
+    s.line((eye[0] - 4, eye[1] - 4.5), (eye[0] + 4, eye[1] - 3), s.tone("skin", 0))
     # The cheek hollow and the mouth, open, with fangs.
     s.line((head[0] + 2, head[1] + 3), (head[0] + 4, head[1] + 6), s.tone("skin", 1))
     mouth = (head[0] + 8, head[1] + 7)
@@ -171,7 +172,7 @@ MANANANGGAL_ANIMS = {
 
 # --- the wakwak and the tik-tik: birds ---
 
-WAK = hexes("#07060a", "#141119", "#221d29", "#332b3d", "#483e55", "#615470")
+WAK = hexes("#0a0a16", "#161a30", "#242a4a", "#343e66", "#4a5684", "#6670a4")
 BEAK = hexes("#2b2010", "#6b5428", "#a88a48", "#dcc488")
 EYE = hexes("#5a0b0b", "#c42a1e", "#ff5a3c", "#ffb38f")
 TIK = hexes("#050406", "#100d12", "#1c1820", "#2b2531", "#3e3646")
@@ -194,10 +195,10 @@ def _feathered_wing(s, mat, shoulder, side, lift, scale):
         tip = (wrist[0] + side * _m.cos(_m.radians(-40 + k * 14 - lift * 20)) * length,
             wrist[1] + _m.sin(_m.radians(-40 + k * 14 - lift * 20)) * length)
         s.capsule(mat, wrist, tip, 2.6 * scale, 0.7)
-    for k in range(5):
-        t = k / 4
+    for k in range(3):
+        t = 0.2 + k * 0.3
         root = (shoulder[0] + (wrist[0] - shoulder[0]) * t, shoulder[1] + (wrist[1] - shoulder[1]) * t)
-        s.capsule(mat, root, (root[0] - side * 2, root[1] + (14 - k) * scale), 2.6 * scale, 0.8)
+        s.capsule(mat, root, (root[0] - side * 3, root[1] + (9 - k * 2) * scale), 3.2 * scale, 1.2)
     return wrist
 
 
@@ -221,14 +222,16 @@ def wakwak(lift: float, dive: float = 0.0) -> Sculpt:
     s.capsule("body", (cx + 6, cy - 4), head, 7, 6)
     s.ellipse("body", head[0], head[1], 7, 6.5)
     beak_root = (head[0] + 5, head[1] - 1)
-    s.poly("beak", [beak_root, (beak_root[0] + 9, beak_root[1] + 2), (beak_root[0] + 7, beak_root[1] + 6), (beak_root[0] + 1, beak_root[1] + 4)], bulge=0.3)
+    s.poly("beak", [beak_root, (beak_root[0] + 8, beak_root[1] - 1), (beak_root[0] + 13, beak_root[1] + 3),
+        (beak_root[0] + 11, beak_root[1] + 8), (beak_root[0] + 8, beak_root[1] + 4), (beak_root[0] + 1, beak_root[1] + 5)], bulge=0.3)
     _feathered_wing(s, "wing", (cx + 2, cy - 6), 1, lift, 1.0)
     img = s
     # Hooked tip, the eye with a glint, a pale throat ruff, feather marks on the breast.
-    s.dot(beak_root[0] + 8, beak_root[1] + 5, s.tone("beak", 0))
-    s.dot(head[0] + 2, head[1] - 2, s.tone("eye", 2))
-    s.dot(head[0] + 3, head[1] - 2, s.tone("eye", 1))
-    s.dot(head[0] + 2, head[1] - 3, s.tone("eye", 3))
+    s.dot(beak_root[0] + 11, beak_root[1] + 7, s.tone("beak", 0))
+    s.ellipse("eye", head[0] + 2, head[1] - 2, 2.6, 2.4)
+    s.line((head[0] + 2.5, head[1] - 3.5), (head[0] + 2.5, head[1] - 0.5), s.tone("eye", 0))
+    s.dot(head[0] + 1, head[1] - 3, (255, 255, 255))
+    s.line((head[0] - 2, head[1] - 6), (head[0] + 5, head[1] - 4.5), s.tone("body", 0))
     for k in range(5):
         s.curve([(cx - 6 + k * 3, cy + 2), (cx - 5 + k * 3, cy + 5)], s.tone("body", 4), only_on_body=True)
     return img
