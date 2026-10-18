@@ -14,7 +14,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 15
+const CHECKS := 16
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -176,6 +176,8 @@ func _the_waves_come_on_time() -> void:
 	_check(kinds == ["manananggal_upper", "wakwak"] and drive_off == 8,
 		"and the second brings the manananggal, driven off at 8, and a wakwak",
 		"%s, driven off at %d" % [kinds, drive_off])
+	_check(finale.tiktik() != null and finale.tiktik().kind == "tiktik", "and the third brings the tik-tik",
+		"%s" % finale.tiktik())
 
 
 ## The design's 15 s, once a wave: a second sun in the same wave changes nothing.
