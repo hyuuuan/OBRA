@@ -13,6 +13,10 @@
 [ext_resource type="Script" path="res://scripts/nuno_mound_2d.gd" id="11_mound"]
 [ext_resource type="Script" path="res://scripts/dilim_finale_2d.gd" id="12_finale"]
 [ext_resource type="Script" path="res://scripts/satchel_pickup_2d.gd" id="13_pickup"]
+[ext_resource type="Script" path="res://scripts/sigbin_2d.gd" id="14_sigbin"]
+[ext_resource type="Script" path="res://scripts/tikbalang_2d.gd" id="15_tikbalang"]
+[ext_resource type="Script" path="res://scripts/ink_jar_2d.gd" id="16_jar"]
+[ext_resource type="Script" path="res://scripts/kapre_2d.gd" id="17_kapre"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -109,6 +113,24 @@ platforms = Array[Rect2]([Rect2(-200, 600, 22800, 800)])
 ; ⚠ THE CANOPY IS A CEILING, NOT A RULE (Kent's design: 'the canopy block flight physically').
 ; 440 up: higher than a drawn tree reaches (362), so every way over the ground still fits under
 ; it, and a flier meets leaves instead of a refusal. run_level4_audit holds it over every beat.
+; A rock in the sigbin's ground, waist-high: she can jump it (94 px), it cannot climb it (48), so
+; with her back to it nothing can get behind her.
+[node name="SigbinRock" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+platforms = Array[Rect2]([Rect2(6700, 530, 90, 70)])
+body = "stone"
+
+; The tikbalang's landmark rock -- the one the paths keep coming back to -- and the fork: the
+; ground below, and branches she can jump up through above. Both run on to the same place.
+[node name="LandmarkRock" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+platforms = Array[Rect2]([Rect2(8230, 560, 70, 40)])
+body = "stone"
+
+[node name="Fork" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+branches = Array[Rect2]([Rect2(8650, 520, 220, 18), Rect2(8950, 450, 260, 18), Rect2(9300, 470, 260, 18)])
+
 [node name="Canopy" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(11200.0, -520.0)
 
@@ -193,6 +215,24 @@ script = ExtResource("12_finale")
 arena_west = 21400.0
 
 ; Lola's things, lying where she will find them. Aswang drop more as they fall.
+; Who is in the woods, waiting.
+[node name="Encounters" type="Node2D" parent="GameplayPlane"]
+
+; The sigbin, in the dark past the rock.
+[node name="Sigbin" type="CharacterBody2D" parent="GameplayPlane/Encounters"]
+position = Vector2(7200.0, 585.0)
+script = ExtResource("14_sigbin")
+
+; The tikbalang, by its rock, beside the path.
+[node name="Tikbalang" type="Node2D" parent="GameplayPlane/Encounters"]
+position = Vector2(8450.0, 600.0)
+script = ExtResource("15_tikbalang")
+
+; The kapre in its tree at its mark; its smoke runs 600 px west of the trunk, over the way in.
+[node name="Kapre" type="Node2D" parent="GameplayPlane/Encounters"]
+position = Vector2(13800.0, 600.0)
+script = ExtResource("17_kapre")
+
 [node name="Pickups" type="Node2D" parent="GameplayPlane"]
 
 ; the edge of the woods: the first of Lola's things, early
@@ -242,6 +282,20 @@ script = ExtResource("13_pickup")
 item = "asin"
 amount = 3
 pickup_id = "L4_P_ASIN2"
+
+; level_04.json's ink_economy.jars_before: a jar in the stretch before each encounter that can only
+; be passed by drawing -- the kapre, and the bungisngis.
+[node name="InkJars" type="Node2D" parent="GameplayPlane"]
+
+[node name="BeforeKapre" type="Area2D" parent="GameplayPlane/InkJars"]
+position = Vector2(12900.0, 600.0)
+script = ExtResource("16_jar")
+pickup_id = "L4_JAR_KAPRE"
+
+[node name="BeforeBungisngis" type="Area2D" parent="GameplayPlane/InkJars"]
+position = Vector2(18150.0, 600.0)
+script = ExtResource("16_jar")
+pickup_id = "L4_JAR_BUNGISNGIS"
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 

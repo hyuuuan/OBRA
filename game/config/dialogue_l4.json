@@ -146,6 +146,27 @@
       "text": "Give it no dark to hide in, she said, or nothing behind you to come from."
     },
     {
+      "id": "L4_SG_003",
+      "at": "L4_SIGBIN.artist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It cannot bear being seen. Lola was right about that one."
+    },
+    {
+      "id": "L4_SG_004",
+      "at": "L4_SIGBIN.pragmatist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Nothing behind me but rock, and nowhere for it to be. It gave up."
+    },
+    {
+      "id": "L4_SG_005",
+      "at": "L4_SIGBIN.protector.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Gone. Lola would say it will be back for someone else, just not tonight."
+    },
+    {
       "id": "L4_TB_001",
       "at": "L4_TIKBALANG.enter",
       "speaker": "apo",
@@ -160,11 +181,81 @@
       "text": "It lets its own kind through, she said. And it hates to lose a race."
     },
     {
+      "id": "L4_TB_003",
+      "at": "L4_TIKBALANG.led_back",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "The same rock again. Whichever way I go, it brings me back."
+    },
+    {
+      "id": "L4_TB_004",
+      "at": "L4_TIKBALANG.race",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "To the far side, then. All the way, and no stopping."
+    },
+    {
+      "id": "L4_TB_005",
+      "at": "L4_TIKBALANG.race.lost",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "It got there first. Back to the rock."
+    },
+    {
+      "id": "L4_TB_006",
+      "at": "L4_TIKBALANG.artist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It took me for one of its own, and stepped aside."
+    },
+    {
+      "id": "L4_TB_007",
+      "at": "L4_TIKBALANG.pragmatist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It does not chase what it does not hunt. Lola said that was the trick."
+    },
+    {
+      "id": "L4_TB_008",
+      "at": "L4_TIKBALANG.protector.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Beat it. Lola said it never forgives that -- but it keeps its word."
+    },
+    {
       "id": "L4_KP_001",
       "at": "L4_KAPRE.enter",
       "speaker": "apo",
       "kind": "lore",
       "text": "Smoke, and somebody up there smoking it. Lola said the kapre sits high and keeps to itself, and the smoke turns you round."
+    },
+    {
+      "id": "L4_KP_002",
+      "at": "L4_KAPRE.turned",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Turned round in the smoke again. I am back where I came in."
+    },
+    {
+      "id": "L4_KP_003",
+      "at": "L4_KAPRE.artist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There it is. It was only sitting up there smoking, the whole time."
+    },
+    {
+      "id": "L4_KP_004",
+      "at": "L4_KAPRE.pragmatist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Down it comes, and off it goes. I did not have to be so hard on it."
+    },
+    {
+      "id": "L4_KP_005",
+      "at": "L4_KAPRE.protector.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Knocked clean out of its hand. It will not sit there smoking at anyone else tonight."
     },
     {
       "id": "L4_R2_001",

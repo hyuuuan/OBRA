@@ -140,6 +140,10 @@ func _level_physics(anchor_position: Vector2) -> void:
 		darkness_layer.darkness = move_toward(darkness_layer.darkness,
 			_darkness_at(anchor_position.x), DARKNESS_EASE * get_physics_process_delta_time())
 	_note_lesson_moments()
+	_hold_the_drain(get_physics_process_delta_time())
+	_watch_her_back(get_physics_process_delta_time())
+	_lead_her_round()
+	_tend_the_kapre(get_physics_process_delta_time())
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
@@ -287,6 +291,15 @@ var _mound: NunoMound2D
 
 
 func _resolve_level_nodes() -> void:
+	_kapre = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Kapre") as Kapre2D
+	if _kapre != null:
+		_kapre.cigar_knocked.connect(_on_cigar_knocked)
+	_tikbalang = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Tikbalang") as Tikbalang2D
+	if _tikbalang != null:
+		_tikbalang.race_finished.connect(_on_race_finished)
+	_sigbin = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Sigbin") as Sigbin2D
+	if _sigbin != null:
+		_sigbin.died.connect(_on_sigbin_driven_off)
 	_mound = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Hazards/NunoMound") as NunoMound2D
 	_finale = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Finale") as DilimFinale2D
 	if _finale != null:
@@ -301,22 +314,27 @@ func _resolve_level_nodes() -> void:
 ## touching its crown, and the flower is given -- the artist's way. Cross clean without asking,
 ## the pragmatist's. Touching the crown answers nothing.
 func _level_interact_offer() -> Dictionary:
-	if not _can_ask_the_mound():
-		return {}
-	return {"name": "Punso", "verb": "SAY TABI-TABI PO"}
+	if _can_ask_the_mound():
+		return {"name": "Punso", "verb": "SAY TABI-TABI PO"}
+	if _can_race():
+		return {"name": "Tikbalang", "verb": "RACE"}
+	return {}
 
 
-## Offering it, E is hers to ask with, not to pick up a drawing lying near.
+## Offering something, E is hers for it, not to pick up a drawing lying near.
 func _level_answers_first() -> bool:
-	return _can_ask_the_mound()
+	return _can_ask_the_mound() or _can_race()
 
 
 func _interact_with_level() -> bool:
-	if not _can_ask_the_mound():
-		return false
-	_mound.ask()
-	_speak(script_lines.fire("L4_NUNO.asked"))
-	return true
+	if _can_ask_the_mound():
+		_mound.ask()
+		_speak(script_lines.fire("L4_NUNO.asked"))
+		return true
+	if _can_race():
+		_line_up_for_the_race()
+		return true
+	return false
 
 
 func _can_ask_the_mound() -> bool:
@@ -342,6 +360,10 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 		_flower_from_the_mound()
 	if CLEARINGS.has(obstacle_id):
 		_rest_by_the_fire()
+	if obstacle_id == "L4_SIGBIN" and route == "artist" and _sigbin != null:
+		_sigbin.flee()
+	if obstacle_id == "L4_TIKBALANG" and _tikbalang != null:
+		_tikbalang.stand_aside()
 	return false
 
 
@@ -455,6 +477,7 @@ const CLEARINGS := ["L4_REST1", "L4_REST2"]
 
 func _build_level_furniture() -> void:
 	director.obstacle_entered.connect(_on_beat_entered)
+	_arm_the_drain()
 	# Top centre, under the quest card: the last clearing's clock.
 	dawn_clock = DawnClockHud.new()
 	dawn_clock.name = "DawnClock"
@@ -472,6 +495,8 @@ func _build_level_furniture() -> void:
 	for node in find_children("*", "Area2D", true, false):
 		if node is SatchelPickup2D:
 			_wire_pickup(node as SatchelPickup2D)
+		elif node is InkJar2D:
+			_wire_jar(node as InkJar2D)
 	# Every aswang that falls, now or later -- the finale makes its own as the night goes.
 	get_tree().node_added.connect(_on_node_added)
 	for node in find_children("*", "CharacterBody2D", true, false):
@@ -621,6 +646,9 @@ func _show_taken_pickups() -> void:
 		var pickup := node as SatchelPickup2D
 		if pickup != null and not pickup.pickup_id.is_empty() and pickup_taken_this_run(pickup.pickup_id):
 			pickup.queue_free()
+		var jar := node as InkJar2D
+		if jar != null and not jar.pickup_id.is_empty() and pickup_taken_this_run(jar.pickup_id):
+			jar.queue_free()
 
 
 ## Into the satchel if there is room; if not it stays where it lies, for later. The first of each
@@ -684,6 +712,18 @@ func _on_foe_fell(foe: Enemy2D) -> void:
 		pickup.touched.connect(_on_pickup_touched)
 		get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(pickup)
 		dropped += 1
+
+
+## A jar of ink on the way: its ink back to her, and gone for the run.
+func _wire_jar(jar: InkJar2D) -> void:
+	if not jar.pickup_id.is_empty() and pickup_taken_this_run(jar.pickup_id):
+		jar.queue_free()
+		return
+	jar.touched.connect(func(taken: InkJar2D) -> void:
+		ink_manager.add_ink(taken.amount)
+		if not taken.pickup_id.is_empty():
+			note_pickup_taken(taken.pickup_id)
+		taken.take())
 
 
 ## The kinds she has found at least once this run, for the first-find line.
@@ -792,4 +832,221 @@ func _resume_saved_checkpoint() -> bool:
 	var resumed := super()
 	_resuming = false
 	return resumed
+
+
+# --- A drawn body costs ink while it is held ------------------------------------------------
+
+## Like everything drawn in Dilim, a creature's body is paid for in ink -- level_04.json's
+## creature_drain_per_second (0.25) for as long as she holds it -- and there is no ten-second
+## clock. At none she is herself again.
+var _drain: InkDrain
+
+
+func _morph_has_a_life() -> bool:
+	return false
+
+
+func _arm_the_drain() -> void:
+	_drain = get_node_or_null(^"InkDrain") as InkDrain
+	if _drain == null:
+		return
+	_drain.bind(ink_manager)
+	var economy: Dictionary = director.level_data().get("ink_economy", {})
+	_drain.default_rate = float(economy.get("creature_drain_per_second", _drain.default_rate))
+	_drain.ink_emptied.connect(_revert_to_base_form)
+
+
+func _hold_the_drain(delta: float) -> void:
+	if _drain == null:
+		return
+	if _current_form_id.is_empty():
+		if _drain.is_draining():
+			_drain.clear()
+		return
+	if _drain.form_id() != _current_form_id:
+		_drain.begin(_current_form_id)
+	_drain.charge(delta)
+	if morph_card != null:
+		morph_card.set_meter_caption("INK")
+		morph_card.set_drain(ink_manager.remaining(), ink_manager.capacity)
+
+
+# --- The sigbin ---------------------------------------------------------------------------------
+
+## Kent's design: "keep your back to a wall or a rock face so it cannot get behind you." Five
+## seconds with her back to a surface -- within WALL_GAP of it, facing away -- while it hunts her,
+## and it gives up. Shown a light (a drawing with LIGHT, in its beat), it flees. Struck down, it is
+## driven off. Each is the route that was taken.
+const WALL_SECONDS := 5.0
+const WALL_GAP := 28.0
+
+var _sigbin: Sigbin2D
+var _back_to_wall := 0.0
+
+
+func _watch_her_back(delta: float) -> void:
+	if _sigbin == null or _sigbin.is_gone() or director.is_solved("L4_SIGBIN") \
+			or _sigbin.state_name() == "IDLE" or not _her_back_is_to_a_surface():
+		_back_to_wall = 0.0
+		return
+	_back_to_wall += delta
+	if _back_to_wall >= WALL_SECONDS:
+		_sigbin.flee()
+		_answer("L4_SIGBIN", "pragmatist")
+
+
+## A surface right behind her: a ray from her middle, back the way she is not facing.
+func _her_back_is_to_a_surface() -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	var facing: Variant = player.get(&"_facing")
+	var back := -signf(float(facing)) if facing != null and float(facing) != 0.0 else -1.0
+	var middle := PlayerHurtbox2D.middle_of(player)
+	var reach := PlayerHurtbox2D.SIZE.x * 0.5 + WALL_GAP
+	var ray := PhysicsRayQueryParameters2D.create(middle, middle + Vector2(back * reach, 0.0),
+		PhysicsLayers.WORLD)
+	if player is CollisionObject2D:
+		ray.exclude = [(player as CollisionObject2D).get_rid()]
+	return not get_world_2d().direct_space_state.intersect_ray(ray).is_empty()
+
+
+func _on_sigbin_driven_off(_foe: Enemy2D) -> void:
+	_answer("L4_SIGBIN", "protector")
+
+
+## A route given by what she did: committed if nothing was yet, and answered with its own deed.
+func _answer(obstacle_id: String, route: String) -> void:
+	if director == null or director.is_solved(obstacle_id):
+		return
+	if director.committed_route(obstacle_id).is_empty():
+		director.commit_route(obstacle_id, route)
+	if director.committed_route(obstacle_id) != route:
+		return
+	var spec: Dictionary = (director.obstacle(obstacle_id).get("routes", {}) as Dictionary).get(route, {})
+	var deed := String(spec.get("answered_by", (spec.get("then", {}) as Dictionary).get("answered_by", route)))
+	director.solve_with_item(obstacle_id, deed)
+
+
+# --- The tikbalang ------------------------------------------------------------------------------
+
+## Kent's design: "whichever path the player takes arrives back at the same place." Past LOOP_X,
+## while it is unanswered and not racing her, she is back at its rock. Answered -- a body with
+## hooves it takes for its own kind (artist), any animal's body it does not chase (pragmatist), a
+## race to its finish she wins (protector) -- it stands aside and the way on is open.
+const LOOP_X := 9700.0
+const LED_BACK_TO := 8350.0
+const RACE_REACH := 150.0
+
+var _tikbalang: Tikbalang2D
+## Where she was last tick, and the most a tick of her own going could carry her.
+var _her_last_x := INF
+const CROSSING_STEP := 120.0
+
+
+## Only for going past it -- crossing the line from the west, a step at a time. Put down beyond it
+## by a restore or a Continue is not going past it: the line was never crossed.
+func _lead_her_round() -> void:
+	if _tikbalang == null or player == null or not is_instance_valid(player):
+		return
+	var x := PlayerHurtbox2D.middle_of(player).x
+	var crossed := _her_last_x < LOOP_X and x >= LOOP_X and x - _her_last_x < CROSSING_STEP
+	_her_last_x = x
+	if not crossed or director.is_solved("L4_TIKBALANG") or _tikbalang.is_racing():
+		return
+	_put_her_back_at_the_rock()
+	_her_last_x = PlayerHurtbox2D.middle_of(player).x
+	_speak(script_lines.fire("L4_TIKBALANG.led_back"))
+
+
+func _put_her_back_at_the_rock() -> void:
+	var ground: Variant = _mark_at("L4_TIKBALANG")
+	var y := (ground as Vector2).y - 4.0 if ground is Vector2 else player.global_position.y
+	player.call("apply_morph_state", {"position": Vector2(LED_BACK_TO, y), "linear_velocity": Vector2.ZERO})
+
+
+func _can_race() -> bool:
+	return _tikbalang != null and not _tikbalang.is_aside() and not _tikbalang.is_racing() \
+		and director != null and not director.is_solved("L4_TIKBALANG") \
+		and player != null and is_instance_valid(player) \
+		and absf(player.global_position.x - _tikbalang.global_position.x) <= RACE_REACH
+
+
+## At its side, at its line: the race starts after its moment to get ready.
+func _line_up_for_the_race() -> void:
+	var line_x := _tikbalang.start_race()
+	player.call("apply_morph_state", {"position": Vector2(line_x, player.global_position.y),
+		"linear_velocity": Vector2.ZERO})
+	_speak(script_lines.fire("L4_TIKBALANG.race"))
+
+
+func _on_race_finished(she_won: bool) -> void:
+	if she_won:
+		_answer("L4_TIKBALANG", "protector")
+		return
+	_put_her_back_at_the_rock()
+	_speak(script_lines.fire("L4_TIKBALANG.race.lost"))
+
+
+# --- The kapre ----------------------------------------------------------------------------------
+
+## Kent's design: its smoke turns her round -- crossing the middle of the smoke bank on her own
+## feet, while it stands, puts her back at the bank's edge. Answered three ways, each a drawing
+## and then a deed: a fan held up to it within FAN_REACH for FAN_SECONDS clears the smoke (artist);
+## a blade used at its tree CHOPS times fells it (pragmatist); something thrown knocks the cigar
+## out of its hand (protector).
+const FAN_REACH := 360.0
+const FAN_SECONDS := 1.5
+const CHOP_REACH := 110.0
+const SMOKE_EDGE_BACK := 50.0
+
+var _kapre: Kapre2D
+var _fanned := 0.0
+var _smoke_last_x := INF
+
+
+func _tend_the_kapre(delta: float) -> void:
+	if _kapre == null or player == null or not is_instance_valid(player):
+		return
+	var x := PlayerHurtbox2D.middle_of(player).x
+	var span := _kapre.smoke_span()
+	var middle := (span.x + span.y) * 0.5
+	var crossed := _smoke_last_x < middle and x >= middle and x - _smoke_last_x < CROSSING_STEP
+	_smoke_last_x = x
+	if crossed and _kapre.smoke_stands() and not director.is_solved("L4_KAPRE"):
+		player.call("apply_morph_state", {"position": Vector2(span.x + SMOKE_EDGE_BACK, player.global_position.y),
+			"linear_velocity": Vector2.ZERO})
+		_smoke_last_x = span.x + SMOKE_EDGE_BACK
+		_speak(script_lines.fire("L4_KAPRE.turned"))
+	# The fan, held up to it.
+	if director.committed_route("L4_KAPRE") == "artist" and not director.is_solved("L4_KAPRE") \
+			and _holding("fan") and absf(x - _kapre.global_position.x) <= FAN_REACH:
+		_fanned += delta
+		if _fanned >= FAN_SECONDS:
+			_kapre.clear_smoke()
+			_answer("L4_KAPRE", "artist")
+	else:
+		_fanned = 0.0
+
+
+## A blade swung at its tree is a chop -- the first one too, the swing that draws the route in.
+## Read after the swing, and only of a swing that happened (a press inside a swing is nothing).
+func _use_equipped_utility() -> void:
+	var swung := _equipped_utility != null and is_instance_valid(_equipped_utility) \
+		and _equipped_utility.is_ready()
+	super()
+	if swung and _kapre != null and not _kapre.is_felled() and director != null \
+			and director.committed_route("L4_KAPRE") == "pragmatist" and not director.is_solved("L4_KAPRE") \
+			and player != null and absf(player.global_position.x - _kapre.global_position.x) <= CHOP_REACH:
+		if _kapre.chop():
+			_answer("L4_KAPRE", "pragmatist")
+
+
+func _on_cigar_knocked() -> void:
+	_kapre.leave()
+	_answer("L4_KAPRE", "protector")
+
+
+func _holding(entity_id: String) -> bool:
+	return _equipped_utility != null and is_instance_valid(_equipped_utility) \
+		and _equipped_utility.item_data != null and _equipped_utility.item_data.entity_id == entity_id
 
