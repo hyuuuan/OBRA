@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 from creature_sculpt import Sculpt, hexes
 
-FUR_DOG = hexes("#07050a", "#120d18", "#1e1727", "#2e2439", "#43364f", "#5f4e6c")
+FUR_DOG = hexes("#0a0612", "#1a1028", "#2a1c42", "#3e2c5e", "#58427e", "#7a62a4")
 FUR_PIG = hexes("#070506", "#140e10", "#22181b", "#33252a", "#48363c", "#634c52")
 EYE = hexes("#4a0a08", "#b3241a", "#ff4a2a", "#ffc08a")
 GUM = hexes("#2a070c", "#5c1420", "#8e2433", "#b54050")
@@ -40,6 +40,7 @@ class Beast:
     crest: bool = False         # a bristled ridge along the spine
     ribs: bool = True
     hind_extra: float = 0.0     # hind legs this much longer (the sigbin's kangaroo crouch)
+    eye_big: bool = False       # a big glowing eye with a pupil and a glint (the chibi look)
 
 
 @dataclass
@@ -184,8 +185,8 @@ def draw(b: Beast, p: Pose) -> Sculpt:
         for k in range(3):
             x = shoulder[0] - 5 - k * 3.5
             s.curve([(x, shoulder[1] - 2), (x - 1, shoulder[1] + 2), (x, shoulder[1] + 5)], s.tone("fur", 1), only_on_body=True)
-    # Fur strokes along the flank and back, lit from above; darker strokes in the shadow below.
-    for k in range(9):
+    # Fur strokes along the flank and back -- only where the bands do not already say it.
+    for k in range(9 if not b.eye_big else 0):
         t = (k + 0.5) / 9
         x = hip[0] + (shoulder[0] - hip[0]) * t
         y = hip[1] + (shoulder[1] - hip[1]) * t
@@ -193,11 +194,22 @@ def draw(b: Beast, p: Pose) -> Sculpt:
         s.line((x, y + b.belly * 0.3), (x + 2, y + b.belly * 0.3 + 1), s.tone("fur", 1), only_on_body=True)
     # The eye, a red ember with a glint, under a heavy brow.
     eye = (head_c[0] + 2.5, head_c[1] - 1.5)
-    s.line((eye[0] - 2, eye[1] - 1.5), (eye[0] + 2, eye[1] - 1), s.tone("fur", 0))
-    s.dot(eye[0], eye[1], s.tone("eye", 3))
-    s.dot(eye[0] + 1, eye[1], s.tone("eye", 2))
-    s.dot(eye[0] - 1, eye[1], s.tone("eye", 1))
-    s.dot(eye[0] + 2, eye[1] + 0.4, s.tone("eye", 1))
+    if b.eye_big:
+        # A big burning eye: a red disc, a dark slit pupil, a white glint, under a scowling brow.
+        s.ellipse("eye", eye[0] + 1, eye[1] + 0.5, 3.4, 3.0)
+        s.line((eye[0] - 3, eye[1] - 3.5), (eye[0] + 4, eye[1] - 2), s.tone("fur", 0))
+        s.line((eye[0] - 3, eye[1] - 2.5), (eye[0] + 4, eye[1] - 1), s.tone("fur", 0))
+    else:
+        s.line((eye[0] - 2, eye[1] - 1.5), (eye[0] + 2, eye[1] - 1), s.tone("fur", 0))
+    if b.eye_big:
+        s.line((eye[0] + 1.5, eye[1] - 1), (eye[0] + 1.5, eye[1] + 2), s.tone("eye", 0))
+        s.dot(eye[0] - 0.5, eye[1] - 0.5, (255, 255, 255))
+        s.dot(eye[0], eye[1] - 0.5, (255, 240, 220))
+    else:
+        s.dot(eye[0], eye[1], s.tone("eye", 3))
+        s.dot(eye[0] + 1, eye[1], s.tone("eye", 2))
+        s.dot(eye[0] - 1, eye[1], s.tone("eye", 1))
+        s.dot(eye[0] + 2, eye[1] + 0.4, s.tone("eye", 1))
     # Teeth: fangs at the front of each jaw; tusks for the pig.
     if p.jaw > 0.1 or b.tusks:
         for k, x in enumerate([nose[0] - 2, nose[0] - 4.5, nose[0] - 7]):
@@ -215,8 +227,8 @@ SIGBIN_HIDE = hexes("#0f0c0b", "#241d1a", "#3a2f29", "#54453b", "#726052", "#938
 SIGBIN = Beast("sigbin", SIGBIN_HIDE, size=120, body_len=24, body_depth=9, belly=8, leg_len=13, leg_thick=2.2,
     neck=7, head_len=11, head_h=5.0, snout_len=6, ears="long", tail="whip", crest=False, ribs=True, hind_extra=6)
 
-DOG = Beast("aswang_dog", FUR_DOG, size=132, body_len=30, body_depth=10, belly=6.0, leg_len=18, neck=10,
-    head_len=14, head_h=6.0, snout_len=11, ears="pointed", tail="ragged", crest=False)
+DOG = Beast("aswang_dog", FUR_DOG, size=132, body_len=24, body_depth=12, belly=10.0, leg_len=12, leg_thick=4.2,
+    neck=6, head_len=22, head_h=10.5, snout_len=7, ears="pointed", tail="ragged", crest=False, ribs=False, eye_big=True)
 PIG = Beast("aswang_pig", FUR_PIG, size=120, body_len=30, body_depth=12, belly=10.5, leg_len=11, leg_thick=3.2,
     neck=5, head_len=15, head_h=7.0, snout_len=9, ears="small", tail="curl", tusks=True, crest=True, ribs=False)
 
