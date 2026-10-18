@@ -340,6 +340,7 @@ func _resolve_level_nodes() -> void:
 	if _finale != null:
 		_finale.dawned.connect(_on_dawn)
 		_finale.began.connect(_on_night_began)
+		_finale.wave_opened.connect(_on_wave_opened)
 	if _mound != null:
 		_mound.crossed.connect(_on_mound_crossed)
 		_mound.crown_touched.connect(_on_crown_touched)
@@ -621,6 +622,13 @@ func _on_night_began() -> void:
 	_suns_seen.clear()
 	for sun: Node in _drawn_suns():
 		_suns_seen[sun.get_instance_id()] = true
+
+
+## What has come, said as each later wave opens -- on the hint bar, never a story line: the night is
+## a fight, and a line in the box would stop it (the audit holds the finale to that).
+func _on_wave_opened(index: int) -> void:
+	if index >= 1:
+		_speak(script_lines.fire("L4_FINALE.wave%d" % (index + 1)))
 
 
 ## Suns she has drawn during the night, each seen once: the finale moves the morning on for each,
