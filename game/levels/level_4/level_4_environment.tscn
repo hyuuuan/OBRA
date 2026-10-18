@@ -412,11 +412,12 @@ obstacle_id = "L4_TIYANAK"
 trigger_size = Vector2(1400.0, 460.0)
 plants_commit_mark = false
 
+; Down to the ravine's floor (820) as well: the crossing it stands in is part of its ground.
 [node name="L4_BUNGISNGIS" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(19000.0, 390.0)
+position = Vector2(19000.0, 510.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_BUNGISNGIS"
-trigger_size = Vector2(1200.0, 460.0)
+trigger_size = Vector2(1200.0, 700.0)
 plants_commit_mark = false
 
 [node name="L4_MANANANGGAL" type="Area2D" parent="GameplayPlane/Obstacles"]
