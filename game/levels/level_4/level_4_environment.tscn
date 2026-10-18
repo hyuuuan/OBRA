@@ -18,6 +18,7 @@
 [ext_resource type="Script" path="res://scripts/ink_jar_2d.gd" id="16_jar"]
 [ext_resource type="Script" path="res://scripts/kapre_2d.gd" id="17_kapre"]
 [ext_resource type="Script" path="res://scripts/tiyanak_2d.gd" id="18_tiyanak"]
+[ext_resource type="Script" path="res://scripts/bungisngis_2d.gd" id="19_bungisngis"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -274,6 +275,11 @@ script = ExtResource("17_kapre")
 [node name="Tiyanak" type="CharacterBody2D" parent="GameplayPlane/Encounters"]
 position = Vector2(17150.0, 587.0)
 script = ExtResource("18_tiyanak")
+
+; The bungisngis, standing on the ravine's floor in the crossing, its feet on the floor (820).
+[node name="Bungisngis" type="CharacterBody2D" parent="GameplayPlane/Encounters"]
+position = Vector2(19250.0, 730.0)
+script = ExtResource("19_bungisngis")
 
 [node name="Pickups" type="Node2D" parent="GameplayPlane"]
 
