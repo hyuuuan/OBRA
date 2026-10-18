@@ -161,6 +161,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_tend_the_manananggal(get_physics_process_delta_time())
 	_tend_the_night()
 	_tend_the_tiktik()
+	_whip_cooldown = maxf(0.0, _whip_cooldown - get_physics_process_delta_time())
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
@@ -846,6 +847,8 @@ func _use_from_satchel(id: String) -> bool:
 			return _throw_salt(item)
 		"dust":
 			return _throw_ash(item)
+		"whip":
+			return _lash_the_whip()
 		_:
 			return false
 
@@ -900,6 +903,44 @@ func _throw_ash(item: Dictionary) -> bool:
 	dust.position = player.global_position
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(dust)
 	return true
+
+
+## BUNTOT PAGI: Lola's stingray-tail whip, lashed in front of her -- the satchel's one weapon. Its
+## row is weapons.json's (uses, damage, reach, arc, cooldown); it reaches anything within its reach
+## in the arc, so a flier overhead too. Each lash wears it, and it is spent -- gone from the satchel
+## -- at its last use; until then a lash is used and not spent, and a press inside the cooldown is
+## neither.
+const WHIP := "buntot_pagi"
+var _whip_uses := 0
+var _whip_cooldown := 0.0
+
+
+func _lash_the_whip() -> bool:
+	if player == null or not is_instance_valid(player) or _whip_cooldown > 0.0:
+		return false
+	_whip_cooldown = WeaponTable.cooldown_ms(WHIP) / 1000.0
+	if _whip_uses <= 0:
+		_whip_uses = WeaponTable.uses(WHIP)
+	var facing_value: Variant = player.get(&"_facing")
+	var facing := signf(float(facing_value)) if facing_value != null and float(facing_value) != 0.0 else 1.0
+	var origin := PlayerHurtbox2D.middle_of(player)
+	var reach := WeaponTable.reach(WHIP)
+	var half_arc := deg_to_rad(WeaponTable.arc_degrees(WHIP) * 0.5)
+	for node in get_tree().get_nodes_in_group(Enemy2D.FOES):
+		var foe := node as Enemy2D
+		if foe == null or foe.is_dead():
+			continue
+		var offset := foe.global_position - origin
+		if offset.length() <= reach and absf(Vector2(facing, 0.0).angle_to(offset)) <= half_arc:
+			foe.apply_tool_hit(WHIP, 0.0, player)
+	var lash := WhipLash2D.new()
+	lash.reach = reach
+	lash.facing = facing
+	lash.arc_degrees = WeaponTable.arc_degrees(WHIP)
+	lash.position = origin
+	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(lash)
+	_whip_uses -= 1
+	return _whip_uses <= 0
 
 
 ## LANGIS: stages back into the lantern. Not when it is already full -- that would only waste it.
