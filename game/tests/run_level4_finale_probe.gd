@@ -14,7 +14,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 22
+const CHECKS := 23
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -173,6 +173,10 @@ func _the_waves_come_on_time() -> void:
 	var before_second := finale.current_wave()
 	await _seconds(1.0)
 	var second := finale.current_wave()
+	var hints := level.get("hint_bar") as HintBar
+	var box := level.get("dialogue_box") as Node
+	var said_second := hints.current_text()
+	var boxed := bool(box.call("is_open"))
 	var fliers := []
 	for foe in finale.alive():
 		if foe is FlyingEnemy2D:
@@ -181,6 +185,11 @@ func _the_waves_come_on_time() -> void:
 	await _frames(2)
 	var before_third := finale.current_wave()
 	await _seconds(1.0)
+	var said_third := hints.current_text()
+	boxed = boxed or bool(box.call("is_open"))
+	_check(said_second.begins_with("Wings over the trees") and said_third.begins_with("Tik... tik...") and not boxed,
+		"and as each later wave comes she says what it is, on the hint bar and not the story box",
+		"\"%s\" / \"%s\", box open %s" % [said_second, said_third, boxed])
 	_check(before_second == 0 and second == 1 and before_third == 1 and finale.current_wave() == 2,
 		"the second wave comes at 45 s, the third at 100 s", "%d then %d, %d then %d"
 			% [before_second, second, before_third, finale.current_wave()])
