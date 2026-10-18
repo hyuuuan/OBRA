@@ -11,6 +11,8 @@ const RADII := {4: 380.0, 3: 290.0, 2: 200.0, 1: 130.0}
 ## Guttering, the light will not hold still: this far either way, this many times a second.
 const GUTTER_FLICKER := 14.0
 const GUTTER_HZ := 6.0
+## Dragged down by something close to it (the tik-tik): the light is this much smaller while it is.
+const DRAGGED_SHARE := 0.18
 ## Where it hangs: behind her leading hand and a little below her middle.
 const HANG := Vector2(-12.0, 6.0)
 
@@ -23,6 +25,7 @@ var player: Node2D = null
 var health: PlayerHealth = null
 
 var _clock := 0.0
+var _dragged := 0.0
 
 
 func _ready() -> void:
@@ -32,6 +35,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_clock += delta
+	_dragged = maxf(0.0, _dragged - delta)
 	follow()
 	queue_redraw()
 
@@ -54,7 +58,18 @@ func radius() -> float:
 	var reach := float(RADII.get(stage(), RADII[PlayerHealth.FULL]))
 	if stage() <= PlayerHealth.GUTTERING:
 		reach += sin(_clock * TAU * GUTTER_HZ) * GUTTER_FLICKER
+	if _dragged > 0.0:
+		reach *= 1.0 - DRAGGED_SHARE
 	return reach
+
+
+## Something close is pulling the light down: for `seconds`, it is DRAGGED_SHARE smaller.
+func drag_down(seconds: float) -> void:
+	_dragged = maxf(_dragged, seconds)
+
+
+func is_dragged() -> bool:
+	return _dragged > 0.0
 
 
 func light_hole() -> Dictionary:
