@@ -19,7 +19,7 @@ func _run() -> void:
 	create_timer(120.0).timeout.connect(func() -> void:
 		print("OBRA_SATCHEL_FAILED=watchdog")
 		quit(2))
-	_it_knows_lolas_five_things()
+	_it_knows_lolas_six_things()
 	_a_stack_stops_at_its_cap()
 	_the_slots_fill_in_pickup_order()
 	_a_spent_slot_goes_to_the_next_new_thing()
@@ -89,12 +89,13 @@ func _run() -> void:
 		quit(1)
 
 
-func _it_knows_lolas_five_things() -> void:
+## Five, then six: the buntot pagi came with the finale, one at a time (cap 1).
+func _it_knows_lolas_six_things() -> void:
 	var satchel = SatchelScript.new()
 	var ids: Array[String] = satchel.ids()
-	_check(ids == ["asin", "abo", "bawang", "kandila", "langis"] and satchel.cap("asin") == 12
-			and satchel.cap("langis") == 3,
-		"it knows Lola's five things, with their caps", "%s" % [ids])
+	_check(ids == ["asin", "abo", "bawang", "kandila", "langis", "buntot_pagi"] and satchel.cap("asin") == 12
+			and satchel.cap("langis") == 3 and satchel.cap("buntot_pagi") == 1,
+		"it knows Lola's six things, with their caps", "%s" % [ids])
 
 
 func _a_stack_stops_at_its_cap() -> void:
