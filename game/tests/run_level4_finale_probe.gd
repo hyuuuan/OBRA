@@ -1,7 +1,7 @@
 extends SceneTree
 ## Dilim's last clearing, headless: the night begins when she steps in, two aswang at most, one
-## back after one falls, the second and third waves on time, a knockout starting it over, and the
-## morning ending it.
+## back after one falls, the second and third waves on time, a drawn sun bringing the morning on,
+## a knockout starting it over, and the morning ending it.
 ##
 ##   godot --headless --path game --script res://tests/run_level4_finale_probe.gd
 ##
@@ -14,7 +14,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 14
+const CHECKS := 15
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -38,6 +38,7 @@ func _run() -> void:
 	await _never_more_than_two()
 	await _a_knockout_starts_the_night_over()
 	await _the_waves_come_on_time()
+	await _a_sun_hurries_the_morning()
 	await _morning_ends_it()
 	await _the_dark_lifts_and_she_is_through()
 	_check(not (level.get("dawn_clock") as Control).visible, "and the night's clock is gone",
@@ -177,6 +178,21 @@ func _the_waves_come_on_time() -> void:
 		"%s, driven off at %d" % [kinds, drive_off])
 
 
+## The design's 15 s, once a wave: a second sun in the same wave changes nothing.
+func _a_sun_hurries_the_morning() -> void:
+	var before := finale.elapsed
+	var first := await _set_down("sun", Vector2(CLEARING_WEST + 300.0, 300.0))
+	var jumped := finale.elapsed - before
+	before = finale.elapsed
+	var second := await _set_down("sun", Vector2(CLEARING_WEST + 600.0, 300.0))
+	var again := finale.elapsed - before
+	_check(jumped > 14.9 and jumped < 15.5 and again < 0.5,
+		"a sun drawn in the night brings the morning 15 s on, once a wave",
+		"%.1f s on, then %.1f s for the second" % [jumped, again])
+	first.queue_free()
+	second.queue_free()
+
+
 func _morning_ends_it() -> void:
 	var said := [false]
 	var box := level.get("dialogue_box") as Node
@@ -218,6 +234,15 @@ func _open_level() -> Node:
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _frames(30)
 	return scene
+
+
+func _set_down(entity_id: String, at: Vector2) -> UtilityObject:
+	var thing := (level.get("registry") as EntityRegistry).instantiate_entity(entity_id) as UtilityObject
+	level.get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(thing)
+	thing.global_position = at
+	thing.freeze = true
+	await _frames(4)
+	return thing
 
 
 func _put_her_at(x: float) -> void:
