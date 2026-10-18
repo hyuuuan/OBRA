@@ -32,6 +32,14 @@ const REPLACE_SECONDS := 6.0
 const MANANANGGAL_DRIVE_OFF := 8
 ## A sun she draws brings the morning this much closer -- once a wave (Kent's design).
 const SUN_HURRIES := 15.0
+## THE DEAD TREE (Kent's design: "felling it crushes ground enemies (8 dmg), and the log wall blocks
+## one side"). A DeadTree2D child of the finale, felled by anything that cuts. It falls east, across
+## the clearing's east side: every walker under the trunk takes TREE_CRUSH, the trunk lying there is
+## a wall no walker crosses, and from then on the night's aswang come only from the west. A felled
+## tree stays down through a restore -- it cannot stand back up -- so the side stays shut.
+const TREE_CRUSH := 8
+## How far above the trunk's foot a walker still counts as under it.
+const TREE_REACH_UP := 120.0
 ## How high over the ground the fliers come in.
 const FLIER_HEIGHT := 260.0
 ## Where they come from: the clearing's edges, this far either side of its middle, on the ground.
@@ -52,10 +60,31 @@ var _wave := -1
 var _forms := 0
 ## The wave a sun last hurried, so each wave takes only one.
 var _hurried := -1
+var tree: DeadTree2D
 
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	for child in get_children():
+		if child is DeadTree2D:
+			tree = child
+			tree.felled.connect(_on_tree_felled)
+
+
+## Whether the felled trunk lies across the east side.
+func east_closed() -> bool:
+	return tree != null and tree.is_open()
+
+
+func _on_tree_felled() -> void:
+	var foot := tree.global_position
+	for foe in alive():
+		if not (foe is GroundEnemy2D):
+			continue
+		var half := foe.body_size.x * 0.5
+		if foe.global_position.x >= foot.x - half and foe.global_position.x <= foot.x + tree.span_length + half \
+				and foot.y - foe.global_position.y <= TREE_REACH_UP:
+			foe.crush(TREE_CRUSH)
 
 
 func _physics_process(delta: float) -> void:
@@ -175,7 +204,8 @@ func _send_one() -> void:
 	var foe := GroundEnemy2D.new()
 	foe.kind = String(ASWANG_FORMS[_forms % ASWANG_FORMS.size()])
 	_forms += 1
-	_enter(foe, Vector2(ENTRY_OFFSET * _next_side, -40.0))
+	var side := -1.0 if east_closed() else _next_side
+	_enter(foe, Vector2(ENTRY_OFFSET * side, -40.0))
 
 
 func _send_flier(kind: String) -> void:
