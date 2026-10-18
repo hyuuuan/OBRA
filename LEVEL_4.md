@@ -36,7 +36,7 @@ in three waves until dawn.
 | The tally | Every encounter's route is logged for the thesis telemetry, but the ending gets **one point from Dilim**: its majority route. Six forks must not decide the ending alone. |
 | "Absurd" | The bungisngis laughs itself helpless at **sea things in a forest**: fish, shark, octopus, sailboat, submarine. The game can only see a class, so the joke had to be a set of classes. |
 | Quick slots | Four, on **Z X C V**. Z/X rotate a drawing only while placing, and quick slots are off while placing. |
-| Creature art | **Code-drawn animated pixel strips** (2-px grain, 48-px frames), the way the lanterns, signs and Dagat's sea creatures were made. Replaceable when the art team delivers. |
+| Creature art | **Sculpted pixel strips**, in the delivered art's idiom: chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour (`tools/creature_sculpt.py`). Replaceable by name when the art team delivers. |
 | Defaults taken | Shift = walk (the santelmo's rule needs one). The opening is design Draft A, naming the manananggal and the tikbalang, played as the level's intro. |
 
 ## Flow
@@ -138,17 +138,20 @@ alongside this file; the numbers below are its starting points.
 | Segment 3 | `Tiyanak2D` · `Bungisngis2D` · `ManananggalUpper2D` / `ManananggalLower2D` |
 | The finale | `DilimFinale2D` (the clock, the three waves, the dead tree) · `DawnClockHud` · `Wakwak2D` · `Tiktik2D` · `DeadTree2D` (Level 1's, `stands_solid` off) |
 | Lola's things | `Satchel` · `SatchelPickup2D` · `QuickSlotBar` · `AsinThrow2D` · `AboDust2D` · `BawangWard2D` · `CandleFlame2D` · `WhipLash2D` |
-| Art | `MakilingBackdrop2D` · `MakilingTerrain2D` · `PixelStripAnimator` · `tools/build_dilim.py` (plates, tiles) · `tools/build_dilim_creatures.py` (aswang strips) · `tools/build_dilim_props.py` (satchel icons) |
+| Art | `MakilingBackdrop2D` · `MakilingTerrain2D` · `PixelStripAnimator` · `tools/build_dilim.py` (plates, tiles) · `tools/build_dilim_creatures.py` (every creature, the kapre's balete) · `tools/build_dilim_props.py` (satchel icons) |
 | Tests | `run_level4_audit` · `run_level4_enablers_probe` · `run_level4_seg1/seg2/seg3_probe` · `run_level4_finale_probe` · `run_level4_tiktik_probe` · `run_level4_whip_probe` · `run_satchel_probe` · `run_combat_probe` · `run_enemy_probe` · `run_weapon_probe` · `run_darkness_probe` · `run_makiling_probe` · `run_journey_probe` (Dagat → house → Dilim → dawn → ending) · windowed looks `run_visual_dilim_light`, `run_visual_makiling`, `run_visual_dilim_creatures` |
 
 ## As built, against the design
 
 What the build does that the design above does not say, and what it does not do yet:
 
-- **Creature art.** Only the aswang (dog, pig) are drawn strips. The santelmo, sigbin, tikbalang,
-  kapre, tiyanak, bungisngis, manananggal, wakwak and tik-tik are code-drawn placeholder bodies
-  (`ART_PLACEHOLDERS.md`; `run_visual_dilim_creatures` lays them side by side in her light). Her hurt
-  and attack poses are placeholders made from the delivered sheet (the jump and wave frames, leaned).
+- **Creature art.** Every creature is a sculpted strip a developer drew -- the aswang (dog, pig),
+  santelmo, nuno's mound, sigbin, tikbalang, kapre and its balete (standing and felled), tiyanak,
+  bungisngis, manananggal (both halves), wakwak and tik-tik -- standing in for an artist's
+  (`ART_PLACEHOLDERS.md` names every strip; `run_visual_dilim_creatures` lays them side by side in
+  her light). Each script's own code-drawn body is the fallback while a strip is missing. The
+  kapre's smoke is still drawn in code. Her hurt and attack poses are placeholders made from the
+  delivered sheet (the jump and wave frames, leaned).
 - **The finale's numbers.** The night is 150 s: waves at 0 / 45 / 100 s, dawn at 150. A drawn sun
   brings dawn 15 s nearer, once a wave. The manananggal is driven off at 8 in its wave.
 - **The dead tree** stands at the clearing's middle and falls east into a 64-px log that shuts the

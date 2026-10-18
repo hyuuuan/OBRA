@@ -17,6 +17,11 @@ const HOLD := 16.0
 var _dive := Vector2.ZERO
 
 
+## A flier's position is its middle, so its art hangs from there.
+func _art_is_centred() -> bool:
+	return true
+
+
 func _in_striking_range(to_prey: Vector2) -> bool:
 	return to_prey.length() <= attack_range
 
