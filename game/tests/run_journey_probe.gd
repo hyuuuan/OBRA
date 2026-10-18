@@ -6,7 +6,8 @@ extends SceneTree
 ## screen through the scene changes that make up a run -- PLAY into the house, the brush off its
 ## stand, a painting into Payyo, her canvas home to the house where Piyesta's frame is unlocked in
 ## front of her, Piyesta's painting into Piyesta, the painting's last
-## piece back to the house, Dagat's painting, and the island into the ending -- and those
+## piece back to the house, Dagat's painting, the island back to the house, Dilim's painting,
+## and Dilim's dawn into the ending -- and those
 ## changes are where a paused tree, a stale level id or
 ## a HUD left over from the last scene would show up: every scene works, and the run between
 ## them does not.
@@ -42,8 +43,10 @@ func _run() -> void:
 	await _restart_payyo_from_pause(manager)
 	await _payyo_to_piyesta(manager, profile)
 	await _piyesta_to_house(manager, profile)
-	await _house_to_dagat(manager)
-	await _dagat_to_ending(manager)
+	await _house_to(manager, "level_3", "Dagat")
+	await _dagat_to_house(manager, profile)
+	await _house_to(manager, "level_4", "Dilim")
+	await _dilim_to_ending(manager)
 	await _ending_to_house(manager)
 
 	print("OBRA_JOURNEY_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
@@ -274,32 +277,36 @@ func _piyesta_to_house(manager: Node, profile: Node) -> void:
 		"level_3 unlocked")
 
 
-## Dagat's painting, the way Payyo's was taken: stand at it and press E.
-func _house_to_dagat(manager: Node) -> void:
+## A painting, the way Payyo's was taken: stand at it and press E.
+func _house_to(manager: Node, level_id: String, title: String) -> void:
 	var hub := current_scene
 	var apo := hub.get("_player") as Node2D if hub != null else null
-	var dagat: Node2D = null
+	var painting: Node2D = null
 	for node in get_nodes_in_group(&"paintings"):
-		if String(node.get("level_id")) == "level_3":
-			dagat = node as Node2D
-	_check(apo != null and dagat != null, "the house has Dagat's painting", "-")
-	if apo == null or dagat == null:
+		if String(node.get("level_id")) == level_id:
+			painting = node as Node2D
+	_check(apo != null and painting != null, "the house has %s's painting" % title, "-")
+	if apo == null or painting == null:
 		return
-	apo.global_position = Vector2(dagat.global_position.x, apo.global_position.y)
+	apo.global_position = Vector2(painting.global_position.x, apo.global_position.y)
 	for _i in range(20):
 		await process_frame
 	_press(&"interact")
-	await _wait_for_scene(manager, "level_3.tscn")
+	var scene := "%s.tscn" % level_id
+	await _wait_for_scene(manager, scene)
 	await _read_the_opening()
-	await _arrived(manager, "level_3.tscn", "E at Dagat's painting")
-	_check(String(manager.get("current_level_id")) == "level_3", "and the run knows it is in Dagat",
+	await _arrived(manager, scene, "E at %s's painting" % title)
+	_check(String(manager.get("current_level_id")) == level_id, "and the run knows it is in %s" % title,
 		String(manager.get("current_level_id")))
 
 
+## ⚠ DAGAT NO LONGER ENDS THE RUN. Dilim shipped with `ends_run`, so the island's CONTINUE is the
+## way back to the house now, with Dilim's painting open on the wall.
+##
 ## Dagat's exit is the island. The level is not replayed here -- the Dagat probes do that --
 ## so the landing is taken directly, the way Payyo's painting was granted directly -- and so is
 ## the next painting, which the apo now takes out of the sand before Lolo says goodbye.
-func _dagat_to_ending(manager: Node) -> void:
+func _dagat_to_house(manager: Node, profile: Node) -> void:
 	var level := current_scene
 	if level == null or not level.has_method("_land_on_the_island"):
 		_check(false, "Dagat has its island", _scene_name())
@@ -318,8 +325,32 @@ func _dagat_to_ending(manager: Node) -> void:
 		waited += 0.1
 	_check(overlay.is_open(), "the farewell brings up the completion card", "open")
 	overlay.call("_on_continue")
+	await _wait_for_scene(manager, "hub.tscn")
+	await _arrived(manager, "hub.tscn", "CONTINUE after Dagat")
+	_check(bool(profile.call("is_level_unlocked", "level_4")), "and Dilim is open",
+		"level_4 unlocked")
+
+
+## Dilim's exit is the morning. The night is not sat through here -- the finale probe does that --
+## so the dawn is taken directly, the way Dagat's landing is.
+func _dilim_to_ending(manager: Node) -> void:
+	var level := current_scene
+	if level == null or not level.has_method("_on_dawn"):
+		_check(false, "Dilim has its dawn", _scene_name())
+		return
+	level.call("_on_dawn")
+	var overlay := level.get("complete_overlay") as ModalOverlay
+	var waited := 0.0
+	while waited < 15.0 and not overlay.is_open():
+		for box in get_nodes_in_group(DialogueBox.GROUP):
+			if bool(box.call("is_open")):
+				box.call("skip_all")
+		await create_timer(0.1, true, false, true).timeout
+		waited += 0.1
+	_check(overlay.is_open(), "the morning brings up the completion card", "open")
+	overlay.call("_on_continue")
 	await _wait_for_scene(manager, "ending_screen.tscn")
-	await _arrived(manager, "ending_screen.tscn", "CONTINUE after Dagat")
+	await _arrived(manager, "ending_screen.tscn", "CONTINUE after Dilim")
 
 
 ## The ending's one button goes back to the house.

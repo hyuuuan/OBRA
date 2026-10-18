@@ -325,8 +325,8 @@ func _test_level_completion_screen() -> void:
 
 	# The last built level ends the run, so CONTINUE has an ending to reach and that ending
 	# exists. THE FLAG MOVES WITH THAT LEVEL, which is what it is for: while Payyo was the
-	# only one there was, finishing it went to the ending screen; then Piyesta held it; Dagat
-	# holds it now and Piyesta hands on instead.
+	# only one there was, finishing it went to the ending screen; then Piyesta held it, then
+	# Dagat; Dilim holds it now and Dagat hands on instead.
 	#
 	# ⚠ EXACTLY ONE LEVEL MAY CARRY IT, and both halves are asserted separately for a reason:
 	# leaving it behind sends a player to the ending with the newest level unplayed, and
@@ -337,16 +337,16 @@ func _test_level_completion_screen() -> void:
 	_expect(manager != null, "LevelManager autoload is unavailable")
 	if manager != null:
 		_expect(
-			bool((manager.call("get_level", "level_3") as Dictionary).get("ends_run", false)),
-			"level_3 does not end the run, so nothing reaches the ending screen"
+			bool((manager.call("get_level", "level_4") as Dictionary).get("ends_run", false)),
+			"level_4 does not end the run, so nothing reaches the ending screen"
 		)
 		var still_ending: Array[String] = []
-		for earlier in ["level_1", "level_2"]:
+		for earlier in ["level_1", "level_2", "level_3"]:
 			if bool((manager.call("get_level", earlier) as Dictionary).get("ends_run", false)):
 				still_ending.append(earlier)
 		_expect(
 			still_ending.is_empty(),
-			"%s still ends the run, so finishing it skips Dagat for the ending"
+			"%s still ends the run, so finishing it skips Dilim for the ending"
 				% ", ".join(still_ending)
 		)
 	_expect(ResourceLoader.exists("res://ui/ending_screen.tscn"), "the ending scene is missing")
@@ -918,14 +918,15 @@ func _test_level_framework() -> void:
 	profile_data["levels_completed"] = had_completed
 
 	# Playable and unlocked are different questions, and conflating them is the dead
-	# card: 3 to 5 have no scene, so they are never playable however the profile's
-	# progression feels about them -- including on a machine where level 2 was finished
-	# in a real session, which is exactly when the old code enabled a card that then
-	# did nothing. Level 2 has a scene now and is on the other side of that line.
+	# card: 5 has no scene, so it is never playable however the profile's progression
+	# feels about it -- including on a machine where level 4 was finished in a real
+	# session, which is exactly when the old code enabled a card that then did nothing.
+	# Levels 2 to 4 have scenes now and are on the other side of that line.
 	_expect(bool(level_manager.call("is_playable", "level_1")), "level_1 is not playable")
 	_expect(bool(level_manager.call("is_playable", "level_2")), "level_2 is not playable")
 	_expect(bool(level_manager.call("is_playable", "level_3")), "level_3 is not playable")
-	for missing_id in ["level_4", "level_5"]:
+	_expect(bool(level_manager.call("is_playable", "level_4")), "level_4 is not playable")
+	for missing_id in ["level_5"]:
 		_expect(
 			not bool(level_manager.call("is_playable", missing_id)),
 			"%s reports playable with no scene behind it" % missing_id
@@ -1049,24 +1050,24 @@ func _test_level_framework() -> void:
 	# whether or not anybody built it, so there is always exactly one card that is unlocked
 	# in the profile with no scene behind it -- and the menu used to disable a card on
 	# is_unlocked alone, so finishing a level in a real session enabled a card that then
-	# silently did nothing when clicked. That card was level 2's, then level 3's; Dagat is
-	# built now, so it is level 4's.
+	# silently did nothing when clicked. That card was level 2's, then level 3's, then level
+	# 4's; Dilim is built now, so it is level 5's.
 	#
 	# Both halves are asserted, because each on its own passes for the wrong reason: a
 	# built-and-unlocked card must be OFFERED, and an unlocked one with no scene must not be.
-	profile_data["levels_unlocked"] = ["level_3", "level_4"]
+	profile_data["levels_unlocked"] = ["level_4", "level_5"]
 	menu.call("_refresh_cards")
 	await process_frame
-	var level3 := menu.get_node_or_null("MenuLayer/MenuRoot/MorphPanel/Selector/Level3") as Button
 	var level4 := menu.get_node_or_null("MenuLayer/MenuRoot/MorphPanel/Selector/Level4") as Button
-	_expect(level3 != null and level4 != null, "the level 3 or level 4 card is missing")
-	if level3 != null and level4 != null:
-		_expect(not level3.disabled,
-			"level 3's card is locked with a scene behind it and progression reaching it")
-		_expect(level4.disabled, "level 4's card is offered with no scene behind it")
+	var level5 := menu.get_node_or_null("MenuLayer/MenuRoot/MorphPanel/Selector/Level5") as Button
+	_expect(level4 != null and level5 != null, "the level 4 or level 5 card is missing")
+	if level4 != null and level5 != null:
+		_expect(not level4.disabled,
+			"level 4's card is locked with a scene behind it and progression reaching it")
+		_expect(level5.disabled, "level 5's card is offered with no scene behind it")
 		_expect(
-			not bool(level_manager.call("open_level", "level_4")),
-			"level 4 would start a transition to a scene that does not exist"
+			not bool(level_manager.call("open_level", "level_5")),
+			"level 5 would start a transition to a scene that does not exist"
 		)
 	profile_data["levels_unlocked"] = had_unlocked_cards
 	profile_data["levels_completed"] = had_completed_cards

@@ -27,17 +27,17 @@
     "scene_path": "res://level_3.tscn",
     "thumbnail": "res://assets/hub/paintings/level_3.png",
     "unlocked": false,
-    "ends_run": true
+    "ends_run": false
   },
   {
     "id": "level_4",
     "number": 4,
-    "title": "Coming Soon",
-    "theme": "",
-    "scene_path": "",
-    "thumbnail": "",
+    "title": "Dilim",
+    "theme": "The forest on Mount Makiling, by night, and she goes alone",
+    "scene_path": "res://level_4.tscn",
+    "thumbnail": "res://assets/hub/paintings/level_4.png",
     "unlocked": false,
-    "ends_run": false
+    "ends_run": true
   },
   {
     "id": "level_5",
