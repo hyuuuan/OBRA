@@ -135,6 +135,8 @@ func _ready() -> void:
 		_create_flashlight_nodes()
 		_active = true
 		_set_light_active(true)
+	elif utility_behavior == "sun":
+		add_to_group(LightField.GROUP)
 	add_to_group("drawn_utilities")
 	if utility_behavior in ["sailboat", "submarine"]:
 		# Hulls do their own buoyancy in _integrate_forces. Without this the pool lifts
@@ -1292,13 +1294,33 @@ const BEAM_REACH := 260.0
 const BEAM_HALF_ANGLE := 0.38
 
 
-## A lit flashlight's beam, for the dark and for anything asking how lit a place is (LightField):
-## the cone it draws, from the lens, the way the tool is pointing.
+## ⚠ A CAMPFIRE AND A SUN LIGHT THE DARK TOO. Kent's design names three lights -- "flashlight,
+## campfire, sun" -- and only the flashlight answered a hole, so a campfire set down in Dilim glowed
+## and lit nothing: the sigbin did not show by it and the darkness did not open round it. A fire
+## lights all round where it stands; a sun, wherever it is, lights all round it a long way.
+const CAMPFIRE_GLOW := 300.0
+const CAMPFIRE_LIFT := 18.0
+const SUN_GLOW := 640.0
+
+
+## The light this drawing gives, for the dark and for anything asking how lit a place is
+## (LightField): a lit flashlight's cone, from the lens, the way the tool is pointing; a fire's
+## glow over where it stands; a sun's, all round it. A ghost still being placed gives none.
 func light_hole() -> Dictionary:
-	if utility_behavior != "flashlight" or not _active:
+	if is_preview:
 		return {}
-	return {"position": global_transform * Vector2(20.0, 0.0), "radius": BEAM_REACH,
-		"strength": 1.0, "direction": global_transform.x.normalized(), "half_angle": BEAM_HALF_ANGLE}
+	match utility_behavior:
+		"flashlight":
+			if not _active:
+				return {}
+			return {"position": global_transform * Vector2(20.0, 0.0), "radius": BEAM_REACH,
+				"strength": 1.0, "direction": global_transform.x.normalized(), "half_angle": BEAM_HALF_ANGLE}
+		"campfire":
+			return {"position": global_position + Vector2(0.0, -CAMPFIRE_LIFT), "radius": CAMPFIRE_GLOW,
+				"strength": 1.0}
+		"sun":
+			return {"position": global_position, "radius": SUN_GLOW, "strength": 1.0}
+	return {}
 
 
 func _make_cone_texture() -> ImageTexture:
