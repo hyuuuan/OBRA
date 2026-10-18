@@ -383,10 +383,21 @@ func _hold(action: StringName, on: bool) -> void:
 ## Stay by a thing until the hook has been said, for up to twenty seconds: Lolo's story comes
 ## first, and this probe crosses the dive's story triggers far faster than a swimmer does, so
 ## several of his lines can be waiting ahead of the fact.
+##
+## ⚠ HELD WHERE SHE STOPPED, NOT PLACED ONCE AND LET GO. A fish left alone does not stay put: it
+## drifts toward the middle of the column at about sixty pixels a second -- up off a fact on the
+## bed, down from the shaft -- and a fact that waited for Lolo is said only if she is still within
+## the level's CORAL_STILL_NEAR (260 px) of it when he is free. Let go at lola1 she was already
+## 204 px off it when he finished jelly's fact, a second from out of reach, so any one line of his
+## that got in ahead carried her past it and lola1 was dropped -- the "silent: lola1" this check
+## failed with now and then. The sea creatures supply that line at random: the first of each kind
+## to wander within MEET_REACH gets one, and their wandering is unseeded randf stepped on _process,
+## so it came and went from run to run. Held each frame, as run_level3_sea_probe holds her.
 func _linger_at(at: Vector2, hook: String) -> void:
 	var script_lines = level.get("script_lines")
-	_place(at + Vector2(-60.0, -60.0))
+	var stop := at + Vector2(-60.0, -60.0)
 	for _frame in range(1200):
+		_place(stop)
 		await physics_frame
 		if root.get_tree().paused:
 			await _unpause()
