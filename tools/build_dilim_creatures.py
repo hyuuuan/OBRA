@@ -11,10 +11,17 @@ missing. So a delivered `aswang_dog_run.png` simply wins.
 HOW THEY ARE DRAWN
 ------------------
 In the project's own idiom (tools/pixelart.py): a 24 x 24 logical grid scaled by PX = 2 to a
-48 px frame, short ramps, light from the upper left. These are things seen in the dark, so the
-bodies are near-black with a cold violet edge light, and what reads first is the EYES -- the
-one warm colour on them, amber, which is also the windup glint's colour, so a player learns to
-watch the eyes. Facing right; the game mirrors them.
+48 px frame, short ramps, light from the upper left. These are things seen in the dark: dark,
+cold violet bodies with a paler edge light, and the EYES the one warm colour on them -- amber,
+which is also the windup glint's colour, so a player learns to watch the eyes. Facing right;
+the game mirrors them.
+
+DARK, NOT BLACK. The darkness is the level's job, not the creature's: Dilim's design ties
+seeing them to her lantern ("near dark ... when the aswangs are most dangerous and most
+invisible"), and the dark layer already hides whatever stands beyond its light. Bodies drawn
+near-black (fill #0f0c16) disappeared inside the light too, against the night forest, leaving
+only an eye and a glint. So the body is dark enough to stay sinister and light enough to read
+wherever her lantern reaches.
 
 Every strip is one row of frames: idle 2, run 4, windup 2, attack 2, hurt 1, death 3.
 
@@ -47,8 +54,9 @@ GROUND = 21
 
 ANIMS = {"idle": 2, "run": 4, "windup": 2, "attack": 2, "hurt": 1, "death": 3}
 
-# Dark bodies with a cold edge light; the eye is the only warm thing on them.
-HIDE = ramp(["#07060b", "#0f0c16", "#1a1524", "#2a2238", "#40345a"])
+# Dark bodies with a cold edge light; the eye is the only warm thing on them. Dark, not black:
+# see DARK, NOT BLACK above.
+HIDE = ramp(["#1a1424", "#2b2238", "#3d3150", "#5e4f7a", "#857aa6"])
 EYE = ramp(["#b8641c", "#ffbd3d", "#fff0c0"])
 MOUTH = ramp(["#3a0d14", "#7a1f2b"])
 TUSK = ramp(["#8f8670", "#d9cfae"])
