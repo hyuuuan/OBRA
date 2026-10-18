@@ -50,6 +50,10 @@ const ANIM_FOR := {
 @export var hunts_by_smell := true
 ## Beyond this distance from her it does nothing at all: no thinking, no moving.
 @export var sleep_beyond := 1400.0
+## Whether its fall leaves anything of Lola's lying where it fell (the level rolls the satchel's
+## drop chances). Off for a fight that must earn nothing: the tiyanak (Kent's design -- "allowing
+## this and not rewarding it").
+@export var drops := true
 
 var max_hp := 4
 var speed := 200.0
