@@ -54,9 +54,15 @@ class Stance:
     sit: float = 0.0            # 0 standing .. 1 sat down
 
 
-def _limb(s: Sculpt, name: str, a, b, c, r0, r1, r2) -> None:
-    s.capsule(name, a, b, r0, r1)
-    s.capsule(name, b, c, r1, r2)
+def _along(a, b, t: float, push: float = 0.0):
+    """The point t along a->b, pushed off the line toward the front (+x, the way they face) by
+    `push`, or toward the back if it is negative -- where a muscle swells."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    n = math.hypot(dx, dy) or 1.0
+    px, py = -dy / n, dx / n
+    if px < 0:
+        px, py = -px, -py
+    return (a[0] + dx * t + px * push, a[1] + dy * t + py * push)
 
 
 def _leg(s: Sculpt, g: Giant, name: str, hip, phase: float, st: Stance, ground: float) -> None:
@@ -67,7 +73,13 @@ def _leg(s: Sculpt, g: Giant, name: str, hip, phase: float, st: Stance, ground: 
     reach = math.hypot(foot[0] - hip[0], foot[1] - hip[1])
     bend = max(0.0, (g.leg - reach)) * 0.55 + 6 + sat * 20
     knee = ((hip[0] + foot[0]) / 2 + bend, (hip[1] + foot[1]) / 2 - sat * 10)
-    _limb(s, name, hip, knee, foot, g.thigh_r, g.shin_r, g.shin_r * 0.8)
+    # One tube: the thigh full over the front, the knee narrow, the calf full behind, the ankle
+    # thin -- not a pipe.
+    t, sh = g.thigh_r, g.shin_r
+    s.tube(name, [hip, _along(hip, knee, 0.42, t * 0.18), knee, _along(knee, foot, 0.3, -sh * 0.32),
+                  _along(knee, foot, 0.86), foot], [t, t * 1.08, sh * 0.84, sh * 1.12, sh * 0.6, sh * 0.62])
+    kneecap = _along(hip, knee, 0.97, sh * 0.42)
+    s.ellipse(name, kneecap[0], kneecap[1], sh * 0.55, sh * 0.5)
     if g.feet == "hoof":
         s.capsule(name, (foot[0], foot[1] - 9), (foot[0] + 0.5, foot[1] - 6), g.shin_r * 0.9, g.shin_r * 1.1)
         s.poly("hoof", [(foot[0] - 4.5, foot[1] - 7), (foot[0] + 5, foot[1] - 7), (foot[0] + 7, foot[1]), (foot[0] - 5, foot[1])], bulge=0.35)
@@ -82,11 +94,18 @@ def _arm(s: Sculpt, g: Giant, name: str, shoulder, swing: float, up: float, hand
     elbow = (shoulder[0] + math.sin(a) * upper, shoulder[1] + math.cos(a) * upper)
     b = a + math.radians(6 - up * 40)
     hand = (elbow[0] + math.sin(b) * lower, elbow[1] + math.cos(b) * lower)
-    _limb(s, name, shoulder, elbow, hand, g.arm_r + 0.6, g.arm_r, g.arm_r * 0.8)
-    # Long fingers, three of them, hanging.
+    # The shoulder's round cap, then one tube: the biceps full, the elbow narrow, the forearm full
+    # near the elbow, the wrist thin.
+    r = g.arm_r
+    s.ellipse(name, shoulder[0], shoulder[1] + r * 0.3, r * 1.45, r * 1.3)
+    s.tube(name, [shoulder, _along(shoulder, elbow, 0.5, r * 0.22), elbow, _along(elbow, hand, 0.3, r * 0.1),
+                  _along(elbow, hand, 0.88), hand], [r * 1.15, r * 1.2, r * 0.76, r * 1.0, r * 0.6, r * 0.62])
+    # The hand, and long fingers, three of them, hanging.
+    palm = (hand[0] + math.sin(b) * r * 0.5, hand[1] + math.cos(b) * r * 0.5)
+    s.ellipse(name, palm[0], palm[1], r * 0.78, r * 0.86)
     for k in range(3):
-        tip = (hand[0] + math.sin(b) * 8 + (k - 1) * 1.6, hand[1] + math.cos(b) * 8 + k * 0.6)
-        s.capsule(name, hand, tip, 1.2, 0.6)
+        tip = (palm[0] + math.sin(b) * r * 1.5 + (k - 1) * r * 0.34, palm[1] + math.cos(b) * r * 1.5 + k * r * 0.12)
+        s.capsule(name, palm, tip, r * 0.27, r * 0.15)
     hand_out.append(hand)
 
 
