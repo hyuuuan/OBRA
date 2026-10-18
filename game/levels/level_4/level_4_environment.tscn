@@ -104,11 +104,12 @@ position = Vector2(260.0, 510.0)
 
 [node name="Terrain" type="Node2D" parent="GameplayPlane"]
 
-; One floor the whole way for the shell. The encounters' own ground -- the forks, the drop by the
-; cry, the ravine, the high path -- comes with each encounter.
+; One floor the whole way, broken where an encounter's ground needs it: the drop by the tiyanak's
+; cry (17250-17550, 300 wide -- past a running jump's 228). Its other ground -- the forks, the
+; ravine, the high path -- comes with each encounter.
 [node name="Ground" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 script = ExtResource("8_terrain")
-platforms = Array[Rect2]([Rect2(-200, 600, 22800, 800)])
+platforms = Array[Rect2]([Rect2(-200, 600, 17450, 800), Rect2(17550, 600, 5050, 800)])
 
 ; ⚠ THE CANOPY IS A CEILING, NOT A RULE (Kent's design: 'the canopy block flight physically').
 ; 440 up: higher than a drawn tree reaches (362), so every way over the ground still fits under
@@ -130,6 +131,13 @@ body = "stone"
 [node name="Fork" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 script = ExtResource("8_terrain")
 branches = Array[Rect2]([Rect2(8650, 520, 220, 18), Rect2(8950, 450, 260, 18), Rect2(9300, 470, 260, 18)])
+
+; THE PATH OVER THE TIYANAK'S DROP (Kent's design: "stay on the path and do not approach"). Logs
+; she steps up onto -- 70 then 65 px, each a jump -- and walks along over the drop, down again past
+; it. Down on the ground under them is the cry, and the bushes run on over nothing.
+[node name="TiyanakPath" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+branches = Array[Rect2]([Rect2(16900, 530, 220, 18), Rect2(17080, 465, 600, 18)])
 
 [node name="Canopy" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(11200.0, -520.0)
