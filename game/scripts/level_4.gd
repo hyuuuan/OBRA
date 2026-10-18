@@ -146,6 +146,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_tend_the_kapre(get_physics_process_delta_time())
 	_tend_the_tiyanak()
 	_tend_the_bungisngis(get_physics_process_delta_time())
+	_tend_the_manananggal(get_physics_process_delta_time())
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
@@ -277,6 +278,7 @@ func _restore_checkpoint() -> String:
 	get_tree().call_group(Enemy2D.GROUP, &"reset_for_restore")
 	_went_to_the_cry = false
 	_absurd_near = 0.0
+	_lit_for = 0.0
 	if dawn_clock != null:
 		dawn_clock.hide_night()
 	_lift_curse()
@@ -295,6 +297,12 @@ var _mound: NunoMound2D
 
 
 func _resolve_level_nodes() -> void:
+	_upper = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/ManananggalUpper") as ManananggalUpper2D
+	_lower = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/ManananggalLower") as ManananggalLower2D
+	if _upper != null:
+		_upper.died.connect(func(_foe: Enemy2D) -> void: _answer("L4_MANANANGGAL", "protector"))
+	if _lower != null:
+		_lower.salted.connect(_on_lower_half_salted)
 	_bungisngis = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Bungisngis") as Bungisngis2D
 	if _bungisngis != null:
 		_bungisngis.died.connect(func(_foe: Enemy2D) -> void: _answer("L4_BUNGISNGIS", "protector"))
@@ -378,6 +386,8 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 		_tikbalang.stand_aside()
 	if obstacle_id == "L4_TIYANAK" and route == "artist" and _tiyanak != null:
 		_tiyanak.reveal_and_flee()
+	if obstacle_id == "L4_MANANANGGAL" and _upper != null:
+		_upper.leave()
 	return false
 
 
@@ -1160,3 +1170,52 @@ func _something_absurd_within(reach: float) -> bool:
 				and absurd.has(thing.item_data.entity_id) and thing.global_position.distance_to(at) <= reach:
 			return true
 	return false
+
+
+# --- The manananggal ----------------------------------------------------------------------------
+
+## Kent's design: "the upper half flies, so ground weapons mostly miss. This is a search under
+## pressure rather than a fight. The lower half is hidden somewhere in the arena." Answered three
+## ways: salt thrown on the lower half (pragmatist, `salted` -- the best one); a light drawn, then
+## the lower half held in light LIT_SECONDS -- her own lantern does not count; a drawn sun lights
+## the whole hollow -- and she cannot rejoin in the light (artist); the upper half driven off after
+## a weapon drawn (protector), which settles the least: the lower half still stands. Any way, the
+## upper half leaves.
+const LIT_SECONDS := 2.0
+const LIT_ENOUGH := 0.5
+
+var _upper: ManananggalUpper2D
+var _lower: ManananggalLower2D
+var _lit_for := 0.0
+
+
+func _tend_the_manananggal(delta: float) -> void:
+	if _lower == null or director == null or director.is_solved("L4_MANANANGGAL") or _lower.is_dead():
+		_lit_for = 0.0
+		return
+	if director.committed_route("L4_MANANANGGAL") == "artist" \
+			and LightField.light_from(_drawn_light(), _lower.global_position) >= LIT_ENOUGH:
+		_lit_for += delta
+		if _lit_for >= LIT_SECONDS:
+			_answer("L4_MANANANGGAL", "artist")
+		return
+	_lit_for = 0.0
+
+
+## Every light in the woods but her own lantern -- the light the design means is one she made.
+func _drawn_light() -> Array:
+	var holes: Array = []
+	for source in get_tree().get_nodes_in_group(LightField.GROUP):
+		if source is HeldLantern2D or not source.has_method("light_hole") or not (source is CanvasItem) \
+				or not (source as CanvasItem).is_visible_in_tree():
+			continue
+		var hole: Dictionary = source.call("light_hole")
+		if not hole.is_empty():
+			holes.append(hole)
+	return holes
+
+
+func _on_lower_half_salted() -> void:
+	_answer("L4_MANANANGGAL", "pragmatist")
+	if _upper != null:
+		_upper.leave()
