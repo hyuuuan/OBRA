@@ -307,6 +307,27 @@
       "text": "Lola said the bungisngis laughs at everything, and that laughing is the only thing stronger than it is."
     },
     {
+      "id": "L4_BG_002",
+      "at": "L4_BUNGISNGIS.artist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It is laughing too hard to stand. Lola was right: nothing is stronger than a good laugh."
+    },
+    {
+      "id": "L4_BG_003",
+      "at": "L4_BUNGISNGIS.pragmatist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Over it, and it never even looked up. Some crossings you do not have to fight for."
+    },
+    {
+      "id": "L4_BG_004",
+      "at": "L4_BUNGISNGIS.protector.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Down it goes, still grinning. I hope it laughs about this one day."
+    },
+    {
       "id": "L4_MN_001",
       "at": "L4_MANANANGGAL.enter",
       "speaker": "apo",
