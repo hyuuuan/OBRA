@@ -112,6 +112,10 @@ const FLOAT_DEPTH := 18.0
 var world_bounds := Rect2(0.0, -520.0, 3760.0, 1200.0)
 ## Whether Shift slows her to WALK_SPEED. Off unless a level turns it on.
 var can_walk := false
+## Her pace and the height of her jump, as shares of her own. 1 everywhere until something
+## weighs on her -- the nuno's curse in Dilim slows her to 0.6 and her jump to 0.85.
+var pace_scale := 1.0
+var jump_scale := 1.0
 
 var _gravity: float = 980.0
 var _phase: float = 0.0
@@ -146,7 +150,8 @@ var _underwater_sources: Dictionary = {}
 ## One jump, from wherever it was allowed. Spends both the buffer and the grace so a
 ## single press cannot be cashed twice on the way up.
 func _jump() -> void:
-	velocity.y = JUMP_VELOCITY
+	# The height goes with the square of the launch, so a share of the height is its root here.
+	velocity.y = JUMP_VELOCITY * sqrt(maxf(jump_scale, 0.0))
 	_jump_buffered = 0.0
 	_coyote_left = 0.0
 
@@ -223,7 +228,7 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, 0.0, STAGGER_DRAG * delta)
 	elif direction != 0.0:
 		var pace := WALK_SPEED if can_walk and Input.is_action_pressed(&"walk") else SPEED
-		velocity.x = move_toward(velocity.x, direction * pace, ACCELERATION * delta)
+		velocity.x = move_toward(velocity.x, direction * pace * pace_scale, ACCELERATION * delta)
 		_facing = signf(direction)
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, FRICTION * delta)

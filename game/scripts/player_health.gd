@@ -67,6 +67,13 @@ func refill(stages: int = FULL) -> void:
 	_set_stage(mini(FULL, stage + maxi(0, stages)))
 
 
+## Something that is not a blow takes the flame down a stage -- the nuno's curse -- but never
+## below `floor_stage`, and never out. No grace and no hit: nothing struck her, and nothing should
+## flicker or count as the first hit to the lantern.
+func dim(floor_stage: int = LOW) -> void:
+	_set_stage(maxi(stage - 1, mini(stage, maxi(GUTTERING, floor_stage))))
+
+
 ## Back to a full flame after a knockout, with the longer grace.
 func reset_full() -> void:
 	_set_stage(FULL)

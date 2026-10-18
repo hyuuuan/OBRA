@@ -45,7 +45,7 @@
     "$comment": "In her own voice, short enough for the banner (720 px).",
     "edge": "Lola said: ask before you pass.",
     "woods": "Get through the woods. Keep the light lit.",
-    "rest": "Rest by the fire while it lasts.",
+    "rest": "Make a light, and rest by it.",
     "dawn": "Last until morning."
   },
   "obstacles": [
@@ -61,7 +61,9 @@
       },
       "$comment": "No protector route: the nuno has no hurtbox. Touching the crown curses her (slower, lower jumps, the lantern down a stage) and answers nothing."
     },
-    {"id": "L4_REST1", "type": "tutorial", "dialogue_node": false, "fail_state": false},
+    {"id": "L4_REST1", "type": "tutorial", "dialogue_node": false, "fail_state": false,
+     "sub_beats": [{"id": "fire", "teaches": "light", "required_tags": ["light"]}],
+     "$comment": "A light of her own -- a fire, a lamp, the sun -- fills the lantern and lifts the nuno's curse. Arriving fills the ink first, so she can always draw it."},
     {
       "id": "L4_SIGBIN",
       "type": "dialogue_node",
@@ -97,7 +99,9 @@
                       "$comment": "Knock the cigar out of its hand, 260 px up: only what leaves the hand reaches."}
       }
     },
-    {"id": "L4_REST2", "type": "tutorial", "dialogue_node": false, "fail_state": false},
+    {"id": "L4_REST2", "type": "tutorial", "dialogue_node": false, "fail_state": false,
+     "sub_beats": [{"id": "fire", "teaches": "light", "required_tags": ["light"]}],
+     "$comment": "A light of her own -- a fire, a lamp, the sun -- fills the lantern and lifts the nuno's curse. Arriving fills the ink first, so she can always draw it."},
     {
       "id": "L4_TIYANAK",
       "type": "dialogue_node",

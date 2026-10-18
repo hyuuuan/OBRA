@@ -17,7 +17,7 @@
     "",
     "RESPAWN is a pool: LevelBase says one per knockout, in turn, through the hint bar.",
     "",
-    "WHAT IS NOT HERE YET: each encounter's answered and after lines, the nuno's curse, the",
+    "WHAT IS NOT HERE YET: each later encounter's answered and after lines, the",
     "finale's waves and the morning. They come with the encounters that say them -- an",
     "unreachable line is an audit failure, not a placeholder."
   ],
@@ -76,6 +76,13 @@
       "text": "Lola said when the lamp goes out, you go back to where it was last lit."
     },
     {
+      "id": "L4_IK_001",
+      "at": "INK.empty",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "No more ink. The next clearing will give it back."
+    },
+    {
       "id": "L4_NU_001",
       "at": "L4_NUNO.enter",
       "speaker": "apo",
@@ -83,11 +90,46 @@
       "text": "A mound on the path, with things left all round it. Lola said: when you pass a punso, you ask first. Tabi-tabi po."
     },
     {
+      "id": "L4_NU_002",
+      "at": "L4_NUNO.asked",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Tabi-tabi po. Excuse me -- I only need to pass."
+    },
+    {
+      "id": "L4_NU_003",
+      "at": "L4_NUNO.cursed",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "My foot -- it is swelling. I stood on it. Lola said it wears off if I keep going."
+    },
+    {
+      "id": "L4_NU_004",
+      "at": "L4_NUNO.artist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Something stirred in the mound. Lola said they remember the ones who ask."
+    },
+    {
+      "id": "L4_NU_005",
+      "at": "L4_NUNO.pragmatist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Over, and not a crumb of it touched. Lola would still have asked."
+    },
+    {
       "id": "L4_R1_001",
       "at": "L4_REST1.enter",
       "speaker": "apo",
       "kind": "lore",
       "text": "A clearing. Lola said: wherever you can make a **light** of your own, stop, and fill the lamp before you go on."
+    },
+    {
+      "id": "L4_R1_002",
+      "at": "L4_REST1.fire.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There. Warm. The lamp drinks it up, and the dark steps back a little."
     },
     {
       "id": "L4_SG_001",
@@ -132,6 +174,13 @@
       "text": "Somewhere to stop. Lola said the far side of the woods is the worst of it. Fill the lamp first."
     },
     {
+      "id": "L4_R2_002",
+      "at": "L4_REST2.fire.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Warm again. Whatever is past here, I will meet it with a full lamp."
+    },
+    {
       "id": "L4_TY_001",
       "at": "L4_TIYANAK.enter",
       "speaker": "apo",
@@ -172,6 +221,13 @@
       "speaker": "apo",
       "kind": "lore",
       "text": "Then I only have to last until morning."
+    },
+    {
+      "id": "L4_FN_003",
+      "at": "L4_FINALE.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Morning. Lola named every one of them for me, one by one. I needed every one."
     },
     {
       "id": "L4_RT_001",

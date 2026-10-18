@@ -1,0 +1,457 @@
+extends SceneTree
+## Dilim's first stretch, played headless: the santelmo, the nuno's mound, the first clearing.
+##
+##   godot --headless --path game --script res://tests/run_level4_seg1_probe.gd
+##
+## Each part is driven the way a player drives it -- the movement keys held, E pressed -- and read
+## back off what the level and the things in it say happened.
+
+const GROUND_Y := 600.0
+## A frame or two over the time anything here is measured against: a press lands mid-frame.
+const MARGIN := 0.15
+
+var failures := 0
+var level: Node
+
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+
+func _run() -> void:
+	create_timer(240.0).timeout.connect(func() -> void:
+		print("OBRA_L4_SEG1_FAILED=watchdog")
+		quit(2))
+	level = await _open_level()
+	_set_aside_the_levels_own_flame()
+	await _walking_past_the_santelmo_is_safe()
+	_its_flame_teaches_walking()
+	await _running_brings_it_and_it_burns()
+	await _it_forms_again_at_home()
+	await _walking_away_it_loses_interest()
+	await _being_put_down_near_it_is_not_running()
+	await _a_knockout_puts_the_woods_back()
+	await _asking_then_crossing_clean_gives_the_flower()
+	await _crossing_clean_without_asking_is_the_pragmatists()
+	await _standing_on_the_crown_answers_nothing()
+	await _the_crown_curses_her()
+	await _a_restore_lifts_the_curse()
+	await _a_clearing_fills_the_ink()
+	await _a_light_of_her_own_at_the_clearing()
+	_release_all()
+	level.queue_free()
+	await _frames(3)
+	if failures == 0:
+		print("OBRA_L4_SEG1_OK")
+		quit(0)
+	else:
+		print("OBRA_L4_SEG1_FAILED=%d" % failures)
+		quit(1)
+
+
+# --- The santelmo ------------------------------------------------------------------------
+
+## The level's own santelmo stands where the probe's flames do: still and out of the way, so each
+## check is about one flame.
+func _set_aside_the_levels_own_flame() -> void:
+	var own := level.get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Hazards/Santelmo") as Node2D
+	if own != null:
+		own.process_mode = Node.PROCESS_MODE_DISABLED
+		own.visible = false
+		own.remove_from_group(Enemy2D.GROUP)
+
+
+## A flame of the probe's own, so each check starts from a known place, at her middle's height.
+func _flame_at(x: float) -> Santelmo2D:
+	var flame := Santelmo2D.new()
+	flame.position = Vector2(x, GROUND_Y - 70.0)
+	(level.get("entity_root") as Node2D).add_child(flame)
+	return flame
+
+
+func _walking_past_the_santelmo_is_safe() -> void:
+	var flame := _flame_at(1500.0)
+	await _put_her_at(1000.0)
+	var wanted := false
+	var dimmed := false
+	var spotlight := level.get("tutorial_spotlight") as Node
+	Input.action_press(&"walk")
+	Input.action_press(&"move_right")
+	for _frame in range(60 * 9):
+		await physics_frame
+		wanted = wanted or flame.is_chasing()
+		dimmed = dimmed or bool(spotlight.call("is_open"))
+	set_meta(&"dimmed_near_flame", dimmed)
+	_release_all()
+	var past := _her_x() > 1600.0
+	_check(past and not wanted and _stage() == PlayerHealth.FULL,
+		"walking past the santelmo, it never wants her", "at %.0f, chased %s, stage %d"
+			% [_her_x(), wanted, _stage()])
+	flame.queue_free()
+	await _frames(2)
+
+
+## Within its sight is where walking is taught: the card with the walk key on it.
+func _its_flame_teaches_walking() -> void:
+	var tutorial := level.get("tutorial") as Node
+	var told := bool(tutorial.call("has_taught", "walk_past")) or bool(tutorial.call("is_coming", "walk_past"))
+	_check(told, "near a santelmo, the walk is taught", "walk_past %s" % ("shown" if told else "never offered"))
+	var dimmed := bool(get_meta(&"dimmed_near_flame", true))
+	_check(not dimmed, "and nothing dims the flame it is about", "dimmed %s" % dimmed)
+
+
+func _running_brings_it_and_it_burns() -> void:
+	var flame := _flame_at(1500.0)
+	await _put_her_at(900.0)
+	_health().reset_full()
+	await _seconds(2.2)
+	var lit_before := not flame.light_hole().is_empty()
+	var touched := [false]
+	flame.touched_her.connect(func() -> void: touched[0] = true)
+	var chased := false
+	Input.action_press(&"move_right")
+	for _frame in range(60 * 4):
+		await physics_frame
+		chased = chased or flame.is_chasing()
+		if touched[0]:
+			break
+	_release_all()
+	_check(chased and touched[0] and _stage() == PlayerHealth.DIM,
+		"running, it comes for her and burns a stage", "chased %s, touched %s, stage %d"
+			% [chased, touched[0], _stage()])
+	_check(lit_before and flame.is_out() and flame.light_hole().is_empty() and not flame.visible,
+		"it is a light, and goes out when it touches her", "lit %s, out %s" % [lit_before, flame.is_out()])
+	set_meta(&"flame", flame)
+
+
+func _it_forms_again_at_home() -> void:
+	var flame := get_meta(&"flame") as Santelmo2D
+	await _seconds(Santelmo2D.REFORM_SECONDS - 0.6)
+	var still_out := flame.is_out()
+	await _seconds(0.6 + MARGIN * 2.0)
+	_check(still_out and not flame.is_out() and flame.visible
+			and flame.global_position.distance_to(flame.home()) < 1.0,
+		"it forms again at home after %.0f s" % Santelmo2D.REFORM_SECONDS,
+		"out at %.1f s %s, then at home %s" % [Santelmo2D.REFORM_SECONDS - 0.6, still_out,
+			flame.global_position.distance_to(flame.home()) < 1.0])
+	flame.queue_free()
+	await _frames(2)
+
+
+func _walking_away_it_loses_interest() -> void:
+	# Behind her, so running away is what it sees.
+	var flame := _flame_at(1300.0)
+	await _put_her_at(1700.0)
+	_health().reset_full()
+	await _seconds(2.2)
+	Input.action_press(&"move_right")
+	await _seconds(0.6)
+	var wanted := flame.is_chasing()
+	Input.action_press(&"walk")
+	# The design's rule, not the script's constant: interest gone within about three seconds.
+	await _seconds(3.2)
+	var gave_up := not flame.is_chasing()
+	var from_home := flame.global_position.distance_to(flame.home())
+	await _seconds(1.0)
+	var heading_home := flame.global_position.distance_to(flame.home()) < from_home
+	_release_all()
+	_check(wanted and gave_up and heading_home and _stage() == PlayerHealth.FULL,
+		"walking away, it loses interest and goes home",
+		"wanted %s, gave up %s, homing %s, stage %d" % [wanted, gave_up, heading_home, _stage()])
+	flame.queue_free()
+	await _frames(2)
+
+
+## Put down within its sight from far away -- a restore, a Continue -- she has not run.
+func _being_put_down_near_it_is_not_running() -> void:
+	var flame := _flame_at(1500.0)
+	await _put_her_at(300.0)
+	_health().reset_full()
+	await _seconds(2.2)
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(1250.0, GROUND_Y - 4.0), "linear_velocity": Vector2.ZERO})
+	var wanted := false
+	for _frame in range(90):
+		await _frames(1)
+		wanted = wanted or flame.is_chasing()
+	_check(not wanted and not flame.is_out() and _stage() == PlayerHealth.FULL,
+		"put down near it from far away, she has not run", "chased %s, out %s, stage %d"
+			% [wanted, flame.is_out(), _stage()])
+	flame.queue_free()
+	await _frames(2)
+
+
+## Whatever was after her goes back to before, with her: the flame home, wanting nothing.
+func _a_knockout_puts_the_woods_back() -> void:
+	var flame := _flame_at(1500.0)
+	await _put_her_at(900.0)
+	_health().reset_full()
+	await _seconds(0.3)
+	Input.action_press(&"move_right")
+	await _seconds(0.5)
+	_release_all()
+	var away := flame.global_position.distance_to(flame.home()) > 40.0 and flame.is_chasing()
+	level.call("_knockout")
+	await _frames(4)
+	_check(away and not flame.is_chasing() and flame.global_position.distance_to(flame.home()) < 1.0,
+		"a knockout puts the woods back: the flame home, wanting nothing",
+		"was away and chasing %s; now %.0f px from home" % [away, flame.global_position.distance_to(flame.home())])
+	flame.queue_free()
+	await _frames(2)
+
+
+# --- The nuno's mound ------------------------------------------------------------------------
+
+const MOUND_X := 3400.0
+const MOUND_HALF := 75.0
+
+
+## A fresh level for each way past the mound: the first answer given is the one it keeps.
+func _fresh_level() -> void:
+	_release_all()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+
+
+## Runs at the mound from `start` and jumps from just short of its foot, holding the jump through
+## the arc, then runs on until she is well past it.
+func _jump_the_mound(start: float) -> void:
+	await _put_her_at(start)
+	Input.action_press(&"move_right")
+	for _frame in range(60 * 4):
+		await _frames(1)
+		if _her_x() >= MOUND_X - MOUND_HALF - 30.0 and not Input.is_action_pressed(&"jump"):
+			Input.action_press(&"jump")
+		if _her_x() > MOUND_X + MOUND_HALF + 120.0:
+			break
+	_release_all()
+	await _seconds(0.5)
+
+
+func _asking_then_crossing_clean_gives_the_flower() -> void:
+	await _fresh_level()
+	await _put_her_at(MOUND_X - MOUND_HALF - 120.0)
+	var offer: Dictionary = level.call("_level_interact_offer")
+	level.call("press_interact")
+	await _frames(2)
+	var said := (level.get("hint_bar") as HintBar).current_text()
+	var mound := level.get("_mound") as NunoMound2D
+	var found_before := bool(_profile().call("is_collectible_found", "L4_HF"))
+	await _jump_the_mound(MOUND_X - MOUND_HALF - 120.0)
+	var director = level.get("director")
+	await _seconds(4.0)
+	_check(String(offer.get("verb", "")) == "SAY TABI-TABI PO" and mound.asked
+			and said.begins_with("Tabi-tabi po"),
+		"beside the mound, E asks to pass, and she says it", "offer %s, asked %s, said \"%s\""
+			% [offer, mound.asked, said])
+	_check(director.call("is_solved", "L4_NUNO") and director.call("committed_route", "L4_NUNO") == "artist"
+			and not mound.touched_this_crossing(),
+		"asking, then crossing without touching, is the artist's way",
+		"route '%s', touched %s" % [director.call("committed_route", "L4_NUNO"), mound.touched_this_crossing()])
+	var found_after := bool(_profile().call("is_collectible_found", "L4_HF"))
+	_check(not found_before and found_after, "and the mound gives the flower",
+		"L4_HF found before %s, after %s" % [found_before, found_after])
+
+
+func _crossing_clean_without_asking_is_the_pragmatists() -> void:
+	await _fresh_level()
+	await _jump_the_mound(MOUND_X - MOUND_HALF - 120.0)
+	var director = level.get("director")
+	_check(director.call("is_solved", "L4_NUNO") and director.call("committed_route", "L4_NUNO") == "pragmatist",
+		"crossing clean without asking is the pragmatist's way",
+		"route '%s'" % director.call("committed_route", "L4_NUNO"))
+
+
+func _standing_on_the_crown_answers_nothing() -> void:
+	await _fresh_level()
+	await _put_her_at(MOUND_X - MOUND_HALF - 120.0)
+	var mound := level.get("_mound") as NunoMound2D
+	var touched := [false]
+	mound.crown_touched.connect(func() -> void: touched[0] = true)
+	# On top of it, as a player who jumped short lands.
+	(level.get("player") as Node2D).call("apply_morph_state",
+		{"position": Vector2(MOUND_X, GROUND_Y - NunoMound2D.HEIGHT - 6.0), "linear_velocity": Vector2.ZERO})
+	await _seconds(0.5)
+	Input.action_press(&"move_right")
+	await _seconds(2.0)
+	_release_all()
+	var director = level.get("director")
+	_check(touched[0] and _her_x() > MOUND_X + MOUND_HALF and not director.call("is_solved", "L4_NUNO"),
+		"standing on the crown touches it, and answers nothing",
+		"touched %s, at %.0f, solved %s" % [touched[0], _her_x(), director.call("is_solved", "L4_NUNO")])
+
+
+## Her pace over a second of running on the flat, once she is up to speed.
+func _pace() -> float:
+	Input.action_press(&"move_right")
+	await _seconds(0.4)
+	var from := _her_x()
+	await _seconds(1.0)
+	_release_all()
+	return _her_x() - from
+
+
+## Twenty seconds slow and short of jump, the lantern down a stage at once and again at ten,
+## never below LOW -- then it wears off.
+func _the_crown_curses_her() -> void:
+	await _fresh_level()
+	_health().reset_full()
+	await _seconds(2.2)
+	(level.get("player") as Node2D).call("apply_morph_state",
+		{"position": Vector2(MOUND_X, GROUND_Y - NunoMound2D.HEIGHT - 6.0), "linear_velocity": Vector2.ZERO})
+	await _seconds(0.5)
+	var at_once := _stage()
+	var cursed_line := (level.get("hint_bar") as HintBar).current_text()
+	await _put_her_at(MOUND_X + 300.0)
+	var slowed := await _pace()
+	var cursed := bool(level.call("is_cursed"))
+	await _put_her_at(MOUND_X + 300.0)
+	await _seconds(8.4)
+	var at_ten := _stage()
+	# About 10.5 s in at this point: half a second past the twenty, not on it.
+	await _seconds(10.0)
+	var still := bool(level.call("is_cursed"))
+	await _put_her_at(MOUND_X + 300.0)
+	var after := await _pace()
+	_check(cursed and at_once == PlayerHealth.DIM and slowed > 130.0 and slowed < 175.0
+			and cursed_line.begins_with("My foot"),
+		"the crown curses her: a stage at once, and slow",
+		"stage %d, %.0f px/s (her own 260; cursed 156)" % [at_once, slowed])
+	_check(at_ten == PlayerHealth.LOW, "another stage at ten seconds, and no lower",
+		"stage %d" % at_ten)
+	_check(not still and after > 240.0 and _stage() == PlayerHealth.LOW,
+		"it wears off at twenty seconds", "cursed %s, %.0f px/s, stage %d" % [still, after, _stage()])
+
+
+func _a_restore_lifts_the_curse() -> void:
+	(level.get("player") as Node2D).call("apply_morph_state",
+		{"position": Vector2(MOUND_X, GROUND_Y - NunoMound2D.HEIGHT - 6.0), "linear_velocity": Vector2.ZERO})
+	await _seconds(0.5)
+	var cursed := bool(level.call("is_cursed"))
+	level.call("_knockout")
+	await _frames(4)
+	var apo := level.get("player") as Node2D
+	_check(cursed and not bool(level.call("is_cursed")) and float(apo.get(&"pace_scale")) == 1.0,
+		"a knockout lifts the curse", "cursed before %s, after %s" % [cursed, level.call("is_cursed")])
+
+
+# --- The first clearing ----------------------------------------------------------------------
+
+const CLEARING_X := 4600.0
+
+
+## However dry she comes in, the clearing gives her ink to draw its light with.
+func _a_clearing_fills_the_ink() -> void:
+	await _fresh_level()
+	var ink := level.get("ink_manager") as InkManager
+	ink.drain(ink.remaining())
+	await _frames(2)
+	var screen := (level.get("out_of_ink_overlay") as ModalOverlay).is_open()
+	var said := (level.get("hint_bar") as HintBar).current_text()
+	_check(not screen and said.begins_with("No more ink"),
+		"running dry is not a loss: no out-of-ink screen, and she says where more is",
+		"screen open %s, said \"%s\"" % [screen, said])
+	await _put_her_at(CLEARING_X - 200.0)
+	var dry := ink.remaining()
+	Input.action_press(&"move_right")
+	await _seconds(1.4)
+	_release_all()
+	await _seconds(0.3)
+	_check(dry < 0.01 and is_equal_approx(ink.remaining(), ink.capacity),
+		"arriving at the clearing fills her ink", "%.1f -> %.1f of %.0f" % [dry, ink.remaining(), ink.capacity])
+
+
+## Low and cursed, she lights the clearing's light -- a lamp drawn and switched on -- and the
+## lantern is full and the curse gone.
+func _a_light_of_her_own_at_the_clearing() -> void:
+	await _put_her_at(CLEARING_X + 150.0)
+	_health().dim(PlayerHealth.LOW)
+	_health().dim(PlayerHealth.LOW)
+	level.call("_on_crown_touched")
+	await _frames(2)
+	var low := _stage()
+	var cursed := bool(level.call("is_cursed"))
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	level.call("_on_drawing_ready", "flashlight", "Flashlight", sheet, {"confidence": 0.9},
+		[{"points": PackedVector2Array([Vector2(0, 0), Vector2(40, 0)]), "width": 6.0, "color": Color.BLACK}], 1.0)
+	await _frames(6)
+	# Lines left up for this one read: the probe otherwise dismisses each as it comes.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
+	level.call("_use_equipped_utility")
+	await physics_frame
+	var said := String((level.get("dialogue_box") as Node).call("current_line"))
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _seconds(1.0)
+	var director = level.get("director")
+	_check(low == PlayerHealth.LOW and cursed and director.call("is_solved", "L4_REST1")
+			and _stage() == PlayerHealth.FULL and not bool(level.call("is_cursed")),
+		"a light of her own at the clearing: the lantern full, the curse gone",
+		"stage %d -> %d, cursed %s -> %s, lit %s" % [low, _stage(), cursed, level.call("is_cursed"),
+			director.call("is_solved", "L4_REST1")])
+	_check(said.begins_with("There. Warm."), "and she says so", "\"%s\"" % said)
+	var goal: Dictionary = level.call("_current_objective")
+	_check(String(goal.get("key", "")) == "woods", "and once it is lit, the banner moves on",
+		"'%s'" % goal.get("key", ""))
+
+
+# --- Helpers -----------------------------------------------------------------------------
+
+func _open_level() -> Node:
+	var scene := (load("res://level_4.tscn") as PackedScene).instantiate()
+	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(scene)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _frames(30)
+	return scene
+
+
+## Puts her down on the ground at x, still, with nothing said over it.
+func _put_her_at(x: float) -> void:
+	_release_all()
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(x, GROUND_Y - 4.0), "linear_velocity": Vector2.ZERO})
+	await _frames(6)
+
+
+func _her_x() -> float:
+	return (level.get("player") as Node2D).global_position.x
+
+
+func _profile() -> Node:
+	return root.get_node(^"PlayerProfile")
+
+
+func _health() -> PlayerHealth:
+	return level.get("player_health") as PlayerHealth
+
+
+func _stage() -> int:
+	return _health().stage
+
+
+func _release_all() -> void:
+	for action in [&"move_left", &"move_right", &"walk", &"jump", &"interact"]:
+		Input.action_release(action)
+
+
+## Frames with every line put away as it comes, so the level never sits paused on one.
+func _frames(count: int) -> void:
+	for _frame in range(count):
+		await physics_frame
+		if paused:
+			call_group(DialogueBox.GROUP, &"hide_line")
+			paused = false
+
+
+func _seconds(seconds: float) -> void:
+	await _frames(int(ceil(seconds * 60.0)))
+
+
+func _check(ok: bool, what: String, detail: String) -> void:
+	if ok:
+		print("  OK\t%s\t%s" % [what, detail])
+	else:
+		failures += 1
+		print("  FAIL\t%s\t%s" % [what, detail])
