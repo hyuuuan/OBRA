@@ -310,6 +310,50 @@ the searching clip slowed down, subdued tinted grey.
 the stealth rule — the thing `sees()` answers about — and a boundary the player cannot see is
 one they learn by being put back. Art may restyle it; it may not replace it with lighting.
 
+## Dilim — what is painted, what is authored, and what is drawn in code
+
+**Updated 19 October.** Level 4's delivery (`Mt Makiling Level 4.zip`) is forest plates and a
+labelled tileset and **no creature art**, so Dilim's world is painted and nearly everything that
+lives in it is a stand-in. **See them all at once:**
+`godot -t --resolution 1600x900 --path game --script res://tests/run_visual_dilim_creatures.gd`
+writes each one beside her, in her light at play framing, to `/tmp/obra_dilim_*.png` and a sheet.
+That is the right way to judge them -- Dilim is dark, and a body that reads on a grey background
+can vanish in the level.
+
+**Painted (delivered):** the six Makiling plates and four seamless tiles, cut by
+`tools/build_dilim.py` (`CONTENT_NEEDED.md` §3 has what is not cut yet).
+
+**Authored in the project's idiom** (replaceable by name, no code change):
+
+| What | Tool | Files | The contract |
+|---|---|---|---|
+| The aswang, dog and pig | `tools/build_dilim_creatures.py` | `assets/Level4/creatures/aswang_<form>_<anim>.png` | Six strips a form: `idle`, `run`, `windup`, `attack`, `hurt`, `death`, 48-px frames. Dark, but lighter than the night, so they read inside her light (#93) |
+| Lola's six things | `tools/build_dilim_props.py` | `assets/Level4/props/<id>.png` | 32-px icons, each on a leaf, each told apart by its brightest colour: salt, ash, garlic, candle, lamp oil, the stingray-tail whip. The quick slots and the pickups load them by id |
+
+**Drawn in code** -- each its script's own `_draw()`, marked `PLACEHOLDER` there:
+
+| What | Script | What it has to say |
+|---|---|---|
+| Santelmo | `santelmo_2d.gd` | A flame that wants her: brighter while it is coming |
+| The nuno's mound | `nuno_mound_2d.gd` | An earth mound with something left for the nuno -- a thing to be respectful round, never a target |
+| Sigbin | `sigbin_2d.gd` (the base enemy's body) | Goat-like, walking backwards. It shows only as much as the light on it, so in the dark it is a glint -- the windup's glint is its tell, and must stay |
+| Tikbalang | `tikbalang_2d.gd` | A tall dark figure, horse-headed, eyes catching the light |
+| Kapre | `kapre_2d.gd` | A giant up its tree, a cigar's ember, and the smoke that turns her round |
+| Tiyanak | `tiyanak_2d.gd` | A swaddled bundle that cries -- and, lit, what it is: small, hunched, red-eyed. Its undergrowth hides a drop and stirs when it cries |
+| Bungisngis | `bungisngis_2d.gd` | A one-eyed giant with a club, always grinning, standing in the crossing like a wall; laughing helpless; sat aside |
+| Manananggal | `manananggal_upper_2d.gd`, `manananggal_lower_2d.gd` | A pale torso with long hair on wide wings, hunting from above; and the hips and legs it left standing in a hollow |
+| Wakwak | `wakwak_2d.gd` | A great dun bird, wings wide, a hooked beak |
+| Tik-tik | `tiktik_2d.gd` | A small dark long-beaked bird -- seen only with ash on it, so it carries the ash's grey |
+| The night's things | `candle_flame_2d.gd`, `asin_throw_2d.gd`, `abo_dust_2d.gd`, `bawang_ward_2d.gd`, `whip_lash_2d.gd` | A candle stub and flame; salt grains in flight; ash spreading and thinning; a pale ring of garlic on the ground; the whip's arc |
+| Her lantern | `held_lantern_2d.gd` | A small iron lantern whose flame shrinks with each stage -- it is her health |
+| Her hurt pose | `wanderer_figure.gd` | The jump frame leaning back from a blow. **There is no attack pose** |
+
+**Not on this list, and must not be:** the **edge ripple** (`EdgeRipple`) and the **windup glint**
+(`Telegraph2D`). The ripple is how a sound is seen -- the design's rule that every audio cue has a
+visual, and how a player who cannot hear plays the level -- and the glint is the fair warning
+before every strike. Like Dagat's sweep cone, art may restyle them; it may not take them away.
+The darkness itself (`DarknessLayer`) is gameplay too: `LightField` decides what is lit.
+
 ## Where to start
 
 1. **The bulul** — small, the one with the least room for error, and the only prop here
