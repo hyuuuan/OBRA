@@ -19,6 +19,8 @@
 [ext_resource type="Script" path="res://scripts/kapre_2d.gd" id="17_kapre"]
 [ext_resource type="Script" path="res://scripts/tiyanak_2d.gd" id="18_tiyanak"]
 [ext_resource type="Script" path="res://scripts/bungisngis_2d.gd" id="19_bungisngis"]
+[ext_resource type="Script" path="res://scripts/manananggal_upper_2d.gd" id="20_upper"]
+[ext_resource type="Script" path="res://scripts/manananggal_lower_2d.gd" id="21_lower"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -280,6 +282,16 @@ script = ExtResource("18_tiyanak")
 [node name="Bungisngis" type="CharacterBody2D" parent="GameplayPlane/Encounters"]
 position = Vector2(19250.0, 730.0)
 script = ExtResource("19_bungisngis")
+
+; The manananggal: her lower half standing in the hollow under the leaning rock, and the rest of
+; her over it, where she rose from.
+[node name="ManananggalLower" type="CharacterBody2D" parent="GameplayPlane/Encounters"]
+position = Vector2(20850.0, 575.0)
+script = ExtResource("21_lower")
+
+[node name="ManananggalUpper" type="CharacterBody2D" parent="GameplayPlane/Encounters"]
+position = Vector2(20850.0, 380.0)
+script = ExtResource("20_upper")
 
 [node name="Pickups" type="Node2D" parent="GameplayPlane"]
 
