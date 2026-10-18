@@ -443,6 +443,46 @@ strips come from `tools/build_apo_swim.py`. Its suites -- `run_level3_audit`,
 `run_nodraw_level3`, `run_bakunawa_probe`, `run_level3_finish_probe`, `run_swim_reach_probe`,
 `run_level3_boat_probe`, `run_level3_trouble_probe` -- are all in `tools/run_suites.sh`.
 
+## Level 4 (Dilim)
+
+Read **LEVEL_4.md** first: Kent's twelve decisions, the flow, and the build record (where every
+part lives, and how the build differs from the design). The dark forest on Mt. Makiling, where
+**Dilim fights by drawing**: the apo alone, the lantern as her health, drawn weapons that wear,
+folkloric encounters answered by what she does, then a 150 s night in three waves to dawn.
+It carries `ends_run` until Mayon is built.
+
+Traps it has sprung, kept so they are not sprung again:
+
+- **Every L4 line carries `"speaker":"apo"`.** `_speak` defaults a speaker to Lolo, and he is
+  not here.
+- **No story line mid-encounter** -- a dialogue line pauses the whole tree. `run_level4_audit`
+  holds every encounter and the finale to it; mid-fight lines are `kind: hint`.
+- **The said-lines audit reads hook names as literals** in the level's sources: build a hook with
+  `"%d"` and its lines count as never said. Write the names out (`WAVE_LINES`).
+- **Route shapes:** a pure deed is route-level `answered_by`; "draw to commit, deed to answer" is
+  `required_tags` + `then.answered_by`. The director takes the first route in file order whose
+  tags hold the drawn class.
+- **Two enemy groups, on purpose.** `Enemy2D.GROUP` (`dilim_encounters`) is what a restore resets;
+  the finale takes its own foes out of it. `Enemy2D.FOES` (`dilim_foes`) is every enemy, never
+  left -- it is what ash and salt look up. Looking up GROUP for "every enemy" missed the whole
+  night once.
+- **JSON numbers are floats.** `Array.has(1)` does not find `1.0`; compare with `int()`.
+- **`Enemy2D.state_name()` is upper case** (`"WINDUP"`, `"STUN"`). A probe comparing lower case
+  passes or fails for the wrong reason.
+- **Probe placement:** an enemy set exactly on the ground surface will not walk (its ground-ahead
+  ray starts on the surface and misses) -- drop it a few px above. Move her (`apply_morph_state`)
+  before setting anything down at her feet. The clearing's east wall is x 22420.
+- **Falls are knockouts in Dilim** (300 px under the forest floor): the wanderer wraps to the sky
+  at the world's bottom, so the base fall line never fires here.
+- **Use the design's numbers in probes**, never the script's constants -- a wait derived from the
+  constant under test proves nothing.
+
+Its suites: `run_level4_audit`, `run_level4_enablers_probe`, `run_level4_seg1/seg2/seg3_probe`,
+`run_level4_finale_probe`, `run_level4_tiktik_probe`, `run_level4_whip_probe`,
+`run_satchel_probe`, `run_combat_probe`, `run_enemy_probe`, `run_weapon_probe`,
+`run_darkness_probe`, `run_makiling_probe`. Windowed looks: `run_visual_dilim_light`,
+`run_visual_makiling`, `run_visual_dilim_creatures`.
+
 ## Gameplay Shape
 
 - Flow: a successful morph replaces the active player; a utility enters placement
