@@ -145,6 +145,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_lead_her_round()
 	_tend_the_kapre(get_physics_process_delta_time())
 	_tend_the_tiyanak()
+	_tend_the_bungisngis(get_physics_process_delta_time())
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
@@ -275,6 +276,7 @@ func _restore_checkpoint() -> String:
 	var restored := super()
 	get_tree().call_group(Enemy2D.GROUP, &"reset_for_restore")
 	_went_to_the_cry = false
+	_absurd_near = 0.0
 	if dawn_clock != null:
 		dawn_clock.hide_night()
 	_lift_curse()
@@ -293,6 +295,9 @@ var _mound: NunoMound2D
 
 
 func _resolve_level_nodes() -> void:
+	_bungisngis = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Bungisngis") as Bungisngis2D
+	if _bungisngis != null:
+		_bungisngis.died.connect(func(_foe: Enemy2D) -> void: _answer("L4_BUNGISNGIS", "protector"))
 	_tiyanak = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Tiyanak") as Tiyanak2D
 	if _tiyanak != null:
 		_tiyanak_x = _tiyanak.global_position.x
@@ -1106,3 +1111,52 @@ func _on_tiyanak_cried(at: Vector2) -> void:
 	if distance > CRY_HEARD_FROM:
 		return
 	edge_ripple.cue("tiyanak", at, maxf(CRY_FAINTEST, 1.0 - distance / CRY_HEARD_FROM))
+
+
+# --- The bungisngis -----------------------------------------------------------------------------
+
+## Kent's design: "One-eyed giant, always laughing. Strong, slow, and easily distracted. Blocks a
+## crossing." It stands in the ravine's crossing, a wall. Answered three ways, each a drawing and
+## then a deed: something absurd -- a sea thing on a mountain -- brought within ABSURD_REACH of it
+## for ABSURD_SECONDS sets it laughing itself helpless (artist); the far bank reached over the top
+## or along the high path while it still stands in the crossing (pragmatist); beaten (protector).
+const ABSURD_REACH := 420.0
+const ABSURD_SECONDS := 0.5
+## The far bank, and how high she is on it: off the ravine's east edge, up at the rim.
+const FAR_BANK_X := 19480.0
+const RIM_MIDDLE_BELOW := 650.0
+
+var _bungisngis: Bungisngis2D
+var _absurd_near := 0.0
+
+
+func _tend_the_bungisngis(delta: float) -> void:
+	if _bungisngis == null or player == null or not is_instance_valid(player) or director == null \
+			or director.is_solved("L4_BUNGISNGIS") or not _bungisngis.is_in_the_way():
+		_absurd_near = 0.0
+		return
+	var route := director.committed_route("L4_BUNGISNGIS")
+	if route == "artist" and _something_absurd_within(ABSURD_REACH):
+		_absurd_near += delta
+		if _absurd_near >= ABSURD_SECONDS:
+			_bungisngis.laugh()
+			_answer("L4_BUNGISNGIS", "artist")
+		return
+	_absurd_near = 0.0
+	var middle := PlayerHurtbox2D.middle_of(player)
+	if route == "pragmatist" and middle.x >= FAR_BANK_X and middle.y < RIM_MIDDLE_BELOW:
+		_answer("L4_BUNGISNGIS", "pragmatist")
+
+
+## Her, in a body with no business on a mountain, or one of those set down -- near it.
+func _something_absurd_within(reach: float) -> bool:
+	var absurd := AbilityTags.resolve(["absurd"], "all", [])
+	var at := _bungisngis.global_position
+	if absurd.has(_current_form_id) and PlayerHurtbox2D.middle_of(player).distance_to(at) <= reach:
+		return true
+	for node in get_tree().get_nodes_in_group(&"drawn_utilities"):
+		var thing := node as UtilityObject
+		if thing != null and not thing.is_preview and thing.item_data != null \
+				and absurd.has(thing.item_data.entity_id) and thing.global_position.distance_to(at) <= reach:
+			return true
+	return false
