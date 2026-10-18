@@ -1082,6 +1082,15 @@ func _use_equipped_utility() -> void:
 			and player != null and absf(player.global_position.x - _kapre.global_position.x) <= CHOP_REACH:
 		if _kapre.chop():
 			_answer("L4_KAPRE", "pragmatist")
+	# ⚠ AND A LIGHT USED AT THE MANANANGGAL IS LIT. The swing that draws a "draw it, then do it" route
+	# in stops at choosing it (the base level's), so a flashlight pressed there chose the light route
+	# and stayed dark -- and every press after chose it again. The deed is the light on her lower
+	# half, so the use that chooses it switches the light on as well, the way a chop above counts.
+	if swung and director != null and director.committed_route("L4_MANANANGGAL") == "artist" \
+			and not director.is_solved("L4_MANANANGGAL") and _equipped_utility != null \
+			and is_instance_valid(_equipped_utility) and _equipped_utility.utility_behavior == "flashlight" \
+			and not _equipped_utility.is_active():
+		_equipped_utility.describe_use(player)
 
 
 func _on_cigar_knocked() -> void:
