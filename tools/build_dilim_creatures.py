@@ -49,7 +49,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "game" / "assets" / "Level4" / "creatures"
 
 # Which way each stands: on its feet at the bottom row, or centred (a flier).
-GROUND = ["aswang_dog", "aswang_pig", "sigbin", "tikbalang", "bungisngis", "kapre", "tiyanak", "manananggal_lower", "nuno_mound"]
+GROUND = ["aswang_dog", "aswang_pig", "sigbin", "tikbalang", "bungisngis", "kapre", "kapre_tree", "tiyanak", "manananggal_lower", "nuno_mound"]
 FLYING = ["manananggal_upper", "wakwak", "tiktik", "santelmo"]
 
 
@@ -80,6 +80,10 @@ def _sheets() -> dict[str, dict[str, list[Image.Image]]]:
         "santelmo": {
             "idle": [small.santelmo(k / 4).render() for k in range(4)],
             "hot": [small.santelmo(k / 4, hot=1.0).render() for k in range(4)],
+        },
+        "kapre_tree": {
+            "idle": [small.balete().render()],
+            "felled": [small.balete(True).render()],
         },
         "nuno_mound": {
             "idle": [small.nuno_mound(0.0).render()],

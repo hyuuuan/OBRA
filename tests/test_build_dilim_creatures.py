@@ -41,6 +41,7 @@ class CreatureStripsTest(unittest.TestCase):
             "manananggal_lower": ["idle", "death"],
             "tikbalang": ["idle", "run"],
             "kapre": ["idle"],
+            "kapre_tree": ["idle", "felled"],
             "santelmo": ["idle", "hot"],
             "nuno_mound": ["idle"],
         }
