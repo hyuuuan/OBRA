@@ -160,6 +160,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_tend_the_bungisngis(get_physics_process_delta_time())
 	_tend_the_manananggal(get_physics_process_delta_time())
 	_tend_the_night()
+	_tend_the_tiktik()
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
@@ -634,6 +635,34 @@ func _tend_the_night() -> void:
 		if not _suns_seen.has(id):
 			_suns_seen[id] = true
 			_finale.hurry_dawn()
+
+
+## THE TIK-TIK SHE CANNOT SEE. Its call goes on the screen's edge where it comes from, violet, as
+## loud as it calls -- which is louder the further off it is -- and while it is close her lantern
+## leans away from it and its light is dragged down. Each frame: the lean is how close it is, and
+## goes back to nothing when it has gone.
+const TIKTIK_PULL_HOLD := 0.2
+var _tiktik_heard: Tiktik2D
+
+
+func _tend_the_tiktik() -> void:
+	var tiktik: Tiktik2D = _finale.tiktik() if _finale != null else null
+	if tiktik != null and tiktik != _tiktik_heard:
+		_tiktik_heard = tiktik
+		tiktik.called.connect(_on_tiktik_called)
+	var lean := 0.0
+	if tiktik != null and held_lantern != null and tiktik.pulls_at(held_lantern.global_position):
+		lean = 1.0 - tiktik.global_position.distance_to(held_lantern.global_position) / Tiktik2D.PULLS_WITHIN
+		held_lantern.drag_down(TIKTIK_PULL_HOLD)
+		if lantern_hud != null:
+			lantern_hud.gutter(TIKTIK_PULL_HOLD)
+	if lantern_hud != null:
+		lantern_hud.lean(lean)
+
+
+func _on_tiktik_called(at: Vector2, strength: float) -> void:
+	if edge_ripple != null:
+		edge_ripple.cue("tiktik", at, strength)
 
 
 func _drawn_suns() -> Array:
