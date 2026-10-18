@@ -339,7 +339,12 @@ func stand_on_the_ground() -> void:
 	push_warning("CheckpointLantern2D at %s found no ground to stand on" % global_position)
 
 
+## How far a burning checkpoint lantern lights the dark around it, world px (LightField).
+const LIGHT_REACH := 170.0
+
+
 func _ready() -> void:
+	add_to_group(LightField.GROUP)
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	if lit:
 		# Restored, not lit: a level reloaded at a checkpoint opens with the fire already
@@ -358,6 +363,14 @@ func _settle() -> void:
 
 func is_lit() -> bool:
 	return lit
+
+
+## Its light in the dark: growing with the fire as it catches, none while it is cold.
+func light_hole() -> Dictionary:
+	if _fire <= 0.0:
+		return {}
+	return {"position": to_global(_heart()), "radius": LIGHT_REACH * clampf(_fire, 0.0, 1.0),
+		"strength": 1.0}
 
 
 ## THE MOMENT IT CATCHES. `taker` is where the apo is standing, in this node's space.

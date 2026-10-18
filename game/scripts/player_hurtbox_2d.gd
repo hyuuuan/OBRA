@@ -53,13 +53,19 @@ func follow() -> void:
 func middle() -> Vector2:
 	if player == null or not is_instance_valid(player):
 		return global_position
-	if player is Wanderer:
-		return player.global_position - Vector2(0.0, FEET_TO_MIDDLE)
-	if player.has_method("get_physics_anchor"):
-		var anchor := player.call("get_physics_anchor") as Node2D
+	return middle_of(player)
+
+
+## The middle of any body that can be the player: the apo's anchor is her soles, a creature's
+## its torso. Shared with what else follows her -- the lantern she carries.
+static func middle_of(body: Node2D) -> Vector2:
+	if body is Wanderer:
+		return body.global_position - Vector2(0.0, FEET_TO_MIDDLE)
+	if body.has_method("get_physics_anchor"):
+		var anchor := body.call("get_physics_anchor") as Node2D
 		if anchor != null:
 			return anchor.global_position
-	return player.global_position
+	return body.global_position
 
 
 ## A blow from `from_position`. Returns whether it landed: not during the grace after the last.

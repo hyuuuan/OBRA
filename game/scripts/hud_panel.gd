@@ -129,6 +129,19 @@ func adopt_checkpoints(label: Label) -> void:
 	heading.add_child(label)
 
 
+## THE LANTERN, where a level counts it as her health: a row of its own under the ink, in the same
+## corner the thesis puts the things that are true whoever she currently is.
+func adopt_lantern(health: PlayerHealth) -> LanternHud:
+	var lantern := LanternHud.new()
+	lantern.name = "Lantern"
+	lantern.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	lantern.bind(health)
+	var column := $Column as VBoxContainer
+	column.add_child(lantern)
+	column.move_child(lantern, ($Column/Heading as Control).get_index() + 1)
+	return lantern
+
+
 ## Whole units. `remaining` is continuous, so it is floored -- a gauge that rounds up claims
 ## ink the player does not have, and the one number they act on is "can I still draw
 ## something".

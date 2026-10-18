@@ -100,6 +100,12 @@ func _camera_follows_physics() -> bool:
 	return false
 
 
+## How dark this level is outside its lights, 0 to 1. At 0 -- every level but one that is dark --
+## no darkness layer and no carried lantern are built at all.
+func _darkness() -> float:
+	return 0.0
+
+
 ## What she is told when the lantern goes out and she is back at the checkpoint. A "%s" is
 ## filled with the place, as _return_to_safety does for every other rescue.
 func _knockout_words() -> String:
@@ -419,7 +425,12 @@ var dialogue_node: DialogueNode2D
 var player: Node2D
 ## The lantern and the hurtbox, where _has_player_health() says the player can be hurt; else null.
 var player_health: PlayerHealth = null
+## Its chip on the ink plate, alongside it.
+var lantern_hud: LanternHud = null
 var player_hurtbox: PlayerHurtbox2D = null
+## The dark and the lantern she carries through it, where _darkness() is above 0; else null.
+var darkness_layer: DarknessLayer = null
+var held_lantern: HeldLantern2D = null
 var lolo: Lolo
 ## Lolo's lines for this level, from config/dialogue.json.
 var _script_lines: Dictionary = {}
@@ -531,6 +542,7 @@ func _ready() -> void:
 	_resolve_level_nodes()
 	_build_obstacle_layer()
 	_arm_player_health()
+	_arm_darkness()
 	var world_camera := _world_camera()
 	if world_camera != null:
 		world_camera.follow_on_physics = _camera_follows_physics()
@@ -3919,6 +3931,9 @@ func _adopt_player(new_player: Node2D, previous_state: Dictionary, flash: bool) 
 
 	var old_player := player
 	player = new_player
+	if held_lantern != null:
+		held_lantern.player = new_player
+		held_lantern.follow()
 	if player_hurtbox != null:
 		player_hurtbox.player = new_player
 		player_hurtbox.follow()
@@ -3946,10 +3961,28 @@ func _arm_player_health() -> void:
 	player_health.name = "PlayerHealth"
 	add_child(player_health)
 	player_health.snuffed.connect(_on_lantern_snuffed)
+	if hud_panel != null:
+		lantern_hud = hud_panel.adopt_lantern(player_health)
 	player_hurtbox = PlayerHurtbox2D.new()
 	player_hurtbox.name = "PlayerHurtbox"
 	player_hurtbox.health = player_health
 	entity_root.add_child(player_hurtbox)
+
+
+## The dark and her lantern, built once, after the lantern-as-health (which the light reads) and
+## before the first player is adopted.
+func _arm_darkness() -> void:
+	var dark := _darkness()
+	if dark <= 0.0:
+		return
+	darkness_layer = DarknessLayer.new()
+	darkness_layer.name = "DarknessLayer"
+	darkness_layer.darkness = dark
+	add_child(darkness_layer)
+	held_lantern = HeldLantern2D.new()
+	held_lantern.name = "HeldLantern"
+	held_lantern.health = player_health
+	entity_root.add_child(held_lantern)
 
 
 ## ⚠ DEFERRED. The blow that snuffs it arrives from inside an enemy's physics callback, and a
