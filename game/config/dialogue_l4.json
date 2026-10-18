@@ -279,6 +279,27 @@
       "text": "A baby crying, out here? Lola said: if you hear a child in the woods, you do not go to it. You stay on the path."
     },
     {
+      "id": "L4_TY_002",
+      "at": "L4_TIYANAK.artist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "That was never a baby. Lola said the light shows it for what it is, and it cannot stand to be seen."
+    },
+    {
+      "id": "L4_TY_003",
+      "at": "L4_TIYANAK.pragmatist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "I kept to the path, and it could not come to me. It is still crying back there."
+    },
+    {
+      "id": "L4_TY_004",
+      "at": "L4_TIYANAK.protector.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It cried like a child the whole time. Lola never told me what to do about that, and I wish she had."
+    },
+    {
       "id": "L4_BG_001",
       "at": "L4_BUNGISNGIS.enter",
       "speaker": "apo",
