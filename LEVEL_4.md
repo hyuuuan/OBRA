@@ -147,8 +147,8 @@ What the build does that the design above does not say, and what it does not do 
 
 - **Creature art.** Only the aswang (dog, pig) are drawn strips. The santelmo, sigbin, tikbalang,
   kapre, tiyanak, bungisngis, manananggal, wakwak and tik-tik are code-drawn placeholder bodies
-  (`ART_PLACEHOLDERS.md`; `run_visual_dilim_creatures` lays them side by side in her light). There
-  is a hurt pose and no attack pose.
+  (`ART_PLACEHOLDERS.md`; `run_visual_dilim_creatures` lays them side by side in her light). Her hurt
+  and attack poses are placeholders made from the delivered sheet (the jump and wave frames, leaned).
 - **The finale's numbers.** The night is 150 s: waves at 0 / 45 / 100 s, dawn at 150. A drawn sun
   brings dawn 15 s nearer, once a wave. The manananggal is driven off at 8 in its wave.
 - **The dead tree** stands at the clearing's middle and falls east into a 64-px log that shuts the
@@ -156,7 +156,7 @@ What the build does that the design above does not say, and what it does not do 
 - **The tik-tik** is shown by ash for the dust's 6 s and blinded for 1.5 s; inside 220 px of her
   lantern the HUD leans and gutters and the light drops 18%.
 - **The buntot pagi** drops only in waves 2 and 3 (2%), lashes 10 times, and reaches fliers. Its
-  uses are not saved: a resumed run gives a carried whip its 10 again.
+  lashes left are saved with the run, and every lash flashes its quick slot and is logged.
 - **The kapre's camera hold** was replaced: its smoke turns her round instead of stopping the camera.
 - **Falls are knockouts.** The wanderer wraps to the sky at the world's bottom, so Dilim knocks her
   out 300 px under the forest floor instead.

@@ -280,6 +280,7 @@ func _arm_player_health() -> void:
 	super()
 	if player_health != null:
 		player_health.hit_taken.connect(func(_stage: int) -> void:
+			AudioDirector.play_sfx(&"lantern_hit")
 			if tutorial != null:
 				tutorial.note("lantern_hit"))
 
@@ -677,6 +678,7 @@ func _tend_the_tiktik() -> void:
 func _on_tiktik_called(at: Vector2, strength: float) -> void:
 	if edge_ripple != null:
 		edge_ripple.cue("tiktik", at, strength)
+	AudioDirector.play_sfx(&"tiktik_call", strength)
 
 
 func _drawn_suns() -> Array:
@@ -691,6 +693,7 @@ func _drawn_suns() -> Array:
 ## MORNING. The dark lifts -- on the dark layer's own clock, which runs while a line is up -- she says
 ## the line the level was for, and the level is done: the majority route settled, the one point given.
 func _on_dawn() -> void:
+	AudioDirector.play_sfx(&"dawn")
 	if dawn_clock != null:
 		dawn_clock.set_progress(1.0)
 		dawn_clock.hide_night()
@@ -728,10 +731,15 @@ func use_quick_slot(index: int) -> bool:
 	var id := satchel.slot_item(index)
 	if id.is_empty() or satchel.count(id) <= 0:
 		return true
-	if _use_from_satchel(id):
+	var spent := _use_from_satchel(id)
+	if spent:
 		satchel.take(id)
+	# A lash of the whip is a use that spends nothing until its last: it shows, and is logged, all
+	# the same.
+	if spent or _lashed:
 		quick_slots.flash(index)
 		Telemetry.record_event("satchel_used", {"level_id": LevelManager.current_level_id, "item": id})
+	_lashed = false
 	return true
 
 
@@ -932,6 +940,8 @@ func _throw_ash(item: Dictionary) -> bool:
 const WHIP := "buntot_pagi"
 var _whip_uses := 0
 var _whip_cooldown := 0.0
+## Whether the last use was a lash -- one that spends nothing, but was a use.
+var _lashed := false
 
 
 func _lash_the_whip() -> bool:
@@ -959,6 +969,7 @@ func _lash_the_whip() -> bool:
 	lash.position = origin
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(lash)
 	_whip_uses -= 1
+	_lashed = true
 	return _whip_uses <= 0
 
 
@@ -979,13 +990,16 @@ func _pour_oil(stages: int) -> bool:
 var _resuming := false
 
 
+## What a Continue brings back of Lola's things: the satchel, and how many lashes the whip she
+## carries has left -- it is one thing with ten uses, and a resume must not hand her a fresh one.
 func _level_run_state() -> Dictionary:
-	return {"satchel": satchel.to_data()} if satchel != null else {}
+	return {"satchel": satchel.to_data(), "whip_lashes": _whip_uses} if satchel != null else {}
 
 
 func _restore_level_run_state(state: Dictionary) -> void:
 	if _resuming and satchel != null and state.get("satchel") is Dictionary:
 		satchel.from_data(state["satchel"] as Dictionary)
+		_whip_uses = int(state.get("whip_lashes", 0))
 
 
 func _resume_saved_checkpoint() -> bool:
@@ -1259,7 +1273,10 @@ func _on_tiyanak_cried(at: Vector2) -> void:
 	var distance := PlayerHurtbox2D.middle_of(player).distance_to(at)
 	if distance > CRY_HEARD_FROM:
 		return
-	edge_ripple.cue("tiyanak", at, maxf(CRY_FAINTEST, 1.0 - distance / CRY_HEARD_FROM))
+	var strength := maxf(CRY_FAINTEST, 1.0 - distance / CRY_HEARD_FROM)
+	# Heard as it is shown: the ripple stays, a player who cannot hear plays by it.
+	edge_ripple.cue("tiyanak", at, strength)
+	AudioDirector.play_sfx(&"tiyanak_cry", strength)
 
 
 # --- The bungisngis -----------------------------------------------------------------------------

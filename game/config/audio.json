@@ -14,7 +14,11 @@
     "ui_close": "",
     "level_complete": "",
     "checkpoint": "",
-    "item_acquired": ""
+    "item_acquired": "",
+    "tiktik_call": "",
+    "tiyanak_cry": "",
+    "lantern_hit": "",
+    "dawn": ""
   },
   "music": {
     "menu": "",
