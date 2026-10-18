@@ -156,8 +156,8 @@ func _finish_by(crossing: String, encounter: String) -> void:
 	# ⚠ TO A SWIMMER WHO STOPS AT IT, NOT ONE WHO SHOOTS PAST. A fact waits while Lolo is still
 	# being read and is dropped if the player has swum on by the time he is free -- that is what
 	# keeps his story from being talked over (see level_3.gd, _pace_the_advice). So each fact is
-	# asked for the way a player gets it: swim up, and stay a few seconds. The first is asked for
-	# while he is mid-sentence, so the wait itself is what is being tested there.
+	# asked for the way a player gets it: swim up, and stay until he has had his say. The first is
+	# asked for while he is mid-sentence, so the wait itself is what is being tested there.
 	if crossing == "pragmatist":
 		var spoken := 0
 		# The level's own field, not a copy: the bed has moved twice.
@@ -168,15 +168,16 @@ func _finish_by(crossing: String, encounter: String) -> void:
 		level.set("_advice_waiting", [])
 		level.set("_advice_left", 0.0)
 		level.call("_say_why", "A line of his, still being read.")
+		var why_silent := {}
 		for key: String in ["jelly", "lola1", "shaft"]:
 			await _swim_to(field[key])
-			await _linger_at(field[key], "CORAL.%s" % key)
+			why_silent[key] = await _linger_at(field[key], "CORAL.%s" % key)
 		var silent: Array[String] = []
 		for key: String in ["jelly", "lola1", "shaft"]:
 			if bool(script_lines.call("has_heard", "CORAL.%s" % key)):
 				spoken += 1
 			else:
-				silent.append(key)
+				silent.append("%s (%s)" % [key, why_silent[key]])
 		_check(spoken == 3, "the coral field speaks (%s)" % tag,
 			"%d of 3 facts said to a swimmer who stopped at them%s" % [spoken,
 				"" if silent.is_empty() else "; silent: " + ", ".join(silent)])
@@ -380,9 +381,17 @@ func _hold(action: StringName, on: bool) -> void:
 		Input.action_release(action)
 
 
-## Stay by a thing until the hook has been said, for up to twenty seconds: Lolo's story comes
-## first, and this probe crosses the dive's story triggers far faster than a swimmer does, so
-## several of his lines can be waiting ahead of the fact.
+## Stay by a thing until the hook has been said, or until Lolo has had his say and it was not;
+## what comes back is why it was not, or "" when it was. His story comes first, and this probe
+## crosses the dive's story triggers far faster than a swimmer does, so several of his lines can
+## be waiting ahead of the fact.
+##
+## ⚠ WAITED ON HIM, NOT ON A FRAME COUNT. A waiting fact goes up on the first frame he has nothing
+## being read and nothing of his queued (level_3.gd, _pace_the_advice), or it is not said at all,
+## so that frame is the one that decides it. Twelve hundred frames from arriving used to be the
+## limit, and the shaft's fact was said on the 1199th in most runs, behind four lines of his: one
+## more creature met on the way and it was reported silent while it was still waiting its turn.
+## LINGER_LIMIT is only there so a queue that never empties fails instead of hanging.
 ##
 ## ⚠ HELD WHERE SHE STOPPED, NOT PLACED ONCE AND LET GO. A fish left alone does not stay put: it
 ## drifts toward the middle of the column at about sixty pixels a second -- up off a fact on the
@@ -393,16 +402,33 @@ func _hold(action: StringName, on: bool) -> void:
 ## failed with now and then. The sea creatures supply that line at random: the first of each kind
 ## to wander within MEET_REACH gets one, and their wandering is unseeded randf stepped on _process,
 ## so it came and went from run to run. Held each frame, as run_level3_sea_probe holds her.
-func _linger_at(at: Vector2, hook: String) -> void:
+func _linger_at(at: Vector2, hook: String) -> String:
 	var script_lines = level.get("script_lines")
 	var stop := at + Vector2(-60.0, -60.0)
-	for _frame in range(1200):
+	var free_for := 0
+	for _frame in range(LINGER_LIMIT):
 		_place(stop)
 		await physics_frame
 		if root.get_tree().paused:
 			await _unpause()
 		if bool(script_lines.call("has_heard", hook)):
-			return
+			return ""
+		free_for = free_for + 1 if _lolo_is_free() else 0
+		if free_for >= LOLO_FREE_FRAMES:
+			return "he was free and did not say it"
+	return "he was still talking after %d frames" % LINGER_LIMIT
+
+
+## A minute at 60 Hz. The longest he was measured talking ahead of a fact is twenty seconds.
+const LINGER_LIMIT := 3600
+## The fact goes up the frame after he is free; half a second of him free and silent is a no.
+const LOLO_FREE_FRAMES := 30
+
+
+## Nothing of his being read and nothing of his waiting: the frame he turns to the coral facts.
+func _lolo_is_free() -> bool:
+	return float(level.get("_advice_left")) <= 0.0 \
+		and (level.get("_advice_waiting") as Array).is_empty()
 
 
 func _place(at: Vector2) -> void:
