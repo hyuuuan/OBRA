@@ -32,11 +32,13 @@
 		<td><img src="docs/screenshots/payyo.jpg" alt="Payyo: inside Ang Bale, Lola's painting on the floor" /></td>
 		<td><img src="docs/screenshots/piyesta.jpg" alt="Piyesta: the plaza, the dancers and the church" /></td>
 		<td><img src="docs/screenshots/dagat.jpg" alt="Dagat: the beach and the bangka" /></td>
+		<td><img src="docs/screenshots/dilim.jpg" alt="Dilim: the last clearing at night, the apo's lantern, the manananggal and a wakwak overhead" /></td>
 	</tr>
 	<tr>
 		<td align="center"><sub>Payyo</sub></td>
 		<td align="center"><sub>Piyesta</sub></td>
 		<td align="center"><sub>Dagat</sub></td>
+		<td align="center"><sub>Dilim</sub></td>
 	</tr>
 </table>
 
