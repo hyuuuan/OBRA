@@ -14,7 +14,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 16
+const CHECKS := 18
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -36,6 +36,7 @@ func _run() -> void:
 	await _the_clock_comes_with_the_night()
 	await _one_falls_and_another_comes()
 	await _never_more_than_two()
+	await _ash_and_salt_reach_the_night()
 	await _a_knockout_starts_the_night_over()
 	await _the_waves_come_on_time()
 	await _a_sun_hurries_the_morning()
@@ -134,6 +135,22 @@ func _one_falls_and_another_comes() -> void:
 	_check(fell and one == 1 and still_one == 1 and finale.alive().size() == 2,
 		"one falls, and another comes 6 s later",
 		"%d, then %d just short of it, then %d" % [one, still_one, finale.alive().size()])
+
+
+## The satchel is for the night: ash thrown on one of its aswang blinds it, and salt burns one.
+func _ash_and_salt_reach_the_night() -> void:
+	var foes := finale.alive()
+	var plane := level.get_node(^"EnvironmentBaseplate/GameplayPlane")
+	var dust := AboDust2D.new()
+	dust.position = foes[0].global_position
+	plane.add_child(dust)
+	await _frames(2)
+	_check(foes[0].state_name() == "STUN", "ash on one of the night's aswang blinds it", foes[0].state_name())
+	var salt := AsinThrow2D.new()
+	salt.position = foes[1].global_position
+	plane.add_child(salt)
+	await _frames(3)
+	_check(foes[1].is_burning(), "and salt on one burns it", "burning %s" % foes[1].is_burning())
 
 
 func _a_knockout_starts_the_night_over() -> void:
