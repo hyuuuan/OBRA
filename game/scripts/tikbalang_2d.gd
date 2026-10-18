@@ -25,14 +25,33 @@ var _aside := false
 var _clock := 0.0
 
 
+## Its strips (tools/build_dilim_creatures.py, or drawn art under the same names); the code-drawn
+## body below stands in only while there are none.
+var art: PixelStripAnimator
+
+
+func _make_art(kind: String, anims: Array, centre: bool, at: Vector2) -> void:
+	art = PixelStripAnimator.new()
+	art.name = "Art"
+	art.centre = centre
+	art.position = at
+	add_child(art)
+	art.load_kind(Enemy2D.ART, kind, anims)
+	art.play("idle")
+
+
 func _ready() -> void:
 	add_to_group(Enemy2D.GROUP)
 	_home = global_position
 	z_index = 4
+	_make_art("tikbalang", ["idle", "run"], false, Vector2.ZERO)
 
 
 func _physics_process(delta: float) -> void:
 	_clock += delta
+	if art != null and art.has_art():
+		art.play("run" if _racing else "idle")
+		art.advance(delta)
 	if _countdown > 0.0:
 		_countdown -= delta
 		if _countdown <= 0.0:
@@ -110,6 +129,8 @@ func _her_hurtbox() -> PlayerHurtbox2D:
 
 ## PLACEHOLDER until it has art: a tall dark figure, long-headed, its eyes catching the light.
 func _draw() -> void:
+	if art != null and art.has_art():
+		return
 	var stride := sin(_clock * TAU * 3.0) * 4.0 if _racing else 0.0
 	draw_rect(Rect2(-14.0, -120.0, 28.0, 86.0), HIDE)
 	draw_line(Vector2(-8.0, -34.0), Vector2(-8.0 + stride, 0.0), HIDE, 7.0)

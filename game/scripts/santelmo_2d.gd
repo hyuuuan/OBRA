@@ -53,7 +53,23 @@ var _clock := 0.0
 var _chasing := false
 
 
+## Its strips (tools/build_dilim_creatures.py, or drawn art under the same names); the code-drawn
+## body below stands in only while there are none.
+var art: PixelStripAnimator
+
+
+func _make_art(kind: String, anims: Array, centre: bool, at: Vector2) -> void:
+	art = PixelStripAnimator.new()
+	art.name = "Art"
+	art.centre = centre
+	art.position = at
+	add_child(art)
+	art.load_kind(Enemy2D.ART, kind, anims)
+	art.play("idle")
+
+
 func _ready() -> void:
+	_make_art("santelmo", ["idle", "hot"], true, Vector2.ZERO)
 	add_to_group(GROUP)
 	add_to_group(LightField.GROUP)
 	_home = global_position
@@ -153,5 +169,10 @@ func _draw() -> void:
 	var lift := Vector2(0.0, sin(_clock * TAU * BOB_HZ) * BOB)
 	var heat := 1.0 if _chasing else 0.7
 	draw_circle(lift, 22.0, Color(1.0, 0.45, 0.12, 0.22 * heat))
+	if art != null and art.has_art():
+		art.position = lift
+		art.play("hot" if _chasing else "idle")
+		art.advance(get_process_delta_time() if is_processing() else get_physics_process_delta_time())
+		return
 	draw_circle(lift + Vector2(0.0, 2.0), 13.0, Color(1.0, 0.62, 0.2, 0.55 * heat))
 	draw_circle(lift + Vector2(0.0, 4.0), 6.0, Color(1.0, 0.92, 0.6, 0.95))

@@ -39,7 +39,23 @@ var _west := false
 var crown: Area2D
 
 
+## Its strips (tools/build_dilim_creatures.py, or drawn art under the same names); the code-drawn
+## body below stands in only while there are none.
+var art: PixelStripAnimator
+
+
+func _make_art(kind: String, anims: Array, centre: bool, at: Vector2) -> void:
+	art = PixelStripAnimator.new()
+	art.name = "Art"
+	art.centre = centre
+	art.position = at
+	add_child(art)
+	art.load_kind(Enemy2D.ART, kind, anims)
+	art.play("idle")
+
+
 func _ready() -> void:
+	_make_art("nuno_mound", ["idle"], false, Vector2.ZERO)
 	collision_layer = PhysicsLayers.WORLD
 	collision_mask = 0
 	var dome := CollisionPolygon2D.new()
@@ -115,6 +131,8 @@ static func _dome_points() -> PackedVector2Array:
 ## PLACEHOLDER until it has art: the mound in two earths, and what has been left for the nuno at
 ## its western foot -- a bowl, two candle stubs, coins -- so a careful player sees it is tended.
 func _draw() -> void:
+	if art != null and art.has_art():
+		return
 	draw_colored_polygon(_dome_points(), SOIL)
 	var cap := PackedVector2Array()
 	for point in _dome_points():

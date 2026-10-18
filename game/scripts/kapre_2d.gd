@@ -31,7 +31,23 @@ var _clock := 0.0
 var cigar: Area2D
 
 
+## Its strips (tools/build_dilim_creatures.py, or drawn art under the same names); the code-drawn
+## body below stands in only while there are none.
+var art: PixelStripAnimator
+
+
+func _make_art(kind: String, anims: Array, centre: bool, at: Vector2) -> void:
+	art = PixelStripAnimator.new()
+	art.name = "Art"
+	art.centre = centre
+	art.position = at
+	add_child(art)
+	art.load_kind(Enemy2D.ART, kind, anims)
+	art.play("idle")
+
+
 func _ready() -> void:
+	_make_art("kapre", ["idle"], false, Vector2(-6.0, -CIGAR_HEIGHT + 30.0))
 	add_to_group(Enemy2D.GROUP)
 	add_to_group(LightField.GROUP)
 	z_index = 3
@@ -138,10 +154,14 @@ func _draw() -> void:
 		draw_circle(Vector2(0.0, -TRUNK.y - 40.0), 110.0, Color(0.07, 0.12, 0.07))
 	else:
 		draw_rect(Rect2(-TRUNK.y * 0.5, -TRUNK.x, TRUNK.y, TRUNK.x), BARK)
-	if not _gone:
+	var drawn := art != null and art.has_art()
+	if drawn:
+		art.visible = not _gone
+		art.advance(get_process_delta_time())
+	if not _gone and not drawn:
 		draw_rect(Rect2(-30.0, -CIGAR_HEIGHT - 60.0, 50.0, 90.0), HIDE)
 		draw_circle(Vector2(-6.0, -CIGAR_HEIGHT - 70.0), 18.0, HIDE)
-	if _cigar_lit and not _gone:
+	if _cigar_lit and not _gone and not drawn:
 		draw_circle(cigar.position, 4.0, EMBER)
 	if _smoke > 0.0:
 		for index in range(18):
