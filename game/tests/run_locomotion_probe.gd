@@ -126,12 +126,18 @@ func _run() -> void:
 ## water". The water was left out of the jump-pose test, so it fell through to the speed check:
 ## swimming Dagat's crossing she was drawn upright and striding along the surface, and sinking in
 ## Payyo's lake she walked on the way down. A real pool, a real WaterArea2D, real input.
+## The pool's surface is at 300; a bottom 12 px under it is shallower than she floats.
+const SHALLOW_TOP := 312.0
+
+
 func _check_water() -> void:
 	var world := Node2D.new()
 	root.add_child(world)
 	_block(world, Vector2(700.0, 900.0), Vector2(2000.0, 40.0))
 	# A ledge under the water at the far end: a shallow wade, feet on a bottom.
 	_block(world, Vector2(1150.0, 380.0), Vector2(300.0, 40.0))
+	# And a step at the near end shallower than she floats, where she stands rather than floats.
+	_block(world, Vector2(200.0, SHALLOW_TOP + 20.0), Vector2(160.0, 40.0))
 	var pool := WaterArea2D.new()
 	pool.surface_size = Vector2(1200.0, 500.0)
 	pool.position = Vector2(700.0, 550.0)
@@ -226,6 +232,22 @@ func _check_water() -> void:
 			and body.texture.resource_path.ends_with("apo_swim_idle_front.png") and body.hframes == 4,
 		"afloat at the surface uses all four front idle frames")
 
+	_expect(body.texture.get_height() == 160 and is_equal_approx(body.scale.y, 1.0),
+		"the swim strips are drawn 1:1, not a 320 cell halved by nearest filtering (%dpx at %.2f)"
+			% [body.texture.get_height(), body.scale.y])
+	var afloat_feet := _painted_feet(player, figure, body) - player.global_position.y
+	_expect(absf(afloat_feet - Wanderer.TREAD_SINK) <= 3.0,
+		"afloat, her painted feet hang TREAD_SINK under the feet's point (%.0f px)" % afloat_feet)
+	# Standing on a bottom shallower than she floats: the front idle, feet on the stone.
+	player.global_position = Vector2(200.0, SHALLOW_TOP - 2.0)
+	player.velocity = Vector2.ZERO
+	await _frames(20)
+	var standing_gap := _painted_feet(player, figure, body) - SHALLOW_TOP
+	_expect(player.is_on_floor() and figure.get("pose") == &"swim_idle_front"
+			and absf(standing_gap) <= 3.0,
+		"standing in the shallows her painted feet are on the bottom (%s, %.0f px off)"
+			% [figure.get("pose"), standing_gap])
+
 	# A shallow wade, feet on the ledge, where she cannot swim: that IS a walk.
 	player.can_swim = false
 	player.global_position = Vector2(1100.0, 355.0)
@@ -246,6 +268,16 @@ func _check_water() -> void:
 		"out of the water she stands up again")
 	world.queue_free()
 	await process_frame
+
+
+## The lowest painted row of the frame on screen, in world y.
+func _painted_feet(player: Node2D, figure: Node2D, body: Sprite2D) -> float:
+	var image := body.texture.get_image()
+	var width := image.get_width() / body.hframes
+	var cell := image.get_region(Rect2i(body.frame * width, 0, width, image.get_height()))
+	var row := float(cell.get_used_rect().end.y)
+	return player.global_position.y + figure.position.y + body.position.y \
+		+ (body.offset.y + row) * body.scale.y
 
 
 func _block(world: Node2D, at: Vector2, size: Vector2) -> void:

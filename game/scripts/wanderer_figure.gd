@@ -35,9 +35,11 @@ const SWIM_LEFT := preload("res://assets/characters/apo/apo_swim_left.png")
 const SWIM_IDLE_SIDE := preload("res://assets/characters/apo/apo_swim_idle_side.png")
 const SWIM_IDLE_FRONT := preload("res://assets/characters/apo/apo_swim_idle_front.png")
 const SWIM_FLOAT := preload("res://assets/characters/apo/apo_swim_float.png")
-## All water frames share a torso-centred 320px cell, at one common art scale.
-const SWIM_CELL := Vector2(320.0, 320.0)
-const SWIM_SCALE := 0.5
+## All water frames share a torso-centred 160px cell, drawn 1:1. tools/build_apo_swim.py cuts
+## them at the sheet's own 320 and halves them by area; drawing a 320 cell at 0.5 with nearest
+## filtering kept every other source pixel, and the outline shimmered as she swam.
+const SWIM_CELL := Vector2(160.0, 160.0)
+const SWIM_SCALE := 1.0
 const UNDERWATER_SHADER := preload("res://shaders/underwater_character.gdshader")
 
 ## What each pose draws. `cycle` means the stride phase picks the frame; anything else
@@ -81,9 +83,12 @@ const SWIM_MAX_TILT := 0.5
 @export var carrying: String = ""
 ## Swimming only: -1 rising .. 1 diving. The head leads the way the stroke is going.
 @export var tilt: float = 0.0
-## Treading water only: how far the figure is drawn down from the feet's point, so the surface
-## is at her chest rather than her ankles. Set by Wanderer; 0 anywhere she can stand.
+## Floating at rest (the front idle) only: how far below the feet's point her painted feet hang,
+## so the water comes up her body rather than to her ankles. Set by Wanderer; 0 where she stands.
 @export var water_sink: float = 0.0
+
+## The front idle's lowest painted row in its cell, over every frame. Measured once, off the strip.
+static var _front_feet_row := -1.0
 
 var _sprite: Sprite2D
 var _underwater_material: ShaderMaterial
@@ -131,6 +136,19 @@ func set_underwater_appearance(
 	_underwater_material.set_shader_parameter(&"caustic_light", highlight)
 
 
+static func _front_idle_feet() -> float:
+	if _front_feet_row < 0.0:
+		var image := SWIM_IDLE_FRONT.get_image()
+		var frames := int(POSES[&"swim_idle_front"]["count"])
+		var width := image.get_width() / frames
+		var lowest := 0
+		for frame in range(frames):
+			var cell := image.get_region(Rect2i(frame * width, 0, width, image.get_height()))
+			lowest = maxi(lowest, cell.get_used_rect().end.y)
+		_front_feet_row = float(lowest)
+	return _front_feet_row
+
+
 func debug_underwater_strength() -> float:
 	return _underwater_strength
 
@@ -170,12 +188,12 @@ func refresh() -> void:
 		if pose == &"swim":
 			_sprite.rotation = clampf(tilt, -1.0, 1.0) * SWIM_MAX_TILT
 		elif pose == &"swim_idle_front":
-			_sprite.position.y = -55.0 + water_sink
+			# Her painted feet on the feet's point, sunk by water_sink afloat. A fixed -55 stood
+			# her 15 px above the seabed.
+			_sprite.position.y = water_sink + SWIM_CELL.y * 0.5 - _front_idle_feet()
 		_sprite.hframes = count
 		_sprite.frame = frame
 		return
-	elif pose == &"tread":
-		_sprite.position = Vector2(0.0, water_sink)
 	if bool(entry["cycle"]):
 		var running := pose == &"run"
 		var top := 382.0 if running else 0.0
