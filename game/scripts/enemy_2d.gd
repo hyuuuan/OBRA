@@ -109,9 +109,11 @@ func _ready() -> void:
 	hitbox.monitorable = false
 	art = PixelStripAnimator.new()
 	art.name = "Art"
-	art.position = Vector2(0.0, body_size.y * 0.5)
+	# On its feet at the bottom of its body -- or hung by its middle, for a flier.
+	art.centre = _art_is_centred()
+	art.position = Vector2.ZERO if art.centre else Vector2(0.0, body_size.y * 0.5)
 	add_child(art)
-	art.load_kind(ART, kind, ANIM_FOR.values())
+	art.load_kind(ART, kind, ANIM_FOR.values() + _art_extras())
 	art.play("idle")
 	telegraph = Telegraph2D.new()
 	telegraph.position = Vector2(body_size.x * 0.25, -body_size.y * 0.5)
@@ -296,6 +298,16 @@ func _in_striking_range(to_prey: Vector2) -> bool:
 ## The strike begins: the direction is decided now and does not follow her after.
 func _begin_attack(_to_prey: Vector2) -> void:
 	pass
+
+
+## Whether its art hangs by its middle (a flier) rather than standing on its feet.
+func _art_is_centred() -> bool:
+	return false
+
+
+## Strips beyond the states' own that a kind has (a laugh, a true form), for it to play itself.
+func _art_extras() -> Array:
+	return []
 
 
 # --- the shared machinery ------------------------------------------------------------------
