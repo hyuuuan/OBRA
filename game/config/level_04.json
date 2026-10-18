@@ -110,8 +110,9 @@
       "routes": {
         "artist": {"required_tags": ["light"], "$comment": "Light shows it for what it is; it flees."},
         "pragmatist": {"answered_by": "kept_clear",
-                       "$comment": "Reach the far marker without going toward the cry."},
-        "protector": {"required_tags": ["strike"]}
+                       "$comment": "Reach the far side on the path, without once going down toward the cry."},
+        "protector": {"required_tags": ["strike"], "then": {"answered_by": "struck_down"},
+                      "$comment": "Drawing something to strike with is the choice; striking it down is the answer. Allowed, never rewarded: it drops nothing, and she says so."}
       }
     },
     {
@@ -119,11 +120,14 @@
       "type": "dialogue_node",
       "display_name": "Ang Bungisngis",
       "routes": {
-        "artist": {"required_tags": ["absurd"], "$comment": "Something with no business on a mountain: it laughs itself out of the way."},
+        "artist": {"required_tags": ["absurd"], "then": {"answered_by": "laughed_aside"},
+                   "$comment": "Something with no business on a mountain, brought within 420 px of it for half a second: it laughs itself helpless and sits out of the way."},
         "pragmatist": {"required_tags": ["span", "climb"], "match": "any",
                        "exclude": ["fish", "shark", "octopus", "sailboat", "submarine"],
-                       "$comment": "Over the ravine, or up the high path."},
-        "protector": {"required_tags": ["strike"]}
+                       "then": {"answered_by": "crossed_over"},
+                       "$comment": "Over the ravine on a bridge, or up onto the high path: the far bank reached while it still stands in the crossing."},
+        "protector": {"required_tags": ["strike"], "then": {"answered_by": "driven_off"},
+                      "$comment": "Drawing something to strike with is the choice; beating it is the answer. The straight fight."}
       }
     },
     {
@@ -131,10 +135,12 @@
       "type": "dialogue_node",
       "display_name": "Ang Manananggal",
       "routes": {
-        "artist": {"required_tags": ["light"], "$comment": "Light on the lower half, or the sun."},
+        "artist": {"required_tags": ["light"], "then": {"answered_by": "lit_up"},
+                   "$comment": "A light drawn is the choice; the lower half held in light for two seconds -- the sun lights the whole hollow -- is the answer. She cannot rejoin in the light."},
         "pragmatist": {"answered_by": "salted",
                        "$comment": "Salt on the lower half while the upper is away."},
-        "protector": {"required_tags": ["strike"]}
+        "protector": {"required_tags": ["strike"], "then": {"answered_by": "driven_off"},
+                      "$comment": "Drawing something to strike with is the choice; driving the upper half off is the answer. It settles the least: the lower half still stands."}
       }
     },
     {
