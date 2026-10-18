@@ -14,7 +14,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 18
+const CHECKS := 22
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -40,6 +40,7 @@ func _run() -> void:
 	await _a_knockout_starts_the_night_over()
 	await _the_waves_come_on_time()
 	await _a_sun_hurries_the_morning()
+	await _the_dead_tree()
 	await _morning_ends_it()
 	await _the_dark_lifts_and_she_is_through()
 	_check(not (level.get("dawn_clock") as Control).visible, "and the night's clock is gone",
@@ -210,6 +211,56 @@ func _a_sun_hurries_the_morning() -> void:
 		"%.1f s on, then %.1f s for the second" % [jumped, again])
 	first.queue_free()
 	second.queue_free()
+
+
+## The design's tree: standing it stops no one; felled by something that cuts, it comes down on the
+## walkers under it for 8, lies there as a wall they do not cross, and from then on the night sends
+## its aswang only from the west. Late in the night on purpose: a felled tree stays down.
+func _the_dead_tree() -> void:
+	var tree := finale.tree
+	var foot := tree.global_position.x
+	await _put_her_at(foot - 120.0)
+	Input.action_press(&"move_right")
+	await _seconds(1.2)
+	Input.action_release(&"move_right")
+	var walked := (level.get("player") as Node2D).global_position.x
+	_check(tree != null and walked > foot + 40.0, "standing, the dead tree stops no one",
+		"walked from %.0f to %.0f, its foot at %.0f" % [foot - 120.0, walked, foot])
+	# One of the night's walkers where it will fall, sturdier than it is so the 8 can be read.
+	var under: Enemy2D = null
+	for foe in finale.alive():
+		if foe is GroundEnemy2D:
+			under = foe
+	under.global_position = Vector2(foot + 140.0, GROUND_Y - under.body_size.y * 0.5)
+	under.hp = 20
+	await _put_her_at(foot - 60.0)
+	for _blow in range(4):
+		if not tree.is_open():
+			tree.apply_tool_hit("axe", 420.0, level.get("player") as Node2D)
+	await _frames(2)
+	_check(tree.is_open() and under.hp == 12, "felled, it comes down on a walker under it for 8",
+		"felled %s, hp 20 -> %d" % [tree.is_open(), under.hp])
+	# East of the trunk lying there, with her west of it: it comes up to it and does not get across.
+	# Dropped in a little above the ground to settle: set exactly on it, its look for ground ahead
+	# starts on the surface, finds none, and it will not walk at all.
+	var end := foot + tree.span_length
+	under.global_position = Vector2(end + 160.0, GROUND_Y - under.body_size.y * 0.5 - 8.0)
+	await _put_her_at(foot - 250.0)
+	await _seconds(3.0)
+	var at := under.global_position.x
+	_check(at > end and at < end + under.body_size.x, "and lying there it is a wall the aswang do not cross",
+		"came from %.0f to %.0f, the trunk ends at %.0f" % [end + 160.0, at, end])
+	# Two sent after it, one after the other: both from the west.
+	var sides: Array[float] = []
+	for _send in range(2):
+		for foe in finale.alive():
+			if foe is GroundEnemy2D:
+				foe.crush(99)
+		await _frames(2)
+		finale.call("_send_one")
+		var foes: Array = finale.get("_foes")
+		sides.append(signf((foes.back() as Node2D).global_position.x - finale.global_position.x))
+	_check(sides == [-1.0, -1.0], "and the night sends its aswang only from the west after", "%s" % [sides])
 
 
 func _morning_ends_it() -> void:
