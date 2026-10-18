@@ -342,6 +342,27 @@
       "text": "Or keep her busy until morning. She cannot put herself back together in the **light**."
     },
     {
+      "id": "L4_MN_003",
+      "at": "L4_MANANANGGAL.artist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Caught in the light, she cannot come back together. Off she goes, half of her and all."
+    },
+    {
+      "id": "L4_MN_004",
+      "at": "L4_MANANANGGAL.pragmatist.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Salt on what she left behind. She will not be whole again, not tonight and not ever."
+    },
+    {
+      "id": "L4_MN_005",
+      "at": "L4_MANANANGGAL.protector.solved",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Gone, for now. But the rest of her is still standing down there, waiting for her to come back."
+    },
+    {
       "id": "L4_FN_001",
       "at": "L4_FINALE.enter",
       "speaker": "apo",
