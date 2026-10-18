@@ -134,7 +134,19 @@ func _read_dark_zones() -> Array:
 	return zones
 
 
+## ⚠ A DROP IS A FALL, AND A FALL IS A KNOCKOUT. Nothing she stands on in the woods is more than the
+## ravine floor's 220 under the forest floor; past FALL_BELOW under it she has gone down the
+## tiyanak's drop -- the danger its cry leads to -- and the woods take her back to her last clearing,
+## in Lola's words, the way a snuffed lantern does. (The base level's fall line is under the world's
+## own bottom, and the apo is wrapped back to the sky before she reaches it.)
+const FOREST_FLOOR := 600.0
+const FALL_BELOW := 300.0
+
+
 func _level_physics(anchor_position: Vector2) -> void:
+	if anchor_position.y > FOREST_FLOOR + FALL_BELOW:
+		_knockout()
+		return
 	# Once it is morning the dawn has the dark; the zones would only pull it back.
 	if darkness_layer != null and not (_finale != null and _finale.has_dawned()):
 		darkness_layer.darkness = move_toward(darkness_layer.darkness,
@@ -144,6 +156,9 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_watch_her_back(get_physics_process_delta_time())
 	_lead_her_round()
 	_tend_the_kapre(get_physics_process_delta_time())
+	_tend_the_tiyanak()
+	_tend_the_bungisngis(get_physics_process_delta_time())
+	_tend_the_manananggal(get_physics_process_delta_time())
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
@@ -273,6 +288,9 @@ func _arm_player_health() -> void:
 func _restore_checkpoint() -> String:
 	var restored := super()
 	get_tree().call_group(Enemy2D.GROUP, &"reset_for_restore")
+	_went_to_the_cry = false
+	_absurd_near = 0.0
+	_lit_for = 0.0
 	if dawn_clock != null:
 		dawn_clock.hide_night()
 	_lift_curse()
@@ -291,6 +309,20 @@ var _mound: NunoMound2D
 
 
 func _resolve_level_nodes() -> void:
+	_upper = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/ManananggalUpper") as ManananggalUpper2D
+	_lower = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/ManananggalLower") as ManananggalLower2D
+	if _upper != null:
+		_upper.died.connect(func(_foe: Enemy2D) -> void: _answer("L4_MANANANGGAL", "protector"))
+	if _lower != null:
+		_lower.salted.connect(_on_lower_half_salted)
+	_bungisngis = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Bungisngis") as Bungisngis2D
+	if _bungisngis != null:
+		_bungisngis.died.connect(func(_foe: Enemy2D) -> void: _answer("L4_BUNGISNGIS", "protector"))
+	_tiyanak = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Tiyanak") as Tiyanak2D
+	if _tiyanak != null:
+		_tiyanak_x = _tiyanak.global_position.x
+		_tiyanak.cried.connect(_on_tiyanak_cried)
+		_tiyanak.died.connect(func(_foe: Enemy2D) -> void: _answer("L4_TIYANAK", "protector"))
 	_kapre = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Kapre") as Kapre2D
 	if _kapre != null:
 		_kapre.cigar_knocked.connect(_on_cigar_knocked)
@@ -364,6 +396,10 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 		_sigbin.flee()
 	if obstacle_id == "L4_TIKBALANG" and _tikbalang != null:
 		_tikbalang.stand_aside()
+	if obstacle_id == "L4_TIYANAK" and route == "artist" and _tiyanak != null:
+		_tiyanak.reveal_and_flee()
+	if obstacle_id == "L4_MANANANGGAL" and _upper != null:
+		_upper.leave()
 	return false
 
 
@@ -473,11 +509,18 @@ func _lift_curse() -> void:
 # --- The clearings ----------------------------------------------------------------------------
 
 const CLEARINGS := ["L4_REST1", "L4_REST2"]
+## WHERE A SOUND CAME FROM, for what is heard in the dark (Kent's design: "Every sound that carries
+## gameplay information needs a visual equivalent"): rings where the tiyanak cries, and in the night
+## the tik-tik. Above the dark, under the HUD.
+var edge_ripple: EdgeRipple
 
 
 func _build_level_furniture() -> void:
 	director.obstacle_entered.connect(_on_beat_entered)
 	_arm_the_drain()
+	edge_ripple = EdgeRipple.new()
+	edge_ripple.name = "EdgeRipple"
+	add_child(edge_ripple)
 	# Top centre, under the quest card: the last clearing's clock.
 	dawn_clock = DawnClockHud.new()
 	dawn_clock.name = "DawnClock"
@@ -696,7 +739,7 @@ func _on_node_added(node: Node) -> void:
 
 
 func _on_foe_fell(foe: Enemy2D) -> void:
-	if satchel == null or not is_instance_valid(foe):
+	if satchel == null or not is_instance_valid(foe) or not foe.drops:
 		return
 	var night := _finale != null and _finale.is_running()
 	var dropped := 0
@@ -1039,6 +1082,15 @@ func _use_equipped_utility() -> void:
 			and player != null and absf(player.global_position.x - _kapre.global_position.x) <= CHOP_REACH:
 		if _kapre.chop():
 			_answer("L4_KAPRE", "pragmatist")
+	# ⚠ AND A LIGHT USED AT THE MANANANGGAL IS LIT. The swing that draws a "draw it, then do it" route
+	# in stops at choosing it (the base level's), so a flashlight pressed there chose the light route
+	# and stayed dark -- and every press after chose it again. The deed is the light on her lower
+	# half, so the use that chooses it switches the light on as well, the way a chop above counts.
+	if swung and director != null and director.committed_route("L4_MANANANGGAL") == "artist" \
+			and not director.is_solved("L4_MANANANGGAL") and _equipped_utility != null \
+			and is_instance_valid(_equipped_utility) and _equipped_utility.utility_behavior == "flashlight" \
+			and not _equipped_utility.is_active():
+		_equipped_utility.describe_use(player)
 
 
 func _on_cigar_knocked() -> void:
@@ -1050,3 +1102,141 @@ func _holding(entity_id: String) -> bool:
 	return _equipped_utility != null and is_instance_valid(_equipped_utility) \
 		and _equipped_utility.item_data != null and _equipped_utility.item_data.entity_id == entity_id
 
+
+# --- The tiyanak --------------------------------------------------------------------------------
+
+## Kent's design: "The threat is the lure, not the creature. The cry pulls the player toward a
+## drop or a nest, and the danger is the terrain it leads to." It cries down on the ground by its
+## drop, which its bushes hide, and the path goes over on logs. Answered three ways: a light she
+## drew shows it for what it is and it flees (artist, judged as the drawing); the far side reached
+## on the path without once going down to the cry (pragmatist, `kept_clear`); struck down after a
+## weapon drawn (protector) -- allowed, never rewarded: it drops nothing, and she says so.
+## How far past where it cries is the far side, off the end of the path.
+const KEPT_CLEAR_PAST := 560.0
+## How far off its cry still shows, and how strong it is: faint at the edge, strong beside her.
+const CRY_HEARD_FROM := 1400.0
+const CRY_FAINTEST := 0.2
+
+var _tiyanak: Tiyanak2D
+var _tiyanak_x := 0.0
+## Whether she went down to it -- into its lure -- since the last checkpoint.
+var _went_to_the_cry := false
+
+
+func _tend_the_tiyanak() -> void:
+	if _tiyanak == null or player == null or not is_instance_valid(player) or director == null \
+			or director.is_solved("L4_TIYANAK"):
+		return
+	var middle := PlayerHurtbox2D.middle_of(player)
+	if _tiyanak.in_lure(middle):
+		_went_to_the_cry = true
+	if not _went_to_the_cry and middle.x >= _tiyanak_x + KEPT_CLEAR_PAST and not _tiyanak.is_gone():
+		_answer("L4_TIYANAK", "pragmatist")
+
+
+## The cry, where it comes from: an amber ripple, stronger the nearer she is.
+func _on_tiyanak_cried(at: Vector2) -> void:
+	if edge_ripple == null or player == null or not is_instance_valid(player):
+		return
+	var distance := PlayerHurtbox2D.middle_of(player).distance_to(at)
+	if distance > CRY_HEARD_FROM:
+		return
+	edge_ripple.cue("tiyanak", at, maxf(CRY_FAINTEST, 1.0 - distance / CRY_HEARD_FROM))
+
+
+# --- The bungisngis -----------------------------------------------------------------------------
+
+## Kent's design: "One-eyed giant, always laughing. Strong, slow, and easily distracted. Blocks a
+## crossing." It stands in the ravine's crossing, a wall. Answered three ways, each a drawing and
+## then a deed: something absurd -- a sea thing on a mountain -- brought within ABSURD_REACH of it
+## for ABSURD_SECONDS sets it laughing itself helpless (artist); the far bank reached over the top
+## or along the high path while it still stands in the crossing (pragmatist); beaten (protector).
+const ABSURD_REACH := 420.0
+const ABSURD_SECONDS := 0.5
+## The far bank, and how high she is on it: off the ravine's east edge, up at the rim.
+const FAR_BANK_X := 19480.0
+const RIM_MIDDLE_BELOW := 650.0
+
+var _bungisngis: Bungisngis2D
+var _absurd_near := 0.0
+
+
+func _tend_the_bungisngis(delta: float) -> void:
+	if _bungisngis == null or player == null or not is_instance_valid(player) or director == null \
+			or director.is_solved("L4_BUNGISNGIS") or not _bungisngis.is_in_the_way():
+		_absurd_near = 0.0
+		return
+	var route := director.committed_route("L4_BUNGISNGIS")
+	if route == "artist" and _something_absurd_within(ABSURD_REACH):
+		_absurd_near += delta
+		if _absurd_near >= ABSURD_SECONDS:
+			_bungisngis.laugh()
+			_answer("L4_BUNGISNGIS", "artist")
+		return
+	_absurd_near = 0.0
+	var middle := PlayerHurtbox2D.middle_of(player)
+	if route == "pragmatist" and middle.x >= FAR_BANK_X and middle.y < RIM_MIDDLE_BELOW:
+		_answer("L4_BUNGISNGIS", "pragmatist")
+
+
+## Her, in a body with no business on a mountain, or one of those set down -- near it.
+func _something_absurd_within(reach: float) -> bool:
+	var absurd := AbilityTags.resolve(["absurd"], "all", [])
+	var at := _bungisngis.global_position
+	if absurd.has(_current_form_id) and PlayerHurtbox2D.middle_of(player).distance_to(at) <= reach:
+		return true
+	for node in get_tree().get_nodes_in_group(&"drawn_utilities"):
+		var thing := node as UtilityObject
+		if thing != null and not thing.is_preview and thing.item_data != null \
+				and absurd.has(thing.item_data.entity_id) and thing.global_position.distance_to(at) <= reach:
+			return true
+	return false
+
+
+# --- The manananggal ----------------------------------------------------------------------------
+
+## Kent's design: "the upper half flies, so ground weapons mostly miss. This is a search under
+## pressure rather than a fight. The lower half is hidden somewhere in the arena." Answered three
+## ways: salt thrown on the lower half (pragmatist, `salted` -- the best one); a light drawn, then
+## the lower half held in light LIT_SECONDS -- her own lantern does not count; a drawn sun lights
+## the whole hollow -- and she cannot rejoin in the light (artist); the upper half driven off after
+## a weapon drawn (protector), which settles the least: the lower half still stands. Any way, the
+## upper half leaves.
+const LIT_SECONDS := 2.0
+const LIT_ENOUGH := 0.5
+
+var _upper: ManananggalUpper2D
+var _lower: ManananggalLower2D
+var _lit_for := 0.0
+
+
+func _tend_the_manananggal(delta: float) -> void:
+	if _lower == null or director == null or director.is_solved("L4_MANANANGGAL") or _lower.is_dead():
+		_lit_for = 0.0
+		return
+	if director.committed_route("L4_MANANANGGAL") == "artist" \
+			and LightField.light_from(_drawn_light(), _lower.global_position) >= LIT_ENOUGH:
+		_lit_for += delta
+		if _lit_for >= LIT_SECONDS:
+			_answer("L4_MANANANGGAL", "artist")
+		return
+	_lit_for = 0.0
+
+
+## Every light in the woods but her own lantern -- the light the design means is one she made.
+func _drawn_light() -> Array:
+	var holes: Array = []
+	for source in get_tree().get_nodes_in_group(LightField.GROUP):
+		if source is HeldLantern2D or not source.has_method("light_hole") or not (source is CanvasItem) \
+				or not (source as CanvasItem).is_visible_in_tree():
+			continue
+		var hole: Dictionary = source.call("light_hole")
+		if not hole.is_empty():
+			holes.append(hole)
+	return holes
+
+
+func _on_lower_half_salted() -> void:
+	_answer("L4_MANANANGGAL", "pragmatist")
+	if _upper != null:
+		_upper.leave()

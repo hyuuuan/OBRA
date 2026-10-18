@@ -17,6 +17,10 @@
 [ext_resource type="Script" path="res://scripts/tikbalang_2d.gd" id="15_tikbalang"]
 [ext_resource type="Script" path="res://scripts/ink_jar_2d.gd" id="16_jar"]
 [ext_resource type="Script" path="res://scripts/kapre_2d.gd" id="17_kapre"]
+[ext_resource type="Script" path="res://scripts/tiyanak_2d.gd" id="18_tiyanak"]
+[ext_resource type="Script" path="res://scripts/bungisngis_2d.gd" id="19_bungisngis"]
+[ext_resource type="Script" path="res://scripts/manananggal_upper_2d.gd" id="20_upper"]
+[ext_resource type="Script" path="res://scripts/manananggal_lower_2d.gd" id="21_lower"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -104,11 +108,13 @@ position = Vector2(260.0, 510.0)
 
 [node name="Terrain" type="Node2D" parent="GameplayPlane"]
 
-; One floor the whole way for the shell. The encounters' own ground -- the forks, the drop by the
-; cry, the ravine, the high path -- comes with each encounter.
+; One floor the whole way, broken where an encounter's ground needs it: the drop by the tiyanak's
+; cry (17250-17550) and the bungisngis's ravine (19150-19450), each 300 wide -- past a running
+; jump's 228, under a bridge's 340. Its other ground -- the forks, the high path -- comes with
+; each encounter.
 [node name="Ground" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 script = ExtResource("8_terrain")
-platforms = Array[Rect2]([Rect2(-200, 600, 22800, 800)])
+platforms = Array[Rect2]([Rect2(-200, 600, 17450, 800), Rect2(17550, 600, 1600, 800), Rect2(19450, 600, 3150, 800)])
 
 ; ⚠ THE CANOPY IS A CEILING, NOT A RULE (Kent's design: 'the canopy block flight physically').
 ; 440 up: higher than a drawn tree reaches (362), so every way over the ground still fits under
@@ -130,6 +136,40 @@ body = "stone"
 [node name="Fork" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 script = ExtResource("8_terrain")
 branches = Array[Rect2]([Rect2(8650, 520, 220, 18), Rect2(8950, 450, 260, 18), Rect2(9300, 470, 260, 18)])
+
+; THE PATH OVER THE TIYANAK'S DROP (Kent's design: "stay on the path and do not approach"). Logs
+; she steps up onto -- 70 then 65 px, each a jump -- and walks along over the drop, down again past
+; it. Down on the ground under them is the cry, and the bushes run on over nothing.
+[node name="TiyanakPath" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+branches = Array[Rect2]([Rect2(16900, 530, 220, 18), Rect2(17080, 465, 600, 18)])
+
+; THE CROSSING THE BUNGISNGIS STANDS IN (Kent's design: "Blocks a crossing"). The ravine's floor,
+; 220 down -- a drop she takes and walks -- and two stones up its far side, 73 px each, to the rim.
+; It is the way across for anyone who does not go over the top, and the giant stands in it.
+[node name="RavineFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+platforms = Array[Rect2]([Rect2(19150, 820, 300, 580)])
+
+[node name="RavineSteps" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+platforms = Array[Rect2]([Rect2(19330, 747, 120, 73), Rect2(19390, 674, 60, 73)])
+body = "stone"
+
+; AND THE HIGH PATH OVER IT, 200 up: past a jump (94), so only something drawn to climb gets her
+; onto it -- a ladder, stairs, a tree, a body that climbs -- and along it over the giant and the
+; ravine both, down again on the far bank. Kent's design: "go over or around it entirely".
+[node name="HighPath" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+branches = Array[Rect2]([Rect2(18880, 400, 800, 18)])
+
+; THE HOLLOW WHERE THE MANANANGGAL LEFT HER LOWER HALF: a rock leaning out over the ground, its
+; underside 110 up -- room for her to walk in under it -- and dark in there. Kent's design: "The
+; lower half is hidden somewhere in the arena and the player has to find it while being hunted."
+[node name="Hollow" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+platforms = Array[Rect2]([Rect2(20780, 460, 180, 30)])
+body = "stone"
 
 [node name="Canopy" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(11200.0, -520.0)
@@ -232,6 +272,26 @@ script = ExtResource("15_tikbalang")
 [node name="Kapre" type="Node2D" parent="GameplayPlane/Encounters"]
 position = Vector2(13800.0, 600.0)
 script = ExtResource("17_kapre")
+
+; The tiyanak, on the ground at the near rim of its drop, crying; its bushes run on over the drop.
+[node name="Tiyanak" type="CharacterBody2D" parent="GameplayPlane/Encounters"]
+position = Vector2(17150.0, 587.0)
+script = ExtResource("18_tiyanak")
+
+; The bungisngis, standing on the ravine's floor in the crossing, its feet on the floor (820).
+[node name="Bungisngis" type="CharacterBody2D" parent="GameplayPlane/Encounters"]
+position = Vector2(19250.0, 730.0)
+script = ExtResource("19_bungisngis")
+
+; The manananggal: her lower half standing in the hollow under the leaning rock, and the rest of
+; her over it, where she rose from.
+[node name="ManananggalLower" type="CharacterBody2D" parent="GameplayPlane/Encounters"]
+position = Vector2(20850.0, 575.0)
+script = ExtResource("21_lower")
+
+[node name="ManananggalUpper" type="CharacterBody2D" parent="GameplayPlane/Encounters"]
+position = Vector2(20850.0, 380.0)
+script = ExtResource("20_upper")
 
 [node name="Pickups" type="Node2D" parent="GameplayPlane"]
 
@@ -352,11 +412,12 @@ obstacle_id = "L4_TIYANAK"
 trigger_size = Vector2(1400.0, 460.0)
 plants_commit_mark = false
 
+; Down to the ravine's floor (820) as well: the crossing it stands in is part of its ground.
 [node name="L4_BUNGISNGIS" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(19000.0, 390.0)
+position = Vector2(19000.0, 510.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_BUNGISNGIS"
-trigger_size = Vector2(1200.0, 460.0)
+trigger_size = Vector2(1200.0, 700.0)
 plants_commit_mark = false
 
 [node name="L4_MANANANGGAL" type="Area2D" parent="GameplayPlane/Obstacles"]

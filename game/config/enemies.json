@@ -9,7 +9,12 @@
     "fliers). attack_time: how long the strike lasts. lunge: its speed during the strike.",
     "recover: seconds it stands open after a strike. sight: how close she must be for it to",
     "notice her at all. size: the body in px. knock: what its strike does to her, px/s away and up.",
-    "flies: true for a flier (no gravity, a locked-line dive)."
+    "flies: true for a flier (no gravity, a locked-line dive).",
+  "",
+  "The far side: the tiyanak keeps to its cry (sight is how close she must come); the",
+  "bungisngis's strike is a slam all round it (Bungisngis2D.SLAM_RADIUS), not a lunge; the",
+  "manananggal's upper half is DRIVEN OFF at 0, not killed, and its lower half never moves --",
+  "only salt or light ends it."
   ],
   "aswang_dog": {"hp": 4, "speed": 230, "windup": 0.45, "attack_range": 96, "attack_time": 0.3,
     "lunge": 430, "recover": 0.55, "sight": 720, "size": [46, 28], "knock": [300, -220]},
@@ -19,5 +24,14 @@
     "lunge": 400, "recover": 0.8, "sight": 820, "size": [40, 26], "knock": [280, -200],
     "flies": true},
   "sigbin": {"hp": 4, "speed": 160, "windup": 0.6, "attack_range": 80, "attack_time": 0.3,
-    "lunge": 380, "recover": 0.7, "sight": 700, "size": [40, 30], "knock": [320, -200]}
+    "lunge": 380, "recover": 0.7, "sight": 700, "size": [40, 30], "knock": [320, -200]},
+  "tiyanak": {"hp": 3, "speed": 150, "windup": 0.4, "attack_range": 64, "attack_time": 0.25,
+    "lunge": 340, "recover": 0.6, "sight": 300, "size": [30, 26], "knock": [260, -180]},
+  "bungisngis": {"hp": 14, "speed": 50, "windup": 0.9, "attack_range": 120, "attack_time": 0.25,
+    "lunge": 0, "recover": 1.4, "sight": 560, "size": [90, 180], "knock": [520, -320]},
+  "manananggal_upper": {"hp": 10, "speed": 140, "windup": 0.7, "attack_range": 300, "attack_time": 0.6,
+    "lunge": 400, "recover": 0.9, "sight": 760, "size": [44, 30], "knock": [300, -220],
+    "flies": true},
+  "manananggal_lower": {"hp": 1, "speed": 0, "windup": 0.4, "attack_range": 0, "attack_time": 0.0,
+    "lunge": 0, "recover": 0.0, "sight": 0, "size": [34, 50], "knock": [0, 0]}
 }
