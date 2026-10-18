@@ -94,7 +94,9 @@ def draw(g: Giant, st: Stance) -> Sculpt:
     S = g.size
     s = Sculpt(S, S)
     far_skin = g.skin[[0, 0, 1, 2, 3, 3]]
-    mats = [("far", far_skin), ("skin", g.skin), ("hair", g.hair), ("hair_lit", g.hair[[1, 2, 3, 4, 4]]),
+    # The near limbs are the skin's own colour under another name, so an edge is drawn where they
+    # cross the body -- otherwise an arm hanging in front of the chest melts into it.
+    mats = [("far", far_skin), ("skin", g.skin), ("limb", g.skin), ("hair", g.hair), ("hair_lit", g.hair[[1, 2, 3, 4, 4]]),
         ("hoof", HOOF), ("eye", EYE_RED), ("tooth", TOOTH), ("gum", GUM), ("gold", GOLD)]
     if g.cloth is not None:
         mats.append(("cloth", g.cloth))
@@ -112,6 +114,8 @@ def draw(g: Giant, st: Stance) -> Sculpt:
     # Far limbs first.
     _arm(s, g, "far", shoulder_far, -st.arm_swing * math.sin(st.phase * math.tau), st.arms_up, hands)
     _leg(s, g, "far", (hip[0] - 3, hip[1]), st.phase + 0.5, st, ground - 1)
+    # The near leg before the body, so the top of the thigh goes under the hips and not over them.
+    _leg(s, g, "limb", (hip[0] + 3, hip[1]), st.phase, st, ground)
     # Torso: pelvis, waist, chest.
     s.ellipse("skin", hip[0], hip[1] - 2, g.waist_r + 2, 7)
     s.capsule("skin", (hip[0], hip[1] - 4), (neck_base[0], neck_base[1] + g.chest_r * 0.7), g.waist_r, g.chest_r)
@@ -125,10 +129,9 @@ def draw(g: Giant, st: Stance) -> Sculpt:
             (hip[0] + w * 0.75 + sway, hip[1] + 22), (hip[0] + w * 0.3 + sway, hip[1] + 24)], bulge=0.25)
         s.poly("cloth", [(hip[0] - w * 0.9, hip[1] - 4), (hip[0] - w * 0.3, hip[1] - 4),
             (hip[0] - w * 0.4 - sway, hip[1] + 14), (hip[0] - w * 0.95 - sway, hip[1] + 13)], bulge=0.25)
-    _leg(s, g, "skin", (hip[0] + 3, hip[1]), st.phase, st, ground)
     # The head.
     head_info = HEADS[g.head](s, g, st, neck_base, lean)
-    _arm(s, g, "skin", shoulder_near, st.arm_swing * math.sin(st.phase * math.tau), st.arms_up, hands)
+    _arm(s, g, "limb", shoulder_near, st.arm_swing * math.sin(st.phase * math.tau), st.arms_up, hands)
     # Ribs on a gaunt chest.
     if g.gaunt:
         cx, cy = neck_base[0] + 2, neck_base[1] + g.chest_r * 0.5
