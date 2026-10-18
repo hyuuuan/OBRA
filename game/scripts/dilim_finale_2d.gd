@@ -218,6 +218,8 @@ func _send_flier(kind: String) -> void:
 			foe = ManananggalUpper2D.new()
 		"tiktik":
 			foe = Tiktik2D.new()
+		"wakwak":
+			foe = Wakwak2D.new()
 		_:
 			foe = FlyingEnemy2D.new()
 	foe.kind = kind
