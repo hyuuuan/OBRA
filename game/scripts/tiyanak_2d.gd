@@ -21,8 +21,9 @@ const CRY_EVERY := 4.0
 ## How far it goes from where it sits, chasing her.
 const LEASH := 160.0
 ## Its lure: from this far west of it to the far edge of its undergrowth, and no higher above the
-## ground it sits on than this -- the path over the drop is out of it.
-const LURE_WEST := 240.0
+## ground it sits on than this -- the path over the drop is out of it. Short of the path's first
+## log (at its mark, 250 west), so she can step up onto the path from outside the lure.
+const LURE_WEST := 180.0
 const LURE_HEIGHT := 70.0
 ## The undergrowth it hides the drop with, from just behind it out over the drop.
 const UNDERGROWTH := Rect2(-44.0, -58.0, 480.0, 58.0)
