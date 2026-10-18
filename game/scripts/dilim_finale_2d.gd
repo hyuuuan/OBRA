@@ -30,6 +30,8 @@ const ASWANG_FORMS := ["aswang_dog", "aswang_pig"]
 const WAVE_SIZE := 2
 const REPLACE_SECONDS := 6.0
 const MANANANGGAL_DRIVE_OFF := 8
+## A sun she draws brings the morning this much closer -- once a wave (Kent's design).
+const SUN_HURRIES := 15.0
 ## How high over the ground the fliers come in.
 const FLIER_HEIGHT := 260.0
 ## Where they come from: the clearing's edges, this far either side of its middle, on the ground.
@@ -48,6 +50,8 @@ var _waiting: Array[float] = []
 var _next_side := 1.0
 var _wave := -1
 var _forms := 0
+## The wave a sun last hurried, so each wave takes only one.
+var _hurried := -1
 
 
 func _ready() -> void:
@@ -81,6 +85,16 @@ func has_dawned() -> bool:
 	return _done
 
 
+## A sun drawn in the night: the clock jumps SUN_HURRIES on, if this wave has not had one. Whether
+## it did is the answer.
+func hurry_dawn() -> bool:
+	if not _running or _hurried == _wave:
+		return false
+	_hurried = _wave
+	elapsed += SUN_HURRIES
+	return true
+
+
 ## Which wave the night is in, 0 to 2, or -1 before it begins.
 func current_wave() -> int:
 	return _wave
@@ -112,6 +126,7 @@ func reset_for_restore() -> void:
 	_next_side = 1.0
 	_wave = -1
 	_forms = 0
+	_hurried = -1
 
 
 func _begin() -> void:
