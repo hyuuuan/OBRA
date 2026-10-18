@@ -325,12 +325,17 @@ def draw_bungisngis(st: Stance, club: bool = True) -> Sculpt:
         hand = s.hands[-1]
         # The club: a knotted log, gripped, its head toward where the arm points.
         up = st.arms_up
-        tip = (hand[0] + 6 - up * 4, hand[1] + 34 - up * 80)
-        s.capsule("wood", hand, tip, 3.0, 7.0)
-        for k in range(3):
-            t = 0.45 + k * 0.2
-            knot = (hand[0] + (tip[0] - hand[0]) * t, hand[1] + (tip[1] - hand[1]) * t)
-            s.dot(knot[0] + 2, knot[1], s.tone("wood", 0))
+        tip = (hand[0] + 8 - up * 4, hand[1] + 40 - up * 90)
+        s.tube("wood", [hand, _along(hand, tip, 0.55), tip], [3.4, 5.0, 8.5])
+        # Its head swollen and knotted, the stubs of lopped branches standing off it.
+        s.ellipse("wood", tip[0], tip[1], 8.5, 8.5)
+        for t, side in [(0.62, 1), (0.8, -1), (0.95, 1)]:
+            knob = _along(hand, tip, t, side * 6.5)
+            s.ellipse("wood", knob[0], knob[1], 3.0, 2.6)
+        for t in (0.35, 0.6, 0.85):
+            knot = _along(hand, tip, t)
+            s.dot(knot[0] + 1, knot[1], s.tone("wood", 1))
+            s.dot(knot[0] + 2, knot[1] + 1, s.tone("wood", 0))
     return s
 
 
