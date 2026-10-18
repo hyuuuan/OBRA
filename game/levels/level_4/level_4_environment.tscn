@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://scripts/santelmo_2d.gd" id="10_santelmo"]
 [ext_resource type="Script" path="res://scripts/nuno_mound_2d.gd" id="11_mound"]
 [ext_resource type="Script" path="res://scripts/dilim_finale_2d.gd" id="12_finale"]
+[ext_resource type="Script" path="res://scripts/satchel_pickup_2d.gd" id="13_pickup"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -190,6 +191,57 @@ script = ExtResource("11_mound")
 position = Vector2(21900.0, 600.0)
 script = ExtResource("12_finale")
 arena_west = 21400.0
+
+; Lola's things, lying where she will find them. Aswang drop more as they fall.
+[node name="Pickups" type="Node2D" parent="GameplayPlane"]
+
+; the edge of the woods: the first of Lola's things, early
+[node name="Asin1" type="Area2D" parent="GameplayPlane/Pickups"]
+position = Vector2(1100.0, 600.0)
+script = ExtResource("13_pickup")
+item = "asin"
+amount = 2
+pickup_id = "L4_P_ASIN1"
+
+; the first clearing: a light that costs no ink
+[node name="Kandila1" type="Area2D" parent="GameplayPlane/Pickups"]
+position = Vector2(5250.0, 600.0)
+script = ExtResource("13_pickup")
+item = "kandila"
+amount = 1
+pickup_id = "L4_P_KANDILA1"
+
+; the long dark between the tikbalang and the kapre
+[node name="Abo1" type="Area2D" parent="GameplayPlane/Pickups"]
+position = Vector2(11400.0, 600.0)
+script = ExtResource("13_pickup")
+item = "abo"
+amount = 1
+pickup_id = "L4_P_ABO1"
+
+; before the kapre
+[node name="Bawang1" type="Area2D" parent="GameplayPlane/Pickups"]
+position = Vector2(12600.0, 600.0)
+script = ExtResource("13_pickup")
+item = "bawang"
+amount = 1
+pickup_id = "L4_P_BAWANG1"
+
+; the second clearing: the one oil the woods give freely
+[node name="Langis1" type="Area2D" parent="GameplayPlane/Pickups"]
+position = Vector2(15350.0, 600.0)
+script = ExtResource("13_pickup")
+item = "langis"
+amount = 1
+pickup_id = "L4_P_LANGIS1"
+
+; before the manananggal, where salt is the pragmatist's way
+[node name="Asin2" type="Area2D" parent="GameplayPlane/Pickups"]
+position = Vector2(19750.0, 600.0)
+script = ExtResource("13_pickup")
+item = "asin"
+amount = 3
+pickup_id = "L4_P_ASIN2"
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 

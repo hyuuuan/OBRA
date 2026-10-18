@@ -61,7 +61,7 @@ HEADLESS=(
   run_level3_audit run_nodraw_level3 run_bakunawa_probe run_level3_finish_probe
   run_swim_reach_probe run_level3_boat_probe run_level3_trouble_probe
   run_level3_play_probe run_level3_sea_probe run_opening_probe run_resume_probe
-  run_level4_audit run_level4_seg1_probe run_level4_finale_probe
+  run_level4_audit run_level4_seg1_probe run_level4_finale_probe run_satchel_probe
 )
 WINDOW=(run_click_ui run_hud_watch_level1 run_real_drawing_probe)
 
@@ -138,7 +138,7 @@ if (( WITH_PYTHON )); then
   print "[start $began]" >> "$LOG"
   "$PY" -m unittest tests.test_backend_lifecycle tests.test_preprocess_paper \
     tests.test_backend_telemetry tests.test_manifest_contract tests.test_backend_serve \
-    tests.test_suite_watch tests.test_build_dilim_creatures tests.test_build_dilim >> "$LOG" 2>&1
+    tests.test_suite_watch tests.test_build_dilim_creatures tests.test_build_dilim tests.test_build_dilim_props >> "$LOG" 2>&1
   note_result python $? $(( EPOCHSECONDS - began ))
 fi
 

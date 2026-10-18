@@ -461,6 +461,22 @@ func _build_level_furniture() -> void:
 	dawn_clock.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	dawn_clock.position = Vector2(-DawnClockHud.SIZE.x * 0.5, DAWN_CLOCK_TOP)
 	$CanvasLayer.add_child(dawn_clock)
+	# Bottom centre: Lola's things on Z, X, C and V.
+	satchel = Satchel.new()
+	quick_slots = QuickSlotBar.new()
+	quick_slots.name = "QuickSlots"
+	quick_slots.bind(satchel)
+	quick_slots.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	quick_slots.position = Vector2(-quick_slots.size.x * 0.5, -quick_slots.size.y - QUICK_SLOTS_BOTTOM)
+	$CanvasLayer.add_child(quick_slots)
+	for node in find_children("*", "Area2D", true, false):
+		if node is SatchelPickup2D:
+			_wire_pickup(node as SatchelPickup2D)
+	# Every aswang that falls, now or later -- the finale makes its own as the night goes.
+	get_tree().node_added.connect(_on_node_added)
+	for node in find_children("*", "CharacterBody2D", true, false):
+		_on_node_added(node)
+	_drops.randomize()
 
 
 ## INK COMES BACK AT A CLEARING (Kent: "a single clearing restores both"). On arriving, before the
@@ -546,4 +562,234 @@ func _on_dawn() -> void:
 	await get_tree().create_timer(MORNING_HOLD, false).timeout
 	if is_inside_tree():
 		_complete_level()
+
+
+# --- The satchel ----------------------------------------------------------------------------
+
+## Lola's things, counted, four on quick slots (config/satchel.json, Satchel).
+var satchel: Satchel
+var quick_slots: QuickSlotBar
+const QUICK_SLOTS_BOTTOM := 28.0
+
+
+func _handle_level_input(event: InputEvent) -> bool:
+	for index in range(Satchel.SLOTS):
+		if event.is_action_pressed("quick_slot_%d" % (index + 1)):
+			return use_quick_slot(index)
+	return false
+
+
+## Z, X, C or V: the thing on that slot, used now, and one fewer. Spent only if it did something.
+## Returns whether the press was the satchel's -- it is not while a drawing is being placed (the
+## same keys turn and size it), drawn, or the bag is open: those keep the key.
+func use_quick_slot(index: int) -> bool:
+	if not _quick_slots_answer():
+		return false
+	var id := satchel.slot_item(index)
+	if id.is_empty() or satchel.count(id) <= 0:
+		return true
+	if _use_from_satchel(id):
+		satchel.take(id)
+		quick_slots.flash(index)
+		Telemetry.record_event("satchel_used", {"level_id": LevelManager.current_level_id, "item": id})
+	return true
+
+
+func _quick_slots_answer() -> bool:
+	if satchel == null or get_tree().paused:
+		return false
+	if placement_controller != null and placement_controller.is_placing():
+		return false
+	if draw_panel != null and draw_panel.is_open():
+		return false
+	return not (inventory_screen != null and inventory_screen.is_open())
+
+
+## Every pickup in the woods, placed or dropped, is answered here when she walks into it. One this
+## run has already taken is not there to find.
+func _wire_pickup(pickup: SatchelPickup2D) -> void:
+	if not pickup.pickup_id.is_empty() and pickup_taken_this_run(pickup.pickup_id):
+		pickup.queue_free()
+		return
+	if not pickup.touched.is_connected(_on_pickup_touched):
+		pickup.touched.connect(_on_pickup_touched)
+
+
+## A Continue says what this run took before it: those are gone from the woods.
+func _show_taken_pickups() -> void:
+	for node in find_children("*", "Area2D", true, false):
+		var pickup := node as SatchelPickup2D
+		if pickup != null and not pickup.pickup_id.is_empty() and pickup_taken_this_run(pickup.pickup_id):
+			pickup.queue_free()
+
+
+## Into the satchel if there is room; if not it stays where it lies, for later. The first of each
+## kind she finds says what it is and which key it is on.
+func _on_pickup_touched(pickup: SatchelPickup2D) -> void:
+	var first := satchel.count(pickup.item) == 0 and not _met.has(pickup.item)
+	var took := satchel.add(pickup.item, pickup.amount)
+	if took <= 0:
+		return
+	if not pickup.pickup_id.is_empty():
+		note_pickup_taken(pickup.pickup_id)
+	pickup.take()
+	var index := satchel.slots().find(pickup.item)
+	quick_slots.flash(index)
+	if first:
+		_met[pickup.item] = true
+		var row := satchel.row(pickup.item)
+		# Named through the same lookup the prompts use, so a rebinding is named as bound. Not by
+		# with_keys: its {key:...} takes no digits, and every slot's action has one.
+		var on := " It is on %s." % ControlsKeys.key_cap_for("quick_slot_%d" % (index + 1)) \
+			if index >= 0 else ""
+		hint_bar.show_hint("%s -- %s.%s" % [row.get("display_name", pickup.item),
+			String(row.get("gloss", "")).to_lower(), on], _companion_speaker(), 4.0)
+
+
+# --- What a fallen aswang drops -----------------------------------------------------------
+
+## Kent's design: "Aswangs drop them. That closes the loop: fighting feeds the economy that lets
+## you keep fighting." Each of Lola's things rolls its own `drop_chance`, so a fall can drop
+## nothing or more than one; lamp oil never while the last clearing's night runs ("Langis carried
+## in is what the player has"). Seedable, so a probe can count what a known stream gives.
+var _drops := RandomNumberGenerator.new()
+## How far apart two things dropped by one fall lie.
+const DROP_SPREAD := 26.0
+
+
+func set_drop_seed(seed_value: int) -> void:
+	_drops.seed = seed_value
+
+
+func _on_node_added(node: Node) -> void:
+	var foe := node as Enemy2D
+	if foe != null and not foe.died.is_connected(_on_foe_fell):
+		foe.died.connect(_on_foe_fell)
+
+
+func _on_foe_fell(foe: Enemy2D) -> void:
+	if satchel == null or not is_instance_valid(foe):
+		return
+	var night := _finale != null and _finale.is_running()
+	var dropped := 0
+	for id in satchel.ids():
+		var row := satchel.row(id)
+		if night and bool(row.get("never_in_finale", false)):
+			continue
+		if _drops.randf() >= float(row.get("drop_chance", 0.0)):
+			continue
+		var pickup := SatchelPickup2D.new()
+		pickup.item = id
+		pickup.position = foe.global_position + Vector2(DROP_SPREAD * dropped, foe.body_size.y * 0.5)
+		pickup.touched.connect(_on_pickup_touched)
+		get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(pickup)
+		dropped += 1
+
+
+## The kinds she has found at least once this run, for the first-find line.
+var _met: Dictionary = {}
+
+
+## What each thing does, by its `use` in the file. False when it cannot be used here and now, so
+## it is not spent.
+func _use_from_satchel(id: String) -> bool:
+	var item := satchel.row(id)
+	match String(item.get("use", "")):
+		"oil":
+			return _pour_oil(int(item.get("stages", 2)))
+		"candle":
+			return _set_down_a_candle(float(item.get("radius", 220.0)), float(item.get("seconds", 45.0)))
+		"ward":
+			return _crush_garlic(float(item.get("radius", 150.0)), float(item.get("seconds", 10.0)))
+		"throw":
+			return _throw_salt(item)
+		"dust":
+			return _throw_ash(item)
+		_:
+			return false
+
+
+## KANDILA: lit and set down at her feet, a light that costs no ink.
+func _set_down_a_candle(radius: float, seconds: float) -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	var candle := CandleFlame2D.new()
+	candle.radius = radius
+	candle.seconds = seconds
+	candle.position = player.global_position
+	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(candle)
+	return true
+
+
+## BAWANG: crushed at her feet, a ward nothing that hunts by smell will cross.
+func _crush_garlic(radius: float, seconds: float) -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	var ward := BawangWard2D.new()
+	ward.radius = radius
+	ward.seconds = seconds
+	ward.position = player.global_position
+	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(ward)
+	return true
+
+
+## ASIN: a handful thrown ahead of her, the way she faces, from her middle.
+func _throw_salt(item: Dictionary) -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	var throw := AsinThrow2D.new()
+	throw.reach = float(item.get("reach", 300.0))
+	throw.burn_ticks = int(item.get("burn_ticks", 3))
+	throw.burn_seconds = float(item.get("burn_seconds", 2.4))
+	var facing: Variant = player.get(&"_facing")
+	throw.direction = signf(float(facing)) if facing != null and float(facing) != 0.0 else 1.0
+	throw.position = PlayerHurtbox2D.middle_of(player)
+	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(throw)
+	return true
+
+
+## ABO: a handful thrown into the air where she stands.
+func _throw_ash(item: Dictionary) -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	var dust := AboDust2D.new()
+	dust.radius = float(item.get("radius", 160.0))
+	dust.stun_seconds = float(item.get("stun_seconds", 1.5))
+	dust.reveal_seconds = float(item.get("reveal_seconds", 6.0))
+	dust.position = player.global_position
+	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(dust)
+	return true
+
+
+## LANGIS: stages back into the lantern. Not when it is already full -- that would only waste it.
+func _pour_oil(stages: int) -> bool:
+	if player_health == null or player_health.stage >= PlayerHealth.FULL:
+		return false
+	player_health.refill(stages)
+	return true
+
+
+# --- What a checkpoint keeps of the satchel ---------------------------------------------------
+
+## Kent: "death rolls ink and drawings back to the checkpoint; collectibles kept." So a knockout or
+## a fall leaves the satchel as it is -- what she found since the checkpoint is still hers -- and
+## only a Continue, which starts the level fresh, takes it from the checkpoint. Plain counts and
+## slot ids: a run state holding an object is dropped whole on its way to disk.
+var _resuming := false
+
+
+func _level_run_state() -> Dictionary:
+	return {"satchel": satchel.to_data()} if satchel != null else {}
+
+
+func _restore_level_run_state(state: Dictionary) -> void:
+	if _resuming and satchel != null and state.get("satchel") is Dictionary:
+		satchel.from_data(state["satchel"] as Dictionary)
+
+
+func _resume_saved_checkpoint() -> bool:
+	_resuming = true
+	var resumed := super()
+	_resuming = false
+	return resumed
 
