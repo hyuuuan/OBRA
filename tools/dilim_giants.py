@@ -241,7 +241,7 @@ TIK_SKIN = hexes("#120806", "#2c160c", "#462414", "#64361e", "#86502c", "#a86c3e
 TIK_HAIR = hexes("#030202", "#0c0907", "#18120d", "#261d16", "#3a2d22")
 
 TIKBALANG = Giant("tikbalang", TIK_SKIN, TIK_HAIR, size=200, leg=62, thigh_r=8.0, shin_r=5.4, torso=40,
-    chest_r=15, waist_r=10, arm=60, arm_r=5.0, neck=12, head="horse", feet="hoof", gaunt=True)
+    chest_r=14, waist_r=9, arm=70, arm_r=4.6, neck=12, head="horse", feet="hoof", gaunt=True)
 
 
 def walk(n: int, **kw) -> list[Stance]:
