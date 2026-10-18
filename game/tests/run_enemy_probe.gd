@@ -256,10 +256,12 @@ func _its_strips_follow_what_it_is_doing() -> void:
 		mirrored = mirrored or dog.art.flip_h
 	_check(dog.art.has_art() and dog.art.visible and seen.has("run") and seen.has("windup") and mirrored,
 		"a dog's strips play its run and its windup, turned toward her", "played %s" % [seen.keys()])
+	# Every Dilim kind has strips now; one with none still keeps its placeholder body.
 	var bird := _enemy(FlyingEnemy2D, "wakwak", Vector2(900.0, FLOOR_Y - 200.0))
 	await _frames(2)
+	bird.art.load_kind(Enemy2D.ART, "no_strips_for_this", ["idle", "run"])
 	_check(not bird.art.has_art() and not bird.art.visible,
-		"a kind with no strips yet keeps its placeholder body", "wakwak")
+		"a kind with no strips yet keeps its placeholder body", "a kind with none")
 
 
 # --- fixture ---------------------------------------------------------------------------
