@@ -11,6 +11,8 @@ extends Node
 ## profile stores. dB is derived here and never persisted -- linear_to_db(0.0) is
 ## -inf, a value that must never reach AudioServer or a save file.
 
+## Every play_sfx, with or without a file behind it: the id and the loudness asked for.
+signal sfx_requested(id: StringName, loudness: float)
 
 const CATALOG_PATH := "res://config/audio.json"
 
@@ -110,10 +112,12 @@ func bus_linear(bus: StringName) -> float:
 
 ## Play a one-shot by id, at `loudness` 0..1 of the SFX bus (a call the level means quieter or
 ## louder -- the tik-tik's call, louder the further off it is). An id with no file behind it is
-## silence, not an error -- that is what lets the call sites exist before the sounds do.
+## silence, not an error -- that is what lets the call sites exist before the sounds do -- but
+## the request is still announced (`sfx_requested`), so a probe can hear what would have played.
 ## Nothing at or under zero is played: linear_to_db(0) is -inf.
 func play_sfx(id: StringName, loudness: float = 1.0) -> void:
 	var level := clampf(loudness, 0.0, 1.0)
+	sfx_requested.emit(id, level)
 	var stream := _stream_for(_sfx_paths, id)
 	if stream == null or _sfx_players.is_empty() or level <= 0.0:
 		return
