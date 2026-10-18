@@ -64,6 +64,8 @@ const POSES := {
 	&"swim_float": {"texture": SWIM_FLOAT, "count": 4, "cycle": true, "frame": 0},
 	# Wading/sinking in earlier levels still uses the struggling jump pose.
 	&"tread": {"texture": JUMP, "count": 1, "cycle": false, "frame": 0},
+	# PLACEHOLDER until there is hurt art: the jump frame, leaning back from the blow.
+	&"hurt": {"texture": JUMP, "count": 1, "cycle": false, "frame": 0},
 }
 ## Torso over the controller's capsule; the supplied art already swims head first.
 const SWIM_OFFSET := Vector2(0.0, -40.0)
@@ -81,6 +83,9 @@ const SWIM_MAX_TILT := 0.5
 ## screen in the character's hand; the stand-in silhouette this file used to draw beside
 ## it was a second copy of the same axe.
 @export var carrying: String = ""
+## How far a knocked-back figure leans away from the blow, in radians. Negative is back from her
+## facing whichever way that is, since the facing mirror flips the sprite's rotation with it.
+const HURT_LEAN := -0.22
 ## Swimming only: -1 rising .. 1 diving. The head leads the way the stroke is going.
 @export var tilt: float = 0.0
 ## Floating at rest (the front idle) only: how far below the feet's point her painted feet hang,
@@ -211,3 +216,5 @@ func refresh() -> void:
 		_sprite.offset = Vector2(-CELL.x * 0.5, -FOOT_ROW)
 		_sprite.hframes = count
 		_sprite.frame = frame
+		if pose == &"hurt":
+			_sprite.rotation = HURT_LEAN

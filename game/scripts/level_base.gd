@@ -61,6 +61,24 @@ func _apo_can_swim() -> bool:
 	return false
 
 
+## Whether the player can be hurt here: the lantern as health, and a hurtbox enemies can find.
+## Off everywhere but a level that fights; with it off, nothing below is ever built.
+func _has_player_health() -> bool:
+	return false
+
+
+## Whether the camera follows in physics ticks, in step with the player, rather than easing toward
+## her every render frame. Off everywhere but where a fight is watched closely.
+func _camera_follows_physics() -> bool:
+	return false
+
+
+## What she is told when the lantern goes out and she is back at the checkpoint. A "%s" is
+## filled with the place, as _return_to_safety does for every other rescue.
+func _knockout_words() -> String:
+	return "The light went out. Back to %s."
+
+
 ## What this level DOES when an obstacle is solved. True means the level handled the beat
 ## and the generic "<obstacle>.<route>.solved" line must not also fire.
 func _on_route_solved(_obstacle_id: String, _route: String) -> bool:
@@ -372,6 +390,9 @@ var dialogue_node: DialogueNode2D
 @onready var route_layout: RouteLayout2D = get_node_or_null(
 	^"EnvironmentBaseplate/GameplayPlane/Routes")
 var player: Node2D
+## The lantern and the hurtbox, where _has_player_health() says the player can be hurt; else null.
+var player_health: PlayerHealth = null
+var player_hurtbox: PlayerHurtbox2D = null
 var lolo: Lolo
 ## Lolo's lines for this level, from config/dialogue.json.
 var _script_lines: Dictionary = {}
@@ -482,6 +503,10 @@ func _ready() -> void:
 	_apply_level_identity()
 	_resolve_level_nodes()
 	_build_obstacle_layer()
+	_arm_player_health()
+	var world_camera := _world_camera()
+	if world_camera != null:
+		world_camera.follow_on_physics = _camera_follows_physics()
 	_spawn_wanderer()
 	_load_dialogue()
 	_spawn_lolo()
@@ -3807,6 +3832,11 @@ func _adopt_player(new_player: Node2D, previous_state: Dictionary, flash: bool) 
 
 	var old_player := player
 	player = new_player
+	if player_hurtbox != null:
+		player_hurtbox.player = new_player
+		player_hurtbox.follow()
+		var figure := new_player.get_node_or_null(^"Figure") as CanvasItem
+		player_health.set_flicker_target(figure if figure != null else new_player as CanvasItem)
 	if action_prompts != null:
 		action_prompts.follow(new_player)
 	if lolo != null and is_instance_valid(lolo):
@@ -3818,6 +3848,36 @@ func _adopt_player(new_player: Node2D, previous_state: Dictionary, flash: bool) 
 		# of a crab, 6 px up out of a frog (run_revert_probe), the same jolt for any swap.
 		_stop_colliding(old_player)
 		old_player.queue_free()
+
+
+## The lantern and the hurtbox, built once, before the first player is adopted so the adoption
+## points them at her.
+func _arm_player_health() -> void:
+	if not _has_player_health():
+		return
+	player_health = PlayerHealth.new()
+	player_health.name = "PlayerHealth"
+	add_child(player_health)
+	player_health.snuffed.connect(_on_lantern_snuffed)
+	player_hurtbox = PlayerHurtbox2D.new()
+	player_hurtbox.name = "PlayerHurtbox"
+	player_hurtbox.health = player_health
+	entity_root.add_child(player_hurtbox)
+
+
+## ⚠ DEFERRED. The blow that snuffs it arrives from inside an enemy's physics callback, and a
+## restore moves bodies and can swap the player -- not something to do while the physics server
+## is still flushing the query that found her.
+func _on_lantern_snuffed() -> void:
+	call_deferred("_knockout")
+
+
+## Out: back to the last checkpoint with a full flame and the longer grace.
+func _knockout() -> void:
+	var words := _knockout_words()
+	_return_to_safety(words.replace("%s", "the start"), words)
+	if player_health != null:
+		player_health.reset_full()
 
 
 ## Takes a body out of every collision at once: everything it is made of, areas included.
