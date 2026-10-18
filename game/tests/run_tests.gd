@@ -955,7 +955,7 @@ func _test_level_framework() -> void:
 	menu.call("_apply_backdrop", "")
 	_expect(bool(title_card.get("shows_vista")) and menu.get_node_or_null("MenuLayer/MenuRoot/Backdrop") == null,
 		"with no level played, the home screen does not show the vista")
-	for backdrop_level in ["level_1", "level_2", "level_3"]:
+	for backdrop_level in ["level_1", "level_2", "level_3", "level_4"]:
 		menu.call("_apply_backdrop", backdrop_level)
 		var backdrop := menu.get_node_or_null("MenuLayer/MenuRoot/Backdrop")
 		var painted := 0
