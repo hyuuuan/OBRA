@@ -152,6 +152,13 @@ script = ExtResource("8_terrain")
 platforms = Array[Rect2]([Rect2(19330, 747, 120, 73), Rect2(19390, 674, 60, 73)])
 body = "stone"
 
+; AND THE HIGH PATH OVER IT, 200 up: past a jump (94), so only something drawn to climb gets her
+; onto it -- a ladder, stairs, a tree, a body that climbs -- and along it over the giant and the
+; ravine both, down again on the far bank. Kent's design: "go over or around it entirely".
+[node name="HighPath" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+branches = Array[Rect2]([Rect2(18880, 400, 800, 18)])
+
 [node name="Canopy" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(11200.0, -520.0)
 
