@@ -650,6 +650,10 @@ func _keel() -> float:
 ## barricade wants the axe). It also shoves loose bodies, so a swing does something
 ## visible even where the level has put nothing to cut.
 func _swing_blade(actor: Node2D) -> String:
+	# Seen to swing, whether or not anything is in reach: the apo strikes the attack pose. A drawn
+	# creature holding the blade has no such pose and is left as it is.
+	if actor != null and is_instance_valid(actor) and actor.has_method("show_swing"):
+		actor.call("show_swing")
 	var struck := 0
 	var shoved := 0
 	var facing := _facing_of(actor)
