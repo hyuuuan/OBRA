@@ -313,8 +313,9 @@ one they learn by being put back. Art may restyle it; it may not replace it with
 ## Dilim — what is painted, what is authored, and what is drawn in code
 
 **Updated 19 October.** Level 4's delivery (`Mt Makiling Level 4.zip`) is forest plates and a
-labelled tileset and **no creature art**, so Dilim's world is painted and nearly everything that
-lives in it is a stand-in. **See them all at once:**
+labelled tileset and **no creature art**, so Dilim's world is painted and everything that lives in
+it is a developer's: the creatures are sculpted pixel strips now, not code-drawn bodies, but they
+are still stand-ins for an artist's. **See them all at once:**
 `godot -t --resolution 1600x900 --path game --script res://tests/run_visual_dilim_creatures.gd`
 writes each one beside her, in her light at play framing, to `/tmp/obra_dilim_*.png` and a sheet.
 That is the right way to judge them -- Dilim is dark, and a body that reads on a grey background
@@ -327,23 +328,31 @@ can vanish in the level.
 
 | What | Tool | Files | The contract |
 |---|---|---|---|
-| The aswang, dog and pig | `tools/build_dilim_creatures.py` | `assets/Level4/creatures/aswang_<form>_<anim>.png` | Six strips a form: `idle`, `run`, `windup`, `attack`, `hurt`, `death`, 48-px frames. Dark, but lighter than the night, so they read inside her light (#93) |
+| Every creature, and the kapre's balete | `tools/build_dilim_creatures.py`, on `tools/creature_sculpt.py` (the bodies in `dilim_beasts.py`, `dilim_giants.py`, `dilim_fliers.py`, `dilim_small.py`) | `assets/Level4/creatures/<kind>_<anim>.png` | A row of square frames, as tall as wide; a strip whose width is not a whole number of its height is one picture (the mound, the tree). Ground kinds stand on the bottom row, fliers are centred -- that point is the creature's position. Chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour, never black. Each script's own `_draw()` stays as the fallback while a strip is missing |
 | Lola's six things | `tools/build_dilim_props.py` | `assets/Level4/props/<id>.png` | 32-px icons, each on a leaf, each told apart by its brightest colour: salt, ash, garlic, candle, lamp oil, the stingray-tail whip. The quick slots and the pickups load them by id |
+
+**The creatures' strips, and what each has to say** -- a delivered strip of the same name replaces
+one with no code change:
+
+| Kind | Strips | What it has to say |
+|---|---|---|
+| Aswang, dog and pig | `aswang_dog_*`, `aswang_pig_*`: `idle` `run` `windup` `attack` `hurt` `death` | Dark, but lighter than the night, so they read inside her light (#93) |
+| Santelmo | `santelmo_idle`, `santelmo_hot` | A flame that wants her: brighter while it is coming |
+| The nuno's mound | `nuno_mound_idle` (one picture) | An earth mound with something left for the nuno -- a thing to be respectful round, never a target |
+| Sigbin | `sigbin_*`: the six states | Goat-like, long ears hanging, walking backwards. It shows only as much as the light on it, so in the dark it is a glint -- the windup's glint is its tell, and must stay |
+| Tikbalang | `tikbalang_idle`, `tikbalang_run` | A tall, lanky figure, horse-headed, a mane with three golden hairs, eyes catching the light |
+| Kapre | `kapre_idle`; its tree `kapre_tree_idle`, `kapre_tree_felled` (one picture each) | A dark hairy giant sat up a balete -- a strangler fig, its trunk a lattice of roots -- with a cigar's ember; the tree lies felled once it is chopped down |
+| Tiyanak | `tiyanak_idle`, `tiyanak_true`, `tiyanak_run` | A swaddled bundle that cries -- and, lit, what it is: small, hunched, red-eyed. Its undergrowth hides a drop and stirs when it cries |
+| Bungisngis | `bungisngis_*`: the six states, `laugh`, `aside` | A one-eyed giant with a club, always grinning, standing in the crossing like a wall; laughing helpless; sat aside |
+| Manananggal | `manananggal_upper_*`: the six states; `manananggal_lower_idle`, `manananggal_lower_death` | A pale torso with long hair on wide bat wings, hunting from above; and the hips and legs in a tapis it left standing in a hollow |
+| Wakwak | `wakwak_*`: the six states | A great dark bird, wings wide, a hooked beak |
+| Tik-tik | `tiktik_*`: the six states | A small dark long-beaked bird -- seen only with ash on it, so it carries the ash's grey |
 
 **Drawn in code** -- each its script's own `_draw()`, marked `PLACEHOLDER` there:
 
 | What | Script | What it has to say |
 |---|---|---|
-| Santelmo | `santelmo_2d.gd` | A flame that wants her: brighter while it is coming |
-| The nuno's mound | `nuno_mound_2d.gd` | An earth mound with something left for the nuno -- a thing to be respectful round, never a target |
-| Sigbin | `sigbin_2d.gd` (the base enemy's body) | Goat-like, walking backwards. It shows only as much as the light on it, so in the dark it is a glint -- the windup's glint is its tell, and must stay |
-| Tikbalang | `tikbalang_2d.gd` | A tall dark figure, horse-headed, eyes catching the light |
-| Kapre | `kapre_2d.gd` | A giant up its tree, a cigar's ember, and the smoke that turns her round |
-| Tiyanak | `tiyanak_2d.gd` | A swaddled bundle that cries -- and, lit, what it is: small, hunched, red-eyed. Its undergrowth hides a drop and stirs when it cries |
-| Bungisngis | `bungisngis_2d.gd` | A one-eyed giant with a club, always grinning, standing in the crossing like a wall; laughing helpless; sat aside |
-| Manananggal | `manananggal_upper_2d.gd`, `manananggal_lower_2d.gd` | A pale torso with long hair on wide wings, hunting from above; and the hips and legs it left standing in a hollow |
-| Wakwak | `wakwak_2d.gd` | A great dun bird, wings wide, a hooked beak |
-| Tik-tik | `tiktik_2d.gd` | A small dark long-beaked bird -- seen only with ash on it, so it carries the ash's grey |
+| The kapre's smoke | `kapre_2d.gd` | The cloud round its tree that turns her round, thinning once it is answered |
 | The night's things | `candle_flame_2d.gd`, `asin_throw_2d.gd`, `abo_dust_2d.gd`, `bawang_ward_2d.gd`, `whip_lash_2d.gd` | A candle stub and flame; salt grains in flight; ash spreading and thinning; a pale ring of garlic on the ground; the whip's arc |
 | Her lantern | `held_lantern_2d.gd` | A small iron lantern whose flame shrinks with each stage -- it is her health |
 | Her hurt and attack poses | `wanderer_figure.gd` | Hurt: the jump frame leaning back from a blow. Attack: the wave frame's raised arm leaning into a swing, for 0.25 s after every blade swing, in every level |
