@@ -75,6 +75,7 @@ func stir() -> float:
 
 
 func _physics_process(delta: float) -> void:
+	_pick_art()
 	_stir = maxf(0.0, _stir - delta)
 	if _gone:
 		return
@@ -167,7 +168,26 @@ func _flee_on(delta: float) -> void:
 		visible = false
 
 
+func _art_extras() -> Array:
+	return ["true"]
+
+
+## The bundle until a light shows it; then what is in it, and that running.
+func _pick_art() -> void:
+	if art == null or not art.has_art():
+		return
+	if _fleeing > 0.0:
+		art.play("run")
+	elif _revealed:
+		art.play("true")
+	else:
+		art.play("idle")
+	art.advance(get_physics_process_delta_time())
+
+
 func _draw() -> void:
+	if art != null and art.has_art():
+		return
 	var feet := body_size.y * 0.5
 	if _revealed:
 		# What it is: small, hunched, green-grey, red-eyed and fanged.

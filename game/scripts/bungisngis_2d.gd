@@ -60,6 +60,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	_clock += delta
 	if _laughing > 0.0:
+		art.play("laugh")
 		art.advance(delta)
 		_laughing -= delta
 		velocity = Vector2(0.0, velocity.y + 980.0 * delta)
@@ -69,6 +70,8 @@ func _physics_process(delta: float) -> void:
 			_sit_aside()
 		return
 	if _aside:
+		art.play("aside")
+		art.advance(delta)
 		return
 	super(delta)
 	queue_redraw()
@@ -152,7 +155,13 @@ func _sit_aside() -> void:
 	queue_redraw()
 
 
+func _art_extras() -> Array:
+	return ["laugh", "aside"]
+
+
 func _draw() -> void:
+	if art != null and art.has_art():
+		return
 	var feet := body_size.y * 0.5
 	var shake := sin(_clock * 40.0) * 2.0 if _laughing > 0.0 else 0.0
 	# Sat aside it is half as tall: squatting, still grinning.

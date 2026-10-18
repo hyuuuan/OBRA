@@ -93,6 +93,8 @@ func reset_for_restore() -> void:
 
 
 func _draw() -> void:
+	if art != null and art.has_art():
+		return
 	var flap := sin(_clock * 9.0) * 8.0
 	for side: float in [-1.0, 1.0]:
 		draw_colored_polygon(PackedVector2Array([Vector2(side * 8.0, -6.0),

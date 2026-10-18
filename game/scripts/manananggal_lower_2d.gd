@@ -46,6 +46,7 @@ func apply_burn(_ticks: int, _seconds: float) -> void:
 		return
 	_salted = true
 	_smoke = CRUMBLE_SECONDS
+	art.play("death")
 	salted.emit()
 	_die()
 
@@ -61,6 +62,8 @@ func reset_for_restore() -> void:
 
 
 func _draw() -> void:
+	if art != null and art.has_art():
+		return
 	var half := body_size * 0.5
 	draw_rect(Rect2(Vector2(-12.0, -half.y + 16.0), Vector2(10.0, body_size.y - 16.0)), SKIN)
 	draw_rect(Rect2(Vector2(2.0, -half.y + 16.0), Vector2(10.0, body_size.y - 16.0)), SKIN)
