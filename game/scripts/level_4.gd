@@ -979,13 +979,16 @@ func _pour_oil(stages: int) -> bool:
 var _resuming := false
 
 
+## What a Continue brings back of Lola's things: the satchel, and how many lashes the whip she
+## carries has left -- it is one thing with ten uses, and a resume must not hand her a fresh one.
 func _level_run_state() -> Dictionary:
-	return {"satchel": satchel.to_data()} if satchel != null else {}
+	return {"satchel": satchel.to_data(), "whip_lashes": _whip_uses} if satchel != null else {}
 
 
 func _restore_level_run_state(state: Dictionary) -> void:
 	if _resuming and satchel != null and state.get("satchel") is Dictionary:
 		satchel.from_data(state["satchel"] as Dictionary)
+		_whip_uses = int(state.get("whip_lashes", 0))
 
 
 func _resume_saved_checkpoint() -> bool:
