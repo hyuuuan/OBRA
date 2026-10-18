@@ -135,10 +135,17 @@ def draw(g: Giant, st: Stance) -> Sculpt:
     _leg(s, g, "far", (hip[0] - 3, hip[1]), st.phase + 0.5, st, ground - 1)
     # The near leg before the body, so the top of the thigh goes under the hips and not over them.
     _leg(s, g, "limb", (hip[0] + 3, hip[1]), st.phase, st, ground)
-    # Torso: pelvis, waist, chest.
-    s.ellipse("skin", hip[0], hip[1] - 2, g.waist_r + 2, 7)
-    s.capsule("skin", (hip[0], hip[1] - 4), (neck_base[0], neck_base[1] + g.chest_r * 0.7), g.waist_r, g.chest_r)
-    s.ellipse("skin", neck_base[0] + 1, neck_base[1] + g.chest_r * 0.6, g.chest_r + 1, g.chest_r * 0.8)
+    # Torso: one tube from the hips through the waist to a chest carried forward.
+    pelvis = (hip[0], hip[1] - 2)
+    top = (neck_base[0], neck_base[1] + g.chest_r * 0.35)
+    waist = _along(pelvis, top, 0.36)
+    chest = _along(pelvis, top, 0.72, g.chest_r * 0.12)
+    hips = g.waist_r * (0.95 if g.gaunt else 1.0) + (0.0 if g.gaunt else 2.0)
+    s.tube("skin", [(pelvis[0] + (2 if g.gaunt else 0), pelvis[1]), waist, chest, top], [hips, g.waist_r, g.chest_r, g.chest_r * 0.8])
+    # The chest's front, a mass of its own.
+    pec = (chest[0] + g.chest_r * 0.45, chest[1] + g.chest_r * 0.1)
+    if not g.gaunt:
+        s.ellipse("skin", pec[0], pec[1], g.chest_r * 0.6, g.chest_r * 0.5, flat=0.6)
     if g.cloth is not None:
         # A bahag: a band round the waist, a long flap hanging in front and a shorter one behind.
         w = g.waist_r
@@ -157,8 +164,11 @@ def draw(g: Giant, st: Stance) -> Sculpt:
         for k in range(4):
             y = cy + k * 3.5
             s.curve([(cx - g.chest_r * 0.7, y), (cx, y - 1.5), (cx + g.chest_r * 0.7, y + 0.5)], s.tone("skin", 1), only_on_body=True)
-    # Muscle lines and a lit edge down the near side.
-    s.curve([(hip[0] + 2, hip[1] - 8), (neck_base[0] + 3, neck_base[1] + 10)], s.tone("skin", 4), only_on_body=True)
+    # The line under the chest, and a lit edge down the back.
+    s.curve([(pec[0] - g.chest_r * 0.4, pec[1] + g.chest_r * 0.42), (pec[0] + g.chest_r * 0.1, pec[1] + g.chest_r * 0.5),
+             (pec[0] + g.chest_r * 0.55, pec[1] + g.chest_r * 0.3)], s.tone("skin", 1), only_on_body=True)
+    s.curve([(pelvis[0] - g.waist_r * 0.8, pelvis[1] - 6), (waist[0] - g.waist_r * 0.85, waist[1]),
+             (chest[0] - g.chest_r * 0.85, chest[1])], s.tone("skin", 4), only_on_body=True)
     if head_info:
         head_info()
     s.hands = hands
