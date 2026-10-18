@@ -14,7 +14,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 23
+const CHECKS := 24
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -31,6 +31,14 @@ func _run() -> void:
 		quit(2))
 	level = await _open_level()
 	finale = _the_finale()
+	# Every encounter answered the artist's way first, so the morning has one route to settle and
+	# none is left to answer itself as she is put past it (walking by the tiyanak on its path is the
+	# pragmatist's). What the profile held before, to count the morning's points against.
+	set_meta(&"routes_before", _route_points())
+	for encounter in ["L4_NUNO", "L4_SIGBIN", "L4_TIKBALANG", "L4_KAPRE", "L4_TIYANAK", "L4_BUNGISNGIS",
+			"L4_MANANANGGAL"]:
+		level.call("_answer", encounter, "artist")
+	await _frames(10)
 	await _nothing_before_the_clearing()
 	await _stepping_in_begins_the_night()
 	await _the_clock_comes_with_the_night()
@@ -305,9 +313,22 @@ func _the_dark_lifts_and_she_is_through() -> void:
 	var dark := float((level.get("darkness_layer") as Node).get(&"darkness"))
 	_check(dark < 0.05 and bool(level.get("_level_completed")), "the dark lifts, and the level is done",
 		"dark %.2f, completed %s" % [dark, level.get("_level_completed")])
+	var profile := root.get_node(^"PlayerProfile")
+	var gained := _route_points() - int(get_meta(&"routes_before", 0))
+	_check(gained == 1 and String(profile.call("last_route", "level_4")) == "artist",
+		"and the morning gives the level its one route point, the way it was answered",
+		"%d point(s), last route '%s'" % [gained, profile.call("last_route", "level_4")])
 
 
 # --- Helpers -------------------------------------------------------------------------------
+
+## Every route point the profile has given, all routes together.
+func _route_points() -> int:
+	var total := 0
+	for count: Variant in (root.get_node(^"PlayerProfile").call("route_counts") as Dictionary).values():
+		total += int(count)
+	return total
+
 
 func _open_level() -> Node:
 	var scene := (load("res://level_4.tscn") as PackedScene).instantiate()
