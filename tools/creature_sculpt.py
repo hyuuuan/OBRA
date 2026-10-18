@@ -81,6 +81,30 @@ class Sculpt:
         rr = np.maximum(r, 0.5)
         self._paint(mask, name, ox / rr, oy / rr)
 
+    def tube(self, name: str, points: list[tuple[float, float]], radii: list[float]) -> None:
+        """One part swept along a path, its radius given at each point -- a limb that swells at
+        the thigh and narrows at the knee, a root that twists. Unlike capsules chained end to end,
+        the light runs on unbroken across the joints: every pixel is lit from the one point of
+        the whole path it lies nearest (relative to the radius there)."""
+        best = np.full((self.h, self.w), np.inf, dtype=np.float32)
+        nx = np.zeros((self.h, self.w), dtype=np.float32)
+        ny = np.zeros((self.h, self.w), dtype=np.float32)
+        for (ax, ay), (bx, by), r0, r1 in zip(points, points[1:], radii, radii[1:]):
+            vx, vy = bx - ax, by - ay
+            length2 = max(vx * vx + vy * vy, 1e-6)
+            px = self.xs + 0.5 - ax
+            py = self.ys + 0.5 - ay
+            t = np.clip((px * vx + py * vy) / length2, 0.0, 1.0)
+            ox = px - t * vx
+            oy = py - t * vy
+            r = np.maximum(r0 + (r1 - r0) * t, 0.5)
+            q = np.sqrt(ox * ox + oy * oy) / r
+            closer = q < best
+            best = np.where(closer, q, best)
+            nx = np.where(closer, ox / r, nx)
+            ny = np.where(closer, oy / r, ny)
+        self._paint(best <= 1.0, name, nx, ny)
+
     def poly(self, name: str, points: list[tuple[float, float]], bulge: float = 0.35) -> None:
         # Even-odd fill, every pixel centre against every edge at once.
         px = self.xs + 0.5
