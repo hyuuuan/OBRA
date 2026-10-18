@@ -23,7 +23,7 @@ var _blinded: Array[Enemy2D] = []
 
 func _ready() -> void:
 	z_index = 7
-	for node in get_tree().get_nodes_in_group(Enemy2D.GROUP):
+	for node in get_tree().get_nodes_in_group(Enemy2D.FOES):
 		var foe := node as Enemy2D
 		if foe != null and not foe.is_dead() and foe.global_position.distance_to(global_position) <= radius:
 			foe.stun(stun_seconds)
