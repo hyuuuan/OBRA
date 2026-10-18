@@ -423,6 +423,26 @@ never needed this because Level 1 bans nothing.
 **New tags**: `feed`, `startle`, `strike` (populated here rather than in Level 3; `swim`
 stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
 
+## Level 3 (Dagat)
+
+Read **LEVEL_3.md** before touching `level_3.gd`, `config/level_03.json` or
+`config/dialogue_l3.json`. One journey with one fork -- the shore, boat or dive, the bakunawa
+(three resolutions, reached by both routes), the island and Lolo's farewell. Dagat hands on to
+Dilim; it no longer ends the run.
+
+**It changes the whole game, not just itself.** From Dagat on there is no transformation timer
+(a morph ends when she reverts or the ink runs out), **ink drains while she is transformed** and
+refills from sources in the level, and the bakunawa's protector route is the game's first fight.
+The drain is read from the profile's `NEW_BRUSH` flag, found on Dagat's shore, so Payyo and
+Piyesta replayed keep their ten-second timer -- never change `InkManager`'s constants for it.
+⚠ The drain contradicts FR-7 on purpose; fix the manuscript, do not put the old rule back.
+
+**Art:** `tools/build_dagat.py` cuts the delivery and fails if any of its 79 files goes unused;
+`tools/build_dagat_props.py` draws what the delivery shows but did not ship as a file. Swimming
+strips come from `tools/build_apo_swim.py`. Its suites -- `run_level3_audit`,
+`run_nodraw_level3`, `run_bakunawa_probe`, `run_level3_finish_probe`, `run_swim_reach_probe`,
+`run_level3_boat_probe`, `run_level3_trouble_probe` -- are all in `tools/run_suites.sh`.
+
 ## Gameplay Shape
 
 - Flow: a successful morph replaces the active player; a utility enters placement
