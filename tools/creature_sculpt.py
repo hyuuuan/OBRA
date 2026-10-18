@@ -121,7 +121,10 @@ class Sculpt:
         for a, b in zip(points, points[1:]):
             self.line(a, b, colour, only_on_body)
 
-    def render(self, outline: bool = True, seam: bool = True) -> Image.Image:
+    def render(self, outline: bool = True, seam: bool = True, cel: bool = True) -> Image.Image:
+        """Lit, toned and outlined. `cel` (the game's own way, and the default): flat bands -- a
+        deep shadow, a shadow, the base and a light -- with hard edges and no dither, and the seams
+        between parts in the outline's tone, as the delivered art draws them."""
         out = np.zeros((self.h, self.w, 4), dtype=np.uint8)
         lit = np.clip((self.nrm @ LIGHT) * 0.5 + 0.5, 0.0, 1.0)
         body = self.mat >= 0
@@ -130,10 +133,17 @@ class Sculpt:
             if not m.any():
                 continue
             n = len(ramp)
-            # Interior tones skip the darkest, which is the outline's.
-            level = lit * (n - 1.15) + 1.0
-            dither = BAYER4[self.ys % 4, self.xs % 4] - 0.5
-            idx = np.clip(np.floor(level + dither * 0.55), 1, n - 1).astype(int)
+            if cel:
+                # Four flat bands at most, the darkest tone kept for the outline.
+                # A part facing the viewer lands in the base band; only what turns toward the
+                # upper-left light catches the light band and the small highlight.
+                idx = np.where(lit > 0.90, n - 1, np.where(lit > 0.80, n - 2,
+                    np.where(lit > 0.58, max(1, n - 3), max(1, n - 4)))).astype(int)
+            else:
+                # Interior tones skip the darkest, which is the outline's.
+                level = lit * (n - 1.15) + 1.0
+                dither = BAYER4[self.ys % 4, self.xs % 4] - 0.5
+                idx = np.clip(np.floor(level + dither * 0.55), 1, n - 1).astype(int)
             out[m, :3] = ramp[idx[m]]
             out[m, 3] = 255
         if outline:
@@ -155,7 +165,8 @@ class Sculpt:
                     # only by chance, so take the darker of the pair's darkest tones, at 1.
                     a, b = mat[y, x], (mat[y + 1, x] if m is down else mat[y, x + 1])
                     ra, rb = self.ramps[a], self.ramps[b]
-                    pick = ra[1] if ra[1].sum() < rb[1].sum() else rb[1]
+                    tone = 0 if cel else 1
+                    pick = ra[tone] if ra[tone].sum() < rb[tone].sum() else rb[tone]
                     out[y, x, :3] = pick
         top = self.over[..., 3] > 0
         out[top] = self.over[top]
