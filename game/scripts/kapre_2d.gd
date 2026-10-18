@@ -31,6 +31,10 @@ var _clock := 0.0
 var cigar: Area2D
 
 
+## The balete it sits in, drawn (kapre_tree_idle / kapre_tree_felled); the code's tree below stands
+## in only while there is none.
+var tree_art: PixelStripAnimator
+
 ## Its strips (tools/build_dilim_creatures.py, or drawn art under the same names); the code-drawn
 ## body below stands in only while there are none.
 var art: PixelStripAnimator
@@ -47,6 +51,13 @@ func _make_art(kind: String, anims: Array, centre: bool, at: Vector2) -> void:
 
 
 func _ready() -> void:
+	# Its balete first, behind the kapre and the smoke: standing, or felled once it is down.
+	tree_art = PixelStripAnimator.new()
+	tree_art.name = "TreeArt"
+	tree_art.z_index = -1
+	add_child(tree_art)
+	tree_art.load_kind(Enemy2D.ART, "kapre_tree", ["idle", "felled"])
+	tree_art.play("idle")
 	_make_art("kapre", ["idle"], false, Vector2(-6.0, -CIGAR_HEIGHT + 30.0))
 	add_to_group(Enemy2D.GROUP)
 	add_to_group(LightField.GROUP)
@@ -104,6 +115,7 @@ func chop() -> bool:
 	_chops += 1
 	if _chops >= CHOPS_TO_FELL:
 		_felled = true
+		tree_art.play("felled")
 		clear_smoke()
 		leave()
 		return true
@@ -149,10 +161,10 @@ func reset_for_restore() -> void:
 
 ## PLACEHOLDER until it has art: its tree, the kapre up it, the cigar's ember, and the smoke.
 func _draw() -> void:
-	if not _felled:
+	if not tree_art.has_art() and not _felled:
 		draw_rect(Rect2(-TRUNK.x * 0.5, -TRUNK.y, TRUNK.x, TRUNK.y), BARK)
 		draw_circle(Vector2(0.0, -TRUNK.y - 40.0), 110.0, Color(0.07, 0.12, 0.07))
-	else:
+	elif not tree_art.has_art():
 		draw_rect(Rect2(-TRUNK.y * 0.5, -TRUNK.x, TRUNK.y, TRUNK.x), BARK)
 	var drawn := art != null and art.has_art()
 	if drawn:
