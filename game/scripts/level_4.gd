@@ -473,11 +473,18 @@ func _lift_curse() -> void:
 # --- The clearings ----------------------------------------------------------------------------
 
 const CLEARINGS := ["L4_REST1", "L4_REST2"]
+## WHERE A SOUND CAME FROM, for what is heard in the dark (Kent's design: "Every sound that carries
+## gameplay information needs a visual equivalent"): rings where the tiyanak cries, and in the night
+## the tik-tik. Above the dark, under the HUD.
+var edge_ripple: EdgeRipple
 
 
 func _build_level_furniture() -> void:
 	director.obstacle_entered.connect(_on_beat_entered)
 	_arm_the_drain()
+	edge_ripple = EdgeRipple.new()
+	edge_ripple.name = "EdgeRipple"
+	add_child(edge_ripple)
 	# Top centre, under the quest card: the last clearing's clock.
 	dawn_clock = DawnClockHud.new()
 	dawn_clock.name = "DawnClock"
