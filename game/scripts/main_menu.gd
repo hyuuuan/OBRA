@@ -52,6 +52,14 @@ const BACKDROPS := {
 		{"art": "res://assets/Level3/shore/palms_left.png", "drift": -30.0},
 		{"art": "res://assets/Level3/shore/palms_right.png", "drift": -30.0},
 	],
+	# The plates the level stands in, in its order, graded to its night (MakilingBackdrop2D.tint).
+	"level_4": [
+		{"art": "res://assets/Level4/backdrop/sky.png", "drift": -4.0, "tint": Color(0.34, 0.38, 0.55)},
+		{"art": "res://assets/Level4/backdrop/mountain_far.png", "drift": -8.0, "tint": Color(0.34, 0.38, 0.55)},
+		{"art": "res://assets/Level4/backdrop/mountain_near.png", "drift": -14.0, "tint": Color(0.34, 0.38, 0.55)},
+		{"art": "res://assets/Level4/backdrop/ground_far.png", "drift": -20.0, "tint": Color(0.34, 0.38, 0.55)},
+		{"art": "res://assets/Level4/backdrop/frame.png", "drift": -30.0, "tint": Color(0.34, 0.38, 0.55)},
+	],
 }
 const LAYER_BLEED := 36.0
 ## Over a level's art, so the logo and the buttons read on it. The vista needs none.
