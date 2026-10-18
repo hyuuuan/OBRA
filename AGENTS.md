@@ -456,15 +456,14 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
   transformation; life is what keeping it costs. Ten seconds makes a morph a BURST spent on
   one obstacle rather than a body you travel in. The wanderer is not a drawing and has no
   life, so nothing ticks while the player is themselves.
-- **⚠ BECOMING SOMETHING IS A THING YOU DO AT A CHECKPOINT.** Thesis FR-8: transformation is
-  allowed "only while the player is at a checkpoint". `LevelBase.at_a_checkpoint()` is the
-  gate, and its READING is the load-bearing part: a literal distance-to-a-raised-flag test
-  makes Payyo impossible, because only CP0 is an area in the scene and Node 2 cannot be
-  entered except by morphing. So "at a checkpoint" is the place the level DECLARES one — a
-  checkpoint area, a beat that names a `checkpoint_on_commit`, or the restore point (the
-  last flag, or the spawn before there is one). If you add a beat that needs a morph, give it
-  a checkpoint or the beat is unreachable, and `run_morph_gate_probe` will not catch it for
-  you — it holds Payyo's beats by name.
+- **⚠ BECOMING SOMETHING IS ALLOWED ANYWHERE** (Kent, 2026-10-02: "why cant the player transform
+  anywhere, why does it need to be in a checkpoint its so weird"). Thesis FR-8 allows it only at
+  a checkpoint, and PR #30 built that gate (`at_a_checkpoint()`); `3cb8798` deleted it, along with
+  `_restore_point` and `CHECKPOINT_REACH`. Do not put it back to match the manuscript -- the
+  manuscript and SRS are the ones to change (a Chapter 4 edit for the team). Transformation stays
+  free (FR-7); a level's own refusals (Piyesta's small animals) still go through
+  `_extra_refusals()`. `run_morph_gate_probe` now holds the opposite of its name: open ground, the
+  spawn and the straw heap all take the change.
 - **Expiry reverts through `_revert_to_base_form()`, the same door Q uses.** That function
   already lands the apo where the creature stood, re-homes anything it carried and files
   the telemetry; a second copy of it for the timed case would be a second chance to strand
