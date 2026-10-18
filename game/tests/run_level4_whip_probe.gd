@@ -18,7 +18,7 @@ const WHIP := "buntot_pagi"
 
 var failures := 0
 var checked := 0
-const CHECKS := 6
+const CHECKS := 8
 var level: Node
 
 
@@ -32,7 +32,8 @@ func _run() -> void:
 		quit(2))
 	var only := " ".join(OS.get_cmdline_user_args())
 	for scenario in [_a_lash_hits_what_is_in_front_and_in_reach, _it_reaches_what_flies, _a_press_too_soon_does_nothing,
-			_ten_lashes_and_it_is_spent, _it_drops_only_in_the_second_and_third_waves]:
+			_ten_lashes_and_it_is_spent, _it_drops_only_in_the_second_and_third_waves,
+			_its_lashes_left_come_back_with_a_continue, _every_lash_shows_on_its_slot]:
 		if not only.is_empty() and not String((scenario as Callable).get_method()).contains(only):
 			continue
 		level = await _open_level()
@@ -136,7 +137,60 @@ func _it_drops_only_in_the_second_and_third_waves() -> void:
 		"by day %d, wave 1 %d, wave 2 %d" % [by_day, first_wave, second_wave])
 
 
+## Three lashes, then the run saved and read back as a Continue reads it -- through JSON, as it goes
+## to disk -- into a level that has never lashed: seven left, not ten.
+func _its_lashes_left_come_back_with_a_continue() -> void:
+	await _put_her(AT_X)
+	var slot := _give_the_whip()
+	for _lash in range(3):
+		level.call("use_quick_slot", slot)
+		await _seconds(0.5)
+	var state: Dictionary = JSON.parse_string(JSON.stringify(level.call("_level_run_state")))
+	level.set("_whip_uses", 0)
+	level.set("_resuming", true)
+	level.call("_restore_level_run_state", state)
+	level.set("_resuming", false)
+	var satchel := level.get("satchel") as Satchel
+	_check(int(level.get("_whip_uses")) == 7 and satchel.count(WHIP) == 1,
+		"its lashes left come back with a Continue", "%d left, %d in the satchel"
+			% [int(level.get("_whip_uses")), satchel.count(WHIP)])
+
+
+## Each lash flashes its slot and is logged, though only the tenth spends it; a press inside the
+## cooldown is neither.
+func _every_lash_shows_on_its_slot() -> void:
+	await _put_her(AT_X)
+	var slot := _give_the_whip()
+	var bar := level.get("quick_slots") as QuickSlotBar
+	var logged := [_lashes_logged()]
+	level.call("use_quick_slot", slot)
+	var flashed := float((bar.get("_flash") as Array)[slot]) > 0.0
+	await _seconds(0.5)
+	level.call("use_quick_slot", slot)
+	await _frames(2)
+	logged.append(_lashes_logged())
+	level.call("use_quick_slot", slot)
+	await _frames(2)
+	logged.append(_lashes_logged())
+	_check(flashed and logged[1] - logged[0] == 2 and logged[2] == logged[1],
+		"every lash flashes its slot and is logged, and a press too soon is not",
+		"flashed %s, %d logged for two lashes, %d more for the press too soon"
+			% [flashed, logged[1] - logged[0], logged[2] - logged[1]])
+
+
 # --- Helpers -------------------------------------------------------------------------------
+
+## How many uses of the whip the session's telemetry holds.
+func _lashes_logged() -> int:
+	var file := root.get_node(^"Telemetry").get("_file") as FileAccess
+	if file == null:
+		return -1
+	var count := 0
+	for line in FileAccess.get_file_as_string(file.get_path_absolute()).split("\n"):
+		if line.contains("\"satchel_used\"") and line.contains(WHIP):
+			count += 1
+	return count
+
 
 ## One more aswang falls beside her; how many whips that left lying.
 func _whips_after_a_fall() -> int:
