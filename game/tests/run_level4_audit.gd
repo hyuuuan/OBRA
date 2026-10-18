@@ -99,6 +99,10 @@ func _run() -> void:
 	_audit_the_night_is_in_the_last_clearing(scene)
 	_audit_nothing_stands_on_the_crown(scene)
 	_audit_jars_where_the_file_says(level, scene)
+	_audit_the_tiyanak_earns_nothing(scene)
+	_audit_the_far_sides_gaps(scene)
+	_audit_the_high_path(scene)
+	_audit_the_giant_stands_in_the_crossing(scene)
 	_audit_level_goes_alone(scene)
 	_audit_fighting_hooks_on(scene)
 	_audit_dark_by_zone(level, scene)
@@ -570,6 +574,83 @@ func _audit_jars_where_the_file_says(level: Dictionary, scene: Node) -> void:
 			missing.append(id)
 	_check(not wanted.is_empty() and missing.is_empty(), "a jar of ink before each encounter the file names",
 		"%d jars, before %s" % [jars.size(), ", ".join(wanted)] if missing.is_empty() else "none before: " + ", ".join(missing))
+
+
+## Kent's design: "The tiyanak fight earns nothing -- no drops."
+func _audit_the_tiyanak_earns_nothing(scene: Node) -> void:
+	var tiyanak := scene.get("_tiyanak") as Tiyanak2D
+	_check(tiyanak != null and not tiyanak.drops, "the tiyanak drops nothing when it falls",
+		"drops %s" % (tiyanak.drops if tiyanak != null else "no tiyanak"))
+
+
+## The two gaps on the far side -- the drop by the cry, the ravine -- measured off the ground itself:
+## each past a running jump (228) and under a drawn bridge (340), the design's numbers.
+const RUNNING_JUMP := 228.0
+const BRIDGE := 340.0
+const JUMP := 94.3
+
+
+func _audit_the_far_sides_gaps(scene: Node) -> void:
+	var widths: Array[String] = []
+	var fine := true
+	for mark in ["TiyanakMark", "BungisngisMark"]:
+		var at := (scene.find_child(mark, true, false) as Node2D).global_position
+		var gap := _gap_in_the_floor(scene, at.x - 300.0, at.x + 800.0, at.y)
+		widths.append("%s %.0f" % [mark.trim_suffix("Mark"), gap])
+		fine = fine and gap > RUNNING_JUMP and gap < BRIDGE
+	_check(fine, "each gap on the far side is past a running jump and under a bridge",
+		", ".join(widths) + " px (%.0f < gap < %.0f)" % [RUNNING_JUMP, BRIDGE])
+
+
+## The widest stretch with no floor under it, scanning `from` to `to` along the ground at `ground_y`.
+func _gap_in_the_floor(scene: Node, from: float, to: float, ground_y: float) -> float:
+	var space := (scene as Node2D).get_world_2d().direct_space_state
+	var widest := 0.0
+	var run := 0.0
+	var x := from
+	while x <= to:
+		var ray := PhysicsRayQueryParameters2D.create(Vector2(x, ground_y - 6.0), Vector2(x, ground_y + 6.0),
+			PhysicsLayers.WORLD)
+		if space.intersect_ray(ray).is_empty():
+			run += 5.0
+			widest = maxf(widest, run)
+		else:
+			run = 0.0
+		x += 5.0
+	return widest
+
+
+## The high path over the ravine: higher than a jump, so only something drawn to climb gets her up,
+## and long enough to carry her over the ravine.
+func _audit_the_high_path(scene: Node) -> void:
+	var space := (scene as Node2D).get_world_2d().direct_space_state
+	var ground := (scene.find_child("BungisngisMark", true, false) as Node2D).global_position.y
+	var heights: Array[float] = []
+	for x in [19160.0, 19300.0, 19440.0]:
+		var ray := PhysicsRayQueryParameters2D.create(Vector2(x, ground - 300.0), Vector2(x, ground - 10.0),
+			PhysicsLayers.WORLD)
+		var hit := space.intersect_ray(ray)
+		heights.append(ground - float(hit["position"].y) if not hit.is_empty() else 0.0)
+	var over := heights.all(func(h: float) -> bool: return h > JUMP)
+	_check(over, "the high path runs over the ravine, out of a jump's reach",
+		"%s px up (a jump is %.0f)" % [heights, JUMP])
+
+
+## Kent's design: "Blocks a crossing." It stands on the ravine's floor, its wall up.
+func _audit_the_giant_stands_in_the_crossing(scene: Node) -> void:
+	var giant := scene.get("_bungisngis") as Bungisngis2D
+	var space := (scene as Node2D).get_world_2d().direct_space_state
+	var ok := false
+	var detail := "no bungisngis"
+	if giant != null:
+		var feet := giant.global_position + Vector2(0.0, giant.body_size.y * 0.5)
+		var ray := PhysicsRayQueryParameters2D.create(feet - Vector2(30.0, 4.0), feet + Vector2(-30.0, 8.0),
+			PhysicsLayers.WORLD)
+		var floor_hit := space.intersect_ray(ray)
+		var ground := (scene.find_child("BungisngisMark", true, false) as Node2D).global_position.y
+		ok = not floor_hit.is_empty() and feet.y > ground + JUMP and giant.wall.collision_layer != 0
+		detail = "feet at %.0f, %.0f under the bank; wall %s" % [feet.y, feet.y - ground, giant.wall.collision_layer != 0]
+	_check(ok, "the bungisngis stands in the ravine's crossing, a wall", detail)
 
 
 func _audit_level_goes_alone(scene: Node) -> void:
