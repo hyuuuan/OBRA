@@ -14,6 +14,8 @@ extends Node2D
 ## still after her fades and `dawned` is said: the level takes the dark away and ends.
 
 signal began
+## A wave opening, 0 to 2: the level's cue to say what has come.
+signal wave_opened(index: int)
 signal dawned
 
 const GROUP := &"dilim_encounters"
@@ -183,6 +185,7 @@ func _open_waves() -> void:
 			_send_one()
 		for kind: String in wave["fliers"]:
 			_send_flier(kind)
+		wave_opened.emit(_wave)
 
 
 ## How many aswang the night keeps on her now.
