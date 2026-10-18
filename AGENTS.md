@@ -59,13 +59,19 @@ machine, ~2570 lines) and **`game_level.gd`** (Level 1's furniture and its overr
 A level script `extends "res://scripts/level_base.gd"` **by path, not by `class_name`** --
 a `--script` run does not register class names, and a dozen runners are exactly that.
 
-**A level answers eleven hooks**, all defaulting to doing nothing except the two paths,
-which are required: `level_config_path()`, `dialogue_path()`, `_resolve_level_nodes()`,
-`_build_level_furniture()`, `_extra_refusals()`, `_on_route_solved()`,
+**A level answers hooks**, all defaulting to doing nothing except the two paths, which are
+required: `level_config_path()`, `dialogue_path()`. Payyo's eleven came first --
+`_resolve_level_nodes()`, `_build_level_furniture()`, `_extra_refusals()`, `_on_route_solved()`,
 `_handle_level_input()`, `_interact_with_level()`, `_level_physics()`,
-`_dialogue_node_obstacle_id()`, and `_wire_dialogue_node()` (override + `super()`). Every
-one exists because Payyo had something in that exact spot; none is speculative. The field
-formerly called `script_lines_l1` is `script_lines`.
+`_dialogue_node_obstacle_id()`, `_wire_dialogue_node()` (override + `super()`) and the two paths
+-- and every later level added the ones it needed, so there are over sixty now. **The list is
+`level_base.gd` itself** ("What a level answers" and the hooks below it); a level's own
+overrides are `grep '^func _' game/scripts/level_<n>.gd`. Each defaults to the behaviour Levels
+1-3 had, so adding one changes nothing until a level overrides it. Dilim's are the clearest set:
+`_has_player_health()`, `_darkness()`, `_has_companion()` / `_companion_speaker()`,
+`_tool_wear_enabled()`, `_every_drawing_costs_ink()`, `_draws_into_the_hand()`,
+`_click_attacks()`, `_camera_follows_physics()`. None is speculative: each exists because a level
+had something in that exact spot. The field formerly called `script_lines_l1` is `script_lines`.
 
 ⚠ **`run_level1_audit.gd` is timing-sensitive under CPU load.** Its "the beat can be
 dismissed" check fails if something heavy (a model retrain) is running alongside it. Do not
