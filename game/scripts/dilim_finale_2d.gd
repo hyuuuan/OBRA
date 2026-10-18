@@ -22,7 +22,7 @@ const DAWN_SECONDS := 150.0
 const WAVES := [
 	{"at": 0.0, "aswang": 2, "fliers": []},
 	{"at": 45.0, "aswang": 1, "fliers": ["manananggal_upper", "wakwak"]},
-	{"at": 100.0, "aswang": 1, "fliers": []},
+	{"at": 100.0, "aswang": 1, "fliers": ["tiktik"]},
 ]
 ## The first wave's aswang, in the forms they take in turn.
 const WAVE_KIND := "aswang_dog"
@@ -93,6 +93,14 @@ func hurry_dawn() -> bool:
 	_hurried = _wave
 	elapsed += SUN_HURRIES
 	return true
+
+
+## The third wave's tik-tik while it is about, for the level to listen to; null otherwise.
+func tiktik() -> Tiktik2D:
+	for foe in alive():
+		if foe is Tiktik2D:
+			return foe
+	return null
 
 
 ## Which wave the night is in, 0 to 2, or -1 before it begins.
@@ -171,7 +179,14 @@ func _send_one() -> void:
 
 
 func _send_flier(kind: String) -> void:
-	var foe: Enemy2D = ManananggalUpper2D.new() if kind == "manananggal_upper" else FlyingEnemy2D.new()
+	var foe: Enemy2D
+	match kind:
+		"manananggal_upper":
+			foe = ManananggalUpper2D.new()
+		"tiktik":
+			foe = Tiktik2D.new()
+		_:
+			foe = FlyingEnemy2D.new()
 	foe.kind = kind
 	_enter(foe, Vector2(ENTRY_OFFSET * _next_side, -FLIER_HEIGHT))
 	if foe is ManananggalUpper2D:
