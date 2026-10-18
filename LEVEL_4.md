@@ -147,8 +147,8 @@ What the build does that the design above does not say, and what it does not do 
 
 - **Creature art.** Only the aswang (dog, pig) are drawn strips. The santelmo, sigbin, tikbalang,
   kapre, tiyanak, bungisngis, manananggal, wakwak and tik-tik are code-drawn placeholder bodies
-  (`ART_PLACEHOLDERS.md`; `run_visual_dilim_creatures` lays them side by side in her light). There
-  is a hurt pose and no attack pose.
+  (`ART_PLACEHOLDERS.md`; `run_visual_dilim_creatures` lays them side by side in her light). Her hurt
+  and attack poses are placeholders made from the delivered sheet (the jump and wave frames, leaned).
 - **The finale's numbers.** The night is 150 s: waves at 0 / 45 / 100 s, dawn at 150. A drawn sun
   brings dawn 15 s nearer, once a wave. The manananggal is driven off at 8 in its wave.
 - **The dead tree** stands at the clearing's middle and falls east into a 64-px log that shuts the

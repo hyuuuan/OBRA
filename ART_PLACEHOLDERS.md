@@ -346,7 +346,7 @@ can vanish in the level.
 | Tik-tik | `tiktik_2d.gd` | A small dark long-beaked bird -- seen only with ash on it, so it carries the ash's grey |
 | The night's things | `candle_flame_2d.gd`, `asin_throw_2d.gd`, `abo_dust_2d.gd`, `bawang_ward_2d.gd`, `whip_lash_2d.gd` | A candle stub and flame; salt grains in flight; ash spreading and thinning; a pale ring of garlic on the ground; the whip's arc |
 | Her lantern | `held_lantern_2d.gd` | A small iron lantern whose flame shrinks with each stage -- it is her health |
-| Her hurt pose | `wanderer_figure.gd` | The jump frame leaning back from a blow. **There is no attack pose** |
+| Her hurt and attack poses | `wanderer_figure.gd` | Hurt: the jump frame leaning back from a blow. Attack: the wave frame's raised arm leaning into a swing, for 0.25 s after every blade swing, in every level |
 
 **Not on this list, and must not be:** the **edge ripple** (`EdgeRipple`) and the **windup glint**
 (`Telegraph2D`). The ripple is how a sound is seen -- the design's rule that every audio cue has a
