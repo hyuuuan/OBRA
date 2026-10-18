@@ -280,6 +280,7 @@ func _arm_player_health() -> void:
 	super()
 	if player_health != null:
 		player_health.hit_taken.connect(func(_stage: int) -> void:
+			AudioDirector.play_sfx(&"lantern_hit")
 			if tutorial != null:
 				tutorial.note("lantern_hit"))
 
@@ -677,6 +678,7 @@ func _tend_the_tiktik() -> void:
 func _on_tiktik_called(at: Vector2, strength: float) -> void:
 	if edge_ripple != null:
 		edge_ripple.cue("tiktik", at, strength)
+	AudioDirector.play_sfx(&"tiktik_call", strength)
 
 
 func _drawn_suns() -> Array:
@@ -691,6 +693,7 @@ func _drawn_suns() -> Array:
 ## MORNING. The dark lifts -- on the dark layer's own clock, which runs while a line is up -- she says
 ## the line the level was for, and the level is done: the majority route settled, the one point given.
 func _on_dawn() -> void:
+	AudioDirector.play_sfx(&"dawn")
 	if dawn_clock != null:
 		dawn_clock.set_progress(1.0)
 		dawn_clock.hide_night()
@@ -1270,7 +1273,10 @@ func _on_tiyanak_cried(at: Vector2) -> void:
 	var distance := PlayerHurtbox2D.middle_of(player).distance_to(at)
 	if distance > CRY_HEARD_FROM:
 		return
-	edge_ripple.cue("tiyanak", at, maxf(CRY_FAINTEST, 1.0 - distance / CRY_HEARD_FROM))
+	var strength := maxf(CRY_FAINTEST, 1.0 - distance / CRY_HEARD_FROM)
+	# Heard as it is shown: the ripple stays, a player who cannot hear plays by it.
+	edge_ripple.cue("tiyanak", at, strength)
+	AudioDirector.play_sfx(&"tiyanak_cry", strength)
 
 
 # --- The bungisngis -----------------------------------------------------------------------------
