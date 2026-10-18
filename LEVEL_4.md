@@ -1,8 +1,10 @@
 # Level 4 — Dilim
 
-**Status: DESIGNED, NOT BUILT.** This file is the design record and the build order. It turns
-into the build record as the PRs below land. Read `LEVEL_TEMPLATE.md` first; this file holds
-only what is specific to Dilim.
+**Status: BUILT, on the hub, and the level the run ends on** (until Mayon is built). Shipped in
+PRs #79–#97, merged 2026-10-18/19. This file was the design record and the build order; it is the
+build record now -- the design as decided, then [where it lives](#where-it-lives) and
+[how the build differs from the design](#as-built-against-the-design). Read `LEVEL_TEMPLATE.md`
+first; this file holds only what is specific to Dilim.
 
 **Sources.** `Level 4 Dilim Design.docx` (first refined pass) and its flowchart
 (`Level4_Dilim_Flow.mermaid`, BPMN shapes like Levels 2 and 3), the delivered art
@@ -57,7 +59,7 @@ SEGMENT 3  the far side — real combat
            MANANANGGAL a sun = ARTIST · salt the lower half = PRAGMATIC · drive off the upper half = PROTECTOR
 CP3        FINAL CLEARING — aswang waves until dawn
            W1 two aswang (dog / pig) · W2 + manananggal and wakwak (fliers) · W3 the TIK-TIK
-→ on to Mayon
+→ the ending (Dilim carries `ends_run` until Mayon is built)
 ```
 
 **Every encounter has a non-combat resolution.** Combat is survivable without combat skill.
@@ -87,16 +89,28 @@ CP3        FINAL CLEARING — aswang waves until dawn
 | Kandila (candle) | Portable light that costs no ink; burns down. |
 | Buntot pagi (stingray tail) | A whip. High damage, limited uses, rare. |
 
-## Build order (each a PR that ships green; every new behaviour is a LevelBase hook that defaults off)
+## Build order, as shipped (each a PR that shipped green; every new behaviour is a LevelBase hook that defaults off)
 
-00 merge the open work · 01 this file · 02 swim polish · 03 weapons hit once, where they point
-(also fixes Dagat) · 04–06 combat core (the apo can be hurt; weapons in a fight; enemies) ·
-07 darkness, light, lantern HUD, edge ripple · 08 Makiling art pipeline · 09 generic enablers
-(no companion, speaker, majority tally, tags, flower) · 10 level shell + audits ·
-**11 playable slice (Segment 1, rest clearing, finale wave 1 to dawn) — Kent plays here** ·
-12 collectibles · 13 Segment 2 · 14 Segment 3 · 15 finale complete · 16 shipping
-(`scene_path` last; `ends_run` moves from Dagat to Dilim in one commit with every test that
-assumes the old ending).
+| | PR | |
+|---|---|---|
+| 01 | #80 | this file |
+| 02 | #81 | swim polish |
+| 03 | #79 | weapons hit once, where they point (also fixes Dagat) |
+| 04–06 | #82 #83 #84 | combat core: the apo can be hurt · weapons in a fight · enemies |
+| 07 | #85 | darkness, light, lantern HUD, edge ripple |
+| 08 | #87 | Makiling art pipeline |
+| 09 | #86 | generic enablers (no companion, speaker, majority tally, tags, flower) |
+| — | #88 | overlap-safe test runs (not in the plan) |
+| 10 | #89 | level shell + audits |
+| 11 | #90 | **playable slice** (Segment 1, rest clearing, finale wave 1 to dawn) |
+| 12 | #91 | collectibles: the satchel and quick slots |
+| 13 | #92 | Segment 2: sigbin, tikbalang, kapre |
+| — | #93 | the aswang dark, not black (a follow-up the design asked for) |
+| 14 | #94 | Segment 3: tiyanak, bungisngis, manananggal |
+| 16a | #95 | on the hub: `scene_path`, and `ends_run` moved from Dagat to Dilim in one commit with every test that assumed the old ending |
+| 16b | #96 | Dilim behind the home screen |
+| 15 | #97 | the finale complete: three waves, the tik-tik, the dead tree, the buntot pagi |
+| 16 | — | shipping: this file, the other docs, the full suite run |
 
 The full plan, with files, hooks, tuning numbers and tests per PR, is kept by the developer
 alongside this file; the numbers below are its starting points.
@@ -110,6 +124,47 @@ alongside this file; the numbers below are its starting points.
 - Every enemy is slower than the apo's 260 px/s, and every attack is telegraphed (≥0.4 s).
 - Geometry: the nuno's mound 150 wide (jumpable) · the tiyanak's drop and the bungisngis's
   ravine 300 wide (not jumpable; under the bridge's 340) · canopy 440 up (over the tree's 362).
+
+## Where it lives
+
+| | |
+|---|---|
+| The level | `game/level_4.tscn` · `game/scripts/level_4.gd` (every Dilim behaviour, as LevelBase hooks) · `game/levels/level_4/level_4_environment.tscn` (ground, branches, the encounters placed) |
+| Data | `config/level_04.json` (beats, routes, `"tally": "majority"`) · `config/dialogue_l4.json` (every line hers) · `config/enemies.json` · `config/weapons.json` (Dilim's rows) · `config/satchel.json` |
+| The dark | `LightField` (what is lit, the gameplay truth) · `DarknessLayer` + `darkness.gdshader` · `HeldLantern2D` (the lantern is her health) · `LanternHud` · `EdgeRipple` (sounds shown) |
+| Combat | `PlayerHealth` · `PlayerHurtbox2D` · `Telegraph2D` (every windup ≥ 0.4 s) · `WeaponTable` · `Enemy2D` → `GroundEnemy2D` / `FlyingEnemy2D` (group `dilim_encounters` for restores, `dilim_foes` for ash and salt) |
+| Segment 1 | `Santelmo2D` · `NunoMound2D` |
+| Segment 2 | `Sigbin2D` · `Tikbalang2D` · `Kapre2D` · `InkJar2D` |
+| Segment 3 | `Tiyanak2D` · `Bungisngis2D` · `ManananggalUpper2D` / `ManananggalLower2D` |
+| The finale | `DilimFinale2D` (the clock, the three waves, the dead tree) · `DawnClockHud` · `Wakwak2D` · `Tiktik2D` · `DeadTree2D` (Level 1's, `stands_solid` off) |
+| Lola's things | `Satchel` · `SatchelPickup2D` · `QuickSlotBar` · `AsinThrow2D` · `AboDust2D` · `BawangWard2D` · `CandleFlame2D` · `WhipLash2D` |
+| Art | `MakilingBackdrop2D` · `MakilingTerrain2D` · `PixelStripAnimator` · `tools/build_dilim.py` (plates, tiles) · `tools/build_dilim_creatures.py` (aswang strips) · `tools/build_dilim_props.py` (satchel icons) |
+| Tests | `run_level4_audit` · `run_level4_enablers_probe` · `run_level4_seg1/seg2/seg3_probe` · `run_level4_finale_probe` · `run_level4_tiktik_probe` · `run_level4_whip_probe` · `run_satchel_probe` · `run_combat_probe` · `run_enemy_probe` · `run_weapon_probe` · `run_darkness_probe` · `run_makiling_probe` · `run_journey_probe` (Dagat → house → Dilim → dawn → ending) · windowed looks `run_visual_dilim_light`, `run_visual_makiling`, `run_visual_dilim_creatures` |
+
+## As built, against the design
+
+What the build does that the design above does not say, and what it does not do yet:
+
+- **Creature art.** Only the aswang (dog, pig) are drawn strips. The santelmo, sigbin, tikbalang,
+  kapre, tiyanak, bungisngis, manananggal, wakwak and tik-tik are code-drawn placeholder bodies
+  (`ART_PLACEHOLDERS.md`; `run_visual_dilim_creatures` lays them side by side in her light). There
+  is a hurt pose and no attack pose.
+- **The finale's numbers.** The night is 150 s: waves at 0 / 45 / 100 s, dawn at 150. A drawn sun
+  brings dawn 15 s nearer, once a wave. The manananggal is driven off at 8 in its wave.
+- **The dead tree** stands at the clearing's middle and falls east into a 64-px log that shuts the
+  east side; a felled tree stays down through a knockout, so a retried night starts with it shut.
+- **The tik-tik** is shown by ash for the dust's 6 s and blinded for 1.5 s; inside 220 px of her
+  lantern the HUD leans and gutters and the light drops 18%.
+- **The buntot pagi** drops only in waves 2 and 3 (2%), lashes 10 times, and reaches fliers. Its
+  uses are not saved: a resumed run gives a carried whip its 10 again.
+- **The kapre's camera hold** was replaced: its smoke turns her round instead of stopping the camera.
+- **Falls are knockouts.** The wanderer wraps to the sky at the world's bottom, so Dilim knocks her
+  out 300 px under the forest floor instead.
+- **No drawing-free run.** The kapre has no route without a drawing, so Dilim cannot be finished
+  without one -- by design -- and there is no `run_nodraw_level4`.
+- **The Makiling tileset** is used in part: the six plates and four seamless tiles; no slopes, root
+  or log platforms, waterfall or props. The vine frame plate stands only behind her (in front of
+  play it hid her).
 
 ## Gate classes clear BR-7 (held-out recall, `model/metrics.json`)
 

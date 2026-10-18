@@ -59,13 +59,19 @@ machine, ~2570 lines) and **`game_level.gd`** (Level 1's furniture and its overr
 A level script `extends "res://scripts/level_base.gd"` **by path, not by `class_name`** --
 a `--script` run does not register class names, and a dozen runners are exactly that.
 
-**A level answers eleven hooks**, all defaulting to doing nothing except the two paths,
-which are required: `level_config_path()`, `dialogue_path()`, `_resolve_level_nodes()`,
-`_build_level_furniture()`, `_extra_refusals()`, `_on_route_solved()`,
+**A level answers hooks**, all defaulting to doing nothing except the two paths, which are
+required: `level_config_path()`, `dialogue_path()`. Payyo's eleven came first --
+`_resolve_level_nodes()`, `_build_level_furniture()`, `_extra_refusals()`, `_on_route_solved()`,
 `_handle_level_input()`, `_interact_with_level()`, `_level_physics()`,
-`_dialogue_node_obstacle_id()`, and `_wire_dialogue_node()` (override + `super()`). Every
-one exists because Payyo had something in that exact spot; none is speculative. The field
-formerly called `script_lines_l1` is `script_lines`.
+`_dialogue_node_obstacle_id()`, `_wire_dialogue_node()` (override + `super()`) and the two paths
+-- and every later level added the ones it needed, so there are over sixty now. **The list is
+`level_base.gd` itself** ("What a level answers" and the hooks below it); a level's own
+overrides are `grep '^func _' game/scripts/level_<n>.gd`. Each defaults to the behaviour Levels
+1-3 had, so adding one changes nothing until a level overrides it. Dilim's are the clearest set:
+`_has_player_health()`, `_darkness()`, `_has_companion()` / `_companion_speaker()`,
+`_tool_wear_enabled()`, `_every_drawing_costs_ink()`, `_draws_into_the_hand()`,
+`_click_attacks()`, `_camera_follows_physics()`. None is speculative: each exists because a level
+had something in that exact spot. The field formerly called `script_lines_l1` is `script_lines`.
 
 ⚠ **`run_level1_audit.gd` is timing-sensitive under CPU load.** Its "the beat can be
 dismissed" check fails if something heavy (a model retrain) is running alongside it. Do not
@@ -417,6 +423,66 @@ never needed this because Level 1 bans nothing.
 **New tags**: `feed`, `startle`, `strike` (populated here rather than in Level 3; `swim`
 stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
 
+## Level 3 (Dagat)
+
+Read **LEVEL_3.md** before touching `level_3.gd`, `config/level_03.json` or
+`config/dialogue_l3.json`. One journey with one fork -- the shore, boat or dive, the bakunawa
+(three resolutions, reached by both routes), the island and Lolo's farewell. Dagat hands on to
+Dilim; it no longer ends the run.
+
+**It changes the whole game, not just itself.** From Dagat on there is no transformation timer
+(a morph ends when she reverts or the ink runs out), **ink drains while she is transformed** and
+refills from sources in the level, and the bakunawa's protector route is the game's first fight.
+The drain is read from the profile's `NEW_BRUSH` flag, found on Dagat's shore, so Payyo and
+Piyesta replayed keep their ten-second timer -- never change `InkManager`'s constants for it.
+⚠ The drain contradicts FR-7 on purpose; fix the manuscript, do not put the old rule back.
+
+**Art:** `tools/build_dagat.py` cuts the delivery and fails if any of its 79 files goes unused;
+`tools/build_dagat_props.py` draws what the delivery shows but did not ship as a file. Swimming
+strips come from `tools/build_apo_swim.py`. Its suites -- `run_level3_audit`,
+`run_nodraw_level3`, `run_bakunawa_probe`, `run_level3_finish_probe`, `run_swim_reach_probe`,
+`run_level3_boat_probe`, `run_level3_trouble_probe` -- are all in `tools/run_suites.sh`.
+
+## Level 4 (Dilim)
+
+Read **LEVEL_4.md** first: Kent's twelve decisions, the flow, and the build record (where every
+part lives, and how the build differs from the design). The dark forest on Mt. Makiling, where
+**Dilim fights by drawing**: the apo alone, the lantern as her health, drawn weapons that wear,
+folkloric encounters answered by what she does, then a 150 s night in three waves to dawn.
+It carries `ends_run` until Mayon is built.
+
+Traps it has sprung, kept so they are not sprung again:
+
+- **Every L4 line carries `"speaker":"apo"`.** `_speak` defaults a speaker to Lolo, and he is
+  not here.
+- **No story line mid-encounter** -- a dialogue line pauses the whole tree. `run_level4_audit`
+  holds every encounter and the finale to it; mid-fight lines are `kind: hint`.
+- **The said-lines audit reads hook names as literals** in the level's sources: build a hook with
+  `"%d"` and its lines count as never said. Write the names out (`WAVE_LINES`).
+- **Route shapes:** a pure deed is route-level `answered_by`; "draw to commit, deed to answer" is
+  `required_tags` + `then.answered_by`. The director takes the first route in file order whose
+  tags hold the drawn class.
+- **Two enemy groups, on purpose.** `Enemy2D.GROUP` (`dilim_encounters`) is what a restore resets;
+  the finale takes its own foes out of it. `Enemy2D.FOES` (`dilim_foes`) is every enemy, never
+  left -- it is what ash and salt look up. Looking up GROUP for "every enemy" missed the whole
+  night once.
+- **JSON numbers are floats.** `Array.has(1)` does not find `1.0`; compare with `int()`.
+- **`Enemy2D.state_name()` is upper case** (`"WINDUP"`, `"STUN"`). A probe comparing lower case
+  passes or fails for the wrong reason.
+- **Probe placement:** an enemy set exactly on the ground surface will not walk (its ground-ahead
+  ray starts on the surface and misses) -- drop it a few px above. Move her (`apply_morph_state`)
+  before setting anything down at her feet. The clearing's east wall is x 22420.
+- **Falls are knockouts in Dilim** (300 px under the forest floor): the wanderer wraps to the sky
+  at the world's bottom, so the base fall line never fires here.
+- **Use the design's numbers in probes**, never the script's constants -- a wait derived from the
+  constant under test proves nothing.
+
+Its suites: `run_level4_audit`, `run_level4_enablers_probe`, `run_level4_seg1/seg2/seg3_probe`,
+`run_level4_finale_probe`, `run_level4_tiktik_probe`, `run_level4_whip_probe`,
+`run_satchel_probe`, `run_combat_probe`, `run_enemy_probe`, `run_weapon_probe`,
+`run_darkness_probe`, `run_makiling_probe`. Windowed looks: `run_visual_dilim_light`,
+`run_visual_makiling`, `run_visual_dilim_creatures`.
+
 ## Gameplay Shape
 
 - Flow: a successful morph replaces the active player; a utility enters placement
@@ -450,15 +516,14 @@ stays Level 3's). **Roster**: `mushroom` -> `bread`, still 50 classes.
   transformation; life is what keeping it costs. Ten seconds makes a morph a BURST spent on
   one obstacle rather than a body you travel in. The wanderer is not a drawing and has no
   life, so nothing ticks while the player is themselves.
-- **⚠ BECOMING SOMETHING IS A THING YOU DO AT A CHECKPOINT.** Thesis FR-8: transformation is
-  allowed "only while the player is at a checkpoint". `LevelBase.at_a_checkpoint()` is the
-  gate, and its READING is the load-bearing part: a literal distance-to-a-raised-flag test
-  makes Payyo impossible, because only CP0 is an area in the scene and Node 2 cannot be
-  entered except by morphing. So "at a checkpoint" is the place the level DECLARES one — a
-  checkpoint area, a beat that names a `checkpoint_on_commit`, or the restore point (the
-  last flag, or the spawn before there is one). If you add a beat that needs a morph, give it
-  a checkpoint or the beat is unreachable, and `run_morph_gate_probe` will not catch it for
-  you — it holds Payyo's beats by name.
+- **⚠ BECOMING SOMETHING IS ALLOWED ANYWHERE** (Kent, 2026-10-02: "why cant the player transform
+  anywhere, why does it need to be in a checkpoint its so weird"). Thesis FR-8 allows it only at
+  a checkpoint, and PR #30 built that gate (`at_a_checkpoint()`); `3cb8798` deleted it, along with
+  `_restore_point` and `CHECKPOINT_REACH`. Do not put it back to match the manuscript -- the
+  manuscript and SRS are the ones to change (a Chapter 4 edit for the team). Transformation stays
+  free (FR-7); a level's own refusals (Piyesta's small animals) still go through
+  `_extra_refusals()`. `run_morph_gate_probe` now holds the opposite of its name: open ground, the
+  spawn and the straw heap all take the change.
 - **Expiry reverts through `_revert_to_base_form()`, the same door Q uses.** That function
   already lands the apo where the creature stood, re-homes anything it carried and files
   the telemetry; a second copy of it for the timed case would be a second chance to strand

@@ -23,7 +23,7 @@
 - You are the apo. You pick up Lola's brush in her house, and one of her paintings pulls you in. Lolo, painted there long ago and not quite a ghost, walks with you; Lola left pieces of herself in every painting.
 - Her brush still works in there. Draw, and the game recognises the sketch. It becomes real: a creature you play as, or an object you place, carry and use.
 - Every obstacle has more than one answer, and what you draw to get past it is up to you.
-- Set in the Philippines: the Ifugao rice terraces, a town fiesta, and the sea of the bakunawa.
+- Set in the Philippines: the Ifugao rice terraces, a town fiesta, the sea of the bakunawa, and a forest on Mt. Makiling by night.
 
 <h3>Screenshots</h3>
 
@@ -32,11 +32,13 @@
 		<td><img src="docs/screenshots/payyo.jpg" alt="Payyo: inside Ang Bale, Lola's painting on the floor" /></td>
 		<td><img src="docs/screenshots/piyesta.jpg" alt="Piyesta: the plaza, the dancers and the church" /></td>
 		<td><img src="docs/screenshots/dagat.jpg" alt="Dagat: the beach and the bangka" /></td>
+		<td><img src="docs/screenshots/dilim.jpg" alt="Dilim: the last clearing at night, the apo's lantern, the manananggal and a wakwak overhead" /></td>
 	</tr>
 	<tr>
 		<td align="center"><sub>Payyo</sub></td>
 		<td align="center"><sub>Piyesta</sub></td>
 		<td align="center"><sub>Dagat</sub></td>
+		<td align="center"><sub>Dilim</sub></td>
 	</tr>
 </table>
 
@@ -57,7 +59,8 @@
 | **1 · Payyo** | The Ifugao rice terraces. The tutorial. |
 | **2 · Piyesta** | A town plaza on the day of its fiesta. |
 | **3 · Dagat** | The open sea, and the bakunawa beneath it. |
-| **4 · Dilim, 5 · Mayon** | Still to be painted. |
+| **4 · Dilim** | The forest on Mt. Makiling by night, alone. The lantern is her life, and she fights with what she draws until morning. |
+| **5 · Mayon** | Still to be painted. |
 
 <h3>Built with</h3>
 
@@ -132,7 +135,7 @@ Or use a launcher, which does the same before the game opens. Run it after cloni
 | `tools/` | Offline builders (art, abilities, ability tags), the suite runner and the telemetry summary. |
 | `tests/` | Python tests for the backend, the model contract and the tools. |
 
-The design notes for each level are in `LEVEL_1.md`, `LEVEL_2.md` and `LEVEL_3.md`; the rules every obstacle follows are in `GATES.md`.
+The design notes for each level are in `LEVEL_1.md`, `LEVEL_2.md`, `LEVEL_3.md` and `LEVEL_4.md`; the rules every obstacle follows are in `GATES.md`.
 
 <h3>Training the model</h3>
 

@@ -7,6 +7,11 @@ directions, side/front idle and upward floating. Source and import notes are in
 `run_locomotion_probe` checks real water input, Space, breath recovery and pause;
 `run_visual_swim` photographs the 24 frames and the apo in Dagat.
 
+**Since Dilim shipped (#95, 2026-10-19), Dagat hands on to it.** `ends_run` moved to `level_4`
+in one commit with every test that pinned it here, the island's CONTINUE goes back to the house
+with Dilim's painting open, and the dead card is `level_5`'s. What this file says below about Dagat
+ending the run was true when it was written.
+
 **Status: CONTENT COMPLETE AND PAINTED.** The delivered art is in — three parallax bands,
 animated coral, kelp, bubbles and fish, and the bakunawa in 23 poses. `tools/build_dagat.py`
 cuts the delivery and **fails if any of the 79 files is unused**; `tools/build_dagat_props.py`
