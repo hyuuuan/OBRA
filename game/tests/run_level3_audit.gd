@@ -648,6 +648,7 @@ func _audit_no_line_is_unreachable(level: Dictionary, dialogue: Dictionary) -> v
 ##
 ## Not shipped: level_3 has no scene_path, does not end the run, and level_2 does.
 ## Shipped:     level_3 has a scene_path that loads, ends the run, and level_2 no longer does.
+## Handed on:   Dilim is shipped too, so it is level_4 that ends the run and level_3 does not.
 ##
 ## Anything else is a half-shipped level -- a hub card with nothing behind it, or a player
 ## who finishes Piyesta and is sent to the ending screen with Dagat unplayed. The check turns
@@ -657,6 +658,8 @@ func _audit_shipping_state() -> void:
 	var scene_path := ""
 	var ends_run := false
 	var piyesta_ends_run := false
+	var dilim_path := ""
+	var dilim_ends_run := false
 	for entry_value: Variant in (parsed as Array):
 		var entry: Dictionary = entry_value
 		match String(entry.get("id", "")):
@@ -665,8 +668,17 @@ func _audit_shipping_state() -> void:
 				ends_run = bool(entry.get("ends_run", false))
 			"level_2":
 				piyesta_ends_run = bool(entry.get("ends_run", false))
+			"level_4":
+				dilim_path = String(entry.get("scene_path", ""))
+				dilim_ends_run = bool(entry.get("ends_run", false))
 	var shipped := not scene_path.is_empty()
-	if shipped:
+	if shipped and not dilim_path.is_empty():
+		_check(ResourceLoader.exists(scene_path) and not ends_run and not piyesta_ends_run
+				and dilim_ends_run,
+			"shipped, and it hands on to Dilim rather than ending the run",
+			"scene_path '%s', dagat ends_run=%s, piyesta ends_run=%s, dilim ends_run=%s"
+				% [scene_path, ends_run, piyesta_ends_run, dilim_ends_run])
+	elif shipped:
 		_check(ResourceLoader.exists(scene_path) and ends_run and not piyesta_ends_run,
 			"shipped, and it ends the run",
 			"scene_path '%s', dagat ends_run=%s, piyesta ends_run=%s"
