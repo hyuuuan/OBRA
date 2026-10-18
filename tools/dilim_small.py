@@ -176,28 +176,40 @@ def manananggal_lower(smoke: float = 0.0) -> Sculpt:
     for name, ramp in [("far", SKIN_W[[0, 0, 1, 2, 3, 3]]), ("skin", SKIN_W), ("tapis", TAPIS), ("gut", GUT)]:
         s.material(name, ramp)
     cx, ground = 36, 71
-    s.capsule("far", (cx - 3, ground - 30), (cx - 5, ground - 2), 5.0, 3.2)
-    s.capsule("skin", (cx + 3, ground - 30), (cx + 4, ground - 2), 5.4, 3.4)
-    s.ellipse("skin", cx + 6, ground - 1.5, 4, 1.6)
-    s.ellipse("far", cx - 2, ground - 1.5, 3.5, 1.4)
-    # The tapis, wrapped to the knee, its hem uneven.
-    s.ellipse("tapis", cx, ground - 40, 12, 8)
-    s.poly("tapis", [(cx - 12, ground - 42), (cx + 12, ground - 42), (cx + 13, ground - 20), (cx + 6, ground - 18),
-        (cx, ground - 20), (cx - 7, ground - 17), (cx - 13, ground - 20)], bulge=0.4)
-    # The waist: torn, wet, what hangs from it.
-    s.ellipse("gut", cx, ground - 46, 10, 3.5)
-    for dx, ln in [(-5, 7), (0, 10), (5, 6)]:
-        s.capsule("gut", (cx + dx, ground - 46), (cx + dx + 1, ground - 46 - ln * 0.4), 1.8, 1.0)
+    # Below the hem, two slender legs, the calf full behind, bare feet flat on the ground.
+    for name, x in [("far", cx - 4), ("skin", cx + 3)]:
+        knee, ankle = (x, ground - 26), (x + 0.5, ground - 4)
+        s.tube(name, [knee, (x - 1.4, ground - 17), (x, ground - 8), ankle], [3.6, 4.0, 2.6, 2.0])
+        s.tube(name, [(ankle[0] - 1.5, ground - 2.2), (ankle[0] + 2.5, ground - 2), (ankle[0] + 6, ground - 1.6)], [2.2, 2.0, 1.4])
+    # The tapis, wrapped from the waist round the hips to the knee: full over the seat behind,
+    # close round the thighs, its hem a little uneven.
+    s.poly("tapis", [(cx - 6, ground - 51), (cx - 9, ground - 46), (cx - 11.5, ground - 40), (cx - 11, ground - 33),
+                     (cx - 8.5, ground - 27), (cx - 7, ground - 22), (cx - 3, ground - 21.5), (cx + 1, ground - 23),
+                     (cx + 5, ground - 21.5), (cx + 7.5, ground - 23), (cx + 8.5, ground - 30), (cx + 9.5, ground - 39),
+                     (cx + 8.5, ground - 46), (cx + 6, ground - 51)], bulge=0.45)
+    # The waist above it, torn: skin ragged at the edge, the wound open on top.
+    s.poly("skin", [(cx - 6, ground - 50), (cx - 6.5, ground - 54), (cx - 4, ground - 52.5), (cx - 2, ground - 56),
+                    (cx + 1, ground - 53.5), (cx + 3, ground - 56.5), (cx + 5, ground - 53.5), (cx + 6.5, ground - 55),
+                    (cx + 6, ground - 50)], bulge=0.4)
+    s.ellipse("gut", cx, ground - 54, 5.5, 2.0)
     img = s
-    # Stripes woven in the tapis.
-    for y in (ground - 40, ground - 32):
-        s.line((cx - 9, y), (cx + 9, y), s.tone("tapis", 4))
-    s.dot(cx - 3, ground - 47, s.tone("gut", 4))
-    s.dot(cx + 4, ground - 46, s.tone("gut", 4))
+    # The wrap's edge folded over the front, and the stripes woven across it, round the hips.
+    s.curve([(cx + 5, ground - 50), (cx + 4.5, ground - 38), (cx + 3, ground - 23)], s.tone("tapis", 1), only_on_body=True)
+    for y, half in [(ground - 45, 9), (ground - 31, 10)]:
+        s.curve([(cx - half, y - 1), (cx - 2, y + 1.5), (cx + half, y - 0.5)], s.tone("tapis", 4), only_on_body=True)
+        s.curve([(cx - half, y + 1), (cx - 2, y + 3.5), (cx + half, y + 1.5)], s.tone("tapis", 4), only_on_body=True)
+    # What runs from the wound: down the front of the tapis, and the spine's pale end in it.
+    for x, ln in [(cx - 3, 6), (cx + 1, 10), (cx + 5, 4)]:
+        s.line((x, ground - 51), (x, ground - 51 + ln), s.tone("gut", 2), only_on_body=True)
+        s.dot(x, ground - 51 + ln, s.tone("gut", 3))
+    s.dot(cx - 1, ground - 54, s.tone("skin", 5))
+    s.dot(cx, ground - 54, s.tone("skin", 4))
+    s.dot(cx - 3, ground - 53, s.tone("gut", 4))
+    s.dot(cx + 4, ground - 54, s.tone("gut", 4))
     if smoke > 0:
         for k in range(8):
             a = k * 0.8
-            s.dot(cx + math.cos(a) * (6 + smoke * 10), ground - 48 - smoke * 14 - k, s.tone("tapis", 4), alpha=int(200 * (1 - smoke)))
+            s.dot(cx + math.cos(a) * (6 + smoke * 10), ground - 54 - smoke * 14 - k, s.tone("tapis", 4), alpha=int(200 * (1 - smoke)))
     return img
 
 
