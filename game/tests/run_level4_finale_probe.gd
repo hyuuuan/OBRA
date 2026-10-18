@@ -1,6 +1,7 @@
 extends SceneTree
 ## Dilim's last clearing, headless: the night begins when she steps in, two aswang at most, one
-## back after one falls, a knockout starting it over, and the morning ending it.
+## back after one falls, the second and third waves on time, a knockout starting it over, and the
+## morning ending it.
 ##
 ##   godot --headless --path game --script res://tests/run_level4_finale_probe.gd
 ##
@@ -13,7 +14,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 12
+const CHECKS := 14
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -36,6 +37,7 @@ func _run() -> void:
 	await _one_falls_and_another_comes()
 	await _never_more_than_two()
 	await _a_knockout_starts_the_night_over()
+	await _the_waves_come_on_time()
 	await _morning_ends_it()
 	await _the_dark_lifts_and_she_is_through()
 	_check(not (level.get("dawn_clock") as Control).visible, "and the night's clock is gone",
@@ -143,6 +145,36 @@ func _a_knockout_starts_the_night_over() -> void:
 			and finale.alive().size() == DilimFinale2D.WAVE_SIZE,
 		"a knockout starts the night over", "%.1f s in, then %.1f s, %d alive"
 			% [before, finale.elapsed, finale.alive().size()])
+
+
+## The design's 45 s and 100 s, not the script's table, each to within half a second.
+func _the_waves_come_on_time() -> void:
+	finale.elapsed = 44.5
+	await _frames(2)
+	var before_second := finale.current_wave()
+	await _seconds(1.0)
+	var second := finale.current_wave()
+	var fliers := []
+	for foe in finale.alive():
+		if foe is FlyingEnemy2D:
+			fliers.append(foe)
+	finale.elapsed = 99.5
+	await _frames(2)
+	var before_third := finale.current_wave()
+	await _seconds(1.0)
+	_check(before_second == 0 and second == 1 and before_third == 1 and finale.current_wave() == 2,
+		"the second wave comes at 45 s, the third at 100 s", "%d then %d, %d then %d"
+			% [before_second, second, before_third, finale.current_wave()])
+	var kinds := []
+	var drive_off := 0
+	for foe: Enemy2D in fliers:
+		kinds.append(foe.kind)
+		if foe is ManananggalUpper2D:
+			drive_off = foe.max_hp
+	kinds.sort()
+	_check(kinds == ["manananggal_upper", "wakwak"] and drive_off == 8,
+		"and the second brings the manananggal, driven off at 8, and a wakwak",
+		"%s, driven off at %d" % [kinds, drive_off])
 
 
 func _morning_ends_it() -> void:
