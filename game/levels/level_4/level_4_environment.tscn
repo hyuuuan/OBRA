@@ -17,6 +17,7 @@
 [ext_resource type="Script" path="res://scripts/tikbalang_2d.gd" id="15_tikbalang"]
 [ext_resource type="Script" path="res://scripts/ink_jar_2d.gd" id="16_jar"]
 [ext_resource type="Script" path="res://scripts/kapre_2d.gd" id="17_kapre"]
+[ext_resource type="Script" path="res://scripts/tiyanak_2d.gd" id="18_tiyanak"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -268,6 +269,11 @@ script = ExtResource("15_tikbalang")
 [node name="Kapre" type="Node2D" parent="GameplayPlane/Encounters"]
 position = Vector2(13800.0, 600.0)
 script = ExtResource("17_kapre")
+
+; The tiyanak, on the ground at the near rim of its drop, crying; its bushes run on over the drop.
+[node name="Tiyanak" type="CharacterBody2D" parent="GameplayPlane/Encounters"]
+position = Vector2(17150.0, 587.0)
+script = ExtResource("18_tiyanak")
 
 [node name="Pickups" type="Node2D" parent="GameplayPlane"]
 
