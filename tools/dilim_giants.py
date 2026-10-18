@@ -152,14 +152,12 @@ def draw(g: Giant, st: Stance) -> Sculpt:
         gut = (waist[0] + g.waist_r * 0.3 * g.belly, waist[1] + g.waist_r * 0.2)
         s.ellipse("skin", gut[0], gut[1], g.waist_r * (0.7 + 0.35 * g.belly), g.waist_r * (0.66 + 0.3 * g.belly))
     if g.cloth is not None:
-        # A bahag: a band round the waist, a long flap hanging in front and a shorter one behind.
+        # A bahag: a band hugging the hips, its long flap hanging in front between the legs.
         w = g.waist_r
-        s.capsule("cloth", (hip[0] - w - 1, hip[1] - 5), (hip[0] + w + 1, hip[1] - 5), 3.5, 3.5)
+        s.tube("cloth", [(hip[0] - w * 0.8, hip[1] - 6), (hip[0], hip[1] - 4), (hip[0] + w * 0.84, hip[1] - 6)], [3.0, 3.8, 3.0])
         sway = st.stride * math.sin(st.phase * math.tau) * 3
-        s.poly("cloth", [(hip[0] + w * 0.2, hip[1] - 4), (hip[0] + w * 0.8, hip[1] - 4),
-            (hip[0] + w * 0.75 + sway, hip[1] + 22), (hip[0] + w * 0.3 + sway, hip[1] + 24)], bulge=0.25)
-        s.poly("cloth", [(hip[0] - w * 0.9, hip[1] - 4), (hip[0] - w * 0.3, hip[1] - 4),
-            (hip[0] - w * 0.4 - sway, hip[1] + 14), (hip[0] - w * 0.95 - sway, hip[1] + 13)], bulge=0.25)
+        s.poly("cloth", [(hip[0] + w * 0.38, hip[1] - 4), (hip[0] + w * 0.86, hip[1] - 4),
+            (hip[0] + w * 0.8 + sway, hip[1] + g.leg * 0.42), (hip[0] + w * 0.48 + sway, hip[1] + g.leg * 0.46)], bulge=0.25)
     # The head.
     head_info = HEADS[g.head](s, g, st, neck_base, lean)
     _arm(s, g, "limb", shoulder_near, st.arm_swing * math.sin(st.phase * math.tau), st.arms_up, hands)
