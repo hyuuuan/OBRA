@@ -1,19 +1,23 @@
 class_name PixelStripAnimator
 extends Sprite2D
-## Plays a creature's pixel strips: one PNG per animation, `<folder><kind>_<anim>.png`, frames in
-## a row at FRAME px. Whatever strips exist are used; a kind with none leaves `has_art()` false,
+## Plays a creature's pixel strips: one PNG per animation, `<folder><kind>_<anim>.png`, square
+## frames in a row, as tall as the strip; a strip whose width is not a whole number of its height
+## is one picture (tools/build_dilim_creatures.py). Whatever strips exist are used; a kind with none leaves `has_art()` false,
 ## and its owner draws its own placeholder instead. So drawn art replaces the code-drawn strips
 ## by being dropped in with the same names -- no code change.
 ##
 ## Facing right as drawn; `face()` mirrors it. Anchored by the feet: the frame's bottom edge is
-## on the node's origin, so the owner puts the origin where the creature stands.
+## on the node's origin, so the owner puts the origin where the creature stands -- or, `centre`
+## set, by the frame's middle, for a flier whose position is its middle.
 
-const FRAME := 48
 ## Frames a second per animation; anything not listed plays at DEFAULT_FPS.
 const FPS := {"idle": 3.0, "run": 10.0, "windup": 6.0, "attack": 8.0, "hurt": 1.0, "death": 6.0}
 const DEFAULT_FPS := 6.0
 ## These hold their last frame instead of looping.
 const HOLDS := ["death", "hurt"]
+
+## Hung by its middle rather than stood on its feet.
+var centre := false
 
 var _strips: Dictionary = {}
 var _anim := ""
@@ -30,7 +34,6 @@ func load_kind(folder: String, kind: String, anims: Array) -> void:
 				_strips[anim] = sheet
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	centered = false
-	offset = Vector2(-FRAME * 0.5, -FRAME)
 	visible = has_art()
 
 
@@ -51,8 +54,11 @@ func play(next: String) -> void:
 	_clock = 0.0
 	var sheet: Texture2D = _strips[next]
 	texture = sheet
-	hframes = maxi(1, int(sheet.get_width() / FRAME))
+	var tall := sheet.get_height()
+	hframes = maxi(1, sheet.get_width() / tall) if sheet.get_width() % tall == 0 else 1
 	frame = 0
+	var wide := float(sheet.get_width()) / hframes
+	offset = Vector2(-wide * 0.5, -tall * 0.5 if centre else -float(tall))
 
 
 func face(facing: float) -> void:
