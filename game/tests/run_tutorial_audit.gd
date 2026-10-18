@@ -15,6 +15,7 @@ const TutorialScript = preload("res://scripts/tutorial_director.gd")
 const LEVEL_SCRIPTS := {
 	"level_1": [],
 	"level_3": ["res://scripts/level_3.gd"],
+	"level_4": ["res://scripts/level_4.gd"],
 }
 
 var _passed := 0

@@ -1,0 +1,421 @@
+{
+  "$comment": [
+    "LEVEL 4 -- DILIM. Every line is the apo's: Lolo stopped at the water (Dagat's farewell),",
+    "so `speaker_default` is \"apo\" and every line says so as well.",
+    "",
+    "She talks to herself, and what she says is what Lola taught her -- memories of",
+    "instructions, not observations (Kent's design, 'NO GUIDE'). An arrival line says what",
+    "Lola said about the thing in front of her; it never says what to draw.",
+    "",
+    "⚠ NO LINE MAY NAME A DRAWABLE CLASS. Here the traps are horse (the tikbalang),",
+    "tree (the kapre's perch), sun (the morning), clock (the finale) and fan. The check is",
+    "word-boundary and case-insensitive, and run_level4_audit.gd runs it.",
+    "",
+    "⚠ NOTHING STORY-SHAPED MID-ENCOUNTER. A lore line pauses the whole tree; once something",
+    "is hunting her, only `kind: hint` lines (the hint bar, which never stops play) are said.",
+    "The arrivals below are said on the way in, before anything has moved.",
+    "",
+    "RESPAWN is a pool: LevelBase says one per knockout, in turn, through the hint bar.",
+    "",
+    "WHAT IS NOT HERE YET: each encounter's answered and after lines, the nuno's curse, the",
+    "finale's waves and the morning. They come with the encounters that say them -- an",
+    "unreachable line is an audit failure, not a placeholder."
+  ],
+  "level_id": "level_4",
+  "design_level_id": "L4_DILIM",
+  "speaker_default": "apo",
+  "language": "en",
+  "lines": [
+    {
+      "id": "L4_IN_001",
+      "at": "INTRO.painting",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Lola painted this one. She used to tell me what lived in these woods."
+    },
+    {
+      "id": "L4_IN_002",
+      "at": "INTRO.painting",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "The manananggal. The tikbalang. She'd name them one by one, so I'd know them if I ever met one."
+    },
+    {
+      "id": "L4_IN_003",
+      "at": "INTRO.painting",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "I thought she was scaring me. She was teaching me."
+    },
+    {
+      "id": "L4_IN_004",
+      "at": "INTRO.alone",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Lolo stopped at the water. From here it is only me, and what she taught me."
+    },
+    {
+      "id": "L4_RS_001",
+      "at": "RESPAWN",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Lola said the woods take people who stop paying attention."
+    },
+    {
+      "id": "L4_RS_002",
+      "at": "RESPAWN",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Lola said the dark is only dark. It is what is in it you watch for."
+    },
+    {
+      "id": "L4_RS_003",
+      "at": "RESPAWN",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Lola said when the lamp goes out, you go back to where it was last lit."
+    },
+    {
+      "id": "L4_NU_001",
+      "at": "L4_NUNO.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "A mound on the path, with things left all round it. Lola said: when you pass a punso, you ask first. Tabi-tabi po."
+    },
+    {
+      "id": "L4_R1_001",
+      "at": "L4_REST1.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "A clearing. Lola said: wherever you can make a **light** of your own, stop, and fill the lamp before you go on."
+    },
+    {
+      "id": "L4_SG_001",
+      "at": "L4_SIGBIN.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "These tracks go backwards. Lola said the sigbin waits where it is darkest and comes at you from behind."
+    },
+    {
+      "id": "L4_SG_002",
+      "at": "L4_SIGBIN.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Give it no dark to hide in, she said, or nothing behind you to come from."
+    },
+    {
+      "id": "L4_TB_001",
+      "at": "L4_TIKBALANG.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "This is the same rock. Lola said the tikbalang walks you in circles until you give up."
+    },
+    {
+      "id": "L4_TB_002",
+      "at": "L4_TIKBALANG.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It lets its own kind through, she said. And it hates to lose a race."
+    },
+    {
+      "id": "L4_KP_001",
+      "at": "L4_KAPRE.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Smoke, and somebody up there smoking it. Lola said the kapre sits high and keeps to itself, and the smoke turns you round."
+    },
+    {
+      "id": "L4_R2_001",
+      "at": "L4_REST2.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Somewhere to stop. Lola said the far side of the woods is the worst of it. Fill the lamp first."
+    },
+    {
+      "id": "L4_TY_001",
+      "at": "L4_TIYANAK.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "A baby crying, out here? Lola said: if you hear a child in the woods, you do not go to it. You stay on the path."
+    },
+    {
+      "id": "L4_BG_001",
+      "at": "L4_BUNGISNGIS.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Lola said the bungisngis laughs at everything, and that laughing is the only thing stronger than it is."
+    },
+    {
+      "id": "L4_MN_001",
+      "at": "L4_MANANANGGAL.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Only half of her is up there. Lola said: find where she left the rest of herself, and salt it."
+    },
+    {
+      "id": "L4_MN_002",
+      "at": "L4_MANANANGGAL.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Or keep her busy until morning. She cannot put herself back together in the **light**."
+    },
+    {
+      "id": "L4_FN_001",
+      "at": "L4_FINALE.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "This is the clearing in the painting. They are all coming, are they not."
+    },
+    {
+      "id": "L4_FN_002",
+      "at": "L4_FINALE.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Then I only have to last until morning."
+    },
+    {
+      "id": "L4_RT_001",
+      "at": "RETURN.back",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "The woods again. Keep the lamp close."
+    },
+    {
+      "id": "L4_RT_002",
+      "at": "RETURN.quiet",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Listen. Nothing yet."
+    },
+    {
+      "id": "L4_RT_003",
+      "at": "RETURN.again",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Again. I know these woods better than they know me now."
+    },
+    {
+      "id": "L4_RT_010",
+      "at": "RETURN.from.level_3",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Up the mountain from the sea. My clothes are still salty."
+    },
+    {
+      "id": "L4_RT_011",
+      "at": "RETURN.from.level_3",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Good. Lola said they cannot stand salt."
+    },
+    {
+      "id": "L4_RT_020",
+      "at": "RETURN.artist",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Last time I mostly asked, and they mostly let me by."
+    },
+    {
+      "id": "L4_RT_021",
+      "at": "RETURN.pragmatist",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Last time I mostly went round them. Quiet, and quick."
+    },
+    {
+      "id": "L4_RT_022",
+      "at": "RETURN.protector",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Last time I mostly fought my way through. I am not sure Lola would have."
+    },
+    {
+      "id": "L4_FA_001",
+      "at": "RETURN.fact.baths",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Lola said the town at the foot of this mountain is called Los Baños, the baths, for the hot springs it keeps warm."
+    },
+    {
+      "id": "L4_FA_002",
+      "at": "RETURN.fact.keeper",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "People say Makiling has a keeper, Maria Makiling. Take from her forest without asking, they say, and you will not find the way down."
+    },
+    {
+      "id": "L4_FA_003",
+      "at": "RETURN.fact.shape",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "From the lake, Lola said, the mountain looks like a woman lying on her back. That is where the story of its keeper comes from."
+    },
+    {
+      "id": "L4_FA_004",
+      "at": "RETURN.fact.reserve",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "The forest on Makiling is kept for learning now. People come up to put a name to everything that grows in it."
+    }
+  ],
+  "conversations": {
+    "$comment": "Played by LevelBase._run_conversation the first time she arrives. Steps point at hooks above.",
+    "intro": [
+      {
+        "say": "INTRO.painting"
+      },
+      {
+        "say": "INTRO.alone"
+      }
+    ]
+  },
+  "returns": [
+    {
+      "id": "L4_return_from_l3",
+      "pool": "greeting",
+      "priority": 6,
+      "when": {
+        "visits_at_least": 2,
+        "came_from": "level_3"
+      },
+      "steps": [
+        {
+          "say": "RETURN.from.level_3"
+        }
+      ]
+    },
+    {
+      "id": "L4_return_last_artist",
+      "pool": "greeting",
+      "priority": 5,
+      "when": {
+        "visits_at_least": 2,
+        "last_route": "artist"
+      },
+      "steps": [
+        {
+          "say": "RETURN.artist"
+        }
+      ]
+    },
+    {
+      "id": "L4_return_last_pragmatist",
+      "pool": "greeting",
+      "priority": 5,
+      "when": {
+        "visits_at_least": 2,
+        "last_route": "pragmatist"
+      },
+      "steps": [
+        {
+          "say": "RETURN.pragmatist"
+        }
+      ]
+    },
+    {
+      "id": "L4_return_last_protector",
+      "pool": "greeting",
+      "priority": 5,
+      "when": {
+        "visits_at_least": 2,
+        "last_route": "protector"
+      },
+      "steps": [
+        {
+          "say": "RETURN.protector"
+        }
+      ]
+    },
+    {
+      "id": "L4_return_again",
+      "pool": "greeting",
+      "priority": 2,
+      "when": {
+        "visits_at_least": 3
+      },
+      "steps": [
+        {
+          "say": "RETURN.again"
+        }
+      ]
+    },
+    {
+      "id": "L4_return_back",
+      "pool": "greeting",
+      "priority": 1,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.back"
+        }
+      ]
+    },
+    {
+      "id": "L4_return_quiet",
+      "pool": "greeting",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.quiet"
+        }
+      ]
+    },
+    {
+      "id": "L4_fact_baths",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.baths"
+        }
+      ]
+    },
+    {
+      "id": "L4_fact_keeper",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.keeper"
+        }
+      ]
+    },
+    {
+      "id": "L4_fact_shape",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.shape"
+        }
+      ]
+    },
+    {
+      "id": "L4_fact_reserve",
+      "pool": "fact",
+      "priority": 0,
+      "when": {
+        "visits_at_least": 2
+      },
+      "steps": [
+        {
+          "say": "RETURN.fact.reserve"
+        }
+      ]
+    }
+  ]
+}
