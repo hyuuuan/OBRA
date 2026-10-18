@@ -215,7 +215,7 @@ SIGBIN_HIDE = hexes("#0f0c0b", "#241d1a", "#3a2f29", "#54453b", "#726052", "#938
 SIGBIN = Beast("sigbin", SIGBIN_HIDE, size=120, body_len=24, body_depth=9, belly=8, leg_len=13, leg_thick=2.2,
     neck=7, head_len=11, head_h=5.0, snout_len=6, ears="long", tail="whip", crest=False, ribs=True, hind_extra=6)
 
-DOG = Beast("aswang_dog", FUR_DOG, size=120, body_len=30, body_depth=10, belly=6.0, leg_len=18, neck=10,
+DOG = Beast("aswang_dog", FUR_DOG, size=132, body_len=30, body_depth=10, belly=6.0, leg_len=18, neck=10,
     head_len=14, head_h=6.0, snout_len=11, ears="pointed", tail="ragged", crest=False)
 PIG = Beast("aswang_pig", FUR_PIG, size=120, body_len=30, body_depth=12, belly=10.5, leg_len=11, leg_thick=3.2,
     neck=5, head_len=15, head_h=7.0, snout_len=9, ears="small", tail="curl", tusks=True, crest=True, ribs=False)

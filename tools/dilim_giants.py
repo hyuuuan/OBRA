@@ -273,7 +273,7 @@ BAHAG = hexes("#1a0808", "#3e1212", "#622020", "#86342c", "#a8503e")
 EYEBALL = hexes("#4a4338", "#9a9180", "#d8d0bc", "#f4eedc")
 IRIS = hexes("#2a1404", "#6b3a0c", "#b8721c", "#e8b24a")
 
-BUNGISNGIS = Giant("bungisngis", BUNG_SKIN, BUNG_HAIR, size=230, leg=66, thigh_r=14, shin_r=10.5, torso=58,
+BUNGISNGIS = Giant("bungisngis", BUNG_SKIN, BUNG_HAIR, size=250, leg=66, thigh_r=14, shin_r=10.5, torso=58,
     chest_r=26, waist_r=21, arm=78, arm_r=10.0, neck=10, head="cyclops", feet="foot", cloth=BAHAG, gaunt=False)
 
 
