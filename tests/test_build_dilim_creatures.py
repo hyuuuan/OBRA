@@ -49,13 +49,15 @@ class CreatureStripsTest(unittest.TestCase):
             for anim in anims:
                 self.assertIn(f"{kind}_{anim}", self.strips, f"{kind} has no {anim} strip")
 
-    def test_every_strip_is_square_frames_or_one_picture(self) -> None:
-        for name, sheet in self.strips.items():
-            w, h = sheet.size
-            if w % h:
-                continue
-            for frame in _frames(sheet):
-                self.assertEqual(frame.shape[0], frame.shape[1], name)
+    def test_every_animation_is_a_row_of_square_frames(self) -> None:
+        # PixelStripAnimator cuts a strip into frames as wide as it is tall, so an animation of n
+        # frames must be exactly n heights wide; only a single picture may be any width (the
+        # mound, the tree).
+        for kind, anims in creatures._sheets().items():
+            for anim, frames in anims.items():
+                w, h = self.strips[f"{kind}_{anim}"].size
+                if len(frames) > 1:
+                    self.assertEqual(w, len(frames) * h, f"{kind}_{anim}: {len(frames)} frames in {w} x {h}")
 
     def test_nothing_is_cut_off_at_a_frame_edge(self) -> None:
         # A pose that runs off its frame is a nose or a wing chopped flat in the game. Ground
