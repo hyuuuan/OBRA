@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from creature_sculpt import Sculpt, hexes
 
 FUR_DOG = hexes("#0a0612", "#1a1028", "#2a1c42", "#3e2c5e", "#58427e", "#7a62a4")
-FUR_PIG = hexes("#070506", "#140e10", "#22181b", "#33252a", "#48363c", "#634c52")
+FUR_PIG = hexes("#0c0608", "#22121a", "#361e28", "#4e2c3a", "#6a3e50", "#8a5668")
 EYE = hexes("#4a0a08", "#b3241a", "#ff4a2a", "#ffc08a")
 GUM = hexes("#2a070c", "#5c1420", "#8e2433", "#b54050")
 TOOTH = hexes("#3d3428", "#8f8670", "#d4caa8", "#f2ead2")
@@ -156,8 +156,8 @@ def draw(b: Beast, p: Pose) -> Sculpt:
         s.poly("fur", [base, (base[0] + 1, base[1] - 4), (base[0] + 4, base[1] + 1)], bulge=0.3)
     else:  # long, the sigbin's: back over the neck, able to clap
         base = (head_c[0] - 2, head_c[1] - b.head_h + 2)
-        s.capsule("fur", base, (base[0] - 12, base[1] - 4 - p.bob), 2.4, 1.6)
-        s.capsule("far", (base[0] - 1, base[1]), (base[0] - 11, base[1] - 7 - p.bob), 2.0, 1.2)
+        s.capsule("far", (base[0] - 1, base[1]), (base[0] - 9, base[1] + 9 - p.bob), 2.6, 1.6)
+        s.capsule("fur", base, (base[0] - 11, base[1] + 12 - p.bob), 3.0, 2.0)
     # Shaggy fur: irregular tufts along the back, a mane at the scruff, ragged under the belly.
     rng = [0.3, 0.9, 0.5, 1.0, 0.2, 0.7, 0.4, 0.95, 0.6, 0.15, 0.8]
     crest_from = (hip[0] - 1, hip[1] - b.belly + 1)
@@ -222,15 +222,15 @@ def draw(b: Beast, p: Pose) -> Sculpt:
     return s
 
 
-SIGBIN_HIDE = hexes("#0f0c0b", "#241d1a", "#3a2f29", "#54453b", "#726052", "#93806f")
+SIGBIN_HIDE = hexes("#120c08", "#2a1c12", "#42301e", "#5e462c", "#7c5e3c", "#9c7a52")
 
-SIGBIN = Beast("sigbin", SIGBIN_HIDE, size=120, body_len=24, body_depth=9, belly=8, leg_len=13, leg_thick=2.2,
-    neck=7, head_len=11, head_h=5.0, snout_len=6, ears="long", tail="whip", crest=False, ribs=True, hind_extra=6)
+SIGBIN = Beast("sigbin", SIGBIN_HIDE, size=132, body_len=22, body_depth=11, belly=10, leg_len=11, leg_thick=3.4,
+    neck=5, head_len=19, head_h=9, snout_len=6, ears="long", tail="whip", crest=False, ribs=False, hind_extra=6, eye_big=True)
 
 DOG = Beast("aswang_dog", FUR_DOG, size=132, body_len=24, body_depth=12, belly=10.0, leg_len=12, leg_thick=4.2,
     neck=6, head_len=22, head_h=10.5, snout_len=7, ears="pointed", tail="ragged", crest=False, ribs=False, eye_big=True)
-PIG = Beast("aswang_pig", FUR_PIG, size=120, body_len=30, body_depth=12, belly=10.5, leg_len=11, leg_thick=3.2,
-    neck=5, head_len=15, head_h=7.0, snout_len=9, ears="small", tail="curl", tusks=True, crest=True, ribs=False)
+PIG = Beast("aswang_pig", FUR_PIG, size=132, body_len=26, body_depth=14, belly=13, leg_len=10, leg_thick=4.6,
+    neck=4, head_len=22, head_h=11, snout_len=8, ears="small", tail="curl", tusks=True, crest=True, ribs=False, eye_big=True)
 
 
 def run_cycle(n: int = 4) -> list[Pose]:
