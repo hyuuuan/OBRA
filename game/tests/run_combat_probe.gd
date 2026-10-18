@@ -22,6 +22,7 @@ func _run() -> void:
 	await _a_redrawn_tool_costs_where_a_level_says()
 	await _a_drawn_weapon_comes_to_hand_where_a_level_says()
 	await _a_click_swings_toward_the_pointer()
+	await _a_swing_is_seen()
 	await _the_controls_screen_says_what_is_here()
 
 	if failures == 0:
@@ -384,6 +385,25 @@ func _a_click_swings_toward_the_pointer() -> void:
 	_check(outcomes == ["facing +1, still", "facing -1, swung"],
 		"a click behind her does nothing, or turns her and swings where a level says",
 		" / ".join(outcomes))
+
+
+## A swing of a drawn sword is drawn: the attack pose, leaning into it, and then she stands again.
+func _a_swing_is_seen() -> void:
+	var level := await _open_level(null)
+	await _swing_a_drawn_sword(level, 0, SWING_GAP)
+	var apo := level.get("player") as Wanderer
+	var figure := apo.get_node("Figure") as Node2D
+	var body := figure.get_node("Body") as Sprite2D
+	level.call("_use_equipped_utility")
+	await _frames(2)
+	var swinging: StringName = figure.get("pose")
+	var lean := body.rotation
+	await create_timer(0.4).timeout
+	_check(swinging == &"attack" and lean > 0.1 and figure.get("pose") != &"attack" and absf(body.rotation) < 0.01,
+		"a swing is drawn, leaning into it, and then she stands again",
+		"%s at %.2f rad, then %s" % [swinging, lean, figure.get("pose")])
+	level.queue_free()
+	await _frames(3)
 
 
 ## The controls screen names Dilim's walk and click to swing in Dilim, and nowhere else.
