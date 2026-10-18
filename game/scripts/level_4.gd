@@ -144,6 +144,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_watch_her_back(get_physics_process_delta_time())
 	_lead_her_round()
 	_tend_the_kapre(get_physics_process_delta_time())
+	_tend_the_tiyanak()
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
@@ -273,6 +274,7 @@ func _arm_player_health() -> void:
 func _restore_checkpoint() -> String:
 	var restored := super()
 	get_tree().call_group(Enemy2D.GROUP, &"reset_for_restore")
+	_went_to_the_cry = false
 	if dawn_clock != null:
 		dawn_clock.hide_night()
 	_lift_curse()
@@ -291,6 +293,11 @@ var _mound: NunoMound2D
 
 
 func _resolve_level_nodes() -> void:
+	_tiyanak = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Tiyanak") as Tiyanak2D
+	if _tiyanak != null:
+		_tiyanak_x = _tiyanak.global_position.x
+		_tiyanak.cried.connect(_on_tiyanak_cried)
+		_tiyanak.died.connect(func(_foe: Enemy2D) -> void: _answer("L4_TIYANAK", "protector"))
 	_kapre = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Encounters/Kapre") as Kapre2D
 	if _kapre != null:
 		_kapre.cigar_knocked.connect(_on_cigar_knocked)
@@ -364,6 +371,8 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 		_sigbin.flee()
 	if obstacle_id == "L4_TIKBALANG" and _tikbalang != null:
 		_tikbalang.stand_aside()
+	if obstacle_id == "L4_TIYANAK" and route == "artist" and _tiyanak != null:
+		_tiyanak.reveal_and_flee()
 	return false
 
 
@@ -1057,3 +1066,43 @@ func _holding(entity_id: String) -> bool:
 	return _equipped_utility != null and is_instance_valid(_equipped_utility) \
 		and _equipped_utility.item_data != null and _equipped_utility.item_data.entity_id == entity_id
 
+
+# --- The tiyanak --------------------------------------------------------------------------------
+
+## Kent's design: "The threat is the lure, not the creature. The cry pulls the player toward a
+## drop or a nest, and the danger is the terrain it leads to." It cries down on the ground by its
+## drop, which its bushes hide, and the path goes over on logs. Answered three ways: a light she
+## drew shows it for what it is and it flees (artist, judged as the drawing); the far side reached
+## on the path without once going down to the cry (pragmatist, `kept_clear`); struck down after a
+## weapon drawn (protector) -- allowed, never rewarded: it drops nothing, and she says so.
+## How far past where it cries is the far side, off the end of the path.
+const KEPT_CLEAR_PAST := 560.0
+## How far off its cry still shows, and how strong it is: faint at the edge, strong beside her.
+const CRY_HEARD_FROM := 1400.0
+const CRY_FAINTEST := 0.2
+
+var _tiyanak: Tiyanak2D
+var _tiyanak_x := 0.0
+## Whether she went down to it -- into its lure -- since the last checkpoint.
+var _went_to_the_cry := false
+
+
+func _tend_the_tiyanak() -> void:
+	if _tiyanak == null or player == null or not is_instance_valid(player) or director == null \
+			or director.is_solved("L4_TIYANAK"):
+		return
+	var middle := PlayerHurtbox2D.middle_of(player)
+	if _tiyanak.in_lure(middle):
+		_went_to_the_cry = true
+	if not _went_to_the_cry and middle.x >= _tiyanak_x + KEPT_CLEAR_PAST and not _tiyanak.is_gone():
+		_answer("L4_TIYANAK", "pragmatist")
+
+
+## The cry, where it comes from: an amber ripple, stronger the nearer she is.
+func _on_tiyanak_cried(at: Vector2) -> void:
+	if edge_ripple == null or player == null or not is_instance_valid(player):
+		return
+	var distance := PlayerHurtbox2D.middle_of(player).distance_to(at)
+	if distance > CRY_HEARD_FROM:
+		return
+	edge_ripple.cue("tiyanak", at, maxf(CRY_FAINTEST, 1.0 - distance / CRY_HEARD_FROM))
