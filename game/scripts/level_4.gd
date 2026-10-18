@@ -134,7 +134,19 @@ func _read_dark_zones() -> Array:
 	return zones
 
 
+## ⚠ A DROP IS A FALL, AND A FALL IS A KNOCKOUT. Nothing she stands on in the woods is more than the
+## ravine floor's 220 under the forest floor; past FALL_BELOW under it she has gone down the
+## tiyanak's drop -- the danger its cry leads to -- and the woods take her back to her last clearing,
+## in Lola's words, the way a snuffed lantern does. (The base level's fall line is under the world's
+## own bottom, and the apo is wrapped back to the sky before she reaches it.)
+const FOREST_FLOOR := 600.0
+const FALL_BELOW := 300.0
+
+
 func _level_physics(anchor_position: Vector2) -> void:
+	if anchor_position.y > FOREST_FLOOR + FALL_BELOW:
+		_knockout()
+		return
 	# Once it is morning the dawn has the dark; the zones would only pull it back.
 	if darkness_layer != null and not (_finale != null and _finale.has_dawned()):
 		darkness_layer.darkness = move_toward(darkness_layer.darkness,
