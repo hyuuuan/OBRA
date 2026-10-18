@@ -159,6 +159,14 @@ body = "stone"
 script = ExtResource("8_terrain")
 branches = Array[Rect2]([Rect2(18880, 400, 800, 18)])
 
+; THE HOLLOW WHERE THE MANANANGGAL LEFT HER LOWER HALF: a rock leaning out over the ground, its
+; underside 110 up -- room for her to walk in under it -- and dark in there. Kent's design: "The
+; lower half is hidden somewhere in the arena and the player has to find it while being hunted."
+[node name="Hollow" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+platforms = Array[Rect2]([Rect2(20780, 460, 180, 30)])
+body = "stone"
+
 [node name="Canopy" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(11200.0, -520.0)
 
