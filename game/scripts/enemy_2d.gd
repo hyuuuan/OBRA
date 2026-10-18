@@ -210,6 +210,20 @@ func stun(seconds: float) -> void:
 	velocity.x = 0.0
 
 
+## A WEIGHT COMING DOWN ON IT (the finale's dead tree): `damage` at once and no shove -- it is under
+## the thing, not struck from a side -- and the last of it kills.
+func crush(damage: int) -> void:
+	if state == State.DEAD or damage <= 0:
+		return
+	hp -= damage
+	_flash()
+	if hp <= 0:
+		_die()
+	else:
+		_enter(State.STUN)
+		_state_left = STUN_SECONDS
+
+
 ## SALT ON ITS FLESH (Kent's design: "Burns aswang flesh over time"). `ticks` of one, spread over
 ## `seconds`, each a flash and no shove -- it is not a blow -- and the last can kill it. A second
 ## burn while one is under way starts over rather than stacking.
