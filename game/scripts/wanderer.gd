@@ -126,6 +126,9 @@ var _assist := Vector2.ZERO
 var _impulse := Vector2.ZERO
 ## Seconds left in which a blow, not the player, decides where she goes.
 var _stagger_left := 0.0
+## A blade just swung: the attack pose, for this long.
+const SWING_POSE_SECONDS := 0.25
+var _swing_left := 0.0
 ## Seconds of grace left after walking off an edge, and how long a jump pressed in the air
 ## keeps waiting for the ground.
 var _coyote_left := 0.0
@@ -217,6 +220,7 @@ func _physics_process(delta: float) -> void:
 		_jump_buffered = maxf(0.0, _jump_buffered - delta)
 
 	var direction := Input.get_axis(&"move_left", &"move_right")
+	_swing_left = maxf(0.0, _swing_left - delta)
 	var staggered := _stagger_left > 0.0
 	if staggered:
 		_stagger_left = maxf(0.0, _stagger_left - delta)
@@ -394,6 +398,9 @@ func _pose_for(horizontal_speed: float) -> StringName:
 	# Knocked back, on land: a blow reads as a blow. In water the stroke poses already carry it.
 	if is_staggered() and not is_in_water():
 		return &"hurt"
+	# Swinging, on land, she is seen to swing -- in the air too. A blow taken beats it, above.
+	if is_swinging() and not is_in_water():
+		return &"attack"
 	# OFF THE GROUND BEATS MOVING, and this test has to come first.
 	#
 	# It used to sit under the speed check, which meant it only ever ran when the player was
@@ -467,6 +474,15 @@ func knock_back(velocity_change: Vector2, lock_seconds: float = 0.22) -> void:
 
 func is_staggered() -> bool:
 	return _stagger_left > 0.0
+
+
+## A swing of what she holds: the attack pose for SWING_POSE_SECONDS.
+func show_swing() -> void:
+	_swing_left = SWING_POSE_SECONDS
+
+
+func is_swinging() -> bool:
+	return _swing_left > 0.0
 
 
 ## Turn to look at a point, for a swing aimed with the mouse. Not while staggered.
