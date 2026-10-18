@@ -899,6 +899,35 @@ even one drawn before the fork is answered, makes it follow, find what it lost, 
 Mutation-tested: the old beam everywhere fails the first, a 1400 px reach fails the second, and
 the deep beam at the surface staging fails the third.
 
+## The coral facts, when a sea creature gets there first (2026-10-19)
+
+`run_level3_finish_probe`'s coral check failed once in a quick run ("silent: lola1") and passed
+when run alone. The cause is the sea creatures. The first of each kind to wander within
+`MEET_REACH` (240 px) gets a line from Lolo, and his lines are said before a waiting coral fact.
+The creatures wander on unseeded `randf` and move on `_process`, so which of them meet her, and
+when, changes from run to run, and more so under load, when frames are dropped. The swimmer and
+Lolo's reading clock run on the physics step: under twenty CPU burners and under
+`--frame-delay 120` each of their events landed on the same physics frame.
+
+The probe let go of the fish once it had stopped at lola1. A fish left alone drifts toward the
+middle of the column, about 60 px a second at first. It was 204 px from lola1 when Lolo finished
+jelly's fact. When a pawikan's line came first, it had drifted to 420 px, past the 260 px a
+waiting fact is said within, and the fact was dropped.
+
+The probe now holds her where she stopped, as `run_level3_sea_probe` does. It also waits for the
+frame Lolo has nothing being read and nothing queued, which is the frame that decides the fact,
+instead of a fixed 1200 frames. That limit was nearly used up: in 15 runs of 24 the shaft's fact
+was said on frame 1199. No game code changed. Run side by side under the same load, eight at a
+time, the old probe passed 19 of 24 (all five failures "silent: lola1") and the new one 24 of 24.
+With a creature walked up beside her as she stopped, the old probe failed 5 runs of 5 and the new
+one passed 6 of 6.
+
+**Left as it is, for Kent.** A player who stops at a coral and lets go of the keys drifts the same
+way, and is past 260 px in about three and a half seconds. If Lolo is still talking then (a
+creature met, a jar's line), the fact is dropped although the player never swam on. Judging
+"swum on" by whether the player is still moving, not by distance, would close that gap. It is a
+change to the design's rule, so it is not made here.
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.
