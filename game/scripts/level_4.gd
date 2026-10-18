@@ -626,9 +626,14 @@ func _on_night_began() -> void:
 
 ## What has come, said as each later wave opens -- on the hint bar, never a story line: the night is
 ## a fight, and a line in the box would stop it (the audit holds the finale to that).
+## Each later wave's hook, by the wave it opens -- written out, so the audit that every authored line
+## is said can find them.
+const WAVE_LINES := {1: "L4_FINALE.wave2", 2: "L4_FINALE.wave3"}
+
+
 func _on_wave_opened(index: int) -> void:
-	if index >= 1:
-		_speak(script_lines.fire("L4_FINALE.wave%d" % (index + 1)))
+	if WAVE_LINES.has(index):
+		_speak(script_lines.fire(String(WAVE_LINES[index])))
 
 
 ## Suns she has drawn during the night, each seen once: the finale moves the morning on for each,
