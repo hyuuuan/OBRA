@@ -728,10 +728,15 @@ func use_quick_slot(index: int) -> bool:
 	var id := satchel.slot_item(index)
 	if id.is_empty() or satchel.count(id) <= 0:
 		return true
-	if _use_from_satchel(id):
+	var spent := _use_from_satchel(id)
+	if spent:
 		satchel.take(id)
+	# A lash of the whip is a use that spends nothing until its last: it shows, and is logged, all
+	# the same.
+	if spent or _lashed:
 		quick_slots.flash(index)
 		Telemetry.record_event("satchel_used", {"level_id": LevelManager.current_level_id, "item": id})
+	_lashed = false
 	return true
 
 
@@ -932,6 +937,8 @@ func _throw_ash(item: Dictionary) -> bool:
 const WHIP := "buntot_pagi"
 var _whip_uses := 0
 var _whip_cooldown := 0.0
+## Whether the last use was a lash -- one that spends nothing, but was a use.
+var _lashed := false
 
 
 func _lash_the_whip() -> bool:
@@ -959,6 +966,7 @@ func _lash_the_whip() -> bool:
 	lash.position = origin
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(lash)
 	_whip_uses -= 1
+	_lashed = true
 	return _whip_uses <= 0
 
 
