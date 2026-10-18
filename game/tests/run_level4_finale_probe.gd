@@ -195,14 +195,17 @@ func _the_waves_come_on_time() -> void:
 			% [before_second, second, before_third, finale.current_wave()])
 	var kinds := []
 	var drive_off := 0
+	var drawn := false
 	for foe: Enemy2D in fliers:
 		kinds.append(foe.kind)
 		if foe is ManananggalUpper2D:
 			drive_off = foe.max_hp
+		# Its own body, readable in her light -- not the base's dark box.
+		drawn = drawn or foe is Wakwak2D
 	kinds.sort()
-	_check(kinds == ["manananggal_upper", "wakwak"] and drive_off == 8,
+	_check(kinds == ["manananggal_upper", "wakwak"] and drive_off == 8 and drawn,
 		"and the second brings the manananggal, driven off at 8, and a wakwak",
-		"%s, driven off at %d" % [kinds, drive_off])
+		"%s, driven off at %d, wakwak drawn %s" % [kinds, drive_off, drawn])
 	_check(finale.tiktik() != null and finale.tiktik().kind == "tiktik", "and the third brings the tik-tik",
 		"%s" % finale.tiktik())
 
