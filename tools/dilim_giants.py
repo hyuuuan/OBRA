@@ -196,11 +196,11 @@ def _horse_head(s: Sculpt, g: Giant, st: Stance, neck_base, lean):
 
 HEADS = {"horse": _horse_head}
 
-TIK_SKIN = hexes("#070504", "#140e0a", "#22180f", "#332417", "#483321", "#614731")
+TIK_SKIN = hexes("#120806", "#2c160c", "#462414", "#64361e", "#86502c", "#a86c3e")
 TIK_HAIR = hexes("#030202", "#0c0907", "#18120d", "#261d16", "#3a2d22")
 
-TIKBALANG = Giant("tikbalang", TIK_SKIN, TIK_HAIR, size=200, leg=70, thigh_r=6.0, shin_r=3.6, torso=44,
-    chest_r=13.5, waist_r=8, arm=78, arm_r=3.4, neck=12, head="horse", feet="hoof", gaunt=True)
+TIKBALANG = Giant("tikbalang", TIK_SKIN, TIK_HAIR, size=200, leg=62, thigh_r=8.0, shin_r=5.4, torso=40,
+    chest_r=15, waist_r=10, arm=60, arm_r=5.0, neck=12, head="horse", feet="hoof", gaunt=True)
 
 
 def walk(n: int, **kw) -> list[Stance]:
@@ -267,14 +267,14 @@ def _cyclops_head(s: Sculpt, g: Giant, st: Stance, neck_base, lean):
 
 HEADS["cyclops"] = _cyclops_head
 
-BUNG_SKIN = hexes("#100c0b", "#26201d", "#3d342e", "#564a42", "#73655a", "#928174")
+BUNG_SKIN = hexes("#0e100a", "#232a18", "#3a4426", "#546236", "#72844a", "#92a462")
 BUNG_HAIR = hexes("#060504", "#141009", "#231c13", "#352a1d", "#4a3b2a")
 BAHAG = hexes("#1a0808", "#3e1212", "#622020", "#86342c", "#a8503e")
 EYEBALL = hexes("#4a4338", "#9a9180", "#d8d0bc", "#f4eedc")
 IRIS = hexes("#2a1404", "#6b3a0c", "#b8721c", "#e8b24a")
 
-BUNGISNGIS = Giant("bungisngis", BUNG_SKIN, BUNG_HAIR, size=250, leg=66, thigh_r=14, shin_r=10.5, torso=58,
-    chest_r=26, waist_r=21, arm=78, arm_r=10.0, neck=10, head="cyclops", feet="foot", cloth=BAHAG, gaunt=False)
+BUNGISNGIS = Giant("bungisngis", BUNG_SKIN, BUNG_HAIR, size=250, leg=48, thigh_r=15, shin_r=12, torso=46,
+    chest_r=28, waist_r=24, arm=64, arm_r=11.0, neck=10, head="cyclops", feet="foot", cloth=BAHAG, gaunt=False)
 
 
 def draw_bungisngis(st: Stance, club: bool = True) -> Sculpt:
@@ -368,7 +368,7 @@ def _kapre_head(s: Sculpt, g: Giant, st: Stance, neck_base, lean):
 
 HEADS["kapre"] = _kapre_head
 
-KAPRE_SKIN = hexes("#080605", "#15100c", "#241b14", "#35281d", "#4a3828", "#634c36")
+KAPRE_SKIN = hexes("#0c0806", "#20140c", "#362216", "#4c3220", "#66462c", "#845c3a")
 KAPRE_HAIR = hexes("#030202", "#0a0806", "#14100c", "#201913", "#30251c")
 SMOKE = hexes("#4a4a50", "#8a8a92", "#c8c8d0", "#ececf0")
 
