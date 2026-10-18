@@ -192,9 +192,12 @@ def _horse_head(s: Sculpt, g: Giant, st: Stance, neck_base, lean):
     s.capsule("skin", neck_base, top, 6.5, 5.0)
     poll = (top[0] - 1, top[1] - 6)
     muzzle = (poll[0] + 24, poll[1] + 14)
-    s.capsule("skin", poll, muzzle, 7.0, 5.2)
-    s.ellipse("skin", poll[0] + 2, poll[1] + 1, 7.5, 7.5)
-    s.ellipse("skin", muzzle[0] - 1, muzzle[1] + 1, 5.5, 4.5)
+    # The long face tapering from the brow to the muzzle, the nose's line bowed a little, a round
+    # jowl at the back of the jaw, and the soft muzzle at the end.
+    s.ellipse("skin", poll[0] + 4, poll[1] + 7, 7.0, 6.5)
+    s.tube("skin", [poll, _along(poll, muzzle, 0.5, -1.2), muzzle], [7.2, 5.6, 4.4])
+    s.ellipse("skin", poll[0] + 2, poll[1] + 1, 7.0, 7.0)
+    s.ellipse("skin", muzzle[0] - 0.5, muzzle[1] + 1, 5.0, 4.6)
     jaw = (muzzle[0] - 3, muzzle[1] + 4 + st.mouth * 3)
     s.capsule("skin", (poll[0] + 3, poll[1] + 6), jaw, 4.5, 3.4)
     # Ears, pricked.
