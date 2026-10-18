@@ -21,6 +21,9 @@ const TRUNK_CENTRE := 15.5
 ## How far the fallen trunk reaches across the gorge. It lands to the right, which is
 ## the way the player is travelling.
 @export var span_length: float = 460.0
+## How thick the fallen trunk lies. A crossing is walked on, so Level 1's is low; one meant to stop
+## walkers has to stand taller than a walker steps up (GroundEnemy2D.STEP_UP).
+@export var span_height: float = 34.0
 ## Standing, whether it is a wall. Level 1's stands at the gorge's lip, where walking into it is
 ## right; one standing in open ground (Dilim's last clearing) is hit by a tool without stopping
 ## anyone -- its trunk is an area a swing finds rather than a body.
@@ -88,9 +91,9 @@ func _build() -> void:
 	add_child(_fallen)
 	var span_collision := CollisionShape2D.new()
 	var span_box := RectangleShape2D.new()
-	span_box.size = Vector2(span_length, 34.0)
+	span_box.size = Vector2(span_length, span_height)
 	span_collision.shape = span_box
-	span_collision.position = Vector2(span_length * 0.5, -17.0)
+	span_collision.position = Vector2(span_length * 0.5, -span_height * 0.5)
 	_fallen.add_child(span_collision)
 	z_index = 6
 
