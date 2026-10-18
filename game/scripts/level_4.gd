@@ -806,9 +806,11 @@ func _on_foe_fell(foe: Enemy2D) -> void:
 		var row := satchel.row(id)
 		if night and bool(row.get("never_in_finale", false)):
 			continue
-		# Some come only with the night's later waves: then, and at no other time.
+		# Some come only with the night's later waves: then, and at no other time. The file's numbers
+		# are floats (JSON), so they are compared as whole numbers -- Array.has(1) misses 1.0.
 		var waves: Array = row.get("finale_waves", [])
-		if not waves.is_empty() and not (night and waves.has(_finale.current_wave())):
+		if not waves.is_empty() and not (night and waves.any(func(wave: Variant) -> bool:
+				return int(wave) == _finale.current_wave())):
 			continue
 		if _drops.randf() >= float(row.get("drop_chance", 0.0)):
 			continue
