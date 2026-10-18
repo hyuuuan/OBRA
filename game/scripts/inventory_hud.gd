@@ -177,6 +177,65 @@ func _ready() -> void:
 		button.add_child(count)
 		_counts.append(count)
 
+		var wear := Panel.new()
+		wear.name = "Wear"
+		wear.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		wear.position = Vector2(WEAR_INSET, SLOT.y - WEAR_INSET * 0.5 - WEAR_HEIGHT)
+		wear.size = Vector2(SLOT.x - WEAR_INSET * 2.0, WEAR_HEIGHT)
+		wear.add_theme_stylebox_override(&"panel", _wear_box(UISkin.INK))
+		wear.visible = false
+		var left := Panel.new()
+		left.name = "Left"
+		left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		left.size = wear.size
+		wear.add_child(left)
+		button.add_child(wear)
+		_wear_bars.append(wear)
+
+
+## WHAT A WEAPON HAS LEFT, where a level wears weapons out (Dilim): a soft bar along the slot's
+## foot, full when drawn and gone with the last swing, warm for the last LOW_WEAR. Read off the
+## item's own runtime_state ("uses_left" of "uses_total"), so it follows the item between slots.
+const WEAR_HEIGHT := 5.0
+const WEAR_INSET := 8.0
+const LOW_WEAR := 2
+
+var _wear_bars: Array[Panel] = []
+
+
+## Redraw what each slot shows, for a change the bag did not make itself -- a swing worn off.
+func refresh_wear() -> void:
+	if _manager != null:
+		_refresh(_manager.items())
+
+
+## The share of a weapon's uses left, or -1 for anything that does not wear.
+static func wear_of(item: DrawnItemData) -> float:
+	if item == null:
+		return -1.0
+	var total := int(item.runtime_state.get("uses_total", 0))
+	if total <= 0:
+		return -1.0
+	return clampf(float(item.runtime_state.get("uses_left", total)) / float(total), 0.0, 1.0)
+
+
+func _show_wear(index: int, item: DrawnItemData) -> void:
+	var bar := _wear_bars[index]
+	var share := wear_of(item)
+	bar.visible = share >= 0.0
+	if share < 0.0:
+		return
+	var left := bar.get_child(0) as Panel
+	left.size = Vector2(bar.size.x * share, bar.size.y)
+	var low := int(item.runtime_state.get("uses_left", 0)) <= LOW_WEAR
+	left.add_theme_stylebox_override(&"panel", _wear_box(UISkin.PENDING if low else UISkin.USE))
+
+
+static func _wear_box(color: Color) -> StyleBox:
+	var box := StyleBoxFlat.new()
+	box.bg_color = color
+	return UISkin.rounded(box, int(WEAR_HEIGHT * 0.5))
+
 
 ## THE TRAY. Six loose frames floating on the level read as six separate things; one dark
 ## strip behind them reads as one bag. Drawn a little outside the bar's own rect, which is the
@@ -330,6 +389,7 @@ func _refresh(items: Array) -> void:
 		_numbers[index].add_theme_color_override(&"font_color", GOLD if occupied else DIM)
 		_tags[index].visible = chosen
 		show_count(_counts[index], _manager.count(index) if _manager != null else int(occupied))
+		_show_wear(index, item)
 	_forget_stale_thumbnails(items)
 
 
