@@ -25,6 +25,9 @@ enum State { IDLE, CHASE, WINDUP, ATTACK, RECOVER, STUN, DEAD }
 
 ## Every encounter a checkpoint restore must put back the way it was.
 const GROUP := &"dilim_encounters"
+## Every one of them, the finale's own as well, which leave GROUP so a restore does not reset them
+## with the encounters: what ash and salt look for. Joined once, never left.
+const FOES := &"dilim_foes"
 ## Anything it will not cross while it hunts by smell. Each answers `reach()`, a radius.
 const WARDS := &"scent_wards"
 const CONFIG := "res://config/enemies.json"
@@ -89,6 +92,7 @@ var _burn_clock := 0.0
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	add_to_group(FOES)
 	_read_config()
 	hp = max_hp
 	_home = global_position
@@ -204,6 +208,20 @@ func stun(seconds: float) -> void:
 	_enter(State.STUN)
 	_state_left = seconds
 	velocity.x = 0.0
+
+
+## A WEIGHT COMING DOWN ON IT (the finale's dead tree): `damage` at once and no shove -- it is under
+## the thing, not struck from a side -- and the last of it kills.
+func crush(damage: int) -> void:
+	if state == State.DEAD or damage <= 0:
+		return
+	hp -= damage
+	_flash()
+	if hp <= 0:
+		_die()
+	else:
+		_enter(State.STUN)
+		_state_left = STUN_SECONDS
 
 
 ## SALT ON ITS FLESH (Kent's design: "Burns aswang flesh over time"). `ticks` of one, spread over

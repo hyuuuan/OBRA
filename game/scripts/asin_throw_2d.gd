@@ -41,7 +41,7 @@ func _physics_process(delta: float) -> void:
 	_clock += delta
 	_velocity.y += GRAVITY * delta
 	global_position += _velocity * delta
-	for node in get_tree().get_nodes_in_group(Enemy2D.GROUP):
+	for node in get_tree().get_nodes_in_group(Enemy2D.FOES):
 		var foe := node as Enemy2D
 		if foe == null or foe.is_dead():
 			continue

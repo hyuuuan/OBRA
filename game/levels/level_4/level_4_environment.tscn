@@ -21,6 +21,7 @@
 [ext_resource type="Script" path="res://scripts/bungisngis_2d.gd" id="19_bungisngis"]
 [ext_resource type="Script" path="res://scripts/manananggal_upper_2d.gd" id="20_upper"]
 [ext_resource type="Script" path="res://scripts/manananggal_lower_2d.gd" id="21_lower"]
+[ext_resource type="Script" path="res://scripts/dead_tree_2d.gd" id="22_tree"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -253,6 +254,17 @@ script = ExtResource("11_mound")
 position = Vector2(21900.0, 600.0)
 script = ExtResource("12_finale")
 arena_west = 21400.0
+
+; The dead tree at the clearing's middle: not a wall standing; felled, it falls east into one from
+; here to 280 short of the east wall (22420), shutting off the east side and the entry there --
+; taller than a walker steps (STEP_UP 48), under her jump (94).
+[node name="DeadTree" type="Node2D" parent="GameplayPlane/Finale"]
+position = Vector2(0.0, 0.0)
+script = ExtResource("22_tree")
+span_length = 280.0
+span_height = 64.0
+stands_solid = false
+blocked_hint = ""
 
 ; Lola's things, lying where she will find them. Aswang drop more as they fall.
 ; Who is in the woods, waiting.

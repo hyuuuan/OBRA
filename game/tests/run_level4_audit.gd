@@ -295,7 +295,9 @@ func _audit_no_objective_names_a_class(level: Dictionary) -> void:
 
 
 ## A lore line pauses the tree. Arriving, and the answer landing, are the only places a story
-## line may be said at an encounter; anything else there has to be a hint.
+## line may be said at an encounter; anything else there has to be a hint. The finale is held to
+## it too though it has no routes -- its night is the longest fight in the level -- with arriving
+## and the morning as its two calm places.
 func _audit_nothing_story_shaped_mid_encounter(level: Dictionary) -> void:
 	var script := DialogueScriptClass.new()
 	script.load_from(DIALOGUE_PATH)
@@ -308,6 +310,9 @@ func _audit_nothing_story_shaped_mid_encounter(level: Dictionary) -> void:
 		calm["%s.solved" % id] = true
 		for route_value: Variant in (obstacle.get("routes", {}) as Dictionary).keys():
 			calm["%s.%s.solved" % [id, route_value]] = true
+	encounter_ids.append("L4_FINALE")
+	calm["L4_FINALE.enter"] = true
+	calm["L4_FINALE.solved"] = true
 	var loud: Array[String] = []
 	var checked := 0
 	for line_value: Variant in script.hooks():

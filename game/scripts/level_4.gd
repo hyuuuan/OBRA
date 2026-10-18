@@ -159,6 +159,9 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_tend_the_tiyanak()
 	_tend_the_bungisngis(get_physics_process_delta_time())
 	_tend_the_manananggal(get_physics_process_delta_time())
+	_tend_the_night()
+	_tend_the_tiktik()
+	_whip_cooldown = maxf(0.0, _whip_cooldown - get_physics_process_delta_time())
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
@@ -337,6 +340,7 @@ func _resolve_level_nodes() -> void:
 	if _finale != null:
 		_finale.dawned.connect(_on_dawn)
 		_finale.began.connect(_on_night_began)
+		_finale.wave_opened.connect(_on_wave_opened)
 	if _mound != null:
 		_mound.crossed.connect(_on_mound_crossed)
 		_mound.crown_touched.connect(_on_crown_touched)
@@ -614,6 +618,74 @@ func _place_dawn_clock() -> void:
 func _on_night_began() -> void:
 	if dawn_clock != null:
 		dawn_clock.show_night()
+	# Suns already standing were drawn before this night: only one drawn in it hurries it.
+	_suns_seen.clear()
+	for sun: Node in _drawn_suns():
+		_suns_seen[sun.get_instance_id()] = true
+
+
+## What has come, said as each later wave opens -- on the hint bar, never a story line: the night is
+## a fight, and a line in the box would stop it (the audit holds the finale to that).
+## Each later wave's hook, by the wave it opens -- written out, so the audit that every authored line
+## is said can find them.
+const WAVE_LINES := {1: "L4_FINALE.wave2", 2: "L4_FINALE.wave3"}
+
+
+func _on_wave_opened(index: int) -> void:
+	if WAVE_LINES.has(index):
+		_speak(script_lines.fire(String(WAVE_LINES[index])))
+
+
+## Suns she has drawn during the night, each seen once: the finale moves the morning on for each,
+## if that wave has not had one yet.
+var _suns_seen := {}
+
+
+func _tend_the_night() -> void:
+	if _finale == null or not _finale.is_running():
+		return
+	for sun: Node in _drawn_suns():
+		var id := sun.get_instance_id()
+		if not _suns_seen.has(id):
+			_suns_seen[id] = true
+			_finale.hurry_dawn()
+
+
+## THE TIK-TIK SHE CANNOT SEE. Its call goes on the screen's edge where it comes from, violet, as
+## loud as it calls -- which is louder the further off it is -- and while it is close her lantern
+## leans away from it and its light is dragged down. Each frame: the lean is how close it is, and
+## goes back to nothing when it has gone.
+const TIKTIK_PULL_HOLD := 0.2
+var _tiktik_heard: Tiktik2D
+
+
+func _tend_the_tiktik() -> void:
+	var tiktik: Tiktik2D = _finale.tiktik() if _finale != null else null
+	if tiktik != null and tiktik != _tiktik_heard:
+		_tiktik_heard = tiktik
+		tiktik.called.connect(_on_tiktik_called)
+	var lean := 0.0
+	if tiktik != null and held_lantern != null and tiktik.pulls_at(held_lantern.global_position):
+		lean = 1.0 - tiktik.global_position.distance_to(held_lantern.global_position) / Tiktik2D.PULLS_WITHIN
+		held_lantern.drag_down(TIKTIK_PULL_HOLD)
+		if lantern_hud != null:
+			lantern_hud.gutter(TIKTIK_PULL_HOLD)
+	if lantern_hud != null:
+		lantern_hud.lean(lean)
+
+
+func _on_tiktik_called(at: Vector2, strength: float) -> void:
+	if edge_ripple != null:
+		edge_ripple.cue("tiktik", at, strength)
+
+
+func _drawn_suns() -> Array:
+	var suns: Array = []
+	for source in get_tree().get_nodes_in_group(LightField.GROUP):
+		if source is UtilityObject and (source as UtilityObject).utility_behavior == "sun" \
+				and not (source as UtilityObject).is_preview and (source as UtilityObject).is_visible_in_tree():
+			suns.append(source)
+	return suns
 
 
 ## MORNING. The dark lifts -- on the dark layer's own clock, which runs while a line is up -- she says
@@ -747,6 +819,12 @@ func _on_foe_fell(foe: Enemy2D) -> void:
 		var row := satchel.row(id)
 		if night and bool(row.get("never_in_finale", false)):
 			continue
+		# Some come only with the night's later waves: then, and at no other time. The file's numbers
+		# are floats (JSON), so they are compared as whole numbers -- Array.has(1) misses 1.0.
+		var waves: Array = row.get("finale_waves", [])
+		if not waves.is_empty() and not (night and waves.any(func(wave: Variant) -> bool:
+				return int(wave) == _finale.current_wave())):
+			continue
 		if _drops.randf() >= float(row.get("drop_chance", 0.0)):
 			continue
 		var pickup := SatchelPickup2D.new()
@@ -788,6 +866,8 @@ func _use_from_satchel(id: String) -> bool:
 			return _throw_salt(item)
 		"dust":
 			return _throw_ash(item)
+		"whip":
+			return _lash_the_whip()
 		_:
 			return false
 
@@ -842,6 +922,44 @@ func _throw_ash(item: Dictionary) -> bool:
 	dust.position = player.global_position
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(dust)
 	return true
+
+
+## BUNTOT PAGI: Lola's stingray-tail whip, lashed in front of her -- the satchel's one weapon. Its
+## row is weapons.json's (uses, damage, reach, arc, cooldown); it reaches anything within its reach
+## in the arc, so a flier overhead too. Each lash wears it, and it is spent -- gone from the satchel
+## -- at its last use; until then a lash is used and not spent, and a press inside the cooldown is
+## neither.
+const WHIP := "buntot_pagi"
+var _whip_uses := 0
+var _whip_cooldown := 0.0
+
+
+func _lash_the_whip() -> bool:
+	if player == null or not is_instance_valid(player) or _whip_cooldown > 0.0:
+		return false
+	_whip_cooldown = WeaponTable.cooldown_ms(WHIP) / 1000.0
+	if _whip_uses <= 0:
+		_whip_uses = WeaponTable.uses(WHIP)
+	var facing_value: Variant = player.get(&"_facing")
+	var facing := signf(float(facing_value)) if facing_value != null and float(facing_value) != 0.0 else 1.0
+	var origin := PlayerHurtbox2D.middle_of(player)
+	var reach := WeaponTable.reach(WHIP)
+	var half_arc := deg_to_rad(WeaponTable.arc_degrees(WHIP) * 0.5)
+	for node in get_tree().get_nodes_in_group(Enemy2D.FOES):
+		var foe := node as Enemy2D
+		if foe == null or foe.is_dead():
+			continue
+		var offset := foe.global_position - origin
+		if offset.length() <= reach and absf(Vector2(facing, 0.0).angle_to(offset)) <= half_arc:
+			foe.apply_tool_hit(WHIP, 0.0, player)
+	var lash := WhipLash2D.new()
+	lash.reach = reach
+	lash.facing = facing
+	lash.arc_degrees = WeaponTable.arc_degrees(WHIP)
+	lash.position = origin
+	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(lash)
+	_whip_uses -= 1
+	return _whip_uses <= 0
 
 
 ## LANGIS: stages back into the lantern. Not when it is already full -- that would only waste it.
