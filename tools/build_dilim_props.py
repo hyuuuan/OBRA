@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Draw the things in Dilim's satchel as pixel icons: asin, abo, bawang, kandila, langis.
+"""Draw the things in Dilim's satchel as pixel icons: asin, abo, bawang, kandila, langis, buntot pagi.
 
 WHY CODE-DRAWN
 --------------
@@ -12,9 +12,10 @@ HOW THEY ARE DRAWN
 ------------------
 In the project's own idiom (tools/pixelart.py): a 16 x 16 logical grid scaled by PX = 2 to a
 32 px icon, short ramps, light from the upper left. Each sits on a leaf -- the way an offering
-is set down -- so the five read as one family at a glance, and each is its own colour so a
+is set down -- so the six read as one family at a glance, and each is its own colour so a
 player tells them apart by colour before shape: white salt, grey ash, cream-and-violet garlic,
-a candle's amber flame, a bottle's oil-gold. None is a shape from the fifty.
+a candle's amber flame, a bottle's oil-gold, and the bone-pale barb on a stingray-tail whip.
+None is a shape from the fifty.
 
 USAGE
     python3 tools/build_dilim_props.py            # write game/assets/Level4/props/
@@ -49,6 +50,9 @@ FLAME = ramp(["#b8641c", "#ffbd3d", "#fff0c0"])
 GLASS = ramp(["#3f5a5e", "#6d8f92", "#b7d3d1"])
 OIL = ramp(["#8a5a12", "#c98a22", "#f0c25a"])
 CORK = ramp(["#6b4a2a", "#9a7046"])
+TAIL = ramp(["#2e2a2c", "#5a5052", "#8a7c78"])
+RATTAN = ramp(["#4a2e16", "#7a4e26", "#b07a40"])
+BARB = ramp(["#e3d3b0"])[0]
 
 
 def leaf(canvas: Canvas) -> None:
@@ -137,8 +141,27 @@ def draw_langis() -> Canvas:
     return canvas
 
 
+def draw_buntot_pagi() -> Canvas:
+    canvas = Canvas(GRID, GRID, seed=406)
+    leaf(canvas)
+    # A stingray's tail dried into a whip: a rattan-bound grip low on the left, the tail thick off
+    # it and tapering up and over in a curl, and the barb near its root the one pale thing.
+    for i, (x, y) in enumerate([(2, 11), (3, 10), (4, 9)]):
+        canvas.px(x, y, RATTAN[1])
+        canvas.px(x + 1, y, RATTAN[2] if i % 2 == 0 else RATTAN[0])
+    tail = [(5, 8), (6, 7), (7, 6), (8, 5), (9, 4), (10, 3), (11, 3), (12, 3), (13, 4), (13, 5), (12, 6)]
+    for i, (x, y) in enumerate(tail):
+        canvas.px(x, y, TAIL[1])
+        if i < 5:
+            canvas.px(x, y + 1, TAIL[0])
+            canvas.px(x - 1, y, TAIL[2])
+    canvas.px(7, 5, BARB)
+    canvas.px(8, 4, BARB)
+    return canvas
+
+
 ITEMS = {"asin": draw_asin, "abo": draw_abo, "bawang": draw_bawang,
-         "kandila": draw_kandila, "langis": draw_langis}
+         "kandila": draw_kandila, "langis": draw_langis, "buntot_pagi": draw_buntot_pagi}
 
 
 def icon(item: str):
