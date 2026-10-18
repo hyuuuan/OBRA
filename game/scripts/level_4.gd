@@ -159,6 +159,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_tend_the_tiyanak()
 	_tend_the_bungisngis(get_physics_process_delta_time())
 	_tend_the_manananggal(get_physics_process_delta_time())
+	_tend_the_night()
 	if dawn_clock != null and _finale != null:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
@@ -614,6 +615,34 @@ func _place_dawn_clock() -> void:
 func _on_night_began() -> void:
 	if dawn_clock != null:
 		dawn_clock.show_night()
+	# Suns already standing were drawn before this night: only one drawn in it hurries it.
+	_suns_seen.clear()
+	for sun: Node in _drawn_suns():
+		_suns_seen[sun.get_instance_id()] = true
+
+
+## Suns she has drawn during the night, each seen once: the finale moves the morning on for each,
+## if that wave has not had one yet.
+var _suns_seen := {}
+
+
+func _tend_the_night() -> void:
+	if _finale == null or not _finale.is_running():
+		return
+	for sun: Node in _drawn_suns():
+		var id := sun.get_instance_id()
+		if not _suns_seen.has(id):
+			_suns_seen[id] = true
+			_finale.hurry_dawn()
+
+
+func _drawn_suns() -> Array:
+	var suns: Array = []
+	for source in get_tree().get_nodes_in_group(LightField.GROUP):
+		if source is UtilityObject and (source as UtilityObject).utility_behavior == "sun" \
+				and not (source as UtilityObject).is_preview and (source as UtilityObject).is_visible_in_tree():
+			suns.append(source)
+	return suns
 
 
 ## MORNING. The dark lifts -- on the dark layer's own clock, which runs while a line is up -- she says
