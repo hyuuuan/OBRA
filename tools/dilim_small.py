@@ -82,10 +82,11 @@ def tiyanak_true(step: float = 0.0, run: bool = False) -> Sculpt:
             s.curve([(head[0] - 5, head[1] - 6 + k * 2), (head[0], head[1] - 7 + k * 2), (head[0] + 4, head[1] - 5 + k * 2)], s.tone("skin", 1), only_on_body=True)
         s.curve([(cx - 6, ground - 14), (cx, ground - 11), (cx + 6, ground - 14)], s.tone("skin", 1), only_on_body=True)
         # Two huge eyes, burning, with glints.
-        for ex in (head[0] + 2, head[0] + 7):
-            s.ellipse("eye", ex, head[1] - 1, 2.6, 2.6)
-        for ex in (head[0] + 2, head[0] + 7):
-            s.dot(ex - 1, head[1] - 2, s.tone("eye", 3))
+        for ex in (head[0] + 1.5, head[0] + 7.5):
+            s.ellipse("eye", ex, head[1] - 1.5, 3.3, 3.3)
+        for ex in (head[0] + 1.5, head[0] + 7.5):
+            s.line((ex + 0.5, head[1] - 3.5), (ex + 0.5, head[1] + 0.5), s.tone("eye", 0))
+            s.dot(ex - 1, head[1] - 3, (255, 255, 255))
         # The mouth, wide, needle teeth.
         s.ellipse("gum", head[0] + 5, head[1] + 4.5, 5, 2)
         for k in range(5):
@@ -104,20 +105,22 @@ def santelmo(flicker: float = 0.0, hot: float = 0.0) -> Sculpt:
     s = Sculpt(64, 64)
     s.material("fire", FIRE)
     s.material("core", FIRE[[2, 3, 3, 4, 4]])
-    cx, cy = 32, 38
+    cx, cy = 32, 40
     r = 9 + hot * 2
-    s.ellipse("fire", cx, cy, r, r)
-    for k in range(5):
-        a = -math.pi / 2 + (k - 2) * 0.5 + math.sin(flicker * math.tau + k) * 0.15
-        length = 10 + (k % 2) * 6 + hot * 6 + math.sin(flicker * math.tau * 2 + k * 1.7) * 3
-        base = (cx + math.cos(a) * r * 0.6, cy + math.sin(a) * r * 0.6)
-        tip = (cx + math.cos(a) * (r + length), cy + math.sin(a) * (r + length))
-        s.capsule("fire", base, tip, 4.0 - abs(k - 2) * 0.6, 0.6)
-    s.ellipse("core", cx + 1, cy + 1, r * 0.55, r * 0.55)
+    sway = math.sin(flicker * math.tau) * 2.5
+    tall = 22 + hot * 6 + math.sin(flicker * math.tau * 2) * 2
+    # A teardrop: a round belly of fire drawing up to a swaying tip.
+    s.ellipse("fire", cx, cy, r, r * 0.95)
+    s.poly("fire", [(cx - r * 0.9, cy - 2), (cx - r * 0.4 + sway * 0.4, cy - tall * 0.6), (cx + sway, cy - tall),
+        (cx + r * 0.45 + sway * 0.4, cy - tall * 0.55), (cx + r * 0.9, cy - 2)], bulge=0.45)
+    # A smaller lick beside it.
+    s.poly("fire", [(cx + r * 0.3, cy - 4), (cx + r * 0.9 - sway, cy - tall * 0.7), (cx + r * 0.95, cy - 3)], bulge=0.4)
+    s.ellipse("core", cx + 0.5, cy + 1.5, r * 0.5, r * 0.55)
+    s.poly("core", [(cx - r * 0.35, cy), (cx + sway * 0.5, cy - tall * 0.45), (cx + r * 0.35, cy)], bulge=0.4)
     img = s
-    for k in range(6):
-        a = flicker * math.tau + k * 1.05
-        s.dot(cx + math.cos(a) * (r + 6), cy + math.sin(a) * (r + 4) - 4, s.tone("fire", 3), alpha=170)
+    for k in range(4):
+        a = flicker * math.tau + k * 1.6
+        s.dot(cx + math.cos(a) * (r + 5), cy - 6 - k * 4 + math.sin(a) * 2, s.tone("fire", 3), alpha=200)
     return img
 
 
@@ -173,13 +176,14 @@ def manananggal_lower(smoke: float = 0.0) -> Sculpt:
     for name, ramp in [("far", SKIN_W[[0, 0, 1, 2, 3, 3]]), ("skin", SKIN_W), ("tapis", TAPIS), ("gut", GUT)]:
         s.material(name, ramp)
     cx, ground = 36, 71
-    s.capsule("far", (cx - 3, ground - 30), (cx - 5, ground - 2), 4.0, 2.6)
-    s.capsule("skin", (cx + 3, ground - 30), (cx + 4, ground - 2), 4.2, 2.8)
+    s.capsule("far", (cx - 3, ground - 30), (cx - 5, ground - 2), 5.0, 3.2)
+    s.capsule("skin", (cx + 3, ground - 30), (cx + 4, ground - 2), 5.4, 3.4)
     s.ellipse("skin", cx + 6, ground - 1.5, 4, 1.6)
     s.ellipse("far", cx - 2, ground - 1.5, 3.5, 1.4)
     # The tapis, wrapped to the knee, its hem uneven.
-    s.poly("tapis", [(cx - 10, ground - 46), (cx + 10, ground - 46), (cx + 9, ground - 22), (cx + 4, ground - 20),
-        (cx - 1, ground - 22), (cx - 6, ground - 19), (cx - 10, ground - 22)], bulge=0.35)
+    s.ellipse("tapis", cx, ground - 40, 12, 8)
+    s.poly("tapis", [(cx - 12, ground - 42), (cx + 12, ground - 42), (cx + 13, ground - 20), (cx + 6, ground - 18),
+        (cx, ground - 20), (cx - 7, ground - 17), (cx - 13, ground - 20)], bulge=0.4)
     # The waist: torn, wet, what hangs from it.
     s.ellipse("gut", cx, ground - 46, 10, 3.5)
     for dx, ln in [(-5, 7), (0, 10), (5, 6)]:
