@@ -105,11 +105,12 @@ position = Vector2(260.0, 510.0)
 [node name="Terrain" type="Node2D" parent="GameplayPlane"]
 
 ; One floor the whole way, broken where an encounter's ground needs it: the drop by the tiyanak's
-; cry (17250-17550, 300 wide -- past a running jump's 228). Its other ground -- the forks, the
-; ravine, the high path -- comes with each encounter.
+; cry (17250-17550) and the bungisngis's ravine (19150-19450), each 300 wide -- past a running
+; jump's 228, under a bridge's 340. Its other ground -- the forks, the high path -- comes with
+; each encounter.
 [node name="Ground" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 script = ExtResource("8_terrain")
-platforms = Array[Rect2]([Rect2(-200, 600, 17450, 800), Rect2(17550, 600, 5050, 800)])
+platforms = Array[Rect2]([Rect2(-200, 600, 17450, 800), Rect2(17550, 600, 1600, 800), Rect2(19450, 600, 3150, 800)])
 
 ; ⚠ THE CANOPY IS A CEILING, NOT A RULE (Kent's design: 'the canopy block flight physically').
 ; 440 up: higher than a drawn tree reaches (362), so every way over the ground still fits under
@@ -138,6 +139,18 @@ branches = Array[Rect2]([Rect2(8650, 520, 220, 18), Rect2(8950, 450, 260, 18), R
 [node name="TiyanakPath" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 script = ExtResource("8_terrain")
 branches = Array[Rect2]([Rect2(16900, 530, 220, 18), Rect2(17080, 465, 600, 18)])
+
+; THE CROSSING THE BUNGISNGIS STANDS IN (Kent's design: "Blocks a crossing"). The ravine's floor,
+; 220 down -- a drop she takes and walks -- and two stones up its far side, 73 px each, to the rim.
+; It is the way across for anyone who does not go over the top, and the giant stands in it.
+[node name="RavineFloor" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+platforms = Array[Rect2]([Rect2(19150, 820, 300, 580)])
+
+[node name="RavineSteps" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+platforms = Array[Rect2]([Rect2(19330, 747, 120, 73), Rect2(19390, 674, 60, 73)])
+body = "stone"
 
 [node name="Canopy" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(11200.0, -520.0)
