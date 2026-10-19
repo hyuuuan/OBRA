@@ -11,7 +11,10 @@
     "fall (one roll per item, so a fall can drop nothing or more than one). `never_in_finale` keeps",
     "the lantern from being refilled mid-night: 'Langis carried in is what the player has.'",
     "`finale_waves` lets a row drop only in those of the finale's waves (0-indexed) and never",
-    "outside it. An item in the satchel that does nothing is a bug, not a placeholder."
+    "outside it. An item in the satchel that does nothing is a bug, not a placeholder.",
+  "",
+  "`found` is what she says finding the first of a kind: what it does, and the key it is on",
+  "({key}). Naming it and its key alone left a player with a candle and no idea what for."
   ],
   "schema_version": 1,
   "quick_slots": 4,
@@ -19,6 +22,7 @@
     "asin": {
       "display_name": "Asin",
       "gloss": "Salt",
+      "found": "Asin -- salt. It burns them. {key} throws it.",
       "cap": 12,
       "drop_chance": 0.35,
       "use": "throw",
@@ -30,6 +34,7 @@
     "abo": {
       "display_name": "Abo",
       "gloss": "Ash",
+      "found": "Abo -- ash. {key} throws it up, and it shows what hides in the dark.",
       "cap": 6,
       "drop_chance": 0.2,
       "use": "dust",
@@ -41,6 +46,7 @@
     "bawang": {
       "display_name": "Bawang",
       "gloss": "Garlic",
+      "found": "Bawang -- garlic. {key} crushes it, and what hunts by smell keeps away.",
       "cap": 4,
       "drop_chance": 0.12,
       "use": "ward",
@@ -51,6 +57,7 @@
     "kandila": {
       "display_name": "Kandila",
       "gloss": "Candle",
+      "found": "Kandila -- a candle. {key} sets it down: light that costs no ink.",
       "cap": 3,
       "drop_chance": 0.08,
       "use": "candle",
@@ -61,6 +68,7 @@
     "langis": {
       "display_name": "Langis",
       "gloss": "Lamp oil",
+      "found": "Langis -- lamp oil. {key} pours it in, and the lamp burns brighter.",
       "cap": 3,
       "drop_chance": 0.05,
       "use": "oil",
@@ -71,6 +79,7 @@
     "buntot_pagi": {
       "display_name": "Buntot Pagi",
       "gloss": "Stingray-tail whip",
+      "found": "Buntot Pagi -- Lola's whip. {key} lashes it, even at what flies.",
       "cap": 1,
       "drop_chance": 0.02,
       "use": "whip",

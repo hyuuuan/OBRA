@@ -833,10 +833,14 @@ func _on_pickup_touched(pickup: SatchelPickup2D) -> void:
 		var row := satchel.row(pickup.item)
 		# Named through the same lookup the prompts use, so a rebinding is named as bound. Not by
 		# with_keys: its {key:...} takes no digits, and every slot's action has one.
-		var on := " It is on %s." % ControlsKeys.key_cap_for("quick_slot_%d" % (index + 1)) \
-			if index >= 0 else ""
-		hint_bar.show_hint("%s -- %s.%s" % [row.get("display_name", pickup.item),
-			String(row.get("gloss", "")).to_lower(), on], _companion_speaker(), 4.0)
+		var key := ControlsKeys.key_cap_for("quick_slot_%d" % (index + 1)) if index >= 0 else ""
+		var said := String(row.get("found", ""))
+		if said.is_empty() or key.is_empty():
+			said = "%s -- %s.%s" % [row.get("display_name", pickup.item), String(row.get("gloss", "")).to_lower(),
+				" It is on %s." % key if not key.is_empty() else ""]
+		# What it is for, and which key: a name and a key alone left her holding a candle with no
+		# idea what it was for. Up long enough to read.
+		hint_bar.show_hint(said.replace("{key}", key), _companion_speaker(), 6.0)
 
 
 # --- What a fallen aswang drops -----------------------------------------------------------
