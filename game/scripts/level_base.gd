@@ -94,6 +94,13 @@ func _tool_wear_enabled() -> bool:
 	return false
 
 
+## Whether an encounter's route stays open to change until it is answered (LevelDirector's
+## `routes_stay_open`). Off everywhere but a level that fights, where the first swing is not a
+## choice; elsewhere the first drawing that answers a route is the route, as a node is.
+func _routes_stay_open() -> bool:
+	return false
+
+
 ## Whether the camera follows in physics ticks, in step with the player, rather than easing toward
 ## her every render frame. Off everywhere but where a fight is watched closely.
 func _camera_follows_physics() -> bool:
@@ -675,6 +682,7 @@ func _on_backend_failed(message: String) -> void:
 func _build_obstacle_layer() -> void:
 	director = LevelDirector.new()
 	director.name = "LevelDirector"
+	director.routes_stay_open = _routes_stay_open()
 	add_child(director)
 	if not director.load_level(level_config_path()):
 		push_warning("%s: no level data; obstacles will accept nothing" % name)
