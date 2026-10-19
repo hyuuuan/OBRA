@@ -253,13 +253,13 @@ func _next_mark_east(x: float) -> Variant:
 const WEARING_AT := 2
 
 
-## THE MOMENTS DILIM'S LESSONS WAIT FOR (tutorial.json, level_4): a santelmo that can see her, a
+## THE MOMENTS DILIM'S LESSONS WAIT FOR (tutorial.json, level_4): a santelmo coming into view, a
 ## weapon in her hand and one nearly worn out, polled -- nothing signals any of them -- and the
 ## first hit to the lantern, below. The lesson director spends each once.
 func _note_lesson_moments() -> void:
 	if tutorial == null:
 		return
-	if _a_santelmo_sees_her():
+	if _a_santelmo_is_ahead():
 		tutorial.note("santelmo_near")
 	if not _holding_a_weapon():
 		return
@@ -270,14 +270,20 @@ func _note_lesson_moments() -> void:
 		tutorial.note("weapon_wearing")
 
 
-## A burning santelmo close enough that running now would bring it.
-func _a_santelmo_sees_her() -> bool:
+## How much farther off than it can see her the walk is taught: about three seconds of her running,
+## so the rule is read before it matters. Taught where it sees her, a runner had one second -- it
+## comes at more than her pace -- and was burned before the line was read.
+const SANTELMO_WARNING := 520.0
+
+
+## A burning santelmo coming into view: close enough to see, not yet close enough to see her.
+func _a_santelmo_is_ahead() -> bool:
 	if player == null or not is_instance_valid(player):
 		return false
 	for node in get_tree().get_nodes_in_group(Enemy2D.GROUP):
 		var flame := node as Santelmo2D
 		if flame != null and not flame.is_out() \
-				and flame.global_position.distance_to(player.global_position) <= Santelmo2D.SIGHT:
+				and flame.global_position.distance_to(player.global_position) <= Santelmo2D.SIGHT + SANTELMO_WARNING:
 			return true
 	return false
 

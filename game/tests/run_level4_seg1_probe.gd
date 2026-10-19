@@ -23,6 +23,11 @@ func _run() -> void:
 		print("OBRA_L4_SEG1_FAILED=watchdog")
 		quit(2))
 	level = await _open_level()
+	await _running_in_she_is_warned_in_time()
+	_release_all()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
 	_set_aside_the_levels_own_flame()
 	await _walking_past_the_santelmo_is_safe()
 	_its_flame_teaches_walking()
@@ -50,6 +55,34 @@ func _run() -> void:
 
 
 # --- The santelmo ------------------------------------------------------------------------
+
+## Running in from the start, as anyone does, at the level's own santelmo: the walk is said while it
+## is still too far off to see her, before it has burned her, and it stays up to be read -- nothing
+## else takes the hint bar from it (the first salt used to, a tenth of a second later).
+func _running_in_she_is_warned_in_time() -> void:
+	var flame := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Hazards/Santelmo") as Santelmo2D
+	var bar := level.get("hint_bar") as HintBar
+	var hit := [false]
+	_health().hit_taken.connect(func(_stage_now: int) -> void: hit[0] = true)
+	Input.action_press(&"move_right")
+	var told_at := -1.0
+	var hit_before := false
+	var held := false
+	for frame in range(int(6.0 * 60.0)):
+		await _frames(1)
+		var showing := bar.is_showing() and bar.current_text().contains("santelmo")
+		if told_at < 0.0 and showing:
+			told_at = flame.global_position.distance_to((level.get("player") as Node2D).global_position)
+			hit_before = hit[0]
+			# Still running while it is read, as a player is.
+			await _seconds(2.2)
+			held = bar.is_showing() and bar.current_text().contains("santelmo")
+			break
+	_release_all()
+	_check(told_at > Santelmo2D.SIGHT and not hit_before and held,
+		"running in, the walk is said before the santelmo can see her, and stays up to be read",
+		"said %.0f px off (it sees %.0f), burned first %s, still up 2.2 s on %s (\"%s\")" % [told_at, Santelmo2D.SIGHT, hit_before,
+			held, bar.current_text().left(40)])
 
 ## The level's own santelmo stands where the probe's flames do: still and out of the way, so each
 ## check is about one flame.
