@@ -23,6 +23,7 @@ func _run() -> void:
 		print("OBRA_L4_SEG1_FAILED=watchdog")
 		quit(2))
 	level = await _open_level()
+	_she_comes_in_with_the_lamp_low()
 	await _running_in_she_is_warned_in_time()
 	_release_all()
 	level.queue_free()
@@ -55,6 +56,12 @@ func _run() -> void:
 
 
 # --- The santelmo ------------------------------------------------------------------------
+
+## The lamp burned low as she comes in: the first clearing's light is what fills it.
+func _she_comes_in_with_the_lamp_low() -> void:
+	_check(_stage() == PlayerHealth.DIM, "she comes in at the edge of the woods with her lamp burned low",
+		"stage %d" % _stage())
+
 
 ## Running in from the start, as anyone does, at the level's own santelmo: the walk is said while it
 ## is still too far off to see her, before it has burned her, and it stays up to be read -- nothing
@@ -105,6 +112,7 @@ func _flame_at(x: float) -> Santelmo2D:
 func _walking_past_the_santelmo_is_safe() -> void:
 	var flame := _flame_at(1500.0)
 	await _put_her_at(1000.0)
+	var before := _stage()
 	var wanted := false
 	var dimmed := false
 	var spotlight := level.get("tutorial_spotlight") as Node
@@ -117,7 +125,7 @@ func _walking_past_the_santelmo_is_safe() -> void:
 	set_meta(&"dimmed_near_flame", dimmed)
 	_release_all()
 	var past := _her_x() > 1600.0
-	_check(past and not wanted and _stage() == PlayerHealth.FULL,
+	_check(past and not wanted and _stage() == before,
 		"walking past the santelmo, it never wants her", "at %.0f, chased %s, stage %d"
 			% [_her_x(), wanted, _stage()])
 	flame.queue_free()

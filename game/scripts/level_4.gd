@@ -63,6 +63,15 @@ func _click_attacks() -> bool:
 	return true
 
 
+## She comes in at the edge of the woods with her lamp burned low (Kent, 2026-10-19: "the first
+## clearing finds her lamp burned low, so refilling it there has a reason") -- the clearing's light
+## is what fills it. Coming back to a checkpoint is coming back to a clearing, where it was filled.
+func _lantern_at_start() -> int:
+	if resume_enabled and _has_saved_checkpoint():
+		return PlayerHealth.FULL
+	return PlayerHealth.DIM
+
+
 ## Every encounter here is answered by what she ends up doing, not by the first thing she tried:
 ## a blade swung at the manananggal and then salt on her lower half is the salt.
 func _routes_stay_open() -> bool:
