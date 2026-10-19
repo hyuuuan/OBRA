@@ -374,19 +374,21 @@ pickup_id = "L4_JAR_BUNGISNGIS"
 
 ; Each beat's ground, from the canopy to just under her feet. None plants a commit flag: Dilim's
 ; checkpoints are the clearings, walked into.
-; Its "?" board stands where she stops to ask, west of the mound -- not on the crown.
+; No "?" boards here (plants_hint_sign): nobody waits to help, and each stood on the thing she
+; meets. Each beat keeps the story board at its approach, where its lines can be read again.
 [node name="L4_NUNO" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(3400.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_NUNO"
+plants_hint_sign = false
 trigger_size = Vector2(1200.0, 460.0)
-hint_sign_offset = -280.0
 plants_commit_mark = false
 
 [node name="L4_REST1" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(5000.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_REST1"
+plants_hint_sign = false
 trigger_size = Vector2(800.0, 460.0)
 plants_commit_mark = false
 
@@ -394,6 +396,7 @@ plants_commit_mark = false
 position = Vector2(6800.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_SIGBIN"
+plants_hint_sign = false
 trigger_size = Vector2(1200.0, 460.0)
 plants_commit_mark = false
 
@@ -401,6 +404,7 @@ plants_commit_mark = false
 position = Vector2(9000.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_TIKBALANG"
+plants_hint_sign = false
 trigger_size = Vector2(2000.0, 460.0)
 plants_commit_mark = false
 
@@ -408,6 +412,7 @@ plants_commit_mark = false
 position = Vector2(13800.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_KAPRE"
+plants_hint_sign = false
 trigger_size = Vector2(1200.0, 460.0)
 plants_commit_mark = false
 
@@ -415,6 +420,7 @@ plants_commit_mark = false
 position = Vector2(15400.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_REST2"
+plants_hint_sign = false
 trigger_size = Vector2(800.0, 460.0)
 plants_commit_mark = false
 
@@ -422,6 +428,7 @@ plants_commit_mark = false
 position = Vector2(17100.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_TIYANAK"
+plants_hint_sign = false
 trigger_size = Vector2(1400.0, 460.0)
 plants_commit_mark = false
 
@@ -430,6 +437,7 @@ plants_commit_mark = false
 position = Vector2(19000.0, 510.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_BUNGISNGIS"
+plants_hint_sign = false
 trigger_size = Vector2(1200.0, 700.0)
 plants_commit_mark = false
 
@@ -437,6 +445,7 @@ plants_commit_mark = false
 position = Vector2(20500.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_MANANANGGAL"
+plants_hint_sign = false
 trigger_size = Vector2(1000.0, 460.0)
 plants_commit_mark = false
 
@@ -444,6 +453,7 @@ plants_commit_mark = false
 position = Vector2(21900.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_FINALE"
+plants_hint_sign = false
 trigger_size = Vector2(1000.0, 460.0)
 plants_commit_mark = false
 

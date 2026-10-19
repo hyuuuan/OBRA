@@ -94,6 +94,7 @@ func _run() -> void:
 	var scene := await _open_level()
 	_audit_beats_in_order(level, scene)
 	_audit_checkpoints_in_their_clearings(level, scene)
+	_audit_no_hint_boards(level, scene)
 	_audit_canopy_over_every_beat(level, scene)
 	_audit_santelmo_before_the_mound(scene)
 	_audit_the_night_is_in_the_last_clearing(scene)
@@ -458,6 +459,24 @@ func _audit_beats_in_order(level: Dictionary, scene: Node) -> void:
 	_check(count >= 10 and problems.is_empty(), "every beat has its ground and mark, in order",
 		"%d beats, west to east as the level file lists them" % count if problems.is_empty()
 		else "; ".join(problems))
+
+
+## A "?" board says Lolo will help if she stands still, and nobody does here -- each one stood on
+## the creature it was about. Every beat keeps the story board at its approach instead.
+func _audit_no_hint_boards(level: Dictionary, scene: Node) -> void:
+	var hints := 0
+	var stories: Array[String] = []
+	for node in scene.get_tree().get_nodes_in_group(&"signposts"):
+		var board := node as Signpost2D
+		if board == null:
+			continue
+		if board.mark == Signpost2D.Mark.HINT:
+			hints += 1
+		elif board.mark == Signpost2D.Mark.STORY and board.get_parent() is LevelObstacle2D:
+			stories.append(String((board.get_parent() as LevelObstacle2D).obstacle_id))
+	var beats := (level.get("obstacles", []) as Array).size()
+	_check(hints == 0 and stories.size() == beats, "no \"?\" boards in the woods; every beat its story board",
+		"%d hint boards, %d of %d story boards" % [hints, stories.size(), beats])
 
 
 func _audit_checkpoints_in_their_clearings(level: Dictionary, scene: Node) -> void:
