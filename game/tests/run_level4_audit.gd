@@ -750,8 +750,10 @@ func _audit_knockout_in_lolas_words(scene: Node, dialogue: Dictionary) -> void:
 
 func _audit_banner_by_place(scene: Node) -> void:
 	var player := scene.get("player") as Node2D
-	var expected := {260.0: "edge", 4100.0: "woods", 5000.0: "rest", 15400.0: "rest",
-		21000.0: "woods", 22000.0: "dawn"}
+	# Every encounter not yet answered says its ways past; between them, the woods.
+	var expected := {260.0: "edge", 3300.0: "nuno", 4100.0: "woods", 5000.0: "rest", 7000.0: "sigbin",
+		9000.0: "tikbalang", 13500.0: "kapre", 15400.0: "rest", 17000.0: "tiyanak", 19000.0: "bungisngis",
+		20400.0: "manananggal", 21200.0: "woods", 22000.0: "dawn"}
 	var wrong: Array[String] = []
 	for x: float in expected:
 		player.call("apply_morph_state", {"position": Vector2(x, GROUND_Y - 10.0), "linear_velocity": Vector2.ZERO})
@@ -763,7 +765,7 @@ func _audit_banner_by_place(scene: Node) -> void:
 		if key != String(expected[x]) or not points_on:
 			wrong.append("at %.0f '%s' -> %s" % [x, key, target])
 	_check(wrong.is_empty(), "the banner says what is next by where she is",
-		"edge, woods, rest, dawn -- each pointing ahead of her" if wrong.is_empty()
+		"edge, each encounter's ways past, woods, rest, dawn -- each pointing ahead of her" if wrong.is_empty()
 		else "; ".join(wrong))
 
 

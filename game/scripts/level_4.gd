@@ -234,10 +234,23 @@ func _current_objective() -> Dictionary:
 		# Until its light is lit: after, the woods again.
 		if x >= span.x and x <= span.y and not director.is_solved(rest):
 			return {"key": "rest", "target": _mark_at(rest)}
+	# In an encounter she has not answered yet, the banner says the ways past it, plainly -- each
+	# of Lola's three, with no class named. Kent: "the game's instructions are all unclear"; the
+	# lines she says on arriving are memories, and a memory is not an instruction.
+	for encounter: String in ENCOUNTER_OBJECTIVES:
+		var at: Vector2 = spans.get(encounter, Vector2(INF, -INF))
+		if x >= at.x and x <= at.y and not director.is_solved(encounter):
+			return {"key": ENCOUNTER_OBJECTIVES[encounter], "target": _next_mark_east(x)}
 	var key := "woods"
 	if spans.has("L4_NUNO") and x <= (spans["L4_NUNO"] as Vector2).y:
 		key = "edge"
 	return {"key": key, "target": _next_mark_east(x)}
+
+
+## Each encounter's objective, by beat: the key of its line in level_04.json's `objectives`.
+const ENCOUNTER_OBJECTIVES := {"L4_NUNO": "nuno", "L4_SIGBIN": "sigbin", "L4_TIKBALANG": "tikbalang",
+	"L4_KAPRE": "kapre", "L4_TIYANAK": "tiyanak", "L4_BUNGISNGIS": "bungisngis",
+	"L4_MANANANGGAL": "manananggal"}
 
 
 func _mark_at(obstacle_id: String) -> Variant:
