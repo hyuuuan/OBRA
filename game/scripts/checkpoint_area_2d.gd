@@ -34,6 +34,10 @@ signal reached(checkpoint_id: String)
 ## sprite. Ahead and to the east: the player crosses the leading edge, and the mark is a
 ## hundred and thirty pixels in front of them, in clear ground, going up while they watch.
 @export var mark_offset := Vector2(56.0, 0.0)
+## Whether walking in writes it. On by default. Off for a checkpoint something else writes: a
+## clearing in Dilim is written when she makes its light, so the place she is sent back to is
+## where the lamp was last lit -- not a post that lit itself as she walked past it.
+@export var written_on_entry := true
 
 var _written := false
 var _mark: CheckpointLantern2D
@@ -71,13 +75,20 @@ func is_written() -> bool:
 
 
 func _on_body_entered(body: Node) -> void:
-	if _written or checkpoint_id.is_empty() or not _is_player(body):
+	if not written_on_entry or not _is_player(body):
+		return
+	write(body as Node2D)
+
+
+## Written: its lantern lit from where `from` stands, and said to whoever is listening. Once.
+func write(from: Node2D = null) -> void:
+	if _written or checkpoint_id.is_empty():
 		return
 	_written = true
 	if _mark != null:
 		# The apo's position IN THE LANTERN'S SPACE, because the spark travels FROM them:
 		# the light is carried to the lantern, and that needs to know whose hands.
-		_mark.light(_mark.to_local((body as Node2D).global_position))
+		_mark.light(_mark.to_local(from.global_position) if from != null else Vector2.ZERO)
 	reached.emit(checkpoint_id)
 
 
