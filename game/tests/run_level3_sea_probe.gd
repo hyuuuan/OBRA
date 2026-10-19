@@ -53,6 +53,7 @@ func _run() -> void:
 	await _fishing_from_the_boat()
 	await _the_creatures_fight_back()
 	await _the_fact_is_the_coral_she_stopped_at()
+	await _drifting_is_not_swimming_on()
 	for line in results:
 		print(line)
 	if failures == 0:
@@ -688,6 +689,138 @@ func _the_fact_is_the_coral_she_stopped_at() -> void:
 	_check(said == ["lola1 said", "lola1 said"],
 		"a fact that waited for him is the coral she stopped at, not the last circle she brushed",
 		"neither said yet: %s; star said already: %s" % [said[0], said[1]])
+
+
+## ⚠ SWUM ON IS SWUM, NOT DRIFTED (Kent, 2026-10-19). A fish that stops and is let go drifts
+## toward the middle of the column at about sixty pixels a second, and a fact that waited for Lolo
+## was judged from wherever that had carried her: past CORAL_STILL_NEAR in three and a half
+## seconds, and dropped though she never swam on. So here she swims to lola1 under power while he
+## talks, lets go of every key, and is NOT held -- he has a long queue, the water carries her off,
+## and lola1 is still said. And the rule it keeps: swum away from with a key held, it is dropped.
+func _drifting_is_not_swimming_on() -> void:
+	var reach := float(_level_const("CORAL_STILL_NEAR"))
+	var said: Array[bool] = []
+	var off: Array[float] = []
+	var outcome: Array[String] = []
+	for swims_away in [false, true]:
+		await _open_the_level()
+		await _dive_as_a_fish()
+		var lines = level.get("script_lines")
+		var lola1 := (level.call("coral_field") as Dictionary)["lola1"] as Vector2
+		# A line of his being read and two long ones queued behind it: some seventeen seconds.
+		level.set("_advice_waiting", [])
+		level.set("_advice_left", 0.0)
+		level.call("_say_why", "A line of his, still being read.")
+		for _batch in range(2):
+			var long: Array[Dictionary] = [{"speaker": "Lolo", "text": LOLO_GOES_ON}]
+			level.call("_post_advice", long)
+		await _swim_to(lola1)
+		if not (level.get("_coral_waiting") as Array).has("lola1") \
+				or bool(lines.call("has_heard", "CORAL.lola1")):
+			said.append(bool(lines.call("has_heard", "CORAL.lola1")))
+			off.append(-1.0)
+			outcome.append("lola1 never waited for him")
+			await _close_the_level()
+			continue
+		var held := Vector2.INF
+		if swims_away:
+			Input.action_press(&"move_up")
+			for _frame in range(360):
+				await physics_frame
+				if paused:
+					await _unpause()
+				if _anchor().distance_to(lola1) > reach + 140.0:
+					break
+			Input.action_release(&"move_up")
+			held = _anchor()
+		# No key held from here. Drifting, she is left to the water; swum away, she is kept there.
+		var off_when_free := -1.0
+		var free_for := 0
+		for _frame in range(LINGER_LIMIT):
+			if held.is_finite():
+				_place(held)
+			await physics_frame
+			if paused:
+				await _unpause()
+			if bool(lines.call("has_heard", "CORAL.lola1")):
+				off_when_free = _anchor().distance_to(lola1)
+				break
+			free_for = free_for + 1 if _lolo_is_free() else 0
+			if free_for == 1:
+				off_when_free = _anchor().distance_to(lola1)
+			if free_for >= LOLO_FREE_FRAMES:
+				break
+		said.append(bool(lines.call("has_heard", "CORAL.lola1")))
+		off.append(off_when_free)
+		outcome.append("lola1 %s, %.0f px off it when he was free" % [
+			"said" if said[-1] else "SILENT", off_when_free])
+		await _close_the_level()
+	# Drifted past the reach, or the old rule would have said it too and this proves nothing.
+	_check(said[0] and off[0] > reach, "a fact that waited for him is kept while she only drifts",
+		"let go at it, past %.0f px: %s" % [reach, outcome[0]])
+	_check(not said[1] and off[1] > reach, "and dropped once she swims away from it",
+		"a key held until %.0f px off: %s" % [reach + 140.0, outcome[1]])
+
+
+## Lolo, going on: long enough to be read for the bar's whole BEAT_MAX.
+const LOLO_GOES_ON := "Your lola swam this reef every morning before the boats went out, apo, " \
+	+ "and she knew every fish in it by the colour of its fins and the way it turned."
+## A minute at 60 Hz: only so a queue that never empties fails instead of hanging.
+const LINGER_LIMIT := 3600
+## The fact goes up the frame after he is free; half a second of him free and silent is a no.
+const LOLO_FREE_FRAMES := 30
+
+
+## Nothing of his being read and nothing of his waiting: the frame he turns to the coral facts.
+func _lolo_is_free() -> bool:
+	return float(level.get("_advice_left")) <= 0.0 \
+		and (level.get("_advice_waiting") as Array).is_empty()
+
+
+## The way the dive is taken: the brush, the crossing chosen, and a fish to cross it in.
+func _dive_as_a_fish() -> void:
+	await _take_the_brush()
+	var director = level.get("director")
+	director.call("enter_obstacle", "L3_N1")
+	director.call("commit_route", "L3_N1", "pragmatist")
+	director.call("note_submission", "fish")
+	director.call("exit_obstacle", "L3_N1")
+	await _unpause()
+	await _become("fish", "swimmer")
+
+
+## ⚠ SWUM IN UNDER POWER, NOT PLACED ON IT. A coral's circle is an Area2D, and a rig written into
+## place by apply_morph_state is never re-evaluated against it, so a teleport onto a fact touches
+## nothing (see run_level3_finish_probe, _swim_to). From open water to its left, steering up or down
+## the way a player does, since a fish holding one direction rises off the bed.
+func _swim_to(at: Vector2) -> void:
+	_place(Vector2(maxf(at.x - 420.0, 1080.0), at.y - 40.0))
+	for _frame in range(6):
+		await physics_frame
+	Input.action_press(&"move_right")
+	for _frame in range(240):
+		await physics_frame
+		if paused:
+			Input.action_release(&"move_right")
+			await _unpause()
+			Input.action_press(&"move_right")
+		if _anchor().distance_to(at) < 60.0:
+			break
+		var below := at.y - _anchor().y
+		_hold(&"move_down", below > 24.0)
+		_hold(&"move_up", below < -24.0)
+	Input.action_release(&"move_right")
+	_hold(&"move_down", false)
+	_hold(&"move_up", false)
+	for _frame in range(4):
+		await physics_frame
+
+
+func _hold(action: StringName, on: bool) -> void:
+	if on and not Input.is_action_pressed(action):
+		Input.action_press(action)
+	elif not on and Input.is_action_pressed(action):
+		Input.action_release(action)
 
 
 func _open_the_level() -> void:
