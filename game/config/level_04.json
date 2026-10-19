@@ -42,10 +42,10 @@
     "jars_before": ["L4_KAPRE", "L4_BUNGISNGIS"]
   },
   "objectives": {
-    "$comment": "In her own voice, short enough for the banner (720 px).",
-    "edge": "Lola said: ask before you pass.",
-    "woods": "Get through the woods. Keep the light lit.",
-    "rest": "Make a light, and rest by it.",
+    "$comment": "In her own voice, short enough for the banner (720 px), naming no class.",
+    "edge": "Cross the woods. Keep the lamp lit.",
+    "woods": "Get through the woods. Keep the lamp lit.",
+    "rest": "Make a light here: it fills the lamp, and I come back here.",
     "dawn": "Last until morning."
   },
   "obstacles": [
