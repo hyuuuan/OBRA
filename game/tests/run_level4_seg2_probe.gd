@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 20
+const CHECKS := 22
 var level: Node
 
 
@@ -27,7 +27,8 @@ func _run() -> void:
 	await _at_no_ink_she_is_herself()
 	level.queue_free()
 	await _frames(3)
-	for sigbin_check in [_a_light_sends_the_sigbin_off, _her_back_to_the_rock_and_it_gives_up, _facing_the_rock_is_not_her_back_to_it, _well_off_the_rock_is_not_against_it, _struck_down_it_is_driven_off]:
+	for sigbin_check in [_a_light_sends_the_sigbin_off, _her_back_to_the_rock_and_it_gives_up, _facing_the_rock_is_not_her_back_to_it, _well_off_the_rock_is_not_against_it, _struck_down_it_is_driven_off,
+			_a_blade_swung_first_a_light_still_sends_it_off]:
 		level = await _open_level()
 		await sigbin_check.call()
 		level.queue_free()
@@ -41,7 +42,8 @@ func _run() -> void:
 	await _a_jar_before_the_kapre_gives_her_ink()
 	level.queue_free()
 	await _frames(3)
-	for kapre_check in [_the_smoke_turns_her_round, _a_fan_clears_the_smoke, _three_chops_fell_its_tree, _a_throw_knocks_its_cigar]:
+	for kapre_check in [_the_smoke_turns_her_round, _a_fan_clears_the_smoke, _three_chops_fell_its_tree, _a_throw_knocks_its_cigar,
+			_a_fan_tried_first_a_throw_still_knocks_the_cigar]:
 		level = await _open_level()
 		await kapre_check.call()
 		level.queue_free()
@@ -334,6 +336,38 @@ func _a_throw_knocks_its_cigar() -> void:
 	await _frames(5)
 	_check(_kapre_route() == "protector" and _kapre_solved() and _kapre().is_gone() and not _kapre().cigar_is_lit(),
 		"a throw that reaches the cigar knocks it out of its hand", "route '%s', gone %s" % [_kapre_route(), _kapre().is_gone()])
+
+
+## A blade swung first is not the choice made for good: a light after it still drives it off. Every
+## encounter here is answered by what she ends up doing.
+func _a_blade_swung_first_a_light_still_sends_it_off() -> void:
+	await _stand_at(6950.0, &"move_right")
+	await _become("sword")
+	level.call("_use_equipped_utility")
+	await _frames(20)
+	var director = level.get("director")
+	var first := String(director.call("committed_route", "L4_SIGBIN"))
+	await _become("flashlight")
+	level.call("_use_equipped_utility")
+	await _frames(90)
+	_check(first == "protector" and director.call("committed_route", "L4_SIGBIN") == "artist"
+			and director.call("is_solved", "L4_SIGBIN") and _sigbin().is_gone(),
+		"a blade swung first, a light after it still sends the sigbin off",
+		"first '%s', then '%s', gone %s" % [first, director.call("committed_route", "L4_SIGBIN"), _sigbin().is_gone()])
+
+
+func _a_fan_tried_first_a_throw_still_knocks_the_cigar() -> void:
+	await _stand_at(13650.0, &"move_right")
+	await _become("fan")
+	level.call("_use_equipped_utility")
+	await _frames(10)
+	var first := _kapre_route()
+	await _stand_at(13500.0, &"move_right")
+	_kapre().apply_tool_hit("boomerang", 0.0, level.get("player") as Node2D)
+	await _frames(5)
+	_check(first == "artist" and _kapre_route() == "protector" and _kapre_solved() and _kapre().is_gone(),
+		"a fan tried first, a throw after it still knocks the kapre's cigar",
+		"first '%s', then '%s', solved %s" % [first, _kapre_route(), _kapre_solved()])
 
 
 # --- Helpers -----------------------------------------------------------------------------

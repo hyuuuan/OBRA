@@ -16,7 +16,7 @@ const FLOOR_Y := 820.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 21
+const CHECKS := 23
 var level: Node
 
 
@@ -35,7 +35,8 @@ func _run() -> void:
 			_beaten_it_is_driven_off, _its_slam_throws_her,
 			_salt_on_the_lower_half_ends_her, _a_light_held_on_the_lower_half, _her_lantern_is_not_that_light,
 			_driven_off_her_lower_half_stands, _the_upper_half_keeps_to_its_ground,
-			_a_fire_lights_round_it, _a_sun_lights_far]:
+			_a_fire_lights_round_it, _a_sun_lights_far,
+			_a_blade_swung_first_the_path_still_passes_it, _a_blade_swung_first_salt_still_ends_her]:
 		if not only.is_empty() and not String((scenario as Callable).get_method()).contains(only):
 			continue
 		level = await _open_level()
@@ -305,6 +306,39 @@ func _the_upper_half_keeps_to_its_ground() -> void:
 	# Back over where it rose, and holding there -- not drifting on after her.
 	_check(hunting and absf(_upper().global_position.x - home.x) <= 200.0,
 		"her upper half does not follow her off its ground, but goes back over it", "it is at x %.0f, she at %.0f" % [_upper().global_position.x, _her_x()])
+
+
+## A blade swung first is not the choice made for good: whatever she ends up doing answers it.
+func _a_blade_swung_first_the_path_still_passes_it() -> void:
+	await _put(16900.0, GROUND_Y, &"move_right")
+	await _become("sword")
+	level.call("_use_equipped_utility")
+	await _frames(20)
+	var director = level.get("director")
+	var first := String(director.call("committed_route", "L4_TIYANAK"))
+	await _put(17150.0, 465.0, &"move_right")
+	await _hold(&"move_right", 3.0)
+	_check(first == "protector" and director.call("committed_route", "L4_TIYANAK") == "pragmatist"
+			and director.call("is_solved", "L4_TIYANAK"),
+		"a blade swung first, the path kept after it still passes the tiyanak",
+		"first '%s', then '%s'" % [first, director.call("committed_route", "L4_TIYANAK")])
+
+
+func _a_blade_swung_first_salt_still_ends_her() -> void:
+	await _put(20640.0, GROUND_Y, &"move_right")
+	await _become("sword")
+	level.call("_use_equipped_utility")
+	await _frames(20)
+	var director = level.get("director")
+	var first := String(director.call("committed_route", "L4_MANANANGGAL"))
+	(level.get("satchel") as Satchel).add("asin", 2)
+	level.call("_use_from_satchel", "asin")
+	await _frames(60)
+	_check(first == "protector" and director.call("committed_route", "L4_MANANANGGAL") == "pragmatist"
+			and director.call("is_solved", "L4_MANANANGGAL") and _upper().is_gone(),
+		"a blade swung first, salt after it still ends the manananggal",
+		"first '%s', then '%s', solved %s" % [first, director.call("committed_route", "L4_MANANANGGAL"),
+			director.call("is_solved", "L4_MANANANGGAL")])
 
 
 # --- The lights -----------------------------------------------------------------------------

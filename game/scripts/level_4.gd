@@ -63,6 +63,12 @@ func _click_attacks() -> bool:
 	return true
 
 
+## Every encounter here is answered by what she ends up doing, not by the first thing she tried:
+## a blade swung at the manananggal and then salt on her lower half is the salt.
+func _routes_stay_open() -> bool:
+	return true
+
+
 ## The camera keeps step with her in physics ticks, so a knockback or a lunge does not judder.
 func _camera_follows_physics() -> bool:
 	return true
@@ -1089,12 +1095,14 @@ func _on_sigbin_driven_off(_foe: Enemy2D) -> void:
 	_answer("L4_SIGBIN", "protector")
 
 
-## A route given by what she did: committed if nothing was yet, and answered with its own deed.
+## A route given by what she did: committed if nothing was yet -- or, if she had begun another,
+## switched to this one (routes stay open here) -- and answered with its own deed.
 func _answer(obstacle_id: String, route: String) -> void:
 	if director == null or director.is_solved(obstacle_id):
 		return
 	if director.committed_route(obstacle_id).is_empty():
 		director.commit_route(obstacle_id, route)
+	director.switch_route(obstacle_id, route)
 	if director.committed_route(obstacle_id) != route:
 		return
 	var spec: Dictionary = (director.obstacle(obstacle_id).get("routes", {}) as Dictionary).get(route, {})
