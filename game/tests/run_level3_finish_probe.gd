@@ -402,6 +402,9 @@ func _hold(action: StringName, on: bool) -> void:
 ## failed with now and then. The sea creatures supply that line at random: the first of each kind
 ## to wander within MEET_REACH gets one, and their wandering is unseeded randf stepped on _process,
 ## so it came and went from run to run. Held each frame, as run_level3_sea_probe holds her.
+## Since 2026-10-19 drift no longer counts against her -- the reach is measured from where she
+## stopped (level_3.gd, _coral_stopped_at) -- so the hold no longer decides the fact. It stays so
+## that this check is about the wait for Lolo and nothing else; run_level3_sea_probe checks drift.
 func _linger_at(at: Vector2, hook: String) -> String:
 	var script_lines = level.get("script_lines")
 	var stop := at + Vector2(-60.0, -60.0)
