@@ -66,6 +66,14 @@ var _dwell: Dictionary = {}          # obstacle id -> seconds at this obstacle
 var _assisted: Dictionary = {}       # obstacle id -> true when solved at T3
 var _declines := 0
 
+## Whether a route stays open to change until its obstacle is solved. Off -- every level but
+## one that fights: the first drawing that answers a route is the choice, for good, which is what
+## a node that asks is. On, a player who tries one way and then another is answered by the way
+## that worked: in a fight the first swing is not a decision, and holding it to one made every
+## other answer silently count for nothing (Dilim: a blade swung once at the manananggal, then
+## salt on her lower half -- she flew off, and the encounter was never over).
+var routes_stay_open := false
+
 var _tags: Node
 ## What this LEVEL refuses, whatever the tag layer resolves. See set_refusal_filter.
 var _refuses := Callable()
@@ -452,6 +460,24 @@ func commit_route(id: String, route: String) -> void:
 		})
 
 
+## Change an unsolved obstacle's route to the one actually taken, where routes stay open. A
+## commit like the first -- logged, tallied and signalled the same way -- so the last route taken
+## is the one the obstacle is answered by, the level's tally counts, and telemetry has both.
+func switch_route(id: String, route: String) -> void:
+	if not routes_stay_open or not _obstacles.has(id) or _solved.has(id):
+		return
+	var was := String(_committed.get(id, ""))
+	if was == route or not ((_obstacles[id] as Dictionary).get("routes", {}) as Dictionary).has(route):
+		return
+	# Out and back in, so the order the majority tally reads puts this one last.
+	_committed.erase(id)
+	commit_route(id, route)
+	if _telemetry != null and not was.is_empty():
+		_telemetry.call("record_event", "route_switched", {
+			"level_id": level_id(), "obstacle_id": id, "from": was, "to": route,
+		})
+
+
 # --- Submissions -------------------------------------------------------------
 
 ## Judge a recognised drawing against whatever is in front of the player.
@@ -478,6 +504,14 @@ func note_submission(entity_id: String) -> Dictionary:
 
 	var strict := _strict_accept_set(id)
 	var effective := accept_set(id)
+	# A drawing for another route, where routes stay open, is that route taken.
+	if routes_stay_open and not effective.has(entity_id) and not String(_committed.get(id, "")).is_empty():
+		var other := _route_carrying(id, entity_id)
+		if not other.is_empty():
+			switch_route(id, other)
+			verdict["route"] = other
+			strict = _strict_accept_set(id)
+			effective = accept_set(id)
 	verdict["tag_match"] = strict.has(entity_id)
 	verdict["solves"] = effective.has(entity_id)
 	verdict["assisted"] = verdict["solves"] and not verdict["tag_match"]

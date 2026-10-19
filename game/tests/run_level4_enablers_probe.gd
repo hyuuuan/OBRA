@@ -16,6 +16,7 @@ func _run() -> void:
 	_a_dialogue_file_names_its_own_speaker()
 	await _a_level_can_go_without_lolo()
 	await _a_level_can_be_tallied_by_majority()
+	await _a_level_can_keep_its_routes_open()
 	_dilims_tags_are_there()
 	_dilims_flower_counts()
 	if failures == 0:
@@ -119,6 +120,34 @@ func _a_level_can_be_tallied_by_majority() -> void:
 	_check(tie.settle_majority_route() == "protector", "a tie goes to the most recent",
 		tie.settle_majority_route())
 	tie.free()
+
+
+## Dilim answers an encounter by what she ends up doing: a route stays open until it is answered.
+## Everywhere else the first answer is the choice, for good -- Payyo told nothing keeps it.
+func _a_level_can_keep_its_routes_open() -> void:
+	var level := await _open_level(null)
+	var director = level.get("director")
+	var obstacle: Dictionary = {}
+	for row: Dictionary in (director.call("level_data") as Dictionary).get("obstacles", []):
+		if (row.get("routes", {}) as Dictionary).size() >= 2:
+			obstacle = row
+			break
+	var id := String(obstacle.get("id", ""))
+	var routes: Array = (obstacle.get("routes", {}) as Dictionary).keys()
+	var bare := LevelDirector.new()
+	var open_by_default := bool(director.get("routes_stay_open")) or bare.routes_stay_open
+	bare.free()
+	director.call("commit_route", id, String(routes[0]))
+	director.call("switch_route", id, String(routes[1]))
+	var held := String(director.call("committed_route", id))
+	director.set("routes_stay_open", true)
+	director.call("switch_route", id, String(routes[1]))
+	var switched := String(director.call("committed_route", id))
+	_check(not open_by_default and held == String(routes[0]) and switched == String(routes[1]),
+		"a route is the first answer's for good, unless the level keeps its routes open: then the last taken",
+		"open by default %s; held %s; kept open, %s" % [open_by_default, held, switched])
+	level.queue_free()
+	await _frames(3)
 
 
 func _dilims_tags_are_there() -> void:
