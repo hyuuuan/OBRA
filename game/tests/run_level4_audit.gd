@@ -233,6 +233,9 @@ func _audit_ink_before_every_drawn_encounter(level: Dictionary) -> void:
 		else "no ink-free way and no jar: " + ", ".join(dry))
 
 
+const TRULY_DARK := 0.95
+
+
 func _audit_lighting_states(level: Dictionary) -> void:
 	var ids: Array[String] = []
 	for obstacle_value: Variant in level.get("obstacles", []):
@@ -247,6 +250,15 @@ func _audit_lighting_states(level: Dictionary) -> void:
 			wrong.append(String(state.get("id", "?")))
 	_check(not states.is_empty() and wrong.is_empty(), "every dark zone names its beats",
 		"%d zones" % states.size() if wrong.is_empty() else "wrong: " + ", ".join(wrong))
+	# TRULY DARK (Kent): outside a light the woods are all but black, so the light she has is a small
+	# circle and one she makes is plainly more. At 0.8 the edge of the woods read as dusk.
+	var light_ones: Array[String] = []
+	for state_value: Variant in states:
+		var state: Dictionary = state_value
+		if float(state.get("darkness", 0.0)) < TRULY_DARK:
+			light_ones.append("%s %.2f" % [state.get("id", "?"), float(state.get("darkness", 0.0))])
+	_check(light_ones.is_empty(), "the woods are truly dark, every zone of them",
+		"all at %.2f or darker" % TRULY_DARK if light_ones.is_empty() else "too light: " + ", ".join(light_ones))
 
 
 func _audit_every_line_is_hers(dialogue: Dictionary) -> void:
