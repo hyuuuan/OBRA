@@ -789,7 +789,8 @@ func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
 	_write_checkpoint(checkpoint_id)
 	_say_checkpoint()
 	var area := _checkpoint_area_for(checkpoint_id)
-	if area != null:
+	# Its moment is its lantern lighting; one left for the player to light has none yet.
+	if area != null and bool(area.get(&"lights_on_entry")):
 		_stage_the_checkpoint(area.get_node_or_null(^"Checkpoint") as Node2D)
 
 

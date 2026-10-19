@@ -34,10 +34,11 @@ signal reached(checkpoint_id: String)
 ## sprite. Ahead and to the east: the player crosses the leading edge, and the mark is a
 ## hundred and thirty pixels in front of them, in clear ground, going up while they watch.
 @export var mark_offset := Vector2(56.0, 0.0)
-## Whether walking in writes it. On by default. Off for a checkpoint something else writes: a
-## clearing in Dilim is written when she makes its light, so the place she is sent back to is
-## where the lamp was last lit -- not a post that lit itself as she walked past it.
-@export var written_on_entry := true
+## Whether walking in lights its lantern as well as writing it. On by default. Off where the
+## lantern is lit by what she does there: a clearing in Dilim is saved the moment she walks in --
+## a fall past it must never send her back to the start -- and its lantern is lit by the light
+## she makes, so a lit lantern says she rested there, not that she walked by.
+@export var lights_on_entry := true
 
 var _written := false
 var _mark: CheckpointLantern2D
@@ -75,21 +76,25 @@ func is_written() -> bool:
 
 
 func _on_body_entered(body: Node) -> void:
-	if not written_on_entry or not _is_player(body):
-		return
-	write(body as Node2D)
-
-
-## Written: its lantern lit from where `from` stands, and said to whoever is listening. Once.
-func write(from: Node2D = null) -> void:
-	if _written or checkpoint_id.is_empty():
+	if _written or checkpoint_id.is_empty() or not _is_player(body):
 		return
 	_written = true
-	if _mark != null:
-		# The apo's position IN THE LANTERN'S SPACE, because the spark travels FROM them:
-		# the light is carried to the lantern, and that needs to know whose hands.
-		_mark.light(_mark.to_local(from.global_position) if from != null else Vector2.ZERO)
+	if lights_on_entry:
+		light_mark(body as Node2D)
 	reached.emit(checkpoint_id)
+
+
+## Its lantern lit, the spark carried from where `from` stands. A lit one stays as it is.
+func light_mark(from: Node2D = null) -> void:
+	if _mark == null or _mark.lit:
+		return
+	# The apo's position IN THE LANTERN'S SPACE, because the spark travels FROM them: the light
+	# is carried to the lantern, and that needs to know whose hands.
+	_mark.light(_mark.to_local(from.global_position) if from != null else Vector2(0.0, -60.0))
+
+
+func is_mark_lit() -> bool:
+	return _mark != null and _mark.lit
 
 
 ## Group rather than class, so it keeps working after a morph -- which is most of the game.
