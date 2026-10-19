@@ -340,8 +340,10 @@ func _restore_checkpoint() -> String:
 ## The flower the mound gives back, and the count it says (the design needs the count seen).
 const FLOWER_ART := preload("res://assets/Level1/hidden_flower.png")
 const COUNT_WORDS := ["None", "One", "Two", "Three", "Four", "Five"]
-## How far west of the mound's foot she can stand and still be asking it.
-const ASKING_REACH := 220.0
+## How far west of the mound's foot she can stand and still be asking it: at its foot, where a
+## jump from standing still clears it. From 220 she could ask, jump at once from where she stood,
+## and come down on its crown -- cursed for doing just what she was told.
+const ASKING_REACH := 56.0
 
 var _mound: NunoMound2D
 

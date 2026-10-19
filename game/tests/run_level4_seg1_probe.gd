@@ -38,6 +38,7 @@ func _run() -> void:
 	await _being_put_down_near_it_is_not_running()
 	await _a_knockout_puts_the_woods_back()
 	await _asking_then_crossing_clean_gives_the_flower()
+	await _asked_from_as_far_as_she_can_a_standing_jump_clears_it()
 	await _crossing_clean_without_asking_is_the_pragmatists()
 	await _standing_on_the_crown_answers_nothing()
 	await _the_crown_curses_her()
@@ -273,7 +274,7 @@ func _jump_the_mound(start: float) -> void:
 
 func _asking_then_crossing_clean_gives_the_flower() -> void:
 	await _fresh_level()
-	await _put_her_at(MOUND_X - MOUND_HALF - 120.0)
+	await _put_her_at(MOUND_X - MOUND_HALF - 40.0)
 	var offer: Dictionary = level.call("_level_interact_offer")
 	level.call("press_interact")
 	await _frames(2)
@@ -294,6 +295,26 @@ func _asking_then_crossing_clean_gives_the_flower() -> void:
 	var found_after := bool(_profile().call("is_collectible_found", "L4_HF"))
 	_check(not found_before and found_after, "and the mound gives the flower",
 		"L4_HF found before %s, after %s" % [found_before, found_after])
+
+
+## Wherever she can ask from, a jump from standing still, at once, clears the mound: asked and then
+## jumped as she was told, she is never cursed for where she happened to be standing.
+func _asked_from_as_far_as_she_can_a_standing_jump_clears_it() -> void:
+	await _fresh_level()
+	var reach := float(level.get("ASKING_REACH"))
+	await _put_her_at(MOUND_X - MOUND_HALF - reach + 1.0)
+	level.call("press_interact")
+	await _frames(4)
+	var mound := level.get("_mound") as NunoMound2D
+	var asked := mound.asked
+	Input.action_press(&"jump")
+	Input.action_press(&"move_right")
+	await _seconds(2.0)
+	_release_all()
+	await _seconds(0.5)
+	_check(asked and not mound.touched_this_crossing() and not bool(level.call("is_cursed")) and _her_x() > MOUND_X + MOUND_HALF,
+		"asked from as far off as she can, a jump from standing clears the mound",
+		"asked %s at %.0f px from its foot, touched %s, now at %.0f" % [asked, reach - 1.0, mound.touched_this_crossing(), _her_x()])
 
 
 func _crossing_clean_without_asking_is_the_pragmatists() -> void:
