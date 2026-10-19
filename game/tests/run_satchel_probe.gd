@@ -250,7 +250,7 @@ func _walk_her(from: float, seconds: float) -> void:
 func _walking_into_one_takes_it() -> void:
 	var satchel = level.get("satchel")
 	var pickup := _pickup("Asin1")
-	await _walk_her(1000.0, 1.6)
+	await _walk_her(2200.0, 1.6)
 	var said := (level.get("hint_bar") as HintBar).current_text()
 	_check(satchel.count("asin") == 2 and (pickup == null or not is_instance_valid(pickup) or pickup.is_taken())
 			and bool(level.call("pickup_taken_this_run", "L4_P_ASIN1")) and said.begins_with("Asin -- salt. It is on Z"),

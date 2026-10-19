@@ -307,9 +307,10 @@ script = ExtResource("20_upper")
 
 [node name="Pickups" type="Node2D" parent="GameplayPlane"]
 
-; the edge of the woods: the first of Lola's things, early
+; the edge of the woods: the first of Lola's things, early -- past the santelmo, so what she says
+; finding it does not take the hint bar from the walk being taught there
 [node name="Asin1" type="Area2D" parent="GameplayPlane/Pickups"]
-position = Vector2(1100.0, 600.0)
+position = Vector2(2300.0, 600.0)
 script = ExtResource("13_pickup")
 item = "asin"
 amount = 2
