@@ -2301,8 +2301,7 @@ func _tool_answers_here(entity_id: String) -> bool:
 	if director == null or entity_id.is_empty():
 		return false
 	var here := director.current_obstacle()
-	return not here.is_empty() and not director.is_solved(here) \
-		and director.accept_set().has(entity_id)
+	return not here.is_empty() and director.would_answer(entity_id, here)
 
 
 func _verb_for(entity_id: String) -> String:

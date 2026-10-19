@@ -319,6 +319,18 @@ func required_tags(id: String = "") -> Array:
 	return (requirement_spec(id).get("required_tags", []) as Array).duplicate()
 
 
+## Whether this class would answer the obstacle now: what it asks for at this moment -- or, where
+## routes stay open, what any of its routes asks for, since drawing that is taking that route.
+func would_answer(entity_id: String, id: String = "") -> bool:
+	var key := _current if id.is_empty() else id
+	if not _obstacles.has(key) or _solved.has(key):
+		return false
+	if accept_set(key).has(entity_id):
+		return true
+	return routes_stay_open and not _route_carrying(key, entity_id).is_empty() \
+		and not (_refuses.is_valid() and bool(_refuses.call(entity_id)))
+
+
 ## The classes that would be accepted right now. At T3 this widens to every route's tags
 ## -- the one place a hint changes the rules rather than the wording.
 func accept_set(id: String = "") -> PackedStringArray:
