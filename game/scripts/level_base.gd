@@ -3980,6 +3980,7 @@ func _arm_player_health() -> void:
 	player_health = PlayerHealth.new()
 	player_health.name = "PlayerHealth"
 	add_child(player_health)
+	player_health.begin_at(_lantern_at_start())
 	player_health.snuffed.connect(_on_lantern_snuffed)
 	if hud_panel != null:
 		lantern_hud = hud_panel.adopt_lantern(player_health)
@@ -3987,6 +3988,12 @@ func _arm_player_health() -> void:
 	player_hurtbox.name = "PlayerHurtbox"
 	player_hurtbox.health = player_health
 	entity_root.add_child(player_hurtbox)
+
+
+## How full her lantern is as the level begins, where the lantern is her health: full, unless the
+## level says she comes in with it burned down.
+func _lantern_at_start() -> int:
+	return PlayerHealth.FULL
 
 
 ## The dark and her lantern, built once, after the lantern-as-health (which the light reads) and
