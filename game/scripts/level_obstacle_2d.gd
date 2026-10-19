@@ -62,6 +62,11 @@ signal player_arrived(obstacle_id: String)
 ## Ang Dayami, where the centre is the middle of a two-hundred-pixel haystack and the board
 ## ends up planted in the doorway the player is meant to walk through.
 @export var hint_sign_offset := 0.0
+## ⚠ AND WHETHER THERE IS A HINT BOARD AT ALL. Its "?" says Lolo will help with this if you stand
+## still long enough -- and where nobody gives that help (Dilim: he stopped at the water, and an
+## encounter is a fight, not a wait) it is a promise the level does not keep, planted on top of
+## the very thing she has to deal with. Such a beat keeps its story board and says so here.
+@export var plants_hint_sign := true
 ## AND WHERE THE CHECKPOINT MARK STANDS. Zero puts it near the outgoing edge of the volume,
 ## which is right for a beat you walk out of and wrong at the gorge: the outgoing edge is the
 ## far lip, there is no ground under it, and the mark's own ground sweep walks it back onto
@@ -103,8 +108,9 @@ func _ready() -> void:
 		Signpost2D.Mark.STORY,
 		Vector2(-trigger_size.x * 0.5 + story_sign_offset, 0.0),
 		"%s.enter" % obstacle_id, sign_reach)
-	Signpost2D.plant(self, Signpost2D.Mark.HINT, Vector2(hint_sign_offset, 0.0), "",
-		sign_reach)
+	if plants_hint_sign:
+		Signpost2D.plant(self, Signpost2D.Mark.HINT, Vector2(hint_sign_offset, 0.0), "",
+			sign_reach)
 	monitoring = true
 	# Layer 0 / mask 1: it detects the player without being something the player, or a
 	# placed object, can collide with. An obstacle volume that pushed things around would
