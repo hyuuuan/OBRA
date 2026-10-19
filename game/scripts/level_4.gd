@@ -417,7 +417,7 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 	if obstacle_id == "L4_NUNO" and route == "artist":
 		_flower_from_the_mound()
 	if CLEARINGS.has(obstacle_id):
-		_rest_by_the_fire()
+		_rest_by_the_fire(obstacle_id)
 	if obstacle_id == "L4_SIGBIN" and route == "artist" and _sigbin != null:
 		_sigbin.flee()
 	if obstacle_id == "L4_TIKBALANG" and _tikbalang != null:
@@ -604,11 +604,19 @@ func _on_ink_emptied() -> bool:
 
 
 ## A LIGHT OF HER OWN, AND SHE RESTS BY IT. The clearing's light lit fills the lantern to full and
-## lifts the nuno's curse -- the one place in the woods both happen.
-func _rest_by_the_fire() -> void:
+## lifts the nuno's curse -- the one place in the woods both happen -- and lights the clearing's
+## lantern from hers: its checkpoint, written now and not as she walked in, so "you go back to where
+## it was last lit" is true of the place she is sent back to.
+func _rest_by_the_fire(clearing: String) -> void:
 	if player_health != null:
 		player_health.refill(PlayerHealth.FULL)
 	_lift_curse()
+	for entry_value: Variant in (director.level_data().get("checkpoints", []) as Array):
+		var entry: Dictionary = entry_value
+		if String(entry.get("at", "")) == clearing:
+			var area := _checkpoint_area_for(String(entry.get("id", ""))) as CheckpointArea2D
+			if area != null:
+				area.write(player)
 
 
 # --- The last clearing --------------------------------------------------------------------------

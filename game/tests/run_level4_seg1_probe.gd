@@ -406,7 +406,11 @@ func _a_clearing_fills_the_ink() -> void:
 ## Low and cursed, she lights the clearing's light -- a lamp drawn and switched on -- and the
 ## lantern is full and the curse gone.
 func _a_light_of_her_own_at_the_clearing() -> void:
-	await _put_her_at(CLEARING_X + 150.0)
+	# At the clearing's lantern, which walking up to does not light.
+	await _put_her_at(5000.0)
+	await _frames(10)
+	var checkpoints := level.get("checkpoints") as CheckpointManager
+	var walked_in := checkpoints.latest_id()
 	_health().dim(PlayerHealth.LOW)
 	_health().dim(PlayerHealth.LOW)
 	level.call("_on_crown_touched")
@@ -432,6 +436,9 @@ func _a_light_of_her_own_at_the_clearing() -> void:
 		"stage %d -> %d, cursed %s -> %s, lit %s" % [low, _stage(), cursed, level.call("is_cursed"),
 			director.call("is_solved", "L4_REST1")])
 	_check(said.begins_with("There. Warm."), "and she says so", "\"%s\"" % said)
+	_check(walked_in != "CP1" and checkpoints.latest_id() == "CP1",
+		"its checkpoint is where her light was made: not written walking in, written when it is lit",
+		"walking in '%s', lit '%s'" % [walked_in, checkpoints.latest_id()])
 	var goal: Dictionary = level.call("_current_objective")
 	_check(String(goal.get("key", "")) == "woods", "and once it is lit, the banner moves on",
 		"'%s'" % goal.get("key", ""))

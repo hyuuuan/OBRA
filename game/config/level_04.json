@@ -27,9 +27,9 @@
     {"tag": "absurd", "at": "L4_BUNGISNGIS.dialogue"}
   ],
   "checkpoints": [
-    {"id": "CP1", "at": "L4_REST1", "trigger": "area",
-     "$comment": "The first rest clearing: the lantern and the ink refilled, a curse lifted."},
-    {"id": "CP2", "at": "L4_REST2", "trigger": "area"},
+    {"id": "CP1", "at": "L4_REST1", "trigger": "light",
+     "$comment": "The first rest clearing, written when she makes its light (not as she walks in): the lantern and the ink refilled, a curse lifted, and its lantern lit from hers -- where she goes back to if her lamp goes out."},
+    {"id": "CP2", "at": "L4_REST2", "trigger": "light"},
     {"id": "CP3", "at": "L4_FINALE", "trigger": "area",
      "$comment": "The last clearing's edge. A knockout in the finale puts her here with the waves and the clock reset."}
   ],
