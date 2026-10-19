@@ -44,6 +44,7 @@ func _run() -> void:
 	await _a_restore_lifts_the_curse()
 	await _a_clearing_fills_the_ink()
 	await _a_light_of_her_own_at_the_clearing()
+	await _walked_past_unrested_a_fall_is_the_clearing_not_the_start()
 	_release_all()
 	level.queue_free()
 	await _frames(3)
@@ -403,14 +404,34 @@ func _a_clearing_fills_the_ink() -> void:
 		"arriving at the clearing fills her ink", "%.1f -> %.1f of %.0f" % [dry, ink.remaining(), ink.capacity])
 
 
+## Through the clearing without resting, and then knocked out past it: back to the clearing, never
+## to the start -- walking in saved it. (Saved only by her light, a fall at the tiyanak put her back
+## eighteen thousand pixels, at the very start of the woods.)
+func _walked_past_unrested_a_fall_is_the_clearing_not_the_start() -> void:
+	await _fresh_level()
+	await _put_her_at(4900.0)
+	Input.action_press(&"move_right")
+	await _seconds(1.0)
+	_release_all()
+	await _put_her_at(6000.0)
+	level.call("_knockout")
+	await _frames(10)
+	_check(absf(_her_x() - 5000.0) < 300.0 and not bool((level.get("director") as Node).call("is_solved", "L4_REST1")),
+		"walked through the clearing without resting, a knockout past it puts her back at the clearing",
+		"back at x %.0f" % _her_x())
+
+
 ## Low and cursed, she lights the clearing's light -- a lamp drawn and switched on -- and the
 ## lantern is full and the curse gone.
 func _a_light_of_her_own_at_the_clearing() -> void:
 	# At the clearing's lantern, which walking up to does not light.
 	await _put_her_at(5000.0)
-	await _frames(10)
+	# Long enough for a checkpoint's moment to have played, had it one.
+	await _seconds(1.0)
 	var checkpoints := level.get("checkpoints") as CheckpointManager
+	var area := level.call("_checkpoint_area_for", "CP1") as CheckpointArea2D
 	var walked_in := checkpoints.latest_id()
+	var lit_walking_in := area.is_mark_lit()
 	_health().dim(PlayerHealth.LOW)
 	_health().dim(PlayerHealth.LOW)
 	level.call("_on_crown_touched")
@@ -436,9 +457,9 @@ func _a_light_of_her_own_at_the_clearing() -> void:
 		"stage %d -> %d, cursed %s -> %s, lit %s" % [low, _stage(), cursed, level.call("is_cursed"),
 			director.call("is_solved", "L4_REST1")])
 	_check(said.begins_with("There. Warm."), "and she says so", "\"%s\"" % said)
-	_check(walked_in != "CP1" and checkpoints.latest_id() == "CP1",
-		"its checkpoint is where her light was made: not written walking in, written when it is lit",
-		"walking in '%s', lit '%s'" % [walked_in, checkpoints.latest_id()])
+	_check(walked_in == "CP1" and not lit_walking_in and area.is_mark_lit(),
+		"walking in saves the clearing; its lantern is lit by the light she makes, not by walking by",
+		"walking in '%s', lantern lit %s; after her light, lit %s" % [walked_in, lit_walking_in, area.is_mark_lit()])
 	var goal: Dictionary = level.call("_current_objective")
 	_check(String(goal.get("key", "")) == "woods", "and once it is lit, the banner moves on",
 		"'%s'" % goal.get("key", ""))

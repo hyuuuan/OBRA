@@ -618,8 +618,8 @@ func _on_ink_emptied() -> bool:
 
 ## A LIGHT OF HER OWN, AND SHE RESTS BY IT. The clearing's light lit fills the lantern to full and
 ## lifts the nuno's curse -- the one place in the woods both happen -- and lights the clearing's
-## lantern from hers: its checkpoint, written now and not as she walked in, so "you go back to where
-## it was last lit" is true of the place she is sent back to.
+## lantern from hers. (Its checkpoint was written as she walked in: a fall past a clearing she did
+## not rest at must not send her back to the start.)
 func _rest_by_the_fire(clearing: String) -> void:
 	if player_health != null:
 		player_health.refill(PlayerHealth.FULL)
@@ -629,7 +629,7 @@ func _rest_by_the_fire(clearing: String) -> void:
 		if String(entry.get("at", "")) == clearing:
 			var area := _checkpoint_area_for(String(entry.get("id", ""))) as CheckpointArea2D
 			if area != null:
-				area.write(player)
+				area.light_mark(player)
 
 
 # --- The last clearing --------------------------------------------------------------------------
