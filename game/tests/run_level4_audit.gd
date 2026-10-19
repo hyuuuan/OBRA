@@ -774,6 +774,7 @@ func _audit_objectives_fit(level: Dictionary, scene: Node) -> void:
 	var label := (scene.get("objective_banner") as Control).get("_label") as Label
 	var font := label.get_theme_font(&"font")
 	var cut: Array[String] = []
+	var small: Array[String] = []
 	var counted := 0
 	for key_value: Variant in (level.get("objectives", {}) as Dictionary).keys():
 		var key := String(key_value)
@@ -785,9 +786,16 @@ func _audit_objectives_fit(level: Dictionary, scene: Node) -> void:
 			ObjectiveBanner.SMALL).x
 		if width > ObjectiveBanner.MAX_WIDTH:
 			cut.append("\"%s\" (%.0f px)" % [line, width])
+		# AT FULL SIZE, since they are what to do: one that only fits at the caption size is set
+		# small, and the encounter lines say how to get past each thing.
+		var full := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, ObjectiveBanner.LARGE).x
+		if full > ObjectiveBanner.MAX_WIDTH:
+			small.append("\"%s\" (%.0f px)" % [line, full])
 	_check(font != null and counted > 0 and cut.is_empty(), "every objective fits its banner",
 		"%d lines, none wider than %.0f px" % [counted, ObjectiveBanner.MAX_WIDTH]
 		if cut.is_empty() else "trimmed: " + ", ".join(cut))
+	_check(font != null and small.is_empty(), "and every one reads at the banner's full size",
+		"%d lines" % counted if small.is_empty() else "set small: " + ", ".join(small))
 
 
 # --- Helpers ----------------------------------------------------------------------------

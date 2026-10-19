@@ -47,12 +47,12 @@
     "woods": "Get through the woods. Keep the lamp lit.",
     "rest": "Make a light here. It fills the lamp again.",
     "nuno": "Stop at the mound, ask to pass ({key:interact}), then jump it.",
-    "sigbin": "Show it light, or keep my back to a rock, or fight it off.",
-    "tikbalang": "Go by as something with hooves, or as an animal, or race it.",
-    "kapre": "Blow its smoke away, cut down what it sits in, or knock its cigar.",
-    "tiyanak": "Keep to the high path. Or show it light. Or fight it.",
-    "bungisngis": "Make it laugh with something silly, go over it, or fight it.",
-    "manananggal": "Salt the half she left behind, hold light on it, or drive her off.",
+    "sigbin": "Show it light, put my back to a rock, or fight it.",
+    "tikbalang": "Become something hoofed or an animal, or race it.",
+    "kapre": "Clear the smoke, fell its perch, or hit its cigar.",
+    "tiyanak": "Keep to the high path, show it light, or fight it.",
+    "bungisngis": "Show it something silly, go over it, or fight it.",
+    "manananggal": "Salt the half she left, light it, or drive her off.",
     "dawn": "Last until morning."
   },
   "obstacles": [
