@@ -94,9 +94,13 @@ func _the_lantern_shrinks_with_the_flame() -> void:
 		await physics_frame
 		low = minf(low, lamp.radius())
 		high = maxf(high, lamp.radius())
-	_check(radii == [380.0, 290.0, 200.0], "each stage the flame drops, the light she sees by shrinks",
-		"%s, then guttering" % [radii])
-	_check(high - low > 10.0 and low >= 130.0 - 14.0 - 0.01 and high <= 130.0 + 14.0 + 0.01,
+	var by_stage := HeldLantern2D.RADII
+	_check(radii == [by_stage[PlayerHealth.FULL], by_stage[PlayerHealth.DIM], by_stage[PlayerHealth.LOW]]
+			and radii[0] > radii[1] and radii[1] > radii[2],
+		"each stage the flame drops, the light she sees by shrinks", "%s, then guttering" % [radii])
+	var gutter: float = by_stage[PlayerHealth.GUTTERING]
+	var flicker := HeldLantern2D.GUTTER_FLICKER
+	_check(high - low > 10.0 and low >= gutter - flicker - 0.01 and high <= gutter + flicker + 0.01,
 		"guttering, it will not hold still", "%.0f to %.0f px" % [low, high])
 	lamp.queue_free()
 	health.queue_free()
@@ -185,6 +189,15 @@ func _a_flashlight_and_a_fire_light_the_dark() -> void:
 	var heart: Vector2 = fire.light_hole().get("position", Vector2.INF)
 	_check(cold.light_hole().is_empty() and LightField.light_at(self, heart + Vector2(60.0, 0.0)) > 0.9,
 		"a burning checkpoint lights the dark round it; a cold one does not", "lit at 60 px")
+	# THE POINT OF DRAWING A LIGHT: it opens the dark wider than the lamp she carries. When her lamp
+	# lit 380 px and a campfire 300, a drawn light was the smaller of the two.
+	var campfire := registry.instantiate_entity("campfire") as UtilityObject
+	world.add_child(campfire)
+	await _frames(2)
+	var glow := float(campfire.light_hole().get("radius", 0.0))
+	_check(glow >= HeldLantern2D.RADII[PlayerHealth.FULL] * 1.25,
+		"a campfire drawn lights well past her own lamp at its fullest",
+		"campfire %.0f px, her lamp %.0f" % [glow, HeldLantern2D.RADII[PlayerHealth.FULL]])
 	world.queue_free()
 	await _frames(3)
 
