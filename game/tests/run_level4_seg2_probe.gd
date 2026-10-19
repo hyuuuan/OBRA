@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 22
+const CHECKS := 23
 var level: Node
 
 
@@ -28,7 +28,7 @@ func _run() -> void:
 	level.queue_free()
 	await _frames(3)
 	for sigbin_check in [_a_light_sends_the_sigbin_off, _her_back_to_the_rock_and_it_gives_up, _facing_the_rock_is_not_her_back_to_it, _well_off_the_rock_is_not_against_it, _struck_down_it_is_driven_off,
-			_a_blade_swung_first_a_light_still_sends_it_off]:
+			_a_blade_swung_first_a_light_still_sends_it_off, _past_its_ground_it_gives_her_up]:
 		level = await _open_level()
 		await sigbin_check.call()
 		level.queue_free()
@@ -336,6 +336,22 @@ func _a_throw_knocks_its_cigar() -> void:
 	await _frames(5)
 	_check(_kapre_route() == "protector" and _kapre_solved() and _kapre().is_gone() and not _kapre().cigar_is_lit(),
 		"a throw that reaches the cigar knocks it out of its hand", "route '%s', gone %s" % [_kapre_route(), _kapre().is_gone()])
+
+
+## It keeps to its own dark: hunting her, and then she is well on past its ground, it goes back
+## to where it waited rather than following her into the next encounter.
+func _past_its_ground_it_gives_her_up() -> void:
+	var home := _sigbin().global_position
+	await _stand_at(7000.0, &"move_right")
+	await _frames(int(1.5 * 60.0))
+	var hunting := _sigbin().state_name() != "IDLE"
+	var out := absf(_sigbin().global_position.x - home.x)
+	await _stand_at(8100.0, &"move_right")
+	await _frames(6 * 60)
+	var back := absf(_sigbin().global_position.x - home.x)
+	_check(hunting and out >= 60.0 and back <= 120.0 and _sigbin().state_name() == "IDLE",
+		"past its ground, the sigbin gives her up and goes back to where it waited",
+		"hunting %s, %.0f px out; then %.0f px from home, %s" % [hunting, out, back, _sigbin().state_name()])
 
 
 ## A blade swung first is not the choice made for good: a light after it still drives it off. Every
