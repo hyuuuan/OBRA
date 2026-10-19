@@ -653,6 +653,9 @@ func _on_coral_touched(body: Node, key: String) -> void:
 		# A fact already said does not wait: firing it again says nothing, and it would have taken
 		# the place of one still to say.
 		if not script_lines.has_heard("CORAL.%s" % key) and not _coral_waiting.has(key):
+			# The first to wait marks where she stopped; after that only steering moves it.
+			if _coral_waiting.is_empty():
+				_coral_stopped_at = _anchor_now()
 			_coral_waiting.append(key)
 		return
 	# `once` on the line does the not-twice part; firing again is free and says nothing.
@@ -2626,11 +2629,24 @@ var _advice_left := 0.0
 ## closer together than their 150 px reach (lola1 is 175 px from star), so standing at one is
 ## standing inside the next one's circle too, and a nudge across its edge while he talked made the
 ## neighbour the "last touched": lola1's fact was dropped for star's, and if star had already been
-## said, nothing was said at all. Which fact she gets now depends on where she is, not on the order
-## two circles noticed her in.
+## said, nothing was said at all. Which fact she gets now depends on where she stopped, not on the
+## order two circles noticed her in.
 var _coral_waiting: Array[String] = []
 ## How close the player still has to be to a coral for its fact to be worth saying late.
 const CORAL_STILL_NEAR := 260.0
+## Where she stopped: where she was when the first fact began waiting, and wherever she has
+## steered to since. What CORAL_STILL_NEAR is measured from.
+##
+## ⚠ SWUM ON IS SWUM, NOT DRIFTED. A swimmer who lets go of the keys does not stay put -- a fish
+## drifts toward the middle of the column at about 60 px a second, the apo floats up -- and the
+## distance used to be measured from wherever that had carried her. Stopped at a coral while Lolo
+## had a creature's line or a jar's still to say, she was past 260 px in three and a half seconds
+## and the fact was dropped though she had never swum on. Kent (2026-10-19): drop it only once
+## they swim away under their own input. So this follows her only on a frame a movement key is
+## held, and drift leaves it where she stopped.
+var _coral_stopped_at := Vector2.ZERO
+const STEERING_ACTIONS: Array[StringName] = [
+	&"move_left", &"move_right", &"move_up", &"move_down", &"jump"]
 
 
 func _post_advice(advice: Array[Dictionary]) -> void:
@@ -2663,6 +2679,8 @@ static func _reading_time(text: String) -> float:
 
 
 func _pace_the_advice(delta: float) -> void:
+	if not _coral_waiting.is_empty() and _is_steering():
+		_coral_stopped_at = _anchor_now()
 	if _advice_left > 0.0:
 		_advice_left = maxf(0.0, _advice_left - delta)
 		return
@@ -2672,7 +2690,7 @@ func _pace_the_advice(delta: float) -> void:
 	if _coral_waiting.is_empty():
 		return
 	var field := coral_field()
-	var here := _anchor_now()
+	var here := _coral_stopped_at
 	var nearest := ""
 	for key in _coral_waiting:
 		var spot: Variant = field.get(key, null)
@@ -2685,6 +2703,14 @@ func _pace_the_advice(delta: float) -> void:
 	_coral_waiting.clear()
 	if not nearest.is_empty():
 		_speak(script_lines.fire("CORAL.%s" % nearest))
+
+
+## A movement key held: the player going somewhere, rather than the water taking her.
+static func _is_steering() -> bool:
+	for action in STEERING_ACTIONS:
+		if Input.is_action_pressed(action):
+			return true
+	return false
 
 
 ## THE FORK WAITS FOR THE BRUSH, AND FOR NOTHING DRAWN.
