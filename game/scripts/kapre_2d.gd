@@ -55,8 +55,9 @@ const FALL_THROW := -60.0
 const LIES_AT := -4.0
 const FALLEN_GLOW := 46.0
 const EMBER_DIES := 2.5
-## Leaving, startled ('knocked'): with its cigar gone it climbs CLIMBS px up into its crown and is
-## lost in it; with its tree gone it drops to the ground and walks off east, into the dark.
+## Leaving, startled: with its cigar knocked away ('knocked') it climbs CLIMBS px up into its crown
+## and is lost in it; with its tree gone under it ('falling', the cigar still in its teeth) it drops
+## to the ground, its ember lighting it down, and walks off east into the dark.
 const CLIMBS := 90.0
 const CLIMB_SECONDS := 1.4
 const DROP_SECONDS := 0.4
@@ -103,7 +104,7 @@ func _ready() -> void:
 	add_child(tree_art)
 	tree_art.load_kind(Enemy2D.ART, "kapre_tree", ["idle", "felled"])
 	tree_art.play("idle")
-	_make_art("kapre", ["idle", "knocked"], false, ART_AT)
+	_make_art("kapre", ["idle", "knocked", "falling"], false, ART_AT)
 	var puffs := Enemy2D.ART + "kapre_smoke_idle.png"
 	if ResourceLoader.exists(puffs):
 		_smoke_sheet = load(puffs) as Texture2D
@@ -226,7 +227,7 @@ func leave() -> void:
 	clear_smoke()
 	if art == null or not art.has_art():
 		return
-	art.play("knocked")
+	art.play("falling" if _felled else "knocked")
 	var away := create_tween()
 	if _felled:
 		away.tween_property(art, "position:y", 0.0, DROP_SECONDS).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
@@ -246,9 +247,18 @@ func light_hole() -> Dictionary:
 	if not _cigar_lit and _ember_alight():
 		var dying := clampf((_fall_clock - _landing()) / EMBER_DIES, 0.0, 1.0)
 		return {"position": global_position + fallen_cigar(), "radius": FALLEN_GLOW, "strength": 0.6 * (1.0 - dying)}
-	if not _cigar_lit or _gone:
+	if not _cigar_lit:
 		return {}
-	return {"position": global_position + cigar.position, "radius": CIGAR_GLOW, "strength": 0.7,
+	# Felled, it takes its cigar down with it, and the light goes where its face goes -- until it
+	# has faded into the dark.
+	var carried := Vector2.ZERO
+	var shown := 1.0
+	if _gone:
+		if not _felled or art == null or not art.visible:
+			return {}
+		carried = art.position - ART_AT
+		shown = art.modulate.a
+	return {"position": global_position + cigar.position + carried, "radius": CIGAR_GLOW, "strength": 0.7 * shown,
 		"direction": CIGAR_LIGHT_TOWARD, "half_angle": CIGAR_LIGHT_HALF_ANGLE}
 
 

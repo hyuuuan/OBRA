@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 35
+const CHECKS := 36
 var level: Node
 
 
@@ -333,10 +333,16 @@ func _three_chops_fell_its_tree() -> void:
 	_check(not after_two and _kapre_route() == "pragmatist" and _kapre_solved() and _kapre().is_felled(),
 		"three chops fell its tree, the first one counting", "after two %s; route '%s', felled %s"
 			% [after_two, _kapre_route(), _kapre().is_felled()])
-	await _frames(int(1.6 * 60.0))
+	# Down with it, startled, the cigar still in its teeth and its ember lighting it as it goes.
 	var art := _kapre().art
-	_check(art.anim() == "knocked" and absf(art.position.y) < 0.5 and art.position.x > Kapre2D.ART_AT.x and not art.visible,
-		"and the kapre drops with its tree and goes", "'%s' at %s, shown %s" % [art.anim(), art.position, art.visible])
+	var glow := _kapre().light_hole()
+	var tip := _kapre().global_position + Kapre2D.CIGAR_TIP
+	var lit_low := not glow.is_empty() and (glow["position"] as Vector2).y > tip.y + 100.0
+	_check(art.anim() == "falling" and lit_low, "and the kapre drops with its cigar, its ember lighting it down",
+		"'%s', light %s (its tip was at y %.0f)" % [art.anim(), glow, tip.y])
+	await _frames(int(1.6 * 60.0))
+	_check(absf(art.position.y) < 0.5 and art.position.x > Kapre2D.ART_AT.x and not art.visible and _kapre().light_hole().is_empty(),
+		"and goes, its light with it", "'%s' at %s, shown %s, light %s" % [art.anim(), art.position, art.visible, _kapre().light_hole()])
 
 
 func _a_throw_knocks_its_cigar() -> void:

@@ -48,7 +48,7 @@ class CreatureStripsTest(unittest.TestCase):
             "tiyanak": ["idle", "true", "run"],
             "manananggal_lower": ["idle", "death"],
             "tikbalang": ["idle", "run"],
-            "kapre": ["idle", "knocked"],
+            "kapre": ["idle", "knocked", "falling"],
             "kapre_smoke": ["idle"],
             "kapre_cigar": ["idle"],
             "kapre_tree": ["idle", "felled"],
