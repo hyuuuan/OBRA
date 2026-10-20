@@ -1,6 +1,7 @@
 class_name GroundEnemy2D
 extends Enemy2D
-## A walker -- the aswang as a dog or a pig. Runs at her, hops what it can, and lunges.
+## A walker -- the aswang, crawling on all fours: `aswang_dog` the lean one, `aswang_pig` the old one
+## (the kinds keep the names they had as a dog and a pig). Runs at her, hops what it can, and lunges.
 ##
 ## It is not a thing that falls off the world chasing her: it hops a step it can clear, stops at
 ## a wall it cannot, and will not walk off a drop deeper than SAFE_DROP -- unless she is down
