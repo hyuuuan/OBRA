@@ -452,9 +452,9 @@ func _a_shot_clicked_at_the_cigar_knocks_it() -> void:
 ## A miss first -- thrown at nothing, which chooses the route -- and then at the cigar: the second is
 ## thrown too. Every press after the first used to be judged as the choice again, and not thrown.
 func _thrown_again_after_a_miss() -> void:
-	await _stand_at(13700.0, &"move_right")
+	await _stand_at(13450.0, &"move_right")
 	await _become("boomerang")
-	await _click_at((level.get("player") as Node2D).global_position + Vector2(300.0, -20.0))
+	await _click_at((level.get("player") as Node2D).global_position + Vector2(-300.0, -20.0))
 	await _frames(int(1.5 * 60.0))
 	var missed := _kapre().cigar_is_lit()
 	var tries := int(level.get("director").call("attempts", "L4_KAPRE"))
@@ -479,9 +479,11 @@ func _click_at(world: Vector2) -> void:
 	Input.parse_input_event(up)
 
 
+## From where she can stand: west of the smoke's middle (13500), which turns her round -- not under
+## the tree, where only a teleport puts her while the smoke stands.
 func _throw_at_the_cigar(entity_id: String, fresh: bool = true) -> void:
 	if fresh:
-		await _stand_at(13700.0, &"move_right")
+		await _stand_at(13450.0, &"move_right")
 		await _become(entity_id)
 	var cigar := (_kapre().get("cigar") as Node2D).global_position
 	# ONE click: the throw that chooses the route is thrown. (It used to choose and go nowhere.)
