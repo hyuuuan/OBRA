@@ -14,7 +14,7 @@ six tones a material lit from the upper left, and selective coloured outlines --
 tools/creature_sculpt.py. The creatures themselves are in dilim_beasts.py (the aswang, the sigbin),
 dilim_giants.py (the tikbalang, the bungisngis, the kapre), dilim_fliers.py (the manananggal, the
 wakwak, the tik-tik) and dilim_small.py (the tiyanak, the santelmo, the nuno's mound, the lower
-half).
+half); the last clearing's dead tree, drawn the same way, is in dilim_props.py.
 
 THE STRIP CONTRACT
 ------------------
@@ -41,6 +41,7 @@ from PIL import Image  # noqa: E402
 import dilim_beasts as beasts  # noqa: E402
 import dilim_fliers as fliers  # noqa: E402
 import dilim_giants as giants  # noqa: E402
+import dilim_props as props  # noqa: E402
 import dilim_small as small  # noqa: E402
 import pixelart  # noqa: E402
 from creature_sculpt import strip as row  # noqa: E402
@@ -49,7 +50,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "game" / "assets" / "Level4" / "creatures"
 
 # Which way each stands: on its feet at the bottom row, or centred (a flier).
-GROUND = ["aswang_dog", "aswang_pig", "sigbin", "tikbalang", "bungisngis", "kapre", "kapre_tree", "tiyanak", "manananggal_lower", "nuno_mound"]
+GROUND = ["aswang_dog", "aswang_pig", "sigbin", "tikbalang", "bungisngis", "kapre", "kapre_tree", "tiyanak", "manananggal_lower", "nuno_mound", "dead_tree"]
 FLYING = ["manananggal_upper", "wakwak", "tiktik", "santelmo"]
 
 
@@ -88,6 +89,10 @@ def _sheets() -> dict[str, dict[str, list[Image.Image]]]:
         "nuno_mound": {
             "idle": [small.nuno_mound(0.0).render()],
             "peek": [small.nuno_mound(1.0).render()],
+        },
+        "dead_tree": {
+            "idle": [props.dead_tree().render()],
+            "felled": [props.dead_tree(True).render()],
         },
     }
 
