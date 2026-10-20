@@ -11,7 +11,8 @@ HOW THEY ARE DRAWN
 ------------------
 In the delivered art's idiom (the apo, Lolo, the bakunawa): one art px to one screen px, five or
 six tones a material lit from the upper left, and selective coloured outlines -- see
-tools/creature_sculpt.py. The creatures themselves are in dilim_beasts.py (the aswang, the sigbin),
+tools/creature_sculpt.py. The creatures themselves are in dilim_aswang.py (the aswang, lean and old),
+dilim_beasts.py (the sigbin),
 dilim_giants.py (the tikbalang, the bungisngis), dilim_kapre.py (the kapre, sat in its tree, its
 smoke and its cigar), dilim_fliers.py (the manananggal, the wakwak, the tik-tik) and dilim_small.py
 (the tiyanak, the santelmo, the nuno's mound, the lower half, the kapre's balete); the last
@@ -39,6 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from PIL import Image  # noqa: E402
 
+import dilim_aswang as aswang  # noqa: E402
 import dilim_beasts as beasts  # noqa: E402
 import dilim_fliers as fliers  # noqa: E402
 import dilim_giants as giants  # noqa: E402
@@ -56,14 +58,26 @@ GROUND = ["aswang_dog", "aswang_pig", "sigbin", "tikbalang", "bungisngis", "kapr
 FLYING = ["manananggal_upper", "wakwak", "tiktik", "santelmo"]
 
 
+def _aswang(a):
+    out = {}
+    for anim, poses in aswang.ANIMS.items():
+        frames = []
+        for c in poses:
+            s = aswang.draw(a, c)
+            s.details()
+            frames.append(s.render())
+        out[anim] = frames
+    return out
+
+
 def _beast(b):
     return {anim: [beasts.draw(b, p).render() for p in poses] for anim, poses in beasts.ANIMS.items()}
 
 
 def _sheets() -> dict[str, dict[str, list[Image.Image]]]:
     return {
-        "aswang_dog": _beast(beasts.DOG),
-        "aswang_pig": _beast(beasts.PIG),
+        "aswang_dog": _aswang(aswang.LEAN),
+        "aswang_pig": _aswang(aswang.OLD),
         "sigbin": _beast(beasts.SIGBIN),
         "tikbalang": {a: [giants.draw(giants.TIKBALANG, st).render() for st in poses] for a, poses in giants.TIKBALANG_ANIMS.items()},
         "bungisngis": {a: [giants.draw_bungisngis(st).render() for st in poses] for a, poses in giants.BUNGISNGIS_ANIMS.items()},

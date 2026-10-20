@@ -328,7 +328,7 @@ can vanish in the level.
 
 | What | Tool | Files | The contract |
 |---|---|---|---|
-| Every creature, the kapre's balete, smoke and cigar, and the finale's dead tree | `tools/build_dilim_creatures.py`, on `tools/creature_sculpt.py` (the bodies in `dilim_beasts.py`, `dilim_giants.py`, `dilim_kapre.py`, `dilim_fliers.py`, `dilim_small.py`; the dead tree in `dilim_props.py`) | `assets/Level4/creatures/<kind>_<anim>.png` | A row of square frames, as tall as wide; a strip whose width is not a whole number of its height is one picture (the mound, the tree). Ground kinds stand on the bottom row, fliers are centred -- that point is the creature's position. Chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour, never black. Each script's own `_draw()` stays as the fallback while a strip is missing |
+| Every creature, the kapre's balete, smoke and cigar, and the finale's dead tree | `tools/build_dilim_creatures.py`, on `tools/creature_sculpt.py` (the bodies in `dilim_aswang.py`, `dilim_beasts.py`, `dilim_giants.py`, `dilim_kapre.py`, `dilim_fliers.py`, `dilim_small.py`; the dead tree in `dilim_props.py`) | `assets/Level4/creatures/<kind>_<anim>.png` | A row of square frames, as tall as wide; a strip whose width is not a whole number of its height is one picture (the mound, the tree). Ground kinds stand on the bottom row, fliers are centred -- that point is the creature's position. Chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour, never black. Each script's own `_draw()` stays as the fallback while a strip is missing |
 | Lola's six things | `tools/build_dilim_props.py` | `assets/Level4/props/<id>.png` | 32-px icons, each on a leaf, each told apart by its brightest colour: salt, ash, garlic, candle, lamp oil, the stingray-tail whip. The quick slots and the pickups load them by id |
 
 **The creatures' strips, and what each has to say** -- a delivered strip of the same name replaces
@@ -336,7 +336,7 @@ one with no code change:
 
 | Kind | Strips | What it has to say |
 |---|---|---|
-| Aswang, dog and pig | `aswang_dog_*`, `aswang_pig_*`: `idle` `run` `windup` `attack` `hurt` `death` | Dark, but lighter than the night, so they read inside her light (#93) |
+| Aswang, the lean one and the old one | `aswang_dog_*`, `aswang_pig_*` (the names they had as a dog and a pig): `idle` `run` `windup` `attack` `hurt` `death` | The night form, as the folklore has it: a gaunt ash-grey woman-shape crawling on all fours, elbows and knees jutting up, long matted hair hanging over its face, bloodshot eyes through it, needle teeth, long nails, the long thin tongue, a ragged skirt; the old one hulking and humped, its hair streaked grey. Lighter than the night, so they read inside her light (#93) |
 | Santelmo | `santelmo_idle`, `santelmo_hot` | A flame that wants her: brighter while it is coming |
 | The nuno's mound | `nuno_mound_idle` (one picture) | An earth mound with something left for the nuno -- a thing to be respectful round, never a target |
 | Sigbin | `sigbin_*`: the six states | Goat-like, long ears hanging, walking backwards. It shows only as much as the light on it, so in the dark it is a glint -- the windup's glint is its tell, and must stay |
