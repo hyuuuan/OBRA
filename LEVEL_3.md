@@ -928,6 +928,21 @@ creature met, a jar's line), the fact is dropped although the player never swam 
 "swum on" by whether the player is still moving, not by distance, would close that gap. It is a
 change to the design's rule, so it is not made here.
 
+## Swum on, not drifted (2026-10-19)
+
+Kent's answer to the above: drop a waiting fact only once the player swims away under their own
+input. The distance is now measured from where they stopped, not from where the water has carried
+them. That point is set where they were when the first fact began waiting, and after that it
+follows them only on a frame a movement key is held (`move_left`, `move_right`, `move_up`,
+`move_down`, `jump`). Let go, they can drift as far as they like and the fact is still said when
+Lolo is free. Swim off with a key held and it is dropped as before once they are more than 260 px
+from it. The other rules hold: the nearest unsaid fact is said, measured from that same point; one
+already said never waits; and one dropped is still there if they swim back.
+
+`run_level3_sea_probe` checks both halves with a fish swum to lola1 under power while Lolo has
+about seventeen seconds queued. Let go and not held, it drifted to about 575 px off and lola1 was
+said. Swum 400 px up with a key held, lola1 was dropped.
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.
