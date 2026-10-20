@@ -327,7 +327,11 @@ func would_answer(entity_id: String, id: String = "") -> bool:
 		return false
 	if accept_set(key).has(entity_id):
 		return true
-	return routes_stay_open and not _route_carrying(key, entity_id).is_empty() \
+	# ANOTHER route's: the one already taken, mid-way to its deed, has asked for what it asks now --
+	# counted again here, a boomerang that had chosen "knock the cigar" was judged on every press
+	# and never thrown.
+	var other := _route_carrying(key, entity_id)
+	return routes_stay_open and not other.is_empty() and other != String(_committed.get(key, "")) \
 		and not (_refuses.is_valid() and bool(_refuses.call(entity_id)))
 
 
