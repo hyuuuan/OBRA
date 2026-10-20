@@ -150,13 +150,17 @@ alongside this file; the numbers below are its starting points.
 
 What the build does that the design above does not say, and what it does not do yet:
 
-- **Creature art.** Every creature is a sculpted strip a developer drew -- the aswang (dog, pig),
+- **Creature art.** Every creature is a sculpted strip a developer drew -- the aswang (lean, old),
   santelmo, nuno's mound, sigbin, tikbalang, kapre and its balete (standing and felled), tiyanak,
   bungisngis, manananggal (both halves), wakwak and tik-tik -- standing in for an artist's
   (`ART_PLACEHOLDERS.md` names every strip; `run_visual_dilim_creatures` lays them side by side in
   her light). Each script's own code-drawn body is the fallback while a strip is missing. Her hurt
   and attack poses are placeholders made from the delivered sheet (the jump and wave frames,
   leaned).
+- **The aswang is the thing itself, not a dog or a pig** (Kent, 2026-10-20: an aswang "if you search
+  the internet is not like that"). The two kinds the waves send keep their names and settings:
+  `aswang_dog` is a lean crawling woman-shape -- hair over its face, bloodshot eyes, the long tongue
+  -- and `aswang_pig` an old, hulking, humped one, its hair streaked grey.
 - **The kapre in its tree** (Kent, 2026-10-20: "more detailed and make more sense"). It sits on
   a branch of the balete 170 px up, a giant about twice her height sat, facing her. Its cigar's
   hit area is where the cigar is drawn, in its teeth west of the trunk. Its light is two: the
