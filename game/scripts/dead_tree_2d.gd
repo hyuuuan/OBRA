@@ -28,6 +28,11 @@ const TRUNK_CENTRE := 15.5
 ## right; one standing in open ground (Dilim's last clearing) is hit by a tool without stopping
 ## anyone -- its trunk is an area a swing finds rather than a body.
 @export var stands_solid := true
+## Drawn art by kind, the way the kapre's balete is drawn: `<kind>_idle` standing and `<kind>_felled`
+## lying, from the creature strips (Enemy2D.ART), at one art pixel to one world pixel. Dilim's is
+## its own dead tree, drawn in the woods' bark. Empty -- Level 1's -- or a kind with no strips, it
+## is the delivered tree above, turned on its side when it falls.
+@export var art_kind := ""
 @export var blocked_hint: String = "That dead tree would reach across. Draw something with an edge — E to pick it up, F to swing."
 
 var _standing: CollisionObject2D
@@ -68,17 +73,19 @@ func _build() -> void:
 
 	# Hung off the trunk body rather than off this node, so the lean every axe hit adds
 	# moves the tree and not just its collider.
-	_art = Sprite2D.new()
+	_art = _drawn_art()
+	if _art == null:
+		_art = Sprite2D.new()
+		_art.texture = ART
+		_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_art.centered = false
+		# Whole multiples only. 300/58 is 5.17, and the sixth of a pixel that buys is paid for
+		# with a resampled trunk -- five is 290px of tree against a 300px box, which nobody can
+		# see, and every pixel stays square.
+		var factor := maxf(1.0, roundf(trunk_size.y / float(ART.get_height())))
+		_art.scale = Vector2(factor, factor)
+		_art.offset = Vector2(-TRUNK_CENTRE, -float(ART.get_height()))
 	_art.name = "Art"
-	_art.texture = ART
-	_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_art.centered = false
-	# Whole multiples only. 300/58 is 5.17, and the sixth of a pixel that buys is paid for
-	# with a resampled trunk -- five is 290px of tree against a 300px box, which nobody can
-	# see, and every pixel stays square.
-	var factor := maxf(1.0, roundf(trunk_size.y / float(ART.get_height())))
-	_art.scale = Vector2(factor, factor)
-	_art.offset = Vector2(-TRUNK_CENTRE, -float(ART.get_height()))
 	_standing.add_child(_art)
 
 	# The crossing it becomes, built now and kept intangible until it is earned. Making
@@ -96,6 +103,20 @@ func _build() -> void:
 	span_collision.position = Vector2(span_length * 0.5, -span_height * 0.5)
 	_fallen.add_child(span_collision)
 	z_index = 6
+
+
+## The tree `art_kind` names, standing -- its foot on the origin, its trunk on the picture's middle
+## column -- or null when it names none.
+func _drawn_art() -> PixelStripAnimator:
+	if art_kind.is_empty():
+		return null
+	var drawn := PixelStripAnimator.new()
+	drawn.load_kind(Enemy2D.ART, art_kind, ["idle", "felled"])
+	if not drawn.has_art():
+		drawn.free()
+		return null
+	drawn.play("idle")
+	return drawn
 
 
 ## Every hit leans it further toward the gorge, so a swing that did not finish the job
@@ -121,10 +142,18 @@ func _on_destroyed() -> void:
 	# A quarter turn CLOCKWISE, not anticlockwise: rotating by +PI/2 sends the art's own
 	# up-axis to +x, which is the way the gorge runs and the way the player is travelling.
 	# The other direction lays it back across the ground they came from.
+	#
+	# Drawn art is not turned: it has its own picture lying, its middle on the middle of the span
+	# it lies along -- a tree gone over is a log with its root plate torn up, not the standing
+	# one on its side.
 	if _art != null and is_instance_valid(_art):
 		_art.reparent(self, false)
-		_art.rotation = PI * 0.5
-		_art.position = Vector2(0.0, -17.0)
+		if _art is PixelStripAnimator:
+			(_art as PixelStripAnimator).play("felled")
+			_art.position = Vector2(span_length * 0.5, 0.0)
+		else:
+			_art.rotation = PI * 0.5
+			_art.position = Vector2(0.0, -17.0)
 	if _standing != null and is_instance_valid(_standing):
 		_standing.queue_free()
 	_fallen.collision_layer = 1
