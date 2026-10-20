@@ -165,7 +165,21 @@ What the build does that the design above does not say, and what it does not do 
   lantern the HUD leans and gutters and the light drops 18%.
 - **The buntot pagi** drops only in waves 2 and 3 (2%), lashes 10 times, and reaches fliers. Its
   lashes left are saved with the run, and every lash flashes its quick slot and is logged.
+- **What to do is said where it is done** (Kent, 2026-10-19: "the game's instructions are all
+  unclear"). Inside an encounter not yet answered the banner names Lola's three ways past it, no
+  class named ("Show it light, put my back to a rock, or fight it."), each at the banner's full
+  size; the first of each of Lola's things says what it does and its key ("Kandila -- a candle. X
+  sets it down: light that costs no ink."); the santelmo's walk is taught ~3 s before it can see
+  her, and the first salt lies past it so nothing takes the hint bar from that.
+- **No "?" boards.** They promised Lolo's help, and stood on the creature; every beat keeps its
+  story board at its approach (`LevelObstacle2D.plants_hint_sign`).
+- **A clearing is saved as she walks in**; its lantern stands where the light is made and her light
+  lights it (`CheckpointArea2D.lights_on_entry`), with the lamp filled and a curse lifted.
+- **The mound is asked from its foot** (56 px), where a jump from standing clears it.
+- **The sigbin keeps to its ground** (a 700 px leash); it gave chase into the tikbalang's.
 - **The kapre's camera hold** was replaced: its smoke turns her round instead of stopping the camera.
+  Anything the artist route takes as moving air clears it -- a fan, a cloud, a sun, her as a
+  butterfly -- not a fan alone.
 - **Falls are knockouts.** The wanderer wraps to the sky at the world's bottom, so Dilim knocks her
   out 300 px under the forest floor instead.
 - **No drawing-free run.** The kapre has no route without a drawing, so Dilim cannot be finished
