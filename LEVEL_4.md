@@ -32,7 +32,7 @@ in three waves until dawn.
 | Finale | **Survive until dawn** — a clock, not a kill count. Folklore-accurate and forgiving of retries. |
 | Weapons | A drawn weapon lasts a **set number of swings per class** (a wear bar), then you draw again. Dilim only; every other level keeps one-use tools. |
 | Ink | **Every weapon or light drawn costs ink** in Dilim (the usual "a class is paid once, ever" does not apply here). Rest clearings refill it. Ink is the real difficulty curve. |
-| Choosing a route | **By what you do — no popup.** Drawing a light at the sigbin *is* the artist choice; backing against the rock *is* pragmatic; landing a hit *is* protector. A popup would freeze a fight. |
+| Choosing a route | **By what you do — no popup.** Drawing a light at the sigbin *is* the artist choice; backing against the rock *is* pragmatic; landing a hit *is* protector. A popup would freeze a fight. **And it stays open until one is answered** (as built): a blade swung first and then a light is the light (`LevelDirector.routes_stay_open`). |
 | The tally | Every encounter's route is logged for the thesis telemetry, but the ending gets **one point from Dilim**: its majority route. Six forks must not decide the ending alone. |
 | "Absurd" | The bungisngis laughs itself helpless at **sea things in a forest**: fish, shark, octopus, sailboat, submarine. The game can only see a class, so the joke had to be a set of classes. |
 | Quick slots | Four, on **Z X C V**. Z/X rotate a drawing only while placing, and quick slots are off while placing. |
