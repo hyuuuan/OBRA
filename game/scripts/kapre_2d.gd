@@ -4,7 +4,7 @@ extends Node2D
 ## (Kent's design: "ground the loop in the smoke ... a visible cause the player can act on").
 ##
 ## What it is, the level asks about: the smoke bank west of its tree (SMOKE_WIDTH px, ending at the
-## trunk) until it is cleared; its cigar, CIGAR_HEIGHT px up, which is a small light and a target --
+## trunk) until it is cleared; its cigar, up the tree at CIGAR_TIP, which is a small light and a target --
 ## anything thrown that reaches it knocks it out of its hand (cigar_knocked); and its tree, which
 ## falls after CHOPS_TO_FELL chops. Which of those answers the encounter is the level's to judge.
 ## Answered any way, the smoke is gone; felled or knocked, the kapre leaves.
@@ -12,7 +12,9 @@ extends Node2D
 signal cigar_knocked
 
 const SMOKE_WIDTH := 600.0
-const CIGAR_HEIGHT := 260.0
+## Where its cigar's tip is drawn (tools/dilim_kapre.py CIGAR_TIP), in its teeth up the tree: the
+## cigar's hit area and its light are there, so a click on the cigar is a click on the cigar.
+const CIGAR_TIP := Vector2(-122.0, -280.0)
 const CHOPS_TO_FELL := 3
 const TRUNK := Vector2(70.0, 340.0)
 const CIGAR_GLOW := 40.0
@@ -75,7 +77,7 @@ func _ready() -> void:
 	circle.radius = 22.0
 	shape.shape = circle
 	cigar.add_child(shape)
-	cigar.position = Vector2(26.0, -CIGAR_HEIGHT)
+	cigar.position = CIGAR_TIP
 	add_child(cigar)
 
 
@@ -174,8 +176,8 @@ func _draw() -> void:
 		art.visible = not _gone
 		art.advance(get_process_delta_time())
 	if not _gone and not drawn:
-		draw_rect(Rect2(-30.0, -CIGAR_HEIGHT - 60.0, 50.0, 90.0), HIDE)
-		draw_circle(Vector2(-6.0, -CIGAR_HEIGHT - 70.0), 18.0, HIDE)
+		draw_rect(Rect2(CIGAR_TIP + Vector2(40.0, -20.0), Vector2(50.0, 90.0)), HIDE)
+		draw_circle(CIGAR_TIP + Vector2(56.0, -10.0), 18.0, HIDE)
 	if _cigar_lit and not _gone and not drawn:
 		draw_circle(cigar.position, 4.0, EMBER)
 	if _smoke > 0.0:

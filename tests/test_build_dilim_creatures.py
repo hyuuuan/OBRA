@@ -100,6 +100,20 @@ class CreatureStripsTest(unittest.TestCase):
         script = (ROOT / "game" / "scripts" / "kapre_2d.gd").read_text()
         self.assertEqual(_vector(script, "ART_AT"), creatures.kapre.ART_AT, "kapre_2d.gd ART_AT is not dilim_kapre.ART_AT")
 
+    def test_its_cigar_is_hit_where_it_is_drawn(self) -> None:
+        # The cigar's hit area and its light are at CIGAR_TIP in the game; the ember is drawn there.
+        script = (ROOT / "game" / "scripts" / "kapre_2d.gd").read_text()
+        kapre = creatures.kapre
+        self.assertEqual(_vector(script, "CIGAR_TIP"), kapre.CIGAR_TIP, "kapre_2d.gd CIGAR_TIP is not dilim_kapre.CIGAR_TIP")
+        frame = _frames(self.strips["kapre_idle"])[0]
+        size = frame.shape[0]
+        x = size // 2 + kapre.CIGAR_TIP[0] - kapre.ART_AT[0]
+        y = size + kapre.CIGAR_TIP[1] - kapre.ART_AT[1]
+        near = frame[int(y) - 1:int(y) + 2, int(x) - 1:int(x) + 2, :3].reshape(-1, 3).astype(int)
+        embers = kapre.EMBER[2:].astype(int)
+        self.assertTrue(any((px == e).all() for px in near for e in embers),
+                        f"no ember drawn at the cigar's tip ({x}, {y}) in kapre_idle")
+
     def test_the_committed_strips_are_current(self) -> None:
         for name, sheet in self.strips.items():
             path = creatures.OUT / f"{name}.png"
