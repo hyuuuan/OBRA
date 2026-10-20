@@ -1349,15 +1349,17 @@ func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
 	# AbilityTags.tags_for_class_by_level.
 	var mine: Array = AbilityTags.tags_for_class_by_level(entity_id, director.level_order())
 	var text := ""
+	# "An elephant", not "A elephant": the article is the noun's.
+	var who := RequirementStrip.with_article(drawn)
+	who = who.left(1).to_upper() + who.substr(1)
 	if mine.is_empty():
 		# Nothing this level knows the drawing can do -- either one of the roster's
 		# unhintable classes (a clock, a flashlight), or a class whose only tags belong to
 		# levels the player has not reached. Either way there is nothing to contrast with,
 		# only the requirement to repeat.
-		text = "A %s cannot do this. It needs something that can %s." % [drawn, needed]
+		text = "%s cannot do this. It needs something that can %s." % [who, needed]
 	else:
-		text = "A %s can %s. This needs something that can %s." % [
-			drawn, _tag_phrase(mine, "any"), needed]
+		text = "%s can %s. This needs something that can %s." % [who, _tag_phrase(mine, "any"), needed]
 	hint_bar.show_hint(text, _companion_speaker())
 
 

@@ -16,7 +16,7 @@ const FLOOR_Y := 820.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 23
+const CHECKS := 24
 var level: Node
 
 
@@ -36,7 +36,8 @@ func _run() -> void:
 			_salt_on_the_lower_half_ends_her, _a_light_held_on_the_lower_half, _her_lantern_is_not_that_light,
 			_driven_off_her_lower_half_stands, _the_upper_half_keeps_to_its_ground,
 			_a_fire_lights_round_it, _a_sun_lights_far,
-			_a_blade_swung_first_the_path_still_passes_it, _a_blade_swung_first_salt_still_ends_her]:
+			_a_blade_swung_first_the_path_still_passes_it, _a_blade_swung_first_salt_still_ends_her,
+			_what_a_drawing_cannot_do_here_is_said_in_english]:
 		if not only.is_empty() and not String((scenario as Callable).get_method()).contains(only):
 			continue
 		level = await _open_level()
@@ -339,6 +340,19 @@ func _a_blade_swung_first_salt_still_ends_her() -> void:
 		"a blade swung first, salt after it still ends the manananggal",
 		"first '%s', then '%s', solved %s" % [first, director.call("committed_route", "L4_MANANANGGAL"),
 			director.call("is_solved", "L4_MANANANGGAL")])
+
+
+## What she is told when a drawing is not what a place needs, and what F will do with a tool in
+## hand, both as sentences: Dilim's tags are not verbs ("can ABSURD", "a elephant can BEAST"), and a
+## tool with no verb of its own was offered as "use here here".
+func _what_a_drawing_cannot_do_here_is_said_in_english() -> void:
+	await _put(19050.0, GROUND_Y, &"move_right")
+	var bar := level.get("hint_bar") as HintBar
+	await _become("elephant")
+	var said := bar.current_text()
+	_check(said.begins_with("An elephant can ") and said.contains("be a BEAST") and said.contains("be ABSURD")
+			and not said.contains("can ABSURD") and not said.contains("can BEAST"),
+		"a drawing that is not what is needed is told so in a sentence", "\"%s\"" % said)
 
 
 # --- The lights -----------------------------------------------------------------------------

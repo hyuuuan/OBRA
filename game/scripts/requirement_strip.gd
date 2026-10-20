@@ -202,7 +202,7 @@ func show_requirements(required: Array, tier: int, owned: PackedStringArray = Pa
 	# the whole thing.
 	_clue_line.visible = tier >= TIER_WIDENED and not clue.is_empty()
 	if _clue_line.visible:
-		_clue_line.text = "try %s — or anything else that fits" % _with_article(_pretty(clue))
+		_clue_line.text = "try %s — or anything else that fits" % with_article(_pretty(clue))
 	elif tier >= TIER_WIDENED:
 		_clue_line.visible = true
 		_clue_line.text = "any path will do now"
@@ -237,7 +237,7 @@ func _pretty(entity_id: String) -> String:
 
 
 ## "an ant", "a sword": the clue is a sentence, and "a ant" read as a mistake.
-func _with_article(noun: String) -> String:
+static func with_article(noun: String) -> String:
 	return ("an " if noun.left(1).to_lower() in ["a", "e", "i", "o", "u"] else "a ") + noun
 
 
