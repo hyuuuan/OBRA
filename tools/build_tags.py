@@ -159,6 +159,17 @@ DISPLAY = {
     "hoof": "Hoof", "beast": "Beast", "absurd": "Absurd",
 }
 
+# How the tag reads after "can", in the sentence that says what a drawing can do and what this
+# needs: the name itself where it is a verb ("can SPAN"), and a phrase round it where it is not --
+# "can ABSURD" and "a elephant can BEAST" were what the hint bar said in Dilim. The name stays in
+# capitals inside the phrase, so it is still the word the strip and the Ability Book use.
+CAN = {
+    "weather": "make WEATHER",
+    "hoof": "walk on HOOVES",
+    "beast": "be a BEAST",
+    "absurd": "be ABSURD",
+}
+
 # What the tag MEANS, in the player's words rather than the designer's.
 #
 # The requirement strip printed the display name and nothing else, so the one instruction
@@ -264,6 +275,7 @@ def build() -> dict:
 
         tags[tag] = {
             "display_name": DISPLAY[tag],
+            "can": CAN.get(tag, DISPLAY[tag].upper()),
             "gloss": GLOSS[tag],
             "unlocked_in_level": UNLOCK_LEVEL[tag],
             "declared_only": not members,

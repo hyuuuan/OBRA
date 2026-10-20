@@ -1367,7 +1367,7 @@ func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
 func _tag_phrase(tags: Array, match: String) -> String:
 	var parts := PackedStringArray()
 	for tag_value: Variant in tags:
-		parts.append(String(AbilityTags.display_name(String(tag_value))).to_upper())
+		parts.append(AbilityTags.can_phrase(String(tag_value)))
 	if parts.is_empty():
 		return ""
 	if parts.size() == 1:
