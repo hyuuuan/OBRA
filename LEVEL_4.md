@@ -143,7 +143,7 @@ alongside this file; the numbers below are its starting points.
 | Segment 3 | `Tiyanak2D` · `Bungisngis2D` · `ManananggalUpper2D` / `ManananggalLower2D` |
 | The finale | `DilimFinale2D` (the clock, the three waves, the dead tree) · `DawnClockHud` · `Wakwak2D` · `Tiktik2D` · `DeadTree2D` (Level 1's, `stands_solid` off) |
 | Lola's things | `Satchel` · `SatchelPickup2D` · `QuickSlotBar` · `AsinThrow2D` · `AboDust2D` · `BawangWard2D` · `CandleFlame2D` · `WhipLash2D` |
-| Art | `MakilingBackdrop2D` · `MakilingTerrain2D` · `PixelStripAnimator` · `tools/build_dilim.py` (plates, tiles) · `tools/build_dilim_creatures.py` (every creature, the kapre's balete) · `tools/build_dilim_props.py` (satchel icons) |
+| Art | `MakilingBackdrop2D` · `MakilingTerrain2D` · `PixelStripAnimator` · `tools/build_dilim.py` (plates, tiles) · `tools/build_dilim_creatures.py` (every creature, the kapre's balete, smoke and cigar) · `tools/build_dilim_props.py` (satchel icons) |
 | Tests | `run_level4_audit` · `run_level4_enablers_probe` · `run_level4_seg1/seg2/seg3_probe` · `run_level4_finale_probe` · `run_level4_tiktik_probe` · `run_level4_whip_probe` · `run_satchel_probe` · `run_combat_probe` · `run_enemy_probe` · `run_weapon_probe` · `run_darkness_probe` · `run_makiling_probe` · `run_journey_probe` (Dagat → house → Dilim → dawn → ending) · windowed looks `run_visual_dilim_light`, `run_visual_makiling`, `run_visual_dilim_creatures` |
 
 ## As built, against the design
@@ -154,9 +154,22 @@ What the build does that the design above does not say, and what it does not do 
   santelmo, nuno's mound, sigbin, tikbalang, kapre and its balete (standing and felled), tiyanak,
   bungisngis, manananggal (both halves), wakwak and tik-tik -- standing in for an artist's
   (`ART_PLACEHOLDERS.md` names every strip; `run_visual_dilim_creatures` lays them side by side in
-  her light). Each script's own code-drawn body is the fallback while a strip is missing. The
-  kapre's smoke is still drawn in code. Her hurt and attack poses are placeholders made from the
-  delivered sheet (the jump and wave frames, leaned).
+  her light). Each script's own code-drawn body is the fallback while a strip is missing. Her hurt
+  and attack poses are placeholders made from the delivered sheet (the jump and wave frames,
+  leaned).
+- **The kapre in its tree** (Kent, 2026-10-20: "more detailed and make more sense"). It sits on
+  a branch of the balete 170 px up, a giant about twice her height sat, facing her. Its cigar's
+  hit area and its light are where the cigar is drawn, in its teeth west of the trunk. Its
+  ember lights its face, in a cone back over the face and the tree; a round light that high
+  showed the backdrop's sky. Its smoke is a drawn bank of puffs pouring off the cigar. Each answer
+  is seen:
+  - fanned, the smoke blows away east and up;
+  - knocked, the cigar tumbles down with its ember alight and goes out, and the kapre climbs up
+    into its crown;
+  - felled, the kapre drops and walks off.
+
+  A boomerang or a shot thrown by a click reaches the cigar from anywhere in the smoke's west
+  half (13300-13480), short of the middle that turns her round.
 - **The finale's numbers.** The night is 150 s: waves at 0 / 45 / 100 s, dawn at 150. A drawn sun
   brings dawn 15 s nearer, once a wave. The manananggal is driven off at 8 in its wave.
 - **The dead tree** stands at the clearing's middle and falls east into a 64-px log that shuts the

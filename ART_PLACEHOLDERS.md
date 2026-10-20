@@ -328,7 +328,7 @@ can vanish in the level.
 
 | What | Tool | Files | The contract |
 |---|---|---|---|
-| Every creature, and the kapre's balete | `tools/build_dilim_creatures.py`, on `tools/creature_sculpt.py` (the bodies in `dilim_beasts.py`, `dilim_giants.py`, `dilim_fliers.py`, `dilim_small.py`) | `assets/Level4/creatures/<kind>_<anim>.png` | A row of square frames, as tall as wide; a strip whose width is not a whole number of its height is one picture (the mound, the tree). Ground kinds stand on the bottom row, fliers are centred -- that point is the creature's position. Chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour, never black. Each script's own `_draw()` stays as the fallback while a strip is missing |
+| Every creature, and the kapre's balete, smoke and cigar | `tools/build_dilim_creatures.py`, on `tools/creature_sculpt.py` (the bodies in `dilim_beasts.py`, `dilim_giants.py`, `dilim_kapre.py`, `dilim_fliers.py`, `dilim_small.py`) | `assets/Level4/creatures/<kind>_<anim>.png` | A row of square frames, as tall as wide; a strip whose width is not a whole number of its height is one picture (the mound, the tree). Ground kinds stand on the bottom row, fliers are centred -- that point is the creature's position. Chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour, never black. Each script's own `_draw()` stays as the fallback while a strip is missing |
 | Lola's six things | `tools/build_dilim_props.py` | `assets/Level4/props/<id>.png` | 32-px icons, each on a leaf, each told apart by its brightest colour: salt, ash, garlic, candle, lamp oil, the stingray-tail whip. The quick slots and the pickups load them by id |
 
 **The creatures' strips, and what each has to say** -- a delivered strip of the same name replaces
@@ -341,7 +341,7 @@ one with no code change:
 | The nuno's mound | `nuno_mound_idle` (one picture) | An earth mound with something left for the nuno -- a thing to be respectful round, never a target |
 | Sigbin | `sigbin_*`: the six states | Goat-like, long ears hanging, walking backwards. It shows only as much as the light on it, so in the dark it is a glint -- the windup's glint is its tell, and must stay |
 | Tikbalang | `tikbalang_idle`, `tikbalang_run` | A tall, lanky figure, horse-headed, a mane with three golden hairs, eyes catching the light |
-| Kapre | `kapre_idle`; its tree `kapre_tree_idle`, `kapre_tree_felled` (one picture each) | A dark hairy giant sat up a balete -- a strangler fig, its trunk a lattice of roots -- with a cigar's ember; the tree lies felled once it is chopped down |
+| Kapre | `kapre_idle`, `kapre_knocked`; its tree `kapre_tree_idle`, `kapre_tree_felled` (one picture each); `kapre_smoke_idle`; `kapre_cigar_idle` (one picture) | A dark hairy giant, about twice her height sat, on a branch of a balete -- a strangler fig, its trunk a lattice of roots -- its back to the trunk, facing west, the way she comes, a cigar in its teeth, its eyes glowing and its face lit by the ember; startled, the cigar gone from its mouth. Drawn in the tree's own frame: the strip stands at `Kapre2D.ART_AT`, and the drawn cigar's tip is `CIGAR_TIP`, where its hit area and its light are -- a redrawn kapre keeps both, or moves them with it (`tests/test_build_dilim_creatures.py` holds the three together). The smoke is six puffs, `PUFF` px square: four billows, a middling and a small one. The cigar alone is the one that falls when it is knocked. The tree lies felled once it is chopped down |
 | Tiyanak | `tiyanak_idle`, `tiyanak_true`, `tiyanak_run` | A swaddled bundle that cries -- and, lit, what it is: small, hunched, red-eyed. Its undergrowth hides a drop and stirs when it cries |
 | Bungisngis | `bungisngis_*`: the six states, `laugh`, `aside` | A one-eyed giant with a club, always grinning, standing in the crossing like a wall; laughing helpless; sat aside |
 | Manananggal | `manananggal_upper_*`: the six states; `manananggal_lower_idle`, `manananggal_lower_death` | A pale torso with long hair on wide bat wings, hunting from above; and the hips and legs in a tapis it left standing in a hollow |
@@ -352,7 +352,6 @@ one with no code change:
 
 | What | Script | What it has to say |
 |---|---|---|
-| The kapre's smoke | `kapre_2d.gd` | The cloud round its tree that turns her round, thinning once it is answered |
 | The night's things | `candle_flame_2d.gd`, `asin_throw_2d.gd`, `abo_dust_2d.gd`, `bawang_ward_2d.gd`, `whip_lash_2d.gd` | A candle stub and flame; salt grains in flight; ash spreading and thinning; a pale ring of garlic on the ground; the whip's arc |
 | Her lantern | `held_lantern_2d.gd` | A small iron lantern whose flame shrinks with each stage -- it is her health |
 | Her hurt and attack poses | `wanderer_figure.gd` | Hurt: the jump frame leaning back from a blow. Attack: the wave frame's raised arm leaning into a swing, for 0.25 s after every blade swing, in every level |
