@@ -16,6 +16,11 @@ const ART := preload("res://assets/Level1/props/dead_tree.png")
 ## sprite is hung off the middle of THOSE, not the middle of the picture, so the collision
 ## box and the wood the axe is aimed at are the same column.
 const TRUNK_CENTRE := 15.5
+## How it is drawn among the rest. Level 1's delivered tree is over what is placed in front of it
+## (DELIVERED_Z); one drawn by `art_kind` stands among the creatures instead -- the finale's walkers
+## meet Dilim's at its root plate, and at 6 they were hidden in it.
+const DELIVERED_Z := 6
+const DRAWN_Z := 0
 
 @export var trunk_size := Vector2(54.0, 300.0)
 ## How far the fallen trunk reaches across the gorge. It lands to the right, which is
@@ -74,6 +79,7 @@ func _build() -> void:
 	# Hung off the trunk body rather than off this node, so the lean every axe hit adds
 	# moves the tree and not just its collider.
 	_art = _drawn_art()
+	var drawn := _art != null
 	if _art == null:
 		_art = Sprite2D.new()
 		_art.texture = ART
@@ -102,7 +108,7 @@ func _build() -> void:
 	span_collision.shape = span_box
 	span_collision.position = Vector2(span_length * 0.5, -span_height * 0.5)
 	_fallen.add_child(span_collision)
-	z_index = 6
+	z_index = DRAWN_Z if drawn else DELIVERED_Z
 
 
 ## The tree `art_kind` names, standing -- its foot on the origin, its trunk on the picture's middle
