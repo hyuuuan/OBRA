@@ -257,13 +257,15 @@ arena_west = 21400.0
 
 ; The dead tree at the clearing's middle: not a wall standing; felled, it falls east into one from
 ; here to 280 short of the east wall (22420), shutting off the east side and the entry there --
-; taller than a walker steps (STEP_UP 48), under her jump (94).
+; taller than a walker steps (STEP_UP 48), under her jump (94). Drawn as the woods' own
+; (dead_tree_idle / dead_tree_felled, tools/dilim_props.py), not Level 1's.
 [node name="DeadTree" type="Node2D" parent="GameplayPlane/Finale"]
 position = Vector2(0.0, 0.0)
 script = ExtResource("22_tree")
 span_length = 280.0
 span_height = 64.0
 stands_solid = false
+art_kind = "dead_tree"
 blocked_hint = ""
 
 ; Lola's things, lying where she will find them. Aswang drop more as they fall.

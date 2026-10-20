@@ -54,6 +54,7 @@ class CreatureStripsTest(unittest.TestCase):
             "kapre_tree": ["idle", "felled"],
             "santelmo": ["idle", "hot"],
             "nuno_mound": ["idle"],
+            "dead_tree": ["idle", "felled"],
         }
         for kind, anims in wanted.items():
             for anim in anims:
