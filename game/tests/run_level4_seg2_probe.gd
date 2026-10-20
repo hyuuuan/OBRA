@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 36
+const CHECKS := 37
 var level: Node
 
 
@@ -45,7 +45,8 @@ func _run() -> void:
 	for kapre_check in [_the_smoke_turns_her_round, _a_fan_clears_the_smoke, _three_chops_fell_its_tree, _a_throw_knocks_its_cigar,
 			_a_fan_tried_first_a_throw_still_knocks_the_cigar, _a_cloud_held_up_clears_the_smoke_too,
 			_as_a_butterfly_she_clears_the_smoke_too, _a_boomerang_clicked_at_the_cigar_knocks_it,
-			_a_shot_clicked_at_the_cigar_knocks_it, _a_shot_fired_in_the_woods_flies, _thrown_again_after_a_miss]:
+			_a_shot_clicked_at_the_cigar_knocks_it, _a_shot_fired_in_the_woods_flies, _thrown_again_after_a_miss,
+			_felled_its_cigar_is_out_of_reach]:
 		level = await _open_level()
 		await kapre_check.call()
 		level.queue_free()
@@ -508,6 +509,24 @@ func _throw_at_the_cigar(entity_id: String, fresh: bool = true) -> void:
 		await _frames(int(1.5 * 60.0))
 		if _kapre_solved():
 			break
+
+
+## Felled, it has gone down with its cigar: a throw at where the cigar was finds nothing to knock --
+## no second cigar out of the air, no second answer.
+func _felled_its_cigar_is_out_of_reach() -> void:
+	await _stand_at(13760.0, &"move_right")
+	await _become("axe")
+	for _chop in range(3):
+		level.call("_use_equipped_utility")
+		await _frames(50)
+	var where := (_kapre().get("cigar") as Node2D).global_position
+	await _stand_at(13450.0, &"move_right")
+	await _become("boomerang")
+	await _click_at(where)
+	await _frames(int(1.5 * 60.0))
+	_check(_kapre().is_felled() and _kapre().fallen_cigar() == Vector2.INF and _kapre_route() == "pragmatist",
+		"felled, a throw at where its cigar was knocks nothing out of the air",
+		"felled %s, a cigar fell %s, route '%s'" % [_kapre().is_felled(), _kapre().fallen_cigar() != Vector2.INF, _kapre_route()])
 
 
 ## Fired with F in the open woods, a shot flies. Added to the world before it was put at the muzzle,

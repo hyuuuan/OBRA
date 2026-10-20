@@ -225,6 +225,8 @@ func leave() -> void:
 		return
 	_gone = true
 	clear_smoke()
+	# Gone, its cigar goes with it: nothing is left up there to be knocked.
+	cigar.set_deferred(&"collision_layer", 0)
 	if art == null or not art.has_art():
 		return
 	art.play("falling" if _felled else "knocked")
