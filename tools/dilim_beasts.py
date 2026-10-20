@@ -1,4 +1,5 @@
-"""Dilim's four-legged creatures on one rig: the aswang as a dog and as a pig, and the sigbin.
+"""Dilim's four-legged creature on this rig: the sigbin. (The aswang, which crawls rather than runs on four
+legs, is drawn on its own: dilim_aswang.py.)
 
 Each is a `Beast` -- proportions and palette -- posed by a `Pose`: where each leg's foot is in its
 stride, how the body pitches, how low it crouches, whether the jaw is open. An animation is a list
@@ -12,8 +13,6 @@ from dataclasses import dataclass, field
 
 from creature_sculpt import Sculpt, hexes
 
-FUR_DOG = hexes("#0a0612", "#1a1028", "#2a1c42", "#3e2c5e", "#58427e", "#7a62a4")
-FUR_PIG = hexes("#0c0608", "#22121a", "#361e28", "#4e2c3a", "#6a3e50", "#8a5668")
 EYE = hexes("#4a0a08", "#b3241a", "#ff4a2a", "#ffc08a")
 GUM = hexes("#2a070c", "#5c1420", "#8e2433", "#b54050")
 TOOTH = hexes("#3d3428", "#8f8670", "#d4caa8", "#f2ead2")
@@ -227,10 +226,6 @@ SIGBIN_HIDE = hexes("#120c08", "#2a1c12", "#42301e", "#5e462c", "#7c5e3c", "#9c7
 SIGBIN = Beast("sigbin", SIGBIN_HIDE, size=132, body_len=22, body_depth=11, belly=10, leg_len=11, leg_thick=3.4,
     neck=5, head_len=19, head_h=9, snout_len=6, ears="long", tail="whip", crest=False, ribs=False, hind_extra=6, eye_big=True)
 
-DOG = Beast("aswang_dog", FUR_DOG, size=132, body_len=24, body_depth=12, belly=10.0, leg_len=12, leg_thick=4.2,
-    neck=6, head_len=22, head_h=10.5, snout_len=7, ears="pointed", tail="ragged", crest=False, ribs=False, eye_big=True)
-PIG = Beast("aswang_pig", FUR_PIG, size=132, body_len=26, body_depth=14, belly=13, leg_len=10, leg_thick=4.6,
-    neck=4, head_len=22, head_h=11, snout_len=8, ears="small", tail="curl", tusks=True, crest=True, ribs=False, eye_big=True)
 
 
 def run_cycle(n: int = 4) -> list[Pose]:
