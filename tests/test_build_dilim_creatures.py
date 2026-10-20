@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -22,6 +24,12 @@ def _frames(sheet) -> list[np.ndarray]:
     return [pixels[:, i * h:(i + 1) * h] for i in range(w // h)]
 
 
+def _vector(script: str, name: str) -> tuple[float, float]:
+    found = re.search(rf"const {name} := Vector2\(([-\d.]+), ([-\d.]+)\)", script)
+    assert found, f"no const {name} in the script"
+    return (float(found.group(1)), float(found.group(2)))
+
+
 class CreatureStripsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -40,10 +48,13 @@ class CreatureStripsTest(unittest.TestCase):
             "tiyanak": ["idle", "true", "run"],
             "manananggal_lower": ["idle", "death"],
             "tikbalang": ["idle", "run"],
-            "kapre": ["idle"],
+            "kapre": ["idle", "knocked"],
+            "kapre_smoke": ["idle"],
+            "kapre_cigar": ["idle"],
             "kapre_tree": ["idle", "felled"],
             "santelmo": ["idle", "hot"],
             "nuno_mound": ["idle"],
+            "dead_tree": ["idle", "felled"],
         }
         for kind, anims in wanted.items():
             for anim in anims:
@@ -87,6 +98,50 @@ class CreatureStripsTest(unittest.TestCase):
             px = np.asarray(sheet).reshape(-1, 4)
             opaque = px[px[:, 3] > 0][:, :3].astype(int)
             self.assertFalse(((opaque.sum(axis=1)) == 0).any(), f"{name} has pure black in it")
+
+    def test_the_kapre_sits_where_its_tree_puts_it(self) -> None:
+        # The kapre is drawn in its tree's own frame; the game stands its strip at the same point.
+        script = (ROOT / "game" / "scripts" / "kapre_2d.gd").read_text()
+        self.assertEqual(_vector(script, "ART_AT"), creatures.kapre.ART_AT, "kapre_2d.gd ART_AT is not dilim_kapre.ART_AT")
+
+    def test_its_cigar_is_hit_where_it_is_drawn(self) -> None:
+        # The cigar's hit area and its light are at CIGAR_TIP in the game; the ember is drawn there.
+        script = (ROOT / "game" / "scripts" / "kapre_2d.gd").read_text()
+        kapre = creatures.kapre
+        self.assertEqual(_vector(script, "CIGAR_TIP"), kapre.CIGAR_TIP, "kapre_2d.gd CIGAR_TIP is not dilim_kapre.CIGAR_TIP")
+        frame = _frames(self.strips["kapre_idle"])[0]
+        size = frame.shape[0]
+        x = size // 2 + kapre.CIGAR_TIP[0] - kapre.ART_AT[0]
+        y = size + kapre.CIGAR_TIP[1] - kapre.ART_AT[1]
+        near = frame[int(y) - 1:int(y) + 2, int(x) - 1:int(x) + 2, :3].reshape(-1, 3).astype(int)
+        embers = kapre.EMBER[2:].astype(int)
+        self.assertTrue(any((px == e).all() for px in near for e in embers),
+                        f"no ember drawn at the cigar's tip ({x}, {y}) in kapre_idle")
+
+    def test_its_ember_lights_its_face(self) -> None:
+        # In the woods' dark only what a light reaches shows; the kapre's own light is its ember.
+        script = (ROOT / "game" / "scripts" / "kapre_2d.gd").read_text()
+        field = (ROOT / "game" / "scripts" / "light_field.gd").read_text()
+        glow = float(re.search(r"const CIGAR_GLOW := ([\d.]+)", script).group(1))
+        soft = float(re.search(r"const SOFT_EDGE := ([\d.]+)", field).group(1))
+        toward = _vector(script, "CIGAR_LIGHT_TOWARD")
+        half = float(re.search(r"const CIGAR_LIGHT_HALF_ANGLE := ([\d.]+)", script).group(1))
+        kapre = creatures.kapre
+        dx, dy = kapre.FACE[0] - kapre.CIGAR_TIP[0], kapre.FACE[1] - kapre.CIGAR_TIP[1]
+        reach = math.hypot(dx, dy)
+        self.assertLessEqual(reach, glow * soft, f"its face is {reach:.0f} px from the ember; it lights {glow * soft:.0f} fully")
+        # A cone: the face must be inside its fully lit part too (the shader's 0.7 of the half angle).
+        off = abs(math.atan2(dy, dx) - math.atan2(toward[1], toward[0]))
+        off = min(off, math.tau - off)
+        self.assertLessEqual(off, half * 0.7, f"its face is {math.degrees(off):.0f} deg off the ember's light")
+
+    def test_the_kapre_cuts_its_smoke_where_it_is_drawn(self) -> None:
+        # Kapre2D cuts the smoke sheet into PUFFS frames of PUFF px; the sheet must be that.
+        script = (ROOT / "game" / "scripts" / "kapre_2d.gd").read_text()
+        puff = int(re.search(r"const PUFF := (\d+)", script).group(1))
+        puffs = int(re.search(r"const PUFFS := (\d+)", script).group(1))
+        self.assertEqual((puff, puffs), (creatures.kapre.PUFF, creatures.kapre.PUFFS), "kapre_2d.gd PUFF/PUFFS")
+        self.assertEqual(self.strips["kapre_smoke_idle"].size, (puff * puffs, puff))
 
     def test_the_committed_strips_are_current(self) -> None:
         for name, sheet in self.strips.items():

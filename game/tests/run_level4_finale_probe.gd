@@ -14,7 +14,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 24
+const CHECKS := 26
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -246,6 +246,16 @@ func _the_dead_tree() -> void:
 	var walked := (level.get("player") as Node2D).global_position.x
 	_check(tree != null and walked > foot + 40.0, "standing, the dead tree stops no one",
 		"walked from %.0f to %.0f, its foot at %.0f" % [foot - 120.0, walked, foot])
+	# The woods' own tree, not Level 1's on loan: its trunk drawn up the box a swing finds, from
+	# the ground, across its width.
+	var standing := tree.get_node_or_null(^"Trunk/Art") as PixelStripAnimator
+	var half := tree.trunk_size.x * 0.4
+	_check(standing != null and standing.anim() == "idle"
+			and standing.texture.resource_path.ends_with("/dead_tree_idle.png")
+			and _drawn_at(standing, Vector2(0.0, -2.0)) and _drawn_at(standing, Vector2(-half, -120.0))
+			and _drawn_at(standing, Vector2(half, -120.0)) and _drawn_at(standing, Vector2(0.0, -tree.trunk_size.y * 0.6)),
+		"and it is the woods' own dead tree, its trunk drawn where a swing finds it",
+		"%s" % (standing.texture.resource_path if standing != null else "no drawn art"))
 	# One of the night's walkers where it will fall, sturdier than it is so the 8 can be read.
 	var under: Enemy2D = null
 	for foe in finale.alive():
@@ -260,6 +270,23 @@ func _the_dead_tree() -> void:
 	await _frames(2)
 	_check(tree.is_open() and under.hp == 12, "felled, it comes down on a walker under it for 8",
 		"felled %s, hp 20 -> %d" % [tree.is_open(), under.hp])
+	# Lying, its own picture -- not the standing one turned on its side -- and the wood of it is
+	# the wall the walkers meet: its top along the trunk's top end to end, its underside on the
+	# ground.
+	var lying := tree.get_node_or_null(^"Art") as PixelStripAnimator
+	var tops: Array[float] = []
+	var rests := true
+	if lying != null:
+		for x in [100.0, 140.0, 200.0, 240.0]:
+			tops.append(_top_at(lying, x))
+		for x in [30.0, 140.0, 250.0]:
+			rests = rests and _drawn_at(lying, Vector2(x, -8.0))
+	var flush := not tops.is_empty()
+	for top in tops:
+		flush = flush and absf(top + tree.span_height) <= 6.0
+	_check(lying != null and lying.anim() == "felled" and is_zero_approx(lying.rotation) and flush and rests,
+		"and it lies as a log over the trunk that stops them, not the standing tree on its side",
+		"tops %s against %.0f, on the ground %s" % [tops, -tree.span_height, rests])
 	# East of the trunk lying there, with her west of it: it comes up to it and does not get across.
 	# Dropped in a little above the ground to settle: set exactly on it, its look for ground ahead
 	# starts on the surface, finds none, and it will not walk at all.
@@ -358,6 +385,25 @@ func _put_her_at(x: float) -> void:
 ## A long grace: the dogs reach her and land nothing.
 func _grace() -> void:
 	(level.get("player_health") as PlayerHealth).call("_start_grace", 600.0)
+
+
+## Whether `art` has a pixel drawn at `at`, in its parent's space (it is never turned).
+func _drawn_at(art: Sprite2D, at: Vector2) -> bool:
+	var image := art.texture.get_image()
+	var pixel := Vector2i((at - art.position - art.offset).floor())
+	return Rect2i(Vector2i.ZERO, image.get_size()).has_point(pixel) and image.get_pixelv(pixel).a > 0.0
+
+
+## The height of the topmost pixel `art` draws at `x`, in its parent's space; INF where it draws none.
+func _top_at(art: Sprite2D, x: float) -> float:
+	var image := art.texture.get_image()
+	var column := int(floorf(x - art.position.x - art.offset.x))
+	if column < 0 or column >= image.get_width():
+		return INF
+	for row in range(image.get_height()):
+		if image.get_pixel(column, row).a > 0.0:
+			return art.position.y + art.offset.y + row
+	return INF
 
 
 func _frames(count: int) -> void:

@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 29
+const CHECKS := 35
 var level: Node
 
 
@@ -315,6 +315,10 @@ func _a_fan_clears_the_smoke() -> void:
 	_check(not early and _kapre_route() == "artist" and _kapre_solved(),
 		"a fan held up to the smoke a moment clears it", "at a second %s; route '%s', solved %s"
 			% [early, _kapre_route(), _kapre_solved()])
+	await _frames(int(1.2 * 60.0))
+	var away := _kapre().smoke_offset()
+	_check(not _kapre().smoke_stands() and away.x > 100.0 and away.y < 0.0,
+		"and the smoke is seen blown away, east past the tree and up", "gone %s, blown %s" % [not _kapre().smoke_stands(), away])
 
 
 func _three_chops_fell_its_tree() -> void:
@@ -329,6 +333,10 @@ func _three_chops_fell_its_tree() -> void:
 	_check(not after_two and _kapre_route() == "pragmatist" and _kapre_solved() and _kapre().is_felled(),
 		"three chops fell its tree, the first one counting", "after two %s; route '%s', felled %s"
 			% [after_two, _kapre_route(), _kapre().is_felled()])
+	await _frames(int(1.6 * 60.0))
+	var art := _kapre().art
+	_check(art.anim() == "knocked" and absf(art.position.y) < 0.5 and art.position.x > Kapre2D.ART_AT.x and not art.visible,
+		"and the kapre drops with its tree and goes", "'%s' at %s, shown %s" % [art.anim(), art.position, art.visible])
 
 
 func _a_throw_knocks_its_cigar() -> void:
@@ -338,6 +346,10 @@ func _a_throw_knocks_its_cigar() -> void:
 	await _frames(5)
 	_check(_kapre_route() == "protector" and _kapre_solved() and _kapre().is_gone() and not _kapre().cigar_is_lit(),
 		"a throw that reaches the cigar knocks it out of its hand", "route '%s', gone %s" % [_kapre_route(), _kapre().is_gone()])
+	await _frames(int(1.2 * 60.0))
+	_check(not _kapre().smoke_stands() and _kapre().smoke_offset() == Vector2.ZERO,
+		"and with its cigar gone the smoke thins where it is, not blown", "gone %s, moved %s"
+			% [not _kapre().smoke_stands(), _kapre().smoke_offset()])
 
 
 ## It keeps to its own dark: hunting her, and then she is well on past its ground, it goes back
@@ -415,6 +427,19 @@ func _a_boomerang_clicked_at_the_cigar_knocks_it() -> void:
 	_check(_kapre_route() == "protector" and _kapre_solved() and not _kapre().cigar_is_lit(),
 		"a boomerang thrown by a click on the cigar knocks it out of its hand",
 		"route '%s', solved %s, still lit %s" % [_kapre_route(), _kapre_solved(), _kapre().cigar_is_lit()])
+	# Seen to fall: down to the ground under where it was, its ember a light there a while.
+	await _frames(int(0.6 * 60.0))
+	var fell := _kapre().fallen_cigar()
+	var glow := _kapre().light_hole()
+	var on_ground := absf(fell.y - Kapre2D.LIES_AT) < 0.5 and fell.x < Kapre2D.CIGAR_TIP.x
+	_check(on_ground and not glow.is_empty() and absf((glow.get("position", Vector2.INF) as Vector2).y - _kapre().global_position.y - fell.y) < 0.5,
+		"and the cigar falls to the ground below, its ember alight there", "at %s, light %s" % [fell, glow])
+	# Its own wait, not EMBER_DIES: a few seconds on the ground, as a player sees it.
+	await _frames(int(2.5 * 60.0))
+	_check(_kapre().light_hole().is_empty(), "and its ember goes out", "light %s" % _kapre().light_hole())
+	var art := _kapre().art
+	_check(art.anim() == "knocked" and art.position.y < Kapre2D.ART_AT.y - 40.0 and not art.visible,
+		"and the kapre, startled, climbs away up into its crown", "'%s' at %s, shown %s" % [art.anim(), art.position, art.visible])
 
 
 func _a_shot_clicked_at_the_cigar_knocks_it() -> void:
@@ -427,9 +452,9 @@ func _a_shot_clicked_at_the_cigar_knocks_it() -> void:
 ## A miss first -- thrown at nothing, which chooses the route -- and then at the cigar: the second is
 ## thrown too. Every press after the first used to be judged as the choice again, and not thrown.
 func _thrown_again_after_a_miss() -> void:
-	await _stand_at(13700.0, &"move_right")
+	await _stand_at(13450.0, &"move_right")
 	await _become("boomerang")
-	await _click_at((level.get("player") as Node2D).global_position + Vector2(300.0, -20.0))
+	await _click_at((level.get("player") as Node2D).global_position + Vector2(-300.0, -20.0))
 	await _frames(int(1.5 * 60.0))
 	var missed := _kapre().cigar_is_lit()
 	var tries := int(level.get("director").call("attempts", "L4_KAPRE"))
@@ -454,9 +479,11 @@ func _click_at(world: Vector2) -> void:
 	Input.parse_input_event(up)
 
 
+## From where she can stand: west of the smoke's middle (13500), which turns her round -- not under
+## the tree, where only a teleport puts her while the smoke stands.
 func _throw_at_the_cigar(entity_id: String, fresh: bool = true) -> void:
 	if fresh:
-		await _stand_at(13700.0, &"move_right")
+		await _stand_at(13450.0, &"move_right")
 		await _become(entity_id)
 	var cigar := (_kapre().get("cigar") as Node2D).global_position
 	# ONE click: the throw that chooses the route is thrown. (It used to choose and go nowhere.)

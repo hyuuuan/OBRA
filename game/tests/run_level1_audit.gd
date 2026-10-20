@@ -2325,6 +2325,14 @@ func _audit_the_gorge(level: Node) -> void:
 		stones.append({"name": "the felled tree",
 			"from": tree.global_position.x,
 			"to": tree.global_position.x + float(tree.get("span_length"))})
+	# AND IT IS STILL THE TREE LEVEL 1 WAS DELIVERED WITH. DeadTree2D can be drawn by kind now --
+	# Dilim's finale is -- and the gorge's names none, so it hangs the delivered picture, turned
+	# on its side when it falls.
+	var tree_art := tree.find_child("Art", true, false) as Sprite2D if tree != null else null
+	_check(tree_art != null and not (tree_art is PixelStripAnimator) and tree_art.texture != null
+			and tree_art.texture.resource_path == "res://assets/Level1/props/dead_tree.png",
+		"the dead tree is Level 1's own",
+		tree_art.texture.resource_path if tree_art != null and tree_art.texture != null else "no art")
 	for path in ["Routes/Protector/CrumbleA"]:
 		var stone := plane.get_node_or_null(path) as Node2D
 		if stone == null:
