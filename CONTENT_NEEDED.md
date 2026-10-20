@@ -67,7 +67,9 @@ the build right now and needs replacing · **READY** = code and hook exist, wait
 **There is no sound in the game yet, and the code is built so that is a content gap, not a code
 one.** `AudioDirector` (`game/scripts/audio_director.gd`) plays a sound by id; the ids live in
 `game/config/audio.json` with empty paths, so every call is written and does nothing until an
-`.ogg` is named beside its id. The volume sliders already drive the master, music and SFX buses.
+`.ogg` is named beside its id. The profile keeps master, music and SFX volumes and `AudioDirector` applies
+them to the buses; the Settings screen's sliders for them are taken out until there is something to hear
+(their rows come back in `ui/settings_overlay.tscn`).
 
 | What | Status | Where it goes | Notes |
 |---|---|---|---|

@@ -47,69 +47,6 @@ horizontal_alignment = 1
 [node name="Rule" type="HSeparator" parent="Root/Center/Panel/VBox"]
 layout_mode = 2
 
-[node name="MasterRow" type="HBoxContainer" parent="Root/Center/Panel/VBox" unique_id=1311449142]
-layout_mode = 2
-theme_override_constants/separation = 14
-
-[node name="Caption" type="Label" parent="Root/Center/Panel/VBox/MasterRow" unique_id=961320410]
-custom_minimum_size = Vector2(280, 0)
-layout_mode = 2
-text = "Master"
-
-[node name="Slider" type="HSlider" parent="Root/Center/Panel/VBox/MasterRow" unique_id=1250614053]
-custom_minimum_size = Vector2(0, 28)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 4
-
-[node name="Value" type="Label" parent="Root/Center/Panel/VBox/MasterRow" unique_id=2048456211]
-custom_minimum_size = Vector2(110, 0)
-layout_mode = 2
-text = "100%"
-horizontal_alignment = 2
-
-[node name="MusicRow" type="HBoxContainer" parent="Root/Center/Panel/VBox" unique_id=2072418749]
-layout_mode = 2
-theme_override_constants/separation = 14
-
-[node name="Caption" type="Label" parent="Root/Center/Panel/VBox/MusicRow" unique_id=43439359]
-custom_minimum_size = Vector2(280, 0)
-layout_mode = 2
-text = "Music"
-
-[node name="Slider" type="HSlider" parent="Root/Center/Panel/VBox/MusicRow" unique_id=1568792427]
-custom_minimum_size = Vector2(0, 28)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 4
-
-[node name="Value" type="Label" parent="Root/Center/Panel/VBox/MusicRow" unique_id=481177084]
-custom_minimum_size = Vector2(110, 0)
-layout_mode = 2
-text = "100%"
-horizontal_alignment = 2
-
-[node name="SfxRow" type="HBoxContainer" parent="Root/Center/Panel/VBox" unique_id=1422656753]
-layout_mode = 2
-theme_override_constants/separation = 14
-
-[node name="Caption" type="Label" parent="Root/Center/Panel/VBox/SfxRow" unique_id=1076627090]
-custom_minimum_size = Vector2(280, 0)
-layout_mode = 2
-text = "Sound effects"
-
-[node name="Slider" type="HSlider" parent="Root/Center/Panel/VBox/SfxRow" unique_id=301180186]
-custom_minimum_size = Vector2(0, 28)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 4
-
-[node name="Value" type="Label" parent="Root/Center/Panel/VBox/SfxRow" unique_id=787263299]
-custom_minimum_size = Vector2(110, 0)
-layout_mode = 2
-text = "100%"
-horizontal_alignment = 2
-
 [node name="FullscreenToggle" type="CheckButton" parent="Root/Center/Panel/VBox" unique_id=1549799137]
 layout_mode = 2
 size_flags_horizontal = 4

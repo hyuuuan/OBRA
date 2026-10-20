@@ -198,6 +198,11 @@ func _test_shared_overlays() -> void:
 			_expect(not bool(overlay.call("is_open")), "%s in %s started open" % [overlay_name, label])
 			overlay.call("open")
 			_expect(bool(overlay.call("is_open")), "%s in %s did not open" % [overlay_name, label])
+			# No volume to set while the game has no sound (Kent, 2026-10-20): sliders that moved
+			# nothing anyone could hear.
+			if overlay_name == "SettingsOverlay":
+				_expect(overlay.find_children("*", "HSlider", true, false).is_empty(),
+					"%s in %s still shows a volume slider" % [overlay_name, label])
 			# Every shared overlay must be in the cancel chain of whichever scene it is
 			# in, or it opens with no way back out except the mouse.
 			_expect(bool(overlay.call("handle_cancel")), "%s in %s does not close on cancel" % [overlay_name, label])
