@@ -263,3 +263,58 @@ def frames(anim: str) -> list[Image.Image]:
 
 ANIMS = ["idle", "knocked"]
 
+
+
+# --- its smoke ---
+
+SMOKE_TONES = hexes("#605c5a", "#827d78", "#a49e96", "#c6c0b6", "#e2ddd2")
+PUFF = 96
+PUFFS = 6
+
+
+def puff(seed: int) -> Image.Image:
+    """One puff of the smoke the kapre lets down over the path: a low lump of rounded billows lit
+    from the upper left, flat underneath where it sits on the haze, no outline -- the edge only
+    thinner. The first four are billows of the bank; the last two a middling and a small one, for
+    the thread of it coming off the cigar, which grows as it comes down. PUFF px square; Kapre2D
+    draws a bank of them, drifting, fading in and out, faded by how much smoke is left."""
+    rng = np.random.default_rng(seed)
+    size = PUFF
+    scale = {PUFFS - 2: 0.62, PUFFS - 1: 0.36}.get(seed, 1.0)
+    ys, xs = np.mgrid[0:size, 0:size] + 0.5
+    best = np.full((size, size), np.inf)
+    nx = np.zeros((size, size))
+    ny = np.zeros((size, size))
+    circles = [(size * 0.5, size * 0.6, size * 0.22 * scale)]
+    for _ in range(5 + seed % 3):
+        a = rng.uniform(math.pi * 0.9, math.pi * 2.1)
+        d = rng.uniform(0.12, 0.24) * size * scale
+        r = rng.uniform(0.11, 0.18) * size * scale
+        cx = float(np.clip(size * 0.5 + math.cos(a) * d * 1.5, r + 2, size - r - 2))
+        cy = float(np.clip(size * 0.6 + math.sin(a) * d * 0.6, r * 0.78 + 2, size - r * 0.78 - 2))
+        circles.append((cx, cy, r))
+    for cx, cy, r in circles:
+        ox, oy = xs - cx, (ys - cy) / 0.78
+        q = np.hypot(ox, oy) / r
+        closer = q < best
+        best = np.where(closer, q, best)
+        nx = np.where(closer, ox / r, nx)
+        ny = np.where(closer, oy / r, ny)
+    inside = best <= 1.0
+    nz = np.sqrt(np.clip(1 - nx * nx - ny * ny, 0, 1))
+    from creature_sculpt import LIGHT
+    lit = np.clip((np.stack([nx, ny, nz], -1) @ LIGHT) * 0.5 + 0.5, 0, 1)
+    idx = np.where(lit > 0.9, 4, np.where(lit > 0.76, 3, np.where(lit > 0.42, 2, 1)))
+    bottom = max(cy + r * 0.78 for cx, cy, r in circles)
+    idx = np.where(ys > bottom - (bottom - size * 0.6) * 0.45, np.minimum(idx, 1), idx)
+    out = np.zeros((size, size, 4), np.uint8)
+    out[inside, :3] = SMOKE_TONES[idx[inside]]
+    pad = np.pad(inside, 1)
+    edge = inside & ~(pad[:-2, 1:-1] & pad[2:, 1:-1] & pad[1:-1, :-2] & pad[1:-1, 2:])
+    out[inside, 3] = 230
+    out[edge, 3] = 120
+    return Image.fromarray(out, "RGBA")
+
+
+def smoke() -> list[Image.Image]:
+    return [puff(k) for k in range(PUFFS)]

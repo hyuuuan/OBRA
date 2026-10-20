@@ -49,6 +49,7 @@ class CreatureStripsTest(unittest.TestCase):
             "manananggal_lower": ["idle", "death"],
             "tikbalang": ["idle", "run"],
             "kapre": ["idle", "knocked"],
+            "kapre_smoke": ["idle"],
             "kapre_tree": ["idle", "felled"],
             "santelmo": ["idle", "hot"],
             "nuno_mound": ["idle"],
@@ -131,6 +132,14 @@ class CreatureStripsTest(unittest.TestCase):
         off = abs(math.atan2(dy, dx) - math.atan2(toward[1], toward[0]))
         off = min(off, math.tau - off)
         self.assertLessEqual(off, half * 0.7, f"its face is {math.degrees(off):.0f} deg off the ember's light")
+
+    def test_the_kapre_cuts_its_smoke_where_it_is_drawn(self) -> None:
+        # Kapre2D cuts the smoke sheet into PUFFS frames of PUFF px; the sheet must be that.
+        script = (ROOT / "game" / "scripts" / "kapre_2d.gd").read_text()
+        puff = int(re.search(r"const PUFF := (\d+)", script).group(1))
+        puffs = int(re.search(r"const PUFFS := (\d+)", script).group(1))
+        self.assertEqual((puff, puffs), (creatures.kapre.PUFF, creatures.kapre.PUFFS), "kapre_2d.gd PUFF/PUFFS")
+        self.assertEqual(self.strips["kapre_smoke_idle"].size, (puff * puffs, puff))
 
     def test_the_committed_strips_are_current(self) -> None:
         for name, sheet in self.strips.items():
