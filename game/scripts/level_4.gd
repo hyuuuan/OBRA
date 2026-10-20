@@ -1242,9 +1242,9 @@ func _tend_the_kapre(delta: float) -> void:
 			"linear_velocity": Vector2.ZERO})
 		_smoke_last_x = span.x + SMOKE_EDGE_BACK
 		_speak(script_lines.fire("L4_KAPRE.turned"))
-	# The fan, held up to it.
+	# Something that moves air, held up to it -- or her, as one.
 	if director.committed_route("L4_KAPRE") == "artist" and not director.is_solved("L4_KAPRE") \
-			and _holding("fan") and absf(x - _kapre.global_position.x) <= FAN_REACH:
+			and _moving_air() and absf(x - _kapre.global_position.x) <= FAN_REACH:
 		_fanned += delta
 		if _fanned >= FAN_SECONDS:
 			_kapre.clear_smoke()
@@ -1275,14 +1275,21 @@ func _use_equipped_utility() -> void:
 		_equipped_utility.describe_use(player)
 
 
+## Whether what she holds, or what she is, is something the kapre's artist route takes -- a fan, a
+## cloud, a sun, or a butterfly she has become. Only a fan used to count: a cloud held up there was
+## offered as "F to blow", chose the route, and never cleared the smoke.
+func _moving_air() -> bool:
+	var spec: Dictionary = (director.obstacle("L4_KAPRE").get("routes", {}) as Dictionary).get("artist", {})
+	var takes := AbilityTags.resolve(spec.get("required_tags", []), String(spec.get("match", "all")),
+		spec.get("exclude", []))
+	var held := _equipped_utility != null and is_instance_valid(_equipped_utility) \
+		and _equipped_utility.item_data != null and takes.has(_equipped_utility.item_data.entity_id)
+	return held or takes.has(_current_form_id)
+
+
 func _on_cigar_knocked() -> void:
 	_kapre.leave()
 	_answer("L4_KAPRE", "protector")
-
-
-func _holding(entity_id: String) -> bool:
-	return _equipped_utility != null and is_instance_valid(_equipped_utility) \
-		and _equipped_utility.item_data != null and _equipped_utility.item_data.entity_id == entity_id
 
 
 # --- The tiyanak --------------------------------------------------------------------------------

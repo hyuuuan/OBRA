@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 23
+const CHECKS := 25
 var level: Node
 
 
@@ -43,7 +43,8 @@ func _run() -> void:
 	level.queue_free()
 	await _frames(3)
 	for kapre_check in [_the_smoke_turns_her_round, _a_fan_clears_the_smoke, _three_chops_fell_its_tree, _a_throw_knocks_its_cigar,
-			_a_fan_tried_first_a_throw_still_knocks_the_cigar]:
+			_a_fan_tried_first_a_throw_still_knocks_the_cigar, _a_cloud_held_up_clears_the_smoke_too,
+			_as_a_butterfly_she_clears_the_smoke_too]:
 		level = await _open_level()
 		await kapre_check.call()
 		level.queue_free()
@@ -384,6 +385,25 @@ func _a_fan_tried_first_a_throw_still_knocks_the_cigar() -> void:
 	_check(first == "artist" and _kapre_route() == "protector" and _kapre_solved() and _kapre().is_gone(),
 		"a fan tried first, a throw after it still knocks the kapre's cigar",
 		"first '%s', then '%s', solved %s" % [first, _kapre_route(), _kapre_solved()])
+
+
+## Not only a fan: whatever the route takes as moving air clears the smoke -- a cloud held up, or
+## her as a butterfly. A cloud was offered as "F to blow", chose the route, and did nothing.
+func _a_cloud_held_up_clears_the_smoke_too() -> void:
+	await _stand_at(13650.0, &"move_right")
+	await _become("cloud")
+	level.call("_use_equipped_utility")
+	await _frames(int(2.0 * 60.0))
+	_check(_kapre_route() == "artist" and _kapre_solved(), "a cloud held up to the smoke clears it too",
+		"route '%s', solved %s" % [_kapre_route(), _kapre_solved()])
+
+
+func _as_a_butterfly_she_clears_the_smoke_too() -> void:
+	await _stand_at(13650.0, &"move_right")
+	await _become("butterfly")
+	await _frames(int(2.0 * 60.0))
+	_check(_kapre_route() == "artist" and _kapre_solved(), "and so does she, as a butterfly at it",
+		"form '%s', route '%s', solved %s" % [level.get("_current_form_id"), _kapre_route(), _kapre_solved()])
 
 
 # --- Helpers -----------------------------------------------------------------------------
