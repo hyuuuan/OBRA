@@ -63,6 +63,21 @@ func _click_attacks() -> bool:
 	return true
 
 
+## She comes in at the edge of the woods with her lamp burned low (Kent, 2026-10-19: "the first
+## clearing finds her lamp burned low, so refilling it there has a reason") -- the clearing's light
+## is what fills it. Coming back to a checkpoint is coming back to a clearing, where it was filled.
+func _lantern_at_start() -> int:
+	if resume_enabled and _has_saved_checkpoint():
+		return PlayerHealth.FULL
+	return PlayerHealth.DIM
+
+
+## Every encounter here is answered by what she ends up doing, not by the first thing she tried:
+## a blade swung at the manananggal and then salt on her lower half is the salt.
+func _routes_stay_open() -> bool:
+	return true
+
+
 ## The camera keeps step with her in physics ticks, so a knockback or a lunge does not judder.
 func _camera_follows_physics() -> bool:
 	return true
@@ -219,10 +234,23 @@ func _current_objective() -> Dictionary:
 		# Until its light is lit: after, the woods again.
 		if x >= span.x and x <= span.y and not director.is_solved(rest):
 			return {"key": "rest", "target": _mark_at(rest)}
+	# In an encounter she has not answered yet, the banner says the ways past it, plainly -- each
+	# of Lola's three, with no class named. Kent: "the game's instructions are all unclear"; the
+	# lines she says on arriving are memories, and a memory is not an instruction.
+	for encounter: String in ENCOUNTER_OBJECTIVES:
+		var at: Vector2 = spans.get(encounter, Vector2(INF, -INF))
+		if x >= at.x and x <= at.y and not director.is_solved(encounter):
+			return {"key": ENCOUNTER_OBJECTIVES[encounter], "target": _next_mark_east(x)}
 	var key := "woods"
 	if spans.has("L4_NUNO") and x <= (spans["L4_NUNO"] as Vector2).y:
 		key = "edge"
 	return {"key": key, "target": _next_mark_east(x)}
+
+
+## Each encounter's objective, by beat: the key of its line in level_04.json's `objectives`.
+const ENCOUNTER_OBJECTIVES := {"L4_NUNO": "nuno", "L4_SIGBIN": "sigbin", "L4_TIKBALANG": "tikbalang",
+	"L4_KAPRE": "kapre", "L4_TIYANAK": "tiyanak", "L4_BUNGISNGIS": "bungisngis",
+	"L4_MANANANGGAL": "manananggal"}
 
 
 func _mark_at(obstacle_id: String) -> Variant:
@@ -247,13 +275,13 @@ func _next_mark_east(x: float) -> Variant:
 const WEARING_AT := 2
 
 
-## THE MOMENTS DILIM'S LESSONS WAIT FOR (tutorial.json, level_4): a santelmo that can see her, a
+## THE MOMENTS DILIM'S LESSONS WAIT FOR (tutorial.json, level_4): a santelmo coming into view, a
 ## weapon in her hand and one nearly worn out, polled -- nothing signals any of them -- and the
 ## first hit to the lantern, below. The lesson director spends each once.
 func _note_lesson_moments() -> void:
 	if tutorial == null:
 		return
-	if _a_santelmo_sees_her():
+	if _a_santelmo_is_ahead():
 		tutorial.note("santelmo_near")
 	if not _holding_a_weapon():
 		return
@@ -264,14 +292,20 @@ func _note_lesson_moments() -> void:
 		tutorial.note("weapon_wearing")
 
 
-## A burning santelmo close enough that running now would bring it.
-func _a_santelmo_sees_her() -> bool:
+## How much farther off than it can see her the walk is taught: about three seconds of her running,
+## so the rule is read before it matters. Taught where it sees her, a runner had one second -- it
+## comes at more than her pace -- and was burned before the line was read.
+const SANTELMO_WARNING := 520.0
+
+
+## A burning santelmo coming into view: close enough to see, not yet close enough to see her.
+func _a_santelmo_is_ahead() -> bool:
 	if player == null or not is_instance_valid(player):
 		return false
 	for node in get_tree().get_nodes_in_group(Enemy2D.GROUP):
 		var flame := node as Santelmo2D
 		if flame != null and not flame.is_out() \
-				and flame.global_position.distance_to(player.global_position) <= Santelmo2D.SIGHT:
+				and flame.global_position.distance_to(player.global_position) <= Santelmo2D.SIGHT + SANTELMO_WARNING:
 			return true
 	return false
 
@@ -306,8 +340,10 @@ func _restore_checkpoint() -> String:
 ## The flower the mound gives back, and the count it says (the design needs the count seen).
 const FLOWER_ART := preload("res://assets/Level1/hidden_flower.png")
 const COUNT_WORDS := ["None", "One", "Two", "Three", "Four", "Five"]
-## How far west of the mound's foot she can stand and still be asking it.
-const ASKING_REACH := 220.0
+## How far west of the mound's foot she can stand and still be asking it: at its foot, where a
+## jump from standing still clears it. From 220 she could ask, jump at once from where she stood,
+## and come down on its crown -- cursed for doing just what she was told.
+const ASKING_REACH := 56.0
 
 var _mound: NunoMound2D
 
@@ -396,7 +432,7 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 	if obstacle_id == "L4_NUNO" and route == "artist":
 		_flower_from_the_mound()
 	if CLEARINGS.has(obstacle_id):
-		_rest_by_the_fire()
+		_rest_by_the_fire(obstacle_id)
 	if obstacle_id == "L4_SIGBIN" and route == "artist" and _sigbin != null:
 		_sigbin.flee()
 	if obstacle_id == "L4_TIKBALANG" and _tikbalang != null:
@@ -583,11 +619,19 @@ func _on_ink_emptied() -> bool:
 
 
 ## A LIGHT OF HER OWN, AND SHE RESTS BY IT. The clearing's light lit fills the lantern to full and
-## lifts the nuno's curse -- the one place in the woods both happen.
-func _rest_by_the_fire() -> void:
+## lifts the nuno's curse -- the one place in the woods both happen -- and lights the clearing's
+## lantern from hers. (Its checkpoint was written as she walked in: a fall past a clearing she did
+## not rest at must not send her back to the start.)
+func _rest_by_the_fire(clearing: String) -> void:
 	if player_health != null:
 		player_health.refill(PlayerHealth.FULL)
 	_lift_curse()
+	for entry_value: Variant in (director.level_data().get("checkpoints", []) as Array):
+		var entry: Dictionary = entry_value
+		if String(entry.get("at", "")) == clearing:
+			var area := _checkpoint_area_for(String(entry.get("id", ""))) as CheckpointArea2D
+			if area != null:
+				area.light_mark(player)
 
 
 # --- The last clearing --------------------------------------------------------------------------
@@ -791,10 +835,14 @@ func _on_pickup_touched(pickup: SatchelPickup2D) -> void:
 		var row := satchel.row(pickup.item)
 		# Named through the same lookup the prompts use, so a rebinding is named as bound. Not by
 		# with_keys: its {key:...} takes no digits, and every slot's action has one.
-		var on := " It is on %s." % ControlsKeys.key_cap_for("quick_slot_%d" % (index + 1)) \
-			if index >= 0 else ""
-		hint_bar.show_hint("%s -- %s.%s" % [row.get("display_name", pickup.item),
-			String(row.get("gloss", "")).to_lower(), on], _companion_speaker(), 4.0)
+		var key := ControlsKeys.key_cap_for("quick_slot_%d" % (index + 1)) if index >= 0 else ""
+		var said := String(row.get("found", ""))
+		if said.is_empty() or key.is_empty():
+			said = "%s -- %s.%s" % [row.get("display_name", pickup.item), String(row.get("gloss", "")).to_lower(),
+				" It is on %s." % key if not key.is_empty() else ""]
+		# What it is for, and which key: a name and a key alone left her holding a candle with no
+		# idea what it was for. Up long enough to read.
+		hint_bar.show_hint(said.replace("{key}", key), _companion_speaker(), 6.0)
 
 
 # --- What a fallen aswang drops -----------------------------------------------------------
@@ -1089,12 +1137,14 @@ func _on_sigbin_driven_off(_foe: Enemy2D) -> void:
 	_answer("L4_SIGBIN", "protector")
 
 
-## A route given by what she did: committed if nothing was yet, and answered with its own deed.
+## A route given by what she did: committed if nothing was yet -- or, if she had begun another,
+## switched to this one (routes stay open here) -- and answered with its own deed.
 func _answer(obstacle_id: String, route: String) -> void:
 	if director == null or director.is_solved(obstacle_id):
 		return
 	if director.committed_route(obstacle_id).is_empty():
 		director.commit_route(obstacle_id, route)
+	director.switch_route(obstacle_id, route)
 	if director.committed_route(obstacle_id) != route:
 		return
 	var spec: Dictionary = (director.obstacle(obstacle_id).get("routes", {}) as Dictionary).get(route, {})
@@ -1192,9 +1242,9 @@ func _tend_the_kapre(delta: float) -> void:
 			"linear_velocity": Vector2.ZERO})
 		_smoke_last_x = span.x + SMOKE_EDGE_BACK
 		_speak(script_lines.fire("L4_KAPRE.turned"))
-	# The fan, held up to it.
+	# Something that moves air, held up to it -- or her, as one.
 	if director.committed_route("L4_KAPRE") == "artist" and not director.is_solved("L4_KAPRE") \
-			and _holding("fan") and absf(x - _kapre.global_position.x) <= FAN_REACH:
+			and _moving_air() and absf(x - _kapre.global_position.x) <= FAN_REACH:
 		_fanned += delta
 		if _fanned >= FAN_SECONDS:
 			_kapre.clear_smoke()
@@ -1214,25 +1264,23 @@ func _use_equipped_utility() -> void:
 			and player != null and absf(player.global_position.x - _kapre.global_position.x) <= CHOP_REACH:
 		if _kapre.chop():
 			_answer("L4_KAPRE", "pragmatist")
-	# ⚠ AND A LIGHT USED AT THE MANANANGGAL IS LIT. The swing that draws a "draw it, then do it" route
-	# in stops at choosing it (the base level's), so a flashlight pressed there chose the light route
-	# and stayed dark -- and every press after chose it again. The deed is the light on her lower
-	# half, so the use that chooses it switches the light on as well, the way a chop above counts.
-	if swung and director != null and director.committed_route("L4_MANANANGGAL") == "artist" \
-			and not director.is_solved("L4_MANANANGGAL") and _equipped_utility != null \
-			and is_instance_valid(_equipped_utility) and _equipped_utility.utility_behavior == "flashlight" \
-			and not _equipped_utility.is_active():
-		_equipped_utility.describe_use(player)
+
+
+## Whether what she holds, or what she is, is something the kapre's artist route takes -- a fan, a
+## cloud, a sun, or a butterfly she has become. Only a fan used to count: a cloud held up there was
+## offered as "F to blow", chose the route, and never cleared the smoke.
+func _moving_air() -> bool:
+	var spec: Dictionary = (director.obstacle("L4_KAPRE").get("routes", {}) as Dictionary).get("artist", {})
+	var takes := AbilityTags.resolve(spec.get("required_tags", []), String(spec.get("match", "all")),
+		spec.get("exclude", []))
+	var held := _equipped_utility != null and is_instance_valid(_equipped_utility) \
+		and _equipped_utility.item_data != null and takes.has(_equipped_utility.item_data.entity_id)
+	return held or takes.has(_current_form_id)
 
 
 func _on_cigar_knocked() -> void:
 	_kapre.leave()
 	_answer("L4_KAPRE", "protector")
-
-
-func _holding(entity_id: String) -> bool:
-	return _equipped_utility != null and is_instance_valid(_equipped_utility) \
-		and _equipped_utility.item_data != null and _equipped_utility.item_data.entity_id == entity_id
 
 
 # --- The tiyanak --------------------------------------------------------------------------------

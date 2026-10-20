@@ -307,9 +307,10 @@ script = ExtResource("20_upper")
 
 [node name="Pickups" type="Node2D" parent="GameplayPlane"]
 
-; the edge of the woods: the first of Lola's things, early
+; the edge of the woods: the first of Lola's things, early -- past the santelmo, so what she says
+; finding it does not take the hint bar from the walk being taught there
 [node name="Asin1" type="Area2D" parent="GameplayPlane/Pickups"]
-position = Vector2(1100.0, 600.0)
+position = Vector2(2300.0, 600.0)
 script = ExtResource("13_pickup")
 item = "asin"
 amount = 2
@@ -373,19 +374,21 @@ pickup_id = "L4_JAR_BUNGISNGIS"
 
 ; Each beat's ground, from the canopy to just under her feet. None plants a commit flag: Dilim's
 ; checkpoints are the clearings, walked into.
-; Its "?" board stands where she stops to ask, west of the mound -- not on the crown.
+; No "?" boards here (plants_hint_sign): nobody waits to help, and each stood on the thing she
+; meets. Each beat keeps the story board at its approach, where its lines can be read again.
 [node name="L4_NUNO" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(3400.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_NUNO"
+plants_hint_sign = false
 trigger_size = Vector2(1200.0, 460.0)
-hint_sign_offset = -280.0
 plants_commit_mark = false
 
 [node name="L4_REST1" type="Area2D" parent="GameplayPlane/Obstacles"]
 position = Vector2(5000.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_REST1"
+plants_hint_sign = false
 trigger_size = Vector2(800.0, 460.0)
 plants_commit_mark = false
 
@@ -393,6 +396,7 @@ plants_commit_mark = false
 position = Vector2(6800.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_SIGBIN"
+plants_hint_sign = false
 trigger_size = Vector2(1200.0, 460.0)
 plants_commit_mark = false
 
@@ -400,6 +404,7 @@ plants_commit_mark = false
 position = Vector2(9000.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_TIKBALANG"
+plants_hint_sign = false
 trigger_size = Vector2(2000.0, 460.0)
 plants_commit_mark = false
 
@@ -407,6 +412,7 @@ plants_commit_mark = false
 position = Vector2(13800.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_KAPRE"
+plants_hint_sign = false
 trigger_size = Vector2(1200.0, 460.0)
 plants_commit_mark = false
 
@@ -414,6 +420,7 @@ plants_commit_mark = false
 position = Vector2(15400.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_REST2"
+plants_hint_sign = false
 trigger_size = Vector2(800.0, 460.0)
 plants_commit_mark = false
 
@@ -421,6 +428,7 @@ plants_commit_mark = false
 position = Vector2(17100.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_TIYANAK"
+plants_hint_sign = false
 trigger_size = Vector2(1400.0, 460.0)
 plants_commit_mark = false
 
@@ -429,6 +437,7 @@ plants_commit_mark = false
 position = Vector2(19000.0, 510.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_BUNGISNGIS"
+plants_hint_sign = false
 trigger_size = Vector2(1200.0, 700.0)
 plants_commit_mark = false
 
@@ -436,6 +445,7 @@ plants_commit_mark = false
 position = Vector2(20500.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_MANANANGGAL"
+plants_hint_sign = false
 trigger_size = Vector2(1000.0, 460.0)
 plants_commit_mark = false
 
@@ -443,19 +453,22 @@ plants_commit_mark = false
 position = Vector2(21900.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_FINALE"
+plants_hint_sign = false
 trigger_size = Vector2(1000.0, 460.0)
 plants_commit_mark = false
 
 [node name="CP1" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(4700.0, 390.0)
+position = Vector2(5000.0, 390.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP1"
+lights_on_entry = false
 trigger_size = Vector2(160.0, 460.0)
 
 [node name="CP2" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(15100.0, 390.0)
+position = Vector2(15400.0, 390.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP2"
+lights_on_entry = false
 trigger_size = Vector2(160.0, 460.0)
 
 [node name="CP3" type="Area2D" parent="GameplayPlane/Obstacles"]

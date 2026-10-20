@@ -26,6 +26,7 @@
   "tags": {
     "span": {
       "display_name": "Span",
+      "can": "SPAN",
       "gloss": "long and stiff enough to lie across a gap",
       "unlocked_in_level": 1,
       "declared_only": false,
@@ -54,6 +55,7 @@
     },
     "roll": {
       "display_name": "Roll",
+      "can": "ROLL",
       "gloss": "round, and heavy",
       "unlocked_in_level": 1,
       "declared_only": false,
@@ -70,6 +72,7 @@
     },
     "climb": {
       "display_name": "Climb",
+      "can": "CLIMB",
       "gloss": "able to grip a wall and go up it",
       "unlocked_in_level": 1,
       "declared_only": false,
@@ -109,6 +112,7 @@
     },
     "leap": {
       "display_name": "Leap",
+      "can": "LEAP",
       "gloss": "able to jump higher than you can",
       "unlocked_in_level": 1,
       "declared_only": false,
@@ -132,6 +136,7 @@
     },
     "cut": {
       "display_name": "Cut",
+      "can": "CUT",
       "gloss": "an edge sharp enough to go through old wood",
       "unlocked_in_level": 1,
       "declared_only": false,
@@ -158,6 +163,7 @@
     },
     "forage": {
       "display_name": "Forage",
+      "can": "FORAGE",
       "gloss": "able to comb through a loose heap",
       "unlocked_in_level": 1,
       "declared_only": false,
@@ -176,6 +182,7 @@
     },
     "carry": {
       "display_name": "Carry",
+      "can": "CARRY",
       "gloss": "strong enough to drag a load out",
       "unlocked_in_level": 1,
       "declared_only": false,
@@ -212,6 +219,7 @@
     },
     "weather": {
       "display_name": "Weather",
+      "can": "make WEATHER",
       "gloss": "able to move air",
       "unlocked_in_level": 1,
       "declared_only": false,
@@ -245,6 +253,7 @@
     },
     "unlock": {
       "display_name": "Unlock",
+      "can": "UNLOCK",
       "gloss": "shaped to the ward inside the lock",
       "unlocked_in_level": 1,
       "declared_only": false,
@@ -262,6 +271,7 @@
     },
     "burrow": {
       "display_name": "Burrow",
+      "can": "BURROW",
       "gloss": "small enough to squeeze in where you do not fit",
       "unlocked_in_level": 1,
       "declared_only": false,
@@ -300,6 +310,7 @@
     },
     "feed": {
       "display_name": "Feed",
+      "can": "FEED",
       "gloss": "worth coming down for",
       "unlocked_in_level": 2,
       "declared_only": false,
@@ -322,6 +333,7 @@
     },
     "startle": {
       "display_name": "Startle",
+      "can": "STARTLE",
       "gloss": "alarming enough to scatter a crowd",
       "unlocked_in_level": 2,
       "declared_only": false,
@@ -350,6 +362,7 @@
     },
     "strike": {
       "display_name": "Strike",
+      "can": "STRIKE",
       "gloss": "able to hit hard in one place",
       "unlocked_in_level": 2,
       "declared_only": false,
@@ -388,6 +401,7 @@
     },
     "swim": {
       "display_name": "Swim",
+      "can": "SWIM",
       "gloss": "able to move through deep water",
       "unlocked_in_level": 3,
       "declared_only": false,
@@ -427,6 +441,7 @@
     },
     "light": {
       "display_name": "Light",
+      "can": "LIGHT",
       "gloss": "able to throw light into the dark",
       "unlocked_in_level": 3,
       "declared_only": false,
@@ -449,6 +464,7 @@
     },
     "hoof": {
       "display_name": "Hoof",
+      "can": "walk on HOOVES",
       "gloss": "sure-footed, on hooves",
       "unlocked_in_level": 4,
       "declared_only": false,
@@ -467,6 +483,7 @@
     },
     "beast": {
       "display_name": "Beast",
+      "can": "be a BEAST",
       "gloss": "a living body you can become",
       "unlocked_in_level": 4,
       "declared_only": false,
@@ -575,6 +592,7 @@
     },
     "absurd": {
       "display_name": "Absurd",
+      "can": "be ABSURD",
       "gloss": "so out of place on a mountain that it is funny",
       "unlocked_in_level": 4,
       "declared_only": false,
@@ -608,6 +626,7 @@
     },
     "fly": {
       "display_name": "Fly",
+      "can": "FLY",
       "gloss": "able to stay up with nothing to hold",
       "unlocked_in_level": 4,
       "declared_only": true,
@@ -615,6 +634,7 @@
     },
     "crush": {
       "display_name": "Crush",
+      "can": "CRUSH",
       "gloss": "heavy enough to break what is under it",
       "unlocked_in_level": 4,
       "declared_only": true,
@@ -622,6 +642,7 @@
     },
     "shield": {
       "display_name": "Shield",
+      "can": "SHIELD",
       "gloss": "able to stand between you and it",
       "unlocked_in_level": 5,
       "declared_only": true,

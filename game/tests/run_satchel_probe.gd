@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 30
+const CHECKS := 31
 
 
 func _initialize() -> void:
@@ -20,6 +20,7 @@ func _run() -> void:
 		print("OBRA_SATCHEL_FAILED=watchdog")
 		quit(2))
 	_it_knows_lolas_six_things()
+	_each_says_what_it_is_for()
 	_a_stack_stops_at_its_cap()
 	_the_slots_fill_in_pickup_order()
 	_a_spent_slot_goes_to_the_next_new_thing()
@@ -96,6 +97,19 @@ func _it_knows_lolas_six_things() -> void:
 	_check(ids == ["asin", "abo", "bawang", "kandila", "langis", "buntot_pagi"] and satchel.cap("asin") == 12
 			and satchel.cap("langis") == 3 and satchel.cap("buntot_pagi") == 1,
 		"it knows Lola's six things, with their caps", "%s" % [ids])
+
+
+## Found, each says what it does and which key it is on -- never only its name.
+func _each_says_what_it_is_for() -> void:
+	var satchel = SatchelScript.new()
+	var silent: Array[String] = []
+	for id: String in satchel.ids():
+		var said := String(satchel.row(id).get("found", ""))
+		var name := String(satchel.row(id).get("display_name", id))
+		if not said.contains("{key}") or not said.begins_with(name) or said.length() < name.length() + 24:
+			silent.append(id)
+	_check(silent.is_empty(), "each of Lola's things, found, says what it does and its key",
+		"all six" if silent.is_empty() else "only named: %s" % [silent])
 
 
 func _a_stack_stops_at_its_cap() -> void:
@@ -250,11 +264,11 @@ func _walk_her(from: float, seconds: float) -> void:
 func _walking_into_one_takes_it() -> void:
 	var satchel = level.get("satchel")
 	var pickup := _pickup("Asin1")
-	await _walk_her(1000.0, 1.6)
+	await _walk_her(2200.0, 1.6)
 	var said := (level.get("hint_bar") as HintBar).current_text()
 	_check(satchel.count("asin") == 2 and (pickup == null or not is_instance_valid(pickup) or pickup.is_taken())
-			and bool(level.call("pickup_taken_this_run", "L4_P_ASIN1")) and said.begins_with("Asin -- salt. It is on Z"),
-		"walking into one takes it, and the first of a kind says its key",
+			and bool(level.call("pickup_taken_this_run", "L4_P_ASIN1")) and said == "Asin -- salt. It burns them. Z throws it.",
+		"walking into one takes it, and the first of a kind says what it does and its key",
 		"asin %d, said \"%s\"" % [satchel.count("asin"), said])
 
 

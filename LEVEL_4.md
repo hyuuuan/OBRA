@@ -32,7 +32,7 @@ in three waves until dawn.
 | Finale | **Survive until dawn** — a clock, not a kill count. Folklore-accurate and forgiving of retries. |
 | Weapons | A drawn weapon lasts a **set number of swings per class** (a wear bar), then you draw again. Dilim only; every other level keeps one-use tools. |
 | Ink | **Every weapon or light drawn costs ink** in Dilim (the usual "a class is paid once, ever" does not apply here). Rest clearings refill it. Ink is the real difficulty curve. |
-| Choosing a route | **By what you do — no popup.** Drawing a light at the sigbin *is* the artist choice; backing against the rock *is* pragmatic; landing a hit *is* protector. A popup would freeze a fight. |
+| Choosing a route | **By what you do — no popup.** Drawing a light at the sigbin *is* the artist choice; backing against the rock *is* pragmatic; landing a hit *is* protector. A popup would freeze a fight. **And it stays open until one is answered** (as built): a blade swung first and then a light is the light (`LevelDirector.routes_stay_open`). |
 | The tally | Every encounter's route is logged for the thesis telemetry, but the ending gets **one point from Dilim**: its majority route. Six forks must not decide the ending alone. |
 | "Absurd" | The bungisngis laughs itself helpless at **sea things in a forest**: fish, shark, octopus, sailboat, submarine. The game can only see a class, so the joke had to be a set of classes. |
 | Quick slots | Four, on **Z X C V**. Z/X rotate a drawing only while placing, and quick slots are off while placing. |
@@ -117,8 +117,13 @@ alongside this file; the numbers below are its starting points.
 
 ## Starting numbers (measured against R1 jump 94.3 px, R2 running jump 228 px)
 
-- Lantern light radius 380 / 290 / 200 / 130 px · 1.0 s invulnerability after a hit (2.0 after
-  respawn) · knockback (±300, −220) with a 0.22 s input lock-out.
+- Lantern light radius 230 / 190 / 150 / 110 px (it was 380 / 290 / 200 / 130 and lit most of
+  the screen) -- smaller than a drawn campfire's 300, so a light she makes opens the dark wider ·
+  1.0 s invulnerability after a hit (2.0 after respawn) · knockback (±300, −220) with a 0.22 s
+  input lock-out.
+- The dark, by zone: edge of the woods 0.95, deep woods 0.97, far side 0.96, last clearing 0.96
+  (Kent, 2026-10-19: "truly dark"). She comes in with the lamp at its second stage, and the first
+  clearing's light fills it; a Continue starts full, at a clearing.
 - Weapons (uses / damage / reach px / arc°): sword 14/1/88/120 · axe 9/2/96/150 · boomerang
   8/1 per target/320 · cannon 5/3/640 · anvil 3/4/56 below.
 - Every enemy is slower than the apo's 260 px/s, and every attack is telegraphed (≥0.4 s).
@@ -160,7 +165,26 @@ What the build does that the design above does not say, and what it does not do 
   lantern the HUD leans and gutters and the light drops 18%.
 - **The buntot pagi** drops only in waves 2 and 3 (2%), lashes 10 times, and reaches fliers. Its
   lashes left are saved with the run, and every lash flashes its quick slot and is logged.
+- **What to do is said where it is done** (Kent, 2026-10-19: "the game's instructions are all
+  unclear"). Inside an encounter not yet answered the banner names Lola's three ways past it, no
+  class named ("Show it light, put my back to a rock, or fight it."), each at the banner's full
+  size; the first of each of Lola's things says what it does and its key ("Kandila -- a candle. X
+  sets it down: light that costs no ink."); the santelmo's walk is taught ~3 s before it can see
+  her, and the first salt lies past it so nothing takes the hint bar from that.
+- **No "?" boards.** They promised Lolo's help, and stood on the creature; every beat keeps its
+  story board at its approach (`LevelObstacle2D.plants_hint_sign`).
+- **A clearing is saved as she walks in**; its lantern stands where the light is made and her light
+  lights it (`CheckpointArea2D.lights_on_entry`), with the lamp filled and a curse lifted.
+- **The mound is asked from its foot** (56 px), where a jump from standing clears it.
+- **The sigbin keeps to its ground** (a 700 px leash); it gave chase into the tikbalang's.
 - **The kapre's camera hold** was replaced: its smoke turns her round instead of stopping the camera.
+  Anything the artist route takes as moving air clears it -- a fan, a cloud, a sun, her as a
+  butterfly -- not a fan alone.
+- **A throw goes where it is clicked.** A boomerang flies out along the click, a shot is fired at
+  it (aimed over by its fall); F throws straight ahead as before. Thrown level, nothing reached the
+  kapre's cigar. And the use that chooses a "draw it, then do it" route is used: the first blow at
+  the sigbin lands and the first throw at the cigar is thrown (they had only chosen). A cannon shot
+  is put at the muzzle before it is in the world -- added first, every shot began inside the canopy.
 - **Falls are knockouts.** The wanderer wraps to the sky at the world's bottom, so Dilim knocks her
   out 300 px under the forest floor instead.
 - **No drawing-free run.** The kapre has no route without a drawing, so Dilim cannot be finished

@@ -94,6 +94,7 @@ func _run() -> void:
 	var scene := await _open_level()
 	_audit_beats_in_order(level, scene)
 	_audit_checkpoints_in_their_clearings(level, scene)
+	_audit_no_hint_boards(level, scene)
 	_audit_canopy_over_every_beat(level, scene)
 	_audit_santelmo_before_the_mound(scene)
 	_audit_the_night_is_in_the_last_clearing(scene)
@@ -233,6 +234,9 @@ func _audit_ink_before_every_drawn_encounter(level: Dictionary) -> void:
 		else "no ink-free way and no jar: " + ", ".join(dry))
 
 
+const TRULY_DARK := 0.95
+
+
 func _audit_lighting_states(level: Dictionary) -> void:
 	var ids: Array[String] = []
 	for obstacle_value: Variant in level.get("obstacles", []):
@@ -247,6 +251,15 @@ func _audit_lighting_states(level: Dictionary) -> void:
 			wrong.append(String(state.get("id", "?")))
 	_check(not states.is_empty() and wrong.is_empty(), "every dark zone names its beats",
 		"%d zones" % states.size() if wrong.is_empty() else "wrong: " + ", ".join(wrong))
+	# TRULY DARK (Kent): outside a light the woods are all but black, so the light she has is a small
+	# circle and one she makes is plainly more. At 0.8 the edge of the woods read as dusk.
+	var light_ones: Array[String] = []
+	for state_value: Variant in states:
+		var state: Dictionary = state_value
+		if float(state.get("darkness", 0.0)) < TRULY_DARK:
+			light_ones.append("%s %.2f" % [state.get("id", "?"), float(state.get("darkness", 0.0))])
+	_check(light_ones.is_empty(), "the woods are truly dark, every zone of them",
+		"all at %.2f or darker" % TRULY_DARK if light_ones.is_empty() else "too light: " + ", ".join(light_ones))
 
 
 func _audit_every_line_is_hers(dialogue: Dictionary) -> void:
@@ -446,6 +459,24 @@ func _audit_beats_in_order(level: Dictionary, scene: Node) -> void:
 	_check(count >= 10 and problems.is_empty(), "every beat has its ground and mark, in order",
 		"%d beats, west to east as the level file lists them" % count if problems.is_empty()
 		else "; ".join(problems))
+
+
+## A "?" board says Lolo will help if she stands still, and nobody does here -- each one stood on
+## the creature it was about. Every beat keeps the story board at its approach instead.
+func _audit_no_hint_boards(level: Dictionary, scene: Node) -> void:
+	var hints := 0
+	var stories: Array[String] = []
+	for node in scene.get_tree().get_nodes_in_group(&"signposts"):
+		var board := node as Signpost2D
+		if board == null:
+			continue
+		if board.mark == Signpost2D.Mark.HINT:
+			hints += 1
+		elif board.mark == Signpost2D.Mark.STORY and board.get_parent() is LevelObstacle2D:
+			stories.append(String((board.get_parent() as LevelObstacle2D).obstacle_id))
+	var beats := (level.get("obstacles", []) as Array).size()
+	_check(hints == 0 and stories.size() == beats, "no \"?\" boards in the woods; every beat its story board",
+		"%d hint boards, %d of %d story boards" % [hints, stories.size(), beats])
 
 
 func _audit_checkpoints_in_their_clearings(level: Dictionary, scene: Node) -> void:
@@ -719,8 +750,10 @@ func _audit_knockout_in_lolas_words(scene: Node, dialogue: Dictionary) -> void:
 
 func _audit_banner_by_place(scene: Node) -> void:
 	var player := scene.get("player") as Node2D
-	var expected := {260.0: "edge", 4100.0: "woods", 5000.0: "rest", 15400.0: "rest",
-		21000.0: "woods", 22000.0: "dawn"}
+	# Every encounter not yet answered says its ways past; between them, the woods.
+	var expected := {260.0: "edge", 3300.0: "nuno", 4100.0: "woods", 5000.0: "rest", 7000.0: "sigbin",
+		9000.0: "tikbalang", 13500.0: "kapre", 15400.0: "rest", 17000.0: "tiyanak", 19000.0: "bungisngis",
+		20400.0: "manananggal", 21200.0: "woods", 22000.0: "dawn"}
 	var wrong: Array[String] = []
 	for x: float in expected:
 		player.call("apply_morph_state", {"position": Vector2(x, GROUND_Y - 10.0), "linear_velocity": Vector2.ZERO})
@@ -732,7 +765,7 @@ func _audit_banner_by_place(scene: Node) -> void:
 		if key != String(expected[x]) or not points_on:
 			wrong.append("at %.0f '%s' -> %s" % [x, key, target])
 	_check(wrong.is_empty(), "the banner says what is next by where she is",
-		"edge, woods, rest, dawn -- each pointing ahead of her" if wrong.is_empty()
+		"edge, each encounter's ways past, woods, rest, dawn -- each pointing ahead of her" if wrong.is_empty()
 		else "; ".join(wrong))
 
 
@@ -741,6 +774,7 @@ func _audit_objectives_fit(level: Dictionary, scene: Node) -> void:
 	var label := (scene.get("objective_banner") as Control).get("_label") as Label
 	var font := label.get_theme_font(&"font")
 	var cut: Array[String] = []
+	var small: Array[String] = []
 	var counted := 0
 	for key_value: Variant in (level.get("objectives", {}) as Dictionary).keys():
 		var key := String(key_value)
@@ -752,9 +786,16 @@ func _audit_objectives_fit(level: Dictionary, scene: Node) -> void:
 			ObjectiveBanner.SMALL).x
 		if width > ObjectiveBanner.MAX_WIDTH:
 			cut.append("\"%s\" (%.0f px)" % [line, width])
+		# AT FULL SIZE, since they are what to do: one that only fits at the caption size is set
+		# small, and the encounter lines say how to get past each thing.
+		var full := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, ObjectiveBanner.LARGE).x
+		if full > ObjectiveBanner.MAX_WIDTH:
+			small.append("\"%s\" (%.0f px)" % [line, full])
 	_check(font != null and counted > 0 and cut.is_empty(), "every objective fits its banner",
 		"%d lines, none wider than %.0f px" % [counted, ObjectiveBanner.MAX_WIDTH]
 		if cut.is_empty() else "trimmed: " + ", ".join(cut))
+	_check(font != null and small.is_empty(), "and every one reads at the banner's full size",
+		"%d lines" % counted if small.is_empty() else "set small: " + ", ".join(small))
 
 
 # --- Helpers ----------------------------------------------------------------------------

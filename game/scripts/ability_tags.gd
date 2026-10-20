@@ -39,6 +39,7 @@ var _tag_classes: Dictionary = {}   # tag -> PackedStringArray
 var _class_tags: Dictionary = {}    # class id -> Array[String]
 var _display: Dictionary = {}       # tag -> display name
 var _gloss: Dictionary = {}         # tag -> what the tag means, in the player's words
+var _can: Dictionary = {}           # tag -> how it reads after "can" (CAN in tools/build_tags.py)
 var _unlock_level: Dictionary = {}  # tag -> level number that first teaches it
 var _loaded := false
 
@@ -70,6 +71,7 @@ func load_tags() -> bool:
 		var tag := String(tag_value)
 		var entry: Dictionary = tags[tag_value]
 		_display[tag] = String(entry.get("display_name", tag.capitalize()))
+		_can[tag] = String(entry.get("can", String(_display[tag]).to_upper()))
 		_gloss[tag] = String(entry.get("gloss", ""))
 		_unlock_level[tag] = int(entry.get("unlocked_in_level", 0))
 		var members := PackedStringArray()
@@ -119,6 +121,11 @@ func all_tags() -> Array:
 
 func display_name(tag: String) -> String:
 	return String(_display.get(tag, tag.capitalize()))
+
+
+## How the tag reads after "can": "SPAN", or "be ABSURD" for one whose name is not a verb.
+func can_phrase(tag: String) -> String:
+	return String(_can.get(tag, display_name(tag).to_upper()))
 
 
 ## What the tag asks the drawing to DO, in a sentence, naming no class -- see GLOSS in

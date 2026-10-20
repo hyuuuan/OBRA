@@ -66,6 +66,10 @@ var attack_time := 0.3
 var lunge := 400.0
 var recover := 0.5
 var sight := 700.0
+## How far along the ground from where it waits it follows her, px; 0 -- most of them -- follows as
+## far as it can see. Past it, it gives her up and goes back: the sigbin keeps to its own dark, and
+## one that followed her on into the next encounter put two things on her at once.
+var leash := 0.0
 var body_size := Vector2(44.0, 28.0)
 var knock := Vector2(300.0, -220.0)
 
@@ -132,6 +136,9 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector2.ZERO
 		if state != State.STUN:
 			_enter(State.IDLE)
+		return
+	if leash > 0.0 and absf(_prey.global_position.x - _home.x) > leash:
+		_give_her_up(delta)
 		return
 	_state_left -= delta
 	var to_prey := _prey.global_position - global_position
@@ -312,6 +319,22 @@ func _art_extras() -> Array:
 
 # --- the shared machinery ------------------------------------------------------------------
 
+## Past its leash: whatever it was about is dropped, and it goes back to where it waits.
+func _give_her_up(delta: float) -> void:
+	if state != State.IDLE and state != State.STUN:
+		_enter(State.IDLE)
+	var to_home := _home - global_position
+	_face(to_home.x)
+	_head_home(delta, to_home)
+	art.play("run" if absf(velocity.x) > 10.0 else "idle")
+	move_and_slide()
+
+
+## How it goes home: straight there, by default -- a ground one walks (GroundEnemy2D).
+func _head_home(_delta: float, to_home: Vector2) -> void:
+	velocity = to_home.normalized() * speed if to_home.length() > 8.0 else Vector2.ZERO
+
+
 func _enter(next: State) -> void:
 	var was := state
 	state = next
@@ -444,6 +467,7 @@ func _read_config() -> void:
 	lunge = float(row.get("lunge", lunge))
 	recover = float(row.get("recover", recover))
 	sight = float(row.get("sight", sight))
+	leash = float(row.get("leash", leash))
 	var size: Array = row.get("size", [body_size.x, body_size.y])
 	body_size = Vector2(float(size[0]), float(size[1]))
 	var shove: Array = row.get("knock", [knock.x, knock.y])

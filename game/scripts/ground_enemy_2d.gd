@@ -56,6 +56,16 @@ func _move(delta: float, to_prey: Vector2) -> void:
 			velocity.x = move_toward(velocity.x, 0.0, ACCEL * delta)
 
 
+## Home on foot, the way it chases: falling where there is no floor, stopping at a drop.
+func _head_home(delta: float, to_home: Vector2) -> void:
+	if not is_on_floor():
+		velocity.y = minf(velocity.y + _gravity * delta, MAX_FALL)
+	var dir := signf(to_home.x) if absf(to_home.x) > 8.0 else 0.0
+	if dir != 0.0 and is_on_floor() and not _safe_to_walk(dir, to_home):
+		dir = 0.0
+	velocity.x = move_toward(velocity.x, dir * speed, ACCEL * delta)
+
+
 ## Something in the way at its own height, a little ahead.
 func _blocked_ahead(dir: float) -> bool:
 	return test_move(global_transform.translated(Vector2(0.0, -2.0)), Vector2(dir * 6.0, 0.0))

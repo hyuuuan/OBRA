@@ -6,8 +6,10 @@ extends Node2D
 ## It follows whoever the player is, held at the side away from her weapon hand, and answers
 ## LightField like every other light -- so the dark is cut by it and a sigbin can ask how lit she is.
 
-## The light's radius by lantern stage, world px: full, dim, low, guttering.
-const RADII := {4: 380.0, 3: 290.0, 2: 200.0, 1: 130.0}
+## The light's radius by lantern stage, world px: full, dim, low, guttering. A small circle round
+## her -- smaller than anything she can draw to see by (a campfire's 300), so a light she makes
+## opens the dark visibly wider. At 380 it lit most of the screen, and drawing one meant nothing.
+const RADII := {4: 230.0, 3: 190.0, 2: 150.0, 1: 110.0}
 ## Guttering, the light will not hold still: this far either way, this many times a second.
 const GUTTER_FLICKER := 14.0
 const GUTTER_HZ := 6.0
