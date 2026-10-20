@@ -17,13 +17,16 @@ const SMOKE_WIDTH := 600.0
 const CIGAR_TIP := Vector2(-122.0, -280.0)
 const CHOPS_TO_FELL := 3
 const TRUNK := Vector2(70.0, 340.0)
-## How far its ember lights, and which way: enough that its face -- 56 px off the tip -- is in the
-## full light (LightField.SOFT_EDGE of it) and shows in the dark; and back over that face and the
-## tree behind it, a cone, not out into the open air west of it, where a round light 280 px up
-## opened a window onto the backdrop's sky.
-const CIGAR_GLOW := 110.0
-const CIGAR_LIGHT_TOWARD := Vector2(1.0, -0.1)
-const CIGAR_LIGHT_HALF_ANGLE := 1.05
+## Its light, as two, since a light shows whatever is behind it and up here that is the backdrop's
+## sky. The ember's own, EMBER_GLOW px round the tip: its pixels and no more (the Ember child). And
+## the light it throws on its face: a cone from its lips (tools/dilim_kapre.py LIPS) back over the
+## face and the tree behind, so the face shows in the dark and the air in front of it stays dark.
+## One cone from the tip lit both, and the sky between the cigar and the face with them.
+const EMBER_GLOW := 3.5
+const FACE_LIGHT_FROM := Vector2(-94.0, -274.0)
+const FACE_LIGHT := 100.0
+const FACE_LIGHT_TOWARD := Vector2(1.0, 0.05)
+const FACE_LIGHT_HALF_ANGLE := 1.25
 ## Where its drawn strip stands in the tree (tools/dilim_kapre.py ART_AT): the bottom-centre of the
 ## frame, which is its hanging foot, sat on the balete's branch.
 const ART_AT := Vector2(-68.0, -110.0)
@@ -49,14 +52,16 @@ const STREAM_TO := Vector2(-250.0, -120.0)
 const BLOWN_AWAY := Vector2(260.0, -100.0)
 ## Knocked out of its mouth, the cigar (kapre_cigar_idle) tumbles down to the ground below, thrown
 ## out west, sparks trailing off it -- FALL_GRAVITY px/s², FALL_THROW px/s -- and lies there LIES_AT
-## px up, its ember a small light (FALLEN_GLOW) until it dies EMBER_DIES seconds after it lands.
+## px up, its ember lighting the ground round it (FALLEN_GLOW) until it dies EMBER_DIES seconds after
+## it lands. In the air it is the ember's own light only, which shows no sky.
 const FALL_GRAVITY := 900.0
 const FALL_THROW := -60.0
 const LIES_AT := -4.0
 const FALLEN_GLOW := 46.0
 const EMBER_DIES := 2.5
-## Leaving, startled ('knocked'): with its cigar gone it climbs CLIMBS px up into its crown and is
-## lost in it; with its tree gone it drops to the ground and walks off east, into the dark.
+## Leaving, startled: with its cigar knocked away ('knocked') it climbs CLIMBS px up into its crown
+## and is lost in it; with its tree gone under it ('falling', the cigar still in its teeth) it drops
+## to the ground, its ember lighting it down, and walks off east into the dark.
 const CLIMBS := 90.0
 const CLIMB_SECONDS := 1.4
 const DROP_SECONDS := 0.4
@@ -74,6 +79,9 @@ var _cigar_lit := true
 var _gone := false
 var _clock := 0.0
 var cigar: Area2D
+## The ember's own small light (EMBER_GLOW), on its own node: a light source answers one hole, and
+## this one goes where the ember goes -- in its teeth, falling, lying on the ground.
+var ember: Node2D
 
 
 ## The balete it sits in, drawn (kapre_tree_idle / kapre_tree_felled); the code's tree below stands
@@ -103,7 +111,7 @@ func _ready() -> void:
 	add_child(tree_art)
 	tree_art.load_kind(Enemy2D.ART, "kapre_tree", ["idle", "felled"])
 	tree_art.play("idle")
-	_make_art("kapre", ["idle", "knocked"], false, ART_AT)
+	_make_art("kapre", ["idle", "knocked", "falling"], false, ART_AT)
 	var puffs := Enemy2D.ART + "kapre_smoke_idle.png"
 	if ResourceLoader.exists(puffs):
 		_smoke_sheet = load(puffs) as Texture2D
@@ -125,6 +133,9 @@ func _ready() -> void:
 	cigar.add_child(shape)
 	cigar.position = CIGAR_TIP
 	add_child(cigar)
+	ember = _EmberLight.new()
+	ember.name = "Ember"
+	add_child(ember)
 
 
 func _process(delta: float) -> void:
@@ -224,9 +235,11 @@ func leave() -> void:
 		return
 	_gone = true
 	clear_smoke()
+	# Gone, its cigar goes with it: nothing is left up there to be knocked.
+	cigar.set_deferred(&"collision_layer", 0)
 	if art == null or not art.has_art():
 		return
-	art.play("knocked")
+	art.play("falling" if _felled else "knocked")
 	var away := create_tween()
 	if _felled:
 		away.tween_property(art, "position:y", 0.0, DROP_SECONDS).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
@@ -242,14 +255,47 @@ func is_gone() -> bool:
 	return _gone
 
 
+## The light it throws on its face; or, its cigar knocked down and lying lit, on the ground round it.
 func light_hole() -> Dictionary:
-	if not _cigar_lit and _ember_alight():
-		var dying := clampf((_fall_clock - _landing()) / EMBER_DIES, 0.0, 1.0)
-		return {"position": global_position + fallen_cigar(), "radius": FALLEN_GLOW, "strength": 0.6 * (1.0 - dying)}
-	if not _cigar_lit or _gone:
+	if not _cigar_lit:
+		if _ember_alight() and _fall_clock >= _landing():
+			return {"position": global_position + fallen_cigar(), "radius": FALLEN_GLOW, "strength": 0.6 * (1.0 - _dying())}
 		return {}
-	return {"position": global_position + cigar.position, "radius": CIGAR_GLOW, "strength": 0.7,
-		"direction": CIGAR_LIGHT_TOWARD, "half_angle": CIGAR_LIGHT_HALF_ANGLE}
+	var carried := _carried()
+	if carried == Vector2.INF:
+		return {}
+	return {"position": global_position + FACE_LIGHT_FROM + carried, "radius": FACE_LIGHT, "strength": 0.7 * _shown(),
+		"direction": FACE_LIGHT_TOWARD, "half_angle": FACE_LIGHT_HALF_ANGLE}
+
+
+## The ember's own light, wherever the ember is.
+func ember_hole() -> Dictionary:
+	if not _cigar_lit:
+		if not _ember_alight():
+			return {}
+		return {"position": global_position + fallen_cigar(), "radius": EMBER_GLOW, "strength": 0.9 * (1.0 - _dying())}
+	var carried := _carried()
+	if carried == Vector2.INF:
+		return {}
+	return {"position": global_position + CIGAR_TIP + carried, "radius": EMBER_GLOW, "strength": 0.9 * _shown()}
+
+
+## How far its face has gone from where it sat: nowhere while it sits; felled, down with its tree
+## and away -- until it has faded into the dark (INF), and INF too once gone any other way.
+func _carried() -> Vector2:
+	if not _gone:
+		return Vector2.ZERO
+	if not _felled or art == null or not art.visible:
+		return Vector2.INF
+	return art.position - ART_AT
+
+
+func _shown() -> float:
+	return art.modulate.a if _gone and art != null else 1.0
+
+
+func _dying() -> float:
+	return clampf((_fall_clock - _landing()) / EMBER_DIES, 0.0, 1.0)
 
 
 ## Back to before she came -- unless it was answered; a restore does not grow a tree back.
@@ -346,3 +392,13 @@ func _puff(frame: int, centre: Vector2, alpha: float) -> void:
 	var corner := (centre - Vector2(PUFF, PUFF) * 0.5).round()
 	draw_texture_rect_region(_smoke_sheet, Rect2(corner, Vector2(PUFF, PUFF)),
 		Rect2(frame * PUFF, 0, PUFF, PUFF), Color(1.0, 1.0, 1.0, alpha * _smoke))
+
+
+class _EmberLight:
+	extends Node2D
+
+	func _ready() -> void:
+		add_to_group(LightField.GROUP)
+
+	func light_hole() -> Dictionary:
+		return (get_parent() as Kapre2D).ember_hole()

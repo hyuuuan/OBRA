@@ -159,14 +159,16 @@ What the build does that the design above does not say, and what it does not do 
   leaned).
 - **The kapre in its tree** (Kent, 2026-10-20: "more detailed and make more sense"). It sits on
   a branch of the balete 170 px up, a giant about twice her height sat, facing her. Its cigar's
-  hit area and its light are where the cigar is drawn, in its teeth west of the trunk. Its
-  ember lights its face, in a cone back over the face and the tree; a round light that high
-  showed the backdrop's sky. Its smoke is a drawn bank of puffs pouring off the cigar. Each answer
-  is seen:
+  hit area is where the cigar is drawn, in its teeth west of the trunk. Its light is two: the
+  ember's own, a few px round it, and a cone from its lips back over its face and the tree. A
+  light shows whatever is behind it, and up there that is the backdrop's sky, so the open air in
+  front of its face stays dark. Its smoke is a drawn bank of puffs pouring off the cigar. Each
+  answer is seen:
   - fanned, the smoke blows away east and up;
-  - knocked, the cigar tumbles down with its ember alight and goes out, and the kapre climbs up
-    into its crown;
-  - felled, the kapre drops and walks off.
+  - knocked, the cigar tumbles down, lit by its ember alone, then lights the ground round it
+    until it goes out; the kapre climbs up into its crown;
+  - felled, the kapre drops with the cigar still in its teeth, its ember lighting it down, and
+    walks off. Gone, its cigar is out of reach.
 
   A boomerang or a shot thrown by a click reaches the cigar from anywhere in the smoke's west
   half (13300-13480), short of the middle that turns her round.

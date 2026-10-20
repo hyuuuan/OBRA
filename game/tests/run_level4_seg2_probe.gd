@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 35
+const CHECKS := 38
 var level: Node
 
 
@@ -45,7 +45,8 @@ func _run() -> void:
 	for kapre_check in [_the_smoke_turns_her_round, _a_fan_clears_the_smoke, _three_chops_fell_its_tree, _a_throw_knocks_its_cigar,
 			_a_fan_tried_first_a_throw_still_knocks_the_cigar, _a_cloud_held_up_clears_the_smoke_too,
 			_as_a_butterfly_she_clears_the_smoke_too, _a_boomerang_clicked_at_the_cigar_knocks_it,
-			_a_shot_clicked_at_the_cigar_knocks_it, _a_shot_fired_in_the_woods_flies, _thrown_again_after_a_miss]:
+			_a_shot_clicked_at_the_cigar_knocks_it, _a_shot_fired_in_the_woods_flies, _thrown_again_after_a_miss,
+			_felled_its_cigar_is_out_of_reach]:
 		level = await _open_level()
 		await kapre_check.call()
 		level.queue_free()
@@ -333,10 +334,16 @@ func _three_chops_fell_its_tree() -> void:
 	_check(not after_two and _kapre_route() == "pragmatist" and _kapre_solved() and _kapre().is_felled(),
 		"three chops fell its tree, the first one counting", "after two %s; route '%s', felled %s"
 			% [after_two, _kapre_route(), _kapre().is_felled()])
-	await _frames(int(1.6 * 60.0))
+	# Down with it, startled, the cigar still in its teeth and its ember lighting it as it goes.
 	var art := _kapre().art
-	_check(art.anim() == "knocked" and absf(art.position.y) < 0.5 and art.position.x > Kapre2D.ART_AT.x and not art.visible,
-		"and the kapre drops with its tree and goes", "'%s' at %s, shown %s" % [art.anim(), art.position, art.visible])
+	var glow := _kapre().light_hole()
+	var tip := _kapre().global_position + Kapre2D.CIGAR_TIP
+	var lit_low := not glow.is_empty() and (glow["position"] as Vector2).y > tip.y + 100.0
+	_check(art.anim() == "falling" and lit_low, "and the kapre drops with its cigar, its ember lighting it down",
+		"'%s', light %s (its tip was at y %.0f)" % [art.anim(), glow, tip.y])
+	await _frames(int(1.6 * 60.0))
+	_check(absf(art.position.y) < 0.5 and art.position.x > Kapre2D.ART_AT.x and not art.visible and _kapre().light_hole().is_empty(),
+		"and goes, its light with it", "'%s' at %s, shown %s, light %s" % [art.anim(), art.position, art.visible, _kapre().light_hole()])
 
 
 func _a_throw_knocks_its_cigar() -> void:
@@ -346,6 +353,11 @@ func _a_throw_knocks_its_cigar() -> void:
 	await _frames(5)
 	_check(_kapre_route() == "protector" and _kapre_solved() and _kapre().is_gone() and not _kapre().cigar_is_lit(),
 		"a throw that reaches the cigar knocks it out of its hand", "route '%s', gone %s" % [_kapre_route(), _kapre().is_gone()])
+	# Falling through the air it is its ember's own light only, which shows no sky round it.
+	var ember := _kapre().ember_hole()
+	_check(_kapre().light_hole().is_empty() and float(ember.get("radius", 0.0)) == Kapre2D.EMBER_GLOW
+			and (ember.get("position", Vector2.ZERO) as Vector2).y > _kapre().global_position.y + Kapre2D.CIGAR_TIP.y,
+		"and falling, it is lit by its ember alone", "light %s, ember %s" % [_kapre().light_hole(), ember])
 	await _frames(int(1.2 * 60.0))
 	_check(not _kapre().smoke_stands() and _kapre().smoke_offset() == Vector2.ZERO,
 		"and with its cigar gone the smoke thins where it is, not blown", "gone %s, moved %s"
@@ -436,7 +448,8 @@ func _a_boomerang_clicked_at_the_cigar_knocks_it() -> void:
 		"and the cigar falls to the ground below, its ember alight there", "at %s, light %s" % [fell, glow])
 	# Its own wait, not EMBER_DIES: a few seconds on the ground, as a player sees it.
 	await _frames(int(2.5 * 60.0))
-	_check(_kapre().light_hole().is_empty(), "and its ember goes out", "light %s" % _kapre().light_hole())
+	_check(_kapre().light_hole().is_empty() and _kapre().ember_hole().is_empty(), "and its ember goes out",
+		"light %s, ember %s" % [_kapre().light_hole(), _kapre().ember_hole()])
 	var art := _kapre().art
 	_check(art.anim() == "knocked" and art.position.y < Kapre2D.ART_AT.y - 40.0 and not art.visible,
 		"and the kapre, startled, climbs away up into its crown", "'%s' at %s, shown %s" % [art.anim(), art.position, art.visible])
@@ -502,6 +515,24 @@ func _throw_at_the_cigar(entity_id: String, fresh: bool = true) -> void:
 		await _frames(int(1.5 * 60.0))
 		if _kapre_solved():
 			break
+
+
+## Felled, it has gone down with its cigar: a throw at where the cigar was finds nothing to knock --
+## no second cigar out of the air, no second answer.
+func _felled_its_cigar_is_out_of_reach() -> void:
+	await _stand_at(13760.0, &"move_right")
+	await _become("axe")
+	for _chop in range(3):
+		level.call("_use_equipped_utility")
+		await _frames(50)
+	var where := (_kapre().get("cigar") as Node2D).global_position
+	await _stand_at(13450.0, &"move_right")
+	await _become("boomerang")
+	await _click_at(where)
+	await _frames(int(1.5 * 60.0))
+	_check(_kapre().is_felled() and _kapre().fallen_cigar() == Vector2.INF and _kapre_route() == "pragmatist",
+		"felled, a throw at where its cigar was knocks nothing out of the air",
+		"felled %s, a cigar fell %s, route '%s'" % [_kapre().is_felled(), _kapre().fallen_cigar() != Vector2.INF, _kapre_route()])
 
 
 ## Fired with F in the open woods, a shot flies. Added to the world before it was put at the muzzle,

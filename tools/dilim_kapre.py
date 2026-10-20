@@ -31,8 +31,11 @@ W, H = 136, 214
 LEFT, TOP = -136, -324
 ART_AT = (LEFT + W // 2, TOP + H)
 CIGAR_TIP = (-122, -280)
-# The middle of its head: the ember's light must reach it at full strength (kapre_2d.gd CIGAR_GLOW).
+# The middle of its head: the light the ember throws on it must reach it at full strength; and its
+# lips, where that light starts (kapre_2d.gd FACE_LIGHT_FROM) -- so the open air in front of its face
+# is left dark, rather than showing the backdrop's sky.
 FACE = (-66, -282)
+LIPS = (FACE[0] - 28, FACE[1] + 8)
 
 KAPRE_SKIN = hexes("#0c0806", "#20140c", "#362216", "#4c3220", "#66462c", "#845c3a")
 KAPRE_HAIR = hexes("#030202", "#0a0806", "#14100c", "#201913", "#30251c")
@@ -52,10 +55,11 @@ def _pts(*points):
     return [P(x, y) for x, y in points]
 
 
-def seated(ember: float = 0.0, puff: float = -1.0, startled: bool = False, breath: float = 0.0) -> Sculpt:
+def seated(ember: float = 0.0, puff: float = -1.0, startled: bool = False, breath: float = 0.0,
+           cigar: bool = True) -> Sculpt:
     """Sat on its branch. `ember` 0 resting .. 1 drawn on; `puff` 0..1 a breath of smoke on its way
-    out of its mouth (negative, none); `startled`, the cigar gone from its mouth -- eyes wide, mouth
-    open; `breath` lifts the chest a pixel."""
+    out of its mouth (negative, none); `startled`, eyes wide -- and with `cigar` gone from its mouth,
+    the mouth open in a shout; `breath` lifts the chest a pixel."""
     s = Sculpt(W, H)
     skin = KAPRE_SKIN
     for name, ramp in [("far", skin[[0, 0, 1, 2, 3, 3]]), ("skin", skin), ("limb", skin), ("hair", KAPRE_HAIR),
@@ -137,7 +141,7 @@ def seated(ember: float = 0.0, puff: float = -1.0, startled: bool = False, breat
     # The cigar in its teeth, held up, its band at the lips and its ash at the tip.
     mouth = (hx - 26, hy + 12)
     tip = CIGAR_TIP
-    if not startled:
+    if cigar:
         s.tube("cigar", [P(*mouth), P((mouth[0] + tip[0]) / 2, (mouth[1] + tip[1]) / 2 + 1), P(tip[0] + 3, tip[1])],
                [3.6, 4.0, 4.0])
         s.ellipse("ash", *P(tip[0] + 2, tip[1]), 2.4, 3.8)
@@ -170,7 +174,7 @@ def seated(ember: float = 0.0, puff: float = -1.0, startled: bool = False, breat
             s.line(P(hx - 26, hy - 5), P(hx - 7, hy - 6), tone("skin", 0))
         # The mouth: a slit round the cigar, or open in a shout.
         mx, my = mouth
-        if startled:
+        if not cigar:
             for dx in range(-3, 4):
                 for dy in range(-3, 5):
                     if dx * dx / 10 + dy * dy / 17 <= 1.0:
@@ -180,7 +184,7 @@ def seated(ember: float = 0.0, puff: float = -1.0, startled: bool = False, breat
         else:
             s.line(P(mx + 1, my + 2), P(mx + 8, my + 3), tone("skin", 0))
         # The ember, the band, and a thread of smoke going up off the tip.
-        if not startled:
+        if cigar:
             tx, ty = tip
             core = 3 if ember > 0.5 else 2
             for dx, dy in [(0, 0), (0, -1), (0, 1), (-1, 0), (-1, -1), (-1, 1), (0, -2), (0, 2)]:
@@ -257,11 +261,15 @@ def frames(anim: str) -> list[Image.Image]:
         poses = [dict(ember=0.0), dict(ember=1.0, breath=1.0), dict(ember=0.4, puff=0.0, breath=1.0), dict(ember=0.1, puff=0.8)]
         return [render(seated(**p), p["ember"]) for p in poses]
     if anim == "knocked":
-        return [render(seated(startled=True), -1.0)]
+        # Its cigar knocked out of its mouth.
+        return [render(seated(startled=True, cigar=False), -1.0)]
+    if anim == "falling":
+        # Its tree going down under it: startled, the cigar still clenched, the ember flaring.
+        return [render(seated(startled=True, ember=1.0), 1.0)]
     raise KeyError(anim)
 
 
-ANIMS = ["idle", "knocked"]
+ANIMS = ["idle", "knocked", "falling"]
 
 
 

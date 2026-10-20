@@ -14,7 +14,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 26
+const CHECKS := 27
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -287,6 +287,11 @@ func _the_dead_tree() -> void:
 	_check(lying != null and lying.anim() == "felled" and is_zero_approx(lying.rotation) and flush and rests,
 		"and it lies as a log over the trunk that stops them, not the standing tree on its side",
 		"tops %s against %.0f, on the ground %s" % [tops, -tree.span_height, rests])
+	# The walkers that meet it at its root plate are drawn in front of it, and so is she.
+	var figure := (level.get("player") as Node2D).find_child("Figure", true, false) as CanvasItem
+	_check(_drawn_over(under, tree) and figure != null and _drawn_over(figure, tree),
+		"and the walkers meeting it are drawn in front of it, not hidden in it, and so is she",
+		"tree z %d, walker z %d, her z %d" % [_absolute_z(tree), _absolute_z(under), _absolute_z(figure) if figure != null else -99])
 	# East of the trunk lying there, with her west of it: it comes up to it and does not get across.
 	# Dropped in a little above the ground to settle: set exactly on it, its look for ground ahead
 	# starts on the surface, finds none, and it will not walk at all.
@@ -388,6 +393,24 @@ func _grace() -> void:
 
 
 ## Whether `art` has a pixel drawn at `at`, in its parent's space (it is never turned).
+## Whether `a` is drawn over `b`: higher from the root, or as high and later in the tree.
+func _drawn_over(a: CanvasItem, b: CanvasItem) -> bool:
+	var za := _absolute_z(a)
+	var zb := _absolute_z(b)
+	return za > zb or (za == zb and a.is_greater_than(b))
+
+
+func _absolute_z(item: CanvasItem) -> int:
+	var z := 0
+	var node: Node = item
+	while node is CanvasItem:
+		z += (node as CanvasItem).z_index
+		if not (node as CanvasItem).z_as_relative:
+			break
+		node = node.get_parent()
+	return z
+
+
 func _drawn_at(art: Sprite2D, at: Vector2) -> bool:
 	var image := art.texture.get_image()
 	var pixel := Vector2i((at - art.position - art.offset).floor())
