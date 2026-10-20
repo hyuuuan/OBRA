@@ -94,6 +94,13 @@ func _tool_wear_enabled() -> bool:
 	return false
 
 
+## Whether an encounter's route stays open to change until it is answered (LevelDirector's
+## `routes_stay_open`). Off everywhere but a level that fights, where the first swing is not a
+## choice; elsewhere the first drawing that answers a route is the route, as a node is.
+func _routes_stay_open() -> bool:
+	return false
+
+
 ## Whether the camera follows in physics ticks, in step with the player, rather than easing toward
 ## her every render frame. Off everywhere but where a fight is watched closely.
 func _camera_follows_physics() -> bool:
@@ -623,7 +630,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		var aim := get_viewport().get_canvas_transform().affine_inverse() * click.position
 		if player != null and player.has_method("face_toward"):
 			player.call("face_toward", aim.x)
+		# And a throw goes at it: what was clicked is where a boomerang or a shot is aimed.
+		var held := _equipped_utility
+		if held != null and is_instance_valid(held):
+			held.aim_toward = aim
 		_use_equipped_utility()
+		if held != null and is_instance_valid(held):
+			held.aim_toward = Vector2.INF
 		return
 	if event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
@@ -675,6 +688,7 @@ func _on_backend_failed(message: String) -> void:
 func _build_obstacle_layer() -> void:
 	director = LevelDirector.new()
 	director.name = "LevelDirector"
+	director.routes_stay_open = _routes_stay_open()
 	add_child(director)
 	if not director.load_level(level_config_path()):
 		push_warning("%s: no level data; obstacles will accept nothing" % name)
@@ -781,7 +795,8 @@ func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
 	_write_checkpoint(checkpoint_id)
 	_say_checkpoint()
 	var area := _checkpoint_area_for(checkpoint_id)
-	if area != null:
+	# Its moment is its lantern lighting; one left for the player to light has none yet.
+	if area != null and bool(area.get(&"lights_on_entry")):
 		_stage_the_checkpoint(area.get_node_or_null(^"Checkpoint") as Node2D)
 
 
@@ -1340,15 +1355,17 @@ func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
 	# AbilityTags.tags_for_class_by_level.
 	var mine: Array = AbilityTags.tags_for_class_by_level(entity_id, director.level_order())
 	var text := ""
+	# "An elephant", not "A elephant": the article is the noun's.
+	var who := RequirementStrip.with_article(drawn)
+	who = who.left(1).to_upper() + who.substr(1)
 	if mine.is_empty():
 		# Nothing this level knows the drawing can do -- either one of the roster's
 		# unhintable classes (a clock, a flashlight), or a class whose only tags belong to
 		# levels the player has not reached. Either way there is nothing to contrast with,
 		# only the requirement to repeat.
-		text = "A %s cannot do this. It needs something that can %s." % [drawn, needed]
+		text = "%s cannot do this. It needs something that can %s." % [who, needed]
 	else:
-		text = "A %s can %s. This needs something that can %s." % [
-			drawn, _tag_phrase(mine, "any"), needed]
+		text = "%s can %s. This needs something that can %s." % [who, _tag_phrase(mine, "any"), needed]
 	hint_bar.show_hint(text, _companion_speaker())
 
 
@@ -1358,7 +1375,7 @@ func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
 func _tag_phrase(tags: Array, match: String) -> String:
 	var parts := PackedStringArray()
 	for tag_value: Variant in tags:
-		parts.append(String(AbilityTags.display_name(String(tag_value))).to_upper())
+		parts.append(AbilityTags.can_phrase(String(tag_value)))
 	if parts.is_empty():
 		return ""
 	if parts.size() == 1:
@@ -2226,8 +2243,8 @@ func _begin_new_utility(item: DrawnItemData, going_into_hand: bool = false) -> b
 	var tool := _is_held_tool(item)
 	var next_step := ""
 	if going_into_hand:
-		next_step = "in hand — press %s to %s here" % [ControlsKeys.keys_for("use_utility"),
-			_verb_for(item.entity_id).to_lower()]
+		next_step = "in hand — press %s to %s" % [ControlsKeys.keys_for("use_utility"),
+			_verb_here(item.entity_id)]
 	elif tool:
 		next_step = "in your bag — press %d to take it out" % (slot + 1)
 	else:
@@ -2301,8 +2318,7 @@ func _tool_answers_here(entity_id: String) -> bool:
 	if director == null or entity_id.is_empty():
 		return false
 	var here := director.current_obstacle()
-	return not here.is_empty() and not director.is_solved(here) \
-		and director.accept_set().has(entity_id)
+	return not here.is_empty() and director.would_answer(entity_id, here)
 
 
 func _verb_for(entity_id: String) -> String:
@@ -2318,6 +2334,13 @@ func _verb_for(entity_id: String) -> String:
 	return "USE HERE"
 
 
+## The verb in a sentence, ending "here" once: "throw here", "use here" -- the plain verb is
+## "USE HERE" already, and the sentences that added a "here" of their own said "use here here".
+func _verb_here(entity_id: String) -> String:
+	var verb := _verb_for(entity_id).to_lower()
+	return verb if verb.ends_with(" here") else verb + " here"
+
+
 ## Into the hand, ready to use, with the prompt saying what it is for.
 func _take_out_to_use(entity_id: String) -> void:
 	var slot := _slot_holding(entity_id)
@@ -2330,8 +2353,8 @@ func _take_out_to_use(entity_id: String) -> void:
 	if not held:
 		_equip_from_slot(slot, item)
 	if hint_bar != null and item != null:
-		hint_bar.show_hint("%s in hand  —  press %s to %s here" % [item.display_name,
-			ControlsKeys.keys_for("use_utility"), _verb_for(entity_id).to_lower()], _companion_speaker(), 5.0)
+		hint_bar.show_hint("%s in hand  —  press %s to %s" % [item.display_name,
+			ControlsKeys.keys_for("use_utility"), _verb_here(entity_id)], _companion_speaker(), 5.0)
 
 
 ## A tool in the bag that would answer this beat, and the player not holding it: say which
@@ -2347,7 +2370,7 @@ func _offer_the_tool_in_the_bag(may_offer: bool) -> void:
 			if item != null and is_a_tool(registry.get_entity(item.entity_id)) \
 					and _tool_answers_here(item.entity_id):
 				offer = "Your %s would %s this  —  press %d to take it out" % [
-					item.display_name.to_lower(), _verb_for(item.entity_id).to_lower(), index + 1]
+					item.display_name.to_lower(), _verb_for(item.entity_id).to_lower().trim_suffix(" here"), index + 1]
 				break
 	if offer == _tool_offer:
 		return
@@ -2778,6 +2801,14 @@ func _use_equipped_utility() -> void:
 		# already said why. Falling through to the tool's own use would print "turns on
 		# nothing here" under the lock's own reading, which is the contradiction this fixes.
 		if not director.is_solved(beat):
+			# ⚠ WHERE WEAPONS WEAR, THE USE THAT CHOSE A ROUTE IS STILL THE USE. A route with more
+			# to do -- drive it off, knock the cigar -- was chosen by the swing and the swing went
+			# nowhere: the first blow at the sigbin never landed, the first throw at the cigar was
+			# never thrown, and nothing said why. Elsewhere it stops at choosing, as before.
+			if _tool_wear_enabled() and not director.committed_route(beat).is_empty():
+				var swung := _equipped_utility
+				if swung != null and is_instance_valid(swung) and not swung.describe_use(player).is_empty():
+					_wear_one(item, swung)
 			return
 		# ⚠ ONE USE. Kent: tools "should be one time use only". A key that has opened the door
 		# is spent, and so is anything else whose answer IS the whole of what it does. A few
@@ -3973,6 +4004,7 @@ func _arm_player_health() -> void:
 	player_health = PlayerHealth.new()
 	player_health.name = "PlayerHealth"
 	add_child(player_health)
+	player_health.begin_at(_lantern_at_start())
 	player_health.snuffed.connect(_on_lantern_snuffed)
 	if hud_panel != null:
 		lantern_hud = hud_panel.adopt_lantern(player_health)
@@ -3980,6 +4012,12 @@ func _arm_player_health() -> void:
 	player_hurtbox.name = "PlayerHurtbox"
 	player_hurtbox.health = player_health
 	entity_root.add_child(player_hurtbox)
+
+
+## How full her lantern is as the level begins, where the lantern is her health: full, unless the
+## level says she comes in with it burned down.
+func _lantern_at_start() -> int:
+	return PlayerHealth.FULL
 
 
 ## The dark and her lantern, built once, after the lantern-as-health (which the light reads) and

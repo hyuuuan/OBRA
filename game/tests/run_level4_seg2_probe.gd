@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 20
+const CHECKS := 29
 var level: Node
 
 
@@ -27,7 +27,8 @@ func _run() -> void:
 	await _at_no_ink_she_is_herself()
 	level.queue_free()
 	await _frames(3)
-	for sigbin_check in [_a_light_sends_the_sigbin_off, _her_back_to_the_rock_and_it_gives_up, _facing_the_rock_is_not_her_back_to_it, _well_off_the_rock_is_not_against_it, _struck_down_it_is_driven_off]:
+	for sigbin_check in [_a_light_sends_the_sigbin_off, _her_back_to_the_rock_and_it_gives_up, _facing_the_rock_is_not_her_back_to_it, _well_off_the_rock_is_not_against_it, _struck_down_it_is_driven_off,
+			_a_blade_swung_first_a_light_still_sends_it_off, _past_its_ground_it_gives_her_up]:
 		level = await _open_level()
 		await sigbin_check.call()
 		level.queue_free()
@@ -41,7 +42,10 @@ func _run() -> void:
 	await _a_jar_before_the_kapre_gives_her_ink()
 	level.queue_free()
 	await _frames(3)
-	for kapre_check in [_the_smoke_turns_her_round, _a_fan_clears_the_smoke, _three_chops_fell_its_tree, _a_throw_knocks_its_cigar]:
+	for kapre_check in [_the_smoke_turns_her_round, _a_fan_clears_the_smoke, _three_chops_fell_its_tree, _a_throw_knocks_its_cigar,
+			_a_fan_tried_first_a_throw_still_knocks_the_cigar, _a_cloud_held_up_clears_the_smoke_too,
+			_as_a_butterfly_she_clears_the_smoke_too, _a_boomerang_clicked_at_the_cigar_knocks_it,
+			_a_shot_clicked_at_the_cigar_knocks_it, _a_shot_fired_in_the_woods_flies, _thrown_again_after_a_miss]:
 		level = await _open_level()
 		await kapre_check.call()
 		level.queue_free()
@@ -334,6 +338,159 @@ func _a_throw_knocks_its_cigar() -> void:
 	await _frames(5)
 	_check(_kapre_route() == "protector" and _kapre_solved() and _kapre().is_gone() and not _kapre().cigar_is_lit(),
 		"a throw that reaches the cigar knocks it out of its hand", "route '%s', gone %s" % [_kapre_route(), _kapre().is_gone()])
+
+
+## It keeps to its own dark: hunting her, and then she is well on past its ground, it goes back
+## to where it waited rather than following her into the next encounter.
+func _past_its_ground_it_gives_her_up() -> void:
+	var home := _sigbin().global_position
+	await _stand_at(7000.0, &"move_right")
+	await _frames(int(1.5 * 60.0))
+	var hunting := _sigbin().state_name() != "IDLE"
+	var out := absf(_sigbin().global_position.x - home.x)
+	await _stand_at(8100.0, &"move_right")
+	await _frames(6 * 60)
+	var back := absf(_sigbin().global_position.x - home.x)
+	_check(hunting and out >= 60.0 and back <= 120.0 and _sigbin().state_name() == "IDLE",
+		"past its ground, the sigbin gives her up and goes back to where it waited",
+		"hunting %s, %.0f px out; then %.0f px from home, %s" % [hunting, out, back, _sigbin().state_name()])
+
+
+## A blade swung first is not the choice made for good: a light after it still drives it off. Every
+## encounter here is answered by what she ends up doing.
+func _a_blade_swung_first_a_light_still_sends_it_off() -> void:
+	await _stand_at(6950.0, &"move_right")
+	await _become("sword")
+	level.call("_use_equipped_utility")
+	await _frames(20)
+	var director = level.get("director")
+	var first := String(director.call("committed_route", "L4_SIGBIN"))
+	await _become("flashlight")
+	level.call("_use_equipped_utility")
+	await _frames(90)
+	_check(first == "protector" and director.call("committed_route", "L4_SIGBIN") == "artist"
+			and director.call("is_solved", "L4_SIGBIN") and _sigbin().is_gone(),
+		"a blade swung first, a light after it still sends the sigbin off",
+		"first '%s', then '%s', gone %s" % [first, director.call("committed_route", "L4_SIGBIN"), _sigbin().is_gone()])
+
+
+func _a_fan_tried_first_a_throw_still_knocks_the_cigar() -> void:
+	await _stand_at(13650.0, &"move_right")
+	await _become("fan")
+	level.call("_use_equipped_utility")
+	await _frames(10)
+	var first := _kapre_route()
+	await _stand_at(13500.0, &"move_right")
+	_kapre().apply_tool_hit("boomerang", 0.0, level.get("player") as Node2D)
+	await _frames(5)
+	_check(first == "artist" and _kapre_route() == "protector" and _kapre_solved() and _kapre().is_gone(),
+		"a fan tried first, a throw after it still knocks the kapre's cigar",
+		"first '%s', then '%s', solved %s" % [first, _kapre_route(), _kapre_solved()])
+
+
+## Not only a fan: whatever the route takes as moving air clears the smoke -- a cloud held up, or
+## her as a butterfly. A cloud was offered as "F to blow", chose the route, and did nothing.
+func _a_cloud_held_up_clears_the_smoke_too() -> void:
+	await _stand_at(13650.0, &"move_right")
+	await _become("cloud")
+	level.call("_use_equipped_utility")
+	await _frames(int(2.0 * 60.0))
+	_check(_kapre_route() == "artist" and _kapre_solved(), "a cloud held up to the smoke clears it too",
+		"route '%s', solved %s" % [_kapre_route(), _kapre_solved()])
+
+
+func _as_a_butterfly_she_clears_the_smoke_too() -> void:
+	await _stand_at(13650.0, &"move_right")
+	await _become("butterfly")
+	await _frames(int(2.0 * 60.0))
+	_check(_kapre_route() == "artist" and _kapre_solved(), "and so does she, as a butterfly at it",
+		"form '%s', route '%s', solved %s" % [level.get("_current_form_id"), _kapre_route(), _kapre_solved()])
+
+
+## Thrown at it for real -- a click on the cigar, up its tree -- and not by calling its hit: what is
+## thrown goes where it is clicked. Thrown level whatever was clicked, nothing reached it, and the
+## route chose itself and never ended.
+func _a_boomerang_clicked_at_the_cigar_knocks_it() -> void:
+	await _throw_at_the_cigar("boomerang")
+	_check(_kapre_route() == "protector" and _kapre_solved() and not _kapre().cigar_is_lit(),
+		"a boomerang thrown by a click on the cigar knocks it out of its hand",
+		"route '%s', solved %s, still lit %s" % [_kapre_route(), _kapre_solved(), _kapre().cigar_is_lit()])
+
+
+func _a_shot_clicked_at_the_cigar_knocks_it() -> void:
+	await _throw_at_the_cigar("cannon")
+	_check(_kapre_route() == "protector" and _kapre_solved() and not _kapre().cigar_is_lit(),
+		"and so does a shot fired by a click on it",
+		"route '%s', solved %s, still lit %s" % [_kapre_route(), _kapre_solved(), _kapre().cigar_is_lit()])
+
+
+## A miss first -- thrown at nothing, which chooses the route -- and then at the cigar: the second is
+## thrown too. Every press after the first used to be judged as the choice again, and not thrown.
+func _thrown_again_after_a_miss() -> void:
+	await _stand_at(13700.0, &"move_right")
+	await _become("boomerang")
+	await _click_at((level.get("player") as Node2D).global_position + Vector2(300.0, -20.0))
+	await _frames(int(1.5 * 60.0))
+	var missed := _kapre().cigar_is_lit()
+	var tries := int(level.get("director").call("attempts", "L4_KAPRE"))
+	await _throw_at_the_cigar("boomerang", false)
+	# And the throw is a throw, not another try at choosing: no failed attempt counted for it --
+	# which would climb the hint ladder and put a miss in the per-class record that never happened.
+	var after := int(level.get("director").call("attempts", "L4_KAPRE"))
+	_check(missed and _kapre_solved() and not _kapre().cigar_is_lit() and after == tries,
+		"thrown wide first, a boomerang thrown at the cigar after is thrown, knocks it, and is no failed try",
+		"missed first %s, solved %s, attempts %d -> %d" % [missed, _kapre_solved(), tries, after])
+
+
+func _click_at(world: Vector2) -> void:
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = root.get_final_transform() * (level.get_viewport().get_canvas_transform() * world)
+	Input.parse_input_event(click)
+	await _frames(2)
+	var up := click.duplicate() as InputEventMouseButton
+	up.pressed = false
+	Input.parse_input_event(up)
+
+
+func _throw_at_the_cigar(entity_id: String, fresh: bool = true) -> void:
+	if fresh:
+		await _stand_at(13700.0, &"move_right")
+		await _become(entity_id)
+	var cigar := (_kapre().get("cigar") as Node2D).global_position
+	# ONE click: the throw that chooses the route is thrown. (It used to choose and go nowhere.)
+	for _try in range(1):
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = true
+		# Where the window has it: an event parsed in goes through the window's own transform to the
+		# viewport, and a headless window is not the 1600 x 900 the level is laid out in.
+		click.position = root.get_final_transform() * (level.get_viewport().get_canvas_transform() * cigar)
+		Input.parse_input_event(click)
+		await _frames(2)
+		var up := click.duplicate() as InputEventMouseButton
+		up.pressed = false
+		Input.parse_input_event(up)
+		await _frames(int(1.5 * 60.0))
+		if _kapre_solved():
+			break
+
+
+## Fired with F in the open woods, a shot flies. Added to the world before it was put at the muzzle,
+## every shot began inside the canopy over the woods and was gone the frame it was fired.
+func _a_shot_fired_in_the_woods_flies() -> void:
+	await _stand_at(11000.0, &"move_right")
+	await _become("cannon")
+	level.call("_use_equipped_utility")
+	await _frames(3)
+	var shot: RigidBody2D = null
+	for sensor in root.find_children("Sensor", "Area2D", true, false):
+		shot = sensor.get_parent() as RigidBody2D
+	var from := _her_x()
+	await _frames(int(0.4 * 60.0))
+	var flown := absf(shot.global_position.x - from) if shot != null and is_instance_valid(shot) else 0.0
+	_check(flown > 250.0, "a shot fired in the woods flies", "%.0f px in 0.4 s" % flown)
 
 
 # --- Helpers -----------------------------------------------------------------------------

@@ -58,6 +58,7 @@ func _run() -> void:
 	await _audit_a_solved_beat_stops_talking()
 	_audit_the_strip_is_not_a_dialogue_box()
 	_audit_the_third_clue_names_a_class()
+	_audit_the_clue_reads_as_a_sentence()
 
 	print("OBRA_HINT_PROBE_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
@@ -118,6 +119,18 @@ func _audit_the_strip_is_not_a_dialogue_box() -> void:
 
 ## ⚠ THE MANUSCRIPT SAYS THE THIRD STAGE NAMES A CLASS. Thesis 4.5.4, and it is not a
 ## throwaway: the stage reached is recorded in telemetry precisely so a completion after a
+## The clue names one class in a sentence: "an ant", not "a ant" -- and says the others that fit
+## still count, not that anything at all does.
+func _audit_the_clue_reads_as_a_sentence() -> void:
+	var said := []
+	for clue in ["ant", "sword"]:
+		strip.show_requirements(["roll"], RequirementStrip.TIER_WIDENED, PackedStringArray(), "all", clue)
+		said.append((strip.get("_clue_line") as Label).text)
+	strip.clear()
+	_check(said[0] == "try an ant — or anything else that fits" and said[1] == "try a sword — or anything else that fits",
+		"the third clue reads as a sentence", "%s" % [said])
+
+
 ## third-stage clue can be told apart from an unaided one. A T3 that names nothing makes
 ## that distinction meaningless, because the assistance it is supposed to mark never
 ## happened.

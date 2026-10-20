@@ -74,6 +74,11 @@ func dim(floor_stage: int = LOW) -> void:
 	_set_stage(maxi(stage - 1, mini(stage, maxi(GUTTERING, floor_stage))))
 
 
+## Where the flame stands as the level begins: no blow, no grace -- the oil she came in with.
+func begin_at(start_stage: int) -> void:
+	_set_stage(start_stage)
+
+
 ## Back to a full flame after a knockout, with the longer grace.
 func reset_full() -> void:
 	_set_stage(FULL)

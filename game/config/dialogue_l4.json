@@ -55,6 +55,13 @@
       "text": "Lolo stopped at the water. From here it is only me, and what she taught me."
     },
     {
+      "id": "L4_IN_005",
+      "at": "INTRO.alone",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "And the lamp is burning low already. I will have to fill it at the first clearing I come to."
+    },
+    {
       "id": "L4_RS_001",
       "at": "RESPAWN",
       "speaker": "apo",

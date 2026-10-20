@@ -28,7 +28,7 @@
   ],
   "checkpoints": [
     {"id": "CP1", "at": "L4_REST1", "trigger": "area",
-     "$comment": "The first rest clearing: the lantern and the ink refilled, a curse lifted."},
+     "$comment": "The first rest clearing, saved as she walks in. Its lantern stands where the light is made and is lit by it: the lamp and the ink refilled, a curse lifted."},
     {"id": "CP2", "at": "L4_REST2", "trigger": "area"},
     {"id": "CP3", "at": "L4_FINALE", "trigger": "area",
      "$comment": "The last clearing's edge. A knockout in the finale puts her here with the waves and the clock reset."}
@@ -42,10 +42,17 @@
     "jars_before": ["L4_KAPRE", "L4_BUNGISNGIS"]
   },
   "objectives": {
-    "$comment": "In her own voice, short enough for the banner (720 px).",
-    "edge": "Lola said: ask before you pass.",
-    "woods": "Get through the woods. Keep the light lit.",
-    "rest": "Make a light, and rest by it.",
+    "$comment": "In her own voice, short enough for the banner (720 px), naming no class. At each encounter not yet answered, its ways past, plainly: the arrival lines are Lola remembered, and a memory is not an instruction.",
+    "edge": "Cross the woods. Keep the lamp lit.",
+    "woods": "Get through the woods. Keep the lamp lit.",
+    "rest": "Make a light here. It fills the lamp again.",
+    "nuno": "Stop at the mound, ask to pass ({key:interact}), then jump it.",
+    "sigbin": "Show it light, put my back to a rock, or fight it.",
+    "tikbalang": "Become something hoofed or an animal, or race it.",
+    "kapre": "Clear the smoke, fell its perch, or hit its cigar.",
+    "tiyanak": "Keep to the high path, show it light, or fight it.",
+    "bungisngis": "Show it something silly, go over it, or fight it.",
+    "manananggal": "Salt the half she left, light it, or drive her off.",
     "dawn": "Last until morning."
   },
   "obstacles": [
@@ -163,10 +170,10 @@
     "decline_message_source": "dialogue"
   },
   "lighting_states": [
-    {"id": "dusk_edge", "from": "L4_NUNO", "to": "L4_REST1", "darkness": 0.80},
-    {"id": "deep_woods", "from": "L4_REST1", "to": "L4_REST2", "darkness": 0.94},
-    {"id": "far_woods", "from": "L4_REST2", "to": "L4_FINALE", "darkness": 0.88},
-    {"id": "last_clearing", "from": "L4_FINALE", "to": "L4_FINALE", "darkness": 0.92}
+    {"id": "dusk_edge", "from": "L4_NUNO", "to": "L4_REST1", "darkness": 0.95},
+    {"id": "deep_woods", "from": "L4_REST1", "to": "L4_REST2", "darkness": 0.97},
+    {"id": "far_woods", "from": "L4_REST2", "to": "L4_FINALE", "darkness": 0.96},
+    {"id": "last_clearing", "from": "L4_FINALE", "to": "L4_FINALE", "darkness": 0.96}
   ],
   "load_time_assertions": [
     "every route with required_tags resolves >= 2 classes after exclusions (BR-7: held-out recall >= 0.70)",

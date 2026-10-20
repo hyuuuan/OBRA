@@ -23,6 +23,12 @@ func _run() -> void:
 		print("OBRA_L4_SEG1_FAILED=watchdog")
 		quit(2))
 	level = await _open_level()
+	_she_comes_in_with_the_lamp_low()
+	await _running_in_she_is_warned_in_time()
+	_release_all()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
 	_set_aside_the_levels_own_flame()
 	await _walking_past_the_santelmo_is_safe()
 	_its_flame_teaches_walking()
@@ -32,12 +38,14 @@ func _run() -> void:
 	await _being_put_down_near_it_is_not_running()
 	await _a_knockout_puts_the_woods_back()
 	await _asking_then_crossing_clean_gives_the_flower()
+	await _asked_from_as_far_as_she_can_a_standing_jump_clears_it()
 	await _crossing_clean_without_asking_is_the_pragmatists()
 	await _standing_on_the_crown_answers_nothing()
 	await _the_crown_curses_her()
 	await _a_restore_lifts_the_curse()
 	await _a_clearing_fills_the_ink()
 	await _a_light_of_her_own_at_the_clearing()
+	await _walked_past_unrested_a_fall_is_the_clearing_not_the_start()
 	_release_all()
 	level.queue_free()
 	await _frames(3)
@@ -50,6 +58,40 @@ func _run() -> void:
 
 
 # --- The santelmo ------------------------------------------------------------------------
+
+## The lamp burned low as she comes in: the first clearing's light is what fills it.
+func _she_comes_in_with_the_lamp_low() -> void:
+	_check(_stage() == PlayerHealth.DIM, "she comes in at the edge of the woods with her lamp burned low",
+		"stage %d" % _stage())
+
+
+## Running in from the start, as anyone does, at the level's own santelmo: the walk is said while it
+## is still too far off to see her, before it has burned her, and it stays up to be read -- nothing
+## else takes the hint bar from it (the first salt used to, a tenth of a second later).
+func _running_in_she_is_warned_in_time() -> void:
+	var flame := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Hazards/Santelmo") as Santelmo2D
+	var bar := level.get("hint_bar") as HintBar
+	var hit := [false]
+	_health().hit_taken.connect(func(_stage_now: int) -> void: hit[0] = true)
+	Input.action_press(&"move_right")
+	var told_at := -1.0
+	var hit_before := false
+	var held := false
+	for frame in range(int(6.0 * 60.0)):
+		await _frames(1)
+		var showing := bar.is_showing() and bar.current_text().contains("santelmo")
+		if told_at < 0.0 and showing:
+			told_at = flame.global_position.distance_to((level.get("player") as Node2D).global_position)
+			hit_before = hit[0]
+			# Still running while it is read, as a player is.
+			await _seconds(2.2)
+			held = bar.is_showing() and bar.current_text().contains("santelmo")
+			break
+	_release_all()
+	_check(told_at > Santelmo2D.SIGHT and not hit_before and held,
+		"running in, the walk is said before the santelmo can see her, and stays up to be read",
+		"said %.0f px off (it sees %.0f), burned first %s, still up 2.2 s on %s (\"%s\")" % [told_at, Santelmo2D.SIGHT, hit_before,
+			held, bar.current_text().left(40)])
 
 ## The level's own santelmo stands where the probe's flames do: still and out of the way, so each
 ## check is about one flame.
@@ -72,6 +114,7 @@ func _flame_at(x: float) -> Santelmo2D:
 func _walking_past_the_santelmo_is_safe() -> void:
 	var flame := _flame_at(1500.0)
 	await _put_her_at(1000.0)
+	var before := _stage()
 	var wanted := false
 	var dimmed := false
 	var spotlight := level.get("tutorial_spotlight") as Node
@@ -84,7 +127,7 @@ func _walking_past_the_santelmo_is_safe() -> void:
 	set_meta(&"dimmed_near_flame", dimmed)
 	_release_all()
 	var past := _her_x() > 1600.0
-	_check(past and not wanted and _stage() == PlayerHealth.FULL,
+	_check(past and not wanted and _stage() == before,
 		"walking past the santelmo, it never wants her", "at %.0f, chased %s, stage %d"
 			% [_her_x(), wanted, _stage()])
 	flame.queue_free()
@@ -231,7 +274,7 @@ func _jump_the_mound(start: float) -> void:
 
 func _asking_then_crossing_clean_gives_the_flower() -> void:
 	await _fresh_level()
-	await _put_her_at(MOUND_X - MOUND_HALF - 120.0)
+	await _put_her_at(MOUND_X - MOUND_HALF - 40.0)
 	var offer: Dictionary = level.call("_level_interact_offer")
 	level.call("press_interact")
 	await _frames(2)
@@ -252,6 +295,26 @@ func _asking_then_crossing_clean_gives_the_flower() -> void:
 	var found_after := bool(_profile().call("is_collectible_found", "L4_HF"))
 	_check(not found_before and found_after, "and the mound gives the flower",
 		"L4_HF found before %s, after %s" % [found_before, found_after])
+
+
+## Wherever she can ask from, a jump from standing still, at once, clears the mound: asked and then
+## jumped as she was told, she is never cursed for where she happened to be standing.
+func _asked_from_as_far_as_she_can_a_standing_jump_clears_it() -> void:
+	await _fresh_level()
+	var reach := float(level.get("ASKING_REACH"))
+	await _put_her_at(MOUND_X - MOUND_HALF - reach + 1.0)
+	level.call("press_interact")
+	await _frames(4)
+	var mound := level.get("_mound") as NunoMound2D
+	var asked := mound.asked
+	Input.action_press(&"jump")
+	Input.action_press(&"move_right")
+	await _seconds(2.0)
+	_release_all()
+	await _seconds(0.5)
+	_check(asked and not mound.touched_this_crossing() and not bool(level.call("is_cursed")) and _her_x() > MOUND_X + MOUND_HALF,
+		"asked from as far off as she can, a jump from standing clears the mound",
+		"asked %s at %.0f px from its foot, touched %s, now at %.0f" % [asked, reach - 1.0, mound.touched_this_crossing(), _her_x()])
 
 
 func _crossing_clean_without_asking_is_the_pragmatists() -> void:
@@ -362,10 +425,34 @@ func _a_clearing_fills_the_ink() -> void:
 		"arriving at the clearing fills her ink", "%.1f -> %.1f of %.0f" % [dry, ink.remaining(), ink.capacity])
 
 
+## Through the clearing without resting, and then knocked out past it: back to the clearing, never
+## to the start -- walking in saved it. (Saved only by her light, a fall at the tiyanak put her back
+## eighteen thousand pixels, at the very start of the woods.)
+func _walked_past_unrested_a_fall_is_the_clearing_not_the_start() -> void:
+	await _fresh_level()
+	await _put_her_at(4900.0)
+	Input.action_press(&"move_right")
+	await _seconds(1.0)
+	_release_all()
+	await _put_her_at(6000.0)
+	level.call("_knockout")
+	await _frames(10)
+	_check(absf(_her_x() - 5000.0) < 300.0 and not bool((level.get("director") as Node).call("is_solved", "L4_REST1")),
+		"walked through the clearing without resting, a knockout past it puts her back at the clearing",
+		"back at x %.0f" % _her_x())
+
+
 ## Low and cursed, she lights the clearing's light -- a lamp drawn and switched on -- and the
 ## lantern is full and the curse gone.
 func _a_light_of_her_own_at_the_clearing() -> void:
-	await _put_her_at(CLEARING_X + 150.0)
+	# At the clearing's lantern, which walking up to does not light.
+	await _put_her_at(5000.0)
+	# Long enough for a checkpoint's moment to have played, had it one.
+	await _seconds(1.0)
+	var checkpoints := level.get("checkpoints") as CheckpointManager
+	var area := level.call("_checkpoint_area_for", "CP1") as CheckpointArea2D
+	var walked_in := checkpoints.latest_id()
+	var lit_walking_in := area.is_mark_lit()
 	_health().dim(PlayerHealth.LOW)
 	_health().dim(PlayerHealth.LOW)
 	level.call("_on_crown_touched")
@@ -391,6 +478,9 @@ func _a_light_of_her_own_at_the_clearing() -> void:
 		"stage %d -> %d, cursed %s -> %s, lit %s" % [low, _stage(), cursed, level.call("is_cursed"),
 			director.call("is_solved", "L4_REST1")])
 	_check(said.begins_with("There. Warm."), "and she says so", "\"%s\"" % said)
+	_check(walked_in == "CP1" and not lit_walking_in and area.is_mark_lit(),
+		"walking in saves the clearing; its lantern is lit by the light she makes, not by walking by",
+		"walking in '%s', lantern lit %s; after her light, lit %s" % [walked_in, lit_walking_in, area.is_mark_lit()])
 	var goal: Dictionary = level.call("_current_objective")
 	_check(String(goal.get("key", "")) == "woods", "and once it is lit, the banner moves on",
 		"'%s'" % goal.get("key", ""))
