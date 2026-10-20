@@ -89,6 +89,10 @@ const HULL_SPRING := 40.0
 const HULL_BOB_DAMP := 6.0
 
 var utility_behavior: String = ""
+## Where a throw is aimed, in world px, for the use about to happen; INF -- the default, and
+## every use but a click's -- is straight ahead. A thrown thing went out level whatever was
+## clicked, so the kapre's cigar, up its tree, could not be reached by anything thrown at it.
+var aim_toward := Vector2.INF
 var required_medium: String = "any"
 
 var _active: bool = false
@@ -737,6 +741,14 @@ func _fire_cannon(actor: Node2D) -> String:
 	world.add_child(shot)
 	shot.global_position = muzzle
 	shot.linear_velocity = Vector2(facing * 980.0, -190.0)
+	if _aimed_from(shot.global_position) != Vector2.ZERO:
+		# At what was clicked, and a little over it by what the shot falls on the way, so it goes
+		# through the point rather than under it.
+		var speed := shot.linear_velocity.length()
+		var fall := float(ProjectSettings.get_setting("physics/2d/default_gravity", 980.0)) * shot.gravity_scale
+		var flight := shot.global_position.distance_to(aim_toward) / speed
+		var over := aim_toward - Vector2(0.0, 0.5 * fall * flight * flight)
+		shot.linear_velocity = (over - shot.global_position).normalized() * speed
 	shot.body_entered.connect(func(hit: Node) -> void: _on_shot_landed(shot, hit, actor))
 	# ⚠ A RIGID BODY'S CONTACTS NEVER REPORT AREAS. A creature whose hurtbox is an Area2D --
 	# every sea creature, the bakunawa -- was flown straight through. The sensor rides on the
@@ -787,6 +799,14 @@ func _on_shot_landed(shot: RigidBody2D, hit: Node, actor: Node2D) -> void:
 	shot.queue_free()
 
 
+## The way a throw from `from` goes, toward `aim_toward` -- or ZERO, straight ahead, when nothing
+## was aimed at.
+func _aimed_from(from: Vector2) -> Vector2:
+	if aim_toward == Vector2.INF or aim_toward.distance_to(from) < 1.0:
+		return Vector2.ZERO
+	return (aim_toward - from).normalized()
+
+
 ## Retrieve: it leaves the hand, flies out, and comes back dragging what it met. The
 ## return trip is what makes it a boomerang rather than a thrown rock, so it is flown
 ## by hand instead of left to physics.
@@ -806,20 +826,25 @@ func _throw_boomerang(actor: Node2D) -> String:
 	freeze = true
 	collision_layer = 0
 	collision_mask = 0
+	var aim := _aimed_from(origin)
+	var along := aim if aim != Vector2.ZERO else Vector2(facing, 0.0)
 	var flight := create_tween()
 	flight.tween_method(
-		func(t: float) -> void: _fly_boomerang(actor, origin, facing, t),
+		func(t: float) -> void: _fly_boomerang(actor, origin, along, t),
 		0.0, 1.0, 1.1
 	)
 	flight.tween_callback(func() -> void: _catch_boomerang(actor))
 	return "Boomerang thrown"
 
 
-func _fly_boomerang(actor: Node2D, origin: Vector2, facing: float, t: float) -> void:
+func _fly_boomerang(actor: Node2D, origin: Vector2, along: Vector2, t: float) -> void:
 	# Out and back along an arc, so the far end of the throw is the only place it can
-	# reach and the player can see it get there.
+	# reach and the player can see it get there. Out along where it was thrown -- straight
+	# ahead, or at what was clicked -- with the arc's rise fading the steeper the throw, so a
+	# throw up at something goes to it rather than over it.
 	var out := sin(t * PI)
-	global_position = origin + Vector2(facing * BOOMERANG_THROW * out, -120.0 * out * out - 40.0 * out)
+	var rise := (-120.0 * out * out - 40.0 * out) * (1.0 - absf(along.y))
+	global_position = origin + along * BOOMERANG_THROW * out + Vector2(0.0, rise)
 	rotation += 0.55
 	for target in _reachable_targets():
 		if target.has_method("apply_tool_hit") and not _struck.has(target.get_instance_id()):

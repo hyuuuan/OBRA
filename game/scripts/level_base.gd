@@ -630,7 +630,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		var aim := get_viewport().get_canvas_transform().affine_inverse() * click.position
 		if player != null and player.has_method("face_toward"):
 			player.call("face_toward", aim.x)
+		# And a throw goes at it: what was clicked is where a boomerang or a shot is aimed.
+		var held := _equipped_utility
+		if held != null and is_instance_valid(held):
+			held.aim_toward = aim
 		_use_equipped_utility()
+		if held != null and is_instance_valid(held):
+			held.aim_toward = Vector2.INF
 		return
 	if event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
