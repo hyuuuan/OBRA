@@ -2795,6 +2795,14 @@ func _use_equipped_utility() -> void:
 		# already said why. Falling through to the tool's own use would print "turns on
 		# nothing here" under the lock's own reading, which is the contradiction this fixes.
 		if not director.is_solved(beat):
+			# ⚠ WHERE WEAPONS WEAR, THE USE THAT CHOSE A ROUTE IS STILL THE USE. A route with more
+			# to do -- drive it off, knock the cigar -- was chosen by the swing and the swing went
+			# nowhere: the first blow at the sigbin never landed, the first throw at the cigar was
+			# never thrown, and nothing said why. Elsewhere it stops at choosing, as before.
+			if _tool_wear_enabled() and not director.committed_route(beat).is_empty():
+				var swung := _equipped_utility
+				if swung != null and is_instance_valid(swung) and not swung.describe_use(player).is_empty():
+					_wear_one(item, swung)
 			return
 		# ⚠ ONE USE. Kent: tools "should be one time use only". A key that has opened the door
 		# is spent, and so is anything else whose answer IS the whole of what it does. A few
