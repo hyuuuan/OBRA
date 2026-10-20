@@ -16,7 +16,7 @@ const FLOOR_Y := 820.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 24
+const CHECKS := 25
 var level: Node
 
 
@@ -37,7 +37,7 @@ func _run() -> void:
 			_driven_off_her_lower_half_stands, _the_upper_half_keeps_to_its_ground,
 			_a_fire_lights_round_it, _a_sun_lights_far,
 			_a_blade_swung_first_the_path_still_passes_it, _a_blade_swung_first_salt_still_ends_her,
-			_what_a_drawing_cannot_do_here_is_said_in_english]:
+			_what_a_drawing_cannot_do_here_is_said_in_english, _a_tool_with_no_verb_is_offered_once]:
 		if not only.is_empty() and not String((scenario as Callable).get_method()).contains(only):
 			continue
 		level = await _open_level()
@@ -353,6 +353,15 @@ func _what_a_drawing_cannot_do_here_is_said_in_english() -> void:
 	_check(said.begins_with("An elephant can ") and said.contains("be a BEAST") and said.contains("be ABSURD")
 			and not said.contains("can ABSURD") and not said.contains("can BEAST"),
 		"a drawing that is not what is needed is told so in a sentence", "\"%s\"" % said)
+
+
+func _a_tool_with_no_verb_is_offered_once() -> void:
+	await _put(19050.0, GROUND_Y, &"move_right")
+	var bar := level.get("hint_bar") as HintBar
+	await _become("wheel")
+	var offered := bar.current_text()
+	_check(offered.ends_with("to use here") and not offered.contains("here here"),
+		"and a tool in hand with no verb of its own is offered once, not as \"use here here\"", "\"%s\"" % offered)
 
 
 # --- The lights -----------------------------------------------------------------------------

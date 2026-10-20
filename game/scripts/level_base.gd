@@ -2237,8 +2237,8 @@ func _begin_new_utility(item: DrawnItemData, going_into_hand: bool = false) -> b
 	var tool := _is_held_tool(item)
 	var next_step := ""
 	if going_into_hand:
-		next_step = "in hand — press %s to %s here" % [ControlsKeys.keys_for("use_utility"),
-			_verb_for(item.entity_id).to_lower()]
+		next_step = "in hand — press %s to %s" % [ControlsKeys.keys_for("use_utility"),
+			_verb_here(item.entity_id)]
 	elif tool:
 		next_step = "in your bag — press %d to take it out" % (slot + 1)
 	else:
@@ -2328,6 +2328,13 @@ func _verb_for(entity_id: String) -> String:
 	return "USE HERE"
 
 
+## The verb in a sentence, ending "here" once: "throw here", "use here" -- the plain verb is
+## "USE HERE" already, and the sentences that added a "here" of their own said "use here here".
+func _verb_here(entity_id: String) -> String:
+	var verb := _verb_for(entity_id).to_lower()
+	return verb if verb.ends_with(" here") else verb + " here"
+
+
 ## Into the hand, ready to use, with the prompt saying what it is for.
 func _take_out_to_use(entity_id: String) -> void:
 	var slot := _slot_holding(entity_id)
@@ -2340,8 +2347,8 @@ func _take_out_to_use(entity_id: String) -> void:
 	if not held:
 		_equip_from_slot(slot, item)
 	if hint_bar != null and item != null:
-		hint_bar.show_hint("%s in hand  —  press %s to %s here" % [item.display_name,
-			ControlsKeys.keys_for("use_utility"), _verb_for(entity_id).to_lower()], _companion_speaker(), 5.0)
+		hint_bar.show_hint("%s in hand  —  press %s to %s" % [item.display_name,
+			ControlsKeys.keys_for("use_utility"), _verb_here(entity_id)], _companion_speaker(), 5.0)
 
 
 ## A tool in the bag that would answer this beat, and the player not holding it: say which
@@ -2357,7 +2364,7 @@ func _offer_the_tool_in_the_bag(may_offer: bool) -> void:
 			if item != null and is_a_tool(registry.get_entity(item.entity_id)) \
 					and _tool_answers_here(item.entity_id):
 				offer = "Your %s would %s this  —  press %d to take it out" % [
-					item.display_name.to_lower(), _verb_for(item.entity_id).to_lower(), index + 1]
+					item.display_name.to_lower(), _verb_for(item.entity_id).to_lower().trim_suffix(" here"), index + 1]
 				break
 	if offer == _tool_offer:
 		return
