@@ -281,11 +281,11 @@ def balete(felled: bool = False) -> Sculpt:
     # faces -- where it sits, its back to the trunk -- thinning out and turning up at the end.
     perch = ground - PERCH
     limb = [(cx - 10, perch + 22), (cx - 34, perch + 12), (cx - 62, perch + 6), (cx - 90, perch + 4),
-            (cx - 112, perch - 2), (cx - 122, perch - 12)]
+            (cx - 106, perch - 2), (cx - 114, perch - 12)]
     s.tube("bark", limb, [13.0, 11.5, 10.0, 7.6, 5.0, 2.8])
     # A clump of leaf at its tip, clear of where the kapre's hand hangs, and a bird's-nest fern on
     # the trunk's other side.
-    _mass(s, "leaves", cx - 124, perch - 16, 9)
+    _mass(s, "leaves", cx - 114, perch - 16, 9)
     for k in range(9):
         a = math.radians(-160 + k * 17)
         root = (cx + 36, ground - 196)
