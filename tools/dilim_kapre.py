@@ -229,14 +229,15 @@ def _tufts(s: Sculpt, name: str, x0: float, x1: float, y0: float, y1: float, col
                     s.dot(x - 1 - h, y + h, colour)
 
 
-def _ember_lit(img: Image.Image, strength: float) -> Image.Image:
-    """The ember's light on what is near it: a warm wash over the body within its reach."""
+def _ember_lit(s: Sculpt, img: Image.Image, strength: float) -> Image.Image:
+    """The ember's light on what is near it: a warm wash over the body within its reach -- the body
+    only, not what glows on it (the ember, the eyes) or the smoke."""
     a = np.asarray(img).astype(np.float32)
     ys, xs = np.mgrid[0:img.height, 0:img.width]
     tx, ty = P(*CIGAR_TIP)
     d = np.hypot(xs - tx, ys - ty)
     k = np.clip(1.0 - d / 46.0, 0.0, 1.0) ** 1.6 * strength
-    k = k * (a[..., 3] > 0)
+    k = k * ((s.mat >= 0) & (s.over[..., 3] == 0))
     warm = np.array([255.0, 140.0, 50.0])
     a[..., :3] = a[..., :3] * (1 - k[..., None] * 0.55) + warm * k[..., None] * 0.55
     return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), "RGBA")
@@ -245,7 +246,7 @@ def _ember_lit(img: Image.Image, strength: float) -> Image.Image:
 def render(s: Sculpt, ember: float = 0.0) -> Image.Image:
     s.details()
     img = s.render()
-    return _ember_lit(img, 0.35 + 0.35 * ember) if ember >= 0.0 else img
+    return _ember_lit(s, img, 0.35 + 0.35 * ember) if ember >= 0.0 else img
 
 
 def frames(anim: str) -> list[Image.Image]:
