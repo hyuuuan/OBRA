@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 import sys
 import unittest
@@ -113,6 +114,23 @@ class CreatureStripsTest(unittest.TestCase):
         embers = kapre.EMBER[2:].astype(int)
         self.assertTrue(any((px == e).all() for px in near for e in embers),
                         f"no ember drawn at the cigar's tip ({x}, {y}) in kapre_idle")
+
+    def test_its_ember_lights_its_face(self) -> None:
+        # In the woods' dark only what a light reaches shows; the kapre's own light is its ember.
+        script = (ROOT / "game" / "scripts" / "kapre_2d.gd").read_text()
+        field = (ROOT / "game" / "scripts" / "light_field.gd").read_text()
+        glow = float(re.search(r"const CIGAR_GLOW := ([\d.]+)", script).group(1))
+        soft = float(re.search(r"const SOFT_EDGE := ([\d.]+)", field).group(1))
+        toward = _vector(script, "CIGAR_LIGHT_TOWARD")
+        half = float(re.search(r"const CIGAR_LIGHT_HALF_ANGLE := ([\d.]+)", script).group(1))
+        kapre = creatures.kapre
+        dx, dy = kapre.FACE[0] - kapre.CIGAR_TIP[0], kapre.FACE[1] - kapre.CIGAR_TIP[1]
+        reach = math.hypot(dx, dy)
+        self.assertLessEqual(reach, glow * soft, f"its face is {reach:.0f} px from the ember; it lights {glow * soft:.0f} fully")
+        # A cone: the face must be inside its fully lit part too (the shader's 0.7 of the half angle).
+        off = abs(math.atan2(dy, dx) - math.atan2(toward[1], toward[0]))
+        off = min(off, math.tau - off)
+        self.assertLessEqual(off, half * 0.7, f"its face is {math.degrees(off):.0f} deg off the ember's light")
 
     def test_the_committed_strips_are_current(self) -> None:
         for name, sheet in self.strips.items():

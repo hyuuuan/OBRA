@@ -31,6 +31,8 @@ W, H = 136, 214
 LEFT, TOP = -136, -324
 ART_AT = (LEFT + W // 2, TOP + H)
 CIGAR_TIP = (-122, -280)
+# The middle of its head: the ember's light must reach it at full strength (kapre_2d.gd CIGAR_GLOW).
+FACE = (-66, -282)
 
 KAPRE_SKIN = hexes("#0c0806", "#20140c", "#362216", "#4c3220", "#66462c", "#845c3a")
 KAPRE_HAIR = hexes("#030202", "#0a0806", "#14100c", "#201913", "#30251c")
@@ -96,7 +98,7 @@ def seated(ember: float = 0.0, puff: float = -1.0, startled: bool = False, breat
 
     # The head, thrust forward of the shoulders: neck, skull, a heavy jaw, the brow, a broad nose.
     s.tube("skin", _pts((-48, -252 + lift), (-58, -266 + lift)), [15.0, 14.0])
-    head = (-66, -282 + lift)
+    head = (FACE[0], FACE[1] + lift)
     hx, hy = head
     s.ellipse("skin", *P(*head), 24, 25)
     s.ellipse("skin", *P(hx - 10, hy + 15), 15, 11)                   # the jaw

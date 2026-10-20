@@ -17,7 +17,13 @@ const SMOKE_WIDTH := 600.0
 const CIGAR_TIP := Vector2(-122.0, -280.0)
 const CHOPS_TO_FELL := 3
 const TRUNK := Vector2(70.0, 340.0)
-const CIGAR_GLOW := 40.0
+## How far its ember lights, and which way: enough that its face -- 56 px off the tip -- is in the
+## full light (LightField.SOFT_EDGE of it) and shows in the dark; and back over that face and the
+## tree behind it, a cone, not out into the open air west of it, where a round light 280 px up
+## opened a window onto the backdrop's sky.
+const CIGAR_GLOW := 110.0
+const CIGAR_LIGHT_TOWARD := Vector2(1.0, -0.1)
+const CIGAR_LIGHT_HALF_ANGLE := 1.05
 ## Where its drawn strip stands in the tree (tools/dilim_kapre.py ART_AT): the bottom-centre of the
 ## frame, which is its hanging foot, sat on the balete's branch.
 const ART_AT := Vector2(-68.0, -110.0)
@@ -154,7 +160,8 @@ func is_gone() -> bool:
 func light_hole() -> Dictionary:
 	if not _cigar_lit or _gone:
 		return {}
-	return {"position": global_position + cigar.position, "radius": CIGAR_GLOW, "strength": 0.7}
+	return {"position": global_position + cigar.position, "radius": CIGAR_GLOW, "strength": 0.7,
+		"direction": CIGAR_LIGHT_TOWARD, "half_angle": CIGAR_LIGHT_HALF_ANGLE}
 
 
 ## Back to before she came -- unless it was answered; a restore does not grow a tree back.
