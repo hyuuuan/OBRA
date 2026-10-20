@@ -180,6 +180,11 @@ What the build does that the design above does not say, and what it does not do 
 - **The kapre's camera hold** was replaced: its smoke turns her round instead of stopping the camera.
   Anything the artist route takes as moving air clears it -- a fan, a cloud, a sun, her as a
   butterfly -- not a fan alone.
+- **A throw goes where it is clicked.** A boomerang flies out along the click, a shot is fired at
+  it (aimed over by its fall); F throws straight ahead as before. Thrown level, nothing reached the
+  kapre's cigar. And the use that chooses a "draw it, then do it" route is used: the first blow at
+  the sigbin lands and the first throw at the cigar is thrown (they had only chosen). A cannon shot
+  is put at the muzzle before it is in the world -- added first, every shot began inside the canopy.
 - **Falls are knockouts.** The wanderer wraps to the sky at the world's bottom, so Dilim knocks her
   out 300 px under the forest floor instead.
 - **No drawing-free run.** The kapre has no route without a drawing, so Dilim cannot be finished
