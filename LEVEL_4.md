@@ -117,8 +117,13 @@ alongside this file; the numbers below are its starting points.
 
 ## Starting numbers (measured against R1 jump 94.3 px, R2 running jump 228 px)
 
-- Lantern light radius 380 / 290 / 200 / 130 px · 1.0 s invulnerability after a hit (2.0 after
-  respawn) · knockback (±300, −220) with a 0.22 s input lock-out.
+- Lantern light radius 230 / 190 / 150 / 110 px (it was 380 / 290 / 200 / 130 and lit most of
+  the screen) -- smaller than a drawn campfire's 300, so a light she makes opens the dark wider ·
+  1.0 s invulnerability after a hit (2.0 after respawn) · knockback (±300, −220) with a 0.22 s
+  input lock-out.
+- The dark, by zone: edge of the woods 0.95, deep woods 0.97, far side 0.96, last clearing 0.96
+  (Kent, 2026-10-19: "truly dark"). She comes in with the lamp at its second stage, and the first
+  clearing's light fills it; a Continue starts full, at a clearing.
 - Weapons (uses / damage / reach px / arc°): sword 14/1/88/120 · axe 9/2/96/150 · boomerang
   8/1 per target/320 · cannon 5/3/640 · anvil 3/4/56 below.
 - Every enemy is slower than the apo's 260 px/s, and every attack is telegraphed (≥0.4 s).
