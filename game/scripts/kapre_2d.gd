@@ -16,6 +16,9 @@ const CIGAR_HEIGHT := 260.0
 const CHOPS_TO_FELL := 3
 const TRUNK := Vector2(70.0, 340.0)
 const CIGAR_GLOW := 40.0
+## Where its drawn strip stands in the tree (tools/dilim_kapre.py ART_AT): the bottom-centre of the
+## frame, which is its hanging foot, sat on the balete's branch.
+const ART_AT := Vector2(-68.0, -110.0)
 const FADE_SECONDS := 1.0
 const BARK := Color(0.16, 0.11, 0.08)
 const HIDE := Color(0.08, 0.07, 0.06)
@@ -58,7 +61,7 @@ func _ready() -> void:
 	add_child(tree_art)
 	tree_art.load_kind(Enemy2D.ART, "kapre_tree", ["idle", "felled"])
 	tree_art.play("idle")
-	_make_art("kapre", ["idle"], false, Vector2(-6.0, -CIGAR_HEIGHT + 30.0))
+	_make_art("kapre", ["idle"], false, ART_AT)
 	add_to_group(Enemy2D.GROUP)
 	add_to_group(LightField.GROUP)
 	z_index = 3

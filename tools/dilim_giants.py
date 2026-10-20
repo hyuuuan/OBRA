@@ -1,4 +1,5 @@
-"""Dilim's tall ones on one two-legged rig: the tikbalang, the kapre and the bungisngis.
+"""Dilim's tall ones on one two-legged rig: the tikbalang and the bungisngis. (The kapre, which sits
+in its tree, is drawn on its own: dilim_kapre.py.)
 
 A `Giant` is proportions, palette and a head; a `Stance` poses it (legs' stride phase, how far it
 leans, where the arms are, what the face is doing). Every frame is sculpted, lit and outlined the
@@ -363,73 +364,4 @@ BUNGISNGIS_ANIMS = {
     "death": [Stance(mouth=0.5, sit=0.4), Stance(mouth=0.4, sit=0.8), Stance(mouth=0.3, sit=1.0, lean=-20)],
     "laugh": [Stance(mouth=1.0, shake=-2, lean=-8), Stance(mouth=0.9, shake=2, lean=-10, bob=2)],
     "aside": [Stance(mouth=0.8, sit=1.0, lean=-6), Stance(mouth=0.9, sit=1.0, lean=-7, bob=1)],
-}
-
-
-# --- the kapre: a dark, hairy giant up a balete, smoking ---
-
-EMBER = hexes("#4a1604", "#b0400c", "#ff8a24", "#ffe08a")
-CIGAR = hexes("#140a05", "#33190c", "#552c15", "#7a4524")
-EYE_GLOW = hexes("#3a2a04", "#a07a10", "#f0d040", "#fff6c0")
-
-
-def _kapre_head(s: Sculpt, g: Giant, st: Stance, neck_base, lean):
-    head = (neck_base[0] + 6, neck_base[1] - 14)
-    s.capsule("skin", neck_base, (head[0] - 2, head[1] + 8), 9, 10)
-    # Long matted hair falling past the shoulders, behind.
-    for k in range(10):
-        root = (head[0] - 10 + k * 1.6, head[1] - 12 + k * 0.6)
-        tip = (root[0] - 8 - k * 0.6, root[1] + 34 + (k % 3) * 4)
-        s.capsule("hair_lit" if k % 4 == 1 else "hair", root, tip, 4.5, 2.2)
-    s.ellipse("skin", head[0], head[1], 13, 14)
-    s.ellipse("hair", head[0] - 3, head[1] - 7, 13, 9)
-    # A beard down over the chest, in hanks.
-    for k in range(7):
-        root = (head[0] - 2 + k * 2.2, head[1] + 6)
-        tip = (root[0] - 2 + (k % 2) * 2, root[1] + 20 + (k % 3) * 4)
-        s.capsule("hair_lit" if k % 3 == 0 else "hair", root, tip, 3.2, 1.2)
-    eye = (head[0] + 6, head[1] - 2)
-    cigar_root = (head[0] + 11, head[1] + 5)
-    cigar_tip = (cigar_root[0] + 18, cigar_root[1] - 4)
-    s.capsule("cigar", cigar_root, cigar_tip, 2.4, 2.6)
-
-    def details():
-        # Eyes glowing out of the dark face, a heavy brow over them.
-        for dx in (0, -5):
-            s.dot(eye[0] + dx, eye[1], s.tone("glow", 3))
-            s.dot(eye[0] + dx + 1, eye[1], s.tone("glow", 2))
-            s.dot(eye[0] + dx - 1, eye[1], s.tone("glow", 1))
-        s.line((eye[0] - 8, eye[1] - 3), (eye[0] + 3, eye[1] - 3), s.tone("skin", 0))
-        # The ember, pulsing with `mouth` (used here as the draw on the cigar), and its ash ring.
-        glow = 3 if st.mouth > 0.5 else 2
-        s.dot(cigar_tip[0], cigar_tip[1], s.tone("ember", glow))
-        s.dot(cigar_tip[0] + 1, cigar_tip[1], s.tone("ember", glow - 1))
-        s.dot(cigar_tip[0], cigar_tip[1] - 1, s.tone("ember", 1))
-        s.dot(cigar_tip[0], cigar_tip[1] + 1, s.tone("ember", 1))
-        s.line((cigar_tip[0] - 2, cigar_tip[1] - 2), (cigar_tip[0] - 2, cigar_tip[1] + 2), s.tone("cigar", 3))
-        # Smoke curling up from the ember.
-        for k in range(5):
-            y = cigar_tip[1] - 4 - k * 4
-            x = cigar_tip[0] + math.sin(k * 1.3 + st.mouth * 3) * 3
-            s.dot(x, y, s.tone("smoke", 2 if k < 3 else 1), alpha=200 - k * 30)
-            s.dot(x + 1, y - 1, s.tone("smoke", 1), alpha=160 - k * 25)
-    return details
-
-
-HEADS["kapre"] = _kapre_head
-
-KAPRE_SKIN = hexes("#0c0806", "#20140c", "#362216", "#4c3220", "#66462c", "#845c3a")
-KAPRE_HAIR = hexes("#030202", "#0a0806", "#14100c", "#201913", "#30251c")
-SMOKE = hexes("#4a4a50", "#8a8a92", "#c8c8d0", "#ececf0")
-
-KAPRE = Giant("kapre", KAPRE_SKIN, KAPRE_HAIR, size=160, leg=52, thigh_r=11, shin_r=8, torso=46,
-    chest_r=21, waist_r=17, arm=60, arm_r=8.0, neck=8, head="kapre", feet="foot", cloth=BAHAG, gaunt=False)
-
-
-def draw_kapre(st: Stance) -> Sculpt:
-    return draw_with_extra(KAPRE, st, extra=[("cigar", CIGAR), ("ember", EMBER), ("glow", EYE_GLOW), ("smoke", SMOKE)])
-
-
-KAPRE_ANIMS = {
-    "idle": [Stance(sit=1.0, lean=-4, mouth=0.2), Stance(sit=1.0, lean=-4, mouth=0.9, bob=1)],
 }

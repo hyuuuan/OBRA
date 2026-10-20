@@ -12,9 +12,9 @@ HOW THEY ARE DRAWN
 In the delivered art's idiom (the apo, Lolo, the bakunawa): one art px to one screen px, five or
 six tones a material lit from the upper left, and selective coloured outlines -- see
 tools/creature_sculpt.py. The creatures themselves are in dilim_beasts.py (the aswang, the sigbin),
-dilim_giants.py (the tikbalang, the bungisngis, the kapre), dilim_fliers.py (the manananggal, the
-wakwak, the tik-tik) and dilim_small.py (the tiyanak, the santelmo, the nuno's mound, the lower
-half).
+dilim_giants.py (the tikbalang, the bungisngis), dilim_kapre.py (the kapre, sat in its
+tree), dilim_fliers.py (the manananggal, the wakwak, the tik-tik) and dilim_small.py (the tiyanak,
+the santelmo, the nuno's mound, the lower half, the kapre's balete).
 
 THE STRIP CONTRACT
 ------------------
@@ -41,6 +41,7 @@ from PIL import Image  # noqa: E402
 import dilim_beasts as beasts  # noqa: E402
 import dilim_fliers as fliers  # noqa: E402
 import dilim_giants as giants  # noqa: E402
+import dilim_kapre as kapre  # noqa: E402
 import dilim_small as small  # noqa: E402
 import pixelart  # noqa: E402
 from creature_sculpt import strip as row  # noqa: E402
@@ -64,7 +65,7 @@ def _sheets() -> dict[str, dict[str, list[Image.Image]]]:
         "sigbin": _beast(beasts.SIGBIN),
         "tikbalang": {a: [giants.draw(giants.TIKBALANG, st).render() for st in poses] for a, poses in giants.TIKBALANG_ANIMS.items()},
         "bungisngis": {a: [giants.draw_bungisngis(st).render() for st in poses] for a, poses in giants.BUNGISNGIS_ANIMS.items()},
-        "kapre": {a: [giants.draw_kapre(st).render() for st in poses] for a, poses in giants.KAPRE_ANIMS.items()},
+        "kapre": {a: kapre.frames(a) for a in kapre.ANIMS},
         "manananggal_upper": {a: [fliers.manananggal_upper(l, r).render() for l, r in poses] for a, poses in fliers.MANANANGGAL_ANIMS.items()},
         "wakwak": {a: [fliers.wakwak(l, d).render() for l, d in poses] for a, poses in fliers.WAKWAK_ANIMS.items()},
         "tiktik": {a: [fliers.tiktik(l).render() for l in poses] for a, poses in fliers.TIKTIK_ANIMS.items()},

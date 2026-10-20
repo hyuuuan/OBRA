@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -22,6 +23,12 @@ def _frames(sheet) -> list[np.ndarray]:
     return [pixels[:, i * h:(i + 1) * h] for i in range(w // h)]
 
 
+def _vector(script: str, name: str) -> tuple[float, float]:
+    found = re.search(rf"const {name} := Vector2\(([-\d.]+), ([-\d.]+)\)", script)
+    assert found, f"no const {name} in the script"
+    return (float(found.group(1)), float(found.group(2)))
+
+
 class CreatureStripsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -40,7 +47,7 @@ class CreatureStripsTest(unittest.TestCase):
             "tiyanak": ["idle", "true", "run"],
             "manananggal_lower": ["idle", "death"],
             "tikbalang": ["idle", "run"],
-            "kapre": ["idle"],
+            "kapre": ["idle", "knocked"],
             "kapre_tree": ["idle", "felled"],
             "santelmo": ["idle", "hot"],
             "nuno_mound": ["idle"],
@@ -87,6 +94,11 @@ class CreatureStripsTest(unittest.TestCase):
             px = np.asarray(sheet).reshape(-1, 4)
             opaque = px[px[:, 3] > 0][:, :3].astype(int)
             self.assertFalse(((opaque.sum(axis=1)) == 0).any(), f"{name} has pure black in it")
+
+    def test_the_kapre_sits_where_its_tree_puts_it(self) -> None:
+        # The kapre is drawn in its tree's own frame; the game stands its strip at the same point.
+        script = (ROOT / "game" / "scripts" / "kapre_2d.gd").read_text()
+        self.assertEqual(_vector(script, "ART_AT"), creatures.kapre.ART_AT, "kapre_2d.gd ART_AT is not dilim_kapre.ART_AT")
 
     def test_the_committed_strips_are_current(self) -> None:
         for name, sheet in self.strips.items():
