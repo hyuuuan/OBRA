@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 33
+const CHECKS := 35
 var level: Node
 
 
@@ -333,6 +333,10 @@ func _three_chops_fell_its_tree() -> void:
 	_check(not after_two and _kapre_route() == "pragmatist" and _kapre_solved() and _kapre().is_felled(),
 		"three chops fell its tree, the first one counting", "after two %s; route '%s', felled %s"
 			% [after_two, _kapre_route(), _kapre().is_felled()])
+	await _frames(int(1.6 * 60.0))
+	var art := _kapre().art
+	_check(art.anim() == "knocked" and absf(art.position.y) < 0.5 and art.position.x > Kapre2D.ART_AT.x and not art.visible,
+		"and the kapre drops with its tree and goes", "'%s' at %s, shown %s" % [art.anim(), art.position, art.visible])
 
 
 func _a_throw_knocks_its_cigar() -> void:
@@ -433,6 +437,9 @@ func _a_boomerang_clicked_at_the_cigar_knocks_it() -> void:
 	# Its own wait, not EMBER_DIES: a few seconds on the ground, as a player sees it.
 	await _frames(int(2.5 * 60.0))
 	_check(_kapre().light_hole().is_empty(), "and its ember goes out", "light %s" % _kapre().light_hole())
+	var art := _kapre().art
+	_check(art.anim() == "knocked" and art.position.y < Kapre2D.ART_AT.y - 40.0 and not art.visible,
+		"and the kapre, startled, climbs away up into its crown", "'%s' at %s, shown %s" % [art.anim(), art.position, art.visible])
 
 
 func _a_shot_clicked_at_the_cigar_knocks_it() -> void:

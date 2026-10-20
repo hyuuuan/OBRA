@@ -55,6 +55,13 @@ const FALL_THROW := -60.0
 const LIES_AT := -4.0
 const FALLEN_GLOW := 46.0
 const EMBER_DIES := 2.5
+## Leaving, startled ('knocked'): with its cigar gone it climbs CLIMBS px up into its crown and is
+## lost in it; with its tree gone it drops to the ground and walks off east, into the dark.
+const CLIMBS := 90.0
+const CLIMB_SECONDS := 1.4
+const DROP_SECONDS := 0.4
+const WALKS_OFF := 50.0
+const WALK_SECONDS := 0.9
 
 var _smoke := 1.0
 var _smoke_sheet: Texture2D
@@ -96,7 +103,7 @@ func _ready() -> void:
 	add_child(tree_art)
 	tree_art.load_kind(Enemy2D.ART, "kapre_tree", ["idle", "felled"])
 	tree_art.play("idle")
-	_make_art("kapre", ["idle"], false, ART_AT)
+	_make_art("kapre", ["idle", "knocked"], false, ART_AT)
 	var puffs := Enemy2D.ART + "kapre_smoke_idle.png"
 	if ResourceLoader.exists(puffs):
 		_smoke_sheet = load(puffs) as Texture2D
@@ -210,12 +217,25 @@ func _ember_alight() -> bool:
 	return _fall_clock >= 0.0 and _fall_clock < _landing() + EMBER_DIES
 
 
-## Down from its tree and away into the dark.
+## Away into the dark, and seen to go: knocked, it climbs up into its crown; felled, it drops with
+## its tree and walks off.
 func leave() -> void:
 	if _gone:
 		return
 	_gone = true
 	clear_smoke()
+	if art == null or not art.has_art():
+		return
+	art.play("knocked")
+	var away := create_tween()
+	if _felled:
+		away.tween_property(art, "position:y", 0.0, DROP_SECONDS).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+		away.tween_property(art, "position:x", ART_AT.x + WALKS_OFF, WALK_SECONDS)
+		away.parallel().tween_property(art, "modulate:a", 0.0, WALK_SECONDS)
+	else:
+		away.tween_property(art, "position:y", ART_AT.y - CLIMBS, CLIMB_SECONDS).set_trans(Tween.TRANS_SINE)
+		away.parallel().tween_property(art, "modulate:a", 0.0, CLIMB_SECONDS)
+	away.tween_callback(art.hide)
 
 
 func is_gone() -> bool:
@@ -248,7 +268,6 @@ func _draw() -> void:
 		draw_rect(Rect2(-TRUNK.y * 0.5, -TRUNK.x, TRUNK.y, TRUNK.x), BARK)
 	var drawn := art != null and art.has_art()
 	if drawn:
-		art.visible = not _gone
 		art.advance(get_process_delta_time())
 	if not _gone and not drawn:
 		draw_rect(Rect2(CIGAR_TIP + Vector2(40.0, -20.0), Vector2(50.0, 90.0)), HIDE)
