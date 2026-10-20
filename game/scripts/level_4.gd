@@ -1247,7 +1247,7 @@ func _tend_the_kapre(delta: float) -> void:
 			and _moving_air() and absf(x - _kapre.global_position.x) <= FAN_REACH:
 		_fanned += delta
 		if _fanned >= FAN_SECONDS:
-			_kapre.clear_smoke()
+			_kapre.clear_smoke(true)
 			_answer("L4_KAPRE", "artist")
 	else:
 		_fanned = 0.0

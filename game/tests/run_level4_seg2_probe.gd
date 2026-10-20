@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 29
+const CHECKS := 31
 var level: Node
 
 
@@ -315,6 +315,10 @@ func _a_fan_clears_the_smoke() -> void:
 	_check(not early and _kapre_route() == "artist" and _kapre_solved(),
 		"a fan held up to the smoke a moment clears it", "at a second %s; route '%s', solved %s"
 			% [early, _kapre_route(), _kapre_solved()])
+	await _frames(int(1.2 * 60.0))
+	var away := _kapre().smoke_offset()
+	_check(not _kapre().smoke_stands() and away.x > 100.0 and away.y < 0.0,
+		"and the smoke is seen blown away, east past the tree and up", "gone %s, blown %s" % [not _kapre().smoke_stands(), away])
 
 
 func _three_chops_fell_its_tree() -> void:
@@ -338,6 +342,10 @@ func _a_throw_knocks_its_cigar() -> void:
 	await _frames(5)
 	_check(_kapre_route() == "protector" and _kapre_solved() and _kapre().is_gone() and not _kapre().cigar_is_lit(),
 		"a throw that reaches the cigar knocks it out of its hand", "route '%s', gone %s" % [_kapre_route(), _kapre().is_gone()])
+	await _frames(int(1.2 * 60.0))
+	_check(not _kapre().smoke_stands() and _kapre().smoke_offset() == Vector2.ZERO,
+		"and with its cigar gone the smoke thins where it is, not blown", "gone %s, moved %s"
+			% [not _kapre().smoke_stands(), _kapre().smoke_offset()])
 
 
 ## It keeps to its own dark: hunting her, and then she is well on past its ground, it goes back

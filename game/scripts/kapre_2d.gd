@@ -44,9 +44,13 @@ const HAZE := 150.0
 const SMOKE_TONE := Color(0.5, 0.48, 0.46)
 const STREAM_PUFFS := 12
 const STREAM_TO := Vector2(-250.0, -120.0)
+## Blown clear -- by a fan, a cloud, a sun, her as a butterfly -- the smoke goes this far, east past
+## the tree and up, as it thins; cleared any other way, it thins where it is.
+const BLOWN_AWAY := Vector2(260.0, -100.0)
 
 var _smoke := 1.0
 var _smoke_sheet: Texture2D
+var _blown := false
 var _chops := 0
 var _felled := false
 var _cigar_lit := true
@@ -128,11 +132,18 @@ func smoke_span() -> Vector2:
 	return Vector2(global_position.x - SMOKE_WIDTH, global_position.x)
 
 
-func clear_smoke() -> void:
+## `blown`: blown away by moving air, rather than gone with its cigar or its tree.
+func clear_smoke(blown := false) -> void:
 	if _smoke <= 0.0:
 		return
+	_blown = _blown or blown
 	var thin := create_tween()
 	thin.tween_property(self, "_smoke", 0.0, FADE_SECONDS)
+
+
+## Where the smoke is drawn, off where it stands: going away east and up as it is blown clear.
+func smoke_offset() -> Vector2:
+	return BLOWN_AWAY * (1.0 - _smoke) if _blown else Vector2.ZERO
 
 
 ## One chop at its tree. Returns whether that one felled it.
@@ -216,16 +227,17 @@ func _draw() -> void:
 ## clock so none pops in; and while the cigar burns, the thread of it coming off the tip and down
 ## into the bank. All of it as faint as the smoke left.
 func _draw_smoke() -> void:
+	var away := smoke_offset()
 	# The haze: one faint sheet over the whole bank, its top rolling, thinning out at the west end.
 	var sheet := PackedVector2Array()
 	var shades := PackedColorArray()
 	var steps := 24
 	for step in range(steps + 1):
 		var x := -SMOKE_WIDTH + SMOKE_WIDTH * float(step) / steps
-		sheet.append(Vector2(x, -HAZE + sin(x * 0.018 + _clock * 0.5) * 16.0))
+		sheet.append(away + Vector2(x, -HAZE + sin(x * 0.018 + _clock * 0.5) * 16.0))
 		shades.append(Color(SMOKE_TONE, 0.24 * _smoke * clampf(float(step) / 4.0, 0.0, 1.0)))
 	for step in range(steps, -1, -1):
-		sheet.append(Vector2(-SMOKE_WIDTH + SMOKE_WIDTH * float(step) / steps, 0.0))
+		sheet.append(away + Vector2(-SMOKE_WIDTH + SMOKE_WIDTH * float(step) / steps, 0.0))
 		shades.append(Color(SMOKE_TONE, 0.30 * _smoke * clampf(float(step) / 4.0, 0.0, 1.0)))
 	draw_polygon(sheet, shades)
 	for index in range(BANK_PUFFS):
@@ -235,13 +247,13 @@ func _draw_smoke() -> void:
 		var home := Vector2(-SMOKE_WIDTH + PUFF * 0.4 + spread * (SMOKE_WIDTH - PUFF * 0.6), -24.0 - pow(height, 1.5) * 170.0)
 		var life := fmod(_clock / (7.0 + float(index % 5)) + height, 1.0)
 		var drift := Vector2(-40.0 * life, -12.0 * life + sin(_clock * 0.7 + index) * 3.0)
-		_puff(index % (PUFFS - 2), home + drift, sin(life * PI) * 0.65)
+		_puff(index % (PUFFS - 2), away + home + drift, sin(life * PI) * 0.65)
 	if _cigar_lit and not _gone:
 		for index in range(STREAM_PUFFS):
 			var life := fmod(_clock / 6.0 + float(index) / STREAM_PUFFS, 1.0)
 			var at := CIGAR_TIP.lerp(STREAM_TO, life) + Vector2(0.0, -sin(life * PI) * 30.0)
 			var size := PUFFS - 1 if life < 0.3 else (PUFFS - 2 if life < 0.65 else index % (PUFFS - 2))
-			_puff(size, at, sin(life * PI) * 0.55)
+			_puff(size, away + at, sin(life * PI) * 0.55)
 
 
 ## One puff, `frame` of the sheet, centred on `centre`, on whole pixels so it stays crisp.
