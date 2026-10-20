@@ -328,7 +328,7 @@ can vanish in the level.
 
 | What | Tool | Files | The contract |
 |---|---|---|---|
-| Every creature, and the kapre's balete, smoke and cigar | `tools/build_dilim_creatures.py`, on `tools/creature_sculpt.py` (the bodies in `dilim_beasts.py`, `dilim_giants.py`, `dilim_kapre.py`, `dilim_fliers.py`, `dilim_small.py`) | `assets/Level4/creatures/<kind>_<anim>.png` | A row of square frames, as tall as wide; a strip whose width is not a whole number of its height is one picture (the mound, the tree). Ground kinds stand on the bottom row, fliers are centred -- that point is the creature's position. Chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour, never black. Each script's own `_draw()` stays as the fallback while a strip is missing |
+| Every creature, the kapre's balete, smoke and cigar, and the finale's dead tree | `tools/build_dilim_creatures.py`, on `tools/creature_sculpt.py` (the bodies in `dilim_beasts.py`, `dilim_giants.py`, `dilim_kapre.py`, `dilim_fliers.py`, `dilim_small.py`; the dead tree in `dilim_props.py`) | `assets/Level4/creatures/<kind>_<anim>.png` | A row of square frames, as tall as wide; a strip whose width is not a whole number of its height is one picture (the mound, the tree). Ground kinds stand on the bottom row, fliers are centred -- that point is the creature's position. Chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour, never black. Each script's own `_draw()` stays as the fallback while a strip is missing |
 | Lola's six things | `tools/build_dilim_props.py` | `assets/Level4/props/<id>.png` | 32-px icons, each on a leaf, each told apart by its brightest colour: salt, ash, garlic, candle, lamp oil, the stingray-tail whip. The quick slots and the pickups load them by id |
 
 **The creatures' strips, and what each has to say** -- a delivered strip of the same name replaces
@@ -347,6 +347,7 @@ one with no code change:
 | Manananggal | `manananggal_upper_*`: the six states; `manananggal_lower_idle`, `manananggal_lower_death` | A pale torso with long hair on wide bat wings, hunting from above; and the hips and legs in a tapis it left standing in a hollow |
 | Wakwak | `wakwak_*`: the six states | A great dark bird, wings wide, a hooked beak |
 | Tik-tik | `tiktik_*`: the six states | A small dark long-beaked bird -- seen only with ash on it, so it carries the ash's grey |
+| The finale's dead tree | `dead_tree_idle` (260 x 336), `dead_tree_felled` (380 x 140), one picture each; `DeadTree2D.art_kind = "dead_tree"` in the last clearing | Dead long since, in the balete's bark bleached grey: strands twisted round a dark heart, bark torn off, a hollow at its foot, bare crooked limbs. Felled, a log the length of the 280-px span with its root plate torn up at the west end, its top along the log's 64 px. Level 1's dead tree is the delivered one and is untouched |
 
 **Drawn in code** -- each its script's own `_draw()`, marked `PLACEHOLDER` there:
 

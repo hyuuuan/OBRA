@@ -141,7 +141,7 @@ alongside this file; the numbers below are its starting points.
 | Segment 1 | `Santelmo2D` · `NunoMound2D` |
 | Segment 2 | `Sigbin2D` · `Tikbalang2D` · `Kapre2D` · `InkJar2D` |
 | Segment 3 | `Tiyanak2D` · `Bungisngis2D` · `ManananggalUpper2D` / `ManananggalLower2D` |
-| The finale | `DilimFinale2D` (the clock, the three waves, the dead tree) · `DawnClockHud` · `Wakwak2D` · `Tiktik2D` · `DeadTree2D` (Level 1's, `stands_solid` off) |
+| The finale | `DilimFinale2D` (the clock, the three waves, the dead tree) · `DawnClockHud` · `Wakwak2D` · `Tiktik2D` · `DeadTree2D` (`art_kind = "dead_tree"`, Dilim's own, drawn; `stands_solid` off) |
 | Lola's things | `Satchel` · `SatchelPickup2D` · `QuickSlotBar` · `AsinThrow2D` · `AboDust2D` · `BawangWard2D` · `CandleFlame2D` · `WhipLash2D` |
 | Art | `MakilingBackdrop2D` · `MakilingTerrain2D` · `PixelStripAnimator` · `tools/build_dilim.py` (plates, tiles) · `tools/build_dilim_creatures.py` (every creature, the kapre's balete, smoke and cigar) · `tools/build_dilim_props.py` (satchel icons) |
 | Tests | `run_level4_audit` · `run_level4_enablers_probe` · `run_level4_seg1/seg2/seg3_probe` · `run_level4_finale_probe` · `run_level4_tiktik_probe` · `run_level4_whip_probe` · `run_satchel_probe` · `run_combat_probe` · `run_enemy_probe` · `run_weapon_probe` · `run_darkness_probe` · `run_makiling_probe` · `run_journey_probe` (Dagat → house → Dilim → dawn → ending) · windowed looks `run_visual_dilim_light`, `run_visual_makiling`, `run_visual_dilim_creatures` |
@@ -172,8 +172,8 @@ What the build does that the design above does not say, and what it does not do 
   half (13300-13480), short of the middle that turns her round.
 - **The finale's numbers.** The night is 150 s: waves at 0 / 45 / 100 s, dawn at 150. A drawn sun
   brings dawn 15 s nearer, once a wave. The manananggal is driven off at 8 in its wave.
-- **The dead tree** stands at the clearing's middle and falls east into a 64-px log that shuts the
-  east side; a felled tree stays down through a knockout, so a retried night starts with it shut.
+- **The dead tree** is the woods' own, drawn in the balete's bark (Level 1's was standing in). It
+  stands at the clearing's middle and falls east into a 64-px log that shuts the east side; a felled tree stays down through a knockout, so a retried night starts with it shut.
 - **The tik-tik** is shown by ash for the dust's 6 s and blinded for 1.5 s; inside 220 px of her
   lantern the HUD leans and gutters and the light drops 18%.
 - **The buntot pagi** drops only in waves 2 and 3 (2%), lashes 10 times, and reaches fliers. Its
