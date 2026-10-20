@@ -47,10 +47,20 @@ const STREAM_TO := Vector2(-250.0, -120.0)
 ## Blown clear -- by a fan, a cloud, a sun, her as a butterfly -- the smoke goes this far, east past
 ## the tree and up, as it thins; cleared any other way, it thins where it is.
 const BLOWN_AWAY := Vector2(260.0, -100.0)
+## Knocked out of its mouth, the cigar (kapre_cigar_idle) tumbles down to the ground below, thrown
+## out west, sparks trailing off it -- FALL_GRAVITY px/s², FALL_THROW px/s -- and lies there LIES_AT
+## px up, its ember a small light (FALLEN_GLOW) until it dies EMBER_DIES seconds after it lands.
+const FALL_GRAVITY := 900.0
+const FALL_THROW := -60.0
+const LIES_AT := -4.0
+const FALLEN_GLOW := 46.0
+const EMBER_DIES := 2.5
 
 var _smoke := 1.0
 var _smoke_sheet: Texture2D
 var _blown := false
+var _cigar_art: Texture2D
+var _fall_clock := -1.0
 var _chops := 0
 var _felled := false
 var _cigar_lit := true
@@ -90,6 +100,9 @@ func _ready() -> void:
 	var puffs := Enemy2D.ART + "kapre_smoke_idle.png"
 	if ResourceLoader.exists(puffs):
 		_smoke_sheet = load(puffs) as Texture2D
+	var dropped := Enemy2D.ART + "kapre_cigar_idle.png"
+	if ResourceLoader.exists(dropped):
+		_cigar_art = load(dropped) as Texture2D
 	add_to_group(Enemy2D.GROUP)
 	add_to_group(LightField.GROUP)
 	z_index = 3
@@ -109,6 +122,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_clock += delta
+	if _fall_clock >= 0.0:
+		_fall_clock += delta
 	queue_redraw()
 
 
@@ -118,6 +133,7 @@ func apply_tool_hit(_tool: String, _impulse: float, _actor: Node2D) -> bool:
 	if not _cigar_lit:
 		return false
 	_cigar_lit = false
+	_fall_clock = 0.0
 	cigar.set_deferred(&"collision_layer", 0)
 	cigar_knocked.emit()
 	return true
@@ -172,6 +188,28 @@ func cigar_is_lit() -> bool:
 	return _cigar_lit
 
 
+## Where the knocked cigar is, from the tree's foot: falling, or lying where it fell. INF until it
+## is knocked.
+func fallen_cigar() -> Vector2:
+	if _fall_clock < 0.0:
+		return Vector2.INF
+	return _cigar_at(minf(_fall_clock, _landing()))
+
+
+func _cigar_at(t: float) -> Vector2:
+	return CIGAR_TIP + Vector2(FALL_THROW * t, 0.5 * FALL_GRAVITY * t * t)
+
+
+## How long the cigar takes to come down from its tip to where it lies.
+func _landing() -> float:
+	return sqrt(2.0 * (LIES_AT - CIGAR_TIP.y) / FALL_GRAVITY)
+
+
+## Whether the fallen cigar's ember is still alight.
+func _ember_alight() -> bool:
+	return _fall_clock >= 0.0 and _fall_clock < _landing() + EMBER_DIES
+
+
 ## Down from its tree and away into the dark.
 func leave() -> void:
 	if _gone:
@@ -185,6 +223,9 @@ func is_gone() -> bool:
 
 
 func light_hole() -> Dictionary:
+	if not _cigar_lit and _ember_alight():
+		var dying := clampf((_fall_clock - _landing()) / EMBER_DIES, 0.0, 1.0)
+		return {"position": global_position + fallen_cigar(), "radius": FALLEN_GLOW, "strength": 0.6 * (1.0 - dying)}
 	if not _cigar_lit or _gone:
 		return {}
 	return {"position": global_position + cigar.position, "radius": CIGAR_GLOW, "strength": 0.7,
@@ -221,6 +262,31 @@ func _draw() -> void:
 			var x := -SMOKE_WIDTH + fmod(index * 37.0 + _clock * 14.0, SMOKE_WIDTH)
 			var y := -40.0 - fmod(index * 53.0, 240.0)
 			draw_circle(Vector2(x, y), 46.0, Color(SMOKE, 0.16 * _smoke))
+	if _fall_clock >= 0.0 and _cigar_art != null:
+		_draw_fallen_cigar()
+
+
+## The knocked cigar tumbling down, sparks trailing off its ember, a burst of them where it lands;
+## then lying there until its ember dies, and fading out a second after.
+func _draw_fallen_cigar() -> void:
+	var landed := _landing()
+	var spin := minf(_fall_clock, landed) / landed * 3.0 * PI
+	var gone := clampf((_fall_clock - landed - EMBER_DIES) / 1.0, 0.0, 1.0)
+	if gone < 1.0:
+		draw_set_transform(fallen_cigar().round(), spin)
+		draw_texture(_cigar_art, -_cigar_art.get_size() * 0.5, Color(1.0, 1.0, 1.0, 1.0 - gone))
+		draw_set_transform(Vector2.ZERO)
+	for spark in range(6):
+		var back := _fall_clock - 0.05 * float(spark + 1)
+		if back > 0.0 and back < landed:
+			var at := _cigar_at(back) + Vector2(sin(spark * 2.3) * 4.0, 0.0)
+			draw_rect(Rect2(at.round(), Vector2(2.0, 2.0)), Color(EMBER, 1.0 - spark / 6.0))
+	var since := _fall_clock - landed
+	if since > 0.0 and since < 0.5:
+		for spark in range(8):
+			var a := -PI * (0.1 + 0.8 * spark / 7.0)
+			var at := fallen_cigar() + Vector2(cos(a), sin(a)) * (10.0 + 70.0 * since) + Vector2(0.0, 160.0 * since * since)
+			draw_rect(Rect2(at.round(), Vector2(2.0, 2.0)), Color(EMBER, 1.0 - since / 0.5))
 
 
 ## The bank of it over the path, low and drifting west, each puff fading in and out on its own

@@ -265,6 +265,21 @@ ANIMS = ["idle", "knocked"]
 
 
 
+
+def cigar() -> Image.Image:
+    """The cigar alone, as it falls when it is knocked from the kapre's mouth: lying east-west, its
+    ember at the west end. 40 x 12."""
+    s = Sculpt(40, 12)
+    s.material("cigar", CIGAR)
+    s.material("ash", ASH)
+    s.tube("cigar", [(35, 6), (20, 6), (7, 6)], [3.6, 4.0, 4.0])
+    s.ellipse("ash", 6, 6, 2.4, 3.8)
+    for dx, dy in [(0, 0), (0, -1), (0, 1), (1, 0), (1, -1), (1, 1)]:
+        s.dot(3 + dx, 6 + dy, EMBER[2])
+    s.dot(4, 6, EMBER[3])
+    return s.render()
+
+
 # --- its smoke ---
 
 SMOKE_TONES = hexes("#605c5a", "#827d78", "#a49e96", "#c6c0b6", "#e2ddd2")

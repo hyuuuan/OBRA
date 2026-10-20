@@ -50,6 +50,7 @@ class CreatureStripsTest(unittest.TestCase):
             "tikbalang": ["idle", "run"],
             "kapre": ["idle", "knocked"],
             "kapre_smoke": ["idle"],
+            "kapre_cigar": ["idle"],
             "kapre_tree": ["idle", "felled"],
             "santelmo": ["idle", "hot"],
             "nuno_mound": ["idle"],

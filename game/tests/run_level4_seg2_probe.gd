@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 31
+const CHECKS := 33
 var level: Node
 
 
@@ -423,6 +423,16 @@ func _a_boomerang_clicked_at_the_cigar_knocks_it() -> void:
 	_check(_kapre_route() == "protector" and _kapre_solved() and not _kapre().cigar_is_lit(),
 		"a boomerang thrown by a click on the cigar knocks it out of its hand",
 		"route '%s', solved %s, still lit %s" % [_kapre_route(), _kapre_solved(), _kapre().cigar_is_lit()])
+	# Seen to fall: down to the ground under where it was, its ember a light there a while.
+	await _frames(int(0.6 * 60.0))
+	var fell := _kapre().fallen_cigar()
+	var glow := _kapre().light_hole()
+	var on_ground := absf(fell.y - Kapre2D.LIES_AT) < 0.5 and fell.x < Kapre2D.CIGAR_TIP.x
+	_check(on_ground and not glow.is_empty() and absf((glow.get("position", Vector2.INF) as Vector2).y - _kapre().global_position.y - fell.y) < 0.5,
+		"and the cigar falls to the ground below, its ember alight there", "at %s, light %s" % [fell, glow])
+	# Its own wait, not EMBER_DIES: a few seconds on the ground, as a player sees it.
+	await _frames(int(2.5 * 60.0))
+	_check(_kapre().light_hole().is_empty(), "and its ember goes out", "light %s" % _kapre().light_hole())
 
 
 func _a_shot_clicked_at_the_cigar_knocks_it() -> void:
