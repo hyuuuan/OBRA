@@ -31,8 +31,11 @@ W, H = 136, 214
 LEFT, TOP = -136, -324
 ART_AT = (LEFT + W // 2, TOP + H)
 CIGAR_TIP = (-122, -280)
-# The middle of its head: the ember's light must reach it at full strength (kapre_2d.gd CIGAR_GLOW).
+# The middle of its head: the light the ember throws on it must reach it at full strength; and its
+# lips, where that light starts (kapre_2d.gd FACE_LIGHT_FROM) -- so the open air in front of its face
+# is left dark, rather than showing the backdrop's sky.
 FACE = (-66, -282)
+LIPS = (FACE[0] - 28, FACE[1] + 8)
 
 KAPRE_SKIN = hexes("#0c0806", "#20140c", "#362216", "#4c3220", "#66462c", "#845c3a")
 KAPRE_HAIR = hexes("#030202", "#0a0806", "#14100c", "#201913", "#30251c")

@@ -118,22 +118,75 @@ class CreatureStripsTest(unittest.TestCase):
         self.assertTrue(any((px == e).all() for px in near for e in embers),
                         f"no ember drawn at the cigar's tip ({x}, {y}) in kapre_idle")
 
-    def test_its_ember_lights_its_face(self) -> None:
-        # In the woods' dark only what a light reaches shows; the kapre's own light is its ember.
+    def _kapre_lights(self) -> dict:
         script = (ROOT / "game" / "scripts" / "kapre_2d.gd").read_text()
         field = (ROOT / "game" / "scripts" / "light_field.gd").read_text()
-        glow = float(re.search(r"const CIGAR_GLOW := ([\d.]+)", script).group(1))
-        soft = float(re.search(r"const SOFT_EDGE := ([\d.]+)", field).group(1))
-        toward = _vector(script, "CIGAR_LIGHT_TOWARD")
-        half = float(re.search(r"const CIGAR_LIGHT_HALF_ANGLE := ([\d.]+)", script).group(1))
+
+        def number(name: str) -> float:
+            return float(re.search(rf"const {name} := ([\d.]+)", script).group(1))
+
+        return {"ember": number("EMBER_GLOW"), "from": _vector(script, "FACE_LIGHT_FROM"), "face": number("FACE_LIGHT"),
+                "toward": _vector(script, "FACE_LIGHT_TOWARD"), "half": number("FACE_LIGHT_HALF_ANGLE"),
+                "soft": float(re.search(r"const SOFT_EDGE := ([\d.]+)", field).group(1))}
+
+    def test_its_ember_lights_its_face(self) -> None:
+        # In the woods' dark only what a light reaches shows; the light on the kapre's face is the one
+        # its ember throws, from its lips.
+        light = self._kapre_lights()
         kapre = creatures.kapre
-        dx, dy = kapre.FACE[0] - kapre.CIGAR_TIP[0], kapre.FACE[1] - kapre.CIGAR_TIP[1]
+        self.assertEqual(light["from"], kapre.LIPS, "kapre_2d.gd FACE_LIGHT_FROM is not dilim_kapre.LIPS")
+        dx, dy = kapre.FACE[0] - light["from"][0], kapre.FACE[1] - light["from"][1]
         reach = math.hypot(dx, dy)
-        self.assertLessEqual(reach, glow * soft, f"its face is {reach:.0f} px from the ember; it lights {glow * soft:.0f} fully")
+        self.assertLessEqual(reach, light["face"] * light["soft"], f"its face is {reach:.0f} px from its light")
         # A cone: the face must be inside its fully lit part too (the shader's 0.7 of the half angle).
-        off = abs(math.atan2(dy, dx) - math.atan2(toward[1], toward[0]))
+        off = abs(math.atan2(dy, dx) - math.atan2(light["toward"][1], light["toward"][0]))
         off = min(off, math.tau - off)
-        self.assertLessEqual(off, half * 0.7, f"its face is {math.degrees(off):.0f} deg off the ember's light")
+        self.assertLessEqual(off, light["half"] * 0.7, f"its face is {math.degrees(off):.0f} deg off its light")
+
+    def test_its_light_leaves_the_air_dark(self) -> None:
+        # A light shows whatever is behind it, and up the tree, where nothing is drawn, that is the
+        # backdrop's daytime-painted sky. Its lights -- LightField's falloff exactly -- over the tree
+        # and the kapre as the game stands them: the sky they show must be next to none (one cone from
+        # the tip showed a wedge of it), and the ember itself must still show.
+        light = self._kapre_lights()
+        kapre = creatures.kapre
+        tree = np.asarray(self.strips["kapre_tree_idle"])[..., 3] > 0
+        sat = _frames(self.strips["kapre_idle"])[0][..., 3] > 0
+        left, top, w, h = -200, -360, 280, 300
+        drawn = np.zeros((h, w), dtype=bool)
+
+        def stamp(alpha: np.ndarray, foot_x: float, foot_y: float) -> None:
+            ah, aw = alpha.shape
+            x0, y0 = int(foot_x - aw // 2 - left), int(foot_y - ah - top)
+            for row in range(ah):
+                y = y0 + row
+                if 0 <= y < h:
+                    xs = slice(max(0, x0), min(w, x0 + aw))
+                    drawn[y, xs] |= alpha[row, xs.start - x0:xs.stop - x0]
+
+        stamp(tree, 0, 0)
+        stamp(sat, kapre.ART_AT[0], kapre.ART_AT[1])
+        ys, xs = np.mgrid[0:h, 0:w] + 0.5
+        xs, ys = xs + left, ys + top
+
+        def falloff(cx: float, cy: float, radius: float) -> np.ndarray:
+            d = np.hypot(xs - cx, ys - cy)
+            t = np.clip((d - radius * light["soft"]) / (radius * (1 - light["soft"])), 0, 1)
+            return np.where(d < radius, 1 - t * t * (3 - 2 * t), 0.0)
+
+        ember = falloff(*kapre.CIGAR_TIP, light["ember"]) * 0.9
+        face = falloff(*light["from"], light["face"]) * 0.7
+        ox, oy = xs - light["from"][0], ys - light["from"][1]
+        d = np.maximum(np.hypot(ox, oy), 1e-6)
+        tx, ty = light["toward"]
+        angle = np.arccos(np.clip((ox * tx + oy * ty) / d / math.hypot(tx, ty), -1, 1))
+        t = np.clip((angle - light["half"] * 0.7) / (light["half"] * 0.3), 0, 1)
+        face = face * np.where(d > 1, 1 - t * t * (3 - 2 * t), 1)
+        lit = np.maximum(ember, face)
+        sky = float((lit * ~drawn).sum())
+        self.assertLessEqual(sky, 100.0, f"its lights show {sky:.0f} px of sky")
+        tip = lit[int(kapre.CIGAR_TIP[1] - top), int(kapre.CIGAR_TIP[0] - left)]
+        self.assertGreaterEqual(tip, 0.8, f"its ember is lit {tip:.2f}")
 
     def test_the_kapre_cuts_its_smoke_where_it_is_drawn(self) -> None:
         # Kapre2D cuts the smoke sheet into PUFFS frames of PUFF px; the sheet must be that.

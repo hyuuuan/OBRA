@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 37
+const CHECKS := 38
 var level: Node
 
 
@@ -353,6 +353,11 @@ func _a_throw_knocks_its_cigar() -> void:
 	await _frames(5)
 	_check(_kapre_route() == "protector" and _kapre_solved() and _kapre().is_gone() and not _kapre().cigar_is_lit(),
 		"a throw that reaches the cigar knocks it out of its hand", "route '%s', gone %s" % [_kapre_route(), _kapre().is_gone()])
+	# Falling through the air it is its ember's own light only, which shows no sky round it.
+	var ember := _kapre().ember_hole()
+	_check(_kapre().light_hole().is_empty() and float(ember.get("radius", 0.0)) == Kapre2D.EMBER_GLOW
+			and (ember.get("position", Vector2.ZERO) as Vector2).y > _kapre().global_position.y + Kapre2D.CIGAR_TIP.y,
+		"and falling, it is lit by its ember alone", "light %s, ember %s" % [_kapre().light_hole(), ember])
 	await _frames(int(1.2 * 60.0))
 	_check(not _kapre().smoke_stands() and _kapre().smoke_offset() == Vector2.ZERO,
 		"and with its cigar gone the smoke thins where it is, not blown", "gone %s, moved %s"
@@ -443,7 +448,8 @@ func _a_boomerang_clicked_at_the_cigar_knocks_it() -> void:
 		"and the cigar falls to the ground below, its ember alight there", "at %s, light %s" % [fell, glow])
 	# Its own wait, not EMBER_DIES: a few seconds on the ground, as a player sees it.
 	await _frames(int(2.5 * 60.0))
-	_check(_kapre().light_hole().is_empty(), "and its ember goes out", "light %s" % _kapre().light_hole())
+	_check(_kapre().light_hole().is_empty() and _kapre().ember_hole().is_empty(), "and its ember goes out",
+		"light %s, ember %s" % [_kapre().light_hole(), _kapre().ember_hole()])
 	var art := _kapre().art
 	_check(art.anim() == "knocked" and art.position.y < Kapre2D.ART_AT.y - 40.0 and not art.visible,
 		"and the kapre, startled, climbs away up into its crown", "'%s' at %s, shown %s" % [art.anim(), art.position, art.visible])
