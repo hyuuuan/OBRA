@@ -218,6 +218,8 @@ def manananggal_lower(smoke: float = 0.0) -> Sculpt:
 BARK = hexes("#140c08", "#281c14", "#3e2c20", "#58402e", "#745840", "#927456")
 WOOD = hexes("#3a2a1a", "#6a5032", "#94764c", "#b89a68", "#d4b886")
 LEAVES = hexes("#06160e", "#0d2a18", "#174224", "#225a2e", "#337638", "#4f9446")
+# How far up the trunk the kapre's branch comes out (its line at the seat), above the tree's foot.
+PERCH = 170
 
 
 def _leaf_marks(s: Sculpt, count: int, seed: int) -> None:
@@ -275,6 +277,20 @@ def balete(felled: bool = False) -> Sculpt:
         (cx + 42, ground - 40), (cx + 70, ground), (cx - 70, ground), (cx - 42, ground - 40),
         (cx - 30, ground - 120), (cx - 36, fork + 30),
     ], bulge=0.15)
+    # The kapre's branch: one thick limb out of the trunk's west side, PERCH px up, the way it
+    # faces -- where it sits, its back to the trunk -- thinning out and turning up at the end.
+    perch = ground - PERCH
+    limb = [(cx - 10, perch + 22), (cx - 34, perch + 12), (cx - 62, perch + 6), (cx - 90, perch + 4),
+            (cx - 112, perch - 2), (cx - 122, perch - 12)]
+    s.tube("bark", limb, [13.0, 11.5, 10.0, 7.6, 5.0, 2.8])
+    # A clump of leaf at its tip, clear of where the kapre's hand hangs, and a bird's-nest fern on
+    # the trunk's other side.
+    _mass(s, "leaves", cx - 124, perch - 16, 9)
+    for k in range(9):
+        a = math.radians(-160 + k * 17)
+        root = (cx + 36, ground - 196)
+        s.tube("leaves", [root, (root[0] + math.cos(a) * 12, root[1] + math.sin(a) * 12 - 3),
+                          (root[0] + math.cos(a) * 24, root[1] + math.sin(a) * 20 + 2)], [2.2, 2.6, 0.8])
     # The roots grown round it, twisting, each one tube from its buttress at the foot up through
     # the fork and out along a branch into the crown.
     roots = [(-54, -18, 0.0, 7.0, (cx - 100, 166)), (-32, 2, 1.7, 5.8, (cx - 62, 146)),
