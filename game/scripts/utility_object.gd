@@ -729,8 +729,13 @@ func _fire_cannon(actor: Node2D) -> String:
 	if world == null:
 		shot.queue_free()
 		return ""
+	# ⚠ AT THE MUZZLE BEFORE IT IS IN THE WORLD. Added first and moved after, it began at the
+	# world's origin -- inside Dilim's canopy, which covers everything above 160 -- and the contact
+	# landed it there: every shot fired in Dilim was gone the frame it left the muzzle.
+	var muzzle := global_position + Vector2(facing * 44.0, -14.0)
+	shot.position = world.to_local(muzzle) if world is Node2D else muzzle
 	world.add_child(shot)
-	shot.global_position = global_position + Vector2(facing * 44.0, -14.0)
+	shot.global_position = muzzle
 	shot.linear_velocity = Vector2(facing * 980.0, -190.0)
 	shot.body_entered.connect(func(hit: Node) -> void: _on_shot_landed(shot, hit, actor))
 	# ⚠ A RIGID BODY'S CONTACTS NEVER REPORT AREAS. A creature whose hurtbox is an Area2D --
