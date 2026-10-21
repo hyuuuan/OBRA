@@ -44,6 +44,7 @@ class CreatureStripsTest(unittest.TestCase):
             "tiktik": ["idle", "run", "windup", "attack", "hurt", "death"],
             "bungisngis": ["idle", "run", "windup", "attack", "hurt", "death", "laugh", "aside"],
             "tiyanak": ["idle", "true", "run"],
+            "tiyanak_undergrowth": ["idle"],
             "manananggal_lower": ["idle", "death"],
             "tikbalang": ["idle", "run"],
             "kapre": ["idle", "knocked", "falling", "walk"],
@@ -105,6 +106,20 @@ class CreatureStripsTest(unittest.TestCase):
         puffs = int(re.search(r"const PUFFS := (\d+)", script).group(1))
         self.assertEqual((puff, puffs), (creatures.kapre.PUFF, creatures.kapre.PUFFS), "kapre_2d.gd PUFF/PUFFS")
         self.assertEqual(self.strips["kapre_smoke_idle"].size, (puff * puffs, puff))
+
+    def test_the_tiyanaks_undergrowth_hides_its_drop(self) -> None:
+        # Tiyanak2D draws the picture across UNDERGROWTH, ART_MARGIN px out at either side, its
+        # bottom row on the ground: the bushes must span exactly that, and stand solid on the
+        # ground the whole way, so the drop under them never shows through.
+        script = (ROOT / "game" / "scripts" / "tiyanak_2d.gd").read_text()
+        span = re.search(r"const UNDERGROWTH := Rect2\(([-\d.]+), ([-\d.]+), ([-\d.]+), ([-\d.]+)\)", script)
+        margin = float(re.search(r"const ART_MARGIN := ([\d.]+)", script).group(1))
+        width = float(span.group(3))
+        bushes = np.asarray(self.strips["tiyanak_undergrowth_idle"])[..., 3] > 0
+        self.assertEqual(bushes.shape[1], int(width + 2 * margin), "the picture is not the undergrowth's span")
+        ground = bushes[-1, int(margin):int(margin + width)]
+        self.assertTrue(ground.all(), f"{int((~ground).sum())} px of ground along it show through")
+        self.assertGreaterEqual(int(np.nonzero(bushes.any(axis=1))[0].min()), 1, "it runs off its top")
 
     def test_the_committed_strips_are_current(self) -> None:
         for name, sheet in self.strips.items():
