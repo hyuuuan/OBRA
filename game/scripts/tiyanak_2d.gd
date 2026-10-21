@@ -209,10 +209,21 @@ func _draw() -> void:
 ## The bushes over the drop, standing on the ground it sits on. They stir while it cries; once a
 ## light has shown it for what it is, they thin, and the drop shows through.
 class Undergrowth extends Node2D:
+	## Their picture (tools/dilim_small.py undergrowth): the bushes that span UNDERGROWTH, ART_MARGIN
+	## px clear at the sides and top, its bottom row the ground; the discs below stand in only while
+	## there is none.
+	const ART := "tiyanak_undergrowth_idle.png"
+	const ART_MARGIN := 4.0
 	var tiyanak: Tiyanak2D
+	var _art: Texture2D
 
 	func _ready() -> void:
 		z_index = 6
+		if ResourceLoader.exists(Enemy2D.ART + ART):
+			_art = load(Enemy2D.ART + ART) as Texture2D
+
+	func has_art() -> bool:
+		return _art != null
 
 	func _process(_delta: float) -> void:
 		if tiyanak != null and is_instance_valid(tiyanak) and tiyanak.stir() > 0.0:
@@ -224,6 +235,10 @@ class Undergrowth extends Node2D:
 		if tiyanak != null and is_instance_valid(tiyanak):
 			shake = sin(tiyanak.stir() * 30.0) * 3.0 * tiyanak.stir()
 		var thin := 0.35 if lit else 1.0
+		if _art != null:
+			draw_texture(_art, Vector2(UNDERGROWTH.position.x - ART_MARGIN + shake, -_art.get_height()),
+				Color(1.0, 1.0, 1.0, thin))
+			return
 		var x := UNDERGROWTH.position.x
 		var step := 0
 		while x < UNDERGROWTH.end.x:
