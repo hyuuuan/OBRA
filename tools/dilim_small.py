@@ -249,6 +249,72 @@ def _mass(s: Sculpt, name: str, x: float, y: float, w: float) -> None:
         s.ellipse(name, x + math.cos(a) * w * 0.68, y + math.sin(a) * w * 0.52, r, r * 0.9, flat=0.1)
 
 
+# The tiyanak's undergrowth: as wide as Tiyanak2D.UNDERGROWTH (480), as tall as its bushes stand
+# (58) and a frond's tip over them, UNDERGROWTH_MARGIN px clear at the sides and top.
+UNDERGROWTH_W = 480
+UNDERGROWTH_H = 72
+UNDERGROWTH_MARGIN = 4
+
+
+def undergrowth() -> Sculpt:
+    """The bushes the tiyanak hides its drop with: a ground cover of dark leaf along the whole
+    width -- the drop under it never shows through -- two rows of leaf masses heaped on it, dark
+    behind and lit in front, broad pointed leaves standing out of them and fronds of small leaves
+    arching over. Its bottom row is the ground the tiyanak sits on."""
+    m = UNDERGROWTH_MARGIN
+    w, h = UNDERGROWTH_W + 2 * m, UNDERGROWTH_H + m
+    ground = h
+    s = Sculpt(w, h)
+    s.material("leaves", LEAVES)
+    s.material("leaves_dark", LEAVES[[0, 0, 1, 2, 2, 3]])
+    s.material("fern", LEAF)
+    # The cover: low dark leaf, solid to the ground, its top broken.
+    top = [(m + i * 12.0, ground - 12.0 - 4.0 * math.sin(i * 1.9) - 3.0 * math.sin(i * 0.7))
+           for i in range(UNDERGROWTH_W // 12 + 1)]
+    s.poly("leaves_dark", [(m, ground)] + top + [(m + UNDERGROWTH_W, ground)], bulge=0.05)
+    k = 7
+
+    def rnd(n: int) -> int:
+        nonlocal k
+        k = (k * 1103515245 + 12345) & 0x7FFFFFFF
+        return k % n
+
+    # Behind: dark masses, high and low.
+    for x in range(m + 18, m + UNDERGROWTH_W - 24, 24):
+        size = 13 + rnd(8)
+        _mass(s, "leaves_dark", x + rnd(6), ground - 20 - rnd(14), size)
+    # Broad pointed leaves standing out of them, a midrib down each.
+    for x in range(m + 26, m + UNDERGROWTH_W - 20, 46):
+        tall = 30 + rnd(16)
+        lean = rnd(9) - 4
+        base = (float(x), ground - 12.0)
+        tip = (x + lean * 2.0, ground - 12.0 - tall)
+        s.poly("leaves", [base, (x - 7 + lean * 0.6, base[1] - tall * 0.45), tip,
+                          (x + 7 + lean * 0.6, base[1] - tall * 0.45)], bulge=0.45)
+        s.line(base, (tip[0] - lean * 0.2, tip[1] + 4), s.tone("leaves", 1), only_on_body=True)
+    # Fronds of small leaves arching over, left and right.
+    for i, x in enumerate(range(m + 50, m + UNDERGROWTH_W - 30, 70)):
+        root = (float(x), ground - 16.0)
+        for side in (-1, 1):
+            reach = 24 + rnd(12)
+            rise = 30 + rnd(14)
+            pts = [(root[0] + side * reach * u, root[1] - rise * math.sin(u * math.pi * 0.7)) for u in (0.0, 0.3, 0.6, 0.85, 1.0)]
+            s.tube("fern", pts, [1.4, 1.2, 1.0, 0.8, 0.6])
+            for j in range(1, 9):
+                u = j / 9
+                lx = root[0] + side * reach * u
+                ly = root[1] - rise * math.sin(u * math.pi * 0.7)
+                r = 3.4 * (1.0 - u * 0.55)
+                s.ellipse("fern", lx - side * 1.5, ly - r * 0.9, r, r * 0.7, flat=0.2)
+                s.ellipse("fern", lx + side * 1.5, ly + r * 0.5, r, r * 0.7, flat=0.2)
+    # In front: lit masses low on the cover, so it reads as bushes and not as a wall.
+    for x in range(m + 16, m + UNDERGROWTH_W - 24, 32):
+        size = 10 + rnd(6)
+        _mass(s, "leaves", x + rnd(10), ground - 9 - rnd(6), size)
+    _leaf_marks(s, 1400, 23)
+    return s
+
+
 def balete(felled: bool = False) -> Sculpt:
     """The kapre's tree: a balete, a strangler fig -- its trunk a lattice of roots grown round the
     tree they strangled, the dark of it showing between them, the roots flaring into buttresses
