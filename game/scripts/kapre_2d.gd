@@ -12,24 +12,25 @@ extends Node2D
 signal cigar_knocked
 
 const SMOKE_WIDTH := 600.0
-## Where its cigar's tip is drawn (tools/dilim_kapre.py CIGAR_TIP), in its teeth up the tree: the
-## cigar's hit area and its light are there, so a click on the cigar is a click on the cigar.
-const CIGAR_TIP := Vector2(-122.0, -280.0)
+## Where its cigar's tip is drawn (tools/build_dilim_delivered.py KAPRE_CIGAR_TIP), seen end on in
+## its teeth up the tree: the cigar's hit area and its light are there, so a click on the cigar is a
+## click on the cigar.
+const CIGAR_TIP := Vector2(-63.0, -235.0)
 const CHOPS_TO_FELL := 3
 const TRUNK := Vector2(70.0, 340.0)
 ## Its light, as two, since a light shows whatever is behind it and up here that is the backdrop's
 ## sky. The ember's own, EMBER_GLOW px round the tip: its pixels and no more (the Ember child). And
-## the light it throws on its face: a cone from its lips (tools/dilim_kapre.py LIPS) back over the
-## face and the tree behind, so the face shows in the dark and the air in front of it stays dark.
-## One cone from the tip lit both, and the sky between the cigar and the face with them.
+## the light it throws on its face: a short cone from its lips (tools/build_dilim_delivered.py
+## KAPRE_LIPS) up over its face -- it faces her, so the face is above the cigar -- so the face shows
+## in the dark and the air round its head stays dark. A wide one lit the sky beside the head.
 const EMBER_GLOW := 3.5
-const FACE_LIGHT_FROM := Vector2(-94.0, -274.0)
-const FACE_LIGHT := 100.0
-const FACE_LIGHT_TOWARD := Vector2(1.0, 0.05)
-const FACE_LIGHT_HALF_ANGLE := 1.25
-## Where its drawn strip stands in the tree (tools/dilim_kapre.py ART_AT): the bottom-centre of the
-## frame, which is its hanging foot, sat on the balete's branch.
-const ART_AT := Vector2(-68.0, -110.0)
+const FACE_LIGHT_FROM := Vector2(-63.0, -234.0)
+const FACE_LIGHT := 32.0
+const FACE_LIGHT_TOWARD := Vector2(0.0, -1.0)
+const FACE_LIGHT_HALF_ANGLE := 0.9
+## Where its drawn strip stands in the tree (tools/build_dilim_delivered.py KAPRE_ART_AT): the
+## bottom-centre of the frame, which is its feet, stood on the balete's branch.
+const ART_AT := Vector2(-64.0, -173.0)
 const FADE_SECONDS := 1.0
 const BARK := Color(0.16, 0.11, 0.08)
 const HIDE := Color(0.08, 0.07, 0.06)
@@ -61,12 +62,13 @@ const FALLEN_GLOW := 46.0
 const EMBER_DIES := 2.5
 ## Leaving, startled: with its cigar knocked away ('knocked') it climbs CLIMBS px up into its crown
 ## and is lost in it; with its tree gone under it ('falling', the cigar still in its teeth) it drops
-## to the ground, its ember lighting it down, and walks off east into the dark.
+## to the ground, its ember lighting it down, and walks off east into the dark on its walk cycle
+## ('walk'), WALKS_OFF px in WALK_SECONDS, fading as it goes -- slowly at first, so the walk is seen.
 const CLIMBS := 90.0
 const CLIMB_SECONDS := 1.4
 const DROP_SECONDS := 0.4
-const WALKS_OFF := 50.0
-const WALK_SECONDS := 0.9
+const WALKS_OFF := 90.0
+const WALK_SECONDS := 1.6
 
 var _smoke := 1.0
 var _smoke_sheet: Texture2D
@@ -88,8 +90,9 @@ var ember: Node2D
 ## in only while there is none.
 var tree_art: PixelStripAnimator
 
-## Its strips (tools/build_dilim_creatures.py, or drawn art under the same names); the code-drawn
-## body below stands in only while there are none.
+## Its strips -- the art team's, cut by tools/build_dilim_delivered.py -- standing, angry with its
+## cigar knocked away, startled as its tree goes, and walking; the code-drawn body below stands in
+## only while there are none.
 var art: PixelStripAnimator
 
 
@@ -111,7 +114,7 @@ func _ready() -> void:
 	add_child(tree_art)
 	tree_art.load_kind(Enemy2D.ART, "kapre_tree", ["idle", "felled"])
 	tree_art.play("idle")
-	_make_art("kapre", ["idle", "knocked", "falling"], false, ART_AT)
+	_make_art("kapre", ["idle", "knocked", "falling", "walk"], false, ART_AT)
 	var puffs := Enemy2D.ART + "kapre_smoke_idle.png"
 	if ResourceLoader.exists(puffs):
 		_smoke_sheet = load(puffs) as Texture2D
@@ -243,8 +246,9 @@ func leave() -> void:
 	var away := create_tween()
 	if _felled:
 		away.tween_property(art, "position:y", 0.0, DROP_SECONDS).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+		away.tween_callback(art.play.bind("walk"))
 		away.tween_property(art, "position:x", ART_AT.x + WALKS_OFF, WALK_SECONDS)
-		away.parallel().tween_property(art, "modulate:a", 0.0, WALK_SECONDS)
+		away.parallel().tween_property(art, "modulate:a", 0.0, WALK_SECONDS).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 	else:
 		away.tween_property(art, "position:y", ART_AT.y - CLIMBS, CLIMB_SECONDS).set_trans(Tween.TRANS_SINE)
 		away.parallel().tween_property(art, "modulate:a", 0.0, CLIMB_SECONDS)

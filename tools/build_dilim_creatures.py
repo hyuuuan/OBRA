@@ -7,16 +7,22 @@ The Makiling delivery has no creature art, and Kent's call was code-drawn now, r
 drawn art later without a code change -- each creature loads `<kind>_<anim>.png` from
 game/assets/Level4/creatures/, so a delivered strip of the same name simply wins.
 
+WHAT IS DELIVERED NOW
+---------------------
+The art team's sheets (LEVEL4_Creatures/, 2026-10-20) give the kapre, the manananggal (both halves)
+and the lean aswang -- a white lady -- and tools/build_dilim_delivered.py cuts them. Their strips
+(build_dilim_delivered.DELIVERED) are not drawn here; the kapre's tree, its smoke and its cigar
+still are.
+
 HOW THEY ARE DRAWN
 ------------------
 In the delivered art's idiom (the apo, Lolo, the bakunawa): one art px to one screen px, five or
 six tones a material lit from the upper left, and selective coloured outlines -- see
-tools/creature_sculpt.py. The creatures themselves are in dilim_aswang.py (the aswang, lean and old),
-dilim_beasts.py (the sigbin),
-dilim_giants.py (the tikbalang, the bungisngis), dilim_kapre.py (the kapre, sat in its tree, its
-smoke and its cigar), dilim_fliers.py (the manananggal, the wakwak, the tik-tik) and dilim_small.py
-(the tiyanak, the santelmo, the nuno's mound, the lower half, the kapre's balete); the last
-clearing's dead tree, drawn the same way, is in dilim_props.py.
+tools/creature_sculpt.py. The creatures themselves are in dilim_aswang.py (the old aswang),
+dilim_beasts.py (the sigbin), dilim_giants.py (the tikbalang, the bungisngis), dilim_kapre.py (the
+kapre's smoke and its cigar), dilim_fliers.py (the wakwak, the tik-tik) and dilim_small.py (the
+tiyanak, the santelmo, the nuno's mound, the kapre's balete); the last clearing's dead tree, drawn
+the same way, is in dilim_props.py.
 
 THE STRIP CONTRACT
 ------------------
@@ -54,8 +60,8 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "game" / "assets" / "Level4" / "creatures"
 
 # Which way each stands: on its feet at the bottom row, or centred (a flier).
-GROUND = ["aswang_dog", "aswang_pig", "sigbin", "tikbalang", "bungisngis", "kapre", "kapre_tree", "tiyanak", "manananggal_lower", "nuno_mound", "dead_tree"]
-FLYING = ["manananggal_upper", "wakwak", "tiktik", "santelmo"]
+GROUND = ["aswang_pig", "sigbin", "tikbalang", "bungisngis", "kapre_tree", "tiyanak", "nuno_mound", "dead_tree"]
+FLYING = ["wakwak", "tiktik", "santelmo"]
 
 
 def _aswang(a):
@@ -76,25 +82,18 @@ def _beast(b):
 
 def _sheets() -> dict[str, dict[str, list[Image.Image]]]:
     return {
-        "aswang_dog": _aswang(aswang.LEAN),
         "aswang_pig": _aswang(aswang.OLD),
         "sigbin": _beast(beasts.SIGBIN),
         "tikbalang": {a: [giants.draw(giants.TIKBALANG, st).render() for st in poses] for a, poses in giants.TIKBALANG_ANIMS.items()},
         "bungisngis": {a: [giants.draw_bungisngis(st).render() for st in poses] for a, poses in giants.BUNGISNGIS_ANIMS.items()},
-        "kapre": {a: kapre.frames(a) for a in kapre.ANIMS},
         "kapre_smoke": {"idle": kapre.smoke()},
         "kapre_cigar": {"idle": [kapre.cigar()]},
-        "manananggal_upper": {a: [fliers.manananggal_upper(l, r).render() for l, r in poses] for a, poses in fliers.MANANANGGAL_ANIMS.items()},
         "wakwak": {a: [fliers.wakwak(l, d).render() for l, d in poses] for a, poses in fliers.WAKWAK_ANIMS.items()},
         "tiktik": {a: [fliers.tiktik(l).render() for l in poses] for a, poses in fliers.TIKTIK_ANIMS.items()},
         "tiyanak": {
             "idle": [small.tiyanak_bundle(0.0).render(), small.tiyanak_bundle(1.0, 1).render()],
             "true": [small.tiyanak_true(0.0).render(), small.tiyanak_true(0.5).render()],
             "run": [small.tiyanak_true(k / 4, run=True).render() for k in range(4)],
-        },
-        "manananggal_lower": {
-            "idle": [small.manananggal_lower().render()],
-            "death": [small.manananggal_lower(k / 3).render() for k in (1, 2, 3)],
         },
         "santelmo": {
             "idle": [small.santelmo(k / 4).render() for k in range(4)],
