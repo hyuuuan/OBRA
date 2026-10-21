@@ -312,10 +312,11 @@ one they learn by being put back. Art may restyle it; it may not replace it with
 
 ## Dilim — what is painted, what is authored, and what is drawn in code
 
-**Updated 19 October.** Level 4's delivery (`Mt Makiling Level 4.zip`) is forest plates and a
-labelled tileset and **no creature art**, so Dilim's world is painted and everything that lives in
-it is a developer's: the creatures are sculpted pixel strips now, not code-drawn bodies, but they
-are still stand-ins for an artist's. **See them all at once:**
+**Updated 22 October.** Level 4's delivery (`Mt Makiling Level 4.zip`) is forest plates and a
+labelled tileset and no creature art. The art team has since sent three creatures
+(`Creatures.zip`): **the kapre, the manananggal and a white lady**, who is the lean aswang. Every
+other creature is a developer's: sculpted pixel strips, not code-drawn bodies, but still stand-ins
+for an artist's. **See them all at once:**
 `godot -t --resolution 1600x900 --path game --script res://tests/run_visual_dilim_creatures.gd`
 writes each one beside her, in her light at play framing, to `/tmp/obra_dilim_*.png` and a sheet.
 That is the right way to judge them -- Dilim is dark, and a body that reads on a grey background
@@ -324,11 +325,18 @@ can vanish in the level.
 **Painted (delivered):** the six Makiling plates and four seamless tiles, cut by
 `tools/build_dilim.py` (`CONTENT_NEEDED.md` §3 has what is not cut yet).
 
+**Drawn by the art team (delivered):** three character sheets kept as sent in
+`LEVEL4_Creatures/ASWANG/` (`kapre.png`, `manananggal.png`, `whitelady.png`), cut by
+`tools/build_dilim_delivered.py` into the strips below of the same names: the poses keyed off their
+panel, their shadows, labels and the manananggal's legs taken off, each creature scaled once, the
+left-facing poses mirrored. No sheet draws a death, so a death is its pose fading out. The white
+lady is `aswang_dog_*`; `aswang_pig_*` stays sculpted.
+
 **Authored in the project's idiom** (replaceable by name, no code change):
 
 | What | Tool | Files | The contract |
 |---|---|---|---|
-| Every creature, the kapre's balete, smoke and cigar, and the finale's dead tree | `tools/build_dilim_creatures.py`, on `tools/creature_sculpt.py` (the bodies in `dilim_aswang.py`, `dilim_beasts.py`, `dilim_giants.py`, `dilim_kapre.py`, `dilim_fliers.py`, `dilim_small.py`; the dead tree in `dilim_props.py`) | `assets/Level4/creatures/<kind>_<anim>.png` | A row of square frames, as tall as wide; a strip whose width is not a whole number of its height is one picture (the mound, the tree). Ground kinds stand on the bottom row, fliers are centred -- that point is the creature's position. Chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour, never black. Each script's own `_draw()` stays as the fallback while a strip is missing |
+| Every creature but the three delivered, the kapre's balete, smoke and cigar, and the finale's dead tree | `tools/build_dilim_creatures.py`, on `tools/creature_sculpt.py` (the bodies in `dilim_aswang.py`, `dilim_beasts.py`, `dilim_giants.py`, `dilim_kapre.py`, `dilim_fliers.py`, `dilim_small.py`; the dead tree in `dilim_props.py`) | `assets/Level4/creatures/<kind>_<anim>.png` | A row of square frames, as tall as wide; a strip whose width is not a whole number of its height is one picture (the mound, the tree). Ground kinds stand on the bottom row, fliers are centred -- that point is the creature's position. Chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour, never black. Each script's own `_draw()` stays as the fallback while a strip is missing |
 | Lola's six things | `tools/build_dilim_props.py` | `assets/Level4/props/<id>.png` | 32-px icons, each on a leaf, each told apart by its brightest colour: salt, ash, garlic, candle, lamp oil, the stingray-tail whip. The quick slots and the pickups load them by id |
 
 **The creatures' strips, and what each has to say** -- a delivered strip of the same name replaces
@@ -336,15 +344,15 @@ one with no code change:
 
 | Kind | Strips | What it has to say |
 |---|---|---|
-| Aswang, the lean one and the old one | `aswang_dog_*`, `aswang_pig_*` (the names they had as a dog and a pig): `idle` `run` `windup` `attack` `hurt` `death` | The night form, as the folklore has it: a gaunt ash-grey woman-shape crawling on all fours, elbows and knees jutting up, long matted hair hanging over its face, bloodshot eyes through it, needle teeth, long nails, the long thin tongue, a ragged skirt; the old one hulking and humped, its hair streaked grey. Lighter than the night, so they read inside her light (#93) |
+| Aswang, the lean one and the old one | `aswang_dog_*`, `aswang_pig_*` (the names they had as a dog and a pig): `idle` `run` `windup` `attack` `hurt` `death` | **The lean one is delivered:** the art team's white lady -- long black hair over a pale face, red eyes, a white kimono bloodied at the hem and sleeves -- idle and floating, gliding on her walk cycle, her hair flung out wide in the windup, reaching to strike, her head thrown back when hit. The old one, sculpted: the night form crawling on all fours, hulking and humped, elbows and knees jutting up, long matted hair streaked grey over its face, bloodshot eyes through it, needle teeth, the long thin tongue. Both read inside her light (#93) |
 | Santelmo | `santelmo_idle`, `santelmo_hot` | A flame that wants her: brighter while it is coming |
 | The nuno's mound | `nuno_mound_idle` (one picture) | An earth mound with something left for the nuno -- a thing to be respectful round, never a target |
 | Sigbin | `sigbin_*`: the six states | Goat-like, long ears hanging, walking backwards. It shows only as much as the light on it, so in the dark it is a glint -- the windup's glint is its tell, and must stay |
 | Tikbalang | `tikbalang_idle`, `tikbalang_run` | A tall, lanky figure, horse-headed, a mane with three golden hairs, eyes catching the light |
-| Kapre | `kapre_idle`, `kapre_knocked`, `kapre_falling`; its tree `kapre_tree_idle`, `kapre_tree_felled` (one picture each); `kapre_smoke_idle`; `kapre_cigar_idle` (one picture) | A dark hairy giant, about twice her height sat, on a branch of a balete -- a strangler fig, its trunk a lattice of roots -- its back to the trunk, facing west, the way she comes, a cigar in its teeth, its eyes glowing and its face lit by the ember; startled, the cigar gone from its mouth (knocked) or still clenched (falling, its tree gone under it). Drawn in the tree's own frame: the strip stands at `Kapre2D.ART_AT`; the drawn cigar's tip is `CIGAR_TIP`, where its hit area and the ember's own light are; its lips are `LIPS`, where the light on its face starts -- a redrawn kapre keeps all three, or moves them with it (`tests/test_build_dilim_creatures.py` holds them together, and measures how much of the backdrop's sky the lights show over the drawn tree and kapre). The smoke is six puffs, `PUFF` px square: four billows, a middling and a small one. The cigar alone is the one that falls when it is knocked. The tree lies felled once it is chopped down |
+| Kapre | **Delivered:** `kapre_idle`, `kapre_knocked`, `kapre_falling`, `kapre_walk`. Sculpted: its tree `kapre_tree_idle`, `kapre_tree_felled` (one picture each); `kapre_smoke_idle`; `kapre_cigar_idle` (one picture) | The art team's kapre: small, green-skinned, long grey hair and beard, a hide over one shoulder -- "small in form, but still strangely imposing" -- standing on a branch of a balete (a strangler fig, its trunk a lattice of roots) beside the trunk, facing her, its cigar seen end on in its teeth and its face lit by the ember; angry when the cigar is knocked from its mouth, startled looking up as its tree goes under it, then walking off. Drawn in the tree's own frame: the strip's feet stand at `Kapre2D.ART_AT`; the drawn cigar's tip is `CIGAR_TIP`, where its hit area and the ember's own light are; its lips are `FACE_LIGHT_FROM`, where the light on its face starts -- a redrawn kapre keeps all three, or moves them with it (`tools/build_dilim_delivered.py` `KAPRE_*`; `tests/test_build_dilim_delivered.py` holds them together, checks its feet are on the branch, and measures how much of the backdrop's sky the lights show over the drawn tree and kapre). The smoke is six puffs, `PUFF` px square: four billows, a middling and a small one. The cigar alone is the one that falls when it is knocked. The tree lies felled once it is chopped down |
 | Tiyanak | `tiyanak_idle`, `tiyanak_true`, `tiyanak_run` | A swaddled bundle that cries -- and, lit, what it is: small, hunched, red-eyed. Its undergrowth hides a drop and stirs when it cries |
 | Bungisngis | `bungisngis_*`: the six states, `laugh`, `aside` | A one-eyed giant with a club, always grinning, standing in the crossing like a wall; laughing helpless; sat aside |
-| Manananggal | `manananggal_upper_*`: the six states; `manananggal_lower_idle`, `manananggal_lower_death` | A pale torso with long hair on wide bat wings, hunting from above; and the hips and legs in a tapis it left standing in a hollow |
+| Manananggal | **Delivered:** `manananggal_upper_*`: the six states; `manananggal_lower_idle`, `manananggal_lower_death` | The art team's: a pale, rosy-cheeked girl's upper body in purple, long grey hair, on wide red bat wings -- flapping as it hunts from above, arms out to menace in its windup, diving with a slash of red, recoiling when hit -- severed at the waist, a drip of blood under it; and its legs, purple and white-booted, left standing apart in a hollow |
 | Wakwak | `wakwak_*`: the six states | A great dark bird, wings wide, a hooked beak |
 | Tik-tik | `tiktik_*`: the six states | A small dark long-beaked bird -- seen only with ash on it, so it carries the ash's grey |
 | The finale's dead tree | `dead_tree_idle` (260 x 336), `dead_tree_felled` (380 x 140), one picture each; `DeadTree2D.art_kind = "dead_tree"` in the last clearing | Dead long since, in the balete's bark bleached grey: strands twisted round a dark heart, bark torn off, a hollow at its foot, bare crooked limbs. Felled, a log the length of the 280-px span with its root plate torn up at the west end, its top along the log's 64 px. Drawn among the creatures (`DeadTree2D.DRAWN_Z`), so the walkers meeting it at its root plate are in front of it, not hidden in it. Level 1's dead tree is the delivered one and is untouched |
