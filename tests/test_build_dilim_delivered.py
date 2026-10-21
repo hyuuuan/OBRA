@@ -105,10 +105,10 @@ class DeliveredStripsTest(unittest.TestCase):
                 self.assertGreaterEqual(int(rows.max()), frame.shape[0] - 2, f"{name} frame {index} floats")
 
     def test_each_creature_is_its_size_in_the_game(self) -> None:
-        # The white lady a head taller than the apo (106 px); the kapre "small in form", about her
-        # height; the manananggal's wings wide enough to be the thing hunting from above.
+        # The white lady a head taller than the apo (106 px); the kapre half again her height on its
+        # branch; the manananggal's wings wide enough to be the thing hunting from above.
         self.assertTrue(110 <= _height(_frames(self.strips["aswang_dog_idle"])[0]) <= 124)
-        self.assertTrue(90 <= _height(_frames(self.strips["kapre_idle"])[0]) <= 106)
+        self.assertTrue(140 <= _height(_frames(self.strips["kapre_idle"])[0]) <= 170)
         wings = _frames(self.strips["manananggal_upper_idle"])[0][..., 3] > 0
         cols = np.nonzero(wings.any(axis=0))[0]
         self.assertTrue(120 <= cols.max() - cols.min() + 1 <= 160, f"wings {cols.max() - cols.min() + 1} px")

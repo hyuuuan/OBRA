@@ -15,7 +15,7 @@ const SMOKE_WIDTH := 600.0
 ## Where its cigar's tip is drawn (tools/build_dilim_delivered.py KAPRE_CIGAR_TIP), seen end on in
 ## its teeth up the tree: the cigar's hit area and its light are there, so a click on the cigar is a
 ## click on the cigar.
-const CIGAR_TIP := Vector2(-63.0, -235.0)
+const CIGAR_TIP := Vector2(-62.0, -271.0)
 const CHOPS_TO_FELL := 3
 const TRUNK := Vector2(70.0, 340.0)
 ## Its light, as two, since a light shows whatever is behind it and up here that is the backdrop's
@@ -24,8 +24,8 @@ const TRUNK := Vector2(70.0, 340.0)
 ## KAPRE_LIPS) up over its face -- it faces her, so the face is above the cigar -- so the face shows
 ## in the dark and the air round its head stays dark. A wide one lit the sky beside the head.
 const EMBER_GLOW := 3.5
-const FACE_LIGHT_FROM := Vector2(-63.0, -234.0)
-const FACE_LIGHT := 32.0
+const FACE_LIGHT_FROM := Vector2(-62.0, -270.0)
+const FACE_LIGHT := 44.0
 const FACE_LIGHT_TOWARD := Vector2(0.0, -1.0)
 const FACE_LIGHT_HALF_ANGLE := 0.9
 ## Where its drawn strip stands in the tree (tools/build_dilim_delivered.py KAPRE_ART_AT): the

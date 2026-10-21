@@ -164,8 +164,9 @@ What the build does that the design above does not say, and what it does not do 
   `aswang_dog` is now the art team's white lady -- long black hair, a pale face, a bloodied white
   kimono, gliding at her -- and `aswang_pig` an old, hulking, humped crawler, its hair streaked grey.
 - **The kapre in its tree** (Kent, 2026-10-20: "more detailed and make more sense"; the art team's
-  kapre since 2026-10-22). It stands on a branch of the balete 170 px up -- "small in form, but
-  still strangely imposing", about her height -- facing her. Its cigar's hit area is where the
+  kapre since 2026-10-22). It stands on a branch of the balete 170 px up -- its sheet calls it "small
+  in form, but still strangely imposing", and it stands half again her height (Kent, 2026-10-22:
+  "make the kapre bigger") -- facing her. Its cigar's hit area is where the
   cigar is drawn, seen end on in its teeth. Its light is two: the ember's own, a few px round it,
   and a short cone from its lips up over its face. A light shows whatever is behind it, and up
   there that is the backdrop's sky, so the air round its head stays dark. Its smoke is a drawn bank of puffs pouring off the cigar. Each

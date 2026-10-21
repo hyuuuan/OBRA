@@ -127,8 +127,9 @@ LEGS_AT = {
 }
 
 ## Each creature's one scale, from the sheet to the game: the white lady a head taller than the
-## apo (106 px), the kapre "small in form" about her height, the manananggal's wings ~140 px across.
-SCALE = {"whitelady": 0.66, "kapre": 0.54, "manananggal": 0.9}
+## apo (106 px), the kapre half again her height on its branch (Kent, 2026-10-22: "make the kapre
+## bigger"; its sheet's "small in form" left it her size), the manananggal's wings ~140 px across.
+SCALE = {"whitelady": 0.66, "kapre": 0.86, "manananggal": 0.9}
 
 ## Poses drawn facing left.
 FACING_LEFT = {"whitelady": {"idle", "float", "look_up", "look_down", "reach"}}
@@ -164,9 +165,9 @@ FLYING = {"manananggal_upper"}
 ## area and the ember's light are; its lips, where the light on its face starts, at LIPS; its eyes
 ## at FACE. Measured off kapre_idle; tests/test_build_dilim_delivered.py holds them to it.
 KAPRE_ART_AT = (-64, -173)
-KAPRE_CIGAR_TIP = (-63, -235)
-KAPRE_LIPS = (-63, -234)
-KAPRE_FACE = (-63, -243)
+KAPRE_CIGAR_TIP = (-62, -271)
+KAPRE_LIPS = (-62, -270)
+KAPRE_FACE = (-62, -285)
 ## A death fades over three frames: how much of it is left, and how far it has dropped (px).
 FADE = (0.7, 0.4, 0.15)
 DROP = {"ground": (0, 1, 2), "flying": (4, 10, 18)}
