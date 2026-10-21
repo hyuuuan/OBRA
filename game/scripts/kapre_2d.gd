@@ -62,12 +62,13 @@ const FALLEN_GLOW := 46.0
 const EMBER_DIES := 2.5
 ## Leaving, startled: with its cigar knocked away ('knocked') it climbs CLIMBS px up into its crown
 ## and is lost in it; with its tree gone under it ('falling', the cigar still in its teeth) it drops
-## to the ground, its ember lighting it down, and walks off east into the dark.
+## to the ground, its ember lighting it down, and walks off east into the dark on its walk cycle
+## ('walk'), WALKS_OFF px in WALK_SECONDS, fading as it goes -- slowly at first, so the walk is seen.
 const CLIMBS := 90.0
 const CLIMB_SECONDS := 1.4
 const DROP_SECONDS := 0.4
-const WALKS_OFF := 50.0
-const WALK_SECONDS := 0.9
+const WALKS_OFF := 90.0
+const WALK_SECONDS := 1.6
 
 var _smoke := 1.0
 var _smoke_sheet: Texture2D
@@ -89,8 +90,9 @@ var ember: Node2D
 ## in only while there is none.
 var tree_art: PixelStripAnimator
 
-## Its strips (tools/build_dilim_creatures.py, or drawn art under the same names); the code-drawn
-## body below stands in only while there are none.
+## Its strips -- the art team's, cut by tools/build_dilim_delivered.py -- standing, angry with its
+## cigar knocked away, startled as its tree goes, and walking; the code-drawn body below stands in
+## only while there are none.
 var art: PixelStripAnimator
 
 
@@ -112,7 +114,7 @@ func _ready() -> void:
 	add_child(tree_art)
 	tree_art.load_kind(Enemy2D.ART, "kapre_tree", ["idle", "felled"])
 	tree_art.play("idle")
-	_make_art("kapre", ["idle", "knocked", "falling"], false, ART_AT)
+	_make_art("kapre", ["idle", "knocked", "falling", "walk"], false, ART_AT)
 	var puffs := Enemy2D.ART + "kapre_smoke_idle.png"
 	if ResourceLoader.exists(puffs):
 		_smoke_sheet = load(puffs) as Texture2D
@@ -244,8 +246,9 @@ func leave() -> void:
 	var away := create_tween()
 	if _felled:
 		away.tween_property(art, "position:y", 0.0, DROP_SECONDS).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+		away.tween_callback(art.play.bind("walk"))
 		away.tween_property(art, "position:x", ART_AT.x + WALKS_OFF, WALK_SECONDS)
-		away.parallel().tween_property(art, "modulate:a", 0.0, WALK_SECONDS)
+		away.parallel().tween_property(art, "modulate:a", 0.0, WALK_SECONDS).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 	else:
 		away.tween_property(art, "position:y", ART_AT.y - CLIMBS, CLIMB_SECONDS).set_trans(Tween.TRANS_SINE)
 		away.parallel().tween_property(art, "modulate:a", 0.0, CLIMB_SECONDS)
