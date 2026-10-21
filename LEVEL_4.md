@@ -36,7 +36,7 @@ in three waves until dawn.
 | The tally | Every encounter's route is logged for the thesis telemetry, but the ending gets **one point from Dilim**: its majority route. Six forks must not decide the ending alone. |
 | "Absurd" | The bungisngis laughs itself helpless at **sea things in a forest**: fish, shark, octopus, sailboat, submarine. The game can only see a class, so the joke had to be a set of classes. |
 | Quick slots | Four, on **Z X C V**. Z/X rotate a drawing only while placing, and quick slots are off while placing. |
-| Creature art | **Sculpted pixel strips**, in the delivered art's idiom: chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour (`tools/creature_sculpt.py`). Replaceable by name when the art team delivers. |
+| Creature art | **Sculpted pixel strips**, in the delivered art's idiom: chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour (`tools/creature_sculpt.py`). Replaceable by name when the art team delivers -- and three are now theirs: the kapre, the manananggal and a white lady as the lean aswang (`Creatures.zip`, cut by `tools/build_dilim_delivered.py`). |
 | Defaults taken | Shift = walk (the santelmo's rule needs one). The opening is design Draft A, naming the manananggal and the tikbalang, played as the level's intro. |
 
 ## Flow
@@ -143,36 +143,38 @@ alongside this file; the numbers below are its starting points.
 | Segment 3 | `Tiyanak2D` · `Bungisngis2D` · `ManananggalUpper2D` / `ManananggalLower2D` |
 | The finale | `DilimFinale2D` (the clock, the three waves, the dead tree) · `DawnClockHud` · `Wakwak2D` · `Tiktik2D` · `DeadTree2D` (`art_kind = "dead_tree"`, Dilim's own, drawn; `stands_solid` off) |
 | Lola's things | `Satchel` · `SatchelPickup2D` · `QuickSlotBar` · `AsinThrow2D` · `AboDust2D` · `BawangWard2D` · `CandleFlame2D` · `WhipLash2D` |
-| Art | `MakilingBackdrop2D` · `MakilingTerrain2D` · `PixelStripAnimator` · `tools/build_dilim.py` (plates, tiles) · `tools/build_dilim_creatures.py` (every creature, the kapre's balete, smoke and cigar) · `tools/build_dilim_props.py` (satchel icons) |
+| Art | `MakilingBackdrop2D` · `MakilingTerrain2D` · `PixelStripAnimator` · `tools/build_dilim.py` (plates, tiles) · `tools/build_dilim_creatures.py` (the sculpted creatures, the kapre's balete, smoke and cigar) · `tools/build_dilim_delivered.py` (the art team's: the kapre, the manananggal, the white lady) · `tools/build_dilim_props.py` (satchel icons) |
 | Tests | `run_level4_audit` · `run_level4_enablers_probe` · `run_level4_seg1/seg2/seg3_probe` · `run_level4_finale_probe` · `run_level4_tiktik_probe` · `run_level4_whip_probe` · `run_satchel_probe` · `run_combat_probe` · `run_enemy_probe` · `run_weapon_probe` · `run_darkness_probe` · `run_makiling_probe` · `run_journey_probe` (Dagat → house → Dilim → dawn → ending) · windowed looks `run_visual_dilim_light`, `run_visual_makiling`, `run_visual_dilim_creatures` |
 
 ## As built, against the design
 
 What the build does that the design above does not say, and what it does not do yet:
 
-- **Creature art.** Every creature is a sculpted strip a developer drew -- the aswang (lean, old),
-  santelmo, nuno's mound, sigbin, tikbalang, kapre and its balete (standing and felled), tiyanak,
-  bungisngis, manananggal (both halves), wakwak and tik-tik -- standing in for an artist's
-  (`ART_PLACEHOLDERS.md` names every strip; `run_visual_dilim_creatures` lays them side by side in
-  her light). Each script's own code-drawn body is the fallback while a strip is missing. Her hurt
+- **Creature art.** Three are the art team's (`Creatures.zip`, 2026-10-20, kept as delivered in
+  `LEVEL4_Creatures/`, cut by `tools/build_dilim_delivered.py`): the kapre, the manananggal (both
+  halves) and a white lady, who is the lean aswang (Kent, 2026-10-21). Every other is a sculpted
+  strip a developer drew -- the old aswang, santelmo, nuno's mound, sigbin, tikbalang, the kapre's
+  balete (standing and felled), tiyanak, bungisngis, wakwak and tik-tik -- standing in for an
+  artist's (`ART_PLACEHOLDERS.md` names every strip; `run_visual_dilim_creatures` lays them side by
+  side in her light). Each script's own code-drawn body is the fallback while a strip is missing. Her hurt
   and attack poses are placeholders made from the delivered sheet (the jump and wave frames,
   leaned).
 - **The aswang is the thing itself, not a dog or a pig** (Kent, 2026-10-20: an aswang "if you search
   the internet is not like that"). The two kinds the waves send keep their names and settings:
-  `aswang_dog` is a lean crawling woman-shape -- hair over its face, bloodshot eyes, the long tongue
-  -- and `aswang_pig` an old, hulking, humped one, its hair streaked grey.
-- **The kapre in its tree** (Kent, 2026-10-20: "more detailed and make more sense"). It sits on
-  a branch of the balete 170 px up, a giant about twice her height sat, facing her. Its cigar's
-  hit area is where the cigar is drawn, in its teeth west of the trunk. Its light is two: the
-  ember's own, a few px round it, and a cone from its lips back over its face and the tree. A
-  light shows whatever is behind it, and up there that is the backdrop's sky, so the open air in
-  front of its face stays dark. Its smoke is a drawn bank of puffs pouring off the cigar. Each
+  `aswang_dog` is now the art team's white lady -- long black hair, a pale face, a bloodied white
+  kimono, gliding at her -- and `aswang_pig` an old, hulking, humped crawler, its hair streaked grey.
+- **The kapre in its tree** (Kent, 2026-10-20: "more detailed and make more sense"; the art team's
+  kapre since 2026-10-22). It stands on a branch of the balete 170 px up -- "small in form, but
+  still strangely imposing", about her height -- facing her. Its cigar's hit area is where the
+  cigar is drawn, seen end on in its teeth. Its light is two: the ember's own, a few px round it,
+  and a short cone from its lips up over its face. A light shows whatever is behind it, and up
+  there that is the backdrop's sky, so the air round its head stays dark. Its smoke is a drawn bank of puffs pouring off the cigar. Each
   answer is seen:
   - fanned, the smoke blows away east and up;
   - knocked, the cigar tumbles down, lit by its ember alone, then lights the ground round it
     until it goes out; the kapre climbs up into its crown;
   - felled, the kapre drops with the cigar still in its teeth, its ember lighting it down, and
-    walks off. Gone, its cigar is out of reach.
+    walks off east on its walk cycle. Gone, its cigar is out of reach.
 
   A boomerang or a shot thrown by a click reaches the cigar from anywhere in the smoke's west
   half (13300-13480), short of the middle that turns her round.
