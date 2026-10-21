@@ -21,8 +21,8 @@ six tones a material lit from the upper left, and selective coloured outlines --
 tools/creature_sculpt.py. The creatures themselves are in dilim_aswang.py (the old aswang),
 dilim_beasts.py (the sigbin), dilim_giants.py (the tikbalang, the bungisngis), dilim_kapre.py (the
 kapre's smoke and its cigar), dilim_fliers.py (the wakwak, the tik-tik) and dilim_small.py (the
-tiyanak, the santelmo, the nuno's mound, the kapre's balete); the last clearing's dead tree, drawn
-the same way, is in dilim_props.py.
+tiyanak and its undergrowth, the santelmo, the nuno's mound, the kapre's balete); the last
+clearing's dead tree, drawn the same way, is in dilim_props.py.
 
 THE STRIP CONTRACT
 ------------------
@@ -60,7 +60,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "game" / "assets" / "Level4" / "creatures"
 
 # Which way each stands: on its feet at the bottom row, or centred (a flier).
-GROUND = ["aswang_pig", "sigbin", "tikbalang", "bungisngis", "kapre_tree", "tiyanak", "nuno_mound", "dead_tree"]
+GROUND = ["aswang_pig", "sigbin", "tikbalang", "bungisngis", "kapre_tree", "tiyanak", "tiyanak_undergrowth", "nuno_mound", "dead_tree"]
 FLYING = ["wakwak", "tiktik", "santelmo"]
 
 
@@ -95,6 +95,7 @@ def _sheets() -> dict[str, dict[str, list[Image.Image]]]:
             "true": [small.tiyanak_true(0.0).render(), small.tiyanak_true(0.5).render()],
             "run": [small.tiyanak_true(k / 4, run=True).render() for k in range(4)],
         },
+        "tiyanak_undergrowth": {"idle": [small.undergrowth().render()]},
         "santelmo": {
             "idle": [small.santelmo(k / 4).render() for k in range(4)],
             "hot": [small.santelmo(k / 4, hot=1.0).render() for k in range(4)],
