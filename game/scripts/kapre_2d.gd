@@ -12,24 +12,25 @@ extends Node2D
 signal cigar_knocked
 
 const SMOKE_WIDTH := 600.0
-## Where its cigar's tip is drawn (tools/dilim_kapre.py CIGAR_TIP), in its teeth up the tree: the
-## cigar's hit area and its light are there, so a click on the cigar is a click on the cigar.
-const CIGAR_TIP := Vector2(-122.0, -280.0)
+## Where its cigar's tip is drawn (tools/build_dilim_delivered.py KAPRE_CIGAR_TIP), seen end on in
+## its teeth up the tree: the cigar's hit area and its light are there, so a click on the cigar is a
+## click on the cigar.
+const CIGAR_TIP := Vector2(-63.0, -235.0)
 const CHOPS_TO_FELL := 3
 const TRUNK := Vector2(70.0, 340.0)
 ## Its light, as two, since a light shows whatever is behind it and up here that is the backdrop's
 ## sky. The ember's own, EMBER_GLOW px round the tip: its pixels and no more (the Ember child). And
-## the light it throws on its face: a cone from its lips (tools/dilim_kapre.py LIPS) back over the
-## face and the tree behind, so the face shows in the dark and the air in front of it stays dark.
-## One cone from the tip lit both, and the sky between the cigar and the face with them.
+## the light it throws on its face: a short cone from its lips (tools/build_dilim_delivered.py
+## KAPRE_LIPS) up over its face -- it faces her, so the face is above the cigar -- so the face shows
+## in the dark and the air round its head stays dark. A wide one lit the sky beside the head.
 const EMBER_GLOW := 3.5
-const FACE_LIGHT_FROM := Vector2(-94.0, -274.0)
-const FACE_LIGHT := 100.0
-const FACE_LIGHT_TOWARD := Vector2(1.0, 0.05)
-const FACE_LIGHT_HALF_ANGLE := 1.25
-## Where its drawn strip stands in the tree (tools/dilim_kapre.py ART_AT): the bottom-centre of the
-## frame, which is its hanging foot, sat on the balete's branch.
-const ART_AT := Vector2(-68.0, -110.0)
+const FACE_LIGHT_FROM := Vector2(-63.0, -234.0)
+const FACE_LIGHT := 32.0
+const FACE_LIGHT_TOWARD := Vector2(0.0, -1.0)
+const FACE_LIGHT_HALF_ANGLE := 0.9
+## Where its drawn strip stands in the tree (tools/build_dilim_delivered.py KAPRE_ART_AT): the
+## bottom-centre of the frame, which is its feet, stood on the balete's branch.
+const ART_AT := Vector2(-64.0, -173.0)
 const FADE_SECONDS := 1.0
 const BARK := Color(0.16, 0.11, 0.08)
 const HIDE := Color(0.08, 0.07, 0.06)
