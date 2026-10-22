@@ -95,7 +95,7 @@ def _sheets() -> dict[str, dict[str, list[Image.Image]]]:
             "true": [small.tiyanak_true(0.0).render(), small.tiyanak_true(0.5).render()],
             "run": [small.tiyanak_true(k / 4, run=True).render() for k in range(4)],
         },
-        "tiyanak_undergrowth": {"idle": [small.undergrowth().render()]},
+        "tiyanak_undergrowth": {"idle": [small.undergrowth_picture()]},
         "santelmo": {
             "idle": [small.santelmo(k / 4).render() for k in range(4)],
             "hot": [small.santelmo(k / 4, hot=1.0).render() for k in range(4)],
