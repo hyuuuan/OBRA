@@ -250,24 +250,38 @@ def _mass(s: Sculpt, name: str, x: float, y: float, w: float) -> None:
 
 
 # The tiyanak's undergrowth: as wide as Tiyanak2D.UNDERGROWTH (480), as tall as its bushes stand
-# (58) and a frond's tip over them, UNDERGROWTH_MARGIN px clear at the sides and top.
+# (58) and a frond's tip over them, UNDERGROWTH_MARGIN px clear at the sides and top -- and, over
+# the drop, a thicket UNDERGROWTH_BELOW px down past the ground's rim (Tiyanak2D.ART_BELOW), its
+# last UNDERGROWTH_FADE px fading into the dark but never quite gone. The drop is UNDERGROWTH_PIT,
+# in px from the tiyanak (level_4_environment.tscn: the floor broken 17250-17550, the tiyanak at
+# 17150); the thicket runs PIT_OVERLAP px onto the ground at either side, over the drop's walls.
 UNDERGROWTH_W = 480
 UNDERGROWTH_H = 72
 UNDERGROWTH_MARGIN = 4
+UNDERGROWTH_BELOW = 200
+UNDERGROWTH_FADE = 60
+UNDERGROWTH_PIT = (100, 400)
+UNDERGROWTH_FROM = -44
+PIT_OVERLAP = 6
+ROOTS = hexes("#120a06", "#241810", "#3a2a1c", "#54402c")
 
 
 def undergrowth() -> Sculpt:
     """The bushes the tiyanak hides its drop with: a ground cover of dark leaf along the whole
-    width -- the drop under it never shows through -- two rows of leaf masses heaped on it, dark
-    behind and lit in front, broad pointed leaves standing out of them and fronds of small leaves
-    arching over. Its bottom row is the ground the tiyanak sits on."""
+    width, two rows of leaf masses heaped on it, dark behind and lit in front, broad pointed
+    leaves standing out of them and fronds of small leaves arching over -- and, over the drop, a
+    thicket hanging down into it from the rim, leaf over leaf with roots trailing through, so that
+    in her light the drop is more bushes and not a hole. Row UNDERGROWTH_H + UNDERGROWTH_MARGIN is
+    the ground the tiyanak sits on."""
     m = UNDERGROWTH_MARGIN
-    w, h = UNDERGROWTH_W + 2 * m, UNDERGROWTH_H + m
-    ground = h
+    w, h = UNDERGROWTH_W + 2 * m, UNDERGROWTH_H + m + UNDERGROWTH_BELOW
+    ground = UNDERGROWTH_H + m
     s = Sculpt(w, h)
     s.material("leaves", LEAVES)
     s.material("leaves_dark", LEAVES[[0, 0, 1, 2, 2, 3]])
     s.material("fern", LEAF)
+    s.material("roots", ROOTS)
+    _thicket(s, ground)
     # The cover: low dark leaf, solid to the ground, its top broken.
     top = [(m + i * 12.0, ground - 12.0 - 4.0 * math.sin(i * 1.9) - 3.0 * math.sin(i * 0.7))
            for i in range(UNDERGROWTH_W // 12 + 1)]
@@ -313,6 +327,70 @@ def undergrowth() -> Sculpt:
         _mass(s, "leaves", x + rnd(10), ground - 9 - rnd(6), size)
     _leaf_marks(s, 1400, 23)
     return s
+
+
+def _thicket(s: Sculpt, ground: float) -> None:
+    """The thicket over the drop: leaf heaped on leaf from wall to wall down UNDERGROWTH_BELOW px --
+    lit under the rim where her light reaches first, darker the deeper -- its sides as ragged as
+    its foot, roots trailing out of it from the rim and ferns reaching in off the walls."""
+    x0 = UNDERGROWTH_PIT[0] - UNDERGROWTH_FROM + UNDERGROWTH_MARGIN - PIT_OVERLAP
+    x1 = UNDERGROWTH_PIT[1] - UNDERGROWTH_FROM + UNDERGROWTH_MARGIN + PIT_OVERLAP
+    deep = ground + UNDERGROWTH_BELOW
+    k = 41
+
+    def rnd(n: int) -> int:
+        nonlocal k
+        k = (k * 1103515245 + 12345) & 0x7FFFFFFF
+        return k % n
+
+    # The fill under it all, its sides and foot ragged, so no gap between masses is a hole.
+    left = [(x0 + rnd(5), ground + d) for d in range(0, UNDERGROWTH_BELOW, 16)]
+    right = [(x1 - rnd(5), ground + d) for d in range(0, UNDERGROWTH_BELOW, 16)]
+    foot = [(x1 - i * 14.0, deep - 2.0 - rnd(12)) for i in range(int((x1 - x0) // 14) + 1)]
+    s.poly("leaves_dark", [(x0, ground - 6.0), (x1, ground - 6.0)] + right + foot + left[::-1], bulge=0.02)
+    # Roots trailing out of it from the rim, wavering -- under the leaves, which hide them in part.
+    for x in range(int(x0) + 30, int(x1) - 10, 62):
+        length = 40 + rnd(50)
+        pts, radii = [], []
+        for j in range(6):
+            u = j / 5
+            pts.append((x + (4 if j % 2 else -4) * u, ground + 2 + length * u))
+            radii.append(1.8 - 1.2 * u)
+        s.tube("roots", pts, radii)
+    # Masses scattered over it, overlapping, deepest first so the nearer lie over them.
+    spots = []
+    for _ in range(int((x1 - x0) * UNDERGROWTH_BELOW / 380)):
+        spots.append((x0 + 8 + rnd(int(x1 - x0) - 16), ground + 8 + rnd(UNDERGROWTH_BELOW - 30), 9 + rnd(10)))
+    for x, y, size in sorted(spots, key=lambda spot: -spot[1]):
+        _mass(s, "leaves" if y < ground + 56 and rnd(3) else "leaves_dark", x, y, size)
+    # Ferns off the walls, reaching in.
+    for wall, side in ((x0 + 4, 1), (x1 - 4, -1)):
+        for depth in (34, 92, 146):
+            root = (wall, ground + depth + rnd(12))
+            reach, rise = 30 + rnd(14), 10 + rnd(10)
+            pts = [(root[0] + side * reach * u, root[1] - rise * math.sin(u * math.pi * 0.8)) for u in (0.0, 0.35, 0.7, 1.0)]
+            s.tube("fern", pts, [1.4, 1.1, 0.8, 0.5])
+            for j in range(1, 7):
+                u = j / 7
+                lx = root[0] + side * reach * u
+                ly = root[1] - rise * math.sin(u * math.pi * 0.8)
+                r = 3.0 * (1.0 - u * 0.5)
+                s.ellipse("fern", lx, ly - r * 0.8, r, r * 0.7, flat=0.2)
+                s.ellipse("fern", lx, ly + r * 0.6, r, r * 0.7, flat=0.2)
+
+
+def undergrowth_picture() -> "Image.Image":
+    """The undergrowth as the game draws it: the thicket's last UNDERGROWTH_FADE px fade into the
+    dark below it, down to a tenth -- never quite gone, so its foot is still its foot."""
+    import numpy as np
+    from PIL import Image
+    picture = undergrowth().render()
+    rgba = np.asarray(picture).copy()
+    h = rgba.shape[0]
+    start = h - UNDERGROWTH_FADE
+    ramp = np.linspace(1.0, 0.1, UNDERGROWTH_FADE)
+    rgba[start:, :, 3] = (rgba[start:, :, 3] * ramp[:, None]).astype(np.uint8)
+    return Image.fromarray(rgba, "RGBA")
 
 
 def balete(felled: bool = False) -> Sculpt:

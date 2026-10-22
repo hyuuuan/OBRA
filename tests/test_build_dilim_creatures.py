@@ -108,18 +108,34 @@ class CreatureStripsTest(unittest.TestCase):
         self.assertEqual(self.strips["kapre_smoke_idle"].size, (puff * puffs, puff))
 
     def test_the_tiyanaks_undergrowth_hides_its_drop(self) -> None:
-        # Tiyanak2D draws the picture across UNDERGROWTH, ART_MARGIN px out at either side, its
-        # bottom row on the ground: the bushes must span exactly that, and stand solid on the
-        # ground the whole way, so the drop under them never shows through.
+        # Tiyanak2D draws the picture across UNDERGROWTH, ART_MARGIN px out at either side, with
+        # ART_BELOW px of it under the ground line: the bushes must span exactly that, and stand
+        # solid on the ground the whole way.
         script = (ROOT / "game" / "scripts" / "tiyanak_2d.gd").read_text()
         span = re.search(r"const UNDERGROWTH := Rect2\(([-\d.]+), ([-\d.]+), ([-\d.]+), ([-\d.]+)\)", script)
         margin = float(re.search(r"const ART_MARGIN := ([\d.]+)", script).group(1))
-        width = float(span.group(3))
-        bushes = np.asarray(self.strips["tiyanak_undergrowth_idle"])[..., 3] > 0
+        below = int(float(re.search(r"const ART_BELOW := ([\d.]+)", script).group(1)))
+        start, width = float(span.group(1)), float(span.group(3))
+        bushes = np.asarray(self.strips["tiyanak_undergrowth_idle"])[..., 3]
         self.assertEqual(bushes.shape[1], int(width + 2 * margin), "the picture is not the undergrowth's span")
-        ground = bushes[-1, int(margin):int(margin + width)]
+        ground_row = bushes.shape[0] - below - 1
+        ground = bushes[ground_row, int(margin):int(margin + width)] > 0
         self.assertTrue(ground.all(), f"{int((~ground).sum())} px of ground along it show through")
-        self.assertGreaterEqual(int(np.nonzero(bushes.any(axis=1))[0].min()), 1, "it runs off its top")
+        self.assertGreaterEqual(int(np.nonzero((bushes > 0).any(axis=1))[0].min()), 1, "it runs off its top")
+        # Over the drop -- where the floor is broken past the tiyanak, as the level lays it out --
+        # it hangs on down, solid from the rim to where it starts to fade, so in her light the drop
+        # is more bushes and not a hole.
+        scene = (ROOT / "game" / "levels" / "level_4" / "level_4_environment.tscn").read_text()
+        floor = re.search(r'\[node name="Ground"[^\[]*?platforms = Array\[Rect2\]\(\[(.*?)\]\)', scene, re.S).group(1)
+        rects = [tuple(float(v) for v in r) for r in re.findall(r"Rect2\(([-\d.]+), [-\d.]+, ([-\d.]+), [-\d.]+\)", floor)]
+        at = float(re.search(r'\[node name="Tiyanak"[^\n]*\]\nposition = Vector2\(([-\d.]+),', scene).group(1))
+        ends = sorted(x + w for x, w in rects if x + w > at)
+        rim = ends[0]
+        far = min(x for x, w in rects if x >= rim)
+        cols = slice(int(rim - at - start + margin), int(far - at - start + margin))
+        solid = bushes.shape[0] - creatures.small.UNDERGROWTH_FADE
+        hole = bushes[ground_row:solid, cols] < 200
+        self.assertFalse(hole.any(), f"{int(hole.sum())} px of the drop ({rim:.0f}-{far:.0f}) show through it")
 
     def test_the_committed_strips_are_current(self) -> None:
         for name, sheet in self.strips.items():
