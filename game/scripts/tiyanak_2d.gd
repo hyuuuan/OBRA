@@ -206,14 +206,17 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2(-2.0, feet - 21.0), Vector2(4.0, 3.0 if crying else 1.0)), CLOTH_SHADE)
 
 
-## The bushes over the drop, standing on the ground it sits on. They stir while it cries; once a
-## light has shown it for what it is, they thin, and the drop shows through.
+## The bushes over the drop, standing on the ground it sits on and hanging down into the drop. They
+## stir while it cries; once a light has shown it for what it is, they thin, and the drop shows
+## through.
 class Undergrowth extends Node2D:
 	## Their picture (tools/dilim_small.py undergrowth): the bushes that span UNDERGROWTH, ART_MARGIN
-	## px clear at the sides and top, its bottom row the ground; the discs below stand in only while
-	## there is none.
+	## px clear at the sides and top, and under them, over the drop, a thicket ART_BELOW px down past
+	## the ground's rim -- in her light the drop is more bushes, not a hole. The discs below stand in
+	## only while there is no picture.
 	const ART := "tiyanak_undergrowth_idle.png"
 	const ART_MARGIN := 4.0
+	const ART_BELOW := 200.0
 	var tiyanak: Tiyanak2D
 	var _art: Texture2D
 
@@ -236,7 +239,7 @@ class Undergrowth extends Node2D:
 			shake = sin(tiyanak.stir() * 30.0) * 3.0 * tiyanak.stir()
 		var thin := 0.35 if lit else 1.0
 		if _art != null:
-			draw_texture(_art, Vector2(UNDERGROWTH.position.x - ART_MARGIN + shake, -_art.get_height()),
+			draw_texture(_art, Vector2(UNDERGROWTH.position.x - ART_MARGIN + shake, -_art.get_height() + ART_BELOW),
 				Color(1.0, 1.0, 1.0, thin))
 			return
 		var x := UNDERGROWTH.position.x
