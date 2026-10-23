@@ -257,6 +257,23 @@ func _build_transition_overlay() -> void:
 	_wipe.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_wipe.material = _wipe_material
 	_transition_root.add_child(_wipe)
+	_warm_the_stroke.call_deferred()
+
+
+## ⚠ THE FIRST SCENE CHANGE OF A RUN FROZE FOR ~0.65 s, the old pixel wipe's as much as the stroke's:
+## the cover's first switch to stopping the mouse stalls once (measured: 648 ms, then never again),
+## and so does the shader's first draw. Both are paid here, once, behind the boot screen -- the
+## cover shown stopping the mouse for two frames at progress 0, where nothing is covered and
+## nothing shows -- so no transition the player sees pays them.
+func _warm_the_stroke() -> void:
+	_wipe_material.set_shader_parameter(&"progress", 0.0)
+	_transition_root.visible = true
+	_transition_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not _transitioning:
+		_transition_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_transition_root.visible = false
 
 
 ## How far the stroke has gone: 0 none of the screen, 1 all of it ink, 2 gone on past.
