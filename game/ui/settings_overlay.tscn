@@ -52,6 +52,11 @@ layout_mode = 2
 size_flags_horizontal = 4
 text = "Fullscreen"
 
+[node name="ReduceMotionToggle" type="CheckButton" parent="Root/Center/Panel/VBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Reduce motion"
+
 [node name="BackButton" type="Button" parent="Root/Center/Panel/VBox" unique_id=2020193288]
 custom_minimum_size = Vector2(0, 62)
 layout_mode = 2
