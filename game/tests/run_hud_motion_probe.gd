@@ -105,7 +105,8 @@ func _the_answers_come_one_after_another() -> void:
 	var overlay := (load("res://ui/dialogue_choice_overlay.tscn") as PackedScene).instantiate() as ModalOverlay
 	root.add_child(overlay)
 	overlay.call(&"present_options", "lolo", "Which way?", ["The long way", "The short way", "Back home"])
-	await _seconds(0.08)
+	# Stepped (Motion.PIXEL_FPS), each fade holds its first frame: looked at once the first is well in.
+	await _seconds(0.2)
 	var buttons := (overlay.get("_buttons") as Control).get_children()
 	var first := (buttons[0] as CanvasItem).modulate.a
 	var last := (buttons[buttons.size() - 1] as CanvasItem).modulate.a
