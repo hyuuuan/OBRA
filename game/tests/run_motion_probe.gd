@@ -9,7 +9,7 @@ extends SceneTree
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 14
+const CHECKS := 18
 ## Room past each motion's own length before it is looked at again.
 const SETTLE := 0.25
 
@@ -31,6 +31,8 @@ func _run() -> void:
 	await _an_overlay_comes_and_goes()
 	await _closed_and_reopened_at_once_it_stays_open()
 	await _settings_keeps_the_choice()
+	await _a_scene_change_is_a_stroke_of_ink()
+	await _with_motion_reduced_the_stroke_only_fades()
 	_reduce(false)
 	paused = false
 	if checked != CHECKS:
@@ -154,6 +156,61 @@ func _settings_keeps_the_choice() -> void:
 	overlay.close()
 	overlay.queue_free()
 	_reduce(false)
+
+
+## LevelManager's transition: one stroke across until the screen is ink, the scene swapped under
+## it, and the stroke on past. Watched frame by frame, to the main menu.
+func _a_scene_change_is_a_stroke_of_ink() -> void:
+	var manager := root.get_node(^"LevelManager")
+	manager.set("transition_step_seconds", 0.012)
+	var before := current_scene
+	var seen := await _watch_a_transition(manager)
+	_check(seen["rose"] and seen["swapped_at"] >= 0.999 and seen["end"] >= 1.999 and not seen["transitioning"],
+		"a scene change sweeps a stroke of ink across, swaps the scene under it and sweeps on",
+		"rose %s, swapped at %.2f, ended at %.2f, still going %s" % [seen["rose"], seen["swapped_at"], seen["end"], seen["transitioning"]])
+	_check(seen["blocked"], "and nothing can be clicked while it crosses", "blocked %s" % seen["blocked"])
+	_check(current_scene != before and seen["seconds"] >= 2.0 * 0.5 - 0.1,
+		"and it takes its time each way", "%.2f s" % seen["seconds"])
+
+
+func _with_motion_reduced_the_stroke_only_fades() -> void:
+	_reduce(true)
+	var manager := root.get_node(^"LevelManager")
+	var seen := await _watch_a_transition(manager)
+	_check(seen["most_mid_sweep"] == 0 and seen["faded"] and not seen["transitioning"],
+		"with motion reduced, the stroke never sweeps -- the screen fades through ink",
+		"frames mid-sweep %d, faded %s" % [seen["most_mid_sweep"], seen["faded"]])
+	_reduce(false)
+
+
+func _watch_a_transition(manager: Node) -> Dictionary:
+	var seen := {"rose": false, "swapped_at": -1.0, "end": 0.0, "transitioning": true, "blocked": true,
+		"seconds": 0.0, "most_mid_sweep": 0, "faded": false}
+	var scene_before := current_scene
+	var stroke := manager.get_node(^"InkTransitionLayer/InkTransition/Stroke") as ColorRect
+	var cover := manager.get_node(^"InkTransitionLayer/InkTransition") as Control
+	var start_ms := Time.get_ticks_msec()
+	manager.call(&"_transition_to", "res://ui/main_menu.tscn", "")
+	var last := 0.0
+	while Time.get_ticks_msec() - start_ms < 6000:
+		await process_frame
+		var progress := float(manager.call(&"wipe_progress"))
+		if progress > 0.05 and progress < 0.95:
+			seen["rose"] = true
+			seen["most_mid_sweep"] = int(seen["most_mid_sweep"]) + 1
+		if stroke.modulate.a < 0.95 and stroke.modulate.a > 0.05:
+			seen["faded"] = true
+		if bool(manager.call(&"is_transitioning")) and cover.mouse_filter != Control.MOUSE_FILTER_STOP:
+			seen["blocked"] = false
+		if current_scene != scene_before and float(seen["swapped_at"]) < 0.0:
+			seen["swapped_at"] = last
+		last = progress
+		if not bool(manager.call(&"is_transitioning")):
+			break
+	seen["seconds"] = (Time.get_ticks_msec() - start_ms) / 1000.0
+	seen["end"] = float(manager.call(&"wipe_progress"))
+	seen["transitioning"] = bool(manager.call(&"is_transitioning"))
+	return seen
 
 
 func _settings() -> ModalOverlay:

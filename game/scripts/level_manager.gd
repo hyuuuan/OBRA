@@ -1,5 +1,10 @@
 extends Node
-## Persistent catalog and pixel-step scene transition coordinator.
+## Persistent catalog and scene transition coordinator.
+##
+## THE TRANSITION IS A STROKE OF INK (Kent, 2026-10-23, asked: "an ink brush wipe ... fits a game
+## about drawing"). One brush stroke sweeps across until the screen is ink, the scene changes under
+## it, and its tail sweeps on past to show the next one (shaders/ink_wipe.gdshader). It replaced a
+## diagonal pixel-step of blocks. With Reduce motion on it is a short fade through ink instead.
 
 signal transition_started(destination: String)
 signal level_changed(level_id: String)
@@ -12,13 +17,16 @@ const SELECTOR_SCENE := "res://ui/main_menu.tscn"
 ## the way in.
 const HOUSE_SCENE := "res://levels/hub/hub.tscn"
 const ENDING_SCENE := "res://ui/ending_screen.tscn"
-const GRID_COLUMNS := 20
-const GRID_ROWS := 12
+## The stroke's seconds each way: across to cover, and on past to show.
+const WIPE_SECONDS := 0.5
+const WIPE_SHADER := preload("res://shaders/ink_wipe.gdshader")
 
 var current_level_id := ""
 ## A level the run has just opened, for the house to open in front of the player. Set as a
 ## level ends and taken once by the house. Not saved: a quit in between skips only the moment.
 var pending_reveal := ""
+## 0 skips the wipe: the scene changes with no stroke (the journey probe walks the whole game
+## and has no use for one). Anything above plays it at WIPE_SECONDS.
 var transition_step_seconds := 0.012
 
 var _levels: Array[Dictionary] = []
@@ -26,13 +34,13 @@ var _transitioning := false
 var _selector_requested := false
 var _transition_layer: CanvasLayer
 var _transition_root: Control
-var _blocks: Array[ColorRect] = []
+var _wipe: ColorRect
+var _wipe_material: ShaderMaterial
 
 
 func _ready() -> void:
 	_load_catalog()
 	_build_transition_overlay()
-	get_viewport().size_changed.connect(_layout_transition_blocks)
 
 
 func get_levels() -> Array[Dictionary]:
@@ -230,45 +238,47 @@ func _load_catalog() -> void:
 
 func _build_transition_overlay() -> void:
 	_transition_layer = CanvasLayer.new()
-	_transition_layer.name = "PixelTransitionLayer"
+	_transition_layer.name = "InkTransitionLayer"
 	_transition_layer.layer = 1000
 	add_child(_transition_layer)
 
 	_transition_root = Control.new()
-	_transition_root.name = "PixelTransition"
+	_transition_root.name = "InkTransition"
 	_transition_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_transition_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_transition_root.visible = false
 	_transition_layer.add_child(_transition_root)
 
-	for row in range(GRID_ROWS):
-		for column in range(GRID_COLUMNS):
-			var block := ColorRect.new()
-			block.name = "Block_%02d_%02d" % [column, row]
-			var shade := 0.055 + float((column + row) % 3) * 0.012
-			block.color = Color(shade, 0.105 + shade, 0.075, 1.0)
-			block.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			block.visible = false
-			_transition_root.add_child(block)
-			_blocks.append(block)
-	_layout_transition_blocks()
+	_wipe_material = ShaderMaterial.new()
+	_wipe_material.shader = WIPE_SHADER
+	_wipe = ColorRect.new()
+	_wipe.name = "Stroke"
+	_wipe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_wipe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wipe.material = _wipe_material
+	_transition_root.add_child(_wipe)
+	_warm_the_stroke.call_deferred()
 
 
-func _layout_transition_blocks() -> void:
-	if _transition_root == null:
-		return
-	var viewport_size := get_viewport().get_visible_rect().size
-	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		viewport_size = Vector2(1600.0, 900.0)
-	var block_size := Vector2(
-		ceilf(viewport_size.x / float(GRID_COLUMNS)),
-		ceilf(viewport_size.y / float(GRID_ROWS))
-	)
-	for row in range(GRID_ROWS):
-		for column in range(GRID_COLUMNS):
-			var block := _blocks[row * GRID_COLUMNS + column]
-			block.position = Vector2(column, row) * block_size
-			block.size = block_size + Vector2.ONE
+## ⚠ THE FIRST SCENE CHANGE OF A RUN FROZE FOR ~0.65 s, the old pixel wipe's as much as the stroke's:
+## the cover's first switch to stopping the mouse stalls once (measured: 648 ms, then never again),
+## and so does the shader's first draw. Both are paid here, once, behind the boot screen -- the
+## cover shown stopping the mouse for two frames at progress 0, where nothing is covered and
+## nothing shows -- so no transition the player sees pays them.
+func _warm_the_stroke() -> void:
+	_wipe_material.set_shader_parameter(&"progress", 0.0)
+	_transition_root.visible = true
+	_transition_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not _transitioning:
+		_transition_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_transition_root.visible = false
+
+
+## How far the stroke has gone: 0 none of the screen, 1 all of it ink, 2 gone on past.
+func wipe_progress() -> float:
+	return float(_wipe_material.get_shader_parameter(&"progress"))
 
 
 func _transition_to(scene_path: String, level_id: String) -> void:
@@ -278,36 +288,44 @@ func _transition_to(scene_path: String, level_id: String) -> void:
 	transition_started.emit(scene_path)
 	_transition_root.visible = true
 	_transition_root.mouse_filter = Control.MOUSE_FILTER_STOP
-	await _animate_blocks(true)
+	await _animate_wipe(true)
 
 	var error := get_tree().change_scene_to_file(scene_path)
 	if error != OK:
 		push_error("Could not change scene to %s (error %d)" % [scene_path, error])
-		await _animate_blocks(false)
+		await _animate_wipe(false)
 		_finish_transition(scene_path)
 		return
 	if not level_id.is_empty():
 		level_changed.emit(level_id)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	await _animate_blocks(false)
+	await _animate_wipe(false)
 	_finish_transition(scene_path)
 
 
-func _animate_blocks(covering: bool) -> void:
-	var last_band := GRID_COLUMNS + GRID_ROWS - 2
-	var bands: Array[int] = []
-	for band in range(last_band + 1):
-		bands.append(band)
-	if not covering:
-		bands.reverse()
-	for band in bands:
-		for row in range(GRID_ROWS):
-			var column := band - row
-			if column >= 0 and column < GRID_COLUMNS:
-				_blocks[row * GRID_COLUMNS + column].visible = covering
-		if transition_step_seconds > 0.0:
-			await get_tree().create_timer(transition_step_seconds, true, false, true).timeout
+func _animate_wipe(covering: bool) -> void:
+	var to := 1.0 if covering else 2.0
+	if transition_step_seconds <= 0.0:
+		_wipe_material.set_shader_parameter(&"progress", to)
+		return
+	if Motion.reduced():
+		# No sweep: the screen fades to ink and back.
+		_wipe_material.set_shader_parameter(&"progress", 1.0)
+		_wipe.modulate.a = 0.0 if covering else 1.0
+		var fade := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		fade.tween_property(_wipe, "modulate:a", 1.0 if covering else 0.0, Motion.QUICK_FADE * 2.0)
+		await fade.finished
+		if not covering:
+			_wipe_material.set_shader_parameter(&"progress", 2.0)
+			_wipe.modulate.a = 1.0
+		return
+	_wipe.modulate.a = 1.0
+	_wipe_material.set_shader_parameter(&"progress", 0.0 if covering else 1.0)
+	var sweep := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	sweep.tween_property(_wipe_material, "shader_parameter/progress", to, WIPE_SECONDS) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN if covering else Tween.EASE_OUT)
+	await sweep.finished
 
 
 func _finish_transition(destination: String) -> void:
