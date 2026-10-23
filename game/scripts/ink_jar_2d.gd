@@ -62,11 +62,10 @@ func take() -> void:
 	set_deferred(&"monitoring", false)
 	# Taken, it lifts and swells a little as it fades -- the satchel's pickups rise the same way,
 	# so a find reads as a find. With motion reduced it only fades.
-	var lift := create_tween()
-	lift.tween_property(self, "modulate:a", 0.0, TAKE_SECONDS)
+	# In held frames on whole pixels, like every other motion (Motion.step).
+	var lift := create_tween().set_parallel(true)
+	Motion.step(lift, self, "modulate:a", 0.0, TAKE_SECONDS)
 	if not Motion.reduced():
-		lift.parallel().tween_property(self, "position:y", position.y - TAKE_RISE, TAKE_SECONDS) \
-			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		lift.parallel().tween_property(self, "scale", Vector2.ONE * 1.25, TAKE_SECONDS) \
-			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	lift.tween_callback(queue_free)
+		Motion.step(lift, self, "position:y", position.y - TAKE_RISE, TAKE_SECONDS, Tween.TRANS_CUBIC, Tween.EASE_OUT)
+		Motion.step(lift, self, "scale", Vector2.ONE * 1.25, TAKE_SECONDS, Tween.TRANS_BACK, Tween.EASE_OUT)
+	lift.chain().tween_callback(queue_free)
