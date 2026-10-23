@@ -289,3 +289,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	get_viewport().set_input_as_handled()
 	_dismiss()
+
+
+## It rises and falls by its own _reveal; the base leaves it alone.
+func _animates_itself() -> bool:
+	return true
