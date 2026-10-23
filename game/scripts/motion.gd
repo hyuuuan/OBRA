@@ -15,6 +15,13 @@ extends RefCounted
 ## loads up front, and overlays are built in those probes; a class_name with static functions
 ## works everywhere. The profile is looked up on the tree at call time.
 ##
+## PIXEL MOTION (Kent, 2026-10-23: "pixelated style similar to the game, also for all other
+## animations"). Nothing glides: every move is played the way pixel art is animated -- in whole
+## frames at PIXEL_FPS, its curve (the overshoot, the ease) sampled at those frames and held between
+## them; positions on whole pixels, sizes in sixty-fourths (a pop from 0.9 overshoots by ~1%: in
+## sixteenths it rounded away), fades in eighths. One routine does it
+## (`step`), so every helper -- and anything else that wants the look -- moves the same way.
+##
 ## ⚠ TWEENS RUN WHILE PAUSED. A menu that pauses the game must still animate, so every tween here
 ## is TWEEN_PAUSE_PROCESS. And each item keeps one motion at a time (META): a new one kills the
 ## old, so an overlay closed and reopened at once does not end up half-faded.
@@ -38,6 +45,10 @@ const SHAKE_SECONDS := 0.3
 ## What reduced motion keeps of any of these: a short fade, nothing moving.
 const QUICK_FADE := 0.1
 const META := &"motion_tween"
+## The frames a second every move is held to, and the steps a fade or a size moves in.
+const PIXEL_FPS := 15.0
+const ALPHA_STEPS := 8.0
+const SCALE_STEPS := 64.0
 
 
 ## Whether the player has asked for less motion.
@@ -57,7 +68,7 @@ static func pop_in(item: CanvasItem, delay: float = 0.0) -> Tween:
 	_show(item)
 	item.modulate.a = 0.0
 	if reduced():
-		tween.tween_property(item, "modulate:a", 1.0, QUICK_FADE).set_delay(delay)
+		step(tween, item, "modulate:a", 1.0, QUICK_FADE, Tween.TRANS_LINEAR, Tween.EASE_IN_OUT, delay)
 		return tween
 	_centre(item)
 	if item is Control:
@@ -65,10 +76,8 @@ static func pop_in(item: CanvasItem, delay: float = 0.0) -> Tween:
 	elif item is Node2D:
 		(item as Node2D).scale = Vector2.ONE * POP_FROM
 	tween.set_parallel(true)
-	tween.tween_property(item, "modulate:a", 1.0, FADE_SECONDS).set_delay(delay) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(item, "scale", Vector2.ONE, POP_SECONDS).set_delay(delay) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	step(tween, item, "modulate:a", 1.0, FADE_SECONDS, Tween.TRANS_CUBIC, Tween.EASE_OUT, delay)
+	step(tween, item, "scale", Vector2.ONE, POP_SECONDS, Tween.TRANS_BACK, Tween.EASE_OUT, delay)
 	return tween
 
 
@@ -77,8 +86,7 @@ static func fade_in(item: CanvasItem, seconds: float = FADE_SECONDS, delay: floa
 	var tween := _fresh(item)
 	_show(item)
 	item.modulate.a = 0.0
-	tween.tween_property(item, "modulate:a", 1.0, QUICK_FADE if reduced() else seconds).set_delay(delay) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	step(tween, item, "modulate:a", 1.0, QUICK_FADE if reduced() else seconds, Tween.TRANS_CUBIC, Tween.EASE_OUT, delay)
 	return tween
 
 
@@ -89,15 +97,13 @@ static func slide_in(item: Control, from: Vector2 = Vector2(0.0, SLIDE), delay: 
 	_show(item)
 	item.modulate.a = 0.0
 	if reduced():
-		tween.tween_property(item, "modulate:a", 1.0, QUICK_FADE).set_delay(delay)
+		step(tween, item, "modulate:a", 1.0, QUICK_FADE, Tween.TRANS_LINEAR, Tween.EASE_IN_OUT, delay)
 		return tween
 	var home := item.position
 	item.position = home + from
 	tween.set_parallel(true)
-	tween.tween_property(item, "modulate:a", 1.0, FADE_SECONDS).set_delay(delay) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(item, "position", home, SLIDE_SECONDS).set_delay(delay) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	step(tween, item, "modulate:a", 1.0, FADE_SECONDS, Tween.TRANS_CUBIC, Tween.EASE_OUT, delay)
+	step(tween, item, "position", home, SLIDE_SECONDS, Tween.TRANS_CUBIC, Tween.EASE_OUT, delay)
 	return tween
 
 
@@ -105,14 +111,12 @@ static func slide_in(item: Control, from: Vector2 = Vector2(0.0, SLIDE), delay: 
 static func leave(item: CanvasItem, done: Callable = Callable()) -> Tween:
 	var tween := _fresh(item)
 	if reduced():
-		tween.tween_property(item, "modulate:a", 0.0, QUICK_FADE)
+		step(tween, item, "modulate:a", 0.0, QUICK_FADE, Tween.TRANS_LINEAR, Tween.EASE_IN_OUT, 0.0)
 	else:
 		_centre(item)
 		tween.set_parallel(true)
-		tween.tween_property(item, "modulate:a", 0.0, EXIT_SECONDS) \
-			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-		tween.tween_property(item, "scale", Vector2.ONE * EXIT_TO, EXIT_SECONDS) \
-			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+		step(tween, item, "modulate:a", 0.0, EXIT_SECONDS, Tween.TRANS_CUBIC, Tween.EASE_IN, 0.0)
+		step(tween, item, "scale", Vector2.ONE * EXIT_TO, EXIT_SECONDS, Tween.TRANS_CUBIC, Tween.EASE_IN, 0.0)
 		tween.chain()
 	tween.tween_callback(func() -> void:
 		item.modulate.a = 1.0
@@ -132,10 +136,8 @@ static func pulse(item: CanvasItem, to: float = PULSE_TO) -> Tween:
 	if reduced():
 		return tween
 	_centre(item)
-	tween.tween_property(item, "scale", Vector2.ONE * to, PULSE_SECONDS * 0.35) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(item, "scale", Vector2.ONE, PULSE_SECONDS * 0.65) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	step(tween, item, "scale", Vector2.ONE * to, PULSE_SECONDS * 0.35, Tween.TRANS_CUBIC, Tween.EASE_OUT, 0.0)
+	step(tween, item, "scale", Vector2.ONE, PULSE_SECONDS * 0.65, Tween.TRANS_BACK, Tween.EASE_OUT, 0.0)
 	return tween
 
 
@@ -147,8 +149,8 @@ static func shake(item: Control, strength: float = 8.0) -> Tween:
 	var home := item.position
 	for i in range(5):
 		var side := strength * (1.0 - i / 5.0) * (1.0 if i % 2 == 0 else -1.0)
-		tween.tween_property(item, "position", home + Vector2(side, 0.0), SHAKE_SECONDS / 6.0)
-	tween.tween_property(item, "position", home, SHAKE_SECONDS / 6.0)
+		step(tween, item, "position", home + Vector2(side, 0.0), SHAKE_SECONDS / 6.0, Tween.TRANS_LINEAR, Tween.EASE_IN_OUT, 0.0)
+	step(tween, item, "position", home, SHAKE_SECONDS / 6.0, Tween.TRANS_LINEAR, Tween.EASE_IN_OUT, 0.0)
 	return tween
 
 
@@ -174,6 +176,36 @@ static func fade_stagger(items: Array, step: float = 0.06) -> void:
 			continue
 		fade_in(item, FADE_SECONDS, delay)
 		delay += step
+
+
+## One property moved the pixel way, as part of `tween` (parallel or in sequence, as the tween is
+## set): `seconds` cut into frames at PIXEL_FPS, the eased value of each frame held until the next,
+## snapped to the pixel (position), a sixty-fourth (scale) or an eighth (alpha). Where it starts from is
+## read as it starts, so a move chained after another starts where that one ended.
+static func step(tween: Tween, item: Object, property: String, to: Variant, seconds: float,
+		trans: Tween.TransitionType = Tween.TRANS_LINEAR, ease: Tween.EaseType = Tween.EASE_IN_OUT,
+		delay: float = 0.0) -> MethodTweener:
+	var frames := maxi(1, roundi(seconds * PIXEL_FPS))
+	var state := {}
+	var path := NodePath(property)
+	var mover := func(t: float) -> void:
+		if not state.has("from"):
+			state["from"] = item.get_indexed(path)
+		var held := floorf(t * frames) / float(frames) if t < 1.0 else 1.0
+		var eased := Tween.interpolate_value(0.0, 1.0, held, 1.0, trans, ease) as float
+		var from: Variant = state["from"]
+		item.set_indexed(path, _snap(property, from + (to - from) * eased))
+	return tween.tween_method(mover, 0.0, 1.0, seconds).set_delay(delay)
+
+
+static func _snap(property: String, value: Variant) -> Variant:
+	if property.begins_with("position") and value is Vector2:
+		return (value as Vector2).round()
+	if property == "scale" and value is Vector2:
+		return ((value as Vector2) * SCALE_STEPS).round() / SCALE_STEPS
+	if property.ends_with(":a") and value is float:
+		return clampf(roundf(float(value) * ALPHA_STEPS) / ALPHA_STEPS, 0.0, 1.0)
+	return value
 
 
 static func _fresh(item: CanvasItem) -> Tween:

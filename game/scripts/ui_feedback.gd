@@ -85,8 +85,8 @@ func _tween_scale(button: BaseButton, to: float, seconds: float, curve: Tween.Tr
 		if running is Tween and (running as Tween).is_valid():
 			(running as Tween).kill()
 	var tween := button.create_tween()
-	tween.tween_property(button, "scale", Vector2(to, to), seconds) \
-		.set_trans(curve).set_ease(Tween.EASE_OUT)
+	# In held frames, like every other motion (Motion.step): a press is a pixel-art pop.
+	Motion.step(tween, button, "scale", Vector2(to, to), seconds, curve, Tween.EASE_OUT)
 	button.set_meta(&"ui_feedback_tween", tween)
 
 
@@ -152,17 +152,11 @@ func _ripple(button: BaseButton) -> void:
 	var reach := maxf(centre.length(), (button.size - centre).length())
 	var tween := ring.create_tween()
 	tween.set_parallel(true)
-	tween.tween_method(func(value: float) -> void:
-		if is_instance_valid(ring):
-			ring.set(&"radius", value)
-			ring.queue_redraw(), 0.0, reach, RIPPLE_TIME) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	# In held frames, like every other motion (Motion.step); the ring redraws itself as it is set.
+	Motion.step(tween, ring, "radius", reach, RIPPLE_TIME, Tween.TRANS_CUBIC, Tween.EASE_OUT)
 	# The ring outruns its own fade -- it is still travelling while it dims, which is what
 	# makes it read as a wave leaving rather than a circle being deleted.
-	tween.tween_method(func(value: float) -> void:
-		if is_instance_valid(ring):
-			ring.set(&"fade", value), 1.0, 0.0, RIPPLE_TIME) \
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	Motion.step(tween, ring, "fade", 0.0, RIPPLE_TIME, Tween.TRANS_QUAD, Tween.EASE_IN)
 	# `finished` rather than a chained callback. Both work -- `chain()` on a parallel tween
 	# was briefly blamed for a leak that turned out to be the probe counting FRAMES in a
 	# headless run, where they are not time -- but the signal says "when the whole thing is
