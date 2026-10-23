@@ -9,7 +9,7 @@ extends SceneTree
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 19
+const CHECKS := 22
 ## Room past each motion's own length before it is looked at again.
 const SETTLE := 0.25
 
@@ -25,6 +25,7 @@ func _run() -> void:
 	await process_frame
 	_reduce(false)
 	await _a_pop_overshoots_and_settles()
+	await _it_moves_the_pixel_way()
 	await _going_ends_hidden_and_put_back()
 	await _it_moves_while_the_game_is_paused()
 	await _reduced_motion_keeps_it_still()
@@ -62,15 +63,39 @@ func _a_pop_overshoots_and_settles() -> void:
 	box.queue_free()
 
 
+## Pixel motion (Kent, 2026-10-23): no gliding -- held frames, whole pixels, fades in eighths.
+func _it_moves_the_pixel_way() -> void:
+	var box := _box()
+	Motion.slide_in(box, Vector2(0.0, 23.0))
+	var ys := {}
+	var alphas := {}
+	var whole := true
+	var start_ms := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start_ms < int((Motion.SLIDE_SECONDS + 0.15) * 1000.0):
+		await process_frame
+		ys[box.position.y] = true
+		alphas[box.modulate.a] = true
+		whole = whole and is_equal_approx(box.position.y, roundf(box.position.y))
+	var frames := roundi(Motion.SLIDE_SECONDS * Motion.PIXEL_FPS)
+	_check(whole and ys.size() <= frames + 2, "a slide moves on whole pixels, in a few held frames, not gliding",
+		"%d positions over %d frames, all whole %s" % [ys.size(), frames, whole])
+	var eighths := true
+	for a: float in alphas.keys():
+		eighths = eighths and is_equal_approx(a * Motion.ALPHA_STEPS, roundf(a * Motion.ALPHA_STEPS))
+	_check(eighths, "and fades in eighths", "alphas %s" % [alphas.keys()])
+	box.queue_free()
+
+
 func _going_ends_hidden_and_put_back() -> void:
 	var box := _box()
 	var gone := [false]
 	Motion.leave(box, func() -> void:
 		gone[0] = true
 		box.visible = false)
-	await _seconds(Motion.EXIT_SECONDS * 0.5)
+	# Three-quarters in: stepped (Motion.PIXEL_FPS), its first frame is held unfaded.
+	await _seconds(Motion.EXIT_SECONDS * 0.75)
 	var mid := box.modulate.a
-	await _seconds(Motion.EXIT_SECONDS * 0.5 + SETTLE)
+	await _seconds(Motion.EXIT_SECONDS * 0.25 + SETTLE)
 	_check(mid < 0.95 and gone[0] and not box.visible, "going fades it and then it is gone", "alpha mid-way %.2f, done %s" % [mid, gone[0]])
 	_check(is_equal_approx(box.modulate.a, 1.0) and is_equal_approx(box.scale.x, 1.0),
 		"and put back whole, so the next entrance starts clean", "alpha %.2f scale %.2f" % [box.modulate.a, box.scale.x])
@@ -174,6 +199,12 @@ func _a_scene_change_is_a_stroke_of_ink() -> void:
 	_check(seen["blocked"], "and nothing can be clicked while it crosses", "blocked %s" % seen["blocked"])
 	_check(current_scene != before and seen["seconds"] >= 2.0 * 0.5 - 0.1,
 		"and it takes its time each way", "%.2f s" % seen["seconds"])
+	var held := int(seen["moving_frames"])
+	var steps := (seen["steps"] as Dictionary).size()
+	var most := 2 * (roundi(0.5 * Motion.PIXEL_FPS) + 1) + 2
+	_check(steps <= most and held > steps,
+		"and it jumps across in held frames, like pixel art, not a glide",
+		"%d positions over %d moving frames (at most %d)" % [steps, held, most])
 
 
 func _with_motion_reduced_the_stroke_only_fades() -> void:
@@ -188,7 +219,7 @@ func _with_motion_reduced_the_stroke_only_fades() -> void:
 
 func _watch_a_transition(manager: Node) -> Dictionary:
 	var seen := {"rose": false, "swapped_at": -1.0, "end": 0.0, "transitioning": true, "blocked": true,
-		"seconds": 0.0, "most_mid_sweep": 0, "faded": false}
+		"seconds": 0.0, "most_mid_sweep": 0, "faded": false, "steps": {}, "moving_frames": 0}
 	var scene_before := current_scene
 	var stroke := manager.get_node(^"InkTransitionLayer/InkTransition/Stroke") as ColorRect
 	var cover := manager.get_node(^"InkTransitionLayer/InkTransition") as Control
@@ -201,6 +232,9 @@ func _watch_a_transition(manager: Node) -> Dictionary:
 		if progress > 0.05 and progress < 0.95:
 			seen["rose"] = true
 			seen["most_mid_sweep"] = int(seen["most_mid_sweep"]) + 1
+		if progress > 0.001 and progress < 1.999 and absf(progress - 1.0) > 0.001:
+			seen["moving_frames"] = int(seen["moving_frames"]) + 1
+			(seen["steps"] as Dictionary)[snappedf(progress, 0.0001)] = true
 		if stroke.modulate.a < 0.95 and stroke.modulate.a > 0.05:
 			seen["faded"] = true
 		if bool(manager.call(&"is_transitioning")) and cover.mouse_filter != Control.MOUSE_FILTER_STOP:
