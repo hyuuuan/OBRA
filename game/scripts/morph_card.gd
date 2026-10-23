@@ -204,7 +204,9 @@ func show_form(form_name: String, image: Image, confidence: float) -> void:
 		# shown as it was rather than as nothing.
 		var ink := DrawingSkin2D.thumbnail(image) if image != null else null
 		_art.texture = ink if ink != null else (ImageTexture.create_from_image(image) if image != null else null)
-	visible = true
+	# Shown again and again while the form holds; it pops in only as it arrives (Motion).
+	if not visible:
+		Motion.pop_in(self)
 
 
 ## Back to being the apo. The card goes entirely -- see the class note.

@@ -91,6 +91,8 @@ func present(speaker: String, context: String, choices: Dictionary,
 		for index in range(note.split("\n").size()):
 			column.add_child(_line_label(note.split("\n")[index], true, index > 0))
 	open()
+	# The answers after the panel, a beat apart (faded, not moved: see Motion.fade_stagger).
+	Motion.fade_stagger(_buttons.get_children())
 	# ⚠ NOT AT ONCE. The question opens on the frame the conversation before it ends, and the
 	# player is usually still pressing the advance key through that conversation -- so with the
 	# first answer focused a frame later, the next press answered it: a route chosen by the key
@@ -127,6 +129,8 @@ func present_options(speaker: String, context: String, labels: Array) -> void:
 		button.add_child(column)
 		column.add_child(_line_label(String(labels[index]), false))
 	open()
+	# The answers after the panel, a beat apart (faded, not moved: see Motion.fade_stagger).
+	Motion.fade_stagger(_buttons.get_children())
 	# The same grace as a route question, for the same reason: the key that turned the last
 	# page must not answer this one.
 	await get_tree().create_timer(KEYBOARD_GRACE, true).timeout

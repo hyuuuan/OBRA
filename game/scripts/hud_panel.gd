@@ -26,6 +26,8 @@ const GAUGE_SCALE := 6
 
 var _value: Label
 var _gauge: InkBrush
+## The whole units the ink count last showed, so it pulses only when one comes or goes.
+var _whole_ink := -1
 
 
 func _init() -> void:
@@ -146,7 +148,12 @@ func adopt_lantern(health: PlayerHealth) -> LanternHud:
 ## ink the player does not have, and the one number they act on is "can I still draw
 ## something".
 func set_ink(remaining: float, capacity: float, reserved: float) -> void:
-	_value.text = "%d of %d" % [floori(maxf(0.0, remaining)), roundi(capacity)]
+	# The count answers when a whole unit comes or goes: a bigger pop for ink coming back.
+	var whole := floori(maxf(0.0, remaining))
+	if _whole_ink >= 0 and whole != _whole_ink:
+		Motion.pulse(_value, Motion.PULSE_TO + 0.04 if whole > _whole_ink else 1.08)
+	_whole_ink = whole
+	_value.text = "%d of %d" % [whole, roundi(capacity)]
 	_gauge.remaining = remaining
 	_gauge.capacity = capacity
 	_gauge.reserved = reserved

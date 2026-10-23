@@ -39,9 +39,18 @@ func _init() -> void:
 		maxf(_glyph_size().y, PIP.y))
 
 
+## The stage it last showed, so it can tell brighter from dimmer.
+var _last_stage := PlayerHealth.FULL
+
 func bind(source: PlayerHealth) -> void:
 	health = source
-	health.stage_changed.connect(func(_stage: int) -> void: queue_redraw())
+	_last_stage = health.stage
+	# Brighter -- oil, a clearing's fire -- it pops; dimmer, hit() has already shaken it.
+	health.stage_changed.connect(func(stage: int) -> void:
+		if stage > _last_stage:
+			Motion.pulse(self)
+		_last_stage = stage
+		queue_redraw())
 	health.hit_taken.connect(func(_stage: int) -> void: hit())
 	queue_redraw()
 
