@@ -281,6 +281,11 @@ func _shortcut_input(event: InputEvent) -> void:
 	close()
 
 
+## It plays its own entrance (see _on_opened); the base leaves it alone.
+func _animates_itself() -> bool:
+	return true
+
+
 func _on_opened() -> void:
 	# The story box and the bag are two claims on the same screen, and this one was opened
 	# on purpose. Same courtesy MemoryOverlay pays.
