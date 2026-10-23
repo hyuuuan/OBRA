@@ -42,6 +42,8 @@ const SETTING_DEFAULTS := {
 	"music_volume": 0.8,
 	"sfx_volume": 1.0,
 	"fullscreen": false,
+	# Motion: true keeps every slide, pop and shake still -- a short fade instead (motion.gd).
+	"reduce_motion": false,
 }
 
 ## user://profile.json when a player runs the game; a test run's own copy otherwise, so no
