@@ -163,6 +163,19 @@ static func stagger(items: Array, step: float = 0.04, from: Vector2 = Vector2(0.
 		delay += step
 
 
+## Each in turn, faded in a beat apart and NOT moved -- for what a container has just been handed
+## (dialogue choices): it lays them out a frame later, and a position tween started before that
+## would hold them where they were made.
+static func fade_stagger(items: Array, step: float = 0.06) -> void:
+	var delay := 0.0
+	for node in items:
+		var item := node as CanvasItem
+		if item == null or not item.visible:
+			continue
+		fade_in(item, FADE_SECONDS, delay)
+		delay += step
+
+
 static func _fresh(item: CanvasItem) -> Tween:
 	var old: Variant = item.get_meta(META) if item.has_meta(META) else null
 	if old is Tween and (old as Tween).is_valid():
