@@ -9,7 +9,7 @@ extends SceneTree
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 18
+const CHECKS := 19
 ## Room past each motion's own length before it is looked at again.
 const SETTLE := 0.25
 
@@ -31,6 +31,7 @@ func _run() -> void:
 	await _an_overlay_comes_and_goes()
 	await _closed_and_reopened_at_once_it_stays_open()
 	await _settings_keeps_the_choice()
+	await _an_ink_jar_lifts_as_it_is_taken()
 	await _a_scene_change_is_a_stroke_of_ink()
 	await _with_motion_reduced_the_stroke_only_fades()
 	_reduce(false)
@@ -142,6 +143,8 @@ func _closed_and_reopened_at_once_it_stays_open() -> void:
 	_check(overlay.is_open() and overlay.visible and panel.modulate.a > 0.99 and is_equal_approx(panel.scale.x, 1.0),
 		"closed and opened again at once, it stays open and whole -- the old exit does not hide it",
 		"open %s shown %s alpha %.2f" % [overlay.is_open(), overlay.visible, panel.modulate.a])
+	# Shut before it goes, or the game is left paused under an overlay nobody can see.
+	overlay.close()
 	overlay.queue_free()
 
 
@@ -211,6 +214,24 @@ func _watch_a_transition(manager: Node) -> Dictionary:
 	seen["end"] = float(manager.call(&"wipe_progress"))
 	seen["transitioning"] = bool(manager.call(&"is_transitioning"))
 	return seen
+
+
+func _an_ink_jar_lifts_as_it_is_taken() -> void:
+	paused = false
+	var jar := InkJar2D.new()
+	jar.position = Vector2(300.0, 300.0)
+	root.add_child(jar)
+	await process_frame
+	jar.take()
+	var highest := jar.position.y
+	var largest := 1.0
+	var start_ms := Time.get_ticks_msec()
+	while is_instance_valid(jar) and Time.get_ticks_msec() - start_ms < 500:
+		highest = minf(highest, jar.position.y)
+		largest = maxf(largest, jar.scale.x)
+		await process_frame
+	_check(highest < 300.0 - 12.0 and largest > 1.1, "an ink jar lifts and swells as it is taken",
+		"rose %.0f px, swelled to %.2f" % [300.0 - highest, largest])
 
 
 func _settings() -> ModalOverlay:

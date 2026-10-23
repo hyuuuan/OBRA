@@ -14,6 +14,8 @@ const ART := preload("res://assets/Level3/authored/ink_jar_0.png")
 const REACH := 28.0
 const GLOW_RADIUS := 56.0
 const TAKE_SECONDS := 0.3
+## How far it lifts as it is taken (the satchel's pickups rise 24).
+const TAKE_RISE := 24.0
 
 @export var amount := 2.0
 @export var pickup_id := ""
@@ -58,6 +60,13 @@ func take() -> void:
 		return
 	_taken = true
 	set_deferred(&"monitoring", false)
+	# Taken, it lifts and swells a little as it fades -- the satchel's pickups rise the same way,
+	# so a find reads as a find. With motion reduced it only fades.
 	var lift := create_tween()
 	lift.tween_property(self, "modulate:a", 0.0, TAKE_SECONDS)
+	if not Motion.reduced():
+		lift.parallel().tween_property(self, "position:y", position.y - TAKE_RISE, TAKE_SECONDS) \
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		lift.parallel().tween_property(self, "scale", Vector2.ONE * 1.25, TAKE_SECONDS) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	lift.tween_callback(queue_free)
