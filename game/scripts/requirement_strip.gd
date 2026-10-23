@@ -163,7 +163,10 @@ func show_requirements(required: Array, tier: int, owned: PackedStringArray = Pa
 	if required.is_empty() or tier < TIER_TAGS:
 		clear()
 		return
-	visible = true
+	# Asked again and again while it stands; it fades in only as it first appears (not moved: its
+	# place is its container's to keep).
+	if not visible:
+		Motion.fade_in(self)
 	_tag_line.text = "NEEDS  %s" % _join_tags(required)
 	_gloss_line.text = _join_glosses(required, match)
 	_gloss_line.visible = not _gloss_line.text.is_empty()
