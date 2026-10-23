@@ -314,7 +314,7 @@ func _animate_wipe(covering: bool) -> void:
 		_wipe_material.set_shader_parameter(&"progress", 1.0)
 		_wipe.modulate.a = 0.0 if covering else 1.0
 		var fade := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-		fade.tween_property(_wipe, "modulate:a", 1.0 if covering else 0.0, Motion.QUICK_FADE * 2.0)
+		Motion.step(fade, _wipe, "modulate:a", 1.0 if covering else 0.0, Motion.QUICK_FADE * 2.0)
 		await fade.finished
 		if not covering:
 			_wipe_material.set_shader_parameter(&"progress", 2.0)
@@ -323,8 +323,9 @@ func _animate_wipe(covering: bool) -> void:
 	_wipe.modulate.a = 1.0
 	_wipe_material.set_shader_parameter(&"progress", 0.0 if covering else 1.0)
 	var sweep := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	sweep.tween_property(_wipe_material, "shader_parameter/progress", to, WIPE_SECONDS) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN if covering else Tween.EASE_OUT)
+	# Held frames, like every other motion (Motion.step): the stroke jumps across in pixel-art steps.
+	Motion.step(sweep, _wipe_material, "shader_parameter/progress", to, WIPE_SECONDS,
+		Tween.TRANS_CUBIC, Tween.EASE_IN if covering else Tween.EASE_OUT)
 	await sweep.finished
 
 
