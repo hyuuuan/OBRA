@@ -27,6 +27,9 @@ var _icons: Dictionary = {}
 var _flash: Array[float] = [0.0, 0.0, 0.0, 0.0]
 
 
+## Each slot's count as last drawn, so a slot that gains can be told from one that is used.
+var _counts: Array[int] = []
+
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(SLOT.x * Satchel.SLOTS + GAP * (Satchel.SLOTS - 1), SLOT.y + CAP.y * 0.5)
@@ -35,8 +38,23 @@ func _init() -> void:
 
 func bind(source: Satchel) -> void:
 	satchel = source
-	satchel.changed.connect(queue_redraw)
+	_counts = _now()
+	# A slot that gains -- a find, a drop -- brightens, as a slot used does.
+	satchel.changed.connect(func() -> void:
+		var now := _now()
+		for index in range(mini(now.size(), _counts.size())):
+			if now[index] > _counts[index]:
+				flash(index)
+		_counts = now
+		queue_redraw())
 	queue_redraw()
+
+
+func _now() -> Array[int]:
+	var out: Array[int] = []
+	for id in satchel.slots():
+		out.append(satchel.count(id) if not id.is_empty() else 0)
+	return out
 
 
 ## A slot was used, or filled: it brightens for a moment.
