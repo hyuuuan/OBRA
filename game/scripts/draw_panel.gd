@@ -611,14 +611,10 @@ func _play_open_animation() -> void:
 
 	_open_tween = create_tween()
 	_open_tween.set_parallel(true)
-	_open_tween.tween_property(scrim, "modulate:a", 1.0, 0.34) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	_open_tween.tween_property(panel_root, "modulate", Color.WHITE, 0.28) \
-		.set_delay(0.06).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	_open_tween.tween_property(panel_root, "scale", Vector2.ONE, OPEN_DURATION) \
-		.set_delay(0.03) \
-		.set_trans(Tween.TRANS_BACK) \
-		.set_ease(Tween.EASE_OUT)
+	# In held frames, like every other motion (Motion.step): the canvas pops in pixel-art steps.
+	Motion.step(_open_tween, scrim, "modulate:a", 1.0, 0.34, Tween.TRANS_CUBIC, Tween.EASE_OUT)
+	Motion.step(_open_tween, panel_root, "modulate", Color.WHITE, 0.28, Tween.TRANS_CUBIC, Tween.EASE_OUT, 0.06)
+	Motion.step(_open_tween, panel_root, "scale", Vector2.ONE, OPEN_DURATION, Tween.TRANS_BACK, Tween.EASE_OUT, 0.03)
 	if _scrim_material != null:
-		_open_tween.tween_property(_scrim_material, "shader_parameter/opening_burst", 0.0, 0.92) \
-			.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+		Motion.step(_open_tween, _scrim_material, "shader_parameter/opening_burst", 0.0, 0.92,
+			Tween.TRANS_QUINT, Tween.EASE_OUT)
