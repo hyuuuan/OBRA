@@ -246,7 +246,7 @@ static func _elephant_left() -> Array:
 		_part("leg", line([Vector2(250, 306), Vector2(250, 372)])),
 		_part("leg", line([Vector2(318, 306), Vector2(318, 372)])),
 		_part("leg", line([Vector2(346, 300), Vector2(346, 372)])),
-		_part("tail", line([Vector2(378, 238), Vector2(398, 280)])),
+		_part("tail", line([Vector2(376, 232), Vector2(404, 262)])),
 	]
 
 
