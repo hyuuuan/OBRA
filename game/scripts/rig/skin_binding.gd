@@ -23,6 +23,9 @@ const MAX_BONES_PER_POINT := 4
 const KERNEL_SHARPNESS := 3.0
 const CAPTURE_BIAS_MIN := 0.15
 const CAPTURE_MARGIN := 0.10
+## A fitted part's ink eases from its parent onto its own bone over this share of its length,
+## so the joint where it meets the body bends rather than tears.
+const JOINT_BLEND := 0.15
 
 var _skeleton: Skeleton2D_Rig
 ## Per stroke: bone indices, weights and rest-local positions, flattened K-per-point.
@@ -45,8 +48,10 @@ func rest_points(stroke_index: int) -> PackedVector2Array:
 	return _rest_points[stroke_index]
 
 
-## `strokes` is the normalised vector stroke list (each {points, width, color}).
-func bind(strokes: Array, skeleton: Skeleton2D_Rig) -> void:
+## `strokes` is the normalised vector stroke list (each {points, width, color}). `regions`
+## (SkeletonFit.Regions) says which fitted bone owns which part of the drawing; ink in a part
+## follows that bone alone, and fitted bones never reach for ink outside their part.
+func bind(strokes: Array, skeleton: Skeleton2D_Rig, regions: SkeletonFit.Regions = null) -> void:
 	_skeleton = skeleton
 	_bone_ids.clear()
 	_weights.clear()
@@ -56,6 +61,10 @@ func bind(strokes: Array, skeleton: Skeleton2D_Rig) -> void:
 	if skeleton == null or skeleton.bones.is_empty():
 		return
 	var epsilon := maxf(1.0, skeleton.diagonal * 0.05)
+	var slot_bone := PackedInt32Array()
+	if regions != null:
+		for name in regions.names:
+			slot_bone.append(skeleton.find(name))
 
 	for stroke_value in strokes:
 		var points := PackedVector2Array((stroke_value as Dictionary).get("points", PackedVector2Array()))
@@ -69,7 +78,9 @@ func bind(strokes: Array, skeleton: Skeleton2D_Rig) -> void:
 
 		for p in range(count):
 			var point := points[p]
-			var chosen := _weigh_point(point, epsilon)
+			var slot := regions.slot_at(point) if regions != null else -1
+			var owner := slot_bone[slot] if slot >= 0 else -1
+			var chosen := _weigh_in_part(point, owner) if owner >= 0 else _weigh_point(point, epsilon)
 			var base := p * MAX_BONES_PER_POINT
 			for k in range(MAX_BONES_PER_POINT):
 				var bone_index: int = chosen[0][k]
@@ -181,6 +192,9 @@ func _weigh_point(point: Vector2, epsilon: float) -> Array:
 
 	for b in range(_skeleton.bones.size()):
 		var bone := _skeleton.bones[b]
+		# A fitted bone owns its part and nothing else, however near other ink lies.
+		if bone.fitted:
+			continue
 		var nearest := Geometry2D.get_closest_point_to_segment(point, bone.pivot, bone.tip)
 		var distance := point.distance_to(nearest)
 		# influence == 0 marks the root: it reaches everywhere, so no point can end up
@@ -210,6 +224,24 @@ func _weigh_point(point: Vector2, epsilon: float) -> Array:
 	if total > 0.0:
 		for k in range(MAX_BONES_PER_POINT):
 			weights[k] /= total
+	return [ids, weights]
+
+
+## Ink inside a fitted part: its bone, eased in from the parent near the joint.
+func _weigh_in_part(point: Vector2, owner: int) -> Array:
+	var ids := PackedInt32Array([-1, -1, -1, -1])
+	var weights := PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
+	var bone := _skeleton.bones[owner]
+	var reach := bone.tip - bone.pivot
+	var along := clampf((point - bone.pivot).dot(reach) / maxf(1.0, reach.length_squared()), 0.0, 1.0)
+	var own := smoothstep(0.0, JOINT_BLEND, along)
+	ids[0] = owner
+	weights[0] = own
+	if bone.parent >= 0 and own < 1.0:
+		ids[1] = bone.parent
+		weights[1] = 1.0 - own
+	else:
+		weights[0] = 1.0
 	return [ids, weights]
 
 
