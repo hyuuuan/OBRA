@@ -1302,7 +1302,13 @@ func _gravity_hold_torque(segment: Dictionary, joint: PinJoint2D) -> float:
 	return clampf(torque, -hold_limit, hold_limit)
 
 
+## Turned round, a creature's limbs make the mirror image of the motion they make as drawn.
 func _target_angle_for(segment: Dictionary) -> float:
+	var target := _drawn_target_angle_for(segment)
+	return -target if _physics_mirrored else target
+
+
+func _drawn_target_angle_for(segment: Dictionary) -> float:
 	var role := String(segment["role"])
 	var chain_index := int(segment["chain_index"])
 	var phase := _gait_phase + float(segment["phase"]) + float(chain_index) * 0.28
@@ -1326,7 +1332,7 @@ func _species_target_angle(segment: Dictionary, role: String, phase: float, movi
 	var limb_index := int(segment["limb_index"])
 	var chain_index := int(segment["chain_index"])
 	var side := signf(float(segment.get("side", 1.0)))
-	var direction := float(_motion_params.get("direction", 0.0))
+	var direction := float(_motion_params.get("direction", 0.0)) * (-1.0 if _physics_mirrored else 1.0)
 
 	if _rig_type == "biped":
 		if _motion_state == "walk" and moving:
