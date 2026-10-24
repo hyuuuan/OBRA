@@ -467,6 +467,17 @@ func debug_bone_ink_mass() -> Dictionary:
 	return out
 
 
+## Per drawn stroke, the share of its ink each kind of bone carries ({role: share}), and the
+## skeleton it was bound to -- so a test can ask whether the stroke the player drew as a wing
+## is the one the wings move.
+func debug_stroke_roles() -> Dictionary:
+	var strokes: Array = []
+	if _skin_binding != null:
+		for index in range(_skin_binding.stroke_count()):
+			strokes.append(_skin_binding.stroke_role_share(index))
+	return {"archetype": _skin_rig.archetype if _skin_rig != null else "", "strokes": strokes}
+
+
 func debug_max_tracked_angle() -> float:
 	return _max_tracked_angle
 
@@ -1489,11 +1500,13 @@ func _bind_skinned_ink() -> bool:
 	if skeleton.is_empty():
 		push_warning("RuntimeRig2D: no skeleton for %s/%s; keeping the pivot path." % [_entity_id, _rig_type])
 		return false
-	var rig := Skeleton2D_Rig.build(skeleton, get_stroke_bounds(), profile)
+	# The class says what parts it has; the drawing says where they are (SkeletonFit).
+	var fitted := SkeletonFit.fit(skeleton, strokes, get_stroke_bounds())
+	var rig := Skeleton2D_Rig.build(fitted["skeleton"], get_stroke_bounds(), profile)
 	if rig.bones.is_empty():
 		return false
 	var binding := SkinBinding.new()
-	binding.bind(strokes, rig)
+	binding.bind(strokes, rig, fitted["regions"])
 	if binding.stroke_count() == 0:
 		return false
 

@@ -27,6 +27,9 @@ class Bone extends RefCounted:
 	var rest_transform: Transform2D = Transform2D.IDENTITY
 	var rest_inverse: Transform2D = Transform2D.IDENTITY
 	var rest_local: Transform2D = Transform2D.IDENTITY  ## relative to parent
+	## Placed on a part of the drawing by SkeletonFit rather than at authored fractions: only
+	## the ink of its own part follows it (SkinBinding reads the fit's regions).
+	var fitted: bool = false
 
 var bones: Array[Bone] = []
 var bounds: Rect2
@@ -64,10 +67,13 @@ static func build(skeleton: Dictionary, bbox: Rect2, profile: Dictionary) -> Ske
 		bone.role = String(entry.get("role", "limb"))
 		bone.side = float(entry.get("side", 0.0))
 		bone.index = int(entry.get("index", 0))
-		bone.pivot = rig._to_rig_space(entry.get("pivot", [0.5, 0.5]))
-		bone.tip = rig._to_rig_space(entry.get("tip", [0.5, 0.9]))
+		bone.fitted = entry.has("pivot_at")
+		bone.pivot = entry["pivot_at"] if bone.fitted else rig._to_rig_space(entry.get("pivot", [0.5, 0.5]))
+		bone.tip = entry.get("tip_at", bone.pivot + Vector2.DOWN) if bone.fitted \
+			else rig._to_rig_space(entry.get("tip", [0.5, 0.9]))
 		bone.rest_angle = (bone.tip - bone.pivot).angle()
-		bone.influence = float(entry.get("influence", 0.0)) * rig.diagonal
+		bone.influence = bone.pivot.distance_to(bone.tip) if bone.fitted \
+			else float(entry.get("influence", 0.0)) * rig.diagonal
 		bone.limit = deg_to_rad(float(entry.get("limit_deg", 55.0)))
 		bone.capture = entry.get("capture", {})
 		bone.gait = entry.get("gait", {})
