@@ -126,6 +126,24 @@ func bone_ink_mass() -> PackedFloat32Array:
 	return mass
 
 
+## Share of one stroke's ink each KIND of bone carries ({role: share}, summing to 1). What
+## tells a wing that flaps from a wing left riding the body, per stroke the player drew.
+func stroke_role_share(stroke_index: int) -> Dictionary:
+	var shares: Dictionary = {}
+	var ids := _bone_ids[stroke_index]
+	var weights := _weights[stroke_index]
+	var total := 0.0
+	for i in range(weights.size()):
+		if weights[i] > 0.0 and ids[i] >= 0:
+			var role := _skeleton.bones[ids[i]].role
+			shares[role] = float(shares.get(role, 0.0)) + weights[i]
+			total += weights[i]
+	if total > 0.0:
+		for role in shares:
+			shares[role] = float(shares[role]) / total
+	return shares
+
+
 ## Diagnostics for the test suite: weight sums and any point left unbound.
 func report() -> Dictionary:
 	var minimum_sum := INF

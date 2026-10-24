@@ -467,6 +467,17 @@ func debug_bone_ink_mass() -> Dictionary:
 	return out
 
 
+## Per drawn stroke, the share of its ink each kind of bone carries ({role: share}), and the
+## skeleton it was bound to -- so a test can ask whether the stroke the player drew as a wing
+## is the one the wings move.
+func debug_stroke_roles() -> Dictionary:
+	var strokes: Array = []
+	if _skin_binding != null:
+		for index in range(_skin_binding.stroke_count()):
+			strokes.append(_skin_binding.stroke_role_share(index))
+	return {"archetype": _skin_rig.archetype if _skin_rig != null else "", "strokes": strokes}
+
+
 func debug_max_tracked_angle() -> float:
 	return _max_tracked_angle
 
