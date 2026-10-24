@@ -74,6 +74,33 @@
           "pivot": [0.50, 0.74], "tip": [0.50, 0.99], "influence": 0.26, "limit_deg": 30,
           "gait": { "amplitude_deg": 10, "phase": 0.5,
                     "states": { "fly": 1.0, "flap": 1.0, "glide": 0.2, "idle": 0.1 } } }
+      ],
+      "views": [
+        { "name": "side",
+          "comment": "Birds and bees are mostly drawn side on: head one end, tail the other, the wing up off the back (or drawn on the body's side). Authored facing right.",
+          "bones": [
+            { "name": "body", "role": "body", "parent": "",
+              "pivot": [0.50, 0.55], "tip": [0.50, 0.90], "influence": 0.0 },
+            { "name": "wing", "role": "wing", "parent": "body", "index": 0,
+              "attach": [0.50, 0.00], "fit": "appendage", "interior": true, "repeat": true, "repeat_phase": 0.08, "expect": 0.5,
+              "pivot": [0.48, 0.40], "tip": [0.38, 0.02], "influence": 0.5, "limit_deg": 55,
+              "gait": { "amplitude_key": "wing_flap_degrees", "amplitude_deg": 40, "phase": 0.0,
+                        "bias_key": "glide_raise_degrees", "bias_deg": 0,
+                        "states": { "fly": 1.0, "flap": 1.15, "glide": 0.0, "walk": 0.30,
+                                    "jump": 0.8, "fall": 0.6, "idle": 0.06 },
+                        "bias_states": { "glide": 1.0, "fall": 0.6, "jump": 0.3, "fly": 0.0,
+                                         "flap": 0.0, "walk": 0.0, "idle": 0.0 } } },
+            { "name": "tail", "role": "tail", "parent": "body",
+              "attach": [0.00, 0.50], "turn_scale": 110, "fit": "appendage", "shape": "thin", "max_turn": 115, "repeat": true, "repeat_phase": 0.0, "expect": 0.12,
+              "pivot": [0.24, 0.55], "tip": [0.02, 0.48], "influence": 0.3, "limit_deg": 30,
+              "gait": { "amplitude_deg": 10, "phase": 0.5,
+                        "states": { "fly": 1.0, "flap": 1.0, "glide": 0.2, "walk": 0.6, "idle": 0.1 } } },
+            { "name": "head", "role": "head", "parent": "body",
+              "attach": [1.00, 0.30], "fit": "appendage", "expect": 0.05,
+              "pivot": [0.74, 0.42], "tip": [0.94, 0.22], "influence": 0.3, "limit_deg": 16,
+              "gait": { "amplitude_deg": 5, "phase": 0.25,
+                        "states": { "fly": 0.6, "flap": 0.6, "walk": 1.0, "idle": 0.3 } } }
+          ] }
       ]
     },
 
@@ -123,6 +150,43 @@
           "pivot": [0.36, 0.64], "tip": [0.36, 0.99], "influence": 0.30, "limit_deg": 45,
           "capture": { "u": [0.00, 0.52], "v": [0.50, 1.00] },
           "gait": { "$ref": "leg_fl", "phase": 0.0 } }
+      ],
+      "views": [
+        { "name": "top", "symmetric": true,
+          "comment": "Seen from above, as turtles (and some crabs and ants) are drawn: a leg or flipper at each corner, head at the top, tail at the bottom.",
+          "bones": [
+            { "name": "body", "role": "body", "parent": "",
+              "pivot": [0.50, 0.50], "tip": [0.50, 0.80], "influence": 0.0 },
+            { "name": "head", "role": "head", "parent": "body",
+              "attach": [0.50, 0.00], "fit": "appendage", "expect": 0.08,
+              "pivot": [0.50, 0.20], "tip": [0.50, 0.00], "influence": 0.24, "limit_deg": 18,
+              "gait": { "amplitude_deg": 6, "phase": 0.25,
+                        "states": { "walk": 1.0, "swim": 0.6, "idle": 0.25 } } },
+            { "name": "tail", "role": "tail", "parent": "body",
+              "attach": [0.50, 1.00], "turn_scale": 110, "fit": "appendage", "shape": "thin", "max_turn": 115, "expect": 0.05,
+              "pivot": [0.50, 0.82], "tip": [0.50, 1.00], "influence": 0.22, "limit_deg": 28,
+              "gait": { "amplitude_deg": 10, "phase": 0.5,
+                        "states": { "walk": 1.0, "swim": 0.9, "idle": 0.2 } } },
+            { "name": "leg_fl", "role": "leg", "parent": "body", "side": -1, "index": 0,
+              "attach": [0.10, 0.20], "fit": "appendage", "repeat": true, "repeat_phase": 0.5, "expect": 0.25,
+              "pivot": [0.34, 0.32], "tip": [0.06, 0.12], "influence": 0.30, "limit_deg": 45,
+              "gait": { "amplitude_key": "leg_swing_degrees", "amplitude_deg": 20, "phase": 0.5,
+                        "mirror": true,
+                        "states": { "walk": 1.0, "swim": 1.0, "jump": 0.5, "fall": 0.4,
+                                    "climb": 0.8, "idle": 0.04 } } },
+            { "name": "leg_fr", "role": "leg", "parent": "body", "side": 1, "index": 1,
+              "attach": [0.90, 0.20], "fit": "appendage", "repeat": true, "repeat_phase": 0.5, "expect": 0.25,
+              "pivot": [0.66, 0.32], "tip": [0.94, 0.12], "influence": 0.30, "limit_deg": 45,
+              "gait": { "$ref": "leg_fl", "phase": 0.0 } },
+            { "name": "leg_bl", "role": "leg", "parent": "body", "side": -1, "index": 2,
+              "attach": [0.10, 0.80], "fit": "appendage", "repeat": true, "repeat_phase": 0.5, "expect": 0.25,
+              "pivot": [0.34, 0.68], "tip": [0.06, 0.88], "influence": 0.30, "limit_deg": 45,
+              "gait": { "$ref": "leg_fl", "phase": 0.0 } },
+            { "name": "leg_br", "role": "leg", "parent": "body", "side": 1, "index": 3,
+              "attach": [0.90, 0.80], "fit": "appendage", "repeat": true, "repeat_phase": 0.5, "expect": 0.25,
+              "pivot": [0.66, 0.68], "tip": [0.94, 0.88], "influence": 0.30, "limit_deg": 45,
+              "gait": { "$ref": "leg_fl", "phase": 0.5 } }
+          ] }
       ]
     },
 
@@ -230,6 +294,19 @@
           "pivot": [0.58, 0.58], "tip": [0.50, 0.90], "influence": 0.24, "limit_deg": 22,
           "capture": { "u": [0.20, 0.90], "v": [0.54, 1.00] },
           "gait": { "$ref": "fin_u" } }
+      ],
+      "views": [
+        { "name": "hanging", "symmetric": true,
+          "comment": "An octopus (or a jellyfish) is drawn as a dome with its arms hanging; each arm gets a bone, rippling one after the next.",
+          "bones": [
+            { "name": "body", "role": "body", "parent": "",
+              "pivot": [0.50, 0.30], "tip": [0.50, 0.60], "influence": 0.0 },
+            { "name": "tentacle", "role": "tentacle", "parent": "body", "index": 0,
+              "attach": [0.50, 1.00], "fit": "appendage", "shape": "thin", "repeat": true, "repeat_phase": 0.17, "expect": 0.5,
+              "pivot": [0.50, 0.55], "tip": [0.50, 1.00], "influence": 0.4, "limit_deg": 35,
+              "gait": { "amplitude_deg": 18, "phase": 0.0,
+                        "states": { "swim": 1.0, "walk": 0.9, "jump": 0.6, "fall": 0.6, "idle": 0.2 } } }
+          ] }
       ]
     },
 
