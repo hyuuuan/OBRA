@@ -10,7 +10,7 @@ extends SceneTree
 ## Run: godot --headless --path game --script res://tests/run_rig_facing_probe.gd
 
 const Fixtures := preload("res://tests/drawn_like_people_fixtures.gd")
-const CHECKS := 12
+const CHECKS := 22
 const STEP := 1.0 / 60.0
 
 var registry: EntityRegistry
@@ -35,6 +35,8 @@ func _run() -> void:
 	_a_butterfly_never_turns()
 	_turned_round_it_leans_the_way_it_goes()
 	_with_motion_reduced_it_turns_at_once()
+	await _its_bodies_turn_round_with_it()
+	await _turned_round_it_holds_poses_the_mirror_way()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -57,9 +59,14 @@ func _a_left_facing_horse_turns_to_go_right() -> void:
 		held[snappedf(value, 0.001)] = true
 	_check(_head_side(skin) > 0.0, "driven right, it turns round: its head ends on the right",
 		"head %.1f from its body" % _head_side(skin))
-	_check(flips[0] > -1.0 and held.size() >= 3 and held.size() <= 6,
+	var squashed := 0
+	for value in flips:
+		if absf(value) < 0.99:
+			squashed += 1
+	# Squashed through the middle and out again: 1 -> 1/3 -> (bodies turn) -> 1/3 -> 1.
+	_check(flips[0] == 1.0 and squashed >= 3 and squashed <= 14 and held.size() <= 4 and flips[flips.size() - 1] == 1.0,
 		"and it turns in a few held frames, not at once and not gliding",
-		"first %.2f, %d positions %s" % [flips[0], held.size(), held.keys()])
+		"first %.2f, squashed %d frames, %d positions %s" % [flips[0], squashed, held.size(), held.keys()])
 	var turned := _span(skin)
 	var slack := float(drawn["width"]) * 0.1
 	_check(absf(float(turned["left"]) - float(drawn["left"])) < slack and absf(float(turned["right"]) - float(drawn["right"])) < slack,
@@ -121,7 +128,7 @@ func _turned_round_it_leans_the_way_it_goes() -> void:
 
 
 func _head_height(skin: RuntimeRig2D) -> float:
-	var ink := skin.debug_skin_points()
+	var ink := _world_ink(skin)
 	return _middle(ink[1]).y - _middle(ink[0]).y
 
 
@@ -129,11 +136,192 @@ func _with_motion_reduced_it_turns_at_once() -> void:
 	_reduce(true)
 	var skin := _build("horse", Fixtures.mirrored(_fixture("horse facing right")))
 	_drive(skin, 1.0)
-	_check(float(skin.debug_facing()["flip"]) == -1.0 and _head_side(skin) > 0.0,
+	_check(float(skin.debug_facing()["flip"]) == 1.0 and bool(skin.debug_facing()["bodies_turned"]) and _head_side(skin) > 0.0,
 		"with motion reduced it turns at once, no squash",
-		"flip %.2f after one frame" % skin.debug_facing()["flip"])
+		"flip %.2f, bodies turned %s after one frame" % [skin.debug_facing()["flip"], skin.debug_facing()["bodies_turned"]])
 	_reduce(false)
 	skin.get_parent().queue_free()
+
+
+## With the physics running: a left-drawn horse standing on a floor, driven right. Its
+## bodies must turn round under the ink -- the head's collider ends at the front too -- and
+## the turned rig must still hold together, keep its speed, stand, and sit under its ink.
+func _its_bodies_turn_round_with_it() -> void:
+	var floor_body := StaticBody2D.new()
+	var floor_shape := CollisionShape2D.new()
+	var slab := RectangleShape2D.new()
+	slab.size = Vector2(4000.0, 60.0)
+	floor_shape.shape = slab
+	floor_body.add_child(floor_shape)
+	floor_body.position = Vector2(600.0, 460.0)
+	world.add_child(floor_body)
+	var instance := registry.instantiate_entity("horse") as Node2D
+	world.add_child(instance)
+	instance.global_position = Vector2(600.0, 360.0)
+	if instance.has_method("set_world_bounds"):
+		instance.call("set_world_bounds", Rect2(-1000.0, -1000.0, 4000.0, 3000.0))
+	instance.call("apply_drawing", _blank_image(), Fixtures.mirrored(_fixture("horse facing right")))
+	instance.set_physics_process(false)
+	var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+	for frame in range(60):
+		skin.set_motion_state("idle", {"moving": false, "direction": 0.0})
+		await physics_frame
+	var before_head := _head_collider_side(skin)
+	var drawn_drift := _pose_drift(skin)
+	var drawn_off := _colliders_off_ink(skin)
+	var stood := skin.get_primary_body().global_position
+	var recoveries := skin.debug_recovery_count()
+	var worst := 0.0
+	for frame in range(60):
+		skin.set_motion_state("walk", {"moving": true, "speed_ratio": 1.0, "direction": 1.0})
+		await physics_frame
+		worst = maxf(worst, skin.debug_max_joint_error())
+	_check(before_head < 0.0 and _head_collider_side(skin) > 0.0 and bool(skin.debug_facing()["bodies_turned"]),
+		"its bodies turn round with it: the head's collider ends at the front too",
+		"head collider %.1f before, %.1f after" % [before_head, _head_collider_side(skin)])
+	_check(worst < 4.0 and skin.debug_recovery_count() == recoveries,
+		"and the turned bodies hold together", "worst joint gap %.2f px, recoveries %d" % [worst, skin.debug_recovery_count() - recoveries])
+	for frame in range(60):
+		skin.set_motion_state("idle", {"moving": false, "direction": 0.0})
+		await physics_frame
+	_check(_pose_drift(skin) < drawn_drift + 6.0,
+		"and stopped, it holds its drawn pose the mirror way round",
+		"bodies %.1f px off their pose (as drawn: %.1f)" % [_pose_drift(skin), drawn_drift])
+	_check(_colliders_off_ink(skin) < drawn_off + 6.0,
+		"and every collider lies along its own ink, the way it did as drawn",
+		"worst collider end %.1f px off the ink (as drawn: %.1f)" % [_colliders_off_ink(skin), drawn_off])
+	var after := skin.get_primary_body()
+	_check(absf(after.global_position.y - stood.y) < 12.0 and absf(after.global_rotation) < 0.3,
+		"and it still stands", "moved %.1f px down, leaning %.2f rad" % [after.global_position.y - stood.y, after.global_rotation])
+	var span := _span(skin)
+	var outside := 0.0
+	for centre in _collider_centres(skin):
+		outside = maxf(outside, maxf(float(span["left"]) - centre.x, centre.x - float(span["right"])))
+	_check(outside < 6.0, "and its ink still sits on its bodies", "furthest collider %.1f px outside the ink" % outside)
+	skin.translate_rig(Vector2.ZERO, Vector2(150.0, 0.0))
+	skin.call("_mirror_physics")
+	var kept := skin.get_primary_body().linear_velocity.x
+	# And straight back, so the rig is the way round its state says it is.
+	skin.call("_mirror_physics")
+	_check(kept > 100.0, "turning round keeps it going the way it was going", "x speed %.0f after" % kept)
+	for frame in range(30):
+		skin.set_motion_state("walk", {"moving": true, "speed_ratio": 1.0, "direction": -1.0})
+		await physics_frame
+	_check(_head_collider_side(skin) < 0.0 and not bool(skin.debug_facing()["bodies_turned"]),
+		"driven back, its bodies turn back", "head collider %.1f" % _head_collider_side(skin))
+	instance.queue_free()
+	floor_body.queue_free()
+
+
+## A side-on bird glides holding its wings in a pose (a lift to one side). Turned round, it
+## must hold the MIRROR of that pose -- the same glide seen from the other side -- not the
+## same angles, which on a mirrored body are the opposite lift.
+func _turned_round_it_holds_poses_the_mirror_way() -> void:
+	var held: Array = []
+	for direction in [1.0, -1.0]:
+		var instance := registry.instantiate_entity("bird") as Node2D
+		world.add_child(instance)
+		instance.global_position = Vector2(1400.0 + direction * 300.0, 200.0)
+		if instance.has_method("set_world_bounds"):
+			instance.call("set_world_bounds", Rect2(-1000.0, -1000.0, 4000.0, 3000.0))
+		instance.call("apply_drawing", _blank_image(), _fixture("bird from the side, facing right"))
+		instance.set_physics_process(false)
+		var skin := instance.get_node("DrawingSkin") as RuntimeRig2D
+		for body in skin.get_rigid_bodies():
+			body.gravity_scale = 0.0
+		for frame in range(70):
+			skin.set_motion_state("glide", {"moving": true, "speed_ratio": 1.0, "direction": direction})
+			await physics_frame
+		var angles: Array[float] = []
+		for segment in skin.get("_segments"):
+			angles.append(float((segment as Dictionary).get("tracked_angle", 0.0)))
+		held.append(angles)
+		if direction < 0.0:
+			await _a_turned_flier_stays_upright_when_tipped(skin)
+		instance.queue_free()
+	var together := 0.0
+	var size := 0.0
+	for index in range(mini((held[0] as Array).size(), (held[1] as Array).size())):
+		together += float(held[0][index]) * float(held[1][index])
+		size += float(held[0][index]) * float(held[0][index])
+	_check(size > 0.01 and together < -0.5 * size,
+		"turned round, a gliding bird holds its wings the mirror way, like one drawn that way",
+		"pose agreement %.2f of %.2f (mirror = -1)" % [together, size])
+
+
+## A flier's drawing cancels its torso's spin so it flies level. Seen through the mirror a
+## turned bird carries, the spin runs the other way -- so tipping a turned bird's torso must
+## still leave its drawing level.
+func _a_turned_flier_stays_upright_when_tipped(skin: RuntimeRig2D) -> void:
+	var torso := skin.get_primary_body()
+	for body in skin.get_rigid_bodies():
+		body.freeze = true
+	skin.call("_animate_skinned_ink", 0.0)
+	var level := _ink_heading(skin)
+	torso.global_rotation += 0.4
+	skin.call("_animate_skinned_ink", 0.0)
+	var tipped := _ink_heading(skin)
+	_check(bool(skin.debug_facing()["bodies_turned"]) and absf(angle_difference(level, tipped)) < 0.05,
+		"turned round and tipped, a flier's drawing stays level",
+		"drawing turned %.2f rad when its torso tipped 0.40" % angle_difference(level, tipped))
+
+
+## Which way the bird's head lies from its body, on screen (strokes 0 body, 1 head).
+func _ink_heading(skin: RuntimeRig2D) -> float:
+	var ink := _world_ink(skin)
+	return (_middle(ink[1]) - _middle(ink[0])).angle()
+
+
+## How far the end of any capsule collider sits from the ink it was built along, at worst.
+func _colliders_off_ink(skin: RuntimeRig2D) -> float:
+	var ink := PackedVector2Array()
+	for line in _world_ink(skin):
+		ink.append_array(line as PackedVector2Array)
+	var worst := 0.0
+	for body in skin.get_rigid_bodies():
+		for child in body.get_children():
+			var collision := child as CollisionShape2D
+			if collision == null or not (collision.shape is CapsuleShape2D):
+				continue
+			var capsule := collision.shape as CapsuleShape2D
+			var place := collision.global_transform
+			var reach := place.y.normalized() * maxf(0.0, capsule.height * 0.5 - capsule.radius)
+			for end in [place.origin + reach, place.origin - reach]:
+				var nearest := INF
+				for point in ink:
+					nearest = minf(nearest, point.distance_to(end))
+				worst = maxf(worst, nearest - capsule.radius)
+	return worst
+
+
+## How far the bodies sit from where the rig's rest pose puts them, at worst.
+func _pose_drift(skin: RuntimeRig2D) -> float:
+	var rests: Dictionary = skin.get("_rest_transforms")
+	var primary := skin.get_primary_body()
+	var worst := 0.0
+	for body in skin.get_rigid_bodies():
+		var rest: Transform2D = rests.get(body.get_instance_id(), Transform2D.IDENTITY)
+		worst = maxf(worst, body.global_position.distance_to((primary.global_transform * rest).origin))
+	return worst
+
+
+## How far right of the ink's middle the highest collision shape sits -- on a horse, its head.
+func _head_collider_side(skin: RuntimeRig2D) -> float:
+	var top := Vector2(0.0, INF)
+	for centre in _collider_centres(skin):
+		if centre.y < top.y:
+			top = centre
+	var span := _span(skin)
+	return top.x - (float(span["left"]) + float(span["right"])) * 0.5
+
+
+func _collider_centres(skin: RuntimeRig2D) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for body in skin.get_rigid_bodies():
+		for child in (body as Node).get_children():
+			if child is CollisionShape2D:
+				out.append((child as CollisionShape2D).global_position)
+	return out
 
 
 # --- helpers ------------------------------------------------------------------
@@ -164,10 +352,19 @@ func _drive(skin: RuntimeRig2D, direction: float) -> void:
 	skin.call("_animate_skinned_ink", STEP)
 
 
-## How far right of its body's middle the horse's head is drawn now (stroke 1 is the head).
+## How far right of its body's middle the horse's head is drawn now, on screen (stroke 1 is
+## the head). On screen, because a turned creature's ink rides a mirrored transform.
 func _head_side(skin: RuntimeRig2D) -> float:
-	var ink := skin.debug_skin_points()
+	var ink := _world_ink(skin)
 	return _middle(ink[1]).x - _middle(ink[0]).x
+
+
+func _world_ink(skin: RuntimeRig2D) -> Array:
+	var place := skin.debug_skin_transform()
+	var out: Array = []
+	for line in skin.debug_skin_points():
+		out.append(place * line)
+	return out
 
 
 func _middle(points: PackedVector2Array) -> Vector2:
@@ -181,7 +378,7 @@ func _middle(points: PackedVector2Array) -> Vector2:
 func _span(skin: RuntimeRig2D) -> Dictionary:
 	var low := INF
 	var high := -INF
-	for line in skin.debug_skin_points():
+	for line in _world_ink(skin):
 		for point in line:
 			low = minf(low, point.x)
 			high = maxf(high, point.x)

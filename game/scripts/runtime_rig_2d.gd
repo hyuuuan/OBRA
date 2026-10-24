@@ -113,6 +113,10 @@ var _flip_to: float = 1.0
 var _turn_time: float = TURN_SECONDS
 ## The drawing turns about its own middle, so the ink covers the same span as its bodies.
 var _mirror_centre: Vector2 = Vector2.ZERO
+## True while the creature's BODIES are turned round from the way it was drawn (Kent,
+## 2026-10-25: "flip the physics bodies too"). The same bodies, mirrored in place halfway
+## through the turn -- never rebuilt, so every trigger area it stands in keeps counting it.
+var _physics_mirrored: bool = false
 ## True once the rig has been locked into its drawn pose because it strayed too far.
 var _bodies: Array[ActiveRigBody2D] = []
 var _joints: Array[PinJoint2D] = []
@@ -491,10 +495,10 @@ func debug_stroke_roles() -> Dictionary:
 	return {"archetype": _skin_rig.archetype if _skin_rig != null else "", "strokes": strokes}
 
 
-## Which way the drawing looks as drawn (1 right, -1 left, 0 none) and how far it has turned
-## (1 as drawn, -1 mirrored).
+## Which way the drawing looks as drawn (1 right, -1 left, 0 none), how far its ink is through
+## a turn (1 none, -1 mirrored), and whether its bodies are turned round.
 func debug_facing() -> Dictionary:
-	return {"drawn": _drawn_facing, "flip": _flip}
+	return {"drawn": _drawn_facing, "flip": _flip, "bodies_turned": _physics_mirrored}
 
 
 func debug_max_tracked_angle() -> float:
@@ -1298,7 +1302,13 @@ func _gravity_hold_torque(segment: Dictionary, joint: PinJoint2D) -> float:
 	return clampf(torque, -hold_limit, hold_limit)
 
 
+## Turned round, a creature's limbs make the mirror image of the motion they make as drawn.
 func _target_angle_for(segment: Dictionary) -> float:
+	var target := _drawn_target_angle_for(segment)
+	return -target if _physics_mirrored else target
+
+
+func _drawn_target_angle_for(segment: Dictionary) -> float:
 	var role := String(segment["role"])
 	var chain_index := int(segment["chain_index"])
 	var phase := _gait_phase + float(segment["phase"]) + float(chain_index) * 0.28
@@ -1322,7 +1332,7 @@ func _species_target_angle(segment: Dictionary, role: String, phase: float, movi
 	var limb_index := int(segment["limb_index"])
 	var chain_index := int(segment["chain_index"])
 	var side := signf(float(segment.get("side", 1.0)))
-	var direction := float(_motion_params.get("direction", 0.0))
+	var direction := float(_motion_params.get("direction", 0.0)) * (-1.0 if _physics_mirrored else 1.0)
 
 	if _rig_type == "biped":
 		if _motion_state == "walk" and moving:
@@ -1603,12 +1613,16 @@ func _animate_skinned_ink(delta: float) -> void:
 		return
 	_advance_facing(delta)
 	var params := _motion_params
-	if _flip < 0.0 and params.has("direction"):
+	if (_flip < 0.0) != _physics_mirrored and params.has("direction"):
 		# Lean the way it now faces: the mirror turns a lean round with everything else.
 		params = params.duplicate()
 		params["direction"] = -float(params["direction"])
 	_skin_driver.advance(delta, _motion_state, params)
 	var anchor_rotation := _primary_body.global_rotation if is_instance_valid(_primary_body) else 0.0
+	# Seen through a mirror a turn runs the other way, so cancelling the body's spin out of
+	# a turned drawing means turning it back the other way too.
+	if _physics_mirrored:
+		anchor_rotation = -anchor_rotation
 	var posed := _skin_rig.pose(
 		_skin_driver.angles(),
 		_skin_driver.body_transform(anchor_rotation, _skin_anchor_local)
@@ -1630,7 +1644,8 @@ func _advance_facing(delta: float) -> void:
 		return
 	var heading := float(_motion_params.get("direction", 0.0))
 	if absf(heading) >= 0.5:
-		var want := signf(heading) * _drawn_facing
+		var facing := -_drawn_facing if _physics_mirrored else _drawn_facing
+		var want := signf(heading) * facing
 		if want != _flip_to:
 			_flip_from = _flip
 			_flip_to = want
@@ -1641,6 +1656,97 @@ func _advance_facing(delta: float) -> void:
 	var progress := _turn_time / TURN_SECONDS
 	var held := floorf(progress * frames) / float(frames) if progress < 1.0 else 1.0
 	_flip = lerpf(_flip_from, _flip_to, held)
+	# Halfway, squashed thin, the bodies turn round under it -- and from there the ink is
+	# drawn the right way round by the mirror the bodies carry, so the turn finishes by
+	# unsquashing rather than by mirroring the ink.
+	if _flip < 0.0 and _can_mirror_physics():
+		_mirror_physics()
+		_physics_mirrored = not _physics_mirrored
+		_flip = -_flip
+		_flip_from = -_flip_from
+		_flip_to = -_flip_to
+
+
+## A spider's legs are steered by their own planted-foot solver, and an object is pinned to
+## its owner: those keep the ink-only turn.
+func _can_mirror_physics() -> bool:
+	return _primary_body != null and not _bodies.is_empty() and not _rigid_object_rig \
+		and _entity_id != "spider" and _spider_feet.is_empty() \
+		and _skin_root != null and is_instance_valid(_skin_root)
+
+
+## Turns the creature's bodies round in place about the upright line through the drawing's
+## middle: each body's position mirrored across it and its rotation reversed, its shapes and
+## anything carried on it (the grip, a held tool) mirrored in its own frame, every joint
+## re-pinned where its mirrored anchors meet, and every muscle's rest angle reversed so it
+## holds the mirrored pose. Its speed is kept (a frozen body keeps its velocity) -- it turns
+## round, it does not bounce back. The ink rides the torso through a mirrored skin root, so
+## it turns with the bodies exactly.
+func _mirror_physics() -> void:
+	var axis := (_skin_root.global_transform * _mirror_centre).x
+	var spins: Dictionary = {}
+	for body in _bodies:
+		if is_instance_valid(body):
+			spins[body.get_instance_id()] = body.angular_velocity
+			body.freeze = true
+	for body in _bodies:
+		if not is_instance_valid(body):
+			continue
+		var place := body.global_transform
+		body.global_transform = Transform2D(-place.get_rotation(), Vector2(2.0 * axis - place.origin.x, place.origin.y))
+		body.angular_velocity = -float(spins.get(body.get_instance_id(), 0.0))
+		for child in body.get_children():
+			if child != _skin_root:
+				_mirror_in_body(child)
+	_skin_root.transform = Transform2D(Vector2(-1.0, 0.0), Vector2(0.0, 1.0), Vector2.ZERO) * _skin_root.transform
+	for segment_value in _segments:
+		var segment: Dictionary = segment_value
+		# The tracked angle needs no flip: it integrates the measured step, which corrects
+		# it within a frame for any joint inside its limits.
+		segment["rest_relative"] = -float(segment.get("rest_relative", 0.0))
+		for key in ["parent_anchor", "child_anchor"]:
+			var anchor := Vector2(segment.get(key, Vector2.ZERO))
+			segment[key] = Vector2(-anchor.x, anchor.y)
+		var joint := segment.get("joint") as PinJoint2D
+		var child_body := segment.get("body") as ActiveRigBody2D
+		if is_instance_valid(joint) and is_instance_valid(child_body):
+			# A pin is fixed where it stood when its bodies were set, so it is re-set there.
+			joint.global_position = child_body.to_global(Vector2(segment["child_anchor"]))
+			var first := joint.node_a
+			joint.node_a = NodePath()
+			joint.node_a = first
+	for id in _rest_transforms.keys():
+		var rest: Transform2D = _rest_transforms[id]
+		_rest_transforms[id] = Transform2D(-rest.get_rotation(), Vector2(-rest.origin.x, rest.origin.y))
+	for body in _bodies:
+		if is_instance_valid(body):
+			body.freeze = false
+			body.sleeping = false
+
+
+## Mirrors one thing carried on a body in that body's own frame: a collision shape (and its
+## polygon, if it has one), the grip, a held tool.
+func _mirror_in_body(node: Node) -> void:
+	var item := node as Node2D
+	if item == null:
+		return
+	item.position = Vector2(-item.position.x, item.position.y)
+	item.rotation = -item.rotation
+	if node is CollisionPolygon2D:
+		var outline := node as CollisionPolygon2D
+		outline.polygon = _mirrored_points(outline.polygon)
+	elif node is CollisionShape2D and (node as CollisionShape2D).shape is ConvexPolygonShape2D:
+		var shape := ((node as CollisionShape2D).shape as ConvexPolygonShape2D).duplicate() as ConvexPolygonShape2D
+		shape.points = _mirrored_points(shape.points)
+		(node as CollisionShape2D).shape = shape
+
+
+## Points mirrored across x = 0, their order reversed so the outline keeps its winding.
+func _mirrored_points(points: PackedVector2Array) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for index in range(points.size() - 1, -1, -1):
+		out.append(Vector2(-points[index].x, points[index].y))
+	return out
 
 
 ## Mirrors ink about the upright line through the drawing's middle (upright in the WORLD, so a
@@ -2591,6 +2697,12 @@ func _compute_support_sets() -> void:
 
 func _clear_rig() -> void:
 	_primary_body = null
+	# A rig built afresh is built as drawn.
+	_physics_mirrored = false
+	_flip = 1.0
+	_flip_from = 1.0
+	_flip_to = 1.0
+	_turn_time = TURN_SECONDS
 	_rigid_object_rig = false
 	_release_skinned_ink()
 	_bodies.clear()
