@@ -1500,11 +1500,13 @@ func _bind_skinned_ink() -> bool:
 	if skeleton.is_empty():
 		push_warning("RuntimeRig2D: no skeleton for %s/%s; keeping the pivot path." % [_entity_id, _rig_type])
 		return false
-	var rig := Skeleton2D_Rig.build(skeleton, get_stroke_bounds(), profile)
+	# The class says what parts it has; the drawing says where they are (SkeletonFit).
+	var fitted := SkeletonFit.fit(skeleton, strokes, get_stroke_bounds())
+	var rig := Skeleton2D_Rig.build(fitted["skeleton"], get_stroke_bounds(), profile)
 	if rig.bones.is_empty():
 		return false
 	var binding := SkinBinding.new()
-	binding.bind(strokes, rig)
+	binding.bind(strokes, rig, fitted["regions"])
 	if binding.stroke_count() == 0:
 		return false
 
