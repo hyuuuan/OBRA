@@ -115,14 +115,16 @@ var _readings: Array[String] = []
 
 ## `skeleton` from SkeletonLibrary.resolve; `strokes` in rig space ({points, width}); `bounds`
 ## the drawing's bounds as Skeleton2D_Rig will see them. Returns {skeleton, regions, view,
-## mirrored, parts, debug}; with nothing to read, the skeleton comes back as authored.
+## mirrored, facing, parts, debug}; with nothing to read, the skeleton comes back as authored.
+## facing is which way the drawing looks: 1 right, -1 left (a reading that had to be mirrored),
+## 0 for a drawing seen from the front or above, which looks no way at all.
 static func fit(skeleton: Dictionary, strokes: Array, bounds: Rect2) -> Dictionary:
 	var fitter := SkeletonFit.new()
 	return fitter._fit(skeleton, strokes, bounds)
 
 
 func _fit(skeleton: Dictionary, strokes: Array, bounds: Rect2) -> Dictionary:
-	var unchanged := {"skeleton": skeleton, "regions": null, "view": "", "mirrored": false, "parts": 0, "debug": {}}
+	var unchanged := {"skeleton": skeleton, "regions": null, "view": "", "mirrored": false, "facing": 0, "parts": 0, "debug": {}}
 	if strokes.is_empty() or bounds.size.x <= 0.0 or bounds.size.y <= 0.0:
 		return unchanged
 	_bounds = Rect2(bounds.position, bounds.size.max(Vector2(4.0, 4.0)))
@@ -154,11 +156,13 @@ func _fit(skeleton: Dictionary, strokes: Array, bounds: Rect2) -> Dictionary:
 	fitted["bones"] = best["bones"]
 	fitted["view"] = String((best["view"] as Dictionary).get("name", ""))
 	fitted["mirrored"] = bool(best["mirrored"])
+	fitted["symmetric"] = bool((best["view"] as Dictionary).get("symmetric", false))
 	return {
 		"skeleton": fitted,
 		"regions": best["regions"],
 		"view": fitted["view"],
 		"mirrored": best["mirrored"],
+		"facing": 0 if fitted["symmetric"] else (-1 if bool(best["mirrored"]) else 1),
 		"parts": _parts.size(),
 		"debug": _debug(best),
 	}
