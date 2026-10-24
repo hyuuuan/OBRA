@@ -1602,7 +1602,12 @@ func _animate_skinned_ink(delta: float) -> void:
 	if _skin_root == null or not is_instance_valid(_skin_root):
 		return
 	_advance_facing(delta)
-	_skin_driver.advance(delta, _motion_state, _motion_params)
+	var params := _motion_params
+	if _flip < 0.0 and params.has("direction"):
+		# Lean the way it now faces: the mirror turns a lean round with everything else.
+		params = params.duplicate()
+		params["direction"] = -float(params["direction"])
+	_skin_driver.advance(delta, _motion_state, params)
 	var anchor_rotation := _primary_body.global_rotation if is_instance_valid(_primary_body) else 0.0
 	var posed := _skin_rig.pose(
 		_skin_driver.angles(),
