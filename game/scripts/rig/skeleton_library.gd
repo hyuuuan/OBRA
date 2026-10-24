@@ -45,6 +45,8 @@ static func resolve(entity_id: String, rig_type: String) -> Dictionary:
 	skeleton["entity_id"] = entity_id
 	_apply_entity_override(skeleton, entity_id)
 	_resolve_gait_refs(skeleton)
+	for view_value in skeleton.get("views", []):
+		_resolve_gait_refs(view_value as Dictionary)
 	_cache[key] = skeleton
 	return skeleton
 
@@ -111,6 +113,11 @@ static func validate(skeleton: Dictionary) -> Array:
 
 	if roots != 1:
 		problems.append("expected exactly one root bone, found %d" % roots)
+	# Each other way of drawing the class (SkeletonFit's views) must be sound on its own.
+	for view_value in skeleton.get("views", []):
+		var view: Dictionary = view_value
+		for problem in validate({"bones": view.get("bones", [])}):
+			problems.append("view %s: %s" % [view.get("name", "?"), problem])
 	for name: String in by_name.keys():
 		var parent := String((by_name[name] as Dictionary).get("parent", ""))
 		if not parent.is_empty() and not by_name.has(parent):
