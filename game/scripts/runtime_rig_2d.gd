@@ -1619,6 +1619,10 @@ func _animate_skinned_ink(delta: float) -> void:
 		params["direction"] = -float(params["direction"])
 	_skin_driver.advance(delta, _motion_state, params)
 	var anchor_rotation := _primary_body.global_rotation if is_instance_valid(_primary_body) else 0.0
+	# Seen through a mirror a turn runs the other way, so cancelling the body's spin out of
+	# a turned drawing means turning it back the other way too.
+	if _physics_mirrored:
+		anchor_rotation = -anchor_rotation
 	var posed := _skin_rig.pose(
 		_skin_driver.angles(),
 		_skin_driver.body_transform(anchor_rotation, _skin_anchor_local)
