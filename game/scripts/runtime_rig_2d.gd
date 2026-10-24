@@ -11,6 +11,8 @@ const UNDERWATER_SHADER := preload("res://shaders/underwater_character.gdshader"
 const MAX_BODIES := 24
 const MAX_JOINTS := 23
 const MAX_SHAPES := 64
+## How long a drawing takes to turn round to face the other way.
+const TURN_SECONDS := 0.2
 const MAX_SEGMENTS_PER_LIMB := 3
 const MIN_SEGMENT_LENGTH := 8.0
 const MAX_JOINT_ERROR := 22.0
@@ -100,6 +102,17 @@ var _underwater_material: ShaderMaterial
 var _underwater_strength := 0.0
 ## The torso's origin in rig space, for cancelling its spin out of a flier's drawing.
 var _skin_anchor_local: Vector2 = Vector2.ZERO
+## Which way the drawing looks as drawn (SkeletonFit): 1 right, -1 left, 0 none (a butterfly,
+## a face, a turtle from above). One that looks a way is turned to face the way it moves.
+var _drawn_facing: float = 0.0
+## 1 as drawn, -1 mirrored; between the two while it turns. The turn is a squash through the
+## middle in held frames, like the rest of the game's motion (Motion.step).
+var _flip: float = 1.0
+var _flip_from: float = 1.0
+var _flip_to: float = 1.0
+var _turn_time: float = TURN_SECONDS
+## The drawing turns about its own middle, so the ink covers the same span as its bodies.
+var _mirror_centre: Vector2 = Vector2.ZERO
 ## True once the rig has been locked into its drawn pose because it strayed too far.
 var _bodies: Array[ActiveRigBody2D] = []
 var _joints: Array[PinJoint2D] = []
@@ -476,6 +489,12 @@ func debug_stroke_roles() -> Dictionary:
 		for index in range(_skin_binding.stroke_count()):
 			strokes.append(_skin_binding.stroke_role_share(index))
 	return {"archetype": _skin_rig.archetype if _skin_rig != null else "", "strokes": strokes}
+
+
+## Which way the drawing looks as drawn (1 right, -1 left, 0 none) and how far it has turned
+## (1 as drawn, -1 mirrored).
+func debug_facing() -> Dictionary:
+	return {"drawn": _drawn_facing, "flip": _flip}
 
 
 func debug_max_tracked_angle() -> float:
@@ -1502,6 +1521,8 @@ func _bind_skinned_ink() -> bool:
 		return false
 	# The class says what parts it has; the drawing says where they are (SkeletonFit).
 	var fitted := SkeletonFit.fit(skeleton, strokes, get_stroke_bounds())
+	_drawn_facing = float(fitted.get("facing", 0))
+	_mirror_centre = get_stroke_bounds().get_center()
 	var rig := Skeleton2D_Rig.build(fitted["skeleton"], get_stroke_bounds(), profile)
 	if rig.bones.is_empty():
 		return false
@@ -1580,17 +1601,51 @@ func _animate_skinned_ink(delta: float) -> void:
 		return
 	if _skin_root == null or not is_instance_valid(_skin_root):
 		return
+	_advance_facing(delta)
 	_skin_driver.advance(delta, _motion_state, _motion_params)
 	var anchor_rotation := _primary_body.global_rotation if is_instance_valid(_primary_body) else 0.0
 	var posed := _skin_rig.pose(
 		_skin_driver.angles(),
 		_skin_driver.body_transform(anchor_rotation, _skin_anchor_local)
 	)
+	var upright := _skin_root.global_transform.basis_xform_inv(Vector2.DOWN).normalized()
 	for index in range(_skin_lines.size()):
 		var points := _skin_binding.deform(index, posed)
+		if _flip != 1.0:
+			points = _mirror_ink(points, upright)
 		# Reassigned rather than written through: Line2D.points hands back a copy.
 		_skin_lines[index].points = points
 		_skin_halos[index].points = points
+
+
+## Turns the drawing toward the way it is moving (`direction` in the motion params): a drawing
+## that looks left and is driven right turns to look right, and keeps that way when it stops.
+func _advance_facing(delta: float) -> void:
+	if _drawn_facing == 0.0:
+		return
+	var heading := float(_motion_params.get("direction", 0.0))
+	if absf(heading) >= 0.5:
+		var want := signf(heading) * _drawn_facing
+		if want != _flip_to:
+			_flip_from = _flip
+			_flip_to = want
+			_turn_time = TURN_SECONDS if Motion.reduced() else 0.0
+	if _turn_time < TURN_SECONDS:
+		_turn_time = minf(TURN_SECONDS, _turn_time + delta)
+	var frames := maxi(1, roundi(TURN_SECONDS * Motion.PIXEL_FPS))
+	var progress := _turn_time / TURN_SECONDS
+	var held := floorf(progress * frames) / float(frames) if progress < 1.0 else 1.0
+	_flip = lerpf(_flip_from, _flip_to, held)
+
+
+## Mirrors ink about the upright line through the drawing's middle (upright in the WORLD, so a
+## tipped body still turns about its own vertical), scaled by `_flip` part way through a turn.
+func _mirror_ink(points: PackedVector2Array, upright: Vector2) -> PackedVector2Array:
+	for i in range(points.size()):
+		var offset := points[i] - _mirror_centre
+		var along := upright * offset.dot(upright)
+		points[i] = _mirror_centre + along + (offset - along) * _flip
+	return points
 
 
 func _build_compound_rig(strokes: Array, body_name: String, lock_upright: bool) -> void:
