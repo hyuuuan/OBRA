@@ -308,8 +308,23 @@ static func line(points: Array) -> PackedVector2Array:
 	return out
 
 
+## Resampled to a point every few pixels, the way the drawing canvas records a stroke -- so a
+## two-point tail is measured along its length, not as its two ends.
 static func _part(part: String, points: PackedVector2Array) -> Dictionary:
-	return {"points": points, "width": 8.0, "color": Color.BLACK, "part": part}
+	return {"points": dense(points), "width": 8.0, "color": Color.BLACK, "part": part}
+
+
+static func dense(points: PackedVector2Array, spacing: float = 6.0) -> PackedVector2Array:
+	if points.size() < 2:
+		return points
+	var out := PackedVector2Array([points[0]])
+	for i in range(points.size() - 1):
+		var a := points[i]
+		var b := points[i + 1]
+		var steps := maxi(1, int(ceil(a.distance_to(b) / spacing)))
+		for k in range(1, steps + 1):
+			out.append(a.lerp(b, float(k) / float(steps)))
+	return out
 
 
 static func _named(label: String, entity_id: String, strokes: Array) -> Dictionary:
