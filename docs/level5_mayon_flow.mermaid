@@ -1,0 +1,96 @@
+%% OBRA - LEVEL 5: MAYON - level flow (the climax)
+%% Shape key (BPMN convention):
+%%   ([ ])   start / end event
+%%   {  }    gateway - a player choice
+%%   [  ]    task / action
+%%   [/  /]  data object - a flag written to save state
+%%   ((( ))) checkpoint
+%% No combat. No health system. No ink refills anywhere in this level.
+%% The antagonist is the clock and the ink.
+
+flowchart TD
+
+    S(["Start: the foot of Mayon"]) --> L0["LOLO is waiting, and he should not be.<br/>He does not know how he got into<br/>a painting he was never in.<br/>Visibly thinner than in Levels 1-3"]
+    L0 --> L1[/"He is lola's memory of him.<br/>Nothing else. He exists because<br/>she holds him. The painting coming<br/>apart is him coming apart."/]
+    L1 --> R0[/"INK: finite, no refills on this level.<br/>Meter permanently visible.<br/>Told to the player plainly, early."/]
+    R0 --> A1
+
+    subgraph SG1["ACT ONE - THE ASCENT (the verb inverts)"]
+        direction TB
+        A1["The painting is unravelling.<br/>Ash falls. What it settles on<br/>goes white, then blank"]
+        A1 --> A2["Parts of the world stop existing:<br/>a bridge, a path, a tree"]
+        A2 --> A3["REDRAW THEM to keep climbing.<br/>bridge, stairs, ladder, tree, sun<br/>All classes already used in earlier levels"]
+        A3 --> A4["Four levels of drawing to OVERCOME.<br/>One level of drawing to PRESERVE.<br/>Same verb, opposite meaning"]
+        A4 --> A5["LOLO climbs with her, losing words<br/>mid-sentence. He asks questions he<br/>already asked in Level 2.<br/>It is not his forgetting. It is hers."]
+    end
+
+    A5 --> CP1(((Checkpoint: the mid slope)))
+
+    subgraph SG2["ACT TWO - WHAT YOU CARRY (the heart)"]
+        direction TB
+        B1["The painting stops being Mayon.<br/>~12 fragments of every earlier level<br/>break loose and start going white"]
+        B1 --> B2["Bahay kubo. Bandaritas. The sea with<br/>the bakunawa in it. The dark forest.<br/>The church door. The dancers."]
+        B2 --> B3{"Which do you spend ink on?"}
+        B3 -->|"Save it"| B4["Drawn back in. It survives"]
+        B3 -->|"Let it go"| B5["It goes white. It is gone"]
+        B4 --> B6
+        B5 --> B6
+        B6[/"Enough ink for 4 or 5 of 12.<br/>No fragment is marked important.<br/>No score. No correct answer."/]
+        B6 --> B7{"The useless fragment:<br/>a flower lola painted<br/>for no reason, down a path<br/>nobody needed to walk"}
+        B7 -->|"Spend ink on it anyway<br/>ARTIST"| B8[/"HAS_FLOWER = true<br/>flower 5 of 5"/]
+        B7 -->|"Let it go"| B9["Gone like the rest"]
+    end
+
+    CP1 --> B1
+    B8 --> LF1
+    B9 --> LF1
+
+    subgraph SGL["LOLO GOES - late Act Two"]
+        direction TB
+        LF1{"Did the player spend ink on<br/>fragments with lolo in them?<br/>(boat, church, terraces)"}
+        LF1 -->|Yes| LF2["He steadied. More of him on the climb.<br/>He finished sentences. He remembered<br/>her name again"]
+        LF1 -->|No| LF3["He is thinner, and faster to go"]
+        LF2 --> LF4["EITHER WAY HE GOES.<br/>The player can never prevent it"]
+        LF3 --> LF4
+        LF4 --> LF5["THE APO TRIES TO DRAW LOLO.<br/>The stroke does not become anything.<br/>FIRST TIME THE BRUSH REFUSES"]
+        LF5 --> LF6["He understands before she does.<br/>'The brush was never for that.<br/>Lola knew. That is why she painted<br/>the PLACES instead. That is how<br/>she kept me.'"]
+        LF6 --> LF7["Mid-sentence, he is not there.<br/>No farewell. No fade. No music swell.<br/>He already had the dying;<br/>this is being forgotten"]
+        LF7 --> LF8["The apo keeps climbing.<br/>The ash is still falling"]
+    end
+
+    LF8 --> CP2(((Checkpoint: below the summit)))
+
+    subgraph SG3["ACT THREE - THE SUMMIT (quiet, no combat)"]
+        direction TB
+        C1["The top. Blank white in every direction<br/>except what was saved in Act Two"]
+        C1 --> C2["Lola is there. Painting.<br/>Her back turned, as she must have been<br/>for all of this"]
+        C2 --> C3["The apo speaks.<br/>Lola does not turn around"]
+        C3 --> C4["THE APO TRIES TO DRAW LOLA"]
+        C4 --> C5["The stroke does not become anything.<br/>SECOND time the brush refuses.<br/>The player already knows, and watches<br/>her try anyway. That is grief."]
+        C5 --> C6["She tries again. Nothing.<br/>The third time she lowers the brush herself"]
+        C6 --> C7["She does what LOLO told her.<br/>She draws the PLACES instead.<br/>Every saved fragment blooms into<br/>the white, one by one"]
+        C7 --> C8["Lola turns around"]
+    end
+
+    CP2 --> C1
+    C8 --> END{"Five flowers?"}
+
+    END -->|"No"| E1["She looks at the painting, not the apo.<br/>Warm to a child she does not recognise.<br/>She is pleased with the painting.<br/>The apo stays anyway."]
+    END -->|"Yes"| E2["The apo gives her the five flowers,<br/>one from each memory"]
+    E2 --> E3["For a moment, lola says her name.<br/>And lolo's, in the same breath,<br/>as if they had just been talking<br/>about him"]
+    E3 --> E4["Then it goes. She looks back at the<br/>painting. She does not know who is<br/>standing beside her.<br/>The moment MUST pass."]
+
+    E1 --> FR
+    E4 --> FR
+
+    subgraph SG4["THE FRAME RETURNS"]
+        direction TB
+        FR["Cut out of the painting.<br/>The apo is sitting with lola<br/>in the real world"]
+        FR --> FR2["A blank canvas.<br/>Lola does not know her"]
+        FR2 --> FR3["The apo starts telling her the stories.<br/>Names the things one by one,<br/>the way lola did for her in Level 4.<br/>Lines drawn from what the player saved"]
+        FR3 --> FR35["And then she tells lola about LOLO.<br/>The man lola lost first,<br/>given back to her last"]
+        FR35 --> FR4["The transmission reverses.<br/>Lola kept him by painting the places.<br/>The apo keeps him by telling lola.<br/>The method is inherited."]
+        FR4 --> FR5["She picks up a brush. An ordinary one"]
+    end
+
+    FR5 --> FIN(["Cut to black"])
