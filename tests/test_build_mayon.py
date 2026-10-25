@@ -77,6 +77,32 @@ class SpeckTest(unittest.TestCase):
         self.assertLess(background[90:230, 190:370].mean(), 0.01, "the plume was keyed")
 
 
+class RimTest(unittest.TestCase):
+    def _block(self, edge: tuple[int, int, int]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """A brown block on the checker whose outermost pixel on the left is `edge`."""
+        plate = checker()
+        plate[60:240, 180:380] = (120, 80, 50)
+        plate[60:240, 180] = edge
+        background = np.zeros(plate.shape[:2], bool)
+        background[:, :180] = True
+        background[:60] = True
+        background[240:] = True
+        background[:, 380:] = True
+        return plate, background, plate[100:200, 180].copy()
+
+    def test_a_rim_blended_toward_the_checker_white_takes_the_art_inside_it(self) -> None:
+        plate, background, _ = self._block((236, 222, 214))
+        out = mayon.without_pale_rim(plate, background)
+        self.assertLess(np.abs(out[100:200, 180] - (120, 80, 50)).max(), 8,
+                        "the pale rim kept its pale")
+
+    def test_a_sunlit_edge_keeps_its_colour(self) -> None:
+        # Lighter than inside, but coloured: light on the art, not the export's blend.
+        plate, background, edge = self._block((235, 150, 60))
+        out = mayon.without_pale_rim(plate, background)
+        self.assertTrue(np.array_equal(out[100:200, 180], edge), "a sunlit edge was repainted")
+
+
 class DeliveryTest(unittest.TestCase):
     def test_every_delivered_file_is_claimed(self) -> None:
         claimed = {source for source, _ in mayon.PLATES.values()} \
