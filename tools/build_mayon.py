@@ -8,7 +8,7 @@ the "transparent" parts a grey-and-white checkerboard painted into the pixels. S
 keyed by tools/build_dilim.py's grid key -- measured checker cells, flooded from clean cells that
 have a cell of the other grey beside them, never a threshold. Read its header for why.
 
-TWO THINGS MAKILING DID NOT HAVE, and the two passes they need:
+THREE THINGS MAKILING DID NOT HAVE, and the passes they need:
 
 1. POCKETS SEALED INSIDE THE ART. The bell tower's bell hangs in a window whose checker is cut
    into slivers by the bell, its yoke and the arch; the meadow's right-hand palm closes a pocket
@@ -21,6 +21,13 @@ TWO THINGS MAKILING DID NOT HAVE, and the two passes they need:
    pale by the resampled export -- sits a step further from the flood than the fringe pass
    reaches. A pixel that pale within a few pixels of background is checker; the plume's own
    highlights are yellow, nowhere near a grey.
+
+3. A PALE RIM. The resampled export blended every silhouette's outermost pixel toward the checker
+   white -- a light line along the volcano's flank and round every frond, too coloured for the
+   fringe pass, which only takes near-grey. Those pixels are art in the wrong colour, not
+   background: deleting them would shrink every shape by a pixel, so they are repainted with the
+   colour of the art just inside them. A rim pixel is pale when it is much lighter and greyer
+   than its inside; a sunlit edge is lighter but keeps its colour.
 
 THE TILESET IS ON A DARK PAGE, not a checker. Its seamless textures are cut inside each tile's
 outline (tiled as drawn, an outline is a grid of seams); its props are keyed by flooding the page
@@ -118,6 +125,11 @@ POCKET_TINT = 12
 POCKET_UNDER = 10
 ## How near background a pixel as pale as the checker must be to count as a speck of it.
 SPECK_REACH = 4
+## A rim pixel is pale when it is this much lighter than the art inside it, and has at most this
+## share of that art's colour; it is judged against the art within RIM_REACH px.
+RIM_LIGHTER = 25.0
+RIM_COLOUR = 0.8
+RIM_REACH = 5
 
 
 def load(name: str) -> np.ndarray:
@@ -165,6 +177,24 @@ def checker_background(rgb: np.ndarray) -> np.ndarray:
     return without_fringe(rgb, background, [lo, hi])
 
 
+def without_pale_rim(rgb: np.ndarray, background: np.ndarray) -> np.ndarray:
+    """The silhouette's outermost pixels, blended toward the checker's white by the export,
+    repainted with the colour of the art just inside them."""
+    rim = ~background & ndimage.binary_dilation(background)
+    inner = (~background & ~rim).astype(float)
+    weight = ndimage.uniform_filter(inner, RIM_REACH)
+    near = weight > 0.02
+    lum = rgb @ np.array([0.2126, 0.7152, 0.0722])
+    sat = (rgb.max(axis=-1) - rgb.min(axis=-1)).astype(float)
+    mean = lambda values: ndimage.uniform_filter(values * inner, RIM_REACH) / np.maximum(weight, 1e-6)
+    pale = rim & near & (lum - mean(lum) > RIM_LIGHTER) & (sat < mean(sat) * RIM_COLOUR)
+    out = rgb.copy()
+    for channel in range(3):
+        out[..., channel] = np.where(pale, np.round(mean(rgb[..., channel].astype(float))),
+                                     rgb[..., channel])
+    return out
+
+
 def with_alpha(rgb: np.ndarray, background: np.ndarray) -> Image.Image:
     out = np.dstack([rgb.astype(np.uint8), np.where(background, 0, 255).astype(np.uint8)])
     out[background] = 0
@@ -177,7 +207,8 @@ def keyed(name: str, method: str) -> Image.Image:
         raise SystemExit(f"{name} is {rgb.shape[1]}x{rgb.shape[0]}, not the {PLATE} plate")
     if method == "opaque":
         return Image.fromarray(rgb.astype(np.uint8), "RGB").convert("RGBA")
-    return with_alpha(rgb, checker_background(rgb))
+    background = checker_background(rgb)
+    return with_alpha(without_pale_rim(rgb, background), background)
 
 
 # --- things, not plates --------------------------------------------------------------------
@@ -210,7 +241,8 @@ def reduced(image: Image.Image, factor: int) -> Image.Image:
 
 def keyed_prop(name: str, factor: int) -> Image.Image:
     rgb = load(name)
-    return trimmed(reduced(with_alpha(rgb, checker_background(rgb)), factor))
+    background = checker_background(rgb)
+    return trimmed(reduced(with_alpha(without_pale_rim(rgb, background), background), factor))
 
 
 def sheet() -> tuple[np.ndarray, np.ndarray]:
