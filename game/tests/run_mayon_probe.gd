@@ -16,6 +16,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await _a_band_covers_every_camera_position()
 	await _a_band_rises_with_the_camera_at_its_own_rate()
+	await _there_is_one_mayon_and_it_stays_in_view()
 	await _the_ground_holds_her()
 	await _the_cone_grows_no_grass()
 	if failures == 0:
@@ -40,7 +41,7 @@ func _band(plate: String, scroll: float, rise: float) -> MayonBackdrop2D:
 
 func _a_band_covers_every_camera_position() -> void:
 	var gaps: Array[String] = []
-	for row in [["sky", 0.02], ["volcano", 0.06], ["meadow", 0.25], ["ground", 0.45]]:
+	for row in [["sky", 0.02], ["meadow", 0.25], ["ground", 0.45]]:
 		var band := _band(row[0], row[1], row[1])
 		for camera_x: float in [800.0, 4000.0, 9000.0, 15500.0]:
 			band.update_for_camera(Vector2(camera_x, -900.0))
@@ -82,6 +83,30 @@ func _a_band_rises_with_the_camera_at_its_own_rate() -> void:
 	await process_frame
 	_check(wrong.is_empty(), "a band follows the camera up at its own rate",
 		"volcano sinks 72 px, meadow 300 px over a 1200 px climb" if wrong.is_empty() else "; ".join(wrong))
+
+
+func _there_is_one_mayon_and_it_stays_in_view() -> void:
+	# Repeated like the other bands, the volcano stood beside a second volcano. One plate, its
+	# cone drifting from right of centre to left of it across the whole climb.
+	var band := MayonBackdrop2D.new()
+	band.plate = "volcano"
+	band.scroll_scale = 0.05
+	band.rise_scale = 0.05
+	band.single = true
+	band.single_offset = 400.0
+	root.add_child(band)
+	band.set_camera_origin(Vector2(800.0, 300.0))
+	var lost: Array[String] = []
+	for camera_x: float in [800.0, 6000.0, 11000.0, 16000.0]:
+		band.update_for_camera(Vector2(camera_x, 300.0))
+		var sprite := band.get_child(0) as Sprite2D
+		var cone := band.position.x + sprite.position.x + MayonBackdrop2D.PLATE_WIDTH * 0.5
+		if absf(cone - camera_x) > 560.0:
+			lost.append("cone %.0f px from the middle at camera %.0f" % [cone - camera_x, camera_x])
+	_check(band.repeats() == 1 and lost.is_empty(), "there is one Mayon, in view the whole climb",
+		"%d plate(s); %s" % [band.repeats(), "always within 560 px of the middle" if lost.is_empty() else "; ".join(lost)])
+	band.queue_free()
+	await process_frame
 
 
 func _the_ground_holds_her() -> void:
