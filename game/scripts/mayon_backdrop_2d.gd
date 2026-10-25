@@ -30,6 +30,11 @@ const PLATE_WIDTH := 1672.0
 @export var plate_top: float = -300.0
 ## Opaque plates were not drawn to tile: every other repeat is mirrored so a seam meets itself.
 @export var mirrored := false
+## ONE plate, not repeated: there is one Mayon. Its centre stands this far along from the camera's
+## first x, and it drifts across the screen by scroll_scale of the climb -- start it right of
+## centre and it ends left of it.
+@export var single := false
+@export var single_offset: float = 0.0
 ## The light on the band.
 @export var tint := Color(1.0, 1.0, 1.0, 1.0)
 ## The viewport's width in world px at the camera's zoom, padded either side.
@@ -69,6 +74,14 @@ func _build() -> void:
 	var texture := load(FOLDER + plate + ".png") as Texture2D
 	if texture == null:
 		push_warning("MayonBackdrop2D: no plate %s" % plate)
+		return
+	if single:
+		var sprite := Sprite2D.new()
+		sprite.texture = texture
+		sprite.centered = false
+		sprite.position = Vector2(_origin.x + single_offset - PLATE_WIDTH * 0.5, plate_top)
+		sprite.use_parent_material = true
+		add_child(sprite)
 		return
 	var drift := 1.0 - scroll_scale
 	var low := span.x - view_width - (span.x - _origin.x) * drift
