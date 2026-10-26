@@ -119,6 +119,19 @@ func _knockout_words() -> String:
 	return "The light went out. Back to %s."
 
 
+## Whether the brush refuses to make anything here. Checked as the canvas opens; true opens a
+## quiet page that takes no guess, says nothing, spends nothing and sends nothing -- what she
+## draws fades and the page closes (DrawPanel.set_refusing). Mayon's, where she tries to draw a
+## person and there has never been a way to. Off everywhere else.
+func _brush_refuses_here() -> bool:
+	return false
+
+
+## The brush refused, and she drew `strokes` lines trying. The level's answer to it.
+func _brush_refused(_strokes: int) -> void:
+	pass
+
+
 ## Whether this level has a companion at all. Lolo walks Levels 1-3; Dilim is past what he
 ## remembers, and the apo goes alone. False leaves him out but keeps the opening: it still plays,
 ## in whoever's voice its lines name, and the visit is still recorded.
@@ -532,6 +545,7 @@ func _ready() -> void:
 	draw_button.pressed.connect(_on_draw_button_pressed)
 	draw_panel.drawing_ready.connect(_on_drawing_ready)
 	draw_panel.panel_closed.connect(_on_draw_panel_closed)
+	draw_panel.quietly_refused.connect(_on_brush_refused)
 	draw_panel.recognition_declined.connect(_on_recognition_declined)
 	ink_manager.ink_changed.connect(_on_ink_changed)
 	inventory_hud.slot_pressed.connect(_on_inventory_slot_pressed)
@@ -593,15 +607,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed("redraw"):
 			get_viewport().set_input_as_handled()
 			placement_controller.cancel_placement()
-			draw_panel.open_panel()
-			_note_canvas_opened()
+			_open_the_page(false)
 		return
 	if event.is_action_pressed("redraw"):
 		get_viewport().set_input_as_handled()
-		if director != null:
-			director.note_canvas_opened()
-		draw_panel.open_panel()
-		_note_canvas_opened()
+		_open_the_page(true)
 		return
 	if event.is_action_pressed("inventory_open"):
 		get_viewport().set_input_as_handled()
@@ -652,10 +662,30 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_draw_button_pressed() -> void:
 	if placement_controller.is_placing():
 		placement_controller.cancel_placement()
-	if director != null:
+	_open_the_page(true)
+
+
+## Every way the canvas opens goes through here, so the page knows before it opens whether the
+## brush will refuse. A refusing page is not a submission: no obstacle hears that a canvas went
+## up (its hint tier would rise and its requirement strip would name what to draw), and no
+## lesson about drawing on the page is waiting for it.
+func _open_the_page(tell_the_director: bool) -> void:
+	var refusing := _brush_refuses_here()
+	draw_panel.set_refusing(refusing)
+	if refusing:
+		draw_panel.open_panel()
+		return
+	if tell_the_director and director != null:
 		director.note_canvas_opened()
 	draw_panel.open_panel()
 	_note_canvas_opened()
+
+
+## The page refused (DrawPanel.quietly_refused): logged for the thesis -- these are the only
+## drawings in the game deliberately given nothing to answer -- then handed to the level.
+func _on_brush_refused(strokes: int) -> void:
+	Telemetry.record_event("brush_refused", {"strokes": strokes})
+	_brush_refused(strokes)
 
 
 ## The canvas is up: the moment its two lessons -- draw on the page, then Transform -- are

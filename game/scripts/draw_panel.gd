@@ -18,6 +18,9 @@ signal panel_closed
 ## over the FIRST decline anywhere in the level -- "not because you drew it wrong, because
 ## I could not tell it apart from something else" -- and only the level knows it is first.
 signal recognition_declined(entity: String, confidence: float, margin: float, reason: String)
+## The page refused quietly (see set_refusing): the lines faded and nothing was asked of the
+## recogniser. `strokes` is how many lines she drew; none is still an attempt.
+signal quietly_refused(strokes: int)
 
 @export var debug_timing_logs: bool = false
 
@@ -45,6 +48,8 @@ var ink_manager: InkManager
 const PAGE_ALLOWANCE := 8.0
 
 const OPEN_DURATION := 0.54
+## How long a refused drawing takes to fade to the bare page.
+const REFUSAL_FADE := 1.2
 
 ## The header's own ink readout. The scrim covers the HUD, so while the panel is open the
 ## gauge in the corner of the screen is hidden -- at exactly the moment ink matters most.
@@ -60,6 +65,13 @@ var _is_open := false
 ## Read by UIRouter.refresh_pause through the modal_overlays group.
 var pauses_game := true
 var _submitting := false
+## THE BRUSH REFUSES. Mayon's two people -- lolo near the top, lola at the summit -- are the only
+## things in the game the brush will not make, and the design asks that it not even try: no
+## running guess, no words, no ink taken, nothing sent to the recogniser and nothing recorded.
+## Paint, or putting the brush down, fades the lines to the bare page and closes it. It must not
+## look like a decline -- a decline is the game failing to read a drawing, and this is the game
+## being asked for something there has never been a way to make.
+var _refusing := false
 var _open_tween: Tween = null
 var _scrim_material: ShaderMaterial
 var _submit_started_usec: int = 0
@@ -124,6 +136,15 @@ func is_submitting() -> bool:
 	return _submitting
 
 
+## Set by the level BEFORE the page opens (LevelBase._open_the_page).
+func set_refusing(on: bool) -> void:
+	_refusing = on
+
+
+func is_refusing() -> bool:
+	return _refusing
+
+
 func open_panel() -> void:
 	if _is_open:
 		return
@@ -160,6 +181,10 @@ func open_panel() -> void:
 			status.text = "Draw something, then Paint"
 	else:
 		status.text = "Draw something, then Paint"
+	if _refusing:
+		# Nothing on the page says what will happen. It is the drawing that has to find out.
+		status.text = ""
+		guess_label.text = ""
 	# Nothing has been drawn yet, so there is nothing to transform.
 	transform_button.disabled = true
 	_refresh_ink_row()
@@ -212,7 +237,7 @@ func _process(delta: float) -> void:
 	if not _is_open:
 		return
 	_ease_the_claim(delta)
-	if _submitting:
+	if _submitting or _refusing:
 		return
 	_live_cooldown = maxf(0.0, _live_cooldown - delta)
 	var revision: int = canvas.content_revision()
@@ -451,6 +476,9 @@ func _forget_guess() -> void:
 func _on_transform_pressed() -> void:
 	if _submitting:
 		return
+	if _refusing:
+		_refuse_quietly()
+		return
 	_submitting = true
 	transform_button.disabled = true
 	clear_button.disabled = true
@@ -574,6 +602,9 @@ func _on_stroke_cost_changed(cost: float) -> void:
 		return
 	# There is ink on the canvas now, so there is something to offer the recogniser.
 	transform_button.disabled = cost <= 0.0
+	if _refusing:
+		# Nothing will be taken for it, so the brush shows nothing going.
+		return
 	# Nothing is spent while a stroke is down -- a unit goes when a thing is acquired or set
 	# down -- but the brush shows what this drawing is taking. See CLAIM_EASE.
 	_claim = InkManager.UNIT * clampf(cost / PAGE_ALLOWANCE, 0.0, 1.0)
@@ -584,6 +615,8 @@ func _on_stroke_cost_changed(cost: float) -> void:
 
 
 func _on_ink_blocked() -> void:
+	if _refusing:
+		return
 	status.text = "Ink limit reached — transform or clear"
 
 
@@ -594,9 +627,28 @@ func _on_ink_blocked() -> void:
 func handle_cancel() -> bool:
 	if not _is_open or _submitting:
 		return false
+	if _refusing:
+		# Putting the brush down is trying too.
+		_refuse_quietly()
+		return true
 	canvas.clear_canvas()
 	close_panel(true, true)
 	return true
+
+
+## The lines fade to the bare page, and the page closes. Nothing is sent and nothing is said.
+func _refuse_quietly() -> void:
+	_submitting = true
+	transform_button.disabled = true
+	clear_button.disabled = true
+	var strokes: int = canvas.get_strokes().size()
+	var fade := create_tween()
+	fade.tween_property(canvas, "modulate:a", 0.0, REFUSAL_FADE)
+	await fade.finished
+	canvas.clear_canvas()
+	canvas.modulate.a = 1.0
+	close_panel(true, true)
+	quietly_refused.emit(strokes)
 
 
 func _play_open_animation() -> void:
