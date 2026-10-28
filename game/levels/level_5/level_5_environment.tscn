@@ -9,6 +9,16 @@
 [ext_resource type="Script" path="res://scripts/mayon_backdrop_2d.gd" id="7_backdrop"]
 [ext_resource type="Script" path="res://scripts/mayon_terrain_2d.gd" id="8_terrain"]
 [ext_resource type="Script" path="res://scripts/memory_fragment_2d.gd" id="9_fragment"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/bell_tower.png" id="p_bell_tower"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/palm.png" id="p_palm"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/palm_short.png" id="p_palm_short"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/rock_big.png" id="p_rock_big"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/rock_low.png" id="p_rock_low"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/fern.png" id="p_fern"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/flowers_white.png" id="p_flowers_white"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/ruin_pillar.png" id="p_ruin_pillar"]
+[ext_resource type="Texture2D" path="res://assets/Level5/tiles/path.png" id="t_path"]
+[ext_resource type="Texture2D" path="res://assets/Level5/tiles/masonry.png" id="t_masonry"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Wall"]
 size = Vector2(40.0, 3000.0)
@@ -92,6 +102,101 @@ script = ExtResource("8_terrain")
 platforms = Array[Rect2]([Rect2(4200, 140, 1200, 1260), Rect2(5400, 60, 3800, 1340), Rect2(9200, -20, 3800, 1420), Rect2(13000, -100, 3000, 1500)])
 grassed = false
 tint = Color(0.8, 0.76, 0.74, 1)
+
+; ACT ONE, DRESSED: the Cagsawa bell tower at the foot (Mayon's own ruin), palms, lava rocks and
+; ferns up the treeline. Behind the play, never in front of it.
+[node name="Dressing" type="Node2D" parent="GameplayPlane"]
+z_index = -5
+
+[node name="BellTower" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(700.0, 401.0)
+texture = ExtResource("p_bell_tower")
+
+[node name="Palm" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(1250.0, 502.0)
+texture = ExtResource("p_palm")
+
+[node name="Rock" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(1650.0, 497.0)
+texture = ExtResource("p_rock_big")
+
+[node name="Fern" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(2000.0, 425.0)
+texture = ExtResource("p_fern")
+
+[node name="Flowers" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(2750.0, 419.0)
+texture = ExtResource("p_flowers_white")
+
+[node name="Pillar" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(3650.0, 300.0)
+texture = ExtResource("p_ruin_pillar")
+
+[node name="RockLow" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(3980.0, 342.0)
+texture = ExtResource("p_rock_low")
+
+; WHAT THE ASH TAKES ON THE WAY UP (group ash_takes): each goes white, then blank, once she is
+; `taken_at` along the slope, over `taken_over` seconds (level_5.gd). None is solid: a thing going
+; white must never be something she is standing on. The bridge she would have crossed is gone
+; long before she can reach it (2.0 s, from 1300 px off); the stone steps that led up the wall
+; are gone before she is at it; a palm goes pale, then white, as she passes.
+[node name="AshTakes" type="Node2D" parent="GameplayPlane"]
+z_index = -4
+
+[node name="OldBridge" type="Node2D" parent="GameplayPlane/AshTakes" groups=["ash_takes"]]
+metadata/taken_at = 1000.0
+metadata/taken_over = 2.0
+
+[node name="Planks" type="TextureRect" parent="GameplayPlane/AshTakes/OldBridge"]
+offset_left = 2290.0
+offset_top = 432.0
+offset_right = 2610.0
+offset_bottom = 448.0
+texture = ExtResource("t_path")
+stretch_mode = 1
+texture_filter = 1
+
+[node name="WestPost" type="ColorRect" parent="GameplayPlane/AshTakes/OldBridge"]
+offset_left = 2286.0
+offset_top = 400.0
+offset_right = 2294.0
+offset_bottom = 444.0
+color = Color(0.29, 0.2, 0.13, 1)
+
+[node name="EastPost" type="ColorRect" parent="GameplayPlane/AshTakes/OldBridge"]
+offset_left = 2606.0
+offset_top = 400.0
+offset_right = 2614.0
+offset_bottom = 444.0
+color = Color(0.29, 0.2, 0.13, 1)
+
+[node name="OldSteps" type="Node2D" parent="GameplayPlane/AshTakes" groups=["ash_takes"]]
+metadata/taken_at = 3200.0
+metadata/taken_over = 2.5
+
+[node name="Stone" type="TextureRect" parent="GameplayPlane/AshTakes/OldSteps"]
+offset_left = 4100.0
+offset_top = 140.0
+offset_right = 4200.0
+offset_bottom = 360.0
+texture = ExtResource("t_masonry")
+stretch_mode = 1
+texture_filter = 1
+
+[node name="PalesPalm" type="Sprite2D" parent="GameplayPlane/AshTakes" groups=["ash_takes"]]
+texture_filter = 1
+position = Vector2(3250.0, 382.0)
+texture = ExtResource("p_palm_short")
+metadata/taken_at = 2900.0
+metadata/taken_over = 6.0
 
 ; THE PATH NOBODY NEEDED TO WALK: a step up off the corridor and a ledge above it, where the
 ; flower's fragment drifts above her head. The path goes on underneath (130 px of headroom);

@@ -467,6 +467,26 @@
           "text": "This one is nearly worn through. When it goes, I draw another."
         }
       ]
+    },
+    "level_5": {
+      "$comment": [
+        "MAYON TEACHES ONE THING: the ink is all there is. The first drawing she pays for lights the",
+        "gauge and says so, in Lolo's voice. Nothing else is new: the verb is the one she has used for four levels."
+      ],
+      "speaker_default": "lolo",
+      "lessons": [
+        {
+          "id": "no_more_ink",
+          "at": "ink_spent",
+          "mode": "look",
+          "visual": "ink",
+          "context": "world",
+          "anchor": "ink_gauge",
+          "speaker": "Lolo",
+          "caption": "No ink comes back here",
+          "text": "Watch that, apo. Nothing on this mountain fills it again. What is in the brush is all there is."
+        }
+      ]
     }
   }
 }
