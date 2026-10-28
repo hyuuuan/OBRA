@@ -374,13 +374,23 @@ func _restore_level_run_state(state: Dictionary) -> void:
 
 # --- Act One: the ascent ------------------------------------------------------------------
 
+## The ash, by where she is: thin at the foot, thick on the cone and in the corridor, gone at the
+## summit -- where there is no ash, no tremor and no sound.
+const ASH := [[1800.0, 0.2], [4200.0, 0.4], [5400.0, 0.6], [13000.0, 1.0], [INF, 0.0]]
+## How fast the ash thickens or thins toward where she is, per second.
+const ASH_EASE := 0.1
+## The eruption, felt: every so often below the summit.
+const TREMOR_EVERY := 18.0
+const SUMMIT_X := 13000.0
 
 var _taken: Array[Node2D] = []
 var _going := {}
+var _ash: AshFall2D
+var _tremor: ScreenTremor
 
 
 ## What the ash takes is marked in the ground (group ash_takes, taken_at, taken_over); each gets a
-## Drainable.
+## Drainable. The ash itself is on the camera, and the eruption rumbles from here.
 func _gather_the_ash() -> void:
 	_taken.clear()
 	for node in get_tree().get_nodes_in_group(&"ash_takes"):
@@ -390,10 +400,33 @@ func _gather_the_ash() -> void:
 		thing.add_child(drainable)
 		_taken.append(thing)
 		_going[thing] = false
+	_ash = get_node_or_null(^"EnvironmentBaseplate/WorldCamera/Ash") as AshFall2D
+	_tremor = ScreenTremor.new()
+	_tremor.name = "Eruption"
+	_tremor.every = TREMOR_EVERY
+	add_child(_tremor)
+	_tremor.trembled.connect(_on_tremor)
 
 
-func _tend_act_one(_delta: float, her_x: float) -> void:
+## The rumble's visual twin: the ash surges with it.
+func _on_tremor(strength: float) -> void:
+	if _ash != null:
+		_ash.pulse(strength)
+
+
+func ash_at(her_x: float) -> float:
+	for band: Array in ASH:
+		if her_x < float(band[0]):
+			return float(band[1])
+	return 0.0
+
+
+func _tend_act_one(delta: float, her_x: float) -> void:
 	for thing in _taken:
 		if not bool(_going[thing]) and her_x >= float(thing.get_meta("taken_at")):
 			_going[thing] = true
 			(thing.get_node("Drainable") as Drainable).drain_to(1.0, float(thing.get_meta("taken_over")))
+	if _ash != null:
+		_ash.density = move_toward(_ash.density, ash_at(her_x), ASH_EASE * delta)
+	if _tremor != null:
+		_tremor.enabled = her_x < SUMMIT_X
