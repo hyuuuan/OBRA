@@ -78,11 +78,22 @@ func reserve_attempt(cost: float) -> bool:
 	return true
 
 
+## A HIDDEN RESERVE: ink that no gauge shows and that only a caller who asks for it may take.
+## Mayon's, so the drawings its climb cannot be finished without are always payable however the
+## rest was spent -- a player locked out of the climax by over-spending would be a disaster, and
+## the design asks that the reserve be neither visible nor mentioned. 0 everywhere else.
+var hidden_reserve: float = 0.0
+
+
 ## Charge one unit outright, for the events that are priced rather than drawn: a placeable
 ## being set down again, which the player pays for every time. Returns false when there is
 ## nothing left, so the caller can refuse the action instead of quietly running a deficit.
-func spend_unit() -> bool:
+## `may_use_reserve` lets the hidden reserve pay when the gauge cannot.
+func spend_unit(may_use_reserve: bool = false) -> bool:
 	if total_uncommitted_available() < UNIT - 0.0001:
+		if may_use_reserve and hidden_reserve >= UNIT - 0.0001:
+			hidden_reserve -= UNIT
+			return true
 		return false
 	committed = minf(capacity, committed + UNIT)
 	_emit_changed()
