@@ -21,7 +21,7 @@ const JUMP := 94.3
 const FLOOR_BEFORE := 180.0
 
 ## Every check this audit makes. A script error that skips them must not pass as quiet.
-const CHECKS := 10
+const CHECKS := 12
 
 var failures := 0
 var checked := 0
@@ -50,6 +50,8 @@ func _run() -> void:
 	_audit_silent_checkpoints(scene, level)
 	_audit_nothing_fights(scene)
 	_audit_every_obstacle_has_a_volume(scene, level)
+	_audit_the_fragments(scene)
+	_audit_the_flower_is_off_the_path(scene)
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -230,6 +232,45 @@ func _audit_every_obstacle_has_a_volume(scene: Node, level: Dictionary) -> void:
 	volumes.sort()
 	_check(data == volumes, "every beat in the data has its volume in the ground, and no other",
 		", ".join(volumes) if data == volumes else "data %s, ground %s" % [data, volumes])
+
+
+## Act Two: twelve fragments, three with lolo in them, and every class that saves one reads at
+## or above the floor -- a misread fragment costs nothing but is a choice taken away.
+func _audit_the_fragments(scene: Node) -> void:
+	var report := _report()
+	var fragments := scene.find_children("*", "MemoryFragment2D", true, false)
+	var lolo := 0
+	var thin: Array[String] = []
+	for node in fragments:
+		var fragment := node as MemoryFragment2D
+		if fragment.holds_lolo:
+			lolo += 1
+		var strong := 0
+		for entity: String in fragment.accepts:
+			if float((report.get(entity, {}) as Dictionary).get("recall", 0.0)) >= RECALL_FLOOR:
+				strong += 1
+			else:
+				thin.append("%s: %s" % [fragment.fragment_id, entity])
+		if strong < 2:
+			thin.append("%s has %d" % [fragment.fragment_id, strong])
+	_check(fragments.size() == 12 and lolo == 3 and thin.is_empty(),
+		"twelve fragments, three with lolo in them, each saved by two or more strong classes",
+		"%d fragments, %d with lolo" % [fragments.size(), lolo] if thin.is_empty() else "; ".join(thin))
+
+
+## The flower's fragment is down a path nobody needed to walk: out of reach of the corridor.
+func _audit_the_flower_is_off_the_path(scene: Node) -> void:
+	var flower: MemoryFragment2D = null
+	for node in scene.find_children("*", "MemoryFragment2D", true, false):
+		if (node as MemoryFragment2D).fragment_id == "flower":
+			flower = node
+	var below := 0.0
+	if flower != null:
+		var ground_y := 60.0 if flower.global_position.x < 9200.0 else -20.0
+		below = ground_y - flower.global_position.y
+	_check(flower != null and below > flower.reach + 60.0,
+		"the flower is off the path: out of reach from the corridor beneath it",
+		"%.0f px above the path, reach %.0f" % [below, flower.reach if flower != null else 0.0])
 
 
 # --- Helpers ----------------------------------------------------------------------------
