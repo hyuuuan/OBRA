@@ -143,6 +143,61 @@ texture_filter = 1
 position = Vector2(3980.0, 342.0)
 texture = ExtResource("p_rock_low")
 
+; WHAT THE ASH TAKES ON THE WAY UP (group ash_takes): each goes white, then blank, once she is
+; `taken_at` along the slope, over `taken_over` seconds (level_5.gd). None is solid: a thing going
+; white must never be something she is standing on. The bridge she would have crossed is gone
+; long before she can reach it (2.0 s, from 1300 px off); the stone steps that led up the wall
+; are gone before she is at it; a palm goes pale, then white, as she passes.
+[node name="AshTakes" type="Node2D" parent="GameplayPlane"]
+z_index = -4
+
+[node name="OldBridge" type="Node2D" parent="GameplayPlane/AshTakes" groups=["ash_takes"]]
+metadata/taken_at = 1000.0
+metadata/taken_over = 2.0
+
+[node name="Planks" type="TextureRect" parent="GameplayPlane/AshTakes/OldBridge"]
+offset_left = 2290.0
+offset_top = 432.0
+offset_right = 2610.0
+offset_bottom = 448.0
+texture = ExtResource("t_path")
+stretch_mode = 1
+texture_filter = 1
+
+[node name="WestPost" type="ColorRect" parent="GameplayPlane/AshTakes/OldBridge"]
+offset_left = 2286.0
+offset_top = 400.0
+offset_right = 2294.0
+offset_bottom = 444.0
+color = Color(0.29, 0.2, 0.13, 1)
+
+[node name="EastPost" type="ColorRect" parent="GameplayPlane/AshTakes/OldBridge"]
+offset_left = 2606.0
+offset_top = 400.0
+offset_right = 2614.0
+offset_bottom = 444.0
+color = Color(0.29, 0.2, 0.13, 1)
+
+[node name="OldSteps" type="Node2D" parent="GameplayPlane/AshTakes" groups=["ash_takes"]]
+metadata/taken_at = 3200.0
+metadata/taken_over = 2.5
+
+[node name="Stone" type="TextureRect" parent="GameplayPlane/AshTakes/OldSteps"]
+offset_left = 4100.0
+offset_top = 140.0
+offset_right = 4200.0
+offset_bottom = 360.0
+texture = ExtResource("t_masonry")
+stretch_mode = 1
+texture_filter = 1
+
+[node name="PalesPalm" type="Sprite2D" parent="GameplayPlane/AshTakes" groups=["ash_takes"]]
+texture_filter = 1
+position = Vector2(3250.0, 382.0)
+texture = ExtResource("p_palm_short")
+metadata/taken_at = 2900.0
+metadata/taken_over = 6.0
+
 ; THE PATH NOBODY NEEDED TO WALK: a step up off the corridor and a ledge above it, where the
 ; flower's fragment drifts above her head. The path goes on underneath (130 px of headroom);
 ; the ledge is a detour, and nothing on it is needed.

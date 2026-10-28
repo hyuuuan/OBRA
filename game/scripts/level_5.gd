@@ -89,6 +89,7 @@ func _build_level_furniture() -> void:
 	ink_manager.hidden_reserve = float(economy.get("hidden_reserve", 0.0))
 	_arm_the_drain()
 	_gather_fragments()
+	_gather_the_ash()
 
 
 func _level_physics(anchor_position: Vector2) -> void:
@@ -97,6 +98,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 		_return_to_safety(words, words)
 		return
 	_hold_the_drain(get_physics_process_delta_time())
+	_tend_act_one(get_physics_process_delta_time(), anchor_position.x)
 	for fragment in _fragments:
 		fragment.notice(anchor_position.x)
 	_tend_lolo(get_physics_process_delta_time(), anchor_position.x)
@@ -342,7 +344,11 @@ func _level_run_state() -> Dictionary:
 			"state": held if held == "saved" or held == "lost" else "whole",
 			"strokes": fragment.strokes().duplicate(true),
 		}
-	return {"fragments": fragments, "steady_left": _steady_left}
+	var taken: Array = []
+	for thing in _taken:
+		if bool(_going.get(thing, false)):
+			taken.append(String(thing.name))
+	return {"fragments": fragments, "steady_left": _steady_left, "taken": taken}
 
 
 func _restore_level_run_state(state: Dictionary) -> void:
@@ -351,5 +357,43 @@ func _restore_level_run_state(state: Dictionary) -> void:
 		var entry: Dictionary = fragments.get(fragment.fragment_id, {})
 		fragment.restore_to(String(entry.get("state", "whole")), entry.get("strokes", []))
 	_steady_left = float(state.get("steady_left", 0.0))
+	# What the ash had taken by the checkpoint stays taken; what it had not comes back.
+	var taken: Array = state.get("taken", [])
+	for thing in _taken:
+		var drainable := thing.get_node("Drainable") as Drainable
+		if taken.has(String(thing.name)):
+			drainable.drain_to(1.0, 0.0)
+			_going[thing] = true
+		else:
+			drainable.restore()
+			_going[thing] = false
+
 	if _lolo_moment == "waiting":
 		_lolo_moment = ""
+
+
+# --- Act One: the ascent ------------------------------------------------------------------
+
+
+var _taken: Array[Node2D] = []
+var _going := {}
+
+
+## What the ash takes is marked in the ground (group ash_takes, taken_at, taken_over); each gets a
+## Drainable.
+func _gather_the_ash() -> void:
+	_taken.clear()
+	for node in get_tree().get_nodes_in_group(&"ash_takes"):
+		var thing := node as Node2D
+		var drainable := Drainable.new()
+		drainable.name = "Drainable"
+		thing.add_child(drainable)
+		_taken.append(thing)
+		_going[thing] = false
+
+
+func _tend_act_one(_delta: float, her_x: float) -> void:
+	for thing in _taken:
+		if not bool(_going[thing]) and her_x >= float(thing.get_meta("taken_at")):
+			_going[thing] = true
+			(thing.get_node("Drainable") as Drainable).drain_to(1.0, float(thing.get_meta("taken_over")))
