@@ -348,7 +348,7 @@ func _level_run_state() -> Dictionary:
 	for thing in _taken:
 		if bool(_going.get(thing, false)):
 			taken.append(String(thing.name))
-	return {"fragments": fragments, "steady_left": _steady_left, "taken": taken}
+	return {"fragments": fragments, "steady_left": _steady_left, "taken": taken, "forgot": _forgot}
 
 
 func _restore_level_run_state(state: Dictionary) -> void:
@@ -367,7 +367,7 @@ func _restore_level_run_state(state: Dictionary) -> void:
 		else:
 			drainable.restore()
 			_going[thing] = false
-
+	_forgot = int(state.get("forgot", _forgot))
 	if _lolo_moment == "waiting":
 		_lolo_moment = ""
 
@@ -382,11 +382,14 @@ const ASH_EASE := 0.1
 ## The eruption, felt: every so often below the summit.
 const TREMOR_EVERY := 18.0
 const SUMMIT_X := 13000.0
+## Lolo's forgetting on the way up, by where she is. Light at first; by the third it is not funny.
+const FORGETTING := [[1000.0, "LOLO.forget.1"], [2900.0, "LOLO.forget.2"], [4700.0, "LOLO.forget.3"]]
 
 var _taken: Array[Node2D] = []
 var _going := {}
 var _ash: AshFall2D
 var _tremor: ScreenTremor
+var _forgot := 0
 
 
 ## What the ash takes is marked in the ground (group ash_takes, taken_at, taken_over); each gets a
@@ -430,3 +433,7 @@ func _tend_act_one(delta: float, her_x: float) -> void:
 		_ash.density = move_toward(_ash.density, ash_at(her_x), ASH_EASE * delta)
 	if _tremor != null:
 		_tremor.enabled = her_x < SUMMIT_X
+	if _forgot < FORGETTING.size() and her_x >= float(FORGETTING[_forgot][0]):
+		var hook := String(FORGETTING[_forgot][1])
+		_forgot += 1
+		_speak(script_lines.fire(hook))
