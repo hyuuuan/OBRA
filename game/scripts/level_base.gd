@@ -132,6 +132,13 @@ func _brush_refused(_strokes: int) -> void:
 	pass
 
 
+## Whether a drawing of `entity_id`, paid for here, may come out of the ink's hidden reserve
+## when the gauge cannot pay (InkManager.hidden_reserve). Mayon's: the gates its climb cannot be
+## finished without are always payable, however the rest of the ink went. Off everywhere else.
+func _may_use_hidden_ink(_entity_id: String) -> bool:
+	return false
+
+
 ## Whether this level has a companion at all. Lolo walks Levels 1-3; Dilim is past what he
 ## remembers, and the apo goes alone. False leaves him out but keeps the opening: it still plays,
 ## in whoever's voice its lines name, and the visit is still recorded.
@@ -1622,6 +1629,7 @@ func _write_checkpoint(checkpoint_id: String) -> void:
 	checkpoints.write(checkpoint_id, {
 		"position": anchor_position,
 		"ink_committed": ink_manager.committed,
+		"ink_reserve": ink_manager.hidden_reserve,
 		"toolbelt": PlayerProfile.acquired_objects(),
 		"obstacles": director.obstacle_state(),
 		"placed": _placed_entity_records(),
@@ -1876,6 +1884,8 @@ func _restore_checkpoint() -> String:
 		ink_manager.committed = minf(ink_manager.capacity, float(state["ink_committed"]))
 		ink_manager.reserved = 0.0
 		_on_ink_changed(ink_manager.remaining(), ink_manager.capacity, ink_manager.reserved)
+	if state.has("ink_reserve"):
+		ink_manager.hidden_reserve = float(state["ink_reserve"])
 
 	_restore_placed_entities(state.get("placed", []))
 	_restore_level_run_state(state.get("level", {}))
@@ -2258,7 +2268,7 @@ func _begin_new_utility(item: DrawnItemData, going_into_hand: bool = false) -> b
 	# case this is -- the free ones were settled by _on_drawing_ready.
 	if not item.ink_committed:
 		item.ink_committed = true
-		if not ink_manager.spend_unit():
+		if not ink_manager.spend_unit(_may_use_hidden_ink(item.entity_id)):
 			# Recognised, and unaffordable. The class is still theirs for later, so this is
 			# a delay rather than a loss, and saying which it is matters. THIS drawing comes
 			# back out, not whichever its slot shows: it may have gone onto a stack.
@@ -2531,7 +2541,7 @@ func _on_placement_confirmed(
 	if not is_a_tool(registry.get_entity(item.entity_id)) and not item.placement_paid:
 		# The slot press above already refused an unaffordable placement, so a failure here
 		# is a race rather than the ordinary path -- but it must not hand out a free one.
-		if not ink_manager.spend_unit():
+		if not ink_manager.spend_unit(_may_use_hidden_ink(item.entity_id)):
 			placed.queue_free()
 			inventory_manager.add_item(item)
 			status_label.text = "%s costs a unit to set down, and there is none left" % item.display_name
