@@ -642,7 +642,9 @@ func _refuse_quietly() -> void:
 	transform_button.disabled = true
 	clear_button.disabled = true
 	var strokes: int = canvas.get_strokes().size()
-	var fade := create_tween()
+	# ⚠ ALWAYS RUNS. The panel processes only while the tree is paused, and a refusal must not
+	# hang on the page if anything unpauses it mid-fade.
+	var fade := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	fade.tween_property(canvas, "modulate:a", 0.0, REFUSAL_FADE)
 	await fade.finished
 	canvas.clear_canvas()

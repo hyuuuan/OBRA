@@ -182,6 +182,153 @@
       "speaker": "lolo",
       "kind": "lore",
       "text": "See the fold, apo? Right through her plaza. That was us. ... Did I say that already? I think I said that already."
+    },
+    {
+      "id": "L5_summit_speaks",
+      "at": "SUMMIT.speaks",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Lola? Lola, it's me. It's apo."
+    },
+    {
+      "id": "L5_summit_kubo",
+      "at": "SUMMIT.kubo",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Your house on the terraces, with the steps up to it."
+    },
+    {
+      "id": "L5_summit_terraces",
+      "at": "SUMMIT.terraces",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "The terraces lolo carried you down, in the rain."
+    },
+    {
+      "id": "L5_summit_bandaritas",
+      "at": "SUMMIT.bandaritas",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "The fiesta flags, all the way across the plaza."
+    },
+    {
+      "id": "L5_summit_dancers",
+      "at": "SUMMIT.dancers",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "The dancers, and the dress you never let me touch."
+    },
+    {
+      "id": "L5_summit_church",
+      "at": "SUMMIT.church",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "The church where you and lolo were married."
+    },
+    {
+      "id": "L5_summit_storm",
+      "at": "SUMMIT.storm",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "The storm, and how it ended."
+    },
+    {
+      "id": "L5_summit_bangka",
+      "at": "SUMMIT.bangka",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Lolo's bangka, out on the water."
+    },
+    {
+      "id": "L5_summit_coral",
+      "at": "SUMMIT.coral",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "The reef, in every colour you had."
+    },
+    {
+      "id": "L5_summit_bakunawa",
+      "at": "SUMMIT.bakunawa",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "The deep, and the one that searched it. It was looking for you."
+    },
+    {
+      "id": "L5_summit_forest",
+      "at": "SUMMIT.forest",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "The woods you taught me not to be afraid of."
+    },
+    {
+      "id": "L5_summit_waterfall",
+      "at": "SUMMIT.waterfall",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "The falls under the balete."
+    },
+    {
+      "id": "L5_summit_flower",
+      "at": "SUMMIT.flower",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "And a flower nobody needed. You painted it anyway."
+    },
+    {
+      "id": "L5_voice_artist",
+      "at": "SUMMIT.voice.artist",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "You noticed everything, Lola. Where the light sat on the water. You made all of it so it would be seen."
+    },
+    {
+      "id": "L5_voice_pragmatist",
+      "at": "SUMMIT.voice.pragmatist",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "You always found the way through, Lola. Whatever it was, you did the next thing, and then the next."
+    },
+    {
+      "id": "L5_voice_protector",
+      "at": "SUMMIT.voice.protector",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "You kept us safe, Lola. Every one of us. You took the fear out of those woods for me before I ever walked in them."
+    },
+    {
+      "id": "L5_end_standard_1",
+      "at": "ENDING.standard",
+      "speaker": "lola",
+      "kind": "lore",
+      "text": "Oh -- hello, little one. Do you like it? I think it is nearly finished."
+    },
+    {
+      "id": "L5_end_standard_2",
+      "at": "ENDING.standard",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It's beautiful, Lola. I'll stay a while."
+    },
+    {
+      "id": "L5_end_perfect_1",
+      "at": "ENDING.perfect",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "These are for you. One from each of them."
+    },
+    {
+      "id": "L5_end_perfect_2",
+      "at": "ENDING.perfect",
+      "speaker": "lola",
+      "kind": "lore",
+      "text": "...Apo? Apo. And your lolo -- we were only just talking about him, weren't we."
+    },
+    {
+      "id": "L5_end_perfect_3",
+      "at": "ENDING.perfect",
+      "speaker": "lola",
+      "kind": "lore",
+      "text": "Do you like it, little one? I think it is nearly finished."
     }
   ]
 }
