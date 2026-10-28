@@ -19,7 +19,7 @@ world_bounds = Rect2(-200, -1400, 16200, 2900)
 
 [node name="WorldCamera" type="Camera2D" parent="."]
 script = ExtResource("2_camera")
-target_offset = Vector2(0, -180)
+target_offset = Vector2(0, -260)
 world_bottom_y = 900.0
 outdoor_x_limits = Vector2(116, 15880)
 
