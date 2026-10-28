@@ -21,7 +21,7 @@ const JUMP := 94.3
 const FLOOR_BEFORE := 180.0
 
 ## Every check this audit makes. A script error that skips them must not pass as quiet.
-const CHECKS := 12
+const CHECKS := 13
 
 var failures := 0
 var checked := 0
@@ -52,6 +52,7 @@ func _run() -> void:
 	_audit_every_obstacle_has_a_volume(scene, level)
 	_audit_the_fragments(scene)
 	_audit_the_flower_is_off_the_path(scene)
+	_audit_nothing_the_ash_takes_is_solid(scene)
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -274,6 +275,17 @@ func _audit_the_flower_is_off_the_path(scene: Node) -> void:
 	_check(flower != null and below > flower.reach + 60.0,
 		"the flower is off the path: out of reach from the corridor beneath it",
 		"%.0f px above the path, reach %.0f" % [below, flower.reach if flower != null else 0.0])
+
+
+## A thing going white must never be something she stands on: what the ash takes is scenery.
+func _audit_nothing_the_ash_takes_is_solid(scene: Node) -> void:
+	var taken := scene.get_tree().get_nodes_in_group(&"ash_takes")
+	var solid: Array[String] = []
+	for node in taken:
+		if node is CollisionObject2D or not node.find_children("*", "CollisionObject2D", true, false).is_empty():
+			solid.append(String(node.name))
+	_check(not taken.is_empty() and solid.is_empty(), "nothing the ash takes is solid",
+		"%d things taken, none stood on" % taken.size() if solid.is_empty() else "solid: " + ", ".join(solid))
 
 
 # --- Helpers ----------------------------------------------------------------------------
