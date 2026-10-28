@@ -132,6 +132,38 @@ func _brush_refused(_strokes: int) -> void:
 	pass
 
 
+## Whether a drawing of `entity_id`, paid for here, may come out of the ink's hidden reserve
+## when the gauge cannot pay (InkManager.hidden_reserve). Mayon's: the gates its climb cannot be
+## finished without are always payable, however the rest of the ink went. Off everywhere else.
+func _may_use_hidden_ink(_entity_id: String) -> bool:
+	return false
+
+
+## Whether checkpoints are written without a word: no status line, no hint, no sound, no
+## letterbox, no count on the ink plate. Mayon's ascent is one continuous climb (its design:
+## "save silently"). Off everywhere else.
+func _saves_silently() -> bool:
+	return false
+
+
+## Whether the ink gauge stays up while a story line shows and the bars close. Mayon's, where the
+## player is meant to watch it go down for twenty minutes. Off everywhere else.
+func _ink_always_visible() -> bool:
+	return false
+
+
+## Whether the level ends with its own scene rather than the completion card -- and, for the
+## level the run ends on, rather than the ending screen. True: the finish is recorded as ever and
+## then _play_own_ending() has everything after it, including where the player goes next.
+func _ends_with_its_own_scene() -> bool:
+	return false
+
+
+## The level's own ending, when _ends_with_its_own_scene() says it has one.
+func _play_own_ending() -> void:
+	pass
+
+
 ## Whether this level has a companion at all. Lolo walks Levels 1-3; Dilim is past what he
 ## remembers, and the apo goes alone. False leaves him out but keeps the opening: it still plays,
 ## in whoever's voice its lines name, and the visit is still recorded.
@@ -823,6 +855,8 @@ func _checkpoint_is_declared(checkpoint_id: String) -> bool:
 
 func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
 	_write_checkpoint(checkpoint_id)
+	if _saves_silently():
+		return
 	_say_checkpoint()
 	var area := _checkpoint_area_for(checkpoint_id)
 	# Its moment is its lantern lighting; one left for the player to light has none yet.
@@ -1622,6 +1656,7 @@ func _write_checkpoint(checkpoint_id: String) -> void:
 	checkpoints.write(checkpoint_id, {
 		"position": anchor_position,
 		"ink_committed": ink_manager.committed,
+		"ink_reserve": ink_manager.hidden_reserve,
 		"toolbelt": PlayerProfile.acquired_objects(),
 		"obstacles": director.obstacle_state(),
 		"placed": _placed_entity_records(),
@@ -1876,6 +1911,8 @@ func _restore_checkpoint() -> String:
 		ink_manager.committed = minf(ink_manager.capacity, float(state["ink_committed"]))
 		ink_manager.reserved = 0.0
 		_on_ink_changed(ink_manager.remaining(), ink_manager.capacity, ink_manager.reserved)
+	if state.has("ink_reserve"):
+		ink_manager.hidden_reserve = float(state["ink_reserve"])
 
 	_restore_placed_entities(state.get("placed", []))
 	_restore_level_run_state(state.get("level", {}))
@@ -2258,7 +2295,7 @@ func _begin_new_utility(item: DrawnItemData, going_into_hand: bool = false) -> b
 	# case this is -- the free ones were settled by _on_drawing_ready.
 	if not item.ink_committed:
 		item.ink_committed = true
-		if not ink_manager.spend_unit():
+		if not ink_manager.spend_unit(_may_use_hidden_ink(item.entity_id)):
 			# Recognised, and unaffordable. The class is still theirs for later, so this is
 			# a delay rather than a loss, and saying which it is matters. THIS drawing comes
 			# back out, not whichever its slot shows: it may have gone onto a stack.
@@ -2531,7 +2568,7 @@ func _on_placement_confirmed(
 	if not is_a_tool(registry.get_entity(item.entity_id)) and not item.placement_paid:
 		# The slot press above already refused an unaffordable placement, so a failure here
 		# is a race rather than the ordinary path -- but it must not hand out a free one.
-		if not ink_manager.spend_unit():
+		if not ink_manager.spend_unit(_may_use_hidden_ink(item.entity_id)):
 			placed.queue_free()
 			inventory_manager.add_item(item)
 			status_label.text = "%s costs a unit to set down, and there is none left" % item.display_name
@@ -3280,6 +3317,10 @@ func _on_checkpoint_count_changed(_checkpoint_id: String) -> void:
 func _refresh_checkpoint_chip() -> void:
 	if checkpoint_label == null or not is_instance_valid(checkpoint_label):
 		return
+	if _saves_silently():
+		# Nothing on screen counts what a silent level saves.
+		checkpoint_label.visible = false
+		return
 	var declared := (director.level_data().get("checkpoints", []) as Array).size() \
 		if director != null else 0
 	var reached: int = checkpoints.count() if checkpoints != null else 0
@@ -3459,6 +3500,10 @@ func _apply_hud_alpha() -> void:
 		var control := child as CanvasItem
 		if control == null or control == inventory_hud:
 			# The bag drives its own alpha and takes the level's as a multiplier.
+			continue
+		if control == hud_panel and _ink_always_visible():
+			# The ink is what this level is about; it never steps aside.
+			control.modulate.a = 1.0
 			continue
 		control.modulate.a = bottom if UNDER_THE_STORY_BOX.has(control.name) else alpha
 	if inventory_hud != null:
@@ -4584,6 +4629,13 @@ func _complete_level() -> void:
 		if not settled.is_empty():
 			PlayerProfile.record_route(level_id, settled)
 	mark_finished(level_id)
+	if bool(LevelManager.get_level(level_id).get("ends_run", false)):
+		# The run is over: which of Endings A-D it earned goes to the thesis telemetry, whether
+		# or not any screen ever shows it.
+		Telemetry.record_event("ending", EndingResolver.explain(PlayerProfile))
+	if _ends_with_its_own_scene():
+		_play_own_ending()
+		return
 	status_label.text = "Level complete!"
 	# STAGED BEFORE THE PANEL. The level used to end by putting a screen over an unchanged
 	# view -- the last thing the player did and the acknowledgement of it happened at the same

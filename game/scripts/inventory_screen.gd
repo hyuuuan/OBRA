@@ -128,9 +128,16 @@ const FOUND: Array[Dictionary] = [
 		"stack": "hidden_flower",
 		"note": "It rose out of the mound when you asked to pass, and did not ask for anything back.",
 	},
+	# Mayon's: down a path nobody needed to walk, saved for no reason but that she painted it.
+	{
+		"id": "L5_HF",
+		"name": "Hidden Flower",
+		"stack": "hidden_flower",
+		"note": "Nobody needed it. You spent the ink on it anyway, because she had painted it.",
+	},
 ]
 ## What a shared pocket is called, and how many of its thing the whole game hides. Five
-## flowers, one a level, though only three levels hide one yet -- the card says "Two of five"
+## flowers, one a level -- the card says "Two of five"
 ## and its own entry's line, the newest found.
 const STACKS := {
 	"hidden_flower": {"name": "Hidden Flower", "of": 5},
@@ -1635,7 +1642,7 @@ func _found_art(id: String) -> Texture2D:
 			return UIIcons.key()
 		"canvas_2_pista":
 			return load("res://assets/hub/paintings/level_2.png") as Texture2D
-		"flower_1", "L2_HF", "L3_HF", "L4_HF":
+		"flower_1", "L2_HF", "L3_HF", "L4_HF", "L5_HF":
 			return load("res://assets/Level1/hidden_flower.png") as Texture2D
 		_:
 			return null
