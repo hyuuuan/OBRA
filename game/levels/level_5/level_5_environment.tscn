@@ -91,6 +91,7 @@ platforms = Array[Rect2]([Rect2(-200, 600, 1600, 800), Rect2(1400, 520, 400, 880
 script = ExtResource("8_terrain")
 platforms = Array[Rect2]([Rect2(4200, 140, 1200, 1260), Rect2(5400, 60, 3800, 1340), Rect2(9200, -20, 3800, 1420), Rect2(13000, -100, 3000, 1500)])
 grassed = false
+tint = Color(0.8, 0.76, 0.74, 1)
 
 ; THE PATH NOBODY NEEDED TO WALK: a step up off the corridor and a ledge above it, where the
 ; flower's fragment drifts. The path goes on underneath (130 px of headroom); the ledge is a
