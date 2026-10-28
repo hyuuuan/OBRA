@@ -91,6 +91,27 @@
       "speaker": "lolo",
       "kind": "hint",
       "text": "Careful, apo. Back to where we were."
+    },
+    {
+      "id": "L5_not_this",
+      "at": "FRAGMENT.not_this",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Not that. Something that was in it."
+    },
+    {
+      "id": "L5_no_ink",
+      "at": "FRAGMENT.no_ink",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "There is no more ink for that one."
+    },
+    {
+      "id": "L5_flower",
+      "at": "FLOWER.saved",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "That one? Nobody needed that one. ... She painted it anyway, didn't she."
     }
   ]
 }
