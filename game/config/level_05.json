@@ -1,0 +1,121 @@
+{
+  "$comment": "LEVEL 5 -- MAYON. The last painting, coming apart while the apo stands in it (LEVEL_5.md). No combat, no health, and no refill anywhere: the ink in the brush is all there is, and a hidden reserve (level_5.gd) keeps the two gates the climb cannot be finished without always payable. This is the shell: the climb's two gates and its silent checkpoints. The fragments, Lolo's going and the summit come with their PRs.",
+  "schema_version": 1,
+  "level_id": "level_5",
+  "design_level_id": "L5_MAYON",
+  "display_name": "Mayon",
+  "order": 5,
+  "goal": "Climb Mayon while the painting comes apart, and carry what you can to the top.",
+  "unlocks_on_complete": null,
+  "unlocks_at_checkpoint": null,
+  "tally": "majority",
+  "tags_unlocked": [],
+  "checkpoints": [
+    {
+      "id": "CP1",
+      "at": "L5_CLIMB",
+      "trigger": "area",
+      "$comment": "The mid slope, past the climb's last gate. Silent (_saves_silently): no lantern, no letterbox, no line, no count."
+    },
+    {
+      "id": "CP2",
+      "at": "L5_SUMMIT",
+      "trigger": "area",
+      "$comment": "Below the summit. Silent."
+    }
+  ],
+  "restrictions": {},
+  "ink_economy": {
+    "$comment": "Six units and no refills. Every drawing costs one (_every_drawing_costs_ink); a creature form drains 0.25 a second. hidden_reserve is never shown or mentioned: only the gates may draw on it, and only when the gauge cannot pay (_may_use_hidden_ink).",
+    "capacity": 6,
+    "creature_drain_per_second": 0.25,
+    "hidden_reserve": 2,
+    "reserve_pays_at": [
+      "L5_SPAN",
+      "L5_CLIMB"
+    ]
+  },
+  "objectives": {
+    "$comment": "In Lolo's voice while he climbs with her, short enough for the banner (720 px), naming no class.",
+    "foot": "Climb, apo. Mind the ink -- there is no more of it up here.",
+    "span": "The way across is gone. Make one.",
+    "climb": "The path has thinned to nothing. Make a way up.",
+    "slope": "Keep climbing.",
+    "summit": "Keep climbing."
+  },
+  "obstacles": [
+    {
+      "id": "L5_SPAN",
+      "type": "tutorial",
+      "dialogue_node": false,
+      "fail_state": false,
+      "sub_beats": [
+        {
+          "id": "way_across",
+          "teaches": "span",
+          "required_tags": [
+            "span"
+          ],
+          "exclude": [
+            "circle",
+            "square",
+            "triangle"
+          ],
+          "$comment": "The bridge she came up by drained white, then blank. 300 px across: past a running jump (228), under a bridge (340). A drawn primitive is 80 px and spans nothing here, so the shapes are excluded and span is a bridge or a ladder laid over."
+        }
+      ],
+      "$comment": "A gate the climb cannot be finished without: payable from the hidden reserve."
+    },
+    {
+      "id": "L5_CLIMB",
+      "type": "tutorial",
+      "dialogue_node": false,
+      "fail_state": false,
+      "sub_beats": [
+        {
+          "id": "way_up",
+          "teaches": "climb",
+          "required_tags": [
+            "climb"
+          ],
+          "exclude": [
+            "crab"
+          ],
+          "$comment": "The path thinned out to a wall 220 high: over a primitive and a jump (174), under stairs and a jump (270). crab is out, as at Payyo's stair: it needs a wall to cling to and gets nowhere on one this short."
+        }
+      ],
+      "$comment": "The other gate the climb cannot be finished without."
+    },
+    {
+      "id": "L5_SUMMIT",
+      "type": "tutorial",
+      "dialogue_node": false,
+      "fail_state": false,
+      "sub_beats": [],
+      "$comment": "Where the summit begins, so CP2 has a beat to stand at. Its scene comes in PR 08."
+    }
+  ],
+  "hidden_flowers": [
+    {
+      "id": "L5_HF",
+      "at": "L5_CORRIDOR",
+      "awarded_by": "artist",
+      "not_a_fail_state": true,
+      "$comment": "The fragment nobody needed: a flower lola painted for no reason. Comes with Act Two (PR 06)."
+    }
+  ],
+  "recognition": {
+    "confidence_threshold": 0.6,
+    "margin_threshold": 0.15,
+    "decline_costs_ink": false,
+    "decline_message_source": "dialogue"
+  },
+  "load_time_assertions": [
+    "every gate resolves >= 2 classes after exclusions, each at or above 0.70 held-out recall (BR-7)",
+    "the span is wider than a running jump and narrower than a bridge; the wall is higher than a primitive and a jump and lower than stairs and a jump",
+    "no refill anywhere: no jar, no clearing, no refilled_at",
+    "checkpoints are silent",
+    "no health and nothing that fights",
+    "no dialogue line names a drawable class"
+  ]
+}
