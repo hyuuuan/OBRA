@@ -146,6 +146,12 @@ func _saves_silently() -> bool:
 	return false
 
 
+## Whether the ink gauge stays up while a story line shows and the bars close. Mayon's, where the
+## player is meant to watch it go down for twenty minutes. Off everywhere else.
+func _ink_always_visible() -> bool:
+	return false
+
+
 ## Whether this level has a companion at all. Lolo walks Levels 1-3; Dilim is past what he
 ## remembers, and the apo goes alone. False leaves him out but keeps the opening: it still plays,
 ## in whoever's voice its lines name, and the visit is still recorded.
@@ -3482,6 +3488,10 @@ func _apply_hud_alpha() -> void:
 		var control := child as CanvasItem
 		if control == null or control == inventory_hud:
 			# The bag drives its own alpha and takes the level's as a multiplier.
+			continue
+		if control == hud_panel and _ink_always_visible():
+			# The ink is what this level is about; it never steps aside.
+			control.modulate.a = 1.0
 			continue
 		control.modulate.a = bottom if UNDER_THE_STORY_BOX.has(control.name) else alpha
 	if inventory_hud != null:
