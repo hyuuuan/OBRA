@@ -1,0 +1,163 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/environment_baseplate.gd" id="1_environment"]
+[ext_resource type="Script" path="res://scripts/world_camera_controller.gd" id="2_camera"]
+[ext_resource type="Script" path="res://scripts/depth_layer_2d.gd" id="3_depth"]
+[ext_resource type="Script" path="res://scripts/ash_fall_2d.gd" id="4_ash"]
+[ext_resource type="Script" path="res://scripts/level_obstacle_2d.gd" id="5_obstacle"]
+[ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="6_checkpoint"]
+[ext_resource type="Script" path="res://scripts/mayon_backdrop_2d.gd" id="7_backdrop"]
+[ext_resource type="Script" path="res://scripts/mayon_terrain_2d.gd" id="8_terrain"]
+
+[sub_resource type="RectangleShape2D" id="Rect_Wall"]
+size = Vector2(40.0, 3000.0)
+
+[node name="EnvironmentBaseplate" type="Node2D"]
+script = ExtResource("1_environment")
+world_bounds = Rect2(-200, -1400, 16200, 2900)
+
+[node name="WorldCamera" type="Camera2D" parent="."]
+script = ExtResource("2_camera")
+target_offset = Vector2(0, -180)
+world_bottom_y = 900.0
+outdoor_x_limits = Vector2(116, 15880)
+
+; The ash, hung on the camera: thicker the higher she climbs (level_5.gd sets the density).
+[node name="Ash" type="Node2D" parent="WorldCamera"]
+script = ExtResource("4_ash")
+density = 0.25
+
+; Behind every band: the sunset's own colour, so a camera past a plate's edge meets more sky.
+[node name="SkyFill" type="Polygon2D" parent="."]
+z_index = -300
+color = Color(0.933, 0.533, 0.247, 1)
+polygon = PackedVector2Array(-3000, -4000, 20000, -4000, 20000, 3000, -3000, 3000)
+
+; Composed as run_visual_mayon.gd composed them: one Mayon, drifting across the whole climb; the
+; meadow at its foot sinking away below her as she rises.
+[node name="SkyBand" type="Node2D" parent="."]
+z_index = -100
+script = ExtResource("7_backdrop")
+plate = "sky"
+scroll_scale = 0.02
+rise_scale = 0.02
+depth = 9.0
+span = Vector2(-200.0, 16000.0)
+plate_top = -170.0
+mirrored = true
+
+[node name="VolcanoBand" type="Node2D" parent="."]
+z_index = -90
+script = ExtResource("7_backdrop")
+scroll_scale = 0.05
+rise_scale = 0.05
+depth = 8.0
+span = Vector2(-200.0, 16000.0)
+plate_top = -330.0
+single = true
+single_offset = 300.0
+
+[node name="MeadowBand" type="Node2D" parent="."]
+z_index = -80
+script = ExtResource("7_backdrop")
+plate = "meadow"
+scroll_scale = 0.22
+rise_scale = 0.3
+depth = 7.0
+span = Vector2(-200.0, 16000.0)
+plate_top = -90.0
+
+[node name="GameplayPlane" type="Node2D" parent="."]
+script = ExtResource("3_depth")
+
+[node name="EntityRoot" type="Node2D" parent="GameplayPlane"]
+
+[node name="SpawnPoint" type="Marker2D" parent="GameplayPlane"]
+position = Vector2(260.0, 510.0)
+
+[node name="Terrain" type="Node2D" parent="GameplayPlane"]
+
+; THE CLIMB. Each step rises 80 -- under a jump's 94 -- except at the two gates: the span
+; (2300-2600, 300 across: past a running jump's 228, under a bridge's 340) and the wall at 4200
+; (220 up: over a primitive and a jump's 174, under stairs and a jump's 270). Each gate has
+; 500 px or more of floor before it (R7). run_level5_audit reads these rectangles.
+[node name="Slopes" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+platforms = Array[Rect2]([Rect2(-200, 600, 1600, 800), Rect2(1400, 520, 400, 880), Rect2(1800, 440, 500, 960), Rect2(2600, 440, 900, 960), Rect2(3500, 360, 700, 1040)])
+
+; Above the treeline nothing grows: the bare cone, the corridor and the summit.
+[node name="Cone" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+platforms = Array[Rect2]([Rect2(4200, 140, 1200, 1260), Rect2(5400, 60, 3800, 1340), Rect2(9200, -20, 3800, 1420), Rect2(13000, -100, 3000, 1500)])
+grassed = false
+
+[node name="WestWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(-20.0, 0.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/WestWall"]
+shape = SubResource("Rect_Wall")
+
+[node name="EastWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+position = Vector2(15980.0, 0.0)
+
+[node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/EastWall"]
+shape = SubResource("Rect_Wall")
+
+; Where each beat IS, for the objective marker. On the ground.
+[node name="Marks" type="Node2D" parent="GameplayPlane"]
+
+[node name="StartMark" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(260.0, 600.0)
+
+[node name="SpanMark" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(2450.0, 440.0)
+
+[node name="ClimbMark" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(4200.0, 360.0)
+
+[node name="SummitMark" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(15200.0, -100.0)
+
+[node name="Obstacles" type="Node2D" parent="GameplayPlane"]
+
+; Each gate's volume holds its floor and the gap or wall itself. No "?" boards: Lolo is here.
+[node name="L5_SPAN" type="Area2D" parent="GameplayPlane/Obstacles"]
+position = Vector2(2250.0, 210.0)
+script = ExtResource("5_obstacle")
+obstacle_id = "L5_SPAN"
+plants_hint_sign = false
+trigger_size = Vector2(900.0, 460.0)
+plants_commit_mark = false
+
+[node name="L5_CLIMB" type="Area2D" parent="GameplayPlane/Obstacles"]
+position = Vector2(3950.0, 130.0)
+script = ExtResource("5_obstacle")
+obstacle_id = "L5_CLIMB"
+plants_hint_sign = false
+trigger_size = Vector2(900.0, 460.0)
+plants_commit_mark = false
+
+[node name="L5_SUMMIT" type="Area2D" parent="GameplayPlane/Obstacles"]
+position = Vector2(14500.0, -330.0)
+script = ExtResource("5_obstacle")
+obstacle_id = "L5_SUMMIT"
+plants_hint_sign = false
+trigger_size = Vector2(3000.0, 460.0)
+plants_commit_mark = false
+
+; The checkpoints are silent: no lantern, no letterbox (level_5.gd says nothing either).
+[node name="CP1" type="Area2D" parent="GameplayPlane/Obstacles"]
+position = Vector2(4800.0, -90.0)
+script = ExtResource("6_checkpoint")
+checkpoint_id = "CP1"
+shows_mark = false
+lights_on_entry = false
+trigger_size = Vector2(160.0, 460.0)
+
+[node name="CP2" type="Area2D" parent="GameplayPlane/Obstacles"]
+position = Vector2(13100.0, -330.0)
+script = ExtResource("6_checkpoint")
+checkpoint_id = "CP2"
+shows_mark = false
+lights_on_entry = false
+trigger_size = Vector2(160.0, 460.0)
