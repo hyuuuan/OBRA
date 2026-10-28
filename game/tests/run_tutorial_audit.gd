@@ -16,6 +16,7 @@ const LEVEL_SCRIPTS := {
 	"level_1": [],
 	"level_3": ["res://scripts/level_3.gd"],
 	"level_4": ["res://scripts/level_4.gd"],
+	"level_5": ["res://scripts/level_5.gd"],
 }
 
 var _passed := 0
