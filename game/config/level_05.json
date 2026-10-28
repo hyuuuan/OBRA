@@ -1,5 +1,5 @@
 {
-  "$comment": "LEVEL 5 -- MAYON. The last painting, coming apart while the apo stands in it (LEVEL_5.md). No combat, no health, and no refill anywhere: the ink in the brush is all there is, and a hidden reserve (level_5.gd) keeps the two gates the climb cannot be finished without always payable. This is the shell: the climb's two gates and its silent checkpoints. The fragments, Lolo's going and the summit come with their PRs.",
+  "$comment": "LEVEL 5 -- MAYON. The last painting, coming apart while the apo stands in it (LEVEL_5.md). No combat, no health, and no refill anywhere: the ink in the brush is all there is, and a hidden reserve (level_5.gd) keeps the two gates the climb cannot be finished without always payable. Act Two's twelve fragments live in the environment (MemoryFragment2D: id, what belongs, whether lolo is in it); the summit comes with its PR.",
   "schema_version": 1,
   "level_id": "level_5",
   "design_level_id": "L5_MAYON",
@@ -41,7 +41,8 @@
     "span": "The way across is gone. Make one.",
     "climb": "The path has thinned to nothing. Make a way up.",
     "slope": "Keep climbing.",
-    "summit": "Keep climbing."
+    "summit": "Keep climbing.",
+    "corridor": "Keep what you can. There is not ink for all of it."
   },
   "obstacles": [
     {
