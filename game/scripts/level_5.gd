@@ -81,6 +81,7 @@ func _build_level_furniture() -> void:
 	var economy: Dictionary = director.level_data().get("ink_economy", {})
 	ink_manager.hidden_reserve = float(economy.get("hidden_reserve", 0.0))
 	_arm_the_drain()
+	_gather_fragments()
 
 
 func _level_physics(anchor_position: Vector2) -> void:
@@ -89,6 +90,8 @@ func _level_physics(anchor_position: Vector2) -> void:
 		_return_to_safety(words, words)
 		return
 	_hold_the_drain(get_physics_process_delta_time())
+	for fragment in _fragments:
+		fragment.notice(anchor_position.x)
 
 
 func _on_ink_emptied() -> bool:
@@ -105,8 +108,12 @@ func _current_objective() -> Dictionary:
 			return {"key": "span"} if not director.is_solved("L5_SPAN") else {"key": "slope"}
 		"L5_CLIMB":
 			return {"key": "climb"} if not director.is_solved("L5_CLIMB") else {"key": "slope"}
-	if player != null and is_instance_valid(player) and player.global_position.x < 1400.0:
-		return {"key": "foot"}
+	if player != null and is_instance_valid(player):
+		var x := player.global_position.x
+		if x < 1400.0:
+			return {"key": "foot"}
+		if x >= CORRIDOR.x and x < CORRIDOR.y:
+			return {"key": "corridor"}
 	return {"key": "slope"}
 
 
@@ -154,3 +161,95 @@ func _hold_the_drain(delta: float) -> void:
 	if morph_card != null:
 		morph_card.set_meter_caption("INK")
 		morph_card.set_drain(ink_manager.remaining(), ink_manager.capacity)
+
+
+# --- Act Two: what she carries ------------------------------------------------------------
+
+## Where the fragments drift, along the slope.
+const CORRIDOR := Vector2(5400.0, 13000.0)
+
+var _fragments: Array[MemoryFragment2D] = []
+var _saved_class := ""
+
+
+func _gather_fragments() -> void:
+	_fragments.clear()
+	for node in get_tree().get_nodes_in_group(&"memory_fragments"):
+		var fragment := node as MemoryFragment2D
+		_fragments.append(fragment)
+		fragment.saved.connect(_on_fragment_saved)
+		fragment.lost.connect(_on_fragment_lost)
+
+
+## A DRAWING NEAR A FRAGMENT GOES INTO IT -- not into the bag, the hand or a body. One unit of ink,
+## never the hidden reserve (that is the gates'), and it is saved. A drawing that does not belong
+## is handed back free, with one quiet line and no class named. Away from any fragment, a drawing
+## is a drawing.
+func _on_drawing_ready(entity_id: String, display_name: String, drawing: Image,
+		response: Dictionary, strokes: Array, ink_cost: float) -> void:
+	var fragment := _fragment_here()
+	if fragment == null:
+		super(entity_id, display_name, drawing, response, strokes, ink_cost)
+		return
+	ink_manager.release_attempt()
+	if not fragment.belongs(entity_id):
+		_say_why(_line("FRAGMENT.not_this"))
+		return
+	if not ink_manager.spend_unit():
+		_say_why(_line("FRAGMENT.no_ink"))
+		return
+	_saved_class = entity_id
+	fragment.save(strokes)
+
+
+## The nearest fragment she could still save, if one is in reach.
+func _fragment_here() -> MemoryFragment2D:
+	if player == null or not is_instance_valid(player):
+		return null
+	var best: MemoryFragment2D = null
+	var nearest := INF
+	for fragment in _fragments:
+		var away := fragment.global_position.distance_to(player.global_position)
+		if fragment.is_open() and away <= fragment.reach and away < nearest:
+			best = fragment
+			nearest = away
+	return best
+
+
+func _fragment(fragment_id: String) -> MemoryFragment2D:
+	for fragment in _fragments:
+		if fragment.fragment_id == fragment_id:
+			return fragment
+	return null
+
+
+func _on_fragment_saved(fragment_id: String) -> void:
+	Telemetry.record_event("fragment", {"id": fragment_id, "outcome": "saved", "class": _saved_class})
+	if fragment_id == "flower":
+		# The useless one, saved anyway: the fifth flower, and the artist's choice.
+		PlayerProfile.record_collectible("L5_HF")
+		PlayerProfile.record_route(LevelManager.current_level_id, "artist")
+		_speak(script_lines.fire("FLOWER.saved"))
+
+
+func _on_fragment_lost(fragment_id: String) -> void:
+	Telemetry.record_event("fragment", {"id": fragment_id, "outcome": "lost"})
+
+
+## What a checkpoint keeps of Act Two: each fragment as it stood, and her lines in the saved ones.
+func _level_run_state() -> Dictionary:
+	var fragments := {}
+	for fragment in _fragments:
+		var held := fragment.state()
+		fragments[fragment.fragment_id] = {
+			"state": held if held == "saved" or held == "lost" else "whole",
+			"strokes": fragment.strokes().duplicate(true),
+		}
+	return {"fragments": fragments}
+
+
+func _restore_level_run_state(state: Dictionary) -> void:
+	var fragments: Dictionary = state.get("fragments", {})
+	for fragment in _fragments:
+		var entry: Dictionary = fragments.get(fragment.fragment_id, {})
+		fragment.restore_to(String(entry.get("state", "whole")), entry.get("strokes", []))
