@@ -139,6 +139,13 @@ func _may_use_hidden_ink(_entity_id: String) -> bool:
 	return false
 
 
+## Whether checkpoints are written without a word: no status line, no hint, no sound, no
+## letterbox, no count on the ink plate. Mayon's ascent is one continuous climb (its design:
+## "save silently"). Off everywhere else.
+func _saves_silently() -> bool:
+	return false
+
+
 ## Whether this level has a companion at all. Lolo walks Levels 1-3; Dilim is past what he
 ## remembers, and the apo goes alone. False leaves him out but keeps the opening: it still plays,
 ## in whoever's voice its lines name, and the visit is still recorded.
@@ -830,6 +837,8 @@ func _checkpoint_is_declared(checkpoint_id: String) -> bool:
 
 func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
 	_write_checkpoint(checkpoint_id)
+	if _saves_silently():
+		return
 	_say_checkpoint()
 	var area := _checkpoint_area_for(checkpoint_id)
 	# Its moment is its lantern lighting; one left for the player to light has none yet.
@@ -3289,6 +3298,10 @@ func _on_checkpoint_count_changed(_checkpoint_id: String) -> void:
 ## the start and no progress banked, and "0 / 5" reads as a score they are losing.
 func _refresh_checkpoint_chip() -> void:
 	if checkpoint_label == null or not is_instance_valid(checkpoint_label):
+		return
+	if _saves_silently():
+		# Nothing on screen counts what a silent level saves.
+		checkpoint_label.visible = false
 		return
 	var declared := (director.level_data().get("checkpoints", []) as Array).size() \
 		if director != null else 0
