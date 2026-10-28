@@ -94,8 +94,8 @@ grassed = false
 tint = Color(0.8, 0.76, 0.74, 1)
 
 ; THE PATH NOBODY NEEDED TO WALK: a step up off the corridor and a ledge above it, where the
-; flower's fragment drifts. The path goes on underneath (130 px of headroom); the ledge is a
-; detour, and nothing on it is needed.
+; flower's fragment drifts above her head. The path goes on underneath (130 px of headroom);
+; the ledge is a detour, and nothing on it is needed.
 [node name="FlowerLedge" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 script = ExtResource("8_terrain")
 platforms = Array[Rect2]([Rect2(8100, -20, 100, 80), Rect2(8200, -100, 260, 30)])
@@ -188,11 +188,11 @@ fragment_id = "waterfall"
 accepts = PackedStringArray("tree", "fan", "bucket")
 
 [node name="Flower" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(8330.0, -160.0)
+position = Vector2(8330.0, -235.0)
 script = ExtResource("9_fragment")
 fragment_id = "flower"
 accepts = PackedStringArray("sun", "cloud", "bucket", "butterfly")
-reach = 140.0
+reach = 160.0
 
 ; Where each beat IS, for the objective marker. On the ground.
 [node name="Marks" type="Node2D" parent="GameplayPlane"]
