@@ -1,51 +1,45 @@
-<h1 align="center">O.B.R.A.</h1>
+<div align="center">
 
-<p align="center"><b>Draw · Become · Discover</b></p>
+<img src=".github/readme/banner.webp" width="100%" alt="O.B.R.A.: Draw, Become, Discover. A 2D adventure game where your drawings come to life" />
 
-<p align="center">
-  A 2D adventure game where your drawings become real.<br />
-  A Computer Science thesis project from the University of San Carlos.
-</p>
+<br />
 
-<p align="center">
-  <img alt="Last commit" src="https://img.shields.io/github/last-commit/hyuuuan/OBRA?style=flat-square" />
-  <img alt="Commit activity" src="https://img.shields.io/github/commit-activity/m/hyuuuan/OBRA?style=flat-square" />
-  <img alt="Contributors" src="https://img.shields.io/github/contributors/hyuuuan/OBRA?style=flat-square" />
-  <img alt="Godot 4.7" src="https://img.shields.io/badge/-Godot%204.7-478CBF?style=flat-square&logo=godotengine&logoColor=white" />
-</p>
+<img alt="Godot 4.7" src="https://img.shields.io/badge/Godot-4.7-478cbf?style=flat-square&labelColor=1a1020&logo=godotengine&logoColor=white" />
+<img alt="Python" src="https://img.shields.io/badge/Python-FastAPI-3776ab?style=flat-square&labelColor=1a1020&logo=python&logoColor=white" />
+<img alt="ONNX Runtime" src="https://img.shields.io/badge/ONNX-Runtime-f2c14e?style=flat-square&labelColor=1a1020&logo=onnx&logoColor=white" />
+<img alt="Last commit" src="https://img.shields.io/github/last-commit/hyuuuan/OBRA?style=flat-square&labelColor=1a1020&color=e2ae48" />
 
-<p align="center">
-  <img src="docs/screenshots/home.jpg" width="760" alt="The O.B.R.A. home screen: the apo looking out over the terraces and the bay" />
-</p>
+</div>
 
-## About
+<br />
 
-You are the apo, a young girl pulled into Lola's paintings. Lolo, painted there
-long ago and not quite a ghost, walks with you. In each world, Lola's brush lets
-you draw solutions into existence:
+You are the apo, a young girl pulled into Lola's paintings. Lolo, painted there long ago and not
+quite a ghost, walks with you. In each world, Lola's brush lets you draw solutions into existence:
 
-- Draw a creature and become it, with a physics body built from your own strokes.
-- Draw an object and place, carry, or use it as a tool.
-- Solve obstacles through multiple routes instead of a single prescribed answer.
-- Explore Filipino settings inspired by the Ifugao rice terraces, a town fiesta,
-  the sea of the bakunawa, and Mt. Makiling at night.
+- **Draw a creature and become it**, with a physics body built from your own strokes.
+- **Draw an object** and place it, carry it, or use it as a tool.
+- **Solve obstacles more than one way** instead of following a single prescribed answer.
+- **Explore Filipino settings**: the Ifugao rice terraces, a town fiesta, the sea of the
+  bakunawa, Mt. Makiling at night, and the slopes of Mayon.
+
+A Computer Science thesis project from the University of San Carlos, Cebu.
 
 ## Screenshots
 
-<table>
-  <tr>
-    <td><img src="docs/screenshots/payyo.jpg" alt="Payyo: inside Ang Bale, Lola's painting on the floor" /></td>
-    <td><img src="docs/screenshots/piyesta.jpg" alt="Piyesta: the plaza, the dancers and the church" /></td>
-    <td><img src="docs/screenshots/dagat.jpg" alt="Dagat: the beach and the bangka" /></td>
-    <td><img src="docs/screenshots/dilim.jpg" alt="Dilim: the last clearing at night, the apo's lantern, the manananggal and a wakwak overhead" /></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Payyo</sub></td>
-    <td align="center"><sub>Piyesta</sub></td>
-    <td align="center"><sub>Dagat</sub></td>
-    <td align="center"><sub>Dilim</sub></td>
-  </tr>
-</table>
+<img src=".github/readme/title-screen.webp" width="100%" alt="Lola's house: the apo looking out over the terraces and the bay" />
+
+<img src=".github/readme/brush.webp" width="100%" alt="Lola's brush: the drawing canvas with its ink meter and the draw-with-the-mouse hint" />
+
+<p align="center">
+  <img src=".github/readme/payyo.webp" width="50%" alt="Level 1, Payyo: inside Ang Bale, Lola's painting on the floor" /><!--
+  --><img src=".github/readme/piyesta.webp" width="50%" alt="Level 2, Piyesta: the plaza, the dancers and the church" />
+</p>
+<p align="center">
+  <img src=".github/readme/dagat.webp" width="50%" alt="Level 3, Dagat: the beach and the bangka" /><!--
+  --><img src=".github/readme/dilim.webp" width="50%" alt="Level 4, Dilim: the last clearing at night, the apo's lantern" />
+</p>
+
+<img src=".github/readme/mayon.webp" width="100%" alt="Level 5, Mayon: the volcano at sunset, in development" />
 
 ## How it works
 
@@ -75,7 +69,7 @@ the meaning of each ability.
 | 2 · Piyesta | A town plaza during its fiesta | Playable |
 | 3 · Dagat | The open sea and the bakunawa | Playable |
 | 4 · Dilim | Mt. Makiling by night, alone | Playable; current ending |
-| 5 | Coming soon | Not yet shipped |
+| 5 · Mayon | The last painting, coming apart on the volcano | In development |
 
 ## Quick start
 
@@ -216,18 +210,12 @@ locations.
 
 ## Built with
 
-<p>
-  <img alt="Godot 4.7" src="https://img.shields.io/badge/-Godot%204.7-478CBF?style=flat-square&logo=godotengine&logoColor=white" />
-  <img alt="GDScript" src="https://img.shields.io/badge/-GDScript-355570?style=flat-square&logo=godotengine&logoColor=white" />
-  <img alt="Python" src="https://img.shields.io/badge/-Python-3776AB?style=flat-square&logo=python&logoColor=white" />
-  <img alt="PyTorch" src="https://img.shields.io/badge/-PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white" />
-  <img alt="ONNX Runtime" src="https://img.shields.io/badge/-ONNX%20Runtime-005CED?style=flat-square&logo=onnx&logoColor=white" />
-  <img alt="FastAPI" src="https://img.shields.io/badge/-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" />
-  <img alt="NumPy" src="https://img.shields.io/badge/-NumPy-013243?style=flat-square&logo=numpy&logoColor=white" />
-  <img alt="Pillow" src="https://img.shields.io/badge/-Pillow-306998?style=flat-square&logo=python&logoColor=white" />
-  <img alt="Quick, Draw!" src="https://img.shields.io/badge/-Quick%2C%20Draw!-4285F4?style=flat-square&logo=google&logoColor=white" />
-  <img alt="ConceptNet" src="https://img.shields.io/badge/-ConceptNet-2C6E49?style=flat-square" />
-</p>
+| Layer | Tools |
+| --- | --- |
+| Game | Godot 4.7, GDScript |
+| Recogniser | PyTorch for training, ONNX Runtime for inference, NumPy, Pillow |
+| Server | FastAPI, run locally and owned by the game process |
+| Knowledge | ConceptNet, compiled offline into `game/config/abilities.json` |
 
 ## Team
 
