@@ -329,6 +329,118 @@
       "speaker": "lola",
       "kind": "lore",
       "text": "Do you like it, little one? I think it is nearly finished."
+    },
+    {
+      "id": "L5_frame_open",
+      "at": "FRAME.open",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Lola. Can I tell you about some places?"
+    },
+    {
+      "id": "L5_frame_open_lola",
+      "at": "FRAME.open",
+      "speaker": "lola",
+      "kind": "lore",
+      "text": "If you like, dear."
+    },
+    {
+      "id": "L5_frame_kubo",
+      "at": "FRAME.kubo",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "That is a bahay kubo. Someone lived there who loved you."
+    },
+    {
+      "id": "L5_frame_terraces",
+      "at": "FRAME.terraces",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There were terraces, green and gold, all the way up."
+    },
+    {
+      "id": "L5_frame_bandaritas",
+      "at": "FRAME.bandaritas",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There was a fiesta, with flags strung across the plaza."
+    },
+    {
+      "id": "L5_frame_dancers",
+      "at": "FRAME.dancers",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There were dancers, in a dress you sewed yourself."
+    },
+    {
+      "id": "L5_frame_church",
+      "at": "FRAME.church",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There was a church, and a wedding in it."
+    },
+    {
+      "id": "L5_frame_storm",
+      "at": "FRAME.storm",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There was a storm at sea. It passed."
+    },
+    {
+      "id": "L5_frame_bangka",
+      "at": "FRAME.bangka",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There was a bangka, and a man who rowed it."
+    },
+    {
+      "id": "L5_frame_coral",
+      "at": "FRAME.coral",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There was a reef, every colour there is."
+    },
+    {
+      "id": "L5_frame_bakunawa",
+      "at": "FRAME.bakunawa",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There was a sea with something in it that could not see."
+    },
+    {
+      "id": "L5_frame_forest",
+      "at": "FRAME.forest",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There was a forest at night, and it kept a child safe."
+    },
+    {
+      "id": "L5_frame_waterfall",
+      "at": "FRAME.waterfall",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "There were falls, under a balete."
+    },
+    {
+      "id": "L5_frame_flower",
+      "at": "FRAME.flower",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "And there was a flower nobody needed. You painted it anyway."
+    },
+    {
+      "id": "L5_frame_lolo",
+      "at": "FRAME.lolo",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "And there was a man, Lola. You lost him first. Let me tell you about him."
+    },
+    {
+      "id": "L5_frame_brush",
+      "at": "FRAME.brush",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "..."
     }
   ]
 }
