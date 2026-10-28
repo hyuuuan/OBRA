@@ -68,6 +68,9 @@ const GESTURE_MAX := 7.0
 const Figure = preload("res://scripts/lolo_figure.gd")
 
 @onready var _figure: Node2D = $Figure
+## Mayon's fading (set_thinness).
+const FADE_SHADER := preload("res://shaders/lolo_fade.gdshader")
+var _fade_material: ShaderMaterial
 
 ## Where his HINTS are shown. Screen space, owned by the level, handed to him at spawn.
 ## He no longer carries a bubble, and he no longer owns the story channel either: a beat
@@ -177,6 +180,23 @@ func is_speaking() -> bool:
 ##
 ## ⚠ IT RUNS THROUGH A PAUSE. The island stops the world to say goodbye, and a companion who
 ## freezes mid-wave because the box is up is a still frame, not a farewell.
+## HOW MUCH OF HIM IS LEFT TO SEE (Mayon). 0 is the lolo of Levels 1-3; 1 is nearly nothing --
+## lower opacity, an outline that will not hold still, colour that does not quite hold
+## (lolo_fade.gdshader). A fragment with him in it, saved, sets it back to 0 for a while.
+func set_thinness(amount: float) -> void:
+	if _fade_material == null:
+		_fade_material = ShaderMaterial.new()
+		_fade_material.shader = FADE_SHADER
+		_figure.material = _fade_material
+		for item in _figure.find_children("*", "CanvasItem", true, false):
+			(item as CanvasItem).use_parent_material = true
+	_fade_material.set_shader_parameter("thinness", clampf(amount, 0.0, 1.0))
+
+
+func thinness() -> float:
+	return float(_fade_material.get_shader_parameter("thinness")) if _fade_material != null else 0.0
+
+
 func farewell() -> void:
 	if _farewell_time >= 0.0:
 		return
