@@ -152,6 +152,18 @@ func _ink_always_visible() -> bool:
 	return false
 
 
+## Whether the level ends with its own scene rather than the completion card -- and, for the
+## level the run ends on, rather than the ending screen. True: the finish is recorded as ever and
+## then _play_own_ending() has everything after it, including where the player goes next.
+func _ends_with_its_own_scene() -> bool:
+	return false
+
+
+## The level's own ending, when _ends_with_its_own_scene() says it has one.
+func _play_own_ending() -> void:
+	pass
+
+
 ## Whether this level has a companion at all. Lolo walks Levels 1-3; Dilim is past what he
 ## remembers, and the apo goes alone. False leaves him out but keeps the opening: it still plays,
 ## in whoever's voice its lines name, and the visit is still recorded.
@@ -4617,6 +4629,9 @@ func _complete_level() -> void:
 		if not settled.is_empty():
 			PlayerProfile.record_route(level_id, settled)
 	mark_finished(level_id)
+	if _ends_with_its_own_scene():
+		_play_own_ending()
+		return
 	status_label.text = "Level complete!"
 	# STAGED BEFORE THE PANEL. The level used to end by putting a screen over an unchanged
 	# view -- the last thing the player did and the acknowledgement of it happened at the same
