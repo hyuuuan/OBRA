@@ -84,6 +84,7 @@ func _default_profile() -> Dictionary:
 		"came_from": "",                 # the level entered before that one -- Lolo remarks on it
 		"dialogue_heard": {},            # conversation id -> times it has been played
 		"route_counts": {"artist": 0, "pragmatist": 0, "protector": 0},
+		"route_history": [],             # every route taken, oldest first
 		"collectibles": [],
 		"used_items": [],                # found things given up: the brass key left in the lock
 		"counts": {"submissions": 0, "declines": 0},
@@ -354,7 +355,29 @@ func record_route(level_id: String, route: String) -> void:
 	(_data["routes"] as Dictionary)[level_id] = route
 	var counts: Dictionary = _data["route_counts"]
 	counts[route] = int(counts.get(route, 0)) + 1
+	(_data["route_history"] as Array).append(route)
 	_commit()
+
+
+## The route the whole run leaned toward: the most taken, and of routes taken equally often,
+## whichever of them was taken most recently. Mayon's summit voices the apo's monologue by it.
+## "" before any is taken.
+func dominant_route() -> String:
+	var counts := route_counts()
+	var best := 0
+	for route: String in ROUTES:
+		best = maxi(best, int(counts.get(route, 0)))
+	if best == 0:
+		return ""
+	var tied: Array[String] = []
+	for route: String in ROUTES:
+		if int(counts.get(route, 0)) == best:
+			tied.append(route)
+	var history: Array = _data.get("route_history", [])
+	for index in range(history.size() - 1, -1, -1):
+		if String(history[index]) in tied:
+			return String(history[index])
+	return tied[0]
 
 
 ## The route a level was last finished by, or "" if it has not been answered yet.
@@ -654,7 +677,7 @@ func _merge_defaults(incoming: Dictionary) -> Dictionary:
 		for route in ROUTES:  # a partial tally from an older save must still resolve
 			var counts: Dictionary = base["route_counts"]
 			counts[route] = int(counts.get(route, 0))
-	for key in ["acquired_objects", "collectibles", "used_items", "classes_drawn_accepted", "levels_completed", "levels_unlocked", "unlocked_tags", "canvas_damage"]:
+	for key in ["acquired_objects", "collectibles", "used_items", "classes_drawn_accepted", "levels_completed", "levels_unlocked", "unlocked_tags", "canvas_damage", "route_history"]:
 		if not (base[key] is Array):
 			base[key] = []
 	# A v2 profile has no settings block at all and simply keeps the defaults above.
