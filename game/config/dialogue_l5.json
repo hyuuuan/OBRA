@@ -93,6 +93,13 @@
       "text": "Careful, apo. Back to where we were."
     },
     {
+      "id": "L5_corridor_enter",
+      "at": "L5_CORRIDOR.enter",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Apo. Look. Those are ours. Those are -- I know that one. I know all of them."
+    },
+    {
       "id": "L5_not_this",
       "at": "FRAGMENT.not_this",
       "speaker": "lolo",
@@ -112,6 +119,48 @@
       "speaker": "lolo",
       "kind": "lore",
       "text": "That one? Nobody needed that one. ... She painted it anyway, didn't she."
+    },
+    {
+      "id": "L5_steady_terraces",
+      "at": "LOLO.steadied.terraces",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "The terraces. I carried your lola down those, once, in the rain. There -- I had lost that."
+    },
+    {
+      "id": "L5_steady_church",
+      "at": "LOLO.steadied.church",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "We were married in that one. Apo. Your name is -- yes. Apo. I have it again."
+    },
+    {
+      "id": "L5_steady_bangka",
+      "at": "LOLO.steadied.bangka",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "My bangka. I was going to tell you something about the sea. I remember now what it was."
+    },
+    {
+      "id": "L5_fading",
+      "at": "LOLO.fading",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Apo, I -- what was I. I was going to say. I am sorry. I had it a moment ago."
+    },
+    {
+      "id": "L5_goes_1",
+      "at": "LOLO.goes",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "No. Put it down, apo. The brush was never for that. Your lola knew."
+    },
+    {
+      "id": "L5_goes_2",
+      "at": "LOLO.goes",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "That is why she painted the places instead. The fiesta, the sea, the house. That is how she kept m"
     }
   ]
 }
