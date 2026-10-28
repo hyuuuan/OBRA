@@ -4629,6 +4629,10 @@ func _complete_level() -> void:
 		if not settled.is_empty():
 			PlayerProfile.record_route(level_id, settled)
 	mark_finished(level_id)
+	if bool(LevelManager.get_level(level_id).get("ends_run", false)):
+		# The run is over: which of Endings A-D it earned goes to the thesis telemetry, whether
+		# or not any screen ever shows it.
+		Telemetry.record_event("ending", EndingResolver.explain(PlayerProfile))
 	if _ends_with_its_own_scene():
 		_play_own_ending()
 		return
