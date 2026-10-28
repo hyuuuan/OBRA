@@ -99,6 +99,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 		return
 	_hold_the_drain(get_physics_process_delta_time())
 	_tend_act_one(get_physics_process_delta_time(), anchor_position.x)
+	_tend_summit(get_physics_process_delta_time(), anchor_position.x)
 	for fragment in _fragments:
 		fragment.notice(anchor_position.x)
 	_tend_lolo(get_physics_process_delta_time(), anchor_position.x)
@@ -225,6 +226,7 @@ func _on_drawing_ready(entity_id: String, display_name: String, drawing: Image,
 		_say_why(_line("FRAGMENT.no_ink"))
 		return
 	_saved_class = entity_id
+	_save_order.append(fragment.fragment_id)
 	fragment.save(strokes)
 
 
@@ -314,15 +316,26 @@ func _tend_lolo(delta: float, her_x: float) -> void:
 					_open_the_page(true)
 
 
-## The brush refuses him: the first time it refuses anything.
+## The brush refuses him (the first time it refuses anything), and her twice; and the page that
+## draws the places takes no guess either -- whatever she draws there becomes them.
 func _brush_refuses_here() -> bool:
-	return _lolo_moment == "waiting"
+	return _lolo_moment == "waiting" or _summit == "trying" or _summit == "places"
 
 
 func _brush_refused(_strokes: int) -> void:
 	if _lolo_moment == "waiting":
 		_lolo_moment = "going"
 		_let_him_go()
+	elif _summit == "trying":
+		_attempts += 1
+		_raise_left = RAISE_AFTER
+		if _attempts >= REFUSALS:
+			# The third time, she lowers the brush herself. No line over it.
+			_summit = "lowering"
+			_beat_left = LOWERING_BEAT
+	elif _summit == "places":
+		_summit = "blooming"
+		_bloom_the_places()
 
 
 ## He understands before she does, and says so -- and mid-sentence he is not there. No farewell,
@@ -368,6 +381,7 @@ func _restore_level_run_state(state: Dictionary) -> void:
 			drainable.restore()
 			_going[thing] = false
 	_forgot = int(state.get("forgot", _forgot))
+	_reset_summit()
 	if _lolo_moment == "waiting":
 		_lolo_moment = ""
 
@@ -437,3 +451,162 @@ func _tend_act_one(delta: float, her_x: float) -> void:
 		var hook := String(FORGETTING[_forgot][1])
 		_forgot += 1
 		_speak(script_lines.fire(hook))
+
+
+# --- Act Three: the summit ----------------------------------------------------------------
+
+## Where the summit begins (the world goes white and still), and where she speaks to lola.
+const SUMMIT_ARRIVE := 14400.0
+const SUMMIT_SPEAK := 14900.0
+## How long the white takes to come over everything.
+const WHITE_SECONDS := 4.0
+## How white: paper, not blank -- the ground she stands on stays.
+const WHITE := 0.85
+## The brush refuses her this many times; the next, she lowers it herself.
+const REFUSALS := 2
+## The beat after she lowers it, with nothing said over it.
+const LOWERING_BEAT := 3.0
+## The saved places bloom this far apart.
+const BLOOM_EVERY := 0.8
+const ALL_FLOWERS := 5
+## The backdrop the summit whitens.
+const WHITENED := ["EnvironmentBaseplate/SkyFill", "EnvironmentBaseplate/SkyBand",
+	"EnvironmentBaseplate/VolcanoBand", "EnvironmentBaseplate/MeadowBand"]
+
+## "" below, "quiet", "trying" (the brush raised to her), "lowering", "places", "blooming", "done".
+var _summit := ""
+var _attempts := 0
+var _beat_left := 0.0
+var _save_order: Array[String] = []
+var _bloomed: Array[Sprite2D] = []
+
+
+func _lola() -> Lola2D:
+	return get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Lola") as Lola2D
+
+
+func summit_state() -> String:
+	return _summit
+
+
+func _tend_summit(delta: float, her_x: float) -> void:
+	match _summit:
+		"":
+			# Not before lolo has gone: the brush is raised to him first, wherever she has got to.
+			var gone := lolo == null or not is_instance_valid(lolo) or lolo.is_gone()
+			if her_x >= SUMMIT_ARRIVE and gone:
+				_summit = "quiet"
+				_whiten(WHITE, WHITE_SECONDS)
+		"quiet":
+			if her_x >= SUMMIT_SPEAK:
+				_summit = "trying"
+				_attempts = 0
+				_raise_left = RAISE_AFTER
+				_speak(script_lines.fire("SUMMIT.speaks"))
+		"trying", "places":
+			if not draw_panel.is_open():
+				_raise_left -= delta
+				if _raise_left <= 0.0:
+					_raise_left = RAISE_AFTER
+					_open_the_page(true)
+		"lowering":
+			_beat_left -= delta
+			if _beat_left <= 0.0:
+				# She does what lolo told her: the page opens for the places.
+				_summit = "places"
+				_raise_left = 0.0
+
+
+## White in every direction except what she saved.
+func _whiten(amount: float, seconds: float) -> void:
+	for path: String in WHITENED:
+		var thing := get_node_or_null(NodePath(path)) as CanvasItem
+		if thing == null:
+			continue
+		var drainable := thing.get_node_or_null(^"Drainable") as Drainable
+		if drainable == null:
+			drainable = Drainable.new()
+			drainable.name = "Drainable"
+			thing.add_child(drainable)
+		if seconds <= 0.0:
+			drainable.restore()
+		drainable.drain_to(amount, seconds)
+
+
+## What she saved, in the order she saved it, and any a checkpoint brought back.
+func bloom_targets() -> Array[MemoryFragment2D]:
+	var out: Array[MemoryFragment2D] = []
+	for id in _save_order:
+		var fragment := _fragment(id)
+		if fragment != null and fragment.state() == "saved" and not out.has(fragment):
+			out.append(fragment)
+	for fragment in _fragments:
+		if fragment.state() == "saved" and not out.has(fragment):
+			out.append(fragment)
+	return out
+
+
+func bloomed() -> int:
+	return _bloomed.size()
+
+
+## Her monologue, voiced by the route the whole run leaned toward.
+func voice_hook() -> String:
+	var route := PlayerProfile.dominant_route()
+	return "SUMMIT.voice." + (route if not route.is_empty() else "artist")
+
+
+## Five flowers: for a moment she is known. Fewer: lola is warm to a child she does not know.
+func ending_hook() -> String:
+	return "ENDING.perfect" if PlayerProfile.flower_count() >= ALL_FLOWERS else "ENDING.standard"
+
+
+## Everything she saved blooms into the white around them, one by one; each with what she says
+## of it; then her monologue; then lola turns around.
+func _bloom_the_places() -> void:
+	var targets := bloom_targets()
+	var lola := _lola()
+	var centre := lola.global_position if lola != null else player.global_position
+	var plane := get_node(^"EnvironmentBaseplate/GameplayPlane")
+	for index in range(targets.size()):
+		var picture := Sprite2D.new()
+		picture.texture = (targets[index].get_node(^"Picture") as Sprite2D).texture
+		picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		picture.scale = Vector2(1.3, 1.3)
+		picture.modulate.a = 0.0
+		var share := (float(index) + 0.5) / float(targets.size())
+		picture.position = centre + Vector2(lerpf(-760.0, 760.0, share), -300.0 - 70.0 * sin(share * PI))
+		picture.z_index = -3
+		plane.add_child(picture)
+		_bloomed.append(picture)
+		picture.create_tween().tween_property(picture, "modulate:a", 1.0, 0.6)
+		await get_tree().create_timer(BLOOM_EVERY, false).timeout
+	var said: Array = []
+	for fragment in targets:
+		said.append_array(script_lines.fire("SUMMIT." + fragment.fragment_id))
+	await _speak_and_wait(said)
+	await _speak_and_wait(script_lines.fire(voice_hook()))
+	if lola != null:
+		lola.turn_around()
+	await get_tree().create_timer(1.2, false).timeout
+	await _speak_and_wait(script_lines.fire(ending_hook()))
+	_summit = "done"
+	Telemetry.record_event("summit", {"bloomed": targets.size(), "voice": voice_hook(),
+		"ending": ending_hook()})
+	_complete_level()
+
+
+## Below the summit again (a checkpoint): the world in colour, lola at her painting, nothing
+## bloomed yet.
+func _reset_summit() -> void:
+	if _summit == "done":
+		return
+	_summit = ""
+	_attempts = 0
+	for picture in _bloomed:
+		picture.queue_free()
+	_bloomed.clear()
+	_whiten(0.0, 0.0)
+	var lola := _lola()
+	if lola != null:
+		lola.face_the_painting()
