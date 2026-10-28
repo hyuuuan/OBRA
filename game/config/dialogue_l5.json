@@ -1,0 +1,96 @@
+{
+  "$comment": [
+    "LEVEL 5 -- MAYON. Lolo climbs with her, and he should not be here: he is lola's memory of",
+    "him, and the painting coming apart is him coming apart (LEVEL_5.md). Play it light at first.",
+    "",
+    "⚠ NO LINE MAY NAME A DRAWABLE CLASS. Here the traps are bridge, stairs, ladder, tree, sun,",
+    "cloud and door -- the very things the ash takes. The check is word-boundary and",
+    "case-insensitive, and run_level5_audit.gd runs it.",
+    "",
+    "This is the shell's lines: the opening, the ink told plainly, the two gates. The forgetting,",
+    "the fragments, Lolo's going and the summit come with their PRs."
+  ],
+  "level_id": "level_5",
+  "design_level_id": "L5_MAYON",
+  "speaker_default": "lolo",
+  "language": "en",
+  "conversations": {
+    "$comment": "Played by LevelBase._run_conversation the first time she arrives.",
+    "intro": [
+      {
+        "say": "INTRO.waiting"
+      },
+      {
+        "say": "INTRO.never_here"
+      },
+      {
+        "say": "INTRO.ink"
+      }
+    ]
+  },
+  "lines": [
+    {
+      "id": "L5_intro_waiting",
+      "at": "INTRO.waiting",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Apo. There you are. I was waiting for you, I think."
+    },
+    {
+      "id": "L5_intro_never_here",
+      "at": "INTRO.never_here",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Funny. I was never in this one. I do not know how I came to be standing in it."
+    },
+    {
+      "id": "L5_intro_ink",
+      "at": "INTRO.ink",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Listen. The brush has what it has, and nothing on this mountain gives any back. Spend it like you mean it."
+    },
+    {
+      "id": "L5_span_enter",
+      "at": "L5_SPAN.enter",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "There was a way across here. We came over it a minute ago. Now look at it."
+    },
+    {
+      "id": "L5_span_solved",
+      "at": "L5_SPAN.way_across.solved",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "There. Back where it was. Nearly."
+    },
+    {
+      "id": "L5_climb_enter",
+      "at": "L5_CLIMB.enter",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "The path is going thin. Like a word you had on your tongue a moment ago."
+    },
+    {
+      "id": "L5_climb_solved",
+      "at": "L5_CLIMB.way_up.solved",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Up we go. Your lola would have done the same."
+    },
+    {
+      "id": "L5_ink_empty",
+      "at": "INK.empty",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "That is the last of it. Keep climbing."
+    },
+    {
+      "id": "L5_fell",
+      "at": "FELL",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Careful, apo. Back to where we were."
+    }
+  ]
+}
