@@ -205,6 +205,9 @@ position = Vector2(2450.0, 440.0)
 [node name="ClimbMark" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(4200.0, 360.0)
 
+[node name="LoloGoesMark" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(12400.0, -20.0)
+
 [node name="SummitMark" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(15200.0, -100.0)
 

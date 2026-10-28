@@ -92,6 +92,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_hold_the_drain(get_physics_process_delta_time())
 	for fragment in _fragments:
 		fragment.notice(anchor_position.x)
+	_tend_lolo(get_physics_process_delta_time(), anchor_position.x)
 
 
 func _on_ink_emptied() -> bool:
@@ -112,7 +113,7 @@ func _current_objective() -> Dictionary:
 		var x := player.global_position.x
 		if x < 1400.0:
 			return {"key": "foot"}
-		if x >= CORRIDOR.x and x < CORRIDOR.y:
+		if x >= CORRIDOR.x and x < CORRIDOR.y and _lolo_moment == "":
 			return {"key": "corridor"}
 	return {"key": "slope"}
 
@@ -167,9 +168,25 @@ func _hold_the_drain(delta: float) -> void:
 
 ## Where the fragments drift, along the slope.
 const CORRIDOR := Vector2(5400.0, 13000.0)
+## How long a fragment with lolo in it steadies him.
+const STEADY_SECONDS := 60.0
+## How thin lolo is, by where she is: the foot and the treeline, the mid slope, the corridor.
+const THINNESS := [[4200.0, 0.25], [9200.0, 0.45], [INF, 0.7]]
+## How fast his thinness follows where it should be, per second.
+const THINNING := 0.25
+## Where lolo goes with all three of his fragments saved; each one let go brings it nearer.
+const LOLO_GOES_X := 12400.0
+const LOLO_GOES_SOONER := 250.0
+## How long she stands before raising the brush herself.
+const RAISE_AFTER := 8.0
 
 var _fragments: Array[MemoryFragment2D] = []
+var _steady_left := 0.0
+## "" before, "waiting" while the brush is raised to him, "going", then "gone".
+var _lolo_moment := ""
+var _raise_left := 0.0
 var _saved_class := ""
+var _corridor_seen := false
 
 
 func _gather_fragments() -> void:
@@ -225,18 +242,91 @@ func _fragment(fragment_id: String) -> MemoryFragment2D:
 
 func _on_fragment_saved(fragment_id: String) -> void:
 	Telemetry.record_event("fragment", {"id": fragment_id, "outcome": "saved", "class": _saved_class})
+	var fragment := _fragment(fragment_id)
 	if fragment_id == "flower":
 		# The useless one, saved anyway: the fifth flower, and the artist's choice.
 		PlayerProfile.record_collectible("L5_HF")
 		PlayerProfile.record_route(LevelManager.current_level_id, "artist")
 		_speak(script_lines.fire("FLOWER.saved"))
+	elif fragment != null and fragment.holds_lolo:
+		_steady_left = STEADY_SECONDS
+		_speak(script_lines.fire("LOLO.steadied." + fragment_id))
 
 
 func _on_fragment_lost(fragment_id: String) -> void:
 	Telemetry.record_event("fragment", {"id": fragment_id, "outcome": "lost"})
 
 
-## What a checkpoint keeps of Act Two: each fragment as it stood, and her lines in the saved ones.
+func _saved_lolo_fragments() -> int:
+	var count := 0
+	for fragment in _fragments:
+		if fragment.holds_lolo and fragment.state() == "saved":
+			count += 1
+	return count
+
+
+## Where he goes: sooner, the fewer of his fragments she saved. He goes either way.
+func lolo_goes_at() -> float:
+	return LOLO_GOES_X - LOLO_GOES_SOONER * (3 - _saved_lolo_fragments())
+
+
+## LOLO'S THREAD. He thins as the painting comes apart -- by where she is on the mountain -- and
+## a fragment with him in it brings him back into focus for a while. Near the top he stops, and
+## the brush is raised to him: by her, or after a moment by the apo herself.
+func _tend_lolo(delta: float, her_x: float) -> void:
+	if lolo == null or not is_instance_valid(lolo) or lolo.is_gone():
+		return
+	_steady_left = maxf(0.0, _steady_left - delta)
+	if _steady_left > 0.0:
+		lolo.set_thinness(0.0)
+	else:
+		var want := 0.0
+		for band: Array in THINNESS:
+			if her_x < float(band[0]):
+				want = float(band[1])
+				break
+		lolo.set_thinness(move_toward(lolo.thinness(), want, THINNING * delta))
+	if not _corridor_seen and her_x >= CORRIDOR.x:
+		# The painting stops being Mayon: the first sight of them.
+		_corridor_seen = true
+		_speak(script_lines.fire("L5_CORRIDOR.enter"))
+	match _lolo_moment:
+		"":
+			if her_x >= lolo_goes_at():
+				_lolo_moment = "waiting"
+				_raise_left = RAISE_AFTER
+				_speak(script_lines.fire("LOLO.fading"))
+		"waiting":
+			if not draw_panel.is_open():
+				_raise_left -= delta
+				if _raise_left <= 0.0:
+					# She raises the brush herself.
+					_raise_left = RAISE_AFTER
+					_open_the_page(true)
+
+
+## The brush refuses him: the first time it refuses anything.
+func _brush_refuses_here() -> bool:
+	return _lolo_moment == "waiting"
+
+
+func _brush_refused(_strokes: int) -> void:
+	if _lolo_moment == "waiting":
+		_lolo_moment = "going"
+		_let_him_go()
+
+
+## He understands before she does, and says so -- and mid-sentence he is not there. No farewell,
+## no fade: that is how it happens when someone is forgotten rather than when someone dies.
+func _let_him_go() -> void:
+	await _speak_and_wait(script_lines.fire("LOLO.goes"))
+	lolo.vanish()
+	_lolo_moment = "gone"
+	Telemetry.record_event("lolo_gone", {"steadied_by": _saved_lolo_fragments()})
+
+
+## What a checkpoint keeps of Act Two: each fragment as it stood, her lines in the saved ones,
+## and how long lolo is steady for.
 func _level_run_state() -> Dictionary:
 	var fragments := {}
 	for fragment in _fragments:
@@ -245,7 +335,7 @@ func _level_run_state() -> Dictionary:
 			"state": held if held == "saved" or held == "lost" else "whole",
 			"strokes": fragment.strokes().duplicate(true),
 		}
-	return {"fragments": fragments}
+	return {"fragments": fragments, "steady_left": _steady_left}
 
 
 func _restore_level_run_state(state: Dictionary) -> void:
@@ -253,3 +343,6 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	for fragment in _fragments:
 		var entry: Dictionary = fragments.get(fragment.fragment_id, {})
 		fragment.restore_to(String(entry.get("state", "whole")), entry.get("strokes", []))
+	_steady_left = float(state.get("steady_left", 0.0))
+	if _lolo_moment == "waiting":
+		_lolo_moment = ""
