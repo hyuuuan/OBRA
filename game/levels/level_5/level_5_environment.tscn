@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="6_checkpoint"]
 [ext_resource type="Script" path="res://scripts/mayon_backdrop_2d.gd" id="7_backdrop"]
 [ext_resource type="Script" path="res://scripts/mayon_terrain_2d.gd" id="8_terrain"]
+[ext_resource type="Script" path="res://scripts/memory_fragment_2d.gd" id="9_fragment"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Wall"]
 size = Vector2(40.0, 3000.0)
@@ -91,6 +92,14 @@ script = ExtResource("8_terrain")
 platforms = Array[Rect2]([Rect2(4200, 140, 1200, 1260), Rect2(5400, 60, 3800, 1340), Rect2(9200, -20, 3800, 1420), Rect2(13000, -100, 3000, 1500)])
 grassed = false
 
+; THE PATH NOBODY NEEDED TO WALK: a step up off the corridor and a ledge above it, where the
+; flower's fragment drifts. The path goes on underneath (130 px of headroom); the ledge is a
+; detour, and nothing on it is needed.
+[node name="FlowerLedge" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+script = ExtResource("8_terrain")
+platforms = Array[Rect2]([Rect2(8100, -20, 100, 80), Rect2(8200, -100, 260, 30)])
+grassed = false
+
 [node name="WestWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(-20.0, 0.0)
 
@@ -102,6 +111,87 @@ position = Vector2(15980.0, 0.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/EastWall"]
 shape = SubResource("Rect_Wall")
+
+; ACT TWO: TWELVE FRAGMENTS of every place she has been, drifting and going white. Saved by
+; drawing something that belongs in it; nothing says what any is worth (LEVEL_5.md). Three hold
+; lolo: the terraces, the church, the bangka.
+[node name="Fragments" type="Node2D" parent="GameplayPlane"]
+
+[node name="Kubo" type="Node2D" parent="GameplayPlane/Fragments"]
+position = Vector2(5900.0, -130.0)
+script = ExtResource("9_fragment")
+fragment_id = "kubo"
+accepts = PackedStringArray("ladder", "stairs", "door")
+
+[node name="Terraces" type="Node2D" parent="GameplayPlane/Fragments"]
+position = Vector2(6380.0, -130.0)
+script = ExtResource("9_fragment")
+fragment_id = "terraces"
+accepts = PackedStringArray("stairs", "ladder", "tree", "rake")
+holds_lolo = true
+
+[node name="Bandaritas" type="Node2D" parent="GameplayPlane/Fragments"]
+position = Vector2(6860.0, -130.0)
+script = ExtResource("9_fragment")
+fragment_id = "bandaritas"
+accepts = PackedStringArray("sun", "cloud", "butterfly")
+
+[node name="Dancers" type="Node2D" parent="GameplayPlane/Fragments"]
+position = Vector2(7340.0, -130.0)
+script = ExtResource("9_fragment")
+fragment_id = "dancers"
+accepts = PackedStringArray("fan", "butterfly", "umbrella")
+
+[node name="Church" type="Node2D" parent="GameplayPlane/Fragments"]
+position = Vector2(7820.0, -130.0)
+script = ExtResource("9_fragment")
+fragment_id = "church"
+accepts = PackedStringArray("door", "key", "clock")
+holds_lolo = true
+
+[node name="Storm" type="Node2D" parent="GameplayPlane/Fragments"]
+position = Vector2(8780.0, -130.0)
+script = ExtResource("9_fragment")
+fragment_id = "storm"
+accepts = PackedStringArray("cloud", "umbrella", "sailboat")
+
+[node name="Bangka" type="Node2D" parent="GameplayPlane/Fragments"]
+position = Vector2(9260.0, -210.0)
+script = ExtResource("9_fragment")
+fragment_id = "bangka"
+accepts = PackedStringArray("sailboat", "fish", "sun")
+holds_lolo = true
+
+[node name="Coral" type="Node2D" parent="GameplayPlane/Fragments"]
+position = Vector2(9740.0, -210.0)
+script = ExtResource("9_fragment")
+fragment_id = "coral"
+accepts = PackedStringArray("crab", "fish", "sea_turtle", "snail", "octopus")
+
+[node name="Bakunawa" type="Node2D" parent="GameplayPlane/Fragments"]
+position = Vector2(10220.0, -210.0)
+script = ExtResource("9_fragment")
+fragment_id = "bakunawa"
+accepts = PackedStringArray("fish", "shark", "octopus", "sea_turtle")
+
+[node name="Forest" type="Node2D" parent="GameplayPlane/Fragments"]
+position = Vector2(10700.0, -210.0)
+script = ExtResource("9_fragment")
+fragment_id = "forest"
+accepts = PackedStringArray("campfire", "flashlight", "sun")
+
+[node name="Waterfall" type="Node2D" parent="GameplayPlane/Fragments"]
+position = Vector2(11180.0, -210.0)
+script = ExtResource("9_fragment")
+fragment_id = "waterfall"
+accepts = PackedStringArray("tree", "fan", "bucket")
+
+[node name="Flower" type="Node2D" parent="GameplayPlane/Fragments"]
+position = Vector2(8330.0, -160.0)
+script = ExtResource("9_fragment")
+fragment_id = "flower"
+accepts = PackedStringArray("sun", "cloud", "bucket", "butterfly")
+reach = 140.0
 
 ; Where each beat IS, for the objective marker. On the ground.
 [node name="Marks" type="Node2D" parent="GameplayPlane"]
