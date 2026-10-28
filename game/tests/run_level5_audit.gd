@@ -142,6 +142,9 @@ func _audit_hooks(scene: Node) -> void:
 	for hook in off:
 		if bool(scene.call(hook)):
 			wrong.append(hook + " is on")
+	var camera := scene.call("_world_camera") as Camera2D
+	if camera == null or not bool(camera.get("vertical_free")):
+		wrong.append("the camera is pinned, not following her height")
 	var reserve := (scene.get("ink_manager") as InkManager).hidden_reserve
 	if not is_equal_approx(reserve, 2.0):
 		wrong.append("hidden reserve %.1f, not 2" % reserve)

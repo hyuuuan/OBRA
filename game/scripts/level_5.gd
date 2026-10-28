@@ -78,6 +78,13 @@ func _checkpoint_place(checkpoint_id: String) -> String:
 ## The ink economy's own numbers: the drain while a form is held, and the reserve nobody sees.
 func _build_level_furniture() -> void:
 	super()
+	# ⚠ THE HOOK ALONE DOES NOT FREE THE CAMERA. _camera_follows_height is read only when a room
+	# is framed, and Mayon has no rooms -- so, as Dagat does, it is freed here, or the camera
+	# stays pinned at her feet with the ground filling half the screen.
+	var world_camera := _world_camera()
+	if world_camera != null:
+		world_camera.set_vertical_free(true)
+		world_camera.snap_to_target()
 	var economy: Dictionary = director.level_data().get("ink_economy", {})
 	ink_manager.hidden_reserve = float(economy.get("hidden_reserve", 0.0))
 	_arm_the_drain()
