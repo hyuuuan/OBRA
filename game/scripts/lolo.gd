@@ -71,6 +71,8 @@ const Figure = preload("res://scripts/lolo_figure.gd")
 ## Mayon's fading (set_thinness).
 const FADE_SHADER := preload("res://shaders/lolo_fade.gdshader")
 var _fade_material: ShaderMaterial
+## Mayon's going (vanish).
+var _vanished := false
 
 ## Where his HINTS are shown. Screen space, owned by the level, handed to him at spawn.
 ## He no longer carries a bubble, and he no longer owns the story channel either: a beat
@@ -197,6 +199,16 @@ func thinness() -> float:
 	return float(_fade_material.get_shader_parameter("thinness")) if _fade_material != null else 0.0
 
 
+## Gone, in one frame. No farewell and no fade (Mayon's design): he is there and then he is not,
+## because that is how it happens when someone is forgotten rather than when someone dies. He
+## already had the dying.
+func vanish() -> void:
+	_vanished = true
+	hush()
+	visible = false
+	set_process(false)
+
+
 func farewell() -> void:
 	if _farewell_time >= 0.0:
 		return
@@ -215,8 +227,9 @@ func farewell_length() -> float:
 	return FAREWELL_WAVE + FAREWELL_GO
 
 
+## Gone: his farewell finished (Dagat), or vanished in a frame (Mayon).
 func is_gone() -> bool:
-	return _farewell_time >= FAREWELL_WAVE + FAREWELL_GO
+	return _vanished or _farewell_time >= FAREWELL_WAVE + FAREWELL_GO
 
 
 func _take_leave(delta: float) -> void:
