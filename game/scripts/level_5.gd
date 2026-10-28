@@ -61,8 +61,16 @@ func _ends_with_its_own_scene() -> bool:
 	return true
 
 
-## The summit and the frame's return are the ending (PR 08, 09). Until then, home.
+## The summit was the ending; the frame's return is its last shot (Kent, 2026-10-25): the real
+## room, the stories she saved told to lola, lolo last, an ordinary brush -- then black, then home.
 func _play_own_ending() -> void:
+	var frame := FrameReturn.new()
+	frame.name = "FrameReturn"
+	add_child(frame)
+	for hook in frame_hooks():
+		await _speak_and_wait(script_lines.fire(hook))
+	await frame.cut_to_black()
+	_went_home = true
 	LevelManager.return_to_house()
 
 
@@ -610,3 +618,23 @@ func _reset_summit() -> void:
 	var lola := _lola()
 	if lola != null:
 		lola.face_the_painting()
+
+
+# --- The frame returns --------------------------------------------------------------------
+
+var _went_home := false
+
+
+## What the apo tells lola in the real room: the places she saved, in the order she saved them,
+## and lolo last -- the man lola lost first, given back to her last.
+func frame_hooks() -> Array[String]:
+	var hooks: Array[String] = ["FRAME.open"]
+	for fragment in bloom_targets():
+		hooks.append("FRAME." + fragment.fragment_id)
+	hooks.append("FRAME.lolo")
+	hooks.append("FRAME.brush")
+	return hooks
+
+
+func went_home() -> bool:
+	return _went_home
