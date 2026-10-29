@@ -483,6 +483,26 @@ Its suites: `run_level4_audit`, `run_level4_enablers_probe`, `run_level4_seg1/se
 `run_darkness_probe`, `run_makiling_probe`. Windowed looks: `run_visual_dilim_light`,
 `run_visual_makiling`, `run_visual_dilim_creatures`.
 
+
+## Level 5 (Mayon)
+
+The last level and the run's ending; `LEVEL_5.md` has the design and the as-built record.
+`level_5.gd` switches on: every drawing costs ink, a creature drains it, the hidden reserve (the
+two gates only), silent saves, the ink gauge always shown, the camera following her height, the
+brush refusing (at lolo, at lola, and the page that draws the places), and its own ending (no
+completion card; the frame's return, then the house).
+
+Traps found building it:
+- **`_camera_follows_height` alone does not free the camera** -- it is read only when a room is
+  framed. A level with no rooms frees it in `_build_level_furniture`, as Dagat and Mayon do.
+- **DrawPanel processes only while the tree is paused.** A tween it owns hangs if anything
+  unpauses the tree; the refusal fade runs with `TWEEN_PAUSE_PROCESS`.
+- **A fragment's reach is a straight-line distance**, so the flower on its ledge cannot be saved
+  from the path beneath it.
+- **The summit waits for lolo to have gone**, or the brush raised to lola is taken by his moment.
+- **Painting_Covers names lie**: "Mt Makiling Completed Look" is Dagat's storm; Dilim's forest is
+  "Completed Look from Mayon".
+
 ## Gameplay Shape
 
 - Flow: a successful morph replaces the active player; a utility enters placement
