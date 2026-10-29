@@ -60,6 +60,12 @@ const BACKDROPS := {
 		{"art": "res://assets/Level4/backdrop/ground_far.png", "drift": -20.0, "tint": Color(0.34, 0.38, 0.55)},
 		{"art": "res://assets/Level4/backdrop/frame.png", "drift": -30.0, "tint": Color(0.34, 0.38, 0.55)},
 	],
+	# Mayon at sunset, as delivered: the sky, the one volcano, the meadow at its foot.
+	"level_5": [
+		{"art": "res://assets/Level5/backdrop/sky.png", "drift": -4.0},
+		{"art": "res://assets/Level5/backdrop/volcano.png", "drift": -8.0},
+		{"art": "res://assets/Level5/backdrop/meadow.png", "drift": -18.0},
+	],
 }
 const LAYER_BLEED := 36.0
 ## Over a level's art, so the logo and the buttons read on it. The vista needs none.
