@@ -511,6 +511,9 @@ func _tend_summit(delta: float, her_x: float) -> void:
 			if her_x >= SUMMIT_ARRIVE and gone:
 				_summit = "quiet"
 				_whiten(WHITE, WHITE_SECONDS)
+				# And still at once: no ash left drifting over the white.
+				if _ash != null:
+					_ash.density = 0.0
 		"quiet":
 			if her_x >= SUMMIT_SPEAK:
 				_summit = "trying"
