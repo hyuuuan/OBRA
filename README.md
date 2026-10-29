@@ -39,7 +39,7 @@ A Computer Science thesis project from the University of San Carlos, Cebu.
   --><img src=".github/readme/dilim.webp" width="50%" alt="Level 4, Dilim: the last clearing at night, the apo's lantern" />
 </p>
 
-<img src=".github/readme/mayon.webp" width="100%" alt="Level 5, Mayon: the volcano at sunset, in development" />
+<img src=".github/readme/mayon.webp" width="100%" alt="Level 5, Mayon: the volcano at sunset" />
 
 ## How it works
 
@@ -68,8 +68,8 @@ the meaning of each ability.
 | 1 · Payyo | Ifugao rice terraces of the Cordillera Central | Playable |
 | 2 · Piyesta | A town plaza during its fiesta | Playable |
 | 3 · Dagat | The open sea and the bakunawa | Playable |
-| 4 · Dilim | Mt. Makiling by night, alone | Playable; current ending |
-| 5 · Mayon | The last painting, coming apart on the volcano | In development |
+| 4 · Dilim | Mt. Makiling by night, alone | Playable |
+| 5 · Mayon | The last painting, coming apart on the volcano | Playable; the ending |
 
 ## Quick start
 

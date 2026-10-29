@@ -122,14 +122,20 @@ func _audit_nothing_refills(level: Dictionary) -> void:
 		"no refill" if refills.is_empty() else ", ".join(refills))
 
 
-## Mayon is not on the hub until it is built (PR 10 ships it).
+## Mayon is on the hub, and it is the level the run ends on (it ends with its own scene).
 func _audit_shipping_state() -> void:
 	var path := ""
+	var ends := false
+	var dilim_ends := false
 	for entry_value: Variant in JSON.parse_string(FileAccess.get_file_as_string(LEVELS_PATH)):
 		var entry: Dictionary = entry_value
 		if entry.get("id", "") == "level_5":
 			path = String(entry.get("scene_path", ""))
-	_check(path.is_empty(), "Mayon is not on the hub yet", "scene_path '%s'" % path)
+			ends = bool(entry.get("ends_run", false))
+		if entry.get("id", "") == "level_4":
+			dilim_ends = bool(entry.get("ends_run", false))
+	_check(path == "res://level_5.tscn" and ResourceLoader.exists(path) and ends and not dilim_ends,
+		"Mayon is on the hub, and the run ends with it", "scene_path '%s', ends_run %s, dilim's %s" % [path, ends, dilim_ends])
 
 
 func _audit_hooks(scene: Node) -> void:

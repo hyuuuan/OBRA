@@ -178,9 +178,9 @@ func _audit_piyesta_is_not_the_last_level() -> void:
 		_check(false, "Piyesta hands on to Dagat", "no LevelManager")
 		return
 	var mine := bool((manager.call("get_level", "level_2") as Dictionary).get("ends_run", false))
-	var dilim := bool((manager.call("get_level", "level_4") as Dictionary).get("ends_run", false))
+	var dilim := bool((manager.call("get_level", "level_5") as Dictionary).get("ends_run", false))
 	_check(not mine and dilim, "Piyesta hands on to Dagat rather than ending the run",
-		"piyesta=%s dilim=%s" % [mine, dilim])
+		"piyesta=%s mayon=%s" % [mine, dilim])
 	_check(ResourceLoader.exists("res://ui/ending_screen.tscn"),
 		"and there is an ending for it to reach", "ending_screen.tscn")
 

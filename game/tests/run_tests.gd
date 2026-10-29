@@ -342,16 +342,16 @@ func _test_level_completion_screen() -> void:
 	_expect(manager != null, "LevelManager autoload is unavailable")
 	if manager != null:
 		_expect(
-			bool((manager.call("get_level", "level_4") as Dictionary).get("ends_run", false)),
-			"level_4 does not end the run, so nothing reaches the ending screen"
+			bool((manager.call("get_level", "level_5") as Dictionary).get("ends_run", false)),
+			"level_5 does not end the run, so finishing the game goes nowhere"
 		)
 		var still_ending: Array[String] = []
-		for earlier in ["level_1", "level_2", "level_3"]:
+		for earlier in ["level_1", "level_2", "level_3", "level_4"]:
 			if bool((manager.call("get_level", earlier) as Dictionary).get("ends_run", false)):
 				still_ending.append(earlier)
 		_expect(
 			still_ending.is_empty(),
-			"%s still ends the run, so finishing it skips Dilim for the ending"
+			"%s still ends the run, so finishing it skips Mayon for the ending"
 				% ", ".join(still_ending)
 		)
 	_expect(ResourceLoader.exists("res://ui/ending_screen.tscn"), "the ending scene is missing")
@@ -931,7 +931,10 @@ func _test_level_framework() -> void:
 	_expect(bool(level_manager.call("is_playable", "level_2")), "level_2 is not playable")
 	_expect(bool(level_manager.call("is_playable", "level_3")), "level_3 is not playable")
 	_expect(bool(level_manager.call("is_playable", "level_4")), "level_4 is not playable")
-	for missing_id in ["level_5"]:
+	_expect(bool(level_manager.call("is_playable", "level_5")), "level_5 is not playable")
+	# Every level is built: what is left unbuilt is past the last card, where progression's
+	# string arithmetic still unlocks a level_6 that nothing shows.
+	for missing_id in ["level_6"]:
 		_expect(
 			not bool(level_manager.call("is_playable", missing_id)),
 			"%s reports playable with no scene behind it" % missing_id
@@ -960,7 +963,7 @@ func _test_level_framework() -> void:
 	menu.call("_apply_backdrop", "")
 	_expect(bool(title_card.get("shows_vista")) and menu.get_node_or_null("MenuLayer/MenuRoot/Backdrop") == null,
 		"with no level played, the home screen does not show the vista")
-	for backdrop_level in ["level_1", "level_2", "level_3", "level_4"]:
+	for backdrop_level in ["level_1", "level_2", "level_3", "level_4", "level_5"]:
 		menu.call("_apply_backdrop", backdrop_level)
 		var backdrop := menu.get_node_or_null("MenuLayer/MenuRoot/Backdrop")
 		var painted := 0
@@ -1069,10 +1072,12 @@ func _test_level_framework() -> void:
 	if level4 != null and level5 != null:
 		_expect(not level4.disabled,
 			"level 4's card is locked with a scene behind it and progression reaching it")
-		_expect(level5.disabled, "level 5's card is offered with no scene behind it")
+		# ⚠ NO DEAD CARD IS LEFT: Mayon is built. The card the old check held locked is offered.
+		_expect(not level5.disabled,
+			"level 5's card is locked with Mayon behind it and progression reaching it")
 		_expect(
-			not bool(level_manager.call("open_level", "level_5")),
-			"level 5 would start a transition to a scene that does not exist"
+			not bool(level_manager.call("open_level", "level_6")),
+			"a level past the last card would start a transition to nothing"
 		)
 	profile_data["levels_unlocked"] = had_unlocked_cards
 	profile_data["levels_completed"] = had_completed_cards

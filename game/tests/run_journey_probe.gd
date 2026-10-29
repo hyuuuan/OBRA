@@ -46,8 +46,9 @@ func _run() -> void:
 	await _house_to(manager, "level_3", "Dagat")
 	await _dagat_to_house(manager, profile)
 	await _house_to(manager, "level_4", "Dilim")
-	await _dilim_to_ending(manager)
-	await _ending_to_house(manager)
+	await _dilim_to_house(manager, profile)
+	await _house_to(manager, "level_5", "Mayon")
+	await _mayon_to_house(manager)
 
 	print("OBRA_JOURNEY_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
@@ -332,8 +333,9 @@ func _dagat_to_house(manager: Node, profile: Node) -> void:
 
 
 ## Dilim's exit is the morning. The night is not sat through here -- the finale probe does that --
-## so the dawn is taken directly, the way Dagat's landing is.
-func _dilim_to_ending(manager: Node) -> void:
+## so the dawn is taken directly, the way Dagat's landing is. ⚠ DILIM NO LONGER ENDS THE RUN:
+## Mayon shipped with `ends_run`, so the card's CONTINUE goes home, with Mayon open.
+func _dilim_to_house(manager: Node, profile: Node) -> void:
 	var level := current_scene
 	if level == null or not level.has_method("_on_dawn"):
 		_check(false, "Dilim has its dawn", _scene_name())
@@ -349,20 +351,28 @@ func _dilim_to_ending(manager: Node) -> void:
 		waited += 0.1
 	_check(overlay.is_open(), "the morning brings up the completion card", "open")
 	overlay.call("_on_continue")
-	await _wait_for_scene(manager, "ending_screen.tscn")
-	await _arrived(manager, "ending_screen.tscn", "CONTINUE after Dilim")
-
-
-## The ending's one button goes back to the house.
-func _ending_to_house(manager: Node) -> void:
-	var ending := current_scene
-	var button := ending.get("_continue_button") as Button if ending != null else null
-	_check(button != null, "the ending has a way out", _scene_name())
-	if button == null:
-		return
-	button.pressed.emit()
 	await _wait_for_scene(manager, "hub.tscn")
-	await _arrived(manager, "hub.tscn", "CONTINUE from the ending")
+	await _arrived(manager, "hub.tscn", "CONTINUE after Dilim")
+	_check(bool(profile.call("is_level_unlocked", "level_5")), "and Mayon is open", "level_5 unlocked")
+
+
+## MAYON ENDS THE RUN WITH ITS OWN SCENE. The climb and the summit are their own probes'; here the
+## finish is taken directly, and the frame's return plays -- the real room, the stories, black --
+## and then she is home, with no stats screen and no completion card.
+func _mayon_to_house(manager: Node) -> void:
+	var level := current_scene
+	if level == null or not level.has_method("_play_own_ending"):
+		_check(false, "Mayon ends with its own scene", _scene_name())
+		return
+	level.call("_complete_level")
+	var waited := 0.0
+	while waited < 60.0 and not _scene_name().contains("hub"):
+		for box in get_nodes_in_group(DialogueBox.GROUP):
+			if bool(box.call("is_open")):
+				box.call("skip_all")
+		await create_timer(0.1, true, false, true).timeout
+		waited += 0.1
+	await _arrived(manager, "hub.tscn", "the frame's return, after Mayon")
 	_check(String(manager.get("current_level_id")).is_empty(), "and the run is back in no level",
 		"'%s'" % String(manager.get("current_level_id")))
 

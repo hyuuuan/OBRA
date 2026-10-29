@@ -1,7 +1,8 @@
 # Level 5 — Mayon
 
-**Status: DESIGNED, being built.** This is the design record and the build order; it becomes the
-build record when the level ships. Read `LEVEL_TEMPLATE.md` first; this file holds only what is
+**Status: BUILT, on the hub, and the level the run ends on.** Shipped in PRs #120-#132 (2026-10-25
+to 10-29). The design as decided is below, then [where it lives](#where-it-lives) and
+[how the build differs from the design](#as-built-against-the-design). Read `LEVEL_TEMPLATE.md` first; this file holds only what is
 specific to Mayon.
 
 **Sources.** `Level 5 Mayon Design.docx` (the proposed design, with three items marked for a
@@ -135,3 +136,30 @@ or bird (.669).
 - **The two refusals** are the only deliberate non-recognition in the game, and they are worth a
   sentence as a design decision rather than a failure case. They also make the fifty-class
   vocabulary's lack of a person class load-bearing: adding one would break the ending.
+
+## Where it lives
+
+| | |
+|---|---|
+| The level | `game/level_5.tscn` · `game/scripts/level_5.gd` · `game/levels/level_5/level_5_environment.tscn` |
+| Data | `config/level_05.json` (gates, silent checkpoints, ink economy and reserve) · `config/dialogue_l5.json` |
+| The ash | `drain.gdshader` · `Drainable` · `AshFall2D` · `ScreenTremor` |
+| Act Two | `MemoryFragment2D` (twelve, placed in the environment) · `tools/build_mayon_fragments.py` |
+| Lolo | `Lolo.set_thinness` / `vanish` · `lolo_fade.gdshader` |
+| The summit, the frame | `Lola2D` · `FrameReturn` · `tools/build_mayon_lola.py` |
+| The refusal | `DrawPanel.set_refusing` / `quietly_refused` · LevelBase `_brush_refuses_here` / `_brush_refused` |
+| Art | `tools/build_mayon.py` (plates, tiles, props from `LEVEL5_Mayon/`) |
+| Tests | `run_level5_audit` · `run_level5_act_one_probe` · `run_level5_act_two_probe` · `run_level5_summit_probe` · `run_level5_frame_probe` · `run_level5_enablers_probe` · `run_brush_refusal_probe` · `run_drain_probe` · `run_mayon_probe` · `test_build_mayon(_fragments)` · `run_journey_probe` (Dilim → Mayon → the frame → home) |
+
+## As built, against the design
+
+- **Placeholders** for everything the delivery lacked -- Lola, the real room, the fragments, the
+  summit -- each named in `ART_PLACEHOLDERS.md`.
+- **The optional dim stretch** ("the light is going, draw one") is not built; it is off the
+  critical path.
+- **Nothing shows which fragment a drawing will go into**: the nearest one in reach takes it. A
+  soft highlight on it is the obvious follow-up.
+- **The apo has no failed-draw or lowering pose**; the page refuses, and the beat is silent.
+- **The stats ending screen stays in the repository** but nothing reaches it; Endings A-D are
+  logged to telemetry when the run ends.
+
