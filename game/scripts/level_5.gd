@@ -481,9 +481,11 @@ const LOWERING_BEAT := 3.0
 ## The saved places bloom this far apart.
 const BLOOM_EVERY := 0.8
 const ALL_FLOWERS := 5
-## The backdrop the summit whitens.
-const WHITENED := ["EnvironmentBaseplate/SkyFill", "EnvironmentBaseplate/SkyBand",
-	"EnvironmentBaseplate/VolcanoBand", "EnvironmentBaseplate/MeadowBand"]
+## What the summit whitens, and how far: the backdrop to paper; the ground she stands on only to a
+## pale ghost of itself, so the white plateau still shows where she can walk.
+const WHITENED := {"EnvironmentBaseplate/SkyFill": 0.85, "EnvironmentBaseplate/SkyBand": 0.85,
+	"EnvironmentBaseplate/VolcanoBand": 0.85, "EnvironmentBaseplate/MeadowBand": 0.85,
+	"EnvironmentBaseplate/EarthBand": 0.85, "EnvironmentBaseplate/GameplayPlane/Terrain/Cone": 0.55}
 
 ## "" below, "quiet", "trying" (the brush raised to her), "lowering", "places", "blooming", "done".
 var _summit := ""
@@ -532,6 +534,7 @@ func _tend_summit(delta: float, her_x: float) -> void:
 ## White in every direction except what she saved.
 func _whiten(amount: float, seconds: float) -> void:
 	for path: String in WHITENED:
+		var how_far := minf(amount, float(WHITENED[path])) if amount > 0.0 else 0.0
 		var thing := get_node_or_null(NodePath(path)) as CanvasItem
 		if thing == null:
 			continue
@@ -542,7 +545,7 @@ func _whiten(amount: float, seconds: float) -> void:
 			thing.add_child(drainable)
 		if seconds <= 0.0:
 			drainable.restore()
-		drainable.drain_to(amount, seconds)
+		drainable.drain_to(how_far, seconds)
 
 
 ## What she saved, in the order she saved it, and any a checkpoint brought back.
