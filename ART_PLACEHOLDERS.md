@@ -383,3 +383,19 @@ The darkness itself (`DarknessLayer`) is gameplay too: `LightField` decides what
    stair. It works, but Beat 0 is the first thing a player meets and its whole read is
    "three of these are gone".
 5. Hidden Flower 1, then the two characters (tracked in `CONTENT_NEEDED.md` §2).
+
+## Level 5 (Mayon)
+
+Everything below plays end to end and is replaceable by name. The delivered Mayon art (sky,
+volcano, meadow, ground, bell tower, tileset) is used as delivered; these are what it did not
+include.
+
+| | Now | Where | Replace with |
+|---|---|---|---|
+| **Lola** | The apo's turnaround recoloured: grey hair, baro, saya. Back and front only. | `game/assets/Level5/people/lola_back.png`, `lola_front.png` (`tools/build_mayon_lola.py`) | Lola painting with her back turned, turning, taking the flowers, looking at the painting; seated (frame). A portrait. |
+| **The real room** | Drawn in code: a wall, a window onto the sky plate, the easel, the two of them standing. | `game/scripts/frame_return.gd` | The room: lola's chair, a window, a canvas; the apo and lola seated. |
+| **The apo's failed drawing, lowering the brush** | Not posed: the page itself refuses (the lines fade) and the beat is silent. | `DrawPanel` quiet mode, `level_5.gd` summit | The design calls the failed attempt the most important animation in the game. |
+| **Memory fragments** | Torn boxes of the finished paintings; the flower's is a scrap of path tile with Payyo's hidden flower. | `game/assets/Level5/fragments/` (`tools/build_mayon_fragments.py`) | Hand-torn fragments; the flower's should look like nothing. |
+| **The summit** | The cone's ground, graded to ash; the backdrop drained to paper. | `level_5_environment.tscn`, `drain.gdshader` | A near-blank white summit that fragments can bloom into. |
+| **The old bridge, the old steps** | Path and masonry tiles, drawn flat. | `level_5_environment.tscn` `AshTakes` | Drawn props, each with a white and a blank state if the drain shader is not wanted. |
+
