@@ -8,7 +8,7 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_level5_act_two_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 10
+const CHECKS := 11
 
 var failures := 0
 var checked := 0
@@ -59,6 +59,10 @@ func _a_fragment_goes_white_once_seen() -> void:
 func _a_drawing_that_belongs_saves_it_for_one_unit() -> void:
 	var kubo := _fragment("kubo")
 	await _put(5900.0, 0.0)
+	var far := _fragment("terraces")
+	_check(kubo.is_targeted() and not far.is_targeted(),
+		"the fragment a drawing would go into is lit, and only it",
+		"kubo lit %s, terraces lit %s" % [kubo.is_targeted(), far.is_targeted()])
 	_set_ink(1.0, 2.0)
 	_draw("door")
 	await create_timer(1.6).timeout

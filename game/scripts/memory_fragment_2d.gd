@@ -29,6 +29,10 @@ const RECOVER_SECONDS := 1.2
 ## The drift and the bob, in px and per second.
 const BOB := 6.0
 const INK := Color(0.12, 0.1, 0.09, 0.95)
+## The rim on the fragment a drawing would go into: the interface's gold, soft-cornered, breathing.
+## It sits behind the picture and outside it, so the drain never whitens it.
+const RIM_MARGIN := 7.0
+const RIM_BREATH := 2.4
 
 @export var fragment_id: String = ""
 ## The classes that belong in it: drawing one, near it, saves it.
@@ -46,11 +50,24 @@ var _ink: Node2D
 var _strokes: Array = []
 var _time := 0.0
 var _phase := 0.0
+var _targeted := false
+var _rim: Node2D
+var _rim_style: StyleBoxFlat
 
 
 func _ready() -> void:
 	add_to_group(&"memory_fragments")
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_rim = Node2D.new()
+	_rim.name = "Rim"
+	_rim.visible = false
+	_rim.draw.connect(_draw_rim)
+	add_child(_rim)
+	_rim_style = StyleBoxFlat.new()
+	_rim_style.bg_color = Color(UISkin.GOLD_PALE, 0.22)
+	_rim_style.border_color = UISkin.GOLD
+	_rim_style.set_border_width_all(3)
+	_rim_style.set_corner_radius_all(8)
 	_sprite = Sprite2D.new()
 	_sprite.name = "Picture"
 	_sprite.texture = load(FOLDER + fragment_id + ".png") as Texture2D
@@ -73,6 +90,19 @@ func state() -> String:
 ## Whether it can still be saved.
 func is_open() -> bool:
 	return _state == "whole" or _state == "draining"
+
+
+## Lit as the one a drawing would go into now. Only while it can still be saved.
+func set_targeted(on: bool) -> void:
+	var lit := on and is_open()
+	if lit == _targeted:
+		return
+	_targeted = lit
+	_rim.visible = lit
+
+
+func is_targeted() -> bool:
+	return _targeted
 
 
 func belongs(entity_id: String) -> bool:
@@ -105,6 +135,7 @@ func save(strokes: Array) -> void:
 	if not is_open():
 		return
 	_state = "saved"
+	set_targeted(false)
 	_strokes = _plain(strokes)
 	_drainable.drain_to(0.0, RECOVER_SECONDS)
 	_ink.queue_redraw()
@@ -153,6 +184,17 @@ func _process(delta: float) -> void:
 	# Loose: it bobs and drifts a little, never quite still.
 	_sprite.position = Vector2(sin(_time * 0.37 + _phase) * BOB * 1.5,
 		sin(_time * 0.9 + _phase) * BOB).round()
+	if _targeted:
+		_rim.position = _sprite.position
+		_rim.modulate.a = 0.7 + 0.3 * sin(_time * TAU / RIM_BREATH)
+		_rim.queue_redraw()
+
+
+func _draw_rim() -> void:
+	if _sprite == null or _sprite.texture == null:
+		return
+	var size := _sprite.texture.get_size() + Vector2.ONE * RIM_MARGIN * 2.0
+	_rim.draw_style_box(_rim_style, Rect2(-size * 0.5, size))
 
 
 ## Her lines, fitted into the middle of the picture, in the ink she drew them in.
