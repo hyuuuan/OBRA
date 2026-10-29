@@ -79,6 +79,20 @@ depth = 7.0
 span = Vector2(-200.0, 16000.0)
 plate_top = -90.0
 
+; Under the meadow, the delivered ground strip at the meadow's own rates: the meadow plate ends a
+; little above the slopes, and without it the sky showed as a flat orange band between them. The
+; two move together, so the strip's grass (309 px into its plate) starts just behind the meadow's
+; last row (709): 296 + 309 = -90 + 709 - 4.
+[node name="EarthBand" type="Node2D" parent="."]
+z_index = -81
+script = ExtResource("7_backdrop")
+plate = "ground"
+scroll_scale = 0.22
+rise_scale = 0.3
+depth = 7.5
+span = Vector2(-200.0, 16000.0)
+plate_top = 296.0
+
 [node name="GameplayPlane" type="Node2D" parent="."]
 script = ExtResource("3_depth")
 
