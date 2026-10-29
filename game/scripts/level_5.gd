@@ -110,6 +110,10 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_tend_summit(get_physics_process_delta_time(), anchor_position.x)
 	for fragment in _fragments:
 		fragment.notice(anchor_position.x)
+	# The one a drawing would go into now is lit, and only it.
+	var target := _fragment_here()
+	for fragment in _fragments:
+		fragment.set_targeted(fragment == target)
 	_tend_lolo(get_physics_process_delta_time(), anchor_position.x)
 
 
