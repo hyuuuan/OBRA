@@ -123,13 +123,16 @@ func _run() -> void:
 			bool(manager.call("is_unlocked", "level_5")),
 			"completing level_4 did not unlock level_5"
 		)
+		# ⚠ MAYON IS BUILT: the card completing Dilim opens is a real one now, and the only
+		# level with nothing behind it is past the last card -- level_6, which nothing shows.
 		_expect(
-			not bool(manager.call("is_playable", "level_5")),
-			"level_5 reports playable with an empty scene_path, so its card would be offered"
+			bool(manager.call("is_playable", "level_5")),
+			"level_5 is built but does not report playable"
 		)
+		profile.call("mark_level_completed", "level_5")
 		_expect(
-			not bool(manager.call("open_level", "level_5")),
-			"an unlocked-but-unbuilt level started a transition"
+			not bool(manager.call("open_level", "level_6")),
+			"a level past the last card started a transition"
 		)
 	_expect(int((snapshot["counts"] as Dictionary)["submissions"]) == 2, "submission count did not persist")
 	_expect(int((snapshot["counts"] as Dictionary)["declines"]) == 1, "decline count did not persist")

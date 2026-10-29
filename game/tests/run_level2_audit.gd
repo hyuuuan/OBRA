@@ -489,7 +489,7 @@ func _audit_is_playable() -> void:
 		if String(entry.get("id", "")) == "level_2":
 			listed = String(entry.get("scene_path", ""))
 			ends_run = bool(entry.get("ends_run", false))
-		if String(entry.get("id", "")) == "level_4":
+		if String(entry.get("id", "")) == "level_5":
 			dilim_ends_run = bool(entry.get("ends_run", false))
 	_check(not listed.is_empty() and ResourceLoader.exists(listed),
 		"level 2 is offered from the hub",
@@ -497,11 +497,11 @@ func _audit_is_playable() -> void:
 		else "scene_path is empty -- the hub cannot open it")
 	# ⚠ THE LAST BUILT LEVEL CARRIES `ends_run`, AND ONLY IT, SO THIS ASSERTION TURNS OVER
 	# EVERY TIME A LEVEL SHIPS. Payyo held it while it was the only level there was, then
-	# Piyesta, then Dagat; Dilim holds it now. Leaving it behind sends a player who finishes
+	# Piyesta, then Dagat, then Dilim; Mayon holds it now (the name below is Dilim's, kept). Leaving it behind sends a player who finishes
 	# Piyesta to the ending screen with the later levels unplayed, and moving it without
 	# clearing the old one gives the run two endings.
 	_check(not ends_run and dilim_ends_run, "and it is no longer the one that ends the run",
-		"piyesta ends_run=%s, dilim ends_run=%s" % [ends_run, dilim_ends_run])
+		"piyesta ends_run=%s, mayon ends_run=%s" % [ends_run, dilim_ends_run])
 
 
 ## ⚠ THE OTHER DIRECTION, AND IT IS THE ONE THAT KEEPS BEING WRONG.

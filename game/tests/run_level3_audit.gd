@@ -670,12 +670,14 @@ func _audit_shipping_state() -> void:
 				piyesta_ends_run = bool(entry.get("ends_run", false))
 			"level_4":
 				dilim_path = String(entry.get("scene_path", ""))
+			"level_5":
+				# The last built level ends the run: Mayon now, after Dilim.
 				dilim_ends_run = bool(entry.get("ends_run", false))
 	var shipped := not scene_path.is_empty()
 	if shipped and not dilim_path.is_empty():
 		_check(ResourceLoader.exists(scene_path) and not ends_run and not piyesta_ends_run
 				and dilim_ends_run,
-			"shipped, and it hands on to Dilim rather than ending the run",
+			"shipped, and it hands on to Dilim rather than ending the run (Mayon ends it)",
 			"scene_path '%s', dagat ends_run=%s, piyesta ends_run=%s, dilim ends_run=%s"
 				% [scene_path, ends_run, piyesta_ends_run, dilim_ends_run])
 	elif shipped:

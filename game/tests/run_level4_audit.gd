@@ -398,6 +398,7 @@ func _audit_shipping_state() -> void:
 	var scene_path := ""
 	var ends_run := false
 	var dagat_ends_run := false
+	var mayon_ends_run := false
 	for entry_value: Variant in (JSON.parse_string(FileAccess.get_file_as_string(LEVELS_PATH)) as Array):
 		var entry: Dictionary = entry_value
 		match String(entry.get("id", "")):
@@ -406,12 +407,14 @@ func _audit_shipping_state() -> void:
 				ends_run = bool(entry.get("ends_run", false))
 			"level_3":
 				dagat_ends_run = bool(entry.get("ends_run", false))
+			"level_5":
+				mayon_ends_run = bool(entry.get("ends_run", false))
 	if scene_path.is_empty():
 		_check(not ends_run and dagat_ends_run, "not shipped yet, and consistently so",
 			"no scene_path; Dagat still ends the run")
 	else:
-		_check(ResourceLoader.exists(scene_path) and ends_run and not dagat_ends_run,
-			"shipped, and it ends the run", "scene_path '%s'" % scene_path)
+		_check(ResourceLoader.exists(scene_path) and not ends_run and not dagat_ends_run and mayon_ends_run,
+			"shipped, and it hands on to Mayon rather than ending the run", "scene_path '%s'" % scene_path)
 
 
 # --- The ground and the level --------------------------------------------------------

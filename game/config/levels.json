@@ -37,16 +37,16 @@
     "scene_path": "res://level_4.tscn",
     "thumbnail": "res://assets/hub/paintings/level_4.png",
     "unlocked": false,
-    "ends_run": true
+    "ends_run": false
   },
   {
     "id": "level_5",
     "number": 5,
-    "title": "Coming Soon",
-    "theme": "",
-    "scene_path": "",
-    "thumbnail": "",
+    "title": "Mayon",
+    "theme": "The last painting, coming apart while she climbs it",
+    "scene_path": "res://level_5.tscn",
+    "thumbnail": "res://assets/hub/paintings/level_5.png",
     "unlocked": false,
-    "ends_run": false
+    "ends_run": true
   }
 ]
