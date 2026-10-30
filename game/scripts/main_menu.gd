@@ -89,6 +89,7 @@ var new_game_button: Button
 ## Which question the shared confirm box is asking -- "quit" or "new_game" -- so one
 ## `confirmed` handler answers both and a cancelled one cannot fire the other later.
 var _pending_confirm := ""
+var _overlay_return_focus: Control
 ## The vista, the logo and the tagline, behind the buttons.
 var _card: Control
 ## The last level's art, behind the card, or null when the card shows the vista.
@@ -120,7 +121,7 @@ func _ready() -> void:
 	play_button.pressed.connect(_on_play_pressed)
 	_card = TITLE_CARD.new()
 	_card.name = "TitleCard"
-	_card.set("drifts", true)
+	_card.set("drifts", not Motion.reduced())
 	var menu_root := $MenuLayer/MenuRoot as Control
 	menu_root.add_child(_card)
 	menu_root.move_child(_card, 0)
@@ -131,7 +132,11 @@ func _ready() -> void:
 	for index in range(cards.size()):
 		var level_id := "level_%d" % (index + 1)
 		cards[index].pressed.connect(_open_level.bind(level_id))
-	_refresh_cards()
+	# The normal route is through the house. Load card art only if the legacy selector opens.
+	for overlay_name: String in ["SettingsOverlay", "ControlsOverlay", "ConfirmOverlay"]:
+		var overlay := get_node_or_null(NodePath(overlay_name)) as ModalOverlay
+		if overlay != null:
+			overlay.closed.connect(_restore_menu_focus)
 	selector.visible = false
 	play_button.visible = true
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
@@ -146,7 +151,18 @@ func _ready() -> void:
 func _open_overlay(overlay_name: StringName) -> void:
 	var overlay := get_node_or_null(NodePath(overlay_name)) as ModalOverlay
 	if overlay != null:
+		_overlay_return_focus = settings_button if overlay_name == &"SettingsOverlay" else controls_button
 		overlay.open()
+
+
+## A hidden overlay releases its focused BACK button. Return to the control that opened it
+## so keyboard navigation continues where the player left it, rather than losing focus.
+func _restore_menu_focus() -> void:
+	if is_instance_valid(_overlay_return_focus) and _overlay_return_focus.is_visible_in_tree():
+		_overlay_return_focus.grab_focus()
+	else:
+		play_button.grab_focus()
+	_overlay_return_focus = null
 
 
 func _ask_quit() -> void:
@@ -154,6 +170,7 @@ func _ask_quit() -> void:
 	if confirm == null:
 		return
 	_pending_confirm = "quit"
+	_overlay_return_focus = quit_button
 	_connect_confirm(confirm)
 	confirm.call(&"ask", "QUIT TO DESKTOP?", "Your progress is saved.", "QUIT")
 
@@ -364,8 +381,15 @@ func _on_viewport_size_changed() -> void:
 
 
 func _process(delta: float) -> void:
+	var drifting := not Motion.reduced()
+	if bool(_card.get("drifts")) != drifting:
+		_card.set("drifts", drifting)
 	var viewport_size := get_viewport_rect().size
 	if not _layer_bases_ready or viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+	if not drifting:
+		for layer in _layers:
+			(layer["node"] as Control).position = layer["base"]
 		return
 	var toward := (get_viewport().get_mouse_position() - viewport_size * 0.5) / viewport_size
 	toward = toward.clamp(-Vector2.ONE * 0.5, Vector2.ONE * 0.5)
@@ -427,7 +451,8 @@ func _apply_backdrop(level_id: String) -> void:
 		layer.offset_left = -bleed
 		layer.offset_right = bleed
 		_backdrop.add_child(layer)
-		_layers.append({"node": layer, "base": Vector2.ZERO, "drift": float(entry["drift"])})
+		_layers.append({"node": layer, "base": Vector2.ZERO,
+			"rest_offset": Vector2(layer.offset_left, layer.offset_top), "drift": float(entry["drift"])})
 	var shade := ColorRect.new()
 	shade.name = "Shade"
 	shade.color = BACKDROP_SHADE
@@ -440,7 +465,12 @@ func _apply_backdrop(level_id: String) -> void:
 ## Where each layer rests, once it has been laid out: the drift is measured from there.
 func _capture_layer_bases() -> void:
 	for layer in _layers:
-		layer["base"] = (layer["node"] as Control).position
+		var node := layer["node"] as Control
+		# A resize preserves the current drift in the Control's offsets. Measuring that as
+		# the new rest position accumulated mouse movement every time the window changed size.
+		var parent_size := (node.get_parent() as Control).size
+		layer["base"] = parent_size * Vector2(node.anchor_left, node.anchor_top) + Vector2(layer["rest_offset"])
+		node.position = layer["base"]
 	_layer_bases_ready = true
 
 
@@ -452,6 +482,13 @@ func _refresh_start_buttons() -> void:
 	# Just the word. The backdrop already shows where Continue goes.
 	play_button.text = "CONTINUE" if saved else "NEW GAME"
 	new_game_button.visible = saved
+	# Both arrows can leave the main action. The scene's self-neighbours trapped focus on it.
+	var first := new_game_button if saved else settings_button
+	play_button.focus_neighbor_top = play_button.get_path_to(first)
+	play_button.focus_neighbor_bottom = play_button.get_path_to(first)
+	for button: Button in [new_game_button, settings_button, controls_button, quit_button]:
+		button.focus_neighbor_top = button.get_path_to(play_button)
+		button.focus_neighbor_bottom = button.get_path_to(play_button)
 
 
 func _build_new_game_button() -> void:
@@ -478,6 +515,7 @@ func _ask_new_game() -> void:
 	if confirm == null:
 		return
 	_pending_confirm = "new_game"
+	_overlay_return_focus = new_game_button
 	_connect_confirm(confirm)
 	confirm.call(&"ask", "START A NEW GAME?",
 		"Everything you have found and drawn will be forgotten. Your settings are kept.",

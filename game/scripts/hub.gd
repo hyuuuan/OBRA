@@ -6,9 +6,7 @@ extends Node2D
 ## you stand in front of. The cards said the same five things; standing in the house says
 ## why they are the same five things, which is that Lola painted all of them.
 ##
-## Only Payyo can be walked into. The other four hang exactly as they are, lit and named,
-## with a plate that says they are not painted yet -- see Painting2D for why that is better
-## than hiding them or greying them out.
+## Painting availability follows the level catalog and progression flag, including DevMode.
 ##
 ## The room builds itself here rather than being authored as a scene tree, because every
 ## number in it is derived from one thing: how far apart five paintings want to be. The
@@ -66,14 +64,16 @@ var _prompt: Label
 var _status: Label
 var _near: Node2D
 var _stand: Node2D
+var _paintings: Array[Node2D] = []
 var _carried: Control
 ## What the prompt is currently saying. NONE until the first target comes into reach.
-enum Wear { NONE, TAKE, VIEW, REFUSE }
+enum Wear { NONE, TAKE, VIEW, REFUSE, LOCKED, UNFINISHED }
 ## The card that says a thing is yours now. See AcquiredOverlay.
 var _acquired: AcquiredOverlay
 var _wearing: Wear = Wear.NONE
 ## Where the camera looks instead of at the apo, while the house is showing her something.
 var _look_at := NAN
+var _revealing := false
 
 
 func _ready() -> void:
@@ -161,11 +161,12 @@ func _ready() -> void:
 ## line under the title says where to go. The apo waits while it plays.
 func _open_in_front_of_her(level_id: String) -> void:
 	var painting: Node2D = null
-	for node in get_tree().get_nodes_in_group(&"paintings"):
+	for node in _paintings:
 		if String(node.get("level_id")) == level_id:
 			painting = node as Node2D
 	if painting == null:
 		return
+	_revealing = true
 	painting.call("show_locked")
 	_player.set_physics_process(false)
 	# Home first -- she is seen to arrive -- and then the eye goes over to the picture.
@@ -175,6 +176,7 @@ func _open_in_front_of_her(level_id: String) -> void:
 	await painting.call("reveal")
 	await get_tree().create_timer(0.7).timeout
 	_look_at = NAN
+	_revealing = false
 	_player.set_physics_process(true)
 	var manager := get_node_or_null(^"/root/LevelManager")
 	var title := String(manager.call("get_level", level_id).get("title", "")) if manager != null else ""
@@ -184,7 +186,7 @@ func _open_in_front_of_her(level_id: String) -> void:
 
 ## Whether the house is in the middle of opening a painting.
 func is_revealing() -> bool:
-	return is_finite(_look_at)
+	return _revealing
 
 
 ## One painting, hung and wired.
@@ -198,6 +200,7 @@ func _hang(index: int, entry: Dictionary) -> void:
 		painting.set("art", load(art_path))
 	painting.position = _room.call("painting_anchor", index)
 	add_child(painting)
+	_paintings.append(painting)
 	painting.connect(&"chosen", _on_painting_chosen)
 
 
@@ -303,8 +306,10 @@ func _build_carried(layer: CanvasLayer) -> void:
 	# have been measured, and a right-hand edge computed against a zero width parks the whole
 	# row off the screen.
 	_carried.reset_size()
+	_carried.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	# Keep its right margin on resize and leave the DEV MODE indicator a clear row above it.
 	_carried.position = Vector2(
-		get_viewport_rect().size.x - _carried.size.x - 24.0, 20.0)
+		get_viewport_rect().size.x - _carried.size.x - 24.0, 56.0)
 	_carried.visible = _has_brush()
 
 
@@ -312,12 +317,21 @@ func _process(_delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
 	_camera.global_position = _eye_on(_look_at if is_finite(_look_at) else _player.global_position.x)
-	_near = _nearest_target()
+	_near = null if is_revealing() else _nearest_target()
 	_prompt.visible = _near != null
 	if _near == null:
 		return
 	var on_stand := _near == _stand
-	_wear(Wear.TAKE if on_stand else (Wear.VIEW if _has_brush() else Wear.REFUSE))
+	if on_stand:
+		_wear(Wear.TAKE)
+	elif not _has_brush():
+		_wear(Wear.REFUSE)
+	elif not bool(_near.call("is_playable")):
+		_wear(Wear.UNFINISHED)
+	elif bool(_near.call("is_locked")):
+		_wear(Wear.LOCKED)
+	else:
+		_wear(Wear.VIEW)
 	# Placed in screen space so it reads with the thing it belongs to: under the plate on a
 	# picture, and ABOVE the case, clear of the dome -- the plate is on the floor at its
 	# foot and the brush is inside the glass between the two.
@@ -346,21 +360,20 @@ func _eye_on(x: float) -> Vector2:
 ## stand is scenery and a prompt on it would offer to hand over something that is gone.
 func _nearest_target() -> Node2D:
 	var origin := _player.global_position
-	var candidates: Array[Node2D] = []
-	for node in get_tree().get_nodes_in_group(&"paintings"):
-		candidates.append(node as Node2D)
-	if _stand != null and is_instance_valid(_stand) and bool(_stand.call("holds_brush")):
-		candidates.append(_stand)
-
 	var best: Node2D = null
 	var best_distance := INF
-	for target in candidates:
+	# The wall is static: avoid a group lookup and two temporary arrays on every frame.
+	for target in _paintings:
 		if target == null or not bool(target.call("within_reach", origin)):
 			continue
 		var distance: float = target.call("distance_to_point", origin)
 		if distance < best_distance:
 			best_distance = distance
 			best = target
+	if _stand != null and bool(_stand.call("holds_brush")) \
+			and bool(_stand.call("within_reach", origin)) \
+			and float(_stand.call("distance_to_point", origin)) < best_distance:
+		best = _stand
 	return best
 
 
@@ -394,7 +407,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		_to_main_menu()
 		return
-	if not event.is_action_pressed(&"interact") or _near == null:
+	if not event.is_action_pressed(&"interact") or event.is_echo() or is_revealing() or _near == null:
 		return
 	get_viewport().set_input_as_handled()
 	if _near == _stand:
@@ -450,6 +463,12 @@ func _wear(state: Wear) -> void:
 			_prompt.add_theme_color_override(&"font_color", UISkin.GOLD)
 		Wear.REFUSE:
 			_prompt.text = "NEEDS LOLA'S BRUSH"
+			_prompt.add_theme_color_override(&"font_color", UISkin.MUTED)
+		Wear.LOCKED:
+			_prompt.text = "LOCKED"
+			_prompt.add_theme_color_override(&"font_color", UISkin.MUTED)
+		Wear.UNFINISHED:
+			_prompt.text = "NOT YET PAINTED"
 			_prompt.add_theme_color_override(&"font_color", UISkin.MUTED)
 
 

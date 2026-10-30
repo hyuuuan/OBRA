@@ -30,6 +30,7 @@ var pending_reveal := ""
 var transition_step_seconds := 0.012
 
 var _levels: Array[Dictionary] = []
+var _transition_pending := false
 var _transitioning := false
 var _selector_requested := false
 var _transition_layer: CanvasLayer
@@ -69,28 +70,27 @@ func is_unlocked(level_id: String) -> bool:
 
 
 func is_transitioning() -> bool:
-	return _transitioning
+	return _transition_pending or _transitioning
 
 
 func open_level(level_id: String) -> bool:
-	if _transitioning or not is_unlocked(level_id) or not has_brush():
+	if is_transitioning() or not is_unlocked(level_id) or not has_brush():
 		return false
 	var entry := get_level(level_id)
 	var scene_path := String(entry.get("scene_path", ""))
 	if scene_path.is_empty() or not ResourceLoader.exists(scene_path):
 		return false
-	current_level_id = level_id
-	_transition_to.call_deferred(scene_path, level_id)
+	_queue_transition(scene_path, level_id)
 	return true
 
 
 ## Show the run's ending. Reached from the level marked "ends_run" in the catalog, so
 ## that when levels 2-5 exist only the last one carries the flag and no code changes.
 func show_ending() -> bool:
-	if _transitioning or not ResourceLoader.exists(ENDING_SCENE):
+	if is_transitioning() or not ResourceLoader.exists(ENDING_SCENE):
 		return false
 	get_tree().paused = false
-	_transition_to.call_deferred(ENDING_SCENE, "")
+	_queue_transition(ENDING_SCENE, "")
 	return true
 
 
@@ -151,7 +151,7 @@ func is_playable(level_id: String) -> bool:
 ## locked, and a level you are standing in is by definition reachable -- refusing to
 ## restart it because of a progression rule would strand the player in it.
 func restart_level() -> bool:
-	if _transitioning or current_level_id.is_empty():
+	if is_transitioning() or current_level_id.is_empty():
 		return false
 	var scene_path := String(get_level(current_level_id).get("scene_path", ""))
 	if scene_path.is_empty() or not ResourceLoader.exists(scene_path):
@@ -164,54 +164,48 @@ func restart_level() -> bool:
 	var saved := preload("res://scripts/user_data.gd").path("checkpoints/%s.save" % current_level_id)
 	if FileAccess.file_exists(saved):
 		DirAccess.remove_absolute(saved)
-	_transition_to.call_deferred(scene_path, current_level_id)
+	_queue_transition(scene_path, current_level_id)
 	return true
 
 
 ## Into the house, from the menu.
 func open_house() -> bool:
-	if _transitioning or not ResourceLoader.exists(HOUSE_SCENE):
+	if is_transitioning() or not ResourceLoader.exists(HOUSE_SCENE):
 		return false
-	_transition_to.call_deferred(HOUSE_SCENE, "")
+	_queue_transition(HOUSE_SCENE, "")
 	return true
 
 
 ## Out of a level and back to the wall of paintings. Named for where it goes rather than
 ## for the selector it used to open: levels are chosen in a room now, not off a grid.
 func return_to_house() -> bool:
-	if _transitioning or not ResourceLoader.exists(HOUSE_SCENE):
+	if is_transitioning() or not ResourceLoader.exists(HOUSE_SCENE):
 		return false
 	# THE TREE IS PAUSED WHEN THIS IS PRESSED. It is on the pause menu and on the out-of-ink
 	# screen, both of which stop the world to show themselves, and a scene change that leaves
 	# the flag set hands the house to the player frozen.
 	get_tree().paused = false
-	current_level_id = ""
-	# NOT _transitioning = true HERE. _transition_to opens with `if _transitioning: return`,
-	# so setting it first meant the deferred call arrived, saw its own guard already tripped,
-	# and returned -- the button reported success and nothing on screen moved. Every other
-	# route out of a level leaves the flag to _transition_to; this one was copied from
-	# return_to_selector and gained a line that one does not have.
-	_transition_to.call_deferred(HOUSE_SCENE, "")
+	_queue_transition(HOUSE_SCENE, "")
 	return true
 
 
 func return_to_selector() -> bool:
-	if _transitioning or not ResourceLoader.exists(SELECTOR_SCENE):
+	if is_transitioning() or not ResourceLoader.exists(SELECTOR_SCENE):
 		return false
 	get_tree().paused = false
 	_selector_requested = true
-	_transition_to.call_deferred(SELECTOR_SCENE, "")
+	_queue_transition(SELECTOR_SCENE, "")
 	return true
 
 
 ## Back to the title screen itself -- NEW GAME / CONTINUE -- rather than the card grid that
 ## return_to_selector opens. What the house's MAIN MENU button and Escape do.
 func open_main_menu() -> bool:
-	if _transitioning or not ResourceLoader.exists(SELECTOR_SCENE):
+	if is_transitioning() or not ResourceLoader.exists(SELECTOR_SCENE):
 		return false
 	get_tree().paused = false
 	_selector_requested = false
-	_transition_to.call_deferred(SELECTOR_SCENE, "")
+	_queue_transition(SELECTOR_SCENE, "")
 	return true
 
 
@@ -274,7 +268,7 @@ func _warm_the_stroke() -> void:
 	_transition_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	await get_tree().process_frame
 	await get_tree().process_frame
-	if not _transitioning:
+	if not is_transitioning():
 		_transition_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_transition_root.visible = false
 
@@ -284,17 +278,30 @@ func wipe_progress() -> float:
 	return float(_wipe_material.get_shader_parameter(&"progress"))
 
 
+## Reserve the request before deferring the scene change. Two presses in one frame used to
+## both return true, with the second level id overwriting the first request's destination.
+func _queue_transition(scene_path: String, level_id: String) -> void:
+	_transition_pending = true
+	_transition_to.call_deferred(scene_path, level_id)
+
+
 func _transition_to(scene_path: String, level_id: String) -> void:
 	if _transitioning:
 		return
+	_transition_pending = false
 	_transitioning = true
 	transition_started.emit(scene_path)
 	_transition_root.visible = true
 	_transition_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	await _animate_wipe(true)
 
+	# The incoming scene reads its id during _ready. Keep the outgoing id until this point,
+	# and restore it on failure so Restart and level-specific controls still name that scene.
+	var previous_level_id := current_level_id
+	current_level_id = level_id
 	var error := get_tree().change_scene_to_file(scene_path)
 	if error != OK:
+		current_level_id = previous_level_id
 		push_error("Could not change scene to %s (error %d)" % [scene_path, error])
 		await _animate_wipe(false)
 		_finish_transition(scene_path)
