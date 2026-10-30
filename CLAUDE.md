@@ -32,6 +32,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 ### Git
 - **Work on a branch per PR, off `main`.** Never commit to `main` directly.
 - **Commit messages explain *why*, not just what.** The first line is short and plain; the body gives the reason.
+- **This repo's own style, not Conventional Commits.** Subjects are plain-English sentences with no `feat:` or `fix:` prefix (e.g. "A pickup shows its name as she nears it"), and branch names are short kebab-case with no `feat/` or `fix/` prefix (e.g. `dilim-fix-2`, `mayon-polish`). This holds even where a personal or global instruction asks for Conventional Commits.
 - **Open the PR and merge it once its suites pass.** Afterwards, `git pull --ff-only` on main, run the import, and delete the branch (local and remote).
 
 ### Testing
