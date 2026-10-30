@@ -45,6 +45,10 @@ const _FALL_PROBE := 1800.0
 ## against a wall, which is worse than the fall it replaced. Fifty-six is about half a body
 ## and clears both rooms' bamboo with the biggest thing that can be drawn.
 const _INSIDE_MARGIN := 56.0
+## In a dark level the ghost is cut out of the dark (DarknessLayer.REVEAL_GROUP), this far past
+## its own edge, so she can see it and the ground it will stand on. Not light: nothing counts it.
+const DARK_REVEAL_MARGIN := 90.0
+const DARK_REVEAL_STRENGTH := 0.8
 
 var registry: EntityRegistry
 var world_item_root: Node2D
@@ -92,10 +96,20 @@ func _ready() -> void:
 	# Above the gameplay plane and its front layer (z_index 20) so the reach ring is
 	# not buried behind terraces. The HUD is on its own CanvasLayer and stays on top.
 	z_index = 100
+	add_to_group(DarknessLayer.REVEAL_GROUP)
 
 
 func is_placing() -> bool:
 	return _preview != null and is_instance_valid(_preview)
+
+
+## The patch of dark the ghost is seen through, while there is one (DarknessLayer).
+func dark_reveal() -> Dictionary:
+	if not is_placing():
+		return {}
+	var box := _preview_rect()
+	return {"position": box.get_center(), "radius": box.size.length() * 0.5 + DARK_REVEAL_MARGIN,
+		"strength": DARK_REVEAL_STRENGTH}
 
 
 func is_at_reach_limit() -> bool:

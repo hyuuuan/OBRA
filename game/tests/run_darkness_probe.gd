@@ -148,8 +148,47 @@ func _a_level_that_is_dark() -> void:
 	else:
 		_check(false, "the lantern chip on the ink plate shakes and edges red on a hit, and only then",
 			"no chip")
+	if layer != null:
+		await _a_ghost_is_seen_in_the_dark(level, layer)
 	level.queue_free()
 	await _frames(3)
+
+
+## The ghost of a thing being placed is cut out of the dark, so she can see where it goes -- and
+## only seen: gameplay's light never counts it, and it is gone when the placing is.
+func _a_ghost_is_seen_in_the_dark(level: Node, layer: DarknessLayer) -> void:
+	var apo := level.get("player") as Node2D
+	var placement := level.get_node("PlacementController") as PlacementController
+	var item := DrawnItemData.new()
+	item.entity_id = "square"
+	item.display_name = "Square"
+	item.ink_committed = true
+	item.entity_metadata = (level.get("registry") as Node).call("get_entity", "square")
+	await _frames(2)
+	var lights_before := layer.shown().x
+	var gameplay_before := LightField.holes_in(self).size()
+	if not placement.begin_placement(item, apo, -1):
+		_check(false, "a placement ghost is seen through the dark", "placement would not start")
+		return
+	placement.update_target(apo.global_position + Vector2(260.0, -40.0))
+	await _frames(2)
+	await process_frame
+	var reveal := placement.dark_reveal()
+	var ghost := placement.get("_preview") as Node2D
+	var cut := layer.shown().x
+	var where: Vector2 = reveal.get("position", Vector2.INF)
+	_check(cut == lights_before + 1 and LightField.holes_in(self).size() == gameplay_before
+			and ghost != null and where.distance_to(ghost.global_position) < 80.0
+			and float(reveal.get("radius", 0.0)) >= PlacementController.DARK_REVEAL_MARGIN,
+		"a placement ghost is cut out of the dark where it is, and gameplay's light does not count it",
+		"%d holes -> %d; gameplay %d -> %d; %.0f px from the ghost" % [lights_before, cut,
+			gameplay_before, LightField.holes_in(self).size(), where.distance_to(ghost.global_position)
+			if ghost != null else -1.0])
+	placement.cancel_placement()
+	await _frames(2)
+	await process_frame
+	_check(placement.dark_reveal().is_empty() and layer.shown().x == lights_before,
+		"and once the placing is over the dark closes again", "%d holes" % layer.shown().x)
 
 
 ## A lit flashlight lights the cone ahead of it and not behind; a burning checkpoint lights round it.
