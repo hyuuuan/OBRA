@@ -1,5 +1,12 @@
 # Level 3 — Dagat
 
+**Flashlight rendering:** the guiding beam fades along its length and across its edges
+(`shaders/flashlight_beam.gdshader`), with a warm core, blue underwater scattering,
+refracted shimmer and suspended specks. The guide target has a continuous radial glow
+and small cyan glints. Pointer aiming updates the beam and its actual light together;
+LightField's gameplay reach and the bakunawa's guiding rules are unchanged. Effects
+pause with gameplay and respect Reduce Motion.
+
 **Apo swimming (2026-10-15):** the supplied underwater sheet replaces the rotated
 running pose. Five `apo_swim_*` strips in `game/assets/characters/apo/` cover both
 directions, side/front idle and upward floating. Source and import notes are in

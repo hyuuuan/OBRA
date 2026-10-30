@@ -2027,9 +2027,8 @@ func _aim_the_light(target: Vector2) -> void:
 	if not bool(_equipped_utility.call("is_active")):
 		_equipped_utility.describe_use(player)
 	_equipped_utility.look_at(target)
-	var cone := _equipped_utility.get_node_or_null(^"VisibleLightCone") as Node2D
-	if cone != null:
-		cone.scale.x = clampf(_equipped_utility.global_position.distance_to(target) / 230.0, 0.6, 3.0)
+	_equipped_utility.set_light_beam_length(clampf(
+		_equipped_utility.global_position.distance_to(target) - 20.0, 138.0, 690.0))
 
 
 ## The light at rest again, once it has done its work.
@@ -2038,31 +2037,55 @@ func _rest_the_light() -> void:
 			or _equipped_utility.utility_behavior != "flashlight":
 		return
 	_equipped_utility.rotation = 0.0
-	var cone := _equipped_utility.get_node_or_null(^"VisibleLightCone") as Node2D
-	if cone != null:
-		cone.scale.x = 1.0
+	_equipped_utility.set_light_beam_length(UtilityObject.BEAM_REACH)
 
 
 ## The glow it follows: a soft light in the water, breathing.
 class _Lure extends Node2D:
 	var _clock := 0.0
+	var _glow: Sprite2D
+	static var _glow_texture: ImageTexture
 
 	func _ready() -> void:
 		z_index = 9
 		var glow := CanvasItemMaterial.new()
 		glow.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 		material = glow
+		# One soft radial falloff replaces six opaque, concentric discs. Source pixels
+		# are doubled so even the halo keeps the surrounding artwork's pixel size.
+		if _glow_texture == null:
+			var image := Image.create(72, 72, false, Image.FORMAT_RGBA8)
+			for y in range(72):
+				for x in range(72):
+					var distance := Vector2(x - 35.5, y - 35.5).length() / 35.5
+					var alpha := exp(-distance * distance * 7.5) * (1.0 - smoothstep(0.65, 1.0, distance))
+					var colour := Color(1.0, 0.94, 0.74).lerp(Color(0.28, 0.78, 1.0), clampf(distance * 1.8, 0.0, 1.0))
+					colour.a = alpha * 0.65
+					image.set_pixel(x, y, colour)
+			_glow_texture = ImageTexture.create_from_image(image)
+		_glow = Sprite2D.new()
+		_glow.texture = _glow_texture
+		_glow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_glow.scale = Vector2.ONE * 2.0
+		_glow.use_parent_material = true
+		add_child(_glow)
 
 	func _process(delta: float) -> void:
-		_clock += delta
+		if not visible:
+			return
+		_clock = 0.0 if Motion.reduced() else _clock + delta
+		_glow.modulate.a = 0.94 + sin(_clock * 1.7) * 0.04
 		queue_redraw()
 
 	func _draw() -> void:
-		var swell := 1.0 + 0.12 * sin(_clock * 3.0)
-		for ring in range(6):
-			var radius := (70.0 - ring * 11.0) * swell
-			draw_circle(Vector2.ZERO, radius, Color(1.0, 0.9, 0.55, 0.06 + ring * 0.035))
-		draw_circle(Vector2.ZERO, 6.0 * swell, Color(1.0, 0.97, 0.85, 0.9))
+		var phase := floorf(_clock * Motion.PIXEL_FPS) / Motion.PIXEL_FPS
+		for index in range(9):
+			var angle := float(index) * 2.39996 + phase * 0.16
+			var radius := 13.0 + float(index % 4) * 7.0
+			var at := (Vector2.from_angle(angle) * radius).snapped(Vector2.ONE * 2.0)
+			var alpha := 0.12 + 0.13 * sin(phase * 1.3 + float(index))
+			draw_rect(Rect2(at, Vector2.ONE * 2.0), Color(0.52, 0.90, 1.0, maxf(alpha, 0.0)))
+		draw_rect(Rect2(-2, -2, 4, 4), Color(1.0, 0.97, 0.85, 0.8))
 
 
 # --- The sea's creatures, and fishing for them -------------------------------------------------

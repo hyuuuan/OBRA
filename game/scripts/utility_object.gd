@@ -120,6 +120,13 @@ var _equipped_actor: Node2D
 var ink_role := "placeable"
 var _boarded_actor: Node2D
 var _light_cone: Polygon2D
+const BEAM_SHADER := preload("res://shaders/flashlight_beam.gdshader")
+const SeaLight := preload("res://scripts/under_the_sea.gd")
+var _beam_material: ShaderMaterial
+var _beam_length := -1.0
+var _beam_clock := 0.0
+var _beam_frame := -1
+var _beam_water_check := 0.0
 ## The beam's falloff picture, built once for every flashlight in the run. Building it is 16,000
 ## set_pixel calls, and it used to happen each time a flashlight was made -- a hitch on equip.
 static var _cone_texture: ImageTexture = null
@@ -410,6 +417,8 @@ func restore_utility_state(state: Dictionary) -> void:
 func _physics_process(delta: float) -> void:
 	if is_preview:
 		return
+	if _beam_material != null and _active:
+		_update_beam_effects(delta)
 	if not is_held_tool() and utility_behavior not in ["sailboat", "submarine"] and not freeze:
 		if _grounded and linear_velocity.length() < 8.0 and absf(angular_velocity) < 0.18:
 			_settle_time += delta
@@ -1310,6 +1319,14 @@ func _create_flashlight_nodes() -> void:
 		Vector2(230.0, 92.0), Vector2(20.0, 8.0)
 	])
 	_light_cone.color = Color(1.0, 0.92, 0.55, 0.22)
+	if utility_behavior == "flashlight":
+		# The old flat polygon ended at full opacity: stretching it for Dagat only made
+		# the hard cap larger. The shader fades to zero before every edge of its quad.
+		_beam_material = ShaderMaterial.new()
+		_beam_material.shader = BEAM_SHADER
+		_beam_material.set_shader_parameter(&"half_angle", BEAM_HALF_ANGLE)
+		_light_cone.material = _beam_material
+		_light_cone.color = Color.WHITE
 	_light_cone.z_index = -1
 	add_child(_light_cone)
 	_point_light = PointLight2D.new()
@@ -1319,6 +1336,8 @@ func _create_flashlight_nodes() -> void:
 	_point_light.energy = 1.25
 	_point_light.position = Vector2(96.0, 0.0)
 	add_child(_point_light)
+	if _beam_material != null:
+		set_light_beam_length(BEAM_REACH)
 	_set_light_active(_active)
 	add_to_group(LightField.GROUP)
 
@@ -1326,6 +1345,38 @@ func _create_flashlight_nodes() -> void:
 ## How far a lit flashlight's beam reaches in the dark, and how wide: the cone it draws.
 const BEAM_REACH := 260.0
 const BEAM_HALF_ANGLE := 0.38
+
+
+## Visual reach only: Dagat stretches the guide toward its pointer. LightField's
+## gameplay reach remains BEAM_REACH, and the other levels use that same default.
+func set_light_beam_length(length: float) -> void:
+	if _beam_material == null:
+		return
+	var next_length := maxf(32.0, snappedf(length, 2.0))
+	if is_equal_approx(next_length, _beam_length):
+		return
+	_beam_length = next_length
+	var width := 8.0 + _beam_length * tan(BEAM_HALF_ANGLE)
+	_light_cone.scale = Vector2.ONE
+	_light_cone.polygon = PackedVector2Array([
+		Vector2(0.0, -width), Vector2(20.0 + _beam_length, -width),
+		Vector2(20.0 + _beam_length, width), Vector2(0.0, width)
+	])
+	_beam_material.set_shader_parameter(&"beam_length", _beam_length)
+	_point_light.position = Vector2(20.0, 0.0)
+	_point_light.texture_scale = _beam_length / 128.0
+
+
+func _update_beam_effects(delta: float) -> void:
+	_beam_clock += delta
+	_beam_water_check -= delta
+	if _beam_water_check <= 0.0:
+		_beam_water_check = 0.15
+		_beam_material.set_shader_parameter(&"underwater", 1.0 if SeaLight.holds(self) else 0.0)
+	var frame := 0 if Motion.reduced() else int(_beam_clock * Motion.PIXEL_FPS)
+	if frame != _beam_frame:
+		_beam_frame = frame
+		_beam_material.set_shader_parameter(&"phase", float(frame) / Motion.PIXEL_FPS)
 
 
 ## ⚠ A CAMPFIRE AND A SUN LIGHT THE DARK TOO. Kent's design names three lights -- "flashlight,
@@ -1363,11 +1414,14 @@ func _make_cone_texture() -> ImageTexture:
 	var image := Image.create(256, 128, false, Image.FORMAT_RGBA8)
 	image.fill(Color.TRANSPARENT)
 	for x in range(128, 256):
-		var ratio := float(x - 128) / 128.0
+		var ratio := float(x - 128) / 127.0
 		var half_height := 6.0 + ratio * 56.0
 		for y in range(64 - int(half_height), 64 + int(half_height) + 1):
 			var edge := absf(float(y - 64)) / maxf(1.0, half_height)
-			var alpha := (1.0 - edge) * (1.0 - ratio * 0.7)
+			# The actual light must disappear with its visible haze, including the last
+			# texel: the old texture still had 30% brightness at its abrupt far edge.
+			var alpha := (1.0 - smoothstep(0.35, 1.0, edge)) * exp(-ratio * 2.0) \
+				* (1.0 - smoothstep(0.5, 1.0, ratio))
 			image.set_pixel(x, y, Color(1.0, 0.94, 0.68, alpha))
 	_cone_texture = ImageTexture.create_from_image(image)
 	return _cone_texture
