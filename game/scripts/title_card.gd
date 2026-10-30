@@ -91,7 +91,13 @@ var note := "":
 ## which shows this while that cache is being made.
 var from_source := false
 ## Whether the vista drifts with the mouse. The home screen's; a loading screen holds still.
-var drifts := false
+var drifts := false:
+	set(value):
+		drifts = value
+		# The home screen supplies the motion preference; this card also runs before imports,
+		# when Motion and the other class names are unavailable.
+		if not drifts and _vista != null:
+			_vista.position = Vector2(-DRIFT, -DRIFT)
 ## Whether the vista is shown at all. The home screen takes it away to put the last level's
 ## art behind the logo instead.
 var shows_vista := true:
@@ -150,7 +156,7 @@ func _process(delta: float) -> void:
 	if mode != Mode.HOME:
 		# The dots, and the waiting bar's sweep.
 		_redraw()
-	if drifts and _vista != null:
+	if drifts and shows_vista and _vista != null:
 		var view := get_viewport_rect().size
 		var toward := Vector2.ZERO
 		if view.x > 0.0 and view.y > 0.0:
