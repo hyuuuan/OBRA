@@ -17,7 +17,8 @@ extends Control
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 const ICONS := "res://assets/Level4/props/"
 const SLOT := Vector2(56.0, 56.0)
-const GAP := 10.0
+## Wide enough apart that each slot's name, at the readable floor, stays under its own slot.
+const GAP := 34.0
 const RADIUS := 10.0
 const ICON_SCALE := 1.25
 const SPENT_ALPHA := 0.32
@@ -26,11 +27,12 @@ const CAP := Vector2(20.0, 18.0)
 const COUNT_FONT := 15
 const CAP_FONT := 12
 ## Each filled slot's name, under it: an icon of a white heap and a 2 did not say "salt" to anyone
-## who had missed the line that came with it. Shrunk to fit a slot's width, never past NAME_MIN.
-const NAME_FONT := 13
-const NAME_MIN := 10
+## who had missed the line that came with it. At the readable floor (UISkin.FONT_CAPTION); only a
+## name too long for its slot's room -- Buntot Pagi -- comes down, never past NAME_MIN.
+const NAME_FONT := UISkin.FONT_CAPTION
+const NAME_MIN := 16
 const NAME_GAP := 5.0
-const NAME_ROW := 15.0
+const NAME_ROW := 20.0
 
 var satchel: Satchel = null
 var _icons: Dictionary = {}
@@ -141,7 +143,7 @@ func slot_name(index: int) -> String:
 
 func _draw_name(font: Font, rect: Rect2, text: String, live: bool) -> void:
 	var font_size := NAME_FONT
-	var room := SLOT.x + GAP - 2.0
+	var room := SLOT.x + GAP - 4.0
 	while font_size > NAME_MIN and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > room:
 		font_size -= 1
 	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
