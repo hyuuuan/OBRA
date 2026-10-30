@@ -81,6 +81,11 @@ func _a_drawing_flies_into_its_slot() -> void:
 	var said := bag.caption()
 	_check(said.contains("press %d" % (slot + 1)), "and the line over the bag names its key",
 		"'%s'" % said)
+	var line := bag.get_parent().get_node_or_null(^"BagCaption") as Label
+	_check(line != null and line.get_theme_stylebox(&"normal") is StyleBoxFlat
+			and line.get_global_rect().end.y <= bag.get_global_rect().position.y,
+		"and it is said on the HUD's chip, over the bag rather than on it",
+		"chip %s" % (line.get_theme_stylebox(&"normal") if line != null else null))
 
 
 func _a_card_leaves_the_mouse_alone() -> void:

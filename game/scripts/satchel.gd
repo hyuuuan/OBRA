@@ -85,7 +85,9 @@ func slots() -> Array[String]:
 
 
 func to_data() -> Dictionary:
-	return {"counts": _counts.duplicate(), "slots": Array(_slots)}
+	# A copy: Array() of an array is that same array, so the slots handed over would change
+	# under whoever kept them.
+	return {"counts": _counts.duplicate(), "slots": Array(_slots.duplicate())}
 
 
 func from_data(data: Dictionary) -> void:

@@ -526,12 +526,13 @@ func _say(text: String) -> void:
 	if layer == null:
 		return
 	if _caption == null:
+		# On the hint bar's own chip: an outlined line floating over the world (Kent, Dilim:
+		# "not user friendly") read as stray text, not as the HUD saying what the key does.
 		_caption = Label.new()
 		_caption.name = "BagCaption"
 		_caption.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
 		_caption.add_theme_color_override(&"font_color", UISkin.GOLD_PALE)
-		_caption.add_theme_constant_override(&"outline_size", 6)
-		_caption.add_theme_color_override(&"font_outline_color", UISkin.INK)
+		_caption.add_theme_stylebox_override(&"normal", UISkin.chip(10.0, 5.0))
 		_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		layer.add_child(_caption)
 	_caption.text = text

@@ -26,6 +26,15 @@ var rig_profile: Dictionary = {}
 ## enough". Every drawing is fitted to one authored box (config/object_sizes.json); this scales
 ## that box, and the drawing, its collision and its reach are rebuilt to it. 1 is the authored
 ## size and nothing changes it unless the player resizes.
+## IN THE DARK, WHAT SHE DREW IS STILL SEEN. Black ink on Dilim's night went to a dim grey
+## wireframe (Kent: "they don't match the art"). A set-down drawing is cut out of the dark round
+## itself, softly -- seen, not light: DarknessLayer.REVEAL_GROUP, which LightField never counts,
+## so a drawn ladder lights no path and shows no sigbin. A ghost being placed has the
+## PlacementController's instead.
+const DARK_REVEAL_MARGIN := 16.0
+const DARK_REVEAL_STRENGTH := 0.55
+## How much of its half-length is fully seen; past that it softens to the reveal's edge.
+const DARK_REVEAL_FULL := 0.7
 const SIZE_SCALE_MIN := 0.5
 const SIZE_SCALE_MAX := 2.0
 var size_scale := 1.0
@@ -60,7 +69,26 @@ func _ready() -> void:
 	# always was -- utilities only, which is what _door_partner() wants -- and this is the
 	# group that answers "is there something of mine here to take back".
 	add_to_group(&"placed_drawings")
+	add_to_group(DarknessLayer.REVEAL_GROUP)
 	call_deferred("_apply_spawn_motion")
+
+
+## The patch of dark it is seen through (DarknessLayer): fully seen across the middle of the
+## drawing, its far ends a little softer -- tight to the drawing, so the woods stay dark round it.
+## None while it is still a ghost.
+func dark_reveal() -> Dictionary:
+	if is_preview:
+		return {}
+	# A drawn light -- a campfire, a flashlight on -- is seen by its own light already, and the
+	# dark has only so many holes to cut.
+	if has_method(&"light_hole") and not (call(&"light_hole") as Dictionary).is_empty():
+		return {}
+	var box := world_extent()
+	if box.size == Vector2.ZERO:
+		return {}
+	var reach := maxf(box.size.x, box.size.y) * 0.5 * DARK_REVEAL_FULL / LightField.SOFT_EDGE \
+		+ DARK_REVEAL_MARGIN
+	return {"position": box.get_center(), "radius": reach, "strength": DARK_REVEAL_STRENGTH}
 
 
 func configure_entity(entry: Dictionary) -> void:

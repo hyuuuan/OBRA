@@ -19,7 +19,7 @@ extends Control
 
 ## Every picture `_draw` knows. `keys` is the plain row of caps; anything unknown draws as that.
 const KINDS := ["keys", "walk", "jump", "hold", "draw_key", "revert", "place", "take_back",
-	"rotate", "resize", "draw", "click", "clock", "ink", "checkpoint", "requirement"]
+	"rotate", "resize", "draw", "click", "clock", "ink", "checkpoint", "requirement", "lamp"]
 const SIZE := Vector2(440.0, 150.0)
 const CAP_HEIGHT := 50.0
 const CAP_TRAVEL := 5.0
@@ -112,6 +112,8 @@ func _draw() -> void:
 			_draw_checkpoint()
 		"requirement":
 			_draw_requirement()
+		"lamp":
+			_draw_lamp()
 		_:
 			_draw_keys()
 	if waits_for_click:
@@ -430,6 +432,53 @@ func _draw_checkpoint() -> void:
 		if back > 0.0 and back < 1.0:
 			draw_arc(at + Vector2(0.0, -30.0), 16.0 + back * 34.0, 0.0, TAU, 32,
 				Color(LIT, 1.0 - back), 3.0, true)
+
+
+## THE LAMP IS HER LIFE: the HUD's own lantern, a red claw-mark at each hit and a stage of flame
+## gone with it, until it is dark -- and then the apo back beside a lantern that is lit.
+const LAMP_CYCLE := 5.2
+const LAMP_SCALE := 5
+const LAMP_AT := Vector2(70.0, 26.0)
+## When each hit lands, as a share of the cycle; the fourth puts the lamp out.
+const LAMP_HITS := [0.12, 0.26, 0.40, 0.54]
+
+
+func _draw_lamp() -> void:
+	var p := _phase(LAMP_CYCLE)
+	var hits := 0
+	var since := 1.0
+	for at: float in LAMP_HITS:
+		if p >= at:
+			hits += 1
+			since = (p - at) * LAMP_CYCLE
+	var stage := PlayerHealth.FULL - hits
+	var shake := roundf(sin(_t * 70.0) * 3.0) if since < 0.25 else 0.0
+	var glyph := LanternHud.glyph_size(LAMP_SCALE)
+	var lit := float(stage) / float(PlayerHealth.FULL)
+	if lit > 0.0:
+		for ring in range(3, 0, -1):
+			var grow := float(ring * LAMP_SCALE)
+			draw_rect(Rect2(LAMP_AT - Vector2.ONE * grow + Vector2(shake, LAMP_SCALE * 3.0),
+				glyph + Vector2.ONE * grow * 2.0 - Vector2(0.0, LAMP_SCALE * 6.0)),
+				Color(LIT, 0.12 * lit * (1.0 - float(ring - 1) / 3.0)))
+	LanternHud.paint(self, LAMP_AT + Vector2(shake, 0.0), LAMP_SCALE, stage)
+	if hits > 0 and since < 0.3:
+		# The claw: three short red strokes across the lantern's side, fading.
+		var fade := 1.0 - since / 0.3
+		for k in 3:
+			var x := LAMP_AT.x + glyph.x + 8.0 + k * 9.0
+			draw_line(Vector2(x, 44.0), Vector2(x - 14.0, 84.0), Color(UISkin.RED_LIT, fade), 4.0, true)
+	if hits < LAMP_HITS.size():
+		return
+	# Out: an arrow on to the last lit lantern, and her there.
+	var after := (p - float(LAMP_HITS[-1])) * LAMP_CYCLE
+	var show := _ease(clampf((after - 0.3) / 0.4, 0.0, 1.0))
+	_arrow(Vector2(190.0, 76.0), Vector2(190.0 + 90.0 * show, 76.0), Color(LIT, show), 4.0)
+	if show > 0.0:
+		draw_line(Vector2(300.0, 128.0), Vector2(420.0, 128.0), Color(DIM_LINE, DIM_LINE.a * show), 2.0, true)
+		_lantern(Vector2(390.0, 92.0))
+		var back := _ease(clampf((after - 0.7) / 0.4, 0.0, 1.0))
+		_figure(Vector2(344.0, 128.0), 1.0, false, back)
 
 
 ## The word at the top is something to DO: the word, an arrow, the apo doing it.

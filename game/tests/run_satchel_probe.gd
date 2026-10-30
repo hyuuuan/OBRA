@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 31
+const CHECKS := 38
 
 
 func _initialize() -> void:
@@ -34,7 +34,11 @@ func _run() -> void:
 	level.queue_free()
 	await _frames(3)
 	level = await _open_level()
+	var bar_before := (level.get("quick_slots") as QuickSlotBar).visible
+	await _its_name_shows_as_she_nears()
 	await _walking_into_one_takes_it()
+	await _the_bar_comes_with_the_first_find(bar_before)
+	await _a_new_kind_lights_its_slot()
 	await _a_full_kind_leaves_it_lying()
 	level.queue_free()
 	await _frames(3)
@@ -163,6 +167,11 @@ func _it_is_kept_as_plain_data() -> void:
 	back.from_data(saved as Dictionary)
 	_check(back.count("asin") == 5 and back.count("kandila") == 1 and back.slots() == satchel.slots(),
 		"it is kept as plain data, and comes back the same", "%s" % [satchel.to_data()])
+	# What it hands over is a copy: emptying the satchel afterwards must not empty what was kept.
+	var kept: Dictionary = satchel.to_data()
+	satchel.from_data({})
+	_check((kept["slots"] as Array).has("asin") and int((kept["counts"] as Dictionary).get("asin", 0)) == 5,
+		"and what it keeps is a copy, not the satchel itself", "kept %s" % [kept])
 
 
 func _kept_data_is_held_to_the_file() -> void:
@@ -261,15 +270,92 @@ func _walk_her(from: float, seconds: float) -> void:
 	await _frames(4)
 
 
+## Far off it is a glint; near, its name stands over it; taken, the name goes with it.
+func _its_name_shows_as_she_nears() -> void:
+	var pickup := _pickup("Asin1")
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(2300.0 - SatchelPickup2D.TAG_NEAR - 120.0, 596.0),
+		"linear_velocity": Vector2.ZERO})
+	await _frames(30)
+	var far := pickup.tag_shown()
+	player.call("apply_morph_state", {"position": Vector2(2300.0 - SatchelPickup2D.TAG_NEAR + 80.0, 596.0),
+		"linear_velocity": Vector2.ZERO})
+	await _frames(30)
+	var near := pickup.tag_shown()
+	_check(far == 0.0 and near == 1.0 and pickup.title == "Asin · salt",
+		"one of Lola's things shows its name as she nears it, and not from afar",
+		"far %.2f, near %.2f, \"%s\"" % [far, near, pickup.title])
+	# Taken, its name goes at once -- not back for the moment the thing itself takes to lift away.
+	var spare := SatchelPickup2D.new()
+	spare.item = "abo"
+	spare.title = "Abo · ash"
+	spare.position = pickup.position + Vector2(-60.0, -120.0)
+	pickup.get_parent().add_child(spare)
+	await _frames(30)
+	var spare_near := spare.tag_shown()
+	spare.take()
+	await _frames(6)
+	_check(spare_near == 1.0 and is_instance_valid(spare) and spare.tag_shown() == 0.0,
+		"and taken, its name goes at once", "near %.2f, lifting %.2f" % [spare_near,
+			spare.tag_shown() if is_instance_valid(spare) else -1.0])
+
+
 func _walking_into_one_takes_it() -> void:
 	var satchel = level.get("satchel")
 	var pickup := _pickup("Asin1")
 	await _walk_her(2200.0, 1.6)
 	var said := (level.get("hint_bar") as HintBar).current_text()
-	_check(satchel.count("asin") == 2 and (pickup == null or not is_instance_valid(pickup) or pickup.is_taken())
+	_check(satchel.count("asin") == 2 and (pickup == null or not is_instance_valid(pickup)
+			or (pickup.is_taken() and pickup.tag_shown() == 0.0))
 			and bool(level.call("pickup_taken_this_run", "L4_P_ASIN1")) and said == "Asin -- salt. It burns them. Z throws it.",
 		"walking into one takes it, and the first of a kind says what it does and its key",
 		"asin %d, said \"%s\"" % [satchel.count("asin"), said])
+
+
+## No slots before there is anything to put in them; the first find brings the bar, and a
+## checkpoint from before that find takes it away again.
+func _the_bar_comes_with_the_first_find(shown_before: bool) -> void:
+	var bar := level.get("quick_slots") as QuickSlotBar
+	var shown_after := bar.visible
+	_check(not shown_before and shown_after, "the quick slots are not on screen until the first find brings them",
+		"before %s, after %s" % [shown_before, shown_after])
+	var names := [bar.slot_name(0), bar.slot_name(1)]
+	_check(names == ["Asin", ""] and bar.size.y >= bar.slot_rect(0).end.y + QuickSlotBar.NAME_GAP + QuickSlotBar.NAME_ROW,
+		"a filled slot is named under it, inside the bar; an empty one is not", "%s, bar %.0f tall" % [names, bar.size.y])
+	var kept: Dictionary = (level.get("satchel") as Satchel).to_data().duplicate(true)
+	(level.get("satchel") as Satchel).from_data({})
+	await _frames(2)
+	var emptied := bar.visible
+	(level.get("satchel") as Satchel).from_data(kept)
+	await _frames(2)
+	_check(not emptied and bar.visible, "a checkpoint from before the find takes them away, and one after brings them back",
+		"emptied %s, restored %s" % [emptied, bar.visible])
+
+
+## The first of a kind rings its slot long enough to be looked for; a second of it does not.
+func _a_new_kind_lights_its_slot() -> void:
+	var bar := level.get("quick_slots") as QuickSlotBar
+	var satchel := level.get("satchel") as Satchel
+	var first := await _touch_a_new("kandila")
+	var slot := satchel.slots().find("kandila")
+	var welcomed := bar.is_welcoming(slot)
+	await _frames(int((QuickSlotBar.WELCOME_SECONDS + 0.2) * 60.0))
+	var after := bar.is_welcoming(slot)
+	await _touch_a_new("kandila")
+	_check(first and welcomed and not after and not bar.is_welcoming(slot),
+		"the first of a kind rings its slot for a while; a second of it does not",
+		"first %s, after %.1f s %s, again %s" % [welcomed, QuickSlotBar.WELCOME_SECONDS + 0.2, after,
+			bar.is_welcoming(slot)])
+
+
+func _touch_a_new(id: String) -> bool:
+	var pickup := SatchelPickup2D.new()
+	pickup.item = id
+	_pickup("Asin2").get_parent().add_child(pickup)
+	await _frames(2)
+	level.call("_on_pickup_touched", pickup)
+	await _frames(2)
+	return pickup.is_taken()
 
 
 func _a_full_kind_leaves_it_lying() -> void:

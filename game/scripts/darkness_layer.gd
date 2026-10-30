@@ -10,6 +10,11 @@ const LAYER := 3
 const SHADER := preload("res://shaders/darkness.gdshader")
 const MAX_HOLES := 16
 const MAX_CONES := 4
+## Things the dark should let the player SEE without them being light: a placement ghost, so she
+## can tell where her drawing is going. They answer `dark_reveal() -> Dictionary` (a radial hole,
+## as LightField's) and are cut out here only -- LightField never counts them, so a ghost cannot
+## show a sigbin or hold an enemy back.
+const REVEAL_GROUP := &"dark_reveals"
 
 ## How dark the dark is, 0 (none) to 1 (black), outside every light.
 var darkness := 0.9:
@@ -66,6 +71,12 @@ func refresh() -> void:
 				dirs.append(Vector4(direction.x, direction.y, float(hole.get("half_angle", 0.5)), 0.0))
 		elif holes.size() < MAX_HOLES:
 			holes.append(packed)
+	for source in get_tree().get_nodes_in_group(REVEAL_GROUP):
+		var reveal: Dictionary = source.call("dark_reveal") if source.has_method("dark_reveal") else {}
+		if not reveal.is_empty() and holes.size() < MAX_HOLES:
+			var at: Vector2 = canvas * (reveal.get("position", Vector2.ZERO) as Vector2)
+			holes.append(Vector4(at.x, at.y, float(reveal.get("radius", 0.0)) * zoom,
+				clampf(float(reveal.get("strength", 1.0)), 0.0, 1.0)))
 	_hole_count = holes.size()
 	_cone_count = cones.size()
 	while holes.size() < MAX_HOLES:

@@ -803,8 +803,17 @@ func _wire_pickup(pickup: SatchelPickup2D) -> void:
 	if not pickup.pickup_id.is_empty() and pickup_taken_this_run(pickup.pickup_id):
 		pickup.queue_free()
 		return
+	pickup.title = _pickup_title(pickup.item)
 	if not pickup.touched.is_connected(_on_pickup_touched):
 		pickup.touched.connect(_on_pickup_touched)
+
+
+## What the tag over one of Lola's things lying in the woods says: its name, and what that is.
+func _pickup_title(id: String) -> String:
+	var row := satchel.row(id)
+	var gloss := String(row.get("gloss", "")).to_lower()
+	var named := String(row.get("display_name", id))
+	return named if gloss.is_empty() else "%s · %s" % [named, gloss]
 
 
 ## A Continue says what this run took before it: those are gone from the woods.
@@ -832,6 +841,7 @@ func _on_pickup_touched(pickup: SatchelPickup2D) -> void:
 	quick_slots.flash(index)
 	if first:
 		_met[pickup.item] = true
+		quick_slots.welcome(index)
 		var row := satchel.row(pickup.item)
 		# Named through the same lookup the prompts use, so a rebinding is named as bound. Not by
 		# with_keys: its {key:...} takes no digits, and every slot's action has one.
@@ -885,6 +895,7 @@ func _on_foe_fell(foe: Enemy2D) -> void:
 			continue
 		var pickup := SatchelPickup2D.new()
 		pickup.item = id
+		pickup.title = _pickup_title(id)
 		pickup.position = foe.global_position + Vector2(DROP_SPREAD * dropped, foe.body_size.y * 0.5)
 		pickup.touched.connect(_on_pickup_touched)
 		get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(pickup)

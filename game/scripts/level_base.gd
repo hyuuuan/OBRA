@@ -1168,7 +1168,7 @@ func _refresh_requirements() -> void:
 ## level, which is the only way to catch a name that resolves to an empty rect forever.
 const TUTORIAL_ANCHORS := ["draw_button", "pickup_prompt", "use_prompt", "revert_prompt",
 	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card", "player",
-	"placement", "placed", "canvas_paper", "transform_button"]
+	"placement", "placed", "canvas_paper", "transform_button", "lantern"]
 ## Every `context` a lesson may name, answered by _tutorial_context.
 const TUTORIAL_CONTEXTS := ["world", "placing", "creature", "canvas", "any"]
 ## The apo, on screen, as `player` answers it: her feet are the anchor, and this is the box
@@ -1237,6 +1237,9 @@ func _tutorial_target(anchor: String) -> Rect2:
 			node = _prompt_named(&"ChangeBackPrompt")
 		"inventory_bar":
 			node = inventory_hud as Control
+		"lantern":
+			# The lamp that is her life, on the ink plate -- only in a level that has one.
+			node = lantern_hud as Control
 		"ink_gauge":
 			# ⚠ `hud_panel`, NOT `ink_bar`. `$CanvasLayer/InkBar` is the authored ProgressBar
 			# the gauge REPLACED; it is still in the scene and still invisible, so an anchor
