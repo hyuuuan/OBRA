@@ -49,9 +49,15 @@ const _INSIDE_MARGIN := 56.0
 ## its own edge, so she can see it and the ground it will stand on. Not light: nothing counts it.
 const DARK_REVEAL_MARGIN := 90.0
 const DARK_REVEAL_STRENGTH := 0.8
+## The guides -- reach ring, drop line, size -- are drawn on their own layer, over the dark
+## (DarknessLayer is 3) and under the HUD (5). In Dilim the ring sat under the dark and could
+## not be seen past her lamp, so the edge the ghost pins to was a surprise.
+const GUIDES_LAYER := DarknessLayer.LAYER + 1
 
 var registry: EntityRegistry
 var world_item_root: Node2D
+## Where the guides are drawn: a world-following layer, so its coordinates are the world's.
+var guides: Node2D
 
 var _item: DrawnItemData
 ## Typed as the BASE, not UtilityObject: a drawn circle or ramp is placed the same way
@@ -93,10 +99,15 @@ var _last_pinch_frame := -1
 
 
 func _ready() -> void:
-	# Above the gameplay plane and its front layer (z_index 20) so the reach ring is
-	# not buried behind terraces. The HUD is on its own CanvasLayer and stays on top.
-	z_index = 100
 	add_to_group(DarknessLayer.REVEAL_GROUP)
+	var layer := CanvasLayer.new()
+	layer.name = "Guides"
+	layer.layer = GUIDES_LAYER
+	layer.follow_viewport_enabled = true
+	add_child(layer)
+	guides = Node2D.new()
+	layer.add_child(guides)
+	guides.draw.connect(_draw_guides)
 
 
 func is_placing() -> bool:
@@ -299,7 +310,8 @@ func update_target(world_position: Vector2) -> void:
 		_held_by_room = held_by_room
 		placement_changed.emit(true, _valid)
 	_preview.set_preview_valid(_valid)
-	queue_redraw()
+	if guides != null:
+		guides.queue_redraw()
 
 
 ## How big the ghost is against its authored size: 1 is the size it was drawn to.
@@ -451,35 +463,35 @@ func _preview_height() -> float:
 	return _preview_rect().size.y
 
 
-func _draw() -> void:
+func _draw_guides() -> void:
 	if not is_placing() or not is_instance_valid(_actor):
 		return
 	var tint := Color(0.42, 0.95, 0.55) if _valid else Color(1.0, 0.42, 0.38)
 	if show_reach_ring:
-		var origin := to_local(_actor_position())
+		var origin := _actor_position()
 		# Drawn twice: a wide soft band that reads over busy level art, and a crisp line on
 		# top so the edge the preview pins to is unambiguous.
-		draw_arc(origin, maximum_distance, 0.0, TAU, 96, Color(tint, 0.16), 9.0, true)
-		draw_arc(origin, maximum_distance, 0.0, TAU, 96, Color(tint, 0.85), 2.5, true)
+		guides.draw_arc(origin, maximum_distance, 0.0, TAU, 96, Color(tint, 0.16), 9.0, true)
+		guides.draw_arc(origin, maximum_distance, 0.0, TAU, 96, Color(tint, 0.85), 2.5, true)
 	if _will_fall:
 		# It is legal to place into the air, and sometimes it is the answer. It should just
 		# never be a surprise: this is the one case where the ghost is not where the object
 		# ends up, so the drop is drawn rather than left to be discovered on the click.
-		var from := to_local(_preview.global_position)
-		var to := to_local(_fall_landing)
-		draw_dashed_line(from, to, Color(tint, 0.55), 2.0, 10.0)
-		draw_arc(to, 12.0, 0.0, TAU, 32, Color(tint, 0.8), 2.0, true)
+		var from := _preview.global_position
+		var to := _fall_landing
+		guides.draw_dashed_line(from, to, Color(tint, 0.55), 2.0, 10.0)
+		guides.draw_arc(to, 12.0, 0.0, TAU, 32, Color(tint, 0.8), 2.0, true)
 	# And how big it is, once it is not the size it was drawn to: under the ghost, so the
 	# number is read where the eye already is.
 	if not is_equal_approx(_preview.size_scale, 1.0):
 		var box := _preview_rect()
 		var label := "%d%%" % roundi(_preview.size_scale * 100.0)
 		var font := ThemeDB.fallback_font
-		var at := to_local(Vector2(box.get_center().x, box.end.y + 26.0))
+		var at := Vector2(box.get_center().x, box.end.y + 26.0)
 		at.x -= font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x * 0.5
-		draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, 5,
+		guides.draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, 5,
 			Color(0.05, 0.06, 0.05, 0.85))
-		draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(tint, 1.0))
+		guides.draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(tint, 1.0))
 
 
 func _actor_position() -> Vector2:
@@ -671,4 +683,5 @@ func _clear_transaction() -> void:
 	_held_by_room = false
 	_resting = false
 	_will_fall = false
-	queue_redraw()
+	if guides != null:
+		guides.queue_redraw()

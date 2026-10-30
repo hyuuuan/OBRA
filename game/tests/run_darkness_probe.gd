@@ -184,6 +184,13 @@ func _a_ghost_is_seen_in_the_dark(level: Node, layer: DarknessLayer) -> void:
 		"%d holes -> %d; gameplay %d -> %d; %.0f px from the ghost" % [lights_before, cut,
 			gameplay_before, LightField.holes_in(self).size(), where.distance_to(ghost.global_position)
 			if ghost != null else -1.0])
+	var guide_layer := placement.guides.get_parent() as CanvasLayer if placement.guides != null else null
+	var hud := level.get_node_or_null(^"CanvasLayer") as CanvasLayer
+	_check(guide_layer != null and guide_layer.layer > layer.layer
+			and hud != null and guide_layer.layer < hud.layer and guide_layer.follow_viewport_enabled
+			and placement.guides.is_visible_in_tree(),
+		"its reach ring and drop line are drawn over the dark, under the HUD, where the world is",
+		"guides on layer %d, dark %d" % [guide_layer.layer if guide_layer != null else -1, layer.layer])
 	placement.cancel_placement()
 	await _frames(2)
 	await process_frame
