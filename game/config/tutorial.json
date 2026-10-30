@@ -403,8 +403,8 @@
         "DILIM TEACHES WHAT IS NEW ABOUT A FIGHT, AND NOTHING ELSE.",
         "",
         "Lolo is not here, so every lesson is hers (`speaker` Apo) and none has a `lead`: there is",
-        "nobody to ask the question a card answers. Two cards with pictures -- the click that",
-        "swings, and the ink every drawing costs -- and two lines on the hint bar, which never",
+        "nobody to ask the question a card answers. Three cards with pictures -- the lamp that is",
+        "her life, the click that swings, and the ink every drawing costs -- and two lines on the hint bar, which never",
         "stops play, for the moments that come mid-fight: the first hit to the lantern, and a",
         "weapon nearly worn through.",
         "",
@@ -412,7 +412,12 @@
         "off the weapon in her hand, lantern_hit is the lantern's own signal, ink_spent is the",
         "base's; santelmo_near is a burning santelmo within sight of her, which is where walking",
         "with Shift is taught -- where it matters. ON THE HINT BAR, NOT A CARD: a card dims all but",
-        "her, and the flame it is about would vanish under its own warning."
+        "her, and the flame it is about would vanish under its own warning.",
+        "",
+        "THE LAMP IS TAUGHT BEFORE ANYTHING CAN HIT IT. Kent found the fights and the lamp confusing:",
+        "its only lesson came at the first hit, on the bar, mid-fight. So at her first steps a card",
+        "lights the lantern on the ink plate and shows it -- the HUD's own lamp, dimming a stage a hit,",
+        "then her back at the last lit lantern -- while nothing is near. The first hit still says it."
       ],
       "speaker_default": "apo",
       "lessons": [
@@ -424,6 +429,17 @@
           "action": "walk",
           "text": "Lola said never to run from a santelmo. Hold {keys} and walk, and it loses interest.",
           "seconds": 7.0
+        },
+        {
+          "id": "lamp",
+          "at": "moved",
+          "mode": "look",
+          "visual": "lamp",
+          "context": "world",
+          "anchor": "lantern",
+          "speaker": "Apo",
+          "caption": "Every hit dims the lamp",
+          "text": "This lamp is my life out here. Every hit dims it, and if it goes out I go back to where it was last lit."
         },
         {
           "id": "swing",
