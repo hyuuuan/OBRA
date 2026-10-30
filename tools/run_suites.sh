@@ -45,7 +45,7 @@ PY=.venv/bin/python
 print "started $EPOCHSECONDS" > "$LOG"
 
 HEADLESS=(
-  run_tests run_level_ready test_player_profile
+  run_tests run_level_ready test_player_profile run_dev_mode_probe
   run_level1_audit run_walk_level1 run_nodraw_level1 run_level1_finish_probe
   run_ink_economy_probe run_morph_gate_probe run_book_probe run_tutorial_audit
   run_tutorial_popup_probe run_action_prompt_probe run_hint_probe run_dialogue_box_probe

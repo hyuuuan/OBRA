@@ -91,6 +91,12 @@ and after pulling changes:
 | macOS | Double-click [`play_mac.command`](play_mac.command) |
 | Windows | Double-click [`play_windows.bat`](play_windows.bat) |
 
+**Development mode is on by default for everyone running from this repository.**
+The shared flag is `debug/dev_mode/enabled=true` in [`game/project.godot`](game/project.godot).
+All five paintings are unlocked through the normal house; collect the brush and play as usual.
+**DEV MODE** stays visible on screen and appears in the window title. Set the flag to `false`
+to restore progression locks. Release exports keep normal progression.
+
 You can provide a Godot executable when it is not on `PATH`:
 
 ```bash

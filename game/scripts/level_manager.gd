@@ -58,6 +58,9 @@ func is_unlocked(level_id: String) -> bool:
 	var entry := get_level(level_id)
 	if entry.is_empty():
 		return false
+	var dev_mode := get_node_or_null(^"/root/DevMode")
+	if dev_mode != null and bool(dev_mode.get("enabled")):
+		return true
 	if bool(entry.get("unlocked", false)):
 		return true
 	# Progression unlocks earned in play persist in the player profile across sessions.

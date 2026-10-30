@@ -27,12 +27,17 @@ buses/default_bus_layout="res://audio/default_bus_layout.tres"
 ScreenShape="*res://scripts/screen_shape.gd"
 ImportGuard="*res://scripts/import_guard.gd"
 RecognitionBackend="*res://scripts/recognition_backend.gd"
+DevMode="*res://scripts/dev_mode.gd"
 LevelManager="*res://scripts/level_manager.gd"
 PlayerProfile="*res://scripts/player_profile.gd"
 AbilityTags="*res://scripts/ability_tags.gd"
 Telemetry="*res://scripts/telemetry.gd"
 AudioDirector="*res://scripts/audio_director.gd"
 UIFeedback="*res://scripts/ui_feedback.gd"
+
+[debug]
+
+dev_mode/enabled=true
 
 [display]
 

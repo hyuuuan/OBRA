@@ -25,6 +25,13 @@ func _ready() -> void:
 	_level_select_button.pressed.connect(_on_level_select)
 
 
+## Levels with consumable supplies can offer a checkpoint retry through the same recovery UI.
+func configure_recovery(title: String, body: String, retry_text: String) -> void:
+	$Root/Center/Panel/VBox/Title.text = title
+	$Root/Center/Panel/VBox/Body.text = body
+	_restart_button.text = retry_text
+
+
 func _on_opened() -> void:
 	# The forgiving option takes focus, because this screen is a warning rather than
 	# a verdict and the common answer is to keep playing.

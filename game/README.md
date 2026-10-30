@@ -10,6 +10,18 @@ calls the Python backend, then spawns the entity returned by the classifier.
 3. Run the Godot project.
 4. Draw, click **Transform**, and the matching entity scene is spawned.
 
+## Temporary dev mode
+
+The shared `debug/dev_mode/enabled` flag in `project.godot` is `true` for everyone
+cloning or pulling this repository; no local configuration is needed. Run the game normally:
+the title screen, house, brush pickup, saves and level exits work as usual, and all
+five paintings are unlocked. A small **DEV MODE** label stays visible on every screen,
+and the window title includes **[DEV MODE]**.
+
+Set the flag to `false` to restore earned level locks. The bypass does not mark levels
+complete or write unlocks to the profile. Release exports always ignore the flag.
+Automated `--script` probes start with the bypass off and can enable it explicitly.
+
 The playable entities are defined in `config/entities.json`:
 
 - `fish` -> Quick Draw `fish`, swim controller

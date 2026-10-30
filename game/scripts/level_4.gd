@@ -181,6 +181,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 		dawn_clock.set_progress(_finale.progress())
 		_place_dawn_clock()
 	_tick_curse(get_physics_process_delta_time())
+	_watch_supplies(get_physics_process_delta_time())
 
 
 ## Each beat's ground, west edge to east edge in world x, by obstacle id: read off the scene's
@@ -332,6 +333,8 @@ func _restore_checkpoint() -> String:
 	if dawn_clock != null:
 		dawn_clock.hide_night()
 	_lift_curse()
+	_supply_empty_seconds = 0.0
+	_supply_warning = ""
 	return restored
 
 
@@ -573,6 +576,11 @@ func _build_level_furniture() -> void:
 	quick_slots = QuickSlotBar.new()
 	quick_slots.name = "QuickSlots"
 	quick_slots.bind(satchel)
+	# Recovery retries this clearing rather than throwing away the whole level. Keep
+	# Playing remains available for the ink-free routes and the timed finale.
+	if out_of_ink_overlay.restart_pressed.is_connected(_on_restart_requested):
+		out_of_ink_overlay.restart_pressed.disconnect(_on_restart_requested)
+	out_of_ink_overlay.restart_pressed.connect(_retry_with_supplies)
 	quick_slots.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	quick_slots.position = Vector2(-quick_slots.size.x * 0.5, -quick_slots.size.y - QUICK_SLOTS_BOTTOM)
 	$CanvasLayer.add_child(quick_slots)
@@ -610,12 +618,119 @@ func _refills_at(place: String) -> bool:
 	return (economy.get("refilled_at", []) as Array).has(place)
 
 
-## RUNNING DRY IS NOT A LOSS HERE. Every drawing costs, so it will happen, and the way on is still
-## open: every encounter has a way past that needs no ink, and the clearings fill it again. The
-## out-of-ink screen stays shut, and she says where more is.
+## The final drawing may still answer the encounter. Warn here, then watch its remaining
+## uses: an empty brush followed by a broken weapon used to leave her with no recovery UI.
 func _on_ink_emptied() -> bool:
 	_speak(script_lines.fire("INK.empty"))
 	return true
+
+
+const SUPPLY_GRACE_SECONDS := 4.0
+var _supply_empty_seconds := 0.0
+var _supply_warning := ""
+
+
+func _watch_supplies(delta: float) -> void:
+	if _level_completed or satchel == null or ink_manager == null:
+		return
+	var encounter := _supply_encounter()
+	var needs_ash := _tiktik_without_ash()
+	if encounter.is_empty() or (not needs_ash and (ink_manager.remaining() >= 1.0 or _has_supplies_for(encounter))):
+		_supply_empty_seconds = 0.0
+		_supply_warning = ""
+		return
+	if draw_panel.is_open() or placement_controller.is_placing() or out_of_ink_overlay.is_open():
+		return
+	# Let the final throw land and its burn finish before declaring the supplies spent.
+	_supply_empty_seconds += delta
+	var warning := "tiktik" if needs_ash else encounter
+	if _supply_empty_seconds < SUPPLY_GRACE_SECONDS or _supply_warning == warning:
+		return
+	_supply_warning = warning
+	var copy: Dictionary = director.level_data().get("supply_recovery", {})
+	var message := "tiktik" if needs_ash else ("night" if encounter == "L4_FINALE" else "encounter")
+	var body := String(copy.get(message, ""))
+	var retry := "retry" if checkpoints != null and checkpoints.has_checkpoint() else "restart"
+	out_of_ink_overlay.configure_recovery(String(copy.get("title", "")), body, String(copy.get(retry, "")))
+	out_of_ink_overlay.open()
+	Telemetry.record_event("supplies_exhausted", {"level_id": LevelManager.current_level_id,
+		"encounter": encounter})
+
+
+func _supply_encounter() -> String:
+	if player == null or not is_instance_valid(player) or director == null:
+		return ""
+	if _finale != null and _finale.is_running():
+		return "L4_FINALE"
+	var spans := _beat_spans()
+	for id: String in ["L4_SIGBIN", "L4_KAPRE", "L4_TIYANAK", "L4_BUNGISNGIS", "L4_MANANANGGAL"]:
+		var span: Vector2 = spans.get(id, Vector2(INF, -INF))
+		if not director.is_solved(id) and player.global_position.x >= span.x and player.global_position.x <= span.y:
+			return id
+	return ""
+
+
+func _tiktik_without_ash() -> bool:
+	if _finale == null or not _finale.is_running() or satchel.count("abo") > 0:
+		return false
+	var tiktik := _finale.tiktik()
+	if tiktik == null or tiktik.is_dead() or tiktik.is_revealed():
+		return false
+	# The last handful is still useful while its cloud hangs in the clearing.
+	for node in get_node(^"EnvironmentBaseplate/GameplayPlane").get_children():
+		if node is AboDust2D and not node.is_queued_for_deletion():
+			return false
+	return true
+
+
+func _has_supplies_for(encounter: String) -> bool:
+	if encounter != "L4_KAPRE" and (satchel.count("asin") > 0 or satchel.count(WHIP) > 0):
+		return true
+	if encounter in ["L4_SIGBIN", "L4_TIYANAK"] and satchel.count("kandila") > 0:
+		return true
+	# A useful drawing may be in hand, stored or set down. Compare the authored tags and
+	# exclusions, so an unrelated prop does not conceal the lack of a usable answer.
+	var items: Array = inventory_manager.all_items()
+	if _equipped_utility != null and is_instance_valid(_equipped_utility):
+		items.append(_equipped_utility.item_data)
+	if world_item_root != null:
+		for node in world_item_root.get_children():
+			if node is PhysicsShapeObject and not node.is_queued_for_deletion():
+				items.append(node.item_data)
+	for value: Variant in items:
+		var item := value as DrawnItemData
+		if item == null or (item.runtime_state.has("uses_left") and int(item.runtime_state["uses_left"]) <= 0):
+			continue
+		if encounter == "L4_FINALE":
+			if WeaponTable.is_weapon(item.entity_id):
+				return true
+			continue
+		for obstacle: Dictionary in director.level_data().get("obstacles", []):
+			if String(obstacle.get("id", "")) != encounter:
+				continue
+			for route: Dictionary in (obstacle.get("routes", {}) as Dictionary).values():
+				var required: Array = route.get("required_tags", [])
+				if required.is_empty() or (route.get("exclude", []) as Array).has(item.entity_id):
+					continue
+				var matches := 0
+				for tag: String in required:
+					if AbilityTags.class_has_tag(item.entity_id, tag):
+						matches += 1
+				if matches == required.size() or (String(route.get("match", "all")) == "any" and matches > 0):
+					return true
+	return false
+
+
+func _retry_with_supplies() -> void:
+	_revert_to_base_form()
+	var restored := _restore_checkpoint()
+	if restored.is_empty():
+		LevelManager.restart_level()
+		return
+	if player_health != null:
+		player_health.reset_full()
+	var copy: Dictionary = director.level_data().get("supply_recovery", {})
+	_say_why(String(copy.get("restored", "")) % _checkpoint_place(restored))
 
 
 ## A LIGHT OF HER OWN, AND SHE RESTS BY IT. The clearing's light lit fills the lantern to full and
@@ -834,6 +949,12 @@ func _on_pickup_touched(pickup: SatchelPickup2D) -> void:
 	var took := satchel.add(pickup.item, pickup.amount)
 	if took <= 0:
 		return
+	# Picked-up props are removed for this run. Keep their retry allowance as well as
+	# the checkpoint stock, or using the last one would remove it from every later try.
+	_retry_supplies[pickup.item] = mini(satchel.cap(pickup.item),
+		int(_retry_supplies.get(pickup.item, 0)) + took)
+	if pickup.item == WHIP:
+		_retry_whip_uses = WeaponTable.uses(WHIP)
 	if not pickup.pickup_id.is_empty():
 		note_pickup_taken(pickup.pickup_id)
 	pickup.take()
@@ -1042,11 +1163,19 @@ func _pour_oil(stages: int) -> bool:
 
 # --- What a checkpoint keeps of the satchel ---------------------------------------------------
 
-## Kent: "death rolls ink and drawings back to the checkpoint; collectibles kept." So a knockout or
-## a fall leaves the satchel as it is -- what she found since the checkpoint is still hers -- and
-## only a Continue, which starts the level fresh, takes it from the checkpoint. Plain counts and
-## slot ids: a run state holding an object is dropped whole on its way to disk.
+## Keep discoveries across a retry, and restore the supplies available for that attempt.
+## Leaving the counts spent while resetting every enemy made retries progressively unwinnable.
+## Refilling to an allowance (rather than adding a whole saved stack) prevents duplication.
 var _resuming := false
+var _retry_supplies: Dictionary = {}
+var _retry_whip_uses := 0
+
+
+func _write_checkpoint(checkpoint_id: String) -> void:
+	if satchel != null:
+		_retry_supplies = (satchel.to_data()["counts"] as Dictionary).duplicate()
+		_retry_whip_uses = _whip_uses
+	super(checkpoint_id)
 
 
 ## What a Continue brings back of Lola's things: the satchel, and how many lashes the whip she
@@ -1056,9 +1185,21 @@ func _level_run_state() -> Dictionary:
 
 
 func _restore_level_run_state(state: Dictionary) -> void:
-	if _resuming and satchel != null and state.get("satchel") is Dictionary:
-		satchel.from_data(state["satchel"] as Dictionary)
-		_whip_uses = int(state.get("whip_lashes", 0))
+	if satchel == null:
+		return
+	if _resuming:
+		if state.get("satchel") is Dictionary:
+			satchel.from_data(state["satchel"] as Dictionary)
+			_whip_uses = int(state.get("whip_lashes", 0))
+		_retry_supplies = (satchel.to_data()["counts"] as Dictionary).duplicate()
+		_retry_whip_uses = _whip_uses
+	else:
+		var saved: Dictionary = (state.get("satchel", {}) as Dictionary).get("counts", {})
+		for id in satchel.ids():
+			var allowance := maxi(int(saved.get(id, 0)), int(_retry_supplies.get(id, 0)))
+			satchel.add(id, allowance - satchel.count(id))
+		_whip_uses = _retry_whip_uses
+	_whip_cooldown = 0.0
 
 
 func _resume_saved_checkpoint() -> bool:

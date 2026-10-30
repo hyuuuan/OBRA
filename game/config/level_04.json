@@ -41,6 +41,15 @@
     "refilled_at": ["L4_REST1", "L4_REST2", "CP3"],
     "jars_before": ["L4_KAPRE", "L4_BUNGISNGIS"]
   },
+  "supply_recovery": {
+    "title": "OUT OF SUPPLIES",
+    "encounter": "No ink or usable supplies remain for this encounter. Retry from the last clearing to restore ink and supplies, or keep playing to find another way past.",
+    "night": "No ink or usable weapons remain. You can still evade the enemies until dawn, or retry from the last clearing with your ink and supplies restored.",
+    "tiktik": "No ash remains to reveal the tik-tik. You can still evade it until dawn, or retry from the last clearing to restore your supplies.",
+    "retry": "RETRY CHECKPOINT",
+    "restart": "RESTART LEVEL",
+    "restored": "Back at %s. Ink and supplies restored."
+  },
   "objectives": {
     "$comment": "In her own voice, short enough for the banner (720 px), naming no class. At each encounter not yet answered, its ways past, plainly: the arrival lines are Lola remembered, and a memory is not an instruction.",
     "edge": "Cross the woods. Keep the lamp lit.",

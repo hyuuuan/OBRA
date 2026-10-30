@@ -209,6 +209,14 @@ What the build does that the design above does not say, and what it does not do 
   is put at the muzzle before it is in the world -- added first, every shot began inside the canopy.
 - **Falls are knockouts.** The wanderer wraps to the sky at the world's bottom, so Dilim knocks her
   out 300 px under the forest floor instead.
+- **Exhausted supplies offer a checkpoint retry.** When she cannot afford another drawing and
+  has no usable counter left for her current encounter, the existing recovery popup explains
+  the situation and offers **Retry Checkpoint**. The final attack gets four seconds to land and
+  finish burning before the check; usable drawings in hand, in the bag or on the ground still
+  count. Missing ash also prompts when the tik-tik is hidden, even if ink or weapons remain.
+  The finale explains that evading until dawn remains possible. Retries restore ink,
+  lantern health and the supply allowance from the checkpoint plus pickups found since it;
+  flowers and discoveries stay kept, and repeated retries do not add duplicate stacks.
 - **No drawing-free run.** The kapre has no route without a drawing, so Dilim cannot be finished
   without one -- by design -- and there is no `run_nodraw_level4`.
 - **The Makiling tileset** is used in part: the six plates and four seamless tiles; no slopes, root
