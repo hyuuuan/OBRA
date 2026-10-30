@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 33
+const CHECKS := 34
 
 
 func _initialize() -> void:
@@ -165,6 +165,11 @@ func _it_is_kept_as_plain_data() -> void:
 	back.from_data(saved as Dictionary)
 	_check(back.count("asin") == 5 and back.count("kandila") == 1 and back.slots() == satchel.slots(),
 		"it is kept as plain data, and comes back the same", "%s" % [satchel.to_data()])
+	# What it hands over is a copy: emptying the satchel afterwards must not empty what was kept.
+	var kept: Dictionary = satchel.to_data()
+	satchel.from_data({})
+	_check((kept["slots"] as Array).has("asin") and int((kept["counts"] as Dictionary).get("asin", 0)) == 5,
+		"and what it keeps is a copy, not the satchel itself", "kept %s" % [kept])
 
 
 func _kept_data_is_held_to_the_file() -> void:
