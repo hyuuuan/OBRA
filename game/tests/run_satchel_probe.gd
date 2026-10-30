@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 36
+const CHECKS := 37
 
 
 func _initialize() -> void:
@@ -284,6 +284,19 @@ func _its_name_shows_as_she_nears() -> void:
 	_check(far == 0.0 and near == 1.0 and pickup.title == "Asin · salt",
 		"one of Lola's things shows its name as she nears it, and not from afar",
 		"far %.2f, near %.2f, \"%s\"" % [far, near, pickup.title])
+	# Taken, its name goes at once -- not back for the moment the thing itself takes to lift away.
+	var spare := SatchelPickup2D.new()
+	spare.item = "abo"
+	spare.title = "Abo · ash"
+	spare.position = pickup.position + Vector2(-60.0, -120.0)
+	pickup.get_parent().add_child(spare)
+	await _frames(30)
+	var spare_near := spare.tag_shown()
+	spare.take()
+	await _frames(6)
+	_check(spare_near == 1.0 and is_instance_valid(spare) and spare.tag_shown() == 0.0,
+		"and taken, its name goes at once", "near %.2f, lifting %.2f" % [spare_near,
+			spare.tag_shown() if is_instance_valid(spare) else -1.0])
 
 
 func _walking_into_one_takes_it() -> void:
