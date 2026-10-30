@@ -841,6 +841,7 @@ func _on_pickup_touched(pickup: SatchelPickup2D) -> void:
 	quick_slots.flash(index)
 	if first:
 		_met[pickup.item] = true
+		quick_slots.welcome(index)
 		var row := satchel.row(pickup.item)
 		# Named through the same lookup the prompts use, so a rebinding is named as bound. Not by
 		# with_keys: its {key:...} takes no digits, and every slot's action has one.

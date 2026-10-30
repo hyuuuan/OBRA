@@ -23,6 +23,10 @@ const RADIUS := 10.0
 const ICON_SCALE := 1.25
 const SPENT_ALPHA := 0.32
 const FLASH_SECONDS := 0.35
+## The first of a kind found: its slot wears a pulsing gold ring this long, so the eye finds where
+## it went. A 0.35 s brighten while she reads what the thing does was over before she looked down.
+const WELCOME_SECONDS := 2.6
+const WELCOME_HZ := 1.4
 const CAP := Vector2(20.0, 18.0)
 const COUNT_FONT := 15
 const CAP_FONT := 12
@@ -37,6 +41,7 @@ const NAME_ROW := 20.0
 var satchel: Satchel = null
 var _icons: Dictionary = {}
 var _flash: Array[float] = [0.0, 0.0, 0.0, 0.0]
+var _welcome: Array[float] = [0.0, 0.0, 0.0, 0.0]
 
 
 ## Each slot's count as last drawn, so a slot that gains can be told from one that is used.
@@ -89,11 +94,25 @@ func flash(index: int) -> void:
 		queue_redraw()
 
 
+## The first of a kind has come into slot `index`: it wears the welcome ring for a while.
+func welcome(index: int) -> void:
+	if index >= 0 and index < _welcome.size():
+		_welcome[index] = WELCOME_SECONDS
+		flash(index)
+
+
+func is_welcoming(index: int) -> bool:
+	return index >= 0 and index < _welcome.size() and _welcome[index] > 0.0
+
+
 func _process(delta: float) -> void:
 	var lit := false
 	for index in range(_flash.size()):
 		if _flash[index] > 0.0:
 			_flash[index] = maxf(0.0, _flash[index] - delta)
+			lit = true
+		if _welcome[index] > 0.0:
+			_welcome[index] = maxf(0.0, _welcome[index] - delta)
 			lit = true
 	if lit:
 		queue_redraw()
@@ -125,6 +144,8 @@ func _draw() -> void:
 			draw_string(font, rect.end - Vector2(width + 5.0, 5.0), number, HORIZONTAL_ALIGNMENT_LEFT,
 				-1, COUNT_FONT, UISkin.CREAM_TEXT if count > 0 else UISkin.MUTED)
 			_draw_name(font, rect, slot_name(index), count > 0)
+		if _welcome[index] > 0.0:
+			_draw_welcome(rect, _welcome[index])
 		# The key, on a little cap over the slot's top-left corner.
 		var cap := Rect2(rect.position + Vector2(-4.0, -CAP.y * 0.5), CAP)
 		_round(cap, UISkin.GOLD_FILL if not id.is_empty() else Color(UISkin.GOLD_FILL, 0.4),
@@ -133,6 +154,16 @@ func _draw() -> void:
 		var key_width := font.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, CAP_FONT).x
 		draw_string(font, cap.position + Vector2((CAP.x - key_width) * 0.5, CAP.y - 4.0), key,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, CAP_FONT, UISkin.GOLD_LABEL)
+
+
+## A gold ring round the slot, breathing out and in, fading over its last half second. Steady
+## under Reduce motion.
+func _draw_welcome(rect: Rect2, left: float) -> void:
+	var fade := clampf(left / 0.5, 0.0, 1.0)
+	var breath := 1.0 if Motion.reduced() \
+		else 0.5 + 0.5 * sin((WELCOME_SECONDS - left) * TAU * WELCOME_HZ)
+	var ring := rect.grow(4.0 + roundf(2.0 * breath))
+	_round(ring, Color(UISkin.GOLD, 0.0), Color(UISkin.GOLD, (0.55 + 0.45 * breath) * fade), 2, RADIUS + 4.0)
 
 
 ## What slot `index` is called on screen: its thing's name, or nothing while it is empty.

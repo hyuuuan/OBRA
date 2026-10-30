@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 37
+const CHECKS := 38
 
 
 func _initialize() -> void:
@@ -38,6 +38,7 @@ func _run() -> void:
 	await _its_name_shows_as_she_nears()
 	await _walking_into_one_takes_it()
 	await _the_bar_comes_with_the_first_find(bar_before)
+	await _a_new_kind_lights_its_slot()
 	await _a_full_kind_leaves_it_lying()
 	level.queue_free()
 	await _frames(3)
@@ -329,6 +330,32 @@ func _the_bar_comes_with_the_first_find(shown_before: bool) -> void:
 	await _frames(2)
 	_check(not emptied and bar.visible, "a checkpoint from before the find takes them away, and one after brings them back",
 		"emptied %s, restored %s" % [emptied, bar.visible])
+
+
+## The first of a kind rings its slot long enough to be looked for; a second of it does not.
+func _a_new_kind_lights_its_slot() -> void:
+	var bar := level.get("quick_slots") as QuickSlotBar
+	var satchel := level.get("satchel") as Satchel
+	var first := await _touch_a_new("kandila")
+	var slot := satchel.slots().find("kandila")
+	var welcomed := bar.is_welcoming(slot)
+	await _frames(int((QuickSlotBar.WELCOME_SECONDS + 0.2) * 60.0))
+	var after := bar.is_welcoming(slot)
+	await _touch_a_new("kandila")
+	_check(first and welcomed and not after and not bar.is_welcoming(slot),
+		"the first of a kind rings its slot for a while; a second of it does not",
+		"first %s, after %.1f s %s, again %s" % [welcomed, QuickSlotBar.WELCOME_SECONDS + 0.2, after,
+			bar.is_welcoming(slot)])
+
+
+func _touch_a_new(id: String) -> bool:
+	var pickup := SatchelPickup2D.new()
+	pickup.item = id
+	_pickup("Asin2").get_parent().add_child(pickup)
+	await _frames(2)
+	level.call("_on_pickup_touched", pickup)
+	await _frames(2)
+	return pickup.is_taken()
 
 
 func _a_full_kind_leaves_it_lying() -> void:
