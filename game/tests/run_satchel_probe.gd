@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 34
+const CHECKS := 35
 
 
 func _initialize() -> void:
@@ -286,6 +286,9 @@ func _the_bar_comes_with_the_first_find(shown_before: bool) -> void:
 	var shown_after := bar.visible
 	_check(not shown_before and shown_after, "the quick slots are not on screen until the first find brings them",
 		"before %s, after %s" % [shown_before, shown_after])
+	var names := [bar.slot_name(0), bar.slot_name(1)]
+	_check(names == ["Asin", ""] and bar.size.y >= bar.slot_rect(0).end.y + QuickSlotBar.NAME_GAP + QuickSlotBar.NAME_ROW,
+		"a filled slot is named under it, inside the bar; an empty one is not", "%s, bar %.0f tall" % [names, bar.size.y])
 	var kept: Dictionary = (level.get("satchel") as Satchel).to_data().duplicate(true)
 	(level.get("satchel") as Satchel).from_data({})
 	await _frames(2)
