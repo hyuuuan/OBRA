@@ -150,6 +150,7 @@ func _a_level_that_is_dark() -> void:
 			"no chip")
 	if layer != null:
 		await _a_ghost_is_seen_in_the_dark(level, layer)
+		await _a_placed_drawing_is_seen_in_the_dark(level, layer)
 	level.queue_free()
 	await _frames(3)
 
@@ -198,6 +199,42 @@ func _a_ghost_is_seen_in_the_dark(level: Node, layer: DarknessLayer) -> void:
 		"and once the placing is over the dark closes again", "%d holes" % layer.shown().x)
 
 
+## Set down, what she drew is seen in the dark round itself -- and, again, only seen.
+func _a_placed_drawing_is_seen_in_the_dark(level: Node, layer: DarknessLayer) -> void:
+	var apo := level.get("player") as Node2D
+	var placement := level.get_node("PlacementController") as PlacementController
+	var item := DrawnItemData.new()
+	item.entity_id = "square"
+	item.display_name = "Square"
+	item.ink_committed = true
+	item.entity_metadata = (level.get("registry") as Node).call("get_entity", "square")
+	await process_frame
+	var lights_before := layer.shown().x
+	var gameplay_before := LightField.holes_in(self).size()
+	placement.begin_placement(item, apo, -1)
+	var ghost := placement.get("_preview") as PhysicsShapeObject
+	placement.set_process(false)
+	placement.update_target(apo.global_position + Vector2(200.0, -30.0))
+	var ghost_own := ghost.dark_reveal() if ghost != null else {"none": true}
+	var placed := placement.confirm_placement()
+	placement.set_process(true)
+	await _frames(20)
+	await process_frame
+	var reveal := ghost.dark_reveal() if is_instance_valid(ghost) else {}
+	var box := ghost.world_extent() if is_instance_valid(ghost) else Rect2()
+	_check(placed and ghost_own.is_empty() and layer.shown().x == lights_before + 1
+			and LightField.holes_in(self).size() == gameplay_before
+			and float(reveal.get("radius", 0.0)) > maxf(box.size.x, box.size.y) * 0.5
+			and box.has_point(reveal.get("position", Vector2.INF)),
+		"set down, a drawing is seen in the dark round itself -- not as a ghost, and not as light",
+		"placed %s; ghost's own %s; holes %d -> %d; gameplay %d -> %d; r %.0f over a %.0f x %.0f box" % [
+			placed, ghost_own, lights_before, layer.shown().x, gameplay_before,
+			LightField.holes_in(self).size(), float(reveal.get("radius", 0.0)), box.size.x, box.size.y])
+	if is_instance_valid(ghost):
+		ghost.queue_free()
+	await _frames(2)
+
+
 ## A lit flashlight lights the cone ahead of it and not behind; a burning checkpoint lights round it.
 func _a_flashlight_and_a_fire_light_the_dark() -> void:
 	var world := Node2D.new()
@@ -244,6 +281,12 @@ func _a_flashlight_and_a_fire_light_the_dark() -> void:
 	_check(glow >= HeldLantern2D.RADII[PlayerHealth.FULL] * 1.25,
 		"a campfire drawn lights well past her own lamp at its fullest",
 		"campfire %.0f px, her lamp %.0f" % [glow, HeldLantern2D.RADII[PlayerHealth.FULL]])
+	var spare_square := registry.instantiate_entity("square") as PhysicsShapeObject
+	world.add_child(spare_square)
+	await _frames(2)
+	_check(campfire.dark_reveal().is_empty() and not spare_square.dark_reveal().is_empty(),
+		"a drawn light is seen by its own light, and cuts no second hole for it",
+		"campfire %s, square %s" % [campfire.dark_reveal(), spare_square.dark_reveal()])
 	world.queue_free()
 	await _frames(3)
 
