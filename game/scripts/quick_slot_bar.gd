@@ -9,6 +9,10 @@ extends Control
 ## used, and when something new comes into it.
 ##
 ## Draws itself; holds no state of its own beyond what the satchel says.
+##
+## NOT THERE UNTIL SOMETHING IS IN IT. Four empty slots with Z X C V on them, from the first step
+## into the woods, said nothing a player could use (Kent: "no clear instructions and not user
+## friendly"): the bar pops in with the first of Lola's things she finds, and stays.
 
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 const ICONS := "res://assets/Level4/props/"
@@ -39,6 +43,7 @@ func _init() -> void:
 func bind(source: Satchel) -> void:
 	satchel = source
 	_counts = _now()
+	visible = holds_anything()
 	# A slot that gains -- a find, a drop -- brightens, as a slot used does.
 	satchel.changed.connect(func() -> void:
 		var now := _now()
@@ -46,8 +51,19 @@ func bind(source: Satchel) -> void:
 			if now[index] > _counts[index]:
 				flash(index)
 		_counts = now
+		# A checkpoint from before the first find takes it away again.
+		if visible != holds_anything():
+			if visible:
+				visible = false
+			else:
+				Motion.pop_in(self)
 		queue_redraw())
 	queue_redraw()
+
+
+## Whether any slot has had something put in it -- a spent one still counts: it stays, faded.
+func holds_anything() -> bool:
+	return satchel != null and satchel.slots().any(func(id: String) -> bool: return not id.is_empty())
 
 
 func _now() -> Array[int]:

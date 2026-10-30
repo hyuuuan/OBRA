@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 31
+const CHECKS := 33
 
 
 func _initialize() -> void:
@@ -34,7 +34,9 @@ func _run() -> void:
 	level.queue_free()
 	await _frames(3)
 	level = await _open_level()
+	var bar_before := (level.get("quick_slots") as QuickSlotBar).visible
 	await _walking_into_one_takes_it()
+	await _the_bar_comes_with_the_first_find(bar_before)
 	await _a_full_kind_leaves_it_lying()
 	level.queue_free()
 	await _frames(3)
@@ -270,6 +272,23 @@ func _walking_into_one_takes_it() -> void:
 			and bool(level.call("pickup_taken_this_run", "L4_P_ASIN1")) and said == "Asin -- salt. It burns them. Z throws it.",
 		"walking into one takes it, and the first of a kind says what it does and its key",
 		"asin %d, said \"%s\"" % [satchel.count("asin"), said])
+
+
+## No slots before there is anything to put in them; the first find brings the bar, and a
+## checkpoint from before that find takes it away again.
+func _the_bar_comes_with_the_first_find(shown_before: bool) -> void:
+	var bar := level.get("quick_slots") as QuickSlotBar
+	var shown_after := bar.visible
+	_check(not shown_before and shown_after, "the quick slots are not on screen until the first find brings them",
+		"before %s, after %s" % [shown_before, shown_after])
+	var kept: Dictionary = (level.get("satchel") as Satchel).to_data().duplicate(true)
+	(level.get("satchel") as Satchel).from_data({})
+	await _frames(2)
+	var emptied := bar.visible
+	(level.get("satchel") as Satchel).from_data(kept)
+	await _frames(2)
+	_check(not emptied and bar.visible, "a checkpoint from before the find takes them away, and one after brings them back",
+		"emptied %s, restored %s" % [emptied, bar.visible])
 
 
 func _a_full_kind_leaves_it_lying() -> void:
