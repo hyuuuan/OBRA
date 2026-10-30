@@ -8,6 +8,11 @@ extends Area2D
 ## does not find it again; a drop has none.
 ##
 ## A faint glow of its own: a thing worth picking up in a dark wood is a thing that can be seen.
+##
+## AND ITS NAME, AS SHE COMES NEAR. A white heap at her feet in the dark said nothing about what
+## it was or that it could be taken (Kent: "no clear instructions"): within TAG_NEAR its name
+## rises over it on a soft tag, drawn over the dark so it reads past the glow. The level that owns
+## the satchel says what it is called (`title`); with no title there is no tag.
 
 signal touched(pickup: SatchelPickup2D)
 
@@ -18,14 +23,26 @@ const BOB_HZ := 0.7
 const GLOW_RADIUS := 52.0
 const GLOW_STRENGTH := 0.55
 const TAKE_SECONDS := 0.3
+## How near she comes, in px, before its name shows; how high over it the tag stands; how fast
+## the tag fades in or out (a share of full per second).
+const TAG_NEAR := 300.0
+const TAG_RISE := 62.0
+const TAG_FADE := 5.0
+const TAG_FONT := UISkin.FONT_CAPTION
+const TAG_PAD := Vector2(10.0, 5.0)
 
 @export var item := "asin"
 @export var amount := 1
 @export var pickup_id := ""
+## What the tag over it says, e.g. "Asin · salt". Set by the level when it wires the pickup.
+@export var title := ""
 
 var _art: Sprite2D
 var _clock := 0.0
 var _taken := false
+## The name tag: its own world-following layer over the dark (DarknessLayer is 3, the HUD 5).
+var _tag: Node2D
+var _tag_alpha := 0.0
 
 
 func _ready() -> void:
@@ -46,12 +63,57 @@ func _ready() -> void:
 	add_child(_art)
 	z_index = 4
 	area_entered.connect(_on_area_entered)
+	var layer := CanvasLayer.new()
+	layer.layer = DarknessLayer.LAYER + 1
+	layer.follow_viewport_enabled = true
+	add_child(layer)
+	_tag = Node2D.new()
+	_tag.visible = false
+	layer.add_child(_tag)
+	_tag.draw.connect(_draw_tag)
 
 
 func _process(delta: float) -> void:
 	_clock += delta
 	if _art != null and not _taken:
 		_art.position.y = sin(_clock * TAU * BOB_HZ) * BOB
+	var want := 1.0 if tag_wanted() else 0.0
+	if _tag_alpha != want:
+		_tag_alpha = move_toward(_tag_alpha, want, delta * TAG_FADE)
+		_tag.visible = _tag_alpha > 0.0
+		_tag.modulate.a = _tag_alpha
+	if _tag.visible:
+		_tag.position = (global_position + Vector2(0.0, -TAG_RISE)).round()
+		_tag.queue_redraw()
+
+
+## Whether its name should be showing: it has one, it is still lying there, and she is near.
+func tag_wanted() -> bool:
+	if title.is_empty() or _taken:
+		return false
+	var her := get_tree().get_first_node_in_group(PlayerHurtbox2D.GROUP) as Node2D
+	return her != null and her.global_position.distance_to(global_position) <= TAG_NEAR
+
+
+## How shown its name is, 0 to 1, for a probe.
+func tag_shown() -> float:
+	return _tag_alpha if _tag != null and _tag.visible else 0.0
+
+
+func _draw_tag() -> void:
+	var theme := ThemeDB.get_project_theme()
+	var font: Font = theme.default_font if theme != null and theme.default_font != null else ThemeDB.fallback_font
+	var text_size := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_FONT)
+	var box := Rect2(Vector2(-text_size.x * 0.5, -text_size.y) - TAG_PAD, text_size + TAG_PAD * 2.0)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(UISkin.PANEL, 0.88)
+	style.border_color = UISkin.GOLD
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(7)
+	style.anti_aliasing = true
+	_tag.draw_style_box(style, box)
+	_tag.draw_string(font, Vector2(-text_size.x * 0.5, -text_size.y + font.get_ascent(TAG_FONT)),
+		title, HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_FONT, UISkin.CREAM_TEXT)
 
 
 func is_taken() -> bool:
@@ -70,6 +132,8 @@ func take() -> void:
 	if _taken:
 		return
 	_taken = true
+	_tag_alpha = 0.0
+	_tag.visible = false
 	set_deferred(&"monitoring", false)
 	var lift := create_tween()
 	lift.tween_property(self, "position:y", position.y - 24.0, TAKE_SECONDS)

@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 35
+const CHECKS := 36
 
 
 func _initialize() -> void:
@@ -35,6 +35,7 @@ func _run() -> void:
 	await _frames(3)
 	level = await _open_level()
 	var bar_before := (level.get("quick_slots") as QuickSlotBar).visible
+	await _its_name_shows_as_she_nears()
 	await _walking_into_one_takes_it()
 	await _the_bar_comes_with_the_first_find(bar_before)
 	await _a_full_kind_leaves_it_lying()
@@ -268,12 +269,30 @@ func _walk_her(from: float, seconds: float) -> void:
 	await _frames(4)
 
 
+## Far off it is a glint; near, its name stands over it; taken, the name goes with it.
+func _its_name_shows_as_she_nears() -> void:
+	var pickup := _pickup("Asin1")
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(2300.0 - SatchelPickup2D.TAG_NEAR - 120.0, 596.0),
+		"linear_velocity": Vector2.ZERO})
+	await _frames(30)
+	var far := pickup.tag_shown()
+	player.call("apply_morph_state", {"position": Vector2(2300.0 - SatchelPickup2D.TAG_NEAR + 80.0, 596.0),
+		"linear_velocity": Vector2.ZERO})
+	await _frames(30)
+	var near := pickup.tag_shown()
+	_check(far == 0.0 and near == 1.0 and pickup.title == "Asin · salt",
+		"one of Lola's things shows its name as she nears it, and not from afar",
+		"far %.2f, near %.2f, \"%s\"" % [far, near, pickup.title])
+
+
 func _walking_into_one_takes_it() -> void:
 	var satchel = level.get("satchel")
 	var pickup := _pickup("Asin1")
 	await _walk_her(2200.0, 1.6)
 	var said := (level.get("hint_bar") as HintBar).current_text()
-	_check(satchel.count("asin") == 2 and (pickup == null or not is_instance_valid(pickup) or pickup.is_taken())
+	_check(satchel.count("asin") == 2 and (pickup == null or not is_instance_valid(pickup)
+			or (pickup.is_taken() and pickup.tag_shown() == 0.0))
 			and bool(level.call("pickup_taken_this_run", "L4_P_ASIN1")) and said == "Asin -- salt. It burns them. Z throws it.",
 		"walking into one takes it, and the first of a kind says what it does and its key",
 		"asin %d, said \"%s\"" % [satchel.count("asin"), said])
