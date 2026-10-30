@@ -414,10 +414,12 @@
         "with Shift is taught -- where it matters. ON THE HINT BAR, NOT A CARD: a card dims all but",
         "her, and the flame it is about would vanish under its own warning.",
         "",
-        "THE LAMP IS TAUGHT BEFORE ANYTHING CAN HIT IT. Kent found the fights and the lamp confusing:",
-        "its only lesson came at the first hit, on the bar, mid-fight. So at her first steps a card",
-        "lights the lantern on the ink plate and shows it -- the HUD's own lamp, dimming a stage a hit,",
-        "then her back at the last lit lantern -- while nothing is near. The first hit still says it."
+        "THE LAMP IS TAUGHT BEFORE THE FIRST FIGHT. Kent found the fights and the lamp confusing: its",
+        "only lesson came at the first hit, on the bar, mid-fight. So at the first clearing -- where the",
+        "lamp is filled, past the santelmo and before the sigbin -- a card lights the lantern on the ink",
+        "plate and shows it: the HUD's own lamp, dimming a stage a hit, then her back at the last lit",
+        "lantern. NOT AT HER FIRST STEPS: there it held the queue, and the santelmo's walk lesson came",
+        "too late, under the card's dim. The first hit still says it, on the bar."
       ],
       "speaker_default": "apo",
       "lessons": [
@@ -432,7 +434,7 @@
         },
         {
           "id": "lamp",
-          "at": "moved",
+          "at": "checkpoint",
           "mode": "look",
           "visual": "lamp",
           "context": "world",

@@ -139,6 +139,10 @@ func _its_flame_teaches_walking() -> void:
 	var tutorial := level.get("tutorial") as Node
 	var told := bool(tutorial.call("has_taught", "walk_past")) or bool(tutorial.call("is_coming", "walk_past"))
 	_check(told, "near a santelmo, the walk is taught", "walk_past %s" % ("shown" if told else "never offered"))
+	# The lamp's card waits for the first clearing: taught at her first steps, it held the queue
+	# and the walk came too late, under its dim.
+	var lamp_early := bool(tutorial.call("has_taught", "lamp")) or bool(tutorial.call("is_coming", "lamp"))
+	_check(not lamp_early, "and the lamp's card is not in its way", "lamp %s" % ("offered" if lamp_early else "waiting"))
 	var dimmed := bool(get_meta(&"dimmed_near_flame", true))
 	_check(not dimmed, "and nothing dims the flame it is about", "dimmed %s" % dimmed)
 
@@ -453,6 +457,10 @@ func _a_light_of_her_own_at_the_clearing() -> void:
 	var area := level.call("_checkpoint_area_for", "CP1") as CheckpointArea2D
 	var walked_in := checkpoints.latest_id()
 	var lit_walking_in := area.is_mark_lit()
+	var tutorial := level.get("tutorial") as Node
+	var lamp_taught := bool(tutorial.call("has_taught", "lamp")) or bool(tutorial.call("is_coming", "lamp"))
+	_check(lamp_taught, "at the first clearing, where the lamp is filled, the lamp is taught",
+		"lamp %s" % ("offered" if lamp_taught else "never offered"))
 	_health().dim(PlayerHealth.LOW)
 	_health().dim(PlayerHealth.LOW)
 	level.call("_on_crown_touched")
