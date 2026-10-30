@@ -110,7 +110,7 @@ func _the_lantern_shrinks_with_the_flame() -> void:
 func _a_level_that_is_dark() -> void:
 	var plain := await _open_level(null)
 	_check(plain.get("darkness_layer") == null and plain.get("held_lantern") == null
-			and plain.get("lantern_hud") == null,
+			and plain.get("lantern_hud") == null and Rect2(plain.call("_tutorial_target", "lantern")) == Rect2(),
 		"a level that is not dark builds no dark, no lantern and no lantern chip", "Payyo as it is")
 	plain.queue_free()
 	await _frames(3)
@@ -134,6 +134,9 @@ func _a_level_that_is_dark() -> void:
 				PlayerHurtbox2D.middle_of(apo)))
 	var chip := level.get("lantern_hud") as LanternHud
 	var health := level.get("player_health") as PlayerHealth
+	var lit_up := Rect2(level.call("_tutorial_target", "lantern"))
+	_check(chip != null and lit_up.has_area() and lit_up.is_equal_approx(chip.get_global_rect()),
+		"the lamp's lesson lights the lantern chip itself", "%s" % lit_up)
 	if chip != null and health != null:
 		chip.gutter(1.0)
 		chip.lean(0.8)
