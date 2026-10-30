@@ -47,7 +47,7 @@ const _FALL_PROBE := 1800.0
 const _INSIDE_MARGIN := 56.0
 ## In a dark level the ghost is cut out of the dark (DarknessLayer.REVEAL_GROUP), this far past
 ## its own edge, so she can see it and the ground it will stand on. Not light: nothing counts it.
-const DARK_REVEAL_MARGIN := 90.0
+const DARK_REVEAL_MARGIN := 50.0
 const DARK_REVEAL_STRENGTH := 0.8
 ## The guides -- reach ring, drop line, size -- are drawn on their own layer, over the dark
 ## (DarknessLayer is 3) and under the HUD (5). In Dilim the ring sat under the dark and could
