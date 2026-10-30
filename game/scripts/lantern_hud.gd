@@ -40,7 +40,7 @@ var _clock := 0.0
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var halo := Vector2.ONE * GLOW_RINGS * GLYPH_SCALE * 2.0
-	custom_minimum_size = _glyph_size() + halo
+	custom_minimum_size = glyph_size() + halo
 
 
 ## The stage it last showed, so it can tell brighter from dimmer.
@@ -104,7 +104,7 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var jitter := roundf(sin(_clock * 70.0) * SHAKE_PX * (_shake / SHAKE_TIME))
-	var glyph := _glyph_size()
+	var glyph := glyph_size()
 	var origin := ((size - glyph) * 0.5).round()
 	var lit := float(stage()) / float(PlayerHealth.FULL)
 	var flicker := 1.0
@@ -120,7 +120,7 @@ func _draw() -> void:
 				Color(LIT, alpha))
 	# The lantern, swinging from its ring when something leans on it.
 	draw_set_transform(origin + Vector2(jitter + glyph.x * 0.5, 0.0), -_lean * 0.35, Vector2.ONE)
-	_draw_lantern(Vector2(-glyph.x * 0.5, 0.0), lit, flicker)
+	paint(self, Vector2(-glyph.x * 0.5, 0.0), GLYPH_SCALE, stage(), flicker)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if _red > 0.0:
 		var edge := StyleBoxFlat.new()
@@ -131,9 +131,12 @@ func _draw() -> void:
 			size + Vector2(8.0, 6.0)))
 
 
-## Cold shells warmed toward lit gold by how much flame is left, and the flame itself: a row
-## shorter for each stage down, gone at none.
-func _draw_lantern(origin: Vector2, lit: float, flicker: float) -> void:
+## The lantern at `stage` (0 to PlayerHealth.FULL), its top-left at `origin`, each art pixel
+## `scale` px: cold shells warmed toward lit gold by how much flame is left, and the flame, a row
+## shorter for each stage down, gone at none. On any canvas, so a lesson's picture shows the very
+## lamp the HUD does.
+static func paint(canvas: CanvasItem, origin: Vector2, scale: int, stage: int, flicker := 1.0) -> void:
+	var lit := float(stage) / float(PlayerHealth.FULL)
 	var rows: Array = CheckpointLantern2D.LANTERN_ROWS
 	var cold: Dictionary = CheckpointLantern2D.LANTERN_PALETTE
 	var warm: Dictionary = CheckpointLantern2D.LANTERN_ALIGHT
@@ -146,18 +149,19 @@ func _draw_lantern(origin: Vector2, lit: float, flicker: float) -> void:
 			var colour: Color = cold[key]
 			if warm.has(key):
 				colour = colour.lerp(warm[key], lit * flicker)
-			draw_rect(Rect2(origin + Vector2(x, y) * GLYPH_SCALE, Vector2.ONE * GLYPH_SCALE), colour)
-	var tall := mini(stage(), FLAME_ROWS.size())
+			canvas.draw_rect(Rect2(origin + Vector2(x, y) * scale, Vector2.ONE * scale), colour)
+	var tall := mini(stage, FLAME_ROWS.size())
 	for index in range(tall):
 		var row: String = FLAME_ROWS[index]
 		for x in range(row.length()):
 			if FLAME_COLOURS.has(row[x]):
 				var colour: Color = FLAME_COLOURS[row[x]]
 				colour.a = flicker
-				draw_rect(Rect2(origin + (FLAME_BASE + Vector2(x, -index)) * GLYPH_SCALE,
-					Vector2.ONE * GLYPH_SCALE), colour)
+				canvas.draw_rect(Rect2(origin + (FLAME_BASE + Vector2(x, -index)) * scale,
+					Vector2.ONE * scale), colour)
 
 
-static func _glyph_size() -> Vector2:
+## How big the lantern is with each art pixel `scale` px.
+static func glyph_size(scale: int = GLYPH_SCALE) -> Vector2:
 	var rows: Array = CheckpointLantern2D.LANTERN_ROWS
-	return Vector2(String(rows[0]).length(), rows.size()) * GLYPH_SCALE
+	return Vector2(String(rows[0]).length(), rows.size()) * scale
