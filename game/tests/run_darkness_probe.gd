@@ -21,6 +21,7 @@ func _run() -> void:
 	await _a_level_that_is_dark()
 	await _a_flashlight_and_a_fire_light_the_dark()
 	await _a_sound_shows_where_it_came_from()
+	await _the_ground_catches_moonlight()
 	if failures == 0:
 		print("OBRA_DARKNESS_OK")
 		quit(0)
@@ -314,6 +315,30 @@ func _a_sound_shows_where_it_came_from() -> void:
 		"its rings fade in their time, a silent sound shows none, and it sits over the dark",
 		"%d shown, %d left after %.1f s, layer %d" % [started, ripple.active(), EdgeRipple.LIFE + 0.2, ripple.layer])
 	ripple.queue_free()
+	await process_frame
+
+
+## Dilim's ground: every top edge she can stand on is traced over the dark, a ledge's ends turned
+## down -- and none of it is light.
+func _the_ground_catches_moonlight() -> void:
+	var ground := MakilingTerrain2D.new()
+	ground.platforms = [Rect2(0.0, 600.0, 400.0, 200.0)] as Array[Rect2]
+	ground.branches = [Rect2(500.0, 450.0, 200.0, 18.0)] as Array[Rect2]
+	ground.position = Vector2(100.0, 0.0)
+	root.add_child(ground)
+	await process_frame
+	var rims := ground.rim_segments()
+	var layer := ground.get_node_or_null(^"Rims") as CanvasLayer
+	var lip := MakilingTerrain2D.LIP
+	var top: Array = rims[0] if not rims.is_empty() else [Vector2.INF, Vector2.INF]
+	var branch: Array = rims[-1] if not rims.is_empty() else [Vector2.INF, Vector2.INF]
+	_check(rims.size() == 4 and top[0] == Vector2(100.0, 600.0 - lip) and top[1] == Vector2(500.0, 600.0 - lip)
+			and branch[0] == Vector2(600.0, 450.0 - lip) and layer != null
+			and layer.layer > DarknessLayer.LAYER and layer.layer < 5 and layer.follow_viewport_enabled
+			and LightField.holes_in(self).is_empty(),
+		"Dilim's ground catches a thread of moonlight on every edge she can stand on, over the dark",
+		"%d rims, top %s, branch %s, layer %d" % [rims.size(), top, branch, layer.layer if layer else -1])
+	ground.queue_free()
 	await process_frame
 
 
