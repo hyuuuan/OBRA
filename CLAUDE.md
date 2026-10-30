@@ -31,9 +31,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 
 ### Git
 - **Work on a branch per PR, off `main`.** Never commit to `main` directly.
-- **Make one logical change per commit, and push as you go.** A commit subject containing "and" is two commits. A new node, its wiring, its test and a fixture fix are four commits. Order them so each builds: data → nodes → wiring → scenes → tests.
 - **Commit messages explain *why*, not just what.** The first line is short and plain; the body gives the reason.
-- **No AI attribution, ever.** No `Co-Authored-By: <AI>` trailer, and no "Generated with …" footer in PR descriptions. This is an assessed thesis artefact, and the team removed these from history at real cost.
 - **Open the PR and merge it once its suites pass.** Afterwards, `git pull --ff-only` on main, run the import, and delete the branch (local and remote).
 
 ### Testing
