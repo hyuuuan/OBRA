@@ -474,8 +474,12 @@ func _fragment_here() -> MemoryFragment2D:
 		return null
 	var best: MemoryFragment2D = null
 	var nearest := INF
+	# A drawn creature keeps plain reach: its flight is already paid for in ink.
+	var airborne := player is CharacterBody2D and not (player as CharacterBody2D).is_on_floor()
 	for fragment in _fragments:
 		var away := fragment.global_position.distance_to(player.global_position)
+		if fragment.needs_footing and airborne:
+			continue
 		if fragment.is_open() and away <= fragment.reach and away < nearest:
 			best = fragment
 			nearest = away

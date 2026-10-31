@@ -29,7 +29,7 @@ func _run() -> void:
 				"placed %s, reached %s, at %s" % [placed, reached, player.global_position])
 			await _close()
 	await _open()
-	player.call("apply_morph_state", {"position": Vector2(9410, -200), "linear_velocity": Vector2.ZERO})
+	player.call("apply_morph_state", {"position": Vector2(9410, -262), "linear_velocity": Vector2.ZERO})
 	for i in range(30):
 		await physics_frame
 	var flower_reached := await _walk("flower", 900)

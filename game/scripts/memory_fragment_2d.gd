@@ -42,6 +42,9 @@ const RIM_BREATH := 2.4
 ## How near she must stand for a drawing to go into it. The flower's is short: it is saved from
 ## its ledge, off the path, not from the path beneath.
 @export var reach := 320.0
+## Only in reach while she stands. A jump from the path beneath peaks 94px nearer, which put
+## the flower in reach of the very path its ledge exists to keep it off.
+@export var needs_footing := false
 ## Cluster-managed fragments start together, rather than reacting to x through a wall.
 var cluster_managed := false
 var cluster_id := ""
@@ -57,6 +60,7 @@ func configure_memory(entry: Dictionary) -> void:
 	cluster_id = String(entry.get("cluster", ""))
 	cluster_managed = not cluster_id.is_empty()
 	reach = float(entry.get("reach", reach))
+	needs_footing = bool(entry.get("needs_footing", needs_footing))
 	summit_texture = load(String(entry.get("summit_art", FOLDER + fragment_id + ".png"))) as Texture2D
 	bloom_width = float(entry.get("bloom_width", 800.0))
 	bloom_elevation = float(entry.get("bloom_elevation", 0.0))

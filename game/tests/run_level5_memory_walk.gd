@@ -73,6 +73,20 @@ func _run() -> void:
 			player.call("apply_morph_state",{"position":Vector2(10190,-430),"linear_velocity":Vector2.ZERO})
 			for frame in range(24): await physics_frame
 			_check(level.call("_fragment_here") != level.call("_fragment","flower"),"the flower cannot be taken from the main path")
+			# Nor from the top of a jump off that path, which comes within its raw reach.
+			var flower: MemoryFragment2D = level.call("_fragment","flower")
+			player.call("apply_morph_state",{"position":Vector2(10230,-422),"linear_velocity":Vector2.ZERO})
+			for frame in range(12): await physics_frame
+			Input.action_press("jump")
+			var nearest_air := INF
+			var taken_air := false
+			for frame in range(40):
+				await physics_frame
+				nearest_air = minf(nearest_air, flower.global_position.distance_to(player.global_position))
+				taken_air = taken_air or level.call("_fragment_here") == flower
+			Input.action_release("jump")
+			_check(flower.is_open() and nearest_air < flower.reach and not taken_air,
+				"a jump from the path comes within the flower's reach but cannot take it: %.0f px" % nearest_air)
 		await _close()
 	# The optional rocks use one-way collision so the main path stays open underneath.
 	await _open()

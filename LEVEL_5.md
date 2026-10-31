@@ -178,7 +178,10 @@ carry stable IDs and positions; acceptance, Lolo membership, reach, and summit a
 configuration. The groups are kubo/terraces/bandaritas/dancers, church/storm/bangka/coral, and
 bakunawa/forest/waterfall/flower. Each camera region shows its four pictures together above the
 characters. Two shallow rises carry each cluster along the climb; the stacked memory walls have
-been removed. Only the flower has a separate detour, on one-way rocks above the main path.
+been removed. Only the flower has a separate detour, on one-way rocks above the main path: three
+60px rises 180px apart from the x9600 shelf, which a run-and-jump catches on any jump timing, and
+the flower 120px over the top rock. It `needs_footing` -- she must stand to reach it -- because a
+jump from the path peaks inside its 160px reach.
 
 Whitening starts for the whole cluster on entry, takes 90 seconds to reach paper, holds during
 every paused modal, and heads to

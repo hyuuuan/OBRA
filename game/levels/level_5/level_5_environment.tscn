@@ -167,9 +167,14 @@ metadata/taken_over = 6.0
 
 ; The flower remains above the path: detached one-way rocks can be climbed or passed beneath.
 ; Nothing on this optional detour is needed to reach the summit.
+; ⚠ THREE 60px RISES, 180px APART. Four 80px rises left a 14px margin on a 94px jump that a
+; released key cuts short, and a player running right missed the whole stair on most jump
+; timings. This spacing catches every timing of a run-and-jump from the -340 shelf (modelled
+; frame by frame against wanderer.gd). The flower sits 120px over the top rock: in reach from
+; it alone -- 180px from the rock below, 210px from the path.
 [node name="FlowerLedge" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 script = ExtResource("8_terrain")
-platforms = Array[Rect2]([Rect2(9500, -340, 220, 30), Rect2(9680, -420, 220, 30), Rect2(9860, -500, 280, 30), Rect2(10040, -580, 220, 30)])
+platforms = Array[Rect2]([Rect2(9760, -400, 220, 30), Rect2(9940, -460, 220, 30), Rect2(10120, -520, 220, 30)])
 grassed = false
 one_way = true
 
@@ -246,7 +251,7 @@ script = ExtResource("9_fragment")
 fragment_id = "waterfall"
 
 [node name="Flower" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(10190, -730)
+position = Vector2(10230, -640)
 script = ExtResource("9_fragment")
 fragment_id = "flower"
 
