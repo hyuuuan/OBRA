@@ -1496,9 +1496,74 @@ def draw_paddle() -> Canvas:
     return c
 
 
+# THE OLD JETTY: the way out to sea that used to be there, at the end of the beach. It goes as she
+# comes down the sand (level_3.gd `_fades_the_old_way`), so the open water reads as hers to cross
+# before Lolo asks how. Bamboo on the bangka's own wood and lashing, weathered, a slat gone here
+# and there and its far end broken off and hanging. It has no collision -- it is never stood on.
+#
+# The sea in front of it is the plate's, not drawn over it, so what is under the water is drawn
+# under the water: below JETTY_WATERLINE the posts take the sea's colour, and their ends dither out
+# into it rather than stopping square, which read as stilts standing on nothing.
+JETTY_W, JETTY_H = 124, 46
+JETTY_DECK = 5
+JETTY_WATERLINE = 9
+JETTY_POSTS = (2, 20, 38, 56, 74, 92)
+## Past here the deck has broken off; what is left of it hangs toward the water.
+JETTY_BROKEN = 98
+SUNK = ramp(["#0f2a36", "#173f4c", "#235a66"])
+
+
+def draw_jetty() -> Canvas:
+    pixelart.PX = 3
+    c = Canvas(JETTY_W, JETTY_H, seed=4400)
+    gone_from = JETTY_H - 14
+    for x in JETTY_POSTS:
+        # The last post leans: the sea has been at its footing longer than the rest.
+        lean = 1 if x == JETTY_POSTS[-1] else 0
+        for y in range(JETTY_DECK - 2, JETTY_H):
+            dx = (y - JETTY_DECK) // 9 * lean
+            if y <= JETTY_WATERLINE:
+                lit, mid, dark = HULL[3], HULL[2], HULL[1]
+            else:
+                lit, mid, dark = SUNK[2], SUNK[1], SUNK[0]
+            for offset, colour in enumerate((lit, mid, dark)):
+                if y < gone_from or (BAYER_AT(x + offset, y) > (y - gone_from) / 14.0):
+                    c.px(x + offset + dx, y, colour)
+        c.px(x, JETTY_DECK - 3, HULL[4])
+        c.px(x + 1, JETTY_DECK - 3, HULL[3])
+        for y in (JETTY_DECK + 3, JETTY_DECK + 4):
+            c.px(x, y, ROPE[1])
+            c.px(x + 1, y, ROPE[0])
+            c.px(x + 2, y, ROPE[0])
+    # Braces between the posts, just under the deck and above the water.
+    for left, right in zip(JETTY_POSTS[:-2], JETTY_POSTS[1:-1]):
+        for step in range(right - left - 3):
+            c.px(left + 3 + step, JETTY_DECK + 4 + (step * 3) // (right - left), HULL[1])
+    # The deck: a bamboo stringer side on, the slats' ends along it, a beam under it.
+    for x in range(JETTY_BROKEN):
+        c.px(x, JETTY_DECK, BAMBOO[3])
+        c.px(x, JETTY_DECK + 1, BAMBOO[2])
+        c.px(x, JETTY_DECK + 2, BAMBOO[1] if x % 4 else BAMBOO[0])
+        c.px(x, JETTY_DECK + 3, HULL[1])
+    # Slats gone: nobody mends it any more.
+    for gap in (29, 30, 61, 62, 63, 83):
+        c.px(gap, JETTY_DECK, BAMBOO[0])
+        c.px(gap, JETTY_DECK + 1, BAMBOO[0])
+    # The end, broken off and hanging toward the water.
+    for step in range(16):
+        x = JETTY_BROKEN + step
+        y = JETTY_DECK + step // 3
+        c.px(x, y, BAMBOO[2])
+        c.px(x, y + 1, BAMBOO[1])
+        c.px(x, y + 2, BAMBOO[0])
+    c.speckle(0, JETTY_DECK, JETTY_BROKEN, 3, BAMBOO[1], 0.06)
+    return c
+
+
 FOUND = {"painting_fragment.png": draw_painting_fragment,
          "sand_mound.png": draw_sand_mound,
-         "paddle.png": draw_paddle}
+         "paddle.png": draw_paddle,
+         "jetty.png": draw_jetty}
 
 
 def build() -> list[Path]:

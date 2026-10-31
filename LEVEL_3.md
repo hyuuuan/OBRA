@@ -950,6 +950,19 @@ already said never waits; and one dropped is still there if they swim back.
 about seventeen seconds queued. Let go and not held, it drifted to about 575 px off and lola1 was
 said. Swum 400 px up with a key held, lola1 was dropped.
 
+## The old jetty fades (2026-11-01)
+
+A bamboo jetty stood at the end of the beach, out over the water: `GameplayPlane/OldJetty`,
+authored by `tools/build_dagat_props.py` in the bangka's wood. It is one of the fading old ways
+(`_fades_the_old_way`, as in Payyo; see LEVEL_1.md): no collision, gone from x 1150 by 1462,
+before its near end at 1585, so the open water reads as hers to cross -- by the boat or by
+swimming -- before Lolo asks which. It dissolves into the sea haze (`_fade_paper` 0.74, 0.88,
+0.93), not to white.
+
+- ⚠ `build_dagat_props.py --check` **rebuilds every picture** before comparing. It wrote nothing
+  but the new `jetty.png` here, because this Pillow encodes the committed PNGs byte for byte;
+  snapshot `git status` before running it all the same.
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.

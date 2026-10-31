@@ -179,6 +179,25 @@ func dialogue_path() -> String:
 	return "res://config/dialogue_l3.json"
 
 
+## THE OLD JETTY GOES as she comes down the beach: the way out that used to be there, so the open
+## water reads as hers to cross -- by the boat or by swimming -- before Lolo asks which (Kent,
+## 2026-11-01: every level's obstacles, fully away). It dissolves into the sea haze, not to white.
+func _fades_the_old_way() -> bool:
+	return true
+
+
+func _fade_paper() -> Color:
+	return Color(0.74, 0.88, 0.93)
+
+
+func _fade_wash() -> float:
+	return 0.25
+
+
+func _fade_vanish_from() -> float:
+	return 0.15
+
+
 func _dialogue_node_obstacle_id() -> String:
 	return _live_node_obstacle
 
