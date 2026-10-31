@@ -1,17 +1,19 @@
 extends SceneTree
 ## The old way fades (LevelBase._fades_the_old_way), in every level that opts in: the marked
-## scenery is whole until she nears it, fades into the level's own colour (never Mayon's paper)
+## scenery is whole until she nears it, fades in the level's own colours (never Mayon's white)
 ## to its mark once she passes fade_at, keeps its collision-free scenery standing, and a
 ## checkpoint restore puts it back ahead of her and settles it at once behind her.
 ##
 ##   godot --headless --path game --script res://tests/run_old_way_fade_probe.gd
 
 const MAYON_PAPER := Color(0.957, 0.937, 0.894)
+const WandererClass = preload("res://scripts/wanderer.gd")
 ## Each level that opts in: its scene and the one thing that must fade there.
 const LEVELS := [
+	["res://game_level.tscn", "EnvironmentBaseplate/GameplayPlane/Hagdan/OldSteps"],
 	["res://game_level.tscn", "EnvironmentBaseplate/GameplayPlane/Gorge/RuinedBridge"],
 ]
-const CHECKS := 6 * 1
+const CHECKS := 7 * 2
 
 var checked := 0
 var failures := 0
@@ -40,15 +42,24 @@ func _level_fades_its_old_way(scene: String, path: NodePath) -> void:
 	for _frame in range(30):
 		await physics_frame
 	var thing := level.get_node(path) as Node2D
+	var where := "%s %s" % [scene.get_file(), path.get_name(path.get_name_count() - 1)]
 	var at := float(thing.get_meta("fade_at"))
 	var to := float(thing.get_meta("fade_to", 1.0))
+	# ⚠ Gone before she can get to it, at a run: an old way still showing at her feet looks like
+	# somewhere to stand, and it holds nobody up.
+	var reached := at + WandererClass.SPEED * float(thing.get_meta("fade_over", 1.5))
+	var near := _leftmost(thing)
+	_check(to < Drainable.BLANK or reached <= near, "%s: it is gone before she reaches it" % where,
+		"blank at x %.0f, its near edge at %.0f" % [reached, near])
 	var drainable := thing.get_node_or_null(^"Drainable") as Drainable
 	_check(drainable != null and is_zero_approx(drainable.drain),
-		"%s: the old way wears the fade and is whole at the start" % scene)
+		"%s: the old way wears the fade and is whole at the start" % where)
 	var material := thing.material as ShaderMaterial
 	var paper: Color = material.get_shader_parameter("paper") if material != null else MAYON_PAPER
-	_check(not paper.is_equal_approx(MAYON_PAPER), "%s: it fades into its own colour" % scene,
-		str(paper))
+	var wash: float = material.get_shader_parameter("wash") if material != null else 1.0
+	# Never the ash: neither Mayon's paper nor its whitening all the way to a flat slab.
+	_check(not paper.is_equal_approx(MAYON_PAPER) and wash < 1.0,
+		"%s: it fades in its own colours, not Mayon's white" % where, "%s, wash %.2f" % [paper, wash])
 
 	var player := level.get("player") as Node2D
 	player.call("apply_morph_state", {"position": Vector2(at + 40.0, player.global_position.y - 40.0),
@@ -57,20 +68,29 @@ func _level_fades_its_old_way(scene: String, path: NodePath) -> void:
 	while drainable.drain < to - 0.001 and waited < 5.0:
 		await physics_frame
 		waited += 1.0 / 60.0
-	_check(absf(drainable.drain - to) < 0.001, "%s: past fade_at it fades to its mark" % scene,
+	_check(absf(drainable.drain - to) < 0.001, "%s: past fade_at it fades to its mark" % where,
 		"drain %.3f, want %.3f" % [drainable.drain, to])
 	# Long enough for a fade that overshot its mark to have gone all the way.
 	for _frame in range(int((float(thing.get_meta("fade_over", 1.5)) + 0.5) * 60.0)):
 		await physics_frame
 	_check(absf(drainable.drain - to) < 0.001 and (to >= Drainable.BLANK or not drainable.is_blank()),
-		"%s: it stays at its mark" % scene, "drain %.3f" % drainable.drain)
+		"%s: it stays at its mark" % where, "drain %.3f" % drainable.drain)
 
 	level.call("_settle_the_fading", at - 400.0)
-	_check(is_zero_approx(drainable.drain), "%s: a restore ahead of it brings it back" % scene)
+	_check(is_zero_approx(drainable.drain), "%s: a restore ahead of it brings it back" % where)
 	level.call("_settle_the_fading", at + 400.0)
-	_check(absf(drainable.drain - to) < 0.001, "%s: a restore past it settles it at once" % scene)
+	_check(absf(drainable.drain - to) < 0.001, "%s: a restore past it settles it at once" % where)
 	level.queue_free()
 	await process_frame
+
+
+## The near (left) edge of everything drawn in it, in the world.
+func _leftmost(thing: Node2D) -> float:
+	var left := INF
+	for node in thing.find_children("*", "Sprite2D", true, false):
+		var sprite := node as Sprite2D
+		left = minf(left, (sprite.get_global_transform() * sprite.get_rect()).position.x)
+	return left
 
 
 func _check(ok: bool, label: String, detail: String = "") -> void:
