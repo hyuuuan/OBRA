@@ -78,10 +78,8 @@ func _run() -> void:
 
 ## Everything the run is about to click, actually on screen and laid out.
 ##
-## The window is checked for FOCUS too. Events go straight into the viewport now rather
-## than through the window manager, so focus is not needed to deliver them -- but an
-## unfocused window on this platform is one that has not finished being mapped, and a
-## Control laid out during that has not necessarily settled where it will end up.
+## The mouse canary proves GUI readiness directly. Window focus is not required for
+## viewport injection, and macOS may map a fully laid-out game behind another app.
 ## AN EMPTY BAG DRAWS NOTHING, so a suite that clicks a slot has to put something in it
 ## first. That is also the honest test: a player clicks a slot to place the drawing that is
 ## in it, and there is no reason to click one that is empty. Without this the canary finds
@@ -107,8 +105,8 @@ func _ready_to_click() -> bool:
 			continue
 		if draw_button.get_global_rect().get_center().x <= 0.0:
 			continue
-		if not DisplayServer.window_is_focused():
-			continue
+		# Focus is not required by viewport injection. The real GUI canary below proves
+		# mapping/input readiness directly, including when macOS opens us behind an app.
 		# Settled, then two more frames for the layout pass that follows the last one.
 		await process_frame
 		await process_frame
@@ -683,8 +681,11 @@ func _the_bag_screen_answers_the_mouse() -> void:
 ## because Godot starts a drag on the distance travelled, not on where the pointer is.
 func _drag(from: Vector2, to: Vector2) -> void:
 	_inject(_motion(from))
-	for _frame in range(4):
+	for _frame in range(30):
 		await process_frame
+		var hovered := root.gui_get_hovered_control()
+		if hovered is Button and hovered.get_global_rect().has_point(from):
+			break
 	_inject(_button(from, true))
 	await process_frame
 	var last := from
@@ -697,6 +698,10 @@ func _drag(from: Vector2, to: Vector2) -> void:
 		_inject(held)
 		await process_frame
 		await process_frame
+	for _frame in range(30):
+		await process_frame
+		if root.get_mouse_position().distance_to(to) < 2.0:
+			break
 	_inject(_button(to, false))
 	for _frame in range(4):
 		await process_frame

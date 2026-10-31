@@ -289,6 +289,11 @@ func _house_to(manager: Node, level_id: String, title: String) -> void:
 	_check(apo != null and painting != null, "the house has %s's painting" % title, "-")
 	if apo == null or painting == null:
 		return
+	# Every newly unlocked frame has the same performance as Piyesta's. During it the hub
+	# intentionally ignores E; uncapped headless frames must not race its real-time clock.
+	var until := Time.get_ticks_msec() + 8000
+	while bool(hub.call("is_revealing")) and Time.get_ticks_msec() < until:
+		await create_timer(0.05, true, false, true).timeout
 	apo.global_position = Vector2(painting.global_position.x, apo.global_position.y)
 	for _i in range(20):
 		await process_frame

@@ -5,7 +5,7 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_level5_frame_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 3
+const CHECKS := 4
 
 var failures := 0
 var checked := 0
@@ -34,6 +34,8 @@ func _run() -> void:
 	var black := await _until(func() -> bool: return frame != null and is_instance_valid(frame) and frame.is_black(), 40.0)
 	_check(shown and black, "the real room comes up over the painting, under the lines, and cuts to black",
 		"room on layer %s, black %s" % [frame.layer if frame != null else -1, black])
+	_check(frame != null and frame.holds_ordinary_brush(), "she visibly picks up the ordinary brush before black",
+		"ordinary brush held %s" % (frame != null and frame.holds_ordinary_brush()))
 	var home := await _until(func() -> bool: return not is_instance_valid(level) or bool(level.call("went_home")), 10.0)
 	_check(home, "then she is home", "went home %s" % home)
 	if failures == 0 and checked == CHECKS:

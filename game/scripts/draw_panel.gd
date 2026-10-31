@@ -19,8 +19,18 @@ signal panel_closed
 ## I could not tell it apart from something else" -- and only the level knows it is first.
 signal recognition_declined(entity: String, confidence: float, margin: float, reason: String)
 ## The page refused quietly (see set_refusing): the lines faded and nothing was asked of the
-## recogniser. `strokes` is how many lines she drew; none is still an attempt.
+## recogniser. Only a nonempty completed drawing emits this; cancellation remains pending.
 signal quietly_refused(strokes: int)
+## A drawing that stays; neither quiet mode visits SketchClient.
+signal free_paint_completed(strokes: Array)
+
+enum DrawingMode { NORMAL, QUIET_REFUSAL, FREE_PAINT }
+var drawing_mode: DrawingMode = DrawingMode.NORMAL
+var _quiet_idle := 0.0
+var _quiet_revision := -1
+var _reference: TextureRect
+var _reference_texture: Texture2D
+var _quiet_visibility := {}
 
 @export var debug_timing_logs: bool = false
 
@@ -68,7 +78,8 @@ var _submitting := false
 ## THE BRUSH REFUSES. Mayon's two people -- lolo near the top, lola at the summit -- are the only
 ## things in the game the brush will not make, and the design asks that it not even try: no
 ## running guess, no words, no ink taken, nothing sent to the recogniser and nothing recorded.
-## Paint, or putting the brush down, fades the lines to the bare page and closes it. It must not
+## Resting the hand fades the lines and closes the page. Cancelling leaves the beat pending.
+## It must not
 ## look like a decline -- a decline is the game failing to read a drawing, and this is the game
 ## being asked for something there has never been a way to make.
 var _refusing := false
@@ -138,7 +149,49 @@ func is_submitting() -> bool:
 
 ## Set by the level BEFORE the page opens (LevelBase._open_the_page).
 func set_refusing(on: bool) -> void:
-	_refusing = on
+	set_drawing_mode(DrawingMode.QUIET_REFUSAL if on else DrawingMode.NORMAL)
+
+
+func set_drawing_mode(mode: DrawingMode) -> void:
+	drawing_mode = mode
+	_refusing = mode != DrawingMode.NORMAL
+	_quiet_idle = 0.0
+	_quiet_revision = -1
+
+
+## Sibling of the capture viewport: reference pixels NEVER reach the recognizer.
+func set_memory_reference(picture: Texture2D) -> void:
+	_reference_texture = picture
+	if _reference == null:
+		_reference = TextureRect.new()
+		_reference.name = "MemoryReference"
+		_reference.position = Vector2(-250, 150)
+		_reference.size = Vector2(260, 220)
+		_reference.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_reference.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_reference.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_reference.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		panel_root.add_child(_reference)
+	_reference.texture = picture
+	_reference.visible = picture != null and not _refusing
+
+
+func _present_drawing_mode() -> void:
+	if _refusing:
+		for child in panel_root.get_children() + [scrim]:
+			if child is CanvasItem and child != canvas_viewport_container:
+				if not _quiet_visibility.has(child):
+					_quiet_visibility[child] = (child as CanvasItem).visible
+				(child as CanvasItem).hide()
+	else:
+		# Normal callers keep their authored visibility, including tutorial-owned children.
+		for child in _quiet_visibility:
+			if is_instance_valid(child):
+				(child as CanvasItem).visible = bool(_quiet_visibility[child])
+		_quiet_visibility.clear()
+	if _reference != null:
+		_reference.visible = not _refusing and _reference_texture != null
+	canvas.call("set_drawable_bounds", Rect2() if _refusing else canvas_frame.opening())
 
 
 func is_refusing() -> bool:
@@ -189,7 +242,12 @@ func open_panel() -> void:
 	transform_button.disabled = true
 	_refresh_ink_row()
 	UIRouter.refresh_pause(get_tree())
-	_play_open_animation()
+	_present_drawing_mode()
+	if _refusing:
+		panel_root.scale = Vector2.ONE
+		panel_root.modulate = Color.WHITE
+	else:
+		_play_open_animation()
 
 
 ## The in-world HUD steps aside while the canvas is up.
@@ -237,7 +295,17 @@ func _process(delta: float) -> void:
 	if not _is_open:
 		return
 	_ease_the_claim(delta)
-	if _submitting or _refusing:
+	if _submitting:
+		return
+	if _refusing:
+		var changed: int = canvas.content_revision()
+		if changed != _quiet_revision or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			_quiet_revision = changed
+			_quiet_idle = 0.0
+		elif canvas.has_ink():
+			_quiet_idle += delta
+			if _quiet_idle >= 1.4:
+				_on_transform_pressed()
 		return
 	_live_cooldown = maxf(0.0, _live_cooldown - delta)
 	var revision: int = canvas.content_revision()
@@ -266,7 +334,7 @@ func _on_live_prediction(
 	margin: float,
 	_response: Dictionary
 ) -> void:
-	if not _is_open or _submitting:
+	if not _is_open or _submitting or _refusing:
 		return
 	_guess_entity = entity
 	_guess_display = display_name
@@ -477,6 +545,8 @@ func _on_transform_pressed() -> void:
 	if _submitting:
 		return
 	if _refusing:
+		if not canvas.has_ink():
+			return
 		_refuse_quietly()
 		return
 	_submitting = true
@@ -641,10 +711,6 @@ func _on_ink_blocked() -> void:
 func handle_cancel() -> bool:
 	if not _is_open or _submitting:
 		return false
-	if _refusing:
-		# Putting the brush down is trying too.
-		_refuse_quietly()
-		return true
 	canvas.clear_canvas()
 	close_panel(true, true)
 	return true
@@ -655,16 +721,21 @@ func _refuse_quietly() -> void:
 	_submitting = true
 	transform_button.disabled = true
 	clear_button.disabled = true
-	var strokes: int = canvas.get_strokes().size()
+	var strokes: Array = canvas.get_strokes().duplicate(true)
+	var mode := drawing_mode
 	# ⚠ ALWAYS RUNS. The panel processes only while the tree is paused, and a refusal must not
 	# hang on the page if anything unpauses it mid-fade.
 	var fade := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	fade.tween_property(canvas, "modulate:a", 0.0, REFUSAL_FADE)
+	fade.tween_property(canvas, "modulate:a", 0.0,
+		0.35 if mode == DrawingMode.FREE_PAINT else REFUSAL_FADE)
 	await fade.finished
 	canvas.clear_canvas()
 	canvas.modulate.a = 1.0
 	close_panel(true, true)
-	quietly_refused.emit(strokes)
+	if mode == DrawingMode.FREE_PAINT:
+		free_paint_completed.emit(strokes)
+	else:
+		quietly_refused.emit(strokes.size())
 
 
 func _play_open_animation() -> void:

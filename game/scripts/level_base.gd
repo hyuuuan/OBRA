@@ -132,6 +132,20 @@ func _brush_refused(_strokes: int) -> void:
 	pass
 
 
+## Drawing presentation and completion are level-owned; the ordinary page is unchanged.
+func _prepare_drawing_page() -> void:
+	pass
+
+
+func _free_paint_completed(_strokes: Array) -> void:
+	pass
+
+
+## A changed level layout can map an old save to a safe authored landing.
+func _checkpoint_landing(state: Dictionary) -> Vector2:
+	return Vector2(state.get("position", spawn_point.global_position))
+
+
 ## Whether a drawing of `entity_id`, paid for here, may come out of the ink's hidden reserve
 ## when the gauge cannot pay (InkManager.hidden_reserve). Mayon's: the gates its climb cannot be
 ## finished without are always payable, however the rest of the ink went. Off everywhere else.
@@ -580,6 +594,7 @@ func _ready() -> void:
 	draw_panel.drawing_ready.connect(_measure_spawn_latency)
 	draw_panel.panel_closed.connect(_on_draw_panel_closed)
 	draw_panel.quietly_refused.connect(_on_brush_refused)
+	draw_panel.free_paint_completed.connect(_free_paint_completed)
 	draw_panel.recognition_declined.connect(_on_recognition_declined)
 	ink_manager.ink_changed.connect(_on_ink_changed)
 	inventory_hud.slot_pressed.connect(_on_inventory_slot_pressed)
@@ -706,6 +721,7 @@ func _on_draw_button_pressed() -> void:
 func _open_the_page(tell_the_director: bool) -> void:
 	var refusing := _brush_refuses_here()
 	draw_panel.set_refusing(refusing)
+	_prepare_drawing_page()
 	if refusing:
 		draw_panel.open_panel()
 		return
@@ -1933,7 +1949,7 @@ func _restore_checkpoint() -> String:
 		_taken_this_run[String(id_value)] = true
 	_show_taken_pickups()
 
-	var landing := Vector2(state.get("position", spawn_point.global_position))
+	var landing := _checkpoint_landing(state)
 	if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
 		player.call("apply_morph_state", {"position": landing, "linear_velocity": Vector2.ZERO})
 	elif player != null and is_instance_valid(player):
@@ -3341,7 +3357,10 @@ func _build_checkpoint_chip() -> void:
 	# top band that only sometimes touch is worse than either arrangement: it depends on how
 	# long the objective happens to be. The plate already holds the status line and the ink
 	# count, which is the group the thesis puts this in.
-	hud_panel.adopt_checkpoints(checkpoint_label)
+	if not _saves_silently():
+		hud_panel.adopt_checkpoints(checkpoint_label)
+	else:
+		checkpoint_label.hide()
 	if checkpoints != null:
 		checkpoints.checkpoint_written.connect(_on_checkpoint_count_changed)
 		checkpoints.checkpoint_restored.connect(_on_checkpoint_count_changed)

@@ -1,0 +1,11 @@
+Use case: stylized-concept.
+Asset type: production pixel-art cliff EDGE CAP texture atlas for the side-scrolling Filipino game O.B.R.A.
+Input image 1 is a MATERIAL, PALETTE AND PIXEL-STYLE REFERENCE ONLY. Create a NEW atlas of vertical cliff end textures, not more horizontal platforms.
+
+One genuinely transparent 1536x1024 PNG, exactly THREE equal vertical columns with wide transparent gutters. Each column contains ONE tall narrow cliff corner overlay, same scale and top alignment, entire shape isolated with transparent padding. It must work as a LEFT EXPOSED EDGE where solid terrain continues to the RIGHT. The top is a short flat horizontal lip extending right, turning into a roughly vertical chipped outer edge on the LEFT. Large fractured rock faces descend down the edge; the lower end tapers into a few irregular rock tips and roots. The RIGHT side of each cap breaks up into sparse small texture clusters and transparency so it can overlap and merge onto a wider existing cliff face. No rectangle or flat background around the texture. NOT a freestanding mountain, tree, pillar, stalactite, icon, scenery vignette, or whole horizontal ledge.
+
+Column 1: short olive grass and rich hanging moss over warm brown volcanic soil with charcoal-purple embedded basalt boulders; trailing roots and moss soften the outer corner.
+Column 2: exposed charcoal/slate-purple columnar basalt, vertical angular fracture faces, sparse ochre weathering concentrated on the top lip; NO grass.
+Column 3: pale warm-grey volcanic ash crust over muted mauve-grey weathered stone, thin dusty beige lip and chipped coarse face; NO snow, NO grass.
+
+Match the reference's actual materials closely. Broad readable stone masses, subtle crisp hand-clustered 16-bit pixel art, sparse dither, quiet textured planes, warm upper-left lighting. Corner pieces should be about three times as tall as wide, with no exaggerated bulges: intended runtime footprint roughly 100x300 pixels next to a 90-pixel-tall character. Keep the top-most grass/crust level, outer edge naturally chipped rather than ruler-straight, and the overlap side irregular. Preserve true alpha transparency around and between all three pieces. No text, labels, frames, ground shadow, sky, water, UI, checkerboard or colored backdrop.

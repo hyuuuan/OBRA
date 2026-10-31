@@ -82,7 +82,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
   - Two gates: SPAN, then CLIMB. Both are tag routes.
   - What the ash settles on goes white, then blank.
 - **Act Two, the heart.**
-  - Twelve fragments of earlier paintings drift loose and go white, and there is ink to save about four.
+  - Twelve fragments in three four-memory areas go white, and there is ink to save about four.
   - To save one, she draws something that belongs in it (1 ink). A drawing that doesn't belong is handed back free.
   - Three fragments hold Lolo, and saving one steadies him. One holds the 5th flower.
 - **Lolo goes.** Near the top she tries to draw him and the brush refuses. He vanishes mid-sentence, in one frame.
@@ -97,7 +97,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 |---|---|
 | Ending | **The summit is the ending.** Endings A–D are still computed (`EndingResolver`) and logged to telemetry; they are never shown. |
 | Combat | **None.** |
-| Lola, the room, Lolo's fading | **Sculpted placeholders** in the delivered art's idiom, each listed in `ART_PLACEHOLDERS.md` so the art team can replace it by name. Lolo's fading is a shader over his existing sheet. |
+| Lola, the room, Lolo's fading | Dedicated generated performances and room in the delivered art's idiom, with originals, prompts, and replacement contracts listed in `ART_PLACEHOLDERS.md`. Lolo's fading is a shader over his existing sheet. |
 | Drawing the places | **One drawing blooms them.** |
 | Running out of ink | **A hidden reserve of 2 units.** Only the two gates may use it, and only when the gauge can't pay. Fragments and transformations never touch it. |
 | Saves | **Silent**: no lantern, letterbox, line or counter. |
@@ -131,7 +131,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 - Level probes: `run_level5_audit` · `run_level5_act_one_probe` · `run_level5_act_two_probe` · `run_level5_summit_probe` · `run_level5_frame_probe` · `run_level5_enablers_probe`
 - Shared pieces: `run_brush_refusal_probe` · `run_drain_probe` · `run_mayon_probe`
 - Art checks: `test_build_mayon(_fragments)` (Python)
-- The whole run: `run_journey_probe` (Dilim → Mayon → the frame → home)
+- The whole run: `run_journey_probe` (Dilim → Mayon → the frame → home); `run_level5_finish_walk` continuously walks Mayon through the room, with normal recognition fixtures and actual quiet/free canvas input.
 
 **Play it directly:** `godot --path game res://level_5.tscn`
 
@@ -139,7 +139,8 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 - **`_camera_follows_height` alone does not free the camera.** It is read only when a room is framed. A level with no rooms frees it in `_build_level_furniture` (`world_camera.set_vertical_free(true)`, then `snap_to_target()`).
 - **`DrawPanel` processes only while the tree is paused.** Any tween it owns must use `Tween.TWEEN_PAUSE_PROCESS`, or it hangs the moment something unpauses.
 - **A fragment's reach is a straight-line distance**, so the flower on its ledge cannot be saved from the path beneath it.
-- **The summit waits for Lolo to be gone.** Otherwise the brush raised at Lola is taken by his moment.
+- **The summit waits for Lolo to be gone.** Otherwise the brush raised at Lola is taken by his moment. His portrait must disappear with his world sprite, leaving the interrupted line onscreen.
+- **A checkpoint restore clears the old camera room.** A landing before the memories must not leave the camera framing their departed cluster.
 - **The refusals must not reuse any decline feedback**, and both must look identical.
 - **The `Painting_Covers` file names lie.** "Mt Makiling Completed Look" is Dagat's storm, and Dilim's forest is "Completed Look from Mayon".
 - **`Array(arr)` returns the same array, not a copy.** Use `.duplicate()` for anything saved.
@@ -147,10 +148,10 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 - **The delivered art is painted with checkerboards**: never key it with a threshold. Use the `checker_key` / `without_fringe` helpers from `tools/build_dilim.py`.
 
 ### Still open on Mayon
-- Visual polish: soil noise on the cone, the flat steps, and a stray ledge cube.
-- The optional dim stretch in Act One is not built (it is off the critical path).
-- The apo has no failed-draw or lowering pose; the refusal beat is silent.
-- Lola, the real room, the fragments and the summit are still placeholders (see `ART_PLACEHOLDERS.md`).
+- The landscape now uses broad generated cliffs and a continuous registered vista; inspect the actual scene after art changes.
+- The optional light gate is intentionally omitted to preserve the memory ink budget.
+- Generated Mayon performances and room need human art-direction review; originals and prompts are retained in `LEVEL5_Mayon/authored/`.
+- Generated landscape/prop art and procedural memory targets remain provisional; summit scenery reuses existing transparent art. Audio is synthesized and Lola has no recorded voice (see the authored README).
 
 ---
 

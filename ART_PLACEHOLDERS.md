@@ -392,10 +392,35 @@ include.
 
 | | Now | Where | Replace with |
 |---|---|---|---|
-| **Lola** | The apo's turnaround recoloured: grey hair, baro, saya. Back and front only. | `game/assets/Level5/people/lola_back.png`, `lola_front.png` (`tools/build_mayon_lola.py`) | Lola painting with her back turned, turning, taking the flowers, looking at the painting; seated (frame). A portrait. |
-| **The real room** | Drawn in code: a wall, a window onto the sky plate, the easel, the two of them standing. | `game/scripts/frame_return.gd` | The room: lola's chair, a window, a canvas; the apo and lola seated. |
-| **The apo's failed drawing, lowering the brush** | Not posed: the page itself refuses (the lines fade) and the beat is silent. | `DrawPanel` quiet mode, `level_5.gd` summit | The design calls the failed attempt the most important animation in the game. |
+| **Lola** | Dedicated generated painting, turning, flower, returning, and seated poses; a separately cut and outlined portrait. | `game/assets/Level5/people/lola_*.png` (`tools/build_mayon_performance.py`) | Art-directed same-name poses with the same foot registration. |
+| **The real room** | Generated painted room with runtime seated actors, saved paintings, and ordinary-brush pickup. | `game/assets/Level5/frame/room.png`, `game/scripts/frame_return.gd` | Art-directed room preserving bench/easel registration. |
+| **The apo's performance** | Generated raise, paint, failed, lower, offer, seated, seated-painting, and pickup poses. Quiet strokes fade over the actual scene. | `game/assets/Level5/people/apo_*.png`, `level_5.gd` | Art-directed poses or animation preserving actor scale and feet. |
 | **Memory fragments** | Torn boxes of the finished paintings; the flower's is a scrap of path tile with Payyo's hidden flower. | `game/assets/Level5/fragments/` (`tools/build_mayon_fragments.py`) | Hand-torn fragments; the flower's should look like nothing. |
-| **The summit** | The cone's ground, graded to ash; the backdrop drained to paper. | `level_5_environment.tscn`, `drain.gdshader` | A near-blank white summit that fragments can bloom into. |
-| **The old bridge, the old steps** | Path and masonry tiles, drawn flat. | `level_5_environment.tscn` `AshTakes` | Drawn props, each with a white and a blank state if the drain shader is not wanted. |
+| **The summit** | Near-white cone and ground; transparent scenery from earlier levels blooms in save order with the player's actual strokes. | `game/assets/Level5/restoration/`, `level_5.gd`, `memory_bloom_2d.gd` | Twelve purpose-drawn, ground-registered restored landscapes. |
+| **The old bridge, the old steps** | Dedicated generated rope bridge and eroded basalt stairs, with shader white/blank states. | `game/assets/Level5/props/old_crossing.png`, `old_steps.png` | Art-directed same-size sprites, preserving their walk-line registration. |
+| **Sound** | Original synthesized eruption, wind, brush, and ending cue. No recorded Lola voice. | `game/assets/Level5/audio/` (`tools/build_mayon_audio.py`) | Directed recordings or instrumentation retaining bus, loop, and cue contracts. |
 
+
+### Mayon overhaul 31 October 2026
+
+Lola is no longer an apo recolour, the room is a painted backdrop, and the apo now raises, attempts, lowers, offers, sits,
+and picks up the ordinary brush. Their generated original atlases, prompts, runtime cuts, and
+replacement contracts are catalogued in `LEVEL5_Mayon/authored/README.md`.
+
+**Still provisional:** the generated Lola/apo performances, Lola portrait, and room await human
+art-direction review, along with the upper-slope plate, three cliff materials, crossing, steps,
+column and arch; memory targets are procedural torn crops, and summit scenery reuses earlier
+levels' transparent art; weather, brush, and ending audio are synthesized;
+there is no recorded Lola voice. No missing artwork prevents finishing the level.
+
+Mayon visual repair (31 October, after user review): restored the earlier detailed grass/cliff
+opening treatment; removed the flat polygon backing and straight grass outline. The stacked
+memory walls were removed in favour of a shallow climb with overhead fragments. The flower
+retains detached one-way rocks. This pass adds no new provisional image or audio sources.
+
+Mayon dedicated edge artwork (31 October): `LEVEL5_Mayon/authored/cliff_edges.png` adds three
+new generated end-cap textures, cut into `game/assets/Level5/terrain/edge_meadow.png`,
+`edge_basalt.png`, and `edge_ash.png`. These replace the procedural cap outlines and warped
+join meshes. They are integrated, preserve alpha, and follow the terrain's whitening/tint.
+They join the generated-art review inventory; provenance, prompt, and replacement registration
+are in `LEVEL5_Mayon/authored/README.md` and `cliff_edges.prompt.txt`.

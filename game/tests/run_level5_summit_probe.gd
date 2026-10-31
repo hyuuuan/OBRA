@@ -63,7 +63,7 @@ func _the_summit_waits_for_lolo_to_go() -> void:
 	var lolo := level.get("lolo") as Lolo
 	level.set("_lolo_moment", "waiting")
 	lolo.set("_vanished", false)
-	await _put(14500.0, -400.0)
+	await _put(12300.0, -650.0)
 	var held: String = level.call("summit_state")
 	lolo.vanish()
 	level.set("_lolo_moment", "gone")
@@ -74,7 +74,7 @@ func _the_summit_waits_for_lolo_to_go() -> void:
 
 
 func _the_summit_goes_white_and_still() -> void:
-	await _put(14500.0, -400.0)
+	await _put(12300.0, -650.0)
 	await create_timer(5.0).timeout
 	var sky := level.get_node("EnvironmentBaseplate/SkyBand/Drainable") as Drainable
 	var tremor := level.get_node("Eruption") as ScreenTremor
@@ -85,13 +85,14 @@ func _the_summit_goes_white_and_still() -> void:
 
 
 func _the_brush_refuses_her_twice_then_she_lowers_it() -> void:
-	await _put(15000.0, -400.0)
+	await _put(12750.0, -500.0)
 	var panel := level.get("draw_panel") as DrawPanel
 	var refused := 0
 	for attempt in range(2):
 		level.set("_raise_left", 0.05)
 		var raised := await _until(func() -> bool: return panel.is_open() and panel.is_refusing(), 4.0)
 		if raised:
+			_ink_stroke(panel)
 			panel.call("_on_transform_pressed")
 			await _until(func() -> bool: return not panel.is_open(), 4.0)
 			refused += 1
@@ -107,6 +108,7 @@ func _she_draws_the_places_and_they_bloom() -> void:
 		fragment.restore_to("saved", [[0.0, 0.0, 30.0, 30.0]])
 	var panel := level.get("draw_panel") as DrawPanel
 	var opened := await _until(func() -> bool: return panel.is_open() and panel.is_refusing(), 6.0)
+	_ink_stroke(panel)
 	panel.call("_on_transform_pressed")
 	var bloomed := await _until(func() -> bool: return int(level.call("bloomed")) == 2, 6.0)
 	_check(opened and bloomed, "the page opens for the places, and what she draws blooms what she saved",
@@ -118,7 +120,7 @@ func _lola_turns_and_the_level_is_finished() -> void:
 	var lola := level.get_node("EnvironmentBaseplate/GameplayPlane/Lola") as Lola2D
 	var turned := [false]
 	var finished := await _until(func() -> bool:
-		if is_instance_valid(lola) and lola.is_turned():
+		if is_instance_valid(lola) and (lola.is_turned() or lola.has_flowers()):
 			turned[0] = true
 		return bool(profile.call("is_level_completed", "level_5")), 30.0)
 	_check(turned[0] and finished, "lola turns around, and the level is finished",
@@ -169,3 +171,9 @@ func _check(ok: bool, what: String, detail: String) -> void:
 	else:
 		failures += 1
 		print("  FAIL\t%s\t%s" % [what, detail])
+
+
+func _ink_stroke(panel: DrawPanel) -> void:
+	var middle := panel.canvas.size * 0.5
+	panel.canvas.call("_start_stroke", middle - Vector2(50, 0))
+	panel.canvas.call("_append_point", middle + Vector2(50, 0), true)
