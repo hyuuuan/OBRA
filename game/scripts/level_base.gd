@@ -1460,6 +1460,14 @@ func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
 	# "An elephant", not "A elephant": the article is the noun's.
 	var who := RequirementStrip.with_article(drawn)
 	who = who.left(1).to_upper() + who.substr(1)
+	var can := _tag_phrase(mine, "any") if not mine.is_empty() else ""
+	# One line from the level's pool, so a player who misses three times hears three things
+	# (ShuffleBag). {fact} is the drawing's own ConceptNet assertion from the verified ability
+	# table -- something true about what they drew -- and a line needing a value the moment
+	# lacks (no {can} for an unhintable class, no {fact} that is safe to say) sits out.
+	if _say_from_pool("comment.not_fit", {"who": who, "thing": who.left(1).to_lower() + who.substr(1),
+			"needed": needed, "can": can, "fact": _safe_fact(entity_id)}):
+		return
 	if mine.is_empty():
 		# Nothing this level knows the drawing can do -- either one of the roster's
 		# unhintable classes (a clock, a flashlight), or a class whose only tags belong to
@@ -1467,8 +1475,64 @@ func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
 		# only the requirement to repeat.
 		text = "%s cannot do this. It needs something that can %s." % [who, needed]
 	else:
-		text = "%s can %s. This needs something that can %s." % [who, _tag_phrase(mine, "any"), needed]
+		text = "%s can %s. This needs something that can %s." % [who, can, needed]
 	hint_bar.show_hint(text, _companion_speaker())
+
+
+## Say ONE line from a pool -- the alternatives authored at `hook` -- chosen by ShuffleBag,
+## with {placeholders} filled from `values`. A line that needs a value the moment does not
+## have is left out of the draw. False when nothing could be said, so the caller can fall
+## back. Pool lines go to the hint bar: they comment on play and must never stop it.
+func _say_from_pool(hook: String, values: Dictionary) -> bool:
+	if hint_bar == null or script_lines == null:
+		return false
+	var candidates: Array = []
+	var texts: Array[String] = []
+	for line_value: Variant in script_lines.peek(hook):
+		var line: Dictionary = line_value
+		var text := _fill(String(line.get("text", "")), values)
+		if text.is_empty():
+			continue
+		candidates.append(line)
+		texts.append(text)
+	var bag := "%s:%s" % [LevelManager.current_level_id, hook]
+	var index := ShuffleBag.pick(candidates, bag, PlayerProfile)
+	if index < 0:
+		return false
+	var chosen: Dictionary = candidates[index]
+	PlayerProfile.note_pool_pick(bag, String(chosen.get("id", "")))
+	hint_bar.show_hint(texts[index], _speaker_display(script_lines.speaker_of(chosen)))
+	return true
+
+
+## `text` with every {name} filled from `values`; "" if any it names is missing or empty.
+static func _fill(text: String, values: Dictionary) -> String:
+	var out := text
+	for match_value in RegEx.create_from_string("\\{([a-z_]+)\\}").search_all(text):
+		var key := (match_value as RegExMatch).get_string(1)
+		var value := String(values.get(key, ""))
+		if value.is_empty():
+			return ""
+		out = out.replace("{%s}" % key, value)
+	return out
+
+
+## The drawing's own ConceptNet assertion ("A frog can leap."), for a line to cite -- or ""
+## when there is none (penguin is hand-authored) or when it names ANOTHER drawable class. That
+## last guard is the no-class rule: a comment on what was drawn must never suggest what to draw
+## instead (a ladder "can be used as a bridge" would be exactly that).
+func _safe_fact(entity_id: String) -> String:
+	var text := String(registry.get_entity(entity_id).get("ability_assertion", "")).strip_edges()
+	if text.is_empty() or text.begins_with("Hand-authored"):
+		return ""
+	var lowered := " %s " % text.to_lower().replace(".", " ").replace(",", " ")
+	for other_value: Variant in registry.get_entity_ids():
+		var other := String(other_value)
+		if other == entity_id:
+			continue
+		if lowered.contains(" %s " % other.replace("_", " ")):
+			return ""
+	return text
 
 
 ## Tag names as the player sees them everywhere else: upper case, joined by the rule the
@@ -2181,6 +2245,13 @@ func _on_recognition_declined(_entity: String, _confidence: float, _margin: floa
 		_speak(script_lines.fire("on_brush_wants_surer"))
 		return
 	if _refusal_spoken:
+		# After the refusal beat, each decline gets one piece of advice from the level's pool
+		# for its reason (thesis §4.5.4.4: "whenever Lolo comments on... the player's drawings,
+		# the game pulls from a priority queue"). The advice is what the recogniser actually
+		# rewards: it crops and rescales every drawing, so size never matters; finished lines
+		# and no stray marks do (docs/PLAYER_SIMULATION.md).
+		# Literal hooks: the said-lines audits find a hook by its literal in the sources.
+		_say_from_pool("comment.decline.margin" if reason == "margin" else "comment.decline.confidence", {})
 		return
 	var lines := script_lines.fire("on_first_decline")
 	if lines.is_empty():
@@ -4461,31 +4532,23 @@ func _first_text(lines: Array) -> String:
 ## Lolo says hello, "fact" is something true about the real place the painting is of. One of
 ## each is drawn per return, each pool rotating on its own.
 func _pick_return_conversation(level_id: String, visits: int, pool: String = "greeting") -> Array:
-	var best: Dictionary = {}
-	var best_key: Array = []
-	var entries := script_lines.returns()
-	for index in range(entries.size()):
-		var entry: Dictionary = entries[index]
+	# The manuscript's shuffle bag (ShuffleBag): unheard first, by priority; a heard greeting
+	# drops out and comes back as the pool moves on. It used to be "least heard, then
+	# priority", which repeated nothing either but had no notion of how recently.
+	var candidates: Array = []
+	for entry_value: Variant in script_lines.returns():
+		var entry: Dictionary = entry_value
 		if String(entry.get("pool", "greeting")) != pool:
 			continue
-		if not _return_applies(entry.get("when", {}) as Dictionary, level_id, visits):
-			continue
-		var id := String(entry.get("id", ""))
-		var key := [PlayerProfile.dialogue_heard_count(id), -int(entry.get("priority", 0)), index]
-		if best_key.is_empty() or _sorts_before(key, best_key):
-			best_key = key
-			best = entry
-	if best.is_empty():
+		if _return_applies(entry.get("when", {}) as Dictionary, level_id, visits):
+			candidates.append(entry)
+	var bag := "%s:%s" % [level_id, pool]
+	var index := ShuffleBag.pick(candidates, bag, PlayerProfile)
+	if index < 0:
 		return []
-	PlayerProfile.note_dialogue_heard(String(best.get("id", "")))
+	var best: Dictionary = candidates[index]
+	PlayerProfile.note_pool_pick(bag, String(best.get("id", "")))
 	return best.get("steps", []) as Array
-
-
-func _sorts_before(a: Array, b: Array) -> bool:
-	for index in range(mini(a.size(), b.size())):
-		if a[index] != b[index]:
-			return a[index] < b[index]
-	return false
 
 
 ## Whether one replay greeting fits this visit. Every condition given must hold.

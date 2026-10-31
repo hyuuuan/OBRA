@@ -366,7 +366,7 @@
       "id": "L1_B0_006",
       "at": "on_first_decline",
       "once": true,
-      "text": "I could not read it, apo. Not wrong — too like something else. Bigger, slower."
+      "text": "I could not read it, apo. Not wrong — too like something else. Slower, and finish every line."
     },
     {
       "id": "L1_B0_007",
@@ -923,6 +923,112 @@
       "id": "L1_FA_012",
       "at": "RETURN.fact.rice",
       "text": "We say a meal without rice is not a real meal. Every grain out there was planted by somebody's hands, apo. Remember that at dinner."
+    },
+    {
+      "id": "L1_POOL_NF_1",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "{fact} But this asks for something that can {needed}."
+    },
+    {
+      "id": "L1_POOL_NF_2",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "{who} can {can}. This needs something that can {needed}.",
+      "priority": 2
+    },
+    {
+      "id": "L1_POOL_NF_3",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "{who} will not help here. It needs something that can {needed}."
+    },
+    {
+      "id": "L1_POOL_NF_4",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Look at what is in front of you, apo. It needs something that can {needed}."
+    },
+    {
+      "id": "L1_POOL_NF_5",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Our people built these walls by hand, each stone for its own job. This one wants something that can {needed}."
+    },
+    {
+      "id": "L1_POOL_DC_1",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "I cannot make it out yet. Finish every line; a gap turns it into something else."
+    },
+    {
+      "id": "L1_POOL_DC_2",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Size does not matter to me, apo. Shape does."
+    },
+    {
+      "id": "L1_POOL_DC_3",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Leave out the extra marks. One clear shape reads best."
+    },
+    {
+      "id": "L1_POOL_DC_4",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Slower. Close the shapes you mean to close."
+    },
+    {
+      "id": "L1_POOL_DC_5",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Draw the part that makes it itself, the part nothing else has."
+    },
+    {
+      "id": "L1_POOL_DM_1",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "It looks like two things at once. Give it the part only one of them has."
+    },
+    {
+      "id": "L1_POOL_DM_2",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Nearly. I see two things in it. Show me which."
+    },
+    {
+      "id": "L1_POOL_DM_3",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Close, apo. Add what tells it apart."
+    },
+    {
+      "id": "L1_POOL_DM_4",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Two things fit those lines. One more detail settles it."
+    },
+    {
+      "id": "L1_POOL_DM_5",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "I cannot choose between two. Make the difference plain."
     }
   ],
   "design_level_id": "L1_PAYYO",

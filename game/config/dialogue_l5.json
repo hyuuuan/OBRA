@@ -457,6 +457,112 @@
       "kind": "hint",
       "once": true,
       "text": "It knows my hand now."
+    },
+    {
+      "id": "L5_POOL_NF_1",
+      "at": "comment.not_fit",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "{fact} But this needs something that can {needed}."
+    },
+    {
+      "id": "L5_POOL_NF_2",
+      "at": "comment.not_fit",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "{who} can {can}. This needs something that can {needed}.",
+      "priority": 2
+    },
+    {
+      "id": "L5_POOL_NF_3",
+      "at": "comment.not_fit",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Not that one. Something that can {needed}."
+    },
+    {
+      "id": "L5_POOL_NF_4",
+      "at": "comment.not_fit",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "The ash is coming. Something that can {needed}."
+    },
+    {
+      "id": "L5_POOL_NF_5",
+      "at": "comment.not_fit",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Think first. The ink is short. Something that can {needed}."
+    },
+    {
+      "id": "L5_POOL_DC_1",
+      "at": "comment.decline.confidence",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "It can't read it. Finish the lines; trying again costs nothing."
+    },
+    {
+      "id": "L5_POOL_DC_2",
+      "at": "comment.decline.confidence",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Clear, not big. The shape is what it reads."
+    },
+    {
+      "id": "L5_POOL_DC_3",
+      "at": "comment.decline.confidence",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Fewer marks. One clean shape."
+    },
+    {
+      "id": "L5_POOL_DC_4",
+      "at": "comment.decline.confidence",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Close the shapes. Slowly."
+    },
+    {
+      "id": "L5_POOL_DC_5",
+      "at": "comment.decline.confidence",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "The part only it has. Draw that."
+    },
+    {
+      "id": "L5_POOL_DM_1",
+      "at": "comment.decline.margin",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "It looks like two things. Show which."
+    },
+    {
+      "id": "L5_POOL_DM_2",
+      "at": "comment.decline.margin",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Close. Add what tells it apart."
+    },
+    {
+      "id": "L5_POOL_DM_3",
+      "at": "comment.decline.margin",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Two answers in one drawing. Choose."
+    },
+    {
+      "id": "L5_POOL_DM_4",
+      "at": "comment.decline.margin",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Nearly. One more line."
+    },
+    {
+      "id": "L5_POOL_DM_5",
+      "at": "comment.decline.margin",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Make the difference plain."
     }
   ]
 }

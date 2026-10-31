@@ -754,6 +754,112 @@
       "kind": "hint",
       "once": true,
       "text": "There. It is learning your hand."
+    },
+    {
+      "id": "L3_POOL_NF_1",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "{fact} The sea asks for something that can {needed}."
+    },
+    {
+      "id": "L3_POOL_NF_2",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "{who} can {can}. Out here we need something that can {needed}.",
+      "priority": 2
+    },
+    {
+      "id": "L3_POOL_NF_3",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Not for this, apo. It needs something that can {needed}."
+    },
+    {
+      "id": "L3_POOL_NF_4",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "People of the coast choose the right tool for the catch. This needs something that can {needed}."
+    },
+    {
+      "id": "L3_POOL_NF_5",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "{who} cannot do it. Think of something that can {needed}."
+    },
+    {
+      "id": "L3_POOL_DC_1",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "The lines blur like water. Finish them, apo, and I will see it."
+    },
+    {
+      "id": "L3_POOL_DC_2",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Size does not matter to me. The shape does."
+    },
+    {
+      "id": "L3_POOL_DC_3",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Leave out the extra strokes. One clear shape reads best."
+    },
+    {
+      "id": "L3_POOL_DC_4",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "I cannot make it out yet. Close the shapes you mean to close."
+    },
+    {
+      "id": "L3_POOL_DC_5",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Draw the part only it has."
+    },
+    {
+      "id": "L3_POOL_DM_1",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Two things are swimming in those lines. Show me which one you mean."
+    },
+    {
+      "id": "L3_POOL_DM_2",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Close. Add the detail that tells them apart."
+    },
+    {
+      "id": "L3_POOL_DM_3",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "It could be either of two. One more line decides."
+    },
+    {
+      "id": "L3_POOL_DM_4",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Nearly. Make the difference plain."
+    },
+    {
+      "id": "L3_POOL_DM_5",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "I see two answers. Give it the part only one has."
     }
   ],
   "returns": [

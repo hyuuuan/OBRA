@@ -21,6 +21,13 @@ extends RefCounted
 ##   once          fire once per level, ever -- for the refusal beat
 ##   choice_label  present on the three route-commit lines; the button the player presses
 ##   condition     a flag that must be set for the line to fire (e.g. knows_about_key)
+##   priority      for a POOL line, its base weight in the shuffle bag (higher is said first)
+##
+## A POOL is a hook whose lines are ALTERNATIVES, not a beat: `comment.not_fit`,
+## `comment.decline.confidence`, `comment.decline.margin`. LevelBase._say_from_pool says ONE
+## of them, chosen by ShuffleBag (thesis §4.5.4.4), with {who}/{thing}/{can}/{needed}/{fact}
+## filled in; a line needing a value the moment lacks sits out. Never `fire` a pool hook --
+## that would say every alternative at once.
 ##
 ## Two conversation blocks sit beside the lines and only ever point INTO them (by hook or by
 ## line id), so every word the player can read is still a line, and the no-class rule still
