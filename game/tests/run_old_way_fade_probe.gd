@@ -13,8 +13,9 @@ const LEVELS := [
 	["res://game_level.tscn", "EnvironmentBaseplate/GameplayPlane/Hagdan/OldSteps"],
 	["res://game_level.tscn", "EnvironmentBaseplate/GameplayPlane/Gorge/RuinedBridge"],
 	["res://game_level.tscn", "EnvironmentBaseplate/GameplayPlane/Bale/OldLadder"],
+	["res://level_4.tscn", "EnvironmentBaseplate/GameplayPlane/OldLog"],
 ]
-const CHECKS := 8 * 3
+const CHECKS := 9 * 4
 
 var checked := 0
 var failures := 0
@@ -62,6 +63,16 @@ func _level_fades_its_old_way(scene: String, path: NodePath) -> void:
 	# Godot 4's COLOR already carries the texture: sampling it again draws the old way darker
 	# than it was painted, from the very start (drain.gdshader).
 	_check(painted, "%s: it is drawn in its painted colours until it goes" % where)
+	# In a dark level it must be seen to be seen going, and not before: the dark stays dark
+	# until then. In a lit level it cuts no holes at all.
+	var dark := float(level.call("_darkness")) > 0.0
+	var before := not (drainable.dark_reveal() as Dictionary).is_empty()
+	drainable.set_drain(0.5)
+	var going := not (drainable.dark_reveal() as Dictionary).is_empty()
+	drainable.restore()
+	_check(not before and going == dark and drainable.is_in_group(DarknessLayer.REVEAL_GROUP) == dark,
+		"%s: it shows itself in the dark only as it goes, and only where there is dark" % where,
+		"dark %s, revealed before %s, while going %s" % [dark, before, going])
 	# Never the ash: neither Mayon's paper nor its whitening all the way to a flat slab.
 	_check(not paper.is_equal_approx(MAYON_PAPER) and wash < 1.0,
 		"%s: it fades in its own colours, not Mayon's white" % where, "%s, wash %.2f" % [paper, wash])
@@ -78,8 +89,10 @@ func _level_fades_its_old_way(scene: String, path: NodePath) -> void:
 	# Long enough for a fade that overshot its mark to have gone all the way.
 	for _frame in range(int((float(thing.get_meta("fade_over", 1.5)) + 0.5) * 60.0)):
 		await physics_frame
-	_check(absf(drainable.drain - to) < 0.001 and (to >= Drainable.BLANK or not drainable.is_blank()),
-		"%s: it stays at its mark" % where, "drain %.3f" % drainable.drain)
+	var gone_dark := to < Drainable.BLANK or (drainable.dark_reveal() as Dictionary).is_empty()
+	_check(absf(drainable.drain - to) < 0.001 and (to >= Drainable.BLANK or not drainable.is_blank())
+		and gone_dark, "%s: it stays at its mark, and once gone shows nothing in the dark" % where,
+		"drain %.3f, still revealed %s" % [drainable.drain, not gone_dark])
 
 	level.call("_settle_the_fading", at - 400.0)
 	_check(is_zero_approx(drainable.drain), "%s: a restore ahead of it brings it back" % where)
@@ -92,7 +105,12 @@ func _level_fades_its_old_way(scene: String, path: NodePath) -> void:
 ## The near (left) edge of everything drawn in it, in the world.
 func _leftmost(thing: Node2D) -> float:
 	var left := INF
-	for node in thing.find_children("*", "Sprite2D", true, false):
+	# ⚠ The thing itself, too: an old way that is one sprite (the ladder, the log) has no
+	# Sprite2D children, and without it its edge was INF and the check could not fail.
+	var sprites: Array[Node] = thing.find_children("*", "Sprite2D", true, false)
+	if thing is Sprite2D:
+		sprites.append(thing)
+	for node in sprites:
 		var sprite := node as Sprite2D
 		left = minf(left, (sprite.get_global_transform() * sprite.get_rect()).position.x)
 	return left

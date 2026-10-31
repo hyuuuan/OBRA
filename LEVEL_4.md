@@ -223,6 +223,21 @@ What the build does that the design above does not say, and what it does not do 
   or log platforms, waterfall or props. The vine frame plate stands only behind her (in front of
   play it hid her).
 
+## The old way over the ravine fades (2026-11-01)
+
+A fallen log lay across the bungisngis's ravine: `GameplayPlane/OldLog`, Makiling's own mossy log
+platform cut off the tileset by `tools/build_dilim_log.py` (no scipy; `--check` verifies it). It is
+in the fading old ways (`_fades_the_old_way`, as Payyo's are; see LEVEL_1.md): no collision, gone
+from x 18600 by 18912, before its near end at 19125, so the crossing reads as hers to make.
+
+- **It comes up out of the dark as it goes, and only then** (`Drainable.reveals_in_dark`, given by
+  LevelBase in any level with darkness): a soft hole of `DarknessLayer.REVEAL_GROUP`, the same
+  strength as a set-down drawing's, easing in over the first 0.15 of the drain and dissolving
+  with the log. Never light: LightField does not count it.
+- ⚠ **Not before.** A reveal open round the log from the start kept a patch of the woods lit
+  half a screen ahead and showed the bungisngis standing in the ravine under it.
+- It dissolves into the night woods' moss (`_fade_paper` 0.13, 0.18, 0.15), not to white.
+
 ## Gate classes clear BR-7 (held-out recall, `model/metrics.json`)
 
 sun .894 · fan .789 · horse .870 · bridge .856 · campfire .853 · flashlight .888 · sword .922 ·

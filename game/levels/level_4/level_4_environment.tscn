@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/makiling_terrain_2d.gd" id="8_terrain"]
 [ext_resource type="Texture2D" path="res://assets/Level4/tiles/leaf.png" id="9_leaf"]
 [ext_resource type="Script" path="res://scripts/santelmo_2d.gd" id="10_santelmo"]
+[ext_resource type="Texture2D" path="res://assets/Level4/props/fallen_log.png" id="11_oldlog"]
 [ext_resource type="Script" path="res://scripts/nuno_mound_2d.gd" id="11_mound"]
 [ext_resource type="Script" path="res://scripts/dilim_finale_2d.gd" id="12_finale"]
 [ext_resource type="Script" path="res://scripts/satchel_pickup_2d.gd" id="13_pickup"]
@@ -199,6 +200,18 @@ position = Vector2(22420.0, 100.0)
 shape = SubResource("Rect_Wall")
 
 ; Where each encounter IS, for the level's furniture and its objective marker. On the ground.
+; THE OLD LOG (group fades_away, level_4.gd _fades_the_old_way): the way over the bungisngis's
+; ravine that used to be there, Makiling's own mossy log (tools/build_dilim_log.py). No collision.
+; Its trunk's top (row 13) on the forest floor at 600, over the 300-px ravine with 25 on each lip.
+; Gone from x 18600 by 18912, before its near end at 19125 -- and the bungisngis stands at 19000.
+[node name="OldLog" type="Sprite2D" parent="GameplayPlane" groups=["fades_away"]]
+texture_filter = 1
+position = Vector2(19125, 587)
+texture = ExtResource("11_oldlog")
+centered = false
+metadata/fade_at = 18600.0
+metadata/fade_over = 1.2
+
 [node name="Marks" type="Node2D" parent="GameplayPlane"]
 
 [node name="StartMark" type="Marker2D" parent="GameplayPlane/Marks"]

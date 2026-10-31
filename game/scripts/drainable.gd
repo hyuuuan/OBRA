@@ -33,6 +33,14 @@ var vanish_from := 0.85
 ## Whether it draws in its painted colours (drain.gdshader `texture_in_colour`): true for an old
 ## way in another level. Mayon's ash leaves it off, the look its tuning was made against.
 var painted_colours := false
+## Whether it shows itself in a level's dark WHILE IT GOES, the way her drawings are seen
+## (PhysicsShapeObject.dark_reveal): an old way in Dilim's woods has to be seen to be seen going.
+## Only while it goes -- before, the woods stay as dark as Kent made them, and a reveal standing
+## open round the bungisngis's ravine showed the giant from half a screen off. Seen, never light:
+## DarknessLayer.REVEAL_GROUP, which LightField does not count, so it shows no sigbin.
+var reveals_in_dark := false
+## How much of the drain it takes to come up out of the dark, before it dissolves with the rest.
+const REVEAL_RISE := 0.15
 
 ## How far the ash has taken it: 0 painted, 0.5 white, 0.85 flat paper, 1 blank.
 var drain: float = 0.0:
@@ -96,6 +104,32 @@ func is_blank() -> bool:
 
 func target() -> CanvasItem:
 	return _target
+
+
+func dark_reveal() -> Dictionary:
+	if not reveals_in_dark or _target == null or _blank or drain <= 0.0:
+		return {}
+	var box := _extent()
+	if box.size == Vector2.ZERO:
+		return {}
+	var reach := maxf(box.size.x, box.size.y) * 0.5 * PhysicsShapeObject.DARK_REVEAL_FULL \
+		/ LightField.SOFT_EDGE + PhysicsShapeObject.DARK_REVEAL_MARGIN
+	return {"position": box.get_center(), "radius": reach,
+		"strength": PhysicsShapeObject.DARK_REVEAL_STRENGTH * minf(1.0, drain / REVEAL_RISE)
+			* (1.0 - drain)}
+
+
+## Everything drawn in it, in the world.
+func _extent() -> Rect2:
+	var sprites: Array[Node] = _target.find_children("*", "Sprite2D", true, false)
+	if _target is Sprite2D:
+		sprites.append(_target)
+	var box := Rect2()
+	for node in sprites:
+		var sprite := node as Sprite2D
+		var rect := sprite.get_global_transform() * sprite.get_rect()
+		box = rect if box.size == Vector2.ZERO else box.merge(rect)
+	return box
 
 
 func _stop() -> void:
