@@ -286,6 +286,14 @@ func _start_backend() -> void:
 	# (backend/lifecycle.py), which covers what stop_backend cannot: a crash, a force-quit, a
 	# run stopped from the editor. The child inherits the environment it is launched with.
 	OS.set_environment("OBRA_GAME_PID", str(OS.get_process_id()))
+	# ITS LOG BESIDE THE GAME'S. The recogniser's per-prediction timing and its once-a-second
+	# CPU and memory samples (thesis Table 14; backend/telemetry.py) were written only when
+	# someone set OBRA_TELEMETRY by hand, so a playtest launched from the game would have
+	# collected none of them. On, always, into the game's own telemetry folder -- a test run's
+	# folder in a test run -- so the two logs of a session sit together. Local and anonymous,
+	# like the game's.
+	OS.set_environment("OBRA_TELEMETRY", "1")
+	OS.set_environment("OBRA_TELEMETRY_DIR", ProjectSettings.globalize_path(_UserData.path("telemetry")))
 	var args := PackedStringArray([
 		_repo_root().path_join("backend").path_join("serve.py"),
 		"--host", backend_host,

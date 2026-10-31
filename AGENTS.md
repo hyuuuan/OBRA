@@ -660,7 +660,12 @@ Traps found building it:
   level lifecycle plus one recognition record per submission (class, confidence,
   margin, runner-up, accept/decline, latency to the recogniser's answer), and one `spawn`
   event per accepted drawing timing Paint to the entity's first frame in the world -- the
-  thesis's end-to-end figure (Eq. 12). Nothing is uploaded. Test runs
+  thesis's end-to-end figure (Eq. 12). Each recognition record also carries the level's
+  context (obstacle, its tags, hint tier, and from the third hint the named class as
+  `intended_class`), the frame rate across its own recognition window and the backend's timing
+  split; a `perf` sample (frame rate, memory) is written every second. The game launches the
+  recogniser with `OBRA_TELEMETRY=1` into the same folder, where it samples CPU and memory of
+  both processes each second (`psutil`). Nothing is uploaded. Test runs
   write theirs to `user://test_runs/telemetry/` instead, so the folder the thesis
   aggregates holds only real play.
 - **The recognition server ends with the game.** `BackendSupervisor` launches it with

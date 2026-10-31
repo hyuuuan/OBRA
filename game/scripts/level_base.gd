@@ -784,6 +784,9 @@ func _build_obstacle_layer() -> void:
 
 	director.obstacle_entered.connect(_on_obstacle_entered)
 	director.obstacle_exited.connect(_on_obstacle_exited)
+	# Connected after the handlers above, so the context reads the state they leave behind.
+	director.obstacle_entered.connect(func(_id: String) -> void: _update_telemetry_context())
+	director.obstacle_exited.connect(func(_id: String) -> void: _update_telemetry_context())
 	director.requirements_changed.connect(_on_requirements_changed)
 	director.hint_tier_changed.connect(_on_hint_tier_changed)
 	director.route_committed.connect(_on_obstacle_route_committed)
@@ -1146,7 +1149,33 @@ func _on_hint_tier_changed(obstacle_id: String, tier: int) -> void:
 	})
 
 
+## What the drawing panel adds to every recognition record (DrawPanel.telemetry_context): the
+## obstacle the player stands in, what it asks for, the hint tier, and the class the third
+## hint has named, if it has. ⚠ ONLY A NAMED CLASS IS AN INTENDED LABEL. Obstacles ask for
+## tags, and the game cannot otherwise know which of a tag's classes the player meant -- so
+## live-play per-class recall (thesis §4.10.3) is measured on the drawings made after a hint
+## named one, and every other drawing at an obstacle is measured by whether it met the tag.
+func _update_telemetry_context() -> void:
+	if draw_panel == null:
+		return
+	var obstacle_id := director.current_obstacle() if director != null else ""
+	if obstacle_id.is_empty() or director.is_solved(obstacle_id):
+		draw_panel.telemetry_context = {}
+		return
+	var tier := director.hint_tier(obstacle_id)
+	var context := {
+		"obstacle_id": obstacle_id,
+		"required_tags": director.required_tags(obstacle_id),
+		"hint_tier": tier,
+	}
+	var named := director.clue_class(obstacle_id) if tier >= 3 else ""
+	if not named.is_empty():
+		context["intended_class"] = named
+	draw_panel.telemetry_context = context
+
+
 func _refresh_requirements() -> void:
+	_update_telemetry_context()
 	if requirement_strip == null or director == null:
 		return
 	var obstacle_id := director.current_obstacle()

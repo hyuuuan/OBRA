@@ -66,11 +66,24 @@ def summarize(records: Iterable[dict]) -> dict:
     # end-to-end figure (Eq. 12, §4.10.3), which runs "to the appearance of the spawned
     # entity". latency_ms on a recognition stops at the recogniser's answer, short of it.
     spawn_latencies: list[float] = []
+    # Thesis Table 14: the game's once-a-second frame rate and memory ("perf"), and the
+    # recogniser's once-a-second CPU and memory for both processes ("cpu").
+    perf: list[dict] = []
+    cpu: list[dict] = []
+    # Every accepted drawing judged at an obstacle, with whether it met the obstacle's tag.
+    attempts: list[dict] = []
     for record in records:
-        if record.get("type") == "recognition":
+        kind = record.get("type")
+        if kind == "recognition":
             recognitions.append(record)
-        elif record.get("type") == "spawn" and isinstance(record.get("latency_ms"), (int, float)):
+        elif kind == "spawn" and isinstance(record.get("latency_ms"), (int, float)):
             spawn_latencies.append(float(record["latency_ms"]))
+        elif kind == "perf":
+            perf.append(record)
+        elif kind == "cpu":
+            cpu.append(record)
+        elif kind == "obstacle_attempt":
+            attempts.append(record)
         elif isinstance(record.get("timing_ms"), dict):
             infer = record["timing_ms"].get("infer_ms")
             if isinstance(infer, (int, float)):
@@ -102,6 +115,61 @@ def summarize(records: Iterable[dict]) -> dict:
         confusion[(truth, predicted)] += 1
         truth_totals[truth] += 1
         pred_totals[predicted] += 1
+
+    # AT THE GATE, which is what the player meets: a drawing counts only if it was accepted
+    # AS the intended class, so a decline is a miss. The model's own top-1 is per_class above.
+    gate_hits: Counter = Counter()
+    for record in labeled:
+        if record.get("outcome") == "accept" and record.get("entity") == record.get("intended_class"):
+            gate_hits[record.get("intended_class")] += 1
+    per_class_at_gate = {
+        cls: {"support": n, "accepted_as_intended": gate_hits[cls], "recall": gate_hits[cls] / n}
+        for cls, n in sorted(truth_totals.items())
+    }
+
+    # AT OBSTACLES, where an intended label exists only after a hint names a class, every
+    # drawing still has a measurable outcome: did it meet the tag the obstacle asked for. A
+    # declined drawing at an obstacle met nothing.
+    declines_at_obstacles = sum(
+        1 for r in recognitions if r.get("obstacle_id") and r.get("outcome") == "decline"
+    )
+    met = sum(1 for a in attempts if a.get("tag_match"))
+    at_obstacles = len(attempts) + declines_at_obstacles
+    obstacles = {
+        "submissions": at_obstacles,
+        "accepted": len(attempts),
+        "declined": declines_at_obstacles,
+        "met_tag": met,
+        "met_tag_rate": (met / at_obstacles) if at_obstacles else None,
+        "attempts_with_named_class": sum(1 for a in attempts if a.get("named_class")),
+    }
+
+    def spread(values: list[float]) -> dict:
+        return {
+            "count": len(values),
+            "p5": _percentile(values, 5),
+            "p50": _percentile(values, 50),
+            "p95": _percentile(values, 95),
+            "min": min(values) if values else None,
+            "max": max(values) if values else None,
+        }
+
+    def numbers(rows: list[dict], key: str) -> list[float]:
+        return [float(r[key]) for r in rows if isinstance(r.get(key), (int, float))]
+
+    submit_fps = numbers(recognitions, "fps_during_submit")
+    table_14 = {
+        "fps_during_submit": {**spread(submit_fps),
+                              "share_below_55": (sum(1 for f in submit_fps if f < 55.0) / len(submit_fps))
+                              if submit_fps else None},
+        "fps_session": spread(numbers(perf, "fps")),
+        "game_static_mb": spread(numbers(perf, "static_mb")),
+        "game_video_mb": spread(numbers(perf, "video_mb")),
+        "game_cpu_percent": spread(numbers(cpu, "game_cpu_percent")),
+        "backend_cpu_percent": spread(numbers(cpu, "backend_cpu_percent")),
+        "game_rss_mb": spread(numbers(cpu, "game_rss_mb")),
+        "backend_rss_mb": spread(numbers(cpu, "backend_rss_mb")),
+    }
 
     per_class: dict[str, dict] = {}
     for cls in sorted(set(truth_totals) | set(pred_totals)):
@@ -148,6 +216,9 @@ def summarize(records: Iterable[dict]) -> dict:
         "labeled_submissions": len(labeled),
         "per_class": per_class,
         "confusion": {f"{t}->{p}": n for (t, p), n in sorted(confusion.items())},
+        "per_class_at_gate": per_class_at_gate,
+        "obstacles": obstacles,
+        "table_14": table_14,
     }
 
 
@@ -184,6 +255,22 @@ def _print_report(report: dict) -> None:
             )
     else:
         print("\n  No ground-truth (intended_class) records — confusion matrix omitted.")
+    obstacles = report["obstacles"]
+    if obstacles["submissions"]:
+        print(f"\n  At obstacles: {obstacles['submissions']} drawings, {obstacles['met_tag']} met the "
+              f"tag asked for ({obstacles['met_tag_rate']:.3f}); {obstacles['declined']} declined; "
+              f"{obstacles['attempts_with_named_class']} after a hint named a class")
+    table = report["table_14"]
+    fps = table["fps_during_submit"]
+    if fps["count"]:
+        print(f"  fps during submit: p50={fps['p50']:.1f} min={fps['min']:.1f} "
+              f"below 55: {fps['share_below_55']:.3f} (n={fps['count']})")
+    for key, label in (("fps_session", "fps (session)"), ("game_static_mb", "game memory MB"),
+                       ("game_cpu_percent", "game CPU %"), ("backend_cpu_percent", "recogniser CPU %")):
+        row = table[key]
+        if row["count"]:
+            print(f"  {label + ':':<19}p50={row['p50']:.1f} p95={row['p95']:.1f} max={row['max']:.1f} "
+                  f"(n={row['count']})")
 
 
 def main(argv: list[str] | None = None) -> int:

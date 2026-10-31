@@ -514,6 +514,9 @@ func note_submission(entity_id: String) -> Dictionary:
 		"stage_advanced": false, "obstacle_complete": false,
 		"assisted": false, "attempts": attempts(id), "hint_tier": hint_tier(id),
 		"stage_id": stage_id(id),
+		# ⚠ READ NOW, BEFORE ANYTHING IS SOLVED: clue_class answers "" for a solved obstacle,
+		# and the attempt that solves it is the one whose intended label matters most.
+		"named_class": clue_class(id) if not id.is_empty() and hint_tier(id) >= 3 else "",
 	}
 	if id.is_empty() or _solved.has(id) or _tags == null:
 		return verdict
@@ -661,6 +664,8 @@ func _record_attempt(entity_id: String, verdict: Dictionary) -> void:
 		"assisted": verdict["assisted"],
 		"attempts": verdict["attempts"],
 		"hint_tier": verdict["hint_tier"],
+		# The class the third hint named, when it has: the attempt's intended label.
+		"named_class": verdict.get("named_class", ""),
 	})
 
 
