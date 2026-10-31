@@ -666,7 +666,7 @@ Traps found building it:
   split; a `perf` sample (frame rate, memory) is written every second. The game launches the
   recogniser with `OBRA_TELEMETRY=1` into the same folder, where it samples CPU and memory of
   both processes each second (`psutil`). Nothing is uploaded. Test runs
-  write theirs to `user://test_runs/telemetry/` instead, so the folder the thesis
+  write theirs to `user://test_runs/<pid>/telemetry/` instead, so the folder the thesis
   aggregates holds only real play.
 - **The recognition server ends with the game.** `BackendSupervisor` launches it with
   `OBRA_GAME_PID` set, and `backend/lifecycle.py` exits the server once that process is
@@ -880,13 +880,15 @@ Traps found building it:
   the door was firing, and its other two assertions would have passed with no door in the
   game at all. Use a member variable or a named method for anything a signal has to set.
 - ⚠ **A test run never touches the player's save or telemetry.** Any run started with
-  `--script` gets its own `user://test_runs/` (`game/scripts/user_data.gd`), emptied when the
+  `--script` gets its own `user://test_runs/<pid>/` (`game/scripts/user_data.gd`), emptied when the
   run starts, and `PlayerProfile.profile_path` / `Telemetry.telemetry_dir` point into it.
   Before that, suites read and wrote the real `user://profile.json` -- two deleted it -- and
   the telemetry folder held 3,839 bot sessions. Never spell `"user://profile.json"` in a
   test; read `profile_path` off the autoload. `test_player_profile` fails if a test run can
-  reach the real save. **One run at a time, still:** all test runs share that one folder, so a
-  second Godot started beside the first empties the profile out from under it.
+  reach the real save. **Each run in its own folder:** they once shared `test_runs` itself, and
+  the user folder is keyed by the project's name, so a second Godot started beside the first --
+  even in another worktree -- emptied the profile out from under it. Two runs in one checkout
+  still share its `.godot` import cache, so keep to one per checkout.
 - ⚠ **Within one run the profile still carries what earlier checks wrote.** "Exactly four
   locked cards" and "locked Level 2 initiated a transition" were once checked against
   whatever save was on the box, and the day Level 2 had a scene the call SUCCEEDED and
