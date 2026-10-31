@@ -4907,8 +4907,6 @@ func _gather_the_fading() -> void:
 		drainable.paper = _fade_paper()
 		drainable.wash = _fade_wash()
 		drainable.vanish_from = _fade_vanish_from()
-		# Whole until it goes, in the colours it was painted in -- not darkened by the shader.
-		drainable.painted_colours = true
 		# In a dark level it shows itself as it goes, or it goes unseen in the dark.
 		if _darkness() > 0.0:
 			drainable.reveals_in_dark = true
