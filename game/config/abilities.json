@@ -1,456 +1,2631 @@
 {
-  "version": 1,
-  "note": "ConceptNet-grounded ability provenance for the 50-class roster. Resolved offline by tools/build_abilities.py and committed; the game/backend only read this table. Entries flagged provenance=conceptnet_curated use documented assertions with approximate weights because api.conceptnet.io was unreachable at build time -- re-run the builder when the API is healthy to upgrade them to conceptnet_api.",
+  "version": 2,
+  "note": "The manuscript's Appendix C, verified against the ConceptNet 5.7.0 assertions dump (every edge exists with these weights) and built by tools/build_abilities.py. 119 abilities over 49 classes through six relations and a guarded IsA traversal; penguin is hand-authored. The top-level ability fields are each class's primary; 'abilities' lists them all. Resolved offline: the game and backend only read this file.",
   "abilities": {
     "circle": {
       "ability": "roll",
-      "ability_relation": "hand_authored",
-      "ability_assertion": "Hand-authored: a circle rolls as a heavy boulder/bumper (geometric primitive; no ConceptNet relation).",
-      "ability_weight": null,
-      "assertion_uri": null,
-      "concept": null,
-      "provenance": "hand_authored"
+      "ability_label": "Roll",
+      "ability_mode": "Property",
+      "ability_relation": "HasProperty",
+      "ability_assertion": "A circle is round.",
+      "ability_weight": 7.48,
+      "assertion_uri": "/a/[/r/HasProperty/,/c/en/circle/,/c/en/round/]",
+      "concept": "/c/en/circle",
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Roll",
+          "mode": "Property",
+          "relation": "HasProperty",
+          "weight": 7.48,
+          "assertion": "A circle is round.",
+          "chain": [
+            {
+              "start": "/c/en/circle",
+              "relation": "HasProperty",
+              "end": "/c/en/round",
+              "weight": 7.48,
+              "assertion_uri": "/a/[/r/HasProperty/,/c/en/circle/,/c/en/round/]"
+            }
+          ]
+        }
+      ]
     },
     "square": {
-      "ability": "weight",
-      "ability_relation": "hand_authored",
-      "ability_assertion": "Hand-authored: a square acts as a static weight holding pressure plates (geometric primitive; no ConceptNet relation).",
-      "ability_weight": null,
-      "assertion_uri": null,
-      "concept": null,
-      "provenance": "hand_authored"
+      "ability": "platform",
+      "ability_label": "Platform",
+      "ability_mode": "Direct",
+      "ability_relation": "UsedFor",
+      "ability_assertion": "You can use a square to walk on.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/square/,/c/en/walk_on/]",
+      "concept": "/c/en/square",
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Platform",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 1.0,
+          "assertion": "You can use a square to walk on.",
+          "chain": [
+            {
+              "start": "/c/en/square",
+              "relation": "UsedFor",
+              "end": "/c/en/walk_on",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/square/,/c/en/walk_on/]"
+            }
+          ]
+        },
+        {
+          "label": "Block",
+          "mode": "Part",
+          "relation": "HasA",
+          "weight": 3.46,
+          "assertion": "A square has four sides.",
+          "chain": [
+            {
+              "start": "/c/en/square",
+              "relation": "HasA",
+              "end": "/c/en/four_sides",
+              "weight": 3.46,
+              "assertion_uri": "/a/[/r/HasA/,/c/en/square/,/c/en/four_sides/]"
+            }
+          ]
+        }
+      ]
     },
     "triangle": {
       "ability": "wedge",
-      "ability_relation": "hand_authored",
-      "ability_assertion": "Hand-authored: a triangle acts as a wedge/ramp to launch or jam mechanisms (geometric primitive; no ConceptNet relation).",
-      "ability_weight": null,
-      "assertion_uri": null,
-      "concept": null,
-      "provenance": "hand_authored"
+      "ability_label": "Wedge",
+      "ability_mode": "Part",
+      "ability_relation": "HasA",
+      "ability_assertion": "A triangle has three sides.",
+      "ability_weight": 6.63,
+      "assertion_uri": "/a/[/r/HasA/,/c/en/triangle/,/c/en/three_sides/]",
+      "concept": "/c/en/triangle",
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Wedge",
+          "mode": "Part",
+          "relation": "HasA",
+          "weight": 6.63,
+          "assertion": "A triangle has three sides.",
+          "chain": [
+            {
+              "start": "/c/en/triangle",
+              "relation": "HasA",
+              "end": "/c/en/three_sides",
+              "weight": 6.63,
+              "assertion_uri": "/a/[/r/HasA/,/c/en/triangle/,/c/en/three_sides/]"
+            }
+          ]
+        }
+      ]
     },
     "bird": {
       "ability": "fly",
+      "ability_label": "Fly",
+      "ability_mode": "Direct",
       "ability_relation": "CapableOf",
-      "ability_assertion": "A bird can fly.",
-      "ability_weight": 6.0,
+      "ability_assertion": "Bird can fly.",
+      "ability_weight": 2.83,
       "assertion_uri": "/a/[/r/CapableOf/,/c/en/bird/,/c/en/fly/]",
       "concept": "/c/en/bird",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Fly",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.83,
+          "assertion": "Bird can fly.",
+          "chain": [
+            {
+              "start": "/c/en/bird",
+              "relation": "CapableOf",
+              "end": "/c/en/fly",
+              "weight": 2.83,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/bird/,/c/en/fly/]"
+            }
+          ]
+        },
+        {
+          "label": "Perch",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.0,
+          "assertion": "A bird can land on a branch.",
+          "chain": [
+            {
+              "start": "/c/en/bird",
+              "relation": "CapableOf",
+              "end": "/c/en/land_on_branch",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/bird/,/c/en/land_on_branch/]"
+            }
+          ]
+        },
+        {
+          "label": "Nest",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.83,
+          "assertion": "An activity a bird can do is build a nest.",
+          "chain": [
+            {
+              "start": "/c/en/bird",
+              "relation": "CapableOf",
+              "end": "/c/en/build_nest",
+              "weight": 2.83,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/bird/,/c/en/build_nest/]"
+            }
+          ]
+        }
+      ]
     },
     "bat": {
       "ability": "fly",
+      "ability_label": "Fly",
+      "ability_mode": "Direct",
       "ability_relation": "CapableOf",
-      "ability_assertion": "A bat can fly.",
-      "ability_weight": 2.83,
+      "ability_assertion": "An activity a bat can do is fly.",
+      "ability_weight": 1.0,
       "assertion_uri": "/a/[/r/CapableOf/,/c/en/bat/,/c/en/fly/]",
       "concept": "/c/en/bat",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Fly",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "An activity a bat can do is fly.",
+          "chain": [
+            {
+              "start": "/c/en/bat",
+              "relation": "CapableOf",
+              "end": "/c/en/fly",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/bat/,/c/en/fly/]"
+            }
+          ]
+        },
+        {
+          "label": "Cling",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A bat can be hanging upside down.",
+          "chain": [
+            {
+              "start": "/c/en/bat",
+              "relation": "CapableOf",
+              "end": "/c/en/hanging_upside_down",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/bat/,/c/en/hanging_upside_down/]"
+            }
+          ]
+        }
+      ]
     },
     "butterfly": {
-      "ability": "fly",
+      "ability": "flutter",
+      "ability_label": "Flutter",
+      "ability_mode": "Direct",
       "ability_relation": "CapableOf",
       "ability_assertion": "A butterfly can fly.",
-      "ability_weight": 3.46,
+      "ability_weight": 2.0,
       "assertion_uri": "/a/[/r/CapableOf/,/c/en/butterfly/,/c/en/fly/]",
       "concept": "/c/en/butterfly",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Flutter",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.0,
+          "assertion": "A butterfly can fly.",
+          "chain": [
+            {
+              "start": "/c/en/butterfly",
+              "relation": "CapableOf",
+              "end": "/c/en/fly",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/butterfly/,/c/en/fly/]"
+            }
+          ]
+        },
+        {
+          "label": "Alight",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A butterfly can make a landing.",
+          "chain": [
+            {
+              "start": "/c/en/butterfly",
+              "relation": "CapableOf",
+              "end": "/c/en/make_landing",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/butterfly/,/c/en/make_landing/]"
+            }
+          ]
+        },
+        {
+          "label": "Draft",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A butterfly can cause a wind.",
+          "chain": [
+            {
+              "start": "/c/en/butterfly",
+              "relation": "CapableOf",
+              "end": "/c/en/cause_wind",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/butterfly/,/c/en/cause_wind/]"
+            }
+          ]
+        }
+      ]
     },
     "spider": {
-      "ability": "climb",
-      "ability_relation": "CapableOf",
-      "ability_assertion": "A spider can climb walls.",
-      "ability_weight": 2.83,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/spider/,/c/en/climb/]",
+      "ability": "wall cling",
+      "ability_label": "Wall Cling",
+      "ability_mode": "Property",
+      "ability_relation": "HasProperty",
+      "ability_assertion": "A spider can be sticking to a wall.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/HasProperty/,/c/en/spider/,/c/en/sticking_to_wall/]",
       "concept": "/c/en/spider",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Wall Cling",
+          "mode": "Property",
+          "relation": "HasProperty",
+          "weight": 1.0,
+          "assertion": "A spider can be sticking to a wall.",
+          "chain": [
+            {
+              "start": "/c/en/spider",
+              "relation": "HasProperty",
+              "end": "/c/en/sticking_to_wall",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/HasProperty/,/c/en/spider/,/c/en/sticking_to_wall/]"
+            }
+          ]
+        },
+        {
+          "label": "Web",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.83,
+          "assertion": "An activity a spider can do is spin webs.",
+          "chain": [
+            {
+              "start": "/c/en/spider",
+              "relation": "CapableOf",
+              "end": "/c/en/spin_webs",
+              "weight": 2.83,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/spider/,/c/en/spin_webs/]"
+            }
+          ]
+        },
+        {
+          "label": "Venom",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.0,
+          "assertion": "Spider can inject venom.",
+          "chain": [
+            {
+              "start": "/c/en/spider",
+              "relation": "CapableOf",
+              "end": "/c/en/inject_venom",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/spider/,/c/en/inject_venom/]"
+            }
+          ]
+        }
+      ]
     },
     "monkey": {
-      "ability": "climb",
-      "ability_relation": "CapableOf",
-      "ability_assertion": "A monkey can climb trees.",
-      "ability_weight": 3.46,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/monkey/,/c/en/climb/]",
+      "ability": "hang",
+      "ability_label": "Hang",
+      "ability_mode": "Property",
+      "ability_relation": "HasProperty",
+      "ability_assertion": "A monkey can be hanging off a tree.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/HasProperty/,/c/en/monkey/,/c/en/hanging_off_tree/]",
       "concept": "/c/en/monkey",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Hang",
+          "mode": "Property",
+          "relation": "HasProperty",
+          "weight": 2.0,
+          "assertion": "A monkey can be hanging off a tree.",
+          "chain": [
+            {
+              "start": "/c/en/monkey",
+              "relation": "HasProperty",
+              "end": "/c/en/hanging_off_tree",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/HasProperty/,/c/en/monkey/,/c/en/hanging_off_tree/]"
+            }
+          ]
+        },
+        {
+          "label": "Swing",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A monkey can move from one tree to another.",
+          "chain": [
+            {
+              "start": "/c/en/monkey",
+              "relation": "CapableOf",
+              "end": "/c/en/move_from_one_tree_to_another",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/monkey/,/c/en/move_from_one_tree_to_another/]"
+            }
+          ]
+        },
+        {
+          "label": "Use Tool",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A monkey can use a tool.",
+          "chain": [
+            {
+              "start": "/c/en/monkey",
+              "relation": "CapableOf",
+              "end": "/c/en/use_tool",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/monkey/,/c/en/use_tool/]"
+            }
+          ]
+        },
+        {
+          "label": "Throw",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A monkey can throw a banana.",
+          "chain": [
+            {
+              "start": "/c/en/monkey",
+              "relation": "CapableOf",
+              "end": "/c/en/throw_banana",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/monkey/,/c/en/throw_banana/]"
+            }
+          ]
+        }
+      ]
     },
     "frog": {
-      "ability": "jump",
+      "ability": "leap",
+      "ability_label": "Leap",
+      "ability_mode": "Direct",
       "ability_relation": "CapableOf",
-      "ability_assertion": "A frog can jump.",
-      "ability_weight": 3.46,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/frog/,/c/en/jump/]",
+      "ability_assertion": "An activity a frog can do is leap.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/frog/,/c/en/leap/]",
       "concept": "/c/en/frog",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Leap",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.0,
+          "assertion": "An activity a frog can do is leap.",
+          "chain": [
+            {
+              "start": "/c/en/frog",
+              "relation": "CapableOf",
+              "end": "/c/en/leap",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/frog/,/c/en/leap/]"
+            }
+          ]
+        },
+        {
+          "label": "High Jump",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A frog can jump very high.",
+          "chain": [
+            {
+              "start": "/c/en/frog",
+              "relation": "CapableOf",
+              "end": "/c/en/jump_very_high",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/frog/,/c/en/jump_very_high/]"
+            }
+          ]
+        },
+        {
+          "label": "Tongue Grab",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "An activity a frog can do is catch flies with its tongue.",
+          "chain": [
+            {
+              "start": "/c/en/frog",
+              "relation": "CapableOf",
+              "end": "/c/en/catch_flies_with_tongue",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/frog/,/c/en/catch_flies_with_tongue/]"
+            }
+          ]
+        }
+      ]
     },
     "fish": {
       "ability": "swim",
+      "ability_label": "Swim",
+      "ability_mode": "Direct",
       "ability_relation": "CapableOf",
-      "ability_assertion": "A fish can swim.",
-      "ability_weight": 6.32,
+      "ability_assertion": "Fish can swim.",
+      "ability_weight": 2.0,
       "assertion_uri": "/a/[/r/CapableOf/,/c/en/fish/,/c/en/swim/]",
       "concept": "/c/en/fish",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Swim",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.0,
+          "assertion": "Fish can swim.",
+          "chain": [
+            {
+              "start": "/c/en/fish",
+              "relation": "CapableOf",
+              "end": "/c/en/swim",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/fish/,/c/en/swim/]"
+            }
+          ]
+        },
+        {
+          "label": "Breathe Underwater",
+          "mode": "Part",
+          "relation": "HasA",
+          "weight": 4.0,
+          "assertion": "Fish have gills.",
+          "chain": [
+            {
+              "start": "/c/en/fish",
+              "relation": "HasA",
+              "end": "/c/en/gills",
+              "weight": 4.0,
+              "assertion_uri": "/a/[/r/HasA/,/c/en/fish/,/c/en/gills/]"
+            }
+          ]
+        },
+        {
+          "label": "School",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "Fish can school together.",
+          "chain": [
+            {
+              "start": "/c/en/fish",
+              "relation": "CapableOf",
+              "end": "/c/en/school_together",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/fish/,/c/en/school_together/]"
+            }
+          ]
+        }
+      ]
     },
     "shark": {
       "ability": "swim",
+      "ability_label": "Swim",
+      "ability_mode": "Direct",
       "ability_relation": "CapableOf",
       "ability_assertion": "A shark can swim.",
-      "ability_weight": 2.83,
+      "ability_weight": 1.0,
       "assertion_uri": "/a/[/r/CapableOf/,/c/en/shark/,/c/en/swim/]",
       "concept": "/c/en/shark",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Swim",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A shark can swim.",
+          "chain": [
+            {
+              "start": "/c/en/shark",
+              "relation": "CapableOf",
+              "end": "/c/en/swim",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/shark/,/c/en/swim/]"
+            }
+          ]
+        },
+        {
+          "label": "Circle",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A shark can circle the swimmer.",
+          "chain": [
+            {
+              "start": "/c/en/shark",
+              "relation": "CapableOf",
+              "end": "/c/en/circle_swimmer",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/shark/,/c/en/circle_swimmer/]"
+            }
+          ]
+        },
+        {
+          "label": "Rough Hide",
+          "mode": "Part",
+          "relation": "HasA",
+          "weight": 1.0,
+          "assertion": "A shark has rough skin.",
+          "chain": [
+            {
+              "start": "/c/en/shark",
+              "relation": "HasA",
+              "end": "/c/en/rough_skin",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/HasA/,/c/en/shark/,/c/en/rough_skin/]"
+            }
+          ]
+        }
+      ]
     },
     "octopus": {
-      "ability": "swim",
-      "ability_relation": "CapableOf",
-      "ability_assertion": "An octopus can swim.",
-      "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/octopus/,/c/en/swim/]",
+      "ability": "grapple",
+      "ability_label": "Grapple",
+      "ability_mode": "Part",
+      "ability_relation": "HasA",
+      "ability_assertion": "An octopus has eight tentacles.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/HasA/,/c/en/octopus/,/c/en/eight_tentacles/]",
       "concept": "/c/en/octopus",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Grapple",
+          "mode": "Part",
+          "relation": "HasA",
+          "weight": 1.0,
+          "assertion": "An octopus has eight tentacles.",
+          "chain": [
+            {
+              "start": "/c/en/octopus",
+              "relation": "HasA",
+              "end": "/c/en/eight_tentacles",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/HasA/,/c/en/octopus/,/c/en/eight_tentacles/]"
+            }
+          ]
+        }
+      ]
     },
     "crab": {
-      "ability": "pinch",
-      "ability_relation": "CapableOf",
-      "ability_assertion": "A crab can pinch.",
-      "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/crab/,/c/en/pinch/]",
+      "ability": "armor",
+      "ability_label": "Armor",
+      "ability_mode": "Part",
+      "ability_relation": "HasA",
+      "ability_assertion": "A crab has an external skeleton.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/HasA/,/c/en/crab/,/c/en/external_skeleton/]",
       "concept": "/c/en/crab",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Armor",
+          "mode": "Part",
+          "relation": "HasA",
+          "weight": 1.0,
+          "assertion": "A crab has an external skeleton.",
+          "chain": [
+            {
+              "start": "/c/en/crab",
+              "relation": "HasA",
+              "end": "/c/en/external_skeleton",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/HasA/,/c/en/crab/,/c/en/external_skeleton/]"
+            }
+          ]
+        },
+        {
+          "label": "Grip",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A crab can live on wet rocks.",
+          "chain": [
+            {
+              "start": "/c/en/crab",
+              "relation": "CapableOf",
+              "end": "/c/en/live_on_wet_rocks",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/crab/,/c/en/live_on_wet_rocks/]"
+            }
+          ]
+        }
+      ]
     },
     "horse": {
-      "ability": "gallop",
+      "ability": "haul",
+      "ability_label": "Haul",
+      "ability_mode": "Direct",
       "ability_relation": "CapableOf",
-      "ability_assertion": "A horse can gallop.",
-      "ability_weight": 2.83,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/horse/,/c/en/gallop/]",
+      "ability_assertion": "A horse can pull a cart.",
+      "ability_weight": 3.46,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/horse/,/c/en/pull_cart/]",
       "concept": "/c/en/horse",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Haul",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 3.46,
+          "assertion": "A horse can pull a cart.",
+          "chain": [
+            {
+              "start": "/c/en/horse",
+              "relation": "CapableOf",
+              "end": "/c/en/pull_cart",
+              "weight": 3.46,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/horse/,/c/en/pull_cart/]"
+            }
+          ]
+        },
+        {
+          "label": "Gallop",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.0,
+          "assertion": "A horse can run quickly.",
+          "chain": [
+            {
+              "start": "/c/en/horse",
+              "relation": "CapableOf",
+              "end": "/c/en/run_quickly",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/horse/,/c/en/run_quickly/]"
+            }
+          ]
+        },
+        {
+          "label": "Vault",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.0,
+          "assertion": "A horse can jump a fence.",
+          "chain": [
+            {
+              "start": "/c/en/horse",
+              "relation": "CapableOf",
+              "end": "/c/en/jump_fence",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/horse/,/c/en/jump_fence/]"
+            }
+          ]
+        },
+        {
+          "label": "Carry Rider",
+          "mode": "Action",
+          "relation": "ReceivesAction",
+          "weight": 1.0,
+          "assertion": "A horse can be ridden.",
+          "chain": [
+            {
+              "start": "/c/en/horse",
+              "relation": "ReceivesAction",
+              "end": "/c/en/ridden",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/ReceivesAction/,/c/en/horse/,/c/en/ridden/]"
+            }
+          ]
+        }
+      ]
     },
     "elephant": {
-      "ability": "stomp",
-      "ability_relation": "CapableOf",
-      "ability_assertion": "An elephant can stomp.",
-      "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/elephant/,/c/en/stomp/]",
+      "ability": "trunk grab",
+      "ability_label": "Trunk Grab",
+      "ability_mode": "Part",
+      "ability_relation": "HasA",
+      "ability_assertion": "An elephant has a trunk.",
+      "ability_weight": 3.46,
+      "assertion_uri": "/a/[/r/HasA/,/c/en/elephant/,/c/en/trunk/]",
       "concept": "/c/en/elephant",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Trunk Grab",
+          "mode": "Part",
+          "relation": "HasA",
+          "weight": 3.46,
+          "assertion": "An elephant has a trunk.",
+          "chain": [
+            {
+              "start": "/c/en/elephant",
+              "relation": "HasA",
+              "end": "/c/en/trunk",
+              "weight": 3.46,
+              "assertion_uri": "/a/[/r/HasA/,/c/en/elephant/,/c/en/trunk/]"
+            }
+          ]
+        },
+        {
+          "label": "Tusk Ram",
+          "mode": "Part",
+          "relation": "HasA",
+          "weight": 3.46,
+          "assertion": "An elephant has tusks.",
+          "chain": [
+            {
+              "start": "/c/en/elephant",
+              "relation": "HasA",
+              "end": "/c/en/tusks",
+              "weight": 3.46,
+              "assertion_uri": "/a/[/r/HasA/,/c/en/elephant/,/c/en/tusks/]"
+            }
+          ]
+        },
+        {
+          "label": "Lift",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "An activity elephant can do is to lift the tree.",
+          "chain": [
+            {
+              "start": "/c/en/elephant",
+              "relation": "CapableOf",
+              "end": "/c/en/lift_tree",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/elephant/,/c/en/lift_tree/]"
+            }
+          ]
+        },
+        {
+          "label": "Heavy",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "An elephant can weight 1000 kilos.",
+          "chain": [
+            {
+              "start": "/c/en/elephant",
+              "relation": "CapableOf",
+              "end": "/c/en/weight_1000_kilos",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/elephant/,/c/en/weight_1000_kilos/]"
+            }
+          ]
+        }
+      ]
     },
     "snake": {
       "ability": "slither",
+      "ability_label": "Slither",
+      "ability_mode": "Direct",
       "ability_relation": "CapableOf",
-      "ability_assertion": "A snake can slither.",
-      "ability_weight": 2.83,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/snake/,/c/en/slither/]",
+      "ability_assertion": "A snake can slither down the street.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/snake/,/c/en/slither_down_street/]",
       "concept": "/c/en/snake",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Slither",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A snake can slither down the street.",
+          "chain": [
+            {
+              "start": "/c/en/snake",
+              "relation": "CapableOf",
+              "end": "/c/en/slither_down_street",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/snake/,/c/en/slither_down_street/]"
+            }
+          ]
+        },
+        {
+          "label": "Squeeze",
+          "mode": "Part",
+          "relation": "HasA",
+          "weight": 1.0,
+          "assertion": "A snake has no legs.",
+          "chain": [
+            {
+              "start": "/c/en/snake",
+              "relation": "HasA",
+              "end": "/c/en/no_legs",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/HasA/,/c/en/snake/,/c/en/no_legs/]"
+            }
+          ]
+        },
+        {
+          "label": "Startle",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A snake can surprise a person.",
+          "chain": [
+            {
+              "start": "/c/en/snake",
+              "relation": "CapableOf",
+              "end": "/c/en/surprise_person",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/snake/,/c/en/surprise_person/]"
+            }
+          ]
+        }
+      ]
     },
     "sea_turtle": {
-      "ability": "swim",
+      "ability": "shell",
+      "ability_label": "Shell",
+      "ability_mode": "Inherited",
       "ability_relation": "CapableOf",
-      "ability_assertion": "A sea turtle can swim.",
-      "ability_weight": 2.83,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/sea_turtle/,/c/en/swim/]",
+      "ability_assertion": "Sea turtle is a type of turtle, and a turtle can hide in its shell.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/turtle/,/c/en/hide_in_shell/]",
       "concept": "/c/en/sea_turtle",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Shell",
+          "mode": "Inherited",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "Sea turtle is a type of turtle, and a turtle can hide in its shell.",
+          "chain": [
+            {
+              "start": "/c/en/sea_turtle",
+              "relation": "IsA",
+              "end": "/c/en/turtle",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/IsA/,/c/en/sea_turtle/n/wn/animal/,/c/en/turtle/n/wn/animal/]"
+            },
+            {
+              "start": "/c/en/turtle",
+              "relation": "CapableOf",
+              "end": "/c/en/hide_in_shell",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/turtle/,/c/en/hide_in_shell/]"
+            }
+          ]
+        },
+        {
+          "label": "Amphibious",
+          "mode": "Inherited",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "Sea turtle is a type of turtle, and a turtle can live in water or on land.",
+          "chain": [
+            {
+              "start": "/c/en/sea_turtle",
+              "relation": "IsA",
+              "end": "/c/en/turtle",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/IsA/,/c/en/sea_turtle/n/wn/animal/,/c/en/turtle/n/wn/animal/]"
+            },
+            {
+              "start": "/c/en/turtle",
+              "relation": "CapableOf",
+              "end": "/c/en/live_in_water_or_on_land",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/turtle/,/c/en/live_in_water_or_on_land/]"
+            }
+          ]
+        }
+      ]
     },
     "snail": {
-      "ability": "crawl",
+      "ability": "move",
+      "ability_label": "Move",
+      "ability_mode": "Inherited",
       "ability_relation": "CapableOf",
-      "ability_assertion": "A snail can crawl slowly.",
-      "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/snail/,/c/en/crawl/]",
+      "ability_assertion": "A snail is a animal, and an activity an animal can do is move itself about.",
+      "ability_weight": 4.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/animal/,/c/en/move_itself_about/]",
       "concept": "/c/en/snail",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Move",
+          "mode": "Inherited",
+          "relation": "CapableOf",
+          "weight": 4.0,
+          "assertion": "A snail is a animal, and an activity an animal can do is move itself about.",
+          "chain": [
+            {
+              "start": "/c/en/snail",
+              "relation": "IsA",
+              "end": "/c/en/animal",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/IsA/,/c/en/snail/,/c/en/animal/]"
+            },
+            {
+              "start": "/c/en/animal",
+              "relation": "CapableOf",
+              "end": "/c/en/move_itself_about",
+              "weight": 4.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/animal/,/c/en/move_itself_about/]"
+            }
+          ]
+        }
+      ]
     },
     "ant": {
       "ability": "carry",
+      "ability_label": "Carry",
+      "ability_mode": "Direct",
       "ability_relation": "CapableOf",
-      "ability_assertion": "An ant can carry objects heavier than itself.",
-      "ability_weight": 2.83,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/ant/,/c/en/carry/]",
+      "ability_assertion": "An ant can lift several times its own weight.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/ant/,/c/en/lift_several_times_own_weight/]",
       "concept": "/c/en/ant",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Carry",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "An ant can lift several times its own weight.",
+          "chain": [
+            {
+              "start": "/c/en/ant",
+              "relation": "CapableOf",
+              "end": "/c/en/lift_several_times_own_weight",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/ant/,/c/en/lift_several_times_own_weight/]"
+            }
+          ]
+        },
+        {
+          "label": "Colony",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "An ant can build a colony.",
+          "chain": [
+            {
+              "start": "/c/en/ant",
+              "relation": "CapableOf",
+              "end": "/c/en/build_colony",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/ant/,/c/en/build_colony/]"
+            }
+          ]
+        }
+      ]
     },
     "bee": {
-      "ability": "pollinate",
+      "ability": "sting",
+      "ability_label": "Sting",
+      "ability_mode": "Direct",
       "ability_relation": "CapableOf",
-      "ability_assertion": "A bee can pollinate flowers.",
+      "ability_assertion": "A bee can sting you.",
       "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/bee/,/c/en/pollinate/]",
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/bee/,/c/en/sting/]",
       "concept": "/c/en/bee",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Sting",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.0,
+          "assertion": "A bee can sting you.",
+          "chain": [
+            {
+              "start": "/c/en/bee",
+              "relation": "CapableOf",
+              "end": "/c/en/sting",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/bee/,/c/en/sting/]"
+            }
+          ]
+        },
+        {
+          "label": "Fly",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "An activity a bee can do is fly.",
+          "chain": [
+            {
+              "start": "/c/en/bee",
+              "relation": "CapableOf",
+              "end": "/c/en/fly",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/bee/,/c/en/fly/]"
+            }
+          ]
+        }
+      ]
     },
     "pig": {
-      "ability": "dig",
+      "ability": "forage",
+      "ability_label": "Forage",
+      "ability_mode": "Direct",
       "ability_relation": "CapableOf",
-      "ability_assertion": "A pig can dig for food.",
+      "ability_assertion": "A pig can find truffles.",
       "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/pig/,/c/en/dig/]",
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/pig/,/c/en/find_truffles/]",
       "concept": "/c/en/pig",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Forage",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.0,
+          "assertion": "A pig can find truffles.",
+          "chain": [
+            {
+              "start": "/c/en/pig",
+              "relation": "CapableOf",
+              "end": "/c/en/find_truffles",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/pig/,/c/en/find_truffles/]"
+            }
+          ]
+        },
+        {
+          "label": "Wallow",
+          "mode": "Property",
+          "relation": "HasProperty",
+          "weight": 1.0,
+          "assertion": "A pig can be rolling in mud.",
+          "chain": [
+            {
+              "start": "/c/en/pig",
+              "relation": "HasProperty",
+              "end": "/c/en/rolling_in_mud",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/HasProperty/,/c/en/pig/,/c/en/rolling_in_mud/]"
+            }
+          ]
+        }
+      ]
     },
     "penguin": {
       "ability": "slide",
-      "ability_relation": "CapableOf",
-      "ability_assertion": "A penguin can slide on ice.",
-      "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/CapableOf/,/c/en/penguin/,/c/en/slide/]",
-      "concept": "/c/en/penguin",
-      "provenance": "conceptnet_curated"
+      "ability_label": "Slide",
+      "ability_mode": "Hand-authored",
+      "ability_relation": "hand_authored",
+      "ability_assertion": "Hand-authored: a penguin slides on its belly across ice (no usable ConceptNet assertion at any depth; guarded from inheriting a bird's flight).",
+      "ability_weight": null,
+      "assertion_uri": null,
+      "concept": null,
+      "provenance": "hand_authored",
+      "abilities": [
+        {
+          "label": "Slide",
+          "mode": "Hand-authored",
+          "relation": "hand_authored",
+          "weight": null,
+          "assertion": "Hand-authored: a penguin slides on its belly across ice (no usable ConceptNet assertion at any depth; guarded from inheriting a bird's flight).",
+          "chain": []
+        }
+      ]
     },
     "scorpion": {
       "ability": "sting",
+      "ability_label": "Sting",
+      "ability_mode": "Direct",
       "ability_relation": "CapableOf",
       "ability_assertion": "A scorpion can sting.",
-      "ability_weight": 2.83,
+      "ability_weight": 1.0,
       "assertion_uri": "/a/[/r/CapableOf/,/c/en/scorpion/,/c/en/sting/]",
       "concept": "/c/en/scorpion",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Sting",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A scorpion can sting.",
+          "chain": [
+            {
+              "start": "/c/en/scorpion",
+              "relation": "CapableOf",
+              "end": "/c/en/sting",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/scorpion/,/c/en/sting/]"
+            }
+          ]
+        }
+      ]
     },
     "axe": {
       "ability": "chop",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "An axe is used to chop wood.",
-      "ability_weight": 4.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/axe/,/c/en/chop/]",
+      "ability_label": "Chop",
+      "ability_mode": "Direct",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "An axe can cut down a tree.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/axe/,/c/en/cut_down_tree/]",
       "concept": "/c/en/axe",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Chop",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "An axe can cut down a tree.",
+          "chain": [
+            {
+              "start": "/c/en/axe",
+              "relation": "CapableOf",
+              "end": "/c/en/cut_down_tree",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/axe/,/c/en/cut_down_tree/]"
+            }
+          ]
+        },
+        {
+          "label": "Split",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "An axe can divide wood logs.",
+          "chain": [
+            {
+              "start": "/c/en/axe",
+              "relation": "CapableOf",
+              "end": "/c/en/divide_wood_logs",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/axe/,/c/en/divide_wood_logs/]"
+            }
+          ]
+        }
+      ]
     },
     "sword": {
       "ability": "cut",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "A sword is used to cut and fight.",
-      "ability_weight": 2.83,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/sword/,/c/en/cut/]",
+      "ability_label": "Cut",
+      "ability_mode": "Property",
+      "ability_relation": "HasProperty",
+      "ability_assertion": "A sword is sharp.",
+      "ability_weight": 5.29,
+      "assertion_uri": "/a/[/r/HasProperty/,/c/en/sword/,/c/en/sharp/]",
       "concept": "/c/en/sword",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Cut",
+          "mode": "Property",
+          "relation": "HasProperty",
+          "weight": 5.29,
+          "assertion": "A sword is sharp.",
+          "chain": [
+            {
+              "start": "/c/en/sword",
+              "relation": "HasProperty",
+              "end": "/c/en/sharp",
+              "weight": 5.29,
+              "assertion_uri": "/a/[/r/HasProperty/,/c/en/sword/,/c/en/sharp/]"
+            }
+          ]
+        },
+        {
+          "label": "Strike",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 4.47,
+          "assertion": "A sword is for killing.",
+          "chain": [
+            {
+              "start": "/c/en/sword",
+              "relation": "UsedFor",
+              "end": "/c/en/killing",
+              "weight": 4.47,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/sword/,/c/en/killing/]"
+            }
+          ]
+        },
+        {
+          "label": "Parry",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 2.0,
+          "assertion": "A sword is used for fencing.",
+          "chain": [
+            {
+              "start": "/c/en/sword",
+              "relation": "UsedFor",
+              "end": "/c/en/fencing",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/sword/,/c/en/fencing/]"
+            }
+          ]
+        }
+      ]
     },
     "cannon": {
-      "ability": "shoot",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "A cannon is used to shoot projectiles.",
-      "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/cannon/,/c/en/shoot/]",
+      "ability": "launch",
+      "ability_label": "Launch",
+      "ability_mode": "Direct",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A cannon can fire a cannonball.",
+      "ability_weight": 3.46,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/cannon/,/c/en/fire_cannonball/]",
       "concept": "/c/en/cannon",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Launch",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 3.46,
+          "assertion": "A cannon can fire a cannonball.",
+          "chain": [
+            {
+              "start": "/c/en/cannon",
+              "relation": "CapableOf",
+              "end": "/c/en/fire_cannonball",
+              "weight": 3.46,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/cannon/,/c/en/fire_cannonball/]"
+            }
+          ]
+        },
+        {
+          "label": "Bombard",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 3.46,
+          "assertion": "A cannon is used for shooting cannonballs.",
+          "chain": [
+            {
+              "start": "/c/en/cannon",
+              "relation": "UsedFor",
+              "end": "/c/en/shooting_cannonballs",
+              "weight": 3.46,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/cannon/,/c/en/shooting_cannonballs/]"
+            }
+          ]
+        },
+        {
+          "label": "Heavy",
+          "mode": "Property",
+          "relation": "HasProperty",
+          "weight": 1.0,
+          "assertion": "A cannon is heavy.",
+          "chain": [
+            {
+              "start": "/c/en/cannon",
+              "relation": "HasProperty",
+              "end": "/c/en/heavy",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/HasProperty/,/c/en/cannon/,/c/en/heavy/]"
+            }
+          ]
+        }
+      ]
     },
     "boomerang": {
-      "ability": "throw",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "A boomerang is used to throw and return.",
-      "ability_weight": 2.83,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/boomerang/,/c/en/throw/]",
+      "ability": "return",
+      "ability_label": "Return",
+      "ability_mode": "Direct",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A boomerang can return to the thrower.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/boomerang/,/c/en/return_to_thrower/]",
       "concept": "/c/en/boomerang",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Return",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A boomerang can return to the thrower.",
+          "chain": [
+            {
+              "start": "/c/en/boomerang",
+              "relation": "CapableOf",
+              "end": "/c/en/return_to_thrower",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/boomerang/,/c/en/return_to_thrower/]"
+            }
+          ]
+        }
+      ]
     },
     "flashlight": {
-      "ability": "light",
+      "ability": "illuminate",
+      "ability_label": "Illuminate",
+      "ability_mode": "Direct",
       "ability_relation": "UsedFor",
-      "ability_assertion": "A flashlight is used to see in the dark.",
-      "ability_weight": 2.83,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/flashlight/,/c/en/light/]",
+      "ability_assertion": "A flashlight is used for seeing in the dark.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/flashlight/,/c/en/seeing_in_dark/]",
       "concept": "/c/en/flashlight",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Illuminate",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 2.0,
+          "assertion": "A flashlight is used for seeing in the dark.",
+          "chain": [
+            {
+              "start": "/c/en/flashlight",
+              "relation": "UsedFor",
+              "end": "/c/en/seeing_in_dark",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/flashlight/,/c/en/seeing_in_dark/]"
+            }
+          ]
+        },
+        {
+          "label": "Beam",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A flashlight can light a path.",
+          "chain": [
+            {
+              "start": "/c/en/flashlight",
+              "relation": "CapableOf",
+              "end": "/c/en/light_path",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/flashlight/,/c/en/light_path/]"
+            }
+          ]
+        },
+        {
+          "label": "Ward",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A flashlight can keep a wolf at bay.",
+          "chain": [
+            {
+              "start": "/c/en/flashlight",
+              "relation": "CapableOf",
+              "end": "/c/en/keep_wolf_at_bay",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/flashlight/,/c/en/keep_wolf_at_bay/]"
+            }
+          ]
+        }
+      ]
     },
     "campfire": {
-      "ability": "warm",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "A campfire is used for warmth.",
-      "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/campfire/,/c/en/warm/]",
+      "ability": "burn",
+      "ability_label": "Burn",
+      "ability_mode": "Inherited",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "Campfire is a type of fire, and fire can burn things.",
+      "ability_weight": 7.21,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/fire/,/c/en/burn_things/]",
       "concept": "/c/en/campfire",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Burn",
+          "mode": "Inherited",
+          "relation": "CapableOf",
+          "weight": 7.21,
+          "assertion": "Campfire is a type of fire, and fire can burn things.",
+          "chain": [
+            {
+              "start": "/c/en/campfire",
+              "relation": "IsA",
+              "end": "/c/en/fire",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/IsA/,/c/en/campfire/n/wn/event/,/c/en/fire/n/wn/event/]"
+            },
+            {
+              "start": "/c/en/fire",
+              "relation": "CapableOf",
+              "end": "/c/en/burn_things",
+              "weight": 7.21,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/fire/,/c/en/burn_things/]"
+            }
+          ]
+        },
+        {
+          "label": "Warm",
+          "mode": "Inherited",
+          "relation": "CapableOf",
+          "weight": 4.0,
+          "assertion": "Campfire is a type of fire, and a fire can warm your hands.",
+          "chain": [
+            {
+              "start": "/c/en/campfire",
+              "relation": "IsA",
+              "end": "/c/en/fire",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/IsA/,/c/en/campfire/n/wn/event/,/c/en/fire/n/wn/event/]"
+            },
+            {
+              "start": "/c/en/fire",
+              "relation": "CapableOf",
+              "end": "/c/en/warm_hands",
+              "weight": 4.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/fire/,/c/en/warm_hands/]"
+            }
+          ]
+        },
+        {
+          "label": "Cook",
+          "mode": "Inherited",
+          "relation": "UsedFor",
+          "weight": 2.83,
+          "assertion": "Campfire is a type of fire, and you can use fire to cook.",
+          "chain": [
+            {
+              "start": "/c/en/campfire",
+              "relation": "IsA",
+              "end": "/c/en/fire",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/IsA/,/c/en/campfire/n/wn/event/,/c/en/fire/n/wn/event/]"
+            },
+            {
+              "start": "/c/en/fire",
+              "relation": "UsedFor",
+              "end": "/c/en/cook",
+              "weight": 2.83,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/fire/,/c/en/cook/]"
+            }
+          ]
+        }
+      ]
     },
     "cloud": {
       "ability": "rain",
+      "ability_label": "Rain",
+      "ability_mode": "Direct",
       "ability_relation": "UsedFor",
-      "ability_assertion": "A cloud is used to make rain.",
-      "ability_weight": 1.0,
+      "ability_assertion": "A cloud is used for rain.",
+      "ability_weight": 2.0,
       "assertion_uri": "/a/[/r/UsedFor/,/c/en/cloud/,/c/en/rain/]",
       "concept": "/c/en/cloud",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Rain",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 2.0,
+          "assertion": "A cloud is used for rain.",
+          "chain": [
+            {
+              "start": "/c/en/cloud",
+              "relation": "UsedFor",
+              "end": "/c/en/rain",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/cloud/,/c/en/rain/]"
+            }
+          ]
+        },
+        {
+          "label": "Shade",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.83,
+          "assertion": "A cloud can hide the sun.",
+          "chain": [
+            {
+              "start": "/c/en/cloud",
+              "relation": "CapableOf",
+              "end": "/c/en/hide_sun",
+              "weight": 2.83,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/cloud/,/c/en/hide_sun/]"
+            }
+          ]
+        },
+        {
+          "label": "Thunder",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 1.0,
+          "assertion": "A cloud is for thunder.",
+          "chain": [
+            {
+              "start": "/c/en/cloud",
+              "relation": "UsedFor",
+              "end": "/c/en/thunder",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/cloud/,/c/en/thunder/]"
+            }
+          ]
+        }
+      ]
     },
     "sun": {
-      "ability": "heat",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "The sun is used to give heat and light.",
-      "ability_weight": 1.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/sun/,/c/en/heat/]",
+      "ability": "evaporate",
+      "ability_label": "Evaporate",
+      "ability_mode": "Direct",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "The sun can dry your laundry.",
+      "ability_weight": 6.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/sun/,/c/en/dry_laundry/]",
       "concept": "/c/en/sun",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Evaporate",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 6.0,
+          "assertion": "The sun can dry your laundry.",
+          "chain": [
+            {
+              "start": "/c/en/sun",
+              "relation": "CapableOf",
+              "end": "/c/en/dry_laundry",
+              "weight": 6.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/sun/,/c/en/dry_laundry/]"
+            }
+          ]
+        },
+        {
+          "label": "Illuminate",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 5.29,
+          "assertion": "Sun can shine brightly.",
+          "chain": [
+            {
+              "start": "/c/en/sun",
+              "relation": "CapableOf",
+              "end": "/c/en/shine_brightly",
+              "weight": 5.29,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/sun/,/c/en/shine_brightly/]"
+            }
+          ]
+        },
+        {
+          "label": "Heat",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 4.9,
+          "assertion": "The sun can heat the earth.",
+          "chain": [
+            {
+              "start": "/c/en/sun",
+              "relation": "CapableOf",
+              "end": "/c/en/heat_earth",
+              "weight": 4.9,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/sun/,/c/en/heat_earth/]"
+            }
+          ]
+        },
+        {
+          "label": "Scorch",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 3.46,
+          "assertion": "The sun can burn your skin.",
+          "chain": [
+            {
+              "start": "/c/en/sun",
+              "relation": "CapableOf",
+              "end": "/c/en/burn_skin",
+              "weight": 3.46,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/sun/,/c/en/burn_skin/]"
+            }
+          ]
+        }
+      ]
     },
     "fan": {
-      "ability": "cool",
+      "ability": "gust",
+      "ability_label": "Gust",
+      "ability_mode": "Direct",
       "ability_relation": "UsedFor",
-      "ability_assertion": "A fan is used to cool by blowing air.",
-      "ability_weight": 3.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/fan/,/c/en/cool/]",
+      "ability_assertion": "A fan is used for moving the air.",
+      "ability_weight": 4.47,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/fan/,/c/en/moving_air/]",
       "concept": "/c/en/fan",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Gust",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 4.47,
+          "assertion": "A fan is used for moving the air.",
+          "chain": [
+            {
+              "start": "/c/en/fan",
+              "relation": "UsedFor",
+              "end": "/c/en/moving_air",
+              "weight": 4.47,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/fan/,/c/en/moving_air/]"
+            }
+          ]
+        },
+        {
+          "label": "Cool",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 6.0,
+          "assertion": "You can use a fan to cool off.",
+          "chain": [
+            {
+              "start": "/c/en/fan",
+              "relation": "UsedFor",
+              "end": "/c/en/cool_off",
+              "weight": 6.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/fan/,/c/en/cool_off/]"
+            }
+          ]
+        }
+      ]
     },
     "ladder": {
       "ability": "climb",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "A ladder is used for climbing.",
-      "ability_weight": 5.29,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/ladder/,/c/en/climb/]",
+      "ability_label": "Climb",
+      "ability_mode": "Action",
+      "ability_relation": "ReceivesAction",
+      "ability_assertion": "A ladder can be climbed.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/ReceivesAction/,/c/en/ladder/,/c/en/climbed/]",
       "concept": "/c/en/ladder",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Climb",
+          "mode": "Action",
+          "relation": "ReceivesAction",
+          "weight": 1.0,
+          "assertion": "A ladder can be climbed.",
+          "chain": [
+            {
+              "start": "/c/en/ladder",
+              "relation": "ReceivesAction",
+              "end": "/c/en/climbed",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/ReceivesAction/,/c/en/ladder/,/c/en/climbed/]"
+            }
+          ]
+        },
+        {
+          "label": "Reach",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 3.46,
+          "assertion": "A ladder can reach the roof.",
+          "chain": [
+            {
+              "start": "/c/en/ladder",
+              "relation": "CapableOf",
+              "end": "/c/en/reach_roof",
+              "weight": 3.46,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/ladder/,/c/en/reach_roof/]"
+            }
+          ]
+        },
+        {
+          "label": "Bridge Gap",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 1.0,
+          "assertion": "A ladder is for using as a bridge.",
+          "chain": [
+            {
+              "start": "/c/en/ladder",
+              "relation": "UsedFor",
+              "end": "/c/en/using_as_bridge",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/ladder/,/c/en/using_as_bridge/]"
+            }
+          ]
+        }
+      ]
     },
     "stairs": {
-      "ability": "climb",
+      "ability": "ascend",
+      "ability_label": "Ascend",
+      "ability_mode": "Direct",
       "ability_relation": "UsedFor",
-      "ability_assertion": "Stairs are used to climb between floors.",
-      "ability_weight": 3.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/stairs/,/c/en/climb/]",
+      "ability_assertion": "Stairs is for climbing.",
+      "ability_weight": 5.29,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/stairs/,/c/en/climbing/]",
       "concept": "/c/en/stairs",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Ascend",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 5.29,
+          "assertion": "Stairs is for climbing.",
+          "chain": [
+            {
+              "start": "/c/en/stairs",
+              "relation": "UsedFor",
+              "end": "/c/en/climbing",
+              "weight": 5.29,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/stairs/,/c/en/climbing/]"
+            }
+          ]
+        },
+        {
+          "label": "Descend",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 2.0,
+          "assertion": "Stairs is for walking down.",
+          "chain": [
+            {
+              "start": "/c/en/stairs",
+              "relation": "UsedFor",
+              "end": "/c/en/walking_down",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/stairs/,/c/en/walking_down/]"
+            }
+          ]
+        }
+      ]
     },
     "parachute": {
       "ability": "glide",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "A parachute is used to slow a fall.",
-      "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/parachute/,/c/en/glide/]",
+      "ability_label": "Glide",
+      "ability_mode": "Direct",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A parachute can slow a descent through air.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/parachute/,/c/en/slow_descent_through_air/]",
       "concept": "/c/en/parachute",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Glide",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A parachute can slow a descent through air.",
+          "chain": [
+            {
+              "start": "/c/en/parachute",
+              "relation": "CapableOf",
+              "end": "/c/en/slow_descent_through_air",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/parachute/,/c/en/slow_descent_through_air/]"
+            }
+          ]
+        }
+      ]
     },
     "hot_air_balloon": {
       "ability": "float",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "A hot air balloon is used to float upward.",
+      "ability_label": "Float",
+      "ability_mode": "Inherited",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "Hot-air balloon is a type of balloon, and a balloon can rise into the air.",
       "ability_weight": 1.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/hot_air_balloon/,/c/en/float/]",
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/balloon/,/c/en/rise_into_air/]",
       "concept": "/c/en/hot_air_balloon",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Float",
+          "mode": "Inherited",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "Hot-air balloon is a type of balloon, and a balloon can rise into the air.",
+          "chain": [
+            {
+              "start": "/c/en/hot_air_balloon",
+              "relation": "IsA",
+              "end": "/c/en/balloon",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/IsA/,/c/en/hot_air_balloon/n/wn/artifact/,/c/en/balloon/n/wn/artifact/]"
+            },
+            {
+              "start": "/c/en/balloon",
+              "relation": "CapableOf",
+              "end": "/c/en/rise_into_air",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/balloon/,/c/en/rise_into_air/]"
+            }
+          ]
+        },
+        {
+          "label": "Drift",
+          "mode": "Inherited",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "Hot-air balloon is a type of balloon, and a balloon can float through the air.",
+          "chain": [
+            {
+              "start": "/c/en/hot_air_balloon",
+              "relation": "IsA",
+              "end": "/c/en/balloon",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/IsA/,/c/en/hot_air_balloon/n/wn/artifact/,/c/en/balloon/n/wn/artifact/]"
+            },
+            {
+              "start": "/c/en/balloon",
+              "relation": "CapableOf",
+              "end": "/c/en/float_through_air",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/balloon/,/c/en/float_through_air/]"
+            }
+          ]
+        }
+      ]
     },
     "bridge": {
-      "ability": "cross",
+      "ability": "span",
+      "ability_label": "Span",
+      "ability_mode": "Direct",
       "ability_relation": "UsedFor",
-      "ability_assertion": "A bridge is used to cross a gap.",
+      "ability_assertion": "A bridge is for crossing a river.",
       "ability_weight": 4.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/bridge/,/c/en/cross/]",
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/bridge/,/c/en/crossing_river/]",
       "concept": "/c/en/bridge",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Span",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 4.0,
+          "assertion": "A bridge is for crossing a river.",
+          "chain": [
+            {
+              "start": "/c/en/bridge",
+              "relation": "UsedFor",
+              "end": "/c/en/crossing_river",
+              "weight": 4.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/bridge/,/c/en/crossing_river/]"
+            }
+          ]
+        },
+        {
+          "label": "Cross Ravine",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.0,
+          "assertion": "A bridge can bridge a ravine.",
+          "chain": [
+            {
+              "start": "/c/en/bridge",
+              "relation": "CapableOf",
+              "end": "/c/en/bridge_ravine",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/bridge/,/c/en/bridge_ravine/]"
+            }
+          ]
+        },
+        {
+          "label": "Arch",
+          "mode": "Property",
+          "relation": "HasProperty",
+          "weight": 1.0,
+          "assertion": "A bridge is arched to make it stronger.",
+          "chain": [
+            {
+              "start": "/c/en/bridge",
+              "relation": "HasProperty",
+              "end": "/c/en/arched_to_make_stronger",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/HasProperty/,/c/en/bridge/,/c/en/arched_to_make_stronger/]"
+            }
+          ]
+        }
+      ]
     },
     "sailboat": {
-      "ability": "sail",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "A sailboat is used to sail on water.",
-      "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/sailboat/,/c/en/sail/]",
+      "ability": "wind sail",
+      "ability_label": "Wind Sail",
+      "ability_mode": "Action",
+      "ability_relation": "ReceivesAction",
+      "ability_assertion": "A sailboat is propelled by wind.",
+      "ability_weight": 3.46,
+      "assertion_uri": "/a/[/r/ReceivesAction/,/c/en/sailboat/,/c/en/propelled_by_wind/]",
       "concept": "/c/en/sailboat",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Wind Sail",
+          "mode": "Action",
+          "relation": "ReceivesAction",
+          "weight": 3.46,
+          "assertion": "A sailboat is propelled by wind.",
+          "chain": [
+            {
+              "start": "/c/en/sailboat",
+              "relation": "ReceivesAction",
+              "end": "/c/en/propelled_by_wind",
+              "weight": 3.46,
+              "assertion_uri": "/a/[/r/ReceivesAction/,/c/en/sailboat/,/c/en/propelled_by_wind/]"
+            }
+          ]
+        },
+        {
+          "label": "Sail",
+          "mode": "Inherited",
+          "relation": "UsedFor",
+          "weight": 7.21,
+          "assertion": "Sailboat is a type of boat, and you can use a boat to travel on the water.",
+          "chain": [
+            {
+              "start": "/c/en/sailboat",
+              "relation": "IsA",
+              "end": "/c/en/boat",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/IsA/,/c/en/sailboat/n/wn/artifact/,/c/en/boat/n/wn/artifact/]"
+            },
+            {
+              "start": "/c/en/boat",
+              "relation": "UsedFor",
+              "end": "/c/en/travel_on_water",
+              "weight": 7.21,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/boat/,/c/en/travel_on_water/]"
+            }
+          ]
+        }
+      ]
     },
     "submarine": {
-      "ability": "dive",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "A submarine is used to dive underwater.",
-      "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/submarine/,/c/en/dive/]",
+      "ability": "submerge",
+      "ability_label": "Submerge",
+      "ability_mode": "Direct",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A submarine can submerge under water.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/submarine/,/c/en/submerge_under_water/]",
       "concept": "/c/en/submarine",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Submerge",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A submarine can submerge under water.",
+          "chain": [
+            {
+              "start": "/c/en/submarine",
+              "relation": "CapableOf",
+              "end": "/c/en/submerge_under_water",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/submarine/,/c/en/submerge_under_water/]"
+            }
+          ]
+        },
+        {
+          "label": "Deep Dive",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A submarine can travel deep in the ocean.",
+          "chain": [
+            {
+              "start": "/c/en/submarine",
+              "relation": "CapableOf",
+              "end": "/c/en/travel_deep_in_ocean",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/submarine/,/c/en/travel_deep_in_ocean/]"
+            }
+          ]
+        },
+        {
+          "label": "Torpedo",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A submarine can shoot a torpedo.",
+          "chain": [
+            {
+              "start": "/c/en/submarine",
+              "relation": "CapableOf",
+              "end": "/c/en/shoot_torpedo",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/submarine/,/c/en/shoot_torpedo/]"
+            }
+          ]
+        }
+      ]
     },
     "key": {
       "ability": "unlock",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "A key is used to unlock a door.",
-      "ability_weight": 5.29,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/key/,/c/en/unlock/]",
+      "ability_label": "Unlock",
+      "ability_mode": "Direct",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "A key can open a lock.",
+      "ability_weight": 6.33,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/key/,/c/en/open_lock/]",
       "concept": "/c/en/key",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Unlock",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 6.33,
+          "assertion": "A key can open a lock.",
+          "chain": [
+            {
+              "start": "/c/en/key",
+              "relation": "CapableOf",
+              "end": "/c/en/open_lock",
+              "weight": 6.33,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/key/,/c/en/open_lock/]"
+            }
+          ]
+        },
+        {
+          "label": "Open Door",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 6.0,
+          "assertion": "A key can open doors.",
+          "chain": [
+            {
+              "start": "/c/en/key",
+              "relation": "CapableOf",
+              "end": "/c/en/open_doors",
+              "weight": 6.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/key/,/c/en/open_doors/]"
+            }
+          ]
+        },
+        {
+          "label": "Free",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "A key can free a prisoner.",
+          "chain": [
+            {
+              "start": "/c/en/key",
+              "relation": "CapableOf",
+              "end": "/c/en/free_prisoner",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/key/,/c/en/free_prisoner/]"
+            }
+          ]
+        }
+      ]
     },
     "door": {
-      "ability": "enter",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "A door is used to enter a room.",
-      "ability_weight": 3.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/door/,/c/en/enter/]",
+      "ability": "passage",
+      "ability_label": "Passage",
+      "ability_mode": "Action",
+      "ability_relation": "ReceivesAction",
+      "ability_assertion": "A door can be opened.",
+      "ability_weight": 4.0,
+      "assertion_uri": "/a/[/r/ReceivesAction/,/c/en/door/,/c/en/opened/]",
       "concept": "/c/en/door",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Passage",
+          "mode": "Action",
+          "relation": "ReceivesAction",
+          "weight": 4.0,
+          "assertion": "A door can be opened.",
+          "chain": [
+            {
+              "start": "/c/en/door",
+              "relation": "ReceivesAction",
+              "end": "/c/en/opened",
+              "weight": 4.0,
+              "assertion_uri": "/a/[/r/ReceivesAction/,/c/en/door/,/c/en/opened/]"
+            }
+          ]
+        },
+        {
+          "label": "Seal",
+          "mode": "Action",
+          "relation": "ReceivesAction",
+          "weight": 3.46,
+          "assertion": "A door can be closed.",
+          "chain": [
+            {
+              "start": "/c/en/door",
+              "relation": "ReceivesAction",
+              "end": "/c/en/closed",
+              "weight": 3.46,
+              "assertion_uri": "/a/[/r/ReceivesAction/,/c/en/door/,/c/en/closed/]"
+            }
+          ]
+        },
+        {
+          "label": "Lock",
+          "mode": "Action",
+          "relation": "ReceivesAction",
+          "weight": 2.0,
+          "assertion": "A door can be locked.",
+          "chain": [
+            {
+              "start": "/c/en/door",
+              "relation": "ReceivesAction",
+              "end": "/c/en/locked",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/ReceivesAction/,/c/en/door/,/c/en/locked/]"
+            }
+          ]
+        }
+      ]
     },
     "rake": {
       "ability": "gather",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "A rake is used to gather leaves.",
-      "ability_weight": 3.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/rake/,/c/en/gather/]",
+      "ability_label": "Gather",
+      "ability_mode": "Action",
+      "ability_relation": "MannerOf",
+      "ability_assertion": "Rake is a way to gather.",
+      "ability_weight": 2.0,
+      "assertion_uri": "/a/[/r/MannerOf/,/c/en/rake/v/wn/contact/,/c/en/gather/v/wn/contact/]",
       "concept": "/c/en/rake",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Gather",
+          "mode": "Action",
+          "relation": "MannerOf",
+          "weight": 2.0,
+          "assertion": "Rake is a way to gather.",
+          "chain": [
+            {
+              "start": "/c/en/rake",
+              "relation": "MannerOf",
+              "end": "/c/en/gather",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/MannerOf/,/c/en/rake/v/wn/contact/,/c/en/gather/v/wn/contact/]"
+            }
+          ]
+        }
+      ]
     },
     "scissors": {
       "ability": "cut",
+      "ability_label": "Cut",
+      "ability_mode": "Direct",
       "ability_relation": "UsedFor",
-      "ability_assertion": "Scissors are used for cutting.",
-      "ability_weight": 5.29,
+      "ability_assertion": "Scissors are used to cut.",
+      "ability_weight": 5.66,
       "assertion_uri": "/a/[/r/UsedFor/,/c/en/scissors/,/c/en/cut/]",
       "concept": "/c/en/scissors",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Cut",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 5.66,
+          "assertion": "Scissors are used to cut.",
+          "chain": [
+            {
+              "start": "/c/en/scissors",
+              "relation": "UsedFor",
+              "end": "/c/en/cut",
+              "weight": 5.66,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/scissors/,/c/en/cut/]"
+            }
+          ]
+        },
+        {
+          "label": "Sharp Edge",
+          "mode": "Property",
+          "relation": "HasProperty",
+          "weight": 2.0,
+          "assertion": "Scissors are sharp.",
+          "chain": [
+            {
+              "start": "/c/en/scissors",
+              "relation": "HasProperty",
+              "end": "/c/en/sharp",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/HasProperty/,/c/en/scissors/,/c/en/sharp/]"
+            }
+          ]
+        },
+        {
+          "label": "Tear Cloth",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "Scissors can tear cloth.",
+          "chain": [
+            {
+              "start": "/c/en/scissors",
+              "relation": "CapableOf",
+              "end": "/c/en/tear_cloth",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/scissors/,/c/en/tear_cloth/]"
+            }
+          ]
+        }
+      ]
     },
     "clock": {
-      "ability": "tell time",
+      "ability": "time",
+      "ability_label": "Time",
+      "ability_mode": "Direct",
       "ability_relation": "UsedFor",
-      "ability_assertion": "A clock is used to tell time.",
-      "ability_weight": 4.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/clock/,/c/en/tell_time/]",
+      "ability_assertion": "A clock is used for keeping time.",
+      "ability_weight": 2.83,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/clock/,/c/en/keeping_time/]",
       "concept": "/c/en/clock",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Time",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 2.83,
+          "assertion": "A clock is used for keeping time.",
+          "chain": [
+            {
+              "start": "/c/en/clock",
+              "relation": "UsedFor",
+              "end": "/c/en/keeping_time",
+              "weight": 2.83,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/clock/,/c/en/keeping_time/]"
+            }
+          ]
+        },
+        {
+          "label": "Alarm",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 2.83,
+          "assertion": "You can use a clock to set an alarm.",
+          "chain": [
+            {
+              "start": "/c/en/clock",
+              "relation": "UsedFor",
+              "end": "/c/en/set_alarm",
+              "weight": 2.83,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/clock/,/c/en/set_alarm/]"
+            }
+          ]
+        },
+        {
+          "label": "Tick",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 2.83,
+          "assertion": "A clock can continue to tick.",
+          "chain": [
+            {
+              "start": "/c/en/clock",
+              "relation": "CapableOf",
+              "end": "/c/en/continue_to_tick",
+              "weight": 2.83,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/clock/,/c/en/continue_to_tick/]"
+            }
+          ]
+        }
+      ]
     },
     "anvil": {
-      "ability": "forge",
+      "ability": "crush",
+      "ability_label": "Crush",
+      "ability_mode": "Direct",
       "ability_relation": "UsedFor",
-      "ability_assertion": "An anvil is used to forge metal.",
-      "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/anvil/,/c/en/forge/]",
+      "ability_assertion": "You can use an anvil to stun a cartoon character.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/anvil/,/c/en/stun_cartoon_character/]",
       "concept": "/c/en/anvil",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Crush",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 1.0,
+          "assertion": "You can use an anvil to stun a cartoon character.",
+          "chain": [
+            {
+              "start": "/c/en/anvil",
+              "relation": "UsedFor",
+              "end": "/c/en/stun_cartoon_character",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/anvil/,/c/en/stun_cartoon_character/]"
+            }
+          ]
+        }
+      ]
     },
     "bucket": {
-      "ability": "carry",
+      "ability": "carry water",
+      "ability_label": "Carry Water",
+      "ability_mode": "Direct",
       "ability_relation": "UsedFor",
-      "ability_assertion": "A bucket is used to carry water.",
-      "ability_weight": 3.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/bucket/,/c/en/carry/]",
+      "ability_assertion": "A bucket is used for carrying liquids.",
+      "ability_weight": 4.47,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/bucket/,/c/en/carrying_liquids/]",
       "concept": "/c/en/bucket",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Carry Water",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 4.47,
+          "assertion": "A bucket is used for carrying liquids.",
+          "chain": [
+            {
+              "start": "/c/en/bucket",
+              "relation": "UsedFor",
+              "end": "/c/en/carrying_liquids",
+              "weight": 4.47,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/bucket/,/c/en/carrying_liquids/]"
+            }
+          ]
+        },
+        {
+          "label": "Douse",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 1.0,
+          "assertion": "A bucket is for taking water to the fire.",
+          "chain": [
+            {
+              "start": "/c/en/bucket",
+              "relation": "UsedFor",
+              "end": "/c/en/taking_water_to_fire",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/bucket/,/c/en/taking_water_to_fire/]"
+            }
+          ]
+        },
+        {
+          "label": "Helmet",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 1.0,
+          "assertion": "A bucket is for protecting your head.",
+          "chain": [
+            {
+              "start": "/c/en/bucket",
+              "relation": "UsedFor",
+              "end": "/c/en/protecting_head",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/bucket/,/c/en/protecting_head/]"
+            }
+          ]
+        }
+      ]
     },
     "umbrella": {
-      "ability": "shelter",
+      "ability": "shield rain",
+      "ability_label": "Shield Rain",
+      "ability_mode": "Direct",
       "ability_relation": "UsedFor",
-      "ability_assertion": "An umbrella is used to shelter from rain.",
-      "ability_weight": 3.46,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/umbrella/,/c/en/shelter/]",
+      "ability_assertion": "An umbrella is for protection from the rain.",
+      "ability_weight": 4.47,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/umbrella/,/c/en/protection_from_rain/]",
       "concept": "/c/en/umbrella",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Shield Rain",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 4.47,
+          "assertion": "An umbrella is for protection from the rain.",
+          "chain": [
+            {
+              "start": "/c/en/umbrella",
+              "relation": "UsedFor",
+              "end": "/c/en/protection_from_rain",
+              "weight": 4.47,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/umbrella/,/c/en/protection_from_rain/]"
+            }
+          ]
+        },
+        {
+          "label": "Shade",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 2.83,
+          "assertion": "An umbrella is for keeping the sun off you.",
+          "chain": [
+            {
+              "start": "/c/en/umbrella",
+              "relation": "UsedFor",
+              "end": "/c/en/keeping_sun_off",
+              "weight": 2.83,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/umbrella/,/c/en/keeping_sun_off/]"
+            }
+          ]
+        },
+        {
+          "label": "Catch Wind",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 1.0,
+          "assertion": "An umbrella may break in high wind.",
+          "chain": [
+            {
+              "start": "/c/en/umbrella",
+              "relation": "CapableOf",
+              "end": "/c/en/break_in_high_wind",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/umbrella/,/c/en/break_in_high_wind/]"
+            }
+          ]
+        }
+      ]
     },
     "tree": {
-      "ability": "shade",
-      "ability_relation": "UsedFor",
-      "ability_assertion": "A tree is used to provide shade.",
-      "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/tree/,/c/en/shade/]",
+      "ability": "grow",
+      "ability_label": "Grow",
+      "ability_mode": "Direct",
+      "ability_relation": "CapableOf",
+      "ability_assertion": "An activity a tree can do is grow.",
+      "ability_weight": 6.0,
+      "assertion_uri": "/a/[/r/CapableOf/,/c/en/tree/,/c/en/grow/]",
       "concept": "/c/en/tree",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Grow",
+          "mode": "Direct",
+          "relation": "CapableOf",
+          "weight": 6.0,
+          "assertion": "An activity a tree can do is grow.",
+          "chain": [
+            {
+              "start": "/c/en/tree",
+              "relation": "CapableOf",
+              "end": "/c/en/grow",
+              "weight": 6.0,
+              "assertion_uri": "/a/[/r/CapableOf/,/c/en/tree/,/c/en/grow/]"
+            }
+          ]
+        },
+        {
+          "label": "Shade",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 3.46,
+          "assertion": "A tree is for shade.",
+          "chain": [
+            {
+              "start": "/c/en/tree",
+              "relation": "UsedFor",
+              "end": "/c/en/shade",
+              "weight": 3.46,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/tree/,/c/en/shade/]"
+            }
+          ]
+        },
+        {
+          "label": "Climb",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 2.83,
+          "assertion": "A tree is used for climbing.",
+          "chain": [
+            {
+              "start": "/c/en/tree",
+              "relation": "UsedFor",
+              "end": "/c/en/climbing",
+              "weight": 2.83,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/tree/,/c/en/climbing/]"
+            }
+          ]
+        }
+      ]
     },
     "bread": {
       "ability": "feed",
+      "ability_label": "Feed",
+      "ability_mode": "Direct",
       "ability_relation": "UsedFor",
-      "ability_assertion": "Bread is used for feeding the birds.",
-      "ability_weight": 2.0,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/bread/,/c/en/feed/]",
+      "ability_assertion": "Bread is for Feeding to the birds.",
+      "ability_weight": 1.0,
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/bread/,/c/en/feeding_to_birds/]",
       "concept": "/c/en/bread",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Feed",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 1.0,
+          "assertion": "Bread is for Feeding to the birds.",
+          "chain": [
+            {
+              "start": "/c/en/bread",
+              "relation": "UsedFor",
+              "end": "/c/en/feeding_to_birds",
+              "weight": 1.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/bread/,/c/en/feeding_to_birds/]"
+            }
+          ]
+        },
+        {
+          "label": "Eat",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 5.66,
+          "assertion": "Bread is for eating.",
+          "chain": [
+            {
+              "start": "/c/en/bread",
+              "relation": "UsedFor",
+              "end": "/c/en/eating",
+              "weight": 5.66,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/bread/,/c/en/eating/]"
+            }
+          ]
+        }
+      ]
     },
     "wheel": {
       "ability": "roll",
+      "ability_label": "Roll",
+      "ability_mode": "Direct",
       "ability_relation": "UsedFor",
-      "ability_assertion": "A wheel is used to roll and move vehicles.",
+      "ability_assertion": "A wheel is for rolling.",
       "ability_weight": 2.83,
-      "assertion_uri": "/a/[/r/UsedFor/,/c/en/wheel/,/c/en/roll/]",
+      "assertion_uri": "/a/[/r/UsedFor/,/c/en/wheel/,/c/en/rolling/]",
       "concept": "/c/en/wheel",
-      "provenance": "conceptnet_curated"
+      "provenance": "conceptnet_5.7",
+      "abilities": [
+        {
+          "label": "Roll",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 2.83,
+          "assertion": "A wheel is for rolling.",
+          "chain": [
+            {
+              "start": "/c/en/wheel",
+              "relation": "UsedFor",
+              "end": "/c/en/rolling",
+              "weight": 2.83,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/wheel/,/c/en/rolling/]"
+            }
+          ]
+        },
+        {
+          "label": "Turn",
+          "mode": "Direct",
+          "relation": "UsedFor",
+          "weight": 2.0,
+          "assertion": "You can use a wheel to turn.",
+          "chain": [
+            {
+              "start": "/c/en/wheel",
+              "relation": "UsedFor",
+              "end": "/c/en/turn",
+              "weight": 2.0,
+              "assertion_uri": "/a/[/r/UsedFor/,/c/en/wheel/,/c/en/turn/]"
+            }
+          ]
+        }
+      ]
     }
   }
 }

@@ -213,7 +213,7 @@ ground. The director agreeing and then the world doing nothing is worse than a r
 because the player concludes the game is broken rather than that they drew the wrong thing.
 
 **`tools/audit_abilities.py` is the standing check.** It reads the three tables that
-describe what a drawing can do -- `abilities.json` (one ConceptNet verb per class),
+describe what a drawing can do -- `abilities.json` (the manuscript's Appendix C: each class's ConceptNet abilities, verified against 5.7.0),
 `tags.json` (what obstacles actually declare), `entities.json` (runtime role and
 `utility_behavior`) -- and then PARSES `utility_object.gd` and `playable_entity.gd` for what
 is really implemented. The class -> mechanism half is parsed because that is the half that

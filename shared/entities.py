@@ -19,11 +19,20 @@ ALLOWED_SPAWN_MODES = {"playable", "pickup", "obstacle", "static"}
 ALLOWED_RIG_TYPES = {"walker", "biped", "flier", "swimmer", "hopper", "none"}
 ALLOWED_RUNTIME_ROLES = {"active_ragdoll_morph", "physics_morph", "utility"}
 ALLOWED_MEDIA = {"any", "water"}
-# ConceptNet ability provenance relations. Creatures resolve from CapableOf, objects
-# from UsedFor; the three geometric primitives have no commonsense relation and are
-# hand-authored. Resolution is offline (tools/build_abilities.py) and committed.
-ALLOWED_ABILITY_RELATIONS = {"CapableOf", "UsedFor", "hand_authored"}
-# The three geometric primitives that must carry hand-authored abilities.
+# ConceptNet ability relations: the manuscript's six affordance-bearing relations (thesis
+# §4.2.8, Appendix C). An Inherited ability reaches one of them through an IsA link, and
+# reports the relation of the link that supplies it. Resolution is offline
+# (tools/build_abilities.py, from Appendix C, verified against ConceptNet 5.7.0) and committed.
+ALLOWED_ABILITY_RELATIONS = {
+    "CapableOf", "UsedFor", "HasProperty", "HasA", "ReceivesAction", "MannerOf", "hand_authored",
+}
+# ⚠ ONLY PENGUIN IS HAND-AUTHORED. It used to be the three primitives, which the curated
+# stand-in table could not ground; Appendix C grounds them through HasProperty and HasA
+# (circle is round, a triangle has three sides), and bread through UsedFor. Penguin has no
+# usable assertion at any depth, and is the appendix's worked example of why an IsA traversal
+# needs a guard (penguin IsA bird, bird CapableOf fly).
+HAND_AUTHORED_IDS = {"penguin"}
+# The three geometric primitives.
 PRIMITIVE_IDS = {"circle", "square", "triangle"}
 # All 27 roster objects are provisionally placeable utilities (per team decision to
 # expand the utility set); the six-slot inventory still holds instances, not types.
@@ -276,10 +285,11 @@ def _validate_abilities(
             raise ValueError(
                 f"{source} is missing an ability for enabled entity {entity.id!r}"
             )
-        if entity.id in PRIMITIVE_IDS and ability.ability_relation != "hand_authored":
+        hand_authored = ability.ability_relation == "hand_authored"
+        if hand_authored != (entity.id in HAND_AUTHORED_IDS):
             raise ValueError(
-                f"{entity.id} is a geometric primitive and must use a hand_authored "
-                f"ability, got {ability.ability_relation!r}"
+                f"{entity.id}: only {sorted(HAND_AUTHORED_IDS)} may be hand-authored, and "
+                f"every other class must be ConceptNet-grounded; got {ability.ability_relation!r}"
             )
 
 
