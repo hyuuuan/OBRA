@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/water_area_2d.gd" id="8_water"]
 [ext_resource type="Script" path="res://scripts/bakunawa_2d.gd" id="9_bakunawa"]
 [ext_resource type="Script" path="res://scripts/dagat_backdrop_2d.gd" id="10_backdrop"]
+[ext_resource type="Texture2D" path="res://assets/Level3/authored/jetty.png" id="11_oldjetty"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Shore"]
 size = Vector2(1800.0, 1400.0)
@@ -184,6 +185,18 @@ shape = SubResource("Rect_EastWall")
 ; brush, the bangka and the practice beat all sat in the shallows. The far edge stops short
 ; of the island for the same reason -- the arrival at 4460 is still in the water, which is
 ; where a swimmer reaches it, but the sand they climb out onto is dry.
+; THE OLD JETTY (group fades_away, level_3.gd _fades_the_old_way): the way out to sea that used to
+; be there, authored by tools/build_dagat_props.py. No collision. Its first post on the beach's
+; edge (1600), its waterline row (9, x3) on the sea's surface at 560. Gone from x 1150 by 1462,
+; before its near end at 1585: the open water is hers to cross, by boat or swimming.
+[node name="OldJetty" type="Sprite2D" parent="GameplayPlane" groups=["fades_away"]]
+texture_filter = 1
+position = Vector2(1585, 533)
+texture = ExtResource("11_oldjetty")
+centered = false
+metadata/fade_at = 1150.0
+metadata/fade_over = 1.2
+
 [node name="Sea" type="Area2D" parent="GameplayPlane"]
 position = Vector2(4235.0, 1240.0)
 script = ExtResource("8_water")
