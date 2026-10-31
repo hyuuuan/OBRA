@@ -21,7 +21,7 @@ const JUMP := 94.3
 const FLOOR_BEFORE := 180.0
 
 ## Every check this audit makes. A script error that skips them must not pass as quiet.
-const CHECKS := 13
+const CHECKS := 14
 
 var failures := 0
 var checked := 0
@@ -285,9 +285,38 @@ func _audit_the_flower_is_off_the_path(scene: Node) -> void:
 			if flower.global_position.x >= ground.position.x and flower.global_position.x < ground.end.x:
 				ground_y = ground.position.y
 		below = ground_y - flower.global_position.y
-	_check(flower != null and below > flower.reach + 60.0,
-		"the flower is off the path: out of reach from the corridor beneath it",
+	# Standing only: a jump from the path peaks 94px nearer, so reach alone does not keep it off.
+	_check(flower != null and below > flower.reach and flower.needs_footing,
+		"the flower is off the path: out of reach from the corridor beneath it, even jumping",
 		"%.0f px above the path, reach %.0f" % [below, flower.reach if flower != null else 0.0])
+	_audit_the_flower_stair(scene, flower)
+
+
+## Every rise on the detour leaves margin under a 94px jump that a released key cuts short, and
+## only the top rock puts the flower in reach.
+func _audit_the_flower_stair(scene: Node, flower: MemoryFragment2D) -> void:
+	var rocks: Array = scene.get_node("EnvironmentBaseplate/GameplayPlane/Terrain/FlowerLedge").get("platforms")
+	rocks = rocks.duplicate()
+	rocks.sort_custom(func(a: Rect2, b: Rect2) -> bool: return a.position.y > b.position.y)
+	var step_from := 600.0
+	for ground: Rect2 in scene.get_node("EnvironmentBaseplate/GameplayPlane/Terrain/Cone").get("platforms"):
+		if not rocks.is_empty() and (rocks[0] as Rect2).position.x >= ground.position.x \
+				and (rocks[0] as Rect2).position.x < ground.end.x:
+			step_from = ground.position.y
+	var rises: Array[float] = []
+	for rock: Rect2 in rocks:
+		rises.append(step_from - rock.position.y)
+		step_from = rock.position.y
+	var steep := rises.filter(func(rise: float) -> bool: return rise > 60.0)
+	var top_gap := INF
+	var next_gap := INF
+	if flower != null and rocks.size() >= 2:
+		top_gap = (rocks[-1] as Rect2).position.y - flower.global_position.y
+		next_gap = (rocks[-2] as Rect2).position.y - flower.global_position.y
+	_check(rocks.size() >= 2 and steep.is_empty() and flower != null
+			and top_gap <= flower.reach and next_gap > flower.reach,
+		"the flower stair rises at most 60px a step, and only its top rock reaches the flower",
+		"rises %s, flower %.0f above the top rock and %.0f above the next" % [rises, top_gap, next_gap])
 
 
 ## A thing going white must never be something she stands on: what the ash takes is scenery.

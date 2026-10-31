@@ -138,7 +138,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 ### Mayon traps (each one cost time)
 - **`_camera_follows_height` alone does not free the camera.** It is read only when a room is framed. A level with no rooms frees it in `_build_level_furniture` (`world_camera.set_vertical_free(true)`, then `snap_to_target()`).
 - **`DrawPanel` processes only while the tree is paused.** Any tween it owns must use `Tween.TWEEN_PAUSE_PROCESS`, or it hangs the moment something unpauses.
-- **A fragment's reach is a straight-line distance**, so the flower on its ledge cannot be saved from the path beneath it.
+- **A fragment's reach is a straight-line distance**, so the flower on its ledge cannot be saved from the path beneath it. A jump from the path peaks inside that reach, so the flower also `needs_footing`.
 - **The summit waits for Lolo to be gone.** Otherwise the brush raised at Lola is taken by his moment. His portrait must disappear with his world sprite, leaving the interrupted line onscreen.
 - **A checkpoint restore clears the old camera room.** A landing before the memories must not leave the camera framing their departed cluster.
 - **The refusals must not reuse any decline feedback**, and both must look identical.

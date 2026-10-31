@@ -353,6 +353,7 @@
       ],
       "holds_lolo": false,
       "reach": 160,
+      "needs_footing": true,
       "summit_art": "res://assets/Level5/restoration/flower.png",
       "bloom_width": 100,
       "bloom_elevation": 0
