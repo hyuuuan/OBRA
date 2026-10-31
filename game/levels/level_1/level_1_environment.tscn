@@ -356,10 +356,13 @@ has_a_floor = true
 cave_at = Vector2(250, 392)
 cave_size = Vector2(190, 104)
 
-[node name="RuinedBridge" type="Node2D" parent="GameplayPlane/Gorge" unique_id=1288469916]
+[node name="RuinedBridge" type="Node2D" parent="GameplayPlane/Gorge" unique_id=1288469916 groups=["fades_away"]]
 z_index = 6
 position = Vector2(3080, 240)
 script = ExtResource("12_bridge")
+metadata/fade_at = 2700.0
+metadata/fade_over = 1.5
+metadata/fade_to = 0.7
 
 [node name="DialogueNode" type="Area2D" parent="GameplayPlane/Gorge" unique_id=1784507671]
 position = Vector2(3010, 240)
