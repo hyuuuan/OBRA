@@ -26,6 +26,10 @@ const BLANK := 0.999
 
 ## What it drains toward. Mayon's paper unless a level gives its own (LevelBase._fade_paper).
 var paper := Color(0.957, 0.937, 0.894)
+## How much of the whitening it takes, and where it starts to go (drain.gdshader). Mayon's: all of
+## it, from flat paper.
+var wash := 1.0
+var vanish_from := 0.85
 
 ## How far the ash has taken it: 0 painted, 0.5 white, 0.85 flat paper, 1 blank.
 var drain: float = 0.0:
@@ -47,6 +51,8 @@ func _ready() -> void:
 	_material = ShaderMaterial.new()
 	_material.shader = SHADER
 	_material.set_shader_parameter("paper", paper)
+	_material.set_shader_parameter("wash", wash)
+	_material.set_shader_parameter("vanish_from", vanish_from)
 	_target.material = _material
 	for item in _target.find_children("*", "CanvasItem", true, false):
 		(item as CanvasItem).use_parent_material = true

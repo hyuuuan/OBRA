@@ -31,6 +31,8 @@
 [ext_resource type="Script" path="res://scripts/bale_interior_2d.gd" id="24_baleroom"]
 [ext_resource type="Script" path="res://scripts/bale_2d.gd" id="25_owbyo"]
 [ext_resource type="Script" path="res://scripts/bulul_2d.gd" id="26_jto6m"]
+[ext_resource type="Texture2D" path="res://assets/Level1/props/stair_step.png" id="29_oldsteps"]
+[ext_resource type="Texture2D" path="res://assets/Level1/props/stair_riser.png" id="29_oldriser"]
 
 [sub_resource type="AtlasTexture" id="Atlas_sky"]
 atlas = ExtResource("6_sky")
@@ -360,9 +362,8 @@ cave_size = Vector2(190, 104)
 z_index = 6
 position = Vector2(3080, 240)
 script = ExtResource("12_bridge")
-metadata/fade_at = 2700.0
+metadata/fade_at = 2600.0
 metadata/fade_over = 1.5
-metadata/fade_to = 0.35
 
 [node name="DialogueNode" type="Area2D" parent="GameplayPlane/Gorge" unique_id=1784507671]
 position = Vector2(3010, 240)
@@ -538,6 +539,36 @@ checkpoint_mark_offset = 100.0
 shape = SubResource("RectangleShape2D_aty4c")
 
 [node name="Hagdan" type="Node2D" parent="GameplayPlane" unique_id=1689954354]
+
+; THE OLD STEPS (group fades_away, game_level.gd _fades_the_old_way): Ang Hagdan as it was, Payyo's
+; own stone stair against the wall, gone before she reaches it -- the way up is hers to draw. No
+; collision anywhere in it, and it is blank by x ~760, before its foot at 796: a stair that still
+; showed when she got there would invite a jump through it.
+[node name="OldSteps" type="Node2D" parent="GameplayPlane/Hagdan" groups=["fades_away"]]
+z_index = -1
+metadata/fade_at = 450.0
+metadata/fade_over = 1.2
+
+[node name="Riser" type="Sprite2D" parent="GameplayPlane/Hagdan/OldSteps"]
+texture_filter = 1
+position = Vector2(988, 440)
+scale = Vector2(2, 2)
+texture = ExtResource("29_oldriser")
+centered = false
+
+[node name="Upper" type="Sprite2D" parent="GameplayPlane/Hagdan/OldSteps"]
+texture_filter = 1
+position = Vector2(988, 340)
+scale = Vector2(4, 4)
+texture = ExtResource("29_oldsteps")
+centered = false
+
+[node name="Lower" type="Sprite2D" parent="GameplayPlane/Hagdan/OldSteps"]
+texture_filter = 1
+position = Vector2(796, 448)
+scale = Vector2(4, 4)
+texture = ExtResource("29_oldsteps")
+centered = false
 
 [node name="CP0" type="Area2D" parent="GameplayPlane/Hagdan" unique_id=2079276445]
 position = Vector2(1250, 290)

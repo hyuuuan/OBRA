@@ -174,6 +174,16 @@ func _fade_paper() -> Color:
 	return Color(0.957, 0.937, 0.894)
 
 
+## How the old way goes: how much it whitens toward that colour (1 is Mayon's all) and where it
+## starts to turn transparent (Mayon's 0.85, once it is flat paper). Mayon's by default.
+func _fade_wash() -> float:
+	return 1.0
+
+
+func _fade_vanish_from() -> float:
+	return 0.85
+
+
 ## Whether the ink gauge stays up while a story line shows and the bars close. Mayon's, where the
 ## player is meant to watch it go down for twenty minutes. Off everywhere else.
 func _ink_always_visible() -> bool:
@@ -4892,6 +4902,8 @@ func _gather_the_fading() -> void:
 		var drainable := Drainable.new()
 		drainable.name = "Drainable"
 		drainable.paper = _fade_paper()
+		drainable.wash = _fade_wash()
+		drainable.vanish_from = _fade_vanish_from()
 		thing.add_child(drainable)
 		_fading.append(thing)
 		_faded[thing] = false

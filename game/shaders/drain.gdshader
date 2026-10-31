@@ -12,6 +12,12 @@ shader_type canvas_item;
 uniform float drain : hint_range(0.0, 1.0) = 0.0;
 // The unpainted canvas, the colour every drained thing goes to.
 uniform vec4 paper : source_color = vec4(0.957, 0.937, 0.894, 1.0);
+// How much of that whitening a drained thing takes. 1 is Mayon's ash, all of it. Another level's
+// old way (LevelBase._fades_the_old_way) takes little, so it dissolves in its own colours rather
+// than going white -- a flat white slab is the ash's look, and no other painting has the ash.
+uniform float wash : hint_range(0.0, 1.0) = 1.0;
+// Where it starts to go, at all. Mayon's holds whole until it is flat paper (0.85).
+uniform float vanish_from : hint_range(0.0, 1.0) = 0.85;
 
 void fragment() {
 	vec4 colour = texture(TEXTURE, UV) * COLOR;
@@ -21,7 +27,7 @@ void fragment() {
 	vec3 ghost = mix(vec3(luminance), paper.rgb, 0.82);
 	vec3 rgb = mix(colour.rgb, mix(vec3(luminance), ghost, pale), pale);
 	rgb = mix(rgb, paper.rgb, smoothstep(0.5, 0.85, drain));
-	colour.rgb = rgb;
-	colour.a *= 1.0 - smoothstep(0.85, 1.0, drain);
+	colour.rgb = mix(colour.rgb, rgb, wash);
+	colour.a *= 1.0 - smoothstep(vanish_from, 1.0, drain);
 	COLOR = colour;
 }
