@@ -190,10 +190,6 @@ func _on_request_completed(
 	if debug_timing_logs and _request_started_usec > 0:
 		var request_ms := float(Time.get_ticks_usec() - _request_started_usec) / 1000.0
 		print("SketchClient request %.2f ms" % request_ms)
-	if result == HTTPRequest.RESULT_TIMEOUT:
-		_pending_body = ""
-		prediction_failed.emit("The recogniser took too long to answer -- press Paint again")
-		return
 	if result != HTTPRequest.RESULT_SUCCESS:
 		var now := Time.get_ticks_msec()
 		if BackendSupervisor.is_waking() and (_waiting_since_msec == 0
@@ -209,6 +205,13 @@ func _on_request_completed(
 			_resend.start(WAKE_RETRY_SEC)
 			return
 		_pending_body = ""
+		# ⚠ A TIMEOUT IS ONLY "TOO LONG" ONCE THE SERVER IS UP. Checked after the wake-up wait,
+		# never before it: a server still loading the model can take the connection and sit on
+		# it past the timeout, and that drawing is to be sent again, not failed (the
+		# backend-start probe's "goes through by itself once it answers").
+		if result == HTTPRequest.RESULT_TIMEOUT:
+			prediction_failed.emit("The recogniser took too long to answer -- press Paint again")
+			return
 		var why := BackendSupervisor.failure_reason()
 		prediction_failed.emit(why if not why.is_empty()
 			else "The drawing recogniser is not running -- close the game and start it again")
