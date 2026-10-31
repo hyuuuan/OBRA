@@ -160,6 +160,20 @@ func _saves_silently() -> bool:
 	return false
 
 
+## DOES THE OLD WAY ACROSS FADE AS SHE NEARS AN OBSTACLE? Mayon's cue, for any level: what used to
+## get her over (a bridge, a stair) goes out of the painting as she comes up to it, so the obstacle
+## reads as "the way is gone -- draw one" before a word is said. Off by default; a level opts in and
+## marks the scenery in its environment (group fades_away, metadata fade_at / fade_over / fade_to).
+## ⚠ Only scenery: Drainable takes collision at blank, and nothing she stands on may go.
+func _fades_the_old_way() -> bool:
+	return false
+
+
+## What the old way fades into: the level's own unpainted colour, never Mayon's ash paper.
+func _fade_paper() -> Color:
+	return Color(0.957, 0.937, 0.894)
+
+
 ## Whether the ink gauge stays up while a story line shows and the bars close. Mayon's, where the
 ## player is meant to watch it go down for twenty minutes. Off everywhere else.
 func _ink_always_visible() -> bool:
@@ -626,6 +640,7 @@ func _ready() -> void:
 	_build_obstacle_layer()
 	_arm_player_health()
 	_arm_darkness()
+	_gather_the_fading()
 	var world_camera := _world_camera()
 	if world_camera != null:
 		world_camera.follow_on_physics = _camera_follows_physics()
@@ -2043,6 +2058,7 @@ func _restore_checkpoint() -> String:
 	_show_taken_pickups()
 
 	var landing := _checkpoint_landing(state)
+	_settle_the_fading(landing.x)
 	if player != null and is_instance_valid(player) and player.has_method("apply_morph_state"):
 		player.call("apply_morph_state", {"position": landing, "linear_velocity": Vector2.ZERO})
 	elif player != null and is_instance_valid(player):
@@ -3781,6 +3797,7 @@ func _physics_process(_delta: float) -> void:
 		if anchor != null:
 			anchor_position = anchor.global_position
 	_level_physics(anchor_position)
+	_tend_the_fading(anchor_position.x)
 	_mantle_onto_a_drawing()
 	# The bag no longer stands down while the apo moves -- see InventoryHUD. It stays in its
 	# corner and thins out only while she is actually standing behind it.
@@ -4855,3 +4872,56 @@ func _on_ink_exhausted() -> void:
 			draw_panel.panel_closed.connect(_on_ink_exhausted, CONNECT_ONE_SHOT)
 		return
 	out_of_ink_overlay.open()
+
+
+# --- The old way fades (_fades_the_old_way) ------------------------------------------------
+
+var _fading: Array[Node2D] = []
+var _faded := {}
+
+
+func _gather_the_fading() -> void:
+	_fading.clear()
+	_faded.clear()
+	if not _fades_the_old_way():
+		return
+	for node in get_tree().get_nodes_in_group(&"fades_away"):
+		var thing := node as Node2D
+		if thing == null:
+			continue
+		var drainable := Drainable.new()
+		drainable.name = "Drainable"
+		drainable.paper = _fade_paper()
+		thing.add_child(drainable)
+		_fading.append(thing)
+		_faded[thing] = false
+
+
+func _tend_the_fading(her_x: float) -> void:
+	for thing in _fading:
+		if not bool(_faded[thing]) and her_x >= float(thing.get_meta("fade_at")):
+			_faded[thing] = true
+			_fade(thing, float(thing.get_meta("fade_over", 1.5)))
+
+
+## A checkpoint restore: ahead of her the way is back; behind her it is already gone, at once,
+## so a landing past the gate does not replay the fade.
+func _settle_the_fading(her_x: float) -> void:
+	for thing in _fading:
+		var drainable := thing.get_node("Drainable") as Drainable
+		_faded[thing] = her_x >= float(thing.get_meta("fade_at"))
+		if bool(_faded[thing]):
+			_fade(thing, 0.0)
+		else:
+			drainable.restore()
+
+
+func _fade(thing: Node2D, seconds: float) -> void:
+	var to := float(thing.get_meta("fade_to", 1.0))
+	(thing.get_node("Drainable") as Drainable).drain_to(to, 0.0 if Motion.reduced() else seconds)
+
+
+## For probes: how far the old way has gone.
+func fade_of(thing: Node2D) -> float:
+	var drainable := thing.get_node_or_null(^"Drainable") as Drainable
+	return drainable.drain if drainable != null else 0.0
