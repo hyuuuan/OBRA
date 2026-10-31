@@ -137,6 +137,26 @@ func _darkness_at(x: float) -> float:
 	return dark
 
 
+## THE OLD WAY OVER THE RAVINE GOES as she comes to the bungisngis: a fallen log lay across it,
+## and it is gone before she can reach it, so the crossing reads as hers to make (Kent,
+## 2026-11-01: every level's obstacles, fully away). It comes up out of the dark as it goes
+## (Drainable.reveals_in_dark) and dissolves into the night woods' moss, not to white.
+func _fades_the_old_way() -> bool:
+	return true
+
+
+func _fade_paper() -> Color:
+	return Color(0.13, 0.18, 0.15)
+
+
+func _fade_wash() -> float:
+	return 0.25
+
+
+func _fade_vanish_from() -> float:
+	return 0.15
+
+
 func _read_dark_zones() -> Array:
 	var spans := _beat_spans()
 	var zones: Array = []
