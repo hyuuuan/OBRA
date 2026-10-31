@@ -18,9 +18,14 @@ uniform vec4 paper : source_color = vec4(0.957, 0.937, 0.894, 1.0);
 uniform float wash : hint_range(0.0, 1.0) = 1.0;
 // Where it starts to go, at all. Mayon's holds whole until it is flat paper (0.85).
 uniform float vanish_from : hint_range(0.0, 1.0) = 0.85;
+// ⚠ In Godot 4 a canvas shader's COLOR already carries the texture, so sampling TEXTURE again
+// squares every colour: a drained thing draws darker than it was painted (0.42 comes out 0.17).
+// An old way fading in another level reads COLOR as it is and keeps its painted colours.
+// Mayon's ash still samples twice: its look was tuned that way, and is Mayon's to retune.
+uniform bool texture_in_colour = false;
 
 void fragment() {
-	vec4 colour = texture(TEXTURE, UV) * COLOR;
+	vec4 colour = texture_in_colour ? COLOR : texture(TEXTURE, UV) * COLOR;
 	float luminance = dot(colour.rgb, vec3(0.2126, 0.7152, 0.0722));
 	float pale = smoothstep(0.0, 0.5, drain);
 	// Grey first, then lifted toward the paper, together, so it never passes through a dark grey.

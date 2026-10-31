@@ -12,8 +12,9 @@ const WandererClass = preload("res://scripts/wanderer.gd")
 const LEVELS := [
 	["res://game_level.tscn", "EnvironmentBaseplate/GameplayPlane/Hagdan/OldSteps"],
 	["res://game_level.tscn", "EnvironmentBaseplate/GameplayPlane/Gorge/RuinedBridge"],
+	["res://game_level.tscn", "EnvironmentBaseplate/GameplayPlane/Bale/OldLadder"],
 ]
-const CHECKS := 7 * 2
+const CHECKS := 8 * 3
 
 var checked := 0
 var failures := 0
@@ -57,6 +58,10 @@ func _level_fades_its_old_way(scene: String, path: NodePath) -> void:
 	var material := thing.material as ShaderMaterial
 	var paper: Color = material.get_shader_parameter("paper") if material != null else MAYON_PAPER
 	var wash: float = material.get_shader_parameter("wash") if material != null else 1.0
+	var painted: bool = material.get_shader_parameter("texture_in_colour") if material != null else false
+	# Godot 4's COLOR already carries the texture: sampling it again draws the old way darker
+	# than it was painted, from the very start (drain.gdshader).
+	_check(painted, "%s: it is drawn in its painted colours until it goes" % where)
 	# Never the ash: neither Mayon's paper nor its whitening all the way to a flat slab.
 	_check(not paper.is_equal_approx(MAYON_PAPER) and wash < 1.0,
 		"%s: it fades in its own colours, not Mayon's white" % where, "%s, wash %.2f" % [paper, wash])
