@@ -294,12 +294,11 @@ func _house_to(manager: Node, level_id: String, title: String) -> void:
 	# E until it is done (#138: "painting selection waits until the unlock reveal finishes").
 	# Pressed twenty frames in, E fell into the reveal and Dagat, Dilim and Mayon all stayed in
 	# the house. A player waits for it, so the walker waits; one that never ends still fails.
-	var waited := 0.0
-	while waited < 8.0 and bool(hub.call("is_revealing")):
-		await create_timer(0.1).timeout
-		waited += 0.1
+	var started := Time.get_ticks_msec()
+	while bool(hub.call("is_revealing")) and Time.get_ticks_msec() - started < 8000:
+		await create_timer(0.05, true, false, true).timeout
 	_check(not bool(hub.call("is_revealing")), "and the house has finished opening it",
-		"%.1f s" % waited)
+		"%.1f s" % (float(Time.get_ticks_msec() - started) / 1000.0))
 	apo.global_position = Vector2(painting.global_position.x, apo.global_position.y)
 	for _i in range(20):
 		await process_frame

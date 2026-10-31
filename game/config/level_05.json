@@ -1,5 +1,5 @@
 {
-  "$comment": "LEVEL 5 -- MAYON. The last painting, coming apart while the apo stands in it (LEVEL_5.md). No combat, no health, and no refill anywhere: the ink in the brush is all there is, and a hidden reserve (level_5.gd) keeps the two gates the climb cannot be finished without always payable. Act Two's twelve fragments live in the environment (MemoryFragment2D: id, what belongs, whether lolo is in it); the summit comes with its PR.",
+  "$comment": "Mayon: the final painting. Three memory clusters, silent saves, finite ink, and the summit/frame ending.",
   "schema_version": 1,
   "level_id": "level_5",
   "design_level_id": "L5_MAYON",
@@ -93,7 +93,7 @@
       "dialogue_node": false,
       "fail_state": false,
       "sub_beats": [],
-      "$comment": "Where the summit begins, so CP2 has a beat to stand at. Its scene comes in PR 08."
+      "$comment": "Where the summit begins, so CP2 has a beat to stand at. Its ending sequence is owned by level_5.gd."
     }
   ],
   "hidden_flowers": [
@@ -102,7 +102,7 @@
       "at": "L5_CORRIDOR",
       "awarded_by": "artist",
       "not_a_fail_state": true,
-      "$comment": "The fragment nobody needed: a flower lola painted for no reason. Comes with Act Two (PR 06)."
+      "$comment": "The fragment nobody needed: a flower lola painted for no reason. Saved by spending ink on its optional memory fragment."
     }
   ],
   "recognition": {
@@ -122,5 +122,240 @@
     "checkpoints are silent",
     "no health and nothing that fights",
     "no dialogue line names a drawable class"
+  ],
+  "layout_version": 3,
+  "memory_clusters": [
+    {
+      "id": "memory_1",
+      "members": [
+        "kubo",
+        "terraces",
+        "bandaritas",
+        "dancers"
+      ],
+      "entry": 5300,
+      "exit": 6800,
+      "camera": [
+        5250,
+        -650,
+        1600,
+        900
+      ]
+    },
+    {
+      "id": "memory_2",
+      "members": [
+        "church",
+        "storm",
+        "bangka",
+        "coral"
+      ],
+      "entry": 7100,
+      "exit": 8600,
+      "camera": [
+        7050,
+        -810,
+        1600,
+        900
+      ]
+    },
+    {
+      "id": "memory_3",
+      "members": [
+        "bakunawa",
+        "forest",
+        "waterfall",
+        "flower"
+      ],
+      "entry": 8900,
+      "exit": 10400,
+      "camera": [
+        8850,
+        -970,
+        1600,
+        900
+      ]
+    }
+  ],
+  "memories": [
+    {
+      "id": "kubo",
+      "cluster": "memory_1",
+      "accepts": [
+        "ladder",
+        "stairs",
+        "door"
+      ],
+      "holds_lolo": false,
+      "reach": 350,
+      "summit_art": "res://assets/Level5/restoration/kubo.png",
+      "bloom_width": 420,
+      "bloom_elevation": 0
+    },
+    {
+      "id": "terraces",
+      "cluster": "memory_1",
+      "accepts": [
+        "stairs",
+        "ladder",
+        "tree",
+        "rake"
+      ],
+      "holds_lolo": true,
+      "reach": 350,
+      "summit_art": "res://assets/Level5/restoration/terraces.png",
+      "bloom_width": 1100,
+      "bloom_elevation": 0
+    },
+    {
+      "id": "bandaritas",
+      "cluster": "memory_1",
+      "accepts": [
+        "sun",
+        "cloud",
+        "butterfly"
+      ],
+      "holds_lolo": false,
+      "reach": 350,
+      "summit_art": "res://assets/Level5/restoration/bandaritas.png",
+      "bloom_width": 1000,
+      "bloom_elevation": -380
+    },
+    {
+      "id": "dancers",
+      "cluster": "memory_1",
+      "accepts": [
+        "fan",
+        "butterfly",
+        "umbrella"
+      ],
+      "holds_lolo": false,
+      "reach": 350,
+      "summit_art": "res://assets/Level5/restoration/dancers.png",
+      "bloom_width": 540,
+      "bloom_elevation": 0
+    },
+    {
+      "id": "church",
+      "cluster": "memory_2",
+      "accepts": [
+        "door",
+        "key",
+        "clock"
+      ],
+      "holds_lolo": true,
+      "reach": 350,
+      "summit_art": "res://assets/Level5/restoration/church.png",
+      "bloom_width": 500,
+      "bloom_elevation": 0
+    },
+    {
+      "id": "storm",
+      "cluster": "memory_2",
+      "accepts": [
+        "cloud",
+        "umbrella",
+        "sailboat"
+      ],
+      "holds_lolo": false,
+      "reach": 350,
+      "summit_art": "res://assets/Level5/restoration/storm.png",
+      "bloom_width": 1300,
+      "bloom_elevation": -420
+    },
+    {
+      "id": "bangka",
+      "cluster": "memory_2",
+      "accepts": [
+        "sailboat",
+        "fish",
+        "sun"
+      ],
+      "holds_lolo": true,
+      "reach": 350,
+      "summit_art": "res://assets/Level5/restoration/bangka.png",
+      "bloom_width": 480,
+      "bloom_elevation": 0
+    },
+    {
+      "id": "coral",
+      "cluster": "memory_2",
+      "accepts": [
+        "crab",
+        "fish",
+        "sea_turtle",
+        "snail",
+        "octopus"
+      ],
+      "holds_lolo": false,
+      "reach": 350,
+      "summit_art": "res://assets/Level5/restoration/coral.png",
+      "bloom_width": 480,
+      "bloom_elevation": 0
+    },
+    {
+      "id": "bakunawa",
+      "cluster": "memory_3",
+      "accepts": [
+        "fish",
+        "shark",
+        "octopus",
+        "sea_turtle"
+      ],
+      "holds_lolo": false,
+      "reach": 350,
+      "summit_art": "res://assets/Level5/restoration/bakunawa.png",
+      "bloom_width": 1000,
+      "bloom_elevation": -140
+    },
+    {
+      "id": "forest",
+      "cluster": "memory_3",
+      "accepts": [
+        "campfire",
+        "flashlight",
+        "sun"
+      ],
+      "holds_lolo": false,
+      "reach": 350,
+      "summit_art": "res://assets/Level5/restoration/forest.png",
+      "bloom_width": 1250,
+      "bloom_elevation": 0,
+      "bloom_tint": [
+        0.42,
+        0.48,
+        0.65,
+        1
+      ]
+    },
+    {
+      "id": "waterfall",
+      "cluster": "memory_3",
+      "accepts": [
+        "tree",
+        "fan",
+        "bucket"
+      ],
+      "holds_lolo": false,
+      "reach": 350,
+      "summit_art": "res://assets/Level5/restoration/waterfall.png",
+      "bloom_width": 1000,
+      "bloom_elevation": 0
+    },
+    {
+      "id": "flower",
+      "cluster": "memory_3",
+      "accepts": [
+        "sun",
+        "cloud",
+        "bucket",
+        "butterfly"
+      ],
+      "holds_lolo": false,
+      "reach": 160,
+      "summit_art": "res://assets/Level5/restoration/flower.png",
+      "bloom_width": 100,
+      "bloom_elevation": 0
+    }
   ]
 }

@@ -85,16 +85,16 @@ func _a_refusing_page_takes_nothing_and_fades() -> void:
 		"%.2f through the fade, open after %s, heard %s, sent %d, made %d, ink %.1f -> %.1f, level told %s" % [
 			mid_fade, panel.is_open(), heard, stub.sent, made[0], ink_before, ink.remaining(),
 			level.get("refused_with")])
-	# Putting the brush down is trying too.
+	# Cancelling is not a completed attempt.
 	level.call("_on_draw_button_pressed")
 	_draw_two_lines(panel)
 	await create_timer(0.2).timeout
 	var took := panel.handle_cancel()
 	await create_timer(DrawPanel.REFUSAL_FADE + 0.3).timeout
 	var drawn_after: int = profile.call("class_diversity")
-	_check(took and not panel.is_open() and heard == [2, 2] and stub.sent == 0
+	_check(took and not panel.is_open() and heard == [2] and stub.sent == 0
 		and panel.canvas.modulate.a == 1.0 and drawn_after == drawn_before,
-		"putting the brush down refuses the same way, and the page comes back clean",
+		"cancelling leaves the attempt pending and the page comes back clean",
 		"cancel taken %s, heard %s, sent %d, page alpha %.2f, classes drawn %d -> %d" % [took, heard,
 			stub.sent, panel.canvas.modulate.a, drawn_before, drawn_after])
 	level.queue_free()

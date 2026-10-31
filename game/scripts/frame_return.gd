@@ -1,26 +1,24 @@
 class_name FrameReturn
 extends CanvasLayer
-## THE FRAME RETURNS (LEVEL_5.md): cut out of the painting, the apo is sitting with lola in the
-## real world, where she has presumably been the whole time. A window, a chair, a canvas with the
-## unfinished Mayon on it -- and lola, who does not know her.
-##
-## A PLACEHOLDER ROOM, drawn here until the art team's arrives (ART_PLACEHOLDERS.md): a wall, a
-## window onto Mayon's sky, the easel, and the two of them seated -- the apo's own sprite and
-## lola's stand-in. Under the dialogue box (layer 8) and the bars (9), over the HUD.
-
+## The ordinary room, with registered seated performances over a painted background.
 const LAYER := 7
-const WALL := Color(0.29, 0.22, 0.18)
-const FLOOR := Color(0.2, 0.15, 0.12)
-const WOOD := Color(0.36, 0.24, 0.15)
-const SKY := preload("res://assets/Level5/backdrop/sky.png")
-const PAINTING := preload("res://assets/hub/paintings/level_5.png")
-const LOLA := preload("res://assets/Level5/people/lola_front.png")
-const APO := preload("res://assets/characters/apo/apo_turnaround.png")
-## How long the black holds at the very end.
+const ROOM := preload("res://assets/Level5/frame/room.png")
+const FOLDER := "res://assets/Level5/people/"
+## Retain textures through RenderingServer's draw. A load() local freed at return paints white.
+const ACTORS := {
+	"lola_seated": preload("res://assets/Level5/people/lola_seated.png"),
+	"lola_seated_flowers": preload("res://assets/Level5/people/lola_seated_flowers.png"),
+	"seated": preload("res://assets/Level5/people/apo_seated.png"),
+	"seated_paint": preload("res://assets/Level5/people/apo_seated_paint.png"),
+	"pickup": preload("res://assets/Level5/people/apo_pickup.png"),
+}
 const BLACK_HOLD := 3.0
-
 var _black: ColorRect
 var _room: Control
+var _phase := "listening"
+var _ordinary_brush := false
+var has_flowers := false
+var _memory: Texture2D
 
 
 func _ready() -> void:
@@ -38,12 +36,28 @@ func _ready() -> void:
 	_black.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_black.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_black)
-	# In from white: out of the painting, which had gone to paper.
-	_room.modulate = Color(3.0, 3.0, 3.0, 1.0)
-	create_tween().tween_property(_room, "modulate", Color.WHITE, 1.6)
+	Motion.fade_in(_room, 1.0)
 
 
-## Cut to black, and hold.
+func show_memory(texture: Texture2D) -> void:
+	_memory = texture
+	_room.queue_redraw()
+
+
+func pick_up_brush() -> void:
+	_phase = "pickup"
+	_room.queue_redraw()
+	await get_tree().create_timer(0.9, true).timeout
+	_ordinary_brush = true
+	_phase = "painting"
+	_room.queue_redraw()
+	await get_tree().create_timer(1.3, true).timeout
+
+
+func holds_ordinary_brush() -> bool:
+	return _ordinary_brush
+
+
 func cut_to_black() -> void:
 	_black.color.a = 1.0
 	await get_tree().create_timer(BLACK_HOLD, true).timeout
@@ -54,24 +68,25 @@ func is_black() -> bool:
 
 
 func _draw_room() -> void:
-	var size := _room.size
-	_room.draw_rect(Rect2(Vector2.ZERO, size), WALL)
-	_room.draw_rect(Rect2(0.0, size.y * 0.72, size.x, size.y * 0.28), FLOOR)
-	# The window, onto the evening.
-	var window := Rect2(size.x * 0.08, size.y * 0.14, size.x * 0.24, size.y * 0.32)
-	_room.draw_texture_rect_region(SKY, window, Rect2(300, 200, 700, 400))
-	_room.draw_rect(window, WOOD, false, 8.0)
-	# The easel and the unfinished Mayon.
-	var easel := Vector2(size.x * 0.72, size.y * 0.72)
-	_room.draw_line(easel + Vector2(-60, 0), easel + Vector2(0, -300), WOOD, 8.0)
-	_room.draw_line(easel + Vector2(60, 0), easel + Vector2(0, -300), WOOD, 8.0)
-	var canvas := Rect2(easel + Vector2(-150, -330), Vector2(300, 170))
-	_room.draw_rect(canvas.grow(6.0), WOOD)
-	_room.draw_rect(canvas, Color(0.96, 0.94, 0.89))
-	_room.draw_texture_rect(PAINTING, Rect2(canvas.position, Vector2(canvas.size.x * 0.55, canvas.size.y)), false,
-		Color(1, 1, 1, 0.85))
-	# The two of them, seated.
-	_room.draw_rect(Rect2(size.x * 0.38, size.y * 0.6, size.x * 0.11, size.y * 0.04), WOOD)
-	_room.draw_texture_rect(LOLA, Rect2(size.x * 0.385, size.y * 0.33, 80 * 3.2, 106 * 3.2) , false)
-	_room.draw_texture_rect_region(APO, Rect2(size.x * 0.53, size.y * 0.42, 80 * 2.6, 106 * 2.6),
-		Rect2(0, 0, 80, 106))
+	# Room, bench and actors share the original 1600x900 composition on every screen.
+	# Stretching only the backdrop displaced the seated poses on taller windows.
+	var size := Vector2(1600, 900)
+	var cover := maxf(_room.size.x / size.x, _room.size.y / size.y)
+	_room.draw_set_transform((_room.size - size * cover) * .5, 0.0, Vector2.ONE * cover)
+	_room.draw_texture_rect(ROOM, Rect2(Vector2.ZERO, size), false)
+	var seated_y := size.y * 0.715
+	var lola: Texture2D = ACTORS["lola_seated_flowers" if has_flowers else "lola_seated"]
+	var apo_pose := "pickup" if _phase == "pickup" else ("seated_paint" if _phase == "painting" else "seated")
+	var apo: Texture2D = ACTORS[apo_pose]
+	var scale := 2.2
+	var ls := lola.get_size() * scale
+	var aps := apo.get_size() * scale
+	_room.draw_texture_rect(lola, Rect2(Vector2(size.x * .47 - ls.x * .5, seated_y - ls.y), ls), false)
+	var apo_y := size.y * .86 if _phase == "pickup" else seated_y
+	_room.draw_texture_rect(apo, Rect2(Vector2(size.x * .62 - aps.x * .5, apo_y - aps.y), aps), false)
+	if _memory != null:
+		var frame := Rect2(size.x * .779, size.y * .327, size.x * .115, size.y * .23)
+		var fit := minf(frame.size.x/_memory.get_width(),frame.size.y/_memory.get_height())
+		var painting := _memory.get_size()*fit
+		_room.draw_texture_rect(_memory,Rect2(frame.get_center()-painting*.5,painting),false)
+	_room.draw_set_transform(Vector2.ZERO)

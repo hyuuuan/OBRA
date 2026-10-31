@@ -30,8 +30,8 @@ func _run() -> void:
 	await _with_the_gauge_empty_the_reserve_does_not_pay()
 	await _a_drawing_that_does_not_belong_is_handed_back()
 	await _passed_by_it_is_lost_in_seconds()
-	await _the_flower_is_saved_only_from_its_ledge()
 	await _a_fall_gives_back_the_fragments_as_they_were()
+	await _the_flower_is_saved_only_from_its_ledge()
 	await _lolo_thins_by_where_she_is()
 	await _at_the_top_the_brush_refuses_him_and_he_is_gone()
 	if checked != CHECKS:
@@ -47,7 +47,7 @@ func _run() -> void:
 
 func _a_fragment_goes_white_once_seen() -> void:
 	var kubo := _fragment("kubo")
-	var far := _fragment("terraces")
+	var far := _fragment("church")
 	var before := kubo.drain()
 	await _put(5600.0, 0.0)
 	await create_timer(1.5).timeout
@@ -58,7 +58,7 @@ func _a_fragment_goes_white_once_seen() -> void:
 
 func _a_drawing_that_belongs_saves_it_for_one_unit() -> void:
 	var kubo := _fragment("kubo")
-	await _put(5900.0, 0.0)
+	await _near("kubo")
 	var far := _fragment("terraces")
 	_check(kubo.is_targeted() and not far.is_targeted(),
 		"the fragment a drawing would go into is lit, and only it",
@@ -75,7 +75,7 @@ func _a_drawing_that_belongs_saves_it_for_one_unit() -> void:
 
 func _with_the_gauge_empty_the_reserve_does_not_pay() -> void:
 	var terraces := _fragment("terraces")
-	await _put(6380.0, 0.0)
+	await _near("terraces")
 	_set_ink(0.0, 2.0)
 	_draw("stairs")
 	await _frames(4)
@@ -113,9 +113,9 @@ func _the_flower_is_saved_only_from_its_ledge() -> void:
 	var flower := _fragment("flower")
 	var profile := root.get_node("PlayerProfile")
 	var artist_before: int = profile.call("route_count", "artist")
-	await _put(8330.0, 0.0)
+	await _put(flower.global_position.x, -260.0)
 	var from_the_path: bool = level.call("_fragment_here") == flower
-	await _put(8330.0, -180.0)
+	await _near("flower")
 	var from_the_ledge: bool = level.call("_fragment_here") == flower
 	_set_ink(2.0, 2.0)
 	_draw("butterfly")
@@ -131,7 +131,7 @@ func _the_flower_is_saved_only_from_its_ledge() -> void:
 
 func _a_fall_gives_back_the_fragments_as_they_were() -> void:
 	var coral := _fragment("coral")
-	await _put(9740.0, -100.0)
+	await _near("coral")
 	_set_ink(2.0, 2.0)
 	level.call("_write_checkpoint", "CP1")
 	_draw("crab")
@@ -160,10 +160,11 @@ func _at_the_top_the_brush_refuses_him_and_he_is_gone() -> void:
 	var lolo := level.get("lolo") as Lolo
 	var goes_at: float = level.call("lolo_goes_at")
 	# One of his fragments saved (the terraces): he goes 2 x 250 sooner than with all three.
-	var where_ok := is_equal_approx(goes_at, 12400.0 - 500.0)
+	var where_ok := is_equal_approx(goes_at, 11500.0 - 500.0)
 	await _put(goes_at + 40.0, -100.0)
 	var panel := level.get("draw_panel") as DrawPanel
 	var raised := await _until(func() -> bool: return panel.is_open() and panel.is_refusing(), 14.0)
+	_ink_stroke(panel)
 	panel.call("_on_transform_pressed")
 	var gone := await _until(func() -> bool: return lolo.is_gone(), 12.0)
 	_check(where_ok and raised and gone and not lolo.visible,
@@ -234,3 +235,17 @@ func _check(ok: bool, what: String, detail: String) -> void:
 	else:
 		failures += 1
 		print("  FAIL\t%s\t%s" % [what, detail])
+
+
+func _near(id: String) -> void:
+	var at := _fragment(id).global_position + Vector2(0, 80)
+	if id == "flower":
+		var ledges: Array = level.get_node("EnvironmentBaseplate/GameplayPlane/Terrain/FlowerLedge").get("platforms")
+		at = Vector2(_fragment(id).global_position.x, (ledges[-1] as Rect2).position.y - 30.0)
+	await _put(at.x, at.y)
+
+
+func _ink_stroke(panel: DrawPanel) -> void:
+	var middle := panel.canvas.size * 0.5
+	panel.canvas.call("_start_stroke", middle - Vector2(50, 0))
+	panel.canvas.call("_append_point", middle + Vector2(50, 0), true)

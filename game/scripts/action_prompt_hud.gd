@@ -63,6 +63,8 @@ var _states: Dictionary = {}
 ## frame -- and the Draw key sat solid under the CHECKPOINT caption while everything around it
 ## had gone.
 var _curtain_alpha := 1.0
+## A level-owned performance can put every verb away, including the externally owned Draw.
+var suppressed := false
 ## Whether the row has gone under the player's feet. See `_follow_player`.
 var _under := false
 var _judge_in := 0.0
@@ -219,6 +221,11 @@ func revert_is_available() -> bool:
 
 
 func _process(delta: float) -> void:
+	if suppressed:
+		for button: Button in _states:
+			button.hide()
+			button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return
 	_time += delta
 	_update_animations(delta)
 	_place_bottom_actions()

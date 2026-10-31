@@ -53,6 +53,9 @@ func _run() -> void:
 	_audit_the_fragments(scene)
 	_audit_the_flower_is_off_the_path(scene)
 	_audit_nothing_the_ash_takes_is_solid(scene)
+	scene.queue_free()
+	for _frame in range(6):
+		await process_frame
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -166,7 +169,7 @@ func _audit_the_reserve_is_the_gates(scene: Node) -> void:
 	var at_gates: Array[bool] = []
 	for id: String in GATES:
 		director.enter_obstacle(id)
-		at_gates.append(bool(scene.call("_may_use_hidden_ink", "bridge")))
+		at_gates.append(bool(scene.call("_may_use_hidden_ink", "bridge" if id == "L5_SPAN" else "stairs")))
 		director.exit_obstacle(id)
 	_check(not at_the_foot and at_gates == [true, true],
 		"only the climb's gates may draw on the hidden reserve",
@@ -224,7 +227,8 @@ func _audit_silent_checkpoints(scene: Node, level: Dictionary) -> void:
 func _audit_nothing_fights(scene: Node) -> void:
 	var fighters: Array[String] = []
 	for node in scene.find_children("*", "", true, false):
-		if node is Enemy2D:
+		# Avoid importing the entire combat dependency cycle into a no-combat audit.
+		if node.is_in_group(&"dilim_foes"):
 			fighters.append(String(node.name))
 	_check(fighters.is_empty(), "nothing on the mountain fights",
 		"no enemy" if fighters.is_empty() else ", ".join(fighters))
@@ -276,7 +280,10 @@ func _audit_the_flower_is_off_the_path(scene: Node) -> void:
 			flower = node
 	var below := 0.0
 	if flower != null:
-		var ground_y := 60.0 if flower.global_position.x < 9200.0 else -20.0
+		var ground_y := 600.0
+		for ground: Rect2 in scene.get_node("EnvironmentBaseplate/GameplayPlane/Terrain/Cone").get("platforms"):
+			if flower.global_position.x >= ground.position.x and flower.global_position.x < ground.end.x:
+				ground_y = ground.position.y
 		below = ground_y - flower.global_position.y
 	_check(flower != null and below > flower.reach + 60.0,
 		"the flower is off the path: out of reach from the corridor beneath it",

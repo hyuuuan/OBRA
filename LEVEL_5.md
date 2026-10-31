@@ -157,9 +157,161 @@ or bird (.669).
   summit -- each named in `ART_PLACEHOLDERS.md`.
 - **The optional dim stretch** ("the light is going, draw one") is not built; it is off the
   critical path.
-- **Nothing shows which fragment a drawing will go into**: the nearest one in reach takes it. A
-  soft highlight on it is the obvious follow-up.
-- **The apo has no failed-draw or lowering pose**; the page refuses, and the beat is silent.
+- **Updated 31 October:** a rim highlights the nearby memory, and opening the page locks its ID; the chosen picture appears outside the captured ink.
+- **Updated 31 October:** the apo has dedicated raise, painting, failed, lowering, seated, offering, and brush-pickup poses. The refusal remains wordless.
 - **The stats ending screen stays in the repository** but nothing reaches it; Endings A-D are
   logged to telemetry when the run ends.
 
+
+## Experience overhaul 31 October 2026
+
+The three acts and ending were already mechanically present. This pass replaces the long
+single-file memory corridor with three simultaneous four-memory areas and integrates dedicated
+character performances and a painted ordinary room. The first-play tuning target is **10–15
+minutes**, with no timer holding the player merely to meet that target. Automated runners do not
+establish a first-time player's reading, drawing, or decision time.
+
+### The choices and their drawing context
+
+`level_05.json` now owns `memory_clusters`, `memories`, and `layout_version: 3`. Scene fragments
+carry stable IDs and positions; acceptance, Lolo membership, reach, and summit art come from the
+configuration. The groups are kubo/terraces/bandaritas/dancers, church/storm/bangka/coral, and
+bakunawa/forest/waterfall/flower. Each camera region shows its four pictures together above the
+characters. Two shallow rises carry each cluster along the climb; the stacked memory walls have
+been removed. Only the flower has a separate detour, on one-way rocks above the main path.
+
+Whitening starts for the whole cluster on entry, takes 90 seconds to reach paper, holds during
+every paused modal, and heads to
+blank over four seconds on departure. A subtle rim selects the nearby memory. Opening the page
+locks that ID until the response arrives, even if the player or camera moves. The reference is a
+sibling of the capture SubViewport: its pixels never reach the recognizer.
+
+Checkpoints retain outcome, partial drain, raw polylines, save order, visited/departed clusters,
+Lolo's state, and flower credit. Cluster departures replace CP1 silently. Legacy CP1/CP2 positions
+and version-2 shelf saves are mapped above the rebuilt ground; existing progress and flowers
+remain intact. A flower
+reward's durable obstacle record prevents repeated Artist tally credit after a fall or reload.
+
+### What the ending actually does
+
+`DrawPanel` has normal, quiet-refusal, and free-paint modes. The two latter modes hide the frame,
+buttons, reference, and gauge, take a real stroke, and complete after the hand rests. Empty pages
+and cancellation never count. Free paint returns the vectors through its own signal rather than
+pretending to be another refusal. Both modes bypass live and submitted recognition entirely.
+
+The apo raises the brush, paints, sees it fail, and lowers it through registered performance
+poses. `DialogueBox.line_progress` lets Lolo vanish as his interrupted sentence is revealed,
+including when a reader reveals the text with a click; dismissal does not control his going.
+At the summit, weather audio stops, the camera frames the pair, ordinary prompts disappear,
+and the last free drawing remains alongside the larger saved landscapes and their saved ink.
+Lola turns, receives flowers when earned, and turns back after the recognition passes. The room
+shows both seated actors and a distinct pickup/ordinary-brush pose before the cut to black.
+
+### Artwork and audio provenance
+
+Original generated atlas and room sources, exact prompts, and replacement contracts are in
+`LEVEL5_Mayon/authored/README.md`. `build_mayon_performance.py` produces the registered actor
+poses, Lola's full-resolution portrait, and the room. The landscape and restoration builders own
+the scenery. The old
+`build_mayon_lola.py` delegates to it; it no longer recolours the apo. `build_mayon_audio.py`
+synthesizes the original eruption, wind, brush contact, and ending cue. No third-party recordings
+or existing musical melody are used. See the authored README for the complete provisional list:
+generated art awaiting art-direction review, procedural memory targets, reused restoration
+scenery, synthetic audio rather than recordings, and the absent recorded Lola voice.
+
+### Checks added
+
+`run_level5_overhaul_probe` checks clustered activation, paused clocks, target locking, exact
+checkpoint ink and ordering, irreversible departures, duplicate flower credit, reserve isolation,
+empty/cancelled attempts, quiet/free mouse strokes without model calls, and a mid-line Lolo cut.
+`run_walk_level5` drives movement: neither bare gate opens, a bridge and a resized/rotated ladder
+cross the gap, and stairs and a ladder reach the wall. The walking probe caught a genuine fall
+wrap bypass: the rescue threshold now fires before Wanderer wraps from the world's bottom to its
+top. `run_visual_level5` captures the actual scene at 1600x900, including all clusters, quiet
+canvas, summit, restored places, flowers, room, and ordinary brush. It fails if injected mouse
+input never reaches the canvas. `run_level5_frame_probe` also checks the visible brush action.
+
+The audit frees its scene before exit. Godot 4.7 still reports retained static GDScript resources
+at shutdown in that audit; explicit scene cleanup and `@static_unload` did not remove those
+engine diagnostics. The latter workaround was reverted. They must be distinguished from parse,
+script, or signal-call failures, rather than hidden from the log. The unrelated ability audit
+currently lacks `TAG_NEEDS` definitions for `absurd`, `beast`, and `hoof`.
+
+The old crossing now begins draining at x1800 over 1.2 seconds, inside the camera view and
+before the earliest running arrival; its arrival line has a separate narrow volume. The summit
+stows a pending placement/tool, stops an active tremor, stages a returning wanderer beside Lola,
+and blocks ordinary input through the performance while preserving Escape and the intended
+quiet/free drawing attempts. `run_level5_endings_probe` covers all three voices in both endings,
+zero ink/no saved memories, selected memory order, sealed performance input, and a legacy CP2.
+
+### Landscape revision after visual review
+
+The first overhaul's mechanical checks passed while its scenery still exposed the prototype:
+separate background bands floated apart vertically, fine soil tiles covered every surface, and
+memory shelves were thin floating bars. The runtime now uses `MayonVista2D`: the measured foot
+composition flattened once, then a transition to an original upper-slope plate. The generated
+cliff atlas provides three broad materials. The later flat polygon fills and straight grass
+outline were reverted to match the user's preferred opening screenshot. The cliff silhouette
+remains decorative beneath the walk surface. The original crossing and steps now have dedicated sprites from the ruin
+atlas. The target highlight follows torn artwork instead of a rounded UI-card frame.
+
+Travel and memory dialogue keep the wide camera composition: a push-in must not crop the four
+choices or pull the walk line upward. Lolo's last sentence alone holds the world figures above
+the dialogue box at the same landscape scale, then releases that framing when dismissed.
+`run_level5_memory_walk` drives the three shallow climbs, checks
+target access and framing, takes the optional flower path, and checks old shelf-save landings.
+
+The summit restores transparent scenery from the earlier levels rather than magnifying torn
+rectangular pictures. Each memory owns its width, elevation and optional tint in the JSON.
+**`Motion.fade_in` calls `_show`, which resets Node2D scale to one.** A landscape's measured scale
+must be reapplied after that call; otherwise the church and terraces expand to their full source
+pixel dimensions and engulf the pair. The ending probe now measures the rendered widths. Summit
+narration keeps the wide composition, and the ordinary room fits pictures into its canvas while
+preserving their aspect ratios. Sources, exact generation prompts and replacement contracts are
+in the authored README. All newly generated landscape and prop art remains explicitly subject
+to art-direction review; the runtime contains the assets now.
+
+### Dedicated cliff edge textures
+
+Mayon's meadow, basalt and ash now have purpose-made transparent edge artwork. The generated
+three-column `LEVEL5_Mayon/authored/cliff_edges.png` uses the existing cliff atlas as a style and
+material reference. `build_mayon_landscape.py` cuts `terrain/edge_meadow.png`, `edge_basalt.png`
+and `edge_ash.png`, with nearest filtering and preserved alpha/aspect ratio.
+
+`MayonTerrain2D` places these caps on exposed risers and gap edges, mirroring them for right-hand
+ends. The 220px wall receives a uniform enlargement; ordinary steps keep the art's natural size.
+The earlier warped UV join mesh and procedural cap outline have been removed. Contacts are
+still discovered across Slopes and Cone. Real gaps and detached flower rocks stay separate.
+All caps inherit the owning terrain's tint/drain material and add no collision.
+
+`run_visual_mayon_edges` photographs meadow steps, the ascent, span, climb wall, memory steps,
+ash, and the whitening transition at 1600x900. This artwork pass was inspected in those frames;
+the full gameplay suite was not rerun for a drawing-only change. The generated source, exact
+prompt and replacement contract are recorded in the authored README and placeholder inventory.
+
+### Finishing pass
+
+The rebuilt ground was checked as one continuous journey, from the spawn to the room return.
+`run_level5_finish_walk` walks the actual terrain, places the span/climb answers, saves terraces,
+church, bangka and flower, takes the flower detour, draws the three quiet attempts and the free
+painting through viewport input, and reaches the seated room and ordinary brush. Normal model
+results are supplied as fixtures; this validates layout and story flow, not CNN accuracy or a
+first-time player's 10–15 minute reading/drawing pace. The route spent all six visible units and
+the quiet/free pages added no recognition statistics.
+
+This pass corrects the old room bounds left behind by checkpoint restoration, restores stopped
+weather audio on an earlier landing, removes transient free-paint scenery on reset, seats the
+last ruin on its actual ground, and removes the empty checkpoint flag from silent-save HUDs.
+The apo faces Lola and approaches within reach for the flower handoff; unobstructed beats show
+her turn, receipt and return to painting. Lolo's portrait vanishes with his world sprite, while
+his unfinished sentence remains. Portrait fade cancellation also prevents an outgoing portrait
+from hiding the next speaker. The room and its seated actors now share one aspect-preserving
+composition on taller windows. Summit whitening finishes during dialogue; memory clocks still
+pause with gameplay.
+
+Focused validation: continuous finish walk, memory traversal and camera reload, both flower
+endings across all three voices, and the dialogue portrait transition probe. The visual tour
+includes disappearance, handoff, brush pickup, and a 1600x1000 room frame. It finishes the staged
+narration before freeing the scene, avoiding retained story coroutines at shutdown. No full-suite rerun was
+used for this finishing pass; generated/provisional artwork and synthesized audio remain listed
+in the authored README and `ART_PLACEHOLDERS.md`.

@@ -73,6 +73,7 @@ extends Control
 ## so neither speaker is holding a stump, and both land on a 222px source (215 before the
 ## outline was drawn round them), which is what keeps their pixels the same size as each other's.
 const PORTRAITS := {
+	"Lola": {"art": preload("res://assets/Level5/people/lola_portrait.png"), "bust": 1.0},
 	"Lolo": {"art": preload("res://assets/characters/lolo/lolo_portrait_outlined.png"),
 		"bust": 222.0 / 317.0},
 	# The supplied priest sheet's large portrait, kept at source resolution. Cut below
@@ -99,6 +100,7 @@ const INSET := 90.0
 
 var _bust: TextureRect
 var _source: Vector2i = Vector2i.ZERO
+var _fade: Tween
 
 
 func _init() -> void:
@@ -138,12 +140,13 @@ func _wear(entry: Dictionary) -> void:
 func show_for(speaker: String) -> void:
 	_wear(PORTRAITS.get(speaker, DEFAULT_PORTRAIT))
 	_relayout()
-	if visible:
+	_stop_fade()
+	if visible and modulate.a >= 1.0:
 		return
 	visible = true
-	var appear := create_tween()
-	appear.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	appear.tween_property(self, "modulate:a", 1.0, 0.18)
+	_fade = create_tween()
+	_fade.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_fade.tween_property(self, "modulate:a", 1.0, 0.18)
 
 
 ## Where the speaker's picture actually is. The two busts share a baseline and a centre
@@ -153,12 +156,25 @@ func bust_rect() -> Rect2:
 
 
 func hide_portrait() -> void:
+	_stop_fade()
 	if not visible:
 		return
-	var fade := create_tween()
-	fade.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	fade.tween_property(self, "modulate:a", 0.0, 0.18)
-	fade.tween_callback(func() -> void: visible = false)
+	_fade = create_tween()
+	_fade.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_fade.tween_property(self, "modulate:a", 0.0, 0.18)
+	_fade.tween_callback(func() -> void: visible = false)
+
+
+func dismiss_immediately() -> void:
+	_stop_fade()
+	visible = false
+	modulate.a = 0.0
+
+
+func _stop_fade() -> void:
+	if _fade != null and _fade.is_valid():
+		_fade.kill()
+	_fade = null
 
 
 func _relayout() -> void:

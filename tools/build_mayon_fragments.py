@@ -87,10 +87,10 @@ def _load(path: str) -> Image.Image:
     return Image.open(full).convert("RGBA")
 
 
-def _fit(image: Image.Image) -> Image.Image:
+def _fit(image: Image.Image, longest: int = LONGEST) -> Image.Image:
     """Down to LONGEST on its longest side, nearest: it is pixel art."""
     w, h = image.size
-    scale = LONGEST / max(w, h)
+    scale = longest / max(w, h)
     return image.resize((max(1, round(w * scale)), max(1, round(h * scale))), Image.NEAREST)
 
 
@@ -113,7 +113,7 @@ def torn(image: Image.Image, seed_name: str) -> Image.Image:
     return Image.fromarray(pix.astype(np.uint8), "RGBA")
 
 
-def fragment(fragment_id: str) -> Image.Image:
+def fragment(fragment_id: str, longest: int = LONGEST) -> Image.Image:
     if fragment_id == FLOWER:
         return torn(flower_scrap(), fragment_id)
     painting, box, night = FRAGMENTS[fragment_id]
@@ -128,7 +128,7 @@ def fragment(fragment_id: str) -> Image.Image:
         pix = np.asarray(picture).astype(np.float64)
         pix[..., :3] *= NIGHT
         picture = Image.fromarray(np.clip(pix, 0, 255).astype(np.uint8), "RGBA")
-    return torn(_fit(picture), fragment_id)
+    return torn(_fit(picture, longest), fragment_id)
 
 
 def flower_scrap() -> Image.Image:

@@ -529,6 +529,9 @@ func _build() -> void:
 
 	var margins := MarginContainer.new()
 	margins.name = "Lining"
+	# The leather padding can be the GUI's drag target too, before the outer panel.
+	margins.set_drag_forwarding(Callable(), _can_drop_outside, _drop_outside)
+	bag.set_drag_forwarding(Callable(), _can_drop_outside, _drop_outside)
 	margins.add_theme_constant_override(&"margin_left", LINING_MARGIN)
 	margins.add_theme_constant_override(&"margin_right", LINING_MARGIN)
 	margins.add_theme_constant_override(&"margin_top", 14)

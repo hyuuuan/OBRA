@@ -18,7 +18,7 @@ const FOLDER := "res://assets/Level5/fragments/"
 ## How near she must come before it begins to go.
 const SIGHT := 700.0
 ## How long it takes to go to paper on its own, from when she first sees it.
-const FADE_SECONDS := 45.0
+const FADE_SECONDS := 90.0
 ## Gone this far past it, it goes in PASSED_SECONDS.
 const PASSED_BY := 600.0
 const PASSED_SECONDS := 4.0
@@ -42,6 +42,52 @@ const RIM_BREATH := 2.4
 ## How near she must stand for a drawing to go into it. The flower's is short: it is saved from
 ## its ledge, off the path, not from the path beneath.
 @export var reach := 320.0
+## Cluster-managed fragments start together, rather than reacting to x through a wall.
+var cluster_managed := false
+var cluster_id := ""
+var summit_texture: Texture2D
+var bloom_width := 800.0
+var bloom_elevation := 0.0
+var bloom_tint := Color.WHITE
+
+
+func configure_memory(entry: Dictionary) -> void:
+	accepts = PackedStringArray(entry.get("accepts", []))
+	holds_lolo = bool(entry.get("holds_lolo", false))
+	cluster_id = String(entry.get("cluster", ""))
+	cluster_managed = not cluster_id.is_empty()
+	reach = float(entry.get("reach", reach))
+	summit_texture = load(String(entry.get("summit_art", FOLDER + fragment_id + ".png"))) as Texture2D
+	bloom_width = float(entry.get("bloom_width", 800.0))
+	bloom_elevation = float(entry.get("bloom_elevation", 0.0))
+	var shade: Array = entry.get("bloom_tint", [1,1,1,1])
+	bloom_tint = Color(float(shade[0]),float(shade[1]),float(shade[2]),float(shade[3]))
+
+
+func begin_whitening() -> void:
+	if _state == "whole":
+		_state = "draining"
+		_drainable.drain_to(PAPER, FADE_SECONDS * (1.0 - drain() / PAPER))
+
+
+func leave_behind() -> void:
+	if is_open():
+		_state = "passing"
+		_drainable.drain_to(1.0, PASSED_SECONDS)
+
+
+func snapshot() -> Dictionary:
+	return {"state": _state, "strokes": _strokes.duplicate(true), "drain": drain()}
+
+
+func restore_snapshot(entry: Dictionary) -> void:
+	restore_to(String(entry.get("state", "whole")), entry.get("strokes", []))
+	if _state not in ["whole", "saved", "lost"]:
+		_drainable.drain_to(float(entry.get("drain", 0.0)), 0.0)
+		if _state == "passing":
+			_drainable.drain_to(1.0, PASSED_SECONDS * (1.0 - drain()))
+		else:
+			_drainable.drain_to(PAPER, FADE_SECONDS * (1.0 - drain() / PAPER))
 
 var _state := "whole"
 var _sprite: Sprite2D
@@ -119,7 +165,7 @@ func strokes() -> Array:
 
 ## Called by the level every physics frame with where she is.
 func notice(her_x: float) -> void:
-	if not is_open():
+	if cluster_managed or not is_open():
 		return
 	var ahead := global_position.x - her_x
 	if _state == "whole" and absf(ahead) <= SIGHT:
@@ -154,6 +200,8 @@ func restore_to(state_name: String, plain_strokes: Array = []) -> void:
 		"lost":
 			_state = "lost"
 			_drainable.drain_to(1.0, 0.0)
+		"draining", "passing":
+			_state = state_name
 		_:
 			_state = "whole"
 
@@ -182,19 +230,23 @@ func _on_blanked() -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	# Loose: it bobs and drifts a little, never quite still.
-	_sprite.position = Vector2(sin(_time * 0.37 + _phase) * BOB * 1.5,
-		sin(_time * 0.9 + _phase) * BOB).round()
+	_sprite.position = Vector2.ZERO if Motion.reduced() else Vector2(
+		sin(_time * 0.37 + _phase) * BOB * 1.5, sin(_time * 0.9 + _phase) * BOB).round()
 	if _targeted:
 		_rim.position = _sprite.position
-		_rim.modulate.a = 0.7 + 0.3 * sin(_time * TAU / RIM_BREATH)
+		_rim.modulate.a = 0.9 if Motion.reduced() else 0.7 + 0.3 * sin(_time * TAU / RIM_BREATH)
 		_rim.queue_redraw()
 
 
 func _draw_rim() -> void:
 	if _sprite == null or _sprite.texture == null:
 		return
+	# Follow the torn silhouette. A rounded UI frame made these read as menu cards.
 	var size := _sprite.texture.get_size() + Vector2.ONE * RIM_MARGIN * 2.0
-	_rim.draw_style_box(_rim_style, Rect2(-size * 0.5, size))
+	_rim.draw_texture_rect(_sprite.texture,Rect2(-size*.5+Vector2(0,3),size),false,
+		Color(0.12,0.08,0.04,.8))
+	_rim.draw_texture_rect(_sprite.texture,Rect2(-size*.5,size),false,
+		Color(UISkin.GOLD_PALE,.65))
 
 
 ## Her lines, fitted into the middle of the picture, in the ink she drew them in.
