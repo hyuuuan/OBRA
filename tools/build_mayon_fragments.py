@@ -73,6 +73,10 @@ FLOWER_SIZE = (150, 96)
 LONGEST = 280
 ## The night Dilim was painted in, graded onto its fragment (MakilingBackdrop2D's tint).
 NIGHT = np.array([0.34, 0.38, 0.55])
+## The least mean brightness a fragment may have. The deep-sea crops and the night forest came
+## out at 38-54 and read as black holes against Mayon's dusk sky; a gamma lift brings their
+## middle tones up and leaves their blacks black, so night still reads as night.
+LIGHT_FLOOR = 72.0
 ## The tear: how deep the ragged edge bites, its grain, and the paper showing along it.
 TEAR_DEPTH = 9.0
 TEAR_GRAIN = 7
@@ -128,7 +132,33 @@ def fragment(fragment_id: str, longest: int = LONGEST) -> Image.Image:
         pix = np.asarray(picture).astype(np.float64)
         pix[..., :3] *= NIGHT
         picture = Image.fromarray(np.clip(pix, 0, 255).astype(np.uint8), "RGBA")
-    return torn(_fit(picture, longest), fragment_id)
+    return torn(lifted(_fit(picture, longest)), fragment_id)
+
+
+def brightness(image: Image.Image) -> float:
+    """Mean luma (Rec. 601) of the opaque pixels, 0-255."""
+    pix = np.asarray(image).astype(np.float64)
+    seen = pix[..., 3] > 128
+    luma = pix[..., 0] * 0.299 + pix[..., 1] * 0.587 + pix[..., 2] * 0.114
+    return float(luma[seen].mean()) if seen.any() else 0.0
+
+
+def lifted(image: Image.Image) -> Image.Image:
+    """Up to LIGHT_FLOOR by the smallest gamma that gets there; a bright picture is untouched."""
+    if brightness(image) >= LIGHT_FLOOR:
+        return image
+    pix = np.asarray(image).astype(np.float64)
+    low, high = 1.0, 4.0
+    for _ in range(24):
+        gamma = (low + high) / 2.0
+        trial = pix.copy()
+        trial[..., :3] = 255.0 * (trial[..., :3] / 255.0) ** (1.0 / gamma)
+        if brightness(Image.fromarray(np.clip(trial, 0, 255).astype(np.uint8), "RGBA")) < LIGHT_FLOOR:
+            low = gamma
+        else:
+            high = gamma
+    pix[..., :3] = 255.0 * (pix[..., :3] / 255.0) ** (1.0 / high)
+    return Image.fromarray(np.clip(np.round(pix), 0, 255).astype(np.uint8), "RGBA")
 
 
 def flower_scrap() -> Image.Image:
