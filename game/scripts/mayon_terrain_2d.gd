@@ -7,6 +7,16 @@ extends StaticBody2D
 const TILES := "res://assets/Level5/tiles/"
 ## How far the grass is drawn above a platform's collision top.
 const LIP := 8.0
+## ⚠ NEIGHBOURING TILES OVERLAP. Each cliff tile is painted as a standalone chunk: 8px of clear
+## air at both ends, and ends that taper inward with depth (95px by row 145 on basalt). Laid
+## edge to edge, every 1536px seam opened a V of dark fill that read as a pit in the path.
+const TILE_OVERLAP := 160.0
+## Below the cliff band the mountain carries on into shadow -- darker repeats of the rock,
+## nearest last so each covers the broken underside of the one below -- not a flat brown void.
+const DEPTH_TINTS := [Color(0.62, 0.6, 0.62), Color(0.42, 0.4, 0.44), Color(0.28, 0.26, 0.3)]
+const DEPTH_STEP := 150.0
+## Deeper repeats start this far into the art, so the grass and crust stay on the surface.
+const DEPTH_SKIP := 40.0
 
 ## Solid ground, world rectangles in this node's space.
 @export var platforms: Array[Rect2] = []
@@ -73,16 +83,41 @@ func _draw() -> void:
 		var face := rect
 		draw_rect(face, deep)
 		var cliff: Texture2D = CLIFFS[zone]
-		var lip := _lip(zone)
-		var height := minf(face.size.y + lip, cliff.get_height())
-		var left := face.position.x
-		while left < face.end.x:
-			# Texture phase belongs to the mountain, so adjacent steps do not restart a tile.
-			var phase := fposmod(left + global_position.x, cliff.get_width())
-			var width := minf(face.end.x - left, cliff.get_width() - phase)
-			draw_texture_rect_region(cliff, Rect2(left, face.position.y-lip, width, height),
-				Rect2(phase, 0, width, height))
-			left += width
+		var top := face.position.y - _lip(zone)
+		for band in range(DEPTH_TINTS.size(), 0, -1):
+			var y := top + band * DEPTH_STEP
+			if y < face.end.y:
+				# Shifted along, so the shadowed rock does not repeat the face above it.
+				_draw_tiles(cliff, face, y, DEPTH_SKIP, minf(cliff.get_height() - DEPTH_SKIP, face.end.y - y),
+					DEPTH_TINTS[band - 1], band * 0.37 * cliff.get_width())
+		_draw_tiles(cliff, face, top, 0.0, minf(face.end.y - top, cliff.get_height()), Color.WHITE, 0.0)
+
+
+## One band of overlapping tiles across a platform; later tiles are drawn over earlier ones.
+func _draw_tiles(cliff: Texture2D, face: Rect2, y: float, source_y: float, height: float,
+		tint: Color, shift: float) -> void:
+	for piece in tiles_across(face, float(cliff.get_width()), shift):
+		draw_texture_rect_region(cliff, Rect2(piece.x, y, piece.z, height),
+			Rect2(piece.y, source_y, piece.z, height), tint)
+
+
+## The tile pieces across one platform, clipped to it, as (local x, texture x, width). Tile phase
+## belongs to the mountain, so adjacent steps do not restart a tile. The probe reads these too.
+func tiles_across(face: Rect2, width: float, shift: float) -> Array[Vector3]:
+	var pieces: Array[Vector3] = []
+	var period := width - TILE_OVERLAP
+	var origin := global_position.x + shift
+	var from := face.position.x + origin
+	var to := face.end.x + origin
+	var k := ceili((from - width) / period)
+	while k * period < to:
+		var start := k * period
+		var left := maxf(from, start)
+		var right := minf(to, start + width)
+		if right > left:
+			pieces.append(Vector3(left - origin, left - start, right - left))
+		k += 1
+	return pieces
 
 
 func _zone(rect: Rect2) -> String:

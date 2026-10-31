@@ -294,6 +294,12 @@ ash, and the whitening transition at 1600x900. This artwork pass was inspected i
 the full gameplay suite was not rerun for a drawing-only change. The generated source, exact
 prompt and replacement contract are recorded in the authored README and placeholder inventory.
 
+**Seams and depth (1 November).** Each cliff tile is clear for 8px at its ends and tapers inward
+with depth, so tiles laid edge to edge opened a dark V at every 1536px seam that read as a pit in
+the path. Tiles now overlap by 160px (`TILE_OVERLAP`), and below the face the rock repeats three
+times, darker each time and without its grass rows, instead of a flat brown void.
+`run_mayon_probe` checks that every column of the mountain is rock at rows 30 and 60.
+
 ### Finishing pass
 
 The rebuilt ground was checked as one continuous journey, from the spawn to the room return.
