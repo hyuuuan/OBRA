@@ -707,7 +707,8 @@ Traps found building it:
 ## UI Contracts
 
 - Hall painting entry and return share `painting_transition.gd`: a continuous one-second
-  zoom/crossfade, then the incoming UI fades in. `PlayerProfile.hall_position_x` remembers
+  camera zoom through the painting's masked interior, with a slower background plane for depth.
+  Hall UI fades in screen space; incoming UI fades in only afterward. `PlayerProfile.hall_position_x` remembers
   the hall's player position across visits and sessions; New Game clears it. A CanvasLayer
   marked `transition_world` is scenery (Mayon's ending room), so it stays in the captured world.
 - Autoloads are `LevelManager`, `PlayerProfile`, `AbilityTags`, `Telemetry`,

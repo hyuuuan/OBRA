@@ -363,10 +363,8 @@ func _enter_painting(scene_path: String, level_id: String, painting: Node2D) -> 
 		_finish_transition(scene_path)
 		return
 	var destination := _prepared_scene
-	var hall: Texture2D
-	if DisplayServer.get_name() != "headless":
-		await RenderingServer.frame_post_draw
-		hall = ImageTexture.create_from_image(get_viewport().get_texture().get_image())
+	_painting_transition.take_hall_interface(get_tree().current_scene)
+	var hall: Texture2D = _painting_transition.capture_world()
 	_painting_transition.prepare(painting.call("transition_source"), hall)
 	var previous_level_id := current_level_id
 	current_level_id = level_id
@@ -402,10 +400,7 @@ func _return_to_painting() -> void:
 	_transitioning = true
 	var frozen := _hold_players()
 	_painting_transition.hold_interface(get_tree().current_scene)
-	var scene: Texture2D
-	if DisplayServer.get_name() != "headless":
-		await RenderingServer.frame_post_draw
-		scene = ImageTexture.create_from_image(get_viewport().get_texture().get_image())
+	var scene: Texture2D = _painting_transition.capture_world()
 	_painting_transition.cover_return(scene)
 	var destination := load(HOUSE_SCENE) as PackedScene
 	var previous_level_id := current_level_id
@@ -429,8 +424,8 @@ func _return_to_painting() -> void:
 	await get_tree().process_frame
 	var painting := house.call("painting_for_level", returning_level_id) as Node2D
 	if painting != null:
-		_painting_transition.prepare(painting.call("transition_source"),
-			scene if Motion.reduced() else null, true, scene)
+		var hall: Texture2D = _painting_transition.capture_world()
+		_painting_transition.prepare(painting.call("transition_source"), hall, true, scene)
 		transition_started.emit(HOUSE_SCENE)
 		await _painting_transition.play()
 	else:

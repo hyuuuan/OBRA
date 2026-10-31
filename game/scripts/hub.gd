@@ -355,13 +355,15 @@ func _process(_delta: float) -> void:
 	_last_hall_x = _player.position.x
 	var manager := get_node_or_null(^"/root/LevelManager")
 	var transitioning := manager != null and bool(manager.call("is_transitioning"))
+	if transitioning:
+		# Leave the current controls intact for their separate screen-space fade.
+		return
 	var previous_near := _near
-	_near = null if is_revealing() or transitioning else _nearest_target()
+	_near = null if is_revealing() else _nearest_target()
 	if _near != previous_near and _near in _paintings:
 		get_node(^"/root/LevelManager").call("prepare_level", String(_near.get("level_id")))
-	if not transitioning:
-		for painting in _paintings:
-			painting.call("set_player_aligned", painting == _near)
+	for painting in _paintings:
+		painting.call("set_player_aligned", painting == _near)
 	_prompt.visible = _near != null
 	if _near == null:
 		return

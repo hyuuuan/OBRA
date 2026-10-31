@@ -7,6 +7,7 @@ var failures := 0
 var started_at := 0
 var finished_at := 0
 var visual := false
+var visual_only := false
 var captures: Array[Dictionary] = []
 var requested_at := 0
 var level_number := 1
@@ -16,6 +17,7 @@ var return_mode := ""
 func _initialize() -> void:
 	root.set_content_scale_size(Vector2i(1600, 900))
 	visual = "--visual" in OS.get_cmdline_user_args()
+	visual_only = "--visual-only" in OS.get_cmdline_user_args()
 	for argument in OS.get_cmdline_user_args():
 		if argument.begins_with("--level="):
 			level_number = clampi(argument.trim_prefix("--level=").to_int(), 1, 5)
@@ -48,43 +50,48 @@ func _run() -> void:
 	var painting := hub.get_node("Painting%d" % level_number) as Node2D
 	var apo := hub.get_node("Apo") as Node2D
 	apo.set_physics_process(false)
-	apo.position.x = painting.position.x - 140.0
-	await create_timer(0.5).timeout
-	_check(is_zero_approx(float(painting.get("_nudge_height"))), "outside the horizontal tolerance the painting rests")
-	apo.position.x = painting.position.x - 80.0
-	await create_timer(0.10).timeout
-	_check(float(painting.get("_nudge_height")) > 3.0, "walking inline lifts the painting even below it on the floor")
-	await create_timer(0.5).timeout
-	_check(is_zero_approx(float(painting.get("_nudge_height"))) and painting.get("_nudge_scale") == 1.0,
-		"the tap settles at its original position and size")
-	await create_timer(0.5).timeout
-	_check(is_zero_approx(float(painting.get("_nudge_height"))), "standing inline does not repeat the tap")
-	apo.position.x = painting.position.x - 140.0
-	await process_frame
-	await process_frame
-	apo.position.x = painting.position.x + 37.0
-	var hall_x := apo.position.x
-	await create_timer(0.10).timeout
-	_check(float(painting.get("_nudge_height")) > 3.0, "leaving and returning rearms the tap")
-	await create_timer(0.5).timeout
+	var hall_x := painting.position.x + 37.0
+	if not visual_only:
+		apo.position.x = painting.position.x - 140.0
+		await create_timer(0.5).timeout
+		_check(is_zero_approx(float(painting.get("_nudge_height"))), "outside the horizontal tolerance the painting rests")
+		apo.position.x = painting.position.x - 80.0
+		await create_timer(0.10).timeout
+		_check(float(painting.get("_nudge_height")) > 3.0, "walking inline lifts the painting even below it on the floor")
+		await create_timer(0.5).timeout
+		_check(is_zero_approx(float(painting.get("_nudge_height"))) and painting.get("_nudge_scale") == 1.0,
+			"the tap settles at its original position and size")
+		await create_timer(0.5).timeout
+		_check(is_zero_approx(float(painting.get("_nudge_height"))), "standing inline does not repeat the tap")
+		apo.position.x = painting.position.x - 140.0
+		await process_frame
+		await process_frame
+		apo.position.x = painting.position.x + 37.0
+		await create_timer(0.10).timeout
+		_check(float(painting.get("_nudge_height")) > 3.0, "leaving and returning rearms the tap")
+		await create_timer(0.5).timeout
+	else:
+		apo.position.x = hall_x
+		await create_timer(0.5).timeout
 	if visual:
 		await _shot("00_hall")
 
-	# Assert the curve's actual velocity, endpoints and monotonicity, including its 40/60 split.
-	var previous := 0.0
-	var monotonic := true
-	var peak_at := 0.0
-	var peak_speed := 0.0
-	for index in range(1, 1001):
-		var at := index / 1000.0
-		var value := Entry.entry_ease(at)
-		monotonic = monotonic and value >= previous and value <= 1.0
-		if value - previous > peak_speed:
-			peak_speed = value - previous
-			peak_at = at
-		previous = value
-	_check(monotonic and is_equal_approx(previous, 1.0), "the ease reaches exactly 1 without reversing or overshooting")
-	_check(absf(peak_at - 0.4) < 0.005, "maximum speed occurs at 40 percent, followed by 60 percent settling")
+	if not visual_only:
+		# Assert the curve's actual velocity, endpoints and monotonicity, including its 40/60 split.
+		var previous := 0.0
+		var monotonic := true
+		var peak_at := 0.0
+		var peak_speed := 0.0
+		for index in range(1, 1001):
+			var at := index / 1000.0
+			var value := Entry.entry_ease(at)
+			monotonic = monotonic and value >= previous and value <= 1.0
+			if value - previous > peak_speed:
+				peak_speed = value - previous
+				peak_at = at
+			previous = value
+		_check(monotonic and is_equal_approx(previous, 1.0), "the ease reaches exactly 1 without reversing or overshooting")
+		_check(absf(peak_at - 0.4) < 0.005, "maximum speed occurs at 40 percent, followed by 60 percent settling")
 
 	requested_at = Time.get_ticks_msec()
 	_press(KEY_E)
@@ -127,15 +134,16 @@ func _run() -> void:
 	if not return_mode.is_empty():
 		await _return_to_hall(manager, profile, hall_x)
 
-	# Reduced motion keeps the same duration, a calm dissolve, and no enlargement or blur.
-	profile.call("set_setting", "reduce_motion", true)
-	entry.prepare({"art": painting_art(), "art_size": Vector2(128, 72), "moulding": 8.0,
-		"light": 1.0, "transform": Transform2D.IDENTITY}, null)
-	entry.apply_progress(0.44)
-	var effect := entry.get("_effect") as ShaderMaterial
-	_check(not bool(entry.get("_frame").visible) and is_zero_approx(float(effect.get_shader_parameter("blur_pixels")))
-		and is_zero_approx(float(effect.get_shader_parameter("exposure_stops"))), "reduced motion removes zoom, blur and exposure flash")
-	entry.clear()
+	if not visual_only:
+		# Reduced motion keeps the same duration, a calm dissolve, and no enlargement or blur.
+		profile.call("set_setting", "reduce_motion", true)
+		entry.prepare({"art": painting_art(), "art_size": Vector2(128, 72), "moulding": 8.0,
+			"light": 1.0, "transform": Transform2D.IDENTITY}, null)
+		entry.apply_progress(0.44)
+		var effect := entry.get("_effect") as ShaderMaterial
+		_check(not bool(entry.get("_composite").visible) and is_zero_approx(float(effect.get_shader_parameter("blur_pixels")))
+			and is_zero_approx(float(effect.get_shader_parameter("exposure_stops"))), "reduced motion removes zoom, blur and exposure flash")
+		entry.clear()
 	current_scene.queue_free()
 	await process_frame
 	await process_frame
