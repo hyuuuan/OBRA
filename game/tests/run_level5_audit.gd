@@ -21,7 +21,7 @@ const JUMP := 94.3
 const FLOOR_BEFORE := 180.0
 
 ## Every check this audit makes. A script error that skips them must not pass as quiet.
-const CHECKS := 14
+const CHECKS := 15
 
 var failures := 0
 var checked := 0
@@ -53,6 +53,7 @@ func _run() -> void:
 	_audit_the_fragments(scene)
 	_audit_the_flower_is_off_the_path(scene)
 	_audit_nothing_the_ash_takes_is_solid(scene)
+	_audit_mayon_is_silent(scene)
 	scene.queue_free()
 	for _frame in range(6):
 		await process_frame
@@ -328,6 +329,22 @@ func _audit_nothing_the_ash_takes_is_solid(scene: Node) -> void:
 			solid.append(String(node.name))
 	_check(not taken.is_empty() and solid.is_empty(), "nothing the ash takes is solid",
 		"%d things taken, none stood on" % taken.size() if solid.is_empty() else "solid: " + ", ".join(solid))
+
+
+## Mayon is silent (Kent, 2026-11-01): no player of its own, and its sound ids stay hooks with
+## no file behind them, so nothing plays until real audio is chosen.
+func _audit_mayon_is_silent(scene: Node) -> void:
+	var players := scene.find_children("*", "AudioStreamPlayer", true, false)
+	players.append_array(scene.find_children("*", "AudioStreamPlayer2D", true, false))
+	var audio: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://config/audio.json"))
+	var voiced: Array[String] = []
+	for section in ["sfx", "music"]:
+		var ids: Dictionary = audio.get(section, {})
+		for id: String in ids:
+			if id.begins_with("mayon_") and not String(ids[id]).is_empty():
+				voiced.append(id)
+	_check(players.is_empty() and voiced.is_empty(), "Mayon plays no sound or music",
+		"%d players, voiced ids %s" % [players.size(), voiced])
 
 
 # --- Helpers ----------------------------------------------------------------------------

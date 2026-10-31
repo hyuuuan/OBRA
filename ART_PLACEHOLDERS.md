@@ -398,7 +398,7 @@ include.
 | **Memory fragments** | Torn boxes of the finished paintings; the flower's is a scrap of path tile with Payyo's hidden flower. | `game/assets/Level5/fragments/` (`tools/build_mayon_fragments.py`) | Hand-torn fragments; the flower's should look like nothing. |
 | **The summit** | Near-white cone and ground; transparent scenery from earlier levels blooms in save order with the player's actual strokes. | `game/assets/Level5/restoration/`, `level_5.gd`, `memory_bloom_2d.gd` | Twelve purpose-drawn, ground-registered restored landscapes. |
 | **The old bridge, the old steps** | Dedicated generated rope bridge and eroded basalt stairs, with shader white/blank states. | `game/assets/Level5/props/old_crossing.png`, `old_steps.png` | Art-directed same-size sprites, preserving their walk-line registration. |
-| **Sound** | Original synthesized eruption, wind, brush, and ending cue. No recorded Lola voice. | `game/assets/Level5/audio/` (`tools/build_mayon_audio.py`) | Directed recordings or instrumentation retaining bus, loop, and cue contracts. |
+| **Sound** | None: Mayon is silent (the synthesized audio was removed 2026-11-01). No recorded Lola voice. | `game/config/audio.json` hooks `mayon_brush`, `mayon_ending` (no file) | Directed recordings or instrumentation, if sound is wanted again; the audit then needs its silence check changed. |
 
 
 ### Mayon overhaul 31 October 2026

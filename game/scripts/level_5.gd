@@ -157,7 +157,6 @@ func _build_level_furniture() -> void:
 	_gather_fragments()
 	_gather_the_ash()
 	_cluster_data = director.level_data().get("memory_clusters", [])
-	_start_weather_audio()
 
 
 func _level_physics(anchor_position: Vector2) -> void:
@@ -811,7 +810,6 @@ func _tend_summit(delta: float, her_x: float) -> void:
 				for child in $CanvasLayer.get_children():
 					if child is CanvasItem and child != hud_panel:
 						_hud_before_summit[child] = (child as CanvasItem).visible
-				_stop_weather_audio()
 				if placement_controller.is_placing():
 					placement_controller.cancel_placement()
 				_stow_equipped()
@@ -1015,9 +1013,6 @@ func _reset_summit() -> void:
 		camera.set_room_bounds(Rect2())
 		camera.vertical_pin_y = NAN
 		camera.offset = Vector2.ZERO
-	for voice in _weather_players:
-		if not voice.playing:
-			voice.play()
 	if action_prompts != null:
 		action_prompts.suppressed = false
 	status_label.show()
@@ -1054,30 +1049,3 @@ func frame_hooks() -> Array[String]:
 
 func went_home() -> bool:
 	return _went_home
-
-
-# --- The mountain heard, then silence ------------------------------------------------------
-var _weather_players: Array[AudioStreamPlayer] = []
-
-
-func _start_weather_audio() -> void:
-	for sound in ["eruption", "wind"]:
-		var voice := AudioStreamPlayer.new()
-		voice.name = "Mayon" + sound.capitalize()
-		var recording := load("res://assets/Level5/audio/%s.wav" % sound) as AudioStreamWAV
-		if recording == null:
-			continue
-		var loop := recording.duplicate() as AudioStreamWAV
-		loop.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		loop.loop_end = int(loop.get_length() * loop.mix_rate)
-		voice.stream = loop
-		voice.bus = &"SFX"
-		voice.volume_db = -12.0 if sound == "eruption" else -18.0
-		add_child(voice)
-		voice.play()
-		_weather_players.append(voice)
-
-
-func _stop_weather_audio() -> void:
-	for voice in _weather_players:
-		voice.stop()

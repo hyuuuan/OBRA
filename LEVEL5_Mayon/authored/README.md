@@ -28,11 +28,9 @@ The memory scraps remain deterministic crops of earlier paintings, rather than
 twelve newly illustrated memories. Their torn edges are procedural. The summit
 compositions reuse transparent scenery from those levels (see the revision below).
 
-The soundscape is original synthesized audio from `tools/build_mayon_audio.py`:
-filtered noise for wind/eruption and brush contact, and an original sparse ending
-melody. It is not field audio, traditional Bicol music, or a recorded instrumental
-performance. A recorded Lola voice is still absent. These are the remaining audio
-production gaps; no dialogue playback depends on a future recording.
+Mayon is silent. Its synthesized wind, eruption, brush and ending cue were removed on
+1 November 2026; `mayon_brush` and `mayon_ending` remain in `game/config/audio.json` as
+hooks with no file. A recorded Lola voice is also absent; no dialogue playback depends on one.
 
 ## Landscape revision after in-game visual review
 
@@ -63,7 +61,7 @@ piece in the summit. The old enlarged torn-card summit outputs have been removed
 The new upper slope, cliff materials, crossing, steps, column and arch join the
 provisional generated-art review list. The crossing and steps are no longer
 repeated path/masonry rectangles. Memory targets remain procedural torn crops;
-there is still no recorded Lola voice, and all new audio remains synthesized.
+there is still no recorded Lola voice, and Mayon has no audio.
 
 `bangka_memory.png` is a dedicated generated restoration vignette with water
 ripples, replacing the enlargement of Dagat's small code-drawn boat. It is part of
