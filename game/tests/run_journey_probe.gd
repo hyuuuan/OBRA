@@ -289,6 +289,17 @@ func _house_to(manager: Node, level_id: String, title: String) -> void:
 	_check(apo != null and painting != null, "the house has %s's painting" % title, "-")
 	if apo == null or painting == null:
 		return
+	# ⚠ THE HOUSE IS STILL OPENING IT. A level that unlocks the next one comes home to that
+	# painting's reveal -- the camera goes over, the padlock comes off -- and the house ignores
+	# E until it is done (#138: "painting selection waits until the unlock reveal finishes").
+	# Pressed twenty frames in, E fell into the reveal and Dagat, Dilim and Mayon all stayed in
+	# the house. A player waits for it, so the walker waits; one that never ends still fails.
+	var waited := 0.0
+	while waited < 8.0 and bool(hub.call("is_revealing")):
+		await create_timer(0.1).timeout
+		waited += 0.1
+	_check(not bool(hub.call("is_revealing")), "and the house has finished opening it",
+		"%.1f s" % waited)
 	apo.global_position = Vector2(painting.global_position.x, apo.global_position.y)
 	for _i in range(20):
 		await process_frame
