@@ -227,8 +227,10 @@ func _test_ending_resolver() -> void:
 		[0, 0, 3, 12, 0.1, 0, EndingResolver.ENDING_C],   # protector commitment
 		[0, 0, 0, 12, 0.9, 0, EndingResolver.ENDING_D],   # telemetry-only perseverance
 		[0, 0, 0, 0, 0.0, 0, EndingResolver.ENDING_D],    # empty profile still resolves
-		[3, 0, 3, 30, 0.1, 5, EndingResolver.ENDING_A],   # A outranks C
-		[0, 3, 3, 5, 0.1, 0, EndingResolver.ENDING_B],    # B outranks C
+		# Thesis §4.5.4.5: C -> A -> B -> D. A replayed run can hold two commitments at once.
+		[3, 0, 3, 30, 0.1, 5, EndingResolver.ENDING_C],   # C outranks A
+		[0, 3, 3, 5, 0.1, 0, EndingResolver.ENDING_C],    # C outranks B
+		[3, 3, 0, 5, 0.1, 5, EndingResolver.ENDING_B],    # A's diversity fails, so B
 	]
 	for case_value in cases:
 		var c: Array = case_value

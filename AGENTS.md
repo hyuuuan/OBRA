@@ -651,7 +651,7 @@ Traps found building it:
   object costs no ink to summon again. `ConceptGate2D` (`concept_gate_2d.gd`) reads
   that query, so acquiring a concept later retroactively opens gates in every level.
 - `EndingResolver` (`game/scripts/ending_resolver.gd`) is total and deterministic:
-  fixed precedence A → B → C → D, with D as the default so every profile resolves to
+  fixed precedence C → A → B → D (the manuscript's, §4.5.4.5), with D as the default so every profile resolves to
   exactly one ending. Keep it pure — `resolve_values()` must stay directly testable.
 - The July status notes for this work (the persistence TODO and its handoff) were retired
   on 2026-10-05; they are in git history if needed.

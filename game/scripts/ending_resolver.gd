@@ -7,16 +7,22 @@ extends RefCounted
 ## Several conditions can hold at once, so the resolver is **total and deterministic**:
 ## it evaluates a fixed precedence order and always returns one ending.
 ##
-## Precedence (first match wins), and why:
-##   1. A — Masterpiece:      the most demanding ending; every condition must hold,
-##                            so it can never be masked by a broader one below it.
-##   2. B — Rushed Sketch:    its low-diversity condition is mutually exclusive with
-##                            A's high-diversity one; ordered above C so a player who
-##                            rushed *and* protected reads as the rush they committed to.
-##   3. C — Protector:        route-only condition, broader than A and B.
+## Precedence (first match wins) is the manuscript's, thesis §4.5.4.5: C → A → B → D.
+##   1. C — Protector:        route-only. It goes first because it is the one ending
+##                            the player chose outright -- Lolo spending himself to
+##                            shield them is a decision, the others are a record.
+##   2. A — Masterpiece:      the most demanding; every condition must hold.
+##   3. B — Rushed Sketch:    its low diversity can never hold together with A's high.
 ##   4. D — Persevering:      the telemetry-only fallback for a player who kept
 ##                            redrawing without committing to a route.
 ##   5. D is also the default when nothing else matches, so the result is total.
+##
+## ⚠ THE ORDER DECIDES REAL CASES. The manuscript calls A, B and C mutually exclusive
+## "by construction", counting four dialogue nodes, but the tally here grows with every
+## fork and every replay, so two routes can both reach three. This used to run A → B → C;
+## it was moved to the manuscript's order (2026-10-31) rather than leaving the two to
+## disagree. The endings are logged to telemetry, never shown (Mayon's summit is the
+## ending), so no player sees a difference.
 ##
 ## Static and pure: it reads a profile and returns data, touching no scene state, which
 ## keeps it directly testable.
@@ -65,12 +71,12 @@ static func resolve_values(
 	redraw_rate: float,
 	flowers: int
 ) -> String:
+	if protector >= ROUTE_COMMITMENT:
+		return ENDING_C
 	if artist >= ROUTE_COMMITMENT and flowers >= TOTAL_FLOWERS and class_diversity > HIGH_DIVERSITY:
 		return ENDING_A
 	if pragmatist >= ROUTE_COMMITMENT and class_diversity < LOW_DIVERSITY:
 		return ENDING_B
-	if protector >= ROUTE_COMMITMENT:
-		return ENDING_C
 	if redraw_rate >= HIGH_REDRAW_RATE:
 		return ENDING_D
 	return ENDING_D  # total by construction: perseverance is the default reading
