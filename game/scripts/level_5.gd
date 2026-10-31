@@ -391,8 +391,9 @@ func _tend_clusters(her_x: float) -> void:
 				for fragment in _fragments:
 					if fragment.cluster_id == id:
 						fragment.begin_whitening()
-		if (her_x < float(entry.entry) or her_x >= float(entry.exit)) \
-				and _clusters_seen.has(id) and not _clusters_left.has(id):
+		# ⚠ ONLY PAST THE FAR EDGE IS LEAVING. The entry sits mid-step with open ground below it,
+		# and stepping back a pixel used to blank all four memories and save her there.
+		if her_x >= float(entry.exit) and _clusters_seen.has(id) and not _clusters_left.has(id):
 			_clusters_left.append(id)
 			for fragment in _fragments:
 				if fragment.cluster_id == id:

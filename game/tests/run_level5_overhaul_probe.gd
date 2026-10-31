@@ -2,7 +2,7 @@ extends SceneTree
 ## Contracts that teleport-driven old probes could not establish: locked context, paused
 ## clocks, exact saved ink, real canvas input, no recognition for quiet/free drawing,
 ## a mid-line disappearance, and a visible ordinary brush.
-const CHECKS := 14
+const CHECKS := 15
 var checked := 0
 var failures := 0
 var level: Node
@@ -38,6 +38,13 @@ func _run() -> void:
 	for id in ["kubo", "terraces", "bandaritas", "dancers"]:
 		four += int((level.call("_fragment", id) as MemoryFragment2D).state() == "draining")
 	_check(four == 4 and church.state() == "whole", "one cluster starts together; remote memories wait")
+	# Back down below the entry, as a run-up or a misstep would take her: nothing is spent.
+	_put(Vector2(5200, 100))
+	await _wait(.15)
+	_check(kubo.is_open() and not (level.get("_clusters_left") as Array).has("memory_1"),
+		"stepping back below a cluster does not leave it")
+	_put(kubo.global_position + Vector2(0, 60))
+	await _wait(.15)
 	level.call("_open_the_page", true)
 	var before := kubo.drain()
 	await _wait(.25)
@@ -69,8 +76,10 @@ func _run() -> void:
 	_check(lost.state() == "lost" and "memory_1" in level.get("_clusters_left"), "departed choices stay lost on reload")
 	level.call("_tend_clusters", 7200.0)
 	level.call("_tend_clusters", 7000.0)
-	_check(church.state() == "passing" and "memory_2" in level.get("_clusters_left"),
-		"leaving a cluster downhill also begins permanent loss")
+	var stayed := church.is_open() and not (level.get("_clusters_left") as Array).has("memory_2")
+	level.call("_tend_clusters", 8600.0)
+	_check(stayed and church.state() == "passing" and "memory_2" in level.get("_clusters_left"),
+		"a cluster is left only past its far edge, never by stepping back downhill")
 	var profile := root.get_node("PlayerProfile")
 	var routes_before: int = profile.call("route_count", "artist")
 	level.call("_on_fragment_saved", "flower")
