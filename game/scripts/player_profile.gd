@@ -83,6 +83,8 @@ func _default_profile() -> Dictionary:
 		"last_level": "",                # the level entered most recently -- the title screen paints it
 		"came_from": "",                 # the level entered before that one -- Lolo remarks on it
 		"dialogue_heard": {},            # conversation id -> times it has been played
+		"dialogue_pool_clock": {},       # pool -> picks it has made (ShuffleBag's "over time")
+		"dialogue_last_pick": {},        # line id -> its pool's clock when it was last said
 		"route_counts": {"artist": 0, "pragmatist": 0, "protector": 0},
 		"route_history": [],             # every route taken, oldest first
 		"collectibles": [],
@@ -477,6 +479,24 @@ func dialogue_heard_count(conversation_id: String) -> int:
 	return int((_data["dialogue_heard"] as Dictionary).get(conversation_id, 0))
 
 
+## A pool has said one of its lines (ShuffleBag). The line counts as heard, and the pool's
+## clock -- the measure a heard line recovers over -- moves on. No schema bump: both fields
+## are additive with safe defaults, the way `brush_acquired` arrived.
+func note_pool_pick(pool: String, line_id: String) -> void:
+	var clock: Dictionary = _data["dialogue_pool_clock"]
+	clock[pool] = int(clock.get(pool, 0)) + 1
+	(_data["dialogue_last_pick"] as Dictionary)[line_id] = int(clock[pool])
+	note_dialogue_heard(line_id)
+
+
+## How many picks this pool has made since the line was last said; 0 if it never was.
+func picks_since(pool: String, line_id: String) -> int:
+	var last: Variant = (_data["dialogue_last_pick"] as Dictionary).get(line_id)
+	if last == null:
+		return 0
+	return int((_data["dialogue_pool_clock"] as Dictionary).get(pool, 0)) - int(last)
+
+
 func route_counts() -> Dictionary:
 	return (_data["route_counts"] as Dictionary).duplicate()
 
@@ -687,7 +707,8 @@ func _merge_defaults(incoming: Dictionary) -> Dictionary:
 	# reads all of them unconditionally, so each has to resolve.
 	for key in ["last_level", "came_from"]:
 		base[key] = String(base.get(key, ""))
-	for key in ["obstacle_routes", "level_visits", "dialogue_heard", "routes"]:
+	for key in ["obstacle_routes", "level_visits", "dialogue_heard", "routes",
+			"dialogue_pool_clock", "dialogue_last_pick"]:
 		if not (base[key] is Dictionary):
 			base[key] = {}
 	if not (base["settings"] is Dictionary):

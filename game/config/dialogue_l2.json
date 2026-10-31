@@ -570,6 +570,112 @@
       "id": "L2_AG_012",
       "at": "L2_N3.choice.again.all",
       "text": "You know every way to the last of her now. Choose what your heart says."
+    },
+    {
+      "id": "L2_POOL_NF_1",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "{fact} The fiesta needs something that can {needed}, though."
+    },
+    {
+      "id": "L2_POOL_NF_2",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "{who} can {can}, but this needs something that can {needed}.",
+      "priority": 2
+    },
+    {
+      "id": "L2_POOL_NF_3",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Not that, apo. Here we need something that can {needed}."
+    },
+    {
+      "id": "L2_POOL_NF_4",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "The whole town is watching. Show them something that can {needed}."
+    },
+    {
+      "id": "L2_POOL_NF_5",
+      "at": "comment.not_fit",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "At a pista everyone brings what they can. This needs something that can {needed}."
+    },
+    {
+      "id": "L2_POOL_DC_1",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Too many lines at once, like the plaza at noon. Keep only the ones that matter."
+    },
+    {
+      "id": "L2_POOL_DC_2",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "I cannot read it yet. Finish the outline; a broken line reads as something else."
+    },
+    {
+      "id": "L2_POOL_DC_3",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "It does not need to be big. It needs to be clear."
+    },
+    {
+      "id": "L2_POOL_DC_4",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Leave out the stray marks. They are what confuse me."
+    },
+    {
+      "id": "L2_POOL_DC_5",
+      "at": "comment.decline.confidence",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Draw the one part everyone would know it by."
+    },
+    {
+      "id": "L2_POOL_DM_1",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "It could be two things, like two dancers in the same costume. Show me which."
+    },
+    {
+      "id": "L2_POOL_DM_2",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Close. Give it the detail that only one of them has."
+    },
+    {
+      "id": "L2_POOL_DM_3",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "I see two answers in it. One more line will choose."
+    },
+    {
+      "id": "L2_POOL_DM_4",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Almost. Add what sets it apart."
+    },
+    {
+      "id": "L2_POOL_DM_5",
+      "at": "comment.decline.margin",
+      "speaker": "lolo",
+      "kind": "hint",
+      "text": "Two things share that shape. Make the difference clear."
     }
   ],
   "returns": [

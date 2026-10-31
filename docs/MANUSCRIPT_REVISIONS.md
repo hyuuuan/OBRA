@@ -23,7 +23,7 @@ game on 2026-10-31, so the text can stay:
 
 The three items the team chose to appeal are marked **[appeal]**. They should not be edited
 until the panel answers: the TU-Berlin protocol, the game design as built, and deferring
-audio and dialogue.
+audio. The shuffle-bag dialogue was built instead of deferred (#157).
 
 ---
 
@@ -78,7 +78,8 @@ audio and dialogue.
 - **Why:** this is what §3.2.9 and §4.5.1 already say; §1.4 contradicts them.
 
 ### §1.4 (p. 8) — [appeal]
-Move dynamic audio and the shuffle-bag dialogue system into the limitations, as future work.
+Move dynamic audio into the limitations, as future work. (The shuffle-bag dialogue is built;
+see §4.5.4.4.)
 
 ---
 
@@ -224,8 +225,19 @@ The text is now true. Add the specifics, so it can be checked:
 players at four skill levels. For an average player, raising the bar from 0.60 to 0.75 lowers
 right-first-time from 0.714 to 0.661 and halves wrong accepts, from 12.8% to 7.1% of attempts.
 
-### §4.5.4.4 Priority Queue Dialogue (p. 125) — [appeal]
-Move to future work. Each beat currently plays one line.
+### §4.5.4.4 Priority Queue Dialogue (p. 125) — Should: built (#157)
+The text can stay. Optionally make it concrete:
+
+> Lines are drawn from pools by weight. An unheard line weighs its priority plus 100. A heard
+> line drops to zero and recovers in a straight line over the pool's later picks, reaching its
+> full weight after as many picks as the pool has lines. Replay greetings (with nudges toward
+> a route the player did not take last time) and Lolo's comments on the player's drawings are
+> pools. A comment on a drawing that does not fit names what the drawing can do, what the
+> obstacle needs, or the drawing's own ConceptNet fact. Advice after a declined drawing names
+> what the recogniser rewards: finished lines and no stray marks, never size.
+
+The "slowly recovers over time" is counted in later picks, not hours, so a player replaying
+back to back still hears different lines.
 
 ### §4.5.4.5 Playstyle Profiles & Multiple Endings (pp. 126–127) — Must and [appeal]
 - **Must:** delete "Because there are four nodes in total, no two routes can each be taken three
