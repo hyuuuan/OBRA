@@ -206,7 +206,7 @@ pretending to be another refusal. Both modes bypass live and submitted recogniti
 The apo raises the brush, paints, sees it fail, and lowers it through registered performance
 poses. `DialogueBox.line_progress` lets Lolo vanish as his interrupted sentence is revealed,
 including when a reader reveals the text with a click; dismissal does not control his going.
-At the summit, weather audio stops, the camera frames the pair, ordinary prompts disappear,
+At the summit the camera frames the pair, ordinary prompts disappear,
 and the last free drawing remains alongside the larger saved landscapes and their saved ink.
 Lola turns, receives flowers when earned, and turns back after the recognition passes. The room
 shows both seated actors and a distinct pickup/ordinary-brush pose before the cut to black.
@@ -217,11 +217,12 @@ Original generated atlas and room sources, exact prompts, and replacement contra
 `LEVEL5_Mayon/authored/README.md`. `build_mayon_performance.py` produces the registered actor
 poses, Lola's full-resolution portrait, and the room. The landscape and restoration builders own
 the scenery. The old
-`build_mayon_lola.py` delegates to it; it no longer recolours the apo. `build_mayon_audio.py`
-synthesizes the original eruption, wind, brush contact, and ending cue. No third-party recordings
-or existing musical melody are used. See the authored README for the complete provisional list:
-generated art awaiting art-direction review, procedural memory targets, reused restoration
-scenery, synthetic audio rather than recordings, and the absent recorded Lola voice.
+`build_mayon_lola.py` delegates to it; it no longer recolours the apo. **Mayon is silent** (Kent, 1 November): the synthesized
+eruption, wind, brush and ending cue were removed with `build_mayon_audio.py`, and
+`mayon_brush` / `mayon_ending` stay in `audio.json` as hooks with no file. The audit asserts
+it. See the authored README for the complete provisional list: generated art awaiting
+art-direction review, procedural memory targets, reused restoration scenery, and the absent
+recorded Lola voice.
 
 ### Checks added
 
@@ -303,8 +304,7 @@ results are supplied as fixtures; this validates layout and story flow, not CNN 
 first-time player's 10–15 minute reading/drawing pace. The route spent all six visible units and
 the quiet/free pages added no recognition statistics.
 
-This pass corrects the old room bounds left behind by checkpoint restoration, restores stopped
-weather audio on an earlier landing, removes transient free-paint scenery on reset, seats the
+This pass corrects the old room bounds left behind by checkpoint restoration, removes transient free-paint scenery on reset, seats the
 last ruin on its actual ground, and removes the empty checkpoint flag from silent-save HUDs.
 The apo faces Lola and approaches within reach for the flower handoff; unobstructed beats show
 her turn, receipt and return to painting. Lolo's portrait vanishes with his world sprite, while
@@ -317,5 +317,5 @@ Focused validation: continuous finish walk, memory traversal and camera reload, 
 endings across all three voices, and the dialogue portrait transition probe. The visual tour
 includes disappearance, handoff, brush pickup, and a 1600x1000 room frame. It finishes the staged
 narration before freeing the scene, avoiding retained story coroutines at shutdown. No full-suite rerun was
-used for this finishing pass; generated/provisional artwork and synthesized audio remain listed
+used for this finishing pass; generated/provisional artwork remains listed
 in the authored README and `ART_PLACEHOLDERS.md`.

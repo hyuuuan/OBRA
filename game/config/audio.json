@@ -19,13 +19,11 @@
     "tiyanak_cry": "",
     "lantern_hit": "",
     "dawn": "",
-    "mayon_eruption": "res://assets/Level5/audio/eruption.wav",
-    "mayon_wind": "res://assets/Level5/audio/wind.wav",
-    "mayon_brush": "res://assets/Level5/audio/brush.wav"
+    "mayon_brush": ""
   },
   "music": {
     "menu": "",
     "level_1": "",
-    "mayon_ending": "res://assets/Level5/audio/ending.wav"
+    "mayon_ending": ""
   }
 }

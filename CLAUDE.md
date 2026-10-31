@@ -151,7 +151,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 - The landscape now uses broad generated cliffs and a continuous registered vista; inspect the actual scene after art changes.
 - The optional light gate is intentionally omitted to preserve the memory ink budget.
 - Generated Mayon performances and room need human art-direction review; originals and prompts are retained in `LEVEL5_Mayon/authored/`.
-- Generated landscape/prop art and procedural memory targets remain provisional; summit scenery reuses existing transparent art. Audio is synthesized and Lola has no recorded voice (see the authored README).
+- Generated landscape/prop art and procedural memory targets remain provisional; summit scenery reuses existing transparent art. Mayon is silent (its synthesized audio was removed; its sound ids remain as hooks with no file), and Lola has no recorded voice (see the authored README).
 
 ---
 

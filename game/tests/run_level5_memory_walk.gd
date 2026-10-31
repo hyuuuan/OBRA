@@ -39,16 +39,13 @@ func _run() -> void:
 		await create_timer(.3).timeout
 		await _photo("cluster%d" % (i+1))
 		if i == 0:
-			level.call("_stop_weather_audio")
 			level.call("_restore_checkpoint")
 			for frame in range(8): await physics_frame
 			var camera = level.call("_world_camera")
 			camera.snap_to_target()
-			var audible := true
-			for voice in level.get("_weather_players"): audible = audible and voice.playing
 			_check(player.global_position.x < float(entry.entry) and camera.room_bounds == Rect2()
-				and absf(camera.global_position.x-player.global_position.x) < 400.0 and audible,
-				"a checkpoint outside the memories clears the old camera room and restores weather")
+				and absf(camera.global_position.x-player.global_position.x) < 400.0,
+				"a checkpoint outside the memories clears the old camera room")
 			player.call("apply_morph_state", {"position":start,"linear_velocity":Vector2.ZERO})
 			for frame in range(20): await physics_frame
 		var seen: Array[String] = []
