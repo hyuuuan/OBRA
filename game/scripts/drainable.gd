@@ -30,6 +30,9 @@ var paper := Color(0.957, 0.937, 0.894)
 ## it, from flat paper.
 var wash := 1.0
 var vanish_from := 0.85
+## Whether it draws in its painted colours (drain.gdshader `texture_in_colour`): true for an old
+## way in another level. Mayon's ash leaves it off, the look its tuning was made against.
+var painted_colours := false
 
 ## How far the ash has taken it: 0 painted, 0.5 white, 0.85 flat paper, 1 blank.
 var drain: float = 0.0:
@@ -53,6 +56,7 @@ func _ready() -> void:
 	_material.set_shader_parameter("paper", paper)
 	_material.set_shader_parameter("wash", wash)
 	_material.set_shader_parameter("vanish_from", vanish_from)
+	_material.set_shader_parameter("texture_in_colour", painted_colours)
 	_target.material = _material
 	for item in _target.find_children("*", "CanvasItem", true, false):
 		(item as CanvasItem).use_parent_material = true

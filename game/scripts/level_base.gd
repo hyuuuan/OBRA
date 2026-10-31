@@ -4904,6 +4904,8 @@ func _gather_the_fading() -> void:
 		drainable.paper = _fade_paper()
 		drainable.wash = _fade_wash()
 		drainable.vanish_from = _fade_vanish_from()
+		# Whole until it goes, in the colours it was painted in -- not darkened by the shader.
+		drainable.painted_colours = true
 		thing.add_child(drainable)
 		_fading.append(thing)
 		_faded[thing] = false
