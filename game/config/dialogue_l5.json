@@ -441,6 +441,22 @@
       "speaker": "apo",
       "kind": "lore",
       "text": "..."
+    },
+    {
+      "id": "L5_BRUSH_001",
+      "at": "on_brush_wants_surer",
+      "speaker": "apo",
+      "kind": "hint",
+      "once": true,
+      "text": "Up here it takes only a sure line."
+    },
+    {
+      "id": "L5_BRUSH_002",
+      "at": "on_brush_eases",
+      "speaker": "apo",
+      "kind": "hint",
+      "once": true,
+      "text": "It knows my hand now."
     }
   ]
 }

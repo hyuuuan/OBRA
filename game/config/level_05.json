@@ -108,6 +108,10 @@
   "recognition": {
     "confidence_threshold": 0.6,
     "margin_threshold": 0.15,
+    "acceptance_threshold": 0.75,
+    "eases_after_declines": 2,
+    "ease_step": 0.05,
+    "$comment_acceptance": "The 0.60 / 0.15 floor never moves. acceptance_threshold is the level's own bar above it (thesis 4.5.4.2), raised only once the new brush from Dagat is in hand; after eases_after_declines declines in a row it falls by ease_step per decline to the floor. See SketchClient. Mayon: the last painting; the new brush asks the most.",
     "decline_costs_ink": false,
     "decline_message_source": "dialogue"
   },

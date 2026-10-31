@@ -677,7 +677,17 @@ Traps found building it:
 - Recognition outcomes split in `sketch_client.gd`: `entity_prediction_received`
   (accepted), `entity_declined` (rejected by the 0.60 confidence / 0.15 margin gate),
   and `prediction_failed` (transport/backend error). Accept and decline both feed
-  telemetry and the profile.
+  telemetry and the profile. The gate is the LEVEL's, from its `recognition` block, and the
+  client is the one place it is written (`passes_gate`) -- the panel's gold guess asks it.
+- **The new brush asks more the further from home it is** (thesis §4.5.4.2). Above the
+  floor, each level's `acceptance_threshold` -- Payyo 0.60, Piyesta 0.60, Dagat 0.65, Dilim
+  0.70, Mayon 0.75 -- applies only once `PlayerProfile.has_new_brush()`, and after two
+  declines in a row comes down 0.05 a decline to the floor (an accepted drawing resets it), so
+  nothing can strand her. A drawing the floor took and only the bar refused is declined with
+  reason `"brush"`, said in the brush's words (`on_brush_wants_surer`, `on_brush_eases`), never
+  with the "could not tell it apart" beat, which would be untrue of it. Telemetry records the
+  bar and `floor_accepted`, and `aggregate_telemetry.py` reports `redraw_rate_at_floor`, so the
+  paper's recognition figures stay at the fixed floor.
 - Progression persists: `game_level.gd` completes a level when the player's morph
   reaches the `GoalMarker` in `game_level.tscn`, which marks it complete and unlocks
   the next level in the profile. `LevelManager.is_unlocked()` and the main menu read

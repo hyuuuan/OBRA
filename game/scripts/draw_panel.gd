@@ -526,6 +526,7 @@ func _on_entity_prediction(
 			"margin": response.get("margin", 0.0),
 			"runner_up": response.get("runner_up", {}),
 			"latency_ms": latency_ms,
+			"bar": response.get("gate_bar", confidence),
 		})
 	if _profile:
 		_profile.record_class_drawn(entity)
@@ -547,6 +548,9 @@ func _on_entity_declined(
 	margin: float,
 	response: Dictionary
 ) -> void:
+	# Which part of the gate refused it -- the client's word, read before the run of declines
+	# behind this one could ease the bar, rather than a literal that would drift from it.
+	var reason := String(response.get("gate_reason", client.decline_reason(confidence, margin)))
 	if _telemetry:
 		_telemetry.record_recognition({
 			"outcome": "decline",
@@ -556,6 +560,11 @@ func _on_entity_declined(
 			"margin": margin,
 			"runner_up": response.get("runner_up", {}),
 			"latency_ms": _submit_latency_ms(),
+			"reason": reason,
+			"bar": response.get("gate_bar", confidence),
+			# The paper measures recognition at the fixed floor (§4.5.4.2); a drawing only the
+			# level's raised bar refused is a recognition the floor would have taken.
+			"floor_accepted": reason == "brush",
 		})
 	if _profile:
 		_profile.note_submission(false)
@@ -564,10 +573,10 @@ func _on_entity_declined(
 	_submitting = false
 	transform_button.disabled = false
 	clear_button.disabled = false
-	status.text = "not sure what that is — try drawing it more clearly!"
-	# Which half of the dual gate refused it -- asked of the client, which holds the level's
-	# thresholds, rather than of a literal that would drift from them.
-	var reason := String(client.decline_reason(confidence, margin))
+	# A "brush" decline was READ -- the brush simply wants it surer -- so it is not told it
+	# looked like nothing. Neither line names what the drawing was taken for.
+	status.text = "close — the brush wants a surer line" if reason == "brush" \
+		else "not sure what that is — try drawing it more clearly!"
 	recognition_declined.emit(entity, confidence, margin, reason)
 
 

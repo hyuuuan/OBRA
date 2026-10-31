@@ -122,8 +122,13 @@ obstacles              [ … see below … ]
 hidden_flowers         [ {id, at, gate_tag, gate_unlocked_at_level,
                           behaviour_when_locked, not_a_fail_state} ]
 hint_escalation        t0..t3 — see the hint ladder
-recognition            {confidence_threshold, margin_threshold,
+recognition            {confidence_threshold, margin_threshold,   — the 0.60 / 0.15 floor; READ
+                        acceptance_threshold, eases_after_declines, ease_step,   — the bar
                         decline_costs_ink, decline_message_source}
+                       The floor never moves. `acceptance_threshold` is the level's own bar
+                       above it (thesis §4.5.4.2), asked only once the new brush from Dagat
+                       is in hand, and eased to the floor after a run of declines. See
+                       SketchClient; run_gate_probe holds it.
 cultural_constraints   free-shape, per level — see the guardrail pattern
 lighting_states        [ {id, from, to} ]
 load_time_assertions   [ strings ]  — the level's own invariants, in prose
