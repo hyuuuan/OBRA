@@ -87,6 +87,29 @@ func _ready() -> void:
 	_resend.timeout.connect(_send_pending)
 
 
+## The level's own gate, from the `recognition` block of its level_NN.json. Thesis §3.3.6
+## holds both thresholds "as configuration values ... re-tuned without a code change"; for a
+## long time every level file carried the block and nothing read it, so the numbers that
+## mattered were the export defaults above. A key the block leaves out keeps its default.
+func configure_gate(recognition: Dictionary) -> void:
+	confidence_threshold = float(recognition.get("confidence_threshold", confidence_threshold))
+	margin_threshold = float(recognition.get("margin_threshold", margin_threshold))
+
+
+## THE ONE PLACE THE GATE IS WRITTEN. The drawing panel's live guess colours itself by it, so
+## "gold" always means "Paint will take this" -- it used to repeat 0.6 and 0.15 as literals,
+## which would have gone on saying gold after a level raised its bar.
+func passes_gate(confidence: float, margin: float) -> bool:
+	return confidence >= confidence_threshold and margin >= margin_threshold
+
+
+## Which half of the dual gate refused a drawing. The thesis reports them separately, and
+## they mean different things to a player: a low margin is "it looked like two things", a
+## low confidence is "it looked like nothing".
+func decline_reason(confidence: float, _margin: float) -> String:
+	return "margin" if confidence >= confidence_threshold else "confidence"
+
+
 func _predict_url() -> String:
 	return backend_url if not backend_url.is_empty() else BackendSupervisor.url("/predict")
 
@@ -208,7 +231,7 @@ func _on_request_completed(
 	var margin: float = parsed.get("margin", 1.0)
 	var entity := String(parsed.get("entity", parsed.get("creature", "")))
 	var display_name := String(parsed.get("display_name", entity.capitalize()))
-	if confidence < confidence_threshold or margin < margin_threshold:
+	if not passes_gate(confidence, margin):
 		# A prediction came back but was rejected by the gate — surface it as a
 		# decline (redraw) carrying its class/confidence/margin instead of dropping it.
 		entity_declined.emit(entity, confidence, margin, parsed)
