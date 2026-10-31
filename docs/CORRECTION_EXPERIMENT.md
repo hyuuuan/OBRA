@@ -3,6 +3,11 @@
 2026-10-31. Code: `model/correction_experiment.py`. Raw results: `model/correction_experiment.json`.
 Nothing in the game changed; this asks whether a change would be worth making.
 
+> **Superseded for the game question by [PLAYER_SIMULATION.md](PLAYER_SIMULATION.md).** Played
+> through the real confidence gate by simulated players of four skills, the memory measured here
+> *lowers* first-try success at every skill: the offline gain does not survive the gate. The
+> recommendation below to build it no longer stands. The offline measurements themselves do.
+
 ## The question
 
 Can a handful of drawings the player has labelled, called **corrections**, improve recognition
