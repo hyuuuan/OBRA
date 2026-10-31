@@ -754,6 +754,8 @@ func _build_obstacle_layer() -> void:
 	add_child(director)
 	if not director.load_level(level_config_path()):
 		push_warning("%s: no level data; obstacles will accept nothing" % name)
+	# The recognition gate is the level's, from its own file (see SketchClient.configure_gate).
+	draw_panel.client.call("configure_gate", director.level_data().get("recognition", {}))
 
 	checkpoints = CheckpointManager.new()
 	checkpoints.name = "CheckpointManager"

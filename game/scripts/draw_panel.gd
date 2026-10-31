@@ -275,7 +275,7 @@ func _on_live_prediction(
 	guess_label.text = "I see a %s  ·  %.0f%%" % [display_name, confidence * 100.0]
 	# Colour carries the same judgement the Transform gate will apply, so the player can
 	# tell "it knows what this is" from "it is guessing" without reading the number.
-	var sure: bool = confidence >= 0.6 and margin >= 0.15
+	var sure: bool = client.passes_gate(confidence, margin)
 	guess_label.modulate = Color.WHITE
 	guess_label.add_theme_color_override(&"font_color",
 		UISkin.GOLD_PALE if sure else UISkin.PENDING)
@@ -565,10 +565,9 @@ func _on_entity_declined(
 	transform_button.disabled = false
 	clear_button.disabled = false
 	status.text = "not sure what that is — try drawing it more clearly!"
-	# Which half of the dual gate refused it. The thesis reports these separately, and
-	# they mean different things to a player: a low margin is "it looked like two things",
-	# a low confidence is "it looked like nothing".
-	var reason := "margin" if confidence >= 0.6 else "confidence"
+	# Which half of the dual gate refused it -- asked of the client, which holds the level's
+	# thresholds, rather than of a literal that would drift from them.
+	var reason := String(client.decline_reason(confidence, margin))
 	recognition_declined.emit(entity, confidence, margin, reason)
 
 
