@@ -282,6 +282,12 @@ row: `DagatBackdrop2D.SEABED_TOP_ROW + SEABED_WALK` must land on the collision's
 set with the same prefixes and frame counts drops straight in, since `DagatLife2D` and
 `DagatProp2D` find frames by prefix.
 
+**And the old jetty (1 November)**, same tool: `jetty.png`, a bamboo pier on the bangka's own
+wood and lashing, slats gone and its far end broken off. It is the old way out to sea that fades
+as she comes down the beach (`OldJetty`, see LEVEL_3.md). Under its waterline row its posts take
+the sea's colour and dither out, because the sea plate is behind it, not over it. Replaceable by
+name; a redraw keeps its waterline at row 9 of 46 (×3), which the scene pins to the surface.
+
 **And the bangka (23 September)**, same tool: `bangka_afloat.png` and `bangka_beached.png`.
 It is **the one object in the game that is found rather than drawn**, so it is the one that
 cannot get its picture from the player's ink — it wore the engine's bare outline, a white
