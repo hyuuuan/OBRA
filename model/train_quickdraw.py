@@ -17,6 +17,8 @@ Usage:
 import argparse
 import json
 import os
+import platform
+import random
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -45,6 +47,55 @@ DEFAULT_SAMPLES_PER_CLASS = 40_000  # each Quick Draw category has 100k+; this i
 DEFAULT_EPOCHS = 8
 DEFAULT_BATCH_SIZE = 256
 DEFAULT_LEARNING_RATE = 1e-3
+DEFAULT_SEED = 42  # the split always used 42; the rest of training now shares it
+
+
+def seed_everything(seed: int) -> None:
+    """Seed every source of randomness training draws on.
+
+    Only the 80/10/10 split used to be seeded, so the split was reproducible and nothing
+    else was: weight initialisation, the DataLoader's shuffle and the augmentation all
+    drew from unseeded generators, and the thesis (§4.7.5) says training "uses a fixed
+    random seed". With this, a rerun on the same machine and versions draws the same
+    numbers. ⚠ It is not a promise of bit-identical weights across devices: cuda and mps
+    kernels are not all deterministic, which is why the versions and device are recorded
+    in model_metadata.json beside the seed.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+
+def seed_worker(_worker_id: int) -> None:
+    """Give each DataLoader worker its own numpy/random state, derived from torch's.
+
+    torch seeds every worker from the loader's generator, but the augmentation's resample
+    size comes from numpy, and forked workers would otherwise all inherit one numpy state.
+    """
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
+
+def framework_versions() -> dict:
+    """What produced this model, recorded beside it (the manuscript's Table 10 lists
+    versions the repository could not show)."""
+    import sklearn
+    import torchvision
+
+    versions = {
+        "python": platform.python_version(),
+        "torch": torch.__version__,
+        "torchvision": torchvision.__version__,
+        "numpy": np.__version__,
+        "scikit-learn": sklearn.__version__,
+    }
+    for module in ("onnx", "onnxscript", "matplotlib"):
+        try:
+            versions[module] = __import__(module).__version__
+        except ImportError:
+            versions[module] = None
+    return versions
 
 
 def best_device() -> str:
@@ -130,7 +181,7 @@ def canonicalize_batch(flat: np.ndarray) -> np.ndarray:
     return (out * 255.0).astype(np.uint8).reshape(len(flat), 784)
 
 
-def load_splits(source_names: list[str], samples_per_class: int):
+def load_splits(source_names: list[str], samples_per_class: int, seed: int = DEFAULT_SEED):
     """80/10/10 train/val/test split, shuffled with a fixed seed."""
     images, labels = [], []
     data_dir = HERE / "data"
@@ -148,7 +199,7 @@ def load_splits(source_names: list[str], samples_per_class: int):
     images = np.concatenate(images)
     labels = np.concatenate(labels)
 
-    rng = np.random.default_rng(seed=42)
+    rng = np.random.default_rng(seed=seed)
     order = rng.permutation(len(labels))
     images, labels = images[order], labels[order]
 
@@ -221,7 +272,10 @@ def main() -> None:
         default=max(1, min(4, (os.cpu_count() or 2) // 2)),
         help="DataLoader worker processes",
     )
+    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
+                        help="seeds the split, weight initialisation, shuffling and augmentation")
     args = parser.parse_args()
+    seed_everything(args.seed)
 
     global DEVICE
     if args.device != "auto":
@@ -238,14 +292,16 @@ def main() -> None:
     print(f"training on: {DEVICE}")
     print("entities:", ", ".join(output_names))
     print("source labels:", ", ".join(source_names))
-    train_set, val_set, test_set = load_splits(source_names, args.samples_per_class)
+    train_set, val_set, test_set = load_splits(source_names, args.samples_per_class, args.seed)
     loader_kwargs = {
         "batch_size": args.batch_size,
         "num_workers": args.num_workers,
+        "worker_init_fn": seed_worker,
         "persistent_workers": args.num_workers > 0,
         "pin_memory": DEVICE == "cuda",
     }
-    train_loader = DataLoader(train_set, shuffle=True, **loader_kwargs)
+    shuffle_generator = torch.Generator().manual_seed(args.seed)
+    train_loader = DataLoader(train_set, shuffle=True, generator=shuffle_generator, **loader_kwargs)
     val_loader = DataLoader(val_set, **loader_kwargs)
     test_loader = DataLoader(test_set, **loader_kwargs)
 
@@ -321,6 +377,8 @@ def main() -> None:
         "device": DEVICE,
         "num_workers": args.num_workers,
         "preprocess": "backend/preprocess.py",
+        "seed": args.seed,
+        "versions": framework_versions(),
     }, indent=2))
     (HERE / "metrics.json").write_text(json.dumps({
         "format_version": 1,
