@@ -137,11 +137,7 @@ var _bangka_x := NAN
 ## How far into the sand it lies before it is dug out, and the sand heaped over its keel.
 const BURIED_SINK := 6.0
 var _sand_heap: Sprite2D
-## A Carry shape walking it down: how far ahead of the shape's middle the hull is kept.
-const PUSH_LEAD := 150.0
-## One anvil dropped behind it: how far the hull goes.
-const ANVIL_SHOVE := 320.0
-## How fast E drags it the whole way.
+## How fast it goes down the sand, dragged by E or knocked by the anvil.
 const DRAG_SPEED := 300.0
 var _anvil_lines := 0
 
@@ -1241,7 +1237,6 @@ func _level_physics(anchor_position: Vector2) -> void:
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
 	_guide_the_bakunawa(anchor_position)
-	_push_the_bangka(anchor_position, delta)
 	_breathe(anchor_position, delta)
 	_fish()
 	_mind_the_creatures(anchor_position)
@@ -1491,14 +1486,15 @@ func _interact_with_level() -> bool:
 	return true
 
 
-## E over the hull says what it will do: dig it out and drag it down with a helper held, and push
-## without one -- which is what the apo would try, and E then says why it will not go.
+## E over the hull says what it will do: drag it in with a helper held -- digging it out is part of
+## that, so it is one verb -- and push without one, which is what the apo would try, and E then
+## says why it will not go.
 func _level_interact_offer() -> Dictionary:
 	if not _at_the_beached_bangka():
 		return {}
 	if not _a_helper_is_held():
 		return {"name": "Bangka", "verb": "PUSH"}
-	return {"name": "Bangka", "verb": "DRAG IN" if _bangka_dug else "DIG OUT"}
+	return {"name": "Bangka", "verb": "DRAG IN"}
 
 
 ## The anvil in the apo's hand.
@@ -1521,7 +1517,7 @@ func _judge_the_mover(entity_id: String) -> void:
 
 
 ## Dug out: the keel comes up out of the sand, the heap over it goes, and sand flies. Once.
-func _dig_out_the_bangka() -> void:
+func _dig_out_the_bangka(say_it := true) -> void:
 	if _bangka_dug or _bangka == null or not is_instance_valid(_bangka):
 		return
 	_bangka_dug = true
@@ -1537,7 +1533,8 @@ func _dig_out_the_bangka() -> void:
 	if _life != null:
 		for step in range(3):
 			_life.sparkle(_bangka.global_position + Vector2(-60.0 + 60.0 * step, 4.0), 4, 22.0)
-	_speak(script_lines.fire("L3_N1.artist.dug"))
+	if say_it:
+		_speak(script_lines.fire("L3_N1.artist.dug"))
 
 
 ## The hull moved `by` toward the sea, sand thrown up behind it. True when that took it to the
@@ -1552,39 +1549,10 @@ func _move_the_bangka(to_x: float) -> bool:
 	return _bangka.global_position.x >= stop - 0.5
 
 
-## ⚠ PUSHED, BY SOMETHING THAT CAN. A Carry shape on the landward side of the hull, walking toward
-## the water, keeps it just ahead of itself -- the hull has no collision on the sand, so this IS the
-## push: the shape walks, and the boat goes where the shape is about to be. Dug out first, if it was
-## not: walking into a half-buried hull digs it.
-func _push_the_bangka(anchor_position: Vector2, _delta: float) -> void:
-	if _bangka == null or not is_instance_valid(_bangka) or _bangka_found or _sliding:
-		return
-	if director == null or director.committed_route("L3_N1") != "artist" \
-			or director.is_solved("L3_N1") or not _a_helper_is_held():
-		return
-	var hull_x := _bangka.global_position.x
-	if absf(anchor_position.y - _bangka.global_position.y) > 180.0:
-		return
-	if anchor_position.x > hull_x - 30.0 or anchor_position.x < hull_x - PUSH_LEAD - 140.0:
-		return
-	if not Input.is_action_pressed(&"move_right"):
-		return
-	_judge_the_mover(_current_form_id)
-	if not _bangka_dug:
-		_dig_out_the_bangka()
-		return
-	var lead := anchor_position.x + PUSH_LEAD
-	if lead <= hull_x:
-		return
-	if _life != null and int(lead / 40.0) != int(hull_x / 40.0):
-		_life.sparkle(_bangka.global_position + Vector2(-90.0, 4.0), 2, 14.0)
-	if _move_the_bangka(lead):
-		_send_the_bangka_in()
-
-
-## ⚠ THE ANVIL SHOVES IT -- AND STAYS IN THE HAND. Dropped behind the hull, the weight knocks it a
-## good way down the sand: the first drop digs it out and starts it, a few more see it into the
-## water. F again is the next drop.
+## ⚠ THE ANVIL SHOVES IT -- ONCE, ALL THE WAY -- AND STAYS IN THE HAND. Dropped behind the hull,
+## the weight digs it out and knocks it down the sand into the water. It took a few drops, each
+## "do that again", which on top of the drag and a walk-it-down push left three ways to move one
+## boat and players unsure which they were doing.
 ##
 ## ⚠ NOT A REAL ANVIL ON THE SAND. It used to leave the hand as a body -- the tool's own F, a drop
 ## from above the apo -- and land on the apo: Kent, "when i use the anchor its just stuck there and i
@@ -1620,13 +1588,13 @@ func _shove_with_the_anvil() -> void:
 			_sliding = false
 			return
 		if not _bangka_dug:
-			_dig_out_the_bangka()
+			_dig_out_the_bangka(false)
 		var from_x := hull.global_position.x
-		var arrives := _move_the_bangka(from_x + ANVIL_SHOVE)
+		var arrives := _move_the_bangka(INF)
 		var to_x := hull.global_position.x
 		hull.global_position.x = from_x
 		var slide := hull.create_tween()
-		slide.tween_property(hull, "global_position:x", to_x, 0.6) \
+		slide.tween_property(hull, "global_position:x", to_x, maxf(0.6, (to_x - from_x) / DRAG_SPEED)) \
 			.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 		slide.tween_callback(func() -> void:
 			_sliding = false
@@ -1707,7 +1675,8 @@ func _helpers() -> PackedStringArray:
 ## buried and drags it the whole way down the sand and into the sea, and the shape that dragged it
 ## goes back into the ink as it goes -- its strength went into the boat, and the apo is left on the
 ## sand to get in. Changing back is free; the drain stops with it. (Walking it down is the other
-## way -- see _push_the_bangka -- and the anvil a third, _shove_with_the_anvil.)
+## way to move it is the anvil, _shove_with_the_anvil. Walking a shape into the hull no longer
+## pushes it: E was offered while the walk was told, and nobody could tell which they were doing.)
 ##
 ## ⚠ JUDGED FIRST, IF IT NEVER WAS. A helper is judged when it is drawn, but only against the
 ## beat the player is standing in -- drawn a step west of the crossing's volume it was judged
@@ -1716,7 +1685,7 @@ func _helpers() -> PackedStringArray:
 func _drag_the_bangka_in() -> void:
 	_judge_the_mover(_current_form_id)
 	if not _bangka_dug:
-		_dig_out_the_bangka()
+		_dig_out_the_bangka(false)
 	var hull := _bangka
 	var stood := _anchor_now()
 	_revert_to_base_form()
@@ -3704,8 +3673,7 @@ func _current_objective() -> Dictionary:
 				if _holding_the_anvil():
 					return {"key": "drop_on_the_boat", "target": hull}
 				if _a_helper_is_held():
-					return {"key": "push_the_boat" if _bangka_dug else "drag_the_boat_now",
-						"target": hull}
+					return {"key": "drag_the_boat_now", "target": hull}
 				return {"key": "drag_the_boat", "target": hull}
 			"pragmatist":
 				return {"key": "dive_draw", "obstacle": "L3_N1",

@@ -167,9 +167,9 @@ func _boat(director) -> void:
 		"a strong shape is accepted, and the line says E (boat)", "key '%s'" % _objective_key())
 	_check(tutorial != null and bool(tutorial.call("has_taught", "drain")),
 		"and the first shape held teaches the drain (boat)", "that bar is your ink now")
-	# Half buried until something digs it out: E says that first.
-	_check(String((level.call("_level_interact_offer") as Dictionary).get("verb", "")) == "DIG OUT",
-		"and E over the hull now says it digs it out (boat)", "the prompt changes with the body")
+	# Half buried or not, E does the whole job, so it says the one thing.
+	_check(String((level.call("_level_interact_offer") as Dictionary).get("verb", "")) == "DRAG IN",
+		"and E over the hull now says it drags it in (boat)", "the prompt changes with the body")
 	await _press(&"interact")
 	await _wait(3.2)
 	await _drain_dialogue("boat")

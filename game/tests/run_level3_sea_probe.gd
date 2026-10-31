@@ -43,7 +43,7 @@ func _run() -> void:
 	print("\n===== DAGAT'S SEA =====")
 	await _the_longer_level()
 	await _the_apo_dives_on_a_breath()
-	await _the_bangka_is_dug_and_pushed()
+	await _the_bangka_goes_in_on_e()
 	await _the_anvil_shoves_it()
 	await _fifteen_blows_and_away()
 	await _led_home_by_the_light()
@@ -166,9 +166,11 @@ func _the_apo_dives_on_a_breath() -> void:
 	await _close_the_level()
 
 
-# --- The bangka is dug out, then pushed ------------------------------------------------------
+# --- The bangka goes in on E, and only on E ------------------------------------------------
 
-func _the_bangka_is_dug_and_pushed() -> void:
+## One way to move it with a shape held. Walking the shape into the hull used to push it too, while
+## E was offered over it at the same moment, and players could not tell which they were doing.
+func _the_bangka_goes_in_on_e() -> void:
 	await _open_the_level()
 	var director = level.get("director")
 	await _take_the_brush()
@@ -185,22 +187,26 @@ func _the_bangka_is_dug_and_pushed() -> void:
 	_place(Vector2(start_x - 210.0, 500.0))
 	await _seconds(0.3)
 	Input.action_press(&"move_right")
-	var dug_at := -1.0
-	for _frame in range(int(20.0 * 60.0)):
+	for _frame in range(int(3.0 * 60.0)):
 		await physics_frame
 		if paused:
 			Input.action_release(&"move_right")
 			await _unpause()
 			Input.action_press(&"move_right")
-		if dug_at < 0.0 and bool(level.get("_bangka_dug")):
-			dug_at = hull.global_position.x if is_instance_valid(hull) else 0.0
+	Input.action_release(&"move_right")
+	var moved := absf(hull.global_position.x - start_x) if is_instance_valid(hull) else INF
+	_check(moved < 1.0 and not bool(level.get("_bangka_dug")) and not bool(director.call("is_solved", "L3_N1")),
+		"walking a shape into it does not move it: E does", "moved %.0f px" % moved)
+	_place(Vector2(start_x - 150.0, 500.0))
+	await _seconds(0.3)
+	level.call("press_interact")
+	for _frame in range(int(8.0 * 60.0)):
+		await physics_frame
 		if bool(director.call("is_solved", "L3_N1")):
 			break
-	Input.action_release(&"move_right")
-	_check(dug_at >= 0.0 and absf(dug_at - start_x) < 20.0,
-		"walking into it digs it out first, where it lay", "dug at x %.0f" % dug_at)
-	_check(bool(director.call("is_solved", "L3_N1")) and level.get("_launched_boat") != null,
-		"and walked down the sand it goes into the sea", "a hull afloat")
+	_check(bool(level.get("_bangka_dug")) and bool(director.call("is_solved", "L3_N1"))
+		and level.get("_launched_boat") != null,
+		"and E with the shape held digs it out and drags it into the sea", "a hull afloat")
 	await _close_the_level()
 
 
@@ -235,13 +241,20 @@ func _the_anvil_shoves_it() -> void:
 		var before := hull.global_position.x
 		level.call("_use_equipped_utility")
 		shoves += 1
-		await _seconds(1.4)
-		if shoves == 1 and is_instance_valid(hull):
-			first_move = hull.global_position.x - before
+		# Until the slide is done: a drop while it slides is ignored, and would be miscounted.
+		await _seconds(0.4)
+		for _frame in range(int(3.0 * 60.0)):
+			if not bool(level.get("_sliding")) or bool(director.call("is_solved", "L3_N1")):
+				break
+			await physics_frame
+		await _seconds(0.4)
+		if shoves == 1:
+			# Where the level sent it: the hull itself is freed once it is in the water.
+			first_move = float(level.get("_bangka_x")) - before
 	_check(bool(level.get("_bangka_dug")) and first_move >= 250.0,
 		"dropped behind it, the anvil digs it out and shoves it", "%.0f px the first time" % first_move)
-	_check(bool(director.call("is_solved", "L3_N1")) and level.get("_launched_boat") != null,
-		"and a few drops see it into the sea", "%d drop(s) from x %.0f" % [shoves, start_x])
+	_check(shoves == 1 and bool(director.call("is_solved", "L3_N1")) and level.get("_launched_boat") != null,
+		"and one drop sees it into the sea", "%d drop(s) from x %.0f" % [shoves, start_x])
 	await _close_the_level()
 
 

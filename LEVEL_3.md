@@ -963,6 +963,23 @@ swimming -- before Lolo asks which. It dissolves into the sea haze (`_fade_paper
   but the new `jetty.png` here, because this Pillow encodes the committed PNGs byte for byte;
   snapshot `git status` before running it all the same.
 
+## One way to move the bangka (2026-11-01)
+
+Kent: the boat beat was *"so confusing to play, so weird to look at"*. Played, it offered three
+ways to move one boat at once: walk a strong shape into the hull and it slid ahead of the shape
+untouched, press E with the shape held and it was dragged in whole, or drop the anvil and do it
+again a few times. Lolo said to push while the prompt said E, and the hull moved 106px in 2.3s of
+walking. Now:
+
+- **A strong or heavy shape held, E drags it in** -- digging it out on the way, so the prompt is
+  one verb, DRAG IN, and the objective one line. Walking the shape into the hull does nothing.
+- **The anvil, one drop** digs it out and knocks it all the way into the water.
+- Lolo's dug and shove lines match: the rake can still clear the sand on its own, and then he says
+  something strong can drag it down.
+
+`run_level3_sea_probe` asserts a walk does not move it, E does, and one anvil drop is enough;
+`run_level3_play_probe` asserts the single verb. Against the old code all four fail.
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.
