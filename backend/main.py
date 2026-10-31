@@ -89,6 +89,14 @@ class DrawingPayload(BaseModel):
     image_data: str  # base64-encoded PNG/JPEG; a data-URL prefix is tolerated
 
 
+# The game's canvas is a 512x512 PNG, a few hundred kilobytes at most even scribbled solid.
+# Anything far past that is not a drawing, and decoding it would only tie the recogniser up
+# while the player waits (thesis §4.10.2 verifies a request-size limit). Checked on the
+# encoded text, before any decoding. 413, not 422: the game reads 422 as "the canvas looks
+# empty", which is a normal thing to hear mid-drawing.
+MAX_IMAGE_DATA_CHARS = 8 * 1024 * 1024
+
+
 def softmax(logits: np.ndarray) -> np.ndarray:
     exps = np.exp(logits - logits.max())
     return exps / exps.sum()
@@ -108,6 +116,8 @@ def health() -> dict:
 @app.post("/predict")
 def predict(payload: DrawingPayload) -> dict:
     started = time.perf_counter()
+    if len(payload.image_data) > MAX_IMAGE_DATA_CHARS:
+        raise HTTPException(status_code=413, detail="the drawing is too large to be a drawing")
     encoded = payload.image_data.split(",")[-1]  # strip "data:image/png;base64," if present
     try:
         image_bytes = base64.b64decode(encoded, validate=True)

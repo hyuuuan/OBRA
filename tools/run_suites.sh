@@ -57,6 +57,7 @@ HEADLESS=(
   run_level2_systems_probe run_level2_alley_probe run_nodraw_level2 run_water_audit run_hub_audit
   run_assembly_probe run_dance_probe run_objective_probe run_tool_routes_probe
   run_play_level2 run_hud_layout_probe run_screens_fit_probe run_journey_probe run_backend_ownership_probe
+  run_request_timeout_probe
   run_button_feedback_probe run_rig_isolated run_underwater_appearance_probe
   run_level3_audit run_nodraw_level3 run_bakunawa_probe run_level3_finish_probe
   run_swim_reach_probe run_level3_boat_probe run_level3_trouble_probe
@@ -137,6 +138,7 @@ if (( WITH_PYTHON )); then
   print "########## python" >> "$LOG"
   print "[start $began]" >> "$LOG"
   "$PY" -m unittest tests.test_backend_lifecycle tests.test_preprocess_paper \
+    tests.test_backend_limits \
     tests.test_backend_telemetry tests.test_manifest_contract tests.test_backend_serve \
     tests.test_suite_watch tests.test_build_dilim_creatures tests.test_build_dilim_delivered tests.test_build_dilim tests.test_build_dilim_props tests.test_build_mayon tests.test_build_mayon_fragments >> "$LOG" 2>&1
   note_result python $? $(( EPOCHSECONDS - began ))

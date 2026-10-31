@@ -72,13 +72,24 @@ var _pending_body := ""
 var _waiting_since_msec := 0
 var _waiting_said := ""
 var _resend: Timer
+## ⚠ A REQUEST THAT NEVER ANSWERS ENDS. HTTPRequest waits forever by default, so a recogniser
+## that accepted the connection and then hung held the panel on "Recognizing..." with Paint
+## disabled and no way out but closing the game (thesis §4.10.2 verifies timeout behaviour).
+## A drawing is answered in well under a second once the server is up; this is far past
+## that and short of a player giving up. It does not touch the wake-up wait above: a server
+## still starting refuses the connection at once, it does not hang it.
+const REQUEST_TIMEOUT_SEC := 20.0
+## A live guess is a commentary, and one more is coming: it gives up sooner.
+const LIVE_TIMEOUT_SEC := 5.0
 
 
 func _ready() -> void:
 	_http = HTTPRequest.new()
+	_http.timeout = REQUEST_TIMEOUT_SEC
 	add_child(_http)
 	_http.request_completed.connect(_on_request_completed)
 	_live_http = HTTPRequest.new()
+	_live_http.timeout = LIVE_TIMEOUT_SEC
 	add_child(_live_http)
 	_live_http.request_completed.connect(_on_live_request_completed)
 	_resend = Timer.new()
@@ -179,6 +190,10 @@ func _on_request_completed(
 	if debug_timing_logs and _request_started_usec > 0:
 		var request_ms := float(Time.get_ticks_usec() - _request_started_usec) / 1000.0
 		print("SketchClient request %.2f ms" % request_ms)
+	if result == HTTPRequest.RESULT_TIMEOUT:
+		_pending_body = ""
+		prediction_failed.emit("The recogniser took too long to answer -- press Paint again")
+		return
 	if result != HTTPRequest.RESULT_SUCCESS:
 		var now := Time.get_ticks_msec()
 		if BackendSupervisor.is_waking() and (_waiting_since_msec == 0
