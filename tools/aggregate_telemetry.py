@@ -62,9 +62,15 @@ def _percentile(values: list[float], q: float) -> float | None:
 def summarize(records: Iterable[dict]) -> dict:
     recognitions: list[dict] = []
     backend_infer_ms: list[float] = []
+    # Paint press to the first frame drawn with the entity in the world: the thesis's
+    # end-to-end figure (Eq. 12, §4.10.3), which runs "to the appearance of the spawned
+    # entity". latency_ms on a recognition stops at the recogniser's answer, short of it.
+    spawn_latencies: list[float] = []
     for record in records:
         if record.get("type") == "recognition":
             recognitions.append(record)
+        elif record.get("type") == "spawn" and isinstance(record.get("latency_ms"), (int, float)):
+            spawn_latencies.append(float(record["latency_ms"]))
         elif isinstance(record.get("timing_ms"), dict):
             infer = record["timing_ms"].get("infer_ms")
             if isinstance(infer, (int, float)):
@@ -129,6 +135,12 @@ def summarize(records: Iterable[dict]) -> dict:
             "p95": _percentile(latencies, 95),
             "max": max(latencies) if latencies else None,
         },
+        "spawn_latency_ms": {
+            "count": len(spawn_latencies),
+            "p50": _percentile(spawn_latencies, 50),
+            "p95": _percentile(spawn_latencies, 95),
+            "max": max(spawn_latencies) if spawn_latencies else None,
+        },
         "backend_infer_ms": {
             "count": len(backend_infer_ms),
             "mean": (sum(backend_infer_ms) / len(backend_infer_ms)) if backend_infer_ms else None,
@@ -150,9 +162,14 @@ def _print_report(report: dict) -> None:
     latency = report["latency_ms"]
     if latency["count"]:
         print(
-            "  end-to-end ms:    mean={mean:.1f} p50={p50:.1f} p95={p95:.1f} max={max:.1f} (n={count})".format(
+            "  to answer ms:     mean={mean:.1f} p50={p50:.1f} p95={p95:.1f} max={max:.1f} (n={count})".format(
                 **latency
             )
+        )
+    spawn = report["spawn_latency_ms"]
+    if spawn["count"]:
+        print(
+            "  to appearance ms: p50={p50:.1f} p95={p95:.1f} max={max:.1f} (n={count})".format(**spawn)
         )
     backend = report["backend_infer_ms"]
     if backend["count"]:

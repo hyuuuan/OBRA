@@ -658,7 +658,9 @@ Traps found building it:
 - `Telemetry` (autoload, `game/scripts/telemetry.gd`) writes an anonymous, local
   per-session event stream to `user://telemetry/session_<UTC>.jsonl`: session and
   level lifecycle plus one recognition record per submission (class, confidence,
-  margin, runner-up, accept/decline, end-to-end latency). Nothing is uploaded. Test runs
+  margin, runner-up, accept/decline, latency to the recogniser's answer), and one `spawn`
+  event per accepted drawing timing Paint to the entity's first frame in the world -- the
+  thesis's end-to-end figure (Eq. 12). Nothing is uploaded. Test runs
   write theirs to `user://test_runs/telemetry/` instead, so the folder the thesis
   aggregates holds only real play.
 - **The recognition server ends with the game.** `BackendSupervisor` launches it with
