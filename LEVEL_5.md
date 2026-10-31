@@ -182,7 +182,8 @@ been removed. Only the flower has a separate detour, on one-way rocks above the 
 
 Whitening starts for the whole cluster on entry, takes 90 seconds to reach paper, holds during
 every paused modal, and heads to
-blank over four seconds on departure. A subtle rim selects the nearby memory. Opening the page
+blank over four seconds on departure past the cluster's far edge; stepping back below its entry is
+not departure, and its clock simply runs on. A subtle rim selects the nearby memory. Opening the page
 locks that ID until the response arrives, even if the player or camera moves. The reference is a
 sibling of the capture SubViewport: its pixels never reach the recognizer.
 
