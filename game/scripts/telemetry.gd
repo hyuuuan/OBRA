@@ -20,6 +20,11 @@ var _session_path: String = ""
 var _session_active := false
 var _current_level := ""
 var _level_start_msec := 0
+## THE GAME'S SIDE OF TABLE 14, once a second for the whole session: frame rate, static and
+## video memory. Thesis Table 14 asks for these "for the duration of the session"; CPU is
+## the recogniser's job (backend/telemetry.py), since only it can see both processes.
+const PERF_EVERY_SEC := 1.0
+var _perf_timer: Timer
 
 
 func _ready() -> void:
@@ -106,6 +111,23 @@ func _begin_session() -> void:
 		return
 	_session_active = true
 	record_event("session_start", {})
+	_perf_timer = Timer.new()
+	_perf_timer.wait_time = PERF_EVERY_SEC
+	# ⚠ ALWAYS, not pausable: recognition happens behind the drawing panel, which pauses the
+	# tree, and that is exactly the window Table 14's frame-rate floor is about.
+	_perf_timer.process_mode = Node.PROCESS_MODE_ALWAYS
+	_perf_timer.timeout.connect(_sample_performance)
+	add_child(_perf_timer)
+	_perf_timer.start()
+
+
+func _sample_performance() -> void:
+	record_event("perf", {
+		"level_id": _current_level,
+		"fps": Engine.get_frames_per_second(),
+		"static_mb": float(OS.get_static_memory_usage()) / 1048576.0,
+		"video_mb": Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0,
+	})
 
 
 func _profile_summary() -> Dictionary:

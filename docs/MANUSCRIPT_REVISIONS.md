@@ -140,9 +140,11 @@ Move dynamic audio and the shuffle-bag dialogue system into the limitations, as 
 - **Write:** "The 80/10/10 split is shuffled with a fixed seed (42), and the same seed fixes
   weight initialisation, data-loader shuffling and augmentation. Framework versions are
   recorded alongside the model."
-- **Why:** the shipped model seeded only its split. Full seeding exists from the next retrain
-  (#143), so **this sentence is true only once the model is retrained.** Retrain before
-  submission, or say that the split alone is seeded.
+- **Decided (2026-10-31): no retrain**, so every reported figure stands. Use this wording
+  instead: "The 80/10/10 split is shuffled with a fixed seed (42). The training pipeline seeds
+  weight initialisation, data-loader shuffling and augmentation with the same seed, and records
+  framework versions, for any retraining (#143); the reported model predates this and seeded
+  its split only."
 
 ### §4.2.7, Table 6 (pp. 93–95) — Must and [appeal]
 - **Now:** TU-Berlin has "markedly thicker strokes; normalized to the model's 28 × 28
@@ -279,20 +281,27 @@ The integration claims are now true. Make them concrete:
 - a submission times out after 20 s and a live guess after 5 s, and a timed-out submission
   frees the panel (#144).
 
-### §4.10.3 Validation (pp. 172–175) — Decide
-1. **Live-play recall is "restricted to those obstacles that solicit a class by name" (p. 174).**
-   No obstacle names a class: obstacles declare ability tags, by design and by audit. The game
-   therefore never knows which class the player intended.
-   - *Option A:* report live-play outcomes per **tag**, meaning whether the drawing satisfied
-     the obstacle's tag.
-   - *Option B:* collect intended labels in the playtest itself, by asking the player or
-     logging the hint tier that names a class.
-   - *Option C:* drop live-play per-class recall, and rely on the held-out and TU-Berlin
-     figures.
-2. **Table 14 (p. 175): frame rate, CPU, GPU and memory.** The game records none of these yet.
-   - *Option A:* add the instrumentation before the playtest. Frame rate and memory are simple
-     to add; CPU needs a small helper; GPU utilisation is not available to Godot.
-   - *Option B:* reduce Table 14 to frame rate and memory.
+### §4.10.3 Validation (pp. 172–175) — Must (decided 2026-10-31 and built, #154)
+1. **Live-play recall (p. 174).**
+   - **Now:** "restricted to those obstacles that solicit a class by name".
+   - **Write:** "Obstacles declare ability tags, not classes, so live play is measured two ways.
+     **Every drawing made at an obstacle** is scored by whether it satisfied the tag the
+     obstacle asked for; a declined drawing satisfies nothing. **Once the third hint names a
+     class**, the obstacle solicits that class by name, and the drawings made from then on
+     carry it as their intended label. Per-class recall at the gate (a decline counts as a
+     miss) is reported on that subset, with its support."
+   - **Why:** each recognition record now carries the obstacle, its tags, the hint tier and,
+     from the third hint, `intended_class`. `obstacle_attempt` events record whether each
+     accepted drawing met the tag. `tools/aggregate_telemetry.py` reports both.
+2. **Table 14 (p. 175).**
+   - **Now:** frame rate, CPU, GPU and memory.
+   - **Write:** frame rate across each submission's own recognition window (the 55 fps floor),
+     plus frame rate and memory sampled at 1 Hz for the session. CPU and resident memory of
+     **both** the game and the recogniser are sampled at 1 Hz by the recogniser, as a percentage
+     of one core. **Remove GPU utilisation**: the engine does not expose it. Video-memory use is
+     reported in its place.
+   - **Why:** `telemetry.gd` writes the `perf` samples; `backend/telemetry.py` writes the `cpu`
+     samples; the game now turns the recogniser's log on and puts it beside its own.
 3. **Recognition speed (p. 174).** No change needed. Eq. 12's "to appearance" is now logged as
    a `spawn` event, and `tools/aggregate_telemetry.py` reports its median and 95th percentile.
 4. **TU-Berlin (p. 174):** [appeal]. Report both protocols, as under §4.2.7.

@@ -101,13 +101,20 @@ every accepted drawing logs the time from Paint to the entity's first frame.
 
 - **No user study.** There are no usability, immersion or player-experience scores, no
   real-play latency or frame-rate figures, and no live-play recognition data. Any claim about
-  players' experience waits on the playtest.
+  players' experience waits on the playtest. **The playtest's instrumentation is built:**
+  - latency, both to the recogniser's answer and to the entity's appearance;
+  - frame rate during each submission, and frame rate and memory at 1 Hz;
+  - CPU of both processes at 1 Hz;
+  - every drawing's outcome against the obstacle's tag;
+  - per-class recall for drawings made after a hint names a class.
+
+  `tools/aggregate_telemetry.py` turns the logs into these figures.
 - **The simulated players are synthetic**: style and noise transforms of real drawings, not
   people.
-- **Live-play per-class recall cannot be measured as the manuscript proposes**, because
-  obstacles ask for ability tags, never classes. A tag-level measure or in-study labelling is
-  needed.
-- **Frame-rate, CPU, GPU and memory logging is not built.**
+- **Live-play per-class recall covers only a subset:** drawings made after the third hint names
+  a class. Obstacles ask for tags, so that is the only point at which the intended class is
+  known. Every other drawing is measured by whether it met the tag.
+- **GPU utilisation is not measured**; the engine doesn't expose it.
 - **The shipped model predates full training seeding** (only its split was seeded), and its
   framework versions were not recorded. A retrain fixes both.
 - **There is no audio**, and some art is placeholder.

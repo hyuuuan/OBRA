@@ -75,6 +75,14 @@ var _refusing := false
 var _open_tween: Tween = null
 var _scrim_material: ShaderMaterial
 var _submit_started_usec: int = 0
+var _submit_started_frame: int = 0
+## WHAT THE LEVEL KNOWS ABOUT THIS DRAWING, added to every recognition record. Set by the
+## level (LevelBase._update_telemetry_context): the obstacle the player stands in, the tags it
+## asks for, the hint tier, and -- once the third hint has NAMED a class -- that class as
+## `intended_class`. Obstacles ask for tags and never classes, so a named hint is the one
+## moment the game knows what the player meant to draw; it is what makes live-play per-class
+## recall measurable (thesis §4.10.3), and a decline there counts as a miss.
+var telemetry_context: Dictionary = {}
 ## --- live guessing ---------------------------------------------------------
 ## The canvas revision the last live guess was taken from. While it trails the
 ## canvas there is new ink the guess has not seen; while it matches, the player has
@@ -484,6 +492,7 @@ func _on_transform_pressed() -> void:
 	clear_button.disabled = true
 	status.text = "Recognizing..."
 	_submit_started_usec = Time.get_ticks_usec()
+	_submit_started_frame = Engine.get_frames_drawn()
 	# Capture the stroke vectors alongside the rasterized image so the rig can
 	# animate the actual drawn lines.
 	_pending_strokes = canvas.get_strokes()
@@ -518,7 +527,7 @@ func _on_entity_prediction(
 	if debug_timing_logs and _submit_started_usec > 0:
 		print("DrawPanel submit-to-prediction %.2f ms" % latency_ms)
 	if _telemetry:
-		_telemetry.record_recognition({
+		_telemetry.record_recognition(_with_context(response, {
 			"outcome": "accept",
 			"entity": entity,
 			"source_label": response.get("source_label", ""),
@@ -527,7 +536,7 @@ func _on_entity_prediction(
 			"runner_up": response.get("runner_up", {}),
 			"latency_ms": latency_ms,
 			"bar": response.get("gate_bar", confidence),
-		})
+		}))
 	if _profile:
 		_profile.record_class_drawn(entity)
 		_profile.record_class_drawing(entity, drawing)
@@ -552,7 +561,7 @@ func _on_entity_declined(
 	# behind this one could ease the bar, rather than a literal that would drift from it.
 	var reason := String(response.get("gate_reason", client.decline_reason(confidence, margin)))
 	if _telemetry:
-		_telemetry.record_recognition({
+		_telemetry.record_recognition(_with_context(response, {
 			"outcome": "decline",
 			"entity": entity,
 			"source_label": response.get("source_label", ""),
@@ -565,7 +574,7 @@ func _on_entity_declined(
 			# The paper measures recognition at the fixed floor (§4.5.4.2); a drawing only the
 			# level's raised bar refused is a recognition the floor would have taken.
 			"floor_accepted": reason == "brush",
-		})
+		}))
 	if _profile:
 		_profile.note_submission(false)
 	if ink_manager != null:
@@ -578,6 +587,21 @@ func _on_entity_declined(
 	status.text = "close — the brush wants a surer line" if reason == "brush" \
 		else "not sure what that is — try drawing it more clearly!"
 	recognition_declined.emit(entity, confidence, margin, reason)
+
+
+## A recognition record, with the level's context and two measurements thesis Table 14 and
+## Eq. 12 ask for: the frame rate across this drawing's own recognition window (the floor is
+## 55 fps "during a submission"), and the recogniser's own timing split, so the end-to-end
+## figure decomposes into game and backend.
+func _with_context(response: Dictionary, fields: Dictionary) -> Dictionary:
+	var record := fields.duplicate()
+	record.merge(telemetry_context)
+	var seconds := float(Time.get_ticks_usec() - _submit_started_usec) / 1_000_000.0
+	if _submit_started_usec > 0 and seconds > 0.0:
+		record["fps_during_submit"] = float(Engine.get_frames_drawn() - _submit_started_frame) / seconds
+	if response.has("timing"):
+		record["backend_timing"] = response["timing"]
+	return record
 
 
 ## When Paint was last pressed, in Time.get_ticks_usec() terms; 0 before the first press. The
