@@ -24,6 +24,9 @@ const BLANK := 0.999
 ## What drains: the parent, unless set.
 @export var target_path: NodePath = ^".."
 
+## What it drains toward. Mayon's paper unless a level gives its own (LevelBase._fade_paper).
+var paper := Color(0.957, 0.937, 0.894)
+
 ## How far the ash has taken it: 0 painted, 0.5 white, 0.85 flat paper, 1 blank.
 var drain: float = 0.0:
 	set = set_drain
@@ -43,6 +46,7 @@ func _ready() -> void:
 		return
 	_material = ShaderMaterial.new()
 	_material.shader = SHADER
+	_material.set_shader_parameter("paper", paper)
 	_target.material = _material
 	for item in _target.find_children("*", "CanvasItem", true, false):
 		(item as CanvasItem).use_parent_material = true
