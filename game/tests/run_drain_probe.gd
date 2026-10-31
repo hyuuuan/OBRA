@@ -16,6 +16,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	await _a_drained_thing_wears_the_drain_and_so_do_its_parts()
+	_it_is_drawn_in_its_painted_colours()
 	await _blank_takes_the_ground_from_under_her_and_restore_gives_it_back()
 	await _the_ash_holds_still_while_the_game_is_paused()
 	await _the_ash_falls_at_its_density_and_surges_on_a_pulse()
@@ -59,6 +60,18 @@ func _a_drained_thing_wears_the_drain_and_so_do_its_parts() -> void:
 		"drain %.2f, parts share it %s" % [read, parts])
 	prop.queue_free()
 	await process_frame
+
+
+## ⚠ Godot 4's COLOR already carries the texture: a shader that samples TEXTURE again squares
+## every colour, and Mayon drew darker than painted from the start, before any ash. Headless
+## draws nothing, so this reads the shader's own code.
+func _it_is_drawn_in_its_painted_colours() -> void:
+	var samples_again := false
+	for line in Drainable.SHADER.code.split("\n"):
+		if line.get_slice("//", 0).contains("TEXTURE"):
+			samples_again = true
+	_check(not samples_again, "it is drawn in its painted colours: COLOR is never multiplied by the "
+		+ "texture it already carries", "samples TEXTURE again %s" % samples_again)
 
 
 func _blank_takes_the_ground_from_under_her_and_restore_gives_it_back() -> void:
