@@ -783,9 +783,10 @@ func _show_memory_if_earned() -> void:
 # Every override below is a spot where level_base.gd used to name Level 1 outright.
 
 
-## The gorge's ruined bridge goes out of the painting as she walks up to it, so the gap reads as
-## hers to cross before Lolo asks. Into the terraces' haze, not Mayon's ash paper -- and only to
-## a pale ghost, never blank: the rope stopping in mid-air is still the question the node asks.
+## The gorge's ruined bridge dims as she walks up to it, so the gap reads as hers to cross before
+## Lolo asks. Into the terraces' haze, not Mayon's ash paper -- and only partway (fade_to 0.35):
+## its rope and wood must still read as the bridge Lola painted (ART_PLACEHOLDERS.md), and the
+## rope stopping in mid-air is still the question the node asks. Deeper, it read as Mayon's erasing.
 func _fades_the_old_way() -> bool:
 	return true
 
