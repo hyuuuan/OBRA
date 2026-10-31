@@ -4,7 +4,12 @@ import json
 import unittest
 from pathlib import Path
 
-from shared.entities import load_abilities, load_entities, validate_model_labels
+from shared.entities import (
+    DEFAULT_ABILITIES_PATH,
+    load_abilities,
+    load_entities,
+    validate_model_labels,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -99,21 +104,37 @@ class ManifestContractTests(unittest.TestCase):
         self.assertIn("required_medium", public)
 
     def test_abilities_complete_and_valid(self) -> None:
-        # load_abilities validates presence, relation, weight, and primitive flagging.
+        # load_abilities validates presence, relation, weight, and that only penguin is
+        # hand-authored (the manuscript's Appendix C grounds the primitives and bread).
         abilities = load_abilities(entities=self.entities)
         self.assertEqual(len(abilities), len(self.entities))
+        hand_authored = sorted(e for e, a in abilities.items() if a.ability_relation == "hand_authored")
+        self.assertEqual(hand_authored, ["penguin"])
         for primitive in ("circle", "square", "triangle"):
-            self.assertEqual(abilities[primitive].ability_relation, "hand_authored")
-        creatures = [e for e in self.entities if e.runtime_role == "active_ragdoll_morph"]
-        objects = [e for e in self.entities if e.runtime_role == "utility"]
-        self.assertTrue(all(abilities[e.id].ability_relation == "CapableOf" for e in creatures))
-        self.assertTrue(all(abilities[e.id].ability_relation == "UsedFor" for e in objects))
+            self.assertIn(abilities[primitive].ability_relation, {"HasProperty", "HasA", "UsedFor"})
         for ability in abilities.values():
             self.assertTrue(ability.ability)
             self.assertTrue(ability.ability_assertion)
             if ability.ability_relation != "hand_authored":
                 self.assertIsNotNone(ability.ability_weight)
                 self.assertGreater(ability.ability_weight, 0.0)
+
+    def test_the_ability_table_is_appendix_c(self) -> None:
+        # Thesis Table 8: 117 abilities over 48 grounded classes; the game adds bread's two
+        # (feed, eat) in mushroom's place, so 119 over 49. Every class keeps its full list,
+        # and every grounded link carries an assertion URI and a positive weight.
+        table = json.loads(DEFAULT_ABILITIES_PATH.read_text(encoding="utf-8"))["abilities"]
+        grounded = [a for entry in table.values() if entry["provenance"] != "hand_authored"
+                    for a in entry["abilities"]]
+        self.assertEqual(len(grounded), 119)
+        self.assertEqual({entry["provenance"] for entry in table.values()},
+                         {"conceptnet_5.7", "hand_authored"})
+        for ability in grounded:
+            self.assertTrue(ability["chain"])
+            for link in ability["chain"]:
+                self.assertTrue(link["assertion_uri"].startswith("/a/[/r/"))
+                self.assertGreater(link["weight"], 0.0)
+        self.assertEqual(table["bread"]["ability"], "feed")
 
 
 if __name__ == "__main__":

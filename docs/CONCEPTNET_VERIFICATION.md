@@ -1,8 +1,12 @@
 # The ability table, checked against ConceptNet 5.7.0
 
 2026-10-31. Tool: `tools/verify_abilities_conceptnet.py`. Raw results: `docs/conceptnet_verification.json`.
-**The ability table was not changed.** How to re-ground it is the team's decision; the
-options are at the end.
+> **Resolved 2026-10-31.** The manuscript's own Appendix C turned out to be built from real
+> ConceptNet 5.7.0 data: all 117 of its abilities exist in the dump with exactly the weights
+> it prints. The game adopted it. `tools/build_abilities.py` now builds `abilities.json` from
+> Appendix C, with bread grounded in mushroom's place (bread UsedFor feeding_to_birds), and
+> re-verifies all 124 edges against the dump. Below is the check of the **old** curated table
+> that led there.
 
 ## The answer, in short
 

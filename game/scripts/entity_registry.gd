@@ -6,8 +6,12 @@ const MANIFEST_VERSION := 3
 
 const ALLOWED_RUNTIME_ROLES := ["active_ragdoll_morph", "physics_morph", "utility"]
 const ALLOWED_MEDIA := ["any", "water"]
-const ALLOWED_ABILITY_RELATIONS := ["CapableOf", "UsedFor", "hand_authored"]
-const PRIMITIVE_IDS := ["circle", "square", "triangle"]
+## The manuscript's six affordance-bearing relations (thesis §4.2.8, Appendix C), the table
+## tools/build_abilities.py builds from that appendix. Only penguin is hand-authored.
+const ALLOWED_ABILITY_RELATIONS := [
+	"CapableOf", "UsedFor", "HasProperty", "HasA", "ReceivesAction", "MannerOf", "hand_authored",
+]
+const HAND_AUTHORED_IDS := ["penguin"]
 ## Loads game/config/entities.json and instantiates manifest-defined scenes. The
 ## ConceptNet-grounded ability table (config/abilities.json) is merged into each entry.
 
@@ -65,8 +69,11 @@ func load_manifest() -> void:
 		if ability.is_empty():
 			push_error("%s is missing a ConceptNet ability entry" % entity_id)
 			continue
-		if entity_id in PRIMITIVE_IDS and String(ability.get("ability_relation", "")) != "hand_authored":
-			push_error("%s is a primitive and must use a hand_authored ability" % entity_id)
+		# ⚠ The primitives used to be the hand-authored ones; Appendix C grounds them (a circle
+		# is round), and only penguin has no usable assertion at any depth.
+		var hand_authored := String(ability.get("ability_relation", "")) == "hand_authored"
+		if hand_authored != (entity_id in HAND_AUTHORED_IDS):
+			push_error("%s: only %s may be hand-authored" % [entity_id, HAND_AUTHORED_IDS])
 			continue
 		entry["ability"] = String(ability.get("ability", ""))
 		entry["ability_relation"] = String(ability.get("ability_relation", ""))

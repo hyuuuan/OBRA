@@ -8,17 +8,18 @@ satisfying classes at load time. That indirection is what lets a level ask for a
 without naming a drawing, and it is what makes the anti-stuck fallback fall out of the
 data model instead of being special-cased per obstacle.
 
-The tags are NOT derivable from abilities.json. That table gives each class exactly one
-ConceptNet verb -- bat is "fly", crab is "pinch", tree is "shade" -- while the design's
-Climb tag wants all three of them alongside spider and ladder. So the grouping below is a
-DESIGN artifact, authored by hand, and the thesis must not present it as ConceptNet output.
+The tags are NOT derivable from abilities.json. That table gives each class its ConceptNet
+abilities (the manuscript's Appendix C: bat is Fly and Cling, crab is Armor and Grip, tree is
+Grow, Shade and Climb), while the design's Climb tag wants spider, monkey and bat alongside
+ladder and tree. So the grouping below is a DESIGN artifact, authored by hand, and the thesis
+must not present it as ConceptNet output.
 
 What this script does is make that boundary checkable rather than asserted. The design
 table is the only hand-written thing here; for every (tag, class) pair it then looks up
 what abilities.json actually says and records:
 
-    conceptnet_aligned   the ConceptNet verb for that class IS this tag
-    design_authored      it is not -- and `source_ability` names the verb it really is
+    conceptnet_aligned   one of that class's ConceptNet abilities IS this tag
+    design_authored      none is -- and `source_ability` names the class's primary ability
 
 So the generated file carries, per membership, whether the grounding is borrowed or
 invented. NFR-27 asks for exactly this and warns against claiming one relation supplies
@@ -240,11 +241,14 @@ def build() -> dict:
                 errors.append(f"tag {tag!r} names {class_id!r}, which is not in the roster")
                 continue
             entry = abilities.get(class_id, {})
+            # Every ability the class carries, not only its primary: a tree is grounded as
+            # Climb (tree UsedFor climbing) even though its primary is Grow.
+            labels = [str(a.get("label", "")).strip().lower() for a in entry.get("abilities", [])]
             verb = str(entry.get("ability", "")).strip()
-            aligned = verb == tag
+            aligned = tag in labels
             record = {
                 "provenance": "conceptnet_aligned" if aligned else "design_authored",
-                "source_ability": verb,
+                "source_ability": tag if aligned else verb,
             }
             if not aligned:
                 # Kept so a reader can see exactly what was borrowed from and what was
@@ -298,8 +302,8 @@ def build() -> dict:
         "note": (
             "Ability tags. Obstacles declare a TAG and the loader resolves satisfying "
             "CLASSES at load time; no obstacle names a class. This grouping is a DESIGN "
-            "artifact and is not ConceptNet output -- abilities.json gives each class one "
-            "verb, and the tags deliberately cut across those verbs. Per-membership "
+            "artifact and is not ConceptNet output -- abilities.json gives each class its "
+            "ConceptNet abilities, and the tags deliberately cut across them. Per-membership "
             "provenance below says which is which. Regenerate with tools/build_tags.py."
         ),
         "provenance_summary": {
@@ -307,8 +311,8 @@ def build() -> dict:
             "conceptnet_aligned": aligned,
             "design_authored": total - aligned,
             "statement": (
-                f"{aligned} of {total} tag memberships reuse the class's own ConceptNet "
-                f"verb; the remaining {total - aligned} are design groupings. Do not "
+                f"{aligned} of {total} tag memberships reuse one of the class's own "
+                f"ConceptNet abilities; the remaining {total - aligned} are design groupings. Do not "
                 f"describe the tag layer as ConceptNet-derived."
             ),
         },
