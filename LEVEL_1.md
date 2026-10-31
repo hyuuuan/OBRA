@@ -784,6 +784,26 @@ walked past it. Do not make the objective insist on the heap.
 line and the marker at every step. The distance readout ("GOAL 116 m") is still there; it
 says how far, and the objective says what and which way.
 
+## The old ways fade
+
+Each of Payyo's climbs and crossings shows the way that used to be there, and it goes as she
+walks up (LevelBase `_fades_the_old_way`, group `fades_away` with `fade_at` / `fade_over`), so
+the obstacle reads as hers to draw before anyone says so. Kent (2026-11-01): fully away.
+
+| Old way | Where | Goes from | Gone by | Its near edge |
+|---|---|---|---|---|
+| `Hagdan/OldSteps` — `stair_step.png` ×2 over `stair_riser.png` | against Ang Hagdan's wall | x 450 | 762 | 796 |
+| `Gorge/RuinedBridge` | the gorge's near lip | x 2600 | 2990 | 3080 |
+| `Bale/OldLadder` — lifted off `hut.png` | against Ang Bale | x 4300 | 4612 | 4724 |
+
+- **None has collision**, and each is blank before she can reach it at a run: an old way still
+  showing at her feet looks like somewhere to stand. `run_old_way_fade_probe` asserts it.
+- **They dissolve in their own colours** (`_fade_wash` 0.25, `_fade_vanish_from` 0.15, into the
+  terraces' haze). Mayon whitens to flat paper first; that is the ash, and Payyo has none.
+- ⚠ **`drain.gdshader` squares a colour unless told not to.** Godot 4's `COLOR` already carries
+  the texture, so sampling `TEXTURE` again draws a thing darker than painted (0.42 comes out
+  0.17) from the start. Old ways set `texture_in_colour`; Mayon's ash still samples twice.
+
 ## Verify
 
 ```bash

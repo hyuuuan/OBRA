@@ -215,6 +215,13 @@ Still a developer's: the four **halipan** discs, which have no source anywhere i
 and are flat trapezoids. They carry the whole reason "climb the post" is not an answer, so
 they are the piece of this building most worth drawing properly.
 
+**The painted ladder is its own layer (2026-11-01).** The house draws `hut_house.png`, which is
+`hut.png` with its ladder lifted off and the wall and deck behind it put back; the ladder is
+`props/hut_ladder.png`, the level's `OldLadder` sprite, so it can fade as Payyo's old way up.
+Both are cut from `hut.png` by `tools/build_payyo_ladder.py` (`--check` verifies them). A
+redelivered hut is re-split by that one command, and the ladder's corner it prints must match
+the `OldLadder` position in `level_1_environment.tscn`.
+
 ### The bulul · `game/scripts/bulul_2d.gd` · 2 at (3452, 200) and (3496, 200)
 
 | | |
