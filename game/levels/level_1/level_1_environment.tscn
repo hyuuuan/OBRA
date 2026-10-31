@@ -33,6 +33,7 @@
 [ext_resource type="Script" path="res://scripts/bulul_2d.gd" id="26_jto6m"]
 [ext_resource type="Texture2D" path="res://assets/Level1/props/stair_step.png" id="29_oldsteps"]
 [ext_resource type="Texture2D" path="res://assets/Level1/props/stair_riser.png" id="29_oldriser"]
+[ext_resource type="Texture2D" path="res://assets/Level1/props/hut_ladder.png" id="29_oldladder"]
 
 [sub_resource type="AtlasTexture" id="Atlas_sky"]
 atlas = ExtResource("6_sky")
@@ -625,6 +626,18 @@ script = ExtResource("24_strawroom")
 [node name="House" type="Node2D" parent="GameplayPlane/Bale" unique_id=1120996384]
 position = Vector2(4650, 80)
 script = ExtResource("25_owbyo")
+
+; THE OLD LADDER (group fades_away): the one painted against the house, which never held anyone,
+; lifted off it (tools/build_payyo_ladder.py) so it can go as she comes up the Overlook -- the way
+; up is hers to draw. At the house's art origin (House - Bale2D.ART_ORIGIN) plus the ladder's
+; corner in hut.png, (256, 217); gone by x ~4610, before its near edge at 4724.
+[node name="OldLadder" type="Sprite2D" parent="GameplayPlane/Bale" groups=["fades_away"]]
+texture_filter = 1
+position = Vector2(4724, -36)
+texture = ExtResource("29_oldladder")
+centered = false
+metadata/fade_at = 4300.0
+metadata/fade_over = 1.2
 
 [node name="Bulul1" type="Node2D" parent="GameplayPlane/Bale" unique_id=525187676]
 position = Vector2(4592, 80)

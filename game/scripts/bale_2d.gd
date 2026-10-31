@@ -31,7 +31,10 @@ extends Node2D
 
 signal attic_entered()
 
-const ART: Texture2D = preload("res://assets/Level1/hut.png")
+## The house without its painted ladder. The ladder is a sprite of its own over it (the level's
+## OldLadder), because it is Payyo's old way up and fades as she nears it; the two are split
+## from hut.png by tools/build_payyo_ladder.py, and every number below still reads off hut.png.
+const ART: Texture2D = preload("res://assets/Level1/hut_house.png")
 
 ## The picture, and where this node's origin sits in it: the middle of the HOUSE BODY (not
 ## of the image, which the roof overhangs unevenly) at ground level.

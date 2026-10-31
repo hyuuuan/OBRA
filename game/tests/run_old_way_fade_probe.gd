@@ -12,8 +12,9 @@ const WandererClass = preload("res://scripts/wanderer.gd")
 const LEVELS := [
 	["res://game_level.tscn", "EnvironmentBaseplate/GameplayPlane/Hagdan/OldSteps"],
 	["res://game_level.tscn", "EnvironmentBaseplate/GameplayPlane/Gorge/RuinedBridge"],
+	["res://game_level.tscn", "EnvironmentBaseplate/GameplayPlane/Bale/OldLadder"],
 ]
-const CHECKS := 8 * 2
+const CHECKS := 8 * 3
 
 var checked := 0
 var failures := 0
