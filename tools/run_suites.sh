@@ -64,7 +64,7 @@ HEADLESS=(
   run_button_feedback_probe run_rig_isolated run_underwater_appearance_probe
   run_level3_audit run_nodraw_level3 run_bakunawa_probe run_level3_finish_probe
   run_swim_reach_probe run_level3_boat_probe run_level3_trouble_probe
-  run_spawn_latency_probe
+  run_spawn_latency_probe run_painting_entry_probe
   run_level3_play_probe run_level3_sea_probe run_opening_probe run_resume_probe
   run_level4_audit run_level4_seg1_probe run_level4_finale_probe run_satchel_probe run_level4_seg2_probe run_level4_seg3_probe run_level4_tiktik_probe run_level4_whip_probe run_level4_sound_probe
 )

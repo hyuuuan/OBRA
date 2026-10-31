@@ -72,6 +72,7 @@ func _default_profile() -> Dictionary:
 		"classes_drawn_accepted": [],    # distinct classes drawn and accepted at least once
 		"acquired_objects": [],          # object/tool ids owned across levels and sessions
 		"brush_acquired": false,         # Lola's brush, taken off the stand in the house
+		"hall_position_x": null,        # where she last stood along the wall of paintings
 		"new_brush": false,              # the brush found on Dagat's shore -- ink drains, no clock
 		"lolo_present": true,            # false once he stops at the island and cannot follow
 		"l3_bakunawa": "",               # LIT | EVADED | FOUGHT -- how Dagat's encounter ended
@@ -124,6 +125,21 @@ func load_profile() -> void:
 ## Persist the profile atomically. Returns true on success.
 func save_profile() -> bool:
 	return _atomic_write(profile_path, JSON.stringify(_data, "  "))
+
+
+func hall_position_x(fallback: float) -> float:
+	var saved: Variant = _data.get("hall_position_x")
+	if (saved is float or saved is int) and is_finite(float(saved)):
+		return float(saved)
+	return fallback
+
+
+## Save on leaving the hall, rather than writing the profile on every walking frame.
+func remember_hall_position(x: float) -> void:
+	if not is_finite(x) or _data.get("hall_position_x") == x:
+		return
+	_data["hall_position_x"] = x
+	save_profile()
 
 
 # --- Progression -------------------------------------------------------------

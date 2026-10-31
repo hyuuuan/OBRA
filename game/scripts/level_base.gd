@@ -4455,6 +4455,9 @@ func _play_opening() -> void:
 	# BACK AT THE LAST CHECKPOINT, if they left part way through. Before anything is said, so
 	# the welcome is spoken where they are standing and not at the start of the level.
 	var resumed := _resume_saved_checkpoint()
+	# Both story and the short greeting wait until the painting has become the world.
+	if LevelManager.is_transitioning():
+		await LevelManager.transition_finished
 	if not intro_enabled or script_lines == null or dialogue_box == null:
 		_greet()
 		return

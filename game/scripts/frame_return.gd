@@ -23,6 +23,8 @@ var _memory: Texture2D
 
 func _ready() -> void:
 	layer = LAYER
+	# This is the ending's world, including its final black, rather than interface chrome.
+	set_meta(&"transition_world", true)
 	_room = Control.new()
 	_room.name = "Room"
 	_room.set_anchors_preset(Control.PRESET_FULL_RECT)

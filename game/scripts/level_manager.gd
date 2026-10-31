@@ -5,6 +5,7 @@ extends Node
 ## about drawing"). One brush stroke sweeps across until the screen is ink, the scene changes under
 ## it, and its tail sweeps on past to show the next one (shaders/ink_wipe.gdshader). It replaced a
 ## diagonal pixel-step of blocks. With Reduce motion on it is a short fade through ink instead.
+## Entering from a hall painting has its own one-second zoom/dissolve (PaintingTransition).
 
 signal transition_started(destination: String)
 signal level_changed(level_id: String)
@@ -20,8 +21,11 @@ const ENDING_SCENE := "res://ui/ending_screen.tscn"
 ## The stroke's seconds each way: across to cover, and on past to show.
 const WIPE_SECONDS := 0.5
 const WIPE_SHADER := preload("res://shaders/ink_wipe.gdshader")
+const PaintingTransition := preload("res://scripts/painting_transition.gd")
 
 var current_level_id := ""
+## Set only while returning, so a level opened directly can still land at its own painting.
+var returning_level_id := ""
 ## A level the run has just opened, for the house to open in front of the player. Set as a
 ## level ends and taken once by the house. Not saved: a quit in between skips only the moment.
 var pending_reveal := ""
@@ -37,11 +41,20 @@ var _transition_layer: CanvasLayer
 var _transition_root: Control
 var _wipe: ColorRect
 var _wipe_material: ShaderMaterial
+var _painting_transition: CanvasLayer
+var _preparing_path := ""
+var _next_preload_path := ""
+var _prepared_path := ""
+var _prepared_scene: PackedScene
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_load_catalog()
 	_build_transition_overlay()
+	_painting_transition = PaintingTransition.new()
+	_painting_transition.name = "PaintingEntry"
+	add_child(_painting_transition)
 
 
 func get_levels() -> Array[Dictionary]:
@@ -73,14 +86,60 @@ func is_transitioning() -> bool:
 	return _transition_pending or _transitioning
 
 
-func open_level(level_id: String) -> bool:
+## Load while the player is looking at the picture, rather than making E pay for disk IO.
+## Keep only the latest scene; walking the whole hall must not retain five levels.
+func prepare_level(level_id: String) -> void:
+	if not is_unlocked(level_id) or not is_playable(level_id):
+		return
+	var path := String(get_level(level_id).get("scene_path", ""))
+	if path == _prepared_path or path == _preparing_path:
+		_next_preload_path = ""
+		return
+	_next_preload_path = path
+	_poll_prepared_level()
+
+
+func _process(_delta: float) -> void:
+	_poll_prepared_level()
+
+
+func _exit_tree() -> void:
+	# A suite can quit while the apo is still looking at a picture. Join that load before
+	# Godot tears down the scripts it is parsing, otherwise shutdown reports false errors.
+	if not _preparing_path.is_empty() and ResourceLoader.load_threaded_get_status(_preparing_path) \
+			in [ResourceLoader.THREAD_LOAD_IN_PROGRESS, ResourceLoader.THREAD_LOAD_LOADED]:
+		ResourceLoader.load_threaded_get(_preparing_path)
+	_prepared_scene = null
+
+
+func _poll_prepared_level() -> void:
+	if not _preparing_path.is_empty():
+		var status := ResourceLoader.load_threaded_get_status(_preparing_path)
+		if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			return
+		if status == ResourceLoader.THREAD_LOAD_LOADED:
+			_prepared_scene = ResourceLoader.load_threaded_get(_preparing_path) as PackedScene
+			_prepared_path = _preparing_path
+		_preparing_path = ""
+	if not _next_preload_path.is_empty():
+		_preparing_path = _next_preload_path
+		_next_preload_path = ""
+		if ResourceLoader.load_threaded_request(_preparing_path, "PackedScene") != OK:
+			_preparing_path = ""
+
+
+func open_level(level_id: String, painting: Node2D = null) -> bool:
 	if is_transitioning() or not is_unlocked(level_id) or not has_brush():
 		return false
 	var entry := get_level(level_id)
 	var scene_path := String(entry.get("scene_path", ""))
 	if scene_path.is_empty() or not ResourceLoader.exists(scene_path):
 		return false
-	_queue_transition(scene_path, level_id)
+	if painting != null and painting.has_method("transition_source") and transition_step_seconds > 0.0:
+		_transition_pending = true
+		_enter_painting.call_deferred(scene_path, level_id, painting)
+	else:
+		_queue_transition(scene_path, level_id)
 	return true
 
 
@@ -185,7 +244,14 @@ func return_to_house() -> bool:
 	# screen, both of which stop the world to show themselves, and a scene change that leaves
 	# the flag set hands the house to the player frozen.
 	get_tree().paused = false
-	_queue_transition(HOUSE_SCENE, "")
+	if not current_level_id.is_empty() and transition_step_seconds > 0.0 \
+			and get_tree().current_scene != null \
+			and get_tree().current_scene.has_method("level_config_path"):
+		returning_level_id = current_level_id
+		_transition_pending = true
+		_return_to_painting.call_deferred()
+	else:
+		_queue_transition(HOUSE_SCENE, "")
 	return true
 
 
@@ -271,6 +337,124 @@ func _warm_the_stroke() -> void:
 	if not is_transitioning():
 		_transition_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_transition_root.visible = false
+		await _painting_transition.warm()
+
+
+## Lock all input while a destination is reserved, including preparation. Mouse blocking on
+## a Control alone does not catch E, R, or Escape.
+func _input(_event: InputEvent) -> void:
+	if is_transitioning():
+		get_viewport().set_input_as_handled()
+
+
+## Loading and the incoming scene's first renders happen under a still of the hall. Only
+## then does the one-second visual clock start; no load, scene swap or frame wait splits it.
+func _enter_painting(scene_path: String, level_id: String, painting: Node2D) -> void:
+	_transition_pending = false
+	_transitioning = true
+	var frozen := _hold_players()
+	prepare_level(level_id)
+	while _prepared_path != scene_path and not _preparing_path.is_empty():
+		await get_tree().process_frame
+	if _prepared_path != scene_path or _prepared_scene == null \
+			or not is_instance_valid(painting):
+		_release_players(frozen)
+		push_error("Could not prepare painting destination %s" % scene_path)
+		_finish_transition(scene_path)
+		return
+	var destination := _prepared_scene
+	var hall: Texture2D
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
+		hall = ImageTexture.create_from_image(get_viewport().get_texture().get_image())
+	_painting_transition.prepare(painting.call("transition_source"), hall)
+	var previous_level_id := current_level_id
+	current_level_id = level_id
+	var error := get_tree().change_scene_to_packed(destination)
+	if error != OK:
+		current_level_id = previous_level_id
+		_painting_transition.clear()
+		_release_players(frozen)
+		push_error("Could not enter painting %s (error %d)" % [scene_path, error])
+		_finish_transition(scene_path)
+		return
+	_prepared_scene = null
+	_prepared_path = ""
+	await get_tree().scene_changed
+	frozen = _hold_players()
+	_painting_transition.hold_interface(get_tree().current_scene)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
+	level_changed.emit(level_id)
+	transition_started.emit(scene_path)
+	await _painting_transition.play()
+	_release_players(frozen)
+	_finish_transition(scene_path)
+	_painting_transition.reveal_interface()
+
+
+## The world shrinks back into its own frame. The house is built under a still of the
+## departing world, and its player/camera already occupy the saved hall position.
+func _return_to_painting() -> void:
+	_transition_pending = false
+	_transitioning = true
+	var frozen := _hold_players()
+	_painting_transition.hold_interface(get_tree().current_scene)
+	var scene: Texture2D
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
+		scene = ImageTexture.create_from_image(get_viewport().get_texture().get_image())
+	_painting_transition.cover_return(scene)
+	var destination := load(HOUSE_SCENE) as PackedScene
+	var previous_level_id := current_level_id
+	current_level_id = ""
+	var error := get_tree().change_scene_to_packed(destination)
+	if error != OK:
+		current_level_id = previous_level_id
+		returning_level_id = ""
+		_painting_transition.clear()
+		_painting_transition.reveal_interface()
+		_release_players(frozen)
+		push_error("Could not return to the hall (error %d)" % error)
+		_finish_transition(HOUSE_SCENE)
+		return
+	await get_tree().scene_changed
+	get_tree().paused = false
+	frozen = _hold_players()
+	var house := get_tree().current_scene
+	_painting_transition.hold_interface(house)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var painting := house.call("painting_for_level", returning_level_id) as Node2D
+	if painting != null:
+		_painting_transition.prepare(painting.call("transition_source"),
+			scene if Motion.reduced() else null, true, scene)
+		transition_started.emit(HOUSE_SCENE)
+		await _painting_transition.play()
+	else:
+		_painting_transition.clear()
+	returning_level_id = ""
+	_release_players(frozen)
+	_finish_transition(HOUSE_SCENE)
+	_painting_transition.reveal_interface()
+
+
+## Input polling still runs after an event is handled. Hold the actual player bodies too,
+## while leaving the incoming world's scenery and camera free to render.
+func _hold_players() -> Array[Dictionary]:
+	var held: Array[Dictionary] = []
+	for player in get_tree().get_nodes_in_group(&"player_character"):
+		held.append({"node": player, "physics": player.is_physics_processing()})
+		player.set_physics_process(false)
+	return held
+
+
+func _release_players(held: Array[Dictionary]) -> void:
+	for entry in held:
+		if is_instance_valid(entry["node"]):
+			entry["node"].set_physics_process(bool(entry["physics"]))
 
 
 ## How far the stroke has gone: 0 none of the screen, 1 all of it ink, 2 gone on past.

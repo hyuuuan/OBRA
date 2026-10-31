@@ -74,6 +74,7 @@ var _wearing: Wear = Wear.NONE
 ## Where the camera looks instead of at the apo, while the house is showing her something.
 var _look_at := NAN
 var _revealing := false
+var _last_hall_x := SPAWN_X
 
 
 func _ready() -> void:
@@ -114,7 +115,18 @@ func _ready() -> void:
 	_player = WandererScene.instantiate()
 	_player.name = "Apo"
 	add_child(_player)
-	_player.global_position = Vector2(SPAWN_X, _room.call("ground_y"))
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	var manager := get_node_or_null(^"/root/LevelManager")
+	var fallback_x := SPAWN_X
+	if manager != null:
+		var returning := painting_for_level(String(manager.get("returning_level_id")))
+		if returning != null:
+			fallback_x = returning.position.x
+	_last_hall_x = float(profile.call("hall_position_x", fallback_x)) if profile != null else fallback_x
+	_last_hall_x = clampf(_last_hall_x, 40.0, float(_room.get("room_width")) - 40.0)
+	_player.global_position = Vector2(_last_hall_x, _room.call("ground_y"))
+	for painting in _paintings:
+		painting.call("set_player_aligned", bool(painting.call("within_reach", _player.position)), false)
 	# Kept indoors. The wanderer clamps itself to whatever bounds it is given, which is the
 	# only thing stopping a walk off the end of the wall into nothing.
 	if _player.has_method("set_world_bounds"):
@@ -147,11 +159,31 @@ func _ready() -> void:
 
 	_build_hud()
 	set_process(true)
-	var manager := get_node_or_null(^"/root/LevelManager")
 	var opened := String(manager.call("take_pending_reveal")) \
 		if manager != null and manager.has_method("take_pending_reveal") else ""
 	if not opened.is_empty():
+		_revealing = true
+		_player.set_physics_process(false)
 		_open_in_front_of_her.call_deferred(opened)
+
+
+func _exit_tree() -> void:
+	remember_position()
+
+
+func remember_position() -> void:
+	if is_instance_valid(_player):
+		_last_hall_x = _player.position.x
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	if profile != null:
+		profile.call("remember_hall_position", _last_hall_x)
+
+
+func painting_for_level(level_id: String) -> Node2D:
+	for painting in _paintings:
+		if String(painting.get("level_id")) == level_id:
+			return painting
+	return null
 
 
 ## A LEVEL JUST FINISHED HAS OPENED THE NEXT PAINTING, AND THE HOUSE OPENS IT IN FRONT OF HER.
@@ -169,6 +201,9 @@ func _open_in_front_of_her(level_id: String) -> void:
 	_revealing = true
 	painting.call("show_locked")
 	_player.set_physics_process(false)
+	var manager := get_node_or_null(^"/root/LevelManager")
+	if manager != null and bool(manager.call("is_transitioning")):
+		await manager.transition_finished
 	# Home first -- she is seen to arrive -- and then the eye goes over to the picture.
 	await get_tree().create_timer(0.7).timeout
 	_look_at = painting.global_position.x
@@ -178,7 +213,6 @@ func _open_in_front_of_her(level_id: String) -> void:
 	_look_at = NAN
 	_revealing = false
 	_player.set_physics_process(true)
-	var manager := get_node_or_null(^"/root/LevelManager")
 	var title := String(manager.call("get_level", level_id).get("title", "")) if manager != null else ""
 	_status.text = "%s is open. Walk to it and press E." % title if not title.is_empty() \
 		else "A new painting is open."
@@ -207,6 +241,7 @@ func _hang(index: int, entry: Dictionary) -> void:
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 	layer.name = "HubHud"
+	layer.layer = 5
 	add_child(layer)
 
 	var title := Label.new()
@@ -317,7 +352,16 @@ func _process(_delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
 	_camera.global_position = _eye_on(_look_at if is_finite(_look_at) else _player.global_position.x)
-	_near = null if is_revealing() else _nearest_target()
+	_last_hall_x = _player.position.x
+	var manager := get_node_or_null(^"/root/LevelManager")
+	var transitioning := manager != null and bool(manager.call("is_transitioning"))
+	var previous_near := _near
+	_near = null if is_revealing() or transitioning else _nearest_target()
+	if _near != previous_near and _near in _paintings:
+		get_node(^"/root/LevelManager").call("prepare_level", String(_near.get("level_id")))
+	if not transitioning:
+		for painting in _paintings:
+			painting.call("set_player_aligned", painting == _near)
 	_prompt.visible = _near != null
 	if _near == null:
 		return
@@ -397,6 +441,7 @@ func _build_menu_button(layer: CanvasLayer) -> void:
 
 
 func _to_main_menu() -> void:
+	remember_position()
 	var manager := get_node_or_null(^"/root/LevelManager")
 	if manager != null:
 		manager.call("open_main_menu")
@@ -438,7 +483,11 @@ func _on_painting_chosen(level_id: String) -> void:
 		# having pressed the key anyway.
 		_status.text = "Lola has not painted that one yet."
 		return
-	manager.call("open_level", level_id)
+	for painting in _paintings:
+		if String(painting.get("level_id")) == level_id:
+			remember_position()
+			manager.call("open_level", level_id, painting)
+			return
 
 
 ## WHAT THE KEY WILL DO, not a generic verb. Standing at a painting without the brush is
