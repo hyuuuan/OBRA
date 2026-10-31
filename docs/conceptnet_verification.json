@@ -1,0 +1,865 @@
+{
+  "dump": "conceptnet-assertions-5.7.0.csv.gz",
+  "found": 13,
+  "checked": 47,
+  "entries": {
+    "bird": {
+      "assertion": "/c/en/bird CapableOf /c/en/fly",
+      "ability": "fly",
+      "curated_weight": 6.0,
+      "in_conceptnet_5_7": true,
+      "weight_5_7": 2.828,
+      "surface_text": "[[bird]] can [[fly]]",
+      "rank_on_relation": 5,
+      "edges_on_relation": 36,
+      "top_edge": {
+        "end": "/c/en/sing",
+        "weight": 6.633
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/fly_high",
+          "weight": 2.828
+        }
+      ]
+    },
+    "bat": {
+      "assertion": "/c/en/bat CapableOf /c/en/fly",
+      "ability": "fly",
+      "curated_weight": 2.83,
+      "in_conceptnet_5_7": true,
+      "weight_5_7": 1.0,
+      "surface_text": "An activity [[a bat]] can do is [[fly]]",
+      "rank_on_relation": 3,
+      "edges_on_relation": 5,
+      "top_edge": {
+        "end": "/c/en/strike_ball",
+        "weight": 4.472
+      },
+      "near_matches": []
+    },
+    "butterfly": {
+      "assertion": "/c/en/butterfly CapableOf /c/en/fly",
+      "ability": "fly",
+      "curated_weight": 3.46,
+      "in_conceptnet_5_7": true,
+      "weight_5_7": 2.0,
+      "surface_text": "[[a butterfly]] can [[fly]]",
+      "rank_on_relation": 1,
+      "edges_on_relation": 4,
+      "top_edge": {
+        "end": "/c/en/fly",
+        "weight": 2.0
+      },
+      "near_matches": []
+    },
+    "spider": {
+      "assertion": "/c/en/spider CapableOf /c/en/climb",
+      "ability": "climb",
+      "curated_weight": 2.83,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 6,
+      "top_edge": {
+        "end": "/c/en/spin_webs",
+        "weight": 2.828
+      },
+      "near_matches": []
+    },
+    "monkey": {
+      "assertion": "/c/en/monkey CapableOf /c/en/climb",
+      "ability": "climb",
+      "curated_weight": 3.46,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 5,
+      "top_edge": {
+        "end": "/c/en/attempt_to_climb_tree",
+        "weight": 1.0
+      },
+      "near_matches": []
+    },
+    "frog": {
+      "assertion": "/c/en/frog CapableOf /c/en/jump",
+      "ability": "jump",
+      "curated_weight": 3.46,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 12,
+      "top_edge": {
+        "end": "/c/en/leap",
+        "weight": 2.0
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/jump_in_pond",
+          "weight": 1.0
+        },
+        {
+          "end": "/c/en/jump_into_air",
+          "weight": 1.0
+        },
+        {
+          "end": "/c/en/jump_very_high",
+          "weight": 1.0
+        }
+      ]
+    },
+    "fish": {
+      "assertion": "/c/en/fish CapableOf /c/en/swim",
+      "ability": "swim",
+      "curated_weight": 6.32,
+      "in_conceptnet_5_7": true,
+      "weight_5_7": 2.0,
+      "surface_text": "[[Fish]] can [[swim]]",
+      "rank_on_relation": 4,
+      "edges_on_relation": 26,
+      "top_edge": {
+        "end": "/c/en/live_underwater",
+        "weight": 4.0
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/swim_in_river",
+          "weight": 1.0
+        }
+      ]
+    },
+    "shark": {
+      "assertion": "/c/en/shark CapableOf /c/en/swim",
+      "ability": "swim",
+      "curated_weight": 2.83,
+      "in_conceptnet_5_7": true,
+      "weight_5_7": 1.0,
+      "surface_text": "[[a shark]] can [[swim]].",
+      "rank_on_relation": 2,
+      "edges_on_relation": 2,
+      "top_edge": {
+        "end": "/c/en/circle_swimmer",
+        "weight": 1.0
+      },
+      "near_matches": []
+    },
+    "octopus": {
+      "assertion": "/c/en/octopus CapableOf /c/en/swim",
+      "ability": "swim",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 0,
+      "top_edge": null,
+      "near_matches": []
+    },
+    "crab": {
+      "assertion": "/c/en/crab CapableOf /c/en/pinch",
+      "ability": "pinch",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 1,
+      "top_edge": {
+        "end": "/c/en/live_on_wet_rocks",
+        "weight": 1.0
+      },
+      "near_matches": []
+    },
+    "horse": {
+      "assertion": "/c/en/horse CapableOf /c/en/gallop",
+      "ability": "gallop",
+      "curated_weight": 2.83,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 31,
+      "top_edge": {
+        "end": "/c/en/pull_cart",
+        "weight": 3.464
+      },
+      "near_matches": []
+    },
+    "elephant": {
+      "assertion": "/c/en/elephant CapableOf /c/en/stomp",
+      "ability": "stomp",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 8,
+      "top_edge": {
+        "end": "/c/en/carry_trunk",
+        "weight": 1.0
+      },
+      "near_matches": []
+    },
+    "snake": {
+      "assertion": "/c/en/snake CapableOf /c/en/slither",
+      "ability": "slither",
+      "curated_weight": 2.83,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 7,
+      "top_edge": {
+        "end": "/c/en/eat_egg",
+        "weight": 1.0
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/slither_down_street",
+          "weight": 1.0
+        }
+      ]
+    },
+    "sea_turtle": {
+      "assertion": "/c/en/sea_turtle CapableOf /c/en/swim",
+      "ability": "swim",
+      "curated_weight": 2.83,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 0,
+      "top_edge": null,
+      "near_matches": []
+    },
+    "snail": {
+      "assertion": "/c/en/snail CapableOf /c/en/crawl",
+      "ability": "crawl",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 0,
+      "top_edge": null,
+      "near_matches": []
+    },
+    "ant": {
+      "assertion": "/c/en/ant CapableOf /c/en/carry",
+      "ability": "carry",
+      "curated_weight": 2.83,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 2,
+      "top_edge": {
+        "end": "/c/en/build_colony",
+        "weight": 1.0
+      },
+      "near_matches": []
+    },
+    "bee": {
+      "assertion": "/c/en/bee CapableOf /c/en/pollinate",
+      "ability": "pollinate",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 4,
+      "top_edge": {
+        "end": "/c/en/sting",
+        "weight": 2.0
+      },
+      "near_matches": []
+    },
+    "pig": {
+      "assertion": "/c/en/pig CapableOf /c/en/dig",
+      "ability": "dig",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 4,
+      "top_edge": {
+        "end": "/c/en/find_truffle",
+        "weight": 2.0
+      },
+      "near_matches": []
+    },
+    "penguin": {
+      "assertion": "/c/en/penguin CapableOf /c/en/slide",
+      "ability": "slide",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 0,
+      "top_edge": null,
+      "near_matches": []
+    },
+    "scorpion": {
+      "assertion": "/c/en/scorpion CapableOf /c/en/sting",
+      "ability": "sting",
+      "curated_weight": 2.83,
+      "in_conceptnet_5_7": true,
+      "weight_5_7": 1.0,
+      "surface_text": "[[A scorpion]] can [[sting]]",
+      "rank_on_relation": 1,
+      "edges_on_relation": 1,
+      "top_edge": {
+        "end": "/c/en/sting",
+        "weight": 1.0
+      },
+      "near_matches": []
+    },
+    "axe": {
+      "assertion": "/c/en/axe UsedFor /c/en/chop",
+      "ability": "chop",
+      "curated_weight": 4.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 2,
+      "top_edge": {
+        "end": "/c/en/chop_wood_for_building_fires",
+        "weight": 1.0
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/chop_wood_for_building_fires",
+          "weight": 1.0
+        }
+      ]
+    },
+    "sword": {
+      "assertion": "/c/en/sword UsedFor /c/en/cut",
+      "ability": "cut",
+      "curated_weight": 2.83,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 16,
+      "top_edge": {
+        "end": "/c/en/killing",
+        "weight": 4.472
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/cut_off_hand",
+          "weight": 1.0
+        },
+        {
+          "end": "/c/en/cutting",
+          "weight": 1.0
+        }
+      ]
+    },
+    "cannon": {
+      "assertion": "/c/en/cannon UsedFor /c/en/shoot",
+      "ability": "shoot",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 17,
+      "top_edge": {
+        "end": "/c/en/shoot_cannon_ball",
+        "weight": 3.464
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/shoot_cannon_ball",
+          "weight": 3.464
+        },
+        {
+          "end": "/c/en/shooting_cannonballs",
+          "weight": 3.464
+        },
+        {
+          "end": "/c/en/shoot_cannonballs",
+          "weight": 2.0
+        }
+      ]
+    },
+    "boomerang": {
+      "assertion": "/c/en/boomerang UsedFor /c/en/throw",
+      "ability": "throw",
+      "curated_weight": 2.83,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 0,
+      "top_edge": null,
+      "near_matches": []
+    },
+    "flashlight": {
+      "assertion": "/c/en/flashlight UsedFor /c/en/light",
+      "ability": "light",
+      "curated_weight": 2.83,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 2,
+      "top_edge": {
+        "end": "/c/en/seeing_in_dark",
+        "weight": 2.0
+      },
+      "near_matches": []
+    },
+    "campfire": {
+      "assertion": "/c/en/campfire UsedFor /c/en/warm",
+      "ability": "warm",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 0,
+      "top_edge": null,
+      "near_matches": []
+    },
+    "cloud": {
+      "assertion": "/c/en/cloud UsedFor /c/en/rain",
+      "ability": "rain",
+      "curated_weight": 1.0,
+      "in_conceptnet_5_7": true,
+      "weight_5_7": 2.0,
+      "surface_text": "[[a cloud]] is used for [[rain]]",
+      "rank_on_relation": 2,
+      "edges_on_relation": 30,
+      "top_edge": {
+        "end": "/c/en/bringing_rain",
+        "weight": 2.0
+      },
+      "near_matches": []
+    },
+    "sun": {
+      "assertion": "/c/en/sun UsedFor /c/en/heat",
+      "ability": "heat",
+      "curated_weight": 1.0,
+      "in_conceptnet_5_7": true,
+      "weight_5_7": 2.828,
+      "surface_text": "[[the sun]] is for [[heat]]",
+      "rank_on_relation": 3,
+      "edges_on_relation": 29,
+      "top_edge": {
+        "end": "/c/en/light",
+        "weight": 4.0
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/heat_pond",
+          "weight": 1.0
+        },
+        {
+          "end": "/c/en/heating_up_earth",
+          "weight": 1.0
+        }
+      ]
+    },
+    "fan": {
+      "assertion": "/c/en/fan UsedFor /c/en/cool",
+      "ability": "cool",
+      "curated_weight": 3.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 24,
+      "top_edge": {
+        "end": "/c/en/cool_off",
+        "weight": 6.0
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/cool_off",
+          "weight": 6.0
+        },
+        {
+          "end": "/c/en/cool_people_down",
+          "weight": 2.0
+        },
+        {
+          "end": "/c/en/cooling_air",
+          "weight": 2.0
+        }
+      ]
+    },
+    "ladder": {
+      "assertion": "/c/en/ladder UsedFor /c/en/climb",
+      "ability": "climb",
+      "curated_weight": 5.29,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 21,
+      "top_edge": {
+        "end": "/c/en/painting_ceiling",
+        "weight": 2.828
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/climbing_walls",
+          "weight": 2.0
+        },
+        {
+          "end": "/c/en/climbing_to_higher_level",
+          "weight": 1.0
+        },
+        {
+          "end": "/c/en/climbing_tree",
+          "weight": 1.0
+        }
+      ]
+    },
+    "stairs": {
+      "assertion": "/c/en/stairs UsedFor /c/en/climb",
+      "ability": "climb",
+      "curated_weight": 3.0,
+      "in_conceptnet_5_7": true,
+      "weight_5_7": 1.0,
+      "surface_text": "You can use [[stairs]] to [[climb]]",
+      "rank_on_relation": 3,
+      "edges_on_relation": 17,
+      "top_edge": {
+        "end": "/c/en/climbing",
+        "weight": 5.292
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/climbing",
+          "weight": 5.292
+        },
+        {
+          "end": "/c/en/climb_to_another_floor",
+          "weight": 1.0
+        },
+        {
+          "end": "/c/en/climb_up",
+          "weight": 1.0
+        }
+      ]
+    },
+    "parachute": {
+      "assertion": "/c/en/parachute UsedFor /c/en/glide",
+      "ability": "glide",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 0,
+      "top_edge": null,
+      "near_matches": []
+    },
+    "hot_air_balloon": {
+      "assertion": "/c/en/hot_air_balloon UsedFor /c/en/float",
+      "ability": "float",
+      "curated_weight": 1.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 0,
+      "top_edge": null,
+      "near_matches": []
+    },
+    "bridge": {
+      "assertion": "/c/en/bridge UsedFor /c/en/cross",
+      "ability": "cross",
+      "curated_weight": 4.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 23,
+      "top_edge": {
+        "end": "/c/en/crossing_river",
+        "weight": 4.0
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/crossing_river",
+          "weight": 4.0
+        },
+        {
+          "end": "/c/en/cross_bay",
+          "weight": 3.464
+        },
+        {
+          "end": "/c/en/cross_over_body_of_water",
+          "weight": 3.464
+        }
+      ]
+    },
+    "sailboat": {
+      "assertion": "/c/en/sailboat UsedFor /c/en/sail",
+      "ability": "sail",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 1,
+      "top_edge": {
+        "end": "/c/en/get_to_presidio",
+        "weight": 1.0
+      },
+      "near_matches": []
+    },
+    "submarine": {
+      "assertion": "/c/en/submarine UsedFor /c/en/dive",
+      "ability": "dive",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 0,
+      "top_edge": null,
+      "near_matches": []
+    },
+    "key": {
+      "assertion": "/c/en/key UsedFor /c/en/unlock",
+      "ability": "unlock",
+      "curated_weight": 5.29,
+      "in_conceptnet_5_7": true,
+      "weight_5_7": 2.0,
+      "surface_text": "[[key]] is used for [[unlock]]",
+      "rank_on_relation": 16,
+      "edges_on_relation": 34,
+      "top_edge": {
+        "end": "/c/en/open_lock",
+        "weight": 6.0
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/unlocking",
+          "weight": 4.0
+        },
+        {
+          "end": "/c/en/unlock_lock",
+          "weight": 2.0
+        },
+        {
+          "end": "/c/en/unlock_car_door",
+          "weight": 1.0
+        }
+      ]
+    },
+    "door": {
+      "assertion": "/c/en/door UsedFor /c/en/enter",
+      "ability": "enter",
+      "curated_weight": 3.0,
+      "in_conceptnet_5_7": true,
+      "weight_5_7": 1.0,
+      "surface_text": "[[door]] is for [[enter]]",
+      "rank_on_relation": 5,
+      "edges_on_relation": 22,
+      "top_edge": {
+        "end": "/c/en/separating_rooms",
+        "weight": 2.0
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/enter_room",
+          "weight": 1.0
+        },
+        {
+          "end": "/c/en/entering_or_exiting_area",
+          "weight": 1.0
+        },
+        {
+          "end": "/c/en/entering_or_exiting_room",
+          "weight": 1.0
+        }
+      ]
+    },
+    "rake": {
+      "assertion": "/c/en/rake UsedFor /c/en/gather",
+      "ability": "gather",
+      "curated_weight": 3.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 0,
+      "top_edge": null,
+      "near_matches": []
+    },
+    "scissors": {
+      "assertion": "/c/en/scissors UsedFor /c/en/cut",
+      "ability": "cut",
+      "curated_weight": 5.29,
+      "in_conceptnet_5_7": true,
+      "weight_5_7": 5.657,
+      "surface_text": "[[scissors]] are used to [[cut]]",
+      "rank_on_relation": 1,
+      "edges_on_relation": 12,
+      "top_edge": {
+        "end": "/c/en/cut",
+        "weight": 5.657
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/cut_hair",
+          "weight": 1.0
+        },
+        {
+          "end": "/c/en/cut_leather",
+          "weight": 1.0
+        },
+        {
+          "end": "/c/en/cut_paper_or_cloth",
+          "weight": 1.0
+        }
+      ]
+    },
+    "clock": {
+      "assertion": "/c/en/clock UsedFor /c/en/tell_time",
+      "ability": "tell time",
+      "curated_weight": 4.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 24,
+      "top_edge": {
+        "end": "/c/en/keeping_time",
+        "weight": 2.828
+      },
+      "near_matches": []
+    },
+    "anvil": {
+      "assertion": "/c/en/anvil UsedFor /c/en/forge",
+      "ability": "forge",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 1,
+      "top_edge": {
+        "end": "/c/en/stun_cartoon_character",
+        "weight": 1.0
+      },
+      "near_matches": []
+    },
+    "bucket": {
+      "assertion": "/c/en/bucket UsedFor /c/en/carry",
+      "ability": "carry",
+      "curated_weight": 3.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 20,
+      "top_edge": {
+        "end": "/c/en/carrying_liquids",
+        "weight": 4.472
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/carrying_liquids",
+          "weight": 4.472
+        },
+        {
+          "end": "/c/en/carry_water",
+          "weight": 2.828
+        },
+        {
+          "end": "/c/en/carry_dirt",
+          "weight": 1.0
+        }
+      ]
+    },
+    "umbrella": {
+      "assertion": "/c/en/umbrella UsedFor /c/en/shelter",
+      "ability": "shelter",
+      "curated_weight": 3.46,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 19,
+      "top_edge": {
+        "end": "/c/en/protection_from_rain",
+        "weight": 4.472
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/shelter_from_rain",
+          "weight": 2.828
+        }
+      ]
+    },
+    "tree": {
+      "assertion": "/c/en/tree UsedFor /c/en/shade",
+      "ability": "shade",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": true,
+      "weight_5_7": 3.464,
+      "surface_text": "[[a tree]] is for [[shade]]",
+      "rank_on_relation": 1,
+      "edges_on_relation": 32,
+      "top_edge": {
+        "end": "/c/en/shade",
+        "weight": 3.464
+      },
+      "near_matches": []
+    },
+    "bread": {
+      "assertion": "/c/en/bread UsedFor /c/en/feed",
+      "ability": "feed",
+      "curated_weight": 2.0,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 15,
+      "top_edge": {
+        "end": "/c/en/eating",
+        "weight": 5.657
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/feeding_to_birds",
+          "weight": 1.0
+        }
+      ]
+    },
+    "wheel": {
+      "assertion": "/c/en/wheel UsedFor /c/en/roll",
+      "ability": "roll",
+      "curated_weight": 2.83,
+      "in_conceptnet_5_7": false,
+      "weight_5_7": null,
+      "surface_text": null,
+      "rank_on_relation": null,
+      "edges_on_relation": 19,
+      "top_edge": {
+        "end": "/c/en/rolling",
+        "weight": 2.828
+      },
+      "near_matches": [
+        {
+          "end": "/c/en/rolling",
+          "weight": 2.828
+        }
+      ]
+    }
+  }
+}
