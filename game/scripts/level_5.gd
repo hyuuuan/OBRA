@@ -938,6 +938,7 @@ func _bloom_the_places() -> void:
 		# A landscape planted on the ground, not a row of little collectible cards.
 		var fit := targets[index].bloom_width / picture.texture.get_width()
 		picture.scale = Vector2.ONE * fit
+		picture.set("world_scale", fit)
 		picture.self_modulate = targets[index].bloom_tint
 		picture.position = centre + Vector2(lerpf(-720, 520, share),
 			-picture.texture.get_height() * fit * 0.5 + targets[index].bloom_elevation)
