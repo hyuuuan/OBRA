@@ -572,6 +572,12 @@ func _on_entity_declined(
 	recognition_declined.emit(entity, confidence, margin, reason)
 
 
+## When Paint was last pressed, in Time.get_ticks_usec() terms; 0 before the first press. The
+## level reads it to time a drawing all the way to its appearance in the world.
+func submit_started_usec() -> int:
+	return _submit_started_usec
+
+
 func _submit_latency_ms() -> float:
 	if _submit_started_usec <= 0:
 		return 0.0

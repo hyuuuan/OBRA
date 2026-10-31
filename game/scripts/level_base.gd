@@ -576,6 +576,8 @@ func _ready() -> void:
 
 	draw_button.pressed.connect(_on_draw_button_pressed)
 	draw_panel.drawing_ready.connect(_on_drawing_ready)
+	# Connected AFTER _on_drawing_ready, so it runs once the entity has been made.
+	draw_panel.drawing_ready.connect(_measure_spawn_latency)
 	draw_panel.panel_closed.connect(_on_draw_panel_closed)
 	draw_panel.quietly_refused.connect(_on_brush_refused)
 	draw_panel.recognition_declined.connect(_on_recognition_declined)
@@ -2098,6 +2100,30 @@ func _release_camera_focus() -> void:
 	var world_camera := _world_camera()
 	if world_camera != null:
 		world_camera.release_focus()
+
+
+## THE PLAYER'S WAIT, ALL OF IT. The thesis measures response time "to the appearance of the
+## spawned entity" (Eq. 12, §4.10.3); the recognition record's latency_ms stops at the
+## recogniser's answer, short of the rig being built and drawn. This runs after
+## _on_drawing_ready has made the entity -- a morph, or a placement's preview -- and logs the
+## time from Paint to the first frame rendered with it. Telemetry only; nothing waits on it.
+func _measure_spawn_latency(
+	entity_id: String, _display_name: String, _drawing: Image, _response: Dictionary,
+	_strokes: Array, _ink_cost: float
+) -> void:
+	var started := draw_panel.submit_started_usec()
+	if started <= 0:
+		return
+	# The next frame's start comes after the frame holding the entity has been drawn, which
+	# is within a frame of its appearance. ⚠ Not RenderingServer.frame_post_draw: a headless
+	# run never draws, so it never fires and the measurement could never be tested.
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	Telemetry.record_event("spawn", {
+		"entity": entity_id,
+		"latency_ms": float(Time.get_ticks_usec() - started) / 1000.0,
+	})
 
 
 func _world_camera() -> WorldCameraController:
