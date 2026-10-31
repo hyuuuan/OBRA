@@ -92,7 +92,12 @@ func _level_fades_its_old_way(scene: String, path: NodePath) -> void:
 ## The near (left) edge of everything drawn in it, in the world.
 func _leftmost(thing: Node2D) -> float:
 	var left := INF
-	for node in thing.find_children("*", "Sprite2D", true, false):
+	# ⚠ The thing itself, too: an old way that is one sprite (the ladder, the log) has no
+	# Sprite2D children, and without it its edge was INF and the check could not fail.
+	var sprites: Array[Node] = thing.find_children("*", "Sprite2D", true, false)
+	if thing is Sprite2D:
+		sprites.append(thing)
+	for node in sprites:
 		var sprite := node as Sprite2D
 		left = minf(left, (sprite.get_global_transform() * sprite.get_rect()).position.x)
 	return left
