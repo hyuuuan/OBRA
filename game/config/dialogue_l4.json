@@ -487,6 +487,22 @@
       "speaker": "apo",
       "kind": "lore",
       "text": "The forest on Makiling is kept for learning now. People come up to put a name to everything that grows in it."
+    },
+    {
+      "id": "L4_BRUSH_001",
+      "at": "on_brush_wants_surer",
+      "speaker": "apo",
+      "kind": "hint",
+      "once": true,
+      "text": "It saw it. Lola's brush wants it surer."
+    },
+    {
+      "id": "L4_BRUSH_002",
+      "at": "on_brush_eases",
+      "speaker": "apo",
+      "kind": "hint",
+      "once": true,
+      "text": "It's learning my hand."
     }
   ],
   "conversations": {

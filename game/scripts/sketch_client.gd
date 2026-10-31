@@ -87,27 +87,95 @@ func _ready() -> void:
 	_resend.timeout.connect(_send_pending)
 
 
+## THE BRUSH ASKS MORE THE FURTHER FROM HOME IT IS (thesis §4.5.4.2, "adaptive difficulty by
+## acceptance threshold"). Above the 0.60 / 0.15 floor, which never moves, a level may set a
+## higher confidence bar of its own -- `acceptance_threshold` in its recognition block. The
+## story's reason is the NEW BRUSH found on Dagat's shore: hers was spent, this one is
+## stronger and wants a surer line, and the bar is only raised once it is in her hand
+## (PlayerProfile.has_new_brush), so Payyo and Piyesta -- and the shore before it is taken --
+## stay at the floor. Payyo 0.60, Piyesta 0.60, Dagat 0.65, Dilim 0.70, Mayon 0.75.
+##
+## ⚠ IT CAN NEVER STRAND HER. After `eases_after` declines in a row the bar comes down by
+## `ease_step` on every further decline until it reaches the floor, where it stays, and an
+## accepted drawing puts it back. The manuscript counts declines "on the same obstacle"; a run
+## of declines with nothing accepted between them is the same thing as far as the brush can
+## tell, since nothing is drawn at two obstacles at once. Declines cost no ink at any bar.
+##
+## ⚠ RECOGNITION IS STILL MEASURED AT THE FLOOR. A drawing the floor would take but the bar
+## refused is declined with reason "brush", and telemetry records the bar and whether the
+## floor passed it, so no figure in the paper moves with the difficulty (§4.5.4.2).
+signal bar_eased(bar: float)
+
+var acceptance_threshold: float = 0.6
+var eases_after := 2
+var ease_step := 0.05
+var _declines_in_a_row := 0
+
+
 ## The level's own gate, from the `recognition` block of its level_NN.json. Thesis §3.3.6
 ## holds both thresholds "as configuration values ... re-tuned without a code change"; for a
 ## long time every level file carried the block and nothing read it, so the numbers that
-## mattered were the export defaults above. A key the block leaves out keeps its default.
+## mattered were the export defaults above. A key the block leaves out keeps its default, and
+## a level that names no bar of its own is at the floor.
 func configure_gate(recognition: Dictionary) -> void:
 	confidence_threshold = float(recognition.get("confidence_threshold", confidence_threshold))
 	margin_threshold = float(recognition.get("margin_threshold", margin_threshold))
+	acceptance_threshold = maxf(confidence_threshold,
+		float(recognition.get("acceptance_threshold", confidence_threshold)))
+	eases_after = int(recognition.get("eases_after_declines", eases_after))
+	ease_step = float(recognition.get("ease_step", ease_step))
+	_declines_in_a_row = 0
+
+
+## The confidence a drawing has to reach right now: the level's bar, eased by the run of
+## declines behind it, and never below the floor. Only the new brush asks for more.
+func current_bar() -> float:
+	if not _brush_asks_more():
+		return confidence_threshold
+	var eased := maxi(0, _declines_in_a_row - eases_after + 1)
+	return maxf(confidence_threshold, acceptance_threshold - ease_step * float(eased))
 
 
 ## THE ONE PLACE THE GATE IS WRITTEN. The drawing panel's live guess colours itself by it, so
 ## "gold" always means "Paint will take this" -- it used to repeat 0.6 and 0.15 as literals,
 ## which would have gone on saying gold after a level raised its bar.
 func passes_gate(confidence: float, margin: float) -> bool:
+	return confidence >= current_bar() and margin >= margin_threshold
+
+
+## The floor alone, which is what recognition is reported against.
+func passes_floor(confidence: float, margin: float) -> bool:
 	return confidence >= confidence_threshold and margin >= margin_threshold
 
 
-## Which half of the dual gate refused a drawing. The thesis reports them separately, and
-## they mean different things to a player: a low margin is "it looked like two things", a
-## low confidence is "it looked like nothing".
-func decline_reason(confidence: float, _margin: float) -> String:
+## Which part of the gate refused a drawing. The thesis reports the two halves of the floor
+## separately, and they mean different things to a player: a low margin is "it looked like
+## two things", a low confidence is "it looked like nothing". "brush" is a drawing the floor
+## took and only the level's raised bar refused -- a sure reading, not a sure enough one.
+func decline_reason(confidence: float, margin: float) -> String:
+	if passes_floor(confidence, margin):
+		return "brush"
 	return "margin" if confidence >= confidence_threshold else "confidence"
+
+
+## Called once per answered submission. A decline lengthens the run the bar eases on; an
+## accepted drawing ends it, and the next obstacle meets the level's full bar again.
+func _note_outcome(accepted: bool) -> void:
+	if accepted:
+		_declines_in_a_row = 0
+		return
+	var before := current_bar()
+	_declines_in_a_row += 1
+	var after := current_bar()
+	if after < before:
+		bar_eased.emit(after)
+
+
+func _brush_asks_more() -> bool:
+	if acceptance_threshold <= confidence_threshold:
+		return false
+	var profile := get_node_or_null("/root/PlayerProfile")
+	return profile != null and bool(profile.call("has_new_brush"))
 
 
 func _predict_url() -> String:
@@ -234,7 +302,13 @@ func _on_request_completed(
 	if not passes_gate(confidence, margin):
 		# A prediction came back but was rejected by the gate — surface it as a
 		# decline (redraw) carrying its class/confidence/margin instead of dropping it.
+		# The reason and bar are read BEFORE the run is lengthened: they are what refused it.
+		parsed["gate_reason"] = decline_reason(confidence, margin)
+		parsed["gate_bar"] = current_bar()
+		_note_outcome(false)
 		entity_declined.emit(entity, confidence, margin, parsed)
 		return
+	parsed["gate_bar"] = current_bar()
+	_note_outcome(true)
 	entity_prediction_received.emit(entity, display_name, confidence, _last_drawing, parsed)
 	prediction_received.emit(entity, confidence, _last_drawing)

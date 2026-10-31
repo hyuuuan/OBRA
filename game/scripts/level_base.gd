@@ -756,6 +756,8 @@ func _build_obstacle_layer() -> void:
 		push_warning("%s: no level data; obstacles will accept nothing" % name)
 	# The recognition gate is the level's, from its own file (see SketchClient.configure_gate).
 	draw_panel.client.call("configure_gate", director.level_data().get("recognition", {}))
+	if draw_panel.client.has_signal(&"bar_eased"):
+		draw_panel.client.connect(&"bar_eased", _on_brush_bar_eased)
 
 	checkpoints = CheckpointManager.new()
 	checkpoints.name = "CheckpointManager"
@@ -2113,9 +2115,16 @@ func _world_camera() -> WorldCameraController:
 ## and it is scripted as dialogue rather than as a rejection: the model is not rigged to
 ## fail, and the player is not being told they drew badly. No ink is spent -- the panel
 ## already released it before this runs.
+##
+## A "brush" decline is a different thing and says so: the drawing WAS read, and only the
+## new brush's higher bar refused it (SketchClient.current_bar). Telling her "I could not
+## tell it apart" would be untrue, so it has its own hook and leaves the refusal beat unspent.
 func _on_recognition_declined(_entity: String, _confidence: float, _margin: float, reason: String) -> void:
 	if director != null:
 		director.note_decline(reason)
+	if reason == "brush":
+		_speak(script_lines.fire("on_brush_wants_surer"))
+		return
 	if _refusal_spoken:
 		return
 	var lines := script_lines.fire("on_first_decline")
@@ -2123,6 +2132,13 @@ func _on_recognition_declined(_entity: String, _confidence: float, _margin: floa
 		return
 	_refusal_spoken = true
 	_speak(lines)
+
+
+## The new brush has stopped asking quite so much, after a run of declines. Said, so a
+## drawing that is taken on the fourth try reads as the brush coming round to her hand
+## rather than as luck.
+func _on_brush_bar_eased(_bar: float) -> void:
+	_speak(script_lines.fire("on_brush_eases"))
 
 
 func _on_draw_panel_closed() -> void:

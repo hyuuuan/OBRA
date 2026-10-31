@@ -72,6 +72,12 @@ def summarize(records: Iterable[dict]) -> dict:
 
     total = len(recognitions)
     declines = sum(1 for r in recognitions if r.get("outcome") == "decline")
+    # A decline only a level's raised bar refused (the new brush asking more, thesis
+    # §4.5.4.2) is a drawing the fixed floor would have taken. The paper reports recognition
+    # against the floor, so it gets a redraw rate that leaves those out.
+    floor_declines = sum(
+        1 for r in recognitions if r.get("outcome") == "decline" and not r.get("floor_accepted")
+    )
     latencies = [
         float(r["latency_ms"]) for r in recognitions if isinstance(r.get("latency_ms"), (int, float))
     ]
@@ -114,6 +120,7 @@ def summarize(records: Iterable[dict]) -> dict:
         "accepts": total - declines,
         "declines": declines,
         "redraw_rate": (declines / total) if total else 0.0,
+        "redraw_rate_at_floor": (floor_declines / total) if total else 0.0,
         "class_diversity": len(accepted_classes),
         "latency_ms": {
             "count": len(latencies),
@@ -138,6 +145,7 @@ def _print_report(report: dict) -> None:
     print(f"  accepts:          {report['accepts']}")
     print(f"  declines:         {report['declines']}")
     print(f"  redraw rate:      {report['redraw_rate']:.3f}")
+    print(f"  ...at the floor:  {report['redraw_rate_at_floor']:.3f}")
     print(f"  class diversity:  {report['class_diversity']}")
     latency = report["latency_ms"]
     if latency["count"]:
