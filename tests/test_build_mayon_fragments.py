@@ -34,6 +34,12 @@ class FragmentTest(unittest.TestCase):
         again = np.asarray(fragments.fragment("kubo"))[..., 3]
         self.assertTrue(np.array_equal(a, again), "the tear is not seeded")
 
+    def test_none_is_too_dark_to_read_against_the_dusk(self) -> None:
+        # The tear's paper rim only brightens a fragment, so the floor holds after tearing.
+        for fragment_id in fragments.ids():
+            self.assertGreaterEqual(fragments.brightness(fragments.fragment(fragment_id)),
+                                    fragments.LIGHT_FLOOR, f"{fragment_id} reads as a black hole")
+
     def test_the_committed_fragments_are_current(self) -> None:
         for fragment_id in fragments.ids():
             path = fragments.OUT / f"{fragment_id}.png"

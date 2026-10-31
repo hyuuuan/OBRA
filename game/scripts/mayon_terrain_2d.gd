@@ -77,7 +77,8 @@ func _draw() -> void:
 	for rect in platforms:
 		var zone := _zone(rect)
 		if one_way:
-			_draw_loose_rock(rect, CLIFFS[zone])
+			# Basalt, whatever the zone: in pale ash the loose rocks read as cloud, not footing.
+			_draw_loose_rock(rect, CLIFFS["basalt"])
 			continue
 		var deep := Color(.19, .15, .12)
 		var face := rect
