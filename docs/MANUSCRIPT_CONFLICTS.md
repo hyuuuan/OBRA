@@ -1,5 +1,11 @@
 # Manuscript vs. the game: where they disagree
 
+> **Superseded as a working list by [MANUSCRIPT_REVISIONS.md](MANUSCRIPT_REVISIONS.md)**, which says
+> what to write and where. Since this list was made: B1–B4 are fixed in the game (#152; the game
+> now uses the manuscript's Appendix C, verified against ConceptNet 5.7.0), A6 is done (#139),
+> the journey probe passes again (#150), and C1/C6/C7 plus the TU-Berlin protocol are in the
+> appeal letter.
+
 Checked 2026-10-31: `docs/OBRA_THESIS1.pdf` against `main` at `d2fdd4b` (PR #138).
 Section and page numbers are the manuscript's own. "Game" means the code in this
 repository, not the design documents.
