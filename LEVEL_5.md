@@ -300,6 +300,12 @@ the path. Tiles now overlap by 160px (`TILE_OVERLAP`), and below the face the ro
 times, darker each time and without its grass rows, instead of a flat brown void.
 `run_mayon_probe` checks that every column of the mountain is rock at rows 30 and 60.
 
+**Her lines at the summit (1 November, Kent's choice).** Each restored place carries her saved
+lines as a 140px signature in its lower right: sepia ink 4px wide over a pale paper halo, round
+joints, on its own layer above every place and below the pair. Fitted to 45% of a 1000px
+landscape at 2px, a doodle had become a giant chevron of hairlines that read as a rendering fault,
+and a signature drawn at its own place's depth fell under the neighbours that overlap it.
+
 ### Finishing pass
 
 The rebuilt ground was checked as one continuous journey, from the spawn to the room return.

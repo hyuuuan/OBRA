@@ -1,6 +1,6 @@
 extends SceneTree
 ## The actual summit state machine for both endings and all three voices, including no memories.
-const CHECKS := 9
+const CHECKS := 10
 var checked := 0
 var failures := 0
 
@@ -83,6 +83,23 @@ func _ending(perfect: bool, route: String) -> void:
 			widths_hold = widths_hold and is_equal_approx(scenery[i].texture.get_width()*scenery[i].scale.x,
 				targets[i].bloom_width)
 		_check(widths_hold and scenery.size() == 2, "restored scenery keeps its authored width through the fade")
+		# Her saved lines sign each place at a signature's size; they do not span the landscape.
+		var signed := scenery.size() == 2
+		var sizes: Array[float] = []
+		var deepest_place := -INF
+		for picture: Sprite2D in scenery:
+			deepest_place = maxf(deepest_place, picture.z_index)
+		for picture: Sprite2D in scenery:
+			var mark: Rect2 = picture.call("signature_rect")
+			var on_screen := maxf(mark.size.x, mark.size.y) * picture.scale.x
+			sizes.append(snappedf(on_screen, 0.1))
+			# Drawn above every place, which overlap, and below the pair standing in front of them.
+			var layer := picture.get_node_or_null(^"Signature") as Node2D
+			signed = signed and absf(on_screen - 140.0) < 1.0 \
+				and Rect2(-picture.texture.get_size() * 0.5, picture.texture.get_size()).encloses(mark) \
+				and layer != null and not layer.z_as_relative and layer.z_index > deepest_place \
+				and layer.z_index < (level.get("player") as Node2D).z_index
+		_check(signed, "saved lines sign each restored place at 140px, inside it, above the places: %s" % [sizes])
 		var state: Dictionary = level.call("_level_run_state")
 		state.erase("layout_version")
 		level.get("checkpoints").call("write", "CP2", {"position": Vector2(15000, -100), "level": state})

@@ -783,15 +783,26 @@ func _show_memory_if_earned() -> void:
 # Every override below is a spot where level_base.gd used to name Level 1 outright.
 
 
-## The gorge's ruined bridge goes out of the painting as she walks up to it, so the gap reads as
-## hers to cross before Lolo asks. Into the terraces' haze, not Mayon's ash paper -- and only to
-## a pale ghost, never blank: the rope stopping in mid-air is still the question the node asks.
+## Payyo's old ways go as she walks up to them -- Ang Hagdan's stone steps, the gorge's ruined
+## bridge -- so each gap reads as hers to fill before Lolo asks. All the way (Kent, 2026-11-01:
+## "full away"), and nothing left standing that looks like somewhere to put a foot.
 func _fades_the_old_way() -> bool:
 	return true
 
 
+## Into the terraces' haze, not Mayon's ash paper.
 func _fade_paper() -> Color:
 	return Color(0.78, 0.88, 0.86)
+
+
+## And dissolved in their own colours, barely lifted toward that haze: whitened to a flat slab
+## first, as Mayon's are, the old steps read as the ash taking them, and Payyo has no ash.
+func _fade_wash() -> float:
+	return 0.25
+
+
+func _fade_vanish_from() -> float:
+	return 0.15
 
 
 func level_config_path() -> String:
