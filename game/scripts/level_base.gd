@@ -4898,6 +4898,9 @@ func _gather_the_fading() -> void:
 
 
 func _tend_the_fading(her_x: float) -> void:
+	# ⚠ A route can clear its scenery away (and a probe rebuilds the gorge), so the list is
+	# re-checked every tick rather than trusted from _ready.
+	_drop_freed_fading()
 	for thing in _fading:
 		if not bool(_faded[thing]) and her_x >= float(thing.get_meta("fade_at")):
 			_faded[thing] = true
@@ -4907,6 +4910,7 @@ func _tend_the_fading(her_x: float) -> void:
 ## A checkpoint restore: ahead of her the way is back; behind her it is already gone, at once,
 ## so a landing past the gate does not replay the fade.
 func _settle_the_fading(her_x: float) -> void:
+	_drop_freed_fading()
 	for thing in _fading:
 		var drainable := thing.get_node("Drainable") as Drainable
 		_faded[thing] = her_x >= float(thing.get_meta("fade_at"))
@@ -4919,6 +4923,12 @@ func _settle_the_fading(her_x: float) -> void:
 func _fade(thing: Node2D, seconds: float) -> void:
 	var to := float(thing.get_meta("fade_to", 1.0))
 	(thing.get_node("Drainable") as Drainable).drain_to(to, 0.0 if Motion.reduced() else seconds)
+
+
+func _drop_freed_fading() -> void:
+	for index in range(_fading.size() - 1, -1, -1):
+		if not is_instance_valid(_fading[index]):
+			_fading.remove_at(index)
 
 
 ## For probes: how far the old way has gone.
