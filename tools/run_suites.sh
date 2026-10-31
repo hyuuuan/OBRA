@@ -143,6 +143,7 @@ if (( WITH_PYTHON )); then
     tests.test_backend_limits \
     tests.test_backend_telemetry tests.test_manifest_contract tests.test_backend_serve \
     tests.test_train_seed \
+    tests.test_correction_experiment \
     tests.test_suite_watch tests.test_build_dilim_creatures tests.test_build_dilim_delivered tests.test_build_dilim tests.test_build_dilim_props tests.test_build_mayon tests.test_build_mayon_fragments >> "$LOG" 2>&1
   note_result python $? $(( EPOCHSECONDS - began ))
 fi

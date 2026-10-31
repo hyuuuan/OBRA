@@ -5,3 +5,4 @@ scikit-learn
 matplotlib
 onnx
 onnxscript
+onnxruntime  # model/correction_experiment.py reads the frozen model through it
