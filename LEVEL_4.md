@@ -248,9 +248,24 @@ What the build does that the design above does not say, and what it does not do 
   flowers and discoveries stay kept, and repeated retries do not add duplicate stacks.
 - **No drawing-free run.** The kapre has no route without a drawing, so Dilim cannot be finished
   without one -- by design -- and there is no `run_nodraw_level4`.
-- **The Makiling tileset** is used in part: the six plates and four seamless tiles; no slopes, root
-  or log platforms, waterfall or props. The vine frame plate stands only behind her (in front of
-  play it hid her).
+- **The Makiling tileset** is used in part: the six plates, its seamless tiles and (below) its
+  mud, stone, leaf cover, grassy edge, ferns and mushrooms; no slopes, root or log platforms,
+  waterfall or flowers. The vine frame plate stands only behind her (in front of play it hid her).
+
+## The ground is built the way Mayon's is, in Makiling's mud (2026-11-02)
+
+`CliffDressing` and `CliffDressingStone` (`CliffDressing2D`, under `GameplayPlane/Terrain`) draw
+every platform of the `MakilingTerrain2D` bodies, by kind: the mud wall with roots through its
+deeper courses, and the mossy stone for the sigbin's rock, the landmark, the ravine's steps and the
+hollow, both under a thick lip of the leaf cover -- whole leaves standing up past its top and hanging
+over the earth -- darker going down into broken layers, with straight shaded ends the leaves round
+over and ferns and mushrooms on the lips, all graded to the ground's night tint. Kits are cut by
+`tools/build_cliff_kits.py` (recipes `dilim`, `dilim_stone`); see LEVEL_1.md for the construction
+and the looks Kent rejected on the way. The bodies keep their collision, their **branches** (still
+logs, drawn by the terrain) and their **moonlight rims**, which mark the ground in the dark whoever
+draws it. ⚠ Each dressing reads the other kind's ground through `ground_rects()` only, to close its
+ends against it; `dressed_ground()` would stand that ground's art down. ⚠ No long hanging vines or
+roots on a riser: the high path is a Climb gate. `run_cliff_dressing_probe` holds the contract.
 
 ## The old way over the ravine fades (2026-11-01)
 
