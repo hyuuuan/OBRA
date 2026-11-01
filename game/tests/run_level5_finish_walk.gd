@@ -105,18 +105,25 @@ func _run() -> void:
 	# The house is the ending now (DIARY.md): the bouquet, her last page, "Lolo. Let's go home.",
 	# and home -- no seated room and no ordinary brush between.
 	var bouquet_seen := false
+	var home_said := false
 	var went := false
 	until = Time.get_ticks_msec()+90000
-	while is_instance_valid(level) and Time.get_ticks_msec()<until:
+	while Time.get_ticks_msec()<until:
+		# ⚠ GONE IS HOME. The way home is quick now -- no room between -- and the scene change frees
+		# the level, so a level no longer there, with the house up, is the apo home.
+		if not is_instance_valid(level):
+			went = went or (current_scene != null and current_scene.scene_file_path.contains("hub"))
+			break
 		var lola = level.call("_lola")
 		if is_instance_valid(lola) and lola.has_flowers() and not bouquet_seen:
 			bouquet_seen = true
 			await _photo("07_bouquet")
+			continue
+		home_said = home_said or bool((level.get("script_lines") as Object).call("has_heard", "APO.home"))
 		if bool(level.call("went_home")):
 			went = true
 			break
 		await create_timer(.05,true).timeout
-	var home_said := went and bool((level.get("script_lines") as Object).call("has_heard", "APO.home"))
 	_check(bouquet_seen and home_said and went,"the bouquet, then \"Lolo. Let's go home.\", then home, on the continuous route",str([bouquet_seen,home_said,went]))
 	_check(int(profile.call("class_diversity")) == statistics,"quiet attempts and free painting do not add recognition statistics",str(quiet_attempts))
 	reader.queue_free()
