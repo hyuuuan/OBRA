@@ -52,7 +52,7 @@ HEADLESS=(
   run_tutorial_popup_probe run_action_prompt_probe run_hint_probe run_dialogue_box_probe
   run_room_probe run_head_clear_probe run_motion_probe run_hud_motion_probe run_rig_fit_probe run_rig_facing_probe
   run_locomotion_probe run_test_runs_probe run_weapon_probe run_combat_probe run_enemy_probe run_darkness_probe run_level4_enablers_probe run_makiling_probe run_mayon_probe run_drain_probe run_old_way_fade_probe run_brush_refusal_probe run_level5_enablers_probe run_level5_audit run_level5_act_two_probe run_level5_act_one_probe run_level5_summit_probe run_level5_frame_probe run_level5_endings_probe run_level5_overhaul_probe run_walk_level5 run_level5_memory_walk run_companion_pose_probe run_morph_reach_probe run_revert_probe run_placement_probe run_key_probe
-  run_boarding_probe run_bag_probe run_python_lookup_probe run_unlock_reveal_probe run_import_guard_probe run_resize_probe run_backend_start_probe
+  run_boarding_probe run_bag_probe run_diary_probe run_python_lookup_probe run_unlock_reveal_probe run_import_guard_probe run_resize_probe run_backend_start_probe
   run_behaviour_audit run_roster_sweep
   run_level2_audit run_level2_scene_probe run_level2_chain_probe run_level2_finish_probe
   run_level2_systems_probe run_level2_alley_probe run_nodraw_level2 run_water_audit run_hub_audit
@@ -148,7 +148,7 @@ if (( WITH_PYTHON )); then
     tests.test_correction_experiment \
     tests.test_playtest_telemetry \
     tests.test_player_simulation \
-    tests.test_suite_watch tests.test_build_dilim_creatures tests.test_build_dilim_delivered tests.test_build_dilim tests.test_build_dilim_props tests.test_build_mayon tests.test_build_mayon_fragments >> "$LOG" 2>&1
+    tests.test_suite_watch tests.test_build_dilim_creatures tests.test_build_dilim_delivered tests.test_build_dilim tests.test_build_dilim_props tests.test_build_mayon tests.test_build_mayon_fragments tests.test_build_diary_book >> "$LOG" 2>&1
   note_result python $? $(( EPOCHSECONDS - began ))
 fi
 

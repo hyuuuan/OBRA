@@ -89,6 +89,7 @@ func _default_profile() -> Dictionary:
 		"route_counts": {"artist": 0, "pragmatist": 0, "protector": 0},
 		"route_history": [],             # every route taken, oldest first
 		"collectibles": [],
+		"diary_pages": [],               # Lola's diary entries found, by config/diary.json id
 		"used_items": [],                # found things given up: the brass key left in the lock
 		"counts": {"submissions": 0, "declines": 0},
 		"settings": _default_settings(),
@@ -588,6 +589,26 @@ func is_collectible_found(collectible_id: String) -> bool:
 	return (_data["collectibles"] as Array).has(collectible_id)
 
 
+## A page of Lola's diary, found (config/diary.json). Kept apart from the collectibles, because
+## those are counted -- flower_count reads them, and the ending reads that -- and a page is
+## not a flower. Additive, no schema bump: _merge_defaults gives an older save an empty list.
+func record_diary_page(entry_id: String) -> void:
+	if entry_id.is_empty():
+		return
+	var pages: Array = _data["diary_pages"]
+	if not pages.has(entry_id):
+		pages.append(entry_id)
+		_commit()
+
+
+func has_diary_page(entry_id: String) -> bool:
+	return (_data["diary_pages"] as Array).has(entry_id)
+
+
+func diary_pages() -> Array:
+	return (_data["diary_pages"] as Array).duplicate()
+
+
 ## A found thing that has been used up -- the brass key, left turned in the lock it opened. It
 ## stays FOUND (the run still found it, and nothing that counts finds goes backwards); it is
 ## simply not carried any more, so the inventory stops showing it. Kent: "in cases like a key is
@@ -713,7 +734,7 @@ func _merge_defaults(incoming: Dictionary) -> Dictionary:
 		for route in ROUTES:  # a partial tally from an older save must still resolve
 			var counts: Dictionary = base["route_counts"]
 			counts[route] = int(counts.get(route, 0))
-	for key in ["acquired_objects", "collectibles", "used_items", "classes_drawn_accepted", "levels_completed", "levels_unlocked", "unlocked_tags", "canvas_damage", "route_history"]:
+	for key in ["acquired_objects", "collectibles", "diary_pages", "used_items", "classes_drawn_accepted", "levels_completed", "levels_unlocked", "unlocked_tags", "canvas_damage", "route_history"]:
 		if not (base[key] is Array):
 			base[key] = []
 	# A v2 profile has no settings block at all and simply keeps the defaults above.
