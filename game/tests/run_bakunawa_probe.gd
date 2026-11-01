@@ -16,6 +16,9 @@ extends SceneTree
 const BakunawaClass = preload("res://scripts/bakunawa_2d.gd")
 
 var level: Node
+## What the creature gives, in the order it is given: a page of her diary as "diary:<id>",
+## then each card's title. Read off the screens as they come up, before anything closes them.
+var _given: Array[String] = []
 var results: Array[String] = []
 var failures := 0
 
@@ -69,8 +72,10 @@ func _the_light() -> void:
 	var mouth: Vector2 = level.get("_cave_mouth")
 	creature.global_position = mouth + Vector2(380.0, -260.0)
 	level.set("lure_override", mouth)
+	_given.clear()
 	for _frame in range(600):
 		await physics_frame
+		_read_the_diary()
 		if paused:
 			await _unpause()
 		if creature.is_gone():
@@ -80,25 +85,25 @@ func _the_light() -> void:
 			creature.is_gone()])
 	_check(bool(profile.call("is_collectible_found", "L3_HF")),
 		"and hands over the flower", "L3_HF recorded")
-	# ⚠ AND BOTH THINGS IT GIVES ARE SEEN TO BE TAKEN, in the order they come: the torn corner
-	# of her canvas it had been searching for, then the flower. The corner was left lying on the
-	# seabed with no card at all (Kent: what is found at the bottom "should have the acquired pop
-	# up since its an acquired"). Read off the card as it plays, every distinct title in turn.
+	# ⚠ AND BOTH THINGS IT GIVES ARE SEEN TO BE TAKEN, in the order they come: the page of her
+	# diary it had been holding in the dark (DIARY.md -- it was a torn corner of her canvas), opened
+	# in her diary, then the flower with its card. Read off the screens as they come up.
 	var cards: Node = null
 	for node in get_nodes_in_group(&"modal_overlays"):
 		if node is AcquiredOverlay:
 			cards = node
-	var titles: Array[String] = []
 	for _frame in range(720):
 		await physics_frame
+		_read_the_diary()
 		if cards != null and bool(cards.call("is_open")):
 			var title := (cards.get("_title") as Label).text
-			if titles.is_empty() or titles.back() != title:
-				titles.append(title)
-		if titles.has("Hidden Flower"):
+			if _given.is_empty() or _given.back() != title:
+				_given.append(title)
+		if _given.has("Hidden Flower"):
 			break
-	_check(titles.size() >= 2 and titles[0] == "A Torn Corner" and titles[1] == "Hidden Flower",
-		"and gives the corner, then the flower, each with its card", str(titles))
+	_check(_given.size() >= 2 and _given[0] == "diary:dagat" and _given[1] == "Hidden Flower"
+			and bool(profile.call("has_diary_page", "dagat")),
+		"and gives a page of her diary, kept, then the flower with its card", str(_given))
 	_check(String(profile.call("bakunawa_outcome")) == "LIT",
 		"and the run remembers how", String(profile.call("bakunawa_outcome")))
 	_check(not creature.sees(creature.global_position + Vector2(120.0, 0.0)),
@@ -367,6 +372,9 @@ func _the_fight() -> void:
 		return
 	var creature: BakunawaClass = bits["bakunawa"]
 	var profile = root.get_node_or_null("PlayerProfile")
+	# The light route above kept her page; this run has not. Pinned on the in-memory profile, the
+	# way progression is pinned in a probe (AGENTS.md, "within one run the profile still carries").
+	((profile.get("_data") as Dictionary)["diary_pages"] as Array).erase("dagat")
 	_check(creature.state() == BakunawaClass.State.FIGHTING,
 		"the fight: it turns on the commit", "state %d" % creature.state())
 	_check(not await _channel_is_open(creature), "and the channel stays shut", "coils active")
@@ -417,6 +425,14 @@ func _the_fight() -> void:
 	_check(await _channel_is_open(creature), "and the way on opens", "coils disabled")
 	_check(not creature.accepts_tool("cannon"), "and a subdued one cannot be hit again",
 		"there is no killing it")
+	# Fought, it takes her page with it, and the apo keeps none (Kent: "if the player doesn't
+	# choose to guide the bakunawa back to the cave, then there will be no diary entry").
+	var carried := creature.get_node_or_null(^"Carried") as Sprite2D
+	_check(carried != null and carried.texture == load("res://assets/hud/diary_page.png")
+			and carried.scale.x > 1.0 and not bool(profile.call("has_diary_page", "dagat")),
+		"and it carries her page off in its coils, and none is kept",
+		"carrying %s, kept %s" % [carried.texture.resource_path.get_file() if carried != null else "nothing",
+			bool(profile.call("has_diary_page", "dagat"))])
 	await _unpause()
 	_check(bool(director.call("is_solved", "L3_N2"))
 			and bool(lines.call("has_heard", "L3_N2.protector.solved")),
@@ -477,6 +493,17 @@ func _open_at_the_encounter(route: String) -> Dictionary:
 
 
 ## Close whatever the commit opened and let the world run. See the header.
+## A page of her diary, open: noted as given, and put down the way a player puts it down.
+func _read_the_diary() -> void:
+	var diary := level.get("diary_overlay") as DiaryOverlay if level != null else null
+	if diary == null or not diary.is_open():
+		return
+	var seen := "diary:%s" % diary.book().entry_on_show()
+	if _given.is_empty() or _given.back() != seen:
+		_given.append(seen)
+	diary.close()
+
+
 func _unpause() -> void:
 	for node in root.get_tree().get_nodes_in_group(&"modal_overlays"):
 		if node.has_method("is_open") and bool(node.call("is_open")):
