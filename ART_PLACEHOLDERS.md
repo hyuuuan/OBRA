@@ -454,3 +454,9 @@ and `parallax_ridges.png`; runtime cuts live under `game/assets/Level5/props/` a
 These join the generated-art review inventory. Exact prompts and replacement registrations
 are in `scenery.prompts.json` and the authored README. The scene adds twelve decorative tree
 placements; the existing vista owns the new parallax, treeline fade, and summit whitening.
+
+Mayon wind (1 November): `LEVEL5_Mayon/authored/wind_streaks.png` supplies three generated
+pixel-art gusts, four frames each. The logical atlas is
+`game/assets/Level5/weather/wind_streaks.png`; the full generation/revision prompts and
+replacement registration are in the authored README and `wind_streaks.prompts.json`.
+These are generated provisional sprites, with no glow or softened pixel edges.

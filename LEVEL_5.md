@@ -363,3 +363,14 @@ Validation: scenery cut freshness, `run_level5_audit`, and `run_mayon_probe` pas
 terrain tour and full `run_visual_level5` pass were inspected at 1600x900 through all three
 memory areas, the whitened summit, and the restored places. The audit retains the already
 documented Godot shutdown resource diagnostics; neither visual run reported script errors.
+
+Camera-relative painted wind gusts now pass westward over the climb, about one every 1.8 seconds,
+with at most three overlapping. The generated sprite atlas supplies three designs and four
+registered animation frames per design; their visible marks are about 170-195px wide. Each fades
+over 3.8 seconds in a 7.2-second cycle. `wind_streaks_2d.gd` holds movement to whole pixels at
+the shared 15fps animation cadence, pauses with gameplay, and honours Reduce Motion.
+`_tend_act_one` switches it off at the summit's existing boundary. The scenery builder registers
+the generated shapes inside fixed cells and removes faint alpha fringe. Source, exact prompt,
+and replacement contract are in the authored art folder. Windowed review covers the final
+smaller sprites in motion, paused and Reduce Motion clocks, and the summit switch-off; the
+Level 5 audit and scenery freshness check also pass on the updated main-line base.

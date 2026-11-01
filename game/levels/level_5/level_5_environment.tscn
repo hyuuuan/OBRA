@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/mayon_terrain_2d.gd" id="8_terrain"]
 [ext_resource type="Script" path="res://scripts/memory_fragment_2d.gd" id="9_fragment"]
 [ext_resource type="Script" path="res://scripts/lola_2d.gd" id="10_lola"]
+[ext_resource type="Script" path="res://scripts/wind_streaks_2d.gd" id="11_wind"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/bell_tower.png" id="p_bell_tower"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/palm.png" id="p_palm"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/palm_short.png" id="p_palm_short"]
@@ -47,6 +48,10 @@ outdoor_x_limits = Vector2(116, 13880)
 [node name="Ash" type="Node2D" parent="WorldCamera"]
 script = ExtResource("4_ash")
 density = 0.25
+
+; Sparse westward breaths; the level switches them off for the still summit.
+[node name="Wind" type="Node2D" parent="WorldCamera"]
+script = ExtResource("11_wind")
 
 ; Behind every band: the sunset's own colour, so a camera past a plate's edge meets more sky.
 [node name="SkyFill" type="Polygon2D" parent="."]

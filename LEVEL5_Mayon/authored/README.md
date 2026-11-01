@@ -116,3 +116,24 @@ Replace the ridge panoramas with genuine-alpha, full-width 1536x512 images, with
 sky above the ridge and opaque artwork across the entire bottom quarter. Keep the two rows
 separate and do not flatten a sky into either strip. The source originals remain here; the
 runtime uses only the cuts under `game/assets/Level5/`.
+
+## Painted pixel wind — 1 November 2026
+
+`wind_streaks.png` is a generated three-column, four-row animation atlas: three breeze
+designs, four registered frames each. The built-in OpenAI image_gen tool produced the atlas,
+then redrew it on a coarse pixel grid to remove soft edges and glow. The complete initial
+and revision prompts are in `wind_streaks.prompts.json`. This joins the generated-art review
+inventory.
+
+`build_mayon_scenery.py` samples the 1536x1024 atlas onto its logical 384x256 pixel grid,
+removes faint alpha fringe, and centres each silhouette in its fixed cell. The generated
+rows drifted in their cells; this registration prevents a jump between frames. Runtime uses
+`game/assets/Level5/weather/wind_streaks.png`, nearest filtering and whole-pixel movement.
+Marks render about 170-195px wide with gentle alpha fades. Four staggered slots produce a gust
+about every 1.8 seconds, usually two visible and at most three; the peak opacity is 46%.
+The ordinary pause clock and Reduce Motion setting stop the animation, and the summit's
+existing x12200 boundary disables it.
+
+Replacement contract: a 3x4 atlas, a fixed centre in every 128x64 logical cell, each column a
+design and each row its next frame, right-to-left direction, flat ivory/cream/silver pixels
+on genuine transparency. Do not trim individual cells, add glow, or smooth the pixel edges.

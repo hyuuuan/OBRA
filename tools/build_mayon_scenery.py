@@ -40,6 +40,27 @@ def main():
         # alternate repeats, so the same edge always meets itself without a seam.
         pictures.put(ridges.crop((0, index * 512, 1536, (index + 1) * 512)),
                      OUTPUT / "backdrop" / f"{name}.png")
+    # Three gust designs, four frames each. The generated shapes drift within their
+    # cells; register their centres before packing fixed-size runtime cells.
+    wind = Image.open(SOURCE / "wind_streaks.png").convert("RGBA")
+    packed = Image.new("RGBA", (384, 256))
+    for row in range(4):
+        for column in range(3):
+            sprite = wind.crop((column * 512, row * 256, (column + 1) * 512, (row + 1) * 256))
+            sprite = sprite.resize((128, 64), Image.Resampling.NEAREST)
+            # Discard the generator's faint fringe instead of shipping a soft glow.
+            # Hard alpha and logical pixels are essential to this effect's art style.
+            sprite.putalpha(sprite.getchannel("A").point(lambda value: 255 if value >= 160 else 0))
+            # A few neighbouring tips cross the requested source cell boundaries.
+            # Keep a clear gutter so those crumbs cannot flicker in another gust.
+            sprite = sprite.crop((3, 3, 125, 61))
+            bounds = sprite.getchannel("A").getbbox()
+            if bounds is None:
+                raise SystemExit(f"No wind pixels in cell {column}, {row}")
+            sprite = sprite.crop(bounds)
+            packed.alpha_composite(sprite, (column * 128 + (128 - sprite.width) // 2,
+                                            row * 64 + (64 - sprite.height) // 2))
+    pictures.put(packed, OUTPUT / "weather" / "wind_streaks.png")
     if pictures.stale:
         raise SystemExit("Stale Mayon scenery: " + ", ".join(pictures.stale))
 
