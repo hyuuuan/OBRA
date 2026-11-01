@@ -16,6 +16,17 @@ silently loses the edit — the same arrangement `config/tags.json` has with
 `tools/build_tags.py`. `run_tests.gd` checks one value from each button family against
 the skin, so a palette edit without a regeneration fails the suite instead of shipping.
 
+**Current gameplay corners (2026-11-01).** All five levels share `LevelMinimap`: a square
+256px map at the top left, with the brush in a matching 256px-wide panel directly below it.
+The brush uses four screen pixels per art pixel to fit the same 244px inner width.
+The map renders the existing world
+at low resolution, follows the active player's physics anchor, reveals nearby terrain and
+keeps explored cells for the current run. Interiors use their own map scale. The morph card
+stays at the top right. The brush has no description row; action feedback goes to
+`HudNotice` at the right and clears after five seconds. A ready backend produces no idle text.
+`run_minimap_probe` checks every level; run it with a window to save screenshots and verify
+that each map actually renders world pixels.
+
 **See it.** `godot --path game --script res://tests/run_visual_hud.gd` writes frames
 to `/tmp/obra_hud_*.png`: the HUD over the level, the brush gauge full, mid-stroke, low,
 nearly spent and dry, a line still typing and the same line finished, both voices, the
@@ -444,7 +455,8 @@ the drawing surface once it opens."
 
 | Zone | What is there | Why there |
 |---|---|---|
-| Top left | Ink plate and status line, then the checkpoint indicator beside it | State you glance at, never act on |
+| Top left | Square minimap, with the brush, ink and checkpoint counts beneath | Terrain and drawing resources |
+| Top right | Morph card and brief action feedback | Current form and relevant action results |
 | Top centre | Level banner, which gains the current beat's name on arrival | Where you are, at two scales |
 | Bottom left | The six-slot toolbelt | What you HAVE |
 | Bottom right | R DRAW and Q CHANGE BACK | What you DO — and the mouse is already there |
@@ -476,7 +488,10 @@ it -- it advertised six verbs from the first frame, four of which could do nothi
 | Hints, which never stop play | `game/scripts/hint_bar.gd` |
 | The signs in the world saying which of those two is coming | `game/scripts/signpost_2d.gd` |
 | Route decision · Lola memory (both call `UIFrame.wrap`) | `game/scripts/dialogue_choice_overlay.gd` · `memory_overlay.gd` |
-| The top-left frame: the nameplate, the life bar, the ink row | `game/scripts/hud_panel.gd` |
+| Square minimap and explored terrain | `game/scripts/level_minimap.gd` |
+| The brush frame below the minimap | `game/scripts/hud_panel.gd` |
+| Brief action feedback at the right | `game/scripts/hud_notice.gd` |
+| Current morph and its life at the top right | `game/scripts/morph_card.gd` |
 | The ink gauge itself — Lola's brush, drying out | `game/scripts/ink_brush.gd` |
 | How long the drawing has left | `game/scripts/morph_life.gd` |
 | The brush in its case in the house | `game/scripts/brush_stand_2d.gd` |
