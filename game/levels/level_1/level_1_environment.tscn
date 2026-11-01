@@ -34,6 +34,7 @@
 [ext_resource type="Texture2D" path="res://assets/Level1/props/stair_step.png" id="29_oldsteps"]
 [ext_resource type="Texture2D" path="res://assets/Level1/props/stair_riser.png" id="29_oldriser"]
 [ext_resource type="Texture2D" path="res://assets/Level1/props/hut_ladder.png" id="29_oldladder"]
+[ext_resource type="Script" path="res://scripts/cliff_dressing_2d.gd" id="30_cliff"]
 
 [sub_resource type="AtlasTexture" id="Atlas_sky"]
 atlas = ExtResource("6_sky")
@@ -314,6 +315,22 @@ position = Vector2(4340, 80)
 script = ExtResource("5_terrace")
 segment_size = Vector2(780, 600)
 surface_style = 3
+
+; MAYON'S CONSTRUCTION, PAYYO'S GROUND (tools/build_cliff_kits.py, recipe "payyo"): the mossy
+; river-stone terrace wall of texturemap.png under its own grass fringe, its underside broken along
+; the stones, darker below, and the rounded stone-wall corner on every open end. Draws every
+; terrace segment above, the gorge's ledges and the exit shelf as MayonTerrain2D draws Mayon. The
+; segments keep their collision and stand their own art down (TerraceSegment2D.dressed_ground).
+; Behind the bodies, in front of the gorge's inside (-6).
+[node name="CliffDressing" type="Node2D" parent="GameplayPlane/Terrain"]
+z_index = -5
+script = ExtResource("30_cliff")
+kit = "res://assets/Level1/cliff"
+ground_group = &"terrace_ground"
+lip = 30.0
+deep = Color(0.114, 0.086, 0.043, 1)
+tile_overlap = 0.0
+depth_skip = 60.0
 
 [node name="Transitions" type="Node2D" parent="GameplayPlane" unique_id=345990059]
 

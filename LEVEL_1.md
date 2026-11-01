@@ -629,6 +629,17 @@ so the only thing on screen at full contrast is the playfield. The near scenery 
 offender: it scrolls at 0.72 and was drawn at almost foreground brightness, so a painted hut
 and a painted stone staircase read as things you could walk on.
 
+**The terraces are built the way Mayon's ground is, in Payyo's own stone** (2026-11-02).
+`CliffDressing` (`CliffDressing2D`, under `GameplayPlane/Terrain`) draws every terrace segment,
+the gorge's ledges and the exit shelf: a thick grass fringe she stands in, the mossy river-stone
+retaining wall under it with its underside broken along the stones, darker repeats below, and
+the rounded stone-wall corner on every open end (enlarged over Ang Hagdan's 220 px riser). The
+kit is cut from `texturemap.png` by `tools/build_cliff_kits.py`; the segments keep their
+collision and stand their own wall and cap down. ⚠ Two earlier passes were rejected: procedural
+cobbles ("nothing close to level 5") and Mayon's own boulders regraded green ("mayon has those
+rocks since its setting is in a volcano place"). The construction is Mayon's; the material must
+be the level's. `run_cliff_dressing_probe` holds the contract.
+
 ⚠ **The near plate's right edge is a straight cut, so it lives behind Ang Hagdan's wall**
 (2026-11-02). `terraces_near_background` is a hill of terraces cut off flat on the right, through
 its stone walls. At (520, 425) the cut stood at x 998, 182 short of Terrace1, and once the old
