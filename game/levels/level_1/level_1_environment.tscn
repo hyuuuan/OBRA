@@ -239,9 +239,15 @@ depth = 1.0
 scroll_scale = 0.72
 z_index_base = -15
 
+; ⚠ THE PLATE'S RIGHT EDGE IS A STRAIGHT CUT through its stone terraces (columns opaque from
+; source row 268 down), and nothing in the painting hides it. At (520, 425) it stood at x 998,
+; 182 short of Ang Hagdan's wall: once the old steps faded, the cut showed in the gap above the
+; ground. It is now just past the wall (1198 at the spawn camera) and moves only further right,
+; behind the terraces, as she walks on; 48 lower keeps its top under Terrace1's grass while she
+; jumps there. run_level1_backdrop_probe walks the climb and checks the cut is never in view.
 [node name="NearA" type="Sprite2D" parent="NearSceneryLayer" unique_id=2109191667]
 use_parent_material = true
-position = Vector2(520, 425)
+position = Vector2(720, 473)
 scale = Vector2(0.57, 0.57)
 texture = SubResource("Atlas_near")
 
