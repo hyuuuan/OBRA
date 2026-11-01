@@ -138,6 +138,10 @@ func _read_ui(delta: float) -> void:
 		needs_key = needs_key or bool(box.get("_blocking"))
 	for spot in get_nodes_in_group(TutorialSpotlight.GROUP):
 		needs_key = needs_key or (bool(spot.get("_open")) and float(spot.get("_age"))>2.0)
+	# A page of her diary, open over the game -- her last, at the easel: read, then CONTINUE, which
+	# has the focus, so Enter is the key a player presses.
+	for overlay in get_nodes_in_group(ModalOverlay.GROUP):
+		needs_key = needs_key or (overlay is DiaryOverlay and (overlay as DiaryOverlay).is_open())
 	if needs_key:
 		_key(KEY_ENTER)
 		read_left = 1.0

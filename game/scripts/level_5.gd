@@ -545,13 +545,16 @@ func _tend_lolo(delta: float, her_x: float) -> void:
 	if not _corridor_seen and her_x >= CORRIDOR.x:
 		# The painting stops being Mayon: the first sight of them.
 		_corridor_seen = true
-		_speak(script_lines.fire("L5_CORRIDOR.enter"))
+		# And she sees what it is: every one of hers, going at once.
+		_speak(script_lines.fire("L5_CORRIDOR.enter") + script_lines.fire("APO.why.3"))
 	match _lolo_moment:
 		"":
 			if her_x >= lolo_goes_at():
 				_lolo_moment = "waiting"
 				_raise_left = RAISE_AFTER
-				_speak(script_lines.fire("LOLO.fading"))
+				# Before the brush is raised to him, she thinks she can still mend it (Kent,
+				# 2026-11-01): "wait i can fix this". It is what makes the refusal land.
+				_speak(script_lines.fire("LOLO.fading") + script_lines.fire("APO.fix"))
 		"waiting":
 			if not draw_panel.is_open():
 				_raise_left -= delta
@@ -588,11 +591,27 @@ func _let_him_go() -> void:
 	if not dialogue_box.line_progress.is_connected(_on_lolo_line_progress):
 		dialogue_box.line_progress.connect(_on_lolo_line_progress)
 	_framing_lolo = true
-	await _speak_and_wait(script_lines.fire("LOLO.goes"))
+	await _speak_and_wait(script_lines.fire("LOLO.goes") + script_lines.fire(lolo_last_hook()))
 	_vanish_lolo()
 	_framing_lolo = false
 	_release_camera_focus()
 	_set_performance("")
+
+
+## HIS LAST LINE IS THE RUN'S (Kent, 2026-11-01: "DEPENDING ON THE MAJORITY OF THE CHOICES and the
+## paths taken ... lolo will have a different last line"): what he saw in her on the way up, by the
+## route the whole run leaned toward -- the summit's monologue is voiced the same way. Each ends
+## mid-word at "kept m", which is where he goes (_on_lolo_line_progress). Written out, one hook a
+## route, so every line is a literal a reader can find.
+const LOLO_LAST := {
+	"artist": "LOLO.goes.artist",
+	"pragmatist": "LOLO.goes.pragmatist",
+	"protector": "LOLO.goes.protector",
+}
+
+
+func lolo_last_hook() -> String:
+	return String(LOLO_LAST.get(PlayerProfile.dominant_route(), LOLO_LAST["artist"]))
 
 
 func _on_lolo_line_progress(text: String, characters: int) -> void:
@@ -622,7 +641,7 @@ func _level_run_state() -> Dictionary:
 			taken.append(String(thing.name))
 	return {"layout_version": 3, "fragments": fragments, "steady_left": _steady_left,
 		"lolo_thinness": lolo.thinness() if is_instance_valid(lolo) else 1.0,
-		"taken": taken, "forgot": _forgot, "save_order": _save_order.duplicate(),
+		"taken": taken, "forgot": _forgot, "wondered": _wondered, "save_order": _save_order.duplicate(),
 		"clusters_seen": _clusters_seen.duplicate(), "clusters_left": _clusters_left.duplicate(),
 		"lolo_moment": _lolo_moment, "corridor_seen": _corridor_seen,
 		"flower_credited": _flower_credited, "places_strokes": _places_strokes.duplicate(true)}
@@ -645,6 +664,7 @@ func _restore_level_run_state(state: Dictionary) -> void:
 		_going[thing] = taken.has(String(thing.name))
 		drainable.drain_to(1.0 if _going[thing] else 0.0, 0.0)
 	_forgot = int(state.get("forgot", 0))
+	_wondered = int(state.get("wondered", 0))
 	_reset_summit()
 	_lolo_moment = String(state.get("lolo_moment", ""))
 	# Resume a failed attempt from its beginning, never half a transient tween.
@@ -705,6 +725,10 @@ const TREMOR_EVERY := 18.0
 const SUMMIT_X := 12200.0
 ## Lolo's forgetting on the way up, by where she is. Light at first; by the third it is not funny.
 const FORGETTING := [[1000.0, "LOLO.forget.1"], [2900.0, "LOLO.forget.2"], [4700.0, "LOLO.forget.3"]]
+## And the apo working out why everything is going (Kent, 2026-11-01: "the apo should have dialogue
+## on why everything is disappearing"): once the first thing the ash settled on has gone white
+## (1800), and again once she has heard him lose a word. The third is said in the corridor.
+const WONDERING := [[2100.0, "APO.why.1"], [3500.0, "APO.why.2"]]
 
 var _taken: Array[Node2D] = []
 var _going := {}
@@ -712,6 +736,7 @@ var _ash: AshFall2D
 var _wind: Node2D
 var _tremor: ScreenTremor
 var _forgot := 0
+var _wondered := 0
 
 
 ## What the ash takes is marked in the ground (group ash_takes, taken_at, taken_over); each gets a
@@ -762,6 +787,10 @@ func _tend_act_one(delta: float, her_x: float) -> void:
 		var hook := String(FORGETTING[_forgot][1])
 		_forgot += 1
 		_speak(script_lines.fire(hook))
+	if _wondered < WONDERING.size() and her_x >= float(WONDERING[_wondered][0]):
+		var wondering := String(WONDERING[_wondered][1])
+		_wondered += 1
+		_speak(script_lines.fire(wondering))
 
 
 # --- Act Three: the summit ----------------------------------------------------------------
@@ -902,6 +931,10 @@ func voice_hook() -> String:
 	return "SUMMIT.voice." + (route if not route.is_empty() else "artist")
 
 
+## The last page of her diary, found at her easel after she turns back to it.
+const LAST_PAGE := "mayon"
+
+
 ## Five flowers: for a moment she is known. Fewer: lola is warm to a child she does not know.
 func ending_hook() -> String:
 	return "ENDING.perfect" if PlayerProfile.flower_count() >= ALL_FLOWERS else "ENDING.standard"
@@ -994,6 +1027,9 @@ func _bloom_the_places() -> void:
 			await lola.turn_back()
 			await get_tree().create_timer(0.4, false).timeout
 		await _speak_and_wait(ending.slice(1))
+	# HER LAST PAGE, at her easel, once she has turned back to it (DIARY.md): the most broken of
+	# them, and the end of the book.
+	await find_diary_page(LAST_PAGE)
 	_summit = "done"
 	Telemetry.record_event("summit", {"bloomed": targets.size(), "voice": voice_hook(),
 		"ending": ending_hook()})

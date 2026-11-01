@@ -2,12 +2,13 @@ extends SceneTree
 ## Mayon's Act One, played: the ash takes the old bridge before she can reach it and the steps
 ## before she is at the wall; it thickens as she climbs and is gone at the summit; the eruption
 ## rumbles and the ash surges with it, and never at the summit; lolo forgets three times, once
-## each; a fall gives back what the ash had not yet taken.
+## each; the apo works out why it is all going white, once each; a fall gives back what the ash
+## had not yet taken.
 ##
 ##   godot --headless --path game --script res://tests/run_level5_act_one_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 5
+const CHECKS := 6
 ## The apo's running speed (Wanderer), to time the bridge against.
 const RUN := 260.0
 
@@ -27,6 +28,7 @@ func _run() -> void:
 	_the_ash_thickens_as_she_climbs()
 	await _the_eruption_rumbles_and_the_ash_surges()
 	await _lolo_forgets_three_times_once_each()
+	await _she_works_out_why_it_is_going_white()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -98,6 +100,27 @@ func _lolo_forgets_three_times_once_each() -> void:
 		counts.append(int(level.get("_forgot")))
 	_check(counts == [1, 2, 3, 3], "lolo forgets three times on the way up, in order, once each",
 		"after each stop: %s" % [counts])
+
+
+## Kent, 2026-11-01: "the apo should have dialogue on why everything is disappearing". Once the
+## first thing has gone white, once she has heard him lose a word, and in the corridor among every
+## painting of hers: once each, in order, and never before she has seen it happen.
+func _she_works_out_why_it_is_going_white() -> void:
+	# On a mountain of its own: a line once heard stays heard, and the checks above walked her past
+	# every place these are said (and walking up first would take the bridge before theirs).
+	level.queue_free()
+	await _frames(2)
+	level = await _open_level()
+	var lines: Object = level.get("script_lines")
+	var heard: Array[String] = []
+	for x: float in [1700.0, 2200.0, 3600.0, 5500.0, 2200.0]:
+		await _put(x, 0.0)
+		var now := "%d%d%d" % [int(lines.call("has_heard", "APO.why.1")), int(lines.call("has_heard", "APO.why.2")),
+			int(lines.call("has_heard", "APO.why.3"))]
+		heard.append("%s/%d" % [now, int(level.get("_wondered"))])
+	_check(heard == ["000/0", "100/1", "110/2", "111/2", "111/2"],
+		"the apo works out why it is going white, in order, once each",
+		"after each stop (why 1,2,3 / counted): %s" % [heard])
 
 
 func _put(x: float, y: float) -> void:

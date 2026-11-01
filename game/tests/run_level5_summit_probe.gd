@@ -7,7 +7,7 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_level5_summit_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 6
+const CHECKS := 7
 
 var failures := 0
 var checked := 0
@@ -119,12 +119,22 @@ func _lola_turns_and_the_level_is_finished() -> void:
 	var profile := root.get_node("PlayerProfile")
 	var lola := level.get_node("EnvironmentBaseplate/GameplayPlane/Lola") as Lola2D
 	var turned := [false]
+	# Her last page, at her easel: seen open, after she turned, before the level is over.
+	var page := [false, false, false]
+	var diary := level.get("diary_overlay") as DiaryOverlay
 	var finished := await _until(func() -> bool:
 		if is_instance_valid(lola) and (lola.is_turned() or lola.has_flowers()):
 			turned[0] = true
+		if not page[0] and diary.is_open() and diary.book().entry_on_show() == "mayon":
+			page[0] = true
+			page[1] = turned[0]
+			page[2] = not bool(profile.call("is_level_completed", "level_5"))
 		return bool(profile.call("is_level_completed", "level_5")), 30.0)
 	_check(turned[0] and finished, "lola turns around, and the level is finished",
 		"turned %s, finished %s" % [turned[0], finished])
+	_check(page[0] and page[1] and page[2] and bool(profile.call("has_diary_page", "mayon")),
+		"her last page is found at her easel, after she turns and before it ends",
+		"open %s, after she turned %s, before the end %s" % [page[0], page[1], page[2]])
 
 
 func _put(x: float, y: float) -> void:

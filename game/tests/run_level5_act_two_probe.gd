@@ -8,7 +8,7 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_level5_act_two_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 11
+const CHECKS := 13
 
 var failures := 0
 var checked := 0
@@ -158,18 +158,44 @@ func _lolo_thins_by_where_she_is() -> void:
 
 func _at_the_top_the_brush_refuses_him_and_he_is_gone() -> void:
 	var lolo := level.get("lolo") as Lolo
+	var lines: Object = level.get("script_lines")
+	# The run leaned protector: his last line is that route's, not the artist's the level falls
+	# back to. Pinned on the in-memory profile (AGENTS.md: "pin progression on _data").
+	var counts := (root.get_node("PlayerProfile").get("_data") as Dictionary)["route_counts"] as Dictionary
+	counts["artist"] = 1
+	counts["pragmatist"] = 2
+	counts["protector"] = 5
 	var goes_at: float = level.call("lolo_goes_at")
 	# One of his fragments saved (the terraces): he goes 2 x 250 sooner than with all three.
 	var where_ok := is_equal_approx(goes_at, 11500.0 - 500.0)
 	await _put(goes_at + 40.0, -100.0)
 	var panel := level.get("draw_panel") as DrawPanel
 	var raised := await _until(func() -> bool: return panel.is_open() and panel.is_refusing(), 14.0)
+	# Before the brush is raised to him, she thinks she can still mend it -- and he has not gone yet.
+	var fix := bool(lines.call("has_heard", "LOLO.fading")) and bool(lines.call("has_heard", "APO.fix")) \
+		and not bool(lines.call("has_heard", "LOLO.goes"))
+	_check(raised and fix, "before the brush is raised to him, she says she can fix this",
+		"fading %s, fix %s, already going %s" % [lines.call("has_heard", "LOLO.fading"),
+			lines.call("has_heard", "APO.fix"), lines.call("has_heard", "LOLO.goes")])
 	_ink_stroke(panel)
 	panel.call("_on_transform_pressed")
 	var gone := await _until(func() -> bool: return lolo.is_gone(), 12.0)
 	_check(where_ok and raised and gone and not lolo.visible,
 		"at the top the brush is raised to him, refuses, and he is gone in a frame",
 		"goes at %.0f, raised by itself %s, gone %s, seen %s" % [goes_at, raised, gone, lolo.visible])
+	# His last line is the run's, and every route's ends mid-word where he goes.
+	var dialogue: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://config/dialogue_l5.json"))
+	var cut := 0
+	for line: Variant in (dialogue as Dictionary).get("lines", []):
+		var at := String((line as Dictionary).get("at", ""))
+		if at in ["LOLO.goes.artist", "LOLO.goes.pragmatist", "LOLO.goes.protector"] \
+				and String((line as Dictionary).get("text", "")).ends_with("kept m"):
+			cut += 1
+	var his := bool(lines.call("has_heard", "LOLO.goes.protector")) \
+		and not bool(lines.call("has_heard", "LOLO.goes.artist")) \
+		and not bool(lines.call("has_heard", "LOLO.goes.pragmatist"))
+	_check(his and cut == 3, "his last line is the one for the route the run leaned toward",
+		"protector's said %s, %d of 3 routes cut where he goes" % [his, cut])
 
 
 # --- Helpers ----------------------------------------------------------------------------

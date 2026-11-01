@@ -41,13 +41,14 @@ saved blooms into the white, and lola turns around.
 | Saves | **Silent.** No lantern, no letterbox, no line, no counter. The climb is one continuous ascent. |
 | Her drawings | The ash never takes what she draws. |
 | The tally | Mayon's only fork is the flower: spending ink on it is **artist** (one point). Her summit monologue is voiced by the route the whole run leaned toward. |
+| Her diary (Kent, 2026-11-01; `DIARY.md`) | **The apo says why it is going white** -- once the first thing has gone, once she has heard lolo lose a word, and among the fragments (`WONDERING`, `APO.why.*`). **"Wait -- I can fix this"** comes before the brush is raised to lolo (`APO.fix`). **Lolo's last line is the run's route** (`LOLO_LAST`), each cut at "kept m" where he goes. **Her last page is at her easel**, read once she has turned back to it. These are about the places going, never an explanation of lolo's going. |
 
 ## Flow
 
 ```
 Painting → the foot of Mayon: LOLO is waiting, and he should not be → the ink, told plainly → CP0
 ACT ONE    THE ASCENT — the verb inverts
-           ash falls; what it settles on goes white, then blank
+           ash falls; what it settles on goes white, then blank — and the apo works out why
            SPAN   the bridge she came up by is gone       → draw a way across
            CLIMB  the path thins out to a wall             → draw a way up
            (an optional dim stretch: a light lifts it, and costs ink)
@@ -58,8 +59,10 @@ ACT TWO    WHAT YOU CARRY — the heart
            save one = draw something that belongs in it (1 ink) · let it go = it is gone
            three hold Lolo (terraces, church, bangka): saving one steadies him for a while
            one holds a flower lola painted for no reason, down a path nobody needed → flower 5 of 5
-           LOLO GOES: she tries to draw him; the stroke does not become anything (the first refusal)
-           "the brush was never for that" — and mid-sentence he is not there
+           LOLO GOES: "wait — I can fix this"; she tries to draw him; the stroke does not become
+           anything (the first refusal)
+           "the brush was never for that" — his last line is the run's route — and mid-sentence he
+           is not there
 CP2        below the summit (silent)
 ACT THREE  THE SUMMIT — quiet: no ash, no tremor, no sound
            white in every direction except what she saved · lola painting, back turned

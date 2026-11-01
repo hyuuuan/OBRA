@@ -149,6 +149,34 @@
       "text": "Apo, I -- what was I. I was going to say. I am sorry. I had it a moment ago."
     },
     {
+      "id": "L5_fix",
+      "at": "APO.fix",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Wait. Wait -- I can fix this. I'll draw you back, Lolo. Hold still."
+    },
+    {
+      "id": "L5_why_1",
+      "at": "APO.why.1",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It's going white. Not burnt, not broken. Just -- not painted any more."
+    },
+    {
+      "id": "L5_why_2",
+      "at": "APO.why.2",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It's her. It's Lola. Whatever she can't hold on to any more, the white takes."
+    },
+    {
+      "id": "L5_why_3",
+      "at": "APO.why.3",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "All of them. She's losing all of them at once."
+    },
+    {
       "id": "L5_goes_1",
       "at": "LOLO.goes",
       "speaker": "lolo",
@@ -156,11 +184,25 @@
       "text": "No. Put it down, apo. The brush was never for that. Your lola knew."
     },
     {
-      "id": "L5_goes_2",
-      "at": "LOLO.goes",
+      "id": "L5_goes_artist",
+      "at": "LOLO.goes.artist",
       "speaker": "lolo",
       "kind": "lore",
-      "text": "That is why she painted the places instead. The fiesta, the sea, the house. That is how she kept m"
+      "text": "That is why she painted the places instead. You see them the way she did, apo, every colour. Show them to her. That is how she kept m"
+    },
+    {
+      "id": "L5_goes_pragmatist",
+      "at": "LOLO.goes.pragmatist",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "That is why she painted the places instead. You always find the way through, apo, like she did. Go on up to her. That is how she kept m"
+    },
+    {
+      "id": "L5_goes_protector",
+      "at": "LOLO.goes.protector",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "That is why she painted the places instead. You kept us safe all the way up, apo. Keep them safe for her. That is how she kept m"
     },
     {
       "id": "L5_forget_1",
