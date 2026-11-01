@@ -35,9 +35,13 @@ const LifeClass = preload("res://scripts/dagat_life_2d.gd")
 const NextPaintingClass = preload("res://scripts/next_painting_2d.gd")
 ## The house's own painting of the next place -- the picture that hangs in her house for Level 4.
 const NEXT_PAINTING := preload("res://assets/hub/paintings/level_4.png")
-## What the bakunawa had lost: a torn corner of one of her canvases, in its gilt. Authored by
-## tools/build_dagat_props.py from the house's own painting of this sea.
-const LOST_CORNER := preload("res://assets/Level3/authored/painting_fragment.png")
+## What the bakunawa had lost: a page of her diary (DIARY.md; Kent, 2026-11-01: "instead of a
+## corner of the next painting, the bakunawa should give the diary entry"). It was a torn corner
+## of her canvas; the page says more, and only a player who guided it home is given it. Drawn at
+## three times the loose page's size, so it reads coming up out of the dark.
+const LOST_PAGE := preload("res://assets/hud/diary_page.png")
+const LOST_PAGE_SCALE := 3.0
+const DIARY_PAGE := "dagat"
 const FLOWER_ART := preload("res://assets/Level1/hidden_flower.png")
 ## A seabed jar, for its acquired card, and the blue its flourish is thrown in.
 const JAR_ART := preload("res://assets/Level3/authored/ink_jar_0.png")
@@ -3081,9 +3085,11 @@ func _on_bakunawa_quiet(how: String) -> void:
 	PlayerProfile.record_bakunawa("FOUGHT")
 	script_lines.set_flag("l3_bakunawa_fought")
 	# ⚠ AND IT TAKES WHAT IT WAS LOOKING FOR WITH IT. Kent: "if we choose to fight it, it takes the
-	# treasure with them". The torn corner the light route is given goes off in its coils, seen.
+	# treasure with them". The page of her diary the light route is given goes off in its coils,
+	# seen -- and is never kept: "if the player doesn't choose to guide the bakunawa back to the
+	# cave, then there will be no diary entry".
 	if _bakunawa != null:
-		_bakunawa.carry_away(LOST_CORNER)
+		_bakunawa.carry_away(LOST_PAGE, LOST_PAGE_SCALE)
 	if director != null and not director.is_solved("L3_N2"):
 		director.solve_with_item("L3_N2", "subdued")
 	for weapon: String in _fought_with.keys():
@@ -3282,8 +3288,9 @@ func _award_the_flower() -> void:
 ## searching the dark for, and the level marked the moment with a burst of sparkles over
 ## nothing: the flower was recorded silently and no object was ever there. The design asks for
 ## "something the player recognises -- an object from Level 1's house, or a piece of the
-## painting. A generic chest wastes the beat." So it is a corner of one of her canvases, torn,
-## still in the gilt the paintings in her house hang in, with this very sea painted on it.
+## painting. A generic chest wastes the beat." It was a corner of one of her canvases; it is a
+## page of her diary now (DIARY.md), the one about the dream of something searching the dark under
+## the bangka -- which is what this creature was doing -- and it opens in her diary as it is given.
 ##
 ## And the flower comes up out of it to the apo -- "it finds a treasure, handing you a
 ## flower" -- and says which of the five it is, the way Payyo's did, because the design needs
@@ -3299,36 +3306,36 @@ func _uncover_the_treasure(where: Vector2) -> Vector2:
 		var toward := signf(where.x - anchor.x)
 		at = Vector2(anchor.x + 150.0 * (toward if toward != 0.0 else 1.0), _waterline_y + 60.0)
 	var parent := _bakunawa.get_parent()
-	var corner := Sprite2D.new()
-	corner.name = "LostCorner"
-	corner.texture = LOST_CORNER
-	corner.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	corner.z_index = 6
-	corner.rotation = -0.14
-	corner.modulate.a = 0.0
-	parent.add_child(corner)
-	corner.global_position = at + Vector2(0.0, 18.0)
-	var reveal := corner.create_tween()
-	reveal.tween_property(corner, "modulate:a", 1.0, 0.7)
-	reveal.parallel().tween_property(corner, "global_position:y", at.y, 1.1) \
+	var page := Sprite2D.new()
+	page.name = "LostPage"
+	page.texture = LOST_PAGE
+	page.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	page.z_index = 6
+	page.rotation = -0.14
+	page.scale = Vector2.ONE * LOST_PAGE_SCALE
+	page.modulate.a = 0.0
+	parent.add_child(page)
+	page.global_position = at + Vector2(0.0, 18.0)
+	var reveal := page.create_tween()
+	reveal.tween_property(page, "modulate:a", 1.0, 0.7)
+	reveal.parallel().tween_property(page, "global_position:y", at.y, 1.1) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	# ⚠ AND IT IS GIVEN, NOT LEFT LYING THERE. Kent: the things found at the bottom "should have
 	# the acquired pop up since its an acquired". It holds a moment where it was found, then
-	# comes to the apo and is theirs -- with its own card, ahead of the flower's.
+	# comes to the apo and opens in her diary -- ahead of the flower, which waits for the book to
+	# be put down (the book pauses the tree, and the flower's tween is bound to it).
 	reveal.tween_interval(0.5)
 	reveal.tween_method(func(t: float) -> void:
-		if is_instance_valid(corner):
+		if is_instance_valid(page):
 			var target := _anchor_now() + Vector2(0.0, -30.0)
-			corner.global_position = at.lerp(target, t) + Vector2(0.0, -40.0 * sin(PI * t))
-			corner.scale = Vector2.ONE * lerpf(1.0, 0.45, t), \
+			page.global_position = at.lerp(target, t) + Vector2(0.0, -40.0 * sin(PI * t))
+			page.scale = Vector2.ONE * LOST_PAGE_SCALE * lerpf(1.0, 0.45, t), \
 		0.0, 1.0, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	reveal.tween_property(corner, "modulate:a", 0.0, 0.2)
+	reveal.tween_property(page, "modulate:a", 0.0, 0.2)
 	reveal.tween_callback(func() -> void:
-		if is_instance_valid(corner):
-			corner.queue_free()
-		announce_acquisition("A Torn Corner",
-			"A piece of one of her canvases, with this sea on it. It was what the creature had lost.",
-			LOST_CORNER))
+		if is_instance_valid(page):
+			page.queue_free()
+		find_diary_page(DIARY_PAGE))
 	var flower := Sprite2D.new()
 	flower.name = "GivenFlower"
 	flower.texture = FLOWER_ART
@@ -3339,7 +3346,7 @@ func _uncover_the_treasure(where: Vector2) -> Vector2:
 	parent.add_child(flower)
 	flower.global_position = at + Vector2(0.0, -10.0)
 	var give := flower.create_tween()
-	# After the corner has been given: the two used to rise out of the same spot together.
+	# After the page has been given: the two used to rise out of the same spot together.
 	give.tween_interval(2.9)
 	give.tween_property(flower, "modulate:a", 1.0, 0.3)
 	give.parallel().tween_property(flower, "scale", Vector2.ONE * 0.9, 0.5) \

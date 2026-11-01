@@ -616,13 +616,14 @@ the slip taken out, eleven of them fail, and they are the failures that were rep
 Kent: *"add the missing art and animations"*. `ART_PLACEHOLDERS.md` had three Dagat items left,
 and each was a moment the level marked with sparkles over nothing:
 
-- **What the light finds.** A torn corner of one of Lola's canvases, in the house's gilt, with
-  this sea on it (`painting_fragment.png`, sampled from the house's own painting of Dagat). It
-  rises out of the sand; the flower comes up out of it and travels to the apo; the card says
-  which of the five it is -- the count the design insists must be seen. The flower used to be
-  recorded silently. ⚠ From the boat the creature is staged at the surface and its treasure
-  point lies under its coils, so there the corner comes up beside the bow instead: drawn at the
-  point, it was pinned across the dragon's neck.
+- **What the light finds.** A page of Lola's diary (2026-11-01, `DIARY.md`; it was a torn corner
+  of her canvas, `painting_fragment.png`, which is still built but no longer shown). It rises out
+  of the sand, comes to the apo and opens in her diary; then the flower comes up and travels to
+  her, and the card says which of the five it is -- the count the design insists must be seen.
+  **Only the light route is given it**: fought, the creature carries the page off in its coils
+  and none is kept; slipped past, there is none. ⚠ From the boat the creature is staged at the
+  surface and its treasure point lies under its coils, so there the page comes up beside the bow
+  instead: drawn at the point, it was pinned across the dragon's neck.
 - **The next painting.** `NextPainting2D`, the house's painting for the next level in the
   house's gilt, standing in a heap of the island's sand and glinting. `Painting2D.draw_gilt` is
   now the one moulding for both, so the frame on the island is one of the frames in her house.

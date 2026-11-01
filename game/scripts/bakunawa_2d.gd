@@ -433,12 +433,15 @@ func enter_fight(keep_hits: bool = false) -> void:
 
 ## What it swims off with when it is fought off: whatever it was searching for, held where it
 ## can be seen, going with it. Kent: "if we choose to fight it, it takes the treasure with them".
-func carry_away(picture: Texture2D) -> void:
+## `size` scales a picture drawn small -- her diary's loose page is 14 px, and under the jaw at
+## its own size it was a crumb.
+func carry_away(picture: Texture2D, size: float = 1.0) -> void:
 	if picture == null or (_carried != null and is_instance_valid(_carried)):
 		return
 	_carried = Sprite2D.new()
 	_carried.name = "Carried"
 	_carried.texture = picture
+	_carried.scale = Vector2.ONE * size
 	_carried.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_carried.z_index = 1
 	_carried.rotation = 0.3
