@@ -12,8 +12,9 @@ are retained in `prompts.json`; no downloaded or third-party stock assets were u
 - `frame_room.png`: ordinary Filipino painting room, empty of actors. Actors are
   composited at runtime on the rattan bench, with one registration per actor.
 
-`tools/build_mayon_performance.py` cuts transparent sprites, a bust at source
-resolution, and the room at 1600x900.
+`tools/build_mayon_performance.py` cuts transparent sprites and a bust at source
+resolution. Since the run ends in the house (#182) it no longer cuts the room, nor
+the seated and pickup cells, which the game stopped showing; the originals stay here.
 One scale per atlas preserves head size across standing and seated poses. Original
 sources stay here; runtime paths stay under `game/assets/Level5/`.
 
