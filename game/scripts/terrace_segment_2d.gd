@@ -74,6 +74,29 @@ func _build_visuals() -> void:
 	add_child(top)
 
 
+## Worn by a CliffDressing2D (Level 1's `CliffDressing`): it draws this segment in Mayon's idiom,
+## so the segment's own wall and cap stand down. The nodes stay -- only their drawing goes.
+## A paddy's MUD is not dressed: it is the bed of a hole, not a wall.
+func dressed_ground() -> Array[Rect2]:
+	if surface_style == SurfaceStyle.MUD:
+		return []
+	for art in [get_node_or_null(^"RetainingWall"), get_node_or_null(^"TerraceTop")]:
+		if art != null:
+			(art as CanvasItem).visible = false
+	return [Rect2(global_position, segment_size)]
+
+
+## The mud still meets the terraces either side of it, so their ends there are risers down to it.
+## Its wall goes with the rest (the dressing draws the face under the silt band, which stays).
+func undressed_ground() -> Array[Rect2]:
+	if surface_style != SurfaceStyle.MUD:
+		return []
+	var wall := get_node_or_null(^"RetainingWall") as CanvasItem
+	if wall != null:
+		wall.visible = false
+	return [Rect2(global_position, segment_size)]
+
+
 func _cap_uv(points: PackedVector2Array, texture_height: float) -> PackedVector2Array:
 	var uv := PackedVector2Array()
 	for point in points:
