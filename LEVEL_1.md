@@ -135,8 +135,9 @@ where the painting lived before the painting moved into Ang Bale, and a playtest
 "the box is not openable". Now, standing at it holding a drawn tool that can **cut** or
 **unlock**, F reads OPEN (`GameLevel._level_use_verb`, through LevelBase's
 `_level_use_verb` / `_level_uses_the_tool` hooks). F opens it, and the tool is used up like
-every tool. Her sketchbook page is shown as a memory card (`dialogue.json` →
-`levels.level_1.chest_memory`), and the board beside it re-reads `L1_N2.chest.opened`. The
+every tool. The first page of her diary is inside (2026-11-01: `diary.json` → `payyo`, opened in
+the book and kept under the bag's DIARY tab; `DIARY.md`), and the board beside it re-reads
+`L1_N2.chest.opened`. The
 line after "Locked. Of course." says something that can **cut** would go through the hasp:
 **cut** is taught at the gorge, and **unlock** not until Ang Bale. Optional, like the cave's
 flower; the level waits on nothing in it. `run_walk_level1` → `_her_chest_opens`.

@@ -484,6 +484,7 @@ it -- it advertised six verbs from the first frame, four of which could do nothi
 | Droplet and flag pictograms | `game/scripts/ui_glyph.gd` |
 | Level banner, goal chip, R-key action tag, controls strip | `game/scripts/game_level.gd` (`_build_hud_frame`) |
 | The six-slot hotbar | `game/scripts/inventory_hud.gd` |
+| Her diary: the bag's DIARY tab, and a page as it is found (see `DIARY.md`) | `game/scripts/diary_book.gd` · `diary_overlay.gd` |
 | Drawing panel, page brackets, live guess | `game/scripts/draw_panel.gd` |
 | Slider handle and fullscreen switch | `game/scripts/settings_overlay.gd` (`_skin_controls`) |
 | Pause menu | `game/game_level.tscn` (`PauseMenu`) |

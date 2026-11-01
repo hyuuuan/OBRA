@@ -469,6 +469,8 @@ var hud_panel: HudPanel
 var acquired_overlay: AcquiredOverlay
 ## The bag, and everything found, on one screen. See InventoryScreen.
 var inventory_screen: InventoryScreen
+## A page of Lola's diary, open in front of her. See DiaryOverlay and find_diary_page.
+var diary_overlay: DiaryOverlay
 ## The letterbox the level's set pieces are framed in. See CinematicBars.
 var cinematic: CinematicBars
 ## Top right: the drawing the player is currently wearing, and how long it has left.
@@ -607,6 +609,7 @@ func _ready() -> void:
 	acquired_overlay.name = "AcquiredOverlay"
 	add_child(acquired_overlay)
 	_build_inventory_screen()
+	_build_diary_overlay()
 	cinematic = CinematicBars.new()
 	cinematic.name = "CinematicBars"
 	add_child(cinematic)
@@ -4418,6 +4421,41 @@ func _build_inventory_screen() -> void:
 			break
 	chain.insert(at, router.get_path_to(inventory_screen))
 	router.set(&"cancel_chain", chain)
+
+
+## The diary page overlay, and its place in the Escape queue: beside the memory card it does the
+## same job as -- story, framed, over everything but a confirmation.
+func _build_diary_overlay() -> void:
+	diary_overlay = DiaryOverlay.new()
+	diary_overlay.name = "DiaryOverlay"
+	add_child(diary_overlay)
+	var router := get_node_or_null(^"UIRouter")
+	if router == null:
+		return
+	var chain: Array[NodePath] = router.get(&"cancel_chain")
+	var at := chain.size()
+	for index in range(chain.size()):
+		var name_at := String(chain[index]).get_file()
+		if name_at == "MemoryOverlay" or name_at == "PauseMenu":
+			at = index
+			break
+	chain.insert(at, router.get_path_to(diary_overlay))
+	router.set(&"cancel_chain", chain)
+
+
+## A PAGE OF HER DIARY, FOUND (config/diary.json). Kept for the run before anything is shown, so
+## a page closed unread is still in the bag; then the book opens at it, and this returns when it
+## is put down. A page found twice -- a level replayed -- is shown again and recorded once.
+func find_diary_page(entry_id: String) -> void:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	if profile != null:
+		profile.call(&"record_diary_page", entry_id)
+	Telemetry.record_event("diary_page", {"level_id": LevelManager.current_level_id, "entry": entry_id})
+	if diary_overlay == null or not is_instance_valid(diary_overlay):
+		return
+	diary_overlay.present(entry_id)
+	if diary_overlay.is_open():
+		await diary_overlay.dismissed
 
 
 ## The bag, opened deliberately. Refused while the drawing panel is up or something is being
