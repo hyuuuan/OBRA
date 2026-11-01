@@ -916,6 +916,12 @@ fitting its page, and being given by some level's script.
 - ⚠ **Green geometry can still be an unclimbable flight.** Every riser can be inside the
   jump and the steps still not walkable, because they also have to overlap in x or the
   second hop has no run-up. Walk it with real input; do not measure it.
+- ⚠ **An objective asked by `is_solved` alone points back forever at a gate she got past.**
+  A gate is solved only by its own answer, and a bird gets over most of them. Ang Hagdan's
+  line was asked before anything else, so a player who flew up it had an arrow at the foot
+  of the wall for the rest of Payyo. Every gate's line also asks where she is (Payyo's
+  `HAGDAN_TOP_X`, Dagat's `_out_at_the_creature`), by position rather than a latch, so a
+  rescue back below puts the line back. `run_objective_probe` checks both directions.
 
 ## Common Commands
 
