@@ -564,6 +564,19 @@ def shuffled(kinds: int, count: int, seed: int) -> list[int]:
     return order
 
 
+MAKILING = "LEVEL4_Mt.Makiling/TextureMap_Makiling.png"
+## The cream page Makiling's sheet is painted on.
+MAKILING_PAGE = (239, 231, 218)
+## Section 1's plain jungle leaf cover (its first row: the rows under it have flowers in them).
+MAKILING_LEAVES = [(14, 85, 75, 162), (79, 85, 141, 162), (145, 85, 209, 162), (214, 85, 275, 162),
+                   (278, 85, 339, 161), (344, 85, 406, 162)]
+## Section 9: four ferns and a leafy plant -- not the one with a flower spike -- and the brown and
+## orange mushrooms. Section 5's grassy LEFT edge tile spills its leaves down an open side.
+MAKILING_PLANTS = [(310, 683, 350, 725), (352, 692, 387, 725), (390, 689, 428, 725),
+                   (490, 684, 548, 729), (584, 689, 630, 728), (310, 982, 329, 1000),
+                   (389, 979, 420, 1000)]
+MAKILING_SPILL = (135, 395, 180, 468)
+
 RECIPES = [
     # Payyo, all from texturemap.png: section 3's mossy river-stone retaining wall; section 5's
     # grass "bottom" edge as the thick lip; the grass down the side of section 5's rounded
@@ -581,6 +594,35 @@ RECIPES = [
                 (934, 674, 971, 701), (854, 727, 883, 754)],
         fringe=15, joint=0.28, seed=1101, deep="#1d160b",
         blades=["#395412", "#4e6f0d", "#729506", "#92b502", "#a1c503"],
+    ),
+    # Dilim's woods, all from TextureMap_Makiling.png: section 2's mud wall -- earth blocks, then
+    # the variant with roots through it for the deeper courses -- under a lip of section 1's leaf
+    # cover, whole leaves up past its top and down over the earth. The night tint is the
+    # runtime's (CliffDressing2D.tint).
+    Recipe(
+        name="dilim", out="game/assets/Level4/cliff", atlas=MAKILING, page=MAKILING_PAGE,
+        tiles=[(425, 85, 481, 161), (488, 86, 543, 161), (549, 85, 606, 162), (611, 86, 670, 161),
+               (675, 85, 733, 161)],
+        deeper=[(427, 165, 481, 225), (488, 165, 542, 225), (549, 165, 605, 225),
+                (611, 165, 668, 225), (675, 165, 731, 225)],
+        order=shuffled(5, 50, 4401),
+        corner=MAKILING_SPILL, spill=(0, 46, 14),
+        lip_tiles=MAKILING_LEAVES, lip_band=22, lip_drape=8, lip_leaves=True,
+        plants=MAKILING_PLANTS, courses=5, smallest=12,
+        fringe=0, joint=0.2, seed=4401, deep="#120c06", reach=(0.7, 0.98),
+    ),
+    # Dilim's rocks -- the sigbin's, the landmark, the ravine's steps, the hollow -- in section 3's
+    # mossy stone retaining wall under the same leaf cover.
+    Recipe(
+        name="dilim_stone", out="game/assets/Level4/cliff_stone", atlas=MAKILING, page=MAKILING_PAGE,
+        tiles=[(751, 85, 811, 161), (815, 86, 872, 162), (878, 86, 937, 161), (944, 86, 1005, 161)],
+        deeper=[(753, 165, 811, 225), (815, 165, 871, 225), (878, 165, 936, 225),
+                (944, 165, 1004, 225)],
+        order=shuffled(4, 50, 4402),
+        corner=MAKILING_SPILL, spill=(0, 46, 14),
+        lip_tiles=MAKILING_LEAVES, lip_band=22, lip_drape=8, lip_leaves=True,
+        plants=MAKILING_PLANTS, courses=6, smallest=12,
+        fringe=0, joint=0.2, seed=4402, deep="#0d0d0b", reach=(0.76, 0.98),
     ),
 ]
 
