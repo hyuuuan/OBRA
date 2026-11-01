@@ -1,6 +1,6 @@
 """tools/build_dilim_creatures.py: Dilim's sculpted creature strips, and what they must keep true.
 
-The art team's (the kapre, the manananggal, the lean aswang) are cut by build_dilim_delivered.py
+The supplied sheets (the kapre, the manananggal, both aswang variants) are cut by build_dilim_delivered.py
 and tested in test_build_dilim_delivered.py, the kapre's place in its tree with them."""
 
 from __future__ import annotations

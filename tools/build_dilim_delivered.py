@@ -8,6 +8,8 @@ turnaround, walk or fly cycles, and a row of poses, on a near-black panel with g
     ASWANG/whitelady.png     a white lady -- in Dilim, the lean aswang (Kent, 2026-10-21)
     ASWANG/kapre.png         the kapre: small, standing, a cigar in its mouth
     ASWANG/manananggal.png   the manananggal, its lower legs drawn apart
+    ASWANG/aswang.png        the supplied crawling aswang sheet (2026-11-01), replacing
+                            the sculpted old/hulking aswang, `aswang_pig`
 They replace the sculpted strips of the same names (ART_PLACEHOLDERS.md: "a delivered strip of the
 same name replaces one with no code change"). build_dilim_creatures.py draws everything else and
 leaves these names alone (DELIVERED).
@@ -56,7 +58,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import numpy as np  # noqa: E402
-from PIL import Image  # noqa: E402
+from PIL import Image, ImageDraw  # noqa: E402
 from scipy import ndimage  # noqa: E402
 
 import pixelart  # noqa: E402
@@ -93,6 +95,7 @@ class Row:
     names: tuple[str, ...]
     edges: tuple[int, ...] = ()
     labels: tuple[tuple[int, int, int, int], ...] = ()
+    inset: int = INSET
 
 
 def _cycle(stem: str) -> tuple[str, ...]:
@@ -100,6 +103,14 @@ def _cycle(stem: str) -> tuple[str, ...]:
 
 
 ROWS = {
+    "aswang": [
+        Row((320, 310, 904, 421), _cycle("walk"), edges=(320, 416, 513, 610, 711, 814, 904), inset=0),
+        Row((320, 475, 901, 586), ("idle1", "idle2", "idle3", "idle4"),
+            edges=(320, 465, 610, 755, 901), inset=0),
+        Row((320, 638, 1075, 750), ("ready", "claw1", "claw2", "settle"),
+            edges=(320, 488, 696, 909, 1075), inset=0),
+        Row((1125, 637, 1505, 750), ("hurt1", "hurt2"), edges=(1125, 1303, 1505), inset=0),
+    ],
     "whitelady": [
         Row((345, 440, 1235, 648), _cycle("walk")),
         Row((340, 975, 1235, 1176), ("idle", "float", "look_up", "look_down", "reach", "eerie")),
@@ -126,16 +137,66 @@ LEGS_AT = {
     ("manananggal", "attack"): (443, 918, 488, 951),
 }
 
+# Solid hair landmarks, in the supplied crawler sheet's coordinates. Its darkest hair shades
+# overlap the panel colour, so colour keying alone punches holes through these locks. Restore
+# the enclosed pockets at these points from the original RGB; the spaces between limbs stay
+# transparent. These are source landmarks, not painted replacement pixels.
+ASWANG_HAIR_AT = {
+    "walk1": ((372, 350),),
+    "walk2": ((472, 348), (447, 359)),
+    "walk3": ((567, 348),),
+    "walk4": ((654, 352),),
+    "walk5": ((759, 349), (735, 360)),
+    "walk6": ((842, 353),),
+    "idle1": ((404, 506), (384, 509)),
+    "idle2": ((524, 507), (537, 517)),
+    "idle3": ((675, 505), (661, 507), (650, 515), (635, 523), (674, 539)),
+    "idle4": ((822, 506), (843, 505), (793, 520)),
+    "ready": ((414, 679), (379, 686)),
+    "claw1": ((585, 669), (569, 678)),
+    "claw2": ((751, 683), (788, 703)),
+    "settle": ((1010, 677), (986, 677), (1003, 700)),
+    "hurt1": ((1228, 661),),
+    "hurt2": ((1422, 663), (1394, 672)),
+}
+
+# The front lock also opens onto the background at its tip, so an enclosed-hole repair cannot
+# recover it. Narrow strokes down the INSIDE of that lock preserve its original dark RGB without
+# widening the outside silhouette or filling the much larger spaces between the limbs.
+ASWANG_FRONT_LOCK = {
+    "walk1": (((395, 343), (393, 373)), 6),
+    "walk2": (((489, 341), (487, 370)), 6),
+    "walk3": (((581, 345), (579, 378)), 5),
+    "walk4": (((678, 344), (676, 375)), 6),
+    "walk5": (((776, 345), (776, 376)), 5),
+    "walk6": (((867, 345), (865, 376)), 5),
+    "idle1": (((398, 503), (396, 537)), 5),
+    "idle2": (((535, 504), (535, 538)), 5),
+    "idle3": (((680, 504), (676, 540)), 6),
+    "idle4": (((836, 502), (835, 538)), 5),
+    "ready": (((418, 671), (414, 705)), 5),
+    "claw1": (((591, 666), (584, 697)), 5),
+    "claw2": (((794, 665), (787, 704)), 4),
+    "settle": (((1006, 675), (1002, 704)), 5),
+}
+
 ## Each creature's one scale, from the sheet to the game: the white lady a head taller than the
 ## apo (106 px), the kapre half again her height on its branch (Kent, 2026-10-22: "make the kapre
 ## bigger"; its sheet's "small in form" left it her size), the manananggal's wings ~140 px across.
-SCALE = {"whitelady": 0.66, "kapre": 0.86, "manananggal": 0.9}
+SCALE = {"whitelady": 0.66, "kapre": 0.86, "manananggal": 0.9, "aswang": 1.0}
 
 ## Poses drawn facing left.
-FACING_LEFT = {"whitelady": {"idle", "float", "look_up", "look_down", "reach"}}
+FACING_LEFT = {"whitelady": {"idle", "float", "look_up", "look_down", "reach"},
+               "aswang": {"hurt2"}}
 
 ## The game's strips, each from one sheet's poses. A `_death` strip is its one pose fading out.
 STRIPS: dict[str, tuple[str, list[str]]] = {
+    "aswang_pig_idle": ("aswang", ["idle1", "idle2", "idle3", "idle4"]),
+    "aswang_pig_run": ("aswang", list(_cycle("walk"))),
+    "aswang_pig_windup": ("aswang", ["ready"]),
+    "aswang_pig_attack": ("aswang", ["claw1", "claw2", "settle"]),
+    "aswang_pig_hurt": ("aswang", ["hurt1", "hurt2"]),
+    "aswang_pig_death": ("aswang", ["hurt1"]),
     "aswang_dog_idle": ("whitelady", ["idle", "float"]),
     "aswang_dog_run": ("whitelady", list(_cycle("walk"))),
     "aswang_dog_windup": ("whitelady", ["eerie"]),
@@ -190,10 +251,13 @@ def _panel(band: np.ndarray) -> np.ndarray:
     return values[counts.argmax()] * 4 + 2
 
 
-def _key(band: np.ndarray, panel: np.ndarray, labels: list[tuple[int, int, int, int]]) -> np.ndarray:
+def _key(band: np.ndarray, panel: np.ndarray, labels: list[tuple[int, int, int, int]],
+         *, remove_gold: bool = True) -> np.ndarray:
     r, g, b = band[..., 0], band[..., 1], band[..., 2]
     gold = (r > 120) & (g > 95) & (b < 120) & (r - b > 50) & (r >= g) & (g > b)
-    mask = (np.abs(band - panel).max(axis=2) > KEY_DIFF) & ~gold
+    mask = np.abs(band - panel).max(axis=2) > KEY_DIFF
+    if remove_gold:
+        mask &= ~gold
     if labels:
         cream = (r > 170) & (g > 150) & (r >= g) & (g > b) & (r - b > 35)
         where = np.zeros_like(cream)
@@ -209,7 +273,7 @@ def _shapes(mask: np.ndarray, row: Row, x0: int) -> list[np.ndarray]:
         out = []
         for e0, e1 in zip(row.edges, row.edges[1:]):
             cell = np.zeros_like(mask)
-            cell[:, e0 - x0 + INSET:e1 - x0 - INSET] = mask[:, e0 - x0 + INSET:e1 - x0 - INSET]
+            cell[:, e0 - x0 + row.inset:e1 - x0 - row.inset] = mask[:, e0 - x0 + row.inset:e1 - x0 - row.inset]
             lab, n = ndimage.label(ndimage.binary_dilation(cell, iterations=2))
             sizes = ndimage.sum(cell, lab, range(1, n + 1))
             keep = 1 + np.nonzero(sizes >= MIN_AREA // 8)[0]
@@ -250,6 +314,31 @@ def _unshadowed(band: np.ndarray, own: np.ndarray, panel: np.ndarray) -> np.ndar
     return out
 
 
+def _restore_aswang_hair(own: np.ndarray, pose: str, origin: tuple[int, int]) -> np.ndarray:
+    holes = ndimage.binary_fill_holes(own) & ~own
+    lab, _ = ndimage.label(holes)
+    keep = set()
+    x0, y0 = origin
+    for x, y in ASWANG_HAIR_AT[pose]:
+        if own[y - y0, x - x0]:
+            continue
+        pocket = int(lab[y - y0, x - x0])
+        if pocket == 0:
+            raise ValueError(f"aswang {pose}: solid hair at {(x, y)} opens onto the background")
+        keep.add(pocket)
+    out = own | np.isin(lab, list(keep))
+    if pose in ASWANG_FRONT_LOCK:
+        points, width = ASWANG_FRONT_LOCK[pose]
+        matte = Image.new("1", (own.shape[1], own.shape[0]))
+        ImageDraw.Draw(matte).line([(x - x0, y - y0) for x, y in points], fill=1, width=width)
+        out |= np.asarray(matte, dtype=bool)
+    # Closing the strand can enclose a couple of previously exterior pixels beside it.
+    small, count = ndimage.label(ndimage.binary_fill_holes(out) & ~out)
+    sizes = ndimage.sum(small > 0, small, range(1, count + 1))
+    out |= np.isin(small, 1 + np.nonzero(sizes <= HOLE)[0])
+    return out
+
+
 @lru_cache(maxsize=None)
 def poses(name: str) -> dict[str, Image.Image]:
     """Every pose on a sheet, keyed and cropped, at the sheet's own size."""
@@ -260,7 +349,9 @@ def poses(name: str) -> dict[str, Image.Image]:
         band = sheet[y0:y1, x0:x1]
         panel = _panel(band)
         labels = [(lx0 - x0, ly0 - y0, lx1 - x0, ly1 - y0) for lx0, ly0, lx1, ly1 in row.labels]
-        shapes = _shapes(_key(band, panel, labels), row, x0)
+        # The crawler's rows have no lettering or inner rules, and its claws use warm browns
+        # that overlap the other sheets' gold ink. Keep those actual character colours.
+        shapes = _shapes(_key(band, panel, labels, remove_gold=name != "aswang"), row, x0)
         assert len(shapes) == len(row.names), f"{name}: {len(shapes)} figures in a row of {len(row.names)}"
         for pose, own in zip(row.names, shapes):
             if (name, pose) in LEGS_AT:
@@ -268,6 +359,8 @@ def poses(name: str) -> dict[str, Image.Image]:
                 own = own.copy()
                 own[ly0 - y0:ly1 - y0, lx0 - x0:lx1 - x0] = False
             own = _unshadowed(band, own, panel)
+            if name == "aswang":
+                own = _restore_aswang_hair(own, pose, (x0, y0))
             ys, xs = np.nonzero(own)
             crop = (slice(ys.min(), ys.max() + 1), slice(xs.min(), xs.max() + 1))
             rgba = np.zeros(own[crop].shape + (4,), dtype=np.uint8)
