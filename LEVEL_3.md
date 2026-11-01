@@ -740,7 +740,7 @@ And each object got the volume it was missing:
 | Giant clam | ribs shaded one by one, a flat fan of stripes | the left third of the shell up a step, the right third down one, a highlight on the dome |
 | Seabed pillar | a 24x36 slab with a lit column and a dark one | a 30x50 fluted drum shaded as a cylinder, on a square plinth seen from above |
 | Wooden sign | a flat rectangle | a plank with a top edge and an end |
-| Beached bangka | two flat rows of olive under the hull, a ruled stripe along the sand | the hull in its own shadow, and one bamboo pole lying in front of it -- lit top, dark underside, a node every nine pixels |
+| Beached bangka | two flat rows of olive under the hull, a ruled stripe along the sand; then (2026-11-01) keel-up, it read as a mound of earth | the afloat boat itself, upright on the sand in its own shadow -- furled sail, painted band, the katig lying in front (`tests/test_build_dagat_bangka.py`) |
 
 The lantern and the sign are drawn by the same code in every level, so Payyo's and Piyesta's have
 the same depth, in their own stone and wood.
