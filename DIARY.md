@@ -1,6 +1,6 @@
 # Lola's diary
 
-**Status: PR 1 built (the book, the bag's DIARY tab, Payyo's page). PRs 2–6 below are the plan.**
+**Status: PRs 1–2 built (the book, the bag's DIARY tab, Payyo's page, Piyesta's three). PRs 3–6 below are the plan.**
 
 Every painting hides a page of Lola's diary, each a little further into her forgetting, so that by
 Mayon the player already knows why the painting is coming apart. The pages are kept in the bag
@@ -50,7 +50,7 @@ the day, of the way home, of the name.
 | | PR | |
 |---|---|---|
 | 1 | `diary-book` | The art pipeline, the book, the DIARY tab, the found-page overlay, the profile's pages, Payyo's page moved in. **Built.** |
-| 2 | | Piyesta's three pages: the church, alley 1, alley 2. |
+| 2 | `piyesta-diary` | Piyesta's three pages, lying where she walks: the nave, and each alley between its doors. The loose page (`DiaryPage2D`). **Built.** |
 | 3 | | Dagat: the bakunawa gives the page on the light route; the fight carries it off. |
 | 4 | | Dilim's bestiary: found at the start, opens at each creature; the "Lola said…" lines rewritten. |
 | 5 | | Mayon: the apo's lines, "Wait — I can fix this", Lolo's last line by route, the last page at her easel. |
@@ -66,7 +66,8 @@ the day, of the way home, of the name.
 | The book | `DiaryBook` — the turn at Motion's pixel rate, one frame a tick; a click on the left page goes back, on the right page on |
 | The bag's tab | `InventoryScreen` (`DIARY_TAB`, `_build_diary`, `_refresh_diary`) |
 | A page, found | `LevelBase.find_diary_page(id)` → `DiaryOverlay` (layer 68, ahead of the memory card in the Escape queue) |
-| The art | `tools/build_diary_book.py` → `game/assets/hud/diary_book.png` (8 frames of 134 × 112; frame 7 is the book at rest) |
+| A page lying in a level | `DiaryPage2D` (placed by the level, e.g. `level_2.gd` `DIARY_PAGES`); LevelBase lays them out (`_lay_out_diary_pages`: a page already found is not there) and finds one she stands over (`_tend_diary_pages`, from her body's anchor) |
+| The art | `tools/build_diary_book.py` → `game/assets/hud/diary_book.png` (8 frames of 134 × 112; frame 7 is the book at rest) and `diary_page.png` (the loose page, a placeholder) |
 | Tests | `run_diary_probe` · `run_walk_level1` (`_her_chest_opens`) · `tests.test_build_diary_book` |
 
 ## Rules
@@ -88,5 +89,8 @@ the day, of the way home, of the name.
   wrapped labels stand one word to a line, and the cards measured 1709 tall — the bag came out
   twice the height of the screen. The book's height is a constant; its width is taken from the
   laid-out cards when the tab opens.
+- ⚠ **A loose page is found by distance, not by an `Area2D`.** Dilim's satchel things look for her
+  hurtbox, and only Dilim has one (it is her health): in Piyesta a page waiting for a hurtbox was
+  walked over and never found.
 - ⚠ **The ribbons are keyed by colour, not cropped by row.** The page in flight rises over the
   cover's top edge while the ribbons are still behind it.

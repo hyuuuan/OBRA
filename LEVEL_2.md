@@ -163,6 +163,13 @@ with no collision or interaction. `run_level2_chain_probe` checks the art regist
 the level’s E handler; `run_visual_level2 --church` pushes E through a real viewport
 and captures both doors, the rack and the placed-candle state.
 
+## Her diary — November 2026
+
+Three pages of Lola's diary lie in Piyesta (`DIARY.md`): one on the nave floor on the way to the
+candle rack, and one in each alley between its doors, where its pieces come down. They are found
+by walking over them (`level_2.gd` `DIARY_PAGES` → `DiaryPage2D`), and open in her diary.
+`run_diary_probe` checks where they lie and that walking over one finds it.
+
 ## The supplied Alley 1 layers — October 2026
 
 Alley 1 now uses the supplied afternoon sky, sari-sari store, ground and red bandaritas.

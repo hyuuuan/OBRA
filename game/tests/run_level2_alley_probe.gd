@@ -38,6 +38,11 @@ func _check(ok: bool, what: String, detail: String) -> void:
 
 func _run() -> void:
 	print("\n===== LEVEL 2 ALLEYS =====")
+	# HER DIARY IS ALREADY FOUND. Its pages lie in the nave and both alleys, and finding one opens
+	# the book over a paused game (DIARY.md); this probe is about the flock, so it is granted, the
+	# way a probe grants what it is not about. run_diary_probe and run_play_level2 find them.
+	for page_id in ["piyesta_church", "piyesta_alley_1", "piyesta_alley_2"]:
+		root.get_node("PlayerProfile").call("record_diary_page", page_id)
 	await _audit_the_flock_flies()
 	await _audit_the_choice_is_asked_at_the_way_in()
 	await _audit_feeding("1")

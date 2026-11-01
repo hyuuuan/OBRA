@@ -21,6 +21,12 @@ class DiaryBookTest(unittest.TestCase):
         kept = np.asarray(Image.open(book.OUT).convert("RGBA"))
         self.assertTrue(np.array_equal(made, kept), "run tools/build_diary_book.py")
 
+    def test_the_committed_loose_page_is_what_the_script_makes(self) -> None:
+        made = np.asarray(book.loose_page())
+        kept = np.asarray(Image.open(book.PAGE_OUT).convert("RGBA"))
+        self.assertTrue(np.array_equal(made, kept), "run tools/build_diary_book.py")
+        self.assertEqual(len({len(row) for row in book.PAGE}), 1, "the page's rows differ in length")
+
     def test_eight_frames_of_one_book(self) -> None:
         strip = book.build()
         self.assertEqual(strip.width % len(book.TURN), 0)
