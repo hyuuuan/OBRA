@@ -3,15 +3,15 @@ extends SceneTree
 ##
 ## The contract, on ground built here so the answer is known: an end beside ground as high or
 ## higher is closed; beside lower ground -- on either side, mud included -- it is a riser as tall
-## as the step, for the cap to be enlarged over; with nothing beside it, a free end; thin pieces
-## are loose shelves; and tile phase is the world's, so neighbours carry the strip straight on.
+## as the step, shaded down to the lower step; with nothing beside it, a free end; thin pieces are
+## loose shelves; tile phase and plants are the world's, so neighbours carry the strip straight on.
 ## Then each dressed level: its bodies stood their own art down and were all handed over.
 ##
 ##   godot --headless --path game --script res://tests/run_cliff_dressing_probe.gd
 
 const Dressing = preload("res://scripts/cliff_dressing_2d.gd")
 const KITS := ["res://assets/Level1/cliff"]
-const CHECKS := 10 + 1 * 1 + 6
+const CHECKS := 11 + 1 * 1 + 6
 
 var checked := 0
 var failures := 0
@@ -70,30 +70,48 @@ func _contract() -> void:
 		"thin pieces are ledges, the rest walls", "%d ledges, %d walls" % [
 		dressing.get("_ledges").size(), dressing.get("_ground").size()])
 	# Tile phase is the world's: where two neighbours meet, the strip carries straight on.
-	var width := 1536.0
+	var width := 1808.0
 	var left_pieces: Array[Vector3] = dressing.tiles_across(high, width, 0.0)
 	var right_pieces: Array[Vector3] = dressing.tiles_across(level, width, 0.0)
 	var left_end := left_pieces[left_pieces.size() - 1]
 	var right_start := right_pieces[0]
-	_check(is_equal_approx(fmod(left_end.y + left_end.z, width - dressing.tile_overlap),
-		fmod(right_start.y, width - dressing.tile_overlap)),
+	_check(is_equal_approx(fmod(left_end.y + left_end.z, width), right_start.y),
 		"the strip carries straight on across two neighbours", "%s / %s" % [left_end, right_start])
 	var moved := Dressing.new()
+	moved.kit = KITS[0]
 	root.add_child(moved)
 	moved.position = Vector2(300, 0)
-	var shifted: Array[Vector3] = moved.tiles_across(Rect2(level.position - Vector2(300, 0), level.size), width, 0.0)
+	var shifted_rect := Rect2(level.position - Vector2(300, 0), level.size)
+	var shifted: Array[Vector3] = moved.tiles_across(shifted_rect, width, 0.0)
 	_check(shifted[0].y == right_start.y, "tile phase belongs to the world, not to the node",
 		"%s vs %s" % [shifted[0], right_start])
+	# Plants: the same world spots wherever the node is, and none crowding an end.
+	var here: Array[Vector2] = dressing.plant_spots(low)
+	var there: Array[Vector2] = moved.plant_spots(Rect2(low.position - Vector2(300, 0), low.size))
+	var same := here.size() == there.size() and here.size() > 0
+	var clear := true
+	for index in range(here.size()):
+		same = same and is_equal_approx(here[index].x, there[index].x + 300.0) and here[index].y == there[index].y
+		clear = clear and here[index].x >= low.position.x + Dressing.PLANT_MARGIN \
+			and here[index].x <= low.end.x - Dressing.PLANT_MARGIN
+	_check(same and clear, "plants stand at world spots, clear of the ends", "%s / %s" % [here, there])
 	dressing.free()
 	moved.free()
 
 
-## Every picture the runtime asks for is there, wider than a screen so its repeat is not seen.
+## Every picture the runtime asks for is there, wider than a screen so its repeat is not seen,
+## and kit.json was read: the walk line above the band, the band above the stone.
 func _kit_is_whole(kit: String) -> void:
-	var face := load(kit.path_join("face.png")) as Texture2D
-	var edge := load(kit.path_join("edge.png")) as Texture2D
-	_check(face != null and edge != null and face.get_width() > 1600,
-		"%s: a strip and an end cap" % kit.get_base_dir().get_file())
+	var dressing := Dressing.new()
+	dressing.kit = kit
+	root.add_child(dressing)
+	var face := dressing.get("_face") as Texture2D
+	var plants: Array = dressing.get("_plants")
+	_check(face != null and dressing.get("_edge") != null and face.get_width() > 1600
+		and plants.size() >= 2 and dressing.lip < dressing.band and dressing.band < dressing.skip,
+		"%s: strip, spill, plants and kit.json" % kit.get_base_dir().get_file(),
+		"lip %s band %s skip %s plants %d" % [dressing.lip, dressing.band, dressing.skip, plants.size()])
+	dressing.free()
 
 
 func _payyo() -> void:
@@ -134,14 +152,14 @@ func _payyo() -> void:
 	for end: Dictionary in dressing.call("exposed_ends"):
 		ends[Vector2((end.rect as Rect2).position.x if int(end.side) < 0 else (end.rect as Rect2).end.x,
 			(end.rect as Rect2).position.y)] = float(end.rise)
-	# Ang Hagdan is a 220 px riser: its cap is enlarged to cover the wall down to the ground.
+	# Ang Hagdan is a 220 px riser: its open side is shaded down to the ground under it.
 	var hagdan: float = ends.get(Vector2(1180, 340), -1.0)
-	_check(is_equal_approx(hagdan, 220.0), "Ang Hagdan's wall is capped down to the ground under it",
+	_check(is_equal_approx(hagdan, 220.0), "Ang Hagdan's wall is an open side down to the ground under it",
 		"rise %.0f" % hagdan)
 	_check(not ends.has(Vector2(2220, 240)),
 		"Terrace3 and CentralLeft, level with each other, are one wall")
 	_check(ends.has(Vector2(3080, 240)) and ends.has(Vector2(3520, 240)),
-		"both lips of the gorge are capped")
+		"both lips of the gorge are open ends")
 	call_group(DialogueBox.GROUP, &"skip_all")
 	level.queue_free()
 	for _frame in range(4):
