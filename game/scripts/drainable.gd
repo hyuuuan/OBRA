@@ -30,9 +30,6 @@ var paper := Color(0.957, 0.937, 0.894)
 ## it, from flat paper.
 var wash := 1.0
 var vanish_from := 0.85
-## Whether it draws in its painted colours (drain.gdshader `texture_in_colour`): true for an old
-## way in another level. Mayon's ash leaves it off, the look its tuning was made against.
-var painted_colours := false
 ## Whether it shows itself in a level's dark WHILE IT GOES, the way her drawings are seen
 ## (PhysicsShapeObject.dark_reveal): an old way in Dilim's woods has to be seen to be seen going.
 ## Only while it goes -- before, the woods stay as dark as Kent made them, and a reveal standing
@@ -64,7 +61,6 @@ func _ready() -> void:
 	_material.set_shader_parameter("paper", paper)
 	_material.set_shader_parameter("wash", wash)
 	_material.set_shader_parameter("vanish_from", vanish_from)
-	_material.set_shader_parameter("texture_in_colour", painted_colours)
 	_target.material = _material
 	for item in _target.find_children("*", "CanvasItem", true, false):
 		(item as CanvasItem).use_parent_material = true

@@ -331,3 +331,14 @@ includes disappearance, handoff, brush pickup, and a 1600x1000 room frame. It fi
 narration before freeing the scene, avoiding retained story coroutines at shutdown. No full-suite rerun was
 used for this finishing pass; generated/provisional artwork remains listed
 in the authored README and `ART_PLACEHOLDERS.md`.
+
+### Painted colours
+
+Until November 2026, `drain.gdshader` sampled the texture that Godot 4's `COLOR` already carries,
+squaring every colour. Whatever wore the drain therefore drew darker than painted from the start:
+the old crossing, the old steps, the pale palm and all twelve memory fragments. After a
+checkpoint restore the summit's sky and cone did too, because `_reset_summit` gives them their
+Drainable. The shader now reads `COLOR` as it is. Nothing needed retuning. The summit cone's
+0.55 ghost still sits clearly under the paper sky, and the fragment builder's `LIGHT_FLOOR` lift
+still holds the dark memories (bakunawa, coral, forest, storm) level with the kubo and the
+waterfall, as it did when it was set.

@@ -800,9 +800,10 @@ the obstacle reads as hers to draw before anyone says so. Kent (2026-11-01): ful
   showing at her feet looks like somewhere to stand. `run_old_way_fade_probe` asserts it.
 - **They dissolve in their own colours** (`_fade_wash` 0.25, `_fade_vanish_from` 0.15, into the
   terraces' haze). Mayon whitens to flat paper first; that is the ash, and Payyo has none.
-- ⚠ **`drain.gdshader` squares a colour unless told not to.** Godot 4's `COLOR` already carries
-  the texture, so sampling `TEXTURE` again draws a thing darker than painted (0.42 comes out
-  0.17) from the start. Old ways set `texture_in_colour`; Mayon's ash still samples twice.
+- ⚠ **`drain.gdshader` reads `COLOR` as it is.** Godot 4's `COLOR` already carries the texture;
+  sampling `TEXTURE` again squared every colour (0.42 came out 0.17), so whatever wore the drain
+  drew darker than painted from the start. It once had a flag for this; now no level samples
+  twice, and `run_drain_probe` fails if the shader does.
 
 ## Verify
 
