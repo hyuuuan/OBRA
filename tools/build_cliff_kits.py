@@ -15,15 +15,18 @@ strip on top and square ends. This gives them that construction -- in their own 
 So each kit is cut from THAT LEVEL'S DELIVERED TILESET -- the material its artist painted for its
 ground -- and only assembled here in Mayon's construction: the wall tiles laid in a strip, the
 underside broken along the painted stones' own outlines (so what hangs below is a whole stone,
-never a ruled cut), blades in the tileset's own greens over the walk line, and an end cap built
-from its corner tile with a ragged outside.
+never a ruled cut), a thick lip of its own grass edge tile draping in clumps, darker going down
+with a shadow under the lip and under every broken layer, and its own grass spilling over the
+corners, with its ferns and grass standing on the lip.
 
-  game/assets/Level<N>/cliff/face.png   the strip: LIP px above the walk line, tiles across
-  game/assets/Level<N>/cliff/edge.png   a left-facing end cap with the same walk line
+  game/assets/Level<N>/cliff/face.png     the strip: stone under a thick lip; tiles across
+  game/assets/Level<N>/cliff/edge.png     grass spilling down a left-facing side
+  game/assets/Level<N>/cliff/plant_N.png  plants off the atlas, at its own size
+  game/assets/Level<N>/cliff/kit.json     the rows the runtime needs (walk line, band, ...)
 
 ⚠ NO PICTURE OF A DRAWABLE CLASS. Payyo's example assembly has stone stairs and a fence in it;
 neither may be used (CLAUDE.md: a ladder or stairs in a picture is a hint the level did not
-mean to give). Only wall tiles, corner tiles, grass, ferns and rocks are cut.
+mean to give). Only wall tiles, corner tiles, grass and ferns are cut.
 
   .venv/bin/python tools/build_cliff_kits.py           # write the kits
   .venv/bin/python tools/build_cliff_kits.py --check   # exit 1 if a committed kit is stale
@@ -32,6 +35,7 @@ mean to give). Only wall tiles, corner tiles, grass, ferns and rocks are cut.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from collections import deque
 from dataclasses import dataclass, field
@@ -52,8 +56,8 @@ SCALE = 1
 ## Wall courses stacked in the strip: one is too shallow at this size to cover the first darker
 ## repeat 150 px down, and the strip's underside must always be below it.
 COURSES = 2
-## The cap is cut this tall, so it is never enlarged to cover a riser: enlarged, it blurs.
-EDGE_TALL = 380
+## How far the lip's corner overhangs the wall, tileset px.
+OVERHANG = 6
 
 
 @dataclass
@@ -71,9 +75,23 @@ class Recipe:
     fringe: int
     ## Below this luminance a pixel is a joint between stones, not a stone.
     joint: float
-    ## Rows of plants above the tile top, and how far into the tile the walk line sits.
-    above: int = 12
-    walk: int = 3
+    ## The grass edge tile laid across as the thick lip, the rows of it that are solid grass,
+    ## and how far its green fringe may hang in clumps below that.
+    lip_tile: tuple[int, int, int, int] = (0, 0, 0, 0)
+    lip_band: int = 27
+    lip_drape: int = 8
+    ## The corner tile's grass down its side: rows from, rows to, columns.
+    spill: tuple[int, int, int] = (0, 0, 0)
+    ## Plants off the atlas; the first one stands on every open corner.
+    plants: list[tuple[int, int, int, int]] = field(default_factory=list)
+    corner_plant: int = 0
+    ## Rows of air above the slab for its blades, and how far into the slab the walk line sits.
+    above: int = 8
+    walk: int = 6
+    ## How much darker the stone is at the strip's underside than under the lip.
+    fall: float = 0.42
+    ## Rows of the shadow each broken layer drops on the one below.
+    drop: int = 14
     ## The broken underside: how deep each chunk reaches, as a share of the tile height. Deep
     ## enough that the first darker repeat's top (150 px down) is always behind it.
     reach: tuple[float, float] = (0.78, 0.98)
@@ -263,6 +281,34 @@ def paste(canvas: np.ndarray, sprite: np.ndarray, x: int, y: int, wrap: bool) ->
             canvas[cy, cx, 3] = int(max(under[3], sprite[row, col, 3]))
 
 
+def keyed(atlas: Image.Image, box: tuple[int, int, int, int]) -> np.ndarray:
+    """A sprite off the atlas, cropped to what is drawn (the atlas page is transparent)."""
+    sprite = cut(atlas, box)
+    sprite[..., 3] = np.where(sprite[..., 3] > 40, 255, 0)
+    ys, xs = np.nonzero(sprite[..., 3])
+    return sprite[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+
+
+def greenish(rgba: np.ndarray, margin: int = 8) -> np.ndarray:
+    return (rgba[..., 1].astype(int) > rgba[..., 0].astype(int) + margin) & (rgba[..., 3] > 40)
+
+
+def slab(recipe: Recipe, atlas: Image.Image, width: int, rng: np.random.Generator) -> np.ndarray:
+    """The thick lip: the tileset's own grass edge tile laid across, its solid band kept whole and
+    its hanging fringe kept only where it is green, cut deeper in clumps -- Mayon's lip drapes."""
+    tile = trim(cut(atlas, recipe.lip_tile))
+    band = lay([tile], [0] * max(2, -(-width // (tile.shape[1] - JOIN)) + 1), tile.shape[0])
+    while band.shape[1] < width:
+        band = np.concatenate([band, band], axis=1)
+    band = band[:, :width].copy()
+    rows = np.arange(band.shape[0])[:, None]
+    clump = np.convolve(np.concatenate([rng.random(width)] * 3), np.ones(15) / 15, "same")[width:2 * width]
+    reach = recipe.lip_band + 6 + np.round(clump * 2.4 * recipe.lip_drape - recipe.lip_drape * 0.6)
+    keep = (rows < recipe.lip_band) | (greenish(band) & (rows < reach[None, :]))
+    band[..., 3] = np.where(keep, 255, 0)
+    return band
+
+
 def build_face(recipe: Recipe) -> Image.Image:
     rng = np.random.default_rng(recipe.seed)
     atlas = Image.open(ROOT / recipe.atlas)
@@ -277,24 +323,46 @@ def build_face(recipe: Recipe) -> Image.Image:
         below = lay(bodies, recipe.order[turn:] + recipe.order[:turn], tall - recipe.fringe - 2)
         wall = stack(wall, below)
     width = wall.shape[1]
+    # The wall's own thin fringe goes under the slab, which is laid over its top.
+    wall_top = recipe.above + recipe.lip_band - recipe.fringe + 4
+    canvas = np.zeros((wall_top + wall.shape[0], width, 4), dtype=np.uint8)
+    canvas[wall_top:] = wall
     deep = wall.shape[0]
-    canvas = np.zeros((recipe.above + deep, width, 4), dtype=np.uint8)
-    canvas[recipe.above:] = wall
-    profile = recipe.above + chunks(width, (recipe.reach[0] * deep, recipe.reach[1] * deep), rng)
-    canvas = break_underside(canvas, recipe, recipe.above, profile, wrap=True)
-    # ⚠ Blades, not the tileset's plants: stood along the lip at this scale its sprouts read as
-    # a row of lollipops and its ferns as pineapple tops.
+    profile = wall_top + chunks(width, (recipe.reach[0] * deep, recipe.reach[1] * deep), rng)
+    canvas = break_underside(canvas, recipe, wall_top, profile, wrap=True)
+    rows = np.arange(canvas.shape[0])[:, None]
+    # Darker going down: daylight on the top courses, shadow toward the underside.
+    fall = 1.0 - recipe.fall * np.clip((rows - wall_top) / max(1, canvas.shape[0] - wall_top), 0, 1)
+    canvas[..., :3] = (canvas[..., :3] * fall[..., None]).astype(np.uint8)
+    lip = slab(recipe, atlas, width, rng)
+    hang = np.array([np.nonzero(lip[:, x, 3])[0].max() + 1 for x in range(width)]) + recipe.above
+    # The lip shades the stone under it, deepest right under the hanging grass.
+    for k in range(12):
+        under = (rows == hang[None, :] + k) & (canvas[..., 3:4][..., 0] > 0)
+        canvas[under, :3] = (canvas[under, :3] * (0.5 + 0.5 * k / 12)).astype(np.uint8)
+    on = lip[..., 3] > 0
+    region = canvas[recipe.above:recipe.above + lip.shape[0]]
+    region[on] = lip[on]
+    # Each broken layer drops a shadow on the one below it: what makes the repeats read as rock
+    # stepping back rather than as bands of paint.
+    bottom = np.array([np.nonzero(canvas[:, x, 3])[0].max() for x in range(width)])
+    shadow = np.zeros((recipe.drop, width, 4), dtype=np.uint8)
+    for k in range(recipe.drop):
+        shadow[k, :, 3] = int(150 * (1 - k / recipe.drop) ** 1.5)
+    canvas = np.concatenate([canvas, np.zeros((recipe.drop, width, 4), np.uint8)], axis=0)
+    for x in range(width):
+        canvas[bottom[x] + 1:bottom[x] + 1 + recipe.drop, x] = shadow[:, x]
     _blades(canvas, recipe, rng, wrap=True)
     return _scaled(canvas)
 
 
 def _blades(canvas: np.ndarray, recipe: Recipe, rng: np.random.Generator, wrap: bool,
             start: int = 0) -> None:
-    """Grass blades over the walk line, rooted in the fringe: one to five pixels, in clumps."""
+    """Grass blades over the slab, rooted in it: one to five pixels, in clumps."""
     if not recipe.blades:
         return
     greens = pixelart.ramp(recipe.blades)[:, :3]
-    root = recipe.above + recipe.walk + 1
+    root = recipe.above + 1
     width = canvas.shape[1]
     clump = np.convolve(rng.random(width), np.ones(9) / 9, mode="same")
     for x in range(start, width):
@@ -309,28 +377,32 @@ def _blades(canvas: np.ndarray, recipe: Recipe, rng: np.random.Generator, wrap: 
 
 
 def build_edge(recipe: Recipe) -> Image.Image:
-    rng = np.random.default_rng(recipe.seed + 1)
+    """Grass spilling over a left-facing corner and a little way down the side, cut from the
+    tileset's own corner tile: its grass, not its stones -- the stones are the wall's own, cut
+    straight and shaded at runtime. ⚠ A column of the corner tile's stones laid over the wall
+    was the "weird" edge: two sets of stones that did not meet, chewed at a random line."""
     atlas = Image.open(ROOT / recipe.atlas)
     corner = cut(atlas, recipe.corner)
-    body = cut(atlas, recipe.tiles[0])[recipe.fringe + 2:]
-    width = min(64, corner.shape[1])
-    wall = corner[:, :width]
-    while wall.shape[0] < EDGE_TALL:
-        wall = stack(wall, body[:, :width])
-    height = recipe.above + wall.shape[0]
-    canvas = np.zeros((height, width, 4), dtype=np.uint8)
-    canvas[recipe.above:] = wall
-    rows = np.arange(height)
-    # Stones stand proud of the edge (x 5 is the edge itself), and below the corner the cap
-    # tucks in toward the bottom so it ends in stone, as Mayon's caps taper.
-    wobble = np.sin(rows / 9.0) * 2 + rng.normal(0, 1.2, height)
-    outside = np.clip(3 + wobble + np.clip(rows - height * 0.55, 0, None) * 0.18, 0, width)
-    inside = np.clip(width - 14 - np.clip(rows - height * 0.45, 0, None) * 0.30
-                     + np.sin(rows / 13.0) * 5, 0, width)
-    profile = np.full(width, float(height - 6))
-    canvas = break_underside(canvas, recipe, recipe.above, profile, wrap=False, keep_x=(outside, inside))
-    _blades(canvas, recipe, rng, wrap=False, start=6)
-    return _scaled(canvas)
+    side = corner[recipe.spill[0]:recipe.spill[1], :recipe.spill[2]].copy()
+    side[..., 3] = np.where(greenish(side), 255, 0)
+    # Only the grass joined to the edge column: loose moss in the joints further in stays put.
+    labels, _ = label(side[..., 3] > 0, False)
+    touching = np.unique(labels[:, :3][labels[:, :3] >= 0])
+    side[..., 3] = np.where(np.isin(labels, touching), side[..., 3], 0)
+    out = np.zeros((side.shape[0], side.shape[1] + OVERHANG, 4), dtype=np.uint8)
+    out[:, OVERHANG:] = side
+    # The tile's grass hangs from its own edge; here it hangs from the slab's, OVERHANG further out.
+    for y in range(side.shape[0]):
+        if out[y, OVERHANG, 3] and not out[y, OVERHANG - 1, 3]:
+            span = max(0, OVERHANG - y // 6)
+            out[y, OVERHANG - span:OVERHANG] = out[y, OVERHANG]
+    _rim(out, False)
+    return _scaled(out)
+
+
+def build_plants(recipe: Recipe) -> list[Image.Image]:
+    atlas = Image.open(ROOT / recipe.atlas)
+    return [_scaled(keyed(atlas, box)) for box in recipe.plants]
 
 
 def _scaled(rgba: np.ndarray) -> Image.Image:
@@ -339,19 +411,40 @@ def _scaled(rgba: np.ndarray) -> Image.Image:
 
 
 def lip(recipe: Recipe) -> int:
-    """The runtime's `lip`: world px from the strip's top to the walk line."""
+    """World px from the strip's top to the walk line."""
     return (recipe.above + recipe.walk) * SCALE
 
 
+def kit(recipe: Recipe) -> dict:
+    """What the runtime needs to know about the pictures, so the scene restates none of it."""
+    return {
+        "lip": lip(recipe),
+        # The slab's solid band ends here: the overhang at a corner is cut from these rows.
+        "band": (recipe.above + recipe.lip_band) * SCALE,
+        # Stone only from here down: where the darker repeats are cut from.
+        "skip": (recipe.above + recipe.lip_band + 3 * recipe.lip_drape) * SCALE,
+        "deep": recipe.deep,
+        "overhang": OVERHANG * SCALE,
+        "plants": len(recipe.plants),
+        "corner_plant": recipe.corner_plant,
+    }
+
+
 RECIPES = [
-    # Payyo: texturemap.png section 3, the mossy river-stone retaining wall of the rice terraces,
-    # its grass fringe on top, and section 5's rounded stone-wall corner (TL) at each open end.
+    # Payyo, all from texturemap.png: section 3's mossy river-stone retaining wall; section 5's
+    # grass "bottom" edge as the thick lip; the grass down the side of section 5's rounded
+    # stone-wall corner; and section 8's ferns and grass. ⚠ No flowers: the gorge hides one, and
+    # a terrace sown with them would make the real one nothing to find.
     Recipe(
         name="payyo", out="game/assets/Level1/cliff", atlas="game/assets/Level1/texturemap.png",
         # Inset three pixels from each side but the top: the atlas outlines every tile.
         tiles=[(220, 399, 359, 523), (380, 399, 520, 522), (539, 399, 675, 522)],
         order=[0, 1, 2, 1, 0, 2, 0, 1, 2, 0, 2, 1, 0, 1],
         corner=(1252, 341, 1334, 428),
+        lip_tile=(933, 79, 1018, 147),
+        spill=(14, 62, 20),
+        plants=[(739, 716, 779, 754), (792, 719, 836, 754), (740, 673, 779, 698),
+                (934, 674, 971, 701), (854, 727, 883, 754)],
         fringe=15, joint=0.28, seed=1101, deep="#1d160b",
         blades=["#395412", "#4e6f0d", "#729506", "#92b502", "#a1c503"],
     ),
@@ -367,9 +460,17 @@ def main() -> int:
     for recipe in RECIPES:
         if args.only and recipe.name != args.only:
             continue
-        pictures.put(build_face(recipe), ROOT / recipe.out / "face.png")
-        pictures.put(build_edge(recipe), ROOT / recipe.out / "edge.png")
-        print(f"{recipe.name}: lip {lip(recipe)}")
+        out = ROOT / recipe.out
+        pictures.put(build_face(recipe), out / "face.png")
+        pictures.put(build_edge(recipe), out / "edge.png")
+        for index, plant in enumerate(build_plants(recipe)):
+            pictures.put(plant, out / f"plant_{index}.png")
+        text = json.dumps(kit(recipe), indent=2) + "\n"
+        if args.check:
+            if not (out / "kit.json").exists() or (out / "kit.json").read_text() != text:
+                pictures.stale.append(str((out / "kit.json").relative_to(ROOT)))
+        else:
+            (out / "kit.json").write_text(text)
     if pictures.stale:
         print("stale:", *pictures.stale, sep="\n  ")
         return 1
