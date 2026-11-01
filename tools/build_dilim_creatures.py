@@ -11,8 +11,8 @@ WHAT IS DELIVERED NOW
 ---------------------
 The art team's sheets (LEVEL4_Creatures/, 2026-10-20) give the kapre, the manananggal (both halves)
 and the lean aswang -- a white lady. The crawling aswang sheet was supplied on 2026-11-01.
-The tikbalang sheet followed the same day; tools/build_dilim_delivered.py cuts all five. Their strips
-(build_dilim_delivered.DELIVERED) are not drawn here; the kapre's tree, its smoke and its cigar
+The tikbalang and tiyanak sheets followed the same day; tools/build_dilim_delivered.py cuts all six.
+Their strips (build_dilim_delivered.DELIVERED) are not drawn here; the kapre's tree, its smoke and its cigar
 still are.
 
 HOW THEY ARE DRAWN
@@ -22,7 +22,7 @@ six tones a material lit from the upper left, and selective coloured outlines --
 tools/creature_sculpt.py. The creatures themselves are in dilim_beasts.py (the sigbin),
 dilim_giants.py (the bungisngis), dilim_kapre.py (the
 kapre's smoke and its cigar), dilim_fliers.py (the wakwak, the tik-tik) and dilim_small.py (the
-tiyanak and its undergrowth, the santelmo, the nuno's mound, the kapre's balete); the last
+tiyanak's undergrowth, the santelmo, the nuno's mound, the kapre's balete); the last
 clearing's dead tree, drawn the same way, is in dilim_props.py.
 
 THE STRIP CONTRACT
@@ -60,7 +60,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "game" / "assets" / "Level4" / "creatures"
 
 # Which way each stands: on its feet at the bottom row, or centred (a flier).
-GROUND = ["sigbin", "bungisngis", "kapre_tree", "tiyanak", "tiyanak_undergrowth", "nuno_mound", "dead_tree"]
+GROUND = ["sigbin", "bungisngis", "kapre_tree", "tiyanak_undergrowth", "nuno_mound", "dead_tree"]
 FLYING = ["wakwak", "tiktik", "santelmo"]
 
 
@@ -76,11 +76,6 @@ def _sheets() -> dict[str, dict[str, list[Image.Image]]]:
         "kapre_cigar": {"idle": [kapre.cigar()]},
         "wakwak": {a: [fliers.wakwak(l, d).render() for l, d in poses] for a, poses in fliers.WAKWAK_ANIMS.items()},
         "tiktik": {a: [fliers.tiktik(l).render() for l in poses] for a, poses in fliers.TIKTIK_ANIMS.items()},
-        "tiyanak": {
-            "idle": [small.tiyanak_bundle(0.0).render(), small.tiyanak_bundle(1.0, 1).render()],
-            "true": [small.tiyanak_true(0.0).render(), small.tiyanak_true(0.5).render()],
-            "run": [small.tiyanak_true(k / 4, run=True).render() for k in range(4)],
-        },
         "tiyanak_undergrowth": {"idle": [small.undergrowth_picture()]},
         "santelmo": {
             "idle": [small.santelmo(k / 4).render() for k in range(4)],

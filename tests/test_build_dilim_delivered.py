@@ -114,6 +114,37 @@ class DeliveredStripsTest(unittest.TestCase):
         cols = np.nonzero(wings.any(axis=0))[0]
         self.assertTrue(120 <= cols.max() - cols.min() + 1 <= 160, f"wings {cols.max() - cols.min() + 1} px")
 
+    def test_tiyanak_has_a_normal_baby_a_transformation_and_a_solid_monster(self) -> None:
+        poses = delivered.poses("tiyanak")
+        for name, image in poses.items():
+            px = np.asarray(image).astype(int)
+            opaque = px[..., 3] > 128
+            holes = delivered.ndimage.binary_fill_holes(opaque) & ~opaque
+            self.assertFalse(holes[:image.height // 2].any(), f"{name}: holes in its head or face")
+        for name in ("cry1", "cry2", "cry3", "cry4"):
+            px = np.asarray(poses[name]).astype(int)
+            white = (px[..., 3] > 128) & (px[..., :3].min(axis=2) > 170)
+            red_eye = (px[..., 3] > 128) & (px[..., 0] > 190) & (px[..., 1] < 60) & (px[..., 2] < 60)
+            self.assertGreater(int(white.sum()), 2000, f"{name}: missing swaddling cloth")
+            self.assertFalse(red_eye.any(), f"{name}: the lure is already a red-eyed monster")
+        for name in ("change6", "snarl1", "crawl1", "jump1"):
+            px = np.asarray(poses[name]).astype(int)
+            red_eye = (px[..., 3] > 128) & (px[..., 0] > 190) & (px[..., 1] < 60) & (px[..., 2] < 60)
+            self.assertGreater(int(red_eye.sum()), 10, f"{name}: missing transformed red eyes")
+
+    def test_tiyanak_does_not_shrink_when_it_transforms_or_crawls(self) -> None:
+        # Compare the rendered bodies, not the transparent square frames. The original sheet
+        # draws the crawling form at less than half the swaddled baby's visible body area.
+        reference = np.mean([frame[..., 3].astype(float).sum()
+                             for frame in _frames(self.strips["tiyanak_idle"])])
+        for name, sheet in self.strips.items():
+            if not name.startswith("tiyanak_") or name.endswith("_death"):
+                continue
+            for index, frame in enumerate(_frames(sheet)):
+                relative = float(frame[..., 3].astype(float).sum() / reference)
+                self.assertTrue(0.85 <= relative <= 1.15,
+                                f"{name} frame {index}: body size is {relative:.0%} of the baby")
+
     def test_the_white_lady_faces_right_as_the_game_turns_her(self) -> None:
         # The strips face right and the animator mirrors them; a pose left facing left would turn
         # her back on her every time she came at her. Her face is east of her hair's mass.

@@ -16,7 +16,7 @@ const FLOOR_Y := 820.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 25
+const CHECKS := 32
 var level: Node
 
 
@@ -29,7 +29,8 @@ func _run() -> void:
 		print("OBRA_L4_SEG3_FAILED=watchdog")
 		quit(2))
 	var only := " ".join(OS.get_cmdline_user_args())
-	for scenario in [_its_cry_shows_where_it_comes_from, _the_path_kept_passes_it, _down_by_the_cry_the_path_is_not_kept,
+	for scenario in [_its_cry_shows_where_it_comes_from, _the_baby_transforms_and_leaps_when_approached,
+			_the_path_kept_passes_it, _down_by_the_cry_the_path_is_not_kept,
 			_walked_on_to_the_cry_she_falls, _a_light_shows_it_for_what_it_is, _struck_down_it_leaves_nothing,
 			_its_body_walls_the_crossing, _something_absurd_sets_it_laughing, _over_its_head_is_the_way_over,
 			_beaten_it_is_driven_off, _its_slam_throws_her,
@@ -71,9 +72,45 @@ func _its_cry_shows_where_it_comes_from() -> void:
 		"near %.2f, far %.2f" % [near, far])
 
 
+func _the_baby_transforms_and_leaps_when_approached() -> void:
+	await _put(16880.0, GROUND_Y, &"move_right")
+	var baby := _tiyanak()
+	var home := baby.global_position
+	await _seconds(0.3)
+	_check(baby.art.anim() == "idle" and baby.art.flip_h and not baby.is_revealed() and baby.global_position.distance_to(home) < 2.0,
+		"the visible crying baby waits in the bush instead of chasing in its disguise", "art '%s', at %s" % [baby.art.anim(), baby.global_position])
+	Input.action_press(&"move_right")
+	var until := Time.get_ticks_msec() + 2000
+	while baby.art.anim() == "idle" and Time.get_ticks_msec() < until:
+		await _frames(1)
+	Input.action_release(&"move_right")
+	_check(baby.art.anim() == "transform" and not baby.is_gone(),
+		"walking close to the bush begins the transformation, without solving the encounter", "art '%s', player x %.0f" % [baby.art.anim(), _her_x()])
+	await _seconds(0.3)
+	_check(baby.art.anim() == "transform" and baby.art.frame > 0 and baby.global_position.distance_to(home) < 2.0,
+		"the six transformation poses play before it jumps", "art '%s', frame %d" % [baby.art.anim(), baby.art.frame])
+	until = Time.get_ticks_msec() + 1000
+	while baby.art.anim() != "leap" and Time.get_ticks_msec() < until:
+		await _frames(1)
+	_check(baby.art.anim() == "leap" and baby.velocity.y < 0.0 and baby.velocity.x < 0.0 \
+			and baby.z_index > baby.undergrowth.z_index,
+		"the scary form physically jumps out above the bush toward her", "art '%s', velocity %s" % [baby.art.anim(), baby.velocity])
+	await _seconds(1.2)
+	_check(baby.is_revealed() and baby.art.anim() != "idle" and absf(baby.global_position.x - home.x) <= 161.0,
+		"after the ambush it keeps the monster form and stays by its lure", "art '%s', at %s" % [baby.art.anim(), baby.global_position])
+	await _put(16800.0, GROUND_Y, &"move_right")
+	baby.reset_for_restore()
+	await _seconds(0.1)
+	_check(not baby.is_revealed() and baby.art.anim() == "idle" and baby.global_position.distance_to(home) < 2.0,
+		"a checkpoint restore brings back the crying baby and its ambush", "art '%s', at %s" % [baby.art.anim(), baby.global_position])
+
+
 func _the_path_kept_passes_it() -> void:
 	# On the path's high log, over the drop, walking on to the far side.
 	await _put(17150.0, 465.0, &"move_right")
+	await _seconds(0.3)
+	_check(not _tiyanak().is_revealed() and _tiyanak().art.anim() == "idle",
+		"passing above the bush does not trigger the ground-level ambush", "art '%s'" % _tiyanak().art.anim())
 	await _hold(&"move_right", 3.0)
 	var director = level.get("director")
 	_check(director.call("committed_route", "L4_TIYANAK") == "pragmatist" and director.call("is_solved", "L4_TIYANAK")
@@ -442,6 +479,12 @@ func _pickups() -> int:
 		if node is SatchelPickup2D and not (node as Node).is_queued_for_deletion():
 			count += 1
 	return count
+
+
+func _seconds(duration: float) -> void:
+	var until := Time.get_ticks_msec() + int(duration * 1000.0)
+	while Time.get_ticks_msec() < until:
+		await _frames(1)
 
 
 func _open_level() -> Node:

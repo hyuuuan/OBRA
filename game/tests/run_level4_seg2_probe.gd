@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 38
+const CHECKS := 44
 var level: Node
 
 
@@ -42,7 +42,9 @@ func _run() -> void:
 	await _a_jar_before_the_kapre_gives_her_ink()
 	level.queue_free()
 	await _frames(3)
-	for kapre_check in [_the_smoke_turns_her_round, _a_fan_clears_the_smoke, _three_chops_fell_its_tree, _a_throw_knocks_its_cigar,
+	for kapre_check in [_the_smoke_turns_her_round, _a_fan_clears_the_smoke,
+			_blowing_from_the_edge_works_while_walking, _stopping_the_fan_restores_the_smoke,
+			_three_chops_fell_its_tree, _a_throw_knocks_its_cigar,
 			_a_fan_tried_first_a_throw_still_knocks_the_cigar, _a_cloud_held_up_clears_the_smoke_too,
 			_as_a_butterfly_she_clears_the_smoke_too, _a_boomerang_clicked_at_the_cigar_knocks_it,
 			_a_shot_clicked_at_the_cigar_knocks_it, _a_shot_fired_in_the_woods_flies, _thrown_again_after_a_miss,
@@ -307,12 +309,12 @@ func _the_smoke_turns_her_round() -> void:
 
 
 func _a_fan_clears_the_smoke() -> void:
-	await _stand_at(13650.0, &"move_right")
+	await _stand_at(13250.0, &"move_right")
 	await _become("fan")
-	level.call("_use_equipped_utility")
-	await _frames(int(1.0 * 60.0))
+	await _press_f()
+	await _seconds(1.0)
 	var early := _kapre_solved()
-	await _frames(int(1.0 * 60.0))
+	await _seconds(1.0)
 	_check(not early and _kapre_route() == "artist" and _kapre_solved(),
 		"a fan held up to the smoke a moment clears it", "at a second %s; route '%s', solved %s"
 			% [early, _kapre_route(), _kapre_solved()])
@@ -320,6 +322,59 @@ func _a_fan_clears_the_smoke() -> void:
 	var away := _kapre().smoke_offset()
 	_check(not _kapre().smoke_stands() and away.x > 100.0 and away.y < 0.0,
 		"and the smoke is seen blown away, east past the tree and up", "gone %s, blown %s" % [not _kapre().smoke_stands(), away])
+
+
+## Press the actual Use key at a legal approach, then walk into the smoke. A teleport past the
+## turn-back line cannot prove that the fan works from anywhere a player can reach.
+func _blowing_from_the_edge_works_while_walking() -> void:
+	await _stand_at(13250.0, &"move_right")
+	var span := _kapre().smoke_span()
+	var middle := (span.x + span.y) * 0.5
+	_check(_her_x() > span.x and _her_x() < middle,
+		"harness: the fan begins at the smoke's reachable west edge", "at %.0f, bank %s" % [_her_x(), span])
+	await _become("fan")
+	await _press_f()
+	await _seconds(0.1)
+	var fan := level.get("_equipped_utility") as UtilityObject
+	_check(fan != null and fan.is_active() and float(level.get("_fanned")) > 0.0,
+		"F starts blowing at the smoke, without reaching its tree", "fanned %.2f" % float(level.get("_fanned")))
+	_check(not _kapre_solved() and _kapre().smoke_offset().x > 0.0,
+		"the smoke moves immediately, before the short clearing deed finishes", "moved %s" % _kapre().smoke_offset())
+	Input.action_press(&"move_right")
+	var last_x := _her_x()
+	var turned := false
+	var until := Time.get_ticks_msec() + 2000
+	while Time.get_ticks_msec() < until:
+		await _frames(1)
+		turned = turned or _her_x() < last_x - 100.0
+		last_x = _her_x()
+	Input.action_release(&"move_right")
+	_check(_kapre_solved() and _kapre_route() == "artist" and not turned and _her_x() > middle,
+		"walking while blowing clears the smoke without being sent back",
+		"solved %s, turned %s, at %.0f" % [_kapre_solved(), turned, _her_x()])
+
+
+func _stopping_the_fan_restores_the_smoke() -> void:
+	await _stand_at(13250.0, &"move_right")
+	await _become("fan")
+	await _press_f()
+	Input.action_press(&"move_right")
+	var span := _kapre().smoke_span()
+	var middle := (span.x + span.y) * 0.5
+	var until := Time.get_ticks_msec() + 1300
+	while _her_x() <= middle + 4.0 and Time.get_ticks_msec() < until:
+		await _frames(1)
+	Input.action_release(&"move_right")
+	_check(_her_x() > middle and not _kapre_solved(),
+		"harness: she can reach the middle during the unfinished blowing deed", "at %.0f" % _her_x())
+	await _press_f()
+	await _seconds(1.8)
+	var fan := level.get("_equipped_utility") as UtilityObject
+	_check(fan != null and not fan.is_active() and not _kapre_solved() and _kapre().smoke_stands() \
+			and is_zero_approx(float(level.get("_fanned"))) and _kapre().smoke_offset() == Vector2.ZERO \
+			and _her_x() < middle,
+		"F off stops clearing, and unfinished smoke can turn her back again",
+		"solved %s, fanned %.2f, at %.0f" % [_kapre_solved(), float(level.get("_fanned")), _her_x()])
 
 
 func _three_chops_fell_its_tree() -> void:
@@ -416,7 +471,7 @@ func _a_fan_tried_first_a_throw_still_knocks_the_cigar() -> void:
 ## Not only a fan: whatever the route takes as moving air clears the smoke -- a cloud held up, or
 ## her as a butterfly. A cloud was offered as "F to blow", chose the route, and did nothing.
 func _a_cloud_held_up_clears_the_smoke_too() -> void:
-	await _stand_at(13650.0, &"move_right")
+	await _stand_at(13250.0, &"move_right")
 	await _become("cloud")
 	level.call("_use_equipped_utility")
 	await _frames(int(2.0 * 60.0))
@@ -425,7 +480,7 @@ func _a_cloud_held_up_clears_the_smoke_too() -> void:
 
 
 func _as_a_butterfly_she_clears_the_smoke_too() -> void:
-	await _stand_at(13650.0, &"move_right")
+	await _stand_at(13250.0, &"move_right")
 	await _become("butterfly")
 	await _frames(int(2.0 * 60.0))
 	_check(_kapre_route() == "artist" and _kapre_solved(), "and so does she, as a butterfly at it",
@@ -553,6 +608,25 @@ func _a_shot_fired_in_the_woods_flies() -> void:
 
 
 # --- Helpers -----------------------------------------------------------------------------
+
+func _press_f() -> void:
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_F
+	key.pressed = true
+	Input.parse_input_event(key)
+	await _frames(1)
+	key = InputEventKey.new()
+	key.physical_keycode = KEY_F
+	key.pressed = false
+	Input.parse_input_event(key)
+	await _frames(1)
+
+
+func _seconds(duration: float) -> void:
+	var until := Time.get_ticks_msec() + int(duration * 1000.0)
+	while Time.get_ticks_msec() < until:
+		await _frames(1)
+
 
 func _open_level() -> Node:
 	var scene := (load("res://level_4.tscn") as PackedScene).instantiate()

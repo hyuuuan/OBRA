@@ -11,7 +11,8 @@ extends GroundEnemy2D
 ##
 ## IT CANNOT REACH A PLAYER WHO DOES NOT COME TO IT. It goes for her only while she is in its LURE
 ## -- down on the ground by it, not up on the path over it -- and never further than LEASH from
-## where it sits. Shown a light it shows what it is and flees. Struck down it is gone, and leaves
+## where it sits. A close ground-level approach plays the supplied transformation, then a leap
+## out of the bush. Shown a light it shows what it is and flees. Struck down it is gone, and leaves
 ## nothing (`drops` off: "allowing this and not rewarding it"). Which of those answered the
 ## encounter is the level's to judge.
 
@@ -32,6 +33,12 @@ const STIR_SECONDS := 0.8
 const TRUE_FORM_SECONDS := 0.6
 const FLEE_SECONDS := 1.2
 const FLEE_SHARE := 1.4
+## Close enough to investigate the baby, on the ground in the lure, never on the high path.
+const AMBUSH_REACH := 120.0
+const TRANSFORM_SECONDS := 0.75
+const LEAP_SECONDS := 0.7
+const LEAP_SPEED := 220.0
+const LEAP_UP := 300.0
 
 ## PLACEHOLDER BODY until there is art (ART_PLACEHOLDERS): a swaddled bundle, and what is in it.
 const CLOTH := Color(0.86, 0.82, 0.74)
@@ -53,6 +60,11 @@ var _true_form := 0.0
 var _fleeing := 0.0
 var _gone := false
 var _revealed := false
+var _transformed := false
+var _transforming := 0.0
+var _leaping := 0.0
+var _leap_direction := 1.0
+var _flee_after_transform := false
 
 
 func _init() -> void:
@@ -62,6 +74,8 @@ func _init() -> void:
 
 func _ready() -> void:
 	super._ready()
+	# The baby must be visible to lure her; the old bush covered almost all of its body.
+	z_index = 7
 	undergrowth = Undergrowth.new()
 	undergrowth.name = "%sUndergrowth" % name
 	undergrowth.tiyanak = self
@@ -79,10 +93,16 @@ func _physics_process(delta: float) -> void:
 	_stir = maxf(0.0, _stir - delta)
 	if _gone:
 		return
+	if state == State.DEAD:
+		super(delta)
+		return
+	_find_prey()
 	if _fleeing > 0.0:
+		art.advance(delta)
 		_flee_on(delta)
 		return
 	if _true_form > 0.0:
+		art.advance(delta)
 		_true_form -= delta
 		velocity = Vector2.ZERO
 		queue_redraw()
@@ -90,14 +110,69 @@ func _physics_process(delta: float) -> void:
 			_fleeing = FLEE_SECONDS
 			_set_colliding(false)
 		return
-	if state != State.DEAD:
+	if _transforming > 0.0:
+		_burn(delta)
+		if state == State.DEAD:
+			return
+		_transforming = maxf(0.0, _transforming - delta)
+		velocity = Vector2.ZERO
+		_pick_art()
+		if _transforming <= 0.0:
+			_transformed = true
+			if _flee_after_transform:
+				_true_form = TRUE_FORM_SECONDS
+			else:
+				_leaping = LEAP_SECONDS
+				_leap_direction = signf(_prey.global_position.x - global_position.x) if _prey != null else -1.0
+				if is_zero_approx(_leap_direction):
+					_leap_direction = _facing
+				_face(_leap_direction * 10.0)
+				velocity = Vector2(_leap_direction * LEAP_SPEED, -LEAP_UP)
+			_pick_art()
+		queue_redraw()
+		return
+	if _leaping > 0.0:
+		_burn(delta)
+		if state == State.DEAD:
+			return
+		art.advance(delta)
+		_leaping = maxf(0.0, _leaping - delta)
+		velocity.y = minf(velocity.y + _gravity * delta, MAX_FALL)
+		_limit_to_home(delta)
+		# Jump out of the bush, not off the bank into the hidden drop beside it.
+		if not is_zero_approx(velocity.x) and not _safe_to_walk(signf(velocity.x), Vector2.ZERO):
+			velocity.x = 0.0
+		move_and_slide()
+		_keep_out_of_wards()
+		if _leaping <= 0.0 or (is_on_floor() and _leaping < LEAP_SECONDS - 0.18):
+			_leaping = 0.0
+			_enter(State.CHASE)
+		return
+	if not _transformed:
+		_burn(delta)
+		if state == State.DEAD:
+			return
+		if _prey != null:
+			_face(_prey.global_position.x - global_position.x)
 		_cry_clock += delta
 		if _cry_clock >= CRY_EVERY:
 			_cry_clock = 0.0
 			_stir = STIR_SECONDS
 			cried.emit(global_position)
+		# Stay a harmless crying bundle until she investigates the bush. The transformation is
+		# the warning; its first jump is a startle, and damaging strikes still use the windup.
+		if _prey != null and in_lure(_prey.global_position) \
+				and absf(_prey.global_position.x - _home.x) <= AMBUSH_REACH:
+			_begin_transformation(false)
+		else:
+			velocity.x = 0.0
+			if not is_on_floor():
+				velocity.y = minf(velocity.y + _gravity * delta, MAX_FALL)
+			move_and_slide()
+		art.advance(delta)
+		return
 	super(delta)
-	# Out of its lure, she is not its to have: back to its crying.
+	# Out of its lure it stops pursuing her, but does not turn back into a harmless baby.
 	if _prey != null and (state == State.CHASE or state == State.WINDUP) and not in_lure(_prey.global_position):
 		_enter(State.IDLE)
 	if _stir > 0.0:
@@ -115,7 +190,15 @@ func in_lure(point: Vector2) -> bool:
 func reveal_and_flee() -> void:
 	if is_gone():
 		return
+	if not _transformed:
+		if _transforming <= 0.0:
+			_begin_transformation(true)
+		else:
+			_flee_after_transform = true
+		return
 	_revealed = true
+	_leaping = 0.0
+	_flee_after_transform = true
 	_true_form = TRUE_FORM_SECONDS
 	telegraph.stop()
 	if undergrowth != null:
@@ -124,9 +207,29 @@ func reveal_and_flee() -> void:
 	queue_redraw()
 
 
-## Gone any way it goes: fled, fleeing, shown for what it is, or struck down.
+func _begin_transformation(flee_after: bool) -> void:
+	_revealed = true
+	_flee_after_transform = flee_after
+	_transforming = TRANSFORM_SECONDS
+	_stir = STIR_SECONDS
+	velocity = Vector2.ZERO
+	telegraph.stop()
+	_enter(State.IDLE)
+	if undergrowth != null:
+		undergrowth.show_through()
+	queue_redraw()
+
+
+func apply_tool_hit(tool: String, impulse: float, actor: Node2D) -> bool:
+	if not _revealed and not is_dead() and WeaponTable.is_weapon(tool):
+		_begin_transformation(false)
+	return super(tool, impulse, actor)
+
+
+## A light or a fight removes it; unmasking for its ambush does not solve the encounter.
 func is_gone() -> bool:
-	return _gone or _fleeing > 0.0 or _true_form > 0.0 or state == State.DEAD
+	return _gone or _fleeing > 0.0 or _true_form > 0.0 \
+		or (_transforming > 0.0 and _flee_after_transform) or state == State.DEAD
 
 
 func is_revealed() -> bool:
@@ -140,6 +243,10 @@ func reset_for_restore() -> void:
 	_fleeing = 0.0
 	_gone = false
 	_revealed = false
+	_transformed = false
+	_transforming = 0.0
+	_leaping = 0.0
+	_flee_after_transform = false
 	super()
 	if undergrowth != null:
 		undergrowth.queue_redraw()
@@ -148,6 +255,10 @@ func reset_for_restore() -> void:
 ## Chasing, it keeps to its leash.
 func _move(delta: float, to_prey: Vector2) -> void:
 	super(delta, to_prey)
+	_limit_to_home(delta)
+
+
+func _limit_to_home(delta: float) -> void:
 	var next_x := global_position.x + velocity.x * delta
 	if absf(next_x - _home.x) > LEASH and signf(next_x - _home.x) == signf(velocity.x):
 		velocity.x = 0.0
@@ -169,20 +280,33 @@ func _flee_on(delta: float) -> void:
 
 
 func _art_extras() -> Array:
-	return ["true"]
+	return ["true", "transform", "leap"]
 
 
-## The bundle until a light shows it; then what is in it, and that running.
+func _enter(next: State) -> void:
+	super(next)
+	_pick_art()
+
+
+## Select once, advance once: normal combat advances in Enemy2D, custom phases advance above.
 func _pick_art() -> void:
 	if art == null or not art.has_art():
 		return
-	if _fleeing > 0.0:
+	if state == State.DEAD:
+		art.play("death")
+	elif _transforming > 0.0:
+		art.play("transform")
+		art.frame = mini(int((1.0 - _transforming / TRANSFORM_SECONDS) * art.hframes), art.hframes - 1)
+	elif _leaping > 0.0:
+		art.play("leap")
+	elif _fleeing > 0.0:
 		art.play("run")
-	elif _revealed:
+	elif _true_form > 0.0 or (_transformed and state in [State.IDLE, State.RECOVER]):
 		art.play("true")
+	elif _transformed:
+		art.play(ANIM_FOR[state])
 	else:
 		art.play("idle")
-	art.advance(get_physics_process_delta_time())
 
 
 func _draw() -> void:
@@ -207,7 +331,7 @@ func _draw() -> void:
 
 
 ## The bushes over the drop, standing on the ground it sits on and hanging down into the drop. They
-## stir while it cries; once a light has shown it for what it is, they thin, and the drop shows
+## stir while it cries; once it has shown what it is, they part, and the drop shows
 ## through.
 class Undergrowth extends Node2D:
 	## Their picture (tools/dilim_small.py undergrowth): the bushes that span UNDERGROWTH, ART_MARGIN

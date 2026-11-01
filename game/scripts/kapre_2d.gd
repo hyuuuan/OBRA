@@ -73,6 +73,7 @@ const WALK_SECONDS := 1.6
 var _smoke := 1.0
 var _smoke_sheet: Texture2D
 var _blown := false
+var _fan_progress := 0.0
 var _cigar_art: Texture2D
 var _fall_clock := -1.0
 var _chops := 0
@@ -169,18 +170,32 @@ func smoke_span() -> Vector2:
 	return Vector2(global_position.x - SMOKE_WIDTH, global_position.x)
 
 
+## Air starts moving and thinning the smoke immediately, before the short clearing deed ends.
+func set_fan_progress(progress: float) -> void:
+	if not _blown and _smoke > 0.0:
+		_fan_progress = clampf(progress, 0.0, 1.0)
+
+
+func _smoke_opacity() -> float:
+	return _smoke * (1.0 - _fan_progress * 0.75)
+
+
 ## `blown`: blown away by moving air, rather than gone with its cigar or its tree.
 func clear_smoke(blown := false) -> void:
 	if _smoke <= 0.0:
 		return
 	_blown = _blown or blown
+	if not blown:
+		_fan_progress = 0.0
 	var thin := create_tween()
 	thin.tween_property(self, "_smoke", 0.0, FADE_SECONDS)
 
 
 ## Where the smoke is drawn, off where it stands: going away east and up as it is blown clear.
 func smoke_offset() -> Vector2:
-	return BLOWN_AWAY * (1.0 - _smoke) if _blown else Vector2.ZERO
+	var pushed := _fan_progress * 0.75
+	return BLOWN_AWAY * (pushed + (1.0 - _smoke) * (1.0 - pushed)) \
+		if _blown or _fan_progress > 0.0 else Vector2.ZERO
 
 
 ## One chop at its tree. Returns whether that one felled it.
@@ -330,7 +345,7 @@ func _draw() -> void:
 		for index in range(18):
 			var x := -SMOKE_WIDTH + fmod(index * 37.0 + _clock * 14.0, SMOKE_WIDTH)
 			var y := -40.0 - fmod(index * 53.0, 240.0)
-			draw_circle(Vector2(x, y), 46.0, Color(SMOKE, 0.16 * _smoke))
+			draw_circle(Vector2(x, y), 46.0, Color(SMOKE, 0.16 * _smoke_opacity()))
 	if _fall_clock >= 0.0 and _cigar_art != null:
 		_draw_fallen_cigar()
 
@@ -370,10 +385,10 @@ func _draw_smoke() -> void:
 	for step in range(steps + 1):
 		var x := -SMOKE_WIDTH + SMOKE_WIDTH * float(step) / steps
 		sheet.append(away + Vector2(x, -HAZE + sin(x * 0.018 + _clock * 0.5) * 16.0))
-		shades.append(Color(SMOKE_TONE, 0.24 * _smoke * clampf(float(step) / 4.0, 0.0, 1.0)))
+		shades.append(Color(SMOKE_TONE, 0.24 * _smoke_opacity() * clampf(float(step) / 4.0, 0.0, 1.0)))
 	for step in range(steps, -1, -1):
 		sheet.append(away + Vector2(-SMOKE_WIDTH + SMOKE_WIDTH * float(step) / steps, 0.0))
-		shades.append(Color(SMOKE_TONE, 0.30 * _smoke * clampf(float(step) / 4.0, 0.0, 1.0)))
+		shades.append(Color(SMOKE_TONE, 0.30 * _smoke_opacity() * clampf(float(step) / 4.0, 0.0, 1.0)))
 	draw_polygon(sheet, shades)
 	for index in range(BANK_PUFFS):
 		# Spread over the bank evenly, along and up, and not in a line (the R2 sequence).
@@ -395,7 +410,7 @@ func _draw_smoke() -> void:
 func _puff(frame: int, centre: Vector2, alpha: float) -> void:
 	var corner := (centre - Vector2(PUFF, PUFF) * 0.5).round()
 	draw_texture_rect_region(_smoke_sheet, Rect2(corner, Vector2(PUFF, PUFF)),
-		Rect2(frame * PUFF, 0, PUFF, PUFF), Color(1.0, 1.0, 1.0, alpha * _smoke))
+		Rect2(frame * PUFF, 0, PUFF, PUFF), Color(1.0, 1.0, 1.0, alpha * _smoke_opacity()))
 
 
 class _EmberLight:

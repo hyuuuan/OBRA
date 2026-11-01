@@ -11,6 +11,7 @@ turnaround, walk or fly cycles, and a row of poses, on a near-black panel with g
     ASWANG/aswang.png        the supplied crawling aswang sheet (2026-11-01), replacing
                             the sculpted old/hulking aswang, `aswang_pig`
     ASWANG/tikbalang.png     the supplied tikbalang sheet (2026-11-01), idle and race cycles
+    ASWANG/tiyanak.png       crying infant, transformation, and transformed encounter poses
 They replace the sculpted strips of the same names (ART_PLACEHOLDERS.md: "a delivered strip of the
 same name replaces one with no code change"). build_dilim_creatures.py draws everything else and
 leaves these names alone (DELIVERED).
@@ -33,7 +34,8 @@ art is.
   HOLE px or less -- a nostril or a pupil near the panel's own colour -- is filled back in.
 - The manananggal's poses carry its legs under it, joined on by a drip of blood or a shadow; for
   its upper half they are cut away by hand (LEGS_AT), leaving the drip at the waist.
-- One scale per creature (SCALE), premultiplied, so its poses keep their sizes against each other.
+- One scale per creature (SCALE), premultiplied. The tiyanak's sheet draws its transformed poses
+  at different sizes: match their visible body area to its crying form before framing them.
 - A pose drawn facing left is mirrored (FACING_LEFT): the game's strips face right, and
   PixelStripAnimator turns them.
 - Death, which no sheet draws, is the pose fading out -- and, for a flier, dropping as it fades.
@@ -104,6 +106,14 @@ def _cycle(stem: str) -> tuple[str, ...]:
 
 
 ROWS = {
+    "tiyanak": [
+        Row((375, 60, 1030, 193), ("cry1", "cry2", "cry3", "cry4")),
+        Row((375, 250, 1510, 394), _cycle("change")),
+        Row((375, 672, 936, 773), ("crawl1", "crawl2", "crawl3", "crawl4", "crawl5")),
+        Row((365, 837, 755, 975), ("snarl1", "snarl2", "snarl3", "snarl4")),
+        Row((774, 831, 1247, 976), ("crouch", "jump1", "jump2", "land")),
+        Row((1270, 832, 1515, 976), ("hurt1", "hurt2")),
+    ],
     "tikbalang": [
         Row((366, 466, 871, 613), ("idle1", "idle2", "idle3", "idle4"),
             edges=(366, 495, 620, 746, 871), labels=((366, 466, 540, 472),), inset=0),
@@ -203,7 +213,8 @@ TIKBALANG_MANE_AT = {
 ## Each creature's one scale, from the sheet to the game: the white lady a head taller than the
 ## apo (106 px), the kapre half again her height on its branch (Kent, 2026-10-22: "make the kapre
 ## bigger"; its sheet's "small in form" left it her size), the manananggal's wings ~140 px across.
-SCALE = {"whitelady": 0.66, "kapre": 0.86, "manananggal": 0.9, "aswang": 1.0, "tikbalang": 1.0}
+SCALE = {"whitelady": 0.66, "kapre": 0.86, "manananggal": 0.9, "aswang": 1.0, "tikbalang": 1.0,
+         "tiyanak": 0.4}
 
 ## Poses drawn facing left.
 FACING_LEFT = {"whitelady": {"idle", "float", "look_up", "look_down", "reach"},
@@ -211,6 +222,15 @@ FACING_LEFT = {"whitelady": {"idle", "float", "look_up", "look_down", "reach"},
 
 ## The game's strips, each from one sheet's poses. A `_death` strip is its one pose fading out.
 STRIPS: dict[str, tuple[str, list[str]]] = {
+    "tiyanak_idle": ("tiyanak", ["cry1", "cry2", "cry3", "cry4"]),
+    "tiyanak_transform": ("tiyanak", list(_cycle("change"))),
+    "tiyanak_true": ("tiyanak", ["snarl1", "snarl2", "snarl3", "snarl4"]),
+    "tiyanak_run": ("tiyanak", ["crawl1", "crawl2", "crawl3", "crawl4", "crawl5"]),
+    "tiyanak_windup": ("tiyanak", ["crouch"]),
+    "tiyanak_attack": ("tiyanak", ["jump1", "jump2", "land"]),
+    "tiyanak_leap": ("tiyanak", ["jump1", "jump2"]),
+    "tiyanak_hurt": ("tiyanak", ["hurt1", "hurt2"]),
+    "tiyanak_death": ("tiyanak", ["hurt1"]),
     "tikbalang_idle": ("tikbalang", ["idle1", "idle2", "idle3", "idle4"]),
     "tikbalang_run": ("tikbalang", ["run1", "run2", "run3", "run4"]),
     "aswang_pig_idle": ("aswang", ["idle1", "idle2", "idle3", "idle4"]),
@@ -380,7 +400,7 @@ def poses(name: str) -> dict[str, Image.Image]:
         labels = [(lx0 - x0, ly0 - y0, lx1 - x0, ly1 - y0) for lx0, ly0, lx1, ly1 in row.labels]
         # Outside the explicit label boxes, these rows have no gold rules. The crawler's claws
         # and tikbalang's skin overlap the other sheets' gold ink: keep those character colours.
-        shapes = _shapes(_key(band, panel, labels, remove_gold=name not in {"aswang", "tikbalang"}), row, x0)
+        shapes = _shapes(_key(band, panel, labels, remove_gold=name not in {"aswang", "tikbalang", "tiyanak"}), row, x0)
         assert len(shapes) == len(row.names), f"{name}: {len(shapes)} figures in a row of {len(row.names)}"
         for pose, own in zip(row.names, shapes):
             if (name, pose) in LEGS_AT:
@@ -413,7 +433,17 @@ def _scaled(picture: Image.Image, scale: float) -> Image.Image:
 
 
 def _figure(name: str, pose: str) -> Image.Image:
-    return _scaled(poses(name)[pose], SCALE[name])
+    picture = poses(name)[pose]
+    scale = SCALE[name]
+    if name == "tiyanak" and not pose.startswith("cry"):
+        # Blank frame dimensions and pose height do not measure a body: the swaddled baby is
+        # wide, the snarling form stands up, and the crawling drawings are much smaller on
+        # the sheet. Match visible ink area, keeping proportions and the current baby size.
+        reference = np.mean([np.asarray(poses(name)[f"cry{i}"])[..., 3].sum()
+                             for i in range(1, 5)])
+        area = np.asarray(picture)[..., 3].sum()
+        scale *= float(np.sqrt(reference / area))
+    return _scaled(picture, scale)
 
 
 def _anchor(picture: Image.Image, flying: bool) -> tuple[float, float]:

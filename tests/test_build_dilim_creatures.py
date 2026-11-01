@@ -1,6 +1,6 @@
 """tools/build_dilim_creatures.py: Dilim's sculpted creature strips, and what they must keep true.
 
-The supplied sheets (the kapre, the manananggal, both aswang variants, the tikbalang) are cut by build_dilim_delivered.py
+The supplied sheets (the kapre, the manananggal, both aswang variants, the tikbalang, the tiyanak) are cut by build_dilim_delivered.py
 and tested in test_build_dilim_delivered.py, the kapre's place in its tree with them."""
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ class CreatureStripsTest(unittest.TestCase):
             "wakwak": ["idle", "run", "windup", "attack", "hurt", "death"],
             "tiktik": ["idle", "run", "windup", "attack", "hurt", "death"],
             "bungisngis": ["idle", "run", "windup", "attack", "hurt", "death", "laugh", "aside"],
-            "tiyanak": ["idle", "true", "run"],
+            "tiyanak": ["idle", "true", "run", "transform", "leap", "windup", "attack", "hurt", "death"],
             "tiyanak_undergrowth": ["idle"],
             "manananggal_lower": ["idle", "death"],
             "tikbalang": ["idle", "run"],

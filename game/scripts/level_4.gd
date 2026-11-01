@@ -1437,7 +1437,7 @@ func _on_race_finished(she_won: bool) -> void:
 
 ## Kent's design: its smoke turns her round -- crossing the middle of the smoke bank on her own
 ## feet, while it stands, puts her back at the bank's edge. Answered three ways, each a drawing
-## and then a deed: a fan held up to it within FAN_REACH for FAN_SECONDS clears the smoke (artist);
+## and then a deed: moving air within FAN_REACH of the SMOKE for FAN_SECONDS clears it (artist);
 ## a blade used at its tree CHOPS times fells it (pragmatist); something thrown knocks the cigar
 ## out of its hand (protector).
 const FAN_REACH := 360.0
@@ -1458,20 +1458,39 @@ func _tend_the_kapre(delta: float) -> void:
 	var middle := (span.x + span.y) * 0.5
 	var crossed := _smoke_last_x < middle and x >= middle and x - _smoke_last_x < CROSSING_STEP
 	_smoke_last_x = x
-	if crossed and _kapre.smoke_stands() and not director.is_solved("L4_KAPRE"):
+	var blowing := director.committed_route("L4_KAPRE") == "artist" and not director.is_solved("L4_KAPRE") \
+		and _moving_air() and _within_smoke_reach(x)
+	# Working air opens the way while it clears. Stop partway through, and the bank can still
+	# turn her back; merely carrying a switched-off fan does not bypass the smoke.
+	var stopped_inside := _fanned > 0.0 and not blowing and x >= middle
+	if (crossed or stopped_inside) and not blowing and _kapre.smoke_stands() and not director.is_solved("L4_KAPRE"):
 		player.call("apply_morph_state", {"position": Vector2(span.x + SMOKE_EDGE_BACK, player.global_position.y),
 			"linear_velocity": Vector2.ZERO})
 		_smoke_last_x = span.x + SMOKE_EDGE_BACK
 		_speak(script_lines.fire("L4_KAPRE.turned"))
 	# Something that moves air, held up to it -- or her, as one.
-	if director.committed_route("L4_KAPRE") == "artist" and not director.is_solved("L4_KAPRE") \
-			and _moving_air() and absf(x - _kapre.global_position.x) <= FAN_REACH:
+	if blowing:
 		_fanned += delta
+		_kapre.set_fan_progress(_fanned / FAN_SECONDS)
 		if _fanned >= FAN_SECONDS:
 			_kapre.clear_smoke(true)
 			_answer("L4_KAPRE", "artist")
 	else:
 		_fanned = 0.0
+		_kapre.set_fan_progress(0.0)
+
+
+func _within_smoke_reach(x: float) -> bool:
+	var span := _kapre.smoke_span()
+	return x >= span.x - FAN_REACH and x <= span.y + FAN_REACH
+
+
+func _level_use_verb(entity_id: String) -> String:
+	if _kapre != null and player != null and not director.is_solved("L4_KAPRE") \
+			and _within_smoke_reach(PlayerHurtbox2D.middle_of(player).x) \
+			and String(registry.get_entity(entity_id).get("utility_behavior", "")) == "fan":
+		return "STOP" if _equipped_utility.is_active() else "BLOW"
+	return super(entity_id)
 
 
 ## A blade swung at its tree is a chop -- the first one too, the swing that draws the route in.
@@ -1496,6 +1515,8 @@ func _moving_air() -> bool:
 		spec.get("exclude", []))
 	var held := _equipped_utility != null and is_instance_valid(_equipped_utility) \
 		and _equipped_utility.item_data != null and takes.has(_equipped_utility.item_data.entity_id)
+	if held and _equipped_utility.utility_behavior == "fan":
+		held = _equipped_utility.is_active()
 	return held or takes.has(_current_form_id)
 
 

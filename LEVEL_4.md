@@ -40,7 +40,7 @@ in three waves until dawn.
 | The tally | Every encounter's route is logged for the thesis telemetry, but the ending gets **one point from Dilim**: its majority route. Six forks must not decide the ending alone. |
 | "Absurd" | The bungisngis laughs itself helpless at **sea things in a forest**: fish, shark, octopus, sailboat, submarine. The game can only see a class, so the joke had to be a set of classes. |
 | Quick slots | Four, on **Z X C V**. Z/X rotate a drawing only while placing, and quick slots are off while placing. |
-| Creature art | **Sculpted pixel strips**, in the delivered art's idiom: chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour (`tools/creature_sculpt.py`). Replaceable by name when the art team delivers -- the kapre, the manananggal and a white lady as the lean aswang came in `Creatures.zip`; the crawling aswang and tikbalang sheets were supplied on 2026-11-01. All five are cut by `tools/build_dilim_delivered.py`. |
+| Creature art | **Sculpted pixel strips**, in the delivered art's idiom: chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour (`tools/creature_sculpt.py`). Replaceable by name when the art team delivers -- the kapre, the manananggal and a white lady as the lean aswang came in `Creatures.zip`; the crawling aswang, tikbalang and tiyanak sheets were supplied on 2026-11-01. All six are cut by `tools/build_dilim_delivered.py`. |
 | Defaults taken | Shift = walk (the santelmo's rule needs one). The opening is design Draft A, naming the manananggal and the tikbalang, played as the level's intro. |
 
 ## Flow
@@ -160,9 +160,10 @@ What the build does that the design above does not say, and what it does not do 
   `LEVEL4_Creatures/ASWANG/aswang.png` (2026-11-01), replaces the old/hulking aswang with a pale,
   black-haired crawler with a long red tongue. The supplied `tikbalang.png` followed the same day,
   with four breathing and four race-running poses at its existing scale; its dark mane is kept
-  opaque with source matte landmarks. Every other is a sculpted
+  opaque with source matte landmarks. `tiyanak.png` supplies the crying baby, six transformation
+  poses and the monster's crawl, snarl, leap, attack and hurt poses. Every other is a sculpted
   strip a developer drew -- santelmo, nuno's mound, sigbin, the kapre's
-  balete (standing and felled), tiyanak, bungisngis, wakwak and tik-tik -- standing in for an
+  balete (standing and felled), bungisngis, wakwak and tik-tik -- standing in for an
   artist's (`ART_PLACEHOLDERS.md` names every strip; `run_visual_dilim_creatures` lays them side by
   side in her light). Each script's own code-drawn body is the fallback while a strip is missing. Her hurt
   and attack poses are placeholders made from the delivered sheet (the jump and wave frames,
@@ -192,6 +193,17 @@ What the build does that the design above does not say, and what it does not do 
 
   A boomerang or a shot thrown by a click reaches the cigar from anywhere in the smoke's west
   half (13300-13480), short of the middle that turns her round.
+- **The tiyanak is a visible lure, then an ambush** (2026-11-01). It waits as the supplied crying
+  infant, drawn in front of the bush instead of being covered by it. The baby uses 0.4 of the
+  supplied sheet's size (about 50 px tall), reduced from 0.55 after the first in-game look.
+  The transformation and monster poses match its visible body area: the smaller crawl drawings
+  on the sheet no longer shrink it when it changes form or starts moving.
+  Approaching within 120 px
+  on the ground plays the six transformation poses over 0.75 s, then the monster physically
+  jumps toward her. The jump parts the bush and stays by its lure; it does not deal an instant
+  surprise hit. Later attacks keep their normal windup. The high path never triggers the
+  ambush, a light exposes it and sends it away, and a checkpoint restore resets the disguise.
+  A fight leaves no drops, as before.
 - **The finale's numbers.** The night is 150 s: waves at 0 / 45 / 100 s, dawn at 150. A drawn sun
   brings dawn 15 s nearer, once a wave. The manananggal is driven off at 8 in its wave.
 - **The dead tree** is the woods' own, drawn in the balete's bark (Level 1's was standing in). It
@@ -214,7 +226,11 @@ What the build does that the design above does not say, and what it does not do 
 - **The sigbin keeps to its ground** (a 700 px leash); it gave chase into the tikbalang's.
 - **The kapre's camera hold** was replaced: its smoke turns her round instead of stopping the camera.
   Anything the artist route takes as moving air clears it -- a fan, a cloud, a sun, her as a
-  butterfly -- not a fan alone.
+  butterfly -- not a fan alone. Reach is measured from the smoke bank, not the tree: she
+  can press F at the west edge, see the smoke move immediately, and walk through while it
+  clears over 1.5 seconds. F off interrupts an unfinished clearing; a switched-off fan does
+  not count as moving air. The segment probe presses the physical F key from that reachable
+  approach, rather than teleporting beyond the smoke's turn-back line.
 - **A throw goes where it is clicked.** A boomerang flies out along the click, a shot is fired at
   it (aimed over by its fall); F throws straight ahead as before. Thrown level, nothing reached the
   kapre's cigar. And the use that chooses a "draw it, then do it" route is used: the first blow at
