@@ -3658,7 +3658,10 @@ func _current_objective() -> Dictionary:
 		return {}
 	if not PlayerProfile.has_new_brush():
 		return {"key": "brush", "target": _mark_position("BrushMark")}
-	if not director.is_solved("L3_N1"):
+	# ⚠ OUT AT THE CREATURE, THE CROSSING IS BEHIND HER. Only the boat or a swimmer answers it,
+	# so a player who chose and then flew out as a bird was pointed four thousand pixels back
+	# to the beach while the creature was in front of them.
+	if not director.is_solved("L3_N1") and not _out_at_the_creature():
 		# ⚠ ONCE A WAY ACROSS IS CHOSEN, THE LINE IS ABOUT DOING IT. It said "Get to the far side"
 		# to a player who had just chosen -- the only line on screen, and it named the goal of the
 		# whole level instead of the next thing to do.
@@ -3686,7 +3689,8 @@ func _current_objective() -> Dictionary:
 	# crossing on the beach, and the line jumped straight to the encounter: "It cannot see.
 	# Decide what you are going to do about that", shown on the sand to a player who had never
 	# seen the creature it means. Until they reach its stretch, the line is about the crossing.
-	if not director.was_entered("L3_N2") and not director.is_solved("L3_N2"):
+	if not director.was_entered("L3_N2") and not director.is_solved("L3_N2") \
+			and not _out_at_the_creature():
 		if director.committed_route("L3_N1") == "artist":
 			# Found is not aboard: the bangka goes into the water with E, and E again gets in.
 			if not _aboard():
@@ -3732,6 +3736,15 @@ func _nearest_interactable_utility() -> PhysicsShapeObject:
 	if nearest != null and nearest == _launched_boat and not _launched_boat.boards_on_interact():
 		return null
 	return nearest
+
+
+## Whether she is out where the creature is, or beyond it. By where she is rather than by what
+## was entered, so a rescue back to the beach puts the line back on the crossing.
+func _out_at_the_creature() -> bool:
+	var volume := get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Obstacles/L3_N2") \
+		as LevelObstacle2D
+	return volume != null \
+		and _anchor_now().x >= volume.global_position.x - volume.trigger_size.x * 0.5
 
 
 ## Whether the apo is sitting in the bangka.
