@@ -80,12 +80,12 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 - **The ink is finite, with no refills anywhere:** 6 units, and every drawing costs 1.
 - **Act One, the ascent.**
   - Two gates: SPAN, then CLIMB. Both are tag routes.
-  - What the ash settles on goes white, then blank.
+  - What the ash settles on goes white, then blank, and the apo works out why: it is Lola forgetting.
 - **Act Two, the heart.**
   - Twelve fragments in three four-memory areas go white, and there is ink to save about four.
   - To save one, she draws something that belongs in it (1 ink). A drawing that doesn't belong is handed back free.
   - Three fragments hold Lolo, and saving one steadies him. One holds the 5th flower.
-- **Lolo goes.** Near the top she tries to draw him and the brush refuses. He vanishes mid-sentence, in one frame.
+- **Lolo goes.** Near the top she says she can fix this, tries to draw him, and the brush refuses. His last line is the run's dominant route, and he vanishes mid-sentence, in one frame.
 - **Act Three, the summit.**
   - Lola paints with her back turned, and the brush refuses twice.
   - She draws the places instead: one drawing, no recognition, no ink, so the climax cannot fail. The saved fragments bloom, and Lola turns.
