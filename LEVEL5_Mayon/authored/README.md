@@ -86,3 +86,33 @@ the tall ascent wall uses uniform scale to cover the riser without stretching ei
 separately. Caps inherit the terrain's tint and whitening material. They add no collision and
 do not bridge the span. Keep this orientation, alpha and walk-line registration when replacing
 same-name outputs. This new generated edge atlas joins the provisional art-review inventory.
+
+## Foothill trees and parallax — 1 November 2026
+
+`foothill_trees.png` and `parallax_ridges.png` were generated with the built-in OpenAI
+image_gen tool, using the existing foot and upper vistas as style references. Exact prompts
+are in `scenery.prompts.json`. These are original generated assets awaiting art-direction
+review, rather than artist-delivered pieces.
+
+`tools/build_mayon_scenery.py` preserves their genuine alpha and cuts:
+
+- `props/tree_broadleaf.png`, `tree_tall.png`, `palm_pair.png`, `ash_snag.png`.
+- `backdrop/far_ridge.png`, `forest_ridge.png` (1536x512 each).
+
+Tree cells did not follow the requested equal grid; the builder's measured source rectangles
+are authoritative. Tree runtime heights are 360, 400, 350 and 240px, with aspect ratio preserved.
+Their bottom-centre is the root registration used by the scene. Replace same-name sprites
+at the same dimensions to retain the placement. The eleven lower-slope trees and one bare
+cone snag are decorative and add no collision; living trees stop below x4200.
+
+`MayonVista2D` keeps each existing painting registered while panning it inside a 10% overscan.
+The new ridge and forest scroll at 0.12 and 0.28 world-pixels per camera-pixel, respectively.
+They share vertical framing with the camera, so a jump cannot separate the painted bands.
+Alternate horizontal repeats are mirrored. Full bottom-quarter texture chunks continue
+below the strips; no single-row stretching. Forest fades out by x5100; the far ridge
+fades out by x11800. Both are drawn by the existing SkyBand and inherit its summit whitening.
+
+Replace the ridge panoramas with genuine-alpha, full-width 1536x512 images, with a transparent
+sky above the ridge and opaque artwork across the entire bottom quarter. Keep the two rows
+separate and do not flatten a sky into either strip. The source originals remain here; the
+runtime uses only the cuts under `game/assets/Level5/`.

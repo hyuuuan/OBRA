@@ -342,3 +342,24 @@ Drainable. The shader now reads `COLOR` as it is. Nothing needed retuning. The s
 0.55 ghost still sits clearly under the paper sky, and the fragment builder's `LIGHT_FLOOR` lift
 still holds the dark memories (bakunawa, coral, forest, storm) level with the kubo and the
 waterfall, as it did when it was set.
+
+### Foothill scenery and parallax — 1 November 2026
+
+The lower climb now has broadleaf trees and coconut groves, thinning to two bare snags at the
+treeline and lower cone. Twelve decorative placements are rooted on the existing walk surfaces;
+the span, wall, collision, memories, and summit staging keep their measured layout.
+
+`MayonVista2D` adds transparent foothill and forest panoramas at separate horizontal scroll
+rates (0.12 / 0.28) above a gently panning, overscanned registered vista. Vertical framing stays
+camera-relative so the ascent cannot pull the landscape apart. Mirrored repeats hide panorama
+seams, and bottom-quarter texture chunks continue naturally through the span instead of
+stretching a single pixel row. The forest disappears at the treeline; distant hills give way
+to the summit. All background drawing inherits SkyBand's existing whitening shader.
+
+The two new generated source atlases, prompts, cuts, and replacement contracts are recorded in
+`LEVEL5_Mayon/authored/README.md`; `tools/build_mayon_scenery.py --check` checks the runtime cuts.
+
+Validation: scenery cut freshness, `run_level5_audit`, and `run_mayon_probe` pass. The windowed
+terrain tour and full `run_visual_level5` pass were inspected at 1600x900 through all three
+memory areas, the whitened summit, and the restored places. The audit retains the already
+documented Godot shutdown resource diagnostics; neither visual run reported script errors.

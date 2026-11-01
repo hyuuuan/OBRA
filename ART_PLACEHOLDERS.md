@@ -447,3 +447,10 @@ new generated end-cap textures, cut into `game/assets/Level5/terrain/edge_meadow
 join meshes. They are integrated, preserve alpha, and follow the terrain's whitening/tint.
 They join the generated-art review inventory; provenance, prompt, and replacement registration
 are in `LEVEL5_Mayon/authored/README.md` and `cliff_edges.prompt.txt`.
+
+Mayon scenery (1 November): generated broadleaf trees, coconut pair and bare snag, plus two
+transparent foothill/forest panoramas. Originals are `LEVEL5_Mayon/authored/foothill_trees.png`
+and `parallax_ridges.png`; runtime cuts live under `game/assets/Level5/props/` and `backdrop/`.
+These join the generated-art review inventory. Exact prompts and replacement registrations
+are in `scenery.prompts.json` and the authored README. The scene adds twelve decorative tree
+placements; the existing vista owns the new parallax, treeline fade, and summit whitening.
