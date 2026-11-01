@@ -109,6 +109,7 @@ class DeliveredStripsTest(unittest.TestCase):
         # branch; the manananggal's wings wide enough to be the thing hunting from above.
         self.assertTrue(110 <= _height(_frames(self.strips["aswang_dog_idle"])[0]) <= 124)
         self.assertTrue(140 <= _height(_frames(self.strips["kapre_idle"])[0]) <= 170)
+        self.assertTrue(130 <= _height(_frames(self.strips["tikbalang_idle"])[0]) <= 150)
         wings = _frames(self.strips["manananggal_upper_idle"])[0][..., 3] > 0
         cols = np.nonzero(wings.any(axis=0))[0]
         self.assertTrue(120 <= cols.max() - cols.min() + 1 <= 160, f"wings {cols.max() - cols.min() + 1} px")
@@ -145,6 +146,25 @@ class DeliveredStripsTest(unittest.TestCase):
                 self.assertTrue(hair.any(), f"{name} frame {index}: missing dark hair/outline")
                 self.assertGreater(np.nonzero(red)[1].mean(), np.nonzero(hair)[1].mean(),
                                    f"{name} frame {index} faces left")
+
+    def test_tikbalang_keeps_its_solid_mane_skin_and_rightward_facing(self) -> None:
+        for name, picture in delivered.poses("tikbalang").items():
+            px = np.asarray(picture).astype(int)
+            r, g, b, a = (px[..., c] for c in range(4))
+            opaque = a > 128
+            holes = delivered.ndimage.binary_fill_holes(opaque) & ~opaque
+            self.assertFalse(holes[:picture.height // 2].any(), f"{name}: holes through the mane")
+            skin = opaque & (r > g + 20) & (g > b + 10)
+            self.assertGreater(int(skin.sum()), 800, f"{name}: the key erased its brown skin")
+            eye = opaque & (r > 150) & (g < 70) & (b < 70)
+            mane = opaque & (px[..., :3].max(axis=2) < 60)
+            self.assertTrue(eye.any(), f"{name}: missing red eye")
+            self.assertGreater(np.nonzero(eye)[1].mean(), np.nonzero(mane)[1].mean(),
+                               f"{name}: faces away from the race")
+            lettering = opaque & (r > 190) & (g > 160) & (b < 130)
+            self.assertFalse(lettering[:10].any(), f"{name}: sheet heading remains on the sprite")
+        idle = np.asarray(delivered.poses("tikbalang")["idle2"])
+        self.assertEqual(int(idle[79, 46, 3]), 0, "the gap beside its arm was filled in")
 
     def test_crawler_hair_is_solid_without_filling_the_spaces_between_limbs(self) -> None:
         # The old key left many enclosed transparent patches across the hair in every pose.

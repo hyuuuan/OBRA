@@ -10,6 +10,7 @@ turnaround, walk or fly cycles, and a row of poses, on a near-black panel with g
     ASWANG/manananggal.png   the manananggal, its lower legs drawn apart
     ASWANG/aswang.png        the supplied crawling aswang sheet (2026-11-01), replacing
                             the sculpted old/hulking aswang, `aswang_pig`
+    ASWANG/tikbalang.png     the supplied tikbalang sheet (2026-11-01), idle and race cycles
 They replace the sculpted strips of the same names (ART_PLACEHOLDERS.md: "a delivered strip of the
 same name replaces one with no code change"). build_dilim_creatures.py draws everything else and
 leaves these names alone (DELIVERED).
@@ -103,6 +104,12 @@ def _cycle(stem: str) -> tuple[str, ...]:
 
 
 ROWS = {
+    "tikbalang": [
+        Row((366, 466, 871, 613), ("idle1", "idle2", "idle3", "idle4"),
+            edges=(366, 495, 620, 746, 871), labels=((366, 466, 540, 472),), inset=0),
+        Row((934, 471, 1510, 613), ("run1", "run2", "run3", "run4"),
+            edges=(934, 1078, 1223, 1362, 1510), inset=0),
+    ],
     "aswang": [
         Row((320, 310, 904, 421), _cycle("walk"), edges=(320, 416, 513, 610, 711, 814, 904), inset=0),
         Row((320, 475, 901, 586), ("idle1", "idle2", "idle3", "idle4"),
@@ -180,10 +187,23 @@ ASWANG_FRONT_LOCK = {
     "settle": (((1006, 675), (1002, 704)), 5),
 }
 
+# Dark mane pixels also overlap the tikbalang sheet's panel. These landmarks select only solid
+# mane pockets; the real gap beside idle2's hanging arm is deliberately left transparent.
+TIKBALANG_MANE_AT = {
+    "idle1": ((418, 487), (405, 504)),
+    "idle2": ((552, 492), (536, 509)),
+    "idle3": ((675, 491), (658, 509)),
+    "idle4": ((799, 499),),
+    "run1": ((1032, 491), (1021, 502), (1001, 515)),
+    "run2": ((1161, 506),),
+    "run3": ((1312, 501), (1284, 520)),
+    "run4": ((1442, 508), (1415, 529)),
+}
+
 ## Each creature's one scale, from the sheet to the game: the white lady a head taller than the
 ## apo (106 px), the kapre half again her height on its branch (Kent, 2026-10-22: "make the kapre
 ## bigger"; its sheet's "small in form" left it her size), the manananggal's wings ~140 px across.
-SCALE = {"whitelady": 0.66, "kapre": 0.86, "manananggal": 0.9, "aswang": 1.0}
+SCALE = {"whitelady": 0.66, "kapre": 0.86, "manananggal": 0.9, "aswang": 1.0, "tikbalang": 1.0}
 
 ## Poses drawn facing left.
 FACING_LEFT = {"whitelady": {"idle", "float", "look_up", "look_down", "reach"},
@@ -191,6 +211,8 @@ FACING_LEFT = {"whitelady": {"idle", "float", "look_up", "look_down", "reach"},
 
 ## The game's strips, each from one sheet's poses. A `_death` strip is its one pose fading out.
 STRIPS: dict[str, tuple[str, list[str]]] = {
+    "tikbalang_idle": ("tikbalang", ["idle1", "idle2", "idle3", "idle4"]),
+    "tikbalang_run": ("tikbalang", ["run1", "run2", "run3", "run4"]),
     "aswang_pig_idle": ("aswang", ["idle1", "idle2", "idle3", "idle4"]),
     "aswang_pig_run": ("aswang", list(_cycle("walk"))),
     "aswang_pig_windup": ("aswang", ["ready"]),
@@ -314,19 +336,26 @@ def _unshadowed(band: np.ndarray, own: np.ndarray, panel: np.ndarray) -> np.ndar
     return out
 
 
-def _restore_aswang_hair(own: np.ndarray, pose: str, origin: tuple[int, int]) -> np.ndarray:
+def _restore_ink_pockets(own: np.ndarray, points: tuple[tuple[int, int], ...],
+                         origin: tuple[int, int], subject: str) -> np.ndarray:
+    """Restore original-colour ink at marked enclosed pockets, never exterior background."""
     holes = ndimage.binary_fill_holes(own) & ~own
     lab, _ = ndimage.label(holes)
     keep = set()
     x0, y0 = origin
-    for x, y in ASWANG_HAIR_AT[pose]:
+    for x, y in points:
         if own[y - y0, x - x0]:
             continue
         pocket = int(lab[y - y0, x - x0])
         if pocket == 0:
-            raise ValueError(f"aswang {pose}: solid hair at {(x, y)} opens onto the background")
+            raise ValueError(f"{subject}: solid ink at {(x, y)} opens onto the background")
         keep.add(pocket)
-    out = own | np.isin(lab, list(keep))
+    return own | np.isin(lab, list(keep))
+
+
+def _restore_aswang_hair(own: np.ndarray, pose: str, origin: tuple[int, int]) -> np.ndarray:
+    out = _restore_ink_pockets(own, ASWANG_HAIR_AT[pose], origin, f"aswang {pose}")
+    x0, y0 = origin
     if pose in ASWANG_FRONT_LOCK:
         points, width = ASWANG_FRONT_LOCK[pose]
         matte = Image.new("1", (own.shape[1], own.shape[0]))
@@ -349,9 +378,9 @@ def poses(name: str) -> dict[str, Image.Image]:
         band = sheet[y0:y1, x0:x1]
         panel = _panel(band)
         labels = [(lx0 - x0, ly0 - y0, lx1 - x0, ly1 - y0) for lx0, ly0, lx1, ly1 in row.labels]
-        # The crawler's rows have no lettering or inner rules, and its claws use warm browns
-        # that overlap the other sheets' gold ink. Keep those actual character colours.
-        shapes = _shapes(_key(band, panel, labels, remove_gold=name != "aswang"), row, x0)
+        # Outside the explicit label boxes, these rows have no gold rules. The crawler's claws
+        # and tikbalang's skin overlap the other sheets' gold ink: keep those character colours.
+        shapes = _shapes(_key(band, panel, labels, remove_gold=name not in {"aswang", "tikbalang"}), row, x0)
         assert len(shapes) == len(row.names), f"{name}: {len(shapes)} figures in a row of {len(row.names)}"
         for pose, own in zip(row.names, shapes):
             if (name, pose) in LEGS_AT:
@@ -361,6 +390,8 @@ def poses(name: str) -> dict[str, Image.Image]:
             own = _unshadowed(band, own, panel)
             if name == "aswang":
                 own = _restore_aswang_hair(own, pose, (x0, y0))
+            elif name == "tikbalang":
+                own = _restore_ink_pockets(own, TIKBALANG_MANE_AT[pose], (x0, y0), f"tikbalang {pose}")
             ys, xs = np.nonzero(own)
             crop = (slice(ys.min(), ys.max() + 1), slice(xs.min(), xs.max() + 1))
             rgba = np.zeros(own[crop].shape + (4,), dtype=np.uint8)

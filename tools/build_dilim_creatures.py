@@ -10,8 +10,8 @@ game/assets/Level4/creatures/, so a delivered strip of the same name simply wins
 WHAT IS DELIVERED NOW
 ---------------------
 The art team's sheets (LEVEL4_Creatures/, 2026-10-20) give the kapre, the manananggal (both halves)
-and the lean aswang -- a white lady. The crawling aswang sheet was supplied on 2026-11-01;
-tools/build_dilim_delivered.py cuts all four. Their strips
+and the lean aswang -- a white lady. The crawling aswang sheet was supplied on 2026-11-01.
+The tikbalang sheet followed the same day; tools/build_dilim_delivered.py cuts all five. Their strips
 (build_dilim_delivered.DELIVERED) are not drawn here; the kapre's tree, its smoke and its cigar
 still are.
 
@@ -20,7 +20,7 @@ HOW THEY ARE DRAWN
 In the delivered art's idiom (the apo, Lolo, the bakunawa): one art px to one screen px, five or
 six tones a material lit from the upper left, and selective coloured outlines -- see
 tools/creature_sculpt.py. The creatures themselves are in dilim_beasts.py (the sigbin),
-dilim_giants.py (the tikbalang, the bungisngis), dilim_kapre.py (the
+dilim_giants.py (the bungisngis), dilim_kapre.py (the
 kapre's smoke and its cigar), dilim_fliers.py (the wakwak, the tik-tik) and dilim_small.py (the
 tiyanak and its undergrowth, the santelmo, the nuno's mound, the kapre's balete); the last
 clearing's dead tree, drawn the same way, is in dilim_props.py.
@@ -60,7 +60,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "game" / "assets" / "Level4" / "creatures"
 
 # Which way each stands: on its feet at the bottom row, or centred (a flier).
-GROUND = ["sigbin", "tikbalang", "bungisngis", "kapre_tree", "tiyanak", "tiyanak_undergrowth", "nuno_mound", "dead_tree"]
+GROUND = ["sigbin", "bungisngis", "kapre_tree", "tiyanak", "tiyanak_undergrowth", "nuno_mound", "dead_tree"]
 FLYING = ["wakwak", "tiktik", "santelmo"]
 
 
@@ -71,7 +71,6 @@ def _beast(b):
 def _sheets() -> dict[str, dict[str, list[Image.Image]]]:
     return {
         "sigbin": _beast(beasts.SIGBIN),
-        "tikbalang": {a: [giants.draw(giants.TIKBALANG, st).render() for st in poses] for a, poses in giants.TIKBALANG_ANIMS.items()},
         "bungisngis": {a: [giants.draw_bungisngis(st).render() for st in poses] for a, poses in giants.BUNGISNGIS_ANIMS.items()},
         "kapre_smoke": {"idle": kapre.smoke()},
         "kapre_cigar": {"idle": [kapre.cigar()]},
