@@ -162,6 +162,11 @@ var _lure: _Lure
 var lure_override: Variant = null
 var _cave_mouth := Vector2.ZERO
 var _cave_inside := Vector2.ZERO
+## The middle of the painted arch's opening in cave_mouth.png -- tools/build_dagat_props.py's
+## CAVE_OPENING_AT, which moves if the arch is re-cut -- and where that middle goes on the face:
+## between the mouth the creature is led to and the inside it swims into.
+const CAVE_OPENING_AT := Vector2(236.0, 312.0)
+const CAVE_OPENING_HERE := Vector2(-90.0, 10.0)
 var _lead_told := false
 
 
@@ -454,40 +459,18 @@ func _plant_the_cave() -> void:
 	cave.z_index = -40
 	mark.get_parent().add_child(cave)
 	cave.global_position = Vector2(face_x, mark.global_position.y)
-	# The opening: an arch of dark going back into the rock, a rim of lit stone round it, and a
-	# few stones fallen at its foot. Shapes, not a picture -- it is a hole, and holes are dark.
-	var arch := PackedVector2Array()
-	var rim := PackedVector2Array()
-	for step in range(25):
-		var t := PI * float(step) / 24.0
-		arch.append(Vector2(-190.0 * sin(t) * 0.9, -150.0 * cos(t) - 10.0) + Vector2(-8.0, 0.0))
-		rim.append(Vector2(-214.0 * sin(t) * 0.9, -172.0 * cos(t) - 10.0) + Vector2(-2.0, 0.0))
-	var stone := Polygon2D.new()
-	stone.polygon = rim
-	stone.color = Color(0.13, 0.27, 0.36, 1.0)
-	cave.add_child(stone)
-	var dark := Polygon2D.new()
-	dark.polygon = arch
-	dark.color = Color(0.01, 0.03, 0.07, 1.0)
-	# Darkest at the back, the water's own blue at the lip.
-	var shades := PackedColorArray()
-	for point in arch:
-		var back := clampf(-point.x / 170.0, 0.0, 1.0)
-		shades.append(Color(0.02, 0.07, 0.14, 1.0).lerp(Color(0.0, 0.01, 0.03, 1.0), back))
-	dark.vertex_colors = shades
-	cave.add_child(dark)
-	for pebble in [[Vector2(18.0, 236.0), 26.0], [Vector2(52.0, 242.0), 18.0],
-			[Vector2(-30.0, 240.0), 20.0]]:
-		var rock := Polygon2D.new()
-		var outline := PackedVector2Array()
-		var radius: float = pebble[1]
-		for k in range(9):
-			var a := TAU * float(k) / 9.0
-			outline.append(Vector2(cos(a) * radius * 1.3, sin(a) * radius * 0.8))
-		rock.polygon = outline
-		rock.position = pebble[0]
-		rock.color = Color(0.1, 0.22, 0.3, 1.0)
-		cave.add_child(rock)
+	# ⚠ A PICTURE, NOT SHAPES. It was a black half-disc, a one-colour rim and three oval pebbles
+	# -- the one thing in Dagat with no pixel to it, which read as a hole cut in the screen. Now
+	# it is one of the deep's own painted arches with its opening made dark
+	# (tools/build_dagat_props.py draw_cave_mouth), its opening between where the creature is
+	# led from and where it goes in.
+	var mouth := Sprite2D.new()
+	mouth.name = "Mouth"
+	mouth.texture = load(AUTHORED + "cave_mouth.png") as Texture2D
+	mouth.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	mouth.centered = false
+	mouth.position = CAVE_OPENING_HERE - CAVE_OPENING_AT
+	cave.add_child(mouth)
 	# Kelp either side of the mouth, so it is a place and not a smudge on the wall.
 	# Their feet on the bed, which is BED_Y - the cave mark's own height below it.
 	var foot := BED_Y - 4.0 - mark.global_position.y

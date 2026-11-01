@@ -1321,6 +1321,78 @@ def draw_bangka_beached() -> Canvas:
     return c
 
 
+# --- The bakunawa's home ---------------------------------------------------------------
+#
+# ⚠ THE CAVE WAS SHAPES, NOT PIXELS. level_3.gd drew it as three flat Polygon2Ds -- a black
+# half-disc, a slate rim of one colour, three oval pebbles -- the one thing in Dagat with no
+# pixel to it, and beside the painted reef it read as a hole cut in the screen. A procedural ring
+# of stones read as beads. It is now one of the deep's own painted arches, cut from the ruins
+# layer, with its opening made a dark hollow: the far rock framed in the arch reads as distance
+# in the backdrop, and in the beach's face it has to read as the inside of a cave.
+RUINS = ROOT / "game" / "assets" / "Level3" / "deep" / "ruins.png"
+## Measured by hand off ruins.png (1672x941): the box cut from it, and the arch's opening -- a
+## round-topped doorway given as its centre column, the crown's top row, its half width and the
+## sill row.
+CAVE_BOX = (60, 280, 300, 560)
+CAVE_OPENING = (178.0, 354.0, 40.0, 518.0)
+## Inside the opening, brighter than this is the far rock seen through the arch, not the arch.
+CAVE_FAR_LUMA = 45.0
+## Doubled with nearest-neighbour: the backdrop's own pixel size on screen.
+CAVE_SCALE = 2
+## Where the opening's middle lands in the shipped picture. level_3.gd places it by this.
+CAVE_OPENING_AT = (int((CAVE_OPENING[0] - CAVE_BOX[0]) * CAVE_SCALE),
+                   int(((CAVE_OPENING[1] + CAVE_OPENING[3]) / 2.0 - CAVE_BOX[1]) * CAVE_SCALE))
+CAVE = ramp(["#000205", "#01060e", "#030f1d", "#08192d", "#0e2840"])
+
+
+def cave_opening(width: int, height: int) -> np.ndarray:
+    """The measured doorway as a mask over the cut box."""
+    cx, top, half, bottom = CAVE_OPENING
+    x0, y0 = CAVE_BOX[0], CAVE_BOX[1]
+    yy, xx = np.mgrid[0:height, 0:width]
+    ax, ay = xx + x0, yy + y0
+    crown = ((ax - cx) / half) ** 2 + ((ay - (top + half)) / half) ** 2 <= 1.0
+    sides = (ay >= top + half) & (ay <= bottom) & (np.abs(ax - cx) <= half)
+    return crown | sides
+
+
+def draw_cave_mouth() -> Image.Image:
+    from scipy import ndimage
+    x0, y0, x1, y1 = CAVE_BOX
+    rock = np.asarray(Image.open(RUINS).convert("RGBA")).astype(float)[y0:y1, x0:x1].copy()
+    height, width = rock.shape[:2]
+    luma = 0.299 * rock[..., 0] + 0.587 * rock[..., 1] + 0.114 * rock[..., 2]
+    inside = cave_opening(width, height)
+    hollow = inside & ((luma > CAVE_FAR_LUMA) | (rock[..., 3] < 128))
+    hollow = ndimage.binary_closing(hollow, iterations=2) & inside
+    # Black at the heart, the water's own deep blue at the lip, dithered between steps.
+    depth = np.clip(len(CAVE) - 1.6 - ndimage.distance_transform_edt(hollow) / 6.0,
+                    0.0, len(CAVE) - 1.0)
+    yy, xx = np.mgrid[0:height, 0:width]
+    low = np.floor(depth).astype(int)
+    step = np.where(depth - low > pixelart.BAYER[yy % 4, xx % 4], np.minimum(low + 1, len(CAVE) - 1),
+                    low)
+    rock[hollow, :3] = np.asarray(CAVE)[step[hollow], :3]
+    rock[hollow, 3] = 255
+    # The box's own edges broken, so no ruled line shows where the rock was cut from the plate.
+    rng = np.random.default_rng(2411)
+
+    def bite(length: int) -> np.ndarray:
+        coarse = rng.random(length // 9 + 3)
+        return 2 + np.round(9 * np.interp(np.arange(length) / 9.0, np.arange(coarse.size),
+                                           coarse)).astype(int)
+
+    left, right, under, over = bite(height), bite(height), bite(width), bite(width)
+    cut = (xx < left[:, None]) | (xx >= width - right[:, None]) | (yy >= height - under[None, :]) \
+        | (yy < over[None, :])
+    rock[cut & ~hollow, 3] = 0
+    picture = Image.fromarray(np.clip(rock, 0, 255).astype(np.uint8), "RGBA")
+    return picture.resize((width * CAVE_SCALE, height * CAVE_SCALE), Image.NEAREST)
+
+
+CAVE_ART = {"cave_mouth.png": draw_cave_mouth}
+
+
 BANGKA = {"bangka_afloat.png": draw_bangka_afloat,
           "bangka_beached.png": draw_bangka_beached}
 
@@ -1547,7 +1619,7 @@ def build() -> list[Path]:
         path = OUT / f"ink_jar_{frame}.png"
         draw(frame).save(path)
         written.append(path)
-    for table in (LAND, PALMS, SEABED_ART, BANGKA, FOUND):
+    for table in (LAND, PALMS, SEABED_ART, BANGKA, CAVE_ART, FOUND):
         for name, painter in table.items():
             path = OUT / name
             painter().save(path)
@@ -1565,6 +1637,7 @@ def _expected() -> list[Path]:
         [OUT / name for name in LAND] + [OUT / name for name in PALMS] + \
         [OUT / name for name in SEABED_ART] + \
         [OUT / name for name in BANGKA] + \
+        [OUT / name for name in CAVE_ART] + \
         [OUT / name for name in FOUND] + \
         [OUT / f"{name}_{frame}.png" for name, (_p, n) in LIFE.items() for frame in range(n)]
 

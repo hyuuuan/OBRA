@@ -339,6 +339,18 @@ func _led_home_by_the_light() -> void:
 		"the apo in plain view is not seen")
 	# Brought within reach of its cave, it goes in, and what it held comes out to the apo.
 	var mouth: Vector2 = level.get("_cave_mouth")
+	# The cave is a painted picture, not flat shapes, with its dark opening on the way in: past
+	# the mouth it is led to and short of the inside it swims into, at their height.
+	var cave := level.get_node_or_null("EnvironmentBaseplate/GameplayPlane/Marks/Cave") as Node2D
+	var art := cave.get_node_or_null("Mouth") as Sprite2D if cave != null else null
+	var shapes := cave.find_children("*", "Polygon2D", true, false).size() if cave != null else -1
+	var inside: Vector2 = level.get("_cave_inside")
+	var opening := art.global_position + _level_const("CAVE_OPENING_AT") as Vector2 \
+		if art != null else Vector2.INF
+	_check(art != null and art.texture != null and shapes == 0
+			and opening.x > inside.x and opening.x < mouth.x
+			and absf(opening.y - (mouth.y + inside.y) * 0.5) < 60.0,
+		"the cave is the painted arch, its opening on the way in", "opening at %s" % opening.round())
 	creature.global_position = mouth + Vector2(380.0, -260.0)
 	_place(mouth + Vector2(420.0, -200.0))
 	level.set("lure_override", mouth)
