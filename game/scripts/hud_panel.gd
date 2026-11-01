@@ -1,6 +1,6 @@
 class_name HudPanel
 extends PanelContainer
-## What the player has to draw with, and what the game just said, in one frame.
+## The brush, ink count and checkpoint count, beneath the minimap at the top left.
 ##
 ## THE FRAME IS BACK, and the unframed version is why. The brush was drawn straight onto the
 ## level with an outline on every line of type, which reads fine in a still and badly in
@@ -13,16 +13,14 @@ extends PanelContainer
 ## they are `MorphCard` in the opposite corner now, holding the drawing itself rather than
 ## a word for it. This corner is the things that are true whoever you currently are.
 ##
-## INK IS THE CLOCK THIS CORNER OWNS. "Ink 12.0 / 12.0" was a debug print -- the decimals
-## move while you draw, and 12.0 of 12.0 tells you nothing 12 does not -- so it gets the
-## brush at six screen pixels to the art pixel, which is the artwork at native size.
+## The gauge scales in whole art pixels to fit the minimap's width.
 
 const GOLD := UISkin.GOLD
 const CREAM := UISkin.CREAM_TEXT
 
-## Screen pixels to the art pixel. Six is the artwork 1:1 -- 366 by 66 -- as big as the
-## brush can be drawn without inventing pixels, and the size this corner is built around.
-const GAUGE_SCALE := 6
+## Four screen pixels per art pixel: 244px of brush inside the 256px map-width frame.
+const GAUGE_SCALE := 4
+const SIDE_PADDING := 6.0
 
 var _value: Label
 var _gauge: InkBrush
@@ -32,7 +30,7 @@ var _whole_ink := -1
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_theme_stylebox_override(&"panel", UISkin.frame())
+	add_theme_stylebox_override(&"panel", UISkin.frame(SIDE_PADDING))
 
 	var column := VBoxContainer.new()
 	column.name = "Column"
@@ -47,7 +45,7 @@ func _init() -> void:
 func _build_ink(column: VBoxContainer) -> void:
 	# Sized exactly and pinned left. A VBoxContainer stretches its children to its own
 	# width, which would leave InkBrush centring itself in whatever was left over and
-	# drifting sideways every time the status line under it changed length.
+	# drifting sideways as the readings below it change.
 	_gauge = InkBrush.new()
 	_gauge.name = "Gauge"
 	_gauge.custom_minimum_size = InkBrush.size_at(GAUGE_SCALE)
@@ -82,23 +80,6 @@ func _build_ink(column: VBoxContainer) -> void:
 	_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_value.theme_type_variation = &"HudValue"
 	heading.add_child(_value)
-
-
-## The status line lives inside the frame rather than floating on the level behind it, so it
-## has something to be read against. It stays the node the rest of game_level already writes
-## to -- there are thirty of those call sites and none of them need to know.
-func adopt_status(label: Label) -> void:
-	if label == null:
-		return
-	var parent := label.get_parent()
-	if parent != null:
-		parent.remove_child(label)
-	label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.custom_minimum_size = Vector2(0.0, 22.0)
-	label.add_theme_color_override(&"font_color", UISkin.MUTED)
-	label.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
-	($Column as VBoxContainer).add_child(label)
 
 
 ## THE CHECKPOINT COUNT, on the ink plate's own heading row rather than on a chip beside it.

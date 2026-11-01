@@ -122,7 +122,7 @@ func _run() -> void:
 	# Both restored, or every frame after this one is photographed with a spent gauge and
 	# a line about running out of ink that has nothing to do with what it is showing.
 	hud.call("set_ink", 12.0, 12.0, 0.0)
-	level.get("status_label").text = "Ready — draw a morph or utility"
+	level.get("status_label").text = ""
 
 	# A real beat: three lines, queued, with the world stopped and the camera pushed in on
 	# the speaker. Photographed mid-type and again once the arrow is up, because those are

@@ -59,7 +59,7 @@ HEADLESS=(
   run_assembly_probe run_dance_probe run_objective_probe run_tool_routes_probe
   run_playtest_telemetry_probe
   run_dialogue_pool_probe
-  run_play_level2 run_hud_layout_probe run_screens_fit_probe run_journey_probe run_backend_ownership_probe
+  run_play_level2 run_hud_layout_probe run_minimap_probe run_screens_fit_probe run_journey_probe run_backend_ownership_probe
   run_request_timeout_probe
   run_button_feedback_probe run_rig_isolated run_underwater_appearance_probe
   run_level3_audit run_nodraw_level3 run_bakunawa_probe run_level3_finish_probe

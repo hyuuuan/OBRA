@@ -465,6 +465,7 @@ const WANDERER_SCENE := "res://creatures/wanderer.tscn"
 ## Built in code rather than authored into the scene, like the requirement strip: it owns
 ## its own frame and gauge and there is nothing to lay out by hand.
 var hud_panel: HudPanel
+var minimap: LevelMinimap
 ## The card that says a thing is yours now. See AcquiredOverlay and announce_acquisition.
 var acquired_overlay: AcquiredOverlay
 ## The bag, and everything found, on one screen. See InventoryScreen.
@@ -774,7 +775,7 @@ func _note_canvas_opened() -> void:
 
 
 func _on_backend_ready() -> void:
-	status_label.text = "Ready — draw a morph or utility"
+	status_label.text = ""
 
 
 func _on_backend_starting(message: String) -> void:
@@ -3287,23 +3288,36 @@ func _drop_equipped_before_morph(previous_state: Dictionary) -> void:
 	_equipped_utility = null
 
 
-## One frame, top left, holding everything the player is actually tracking: what they
-## currently ARE and how much of it is left, the brush and what is in it, and whatever the
-## game last said. See HudPanel for why the plate at the top is shaped like a nameplate and
-## why the frame around all of it came back.
+## A shared minimap and brush stack at the top left, with the morph and brief feedback right.
 func _build_hud_frame() -> void:
+	minimap = LevelMinimap.new()
+	minimap.name = "Minimap"
+	minimap.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	minimap.offset_left = 24.0
+	minimap.offset_right = 24.0 + LevelMinimap.SIDE
+	minimap.offset_top = 20.0
+	minimap.offset_bottom = 20.0 + LevelMinimap.SIDE
+	$CanvasLayer.add_child(minimap)
+	minimap.bind(get_viewport().find_world_2d(), _minimap_position, _minimap_region)
+
 	hud_panel = HudPanel.new()
 	hud_panel.name = "HudPanel"
 	hud_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	hud_panel.offset_left = 24.0
-	hud_panel.offset_top = 20.0
-	# Wide enough for the brush at full size INSIDE the frame's padding: 366 of artwork plus
-	# fourteen either side. At 404 the content box came out 352 and InkBrush, which only
-	# scales in whole art pixels, quietly dropped to five -- the brush got smaller and
-	# nothing said why.
-	hud_panel.offset_right = 24.0 + 366.0 + 28.0
+	hud_panel.offset_top = 20.0 + LevelMinimap.SIDE + 12.0
+	# The brush and map share an outer width and a 244px content width.
+	hud_panel.offset_right = 24.0 + LevelMinimap.SIDE
 	$CanvasLayer.add_child(hud_panel)
-	hud_panel.adopt_status(status_label)
+	var notice := HudNotice.new()
+	notice.name = "HudNotice"
+	notice.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	notice.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	notice.offset_left = -394.0 - 24.0
+	notice.offset_right = -24.0
+	notice.offset_top = 118.0
+	notice.custom_minimum_size.x = 394.0
+	$CanvasLayer.add_child(notice)
+	notice.adopt(status_label)
 	# Superseded by the gauge, kept so nothing that writes to them has to care.
 	ink_bar.visible = false
 	ink_label.visible = false
@@ -3333,6 +3347,15 @@ func _build_hud_frame() -> void:
 	_build_objective()
 	_build_dialogue_box()
 	_build_story_watch()
+
+
+func _minimap_position() -> Variant:
+	return _player_anchor_position() if is_instance_valid(player) else null
+
+
+func _minimap_region() -> Rect2:
+	var room := _room_holding_player()
+	return _camera_rect_for(room) if room != null else Rect2()
 
 
 ## The objective line under the badge, and the marker over the world. The marker is the
@@ -3484,8 +3507,7 @@ func _build_morph_card() -> void:
 	morph_card.name = "MorphCard"
 	morph_card.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	morph_card.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	# Anchored by its RIGHT edge, so a long creature name grows the card leftward into the
-	# sky instead of pushing the slot off the side of the screen.
+	# Anchored by its right edge so a long creature name grows inward.
 	morph_card.offset_left = -(MorphCard.PLATE.x + MorphCard.PORTRAIT - MorphCard.OVERLAP) - 24.0
 	morph_card.offset_right = -24.0
 	morph_card.offset_top = 20.0
