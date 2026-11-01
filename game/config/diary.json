@@ -1,0 +1,33 @@
+{
+  "$comment": [
+    "LOLA'S DIARY -- one entry a painting, in the order she wrote them, and the order is the illness.",
+    "Each entry is found somewhere in its level (DIARY.md has where and why); the bag's DIARY tab shows",
+    "every entry this player has found, as a book. An entry the player has not found is not shown and",
+    "not named: the tab counts them, the way the roster counts what has not been drawn.",
+    "",
+    "  id        what the level records (PlayerProfile.record_diary_page)",
+    "  level_id  the painting it is found in",
+    "  date      how she headed the page -- written as she would, so it gets less sure",
+    "  found     what the apo sees as it is found, in the narrator's voice, not hers",
+    "  pages     her words, a page each, left then right; an entry always starts on a left page.",
+    "            A page is a string, or {\"text\", \"anchor\"} where a level opens the book at that page",
+    "            (Dilim, at each creature). [s]...[/s] is a line she crossed out.",
+    "",
+    "⚠ NO PAGE MAY NAME A DRAWABLE CLASS, in English or Filipino -- the diary is read by a player",
+    "standing at the obstacle it is about. run_diary_probe checks every page against the fifty.",
+    "⚠ EVERY PAGE MUST FIT ITS PAGE. The book does not scroll; run_diary_probe lays each one out in",
+    "the real font and fails the one that runs over."
+  ],
+  "entries": [
+    {
+      "id": "payyo",
+      "level_id": "level_1",
+      "date": "Sunday",
+      "found": "A page from her diary, folded small and kept under the lid. The ink has gone brown at the edges.",
+      "pages": [
+        "I took the old canvases down again today. Payyo first, then the fiesta, then the sea. I sat with each one until I could hear him in it.\n\nHe is easier to find in the paintings than in my head now.",
+        "That is why I painted him into every one of them, so he would always be somewhere.\n\nSome mornings I reach for his name and come back with nothing. So I walk through them with him, one by one, while I still know the way.\n\nIf a day comes when I cannot find him at all, I hope somebody walks them for me."
+      ]
+    }
+  ]
+}

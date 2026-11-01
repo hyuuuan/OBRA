@@ -189,6 +189,19 @@ var _band_boxes: Dictionary = {}
 var _tab_buttons: Dictionary = {}
 var _tab_role := "active_ragdoll_morph"
 
+## THE FOURTH TAB IS HER DIARY (DIARY.md): the pages of Lola's diary found so far, as a book
+## that turns, in place of the lining's pockets and cards. It hangs under the three kinds, on the
+## same paper tabs -- Kent: "i only want the book not the tabs because i already have an
+## inventory tabs thing".
+const DIARY_TAB := "diary"
+var _body: Control
+var _diary_book: DiaryBook
+var _diary_page: Control
+var _blurb: Label
+var _footer: Label
+## How many pages the book was last filled with: when it grows, the book opens at the newest.
+var _diary_seen := -1
+
 ## The big card. `_detail_note` is what the thing IS. What it costs in ink is not shown: the
 ## gauge on the HUD says what is left, and the bag is for what you have.
 var _detail_card: PanelContainer
@@ -341,10 +354,10 @@ func _input(event: InputEvent) -> void:
 	var wheel := event as InputEventMouseButton
 	if wheel != null:
 		if wheel.pressed and wheel.button_index in [MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_RIGHT]:
-			_step(1)
+			_advance(1)
 			get_viewport().set_input_as_handled()
 		elif wheel.pressed and wheel.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_LEFT]:
-			_step(-1)
+			_advance(-1)
 			get_viewport().set_input_as_handled()
 		return
 	# A Mac trackpad does not turn a wheel: two fingers arrive as a pan, in small amounts.
@@ -357,14 +370,14 @@ func _input(event: InputEvent) -> void:
 		_last_pan_frame = Engine.get_process_frames()
 		_pan += pan.delta.y + pan.delta.x
 		while absf(_pan) >= PAN_STEP:
-			_step(1 if _pan > 0.0 else -1)
+			_advance(1 if _pan > 0.0 else -1)
 			_pan -= PAN_STEP * signf(_pan)
 		return
 	if event.is_action_pressed(&"ui_right", true) or event.is_action_pressed(&"ui_down", true):
-		_step(1)
+		_advance(1)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed(&"ui_left", true) or event.is_action_pressed(&"ui_up", true):
-		_step(-1)
+		_advance(-1)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed(&"ui_accept") and String(_chosen.get("kind", "")) == "bag":
 		get_viewport().set_input_as_handled()
@@ -388,6 +401,15 @@ func _choices() -> Array[Dictionary]:
 			if drawn.has(id):
 				out.append({"kind": "drawn", "id": id})
 	return out
+
+
+## What the wheel and the arrows do: turn her pages while the diary is open, and step through
+## the bag otherwise.
+func _advance(direction: int) -> void:
+	if _tab_role == DIARY_TAB:
+		_diary_book.turn(direction)
+	else:
+		_step(direction)
 
 
 func _step(direction: int) -> void:
@@ -601,6 +623,9 @@ func _build() -> void:
 	_build_found(carried)
 	_build_roster(left)
 	_build_detail(body)
+	_body = body
+	_blurb = blurb
+	_build_diary(lining)
 
 	# The footer, stitched into the bottom band.
 	var footer := Label.new()
@@ -612,9 +637,8 @@ func _build() -> void:
 	footer.add_theme_color_override(&"font_color", PARCHMENT_LIT)
 	footer.add_theme_constant_override(&"outline_size", 5)
 	footer.add_theme_color_override(&"font_outline_color", BagArt.OUTLINE)
-	footer.text = "%s to close  ·  scroll to look through  ·  drag a drawing to another pocket, or out of the bag to use it" \
-		% ControlsKeys.keys_for("inventory_open")
 	column.add_child(footer)
+	_footer = footer
 
 	_build_tabs(frame)
 	_show_tab(_tab_role)
@@ -815,8 +839,11 @@ func _build_tabs(parent: Control) -> void:
 	spacer.custom_minimum_size = Vector2(0.0, BagArt.FLAP_H + 36.0)
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(spacer)
+	var roles: Array[String] = []
 	for band: Variant in BANDS:
-		var role := String((band as Dictionary)["role"])
+		roles.append(String((band as Dictionary)["role"]))
+	roles.append(DIARY_TAB)
+	for role in roles:
 		var tab := Button.new()
 		tab.name = "%sTab" % role
 		tab.focus_mode = Control.FOCUS_NONE
@@ -830,6 +857,45 @@ func _build_tabs(parent: Control) -> void:
 		tab.pressed.connect(_show_tab.bind(role))
 		column.add_child(tab)
 		_tab_buttons[role] = tab
+
+
+## Her diary, in the lining beside the pockets and cards, shown instead of them on its tab.
+##
+## ⚠ THE BAG DOES NOT CHANGE SIZE FROM TAB TO TAB (see _build_roster). The book is a few pixels
+## taller than the pockets and cards (672 against 667), so the cards are given the book's height;
+## and the book is given the cards' width when its tab opens (_show_tab).
+## ⚠ NOT MEASURED HERE: before the first layout the big card's wrapped labels stand one word to a
+## line, and the cards measured 1709 tall -- the bag came out twice the height of the screen.
+func _build_diary(lining: Control) -> void:
+	_diary_book = DiaryBook.new()
+	_diary_book.name = "DiaryBook"
+	var holder := CenterContainer.new()
+	holder.name = "Diary"
+	holder.add_child(_diary_book)
+	lining.add_child(holder)
+	_diary_page = holder
+	_body.custom_minimum_size.y = _diary_book.custom_minimum_size.y
+	holder.visible = false
+
+
+## The pages found so far, in the order she wrote them; and when there is a new one, the book
+## opens at it -- the reason to open the tab after finding one is to read it.
+func _refresh_diary() -> void:
+	var found := Diary.found()
+	_diary_book.set_entries(found)
+	if found.size() > _diary_seen and not found.is_empty():
+		var profile := get_node_or_null(^"/root/PlayerProfile")
+		var order: Array = profile.call(&"diary_pages") if profile != null else []
+		_diary_book.open_at(String(order.back()) if not order.is_empty() else String(found.back()["id"]))
+	_diary_seen = found.size()
+	var tab := _tab_buttons.get(DIARY_TAB) as Button
+	if tab != null:
+		tab.text = "DIARY\n%d / %d" % [found.size(), Diary.entries().size()]
+
+
+## The open diary's book, for a probe.
+func diary_book() -> DiaryBook:
+	return _diary_book
 
 
 
@@ -1151,6 +1217,16 @@ func _show_tab(role: String) -> void:
 	_tab_role = role
 	for key: String in _band_boxes:
 		(_band_boxes[key] as Control).visible = key == role
+	var reading := role == DIARY_TAB
+	if reading and _body.size.x > 0.0:
+		_diary_page.custom_minimum_size.x = _body.size.x
+	_body.visible = not reading
+	_diary_page.visible = reading
+	_blurb.text = "her diary: a page from every painting, where you find it" if reading \
+		else "what you are carrying, and every drawing you have made your own"
+	_footer.text = ("%s to close  ·  click a page, scroll or use the arrows to turn it" if reading \
+		else "%s to close  ·  scroll to look through  ·  drag a drawing to another pocket, or out of the bag to use it") \
+		% ControlsKeys.keys_for("inventory_open")
 	for key: String in _tab_buttons:
 		var tab := _tab_buttons[key] as Button
 		var is_open_tab := key == role
@@ -1177,6 +1253,7 @@ func refresh() -> void:
 	_refresh_bag()
 	_refresh_found()
 	_refresh_roster()
+	_refresh_diary()
 	_refresh_detail()
 
 

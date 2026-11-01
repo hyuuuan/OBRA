@@ -429,6 +429,8 @@ func _uncover_the_baul() -> void:
 ## it. Optional, like the cave's flower: the level does not wait on it.
 const CHEST_REACH := 110.0
 const CHEST_TAGS := ["unlock", "cut"]
+## What is inside it: Payyo's page of her diary (config/diary.json).
+const DIARY_PAGE := "payyo"
 
 
 func _chest_to_open() -> Baul2D:
@@ -474,27 +476,11 @@ func _level_uses_the_tool(item: DrawnItemData) -> bool:
 		"level_id": LevelManager.current_level_id, "obstacle_id": "L1_N2",
 		"reward": "chest_diary_page", "opened_with": item.entity_id,
 	})
-	var page := _level_memory("chest_memory")
-	if not page.is_empty():
-		var lines := PackedStringArray()
-		for line in page.get("lines", []):
-			lines.append(String(line))
-		memory_overlay.call("present", String(page.get("title", "A memory")), lines)
+	# The first page of the diary every painting now hides one of (config/diary.json). It was a
+	# memory card, read once and gone; it is kept in the bag under DIARY now, where the later
+	# pages go beside it.
+	find_diary_page(DIARY_PAGE)
 	return true
-
-
-## A memory card of this level's, from dialogue.json -- read straight from the file when the
-## level was opened directly rather than through the level select, as a probe opens it.
-func _level_memory(key: String) -> Dictionary:
-	var found: Variant = _script_lines.get(key, {})
-	if found is Dictionary and not (found as Dictionary).is_empty():
-		return found
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://config/dialogue.json"))
-	if parsed is Dictionary:
-		var level: Variant = ((parsed as Dictionary).get("levels", {}) as Dictionary).get(_own_level_id(), {})
-		if level is Dictionary:
-			return (level as Dictionary).get(key, {})
-	return {}
 
 
 ## Ang Bale: three ways into the same chest, and the third one costs something.
