@@ -10,8 +10,8 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_cliff_dressing_probe.gd
 
 const Dressing = preload("res://scripts/cliff_dressing_2d.gd")
-const KITS := ["res://assets/Level1/cliff"]
-const CHECKS := 11 + 1 * 1 + 6
+const KITS := ["res://assets/Level1/cliff", "res://assets/Level4/cliff", "res://assets/Level4/cliff_stone"]
+const CHECKS := 11 + 1 * 3 + 6 + 5
 
 var checked := 0
 var failures := 0
@@ -26,6 +26,7 @@ func _run() -> void:
 	for kit: String in KITS:
 		_kit_is_whole(kit)
 	await _payyo()
+	await _dilim()
 	if failures == 0 and checked == CHECKS:
 		print("OBRA_CLIFF_DRESSING_OK checks=%d" % checked)
 		quit(0)
@@ -160,6 +161,58 @@ func _payyo() -> void:
 		"Terrace3 and CentralLeft, level with each other, are one wall")
 	_check(ends.has(Vector2(3080, 240)) and ends.has(Vector2(3520, 240)),
 		"both lips of the gorge are open ends")
+	call_group(DialogueBox.GROUP, &"skip_all")
+	level.queue_free()
+	for _frame in range(4):
+		await process_frame
+
+
+## Dilim: the mud and the rocks are two dressings over one group, each drawing its own kind and
+## closing its ends against the other's; the branches stay the terrain's own logs.
+func _dilim() -> void:
+	var level := (load("res://level_4.tscn") as PackedScene).instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await create_timer(0.4).timeout
+	var terrain := level.get_node("EnvironmentBaseplate/GameplayPlane/Terrain")
+	var mud := terrain.get_node_or_null("CliffDressing")
+	var stone := terrain.get_node_or_null("CliffDressingStone")
+	_check(mud != null and stone != null and mud.get("_face") != null and stone.get("_face") != null,
+		"Dilim is dressed in its mud and its stone")
+	if mud == null or stone == null:
+		level.queue_free()
+		return
+	var counts := {"mud": 0, "stone": 0}
+	var undressed := []
+	var branches := 0
+	for body in get_nodes_in_group(&"makiling_ground"):
+		if not terrain.is_ancestor_of(body):
+			continue
+		var platforms: Array = body.get("platforms")
+		branches += (body.get("branches") as Array).size()
+		if platforms.is_empty():
+			continue
+		counts[String(body.get("body"))] += platforms.size()
+		if not bool(body.get("_dressed")):
+			undressed.append(body.name)
+	var drawn := func(dressing: Node) -> int:
+		return (dressing.get("_ground") as Array).size() + (dressing.get("_ledges") as Array).size()
+	_check(undressed.is_empty() and drawn.call(mud) == counts["mud"] and drawn.call(stone) == counts["stone"],
+		"each kind is drawn by its own dressing, and every platform stood its fill down",
+		"mud %d/%d, stone %d/%d, still drawing: %s" % [drawn.call(mud), counts["mud"],
+		drawn.call(stone), counts["stone"], undressed])
+	_check(branches > 0 and (mud.get("_neighbours") as Array).size() == counts["stone"],
+		"the branches stay logs, and the mud knows where the rocks are",
+		"%d branches, %d neighbours" % [branches, (mud.get("_neighbours") as Array).size()])
+	# The ravine's top step ends against the far bank's mud wall, which is higher: closed.
+	var open_against_mud := false
+	for end: Dictionary in stone.call("exposed_ends"):
+		var rect: Rect2 = end.rect
+		open_against_mud = open_against_mud or (int(end.side) > 0 and is_equal_approx(rect.end.x, 19450.0))
+	_check(not open_against_mud, "a rock against a higher mud wall is closed, not an open end")
+	_check(mud.modulate.is_equal_approx(Color(0.62, 0.64, 0.78, 1.0)) and stone.modulate == mud.modulate,
+		"both are graded to Dilim's night", str(mud.modulate))
 	call_group(DialogueBox.GROUP, &"skip_all")
 	level.queue_free()
 	for _frame in range(4):
