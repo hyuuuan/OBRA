@@ -109,24 +109,11 @@ func _ends_with_its_own_scene() -> bool:
 	return true
 
 
-## The summit was the ending; the frame's return is its last shot (Kent, 2026-10-25): the real
-## room, the stories she saved told to lola, lolo last, an ordinary brush -- then black, then home.
+## THE HOUSE IS THE ENDING NOW (DIARY.md; Kent, 2026-11-01): "lolo let's go home", and the apo is
+## home -- in the house, where Lolo is in every painting and Lola is waiting (HouseEpilogue). It
+## replaced the frame's return, a separate painted room with an ordinary brush in it.
 func _play_own_ending() -> void:
-	var frame := FrameReturn.new()
-	frame.name = "FrameReturn"
-	frame.has_flowers = ending_hook() == "ENDING.perfect"
-	add_child(frame)
-	for hook in frame_hooks():
-		if hook == "FRAME.brush":
-			script_lines.fire(hook)
-			await frame.pick_up_brush()
-		else:
-			var id := hook.trim_prefix("FRAME.")
-			var fragment := _fragment(id)
-			if fragment != null:
-				frame.show_memory(fragment.summit_texture)
-			await _speak_and_wait(script_lines.fire(hook))
-	await frame.cut_to_black()
+	await _speak_and_wait(script_lines.fire("APO.home"))
 	AudioDirector.stop_music()
 	_went_home = true
 	LevelManager.return_to_house()
@@ -1076,17 +1063,6 @@ func _reset_summit() -> void:
 # --- The frame returns --------------------------------------------------------------------
 
 var _went_home := false
-
-
-## What the apo tells lola in the real room: the places she saved, in the order she saved them,
-## and lolo last -- the man lola lost first, given back to her last.
-func frame_hooks() -> Array[String]:
-	var hooks: Array[String] = ["FRAME.open"]
-	for fragment in bloom_targets():
-		hooks.append("FRAME." + fragment.fragment_id)
-	hooks.append("FRAME.lolo")
-	hooks.append("FRAME.brush")
-	return hooks
 
 
 func went_home() -> bool:

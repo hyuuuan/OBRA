@@ -382,7 +382,22 @@ func _mayon_to_house(manager: Node) -> void:
 				box.call("skip_all")
 		await create_timer(0.1, true, false, true).timeout
 		waited += 0.1
-	await _arrived(manager, "hub.tscn", "the frame's return, after Mayon")
+	# THE HOUSE PLAYS LOLA'S SCENE, ONCE (HouseEpilogue), and her lines stop the tree while they are
+	# up -- that is the scene, not a frozen arrival. Read through it as a player does, then judge
+	# the arrival.
+	var hub := current_scene
+	waited = 0.0
+	while waited < 60.0 and hub != null and hub.has_method("epilogue") \
+			and (hub.call("epilogue") == null or bool(hub.call("is_revealing"))):
+		for box in get_nodes_in_group(DialogueBox.GROUP):
+			if bool(box.call("is_open")):
+				box.call("skip_all")
+		await create_timer(0.1, true, false, true).timeout
+		waited += 0.1
+	_check(hub != null and hub.has_method("epilogue") and hub.call("epilogue") != null
+			and HouseEpilogue.has_played(),
+		"and in the house Lola's scene plays, once", "played %s" % HouseEpilogue.has_played())
+	await _arrived(manager, "hub.tscn", "the house, after Mayon (\"Lolo. Let's go home.\")")
 	_check(String(manager.get("current_level_id")).is_empty(), "and the run is back in no level",
 		"'%s'" % String(manager.get("current_level_id")))
 
