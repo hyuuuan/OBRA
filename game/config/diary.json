@@ -68,6 +68,25 @@
         "I dreamt of the sea he went out on every morning. Something was swimming in the dark under the bangka, looking for a light it had lost. Round and round.\n\nI woke, and I was looking for something too, all through the house, and I could not say what.",
         "My daughter took me to a doctor. He asked me what year it was and I told him. Later he asked again and I told him something else. He wrote a word down and did not say it to me.\n\nI know what it is. I will not write its name in here. This book is for remembering."
       ]
+    },
+    {
+      "id": "dilim",
+      "level_id": "level_4",
+      "date": "For apo",
+      "found": "Her handwriting, pages of it folded together: everything that lives in these woods, written down for you.",
+      "pages": [
+        "So you know them, if you ever meet one. I told you these at bedtime and you laughed. Do not laugh.\n\nKeep a light with you, and stay on the path.",
+        {"anchor": "nuno", "text": "THE NUNO\n\nHe lives in the punso, the mound beside the path. Do not step on it. Say tabi-tabi po, excuse me, and he lets you by.\n\nStep on it and your foot swells. It wears off if you keep walking. They remember the ones who ask."},
+        {"anchor": "santelmo", "text": "THE SANTELMO\n\nA ball of fire drifting in the dark. It is only lost.\n\nNever run from one. It chases whatever runs. Walk, slowly, and it loses interest."},
+        {"anchor": "sigbin", "text": "THE SIGBIN\n\nIt walks backwards, its head low between its legs. It waits where it is darkest and comes at you from behind.\n\nGive it no dark to hide in. Or put your back to the rock, so there is nothing behind you to come from. It cannot bear to be seen."},
+        {"anchor": "tikbalang", "text": "THE TIKBALANG\n\nTall, all legs, its face long like a -- I had the word. It walks you in circles until you give up.\n\nIt lets its own kind through. It does not chase what it does not hunt. And it hates to lose a race: beat it to the far side and it keeps its word."},
+        {"anchor": "kapre", "text": "THE KAPRE\n\nBig as a house, up in the balete, smoking. It keeps to itself, but its smoke turns you round.\n\nWeather clears smoke. Or bring its balete down and it goes to find another. Or knock the cigar out of its hand."},
+        {"anchor": "tiyanak", "text": "THE TIYANAK\n\nIf you hear a baby crying in the woods, do not go to it. Stay on the path.\n\nIt is not a baby. The light shows it for what it is, and it cannot stand to be seen."},
+        {"anchor": "bungisngis", "text": "THE BUNGISNGIS\n\nOne eye, and it laughs at everything. Laughing is the only thing stronger than it is: show it something silly enough and it laughs too hard to stand.\n\nOr go over the gap and leave it laughing."},
+        {"anchor": "manananggal", "text": "[s]THE SIGBIN[/s]\nTHE MANANANGGAL\n\nOnly half of her flies. Find where she left the rest of herself, and salt it.\n\nOr keep her busy until morning. She cannot come back together in the light."},
+        {"anchor": "tiktik", "text": "THE TIK-TIK\n\nTik, tik. When it sounds far away, it is close.\n\nAsh shows it."},
+        "Apo, I think I have written one of these twice. Or I have not written it at all. I cannot find the page.\n\nI will write them all again tomorrow, so you have them.\n\nFor apo.\nFor apo."
+      ]
     }
   ]
 }

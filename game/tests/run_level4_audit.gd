@@ -746,8 +746,9 @@ func _audit_knockout_in_lolas_words(scene: Node, dialogue: Dictionary) -> void:
 	for _knockout in range(pool.size() + 1):
 		said.append(String(scene.call("_knockout_words")))
 	var in_turn := pool.size() >= 2 and said.slice(0, pool.size()) == pool and said[-1] == pool[0]
-	_check(in_turn and pool[0].begins_with("Lola said the woods take people"),
-		"a knockout is said in Lola's words, in turn", "%d lines, then round again" % pool.size()
+	# Her own words now, not "Lola said": what Lola taught is in her bestiary (DIARY.md).
+	_check(in_turn and pool[0].begins_with("The woods take the ones"),
+		"a knockout is said in her words, in turn", "%d lines, then round again" % pool.size()
 		if in_turn else "said %s" % [said])
 
 

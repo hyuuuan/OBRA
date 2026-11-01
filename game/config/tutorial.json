@@ -429,7 +429,7 @@
           "mode": "say",
           "speaker": "Apo",
           "action": "walk",
-          "text": "Lola said never to run from a santelmo. Hold {keys} and walk, and it loses interest.",
+          "text": "Never run from a santelmo. Hold {keys} and walk, and it loses interest.",
           "seconds": 7.0
         },
         {

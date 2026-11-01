@@ -1022,7 +1022,33 @@ func _teaches_on_entering(_obstacle_id: String) -> bool:
 ## Separate from _on_obstacle_entered because entering is a much wider event -- see
 ## LevelObstacle2D.announce_size.
 func _on_obstacle_arrived(obstacle_id: String) -> void:
-	_speak_on_arrival("%s.enter" % obstacle_id)
+	var hook := "%s.enter" % obstacle_id
+	# HER DIARY FIRST, the first time (DIARY.md): a level that keeps a page about what is in front
+	# of her opens the book at it, and her own words come once it is put down.
+	var page := _diary_page_on_arrival(obstacle_id)
+	if not page.is_empty() and not script_lines.has_heard(hook):
+		await read_diary_at(String(page.get("entry", "")), String(page.get("anchor", "")),
+			String(page.get("note", "")))
+	_speak_on_arrival(hook)
+
+
+## THE PAGE OF HER DIARY A BEAT OPENS AT, the first time she reaches it: {"entry", "anchor",
+## "note"}, or nothing. Off by default; Dilim's bestiary answers it for each creature.
+func _diary_page_on_arrival(_obstacle_id: String) -> Dictionary:
+	return {}
+
+
+## HER DIARY, OPENED AT A PAGE SHE ALREADY HAS -- read, not found: nothing is kept, and a page
+## this save does not hold is not shown. Returns when it is put down.
+func read_diary_at(entry_id: String, anchor: String = "", note: String = "") -> void:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	if profile == null or not bool(profile.call(&"has_diary_page", entry_id)):
+		return
+	if diary_overlay == null or not is_instance_valid(diary_overlay):
+		return
+	diary_overlay.present(entry_id, anchor, "HER DIARY", note)
+	if diary_overlay.is_open():
+		await diary_overlay.dismissed
 
 
 ## ARRIVAL SPEAKS ONCE. Walking in somewhere is news the first time and an interruption

@@ -11,7 +11,7 @@ extends SceneTree
 ## in place of the pockets and cards, at the same size. A FOUND PAGE is kept before it is shown.
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 20
+const CHECKS := 25
 
 const ENTITIES_PATH := "res://config/entities.json"
 ## The fifty in Filipino, as a player in the Philippines might write them. Not "bangka" (the
@@ -46,6 +46,7 @@ func _run() -> void:
 	await _the_bag_has_a_diary_tab(profile)
 	await _a_found_page_is_kept_then_shown(profile)
 	await _piyesta_drops_a_page_in_each_room(profile)
+	await _dilim_keeps_her_bestiary(profile)
 	profile.call("reset_progress")
 	if checked != CHECKS:
 		failures += 1
@@ -380,6 +381,85 @@ func _piyesta_drops_a_page_in_each_room(profile: Node) -> void:
 		"left lying: %s" % ", ".join(left))
 	level.queue_free()
 	await process_frame
+
+
+# --- Dilim: her bestiary ---------------------------------------------------------------
+
+## Found a few steps into the woods, on the ground, before anything has moved; every creature's
+## beat opens it at a page of its own; reached with it, the book comes first and her words after;
+## reached without it, only her words; and nothing she says is "Lola said" any more.
+func _dilim_keeps_her_bestiary(profile: Node) -> void:
+	profile.call("reset_progress")
+	var level := await _open("res://level_4.tscn")
+	for _frame in range(4):
+		await physics_frame
+	var bestiary: DiaryPage2D = null
+	for node in level.find_children("*", "DiaryPage2D", true, false):
+		if (node as DiaryPage2D).entry_id == "dilim":
+			bestiary = node
+	var spawn := level.get_node("EnvironmentBaseplate/GameplayPlane/SpawnPoint") as Node2D
+	var nuno := level.get_node("EnvironmentBaseplate/GameplayPlane/Obstacles/L4_NUNO") as Node2D
+	var on_ground := false
+	if bestiary != null:
+		var ground := PhysicsRayQueryParameters2D.create(bestiary.global_position + Vector2(0.0, -4.0),
+			bestiary.global_position + Vector2(0.0, 6.0), PhysicsLayers.WORLD)
+		on_ground = not level.get_world_2d().direct_space_state.intersect_ray(ground).is_empty()
+	_check(bestiary != null and bestiary.global_position.x > spawn.global_position.x
+			and bestiary.global_position.x < nuno.global_position.x - 1000.0 and on_ground
+			and bestiary.reach > 94.0,
+		"Dilim's bestiary lies a few steps in, on the ground, more than a jump's height wide",
+		"at %s, on the ground %s, reach %d" % [bestiary.global_position if bestiary != null else "-",
+			on_ground, int(bestiary.reach) if bestiary != null else 0])
+
+	var pages: Dictionary = (level.get_script() as GDScript).get_script_constant_map().get("BESTIARY_PAGES", {})
+	var anchors: Array[String] = []
+	for page: Variant in Diary.entry("dilim").get("pages", []):
+		anchors.append(Diary.page_anchor(page))
+	var missing: Array[String] = []
+	for beat: String in pages:
+		if not anchors.has(String(pages[beat])):
+			missing.append(beat)
+	_check(pages.size() == 8 and missing.is_empty(), "every creature's beat has its page in the bestiary",
+		"%d beats" % pages.size() if missing.is_empty() else "no page for %s" % ", ".join(missing))
+
+	# Reached without it: her words, and no book.
+	var overlay := level.get("diary_overlay") as DiaryOverlay
+	var lines: Object = level.get("script_lines")
+	level.call("_on_obstacle_arrived", "L4_NUNO")
+	await process_frame
+	_check(not overlay.is_open() and bool(lines.call("has_heard", "L4_NUNO.enter")),
+		"a creature reached without her bestiary is only her words", "book open %s" % overlay.is_open())
+
+	# Reached with it: the book at the creature's page first, and her words once it is put down
+	# (the run is unattended, so it puts itself down -- DiaryOverlay.AUTO_HOLD).
+	profile.call("record_diary_page", "dilim")
+	level.call("_on_obstacle_arrived", "L4_SIGBIN")
+	await process_frame
+	var spread := " ".join(overlay.book().page_texts())
+	var first := overlay.is_open() and spread.contains("THE SIGBIN") \
+		and (overlay.find_child("Note", true, false) as Label).text == "She wrote about this one." \
+		and not bool(lines.call("has_heard", "L4_SIGBIN.enter"))
+	for _frame in range(120):
+		await process_frame
+		if not overlay.is_open():
+			break
+	await process_frame
+	var then := not overlay.is_open() and bool(lines.call("has_heard", "L4_SIGBIN.enter"))
+	_check(first and then, "reached with it, the book opens at its page, and her words come after",
+		"open at its page %s, then said %s" % [first, then])
+	level.queue_free()
+	await process_frame
+
+	var said: Array[String] = []
+	var dialogue: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://config/dialogue_l4.json"))
+	for line: Variant in (dialogue as Dictionary).get("lines", []):
+		if String((line as Dictionary).get("text", "")).contains("Lola said"):
+			said.append(String((line as Dictionary).get("id", "")))
+	var tutorial := FileAccess.get_file_as_string("res://config/tutorial.json")
+	if tutorial.contains("Lola said never to run"):
+		said.append("tutorial walk_past")
+	_check(said.is_empty(), "no line in Dilim says \"Lola said\": it is in her hand now",
+		"none" if said.is_empty() else ", ".join(said))
 
 
 func _open(scene: String) -> Node:

@@ -36,6 +36,12 @@ const TITLE := "A page of her diary"
 
 ## Which entry of config/diary.json this is.
 @export var entry_id := ""
+## How near she comes before it is found. A page she must not miss -- Dilim's bestiary, which
+## the woods' creatures open at -- is given more than a jump's height, so it cannot be hopped over.
+@export var reach := REACH
+## Set down where the level has no floor plan to read a height off (Dilim's woods): on the first
+## physics frame it drops onto the ground beneath it.
+@export var settles := false
 
 var _art: Sprite2D
 var _clock := 0.0
@@ -66,6 +72,23 @@ func _ready() -> void:
 	_tag.visible = false
 	layer.add_child(_tag)
 	_tag.draw.connect(func() -> void: SatchelPickup2D.draw_name_tag(_tag, TITLE))
+	if settles:
+		_settle.call_deferred()
+
+
+## Down onto whatever world is under it, within SETTLE_DEPTH. A physics frame first: a ray cast
+## before the space has its bodies finds nothing.
+const SETTLE_DEPTH := 800.0
+
+
+func _settle() -> void:
+	await get_tree().physics_frame
+	var from := global_position + Vector2(0.0, -SETTLE_DEPTH * 0.25)
+	var ray := PhysicsRayQueryParameters2D.create(from, from + Vector2(0.0, SETTLE_DEPTH),
+		PhysicsLayers.WORLD)
+	var hit := get_world_2d().direct_space_state.intersect_ray(ray)
+	if not hit.is_empty():
+		global_position = (hit["position"] as Vector2).round()
 
 
 func _process(delta: float) -> void:
@@ -86,7 +109,7 @@ func _process(delta: float) -> void:
 ## Where she is now. True when she is standing over it and it is still lying there: found.
 func notice(at: Vector2) -> bool:
 	_her_distance = at.distance_to(global_position)
-	return not _taken and _her_distance <= REACH
+	return not _taken and _her_distance <= reach
 
 
 func tag_wanted() -> bool:

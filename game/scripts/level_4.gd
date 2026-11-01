@@ -614,6 +614,55 @@ func _build_level_furniture() -> void:
 	for node in find_children("*", "CharacterBody2D", true, false):
 		_on_node_added(node)
 	_drops.randomize()
+	_drop_the_bestiary()
+
+
+# --- Her bestiary --------------------------------------------------------------------------
+
+## HER BESTIARY (DIARY.md; Kent: "a diary entry that shows the monster and their weaknesses /
+## what do with them instead of the apo saying 'lola said this' lola said that"). Found a few
+## steps into the woods, before anything in them has moved; and the first time she reaches each
+## creature the book opens at its page by itself, and her own words come after. So what Lola
+## taught her is read in Lola's hand, and the apo only says what she sees.
+const BESTIARY := "dilim"
+## Where it lies: this far into the woods from where she comes in, on the ground.
+const BESTIARY_IN := 300.0
+## More than a jump's height (R1 is 94 px): the page every creature opens at cannot be hopped over.
+const BESTIARY_REACH := 130.0
+## Each creature, by the beat it is, and the page of hers about it. The finale's page is the
+## tik-tik's, the one thing in the night she has not met on the way.
+const BESTIARY_PAGES := {
+	"L4_NUNO": "nuno",
+	"L4_SIGBIN": "sigbin",
+	"L4_TIKBALANG": "tikbalang",
+	"L4_KAPRE": "kapre",
+	"L4_TIYANAK": "tiyanak",
+	"L4_BUNGISNGIS": "bungisngis",
+	"L4_MANANANGGAL": "manananggal",
+	"L4_FINALE": "tiktik",
+}
+## What the apo thinks as the book opens -- the overlay's note, not a line of hers.
+const BESTIARY_NOTE := "She wrote about this one."
+
+
+func _drop_the_bestiary() -> void:
+	var spawn := get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/SpawnPoint") as Node2D
+	var plane := get_node_or_null(^"EnvironmentBaseplate/GameplayPlane")
+	if spawn == null or plane == null:
+		return
+	var page := DiaryPage2D.new()
+	page.name = "Bestiary"
+	page.entry_id = BESTIARY
+	page.reach = BESTIARY_REACH
+	page.settles = true
+	page.position = spawn.position + Vector2(BESTIARY_IN, 0.0)
+	plane.add_child(page)
+
+
+func _diary_page_on_arrival(obstacle_id: String) -> Dictionary:
+	if not BESTIARY_PAGES.has(obstacle_id):
+		return {}
+	return {"entry": BESTIARY, "anchor": String(BESTIARY_PAGES[obstacle_id]), "note": BESTIARY_NOTE}
 
 
 ## INK COMES BACK AT A CLEARING (Kent: "a single clearing restores both"). On arriving, before the

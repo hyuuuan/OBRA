@@ -13,6 +13,9 @@ extends ModalOverlay
 signal dismissed()
 
 const LAYER := 68
+## How long the book stays open in an unattended run before it puts itself down. Long enough for a
+## probe to see it open; short enough that a run walking past a page does not stall on it.
+const AUTO_HOLD := 0.5
 
 var _title: Label
 var _note: Label
@@ -42,6 +45,31 @@ func present(entry_id: String, anchor: String = "", title: String = "A PAGE OF H
 	_book.set_entries(only)
 	_book.open_at(entry_id, anchor)
 	open()
+	if _unattended():
+		_put_down_soon()
+
+
+## ⚠ AN UNATTENDED RUN PUTS IT DOWN BY ITSELF, the way it drops a line of dialogue. A page opens
+## over a paused game, and every probe that walked over one, or into a Dilim creature whose page
+## opens on arrival, stopped there with nobody to press CONTINUE. The suites already tell the
+## dialogue box to dismiss itself (DialogueBox.set_auto_dismiss); the book asks the box. It hides
+## the same pause bugs that does -- turn it off when chasing one.
+func _unattended() -> bool:
+	var box := get_tree().get_first_node_in_group(DialogueBox.GROUP)
+	return box != null and bool(box.get(&"auto_dismiss"))
+
+
+## Only the page it was started for: a timer left from a page already put down must not close
+## the next one early.
+var _shown := 0
+
+
+func _put_down_soon() -> void:
+	_shown += 1
+	var this_one := _shown
+	await get_tree().create_timer(AUTO_HOLD, true).timeout
+	if is_open() and this_one == _shown:
+		close()
 
 
 func book() -> DiaryBook:
