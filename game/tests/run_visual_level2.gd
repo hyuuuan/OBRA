@@ -46,6 +46,11 @@ func _run() -> void:
 	if choice != null and choice.has_method("close"):
 		choice.call("close")
 	await _wait(0.4)
+	if OS.get_cmdline_user_args().has("--alley2"):
+		var ok := await _look_at_alley2()
+		print("OBRA_VISUAL_ALLEY2_%s" % ("OK" if ok else "FAILED"))
+		quit(0 if ok else 1)
+		return
 	if OS.get_cmdline_user_args().has("--alley1"):
 		var ok := await _look_at_alley1()
 		print("OBRA_VISUAL_ALLEY1_%s" % ("OK" if ok else "FAILED"))
@@ -315,14 +320,63 @@ func _look_at_alley1() -> bool:
 	return line.still_a_ceiling()
 
 
-func _climb_and_cut(line: BandaritaLine2D, room: PiyestaRoom2D) -> bool:
+## Enter through the same room transfer as gameplay, inspect the two approaches and every
+## market frame, then cut and restore the live line against the moving background.
+func _look_at_alley2() -> bool:
+	(level.get("chancel") as ChurchInterior2D).kandila_on_rack = true
+	(level.get("church") as PiyestaRoom2D).open_onward()
+	level.call("_go_onward", level.get("alley_1"))
+	var choice := level.get_node(^"DialogueChoiceOverlay")
+	var deadline := Time.get_ticks_msec() + 5000
+	while not bool(choice.call("is_open")) and Time.get_ticks_msec() < deadline:
+		await process_frame
+	if not bool(choice.call("is_open")):
+		push_error("Alley 2 visual harness: entry never offered its routes")
+		return false
+	choice.call("_on_route_pressed", "pragmatist")
+	await _wait(1.0)
+	var room := level.get("alley_2") as PiyestaRoom2D
+	for step in [[room.entry_point().x, "entry"], [room.global_position.x, "middle"],
+			[room.return_point().x, "onward"]]:
+		level.call("_step_through", Vector2(float(step[0]), room.global_position.y - 4.0))
+		await _wait(0.9)
+		await _capture("alley2_%s" % step[1])
+	level.call("_step_through", room.global_position - Vector2(0.0, 4.0))
+	await _wait(0.9)
+	var seen: Dictionary = {}
+	deadline = Time.get_ticks_msec() + 4000
+	while seen.size() < 4 and Time.get_ticks_msec() < deadline:
+		var frame := int(room.call("animation_frame"))
+		if not seen.has(frame):
+			await _capture("alley2_frame_%02d" % (frame + 1))
+			seen[frame] = true
+		await process_frame
+	if seen.size() != 4:
+		push_error("Alley 2 visual harness: market animation did not advance through all frames")
+		return false
+	var line := room.get_node("Bandaritas") as BandaritaLine2D
+	if not await _climb_and_cut(line, room, "L2_N3"):
+		push_error("Alley 2 visual harness: live bunting could not be cut")
+		return false
+	await _wait(0.25)
+	await _capture("alley2_falling")
+	await _wait(0.8)
+	await _capture("alley2_cut")
+	level.call("_restore_checkpoint")
+	await _wait(0.9)
+	await _capture("alley2_restored")
+	return line.still_a_ceiling()
+
+
+func _climb_and_cut(line: BandaritaLine2D, room: PiyestaRoom2D,
+		obstacle_id: String = "L2_N2") -> bool:
 	level.call("_step_through", Vector2(line.middle().x, room.global_position.y - 4.0))
 	await _wait(0.4)
 	_visual_draw("ladder")
 	await _wait(0.2)
 	var slot := int(level.call("_slot_holding", "ladder"))
 	if slot < 0:
-		push_error("Alley 1 visual harness: ladder did not enter the inventory")
+		push_error("Alley visual harness: ladder did not enter the inventory")
 		return false
 	level.call("_on_inventory_slot_pressed", slot)
 	await _wait(0.1)
@@ -339,7 +393,7 @@ func _climb_and_cut(line: BandaritaLine2D, room: PiyestaRoom2D) -> bool:
 		if drawn != null and drawn.item_data != null and drawn.item_data.entity_id == "ladder":
 			ladder = drawn
 	if ladder == null:
-		push_error("Alley 1 visual harness: ladder could not be set under the strings")
+		push_error("Alley visual harness: ladder could not be set under the strings")
 		return false
 	_visual_draw("scissors")
 	await _wait(0.2)
@@ -349,7 +403,7 @@ func _climb_and_cut(line: BandaritaLine2D, room: PiyestaRoom2D) -> bool:
 	await _wait(4.0)
 	level.call("_use_equipped_utility")
 	Input.action_release(&"move_up")
-	return line.is_cut() and bool(level.get("director").call("is_solved", "L2_N2"))
+	return line.is_cut() and bool(level.get("director").call("is_solved", obstacle_id))
 
 
 func _visual_draw(entity_id: String) -> void:
