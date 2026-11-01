@@ -27,6 +27,10 @@ OUTPUT
 (the last) is the book at rest; 0..7 in order is one page turned from right to left, and played
 backwards it is a page turned back.
 
+`game/assets/hud/diary_page.png`: one loose page of it, lying in a level to be found
+(DiaryPage2D). The delivery has no loose page, so it is drawn here, in the book's own five
+colours -- a PLACEHOLDER, named in ART_PLACEHOLDERS.md: a folded sheet with her lines on it.
+
 Usage:
     .venv/bin/python tools/build_diary_book.py           # write the strip
     .venv/bin/python tools/build_diary_book.py --check   # verify it is up to date
@@ -42,6 +46,34 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "HUD-assets-ideas" / "Book-Inventory-Animation.gif"
 OUT = ROOT / "game" / "assets" / "hud" / "diary_book.png"
+PAGE_OUT = ROOT / "game" / "assets" / "hud" / "diary_page.png"
+
+# The loose page, a pixel to a character, in the book's own colours: K its dark edge, P the paper,
+# S the paper in shade, F the folded-down corner, I her ink.
+PAGE = [
+    "KKKKKKKKKK....",
+    "KPPPPPPPPPK...",
+    "KPPPPPPPPPFK..",
+    "KPPPPPPPPPFFK.",
+    "KPIIIPIIPPKKKK",
+    "KPPPPPPPPPPPSK",
+    "KPIIPIIIIPIPSK",
+    "KPPPPPPPPPPPSK",
+    "KPIIIIPIIIPPSK",
+    "KPPPPPPPPPPPSK",
+    "KPIPIIIPIIIPSK",
+    "KPPPPPPPPPPPSK",
+    "KPIIIPIIPPPPSK",
+    "KPPPPPPPPPPPSK",
+    "KPIIPIIIPPPPSK",
+    "KPPPPPPPPPPPSK",
+    "KSSSSSSSSSSSSK",
+    "KKKKKKKKKKKKKK",
+]
+PAGE_COLOURS = {
+    "K": (62, 39, 49, 255), "P": (234, 212, 170, 255), "S": (194, 133, 105, 255),
+    "F": (228, 166, 114, 255), "I": (115, 62, 57, 255), ".": (0, 0, 0, 0),
+}
 
 # One page turn: blank, the page lifting, crossing and settling, blank (GIF frames 1..8).
 TURN = range(1, 9)
@@ -92,21 +124,29 @@ def build() -> Image.Image:
     return strip
 
 
+def loose_page() -> Image.Image:
+    rows = [[PAGE_COLOURS[ch] for ch in row] for row in PAGE]
+    return Image.fromarray(np.array(rows, dtype=np.uint8), "RGBA")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--check", action="store_true", help="fail if the strip is out of date")
     args = parser.parse_args()
-    strip = build()
+    made = {OUT: build(), PAGE_OUT: loose_page()}
     if args.check:
-        if not OUT.exists():
-            sys.exit("missing: %s" % OUT.relative_to(ROOT))
-        if not np.array_equal(np.array(Image.open(OUT).convert("RGBA")), np.array(strip)):
-            sys.exit("out of date: %s -- run tools/build_diary_book.py" % OUT.relative_to(ROOT))
-        print("diary book: up to date (%d frames of %d x %d)" % (len(TURN), strip.width // len(TURN), strip.height))
+        for path, image in made.items():
+            if not path.exists():
+                sys.exit("missing: %s" % path.relative_to(ROOT))
+            if not np.array_equal(np.array(Image.open(path).convert("RGBA")), np.array(image)):
+                sys.exit("out of date: %s -- run tools/build_diary_book.py" % path.relative_to(ROOT))
+        print("diary book and page: up to date (%d frames of %d x %d)"
+              % (len(TURN), made[OUT].width // len(TURN), made[OUT].height))
         return
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    strip.save(OUT)
-    print("wrote %s (%d frames of %d x %d)" % (OUT.relative_to(ROOT), len(TURN), strip.width // len(TURN), strip.height))
+    for path, image in made.items():
+        image.save(path)
+        print("wrote %s (%d x %d)" % (path.relative_to(ROOT), image.width, image.height))
 
 
 if __name__ == "__main__":

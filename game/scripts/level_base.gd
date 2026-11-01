@@ -839,6 +839,8 @@ func _build_obstacle_layer() -> void:
 	# The level's own props, locks and rooms: after the director and the checkpoints exist
 	# (they are what furniture wires itself to) and before the obstacle volumes below.
 	_build_level_furniture()
+	# And the pages of her diary it laid out, which may be part of that furniture.
+	_lay_out_diary_pages()
 
 	# Checkpoints you walk into, for the beats with no dialogue to hang one on.
 	for node in get_tree().get_nodes_in_group(&"checkpoint_areas"):
@@ -3811,6 +3813,7 @@ func _physics_process(_delta: float) -> void:
 			anchor_position = anchor.global_position
 	_level_physics(anchor_position)
 	_tend_the_fading(anchor_position.x)
+	_tend_diary_pages(anchor_position)
 	_mantle_onto_a_drawing()
 	# The bag no longer stands down while the apo moves -- see InventoryHUD. It stays in its
 	# corner and thins out only while she is actually standing behind it.
@@ -4456,6 +4459,34 @@ func find_diary_page(entry_id: String) -> void:
 	diary_overlay.present(entry_id)
 	if diary_overlay.is_open():
 		await diary_overlay.dismissed
+
+
+## LOOSE PAGES OF HER DIARY, LYING IN THE LEVEL (DiaryPage2D). Nothing for a level that places
+## none. One this save already holds is not there -- found is found for the run, like a flower --
+## and walking over the rest finds them (`_tend_diary_pages`).
+var _diary_pages: Array[DiaryPage2D] = []
+
+
+func _lay_out_diary_pages() -> void:
+	_diary_pages.clear()
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	for node in get_tree().get_nodes_in_group(DiaryPage2D.GROUP):
+		var page := node as DiaryPage2D
+		if page == null or not is_ancestor_of(page):
+			continue
+		if profile != null and bool(profile.call(&"has_diary_page", page.entry_id)):
+			page.queue_free()
+			continue
+		_diary_pages.append(page)
+
+
+## Each page is told where she is; the one she is standing over is found.
+func _tend_diary_pages(at: Vector2) -> void:
+	for page in _diary_pages:
+		if is_instance_valid(page) and page.notice(at):
+			page.take()
+			find_diary_page(page.entry_id)
+			return
 
 
 ## The bag, opened deliberately. Refused while the drawing panel is up or something is being

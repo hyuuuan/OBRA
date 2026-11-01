@@ -384,6 +384,15 @@ visual, and how a player who cannot hear plays the level -- and the glint is the
 before every strike. Like Dagat's sweep cone, art may restyle them; it may not take them away.
 The darkness itself (`DarknessLayer`) is gameplay too: `LightField` decides what is lit.
 
+## Lola's diary (every level)
+
+| | Now | Where | Replace with |
+|---|---|---|---|
+| **A loose page of her diary** | A 14 × 18 folded sheet with her lines on it, drawn pixel by pixel in the diary book's own five colours, shown at 2×, a little askew and bobbing. It has to say: *a page of a diary, dropped here, worth picking up*. | `game/assets/hud/diary_page.png` (`tools/build_diary_book.py`, `PAGE`), `game/scripts/diary_page_2d.gd` | A hand-drawn loose page of the same book; keep its foot at the bottom edge. |
+
+The book itself (`game/assets/hud/diary_book.png`) is not a placeholder: it is the delivered page
+turn from `HUD-assets-ideas/Book-Inventory-Animation.gif`, with its tabs keyed out.
+
 ## Where to start
 
 1. **The bulul** — small, the one with the least room for error, and the only prop here

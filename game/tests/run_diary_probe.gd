@@ -11,7 +11,7 @@ extends SceneTree
 ## in place of the pockets and cards, at the same size. A FOUND PAGE is kept before it is shown.
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 17
+const CHECKS := 20
 
 const ENTITIES_PATH := "res://config/entities.json"
 ## The fifty in Filipino, as a player in the Philippines might write them. Not "bangka" (the
@@ -45,6 +45,7 @@ func _run() -> void:
 	await _the_book_turns(profile)
 	await _the_bag_has_a_diary_tab(profile)
 	await _a_found_page_is_kept_then_shown(profile)
+	await _piyesta_drops_a_page_in_each_room(profile)
 	profile.call("reset_progress")
 	if checked != CHECKS:
 		failures += 1
@@ -320,6 +321,77 @@ func _a_found_page_is_kept_then_shown(profile: Node) -> void:
 		"closed %s, dismissed %s, paused %s" % [not overlay.is_open(), _dismissed, paused])
 	level.queue_free()
 	await process_frame
+
+
+# --- Pages lying in a level ---------------------------------------------------------
+
+## Piyesta: one in the nave and one in each alley between its doors; walked into, a page is found
+## and the book opens; and a page this save already holds is not lying there next time.
+func _piyesta_drops_a_page_in_each_room(profile: Node) -> void:
+	profile.call("reset_progress")
+	var level := await _open("res://level_2.tscn")
+	var where := {}
+	for node in level.find_children("*", "DiaryPage2D", true, false):
+		var page := node as DiaryPage2D
+		where[page.entry_id] = page
+	var placed: Array[String] = []
+	var rooms := {"piyesta_church": "church", "piyesta_alley_1": "alley_1", "piyesta_alley_2": "alley_2"}
+	for entry_id: String in rooms:
+		var page := where.get(entry_id) as DiaryPage2D
+		var room := level.get(String(rooms[entry_id])) as Node2D
+		if page == null or room == null or page.get_parent() != room:
+			continue
+		var span := Vector2(-float(room.get("room_length")) * 0.5, float(room.get("room_length")) * 0.5)
+		if entry_id != "piyesta_church":
+			span = level.call("_between_the_doors", room)
+		if page.position.x > span.x and page.position.x < span.y and is_zero_approx(page.position.y):
+			placed.append(entry_id)
+	_check(where.size() == 3 and placed.size() == 3,
+		"Piyesta lays a page in the nave and in each alley, on the floor she walks",
+		"%d pages, %s on their floors" % [where.size(), ", ".join(placed)])
+
+	# Walked into, as a player does: she is set down on the nave's floor where it lies.
+	var church_page := where.get("piyesta_church") as DiaryPage2D
+	var player := level.get("player") as Node2D
+	var overlay := level.get("diary_overlay") as DiaryOverlay
+	if church_page != null and player != null:
+		player.global_position = church_page.global_position + Vector2(0.0, -30.0)
+		for _frame in range(30):
+			await physics_frame
+			if overlay.is_open():
+				break
+	var found := bool(profile.call("has_diary_page", "piyesta_church"))
+	_check(found and overlay.is_open() and overlay.book().page_texts()[0].begins_with("Fiesta Sunday")
+		and (church_page == null or not is_instance_valid(church_page) or church_page.is_taken()),
+		"walked into, a page is found and the book opens at it",
+		"kept %s, book open %s" % [found, overlay.is_open()])
+	overlay.close()
+	level.queue_free()
+	await process_frame
+
+	level = await _open("res://level_2.tscn")
+	await process_frame
+	var left: Array[String] = []
+	for node in level.find_children("*", "DiaryPage2D", true, false):
+		if not (node as DiaryPage2D).is_queued_for_deletion():
+			left.append((node as DiaryPage2D).entry_id)
+	left.sort()
+	_check(left == ["piyesta_alley_1", "piyesta_alley_2"], "a page already found is not lying there again",
+		"left lying: %s" % ", ".join(left))
+	level.queue_free()
+	await process_frame
+
+
+func _open(scene: String) -> Node:
+	var level := (load(scene) as PackedScene).instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	for _frame in range(30):
+		await physics_frame
+	call_group(DialogueBox.GROUP, &"hide_line")
+	paused = false
+	return level
 
 
 func _on_dismissed() -> void:

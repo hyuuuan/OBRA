@@ -255,6 +255,34 @@ func _build_level_furniture() -> void:
 	_furnish_the_church()
 	_bring_out_the_dancers()
 	_build_the_alleys()
+	_drop_her_pages()
+
+
+## HER DIARY, THREE PAGES OF IT (DIARY.md; Kent: "the diary entry should be in the church and the
+## different alleys"). One in each of the rooms she has to walk through -- the nave on the way to
+## the candle rack, and each alley between its doors, where its pieces come down -- so they are
+## found on the way and not hunted for. Where each lies is a share of the floor it is on: the
+## nave from its left wall, an alley from its way in to its way on. LevelBase does the rest.
+const DIARY_PAGES := [
+	["church", "piyesta_church", 0.26],
+	["alley_1", "piyesta_alley_1", 0.4],
+	["alley_2", "piyesta_alley_2", 0.6],
+]
+
+
+func _drop_her_pages() -> void:
+	for spec: Array in DIARY_PAGES:
+		var room := get(String(spec[0])) as PiyestaRoom2D
+		if room == null:
+			continue
+		var span := Vector2(-room.room_length * 0.5, room.room_length * 0.5)
+		if room != church:
+			span = _between_the_doors(room)
+		var page := DiaryPage2D.new()
+		page.name = "DiaryPage"
+		page.entry_id = String(spec[1])
+		page.position = Vector2(roundf(lerpf(span.x, span.y, float(spec[2]))), 0.0)
+		room.add_child(page)
 
 
 ## Where the fold runs, in world x at the top of the painting, and how far it has wandered by

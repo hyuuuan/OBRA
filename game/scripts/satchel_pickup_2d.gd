@@ -101,9 +101,15 @@ func tag_shown() -> float:
 
 
 func _draw_tag() -> void:
+	draw_name_tag(_tag, title)
+
+
+## A thing's name on a soft tag, centred over `canvas`'s origin. Shared with DiaryPage2D, so
+## everything lying in a level to be picked up is named the same way.
+static func draw_name_tag(canvas: CanvasItem, text: String) -> void:
 	var theme := ThemeDB.get_project_theme()
 	var font: Font = theme.default_font if theme != null and theme.default_font != null else ThemeDB.fallback_font
-	var text_size := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_FONT)
+	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_FONT)
 	var box := Rect2(Vector2(-text_size.x * 0.5, -text_size.y) - TAG_PAD, text_size + TAG_PAD * 2.0)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(UISkin.PANEL, 0.88)
@@ -111,9 +117,9 @@ func _draw_tag() -> void:
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(7)
 	style.anti_aliasing = true
-	_tag.draw_style_box(style, box)
-	_tag.draw_string(font, Vector2(-text_size.x * 0.5, -text_size.y + font.get_ascent(TAG_FONT)),
-		title, HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_FONT, UISkin.CREAM_TEXT)
+	canvas.draw_style_box(style, box)
+	canvas.draw_string(font, Vector2(-text_size.x * 0.5, -text_size.y + font.get_ascent(TAG_FONT)),
+		text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_FONT, UISkin.CREAM_TEXT)
 
 
 func is_taken() -> bool:
