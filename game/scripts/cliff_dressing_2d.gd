@@ -28,6 +28,10 @@ extends Node2D
 ## draws for it, standing its own art down -- and may answer `undressed_ground()`: ground that
 ## keeps its own top but whose face this draws, and which closes or lowers an end beside it.
 @export var ground_group: StringName = &""
+## Only the group's bodies of this kind (`ground_kind()`) are drawn here; the rest only close the
+## ends beside them, through `ground_rects()`, which changes nothing about them. Dilim's mud and
+## its rocks are two dressings over one group. Empty: every body in the group.
+@export var kind := ""
 ## The light on the ground. A night level grades its whole kit by it.
 @export var tint := Color.WHITE
 
@@ -61,6 +65,8 @@ var _plants: Array[Texture2D] = []
 var _ground: Array[Rect2] = []
 var _ledges: Array[Rect2] = []
 var _others: Array[Rect2] = []
+## Ground another dressing draws: it closes or lowers an end here and is not drawn.
+var _neighbours: Array[Rect2] = []
 ## Every open end, as {rect, side (-1 left, 1 right), rise (0 at a free end)}.
 var _ends: Array[Dictionary] = []
 var _caps: Node2D
@@ -102,7 +108,7 @@ func _load_kit() -> void:
 
 
 ## Hand over the ground, in this node's space. Thin pieces are drawn as loose shelves.
-func dress(ground: Array[Rect2], others: Array[Rect2] = []) -> void:
+func dress(ground: Array[Rect2], others: Array[Rect2] = [], neighbours: Array[Rect2] = []) -> void:
 	_ground.clear()
 	_ledges.clear()
 	for rect in ground:
@@ -111,6 +117,7 @@ func dress(ground: Array[Rect2], others: Array[Rect2] = []) -> void:
 		else:
 			_ground.append(rect)
 	_others = others.duplicate()
+	_neighbours = neighbours.duplicate()
 	_ends = exposed_ends()
 	queue_redraw()
 	if _caps != null:
@@ -121,7 +128,7 @@ func dress(ground: Array[Rect2], others: Array[Rect2] = []) -> void:
 ## riser (its height is the end's `rise`); nothing beside it leaves a free end (rise 0).
 func exposed_ends() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	var meets: Array[Rect2] = _ground + _others
+	var meets: Array[Rect2] = _ground + _others + _neighbours
 	for rect in _ground:
 		for side in [-1, 1]:
 			var edge := rect.position.x if side < 0 else rect.end.x
@@ -168,8 +175,14 @@ func _collect() -> void:
 	var environment := _environment()
 	var ground: Array[Rect2] = []
 	var others: Array[Rect2] = []
+	var neighbours: Array[Rect2] = []
 	for body in get_tree().get_nodes_in_group(ground_group):
 		if environment != null and not environment.is_ancestor_of(body):
+			continue
+		if kind != "" and body.has_method("ground_kind") and String(body.call("ground_kind")) != kind:
+			# ⚠ ground_rects(), never dressed_ground(): that would stand the other kind's art down.
+			for rect: Rect2 in body.call("ground_rects"):
+				neighbours.append(_local(rect))
 			continue
 		if body.has_method("dressed_ground"):
 			for rect: Rect2 in body.call("dressed_ground"):
@@ -177,7 +190,7 @@ func _collect() -> void:
 		if body.has_method("undressed_ground"):
 			for rect: Rect2 in body.call("undressed_ground"):
 				others.append(_local(rect))
-	dress(ground, others)
+	dress(ground, others, neighbours)
 
 
 ## The environment this belongs to, so a second level loaded alongside (a test) is not dressed.
