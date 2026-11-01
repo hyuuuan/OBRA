@@ -40,7 +40,7 @@ in three waves until dawn.
 | The tally | Every encounter's route is logged for the thesis telemetry, but the ending gets **one point from Dilim**: its majority route. Six forks must not decide the ending alone. |
 | "Absurd" | The bungisngis laughs itself helpless at **sea things in a forest**: fish, shark, octopus, sailboat, submarine. The game can only see a class, so the joke had to be a set of classes. |
 | Quick slots | Four, on **Z X C V**. Z/X rotate a drawing only while placing, and quick slots are off while placing. |
-| Creature art | **Sculpted pixel strips**, in the delivered art's idiom: chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour (`tools/creature_sculpt.py`). Replaceable by name when the art team delivers -- and three are now theirs: the kapre, the manananggal and a white lady as the lean aswang (`Creatures.zip`, cut by `tools/build_dilim_delivered.py`). |
+| Creature art | **Sculpted pixel strips**, in the delivered art's idiom: chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour (`tools/creature_sculpt.py`). Replaceable by name when the art team delivers -- the kapre, the manananggal and a white lady as the lean aswang came in `Creatures.zip`; the crawling aswang sheet was supplied on 2026-11-01. All four are cut by `tools/build_dilim_delivered.py`. |
 | Defaults taken | Shift = walk (the santelmo's rule needs one). The opening is design Draft A, naming the manananggal and the tikbalang, played as the level's intro. |
 
 ## Flow
@@ -156,8 +156,10 @@ What the build does that the design above does not say, and what it does not do 
 
 - **Creature art.** Three are the art team's (`Creatures.zip`, 2026-10-20, kept as delivered in
   `LEVEL4_Creatures/`, cut by `tools/build_dilim_delivered.py`): the kapre, the manananggal (both
-  halves) and a white lady, who is the lean aswang (Kent, 2026-10-21). Every other is a sculpted
-  strip a developer drew -- the old aswang, santelmo, nuno's mound, sigbin, tikbalang, the kapre's
+  halves) and a white lady, who is the lean aswang (Kent, 2026-10-21). A fourth supplied sheet,
+  `LEVEL4_Creatures/ASWANG/aswang.png` (2026-11-01), replaces the old/hulking aswang with a pale,
+  black-haired crawler with a long red tongue. Every other is a sculpted
+  strip a developer drew -- santelmo, nuno's mound, sigbin, tikbalang, the kapre's
   balete (standing and felled), tiyanak, bungisngis, wakwak and tik-tik -- standing in for an
   artist's (`ART_PLACEHOLDERS.md` names every strip; `run_visual_dilim_creatures` lays them side by
   side in her light). Each script's own code-drawn body is the fallback while a strip is missing. Her hurt
@@ -166,7 +168,12 @@ What the build does that the design above does not say, and what it does not do 
 - **The aswang is the thing itself, not a dog or a pig** (Kent, 2026-10-20: an aswang "if you search
   the internet is not like that"). The two kinds the waves send keep their names and settings:
   `aswang_dog` is now the art team's white lady -- long black hair, a pale face, a bloodied white
-  kimono, gliding at her -- and `aswang_pig` an old, hulking, humped crawler, its hair streaked grey.
+  kimono, gliding at her -- and `aswang_pig` uses the supplied crawling aswang sheet: pale skin,
+  long black hair, red eyes and a long red tongue. Its breathing and walk cycles, claw windup
+  and strike, and hurt poses come from that sheet; death fades a hurt pose. The internal kind
+  and combat settings stay the same. Only the `aswang_pig` artwork changed on 2026-11-01.
+  Its darkest hair matches the sheet's panel: source matte landmarks restore those pixels,
+  including the open-ended front lock, while the gaps between the limbs stay transparent.
 - **The kapre in its tree** (Kent, 2026-10-20: "more detailed and make more sense"; the art team's
   kapre since 2026-10-22). It stands on a branch of the balete 170 px up -- its sheet calls it "small
   in form, but still strangely imposing", and it stands half again her height (Kent, 2026-10-22:

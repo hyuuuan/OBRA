@@ -32,6 +32,7 @@ const SkinClass = preload("res://scripts/drawing_skin_2d.gd")
 ## to parse in every one of the probes that loads this level.
 const BakunawaClass = preload("res://scripts/bakunawa_2d.gd")
 const LifeClass = preload("res://scripts/dagat_life_2d.gd")
+const CurrentClass = preload("res://scripts/dagat_current_2d.gd")
 const NextPaintingClass = preload("res://scripts/next_painting_2d.gd")
 ## The house's own painting of the next place -- the picture that hangs in her house for Level 4.
 const NEXT_PAINTING := preload("res://assets/hub/paintings/level_4.png")
@@ -146,8 +147,8 @@ const DRAG_SPEED := 300.0
 var _anvil_lines := 0
 
 ## THE APO'S BREATH. See _breathe. Seconds of it, how fast it comes back at the surface, how deep
-## the head has to be before it is being spent, and how far out from either shore the apo may
-## swim on it before the current turns them back -- the crossing is still a drawing, not a swim.
+## the head has to be before it is being spent, and the calm water beside each shore. Beyond
+## those margins, the visible current carries non-aquatic players left.
 const AIR_SECONDS := 7.0
 const AIR_REFILL := 3.5
 const AIR_DEPTH := 30.0
@@ -155,6 +156,11 @@ const APO_SWIM_REACH := 700.0
 var _air := AIR_SECONDS
 var _air_meter: _AirMeter
 var _told_the_current := false
+var _current: CurrentClass
+var _current_strength := 0.0
+const CURRENT_ACCEL := 1900.0
+const CURRENT_SPEED := 180.0
+const CURRENT_BUILDUP := 0.7
 
 ## THE LIGHT THAT LEADS IT. See _guide_the_bakunawa. How far from the player it reaches, how close
 ## to it the creature has to be to notice it, and how near the cave counts as home.
@@ -285,6 +291,7 @@ func _build_level_furniture() -> void:
 	_release_the_sea_creatures()
 	_scatter_the_ambience()
 	_bring_the_sea_to_life()
+	_build_the_current()
 	call_deferred("_play_the_opening")
 
 	if _bakunawa != null:
@@ -1225,6 +1232,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_watch_the_bakunawa(anchor_position, delta)
 	_guide_the_bakunawa(anchor_position)
 	_breathe(anchor_position, delta)
+	_push_in_the_current(anchor_position, delta)
 	_fish()
 	_mind_the_creatures(anchor_position)
 	# From above the water it is a shape in the dark, not a creature. Kent: "when the player is
@@ -1835,8 +1843,8 @@ func _apo_can_swim() -> bool:
 
 
 ## The breath, spent while the apo's head is under and given back at the top; at nothing, they are
-## carried up -- not reset. And out past APO_SWIM_REACH a current turns them back: the crossing is
-## a drawing's to make, and an apo who could swim it would have no reason to draw anything.
+## carried up -- not reset. The strong current is separate, so it can also act on non-aquatic
+## drawings without mixing their movement into the apo's breath state.
 func _breathe(anchor_position: Vector2, delta: float) -> void:
 	var apo := player as Wanderer
 	if apo == null or not is_instance_valid(apo):
@@ -1847,8 +1855,13 @@ func _breathe(anchor_position: Vector2, delta: float) -> void:
 	apo.can_swim = true
 	var wet := bool(apo.call("is_in_water"))
 	var under := wet and anchor_position.y > _waterline_y + AIR_DEPTH
-	if apo.surfacing and (not wet or anchor_position.y <= _waterline_y + 12.0):
+	# Reaching air must give steering back at the same depth that refills the breath.
+	# A ceiling can hold her in that breathable band without reaching a shallower release line.
+	if apo.surfacing and not under:
 		apo.surfacing = false
+		# Spend the forced rise's momentum too: it otherwise launches her clear of the water,
+		# and the fall back in can exhaust the tiny breath she managed to take on the way past.
+		apo.velocity.y = maxf(apo.velocity.y, 0.0)
 	if under and not apo.surfacing:
 		_air = maxf(0.0, _air - delta)
 		if _air <= 0.0:
@@ -1856,38 +1869,51 @@ func _breathe(anchor_position: Vector2, delta: float) -> void:
 			_say_why("Out of breath — up you come, apo!")
 	elif not under:
 		_air = minf(AIR_SECONDS, _air + AIR_REFILL * delta)
-	# THE CURRENT, past where the apo may swim: it holds them -- swimming further out goes nowhere --
-	# but it does not carry them off and it never takes them back to a checkpoint (Kent: "the return
-	# to last checkpoint should not work here if it is underwater"). Toward the nearer shore they
-	# swim freely, and near a boat freely every way: stepping off the bangka out at sea is allowed
-	# now (Kent: "i should be able to exit the boat whenever"), and getting back in has to be.
-	var out := _distance_out(anchor_position)
-	# In the sea, not only wet: floating at the top the apo bobs clear of the water for a frame at
-	# a time, and that is still the open sea.
-	wet = wet or (out > 0.0 and anchor_position.y > _waterline_y - 40.0)
-	if wet and out > APO_SWIM_REACH and not _near_a_boat(anchor_position):
-		var edges := level_data_shore_edges()
-		var homeward := -1.0 if anchor_position.x - edges.x < edges.y - anchor_position.x else 1.0
-		if apo.velocity.x * homeward < 0.0:
-			# Held, not shoved: the way out is simply closed. Bobbing clear of the water the apo is
-			# on the walk's acceleration for a frame, which a force alone let them creep out on.
-			apo.velocity.x = 0.0
-			apo.apply_external_force(Vector2(homeward * 1500.0, 0.0))
-		if not _told_the_current:
-			_told_the_current = true
-			_say_why("The current is too strong out there, apo. Draw yourself something that can swim.")
 	_show_the_breath(anchor_position, under or _air < AIR_SECONDS - 0.05)
 
 
-## How near a boat the apo swims as freely as by the shore.
-const BOAT_REACH := 450.0
+## One footprint for both the visible leftward streams and the water that pushes the player.
+func _build_the_current() -> void:
+	var edges := level_data_shore_edges()
+	if edges == Vector2.ZERO or _sea == null:
+		return
+	_current = CurrentClass.new()
+	_current.name = "StrongCurrent"
+	_current.waterline_y = _waterline_y
+	_current.water_rect = Rect2(Vector2(edges.x + APO_SWIM_REACH, _waterline_y - 40.0),
+		Vector2(maxf(0.0, edges.y - edges.x - APO_SWIM_REACH * 2.0), BED_Y - _waterline_y + 40.0))
+	_current.camera = _world_camera()
+	_sea.get_parent().add_child(_current)
+	_current.global_position = Vector2.ZERO
 
 
-func _near_a_boat(at: Vector2) -> bool:
-	for boat in _boats():
-		if boat.global_position.distance_to(at) <= BOAT_REACH:
-			return true
-	return false
+## A force, not a velocity clamp: entering it builds a leftward pull, even with no key held.
+## Aquatic forms can handle it; a passenger rows with the boat. Being merely NEAR a boat no
+## longer switches the water off, and the far half of the sea still flows LEFT, not islandward.
+func _push_in_the_current(at: Vector2, delta: float) -> void:
+	if _current == null or not is_instance_valid(player) \
+			or (_restrictions != null and _restrictions.swims(_current_form_id)) \
+			or _boat_carrying_player() != null:
+		_current_strength = 0.0
+		return
+	var strength := _current.strength_at(at)
+	if strength <= 0.0:
+		_current_strength = 0.0
+		return
+	_current_strength = move_toward(_current_strength, strength, delta / CURRENT_BUILDUP)
+	var state: Dictionary = player.call("capture_morph_state") if player.has_method("capture_morph_state") else {}
+	var speed: Vector2 = state.get("linear_velocity", state.get("velocity", Vector2.ZERO))
+	# The pull eases toward a bounded drift rather than accelerating her forever. It never
+	# pushes right, including when the player is already swimming quickly with the flow.
+	var resistance := clampf(1.0 - maxf(0.0, -speed.x) / CURRENT_SPEED, 0.0, 1.0)
+	var force := Vector2(-CURRENT_ACCEL * _current_strength * resistance, 0.0)
+	if player.has_method("apply_external_force"):
+		player.call("apply_external_force", force)
+	elif player is RigidBody2D:
+		(player as RigidBody2D).apply_central_force(force * (player as RigidBody2D).mass)
+	if not _told_the_current:
+		_told_the_current = true
+		_say_why("The current pushes left, apo. Draw yourself something that can swim.")
 
 
 ## How far out into the sea from the nearer shore's edge.

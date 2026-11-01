@@ -709,6 +709,7 @@ const FORGETTING := [[1000.0, "LOLO.forget.1"], [2900.0, "LOLO.forget.2"], [4700
 var _taken: Array[Node2D] = []
 var _going := {}
 var _ash: AshFall2D
+var _wind: Node2D
 var _tremor: ScreenTremor
 var _forgot := 0
 
@@ -725,6 +726,7 @@ func _gather_the_ash() -> void:
 		_taken.append(thing)
 		_going[thing] = false
 	_ash = get_node_or_null(^"EnvironmentBaseplate/WorldCamera/Ash") as AshFall2D
+	_wind = get_node_or_null(^"EnvironmentBaseplate/WorldCamera/Wind") as Node2D
 	_tremor = ScreenTremor.new()
 	_tremor.name = "Eruption"
 	_tremor.every = TREMOR_EVERY
@@ -752,6 +754,8 @@ func _tend_act_one(delta: float, her_x: float) -> void:
 			(thing.get_node("Drainable") as Drainable).drain_to(1.0, float(thing.get_meta("taken_over")))
 	if _ash != null:
 		_ash.density = move_toward(_ash.density, ash_at(her_x), ASH_EASE * delta)
+	if _wind != null:
+		_wind.set("enabled", her_x < SUMMIT_X)
 	if _tremor != null:
 		_tremor.enabled = her_x < SUMMIT_X
 	if _forgot < FORGETTING.size() and her_x >= float(FORGETTING[_forgot][0]):
@@ -779,7 +783,8 @@ const ALL_FLOWERS := 5
 ## What the summit whitens, and how far: the backdrop to paper; the ground she stands on only to a
 ## pale ghost of itself, so the white plateau still shows where she can walk.
 const WHITENED := {"EnvironmentBaseplate/SkyFill": 0.85, "EnvironmentBaseplate/SkyBand": 0.85,
-	"EnvironmentBaseplate/GameplayPlane/Terrain/Cone": 0.55}
+	"EnvironmentBaseplate/GameplayPlane/Terrain/Cone": 0.55,
+	"EnvironmentBaseplate/GameplayPlane/UpperDressing": 0.85}
 
 ## "" below, "quiet", "trying" (the brush raised to her), "lowering", "places", "blooming", "done".
 var _summit := ""

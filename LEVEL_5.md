@@ -342,3 +342,62 @@ Drainable. The shader now reads `COLOR` as it is. Nothing needed retuning. The s
 0.55 ghost still sits clearly under the paper sky, and the fragment builder's `LIGHT_FLOOR` lift
 still holds the dark memories (bakunawa, coral, forest, storm) level with the kubo and the
 waterfall, as it did when it was set.
+
+### Foothill scenery and parallax — 1 November 2026
+
+The lower climb now has broadleaf trees and coconut groves, thinning to two bare snags at the
+treeline and lower cone. Twelve decorative placements are rooted on the existing walk surfaces;
+the span, wall, collision, memories, and summit staging keep their measured layout.
+
+`MayonVista2D` adds transparent foothill and forest panoramas at separate horizontal scroll
+rates (0.12 / 0.28) above a gently panning, overscanned registered vista. Vertical framing stays
+camera-relative so the ascent cannot pull the landscape apart. Mirrored repeats hide panorama
+seams, and bottom-quarter texture chunks continue naturally through the span instead of
+stretching a single pixel row. The forest disappears at the treeline; distant hills give way
+to the summit. All background drawing inherits SkyBand's existing whitening shader.
+
+The two new generated source atlases, prompts, cuts, and replacement contracts are recorded in
+`LEVEL5_Mayon/authored/README.md`; `tools/build_mayon_scenery.py --check` checks the runtime cuts.
+
+Validation: scenery cut freshness, `run_level5_audit`, and `run_mayon_probe` pass. The windowed
+terrain tour and full `run_visual_level5` pass were inspected at 1600x900 through all three
+memory areas, the whitened summit, and the restored places. The audit retains the already
+documented Godot shutdown resource diagnostics; neither visual run reported script errors.
+
+Painted wind gusts pass westward over the climb, about one every 1.8 seconds,
+with at most three overlapping. Separate sprites alternate between far, middle, and foreground
+at z -60 / -4 / 16, with camera travel factors 0.32 / 0.78 / 1.18. Far gusts are 38% of the
+previous size, middle gusts 65%, and foreground gusts 100% (about 170-195px, still the maximum).
+Far gusts are occluded by trees and terrain; foreground gusts pass over the characters. Each
+remembers its camera position at birth, so it moves through the world rather than sticking to
+the background. The generated sprite atlas supplies three designs and four registered frames. Each fades
+over 3.8 seconds in a 7.2-second cycle. `wind_streaks_2d.gd` holds movement to whole pixels at
+the shared 15fps animation cadence, pauses with gameplay, and honours Reduce Motion.
+`_tend_act_one` switches it off at the summit's existing boundary. The scenery builder registers
+the generated shapes inside fixed cells and removes faint alpha fringe. Source, exact prompt,
+and replacement contract are in the authored art folder. Windowed review covers the final
+smaller sprites in motion, paused and Reduce Motion clocks, and the summit switch-off; the
+Level 5 audit and scenery freshness check also pass on the updated main-line base.
+
+Depth review measures each layer's response to camera travel, absolute z order, size ceiling,
+and unchanged density, and photographs the mixed sizes in the actual scene. It also holds
+the wind clock under a pause-immune dialogue camera and checks every layer hides for Reduce
+Motion and the summit. All checks pass.
+
+### Ruins on the bare slope — 1 November 2026
+
+Twenty decorative placements dress the rocky climb from x4390 to x11070: crumbled volcanic
+masonry, broken pillars and arch pieces, angular boulders, loose rubble and basalt outcrops.
+They form small groups between the memory targets, with bottom registration to each existing
+floor and z -7 behind the path and actors. They add no collision or interaction; the gates,
+flower detour and memory positions keep their measured layout.
+
+The six new generated pixel-art cuts are owned by `build_mayon_scenery.py`; source, exact
+prompt, and replacement contracts live in `LEVEL5_Mayon/authored/`. `UpperDressing` joins
+the summit's existing whitening/reset path, so wide views cannot leave coloured stone behind
+when the mountain becomes paper.
+
+Validation: scenery freshness and `run_level5_audit` pass. A windowed tour checks all twenty
+props against the actual floor rectangles, bottom registration, absence of colliders, and
+paper wash/reset; frames from the cone, all three memory areas, and upper approach were
+inspected. The audit retains its documented baseline shutdown resource diagnostics.

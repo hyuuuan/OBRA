@@ -1,5 +1,25 @@
 # Level 3 — Dagat
 
+**Strong currents (2026-11-01):** the marked open-water band steadily pushes non-aquatic
+players LEFT, including when idle, near a boat, or on the island half of the crossing.
+The force builds gradually on entry and eases to a bounded drift. Aquatic forms use the
+level's existing swimmer list for exemption; passengers still row with their boats.
+`dagat_current_2d.gd` draws leftward foam and arrow-headed streams over the same footprint
+used by the force, at the surface and throughout the depth. Reduce Motion keeps the
+direction marks still. `run_level3_current_probe` drives idle drift, both movement keys,
+aquatic and non-aquatic forms, calm water, swimming near a boat, and boarding/rowing with E.
+`run_visual_dagat_current` captures the surface, deep water and Reduce Motion views.
+
+**Breath recovery (2026-11-01):** reaching breathable water releases the forced rise and
+returns swimming control. Breath refilled at 30 px below the waterline, but steering stayed
+locked until 12 px; a ceiling could leave the apo with full air and no sideways movement.
+The forced rise's upward momentum also ends at air, so it cannot launch her out of the water
+and exhaust a barely recovered breath on the fall back in.
+She can also steer sideways during the forced rise to escape a hull or overhang; diving stays
+overridden until she reaches air. `run_level3_sea_probe` exhausts her breath under a ceiling
+and checks real left and right input during the rise and after recovery, as well as after an
+unobstructed rise.
+
 **Flashlight rendering:** the guiding beam fades along its length and across its edges
 (`shaders/flashlight_beam.gdshader`), with a warm core, blue underwater scattering,
 refracted shimmer and suspended specks. The guide target has a continuous radial glow

@@ -43,6 +43,7 @@ func _run() -> void:
 	print("\n===== DAGAT'S SEA =====")
 	await _the_longer_level()
 	await _the_apo_dives_on_a_breath()
+	await _breathing_frees_the_swimmer()
 	await _the_bangka_goes_in_on_e()
 	await _the_anvil_shoves_it()
 	await _fifteen_blows_and_away()
@@ -143,6 +144,18 @@ func _the_apo_dives_on_a_breath() -> void:
 			break
 	_check(surfaced and _anchor().x > 1650.0, "to the surface, where they were -- not reset",
 		"at %s" % _anchor().round())
+	# The fast rise can carry her clear of the water and back in. Wait for actual recovery,
+	# rather than calling a partially refilled breath full after a fixed delay.
+	for _frame in range(8 * 60):
+		await physics_frame
+		if paused:
+			await _unpause()
+		if is_equal_approx(float(level.get("_air")), float(_level_const("AIR_SECONDS"))):
+			break
+	_check(not apo.surfacing and is_equal_approx(float(level.get("_air")),
+			float(_level_const("AIR_SECONDS"))),
+		"a full breath ends the forced rise", "surfacing %s, air %.2f" % [apo.surfacing, float(level.get("_air"))])
+	await _steer_both_ways("after surfacing")
 	# Out past where the apo may swim, the current turns them back.
 	_place(Vector2(2450.0, 600.0))
 	var from_x := _anchor().x
@@ -151,19 +164,84 @@ func _the_apo_dives_on_a_breath() -> void:
 	Input.action_release(&"move_right")
 	_check(_anchor().x < from_x + 60.0, "swimming out past reach, a current holds them back",
 		"from %.0f to %.0f holding right" % [from_x, _anchor().x])
-	# And far out -- off the boat, or changed back mid-crossing -- nothing takes them back to a
-	# checkpoint (Kent, 2026-10-05): they are held where they are, and can swim for the nearer shore.
+	# Far out -- off the boat, or changed back mid-crossing -- the current carries them left
+	# rather than restoring a checkpoint or merely clamping their speed (Kent, 2026-11-01).
 	_place(Vector2(3600.0, 600.0))
 	Input.action_press(&"move_right")
 	await _seconds(2.5)
 	Input.action_release(&"move_right")
-	_check(absf(_anchor().x - 3600.0) < 120.0, "far out at sea they are held, not reset",
+	_check(_anchor().x < 3500.0 and _anchor().x > 2800.0, "far out at sea they are carried left, not reset",
 		"at %s holding outward" % _anchor().round())
 	Input.action_press(&"move_left")
 	await _seconds(2.0)
 	Input.action_release(&"move_left")
-	_check(_anchor().x < 3450.0, "and can swim for the nearer shore", "at %s" % _anchor().round())
+	_check(_anchor().x < 3250.0, "and can swim left with the flow", "at %s" % _anchor().round())
 	await _close_the_level()
+
+
+## Breathing starts 30 px below the waterline. A ceiling can hold her in that breathable band
+## without letting her reach the old 12 px release line: full air, but sideways input did nothing.
+## Use real collision and exhaust her breath normally, then press both directions after recovery.
+func _breathing_frees_the_swimmer() -> void:
+	await _open_the_level()
+	var apo := level.get("player") as Wanderer
+	var waterline := float(level.get("_waterline_y"))
+	var roof := StaticBody2D.new()
+	var collision := CollisionShape2D.new()
+	var box := RectangleShape2D.new()
+	box.size = Vector2(700.0, 20.0)
+	collision.shape = box
+	roof.add_child(collision)
+	# First stop her below the breathing line, as a hull or an overhang can. Well inside the
+	# shore's 700 px allowance, so the current is not the subject.
+	roof.position = Vector2(2000.0, waterline - 10.0)
+	level.add_child(roof)
+	_place(Vector2(1950.0, waterline + 200.0))
+	Input.action_press(&"move_down")
+	var exhausted := false
+	for _frame in range(9 * 60):
+		await physics_frame
+		if paused:
+			await _unpause()
+		if apo.surfacing:
+			exhausted = true
+			break
+	Input.action_release(&"move_down")
+	_check(exhausted, "harness: a dive exhausts her breath below the ceiling", "surfacing %s" % apo.surfacing)
+	await _seconds(4.0)
+	_check(apo.surfacing and apo.is_on_ceiling() and float(level.get("_air")) <= 0.0,
+		"harness: the forced rise meets an underwater ceiling", "depth %.2f" % (_anchor().y - waterline))
+	Input.action_press(&"move_down")
+	await _steer_both_ways("while out of breath below a ceiling")
+	Input.action_release(&"move_down")
+	_check(apo.surfacing and apo.is_on_ceiling(),
+		"sideways steering still overrides diving while out of breath", "surfacing %s" % apo.surfacing)
+	# Her capsule reaches 80 px above her feet: lifting the roof by 56 px leaves her at +24,
+	# where she can breathe without ever reaching the old +12 release line.
+	roof.position.y -= 56.0
+	await _seconds(3.0)
+	var depth := _anchor().y - waterline
+	_check(apo.is_in_water() and depth > 12.0 and depth < 30.0
+			and is_equal_approx(float(level.get("_air")), float(_level_const("AIR_SECONDS"))),
+		"harness: the ceiling leaves her wet with a full breath",
+		"depth %.2f, air %.2f" % [depth, float(level.get("_air"))])
+	_check(not apo.surfacing, "breathing under a ceiling releases the forced rise",
+		"surfacing %s" % apo.surfacing)
+	await _steer_both_ways("after breathing under a ceiling")
+	await _close_the_level()
+
+
+func _steer_both_ways(after: String) -> void:
+	for action in [&"move_right", &"move_left"]:
+		var from_x := _anchor().x
+		Input.action_press(action)
+		# Reversing from full speed spends part of the hold braking the previous stroke.
+		await _seconds(1.25)
+		Input.action_release(action)
+		var moved := _anchor().x - from_x
+		var direction := 1.0 if action == &"move_right" else -1.0
+		_check(moved * direction > 90.0, "%s works %s" % [action, after],
+			"moved %.1f px" % moved)
 
 
 # --- The bangka goes in on E, and only on E ------------------------------------------------

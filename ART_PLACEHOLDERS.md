@@ -325,9 +325,10 @@ one they learn by being put back. Art may restyle it; it may not replace it with
 
 ## Dilim — what is painted, what is authored, and what is drawn in code
 
-**Updated 22 October.** Level 4's delivery (`Mt Makiling Level 4.zip`) is forest plates and a
+**Updated 1 November.** Level 4's delivery (`Mt Makiling Level 4.zip`) is forest plates and a
 labelled tileset and no creature art. The art team has since sent three creatures
-(`Creatures.zip`): **the kapre, the manananggal and a white lady**, who is the lean aswang. Every
+(`Creatures.zip`): **the kapre, the manananggal and a white lady**, who is the lean aswang.
+A fourth sheet supplied on 1 November replaces the old/hulking aswang (`aswang_pig`). Every
 other creature is a developer's: sculpted pixel strips, not code-drawn bodies, but still stand-ins
 for an artist's. **See them all at once:**
 `godot -t --resolution 1600x900 --path game --script res://tests/run_visual_dilim_creatures.gd`
@@ -338,18 +339,18 @@ can vanish in the level.
 **Painted (delivered):** the six Makiling plates and four seamless tiles, cut by
 `tools/build_dilim.py` (`CONTENT_NEEDED.md` §3 has what is not cut yet).
 
-**Drawn by the art team (delivered):** three character sheets kept as sent in
-`LEVEL4_Creatures/ASWANG/` (`kapre.png`, `manananggal.png`, `whitelady.png`), cut by
+**Supplied character art:** four character sheets kept as sent in
+`LEVEL4_Creatures/ASWANG/` (`kapre.png`, `manananggal.png`, `whitelady.png`, `aswang.png`), cut by
 `tools/build_dilim_delivered.py` into the strips below of the same names: the poses keyed off their
 panel, their shadows, labels and the manananggal's legs taken off, each creature scaled once, the
 left-facing poses mirrored. No sheet draws a death, so a death is its pose fading out. The white
-lady is `aswang_dog_*`; `aswang_pig_*` stays sculpted.
+lady is `aswang_dog_*`; the supplied crawling aswang is `aswang_pig_*`.
 
 **Authored in the project's idiom** (replaceable by name, no code change):
 
 | What | Tool | Files | The contract |
 |---|---|---|---|
-| Every creature but the three delivered, the kapre's balete, smoke and cigar, and the finale's dead tree | `tools/build_dilim_creatures.py`, on `tools/creature_sculpt.py` (the bodies in `dilim_aswang.py`, `dilim_beasts.py`, `dilim_giants.py`, `dilim_kapre.py`, `dilim_fliers.py`, `dilim_small.py`; the dead tree in `dilim_props.py`) | `assets/Level4/creatures/<kind>_<anim>.png` | A row of square frames, as tall as wide; a strip whose width is not a whole number of its height is one picture (the mound, the tree). Ground kinds stand on the bottom row, fliers are centred -- that point is the creature's position. Chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour, never black. Each script's own `_draw()` stays as the fallback while a strip is missing |
+| Every creature but the four supplied, the kapre's balete, smoke and cigar, and the finale's dead tree | `tools/build_dilim_creatures.py`, on `tools/creature_sculpt.py` (the bodies in `dilim_beasts.py`, `dilim_giants.py`, `dilim_kapre.py`, `dilim_fliers.py`, `dilim_small.py`; the dead tree in `dilim_props.py`) | `assets/Level4/creatures/<kind>_<anim>.png` | A row of square frames, as tall as wide; a strip whose width is not a whole number of its height is one picture (the mound, the tree). Ground kinds stand on the bottom row, fliers are centred -- that point is the creature's position. Chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour, never black. Each script's own `_draw()` stays as the fallback while a strip is missing |
 | Lola's six things | `tools/build_dilim_props.py` | `assets/Level4/props/<id>.png` | 32-px icons, each on a leaf, each told apart by its brightest colour: salt, ash, garlic, candle, lamp oil, the stingray-tail whip. The quick slots and the pickups load them by id |
 
 **The creatures' strips, and what each has to say** -- a delivered strip of the same name replaces
@@ -357,7 +358,7 @@ one with no code change:
 
 | Kind | Strips | What it has to say |
 |---|---|---|
-| Aswang, the lean one and the old one | `aswang_dog_*`, `aswang_pig_*` (the names they had as a dog and a pig): `idle` `run` `windup` `attack` `hurt` `death` | **The lean one is delivered:** the art team's white lady -- long black hair over a pale face, red eyes, a white kimono bloodied at the hem and sleeves -- idle and floating, gliding on her walk cycle, her hair flung out wide in the windup, reaching to strike, her head thrown back when hit. The old one, sculpted: the night form crawling on all fours, hulking and humped, elbows and knees jutting up, long matted hair streaked grey over its face, bloodshot eyes through it, needle teeth, the long thin tongue. Both read inside her light (#93) |
+| Aswang, the lean one and the old one | `aswang_dog_*`, `aswang_pig_*` (the names they had as a dog and a pig): `idle` `run` `windup` `attack` `hurt` `death` | **The lean one is delivered:** the art team's white lady -- long black hair over a pale face, red eyes, a white kimono bloodied at the hem and sleeves -- idle and floating, gliding on her walk cycle, her hair flung out wide in the windup, reaching to strike, her head thrown back when hit. The crawler is also supplied (`aswang.png`, 1 November): pale skin, long black hair, red eyes, a long red tongue and dark waist rags. Its four breathing poses, six rightward walk frames, claw anticipation and three strike poses, and two hurt poses are cut from the sheet; the left-facing hurt is mirrored, and death fades a hurt pose. The animator mirrors all animations to face the player. Both read inside her light (#93) |
 | Santelmo | `santelmo_idle`, `santelmo_hot` | A flame that wants her: brighter while it is coming |
 | The nuno's mound | `nuno_mound_idle` (one picture) | An earth mound with something left for the nuno -- a thing to be respectful round, never a target |
 | Sigbin | `sigbin_*`: the six states | Goat-like, long ears hanging, walking backwards. It shows only as much as the light on it, so in the dark it is a glint -- the windup's glint is its tell, and must stay |
@@ -446,3 +447,23 @@ new generated end-cap textures, cut into `game/assets/Level5/terrain/edge_meadow
 join meshes. They are integrated, preserve alpha, and follow the terrain's whitening/tint.
 They join the generated-art review inventory; provenance, prompt, and replacement registration
 are in `LEVEL5_Mayon/authored/README.md` and `cliff_edges.prompt.txt`.
+
+Mayon scenery (1 November): generated broadleaf trees, coconut pair and bare snag, plus two
+transparent foothill/forest panoramas. Originals are `LEVEL5_Mayon/authored/foothill_trees.png`
+and `parallax_ridges.png`; runtime cuts live under `game/assets/Level5/props/` and `backdrop/`.
+These join the generated-art review inventory. Exact prompts and replacement registrations
+are in `scenery.prompts.json` and the authored README. The scene adds twelve decorative tree
+placements; the existing vista owns the new parallax, treeline fade, and summit whitening.
+
+Mayon wind (1 November): `LEVEL5_Mayon/authored/wind_streaks.png` supplies three generated
+pixel-art gusts, four frames each. The logical atlas is
+`game/assets/Level5/weather/wind_streaks.png`; the full generation/revision prompts and
+replacement registration are in the authored README and `wind_streaks.prompts.json`.
+These are generated provisional sprites, with no glow or softened pixel edges.
+
+Mayon upper-slope dressing (1 November): `LEVEL5_Mayon/authored/upper_ruins.png` adds six
+generated pixel-art props: broken wall, pillar, fallen masonry, boulder, loose rubble and
+basalt spires. Runtime cuts are under `game/assets/Level5/props/`, with twenty decorative
+placements behind the path. The group whitens at the summit. These join the generated-art
+review inventory; the exact prompt and replacement contract are in `upper_ruins.prompt.json`
+and the authored README.

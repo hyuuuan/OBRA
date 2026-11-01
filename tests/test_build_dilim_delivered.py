@@ -130,6 +130,42 @@ class DeliveredStripsTest(unittest.TestCase):
                 sx = np.nonzero(top_skin)[1].mean()
                 self.assertGreater(sx, hx, f"{name} frame {index} faces left")
 
+    def test_the_supplied_crawler_keeps_its_tongue_and_faces_right(self) -> None:
+        # The runtime mirrors right-facing frames. The opposite-facing hurt pose on the sheet
+        # must be turned too, or a hit makes the crawler abruptly turn away from the player.
+        for name, sheet in self.strips.items():
+            if not name.startswith("aswang_pig_") or name.endswith("_death"):
+                continue
+            for index, frame in enumerate(_frames(sheet)):
+                px = frame.astype(int)
+                r, g, b, a = (px[..., c] for c in range(4))
+                red = (a > 128) & (r > 100) & (r > 2 * g) & (r > 2 * b)
+                hair = (a > 128) & (px[..., :3].max(axis=2) < 60)
+                self.assertGreater(int(red.sum()), 20, f"{name} frame {index}: missing eyes/tongue")
+                self.assertTrue(hair.any(), f"{name} frame {index}: missing dark hair/outline")
+                self.assertGreater(np.nonzero(red)[1].mean(), np.nonzero(hair)[1].mean(),
+                                   f"{name} frame {index} faces left")
+
+    def test_crawler_hair_is_solid_without_filling_the_spaces_between_limbs(self) -> None:
+        # The old key left many enclosed transparent patches across the hair in every pose.
+        # A blanket fill would hide those errors but also paint over the real arm/leg gaps.
+        for name, picture in delivered.poses("aswang").items():
+            alpha = np.asarray(picture)[..., 3] > 0
+            holes = delivered.ndimage.binary_fill_holes(alpha) & ~alpha
+            labels, count = delivered.ndimage.label(holes)
+            for label in range(1, count + 1):
+                y, _ = delivered.ndimage.center_of_mass(labels == label)
+                self.assertGreaterEqual(y, alpha.shape[0] * 0.46,
+                                        f"{name}: background shows through the hair")
+        idle = np.asarray(delivered.poses("aswang")["idle1"])
+        self.assertEqual(int(idle[28, 79, 3]), 255, "dark hair beside the face was erased")
+        self.assertEqual(int(idle[31, 59, 3]), 255, "dark hair over the shoulder was erased")
+        self.assertEqual(int(idle[77, 72, 3]), 0, "the space between the arms was filled")
+        self.assertEqual(int(idle[91, 26, 3]), 0, "the space beside the rear leg was filled")
+        walk = np.asarray(delivered.poses("aswang")["walk4"])
+        for x, y in ((69, 31), (68, 37), (66, 47)):
+            self.assertEqual(int(walk[y, x, 3]), 255, "the front hair lock has a transparent slit")
+
     def test_the_manananggal_upper_half_has_no_legs(self) -> None:
         # Its legs are what it leaves standing in the hollow, and the sheet draws them under its
         # body in the poses its upper half takes -- joined on by a drip of blood, so no rule about

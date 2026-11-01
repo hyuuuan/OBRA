@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/mayon_terrain_2d.gd" id="8_terrain"]
 [ext_resource type="Script" path="res://scripts/memory_fragment_2d.gd" id="9_fragment"]
 [ext_resource type="Script" path="res://scripts/lola_2d.gd" id="10_lola"]
+[ext_resource type="Script" path="res://scripts/wind_streaks_2d.gd" id="11_wind"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/bell_tower.png" id="p_bell_tower"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/palm.png" id="p_palm"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/palm_short.png" id="p_palm_short"]
@@ -25,6 +26,16 @@
 [ext_resource type="Texture2D" path="res://assets/Level5/props/old_steps.png" id="p_old_steps"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/basalt_column.png" id="p_basalt_column"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/broken_arch.png" id="p_broken_arch"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/tree_broadleaf.png" id="p_tree_broadleaf"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/tree_tall.png" id="p_tree_tall"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/palm_pair.png" id="p_palm_pair"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/ash_snag.png" id="p_ash_snag"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/upper_wall.png" id="p_upper_wall"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/upper_pillar.png" id="p_upper_pillar"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/fallen_masonry.png" id="p_fallen_masonry"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/boulder_large.png" id="p_boulder_large"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/boulder_scatter.png" id="p_boulder_scatter"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/basalt_spires.png" id="p_basalt_spires"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Wall"]
 size = Vector2(40.0, 3000.0)
@@ -44,13 +55,17 @@ outdoor_x_limits = Vector2(116, 13880)
 script = ExtResource("4_ash")
 density = 0.25
 
+; Sparse westward breaths; the level switches them off for the still summit.
+[node name="Wind" type="Node2D" parent="WorldCamera"]
+script = ExtResource("11_wind")
+
 ; Behind every band: the sunset's own colour, so a camera past a plate's edge meets more sky.
 [node name="SkyFill" type="Polygon2D" parent="."]
 z_index = -300
 color = Color(0.933, 0.533, 0.247, 1)
 polygon = PackedVector2Array(-3000, -4000, 20000, -4000, 20000, 3000, -3000, 3000)
 
- ; The registered painting stays together. The high slope cross-fades in as she climbs.
+; The painting stays registered; foothill and forest ribbons scroll at separate depths.
 [node name="SkyBand" type="Node2D" parent="."]
 z_index = -100
 script = ExtResource("7_backdrop")
@@ -84,6 +99,105 @@ tint = Color(0.8, 0.76, 0.74, 1)
 ; ferns up the treeline. Behind the play, never in front of it.
 [node name="Dressing" type="Node2D" parent="GameplayPlane"]
 z_index = -5
+
+; Root-registered trees behind the actors. All are decorative: the span, climb wall
+; and path keep their measured collisions. Vegetation thins out below the bare cone.
+[node name="FootTreeWest" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(120, 600)
+scale = Vector2(1.05, 1.05)
+texture = ExtResource("p_tree_broadleaf")
+offset = Vector2(0, -180)
+
+[node name="FootTreeCompanion" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(440, 600)
+scale = Vector2(0.68, 0.68)
+modulate = Color(0.74, 0.78, 0.66, 1)
+texture = ExtResource("p_tree_tall")
+offset = Vector2(0, -200)
+flip_h = true
+
+[node name="TowerGrove" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(1010, 600)
+texture = ExtResource("p_tree_tall")
+offset = Vector2(0, -200)
+
+[node name="FootPalms" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(1170, 600)
+scale = Vector2(0.76, 0.76)
+modulate = Color(0.86, 0.88, 0.76, 1)
+texture = ExtResource("p_palm_pair")
+offset = Vector2(0, -175)
+flip_h = true
+
+[node name="FirstRiseTree" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(1580, 520)
+scale = Vector2(0.86, 0.86)
+texture = ExtResource("p_tree_broadleaf")
+offset = Vector2(0, -180)
+flip_h = true
+
+[node name="AscentPalms" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(1900, 440)
+scale = Vector2(0.91, 0.91)
+texture = ExtResource("p_palm_pair")
+offset = Vector2(0, -175)
+
+[node name="SpanApproachTree" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(2080, 440)
+scale = Vector2(0.68, 0.68)
+modulate = Color(0.83, 0.84, 0.7, 1)
+texture = ExtResource("p_tree_tall")
+offset = Vector2(0, -200)
+flip_h = true
+
+[node name="FarBankTree" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(2840, 440)
+scale = Vector2(0.84, 0.84)
+modulate = Color(0.86, 0.84, 0.74, 1)
+texture = ExtResource("p_tree_broadleaf")
+offset = Vector2(0, -180)
+
+[node name="FarBankPalms" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(3070, 440)
+scale = Vector2(0.72, 0.72)
+modulate = Color(0.8, 0.81, 0.71, 1)
+texture = ExtResource("p_palm_pair")
+offset = Vector2(0, -175)
+flip_h = true
+
+[node name="LastLeafyTree" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(3650, 360)
+scale = Vector2(0.73, 0.73)
+modulate = Color(0.74, 0.73, 0.69, 1)
+texture = ExtResource("p_tree_tall")
+offset = Vector2(0, -200)
+flip_h = true
+
+[node name="TreelineSnag" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(3950, 360)
+texture = ExtResource("p_ash_snag")
+offset = Vector2(0, -120)
+modulate = Color(0.78, 0.75, 0.76, 1)
+
+[node name="ConeSnag" type="Sprite2D" parent="GameplayPlane/Dressing"]
+texture_filter = 1
+position = Vector2(4570, 140)
+scale = Vector2(0.72, 0.72)
+texture = ExtResource("p_ash_snag")
+offset = Vector2(0, -120)
+modulate = Color(0.67, 0.65, 0.7, 1)
+flip_h = true
 
 [node name="BellTower" type="Sprite2D" parent="GameplayPlane/Dressing"]
 texture_filter = 1
@@ -131,6 +245,158 @@ texture_filter = 1
 position = Vector2(8720, -392)
 texture = ExtResource("p_broken_arch")
 modulate = Color(0.72, 0.68, 0.72, 1)
+
+; Barren upper slopes: grounded rubble and old masonry behind the path and its actors.
+; Decorative only. The summit takes the entire group to paper with the landscape.
+[node name="UpperDressing" type="Node2D" parent="GameplayPlane"]
+z_index = -7
+texture_filter = 1
+
+[node name="ConeBoulder" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(4390, 140)
+texture = ExtResource("p_boulder_large")
+offset = Vector2(0, -67.5)
+modulate = Color(0.8, 0.78, 0.82, 1)
+
+[node name="FirstBrokenWall" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(4800, 140)
+texture = ExtResource("p_upper_wall")
+offset = Vector2(0, -90)
+modulate = Color(0.82, 0.8, 0.84, 1)
+
+[node name="WallRubble" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(5010, 140)
+scale = Vector2(0.85, 0.85)
+texture = ExtResource("p_boulder_scatter")
+offset = Vector2(0, -37.5)
+modulate = Color(0.78, 0.77, 0.82, 1)
+
+[node name="LowerBasaltSpines" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(5240, 140)
+scale = Vector2(0.82, 0.82)
+texture = ExtResource("p_basalt_spires")
+offset = Vector2(0, -90)
+modulate = Color(0.76, 0.75, 0.82, 1)
+
+[node name="FirstMemoryScatter" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(5550, 60)
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("p_boulder_scatter")
+offset = Vector2(0, -37.5)
+modulate = Color(0.82, 0.8, 0.85, 1)
+flip_h = true
+
+[node name="TerracePillar" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(5920, 60)
+scale = Vector2(0.64, 0.64)
+texture = ExtResource("p_upper_pillar")
+offset = Vector2(0, -81)
+modulate = Color(0.79, 0.78, 0.84, 1)
+
+[node name="FirstMemoryBoulder" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(6250, -20)
+scale = Vector2(0.62, 0.62)
+texture = ExtResource("p_boulder_large")
+offset = Vector2(0, -67.5)
+modulate = Color(0.85, 0.81, 0.85, 1)
+flip_h = true
+
+[node name="FallenArchSection" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(6720, -100)
+scale = Vector2(0.9, 0.9)
+texture = ExtResource("p_fallen_masonry")
+offset = Vector2(0, -59.5)
+modulate = Color(0.84, 0.8, 0.84, 1)
+
+[node name="ArchScatter" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(6940, -100)
+scale = Vector2(0.65, 0.65)
+texture = ExtResource("p_boulder_scatter")
+offset = Vector2(0, -37.5)
+modulate = Color(0.83, 0.8, 0.85, 1)
+
+[node name="SecondBrokenWall" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(7170, -100)
+scale = Vector2(0.74, 0.74)
+texture = ExtResource("p_upper_wall")
+offset = Vector2(0, -90)
+modulate = Color(0.84, 0.81, 0.86, 1)
+flip_h = true
+
+[node name="StormBoulder" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(7590, -100)
+scale = Vector2(0.65, 0.65)
+texture = ExtResource("p_boulder_large")
+offset = Vector2(0, -67.5)
+modulate = Color(0.85, 0.82, 0.86, 1)
+
+[node name="MiddleBasaltSpines" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(8000, -180)
+scale = Vector2(0.76, 0.76)
+texture = ExtResource("p_basalt_spires")
+offset = Vector2(0, -90)
+modulate = Color(0.8, 0.78, 0.84, 1)
+flip_h = true
+
+[node name="CoralScatter" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(8500, -260)
+scale = Vector2(0.82, 0.82)
+texture = ExtResource("p_boulder_scatter")
+offset = Vector2(0, -37.5)
+modulate = Color(0.87, 0.83, 0.87, 1)
+
+[node name="AshMasonry" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(8980, -260)
+scale = Vector2(0.76, 0.76)
+texture = ExtResource("p_fallen_masonry")
+offset = Vector2(0, -59.5)
+modulate = Color(0.94, 0.91, 0.9, 1)
+flip_h = true
+
+[node name="AshPillar" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(9310, -260)
+scale = Vector2(0.68, 0.68)
+texture = ExtResource("p_upper_pillar")
+offset = Vector2(0, -81)
+modulate = Color(0.94, 0.91, 0.91, 1)
+
+[node name="FlowerApproachBoulder" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(9650, -340)
+scale = Vector2(0.73, 0.73)
+texture = ExtResource("p_boulder_large")
+offset = Vector2(0, -67.5)
+modulate = Color(0.96, 0.92, 0.91, 1)
+flip_h = true
+
+[node name="FlowerPathScatter" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(10210, -420)
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("p_boulder_scatter")
+offset = Vector2(0, -37.5)
+modulate = Color(0.96, 0.93, 0.92, 1)
+flip_h = true
+
+[node name="UpperBasaltSpines" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(10510, -420)
+scale = Vector2(0.74, 0.74)
+texture = ExtResource("p_basalt_spires")
+offset = Vector2(0, -90)
+modulate = Color(0.94, 0.92, 0.92, 1)
+
+[node name="LastBrokenWall" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(10800, -420)
+scale = Vector2(0.82, 0.82)
+texture = ExtResource("p_upper_wall")
+offset = Vector2(0, -90)
+modulate = Color(0.96, 0.93, 0.92, 1)
+
+[node name="LastRubble" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(11070, -420)
+scale = Vector2(0.75, 0.75)
+texture = ExtResource("p_fallen_masonry")
+offset = Vector2(0, -59.5)
+modulate = Color(0.97, 0.94, 0.93, 1)
+flip_h = true
 
 ; WHAT THE ASH TAKES ON THE WAY UP (group ash_takes): each goes white, then blank, once she is
 ; `taken_at` along the slope, over `taken_over` seconds (level_5.gd). None is solid: a thing going
