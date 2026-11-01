@@ -3,9 +3,11 @@
     "LEVEL 4 -- DILIM. Every line is the apo's: Lolo stopped at the water (Dagat's farewell),",
     "so `speaker_default` is \"apo\" and every line says so as well.",
     "",
-    "She talks to herself, and what she says is what Lola taught her -- memories of",
-    "instructions, not observations (Kent's design, 'NO GUIDE'). An arrival line says what",
-    "Lola said about the thing in front of her; it never says what to draw.",
+    "She talks to herself, and what she says is what she sees. What Lola taught her about each",
+    "creature is in Lola's own hand now: her bestiary, found as she enters, opens at the creature's",
+    "page the first time she reaches it (DIARY.md; Kent, 2026-11-01: 'instead of the apo saying",
+    "lola said this lola said that'). So no line here says 'Lola said', and an arrival line is",
+    "what she sees, said once the book is put down. It never says what to draw.",
     "",
     "⚠ NO LINE MAY NAME A DRAWABLE CLASS. Here the traps are horse (the tikbalang),",
     "tree (the kapre's perch), sun (the morning), clock (the finale) and fan. The check is",
@@ -66,21 +68,21 @@
       "at": "RESPAWN",
       "speaker": "apo",
       "kind": "hint",
-      "text": "Lola said the woods take people who stop paying attention."
+      "text": "The woods take the ones who stop paying attention."
     },
     {
       "id": "L4_RS_002",
       "at": "RESPAWN",
       "speaker": "apo",
       "kind": "hint",
-      "text": "Lola said the dark is only dark. It is what is in it you watch for."
+      "text": "The dark is only dark. It is what is in it I have to watch for."
     },
     {
       "id": "L4_RS_003",
       "at": "RESPAWN",
       "speaker": "apo",
       "kind": "hint",
-      "text": "Lola said when the lamp goes out, you go back to where it was last lit."
+      "text": "When the lamp goes out, I go back to where it was last lit."
     },
     {
       "id": "L4_IK_001",
@@ -94,7 +96,7 @@
       "at": "L4_NUNO.enter",
       "speaker": "apo",
       "kind": "lore",
-      "text": "A mound on the path, with things left all round it. Lola said: when you pass a punso, you ask first. Tabi-tabi po."
+      "text": "A mound on the path, with things left all round it. A punso."
     },
     {
       "id": "L4_NU_002",
@@ -108,14 +110,14 @@
       "at": "L4_NUNO.cursed",
       "speaker": "apo",
       "kind": "hint",
-      "text": "My foot -- it is swelling. I stood on it. Lola said it wears off if I keep going."
+      "text": "My foot -- it is swelling. I stood on it. It wears off if I keep going. It has to."
     },
     {
       "id": "L4_NU_004",
       "at": "L4_NUNO.artist.solved",
       "speaker": "apo",
       "kind": "lore",
-      "text": "Something stirred in the mound. Lola said they remember the ones who ask."
+      "text": "Something stirred in the mound. They remember the ones who ask."
     },
     {
       "id": "L4_NU_005",
@@ -129,7 +131,7 @@
       "at": "L4_REST1.enter",
       "speaker": "apo",
       "kind": "lore",
-      "text": "A clearing. Lola said: wherever you can make a **light** of your own, stop, and fill the lamp before you go on."
+      "text": "A clearing. Somewhere to make a **light** of my own, and fill the lamp before I go on."
     },
     {
       "id": "L4_R1_002",
@@ -143,14 +145,7 @@
       "at": "L4_SIGBIN.enter",
       "speaker": "apo",
       "kind": "lore",
-      "text": "These tracks go backwards. Lola said the sigbin waits where it is darkest and comes at you from behind."
-    },
-    {
-      "id": "L4_SG_002",
-      "at": "L4_SIGBIN.enter",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "Give it no dark to hide in, she said, or nothing behind you to come from."
+      "text": "These tracks go backwards."
     },
     {
       "id": "L4_SG_003",
@@ -178,14 +173,7 @@
       "at": "L4_TIKBALANG.enter",
       "speaker": "apo",
       "kind": "lore",
-      "text": "This is the same rock. Lola said the tikbalang walks you in circles until you give up."
-    },
-    {
-      "id": "L4_TB_002",
-      "at": "L4_TIKBALANG.enter",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "It lets its own kind through, she said. And it hates to lose a race."
+      "text": "This is the same rock. I have passed it three times now."
     },
     {
       "id": "L4_TB_003",
@@ -220,21 +208,21 @@
       "at": "L4_TIKBALANG.pragmatist.solved",
       "speaker": "apo",
       "kind": "lore",
-      "text": "It does not chase what it does not hunt. Lola said that was the trick."
+      "text": "It does not chase what it does not hunt. That was the trick."
     },
     {
       "id": "L4_TB_008",
       "at": "L4_TIKBALANG.protector.solved",
       "speaker": "apo",
       "kind": "lore",
-      "text": "Beat it. Lola said it never forgives that -- but it keeps its word."
+      "text": "Beat it. It will not forgive that -- but it keeps its word."
     },
     {
       "id": "L4_KP_001",
       "at": "L4_KAPRE.enter",
       "speaker": "apo",
       "kind": "lore",
-      "text": "Smoke, and somebody up there smoking it. Lola said the kapre sits high and keeps to itself, and the smoke turns you round."
+      "text": "Smoke, and somebody up there smoking it."
     },
     {
       "id": "L4_KP_002",
@@ -269,7 +257,7 @@
       "at": "L4_REST2.enter",
       "speaker": "apo",
       "kind": "lore",
-      "text": "Somewhere to stop. Lola said the far side of the woods is the worst of it. Fill the lamp first."
+      "text": "Somewhere to stop. The far side of the woods is the worst of it. Fill the lamp first."
     },
     {
       "id": "L4_R2_002",
@@ -283,14 +271,14 @@
       "at": "L4_TIYANAK.enter",
       "speaker": "apo",
       "kind": "lore",
-      "text": "A baby crying, out here? Lola said: if you hear a child in the woods, you do not go to it. You stay on the path."
+      "text": "A baby crying, out here?"
     },
     {
       "id": "L4_TY_002",
       "at": "L4_TIYANAK.artist.solved",
       "speaker": "apo",
       "kind": "lore",
-      "text": "That was never a baby. Lola said the light shows it for what it is, and it cannot stand to be seen."
+      "text": "That was never a baby. In the light it was what it is."
     },
     {
       "id": "L4_TY_003",
@@ -311,7 +299,7 @@
       "at": "L4_BUNGISNGIS.enter",
       "speaker": "apo",
       "kind": "lore",
-      "text": "Lola said the bungisngis laughs at everything, and that laughing is the only thing stronger than it is."
+      "text": "Something big on the far side of the gap, laughing to itself."
     },
     {
       "id": "L4_BG_002",
@@ -339,14 +327,7 @@
       "at": "L4_MANANANGGAL.enter",
       "speaker": "apo",
       "kind": "lore",
-      "text": "Only half of her is up there. Lola said: find where she left the rest of herself, and salt it."
-    },
-    {
-      "id": "L4_MN_002",
-      "at": "L4_MANANANGGAL.enter",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "Or keep her busy until morning. She cannot put herself back together in the **light**."
+      "text": "Only half of her is up there."
     },
     {
       "id": "L4_MN_003",
@@ -437,7 +418,7 @@
       "at": "RETURN.from.level_3",
       "speaker": "apo",
       "kind": "lore",
-      "text": "Good. Lola said they cannot stand salt."
+      "text": "Good. They cannot stand salt."
     },
     {
       "id": "L4_RT_020",
@@ -465,7 +446,7 @@
       "at": "RETURN.fact.baths",
       "speaker": "apo",
       "kind": "lore",
-      "text": "Lola said the town at the foot of this mountain is called Los Baños, the baths, for the hot springs it keeps warm."
+      "text": "The town at the foot of this mountain is called Los Baños, the baths, for the hot springs it keeps warm."
     },
     {
       "id": "L4_FA_002",
@@ -479,7 +460,7 @@
       "at": "RETURN.fact.shape",
       "speaker": "apo",
       "kind": "lore",
-      "text": "From the lake, Lola said, the mountain looks like a woman lying on her back. That is where the story of its keeper comes from."
+      "text": "From the lake, the mountain looks like a woman lying on her back. That is where the story of its keeper comes from."
     },
     {
       "id": "L4_FA_004",
@@ -524,7 +505,7 @@
       "at": "comment.not_fit",
       "speaker": "apo",
       "kind": "hint",
-      "text": "That won't do it. Lola would say: something that can {needed}."
+      "text": "That won't do it. I need something that can {needed}."
     },
     {
       "id": "L4_POOL_NF_4",

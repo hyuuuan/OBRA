@@ -1,6 +1,6 @@
 # Lola's diary
 
-**Status: PRs 1–3 built (the book, the bag's DIARY tab, Payyo's page, Piyesta's three, Dagat's). PRs 4–6 below are the plan.**
+**Status: PRs 1–4 built (the book, the bag's DIARY tab, Payyo's page, Piyesta's three, Dagat's, Dilim's bestiary). PRs 5–6 below are the plan.**
 
 Every painting hides a page of Lola's diary, each a little further into her forgetting, so that by
 Mayon the player already knows why the painting is coming apart. The pages are kept in the bag
@@ -52,7 +52,7 @@ the day, of the way home, of the name.
 | 1 | `diary-book` | The art pipeline, the book, the DIARY tab, the found-page overlay, the profile's pages, Payyo's page moved in. **Built.** |
 | 2 | `piyesta-diary` | Piyesta's three pages, lying where she walks: the nave, and each alley between its doors. The loose page (`DiaryPage2D`). **Built.** |
 | 3 | `dagat-diary` | Dagat: the bakunawa gives the page on the light route, in place of the torn canvas corner; fought, it carries the page off in its coils. **Built.** |
-| 4 | | Dilim's bestiary: found at the start, opens at each creature; the "Lola said…" lines rewritten. |
+| 4 | `dilim-bestiary` | Dilim's bestiary: found a few steps in, opens at each creature's page the first time she reaches it; no line says "Lola said…" any more. **Built.** |
 | 5 | | Mayon: the apo's lines, "Wait — I can fix this", Lolo's last line by route, the last page at her easel. |
 | 6 | | The ending in the house: Lolo in every painting, Lola and the empty easel. |
 
@@ -66,6 +66,7 @@ the day, of the way home, of the name.
 | The book | `DiaryBook` — the turn at Motion's pixel rate, one frame a tick; a click on the left page goes back, on the right page on |
 | The bag's tab | `InventoryScreen` (`DIARY_TAB`, `_build_diary`, `_refresh_diary`) |
 | A page, found | `LevelBase.find_diary_page(id)` → `DiaryOverlay` (layer 68, ahead of the memory card in the Escape queue) |
+| A page a beat opens at | LevelBase `_diary_page_on_arrival(obstacle_id)` (off by default; Dilim's `BESTIARY_PAGES`) → `read_diary_at(entry, anchor, note)` before the beat's arrival lines. Read, not found: a page this save does not hold is not shown |
 | A page lying in a level | `DiaryPage2D` (placed by the level, e.g. `level_2.gd` `DIARY_PAGES`); LevelBase lays them out (`_lay_out_diary_pages`: a page already found is not there) and finds one she stands over (`_tend_diary_pages`, from her body's anchor) |
 | The art | `tools/build_diary_book.py` → `game/assets/hud/diary_book.png` (8 frames of 134 × 112; frame 7 is the book at rest) and `diary_page.png` (the loose page, a placeholder) |
 | Tests | `run_diary_probe` · `run_walk_level1` (`_her_chest_opens`) · `run_play_level2` (Piyesta's three, found on the way) · `run_bakunawa_probe` (Dagat's, given on the light route and carried off by the fight) · `tests.test_build_diary_book` |
@@ -92,5 +93,9 @@ the day, of the way home, of the name.
 - ⚠ **A loose page is found by distance, not by an `Area2D`.** Dilim's satchel things look for her
   hurtbox, and only Dilim has one (it is her health): in Piyesta a page waiting for a hurtbox was
   walked over and never found.
+- ⚠ **An unattended run puts the book down by itself** (`DiaryOverlay.AUTO_HOLD`, half a second),
+  because the dialogue box is set to auto-dismiss: a page opens over a paused game, and every probe
+  that walked over one, or into a Dilim creature, stopped there with nobody to press CONTINUE. It
+  hides the same pause bugs auto-dismiss does -- turn it off when chasing one.
 - ⚠ **The ribbons are keyed by colour, not cropped by row.** The page in flight rises over the
   cover's top edge while the ribbons are still behind it.

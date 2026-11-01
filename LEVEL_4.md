@@ -17,8 +17,12 @@ decisions Kent made on 2026-10-15/16 when the doc's open questions were put to h
 
 Cross a dark forest on Mt. Makiling to the far side. Levels 1–3 solved problems by drawing;
 **Dilim fights by drawing.** Lolo left at the end of Dagat because this forest is past what he
-remembers, so every line is the apo talking to herself — remembering what lola taught her about
-the things that live here. The forest is dark, sight is short, and light is something she draws.
+remembers, so every line is the apo talking to herself. What lola taught her about the things
+that live here is **in lola's own hand**: her bestiary, a page of her diary found a few steps in,
+which opens at each creature's page the first time she reaches it (2026-11-01, `DIARY.md`; Kent:
+"instead of the apo saying 'lola said this' lola said that"). So no line says "Lola said" any
+more; the apo says what she sees. The forest is dark, sight is short, and light is something she
+draws.
 Three segments with a rest clearing between each, then a final clearing where the aswangs come
 in three waves until dawn.
 
@@ -28,7 +32,7 @@ in three waves until dawn.
 |---|---|
 | Who fights | The apo, **in her own body**, with drawn weapons. Transforming is a tool (the tikbalang's pragmatic counter), not the combat mode. |
 | Health | **The lantern is health.** Four stages: full, dim, low, guttering. A hit knocks the flame down a stage and the light circle around her shrinks with it. A hit while guttering sends her back to the last checkpoint. |
-| Death | The game's first. Back to the last checkpoint; **ink and drawings roll back** to what they were there; **collectibles are kept**. The line is lola's voice: "Lola said the woods take people who stop paying attention." |
+| Death | The game's first. Back to the last checkpoint; **ink and drawings roll back** to what they were there; **collectibles are kept**. The line is hers: "The woods take the ones who stop paying attention." (it was "Lola said…" until her bestiary, 2026-11-01) |
 | Finale | **Survive until dawn** — a clock, not a kill count. Folklore-accurate and forgiving of retries. |
 | Weapons | A drawn weapon lasts a **set number of swings per class** (a wear bar), then you draw again. Dilim only; every other level keeps one-use tools. |
 | Ink | **Every weapon or light drawn costs ink** in Dilim (the usual "a class is paid once, ever" does not apply here). Rest clearings refill it. Ink is the real difficulty curve. |
