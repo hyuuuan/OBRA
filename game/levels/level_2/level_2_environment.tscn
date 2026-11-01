@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://scripts/dialogue_node_2d.gd" id="7_dialoguenode"]
 [ext_resource type="Script" path="res://scripts/piyesta_room_2d.gd" id="8_room"]
 [ext_resource type="Script" path="res://scripts/alley_1_room_2d.gd" id="20_alley1"]
+[ext_resource type="Script" path="res://scripts/alley_2_room_2d.gd" id="22_alley2"]
 [ext_resource type="Texture2D" path="res://assets/Level2/alley_1/bandaritas.png" id="21_alley1_bunting"]
 [ext_resource type="Script" path="res://scripts/piyesta_plaza_2d.gd" id="18_plazabuild"]
 [ext_resource type="Texture2D" path="res://assets/Level2/plaza_backdrop.png" id="19_backdrop"]
@@ -137,7 +138,7 @@ onward_note = "The alley runs on. Not without every piece of her from here."
 
 [node name="Alley2" type="Node2D" parent="GameplayPlane/Rooms"]
 position = Vector2(9450.0, 280.0)
-script = ExtResource("8_room")
+script = ExtResource("22_alley2")
 kind = 2
 room_length = 900.0
 wall_height = 440.0

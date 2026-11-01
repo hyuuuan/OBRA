@@ -1213,11 +1213,11 @@ def _hull(c: Canvas, upturned: bool) -> None:
             c.px(16 + dx, row(_sheer(18) + 5), ROPE[0])
 
 
-def _outrigger(c: Canvas) -> None:
+def _outrigger(c: Canvas, float_y: int = BANGKA_WATERLINE + 7, drop: int = 0) -> None:
     """The katig, and the two booms that carry it. In profile this is the thing that says
     bangka rather than rowboat, so it is forward of the hull and a little low, with the booms
-    visible as separate members instead of a plank stuck to the keel."""
-    float_y = BANGKA_WATERLINE + 7
+    visible as separate members instead of a plank stuck to the keel. `drop` is how far the
+    hull itself was set down (the beached boat), so the booms still leave from its sheer."""
     left, right = 30, BOW + 2
     for x in range(left, right + 1):
         thin = x <= left + 1 or x >= right - 1
@@ -1226,7 +1226,7 @@ def _outrigger(c: Canvas) -> None:
         if not thin:
             c.px(x, float_y + 2, BAMBOO[0])
     for boom_x in (24, 44):
-        top = _sheer(boom_x) + 2
+        top = _sheer(boom_x) + 2 + drop
         steps = float_y - top
         for step in range(steps + 1):
             x = boom_x + int(round(step * 0.62))
@@ -1287,64 +1287,110 @@ def draw_bangka_afloat() -> Canvas:
 
 
 def draw_bangka_beached() -> Canvas:
-    """The same boat, turned over on the sand. What the apo finds and presses E at.
+    """The same boat as the one afloat, resting upright on the sand, its katig lying in front.
+    What the apo finds and presses E at.
 
-    ⚠ DRAWN, NOT REFLECTED. Mirroring the floating hull about its waterline is the honest
-    thing to do and it produced a stack of planks: upside down you see the OUTSIDE of the
-    planking and the keel, which is one smooth arc with the sheer down in the sand -- not the
-    inside of a boat with its rail in the air."""
-    import math
+    ⚠ UPRIGHT, NOT TURNED OVER. It was the hull keel-up, one smooth brown arc with a pole each
+    side, and at game scale that read as a mound of earth: players did not see a boat to move.
+    The afloat bangka -- furled sail, painted band, outrigger -- is what says bangka, so it is
+    that boat, set down until its keel meets the sand, in its own shadow. The level's sand heap
+    still covers the stern until it is dug out."""
     pixelart.PX = 3
-    c = Canvas(BANGKA_W, BANGKA_H, seed=2403)
     sand = BANGKA_WATERLINE + 9
-    left, right = STERN + 1, BOW + 1
-    for x in range(left, right + 1):
-        t = (x - left) / float(right - left)
-        # The keel, highest a little aft of amidships, and the ends lifting clear of the sand.
-        arc = 10.0 * math.sin(math.pi * min(1.0, max(0.0, t))) ** 0.7
-        keel = sand - int(round(arc))
-        lift = int(round(2.0 * (2.0 * t - 1.0) ** 2))
-        foot = sand - lift
-        if keel >= foot:
-            continue
-        for y in range(keel, foot + 1):
-            down = (y - keel) / max(1.0, float(foot - keel))
-            c.px(x, y, HULL[3] if down < 0.34 else (HULL[2] if down < 0.74 else HULL[1]))
-        c.px(x, keel, HULL[4])
-        c.px(x, foot, HULL[0])
-        # The painted band is down by the sand now, because the rail is.
-        if foot - keel >= 4:
-            c.px(x, foot - 1, TRIM[1] if (x + foot) % 3 else TRIM[2])
-    # The stems, still standing proud of the sand at both ends.
-    for x, lean in ((right, -1), (left, 1)):
-        for step in range(4):
-            at = x + lean * ((step + 1) // 2)
-            c.px(at, sand - 2 - step, HULL[3] if step % 2 else HULL[2])
-            c.px(at - lean, sand - 2 - step, HULL[1])
-    c.speckle(left + 5, sand - 8, right - left - 12, 7, HULL[1], 0.07)
-    # ⚠ ITS SHADOW, AND THE BOOM AS A POLE. The two booms it was dragged up on were two flat
-    # rows of olive under the hull, which at game scale read as a ruled stripe drawn along the
-    # sand -- the one flat thing left on the beach. The hull now sits in its own shadow, darkest
-    # under the keel and gone at the stems, and the boom is one length of bamboo lying in front
-    # of it: lit along its top, dark along its underside, a node every nine pixels, cut ends
-    # showing the pale cane, and its own shadow on the sand.
+    drop = sand - (BANGKA_WATERLINE + 3)
+    boat = Canvas(BANGKA_W, BANGKA_H, seed=2401)
+    _mast_and_sail(boat)
+    _hull(boat, False)
+    boat.speckle(STERN + 4, BANGKA_WATERLINE - 5, BOW - STERN - 8, 8, HULL[1], 0.05)
+    c = Canvas(BANGKA_W, BANGKA_H, seed=2403)
+    # Its shadow on the sand, darkest under the keel and gone at the stems.
     shade = np.array([40, 26, 10, 0], dtype=np.uint8)
+    left, right = STERN + 1, BOW + 1
     for x in range(left - 2, right + 3):
         t = (x - left) / float(right - left)
         alpha = int(120 * max(0.0, 1.0 - abs(2.0 * t - 1.0) ** 1.6))
-        if alpha > 12 and c.buf[sand + 1, x, 3] == 0:
+        if alpha > 12:
             c.buf[sand + 1, x] = shade
             c.buf[sand + 1, x, 3] = alpha
-    a, b = left + 4, right - 8
-    for x in range(a, b):
-        node = (x - a) % 9 == 0
-        c.px(x, sand + 2, BAMBOO[1] if node else BAMBOO[2])
-        c.px(x, sand + 3, BAMBOO[0])
-        c.buf[sand + 4, x] = shade
-        c.buf[sand + 4, x, 3] = 80
-    c.px(a - 1, sand + 2, BAMBOO[3])
-    c.px(b, sand + 2, BAMBOO[3])
+    # The boat, set down whole: every pixel moved, none redrawn.
+    moved = boat.buf[:BANGKA_H - drop]
+    seen = moved[..., 3] > 0
+    c.buf[drop:][seen] = moved[seen]
+    # The katig lies on the sand in front, its booms reaching up to the set-down sheer.
+    _outrigger(c, float_y=sand, drop=drop)
     return c
+
+
+# --- The bakunawa's home ---------------------------------------------------------------
+#
+# ⚠ THE CAVE WAS SHAPES, NOT PIXELS. level_3.gd drew it as three flat Polygon2Ds -- a black
+# half-disc, a slate rim of one colour, three oval pebbles -- the one thing in Dagat with no
+# pixel to it, and beside the painted reef it read as a hole cut in the screen. A procedural ring
+# of stones read as beads. It is now one of the deep's own painted arches, cut from the ruins
+# layer, with its opening made a dark hollow: the far rock framed in the arch reads as distance
+# in the backdrop, and in the beach's face it has to read as the inside of a cave.
+RUINS = ROOT / "game" / "assets" / "Level3" / "deep" / "ruins.png"
+## Measured by hand off ruins.png (1672x941): the box cut from it, and the arch's opening -- a
+## round-topped doorway given as its centre column, the crown's top row, its half width and the
+## sill row.
+CAVE_BOX = (60, 280, 300, 560)
+CAVE_OPENING = (178.0, 354.0, 40.0, 518.0)
+## Inside the opening, brighter than this is the far rock seen through the arch, not the arch.
+CAVE_FAR_LUMA = 45.0
+## Doubled with nearest-neighbour: the backdrop's own pixel size on screen.
+CAVE_SCALE = 2
+## Where the opening's middle lands in the shipped picture. level_3.gd places it by this.
+CAVE_OPENING_AT = (int((CAVE_OPENING[0] - CAVE_BOX[0]) * CAVE_SCALE),
+                   int(((CAVE_OPENING[1] + CAVE_OPENING[3]) / 2.0 - CAVE_BOX[1]) * CAVE_SCALE))
+CAVE = ramp(["#000205", "#01060e", "#030f1d", "#08192d", "#0e2840"])
+
+
+def cave_opening(width: int, height: int) -> np.ndarray:
+    """The measured doorway as a mask over the cut box."""
+    cx, top, half, bottom = CAVE_OPENING
+    x0, y0 = CAVE_BOX[0], CAVE_BOX[1]
+    yy, xx = np.mgrid[0:height, 0:width]
+    ax, ay = xx + x0, yy + y0
+    crown = ((ax - cx) / half) ** 2 + ((ay - (top + half)) / half) ** 2 <= 1.0
+    sides = (ay >= top + half) & (ay <= bottom) & (np.abs(ax - cx) <= half)
+    return crown | sides
+
+
+def draw_cave_mouth() -> Image.Image:
+    from scipy import ndimage
+    x0, y0, x1, y1 = CAVE_BOX
+    rock = np.asarray(Image.open(RUINS).convert("RGBA")).astype(float)[y0:y1, x0:x1].copy()
+    height, width = rock.shape[:2]
+    luma = 0.299 * rock[..., 0] + 0.587 * rock[..., 1] + 0.114 * rock[..., 2]
+    inside = cave_opening(width, height)
+    hollow = inside & ((luma > CAVE_FAR_LUMA) | (rock[..., 3] < 128))
+    hollow = ndimage.binary_closing(hollow, iterations=2) & inside
+    # Black at the heart, the water's own deep blue at the lip, dithered between steps.
+    depth = np.clip(len(CAVE) - 1.6 - ndimage.distance_transform_edt(hollow) / 6.0,
+                    0.0, len(CAVE) - 1.0)
+    yy, xx = np.mgrid[0:height, 0:width]
+    low = np.floor(depth).astype(int)
+    step = np.where(depth - low > pixelart.BAYER[yy % 4, xx % 4], np.minimum(low + 1, len(CAVE) - 1),
+                    low)
+    rock[hollow, :3] = np.asarray(CAVE)[step[hollow], :3]
+    rock[hollow, 3] = 255
+    # The box's own edges broken, so no ruled line shows where the rock was cut from the plate.
+    rng = np.random.default_rng(2411)
+
+    def bite(length: int) -> np.ndarray:
+        coarse = rng.random(length // 9 + 3)
+        return 2 + np.round(9 * np.interp(np.arange(length) / 9.0, np.arange(coarse.size),
+                                           coarse)).astype(int)
+
+    left, right, under, over = bite(height), bite(height), bite(width), bite(width)
+    cut = (xx < left[:, None]) | (xx >= width - right[:, None]) | (yy >= height - under[None, :]) \
+        | (yy < over[None, :])
+    rock[cut & ~hollow, 3] = 0
+    picture = Image.fromarray(np.clip(rock, 0, 255).astype(np.uint8), "RGBA")
+    return picture.resize((width * CAVE_SCALE, height * CAVE_SCALE), Image.NEAREST)
+
+
+CAVE_ART = {"cave_mouth.png": draw_cave_mouth}
 
 
 BANGKA = {"bangka_afloat.png": draw_bangka_afloat,
@@ -1573,7 +1619,7 @@ def build() -> list[Path]:
         path = OUT / f"ink_jar_{frame}.png"
         draw(frame).save(path)
         written.append(path)
-    for table in (LAND, PALMS, SEABED_ART, BANGKA, FOUND):
+    for table in (LAND, PALMS, SEABED_ART, BANGKA, CAVE_ART, FOUND):
         for name, painter in table.items():
             path = OUT / name
             painter().save(path)
@@ -1591,6 +1637,7 @@ def _expected() -> list[Path]:
         [OUT / name for name in LAND] + [OUT / name for name in PALMS] + \
         [OUT / name for name in SEABED_ART] + \
         [OUT / name for name in BANGKA] + \
+        [OUT / name for name in CAVE_ART] + \
         [OUT / name for name in FOUND] + \
         [OUT / f"{name}_{frame}.png" for name, (_p, n) in LIFE.items() for frame in range(n)]
 

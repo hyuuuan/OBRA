@@ -148,7 +148,7 @@ if (( WITH_PYTHON )); then
     tests.test_correction_experiment \
     tests.test_playtest_telemetry \
     tests.test_player_simulation \
-    tests.test_suite_watch tests.test_build_dilim_creatures tests.test_build_dilim_delivered tests.test_build_dilim tests.test_build_dilim_props tests.test_build_mayon tests.test_build_mayon_fragments tests.test_build_diary_book >> "$LOG" 2>&1
+    tests.test_suite_watch tests.test_build_dilim_creatures tests.test_build_dilim_delivered tests.test_build_dilim tests.test_build_dilim_props tests.test_build_mayon tests.test_build_mayon_fragments tests.test_build_dagat_bangka tests.test_build_dagat_cave tests.test_build_diary_book >> "$LOG" 2>&1
   note_result python $? $(( EPOCHSECONDS - began ))
 fi
 
