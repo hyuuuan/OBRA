@@ -30,6 +30,12 @@
 [ext_resource type="Texture2D" path="res://assets/Level5/props/tree_tall.png" id="p_tree_tall"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/palm_pair.png" id="p_palm_pair"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/ash_snag.png" id="p_ash_snag"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/upper_wall.png" id="p_upper_wall"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/upper_pillar.png" id="p_upper_pillar"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/fallen_masonry.png" id="p_fallen_masonry"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/boulder_large.png" id="p_boulder_large"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/boulder_scatter.png" id="p_boulder_scatter"]
+[ext_resource type="Texture2D" path="res://assets/Level5/props/basalt_spires.png" id="p_basalt_spires"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Wall"]
 size = Vector2(40.0, 3000.0)
@@ -239,6 +245,158 @@ texture_filter = 1
 position = Vector2(8720, -392)
 texture = ExtResource("p_broken_arch")
 modulate = Color(0.72, 0.68, 0.72, 1)
+
+; Barren upper slopes: grounded rubble and old masonry behind the path and its actors.
+; Decorative only. The summit takes the entire group to paper with the landscape.
+[node name="UpperDressing" type="Node2D" parent="GameplayPlane"]
+z_index = -7
+texture_filter = 1
+
+[node name="ConeBoulder" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(4390, 140)
+texture = ExtResource("p_boulder_large")
+offset = Vector2(0, -67.5)
+modulate = Color(0.8, 0.78, 0.82, 1)
+
+[node name="FirstBrokenWall" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(4800, 140)
+texture = ExtResource("p_upper_wall")
+offset = Vector2(0, -90)
+modulate = Color(0.82, 0.8, 0.84, 1)
+
+[node name="WallRubble" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(5010, 140)
+scale = Vector2(0.85, 0.85)
+texture = ExtResource("p_boulder_scatter")
+offset = Vector2(0, -37.5)
+modulate = Color(0.78, 0.77, 0.82, 1)
+
+[node name="LowerBasaltSpines" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(5240, 140)
+scale = Vector2(0.82, 0.82)
+texture = ExtResource("p_basalt_spires")
+offset = Vector2(0, -90)
+modulate = Color(0.76, 0.75, 0.82, 1)
+
+[node name="FirstMemoryScatter" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(5550, 60)
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("p_boulder_scatter")
+offset = Vector2(0, -37.5)
+modulate = Color(0.82, 0.8, 0.85, 1)
+flip_h = true
+
+[node name="TerracePillar" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(5920, 60)
+scale = Vector2(0.64, 0.64)
+texture = ExtResource("p_upper_pillar")
+offset = Vector2(0, -81)
+modulate = Color(0.79, 0.78, 0.84, 1)
+
+[node name="FirstMemoryBoulder" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(6250, -20)
+scale = Vector2(0.62, 0.62)
+texture = ExtResource("p_boulder_large")
+offset = Vector2(0, -67.5)
+modulate = Color(0.85, 0.81, 0.85, 1)
+flip_h = true
+
+[node name="FallenArchSection" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(6720, -100)
+scale = Vector2(0.9, 0.9)
+texture = ExtResource("p_fallen_masonry")
+offset = Vector2(0, -59.5)
+modulate = Color(0.84, 0.8, 0.84, 1)
+
+[node name="ArchScatter" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(6940, -100)
+scale = Vector2(0.65, 0.65)
+texture = ExtResource("p_boulder_scatter")
+offset = Vector2(0, -37.5)
+modulate = Color(0.83, 0.8, 0.85, 1)
+
+[node name="SecondBrokenWall" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(7170, -100)
+scale = Vector2(0.74, 0.74)
+texture = ExtResource("p_upper_wall")
+offset = Vector2(0, -90)
+modulate = Color(0.84, 0.81, 0.86, 1)
+flip_h = true
+
+[node name="StormBoulder" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(7590, -100)
+scale = Vector2(0.65, 0.65)
+texture = ExtResource("p_boulder_large")
+offset = Vector2(0, -67.5)
+modulate = Color(0.85, 0.82, 0.86, 1)
+
+[node name="MiddleBasaltSpines" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(8000, -180)
+scale = Vector2(0.76, 0.76)
+texture = ExtResource("p_basalt_spires")
+offset = Vector2(0, -90)
+modulate = Color(0.8, 0.78, 0.84, 1)
+flip_h = true
+
+[node name="CoralScatter" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(8500, -260)
+scale = Vector2(0.82, 0.82)
+texture = ExtResource("p_boulder_scatter")
+offset = Vector2(0, -37.5)
+modulate = Color(0.87, 0.83, 0.87, 1)
+
+[node name="AshMasonry" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(8980, -260)
+scale = Vector2(0.76, 0.76)
+texture = ExtResource("p_fallen_masonry")
+offset = Vector2(0, -59.5)
+modulate = Color(0.94, 0.91, 0.9, 1)
+flip_h = true
+
+[node name="AshPillar" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(9310, -260)
+scale = Vector2(0.68, 0.68)
+texture = ExtResource("p_upper_pillar")
+offset = Vector2(0, -81)
+modulate = Color(0.94, 0.91, 0.91, 1)
+
+[node name="FlowerApproachBoulder" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(9650, -340)
+scale = Vector2(0.73, 0.73)
+texture = ExtResource("p_boulder_large")
+offset = Vector2(0, -67.5)
+modulate = Color(0.96, 0.92, 0.91, 1)
+flip_h = true
+
+[node name="FlowerPathScatter" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(10210, -420)
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("p_boulder_scatter")
+offset = Vector2(0, -37.5)
+modulate = Color(0.96, 0.93, 0.92, 1)
+flip_h = true
+
+[node name="UpperBasaltSpines" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(10510, -420)
+scale = Vector2(0.74, 0.74)
+texture = ExtResource("p_basalt_spires")
+offset = Vector2(0, -90)
+modulate = Color(0.94, 0.92, 0.92, 1)
+
+[node name="LastBrokenWall" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(10800, -420)
+scale = Vector2(0.82, 0.82)
+texture = ExtResource("p_upper_wall")
+offset = Vector2(0, -90)
+modulate = Color(0.96, 0.93, 0.92, 1)
+
+[node name="LastRubble" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
+position = Vector2(11070, -420)
+scale = Vector2(0.75, 0.75)
+texture = ExtResource("p_fallen_masonry")
+offset = Vector2(0, -59.5)
+modulate = Color(0.97, 0.94, 0.93, 1)
+flip_h = true
 
 ; WHAT THE ASH TAKES ON THE WAY UP (group ash_takes): each goes white, then blank, once she is
 ; `taken_at` along the slope, over `taken_over` seconds (level_5.gd). None is solid: a thing going

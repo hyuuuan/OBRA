@@ -383,3 +383,21 @@ Depth review measures each layer's response to camera travel, absolute z order, 
 and unchanged density, and photographs the mixed sizes in the actual scene. It also holds
 the wind clock under a pause-immune dialogue camera and checks every layer hides for Reduce
 Motion and the summit. All checks pass.
+
+### Ruins on the bare slope — 1 November 2026
+
+Twenty decorative placements dress the rocky climb from x4390 to x11070: crumbled volcanic
+masonry, broken pillars and arch pieces, angular boulders, loose rubble and basalt outcrops.
+They form small groups between the memory targets, with bottom registration to each existing
+floor and z -7 behind the path and actors. They add no collision or interaction; the gates,
+flower detour and memory positions keep their measured layout.
+
+The six new generated pixel-art cuts are owned by `build_mayon_scenery.py`; source, exact
+prompt, and replacement contracts live in `LEVEL5_Mayon/authored/`. `UpperDressing` joins
+the summit's existing whitening/reset path, so wide views cannot leave coloured stone behind
+when the mountain becomes paper.
+
+Validation: scenery freshness and `run_level5_audit` pass. A windowed tour checks all twenty
+props against the actual floor rectangles, bottom registration, absence of colliders, and
+paper wash/reset; frames from the cone, all three memory areas, and upper approach were
+inspected. The audit retains its documented baseline shutdown resource diagnostics.

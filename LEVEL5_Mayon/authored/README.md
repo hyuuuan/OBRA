@@ -141,3 +141,31 @@ existing x12200 boundary disables it.
 Replacement contract: a 3x4 atlas, a fixed centre in every 128x64 logical cell, each column a
 design and each row its next frame, right-to-left direction, flat ivory/cream/silver pixels
 on genuine transparency. Do not trim individual cells, add glow, or smooth the pixel edges.
+
+## Upper-slope ruins and rock — 1 November 2026
+
+`upper_ruins.png` is an original six-prop atlas made with the built-in OpenAI image_gen tool,
+using Mayon's basalt, existing broken arch, and upper vista as style references. The exact
+prompt is `upper_ruins.prompt.json`. It joins the generated-art review inventory.
+
+`build_mayon_scenery.py` uses measured source gutters because several props crossed the
+requested equal cells. It preserves genuine alpha and aspect ratio and writes these cuts:
+
+| Runtime file under `game/assets/Level5/props/` | Size |
+|---|---|
+| `upper_wall.png` | 302x180 |
+| `upper_pillar.png` | 130x162 |
+| `fallen_masonry.png` | 260x119 |
+| `boulder_large.png` | 179x135 |
+| `boulder_scatter.png` | 205x75 |
+| `basalt_spires.png` | 200x180 |
+
+Twenty placements sit on the existing bare slope between x4390 and x11070. Each sprite's
+bottom centre is registered to the local floor, behind terrain and actors at z -7. They add
+no collision or interaction. The new `UpperDressing` group inherits the summit's paper wash
+and returns to its painted colours on checkpoint reset. The flower detour and memory targets
+retain their existing layout.
+
+Replace the same-name cuts at the same dimensions, on genuine transparency with the same
+bottom-centre registration; use nearest filtering. Materials are barren volcanic stone and
+plain ruined masonry, with no plants, inscriptions, doors, loot or implied interaction.

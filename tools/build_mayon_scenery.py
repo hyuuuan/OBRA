@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cut Mayon's original tree and parallax atlases, preserving their genuine alpha.
+"""Cut Mayon's tree, ruin, parallax, and wind atlases.
 
 Sources and exact generation prompts live in LEVEL5_Mayon/authored/. The generator
 did not obey equal tree cells; these measured boxes own the sprite registration.
@@ -18,6 +18,15 @@ TREES = {
     "tree_tall": ((900, 0, 1536, 520), 400),
     "palm_pair": ((0, 520, 810, 1024), 350),
     "ash_snag": ((810, 520, 1536, 1024), 240),
+}
+ROCKY_PROPS = {
+    # The generated props crossed equal cell boundaries; use measured gutters.
+    "upper_wall": ((0, 0, 568, 512), (340, 180)),
+    "upper_pillar": ((568, 0, 960, 512), (130, 230)),
+    "fallen_masonry": ((960, 0, 1536, 512), (260, 135)),
+    "boulder_large": ((0, 512, 490, 1024), (240, 135)),
+    "boulder_scatter": ((490, 512, 1085, 1024), (210, 75)),
+    "basalt_spires": ((1085, 512, 1536, 1024), (200, 200)),
 }
 
 
@@ -61,6 +70,16 @@ def main():
             packed.alpha_composite(sprite, (column * 128 + (128 - sprite.width) // 2,
                                             row * 64 + (64 - sprite.height) // 2))
     pictures.put(packed, OUTPUT / "weather" / "wind_streaks.png")
+    rocks = Image.open(SOURCE / "upper_ruins.png").convert("RGBA")
+    for name, (box, (max_width, max_height)) in ROCKY_PROPS.items():
+        prop = rocks.crop(box)
+        bounds = prop.getchannel("A").point(lambda value: 255 if value > 24 else 0).getbbox()
+        if bounds is None:
+            raise SystemExit(f"No rocky prop alpha in {name}")
+        prop = prop.crop(bounds)
+        scale = min(max_width / prop.width, max_height / prop.height)
+        prop = prop.resize((round(prop.width * scale), round(prop.height * scale)), Image.Resampling.NEAREST)
+        pictures.put(prop, OUTPUT / "props" / f"{name}.png")
     if pictures.stale:
         raise SystemExit("Stale Mayon scenery: " + ", ".join(pictures.stale))
 

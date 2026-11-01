@@ -783,7 +783,8 @@ const ALL_FLOWERS := 5
 ## What the summit whitens, and how far: the backdrop to paper; the ground she stands on only to a
 ## pale ghost of itself, so the white plateau still shows where she can walk.
 const WHITENED := {"EnvironmentBaseplate/SkyFill": 0.85, "EnvironmentBaseplate/SkyBand": 0.85,
-	"EnvironmentBaseplate/GameplayPlane/Terrain/Cone": 0.55}
+	"EnvironmentBaseplate/GameplayPlane/Terrain/Cone": 0.55,
+	"EnvironmentBaseplate/GameplayPlane/UpperDressing": 0.85}
 
 ## "" below, "quiet", "trying" (the brush raised to her), "lowering", "places", "blooming", "done".
 var _summit := ""
