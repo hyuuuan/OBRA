@@ -631,15 +631,21 @@ and a painted stone staircase read as things you could walk on.
 
 **The terraces are built the way Mayon's ground is, in Payyo's own stone** (2026-11-02).
 `CliffDressing` (`CliffDressing2D`, under `GameplayPlane/Terrain`) draws every terrace segment,
-the gorge's ledges and the exit shelf: a thick grass fringe she stands in, the mossy river-stone
-retaining wall under it with its underside broken along the stones, darker repeats below, and
-the rounded stone-wall corner on every open end (enlarged over Ang Hagdan's 220 px riser). The
-kit is cut from `texturemap.png` by `tools/build_cliff_kits.py`; the segments keep their
-collision and stand their own wall and cap down. ⚠ Three earlier passes were rejected: procedural
-cobbles ("nothing close to level 5"), Mayon's own boulders regraded green ("mayon has those rocks
-since its setting is in a volcano place"), and the tileset enlarged 2x ("lower resolution like not
-hd"). The construction is Mayon's; the material is the level's, at the tileset's own resolution,
-and the cap is cut tall enough (396 px) never to be enlarged over a riser. `run_cliff_dressing_probe` holds the contract.
+the gorge's ledges and the exit shelf: a thick lip of Payyo's own grass edge tile she stands in,
+draping over the mossy river-stone retaining wall, which darkens going down and is shaded under
+the lip and under each broken layer of the darker repeats. An open end is cut straight, shaded
+and outlined, with the lip rounding over it, the corner tile's grass spilling a short way down,
+and a fern on the corner; a riser's foot is shadowed on the step below. Ferns and grass stand
+along the lips -- no flowers, so the gorge's hidden one stays something to find. The kit is cut
+from `texturemap.png` at its own resolution by `tools/build_cliff_kits.py`, whose `kit.json`
+tells the runtime its rows; the segments keep their collision and stand their own art down.
+
+⚠ Four passes were rejected on the way, all by Kent: procedural cobbles ("nothing close to level
+5"); Mayon's own boulders regraded green ("mayon has those rocks since its setting is in a volcano
+place"); the tileset enlarged 2x ("lower resolution like not hd"); and end caps of stones laid over
+the wall's own, which met them nowhere ("edges look weird"). The construction is Mayon's; the
+material is the level's, at the tileset's resolution, and nothing is ever enlarged.
+`run_cliff_dressing_probe` holds the contract.
 
 ⚠ **The near plate's right edge is a straight cut, so it lives behind Ang Hagdan's wall**
 (2026-11-02). `terraces_near_background` is a hill of terraces cut off flat on the right, through
