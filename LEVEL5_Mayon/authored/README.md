@@ -129,8 +129,12 @@ inventory.
 removes faint alpha fringe, and centres each silhouette in its fixed cell. The generated
 rows drifted in their cells; this registration prevents a jump between frames. Runtime uses
 `game/assets/Level5/weather/wind_streaks.png`, nearest filtering and whole-pixel movement.
-Marks render about 170-195px wide with gentle alpha fades. Four staggered slots produce a gust
-about every 1.8 seconds, usually two visible and at most three; the peak opacity is 46%.
+Gusts alternate between far, middle, and foreground, with 38% / 65% / 100% size and
+28% / 37% / 46% peak opacity. The foreground maximum remains about 170-195px wide.
+Each sprite owns an absolute draw order (-60 / -4 / 16) and remembers the camera at birth;
+camera travel moves it at 0.32 / 0.78 / 1.18, independently of the background's scroll.
+Far gusts pass behind trees/terrain, foreground gusts in front of the actors. Four staggered
+slots still produce a gust about every 1.8 seconds, usually two visible and at most three.
 The ordinary pause clock and Reduce Motion setting stop the animation, and the summit's
 existing x12200 boundary disables it.
 
