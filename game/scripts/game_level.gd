@@ -989,6 +989,11 @@ func _wire_dialogue_node() -> void:
 
 # --- What the player should be doing ---------------------------------------------------
 
+## Where Ang Hagdan's wall stands: Terrace1's near edge, at the top of the climb. East of it is
+## up -- the terrace is solid below its own top.
+const HAGDAN_TOP_X := 1180.0
+
+
 ## PAYYO IN ORDER: up Ang Hagdan, across the gorge, into the straw, into Ang Bale, out through
 ## the wall with her painting.
 ##
@@ -997,6 +1002,10 @@ func _wire_dialogue_node() -> void:
 ## is answered, OR its key is in hand, OR the player is already past it -- telling somebody
 ## standing at the house to go back and search a haystack they do not need is the banner
 ## inventing a chore.
+##
+## ⚠ AND UP ANG HAGDAN IS UP, HOWEVER THE PLAYER GOT THERE. Only a drawing set against the
+## wall solves Beat 0, so a player who flew over it as a bird was told "Get up Ang Hagdan"
+## with the arrow at its foot -- behind them for the rest of Payyo, since this is asked first.
 func _current_objective() -> Dictionary:
 	if director == null:
 		return {}
@@ -1004,7 +1013,7 @@ func _current_objective() -> Dictionary:
 	var at := player.global_position if player != null and is_instance_valid(player) \
 		else Vector2.ZERO
 
-	if not director.is_solved("B0_HAGDAN"):
+	if not director.is_solved("B0_HAGDAN") and at.x < HAGDAN_TOP_X:
 		# The foot of Ang Hagdan's wall, where the drawing goes.
 		return {"key": "b0_sub1", "obstacle": "B0_HAGDAN", "target": Vector2(1130.0, 470.0)}
 
