@@ -69,17 +69,24 @@ class Recipe:
     ## Wall tiles laid across the strip, as boxes in the atlas, and the order they repeat in.
     tiles: list[tuple[int, int, int, int]]
     order: list[int]
-    ## The rounded corner tile the cap is built on (its rounded corner at its top LEFT).
+    ## The tile whose grass (or leaves) runs down its LEFT side: the spill over an open end.
     corner: tuple[int, int, int, int]
     ## Rows at the top of a wall tile that are its own grass fringe: never cut.
     fringe: int
     ## Below this luminance a pixel is a joint between stones, not a stone.
     joint: float
-    ## The grass edge tile laid across as the thick lip, the rows of it that are solid grass,
-    ## and how far its green fringe may hang in clumps below that.
-    lip_tile: tuple[int, int, int, int] = (0, 0, 0, 0)
+    ## The sheet's page colour, when its tiles are painted on one (None: transparent page).
+    page: tuple[int, int, int] | None = None
+    ## Tiles for the courses under the first, when the sheet has a deeper variant (roots).
+    deeper: list[tuple[int, int, int, int]] = field(default_factory=list)
+    ## The tiles laid across as the thick lip, the rows of them that are solid, and how far
+    ## their green may hang in clumps below that.
+    lip_tiles: list[tuple[int, int, int, int]] = field(default_factory=list)
     lip_band: int = 27
     lip_drape: int = 8
+    ## Drape in whole leaves: each leaf kept or dropped by where its middle is, so the lip's
+    ## underside is leaves and not a line cut through them.
+    lip_leaves: bool = False
     ## The corner tile's grass down its side: rows from, rows to, columns.
     spill: tuple[int, int, int] = (0, 0, 0)
     ## Plants off the atlas; the first one stands on every open corner.
@@ -95,8 +102,13 @@ class Recipe:
     ## The broken underside: how deep each chunk reaches, as a share of the tile height. Deep
     ## enough that the first darker repeat's top (150 px down) is always behind it.
     reach: tuple[float, float] = (0.78, 0.98)
-    ## The largest painted stone, in tileset px: anything bigger is joints run together.
+    ## The largest painted stone, in tileset px: anything bigger is joints run together; and
+    ## the smallest, under which a lit patch is a speck, not a stone.
     biggest: int = 800
+    smallest: int = 25
+    ## Courses of wall in the strip: enough that its underside is always below the first darker
+    ## repeat, DEPTH_STEP (150) down -- shallower, the repeats show as stripes with gaps between.
+    courses: int = COURSES
     ## Under the strip, before the repeats: the joints' own darkest earth.
     deep: str = "#1a140a"
     ## Short blades along the lip, in the fringe's own greens, dark to light.
@@ -119,6 +131,55 @@ def trim(tile: np.ndarray, most: int = 6) -> np.ndarray:
     while tile.shape[1] - right < most and lum[:, right - 1].mean() < typical * 0.8:
         right -= 1
     return tile[:, left:right]
+
+
+## A tileset painted on a page (Makiling's and Dagat's are cream) is cut by its page colour.
+PAGE_TOL = 40
+## The most a sheet's outline is ever this wide.
+OUTLINE = 3
+
+
+def on_page(rgba: np.ndarray, page: tuple[int, int, int] | None) -> np.ndarray:
+    """Background: transparent pixels, or the sheet's page colour when it has one."""
+    background = rgba[..., 3] <= 40
+    if page is not None:
+        background |= np.abs(rgba[..., :3].astype(int) - np.array(page)).max(-1) <= PAGE_TOL
+    return background
+
+
+def inner(tile: np.ndarray, page: tuple[int, int, int] | None, most: int = 10) -> np.ndarray:
+    """A tile without the page round it or the dark outline every sheet draws on its tiles: each
+    side is cut in while its edge line still has page in it, then up to OUTLINE more while that
+    line is much darker than the tile's body. Tiled with its outline, a tile is a grid of seams.
+    ⚠ Only that far: a tile's own dark joints are darker than its body too, and a rule without
+    the limit cut a third of every Makiling tile away."""
+    def sides(tile: np.ndarray, test) -> list[int]:
+        cuts = [0, 0, 0, 0]
+        lines = [lambda k: tile[k], lambda k: tile[-1 - k], lambda k: tile[:, k], lambda k: tile[:, -1 - k]]
+        for index, line in enumerate(lines):
+            while cuts[index] < most and test(line(cuts[index])):
+                cuts[index] += 1
+        return cuts
+    def crop(tile: np.ndarray, cuts: list[int]) -> np.ndarray:
+        return tile[cuts[0]:tile.shape[0] - cuts[1], cuts[2]:tile.shape[1] - cuts[3]]
+    tile = crop(tile, sides(tile, lambda line: on_page(line[None], page).mean() > 0.02))
+    typical = float(np.median(luminance(tile)))
+    cuts = sides(tile, lambda line: luminance(line[None]).mean() < typical * 0.6)
+    return crop(tile, [min(OUTLINE, c) for c in cuts])
+
+
+def sprite_on(atlas: Image.Image, box: tuple[int, int, int, int],
+              page: tuple[int, int, int] | None) -> np.ndarray:
+    """A sprite off a sheet: the page flooded away from the box's border, and the pale rim the
+    flood leaves taken off with it."""
+    sprite = cut(atlas, box)
+    background = on_page(sprite, page)
+    labels, _ = label(background, False)
+    border = np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]]))
+    outside = np.isin(labels, border[border >= 0]) & (labels >= 0)
+    sprite[..., 3] = np.where(outside, 0, 255)
+    ys, xs = np.nonzero(sprite[..., 3])
+    return sprite[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
 
 
 def luminance(rgba: np.ndarray) -> np.ndarray:
@@ -168,6 +229,17 @@ def lay(tiles: list[np.ndarray], order: list[int], tall: int) -> np.ndarray:
     return row[:, JOIN:row.shape[1] - first + JOIN].round().astype(np.uint8)
 
 
+def fit(row: np.ndarray, width: int) -> np.ndarray:
+    """A course cut to `width` that still wraps: laid longer, its first JOIN columns crossfaded
+    from where it would carry on past `width` back into its own start."""
+    while row.shape[1] < width + JOIN:
+        row = np.concatenate([row, row], axis=1)
+    ramp = np.linspace(0.0, 1.0, JOIN + 2)[1:-1][None, :, None]
+    out = row[:, :width].astype(np.float32)
+    out[:, :JOIN] = row[:, width:width + JOIN] * (1 - ramp) + row[:, :JOIN] * ramp
+    return out.round().astype(np.uint8)
+
+
 def stack(upper: np.ndarray, lower: np.ndarray) -> np.ndarray:
     """One course over another, the join crossfaded over JOIN rows."""
     ramp = np.linspace(0.0, 1.0, JOIN + 2)[1:-1][:, None, None]
@@ -203,7 +275,7 @@ def break_underside(rgba: np.ndarray, recipe: Recipe, top: int, profile: np.ndar
     # Specks and highlights are not stones, and nor is anything bigger than one: both go by
     # the joints' rule instead of being kept or dropped whole.
     sizes = np.bincount(labels[labels >= 0], minlength=count)
-    whole = (sizes >= 25) & (sizes <= recipe.biggest)
+    whole = (sizes >= recipe.smallest) & (sizes <= recipe.biggest)
     labels = np.where((labels >= 0) & whole[np.clip(labels, 0, None)], labels, -1)
     ys, xs = np.nonzero(labels >= 0)
     ids = labels[ys, xs]
@@ -293,38 +365,80 @@ def greenish(rgba: np.ndarray, margin: int = 8) -> np.ndarray:
     return (rgba[..., 1].astype(int) > rgba[..., 0].astype(int) + margin) & (rgba[..., 3] > 40)
 
 
+def tile_of(recipe: Recipe, atlas: Image.Image, box: tuple[int, int, int, int]) -> np.ndarray:
+    """One tile off the sheet, inside its outline."""
+    if recipe.page is None:
+        return trim(cut(atlas, box))
+    return inner(cut(atlas, box), recipe.page)
+
+
+def sprite_of(recipe: Recipe, atlas: Image.Image, box: tuple[int, int, int, int]) -> np.ndarray:
+    if recipe.page is None:
+        return keyed(atlas, box)
+    return sprite_on(atlas, box, recipe.page)
+
+
 def slab(recipe: Recipe, atlas: Image.Image, width: int, rng: np.random.Generator) -> np.ndarray:
     """The thick lip: the tileset's own grass edge tile laid across, its solid band kept whole and
     its hanging fringe kept only where it is green, cut deeper in clumps -- Mayon's lip drapes."""
-    tile = trim(cut(atlas, recipe.lip_tile))
-    band = lay([tile], [0] * max(2, -(-width // (tile.shape[1] - JOIN)) + 1), tile.shape[0])
+    tiles = [tile_of(recipe, atlas, box) for box in recipe.lip_tiles]
+    tall = min(t.shape[0] for t in tiles)
+    count = max(2, -(-width // (min(t.shape[1] for t in tiles) - JOIN)) + 1)
+    band = lay(tiles, [index % len(tiles) for index in range(count)], tall)
     while band.shape[1] < width:
         band = np.concatenate([band, band], axis=1)
     band = band[:, :width].copy()
     rows = np.arange(band.shape[0])[:, None]
     clump = np.convolve(np.concatenate([rng.random(width)] * 3), np.ones(15) / 15, "same")[width:2 * width]
     reach = recipe.lip_band + 6 + np.round(clump * 2.4 * recipe.lip_drape - recipe.lip_drape * 0.6)
-    keep = (rows < recipe.lip_band) | (greenish(band) & (rows < reach[None, :]))
+    if recipe.lip_leaves:
+        # The band starts `above` rows into the laid leaves: the rows over it are its crown, whole
+        # leaves standing up past a ragged line, as the drape hangs whole leaves below it.
+        top = recipe.above
+        crown = np.convolve(np.concatenate([rng.random(width)] * 3), np.ones(11) / 11, "same")[width:2 * width]
+        line = np.clip(np.round(top - crown * top * 1.6), 1, top)
+        leaf = greenish(band) & (luminance(band) >= recipe.joint)
+        labels, count = label(leaf, True)
+        ys, xs = np.nonzero(labels >= 0)
+        ids = labels[ys, xs]
+        middle = np.bincount(ids, ys, minlength=count) / np.maximum(np.bincount(ids, minlength=count), 1)
+        column = np.zeros(count, dtype=int)
+        column[ids] = xs
+        whole = np.append((middle < top + reach[column]) & (middle >= line[column]), False)[labels]
+        keep = ((rows >= top) & (rows < top + recipe.lip_band)) | (whole & (labels >= 0)) | \
+            (greenish(band) & (rows >= top) & (rows < top + recipe.lip_band + 3))
+    else:
+        keep = (rows < recipe.lip_band) | (greenish(band) & (rows < reach[None, :]))
     band[..., 3] = np.where(keep, 255, 0)
+    if recipe.lip_leaves:
+        _rim(band, True)
     return band
 
 
 def build_face(recipe: Recipe) -> Image.Image:
     rng = np.random.default_rng(recipe.seed)
     atlas = Image.open(ROOT / recipe.atlas)
-    tiles = [trim(cut(atlas, box)) for box in recipe.tiles]
+    tiles = [tile_of(recipe, atlas, box) for box in recipe.tiles]
     tall = min(t.shape[0] for t in tiles)
     wall = lay(tiles, recipe.order, tall)
     # Lower courses are the same stone without its grass fringe, laid in another order so the
     # joins do not line up, and crossfaded into the course above.
-    bodies = [t[recipe.fringe + 2:] for t in tiles]
-    for course in range(1, COURSES):
+    # With deeper variants, every lower course mixes them with the first course's tiles in an
+    # order of its own: the same variant in every course banded the wall at each course line.
+    bodies = [tile_of(recipe, atlas, box) for box in recipe.deeper] + tiles if recipe.deeper else \
+        [t[recipe.fringe + 2:] for t in tiles]
+    for course in range(1, recipe.courses):
         turn = course * 3 % len(recipe.order)
-        below = lay(bodies, recipe.order[turn:] + recipe.order[:turn], tall - recipe.fringe - 2)
+        order = shuffled(len(bodies), len(recipe.order), recipe.seed + course) if recipe.deeper \
+            else recipe.order[turn:] + recipe.order[:turn]
+        below = lay(bodies, order, min(b.shape[0] for b in bodies) if recipe.deeper
+                    else tall - recipe.fringe - 2)
+        if below.shape[1] != wall.shape[1]:
+            below = fit(below, wall.shape[1])
         wall = stack(wall, below)
     width = wall.shape[1]
     # The wall's own thin fringe goes under the slab, which is laid over its top.
-    wall_top = recipe.above + recipe.lip_band - recipe.fringe + 4
+    wall_top = recipe.above + recipe.lip_band - max(recipe.fringe - 4, 4)
     canvas = np.zeros((wall_top + wall.shape[0], width, 4), dtype=np.uint8)
     canvas[wall_top:] = wall
     deep = wall.shape[0]
@@ -335,13 +449,16 @@ def build_face(recipe: Recipe) -> Image.Image:
     fall = 1.0 - recipe.fall * np.clip((rows - wall_top) / max(1, canvas.shape[0] - wall_top), 0, 1)
     canvas[..., :3] = (canvas[..., :3] * fall[..., None]).astype(np.uint8)
     lip = slab(recipe, atlas, width, rng)
-    hang = np.array([np.nonzero(lip[:, x, 3])[0].max() + 1 for x in range(width)]) + recipe.above
+    # A leaf lip carries its own crown in its first `above` rows; a grass one is laid under the air
+    # its blades stand in.
+    offset = 0 if recipe.lip_leaves else recipe.above
+    hang = np.array([np.nonzero(lip[:, x, 3])[0].max() + 1 for x in range(width)]) + offset
     # The lip shades the stone under it, deepest right under the hanging grass.
     for k in range(12):
         under = (rows == hang[None, :] + k) & (canvas[..., 3:4][..., 0] > 0)
         canvas[under, :3] = (canvas[under, :3] * (0.5 + 0.5 * k / 12)).astype(np.uint8)
     on = lip[..., 3] > 0
-    region = canvas[recipe.above:recipe.above + lip.shape[0]]
+    region = canvas[offset:offset + lip.shape[0]]
     region[on] = lip[on]
     # Each broken layer drops a shadow on the one below it: what makes the repeats read as rock
     # stepping back rather than as bands of paint.
@@ -385,6 +502,10 @@ def build_edge(recipe: Recipe) -> Image.Image:
     corner = cut(atlas, recipe.corner)
     side = corner[recipe.spill[0]:recipe.spill[1], :recipe.spill[2]].copy()
     side[..., 3] = np.where(greenish(side), 255, 0)
+    # From the tile's own outermost leaf: a sheet's page margin left of it is not the edge.
+    first = int(np.nonzero(side[..., 3].any(0))[0].min())
+    top = int(np.nonzero(side[:, first:first + 3, 3].any(1))[0].min())
+    side = side[top:, first:]
     # Only the grass joined to the edge column: loose moss in the joints further in stays put.
     labels, _ = label(side[..., 3] > 0, False)
     touching = np.unique(labels[:, :3][labels[:, :3] >= 0])
@@ -402,7 +523,7 @@ def build_edge(recipe: Recipe) -> Image.Image:
 
 def build_plants(recipe: Recipe) -> list[Image.Image]:
     atlas = Image.open(ROOT / recipe.atlas)
-    return [_scaled(keyed(atlas, box)) for box in recipe.plants]
+    return [_scaled(sprite_of(recipe, atlas, box)) for box in recipe.plants]
 
 
 def _scaled(rgba: np.ndarray) -> Image.Image:
@@ -430,6 +551,19 @@ def kit(recipe: Recipe) -> dict:
     }
 
 
+def shuffled(kinds: int, count: int, seed: int) -> list[int]:
+    """A long tile order with no tile beside itself, so a short sheet does not read as a stamp."""
+    rng = np.random.default_rng(seed)
+    order = [0]
+    while len(order) < count:
+        pick = int(rng.integers(0, kinds))
+        if pick != order[-1]:
+            order.append(pick)
+    while order[-1] == order[0]:
+        order[-1] = (order[-1] + 1) % kinds
+    return order
+
+
 RECIPES = [
     # Payyo, all from texturemap.png: section 3's mossy river-stone retaining wall; section 5's
     # grass "bottom" edge as the thick lip; the grass down the side of section 5's rounded
@@ -441,7 +575,7 @@ RECIPES = [
         tiles=[(220, 399, 359, 523), (380, 399, 520, 522), (539, 399, 675, 522)],
         order=[0, 1, 2, 1, 0, 2, 0, 1, 2, 0, 2, 1, 0, 1],
         corner=(1252, 341, 1334, 428),
-        lip_tile=(933, 79, 1018, 147),
+        lip_tiles=[(933, 79, 1018, 147)],
         spill=(14, 62, 20),
         plants=[(739, 716, 779, 754), (792, 719, 836, 754), (740, 673, 779, 698),
                 (934, 674, 971, 701), (854, 727, 883, 754)],
