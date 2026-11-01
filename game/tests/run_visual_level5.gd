@@ -99,23 +99,7 @@ func _run() -> void:
 	lola.receive_flowers()
 	level.call("_set_performance", "lower")
 	await _shot("09_flowers")
-	var frame := FrameReturn.new()
-	frame.has_flowers = true
-	level.add_child(frame)
-	await create_timer(1.1, true).timeout
-	(level.get("dialogue_box") as DialogueBox).visible = false
-	await _shot("10_room")
-	frame.pick_up_brush()
-	await create_timer(.45, true).timeout
-	await _shot("11_pickup")
-	var until := Time.get_ticks_msec() + 3000
-	while not frame.holds_ordinary_brush() and Time.get_ticks_msec() < until:
-		await create_timer(.05, true).timeout
-	if not frame.holds_ordinary_brush():
-		push_error("visual harness: the ordinary brush was never picked up")
-		quit(1)
-		return
-	await _shot("12_brush")
+	# The frame's room is gone: the run ends in the house (HouseEpilogue; run_level5_frame_probe).
 	root.mode = Window.MODE_WINDOWED
 	root.size = Vector2i(1600,1000)
 	await process_frame

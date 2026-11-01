@@ -90,12 +90,12 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
   - Lola paints with her back turned, and the brush refuses twice.
   - She draws the places instead: one drawing, no recognition, no ink, so the climax cannot fail. The saved fragments bloom, and Lola turns.
   - Five flowers means the perfect ending; fewer means the standard one.
-- **The frame returns.** The real room appears, the apo tells Lola the stories she saved, and then she picks up an ordinary brush. Cut to black, then the house.
+- **Home.** Her last page is read at Lola's easel, then: "Lolo. Let's go home." -- and the house, where Lolo is painted into every painting (alive, ageing across them) and Lola is waiting; she takes the apo for him, is told he is "right here, in all your works", and walks to an empty easel at the far end: "Who are you? Will you watch me paint?" The house stays that way for the save (`HouseEpilogue`). It replaced the frame's return, a separate painted room (2026-11-01, `DIARY.md`).
 
 ### Decisions (made by the team; do not reopen)
 | Topic | Decision |
 |---|---|
-| Ending | **The summit is the ending.** Endings A–D are still computed (`EndingResolver`) and logged to telemetry; they are never shown. |
+| Ending | **The summit, then the house, is the ending** (the house replaced the frame's room, 2026-11-01). Endings A–D are still computed (`EndingResolver`) and logged to telemetry; they are never shown. |
 | Combat | **None.** |
 | Lola, the room, Lolo's fading | Dedicated generated performances and room in the delivered art's idiom, with originals, prompts, and replacement contracts listed in `ART_PLACEHOLDERS.md`. Lolo's fading is a shader over his existing sheet. |
 | Drawing the places | **One drawing blooms them.** |
@@ -112,7 +112,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 | Ash | `shaders/drain.gdshader` · `Drainable` · `AshFall2D` · `ScreenTremor` |
 | Fragments | `MemoryFragment2D` (`set_targeted` draws the gold rim on the fragment a drawing would go into) · `tools/build_mayon_fragments.py` |
 | Lolo | `Lolo.set_thinness` / `vanish` · `shaders/lolo_fade.gdshader` |
-| Summit and frame | `Lola2D` · `FrameReturn` · `tools/build_mayon_lola.py` |
+| Summit and the house | `Lola2D` · `HouseEpilogue` (in `hub.gd`) · `tools/build_mayon_lola.py` · `tools/build_house_lolo.py` |
 | Refusal | `DrawPanel.set_refusing` / `quietly_refused` · LevelBase `_brush_refuses_here` / `_brush_refused` |
 | Art | `tools/build_mayon.py` (originals in `LEVEL5_Mayon/`, cuts to `game/assets/Level5/`) · `MayonBackdrop2D` · `MayonTerrain2D` |
 

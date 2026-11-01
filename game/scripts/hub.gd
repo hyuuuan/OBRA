@@ -74,6 +74,8 @@ var _wearing: Wear = Wear.NONE
 ## Where the camera looks instead of at the apo, while the house is showing her something.
 var _look_at := NAN
 var _revealing := false
+## The house after the run: Lolo in the paintings, Lola in the room. See HouseEpilogue.
+var _epilogue: HouseEpilogue
 var _last_hall_x := SPAWN_X
 
 
@@ -165,6 +167,37 @@ func _ready() -> void:
 		_revealing = true
 		_player.set_physics_process(false)
 		_open_in_front_of_her.call_deferred(opened)
+	# AFTER THE RUN THE HOUSE IS NOT THE SAME HOUSE (DIARY.md): Lolo is in every painting and Lola
+	# is in the room. The first time she is here, the scene plays, with the apo held still for it.
+	if HouseEpilogue.after_the_run():
+		_epilogue = HouseEpilogue.new()
+		_epilogue.name = "Epilogue"
+		add_child(_epilogue)
+		_epilogue.build(self, _paintings, float(_room.call("ground_y")), _player.global_position.x, _player)
+		if not HouseEpilogue.has_played() and opened.is_empty():
+			_revealing = true
+			_player.set_physics_process(false)
+			_play_the_epilogue.call_deferred()
+
+
+func _play_the_epilogue() -> void:
+	await _epilogue.play()
+	_revealing = false
+	_player.set_physics_process(true)
+
+
+## Where the camera looks while the house shows her something, and back to her.
+func look_at_x(x: float) -> void:
+	_look_at = x
+
+
+func look_back() -> void:
+	_look_at = NAN
+
+
+## The house after the run, for a probe: null before Mayon is finished.
+func epilogue() -> HouseEpilogue:
+	return _epilogue
 
 
 func _exit_tree() -> void:

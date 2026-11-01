@@ -30,7 +30,7 @@ saved blooms into the white, and lola turns around.
 
 | | |
 |---|---|
-| The ending (Kent, 2026-10-25) | **The summit is the ending.** The frame return ends on the apo picking up an ordinary brush, then cut to black, then the house. Endings A–D are still computed by `EndingResolver` and logged to telemetry for the thesis; they are never shown, and the stats screen leaves play. |
+| The ending (Kent, 2026-10-25; the house, 2026-11-01) | **The summit is the ending, and then home.** The frame's room is gone (`DIARY.md`): "Lolo. Let's go home." -- and the house, where Lolo is painted into every painting (alive, ageing across them) and Lola is waiting; she takes the apo for him, is told he is "right here, in all your works", and walks to an empty easel at the far end: "Who are you? Will you watch me paint?" The house stays that way for the save (`HouseEpilogue`). Endings A–D are still computed by `EndingResolver` and logged to telemetry for the thesis; they are never shown, and the stats screen leaves play. |
 | Confrontation (Kent) | **None at all.** No boss, no combat, no health. The ash is weather; the antagonist is the clock and the ink. |
 | Lola, the room, Lolo fading (Kent) | **Placeholders sculpted in the delivered art's idiom**, like Dilim's creatures, each named in `ART_PLACEHOLDERS.md` so the art team can replace it by name. Lolo's fading is a shader over his existing sheet. |
 | Drawing the places (Kent) | **One drawing blooms them.** After the third refusal the canvas opens once more; whatever she draws, the fragments she saved bloom into the white one by one. No recognition, no ink: the climax cannot fail. |
@@ -71,8 +71,9 @@ ACT THREE  THE SUMMIT — quiet: no ash, no tremor, no sound
            her monologue, voiced by her run's route · lola turns
            five flowers → for a moment lola says her name, and lolo's; then it passes
            fewer → warm to a child she does not know; pleased with the painting; the apo stays
-THE FRAME RETURNS  the real room · the apo tells lola the stories she saved · lolo, last
-           she picks up an ordinary brush → cut to black → the house
+HOME       her last page, at lola's easel · "Lolo. Let's go home." → the house: lolo in every
+           painting, alive · lola takes her for him · "in all your works" · lola walks to an
+           empty easel: "Who are you? Will you watch me paint?" (the frame's room, until 2026-11-01)
 ```
 
 ## Rules this level adds
@@ -149,7 +150,7 @@ or bird (.669).
 | The ash | `drain.gdshader` · `Drainable` · `AshFall2D` · `ScreenTremor` |
 | Act Two | `MemoryFragment2D` (twelve, placed in the environment) · `tools/build_mayon_fragments.py` |
 | Lolo | `Lolo.set_thinness` / `vanish` · `lolo_fade.gdshader` |
-| The summit, the frame | `Lola2D` · `FrameReturn` · `tools/build_mayon_lola.py` |
+| The summit, the house | `Lola2D` · `HouseEpilogue` (in `hub.gd`) · `tools/build_mayon_lola.py` · `tools/build_house_lolo.py` (Kent's `LOLO1-5` sheets into the paintings) |
 | The refusal | `DrawPanel.set_refusing` / `quietly_refused` · LevelBase `_brush_refuses_here` / `_brush_refused` |
 | Art | `tools/build_mayon.py` (plates, tiles, props from `LEVEL5_Mayon/`) |
 | Tests | `run_level5_audit` · `run_level5_act_one_probe` · `run_level5_act_two_probe` · `run_level5_summit_probe` · `run_level5_frame_probe` · `run_level5_enablers_probe` · `run_brush_refusal_probe` · `run_drain_probe` · `run_mayon_probe` · `test_build_mayon(_fragments)` · `run_journey_probe` (Dilim → Mayon → the frame → home) |
@@ -236,8 +237,9 @@ empty/cancelled attempts, quiet/free mouse strokes without model calls, and a mi
 cross the gap, and stairs and a ladder reach the wall. The walking probe caught a genuine fall
 wrap bypass: the rescue threshold now fires before Wanderer wraps from the world's bottom to its
 top. `run_visual_level5` captures the actual scene at 1600x900, including all clusters, quiet
-canvas, summit, restored places, flowers, room, and ordinary brush. It fails if injected mouse
-input never reaches the canvas. `run_level5_frame_probe` also checks the visible brush action.
+canvas, summit, restored places and flowers (the room and the ordinary brush went with the frame's
+return, 2026-11-01). It fails if injected mouse input never reaches the canvas.
+`run_level5_frame_probe` now checks the ending in the house.
 
 The audit frees its scene before exit. Godot 4.7 still reports retained static GDScript resources
 at shutdown in that audit; explicit scene cleanup and `@static_unload` did not remove those
@@ -314,7 +316,7 @@ and a signature drawn at its own place's depth fell under the neighbours that ov
 The rebuilt ground was checked as one continuous journey, from the spawn to the room return.
 `run_level5_finish_walk` walks the actual terrain, places the span/climb answers, saves terraces,
 church, bangka and flower, takes the flower detour, draws the three quiet attempts and the free
-painting through viewport input, and reaches the seated room and ordinary brush. Normal model
+painting through viewport input, and reaches "Lolo. Let's go home." and the house. Normal model
 results are supplied as fixtures; this validates layout and story flow, not CNN accuracy or a
 first-time player's 10–15 minute reading/drawing pace. The route spent all six visible units and
 the quiet/free pages added no recognition statistics.

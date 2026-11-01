@@ -490,7 +490,8 @@ The last level and the run's ending; `LEVEL_5.md` has the design and the as-buil
 `level_5.gd` switches on: every drawing costs ink, a creature drains it, the hidden reserve (the
 two gates only), silent saves, the ink gauge always shown, the camera following her height, the
 brush refusing (at lolo, at lola, and the page that draws the places), and its own ending (no
-completion card; the frame's return, then the house).
+completion card; "Lolo. Let's go home.", then the house, where `HouseEpilogue` plays Lola's
+scene once and keeps Lolo in the paintings and her at her easel for the save).
 
 Traps found building it:
 - **`_camera_follows_height` alone does not free the camera** -- it is read only when a room is

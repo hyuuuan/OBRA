@@ -382,7 +382,7 @@ func _mayon_to_house(manager: Node) -> void:
 				box.call("skip_all")
 		await create_timer(0.1, true, false, true).timeout
 		waited += 0.1
-	await _arrived(manager, "hub.tscn", "the frame's return, after Mayon")
+	await _arrived(manager, "hub.tscn", "the house, after Mayon (\"Lolo. Let's go home.\")")
 	_check(String(manager.get("current_level_id")).is_empty(), "and the run is back in no level",
 		"'%s'" % String(manager.get("current_level_id")))
 

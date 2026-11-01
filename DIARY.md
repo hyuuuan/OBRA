@@ -1,6 +1,6 @@
 # Lola's diary
 
-**Status: PRs 1–5 built (the book, the DIARY tab, a page in every painting, Mayon's lines). PR 6, the ending in the house, is the plan.**
+**Status: built, all six PRs: the book, the DIARY tab, a page in every painting, Mayon's lines, and the ending in the house.**
 
 Every painting hides a page of Lola's diary, each a little further into her forgetting, so that by
 Mayon the player already knows why the painting is coming apart. The pages are kept in the bag
@@ -54,7 +54,7 @@ the day, of the way home, of the name.
 | 3 | `dagat-diary` | Dagat: the bakunawa gives the page on the light route, in place of the torn canvas corner; fought, it carries the page off in its coils. **Built.** |
 | 4 | `dilim-bestiary` | Dilim's bestiary: found a few steps in, opens at each creature's page the first time she reaches it; no line says "Lola said…" any more. **Built.** |
 | 5 | `mayon-lines` | Mayon: the apo's lines on why it is going white, "Wait — I can fix this", Lolo's last line by route, the last page at her easel. **Built.** |
-| 6 | | The ending in the house: Lolo in every painting, Lola and the empty easel. |
+| 6 | `house-ending` | The ending in the house: "Lolo. Let's go home.", Lolo alive in every painting (Kent's `LOLO1-5` sheets), Lola's scene and the empty easel; the frame's room removed. **Built.** |
 
 ## Where it lives
 
@@ -68,8 +68,9 @@ the day, of the way home, of the name.
 | A page, found | `LevelBase.find_diary_page(id)` → `DiaryOverlay` (layer 68, ahead of the memory card in the Escape queue) |
 | A page a beat opens at | LevelBase `_diary_page_on_arrival(obstacle_id)` (off by default; Dilim's `BESTIARY_PAGES`) → `read_diary_at(entry, anchor, note)` before the beat's arrival lines. Read, not found: a page this save does not hold is not shown |
 | A page lying in a level | `DiaryPage2D` (placed by the level, e.g. `level_2.gd` `DIARY_PAGES`); LevelBase lays them out (`_lay_out_diary_pages`: a page already found is not there) and finds one she stands over (`_tend_diary_pages`, from her body's anchor) |
+| The house after the run | `HouseEpilogue` (built by `hub.gd` once `level_5` is completed; the scene plays once, remembered as `dialogue_heard["house_epilogue"]`) · lines `APO.home`, `HOUSE.home`, `HOUSE.easel` in `dialogue_l5.json` · `tools/build_house_lolo.py` |
 | The art | `tools/build_diary_book.py` → `game/assets/hud/diary_book.png` (8 frames of 134 × 112; frame 7 is the book at rest) and `diary_page.png` (the loose page, a placeholder) |
-| Tests | `run_diary_probe` · `run_walk_level1` (`_her_chest_opens`) · `run_play_level2` (Piyesta's three, found on the way) · `run_bakunawa_probe` (Dagat's, given on the light route and carried off by the fight) · `run_level5_act_one_probe` (why it goes white) · `run_level5_act_two_probe` ("I can fix this", Lolo's last line by route) · `run_level5_summit_probe` (her last page at the easel) · `tests.test_build_diary_book` |
+| Tests | `run_diary_probe` · `run_walk_level1` (`_her_chest_opens`) · `run_play_level2` (Piyesta's three, found on the way) · `run_bakunawa_probe` (Dagat's, given on the light route and carried off by the fight) · `run_level5_act_one_probe` (why it goes white) · `run_level5_act_two_probe` ("I can fix this", Lolo's last line by route) · `run_level5_summit_probe` (her last page at the easel) · `run_level5_frame_probe` (the ending in the house) · `tests.test_build_diary_book` · `tests.test_build_house_lolo` |
 
 ## Rules
 

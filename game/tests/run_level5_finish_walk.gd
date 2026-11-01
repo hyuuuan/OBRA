@@ -1,5 +1,5 @@
 extends "res://tests/run_walk_level5.gd"
-## Continuous movement from spawn to the frame return. Recognized normal drawings are fixtures;
+## Continuous movement from spawn to the house it ends in. Recognized normal drawings are fixtures;
 ## movement, dialogue, quiet/free strokes and the ending use the real input/state paths.
 var read_left := 1.0
 var quiet_attempts := 0
@@ -102,26 +102,22 @@ func _run() -> void:
 		return
 	await create_timer(1.8,true).timeout
 	await _photo("06_restoration")
-	var frame_seen := false
-	var pickup_seen := false
+	# The house is the ending now (DIARY.md): the bouquet, her last page, "Lolo. Let's go home.",
+	# and home -- no seated room and no ordinary brush between.
 	var bouquet_seen := false
+	var went := false
 	until = Time.get_ticks_msec()+90000
 	while is_instance_valid(level) and Time.get_ticks_msec()<until:
 		var lola = level.call("_lola")
 		if is_instance_valid(lola) and lola.has_flowers() and not bouquet_seen:
 			bouquet_seen = true
 			await _photo("07_bouquet")
-		var frame := level.get_node_or_null("FrameReturn") as FrameReturn
-		if frame != null and not frame_seen:
-			frame_seen = true
-			await create_timer(1.1,true).timeout
-			await _photo("08_room")
-		if frame != null and frame.holds_ordinary_brush() and not pickup_seen:
-			pickup_seen = true
-			await _photo("09_brush")
-		if bool(level.call("went_home")): break
+		if bool(level.call("went_home")):
+			went = true
+			break
 		await create_timer(.05,true).timeout
-	_check(bouquet_seen and frame_seen and pickup_seen,"bouquet, seated room and ordinary brush all appear on the continuous route",str([bouquet_seen,frame_seen,pickup_seen]))
+	var home_said := went and bool((level.get("script_lines") as Object).call("has_heard", "APO.home"))
+	_check(bouquet_seen and home_said and went,"the bouquet, then \"Lolo. Let's go home.\", then home, on the continuous route",str([bouquet_seen,home_said,went]))
 	_check(int(profile.call("class_diversity")) == statistics,"quiet attempts and free painting do not add recognition statistics",str(quiet_attempts))
 	reader.queue_free()
 	for action in ["move_right","move_up","jump"]: Input.action_release(action)
